@@ -51,22 +51,25 @@ const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegends-sim.sha256.json', 'rookie-replay.fixture.json', 'champion-replay.fixture.json'];
 
 /**
- * Older sims the backend still verifies, copied out of git (GAPS B0). `commit` holds the version's files at `from`
- * (the flat pre-v10 layout); `bundle` pins the sha256 of its bundle, so a wrong commit can never be vendored.
+ * Older sims the backend still verifies, copied out of git (GAPS B0). `commit` holds the version's files at `from`;
+ * `bundle` pins the sha256 of its bundle, so a wrong commit can never be vendored; `extra` names files beyond
+ * VERSION_FILES that version also shipped (v10's forfeit fixture). Sim v11 froze v10 and retired v9 (its replays are
+ * refused with PAWLEGENDS_SIM_VERSION; stored v9 rows and their digests stay as they are).
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
-    simVersion: 9,
-    commit: 'eb4ebf7a09f9280f12b6084b2dae2f62de281745',
-    from: 'backend/src/vendor/pawlegends-sim',
-    bundle: '8738321d56637df66f36b5003ee603d6d7e091f2e89e1b8508010b60df0c4497',
+    simVersion: 10,
+    commit: '18cbcf3163fbc58f1759c5d49fa30c958f3993b5',
+    from: 'backend/src/vendor/pawlegends-sim/v10',
+    bundle: 'edd2b47e63dfa4786efda9da80efde9b8c200c4351d9f78584f694527f5c749a',
+    extra: Object.freeze(['forfeit-replay.fixture.json']),
   }),
 ]);
 
 /** One frozen version's files, byte for byte from git. Throws when git is missing or the bundle sha differs. */
 export function frozenFiles(entry) {
   const files = {};
-  for (const name of VERSION_FILES) {
+  for (const name of [...VERSION_FILES, ...(entry.extra ?? [])]) {
     files[name] = execFileSync('git', ['show', `${entry.commit}:${entry.from}/${name}`], { cwd: repo, encoding: 'utf8', maxBuffer: 64 << 20 });
   }
   const got = sha256(files['pawlegends-sim.bundle.ts']);
@@ -167,7 +170,19 @@ import * as bundle from './pawlegends-sim.bundle';
 
 const sim: any = bundle;
 
-export type PawlegendsHeroId = 'clem' | 'sage' | 'brutus' | 'cacklejaw' | 'lambo' | 'aviete' | 'bengas' | 'gabe';
+export type PawlegendsHeroId =
+    | 'clem'
+    | 'sage'
+    | 'brutus'
+    | 'cacklejaw'
+    | 'lambo'
+    | 'aviete'
+    | 'bengas'
+    | 'gabe'
+    | 'meatball'
+    | 'pixel'
+    | 'duchess'
+    | 'stilts';
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
@@ -185,7 +200,7 @@ export interface PawlegendsReplay {
     inputs: string;
     outcome: PawlegendsOutcome;
     finalHash: string;
-    /** Sim v10: 'none' (v10 records carry it; v9 records have no field). */
+    /** Sim v10 and later: 'none' (every record from v10 carries it). */
     mutator?: PawlegendsMutator;
 }
 
@@ -201,7 +216,7 @@ export interface PawlegendsSlotStats {
     heroDamage: number;
     towerDamage: number;
     level: number;
-    /** Sim v10 (absent from v9 results): damage soaked, heal and shield given, damage to camps and Pudding. */
+    /** Sim v10 and later: damage soaked, heal and shield given, damage to camps and Pudding. */
     damageTaken?: number;
     healShield?: number;
     objective?: number;
@@ -216,7 +231,7 @@ export type PawlegendsVerifyCode =
     | 'PAWLEGENDS_NOT_ENDED';
 
 export type PawlegendsVerifyResult =
-    /** Sim v10 (GAPS B2): how the match ended (absent from v9 results); 'forfeit' = the player forfeited. */
+    /** Sim v10 and later (GAPS B2): how the match ended; 'forfeit' = the player forfeited. */
     | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit' }
     | { ok: false; code: PawlegendsVerifyCode; message: string };
 
@@ -303,7 +318,7 @@ export async function buildFiles() {
     'pawlegends-sim.sha256.json': info,
     'rookie-replay.fixture.json': fixture,
     'champion-replay.fixture.json': champion,
-    // Sim v10 (GAPS B2): live only (the frozen v9 has no forfeit), so not in VERSION_FILES
+    // Sim v10 (GAPS B2): not in VERSION_FILES (the old flat v9 had none); a frozen version lists it in `extra`
     'forfeit-replay.fixture.json': forfeit,
   };
   const files = {};

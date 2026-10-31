@@ -121,6 +121,16 @@ describe('C2: client reads', () => {
     expect(abilityNumbers('sage', 3, 10, [-1, -1, 0])).toBe('50 s cooldown · 580 dmg · 40 m · rank 3/3');
   });
 
+  it('sim v11 cats: push, charm and splash numbers read on the pick screen and the talent cards', () => {
+    expect(abilityNumbers('meatball', 0)).toBe('9 s cooldown · 55 (+5/lvl, +15 a rank) dmg · 6 m · push 1.5 m');
+    expect(abilityNumbers('meatball', 1)).toBe('14 s cooldown · 3 m · charm 0.8 s');
+    expect(abilityNumbers('pixel', 3)).toBe('65 s cooldown · 1.6 m · lasts 7 s');
+    expect(talentNumbers('meatball', 2, 1, 6)).toBe('Unstoppable Chonk push 2.5 m → 3.5 m');
+    expect(talentNumbers('pixel', 2, 1, 6)).toBe('BOXBOT MK II splash 1.6 m → 2.2 m');
+    expect(talentNumbers('duchess', 0, 1, 6)).toBe('Not Amused arc 80° → 105°');
+    expect(talentNumbers('stilts', 2, 1, 6)).toBe('Zoomies leap 5 m → 6.5 m');
+  });
+
   it('max cooldowns follow the ranks and the picked talents', () => {
     expect(maxCooldown('sage', 1, 'pounce')).toBe(420);
     expect(maxCooldown('sage', 1, 'pounce', false, 8)).toBe(375);

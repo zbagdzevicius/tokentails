@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "bundle": "20f42b2a4ea8fb4f1d22cfd5e62e981a98f6081200583b7fa63ea8b4c6238478",
   "facade": "520bd5a11f4c8feebc6ec3d5b0988f680cd6bf5c28373454c2bda3d929bf8d09",
   "simVersion": 11,
@@ -6,4 +7,11 @@
   "modules": 112,
   "simSourceHash": "b8524415ce3051dc",
   "simGolden": "23957c1c"
+=======
+  "bundle": "64cc38f94aa66e1906c5c32b177730d29ada491c3be5c77e5f739acd7e38050a",
+  "facade": "679eb8933f1d67c45e60935829ea91d515f4f67b94f4d0fab72df7269f6a537d",
+  "simVersion": 11,
+  "vite": "8.3.4",
+  "modules": 106
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 }

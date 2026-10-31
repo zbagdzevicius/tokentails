@@ -50,9 +50,9 @@ describe('GAPS A2: grade.ts', () => {
     expect(GRADE_WEIGHTS.support).toEqual({ kp: 0.35, heroDmg: 0.05, towerDmg: 0.1, alive: 0.25, taken: 0, healShield: 0.25 });
     for (const w of Object.values(GRADE_WEIGHTS)) expect(w.kp + w.heroDmg + w.towerDmg + w.alive + w.taken + w.healShield).toBeCloseTo(1, 9);
     expect([...FRONTLINE_ROLES].sort()).toEqual(['support', 'tank']);
-    for (const h of ['brutus', 'lambo'] as HeroId[]) expect(weightsFor(roleOf(h))).toBe(GRADE_WEIGHTS.tank);
+    for (const h of ['brutus', 'lambo', 'meatball'] as HeroId[]) expect(weightsFor(roleOf(h))).toBe(GRADE_WEIGHTS.tank);
     expect(weightsFor(roleOf('gabe'))).toBe(GRADE_WEIGHTS.support);
-    for (const h of ['clem', 'sage', 'cacklejaw', 'aviete', 'bengas'] as HeroId[]) expect(weightsFor(roleOf(h))).toBe(GRADE_WEIGHTS.carry);
+    for (const h of ['clem', 'sage', 'cacklejaw', 'aviete', 'bengas', 'pixel', 'duchess', 'stilts'] as HeroId[]) expect(weightsFor(roleOf(h))).toBe(GRADE_WEIGHTS.carry);
   });
 
   it('every hero has a role with ordered thresholds S > A > B inside 0..1', () => {

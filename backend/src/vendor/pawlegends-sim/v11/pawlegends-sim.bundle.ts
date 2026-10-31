@@ -21,7 +21,11 @@ var DIFFICULTY_RULES = Object.freeze({
 		structureHpBp: 1e4,
 		coreHpBp: 1e4,
 		humanRespawnBp: 6e3,
+<<<<<<< HEAD
 		nearAssists: false,
+=======
+		nearAssists: true,
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		towerKnockback: true,
 		carryAllies: 2,
 		enemiesToHuman: true,
@@ -32,7 +36,11 @@ var DIFFICULTY_RULES = Object.freeze({
 		spareHuman: 500,
 		enemyRespawnBp: 17500,
 		enemyComeback: false,
+<<<<<<< HEAD
 		rallyBp: 1300,
+=======
+		rallyBp: 1200,
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		rallyCap: 8,
 		scriptFrom: 450,
 		scriptUntil: 1800,
@@ -452,7 +460,11 @@ var BOT_MODE = Object.freeze({
 	Pudding: 4,
 	Push: 5
 });
+<<<<<<< HEAD
 var PLAYER_PROFILES = Object.freeze([
+=======
+Object.freeze([
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	"idle",
 	"novice",
 	"easy",
@@ -462,8 +474,12 @@ var PLAYER_PROFILES = Object.freeze([
 	"feeder",
 	"pinger"
 ]);
+<<<<<<< HEAD
 /** The `pinger` player-bot (sim v10, GAPS B1 measure). */
 var PINGER = Object.freeze({
+=======
+Object.freeze({
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	/** Defend base when an enemy hero is this close to the own core or an inner tower. */
 	baseRange: 12e3,
 	/** Take Pudding and Group on me only with slot 0 (and, for Pudding, both allies) at or above this HP share. */
@@ -481,14 +497,22 @@ var PINGER = Object.freeze({
 	/** The ping kinds it uses, a bit per PING_KIND (tuning experiments switch kinds off here). */
 	kinds: 156
 });
+<<<<<<< HEAD
 /** The `parked` player-bot (sim v5 carry-leash gate): walks to an off-lane jungle spot at `at` and stands there. */
 var PARKED = Object.freeze({
+=======
+Object.freeze({
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	at: 900,
 	x: 4e4,
 	y: 4e4
 });
+<<<<<<< HEAD
 /** The novice player-bot (§7.2 tuning target): plays one lane, attack-moves, casts on cooldown, walks home low. */
 var NOVICE = Object.freeze({
+=======
+Object.freeze({
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	/** Notices an enemy hero after this many ticks in view (a human's reaction). */
 	reactionTicks: 15,
 	/** Fights enemy heroes this close. */
@@ -541,12 +565,16 @@ var NAIVE = Object.freeze({
 	/** Follows its wave: attack-moves to this far behind the front allied minion (mm). */
 	followBehind: 1500
 });
+<<<<<<< HEAD
 /**
 * The feeder player-bot (sim v7, playtest round 1: a signed-in player lost the guided first match 10 to 15 while
 * diving under towers): the naive bot that never backs off from a tower, walks home only below 8%, chases anything
 * it sees and walks ahead of its wave at the enemy's structures. Gate `feeder`: Rookie still wins ≥ 80%.
 */
 var FEEDER = Object.freeze({
+=======
+Object.freeze({
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	...NAIVE,
 	seekRange: 22e3,
 	chaseRange: 3e4,
@@ -564,10 +592,17 @@ var AVIETE = Object.freeze({
 	name: "Avietė",
 	side: "cat",
 	role: "assassin",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). Sim v11 (four new cats): 12100 / takes 8400 (balance gate 50.6%). */
 	pvp: {
 		dmgBp: 12100,
 		takenBp: 8400
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). */
+	pvp: {
+		dmgBp: 12700,
+		takenBp: 8600
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "ELECTRIC",
 	base: {
@@ -672,10 +707,17 @@ var BENGAS = Object.freeze({
 	name: "Bengas",
 	side: "cat",
 	role: "mage",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). */
 	pvp: {
 		dmgBp: 11200,
 		takenBp: 8700
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). */
+	pvp: {
+		dmgBp: 11200,
+		takenBp: 9100
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "FIRE",
 	base: {
@@ -786,10 +828,17 @@ var BRUTUS = Object.freeze({
 	name: "Sir Brutus",
 	side: "dog",
 	role: "tank",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). */
 	pvp: {
 		dmgBp: 11100,
 		takenBp: 9350
+=======
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 11100,
+		takenBp: 9250
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "SAND",
 	base: {
@@ -898,10 +947,17 @@ var CACKLEJAW = Object.freeze({
 	name: "Cacklejaw",
 	side: "dog",
 	role: "assassin",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). */
 	pvp: {
 		dmgBp: 11100,
 		takenBp: 9350
+=======
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 11100,
+		takenBp: 9250
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "DARK",
 	base: {
@@ -1013,10 +1069,17 @@ var CLEM = Object.freeze({
 	name: "Clem",
 	side: "cat",
 	role: "fighter",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). Sim v11: 8200 / takes 10100 (57.1% of the gate with the four new cats; now 47.9%). */
 	pvp: {
 		dmgBp: 8200,
 		takenBp: 10100
+=======
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). */
+	pvp: {
+		dmgBp: 8800,
+		takenBp: 10200
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "FAIRY",
 	base: {
@@ -1122,10 +1185,17 @@ var DUCHESS = Object.freeze({
 	name: "Duchess",
 	side: "cat",
 	role: "mage",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). */
 	pvp: {
 		dmgBp: 11400,
 		takenBp: 8700
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 10400,
+		takenBp: 9600
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "DARK",
 	base: {
@@ -1243,10 +1313,17 @@ var GABE = Object.freeze({
 	name: "Gabė",
 	side: "cat",
 	role: "support",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). */
 	pvp: {
 		dmgBp: 9500,
 		takenBp: 9700
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 9800,
+		takenBp: 1e4
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "WIND",
 	base: {
@@ -1354,10 +1431,17 @@ var LAMBO = Object.freeze({
 	name: "Lambo",
 	side: "cat",
 	role: "tank",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). */
 	pvp: {
 		dmgBp: 10500,
 		takenBp: 8800
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 10500,
+		takenBp: 9100
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "STELLAR",
 	base: {
@@ -1463,10 +1547,17 @@ var MEATBALL = Object.freeze({
 	name: "Meatball",
 	side: "cat",
 	role: "tank",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). */
 	pvp: {
 		dmgBp: 9100,
 		takenBp: 9600
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Starting point; tune on the 2,000-seed gate. */
+	pvp: {
+		dmgBp: 1e4,
+		takenBp: 9400
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "GRASS",
 	base: {
@@ -1581,9 +1672,15 @@ var PIXEL = Object.freeze({
 	name: "Pixel",
 	side: "cat",
 	role: "marksman",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9400 / 9600 (10600 / 9600 before: 55.4% of the 2,000-seed gate; now 49.8%). */
 	pvp: {
 		dmgBp: 9400,
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 10600,
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		takenBp: 9600
 	},
 	element: "ICE",
@@ -1702,12 +1799,20 @@ var SAGE = Object.freeze({
 	/**
 	* Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10: 10700
 	* (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%). Wave C:
+<<<<<<< HEAD
 	* 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks). Sim v11 (four new cats): 10800 /
 	* takes 9500 (51.2%).
 	*/
 	pvp: {
 		dmgBp: 10800,
 		takenBp: 9500
+=======
+	* 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks).
+	*/
+	pvp: {
+		dmgBp: 10900,
+		takenBp: 9800
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	},
 	element: "WIND",
 	base: {
@@ -1833,9 +1938,15 @@ var STILTS = Object.freeze({
 	name: "Stilts",
 	side: "cat",
 	role: "assassin",
+<<<<<<< HEAD
 	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 10300 / 9000 (11800 / 9000 before: 57.1% of the 2,000-seed gate; now 49.9%). */
 	pvp: {
 		dmgBp: 10300,
+=======
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
+	pvp: {
+		dmgBp: 11800,
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		takenBp: 9e3
 	},
 	element: "SAND",
@@ -2280,7 +2391,10 @@ var Op = Object.freeze({
 	*/
 	Forfeit: 10
 });
+<<<<<<< HEAD
 var NO_TARGET = 255;
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 Object.freeze({
 	Stealth: 1,
 	Untargetable: 2,
@@ -2847,6 +2961,7 @@ function readCommand(bytes, at) {
 		next: at + size
 	};
 }
+<<<<<<< HEAD
 /** Decode a single protocol `cmd` payload. */
 function decodeCommand(bytes) {
 	const r = readCommand(bytes, 0);
@@ -2866,6 +2981,8 @@ function encodeStream(list) {
 	}
 	return w.bytes();
 }
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 /** Decode a command stream. Throws DecodeError on any malformed byte. */
 function decodeStream(bytes, maxTick = Number.MAX_SAFE_INTEGER) {
 	const out = [];
@@ -3659,8 +3776,12 @@ function createWorld(seed) {
 		pkX: new Int32Array(CAPS.pickups),
 		pkY: new Int32Array(CAPS.pickups),
 		globals: new Int32Array(G.Count),
+<<<<<<< HEAD
 		rng: new Rng(seed),
 		humans: 1
+=======
+		rng: new Rng(seed)
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	};
 	w.globals[G.Winner] = -1;
 	w.globals[G.InputHash] = FNV_OFFSET | 0;
@@ -3948,6 +4069,7 @@ var SNACK_BEHIND = 4e3;
 /** The match's difficulty rules (data/bots.ts DIFFICULTY_RULES), for sim modules. */
 var rulesOf = (m) => DIFFICULTY_RULES[m.config.difficulty];
 //#endregion
+<<<<<<< HEAD
 //#region src/sim/humans.ts
 /**
 * Party play (docs/plans/moba/MULTIPLAYER.md §1): which hero slots belong to a human. Slot 0 always does; slots 1 and
@@ -3968,6 +4090,8 @@ function humanMask(humans) {
 	return mask;
 }
 //#endregion
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 //#region src/sim/effects/bonus.ts
 /**
 * Sim v4 hero bonuses: Zoomies, Frenzy Catnip, the rat camp's Pack buff and Nine Lives (data/xp.ts ZOOMIES and
@@ -3995,7 +4119,11 @@ function stepBonuses(w) {
 /** Move-speed bonus (bp) from Zoomies, Frenzy Catnip and (the human, Rookie) Scaredy cat. */
 function bonusSpeedBp(w, id) {
 	if (id >= RANGE.minions || w.kind[id] !== Kind.Hero) return 0;
+<<<<<<< HEAD
 	const panic = isHumanSlot(w, id) && w.globals[G.HumanPanic] > 0 && w.hp[id] * 1e4 < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
+=======
+	const panic = id === 0 && w.globals[G.HumanPanic] > 0 && w.hp[id] * 1e4 < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic;
 }
 /** Outgoing damage of hero `id` with Frenzy Catnip and the Pack buff. */
@@ -4463,7 +4591,11 @@ function offerTalent(m, id, tier) {
 		slot: id,
 		tier
 	});
+<<<<<<< HEAD
 	if (!isHumanSlot(m.world, id)) chooseTalent(m, id, tier, botTalentChoice(m.config.seed, id, tier, botTalentMode(m)));
+=======
+	if (id !== 0) chooseTalent(m, id, tier, botTalentChoice(m.config.seed, id, tier, botTalentMode(m)));
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 }
 //#endregion
 //#region src/sim/progression/levels.ts
@@ -7561,7 +7693,11 @@ function aimHunt(m, id) {
 *
 * - Hero kill: 80 + 15 × victim level, +50% when the victim is more than one level above its killer, plus the
 *   victim's bounty (a takedown streak of 3+: +40 × streak, max +160). Shared equally among the enemy heroes within
+<<<<<<< HEAD
 *   10 m and those who hit the victim in the last 10 s (assists). On Easy (DIFFICULTY_RULES.nearAssists; Rookie before v11)
+=======
+*   10 m and those who hit the victim in the last 10 s (assists). On Rookie and Easy (DIFFICULTY_RULES.nearAssists)
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 *   every ally within 10 m counts as an assist too. The killer is the last hero to hit it (a tower or minion last
 *   hit credits the most recent hero who hit it in the window).
 * - Takedown heal: every credited hero alive gets TAKEDOWN_HEAL.healBp of its max HP back (a `buff` 'takedown').
@@ -7570,12 +7706,21 @@ function aimHunt(m, id) {
 * - Minion: melee 30, ranged 25, siege 60, shared among enemy heroes within 10 m. Every grant gets the per-hero
 *   catch-up (progression/levels.ts).
 */
+<<<<<<< HEAD
 var HEROES_N$2 = RANGE.minions - RANGE.heroes;
 var share = new Int32Array(HEROES_N$2);
 var helpedBy = new Uint8Array(HEROES_N$2);
 /** Did hero `h` hit `victim` within the assist window? */
 function assisted(w, victim, h) {
 	const t = w.assistTick[victim * HEROES_N$2 + h];
+=======
+var HEROES_N$1 = RANGE.minions - RANGE.heroes;
+var share = new Int32Array(HEROES_N$1);
+var helpedBy = new Uint8Array(HEROES_N$1);
+/** Did hero `h` hit `victim` within the assist window? */
+function assisted(w, victim, h) {
+	const t = w.assistTick[victim * HEROES_N$1 + h];
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	return t !== -1048576 && w.globals[G.Tick] - t <= XP.assistWindow;
 }
 /** Bounty XP on a hero with takedown streak `streak` (0 below XP.bountyStreak). */
@@ -7591,7 +7736,11 @@ function heroKilled(m, victim) {
 		let best = NEVER;
 		for (let h = RANGE.heroes; h < RANGE.minions; h++) {
 			if (w.team[h] !== enemy || !assisted(w, victim, h)) continue;
+<<<<<<< HEAD
 			const t = w.assistTick[victim * HEROES_N$2 + h];
+=======
+			const t = w.assistTick[victim * HEROES_N$1 + h];
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 			if (t > best) {
 				best = t;
 				killer = h;
@@ -7662,7 +7811,11 @@ function heroKilled(m, victim) {
 		}
 		kitOf(w, h).onTakedown?.(m, h, victim);
 	}
+<<<<<<< HEAD
 	for (let h = 0; h < HEROES_N$2; h++) w.assistTick[victim * HEROES_N$2 + h] = NEVER;
+=======
+	for (let h = 0; h < HEROES_N$1; h++) w.assistTick[victim * HEROES_N$1 + h] = NEVER;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 }
 /** Lane minion `id` died: its XP goes to the enemy heroes within 10 m. */
 function minionKilled(m, id) {
@@ -8185,9 +8338,15 @@ function dealDamage(m, src, srcTeam, srcKind, dst, raw, kind, opts = {}) {
 				raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
 			}
 		}
+<<<<<<< HEAD
 		if (isHumanSlot(w, src)) raw = applyBp(raw, rulesOf(m).humanDamageBp);
 	}
 	if (isHumanSlot(w, dst) && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
+=======
+		if (src === 0) raw = applyBp(raw, rulesOf(m).humanDamageBp);
+	}
+	if (dst === 0 && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	let dmg = opts.pure ? raw : idiv(raw * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[dst]);
 	if (structure && !opts.pure) {
 		if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
@@ -8318,7 +8477,11 @@ function resolveDeaths(m) {
 			w.order[id] = Order.None;
 			w.pathLen[id] = 0;
 			w.timer[id] = respawnTicks(w.level[id], tick, w.globals[G.Sunset]);
+<<<<<<< HEAD
 			if (isHumanSlot(w, id)) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
+=======
+			if (id === 0) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 			else if (w.team[id] !== teamOfSlot(0)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
 			m.stats[id].deaths++;
 			const enemy = 1 - w.team[id];
@@ -8342,7 +8505,11 @@ function resolveDeaths(m) {
 					const t = weakestTower(w, victimTeam);
 					if (t >= 0) dealDamage(m, -1, enemy, Kind.None, t, applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp), "chip", { pure: true });
 				}
+<<<<<<< HEAD
 			} else if (!isHumanSlot(w, id) || rulesOf(m).humanDeathCore) {
+=======
+			} else if (id !== 0 || rulesOf(m).humanDeathCore) {
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 				const core = RANGE.cores + victimTeam;
 				const bp = tick >= w.globals[G.SuddenDeath] ? SUDDEN_DEATH.takedownCoreBp : coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
 				dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], bp), "zone", {
@@ -9976,7 +10143,11 @@ function fight$2(w, id, foe, p, rng) {
 	const hx = w.x[id];
 	const hy = w.y[id];
 	if (canCast(w, id, 3)) {
+<<<<<<< HEAD
 		const brawl = allyNear$1(w, id, foe) && foesNear(w, id, hx, hy, BOT_AI.meatballChonkRange) >= 2;
+=======
+		const brawl = allyNear(w, id, foe) && foesNear(w, id, hx, hy, BOT_AI.meatballChonkRange) >= 2;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		const chase = hpBp(w, foe) <= BOT_AI.meatballChaseHpBp && d <= BOT_AI.meatballChaseRange;
 		if (brawl || chase) return cast(3, hx, hy, 255);
 	}
@@ -10128,7 +10299,11 @@ function fight(w, id, foe, p, rng) {
 	const melee = attackRange(w, id) + RANGE_PAD;
 	if (canCast(w, id, 1) && (hiddenFoeNear(w, id, a.w.radius) || commit && d <= melee + a.q.dash)) return cast(1, w.x[id], w.y[id], 255);
 	if (canCast(w, id, 3) && hpBp(w, foe) <= BOT_AI.stiltsZoomiesHpBp && d <= BOT_AI.stiltsZoomiesRange) {
+<<<<<<< HEAD
 		if (foesNear(w, id, w.x[id], w.y[id], BOT_AI.awareRange) === 1 && nearestAlly(w, id, BOT_AI.awareRange) < 0 || allyNear$1(w, id, foe)) return cast(3, w.x[id], w.y[id], 255);
+=======
+		if (foesNear(w, id, w.x[id], w.y[id], BOT_AI.awareRange) === 1 && nearestAlly(w, id, BOT_AI.awareRange) < 0 || allyNear(w, id, foe)) return cast(3, w.x[id], w.y[id], 255);
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	}
 	if (canCast(w, id, 0) && d <= a.q.dash && (commit || !strideFull(w, id) && d > melee)) return cast(0, fx, fy, 255);
 	if (canCast(w, id, 2) && d <= a.e.range + RANGE_PAD) {
@@ -10216,7 +10391,11 @@ function awayFrom(w, id, fx, fy, dist) {
 	pt[1] = w.y[id] + idiv(isin(a) * dist, TRIG_ONE);
 }
 /** Is an allied hero of `id` (not itself) within BOT_AI.spellAllyRange of enemy `e` (it can follow up a charm)? */
+<<<<<<< HEAD
 function allyNear$1(w, id, e) {
+=======
+function allyNear(w, id, e) {
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
 		if (a === id || w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== w.team[id]) continue;
 		if (dist2(w.x[e], w.y[e], w.x[a], w.y[a]) <= BOT_AI.spellAllyRange * BOT_AI.spellAllyRange) return true;
@@ -10232,7 +10411,11 @@ function spellWorth(w, id, fx, fy, range, arc) {
 	const hy = w.y[id];
 	const dir = iatan2(fy - hy, fx - hx);
 	const n = collect(w, w.team[id], hits, (e, r) => inCone(hx, hy, dir, range, arc, w.x[e], w.y[e], r), true);
+<<<<<<< HEAD
 	return n >= 2 || n === 1 && allyNear$1(w, id, hits[0]);
+=======
+	return n >= 2 || n === 1 && allyNear(w, id, hits[0]);
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 }
 /** Avietė's Live Wire / Short Circuit return is open. */
 var returnOpen = (w, id) => w.kStage[id] > 0 && w.kWindow[id] > 0;
@@ -10519,7 +10702,11 @@ function applyPing(m, cmd) {
 	const barks = [];
 	let took = 0;
 	if (kind !== PING_KIND.Focus || target >= 0) for (let id = RANGE.heroes; id < 3; id++) {
+<<<<<<< HEAD
 		if (isHumanSlot(w, id) || w.team[id] !== team || w.alive[id] === 0) continue;
+=======
+		if (id === 0 || w.team[id] !== team || w.alive[id] === 0) continue;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		let what = "ok";
 		if (kind !== PING_KIND.FallBack && (hpBp(w, id) < PING.refuseHpBp || w.napT[id] > 0)) what = "heal";
 		else {
@@ -10551,7 +10738,11 @@ function applyPing(m, cmd) {
 }
 /** The order allied bot `id` follows now (PING_KIND), or −1. Clears an expired or pointless order. */
 function orderOf(w, id) {
+<<<<<<< HEAD
 	if (isHumanSlot(w, id) || w.botOrd[id] === 0) return -1;
+=======
+	if (id === 0 || w.botOrd[id] === 0) return -1;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	const kind = w.botOrd[id] - 1;
 	const t = w.botOrdId[id];
 	if (w.globals[G.Tick] > w.botOrdT[id] || kind === PING_KIND.Focus && (t < 0 || w.alive[t] === 0) || kind === PING_KIND.Group && w.alive[0] === 0) {
@@ -10625,7 +10816,11 @@ function laneRole(w, id) {
 * human holds through a bad fight (not through untanked tower fire). Take Pudding ends once Pudding is no longer wild.
 * Lane roles follow the lane swap (`laneRole`).
 */
+<<<<<<< HEAD
 var HEROES_N$1 = RANGE.minions - RANGE.heroes;
+=======
+var HEROES_N = RANGE.minions - RANGE.heroes;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 var ROAM = 2;
 /** Lane role by team slot: 0 Sunny, 1 Puddle, 2 roams (rat camp, then the lane that needs help). */
 var roleOf = (id) => id % 3;
@@ -10658,13 +10853,21 @@ function attack(w, id, mem, t) {
 function updateAwareness(w, id, mem, tick, slip) {
 	const r2 = BOT_AI.awareRange * BOT_AI.awareRange;
 	for (let e = RANGE.heroes; e < RANGE.minions; e++) {
+<<<<<<< HEAD
 		const k = id * HEROES_N$1 + e;
+=======
+		const k = id * HEROES_N + e;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		if (!(seenEnemy(w, w.team[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= r2)) mem.seen[k] = -1;
 		else if (mem.seen[k] < 0 && !slip) mem.seen[k] = tick;
 	}
 }
 var aware = (mem, id, e, tick, p) => {
+<<<<<<< HEAD
 	const t = mem.seen[id * HEROES_N$1 + e];
+=======
+	const t = mem.seen[id * HEROES_N + e];
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	return t >= 0 && tick - t >= p.reactionTicks;
 };
 /** Power of `team`'s side around (x, y): allied heroes (all), or enemy heroes (visible only) when `enemy`. */
@@ -10703,7 +10906,11 @@ function leaveToHuman(w, e) {
 	const h = 0;
 	if (w.alive[h] === 0 || hpBp(w, e) >= BOT_AI.stealHpBp) return false;
 	if (dist2(w.x[h], w.y[h], w.x[e], w.y[e]) > BOT_AI.stealRange * BOT_AI.stealRange) return false;
+<<<<<<< HEAD
 	const t = w.assistTick[e * HEROES_N$1 + h];
+=======
+	const t = w.assistTick[e * HEROES_N + h];
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	return w.target[h] === e || t !== -1048576 && w.globals[G.Tick] - t <= BOT_AI.stealTicks;
 }
 /** The enemy hero to fight now, or −1. Sets `bad` to an aware enemy that is too strong to fight here. */
@@ -10742,7 +10949,11 @@ var scratch = /* @__PURE__ */ new Int32Array(1);
 /** DifficultyRules.truceUntil of the match being thought about (set before pickFoe; the brain is single-threaded). */
 var truceUntil = 0;
 /** Heroes of `team` alive within BOT_AI.powerRange of hero `id` (itself included); −1: all of `team` alive. */
+<<<<<<< HEAD
 function alliesNear$1(w, team, id) {
+=======
+function alliesNear(w, team, id) {
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	const r2 = BOT_AI.powerRange * BOT_AI.powerRange;
 	let n = 0;
 	for (let h = RANGE.heroes; h < RANGE.minions; h++) {
@@ -10780,7 +10991,11 @@ function pushLane(w, team, id = -1, pressAhead = 0) {
 	const ra = raiders(w, team, 0);
 	const rb = raiders(w, team, 1);
 	const need = pressAhead > 0 && -scoreBehind(w, team) >= pressAhead ? 1 : 0;
+<<<<<<< HEAD
 	if (ra !== rb && Math.max(ra, rb) + need <= alliesNear$1(w, team, id)) return ra > rb ? 0 : 1;
+=======
+	if (ra !== rb && Math.max(ra, rb) + need <= alliesNear(w, team, id)) return ra > rb ? 0 : 1;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	const a = laneTowers(w, 1 - team, 0);
 	const b = laneTowers(w, 1 - team, 1);
 	if (a !== b) return a < b ? 0 : 1;
@@ -11014,7 +11229,11 @@ function overextended(w, id, lane) {
 	const front = laneFront(w, team, lane);
 	const fp = front >= 0 ? progressOf(team, w.x[front]) : progressOf(team, w.x[laneStructure(w, team, lane, true)]);
 	if (progressOf(team, w.x[id]) - fp <= BOT_AI.overextend) return false;
+<<<<<<< HEAD
 	return alliesNear$1(w, team, id) <= 1;
+=======
+	return alliesNear(w, team, id) <= 1;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 }
 /** Mistake kinds (§7.2): ignore a gank, chase too far, miss a last-hit. */
 var SLIP = Object.freeze({
@@ -11163,7 +11382,11 @@ function think(m, id, p, mem, rng, mine = null) {
 	if (low && (hp < applyBp(p.retreatHpBp, BOT_AI.retreatAlwaysBp) || threatened(w, id, mem, p, tick))) return retreat(w, id, mem, p);
 	if (w.napT[id] > 0) return null;
 	let ord = -1;
+<<<<<<< HEAD
 	if (isHumanSlot(w, id)) {
+=======
+	if (id === 0) {
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		if (mine && tick <= mine.until) {
 			ord = mine.kind;
 			orderPt[0] = mine.x;
@@ -11177,13 +11400,21 @@ function think(m, id, p, mem, rng, mine = null) {
 		orderPt[2] = w.botOrdId[id];
 	}
 	if (ord >= 0 && orderDone(w, id, ord)) {
+<<<<<<< HEAD
 		if (mine) mine.until = -1;
+=======
+		if (id === 0 && mine) mine.until = -1;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		else w.botOrd[id] = 0;
 		ord = -1;
 	}
 	if (ord === PING_KIND.FallBack) {
 		if (nearestFoe(w, id, BOT_AI.napSafeRange) >= 0) return retreat(w, id, mem, p);
+<<<<<<< HEAD
 		if (mine) mine.until = -1;
+=======
+		if (id === 0 && mine) mine.until = -1;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		else w.botOrd[id] = 0;
 		ord = -1;
 	}
@@ -11279,12 +11510,15 @@ function think(m, id, p, mem, rng, mine = null) {
 }
 //#endregion
 //#region src/sim/bots/mem.ts
+<<<<<<< HEAD
 /**
 * Bot memory: what a bot remembers between thinks (mode, lane, foe, Pudding decision, awareness for the reaction
 * delay, its last order). In-sim bots (slots 1..5) keep it in the world, so it is hashed and replays reproduce it.
 * An outside player-bot (slot 0 in headless runs) keeps its own copy, outside the world: it only ever reaches the
 * sim through commands, exactly like a human.
 */
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 /** The in-sim bots' memory: views on the world's arrays. */
 function worldMem(w) {
 	return {
@@ -11300,6 +11534,7 @@ function worldMem(w) {
 		slip: w.botSlip
 	};
 }
+<<<<<<< HEAD
 /** A fresh memory for an outside player-bot. */
 function createMem() {
 	const h = CAPS.heroes;
@@ -11769,6 +12004,8 @@ function naiveThink(m, id, mem, rng, P = NAIVE) {
 		y: gy
 	};
 }
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 //#endregion
 //#region src/sim/bots/index.ts
 /**
@@ -11813,12 +12050,17 @@ function stepBots(m) {
 	const tick = w.globals[G.Tick];
 	let mem = null;
 	for (let slot = RANGE.heroes; slot < RANGE.minions; slot++) {
+<<<<<<< HEAD
 		if (isHumanSlot(w, slot) || !thinksNow(tick, slot)) continue;
+=======
+		if (slot === 0 || !thinksNow(tick, slot)) continue;
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 		mem ??= worldMem(w);
 		const cmd = think(m, slot, botParams(m, slot), mem, w.rng);
 		if (cmd) applyOrder(m, slot, quantize(cmd));
 	}
 }
+<<<<<<< HEAD
 /**
 * Party play (MULTIPLAYER.md §1.1, D5): an outside bot for human slot `slot` (0, 1 or 2), the relay's pilot. Its RNG
 * forks from the root seed only: `player-bot:<profile>` for slot 0 (unchanged), `player-bot:<profile>:s<slot>`
@@ -11943,6 +12185,8 @@ function applyPartyInputs(m, tick, bySlot) {
 		applyOrder(m, slot, cmd);
 	}
 }
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 //#endregion
 //#region src/sim/index.ts
 /**
@@ -11991,7 +12235,10 @@ function validate(config) {
 	for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
 	if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
 	if (config.botTalents !== void 0 && !BOT_TALENT_MODES.includes(config.botTalents)) throw new RangeError(`unknown botTalents ${config.botTalents}`);
+<<<<<<< HEAD
 	if (config.humans !== void 0) validateHumans(config.humans);
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 }
 var sideX = (team, x) => team === 0 ? x : mirrorX(x);
 /**
@@ -12082,10 +12329,13 @@ function createMatch(config) {
 		ended: null,
 		stats
 	};
+<<<<<<< HEAD
 	if (config.humans !== void 0 && config.humans.length > 1) {
 		w.humans = humanMask(config.humans);
 		m.party = createPartyState(config);
 	}
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	coverStructures(m);
 	refreshVision(w);
 	refreshFlags(w);
@@ -12094,11 +12344,16 @@ function createMatch(config) {
 /**
 * Advance one tick (§4.3). `commands` are the human's commands for this tick; the latest one wins (see input.ts for
 * the move gate). A no-op after the match ended.
+<<<<<<< HEAD
 *
 * Party play (MULTIPLAYER.md §1.2): `others[s]` are the commands of human slot s >= 1 (ignored for any slot that is not
 * a human's, and when the match has no party). They apply after slot 0's ping, command and forfeit.
 */
 function step(match, commands, others) {
+=======
+*/
+function step(match, commands) {
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	const m = match;
 	if (m.ended) return;
 	const w = m.world;
@@ -12134,7 +12389,10 @@ function step(match, commands, others) {
 		});
 		w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ff)) | 0;
 	}
+<<<<<<< HEAD
 	if (m.party) applyPartyInputs(m, tick, others);
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 	stepBots(m);
 	const wave = waveAt(tick, w.globals[G.SiegeWaves]);
 	if (wave >= 0) {
@@ -12185,10 +12443,13 @@ function step(match, commands, others) {
 	checkWin(m);
 	if ((tick + 1) % TIMELINE.hashEvery === 0) m.trail.push(hashWorld(w));
 }
+<<<<<<< HEAD
 /** uint32 hash of the whole state. */
 function hash(match) {
 	return hashWorld(match.world);
 }
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 function hashTrail(match) {
 	return match.trail;
 }
@@ -12234,6 +12495,7 @@ function runReplay(record) {
 	};
 }
 //#endregion
+<<<<<<< HEAD
 //#region src/sim/party.ts
 /**
 * Party play (docs/plans/moba/MULTIPLAYER.md §1): co-op against bots, 1 to 3 humans on slot 0's team.
@@ -12409,6 +12671,8 @@ function verifyPartyReplay(record) {
 	};
 }
 //#endregion
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 //#region src/sim/server.ts
 /**
 * Server entry of the sim: the only export the backend uses (pattern: catnip-heist/src/sim/server.ts).
@@ -12469,6 +12733,7 @@ function verifyReplay(record) {
 		reason: res.reason
 	};
 }
+<<<<<<< HEAD
 /** Party play: the tick from which a surrender (Op.Forfeit) applies on difficulty `d` (0 = never). */
 function forfeitFromOf(d) {
 	const r = DIFFICULTY_RULES[d];
@@ -12487,3 +12752,7 @@ function heroSideOf(hero) {
 }
 //#endregion
 export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, SIM_VERSION, TRICK_IDS, checkPartyShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, forfeitFromOf, fromBase64, hash, hashTrail, heroSideOf, humanAliveMask, isHuman, partyLog, partyReplayRecord, playerBotCommands, quantize, result, runPartyReplay, step, tickOf, toBase64, verifyPartyReplay, verifyReplay };
+=======
+//#endregion
+export { MAX_INPUT_CHARS, MAX_TICKS, SIM_VERSION, checkReplayShape, verifyReplay };
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))

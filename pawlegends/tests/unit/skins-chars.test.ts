@@ -138,11 +138,8 @@ describe('golden: the existing looks are unchanged', () => {
   it('every hero × team × 6 existing looks × Low/Med matches the colours and positions captured before card skins', () => {
     const golden = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../fixtures/skins/golden-looks.json'), 'utf8')) as Record<string, string>;
     const looks: (Look | null)[] = [null, { coat: null, chroma: 'FIRE' }, { coat: 'coat.breed.SCOUT', chroma: null }, { coat: 'skin.clem.pink_bow', chroma: 'ICE' }, { coat: 'coat.founder.brutus', chroma: null }, { coat: 'coat.brutus.biscuit', chroma: 'DARK' }];
-    // A hero is pinned once its look is final: the sim v11 original cats join the fixture after their own chibis land.
-    const pinned = HEROES.filter((h) => Object.keys(golden).some((k) => k.startsWith(`${h}:`)));
-    expect(pinned).toEqual(expect.arrayContaining(['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe']));
     let n = 0;
-    for (const h of pinned)
+    for (const h of HEROES)
       for (const t of [0, 1] as const)
         for (const l of looks)
           for (const d of [DETAIL.low, DETAIL.med]) {
@@ -161,7 +158,8 @@ describe('golden: the existing looks are unchanged', () => {
             expect(a.toString(16), `${h}:${t}:${l ? `${l.coat}|${l.chroma}` : '-'}:${d}`).toBe(golden[`${h}:${t}:${l ? `${l.coat}|${l.chroma}` : '-'}:${d}`]);
             n++;
           }
-    expect(n).toBe(24 * pinned.length);
+    expect(n).toBe(288);
+    expect(Object.keys(golden)).toHaveLength(288);
   });
 });
 

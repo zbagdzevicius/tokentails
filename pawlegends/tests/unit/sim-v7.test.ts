@@ -19,8 +19,8 @@ import { SIM_VERSION } from '../../src/sim/version';
 import { coreId, putHero, quietMatch } from './sim-helpers';
 
 describe('sim v7 lead pressure', () => {
-  it('is on for Normal and Hard only; SIM_VERSION is 10 (sim v8, v9 and v10 kept it)', () => {
-    expect(SIM_VERSION).toBe(10);
+  it('is on for Normal and Hard only; SIM_VERSION is 11 (sim v8 to v11 kept it)', () => {
+    expect(SIM_VERSION).toBe(11);
     expect(DIFFICULTY_RULES.normal.leadPressure && DIFFICULTY_RULES.hard.leadPressure).toBe(true);
     expect(DIFFICULTY_RULES.easy.leadPressure || DIFFICULTY_RULES.rookie.leadPressure).toBe(false);
   });

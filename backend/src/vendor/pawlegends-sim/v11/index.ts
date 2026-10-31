@@ -75,7 +75,11 @@ export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
+<<<<<<< HEAD
 export const BUNDLE_SHA256 = '20f42b2a4ea8fb4f1d22cfd5e62e981a98f6081200583b7fa63ea8b4c6238478';
+=======
+export const BUNDLE_SHA256 = '64cc38f94aa66e1906c5c32b177730d29ada491c3be5c77e5f739acd7e38050a';
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))
 /** The SIM_VERSION this bundle was built with (11). */
 export const BUNDLE_SIM_VERSION = 11;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
@@ -85,6 +89,7 @@ export const PLACEHOLDER = false;
 export const checkReplayShape: (record: unknown) => PawlegendsVerifyResult | null = sim.checkReplayShape;
 /** Re-simulate a replay (up to ~1.5 s for an 11:00 match: call it from a worker thread). */
 export const verifyReplay: (record: unknown) => PawlegendsVerifyResult = sim.verifyReplay;
+<<<<<<< HEAD
 
 // ---------------------------------------------------------------------------------------------------------------
 // Party play (docs/plans/moba/MULTIPLAYER.md §1, §2.1): the party verifier and the live-match API the relay's referee
@@ -182,3 +187,5 @@ export const party: PawlegendsPartySim = {
     humanAliveMask: sim.humanAliveMask,
     heroSideOf: sim.heroSideOf,
 };
+=======
+>>>>>>> e2f9d4ffa (feat(pawlegends): sim v11 with the four new cats (vendor, fixtures, meta, docs))

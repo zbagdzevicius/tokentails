@@ -192,20 +192,20 @@ describe('PAWLEGENDS /live branch', () => {
             expect(error).toBeInstanceOf(BadRequestException);
             expect(error.getResponse()).toMatchObject({
                 code: ErrorCode.PAWLEGENDS_SIM_VERSION,
-                sim: { simVersion: SIM_VERSION, simVersions: [9, 10] },
+                sim: { simVersion: SIM_VERSION, simVersions: [10, 11] },
             });
             expect(verify).not.toHaveBeenCalled();
             expect(games.rows).toHaveLength(0);
         }
     );
 
-    it('sim v10 dual verifier: accepts v9 and v10 (GAPS B0), names both in GET /pawlegends/sim', async () => {
-        expect(SIM_VERSION).toBe(10);
-        expect(SIM_VERSIONS).toEqual([9, 10]);
-        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 10, simVersions: [9, 10] });
-        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['9', '10']);
-        for (const simVersion of [9, 10]) {
-            const record = genuine({ simVersion, finalHash: simVersion === 9 ? '99990000' : '10100000' });
+    it('sim v11 dual verifier: accepts v10 and v11 (GAPS B0; v9 retired), names both in GET /pawlegends/sim', async () => {
+        expect(SIM_VERSION).toBe(11);
+        expect(SIM_VERSIONS).toEqual([10, 11]);
+        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 11, simVersions: [10, 11] });
+        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11']);
+        for (const simVersion of [10, 11]) {
+            const record = genuine({ simVersion, finalHash: simVersion === 10 ? '10100000' : '11110000' });
             const { save, games } = setup(record);
             expect(await save(record)).toMatchObject({ outcome: 'won' });
             expect(games.rows).toHaveLength(1);
@@ -485,17 +485,16 @@ describe('PAWLEGENDS /live branch', () => {
             expect(users.updates).toHaveLength(0);
         }, 60_000);
 
-        it.each([[9], [10]])(
-            'sim v%s: re-sims a genuine shelter champion match in the worker; its v8 twin is refused before any re-sim',
+        it.each([[10], [11]])(
+            'sim v%s: re-sims a genuine shelter champion match in the worker; its v9 twin is refused before any re-sim',
             async simVersion => {
-                // Recorded by `npm run vendor-sim` (CHAMPION_FIXTURE_HERO, the naive player-bot on Easy); v9 is frozen.
+                // Recorded by `npm run vendor-sim` (CHAMPION_FIXTURE_HERO, the naive player-bot on Easy); v10 is frozen.
                 const record = fixture(simVersion, 'champion');
-                expect(record).toMatchObject({ hero: 'gabe', difficulty: 'easy', simVersion });
-                if (simVersion === 9) expect(record).not.toHaveProperty('mutator');
-                else expect(record).toMatchObject({ mutator: 'none' });
+                expect(record).toMatchObject({ hero: 'gabe', difficulty: 'easy', simVersion, mutator: 'none' });
                 const { games, userId, deps } = freshDeps();
+                // sim v11 retired v9: a v9 record is refused like any unknown version
                 const old = await codeOf(
-                    savePawlegendsMatch(deps, userId, { pawlegends: { ...record, simVersion: 8 } as any })
+                    savePawlegendsMatch(deps, userId, { pawlegends: { ...record, simVersion: 9 } as any })
                 );
                 expect(old).toMatchObject({ status: 400, code: ErrorCode.PAWLEGENDS_SIM_VERSION });
                 const result = await savePawlegendsMatch(deps, userId, { pawlegends: record as any });
@@ -505,55 +504,61 @@ describe('PAWLEGENDS /live branch', () => {
             60_000
         );
 
-        it('dispatches by simVersion: a v9 replay labelled v10 (or v10 labelled v9) does not verify', () => {
-            const v9 = fixture(9, 'rookie');
+        it('dispatches by simVersion: a v10 replay labelled v11 (or v11 labelled v10) does not verify', () => {
             const v10 = fixture(10, 'rookie');
-            expect(verifyBySimVersion(v9)).toMatchObject({ ok: true, finalHash: v9.finalHash, ticks: v9.ticks });
+            const v11 = fixture(11, 'rookie');
             expect(verifyBySimVersion(v10)).toMatchObject({ ok: true, finalHash: v10.finalHash, ticks: v10.ticks });
-            expect(verifyBySimVersion({ ...v9, simVersion: 10 }).ok).toBe(false);
-            expect(verifyBySimVersion({ ...v10, simVersion: 9 }).ok).toBe(false);
-            expect(verifyBySimVersion({ ...v10, simVersion: 11 })).toMatchObject({
-                ok: false,
-                code: 'PAWLEGENDS_SIM_VERSION',
-            });
-            expect(verifyBySimVersion({ ...v10, mutator: 'sunsetRush' })).toMatchObject({
+            expect(verifyBySimVersion(v11)).toMatchObject({ ok: true, finalHash: v11.finalHash, ticks: v11.ticks });
+            expect(verifyBySimVersion({ ...v10, simVersion: 11 }).ok).toBe(false);
+            expect(verifyBySimVersion({ ...v11, simVersion: 10 }).ok).toBe(false);
+            for (const simVersion of [9, 12]) {
+                expect(verifyBySimVersion({ ...v11, simVersion })).toMatchObject({
+                    ok: false,
+                    code: 'PAWLEGENDS_SIM_VERSION',
+                });
+            }
+            expect(verifyBySimVersion({ ...v11, mutator: 'sunsetRush' })).toMatchObject({
                 ok: false,
                 code: 'PAWLEGENDS_REPLAY_INVALID',
             });
         }, 60_000);
 
-        it('sim v10 forfeit (GAPS B2): a genuine forfeited Normal match verifies, is a loss stored as quit, pays nothing', async () => {
-            // Recorded by `npm run vendor-sim` (FORFEIT_FIXTURE_SEED: the normal player-bot to 4:00, then Op.Forfeit).
-            const record = fixture(10, 'forfeit');
-            expect(record).toMatchObject({ difficulty: 'normal', outcome: 'lost', simVersion: 10, ticks: 7201 });
-            const verdict = verifyBySimVersion(record);
-            expect(verdict).toMatchObject({ ok: true, outcome: 'lost', reason: 'forfeit', ticks: 7201 });
-            // claiming the forfeit was a win does not verify
-            expect(verifyBySimVersion({ ...record, outcome: 'won' })).toMatchObject({
-                ok: false,
-                code: 'PAWLEGENDS_OUTCOME_MISMATCH',
-            });
-            // the save path with that verdict (the worker re-sim itself is covered by the tests above)
-            const { users, games, userId, deps } = freshDeps();
-            const result = await savePawlegendsMatch({ ...deps, verify: async () => verdict }, userId, {
-                pawlegends: record as any,
-            });
-            expect(result).toMatchObject({
-                difficulty: 'normal',
-                outcome: 'lost',
-                reason: 'forfeit',
-                catnipPaid: 0,
-                fastestWin: null,
-            });
-            expect(games.rows).toHaveLength(1);
-            expect(games.rows[0]).toMatchObject({ outcome: 'quit', points: 0, score: 7201, level: 'normal' });
-            const user = users.get(userId);
-            expect(user.pawlegendsMatches).toEqual({ normal: 1 });
-            expect(user.pawlegendsFastestWin).toBeUndefined();
-            expect(user.pawlegendsCatnip).toBeUndefined();
-        }, 60_000);
+        it.each([[10], [11]])(
+            'sim v%s forfeit (GAPS B2): a genuine forfeited Normal match verifies, is a loss stored as quit, pays nothing',
+            async simVersion => {
+                // Recorded by `npm run vendor-sim` (FORFEIT_FIXTURE_SEED: the normal player-bot to 4:00, then Op.Forfeit).
+                const record = fixture(simVersion, 'forfeit');
+                expect(record).toMatchObject({ difficulty: 'normal', outcome: 'lost', simVersion, ticks: 7201 });
+                const verdict = verifyBySimVersion(record);
+                expect(verdict).toMatchObject({ ok: true, outcome: 'lost', reason: 'forfeit', ticks: 7201 });
+                // claiming the forfeit was a win does not verify
+                expect(verifyBySimVersion({ ...record, outcome: 'won' })).toMatchObject({
+                    ok: false,
+                    code: 'PAWLEGENDS_OUTCOME_MISMATCH',
+                });
+                // the save path with that verdict (the worker re-sim itself is covered by the tests above)
+                const { users, games, userId, deps } = freshDeps();
+                const result = await savePawlegendsMatch({ ...deps, verify: async () => verdict }, userId, {
+                    pawlegends: record as any,
+                });
+                expect(result).toMatchObject({
+                    difficulty: 'normal',
+                    outcome: 'lost',
+                    reason: 'forfeit',
+                    catnipPaid: 0,
+                    fastestWin: null,
+                });
+                expect(games.rows).toHaveLength(1);
+                expect(games.rows[0]).toMatchObject({ outcome: 'quit', points: 0, score: 7201, level: 'normal' });
+                const user = users.get(userId);
+                expect(user.pawlegendsMatches).toEqual({ normal: 1 });
+                expect(user.pawlegendsFastestWin).toBeUndefined();
+                expect(user.pawlegendsCatnip).toBeUndefined();
+            },
+            60_000
+        );
 
-        it.each([[9], [10]])(
+        it.each([[10], [11]])(
             'sim v%s: re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` with the vendored sim (the naive player-bot), so it is always current.
