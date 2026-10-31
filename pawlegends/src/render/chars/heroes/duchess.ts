@@ -19,7 +19,7 @@
 import * as THREE from 'three';
 import type { SpringTuning } from '../../anim/types';
 import type { Look } from '../../cosmetics';
-import { C, mat, mix, type Assembly, type ChibiSpec, type Col, type CoatSpec, type RGB } from '../chibi';
+import { mat, mix, type Assembly, type ChibiSpec, type Col, type CoatSpec, type RGB } from '../chibi';
 import * as G from '../gear';
 import type { HeroDress, MotionProfile } from '../specs';
 
@@ -51,7 +51,7 @@ const COAT: CoatSpec = { pattern: 'solid', base: 0xf4ece0, deep: 0xd8c8b0, light
 const PLUME: readonly (readonly [number, number, number])[] = [[0, 0.24, -0.14], [0.05, 0.36, -0.3], [0.07, 0.55, -0.28], [0.03, 0.64, -0.14]];
 
 type Flat = number | string | RGB;
-const rgbOf = (c: Flat): RGB => (Array.isArray(c) ? (c as RGB) : C(c as number));
+const rgbOf = (c: Flat): RGB => G.rgbOf(c);
 
 // ------------------------------------------------------------------------------------------------ gear builders
 

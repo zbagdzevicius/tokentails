@@ -426,7 +426,7 @@ second, `SIM_VERSION` 11) in a Web Worker, and the backend replays it (v10 and v
 - **Original cats** (sim v11, POC.md §6.8c, build spec `docs/plans/moba/CATS-V11.md`): Meatball, Pixel, Duchess and
   Stilts are made-up cats, not shelter champions: no card, no badge, no Meet card, no catalog id. They are free to
   play everywhere, wear breed coats (`CAT_HEROES`), have Treat Track coats and a "Win with" quest each. The pick
-  screen lays the 10 cats out in two rows of 5 and the dogs in a third row.
+  screen lays all 12 heroes on one 6-column grid of two rows: the 10 cats, then the 2 dogs closing the second row.
 - **Sim changes**: bump `SIM_VERSION`, re-run `npm run vendor-sim` (writes
   `backend/src/vendor/pawlegends-sim/v<N>/`; the previous version stays frozen beside it for 30 days, listed in
   `FROZEN` in `pawlegends/tools/vendor-sim.mjs`), deploy the

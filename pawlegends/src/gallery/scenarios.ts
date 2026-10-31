@@ -28,6 +28,8 @@ interface Unit {
   state: EntitySnap['state'];
   buffs: number;
   hp: number;
+  /** EntitySnap.form (sim v11): the kit's alternate body while its R lasts. */
+  form?: boolean;
 }
 
 interface Proj {
@@ -110,6 +112,7 @@ class Stream {
       facing: u.facing,
       buffs: u.buffs | (u.id !== ME ? DUMMY_BUFFS.bits : 0),
       resource: 0,
+      form: u.form === true ? true : undefined,
       // gallery query branch=1: the level-6 shape branch on the hero (Sage's lance, Brutus's Guard Post)
       branch: u.id === ME && DUMMY_BUFFS.branch ? true : undefined,
     }));
@@ -128,6 +131,8 @@ class Stream {
 }
 
 const SLOT_INDEX: Readonly<Record<Slot, CastSlot>> = { q: 0, w: 1, e: 2, r: 3 };
+/** Heroes whose R sets the snapshot's `form` bit (sim/index.ts SNAP_FX.Form). */
+const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilts']);
 
 /**
  * Gallery-wide extras (main.ts sets them from the query): BuffFlag bits and a shield on the dummy (Gabė's W shield
@@ -224,6 +229,13 @@ export function makeScenario(name: string, hero: HeroId, vs: HeroId): Scenario {
         s.ev(cast, { type: 'hit', tick: cast, src: ME, dst: DUMMY, amount: 80, shielded: 0, kind: 'ability' });
       }
       if (st.duration > 0) anchors.stateEnd ??= cast + Math.min(st.duration, 120);
+      // the sim's fx `form` bit: Meatball's Chonk, Pixel's BOXBOT and Stilts's Zoomies show their alternate body
+      if (sl === 'r' && FORM_R.has(hero) && st.duration > 0) {
+        const until = cast + Math.min(st.duration, 120);
+        s.moves.push((tt) => {
+          me.form = tt >= cast && tt < until;
+        });
+      }
       key = anchors.cast;
       t = cast + (dash > 0 ? travelTicks(dash, st.dashSpeed) : 0) + 22;
     }

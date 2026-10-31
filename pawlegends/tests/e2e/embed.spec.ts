@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test';
+import { SIM_VERSION } from '../../src/sim/version';
 import { EVIL, SITE, gattr, mockHost, openHost, received, recordPostTargets } from './host';
 
 // POC.md §15 item 21, against the standalone build framed by a mock host (tests/e2e/host.ts).
@@ -73,7 +74,7 @@ test('a crash inside the frame shows the overlay and reaches the host as client-
   await expect(game.locator('#crash')).toBeVisible();
   await expect.poll(async () => (await received(page)).filter((m) => m.type === 'client-error').length).toBe(2);
   const errs = (await received(page)).filter((m) => m.type === 'client-error');
-  expect(errs).toContainEqual(expect.objectContaining({ source: 'window', msg: 'e2e boom b https x example uid 7 b', screen: 'title', sim: 10 }));
+  expect(errs).toContainEqual(expect.objectContaining({ source: 'window', msg: 'e2e boom b https x example uid 7 b', screen: 'title', sim: SIM_VERSION }));
   expect(errs).toContainEqual(expect.objectContaining({ source: 'rejection', msg: 'e2e nope', screen: 'title' }));
   for (const e of errs) expect(String(e.msg)).toMatch(/^[a-z0-9_ ]{1,80}$/);
 });

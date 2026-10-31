@@ -13,7 +13,7 @@
 import * as THREE from 'three';
 import type { SpringTuning } from '../../anim/types';
 import type { Look } from '../../cosmetics';
-import { C, mat, mix, type Assembly, type ChibiSpec, type Col, type CoatSpec, type RGB } from '../chibi';
+import { mat, type Assembly, type ChibiSpec, type Col, type CoatSpec } from '../chibi';
 import * as G from '../gear';
 import type { HeroDress, MotionProfile } from '../specs';
 
@@ -41,53 +41,31 @@ const BOOT = 0x6b4429;
 
 const COAT: CoatSpec = { pattern: 'tuxedo', base: 0x2a2a33, deep: 0x16161c, light: 0xf4f4f4, cream: 0xf4f4f4 };
 
-const rgbOf = (c: Col): RGB => (typeof c === 'number' || typeof c === 'string' ? C(c as number) : Array.isArray(c) ? (c as RGB) : [1, 1, 1]);
+/** A two-sided wall (the outside in `color`, the inside darker). */
+const panel = (A: Assembly, w: number, h: number, m: THREE.Matrix4, color: Col): void => G.both(A, 'hips', new THREE.PlaneGeometry(w, h), m, color);
 
-/** A copy of `geo` facing the other way (the inside of an open shell). */
-function flipped(geo: THREE.BufferGeometry): THREE.BufferGeometry {
-  const g = geo.clone();
-  const idx = g.index!.array as Uint16Array;
-  for (let i = 0; i < idx.length; i += 3) {
-    const t = idx[i + 1];
-    idx[i + 1] = idx[i + 2];
-    idx[i + 2] = t;
-  }
-  const n = g.attributes.normal;
-  for (let i = 0; i < n.count; i++) n.setXYZ(i, -n.getX(i), -n.getY(i), -n.getZ(i));
-  return g;
-}
-
-/** A two-sided quad (the outside in `color`, the inside darker). */
-function panel(A: Assembly, bone: 'chest' | 'hips', w: number, h: number, m: THREE.Matrix4, color: Col): void {
-  const g = new THREE.PlaneGeometry(w, h);
-  A.add(bone, g, { m, color });
-  A.add(bone, flipped(g), { m, color: mix(rgbOf(color), [0, 0, 0], 0.35) });
-}
+/** The chest joint's rest height over the hips (skeleton.ts PROPORTIONS.chestY): the box rim sits this much higher. */
+const CHEST_Y = 0.085;
 
 /**
- * Pixel's cardboard box (~300 tris): an open box on the chest (its rim under her chin) over a shorter one on the hips,
- * so the torso is a square from every side; four flaps hinged on the rim fold out and up in `flap` (the team colour
- * the iso camera reads), a `flap` tape stripe across the front, darker fold edges. `k` scales the whole box.
+ * Pixel's cardboard box (~300 tris): one open box on the hips bone from her knees up to under her chin, so the torso
+ * is a square from every side and stays one rigid shape (two boxes on the chest and hips bones slid apart whenever
+ * the chest leaned or turned). Four flaps hinged on the rim fold out and up in `flap` (the team colour the iso
+ * camera reads), a `flap` tape stripe across the front, darker fold edges. `k` scales the whole box.
  */
 export function cardboardBox(A: Assembly, kraft: Col, flap: Col, k = 1): void {
   const hx = 0.23 * k;
   const hz = 0.21 * k;
-  const top = 0.17;
-  const h = 0.34 * k;
+  const top = CHEST_Y + 0.17;
+  const h = 0.385 * k;
   const cy = top - h / 2;
-  // the chest box: four walls (front +Z, back, left +X, right)
-  panel(A, 'chest', hx * 2, h, mat([0, cy, hz]), kraft);
-  panel(A, 'chest', hx * 2, h, mat([0, cy, -hz], [0, Math.PI, 0]), kraft);
-  panel(A, 'chest', hz * 2, h, mat([hx, cy, 0], [0, Math.PI / 2, 0]), kraft);
-  panel(A, 'chest', hz * 2, h, mat([-hx, cy, 0], [0, -Math.PI / 2, 0]), kraft);
-  // the hips box: the same footprint down to the knees, with a bottom
-  const hb = 0.2 * k;
-  panel(A, 'hips', hx * 2, hb, mat([0, -0.03, hz]), kraft);
-  panel(A, 'hips', hx * 2, hb, mat([0, -0.03, -hz], [0, Math.PI, 0]), kraft);
-  panel(A, 'hips', hz * 2, hb, mat([hx, -0.03, 0], [0, Math.PI / 2, 0]), kraft);
-  panel(A, 'hips', hz * 2, hb, mat([-hx, -0.03, 0], [0, -Math.PI / 2, 0]), kraft);
+  // four walls (front +Z, back, left +X, right)
+  panel(A, hx * 2, h, mat([0, cy, hz]), kraft);
+  panel(A, hx * 2, h, mat([0, cy, -hz], [0, Math.PI, 0]), kraft);
+  panel(A, hz * 2, h, mat([hx, cy, 0], [0, Math.PI / 2, 0]), kraft);
+  panel(A, hz * 2, h, mat([-hx, cy, 0], [0, -Math.PI / 2, 0]), kraft);
   // fold edges: thin dark bars on the four vertical corners
-  for (const sx of [1, -1]) for (const sz of [1, -1]) A.add('chest', new THREE.BoxGeometry(0.018, h, 0.018), { m: mat([sx * hx, cy, sz * hz]), color: KRAFT_EDGE });
+  for (const sx of [1, -1]) for (const sz of [1, -1]) A.add('hips', new THREE.BoxGeometry(0.018, h, 0.018), { m: mat([sx * hx, cy, sz * hz]), color: KRAFT_EDGE });
   // the flaps: hinged on the rim, folded out and up (35° above level); long sides on the front and back
   const tilt = 0.6;
   const fl = 0.17 * k;
@@ -95,13 +73,10 @@ export function cardboardBox(A: Assembly, kraft: Col, flap: Col, k = 1): void {
     mat([x, top, z], [0, yaw, 0]).multiply(mat([0, 0, 0], [-(Math.PI / 2 - tilt), 0, 0])).multiply(mat([0, fl / 2, 0])).multiply(new THREE.Matrix4().makeScale(len, 1, 1));
   const g = new THREE.PlaneGeometry(1, fl);
   for (const [len, x, z, yaw] of [[hx * 2, 0, hz, 0], [hx * 2, 0, -hz, Math.PI], [hz * 2, hx, 0, Math.PI / 2], [hz * 2, -hx, 0, -Math.PI / 2]] as const) {
-    const m = flapAt(len, x, z, yaw);
-    A.add('chest', g, { m, color: flap });
-    A.add('chest', flipped(g), { m, color: flap });
+    G.both(A, 'hips', g, flapAt(len, x, z, yaw), flap, flap);
   }
-  // packing tape across the front and over the left wall
-  A.add('chest', new THREE.PlaneGeometry(0.07, h), { m: mat([0.06, cy, hz + 0.004]), color: flap });
-  A.add('hips', new THREE.PlaneGeometry(0.07, hb), { m: mat([0.06, -0.03, hz + 0.004]), color: flap });
+  // packing tape down the front
+  A.add('hips', new THREE.PlaneGeometry(0.07, h), { m: mat([0.06, cy, hz + 0.004]), color: flap });
 }
 
 /** The bottle-cap cannon on the weapon socket: a grey tube with a red cap loaded in the muzzle. */
@@ -109,6 +84,22 @@ function capCannon(A: Assembly): void {
   A.add('weapon', new THREE.CylinderGeometry(0.05, 0.055, 0.24, A.seg(10, 6)), { m: mat([0, 0.1, 0.02]), color: CANNON });
   A.add('weapon', new THREE.TorusGeometry(0.052, 0.012, 3, A.seg(10, 6)), { m: mat([0, 0.21, 0.02], [Math.PI / 2, 0, 0]), color: G.STEEL_DARK });
   A.add('weapon', new THREE.CylinderGeometry(0.044, 0.044, 0.02, A.seg(10, 6)), { m: mat([0, 0.225, 0.02]), color: CAP_RED });
+}
+
+/**
+ * BOXBOT's robot legs (~110 tris): a grey accordion tube with a flat foot on each thigh bone, built pointing UP (thigh
+ * space +y), so at rest it lies folded inside the box beside her body. The BOXBOT clips (moves/pixel.ts ROBOT_LEGS)
+ * turn the thighs a half turn: the tubes swing down out of the box as legs (her own short legs fold up inside it)
+ * and the root lift stands the bigger box on them. LEG_TUBE is the length the lift was set for.
+ */
+export const LEG_TUBE = 0.3;
+function robotLegs(A: Assembly): void {
+  for (const s of ['L', 'R'] as const) {
+    const bone = `thigh${s}` as const;
+    A.add(bone, new THREE.CylinderGeometry(0.048, 0.048, LEG_TUBE - 0.03, A.seg(8, 6), 1, true), { m: mat([0, (LEG_TUBE - 0.03) / 2, 0]), color: CANNON });
+    for (let i = 1; i <= 3; i++) A.add(bone, new THREE.TorusGeometry(0.05, 0.011, 3, A.seg(8, 6)), { m: mat([0, (i * LEG_TUBE) / 4, 0], [Math.PI / 2, 0, 0]), color: G.STEEL_DARK });
+    A.add(bone, new THREE.BoxGeometry(0.11, 0.03, 0.14), { m: mat([0, LEG_TUBE - 0.015, -0.02]), color: G.STEEL_DARK });
+  }
 }
 
 /** The antenna: a wire on the crown with a red bead. */
@@ -141,6 +132,7 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
       capCannon(A);
       antenna(A);
       G.boots(A, BOOT, 0x4a2e1f);
+      robotLegs(A);
       extras(A);
     },
   };

@@ -7,12 +7,13 @@
  * - Q Cap Cannon: a muzzle flash, an ice ribbon riding the cap bolt (projectileView draws the cap itself, from
  *   HERO_SHOTS), a burst and ring on the hero it stops on.
  * - W Laser Pointer: the beam drawn every frame from her along her drawn facing (the sim turns the beam toward her
- *   facing, so walking steers both), exactly the sim length and width, ice cyan with a red dot glow at the far end;
- *   a frost spark on every pulse hit. It ends at the sim duration (Overclock's 2 s included), on another cast of hers,
+ *   facing, so walking steers both), exactly the sim length (its bright core the sim width) at paw height over the
+ *   hit lane on the ground, ice cyan with a red dot glow at the far end; a frost spark on every pulse hit. It ends at the sim duration (Overclock's 2 s included), on another cast of hers,
  *   or when the snapshot shows her stunned (the sim breaks the beam on hard CC).
- * - E Duck and Cover: the flaps clap shut: a frost-rim dome over the box for exactly the sim duration and a ring
- *   at the melee reach that slows attackers.
- * - R BOXBOT MK II: a cardboard-confetti burst and a shield ring on the transformation (the clip grows the box).
+ * - E Duck and Cover: the flaps clap shut (two kraft slashes over the rim): a tall frost-rim shell over the box for
+ *   exactly the sim duration and a ring at the melee reach that slows attackers.
+ * - R BOXBOT MK II: a cardboard-confetti burst and a shield ring on the transformation (the clips grow the box and
+ *   stand it on its robot legs).
  *
  * Shapes use the talent-resolved numbers (fx.abil). Everything is pooled: no allocation per event or per frame.
  * Render only.
@@ -28,11 +29,18 @@ const KRAFT = 0x8a5a2c;
 const FROST = 0xbfe8ff;
 /** BuffFlag.Stunned (sim/api), kept local so this chunk carries no sim import. */
 const STUNNED = 1 << 3;
-/** Beam segments are re-drawn this often (s) with a slightly longer life, so at most two are alive (Low caps beams at 2). */
+/**
+ * Beam segments are re-drawn this often (s). Each lives until the next redraw plus one frame (at least BEAM_LIFE), so
+ * a slow frame (dt above the redraw period) never leaves a gap or a half-faded beam.
+ */
 const BEAM_EVERY = 0.05;
 const BEAM_LIFE = 0.08;
 /** Beam height above the ground (m): her pointer paw. */
 const BEAM_Y = 0.75;
+/** The beam shader's core fades to a sixth at a quarter width from the axis: the glow quad is this much wider so the bright core is the sim width. */
+export const BEAM_GLOW_W = 1.8;
+/** The bright laser core (lighter than her element so it reads on sand and grass alike). */
+const BEAM_CORE = 0x8fe6ff;
 
 // ------------------------------------------------------------------------------------------------ pooled scratch
 
@@ -41,13 +49,13 @@ const F = { x: 0, y: 0, z: 0 };
 const ST: HeroStatus = { buffs: 0, shield: 0 };
 const S: MeshFxSpawn = { x: 0, y: 0.06, z: 0, yaw: 0, sx: 1, sy: 1, sz: 1, life: 1, color: 0, rim: 0, p0: 0, p1: 0, p2: 0, p3: 1, rel: 'own', delay: 0 };
 
-function mesh(fx: FxCtx, kind: MeshFxKind, x: number, z: number, sx: number, life: number, color: number, rim: number, rel: Relation3, yaw = 0, y = 0.06, sz = sx, p1 = 0): number {
+function mesh(fx: FxCtx, kind: MeshFxKind, x: number, z: number, sx: number, life: number, color: number, rim: number, rel: Relation3, yaw = 0, y = 0.06, sz = sx, p1 = 0, sy = 1, p3 = 1): number {
   S.x = x;
   S.z = z;
   S.y = y;
   S.yaw = yaw;
   S.sx = sx;
-  S.sy = 1;
+  S.sy = sy;
   S.sz = sz;
   S.life = life;
   S.color = color;
@@ -56,7 +64,7 @@ function mesh(fx: FxCtx, kind: MeshFxKind, x: number, z: number, sx: number, lif
   S.p0 = kind === 'crescent' ? Math.PI * 2 : 0;
   S.p1 = p1;
   S.p2 = 0;
-  S.p3 = 1;
+  S.p3 = p3;
   S.delay = 0;
   return fx.mesh.spawn(kind, S);
 }
@@ -153,8 +161,16 @@ export const SKILL_FX: SkillFxSet = {
       case 2: {
         const a = fx.abil(e.src, 'e');
         const life = (a.duration ?? 30) * TICK_S;
-        mesh(fx, 'dome', P.x, P.z, 0.85, life, FROST, c.rim, c.rel, 0, 0);
+        // the frost-rim shell over the whole ducked box (taller than wide: she is squashed into it), its rim strong
+        mesh(fx, 'dome', P.x, P.z, 1.05, life, FROST, c.rim, c.rel, 0, 0, 1.05, 0, 1.6, 2);
         mesh(fx, 'ring', P.x, P.z, (a.meleeRange ?? 2000) / 1000, life, ICE, c.rim, c.rel, 0, 0.05, (a.meleeRange ?? 2000) / 1000, 0.1);
+        // the flaps clap shut: two kraft slashes snapping together over the rim, a frost flash
+        mesh(fx, 'crescent', P.x, P.z, 0.7, 0.16, KRAFT, c.rim, c.rel, 0, 1.0);
+        S.p0 = Math.PI * 0.9;
+        S.p2 = -1;
+        S.yaw = Math.PI;
+        fx.mesh.spawn('crescent', S);
+        mesh(fx, 'glow', P.x, P.z, 1.1, 0.2, FROST, c.rim, c.rel, 0, 1.0);
         mesh(fx, 'crescent', P.x, P.z, 1.0, 0.25, FROST, c.rim, c.rel, 0, 0.08);
         fx.sfx.cue('clang', P);
         return;
@@ -236,8 +252,13 @@ export const SKILL_FX: SkillFxSet = {
       c.beamNext = BEAM_EVERY;
       if (!fx.heroPos(c.id, P) || !fx.facing?.(c.id, F)) continue;
       const yaw = Math.atan2(-F.z, F.x);
-      mesh(fx, 'beam', P.x + F.x * 0.3, P.z + F.z * 0.3, c.len, BEAM_LIFE, ICE, c.rim, c.rel, yaw, BEAM_Y, c.width);
-      mesh(fx, 'glow', P.x + F.x * c.len, P.z + F.z * c.len, 0.45, BEAM_LIFE, DOT, c.rim, c.rel, 0, 0.08);
+      const life = Math.max(BEAM_LIFE, BEAM_EVERY + dt * 2);
+      // the laser at paw height (its bright core the sim width), the hit lane on the ground under it (Med and up:
+      // Low keeps its two beam slots for the laser) and the red dot where it ends
+      mesh(fx, 'beam', P.x + F.x * 0.3, P.z + F.z * 0.3, c.len, life, BEAM_CORE, c.rim, c.rel, yaw, BEAM_Y, c.width * BEAM_GLOW_W);
+      if (fx.tier !== 'low') mesh(fx, 'beam', P.x + F.x * 0.3, P.z + F.z * 0.3, c.len, life, ICE, c.rim, c.rel, yaw, 0.07, c.width);
+      mesh(fx, 'glow', P.x + F.x * c.len, P.z + F.z * c.len, 0.7, life, DOT, c.rim, c.rel, 0, 0.08);
+      if (fx.tier !== 'low') mesh(fx, 'glow', P.x + F.x * c.len, P.z + F.z * c.len, 0.3, life, DOT, c.rim, c.rel, 0, BEAM_Y);
     }
   },
 };

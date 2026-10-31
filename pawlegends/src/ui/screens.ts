@@ -236,11 +236,11 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     root.innerHTML = `
       <div class="pl-pick-col">
         <div class="pl-pick-head"><button class="pl-btn ghost small" data-a="back">Back</button><h2>Choose your legend</h2></div>
-        ${(['cat', 'dog'] as const)
+        <div class="roster">${(['cat', 'dog'] as const)
           .map((side) => `<div class="heroes ${side}s" data-side="${side}">${HERO_IDS.filter((h) => HEROES[h].side === side)
             .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h]))
             .join('')}</div>`)
-          .join('')}
+          .join('')}</div>
         ${wardrobeRow(c.hero)}
         <div class="detail">
           <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>

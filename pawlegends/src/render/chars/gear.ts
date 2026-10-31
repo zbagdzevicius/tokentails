@@ -17,10 +17,11 @@ export const WOOD = 0xb08a55;
 export const KIBBLE = 0x34363f;
 
 type Flat = number | string | RGB;
-const rgbOf = (c: Col): RGB => (typeof c === 'function' ? [1, 1, 1] : Array.isArray(c) ? (c as RGB) : C(c as Flat as number));
+/** A flat colour as RGB (a per-vertex colour function reads as white). Shared with the hero modules. */
+export const rgbOf = (c: Col): RGB => (typeof c === 'function' ? [1, 1, 1] : Array.isArray(c) ? (c as RGB) : C(c as Flat as number));
 
-/** Two-sided add for open shells (PPK `both`). */
-function both(A: Assembly, bone: Parameters<Assembly['add']>[0], geo: THREE.BufferGeometry, m: THREE.Matrix4 | undefined, color: Col, inner?: Col): void {
+/** Two-sided add for open shells (PPK `both`); the inside is `inner`, else the colour darkened. Shared with the hero modules. */
+export function both(A: Assembly, bone: Parameters<Assembly['add']>[0], geo: THREE.BufferGeometry, m: THREE.Matrix4 | undefined, color: Col, inner?: Col): void {
   const back = flip(geo);
   A.add(bone, geo, { m, color });
   A.add(bone, back, { m, color: inner ?? (typeof color === 'function' ? color : mix(rgbOf(color), [0, 0, 0], 0.35)) });
