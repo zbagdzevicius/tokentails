@@ -3,7 +3,7 @@
  *
  * - Hero kill: 80 + 15 × victim level, +50% when the victim is more than one level above its killer, plus the
  *   victim's bounty (a takedown streak of 3+: +40 × streak, max +160). Shared equally among the enemy heroes within
- *   10 m and those who hit the victim in the last 10 s (assists). On Rookie and Easy (DIFFICULTY_RULES.nearAssists)
+ *   10 m and those who hit the victim in the last 10 s (assists). On Easy (DIFFICULTY_RULES.nearAssists; Rookie before v11)
  *   every ally within 10 m counts as an assist too. The killer is the last hero to hit it (a tower or minion last
  *   hit credits the most recent hero who hit it in the window).
  * - Takedown heal: every credited hero alive gets TAKEDOWN_HEAL.healBp of its max HP back (a `buff` 'takedown').

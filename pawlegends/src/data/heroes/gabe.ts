@@ -6,8 +6,8 @@ export const GABE: HeroData = Object.freeze<HeroData>({
   name: 'Gabė',
   side: 'cat',
   role: 'support',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 9800, takenBp: 10000 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). */
+  pvp: { dmgBp: 9500, takenBp: 9700 },
   element: 'WIND',
   base: { hp: 500, hpPerLevel: 52, attack: 52, attackPerLevel: 5, attackEvery: 28, range: 5000, speed: 5000, armour: 18, armourPerLevel: 2 },
   /** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 10 (+2/lvl). */

@@ -6,8 +6,8 @@ export const PIXEL: HeroData = Object.freeze<HeroData>({
   name: 'Pixel',
   side: 'cat',
   role: 'marksman',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 10600, takenBp: 9600 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9400 / 9600 (10600 / 9600 before: 55.4% of the 2,000-seed gate; now 49.8%). */
+  pvp: { dmgBp: 9400, takenBp: 9600 },
   element: 'ICE',
   base: { hp: 460, hpPerLevel: 48, attack: 50, attackPerLevel: 5, attackEvery: 27, range: 5800, speed: 4700, armour: 16, armourPerLevel: 2 },
   /** Cardboard Plating: an 8%-max-HP plate that refills after 4 s without hero damage; when it breaks she pops out, +25% speed for 1.5 s. */

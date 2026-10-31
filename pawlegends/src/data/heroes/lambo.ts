@@ -6,8 +6,8 @@ export const LAMBO: HeroData = Object.freeze<HeroData>({
   name: 'Lambo',
   side: 'cat',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. */
-  pvp: { dmgBp: 10500, takenBp: 9100 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). */
+  pvp: { dmgBp: 10500, takenBp: 8800 },
   element: 'STELLAR',
   base: { hp: 740, hpPerLevel: 78, attack: 56, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 4700, armour: 38, armourPerLevel: 3 },
   /** Brave With Friends: takes 10% less damage while an allied hero is within 4 m. */
