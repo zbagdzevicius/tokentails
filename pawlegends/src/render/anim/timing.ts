@@ -66,8 +66,9 @@ export function talentIdsOf(hero: HeroId, picks: readonly number[] | undefined):
 export interface SlotTiming {
   /** Sim windup ticks before the cast (0 = instant). */
   windup: number;
-  /** Dash distance (mm) and its ticks at dash speed (0 = no dash). */
+  /** Dash distance (mm), its speed (mm/s: the slot's own `speed`, else the shared dash speed) and its ticks (0 = no dash). */
   dashMm: number;
+  dashSpeed: number;
   dashTicks: number;
   /** Skillshot / wave speed (mm/s), range (mm) and flight ticks at full range. */
   projSpeed: number;
@@ -83,8 +84,9 @@ export interface SlotTiming {
   /** Blink distance (mm), instant. */
   blink: number;
   /**
-   * The dash stops at the aim point when it is closer than `dashMm` (Lambo's Belly Flop). Every other dash flies its
-   * full length toward the aim direction (sim `dash(m, id, angle, a.<slot>.dash)`); walls cut either short.
+   * The dash stops at the aim point when it is closer than `dashMm` (Lambo's Belly Flop, Stilts's High Leap). Every
+   * other dash flies its full length toward the aim direction (sim `dash(m, id, angle, a.<slot>.dash)`); walls cut
+   * either short.
    */
   aimClamped: boolean;
 }
@@ -92,14 +94,17 @@ export interface SlotTiming {
 /** Derive a slot's timings from its (talent-resolved) numbers. */
 export function slotTimingFrom(hero: HeroId, slot: Slot, a: Readonly<Record<string, number>>): SlotTiming {
   const dashMm = a.dash ?? 0;
+  // a dash slot's `speed` is its own dash speed (Duchess's glide, Stilts's leap), never a projectile's
+  const dashSpeed = dashMm > 0 ? (a.speed ?? DASH_SPEED) : DASH_SPEED;
   // Golden Hour's wave, Cacklejaw R's homing dash and every skillshot carry their own speed
-  const projSpeed = a.waveSpeed ?? a.speed ?? 0;
+  const projSpeed = a.waveSpeed ?? (dashMm > 0 ? 0 : (a.speed ?? 0));
   const projRange = a.waveRange ?? (projSpeed > 0 ? (a.range ?? 0) : 0);
   const arm = a.arm ?? (hero === 'bengas' && slot === 'r' ? (a.windup ?? 0) : 0);
   return {
     windup: hero === 'bengas' && slot === 'r' ? 0 : (a.windup ?? 0),
     dashMm,
-    dashTicks: travelTicks(dashMm, DASH_SPEED),
+    dashSpeed,
+    dashTicks: travelTicks(dashMm, dashSpeed),
     projSpeed,
     projRange,
     projTicks: projSpeed > 0 ? (projRange * TICK_HZ) / projSpeed : 0,
@@ -109,7 +114,7 @@ export function slotTimingFrom(hero: HeroId, slot: Slot, a: Readonly<Record<stri
     recasts: a.recasts ?? a.resets ?? 0,
     recastWindow: a.recastWindow ?? a.resetWindow ?? 0,
     blink: a.blink ?? 0,
-    aimClamped: hero === 'lambo' && slot === 'e',
+    aimClamped: (hero === 'lambo' && slot === 'e') || (hero === 'stilts' && slot === 'q'),
   };
 }
 

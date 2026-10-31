@@ -61,7 +61,7 @@ export function startForced(w: World, id: number, tx: number, ty: number, ticks:
 const end = new Int32Array(2);
 
 /** Dash `id` up to `dist` toward `angle` at `speed`. Returns the dash ticks (0 when it cannot move). */
-export function dash(m: MatchHandle, id: number, angle: number, dist: number, speed = EFFECTS.dashSpeed): number {
+export function dash(m: MatchHandle, id: number, angle: number, dist: number, speed: number = EFFECTS.dashSpeed): number {
   const w = m.world;
   const bx = w.x[id] + idiv(icos(angle) * dist, TRIG_ONE);
   const by = w.y[id] + idiv(isin(angle) * dist, TRIG_ONE);

@@ -17,8 +17,11 @@ export const MEATBALL: HeroData = Object.freeze<HeroData>({
     q: { cooldown: 270, dash: 6000, touch: 1200, push: 1500, dmg: 55, dmgPerLevel: 5, slowBp: 2500, slow: 30 },
     /** Loaf Mode: rooted loaf for 2 s, 40% less damage; enemy heroes within 3 m are charmed to him for 0.75 s. */
     w: { cooldown: 420, duration: 60, reduceBp: 4000, radius: 3000, charm: 23, slowBp: 5000 },
-    /** Big Brother: dash to the allied hero nearest the aim (6 m); shield them 8% of his max HP for 2.5 s and knock enemy heroes within 2.2 m of them 2 m away. No ally: dash 4 m, half the shield on himself. */
-    e: { cooldown: 450, range: 6000, pickRadius: 2500, shieldBp: 800, duration: 75, radius: 2200, push: 2000, soloDash: 4000 },
+    /**
+     * Big Brother: dash to the allied hero nearest the aim (6 m), stopping `gap` short of touching them; shield them 8% of
+     * his max HP for 2.5 s and knock enemy heroes within 2.2 m of them 2 m away. No ally: dash 4 m, half the shield on himself.
+     */
+    e: { cooldown: 450, range: 6000, pickRadius: 2500, shieldBp: 800, duration: 75, radius: 2200, push: 2000, soloDash: 4000, gap: 300 },
     /** Unstoppable Chonk: 4 s cleanse and CC immunity, +35% speed; enemy heroes he bumps take 90 (+9/lvl, +40 a rank) and fly 2.5 m along his heading, once a second each. */
     r: { cooldown: 2100, duration: 120, hasteBp: 3500, touch: 1300, push: 2500, rehit: 30, dmg: 90, dmgPerLevel: 9 },
   },

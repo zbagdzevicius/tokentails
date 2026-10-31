@@ -320,22 +320,34 @@ export function slingshot(A: Assembly): void {
   A.add('pawR', new THREE.OctahedronGeometry(0.04, 0), { m: mat([0, 0.2, 0.02]), color: 0xd9a441 });
 }
 
-// ------------------------------------------------------------------------------------------------ sim v11 hooks
-// Phase 0 scaffold (docs/plans/moba/CATS-V11.md §4): the gear the four original cats need, as no-op stubs with fixed
-// signatures. Each hero agent builds its own piece in src/render/chars/heroes/<hero>.ts; `fluffPuffs` moves here as
-// the shared builder once Duchess's version settles.
+// ------------------------------------------------------------------------------------------------ shared fluff
 
-/** Meatball's fish lunchbox (~120 tris), on his hip. Stub. */
-export function fishLunchbox(_A: Assembly, _color: Col): void {}
-
-/** Pixel's open cardboard box on the chest and hips with 4 flaps on the spine (~300 tris; flaps and tape team colour). Stub. */
-export function cardboardBox(_A: Assembly, _kraft: Col, _flap: Col): void {}
-
-/** `n` low-poly fur shells on the chest, neck and hips (Duchess; ~600 tris at Med, 300 at Low). Stub. */
-export function fluffPuffs(_A: Assembly, _n: number, _color: Col): void {}
-
-/** Stilts's leg-warmer tubes on the shins (team colour; the legs read longer). Stub. */
-export function legWarmers(_A: Assembly, _color: Col): void {}
-
-/** Duchess's tiara: a ring and 3 gem cones on the head. Stub. */
-export function tiara(_A: Assembly, _band: Col, _gem: Col): void {}
+/**
+ * `n` low-poly fur shells (icospheres, flattened a little): a ruff at the neck, puffs round the chest and a skirt round
+ * the hips, in `color` shaded toward the coat's light on top. ~80 triangles each at Med, 20 at Low. Duchess's fluff
+ * (sim v11), shared so later heroes can reuse it.
+ */
+export function fluffPuffs(A: Assembly, n: number, color: Flat): void {
+  const w = A.w;
+  const ico = A.detail >= 0.9 ? 1 : 0;
+  const base = rgbOf(color);
+  const top = mix(base, [1, 1, 1], 0.35);
+  const under = mix(base, [0.55, 0.5, 0.48], 0.25);
+  const shade = (_v: THREE.Vector3, nn: THREE.Vector3): RGB => (nn.y > 0.3 ? top : nn.y < -0.4 ? under : base);
+  // the neck ruff (front and sides), the chest puffs, the hip skirt: [bone, x, y, z, radius]
+  const at: readonly (readonly ['chest' | 'hips', number, number, number, number])[] = [
+    ['chest', 0, 0.2, 0.1, 0.1],
+    ['chest', 0.13, 0.17, 0.03, 0.085],
+    ['chest', -0.13, 0.17, 0.03, 0.085],
+    ['chest', 0, 0.05, 0.13, 0.095],
+    ['hips', 0.15, -0.02, 0.06, 0.1],
+    ['hips', -0.15, -0.02, 0.06, 0.1],
+    ['hips', 0, -0.04, 0.15, 0.1],
+    ['hips', 0, 0.0, -0.15, 0.105],
+  ];
+  const k = Math.max(1, Math.min(at.length, n));
+  for (let i = 0; i < k; i++) {
+    const [bone, x, y, z, r] = at[i];
+    A.add(bone, new THREE.IcosahedronGeometry(r, ico).scale(1.1, 0.85, 1), { m: mat([x * w, y, z], [0.3 * i, 0.7 * i, 0]), color: shade });
+  }
+}

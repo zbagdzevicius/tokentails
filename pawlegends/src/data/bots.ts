@@ -414,17 +414,27 @@ export const BOT_AI = Object.freeze({
   spellAllyRange: 4000,
   /**
    * Sim v11 original cats (sim/bots/heroes/*.ts): Meatball loafs with this many enemy heroes within Loaf Mode's radius
-   * and peels for an ally with a foe this close to it; Pixel holds her beam only with no foe this close and goes Boxbot
-   * above this HP share; Duchess glares at a foe this close and keeps this spacing from a melee foe; Stilts commits on
-   * a foe below this HP share and orbits her target at this distance to build Stride.
+   * and peels for an ally with a foe this close to it; he Chonks with 2+ enemy heroes within meatballChonkRange, or
+   * chases a foe below meatballChaseHpBp within meatballChaseRange. Pixel holds her beam on a foe between
+   * pixelBeamMin and the beam's range with no foe inside pixelBeamSafe, and goes Boxbot above pixelBoxbotHpBp with a
+   * foe within pixelBoxbotRange; Duchess glares at a foe this close and keeps this spacing from a melee foe; Stilts
+   * commits on a foe below stiltsCommitHpBp, goes Zoomies on a foe below stiltsZoomiesHpBp within stiltsZoomiesRange,
+   * and orbits her target at stiltsOrbit to build Stride.
    */
   meatballLoafFoes: 2,
   meatballPeelRange: 3000,
+  meatballChonkRange: 5000,
+  meatballChaseHpBp: 3500,
+  meatballChaseRange: 4000,
   pixelBeamSafe: 2500,
+  pixelBeamMin: 4000,
   pixelBoxbotHpBp: 4000,
+  pixelBoxbotRange: 7000,
   duchessPeelRange: 3000,
   duchessSpacing: 4500,
   stiltsCommitHpBp: 5500,
+  stiltsZoomiesHpBp: 5000,
+  stiltsZoomiesRange: 9000,
   stiltsOrbit: 4500,
   /** "Carry" allies (DifficultyRules.carryAllies): stay within followRange of the human, never more than leadMax
    *  ahead of it; leave a foe under stealHpBp to the human while it is within stealRange and hit it in the last stealTicks. */

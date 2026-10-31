@@ -1,8 +1,8 @@
 /**
  * DEV ONLY (gallery): synthetic sim streams. Each scenario produces one Snapshot per tick (the hero, a training dummy,
  * bolts, zones) with the events of that tick, built from the real timings (render/anim/timing.ts): a basic combo at
- * the hero's period with the 8 t windup, windups, casts, dashes moving at 20 m/s for their travel ticks, skillshots
- * at their speed, zones arming, reactions, death and respawn, a mock fight. The gallery pushes these into a real
+ * the hero's period with the 8 t windup, windups, casts, dashes moving at their own dash speed for their travel ticks,
+ * skillshots at their speed, zones arming, reactions, death and respawn, a mock fight. The gallery pushes these into a real
  * SnapBuffer and GameView, so clips bind through the same director code as a match (ANIM-SPEC §11).
  */
 import type { HeroId } from '../data/heroes/types';
@@ -10,7 +10,7 @@ import { HEROES } from '../data/heroes';
 import { PROJECTILE_KIND } from '../data/towers';
 import { ZONE_KIND } from '../data/effects';
 import type { EntitySnap, ProjectileSnap, SimEvent, Snapshot, ZoneSnap, CastSlot } from '../sim/api';
-import { BASIC_WINDUP, BOLT_SPEED, DASH_SPEED, SIM_TIMING, travelTicks } from '../render/anim/timing';
+import { BASIC_WINDUP, BOLT_SPEED, SIM_TIMING, travelTicks } from '../render/anim/timing';
 import type { Slot } from '../render/anim/types';
 
 export const ORIGIN = Object.freeze({ x: 36000, y: 30000 });
@@ -193,12 +193,12 @@ export function makeScenario(name: string, hero: HeroId, vs: HeroId): Scenario {
       anchors.cast ??= cast;
       s.ev(cast, { type: 'cast', tick: cast, src: ME, slot: SLOT_INDEX[sl], x: aimX, y: aimY, target: 0xff });
       if (dash > 0) {
-        const n = travelTicks(dash, DASH_SPEED);
+        const n = travelTicks(dash, st.dashSpeed);
         const dir = away ? -1 : 1;
         const x0 = me.x;
         anchors.travelEnd ??= cast + n;
         s.moves.push((tt) => {
-          if (tt > cast && tt <= cast + n) me.x = x0 + dir * Math.min(dash, ((tt - cast) * DASH_SPEED) / 30);
+          if (tt > cast && tt <= cast + n) me.x = x0 + dir * Math.min(dash, ((tt - cast) * st.dashSpeed) / 30);
         });
         if (!away) s.ev(cast + n, { type: 'hit', tick: cast + n, src: ME, dst: DUMMY, amount: 90, shielded: 0, kind: 'ability' });
         // keep the dummy in front of the next dash
@@ -225,7 +225,7 @@ export function makeScenario(name: string, hero: HeroId, vs: HeroId): Scenario {
       }
       if (st.duration > 0) anchors.stateEnd ??= cast + Math.min(st.duration, 120);
       key = anchors.cast;
-      t = cast + (dash > 0 ? travelTicks(dash, DASH_SPEED) : 0) + 22;
+      t = cast + (dash > 0 ? travelTicks(dash, st.dashSpeed) : 0) + 22;
     }
     end = Math.max(t + 20, (anchors.stateEnd ?? 0) + 10, (anchors.zoneArm ?? 0) + 25);
   } else if (name === 'react-light' || name === 'react-heavy' || name === 'knock') {
