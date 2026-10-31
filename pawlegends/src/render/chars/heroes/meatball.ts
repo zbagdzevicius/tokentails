@@ -65,10 +65,15 @@ function bandanaKnot(A: Assembly, color: Col): void {
   A.add('chest', new THREE.SphereGeometry(0.022, A.seg(6, 4), A.seg(4, 3)), { m: mat([0, 0.21, 0.155]), color });
 }
 
-/** A sweatband round his head (white with a team stripe), just under the ears. */
+/**
+ * A sweatband round his head (white with a team stripe), just under the ears. Sized to the skull (FACE.skull: centre
+ * 0.165, radius 0.145, scale 1.18 × 0.96 × 1) where the band sits 0.05 above its centre: a snug, slightly tapered band
+ * (a round ring wider than the skull floated like a halo, worst from behind).
+ */
 function sweatband(A: Assembly, stripe: Col): void {
-  A.add('head', new THREE.CylinderGeometry(0.168, 0.172, 0.04, A.seg(16, 9), 1, true), { m: mat([0, 0.215, -0.005], [-0.12, 0, 0], [1.1, 1, 1.02]), color: SWEAT });
-  A.add('head', new THREE.TorusGeometry(0.171, 0.006, 3, A.seg(16, 9)), { m: mat([0, 0.215, -0.005], [Math.PI / 2 - 0.12, 0, 0], [1.1, 1.02, 1]), color: stripe });
+  const at = mat([0, 0.212, 0], [-0.1, 0, 0], [1.17, 1, 1]);
+  A.add('head', new THREE.CylinderGeometry(0.134, 0.146, 0.042, A.seg(16, 9), 1, true), { m: at, color: SWEAT });
+  A.add('head', new THREE.TorusGeometry(0.141, 0.006, 3, A.seg(16, 9)), { m: at.clone().multiply(mat([0, 0, 0], [Math.PI / 2, 0, 0])), color: stripe });
 }
 
 export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {

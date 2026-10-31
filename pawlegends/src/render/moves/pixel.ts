@@ -28,7 +28,7 @@ export const E_DUR_S = T.e.duration * TICK_S;
 export const R_DUR_S = T.r.duration * TICK_S;
 /** BOXBOT's box scale and lift (the box grows legs). */
 export const BOXBOT_SCALE = 1.25;
-export const BOXBOT_LIFT = 0.2;
+export const BOXBOT_LIFT = 0.23;
 
 // ------------------------------------------------------------------------------------------------ shared poses
 
@@ -38,28 +38,37 @@ const LEVEL: Pose = { shoulderR: [-1.45, 0, 0.2], elbowR: [-0.3, 0, 0], shoulder
 const KICK: Pose = { shoulderR: [-1.9, 0, 0.2], elbowR: [-0.5, 0, 0], shoulderL: [-1.0, 0, -0.35], elbowL: [-1.0, 0, 0], chest: [-0.25, 0, 0], head: [-0.2, 0, 0] };
 /** The laser pointer: the left paw straight out at the dot, the cannon tucked. */
 const POINT: Pose = { shoulderL: [-1.55, 0, 0], elbowL: [0, 0, 0], shoulderR: [-0.4, 0, 0.3], elbowR: [-1.2, 0, 0], chest: [0.1, 0, 0], head: [0.1, 0, 0] };
-/** Ducked: curled into the box, paws over the head. */
-const DUCK: Pose = { chest: [0.15, 0, 0], head: [0.45, 0, 0], shoulderL: [-2.6, 0, -0.3], shoulderR: [-2.6, 0, 0.3], elbowL: [-1.8, 0, 0], elbowR: [-1.8, 0, 0], thighL: [-1.0, 0, 0], thighR: [-1.0, 0, 0], kneeL: [1.8, 0, 0], kneeR: [1.8, 0, 0] };
-/** BOXBOT: arms out like a toy robot, chin up. */
-const ROBOT: Pose = { shoulderL: [-1.4, 0, 0.6], shoulderR: [-1.4, 0, -0.6], elbowL: [-1.5, 0, 0], elbowR: [-1.5, 0, 0], head: [-0.15, 0, 0] };
+/** Ducked: curled into the box, chin on the chest, paws over the head, feet tucked up inside. */
+const DUCK: Pose = { chest: [-0.3, 0, 0], head: [0.6, 0, 0], shoulderL: [-2.6, 0, -0.3], shoulderR: [-2.6, 0, 0.3], elbowL: [-1.8, 0, 0], elbowR: [-1.8, 0, 0], thighL: [-1.0, 0, 0], thighR: [-1.0, 0, 0], kneeL: [1.8, 0, 0], kneeR: [1.8, 0, 0] };
+/**
+ * BOXBOT's legs: the thighs turned a half turn, so the robot-leg tubes folded inside the box (chars/heroes/pixel.ts
+ * robotLegs) swing down under it and her own short legs fold up inside. The two stomp poses tip them a little apart.
+ */
+const ROBOT_LEGS: Pose = { thighL: [Math.PI, 0, 0], thighR: [Math.PI, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0] };
+const STOMP_L: Pose = { thighL: [Math.PI - 0.22, 0, 0], thighR: [Math.PI + 0.12, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0] };
+const STOMP_R: Pose = { thighL: [Math.PI + 0.12, 0, 0], thighR: [Math.PI - 0.22, 0, 0], kneeL: [0, 0, 0], kneeR: [0, 0, 0] };
+/** BOXBOT: arms out like a toy robot, chin up, standing on the robot legs. */
+const ROBOT: Pose = { shoulderL: [-1.4, 0, 0.6], shoulderR: [-1.4, 0, -0.6], elbowL: [-1.5, 0, 0], elbowR: [-1.5, 0, 0], head: [-0.15, 0, 0], ...ROBOT_LEGS };
 
 // ------------------------------------------------------------------------------------------------ basics (ranged: release at 8 t)
 
 function shot(id: string, k: number, boxbot: boolean): ClipDef {
   const s = boxbot ? BOXBOT_SCALE : 1;
   const up = boxbot ? BOXBOT_LIFT : 0;
+  // BOXBOT keeps standing on its robot legs through the shot (full mask), and ends in ROBOT for the hold to resume
+  const legs: Pose = boxbot ? ROBOT_LEGS : {};
   return {
     id,
     len: 0.7,
-    mask: 'upper',
+    mask: boxbot ? 'full' : 'upper',
     mode: 'override',
     prio: Prio.Basic,
     keys: [
-      [0, 'aim', null],
-      [C * 0.6, 'aim', LEVEL, 'out'],
-      [C, 'aim', KICK, 'expoOut'],
-      [C + 0.16, 'aim', LEVEL, 'out'],
-      [0.7, null, null, 'inOut'],
+      [0, 'aim', boxbot ? ROBOT : null],
+      [C * 0.6, 'aim', { ...LEVEL, ...legs }, 'out'],
+      [C, 'aim', { ...KICK, ...legs }, 'expoOut'],
+      [C + 0.16, 'aim', { ...LEVEL, ...legs }, 'out'],
+      [0.7, null, boxbot ? ROBOT : null, 'inOut'],
     ],
     root: {
       fwd: [[0, 0], [C, 0], [C + 0.05, -0.06 * k, 'expoOut'], [0.7, 0, 'inOut']],
@@ -172,7 +181,9 @@ const e: ClipDef = {
     [E_LEN, null, null, 'inOut'],
   ],
   root: {
-    sy: [[0, 1], [E_IN, 0.72, 'expoOut'], [E_OUT, 0.72], [E_OUT + 0.08, 1.12, 'out'], [E_LEN, 1, 'inOut']],
+    // squashed flat into the box
+    sx: [[0, 1], [E_IN, 1.12, 'expoOut'], [E_OUT, 1.12], [E_OUT + 0.08, 0.94, 'out'], [E_LEN, 1, 'inOut']],
+    sy: [[0, 1], [E_IN, 0.6, 'expoOut'], [E_OUT, 0.6], [E_OUT + 0.08, 1.12, 'out'], [E_LEN, 1, 'inOut']],
     up: [[0, 0], [E_OUT, 0], [E_OUT + 0.08, 0.12, 'out'], [E_LEN, 0, 'in']],
   },
   markers: { contact: E_IN, out: E_OUT, end: E_LEN },
@@ -209,14 +220,21 @@ const r: ClipDef = {
   cues: [['contact', 'fx', 'px:boxbot'], ['contact', 'shake', 2], ['contact', 'punch', 0.04], [R_C + 0.34, 'land']],
   cancel: 'afterContact',
 };
-/** The BOXBOT stomp loop while the window lasts: bigger box on its legs, a mechanical bob. */
+/**
+ * The BOXBOT stomp loop while the window lasts: the bigger box on its robot legs, stomping left, right, with a
+ * mechanical bob. Full mask (the legs are the form); a basic interrupts it and the director resumes it.
+ */
 const rHold: ClipDef = {
   id: 'pixel.r.hold',
   len: 0.5,
-  mask: 'upper',
+  mask: 'full',
   mode: 'override',
   prio: Prio.Emote,
-  keys: [[0, null, ROBOT], [0.25, null, { ...ROBOT, chest: [0, 0.12, 0] }, 'inOut'], [0.5, null, ROBOT, 'inOut']],
+  keys: [
+    [0, null, { ...ROBOT, ...STOMP_L }],
+    [0.25, null, { ...ROBOT, ...STOMP_R, chest: [0, 0.12, 0] }, 'inOut'],
+    [0.5, null, { ...ROBOT, ...STOMP_L }, 'inOut'],
+  ],
   root: {
     sx: [[0, BOXBOT_SCALE], [0.5, BOXBOT_SCALE]],
     sy: [[0, BOXBOT_SCALE], [0.25, BOXBOT_SCALE * 1.03, 'inOut'], [0.5, BOXBOT_SCALE, 'inOut']],
@@ -230,7 +248,7 @@ const rHold: ClipDef = {
 const rEnd: ClipDef = {
   id: 'pixel.r.end',
   len: 0.4,
-  mask: 'upper',
+  mask: 'full',
   mode: 'override',
   prio: Prio.Emote,
   keys: [[0, null, ROBOT], [0.4, null, null, 'inOut']],

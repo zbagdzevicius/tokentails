@@ -7,8 +7,9 @@
  *   dodge width from the iso camera; the ball pierces, so it never ends early), and a fur burst on every unit it hits.
  * - W Not Amused: a purple glint at her eyes for exactly the windup, then the glare wedge over the exact cone (range,
  *   arc) for a blink and a slower fading rim.
- * - E Cushion Glide: the fur cloud at the take-off point: a soft disc and rim at exactly the sim radius for exactly the
- *   cloud's life (ttl), with a little puff ring on each of its slow pulses (every), and a fur trail on the landing.
+ * - E Cushion Glide: the fur cloud at the take-off point: a soft cream-grey disc with lumps of fur (glow cards
+ *   refreshed on each of its slow pulses, `every`) over exactly the sim radius for exactly the cloud's life (ttl), a
+ *   faint edge at the radius, a soft puff ring on each pulse, and a fur trail on the landing.
  * - R Royal Decree: a crown gathering over her head through the windup, then on the cast a crown wave: a ring at
  *   exactly the sim radius with five upright crown points round it and a purple sweep.
  * - Snub (Utter Disdain): a hero the snapshot shows newly Stunned shortly after one of her ability hits gets the
@@ -29,6 +30,11 @@ import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet } f
 const ROYAL = 0x4a1a8a;
 const GLARE = 0x7a28d0;
 const FUR = 0x8a8078;
+/** The shed-fur cloud: a paler cream-grey, so the lumps read as fluff on grass and sand (not a gold telegraph). */
+const FLUFF = 0xb4aa9e;
+/** Fur-cloud lumps: offsets (share of the radius) round the centre, cycled one per lump. */
+const LUMP_A = [0.15, 2.3, 4.4, 1.2, 3.4, 5.5];
+const LUMP_R = [0.5, 0.55, 0.45, 0.3, 0.6, 0.35];
 const STAR = 0xb0a0e0;
 /** Intensity (p3): low enough that the additive shader keeps the purple. */
 const FI = 0.6;
@@ -234,10 +240,14 @@ export const SKILL_FX: SkillFxSet = {
         c.t = 0;
         c.next = 0;
         c.rel = rel;
-        c.rim = rim;
-        mesh(fx, 'glow', c.x, c.z, c.rad, c.life, FUR, rim, rel, 0, 0.06, 1, 0, 0, 0, 0.35);
-        mesh(fx, 'arc', c.x, c.z, c.rad, c.life, FUR, rim, rel, yaw, 0.05, 1, TAU, Math.max(0.8, 1 - 0.2 / c.rad), 1, FI);
-        furPuff(fx, c.x, c.z, 1.4, rim, rel, 0.5);
+        // shed fur, not a telegraph: an own or allied cloud keeps a fur-coloured edge (the gold "you" rim made it
+        // read as a generic gold ring); an enemy cloud keeps the danger rim
+        c.rim = rel === 'enemy' ? rim : FLUFF;
+        // a soft fluffy disc filling the radius (a glow card is soft-edged, so it is drawn a little wider), lumps of
+        // fur on it refreshed by the pulses (update), and only a faint edge at the exact radius
+        mesh(fx, 'glow', c.x, c.z, c.rad * 1.2, c.life, FLUFF, c.rim, rel, 0, 0.07, 1, 0, 0, 0, 2.2);
+        mesh(fx, 'arc', c.x, c.z, c.rad, c.life, FUR, c.rim, rel, yaw, 0.05, 1, TAU, Math.max(0.94, 1 - 0.08 / c.rad), 1, 0.25);
+        furPuff(fx, c.x, c.z, 1.4, c.rim, rel, 0.5);
         return;
       }
       default: {
@@ -323,7 +333,14 @@ export const SKILL_FX: SkillFxSet = {
       c.t += dt;
       // the cloud's slow pulses from its own clock (the burst zone pulses every `every` from the cast)
       while (c.t >= c.next * c.every && c.next * c.every < c.life) {
-        if (c.next > 0) mesh(fx, 'ring', c.x, c.z, c.rad * 0.85, 0.3, FUR, c.rim, c.rel, 0, 0.07, 1, 0, 0.5, 0, 0.45);
+        if (c.next > 0) mesh(fx, 'ring', c.x, c.z, c.rad * 0.85, 0.3, FUR, c.rim, c.rel, 0, 0.07, 1, 0, 0.5, 0, 0.3);
+        // fur lumps on the cloud (Low: one a pulse, it has 4 glow slots), each living past the next pulse
+        const n = fx.tier === 'low' ? 1 : 3;
+        for (let i = 0; i < n; i++) {
+          const k = (c.next * 3 + i) % LUMP_A.length;
+          const d = LUMP_R[k] * c.rad;
+          mesh(fx, 'glow', c.x + Math.cos(LUMP_A[k]) * d, c.z - Math.sin(LUMP_A[k]) * d, c.rad * 0.6, Math.min(c.every * 1.5, c.life - c.t + 0.05), FLUFF, c.rim, c.rel, 0, 0.2 + 0.1 * i, 1, 0, 0, 0, 2);
+        }
         c.next++;
       }
       if (c.t >= c.life) c.on = false;

@@ -12,7 +12,7 @@ import { BASIC_WINDUP, SIM_TIMING, TICK_S, abilNumbers } from '../../src/render/
 import { ROOT_CAPS } from '../../src/render/anim/root';
 import type { ClipDef, FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Slot } from '../../src/render/anim/types';
 import { BOXBOT_SCALE, E_DUR_S, MOVES, PIXEL_CLIPS, R_DUR_S, W_DUR_S } from '../../src/render/moves/pixel';
-import { SKILL_FX, beamOn, resetPixelFx } from '../../src/render/skillfx/pixel';
+import { SKILL_FX, beamOn, resetPixelFx, BEAM_GLOW_W } from '../../src/render/skillfx/pixel';
 import { PROJECTILE_KIND } from '../../src/data/towers';
 
 const FRAME = 1 / 60;
@@ -161,21 +161,29 @@ describe('pixel skill FX', () => {
   });
 
   it('W: the beam at the sim length and width along her facing, for the sim duration (Overclock longer)', () => {
-    for (const talents of [[], ['overclock']]) {
+    for (const [talents, tier] of [[[], 'low'], [['overclock'], 'low'], [[], 'med']] as const) {
       resetPixelFx();
-      const f = fakeFx(talents);
-      const a = abilNumbers('pixel', 'w', talents);
+      const f = fakeFx([...talents]);
+      (f.fx as { tier: string }).tier = tier;
+      const a = abilNumbers('pixel', 'w', [...talents]);
       SKILL_FX.onCast!(cast(1), f.fx, ctx);
       f.step(0.2);
       const beams = f.spawned.filter((s) => s.kind === 'beam');
-      expect(beams.length).toBeGreaterThan(2);
+      // two layers: the hit lane on the ground at exactly the sim width, and the laser at paw height, whose glow quad
+      // is wider so its bright core (the shader's falloff) is the sim width
+      const lane = beams.filter((b) => (b.o.y ?? 0) < 0.1);
+      const laser = beams.filter((b) => (b.o.y ?? 0) >= 0.1);
+      expect(laser.length).toBeGreaterThan(2);
+      expect(lane.length).toBe(tier === 'low' ? 0 : laser.length);
       for (const b of beams) {
         expect(b.o.sx).toBeCloseTo(a.range / 1000, 6);
-        expect(b.o.sz).toBeCloseTo(a.width / 1000, 6);
         expect(b.o.yaw).toBeCloseTo(0, 6);
       }
-      // at most two alive at once (Low caps beams at 2)
-      expect(beams[1].at - beams[0].at).toBeGreaterThanOrEqual(beams[0].o.life - 0.04);
+      for (const b of lane) expect(b.o.sz).toBeCloseTo(a.width / 1000, 6);
+      for (const b of laser) expect(b.o.sz).toBeCloseTo((a.width / 1000) * BEAM_GLOW_W, 6);
+      // at most two alive at once per layer (Low caps beams at 2 and draws the laser only)
+      if (lane.length) expect(lane[1].at - lane[0].at).toBeGreaterThanOrEqual(lane[0].o.life - 0.04);
+      expect(laser[1].at - laser[0].at).toBeGreaterThanOrEqual(laser[0].o.life - 0.04);
       const dot = f.spawned.find((s) => s.kind === 'glow' && s.o.x > 1);
       expect(dot?.o.x).toBeCloseTo(a.range / 1000, 6);
       f.step(a.duration * TICK_S - 0.25);

@@ -641,7 +641,8 @@ Where the build departs from §2 and §3, the code wins; this list says why.
 
 **Pixel**
 - RigSpec `tier 'kid', headScale 1.15, bodyScale 1.0` (not 1.35 / 0.8): the spec numbers put the neck only 0.19 H above the hips, and the upright test needs 0.25 H. HERO_TOP 2.5, measured.
-- BOXBOT's bigger box is the whole character scaled 1.25 by the R clips (one skinned mesh, so gear cannot be shown or hidden; no arm tubes).
+- BOXBOT's bigger box is the whole character scaled 1.25 by the R clips (one skinned mesh, so gear cannot be shown or hidden; no arm tubes). Its legs are grey accordion tubes on the thigh bones, built pointing up so they lie folded inside the box; the BOXBOT clips turn the thighs a half turn, so the tubes swing down under the box (her own legs fold up inside it) and the root lift stands it on them.
+- The box is one rigid box on the hips bone (it was two, on the chest and hips bones, and they slid apart whenever the chest leaned).
 - The W self-slow is refreshed each tick, so it ends with the beam.
 - `cardboardBox` lives in her chibi module; the gear.ts stub is gone.
 - BOT_AI gained `pixelBeamMin 4000` (the 4–8 m beam window) and `pixelBoxbotRange 7000`.
@@ -660,12 +661,20 @@ Where the build departs from §2 and §3, the code wins; this list says why.
 **Shared**
 - `dash(m, id, angle, dist, speed)` types `speed` as `number`, so Duchess's glide and Stilts's leap use it directly. `slotTimingFrom` gives a dash slot its own `dashSpeed` (the slot's `speed`, else 20 m/s) and no projectile speed; Stilts Q is aim-clamped like Lambo's E. The director and the gallery scenarios time a dash at that speed.
 - heroText reads `splash` as reach, `push` as "push N m" and `charm` as a timer; talent cards show `push`, `splash`, `touch` in metres, `ttl` in seconds and `arc` in degrees (the arc change also covers Avietė's and Cacklejaw's arc talents).
-- The pick grid uses 5 columns; at heights up to 520 px the tiles shrink (22 px icons) so three rows still leave the Paw Trick chips above the fold. The champions, no-zoom, hud-compact and match-touch Playwright specs pass with the 2-row cat grid.
+- The pick grid puts all 12 heroes on one 6-column grid of two rows (the side grids are `display: contents` inside `.roster`): the cats, then the dogs closing the second row. A third row (5 columns) pushed the Paw Trick and Look chips under the foot (round 1 fix).
 - `vendor-sim` freezes v10 at 18cbcf31 with its forfeit fixture (`extra` in FROZEN) and retires v9.
+
+**Verification round 1**
+- Pixel's Laser Pointer draws two layers: the hit lane on the ground at exactly the sim width (Med and up) and the laser at paw height, its glow quad 1.8× wider so the bright core is the sim width. Each segment lives until the next redraw plus a frame, so a slow frame never blanks it.
+- A basic over a sustained hold clip (BOXBOT, Zoomies) re-arms the hold in the director, so the form keeps its look until stateEnd. Stilts gained a Zoomies hold (an eager hunch with a bounce) and speed lines that read while she stands.
+- Duchess's Cushion Glide cloud is a cream fur disc with lumps refreshed on its pulses; an own or allied cloud's edge is fur-coloured, not the gold rim.
+- Meatball's sweatband is sized to the skull; Stilts's scarf ends hang down her back as cloth.
+- The PPK config's frozen tables are marked pure, so the bundle drops the ones the game never reads (first-load JS 448.3 KB).
 
 **Reported, not fixed here**
 - Nap (`units/hero.ts`, `toSpawn` when the channel ends) teleports a hero home without the kit's `reset` hook. Stilts guards against it in her kit; any kit that tracks a last position would see a jump.
 - The touch Attack button treats only Sage as ranged (decision 3 above).
+- The core's HP bar draws over a hero standing in front of it at the fountain, and at 844×390 the bots row (with the "Played MOBAs before?" chip) sits over the pick turntable. Both predate v11.
 
 **Balance (Phase 3)**
 - The `pvp` pass covers all 12 heroes. Meatball 9100/9600, Pixel 9400/9600, Duchess 11400/8700, Stilts 10300/9000. Every other cat takes 300 less than before; Clem, Gabė and Avietė also deal less. Brutus and Cacklejaw take 9350.

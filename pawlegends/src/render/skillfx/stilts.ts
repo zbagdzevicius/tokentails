@@ -12,8 +12,9 @@
  *   ping on the clip's `ping` marker.
  * - E Swat-Swat: per swat the exact line (a beam `range` long, `width` wide) and a claw crescent along it; the second
  *   swat `gap` ticks after the first, re-anchored where she stands then (the sim's rule).
- * - R Zoomies: a dust burst, then for the duration a speed-line ribbon from her chest and alternating paw-print
- *   afterimages behind her (both teams see Zoomies: the snapshot's `form` bit ends them early, at a death).
+ * - R Zoomies: a dust burst, then for the duration a speed-line ribbon from her chest, short speed lines streaking
+ *   in to her back and alternating paw-print afterimages behind her (both teams see Zoomies: the snapshot's `form`
+ *   bit ends them early, at a death).
  * - Passive Long Stride: own view only (the snapshot's `resource` is the own team's): a ring flashes round her the
  *   moment Stride fills (the next basic on a hero is a pounce).
  *
@@ -234,14 +235,35 @@ function update(dt: number, fx: FxCtx): void {
     if (now < printNext[id]) continue;
     printNext[id] = now + by(fx, PRINT_EVERY * 2, PRINT_EVERY * 1.4, PRINT_EVERY);
     // a paw print just behind her, alternating sides (her facing when known, else a fixed side offset)
-    let ox = 0.18 * printSide[id];
-    let oz = 0;
-    if (fx.facing && fx.facing(id, F)) {
-      ox = -F.z * 0.18 * printSide[id] - F.x * 0.35;
-      oz = F.x * 0.18 * printSide[id] - F.z * 0.35;
+    const side = printSide[id];
+    const faced = fx.facing !== undefined && fx.facing(id, F);
+    if (!faced) {
+      F.x = 1;
+      F.z = 0;
     }
-    fx.mesh.spawn('glow', { x: P.x + ox, z: P.z + oz, sx: 0.22, life: 0.6, color: RUST, rim: fx.rim(id), p3: 1, rel: fx.relation(id) });
-    printSide[id] = (-printSide[id]) as 1 | -1;
+    const rel = fx.relation(id);
+    const rim = fx.rim(id);
+    fx.mesh.spawn('glow', { x: P.x - F.z * 0.18 * side - F.x * 0.35, z: P.z + F.x * 0.18 * side - F.z * 0.35, sx: 0.28, life: 0.6, color: RUST, rim, p3: 2, rel });
+    // a speed line streaking in to her back at body height (Med and up: Low keeps its two beam slots for gameplay
+    // lines); the ribbon only shows once she moves, the streaks read even while she stands
+    if (fx.tier !== 'low') {
+      const len = side > 0 ? 1.7 : 1.3;
+      const lat = side * (0.22 + 0.1 * (printNext[id] % 1));
+      fx.mesh.spawn('beam', {
+        x: P.x - F.z * lat - F.x * (0.35 + len),
+        y: side > 0 ? 1.15 : 0.7,
+        z: P.z + F.x * lat - F.z * (0.35 + len),
+        yaw: Math.atan2(-F.z, F.x),
+        sx: len,
+        sz: 0.2,
+        life: 0.24,
+        color: side > 0 ? CREAM : TERRA,
+        rim,
+        p3: 2.2,
+        rel,
+      });
+    }
+    printSide[id] = (-side) as 1 | -1;
   }
 }
 

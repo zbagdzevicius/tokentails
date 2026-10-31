@@ -116,6 +116,8 @@ class HState {
   windTicks = 0;
   /** Sustained state: hold clip waiting, its end. */
   holdClip: ClipDef | null = null;
+  /** The hold clip once started (a basic that interrupts it re-arms it, so the state keeps its look until stateEnd). */
+  holdLoop: ClipDef | null = null;
   endClip: ClipDef | null = null;
   stateEnd = NaN;
   lastCastSlot = -1;
@@ -380,6 +382,7 @@ export class AnimDirector {
     if (s.holdClip && !stack.current() && this.now < s.stateEnd) {
       this.anchorsReset(s);
       stack.play(s.holdClip, { anchors: s.anchors, loop: true });
+      s.holdLoop = s.holdClip;
       s.holdClip = null;
     }
     if (s.stateEnd === s.stateEnd && this.now >= s.stateEnd) {
@@ -392,7 +395,7 @@ export class AnimDirector {
         stack.play(s.endClip, { anchors: s.anchors });
       }
       s.endClip = null;
-      s.holdClip = null;
+      s.holdClip = s.holdLoop = null;
     }
     // smear / mouth restore
     const bones = r.ch.rig.bones;
@@ -538,7 +541,12 @@ export class AnimDirector {
     s.anchors[A.release] = contactS;
     // post-contact speeds up with the attack speed (Golden Hour, Frenzy): authored period / measured period
     const post = Math.max(1, Math.min(1.8, SIM_TIMING[s.hero].period / Math.max(6, s.clock.P)));
-    if (r.ch.anim.stack.play(clip, { anchors: s.anchors, post })) s.swingClip = clip.id;
+    // a basic over a sustained hold (BOXBOT, Zoomies) re-arms the hold: it resumes once the swing is done
+    const held = s.holdLoop !== null && r.ch.anim.stack.playing(s.holdLoop.id) !== null;
+    if (r.ch.anim.stack.play(clip, { anchors: s.anchors, post })) {
+      s.swingClip = clip.id;
+      if (held) s.holdClip = s.holdLoop;
+    }
   }
 
   private feint(s: HState, r: DirectorRig): void {
@@ -691,6 +699,7 @@ export class AnimDirector {
     // the level-6 branch has its own hold / end (none when it does not author them)
     const br = ent?.branch === true && !!sm?.branch;
     s.holdClip = (br ? sm?.branchHold : sm?.hold) ?? null;
+    s.holdLoop = null;
     s.endClip = (br ? sm?.branchEnd : sm?.end) ?? null;
     s.endBuff = 0;
     if (sm?.endOnBuff && (s.holdClip || s.endClip)) {
@@ -808,7 +817,7 @@ export class AnimDirector {
     }
     if (s) {
       s.dash.on = false;
-      s.holdClip = s.endClip = null;
+      s.holdClip = s.holdLoop = s.endClip = null;
       s.stateEnd = NaN;
       s.endBuff = 0;
       s.idleOn = '';

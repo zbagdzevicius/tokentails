@@ -1,6 +1,7 @@
 // Lifted from Pink Paw Knight (swordcat) at commit 7714dcb: src/core/config.js
 // Licence: all rights reserved, pending founder decision (POC.md §17, GDD §12 decision #3). Not MIT.
 // Changes: relative imports rewritten by tools/lift-ppk.mjs; any later hand edit is marked "pawlegends:".
+// pawlegends: the frozen tables are marked pure, so the bundle drops the PPK ones the game never reads (first-load budget).
 // src/core/config.js  (owner: core)
 // Part 1 is GAME_DESIGN.md Appendix A, merged verbatim (M0). Part 2 holds core additions
 // (MODEL_FIT, quality presets, input bindings, ids). Agents READ config; additions are requested
@@ -458,7 +459,7 @@ export const RENDER = {
  * - `stage`: which §5 budget column this build is gated against ('I1' → 'I2' → 'End'); `perf().stage` reports it.
  * - `dynRes`: the asymmetric render-scale controller (§5.2). `thermal`: the shedding ladder + the 30 fps fallback (§5.4).
  */
-export const PERF = deepFreeze({
+export const PERF = /* @__PURE__ */ deepFreeze({
   stage: 'I1',
   budgets: {
     I1: { frameCalls: { low: 70, med: 120, high: 150 } },
@@ -611,7 +612,7 @@ export const INPUT = {
  * Combat tuning not covered by Appendix A. Every value is quoted from the spec it comes from.
  * Owner of the values: combat (adopted into config by core, M2; src/combat/attacks.js re-exports it).
  */
-export const COMBAT = Object.freeze({
+export const COMBAT = /* @__PURE__ */ Object.freeze({
   /** tech.md §9.3: an enemy's invulnT after taking a hit (anti multi-hit; the player uses PLAYER.hurt.iframes). */
   antiMultiHit: 0.12,
   /** tech.md §9.3 / GAME_DESIGN §10.3: poise break → stagger 0.6 s, poise refilled. */
@@ -646,7 +647,7 @@ export const COMBAT = Object.freeze({
 
 
 // Enemy / boss numbers GAME_DESIGN states in prose (§8, §10, §11) but Appendix A doesn't carry (owner: enemies).
-export const ENEMY_TUNING = Object.freeze({
+export const ENEMY_TUNING = /* @__PURE__ */ Object.freeze({
   windupMin: 0.45,                       // §10.1 minimum windup on Knight (scaled by the difficulty windup multiplier)
   alertHopV: 2.2,                        // §10.1 alert: a 0.4 s "!" hop (vertical speed; GRAVITY 22 → ~0.2 s up + 0.2 s down)
   alertDur: 0.4,
@@ -721,7 +722,7 @@ export const ENEMY_TUNING = Object.freeze({
 });
 
 /** Physics engine tunables (GAME_DESIGN §7.1 / tech.md §5; owner: physics). */
-export const PHYSICS = Object.freeze({
+export const PHYSICS = /* @__PURE__ */ Object.freeze({
   walkableNormalY: 0.7,    // §7.1: slopes steeper than normal.y 0.7 slide
   steepFaceTol: 0.05,      // terrain: a rendered triangle steeper than walkableNormalY - this is always too steep (cliff
                            // banks: no standing on the smoothed foot of a cliff); between the two the smoothed slope decides
@@ -749,7 +750,7 @@ function deepFreeze(o) {
  * WA §3.2 / §3.5a class marks (fx GroundDecals; 0 draws): her pink ring, the dashed companion ring, the mint interact
  * ring, pickup twinkles and her in-world heart arc (shown `show` s after an HP change and while HP ≤ 1).
  */
-export const CLASS_MARKS = deepFreeze({
+export const CLASS_MARKS = /* @__PURE__ */ deepFreeze({
   hero: { color: '#FF8FB1', alpha: 0.55, width: 0.08, r: 0.75 },
   companion: { color: '#8FD3FF', alpha: 0.35, r: 0.5, dashes: 8 },
   interact: { color: '#9BE3C4', alpha: 0.30, hz: 0.8, pulse: 0.06, twinkleEvery: 2.5, range: 8, maxZones: 6 },
@@ -758,32 +759,32 @@ export const CLASS_MARKS = deepFreeze({
 });
 
 /** WA §5.7 knock-out look (player-owned timings, read by fx / ui): sit, dizzy stars, then the respawn pop at sitT + wipeT. */
-export const KO = deepFreeze({ sitT: 1.2, wipeT: 0.35, starR: 0.35, starRev: 2.5, hearts: 6 });
+export const KO = /* @__PURE__ */ deepFreeze({ sitT: 1.2, wipeT: 0.35, starR: 0.35, starRev: 2.5, hearts: 6 });
 
 /** WA §2.6 `world/Bunting.js` (the one added play draw; no shadow). Low halves pennants and lanterns. */
-export const BUNTING = deepFreeze({ max: 240, maxLow: 120, lanternMax: 60, lanternMaxLow: 30, sag: 0.12, spacing: 0.55, minH: 3.2, flutter: 0.06 });
+export const BUNTING = /* @__PURE__ */ deepFreeze({ max: 240, maxLow: 120, lanternMax: 60, lanternMaxLow: 30, sag: 0.12, spacing: 0.55, minH: 3.2, flutter: 0.06 });
 
 /** WA §5 idle ladder (s of no input; player): every step before the Photo Cam (`PLAYER.memeCam.idle`), loops from `loopFrom`. */
-export const IDLE = deepFreeze({ glance: 4, look: 7, groom: 10, twirl: 12.5, loopFrom: 7, sneezeP: 0.1, hubSit: 20 });
+export const IDLE = /* @__PURE__ */ deepFreeze({ glance: 4, look: 7, groom: 10, twirl: 12.5, loopFrom: 7, sneezeP: 0.1, hubSit: 20 });
 
 /** WA §4.1 calm HUD (the hudMode setting, 'calm' by default): tuck `after` s out of combat (no alerted enemy within `combatR` m). */
-export const HUD = deepFreeze({ tuck: { combatR: 15, after: 4, fade: 0.3, popShow: 3 } });
+export const HUD = /* @__PURE__ */ deepFreeze({ tuck: { combatR: 15, after: 4, fade: 0.3, popShow: 3 } });
 
 /** WA §6 one reward system (`ui/celebrate.js`): durations per size, combat dock, confetti cap; never pauses the game. */
-export const CELEBRATE = deepFreeze({ skipAfter: 0.6, sticker: 1.6, card: 2.2, friend: 2.6, dockScale: 0.6, dockFly: 1.2, safeR: 15, confettiMax: 24 });
+export const CELEBRATE = /* @__PURE__ */ deepFreeze({ skipAfter: 0.6, sticker: 1.6, card: 2.2, friend: 2.6, dockScale: 0.6, dockFly: 1.2, safeR: 15, confettiMax: 24 });
 
 /** WA §5 pickups: hop, fly-to-HUD, pitch ladder (rate = 1 + pitchStep × n, n ≤ pitchMax, reset after pitchReset s). */
-export const PICKUP_FX = deepFreeze({ hop: 0.35, flyMs: 450, flyLift: 120, pool: 8, pitchStep: 0.06, pitchMax: 8, pitchReset: 1.5 });
+export const PICKUP_FX = /* @__PURE__ */ deepFreeze({ hop: 0.35, flyMs: 450, flyLift: 120, pool: 8, pitchStep: 0.06, pitchMax: 8, pitchReset: 1.5 });
 
 /** fx-wide design numbers. `comicPops`: parry pops always; other pops only the first time within `firstMinutes`. */
-export const FX = deepFreeze({ comicPops: { parry: 'always', other: 'first', firstMinutes: 10 } });
+export const FX = /* @__PURE__ */ deepFreeze({ comicPops: { parry: 'always', other: 'first', firstMinutes: 10 } });
 
 /**
  * Story switches (WA §12 + §13 default sign-offs). `cs02Cut`: the shortened CS-02 (≤ 55 s); `kittenOffer`: offer
  * Kitten mode after `knockouts` KOs or `failedParries` failed parries within `windowS` s (once per save);
  * `mochiCage`: Mochi's tipped cart on the meadow ([x, z]; D-01 triggers there, WA20).
  */
-export const STORY = deepFreeze({ cs02Cut: true, kittenOffer: { knockouts: 2, windowS: 180, failedParries: 3 }, mochiCage: [-14, -41] });
+export const STORY = /* @__PURE__ */ deepFreeze({ cs02Cut: true, kittenOffer: { knockouts: 2, windowS: 180, failedParries: 3 }, mochiCage: [-14, -41] });
 
 /**
  * TT2 guided onboarding (docs/TOKENTAILS-PLAN.md §10.3; story G2 reads it). Metres / seconds.
@@ -793,7 +794,7 @@ export const STORY = deepFreeze({ cs02Cut: true, kittenOffer: { knockouts: 2, wi
  *  barrel teaches Meow within this; mochiNearR: at Mochi's cart the line teaches the Bright Slash within this; stonesR: the Standing Stones count as reached; sceneCap: measured scene caps (s);
  *  arriveR: the default guide arrive radius; bowBark: Pearl's bow bark (s).
  */
-export const ONBOARD = deepFreeze({
+export const ONBOARD = /* @__PURE__ */ deepFreeze({
   wobble: [0, -86], standR: 1.3, stepR: 1.4, closeR: 1.6, arriveR: 2.2, bowBark: 2.0,
   fight: { arena: 'yard', at: [0, -77], r: 13, calm: 3, softHit: 1, spill: [0, -67.5] },
   noodle: [-30, -26], noodleR: 6, mochiNearR: 4, stones: [-20, -4], stonesR: 12,
@@ -807,7 +808,7 @@ export const FADE_COLOR = '#FFF1DE';
  * IMPLEMENTATION_PLAN §7.4 + Phase W: the settings added by this phase and their allowed values (GameState holds the
  * defaults, save validates with these lists, ui builds its panel from them). Numeric entries are [min, max].
  */
-export const SETTING_VALUES = deepFreeze({
+export const SETTING_VALUES = /* @__PURE__ */ deepFreeze({
   camLockMode: ['locked', 'semi', 'free'],            // AUTOCAM §10.4 (X19; replaces the boolean camLock, K7)
   camCursorLead: [0, 0.15],                           // AUTOCAM §5.4
   camZoomPortrait: [0.7, 1.4],                        // AUTOCAM §10.3

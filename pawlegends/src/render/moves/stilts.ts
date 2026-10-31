@@ -268,6 +268,32 @@ const r: ClipDef = {
   cancel: 'afterContact',
 };
 
+/**
+ * Zoomies held for the window: an eager sprinter's hunch (ears pinned, chest low, arms swept back) with a quick
+ * on-the-toes bounce, so she reads as wound up even standing still. Upper body only: the gait's haste sprint keeps the
+ * legs; a basic (the pounce) interrupts it and the director resumes it after.
+ */
+const rHold: ClipDef = {
+  id: 'stilts.rHold',
+  len: 0.36,
+  mask: 'upper',
+  mode: 'override',
+  prio: Prio.Emote,
+  blendIn: 0.1,
+  keys: [
+    k(0, merge(EARS_BACK, { chest: [0.42, 0, 0], head: [-0.35, 0, 0], shoulderL: [0.7, 0, 0.25], shoulderR: [0.7, 0, -0.25], elbowL: [-0.4, 0, 0], elbowR: [-0.4, 0, 0] })),
+    k(0.18, merge(EARS_BACK, { chest: [0.5, 0.06, 0], head: [-0.42, 0, 0], shoulderL: [0.85, 0, 0.25], shoulderR: [0.85, 0, -0.25], elbowL: [-0.5, 0, 0], elbowR: [-0.5, 0, 0] }), 'inOut'),
+    k(0.36, merge(EARS_BACK, { chest: [0.42, 0, 0], head: [-0.35, 0, 0], shoulderL: [0.7, 0, 0.25], shoulderR: [0.7, 0, -0.25], elbowL: [-0.4, 0, 0], elbowR: [-0.4, 0, 0] }), 'inOut'),
+  ],
+  root: {
+    up: s([0, 0], [0.09, 0.07, 'out'], [0.18, 0, 'in'], [0.27, 0.05, 'out'], [0.36, 0, 'in']),
+    sy: s([0, 0.96], [0.09, 1.04, 'out'], [0.18, 0.95, 'in'], [0.27, 1.03, 'out'], [0.36, 0.96, 'in']),
+  },
+  markers: {},
+  warp: [],
+  cancel: 'any',
+};
+
 /** Zoomies over: she skids to a stop and pants (from whatever pose she is in). */
 const rEnd: ClipDef = {
   id: 'stilts.rEnd',
@@ -432,7 +458,7 @@ export const MOVES: MoveSet = {
     q: { cast: q },
     w: { cast: w },
     e: { cast: e },
-    r: { cast: r, end: rEnd },
+    r: { cast: r, hold: rHold, end: rEnd },
   },
   idle,
   fidgets: [[stretch, 1]],
@@ -444,7 +470,7 @@ export const MOVES: MoveSet = {
 };
 
 /** Every clip in the set (tests, gallery). */
-export const STILTS_CLIPS: readonly ClipDef[] = [basicA, basicB, pounce, q, w, e, r, rEnd, idle, stretch, victory, emote, levelUp];
+export const STILTS_CLIPS: readonly ClipDef[] = [basicA, basicB, pounce, q, w, e, r, rHold, rEnd, idle, stretch, victory, emote, levelUp];
 
 /** Clear the shared render state (tests, gallery restarts). */
 export function resetStiltsMoves(): void {

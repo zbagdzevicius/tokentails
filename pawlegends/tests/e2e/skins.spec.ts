@@ -123,7 +123,17 @@ test('?skins=demo in a match: a Legendary demo card draws its effects, the sim u
   await page.locator('[data-a="quick"]').click();
   await page.waitForFunction(() => document.documentElement.dataset.match === 'live');
   await expect.poll(() => page.evaluate(() => document.documentElement.dataset.matchLook)).toBe('cat.demo-ficus@0|-');
-  await expect.poll(() => page.evaluate(() => Number(document.documentElement.dataset.cardFx ?? 0)), { timeout: 90_000 }).toBeGreaterThan(0);
+  // an idle hero at the fountain may never land a hit in the window (sim v11 picks and bot tuning): she casts Q (a
+  // Legendary card sparkles on every ability cast) until the effect shows
+  await expect
+    .poll(
+      async () => {
+        await page.keyboard.press('q');
+        return page.evaluate(() => Number(document.documentElement.dataset.cardFx ?? 0));
+      },
+      { timeout: 90_000, intervals: [2_000] },
+    )
+    .toBeGreaterThan(0);
   const shot = await page.screenshot();
   await info.attach('demo-legendary-match', { body: shot, contentType: 'image/png' });
   if (process.env.SKIN_SHOTS) (await import('node:fs')).writeFileSync(`${process.env.SKIN_SHOTS}/match-demo-legendary.png`, shot);
