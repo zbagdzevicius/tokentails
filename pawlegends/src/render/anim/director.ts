@@ -664,9 +664,10 @@ export class AnimDirector {
     const sz = r.pos.z;
     const aimDist = Math.hypot(e.x / 1000 - sx, -e.y / 1000 - sz) * 1000;
     if (T.dashMm > 0) {
-      // only an aim-clamped dash (Lambo's hop) stops at the aim point; the rest fly their full length (walls snap)
+      // only an aim-clamped dash (Lambo's hop, Stilts's leap) stops at the aim point; the rest fly their full length
+      // (walls snap), each at its own speed
       const dist = T.aimClamped ? Math.min(aimDist > 1 ? aimDist : T.dashMm, T.dashMm) : T.dashMm;
-      const ticks = travelTicks(dist, DASH_SPEED);
+      const ticks = travelTicks(dist, T.dashSpeed);
       s.anchors[A.travelEnd] = (e.tick + ticks) * TICK_S;
       const d = s.dash;
       d.on = true;

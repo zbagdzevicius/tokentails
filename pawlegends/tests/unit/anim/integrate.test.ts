@@ -72,7 +72,7 @@ describe('integration: framework', () => {
       for (const s of ['q', 'w', 'e', 'r'] as const) {
         const T = SIM_TIMING[h].slots[s];
         if (T.dashMm <= 0) continue;
-        expect(T.aimClamped, `${h}.${s}`).toBe(h === 'lambo' && s === 'e');
+        expect(T.aimClamped, `${h}.${s}`).toBe((h === 'lambo' && s === 'e') || (h === 'stilts' && s === 'q'));
       }
   });
 

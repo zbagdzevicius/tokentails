@@ -41,3 +41,10 @@ export const STILTS: HeroData = Object.freeze<HeroData>({
     ],
   ],
 });
+
+/**
+ * Engine numbers of Stilts's kit that are not player-facing tuning (src/sim/heroes/stilts.ts): Stride counts per
+ * `metre` mm walked; a step longer than `stepBp` of her move speed for one tick is a teleport (Nap, a blink, a dash
+ * landing), not walking; an auto-pounce lands `overshoot` mm inside her attack reach.
+ */
+export const STILTS_RULES = Object.freeze({ metre: 1000, stepBp: 15000, overshoot: 200 });
