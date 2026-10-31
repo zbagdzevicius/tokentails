@@ -149,7 +149,7 @@ describe('C3 hits, ranks and levels', () => {
   });
 
   it('melee heroes slash, ranged ones do not', () => {
-    expect(HERO_IDS.filter(isMelee).sort()).toEqual(['aviete', 'brutus', 'cacklejaw', 'clem', 'lambo']);
+    expect(HERO_IDS.filter(isMelee).sort()).toEqual(['aviete', 'brutus', 'cacklejaw', 'clem', 'lambo', 'meatball', 'stilts']);
   });
 });
 

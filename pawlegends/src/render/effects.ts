@@ -17,6 +17,10 @@ import type { Shockwaves } from './fx/Shockwaves.js';
 import type { Juice } from './juice';
 import { RELATION, TEAM, dressTeam } from './palette';
 import { HERO_TOP } from './chars/specs';
+import * as MEATBALL from './chars/heroes/meatball';
+import * as PIXEL from './chars/heroes/pixel';
+import * as DUCHESS from './chars/heroes/duchess';
+import * as STILTS from './chars/heroes/stilts';
 import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
 import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, type CombatVfx } from './fx/combatVfx';
 import { mixHex } from './skins/classify';
@@ -687,6 +691,15 @@ function heroAccentRaw(h: HeroId): number {
       return 0xff9f5a;
     case 'cacklejaw':
       return 0xb07cff;
+    // sim v11 original cats: their render module's accent (Stilts's terracotta), else the element colour
+    case 'meatball':
+      return MEATBALL.ACCENT ?? elementColor(h);
+    case 'pixel':
+      return PIXEL.ACCENT ?? elementColor(h);
+    case 'duchess':
+      return DUCHESS.ACCENT ?? elementColor(h);
+    case 'stilts':
+      return STILTS.ACCENT ?? elementColor(h);
     // Wave C (C3): the champions cast in their own element colour (they all fell back to Cacklejaw's purple)
     default:
       return elementColor(h);
@@ -709,6 +722,14 @@ function ultName(h: HeroId): string {
       return 'Curtains Up!';
     case 'gabe':
       return 'Under Her Spell!';
+    case 'meatball':
+      return MEATBALL.ULT_NAME;
+    case 'pixel':
+      return PIXEL.ULT_NAME;
+    case 'duchess':
+      return DUCHESS.ULT_NAME;
+    case 'stilts':
+      return STILTS.ULT_NAME;
     default:
       return 'Pack Hunt!';
   }

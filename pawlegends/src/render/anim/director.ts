@@ -227,6 +227,8 @@ export class AnimDirector {
     if (e) {
       c.branch = e.branch === true;
       c.charged = e.charged === true;
+      c.form = e.form === true;
+      c.channel = e.channel === true;
       c.resource = e.resource ?? 0;
       c.buffs = e.buffs;
       c.stealthed = (e.buffs & BuffFlag.Stealth) !== 0;
@@ -1031,6 +1033,9 @@ const ELEMENT_TRAIL: Readonly<Record<string, number>> = Object.freeze({
   STELLAR: 0xfff1a8,
   ELECTRIC: 0xfff36a,
   FIRE: 0xffa060,
+  // sim v11: Pixel's ICE, Meatball's GRASS
+  ICE: 0xc8f0ff,
+  GRASS: 0xb8f08a,
 });
 
 export const TICKS_PER_S = TICK_HZ;

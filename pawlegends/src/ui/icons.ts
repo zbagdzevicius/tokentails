@@ -1,5 +1,9 @@
 /** Ability icons: small inline SVGs (our own drawings), tinted by CSS `currentColor`. */
 import type { IconId } from './heroText';
+import { ICONS as MEATBALL_ICONS } from './icons/meatball';
+import { ICONS as PIXEL_ICONS } from './icons/pixel';
+import { ICONS as DUCHESS_ICONS } from './icons/duchess';
+import { ICONS as STILTS_ICONS } from './icons/stilts';
 
 const P: Record<IconId, string> = {
   sword: '<path d="M38 6 L42 10 L20 32 L16 28 Z" fill="currentColor"/><path d="M12 30 L22 40 M14 36 L8 42" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>',
@@ -42,6 +46,11 @@ const P: Record<IconId, string> = {
   lance: '<path d="M4 30 L40 12" stroke="currentColor" stroke-width="5" stroke-linecap="round"/><path d="M40 12 L32 10 L36 18 Z" fill="currentColor"/><g fill="currentColor" opacity=".55"><circle cx="16" cy="24" r="4"/><circle cx="28" cy="18" r="4"/></g>',
   dome: '<path d="M6 36 C6 18 42 18 42 36 Z" fill="currentColor" opacity=".45"/><path d="M6 36 C6 18 42 18 42 36" stroke="currentColor" stroke-width="4" fill="none"/><path d="M4 38 H44" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M24 36 V24" stroke="#0005" stroke-width="3"/>',
   paw: '<ellipse cx="24" cy="31" rx="10" ry="8" fill="currentColor"/><circle cx="12" cy="20" r="4.5" fill="currentColor"/><circle cx="20" cy="13" r="4.5" fill="currentColor"/><circle cx="28" cy="13" r="4.5" fill="currentColor"/><circle cx="36" cy="20" r="4.5" fill="currentColor"/>',
+  // sim v11 original cats (each hero's drawings live in ./icons/<hero>.ts)
+  ...MEATBALL_ICONS,
+  ...PIXEL_ICONS,
+  ...DUCHESS_ICONS,
+  ...STILTS_ICONS,
 };
 
 export function icon(id: IconId, cls = ''): string {

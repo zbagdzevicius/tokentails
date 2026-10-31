@@ -3,7 +3,7 @@ import { createMatch, fillPicks, snapshot } from '../../src/sim/index';
 
 describe('fillPicks and createMatch (§6.8)', () => {
   it('keeps the human pick, species teams (sim v5: cats vs dogs), stable per seed', () => {
-    const cats = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe'];
+    const cats = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
     const dogs = ['brutus', 'cacklejaw'];
     for (const human of ['cacklejaw', 'clem', 'gabe'] as const) {
       const humanCat = human !== 'cacklejaw';
@@ -13,7 +13,7 @@ describe('fillPicks and createMatch (§6.8)', () => {
         expect(tricks[0]).toBe('hiss');
         const catTeam = humanCat ? picks.slice(0, 3) : picks.slice(3);
         const dogTeam = humanCat ? picks.slice(3) : picks.slice(0, 3);
-        // Sim v9: 6 cats, so a cat team never repeats a hero; 2 dogs, so a dog team always fields both and one twice.
+        // Sim v11: 10 cats, so a cat team never repeats a hero; 2 dogs, so a dog team always fields both and one twice.
         for (const h of catTeam) expect(cats).toContain(h);
         expect(new Set(catTeam).size).toBe(3);
         expect(new Set(dogTeam)).toEqual(new Set(dogs));
@@ -22,10 +22,10 @@ describe('fillPicks and createMatch (§6.8)', () => {
     }
   });
 
-  it('sim v9: every cat hero, the shelter champions included, shows up as a bot pick', () => {
+  it('sim v9: every cat hero, the shelter champions (and sim v11 original cats) included, shows up as a bot pick', () => {
     const seen = new Set<string>();
     for (let seed = 0; seed < 200; seed++) for (const h of fillPicks(seed, 'brutus', 'pounce').picks.slice(3)) seen.add(h);
-    expect([...seen].sort()).toEqual(['aviete', 'bengas', 'clem', 'gabe', 'lambo', 'sage']);
+    expect([...seen].sort()).toEqual(['aviete', 'bengas', 'clem', 'duchess', 'gabe', 'lambo', 'meatball', 'pixel', 'sage', 'stilts']);
   });
   it('validates configs', () => {
     const { picks, tricks } = fillPicks(1, 'clem', 'pounce');

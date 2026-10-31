@@ -1,5 +1,5 @@
 /**
- * HERO_ANIM (ANIM-SPEC §3): THE one registry of per-hero move sets and skill FX, all 8 heroes. Each entry lazy-loads
+ * HERO_ANIM (ANIM-SPEC §3): THE one registry of per-hero move sets and skill FX, all 12 heroes. Each entry lazy-loads
  * its hero's two files (src/render/moves/<hero>.ts, src/render/skillfx/<hero>.ts) as their own chunks, during match
  * load; until a file is loaded (or when it is still a stub) the director falls back to the legacy Animator swing /
  * cast and effects.ts's generic shape switch, so a hero keeps today's look. Per-hero work replaces only those files.
@@ -23,6 +23,10 @@ export const HERO_ANIM: Readonly<Record<HeroId, HeroAnimEntry>> = Object.freeze(
   aviete: { moves: () => import('../moves/aviete'), fx: () => import('../skillfx/aviete') },
   bengas: { moves: () => import('../moves/bengas'), fx: () => import('../skillfx/bengas') },
   gabe: { moves: () => import('../moves/gabe'), fx: () => import('../skillfx/gabe') },
+  meatball: { moves: () => import('../moves/meatball'), fx: () => import('../skillfx/meatball') },
+  pixel: { moves: () => import('../moves/pixel'), fx: () => import('../skillfx/pixel') },
+  duchess: { moves: () => import('../moves/duchess'), fx: () => import('../skillfx/duchess') },
+  stilts: { moves: () => import('../moves/stilts'), fx: () => import('../skillfx/stilts') },
 });
 
 const STUB_MOVES = new Map<HeroId, MoveSet>(HERO_IDS.map((h) => [h, stubMoves(h)]));

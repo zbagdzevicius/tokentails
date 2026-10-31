@@ -4,16 +4,23 @@ import { BENGAS } from './bengas';
 import { BRUTUS } from './brutus';
 import { CACKLEJAW } from './cacklejaw';
 import { CLEM } from './clem';
+import { DUCHESS } from './duchess';
 import { GABE } from './gabe';
 import { LAMBO } from './lambo';
+import { MEATBALL } from './meatball';
+import { PIXEL } from './pixel';
 import { SAGE } from './sage';
+import { STILTS } from './stilts';
 import type { HeroData, HeroId } from './types';
 
 export { GROWTH_FLOOR, RANK_KEYS, RANK_LEVELS, ROLE_GROWTH, type Growth } from './growth';
 export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, HeroRole, HeroSide, TalentData } from './types';
 
-/** Sim v9: the shelter champions are appended, so Clem (0), Sage (1), Sir Brutus (2) and Cacklejaw (3) keep their indices. */
-export const HERO_IDS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe'] as HeroId[]);
+/**
+ * Sim v9: the shelter champions are appended, so Clem (0), Sage (1), Sir Brutus (2) and Cacklejaw (3) keep their indices.
+ * Sim v11: the four original cats follow (Meatball 8, Pixel 9, Duchess 10, Stilts 11).
+ */
+export const HERO_IDS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'] as HeroId[]);
 
 export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   clem: CLEM,
@@ -24,6 +31,10 @@ export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   aviete: AVIETE,
   bengas: BENGAS,
   gabe: GABE,
+  meatball: MEATBALL,
+  pixel: PIXEL,
+  duchess: DUCHESS,
+  stilts: STILTS,
 });
 
 /**
@@ -39,6 +50,10 @@ export const BRANCH_TALENT: Readonly<Record<HeroId, string | null>> = Object.fre
   aviete: null,
   bengas: null,
   gabe: null,
+  meatball: null,
+  pixel: null,
+  duchess: null,
+  stilts: null,
 });
 
 /** Heroes with a level-6 shape branch, HERO_IDS order. */

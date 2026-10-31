@@ -9,6 +9,10 @@ import { HERO_TOP } from '../chars';
 import { uprightMinionGeometry } from '../chars';
 import { TEAM } from '../palette';
 import { ModelBuilder } from './rig';
+import { RING as MEATBALL_RING } from '../chars/heroes/meatball';
+import { RING as PIXEL_RING } from '../chars/heroes/pixel';
+import { RING as DUCHESS_RING } from '../chars/heroes/duchess';
+import { RING as STILTS_RING } from '../chars/heroes/stilts';
 
 const EYE = 0x2a1a22;
 const WHITE = 0xffffff;
@@ -29,10 +33,17 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   aviete: (HERO_TOP.aviete + 0.15) / 1.62,
   bengas: (HERO_TOP.bengas + 0.15) / 1.62,
   gabe: (HERO_TOP.gabe + 0.15) / 1.62,
+  meatball: (HERO_TOP.meatball + 0.15) / 1.62,
+  pixel: (HERO_TOP.pixel + 0.15) / 1.62,
+  duchess: (HERO_TOP.duchess + 0.15) / 1.62,
+  stilts: (HERO_TOP.stilts + 0.15) / 1.62,
 });
 
 /** Relation ring size under each hero (m; the size the quadruped heroes had, so rings read the same). */
-export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({ clem: 2.03, sage: 1.94, brutus: 2.25, cacklejaw: 2.09, lambo: 2.2, aviete: 2.0, bengas: 2.0, gabe: 1.96 });
+export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({
+  clem: 2.03, sage: 1.94, brutus: 2.25, cacklejaw: 2.09, lambo: 2.2, aviete: 2.0, bengas: 2.0, gabe: 1.96,
+  meatball: MEATBALL_RING, pixel: PIXEL_RING, duchess: DUCHESS_RING, stilts: STILTS_RING,
+});
 
 // ------------------------------------------------------------------------------------------------ minions
 

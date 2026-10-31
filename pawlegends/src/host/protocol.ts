@@ -110,7 +110,8 @@ export type HostMsgType = HostMsg['t'];
 //                u8 flags (1 cooldowns present, 2 respawnIn present, 4 hero extras present),
 //                u8 bountyStreak (heroes, sim v4; was padding), u16 xp, u8 resource, u8 talents (2 bits per tier:
 //                choice + 1), u8 pickup sub (sim v4: index into PICKUP_SUBS + 1, 0 = none), u8 fx (sim v9: 1 charged,
-//                2 charmed), u8 lockout (sim v9: Avietė's charge lockout ticks, own team, 0 = none), u8 reserved
+//                2 charmed; sim v11: 4 form, 8 channel), u8 lockout (sim v9: Avietė's charge lockout ticks, own team,
+//                0 = none), u8 stacks (sim v11: stacks on the hero, Duchess's Disdain; was reserved)
 // projectile (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 vx, i32 vy, u32 reserved
 // zone (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 radius, i32 ttl, u16 arm (sim v9), u16 reserved
 
@@ -136,6 +137,8 @@ const HAS_RESPAWN = 2;
 const HAS_EXTRA = 4;
 const FX_CHARGED = 1;
 const FX_CHARMED = 2;
+const FX_FORM = 4;
+const FX_CHANNEL = 8;
 
 /** Encode the snapshot (minus `events`, which travel in an `events` message) into a transferable buffer. */
 export function encodeSnap(s: Snapshot): ArrayBuffer {
@@ -178,7 +181,8 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     v.setUint8(o + 46, (cd ? HAS_COOLDOWNS : 0) | (e.respawnIn !== undefined ? HAS_RESPAWN : 0) | (extra ? HAS_EXTRA : 0));
     v.setUint8(o + 47, Math.min(255, e.bountyStreak ?? 0));
     v.setUint8(o + 52, e.sub ? PICKUP_SUBS.indexOf(e.sub) + 1 : 0);
-    v.setUint8(o + 53, (e.charged ? FX_CHARGED : 0) | (e.charmed ? FX_CHARMED : 0));
+    v.setUint8(o + 53, (e.charged ? FX_CHARGED : 0) | (e.charmed ? FX_CHARMED : 0) | (e.form ? FX_FORM : 0) | (e.channel ? FX_CHANNEL : 0));
+    v.setUint8(o + 55, Math.min(255, Math.max(0, e.stacks ?? 0)));
     if (extra) {
       v.setUint16(o + 48, e.xp ?? 0, true);
       v.setUint8(o + 50, e.resource ?? 0);
@@ -257,6 +261,10 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
     const fx = v.getUint8(o + 53);
     if (fx & FX_CHARGED) e.charged = true;
     if (fx & FX_CHARMED) e.charmed = true;
+    if (fx & FX_FORM) e.form = true;
+    if (fx & FX_CHANNEL) e.channel = true;
+    const stacks = v.getUint8(o + 55);
+    if (stacks > 0) e.stacks = stacks;
     if (lane !== NONE) e.lane = LANES[lane];
     if (flags & HAS_RESPAWN) e.respawnIn = v.getUint16(o + 34, true);
     if (flags & HAS_COOLDOWNS) {

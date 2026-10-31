@@ -93,7 +93,7 @@ export const KITTEN_PRESETS: readonly Coat[] = Object.freeze([
 ]);
 
 /** Heroes that wear breed coats (the shelter champions wear their own card's coat, never a breed coat). */
-export const CAT_HEROES: readonly HeroId[] = ['clem', 'sage'];
+export const CAT_HEROES: readonly HeroId[] = ['clem', 'sage', 'meatball', 'pixel', 'duchess', 'stilts'];
 
 /** Sim v9 shelter champions (data/heroes/shelter.ts): their card's coat plus element chromas only. */
 export const SHELTER_HEROES: readonly HeroId[] = ['lambo', 'aviete', 'bengas', 'gabe'];
@@ -149,6 +149,19 @@ export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; c
   'coat.brutus.ember.ash': { hero: 'brutus', name: 'Ash Ember coat', coat: { base: 0x5a4a46, light: 0xc8b2a8, dark: 0x2e2422, accent: 0xffb347 } },
   'coat.cacklejaw.spotted.mint': { hero: 'cacklejaw', name: 'Mint Spotted coat', coat: { base: 0xa9d6b8, light: 0xe6f6ea, dark: 0x3f6a52, accent: 0xb07cff } },
   'coat.clem.snowpaw.sky': { hero: 'clem', name: 'Sky Snowpaw coat', coat: { base: 0xe4eef8, light: 0xffffff, dark: 0x9cb6d2, accent: 0x8fc8ff } },
+  // sim v11: three coats for each original cat
+  'coat.meatball.butter': { hero: 'meatball', name: 'Butter coat', coat: { base: 0xf2cf7a, light: 0xfff4d6, dark: 0xc49a3e, accent: 0xff7a3d } },
+  'coat.meatball.smoky': { hero: 'meatball', name: 'Smoky coat', coat: { base: 0x7a7470, light: 0xd8d0c8, dark: 0x43403c, accent: 0xffb347 } },
+  'coat.meatball.ginger': { hero: 'meatball', name: 'Ginger coat', coat: { base: 0xc8552a, light: 0xf6b48a, dark: 0x7a2e14, accent: 0x9be3c4 } },
+  'coat.pixel.arctic': { hero: 'pixel', name: 'Arctic coat', coat: { base: 0xdfe8ef, light: 0xffffff, dark: 0x6a8aa8, accent: 0x8fc8ff } },
+  'coat.pixel.cocoa': { hero: 'pixel', name: 'Cocoa coat', coat: { base: 0x5a3c2c, light: 0xf0e2d0, dark: 0x2e1c12, accent: 0xffd34d } },
+  'coat.pixel.moonbeam': { hero: 'pixel', name: 'Moonbeam coat', coat: { base: 0x3a3f5c, light: 0xe8ecff, dark: 0x1f2236, accent: 0xb07cff } },
+  'coat.duchess.pearl': { hero: 'duchess', name: 'Pearl coat', coat: { base: 0xfaf6f0, light: 0xffffff, dark: 0xc8c0d0, accent: 0xff8fb1 } },
+  'coat.duchess.rosewater': { hero: 'duchess', name: 'Rosewater coat', coat: { base: 0xf2c8cc, light: 0xfff0f2, dark: 0xc08a90, accent: 0x8fc8ff } },
+  'coat.duchess.smoke': { hero: 'duchess', name: 'Smoke coat', coat: { base: 0x8a8a96, light: 0xdcdce4, dark: 0x4a4a54, accent: 0xb07cff } },
+  'coat.stilts.desert': { hero: 'stilts', name: 'Desert coat', coat: { base: 0xe0b878, light: 0xfaecd0, dark: 0x8a5a2c, accent: 0xff7a3d } },
+  'coat.stilts.silver': { hero: 'stilts', name: 'Silver coat', coat: { base: 0xc8ccd2, light: 0xf4f6f8, dark: 0x3a3e46, accent: 0x9be3c4 } },
+  'coat.stilts.cinder': { hero: 'stilts', name: 'Cinder coat', coat: { base: 0x5a4a42, light: 0xc8b0a0, dark: 0x1e1612, accent: 0xff8fb1 } },
   ...loopCoats(),
 });
 

@@ -319,3 +319,23 @@ export function slingshot(A: Assembly): void {
   for (const s of [1, -1]) A.add('pawR', new THREE.CylinderGeometry(0.012, 0.012, 0.09, 4), { m: mat([s * 0.03, 0.13, 0.04], [0, 0, -s * 0.45]), color: WOOD });
   A.add('pawR', new THREE.OctahedronGeometry(0.04, 0), { m: mat([0, 0.2, 0.02]), color: 0xd9a441 });
 }
+
+// ------------------------------------------------------------------------------------------------ sim v11 hooks
+// Phase 0 scaffold (docs/plans/moba/CATS-V11.md §4): the gear the four original cats need, as no-op stubs with fixed
+// signatures. Each hero agent builds its own piece in src/render/chars/heroes/<hero>.ts; `fluffPuffs` moves here as
+// the shared builder once Duchess's version settles.
+
+/** Meatball's fish lunchbox (~120 tris), on his hip. Stub. */
+export function fishLunchbox(_A: Assembly, _color: Col): void {}
+
+/** Pixel's open cardboard box on the chest and hips with 4 flaps on the spine (~300 tris; flaps and tape team colour). Stub. */
+export function cardboardBox(_A: Assembly, _kraft: Col, _flap: Col): void {}
+
+/** `n` low-poly fur shells on the chest, neck and hips (Duchess; ~600 tris at Med, 300 at Low). Stub. */
+export function fluffPuffs(_A: Assembly, _n: number, _color: Col): void {}
+
+/** Stilts's leg-warmer tubes on the shins (team colour; the legs read longer). Stub. */
+export function legWarmers(_A: Assembly, _color: Col): void {}
+
+/** Duchess's tiara: a ring and 3 gem cones on the head. Stub. */
+export function tiara(_A: Assembly, _band: Col, _gem: Col): void {}

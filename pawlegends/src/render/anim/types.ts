@@ -132,6 +132,10 @@ export interface MoveCtx {
   targetCc: boolean;
   /** Cast picks only: metres from the hero to the cast's aim point (a dash shorter than its max), NaN when unknown. */
   aimDist?: number;
+  /** Sim v11 (EntitySnap.form): the kit's alternate body (Meatball's ball and Chonk, Pixel's Boxbot, Stilts's Zoomies). */
+  form?: boolean;
+  /** Sim v11 (EntitySnap.channel): a held channel (Pixel's Laser Pointer). */
+  channel?: boolean;
 }
 
 export interface SlotMoves {

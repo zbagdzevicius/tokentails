@@ -68,9 +68,10 @@ describe('A0: Cacklejaw coats', () => {
   });
 });
 
-describe('A1: Treat Track, 30 chests then a loop', () => {
-  it('30 unique rewards cover all 8 heroes: originals get coats and palette variants, champions a title, frame and postcard', () => {
-    expect(TREAT_REWARDS).toHaveLength(30);
+describe('A1: Treat Track, 42 chests then a loop', () => {
+  it('42 unique rewards cover all 12 heroes: originals get coats and palette variants, champions a title, frame and postcard', () => {
+    // sim v11: 30, then three coats for each of the four original cats
+    expect(TREAT_REWARDS).toHaveLength(42);
     const ids = [...TREAT_REWARDS, ...LOOP_REWARDS].map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const h of TRACK_ORIGINALS) {
@@ -99,7 +100,7 @@ describe('A1: Treat Track, 30 chests then a loop', () => {
     for (const h of CHAMPION_IDS) expect(wardrobe(h, o).map((c) => c.id)).toEqual([null]);
   });
 
-  it('the track never runs dry: 500 chests in a row always hold a reward, and the loop follows chest 30', () => {
+  it('the track never runs dry: 500 chests in a row always hold a reward, and the loop follows chest 42', () => {
     let s: TreatState = freshTreats();
     const have = new Set<string>();
     const got: string[] = [];
@@ -113,8 +114,8 @@ describe('A1: Treat Track, 30 chests then a loop', () => {
       }
       s = g.state;
     }
-    expect(got.slice(0, 30)).toEqual(TREAT_REWARDS.map((r) => r.id));
-    expect(got.slice(30, 30 + LOOP_REWARDS.length)).toEqual(LOOP_REWARDS.map((r) => r.id));
+    expect(got.slice(0, TREAT_REWARDS.length)).toEqual(TREAT_REWARDS.map((r) => r.id));
+    expect(got.slice(TREAT_REWARDS.length, TREAT_REWARDS.length + LOOP_REWARDS.length)).toEqual(LOOP_REWARDS.map((r) => r.id));
     expect(s.chests).toBe(500);
     // a fresh profile keeps every reward within the unlock cap
     expect(1 + TREAT_REWARDS.length + LOOP_REWARDS.length).toBeLessThanOrEqual(UNLOCKS_MAX);
@@ -190,16 +191,17 @@ describe('A1: migration from the 9-chest track', () => {
   });
 });
 
-describe('A1: quests for all 8 heroes', () => {
-  it('17 quests; every hero has a win quest; the hero slot is round-robin (each hero every 8 days)', () => {
-    expect(QUEST_POOL).toHaveLength(17);
-    expect(new Set(QUEST_POOL.map((q) => q.id)).size).toBe(17);
+describe('A1: quests for all 12 heroes', () => {
+  it('21 quests; every hero has a win quest; the hero slot is round-robin (each hero every 12 days)', () => {
+    // sim v11: the four original cats add a win quest each
+    expect(QUEST_POOL).toHaveLength(21);
+    expect(new Set(QUEST_POOL.map((q) => q.id)).size).toBe(21);
     for (const h of HERO_IDS) expect(QUEST_POOL.filter((q) => q.metric === 'win' && q.hero === h), h).toHaveLength(1);
     expect(QUEST_POOL.map((q) => q.id)).toEqual(expect.arrayContaining(['win_lambo', 'win_aviete', 'win_bengas', 'win_gabe', 'champion', 'pudding2']));
     const start = Date.UTC(2026, 9, 20);
     const day = (i: number): string => new Date(start + i * 86400000).toISOString().slice(0, 10);
     for (let k = 0; k < 4; k++) {
-      const week = Array.from({ length: 8 }, (_, i) => questHero(day(k * 8 + i)));
+      const week = Array.from({ length: HERO_IDS.length }, (_, i) => questHero(day(k * HERO_IDS.length + i)));
       expect(new Set(week)).toEqual(new Set(HERO_IDS));
     }
     for (let i = 0; i < 40; i++) {

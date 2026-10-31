@@ -281,6 +281,13 @@ export interface World {
   kHurt: Int32Array;
   /** Volley: arrows that hit each entity during the hero's last Volley (heroes × ENTITY_CAP). */
   volleyHits: Uint8Array;
+  /**
+   * Sim v11 `stack` (effects/stack.ts), per hero, held by the VICTIM (Duchess's Disdain): the count, ticks until it
+   * resets, and the lockout ticks during which no stack can be added.
+   */
+  mkStack: Uint8Array;
+  mkT: Int16Array;
+  mkLock: Int16Array;
   /** Minions: the wave number they spawned with (Pudding's escort leaves when its wave is gone). */
   wave: Int32Array;
   // Bots (POC.md §7.2), per hero slot; slot 0 is unused inside the sim (the human, or an outside player-bot)
@@ -503,6 +510,9 @@ export function createWorld(seed: number): World {
     kEmpower: new Int32Array(h),
     kHurt: new Int32Array(h).fill(NEVER),
     volleyHits: new Uint8Array(h * n),
+    mkStack: new Uint8Array(h),
+    mkT: new Int16Array(h),
+    mkLock: new Int16Array(h),
     wave: new Int32Array(n),
     botMode: new Uint8Array(h),
     botLane: new Uint8Array(h),
@@ -584,7 +594,7 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.castPhase, w.castSlot, w.castT, w.castX, w.castY, w.castId, w.napT, w.trick, w.talents, w.killStreak, w.assistTick,
     w.zoomT, w.frenzyT, w.nineT, w.packT, w.nineReady, w.dmgRing, w.lockId, w.lockT,
     w.kValor, w.kStage, w.kWindow, w.kRT, w.kWT, w.kWAge, w.kCount, w.kHonour, w.kHuntT, w.kHuntVictim, w.kChain,
-    w.kFoe, w.kEmpower, w.kHurt, w.volleyHits, w.wave,
+    w.kFoe, w.kEmpower, w.kHurt, w.volleyHits, w.mkStack, w.mkT, w.mkLock, w.wave,
     w.botMode, w.botLane, w.botFoe, w.botPud, w.botSeen, w.botOp, w.botX, w.botY, w.botId, w.botSlip,
     w.botOrd, w.botOrdT, w.botOrdX, w.botOrdY, w.botOrdId,
     w.pAlive, w.pTeam, w.pKind, w.pOwner, w.pTarget, w.pX, w.pY, w.pVx, w.pVy, w.pTtl, w.pDmg,

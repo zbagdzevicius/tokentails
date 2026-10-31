@@ -14,6 +14,8 @@ import { RELATION, TEAM, dressTeam } from '../palette';
 import { TELEGRAPH_OVER } from '../telegraph';
 import { DecalLayer, discTexture } from './decals';
 import { tinted, type CardFx } from '../skins/cardFx';
+import { SHOT as PIXEL_SHOT } from '../chars/heroes/pixel';
+import { SHOT as DUCHESS_SHOT } from '../chars/heroes/duchess';
 
 interface Look {
   size: number;
@@ -63,6 +65,11 @@ export function look(kind: number, team: number): Look {
     // sim v10 (GAPS B6): Sage's Piercing Shot, a long bright arrow
     case PROJECTILE_KIND.lance:
       return set(0.42, 1.0, 0xe8fff4, 0.3);
+    // sim v11: Pixel's Cap Cannon and Duchess's Fluff Puff (their render modules own the look)
+    case PROJECTILE_KIND.cap:
+      return set(...PIXEL_SHOT);
+    case PROJECTILE_KIND.fluff:
+      return set(...DUCHESS_SHOT);
     default:
       return set(0.3, 0.9, team === 0 ? 0xfff1a8 : 0xd7b8ff, 0.18);
   }
@@ -90,7 +97,7 @@ export function shadeBolts(mat: THREE.MeshBasicMaterial): void {
 }
 
 /** Projectiles a hero fires (they trail the hero's element colour; minion, tower and core shots keep theirs). */
-export const HERO_SHOTS: ReadonlySet<number> = new Set([PROJECTILE_KIND.hero, PROJECTILE_KIND.tuna, PROJECTILE_KIND.toast, PROJECTILE_KIND.lance]);
+export const HERO_SHOTS: ReadonlySet<number> = new Set([PROJECTILE_KIND.hero, PROJECTILE_KIND.tuna, PROJECTILE_KIND.toast, PROJECTILE_KIND.lance, PROJECTILE_KIND.cap, PROJECTILE_KIND.fluff]);
 
 /** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabė's heart bolts). */
 const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a };

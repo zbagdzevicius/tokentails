@@ -1,7 +1,8 @@
 /**
  * Hero kits: the cast pipeline every ability and Paw Trick goes through (POC.md §4.3 steps 1 and 5), and the
- * dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, and the sim v9 shelter champions
- * lambo.ts, aviete.ts, bengas.ts, gabe.ts) for their abilities, passives and damage hooks.
+ * dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, the sim v9 shelter champions
+ * lambo.ts, aviete.ts, bengas.ts, gabe.ts, and the sim v11 original cats meatball.ts, pixel.ts, duchess.ts, stilts.ts)
+ * for their abilities, passives and damage hooks.
  *
  * Cast flow: a `cast`/`trick` command checks readiness (cooldown or an open recast window, level 4 for R, not
  * disabled, no mobility cast while rooted) and either walks in (a unit or ground target out of reach) or starts the
@@ -24,6 +25,10 @@ import { LAMBO_KIT } from './lambo';
 import { AVIETE_KIT } from './aviete';
 import { BENGAS_KIT } from './bengas';
 import { GABE_KIT } from './gabe';
+import { MEATBALL_KIT } from './meatball';
+import { PIXEL_KIT } from './pixel';
+import { DUCHESS_KIT } from './duchess';
+import { STILTS_KIT } from './stilts';
 import { castsThroughCc, castTrick, trickAim } from './tricks';
 
 /** How a slot is aimed. */
@@ -39,6 +44,12 @@ export const Aim = Object.freeze({
 } as const);
 
 export const TRICK_SLOT = 4;
+
+/**
+ * Sim v11: the hero's alternate-state bits for the snapshot (`HeroKit.snapFx`): Form = a body change the render shows
+ * (Meatball's ball and Chonk, Pixel's Boxbot, Stilts's Zoomies), Channel = a held beam (Pixel's Laser Pointer).
+ */
+export const SNAP_FX = Object.freeze({ Form: 1, Channel: 2 } as const);
 
 export interface SlotAim {
   aim: number;
@@ -78,10 +89,14 @@ export interface HeroKit {
   onTakedown?(m: MatchHandle, id: number, victim: number): void;
   /** Reset kit state at death and respawn. */
   reset?(w: World, id: number): void;
+  /** Sim v11: SNAP_FX bits for the snapshot (both teams see them); absent = 0. */
+  snapFx?(w: World, id: number): number;
+  /** Sim v11: the passive resource the own team's HUD shows (EntitySnap.resource, 0..255); absent = 0. */
+  resource?(w: World, id: number): number;
 }
 
-/** HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe. */
-const KITS: readonly HeroKit[] = [CLEM_KIT, SAGE_KIT, BRUTUS_KIT, CACKLEJAW_KIT, LAMBO_KIT, AVIETE_KIT, BENGAS_KIT, GABE_KIT];
+/** HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe, meatball, pixel, duchess, stilts. */
+const KITS: readonly HeroKit[] = [CLEM_KIT, SAGE_KIT, BRUTUS_KIT, CACKLEJAW_KIT, LAMBO_KIT, AVIETE_KIT, BENGAS_KIT, GABE_KIT, MEATBALL_KIT, PIXEL_KIT, DUCHESS_KIT, STILTS_KIT];
 
 export const kitOf = (w: World, id: number): HeroKit => KITS[w.sub[id]];
 

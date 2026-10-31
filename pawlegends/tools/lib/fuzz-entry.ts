@@ -9,12 +9,16 @@ import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
 
-const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe'];
+const HEROES: readonly HeroId[] = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 const LEVELS: readonly Difficulty[] = ['easy', 'normal', 'hard'];
 
 /** The i-th fuzz seed: spread over the whole uint32 range; i = 0 is 0 and i = 1 is 0xffffffff. */
 export const fuzzSeed = (i: number): number => (i === 0 ? 0 : i === 1 ? 0xffffffff : Math.imul(i, 0x9e3779b1) >>> 0);
+
+/** fuzzSeed's inverse (0x0e8b2f51 is 0x9e3779b1's inverse mod 2^32): the hero cycles with it, so any HEROES.length
+ *  consecutive fuzz seeds cover every hero (sim v11: 12 heroes in 24 seeds). */
+export const fuzzIndex = (seed: number): number => (seed >>> 0 === 0xffffffff ? 1 : Math.imul(seed, 0x0e8b2f51) >>> 0);
 
 export interface FuzzResult {
   seed: number;
@@ -32,7 +36,8 @@ export interface FuzzResult {
 /** Play one fuzz match (no replay). `trail` folds the whole hash trail (one hash every 30 ticks) into one hex. */
 export function fuzzPlay(seed: number) {
   const r = new Rng(seed ^ 0x5eed);
-  const hero = HEROES[r.int(HEROES.length)];
+  r.int(HEROES.length); // the draw that used to pick the hero: kept, so the rest of the seed's stream does not move
+  const hero = HEROES[fuzzIndex(seed) % HEROES.length];
   const trick = TRICKS[r.int(TRICKS.length)];
   const difficulty = LEVELS[r.int(LEVELS.length)];
   // Command rate per tick from 2% to 40%, and some ticks with two commands (the latest wins).

@@ -11,6 +11,10 @@
  */
 import type { HeroId } from '../../data/heroes/types';
 import { BASIC_WINDUP, KNOCK_TICKS, TICK_S } from './timing';
+import { SPRINGS as MEATBALL_SPRINGS } from '../chars/heroes/meatball';
+import { SPRINGS as PIXEL_SPRINGS } from '../chars/heroes/pixel';
+import { SPRINGS as DUCHESS_SPRINGS } from '../chars/heroes/duchess';
+import { SPRINGS as STILTS_SPRINGS } from '../chars/heroes/stilts';
 import { Prio, type Anchor, type ClipDef, type Cue, type GaitProfile, type Key, type Mask, type MoveSet, type ScalarKey, type SkillFxSet, type SlotMoves, type SpringTuning } from './types';
 
 /** The basic contact time (s) every basic clip pins to `contact` / `release`. */
@@ -43,6 +47,11 @@ export const HERO_SPRINGS: Readonly<Record<HeroId, SpringTuning>> = Object.freez
   aviete: { tail: { k: 220, c: 13, lag: 0.6 }, ears: { k: 180, c: 12, lag: 0 } },
   bengas: { tail: { k: 140, c: 12, lag: 0.55 }, ears: { k: 160, c: 12, lag: 0 } },
   gabe: { tail: { k: 140, c: 12, lag: 0.55 }, ears: { k: 240, c: 16, lag: 0 } },
+  // sim v11 original cats (their render modules own the tuning)
+  meatball: MEATBALL_SPRINGS,
+  pixel: PIXEL_SPRINGS,
+  duchess: DUCHESS_SPRINGS,
+  stilts: STILTS_SPRINGS,
 });
 
 // ------------------------------------------------------------------------------------------------ templates

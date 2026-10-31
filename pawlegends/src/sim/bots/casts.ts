@@ -5,6 +5,9 @@
  * swordcat/src/companions/abilityAim.js. A slot is cast when its shape covers a target: the foe in a fight, a
  * minion pack or a camp/Pudding when clearing, the way home when escaping. Skillshots carry a seeded aim error.
  * Each function returns one cast command, or null.
+ *
+ * Sim v11: every hero has an explicit case (the `default` is a no-op, so a new hero never silently plays as Gabė);
+ * the original cats delegate to their own module in ./heroes/, which builds on the helpers exported here.
  */
 import { BOT_AI, type BotParams } from '../../data/bots';
 import { HERO_IDS } from '../../data/heroes';
@@ -20,32 +23,38 @@ import { nearestAlly } from '../heroes/lambo';
 import { attackRange } from '../units/kinds';
 import { abil } from '../heroes/talents';
 import { fountainX, fountainY, hpBp, seenEnemy } from './sense';
+import * as duchessBot from './heroes/duchess';
+import * as meatballBot from './heroes/meatball';
+import * as pixelBot from './heroes/pixel';
+import * as stiltsBot from './heroes/stilts';
 
-const hits = new Int32Array(ENTITY_CAP);
+/** Scratch hit list for `collect` (shared with ./heroes/*: read it right after the call that filled it). */
+export const hits = new Int32Array(ENTITY_CAP);
 /** Extra slack (mm) on close-range ability checks: a hero radius. */
-const RANGE_PAD = RADIUS.hero;
-const pt = new Int32Array(2);
+export const RANGE_PAD = RADIUS.hero;
+/** The point `aimed` and `awayFrom` write (x, y). */
+export const pt = new Int32Array(2);
 
 /** A point `dist` from hero `id` toward (tx, ty), turned by a seeded error of ± `err` steps. */
-function aimed(w: World, id: number, tx: number, ty: number, err: number, rng: Rng, dist: number): void {
+export function aimed(w: World, id: number, tx: number, ty: number, err: number, rng: Rng, dist: number): void {
   let a = iatan2(ty - w.y[id], tx - w.x[id]);
   if (err > 0) a += rng.range(-err, err);
   pt[0] = w.x[id] + idiv(icos(a) * dist, TRIG_ONE);
   pt[1] = w.y[id] + idiv(isin(a) * dist, TRIG_ONE);
 }
 
-const cast = (slot: number, x: number, y: number, id: number): Command =>
+export const cast = (slot: number, x: number, y: number, id: number): Command =>
   slot === TRICK_SLOT ? { op: Op.Trick, x, y } : { op: Op.Cast, slot: slot as CastSlot, x, y, id };
 
-const distTo = (w: World, a: number, b: number): number => isqrt(dist2(w.x[a], w.y[a], w.x[b], w.y[b]));
+export const distTo = (w: World, a: number, b: number): number => isqrt(dist2(w.x[a], w.y[a], w.x[b], w.y[b]));
 
 /** Enemy heroes of `id` within `r` of (x, y). */
-function foesNear(w: World, id: number, x: number, y: number, r: number): number {
+export function foesNear(w: World, id: number, x: number, y: number, r: number): number {
   return collect(w, w.team[id], hits, (e, er) => inRing(x, y, r, w.x[e], w.y[e], er), true);
 }
 
 /** The most hurt allied hero of `id` (not itself) within `r` below `belowBp` HP, or −1 (the "care" check of the support kits). */
-function hurtAlly(w: World, id: number, r: number, belowBp: number): number {
+export function hurtAlly(w: World, id: number, r: number, belowBp: number): number {
   let best = -1;
   for (let a = RANGE.heroes; a < RANGE.minions; a++) {
     if (a === id || w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== w.team[id]) continue;
@@ -56,14 +65,14 @@ function hurtAlly(w: World, id: number, r: number, belowBp: number): number {
 }
 
 /** A point `dist` from `id` straight away from (fx, fy). */
-function awayFrom(w: World, id: number, fx: number, fy: number, dist: number): void {
+export function awayFrom(w: World, id: number, fx: number, fy: number, dist: number): void {
   const a = iatan2(w.y[id] - fy, w.x[id] - fx);
   pt[0] = w.x[id] + idiv(icos(a) * dist, TRIG_ONE);
   pt[1] = w.y[id] + idiv(isin(a) * dist, TRIG_ONE);
 }
 
 /** Is an allied hero of `id` (not itself) within BOT_AI.spellAllyRange of enemy `e` (it can follow up a charm)? */
-function allyNear(w: World, id: number, e: number): boolean {
+export function allyNear(w: World, id: number, e: number): boolean {
   for (let a = RANGE.heroes; a < RANGE.minions; a++) {
     if (a === id || w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== w.team[id]) continue;
     if (dist2(w.x[e], w.y[e], w.x[a], w.y[a]) <= BOT_AI.spellAllyRange * BOT_AI.spellAllyRange) return true;
@@ -185,8 +194,7 @@ export function fightCast(w: World, id: number, foe: number, p: BotParams, rng: 
         return cast(0, pt[0], pt[1], NO_TARGET);
       }
       return null;
-    default: {
-      // Gabė
+    case 'gabe': {
       const ally = canCast(w, id, 1) ? hurtAlly(w, id, a.w.range, BOT_AI.careHpBp) : -1;
       if (ally >= 0) return cast(1, w.x[ally], w.y[ally], NO_TARGET);
       if (canCast(w, id, 3) && d <= a.r.range && spellWorth(w, id, fx, fy, a.r.range, a.r.arc)) return cast(3, fx, fy, NO_TARGET);
@@ -197,6 +205,16 @@ export function fightCast(w: World, id: number, foe: number, p: BotParams, rng: 
       if (canCast(w, id, 1) && hpBp(w, id) < BOT_AI.careHpBp) return cast(1, w.x[id], w.y[id], NO_TARGET);
       return null;
     }
+    case 'meatball':
+      return meatballBot.fight(w, id, foe, p, rng);
+    case 'pixel':
+      return pixelBot.fight(w, id, foe, p, rng);
+    case 'duchess':
+      return duchessBot.fight(w, id, foe, p, rng);
+    case 'stilts':
+      return stiltsBot.fight(w, id, foe, p, rng);
+    default:
+      return null;
   }
 }
 
@@ -252,7 +270,7 @@ export function clearCast(w: World, id: number, t: number): Command | null {
       const n = collect(w, team, hits, (e, r) => inCone(hx, hy, dir, a.q.range, a.q.arc, w.x[e], w.y[e], r));
       return n >= need ? cast(0, w.x[t], w.y[t], NO_TARGET) : null;
     }
-    default: {
+    case 'gabe': {
       // Gabė: the care check first (an allied hero below careHpBp gets Wing Wrap), then a Heart Balloon on the pack.
       const ally = canCast(w, id, 1) ? hurtAlly(w, id, a.w.range, BOT_AI.careHpBp) : -1;
       if (ally >= 0) return cast(1, w.x[ally], w.y[ally], NO_TARGET);
@@ -262,6 +280,16 @@ export function clearCast(w: World, id: number, t: number): Command | null {
       const n = collect(w, team, hits, (e, r) => inRing(tx, ty, a.q.radius, w.x[e], w.y[e], r));
       return n >= need ? cast(0, tx, ty, NO_TARGET) : null;
     }
+    case 'meatball':
+      return meatballBot.clear(w, id, t, need);
+    case 'pixel':
+      return pixelBot.clear(w, id, t, need);
+    case 'duchess':
+      return duchessBot.clear(w, id, t, need);
+    case 'stilts':
+      return stiltsBot.clear(w, id, t, need);
+    default:
+      return null;
   }
 }
 
@@ -315,10 +343,33 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
       if (canCast(w, id, 1) && d <= abil(w, id).w.range && inFront(w, foe, w.x[id], w.y[id], abil(w, id).w.facingArc)) return cast(1, w.x[foe], w.y[foe], NO_TARGET);
       if (canCast(w, id, 2)) return cast(2, hx, hy, NO_TARGET);
       break;
-    default:
+    case 'gabe':
       // Gabė: toward home (her allies stand between her and the fountain more often than not), then a shield on herself.
       if (canCast(w, id, 2)) return cast(2, hx, hy, NO_TARGET);
       if (canCast(w, id, 1)) return cast(1, w.x[id], w.y[id], NO_TARGET);
+      break;
+    // Sim v11: the original cats' own escape; null falls through to the defensive Paw Trick below.
+    case 'meatball': {
+      const c = meatballBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'pixel': {
+      const c = pixelBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'duchess': {
+      const c = duchessBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'stilts': {
+      const c = stiltsBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    default:
       break;
   }
   if (p.trick === 'never' || !canCast(w, id, TRICK_SLOT)) return null;

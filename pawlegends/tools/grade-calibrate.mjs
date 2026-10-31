@@ -20,7 +20,7 @@ import { dirname, resolve } from 'node:path';
 import { argValue, hasFlag } from './lib/args.mjs';
 import { importSim } from './lib/sim-bundle.mjs';
 
-const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe'];
+const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
 const TARGET = { S: 0.12, A: 0.3, B: 0.35, C: 0.23 };
 /** GAPS §7: per-role grade spread within ±5 points of the target (the epsilon keeps exactly 5.0 points a pass). */
 const TOLERANCE = 0.05 + 1e-9;

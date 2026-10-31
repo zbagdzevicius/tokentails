@@ -195,7 +195,10 @@ export interface EntitySnap {
   xp?: number;
   /** Heroes only, the viewer's own team: talent choice per tier (levels 3, 6, 9): −1 not chosen, else 0 or 1. */
   talents?: readonly [number, number, number];
-  /** Heroes only, the viewer's own team: the passive resource (Clem's Valor, 0..100; Avietė's charge ticks left), else 0. */
+  /**
+   * Heroes only, the viewer's own team: the passive resource (Clem's Valor, 0..100; Avietė's charge ticks left; sim v11
+   * Stilts's Stride, 0..100), else 0.
+   */
   resource?: number;
   /** Heroes only (sim v10, GAPS B6), both teams: the hero took its level-6 shape branch (BRANCH_TALENT). View only. */
   branch?: boolean;
@@ -205,6 +208,15 @@ export interface EntitySnap {
   lockout?: number;
   /** Heroes only (sim v9): charmed (Gabė's Under Her Spell), not feared: the render shows hearts. */
   charmed?: boolean;
+  /**
+   * Heroes only (sim v11), both teams: the kit's alternate body (Meatball rolling or Chonk, Pixel's Boxbot, Stilts's
+   * Zoomies). View only.
+   */
+  form?: boolean;
+  /** Heroes only (sim v11), both teams: a held channel (Pixel's Laser Pointer beam, along `facing`). View only. */
+  channel?: boolean;
+  /** Heroes only (sim v11), both teams: stacks on this hero (Duchess's Disdain, 1..3); absent = 0. */
+  stacks?: number;
   /** Heroes only (sim v4): takedowns since the last death; 3+ means a bounty is on the hero (a crown). */
   bountyStreak?: number;
   /** Pickups only (sim v4): which pickup. `team` 2 = anyone may take it, else only that team (Fish Snack). */

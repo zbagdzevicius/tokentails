@@ -412,6 +412,20 @@ export const BOT_AI = Object.freeze({
   blinkOutHpBp: 4000,
   /** Gabė casts Under Her Spell on one enemy hero only with an allied hero this close to it (mm; Lambo's rule). */
   spellAllyRange: 4000,
+  /**
+   * Sim v11 original cats (sim/bots/heroes/*.ts): Meatball loafs with this many enemy heroes within Loaf Mode's radius
+   * and peels for an ally with a foe this close to it; Pixel holds her beam only with no foe this close and goes Boxbot
+   * above this HP share; Duchess glares at a foe this close and keeps this spacing from a melee foe; Stilts commits on
+   * a foe below this HP share and orbits her target at this distance to build Stride.
+   */
+  meatballLoafFoes: 2,
+  meatballPeelRange: 3000,
+  pixelBeamSafe: 2500,
+  pixelBoxbotHpBp: 4000,
+  duchessPeelRange: 3000,
+  duchessSpacing: 4500,
+  stiltsCommitHpBp: 5500,
+  stiltsOrbit: 4500,
   /** "Carry" allies (DifficultyRules.carryAllies): stay within followRange of the human, never more than leadMax
    *  ahead of it; leave a foe under stealHpBp to the human while it is within stealRange and hit it in the last stealTicks. */
   followRange: 7000,

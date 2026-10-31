@@ -169,7 +169,9 @@ describe('round 2 client: why the match ended', () => {
     expect(tryHeroFor('clem', { sage: { fastest: 1, takedowns: 1 } })).toBe('brutus');
     // sim v9: after Cacklejaw come the shelter champions
     expect(tryHeroFor('cacklejaw', { clem: {}, sage: {}, brutus: {} })).toBe('lambo');
-    expect(tryHeroFor('gabe', {})).toBe('clem');
+    // sim v11: after Gabė come the original cats, and the list wraps after Stilts
+    expect(tryHeroFor('gabe', {})).toBe('meatball');
+    expect(tryHeroFor('stilts', {})).toBe('clem');
   });
 });
 

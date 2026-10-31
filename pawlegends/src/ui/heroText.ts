@@ -4,6 +4,10 @@ import { BRANCH_TALENT, HERO_IDS, HEROES, type AbilitySlot } from '../data/heroe
 import { abilityRank, kitNumbers, maxRank } from '../sim/heroes/talents';
 import { TRICKS } from '../data/tricks';
 import { uiName } from '../data/heroes/shelter';
+import { TEXT as MEATBALL_TEXT } from './heroText/meatball';
+import { TEXT as PIXEL_TEXT } from './heroText/pixel';
+import { TEXT as DUCHESS_TEXT } from './heroText/duchess';
+import { TEXT as STILTS_TEXT } from './heroText/stilts';
 
 export interface AbilityText {
   name: string;
@@ -16,7 +20,9 @@ export type IconId =
   // sim v9 shelter champions
   | 'tuna' | 'hug' | 'flop' | 'lights' | 'spark' | 'coat' | 'wire' | 'circuit' | 'toast' | 'pose' | 'camellia' | 'curtains' | 'balloon' | 'wings' | 'wind' | 'spell'
   // sim v10 level-6 shape branches (GAPS B6)
-  | 'lance' | 'dome';
+  | 'lance' | 'dome'
+  // sim v11 original cats (drawn in ./icons/<hero>.ts)
+  | 'roll' | 'loaf' | 'bodyguard' | 'chonk' | 'capCannon' | 'laser' | 'duck' | 'boxbot' | 'fluffPuff' | 'glare' | 'cushion' | 'decree' | 'leap' | 'ears' | 'swat' | 'zoomies';
 
 export interface HeroText {
   title: string;
@@ -212,6 +218,11 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
       smitten: 'Under Her Spell lasts longer.',
     },
   },
+  // sim v11 original cats: each hero's copy lives in ./heroText/<hero>.ts
+  meatball: MEATBALL_TEXT,
+  pixel: PIXEL_TEXT,
+  duchess: DUCHESS_TEXT,
+  stilts: STILTS_TEXT,
 });
 
 export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze({

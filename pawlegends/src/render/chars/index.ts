@@ -38,7 +38,7 @@ interface Cached extends Built {
  * A reference-counted LRU (card skins: up to 24 cats × 8 champions): at most HERO_CACHE_MAX entries; the least
  * recently used entry with no live character is disposed when a new one is built. An entry in use is never evicted.
  */
-export const HERO_CACHE_MAX = 32;
+export const HERO_CACHE_MAX = 48;
 const heroCache = new Map<string, Cached>();
 const owner = new WeakMap<THREE.BufferGeometry, Cached>();
 

@@ -1,4 +1,9 @@
 /** Render palette: team colours, hero coats, relation colours (render only). */
+import { COLOR_CSS as MEATBALL_CSS } from './chars/heroes/meatball';
+import { COLOR_CSS as PIXEL_CSS } from './chars/heroes/pixel';
+import { COLOR_CSS as DUCHESS_CSS } from './chars/heroes/duchess';
+import { COLOR_CSS as STILTS_CSS } from './chars/heroes/stilts';
+
 export const TEAM = Object.freeze({
   /** Purrhaven: cream and rose. */
   0: Object.freeze({ main: 0xff6f91, second: 0xfff3dc, deep: 0xc94a72, name: 'Purrhaven' }),
@@ -90,6 +95,11 @@ export const HERO_COLOR_CSS = Object.freeze({
   aviete: '#ffe24d',
   bengas: '#ff8a5c',
   gabe: '#8fd0ff',
+  // sim v11 original cats (their render modules own the colour)
+  meatball: MEATBALL_CSS,
+  pixel: PIXEL_CSS,
+  duchess: DUCHESS_CSS,
+  stilts: STILTS_CSS,
 });
 
 let team0Dogs = false;
