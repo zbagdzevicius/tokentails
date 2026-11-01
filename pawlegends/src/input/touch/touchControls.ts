@@ -16,6 +16,7 @@ import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { rankPips } from '../../ui/heroText';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
+import { basicRange, isRangedHero } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
@@ -34,6 +35,8 @@ const DRAG_FULL_PX = 90;
 const ATTACK_REPEAT_MS = 350;
 /** A skill button held this long (ms) without a drag shows its range and smart aim (CAST.hold; a tap stays a tap). */
 const HOLD_PREVIEW_MS = 200;
+/** The idle auto-attack reaches this much (mm) past a melee hero's range (ranged heroes use their range as is). */
+const AUTO_MELEE_SLACK = 200;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 
@@ -377,9 +380,10 @@ export class TouchControls {
     if (hit) this.lockOn(hit.id);
   }
 
-  /** Attack range (mm) of the player's basic attack, as the Attack button reads it. */
+  /** Attack range (mm) of the player's basic attack, as the Attack button reads it (the hero's data, as the sim does). */
   private range(): number {
-    return this.h.view.me()?.hero === 'sage' ? 6000 : 1600;
+    const hero = this.h.view.me()?.hero;
+    return hero ? basicRange(hero) : 0;
   }
 
   /** The optional last-hit / tower button: attack that target, else a short deny flash (never a walk-in). */
@@ -433,7 +437,8 @@ export class TouchControls {
   private autoAttack(me: Unit, now: number): void {
     if (now - this.inputAt < ASSIST.idleMs || now - this.autoAt < 900) return;
     if (me.state !== 'idle') return;
-    const range = this.h.view.me()?.hero === 'sage' ? 6000 : 1800;
+    const hero = this.h.view.me()?.hero;
+    const range = this.range() + (hero && isRangedHero(hero) ? 0 : AUTO_MELEE_SLACK);
     // GAPS A5: a locked hero in range is the idle target too
     const locked = this.lockedId();
     const lu = locked !== null ? this.h.units().find((u) => u.id === locked) : undefined;
