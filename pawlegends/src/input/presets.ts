@@ -56,8 +56,10 @@ export function keyLabel(a: Action): string {
 // ---------------------------------------------------------------------------------------- control options
 
 /**
- * Desktop control options (Settings): how Q/W/E/R/D cast and whether left-click moves. Quick cast is the default
- * from the first match (press = cast at the cursor); "Aim on hold" keeps press-to-aim, release-to-cast. Trackpad
+ * Desktop control options (Settings): how Q/W/E/R/D cast and whether left-click moves. Cast on release is the
+ * default (hold the key to see the skill's range and shape, release to cast at the cursor); "Quick cast" casts at the
+ * cursor on the press. An unset preference is 'hold'; only a player who picked Quick cast in Settings (the one place
+ * that writes the key) keeps it, so nothing needs migrating. Trackpad
  * mode (left-click moves and attacks, hold to steer) is Auto by default: it turns itself on for a player who clicks
  * the ground with the left button and never right-clicks (trackpadAutoRule). Browser storage, a convenience only:
  * it may be missing or throw, and the defaults are used then.
@@ -99,7 +101,7 @@ function write(key: string, v: string): void {
 const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean } = {};
 
 export function castMode(): CastMode {
-  return mem.cast ?? (read(CAST_KEY) === 'hold' ? 'hold' : 'quick');
+  return mem.cast ?? (read(CAST_KEY) === 'quick' ? 'quick' : 'hold');
 }
 
 export function setCastMode(m: CastMode): void {

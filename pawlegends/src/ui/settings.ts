@@ -1,5 +1,5 @@
 /**
- * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, screen shake (Wave C C3: Full / Low / Off), the desktop controls (quick cast or aim on hold,
+ * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, screen shake (Wave C C3: Full / Low / Off), the desktop controls (cast on key release, the default, or quick cast,
  * trackpad mode Auto / On / Off, cursor size Normal / Large; input/presets.ts keeps them), the touch controls (GAPS
  * A5: Target first Heroes / Lowest HP % / Closest, the optional last-hit and tower buttons), first-match tips and anonymous play stats (the
  * analytics consent, shared with tokentails.com). Plus the small consent prompt shown on the title from the second
@@ -56,7 +56,7 @@ const linkAttr = (url: string): string => url.replace(/[&"<>]/g, (c) => ({ '&': 
 const SKIN_FX_NAME = { all: 'All', mine: 'Mine only', off: 'Off' } as const;
 
 const TIER_NAME: Record<QualityTier, string> = { low: 'Low', med: 'Medium', high: 'High' };
-const CAST_NAME: Record<CastMode, string> = { quick: 'Quick cast', hold: 'Aim on hold' };
+const CAST_NAME: Record<CastMode, string> = { hold: 'Cast on key release (hold to see range)', quick: 'Quick cast (on press)' };
 const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'Off' };
 const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
 const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', lowest: 'Lowest HP %', closest: 'Closest' };
@@ -88,7 +88,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       <div class="set-row"><span>Screen shake</span><span class="chips">${(['full', 'low', 'off'] as const)
         .map((m) => `<button class="chip ${ctl.shake === m ? 'on' : ''}" data-shake="${m}">${SHAKE_NAME[m]}</button>`)
         .join('')}</span></div>
-      ${showControls ? `<div class="set-row"><span>Ability keys</span><span class="chips">${(['quick', 'hold'] as const)
+      ${showControls ? `<div class="set-row"><span>Ability keys</span><span class="chips">${(['hold', 'quick'] as const)
         .map((m) => `<button class="chip ${ctl.cast === m ? 'on' : ''}" data-cast="${m}">${CAST_NAME[m]}</button>`)
         .join('')}</span></div>
       <div class="set-row"><span>Trackpad mode (click to move)</span><span class="chips">${(['auto', 'on', 'off'] as const)

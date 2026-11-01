@@ -1,7 +1,9 @@
 /**
  * Desktop controls (POC.md §9, `moba` preset): RMB move/attack (hold to keep steering), A + LMB attack-move, S stop,
- * Q/W/E/R and D quick-cast at the cursor on press (the default; Settings "Aim on hold": press shows the indicator,
- * release casts, LMB while holding casts too, RMB or Esc cancels; out of range walks in, then casts), B Nap, 1/2
+ * Q/W/E/R and D cast on key release (the default): holding the key shows the skill's range ring around the hero, its
+ * shape at the cursor and the basic attack range ring; release casts at the cursor, LMB while holding casts too, RMB
+ * or Esc cancels, another skill key switches the aim, out of range walks in, then casts. Settings "Quick cast" casts at
+ * the cursor on the press instead (a brief indicator flash). An armed A shows the attack range ring too. B Nap, 1/2
  * talent pick, Space centres the camera, wheel zooms, Tab scoreboard, Esc menu; edge pan and arrow keys move the
  * camera. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
  * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
@@ -56,6 +58,10 @@ export class DesktopInput {
   /** The button held down to keep steering (2 RMB, 0 LMB in trackpad mode), or -1. */
   private steerButton = -1;
   private readonly mode: CastMode = castMode();
+  /** A slot whose range the HUD asked to preview (hovering its button), shown while nothing is aimed; or null. */
+  private preview: CastIndex | null = null;
+  /** The attack range ring this input asked for last (written to the view only on change, so touch can share it). */
+  private ringOn = false;
   private trackpad = trackpadOn();
   /** Auto trackpad watch (this match): play time, left-clicks on the ground, any right-button press. */
   private auto = { on: trackpadPref() === 'auto' && !trackpadOn(), playMs: 0, groundClicks: 0, rightPressed: false };
@@ -95,6 +101,7 @@ export class DesktopInput {
     this.off = [];
     this.h.view.aim = null;
     this.h.view.hover = null;
+    if (this.ringOn) this.h.view.attackRange = false;
     this.h.canvas.style.cursor = '';
     delete this.h.canvas.dataset.cursor;
   }
@@ -140,6 +147,7 @@ export class DesktopInput {
         return;
       }
       this.attackArmed = false;
+      this.syncRing();
       this.steerButton = 2;
       this.rightClick();
       return;
@@ -163,6 +171,7 @@ export class DesktopInput {
       }
       if (this.attackArmed) {
         this.attackArmed = false;
+        this.syncRing();
         this.refreshCursor();
         const u = this.unitUnderCursor(true);
         if (u) {
@@ -243,6 +252,8 @@ export class DesktopInput {
     this.keys.clear();
     this.steerButton = -1;
     this.cancelAim();
+    this.attackArmed = false;
+    this.syncRing();
     this.h.onScoreboard(false);
   }
 
@@ -263,6 +274,7 @@ export class DesktopInput {
       if (this.aiming || this.attackArmed) {
         this.cancelAim();
         this.attackArmed = false;
+        this.syncRing();
         this.refreshCursor();
         return;
       }
@@ -295,14 +307,18 @@ export class DesktopInput {
         this.quickCast(slot);
         return;
       }
+      // hold: aim until the key comes up (another skill key while aiming switches the aim to that skill)
+      this.flashUntil = 0;
       this.aiming = { slot, code: e.code };
       this.updateAim();
+      this.syncRing();
       this.refreshCursor();
       return;
     }
     switch (a) {
       case 'attackMove':
         this.attackArmed = true;
+        this.syncRing();
         this.refreshCursor();
         break;
       case 'stop':
@@ -339,7 +355,49 @@ export class DesktopInput {
     const was = !!this.aiming;
     this.aiming = null;
     this.h.view.aim = null;
+    this.syncRing();
     if (was) this.refreshCursor();
+  }
+
+  /** The attack range ring: on while A is armed or a skill is aimed (and the input is live). */
+  private syncRing(): void {
+    const on = this.h.enabled() && (this.attackArmed || !!this.aiming);
+    if (on === this.ringOn) return;
+    this.ringOn = on;
+    this.h.view.attackRange = on;
+  }
+
+  /** Is a skill being aimed (a key held in Cast on release)? Tests and the HUD. */
+  get aimingSlot(): CastIndex | null {
+    return this.aiming?.slot ?? null;
+  }
+
+  /** Is A armed (the next LMB attack-moves)? */
+  get attackMoveArmed(): boolean {
+    return this.attackArmed;
+  }
+
+  /**
+   * Preview `slot`'s range and shape without casting (the HUD's ability tooltip, while the pointer rests on the
+   * button): the skill's range ring around the hero and its shape along the hero's facing, until `null` clears it. A
+   * held key's aim wins over the preview.
+   */
+  previewSlot(slot: CastIndex | null): void {
+    if (slot === this.preview) return;
+    this.preview = slot;
+    if (!this.aiming && this.flashUntil === 0) this.h.view.aim = null;
+    this.updatePreview();
+  }
+
+  private updatePreview(): void {
+    const slot = this.preview;
+    if (slot === null || this.aiming || this.flashUntil > 0 || !this.h.enabled()) return;
+    const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
+    if (!me || me.state === 'dead') return;
+    const spec = this.h.orders.aimSpec(slot);
+    const yaw = this.h.view.me?.()?.yaw ?? 0;
+    const d = spec.kind === 'point' || spec.kind === 'unit' ? spec.range * 0.6 : spec.range;
+    this.h.view.aim = { spec, x: (me.x + Math.cos(yaw) * d) / 1000, z: -(me.y + Math.sin(yaw) * d) / 1000, target: -1, valid: true };
   }
 
   /** Release (or LMB) while aiming: cast at the cursor. */
@@ -348,6 +406,7 @@ export class DesktopInput {
     if (!a || a.code !== code) return;
     this.aiming = null;
     this.h.view.aim = null;
+    this.syncRing();
     this.refreshCursor();
     if (!this.h.enabled()) return;
     this.castAtCursor(a.slot, false);
@@ -455,8 +514,9 @@ export class DesktopInput {
   /** Per frame: aim preview, hover and cursor, RMB steering, camera pan. */
   update(dt: number): void {
     if (!this.h.enabled()) {
-      if (this.aiming || this.flashUntil > 0) this.cancelAim();
+      if (this.aiming || this.flashUntil > 0 || this.preview !== null) this.cancelAim();
       this.flashUntil = 0;
+      this.syncRing();
       if (this.hover || this.cursorKindNow !== 'normal') this.refreshCursor();
       return;
     }
@@ -470,6 +530,8 @@ export class DesktopInput {
       this.h.view.aim = null;
     }
     this.updateAim();
+    this.updatePreview();
+    this.syncRing();
     if (this.steerButton >= 0 && performance.now() - this.lastSteer > STEER_MS) {
       this.lastSteer = performance.now();
       const g = this.groundUnderCursor();

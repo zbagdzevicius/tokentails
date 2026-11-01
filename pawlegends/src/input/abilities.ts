@@ -12,6 +12,8 @@
 import { BRANCH_TALENT, HERO_IDS, HEROES } from '../data/heroes';
 import { kitNumbers } from '../sim/heroes/talents';
 import { TRICKS } from '../data/tricks';
+import { RADIUS } from '../data/map';
+import { HERO_RULES } from '../data/xp';
 import type { CastSlot, HeroId, TrickId } from '../sim/api';
 import { aims as meatballAims } from './aims/meatball';
 import { aims as pixelAims } from './aims/pixel';
@@ -178,6 +180,20 @@ export function maxCooldown(hero: HeroId, slot: CastSlot | 4, trick: TrickId, br
   const key = (['q', 'w', 'e', 'r'] as const)[slot];
   return kitNumbers(HERO_IDS.indexOf(hero), level, choices ?? branchChoices(hero, branch))[key].cooldown;
 }
+
+/**
+ * Basic attack range (mm), as the sim reads it (`attackRange`: the hero's `base.range`), and whether the hero fires a
+ * bolt (ranged: above HERO_RULES.meleeMaxRange) instead of swinging in melee. The touch Attack button and the attack
+ * range ring read these, so a new hero needs no client copy of its range.
+ */
+export const basicRange = (hero: HeroId): number => HEROES[hero].base.range;
+export const isRangedHero = (hero: HeroId): boolean => basicRange(hero) > HERO_RULES.meleeMaxRange;
+
+/**
+ * Radius (mm) of the attack range ring around the own hero: the sim's reach is range + own radius + target radius,
+ * so a ring at range + own radius is where an enemy's edge comes into reach.
+ */
+export const attackRingMm = (hero: HeroId): number => basicRange(hero) + RADIUS.hero;
 
 /** Level at which the ultimate unlocks (§6.1). */
 export const ULT_LEVEL = 4;

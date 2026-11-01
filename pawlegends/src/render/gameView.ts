@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { loadZoom, ZOOM_DEFAULT, zoomMax } from './camera/zoom';
 import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
-import { aimFor, trickAim, type AimSpec } from '../input/abilities';
+import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
 import { Particles, SHAPE } from './fx/Particles.js';
 import { CombatVfx, elementColor, isMelee } from './fx/combatVfx';
@@ -128,6 +128,13 @@ export class GameView {
   myTeam: 0 | 1 = 0;
   tricks: TrickId[] = [];
   aim: AimPreview | null = null;
+  /**
+   * Show the own hero's basic attack range ring (a thin dashed ring, subtler than a skill's range ring): the desktop
+   * input sets it while A is armed or a skill is aimed, the touch input while Attack is held or a skill is aimed.
+   */
+  attackRange = false;
+  /** Radius (m) of the attack range ring drawn this frame, 0 when none (e2e telemetry). */
+  attackRingM = 0;
   /** The unit under the desktop cursor (DesktopInput.hover): a bright ring shows what a click or cast hits. */
   hover: { id: number; rel: 'enemy' | 'ally'; castId?: number } | null = null;
   /** GAPS A5: the touch-locked enemy hero (TouchControls.lock): the same ring as an enemy hover while it holds. */
@@ -808,15 +815,23 @@ export class GameView {
   private drawAim(): void {
     const a = this.aim;
     const me = this.lastMe;
-    if (!a || !me || me.state === 'dead') return;
+    this.attackRingM = 0;
+    if (!me || me.state === 'dead') return;
     const mx = toX(me.fx);
     const mz = toZ(me.fy);
+    // the basic attack range ring: thin, dashed, cream, under the VFX (no ink), so it never reads as a skill's range
+    if (this.attackRange && me.hero) {
+      this.attackRingM = attackRingMm(me.hero) / 1000;
+      this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: ATTACK_RING_COLOR, alpha: 0.6, dashed: true });
+    }
+    if (!a) return;
     const color = a.valid ? RELATION.self : 0xff9f7a;
     const yaw = Math.atan2(-(a.z - mz), a.x - mx);
     const r = a.spec.range / 1000;
-    // max range ring for point and unit aims
+    // the skill's max range ring around the hero for every aimed kind (a self cast's shape is its own range; a map-long
+    // line, Sage's ult, would only fill the screen)
     // the player's own indicator draws over the VFX with an ink edge (top), so a thumb or cursor aim reads in a brawl
-    if (a.spec.kind === 'point' || a.spec.kind === 'unit') this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: r, color: RELATION.self, alpha: 0.7, top: true });
+    if (a.spec.kind !== 'self' && r > 0 && r <= RANGE_RING_MAX_M) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: r, color: RELATION.self, alpha: 0.7, top: true });
     const spec = toSpec(a.spec, mx, mz, a.x, a.z, Number.isFinite(yaw) ? yaw : me.yaw, color);
     if (spec) this.telegraphs.draw({ ...spec, alpha: 0.95, top: true });
   }
@@ -856,6 +871,11 @@ export class GameView {
     this.shock.dispose();
   }
 }
+
+/** The basic attack range ring's colour (warm cream: neither the gold skill ring nor a team colour). */
+const ATTACK_RING_COLOR = 0xfff1d6;
+/** A skill range ring wider than this (m) is not drawn (it would only fill the screen). */
+const RANGE_RING_MAX_M = 15;
 
 /** Aim spec + caster + aim point (m) → a telegraph shape. */
 export function toSpec(aim: AimSpec, x: number, z: number, ax: number, az: number, yaw: number, color: number): TelegraphSpec | null {
