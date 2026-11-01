@@ -194,3 +194,27 @@ export function tipHtml(t: SlotTip): string {
     (t.status ? `<small class="st${t.blocked ? ' no' : ''}">${esc(t.status)}</small>` : '')
   );
 }
+
+/**
+ * Above the HUD bar (not just the hovered element: the small D and B slots and the R slot's rank pips sit at
+ * different heights, so a card over the element alone would cover the bar's top edge), centred on the element and
+ * clamped inside the viewport; left of the minimap where the two would overlap (bottom right on desktop). Below the
+ * element only when there is no room above.
+ */
+export function placeTip(tip: HTMLElement, el: HTMLElement): void {
+  const pad = 8;
+  const r = el.getBoundingClientRect();
+  const w = tip.offsetWidth;
+  const h = tip.offsetHeight;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const bar = el.closest<HTMLElement>('.pl-bar')?.getBoundingClientRect();
+  let top = Math.min(r.top, bar && bar.height > 0 ? bar.top : r.top) - h - 10;
+  if (top < pad) top = Math.max(pad, Math.min(vh - h - pad, r.bottom + 10));
+  let right = vw - pad;
+  const mm = document.querySelector<HTMLElement>('.pl-minimap')?.getBoundingClientRect();
+  if (mm && mm.width > 0 && top < mm.bottom && top + h > mm.top) right = Math.min(right, mm.left - pad);
+  const left = Math.max(pad, Math.min(r.left + r.width / 2 - w / 2, right - w));
+  tip.style.left = `${Math.round(left)}px`;
+  tip.style.top = `${Math.round(top)}px`;
+}
