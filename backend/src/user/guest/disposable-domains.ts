@@ -1,4 +1,5 @@
 import { ForbiddenException, HttpStatus } from '@nestjs/common';
+import { ErrorCode } from 'src/shared-contracts/errors';
 
 /**
  * Disposable-domain check for NEW registered accounts (decision #5: no Identity Platform upgrade;
@@ -78,5 +79,6 @@ export function isDisposableEmail(email: string, extraDomains: readonly string[]
 export const disposableEmail = () =>
     new ForbiddenException({
         statusCode: HttpStatus.FORBIDDEN,
+        code: ErrorCode.EMAIL_DISPOSABLE,
         message: 'Use a permanent email address to create an account',
     });

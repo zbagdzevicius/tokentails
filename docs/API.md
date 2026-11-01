@@ -33,6 +33,10 @@ Errors that the client must tell apart carry `{ statusCode, code, message }` (pl
 | `GUEST_SESSION_REQUIRED` | 428 | A transient guest called a guest route; the client calls `POST /user/guest/session` once and retries |
 | `ACCOUNT_CONFLICT` | 409 | The token's uid belongs to a guest whose email is another account's, or a unique-index clash while binding |
 | `EMAIL_UNVERIFIED` | 403 | An unverified email that would have to bind or create an account |
+| `EMAIL_DISPOSABLE` | 403 | A disposable inbox tried to create or promote an account |
+| `GUEST_MERGE_IN_PROGRESS` | 409 | The uid's guest doc is being merged into another account (another tab); the client retries. A merge stuck for over 5 minutes is finished, or released when its target is gone, at the next sign-in |
+| `ACCOUNT_DELETED` | 401 | The sign-in belongs to a deleted account; its leftover Firebase user is deleted, so the next sign-in starts a new account. The client asks the player to sign out and sign in again |
+| `ACCOUNT_MISSING` | 401 | `GET /user/profile` found no document for the resolved id (was an empty 200 before Nov 1, 2026) |
 | `STARTER_LOCKED` | 409 | The starter is already committed |
 | `NAME_TOO_SHORT`, `NAME_TOO_LONG`, `NAME_CHARS`, `NAME_RESERVED`, `NAME_BLOCKED` | 400 | `normalizeCatName` refused the name |
 | `HEIST_REPLAY_INVALID`, `HEIST_NOT_WON`, `HEIST_TRAILING_INPUT` | 400 | The Heist log is not a clean win |

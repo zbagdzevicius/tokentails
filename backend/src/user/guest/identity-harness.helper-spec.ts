@@ -89,6 +89,7 @@ export function createIdentityHarness(seed: { users?: Doc[]; cats?: Doc[]; games
     );
     const firebase = fakeFirebase();
     service.firebase = firebase;
+    service.now = now;
     return {
         users,
         cats,

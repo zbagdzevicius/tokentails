@@ -74,6 +74,17 @@ describe('AppAuthStrategy (appauth)', () => {
         expect(perRequest.fail.mock.calls[0][1]).toBe(401);
     });
 
+    it('logs a rejected token by its Firebase error code only (a disabled user is traceable), never the token', async () => {
+        verifyIdToken.mockRejectedValue(Object.assign(new Error('disabled'), { code: 'auth/user-disabled' }));
+        const { perRequest, run } = createRequestStrategy('fbsecret-token');
+        const warn = jest.spyOn(perRequest.logger, 'warn').mockImplementation(() => undefined);
+        await run();
+
+        expect(outcomes(perRequest)).toEqual({ success: 0, fail: 1, error: 0 });
+        expect(warn).toHaveBeenCalledWith('auth token rejected: auth/user-disabled');
+        expect(JSON.stringify(warn.mock.calls)).not.toContain('secret-token');
+    });
+
     it('answers 401 once for a non-anonymous Firebase token without an email', async () => {
         verifyIdToken.mockResolvedValue({ uid: 'u1', firebase: { sign_in_provider: 'password' } });
         const { perRequest, run } = createRequestStrategy('fbvalid');

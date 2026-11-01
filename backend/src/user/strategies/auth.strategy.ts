@@ -76,6 +76,12 @@ export class AppAuthStrategy extends Strategy {
         try {
             decodedIdToken = await auth.verifyIdToken(idToken, this.checkRevoked);
         } catch (err) {
+            // Expired tokens are routine (the client refreshes); anything else (a disabled or deleted
+            // Firebase user, a wrong project) is logged with its code only, never the token.
+            const code = (err as { code?: string })?.code || 'unknown';
+            if (code !== 'auth/id-token-expired') {
+                this.logger.warn(`auth token rejected: ${code}`);
+            }
             this.fail({ err }, 401);
 
             return;

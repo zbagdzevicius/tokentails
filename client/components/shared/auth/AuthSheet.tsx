@@ -4,11 +4,12 @@ import { GameModal } from "@/components/ui/GameModal";
 import type { AuthSheetController, SheetView } from "@/context/FirebaseAuthContext";
 import type { AccountReason } from "@/context/auth/types";
 import { LAST_METHOD_LABEL, type LastMethod } from "@/context/auth/lastMethod";
+import { describeProfileError, profileRetryDelayMs } from "@/context/auth/profileError";
 import { externalBrowserLink, signInLink } from "@/context/auth/platform";
 import { useProfile } from "@/context/ProfileContext";
 import { useToastHold } from "@/context/ToastContext";
 import clsx from "clsx";
-import { type FormEvent, type KeyboardEvent, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type FormEvent, type KeyboardEvent, type ReactNode, useCallback, useEffect, useId, useRef, useState } from "react";
 import { SUPPORT_EMAIL } from "@/lib/support";
 import { BrandSignInButton, type BrandProvider } from "./BrandSignInButton";
 import { SCROLL_FADE_CLASS, useScrollFade } from "@/components/ui/useScrollFade";
@@ -859,6 +860,21 @@ const LinkAccountView = ({
   );
 };
 
+/** "Retrying in Ns", then `onDue`. Keyed by the attempt, so each attempt starts a fresh countdown. */
+const RetryCountdown = ({ delayMs, onDue }: { delayMs: number; onDue: () => void }) => {
+  const [left, setLeft] = useState(() => Math.ceil(delayMs / 1000));
+  useEffect(() => {
+    const due = Date.now() + delayMs;
+    const tick = setInterval(() => setLeft(Math.max(0, Math.ceil((due - Date.now()) / 1000))), 1000);
+    const timer = setTimeout(onDue, delayMs);
+    return () => {
+      clearInterval(tick);
+      clearTimeout(timer);
+    };
+  }, [delayMs, onDue]);
+  return <>{`Retrying in ${left}s`}</>;
+};
+
 const ProfileErrorView = ({
   controller,
   view,
@@ -868,21 +884,66 @@ const ProfileErrorView = ({
   const reference = view.timeout
     ? null
     : [view.status ? `Error ${view.status}` : "No response", uid].filter(Boolean).join(" · ");
+  const copy = describeProfileError({
+    status: view.status ?? null,
+    code: view.code ?? null,
+    message: view.message,
+    timeout: view.timeout,
+    offline: typeof navigator !== "undefined" && navigator.onLine === false,
+  });
+  const loading = controller.status === "loading-profile";
+  const retry = controller.retryProfile;
+  const [attempt, setAttempt] = useState(0);
+  // A hidden tab does not retry; the visibilitychange below picks it up when it is shown again.
+  const autoRetry = useCallback(() => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") return;
+    setAttempt((value) => value + 1);
+    retry();
+  }, [retry]);
+  // Transient causes also retry at once when the tab is shown again or the network comes back.
+  useEffect(() => {
+    if (!copy.autoRetry || loading) return;
+    window.addEventListener("online", autoRetry);
+    document.addEventListener("visibilitychange", autoRetry);
+    return () => {
+      window.removeEventListener("online", autoRetry);
+      document.removeEventListener("visibilitychange", autoRetry);
+    };
+  }, [copy.autoRetry, loading, autoRetry]);
+
+  const signOut = () => void controller.signOut();
   return (
     <>
-      <Heading>{view.timeout ? "This is taking too long" : "We couldn't load your account"}</Heading>
-      <p className={bodyText}>
-        {view.timeout
-          ? "Your account didn't load in time. Check your connection, then try again."
-          : "Something went wrong on our side. Your cat and your progress are safe. Try again in a moment."}
-      </p>
-      <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={controller.retryProfile}>
-        TRY AGAIN
-      </ModalButton>
+      <Heading>{copy.heading}</Heading>
+      <p className={bodyText}>{copy.body}</p>
+      {copy.autoRetry && (
+        <p className="text-center font-sans text-p6 font-semibold text-tt-muted" aria-live="polite" data-testid="profile-error-retry">
+          {loading ? (
+            "Retrying…"
+          ) : (
+            <RetryCountdown key={attempt} delayMs={profileRetryDelayMs(attempt)} onDue={autoRetry} />
+          )}
+        </p>
+      )}
+      {copy.primary === "sign-out" ? (
+        <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={signOut}>
+          SIGN OUT AND SIGN IN AGAIN
+        </ModalButton>
+      ) : (
+        <ModalButton variant="primary" fullWidth className={CTA_CLASS} onClick={retry}>
+          TRY AGAIN
+        </ModalButton>
+      )}
       <div className="flex flex-wrap items-center justify-center gap-x-2">
-        <button type="button" className={textButton} onClick={() => void controller.signOut()}>
-          Sign out
-        </button>
+        {copy.primary === "sign-out" ? (
+          <button type="button" className={textButton} onClick={retry}>
+            Try again
+          </button>
+        ) : (
+          <button type="button" className={textButton} onClick={signOut}>
+            Sign out
+          </button>
+        )}
         {reference && (
           <a className={textButton} href={supportUrl(reference)}>
             Contact support

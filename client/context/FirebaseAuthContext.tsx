@@ -118,8 +118,17 @@ export type SheetView =
   | { name: "link-account"; provider: OAuthProviderName; email: string | null }
   | { name: "linking"; label: string }
   | { name: "busy"; label: string }
-  /** `status`: the HTTP status of the failed profile request (null: no answer), shown for support. */
-  | { name: "profile-error"; timeout?: boolean; status?: number | null }
+  /**
+   * `status`: the HTTP status of the failed profile request (null: no answer), shown for support.
+   * `code` and `message` pick the copy (context/auth/profileError.ts).
+   */
+  | {
+      name: "profile-error";
+      timeout?: boolean;
+      status?: number | null;
+      code?: ErrorCode | null;
+      message?: string | null;
+    }
   | { name: "conflict" }
   | { name: "merged"; gamesMoved: number; tailsCredited: number; note?: string }
   | { name: "fallback" };
@@ -213,18 +222,21 @@ function mergeAttemptKey(guestToken: string, user: AuthUserSnapshot | null): str
   return `${guestToken.slice(-16)}|${user?.uid ?? ""}|${user?.emailVerified ? 1 : 0}`;
 }
 
-/** A profile failure worth one more attempt: 401, 429, 5xx or a network error. */
-function isRetryableProfileError(error: unknown): boolean {
+/** A profile failure worth one more attempt: 401, 429, 5xx, a network error or an unreadable body. */
+export function isRetryableProfileError(error: unknown): boolean {
   if (error instanceof ApiError) {
     if (error.code) return false;
     return error.status === 401 || error.status === 429 || error.status >= 500;
   }
-  // fetch rejects with a TypeError when the connection fails; a bad body (SyntaxError) is final.
-  return error instanceof TypeError;
+  // fetch rejects with a TypeError when the connection fails; an empty or HTML body (a proxy page,
+  // a cut-off answer) throws a SyntaxError from response.json(), which a second attempt can fix too.
+  return error instanceof TypeError || error instanceof SyntaxError;
 }
 
-function readProfileError(error: unknown): ProfilePhase {
-  if (error instanceof ApiError) return { phase: "error", status: error.status, code: error.code };
+export function readProfileError(error: unknown): ProfilePhase {
+  if (error instanceof ApiError) {
+    return { phase: "error", status: error.status, code: error.code, message: error.serverMessage };
+  }
   return { phase: "error", status: null, code: null };
 }
 
@@ -265,6 +277,8 @@ const FirebaseAuthProvider = ({
   const gate = React.useRef(new AccountGate()).current;
   const seqRef = React.useRef(0);
   const profileUidRef = React.useRef<string | null>(null);
+  /** The status of the last failed profile load, so "Try again" after a 401 refreshes the token. */
+  const lastProfileErrorStatusRef = React.useRef<number | null>(null);
   const pendingLinkRef = React.useRef<{ credential: AuthCredential; guestToken: string | null } | null>(null);
   const fallbackShownRef = React.useRef(false);
   /**
@@ -366,7 +380,7 @@ const FirebaseAuthProvider = ({
     [settleGate, passive]
   );
 
-  const loadProfile = useCallback(async (): Promise<SessionProfile | null> => {
+  const loadProfile = useCallback(async (options?: { forceRefresh?: boolean }): Promise<SessionProfile | null> => {
     const current = userRef.current;
     if (!current) return null;
     const seq = ++seqRef.current;
@@ -399,7 +413,7 @@ const FirebaseAuthProvider = ({
     try {
       let raw: SessionProfile;
       try {
-        raw = await fetchProfile(false);
+        raw = await fetchProfile(options?.forceRefresh === true);
       } catch (error) {
         // One retry for a failure that a second attempt can fix: an expired token (401), a
         // throttle (429), a server error (5xx) or a dropped connection. Deliberate answers with a
@@ -419,6 +433,7 @@ const FirebaseAuthProvider = ({
       const next = timedOut
         ? ({ phase: "error", status: null, code: null, timeout: true } as ProfilePhase)
         : readProfileError(error);
+      lastProfileErrorStatusRef.current = next.phase === "error" ? next.status : null;
       setProfileState(next);
       return null;
     } finally {
@@ -555,6 +570,7 @@ const FirebaseAuthProvider = ({
   const errorCode = profileState.phase === "error" ? profileState.code : null;
   const errorTimeout = profileState.phase === "error" ? !!profileState.timeout : false;
   const errorStatus = profileState.phase === "error" ? profileState.status : null;
+  const errorMessage = profileState.phase === "error" ? profileState.message ?? null : null;
   React.useEffect(() => {
     const canForce = mode === "guest" || gate.pending;
     const current = sheetRef.current;
@@ -584,9 +600,16 @@ const FirebaseAuthProvider = ({
       const stale =
         current.view.name !== "profile-error" ||
         current.view.status !== errorStatus ||
+        (current.view.code ?? null) !== errorCode ||
         !!current.view.timeout !== errorTimeout;
       if (!user.isAnonymous && (!current.open || stale)) {
-        openSheet(gate.reason ?? "sign-in", { name: "profile-error", timeout: errorTimeout, status: errorStatus });
+        openSheet(gate.reason ?? "sign-in", {
+          name: "profile-error",
+          timeout: errorTimeout,
+          status: errorStatus,
+          code: errorCode,
+          message: errorMessage,
+        });
       }
       return;
     }
@@ -596,7 +619,7 @@ const FirebaseAuthProvider = ({
       if (gate.pending && authStatus === "guest") setView({ name: "choose" });
       else if (!gate.pending) setSheet((s) => ({ ...s, open: false }));
     }
-  }, [mode, fb, user, authStatus, errorCode, errorTimeout, errorStatus, gate, openSheet, setView]);
+  }, [mode, fb, user, authStatus, errorCode, errorTimeout, errorStatus, errorMessage, gate, openSheet, setView]);
 
   // ---- bridge for the API wrapper ----------------------------------------------------------
 
@@ -945,7 +968,8 @@ const FirebaseAuthProvider = ({
 
   const retryProfile = useCallback(() => {
     profileUidRef.current = null; // show loading again
-    void loadProfile();
+    // After a 401 the token itself may be the problem (expired, revoked): get a new one first.
+    void loadProfile({ forceRefresh: lastProfileErrorStatusRef.current === 401 });
   }, [loadProfile]);
 
   const retryGuest = useCallback(() => {

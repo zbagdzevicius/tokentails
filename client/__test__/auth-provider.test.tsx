@@ -81,12 +81,18 @@ interface Route {
 let routes: Record<string, (init: RequestInit) => Route>;
 let calls: Array<{ method: string; path: string; token: string; body?: string }>;
 
+/** A body that `response.json()` cannot parse (an empty 200, a proxy's HTML page). */
+const UNREADABLE = Symbol("unreadable");
+
 const reply = ({ status = 200, body = {} }: Route) =>
   ({
     ok: status >= 200 && status < 300,
     status,
     headers: { get: () => null },
-    json: async () => body,
+    json: async () => {
+      if (body === UNREADABLE) throw new SyntaxError("Unexpected end of JSON input");
+      return body;
+    },
     clone() {
       return reply({ status, body });
     },
@@ -452,6 +458,51 @@ describe("FirebaseAuthProvider, guest mode (/game)", () => {
     await new Promise((resolve) => setTimeout(resolve, 1700)); // no third attempt after another delay
     expect(profileCalls).toBe(2);
   });
+
+  it("retries a 2xx whose body cannot be read (empty or HTML), then loads", async () => {
+    let profileCalls = 0;
+    routes["GET /user/profile"] = () => (++profileCalls === 1 ? { body: UNREADABLE } : { body: ACCOUNT });
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("ready"), { timeout: 3000 });
+    expect(profileCalls).toBe(2);
+  });
+
+  it("a deleted account gets 'sign in again', not 'try again in a moment', and no retry loop", async () => {
+    let profileCalls = 0;
+    routes["GET /user/profile"] = () => {
+      profileCalls++;
+      return { status: 401, body: { code: "ACCOUNT_DELETED", message: "This account was deleted" } };
+    };
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    expect(await screen.findByRole("heading", { name: "Please sign in again" })).toBeTruthy();
+    expect(screen.getByText(/This account was deleted/)).toBeTruthy();
+    expect(screen.getByRole("button", { name: "SIGN OUT AND SIGN IN AGAIN" })).toBeTruthy();
+    expect(screen.queryByText(/on our side/)).toBeNull();
+    await new Promise((resolve) => setTimeout(resolve, 2300));
+    expect(profileCalls).toBe(1);
+  });
+
+  it("'Try again' after a 401 gets a fresh token first", async () => {
+    routes["GET /user/profile"] = () => ({ status: 401, body: {} });
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    await screen.findByRole("heading", { name: "Please sign in again" });
+    const before = control().forcedRefreshes();
+    routes["GET /user/profile"] = () => ({ body: ACCOUNT });
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+    });
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("ready"));
+    expect(control().forcedRefreshes()).toBe(before + 1);
+  });
+
+  it("a 5xx that outlasts the first retry recovers by itself, without a click", async () => {
+    let profileCalls = 0;
+    routes["GET /user/profile"] = () => (++profileCalls <= 2 ? { status: 503, body: {} } : { body: ACCOUNT });
+    renderProvider("guest", { user: { uid: "acc", isAnonymous: false } });
+    expect(await screen.findByText(/Retrying in \ds/, undefined, { timeout: 3000 })).toBeTruthy();
+    await waitFor(() => expect(latest.auth?.authStatus).toBe("ready"), { timeout: 4000 });
+    expect(profileCalls).toBe(3);
+  }, 10000);
 
   it("does not retry a deliberate answer with an error code", async () => {
     let profileCalls = 0;
