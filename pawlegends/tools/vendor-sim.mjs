@@ -8,7 +8,7 @@
  *   npm run vendor-sim:check           # CI: exit 1 when a vendored copy (live or frozen) differs from a fresh build
  *   npm run vendor-sim:check-remote -- <backend url>
  *                                      # deploy gate: exit 1 unless that backend serves this exact bundle
- *                                      # (GET /pawlegends/sim → { bundle }), so the game never ships ahead of it
+ *                                      # (GET /pawlegends/sim → { bundleSha256 }), so the game never ships ahead of it
  *
  * Dual verifier (sim v10, GAPS B0): the backend keeps one directory per SIM_VERSION it accepts and re-sims a replay
  * with the sim of its own `simVersion`, so a cached tab or an app build that still posts v9 keeps saving after the
@@ -355,8 +355,9 @@ async function main() {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`vendor-sim: ${url} answered ${res.status}`);
     const served = await res.json();
-    if (served.bundle !== bundleSha) {
-      console.error(`vendor-sim: ${url} serves bundle ${served.bundle}, this build is ${bundleSha}`);
+    const servedSha = served.bundleSha256 ?? served.bundle;
+    if (servedSha !== bundleSha) {
+      console.error(`vendor-sim: ${url} serves bundle ${servedSha}, this build is ${bundleSha}`);
       process.exit(1);
     }
     console.log(`vendor-sim: ${url} serves this sim (${bundleSha.slice(0, 12)})`);
