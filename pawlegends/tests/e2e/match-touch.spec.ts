@@ -141,3 +141,17 @@ test('a held joystick stops at the map edge', async ({ page }) => {
   expect(p.x).toBeLessThanOrEqual(99500);
   expect(p.y).toBeGreaterThanOrEqual(500);
 });
+
+// Desktop skill tooltips are desktop only: a phone never shows the hover card, even for a mouse-like pointer event.
+test('no skill hover card on touch', async ({ page }) => {
+  await startFirstMatch(page);
+  await page.waitForTimeout(400);
+  for (const sel of ['.pl-portrait', '.pl-slot[data-i="0"]', '.pl-tbtn.q']) {
+    const box = await page.locator(sel).first().boundingBox();
+    if (!box) continue;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.waitForTimeout(300);
+    await expect(page.locator('.pl-slot-tip.on')).toHaveCount(0);
+  }
+  expect(await attr(page, 'slotTip')).toBe('');
+});
