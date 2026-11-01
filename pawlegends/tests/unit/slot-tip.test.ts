@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vitest';
 import { HERO_IDS, HEROES } from '../../src/data/heroes';
 import { TRICKS } from '../../src/data/tricks';
 import type { TrickId } from '../../src/sim/api';
-import { HERO_TEXT, TRICK_TEXT, abilityRows, attackRows } from '../../src/ui/heroText';
-import { attackTip, slotTip, tipHtml, type TipState } from '../../src/ui/slotTip';
+import { HERO_TEXT, TRICK_TEXT } from '../../src/ui/heroText';
+import { abilityRows, attackRows, attackTip, slotTip, tipHtml, type TipState } from '../../src/ui/slotTip';
 import { desktopHover } from '../../src/ui/hud';
 
 const KEYS = ['Q', 'W', 'E', 'R', 'D', 'B'];

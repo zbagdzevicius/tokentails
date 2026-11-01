@@ -14,7 +14,6 @@ import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
 import { HERO_TEXT, TRICK_TEXT, rankPips, rankUpSlots } from './heroText';
-import { attackTip, slotTip, tipHtml } from './slotTip';
 import { abilityRank, maxRank } from '../sim/heroes/talents';
 import { icon as iconSvg } from './icons';
 import { icon } from './icons';
@@ -51,6 +50,15 @@ export interface HudHost {
    * attack), or null once it is gone. The match previews that slot's range in the world; it never casts.
    */
   onHover?(slot: number | null): void;
+}
+
+/** Desktop skill tooltips: ui/slotTip.ts, loaded on the first desktop hover (touch never downloads it). */
+type TipMod = typeof import('./slotTip');
+let tipMod: TipMod | null = null;
+let tipLoad: Promise<TipMod> | null = null;
+function loadTips(): Promise<TipMod> {
+  tipLoad ??= import('./slotTip').then((m) => (tipMod = m));
+  return tipLoad;
 }
 
 /** Desktop skill tooltips: the card fades in after the pointer rests this long (a sweep across the bar shows nothing). */
@@ -339,6 +347,7 @@ export class Hud {
   /** Desktop skill tooltips: the pointer rests on slot `i` (−1 the portrait); the card follows after TIP_DELAY_MS. */
   private tipEnter(e: PointerEvent, el: HTMLElement, i: number): void {
     if (!desktopHover(e)) return;
+    void loadTips();
     this.tipEl = el;
     this.tipI = i;
     this.tipSchedule();
@@ -355,6 +364,13 @@ export class Hud {
     this.tipTimer = setTimeout(() => {
       this.tipTimer = null;
       if (this.tipI === null || this.tipBlocked) return;
+      // the first hover can beat the chunk: show once it is in, if the pointer still rests here
+      if (!tipMod) {
+        void loadTips().then(() => {
+          if (this.tipI !== null && !this.tipBlocked && !this.tipTimer && !this.tipOn) this.tipSchedule();
+        });
+        return;
+      }
       this.tipOn = true;
       this.tipRender();
       this.tip.classList.add('on');
@@ -384,11 +400,12 @@ export class Hud {
   /** The card's content for the hovered slot (written only on change: the cooldown counts down while it is up). */
   private tipRender(): void {
     const i = this.tipI;
-    if (i === null) return;
-    const html = tipHtml(
+    const m = tipMod;
+    if (i === null || !m) return;
+    const html = m.tipHtml(
       i < 0
-        ? attackTip(this.hero, this.lv)
-        : slotTip(this.hero, this.trick, i, keyLabel(SLOT_ACTIONS[i] ?? 'q'), { level: this.lv, choices: this.choices, branch: this.branchOn, cd: i < 5 ? (this.cds[i] ?? 0) : 0, dead: this.dead }),
+        ? m.attackTip(this.hero, this.lv)
+        : m.slotTip(this.hero, this.trick, i, keyLabel(SLOT_ACTIONS[i] ?? 'q'), { level: this.lv, choices: this.choices, branch: this.branchOn, cd: i < 5 ? (this.cds[i] ?? 0) : 0, dead: this.dead }),
     );
     if (html === this.tipLast && this.tip.classList.contains('on')) return;
     this.tipLast = html;
