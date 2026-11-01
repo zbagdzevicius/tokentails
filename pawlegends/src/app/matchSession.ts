@@ -1522,6 +1522,8 @@ export class MatchSession {
     if (me) d.me = `${Math.round(me.x)},${Math.round(me.y)},${me.state}`;
     d.ops = (this.orders?.recent ?? []).join(',');
     d.aim = this.view.aim ? '1' : '';
+    // the basic attack range ring's radius (m) when drawn (A armed, a skill aimed, touch Attack held)
+    d.atkRing = this.view.attackRingM > 0 ? this.view.attackRingM.toFixed(2) : '';
     d.casts = String(this.orders?.casts ?? 0);
     d.hits = String(this.hitsLanded);
     const pick = this.touch?.lastPick;

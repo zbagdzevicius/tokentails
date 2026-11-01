@@ -1,7 +1,9 @@
 /**
  * Touch cluster (POC.md §9, landscape): a floating joystick on the left; on the right an Attack button with
  * auto-target (enemy hero in range, then the lowest-HP minion, then a tower), Q/W/E on an arc and a larger R, plus
- * Trick and Nap. Tap smart-casts; drag aims (the indicator follows the thumb); dragging onto the ✕ cancels.
+ * Trick and Nap. Tap smart-casts; holding a skill button still shows its range ring and the smart aim before the
+ * release casts; drag aims (the indicator follows the thumb); dragging onto the ✕ cancels. While Attack is held or a
+ * skill is aimed, the hero's basic attack range ring shows too (range from hero data, so every ranged hero reads right).
  * The joystick sends `move` to a point 2 m ahead when its direction turns by more than 1/32 turn, at most every
  * 3 ticks (and again before the hero reaches that point, so a held stick keeps walking).
  *
@@ -30,6 +32,8 @@ export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: 
 const DRAG_PX = 16;
 const DRAG_FULL_PX = 90;
 const ATTACK_REPEAT_MS = 350;
+/** A skill button held this long (ms) without a drag shows its range and smart aim (CAST.hold; a tap stays a tap). */
+const HOLD_PREVIEW_MS = 200;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 
@@ -45,6 +49,8 @@ interface Drag {
   y: number;
   dragging: boolean;
   overCancel: boolean;
+  /** When the button went down (ms, performance.now). */
+  at: number;
 }
 
 export class TouchControls {
@@ -58,6 +64,8 @@ export class TouchControls {
   private lastStick = { a: NaN, at: 0, tx: 0, ty: 0 };
   private attackHeld: number | null = null;
   private lastAttack = 0;
+  /** The attack range ring this input asked for last (written to the view only on change, so desktop can share it). */
+  private ringOn = false;
   private enabled = false;
   private off: (() => void)[] = [];
   /** GAPS A5: the tapped enemy hero (5 s, 9 m), the Attack order (Settings), the canvas touch that may be a tap. */
@@ -126,6 +134,15 @@ export class TouchControls {
     for (const f of this.off) f();
     this.root.remove();
     this.h.view.aim = null;
+    if (this.ringOn) this.h.view.attackRange = false;
+  }
+
+  /** The attack range ring: on while Attack is held or a skill button is down (and the input is live). */
+  private syncRing(): void {
+    const on = this.h.enabled() && (this.attackHeld !== null || this.drags.size > 0);
+    if (on === this.ringOn) return;
+    this.ringOn = on;
+    this.h.view.attackRange = on;
   }
 
   private me(): Unit | null {
@@ -171,6 +188,7 @@ export class TouchControls {
     if (btn === 'attack') {
       this.attackHeld = e.pointerId;
       this.attackNow();
+      this.syncRing();
       return;
     }
     if (btn === 'nap') {
@@ -189,7 +207,8 @@ export class TouchControls {
       setTimeout(() => el.classList.remove('deny'), 250);
       return;
     }
-    this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false });
+    this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, at: performance.now() });
+    this.syncRing();
   }
 
   private move(e: PointerEvent): void {
@@ -242,6 +261,7 @@ export class TouchControls {
     if (this.attackHeld === e.pointerId) {
       this.attackHeld = null;
       this.buttons.get('attack')?.classList.remove('down');
+      this.syncRing();
       return;
     }
     const g = this.drags.get(e.pointerId);
@@ -250,6 +270,7 @@ export class TouchControls {
       return;
     }
     this.drags.delete(e.pointerId);
+    this.syncRing();
     this.buttons.get(g.btn)?.classList.remove('down');
     this.cancelEl.classList.remove('on', 'hot');
     this.h.view.aim = null;
@@ -297,6 +318,16 @@ export class TouchControls {
     const spec = this.h.orders.aimSpec(slot);
     const t = this.dragTarget(g, slot, me) ?? { x: me.x, y: me.y, id: 0xff };
     this.h.view.aim = { spec, x: t.x / 1000, z: -t.y / 1000, target: t.id, valid: !g.overCancel && (spec.kind !== 'unit' || t.id !== 0xff) };
+  }
+
+  /** A held (not dragged) skill button: its range ring and the smart aim a release would cast at. */
+  private previewHold(g: Drag): void {
+    const slot = SLOT_OF[g.btn];
+    const me = this.me();
+    if (slot === undefined || !me) return;
+    const spec = this.h.orders.aimSpec(slot);
+    const p = smartAim(spec, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
+    this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: p.id, valid: spec.kind !== 'unit' || p.id !== 0xff };
   }
 
   /** The last Attack button choice and the enemies it saw (e2e only), and how many there were. */
@@ -430,6 +461,8 @@ export class TouchControls {
     void this.desktop;
     const now = performance.now();
     if (this.attackHeld !== null && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
+    for (const g of this.drags.values()) if (!g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
+    this.syncRing();
     const s = this.stick;
     const me = this.me();
     if (s || this.drags.size > 0 || this.attackHeld !== null) this.inputAt = now;

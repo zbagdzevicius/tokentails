@@ -6,11 +6,11 @@ const fromFountain = (p: { x: number; y: number }) => Math.hypot(p.x - FOUNTAIN.
 
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'desktop controls'));
 
-/** Settings → "Aim on hold" (press aims, release casts) before the page loads. */
-const aimOnHold = (page: Page) => page.addInitScript(() => localStorage.setItem('pawlegends.castMode', 'hold'));
+/** Settings → "Quick cast" (press casts at once) before the page loads. */
+const quickCast = (page: Page) => page.addInitScript(() => localStorage.setItem('pawlegends.castMode', 'quick'));
 
 // POC.md §15 item 18.
-test('RMB moves, Q quick-casts on press, B naps, S stops', async ({ page }) => {
+test('RMB moves, Q casts on release (holding shows the range), B naps, S stops', async ({ page }) => {
   await startFirstMatch(page);
   await page.waitForTimeout(400);
   const a = await me(page);
@@ -18,29 +18,48 @@ test('RMB moves, Q quick-casts on press, B naps, S stops', async ({ page }) => {
   await expect.poll(async () => (await me(page)).x, { timeout: 15000 }).toBeGreaterThan(a.x + 1500);
   expect(await ops(page)).toContain(1);
 
-  // quick cast is the default: the key press alone casts (no hold, no release needed)
+  // cast on release is the default: holding Q shows the indicator and the attack range ring, the release casts
   await page.mouse.move(800, 300);
   await page.keyboard.down('q');
-  await expect.poll(() => ops(page)).toContain(4);
+  await expect.poll(() => attr(page, 'aim')).toBe('1');
+  await expect.poll(() => attr(page, 'atkRing')).not.toBe('');
+  expect(await ops(page)).not.toContain(4);
   await page.keyboard.up('q');
+  await expect.poll(() => ops(page)).toContain(4);
   await expect.poll(() => attr(page, 'aim')).toBe('');
+  await expect.poll(() => attr(page, 'atkRing')).toBe('');
 
   await page.keyboard.press('s');
   await page.keyboard.press('b');
   await expect.poll(async () => (await ops(page)).slice(-2)).toEqual([6, 7]);
 });
 
-test('Aim on hold: holding Q shows the indicator, release casts', async ({ page }) => {
-  await aimOnHold(page);
+test('Quick cast (Settings): the key press alone casts, with no hold', async ({ page }) => {
+  await quickCast(page);
   await startFirstMatch(page);
   await page.waitForTimeout(400);
   await page.mouse.move(800, 300);
   await page.keyboard.down('q');
-  await expect.poll(() => attr(page, 'aim')).toBe('1');
-  expect(await ops(page)).not.toContain(4);
+  await expect.poll(() => ops(page)).toContain(4);
   await page.keyboard.up('q');
   await expect.poll(() => attr(page, 'aim')).toBe('');
-  expect(await ops(page)).toContain(4);
+});
+
+test('A armed shows the basic attack range ring (range + body, from hero data); Esc disarms it', async ({ page }) => {
+  await startFirstMatch(page);
+  await page.waitForTimeout(400);
+  await page.mouse.move(800, 300);
+  await expect
+    .poll(
+      async () => {
+        await page.keyboard.press('a');
+        return attr(page, 'atkRing');
+      },
+      { timeout: 10000, intervals: [300] },
+    )
+    .toMatch(/^[1-9]\d*\.\d\d$/);
+  await page.keyboard.press('Escape');
+  await expect.poll(() => attr(page, 'atkRing')).toBe('');
 });
 
 test('trackpad mode: left-click moves', async ({ page }) => {
@@ -104,8 +123,7 @@ test('A + LMB attack-moves, and the attack lands', async ({ page }) => {
     .toBeGreaterThan(0);
 });
 
-test('an out-of-range point cast walks in first (Sage W, Aim on hold; quick cast clamps to the range)', async ({ page }) => {
-  await aimOnHold(page);
+test('an out-of-range point cast walks in first (Sage W, cast on release; quick cast clamps to the range)', async ({ page }) => {
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
   await page.evaluate(() => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, matches: 1, hero: 'sage' })));

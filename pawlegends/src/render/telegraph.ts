@@ -1,6 +1,6 @@
 /**
  * Ground telegraphs and aim indicators: cones, lines, dashes, circles and rings drawn by one small shader on a flat
- * quad, pooled. The player's hold-aim indicator, the max-range ring, and every visible wind-up (enemy red, ally
+ * quad, pooled. The player's hold-aim indicator, the max-range ring, the dashed basic attack range ring, and every visible wind-up (enemy red, ally
  * teal) use it. A wind-up fills from the caster outward over its wind-up time, so what you see is when it lands.
  * Render only.
  */
@@ -63,6 +63,8 @@ uniform vec3 uColor;
 uniform float uAlpha;
 uniform float uTime;
 uniform float uInk;     // 1: a dark ink band on the outer edge (the player's own indicator, drawn over the VFX)
+uniform float uRimW;    // radial: rim width as a fraction of the radius (0.1 = the usual bold rim)
+uniform float uDash;    // radial: > 0 = a dashed outline with this many dashes and no body (the attack range ring)
 varying vec2 vUv;
 void main(){
   float a = 0.0;
@@ -73,11 +75,13 @@ void main(){
     float ang = abs(atan(p.y, p.x));
     float hf = uArc * 0.5;
     float inside = step(d, 1.0) * step(ang, hf + 0.0001);
-    float rim = smoothstep(0.90, 0.965, d) * inside;
+    float rim = smoothstep(1.0 - uRimW, 1.0 - uRimW * 0.35, d) * inside;
+    if (uDash > 0.0) rim *= step(0.45, fract((atan(p.y, p.x) / 6.28318 + 0.5) * uDash));
     float side = 0.0;
     if (hf < 3.1) side = (1.0 - smoothstep(0.0, 0.035, (hf - ang) * max(d, 0.08))) * inside;
     float body = 0.16 + 0.06 * sin(d * 18.0 - uTime * 6.0);
     if (uInner > 0.0) body *= smoothstep(uInner - 0.05, uInner, d) * 0.5;
+    if (uDash > 0.0) body = 0.0;
     float fill = uFill >= 0.0 ? step(d, uFill) * 0.32 + smoothstep(uFill - 0.06, uFill, d) * step(d, uFill) * 0.5 : 0.0;
     a = inside * (body + fill) + max(rim, side) * 0.95;
     ink = uInk * smoothstep(0.95, 0.972, d) * inside;
@@ -126,7 +130,13 @@ export interface TelegraphSpec {
   top?: boolean;
   /** Wave C (C3): an enemy wind-up: drawn after every particle and shockwave layer (TELEGRAPH_OVER), no ink. */
   over?: boolean;
+  /** Ring only: a thin dashed outline with no body (the basic attack range ring, subtler than a skill's range ring). */
+  dashed?: boolean;
 }
+
+/** Dashed ring: the outline is about this wide (m) at any radius, with a dash every ~0.8 m of its circumference. */
+const DASH_RIM_M = 0.12;
+const DASH_EVERY_M = 0.8;
 
 /** Render order of an enemy wind-up: above particles (6, 7) and shockwaves (4, 7), under the hover rings (9). */
 export const TELEGRAPH_OVER = 8;
@@ -157,6 +167,8 @@ export class TelegraphPool {
           uAlpha: { value: 1 },
           uTime: { value: 0 },
           uInk: { value: 0 },
+          uRimW: { value: 0.1 },
+          uDash: { value: 0 },
         },
         transparent: true,
         depthWrite: false,
@@ -198,6 +210,9 @@ export class TelegraphPool {
     u.uAlpha.value = s.alpha ?? 1;
     u.uTime.value = this.time;
     u.uInk.value = s.top ? 1 : 0;
+    const dashed = s.dashed === true && s.shape === 'ring';
+    u.uRimW.value = dashed ? Math.min(0.1, DASH_RIM_M / s.length) : 0.1;
+    u.uDash.value = dashed ? Math.max(12, Math.round((Math.PI * 2 * s.length) / DASH_EVERY_M)) : 0;
     it.mesh.renderOrder = s.top ? 10 : s.over ? TELEGRAPH_OVER : 3;
     it.mesh.position.set(s.x, 0.06, s.z);
     it.mesh.rotation.set(0, s.yaw, 0);
