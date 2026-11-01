@@ -64,7 +64,7 @@ uniform float uAlpha;
 uniform float uTime;
 uniform float uInk;     // 1: a dark ink band on the outer edge (the player's own indicator, drawn over the VFX)
 uniform float uRimW;    // radial: rim width as a fraction of the radius (0.1 = the usual bold rim)
-uniform float uDash;    // radial: > 0 = a dashed outline with this many dashes and no body (the attack range ring)
+uniform float uDash;    // radial: > 0 = a dashed, ink-outlined outline with this many dashes and no body (the attack range ring)
 varying vec2 vUv;
 void main(){
   float a = 0.0;
@@ -76,7 +76,16 @@ void main(){
     float hf = uArc * 0.5;
     float inside = step(d, 1.0) * step(ang, hf + 0.0001);
     float rim = smoothstep(1.0 - uRimW, 1.0 - uRimW * 0.35, d) * inside;
-    if (uDash > 0.0) rim *= step(0.45, fract((atan(p.y, p.x) / 6.28318 + 0.5) * uDash));
+    if (uDash > 0.0) {
+      // a dashed outline: each dash is a light core inside a dark ink outline, so it reads on cream plaza and sand
+      // lanes as well as on grass (a light-only dash vanished on light ground)
+      float t = (d - (1.0 - uRimW)) / uRimW;
+      float f = fract((atan(p.y, p.x) / 6.28318 + 0.5) * uDash);
+      float band = smoothstep(0.0, 0.12, t) * (1.0 - smoothstep(0.88, 1.0, t)) * step(0.4, f) * inside;
+      float core = smoothstep(0.28, 0.36, t) * (1.0 - smoothstep(0.64, 0.72, t)) * step(0.46, f) * step(f, 0.95);
+      rim = band * core;
+      ink = band * (1.0 - core) * 0.85;
+    }
     float side = 0.0;
     if (hf < 3.1) side = (1.0 - smoothstep(0.0, 0.035, (hf - ang) * max(d, 0.08))) * inside;
     float body = 0.16 + 0.06 * sin(d * 18.0 - uTime * 6.0);
@@ -84,7 +93,7 @@ void main(){
     if (uDash > 0.0) body = 0.0;
     float fill = uFill >= 0.0 ? step(d, uFill) * 0.32 + smoothstep(uFill - 0.06, uFill, d) * step(d, uFill) * 0.5 : 0.0;
     a = inside * (body + fill) + max(rim, side) * 0.95;
-    ink = uInk * smoothstep(0.95, 0.972, d) * inside;
+    ink = max(ink, uInk * smoothstep(0.95, 0.972, d) * inside);
   } else {
     float along = vUv.x;
     float across = abs(vUv.y - 0.5) * 2.0;
@@ -130,12 +139,13 @@ export interface TelegraphSpec {
   top?: boolean;
   /** Wave C (C3): an enemy wind-up: drawn after every particle and shockwave layer (TELEGRAPH_OVER), no ink. */
   over?: boolean;
-  /** Ring only: a thin dashed outline with no body (the basic attack range ring, subtler than a skill's range ring). */
+  /** Ring only: a thin dashed, ink-outlined outline with no body (the basic attack range ring, subtler than a skill's range ring). */
   dashed?: boolean;
 }
 
-/** Dashed ring: the outline is about this wide (m) at any radius, with a dash every ~0.8 m of its circumference. */
-const DASH_RIM_M = 0.12;
+/** Dashed ring: the outline (light core plus its ink edges) is about this wide (m) at any radius, with a dash every
+ * ~0.8 m of its circumference. */
+const DASH_RIM_M = 0.2;
 const DASH_EVERY_M = 0.8;
 
 /** Render order of an enemy wind-up: above particles (6, 7) and shockwaves (4, 7), under the hover rings (9). */

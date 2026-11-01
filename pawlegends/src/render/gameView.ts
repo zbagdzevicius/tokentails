@@ -819,10 +819,11 @@ export class GameView {
     if (!me || me.state === 'dead') return;
     const mx = toX(me.fx);
     const mz = toZ(me.fy);
-    // the basic attack range ring: thin, dashed, cream, under the VFX (no ink), so it never reads as a skill's range
+    // the basic attack range ring: thin, dashed, cream with an ink outline per dash (reads on the cream plaza and sand
+    // lanes), under the VFX, so it never reads as a skill's solid range ring
     if (this.attackRange && me.hero) {
       this.attackRingM = attackRingMm(me.hero) / 1000;
-      this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: ATTACK_RING_COLOR, alpha: 0.6, dashed: true });
+      this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: ATTACK_RING_COLOR, alpha: 0.9, dashed: true });
     }
     if (!a) return;
     const color = a.valid ? RELATION.self : 0xff9f7a;

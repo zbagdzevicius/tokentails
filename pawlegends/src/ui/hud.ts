@@ -414,8 +414,10 @@ export class Hud {
   }
 
   /**
-   * Above the hovered element, centred on it and clamped inside the viewport; left of the minimap where the two
-   * would overlap (bottom right on desktop). Below the element only when there is no room above.
+   * Above the HUD bar (not just the hovered element: the small D and B slots and the R slot's rank pips sit at
+   * different heights, so a card over the element alone would cover the bar's top edge), centred on the element and
+   * clamped inside the viewport; left of the minimap where the two would overlap (bottom right on desktop). Below the
+   * element only when there is no room above.
    */
   private tipPlace(): void {
     const el = this.tipEl;
@@ -426,7 +428,8 @@ export class Hud {
     const h = this.tip.offsetHeight;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    let top = r.top - h - 10;
+    const bar = el.closest<HTMLElement>('.pl-bar')?.getBoundingClientRect();
+    let top = Math.min(r.top, bar && bar.height > 0 ? bar.top : r.top) - h - 10;
     if (top < pad) top = Math.max(pad, Math.min(vh - h - pad, r.bottom + 10));
     let right = vw - pad;
     const mm = document.querySelector<HTMLElement>('.pl-minimap')?.getBoundingClientRect();
