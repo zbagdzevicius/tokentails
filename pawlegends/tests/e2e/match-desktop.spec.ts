@@ -178,3 +178,61 @@ test('the canvas wears the game cursor; A arms the attack-move crosshair, Esc dr
   await page.keyboard.press('Escape');
   await expect.poll(() => canvas.getAttribute('data-cursor')).not.toBe('attackMove');
 });
+
+// Desktop skill tooltips: hovering a slot shows its card (name, key, numbers) and previews its range; never a cast.
+test('hovering a slot shows its card and range, the portrait shows the basic attack; leaving clears both', async ({ page }) => {
+  await startFirstMatch(page);
+  await page.waitForTimeout(400);
+  const tip = page.locator('.pl-slot-tip.on');
+  const opsBefore = (await ops(page)).length;
+  const q = page.locator('.pl-slot[data-i="0"]');
+  const name = ((await q.getAttribute('aria-label')) ?? '').split(':')[0];
+  expect(name.length).toBeGreaterThan(1);
+  await q.hover();
+  await expect(tip).toBeVisible();
+  await expect(tip.locator('.nm')).toHaveText(name);
+  await expect(tip.locator('kbd')).toHaveText('Q');
+  await expect(tip).toContainText('Cooldown');
+  await expect(tip).toContainText('Rank 1 of 4');
+  await expect.poll(() => attr(page, 'slotTip')).toBe('0');
+  await expect.poll(() => attr(page, 'aim')).toBe('1');
+  // the ultimate is locked at level 1 and says when it unlocks
+  await page.locator('.pl-slot[data-i="3"]').hover();
+  await expect(tip).toContainText('Unlocks at level 4');
+  // inside the viewport and clear of the minimap, at 1280x720 and 1920x1080
+  for (const size of [{ width: 1280, height: 720 }, { width: 1920, height: 1080 }]) {
+    await page.setViewportSize(size);
+    for (const i of [0, 3, 4, 5]) {
+      await page.mouse.move(10, 10);
+      await expect(tip).toHaveCount(0);
+      await page.locator(`.pl-slot[data-i="${i}"]`).hover();
+      await expect(tip).toBeVisible();
+      const b = (await tip.boundingBox())!;
+      const map = (await page.locator('.pl-minimap').boundingBox())!;
+      expect(b.x).toBeGreaterThanOrEqual(0);
+      expect(b.y).toBeGreaterThanOrEqual(0);
+      expect(b.x + b.width).toBeLessThanOrEqual(size.width);
+      expect(b.y + b.height).toBeLessThanOrEqual(size.height);
+      const overlap = b.x < map.x + map.width && b.x + b.width > map.x && b.y < map.y + map.height && b.y + b.height > map.y;
+      expect(overlap, `slot ${i} at ${size.width}`).toBe(false);
+    }
+  }
+  await page.setViewportSize({ width: 1280, height: 720 });
+  // the portrait: the passive and the basic attack, with the attack range ring
+  await page.locator('.pl-portrait').hover();
+  await expect(tip).toContainText('Attack speed');
+  await expect.poll(() => attr(page, 'atkRing')).not.toBe('');
+  await page.mouse.move(640, 300);
+  await expect(tip).toHaveCount(0);
+  await expect.poll(() => attr(page, 'slotTip')).toBe('');
+  await expect.poll(() => attr(page, 'aim')).toBe('');
+  await expect.poll(() => attr(page, 'atkRing')).toBe('');
+  // hovering never cast anything
+  expect((await ops(page)).slice(opsBefore)).not.toContain(4);
+  // the pause menu hides the card
+  await page.locator('.pl-slot[data-i="1"]').hover();
+  await expect(tip).toBeVisible();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('.pl-menu')).toBeVisible();
+  await expect(tip).toHaveCount(0);
+});

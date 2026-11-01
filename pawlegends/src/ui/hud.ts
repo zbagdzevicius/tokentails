@@ -13,7 +13,8 @@ import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
-import { HERO_TEXT, TRICK_TEXT, abilityNumbers, branchNumbers, rankPips, rankUpSlots, trickNumbers } from './heroText';
+import { HERO_TEXT, TRICK_TEXT, rankPips, rankUpSlots } from './heroText';
+import { attackTip, slotTip, tipHtml } from './slotTip';
 import { abilityRank, maxRank } from '../sim/heroes/talents';
 import { icon as iconSvg } from './icons';
 import { icon } from './icons';
@@ -45,6 +46,21 @@ export interface HudHost {
   onPortrait?(slot: number): void;
   /** GAPS B1: an enemy portrait was held PORTRAIT_HOLD_MS (touch): ping "Focus hero" on it. */
   onPortraitHold?(slot: number): void;
+  /**
+   * Desktop skill tooltips: the hover card for slot `slot` is up (0–4 cast slots, 5 Nap, −1 the portrait's basic
+   * attack), or null once it is gone. The match previews that slot's range in the world; it never casts.
+   */
+  onHover?(slot: number | null): void;
+}
+
+/** Desktop skill tooltips: the card fades in after the pointer rests this long (a sweep across the bar shows nothing). */
+export const TIP_DELAY_MS = 150;
+
+/** A mouse on a hover-capable fine pointer (never touch, phones or a pen on a tablet). */
+export function desktopHover(e: Pick<PointerEvent, 'pointerType'>): boolean {
+  if (e.pointerType !== 'mouse') return false;
+  if (typeof document !== 'undefined' && document.documentElement.dataset.touch === '1') return false;
+  return typeof matchMedia === 'function' && matchMedia('(hover: hover) and (pointer: fine)').matches;
 }
 
 /**
@@ -133,6 +149,17 @@ export class Hud {
   private lv = 1;
   private choices: readonly number[] = [-1, -1, -1];
   private rankToast: HTMLElement | null = null;
+  /** Desktop skill tooltips: the card, the hovered element and its slot (−1 the portrait), and what it shows now. */
+  private tip: HTMLElement;
+  private tipEl: HTMLElement | null = null;
+  private tipI: number | null = null;
+  private tipTimer: ReturnType<typeof setTimeout> | null = null;
+  private tipOn = false;
+  private tipBlocked = false;
+  private tipLast = '';
+  /** The own hero's cooldowns (ticks) and whether it is down, from the last snapshot (the card counts down live). */
+  private cds: readonly number[] = [];
+  private dead = false;
 
   constructor(
     parent: HTMLElement,
@@ -155,16 +182,6 @@ export class Hud {
       const rk = i < 4 ? `<i class="rk">${rankPips(abilityRank(1, i), maxRank(i))}</i>` : '';
       return `<button class="pl-slot${big}" data-i="${i}" aria-label="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b>${rk}<kbd>${keyLabel(a)}</kbd></button>`;
     }).join('');
-    // Round 1 ("hovering Q shows nothing"): a hover card with the words and the numbers from src/data.
-    const tipText = (i: number): string => {
-      const br = this.branchOn && t.branch?.slot === i ? t.branch : null;
-      const ab = br ?? (i < 4 ? t.abilities[i] : i === 4 ? tt : null);
-      // Wave C (C2): the numbers right now (level, ranks and picked talents), as the sim uses them
-      const nums = br ? branchNumbers(hero, this.lv) : i < 4 ? abilityNumbers(hero, i, this.lv, this.choices) : i === 4 ? trickNumbers(trick) : '4 s channel';
-      const name = ab ? ab.name : 'Nap';
-      const text = ab ? ab.text : 'Return to your fountain. Damage breaks it.';
-      return `<b>${name}</b><span>${text}</span><small>${nums}</small>`;
-    };
     root.innerHTML = `
       <div class="pl-top">
         <div class="pl-score">
@@ -185,20 +202,19 @@ export class Hud {
     parent.appendChild(root);
     this.root = root;
     const q = <T extends HTMLElement>(s: string): T => root.querySelector(s) as T;
+    // Desktop skill tooltips: one hover card for the slots and the portrait (ui/slotTip.ts), mouse only
     const tip = document.createElement('div');
     tip.className = 'pl-slot-tip';
+    tip.setAttribute('role', 'tooltip');
     root.appendChild(tip);
+    this.tip = tip;
+    const portraitEl = q<HTMLElement>('.pl-portrait');
+    portraitEl.addEventListener('pointerenter', (e) => this.tipEnter(e, portraitEl, -1));
+    portraitEl.addEventListener('pointerleave', () => this.tipLeave());
     for (const el of root.querySelectorAll<HTMLElement>('.pl-slot')) {
       this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, rk: el.querySelector<HTMLElement>('.rk'), last: '' });
-      el.addEventListener('pointerenter', (e) => {
-        if (e.pointerType !== 'mouse') return;
-        tip.innerHTML = tipText(Number(el.dataset.i));
-        const r = el.getBoundingClientRect();
-        tip.style.left = `${r.left + r.width / 2}px`;
-        tip.style.top = `${r.top}px`;
-        tip.classList.add('on');
-      });
-      el.addEventListener('pointerleave', () => tip.classList.remove('on'));
+      el.addEventListener('pointerenter', (e) => this.tipEnter(e, el, Number(el.dataset.i)));
+      el.addEventListener('pointerleave', () => this.tipLeave());
       el.addEventListener('pointerdown', (e) => {
         e.stopPropagation();
         if (e.pointerType !== 'touch') this.host.onSlot(Number(el.dataset.i));
@@ -320,6 +336,89 @@ export class Hud {
     this.set('recap', this.recapEl, text || 'Your team is still fighting!');
   }
 
+  /** Desktop skill tooltips: the pointer rests on slot `i` (−1 the portrait); the card follows after TIP_DELAY_MS. */
+  private tipEnter(e: PointerEvent, el: HTMLElement, i: number): void {
+    if (!desktopHover(e)) return;
+    this.tipEl = el;
+    this.tipI = i;
+    this.tipSchedule();
+  }
+
+  private tipLeave(): void {
+    this.tipEl = null;
+    this.tipI = null;
+    this.tipHide();
+  }
+
+  private tipSchedule(): void {
+    if (this.tipTimer) clearTimeout(this.tipTimer);
+    this.tipTimer = setTimeout(() => {
+      this.tipTimer = null;
+      if (this.tipI === null || this.tipBlocked) return;
+      this.tipOn = true;
+      this.tipRender();
+      this.tip.classList.add('on');
+      this.host.onHover?.(this.tipI);
+    }, TIP_DELAY_MS);
+  }
+
+  private tipHide(): void {
+    if (this.tipTimer) clearTimeout(this.tipTimer);
+    this.tipTimer = null;
+    this.tip.classList.remove('on');
+    if (this.tipOn) this.host.onHover?.(null);
+    this.tipOn = false;
+  }
+
+  /**
+   * Desktop skill tooltips: hide the card while the menu, the scoreboard or the talent card is up (`on`); it comes back
+   * if the pointer still rests on the slot once they close.
+   */
+  blockTips(on: boolean): void {
+    if (on === this.tipBlocked) return;
+    this.tipBlocked = on;
+    if (on) this.tipHide();
+    else if (this.tipI !== null) this.tipSchedule();
+  }
+
+  /** The card's content for the hovered slot (written only on change: the cooldown counts down while it is up). */
+  private tipRender(): void {
+    const i = this.tipI;
+    if (i === null) return;
+    const html = tipHtml(
+      i < 0
+        ? attackTip(this.hero, this.lv)
+        : slotTip(this.hero, this.trick, i, keyLabel(SLOT_ACTIONS[i] ?? 'q'), { level: this.lv, choices: this.choices, branch: this.branchOn, cd: i < 5 ? (this.cds[i] ?? 0) : 0, dead: this.dead }),
+    );
+    if (html === this.tipLast && this.tip.classList.contains('on')) return;
+    this.tipLast = html;
+    this.tip.innerHTML = html;
+    this.tipPlace();
+  }
+
+  /**
+   * Above the hovered element, centred on it and clamped inside the viewport; left of the minimap where the two
+   * would overlap (bottom right on desktop). Below the element only when there is no room above.
+   */
+  private tipPlace(): void {
+    const el = this.tipEl;
+    if (!el) return;
+    const pad = 8;
+    const r = el.getBoundingClientRect();
+    const w = this.tip.offsetWidth;
+    const h = this.tip.offsetHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    let top = r.top - h - 10;
+    if (top < pad) top = Math.max(pad, Math.min(vh - h - pad, r.bottom + 10));
+    let right = vw - pad;
+    const mm = document.querySelector<HTMLElement>('.pl-minimap')?.getBoundingClientRect();
+    if (mm && mm.width > 0 && top < mm.bottom && top + h > mm.top) right = Math.min(right, mm.left - pad);
+    const left = Math.max(pad, Math.min(r.left + r.width / 2 - w / 2, right - w));
+    this.tip.style.left = `${Math.round(left)}px`;
+    this.tip.style.top = `${Math.round(top)}px`;
+  }
+
   private set(key: string, el: HTMLElement, text: string): void {
     if (this.cache.get(key) === text) return;
     this.cache.set(key, text);
@@ -378,6 +477,8 @@ export class Hud {
     if (!me) return;
     if (me.branch && !this.branchOn) this.showBranch();
     const dead = me.state === 'dead';
+    this.dead = dead;
+    this.cds = me.cooldowns ?? [];
     this.root.classList.toggle('dead', dead);
     const back = Math.max(1, Math.ceil((me.respawnIn ?? 0) / 30));
     if (dead) this.set('respawn', this.respawnNum, String(back));
@@ -428,6 +529,7 @@ export class Hud {
       s.sweep.style.setProperty('--cd', f.toFixed(3));
       this.set(`n${i}`, s.num, cd > 0 ? String(Math.ceil(cd / 30)) : locked ? String(ULT_LEVEL) : '');
     }
+    if (this.tipOn) this.tipRender();
   }
 
   /**
@@ -541,6 +643,7 @@ export class Hud {
   }
 
   dispose(): void {
+    this.tipLeave();
     this.root.remove();
   }
 }

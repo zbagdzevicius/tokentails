@@ -60,6 +60,8 @@ export class DesktopInput {
   private readonly mode: CastMode = castMode();
   /** A slot whose range the HUD asked to preview (hovering its button), shown while nothing is aimed; or null. */
   private preview: CastIndex | null = null;
+  /** The HUD's portrait card asked for the attack range ring (hovering the portrait). */
+  private previewAtk = false;
   /** The attack range ring this input asked for last (written to the view only on change, so touch can share it). */
   private ringOn = false;
   private trackpad = trackpadOn();
@@ -359,9 +361,9 @@ export class DesktopInput {
     if (was) this.refreshCursor();
   }
 
-  /** The attack range ring: on while A is armed or a skill is aimed (and the input is live). */
+  /** The attack range ring: on while A is armed, a skill is aimed or the portrait card is up (and the input is live). */
   private syncRing(): void {
-    const on = this.h.enabled() && (this.attackArmed || !!this.aiming);
+    const on = this.h.enabled() && (this.attackArmed || !!this.aiming || this.previewAtk);
     if (on === this.ringOn) return;
     this.ringOn = on;
     this.h.view.attackRange = on;
@@ -387,6 +389,12 @@ export class DesktopInput {
     this.preview = slot;
     if (!this.aiming && this.flashUntil === 0) this.h.view.aim = null;
     this.updatePreview();
+  }
+
+  /** Show the basic attack range ring while the HUD's portrait card is up (`on`), without arming A. */
+  previewAttack(on: boolean): void {
+    this.previewAtk = on;
+    this.syncRing();
   }
 
   private updatePreview(): void {

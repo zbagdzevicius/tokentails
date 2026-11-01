@@ -471,6 +471,12 @@ export class MatchSession {
         const u = this.units.find((x) => x.id === slot);
         if (u && u.state !== 'dead') this.sendPing(PING_KIND.Focus, u.x, u.y, slot);
       },
+      // desktop skill tooltips: the hovered slot's range in the world (never a cast); the portrait shows the attack ring
+      onHover: (slot) => {
+        this.desktop?.previewSlot(slot !== null && slot >= 0 && slot <= 4 ? (slot as 0 | 1 | 2 | 3 | 4) : null);
+        this.desktop?.previewAttack(slot === -1);
+        if (this.e2e) document.documentElement.dataset.slotTip = slot === null ? '' : String(slot);
+      },
     }, this.setup.look ?? null, this.setup.difficulty);
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
@@ -1503,6 +1509,7 @@ export class MatchSession {
           lvN++;
         }
       }
+      this.hud.blockTips(!!this.menu || this.scoreOn || this.paused || this.ended || (this.talents?.open ?? false));
       this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle);
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
       this.hud.stripUpdate(frame.byId, frame.tick, lock);
