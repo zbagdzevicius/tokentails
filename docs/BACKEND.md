@@ -1361,6 +1361,16 @@ mongorestore --gzip --db=tokentails ./backup/tokentails-YYYY-MM-DD --uri=<connec
 
 Route and logic bugs:
 
+- Fixed (account load, 2026-11-01): a player saw "We couldn't load your account" for days because
+  `GET /user/profile` failed the same way on every retry. Now: a populate that throws (a bad cat, blessing or
+  shelter reference) logs `profile populate failed userId=<id>` and answers the profile with `cat: null`; a
+  resolved id without a doc is 401 `ACCOUNT_MISSING` (was an empty 200); a sign-in of a deleted doc is 401
+  `ACCOUNT_DELETED` and deletes the leftover Firebase user; a guest stuck in a merge for over
+  `MERGE_RESUME_AFTER_MS` is finished at sign-in (or released when its target is gone) instead of 409 forever;
+  disposable inboxes get `EMAIL_DISPOSABLE`; rejected ID tokens log `auth token rejected: <firebase code>`
+  (expired tokens are not logged). The root cause for the reporting player is still to be read from the logs
+  (`auth refused uid=` / `auth failed uid=`).
+
 - Open (Bad Cat meter, 2026-10-17): `GET /badcat/meter` reads `livemode` but does not filter on it, so
   test-mode purchases count toward the public Pink Paw meter. Display only (no payout). Since Oct 17 production
   creates no test sessions and its webhook ignores test events, so only rows from a non-production database

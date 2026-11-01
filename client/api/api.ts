@@ -35,26 +35,48 @@ export function currentAccessToken(): string {
 
 /** A non-2xx answer with its F5.6 error code, for callers that need the status. */
 export class ApiError extends Error {
+  /** The server's own message, when the body had one (`message` falls back to a generic line). */
+  readonly serverMessage: string | null;
+
   constructor(
     readonly status: number,
     readonly code: ErrorCode | null,
-    message?: string
+    message?: string | null
   ) {
     super(message || `Request failed with status ${status}`);
+    this.serverMessage = message || null;
     this.name = "ApiError";
     // Keeps `instanceof` working when TypeScript compiles classes to ES5.
     Object.setPrototypeOf(this, ApiError.prototype);
   }
 }
 
-/** Reads the error code from a response body without consuming the original response. */
-export async function readErrorCode(response: Response): Promise<ErrorCode | null> {
+/** The server's message from a parsed error body (`{ message }` or Nest's `{ message: { message } }`). */
+function errorMessageOf(body: unknown): string | null {
+  if (!body || typeof body !== "object") return null;
+  const message = (body as { message?: unknown }).message;
+  if (typeof message === "string") return message;
+  if (message && typeof message === "object") {
+    const nested = (message as { message?: unknown }).message;
+    if (typeof nested === "string") return nested;
+  }
+  return null;
+}
+
+/** Reads the error code and message from a response body without consuming the original response. */
+export async function readError(response: Response): Promise<{ code: ErrorCode | null; message: string | null }> {
   try {
     const copy = typeof response.clone === "function" ? response.clone() : response;
-    return errorCodeOf(await copy.json());
+    const body = await copy.json();
+    return { code: errorCodeOf(body), message: errorMessageOf(body) };
   } catch {
-    return null;
+    return { code: null, message: null };
   }
+}
+
+/** Reads the error code from a response body without consuming the original response. */
+export async function readErrorCode(response: Response): Promise<ErrorCode | null> {
+  return (await readError(response)).code;
 }
 
 /**

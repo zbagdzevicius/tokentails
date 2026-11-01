@@ -1,4 +1,10 @@
-import { ConflictException, ForbiddenException, HttpException, HttpStatus } from '@nestjs/common';
+import {
+    ConflictException,
+    ForbiddenException,
+    HttpException,
+    HttpStatus,
+    UnauthorizedException,
+} from '@nestjs/common';
 import { ErrorCode } from 'src/shared-contracts/errors';
 
 /**
@@ -12,6 +18,10 @@ export const AUTH_ERROR = {
     GUEST_SESSION_REQUIRED: ErrorCode.GUEST_SESSION_REQUIRED,
     EMAIL_UNVERIFIED: ErrorCode.EMAIL_UNVERIFIED,
     ACCOUNT_CONFLICT: ErrorCode.ACCOUNT_CONFLICT,
+    EMAIL_DISPOSABLE: ErrorCode.EMAIL_DISPOSABLE,
+    GUEST_MERGE_IN_PROGRESS: ErrorCode.GUEST_MERGE_IN_PROGRESS,
+    ACCOUNT_DELETED: ErrorCode.ACCOUNT_DELETED,
+    ACCOUNT_MISSING: ErrorCode.ACCOUNT_MISSING,
 } as const;
 
 export type AuthErrorCode = typeof AUTH_ERROR[keyof typeof AUTH_ERROR];
@@ -55,4 +65,31 @@ export const accountConflict = () =>
         statusCode: HttpStatus.CONFLICT,
         code: AUTH_ERROR.ACCOUNT_CONFLICT,
         message: 'An account with this email already exists. Sign in to it to keep your progress.',
+    });
+
+/**
+ * The guest doc of this uid is being merged into another account (another tab, or a merge that
+ * stopped half way and could not be finished inline). The client retries.
+ */
+export const guestMergeInProgress = () =>
+    new ConflictException({
+        statusCode: HttpStatus.CONFLICT,
+        code: AUTH_ERROR.GUEST_MERGE_IN_PROGRESS,
+        message: 'Guest progress is being saved to an account, retry',
+    });
+
+/** The account of this sign-in was deleted (DELETE /user/me). The client signs out. */
+export const accountDeleted = () =>
+    new UnauthorizedException({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        code: AUTH_ERROR.ACCOUNT_DELETED,
+        message: 'This account was deleted',
+    });
+
+/** The token resolved, but no profile document could be read for it. The client signs out. */
+export const accountMissing = () =>
+    new UnauthorizedException({
+        statusCode: HttpStatus.UNAUTHORIZED,
+        code: AUTH_ERROR.ACCOUNT_MISSING,
+        message: 'This account could not be found',
     });

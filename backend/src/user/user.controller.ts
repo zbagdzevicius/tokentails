@@ -24,6 +24,7 @@ import { CatRepository } from 'src/cat/cat.repository';
 import { Tier } from 'src/cat/cat.schema';
 import { CatService } from 'src/cat/cat.service';
 import { BaseRepository } from 'src/common/base.repository';
+import { accountMissing } from 'src/common/guards/auth-errors';
 import { getPhase, isLessThan2hoursLeft } from 'src/common/utils';
 import { pickSearchParams, SearchModel } from 'src/common/validators';
 import { GameRepository } from 'src/game/game.repository';
@@ -473,7 +474,28 @@ export class UserController {
         };
     }
 
+    /**
+     * The profile with the cat populated. When the populate fails (a bad cat, blessing or shelter
+     * reference), the profile is read again without it, so one broken reference cannot lock a player
+     * out of their account: the client already treats a missing cat as "no cat yet".
+     */
     private async loadProfile(userId: string): Promise<User> {
+        try {
+            return await this.loadPopulatedProfile(userId);
+        } catch (error) {
+            this.logger.error(
+                `profile populate failed userId=${userId}`,
+                error instanceof Error ? error.stack : String(error)
+            );
+        }
+        const user: any = await this.repository.findOne({
+            searchObject: { _id: userId },
+            projection: PROFILE_PROJECTION,
+        });
+        return user ? { ...user, cat: null } : user;
+    }
+
+    private async loadPopulatedProfile(userId: string): Promise<User> {
         return this.repository.findOne({
             searchObject: { _id: userId },
             projection: PROFILE_PROJECTION,
@@ -504,10 +526,15 @@ export class UserController {
             throw new UnauthorizedException();
         }
         const user = await this.loadProfile(userId);
+        if (!user) {
+            // Never an empty 200 (the client cannot parse it): the token resolved to an id with no doc.
+            this.logger.warn(`profile missing userId=${userId}`);
+            throw accountMissing();
+        }
         // F5.2 step 1e: the promotion is reported once (the client then sends tt.pendingRef), by the
         // first profile read after it, whichever request promoted (`/live`, a poll, this one).
         const promotedNow = await this.userService.claimPromotionNotice(authUser as any);
-        if (user && (promotedNow || authUser?.promotedNow)) {
+        if (promotedNow || authUser?.promotedNow) {
             return { ...(user as any), promotedNow: true };
         }
 

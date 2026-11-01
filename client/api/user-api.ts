@@ -16,6 +16,7 @@ import {
   currentAccessToken,
   getAuthBridge,
   rawApiFetch,
+  readError,
   readErrorCode,
   waitForLocalStorageKey,
 } from "./api";
@@ -43,7 +44,8 @@ const profile = async (signal?: AbortSignal, token?: string): Promise<IProfile> 
     signal,
   });
   if (!response.ok) {
-    throw new ApiError(response.status, await readErrorCode(response));
+    const { code, message } = await readError(response);
+    throw new ApiError(response.status, code, message);
   }
   return response.json();
 };

@@ -78,4 +78,4 @@ export type ProfilePhase =
   | { phase: "idle" }
   | { phase: "loading" }
   | { phase: "ready"; profile: SessionProfile; seq: number }
-  | { phase: "error"; status: number | null; code: ErrorCode | null; timeout?: boolean };
+  | { phase: "error"; status: number | null; code: ErrorCode | null; timeout?: boolean; message?: string | null };

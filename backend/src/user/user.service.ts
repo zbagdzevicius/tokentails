@@ -4,14 +4,14 @@ import { CatRepository } from 'src/cat/cat.repository';
 import { ICat, Tier } from 'src/cat/cat.schema';
 import { GameRepository } from 'src/game/game.repository';
 import { isIdentityBackfillDone } from 'src/common/decorators/auth-user.decorator';
-import { accountConflict, emailUnverified } from 'src/common/guards/auth-errors';
+import { accountConflict, accountDeleted, emailUnverified, guestMergeInProgress } from 'src/common/guards/auth-errors';
 import { GUEST_TAILS_LIFETIME_CAP } from 'src/shared-contracts/caps';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
 import { canonicalEmail } from './guest/canonical-email';
 import { disposableEmail, isDisposableEmail } from './guest/disposable-domains';
 import { firebaseIdentity, IFirebaseIdentity } from './guest/firebase-identity';
 import { IGuestLifecycleDeps, runGuestMerge, startGuestMerge } from './guest/guest-lifecycle';
-import { GUEST_NAME, identityConfig, LAST_SEEN_INTERVAL_MS } from './guest/identity-config';
+import { GUEST_NAME, identityConfig, LAST_SEEN_INTERVAL_MS, MERGE_RESUME_AFTER_MS } from './guest/identity-config';
 import { IpWindowThrottle } from './guest/ip-throttle';
 import { ensureStarterCat, starterCatInsert, transientGuestProfile } from './guest/starter';
 import { FirebaseUser } from './strategies/interface/firebase-sdk.interface';
@@ -58,9 +58,8 @@ export interface IResolveContext {
     ip?: string;
 }
 
-/** 409 for a guest whose progress is being merged into another account right now (F5.5). */
-const guestMidMerge = () =>
-    new ConflictException({ statusCode: 409, message: 'Guest progress is being saved to an account, retry' });
+/** 409 GUEST_MERGE_IN_PROGRESS for a guest whose progress is being merged into another account (F5.5). */
+const guestMidMerge = guestMergeInProgress;
 
 /**
  * Identity resolution (plan F5.2): uid first, guests, verified-only email binding, in-place guest
@@ -89,6 +88,9 @@ export class UserService {
 
     /** Firebase Admin calls (user existence for the insert paths, merges); replaced in specs. */
     firebase: IFirebaseIdentity = firebaseIdentity;
+
+    /** The clock of the stuck-merge check; replaced in specs. */
+    now: () => Date = () => new Date();
 
     constructor(
         protected repository: UserRepository,
@@ -145,6 +147,63 @@ export class UserService {
         return this.catRepository.model;
     }
 
+    /**
+     * 401 ACCOUNT_DELETED for a sign-in whose doc was deleted. Its Firebase user should have gone with
+     * the account (DELETE /user/me); when that delete failed the player would get this 401 on every
+     * sign-in, so it is deleted again here (best effort) and the next sign-in starts a new account.
+     */
+    private async deletedAccount(uid: string): Promise<HttpException> {
+        this.logger.warn(`sign-in of a deleted account uid=${uid}: deleting the leftover Firebase user`);
+        try {
+            await this.firebase.deleteUsers([uid]);
+        } catch (error) {
+            this.logger.error(
+                `deleting the Firebase user of a deleted account failed uid=${uid}`,
+                (error as Error)?.message
+            );
+        }
+        return accountDeleted();
+    }
+
+    /**
+     * A guest doc that owns `uid` but is claimed by a merge (`mergedInto`). A merge younger than
+     * MERGE_RESUME_AFTER_MS is still running in another tab: 409 GUEST_MERGE_IN_PROGRESS, the client
+     * retries. An older one stopped half way: it is finished here (the same code the resume cron
+     * runs), or released when its target account is gone, so the guest can be promoted. Returns the
+     * doc that owns the uid afterwards (null when the merge finished and deleted the guest doc).
+     */
+    private async settleStuckGuestMerge(guest: any, uid: string): Promise<any | null> {
+        const updatedAt = guest.updatedAt ? new Date(guest.updatedAt).getTime() : 0;
+        const deps = this.guestLifecycleDeps();
+        if (!deps || this.now().getTime() - updatedAt < MERGE_RESUME_AFTER_MS) {
+            throw guestMidMerge();
+        }
+        const target = await this.users.findOne({ _id: guest.mergedInto }, { isGuest: 1, deletedAt: 1 }).lean();
+        if (!target || (target as any).isGuest || (target as any).deletedAt) {
+            await this.users.updateOne(
+                { _id: guest._id, isGuest: true, mergedInto: guest.mergedInto },
+                { $unset: { mergedInto: 1, mergeState: 1 } }
+            );
+            this.logger.warn(`guest merge released: target gone guestId=${guest._id} uid=${uid}`);
+        } else {
+            try {
+                await runGuestMerge(deps, guest);
+                this.logger.log(`guest merge finished at sign-in guestId=${guest._id} uid=${uid}`);
+            } catch (error) {
+                this.logger.error(
+                    `guest merge resume at sign-in failed guestId=${guest._id} uid=${uid}`,
+                    error instanceof Error ? error.stack : String(error)
+                );
+                throw guestMidMerge();
+            }
+        }
+        const owner: any = await this.users.findOne({ firebaseUids: uid }).lean();
+        if (owner?.isGuest && owner.mergedInto) {
+            throw guestMidMerge();
+        }
+        return owner;
+    }
+
     /** Entry point of the `appauth` strategy: splits on `firebase.sign_in_provider` (F5.2). */
     async getFirebaseUser(token: FirebaseUser, context: IResolveContext = {}): Promise<any> {
         if (token?.firebase?.sign_in_provider === ANONYMOUS_PROVIDER) {
@@ -164,7 +223,7 @@ export class UserService {
         const doc = await this.users.findOne({ firebaseUids: uid }).lean();
         if (doc) {
             if ((doc as any).deletedAt) {
-                throw new UnauthorizedException();
+                throw await this.deletedAccount(uid);
             }
             await this.touchLastSeen(doc);
             return doc;
@@ -212,10 +271,14 @@ export class UserService {
         const config = identityConfig();
 
         // 1. A doc that already owns this uid.
-        const owner = await this.users.findOne({ firebaseUids: uid }).lean();
+        let owner: any = await this.users.findOne({ firebaseUids: uid }).lean();
+        if (owner?.isGuest && owner.mergedInto) {
+            // A merge that stopped half way would refuse this sign-in forever: finish or release it.
+            owner = await this.settleStuckGuestMerge(owner, uid);
+        }
         if (owner) {
             if ((owner as any).deletedAt) {
-                throw new UnauthorizedException();
+                throw await this.deletedAccount(uid);
             }
             if ((owner as any).isGuest) {
                 return this.promoteGuest(owner, token, email, verified, context.ip || 'unknown');
