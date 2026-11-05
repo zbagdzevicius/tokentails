@@ -18,6 +18,7 @@ import type { ViewEntity, ViewFrame } from '../render/interp';
 import { MINION_BAR_CSS, RELATION_CSS, TEAM } from '../render/palette';
 import { HERO_TEXT } from './heroText';
 import { HEROES } from '../data/heroes';
+import { cutName } from '../meta/cardName';
 
 const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0 };
 const SIZE: Record<ViewEntity['kind'], [number, number]> = { hero: [70, 9], minion: [24, 3], tower: [86, 8], core: [120, 10], fountain: [0, 0], camp: [44, 5], pudding: [110, 9], pickup: [0, 0] };
@@ -758,7 +759,8 @@ export class Overhead {
   }
 
   private nameOf(e: ViewEntity): string {
-    if (this.selfName && e.id === this.mySlot && e.hero) return this.names[e.id] ?? HERO_TEXT[e.hero].title;
+    // lobby spec §3b: a worn card names the own plate after the cat, cut at 14 characters ("Bartholomew T…")
+    if (this.selfName && e.id === this.mySlot && e.hero) return cutName(this.names[e.id] ?? HERO_TEXT[e.hero].title, 14);
     return plateName(e, this.mySlot, this.myTeam, this.mirrored, this.names);
   }
 

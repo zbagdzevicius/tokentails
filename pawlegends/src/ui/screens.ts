@@ -4,6 +4,7 @@
  * overlays over the lobby turntable. English only.
  */
 import './champions.css';
+import './deck/deckRow.css';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 import { HERO_IDS, HEROES } from '../data/heroes';
@@ -30,6 +31,7 @@ import type { Grade } from '../meta/grade';
 import { toGoText } from './collection';
 import { laneHint } from './pingText';
 import { cardFxPreview } from './cardFxView';
+import { cardIdentity } from '../meta/cardName';
 // Token Tails card art (ui/cards/): pick tiles as collectible cards, skin mini cards, the title badge, the MVP card
 import { cardAttrs, heroElement, heroPic } from './cards/el';
 import { cardFrame } from './cards/frame';
@@ -168,6 +170,11 @@ export interface PickOpts {
   onPreview?(skinId: string): boolean;
   /** A skin tile scrolled into view (its sprite probe may run). */
   onTileSeen?(skinId: string): void;
+  /**
+   * Lobby spec §3b: open the "Your cards" drawer (ui/deck). When set, the inline Skins strip becomes one compact row
+   * ("Card: Simas · Change"); the drawer wears cards and the app calls `setPickLook` to redraw.
+   */
+  onDeck?(hero: HeroId): void;
 }
 
 export interface SkinTile {
@@ -202,8 +209,10 @@ export function skinTile(k: SkinTile, on: boolean, locked = false): string {
 }
 
 /** One pick tile: the portrait, and for a shelter champion its card art and the owner badge. */
-function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null): string {
+function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null, cardName: string | null = null): string {
   const x = HERO_TEXT[h];
+  // lobby spec §3b: a hero wearing one of the player's cards is called by the cat's name, the hero underneath
+  const label = cardName ? `<b>${esc(cardName)}</b><small>${esc(`${x.title} · ${x.role}`)}</small>` : `<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small>`;
   const c = championOf(h);
   const card = c && champ?.art ? `<img class="champ-art" src="${esc(champ.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : '';
   const badge = c && champ?.owned ? `<span class="champ-owned" title="${esc(`From ${c.cardName}'s card`)}">Card</span>` : '';
@@ -214,16 +223,19 @@ function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: str
     el: heroElement(h),
     tier: on ? tier : null,
     cls: `hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}`,
-    attrs: `data-h="${h}"`,
+    attrs: `data-h="${h}"${cardName ? ` aria-label="${esc(`${cardName}: ${x.title}, ${x.side} ${x.role}`)}"` : ''}`,
     style: `--hero:${HERO_COLOR_CSS[h]}`,
     foil: on ? 'sweep' : 'hover',
     sparkles: on,
     icon: true,
-    inner: `${heroPic(h, pic)}${card}${badge}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small>`,
+    inner: `${heroPic(h, pic)}${card}${badge}${label}`,
   });
 }
 
 const faces = new WeakMap<HTMLElement, () => void>();
+const relook = new WeakMap<HTMLElement, (h: HeroId, look: Look) => void>();
+/** Lobby spec §3b: the drawer wore a card on `h`; redraw the pick screen in place (the trick and bots stay). */
+export const setPickLook = (root: HTMLElement, h: HeroId, look: Look): void => relook.get(root)?.(h, look);
 /** Redraw a pick screen's hero portraits in place (after a sprite probe changed a palette). */
 export const refreshPickFaces = (root: HTMLElement): void => faces.get(root)?.();
 
@@ -237,12 +249,18 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const coat = lookOf(h)?.coat;
     return coat ? (o.skins?.owned.find((k) => k.id === coat)?.rung ?? null) : null;
   };
-  const wardrobeRow = (h: HeroId): string => {
+  const wardrobeRow = (h: HeroId, where: 'col' | 'foot' = 'col'): string => {
     if (!o.owned) return '';
     const coats = wardrobe(h, o.owned);
     const chromas = chromaOptions(o.owned);
     const owned = o.skins?.owned ?? [];
     const locked = o.skins?.locked ?? [];
+    // lobby spec §3b: with the drawer the card row always shows (an empty roster learns where cards come from)
+    if (o.onDeck) {
+      const l = lookOf(h) as Look;
+      return deckRow(h, l, coats, chromas, wearsCardSkin(l), where);
+    }
+    if (where === 'foot') return '';
     if (coats.length < 2 && chromas.length < 2 && !owned.length && !locked.length) return '';
     const l = lookOf(h) as Look;
     const card = wearsCardSkin(l);
@@ -254,6 +272,25 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       .map((k) => `<button class="chip ${k.id === l.coat ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" data-from="${k.from}">${esc(k.name)}</button>`)
       .join('')}${strip}${fx}${chromas.length > 1 && !card ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : ''}</div>`;
   };
+  // lobby spec §3b: the compact card row (the drawer holds the cards), then the store / free coats and chromas
+  const deckRow = (h: HeroId, l: Look, coats: ReturnType<typeof wardrobe>, chromas: ReturnType<typeof chromaOptions>, card: boolean, where: 'col' | 'foot' = 'col'): string => {
+    const id = cardIdentity(h, l);
+    const n = o.skins?.owned.length ?? 0;
+    const face = id
+      ? `<i class="el" style="--el:${cssHex(ELEMENT_COLOR[id.element])}" aria-hidden="true"></i><b>${esc(id.name)}</b><span class="pip" data-rung="${id.rung}">${RUNG_NAME[id.rung]}</span>`
+      : `<b>${n ? 'Classic' : 'No card'}</b>`;
+    const label = id ? `Card: ${id.name}, ${ELEMENT_NAME[id.element]}, ${RUNG_NAME[id.rung]}. Change card` : n ? `Card: Classic. Choose one of your ${n} cards` : 'Cards: see how Token Tails cats become skins';
+    const btn = `<button type="button" class="deck-pill" data-a="deck" aria-haspopup="dialog" aria-label="${esc(label)}">${face}<span class="chg">${id ? 'Change' : n ? `${n} ${n === 1 ? 'card' : 'cards'}` : 'Cards'}</span></button>`;
+    const coatChips = coats.length > 1 ? coats.map((k) => `<button class="chip ${!card && k.id === l.coat ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" data-from="${k.from}">${esc(k.name)}</button>`).join('') : '';
+    const sw = chromas.length > 1 && !card ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : '';
+    // integrate: drawn twice, in the column and in the foot; CSS shows the foot copy on short landscape only, where the
+    // column has no room left above the Paw Trick chips (the hidden copy is display: none, so it is never read twice)
+    return `<div class="row wardrobe deck-row ${where}"><span class="lbl">Card</span>${btn}${coatChips}${sw}</div>`;
+  };
+  relook.set(root, (h, look) => {
+    looks[h] = look;
+    renderAll();
+  });
   let numbers = o.numbers === true;
   const render = (): void => {
     const t = HERO_TEXT[c.hero];
@@ -262,7 +299,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         <div class="pl-pick-head"><button class="pl-btn ghost small" data-a="back">Back</button><h2>Choose your legend</h2></div>
         <div class="roster">${(['cat', 'dog'] as const)
           .map((side) => `<div class="heroes ${side}s" data-side="${side}">${HERO_IDS.filter((h) => HEROES[h].side === side)
-            .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h], tierOf(h)))
+            .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h], tierOf(h), cardIdentity(h, lookOf(h))?.name ?? null))
             .join('')}</div>`)
           .join('')}</div>
         ${wardrobeRow(c.hero)}
@@ -281,6 +318,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         ${trickHint(t.role) ? `<p class="trick-hint">${esc(trickHint(t.role))}</p>` : ''}
       </div>
       <div class="pl-pick-foot">
+        ${o.onDeck ? wardrobeRow(c.hero, 'foot') : ''}
         ${o.difficultyNote ? `<div class="row bots"><span class="lbl">Bots</span><span class="note">${esc(o.difficultyNote)}</span>${o.onVeteran ? `<button class="chip veteran" data-a="veteran">Played MOBAs before? Unlock</button>` : ''}</div>` : `<div class="row bots"><span class="lbl">Bots</span>${(o.difficulties ?? DIFFICULTIES).map((d) => `<button class="chip ${d === c.difficulty ? 'on' : ''}" data-d="${d}" title="${esc(DIFFICULTY_HINT[d] ?? '')}">${esc((DIFFICULTY_TEXT as Record<string, string>)[d] ?? d)}</button>`).join('')}</div>`}
         ${!o.difficultyNote && DIFFICULTY_HINT[c.difficulty] ? `<p class="bots-hint">${esc(DIFFICULTY_HINT[c.difficulty] as string)}</p>` : ''}
         <button class="pl-btn big" data-a="start">Play</button>
@@ -314,7 +352,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     for (const box of root.querySelectorAll<HTMLElement>('.heroes[data-side]')) {
       const side = box.dataset.side;
       box.innerHTML = HERO_IDS.filter((h) => HEROES[h].side === side)
-        .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h], tierOf(h)))
+        .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h], tierOf(h), cardIdentity(h, lookOf(h))?.name ?? null))
         .join('');
     }
   });
@@ -360,6 +398,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       return renderAll();
     }
     if (a === 'veteran') return o.onVeteran?.();
+    if (a === 'deck') return o.onDeck?.(c.hero);
     if (a === 'start') return o.onStart({ ...c });
     if (a === 'back') return o.onBack();
     if (h || tr || d) renderAll();
