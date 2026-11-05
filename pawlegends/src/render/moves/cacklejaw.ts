@@ -16,7 +16,7 @@
  */
 import { BASIC_CONTACT, DEFAULT_GAIT, HERO_SPRINGS } from '../anim/common';
 import { SIM_TIMING, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
-import { Prio, type BoneDelta, type ClipDef, type Cue, type GaitProfile, type Key, type MoveCtx, type MoveSet } from '../anim/types';
+import { Prio, type BoneDelta, type ClipDef, type Cue, type GaitProfile, type Key, type MoveCtx, type MoveSet, type ScalarKey } from '../anim/types';
 import type { BoneName } from '../chars/skeleton';
 
 /** BuffFlag.Stealth (sim/api), kept local so this chunk carries no sim import. */
@@ -308,6 +308,17 @@ function laughKeys(t0: number, t1: number): Key[] {
   return out;
 }
 
+/** The belly laugh's squash: three cycles 0.9 ↔ 1.1 between t0 and t1 (the last one softer). */
+function laughSquash(t0: number, t1: number): ScalarKey[] {
+  const out: ScalarKey[] = [];
+  const step = (t1 - t0) / 6;
+  for (let i = 0; i < 6; i++) {
+    const amp = i < 4 ? 0.1 : 0.06;
+    out.push([t0 + step * (i + 1), i % 2 === 0 ? 1 - amp : 1 + amp, 'inOut']);
+  }
+  return out;
+}
+
 const W_C = 0.06;
 const W_LEN = Math.min(W_FEAR, 0.78);
 /** Gloat: a mocking point straight at the cone on the cast, then a thrown-back belly laugh (upper body: he can walk). */
@@ -329,7 +340,8 @@ const w: ClipDef = {
     [W_LEN, null, null, 'inOut'],
   ],
   root: {
-    sy: [[0, 1], [W_C * 0.7, 0.92, 'out'], [W_C, 1.08, 'expoIn'], [W_C + 0.15, 1], [W_C + 0.3, 1.05], [W_C + 0.42, 0.98], [W_C + 0.54, 1.04], [W_LEN, 1, 'inOut']],
+    // skill-feel pass: the belly laugh shakes his whole body, three big squash cycles (0.9 ↔ 1.1) fading out
+    sy: [[0, 1], [W_C * 0.7, 0.92, 'out'], [W_C, 1.08, 'expoIn'], [W_C + 0.15, 1], ...laughSquash(W_C + 0.22, W_LEN - 0.06), [W_LEN, 1, 'inOut']],
     // a jeering hop forward on the point, then the whole body rocks back with the belly laugh
     up: [[0, 0], [W_C, 0.14, 'out'], [W_C + 0.14, 0, 'in'], [W_LEN, 0]],
     pitch: [[0, 0], [W_C, 0.02, 'out'], [W_C + 0.22, -0.055, 'out'], [W_LEN - 0.14, -0.04, 'inOut'], [W_LEN, 0, 'inOut']],
@@ -472,6 +484,19 @@ function boundSy(t0: number, t1: number, n: number): [number, number, ('out' | '
 }
 
 /**
+ * Skill-feel pass: the hunter's butt wiggle. The sim hunt moves from the cast tick (no windup to wiggle in), so the
+ * wiggle rides the first two bounds: the hips and tail swing side to side on them, like a cat's wind-up, then the
+ * bounds run straight. Built once at load (no per-frame allocation).
+ */
+function wiggleBounds(keys: Key[]): Key[] {
+  return keys.map((k, i) => {
+    if (i >= 4 || !k[2]) return k;
+    const side = i % 2 === 0 ? 1 : -1;
+    return [k[0], k[1], { ...k[2], hips: [0, 0.45 * side, 0.2 * side], tail0: [-0.3, 0.8 * side, 0] }, k[3]] as Key;
+  });
+}
+
+/**
  * Pack Hunt. The sim hunt moves at 24 m/s from the cast tick and lands the hit the tick he is in reach (often 2–5 t
  * later), so the body is never upright while the root travels: the howl is a 40 ms snap thrown over a forward lunge,
  * then all-fours bounds (0.15 s each) for the hunt's whole sim life (30 t). The hit cuts it at once: the maul
@@ -490,7 +515,7 @@ const r: ClipDef = {
     // the howl, already lunging: head thrown back, claws flung wide behind, the body pitched into the run
     [R_C, null, { body: [0.45, 0, 0], chest: [-0.15, 0, 0], head: [-1.0, 0, 0], shoulderL: [0.5, 0, 1.2], shoulderR: [0.5, 0, -1.2], elbowL: [-0.4, 0, 0], elbowR: [-0.4, 0, 0], thighL: [-0.9, 0, 0], kneeL: [1.0, 0, 0], thighR: [0.4, 0, 0], kneeR: [0.5, 0, 0], earL: [-0.4, 0, 0], earR: [-0.4, 0, 0] }, 'expoOut'],
     [B0, null, fours(false), 'in'],
-    ...boundKeys(B0, B_END, BOUNDS),
+    ...wiggleBounds(boundKeys(B0, B_END, BOUNDS)),
     [R_LEN, null, null, 'inOut'],
   ],
   root: {

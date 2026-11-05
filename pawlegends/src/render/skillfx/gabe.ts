@@ -20,6 +20,11 @@
  *   (A kiss pink, B flick wind, C toss a bigger heart); it bends onto a hero only when the sim's hit on that hero
  *   arrives, so a bolt at a minion never homes onto a nearby hero.
  *
+ * Feel pass (skills-2 lane, render only; stickers and pops from render/fx/fun): the balloon comes in one of two colours
+ * (seeded by the cast, so replays match) and pops into a shower of confetti hearts; Wing Wrap arrives in a burst of
+ * feathers; Chase the Wind leaves paw-print afterimages along her path; charmed victims of Under Her Spell get pulsing
+ * heart eyes, and the first confirmed charm of a cast gets a "MLEM!".
+ *
  * Re-spawned shapes (leash beams, head flames, shield glow) live at least twice their cadence, so the previous one is
  * still at full alpha when the next appears: no strobing.
  *
@@ -34,12 +39,18 @@ import { BuffFlag } from '../../sim/api';
 import { stubFx } from '../anim/common';
 import { TICK_S } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxKind, MeshFxSpawn, SkillFxSet, V3Out } from '../anim/types';
+import { SHAPE } from '../fx/Particles.js';
+import { funOverY, funPop, funRand, funSfx, sticker } from '../fx/fun/funKit';
+import { shower } from '../fx/fun/skills2Fun';
 
 const PINK = 0xff5c9e;
 const HEART = 0xff2f7a;
 const BLUSH = 0xff9cc6;
 const WIND = 0x9ff2dc;
 const FEATHER = 0xfff4fa;
+/** Feel pass: the second balloon colour (lavender) and the paw afterimage tint. */
+const LAVENDER = 0xb48cff;
+const PAWTINT = 0xffc2dc;
 /** Balloon apex above the straight line (m), §14. */
 const LOB_APEX = 2.5;
 const HAND_Y = 1.5;
@@ -161,6 +172,9 @@ const bRad = new Float32Array(NB);
 const bRib = new Int16Array(NB).fill(-1);
 const bNext = new Float32Array(NB);
 const bShadow = new Float32Array(NB);
+/** Feel pass: the balloon's colour (PINK or LAVENDER, funRand) and its cast tick. */
+const bCol = new Uint32Array(NB);
+const bTick = new Int32Array(NB);
 
 /** Heart streaks (passive): from a hit hero back to Gabė. */
 const NH = 4;
@@ -203,6 +217,10 @@ const eRibHi = new Int16Array(NE).fill(-1);
 const eLX = new Float32Array(NE);
 const eLZ = new Float32Array(NE);
 const eCard = new Uint8Array(NE);
+/** Feel pass: where the last paw afterimage dropped, and which foot. */
+const ePX = new Float32Array(NE);
+const ePZ = new Float32Array(NE);
+const ePaw = new Uint8Array(NE);
 
 /** R leashes: one per charmed enemy. */
 const NL = 6;
@@ -215,6 +233,9 @@ const lNext = new Float32Array(NL);
 const lHead = new Float32Array(NL);
 /** 1 once the snapshot shows the charm (Feared bit); a charm never confirmed is dropped. */
 const lOk = new Uint8Array(NL);
+/** Feel pass: the heart-eyes clock per leash, and per caster the R cast whose "MLEM!" already showed. */
+const lEyes = new Float32Array(NL);
+const mlemDone = new Uint8Array(HEROES);
 
 /** Basic heart bolts: launched along her facing; bent onto the hero the sim's hit names, when it arrives. */
 const NK = 4;
@@ -241,7 +262,7 @@ const free = (on: Uint8Array): number => {
 
 // ------------------------------------------------------------------------------------------------ casts
 
-function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
+function castQ(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx): void {
   if (!fx.heroPos(e.src, _a)) return;
   const a = fx.abil(e.src, 'q');
   const i = free(bOn);
@@ -260,6 +281,8 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   bRad[i] = (a.radius ?? 2200) / 1000;
   bNext[i] = 0;
   bShadow[i] = 0;
+  bTick[i] = e.tick;
+  bCol[i] = funRand(e.tick, e.src, 0) < 0.5 ? PINK : LAVENDER;
   _b.x = _a.x;
   _b.y = HAND_Y;
   _b.z = _a.z;
@@ -285,6 +308,10 @@ function popQ(i: number, fx: FxCtx): void {
   _shockOpt.r1 = r;
   fx.shock.start(_shockPos, _shockOpt);
   fx.linger.add('petals', x, z, r * 0.75, 0, BLUSH);
+  // confetti hearts burst out of the popped balloon (its own colour, plus blush) and flutter down
+  const seed = funRand(bTick[i], src, 1);
+  shower(fx, x, 1.4, z, 10, SHAPE.HEART, bCol[i], 0.3, 1.0, Math.max(1.6, r * 1.2), 3.2, 6, seed);
+  shower(fx, x, 1.4, z, 6, SHAPE.CONFETTI, BLUSH, 0.18, 0.9, Math.max(1.4, r), 3.6, 6, seed + 0.37);
   _b.x = x;
   _b.z = z;
   fx.sfx.cue('pop', _b);
@@ -359,6 +386,8 @@ function arriveW(i: number, fx: FxCtx): void {
   spawn(fx, 'wall', _c.x, 0, _c.z, y - Math.PI / 2, 1.05, 0.35, BLUSH, src, 2.5, 0, 0, 1.9, 1.05);
   spawn(fx, 'glow', _c.x, 0.08, _c.z, 0, 1.4, 0.45, PINK, src);
   spawn(fx, 'twister', _c.x, 0, _c.z, 0, 0.6, 0.5, WIND, src, 0, 0, 0, 1.3);
+  // a burst of feathers as the wings close
+  shower(fx, _c.x, 1.3, _c.z, 10, SHAPE.FEATHER, FEATHER, 0.3, 1.1, 2.2, 1.6, 1.6, (wT[i] * 7.31 + i * 0.29) % 1);
   fx.sfx.cue('flutter', _c);
 }
 
@@ -391,6 +420,9 @@ function castE(e: { src: number }, fx: FxCtx): void {
   eCard[i] = 1;
   eLX[i] = _a.x;
   eLZ[i] = _a.z;
+  ePX[i] = _a.x;
+  ePZ[i] = _a.z;
+  ePaw[i] = 0;
   if (!eZone(fx, i, _a.x, _a.z)) eLX[i] = NaN;
   spawn(fx, 'twister', _a.x, 0, _a.z, 0, 0.85, 0.5, WIND, e.src, 0, 0, 0, 2.3);
   spawn(fx, 'ring', _a.x, 0.07, _a.z, 0, 1.6, 0.4, WIND, e.src, 0, 0.35);
@@ -408,6 +440,7 @@ function castR(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   // charmed first (the per-target markers are gameplay information, they get the pool slots before any dressing):
   // enemy heroes inside the sim's own cone (range + body radius, inside the body always), Purrified ones skipped
   const dur = (a.charm ?? 30) * TICK_S;
+  if (e.src >= 0 && e.src < HEROES) mlemDone[e.src] = 0;
   for (let h = 0; h < HEROES; h++) {
     if (sameTeam(fx, h, e.src) || !fx.heroPos(h, _c)) continue;
     if (fx.status && fx.status(h, _st) && (_st.buffs & BuffFlag.Purrified) !== 0) continue;
@@ -430,6 +463,7 @@ function castR(e: { src: number; x: number; y: number }, fx: FxCtx): void {
     lNext[i] = 0;
     lHead[i] = 0;
     lOk[i] = 0;
+    lEyes[i] = 0;
     // the wavefront reaching them: a heart ring at the feet (rings are plentiful; hearts are kept for the heads)
     spawn(fx, 'ring', _c.x, 0.08, _c.z, 0, 0.9, 0.45, HEART, e.src, 0, 0.45, 0, 1, 0.9, WAVE_S * Math.min(1, d / range));
     headHeart(fx, i);
@@ -645,7 +679,7 @@ export const SKILL_FX: SkillFxSet = {
       if (bT[i] >= bNext[i] && s < 1) {
         // the balloon's body: a pink dome (vertical, so the iso camera sees it), else a glow card at the same point
         bNext[i] = bT[i] + GLOW_EVERY;
-        if (spawn(fx, 'dome', x, y - BALLOON_H * 0.4, z, 0, BALLOON_R, GLOW_EVERY * 2.2, PINK, bSrc[i], 0, 0, 0, BALLOON_H, BALLOON_R) < 0) spawn(fx, 'glow', x, y, z, 0, 0.7, GLOW_EVERY * 2.5, HEART, bSrc[i]);
+        if (spawn(fx, 'dome', x, y - BALLOON_H * 0.4, z, 0, BALLOON_R, GLOW_EVERY * 2.2, bCol[i], bSrc[i], 0, 0, 0, BALLOON_H, BALLOON_R) < 0) spawn(fx, 'glow', x, y, z, 0, 0.7, GLOW_EVERY * 2.5, HEART, bSrc[i]);
       }
       if (bT[i] >= bShadow[i] && s < 1) {
         // its shadow slides along the ground with the same s, shrinking as the balloon rises
@@ -748,6 +782,19 @@ export const SKILL_FX: SkillFxSet = {
         continue;
       }
       if (eRib[i] >= 0) fx.ribbons.feed(eRib[i], _a.x, 0.09, _a.z);
+      {
+        // paw-print afterimages every 0.55 m, left / right of her path (stickers: the touch cards stay the zone)
+        const pdx = _a.x - ePX[i];
+        const pdz = _a.z - ePZ[i];
+        const pl = Math.hypot(pdx, pdz);
+        if (pl >= 0.55) {
+          const side = ePaw[i] === 0 ? 1 : -1;
+          ePaw[i] ^= 1;
+          sticker(fx, _a.x - (pdz / pl) * 0.2 * side, 0.45, _a.z + (pdx / pl) * 0.2 * side, 'PAW', PAWTINT, 0.34, 0.5, 0.25, 0, Math.atan2(pdx, -pdz) * 0.3);
+          ePX[i] = _a.x;
+          ePZ[i] = _a.z;
+        }
+      }
       if (eCard[i] === 1 && !(Math.hypot(_a.x - eLX[i], _a.z - eLZ[i]) < E_CARD_EVERY)) {
         // the touch zone as cards along the path (a full pool retries next frame)
         if (eZone(fx, i, _a.x, _a.z)) {
@@ -783,6 +830,22 @@ export const SKILL_FX: SkillFxSet = {
       if (lT[i] >= lHead[i]) {
         lHead[i] = lT[i] + HEAD_EVERY;
         headHeart(fx, i);
+      }
+      if (lOk[i] === 1 && lT[i] >= lEyes[i]) {
+        // heart eyes: two pulsing hearts where the eyes are (on the face, toward the camera), re-dropped while charmed
+        lEyes[i] = lT[i] + 0.3;
+        const ey = fx.bonePos(lDst[i], 'head', _d) ? _d.y + 0.15 : funOverY(fx, lDst[i], -0.7);
+        const life = Math.min(0.42, lDur[i] - lT[i]);
+        if (life > 0.05) {
+          sticker(fx, _c.x - 0.17, ey, _c.z + 0.45, 'HEART', HEART, 0.26, life);
+          sticker(fx, _c.x + 0.17, ey, _c.z + 0.45, 'HEART', HEART, 0.26, life);
+        }
+        // the first confirmed charm of the cast: "MLEM!" (once)
+        const src = lSrc[i];
+        if (src >= 0 && src < HEROES && mlemDone[src] === 0) {
+          mlemDone[src] = 1;
+          if (funPop(fx, src, 'MLEM!', _c.x, funOverY(fx, lDst[i], 0.9), _c.z)) funSfx(fx, 'kiss', _c, 0.8);
+        }
       }
       if (lT[i] < lNext[i]) continue;
       const dx = _a.x - _c.x;
@@ -832,6 +895,8 @@ export const SKILL_FX: SkillFxSet = {
 
 /** Tests: drop every pooled effect (a new match). */
 export function resetGabeFx(): void {
+  mlemDone.fill(0);
+  lEyes.fill(0);
   bOn.fill(0);
   hOn.fill(0);
   wOn.fill(0);

@@ -16,6 +16,13 @@
  *   "hmph" puff and a ring of stars over its head. The Disdain count pips (0–3 crowns over the enemy plate) are the
  *   overhead's job (EntitySnap.stacks); this set only marks the Snub.
  *
+ * Fun layer (skill-feel pass, render only): the fluffball is a growing hairball sticker shedding tufts as it rolls and
+ * its hits burst into fur (a "PFFT!" on a big hit); Not Amused gets a once-per-cast "HMPH!" and a sweat drop over each
+ * slowed hero; the fur cloud lets seeded tufts float up (the variant colours come from funRand on the cast tick, so a
+ * replay matches); Royal Decree wears a real crown sticker over her head through the windup, five small crowns pop up
+ * round her on the stamp (a confetti flourish at max rank) and the first hero it hits gets "BEGONE!"; the Snub adds
+ * "HMPH!" and dizzy stars. Sticker sizes follow the rank (funRank).
+ *
  * Colours: the shared additive shader brightens toward white, so the purple and fur bases are dark (ROYAL, GLARE, FUR)
  * with intensity (p3) 0.5–0.7. No gold: gold is "you" (the rim already carries it on her own casts).
  *
@@ -26,6 +33,8 @@ import { stubFx } from '../anim/common';
 import { TICK_S } from '../anim/timing';
 import { CAPS } from '../../data/map';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet } from '../anim/types';
+import { funBigHit, funCount, funPop, funRand, funRank, funSfx, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
+import { S3Once, s3Crown, s3HeadY } from '../fx/fun/skills3Kit';
 
 const ROYAL = 0x4a1a8a;
 const GLARE = 0x7a28d0;
@@ -41,6 +50,14 @@ const FI = 0.6;
 /** BuffFlag.Stunned (sim/api), kept local so this chunk carries no sim import. */
 const STUNNED = 1 << 3;
 const TAU = Math.PI * 2;
+/** Fun stickers: cream fur, a lilac and a blush variant (seeded per cast), her tassel gold, sweat blue, star lilac. */
+const TUFT = [0xfff6ee, 0xe6d8ff, 0xffe2ec] as const;
+/** The crown stickers' gold (a warm sticker gold over her head, never a ground ring: gold stays 'you' on the floor). */
+const CROWN = 0xffcf4a;
+const JEWEL = 0xb07cff;
+const SWEAT = 0x9ad8ff;
+/** Fluffball sticker cadence (s): the rolling hairball is re-laid this often (Low: slower). */
+const BALL_EVERY = 0.06;
 /** A Snub shows only on a stun this soon after one of her ability hits on that hero (s). */
 const SNUB_WINDOW = 0.35;
 
@@ -101,6 +118,11 @@ class Puff {
   nextStrip = 0;
   rel: Relation3 = 'own';
   rim = 0;
+  /** Fun layer: the next hairball re-lay (s of travel clock), its age and the seeded tuft colour. */
+  nextBall = 0;
+  age = 0;
+  tuft = 0;
+  k = 1;
 }
 const PUFFS: Puff[] = [new Puff(), new Puff(), new Puff()];
 /** Metres between the fluffball's ground strip segments. */
@@ -119,6 +141,9 @@ class Cloud {
   next = 0;
   rel: Relation3 = 'own';
   rim = 0;
+  /** Seed for the floating fur variants (cast tick, caster). */
+  tick = 0;
+  src = 0;
 }
 const CLOUDS: Cloud[] = [new Cloud(), new Cloud(), new Cloud()];
 
@@ -129,6 +154,15 @@ const hitAt = new Float32Array(CAPS.heroes).fill(-9);
 const hitRim = new Uint32Array(CAPS.heroes);
 const hitRel: Relation3[] = new Array<Relation3>(CAPS.heroes).fill('own');
 let clock = 0;
+/** Her last cast slot and its clock per caster (an ability hit belongs to it), and the fun latches. */
+const lastSlot = new Int8Array(CAPS.heroes).fill(-1);
+const lastCastAt = new Float64Array(CAPS.heroes).fill(-9);
+const hmph = new S3Once(CAPS.heroes);
+const begone = new S3Once(CAPS.heroes);
+/** Royal Decree's crown over her head: until (module clock), the next refresh, its size. */
+const crownUntil = new Float64Array(CAPS.heroes);
+const crownNext = new Float64Array(CAPS.heroes);
+const crownK = new Float32Array(CAPS.heroes).fill(1);
 /** Snubs drawn (tests). */
 let snubs = 0;
 
@@ -140,6 +174,10 @@ function snub(fx: FxCtx, id: number): void {
   furPuff(fx, V.x, V.z, 1.2, rim, rel, 1.6);
   mesh(fx, 'ring', V.x, V.z, 0.7, 0.75, STAR, rim, rel, 0, 2.2, 1, 0, 0.55, 0, 1);
   mesh(fx, 'crescent', V.x, V.z, 0.6, 0.75, STAR, rim, rel, 0, 2.25, 1, TAU, 0.75, 1, 1, 0.05);
+  // the fun layer: dizzy stars round the snubbed head and her "HMPH!"
+  const hy = s3HeadY(fx, id, 0.35);
+  orbit(fx, V.x, hy, V.z, 'STAR', STAR, 3, 0.42, 0.26, 0.75, clock * 3);
+  funPop(fx, id, 'HMPH!', V.x, hy + 0.4, V.z);
   snubs++;
 }
 
@@ -159,6 +197,25 @@ function crownWave(fx: FxCtx, x: number, z: number, rad: number, yaw: number, ri
   }
 }
 
+/**
+ * The decree's fun layer: five small crowns pop up round her and float off, lilac stars burst from the stamp, a meow;
+ * at max rank a confetti flourish. Arms the once-per-cast "BEGONE!" on the first hero hit.
+ */
+function decreeFun(fx: FxCtx, src: number, tick: number, yaw: number): void {
+  if (src >= 0 && src < CAPS.heroes) crownUntil[src] = 0;
+  const k = funRank(fx, src, 3);
+  const n = funCount(fx, 5);
+  for (let i = 0; i < n; i++) {
+    const a = yaw + (i * TAU) / n + funRand(tick, src, 20 + i) * 0.4;
+    const d = 1.3 + 0.5 * funRand(tick, src, 30 + i);
+    s3Crown(fx, P.x + Math.cos(a) * d, 1.0 + 0.35 * (i & 1), P.z - Math.sin(a) * d, 0.6 * k, 0.75, 1.5, CROWN, JEWEL);
+  }
+  stickerBurst(fx, P.x, 1.6, P.z, 'STAR', STAR, 0.3, 0.6, 8, 3.2, 2.2, -6, funRand(tick, src, 4));
+  if (k > 1.3) stickerBurst(fx, P.x, 2.2, P.z, 'CONFETTI', JEWEL, 0.2, 0.9, 10, 2.6, 3.4, -6, funRand(tick, src, 5));
+  funSfx(fx, 'meow', P, 0.8);
+  if (src >= 0 && src < CAPS.heroes) begone.arm(src, clock);
+}
+
 // ------------------------------------------------------------------------------------------------ the set
 
 export const SKILL_FX: SkillFxSet = {
@@ -176,6 +233,12 @@ export const SKILL_FX: SkillFxSet = {
       const y = fx.bonePos(e.src, 'head', V) ? V.y + 0.2 : 2.0;
       mesh(fx, 'glow', P.x, P.z, 0.5, life, GLARE, rim, rel, 0, y, 1, 0, 0, 0, FI);
     } else if (e.slot === 3) {
+      // the fun layer: a real crown sticker sits over her head through the windup (update re-lays it on her head bone)
+      if (e.src >= 0 && e.src < CAPS.heroes) {
+        crownUntil[e.src] = clock + life;
+        crownNext[e.src] = clock;
+        crownK[e.src] = funRank(fx, e.src, 3);
+      }
       // Royal Decree: the crown gathers over her head through the windup
       mesh(fx, 'glow', P.x, P.z, 1.0, life + 0.05, ROYAL, rim, rel, 0, 3.0, 1, 0, 0, 0, FI);
       mesh(fx, 'ring', P.x, P.z, 0.55, life + 0.05, GLARE, rim, rel, 0, 3.0, 1, 0, 0.6, 0, 1);
@@ -190,6 +253,10 @@ export const SKILL_FX: SkillFxSet = {
     const yaw = aimYaw(P.x, P.z, e.x, e.y, 0);
     const cx = Math.cos(yaw);
     const cz = -Math.sin(yaw);
+    if (e.src >= 0 && e.src < CAPS.heroes) {
+      lastSlot[e.src] = e.slot;
+      lastCastAt[e.src] = clock;
+    }
     switch (e.slot) {
       case 0: {
         const a = fx.abil(e.src, 'q');
@@ -211,6 +278,10 @@ export const SKILL_FX: SkillFxSet = {
         b.nextStrip = 0;
         b.rel = rel;
         b.rim = rim;
+        b.nextBall = 0;
+        b.age = 0;
+        b.tuft = TUFT[(funRand(e.tick, e.src, 0) * TUFT.length) | 0];
+        b.k = funRank(fx, e.src, 0);
         fx.sfx.cue('balloon', P);
         return;
       }
@@ -223,6 +294,10 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'crescent', P.x, P.z, range, 0.4, GLARE, rim, rel, yaw, 0.1, 1, arc, 0.55, 1, 0.85);
         mesh(fx, 'arc', P.x, P.z, range, 0.45, ROYAL, rim, rel, yaw, 0.06, 1, arc, Math.max(0.85, 1 - 0.25 / range), 1, FI);
         if (rel === 'own') fx.cam.tier(1);
+        // the fun layer: a disdainful huff of fur off her nose, a hiss; "HMPH!" waits for the first hero it slows
+        if (fx.bonePos(e.src, 'mouth', V)) stickerBurst(fx, V.x + cx * 0.2, V.y, V.z + cz * 0.2, 'HAIRBALL', TUFT[0], 0.16, 0.4, 3, 1.2, 0.8, -2, funRand(e.tick, e.src, 1));
+        funSfx(fx, 'hiss', P, 0.7);
+        hmph.arm(e.src, clock);
         return;
       }
       case 2: {
@@ -240,6 +315,8 @@ export const SKILL_FX: SkillFxSet = {
         c.t = 0;
         c.next = 0;
         c.rel = rel;
+        c.tick = e.tick;
+        c.src = e.src;
         // shed fur, not a telegraph: an own or allied cloud keeps a fur-coloured edge (the gold "you" rim made it
         // read as a generic gold ring); an enemy cloud keeps the danger rim
         c.rim = rel === 'enemy' ? rim : FLUFF;
@@ -256,6 +333,7 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'glow', P.x, P.z, 1.6, 0.3, GLARE, rim, rel, 0, 1.4, 1, 0, 0, 0, FI);
         if (rel === 'own') fx.cam.tier(2);
         fx.sfx.cue('gong', P);
+        decreeFun(fx, e.src, e.tick, yaw);
         return;
       }
     }
@@ -275,6 +353,19 @@ export const SKILL_FX: SkillFxSet = {
       hitRim[e.dst] = rim;
       hitRel[e.dst] = rel;
     }
+    const src = e.src >= 0 && e.src < CAPS.heroes ? e.src : -1;
+    const slot = src >= 0 && clock - lastCastAt[src] < 1.5 ? lastSlot[src] : -1;
+    if (slot === 1 && e.dst < CAPS.heroes) {
+      // Not Amused landed: a sweat drop over the slowed hero, and her "HMPH!" once per cast
+      const hy = s3HeadY(fx, e.dst, 0.3);
+      sticker(fx, V.x + 0.45, hy, V.z, 'SWEAT', SWEAT, 0.45, 0.9, -0.5);
+      if (hmph.take(src, clock, 0.8) && fx.heroPos(src, P)) funPop(fx, src, 'HMPH!', P.x, s3HeadY(fx, src, 0.7), P.z);
+    } else if (slot === 3 && e.dst < CAPS.heroes && begone.take(src, clock, 0.6)) {
+      // the decree's first hero: "BEGONE!" (her ult's name) and a puff of royal confetti
+      const hy = s3HeadY(fx, e.dst, 0.5);
+      funPop(fx, src, 'BEGONE!', V.x, hy + 0.3, V.z);
+      stickerBurst(fx, V.x, hy, V.z, 'CONFETTI', JEWEL, 0.18, 0.7, 6, 2.2, 2.4, -6, funRand(e.tick, src, 3));
+    }
     // the fluffball's fur burst on whatever it rolls through (a live ball of hers near the victim)
     for (const b of PUFFS) {
       if (!b.on || b.owner !== e.src) continue;
@@ -282,6 +373,10 @@ export const SKILL_FX: SkillFxSet = {
       const bz = b.z0 + b.dz * b.d;
       if (Math.hypot(V.x - bx, V.z - bz) > b.w + 1.2) continue;
       furPuff(fx, V.x, V.z, 1, rim, rel);
+      // the fun layer: the victim gets a coat of her fur (and a "PFFT!" on a big hit)
+      const cy = s3HeadY(fx, e.dst, -0.4);
+      stickerBurst(fx, V.x, cy, V.z, 'HAIRBALL', b.tuft, 0.24 * b.k, 0.6, 6, 2.4, 2, -5, funRand(e.tick, e.dst, 2));
+      if (funBigHit(fx, e.dst, e.amount)) funPop(fx, e.src, 'PFFT!', V.x, cy + 1, V.z);
       return;
     }
   },
@@ -308,6 +403,10 @@ export const SKILL_FX: SkillFxSet = {
       case 'd:crown':
         mesh(fx, 'ring', P.x, P.z, 0.5, 0.4, GLARE, rim, rel, 0, 3.0, 1, 0, 0.6, 0, 1);
         return;
+      case 'd:hmph':
+        // the huff off her nose at the end of the glare (moves/duchess.ts w)
+        if (fx.bonePos(id, 'mouth', V)) sticker(fx, V.x, V.y + 0.1, V.z, 'HAIRBALL', TUFT[0], 0.3, 0.45, 0.9, 2);
+        return;
       default:
         return;
     }
@@ -318,9 +417,21 @@ export const SKILL_FX: SkillFxSet = {
     for (const b of PUFFS) {
       if (!b.on) continue;
       b.d += b.speed * dt;
+      b.age += dt;
       if (b.d >= b.max) {
         b.on = false;
+        // the hairball lands with a soft poof
+        sticker(fx, b.x0 + b.dx * b.max, 0.6, b.z0 + b.dz * b.max, 'PUFF', b.tuft, 0.7 * b.k, 0.3, 0.6);
         continue;
+      }
+      // the fun layer: a hairball sticker riding the bolt, growing as it rolls, and tufts shed behind it
+      if (b.age >= b.nextBall) {
+        b.nextBall = b.age + (fx.tier === 'low' ? BALL_EVERY * 2 : BALL_EVERY);
+        const g = b.d / b.max;
+        const bx = b.x0 + b.dx * b.d;
+        const bz = b.z0 + b.dz * b.d;
+        sticker(fx, bx, 0.9, bz, 'HAIRBALL', b.tuft, (0.62 + 0.5 * g) * b.k, fx.tier === 'low' ? 0.16 : 0.1, 0, 5, b.d * 1.7);
+        if (((b.nextBall * 50) | 0) % 2 === 0) sticker(fx, bx - b.dx * 0.5, 0.75, bz - b.dz * 0.5, 'HAIRBALL', TUFT[0], 0.2, 0.45, -0.9, 3, b.d);
       }
       // the ground strip of the skillshot width under the ball (the dodge width from the iso camera)
       while (b.nextStrip + STRIP_M <= b.d) {
@@ -335,6 +446,14 @@ export const SKILL_FX: SkillFxSet = {
       while (c.t >= c.next * c.every && c.next * c.every < c.life) {
         if (c.next > 0) mesh(fx, 'ring', c.x, c.z, c.rad * 0.85, 0.3, FUR, c.rim, c.rel, 0, 0.07, 1, 0, 0.5, 0, 0.3);
         // fur lumps on the cloud (Low: one a pulse, it has 4 glow slots), each living past the next pulse
+        // the fun layer: seeded tufts of fur float up off the cloud (the variant colour and spot from the cast tick)
+        for (let i = 0, m = funCount(fx, 2); i < m; i++) {
+          const r1 = funRand(c.tick, c.src, 10 + c.next * 4 + i);
+          const r2 = funRand(c.tick, c.src, 50 + c.next * 4 + i);
+          const a = r1 * TAU;
+          const d = (0.2 + 0.6 * r2) * c.rad;
+          sticker(fx, c.x + Math.cos(a) * d, 0.35 + 0.4 * r2, c.z - Math.sin(a) * d, 'HAIRBALL', TUFT[(r2 * TUFT.length) | 0], 0.22 + 0.16 * r1, 1.1, 0.55, 1.2, a);
+        }
         const n = fx.tier === 'low' ? 1 : 3;
         for (let i = 0; i < n; i++) {
           const k = (c.next * 3 + i) % LUMP_A.length;
@@ -344,6 +463,14 @@ export const SKILL_FX: SkillFxSet = {
         c.next++;
       }
       if (c.t >= c.life) c.on = false;
+    }
+    // Royal Decree's crown over her head through the windup (re-laid on the head bone: it rides her rise)
+    for (let id = 0; id < CAPS.heroes; id++) {
+      if (crownUntil[id] <= clock || clock < crownNext[id]) continue;
+      crownNext[id] = clock + 0.08;
+      if (!fx.heroPos(id, P)) continue;
+      const k = crownK[id];
+      s3Crown(fx, P.x, s3HeadY(fx, id, 1.05 + 0.15 * k), P.z, 0.95 * k, 0.11, 0, CROWN, JEWEL);
     }
   },
 };
@@ -362,6 +489,11 @@ export function resetDuchessFx(): void {
   for (const b of PUFFS) b.on = false;
   for (const c of CLOUDS) c.on = false;
   hitAt.fill(-9);
+  lastSlot.fill(-1);
+  lastCastAt.fill(-9);
+  hmph.reset();
+  begone.reset();
+  crownUntil.fill(0);
   clock = 0;
   snubs = 0;
 }

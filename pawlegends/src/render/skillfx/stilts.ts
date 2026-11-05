@@ -18,12 +18,21 @@
  * - Passive Long Stride: own view only (the snapshot's `resource` is the own team's): a ring flashes round her the
  *   moment Stride fills (the next basic on a hero is a pounce).
  *
+ * Fun layer (skill-feel pass, render only): High Leap leaves paw prints at take-off, splays prints round the landing and
+ * says "POUNCE!" on the first hero it lands on; Ear Swivel pings radar arcs off both ears and pops a "!" over every
+ * enemy hero in the reveal radius; each swat flashes a big paw; Zoomies says "ZOOM!", leaves paw-print stickers and a
+ * dust puff on every footfall with speed lines; every pounce picks one of three claw-mark variants from funRand on
+ * the hit tick (replays match).
+ *
  * Pooled: per-id state in typed arrays, scratch records reused; nothing allocates per frame.
  */
 import { stubFx } from '../anim/common';
 import { TICK_S, travelTicks } from '../anim/timing';
 import type { FxCtx, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
 import { STILTS_STATE, STRIDE_MAX } from '../moves/stilts';
+import { CUE_SFX } from '../anim/fxctx';
+import { funCount, funPop, funRand, funRank, funSfx, pawTrail, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
+import { S3Once, s3HeadY } from '../fx/fun/skills3Kit';
 
 /** Terracotta (her accent), a pale dust, cream highlights and a rust for the prints. */
 const TERRA = 0xd9734a;
@@ -46,6 +55,9 @@ const STREAK_W = 0.56;
 const STREAK_LIFE = 0.34;
 const RIBBON_W = 0.48;
 const RIBBON_LIFE = 0.55;
+/** Fun stickers: the prints' cream, the "!" butter yellow (never red). */
+const PRINT = 0xfff1de;
+const BANG = 0xffe36a;
 
 let clock = 0;
 const zoomUntil = new Float64Array(N);
@@ -57,6 +69,13 @@ const full = new Uint8Array(N);
 const seen = new Uint8Array(N);
 /** Swat-Swat's aim (ground yaw) per id: the second swat goes the same way. */
 const facing = new Float32Array(N);
+/** Fun latches: High Leap's "POUNCE!" (once per leap) and the last cast slot / clock (an ability hit belongs to it). */
+const pounceOnce = new S3Once(N);
+const lastSlot = new Int8Array(N).fill(-1);
+const lastCastAt = new Float64Array(N).fill(-9);
+/** Zoomies' seed (cast tick) for the footfall variants, and the footfall counter. */
+const zoomTick = new Int32Array(N);
+const zoomStep = new Int32Array(N);
 
 const P: V3Out = { x: 0, y: 0, z: 0 };
 const Q: V3Out = { x: 0, y: 0, z: 0 };
@@ -75,7 +94,7 @@ const yawTo = (x0: number, z0: number, x1: number, z1: number): number => {
 
 // ------------------------------------------------------------------------------------------------ slots
 
-function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
+function castQ(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx): void {
   const id = e.src;
   if (!fx.heroPos(id, P)) return;
   const a = fx.abil(id, 'q');
@@ -94,6 +113,10 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   fx.mesh.spawn('arc', { x: lx, z: lz, sx: touch, life: air + 0.1, color: TERRA, rim, p0: TAU, p1: 0.9, p2: 1, p3: 1, rel });
   fx.mesh.spawn('glow', { x: P.x, z: P.z, sx: 1.1, life: 0.25, color: DUST, rim, rel });
   fx.particles.debris(P.x, P.z, 0.6);
+  // the fun layer: two scrabbling paw prints where she kicked off, a dust puff
+  if (d > 0.01) pawTrail(fx, P.x - (ax / d) * 0.4, P.z - (az / d) * 0.4, P.x + (ax / d) * 0.5, P.z + (az / d) * 0.5, 0.12, 2, PRINT, 0.42, 0.9, funRand(e.tick, id, 0) < 0.5);
+  stickerBurst(fx, P.x, 0.3, P.z, 'PUFF', DUST, 0.34, 0.45, 4, 1.6, 0.8, -1, 0.3);
+  pounceOnce.arm(id, clock);
 }
 
 /** High Leap landed (the clip's land marker, on the sim's travel end): a dust ring at exactly `touch`. */
@@ -106,8 +129,17 @@ function leapLand(id: number, fx: FxCtx): void {
   fx.mesh.spawn('glow', { x: P.x, z: P.z, sx: touch * 1.1, life: 0.3, color: TERRA, rim, rel });
   fx.shock.start({ x: P.x, y: 0, z: P.z }, { r1: touch, dur: 0.22, color: '#e9d3a8', height: 0.3 });
   fx.particles.debris(P.x, P.z, 1);
-  fx.linger.add('crater', P.x, P.z, touch * 0.55, Math.random() * TAU, RUST);
+  // replay-safe crater spin (the old Math.random made replays differ)
+  fx.linger.add('crater', P.x, P.z, touch * 0.55, funRand((clock * 30) | 0, id, 1) * TAU, RUST);
   if (rel === 'own') fx.cam.tier(1);
+  // the fun layer: four paw prints splayed round the landing (the cat-shaped crater) and a dust burst
+  const n = funCount(fx, 4);
+  const k = funRank(fx, id, 0);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU + 0.4;
+    sticker(fx, P.x + Math.cos(a) * touch * 0.7, 0.14, P.z - Math.sin(a) * touch * 0.7, 'PAW', PRINT, 0.4 * k, 0.9, 0, 0, a);
+  }
+  stickerBurst(fx, P.x, 0.35, P.z, 'PUFF', DUST, 0.42, 0.5, 6, 2.6, 1, -1, 0.7);
 }
 
 function castW(id: number, fx: FxCtx): void {
@@ -119,6 +151,17 @@ function castW(id: number, fx: FxCtx): void {
   fx.mesh.spawn('ring', { x: P.x, z: P.z, sx: R, life: 0.7, color: CREAM, rim, p1: 0, p3: 1.5, rel });
   fx.mesh.spawn('ring', { x: P.x, z: P.z, sx: R, life: 0.7, color: TERRA, rim, p1: 0, p3: 1.5, rel, delay: 0.18 });
   fx.mesh.spawn('arc', { x: P.x, z: P.z, sx: R, life: 0.6, color: TERRA, rim, p0: TAU, p1: 0.97, p2: 1, p3: 1, rel });
+  // the fun layer: radar rings pop off both ear tips, and a "!" over every enemy hero she hears (decoration only:
+  // only heroes the viewer already draws, so it never reveals anything the sim does not)
+  if (fx.bonePos(id, 'earL', Q)) sticker(fx, Q.x, Q.y + 0.2, Q.z, 'RING', CREAM, 0.5, 0.35, 1.2);
+  if (fx.bonePos(id, 'earR', Q)) sticker(fx, Q.x, Q.y + 0.2, Q.z, 'RING', CREAM, 0.5, 0.35, 1.2);
+  const mine = fx.relation(id);
+  for (let o = 0; o < N; o++) {
+    if (o === id || !isHero(fx, o) || !fx.heroPos(o, Q)) continue;
+    const foe = mine === 'enemy' ? fx.relation(o) !== 'enemy' : fx.relation(o) === 'enemy';
+    if (!foe || Math.hypot(Q.x - P.x, Q.z - P.z) > R) continue;
+    sticker(fx, Q.x, s3HeadY(fx, o, 0.6), Q.z, 'EXCLAIM', BANG, 0.8, 0.8, 0.5);
+  }
 }
 
 /** One Swat-Swat swipe from (x, z) along `yaw`: the exact line and a claw crescent along it. */
@@ -130,6 +173,8 @@ function swat(fx: FxCtx, id: number, x: number, z: number, yaw: number, side: nu
   const rim = fx.rim(id);
   fx.mesh.spawn('beam', { x, y: 0.15, z, yaw, sx: L, sz: W, life: 0.22, color: side > 0 ? TERRA : CREAM, rim, p3: 1.2, rel, delay });
   fx.mesh.spawn('crescent', { x, z, yaw, sx: L, life: 0.24, color: side > 0 ? CREAM : TERRA, rim, p0: 0.5, p1: 0.55, p2: side, p3: 2.2, rel, delay });
+  // the fun layer: a big cartoon paw flashes at the end of the swat (a cat batting at something)
+  sticker(fx, x + Math.cos(yaw) * L * 0.7, 1.0, z - Math.sin(yaw) * L * 0.7, 'PAW', side > 0 ? CREAM : PRINT, 0.75, 0.24, 0, 0, side * 0.5);
 }
 
 function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -152,19 +197,33 @@ function castR(id: number, fx: FxCtx): void {
   SRC.y = 0.9;
   SRC.z = P.z;
   ribbon[id] = fx.ribbons.point(SRC, TERRA, RIBBON_W, RIBBON_LIFE);
+  // the fun layer: "ZOOM!", a dust burst, a chirp
+  funPop(fx, id, 'ZOOM!', P.x, s3HeadY(fx, id, 0.6), P.z);
+  stickerBurst(fx, P.x, 0.3, P.z, 'PUFF', DUST, 0.45, 0.5, 8, 3, 0.9, -1, 0.1);
+  funSfx(fx, 'mew', P, 0.8);
 }
 
 /** A pounce landed on a hero: two crossed claw streaks on the victim, the slow ring, scratches on the ground. */
-function pounceHit(src: number, dst: number, fx: FxCtx): void {
+function pounceHit(src: number, dst: number, fx: FxCtx, tick = 0): void {
   if (!fx.heroPos(dst, Q)) return;
   const rel = fx.relation(src);
   const rim = fx.rim(src);
   const yaw = fx.heroPos(src, P) ? yawTo(P.x, P.z, Q.x, Q.z) : 0;
-  fx.mesh.spawn('crescent', { x: Q.x, z: Q.z, yaw: yaw + 0.5, sx: 1.2, life: 0.22, color: CREAM, rim, p0: 1.4, p1: 0.45, p2: 1, p3: 2.5, rel });
-  fx.mesh.spawn('crescent', { x: Q.x, z: Q.z, yaw: yaw - 0.5, sx: 1.2, life: 0.22, color: TERRA, rim, p0: 1.4, p1: 0.45, p2: -1, p3: 2.5, rel, delay: 0.04 });
+  // three seeded claw-mark variants (replays match): the crossed pair, a triple rake, a wide X with a paw stamp
+  const v = (funRand(tick, src, 7) * 3) | 0;
+  const spread = v === 2 ? 0.8 : 0.5;
+  fx.mesh.spawn('crescent', { x: Q.x, z: Q.z, yaw: yaw + spread, sx: 1.2, life: 0.22, color: CREAM, rim, p0: 1.4, p1: 0.45, p2: 1, p3: 2.5, rel });
+  fx.mesh.spawn('crescent', { x: Q.x, z: Q.z, yaw: yaw - spread, sx: 1.2, life: 0.22, color: TERRA, rim, p0: 1.4, p1: 0.45, p2: -1, p3: 2.5, rel, delay: 0.04 });
+  // the triple rake: a third claw line on the ground (a glyph: the two streaks stay the readable hit)
+  if (v === 1) fx.linger.add('scratches', Q.x, Q.z, 0.9, yaw - 0.35, RUST);
   fx.mesh.spawn('ring', { x: Q.x, z: Q.z, sx: 1.0, life: 0.35, color: TERRA, rim, p1: 0.3, rel });
-  fx.linger.add('scratches', Q.x, Q.z, 0.7, yaw, RUST);
-  fx.sfx.cue('slash', Q);
+  fx.linger.add('scratches', Q.x, Q.z, 0.7, yaw + (v - 1) * 0.35, RUST);
+  const cy = s3HeadY(fx, dst, -0.5);
+  if (v === 2) sticker(fx, Q.x, cy, Q.z, 'PAW', CREAM, 0.7, 0.35, 0.4, 0, yaw);
+  stickerBurst(fx, Q.x, cy, Q.z, 'STAR4', CREAM, 0.22, 0.3, 4, 2.4, 1.4, -4, funRand(tick, src, 8));
+  // the pounce hit sound: the 'slash' cue when the cue table has it, else a quick swipe
+  if (CUE_SFX.slash) fx.sfx.cue('slash', Q);
+  else fx.sfx.cue('whooshS', Q);
   if (rel === 'own') fx.cam.tier(1);
 }
 
@@ -186,8 +245,22 @@ function marker(id: number, _clipId: string, m: string, fx: FxCtx): void {
       if (!fx.heroPos(id, P)) return;
       const R = (fx.abil(id, 'w').radius ?? 8000) / 1000;
       fx.mesh.spawn('ring', { x: P.x, z: P.z, sx: R, life: 0.6, color: CREAM, rim, p1: 0, p3: 1.2, rel });
+      // the clip's 'ping' sound has no cue alias: a radar chime
+      funSfx(fx, 'chime', P, 0.6);
       return;
     }
+    case 'tumble':
+      // the death tumble (moves/stilts.ts death): the long legs land in a dust heap, a tuft of fur
+      if (!fx.heroPos(id, P)) return;
+      stickerBurst(fx, P.x, 0.3, P.z, 'PUFF', DUST, 0.42, 0.5, 6, 2.2, 0.8, -1, 0.5);
+      stickerBurst(fx, P.x, 0.8, P.z, 'HAIRBALL', DUST, 0.2, 0.6, 3, 1.4, 1.6, -4, 0.2);
+      return;
+    case 'shake':
+      // the respawn shake-off (moves/stilts.ts respawn): fluff and dust fly off her coat
+      if (!fx.heroPos(id, P)) return;
+      stickerBurst(fx, P.x, 1.1, P.z, 'HAIRBALL', DUST, 0.22, 0.55, 6, 2.6, 1.6, -5, 0.4);
+      stickerBurst(fx, P.x, 0.3, P.z, 'PUFF', DUST, 0.36, 0.45, 4, 1.8, 0.7, -1, 0.9);
+      return;
     case 'swat1':
       return;
     case 'swat2':
@@ -255,7 +328,15 @@ function update(dt: number, fx: FxCtx): void {
     }
     const rel = fx.relation(id);
     const rim = fx.rim(id);
-    fx.mesh.spawn('glow', { x: P.x - F.z * 0.2 * side - F.x * 0.45, z: P.z + F.x * 0.2 * side - F.z * 0.45, sx: PRINT_SIZE, life: PRINT_LIFE, color: RUST, rim, p3: 2, rel });
+    const px = P.x - F.z * 0.2 * side - F.x * 0.45;
+    const pz = P.z + F.x * 0.2 * side - F.z * 0.45;
+    fx.mesh.spawn('glow', { x: px, z: pz, sx: PRINT_SIZE, life: PRINT_LIFE, color: RUST, rim, p3: 2, rel });
+    // the fun layer: a paw-print sticker on the glow (it reads as a print, not a blob), a dust puff on every footfall,
+    // speed lines streaming off her back; the print's tilt is seeded from the cast tick (replays match)
+    const step = zoomStep[id]++;
+    sticker(fx, px, 0.12, pz, 'PAW', PRINT, PRINT_SIZE * 0.95, PRINT_LIFE * 0.8, 0, 0, Math.atan2(F.z, F.x) + (funRand(zoomTick[id], id, step) - 0.5) * 0.6);
+    if ((step & 1) === 0 || fx.tier === 'high') stickerBurst(fx, px, 0.2, pz, 'PUFF', DUST, 0.3, 0.35, 2, 1.1, 0.6, -1, funRand(zoomTick[id], id, step + 99));
+    speedLines(fx, P.x - F.x * 0.5, 0.9, P.z - F.z * 0.5, F.x, F.z, 3, CREAM, 0.9, 6);
     // a speed line streaking in to her back at body height (Med and up: Low keeps its two beam slots for gameplay
     // lines); the ribbon only shows once she moves, the streaks read even while she stands
     if (fx.tier !== 'low') {
@@ -289,6 +370,11 @@ export function resetStiltsFx(): void {
   full.fill(0);
   seen.fill(0);
   facing.fill(0);
+  pounceOnce.reset();
+  lastSlot.fill(-1);
+  lastCastAt.fill(-9);
+  zoomTick.fill(0);
+  zoomStep.fill(0);
   STILTS_STATE.pounce.fill(0);
 }
 
@@ -305,6 +391,12 @@ export const SKILL_FX: SkillFxSet = {
     const id = e.src;
     if (!ok(id)) return;
     seen[id] = 1;
+    lastSlot[id] = e.slot;
+    lastCastAt[id] = clock;
+    if (e.slot === 3) {
+      zoomTick[id] = e.tick;
+      zoomStep[id] = 0;
+    }
     if (e.slot === 0) castQ(e, fx);
     else if (e.slot === 1) castW(id, fx);
     else if (e.slot === 2) castE(e, fx);
@@ -317,12 +409,18 @@ export const SKILL_FX: SkillFxSet = {
       // the pounce the move pick chose (the sim spends it on a hero only)
       if (STILTS_STATE.pounce[id] === 1 && isHero(fx, e.dst)) {
         STILTS_STATE.pounce[id] = 0;
-        pounceHit(id, e.dst, fx);
+        pounceHit(id, e.dst, fx, e.tick);
       }
       return;
     }
     // an ability hit on a hero: a small dust puff on the victim
-    if (isHero(fx, e.dst) && fx.heroPos(e.dst, Q)) fx.mesh.spawn('glow', { x: Q.x, z: Q.z, sx: 0.8, life: 0.2, color: DUST, rim: fx.rim(id), rel: fx.relation(id) });
+    if (isHero(fx, e.dst) && fx.heroPos(e.dst, Q)) {
+      fx.mesh.spawn('glow', { x: Q.x, z: Q.z, sx: 0.8, life: 0.2, color: DUST, rim: fx.rim(id), rel: fx.relation(id) });
+      const slot = clock - lastCastAt[id] < 2 ? lastSlot[id] : -1;
+      // High Leap landed on a hero: "POUNCE!" once per leap
+      if (slot === 0 && pounceOnce.take(id, clock, 1.6)) funPop(fx, id, 'POUNCE!', Q.x, s3HeadY(fx, e.dst, 0.6), Q.z);
+      else if (slot === 2) stickerBurst(fx, Q.x, s3HeadY(fx, e.dst, -0.5), Q.z, 'STAR4', CREAM, 0.2, 0.28, 3, 2, 1.2, -4, funRand(e.tick, id, 9));
+    }
   },
   onMarker: marker,
   update,

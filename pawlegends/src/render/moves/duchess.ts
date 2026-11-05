@@ -155,11 +155,13 @@ const w: ClipDef = {
   root: {
     yaw: [[0, 0], [W_WIND * 0.4, 0.05, 'out'], [W_WIND * 0.85, 0.06], [W_WIND, -0.02, 'expoIn'], [W_END, 0, 'inOut']],
     up: [[0, 0], [W_WIND * 0.85, 0.1, 'inOut'], [W_WIND, 0.02, 'expoIn'], [W_LAND, 0, 'inOut'], [W_END, 0]],
-    sy: [[0, 1], [W_WIND * 0.85, 1.06], [W_WIND, 0.9, 'expoIn'], [W_LAND, 1, 'back'], [W_END, 1]],
+    // skill-feel pass: a puffed-up "hmph" (she swells over the windup, snaps small on the glare, then huffs)
+    sy: [[0, 1], [W_WIND * 0.4, 1.04, 'out'], [W_WIND * 0.85, 1.1], [W_WIND, 0.86, 'expoIn'], [W_WIND + 0.1, 1.06, 'back'], [W_LAND, 0.97, 'inOut'], [W_END, 1, 'inOut']],
+    sx: [[0, 1], [W_WIND * 0.85, 1.05], [W_WIND, 1.1, 'expoIn'], [W_WIND + 0.12, 0.98, 'back'], [W_END, 1, 'inOut']],
   },
   markers: { coil: 0, contact: W_WIND, land: W_LAND, end: W_END },
   warp: [['coil', 'windupStart'], ['contact', 'cast']],
-  cues: [['coil', 'sfx', 'flutter'], ['contact', 'sfx', 'zap'], ['contact', 'blink'], ['contact', 'shake', 1]],
+  cues: [['coil', 'sfx', 'flutter'], ['contact', 'sfx', 'zap'], ['contact', 'blink'], ['contact', 'shake', 1], ['land', 'fx', 'd:hmph']],
   cancel: 'afterContact',
 };
 
@@ -218,7 +220,9 @@ const r: ClipDef = {
   ],
   root: {
     up: [[0, 0], [R_WIND * 0.2, 0.05], [R_WIND * 0.8, 0.55, 'out'], [R_WIND, 0, 'expoIn'], [R_WIND + 0.06, 0.06, 'out'], [R_WIND + 0.14, 0, 'in'], [R_END, 0]],
-    sy: [[0, 1], [R_WIND * 0.2, 0.88, 'out'], [R_WIND * 0.5, 1.1, 'out'], [R_WIND * 0.9, 1.04], [R_WIND + 0.02, 0.78, 'in'], [R_WIND + 0.14, 1.06, 'back'], [R_END, 1, 'inOut']],
+    sy: [[0, 1], [R_WIND * 0.2, 0.88, 'out'], [R_WIND * 0.5, 1.12, 'out'], [R_WIND * 0.9, 1.06], [R_WIND + 0.02, 0.72, 'in'], [R_WIND + 0.14, 1.12, 'back'], [R_WIND + 0.22, 0.96, 'inOut'], [R_END, 1, 'inOut']],
+    // skill-feel pass: a vain sway at the top of the rise (look at me), level again before the stamp
+    roll: [[0, 0], [R_WIND * 0.45, 0], [R_WIND * 0.6, 0.02, 'inOut'], [R_WIND * 0.75, -0.02, 'inOut'], [R_WIND * 0.9, 0, 'inOut'], [R_END, 0]],
   },
   markers: { coil: 0, rise: R_WIND * 0.8, contact: R_WIND, end: R_END },
   warp: [['coil', 'windupStart'], ['contact', 'cast']],

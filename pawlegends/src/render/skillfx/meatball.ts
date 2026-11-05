@@ -15,18 +15,34 @@
  * - passive Food Coma: a Zzz bubble over him while the big shield holds (seen render side: his shield jumps by about
  *   the passive's share of his max HP while he is low).
  *
+ * Feel pass (skills-2 lane, render only; stickers and pops from render/fx/fun): the roll kicks up a dust cloud with
+ * speed lines and the first unit it knocks aside gets "STRIKE!" and dizzy stars; Loaf Mode floats real "Z"s and a purr
+ * note loop; Big Brother stands guard under an orange anger mark with a "HMPH!"; Chonk leaves a dust ring every 0.3 s
+ * and each bump spins stars over the victim with a "BONK!" or "BOING!" (picked by funRand, so replays match); the
+ * respawn drop bounces three times with a dust puff on each.
+ *
  * Reduce motion: no camera shake or punch, half the leaf puffs. Pooled: per-hero state in typed arrays, scratch
  * vectors reused; nothing allocates per frame.
  */
 import { stubFx } from '../anim/common';
+import { CUE_SFX } from '../anim/fxctx';
 import { DASH_SPEED, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxSpawn, SkillFxSet, V3Out } from '../anim/types';
+import { SHAPE } from '../fx/Particles.js';
+import { funCount, funOverY, funPop, funRand, funSfx, orbit, speedLines, sticker } from '../fx/fun/funKit';
+import { funReady, shower, zed } from '../fx/fun/skills2Fun';
 
 const GRASS = 0x7ccf5a;
 const LEAF = 0xa8e070;
 const MOSS = 0x4f9a3a;
 const SLEEP = 0xd8ecff;
 const CREAM = 0xfff6e0;
+/** Sticker colours: lane dust, a sleepy lilac "Z", the purr note, the anger mark (orange, never red), dizzy stars. */
+const DUST = 0xf1dfb8;
+const ZZ = 0x7a68ff;
+const NOTE = 0xffd27a;
+const ANGER = 0xff8a3d;
+const STARS = 0xffe066;
 
 const N = 16;
 /** Food Coma: the passive's numbers (no talent changes them). */
@@ -50,19 +66,28 @@ const rollUntil = new Float64Array(N);
 const rollRib = new Int16Array(N).fill(-1);
 const rollScuff = new Float64Array(N);
 const rollYaw = new Float64Array(N);
+const rollDust = new Float64Array(N);
+/** The roll's cast tick (funRand seed) and whether its "STRIKE!" already showed. */
+const rollTick = new Int32Array(N);
+const rollStrike = new Uint8Array(N);
 // W loaf
 const loafUntil = new Float64Array(N);
 const loafNext = new Float64Array(N);
 const loafR = new Float64Array(N);
+const loafNote = new Float64Array(N);
+const loafPurr = new Float64Array(N);
 // E guard
 const guardPending = new Uint8Array(N);
 const guardAt = new Float64Array(N);
 const guardAlly = new Int16Array(N).fill(-1);
 const guardShieldUntil = new Float64Array(N);
 const guardNext = new Float64Array(N);
+const guardMad = new Float64Array(N);
 // R chonk
 const chonkUntil = new Float64Array(N);
 const chonkNext = new Float64Array(N);
+const chonkDust = new Float64Array(N);
+const chonkTick = new Int32Array(N);
 // passive
 const isMeatball = new Uint8Array(N);
 const lastShield = new Float64Array(N);
@@ -124,6 +149,13 @@ function guardTarget(fx: FxCtx, id: number, px: number, pz: number, range: numbe
 
 /** Rising Zzz: three small sleepy glows stacked above `who` (the second and third a beat later). */
 function zzz(fx: FxCtx, id: number, x: number, z: number, life: number): void {
+  if (funReady(fx)) {
+    // real "Z" stickers drifting up and to the side, small → big (feel pass); the glow Zs below stay the fallback
+    const y = funOverY(fx, id, 0.1);
+    const n = funCount(fx, 3);
+    for (let i = 0; i < n; i++) zed(fx, x + 0.55 + i * 0.4, y + i * 0.5, z, 0.45 + i * 0.15, ZZ, Math.max(0.4, life + 0.5) - i * 0.08, 0.45 + i * 0.1, 0.25);
+    return;
+  }
   for (let i = 0; i < 3; i++) {
     const g = spec(fx, id, x + 0.25 + i * 0.18, z - 0.1 * i, 0.22 + i * 0.08, life, SLEEP);
     g.y = 2.7 + i * 0.35;
@@ -144,7 +176,7 @@ function leafPuff(fx: FxCtx, id: number, x: number, z: number, r: number): void 
 
 // ------------------------------------------------------------------------------------------------ casts
 
-function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
+function castQ(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx): void {
   const id = e.src;
   if (!fx.heroPos(id, _a)) return;
   const a = fx.abil(id, 'q');
@@ -153,6 +185,9 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   rollOn[id] = 1;
   rollUntil[id] = now + air + TICK_S;
   rollScuff[id] = 0;
+  rollDust[id] = 0;
+  rollTick[id] = e.tick;
+  rollStrike[id] = 0;
   rollYaw[id] = Math.atan2(-(-e.y / 1000 - _a.z), e.x / 1000 - _a.x);
   _c.x = _a.x;
   _c.y = 0.06;
@@ -160,6 +195,8 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   // the grass skid: exactly the roll's touch zone wide (both sides of the path)
   rollRib[id] = fx.ribbons.point(_c, ribbonColor(fx, id, GRASS), (2 * (a.touch ?? 1200)) / 1000, 0.5);
   leafPuff(fx, id, _a.x, _a.z, 0.9);
+  // take-off: a dust cloud kicked back from the ball
+  shower(fx, _a.x, 0.25, _a.z, 6, SHAPE.PUFF, DUST, 0.42, 0.45, 2.2, 1.0, 2, funRand(e.tick, id, 1));
   fx.sfx.cue('whooshL', _a);
 }
 
@@ -182,7 +219,11 @@ function castW(e: { src: number }, fx: FxCtx): void {
   fx.mesh.spawn('arc', edge);
   fx.mesh.spawn('glow', spec(fx, id, _a.x, _a.z, 1.4, 0.4, CREAM));
   zzz(fx, id, _a.x, _a.z, 0.7);
-  fx.sfx.cue('yawn', _a, 0.7);
+  loafNote[id] = now + 0.25;
+  loafPurr[id] = now + 0.6;
+  // the yawn: its move cue when the cue table has one, else a low sleepy "ooh" from the fun kit's stand-ins
+  if (CUE_SFX.yawn) fx.sfx.cue('yawn', _a, 0.7);
+  else funSfx(fx, 'mew', _a, 0.6);
 }
 
 function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -210,12 +251,14 @@ function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   fx.particles.debris(_a.x, _a.z, 0.5);
 }
 
-function castR(e: { src: number }, fx: FxCtx): void {
+function castR(e: { src: number; tick: number }, fx: FxCtx): void {
   const id = e.src;
   if (!fx.heroPos(id, _a)) return;
   const a = fx.abil(id, 'r');
   chonkUntil[id] = now + (a.duration ?? 120) * TICK_S;
   chonkNext[id] = now + 0.2;
+  chonkDust[id] = now + 0.15;
+  chonkTick[id] = e.tick;
   const reach = (a.touch ?? 1300) / 1000 + 0.5;
   const s = spec(fx, id, _a.x, _a.z, reach * 1.6, 0.45, GRASS);
   s.p1 = 0.2;
@@ -227,6 +270,9 @@ function castR(e: { src: number }, fx: FxCtx): void {
   fx.mesh.spawn('ring', s2);
   fx.mesh.spawn('glow', spec(fx, id, _a.x, _a.z, 2.0, 0.35, LEAF));
   fx.linger.add('petals', _a.x, _a.z, 1.4, now * 3, MOSS);
+  // the swell: a big dust ring and a proud "meow" (the ult moment's own callout carries the name)
+  shower(fx, _a.x, 0.2, _a.z, 10, SHAPE.PUFF, DUST, 0.5, 0.55, 3.2, 0.8, 2, funRand(e.tick, id, 3));
+  funSfx(fx, 'meow', _a, 0.8);
   fx.sfx.cue('bodyThud', _a);
   if (own(fx, id) && !fx.reduced) {
     fx.cam.tier(2);
@@ -239,6 +285,12 @@ function castR(e: { src: number }, fx: FxCtx): void {
 function hitQ(dst: number, id: number, fx: FxCtx): void {
   if (!fx.heroPos(dst, _b)) return;
   leafPuff(fx, id, _b.x, _b.z, 0.9);
+  // bowling: knocked-aside pins get stars; the roll's first knock shouts "STRIKE!" (once per cast, never on a minion)
+  const top = funOverY(fx, dst, 0.15);
+  if (isHero(fx, dst)) {
+    orbit(fx, _b.x, top, _b.z, 'STAR', STARS, 3, 0.38, 0.22, 0.8, funRand(rollTick[id], dst, 7) * 6.283);
+    if (!rollStrike[id] && funPop(fx, id, 'STRIKE!', _b.x, top + 0.3, _b.z)) rollStrike[id] = 1;
+  } else sticker(fx, _b.x, top - 0.4, _b.z, 'STAR4', STARS, 0.35, 0.3);
   fx.linger.add('scratches', _b.x, _b.z, 0.6, now * 7, MOSS);
   fx.sfx.cue('bodyThud', _b, 0.7);
 }
@@ -256,6 +308,13 @@ function hitR(dst: number, id: number, fx: FxCtx): void {
   fx.mesh.spawn('ring', w2);
   fx.linger.add('petals', _b.x, _b.z, 0.9, now * 5, MOSS);
   fx.particles.debris(_b.x, _b.z, fx.reduced ? 0.6 : 1.1);
+  // the bumped one spins off seeing stars; a hero bump shouts BONK! or BOING! (seeded by the cast and the victim)
+  if (isHero(fx, dst)) {
+    const top = funOverY(fx, dst, 0.15);
+    const v = funRand(chonkTick[id], dst, 11);
+    orbit(fx, _b.x, top, _b.z, 'STAR', STARS, 3, 0.4, 0.24, 0.9, v * 6.283);
+    if (funPop(fx, id, v < 0.5 ? 'BONK!' : 'BOING!', _b.x, top + 0.35, _b.z)) funSfx(fx, v < 0.5 ? 'bonk' : 'boing', _b, 0.8);
+  }
   fx.sfx.cue('bodyThud', _b);
   if (own(fx, id) && !fx.reduced) fx.cam.tier(1);
 }
@@ -275,6 +334,12 @@ function guardLand(id: number, fx: FxCtx): void {
   fx.mesh.spawn('dome', dome);
   guardShieldUntil[id] = now + (a.duration ?? 75) * TICK_S;
   guardNext[id] = now + 0.45;
+  guardMad[id] = now + 0.7;
+  // big brother is cross: an anger mark pops over his head, and "HMPH!" when he lands by a friend
+  if (fx.heroPos(id, _c)) {
+    sticker(fx, _c.x + 0.3, funOverY(fx, id, 0.1), _c.z, 'ANGER', ANGER, 0.42, 0.8, 0, 0, 0.3);
+    if (ally >= 0) funPop(fx, id, 'HMPH!', _c.x, funOverY(fx, id, 0.6), _c.z);
+  }
   if (ally < 0) return;
   // the push: exactly the radius round the friend
   const r = (a.radius ?? 2200) / 1000;
@@ -302,6 +367,15 @@ function updateRoll(fx: FxCtx, dt: number): void {
         rollScuff[id] = 0.1;
         fx.linger.add('scratches', _a.x, _a.z, 0.7, rollYaw[id], MOSS);
       }
+      // the dust cloud and speed lines streaming behind the ball (stickers: nothing on the gameplay ground)
+      rollDust[id] -= dt;
+      if (rollDust[id] <= 0) {
+        rollDust[id] = fx.tier === 'low' ? 0.1 : 0.06;
+        const dx = Math.cos(rollYaw[id]);
+        const dz = -Math.sin(rollYaw[id]);
+        sticker(fx, _a.x - dx * 0.6, 0.35, _a.z - dz * 0.6, 'PUFF', DUST, 0.55, 0.4, 0.6, 0, now * 9);
+        speedLines(fx, _a.x - dx * 0.4, 0.7, _a.z - dz * 0.4, dx, dz, 3, CREAM, 1.2, 8);
+      }
     }
     if (now >= rollUntil[id]) {
       rollOn[id] = 0;
@@ -313,6 +387,16 @@ function updateRoll(fx: FxCtx, dt: number): void {
 
 function updateLoaf(fx: FxCtx): void {
   for (let id = 0; id < N; id++) {
+    if (loafUntil[id] > now && now >= loafNote[id] && fx.heroPos(id, _a)) {
+      // the purr: a music note bobbing up off his back every 0.6 s, a purr sound every 1.5 s
+      loafNote[id] = now + 0.6;
+      const side = (Math.floor(now / 0.6) & 1) === 0 ? -1 : 1;
+      sticker(fx, _a.x + side * 0.45, funOverY(fx, id, -0.3), _a.z, 'NOTE', NOTE, 0.32, 0.8, 0.7, 0, side * 0.25);
+      if (now >= loafPurr[id]) {
+        loafPurr[id] = now + 1.5;
+        funSfx(fx, 'purr', _a, 0.7);
+      }
+    }
     if (loafUntil[id] <= now || now < loafNext[id]) continue;
     loafNext[id] = now + 0.5;
     if (!fx.heroPos(id, _a)) continue;
@@ -328,6 +412,11 @@ function updateLoaf(fx: FxCtx): void {
 function updateGuard(fx: FxCtx): void {
   for (let id = 0; id < N; id++) {
     if (guardPending[id] && now >= guardAt[id]) guardLand(id, fx);
+    if (guardShieldUntil[id] > now && now >= guardMad[id] && fx.heroPos(id, _c)) {
+      // still on guard: the anger mark throbs over him (re-dropped, so it follows his walk)
+      guardMad[id] = now + 0.7;
+      sticker(fx, _c.x + 0.3, funOverY(fx, id, 0.1), _c.z, 'ANGER', ANGER, 0.36, 0.75, 0, 0, 0.3);
+    }
     if (guardShieldUntil[id] <= now || now < guardNext[id]) continue;
     guardNext[id] = now + 0.45;
     const who = guardAlly[id] >= 0 ? guardAlly[id] : id;
@@ -346,6 +435,11 @@ function updateGuard(fx: FxCtx): void {
 
 function updateChonk(fx: FxCtx): void {
   for (let id = 0; id < N; id++) {
+    if (chonkUntil[id] > now && now >= chonkDust[id] && fx.heroPos(id, _a)) {
+      // the running aura: a dust ring kicked out from under the ball every 0.3 s
+      chonkDust[id] = now + 0.3;
+      shower(fx, _a.x, 0.15, _a.z, 6, SHAPE.PUFF, DUST, 0.4, 0.4, 2.6, 0.5, 2, (now * 0.37) % 1);
+    }
     if (chonkUntil[id] <= now || now < chonkNext[id]) continue;
     chonkNext[id] = now + (fx.reduced ? 0.3 : 0.15);
     if (!fx.heroPos(id, _a)) continue;
@@ -394,6 +488,15 @@ function marker(id: number, m: string, fx: FxCtx): void {
   if (!fx.heroPos(id, _a)) return;
   if (m === 'deathZzz') zzz(fx, id, _a.x - 0.4, _a.z, 1.0);
   else if (m === 'chonkSwell') fx.mesh.spawn('glow', spec(fx, id, _a.x, _a.z, 1.6, 0.3, CREAM));
+  else if (m === 'mbBounce') {
+    // the respawn bounces: a dust puff each, the last one a ring of paw-print confetti
+    shower(fx, _a.x, 0.15, _a.z, 6, SHAPE.PUFF, DUST, 0.42, 0.4, 2.4, 0.6, 2, (now * 0.29) % 1);
+    funSfx(fx, 'boing', _a, 0.5);
+  } else if (m === 'mbLand') {
+    shower(fx, _a.x, 0.2, _a.z, 8, SHAPE.PUFF, DUST, 0.5, 0.5, 3.2, 0.8, 2, (now * 0.31) % 1);
+    sticker(fx, _a.x - 0.5, funOverY(fx, id, -0.2), _a.z, 'PAW', LEAF, 0.4, 0.8, 0.8, 0, -0.3);
+    sticker(fx, _a.x + 0.5, funOverY(fx, id, -0.1), _a.z, 'PAW', LEAF, 0.4, 0.8, 0.9, 0, 0.3);
+  }
 }
 
 // ------------------------------------------------------------------------------------------------ the set
@@ -418,7 +521,12 @@ export function resetMeatballFx(): void {
   lastCastAt.fill(-99);
   rollOn.fill(0);
   rollRib.fill(-1);
+  rollStrike.fill(0);
   loafUntil.fill(0);
+  loafNote.fill(0);
+  loafPurr.fill(0);
+  guardMad.fill(0);
+  chonkDust.fill(0);
   guardPending.fill(0);
   guardAlly.fill(-1);
   guardShieldUntil.fill(0);

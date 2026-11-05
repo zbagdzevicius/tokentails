@@ -151,7 +151,10 @@ const q: ClipDef = {
     [QC, null, { chest: [0.5, 0, 0], head: [0.3, 0, 0], shoulderL: [-0.4, 0, -0.1], elbowL: [0.2, 0, 0], shoulderR: [-0.35, 0, 0.25], thighL: [-0.9, 0, 0], thighR: [-0.9, 0, 0], kneeL: [1.45, 0, 0], kneeR: [1.45, 0, 0] }, 'expoIn'],
     [QC + 0.1, null, { chest: [0.52, 0, 0], head: [0.32, 0, 0], shoulderL: [-0.35, 0, -0.1], elbowL: [0.2, 0, 0], shoulderR: [-0.3, 0, 0.25], thighL: [-0.92, 0, 0], thighR: [-0.92, 0, 0], kneeL: [1.5, 0, 0], kneeR: [1.5, 0, 0] }, 'hold'],
     [QC + 0.26, null, { chest: [-0.15, 0, 0], head: [-0.3, 0, 0], shoulderL: [-1.3, 0, 0.7], shoulderR: [-1.1, 0, -0.7], ...TUCK }, 'out'],
-    [QC + 0.46, null, { ...CROUCH, shoulderL: [-0.5, 0, 0.2], shoulderR: [-0.3, 0, -0.3] }, 'in'],
+    [QC + 0.46, null, { ...CROUCH, shoulderL: [-0.5, 0, 0.2], shoulderR: [-0.3, 0, -0.3], earL: [0.7, 0, -0.55], earR: [0.7, 0, 0.55] }, 'in'],
+    // skill-feel pass: the pug's ears flop on the landing and bounce back (follow-through)
+    [QC + 0.56, null, { ...CROUCH, shoulderL: [-0.45, 0, 0.2], shoulderR: [-0.3, 0, -0.3], earL: [-0.35, 0, 0.25], earR: [-0.35, 0, -0.25] }, 'out'],
+    [QC + 0.66, null, { earL: [0.2, 0, -0.12], earR: [0.2, 0, 0.12] }, 'inOut'],
     [0.95, null, null, 'back'],
   ],
   root: {

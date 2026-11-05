@@ -191,8 +191,9 @@ const q: ClipDef = {
   root: {
     yaw: [[0, 0], [Q_T0, 0], [Q_LAND - 0.04, 2, 'lin'], [Q_LAND - 0.04 + WRAP, 0, 'step'], [Q_END, 0]],
     up: [[0, 0], [Q_T0, 0.05, 'out'], [Q_T0 + Q_AIR * 0.3, 0.18, 'out'], [Q_T0 + Q_AIR * 0.6, 0.04, 'in'], [Q_LAND, 0.1, 'out'], [Q_LAND + 0.1, 0, 'in'], [Q_END, 0]],
-    sy: [[0, 1], [Q_T0, 0.86, 'out'], [Q_LAND - 0.04, 0.88], [Q_LAND + 0.04, 1.08, 'out'], [Q_LAND + 0.12, 0.9, 'in'], [Q_END, 1, 'back']],
-    sx: [[0, 1], [Q_T0, 1.08, 'out'], [Q_LAND - 0.04, 1.08], [Q_LAND + 0.04, 0.96, 'out'], [Q_END, 1, 'inOut']],
+    // pawlegends feel (skills-2): a hard squash on take-off (1.2 / 0.8), a ball stretch in the air, a squash on the unroll
+    sy: [[0, 1], [Q_T0, 0.8, 'out'], [Q_T0 + 0.07, 0.92, 'back'], [Q_LAND - 0.04, 0.88], [Q_LAND, 0.78, 'in'], [Q_LAND + 0.06, 1.1, 'out'], [Q_LAND + 0.13, 0.92, 'in'], [Q_END, 1, 'back']],
+    sx: [[0, 1], [Q_T0, 1.2, 'out'], [Q_T0 + 0.07, 1.08, 'back'], [Q_LAND - 0.04, 1.08], [Q_LAND, 1.22, 'in'], [Q_LAND + 0.06, 0.94, 'out'], [Q_END, 1, 'inOut']],
   },
   calm: { yaw: 0 },
   markers: { takeoff: Q_T0, contact: Q_T0, land: Q_LAND, end: Q_END },
@@ -498,6 +499,43 @@ const death: ClipDef = {
 /** Waddle: short steps, a big hip sway and bounce, arms held out from the belly. */
 const gait: GaitProfile = { stride: 0.75, bounce: 1.4, lean: 0.3, hipSway: 2.0, headBob: 0.8, arms: 'out', variants: DEFAULT_GAIT.variants };
 
+// ------------------------------------------------------------------------------------------------ respawn (feel pass)
+
+/**
+ * pawlegends feel (skills-2): Meatball's own respawn. He drops in tucked as a ball and bounces three times like one,
+ * squashing on every landing (1.3 / 0.7, then smaller), and pops out of the ball on the last bounce. Render only; the
+ * drop stays under the 1.2 m clip cap. Markers `mbBounce` / `mbLand` throw dust from his skill FX.
+ */
+const RS_B1 = 0.26;
+const RS_B2 = 0.5;
+const RS_B3 = 0.68;
+const RS_END = 1.0;
+const respawn: ClipDef = {
+  id: 'meatball.respawn',
+  len: RS_END,
+  mask: 'full',
+  mode: 'override',
+  prio: Prio.Emote,
+  blendIn: 0,
+  keys: [
+    [0, null, BALL],
+    [RS_B2, null, BALL, 'hold'],
+    [RS_B3, null, merge(GUARD, { chest: [-0.2, 0, 0], head: [-0.25, 0, 0] }), 'back'],
+    [RS_END, null, null, 'inOut'],
+  ],
+  root: {
+    up: [[0, 1.2], [RS_B1, 0, 'in'], [RS_B1 + 0.12, 0.55, 'out'], [RS_B2, 0, 'in'], [RS_B2 + 0.09, 0.22, 'out'], [RS_B3, 0, 'in'], [RS_END, 0]],
+    sy: [[0, 1.12], [RS_B1 - 0.02, 1.12], [RS_B1, 0.7, 'in'], [RS_B1 + 0.07, 1.12, 'out'], [RS_B2 - 0.02, 1.06], [RS_B2, 0.8, 'in'], [RS_B2 + 0.06, 1.06, 'out'], [RS_B3, 0.88, 'in'], [RS_B3 + 0.1, 1.08, 'back'], [RS_END, 1, 'inOut']],
+    sx: [[0, 0.92], [RS_B1 - 0.02, 0.92], [RS_B1, 1.3, 'in'], [RS_B1 + 0.07, 0.92, 'out'], [RS_B2 - 0.02, 0.96], [RS_B2, 1.2, 'in'], [RS_B2 + 0.06, 0.96, 'out'], [RS_B3, 1.12, 'in'], [RS_B3 + 0.1, 0.96, 'back'], [RS_END, 1, 'inOut']],
+    yaw: [[0, 0], [RS_B1, 0], [RS_B1 + SPIN * 0.9, 1, 'lin'], [RS_B1 + SPIN * 0.9 + WRAP, 0, 'step'], [RS_END, 0]],
+  },
+  calm: { yaw: 0 },
+  markers: { b1: RS_B1, b2: RS_B2, land: RS_B3, end: RS_END },
+  warp: [],
+  cues: [['b1', 'land'], ['b1', 'fx', 'mbBounce'], ['b2', 'fx', 'mbBounce'], ['land', 'land'], ['land', 'dustRing'], ['land', 'fx', 'mbLand'], ['land', 'earsBack']],
+  cancel: 'any',
+};
+
 export const MOVES: MoveSet = {
   hero: 'meatball',
   stub: false,
@@ -516,9 +554,9 @@ export const MOVES: MoveSet = {
   victory,
   emote,
   death,
-  respawn: COMMON.respawn,
+  respawn,
   levelUp: COMMON.levelFlex,
 };
 
 /** Tests and the gallery: every authored clip. */
-export const MEATBALL_CLIPS: readonly ClipDef[] = [basicA, basicB, basicC, q, w, wHold, wEnd, e, r, rHold, rEnd, idle, yawn, victory, emote, death];
+export const MEATBALL_CLIPS: readonly ClipDef[] = [basicA, basicB, basicC, q, w, wHold, wEnd, e, r, rHold, rEnd, idle, yawn, victory, emote, death, respawn];

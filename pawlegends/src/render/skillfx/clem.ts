@@ -15,6 +15,7 @@ import { DASH_SPEED, TICK_S, travelTicks } from '../anim/timing';
 import type { SimEvent } from '../../sim/api';
 import type { CombatVfxLike, FxCtx, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
 import { CLEM_LIVE, noteValor } from '../moves/clem';
+import { funBigHit, funChestY, funHeadY, funHeroOf, funMaxed, funOverY, funPop, funRand, funRank, funSfx, orbit, pawTrail, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
 
 const GOLD = 0xffd34d;
 const SUN = 0xffe9a8;
@@ -22,6 +23,10 @@ const WHITE_GOLD = 0xfff6d8;
 const VALOR = 0xff9cc8;
 const PETAL = 0xffc8de;
 const MEND = 0x9cf0a8;
+/** Claw-glyph palettes (Paw Combo variant A, picked per cast with funRand so replays match): sun, peach, cream. */
+const CLAW = [0xfff1a8, 0xffc8a0, 0xfff6e6] as const;
+const ANGER_PINK = 0xff7fb0;
+const NOTE_GOLD = 0xffe08a;
 
 /** Tier pick (Low / Med / High). */
 const by = (fx: FxCtx, low: number, med: number, high: number): number => (fx.tier === 'low' ? low : fx.tier === 'med' ? med : high);
@@ -53,6 +58,17 @@ const hitZ = new Float64Array(N);
 const lastSlot = new Int8Array(N).fill(-1);
 const bigDone = new Uint8Array(N);
 const mend = new Uint8Array(N);
+/** Fun extras: Q's empowered POW (once on the first hero hit), the R "MEOW!" (once per R), E's variant and heading. */
+const qPow = new Uint8Array(N);
+const qVar = new Uint8Array(N);
+const rMeow = new Uint8Array(N);
+const rNote = new Float64Array(N);
+const wAnger = new Float64Array(N);
+const eVar = new Uint8Array(N);
+const eYaw = new Float64Array(N);
+const eNext = new Float64Array(N);
+const eFromX = new Float64Array(N);
+const eFromZ = new Float64Array(N);
 
 const P: V3Out = { x: 0, y: 0, z: 0 };
 const Q: V3Out = { x: 0, y: 0, z: 0 };
@@ -129,6 +145,11 @@ function castQ(e: CastEv, fx: FxCtx, ctx: MoveCtx, id: number): void {
   if (!Number.isFinite(yaw)) return;
   const stage = ctx.recastIndex;
   const emp = CLEM_LIVE.empowered[id] === 1;
+  // fun: variant A (claw glyph colour), rank-scaled stickers, the empowered POW armed for the first hero hit
+  const v = (funRand(e.tick, e.src, 0) * 3) | 0;
+  qVar[id] = v;
+  qPow[id] = emp ? 1 : 0;
+  clawGlyphs(fx, yaw, range, stage, v, funRank(fx, e.src, 0, ctx.talents), funMaxed(fx, e.src, 0, ctx.talents));
   const c = O.crescent;
   c.p0 = arc;
   c.p1 = stage === 2 ? 0.2 : 0.35;
@@ -182,12 +203,36 @@ function valorBurst(fx: FxCtx, id: number): void {
   mesh(fx, 'glow', id, P.x, P.z, 0, 1.2, 0.3, VALOR, O.glow);
 }
 
+/**
+ * Fun (Paw Combo): claw-swipe sparkles along the cone's edge (stages 1–2), a big paw print stamped where the launcher
+ * lands (stage 3, scaled by the rank) and a tiny star flourish once the Q is maxed. Decoration only: inside the cone.
+ */
+function clawGlyphs(fx: FxCtx, yaw: number, range: number, stage: number, v: number, rank: number, maxed: boolean): void {
+  const col = CLAW[v];
+  if (stage < 2) {
+    const n = fx.tier === 'low' ? 2 : 3;
+    for (let i = 0; i < n; i++) {
+      const a = yaw + ((i - (n - 1) / 2) * 0.32 * (stage === 1 ? -1 : 1));
+      const d = range * (0.7 + 0.1 * i);
+      sticker(fx, P.x + Math.cos(a) * d, 0.9 + i * 0.12, P.z - Math.sin(a) * d, 'STAR4', col, 0.34, 0.32, 0.6, 5, a);
+    }
+    return;
+  }
+  const cx = P.x + Math.cos(yaw) * range * 0.6;
+  const cz = P.z - Math.sin(yaw) * range * 0.6;
+  // the stamp: a cream paw print just above the ground, then a puff of the same colour
+  sticker(fx, cx, 0.25, cz, 'PAW', col, 0.75 * rank, 0.9, 0, 0, yaw - Math.PI / 2);
+  stickerBurst(fx, cx, 0.3, cz, 'PUFF', 0xfff4dc, 0.35, 0.45, 6, 2.4, 1.2, -2, v * 0.31);
+  if (maxed) stickerBurst(fx, cx, 1.2, cz, 'STAR', WHITE_GOLD, 0.22, 0.7, 5, 2.2, 3, -5, 0.2);
+}
+
 function castW(fx: FxCtx, id: number, src: number): void {
   const a = fx.abil(src, 'w');
   const dur = (a.duration ?? 23) * TICK_S;
   const parry = (a.parryWindow ?? 9) * TICK_S;
   wUntil[id] = now() + dur;
   wNext[id] = now() + 0.06;
+  wAnger[id] = now() + 0.05;
   const yaw = facing(fx, src);
   if (!Number.isFinite(yaw)) return;
   // the parry window: the bright first 9 t
@@ -207,6 +252,14 @@ function castE(e: CastEv, fx: FxCtx, id: number): void {
   const ticks = travelTicks(a.dash ?? 4000, DASH_SPEED);
   eUntil[id] = now() + ticks * TICK_S + 0.05;
   const yaw = aimYaw(e.x, e.y);
+  // fun: a fur puff where she takes off; variant (funRand): a zoomies sprint with speed lines along the dash
+  eVar[id] = funRand(e.tick, e.src, 2) < 0.5 ? 1 : 0;
+  eYaw[id] = Number.isFinite(yaw) ? yaw : NaN;
+  eNext[id] = now() + 0.05;
+  eFromX[id] = P.x;
+  eFromZ[id] = P.z;
+  stickerBurst(fx, P.x, 0.35, P.z, 'HAIRBALL', 0xfff0dc, 0.42, 0.5, 6, 2.2, 1, -1.5, e.tick * 0.07);
+  funSfx(fx, 'pop', P, 0.6);
   fx.linger.add('petals', P.x, P.z, 0.8, Number.isFinite(yaw) ? yaw : 0, PETAL);
   O.glow.p3 = 0.8;
   mesh(fx, 'glow', e.src, P.x, P.z, 0, 0.9, 0.25, SUN, O.glow);
@@ -221,6 +274,10 @@ function castR(fx: FxCtx, id: number, src: number): void {
   mend[id] = (a.lifestealBp ?? 0) > 0 ? 1 : 0;
   rFx[id] = 1;
   rNext[id] = now() + 0.45;
+  rMeow[id] = 0;
+  rNote[id] = now() + 0.5;
+  // fun: a burst of little suns and notes off the leap (more at a higher rank)
+  stickerBurst(fx, P.x, 1.6, P.z, 'STAR', SUN, 0.3, 0.8, 7, 2.6, 3.4, -6, (src & 7) * 0.13);
   // the sun column (6 m, 400 ms), a white core (Med / High), a body-sized ground glow and a petal spiral
   O.pillar.sy = 6;
   O.pillar.p3 = 1.3;
@@ -279,6 +336,13 @@ function sunCleave(fx: FxCtx, src: number, yaw: number): void {
   c.delay = 0;
   mesh(fx, 'crescent', src, P.x, P.z, yaw, 1.8, 0.3, GOLD, c);
   wave(fx, src, yaw);
+  // fun: the first Golden Hour wave of each R gets a "MEOW!" and the meow
+  const id = src & 15;
+  if (!rMeow[id]) {
+    rMeow[id] = 1;
+    const y = funOverY(fx, src, 0.6);
+    if (funPop(fx, src, 'MEOW!', P.x + Math.cos(yaw) * 1.2, y, P.z - Math.sin(yaw) * 1.2)) funSfx(fx, 'meow', P, 0.8);
+  }
 }
 
 function hitBasic(e: HitEv, fx: FxCtx, ctx: MoveCtx, id: number): void {
@@ -323,6 +387,8 @@ function q3Hit(e: HitEv, fx: FxCtx): void {
   if (stun > 0) {
     O.ring.p1 = 0.35;
     mesh(fx, 'ring', e.src, T.x, T.z, 0, 0.75, stun * TICK_S, WHITE_GOLD, O.ring);
+    // fun: three dizzy stars round the stunned head
+    orbit(fx, T.x, funHeadY(fx, e.dst, 0.45), T.z, 'STAR', 0xfff2a0, 3, 0.45, 0.26, Math.min(1.1, stun * TICK_S));
     return;
   }
   if (!fx.heroPos(e.src, P)) return;
@@ -359,6 +425,16 @@ export function resetClemFx(): void {
   lastSlot.fill(-1);
   bigDone.fill(0);
   mend.fill(0);
+  qPow.fill(0);
+  qVar.fill(0);
+  rMeow.fill(0);
+  rNote.fill(0);
+  wAnger.fill(0);
+  eVar.fill(0);
+  eYaw.fill(NaN);
+  eNext.fill(0);
+  eFromX.fill(0);
+  eFromZ.fill(0);
   const L = CLEM_LIVE;
   L.now = 0;
   L.rUntil.fill(-1);
@@ -392,6 +468,16 @@ export const SKILL_FX: SkillFxSet = {
     if (e.kind === 'basic') return hitBasic(e, fx, ctx, id);
     if (e.kind !== 'ability' || lastSlot[id] !== 0 || !fx.heroPos(e.dst, T)) return;
     if (ctx.recastIndex >= 2) q3Hit(e, fx);
+    // fun: the launcher (a knock-up or Pounce stun) and Valor's first hero hit pop a comic word over the target
+    if (funHeroOf(fx, e.dst)) {
+      const y = funOverY(fx, e.dst, 0.5);
+      if (qPow[id] === 1) {
+        qPow[id] = 0;
+        if (funPop(fx, e.src, 'POW!', T.x, y, T.z)) stickerBurst(fx, T.x, funChestY(fx, e.dst), T.z, 'STAR4', WHITE_GOLD, 0.3, 0.45, 6, 3, 1.5, -3, 0.4);
+      } else if (ctx.recastIndex >= 2 || funBigHit(fx, e.dst, e.amount)) {
+        if (funPop(fx, e.src, qVar[id] === 1 ? 'BONK!' : 'POW!', T.x, y, T.z)) funSfx(fx, 'bonk', T, 0.7);
+      }
+    }
     // Paw Combo hits: a flash on each target; the launcher's first target gets the big pop and petals (Med / High)
     if (ctx.recastIndex >= 2 && !bigDone[id] && fx.tier !== 'low') {
       bigDone[id] = 1;
@@ -431,6 +517,11 @@ export const SKILL_FX: SkillFxSet = {
       mesh(fx, 'crescent', owner, P.x, P.z, yaw, 1.5, 0.2, WHITE_GOLD, c);
     }
     fx.sfx.cue('tingParry', P);
+    // fun: a PARRY pop and a spray of sparks at the shield
+    const sx = P.x + (Number.isFinite(yaw) ? Math.cos(yaw) * 0.8 : 0);
+    const sz = P.z - (Number.isFinite(yaw) ? Math.sin(yaw) * 0.8 : 0);
+    stickerBurst(fx, sx, 1.1, sz, 'STAR4', WHITE_GOLD, 0.26, 0.4, 6, 3.2, 1.6, -4, 0.7);
+    funPop(fx, owner, 'PARRY!', sx, funOverY(fx, owner, 0.4), sz);
   },
 
   onMarker(id, _clip, marker, fx) {
@@ -449,6 +540,8 @@ export const SKILL_FX: SkillFxSet = {
         return;
       case 'fxE1':
         fx.linger.add('petals', P.x, P.z, 0.9, 0, PETAL);
+        stickerBurst(fx, P.x, 0.3, P.z, 'HAIRBALL', 0xfff0dc, 0.45, 0.55, 7, 2.6, 0.9, -1.2, 0.5);
+        if (eFromX[id & 15] !== 0 || eFromZ[id & 15] !== 0) pawTrail(fx, eFromX[id & 15], eFromZ[id & 15], P.x, P.z, 0.2, 3, 0xffe6c4, 0.42, 0.7);
         O.ring.p1 = 0.3;
         mesh(fx, 'ring', id, P.x, P.z, 0, 1.2, 0.3, SUN, O.ring);
         return;
@@ -456,6 +549,11 @@ export const SKILL_FX: SkillFxSet = {
         O.ring.p1 = 0.15;
         mesh(fx, 'ring', id, P.x, P.z, 0, 2.2, 0.45, GOLD, O.ring);
         fx.linger.add('petals', P.x, P.z, 1.1, 0, PETAL);
+        // fun: back from the nap: paw prints and little suns pop round her
+        stickerBurst(fx, P.x, 0.5, P.z, 'STAR', SUN, 0.28, 0.8, 6, 2.2, 3.2, -6, 0.1);
+        sticker(fx, P.x - 0.5, 0.2, P.z + 0.3, 'PAW', 0xffe6c4, 0.5, 1.1);
+        sticker(fx, P.x + 0.5, 0.2, P.z - 0.3, 'PAW', 0xffe6c4, 0.5, 1.2);
+        funSfx(fx, 'mew', P, 0.6);
         return;
       default:
     }
@@ -477,7 +575,14 @@ export const SKILL_FX: SkillFxSet = {
             O.wall.p3 = 1;
             mesh(fx, 'wall', id, P.x, P.z, yaw, 1.4, left, SUN, O.wall);
             mesh(fx, 'arc', id, P.x, P.z, yaw, 1.4, left, GOLD, O.arc);
+            // fun: the parry glow stays on the guard for the whole block (a soft sun at the blade)
+            sticker(fx, P.x + Math.cos(yaw) * 0.55, funChestY(fx, id) + 0.25, P.z - Math.sin(yaw) * 0.55, 'BULB', SUN, 0.7, left + 0.04);
           }
+        }
+        // fun: a stubborn-cat anger mark bobbing over her head while the block holds
+        if (t >= wAnger[id] && wUntil[id] > 0) {
+          wAnger[id] = t + 0.38;
+          sticker(fx, P.x + 0.55, funHeadY(fx, id, 0.35), P.z, 'ANGER', ANGER_PINK, 0.4, 0.42, 0.25, 0, 0.785);
         }
       }
       // Tumble: the trail follows the real dash path (the snapshot position), never the aim
@@ -485,7 +590,16 @@ export const SKILL_FX: SkillFxSet = {
         if (t >= eUntil[id] || !fx.heroPos(id, P)) {
           fx.ribbons.end(eRib[id]);
           eRib[id] = -1;
-        } else fx.ribbons.feed(eRib[id], P.x, 0.7, P.z);
+        } else {
+          fx.ribbons.feed(eRib[id], P.x, 0.7, P.z);
+          // fun: hairball dust kicked up along the roll; the zoomies variant streams speed lines behind her
+          if (t >= eNext[id]) {
+            eNext[id] = t + (fx.tier === 'low' ? 0.12 : 0.07);
+            sticker(fx, P.x, 0.25, P.z, 'HAIRBALL', 0xf6e6cc, 0.38, 0.4, 0.4, 2);
+            const y = eYaw[id];
+            if (eVar[id] === 1 && y === y) speedLines(fx, P.x, 0.7, P.z, Math.cos(y), -Math.sin(y), 3, 0xfff6d8, 0.9);
+          }
+        }
       }
       // Golden Hour: a sun halo under her for the duration and a glowing blade ribbon
       const golden = rFx[id] === 1 && t < L.rUntil[id];
@@ -495,6 +609,16 @@ export const SKILL_FX: SkillFxSet = {
           rNext[id] = t + 0.32;
           O.glow.p3 = 0.55;
           mesh(fx, 'glow', id, P.x, P.z, 0, 0.8, 0.5, GOLD, O.glow);
+          // fun: a little sun at her chest for the whole Golden Hour
+          sticker(fx, P.x, funChestY(fx, id) + 0.2, P.z, 'BULB', GOLD, 0.9, 0.45);
+        }
+        // fun: two music notes float off her every 0.8 s (one on Low): she is humming
+        if (t >= rNote[id]) {
+          rNote[id] = t + 0.8;
+          const hy = funHeadY(fx, id, 0.1);
+          const side = (Math.floor(t * 1.25) & 1) === 0 ? 1 : -1;
+          sticker(fx, P.x + 0.75 * side, hy, P.z, 'NOTE', NOTE_GOLD, 0.4, 1.0, 0.9, 0, side * 0.2);
+          if (fx.tier !== 'low') sticker(fx, P.x - 0.65 * side, hy - 0.35, P.z + 0.1, 'NOTE', 0xffc94d, 0.32, 0.9, 1.1, 0, -side * 0.25);
         }
         if (rRib[id] < 0 && fx.bonePos(id, 'weaponTip', Q)) rRib[id] = fx.ribbons.point(Q, GOLD, 0.22, 0.18);
         else if (rRib[id] >= 0 && fx.bonePos(id, 'weaponTip', Q)) fx.ribbons.feed(rRib[id], Q.x, Q.y, Q.z);

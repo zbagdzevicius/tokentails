@@ -13,7 +13,7 @@
  * attack is a pounce then). `basicPick` notes it in STILTS_STATE so skillfx/stilts.ts draws the claw streaks on that
  * hit. Picks never allocate.
  */
-import { BASIC_CONTACT, COMMON, DEFAULT_GAIT, HERO_SPRINGS } from '../anim/common';
+import { BASIC_CONTACT, DEFAULT_GAIT, HERO_SPRINGS } from '../anim/common';
 import { SIM_TIMING, TICK_S, abilNumbers } from '../anim/timing';
 import { Prio, type BoneDelta, type ClipDef, type GaitProfile, type Key, type MoveCtx, type MoveSet, type ScalarKey } from '../anim/types';
 import type { BoneName } from '../chars/skeleton';
@@ -151,7 +151,7 @@ const QT = 0.05;
 const QL = QT + STILTS_LEAP_S;
 const q: ClipDef = {
   id: 'stilts.q',
-  len: QL + 0.3,
+  len: QL + 0.42,
   mask: 'full',
   mode: 'override',
   prio: Prio.Ability,
@@ -162,15 +162,20 @@ const q: ClipDef = {
     k(QT + STILTS_LEAP_S * 0.3, merge(EARS_BACK, { chest: [-0.25, 0, 0], head: [-0.3, 0, 0], thighL: [0.5, 0, 0], thighR: [0.7, 0, 0], kneeL: [0.6, 0, 0], kneeR: [0.9, 0, 0], shoulderL: [-1.8, 0, 0.6], shoulderR: [-1.8, 0, -0.6], tail0: [0.5, 0, 0] }), 'out'),
     k(QT + STILTS_LEAP_S * 0.7, merge(CLAWS_UP, { chest: [0.2, 0, 0], thighL: [-0.9, 0, 0], thighR: [-0.9, 0, 0], kneeL: [1.0, 0, 0], kneeR: [1.0, 0, 0] }), 'inOut'),
     k(QL, merge(CROUCH, { shoulderL: [-0.3, 0, 0.5], shoulderR: [-0.3, 0, -0.5] }), 'in'),
-    k(QL + 0.12, merge(CROUCH, { chest: [0.25, 0, 0], shoulderL: [-0.3, 0, 0.45], shoulderR: [-0.3, 0, -0.45] }), 'hold'),
-    k(QL + 0.3, null, 'inOut'),
+    // skill-feel pass: the hunter's butt wiggle after the landing (hips and tail swish twice, ready to pounce again)
+    k(QL + 0.08, merge(CROUCH, { chest: [0.3, 0, 0], hips: [0, 0.3, 0.12], tail0: [-0.4, 0.7, 0], shoulderL: [-0.3, 0, 0.45], shoulderR: [-0.3, 0, -0.45] }), 'out'),
+    k(QL + 0.16, merge(CROUCH, { chest: [0.3, 0, 0], hips: [0, -0.3, -0.12], tail0: [-0.4, -0.7, 0], shoulderL: [-0.3, 0, 0.45], shoulderR: [-0.3, 0, -0.45] }), 'inOut'),
+    k(QL + 0.24, merge(CROUCH, { chest: [0.28, 0, 0], hips: [0, 0.2, 0.08], tail0: [-0.3, 0.5, 0], shoulderL: [-0.3, 0, 0.45], shoulderR: [-0.3, 0, -0.45] }), 'inOut'),
+    k(QL + 0.42, null, 'inOut'),
   ],
   root: {
-    up: s([0, 0], [QT, 0], [QT + STILTS_LEAP_S * 0.5, 1.2, 'out'], [QL, 0, 'in'], [QL + 0.3, 0]),
-    pitch: s([0, 0], [QT, 0], [QT + STILTS_LEAP_S * 0.3, -0.04, 'out'], [QL - 0.04, 0.04, 'inOut'], [QL + 0.12, 0, 'out'], [QL + 0.3, 0]),
-    sy: s([0, 1], [QT, 0.76, 'out'], [QT + 0.06, 1.16, 'out'], [QL - 0.04, 1], [QL + 0.02, 0.74, 'in'], [QL + 0.2, 1, 'back']),
+    up: s([0, 0], [QT, 0], [QT + STILTS_LEAP_S * 0.5, 1.2, 'out'], [QL, 0, 'in'], [QL + 0.42, 0]),
+    pitch: s([0, 0], [QT, 0], [QT + STILTS_LEAP_S * 0.3, -0.04, 'out'], [QL - 0.04, 0.04, 'inOut'], [QL + 0.12, 0, 'out'], [QL + 0.42, 0]),
+    // deeper crouch, a long stretch off the ground, a squashed landing, a jelly settle
+    sy: s([0, 1], [QT, 0.7, 'out'], [QT + 0.06, 1.24, 'out'], [QT + STILTS_LEAP_S * 0.5, 1.05], [QL - 0.04, 1.08], [QL + 0.02, 0.68, 'in'], [QL + 0.14, 1.08, 'back'], [QL + 0.26, 0.97, 'inOut'], [QL + 0.42, 1, 'inOut']),
+    sx: s([0, 1], [QT, 1.14, 'out'], [QT + 0.06, 0.88, 'out'], [QT + STILTS_LEAP_S * 0.5, 1], [QL + 0.02, 1.18, 'in'], [QL + 0.14, 0.96, 'back'], [QL + 0.42, 1, 'inOut']),
   },
-  markers: { coil: 0.01, takeoff: QT, contact: QT, land: QL, end: QL + 0.3 },
+  markers: { coil: 0.01, takeoff: QT, contact: QT, land: QL, end: QL + 0.42 },
   warp: [['takeoff', 'cast'], ['land', 'travelEnd']],
   cues: [['takeoff', 'dust'], ['takeoff', 'earsBack'], ['takeoff', 'whoosh', 'L'], ['takeoff', 'ghost'], ['land', 'land'], ['land', 'dustRing'], ['land', 'fx', 'leapLand']],
   cancel: 'none',
@@ -238,11 +243,18 @@ const e: ClipDef = {
 
 // ------------------------------------------------------------------------------------------------ R Zoomies
 
-/** The butt-wiggle: a deep crouch, the hips waggling twice, then the burst (the gait's haste sprint carries the rest). */
+/**
+ * The butt-wiggle: a deep crouch, the hips waggling three times (skill-feel pass: longer and stronger, the tail
+ * whipping with them), then the burst (the gait's haste sprint carries the rest). Each half-wiggle is 65 ms so the
+ * burst still comes within half a second of the cast.
+ */
 const RC = 0.06;
+const RW = 0.065;
+const RB = RC + 6 * RW + 0.03;
+const WIG = (side: number, d: number): D => merge(CROUCH, EARS_BACK, { chest: [0.58, 0, 0], head: [-0.48, 0, 0], hips: [0, 0.48 * side * d, 0.2 * side * d], tail0: [-0.6, 0.85 * side * d, 0], tail1: [0, 0.5 * side * d, 0] });
 const r: ClipDef = {
   id: 'stilts.r',
-  len: 0.62,
+  len: RB + 0.26,
   mask: 'full',
   mode: 'override',
   prio: Prio.Ult,
@@ -250,19 +262,25 @@ const r: ClipDef = {
   keys: [
     k(0, null),
     k(RC, merge(CROUCH, EARS_BACK, { chest: [0.55, 0, 0], head: [-0.45, 0, 0], shoulderL: [0.4, 0, 0.2], shoulderR: [0.4, 0, -0.2], tail0: [-0.6, 0, 0] }), 'out'),
-    k(0.14, merge(CROUCH, EARS_BACK, { chest: [0.55, 0, 0], head: [-0.45, 0, 0], hips: [0, 0.35, 0.15], tail0: [-0.6, 0.6, 0] }), 'inOut'),
-    k(0.22, merge(CROUCH, EARS_BACK, { chest: [0.55, 0, 0], head: [-0.45, 0, 0], hips: [0, -0.35, -0.15], tail0: [-0.6, -0.6, 0] }), 'inOut'),
-    k(0.3, merge(CROUCH, EARS_BACK, { chest: [0.6, 0, 0], head: [-0.5, 0, 0], tail0: [-0.7, 0, 0] }), 'inOut'),
-    k(0.38, merge(EARS_BACK, { chest: [0.7, 0, 0], head: [-0.55, 0, 0], thighL: [-1.2, 0, 0], kneeL: [0.6, 0, 0], thighR: [0.8, 0, 0], kneeR: [0.4, 0, 0], shoulderL: [0.9, 0, 0.2], shoulderR: [-1.0, 0, -0.2] }), 'expoOut'),
-    k(0.62, null, 'inOut'),
+    k(RC + RW, WIG(1, 0.8), 'inOut'),
+    k(RC + RW * 2, WIG(-1, 0.9), 'inOut'),
+    k(RC + RW * 3, WIG(1, 1), 'inOut'),
+    k(RC + RW * 4, WIG(-1, 1), 'inOut'),
+    k(RC + RW * 5, WIG(1, 1.1), 'inOut'),
+    k(RC + RW * 6, WIG(-1, 1.1), 'inOut'),
+    k(RB - 0.02, merge(CROUCH, EARS_BACK, { chest: [0.62, 0, 0], head: [-0.52, 0, 0], tail0: [-0.75, 0, 0] }), 'inOut'),
+    k(RB + 0.06, merge(EARS_BACK, { chest: [0.7, 0, 0], head: [-0.55, 0, 0], thighL: [-1.2, 0, 0], kneeL: [0.6, 0, 0], thighR: [0.8, 0, 0], kneeR: [0.4, 0, 0], shoulderL: [0.9, 0, 0.2], shoulderR: [-1.0, 0, -0.2] }), 'expoOut'),
+    k(RB + 0.26, null, 'inOut'),
   ],
   root: {
-    up: s([0, 0], [0.3, 0], [0.4, 0.25, 'out'], [0.52, 0, 'in'], [0.62, 0]),
-    fwd: s([0, 0], [0.3, -0.08, 'out'], [0.42, 0.22, 'expoOut'], [0.62, 0, 'inOut']),
-    sx: s([0, 1], [0.3, 1.06], [0.4, 0.9, 'expoOut'], [0.62, 1, 'inOut']),
-    sy: s([0, 1], [RC, 0.8, 'out'], [0.3, 0.78], [0.4, 1.16, 'expoOut'], [0.62, 1, 'inOut']),
+    up: s([0, 0], [RB - 0.02, 0], [RB + 0.08, 0.3, 'out'], [RB + 0.18, 0, 'in'], [RB + 0.26, 0]),
+    fwd: s([0, 0], [RB - 0.02, -0.1, 'out'], [RB + 0.1, 0.24, 'expoOut'], [RB + 0.26, 0, 'inOut']),
+    // the wiggle bobs (each hip swing dips), the coil squashes, the burst stretches long and thin
+    sx: s([0, 1], [RC, 1.1, 'out'], [RB - 0.02, 1.12], [RB + 0.08, 0.84, 'expoOut'], [RB + 0.26, 1, 'inOut']),
+    sy: s([0, 1], [RC, 0.8, 'out'], [RC + RW * 2, 0.76], [RC + RW * 4, 0.8], [RC + RW * 6, 0.74], [RB - 0.02, 0.72], [RB + 0.08, 1.24, 'expoOut'], [RB + 0.26, 1, 'inOut']),
+    roll: s([0, 0], [RC, 0], [RC + RW, 0.012, 'inOut'], [RC + RW * 2, -0.012, 'inOut'], [RC + RW * 3, 0.014, 'inOut'], [RC + RW * 4, -0.014, 'inOut'], [RC + RW * 5, 0.016, 'inOut'], [RC + RW * 6, -0.016, 'inOut'], [RB, 0, 'inOut']),
   },
-  markers: { coil: 0.01, contact: RC, burst: 0.38, end: 0.62 },
+  markers: { coil: 0.01, contact: RC, burst: RB, end: RB + 0.26 },
   warp: [['contact', 'cast']],
   cues: [['contact', 'mouthOpen', 250], ['burst', 'whoosh', 'L'], ['burst', 'ghost'], ['burst', 'dust'], ['burst', 'fx', 'burst'], ['burst', 'shake', 1]],
   cancel: 'afterContact',
@@ -435,6 +453,75 @@ const levelUp: ClipDef = {
   cancel: 'any',
 };
 
+// ------------------------------------------------------------------------------------------------ death / respawn
+
+/**
+ * Death (skill-feel pass): the long-leg tumble. The legs buckle one after the other like a folding ladder, she twists on
+ * the way down, the ears flop last, and the dust heap (`tumble` fx) puffs when she lands.
+ */
+const death: ClipDef = {
+  id: 'stilts.death',
+  len: 1.05,
+  mask: 'full',
+  mode: 'override',
+  prio: Prio.Death,
+  blendIn: 0.04,
+  blendOut: 0.3,
+  keys: [
+    k(0, null),
+    k(0.12, merge(EARS_BACK, { chest: [-0.45, 0.3, 0.2], head: [-0.55, 0, 0], thighL: [-0.9, 0, 0], kneeL: [1.6, 0, 0], shoulderL: [-1.8, 0, 0.9], shoulderR: [-1.4, 0, -1.1] }), 'expoOut'),
+    k(0.32, merge(EARS_BACK, { chest: [-0.2, -0.3, -0.3], head: [-0.3, 0.2, 0], thighR: [-1.0, 0, 0], kneeR: [1.7, 0, 0], thighL: [0.4, 0, 0], kneeL: [0.3, 0, 0], shoulderL: [-2.4, 0, 1.1], shoulderR: [-2.2, 0, -1.2] }), 'inOut'),
+    k(0.55, { chest: [0.2, 0, 0.3], head: [0.1, 0, 0], thighL: [0.9, 0, 0.4], thighR: [-0.9, 0, -0.4], kneeL: [0.2, 0, 0], kneeR: [0.4, 0, 0], earL: [0.5, 0, -0.6], earR: [0.5, 0, 0.6] }, 'in'),
+    k(1.05, null, 'in', 'faint'),
+  ],
+  root: {
+    up: s([0, 0], [0.12, 0.22, 'out'], [0.32, 0.12, 'inOut'], [0.55, 0, 'in'], [1.05, 0]),
+    sy: s([0, 1], [0.12, 1.12, 'out'], [0.5, 1], [0.58, 0.78, 'in'], [0.72, 1.04, 'back'], [1.05, 0.9, 'in']),
+  },
+  markers: { contact: 0, land: 0.55, end: 1.05 },
+  warp: [['contact', 'contact']],
+  cues: [['contact', 'freeze', 90], [0.05, 'mouthOpen', 300], ['land', 'land'], ['land', 'fx', 'tumble']],
+  cancel: 'none',
+};
+
+/**
+ * Respawn (skill-feel pass): she drops in on all those legs, folds into a long stretch (the play bow, tail high), then
+ * a wet-cat shake from the ears down (the `shake` fx throws fluff and dust off her coat) and stands tall, ears up.
+ */
+const respawn: ClipDef = {
+  id: 'stilts.respawn',
+  len: 1.35,
+  mask: 'full',
+  mode: 'override',
+  prio: Prio.Emote,
+  blendIn: 0,
+  keys: [
+    k(0, merge(EARS_UP, { thighL: [-0.5, 0, 0], thighR: [-0.5, 0, 0], kneeL: [0.6, 0, 0], kneeR: [0.6, 0, 0], shoulderL: [-2.2, 0, 0.3], shoulderR: [-2.2, 0, -0.3] })),
+    k(0.3, merge(CROUCH, EARS_BACK), 'in'),
+    k(0.55, { body: [0.25, 0, 0], chest: [0.75, 0, 0], head: [-0.65, 0, 0], shoulderL: [-1.8, 0, 0.2], shoulderR: [-1.8, 0, -0.2], elbowL: [0.6, 0, 0], elbowR: [0.6, 0, 0], tail0: [-0.9, 0, 0] }, 'out'),
+    k(0.72, { body: [0.25, 0, 0], chest: [0.8, 0, 0], head: [-0.7, 0, 0], shoulderL: [-1.85, 0, 0.2], shoulderR: [-1.85, 0, -0.2], elbowL: [0.6, 0, 0], elbowR: [0.6, 0, 0], tail0: [-1.0, 0, 0] }, 'hold'),
+    // the shake: head and chest whip side to side, ears flapping, fading out
+    k(0.8, { head: [0, 0.5, 0.35], chest: [0, 0.2, 0.15], earL: [0, 0.6, 0.4], earR: [0, 0.6, -0.2] }, 'inOut'),
+    k(0.87, { head: [0, -0.5, -0.35], chest: [0, -0.2, -0.15], earL: [0, -0.6, 0.2], earR: [0, -0.6, -0.4] }, 'inOut'),
+    k(0.94, { head: [0, 0.4, 0.28], chest: [0, 0.15, 0.1], earL: [0, 0.5, 0.3], earR: [0, 0.5, -0.15] }, 'inOut'),
+    k(1.01, { head: [0, -0.3, -0.2], chest: [0, -0.1, -0.08], earL: [0, -0.4, 0.15], earR: [0, -0.4, -0.3] }, 'inOut'),
+    k(1.08, { head: [0, 0.15, 0.1], ...EARS_UP }, 'inOut'),
+    k(1.2, { head: [-0.25, 0, 0], chest: [-0.1, 0, 0], footL: [0.45, 0, 0], footR: [0.45, 0, 0], ...EARS_UP }, 'out'),
+    k(1.35, null, 'inOut'),
+  ],
+  root: {
+    up: s([0, 1.2], [0.3, 0, 'in'], [1.1, 0], [1.2, 0.07, 'out'], [1.35, 0, 'inOut']),
+    sy: s([0, 1.18], [0.28, 1.12], [0.32, 0.7, 'in'], [0.55, 0.86, 'out'], [0.72, 0.84], [0.8, 1.04, 'out'], [1.08, 1], [1.2, 1.06], [1.35, 1, 'inOut']),
+    sx: s([0, 0.9], [0.32, 1.2, 'in'], [0.55, 1.06, 'out'], [0.8, 1, 'out'], [1.35, 1]),
+    roll: s([0, 0], [0.76, 0], [0.8, 0.02, 'inOut'], [0.87, -0.02, 'inOut'], [0.94, 0.015, 'inOut'], [1.01, -0.01, 'inOut'], [1.08, 0, 'inOut']),
+  },
+  calm: { roll: 0 },
+  markers: { land: 0.3, shake: 0.8, end: 1.35 },
+  warp: [],
+  cues: [['land', 'land'], ['land', 'dustRing'], [0.6, 'mouthOpen', 350], ['shake', 'fx', 'shake'], ['shake', 'whoosh', 'S']],
+  cancel: 'any',
+};
+
 // ------------------------------------------------------------------------------------------------ gait
 
 /** A long bounding stride (more air, a forward lean, arms trailing); Zoomies' haste flattens it into a sprint. */
@@ -466,13 +553,13 @@ export const MOVES: MoveSet = {
   fidgets: [[stretch, 1]],
   victory,
   emote,
-  death: COMMON.death,
-  respawn: COMMON.respawn,
+  death,
+  respawn,
   levelUp,
 };
 
 /** Every clip in the set (tests, gallery). */
-export const STILTS_CLIPS: readonly ClipDef[] = [basicA, basicB, pounce, q, w, e, r, rHold, rEnd, idle, stretch, victory, emote, levelUp];
+export const STILTS_CLIPS: readonly ClipDef[] = [basicA, basicB, pounce, q, w, e, r, rHold, rEnd, idle, stretch, victory, emote, levelUp, death, respawn];
 
 /** Clear the shared render state (tests, gallery restarts). */
 export function resetStiltsMoves(): void {

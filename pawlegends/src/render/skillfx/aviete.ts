@@ -27,6 +27,7 @@ import { stubFx } from '../anim/common';
 import type { FxCtx, MeshFxSpawn, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
 import { RADIUS } from '../../data/map';
 import { AVI_HASTE_S, AVI_STATE, AVI_WIRE_S } from '../moves/aviete';
+import { funChestY, funHeroOf, funOverY, funPop, funRand, funSfx, sticker, stickerBurst } from '../fx/fun/funKit';
 
 /** Pale-gold core, the volt yellow of her spark orbs, near-white arcs, and Blinding Shine's white. */
 const CORE = 0xfff3a6;
@@ -61,6 +62,18 @@ const wireFix = new Uint8Array(N);
 const wireCol = new Uint32Array(N);
 const hasteUntil = new Float64Array(N);
 const sparkNext = new Float64Array(N);
+/**
+ * Replay-safe cosmetic randomness (fun pass): every phase that was Math.random() is funRand(tick, id, salt). Casts and
+ * hits use the sim tick; markers and per-frame sparks use a per-id sequence counter, so a replay draws the same ones.
+ */
+const seq = new Uint32Array(N);
+const rnd = (id: number, salt: number): number => funRand(seq[id & 15]++, id, salt);
+/** Short Circuit's "ZAP!" is armed by the cast and spent on the first hero it lands on (cast target or first hit). */
+const rZap = new Uint8Array(N);
+const rTick = new Int32Array(N);
+/** Fun pass colours: static fluff, wet-coat droplets, the frizzled fur. */
+const FLUFF = 0xfff2a0;
+const WATER = 0xbfe9ff;
 
 const P: V3Out = { x: 0, y: 0, z: 0 };
 /** One reused spawn record for the per-frame wire (the mesh pool copies it; no allocation per frame). */
@@ -107,7 +120,7 @@ function radial(fx: FxCtx, x: number, z: number, y0: number, r: number, n: numbe
 
 // ------------------------------------------------------------------------------------------------ slots
 
-function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
+function castQ(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx): void {
   const id = e.src;
   if (!fx.heroPos(id, P)) return;
   const a = fx.abil(id, 'q');
@@ -150,15 +163,29 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   }
   if (fx.bonePos(id, 'pawR', Q)) fx.particles.lightning(Q.x, Q.y, Q.z, P.x + Math.cos(yaw) * R * 0.9, 0.4, P.z - Math.sin(yaw) * R * 0.9, CORE);
   fx.linger.add('scratches', P.x + Math.cos(yaw) * R * 0.55, P.z - Math.sin(yaw) * R * 0.55, R * 0.42, yaw, VOLT);
+  // fun: a static-fluff variant (her fur puffs up with static after the swipe), else a spray of sparkles in the cone
+  const cy = funChestY(fx, id);
+  if (funRand(e.tick, id, 0) < 0.5) {
+    stickerBurst(fx, P.x, cy + 0.2, P.z, 'HAIRBALL', FLUFF, 0.4, 0.3, 9, 2.4, 0.6, 0, 0.3);
+    funSfx(fx, 'crackle', P, 0.5);
+  } else {
+    for (let i = 0; i < 3; i++) {
+      const a = yaw + (i - 1) * arc * 0.3;
+      sticker(fx, P.x + Math.cos(a) * R * 0.75, 0.7 + i * 0.15, P.z - Math.sin(a) * R * 0.75, 'STAR4', ARC, 0.32, 0.3, 0.8, 6, a);
+    }
+  }
 }
 
-function castW(id: number, fx: FxCtx): void {
+function castW(id: number, fx: FxCtx, tick: number): void {
   if (!fx.heroPos(id, P)) return;
   const rel = fx.relation(id);
   const rim = fx.rim(id);
   // the cast keeps her body clear (the shake is the show): a ground ring and the radial shed bolts only
   fx.mesh.spawn('ring', { x: P.x, z: P.z, sx: 1.8, life: 0.4, color: VOLT, rim, p1: 0.15, p3: 2.5, rel });
-  radial(fx, P.x, P.z, 1.5, 1.5, by(fx, 3, 5, 7), ARC, Math.random() * TAU);
+  radial(fx, P.x, P.z, 1.5, 1.5, by(fx, 3, 5, 7), ARC, funRand(tick, id, 1) * TAU);
+  // fun: the wet-cat shake flings water drops (they turn into sparks on the shed marker)
+  stickerBurst(fx, P.x, funChestY(fx, id) + 0.3, P.z, 'DROPLET', WATER, 0.2, 0.45, 10, 3.4, 2, -9, funRand(tick, id, 7));
+  funSfx(fx, 'pop', P, 0.4);
   hasteUntil[id] = AVI_STATE.clock + AVI_HASTE_S;
   sparkNext[id] = AVI_STATE.clock + 0.15;
 }
@@ -181,7 +208,7 @@ function closeWire(id: number): void {
   AVI_STATE.wireUntil[id] = 0;
 }
 
-function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
+function castE(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx): void {
   const id = e.src;
   if (!origin(fx, id, P)) return;
   const rel = fx.relation(id);
@@ -213,9 +240,13 @@ function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   fx.mesh.spawn('ring', { x: tx, z: tz, sx: 1.2, life: 0.3, color: VOLT, rim, p1: 0.2, p3: 2.5, rel });
   const len = Math.hypot(tx - P.x, tz - P.z);
   if (len > 0.5) fx.linger.add('crackLine', (P.x + tx) / 2, (P.z + tz) / 2, len / 2, Math.atan2(-(tz - P.z), tx - P.x), VOLT);
+  // fun: a fur puff at both ends; "ZIP!" for her own view only (nobody else needs a word for it)
+  stickerBurst(fx, P.x, 0.5, P.z, 'PUFF', 0xfff8e0, 0.36, 0.4, 5, 2, 0.8, -1, funRand(e.tick, id, 2));
+  stickerBurst(fx, tx, 0.5, tz, 'PUFF', 0xfff8e0, 0.36, 0.45, 5, 2, 0.8, -1, funRand(e.tick, id, 3));
+  if (rel === 'own') funPop(fx, id, 'ZIP!', tx, funOverY(fx, id, 0.3), tz);
 }
 
-function castR(e: { src: number; target: number }, fx: FxCtx): void {
+function castR(e: { src: number; target: number; tick: number }, fx: FxCtx): void {
   const id = e.src;
   if (!origin(fx, id, P)) return;
   const a = fx.abil(id, 'r');
@@ -251,17 +282,31 @@ function castR(e: { src: number; target: number }, fx: FxCtx): void {
   fx.mesh.spawn('ring', { x: lx, z: lz, sx: r, life: 0.5, color, rim, p1: 0.1, rel });
   fx.mesh.spawn('arc', { x: lx, z: lz, sx: r, life: 0.45, color, rim, p0: TAU, p1: 0.97, p2: 1, p3: 1, rel });
   if (fx.tier !== 'low') fx.mesh.spawn('glow', { x: lx, z: lz, sx: 1.6, life: 0.3, color: CORE, rim, rel });
-  radial(fx, lx, lz, 1.6, r, by(fx, 3, 6, 8), ARC, Math.random() * TAU);
+  radial(fx, lx, lz, 1.6, r, by(fx, 3, 6, 8), ARC, funRand(e.tick, id, 3) * TAU);
   fx.shock.start({ x: lx, y: 0, z: lz }, { r1: r, dur: 0.26, color, height: 0.5 });
   fx.particles.debris(lx, lz, 1);
-  fx.linger.add('crackStar', lx, lz, 1.7, Math.random() * TAU, VOLT);
+  fx.linger.add('crackStar', lx, lz, 1.7, funRand(e.tick, id, 4) * TAU, VOLT);
+  // fun: the heel strike: "ZAP!" over her target and its fur frizzles (yellow fluff and sparks)
+  rZap[id] = 1;
+  rTick[id] = e.tick;
+  if (e.target !== id && funHeroOf(fx, e.target)) zap(id, e.target, fx);
   // the way back opens like Live Wire's
   if (Math.hypot(lx - P.x, lz - P.z) > 0.5) openWire(id, P.x, P.z, lx, lz, color);
   else AVI_STATE.wireUntil[id] = AVI_STATE.clock + AVI_WIRE_S;
 }
 
+/** Short Circuit landed on hero `dst`: "ZAP!" and a frizzled-fur burst (once per cast). */
+function zap(id: number, dst: number, fx: FxCtx): void {
+  if (!rZap[id] || !fx.heroPos(dst, Q)) return;
+  rZap[id] = 0;
+  const y = funOverY(fx, dst, 0.5);
+  if (funPop(fx, id, 'ZAP!', Q.x, y, Q.z)) funSfx(fx, 'zap', Q, 0.7);
+  stickerBurst(fx, Q.x, funChestY(fx, dst) + 0.4, Q.z, 'HAIRBALL', FLUFF, 0.34, 0.5, 8, 2.6, 1.6, -2, funRand(rTick[id], id, 5));
+  stickerBurst(fx, Q.x, funChestY(fx, dst) + 0.8, Q.z, 'STAR4', ARC, 0.26, 0.4, 5, 3, 2, -4, funRand(rTick[id], id, 6));
+}
+
 /** Shy, Then Shiny landed: a lightning arc paw → victim, a flash and a ring on the victim. */
-function proc(src: number, dst: number, fx: FxCtx): void {
+function proc(src: number, dst: number, fx: FxCtx, tick: number): void {
   if (!fx.heroPos(dst, Q)) return;
   const rel = fx.relation(src);
   const rim = fx.rim(src);
@@ -272,7 +317,9 @@ function proc(src: number, dst: number, fx: FxCtx): void {
   fx.mesh.spawn('glow', { x: Q.x, z: Q.z, sx: 1.4, life: 0.3, color: CORE, rim, rel });
   fx.mesh.spawn('ring', { x: Q.x, z: Q.z, sx: 1.1, life: 0.3, color: VOLT, rim, p1: 0.2, rel });
   strike(fx, Q.x, Q.z, 3.4, 1.4, ARC, rel, rim);
-  fx.linger.add('crackStar', Q.x, Q.z, 0.8, Math.random() * TAU, VOLT);
+  fx.linger.add('crackStar', Q.x, Q.z, 0.8, funRand(tick, src, 8) * TAU, VOLT);
+  // fun: a little lightning paw print stamped on the victim
+  sticker(fx, Q.x, funChestY(fx, dst) + 0.3, Q.z, 'PAW', VOLT, 0.45, 0.55, 0.3, 0, (funRand(tick, src, 9) - 0.5) * 0.8);
   fx.sfx.cue('zap', Q);
   if (rel === 'own') fx.cam.tier(1);
 }
@@ -306,7 +353,11 @@ function marker(id: number, clipId: string, m: string, fx: FxCtx): void {
       if (fx.bonePos(id, 'kneeR', P)) fx.mesh.spawn('glow', { x: P.x, z: P.z, sx: 1.2, life: 0.22, color: CORE, rim, rel });
       return;
     case 'shed':
-      if (fx.bonePos(id, 'chest', P)) radial(fx, P.x, P.z, P.y, 1.3, by(fx, 2, 3, 4), ARC, Math.random() * TAU);
+      if (fx.bonePos(id, 'chest', P)) {
+        radial(fx, P.x, P.z, P.y, 1.3, by(fx, 2, 3, 4), ARC, rnd(id, 10) * TAU);
+        // fun: the shaken-off water turns to sparks
+        stickerBurst(fx, P.x, P.y, P.z, 'STAR4', VOLT, 0.24, 0.35, 7, 3, 1.2, -3, rnd(id, 11));
+      }
       return;
     case 'shine':
       // the chest-out pop: a short half-height column and twister punctuate it (W shine; level-up reuses it)
@@ -323,7 +374,7 @@ function marker(id: number, clipId: string, m: string, fx: FxCtx): void {
       }
       return;
     case 'deathZap':
-      if (fx.bonePos(id, 'chest', P)) radial(fx, P.x, P.z, P.y, 0.9, by(fx, 1, 2, 3), ARC, Math.random() * TAU);
+      if (fx.bonePos(id, 'chest', P)) radial(fx, P.x, P.z, P.y, 0.9, by(fx, 1, 2, 3), ARC, rnd(id, 12) * TAU);
       return;
     case 'fizzle':
       if (!fx.heroPos(id, P)) return;
@@ -337,14 +388,17 @@ function marker(id: number, clipId: string, m: string, fx: FxCtx): void {
     case 'respawnLand':
       if (!fx.heroPos(id, P)) return;
       fx.mesh.spawn('ring', { x: P.x, z: P.z, sx: 1.8, life: 0.4, color: VOLT, rim, p1: 0.15, rel });
-      fx.linger.add('crackStar', P.x, P.z, 1.1, Math.random() * TAU, VOLT);
-      radial(fx, P.x, P.z, 0.4, 1.6, by(fx, 2, 3, 4), ARC, Math.random() * TAU);
+      fx.linger.add('crackStar', P.x, P.z, 1.1, rnd(id, 13) * TAU, VOLT);
+      radial(fx, P.x, P.z, 0.4, 1.6, by(fx, 2, 3, 4), ARC, rnd(id, 14) * TAU);
+      // fun: she lands fluffed up with static and shakes it off
+      stickerBurst(fx, P.x, 1.0, P.z, 'HAIRBALL', FLUFF, 0.36, 0.5, 8, 2.4, 1.2, -2, rnd(id, 15));
+      funSfx(fx, 'mew', P, 0.5);
       return;
     case 'victorySpark':
       if (!fx.heroPos(id, P)) return;
       fx.mesh.spawn('ring', { x: P.x, z: P.z, sx: 2, life: 0.45, color: VOLT, rim, p1: 0.1, rel });
       fx.mesh.spawn('glow', { x: P.x, z: P.z, sx: 1.8, life: 0.45, color: CORE, rim, rel });
-      radial(fx, P.x, P.z, 2.6, 1.8, by(fx, 3, 5, 6), ARC, Math.random() * TAU);
+      radial(fx, P.x, P.z, 2.6, 1.8, by(fx, 3, 5, 6), ARC, rnd(id, 16) * TAU);
       return;
     case 'tailSpark':
       if (fx.bonePos(id, 'tail5', P)) fx.particles.lightning(P.x, P.y, P.z, P.x + 0.3, P.y + 0.4, P.z - 0.2, VOLT);
@@ -460,7 +514,7 @@ function update(dt: number, fx: FxCtx): void {
             // gameplay information (where she can come back to): a full beam pool falls back to a particle line
             if (fx.mesh.spawn('beam', WIRE) < 0) fx.particles.lightning(wAX[id], 0.9, wAZ[id], wBX[id], 0.9, wBZ[id], wireCol[id]);
             if (fx.tier !== 'low' && !fx.reduced) {
-              const t = 0.2 + Math.random() * 0.6;
+              const t = 0.2 + rnd(id, 17) * 0.6;
               fx.particles.lightning(wAX[id] + dx * (t - 0.15), 0.9, wAZ[id] + dz * (t - 0.15), wAX[id] + dx * t, 0.9, wAZ[id] + dz * t, ARC);
             }
           }
@@ -470,8 +524,8 @@ function update(dt: number, fx: FxCtx): void {
     }
     // Shiny Coat: sparks shed off the coat for the haste
     if (hasteUntil[id] > now && now >= sparkNext[id]) {
-      const a = Math.random() * TAU;
-      fx.particles.lightning(P.x + Math.cos(a) * 0.35, 1.0 + Math.random() * 0.9, P.z - Math.sin(a) * 0.35, P.x + Math.cos(a) * 0.95, 0.3, P.z - Math.sin(a) * 0.95, VOLT);
+      const a = rnd(id, 18) * TAU;
+      fx.particles.lightning(P.x + Math.cos(a) * 0.35, 1.0 + rnd(id, 19) * 0.9, P.z - Math.sin(a) * 0.35, P.x + Math.cos(a) * 0.95, 0.3, P.z - Math.sin(a) * 0.95, VOLT);
       sparkNext[id] = now + by(fx, 0.3, 0.14, 0.1);
     }
   }
@@ -487,6 +541,8 @@ export function resetAvieteFx(): void {
   wireCol.fill(0);
   hasteUntil.fill(0);
   sparkNext.fill(0);
+  seq.fill(0);
+  rZap.fill(0);
   AVI_STATE.clock = 0;
   AVI_STATE.wireUntil.fill(0);
   AVI_STATE.isReturn.fill(0);
@@ -509,16 +565,17 @@ export const SKILL_FX: SkillFxSet = {
     // a Charged Q / R: the next damage to a hero is the proc
     if (e.slot === 0 || e.slot === 3) AVI_STATE.charged[id] = ctx.charged ? 1 : 0;
     if (e.slot === 0) castQ(e, fx);
-    else if (e.slot === 1) castW(id, fx);
+    else if (e.slot === 1) castW(id, fx, e.tick);
     else if (e.slot === 2) castE(e, fx);
     else if (e.slot === 3) castR(e, fx);
   },
   onHit(e, fx) {
     const id = e.src;
     if (!ok(id)) return;
+    if (rZap[id] && e.kind === 'ability' && funHeroOf(fx, e.dst)) zap(id, e.dst, fx);
     if (AVI_STATE.charged[id] && isHero(fx, e.dst)) {
       AVI_STATE.charged[id] = 0;
-      proc(id, e.dst, fx);
+      proc(id, e.dst, fx, e.tick);
       return;
     }
     // an ability hit on a hero: a bolt from her into the victim

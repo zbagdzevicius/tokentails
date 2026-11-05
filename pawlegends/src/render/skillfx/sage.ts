@@ -32,6 +32,7 @@ import { STEADY } from '../moves/sage';
 import { HEROES } from '../../data/heroes';
 import { DASH_SPEED, TICK_HZ, TICK_S, travelTicks } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxSpawn, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
+import { flying, funHeadY, funOverY, funPop, funRand, funSfx, orbit, pawTrail, sticker, stickerBurst } from '../fx/fun/funKit';
 
 /** Wind core, wind edge, moonlight, sun (trap), goo. */
 const WIND = 0xbfffe8;
@@ -137,6 +138,22 @@ const S: MeshFxSpawn = { x: 0, z: 0, sx: 1, life: 0.3, color: WIND, rim: 0, rel:
 const SHOCK = { r1: 2, dur: 0.3, color: '#bfffe8', height: 0.5, intensity: 1 };
 const SHOCK_POS = { x: 0, y: 0, z: 0 };
 const AT = { x: 0, z: 0 };
+
+/** Fun pass (decoration only): fish-arrow tips, the once-per-cast SPLAT and POW, the hop's paw order, trap yarn bob. */
+const FISH = 0xfff1d6;
+const YARN = 0xffb36b;
+const tFish = new Uint8Array(N);
+const qSplat = new Uint8Array(ID_N);
+const rPow = new Uint8Array(ID_N);
+const eLeft = new Uint8Array(ID_N);
+const trBob = new Float64Array(TR);
+
+/** A fish skeleton sticker where a fish-arrow stopped (track i's head at distance d). */
+function fishTip(fx: FxCtx, i: number, d: number): void {
+  if (!tFish[i]) return;
+  tFish[i] = 0;
+  sticker(fx, tX[i] + tDX[i] * d, ARROW_Y, tZ[i] + tDZ[i] * d, 'FISHBONE', FISH, 0.36, 0.5, 0.5, 0, Math.atan2(-tDZ[i], tDX[i]));
+}
 
 /** v3.9: the victory arrow's streak starts this high (m): above Sage's head and raised bow, never through her body. */
 export const SKY_ARROW_Y = 3.2;
@@ -289,8 +306,14 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx, ctx: MoveCtx
   for (let i = 0; i < n; i++) {
     const ribbon = all || i === 0 || i === n - 1 || i === n >> 1;
     const ay = n > 1 ? yaw - arc / 2 + (arc * i) / (n - 1) : yaw;
-    track(fx, K.Arrow, id, _p.x, _p.z, ay, speed, range, sticky ? GOO : WIND, 0.22, 0.16, ARROW_Y, ribbon);
+    const ti = track(fx, K.Arrow, id, _p.x, _p.z, ay, speed, range, sticky ? GOO : WIND, 0.22, 0.16, ARROW_Y, ribbon);
+    // fun: the ribboned arrows are little fish (a fish sticker riding the head), a fish skeleton where each stops
+    if (ti >= 0 && ribbon) {
+      tFish[ti] = 1;
+      flying(fx, _p.x, ARROW_Y, _p.z, Math.cos(ay) * speed, 0, -Math.sin(ay) * speed, 'FISH', sticky ? 0xd8ffb0 : FISH, 0.34, range / speed, ay);
+    }
   }
+  qSplat[id & 15] = sticky ? 1 : 0;
   fx.sfx.cue('whooshM', _p);
 }
 
@@ -353,6 +376,7 @@ function castW(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   // the zone's ttl counts from the cast (arm included)
   trUntil[k] = clock + (a.duration ?? 900) * TICK_S;
   trSprung[k] = -1;
+  trBob[k] = clock + arm;
 }
 
 /** The trap's arm (the zone's real arm from the snapshot): petals close into the sun, a flash, the petal glyph. */
@@ -390,6 +414,11 @@ function coil(owner: number, victim: number, r: number, fx: FxCtx): void {
   spawn(fx, 'ring', owner, _q.x, _q.z, r, 0.3, SUN, { p1: 0.5 });
   shock(fx, _q.x, _q.z, r, 0.3, '#ffc23d', 0.6);
   if (fx.relation(owner) === 'own') fx.cam.tier(1);
+  // fun: a yarn loop wraps the victim's legs and a "!" pops over the surprised head
+  orbit(fx, _q.x, 0.45, _q.z, 'HAIRBALL', YARN, 5, 0.42, 0.26, Math.min(1.2, root));
+  sticker(fx, _q.x, 0.45, _q.z, 'YARN', YARN, 0.5, Math.min(1.2, root));
+  sticker(fx, _q.x + 0.55, funHeadY(fx, victim, 0.45), _q.z, 'EXCLAIM', 0xffd23d, 0.55, 0.8, 0.4);
+  funSfx(fx, 'squeakToy', _q, 0.5);
 }
 
 /** The own sprung trap a root on `victim` (at _r) belongs to, or −1. */
@@ -422,8 +451,9 @@ function hiddenTrapper(victim: number, fx: FxCtx): number {
   return sage;
 }
 
-function castE(e: { src: number }, fx: FxCtx): void {
+function castE(e: { src: number; tick?: number }, fx: FxCtx): void {
   const id = e.src;
+  if (id >= 0 && id < ID_N) eLeft[id] = funRand(e.tick ?? 0, id, 2) < 0.5 ? 1 : 0;
   if (!fx.heroPos(id, _p)) return;
   const a = fx.abil(id, 'e');
   // the dash path ribbon, fed from the hero's real (snapshot) position for the travel ticks
@@ -451,6 +481,10 @@ function castR(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   const mi = track(fx, K.Moon, id, _p.x, _p.z, yaw, speed, range, MOON, w, 0.42);
   if (mi >= 0) tBeam[mi] = Math.min(range, 9);
   fx.sfx.cue('fwoomp', _p);
+  // fun: the release kicks the camera (own view) and arms the "POW!" for the first hero it stops on
+  if (fx.relation(id) === 'own') fx.cam.punch(0.05);
+  if (id >= 0 && id < ID_N) rPow[id] = 1;
+  stickerBurst(fx, _p.x + Math.cos(yaw) * 0.7, 1.4, _p.z - Math.sin(yaw) * 0.7, 'STAR4', MOON, 0.26, 0.4, 5, 2.6, 1, -2, 0.3);
 }
 
 /**
@@ -549,6 +583,14 @@ export const SKILL_FX: SkillFxSet = {
       for (let k = 0; k < 3; k++) spawn(fx, 'crescent', id, qx, qz, 1.4 + k * 0.35, 0.35, k === 1 ? MOON_DEEP : MOON, { y: 1.0, yaw: k * 2.1, p0: 2.2, p1: 0.55, p2: k % 2 ? 1 : -1 });
       spawn(fx, 'glow', id, qx, qz, 1.8, 0.4, MOON, { y: 0.8 });
       shock(fx, qx, qz, 2.2, 0.3, '#e8f0ff', 0.5);
+      if (rPow[id]) {
+        // fun: the first hero hit: a crescent-moon sticker and "POW!"
+        rPow[id] = 0;
+        const y = funOverY(fx, e.dst, 0.5);
+        sticker(fx, qx - 0.6, funHeadY(fx, e.dst, 0.4), qz, 'MOON', MOON, 0.7, 0.9, 0.5, 0, 0.4);
+        funPop(fx, id, 'POW!', qx, y, qz);
+        stickerBurst(fx, qx, 1.1, qz, 'STAR', MOON, 0.24, 0.6, 6, 3, 2.4, -6, 0.6);
+      }
       const a = fx.abil(id, 'r');
       if ((a.reveal ?? 0) > 0) spawn(fx, 'arc', id, qx, qz, 0.9, Math.min(4, a.reveal * TICK_S), MOON_DEEP, { y: 0.06, p0: TAU, p1: 0.82 });
       if (fx.relation(id) === 'own') fx.cam.tier(3);
@@ -557,9 +599,20 @@ export const SKILL_FX: SkillFxSet = {
     const shot = shotAt(id, qx, qz, (1 << K.Arrow) | (1 << K.Lance));
     if (shot < 0) return;
     // an arrow stops on its first unit (end its ribbon there); the lance pierces on
-    if (tKind[shot] === K.Arrow) endTrack(fx, shot);
+    if (tKind[shot] === K.Arrow) {
+      fishTip(fx, shot, Math.min(tRange[shot], tSpeed[shot] * tAge[shot]));
+      endTrack(fx, shot);
+    }
     const a = fx.abil(id, 'q');
-    if ((a.slowBp ?? 0) > 0) spawn(fx, 'glow', id, qx, qz, 0.9, 0.5, GOO, { y: 0.3 });
+    if ((a.slowBp ?? 0) > 0) {
+      spawn(fx, 'glow', id, qx, qz, 0.9, 0.5, GOO, { y: 0.3 });
+      // fun: Sticky Arrows: one green "SPLAT!" per cast on the first hero, goo drops
+      if (qSplat[id] && e.dst < HERO_N) {
+        qSplat[id] = 0;
+        if (funPop(fx, id, 'SPLAT!', qx, funOverY(fx, e.dst, 0.4), qz)) funSfx(fx, 'splat', _q, 0.6);
+        stickerBurst(fx, qx, 0.9, qz, 'DROPLET', GOO, 0.22, 0.5, 6, 2.2, 2.2, -8, 0.2);
+      }
+    }
     spawn(fx, 'ring', id, qx, qz, 0.8, 0.22, WIND, { p1: 0.1 });
   },
 
@@ -609,6 +662,13 @@ export const SKILL_FX: SkillFxSet = {
         for (let i = 0; i < N; i++) if (tKind[i] === K.Dash && tOwner[i] === id) yaw = Math.atan2(-(_p.z - tZ[i]), _p.x - tX[i]);
         fx.linger.add('scratches', _p.x, _p.z, 0.7, yaw + Math.PI * 0.5, WIND_DEEP);
         spawn(fx, 'ring', id, _p.x, _p.z, 1.1, 0.25, WIND, { p1: 0.2 });
+        // fun: the backflip leaves three paw prints along the hop, left / right order picked per cast
+        for (let i = 0; i < N; i++)
+          if (tKind[i] === K.Dash && tOwner[i] === id) {
+            pawTrail(fx, tX[i], tZ[i], _p.x, _p.z, 0.2, 3, 0xd9fff0, 0.42, 0.8, eLeft[id & 15] === 1);
+            break;
+          }
+        stickerBurst(fx, _p.x, 0.3, _p.z, 'PUFF', 0xeafff6, 0.36, 0.45, 5, 2, 0.8, -1, 0.4);
         return;
       }
       case 'charge1': {
@@ -637,6 +697,9 @@ export const SKILL_FX: SkillFxSet = {
         if (!fx.heroPos(id, _p)) return;
         spawn(fx, 'pillar', id, _p.x, _p.z, 0.55, 0.5, WIND, { sy: 4, sz: 0.55 });
         spawn(fx, 'ring', id, _p.x, _p.z, 2.0, 0.4, WIND, { p1: 0.1 });
+        // fun: a swirl of leaves and a happy mew
+        stickerBurst(fx, _p.x, 0.6, _p.z, 'FEATHER', WIND_DEEP, 0.3, 0.9, 7, 2, 2.6, -3, 0.3);
+        funSfx(fx, 'mew', _p, 0.5);
         return;
       }
       case 'skyArrow': {
@@ -705,9 +768,19 @@ export const SKILL_FX: SkillFxSet = {
       }
       if (tSlot[i] >= 0) {
         fx.ribbons.feed(tSlot[i], tX[i] + tDX[i] * d, ARROW_Y, tZ[i] + tDZ[i] * d);
-        if (d >= tRange[i]) endRibbon(fx, i);
+        if (d >= tRange[i]) {
+          endRibbon(fx, i);
+          fishTip(fx, i, d);
+        }
       }
       if (tAge[i] >= tLife[i] + GRACE) endTrack(fx, i);
+    }
+    // fun: own armed traps (never drawn for enemies: castW keeps none for them) bob a little yarn ball
+    for (let k = 0; k < TR; k++) {
+      if (!trOn[k] || trSprung[k] >= 0 || clock < trBob[k] || clock >= trUntil[k]) continue;
+      trBob[k] = clock + (fx.tier === 'low' ? 0.9 : 0.6);
+      const b = 0.5 + 0.12 * Math.sin(clock * 5);
+      sticker(fx, trX[k], b, trZ[k], 'YARN', YARN, 0.4, 0.66, 0.15);
     }
     // Moonshot windups: re-emit while live; a stun or fear (the sim cancels the cast) or a death ends them
     for (let id = 0; id < ID_N; id++) {
@@ -776,6 +849,11 @@ export const SKILL_FX: SkillFxSet = {
 /** Tests: forget every track, trap, windup and root edge (module state is shared across a test file). */
 export function resetSageFx(): void {
   tOn.fill(0);
+  tFish.fill(0);
+  qSplat.fill(0);
+  rPow.fill(0);
+  eLeft.fill(0);
+  trBob.fill(0);
   trOn.fill(0);
   trZone.fill(-1);
   sageSeen.fill(0);

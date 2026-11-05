@@ -300,8 +300,9 @@ function bellyFlop(k: number, id: string): ClipDef {
     ],
     root: {
       up: [[0, 0], [E0, 0], [E0 + E_AIR * 0.45, 1.6 * k, 'out'], [E1 - E_AIR * 0.06, 0, 'in'], [SPLAT, 0], [SPLAT + 0.09, 0], [SPLAT + 0.24, 0.3, 'out'], [SPLAT + 0.4, 0, 'in'], [SPLAT + 0.62, 0]],
-      sy: [[0, 1], [E0 * 0.75, 0.74, 'out'], [E0 + 0.03, 1 + 0.22 * air, 'expoOut'], [E0 + E_AIR * 0.5, 1.0, 'inOut'], [E1 - E_AIR * 0.06, 0.88, 'in'], [E1, 0.62, 'expoIn'], [SPLAT, 0.55, 'out'], [SPLAT + 0.09, 0.58], [SPLAT + 0.24, 1.12, 'out'], [SPLAT + 0.4, 0.82, 'in'], [SPLAT + 0.58, 1, 'back']],
-      sx: [[0, 1], [E1 - E_AIR * 0.06, 1.0], [E1, 1.26, 'expoIn'], [SPLAT, 1.32, 'out'], [SPLAT + 0.09, 1.28], [SPLAT + 0.24, 0.92, 'out'], [SPLAT + 0.4, 1.1, 'in'], [SPLAT + 0.58, 1, 'inOut']],
+      // pawlegends fun pass: a jelly wobble after the rebound (0.55 → 1.15 → 0.86 → 1.06 → 0.97 → 1), sx counter-phase
+      sy: [[0, 1], [E0 * 0.75, 0.74, 'out'], [E0 + 0.03, 1 + 0.22 * air, 'expoOut'], [E0 + E_AIR * 0.5, 1.0, 'inOut'], [E1 - E_AIR * 0.06, 0.88, 'in'], [E1, 0.62, 'expoIn'], [SPLAT, 0.55, 'out'], [SPLAT + 0.09, 0.58], [SPLAT + 0.24, 1.15, 'out'], [SPLAT + 0.38, 0.86, 'inOut'], [SPLAT + 0.48, 1.06, 'inOut'], [SPLAT + 0.56, 0.97, 'inOut'], [SPLAT + 0.62, 1, 'out']],
+      sx: [[0, 1], [E1 - E_AIR * 0.06, 1.0], [E1, 1.26, 'expoIn'], [SPLAT, 1.32, 'out'], [SPLAT + 0.09, 1.28], [SPLAT + 0.24, 0.92, 'out'], [SPLAT + 0.38, 1.12, 'inOut'], [SPLAT + 0.48, 0.96, 'inOut'], [SPLAT + 0.56, 1.03, 'inOut'], [SPLAT + 0.62, 1, 'out']],
     },
     markers: { coil: 0.02, takeoff: E0, contact: E0, land: E1, splat: SPLAT, rebound: SPLAT + 0.4, end: SPLAT + 0.62 },
     warp: [['takeoff', 'cast'], ['land', 'travelEnd']],

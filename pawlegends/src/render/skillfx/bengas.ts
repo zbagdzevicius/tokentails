@@ -23,6 +23,12 @@
  *   baton accent and is never the timing source. A stage whose zone is never seen (out of the snapshot) ends on its
  *   own clock.
  *
+ * Feel pass (skills-2 lane, render only; stickers and pops from render/fx/fun): a slice of toast (golden, or burnt on a
+ * seeded 1-in-3 variant) tumbles along with the Burnt Toast and bursts into crumbs on the hit ("CRUNCH!" on a big hit
+ * only); the Striking Pose flash sparkles off his camera, stunned heroes see stars and the first one shouts "CLICK!";
+ * the Camellia Hop trails two music notes; every Curtains Up! pulse tosses a rose from the audience onto the stage, and
+ * the last one gets a "BRAVO!" (his own view only, once).
+ *
  * Colours: the shared additive shader brightens toward white, so the fire and petal bases are dark (FIRE, EMBER, PETAL)
  * with intensity (p3) 0.5–0.7 and no hot / gold overlay layers on the fire: the result lands on orange and pink.
  *
@@ -34,6 +40,10 @@ import { TICK_S } from '../anim/timing';
 import { CAPS } from '../../data/map';
 import { CAMERA_YAW } from '../coords';
 import type { FxCtx, HeroStatus, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
+import { SHAPE } from '../fx/Particles.js';
+import { isBigHit } from '../fx/combatVfx';
+import { funOverY, funPop, funRand, funSfx, orbit, sticker } from '../fx/fun/funKit';
+import { shower, throwSticker, toast } from '../fx/fun/skills2Fun';
 
 const FIRE = 0xd02800;
 const EMBER = 0xe05010;
@@ -41,6 +51,11 @@ const FLASH = 0xfff8e6;
 const GOLD = 0xffd98a;
 const PETAL = 0xd0306a;
 const CRIMSON = 0xb01838;
+/** Feel-pass sticker colours: crumbs, the rose (pink, never red), dizzy stars, notes. */
+const CRUMB = 0xd9a05a;
+const ROSE = 0xff5c9e;
+const STARS = 0xffe066;
+const NOTE = 0xffd27a;
 /** Fire intensity (p3): low enough that the shader's brightening stays orange. */
 const FI = 0.6;
 /** BuffFlag.Stunned / Slowed (sim/api), kept local so this chunk carries no sim import. */
@@ -105,6 +120,10 @@ class Toast {
   rel: Relation3 = 'own';
   rim = 0;
   readonly src = { x: 0, y: 1.0, z: 0 };
+  /** Feel pass: the burnt variant (funRand), the sticker re-drop clock and its tumble. */
+  burnt = false;
+  stick = 0;
+  roll = 0;
 }
 const TOASTS: Toast[] = [new Toast(), new Toast(), new Toast(), new Toast()];
 
@@ -123,7 +142,7 @@ const STREAK_LIFE = { low: 0.06, med: 0.12, high: 0.16 } as const;
 const TOAST_HIT_SLACK = 1.6;
 
 /** Burnt Toast's impact: a fire burst, a flare ring, four licks of flame, crumbs and a 1 m scorch glyph. */
-function toastBurst(fx: FxCtx, x: number, z: number, yaw: number, rim: number, rel: Relation3): void {
+function toastBurst(fx: FxCtx, x: number, z: number, yaw: number, rim: number, rel: Relation3, seed = 0, burnt = false): void {
   mesh(fx, 'crescent', x, z, 1.5, 0.3, FIRE, rim, rel, yaw, 0.08, 1, TAU, 0.2, 1, 0.7);
   mesh(fx, 'ring', x, z, 2.0, 0.36, FIRE, rim, rel, 0, 0.07, 1, 0, 0.12, 0, FI);
   mesh(fx, 'glow', x, z, 1.5, 0.26, FIRE, rim, rel, 0, 0.6, 1, 0, 0, 0, FI);
@@ -133,13 +152,27 @@ function toastBurst(fx: FxCtx, x: number, z: number, yaw: number, rim: number, r
   }
   fx.linger.add('scorch', x, z, 1.0, yaw, EMBER);
   fx.particles.debris(x, z, 0.8);
+  // the toast shatters into crumbs (and a puff of smoke when it was the burnt one)
+  shower(fx, x, 1.0, z, 9, SHAPE.PUFF, burnt ? 0x6a4020 : CRUMB, 0.14, 0.7, 2.6, 2.4, 9, seed);
+  if (burnt) shower(fx, x, 1.2, z, 4, SHAPE.PUFF, 0x5a5050, 0.4, 0.8, 0.8, 1.6, -1, seed + 0.5);
   fx.sfx.cue('fwoomp', V);
 }
 
 /** One hero's dazzle mark, by the sim's status: the star halo on a stun, a dim ground ring on a slow. */
+/** Feel pass: the caster whose flash is being marked (pop credit) and whether this cast's "CLICK!" showed. */
+let clickSrc = -1;
+let clickShown = true;
+
 function dazzleMark(fx: FxCtx, id: number, buffs: number, rim: number, rel: Relation3): boolean {
   if (!fx.heroPos(id, V)) return true;
   if (buffs & STUNNED) {
+    // seeing stars from the flash; the first stunned hero of a cast gets the camera's "CLICK!"
+    const top = funOverY(fx, id, 0.2);
+    orbit(fx, V.x, top, V.z, 'STAR', STARS, 3, 0.38, 0.22, 0.9, id * 1.7);
+    if (!clickShown && clickSrc >= 0 && funPop(fx, clickSrc, 'CLICK!', V.x, top + 0.35, V.z)) {
+      clickShown = true;
+      funSfx(fx, 'click', V, 0.8);
+    }
     mesh(fx, 'glow', V.x, V.z, 1.3, 0.22, FLASH, rim, rel, 0, 1.7, 1, 0, 0, 0, 0.7);
     mesh(fx, 'ring', V.x, V.z, 0.75, 0.6, GOLD, rim, rel, 0, 2.1, 1, 0, 0.55, 0, 1, 0.05);
     mesh(fx, 'crescent', V.x, V.z, 0.6, 0.6, GOLD, rim, rel, 0, 2.15, 1, TAU, 0.75, 1, 1, 0.05);
@@ -227,6 +260,9 @@ class Stage {
   life = 0;
   rel: Relation3 = 'own';
   rim = 0;
+  /** Feel pass: the cast tick (rose landing spots) and whether the "BRAVO!" showed. */
+  tick = 0;
+  bravo = false;
 }
 const STAGES: Stage[] = [new Stage(), new Stage(), new Stage()];
 /** Curtain heights (m): the far half, and the half facing the camera (lower, so the units inside stay visible). */
@@ -269,6 +305,36 @@ function pulse(fx: FxCtx, s: Stage, k: number): void {
   }
   if (k === 0) fx.linger.add('scorch', s.x, s.z, s.rad * 0.85, s.yaw, EMBER);
   fx.sfx.cue('drum', s, 1);
+  rose(fx, s, k);
+  // the last beat: a "BRAVO!" for the performer (his own view only, once)
+  if (k === s.pulses - 1 && s.rel === 'own' && !s.bravo) {
+    s.bravo = true;
+    funPop(fx, s.owner, 'BRAVO!', s.x, 2.6, s.z);
+    funSfx(fx, 'sparkle', s, 0.8);
+  }
+}
+
+/** Rose flight time (s) from the audience to the stage. */
+const ROSE_T = 0.55;
+/**
+ * A rose tossed from the audience (the camera side, outside the stage) onto a seeded spot inside it: a pink heart
+ * sticker tumbling on a parabola, landing and resting on the floor (decoration: the zone's edge stays the fire arc).
+ */
+function rose(fx: FxCtx, s: Stage, k: number): void {
+  const a = funRand(s.tick, s.owner, 20 + k);
+  const b = funRand(s.tick, s.owner, 40 + k);
+  const side = (a - 0.5) * 1.6;
+  const x0 = s.x + Math.cos(TOWARD_CAM + side) * (s.rad + 1.2);
+  const z0 = s.z - Math.sin(TOWARD_CAM + side) * (s.rad + 1.2);
+  const ang = b * TAU;
+  const rr = s.rad * (0.25 + 0.5 * a);
+  const x1 = s.x + Math.cos(ang) * rr;
+  const z1 = s.z - Math.sin(ang) * rr;
+  const g = 9;
+  const y0 = 1.6;
+  const y1 = 0.2;
+  const vy = (y1 - y0 + 0.5 * g * ROSE_T * ROSE_T) / ROSE_T;
+  throwSticker(fx, x0, y0, z0, (x1 - x0) / ROSE_T, vy, (z1 - z0) / ROSE_T, SHAPE.HEART, ROSE, 0.46, ROSE_T + 0.8, g, 7, 0.6 * (a - 0.5), false, y1);
 }
 
 const pulseAt = (s: Stage, k: number): number => s.arm + k * s.every;
@@ -372,6 +438,9 @@ export const SKILL_FX: SkillFxSet = {
         t.w = (a.width ?? 800) / 1000;
         t.rel = rel;
         t.rim = rim;
+        t.burnt = funRand(e.tick, e.src, 0) < 0.34;
+        t.stick = 0;
+        t.roll = funRand(e.tick, e.src, 1) * TAU;
         t.src.x = P.x;
         t.src.z = P.z;
         t.slot = fx.ribbons.point(t.src, FIRE, t.w, 0.45);
@@ -387,6 +456,10 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'crescent', P.x, P.z, range, 0.2, EMBER, rim, rel, yaw, 0.1, 1, arc, 0.55, 1, FI);
         spotlight(fx, P.x, P.z, 0.45, rim, rel, 2);
         mesh(fx, 'glow', P.x, P.z, 0.5, 0.4, FLASH, rim, rel, 0, 2.9, 1, 0, 0, 0, 0.7);
+        // the camera flash sparkles off him (glints in the flash colour, toward the cone)
+        shower(fx, P.x + cx * 0.5, 1.6, P.z + cz * 0.5, 6, SHAPE.STAR4, FLASH, 0.32, 0.35, 2.4, 0.8, 0, funRand(e.tick, e.src, 2), true);
+        clickSrc = e.src;
+        clickShown = false;
         dazzle(fx, e.src, P.x, P.z, yaw, range, arc, rim, rel);
         if (rel === 'own') fx.cam.tier(1);
         return;
@@ -394,6 +467,13 @@ export const SKILL_FX: SkillFxSet = {
       case 2: {
         fx.linger.add('petals', P.x, P.z, 0.9, yaw, PETAL);
         mesh(fx, 'ring', P.x, P.z, 1.3, 0.3, PETAL, rim, rel, yaw, 0.06, 1, 0, 0.2, 0, FI);
+        // a little song mid-hop: two notes rising off him (left / right order seeded)
+        {
+          const sd = funRand(e.tick, e.src, 3) < 0.5 ? 1 : -1;
+          const top = funOverY(fx, e.src, -0.2);
+          sticker(fx, P.x + sd * 0.4, top, P.z, 'NOTE', NOTE, 0.32, 0.8, 1.1, 0, sd * 0.25);
+          sticker(fx, P.x - sd * 0.3, top + 0.35, P.z, 'NOTE', PETAL, 0.26, 0.7, 1.3, 0, -sd * 0.25);
+        }
         mesh(fx, 'crescent', P.x, P.z, 1.2, 0.3, CRIMSON, rim, rel, yaw + Math.PI, 0.07, 1, 2.4, 0.55, 1, FI);
         return;
       }
@@ -429,6 +509,8 @@ export const SKILL_FX: SkillFxSet = {
         s.rim = rim;
         s.castAt = clock;
         s.zone = -1;
+        s.tick = e.tick;
+        s.bravo = false;
         // the zone's 'spawn' came first (same snapshot): bind it now
         if (pendZone >= 0 && clock - pendZoneAt < BIND_S) {
           s.zone = pendZone;
@@ -465,7 +547,9 @@ export const SKILL_FX: SkillFxSet = {
       if (!t.on || t.owner !== e.src) continue;
       if (Math.hypot(V.x - t.src.x, V.z - t.src.z) > TOAST_HIT_SLACK) continue;
       endToast(fx, t);
-      toastBurst(fx, V.x, V.z, Math.atan2(-t.dz, t.dx), rim, rel);
+      toastBurst(fx, V.x, V.z, Math.atan2(-t.dz, t.dx), rim, rel, funRand(e.tick, e.dst, 4), t.burnt);
+      // a big hit on a hero: "CRUNCH!"
+      if (fx.abil(e.dst, 'q').cooldown !== undefined && fx.status?.(e.dst, ST) === true && isBigHit(e.amount, ST.maxHp ?? 0, true)) funPop(fx, e.src, 'CRUNCH!', V.x, funOverY(fx, e.dst, 0.5), V.z);
       if (rel === 'own') fx.cam.tier(1);
       return;
     }
@@ -562,6 +646,13 @@ export const SKILL_FX: SkillFxSet = {
       t.src.x = t.x0 + t.dx * t.d;
       t.src.z = t.z0 + t.dz * t.d;
       if (t.slot >= 0) fx.ribbons.feed(t.slot, t.src.x, t.src.y, t.src.z);
+      // the slice of toast itself, tumbling along with the bolt (re-dropped at the bolt's speed, a turning roll)
+      t.stick -= dt;
+      if (t.stick <= 0) {
+        t.stick = 1 / 30;
+        t.roll += 0.5;
+        toast(fx, t.src.x, t.src.y + 0.05, t.src.z, t.dx * t.speed, 0, t.dz * t.speed, 0.5, 1 / 30 + 0.02, t.burnt, 0, t.roll);
+      }
       // the fire streak at the skillshot's width, one glow per 0.35 m travelled (every tier: no gaps at 18 m/s)
       while (t.nextGlow <= t.d) {
         const g = Math.max(t.nextGlow, d0);

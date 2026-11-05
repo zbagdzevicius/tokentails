@@ -161,6 +161,8 @@ const sunCleave: ClipDef = {
     // the blade arm is out to her right at the contact pose (≈ −87° in the body frame): 0.24 of the turn lands on C so
     // the blade crosses her front on the impact frame (the wave leaves with it), then the turn whips round to 1
     yaw: [[0, 0], [0.1, -0.04, 'out'], [C, SUN_CLEAVE_C_TURN, 'expoIn'], [0.42, 1, 'out'], [0.42 + EPS, 0, 'step']],
+    // fun pass: the spin overshoots in the body instead (the root turn stays exactly one): a wide stretch off the whip
+    sx: [[0, 1], [C, 1, 'lin'], [0.3, 1.14, 'out'], [0.42, 0.94, 'inOut'], [0.5, 1.05, 'out'], [0.6, 1, 'back']],
     up: [[0, 0], [0.12, 0], [C, 0.22, 'out'], [0.42, 0, 'in'], [0.66, 0]],
     sy: [[0, 1], [0.12, 0.84, 'out'], [0.2, 1.1, 'out'], [0.42, 1], [0.45, 0.82, 'in'], [0.6, 1, 'back']],
   },
@@ -261,7 +263,9 @@ const q3: ClipDef = {
   root: {
     pitch: turn(0.12, Q3_LAND, 1, 'inOut'),
     up: [[0, 0], [0.08, 0.15, 'out'], [0.27, 0.8, 'out'], [Q3_LAND, 0, 'in'], [0.78, 0]],
-    sy: [[0, 1], [0.04, 0.85, 'out'], [0.08, 1.15, 'expoOut'], [0.2, 1], [Q3_LAND - 0.02, 1.02], [Q3_LAND + 0.02, 0.72, 'in'], [Q3_LAND + 0.2, 1, 'back']],
+    // pawlegends fun pass: a deeper squash before the launcher (0.75) and a 1.2 stretch into the uppercut
+    sy: [[0, 1], [0.04, 0.75, 'out'], [0.08, 1.2, 'expoOut'], [0.2, 1], [Q3_LAND - 0.02, 1.02], [Q3_LAND + 0.02, 0.72, 'in'], [Q3_LAND + 0.2, 1, 'back']],
+    sx: [[0, 1], [0.04, 1.14, 'out'], [0.08, 0.9, 'expoOut'], [0.2, 1], [Q3_LAND + 0.02, 1.16, 'in'], [Q3_LAND + 0.2, 1, 'back']],
   },
   markers: { contact: 0.08, apex: 0.27, land: Q3_LAND, end: 0.78 },
   warp: [['contact', 'cast']],
