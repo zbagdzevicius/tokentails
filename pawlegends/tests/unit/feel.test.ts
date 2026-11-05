@@ -7,6 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { Announcer, XpPops, type Moment } from '../../src/render/announcer';
 import { Objectives, BEAT_TTL } from '../../src/onboarding/objectives';
+import { Notify } from '../../src/ui/notify';
 import { canPickDifficulty, difficultyFor, guideMode, pickable } from '../../src/app/firstSession';
 import { addTreatXp, freshTreats, nextReward, parseTreats, TREAT_REWARDS, TREAT_STEP, treatXpFor } from '../../src/meta/treats';
 import { dailyQuests, freshQuests, parseQuests, progressQuests, QUEST_XP } from '../../src/meta/quests';
@@ -128,11 +129,15 @@ describe('announcer', () => {
 describe('objective chips', () => {
   it('rookie shows each beat once, queues, and hides when done', () => {
     const root = document.createElement('div');
-    const g = new Objectives(root, 'rookie');
+    const rail = new Notify(root);
+    const g = new Objectives(rail, 'rookie');
     g.start('lane');
     g.start('minions');
     expect(g.current).toBe('lane');
-    expect(root.querySelector('.pl-goal.on')?.textContent).toContain('Run to the lane!');
+    rail.update(0.01);
+    // LoL pass (lane A): the beat is the rail's resting goal line while it runs (with its how-to on desktop)
+    expect(root.querySelector('.pl-rail-rest.on')?.textContent).toContain('Run to the lane!');
+    expect(rail.queue.restOf('goal')?.text).toMatch(/^Run to the lane! · /);
     g.complete('lane');
     g.update(1);
     expect(g.current).toBe('minions');
@@ -148,7 +153,7 @@ describe('objective chips', () => {
     expect(lite.current).toBeNull();
     lite.start('ult');
     expect(lite.current).toBe('ult');
-    const off = new Objectives(document.createElement('div'), 'off');
+    const off = new Objectives(new Notify(document.createElement('div')), 'off');
     off.start('ult');
     expect(off.current).toBeNull();
   });

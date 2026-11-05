@@ -304,9 +304,6 @@ kbd {
 .pl-respawn b { color: var(--butter); font-size: 20px; }
 .pl-respawn small { opacity: 0.7; font-size: 12px; margin-left: 8px; }
 .pl-hud.dead .pl-respawn { display: block; }
-/* While dead: no coaching toasts, banners drop below the chip; while a talent card is open it carries the countdown. */
-.pl-match:has(.pl-hud.dead) .pl-tip { opacity: 0 !important; }
-.pl-match:has(.pl-hud.dead) .pl-banner { top: calc(100px + var(--safe-t)); }
 .pl-match:has(.pl-talents.on) .pl-respawn { display: none; }
 .pl-talents .head[data-respawn]::after {
   content: attr(data-respawn); margin-left: 10px; padding: 1px 9px; border-radius: 999px; background: var(--panel); color: var(--cream); font-size: 12px;
@@ -318,33 +315,6 @@ kbd {
   border: 2px solid rgba(255, 243, 220, 0.4); box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); z-index: 4; pointer-events: auto !important;
 }
 .pl-minimap canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
-
-.pl-banner {
-  /* Just under the score bar: clear of the fights and nameplates in the middle of the screen. */
-  position: absolute; left: 50%; top: calc(78px + var(--safe-t)); transform: translate(-50%, -10px) scale(0.92); opacity: 0; text-align: center; z-index: 6;
-  transition: opacity 0.25s, transform 0.25s; pointer-events: none;
-}
-.pl-banner.on { opacity: 1; transform: translate(-50%, 0) scale(1); }
-.pl-banner-title { font-size: 34px; font-weight: 700; color: var(--cream); text-shadow: 0 4px 0 #7d4fa8, 0 10px 26px rgba(0, 0, 0, 0.5); white-space: nowrap; }
-.pl-banner-sub { font-size: 16px; opacity: 0.92; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.7); margin-top: 4px; }
-.pl-banner.tone-good .pl-banner-title { color: var(--ally); }
-.pl-banner.tone-bad .pl-banner-title { color: #ff8a9a; }
-.pl-banner.tone-gold .pl-banner-title { color: var(--butter); }
-.pl-callouts { position: absolute; left: 50%; top: 40%; z-index: 7; }
-.pl-callout {
-  position: absolute; left: 0; top: 0; transform: translate(-50%, -50%); font-size: 40px; font-weight: 700; white-space: nowrap;
-  color: var(--butter); -webkit-text-stroke: 6px #4a2a1f; paint-order: stroke fill; text-shadow: 0 5px 0 #4a2a1f;
-  animation: pl-callout 1.25s cubic-bezier(0.2, 1.4, 0.4, 1) both;
-}
-.pl-callout.tone-good { color: var(--ally); }
-.pl-callout.tone-bad { color: #ff8a9a; }
-@keyframes pl-callout {
-  0% { transform: translate(-50%, -50%) scale(0.2) rotate(-8deg); opacity: 0; }
-  18% { transform: translate(-50%, -50%) scale(1.15) rotate(-3deg); opacity: 1; }
-  30% { transform: translate(-50%, -50%) scale(1) rotate(-3deg); }
-  80% { opacity: 1; }
-  100% { transform: translate(-50%, -110%) scale(0.95) rotate(-3deg); opacity: 0; }
-}
 
 .pl-scoreboard { position: absolute; inset: 0; display: none; place-items: center; z-index: 8; }
 .pl-scoreboard.on { display: grid; }
@@ -389,15 +359,6 @@ kbd {
 /* the own ability bar after the branch: a gold rim on the changed slot */
 .pl-slot.branch { box-shadow: 0 0 0 2px var(--butter) inset; }
 
-.pl-tip {
-  position: absolute; left: 50%; bottom: calc(118px + var(--safe-b)); transform: translateX(-50%) translateY(14px); opacity: 0; z-index: 5;
-  display: flex; align-items: center; gap: 10px; background: var(--cream); color: var(--ink); border-radius: 16px; padding: 10px 16px 10px 10px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); transition: opacity 0.25s, transform 0.25s; font-size: 16px;
-}
-.pl-tip.on { opacity: 1; transform: translateX(-50%); }
-.pl-tip .ghost { width: 30px; height: 30px; color: var(--rose); animation: pl-tap 1s ease-in-out infinite; }
-@keyframes pl-tap { 50% { transform: translateY(-4px) scale(0.9); } }
-
 /* A touch tip names a skill: its button glows until the tip hides. */
 html[data-tip-key='q'] .pl-tbtn.q, html[data-tip-key='e'] .pl-tbtn.e, html[data-tip-key='r'] .pl-tbtn.r, html[data-tip-key='attack'] .pl-tbtn.attack {
   border-color: var(--butter); animation: pl-tipglow 0.9s ease-in-out infinite;
@@ -427,16 +388,6 @@ html[data-touch='1'] .pl-score { pointer-events: auto; }
 html[data-touch='1'] .pl-emote kbd { display: none; }
 
 /* A tower (or core) is hitting the player (new players): red, short, above the bar; never over the hero. */
-.pl-alert {
-  position: absolute; left: 50%; bottom: calc(196px + var(--safe-b)); transform: translateX(-50%) translateY(10px); opacity: 0; z-index: 6;
-  display: flex; align-items: center; gap: 8px; background: #e5484d; color: #fff; border-radius: 14px; padding: 7px 14px; font-size: 14px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35); transition: opacity 0.2s, transform 0.2s; white-space: nowrap;
-}
-.pl-alert.on { opacity: 1; transform: translateX(-50%); animation: pl-alert 0.5s 2; }
-.pl-alert .pl-icon { width: 20px; height: 20px; }
-.pl-alert span { font-size: 12px; opacity: 0.9; }
-@keyframes pl-alert { 50% { box-shadow: 0 0 0 5px rgba(229, 72, 77, 0.45), 0 6px 18px rgba(0, 0, 0, 0.35); } }
-html[data-touch='1'] .pl-alert { bottom: auto; top: calc(120px + var(--safe-t)); }
 
 /* ---------------------------------------------------------------------------------------------- touch */
 .pl-touch { position: absolute; inset: 0; display: none; z-index: 4; }
@@ -497,7 +448,6 @@ html[data-touch='1'] .pl-talents .head { left: 4px; transform: none; top: -18px;
 html[data-touch='1'] .pl-talents button { width: 150px; padding: 8px 10px; }
 html[data-touch='1'] .pl-talents button kbd { display: none; }
 html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
-html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 
 /* ----------------------------------------------------------------------------------- small landscape */
 @media (max-height: 480px) {
@@ -541,9 +491,6 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   .pl-results .actions .pl-btn.big { font-size: 17px; padding: 10px 22px; }
   .pl-title-col { max-width: min(380px, 46vw); }
   .pl-title .sub { max-width: 34ch; }
-  .pl-banner { top: calc(54px + var(--safe-t)); }
-  .pl-banner-title { font-size: 24px; }
-  .pl-callout { font-size: 30px; }
   .pl-scoreboard .card { min-width: 0; padding: 10px 14px; }
 }
 
@@ -657,25 +604,6 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
 }
 
 /* ---------------------------------------------------------------- fun plan F1 / F2 / F4 (FEEL lane) */
-/* Objective chip (the Rookie match's beats), under the score bar; the banner sits below it while both show. */
-.pl-goal {
-  position: absolute; left: 50%; top: calc(52px + var(--safe-t)); transform: translate(-50%, -8px); opacity: 0; z-index: 6; pointer-events: none;
-  display: flex; align-items: center; gap: 10px; padding: 7px 16px 7px 8px; border-radius: 999px; background: var(--cream); color: var(--ink);
-  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 3px rgba(255, 211, 77, 0.55); transition: opacity 0.25s, transform 0.25s; white-space: nowrap;
-}
-.pl-goal.on { opacity: 1; transform: translate(-50%, 0); animation: pl-goal-in 0.45s cubic-bezier(0.2, 1.5, 0.4, 1); }
-.pl-goal .ico { position: relative; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: var(--butter); color: #4a2a1f; flex: none; }
-.pl-goal .ico .pl-icon { width: 20px; height: 20px; }
-.pl-goal .ring { position: absolute; inset: -4px; border-radius: 50%; display: none;
-  background: conic-gradient(#7dff8a calc(var(--p, 0) * 360deg), rgba(74, 42, 31, 0.15) 0); -webkit-mask: radial-gradient(circle, transparent 18px, #000 19px); mask: radial-gradient(circle, transparent 18px, #000 19px); }
-.pl-goal.prog .ring { display: block; }
-.pl-goal .txt b { display: block; font-size: 17px; line-height: 1.1; }
-.pl-goal .txt small { display: block; font-size: 12px; opacity: 0.75; }
-.pl-goal.done { box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35), 0 0 0 3px #7dff8a; }
-.pl-goal.done .ico { background: #7dff8a; }
-.pl-goal.done .txt b::after { content: ' ✓'; color: #2f9e44; }
-@keyframes pl-goal-in { 0% { transform: translate(-50%, -8px) scale(0.7); } 60% { transform: translate(-50%, 0) scale(1.06); } }
-.pl-match:has(.pl-goal.on) .pl-banner { top: calc(108px + var(--safe-t)); }
 
 /* Floating text over the player's hero: "+40 XP", "Combo x2", "+FRENZY". */
 .pl-pops { position: absolute; inset: 0; pointer-events: none; z-index: 7; overflow: hidden; }
@@ -770,39 +698,16 @@ html[data-touch='1'] .pl-tip { bottom: auto; top: calc(70px + var(--safe-t)); }
   .pl-results h1 { font-size: 44px; }
   .pl-results .sub { margin: 2px 0 10px; font-size: 16px; }
   .pl-quests.mini { display: none; }
-  .pl-goal .txt b { font-size: 14px; }
   /* one short line, never hidden: a phone player still reads what to do (launch finding ftue-4) */
-  .pl-goal .txt small { font-size: 11px; line-height: 1.2; max-width: min(48vw, 320px); overflow: hidden; text-overflow: ellipsis; }
   .pl-pop { font-size: 16px; }
   .pl-pop.big { font-size: 22px; }
 }
 @media (prefers-reduced-motion: reduce) {
-  .pl-pop, .pl-goal.on, .pl-flash.on, .pl-slot.ult-ready, .pl-treats .fill, .pl-treats .open { animation-duration: 0.01ms !important; }
+  .pl-pop, .pl-flash.on, .pl-slot.ult-ready, .pl-treats .fill, .pl-treats .open { animation-duration: 0.01ms !important; }
   .pl-treats .fill { width: var(--to); }
 }
 
-/* ------------------------------------------------------------------- round 0: one message lane, countdown */
-/* The match starts on "Go!": the sim is held until the scene drew (round 0: the clock ran during the load). */
-.pl-count {
-  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%); z-index: 9; pointer-events: none; font-size: 72px; font-weight: 700;
-  color: var(--butter); -webkit-text-stroke: 8px #4a2a1f; paint-order: stroke fill; text-shadow: 0 6px 0 #4a2a1f; opacity: 0;
-}
-.pl-count.on { animation: pl-count 0.68s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
-@keyframes pl-count { 0% { transform: translate(-50%, -50%) scale(0.3); opacity: 0; } 25% { transform: translate(-50%, -50%) scale(1.1); opacity: 1; } 80% { opacity: 1; } 100% { transform: translate(-50%, -50%) scale(0.9); opacity: 0; } }
-/* The tip and the goal chip share the top slot on touch: the tip sits under the chip, and hides while a banner
-   is up (one message at a time; the banner itself drops under the chip). */
-html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-tip { top: calc(104px + var(--safe-t)); }
-html[data-touch='1'] .pl-match:has(.pl-banner.on) .pl-tip { opacity: 0; }
-.pl-match:has(.pl-tip.on):not(:has(.pl-goal.on)) .pl-banner { top: calc(78px + var(--safe-t)); }
-html[data-touch='1'] .pl-match:has(.pl-tip.on):not(:has(.pl-goal.on)) .pl-banner { top: calc(118px + var(--safe-t)); }
-/* The tower alert is a desktop/bottom toast; on touch it sits under the tip row, never on the hero. */
-html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-alert { top: calc(150px + var(--safe-t)); }
 .pl-respawn .recap { display: block; max-width: 46ch; margin: 2px auto 0; }
-@media (max-height: 480px) {
-  .pl-count { font-size: 52px; }
-  .pl-match:has(.pl-goal.on) .pl-banner { top: calc(100px + var(--safe-t)); }
-  .pl-match:has(.pl-goal.on) .pl-banner .pl-banner-sub { display: none; }
-}
 
 /* Talent cards: the full line on wide screens, a 2-5 word subtitle on small ones; a waiting offer glows the portrait. */
 .pl-talents button .s { display: none; }
@@ -916,23 +821,6 @@ html[data-touch='1'] .pl-slot-tip { display: none; }
   html:not([data-touch='1']) .pl-hud .pl-portrait { pointer-events: auto; }
 }
 
-/* Round 1: one centre-screen item at a time (ui/stage.ts sets .pl-match[data-stage] to the item on stage). A death
-   recap beats everything, a tower warning beats banners, a banner beats callouts, an open talent card beats callouts,
-   and a coaching tip never shows next to any of them. */
-.pl-match[data-stage] .pl-tip { opacity: 0 !important; }
-.pl-match[data-stage='recap'] .pl-banner, .pl-match[data-stage='recap'] .pl-callouts, .pl-match[data-stage='recap'] .pl-alert,
-.pl-match[data-stage='urgent'] .pl-callouts, .pl-match[data-stage='urgent'] .pl-alert,
-.pl-match[data-stage='alert'] .pl-banner:not(.urgent), .pl-match[data-stage='alert'] .pl-callouts,
-.pl-match[data-stage='talent'] .pl-callouts, .pl-match[data-stage='banner'] .pl-callouts { opacity: 0 !important; visibility: hidden; }
-/* Round 2: the standing goal chip covered the death recap and the respawn timer: it steps aside for the recap and
-   for urgent calls. */
-.pl-match[data-stage='recap'] .pl-goal, .pl-match[data-stage='urgent'] .pl-goal { opacity: 0 !important; visibility: hidden; }
-/* In-world callouts ("First Blood!", "Takedown!") sit in the banner band under the score bar, not over the hero. */
-.pl-callouts { top: calc(118px + var(--safe-t)); }
-@media (max-height: 480px) {
-  .pl-callouts { top: calc(96px + var(--safe-t)); }
-  .pl-callout { font-size: 28px; -webkit-text-stroke: 5px #4a2a1f; }
-}
 /* Touch: the talent card docks bottom centre between the stick and the buttons, clear of the hero, its nameplate
    and the tip line at the top. */
 html[data-touch='1'] .pl-talents { top: auto; bottom: calc(8px + var(--safe-b)); left: calc(50% - 28px); transform: translate(-50%, 8px); }
@@ -944,20 +832,6 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 .pl-feed-row.note { color: var(--butter); }
 .pl-feed-row.note span { color: var(--butter); opacity: 1; }
 
-/* Round 1: the standing goal (no beat up): the same chip, quieter. */
-.pl-goal.standing { box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3); background: rgba(255, 243, 220, 0.9); padding: 4px 12px 4px 5px; animation: none; }
-.pl-goal.standing .ico { width: 26px; height: 26px; }
-.pl-goal.standing .ico .pl-icon { width: 15px; height: 15px; }
-.pl-goal.standing .txt b { font-size: 14px; }
-.pl-goal.standing .txt small { font-size: 11px; }
-@media (max-height: 480px) { .pl-goal.standing .txt small { font-size: 10.5px; max-width: min(44vw, 300px); overflow: hidden; text-overflow: ellipsis; } }
-/* Round 1: on short screens the tower alert sits in the top band under the goal chip, never over the hero. */
-@media (max-height: 480px) {
-  .pl-alert { bottom: auto; top: calc(96px + var(--safe-t)); }
-  .pl-match:has(.pl-goal.on) .pl-banner { top: calc(96px + var(--safe-t)); }
-  .pl-banner-title { font-size: 26px; }
-  .pl-banner-sub { font-size: 13px; }
-}
 
 /* ---------------------------------------------------------------------------------------------- card skins
    GDD §7.2: the pick screen's Skins row (owned cats, then up to two locked featured cats), the lobby / loading
@@ -1018,8 +892,6 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
    The objective chip is tappable (B1: the tap sends its ping); the portrait strip flanks the score bar (allies
    left, enemies right; on touch the allies sit under the hero box) with death timers; a tap on an enemy portrait
    locks it on touch. */
-.pl-goal.standing[data-ping] { pointer-events: auto; cursor: pointer; }
-.pl-goal.standing[data-ping]:active { transform: translate(-50%, 0) scale(0.96); }
 .pl-strip { position: absolute; display: flex; gap: 4px; z-index: 5; pointer-events: none; }
 .pl-strip.ally { top: calc(10px + var(--safe-t)); right: calc(50% + 156px); }
 .pl-top .pl-strip.enemy { top: 4px; left: calc(100% + 8px); }
@@ -1109,7 +981,7 @@ html[data-touch='1']:has(.pl-emote) .pl-feed-row { max-width: 132px; }
 }
 .pl-rankup.on { opacity: 1; transform: translate(-50%, 0); }
 .pl-rankup b { color: var(--butter); font-size: 14px; }
-/* touch: bottom centre, clear of the top banners and the button cluster on the right */
+/* touch: bottom centre, clear of the top rail and the button cluster on the right */
 html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0px)); font-size: 11px; padding: 4px 10px; max-width: 46vw; }
 /* The talent cards: what the pick changes in numbers at this level ("Volley arrows 5 → 7"). */
 .pl-talents button .n { grid-column: 2; font-size: 10px; color: var(--butter); opacity: 0.9; line-height: 1.2; }
@@ -1183,23 +1055,7 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
   html[data-touch='1'] .pl-strip.ally .pp { width: 28px; height: 28px; }
 
   /* the top band's messages start under the enemy portraits */
-  html[data-touch='1'] .pl-goal, html[data-touch='1'] .pl-respawn, html[data-touch='1'] .pl-tip { top: calc(92px + var(--safe-t)); }
-  html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-tip { top: calc(136px + var(--safe-t)); }
-  html[data-touch='1'] .pl-banner,
-  html[data-touch='1'] .pl-match:has(.pl-hud.dead) .pl-banner { top: calc(132px + var(--safe-t)); }
-  html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-banner,
-  html[data-touch='1'] .pl-match:has(.pl-tip.on):not(:has(.pl-goal.on)) .pl-banner { top: calc(140px + var(--safe-t)); }
-  html[data-touch='1'] .pl-callouts { top: calc(132px + var(--safe-t)); }
-  html[data-touch='1'] .pl-alert { top: calc(140px + var(--safe-t)); }
-  html[data-touch='1'] .pl-match:has(.pl-goal.on) .pl-alert { top: calc(176px + var(--safe-t)); }
-  html[data-touch='1'] .pl-goal { gap: 8px; padding: 5px 14px 5px 6px; }
-  html[data-touch='1'] .pl-goal .ico { width: 28px; height: 28px; }
-  html[data-touch='1'] .pl-goal .ico .pl-icon { width: 17px; height: 17px; }
-  html[data-touch='1'] .pl-goal .ring { -webkit-mask: radial-gradient(circle, transparent 15px, #000 16px); mask: radial-gradient(circle, transparent 15px, #000 16px); }
-  html[data-touch='1'] .pl-goal.standing { padding: 3px 12px 3px 4px; }
-  html[data-touch='1'] .pl-goal.standing .ico { width: 24px; height: 24px; }
-  html[data-touch='1'] .pl-goal .txt b { font-size: 13.5px; }
-  html[data-touch='1'] .pl-goal .txt small { font-size: 10.5px; max-width: min(40vw, 260px); }
+  html[data-touch='1'] .pl-respawn { top: calc(92px + var(--safe-t)); }
   /* the owned Wave emote under the paw: a full 44 px tap target */
   html[data-touch='1'] .pl-emote { min-height: 44px; }
 
@@ -1216,14 +1072,146 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
   html[data-touch='1'] .pl-talents { left: calc(50% - 80px); }
   html[data-touch='1'] .pl-talents button { width: 124px; padding: 5px 8px; }
 }
-/* Trailer review: an announcer banner never draws over the objective chip; the chip steps aside while it is up. */
-.pl-match:has(.pl-banner.on) .pl-goal.on { opacity: 0; transform: translate(-50%, -8px); animation: none; }
 
 /* ---------------------------------------------------------------- feel fix pass: the phone HUD in team fights
    (the compact rules above only apply to small phones; an 844×390 landscape phone kept a 4-row kill feed over R and E) */
 html[data-touch='1'] .pl-feed-row:nth-child(n + 3) { display: none; }
-/* an announcer banner and the kill feed share the top band: the feed steps aside while the banner shows */
-html[data-touch='1'] .pl-feed { transition: opacity 0.2s; }
-html[data-touch='1'] .pl-match:has(.pl-banner.on) .pl-feed { opacity: 0; }
 /* the catch-up tag ("−3 lv · +70% XP") sat above the portrait, off the top of the screen: it goes beside it */
 html[data-touch='1'] .pl-portrait .gap { top: 2px; left: calc(100% + 8px); transform: none; font-size: 10px; padding: 2px 5px; }
+
+/* ================================================================ LoL pass, lane A: the top notification rail
+   (ui/notify.ts). Every screen-anchored message (announcer, callouts, tower alerts, tips, objective beats, the
+   countdown, the gate, the respawn timer) is one line under the score bar, a LoL announcer plate: dark navy, a gold
+   bevel top and bottom, clipped corners, the tone as a left accent and the title colour. Phones: one 26-28 px line
+   (bottom ≤ y 84 at 844×390, ≤ y 70 at 667×375). Desktop: a main line (big for the announcer), a smaller second line
+   and the resting line (bottom ≤ y 160 at 1440×900). Nothing else draws words in the middle of the screen. */
+.pl-rail {
+  --rail-top: 74px; --rail-h: 40px; --rail-big: 56px; --rail-w: 640px; --rail-fs: 20px; --rail-fsbig: 30px; --rail-badge: 28px;
+  --rail-low: 26px; --rail-lowfs: 15px; --accent: #cfe3ff;
+  position: absolute; left: 50%; top: calc(var(--rail-top) + var(--safe-t)); transform: translateX(-50%); width: var(--rail-w); z-index: 7;
+  pointer-events: none; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: opacity 0.16s;
+}
+.pl-rail.empty { height: 0; opacity: 0; }
+.pl-rail.one { height: var(--rail-h); display: block; }
+.pl-rail.one.empty { height: 0; }
+.pl-rail-line {
+  --tone: #cfe3ff; position: absolute; left: 0; right: 0; top: 0; margin: 0 auto; width: fit-content; max-width: 100%; box-sizing: border-box;
+  display: flex; align-items: center; gap: 8px; height: var(--rail-h); padding: 0 16px 0 10px; opacity: 0; visibility: hidden;
+  background: linear-gradient(180deg, rgba(16, 26, 46, 0.9), rgba(10, 16, 30, 0.86)); border-top: 1px solid #c8aa6e; border-bottom: 1px solid #785a28;
+  clip-path: polygon(8px 0, calc(100% - 8px) 0, 100% 8px, 100% calc(100% - 8px), calc(100% - 8px) 100%, 8px 100%, 0 calc(100% - 8px), 0 8px);
+  box-shadow: inset 3px 0 0 var(--tone); color: var(--tone); white-space: nowrap; font-family: var(--font);
+  transition: opacity 0.16s, visibility 0s linear 0.16s;
+}
+.pl-rail-line.on { position: relative; opacity: 1; visibility: visible; transition: opacity 0.14s; animation: pl-rail-in 0.14s ease-out both; }
+.pl-rail.one .pl-rail-line.on { position: absolute; }
+@keyframes pl-rail-in { from { opacity: 0; transform: translateY(-8px); } }
+.pl-rail-line.tone-good { --tone: #7fe0a6; }
+.pl-rail-line.tone-bad { --tone: #ff6b6b; }
+.pl-rail-line.tone-gold { --tone: #f0d58a; }
+.pl-rail-line .ic {
+  flex: none; width: var(--rail-badge); height: var(--rail-badge); border-radius: 50%; display: grid; place-items: center; box-sizing: border-box;
+  background: #0a1020 center / cover no-repeat; border: 1px solid #c8aa6e; color: var(--tone);
+}
+.pl-rail-line .ic[hidden] { display: none; }
+.pl-rail-line .ic svg { width: 64%; height: 64%; fill: currentColor; }
+.pl-rail-line .ic .pl-icon { width: 64%; height: 64%; }
+.pl-rail-line .tt {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: var(--rail-fs); font-weight: 800; line-height: 1.1; letter-spacing: 0.01em;
+  -webkit-text-stroke: 1px rgba(0, 0, 0, 0.55); paint-order: stroke fill; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.6);
+}
+.pl-rail-line .ct { flex: none; font-size: calc(var(--rail-fs) * 0.8); font-weight: 800; color: #f0d58a; }
+.pl-rail-line .ct:empty { display: none; }
+.pl-rail-line .sb { min-width: 0; overflow: hidden; text-overflow: ellipsis; font-size: 14px; font-weight: 600; color: #e6dcc6; opacity: 0.88; }
+.pl-rail-line .sb::before { content: '· '; opacity: 0.6; }
+.pl-rail-line .sb:empty { display: none; }
+/* desktop announcer moments: bigger, a crest badge, the sub on its own line and a light sweep */
+.pl-rail:not(.one) .pl-rail-line.big {
+  display: grid; grid-template-columns: auto auto auto; grid-template-areas: 'ic tt ct' 'ic sb sb'; align-content: center; justify-content: center;
+  column-gap: 10px; height: var(--rail-big); padding: 0 22px 0 12px;
+}
+.pl-rail:not(.one) .pl-rail-line.big .ic { grid-area: ic; width: 40px; height: 40px; background-color: #1a1408; border-width: 2px; }
+.pl-rail:not(.one) .pl-rail-line.big .tt { grid-area: tt; font-size: var(--rail-fsbig); letter-spacing: 0.03em; }
+.pl-rail:not(.one) .pl-rail-line.big .ct { grid-area: ct; }
+.pl-rail:not(.one) .pl-rail-line.big .sb { grid-area: sb; font-size: 13px; line-height: 1.1; }
+.pl-rail:not(.one) .pl-rail-line.big .sb::before { content: none; }
+.pl-rail:not(.one) .pl-rail-line.big.on::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 240, 200, 0.32) 50%, transparent 65%) no-repeat;
+  background-size: 250% 100%; animation: pl-rail-sweep 0.6s ease-out both;
+}
+@keyframes pl-rail-sweep { from { background-position: 120% 0; } to { background-position: -40% 0; } }
+/* desktop: the second line and the resting line are smaller, under the main line */
+.pl-rail-second, .pl-rail-rest { --rail-h: var(--rail-low); --rail-fs: var(--rail-lowfs); --rail-badge: 20px; }
+.pl-rail:not(.one).has-second .pl-rail-rest { opacity: 0; visibility: hidden; position: absolute; }
+.pl-rail.one .pl-rail-second, .pl-rail.one .pl-rail-rest { --rail-h: inherit; --rail-fs: inherit; --rail-badge: inherit; }
+.pl-rail.one .pl-rail-line { height: var(--rail-h); }
+.pl-rail-rest.tap { pointer-events: auto; cursor: pointer; }
+.pl-rail-rest.rest-countdown { justify-content: center; min-width: 64px; }
+.pl-rail-rest.rest-countdown .tt { font-size: 34px; line-height: 1; color: #f0d58a; }
+.pl-rail:not(.one) .pl-rail-rest.rest-countdown { height: 34px; }
+.pl-rail:not(.one) .pl-rail-rest.rest-countdown .tt { font-size: 30px; }
+.pl-rail-rest.rest-countdown.on { animation: pl-rail-count 0.5s cubic-bezier(0.2, 1.4, 0.4, 1) both; }
+@keyframes pl-rail-count { 0% { opacity: 0; transform: scale(0.7); } 40% { opacity: 1; transform: scale(1.08); } 100% { transform: scale(1); } }
+/* phones: one line, no sub (the badge and the title say it) */
+html[data-touch='1'] .pl-rail {
+  --rail-top: 56px; --rail-h: 28px; --rail-w: clamp(200px, calc(100vw - 480px), 360px); --rail-fs: 14px; --rail-badge: 20px;
+}
+html[data-touch='1'] .pl-rail .sb { display: none; }
+html[data-touch='1'] .pl-rail-line { padding: 0 12px 0 6px; gap: 6px; clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); }
+html[data-touch='1'] .pl-rail-rest.rest-countdown .tt { font-size: 22px; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-rail { --rail-top: 44px; --rail-h: 26px; --rail-w: min(210px, calc(100vw - 456px)); --rail-fs: 13px; --rail-badge: 18px; }
+}
+@media (max-height: 599px) {
+  html:not([data-touch='1']) .pl-rail { --rail-top: 64px; --rail-h: 34px; --rail-w: 460px; --rail-fs: 17px; --rail-badge: 24px; }
+}
+/* an open talent card dims the rail (only prio 0-1 notes show then); a menu or the pause screen hides it */
+.pl-match[data-stage='talent'] .pl-rail { opacity: 0.6; }
+.pl-match.paused .pl-rail, .pl-match:has(.pl-menu) .pl-rail { display: none; }
+@media (prefers-reduced-motion: reduce) {
+  .pl-rail-line.on, .pl-rail-rest.rest-countdown.on { animation: none; }
+  .pl-rail:not(.one) .pl-rail-line.big.on::after { animation: none; display: none; }
+}
+/* the old "Back in N" chip is the rail's respawn line now */
+.pl-hud .pl-respawn, .pl-hud.dead .pl-respawn { display: none; }
+
+/* 667×375 and smaller: the rail takes the slot under the score, so the enemy portraits move to the right edge under
+   the minimap (it ends by y 94; their 44 px tap areas start under it) and the kill feed under them (two rows at most,
+   ending by y 175 where the top ability button starts) */
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-top .pl-strip.enemy { left: auto; right: calc(50% - 50vw + 10px + var(--safe-r)); top: 95px; transform: none; gap: 16px; }
+  /* 28 px discs, each still a 44 px tap area (the ::after starts inside the 2 px border) */
+  html[data-touch='1'] .pl-top .pl-strip.enemy .pp { width: 28px; height: 28px; }
+  html[data-touch='1'] .pl-top .pl-strip.enemy .pp::after { inset: -10px; }
+  html[data-touch='1'] .pl-feed { top: calc(133px + var(--safe-t)); gap: 2px; }
+}
+/* 640×360 and shorter: one kill feed row, clear of the top ability button */
+@media (max-width: 699px) and (max-height: 365px) {
+  html[data-touch='1'] .pl-feed-row:nth-child(n + 2) { display: none; }
+}
+
+/* world pops on phones (A6): smaller, at most 5 at once (juice.ts), stacked closer */
+html[data-touch='1'] .pl-pop { font-size: 15px; -webkit-text-stroke-width: 3px; }
+html[data-touch='1'] .pl-pop.big { font-size: 19px; }
+.pl-pop.xp { font-size: 14px; }
+html[data-touch='1'] .pl-pop.xp { font-size: 12px; -webkit-text-stroke-width: 2px; }
+.pl-pop.bark {
+  font-size: 14px; -webkit-text-stroke: 0; text-shadow: none; color: #f3ead6; background: rgba(10, 16, 30, 0.82); border-radius: 999px; padding: 3px 8px;
+  border: 1px solid rgba(200, 170, 110, 0.6);
+}
+.pl-pop.bark.tone-good { color: #a9f0c4; }
+.pl-pop.bark.tone-bad { color: #ffb0b0; }
+html[data-touch='1'] .pl-pop.bark { font-size: 12px; padding: 2px 6px; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-pop { font-size: 13px; }
+  html[data-touch='1'] .pl-pop.big { font-size: 16px; }
+}
+
+/* phones (A4 #16): the talent offer is two 132 × 44 chips docked left of the ability cluster, never bottom centre */
+html[data-touch='1'] .pl-talents { top: auto; left: auto; right: calc(272px + var(--safe-r)); bottom: calc(16px + var(--safe-b)); transform: translateY(8px); gap: 6px; }
+html[data-touch='1'] .pl-talents.on { transform: none; }
+html[data-touch='1'] .pl-talents .head { left: auto; right: 0; transform: none; top: -20px; font-size: 11px; }
+html[data-touch='1'] .pl-talents button { width: 132px; height: 44px; padding: 4px 8px; display: flex; align-items: center; justify-content: center; text-align: center; }
+html[data-touch='1'] .pl-talents button b { font-size: 12px; line-height: 1.15; white-space: normal; }
+html[data-touch='1'] .pl-talents button :is(.d, .s, .n, kbd, .tag) { display: none; }
+/* the phone rank-up toast shares the bottom band with the talent chips: it waits while they are open */
+html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }

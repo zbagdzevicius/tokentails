@@ -1,10 +1,14 @@
 /**
- * Match lifecycle overlays (render-side DOM, no sim): the start gate countdown pill, the dead-state veil with the
- * "nine lives" pips (the seconds are counted by the HUD's "Back in N" chip and its face-down respawn card), the respawn iris (it hides the camera cut to the fountain) and the
- * end-of-match wipe into the results. CSS layers only (no full-screen filter or post pass), so phones pay nothing
- * while they are hidden. Every setter is idempotent and cheap to call each frame.
+ * Match lifecycle overlays (render-side DOM, no sim): the dead-state veil, the respawn iris (it hides the camera cut to
+ * the fountain) and the end-of-match wipe into the results. CSS layers only (no full-screen filter or post pass), so
+ * phones pay nothing while they are hidden. Every setter is idempotent and cheap to call each frame.
+ *
+ * LoL pass (lane A): the gate countdown is the top rail's resting `gate` line ("Gates open in 3"), and the nine-lives
+ * row is folded into the respawn resting line ("Back in 7 · 8 of 9 lives", set by the match session from
+ * `livesText`), so neither draws in the middle of the screen any more.
  */
 import './lifecycle.css';
+import { notifyFor, type NotifyLike } from '../../ui/notify';
 
 /** Pips in the lives row. */
 export const LIVES = 9;
@@ -17,99 +21,73 @@ export function livesLabel(deaths: number, dog: boolean): string {
   return left === 1 ? 'Last life! (just kidding)' : `${left} of ${LIVES} lives left`;
 }
 
+/** The short lives words for the rail's respawn line ("8 of 9 lives", "1 bone", "bonus lives"). */
+export function livesShort(deaths: number, dog: boolean): string {
+  const left = LIVES - deaths;
+  if (left <= 0) return dog ? 'out of bones' : 'bonus lives';
+  if (dog) return left === 1 ? '1 bone left' : `${left} of ${LIVES} bones`;
+  return left === 1 ? 'last life' : `${left} of ${LIVES} lives`;
+}
+
 const PAW_SVG =
   '<svg viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="15.5" rx="5.2" ry="4.3"/><ellipse cx="5.6" cy="10" rx="2.1" ry="2.6"/><ellipse cx="9.6" cy="6.4" rx="2.1" ry="2.6"/><ellipse cx="14.4" cy="6.4" rx="2.1" ry="2.6"/><ellipse cx="18.4" cy="10" rx="2.1" ry="2.6"/></svg>';
-const BONE_SVG =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 9.5h10a3 3 0 1 1 2.4 4.6A3 3 0 1 1 17 14.5H7a3 3 0 1 1-2.4-.4A3 3 0 1 1 7 9.5z"/></svg>';
-const LOCK_SVG =
-  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 10V8a5 5 0 0 1 10 0v2" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="4.5" y="10" width="15" height="11" rx="3"/></svg>';
 
 export class LifeHud {
   private readonly root: HTMLElement | null;
-  private readonly gateEl: HTMLElement | null = null;
-  private readonly gateNum: HTMLElement | null = null;
-  private readonly gateBar: HTMLElement | null = null;
   private readonly deadEl: HTMLElement | null = null;
-  private readonly livesEl: HTMLElement | null = null;
-  private readonly livesLbl: HTMLElement | null = null;
   private readonly irisEl: HTMLElement | null = null;
   private readonly wipeEl: HTMLElement | null = null;
   private gateShown = -1;
-  private gateFrac = -1;
   private deadOn = false;
   private irisKey = '';
   private livesKey = '';
   private wipeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Text said (e2e and tests). */
   readonly said: string[] = [];
+  /** The short lives words for the respawn line (empty while alive). */
+  livesText = '';
+  /** The top rail (looked up on the match root; tests may set it). */
+  notify: NotifyLike | null = null;
 
   constructor(root: HTMLElement | null) {
     this.root = root && typeof document !== 'undefined' ? root : null;
     if (!this.root) return;
+    this.notify = notifyFor(this.root);
     const el = (cls: string, html = ''): HTMLElement => {
       const d = document.createElement('div');
       d.className = cls;
       if (html) d.innerHTML = html;
       return d;
     };
-    this.gateEl = el('pl-lc-gate', `<span class="ic">${LOCK_SVG}</span><span class="tx">Gates open in</span><b class="n">3</b><span class="bar"><i></i></span>`);
-    this.gateEl.setAttribute('aria-live', 'polite');
-    this.gateNum = this.gateEl.querySelector('.n');
-    this.gateBar = this.gateEl.querySelector('.bar i');
-    this.deadEl = el('pl-lc-dead', '<div class="veil"></div><div class="lives"><div class="pips"></div><div class="lbl"></div></div>');
-    this.livesEl = this.deadEl.querySelector('.pips');
-    this.livesLbl = this.deadEl.querySelector('.lbl');
+    this.deadEl = el('pl-lc-dead', '<div class="veil"></div>');
     this.irisEl = el('pl-lc-iris', `<span class="paw">${PAW_SVG}</span>`);
     this.wipeEl = el('pl-lc-wipe', `<span class="paw">${PAW_SVG}</span>`);
-    this.root.append(this.deadEl, this.gateEl, this.irisEl, this.wipeEl);
+    this.root.append(this.deadEl, this.irisEl, this.wipeEl);
   }
 
-  /** Gate countdown: `secs` whole seconds left (0 hides it), `frac` 1 → 0 of the wait. */
-  gate(secs: number, frac: number): void {
-    const g = this.gateEl;
-    if (!g) return;
-    if (secs !== this.gateShown) {
-      this.gateShown = secs;
-      g.classList.toggle('on', secs > 0);
-      if (secs > 0 && this.gateNum) {
-        this.gateNum.textContent = String(secs);
-        // re-trigger the number pop
-        this.gateNum.classList.remove('pop');
-        void this.gateNum.offsetWidth;
-        this.gateNum.classList.add('pop');
-        this.said.push(`gate ${secs}`);
-      }
-    }
-    const f = Math.round(Math.max(0, Math.min(1, frac)) * 100) / 100;
-    if (f !== this.gateFrac && this.gateBar) {
-      this.gateFrac = f;
-      this.gateBar.style.transform = `scaleX(${f})`;
-    }
+  /** Gate countdown: `secs` whole seconds left (0 clears it) on the rail's resting line. `_frac` is kept for the API. */
+  gate(secs: number, _frac: number): void {
+    if (secs === this.gateShown) return;
+    this.gateShown = secs;
+    this.notify ??= notifyFor(this.root);
+    this.notify?.rest('gate', secs > 0 ? `Gates open in ${secs}` : null, 'gold');
+    if (secs > 0) this.said.push(`gate ${secs}`);
   }
 
-  /** The dead veil and lives row (`deaths` counts this death). */
+  /** The dead veil; `deaths` counts this death (the lives words go to the respawn line). */
   dead(on: boolean, deaths: number, dog: boolean): void {
     const d = this.deadEl;
-    if (!d) return;
     if (on !== this.deadOn) {
       this.deadOn = on;
-      d.classList.toggle('on', on);
+      d?.classList.toggle('on', on);
+      if (!on) this.livesText = '';
     }
     if (!on) return;
     const key = `${deaths}:${dog}`;
-    if (key === this.livesKey || !this.livesEl || !this.livesLbl) return;
+    if (key === this.livesKey) return;
     this.livesKey = key;
-    const icon = dog ? BONE_SVG : PAW_SVG;
-    let html = '';
-    for (let i = 0; i < LIVES; i++) {
-      const lost = i >= LIVES - deaths;
-      // the life lost just now pops off
-      const now = i === LIVES - deaths;
-      html += `<i class="${lost ? 'lost' : ''}${now ? ' now' : ''}">${icon}</i>`;
-    }
-    this.livesEl.innerHTML = html;
+    this.livesText = livesShort(deaths, dog);
     const lbl = livesLabel(deaths, dog);
-    this.livesLbl.textContent = lbl;
     this.said.push(lbl);
   }
 
@@ -146,6 +124,7 @@ export class LifeHud {
   dispose(): void {
     if (this.wipeTimer) clearTimeout(this.wipeTimer);
     this.wipeTimer = null;
-    for (const e of [this.gateEl, this.deadEl, this.irisEl, this.wipeEl]) e?.remove();
+    this.notify?.rest('gate', null);
+    for (const e of [this.deadEl, this.irisEl, this.wipeEl]) e?.remove();
   }
 }

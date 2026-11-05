@@ -113,21 +113,23 @@ describe('round 0: HUD channels', () => {
     t.dispose();
   });
 
-  it('banners: one at a time, urgent ones first, no duplicates, text cleared after the fade', () => {
+  it('banners: one at a time on the top rail, urgent ones first, no duplicates, text cleared after the fade', () => {
     const root = document.createElement('div');
     const j = new Juice(root);
     j.banner({ title: 'Frenzy' });
     j.banner({ title: 'Frenzy' });
     j.banner({ title: 'Our core is under attack!', urgent: true });
     j.update(0.016);
-    const el = root.querySelector('.pl-banner') as HTMLElement;
+    // LoL pass (lane A): the rail replaces the centre banner
+    const el = root.querySelector('.pl-rail-main') as HTMLElement;
+    expect(root.querySelector('.pl-banner')).toBeNull();
     expect(el.textContent).toContain('Our core is under attack!');
+    j.update(2.5);
+    expect(el.textContent).toContain('Frenzy');
+    expect(root.querySelectorAll('.pl-rail-line.on').length).toBe(1);
     j.update(2.2);
     j.update(0.4); // the fade-out gap
-    expect(el.textContent).toContain('Frenzy');
-    j.update(2.2);
-    j.update(0.4);
-    expect(el.textContent).toBe('');
+    expect(el.querySelector('.tt')?.textContent).toBe('');
     expect(document.documentElement.dataset.banner).toBeUndefined();
     j.dispose();
   });

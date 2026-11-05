@@ -47,6 +47,7 @@ import { chipPing } from '../ui/pingText';
 import { Overhead } from '../ui/overhead';
 import { Scoreboard, teamLabel } from '../ui/scoreboard';
 import { Stage } from '../ui/stage';
+import { TOWER_GLYPH } from '../ui/notify';
 import { menuScreen, RESULTS_AFTER_END_MS } from '../ui/screens';
 import { CoreLog, endCause, type CoreSource } from './endCause';
 import { TalentPicker } from '../ui/talents';
@@ -263,7 +264,7 @@ export class MatchSession {
   private hitsLanded = 0;
   /** Card skin cat names by slot ('' = none): the scoreboard's "<Hero> · <cat>". */
   private catNames: string[] = [];
-  /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (no window globals). */
+  /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (one window global: `__plJuice`, the rail). */
   private readonly e2e = (() => {
     try {
       return new URLSearchParams(location.search).get('e2e') === '1';
@@ -323,6 +324,8 @@ export class MatchSession {
     });
     this.view.juice.stage = this.stage;
     this.view.juice.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
+    // e2e (rail.spec.ts): the juice instance, to push one note of each priority
+    if (this.e2e) (window as unknown as { __plJuice?: unknown }).__plJuice = this.view.juice;
     // ANIM-SPEC §4.1: the animation director binds clips to events a few frames before they fire (read-only peek)
     this.view.peek = (h, out) => this.buffer.peekEvents(h, out);
     this.overhead = new Overhead(this.ui);
@@ -339,8 +342,8 @@ export class MatchSession {
       myTeam: () => this.view.myTeam,
       goHere: (x, y) => this.sendPing(PING_KIND.GoHere, x, y),
     });
-    this.tips = new Tips(this.ui, setup.firstMatch);
-    this.goals = new Objectives(this.ui, setup.guide ?? 'off');
+    this.tips = new Tips(this.view.juice.notify, setup.firstMatch);
+    this.goals = new Objectives(this.view.juice.notify, setup.guide ?? 'off');
     this.minimap.pickups = () => this.view.pickups.list();
     this.minimap.timers = () => this.objClock?.timers() ?? [];
     // GAPS A4 / B1: a tap on the objective chip sends its ping (Take Pudding, Group on me, Go here at a camp)
@@ -582,9 +585,9 @@ export class MatchSession {
     const now = performance.now();
     if (now - this.gateNoteAt < 1200) return;
     this.gateNoteAt = now;
-    const at = this.heroScreen();
     const left = Math.max(1, Math.ceil(clock.nextPhaseIn / TICK_HZ));
-    if (at) this.view.juice.pop(`Gates open in ${left}...`, at.x, at.y - 30, 'info');
+    // LoL pass (lane A): on the top rail, never over the hero
+    this.view.juice.push({ key: 'gate-order', title: `Gates open in ${left}...`, tone: 'info', prio: 4, cooldown: 3000 });
   }
 
   private talentsBlock(): boolean {
@@ -803,7 +806,6 @@ export class MatchSession {
     this.minimap.ping(core.fx, core.fy, color);
   }
 
-  private alertEl: HTMLElement | null = null;
   private wasDead = false;
   private usedUlt = false;
   private alertAt = -1e9;
@@ -840,10 +842,8 @@ export class MatchSession {
   /** Hide the tower alert and the "Tower aiming at you!" lock-on (on death, on respawn, when no tower shoots). */
   private clearTowerWarnings(): void {
     this.overhead.clearLocks(this.view.mySlot);
-    const el = this.alertEl;
-    if (!el) return;
-    el.classList.remove('on');
-    el.innerHTML = '';
+    this.view.juice.notify.drop('tower');
+    this.view.juice.notify.drop('dive');
     this.alertAt = -1e9;
   }
 
@@ -877,34 +877,16 @@ export class MatchSession {
     if (now - this.alertAt < 6000) return;
     this.alertAt = now;
     this.towerAlert(
-      lockOn
-        ? `${icon('shield')}<b>Tower aiming at you!</b><span>Step out of its ring, or let your minions walk in first.</span>`
-        : `${icon('shield')}<b>Tower is hitting you!</b><span>Step back until your minions walk in.</span>`,
-      now,
+      'tower',
+      lockOn ? 'Tower aiming at you!' : 'Tower is hitting you!',
+      lockOn ? 'Step out of its ring, or let your minions walk in first.' : 'Step back until your minions walk in.',
     );
   }
 
-  /** Show the red tower alert (it claims the centre band: ui/stage.ts). */
-  private towerAlert(html: string, now: number): void {
-    if (!this.alertEl) {
-      this.alertEl = document.createElement('div');
-      this.alertEl.className = 'pl-alert';
-      this.alertEl.setAttribute('role', 'alert');
-      this.ui.appendChild(this.alertEl);
-    }
-    const el = this.alertEl;
-    el.innerHTML = html;
-    el.classList.remove('on');
-    void el.offsetWidth;
-    el.classList.add('on');
-    this.stage.claim('alert', 2400 / Math.max(1, this.buffer.speed), now);
+  /** LoL pass (lane A): the red tower or dive alert is a prio 1 note on the top rail (never over the field). */
+  private towerAlert(key: 'tower' | 'dive', title: string, sub: string): void {
+    this.view.juice.push({ key, title, sub, tone: 'bad', prio: 1, icon: TOWER_GLYPH, ttl: 2400 / Math.max(1, this.buffer.speed), cooldown: 6000 / Math.max(1, this.buffer.speed) });
     sfx.play('click', { vol: 0.5, rate: 0.6 });
-    setTimeout(() => {
-      el.classList.remove('on');
-      setTimeout(() => {
-        if (!el.classList.contains('on')) el.innerHTML = '';
-      }, 300);
-    }, 2400 / Math.max(1, this.buffer.speed));
   }
 
   private marker(x: number, z: number, attack: boolean): void {
@@ -941,10 +923,8 @@ export class MatchSession {
 
   private countdown(go: () => void): void {
     const speed = Math.max(1, this.buffer.speed);
-    const el = document.createElement('div');
-    el.className = 'pl-count';
-    el.setAttribute('aria-live', 'polite');
-    this.ui.appendChild(el);
+    // LoL pass (lane A): the digits are the top rail's resting countdown line, not a big number over the field
+    const rail = this.view.juice.notify;
     // the sim starts on the last step, but the gates hold every hero for 3 s more: "Go!" waits for the barrier
     // (frame(): the gate -> play change), so it never says go under "Gates open in 0:03"
     const steps = ['3', '2', '1', 'Ready!'];
@@ -956,10 +936,10 @@ export class MatchSession {
         go();
       }
       if (i >= steps.length) {
-        el.remove();
+        rail.rest('countdown', null);
         return;
       }
-      el.textContent = steps[i];
+      rail.rest('countdown', steps[i], 'gold');
       // cards: the VS intro is gone by "1" whatever its own timers say (a late chunk under load would cover "Ready!")
       if (i === steps.length - 2) {
         this.vsDone = true;
@@ -967,25 +947,16 @@ export class MatchSession {
       }
       // lifecycle: a tick per step, a brighter one on "Ready!"
       sfx.play('blip', { vol: 0.5, rate: i === steps.length - 1 ? 1.6 : 1 });
-      el.classList.remove('on');
-      void el.offsetWidth;
-      el.classList.add('on');
       i++;
       setTimeout(next, (i === steps.length ? 600 : 700) / speed);
     };
     requestAnimationFrame(() => requestAnimationFrame(() => next()));
   }
 
-  /** "Go!" as the gate barrier drops (the countdown's own style). */
+  /** "Go!" as the gate barrier drops: a short prio 0 note on the top rail. */
   private goFlash(): void {
     if (this.disposed) return;
-    const el = document.createElement('div');
-    el.className = 'pl-count on';
-    el.setAttribute('aria-live', 'polite');
-    el.textContent = 'Go!';
-    this.ui.appendChild(el);
-    this.view.juice.note('Go!');
-    setTimeout(() => el.remove(), 700);
+    this.view.juice.push({ key: 'go', title: 'Go!', tone: 'gold', prio: 0, ttl: 700 });
   }
 
   private openMenu(): void {
@@ -1214,7 +1185,7 @@ export class MatchSession {
         const answer = m.key === 'barkPing' || m.key === 'barkHeal';
         if (answer) {
           const on = this.barkScreen(m.slot ?? -1, true);
-          if (on) j.pop(m.title, on.x, on.y - 10, m.tone === 'bad' ? 'bad' : 'good');
+          if (on) j.bark(m.title, on.x, on.y - 10, m.tone === 'bad' ? 'bad' : 'good');
           else this.hud?.note(`${this.names[m.slot ?? -1] ?? 'Ally'}: ${m.title}`);
           if (this.e2e) {
             const d = document.documentElement.dataset;
@@ -1222,7 +1193,7 @@ export class MatchSession {
           }
           continue;
         }
-        if (at) j.pop(m.title, at.x, at.y - 10, 'good');
+        if (at) j.bark(m.title, at.x, at.y - 10, 'good');
         continue;
       }
       if (m.size === 'banner') j.banner({ title: m.title, sub: m.sub, tone: m.tone });
@@ -1538,6 +1509,8 @@ export class MatchSession {
     if (meNow?.talents) this.lastTalents = meNow.talents;
     this.stage.hold('recap', meNow?.state === 'dead', nowMs);
     this.stage.hold('talent', this.talents?.open ?? false, nowMs);
+    // LoL pass (lane A): while out, the rail's resting line counts the respawn down with the lives left
+    this.respawnLine(meNow);
     if (this.e2e) {
       this.telemetry(frame);
       document.documentElement.dataset.stage = this.stage.top(nowMs) ?? '';
@@ -1566,6 +1539,18 @@ export class MatchSession {
       this.touch?.update(me?.cooldowns ?? null, [0, 1, 2, 3, 4].map((i) => maxCooldown(hero, i as 0, trick, me?.branch === true, me?.level ?? 1, me?.talents)), me?.level ?? 1);
       if (this.scoreOn) this.scoreboard?.show(true, frame);
     }
+  }
+
+  private respawnShown = '';
+
+  /** "Back in 7 · 8 of 9 lives" on the rail's resting line while the player is out (cleared on respawn). */
+  private respawnLine(me: { state: string; respawnIn?: number } | undefined): void {
+    const dead = !!me && me.state === 'dead' && !this.ended;
+    const lives = this.view.lifecycle?.hud.livesText ?? '';
+    const text = dead ? `Back in ${Math.max(1, Math.ceil((me!.respawnIn ?? 0) / TICK_HZ))}${lives ? ` · ${lives}` : ''}` : '';
+    if (text === this.respawnShown) return;
+    this.respawnShown = text;
+    this.view.juice.notify.rest('respawn', text || null, 'bad');
   }
 
   private telemetry(frame: ViewFrame | null): void {
@@ -1630,6 +1615,10 @@ export class MatchSession {
       d.allyFront = this.allyFrontOnScreen();
       const self = this.units.find((u) => u.id === this.view.mySlot);
       d.meScreen = self ? this.onScreen(self.x, self.y) : '';
+      // LoL pass (lane A, rail.spec.ts): the player's drawn plate box, so a test can hold the rail off it
+      this.overhead.boxes ??= [];
+      const plate = this.overhead.boxes.find((b) => b.kind === 'hero' && b.id === this.view.mySlot);
+      d.selfPlate = plate ? `${Math.round(plate.x0)},${Math.round(plate.y0)},${Math.round(plate.x1)},${Math.round(plate.y1)}` : '';
     }
   }
 
@@ -1749,7 +1738,7 @@ export class MatchSession {
       if (!ahead) {
         this.riverSaidAt = now;
         this.diveSaidAt = now;
-        this.towerAlert(`${icon('shield')}<b>Too far ahead of your minions!</b><span>Past the river alone, enemy heroes jump you. Wait for your wave.</span>`, now);
+        this.towerAlert('dive', 'Too far ahead of your minions!', 'Past the river alone, enemy heroes jump you. Wait for your wave.');
         return;
       }
     }
@@ -1761,7 +1750,7 @@ export class MatchSession {
       const tanked = this.units.some((u) => u.kind === 'minion' && u.team === team && u.state !== 'dead' && Math.hypot(u.x - t.x, u.y - t.y) < TOWERS.outer.range);
       if (tanked) return;
       this.diveSaidAt = now;
-      this.towerAlert(`${icon('shield')}<b>Too far ahead of your minions!</b><span>That tower hits hard. Wait for your wave to walk in first.</span>`, now);
+      this.towerAlert('dive', 'Too far ahead of your minions!', 'That tower hits hard. Wait for your wave to walk in first.');
       return;
     }
   }

@@ -1,14 +1,29 @@
 // @vitest-environment happy-dom
-/** First-match tips (POC.md §12, §15 item 20): every tip shows on its event and hides when done or after 8 s. */
+/**
+ * First-match tips (POC.md §12, §15 item 20): every tip shows on its event and hides when done or after 8 s. LoL pass
+ * (lane A): a tip is a prio 3 note on the top rail (ui/notify.ts), not a card of its own.
+ */
 import { describe, expect, it } from 'vitest';
-import { TIP_HIDE_S, Tips, type TipId } from '../../src/onboarding/tips';
+import { TIP_HIDE_S, tipShort, Tips, type TipId } from '../../src/onboarding/tips';
+import { Notify } from '../../src/ui/notify';
 
-const shown = (root: HTMLElement) => (root.querySelector('.pl-tip.on') as HTMLElement | null)?.textContent ?? '';
+const rails = new WeakMap<HTMLElement, Notify>();
+const railOn = (root: HTMLElement): Notify => {
+  let n = rails.get(root);
+  if (!n) rails.set(root, (n = new Notify(root)));
+  return n;
+};
+/** The tip on the rail now (one render frame). */
+const shown = (root: HTMLElement): string => {
+  const n = railOn(root);
+  n.update(0.001);
+  return (root.querySelector('.pl-rail-line.on .tt') as HTMLElement | null)?.textContent ?? '';
+};
 
 describe('first-match tips', () => {
   it('each of the five tips shows its text and hides once done', () => {
     const root = document.createElement('div');
-    const tips = new Tips(root, true);
+    const tips = new Tips(railOn(root), true);
     const text: Record<TipId, RegExp> = {
       move: /right-click the ground/i,
       attack: /right-click an enemy minion/i,
@@ -32,7 +47,7 @@ describe('first-match tips', () => {
 
   it('re-words the move tip when Auto flips the pad mode mid-tip', () => {
     const root = document.createElement('div');
-    const tips = new Tips(root, true);
+    const tips = new Tips(railOn(root), true);
     let pad: boolean | null = null;
     tips.padMode = () => pad;
     tips.trigger('move');
@@ -46,7 +61,7 @@ describe('first-match tips', () => {
   });
 
   it('hides after 8 s on its own', () => {
-    const tips = new Tips(document.createElement('div'), true);
+    const tips = new Tips(null, true);
     tips.trigger('move');
     tips.update(TIP_HIDE_S - 0.1);
     expect(tips.current).toBe('move');
@@ -55,7 +70,7 @@ describe('first-match tips', () => {
   });
 
   it('a tip blocked by another waits and shows next; one done meanwhile is skipped', () => {
-    const tips = new Tips(document.createElement('div'), true);
+    const tips = new Tips(null, true);
     tips.trigger('move');
     tips.trigger('dodge'); // a one-off event (the first wind-up at you) while the move tip is up
     tips.trigger('ult');
@@ -71,11 +86,13 @@ describe('first-match tips', () => {
 
   it('touch text, and nothing at all outside the first match', () => {
     const root = document.createElement('div');
-    const tips = new Tips(root, true);
+    const tips = new Tips(railOn(root), true);
     tips.touch = true;
     tips.trigger('attack');
     expect(shown(root)).toMatch(/Tap ATK/);
-    const off = new Tips(document.createElement('div'), false);
+    // phones get the short wording: at most 6 words
+    for (const id of ['move', 'attack', 'q', 'dodge', 'ult'] as TipId[]) expect(tipShort(id, true).split(/\s+/).length).toBeLessThanOrEqual(6);
+    const off = new Tips(null, false);
     off.trigger('move');
     expect(off.current).toBeNull();
   });

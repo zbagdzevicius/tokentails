@@ -111,13 +111,14 @@ describe('MVP and VS cards', () => {
     expect(leg).toContain('data-tt-tier="LEGENDARY"');
   });
   it('VS: both teams as six flip cards, own team first, and it is gone after a dispose', () => {
-    document.body.innerHTML = '<div class="pl-count"></div>';
+    document.body.innerHTML = '<div class="pl-rail"></div>';
     const off = showVsIntro(document.body, { picks: ['clem', 'sage', 'lambo', 'brutus', 'cacklejaw', 'brutus'], mySlot: 4, names: ['A', 'B', 'C', 'D', 'E', 'F'] });
     const rows = document.querySelectorAll('.tt-vs-row');
     expect(rows[0].classList.contains('mine')).toBe(true);
     expect(document.querySelectorAll('.tt-vs .tt-flip')).toHaveLength(6);
     expect(document.querySelector('.tt-vs-slot.me .tt-name')?.textContent).toBe('You');
-    expect(document.body.firstElementChild?.classList.contains('tt-vs')).toBe(true);
+    // LoL pass (lane A): appended over the rail (whose countdown hides under it, vs.css)
+    expect(document.body.lastElementChild?.classList.contains('tt-vs')).toBe(true);
     off();
     expect(document.querySelector('.tt-vs')).toBeNull();
   });

@@ -1,9 +1,8 @@
 /**
- * The centre-screen arbiter (playtest round 1: "banners, tips and callouts still stack on top of each other and on
- * the hero"). Every overlay that puts words in the middle band of the screen claims a kind here before it shows;
- * only the highest claim is visible, and the CSS hides the rest (`.pl-match[data-stage=...]` in ui.css). So a death
- * recap beats everything, a tower warning beats a banner, a banner beats a callout, and a coaching tip never shows
- * next to any of them.
+ * Hold bookkeeping for the match root (`.pl-match[data-stage]`). Round 1 used it as the centre-screen arbiter; since
+ * the LoL pass (lane A) every message goes through the top rail (ui/notifyQueue.ts orders them), so only two holds
+ * matter: `recap` while the player is out and `talent` while the talent card is open (the rail then shows only
+ * prio 0-1 notes and dims). The API is kept so older callers and tests compile.
  *
  * Pure bookkeeping: time is passed in (ms), so tests drive it without timers.
  */
@@ -30,6 +29,11 @@ export class Stage {
     if (on) this.until.set(kind, Infinity);
     else this.until.delete(kind);
     this.apply(now);
+  }
+
+  /** Is `kind` held (by `hold`, not a timed claim)? */
+  held(kind: StageKind): boolean {
+    return this.until.get(kind) === Infinity;
   }
 
   /** The kind on stage now, or null. */
