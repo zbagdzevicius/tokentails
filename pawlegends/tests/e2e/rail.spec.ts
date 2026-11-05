@@ -76,13 +76,14 @@ for (const s of SIZES) {
     }
     // the old centre layers are gone
     expect(await page.locator('[class*="pl-banner"], [class*="pl-callout"], .pl-alert, .pl-tip, .pl-count, .pl-lc-gate').count()).toBe(0);
+    // its own key: the match's real lane help (key lane-help) may already be on its cooldown
     // three identical lane-help pushes within 5 s show once: once it has shown, the next two are refused (its 8 s
     // cooldown; a note put back by a more important one may come back, but never as a new push)
     await page.evaluate(() => (window as unknown as { __plJuice: { notify: { queue: { clear(): void } } } }).__plJuice.notify.queue.clear());
     const pushLane = () =>
       page.evaluate(() => {
         const juice = (window as unknown as { __plJuice: { notify: { push(n: unknown): boolean } } }).__plJuice;
-        return juice.notify.push({ key: 'lane-help', title: 'Your team needs you in Sunny Lane', prio: 4, cooldown: 8000, tone: 'info' });
+        return juice.notify.push({ key: 'e2e-lane-help', title: 'Your team needs you in Sunny Lane', prio: 4, cooldown: 8000, tone: 'info' });
       });
     await pushLane();
     await expect.poll(() => page.evaluate(() => document.querySelector('.pl-rail')?.getAttribute('data-said') ?? ''), { timeout: 20_000 }).toContain('Your team needs you in Sunny Lane');
