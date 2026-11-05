@@ -98,8 +98,9 @@ test('match 2 shows the ping tip once', async ({ page }) => {
   const tip = 'Tell your team what to do';
   const held = () =>
     page.evaluate((t) => {
-      const j = (window as unknown as { __plJuice: { showing: string; queued(t: string): boolean } }).__plJuice;
-      return j.showing === t || j.queued(t);
+      // desktop: a cut-off tip may come back as the smaller second line under an announcer line
+      const j = (window as unknown as { __plJuice: { onRail(t: string): boolean } }).__plJuice;
+      return j.onRail(t);
     }, tip);
   expect(await held()).toBe(true);
   await page.waitForTimeout(3_000);

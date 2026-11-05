@@ -238,6 +238,11 @@ export class Notify implements NotifyLike {
     return this.queue.queued(key);
   }
 
+  /** Is a note with this key on the rail (the main or, on desktop, the second line) or waiting for it? */
+  onRail(key: string): boolean {
+    return this.state.main?.key === key || this.state.second?.key === key || this.queue.queued(key);
+  }
+
   /** Phones (touch) and short desktop windows show one line; a full desktop two. */
   private layout(): void {
     let one = true;

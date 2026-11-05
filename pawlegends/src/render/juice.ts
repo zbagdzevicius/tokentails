@@ -198,6 +198,11 @@ export class Juice {
     return this.notify.queued(bannerNote({ title }).key ?? title);
   }
 
+  /** Is a banner with this title on the rail (main or second line) or waiting for it? */
+  onRail(title: string): boolean {
+    return this.notify.onRail(bannerNote({ title }).key ?? title);
+  }
+
   /** A short personal word ("Purrfect!", "Takedown!"): a prio 3 rail note, ×N when it repeats. */
   callout(text: string, tone: Banner['tone'] = 'gold'): void {
     this.remember(text);
