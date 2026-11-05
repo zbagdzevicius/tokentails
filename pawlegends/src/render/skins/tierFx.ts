@@ -46,7 +46,10 @@ let tierExt: TierExt | null = null;
 /** The installed extensions, in order: the card flourish (`setTierExt`'s slot) and any `addTierExt` (Nature). */
 const tierExts: TierExt[] = [];
 export const setTierExt = (f: TierExt | null): void => {
-  if (tierExt) tierExts.splice(tierExts.indexOf(tierExt), 1);
+  if (tierExt) {
+    const i = tierExts.indexOf(tierExt);
+    if (i >= 0) tierExts.splice(i, 1);
+  }
   tierExt = f;
   if (f && !tierExts.includes(f)) tierExts.unshift(f);
 };
@@ -86,6 +89,8 @@ export interface FxHero {
   rung: CatTier;
   element: Element;
   self: boolean;
+  /** pawlegends: a featured cat the player does not own (a showcase bot's card); Nature skips it. */
+  featured?: boolean;
   moving: boolean;
   stealth: boolean;
   dead: boolean;

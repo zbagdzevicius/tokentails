@@ -8,8 +8,13 @@
  * folded into a "Today 1/3" chip. Bottom right: a fanned peek of up to three owned cards that opens the cards drawer
  * (a "your cats become skins" card when there are none; cards are never invented). Top right: icon buttons.
  *
- * Keyboard: Enter plays (when no button has focus), C opens the cards, H changes hero, Esc closes the quests popover.
+ * Keyboard: Enter plays (when no button has focus); C opens the cards and H changes hero only while focus is inside
+ * the lobby (WCAG 2.1.4: single-key shortcuts stay off for speech input elsewhere); Esc closes the quests popover.
+ * Every document listener is removed by `disposeLobby(el)` (app setScreen), so redraws never pile them up.
  * Play runs the stage dolly (`playOut`, skipped with reduced motion) before the match loads.
+ *
+ * First visit with cards: the peek shows them (not interactive; the first match never wears a card) with "Your 5 cats
+ * are here. Wear one after your first match." App builds never point to the web to collect cards.
  *
  * Names are host data: always escaped here. Cosmetic only.
  */
@@ -24,6 +29,7 @@ import { icon } from '../icons';
 import { cardFrame } from '../cards/frame';
 import { cardAttrs } from '../cards/el';
 import type { Choice } from '../screens';
+import { cssDataUrl, cssUrl } from '../deck/cssUrl';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
@@ -63,6 +69,8 @@ export interface LobbyScreenOpts {
   portrait?: string | null;
   /** "Signed in: wins save to your account." vs "No account needed." */
   signedIn: boolean;
+  /** An app build: the empty peek never sends players to the web (anti-steering). */
+  isApp?: boolean;
   /** The first match's line ("a guided Rookie match"). */
   firstLine?: string;
   /** Pickable bots (firstSession `pickable()`); a locked segment shows `difficultyNote` instead. */
@@ -121,47 +129,78 @@ export function playLabel(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'ident
   return `Play as ${o.identity.name}`;
 }
 
-/** A card's cat picture: its art, else its sprite's idle frame (pixelated), else a paw. */
+/** A card's cat picture: its art, else its sprite's idle frame (pixelated), else a paw. URLs go through `cssUrl`
+ * (QA: a sprite path with `');…` injected CSS through the old `url('…')`). */
 function catPic(c: PeekCard): string {
-  if (c.art) return `<img class="lb-cat" src="${esc(c.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">`;
+  if (c.art && cssUrl(c.art)) return `<img class="lb-cat" src="${esc(c.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">`;
   // the sprite sheet's idle frame (48 px cell, row 4), as the cards drawer draws it
-  if (c.sprite) return `<span class="lb-cat lb-sprite" aria-hidden="true"><i style="background-image:url('${esc(c.sprite)}')"></i></span>`;
+  const sp = cssUrl(c.sprite);
+  if (sp) return `<span class="lb-cat lb-sprite" aria-hidden="true"><i style="background-image:${sp}"></i></span>`;
   return `<span class="lb-cat lb-noart" aria-hidden="true">${icon('paw')}</span>`;
 }
 
-function peekHtml(o: LobbyScreenOpts): string {
-  if (o.firstTime || o.dare || !o.onCards) return '';
-  const cards = o.peek.slice(0, 3);
-  if (!cards.length) {
-    // no cards: never invent one; a plain card back that opens the drawer's empty state
-    return `<button type="button" class="lb-peek empty" data-a="cards" aria-label="Your cards: none yet. Open">
-      <span class="lb-back" aria-hidden="true">${icon('paw')}</span>
-      <span class="lb-peek-cap"><b>Your cats become skins</b><small>Collect cards on Token Tails</small></span></button>`;
-  }
-  const faces = cards
+/** The peek's fanned card faces (front card first in `cards`). `live`: the front card's Nature moves (not on Low). */
+function fanHtml(cards: readonly PeekCard[], live: boolean): string {
+  return cards
     .map((c, i) =>
       cardFrame({
         el: c.element,
         tier: c.rung,
         tag: 'span',
         // integrate: the Nature lane's card layer; the front card moves (ui/nature/nature.css, loaded lazily below)
-        cls: `lb-mini n${i} pl-nature${i === 0 ? ' pl-nature-live' : ''}`,
-        foil: i === 0 && (c.rung === 'EPIC' || c.rung === 'LEGENDARY') ? 'sweep' : 'none',
+        cls: `lb-mini n${i} pl-nature${i === 0 && live ? ' pl-nature-live' : ''}`,
+        foil: i === 0 && live && (c.rung === 'EPIC' || c.rung === 'LEGENDARY') ? 'sweep' : 'none',
         attrs: `data-nature="${c.element}" aria-hidden="true"`,
         inner: `${catPic(c)}<b class="lb-mini-name">${esc(c.name)}</b>`,
       }),
     )
     .reverse()
     .join('');
+}
+
+/** "Your 5 cats are here." Pure. */
+export function firstPeekLine(n: number): string {
+  return n === 1 ? 'Your cat is here.' : `Your ${n} cats are here.`;
+}
+
+function peekHtml(o: LobbyScreenOpts, live: boolean): string {
+  if (!o.onCards) return '';
+  const cards = o.peek.slice(0, 3);
+  if (o.firstTime) {
+    // QA: a first-time card owner saw nothing of their cards, then met them in the match. Shown, not wearable yet
+    // (GDD §7.2: the first match never wears a card); the guided Play stays the one call to action.
+    if (!cards.length) return '';
+    return `<div class="lb-peek first lb-wait" role="note"><span class="lb-fan" aria-hidden="true">${fanHtml(cards, live)}</span><span class="lb-peek-cap"><b>${esc(firstPeekLine(o.cardCount))}</b><small>Wear one after your first match.</small></span></div>`;
+  }
+  if (!cards.length) {
+    // no cards: never invent one; a plain card back that opens the drawer's empty state (its name is its visible
+    // text, WCAG 2.5.3); an app build never points to the web
+    const how = o.isApp ? 'Your Token Tails cats show up here' : 'Collect cards on Token Tails';
+    return `<button type="button" class="lb-peek empty" data-a="cards" aria-haspopup="dialog">
+      <span class="lb-back" aria-hidden="true">${icon('paw')}</span>
+      <span class="lb-peek-cap"><b>Your cats become skins</b> <small>${how}</small></span></button>`;
+  }
+  const faces = fanHtml(cards, live);
   const cap = o.wearing ? `<span class="lb-peek-cap pl-wearing"><small class="cap">Wearing ${esc(o.wearing.name)}</small></span>` : `<span class="lb-peek-cap"><small>Tap to wear a card</small></span>`;
-  return `<button type="button" class="lb-peek" data-a="cards" data-count="${cards.length}" aria-label="${esc(`Your cards: ${o.cardCount}. Open`)}"><span class="lb-fan">${faces}</span>${cap}</button>`;
+  // the visible caption leads the accessible name (WCAG 2.5.3), the count follows
+  const capText = o.wearing ? `Wearing ${o.wearing.name}` : 'Tap to wear a card';
+  return `<button type="button" class="lb-peek lb-wait" data-a="cards" data-count="${cards.length}" aria-haspopup="dialog" aria-label="${esc(`${capText}: your ${o.cardCount} cards`)}"><span class="lb-fan">${faces}</span>${cap}</button>`;
 }
 
 function badgeHtml(frame: FrameId | null | undefined, title: string | null | undefined, portrait: string | null | undefined, el: Element): string {
   if (!frame && !title) return '';
-  const face = portrait ? ` style="background-image:url(${portrait})" ${cardAttrs(el, null)}` : '';
+  // an internal baked portrait only (data: or blob: URL), never raw into the style attribute
+  const pic = cssDataUrl(portrait);
+  portrait = pic ? portrait : null;
+  const face = pic ? ` style="background-image:${pic}" ${cardAttrs(el, null)}` : '';
   const tip = frame?.startsWith('frame.champ.') ? 'Earned on the Treat Track.' : 'Frames come from cats you adopted by name, by their tier.';
   return `<div class="pl-badge lb-badge" ${frame ? `data-frame="${frame}"` : ''} title="${tip}"><span class="ring${portrait ? ' pic tt-ring' : ''}"${face}></span><span class="lb-badge-t"><small>Profile frame</small>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+}
+
+/** QA: a first visit shows no unexplained roster tier frame ("Profile frame / Legendary frame"); a bought frame or a
+ * title (a restored purchase) still shows. Pure. */
+export function firstHidesBadge(o: Pick<LobbyScreenOpts, 'firstTime' | 'frame' | 'title'>): boolean {
+  return o.firstTime && !o.title && /^frame\.(rare|epic|legendary)$/.test(o.frame ?? '');
 }
 
 function segmentHtml(o: LobbyScreenOpts, cur: Difficulty): string {
@@ -187,8 +226,18 @@ function questsHtml(qs: readonly QuestView[] | undefined): string {
 
 const overlayOpen = (): boolean => !!document.querySelector('.pl-menu, [aria-modal="true"], .pl-store, .plc-meet, .pl-offer');
 
+/** Each lobby screen's teardown (its document listeners). */
+const teardown = new WeakMap<HTMLElement, () => void>();
+/** Remove a lobby screen's document listeners (app setScreen calls it for every screen it replaces; safe on any node). */
+export function disposeLobby(el: HTMLElement | null | undefined): void {
+  if (!el) return;
+  teardown.get(el)?.();
+  teardown.delete(el);
+}
+
 export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElement {
   const root = document.createElement('div');
+  const ac = typeof AbortController === 'function' ? new AbortController() : null;
   root.className = 'pl-screen pl-title pl-lobby';
   const id = o.identity;
   const elColor = cssHex(ELEMENT_COLOR[id.element]);
@@ -204,9 +253,10 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
           ${o.onCards ? `<button type="button" class="pl-btn ghost lb-btn" data-a="cards" aria-keyshortcuts="C">${CARDS}<span>Cards</span>${o.cardCount ? `<span class="lb-count" aria-label="${o.cardCount} cards">${o.cardCount}</span>` : ''}</button>` : ''}
           ${questsHtml(o.quests)}
         </div>`;
-  const chips = `<span class="lb-chip el" style="--c:${elColor}"><i aria-hidden="true"></i>${esc(ELEMENT_NAME[id.element])}</span><span class="lb-chip role">${esc(id.role)}</span>${id.card && id.rung ? `<span class="lb-chip rung" data-rung="${id.rung}">${RUNG_NAME[id.rung]} card</span>` : ''}`;
-  // integrate: the card peek's Nature stylesheet stays out of the first load
-  if (o.peek.length && !o.firstTime && !o.dare && o.onCards) void import('../nature/natureCss').catch(() => undefined);
+  // QA: a card's element is part of its look (no element exists in the sim): "Fire look", never a bare type chip
+  const chips = `<span class="lb-chip el" style="--c:${elColor}"${id.card ? ' title="Part of the card\'s look. Stats stay the same."' : ''}><i aria-hidden="true"></i>${esc(id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element])}</span><span class="lb-chip role">${esc(id.role)}</span>${id.card && id.rung ? `<span class="lb-chip rung" data-rung="${id.rung}">${RUNG_NAME[id.rung]} card</span>` : ''}`;
+  // QA: on Low quality the peek's front card stays still (its Nature layer repainted every frame)
+  const live = document.documentElement.dataset.quality !== 'low';
   root.innerHTML = `
     <div class="pl-title-col lb-col">
       <div class="logo"><span class="paw">${icon('paw')}</span><h1>Paw<b>legends</b></h1></div>
@@ -224,9 +274,9 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
       </div>
       ${secondary}
       <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
-      ${badgeHtml(o.frame, o.title, o.portrait, id.element)}
+      ${firstHidesBadge(o) ? '' : badgeHtml(o.frame, o.title, o.portrait, id.element)}
     </div>
-    ${peekHtml(o)}
+    ${peekHtml(o, live)}
     <div class="pl-corner lb-corner">
       ${o.storeOpen ? `<button type="button" class="lb-icon" data-a="store" aria-label="Store">${icon('crown')}<span>Store</span></button>` : ''}
       ${o.onCollection ? `<button type="button" class="lb-icon wide" data-a="collection" aria-label="Treat Track">${icon('crown')}<span>Treat Track</span></button>` : ''}
@@ -304,7 +354,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   });
   const onKey = (e: KeyboardEvent): void => {
     if (!root.isConnected) {
-      document.removeEventListener('keydown', onKey);
+      disposeLobby(root);
       return;
     }
     if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || leaving) return;
@@ -324,16 +374,32 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     if (e.key === 'Enter' && !onControl) {
       e.preventDefault();
       (root.querySelector('.lb-play [data-a]') as HTMLElement | null)?.click();
-    } else if ((e.key === 'c' || e.key === 'C') && o.onCards && !o.firstTime && !dare) {
+      return;
+    }
+    // WCAG 2.1.4: the single-letter shortcuts only while focus is on the lobby itself
+    if (!t || !root.contains(t)) return;
+    if ((e.key === 'c' || e.key === 'C') && root.querySelector('button[data-a="cards"]')) {
       e.preventDefault();
-      (root.querySelector('[data-a="cards"]') as HTMLElement | null)?.click();
+      (root.querySelector('button[data-a="cards"]') as HTMLElement | null)?.click();
     } else if ((e.key === 'h' || e.key === 'H') && !o.firstTime && !dare) {
       e.preventDefault();
       (root.querySelector('[data-a="choose"]') as HTMLElement | null)?.click();
     }
   };
-  document.addEventListener('keydown', onKey);
+  if (ac) document.addEventListener('keydown', onKey, { signal: ac.signal });
+  else document.addEventListener('keydown', onKey);
+  teardown.set(root, () => {
+    ac?.abort();
+    document.removeEventListener('keydown', onKey);
+  });
   parent.appendChild(root);
+  // integrate: the card peek's Nature stylesheet stays out of the first load; the fan shows once it is in (QA: the
+  // front card flashed without its Nature styling)
+  const wait = root.querySelector<HTMLElement>('.lb-peek.lb-wait');
+  if (wait)
+    void import('../nature/natureCss')
+      .catch(() => undefined)
+      .then(() => wait.classList.remove('lb-wait'));
   return root;
 }
 

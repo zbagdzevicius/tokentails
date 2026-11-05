@@ -13,14 +13,12 @@ import { heroElement, heroPic } from '../cards/el';
 import { HERO_TEXT } from '../heroText';
 import { icon } from '../icons';
 import '../nature/natureCss';
+import { cssUrl } from './cssUrl';
 
 export const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
-/** A URL safe inside `url("…")` in an inline style: http(s) only, no quotes, brackets, backslashes or spaces. */
-export function cssUrl(u: string | undefined): string | null {
-  if (!u || !/^https?:\/\//i.test(u) || /["'\\()\s<>]/.test(u)) return null;
-  return `url(&quot;${u}&quot;)`;
-}
+/** A URL safe inside `url("…")` in an inline style (ui/deck/cssUrl.ts, shared with the lobby). */
+export { cssUrl };
 
 export interface DeckCard {
   id: string;
@@ -70,7 +68,8 @@ export function cardLabel(k: DeckCard, hero: HeroId, on: boolean): string {
 /** One owned card (a button) or a locked featured card (a div with a Preview button). */
 export function deckCard(k: DeckCard, hero: HeroId, on: boolean): string {
   const el = ELEMENT_NAME[k.element] ?? k.element;
-  const inner = `${catFace(k)}<b class="dk-name">${esc(k.name)}</b><small class="dk-meta"><span class="pip" data-rung="${k.rung}">${RUNG_NAME[k.rung]}</span><span class="dk-el">${esc(el)}</span></small>${k.locked ? '' : `<small class="bond">Bond ${k.bond}</small>`}`;
+  const inner = `${catFace(k)}<b class="dk-name">${esc(k.name)}</b><small class="dk-meta"><span class="pip" data-rung="${k.rung}">${RUNG_NAME[k.rung]}</span><span class="dk-el">${esc(el)}</span></small>${k.locked || !(k.bond > 0) ? '' : `<small class="bond">Bond ${k.bond}</small>`}`;
+  // QA: a new card's "Bond 0" read as "worth nothing"; the line shows once the cat has earned some
   const epic = k.rung === 'EPIC' || k.rung === 'LEGENDARY';
   if (k.locked) {
     const preview = `<button type="button" class="chip small dk-preview" data-preview="${esc(k.id)}" tabindex="-1" aria-label="${esc(cardLabel(k, hero, false))}">Preview</button>`;

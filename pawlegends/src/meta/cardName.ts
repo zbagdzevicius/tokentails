@@ -49,8 +49,24 @@ export function heroSub(hero: HeroId): string {
   return t ? `${t.title} the ${t.role}` : '';
 }
 
-/** Whitespace collapsed; '' when nothing printable is left. */
-export const tidyName = (s: string | null | undefined): string => (typeof s === 'string' ? s.replace(/\s+/g, ' ').trim() : '');
+/**
+ * A host name made safe to show everywhere (title, plates, kill feed, scoreboard): format characters (zero-width,
+ * bidi overrides such as U+202E that reorder "· Clem (you)"), line and paragraph separators and lone surrogates (a
+ * cut emoji) are dropped, runs of 3+ combining marks collapse to 2 (no "Zalgo" overflowing the plates), whitespace
+ * collapses. '' unless a letter, digit or symbol is left (cardIdentity then falls back to the hero title). QA, on top
+ * of meta/roster.ts cleanName (C0 controls and `<>`), which stays as it is.
+ */
+export function tidyName(s: string | null | undefined): string {
+  if (typeof s !== 'string') return '';
+  const out = s
+    .replace(/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g, '')
+    .replace(/[\s\u2028\u2029]+/g, ' ')
+    .replace(/[\p{Cf}\p{Cc}]/gu, '')
+    .replace(/(\p{M}{2})\p{M}+/gu, '$1')
+    .replace(/ {2,}/g, ' ')
+    .trim();
+  return /[\p{L}\p{N}\p{So}]/u.test(out) ? out : '';
+}
 
 /** The card `hero` wears in `look`, or null (no card, a featured preview, an unknown skin, an empty name). */
 export function cardIdentity(hero: HeroId, look: Pick<Look, 'coat'> | null | undefined): CardIdentity | null {

@@ -34,7 +34,8 @@ export function emptyAction(c: EmptyCtx): 'sign-in' | 'link' | 'none' {
 export function emptyCard(c: EmptyCtx): string {
   const act = emptyAction(c);
   const lead = 'Your Token Tails cats become skins for every champion.';
-  const how = c.signedIn ? 'Cats you adopt or redeem on Token Tails show up here.' : act === 'sign-in' ? 'Sign in to bring your cats.' : 'Collect cards on Token Tails.';
+  // QA (anti-steering, App Store 3.1.1 / 3.1.3): an app build never points players to the web to collect cats
+  const how = c.isApp ? 'Your Token Tails cats show up here.' : c.signedIn ? 'Cats you adopt or redeem on Token Tails show up here.' : act === 'sign-in' ? 'Sign in to bring your cats.' : 'Collect cards on Token Tails.';
   const cta =
     act === 'sign-in'
       ? '<button type="button" class="pl-btn small dk-cta" data-a="deck-sign-in" tabindex="-1">Sign in</button>'

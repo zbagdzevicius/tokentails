@@ -57,6 +57,25 @@ describe('card names (meta/cardName.ts)', () => {
     expect(tidyName(undefined)).toBe('');
   });
 
+  it('QA: invisible, reordering and broken names are cleaned (or fall back to the hero title)', () => {
+    // zero-width only: nothing printable, so no rename
+    expect(tidyName('\u200B\u200B')).toBe('');
+    // a right-to-left override cannot reorder "· Clem (you)" or the kill feed
+    expect(tidyName('\u202Eevil\u202C')).toBe('evil');
+    // a lone surrogate (an emoji cut by the roster's 24-character slice) is dropped, a whole emoji stays
+    expect(tidyName(`${'x'.repeat(23)}\ud83d`)).toBe('x'.repeat(23));
+    expect(tidyName('Luna 😀')).toBe('Luna 😀');
+    // line and paragraph separators become plain spaces
+    expect(tidyName('Mr\u2028Paws\u2029')).toBe('Mr Paws');
+    // stacked combining marks collapse to two per letter; accents stay
+    expect(tidyName(`Z${'\u0301'.repeat(23)}oe`)).toBe('Z\u0301\u0301oe');
+    expect(tidyName('Renée')).toBe('Renée');
+    // symbols alone still count as a name
+    expect(tidyName('😺')).toBe('😺');
+    setRosterSkins([{ id: 'z', name: '\u200B\u200D', type: 'WIND', tier: 'COMMON', isStarter: false }]);
+    expect(cardIdentity('sage', { coat: 'cat.z' })).toBeNull();
+  });
+
   it('selfNames renames only the player slot; bots keep their persona names', () => {
     const picks = ['clem', 'sage', 'brutus', 'cacklejaw', 'brutus', 'sage'] as const;
     const base = slotNames(picks, 1234, 0);
@@ -221,5 +240,34 @@ describe('cards drawer (ui/deck)', () => {
     expect(dlg.querySelectorAll('.dk-card[data-coat]')).toHaveLength(1);
     expect(dlg.querySelector('[data-a="deck-sign-in"]')?.textContent).toBe('Sign in');
     expect(dlg.querySelectorAll('.dk-postcard')).toHaveLength(1);
+    // QA: the Sign in / Visit call is its own Tab stop (it was reachable by arrow keys only)
+    expect((dlg.querySelector('[data-a="deck-sign-in"]') as HTMLElement).tabIndex).toBe(0);
+  });
+
+  it('QA: one announcement per wear (no live footer), Bond 0 hidden, CSS-breaking paths rejected, app copy neutral', () => {
+    expect(cssUrl("https://x.test/a');position:fixed;--x:('.png")).toBeNull();
+    expect(cssUrl('https://x.test/a;b.png')).toBeNull();
+    expect(deckCard({ id: 'cat.a', name: 'A', element: 'FIRE', rung: 'RARE', bond: 0, next: 3 }, 'clem', false)).not.toContain('Bond 0');
+    expect(deckCard({ id: 'cat.a', name: 'A', element: 'FIRE', rung: 'RARE', bond: 2, next: 3 }, 'clem', false)).toContain('Bond 2');
+    expect(emptyCard({ signedIn: false, isApp: true, embed: true })).not.toMatch(/collect|adopt/i);
+    openDeck(document.body, {
+      hero: 'clem',
+      current: null,
+      owned: [{ id: 'cat.a', name: 'Simas', element: 'FIRE', rung: 'LEGENDARY', bond: 0, next: null }],
+      signedIn: true,
+      isApp: false,
+      embed: true,
+      onEquip: () => undefined,
+    });
+    const dlg = document.querySelector('.pl-deck') as HTMLElement;
+    expect(dlg.querySelector('.dk-foot')?.getAttribute('aria-live')).toBeNull();
+    const sr = dlg.querySelector('.dk-sr') as HTMLElement;
+    expect(sr.getAttribute('role')).toBe('status');
+    expect(sr.textContent).toBe('');
+    (dlg.querySelector('.dk-card[data-coat="cat.a"]') as HTMLElement).click();
+    expect(sr.textContent).toBe('Wearing Simas. Clem is now Simas.');
+    expect(dlg.querySelector('.dk-foot')?.textContent).toContain('earns Bond as you play in it');
+    (dlg.querySelector('.dk-card[data-coat=""]') as HTMLElement).click();
+    expect(sr.textContent).toBe('Classic Clem: no card.');
   });
 });

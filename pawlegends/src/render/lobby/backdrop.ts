@@ -52,9 +52,11 @@ void main() {
   vec2 g = (uv - uGlow) * vec2(uAspect, 1.0);
   float glow = exp(-dot(g, g) * 9.0);
   col += uTint * glow * 0.26;
-  // bokeh in two depths
-  float b = bokeh(uv, 7.0, 0.018, 0.0) * 0.55 + bokeh(uv + 0.37, 4.0, 0.010, 11.0) * 0.35;
-  col += mix(vec3(1.0, 0.95, 0.88), uTint, 0.55) * b * uBokeh * (0.35 + 0.65 * uv.y);
+  // bokeh in two depths (skipped at strength 0: Low tier, a uniform branch, so no per-pixel cost)
+  if (uBokeh > 0.001) {
+    float b = bokeh(uv, 7.0, 0.018, 0.0) * 0.55 + bokeh(uv + 0.37, 4.0, 0.010, 11.0) * 0.35;
+    col += mix(vec3(1.0, 0.95, 0.88), uTint, 0.55) * b * uBokeh * (0.35 + 0.65 * uv.y);
+  }
   // vignette
   vec2 v = (uv - 0.5) * vec2(1.25, 1.0);
   col *= 1.0 - smoothstep(0.32, 0.85, length(v)) * 0.55;

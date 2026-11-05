@@ -6,7 +6,7 @@
  * Looks only: nothing here touches a number.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { heroIdentity, lobbyScreen, playLabel, playLine, questTally, type LobbyScreenOpts } from '../../src/ui/lobby/lobbyScreen';
+import { disposeLobby, firstPeekLine, heroIdentity, lobbyScreen, playLabel, playLine, questTally, type LobbyScreenOpts } from '../../src/ui/lobby/lobbyScreen';
 import type { QuestView } from '../../src/meta/quests';
 
 const base = (o: Partial<LobbyScreenOpts> = {}): LobbyScreenOpts => ({
@@ -100,11 +100,17 @@ describe('lobby screen', () => {
 
   it('keyboard: Enter plays, C opens the cards, H changes hero; nothing while a dialog is open', async () => {
     const o = base();
-    mount(o);
+    const root = mount(o);
+    // WCAG 2.1.4: the letters do nothing while focus is outside the lobby
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }));
+    expect(o.onCards).not.toHaveBeenCalled();
+    const mute = root.querySelector('[data-a="mute"]') as HTMLElement;
+    mute.focus();
+    mute.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', bubbles: true }));
     expect(o.onCards).toHaveBeenCalledTimes(1);
-    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }));
+    mute.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }));
     expect(o.onChoose).toHaveBeenCalledTimes(1);
+    mute.blur();
     const dlg = document.createElement('div');
     dlg.setAttribute('aria-modal', 'true');
     document.body.appendChild(dlg);
@@ -133,6 +139,77 @@ describe('lobby screen', () => {
     expect(root.querySelectorAll('.lb-mini')).toHaveLength(3);
     const root2 = mount(base());
     expect(root2.querySelector('.lb-sprite > i')?.getAttribute('style')).toContain('a.png');
+  });
+
+  it('QA: disposeLobby removes the document key listener (redraws never pile them up)', async () => {
+    const o = base();
+    const root = mount(o);
+    disposeLobby(root);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await tick();
+    expect(o.onPlay).not.toHaveBeenCalled();
+    disposeLobby(root);
+    disposeLobby(null);
+  });
+
+  it('QA: a first-time card owner sees the cards (not wearable yet), the guided Play stays the call', () => {
+    const root = mount(base({ firstTime: true, cardCount: 5, wearing: null, identity: heroIdentity('clem', 'FAIRY') }));
+    const peek = root.querySelector('.lb-peek.first') as HTMLElement;
+    expect(peek).not.toBeNull();
+    expect(peek.tagName).toBe('DIV');
+    expect(peek.textContent).toContain('Your 5 cats are here.');
+    expect(peek.textContent).toContain('Wear one after your first match.');
+    expect(root.querySelectorAll('.lb-mini')).toHaveLength(2);
+    expect(root.querySelector('[data-a="cards"]')).toBeNull();
+    expect(root.querySelector('.pl-btn.big')?.textContent).toBe('Play as Clem');
+    expect(firstPeekLine(1)).toBe('Your cat is here.');
+    // no cards on a first visit: nothing
+    expect(mount(base({ firstTime: true, cardCount: 0, peek: [] })).querySelector('.lb-peek')).toBeNull();
+  });
+
+  it('QA: a dare keeps the card peek', () => {
+    const root = mount(base({ dare: { seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'easy', seconds: 0 } as LobbyScreenOpts['dare'] }));
+    expect(root.querySelector('button.lb-peek[data-a="cards"]')).not.toBeNull();
+  });
+
+  it('QA: a sprite path cannot inject CSS; bad art falls back', () => {
+    const bad = "https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/a');position:fixed;inset:0;z-index:2147483647;background:red;--x:('.png";
+    const root = mount(base({ peek: [{ name: 'X', element: 'FIRE', rung: 'RARE', sprite: bad, art: "javascript:alert(1)" }] }));
+    expect(root.innerHTML).not.toContain('position:fixed');
+    expect(root.querySelector('img.lb-cat')).toBeNull();
+    expect(root.querySelector('.lb-noart')).not.toBeNull();
+    // a portrait that is not an internal data/blob URL never reaches the style attribute
+    const r2 = mount(base({ frame: 'frame.legendary', portrait: 'x);background:red' }));
+    expect(r2.innerHTML).not.toContain('background:red');
+  });
+
+  it('QA: the empty peek says how in its visible text (no web pointer in app builds), and the card look chip', () => {
+    const web = mount(base({ cardCount: 0, peek: [], wearing: null }));
+    const b = web.querySelector('.lb-peek.empty') as HTMLElement;
+    expect(b.getAttribute('aria-label')).toBeNull();
+    expect(b.textContent).toContain('Collect cards on Token Tails');
+    const app = mount(base({ cardCount: 0, peek: [], wearing: null, isApp: true }));
+    expect(app.querySelector('.lb-peek.empty')?.textContent).not.toMatch(/collect/i);
+    // a card's element reads as part of its look, not a gameplay type
+    expect(web.querySelector('.lb-chip.el')?.textContent).toBe('Fire look');
+    expect(mount(base({ identity: heroIdentity('clem', 'FAIRY') })).querySelector('.lb-chip.el')?.textContent).toBe('Fairy');
+  });
+
+  it('QA: first visit hides the unexplained roster tier frame badge', () => {
+    expect(mount(base({ firstTime: true, frame: 'frame.legendary' })).querySelector('.lb-badge')).toBeNull();
+    expect(mount(base({ frame: 'frame.legendary' })).querySelector('.lb-badge')).not.toBeNull();
+    // a bought frame (a restored purchase) still shows on a first visit
+    expect(mount(base({ firstTime: true, frame: 'frame.founder' })).querySelector('.lb-badge')).not.toBeNull();
+  });
+
+  it('QA: on Low quality the peek front card does not move', () => {
+    document.documentElement.dataset.quality = 'low';
+    try {
+      expect(mount(base()).querySelector('.pl-nature-live')).toBeNull();
+    } finally {
+      delete document.documentElement.dataset.quality;
+    }
+    expect(mount(base()).querySelector('.pl-nature-live')).not.toBeNull();
   });
 
   it('sound is a toggle button with aria-pressed', () => {
