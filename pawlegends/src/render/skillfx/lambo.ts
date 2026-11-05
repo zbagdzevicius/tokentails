@@ -30,6 +30,7 @@ import { stubFx } from '../anim/common';
 import { DASH_SPEED, FLOP_RING_DELAY, KNOCK_TICKS, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxSpawn, SkillFxSet, V3Out } from '../anim/types';
 import { LAMBO_STATE } from '../moves/lambo';
+import { funHeadY, funHeroOf, funOverY, funPop, funRand, funSfx, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
 
 const STAR = 0xfff1a8;
 const AMBER = 0xffb347;
@@ -39,6 +40,10 @@ const WET = 0xd8f6ff;
 const STAIN = 0xa8d8e8;
 const TOAST = 0xffa65a;
 const BULBS: readonly number[] = [STAR, AMBER, CORD, WHITE];
+/** Fun pass: fairy-light bulb colours that blink along the strand (warm, never red / blue), the tuna sticker. */
+const BLINK: readonly number[] = [0xffe066, 0xff9de0, 0x9dffb0];
+const FISHY = 0xbfe6ff;
+const HEARTS = 0xff9ec8;
 
 const N = 16;
 /** Victims tracked through the Tangled Lights pull at once. */
@@ -113,6 +118,13 @@ const pullT = new Float64Array(PULLS);
 const pullRoot = new Float64Array(PULLS);
 const pullBolt = new Float64Array(PULLS);
 const pullBulb = new Uint8Array(PULLS);
+// fun pass: once-per-cast pops, the tuna sticker clock, the hug hearts clock, landing variant
+const qSplat = new Uint8Array(N);
+const tunaFish = new Float64Array(N);
+const hugHeart = new Float64Array(N);
+const ePop = new Uint8Array(N);
+const eVar = new Uint8Array(N);
+const rYoink = new Uint8Array(N);
 // passive
 const isLambo = new Uint8Array(N);
 const braveOn = new Uint8Array(N);
@@ -231,6 +243,8 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   tunaHalfW[id] = (a.width ?? 900) / 2000;
   tunaT[id] = 0;
   tunaPuff[id] = 0;
+  tunaFish[id] = 0;
+  qSplat[id] = 1;
   const crispy = (a.slowBp ?? 0) > 2500;
   tunaCol[id] = ribbonColor(fx, id, crispy ? TOAST : WET);
   _c.x = _a.x;
@@ -275,13 +289,19 @@ function castW(e: { src: number }, fx: FxCtx): void {
       fx.mesh.spawn('dome', sh);
       fx.mesh.spawn('heart', spec(fx, id, _b.x, _b.z, 1.6, 0.45, STAR));
       fx.sfx.cue('kiss', _b, 0.6);
+      // fun: a "PURRR" over the hugged friend (decoration; the pop's own rate limit keeps it rare)
+      if (funPop(fx, id, 'PURRR', _b.x, funOverY(fx, ally, 0.5), _b.z)) funSfx(fx, 'purr', _b, 0.7);
+      stickerBurst(fx, _b.x, 1.5, _b.z, 'HEART', HEARTS, 0.32, 0.8, 5, 1.4, 2.2, -2, 0.2);
     }
   }
+  // fun: hearts puff off Lambo himself (he hugs even with nobody near)
+  stickerBurst(fx, _a.x, 1.8, _a.z, 'HEART', HEARTS, 0.34, 0.9, 6, 1.6, 2.4, -2, 0.7);
+  hugHeart[id] = 0;
   allyShieldOn[id] = ally >= 0 ? 1 : 0;
   selfShieldOn[id] = 1;
 }
 
-function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
+function castE(e: { src: number; x: number; y: number; tick?: number }, fx: FxCtx): void {
   const id = e.src;
   if (!fx.heroPos(id, _a)) return;
   const g = spec(fx, id, _a.x, _a.z, 1.4, 0.25, STAR);
@@ -295,6 +315,8 @@ function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   const dashMm = a.dash ?? 5000;
   const aim = Math.hypot(e.x / 1000 - _a.x, -e.y / 1000 - _a.z) * 1000;
   const hop = aim < 1 ? dashMm : Math.min(dashMm, aim);
+  ePop[id] = 1;
+  eVar[id] = funRand(e.tick ?? 0, id, 2) < 0.5 ? 1 : 0;
   flopPending[id] = 1;
   flopRingAt[id] = now + (travelTicks(Math.max(1, hop), DASH_SPEED) + FLOP_RING_DELAY) * TICK_S;
   flopRib[id] = fx.bonePos(id, 'chest', _c) ? fx.ribbons.point(_c, ribbonColor(fx, id, STAR), 0.75, 0.3) : -1;
@@ -318,6 +340,13 @@ function castR(e: { src: number }, fx: FxCtx): void {
   spikes(fx, id, _a.x, _a.z, r, (fx.tier === 'low' ? 6 : 12) >> (fx.reduced ? 1 : 0), STAR);
   fx.sfx.cue('chain', _a);
   fx.sfx.cue('lightsJingle', _a);
+  rYoink[id] = 1;
+  // fun: fairy bulbs pop out along the edge in three blinking colours
+  const n = fx.tier === 'low' ? 6 : 10;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2;
+    sticker(fx, _a.x + Math.cos(a) * r, 0.5, _a.z + Math.sin(a) * r, 'BULB', BLINK[i % 3], 0.34, 0.55, 0.6);
+  }
 }
 
 // ------------------------------------------------------------------------------------------------ hits
@@ -356,6 +385,12 @@ function hitQ(dst: number, id: number, fx: FxCtx): void {
   }
   fx.particles.debris(_b.x, _b.z, 0.4);
   fx.sfx.cue('pop', _b);
+  // fun: the tuna splats: fish-water drops and, on a hero, "SPLAT!" once per toss
+  stickerBurst(fx, _b.x, 1.0, _b.z, 'DROPLET', WET, 0.2, 0.5, 6, 2.4, 2.6, -9, 0.4);
+  if (qSplat[id] && funHeroOf(fx, dst)) {
+    qSplat[id] = 0;
+    if (funPop(fx, id, 'SPLAT!', _b.x, funOverY(fx, dst, 0.4), _b.z)) funSfx(fx, 'splat', _b, 0.6);
+  }
 }
 
 function hitR(dst: number, id: number, fx: FxCtx): void {
@@ -386,6 +421,11 @@ function hitR(dst: number, id: number, fx: FxCtx): void {
     fx.mesh.spawn('chain', c);
   }
   fx.particles.lightning(_a.x, 1.2, _a.z, _b.x, 1.0, _b.z, STAR);
+  // fun: the first hero lassoed by the lights gets "YOINK!"
+  if (rYoink[id] && funHeroOf(fx, dst)) {
+    rYoink[id] = 0;
+    funPop(fx, id, 'YOINK!', _b.x, funOverY(fx, dst, 0.5), _b.z);
+  }
   const g = spec(fx, id, _b.x, _b.z, 1.1, 0.2, STAR);
   g.y = 0.9;
   fx.mesh.spawn('glow', g);
@@ -423,6 +463,9 @@ function landRing(id: number, fx: FxCtx): void {
     fx.cam.tier(2);
     fx.cam.punch(0.04);
   }
+  // fun: the belly bounce throws stars (or, variant, hearts) off him; the stars of a pancake
+  stickerBurst(fx, _a.x, 0.9, _a.z, eVar[id] ? 'HEART' : 'STAR', eVar[id] ? HEARTS : STAR, 0.3, 0.7, 8, 3.2, 3, -8, eVar[id] * 0.5);
+  funSfx(fx, 'boing', _a, 0.6);
 }
 
 function endFlopRibbon(id: number, fx: FxCtx): void {
@@ -484,6 +527,12 @@ function updateTuna(fx: FxCtx, dt: number): void {
     const x = tunaX[id] + tunaDx[id] * d;
     const z = tunaZ[id] + tunaDz[id] * d;
     if (tunaRib[id] >= 0) fx.ribbons.feed(tunaRib[id], x, 1.0, z);
+    // fun: a fish spinning with the can (short-lived stickers re-dropped at the head; toasted with Extra Crispy)
+    tunaFish[id] -= dt;
+    if (tunaFish[id] <= 0) {
+      tunaFish[id] = fx.tier === 'low' ? 0.08 : 0.045;
+      sticker(fx, x, 1.05, z, 'FISH', tunaCol[id] === WET ? FISHY : TOAST, 0.42, 0.07, 0, 0, tunaT[id] * 14);
+    }
     // Low has no ribbons: wet puffs behind the tuna instead (paced, ≈ 30 Hz)
     tunaPuff[id] -= dt;
     if (tunaRib[id] < 0 && tunaPuff[id] <= 0) {
@@ -507,9 +556,13 @@ function updateHug(fx: FxCtx, dt: number): void {
       const ally = hugAlly[id];
       const u = Math.min(1, hugT[id] / 0.4);
       if (fx.heroPos(id, _a) && fx.heroPos(ally, _b)) {
-        if (hugRib[id] >= 0) {
-          const e = 1 - (1 - u) * (1 - u);
-          fx.ribbons.feed(hugRib[id], _a.x + (_b.x - _a.x) * e, 1.4 + Math.sin(e * Math.PI) * 1.6, _a.z + (_b.z - _a.z) * e);
+        const e = 1 - (1 - u) * (1 - u);
+        if (hugRib[id] >= 0) fx.ribbons.feed(hugRib[id], _a.x + (_b.x - _a.x) * e, 1.4 + Math.sin(e * Math.PI) * 1.6, _a.z + (_b.z - _a.z) * e);
+        // fun: hearts pop along the hug's arc between Lambo and the friend
+        hugHeart[id] -= dt;
+        if (hugHeart[id] <= 0 && u < 1) {
+          hugHeart[id] = fx.tier === 'low' ? 0.14 : 0.07;
+          sticker(fx, _a.x + (_b.x - _a.x) * e, 1.4 + Math.sin(e * Math.PI) * 1.6, _a.z + (_b.z - _a.z) * e, 'HEART', HEARTS, 0.32, 0.55, 0.6);
         }
         // the ribbon lands in a small sparkle (the shell itself appeared on the cast tick)
         if (u >= 1) {
@@ -587,6 +640,13 @@ function updatePulls(fx: FxCtx, dt: number): void {
         const bulb = fx.reduced ? STAR : BULBS[pullBulb[k]];
         const c = fx.relation(id) === 'enemy' ? mix(bulb, fx.rim(id), 0.35) : bulb;
         fx.particles.lightning(_a.x, 1.2, _a.z, _b.x, 0.9, _b.z, c);
+        // fun: three fairy bulbs on the strand, blinking through three colours (one steady colour with reduce motion)
+        const nb = fx.tier === 'low' ? 2 : 3;
+        for (let j = 0; j < nb; j++) {
+          const u = (j + 1) / (nb + 1);
+          const col = fx.reduced ? BLINK[0] : BLINK[(pullBulb[k] + j) % 3];
+          sticker(fx, _a.x + (_b.x - _a.x) * u, 1.2 + (0.9 - 1.2) * u - 0.15 * Math.sin(u * Math.PI), _a.z + (_b.z - _a.z) * u, 'BULB', c === bulb ? col : c, 0.3, pullBolt[k] + 0.02);
+        }
       }
     } else if (t0 <= PULL_S + 0.05) {
       // the light coil on the legs for the rest of the root (rooted: it stays where the victim stands)
@@ -602,6 +662,8 @@ function updatePulls(fx: FxCtx, dt: number): void {
       const g = spec(fx, id, _b.x, _b.z, 0.8, Math.min(rest, 0.5), AMBER);
       g.y = 0.3;
       fx.mesh.spawn('glow', g);
+      // fun: a loop of blinking bulbs round the tangled legs for the root
+      orbit(fx, _b.x, 0.4, _b.z, 'BULB', BLINK[k % 3], 6, 0.5, 0.24, Math.min(rest, 1.2), k * 0.7);
     }
     if (pullT[k] > PULL_S + 0.1) pullSrc[k] = -1;
   }
@@ -675,6 +737,12 @@ export function resetLamboFx(): void {
   allyShieldOn.fill(0);
   pullSrc.fill(-1);
   pullDst.fill(-1);
+  qSplat.fill(0);
+  tunaFish.fill(0);
+  hugHeart.fill(0);
+  ePop.fill(0);
+  eVar.fill(0);
+  rYoink.fill(0);
   isLambo.fill(0);
   braveOn.fill(0);
   scanAt = -1;
@@ -748,6 +816,15 @@ export const SKILL_FX: SkillFxSet = {
     if (slot === 0) hitQ(e.dst, id, fx);
     else if (slot === 3 && now - lastCastAt[id] < 0.4) hitR(e.dst, id, fx);
     else if (slot === 2 && fx.heroPos(e.dst, _b)) fx.linger.add('crackLine', _b.x, _b.z, 0.6, now * 11, 0xfff4d0);
+    // fun: a Belly Flop landing on a hero: "BOING!" once per flop and dizzy stars on each hero squashed
+    if (slot === 2 && funHeroOf(fx, e.dst) && fx.heroPos(e.dst, _b)) {
+      const y = funOverY(fx, e.dst, 0.1);
+      orbit(fx, _b.x, funHeadY(fx, e.dst, 0.45), _b.z, 'STAR', STAR, 3, 0.42, 0.24, 0.8, e.dst);
+      if (ePop[id]) {
+        ePop[id] = 0;
+        funPop(fx, id, 'BOING!', _b.x, y + 0.4, _b.z);
+      }
+    }
   },
 
   onMarker(id, _clip, marker, fx) {

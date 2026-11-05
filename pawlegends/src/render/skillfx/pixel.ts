@@ -15,12 +15,21 @@
  * - R BOXBOT MK II: a cardboard-confetti burst and a shield ring on the transformation (the clips grow the box and
  *   stand it on its robot legs).
  *
+ * Feel pass (skills-2 lane, render only; stickers and pops from render/fx/fun): a spinning bottle cap rides the Cap
+ * Cannon bolt and a hero it stops on gets "PLINK!"; the Laser Pointer ends in a bright pink chase dot that jitters along
+ * a seeded path (funRand: replays match), and a hero the pulses tag gets a "!" over the head; Duck and Cover peeks two
+ * blinking eyes over the flaps; BOXBOT bursts cardboard confetti with a "BEEP-BOOP!"; her own death (dizzy stars),
+ * respawn (a cardboard thump, then confetti as she pops out) and level-up (sparkles) clips throw their beats here.
+ *
  * Shapes use the talent-resolved numbers (fx.abil). Everything is pooled: no allocation per event or per frame.
  * Render only.
  */
 import { PROJECTILE_KIND } from '../../data/towers';
 import { TICK_S } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxKind, MeshFxSpawn, Relation3, SkillFxSet } from '../anim/types';
+import { SHAPE } from '../fx/Particles.js';
+import { funOverY, funPop, funRand, funSfx, orbit, sticker } from '../fx/fun/funKit';
+import { cap, eyes, shower } from '../fx/fun/skills2Fun';
 
 /** Ice cyan (her element), the laser dot red, the kraft confetti and a frost white. */
 const ICE = 0x3fa8d8;
@@ -41,6 +50,11 @@ const BEAM_Y = 0.75;
 export const BEAM_GLOW_W = 1.8;
 /** The bright laser core (lighter than her element so it reads on sand and grass alike). */
 const BEAM_CORE = 0x8fe6ff;
+/** Feel-pass sticker colours: the chase dot (pink-red, the sticker rule keeps it off pure red), the cap face, kraft. */
+const CHASE = 0xff4d8a;
+const CAP_FACE = 0x3fa8d8;
+const CARD = 0xc89a5e;
+const STARS = 0xffe066;
 
 // ------------------------------------------------------------------------------------------------ pooled scratch
 
@@ -86,6 +100,14 @@ class Caster {
   capAt = -99;
   rel: Relation3 = 'own';
   rim = 0;
+  /** Feel pass: the cast tick of the beam (funRand seed for the dot's chase path), the cap sticker clock, the duck. */
+  beamTick = 0;
+  beamT = 0;
+  capNext = 0;
+  duck = 0;
+  duckNext = 0;
+  /** Bit per victim id: already got its "!" this beam. */
+  tagged = 0;
 }
 const CASTERS: Caster[] = [new Caster(), new Caster(), new Caster(), new Caster(), new Caster(), new Caster()];
 let now = 0;
@@ -120,6 +142,9 @@ export function resetPixelFx(): void {
     c.trail = -1;
     c.proj = -1;
     c.capAt = -99;
+    c.beamT = 0;
+    c.duck = 0;
+    c.tagged = 0;
   }
 }
 
@@ -145,7 +170,12 @@ export const SKILL_FX: SkillFxSet = {
     switch (e.slot) {
       case 0: {
         c.capAt = now;
-        if (fx.bonePos(e.src, 'weaponTip', F)) mesh(fx, 'glow', F.x, F.z, 0.7, 0.16, FROST, c.rim, c.rel, 0, F.y);
+        c.capNext = 0;
+        if (fx.bonePos(e.src, 'weaponTip', F)) {
+          mesh(fx, 'glow', F.x, F.z, 0.7, 0.16, FROST, c.rim, c.rel, 0, F.y);
+          // a puff of fizz from the muzzle (it's a soda cap)
+          shower(fx, F.x, F.y, F.z, 5, SHAPE.SOFT, FROST, 0.14, 0.3, 1.4, 1.2, -1, funRand(e.tick, e.src, 0), true);
+        }
         fx.sfx.cue('pop', P);
         return;
       }
@@ -155,6 +185,9 @@ export const SKILL_FX: SkillFxSet = {
         c.beamNext = 0;
         c.len = (a.range ?? 9000) / 1000;
         c.width = (a.width ?? 600) / 1000;
+        c.beamTick = e.tick;
+        c.beamT = 0;
+        c.tagged = 0;
         fx.sfx.cue('zap', P);
         return;
       }
@@ -172,6 +205,8 @@ export const SKILL_FX: SkillFxSet = {
         fx.mesh.spawn('crescent', S);
         mesh(fx, 'glow', P.x, P.z, 1.1, 0.2, FROST, c.rim, c.rel, 0, 1.0);
         mesh(fx, 'crescent', P.x, P.z, 1.0, 0.25, FROST, c.rim, c.rel, 0, 0.08);
+        c.duck = life;
+        c.duckNext = 0.15;
         fx.sfx.cue('clang', P);
         return;
       }
@@ -182,9 +217,49 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'ring', P.x, P.z, splash, 0.5, ICE, c.rim, c.rel, 0, 0.06, splash, 0.2);
         mesh(fx, 'glow', P.x, P.z, 1.4, 0.35, FROST, c.rim, c.rel, 0, 0.8);
         fx.particles.debris(P.x, P.z, 1.0);
+        // the transformation: cardboard confetti and tape flying off the box, and the robot's boot-up beep
+        const v = funRand(e.tick, e.src, 3);
+        shower(fx, P.x, 1.0, P.z, 14, SHAPE.CONFETTI, CARD, 0.24, 0.9, 3.4, 3.2, 7, v);
+        shower(fx, P.x, 1.2, P.z, 6, SHAPE.CONFETTI, FROST, 0.18, 0.8, 2.6, 3.6, 7, v + 0.5);
+        funPop(fx, e.src, v < 0.5 ? 'BEEP-BOOP!' : 'BOOP-BEEP!', P.x, funOverY(fx, e.src, 1.1), P.z);
+        funSfx(fx, 'blip', P, 0.8);
         fx.cam.tier(2);
         fx.sfx.cue('fwoomp', P);
       }
+    }
+  },
+
+  onMarker(id, _clip, marker, fx) {
+    if (marker.charCodeAt(0) !== 112 || marker.charCodeAt(2) !== 58 || !fx.heroPos(id, P)) return; // 'px:' beats only
+    const rel = fx.relation(id);
+    const rim = fx.rim(id);
+    switch (marker) {
+      case 'px:duck':
+        // the flaps clap: a little kraft dust
+        shower(fx, P.x, 0.9, P.z, 4, SHAPE.CONFETTI, CARD, 0.14, 0.4, 1.6, 1.2, 6, (now * 0.37) % 1);
+        return;
+      case 'px:dizzy':
+        orbit(fx, P.x, 0.9, P.z, 'STAR', STARS, 3, 0.4, 0.22, 1.2, now % 6.283);
+        return;
+      case 'px:land':
+        // the box thumps down: cardboard dust and a kraft ring
+        mesh(fx, 'ring', P.x, P.z, 1.4, 0.35, KRAFT, rim, rel, 0, 0.06, 1.4, 0.3);
+        shower(fx, P.x, 0.2, P.z, 6, SHAPE.PUFF, 0xe9d6b0, 0.4, 0.45, 2.6, 0.6, 2, (now * 0.29) % 1);
+        funSfx(fx, 'bonk', P, 0.6);
+        return;
+      case 'px:pop':
+        // flaps open, she pops out: confetti and a "!"
+        shower(fx, P.x, 1.0, P.z, 10, SHAPE.CONFETTI, CARD, 0.2, 0.8, 2.6, 3.0, 7, (now * 0.41) % 1);
+        shower(fx, P.x, 1.1, P.z, 6, SHAPE.CONFETTI, FROST, 0.16, 0.7, 2.2, 3.4, 7, (now * 0.53) % 1);
+        sticker(fx, P.x + 0.25, funOverY(fx, id, 0.25), P.z, 'EXCLAIM', 0xffe066, 0.5, 0.7, 0.5, 0, 0.15);
+        funSfx(fx, 'squeakToy', P, 0.7);
+        return;
+      case 'px:level':
+        shower(fx, P.x, 1.2, P.z, 8, SHAPE.STAR4, FROST, 0.26, 0.6, 1.8, 2.6, 3, (now * 0.47) % 1, true);
+        sticker(fx, P.x - 0.4, funOverY(fx, id, 0), P.z, 'NOTE', 0xffd27a, 0.3, 0.8, 0.8, 0, -0.2);
+        return;
+      default:
+        return;
     }
   },
 
@@ -216,8 +291,13 @@ export const SKILL_FX: SkillFxSet = {
       return;
     }
     if (c && c.beam > 0) {
-      // a Laser Pointer pulse: a frost spark where the dot burns
+      // a Laser Pointer pulse: a frost spark where the dot burns; a hero it tags the first time gets a startled "!"
       mesh(fx, 'glow', P.x, P.z, 0.5, 0.12, FROST, rim, rel, 0, 0.6);
+      const bit = e.dst >= 0 && e.dst < 30 ? 1 << e.dst : 0;
+      if (bit && (c.tagged & bit) === 0 && fx.abil(e.dst, 'q').cooldown !== undefined) {
+        c.tagged |= bit;
+        sticker(fx, P.x + 0.15, funOverY(fx, e.dst, 0.2), P.z, 'EXCLAIM', 0xffe066, 0.5, 0.7, 0.4, 0, 0.15);
+      }
       return;
     }
     if (c && now - c.capAt < 1) {
@@ -226,6 +306,10 @@ export const SKILL_FX: SkillFxSet = {
       mesh(fx, 'ring', P.x, P.z, 1.2, 0.3, ICE, rim, rel, 0, 0.06, 1.2, 0.15);
       mesh(fx, 'glow', P.x, P.z, 1.0, 0.22, FROST, rim, rel, 0, 0.8);
       mesh(fx, 'crescent', P.x, P.z, 1.1, 0.24, DOT, rim, rel, 0, 0.1);
+      // the cap pings off the hero: it bounces away spinning, "PLINK!" over them
+      const v = funRand(e.tick, e.src, 1);
+      cap(fx, P.x, 1.1, P.z, (v - 0.5) * 3, 3.2, 0.6, 0.34, CAP_FACE, 0.7, 14, 0, 9);
+      if (fx.abil(e.dst, 'q').cooldown !== undefined && funPop(fx, e.src, 'PLINK!', P.x, funOverY(fx, e.dst, 0.5), P.z)) funSfx(fx, 'sparkle', P, 0.8);
       fx.cam.tier(1);
       return;
     }
@@ -238,8 +322,25 @@ export const SKILL_FX: SkillFxSet = {
     for (const c of CASTERS) {
       if (c.id < 0) continue;
       if (c.trail >= 0) {
-        if (fx.projPos?.(c.proj, P)) fx.ribbons.feed(c.trail, P.x, 1.0, P.z);
-        else endTrail(fx, c);
+        if (fx.projPos?.(c.proj, P)) {
+          fx.ribbons.feed(c.trail, P.x, 1.0, P.z);
+          // a spinning bottle cap on the bolt (re-dropped each 1/30 s at a turning roll, so it reads as spinning)
+          c.capNext -= dt;
+          if (c.capNext <= 0) {
+            c.capNext = 1 / 30;
+            cap(fx, P.x, 1.0, P.z, 0, 0, 0, 0.36, CAP_FACE, 0.06, 0, now * 18, 0);
+          }
+        } else endTrail(fx, c);
+      }
+      if (c.duck > 0) {
+        // Duck and Cover: two eyes peek over the flaps, blinking (each pair lives 0.55 s, a 0.1 s gap between them)
+        c.duck -= dt;
+        c.duckNext -= dt;
+        if (c.duckNext <= 0 && c.duck > 0.2 && fx.heroPos(c.id, P)) {
+          c.duckNext = 0.65;
+          const look = Math.sin(now * 2.3) > 0 ? 1 : -1;
+          eyes(fx, P.x, funOverY(fx, c.id, 0) * 0.5, P.z + 0.8, 0.2, Math.min(0.55, c.duck), look);
+        }
       }
       if (c.beam <= 0) continue;
       c.beam -= dt;
@@ -259,6 +360,19 @@ export const SKILL_FX: SkillFxSet = {
       if (fx.tier !== 'low') mesh(fx, 'beam', P.x + F.x * 0.3, P.z + F.z * 0.3, c.len, life, ICE, c.rim, c.rel, yaw, 0.07, c.width);
       mesh(fx, 'glow', P.x + F.x * c.len, P.z + F.z * c.len, 0.7, life, DOT, c.rim, c.rel, 0, 0.08);
       if (fx.tier !== 'low') mesh(fx, 'glow', P.x + F.x * c.len, P.z + F.z * c.len, 0.3, life, DOT, c.rim, c.rel, 0, BEAM_Y);
+      // the chase dot every cat can't resist: a bright pink sticker darting round the beam's end on a seeded path
+      // (decoration only: it stays inside the sim width round the end point)
+      c.beamT += BEAM_EVERY;
+      const k = Math.floor(c.beamT / 0.2);
+      const r0 = funRand(c.beamTick, c.id, k);
+      const r1 = funRand(c.beamTick, c.id, k + 1);
+      const u = (c.beamT % 0.2) / 0.2;
+      const ang = (r0 + (r1 - r0) * u) * 6.283;
+      const jr = c.width * 0.45;
+      const ex = P.x + F.x * c.len + Math.cos(ang) * jr;
+      const ez = P.z + F.z * c.len + Math.sin(ang) * jr;
+      sticker(fx, ex, 0.25, ez, 'DOT', CHASE, 0.42, life + 0.02);
+      sticker(fx, ex, 0.25, ez, 'DOT', 0xffffff, 0.16, life + 0.02);
     }
   },
 };

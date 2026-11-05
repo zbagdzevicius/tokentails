@@ -303,6 +303,13 @@ export class GameView {
     };
     const cueSfx = new CueSfx();
     const runtime = new FxRuntime(this.meshFx, this.ribbons, this.linger, this.vfx, this.shock as never, this.fightCam, this.juice, cueSfx, lookup);
+    // fun-fx (skill FX lanes): comic pops ("POW!", "MEOW!") and sticker sprites from hero skill scripts
+    // (the kit is shared by the lazy skill-FX chunks only, so it loads with them and stays out of the first-load JS)
+    void import('./fx/fun/funKit')
+      .then((m) => {
+        if (!this.lifecycleGone) m.setFunSink({ particles: this.particles, camera: gr.camera, pop: (text, pos) => this.effects.numbers.pop(text, pos) });
+      })
+      .catch(() => undefined);
     this.director = new AnimDirector({
       rig: (id) => this.heroes.rigOf(id),
       get mySlot() {

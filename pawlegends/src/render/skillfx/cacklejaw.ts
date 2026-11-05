@@ -17,6 +17,12 @@
  *   standing claw X on the victim, a violet ring and shock kept small (2.2 m, ≤ 0.3 s, low on Med / Low; enemy casts
  *   in the danger rim colour), a crack star and scratches, shake T3 for the caster and for a hunted player.
  *
+ * Fun layer (skill-feel pass, render only): Gloat rolls three thin laugh arcs out through the cone (inside its exact
+ * shape), bounces laugh notes off his head with the hyena laugh, and every hero it fears gets a sweat drop and a "!" (the
+ * first one a "HAHA!"); Bush Slink throws a leaf puff and leaves two blinking eyes at the vanish point for 0.5 s (own
+ * team only: enemies learn nothing); the maul says "CHOMP!" with dizzy stars and a cackle; Pack Flank picks one of three
+ * claw-mark variants from funRand on the hit tick (replays match); Jeer Slash hits flick a few sparkles.
+ *
  * Enemy effects take the danger rim (fx.rim) and are never faded by the coverage budget; the shader dims anything over
  * an enemy windup. Lingering glyphs are never red and never rings. Pooled: module-level scratch objects and typed
  * arrays, nothing allocated per event or per frame.
@@ -24,12 +30,22 @@
 import { stubFx } from '../anim/common';
 import { DASH_SPEED, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
+import { funCount, funPop, funRand, funRank, funSound, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
+import { S3Once, s3Eyes, s3HeadY } from '../fx/fun/skills3Kit';
 
 const CORE = 0xb07cff;
 const PALE = 0xd9c4ff;
 const DEEP = 0x6a3cc0;
 const SHADOW = 0x4a2a8a;
 const FLANK = 0xff6fc1;
+/** Fun stickers: laugh notes (pale violet), sweat blue, the "!" butter yellow, leaf green, peeking eyes. */
+const LAUGH = 0xe6d4ff;
+const SWEAT = 0x9ad8ff;
+const BANG = 0xffe36a;
+const LEAF = 0x5fbf4a;
+const EYES = 0xd8ff6a;
+/** BuffFlag.Feared (sim/api), kept local so this chunk carries no sim import. */
+const FEARED = 1 << 5;
 const TAU = Math.PI * 2;
 const MAX_IDS = 16;
 
@@ -168,6 +184,19 @@ const hitVictim = new Int16Array(MAX_IDS).fill(-1);
 const hitAt = new Float32Array(MAX_IDS).fill(-9);
 const flankAt = new Float32Array(MAX_IDS).fill(-9);
 const PAIR_S = 0.12;
+// fun layer: Gloat's cast clock and aim (fear reactions), the "HAHA!" / "CHOMP!" latches, Bush Slink's peeking eyes
+const wCastAt = new Float32Array(MAX_IDS).fill(-99);
+const haha = new S3Once(MAX_IDS);
+const chomp = new S3Once(MAX_IDS);
+const eyesAt = new Float32Array(MAX_IDS).fill(-99);
+const eyesX = new Float32Array(MAX_IDS);
+const eyesZ = new Float32Array(MAX_IDS);
+const eyesY = new Float32Array(MAX_IDS);
+const eyesNext = new Float32Array(MAX_IDS);
+/** Eyes stay this long (s) and blink shut over [EYE_BLINK0, EYE_BLINK1). */
+const EYE_LIFE = 0.5;
+const EYE_BLINK0 = 0.22;
+const EYE_BLINK1 = 0.3;
 /** Pack Flank's ally range (m), from the hero data. */
 const ALLY_M = (abilNumbers('cacklejaw', 'passive').allyRange ?? 4000) / 1000;
 
@@ -232,14 +261,18 @@ function drawRake(fx: FxCtx, src: number, kind: number, victim: number): void {
 }
 
 /** Pack Flank: a pink-violet streak to the victim, a triple scratch glyph under it, an eye glint. Once per swing. */
-function drawFlank(fx: FxCtx, src: number, victim: number): void {
+function drawFlank(fx: FxCtx, src: number, victim: number, tick = 0): void {
   if (clock - flankAt[src] < 0.3) return;
   if (!fx.heroPos(src, P) || victim < 0 || !fx.heroPos(victim, D)) return;
   flankAt[src] = clock;
   const yaw = yawTo(P.x, P.z, D.x, D.z);
   const len = Math.hypot(D.x - P.x, D.z - P.z) + 0.8;
   spawn(fx, 'beam', P.x, P.z, yaw, len, 0.2, FLANK, src, 0, 0, 0, 1, 0, 0.5, 1, 0.22);
-  fx.linger.add('scratches', D.x, D.z, 0.6, yaw + Math.PI * 0.5, FLANK);
+  // three seeded claw-mark variants (replays match): a triple rake, a crossed rake, a rake with a paw stamp
+  const v = (funRand(tick, src, 11) * 3) | 0;
+  fx.linger.add('scratches', D.x, D.z, 0.6, yaw + Math.PI * (v === 1 ? 0.25 : 0.5), FLANK);
+  if (v === 1) fx.linger.add('scratches', D.x, D.z, 0.6, yaw + Math.PI * 0.75, FLANK);
+  else if (v === 2) sticker(fx, D.x, s3HeadY(fx, victim, -0.6), D.z, 'PAW', FLANK, 0.5, 0.35, 0.4, 0, yaw);
   if (fx.bonePos(src, 'head', Q)) spawn(fx, 'glow', Q.x, Q.z, 0, 0.32, 0.2, FLANK, src, 0, 0, 0, 1, 0, Q.y + 0.1);
 }
 
@@ -329,6 +362,10 @@ export function resetCacklejawFx(): void {
   hitVictim.fill(-1);
   hitAt.fill(-9);
   flankAt.fill(-9);
+  wCastAt.fill(-99);
+  eyesAt.fill(-99);
+  haha.reset();
+  chomp.reset();
 }
 
 // ------------------------------------------------------------------------------------------------ the set
@@ -390,6 +427,20 @@ export const SKILL_FX: SkillFxSet = {
         }
         spawn(fx, 'crescent', P.x, P.z, yaw, R, 0.36, PALE, id, arc, 0.88, 1, 1, 0.18);
         fx.linger.add('scratches', P.x + Math.cos(yaw) * R * 0.55, P.z - Math.sin(yaw) * R * 0.55, R * 0.35, yaw + Math.PI * 0.5, DEEP);
+        // the fun layer: three thin laugh arcs rolling out inside the cone (never past its exact range and arc), laugh
+        // notes bouncing off his head and the hyena laugh
+        for (let i = 0, n = funCount(fx, 3); i < n; i++) {
+          const rr = R * (0.4 + 0.27 * i);
+          spawn(fx, 'arc', P.x, P.z, yaw, rr, 0.32, LAUGH, id, arc, Math.max(0.8, 1 - 0.18 / rr), 1, 1.3, 0.08 * i, 0.09);
+        }
+        {
+          const hy = s3HeadY(fx, id, 0.3);
+          const k = funRank(fx, id, 1);
+          for (let i = 0, n = funCount(fx, 3); i < n; i++) sticker(fx, P.x + (i - 1) * 0.42, hy + 0.2 * (i & 1), P.z, 'NOTE', LAUGH, 0.42 * k, 0.7, 1.6 + 0.4 * i, 4 * (i - 1), (i - 1) * 0.4);
+        }
+        funSound('hyenaLaugh', P, 1, 0.55);
+        wCastAt[id] = clock;
+        haha.arm(id, clock);
         return;
       }
       case 2: {
@@ -398,6 +449,15 @@ export const SKILL_FX: SkillFxSet = {
         spawn(fx, 'ring', P.x, P.z, 0, 1.5, 0.35, PALE, id, 0, 0.25, 0, 1);
         shock(fx, P.x, P.z, 1.4, 0.3, DEEP, 0.9, false);
         fx.linger.add('scorch', P.x, P.z, 0.9, 0, SHADOW);
+        // the fun layer: a puff of leaves, and (own team only: enemies learn nothing) two eyes peeking from the spot
+        stickerBurst(fx, P.x, 0.9, P.z, 'FEATHER', LEAF, 0.3, 0.6, 7, 2.4, 2.2, -5, funRand(e.tick, id, 12));
+        if (fx.relation(id) !== 'enemy') {
+          eyesAt[id] = clock;
+          eyesNext[id] = clock;
+          eyesX[id] = P.x;
+          eyesZ[id] = P.z;
+          eyesY[id] = s3HeadY(fx, id, -0.55);
+        }
         return;
       }
       default: {
@@ -415,6 +475,7 @@ export const SKILL_FX: SkillFxSet = {
         huntRange[id] = (a.range ?? 12000) / 1000;
         huntVictim[id] = -1;
         huntGlowT[id] = 0;
+        chomp.arm(id, clock);
         RIB.x = P.x;
         RIB.z = P.z;
         huntRib[id] = fx.ribbons.point(RIB, CORE, 0.9, 0.5);
@@ -437,7 +498,7 @@ export const SKILL_FX: SkillFxSet = {
         drawRake(fx, src, rakeKind[src], e.dst);
         rakeKind[src] = -1;
       }
-      if (isHero(fx, e.dst) && allyNear(fx, src, e.dst)) drawFlank(fx, src, e.dst);
+      if (isHero(fx, e.dst) && allyNear(fx, src, e.dst)) drawFlank(fx, src, e.dst, e.tick);
       return;
     }
     if (e.kind !== 'ability' || !fx.heroPos(e.dst, D)) return;
@@ -449,6 +510,7 @@ export const SKILL_FX: SkillFxSet = {
         beamAt(fx, D.x, D.z, y + Math.PI * 0.25, 1.5, 0.16, 0.28, PALE, src);
         beamAt(fx, D.x, D.z, y - Math.PI * 0.25, 1.5, 0.16, 0.28, CORE, src, 0.03);
       }
+      stickerBurst(fx, D.x, 1.0, D.z, 'STAR4', PALE, 0.2, 0.28, 3, 2.2, 1.2, -4, funRand(e.tick, src, 13));
       if (dashRecast[src] && (fx.abil(src, 'q').slowBp ?? 0) > 0) {
         fx.linger.add('scorch', D.x, D.z, 0.75, y, DEEP);
         spawn(fx, 'glow', D.x, D.z, 0, 0.9, 0.5, DEEP, src);
@@ -475,6 +537,13 @@ export const SKILL_FX: SkillFxSet = {
       fx.linger.add('crackStar', D.x, D.z, 1.2, yaw, CORE);
       fx.linger.add('scratches', D.x, D.z, 0.8, yaw + Math.PI * 0.5, DEEP);
       fx.particles.debris(D.x, D.z, 1);
+      // the fun layer: "CHOMP!", dizzy stars, his cackle
+      if (chomp.take(src, clock, huntLife[src] + 0.2)) {
+        const hy = s3HeadY(fx, e.dst, 0.3);
+        funPop(fx, src, 'CHOMP!', D.x, hy + 0.5, D.z);
+        orbit(fx, D.x, hy, D.z, 'STAR', PALE, 3, 0.45, 0.28, 0.8, funRand(e.tick, src, 14) * TAU);
+        funSound('hyenaLaugh', D, 0.85, 0.5);
+      }
       const me: Relation3 = 'own';
       if (fx.relation(src) === me || fx.relation(e.dst) === me) {
         fx.cam.tier(3);
@@ -527,9 +596,29 @@ export const SKILL_FX: SkillFxSet = {
     }
   },
 
+  onStatus(id: number, gained: number, _lost: number, fx: FxCtx) {
+    if ((gained & FEARED) === 0 || id < 0 || id >= MAX_IDS || !fx.heroPos(id, D)) return;
+    // a hero just feared: by one of his Gloats this moment? (the nearest recent caster within the cone's reach)
+    for (let c = 0; c < MAX_IDS; c++) {
+      if (clock - wCastAt[c] > 0.45 || !fx.heroPos(c, P)) continue;
+      if (Math.hypot(D.x - P.x, D.z - P.z) > (fx.abil(c, 'w').range ?? 3000) / 1000 + 1.5) continue;
+      const hy = s3HeadY(fx, id, 0.35);
+      sticker(fx, D.x + 0.3, hy - 0.15, D.z, 'SWEAT', SWEAT, 0.32, 0.8, -0.4);
+      sticker(fx, D.x - 0.12, hy + 0.15, D.z, 'EXCLAIM', BANG, 0.55, 0.7, 0.5);
+      if (haha.take(c, clock, 0.45)) funPop(fx, c, 'HAHA!', P.x, s3HeadY(fx, c, 0.7), P.z);
+      return;
+    }
+  },
+
   update(dt: number, fx: FxCtx) {
     clock += dt;
     for (let id = 0; id < MAX_IDS; id++) {
+      // Bush Slink's peeking eyes (own team only, set on the cast): open, a blink, open, gone
+      const ea = clock - eyesAt[id];
+      if (ea >= 0 && ea < EYE_LIFE && clock >= eyesNext[id]) {
+        eyesNext[id] = clock + 0.1;
+        if (ea < EYE_BLINK0 || ea >= EYE_BLINK1) s3Eyes(fx, eyesX[id], eyesY[id], eyesZ[id], EYES, Math.max(0.03, Math.min(0.11, (ea < EYE_BLINK0 ? EYE_BLINK0 : EYE_LIFE) - ea)));
+      }
       // a rake marker whose hit never came (a feint, a whiff): draw it toward the striking paw
       if (rakeKind[id] >= 0 && clock - rakeAt[id] > PAIR_S) {
         drawRake(fx, id, rakeKind[id], -1);

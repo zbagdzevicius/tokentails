@@ -358,6 +358,94 @@ const GAIT: GaitProfile = { ...DEFAULT_GAIT, stride: 0.6, bounce: 0.7, lean: 0.3
 /** BOXBOT: the big-box basic (no allocation). */
 const basicPick = (ctx: MoveCtx): ClipDef | null => (ctx.form === true ? basicBoxbot : null);
 
+// ------------------------------------------------------------------------------------------------ death / respawn / level up (feel pass)
+
+/**
+ * pawlegends feel (skills-2): Pixel's own death, respawn and level-up instead of the shared clips.
+ * - Death: she ducks into the box, the box wobbles and tips over backwards (a quarter-ish pitch, under the reduce-motion
+ *   calm), dizzy stars from her skill FX (`px:dizzy`).
+ * - Respawn: the closed box drops from the sky and lands with a squash (`px:land`: a cardboard thump), the flaps pop
+ *   open and she springs out with her arms up (`px:pop`: confetti and a "!").
+ * - Level up: a quick spring out of the box with both paws up and a stretch (`px:level`: sparkles and a note).
+ * Render only: root channels stay inside ROOT_CAPS (up ≤ 1.2 m, a dead hero's horiz ≤ 0.6 m).
+ */
+const death: ClipDef = {
+  id: 'pixel.death',
+  len: 1.0,
+  mask: 'full',
+  mode: 'override',
+  prio: Prio.Death,
+  blendIn: 0.04,
+  blendOut: 0.3,
+  keys: [
+    [0, null, null],
+    [0.1, null, { ...KICK, head: [-0.5, 0, 0] }, 'expoOut'],
+    [0.3, null, DUCK, 'in'],
+    [1.0, null, DUCK, 'hold'],
+  ],
+  root: {
+    fwd: [[0, 0], [0.1, -0.12, 'expoOut'], [0.3, -0.1], [0.75, -0.35, 'in'], [1.0, -0.4, 'out']],
+    roll: [[0, 0], [0.3, 0], [0.4, 0.03, 'out'], [0.5, -0.03, 'inOut'], [0.6, 0, 'inOut'], [1.0, 0]],
+    pitch: [[0, 0], [0.6, 0], [0.8, 0.24, 'in'], [0.88, 0.2, 'out'], [1.0, 0.22, 'inOut']],
+    sy: [[0, 1], [0.3, 0.62, 'expoOut'], [0.8, 0.62], [0.85, 0.55, 'in'], [1.0, 0.62, 'back']],
+    sx: [[0, 1], [0.3, 1.1, 'expoOut'], [1.0, 1.1]],
+  },
+  markers: { contact: 0, tip: 0.8, end: 1.0 },
+  warp: [],
+  cues: [[0.3, 'land'], ['tip', 'land'], ['tip', 'dust'], ['tip', 'fx', 'px:dizzy']],
+  cancel: 'none',
+};
+
+const RP_LAND = 0.3;
+const RP_POP = 0.56;
+const RP_END = 1.0;
+const respawn: ClipDef = {
+  id: 'pixel.respawn',
+  len: RP_END,
+  mask: 'full',
+  mode: 'override',
+  prio: Prio.Emote,
+  blendIn: 0,
+  keys: [
+    [0, null, DUCK],
+    [RP_POP - 0.04, null, DUCK, 'hold'],
+    [RP_POP + 0.08, null, { shoulderL: [-2.9, 0, 0.4], shoulderR: [-2.9, 0, -0.4], elbowL: [-0.3, 0, 0], elbowR: [-0.3, 0, 0], head: [-0.35, 0, 0], chest: [-0.15, 0, 0] }, 'backBig'],
+    [RP_END, null, null, 'inOut'],
+  ],
+  root: {
+    up: [[0, 1.2], [RP_LAND, 0, 'in'], [RP_POP, 0], [RP_POP + 0.1, 0.3, 'out'], [RP_POP + 0.24, 0, 'in'], [RP_END, 0]],
+    sy: [[0, 0.7], [RP_LAND - 0.02, 0.72], [RP_LAND, 0.5, 'in'], [RP_LAND + 0.08, 0.66, 'out'], [RP_POP - 0.04, 0.62, 'inOut'], [RP_POP + 0.08, 1.22, 'expoOut'], [RP_POP + 0.24, 0.86, 'in'], [RP_END, 1, 'back']],
+    sx: [[0, 1.08], [RP_LAND, 1.25, 'in'], [RP_LAND + 0.08, 1.1, 'out'], [RP_POP - 0.04, 1.12], [RP_POP + 0.08, 0.88, 'expoOut'], [RP_POP + 0.24, 1.1, 'in'], [RP_END, 1, 'back']],
+  },
+  markers: { land: RP_LAND, pop: RP_POP, end: RP_END },
+  warp: [],
+  cues: [['land', 'land'], ['land', 'dustRing'], ['land', 'fx', 'px:land'], ['pop', 'fx', 'px:pop'], ['pop', 'earsBack'], [RP_POP + 0.24, 'land']],
+  cancel: 'any',
+};
+
+const levelUp: ClipDef = {
+  id: 'pixel.levelUp',
+  len: 0.8,
+  mask: 'full',
+  mode: 'override',
+  prio: Prio.Emote,
+  keys: [
+    [0, null, null],
+    [0.08, null, { chest: [0.15, 0, 0], head: [0.15, 0, 0] }, 'out'],
+    [0.22, null, { shoulderL: [-2.9, 0, 0.4], shoulderR: [-2.9, 0, -0.4], elbowL: [-0.2, 0, 0], elbowR: [-0.2, 0, 0], chest: [-0.2, 0, 0], head: [-0.3, 0, 0] }, 'backBig'],
+    [0.5, null, { shoulderL: [-2.7, 0, 0.5], shoulderR: [-2.7, 0, -0.5], chest: [-0.15, 0, 0], head: [-0.25, 0, 0] }, 'inOut'],
+    [0.8, null, null, 'inOut'],
+  ],
+  root: {
+    up: [[0, 0], [0.08, 0], [0.22, 0.22, 'out'], [0.38, 0, 'in'], [0.8, 0]],
+    sy: [[0, 1], [0.08, 0.85, 'out'], [0.22, 1.15, 'out'], [0.38, 0.9, 'in'], [0.6, 1, 'back']],
+  },
+  markers: { pop: 0.22, end: 0.8 },
+  warp: [],
+  cues: [['pop', 'fx', 'px:level'], [0.38, 'land']],
+  cancel: 'any',
+};
+
 export const MOVES: MoveSet = {
   hero: 'pixel',
   stub: false,
@@ -378,10 +466,10 @@ export const MOVES: MoveSet = {
   ],
   victory,
   emote,
-  death: COMMON.death,
-  respawn: COMMON.respawn,
-  levelUp: COMMON.levelFlex,
+  death,
+  respawn,
+  levelUp,
 };
 
 /** Tests and the capture: every clip of the set by name. */
-export const PIXEL_CLIPS = Object.freeze({ basicA, basicB, basicBoxbot, q, w, wHold, wEnd, e, r, rHold, rEnd, idle, fidgetPeek, fidgetAntenna, victory, emote, death: COMMON.death, recall: COMMON.recall });
+export const PIXEL_CLIPS = Object.freeze({ basicA, basicB, basicBoxbot, q, w, wHold, wEnd, e, r, rHold, rEnd, idle, fidgetPeek, fidgetAntenna, victory, emote, death, respawn, levelUp, recall: COMMON.recall });

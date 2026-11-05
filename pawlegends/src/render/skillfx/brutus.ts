@@ -20,17 +20,35 @@
  *   crumble at the end; Rally Howl adds the howl rings.
  * - Passive Honour: the spinning shield bash's gold shine sweep.
  *
+ * Fun layer (skill-feel pass, render only): Shield Slam throws dog bones up between the sand spikes (a pug digging)
+ * and says "BORK!" on the first hero it hits; the landing hop flops his ears with a puff; Front Guard puffs his chest
+ * (a thin woof ring) and snorts steam from his nose every 0.7 s while the guard holds; Pug Charge runs tongue-out
+ * (sweat drops flying off his head, speed lines) and its first hero gets "BONK!" and dizzy stars; Champion's Challenge
+ * rings a bell and hangs a ribbon medal over the challenged hero for the duel; Rally Howl adds music notes and a woof.
+ *
  * Pooled and allocation-free per frame: fixed records, one reused spawn option object, scratch vectors. Render only.
  */
 import { stubFx } from '../anim/common';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
 import { DASH_SPEED, TICK_S, travelTicks } from '../anim/timing';
+import { CUE_SFX } from '../anim/fxctx';
+import { PL_SFX } from '../../audio/sfx';
+import { funCount, funPop, funRand, funRank, funSfx, orbit, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
+import { S3Once, s3HeadY, s3Medal } from '../fx/fun/skills3Kit';
 
 const SAND = 0xffd9a0;
 const GOLD = 0xffd34d;
 const DUST = 0xe8c48a;
 const SHINE = 0xfff1b0;
 const SAND_HEX = '#ffd9a0';
+/** Fun stickers: bone white, snort steam grey, sweat blue, the medal's ribbon (team-neutral royal blue), notes. */
+const BONE = 0xfff4e2;
+const STEAM = 0xd8d8d8;
+const SWEAT = 0x9ad8ff;
+const RIBBON = 0x5a7bd8;
+const NOTE = 0xfff1b0;
+/** Steam snort cadence while Front Guard holds (s). */
+const SNORT_EVERY = 0.7;
 const GOLD_HEX = '#ffd34d';
 const TAU = Math.PI * 2;
 
@@ -72,6 +90,8 @@ class Rec {
   zone = -1;
   ribA = -1;
   ribB = -1;
+  /** Fun layer: the next snort / sweat / medal re-lay (module clock). */
+  fun = 0;
 }
 
 const MAX = 6;
@@ -82,6 +102,9 @@ const lastSlot = new Int8Array(16).fill(-1);
 const lastCastAt = new Float64Array(16);
 
 let clock = 0;
+/** Once-per-cast pops: Shield Slam's "BORK!" and Pug Charge's "BONK!". */
+const bork = new S3Once(16);
+const bonk = new S3Once(16);
 let lastZone = -1;
 let lastZoneAt = -9;
 
@@ -111,6 +134,13 @@ function spawn(fx: FxCtx, kind: MeshFxKind, x: number, z: number, sx: number, li
   S.p3 = p3;
   S.delay = delay;
   return fx.mesh.spawn(kind, S);
+}
+
+const PL = PL_SFX as unknown as Record<string, unknown>;
+/** A woof: the shared 'woof' sound once audio has one (cue or synth), else a low drum thump. */
+function woof(fx: FxCtx, at: { x: number; z: number }, vol = 1): void {
+  if (CUE_SFX.woof || PL.woof) funSfx(fx, 'woof', at, vol);
+  else fx.sfx.cue('drum', at, 0.7 * vol);
 }
 
 function shock(fx: FxCtx, x: number, z: number, r1: number, dur: number, color: string, height: number): void {
@@ -232,7 +262,7 @@ function craters(fx: FxCtx, r: Rec, n: number): void {
 
 // ------------------------------------------------------------------------------------------------ casts
 
-function castQ(e: { src: number }, fx: FxCtx): void {
+function castQ(e: { src: number; tick: number }, fx: FxCtx): void {
   const id = e.src;
   if (!fx.heroPos(id, _p)) return;
   const a = fx.abil(id, 'q');
@@ -257,6 +287,15 @@ function castQ(e: { src: number }, fx: FxCtx): void {
     const t = (i / n) * TAU + off;
     spawn(fx, 'pillar', x + Math.cos(t) * Rs, z - Math.sin(t) * Rs, w, 0.4, SAND, rim, rel, 0, 0, heavy ? 1.25 : 0.95, w, 0, 0, 0, 1, (0.09 * i) / n);
   }
+  // the fun layer: dog bones thrown up between the spikes (a pug digging), each at a seeded tilt
+  const k = funRank(fx, id, 0);
+  const nb = funCount(fx, fx.tier === 'high' ? 6 : 4);
+  for (let i = 0; i < nb; i++) {
+    const t = ((i + 0.5) / nb) * TAU + off;
+    const rr = funRand(e.tick, id, 40 + i);
+    sticker(fx, x + Math.cos(t) * Rs * 0.8, 0.5 + 0.4 * rr, z - Math.sin(t) * Rs * 0.8, 'BONE', BONE, 0.62 * k, 0.6, 2.4 + rr, 3 * (i & 1 ? 1 : -1), rr * TAU);
+  }
+  bork.arm(id, clock);
   // radial cracks (Heavy Slam: doubled and longer), the crack star under the shield
   fx.linger.add('crackStar', x, z, heavy ? 1.5 : 1.15, off, SAND);
   for (let i = 0; i < 6; i++) {
@@ -320,6 +359,10 @@ function castW(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   spawn(fx, 'wall', r.cx, r.cz, r.r, 0.35, SHINE, rim, rel, 0, r.yaw, 1.6, r.r, r.ax, 0, 0, 2.5);
   spawn(fx, 'arc', r.cx, r.cz, r.r, 0.4, GOLD, rim, rel, 0.06, r.yaw, 1, r.r, r.ax, 0.75, 1, 1.2);
   fx.sfx.cue('clang', posOf(r.cx, r.cz));
+  // the fun layer: a puffed-chest woof (a thin ring off his chest, never at the gameplay reach) and the first snort
+  if (fx.bonePos(id, 'chest', _a)) sticker(fx, _a.x, _a.y, _a.z, 'RING', SHINE, 1.3, 0.3, 0);
+  woof(fx, posOf(r.cx, r.cz));
+  r.fun = clock + 0.25;
 }
 
 function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -342,6 +385,11 @@ function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   const col = SAND;
   r.ribA = fx.bonePos(id, 'shoulderL', _a) ? fx.ribbons.point(_a, col, 0.32, 0.28) : -1;
   r.ribB = fx.bonePos(id, 'shoulderR', _b) ? fx.ribbons.point(_b, col, 0.32, 0.28) : -1;
+  r.px = _p.x;
+  r.pz = _p.z;
+  r.fun = clock;
+  r.tog = 0;
+  bonk.arm(id, clock);
 }
 
 function castR(e: { src: number; x: number; y: number; target: number }, fx: FxCtx): void {
@@ -383,12 +431,27 @@ function castR(e: { src: number; x: number; y: number; target: number }, fx: FxC
   shock(fx, r.cx, r.cz, r.r, 0.35, GOLD_HEX, 0.9);
   fx.sfx.cue('gong', posOf(r.cx, r.cz));
   fx.sfx.cue('chain', posOf(r.cx, r.cz));
+  // the fun layer: the boxing-ring bell, a "WOOF!" over him, the medal over the challenged hero (arenaTick)
+  funSfx(fx, 'chime', posOf(r.cx, r.cz), 0.8);
+  funPop(fx, id, 'WOOF!', _p.x, s3HeadY(fx, id, 0.7), _p.z);
+  r.fun = clock;
 }
 
 // ------------------------------------------------------------------------------------------------ sustained
 
 function wallTick(r: Rec, fx: FxCtx): void {
   if (!fx.heroPos(r.src, _p)) return;
+  // the fun layer: a determined snort, two grey steam puffs from the nose, every SNORT_EVERY while the guard holds
+  if (clock >= r.fun && r.end - clock > 0.2) {
+    r.fun = clock + SNORT_EVERY;
+    if (fx.bonePos(r.src, 'mouth', _b)) {
+      const fy = r.yaw;
+      const fx0 = _b.x + Math.cos(fy) * 0.15;
+      const fz0 = _b.z - Math.sin(fy) * 0.15;
+      sticker(fx, fx0 - Math.sin(fy) * 0.1, _b.y + 0.05, fz0 - Math.cos(fy) * 0.1, 'HAIRBALL', STEAM, 0.26, 0.45, 0.7, 1.5);
+      sticker(fx, fx0 + Math.sin(fy) * 0.1, _b.y + 0.05, fz0 + Math.cos(fy) * 0.1, 'HAIRBALL', STEAM, 0.26, 0.45, 0.7, -1.5);
+    }
+  }
   // the sim facing: it turns to his movement direction while he walks (basic targets turn it in onHit)
   const mx = _p.x - r.px;
   const mz = _p.z - r.pz;
@@ -433,6 +496,11 @@ function postTick(r: Rec, fx: FxCtx): void {
 function arenaTick(r: Rec, fx: FxCtx): void {
   const rel = fx.relation(r.src);
   const rim = fx.rim(r.src);
+  // the fun layer: a ribbon medal over the challenged hero for the duel, re-laid on its head
+  if (clock >= r.fun && r.end - clock > 0.15) {
+    r.fun = clock + 0.25;
+    if (r.tgt >= 0 && fx.heroPos(r.tgt, _q)) s3Medal(fx, _q.x, s3HeadY(fx, r.tgt, 0.75), _q.z, 0.5, 0.3, RIBBON);
+  }
   // the edge band, its last copy ending on the arena's last tick
   const left = r.end - clock;
   if (clock >= r.last && left > 0.03) {
@@ -473,6 +541,19 @@ function chargeTick(r: Rec, fx: FxCtx): void {
   if (clock >= r.next && fx.heroPos(id, _p)) {
     r.next = clock + 0.06;
     fx.particles.debris(_p.x, _p.z, 0.22);
+    // the fun layer: tongue-out zoomies: speed lines streaming off him along the charge, sweat drops flying off
+    const dx = _p.x - r.px;
+    const dz = _p.z - r.pz;
+    const l = Math.hypot(dx, dz);
+    if (l > 0.05) speedLines(fx, _p.x, 0.9, _p.z, dx / l, dz / l, 3, SHINE, 1.2, 8);
+    r.px = _p.x;
+    r.pz = _p.z;
+    if (clock >= r.fun) {
+      r.fun = clock + (fx.tier === 'low' ? 0.24 : 0.12);
+      const hy = s3HeadY(fx, id, 0.1);
+      const sd = r.tog++ & 1 ? 1 : -1;
+      sticker(fx, _p.x - (l > 0.05 ? dz / l : 0) * 0.35 * sd, hy, _p.z + (l > 0.05 ? dx / l : 0) * 0.35 * sd, 'SWEAT', SWEAT, 0.26, 0.35, 1.4, 0, sd * 0.5);
+    }
   }
 }
 
@@ -533,10 +614,22 @@ export const SKILL_FX: SkillFxSet = {
       fx.particles.debris(_q.x, _q.z, 1.2);
       fx.sfx.cue('clang', posOf(_q.x, _q.z));
       if (fx.relation(e.dst) === 'own') fx.cam.tier(2);
+      // the fun layer: "BONK!" and dizzy stars on the first hero he runs into
+      if (e.dst < 16 && bonk.take(id, clock, 1.2)) {
+        const hy = s3HeadY(fx, e.dst, 0.3);
+        funPop(fx, id, 'BONK!', _q.x, hy + 0.5, _q.z);
+        orbit(fx, _q.x, hy, _q.z, 'STAR', SHINE, 3, 0.45, 0.28, 0.8, funRand(e.tick, id, 2) * TAU);
+        woof(fx, posOf(_q.x, _q.z), 0.8);
+      }
     } else if (slot === 0) {
       // Shield Slam victim: sand clings to the feet (the slow)
       spawn(fx, 'ring', _q.x, _q.z, 0.8, 0.5, DUST, rim, rel, 0.07, 0, 1, 0.8, 0, 0.55, 0, 0.6);
       fx.particles.debris(_q.x, _q.z, 0.35);
+      // the fun layer: "BORK!" once per slam, on the first hero it hits
+      if (e.dst < 16 && bork.take(id, clock, 0.6) && fx.heroPos(id, _p)) {
+        funPop(fx, id, 'BORK!', _p.x, s3HeadY(fx, id, 0.7), _p.z);
+        woof(fx, posOf(_p.x, _p.z));
+      }
     }
   },
 
@@ -564,6 +657,10 @@ export const SKILL_FX: SkillFxSet = {
         fx.particles.debris(r.cx, r.cz, 0.9);
         return;
       }
+      case 'qLand':
+        // the rebound hop lands: ears flop (moves/brutus.ts q), a soft puff under him
+        if (fx.heroPos(id, _p)) stickerBurst(fx, _p.x, 0.25, _p.z, 'PUFF', DUST, 0.36, 0.4, 4, 1.8, 0.6, -1, 0.3);
+        return;
       case 'eGo':
         if (fx.heroPos(id, _p)) fx.linger.add('crackStar', _p.x, _p.z, 0.8, 0, SAND);
         return;
@@ -600,6 +697,12 @@ export const SKILL_FX: SkillFxSet = {
         const rim = fx.rim(id);
         spawn(fx, 'ring', r.cx, r.cz, r.r, 0.6, SHINE, rim, rel, 0.08, 0, 1, r.r, 0, 0.2, 0, 0.8);
         spawn(fx, 'ring', r.cx, r.cz, r.r, 0.6, GOLD, rim, rel, 0.08, 0, 1, r.r, 0, 0.2, 0, 0.8, 0.18);
+        // the fun layer: the howl's music notes rising off his head, and a woof
+        if (fx.heroPos(id, _p)) {
+          const hy = s3HeadY(fx, id, 0.4);
+          for (let i = 0, n = funCount(fx, 3); i < n; i++) sticker(fx, _p.x + (i - 1) * 0.45, hy + 0.25 * (i & 1), _p.z, 'NOTE', NOTE, 0.45, 0.9, 1.3 + 0.3 * i, 0, (i - 1) * 0.3);
+          woof(fx, _p);
+        }
         return;
       }
       case 'deathThud':
@@ -672,6 +775,8 @@ export function resetBrutusFx(): void {
     recs[i].ribA = recs[i].ribB = recs[i].zone = -1;
   }
   lastSlot.fill(-1);
+  bork.reset();
+  bonk.reset();
   clock = 0;
   lastZone = -1;
   lastZoneAt = -9;

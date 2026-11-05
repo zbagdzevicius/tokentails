@@ -386,9 +386,10 @@ const moonshot: ClipDef = {
   keys: [
     [0, null, null],
     [MOON_WIND * 0.3, 'kneel', merge(KNEEL_AIM, { chest: [0.1, 0.2, 0], shoulderR: [-0.9, 0, 0.2], elbowR: [-1.4, 0, 0] }), 'backBig'],
-    [MOON_WIND * 0.6, 'kneel', merge(KNEEL_AIM, { chest: [-0.25, 0.35, 0], shoulderR: [-0.1, 0, 0.9] }), 'inOut'],
-    [MOON_WIND * 0.9, 'kneel', merge(KNEEL_AIM, { chest: [-0.44, 0.38, 0], head: [-0.35, -0.05, 0], shoulderL: [-1.35, 0, 0.3], shoulderR: [0.15, 0, 1.15], elbowR: [-1.3, 0, 0] }), 'out'],
-    [R1, 'kneel', merge(KNEEL_AIM, { chest: [-0.45, 0.38, 0], head: [-0.36, -0.05, 0], shoulderL: [-1.36, 0, 0.3], shoulderR: [0.17, 0, 1.17], elbowR: [-1.32, 0, 0] }), 'hold'],
+    // pawlegends fun pass: the tail swishes one way on the draw and flicks back on charge2 (a cat about to pounce)
+    [MOON_WIND * 0.6, 'kneel', merge(KNEEL_AIM, { chest: [-0.25, 0.35, 0], shoulderR: [-0.1, 0, 0.9], tail0: [0.25, 0.75, 0], tail1: [0, 0.45, 0] }), 'inOut'],
+    [MOON_WIND * 0.9, 'kneel', merge(KNEEL_AIM, { chest: [-0.44, 0.38, 0.06], head: [-0.35, -0.05, 0], shoulderL: [-1.35, 0, 0.3], shoulderR: [0.15, 0, 1.15], elbowR: [-1.3, 0, 0], tail0: [0.35, -0.8, 0], tail1: [0.1, -0.6, 0] }), 'out'],
+    [R1, 'kneel', merge(KNEEL_AIM, { chest: [-0.45, 0.38, 0.06], head: [-0.36, -0.05, 0], shoulderL: [-1.36, 0, 0.3], shoulderR: [0.17, 0, 1.17], elbowR: [-1.32, 0, 0], tail0: [0.4, -0.85, 0], tail1: [0.15, -0.65, 0] }), 'hold'],
     [R1 + 0.05, 'kneel', merge(KNEEL_LOOSE, { chest: [-0.5, 0.1, 0], shoulderL: [-1.9, 0, 0.3], shoulderR: [0.8, 0, 1.4] }), 'expoOut'],
     [R1 + 0.17, 'kneel', merge(KNEEL_AIM, { chest: [-0.1, 0.2, 0], shoulderL: [-1.0, 0, 0.3], shoulderR: [0.2, 0, 0.6], elbowR: [-0.4, 0, 0] }), 'back'],
     // rise out of the kneel, then step: the back leg swings through under a root hop
@@ -398,7 +399,9 @@ const moonshot: ClipDef = {
   root: {
     fwd: [[0, 0], [R1, 0], [R1 + 0.06, -0.28, 'expoOut'], [R1 + 0.2, -0.28], [R1 + 0.36, 0, 'inOut'], [R_LEN, 0]],
     up: [[0, 0], [R1 + 0.2, 0], [R1 + 0.28, 0.07, 'out'], [R1 + 0.36, 0, 'in'], [R_LEN, 0]],
-    sy: [[0, 1], [MOON_WIND * 0.25, 0.86, 'out'], [MOON_WIND * 0.32, 0.95, 'inOut'], [R1, 0.95], [R1 + 0.04, 1.1, 'expoOut'], [R1 + 0.25, 1, 'inOut']],
+    // fun pass: a squash on the release (0.84) before the recoil stretch
+    sy: [[0, 1], [MOON_WIND * 0.25, 0.86, 'out'], [MOON_WIND * 0.32, 0.95, 'inOut'], [R1, 0.95], [R1 + 0.02, 0.84, 'in'], [R1 + 0.07, 1.12, 'expoOut'], [R1 + 0.25, 1, 'inOut']],
+    sx: [[0, 1], [R1, 1], [R1 + 0.02, 1.12, 'in'], [R1 + 0.07, 0.94, 'expoOut'], [R1 + 0.25, 1, 'inOut']],
   },
   markers: { coil: R0, plant: MOON_WIND * 0.3, charge1: MOON_WIND * 0.5, charge2: MOON_WIND * 0.9, contact: R1, step: R1 + 0.36, end: R_LEN },
   warp: [['coil', 'windupStart'], ['contact', 'cast']],
