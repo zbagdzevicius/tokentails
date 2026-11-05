@@ -18,18 +18,61 @@ import { abilityRank, maxRank } from '../sim/heroes/talents';
 import { icon as iconSvg } from './icons';
 import { icon } from './icons';
 import { chargeRing } from './overhead';
-import { XP } from '../data/xp';
+import { HERO_RULES, XP } from '../data/xp';
 import { DIFFICULTY_RULES, type Difficulty } from '../data/bots';
 // cards: the respawn countdown card, kill-feed faces in element rings, the ult-ready and level-up glints
 import { heroElement } from './cards/el';
 import type { RespawnCard } from './cards/reveal';
 import type { CatTier } from '../meta/roster';
 import { getSkin } from '../render/skins/skinStore';
+import { notifyFor } from './notify';
+import { cdLabel } from './cdLabel';
+export { cdLabel } from './cdLabel';
+// LoL pass (lane B): the hextech HUD chrome (ability frame, XP ring, score plate, kill feed, death wash, nap bar, crest)
+import './lol-hud.css';
 
 /** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
 const TOWER_SVG = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 15V6h2V3h2v2h2V3h2v3h2v9z" fill="currentColor"/></svg>';
 
 const SLOT_ACTIONS: readonly Action[] = ['q', 'w', 'e', 'r', 'trick', 'nap'];
+
+/** Crossed claws between the two kill counts (LoL's sword icon). */
+const SWORDS_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 2l9.2 9.2-1.4 1.4L2 3.8V2zm18 0v1.8l-6.6 6.6-1.4-1.4L19.2 2zM9.4 14l1.4 1.4-3.3 3.3 1.2 1.2-1.4 1.4-1.9-1.9L3 21.8 2.2 21l2.4-2.4-1.9-1.9 1.4-1.4 1.2 1.2zm5.2 0l3.3 3.3 1.2-1.2 1.4 1.4-1.9 1.9 2.4 2.4-.8.8-2.4-2.4-1.9 1.9-1.4-1.4 1.2-1.2-3.3-3.3z"/></svg>';
+/** Kill feed: the claw between the killer and the victim, and the face of a tower or a minion that took a hero down. */
+const CLAW_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 3c2.5 3 3.5 7 3 12l-2 .5C6.6 10.6 6.2 6.6 5 3zm6 0c2 3.2 2.6 7.3 1.8 12.3l-2 .2C11.5 10.7 11.6 6.6 11 3zm6.5 1c1.3 3.4 1.2 7.5-.4 12.1l-1.9-.4c1.4-4.3 1.9-8 2.3-11.7zM4 18h15v3H4z"/></svg>';
+const MINION_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="6" fill="currentColor"/><circle cx="6" cy="7" r="2.4" fill="currentColor"/><circle cx="12" cy="5" r="2.4" fill="currentColor"/><circle cx="18" cy="7" r="2.4" fill="currentColor"/></svg>';
+
+/** LoL pass (lane B): the trailing damage chunk on the HUD health bar holds this long (ms), then drains. */
+export const TRAIL_HOLD_MS = 350;
+/** ...at this many max HPs a second. */
+export const TRAIL_RATE = 1.5;
+
+/** The trailing chunk's state: `v` the HP its far edge shows, `hp` the last HP seen, `at` the last drop (ms), `t` the last step (ms). */
+export interface Trail {
+  v: number;
+  hp: number;
+  at: number;
+  t: number;
+}
+
+/**
+ * LoL pass (lane B): one step of the trailing damage chunk, pure. A drop keeps the chunk's far edge where it was and
+ * restarts the hold; after TRAIL_HOLD_MS it drains at TRAIL_RATE × maxHp a second down to the HP; a heal snaps it.
+ */
+export function trailStep(prev: Trail | null, hp: number, maxHp: number, now: number): Trail {
+  if (!prev || hp >= prev.v) return { v: hp, hp, at: now - TRAIL_HOLD_MS, t: now };
+  const at = hp < prev.hp ? now : prev.at;
+  let v = prev.v;
+  if (now - at >= TRAIL_HOLD_MS) v = Math.max(hp, v - (TRAIL_RATE * Math.max(1, maxHp) * Math.max(0, now - Math.max(prev.t, at + TRAIL_HOLD_MS))) / 1000);
+  return { v, hp, at, t: now };
+}
+
+/** LoL pass (lane B): the XP ring's fill (0..1) at level `lv` with cumulative `xp` (1 at the top level). Pure. */
+export function xpFrac(lv: number, xp: number): number {
+  const lo = XP.toLevel[lv - 1] ?? 0;
+  const hi = XP.toLevel[lv] ?? lo;
+  return lv >= XP.maxLevel || hi <= lo ? 1 : Math.max(0, Math.min(1, (xp - lo) / (hi - lo)));
+}
 
 interface SlotEl {
   root: HTMLElement;
@@ -38,6 +81,8 @@ interface SlotEl {
   /** Wave C (C2): the rank pips (Q W E R only). */
   rk: HTMLElement | null;
   last: string;
+  /** LoL pass (lane B): the slot was cooling on the last update (its ready flash fires on the way back). */
+  cooling: boolean;
 }
 
 /** GAPS B1: an enemy portrait held this long (touch) pings Focus hero. */
@@ -180,6 +225,18 @@ export class Hud {
   private cardDead = false;
   /** The respawn card loads (its own chunk, ui/cards/reveal.ts) on the first knockout. */
   private cardInit: (() => void) | null = null;
+  /** LoL pass (lane B): the trailing damage chunk, the resource / XP bar, the nap bar, the respawn seconds. */
+  private hpChunk: HTMLElement;
+  private resFill: HTMLElement;
+  private napEl: HTMLElement;
+  private dsec: HTMLElement;
+  private trail: Trail | null = null;
+  private napStart = -1;
+  private crestEl: HTMLElement | null = null;
+  /** Ready flashes so far (e2e reads `data-cd-flash`). */
+  cdFlashes = 0;
+  /** `?quality=low`: the death wash is a flat overlay, not a CSS filter on the WebGL canvas. */
+  lowQuality = false;
 
   constructor(
     parent: HTMLElement,
@@ -200,25 +257,28 @@ export class Hud {
       const ab = i < 4 ? t.abilities[i] : i === 4 ? tt : { name: 'Nap', text: 'Channel for 4 s to return to your fountain. Damage breaks it.', icon: 'nap' as const };
       const big = i === 3 ? ' ult' : i >= 4 ? ' small' : '';
       const rk = i < 4 ? `<i class="rk">${rankPips(abilityRank(1, i), maxRank(i))}</i>` : '';
-      return `<button class="pl-slot${big}" data-i="${i}" aria-label="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b>${rk}<kbd>${keyLabel(a)}</kbd></button>`;
+      return `<button class="pl-slot${big}${i === 4 ? ' sum first' : i === 5 ? ' sum' : ''}" data-i="${i}" aria-label="${ab.name}: ${ab.text}">${icon(ab.icon)}<i class="sweep"></i><b class="num"></b>${rk}<kbd>${keyLabel(a)}</kbd></button>`;
     }).join('');
     root.innerHTML = `
       <div class="pl-top">
-        <div class="pl-score">
-          <span class="team t0"><b class="k0">0</b><i title="Towers taken">${TOWER_SVG}<em class="tw0">0</em></i></span>
+        <div class="pl-score lol">
+          <span class="team t0"><i class="tw" title="Towers taken">${TOWER_SVG}<em class="tw0">0</em></i><b class="k0">0</b></span>
+          <span class="sw" aria-hidden="true">${SWORDS_SVG}</span>
+          <span class="team t1"><b class="k1">0</b><i class="tw" title="Towers taken">${TOWER_SVG}<em class="tw1">0</em></i></span>
           <span class="mid"><span class="clock">0:00</span><span class="phase"></span></span>
-          <span class="team t1"><i title="Towers taken">${TOWER_SVG}<em class="tw1">0</em></i><b class="k1">0</b></span>
         </div>
       </div>
       <div class="pl-feed"></div>
       <div class="pl-respawn"><div>Back in <b>0</b></div><small class="recap">Your team is still fighting!</small></div>
       <div class="pl-bar">
-        <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><b class="lvl">1</b><i class="xpbar"><i></i></i><em class="gap"></em>${hero === 'aviete' ? '<i class="charge" title="Shy, Then Shiny"></i><b class="charge-t"></b>' : ''}</div>
+        <div class="pl-portrait${pic ? ' pic' : ''}" style="--hero:${HERO_COLOR_CSS[hero]}${pic ? `;background-image:url(${pic})` : ''}"><span>${pic ? '' : t.title.replace('Sir ', '').slice(0, 2)}</span><i class="xpring" aria-hidden="true"></i><b class="lvl">1</b><b class="dsec"></b><em class="gap"></em>${hero === 'aviete' ? '<i class="charge" title="Shy, Then Shiny"></i><b class="charge-t"></b>' : ''}</div>
         <div class="pl-bar-main">
           <div class="pl-slots">${slotHtml}</div>
-          <div class="pl-hp"><i class="fill"></i><i class="shield"></i><span class="txt"></span></div>
+          <div class="pl-hp"><i class="chunk"></i><i class="fill"></i><i class="shield"></i><span class="txt"></span></div>
+          <div class="pl-res${hero === 'stilts' ? ' stride' : ''}" title="${hero === 'stilts' ? 'Stride' : 'XP to the next level'}"><i></i></div>
         </div>
-      </div>`;
+      </div>
+      <div class="lol-nap" aria-hidden="true"><i class="fill"></i><span></span></div>`;
     parent.appendChild(root);
     this.root = root;
     const q = <T extends HTMLElement>(s: string): T => root.querySelector(s) as T;
@@ -232,7 +292,7 @@ export class Hud {
     portraitEl.addEventListener('pointerenter', (e) => this.tipEnter(e, portraitEl, -1));
     portraitEl.addEventListener('pointerleave', () => this.tipLeave());
     for (const el of root.querySelectorAll<HTMLElement>('.pl-slot')) {
-      this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, rk: el.querySelector<HTMLElement>('.rk'), last: '' });
+      this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, rk: el.querySelector<HTMLElement>('.rk'), last: '', cooling: false });
       el.addEventListener('pointerenter', (e) => this.tipEnter(e, el, Number(el.dataset.i)));
       el.addEventListener('pointerleave', () => this.tipLeave());
       el.addEventListener('pointerdown', (e) => {
@@ -241,6 +301,10 @@ export class Hud {
       });
     }
     this.hpFill = q('.pl-hp .fill');
+    this.hpChunk = q('.pl-hp .chunk');
+    this.resFill = q('.pl-res > i');
+    this.napEl = q('.lol-nap');
+    this.dsec = q('.pl-portrait .dsec');
     this.hpShield = q('.pl-hp .shield');
     this.hpText = q('.pl-hp .txt');
     this.level = q('.pl-portrait .lvl');
@@ -353,6 +417,11 @@ export class Hud {
     }
   }
 
+  /** LoL pass (lane B): is hero `slot` out now by its strip timer (an enemy that died out of sight keeps counting)? */
+  stripOut(slot: number): boolean {
+    return this.strip.find((s) => s.slot === slot)?.el.classList.contains('dead') ?? false;
+  }
+
   /** GAPS B6: swap the branched slot's icon and label to the level-6 shape branch's ability. */
   private showBranch(): void {
     this.branchOn = true;
@@ -454,11 +523,15 @@ export class Hud {
   private xpUpdate(me: EntitySnap, enemyAvg: number): void {
     const lv = me.level ?? 1;
     const xp = me.xp ?? 0;
-    const lo = XP.toLevel[lv - 1] ?? 0;
-    const hi = XP.toLevel[lv] ?? lo;
-    const f = lv >= XP.maxLevel || hi <= lo ? 1 : Math.max(0, Math.min(1, (xp - lo) / (hi - lo)));
-    const bar = this.level.parentElement?.querySelector<HTMLElement>('.xpbar > i');
-    if (bar) bar.style.width = `${Math.round(f * 100)}%`;
+    const f = xpFrac(lv, xp);
+    // LoL pass (lane B): a conic XP ring round the portrait (and the thin bar under the health for all but Stilts)
+    const pct = (f * 100).toFixed(1);
+    const pic = this.level.parentElement;
+    if (pic && pic.dataset.xp !== pct) {
+      pic.dataset.xp = pct;
+      pic.style.setProperty('--xp', f.toFixed(4));
+      if (this.hero !== 'stilts') this.resFill.style.width = `${pct}%`;
+    }
     const behind = enemyAvg > 0 ? enemyAvg - lv : 0;
     const rules = DIFFICULTY_RULES[this.difficulty];
     const bonus = Math.min(rules.catchUpMaxBp, Math.max(0, Math.round((behind - XP.catchUpFreeLevels) * rules.catchUpPerLevelBp))) / 100;
@@ -502,6 +575,9 @@ export class Hud {
     this.root.classList.toggle('dead', dead);
     const back = Math.max(1, Math.ceil((me.respawnIn ?? 0) / 30));
     if (dead) this.set('respawn', this.respawnNum, String(back));
+    // LoL pass (lane B): the death wash (the world greys, the HUD keeps its colour) and the seconds over the portrait
+    this.deathWash(dead);
+    this.set('dsec', this.dsec, dead ? String(back) : '');
     // cards: face down while out, flipped up the moment the hero is back
     if (dead) {
       this.cardSecs = back;
@@ -519,6 +595,16 @@ export class Hud {
       }
     }
     const total = Math.max(me.maxHp, me.hp + me.shield) || 1;
+    // LoL pass (lane B): the trailing damage chunk (a pale piece that waits, then drains to the health)
+    const now = typeof performance !== 'undefined' ? performance.now() : 0;
+    this.trail = trailStep(dead ? null : this.trail, Math.max(0, me.hp), me.maxHp, now);
+    const hpPct = (Math.max(0, me.hp) / total) * 100;
+    const chunkW = Math.max(0, ((this.trail.v - Math.max(0, me.hp)) / total) * 100);
+    this.hpChunk.style.left = `${hpPct}%`;
+    this.hpChunk.style.width = `${chunkW.toFixed(2)}%`;
+    // Stilts's Stride (0..100) under the health; everyone else's thin XP bar is set in xpUpdate
+    if (this.hero === 'stilts') this.resFill.style.width = `${Math.max(0, Math.min(100, me.resource ?? 0))}%`;
+    this.napBar(me, clock.tick);
     this.hpFill.style.width = `${(Math.max(0, me.hp) / total) * 100}%`;
     this.hpShield.style.left = `${(Math.max(0, me.hp) / total) * 100}%`;
     this.hpShield.style.width = `${(Math.max(0, me.shield) / total) * 100}%`;
@@ -553,10 +639,91 @@ export class Hud {
         s.root.classList.toggle('cooling', cd > 0);
         s.root.classList.toggle('ready', cd === 0 && !locked && !dead);
       }
+      // LoL pass (lane B): a white-gold ring flash the moment a cooldown ends (once per cooldown)
+      if (s.cooling && cd === 0 && !locked) this.cdFlash(s.root);
+      s.cooling = cd > 0;
       s.sweep.style.setProperty('--cd', f.toFixed(3));
-      this.set(`n${i}`, s.num, cd > 0 ? String(Math.ceil(cd / 30)) : locked ? String(ULT_LEVEL) : '');
+      this.set(`n${i}`, s.num, cd > 0 ? cdLabel(cd) : locked ? String(ULT_LEVEL) : '');
     }
     if (this.tipOn) this.tipRender();
+  }
+
+  /** LoL pass (lane B): the 300 ms ready ring on a slot whose cooldown just ended. */
+  private cdFlash(el: HTMLElement): void {
+    el.classList.remove('cdflash');
+    void el.offsetWidth;
+    el.classList.add('cdflash');
+    setTimeout(() => el.classList.remove('cdflash'), 320);
+    this.cdFlashes++;
+    try {
+      document.documentElement.dataset.cdFlash = String(this.cdFlashes);
+    } catch {
+      /* node */
+    }
+  }
+
+  private washOn: string | null = null;
+
+  /**
+   * LoL pass (lane B): while the player is out the world greys (a CSS filter on the game canvas, or at low quality a
+   * flat overlay: filters on a WebGL canvas cost too much on a low-end phone); the HUD and the rail keep their colour.
+   */
+  private deathWash(dead: boolean): void {
+    const want = dead ? (this.lowQuality ? 'low' : '1') : null;
+    if (want === this.washOn) return;
+    this.washOn = want;
+    this.root.parentElement?.classList.toggle('dead', dead);
+    this.root.parentElement?.classList.toggle('dead-low', want === 'low');
+    try {
+      if (want) document.documentElement.dataset.plDead = want;
+      else delete document.documentElement.dataset.plDead;
+    } catch {
+      /* node */
+    }
+  }
+
+  /**
+   * LoL pass (lane B): the Nap channel bar over the ability bar ("Napping 3.2s", draining), from the tick the hero
+   * started napping (the snapshot has no progress; HERO_RULES.napChannel is the channel). Fades out on cancel or arrival.
+   */
+  private napBar(me: EntitySnap, tick: number): void {
+    const napping = me.state === 'napping';
+    if (!napping) {
+      if (this.napStart >= 0) {
+        this.napStart = -1;
+        this.napEl.classList.remove('on');
+      }
+      return;
+    }
+    if (this.napStart < 0) {
+      this.napStart = tick;
+      this.napEl.classList.add('on');
+    }
+    const k = Math.max(0, Math.min(1, (tick - this.napStart) / HERO_RULES.napChannel));
+    const left = Math.max(0, (HERO_RULES.napChannel - (tick - this.napStart)) / 30);
+    this.napEl.style.setProperty('--left', (1 - k).toFixed(3));
+    this.set('nap', this.napEl.lastElementChild as HTMLElement, `Napping ${left.toFixed(1)}s`);
+  }
+
+  /**
+   * LoL pass (lane B): the VICTORY / DEFEAT crest in the middle of the screen once the core has fallen (the only words
+   * ever drawn there, and only because play is over), with a metallic light sweep. It stays until the results.
+   */
+  crest(won: boolean): void {
+    if (this.crestEl) return;
+    const el = document.createElement('div');
+    el.className = `pl-crest ${won ? 'won' : 'lost'}`;
+    el.setAttribute('role', 'status');
+    el.innerHTML = `<i class="ears" aria-hidden="true"></i><b>${won ? 'VICTORY' : 'DEFEAT'}</b><i class="crack" aria-hidden="true"></i>`;
+    (this.root.parentElement ?? this.root).appendChild(el);
+    this.crestEl = el;
+    try {
+      document.documentElement.dataset.crest = won ? 'VICTORY' : 'DEFEAT';
+    } catch {
+      /* node */
+    }
+    void el.offsetWidth;
+    el.classList.add('on');
   }
 
   /**
@@ -565,26 +732,32 @@ export class Hud {
    */
   kill(killer: FeedName, victim: FeedName, good: boolean): void {
     const el = document.createElement('div');
-    el.className = `pl-feed-row ${good ? 'good' : 'bad'}`;
-    el.innerHTML = `<b></b><span>${icon('sword')}</span><b></b>`;
+    // LoL pass (lane B): killer face → claw → victim face (greyed, a red X), on a dark row with the team's edge
+    el.className = `pl-feed-row kill ${good ? 'good' : 'bad'}`;
+    el.style.setProperty('--edge', good ? RELATION_CSS.ally : RELATION_CSS.enemy);
+    el.innerHTML = `<b></b><span class="claw">${CLAW_SVG}</span><b></b>`;
     const bs = el.querySelectorAll('b');
-    for (const [b, n] of [
-      [bs[0], killer],
-      [bs[1], victim],
+    for (const [b, n, who] of [
+      [bs[0], killer, 'killer'],
+      [bs[1], victim, 'victim'],
     ] as const) {
       b.textContent = n.name;
       b.style.color = RELATION_CSS[n.rel];
       b.dataset.rel = n.rel;
-      // cards: the hero's face in a ring of its card element
+      // cards: the hero's face in a ring of its card element (a tower or a minion gets its glyph instead)
+      const face = document.createElement('i');
+      face.className = `tt-kf ${who}`;
+      face.style.setProperty('--rel', RELATION_CSS[n.rel]);
       if (n.hero) {
-        const face = document.createElement('i');
-        face.className = 'tt-kf';
         const pic = portraitUrl(n.hero);
         if (pic) face.style.backgroundImage = `url(${pic})`;
         face.dataset.ttEl = heroElement(n.hero);
-        face.style.setProperty('--rel', RELATION_CSS[n.rel]);
-        b.before(face);
+      } else {
+        face.classList.add('glyph');
+        face.innerHTML = /tower|core/i.test(n.name) ? TOWER_SVG : MINION_SVG;
       }
+      face.title = n.name;
+      b.before(face);
     }
     this.feed.prepend(el);
     while (this.feed.children.length > 4) this.feed.lastElementChild?.remove();
@@ -597,7 +770,10 @@ export class Hud {
     const el = document.createElement('div');
     el.className = 'pl-feed-row note';
     el.innerHTML = `<span>${icon('paw')}</span><b></b>`;
-    (el.querySelector('b') as HTMLElement).textContent = text;
+    // LoL pass (lane B): phones keep a note to 22 characters (a 22 px row)
+    const touch = typeof document !== 'undefined' && document.documentElement.dataset.touch === '1';
+    (el.querySelector('b') as HTMLElement).textContent = touch && text.length > 22 ? `${text.slice(0, 21).trimEnd()}…` : text;
+    el.title = text;
     this.feed.prepend(el);
     while (this.feed.children.length > 4) this.feed.lastElementChild?.remove();
     setTimeout(() => el.classList.add('out'), 4000);
@@ -611,6 +787,14 @@ export class Hud {
   levelUp(level: number, ultLevel = ULT_LEVEL): void {
     this.rankUp(level);
 
+    // LoL pass (lane B): the XP ring flashes gold and the level badge pops
+    const pic = this.level.parentElement;
+    if (pic) {
+      pic.classList.remove('xpflash');
+      void pic.offsetWidth;
+      pic.classList.add('xpflash');
+      setTimeout(() => pic.classList.remove('xpflash'), 420);
+    }
     const bar = this.root.querySelector<HTMLElement>('.pl-bar');
     if (bar) {
       bar.classList.remove('lvlup');
@@ -649,6 +833,12 @@ export class Hud {
       el.classList.add('rankup');
       setTimeout(() => el.classList.remove('rankup'), 1400);
     }
+    // LoL pass (lane B): phones say it on the top rail ("Volley rank 2"); desktop keeps the toast over the bar
+    const rail = typeof document !== 'undefined' && document.documentElement.dataset.touch === '1' ? notifyFor(this.root.parentElement) : null;
+    if (rail) {
+      for (const { line } of ranked) rail.push({ key: `rank:${line.split(':')[0]}`, title: line.split(':')[0], sub: line.split(':').slice(1).join(':').trim() || undefined, tone: 'gold', prio: 3 });
+      return lines;
+    }
     let t = this.rankToast;
     if (!t) {
       t = document.createElement('div');
@@ -681,6 +871,9 @@ export class Hud {
   }
 
   dispose(): void {
+    this.deathWash(false);
+    this.crestEl?.remove();
+    this.crestEl = null;
     this.respawnCard?.dispose();
     this.respawnCard = null;
     this.tipLeave();

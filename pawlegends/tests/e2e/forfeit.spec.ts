@@ -57,6 +57,9 @@ test('Forfeit: disabled before 3:00 on Easy, then a confirm step, and the match 
   await expect(page.locator('.pl-menu')).toHaveCount(0);
   await expect.poll(() => attr(page, 'endReason'), { timeout: 10_000 }).toBe('forfeit');
   await page.waitForSelector('html[data-screen="results"]', { timeout: 30_000 });
+  // LoL pass (lane B): the DEFEAT crest showed over the match before the results replaced it (data-crest is set when
+  // the crest goes up; at test speed it is up for a fraction of a second)
+  expect(await attr(page, 'crest')).toBe('DEFEAT');
   await expect(page.locator('.pl-results h1')).toHaveText('Defeat');
   await expect(page.locator('.pl-results [data-cause]')).toHaveText('You forfeited the match.');
   await expect(page.locator('.pl-results .pl-treats .head small')).toHaveText('+20 Treat XP');

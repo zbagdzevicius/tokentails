@@ -48,9 +48,18 @@ import { Overhead } from '../ui/overhead';
 import { Scoreboard, teamLabel } from '../ui/scoreboard';
 import { Stage } from '../ui/stage';
 import { TOWER_GLYPH } from '../ui/notify';
+import { bannerNote } from '../render/juice';
 import { menuScreen, RESULTS_AFTER_END_MS } from '../ui/screens';
 import { CoreLog, endCause, type CoreSource } from './endCause';
 import { TalentPicker } from '../ui/talents';
+
+/** LoL pass (lane B): the end crest shows this long after the core falls (the camera eases there first), holds
+ * CREST_HOLD_MS, and the results wait CREST_EXTRA_MS longer than RESULTS_AFTER_END_MS for it (≤ 2.5 s added). */
+const CREST_AT_MS = 900;
+const CREST_HOLD_MS = 1600;
+const CREST_EXTRA_MS = Math.max(0, CREST_AT_MS + CREST_HOLD_MS + 480 - RESULTS_AFTER_END_MS);
+/** LoL pass (lane B): the rail badge for big announcer lines that have no portrait (a gold crest). */
+const LOL_CREST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.4l-5.3 2.7 1-5.8L3.5 8.2l5.9-.9z"/></svg>';
 
 export interface MatchSetup {
   hero: HeroId;
@@ -92,6 +101,8 @@ export interface MatchSetup {
  */
 const PING_TIP_TICK = 1650;
 const PING_TIP_TITLE = 'Tell your team what to do';
+/** LoL pass (lane B): how long the ping tip may wait behind announcer lines before it is dropped (ms, ÷ match speed). */
+const PING_TIP_STALE_MS = 60_000;
 /** Seconds the ping tip stays up: its text runs ~19 words, an ordinary banner's 2.1 s is too short to read it. */
 const PING_TIP_HOLD = 5.5;
 
@@ -369,6 +380,7 @@ export class MatchSession {
     this.host.pause(true);
     document.documentElement.dataset.match = 'loading';
     delete document.documentElement.dataset.endReason;
+    delete document.documentElement.dataset.crest;
   }
 
   get matchId(): string | null {
@@ -452,6 +464,12 @@ export class MatchSession {
     // sim v5 species teams: a hero twice in one team, the second one is "Sage 2" (one table for every label)
     this.names = slotNames(w.picks, w.seed, w.slot);
     this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero');
+    // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
+    this.announcer.down = (slot) => {
+      const e = this.frameNow?.byId.get(slot);
+      if (e) return e.state === 'dead';
+      return this.hud?.stripOut(slot) ?? false;
+    };
     this.overhead.names = this.names;
     this.overhead.bounty = (slot) => {
       const snap = this.frameNow?.byId.get(slot)?.bountyStreak ?? 0;
@@ -483,6 +501,8 @@ export class MatchSession {
     }, this.setup.look ?? null, this.setup.difficulty);
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
+    // LoL pass (lane B): e2e reaches the HUD (the crest, the kill feed) the way it reaches the rail
+    if (this.e2e) (window as unknown as { __plHud?: unknown }).__plHud = this.hud;
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
     if (portrait && this.setup.frame) portrait.dataset.frame = this.setup.frame;
     if (portrait && this.setup.title) portrait.dataset.title = this.setup.title;
@@ -595,6 +615,8 @@ export class MatchSession {
   }
 
   private onKill(e: Extract<SimEvent, { type: 'death' }>, victim: { kind: string; hero?: HeroId; team: number } | null, killer: { kind: string; hero?: HeroId; team: number } | null): void {
+    // LoL pass (lane B): the announcer says a tower falling (the rail line comes from effects.ts)
+    if (victim?.kind === 'tower') sfx.voice(victim.team === this.view.myTeam ? 'ourTurret' : 'turret');
     if (!victim || victim.kind !== 'hero') {
       if (victim?.kind === 'minion' && e.killer === this.view.mySlot) {
         this.tips.complete('attack');
@@ -1021,7 +1043,9 @@ export class MatchSession {
     document.documentElement.dataset.endReason = result.reason;
     const me = this.welcome.slot;
     const won = result.outcome === 'won';
-    this.view.juice.banner({ title: won ? 'Victory!' : 'Defeat', tone: won ? 'good' : 'bad' });
+    // LoL pass (lane B): the result is a prio 0 rail note (data-said), said by the announcer, then the crest
+    this.view.juice.banner({ title: won ? 'Victory!' : 'Defeat', tone: won ? 'good' : 'bad', urgent: true });
+    sfx.voice(won ? 'victory' : 'defeat');
     // the winners' own victory loops (render only)
     if (result.outcome === 'won' || result.outcome === 'lost') this.view.director.victory(won ? this.welcome.team : 1 - this.welcome.team);
     // slow-mo on the final blow (fun plan F2 item 1), the crowd, and the music bows out
@@ -1046,7 +1070,13 @@ export class MatchSession {
     // let the last moments play out before the results screen
     const welcome = this.welcome;
     // lifecycle: end confetti (won) or soft puffs, then a paw wipe that closes just before the results replace the match
-    const resultsIn = Math.max(300, RESULTS_AFTER_END_MS / Math.max(1, this.buffer.speed));
+    // LoL pass (lane B): the camera eases to the fallen core (CREST_AT_MS), then the VICTORY / DEFEAT crest holds
+    // CREST_HOLD_MS before the paw wipe closes; the results come CREST_EXTRA_MS later than before
+    const sp = Math.max(1, this.buffer.speed);
+    const resultsIn = Math.max(300, (RESULTS_AFTER_END_MS + CREST_EXTRA_MS) / sp);
+    setTimeout(() => {
+      if (!this.disposed) this.hud?.crest(won);
+    }, CREST_AT_MS / sp);
     this.view.lifecycle?.matchEnd(won, resultsIn - 480);
     setTimeout(
       () => {
@@ -1067,7 +1097,7 @@ export class MatchSession {
           fun: { ...this.funSummary(myStats?.heroDamage ?? 0), ...(myStats ? { takedowns: myStats.kills + myStats.assists } : {}) },
         });
       },
-      Math.max(300, RESULTS_AFTER_END_MS / Math.max(1, this.buffer.speed)),
+      resultsIn,
     );
   }
 
@@ -1196,7 +1226,23 @@ export class MatchSession {
         if (at) j.bark(m.title, at.x, at.y - 10, 'good');
         continue;
       }
-      if (m.size === 'banner') j.banner({ title: m.title, sub: m.sub, tone: m.tone });
+      // LoL pass (lane B): a multikill, an Ace or a takedown makes a queued "An ally has been slain" moot
+      if (m.key.startsWith('multi') || m.key === 'ace' || m.key === 'takedown' || m.key === 'allyTakedown') j.notify.drop('ally-slain');
+      if (m.size === 'banner' && (m.big || m.face !== undefined)) {
+        // LoL pass (lane B): announcer lines with a crest (desktop) or the killer's / ally's portrait as the badge
+        const hero = m.face !== undefined ? this.welcome?.picks[m.face] : undefined;
+        const face = hero ? portraitUrl(hero) : null;
+        j.push({
+          ...(m.key === 'allySlain' ? { key: 'ally-slain' } : {}),
+          title: m.title,
+          ...(m.sub ? { sub: m.sub } : {}),
+          tone: m.tone,
+          prio: 2,
+          ...(m.big ? { big: true } : {}),
+          ...(face ? { icon: face } : m.big ? { icon: LOL_CREST } : {}),
+          ...(m.key === 'ace' ? { tag: 'multi', drops: ['takedown'] } : {}),
+        });
+      } else if (m.size === 'banner') j.banner({ title: m.title, sub: m.sub, tone: m.tone });
       else if (m.size === 'callout') j.callout(m.title, m.tone);
       else {
         const at = this.heroScreen();
@@ -1204,6 +1250,7 @@ export class MatchSession {
         if (at && m.key.startsWith('combo')) j.popReplace('combo', m.title, at.x, at.y - 10, m.tone, true);
         else if (at) j.pop(m.title, at.x, at.y - 10, m.tone, m.key.startsWith('pickup'));
       }
+      if (m.voice) sfx.voice(m.voice);
       if (m.slowmo) j.slowmo(m.slowmo.ms, m.slowmo.scale);
       if (m.shake) j.kick(m.shake);
       if (m.crowd) sfx.play(m.crowd, { vol: m.crowd === 'roar' ? 0.9 : 0.75 });
@@ -1490,11 +1537,16 @@ export class MatchSession {
         if (this.e2e) document.documentElement.dataset.pingTip = '1';
       } else if (!juice.queued(PING_TIP_TITLE)) {
         const touch = document.documentElement.dataset.touch === '1';
-        juice.banner({
-          title: PING_TIP_TITLE,
-          sub: touch ? 'Tap the paw for orders. Hold the map: go here. Hold an enemy face: focus.' : 'Hold G for orders. Alt-click: go here, or focus an enemy hero.',
-          tone: 'info',
-          hold: PING_TIP_HOLD,
+        // LoL pass (lane B): an announcer line may cut in (an ally slain, a tower); the tip then waits at the front of
+        // the queue (a long `stale`) and comes back for the rest of its time instead of being dropped
+        juice.push({
+          ...bannerNote({
+            title: PING_TIP_TITLE,
+            sub: touch ? 'Tap the paw for orders. Hold the map: go here. Hold an enemy face: focus.' : 'Hold G for orders. Alt-click: go here, or focus an enemy hero.',
+            tone: 'info',
+            hold: PING_TIP_HOLD,
+          }),
+          stale: PING_TIP_STALE_MS,
         });
       }
     }
@@ -1528,6 +1580,8 @@ export class MatchSession {
         }
       }
       this.hud.blockTips(!!this.menu || this.scoreOn || this.paused || this.ended || (this.talents?.open ?? false) || (this.view.lifecycle?.holdTips ?? false) /* lifecycle: P2-12 */);
+      // LoL pass (lane B): low quality greys the world with an overlay, not a filter on the WebGL canvas
+      this.hud.lowQuality = this.gr.settings.tier === 'low';
       this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle ?? this.lcGateTitle());
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
       this.hud.stripUpdate(frame.byId, frame.tick, lock);

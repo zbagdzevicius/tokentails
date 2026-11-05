@@ -1,0 +1,269 @@
+/* ================================================================ LoL pass, lane B: the hextech HUD chrome
+   (ui/hud.ts, ui/scoreboard.ts). A dark navy plate with a gold bevel behind Q W E R (R bigger, Paw Trick and Nap as two
+   round "summoner" slots), keycaps under each slot on desktop, a conic cooldown sweep with a lit edge, the XP ring and
+   level badge round the portrait, the split score plate, a portrait kill feed, the death wash, the Nap channel bar and
+   the VICTORY / DEFEAT crest. Loaded with the match chunk, after ui.css. Positions of the top band (score, feed) stay
+   where lane A put them, so the notification rail keeps its slot. */
+.pl-hud, .pl-scoreboard, .pl-crest, .pl-tbtn {
+  --hx-navy: #0b1220; --hx-navy2: #070b14; --hx-gold: #c8aa6e; --hx-gold-d: #785a28; --hx-gold-dd: #463714; --hx-ink: #f0e6d2;
+}
+
+/* ------------------------------------------------------------------------------------- self panel / ability bar */
+.pl-hud .pl-bar {
+  background: linear-gradient(180deg, rgba(17, 26, 44, 0.94), rgba(7, 11, 20, 0.94)); border: 1px solid var(--hx-gold-d); border-radius: 8px;
+  box-shadow: inset 0 1px 0 rgba(200, 170, 110, 0.55), inset 0 -1px 0 var(--hx-gold-dd), 0 8px 24px rgba(0, 0, 0, 0.45);
+}
+html:not([data-touch='1']) .pl-hud .pl-bar { padding: 10px 14px 10px 12px; gap: 14px; align-items: center; }
+html:not([data-touch='1']) .pl-hud .pl-bar-main { gap: 0; }
+html:not([data-touch='1']) .pl-hud .pl-bar-main .pl-hp { margin-top: 26px; }
+html:not([data-touch='1']) .pl-hud .pl-bar-main .pl-res { margin-top: 3px; }
+/* the desktop rank-up toast clears the taller bar */
+html:not([data-touch='1']) .pl-hud .pl-rankup { bottom: calc(150px + var(--safe-b, 0px)); }
+.pl-hud .pl-slots { gap: 6px; align-items: center; }
+.pl-hud .pl-slot {
+  width: 56px; height: 56px; border-radius: 4px; padding: 9px; overflow: visible; color: #f0d58a;
+  background: radial-gradient(circle at 50% 30%, #1a2a46, var(--hx-navy) 70%); border: 2px solid var(--hx-gold-d);
+  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+.pl-hud .pl-slot > svg { position: relative; z-index: 0; }
+.pl-hud .pl-slot.ult {
+  width: 64px; height: 64px; border: 3px solid var(--hx-gold);
+  box-shadow: inset 0 0 0 1px #f0d58a55, 0 0 0 1px var(--hx-gold-dd), 0 0 10px rgba(200, 170, 110, 0.35);
+}
+/* Paw Trick (D) and Nap (B): two round summoner slots right of R, 6 px apart */
+.pl-hud .pl-slot.sum { width: 40px; height: 40px; border-radius: 10px; padding: 7px; color: #9fd0ff; }
+.pl-hud .pl-slot.sum.first { margin-left: 6px; }
+.pl-hud .pl-slot.ready { box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 0 10px rgba(240, 213, 138, 0.22); }
+.pl-hud .pl-slot.ult.ready { box-shadow: inset 0 0 0 1px #f0d58a55, 0 0 14px rgba(240, 213, 138, 0.5); }
+.pl-hud .pl-slot.cooling { color: rgba(240, 230, 210, 0.45); }
+/* the sweep: the lit part grows clockwise from 12 o'clock, a gold line on its edge */
+.pl-hud .pl-slot .sweep {
+  border-radius: inherit; z-index: 1;
+  background: conic-gradient(transparent calc((1 - var(--cd, 0)) * 360deg), rgba(4, 8, 16, 0.72) 0);
+}
+.pl-hud .pl-slot.cooling .sweep::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit;
+  background: conic-gradient(from calc((1 - var(--cd, 0)) * 360deg - 2.5deg), rgba(255, 226, 150, 0.95) 0 2.5deg, transparent 2.5deg);
+}
+.pl-hud .pl-slot .num { z-index: 2; font: 800 20px/1 var(--font); color: #fff; text-shadow: 0 1px 0 #000, 0 0 4px #000; }
+.pl-hud .pl-slot.ult .num { font-size: 22px; }
+.pl-hud .pl-slot .rk { z-index: 3; bottom: 3px; }
+/* keycaps under each slot (desktop; touch hides the whole bar of slots) */
+.pl-hud .pl-slot kbd {
+  left: 50%; right: auto; bottom: auto; top: calc(100% + 4px); transform: translateX(-50%); height: 16px; min-width: 16px; padding: 0 4px; box-sizing: border-box;
+  font: 700 10px/14px var(--font); color: var(--hx-ink); background: var(--hx-navy2); border: 1px solid var(--hx-gold-d); border-radius: 3px; box-shadow: 0 1px 0 #000;
+  text-align: center; z-index: 3;
+}
+html[data-touch='1'] .pl-hud .pl-slot kbd { display: none; }
+/* the 300 ms ready flash (once per cooldown end); the touch buttons share it */
+.pl-hud .pl-slot.cdflash, .pl-tbtn.cdflash { animation: lol-cdflash 0.3s ease-out; }
+@keyframes lol-cdflash {
+  0% { box-shadow: 0 0 0 0 rgba(255, 248, 220, 0.95), 0 0 0 0 rgba(240, 213, 138, 0.8); }
+  40% { box-shadow: 0 0 0 3px rgba(255, 248, 220, 0.95), 0 0 16px 5px rgba(240, 213, 138, 0.8); }
+  100% { box-shadow: 0 0 0 6px rgba(255, 248, 220, 0), 0 0 22px 8px rgba(240, 213, 138, 0); }
+}
+
+/* the health bar: LoL green for the own hero, white shield, a pale trailing chunk; the resource / XP line under it */
+.pl-hud .pl-hp { height: 15px; border-radius: 2px; background: #0d1018; box-shadow: 0 0 0 1px #000, inset 0 0 0 1px rgba(255, 255, 255, 0.05); }
+.pl-hud .pl-hp .fill { background: linear-gradient(180deg, #74e07a 0%, #3fae4f 55%, #2c8a3c 100%); z-index: 1; }
+.pl-hud.low .pl-hp .fill { background: linear-gradient(180deg, #ff8a7a, #d63b3f); }
+.pl-hud .pl-hp .shield { z-index: 1; background: linear-gradient(180deg, #ffffff, #d6dde8); }
+.pl-hud .pl-hp .chunk { position: absolute; top: 0; bottom: 0; width: 0; background: #f6edc9; opacity: 0.92; z-index: 0; }
+.pl-hud .pl-hp .txt { z-index: 2; }
+.pl-hud .pl-res { position: relative; height: 4px; margin-top: -4px; flex: none; border-radius: 1px; background: #0d1018; box-shadow: 0 0 0 1px #000; overflow: hidden; }
+.pl-hud .pl-res > i { position: absolute; left: 0; top: 0; bottom: 0; width: 0; background: linear-gradient(90deg, #7a5cff, #b9a2ff); transition: width 0.3s; }
+.pl-hud .pl-res.stride { height: 5px; }
+.pl-hud .pl-res.stride > i { background: linear-gradient(90deg, #2f7fe0, #6fc3ff); transition: width 0.15s; }
+html[data-touch='1'] .pl-hud .pl-res { margin-top: -5px; height: 3px; }
+
+/* ------------------------------------------------------------------------- portrait: XP ring and level badge */
+.pl-hud .pl-portrait { box-shadow: inset 0 -6px 0 rgba(0, 0, 0, 0.18), 0 0 0 2px var(--hx-gold); }
+.pl-hud .pl-portrait .xpring {
+  position: absolute; inset: -7px; border-radius: 50%; pointer-events: none; z-index: 0;
+  background: conic-gradient(#8f7bff calc(var(--xp, 0) * 360deg), rgba(14, 20, 36, 0.9) 0);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px)); mask: radial-gradient(farthest-side, transparent calc(100% - 4px), #000 calc(100% - 4px));
+  transition: background 0.2s;
+}
+.pl-hud .pl-portrait.xpflash .xpring { background: #f0d58a; filter: drop-shadow(0 0 5px #f0d58a); }
+.pl-hud .pl-portrait .lvl {
+  width: 20px; height: 20px; right: -7px; bottom: -7px; z-index: 2; box-sizing: border-box; font: 800 11px/1 var(--font);
+  background: var(--hx-navy); color: var(--hx-ink); border: 2px solid var(--hx-gold); box-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+}
+.pl-hud .pl-portrait.xpflash .lvl { animation: lol-badge 0.4s cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes lol-badge { 0% { transform: scale(1.25); background: #f0d58a; color: #2b1d0e; } 100% { transform: scale(1); } }
+html[data-touch='1'] .pl-hud .pl-portrait .xpring { inset: -5px; -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 3px)); }
+html[data-touch='1'] .pl-hud .pl-portrait .lvl { width: 18px; height: 18px; right: -6px; bottom: -6px; font-size: 10px; }
+/* while out: the portrait greys, the respawn seconds sit big over it */
+.pl-hud .pl-portrait .dsec { position: absolute; inset: 0; z-index: 1; display: grid; place-items: center; font: 800 28px/1 var(--font); color: #fff; text-shadow: 0 2px 0 #000, 0 0 6px #000; }
+.pl-hud .pl-portrait .dsec:empty { display: none; }
+html[data-touch='1'] .pl-hud .pl-portrait .dsec { font-size: 20px; }
+.pl-hud.dead .pl-portrait { filter: grayscale(1) brightness(0.75); }
+.pl-hud.dead .pl-portrait .dsec { filter: none; }
+@media (prefers-reduced-motion: reduce) { .pl-hud .pl-portrait.xpflash .lvl { animation: none; } }
+
+/* ------------------------------------------------------------------------------- top score plate (B4) */
+.pl-hud .pl-score.lol {
+  display: grid; grid-template-columns: 1fr auto 1fr; grid-template-rows: auto auto; align-items: center; column-gap: 10px; row-gap: 0;
+  min-width: 300px; box-sizing: border-box; padding: 4px 12px 0; border: 1px solid var(--hx-gold-d); border-top: 0; border-radius: 0 0 10px 10px;
+  background: linear-gradient(180deg, rgba(17, 26, 44, 0.95), rgba(7, 11, 20, 0.95));
+  box-shadow: inset 0 -1px 0 var(--hx-gold), inset 0 -2px 0 var(--hx-gold-dd), 0 6px 18px rgba(0, 0, 0, 0.4);
+}
+.pl-hud .pl-score.lol .team { gap: 8px; min-width: 0; font: 800 24px/26px var(--font); }
+.pl-hud .pl-score.lol .team.t0 { justify-content: flex-end; }
+.pl-hud .pl-score.lol .team.t1 { justify-content: flex-start; }
+.pl-hud .pl-score.lol .team i { font: 700 11px/1 var(--font); color: var(--hx-gold); background: none; padding: 0; display: inline-flex; align-items: center; gap: 2px; }
+.pl-hud .pl-score.lol .team i svg { margin: 0; opacity: 0.9; }
+.pl-hud .pl-score.lol .sw { color: var(--hx-gold); display: grid; place-items: center; }
+.pl-hud .pl-score.lol .mid {
+  grid-column: 1 / -1; justify-self: center; display: flex; flex-direction: row; align-items: baseline; gap: 6px; min-width: 0; max-width: 100%;
+  padding: 1px 10px 2px; margin-bottom: -1px; border: 1px solid var(--hx-gold-dd); border-bottom: 0; border-radius: 6px 6px 0 0; background: var(--hx-navy2);
+  white-space: nowrap; overflow: hidden;
+}
+.pl-hud .pl-score.lol .clock { font: 700 12px/14px var(--font); letter-spacing: 0.04em; color: var(--hx-ink); }
+.pl-hud .pl-score.lol .phase { font: 600 10px/14px var(--font); opacity: 0.8; color: #f0d58a; overflow: hidden; text-overflow: ellipsis; }
+.pl-hud .pl-score.lol .phase:not(:empty)::before { content: '· '; color: var(--hx-ink); opacity: 0.6; }
+/* phones keep today's footprint: 294 × ≤ 45 at 844 × 390, 204 × ≤ 39 at 667 × 375 (lane A's rail sits under it) */
+html[data-touch='1'] .pl-hud .pl-score.lol { width: 294px; min-width: 0; height: 45px; padding: 3px 10px 0; column-gap: 8px; align-content: space-between; }
+html[data-touch='1'] .pl-hud .pl-score.lol .team { font-size: 22px; line-height: 26px; gap: 6px; }
+html[data-touch='1'] .pl-hud .pl-score.lol .team i { font-size: 10px; }
+html[data-touch='1'] .pl-hud .pl-score.lol .clock { font-size: 12px; line-height: 13px; }
+html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 9px; line-height: 13px; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-hud .pl-score.lol { width: 204px; height: 35px; padding: 1px 8px 0; column-gap: 6px; }
+  html[data-touch='1'] .pl-hud .pl-score.lol .team { font-size: 17px; line-height: 20px; gap: 4px; }
+  html[data-touch='1'] .pl-hud .pl-score.lol .sw svg { width: 13px; height: 13px; }
+  html[data-touch='1'] .pl-hud .pl-score.lol .mid { padding: 0 8px 1px; }
+  html[data-touch='1'] .pl-hud .pl-score.lol .clock { font-size: 11px; line-height: 12px; }
+  html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 8.5px; line-height: 12px; }
+}
+
+/* Tab / tap scoreboard: the same plate */
+.pl-scoreboard .card.lol {
+  background: linear-gradient(180deg, rgba(17, 26, 44, 0.96), rgba(7, 11, 20, 0.96)); border: 1px solid var(--hx-gold-d); border-radius: 6px; color: var(--hx-ink);
+  box-shadow: inset 0 1px 0 rgba(200, 170, 110, 0.55), inset 0 0 0 1px var(--hx-gold-dd), 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+.pl-scoreboard .card.lol h3 { border-bottom: 1px solid var(--hx-gold-dd); padding-bottom: 4px; letter-spacing: 0.03em; }
+.pl-scoreboard .card.lol td { border-top-color: rgba(120, 90, 40, 0.45); vertical-align: middle; }
+.pl-scoreboard .card.lol tr.me td { color: #f0d58a; background: rgba(200, 170, 110, 0.08); }
+.pl-scoreboard .card.lol td.lv { font-weight: 800; }
+.pl-scoreboard .card.lol td.kda { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.pl-scoreboard .tal { white-space: nowrap; }
+.pl-scoreboard .tc {
+  display: inline-grid; place-items: center; width: 18px; height: 18px; margin-right: 3px; box-sizing: border-box; font: 800 10px/1 var(--font); font-style: normal;
+  color: #f0d58a; background: var(--hx-navy); border: 1px solid var(--hx-gold-d); border-radius: 3px; vertical-align: middle;
+}
+.pl-scoreboard .tc.none { border-style: dashed; opacity: 0.55; }
+.pl-scoreboard .tc.unk { opacity: 0.35; color: var(--hx-ink); }
+
+/* ------------------------------------------------------------------------------------ kill feed (B5) */
+.pl-hud .pl-feed-row.kill, .pl-hud .pl-feed-row.note {
+  height: 30px; box-sizing: border-box; padding: 0 9px 0 7px; gap: 6px; border-radius: 2px; font: 700 12px/1 var(--font);
+  background: linear-gradient(90deg, rgba(8, 12, 22, 0.9), rgba(8, 12, 22, 0.78)); border-left: 3px solid var(--edge, var(--hx-gold-d));
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+}
+.pl-hud .pl-feed-row .tt-kf { position: relative; width: 24px; height: 24px; margin: 0; box-shadow: 0 0 0 2px var(--rel, var(--ring)), 0 0 0 3px rgba(0, 0, 0, 0.8); }
+.pl-hud .pl-feed-row .tt-kf.glyph { display: grid; place-items: center; background: #1a2236; color: var(--rel); }
+.pl-hud .pl-feed-row .tt-kf.glyph svg { width: 70%; height: 70%; }
+.pl-hud .pl-feed-row .tt-kf.victim { filter: grayscale(1) brightness(0.7); }
+.pl-hud .pl-feed-row .tt-kf.victim::after {
+  content: ''; position: absolute; inset: 1px; border-radius: 50%;
+  background: linear-gradient(45deg, transparent 43%, #ff4d4d 43% 57%, transparent 57%), linear-gradient(-45deg, transparent 43%, #ff4d4d 43% 57%, transparent 57%);
+}
+.pl-hud .pl-feed-row .claw { width: 14px; height: 14px; color: var(--hx-gold); opacity: 1; display: grid; place-items: center; }
+.pl-hud .pl-feed-row .claw svg { width: 14px; height: 14px; }
+.pl-hud .pl-feed-row.kill b { max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-hud .pl-feed-row.kill b + .claw + .tt-kf { margin-left: 2px; }
+.pl-hud .pl-feed-row.note { --edge: var(--hx-gold); color: #f0d58a; }
+/* touch: 22 px rows, 18 px faces, no names, at most 120 px wide and two rows */
+html[data-touch='1'] .pl-hud .pl-feed { gap: 2px; }
+html[data-touch='1'] .pl-hud .pl-feed-row.kill, html[data-touch='1'] .pl-hud .pl-feed-row.note { height: 22px; max-width: 120px; padding: 0 6px 0 4px; gap: 4px; font-size: 11px; }
+html[data-touch='1'] .pl-hud .pl-feed-row.kill b { display: none; }
+html[data-touch='1'] .pl-hud .pl-feed-row .tt-kf { width: 18px; height: 18px; }
+html[data-touch='1'] .pl-hud .pl-feed-row .claw, html[data-touch='1'] .pl-hud .pl-feed-row .claw svg { width: 12px; height: 12px; }
+html[data-touch='1'] .pl-hud .pl-feed-row.note span { width: 12px; height: 12px; }
+html[data-touch='1'] .pl-hud .pl-feed-row.note b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* 667 × 375: two 18 px rows end by y 170 (the feed starts at 133, under the moved enemy portraits) */
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-hud .pl-feed { gap: 1px; }
+  html[data-touch='1'] .pl-hud .pl-feed-row.kill, html[data-touch='1'] .pl-hud .pl-feed-row.note { height: 18px; font-size: 10px; }
+  html[data-touch='1'] .pl-hud .pl-feed-row .tt-kf { width: 14px; height: 14px; }
+}
+
+/* ------------------------------------------------------------------------------- death wash (B6) */
+#game-canvas { transition: filter 0.2s ease-out; }
+html[data-pl-dead='1'] #game-canvas { filter: saturate(0.15) brightness(0.78); transition: filter 0.3s ease-in; }
+/* ?quality=low: a flat wash instead of a filter on the WebGL canvas (costly on low-end phones); under plates and HUD */
+.pl-match::before { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none; background: rgba(30, 34, 44, 0.45); opacity: 0; transition: opacity 0.2s; }
+.pl-match.dead-low::before { opacity: 1; transition-duration: 0.3s; }
+
+/* ------------------------------------------------------------------------------- Nap channel bar (B7) */
+.lol-nap {
+  position: absolute; left: 50%; bottom: calc(158px + var(--safe-b, 0px)); transform: translateX(-50%); width: 220px; height: 16px; box-sizing: border-box; z-index: 4;
+  border: 1px solid var(--hx-gold-d); border-radius: 3px; background: rgba(7, 11, 20, 0.9); box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 3px 10px rgba(0, 0, 0, 0.45);
+  opacity: 0; transition: opacity 0.15s; overflow: hidden; pointer-events: none;
+}
+.lol-nap.on { opacity: 1; }
+.lol-nap .fill { position: absolute; left: 0; top: 0; bottom: 0; width: calc(var(--left, 1) * 100%); background: linear-gradient(90deg, #3d7be0, #8fc8ff 60%, #f0d58a); }
+.lol-nap span { position: absolute; inset: 0; display: grid; place-items: center; font: 700 12px/1 var(--font); color: #fff; text-shadow: 0 1px 0 #000, 0 0 3px #000; white-space: nowrap; }
+/* phones: no bar of slots at the bottom; the channel bar sits low in the middle, clear of the hero, the stick and the
+   talent chips */
+html[data-touch='1'] .lol-nap { width: 150px; height: 14px; bottom: calc(70px + var(--safe-b, 0px)); }
+html[data-touch='1'] .lol-nap span { font-size: 11px; }
+
+/* ----------------------------------------------------------------------- touch buttons: the hextech look */
+.pl-tbtn:where(:not(.attack)) {
+  background: radial-gradient(circle at 50% 32%, rgba(26, 42, 70, 0.9), rgba(7, 11, 20, 0.88) 72%); border-color: var(--hx-gold-d);
+  box-shadow: inset 0 0 0 1px var(--hx-gold-dd), 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+.pl-tbtn:where(.r) { border-color: var(--hx-gold); }
+.pl-tbtn .cd { background: conic-gradient(transparent calc((1 - var(--cd, 0)) * 360deg), rgba(4, 8, 16, 0.72) 0); }
+.pl-tbtn:where(.cooling) .cd::after {
+  content: ''; position: absolute; inset: 0; border-radius: 50%;
+  background: conic-gradient(from calc((1 - var(--cd, 0)) * 360deg - 3deg), rgba(255, 226, 150, 0.95) 0 3deg, transparent 3deg);
+}
+
+/* ------------------------------------------------------------------------------ VICTORY / DEFEAT crest (B8) */
+.pl-crest {
+  position: absolute; left: 50%; top: 44%; width: min(80vw, 520px); z-index: 40; pointer-events: none; text-align: center;
+  transform: translate(-50%, -50%) scale(0.86); opacity: 0; transition: opacity 0.25s ease-out, transform 0.4s cubic-bezier(0.2, 1.5, 0.4, 1);
+}
+html:not([data-touch='1']) .pl-crest { width: 760px; }
+.pl-crest.on { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+.pl-crest::before {
+  content: ''; position: absolute; left: -12%; right: -12%; top: 4%; bottom: 4%; z-index: -1;
+  background: radial-gradient(ellipse at center, rgba(5, 8, 16, 0.82) 0%, rgba(5, 8, 16, 0.55) 45%, transparent 72%);
+}
+.pl-crest b {
+  display: block; position: relative; font: 900 clamp(46px, 11vw, 112px)/1.05 var(--font); letter-spacing: 0.08em; padding: 0.12em 0;
+  background: linear-gradient(105deg, #7a5a24 0%, #c8aa6e 28%, #fff7dc 44%, #f0d58a 52%, #a8823e 72%, #785a28 100%);
+  background-size: 260% 100%; background-position: 100% 0; -webkit-background-clip: text; background-clip: text; color: transparent;
+  filter: drop-shadow(0 3px 0 #2a1c08) drop-shadow(0 0 14px rgba(240, 213, 138, 0.45));
+  background-position: 30% 0; animation: lol-crest-sweep 0.7s ease-out 0.05s both;
+}
+html:not([data-touch='1']) .pl-crest b { font-size: 112px; }
+.pl-crest.lost b {
+  background-image: linear-gradient(105deg, #2b3d55 0%, #6d8bb0 28%, #eef6ff 44%, #a9c3e2 52%, #4a6585 72%, #22324a 100%);
+  filter: drop-shadow(0 3px 0 #0b1422) drop-shadow(0 0 14px rgba(150, 190, 235, 0.4));
+}
+@keyframes lol-crest-sweep { from { background-position: 100% 0; } to { background-position: 30% 0; } }
+/* won: laurel cat ears over the word; lost: a crack through it */
+.pl-crest .ears { display: none; }
+.pl-crest.won .ears { display: block; position: relative; height: 0.36em; margin-bottom: -0.2em; font-size: clamp(46px, 11vw, 112px); z-index: 1; }
+html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
+.pl-crest.won .ears::before, .pl-crest.won .ears::after {
+  content: ''; position: absolute; bottom: -0.1em; width: 0.4em; height: 0.42em;
+  background: linear-gradient(180deg, #fff1c4, #c8aa6e 55%, #785a28); clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  filter: drop-shadow(0 2px 0 #2a1c08);
+}
+.pl-crest.won .ears::before { left: calc(50% - 0.62em); transform: rotate(-16deg); }
+.pl-crest.won .ears::after { left: calc(50% + 0.22em); transform: rotate(16deg); }
+.pl-crest .crack { display: none; }
+.pl-crest.lost .crack {
+  display: block; position: absolute; left: 18%; right: 20%; top: 44%; height: 0.16em; font-size: clamp(46px, 11vw, 112px); background: rgba(220, 235, 255, 0.85);
+  filter: drop-shadow(0 1px 0 #0b1422);
+  clip-path: polygon(0 40%, 18% 10%, 30% 70%, 46% 20%, 58% 80%, 72% 30%, 86% 75%, 100% 45%, 100% 60%, 86% 95%, 72% 50%, 58% 100%, 46% 45%, 30% 95%, 18% 35%, 0 60%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-crest { transition: opacity 0.2s; transform: translate(-50%, -50%); }
+  .pl-crest b { animation: none; background-position: 40% 0; }
+}
