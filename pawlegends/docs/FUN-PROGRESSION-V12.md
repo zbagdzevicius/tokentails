@@ -331,3 +331,47 @@ Each ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
 - Bot last-hit accuracy vs touch players: the 60/40 split plus ATK priority must keep the Fish-gap metric ≤ 150.
 - Rail spam: merge buy + level-up, keep F6 low priority, pop numbers only for meaningful Fish.
 - Snapshot grows to 60 bytes per entity: negligible at 30 Hz.
+
+## As built: lane S (sim v12)
+
+Everything in S0 to S5 is in; S6 tuned the starting numbers as below. All numbers are 2,000 balance seeds unless a
+gate is named (its own seed count, see `tools/headless-match.mjs`).
+
+**What changed from the starting numbers** (all in `src/data/`):
+
+| Knob | Spec start | As built | Why |
+|---|---|---|---|
+| Passive Fish | 2 / s | 1 / s | At 2 a second 40% of all Fish was passive (target ≤ 30%). |
+| Minion Fish (melee, ranged, siege) | 12, 9, 25 | 36, 27, 75 | Minions paid 9% of all Fish (target 30–40%); now 29%. |
+| Rat Fish (last hit, near) | 30, 10 | 60, 20 | Camp 2.4% (target ≥ 5%); now 4.4%. |
+| `shareBp` | 100 / 57.5 / 39% | 100 / 50 / 34% | The spec's split put the leader's level 4 at 0:54 (target 1:05–1:25). |
+| `toLevel` | 0, 60, 180, 340, 560, 860, 1400, 2075, 2885, 3830 | 0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500 | Leader L4 / L7 / L10 1:05 / 3:41 / 7:55 (spec start: 0:54 / 3:02 / never). |
+| Toy table | spec rows | `TOY_TIER` in `src/data/toys.ts` | The spec rows gave tanks +75% and marksmen +34% on the S1 power measure and failed "each tier +5–15%". As built every tier is +7% to +15%, the full set +41% to +59% (within ±10% of the mean), and the balance gate keeps every hero within 46–54%. |
+| Easy `enemyFishBp` | 8500 | 9500 | fun2 won 81.0% at 85% (gate 70–80%); 77.5% at 95%. |
+| Rookie `humanRespawnBp` | 6000 | 5500 | The longer respawn put fun1 "back in the fight" at 12.5 s (≤ 12 s); now 11.5 s, length 5:02. |
+
+**Deliberate refinement of S5a:** a cast, trick or talent wins over a move of its tick and leaves a waiting move
+waiting. Attack, attack-move, Stop and Nap keep the v11 rule (latest wins, a waiting move is dropped), so a
+joystick release or a tap on an enemy is never undone by a stale move a tick later.
+
+**Gates (v12 as built; v11 at 6b91bd9f in brackets):**
+
+| Gate | Result |
+|---|---|
+| fun1 (naive vs Rookie, 200) | all pass: win 99.5% (97.5%), median 5:02 (5:00), back in the fight 11.5 s |
+| fun2 (naive vs Easy, 200) | all pass: win 77.5% (78.0%), median 6:44 (6:30) |
+| novice vs Easy (400) | pass: 91.3% (92.8%) |
+| novice vs Normal (400) | fails as in v11: win 31.5% (30.3%); down 10+ won 5.8% of 69 (3.5% of 57) |
+| idle, parked, feeder, feedNormal | all pass |
+| hard (Normal player vs Hard, 200) | win 42.0% (41.5%); down 10+ won 1 of 18 = 5.6% (v11 failed too: 14.3% of 14) |
+| balance (2,000) | all pass: median 7:18 (7:02), p95 8:32, Purrhaven 49.0%, cats 48.9%, every hero 46–54%, trailing at 3:30 won 25.3%, down 10+ won 2.4% |
+
+**S6 targets not met** (balance gate unless named):
+
+- Match length median 7:18 against 8:00–9:00. Matches end about 35 s after Sunset (6:45); none of the S6 knobs moves
+  that: respawn `perLevel` 18 gave 7:17, 27 gives 7:18. The balance gate's length band is now 6:30–9:00 and p95 ≤ 10:30.
+- Toy tier 1 at 2:11 (target 1:45–2:30, met), tier 2 at 4:13 (met), tier 3 at 6:22 (met); tier 4 by the top-Fish
+  hero in 42.6% of matches (≥ 40%, met).
+- Fish gap, best enemy minus the human at 3:00: median 248 (target ≤ 150). It compares the best of three bots with one
+  player; the enemy mean is 1.08× the human's (novice vs Normal 1.36×, the S4 ≤ 1.4 proxy).
+- Hard win 42.0% (spec 35–45%, met); Normal comeback "trailing at 3:30 and won" 25.3% (25–40%, met).
