@@ -1,0 +1,27 @@
+/* The pick screen's compact card row ("Card: Simas · Change"), first-load CSS; the drawer itself is deck.css. */
+.pl-pick .deck-row { align-items: center; }
+.pl-pick .deck-pill {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 6px 8px 6px 12px; border-radius: 999px; cursor: pointer;
+  font: 600 14px/1 var(--font); color: var(--cream, #fff3dc); background: var(--panel, rgba(43, 29, 46, 0.86));
+  border: 2px solid rgba(255, 211, 77, 0.55); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+.pl-pick .deck-pill:hover { border-color: var(--butter, #ffd34d); }
+.pl-pick .deck-pill:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 2px; }
+.pl-pick .deck-pill b { max-width: 150px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-pick .deck-pill .el { width: 12px; height: 12px; border-radius: 50%; background: var(--el); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.7); flex: none; }
+.pl-pick .deck-pill .pip { font-size: 11px; padding: 2px 7px; border-radius: 999px; background: rgba(255, 243, 220, 0.16); }
+.pl-pick .deck-pill .pip[data-rung='RARE'] { background: rgba(127, 200, 255, 0.3); }
+.pl-pick .deck-pill .pip[data-rung='EPIC'] { background: rgba(197, 140, 255, 0.35); }
+.pl-pick .deck-pill .pip[data-rung='LEGENDARY'] { background: rgba(255, 179, 71, 0.4); }
+.pl-pick .deck-pill .chg { padding: 5px 10px; border-radius: 999px; background: var(--butter, #ffd34d); color: #2b1d2e; font-weight: 700; font-size: 13px; }
+.pl-pick .hero-card .tt-in > small { max-width: 94%; }
+/* integrate: the row sits in the column; on short landscape (844x390) it moves to the foot, under the hero, so the
+   Paw Trick chips stay above the fold */
+.pl-pick .deck-row.foot { display: none; }
+@media (max-height: 480px) {
+  .pl-pick .deck-row.col { display: none; }
+  .pl-pick .deck-row.foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; }
+  .pl-pick .deck-row.foot .lbl { display: none; }
+  .pl-pick .deck-row.foot .deck-pill { min-height: 36px; padding: 4px 6px 4px 10px; font-size: 13px; }
+  .pl-pick .deck-row.foot .deck-pill b { max-width: 120px; }
+}

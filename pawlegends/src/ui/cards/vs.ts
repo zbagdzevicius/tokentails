@@ -37,6 +37,9 @@ export interface VsIntroOpts {
   myTier?: CatTier | null;
   /** The team names ("Purrhaven cats", "Woof pack"). */
   teamNames?: readonly [string, string];
+  /** pawlegends: the worn card's cat name for the player's own card ("Ficus"), with its line ("Clem the Fighter"); else "You". */
+  meName?: string | null;
+  meSub?: string | null;
 }
 
 /** Mount the VS intro into `parent`; returns a dispose function (safe to call twice). */
@@ -51,8 +54,8 @@ export function showVsIntro(parent: HTMLElement, o: VsIntroOpts): () => void {
         const hero = o.picks[slot];
         if (!hero) return '';
         const me = slot === o.mySlot;
-        const name = me ? 'You' : (o.names[slot] ?? HERO_TEXT[hero].title);
-        const sub = o.cats?.[slot] ? o.cats[slot] : HERO_TEXT[hero].role;
+        const name = me ? (o.meName || 'You') : (o.names[slot] ?? HERO_TEXT[hero].title);
+        const sub = me && o.meName ? (o.meSub || HERO_TEXT[hero].role) : o.cats?.[slot] ? o.cats[slot] : HERO_TEXT[hero].role;
         const front = heroCard(hero, {
           portrait: me ? o.myPortrait : undefined,
           tier: me ? (o.myTier ?? null) : null,

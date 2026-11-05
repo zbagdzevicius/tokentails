@@ -237,6 +237,8 @@ export class Hud {
   cdFlashes = 0;
   /** `?quality=low`: the death wash is a flat overlay, not a CSS filter on the WebGL canvas. */
   lowQuality = false;
+  /** Lobby spec §3b: the worn card's cat name ("Ficus"): the portrait card reads "Ficus · Clem", or null. */
+  private selfName: string | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -448,6 +450,21 @@ export class Hud {
     this.tipSchedule();
   }
 
+  /** A worn card renames the champion: the portrait (its card and its label) carries the cat's name. */
+  setSelfName(name: string | null): void {
+    this.selfName = name;
+    const el = this.root.querySelector<HTMLElement>('.pl-portrait');
+    if (el) {
+      if (name) el.setAttribute('aria-label', `${name} · ${HERO_TEXT[this.hero].title}`);
+      else el.removeAttribute('aria-label');
+      el.dataset.name = name ?? '';
+    }
+  }
+
+  private named<T extends { name: string }>(t: T): T {
+    return this.selfName ? { ...t, name: `${this.selfName} · ${t.name}` } : t;
+  }
+
   private tipLeave(): void {
     this.tipEl = null;
     this.tipI = null;
@@ -499,7 +516,7 @@ export class Hud {
     if (i === null || !m) return;
     const html = m.tipHtml(
       i < 0
-        ? m.attackTip(this.hero, this.lv)
+        ? this.named(m.attackTip(this.hero, this.lv))
         : m.slotTip(this.hero, this.trick, i, keyLabel(SLOT_ACTIONS[i] ?? 'q'), { level: this.lv, choices: this.choices, branch: this.branchOn, cd: i < 5 ? (this.cds[i] ?? 0) : 0, dead: this.dead }),
     );
     if (html === this.tipLast && this.tip.classList.contains('on')) return;

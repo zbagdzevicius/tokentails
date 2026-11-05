@@ -607,6 +607,7 @@ export class HeroView {
         h.rung = skin.rung;
         h.element = skin.element;
         h.self = e.id === this.mySlot;
+        h.featured = !!skin.featured; // pawlegends: Nature only for the player's real roster
         h.moving = charState(e) === 'moving';
         h.stealth = stealth;
         h.dead = dead;
