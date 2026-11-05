@@ -4,6 +4,7 @@
  * Sim v9: a burst (ZONE_KIND.burst) pulses once armed: damage and a slow on enemies, a heal on allied heroes.
  */
 import { ZONE_KIND } from '../../data/effects';
+import { toySupport } from '../progression/fish';
 import { dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { ENTITY_CAP, G, Kind, RANGE, allocZone, type World } from '../world';
@@ -100,7 +101,7 @@ function pulse(m: MatchHandle, z: number): void {
   if (w.zHeal[z] > 0) {
     for (let a = RANGE.heroes; a < RANGE.minions; a++) {
       if (w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== team) continue;
-      if (inRing(zx, zy, r, w.x[a], w.y[a], radiusOf(w, a))) creditHealShield(m, owner, heal(w, a, w.zHeal[z]));
+      if (inRing(zx, zy, r, w.x[a], w.y[a], radiusOf(w, a))) creditHealShield(m, owner, heal(w, a, toySupport(w, owner, w.zHeal[z])));
     }
   }
 }

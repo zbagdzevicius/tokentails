@@ -11,6 +11,8 @@
  * Events: `pickupSpawn` when one appears, `pickup` and `buff` when a hero takes it.
  */
 import { RADIUS, TOWER_SPOTS, mirrorX } from '../../data/map';
+import { grantFish } from '../progression/fish';
+import { FISH } from '../../data/fish';
 import { FRENZY_SPOTS, PICKUPS, PICKUP_KINDS, SNACK_BEHIND } from '../../data/pickups';
 import { ZOOMIES } from '../../data/xp';
 import type { Team } from '../api';
@@ -119,6 +121,8 @@ export function collectPickups(m: MatchHandle): void {
       w.hp[id] = Math.min(w.maxHp[id], w.hp[id] + applyBp(w.maxHp[id], PICKUPS.snack.healBp));
       w.zoomT[id] = ZOOMIES.ticks;
       m.events.push({ type: 'pickup', tick, id, kind: 'snack', team: w.team[id] as Team });
+      // Sim v12: a Fish Snack is worth FISH.snack Fish too.
+      grantFish(m, id, FISH.snack, 'pickup');
       m.events.push({ type: 'buff', tick, id, kind: 'snack', ticks: ZOOMIES.ticks });
     }
   }

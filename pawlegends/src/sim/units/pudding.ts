@@ -10,6 +10,8 @@
  * calmed (team = who calmed him), escort (he joined the wave), leave.
  */
 import { LANES, PUDDING_SPOT, RADIUS, TOWER_SPOTS } from '../../data/map';
+import { grantFish } from '../progression/fish';
+import { FISH } from '../../data/fish';
 import { PUDDING, PUD_STATE } from '../../data/pudding';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import type { Team } from '../api';
@@ -163,6 +165,8 @@ export function onPuddingDown(m: MatchHandle): void {
   w.globals[G.PudState] = PUD_STATE.Waiting;
   w.globals[G.PudTeam] = team;
   m.events.push({ type: 'pudding', tick: w.globals[G.Tick], what: 'calmed', team: team as Team });
+  // Sim v12: every hero of the calming team gets FISH.pudding.
+  for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.kind[h] === Kind.Hero && w.team[h] === team) grantFish(m, h, FISH.pudding, 'pudding');
 }
 
 /** Nearest standing enemy structure within breath range of the escort, or −1. */

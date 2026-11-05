@@ -23,6 +23,8 @@ import { campKilled, heroKilled, minionKilled } from '../progression/xp';
 import { onRatDied, packBuff } from '../units/camp';
 import { onPuddingDown } from '../units/pudding';
 import { respawnTicks } from '../progression/respawn';
+import { toyIncoming, toyLifesteal, toyOutgoing } from '../progression/fish';
+import { creditHealShield, heal } from '../effects/heal';
 import { bonusDamage, nineLives } from '../effects/bonus';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
 import { rulesOf } from '../rules';
@@ -69,6 +71,9 @@ export function dealDamage(
   const heroSrc = !opts.pure && srcKind === Kind.Hero && src >= 0 && src < RANGE.minions && w.kind[src] === Kind.Hero;
   if (heroSrc) {
     raw = bonusDamage(w, src, kitOf(w, src).outgoing?.(m, src, dst, raw) ?? raw);
+    // Sim v12: the source's Toys (not on towers or cores) and its tier-3 role passive; a tank's passive on the victim.
+    raw = toyOutgoing(w, src, dst, raw, kind, structure);
+    if (w.kind[dst] === Kind.Hero && w.team[src] !== w.team[dst]) raw = toyIncoming(w, dst, raw);
     if (w.kind[dst] === Kind.Hero) {
       raw = applyBp(raw, HERO_VS_HERO_BP);
       if (w.globals[G.SideEdge] !== 0) {
@@ -128,6 +133,11 @@ export function dealDamage(
   if (heroDst && dst < RANGE.minions) m.stats[dst].damageTaken += dmg + shielded;
   m.events.push({ type: 'hit', tick, src, dst, amount: dmg, shielded, kind });
   if (heroSrc) {
+    // Sim v12: a fighter's tier-3 Toy passive heals it for part of its basic-attack damage to enemy heroes.
+    if (heroDst && kind === 'basic' && dmg > 0 && w.alive[src] === 1 && w.team[src] !== w.team[dst]) {
+      const steal = toyLifesteal(w, src, dmg);
+      if (steal > 0) creditHealShield(m, src, heal(w, src, steal));
+    }
     // Attacking breaks stealth (Bush Slink); the kit's outgoing hook already applied Ambush.
     w.stealthT[src] = 0;
     kitOf(w, src).afterDeal?.(m, src, dst, dmg + shielded, kind);
@@ -221,6 +231,8 @@ export function resolveDeaths(m: MatchHandle): void {
         const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;
         if (gap > 0) w.timer[id] = applyBp(w.timer[id], BP_ONE + Math.min(RESPAWN.gapCapBp, gap * RESPAWN.gapPerBp));
       }
+      // Sim v12 (docs/FUN-PROGRESSION-V12.md S3): no wait is longer than RESPAWN.hardCap.
+      w.timer[id] = Math.min(w.timer[id], RESPAWN.hardCap);
       heroKilled(m, id);
       // From Sunset (v4; Sudden Death before): each takedown deals core damage to the victim's core.
       // Sim v5: before Sudden Death it scales with how open that core is (an inner tower down: the full share, else

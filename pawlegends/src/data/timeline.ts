@@ -18,7 +18,8 @@ export const TIMELINE = Object.freeze({
   siegeEveryNthWave: 3,
   /** 2:30 Pudding (v4; 5:00 before). */
   pudding: 4500,
-  /** Easy and Normal: 5:00 Sunset, 7:00 Sudden Death (v4; 8:00 and 10:00 before). Rookie: TIMELINE_BY. */
+  /** Default 5:00 Sunset, 7:00 Sudden Death (v4; 8:00 and 10:00 before). Every difficulty has its own row in
+   *  TIMELINE_BY (sim v12: Easy too); these stay the defaults of respawnTicks and clockAt. */
   sunset: 9000,
   suddenDeath: 12600,
   /** 11:00 safety end (= PAWLEGENDS_MAX_TICKS in shared/caps.ts). */
@@ -70,8 +71,10 @@ export interface PhaseTimes {
 export const TIMELINE_BY: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard', Readonly<PhaseTimes>>> = Object.freeze({
   /** Match 1: 4:00 Sunset, 6:15 Sudden Death (the plan said 5:30; at 5:30 a third of the fun1 matches reached it). */
   rookie: Object.freeze({ sunset: 7200, suddenDeath: 11700 }),
-  easy: Object.freeze({ sunset: TIMELINE.sunset, suddenDeath: TIMELINE.suddenDeath }),
-  /** Sim v5: 6:00 Sunset, 7:45 Sudden Death, so a late teamfight can still turn a Normal match. */
-  normal: Object.freeze({ sunset: 10800, suddenDeath: 13950 }),
-  hard: Object.freeze({ sunset: 10800, suddenDeath: 13950 }),
+  /** Sim v12 (docs/FUN-PROGRESSION-V12.md S3): 5:45 Sunset, 7:45 Sudden Death (the TIMELINE defaults, 5:00 and
+   *  7:00, before), so Toys and the longer XP curve have time to matter. */
+  easy: Object.freeze({ sunset: 10350, suddenDeath: 13950 }),
+  /** Sim v5: 6:00 Sunset, 7:45 Sudden Death, so a late teamfight can still turn a Normal match. Sim v12: 6:45 and 8:30. */
+  normal: Object.freeze({ sunset: 12150, suddenDeath: 15300 }),
+  hard: Object.freeze({ sunset: 12150, suddenDeath: 15300 }),
 });

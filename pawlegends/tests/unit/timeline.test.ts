@@ -20,13 +20,14 @@ function sturdyCores(m: MatchHandle): void {
 }
 
 describe('timeline (§7.3, §15 item 7)', { timeout: 120000 }, () => {
-  it('sim v5 phases: gate until 0:03; Easy Sunset 5:00, Sudden Death 7:00; Normal 6:00 and 7:45; Rookie 4:00 and 6:30; safety end 11:00', () => {
+  it('sim v12 phases: gate until 0:03; defaults 5:00 and 7:00; Easy Sunset 5:45, Sudden Death 7:45; Normal and Hard 6:45 and 8:30; Rookie 4:00 and 6:30; safety end 11:00', () => {
     expect(TIMELINE.barrierDrop).toBe(90);
     expect(TIMELINE.sunset).toBe(9000);
     expect(TIMELINE.suddenDeath).toBe(12600);
     expect(TIMELINE.safetyEnd).toBe(19800);
-    expect(TIMELINE_BY.easy).toEqual({ sunset: 9000, suddenDeath: 12600 });
-    expect(TIMELINE_BY.normal).toEqual({ sunset: 10800, suddenDeath: 13950 });
+    expect(TIMELINE_BY.easy).toEqual({ sunset: 10350, suddenDeath: 13950 });
+    expect(TIMELINE_BY.normal).toEqual({ sunset: 12150, suddenDeath: 15300 });
+    expect(TIMELINE_BY.hard).toEqual({ sunset: 12150, suddenDeath: 15300 });
     expect(TIMELINE_BY.rookie).toEqual({ sunset: 7200, suddenDeath: 11700 });
     expect(phaseAt(89, false)).toBe('gate');
     expect(phaseAt(90, false)).toBe('play');
@@ -60,11 +61,11 @@ describe('timeline (§7.3, §15 item 7)', { timeout: 120000 }, () => {
       step(m);
       for (const e of snapshot(m, 0).events) if (e.type === 'sunset' || e.type === 'suddenDeath') seen.push(`${e.type}@${e.tick}`);
     }
-    expect(seen).toEqual(['sunset@9000', 'suddenDeath@12600']);
+    expect(seen).toEqual(['sunset@10350', 'suddenDeath@13950']);
   });
   it('Sudden Death: cores lose exactly 3% max HP a second (no Sunset bonus)', () => {
     const m = newMatch(8);
-    while (m.world.globals[G.Tick] < TIMELINE.suddenDeath) step(m);
+    while (m.world.globals[G.Tick] < TIMELINE_BY.easy.suddenDeath) step(m);
     const c = RANGE.cores;
     const before = m.world.hp[c];
     for (let i = 0; i < TIMELINE.second * 3; i++) step(m);

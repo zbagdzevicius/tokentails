@@ -206,8 +206,8 @@ four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) 
 original cats (sim v11, POC.md §6.8c) Meatball (tank), Pixel (marksman), Duchess (mage) and Stilts (assassin);
 dogs: Sir Brutus and Cacklejaw. A match ends on a core kill, at the latest at 11:00 (safety end); most end
 between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a
-second, `SIM_VERSION` 11) in a Web Worker, and the backend replays it (v10 and v11 replays both verify, by
-`simVersion`, for 30 days after the v11 deploy; v9 is retired).
+second, `SIM_VERSION` 12) in a Web Worker, and the backend replays it (v10, v11 and v12 replays all verify, by
+`simVersion`; v11 for 30 days after the v12 deploy; v9 is retired).
 
 - **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
   the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play
@@ -427,6 +427,11 @@ second, `SIM_VERSION` 11) in a Web Worker, and the backend replays it (v10 and v
   Stilts are made-up cats, not shelter champions: no card, no badge, no Meet card, no catalog id. They are free to
   play everywhere, wear breed coats (`CAT_HEROES`), have Treat Track coats and a "Win with" quest each. The pick
   screen lays all 12 heroes on one 6-column grid of two rows: the 10 cats, then the 2 dogs closing the second row.
+- **Fish and Toys** (sim v12, POC.md §6.8d, spec `pawlegends/docs/FUN-PROGRESSION-V12.md`): heroes earn Fish from
+  last hits, kills, assists, objectives and a 1-a-second trickle, and buy four Toy tiers automatically (500, 1,200,
+  2,000 and 3,000 Fish; damage, HP, attack speed and move speed by role, a role passive at tier 3). Levels 7 to 10
+  cost more and late respawns are longer (3 s + 0.9 s a level, at most 15 s); Easy, Normal and Hard Sunset and
+  Sudden Death come 45 s later. The input gate lets a cast win over a joystick move of the same tick.
 - **Sim changes**: bump `SIM_VERSION`, re-run `npm run vendor-sim` (writes
   `backend/src/vendor/pawlegends-sim/v<N>/`; the previous version stays frozen beside it for 30 days, listed in
   `FROZEN` in `pawlegends/tools/vendor-sim.mjs`), deploy the

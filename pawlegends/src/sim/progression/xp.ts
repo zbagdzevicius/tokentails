@@ -2,15 +2,18 @@
  * Kill and minion XP, takedowns, assists, bounties (POC.md §6.1; sim v4 numbers in data/xp.ts).
  *
  * - Hero kill: 80 + 15 × victim level, +50% when the victim is more than one level above its killer, plus the
- *   victim's bounty (a takedown streak of 3+: +40 × streak, max +160). Shared equally among the enemy heroes within
+ *   victim's bounty (a takedown streak of 3+: +20 × streak, max +80). Shared (sim v12: XP.shareBp) among the enemy heroes within
  *   10 m and those who hit the victim in the last 10 s (assists). On Easy (DIFFICULTY_RULES.nearAssists; Rookie before v11)
  *   every ally within 10 m counts as an assist too. The killer is the last hero to hit it (a tower or minion last
  *   hit credits the most recent hero who hit it in the window).
  * - Takedown heal: every credited hero alive gets TAKEDOWN_HEAL.healBp of its max HP back (a `buff` 'takedown').
  * - Takedown streak: every takedown (kill or assist) adds one, a death resets it. Reaching 3+ sends `bounty`;
  *   ending one sends `shutdown`. The match's first takedown sends `firstBlood`.
- * - Minion: melee 30, ranged 25, siege 60, shared among enemy heroes within 10 m. Every grant gets the per-hero
- *   catch-up (progression/levels.ts).
+ * - Minion: melee 30, ranged 25, siege 60, shared (sim v12: XP.shareBp) among enemy heroes within 10 m. Every grant
+ *   gets the per-hero catch-up (progression/levels.ts).
+ * - Sim v12 Fish (data/fish.ts, progression/fish.ts): the killer gets the kill value (lower on a victim that keeps
+ *   dying), first blood and shutdown; the assisters split FISH.assistBp of the kill value; a lane minion pays its last
+ *   hitter FISH.lastHitBp and every other hero of that team in range FISH.nearBp; a rat its last hitter and allies.
  */
 import { WAVE } from '../../data/minions';
 import { RAT_CAMP_STATS } from '../../data/camps';
@@ -23,6 +26,8 @@ import { kitOf } from '../heroes/kit';
 import { rulesOf } from '../rules';
 import { HUMAN_SLOT } from '../api';
 import { grantXp } from './levels';
+import { grantFish } from './fish';
+import { FISH } from '../../data/fish';
 
 const HEROES_N = RANGE.minions - RANGE.heroes;
 const share = new Int32Array(HEROES_N);
@@ -36,6 +41,19 @@ export function assisted(w: World, victim: number, h: number): boolean {
 
 /** Bounty XP on a hero with takedown streak `streak` (0 below XP.bountyStreak). */
 export const bountyOf = (streak: number): number => (streak >= XP.bountyStreak ? Math.min(XP.killPerStreak * streak, XP.killStreakMax) : 0);
+
+/** Sim v12: shutdown Fish for ending takedown streak `streak` (0 below XP.bountyStreak). */
+export const shutdownFishOf = (streak: number): number => (streak >= XP.bountyStreak ? Math.min(FISH.shutdownPerStreak * streak, FISH.shutdownMax) : 0);
+
+/** Sim v12: kill Fish for a victim that died `deathStreak` times in a row before this death. */
+export const killFishOf = (deathStreak: number): number =>
+  deathStreak >= FISH.killFedFrom ? FISH.killFed : deathStreak >= FISH.killRepeatFrom ? FISH.killRepeat : FISH.kill;
+
+/** Sim v12: each of `n` heroes sharing `amount` XP gets this (XP.shareBp; 0 for n = 0). */
+export function shareOf(amount: number, n: number): number {
+  if (n <= 0) return 0;
+  return applyBp(amount, XP.shareBp[Math.min(n, XP.shareBp.length) - 1]);
+}
 
 /** Enemy hero `victim` died (step 7). Credits the kill, the assists, XP and the takedown hooks. */
 export function heroKilled(m: MatchHandle, victim: number): void {
@@ -76,18 +94,36 @@ export function heroKilled(m: MatchHandle, victim: number): void {
   if (killer >= 0) m.stats[killer].kills++;
   const rules = rulesOf(m);
   if (helpedBy[HUMAN_SLOT] === 1 && w.globals[G.Rally] < rules.rallyCap) w.globals[G.Rally]++;
+  // Sim v12 Fish: the victim's death streak before this death sets the kill value.
+  const killFish = killFishOf(w.deathStreak[victim]);
+  w.deathStreak[victim]++;
+  const shutdownFish = killer >= 0 ? shutdownFishOf(w.killStreak[victim]) : 0;
+  let firstBlood = false;
   if (w.globals[G.FirstBlood] === 0) {
     w.globals[G.FirstBlood] = 1;
+    firstBlood = true;
     m.events.push({ type: 'firstBlood', tick, killer, victim });
   }
-  if (bounty > 0) m.events.push({ type: 'shutdown', tick, killer, victim, value: bounty });
+  if (bounty > 0) m.events.push({ type: 'shutdown', tick, killer, victim, value: bounty, fish: shutdownFish });
   w.killStreak[victim] = 0;
   if (n > 0) {
-    const each = idiv(reward, n);
+    const each = shareOf(reward, n);
     for (let i = 0; i < n; i++) grantXp(m, share[i], each, share[i] === killer ? 'kill' : 'assist');
+  }
+  if (killer >= 0) {
+    grantFish(m, killer, killFish, 'kill');
+    if (firstBlood) grantFish(m, killer, FISH.firstBlood, 'firstBlood');
+    if (shutdownFish > 0) grantFish(m, killer, shutdownFish, 'shutdown');
+  }
+  let assisters = 0;
+  for (let h = RANGE.heroes; h < RANGE.minions; h++) if (helpedBy[h] === 1 && h !== killer) assisters++;
+  if (assisters > 0) {
+    const each = idiv(applyBp(killFish, FISH.assistBp), assisters);
+    for (let h = RANGE.heroes; h < RANGE.minions; h++) if (helpedBy[h] === 1 && h !== killer) grantFish(m, h, each, 'assist');
   }
   for (let h = RANGE.heroes; h < RANGE.minions; h++) {
     if (helpedBy[h] === 0) continue;
+    w.deathStreak[h] = 0;
     const before = bountyOf(w.killStreak[h]);
     w.killStreak[h]++;
     // Only when the bounty appears or grows (it is capped at XP.killStreakMax).
@@ -101,7 +137,10 @@ export function heroKilled(m: MatchHandle, victim: number): void {
   for (let h = 0; h < HEROES_N; h++) w.assistTick[victim * HEROES_N + h] = NEVER;
 }
 
-/** Lane minion `id` died: its XP goes to the enemy heroes within 10 m. */
+/**
+ * Lane minion `id` died: its XP goes to the enemy heroes within 10 m (XP.shareBp each); sim v12: its Fish to the
+ * hero who last-hit it (FISH.lastHitBp) and every other hero of that team in range (FISH.nearBp each).
+ */
 export function minionKilled(m: MatchHandle, id: number): void {
   const w = m.world;
   const enemy = 1 - w.team[id];
@@ -111,19 +150,26 @@ export function minionKilled(m: MatchHandle, id: number): void {
     if (w.kind[h] !== Kind.Hero || w.team[h] !== enemy || w.alive[h] === 0 || w.hp[h] <= 0) continue;
     if (dist2(w.x[h], w.y[h], w.x[id], w.y[id]) <= r2) share[n++] = h;
   }
+  const by = w.lastHitBy[id];
+  const hitter = by >= RANGE.heroes && by < RANGE.minions && w.kind[by] === Kind.Hero && w.team[by] === enemy ? by : -1;
+  const fish = FISH.minion[w.sub[id]];
+  if (hitter >= 0) {
+    m.stats[hitter].lastHits++;
+    grantFish(m, hitter, applyBp(fish, FISH.lastHitBp), 'lastHit');
+  }
+  for (let i = 0; i < n; i++) if (share[i] !== hitter) grantFish(m, share[i], applyBp(fish, FISH.nearBp), 'minion');
   if (n === 0) return;
   const xp = minionData(w, id).xp;
-  const each = idiv(xp, n);
+  const each = shareOf(xp, n);
   for (let i = 0; i < n; i++) grantXp(m, share[i], each, 'minion');
   // Sim v5: the hero who landed the last hit gets XP.lastHitBp of the minion's XP on top (last-hitting is a skill).
-  const by = w.lastHitBy[id];
-  if (by >= RANGE.heroes && by < RANGE.minions && w.kind[by] === Kind.Hero && w.team[by] === enemy) {
-    for (let i = 0; i < n; i++) if (share[i] === by) grantXp(m, by, applyBp(xp, XP.lastHitBp), 'lastHit');
+  if (hitter >= 0) {
+    for (let i = 0; i < n; i++) if (share[i] === hitter) grantXp(m, hitter, applyBp(xp, XP.lastHitBp), 'lastHit');
   }
 }
 
 /**
- * Rat `id` died: its share of the camp's XP (70 for the camp, 35 a rat) goes to the heroes of the killer's team
+ * Rat `id` died: its share of the camp's XP (110 for the camp, 55 a rat; sim v12) goes to the heroes of the killer's team
  * within XP.shareRange. The killer is the last unit that hit it (heroes, or a minion that wandered in). Returns the
  * killer's team, or −1.
  */
@@ -138,6 +184,10 @@ export function campKilled(m: MatchHandle, id: number): number {
     if (w.kind[h] !== Kind.Hero || w.team[h] !== team || w.alive[h] === 0 || w.hp[h] <= 0) continue;
     if (dist2(w.x[h], w.y[h], w.x[id], w.y[id]) <= r2) share[n++] = h;
   }
+  // Sim v12: the rat's Fish, to its last hitter (a hero, dead or alive) and the other heroes of its team in range.
+  const hitter = by < RANGE.minions && w.kind[by] === Kind.Hero ? by : -1;
+  if (hitter >= 0) grantFish(m, hitter, FISH.ratLastHit, 'camp');
+  for (let i = 0; i < n; i++) if (share[i] !== hitter) grantFish(m, share[i], FISH.ratNear, 'camp');
   if (n === 0) return team;
   let each = idiv(idiv(RAT_CAMP_STATS.xpTotal, RAT_CAMP_STATS.rats), n);
   // Sim v8: the team behind on levels gets DifficultyRules.campBehindBp of the camp's XP (per difficulty since v10).

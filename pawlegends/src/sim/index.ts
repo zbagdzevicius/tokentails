@@ -150,7 +150,7 @@ export function createMatch(config: MatchConfig): MatchHandle {
     w.maxHp[slot] = heroHp(hero.base.hp);
     w.armour[slot] = hero.base.armour;
     placeAtFountain(w, slot);
-    stats.push({ slot, hero: hero.id, kills: 0, deaths: 0, assists: 0, heroDamage: 0, towerDamage: 0, level: 1, damageTaken: 0, healShield: 0, objective: 0 });
+    stats.push({ slot, hero: hero.id, kills: 0, deaths: 0, assists: 0, heroDamage: 0, towerDamage: 0, level: 1, damageTaken: 0, healShield: 0, objective: 0, fish: 0, toys: 0, lastHits: 0, toy1At: -1, toy2At: -1, toy3At: -1, toy4At: -1 });
   }
   const perTeam = TOWER_SPOTS.length;
   const rules = DIFFICULTY_RULES[config.difficulty];
@@ -308,6 +308,7 @@ function eventFor(w: World, e: SimEvent, team: Team): SimEvent | null {
     case 'talentOffer':
       return teamOfSlot(e.slot) === team ? e : null;
     case 'xp':
+    case 'fish':
       return teamOfSlot(e.id) === team ? e : null;
     case 'buff':
       return visibleTo(w, e.id, team) ? e : null;
@@ -371,6 +372,9 @@ export function snapshot(match: Match, team: Team): Snapshot {
       if (w.mkStack[id] > 0) e.stacks = w.mkStack[id];
       if (w.alive[id] === 0) e.respawnIn = w.timer[id];
       e.bountyStreak = w.killStreak[id];
+      // Sim v12: Toy tiers (both teams: enemy spikes show), unspent Fish (own team only).
+      e.toy = w.toy[id];
+      if (w.team[id] === team) e.fish = w.fish[id];
     } else if (k === Kind.Minion) {
       e.variant = MINION_VARIANT[w.sub[id]];
       e.lane = LANES[w.lane[id]];

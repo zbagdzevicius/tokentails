@@ -506,7 +506,8 @@ function resultTable(rows: readonly ResultRow[]): string {
   return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
-/** Sudden Death starts at 10:00 (data/timeline.ts TIMELINE.suddenDeath): after it the clock, not the player, ends the match. */
+/** A fallback Sudden Death second (10:00). The real one is per difficulty (`suddenDeathS`, data/timeline.ts TIMELINE_BY;
+ *  sim v12: Rookie 6:30, Easy 7:45, Normal and Hard 8:30): after it the clock, not the player, ends the match. */
 export const SUDDEN_DEATH_S = 600;
 
 /** The line under Victory / Defeat, chosen by the margin (a 1–14 loss is not "so close"). Pure. */
