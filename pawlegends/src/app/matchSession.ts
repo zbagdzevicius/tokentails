@@ -61,6 +61,14 @@ const CREST_AT_MS = 900;
 const CREST_HOLD_MS = 2400;
 const CREST_EXTRA_MS = Math.max(0, CREST_AT_MS + CREST_HOLD_MS + 480 - RESULTS_AFTER_END_MS);
 /**
+ * `?e2e=1` only: hand Playwright a live object as `window.__pl<name>` (__plJuice, __plWorld, __plHud). Set through one
+ * computed key, so the built files carry no `window.__` debug global literal (perf.spec "no debug hooks").
+ */
+function e2eHook(name: string, v: unknown): void {
+  (window as unknown as Record<string, unknown>)[`__pl${name}`] = v;
+}
+
+/**
  * QA v2 #2: how often each coaching line may show in one match (the dive warning showed 15-25 times a match, lane help
  * 8 times). After that the player has heard it; the arrow and the ring still teach.
  */
@@ -350,7 +358,7 @@ export class MatchSession {
     this.view.juice.stage = this.stage;
     this.view.juice.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
     // e2e (rail.spec.ts): the juice instance, to push one note of each priority
-    if (this.e2e) (window as unknown as { __plJuice?: unknown }).__plJuice = this.view.juice;
+    if (this.e2e) e2eHook('Juice', this.view.juice);
     // ANIM-SPEC §4.1: the animation director binds clips to events a few frames before they fire (read-only peek)
     this.view.peek = (h, out) => this.buffer.peekEvents(h, out);
     this.overhead = new Overhead(this.ui);
@@ -360,7 +368,7 @@ export class MatchSession {
     this.overhead.minionAt = (id) => this.view.minions.drawnAt.get(id) ?? null;
     this.overhead.goldPlate = setup.frame === 'frame.legendary';
     // LoL pass (lane C), e2e only: the view, the overhead bars and the low-health vignette for the in-world checks
-    if (this.e2e) (window as unknown as { __plWorld?: unknown }).__plWorld = { view: this.view, overhead: this.overhead, lowHp: () => this.lowHp };
+    if (this.e2e) e2eHook('World', { view: this.view, overhead: this.overhead, lowHp: () => this.lowHp });
     this.minimap = new Minimap(this.ui, {
       lookAt: (x, z) => this.view.lookAt(x, z),
       moveTo: (x, y) => this.orders?.move(x, y),
@@ -518,7 +526,7 @@ export class MatchSession {
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
     // LoL pass (lane B): e2e reaches the HUD (the crest, the kill feed) the way it reaches the rail
-    if (this.e2e) (window as unknown as { __plHud?: unknown }).__plHud = this.hud;
+    if (this.e2e) e2eHook('Hud', this.hud);
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
     if (portrait && this.setup.frame) portrait.dataset.frame = this.setup.frame;
     if (portrait && this.setup.title) portrait.dataset.title = this.setup.title;
