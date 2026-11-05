@@ -69,9 +69,24 @@ export interface FunSink {
 
 /**
  * Every sticker size is multiplied by this: callers author sizes in "body" metres, and a sprite under ~0.35 m is a
- * few pixels at the game camera's distance (the Med capture at 640×360 lost them entirely).
+ * few pixels at the game camera's distance (the Med capture at 640×360 lost them entirely). Low and reduced effects
+ * use SIZE_K_LOW (readability QA: a 1.28 m cut-out paw at body height covered the target).
  */
-const SIZE_K = 1.7;
+const SIZE_K_FULL = 1.7;
+const SIZE_K_LOW = 1.2;
+let SIZE_K = SIZE_K_FULL;
+/** Stickers are decoration: none while the pool they draw into is more than this full (gameplay sparks keep room). */
+const BUSY = 0.6;
+/** Set the sticker scale for this call (tier and reduced effects). */
+function tierK(fx: FxCtx): void {
+  SIZE_K = fx.tier === 'low' || fx.reduced ? SIZE_K_LOW : SIZE_K_FULL;
+}
+type PoolCount = { count: number; limit: number };
+/** The pool (alpha or additive) is over BUSY: skip the decoration. */
+function busy(p: ParticlesLike, additive: boolean): boolean {
+  const q = (p as unknown as { add?: PoolCount; alpha?: PoolCount })[additive ? 'add' : 'alpha'];
+  return !!q && q.limit > 0 && q.count > q.limit * BUSY;
+}
 /** How far (m) a sticker is pulled toward the camera. */
 const NUDGE = 0.6;
 const NV = { x: 0, y: 0, z: 0 };
@@ -186,12 +201,19 @@ function one(p: ParticlesLike, x: number, y: number, z: number, shape: number, a
 export function sticker(fx: FxCtx, x: number, y: number, z: number, name: StickerName, color: number, size: number, life: number, vy = 0, spin = 0, rot = 0): void {
   const p = poolOf(fx);
   if (!p) return;
+  const add = GLOW.has(name);
+  if (busy(p, add)) return;
   spinOk = fx.tier !== 'low' && !fx.reduced;
+  tierK(fx);
   setColor(C, color);
   const sh = shapeOf(name);
-  const add = GLOW.has(name);
   if (sh >= 0) {
     one(p, x, y, z, sh, add, size, life, 0, vy, 0, rot, spin, 0, FADE.HOLD, GROW.BACK, 1);
+    return;
+  }
+  // Low and reduced effects: a composite draws its main part only (one sprite, readability QA)
+  if (fx.tier === 'low' || fx.reduced) {
+    one(p, x, y, z, sh === -4 || sh === -6 ? SHAPE.PUFF : SHAPE.SOFT, add, size * 0.8, life, 0, vy, 0, rot, 0, 0, FADE.HOLD, GROW.BACK, 1);
     return;
   }
   K.p = p;
@@ -250,12 +272,14 @@ export function sticker(fx: FxCtx, x: number, y: number, z: number, name: Sticke
 export function stickerBurst(fx: FxCtx, x: number, y: number, z: number, name: StickerName, color: number, size: number, life: number, n: number, speed = 2, up = 2, grav = -6, seed = 0): void {
   const p = poolOf(fx);
   if (!p) return;
+  const add = GLOW.has(name);
+  if (busy(p, add)) return;
   spinOk = fx.tier !== 'low' && !fx.reduced;
+  tierK(fx);
   let k = p.scaled(n);
   if (fx.reduced) k = Math.max(1, k >> 1);
   setColor(C, color);
   const sh = shapeOf(name);
-  const add = GLOW.has(name);
   for (let i = 0; i < k; i++) {
     const a = ((i + 0.5) / k) * Math.PI * 2 + seed * 6.283;
     const j = 0.75 + 0.5 * frac(seed * 13.7 + i * 0.618);
@@ -322,11 +346,13 @@ export function speedLines(fx: FxCtx, x: number, y: number, z: number, dx: numbe
 export function orbit(fx: FxCtx, x: number, y: number, z: number, name: StickerName, color: number, n: number, r: number, size: number, life: number, phase = 0): void {
   const p = poolOf(fx);
   if (!p) return;
+  const add = GLOW.has(name);
+  if (busy(p, add)) return;
+  tierK(fx);
   let k = p.scaled(n);
   if (fx.reduced) k = Math.max(1, k >> 1);
   setColor(C, color);
   const sh = shapeOf(name) >= 0 ? shapeOf(name) : SHAPE.STAR5;
-  const add = GLOW.has(name);
   spinOk = fx.tier !== 'low' && !fx.reduced;
   const w = 3.2;
   for (let i = 0; i < k; i++) {
@@ -346,11 +372,13 @@ const PV = new THREE.Vector3();
 const clock = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
 
 /**
- * A comic word ("POW!", "MEOW!") over (x, y, z), credited to caster `src`: at most one per caster per 0.6 s and two
- * on screen at once (pops live ~0.9 s). Use only on ult contacts, landed stuns / knock-ups and big hits.
- * Returns true when it showed.
+ * A comic word ("POW!", "MEOW!") over (x, y, z), credited to caster `src`: at most one per caster per 0.6 s and one
+ * fun pop on screen at once, in its own slot: it never pushes a gameplay word or pop ("CLANK!" on a shield,
+ * "Purr-ified!") off the screen (readability QA). None with reduced effects or while a team fight is on (the fight
+ * camera's flag). Use only on ult contacts, landed stuns / knock-ups and big hits. Returns true when it showed.
  */
 export function funPop(fx: FxCtx, src: number, text: string, x: number, y: number, z: number): boolean {
+  if (fx.reduced || (fx.cam as { fight?: boolean } | undefined)?.fight === true) return false;
   const w = (fx as Shared).words;
   if (w && typeof w.pop === 'function') {
     w.pop(text, x, y, z, src);
@@ -360,10 +388,9 @@ export function funPop(fx: FxCtx, src: number, text: string, x: number, y: numbe
   const t = clock();
   const i = src & 31;
   if (t - lastPop[i] < POP_GAP) return false;
-  const old = popAt[0] < popAt[1] ? 0 : 1;
-  if (t - popAt[old] < 0.9) return false;
+  if (t - popAt[0] < 0.9) return false;
   lastPop[i] = t;
-  popAt[old] = t;
+  popAt[0] = t;
   PV.set(x, y, z);
   return sink.pop(text, PV) !== false;
 }
@@ -480,7 +507,9 @@ export function funMaxed(fx: FxCtx, id: number, slot: number, talents?: readonly
 export function flying(fx: FxCtx, x: number, y: number, z: number, vx: number, vy: number, vz: number, name: StickerName, color: number, size: number, life: number, rot = 0, spin = 0): void {
   const p = poolOf(fx);
   if (!p) return;
+  if (busy(p, GLOW.has(name))) return;
   spinOk = fx.tier !== 'low' && !fx.reduced;
+  tierK(fx);
   setColor(C, color);
   const sh = shapeOf(name);
   const s = p.begin();

@@ -131,7 +131,7 @@ export class DamageNumbers {
     this.pool = [];
     for (let i = 0; i < MAX; i++) {
       this.pool.push({ el: null, t: 0, life: DAMAGE_FX.life, pos: new THREE.Vector3(), dx: 0, rise: DAMAGE_FX.rise, size: 26, style: 'normal',
-        kind: 'num', key: null, value: 0, shownValue: 0, bump: 0, hitT: 0, active: false });
+        kind: 'num', key: null, value: 0, shownValue: 0, bump: 0, hitT: 0, active: false, fun: false, hw: 0 }); // pawlegends: fun, hw
     }
     this._next = 0;
     this._side = 1;
@@ -180,10 +180,11 @@ export class DamageNumbers {
   _take() {
     for (let k = 0; k < this.pool.length; k++) {
       const n = this.pool[(this._next + k) % this.pool.length];
-      if (!n.active) { this._next = (this._next + k + 1) % this.pool.length; return n; }
+      if (!n.active) { this._next = (this._next + k + 1) % this.pool.length; n.fun = false; n.hw = 0; return n; } // pawlegends: reset
     }
     const n = this.pool[this._next % this.pool.length];
     this._next = (this._next + 1) % this.pool.length;
+    n.fun = false; n.hw = 0; // pawlegends: reset
     return n;
   }
 
@@ -264,23 +265,37 @@ export class DamageNumbers {
     const cam = this.ctx.camera;
     if (cam?.matrixWorld) { this._lane = -this._lane; _r.setFromMatrixColumn(cam.matrixWorld, 0); n.pos.addScaledVector(_r, DAMAGE_FX.wordLane * this._lane); }
     n.t = 0; n.kind = 'word'; n.active = true; n.key = null; n.style = 'word'; n.life = DAMAGE_FX.wordLife; n.dx = 0; n.rise = 0.35;
-    n.size = DAMAGE_STYLE.word.size; n.value = NaN; n.bump = 0;
+    n.size = DAMAGE_STYLE.word.size; n.value = NaN; n.bump = 0; n.fun = false;
     this._paint(n, text, 'word');
+    n.hw = n.el ? (n.el.offsetWidth || 0) / 2 : 0; // pawlegends: half width for the screen clamp
     return true;
   }
 
-  /** WA §5.3 a comic pop over a target (`id` a POPS key or literal text). */
-  pop(id, pos) {
+  /**
+   * WA §5.3 a comic pop over a target (`id` a POPS key or literal text).
+   * pawlegends: `fun` pops (skill flavour: "POW!", "ZOOM!") have one slot of their own: one on screen at once, never
+   * shown while the gameplay words and pops fill their cap, and the first to go when a gameplay one needs room, so a
+   * flavour pop never pushes "CLANK!" (a shield) or "Purr-ified!" off the screen (readability QA).
+   */
+  pop(id, pos, fun = false) {
     const text = this._str(`pop.${id}`) ?? POPS[id] ?? String(id);
     if (!text) return false;
+    if (fun) {
+      if (this._gameTexts() >= DAMAGE_FX.wordCap) return false;
+      for (const o of this.pool) if (o.active && o.fun) { o.active = false; o.fun = false; if (o.el) o.el.style.opacity = '0'; }
+    } else this._capTexts();
     this.shown++; this.pops++;
-    this._capTexts();
     const n = this._take();
     n.pos.copy(pos); n.t = 0; n.kind = 'pop'; n.active = true; n.key = null; n.style = 'pop'; n.life = DAMAGE_FX.popLife; n.dx = 0; n.rise = DAMAGE_FX.rise;
-    n.size = DAMAGE_STYLE.pop.size; n.value = NaN; n.bump = 0;
+    n.size = DAMAGE_STYLE.pop.size; n.value = NaN; n.bump = 0; n.fun = fun;
     this._paint(n, text, 'pop');
+    // pawlegends: its half width (px, at scale 1), measured once, keeps the whole word inside the screen (render())
+    n.hw = n.el ? (n.el.offsetWidth || 0) / 2 : 0;
     return true;
   }
+
+  /** pawlegends: gameplay words and pops on screen (fun pops excluded). */
+  _gameTexts() { let k = 0; for (const n of this.pool) if (n.active && !n.fun && (n.kind === 'word' || n.kind === 'pop')) k++; return k; }
 
   /** pawlegends: the target `key` is gone (a tower or core fell): its numbers fade out now instead of hanging over it. */
   dropKey(key) {
@@ -299,9 +314,11 @@ export class DamageNumbers {
   _capTexts() {
     for (let guard = 0; guard < MAX && this.texts >= DAMAGE_FX.wordCap; guard++) {
       let old = null;
-      for (const n of this.pool) if (n.active && (n.kind === 'word' || n.kind === 'pop') && (!old || n.t > old.t)) old = n;
+      // pawlegends: a fun pop goes first (it never costs a gameplay word its place)
+      for (const n of this.pool) if (n.active && n.fun) { old = n; break; }
+      if (!old) for (const n of this.pool) if (n.active && (n.kind === 'word' || n.kind === 'pop') && (!old || n.t > old.t)) old = n;
       if (!old) break;
-      old.active = false; if (old.el) old.el.style.opacity = '0';
+      old.active = false; old.fun = false; if (old.el) old.el.style.opacity = '0';
     }
   }
 
@@ -318,6 +335,7 @@ export class DamageNumbers {
   /** Per frame: project and animate (dt = visual dt; frozen in the pause menu). */
   render(dt) {
     if (!this._any()) return;
+    this._touch = typeof document !== 'undefined' && document.documentElement.dataset.touch === '1'; // pawlegends
     const cam = this.ctx.camera, hasDom = !!this.layer;
     const w = hasDom ? window.innerWidth : 1, h = hasDom ? window.innerHeight : 1;
     const iso = this._iso(), dist = iso ? (this.ctx.cam?.distance ?? cam.position.distanceTo(this.ctx.cam?.focus ?? cam.position)) : 0;
@@ -349,8 +367,13 @@ export class DamageNumbers {
       // (a word at the edge was cut in half on a phone).
       const sx = (_p.x * 0.5 + 0.5) * w, sy = (-_p.y * 0.5 + 0.5) * h;
       if (!onScreenAnchor(sx, sy, w, h)) { n.el.style.opacity = '0'; continue; }
-      const x = Math.min(w - 56, Math.max(56, sx)), y = Math.min(h - 24, Math.max(24, sy));
       const s = c.scale * (1 + (DAMAGE_FX.bump - 1) * n.bump) * (iso ? isoNumberScale(n.size ?? 26, dist) : 1);
+      // pawlegends: words and pops are clamped by their own drawn half width (feel QA: "STRIKE!" was cut at the right
+      // edge), and on touch they stay above the thumb controls ("CLANK!" drew under the ability buttons)
+      const text = n.kind !== 'num';
+      const hx = text && n.hw ? Math.max(56, n.hw * s + 6) : 56;
+      const yMax = text && this._touch ? h * 0.6 : h - 24;
+      const x = Math.min(w - hx, Math.max(hx, sx)), y = Math.min(yMax, Math.max(24, sy));
       n.el.style.opacity = c.alpha.toFixed(3);
       n.el.style.transform = `translate3d(${x.toFixed(1)}px,${y.toFixed(1)}px,0) translate(-50%,-50%) scale(${s.toFixed(3)})${n.kind === 'word' ? ' skewX(-4deg)' : ''}`;
     }

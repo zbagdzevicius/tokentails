@@ -11,14 +11,15 @@ describe('per-hero visual size (render only)', () => {
       const b = HERO_BUILD[h];
       expect(b.w).toBeGreaterThanOrEqual(0.85);
       expect(b.w).toBeLessThanOrEqual(1.25);
-      expect(b.h).toBeGreaterThan(0.8);
-      expect(b.h).toBeLessThan(1.2);
+      // readability QA: 0.93–1.08 (tall tanks hid units and plates; a tiny Pixel fell under ~45 px on 844×390 Low)
+      expect(b.h).toBeGreaterThanOrEqual(0.93);
+      expect(b.h).toBeLessThanOrEqual(1.08);
       expect(HERO_RING[h]).toBe(b.ring);
     }
   });
-  it('the drawn range is wide: tiny Pixel to big tanks (≥ 1.7× top to top)', () => {
+  it('the drawn range is wide: tiny Pixel to big tanks (≥ 1.5× top to top)', () => {
     const tops = HERO_IDS.map((h) => HERO_TOP[h]);
-    expect(Math.max(...tops) / Math.min(...tops)).toBeGreaterThan(1.7);
+    expect(Math.max(...tops) / Math.min(...tops)).toBeGreaterThan(1.5);
     expect(HERO_HEIGHT.pixel).toBeLessThan(HERO_HEIGHT.clem);
     expect(HERO_HEIGHT.brutus).toBeGreaterThan(HERO_HEIGHT.clem);
   });
@@ -52,5 +53,7 @@ describe('per-hero visual size (render only)', () => {
     const tanks = gap([bodyRadius('meatball'), bodyRadius('brutus')]);
     expect(tanks).toBeGreaterThan(clems);
     expect(gap(null)).toBeCloseTo(clems, 1);
+    // never more than BODY_R_MAX: a big body drawn far from its sim point misreads skillshots
+    for (const h of HERO_IDS) expect(bodyRadius(h)).toBeLessThanOrEqual(SEPARATION.min / 2 + 0.1 + 1e-9);
   });
 });

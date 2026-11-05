@@ -10,7 +10,9 @@ import { FOG_FACTOR, SHAPES, OUTPUT, fogUniforms, fxShaderMaterial } from '../pp
 import { setColor } from '../ppk/fx/util.js';
 
 /** Sprite shapes (fxShape in shaders.js). */
-export const SHAPE = Object.freeze({ SOFT: 0, PUFF: 1, STAR4: 2, STAR5: 3, RING: 4, SPARK: 5, HEART: 6, FEATHER: 7, DROPLET: 8, SHARD: 9, STAR8: 10, FISH: 11, CONFETTI: 12, PLUS: 13 });
+// pawlegends: ZED, PAW, NOTE, EXCLAIM, BONE sticker glyphs (fxShape 14-18 in ppk/fx/shaders.js) for the fun kit.
+export const SHAPE = Object.freeze({ SOFT: 0, PUFF: 1, STAR4: 2, STAR5: 3, RING: 4, SPARK: 5, HEART: 6, FEATHER: 7, DROPLET: 8, SHARD: 9, STAR8: 10, FISH: 11, CONFETTI: 12, PLUS: 13,
+  ZED: 14, PAW: 15, NOTE: 16, EXCLAIM: 17, BONE: 18 });
 /** Alpha-over-life curves. */
 export const FADE = Object.freeze({ LINEAR: 0, POP: 1, HOLD: 2, TWINKLE: 3, IN_OUT: 4 });
 /** Size-over-life curves (size0 → size1). */

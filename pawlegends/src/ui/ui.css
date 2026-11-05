@@ -1218,3 +1218,12 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
 }
 /* Trailer review: an announcer banner never draws over the objective chip; the chip steps aside while it is up. */
 .pl-match:has(.pl-banner.on) .pl-goal.on { opacity: 0; transform: translate(-50%, -8px); animation: none; }
+
+/* ---------------------------------------------------------------- feel fix pass: the phone HUD in team fights
+   (the compact rules above only apply to small phones; an 844×390 landscape phone kept a 4-row kill feed over R and E) */
+html[data-touch='1'] .pl-feed-row:nth-child(n + 3) { display: none; }
+/* an announcer banner and the kill feed share the top band: the feed steps aside while the banner shows */
+html[data-touch='1'] .pl-feed { transition: opacity 0.2s; }
+html[data-touch='1'] .pl-match:has(.pl-banner.on) .pl-feed { opacity: 0; }
+/* the catch-up tag ("−3 lv · +70% XP") sat above the portrait, off the top of the screen: it goes beside it */
+html[data-touch='1'] .pl-portrait .gap { top: 2px; left: calc(100% + 8px); transform: none; font-size: 10px; padding: 2px 5px; }
