@@ -1171,12 +1171,13 @@ html[data-touch='1'] .pl-rail-line.big {
 }
 html[data-touch='1'] .pl-rail-line.big .tt { font-size: calc(var(--rail-fs) + 2px); font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
 html[data-touch='1'] .pl-rail-line.big .ic { background-color: #1a1408; border-width: 2px; }
-html[data-touch='1'] .pl-rail-line.big.on { animation: pl-rail-big 0.32s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+/* scaled from its bottom edge, so the pop-in never pokes below the top band (rail.spec: bottom ≤ y 70 at 667 × 375) */
+html[data-touch='1'] .pl-rail-line.big.on { transform-origin: 50% 100%; animation: pl-rail-big 0.24s ease-out both; }
 html[data-touch='1'] .pl-rail-line.big.on::after {
   content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 240, 200, 0.4) 50%, transparent 65%) no-repeat;
   background-size: 250% 100%; animation: pl-rail-sweep 0.6s ease-out 0.1s both;
 }
-@keyframes pl-rail-big { 0% { opacity: 0; transform: scale(1.25); } 60% { opacity: 1; transform: scale(0.97); } 100% { transform: scale(1); } }
+@keyframes pl-rail-big { 0% { opacity: 0; transform: scale(0.82); } 70% { opacity: 1; } 100% { transform: scale(1); } }
 @media (prefers-reduced-motion: reduce) { html[data-touch='1'] .pl-rail-line.big.on { animation: none; } html[data-touch='1'] .pl-rail-line.big.on::after { display: none; } }
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
   html[data-touch='1'] .pl-rail { --rail-top: 44px; --rail-h: 26px; --rail-w: min(210px, calc(100vw - 456px)); --rail-fs: 13px; --rail-badge: 18px; }
