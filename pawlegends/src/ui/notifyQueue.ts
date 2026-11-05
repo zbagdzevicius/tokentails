@@ -133,13 +133,16 @@ export class NoteQueue {
     while (this.q.length > QUEUE_CAP) {
       // drop the least important (highest prio number); among those a plain note before a big announcer one (QA v2
       // #8: a burst dropped the ACE, the oldest prio 2 note), then the oldest
+      // A note cut off on screen (requeued with time left) is dropped last: it was already chosen to be read.
       let k = 0;
       for (let j = 1; j < this.q.length; j++) {
         const a = this.q[j];
         const b = this.q[k];
+        const ar = a.left !== undefined ? 1 : 0;
+        const br = b.left !== undefined ? 1 : 0;
         const ab = a.n.big ? 1 : 0;
         const bb = b.n.big ? 1 : 0;
-        if (a.n.prio > b.n.prio || (a.n.prio === b.n.prio && (ab < bb || (ab === bb && a.at < b.at)))) k = j;
+        if (ar < br || (ar === br && (a.n.prio > b.n.prio || (a.n.prio === b.n.prio && (ab < bb || (ab === bb && a.at < b.at)))))) k = j;
       }
       this.q.splice(k, 1);
     }
@@ -186,12 +189,14 @@ export class NoteQueue {
       const m = this.main;
       if (now - m.shownAt >= PREEMPT_AFTER_MS || m.n.prio - head.n.prio >= 2) {
         const left = m.until - now;
-        const fresh = now - m.at <= this.staleOf(m.n) / sp;
         this.main = null;
-        if (left > REQUEUE_MIN_LEFT_MS && fresh) {
+        // a note cut off on screen is current, not stale: it goes back to the front of its group with a fresh stale
+        // clock (e2e pings.spec: at ?speed=8 the 5.5 s ping tip was dropped after an ally-slain line cut in)
+        if (left > REQUEUE_MIN_LEFT_MS) {
           const firstOfGroup = this.q.find((q) => q.n.prio === m.n.prio);
           m.rank = (firstOfGroup ? Math.min(firstOfGroup.rank, m.rank) : m.rank) - 1;
           m.left = left;
+          m.at = now;
           this.q.push(m);
           this.sort();
         }

@@ -112,6 +112,17 @@ describe('notify queue', () => {
     expect(q.waiting).toEqual(['c', 'b', 'ACE!', 'd', 'e']);
   });
 
+  it('a note cut off on screen goes back to the queue with a fresh stale clock and is dropped last by the cap', () => {
+    const q = new NoteQueue();
+    q.speed = 8;
+    q.push(n('Tell your team what to do', 4, { ttl: 5500, stale: 60000 }), 0);
+    expect(q.tick(0).main?.title).toBe('Tell your team what to do');
+    q.push(n('x0', 2), 1000);
+    expect(q.tick(1000).main?.title).toBe('x0');
+    for (let i = 1; i <= 5; i++) q.push(n(`x${i}`, 2), 1000 + i);
+    expect(q.waiting).toContain('Tell your team what to do');
+  });
+
   it('a burst of announcer notes: the big ones outlive the plain stale time and all show on one line (QA v2 #8)', () => {
     const q = new NoteQueue();
     q.push(n('Enemy tower down!', 0, { big: true }), 0);
