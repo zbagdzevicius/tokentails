@@ -3,7 +3,7 @@ import { attr, startFirstMatch } from './helpers';
 
 // Fun plan F1, F2, F6 (FEEL lane): match 1 is the guided Rookie match (when the sim ships it), the first
 // objective chip shows within 5 s, and a real event stream drives the announcer: a First Blood or Takedown banner,
-// level-up callouts and XP pops. `data-said` lists the last words the juice layer showed; `data-goal` the chip.
+// level-up callouts and XP pops. `data-said` lists the last words the juice layer showed; `data-goal` the beat.
 
 const point = async (page: Page, name: string) => {
   const [x, y] = (await attr(page, name)).split(',').map(Number);
@@ -14,8 +14,9 @@ test('the first objective chip shows within 5 s of the gates opening and points 
   await startFirstMatch(page);
   // feel QA: "Run to the lane" waits for the gates (no arrow and no way out before them)
   await page.waitForSelector('html[data-gate="open"], html[data-gate="opening"]', { timeout: 20_000 });
-  await expect(page.locator('.pl-goal.on')).toBeVisible({ timeout: 5000 });
-  await expect(page.locator('.pl-goal.on')).toContainText('Run to the lane!');
+  // LoL pass (lane A): the beat is on the top rail (its note, then the resting goal line)
+  // (on desktop a coaching tip on the second line may hold the slot under it for a while, so the text is checked)
+  await expect(page.locator('.pl-rail-line.on', { hasText: /Run to the lane!|Drag left to follow the arrow/ }).first()).toBeAttached({ timeout: 5000 });
   expect(await attr(page, 'goal')).toBe('lane');
   // match 1 is the Rookie match (fun plan F1)
   expect(await attr(page, 'difficulty')).toBe('rookie');

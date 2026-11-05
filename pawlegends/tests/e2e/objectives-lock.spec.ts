@@ -30,7 +30,8 @@ const discsTouch = (a: Box, b: Box): boolean => Math.hypot(a.x + a.width / 2 - (
 
 test('every match: the objective chip names the next timer, a tap sends its ping (no other order, no offer); strip and rings show', async ({ page }, info) => {
   await startVeteran(page);
-  const chip = page.locator('.pl-goal.standing[data-ping]');
+  // LoL pass (lane A): the standing goal is the top rail's resting line; a tap on it still sends the ping
+  const chip = page.locator('.pl-rail-rest.on[data-ping]');
   await expect(chip).toBeVisible({ timeout: 10_000 });
   await expect(chip).toContainText(/Gates open in|Your rats \d:\d\d|Pudding in \d:\d\d|Sunset in/);
   expect(await attr(page, 'objChip')).toMatch(/^(gates|rats|pudding|sunset)\|/);
@@ -64,7 +65,7 @@ test('844x390: chip, strip and the optional last-hit and tower buttons stay clea
   await expect(page.locator('.pl-touch.on')).toBeVisible();
   await expect(page.locator('.pl-tbtn.lasthit')).toBeVisible();
   await expect(page.locator('.pl-tbtn.tower')).toBeVisible();
-  await expect(page.locator('.pl-goal.standing')).toBeVisible({ timeout: 10_000 });
+  await expect(page.locator('.pl-rail-rest.on')).toBeVisible({ timeout: 10_000 });
   const vp = page.viewportSize()!;
   const boxes = async (sel: string): Promise<Box[]> => {
     const out: Box[] = [];
@@ -80,9 +81,9 @@ test('844x390: chip, strip and the optional last-hit and tower buttons stay clea
   expect((await boxes('.pl-pingbtn')).length, 'GAPS B1 paw button on touch').toBe(1);
   const score = await boxes('.pl-score');
   const strip = await boxes('.pl-strip .pp');
-  // the chip tucks under the score bar's rounded foot by design (it predates A4), so only the strip is held off it
+  // the rail line sits just under the score bar, so only the strip is held off it
   for (const p of strip) for (const c of buttons) expect(discsTouch(p, c)).toBe(false);
-  const added = [...strip.map((b) => ({ b, against: [...fixed, ...score] })), ...(await boxes('.pl-goal.standing')).map((b) => ({ b, against: [...buttons, ...fixed, ...strip] }))];
+  const added = [...strip.map((b) => ({ b, against: [...fixed, ...score] })), ...(await boxes('.pl-rail-rest.on')).map((b) => ({ b, against: [...buttons, ...fixed, ...strip] }))];
   for (const { b: a, against } of added) {
     for (const c of against) expect(overlaps(a, c), `${JSON.stringify(a)} vs ${JSON.stringify(c)}`).toBe(false);
     expect(a.x >= 0 && a.y >= 0 && a.x + a.width <= vp.width && a.y + a.height <= vp.height).toBe(true);

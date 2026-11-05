@@ -31,15 +31,19 @@ async function aMove(page: Page, to: { x: number; y: number } | null): Promise<v
   await page.mouse.click(x, y);
 }
 
+/** The tip on the top rail (LoL pass, lane A). */
+const TIP_ON = '.pl-rail-line.on[data-key^="tip:"]';
+
 test('first match is one tap away and the move tip fires', async ({ page }, info) => {
   await page.goto('/?e2e=1');
   await expect(page.locator('.pl-btn.big')).toHaveText('Play as Clem');
   await startFirstMatch(page);
   await expect(page.locator('html')).toHaveAttribute('data-screen', 'match');
-  await expect(page.locator('.pl-tip.on')).toBeVisible({ timeout: 8000 });
+  // LoL pass (lane A): the tip is a note on the top rail
+  await expect(page.locator(TIP_ON)).toBeVisible({ timeout: 8000 });
   if (info.project.name === 'desktop') {
     await page.mouse.click(800, 300, { button: 'right' });
-    await expect(page.locator('.pl-tip.on')).toHaveCount(0);
+    await expect(page.locator(TIP_ON)).toHaveCount(0);
   }
 });
 
@@ -52,12 +56,12 @@ test('all five tips fire on their events and hide once done (desktop)', async ({
     const texts: Record<string, string> = {};
     (window as unknown as { __tipTexts: Record<string, string> }).__tipTexts = texts;
     const grab = () => {
-      const el = document.querySelector<HTMLElement>('.pl-tip.on');
-      const id = el?.dataset.id;
+      const el = document.querySelector<HTMLElement>('.pl-rail-line.on[data-key^="tip:"]');
+      const id = el?.dataset.key?.slice(4);
       const text = el?.textContent ?? '';
       if (id && text && !texts[id]) texts[id] = text;
     };
-    new MutationObserver(grab).observe(document, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'data-id'] });
+    new MutationObserver(grab).observe(document, { subtree: true, childList: true, characterData: true, attributes: true, attributeFilter: ['class', 'data-key'] });
   });
   await startFirstMatch(page, '&speed=4');
   const seen: Record<string, string> = {};
@@ -70,8 +74,8 @@ test('all five tips fire on their events and hide once done (desktop)', async ({
     maxLevel = Math.max(maxLevel, Number(await attr(page, 'level')) || 0);
     // Read the tip's id and text together from the element (data-tip can trail a frame behind at speed 4).
     const up = await page.evaluate(() => {
-      const el = document.querySelector<HTMLElement>('.pl-tip.on');
-      return el ? { id: el.dataset.id ?? '', text: el.textContent ?? '' } : null;
+      const el = document.querySelector<HTMLElement>('.pl-rail-line.on[data-key^="tip:"]');
+      return el ? { id: el.dataset.key?.slice(4) ?? '', text: el.textContent ?? '' } : null;
     });
     const tip = await attr(page, 'tip');
     if (up?.id && up.text && !seen[up.id]) seen[up.id] = up.text;
@@ -126,10 +130,13 @@ test('all five tips fire on their events and hide once done (desktop)', async ({
   // goal is open): e.g. the wave-following player swings at a minion before the attack tip's turn.
   for (const id of Object.keys(TEXT)) {
     expect(done, `tip ${id} done`).toContain(id);
-    if (shown.includes(id)) expect(seen[id] ?? '', `tip ${id} text`).toMatch(TEXT[id]);
+    // LoL pass (lane A): a tip on the rail can wait behind a more important note (Level 4 comes with the ult tip), and
+    // a fast player may do it before its turn: check the words of every tip that reached the rail
+    if (shown.includes(id) && seen[id]) expect(seen[id], `tip ${id} text`).toMatch(TEXT[id]);
   }
   expect(shown, 'the move tip comes first').toContain('move');
+  expect(seen.move ?? '', 'the move tip reached the rail').toMatch(TEXT.move);
   expect(shown.length, 'tips shown').toBeGreaterThanOrEqual(3);
   // Each hid once done: no tip is up now.
-  await expect(page.locator('.pl-tip.on')).toHaveCount(0);
+  await expect(page.locator(TIP_ON)).toHaveCount(0);
 });

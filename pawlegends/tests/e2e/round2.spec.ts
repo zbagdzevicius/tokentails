@@ -42,7 +42,7 @@ test('pick at 1280×720: the first chroma chip is visible and on top (the Look r
   await expect(game.locator('body')).not.toContainText('no frame');
 });
 
-test('in a match at most one centre banner or callout is visible at a time', async ({ page }, info) => {
+test('in a match nothing draws words in the middle: one rail main line at most, the rail ends by y 160', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'one viewport is enough');
   test.setTimeout(90_000);
   await startFirstMatch(page, '&speed=8');
@@ -55,7 +55,10 @@ test('in a match at most one centre banner or callout is visible at a time', asy
         const r = el.getBoundingClientRect();
         return cs.visibility !== 'hidden' && Number(cs.opacity) > 0.5 && r.width > 0 && r.height > 0;
       };
-      return [...document.querySelectorAll('.pl-banner.on, .pl-callout, .pl-alert.on')].filter(shown).map((e) => `${e.className}: ${e.textContent?.slice(0, 40)}`);
+      // LoL pass (lane A): the old centre layers are gone; every message is a line on the top rail
+      const old = document.querySelectorAll('.pl-banner, .pl-callout, .pl-alert, .pl-tip, .pl-count, .pl-lc-gate').length;
+      const low = [...document.querySelectorAll('.pl-rail-line.on')].filter(shown).filter((e) => e.getBoundingClientRect().bottom > 160 + 8).length;
+      return [...document.querySelectorAll('.pl-rail-main.on')].filter(shown).map((e) => `${e.className}: ${e.textContent?.slice(0, 40)}`).concat(old || low ? ['old or low layer', 'old or low layer'] : []);
     });
     if (shownNow.length > most) {
       most = shownNow.length;

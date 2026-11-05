@@ -2,7 +2,8 @@ import { expect, test, type Page } from '@playwright/test';
 import { attr, me, startFirstMatch } from './helpers';
 
 // LAUNCH-READY U2 (decision G22, compact HUD): on small landscape phones (below 700 px wide, or ≤ 380 px tall under
-// 844 px) the self panel is smaller and the enemy portraits sit under the score. Nothing in the top band overlaps,
+// 844 px) the self panel is smaller; since the LoL pass (lane A) the top rail sits under the score and the enemy
+// portraits at the right edge under the minimap. Nothing in the top band overlaps,
 // the minimap, the ability buttons, the joystick and the ping wheel stay usable, and every tap target is ≥ 44 px.
 // 844×390 keeps the layout it had. Screenshots: test-results/hud-compact/*.png (read them after a layout change).
 
@@ -54,32 +55,37 @@ for (const [width, height] of [
 ] as const) {
   const size = `${width}x${height}`;
 
-  test(`${size} first match: compact top band, the goal chip under the enemy portraits`, async ({ page }) => {
+  test(`${size} first match: compact top band, the rail under the score, the enemy portraits under the minimap`, async ({ page }) => {
     await page.setViewportSize({ width, height });
     await startFirstMatch(page);
     await expect(page.locator('.pl-touch.on')).toBeVisible();
-    await expect(page.locator('.pl-goal.on')).toBeVisible({ timeout: 10_000 });
+    // LoL pass (lane A): the goal is the top rail's resting line (no chip of its own)
+    await expect(page.locator('.pl-rail-line.on')).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(700);
     await page.screenshot({ path: `${SHOTS}/${size}-first-match.png` });
     const bar = (await boxes(page, '.pl-bar'))[0];
     const pause = (await boxes(page, '.pl-pause'))[0];
     const score = (await boxes(page, '.pl-score'))[0];
+    const minimap = (await boxes(page, '.pl-minimap'))[0];
     const enemy = await boxes(page, '.pl-top .pl-strip.enemy .pp');
-    const goal = await boxes(page, '.pl-goal.on');
+    const rail = await boxes(page, '.pl-rail-line.on');
     // the compact panel, under the 222 × 58 one of 844×390
     expect(bar.width).toBeLessThanOrEqual(160);
     expect(bar.height).toBeLessThanOrEqual(46);
     expect(enemy.length).toBe(3);
-    // the enemy portraits are under the score, inside its width
+    // the enemy portraits sit at the right edge under the minimap
     for (const p of enemy) {
-      expect(p.y).toBeGreaterThanOrEqual(score.y + score.height);
-      expect(p.x).toBeGreaterThanOrEqual(score.x);
-      expect(p.x + p.width).toBeLessThanOrEqual(score.x + score.width);
+      expect(p.y).toBeGreaterThanOrEqual(minimap.y + minimap.height - 2);
+      expect(p.x + p.width).toBeLessThanOrEqual(width);
+      expect(p.x).toBeGreaterThan(width / 2);
     }
-    const top = [bar, pause, score, ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), ...(await boxes(page, '.pl-minimap')), ...(await boxes(page, '.pl-pingbtn'))];
+    // one rail line, under the score, ending by y 70
+    expect(rail.length).toBe(1);
+    for (const r of rail) expect(r.y + r.height).toBeLessThanOrEqual(70);
+    const top = [bar, pause, score, ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), minimap, ...(await boxes(page, '.pl-pingbtn'))];
     noOverlap('top band', top, top);
-    noOverlap('goal chip', goal, [...top, ...(await boxes(page, '.pl-tbtn'))]);
-    for (const b of [...top, ...goal]) expect(b.x >= 0 && b.y >= 0 && b.x + b.width <= width && b.y + b.height <= height, `on screen ${JSON.stringify(b)}`).toBe(true);
+    noOverlap('rail', rail, [bar, pause, ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), minimap, ...(await boxes(page, '.pl-pingbtn')), ...(await boxes(page, '.pl-tbtn'))]);
+    for (const b of [...top, ...rail]) expect(b.x >= 0 && b.y >= 0 && b.x + b.width <= width && b.y + b.height <= height, `on screen ${JSON.stringify(b)}`).toBe(true);
   });
 
   test(`${size} veteran: emote, kill feed, talent card, ping wheel and joystick keep clear; taps are ≥ 44 px`, async ({ page }) => {
@@ -107,7 +113,8 @@ for (const [width, height] of [
     const feed = await boxes(page, '.pl-feed-row');
     const enemy = await boxes(page, '.pl-top .pl-strip.enemy .pp');
     const fixed = [...(await boxes(page, '.pl-bar')), ...pause, ...(await boxes(page, '.pl-score')), ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), ...minimap, ...paw, ...emote];
-    expect(feed.length, 'two feed lines on a small phone').toBe(2);
+    // LoL pass (lane A): two lines at 667×375, one at 640×360 (the feed sits under the enemy portraits now)
+    expect(feed.length, 'feed lines on a small phone').toBe(height <= 365 ? 1 : 2);
     noOverlap('top band', fixed, fixed);
     noOverlap('feed', feed, [...fixed, ...buttons]);
     noOverlap('buttons', buttons, fixed);
