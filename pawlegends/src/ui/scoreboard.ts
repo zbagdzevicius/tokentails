@@ -14,6 +14,23 @@ export function teamLabel(picks: readonly HeroId[], team: 0 | 1): string {
   return side === 'dog' ? 'Woof pack' : 'Purrhaven cats';
 }
 
+/**
+ * LoL pass (lane B): the talent-picks column, three small chips (levels 3, 6, 9): the pick's initial with its name as
+ * the tooltip, an empty ring for a tier not picked yet, a dim "?" where the snapshot hides the other team's picks. Pure.
+ */
+export function talentChips(hero: HeroId, talents: readonly number[] | undefined): string {
+  const tiers = HEROES[hero]?.talents ?? [];
+  return [0, 1, 2]
+    .map((t) => {
+      if (!talents) return '<i class="tc unk" title="Hidden">?</i>';
+      const c = talents[t] ?? -1;
+      const opt = c >= 0 ? tiers[t]?.[c] : undefined;
+      if (!opt) return `<i class="tc none" title="Level ${[3, 6, 9][t]}: not picked"></i>`;
+      return `<i class="tc" title="Level ${[3, 6, 9][t]}: ${esc(opt.name)}">${esc(opt.name.charAt(0))}</i>`;
+    })
+    .join('');
+}
+
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
 export class Scoreboard {
@@ -83,12 +100,12 @@ export class Scoreboard {
           const t = HERO_TEXT[hero];
           return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}">
             <td><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${esc(this.names[slot] ?? t.title)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
-            <td>${t.role}</td><td>${e?.level ?? '-'}</td><td>${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td>${this.heroDmg[slot]}</td>
+            <td>${t.role}</td><td class="lv">${e?.level ?? '-'}</td><td class="kda">${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td class="tal">${talentChips(hero, e?.talents)}</td><td>${this.heroDmg[slot]}</td>
             <td>${dead ? `${Math.ceil((e?.respawnIn ?? 0) / 30)} s` : e ? `${Math.round((e.hp / Math.max(1, e.maxHp)) * 100)}%` : 'hidden'}</td></tr>`;
         })
         .join('');
-    const head = '<tr><th>Hero</th><th>Role</th><th>Lv</th><th title="Knockouts / knocked out / assists">K / D / A</th><th>Hero dmg</th><th>Health</th></tr>';
-    this.root.innerHTML = `<div class="card"><h3 class="t0">${teamLabel(this.picks, 0)}${this.mySlot < 3 ? ' (you)' : ''}</h3><table>${head}${rows(0)}</table><h3 class="t1">${teamLabel(this.picks, 1)}</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
+    const head = '<tr><th>Hero</th><th>Role</th><th>Lv</th><th title="Knockouts / knocked out / assists">K / D / A</th><th>Talents</th><th>Hero dmg</th><th>Health</th></tr>';
+    this.root.innerHTML = `<div class="card lol"><h3 class="t0">${teamLabel(this.picks, 0)}${this.mySlot < 3 ? ' (you)' : ''}</h3><table>${head}${rows(0)}</table><h3 class="t1">${teamLabel(this.picks, 1)}</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
   }
 
   dispose(): void {

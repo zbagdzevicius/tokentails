@@ -14,6 +14,7 @@
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { rankPips } from '../../ui/heroText';
+import { cdLabel } from '../../ui/cdLabel';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import { basicRange, isRangedHero } from '../abilities';
@@ -498,12 +499,20 @@ export class TouchControls {
       if (!el) return;
       const cd = cooldowns?.[i] ?? 0;
       const locked = b === 'r' && level < 4;
+      // LoL pass (lane B): the ready ring flashes once as a cooldown ends
+      if (cd === 0 && !locked && el.classList.contains('cooling')) {
+        el.classList.remove('cdflash');
+        void el.offsetWidth;
+        el.classList.add('cdflash');
+        setTimeout(() => el.classList.remove('cdflash'), 320);
+      }
       el.classList.toggle('locked', locked);
       el.classList.toggle('cooling', cd > 0);
       const f = max[i] > 0 ? Math.min(1, cd / max[i]) : 0;
       el.style.setProperty('--cd', String(f));
       const label = el.querySelector('span');
-      const txt = cd > 0 ? String(Math.ceil(cd / 30)) : '';
+      // LoL pass (lane B): whole seconds, one decimal under 1 s
+      const txt = cdLabel(cd);
       if (label && label.textContent !== txt) label.textContent = txt;
     });
     const atk = this.buttons.get('attack');

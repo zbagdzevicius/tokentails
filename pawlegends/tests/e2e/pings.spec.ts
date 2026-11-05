@@ -92,10 +92,18 @@ test('match 2 shows the ping tip once', async ({ page }) => {
   test.setTimeout(120_000);
   await start(page, { v: 1, sessions: 1, matches: 1, wins: 1, firstWinDone: true, hero: 'clem' }, '&speed=8');
   await expect.poll(() => attr(page, 'pingTip'), { timeout: 60_000 }).toBe('1');
-  // ftue-2: the flag is set only once the banner is on screen, and it holds long enough to read (5.5 s, not 2.1 s)
-  expect(await attr(page, 'banner')).toBe('Tell your team what to do');
+  // ftue-2: the flag is set only once the banner is on screen, and it holds long enough to read (5.5 s, not 2.1 s).
+  // LoL pass: an announcer line (an ally slain, a Frenzy grab) may cut in on the rail for a moment; the tip then goes
+  // back to the front of the queue and comes back, it is never dropped
+  const tip = 'Tell your team what to do';
+  const held = () =>
+    page.evaluate((t) => {
+      const j = (window as unknown as { __plJuice: { showing: string; queued(t: string): boolean } }).__plJuice;
+      return j.showing === t || j.queued(t);
+    }, tip);
+  expect(await held()).toBe(true);
   await page.waitForTimeout(3_000);
-  expect(await attr(page, 'banner')).toBe('Tell your team what to do');
+  expect(await held()).toBe(true);
 });
 
 // ftue-1: the Wave emote (Treat Track unlock after the first win) must never cover the paw or the minimap on phones.
