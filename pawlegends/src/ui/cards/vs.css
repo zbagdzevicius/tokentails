@@ -41,5 +41,5 @@
   .tt-vs-slot, .tt-vs-mid b { transition: opacity 0.2s; transform: none; }
   .tt-vs-slot.up .tt-vs-burst { animation: none; }
 }
-/* the VS screen is the "3, 2" of the countdown (app/matchSession.ts countdown): that count hides under it */
-.tt-vs.shown:not(.out) ~ .pl-count { visibility: hidden; }
+/* the VS screen is the "3, 2" of the countdown (app/matchSession.ts countdown): the rail's count hides under it */
+.pl-match:has(> .tt-vs.shown:not(.out)) .pl-rail { visibility: hidden; }

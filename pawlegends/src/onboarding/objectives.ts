@@ -5,6 +5,10 @@
  * its time runs out, and fires at most once a match. `lite` (matches 2 and 3) keeps only Ultimate and Pudding.
  * The DOM part is optional (null parent in node tests).
  *
+ * LoL pass (lane A): there is no chip of its own any more. The standing goal is the top rail's resting `goal` line
+ * (ui/notify.ts; a tap on it still names the objective), and a beat is the resting line while it runs (with its how-to
+ * on desktop; on phones a short prio 4 note says the how-to first), so nothing sits under the score bar on its own.
+ *
  * GAPS A4: between beats (and in every match from the fourth) the chip shows the next objective with its timer
  * ("Pudding in 0:42", "Calm Pudding!", "Escort: 1,840 HP", "Your rats 0:18", "Sunset in 1:10", "Sudden Death in
  * 0:45"), from `ObjectiveClock`: snapshots and events only, no sim change. The enemy camp's timer shows only once a
@@ -12,6 +16,7 @@
  * tap names the objective (`onTap`) and the session sends its ping (GAPS B1, ui/pingText.ts chipPing).
  */
 import { icon } from '../ui/icons';
+import type { NotifyLike } from '../ui/notify';
 import { savedPadMode, type PadMode } from './tips';
 import type { GuideMode } from '../app/firstSession';
 import type { EntitySnap, MatchClock, SimEvent } from '../sim/api';
@@ -66,8 +71,6 @@ export interface StandingText extends BeatText {
 }
 
 export class Objectives {
-  private el: HTMLElement | null = null;
-  private ringEl: HTMLElement | null = null;
   private active: { id: BeatId; left: number } | null = null;
   private readonly fired = new Set<BeatId>();
   private readonly done = new Set<BeatId>();
@@ -75,32 +78,28 @@ export class Objectives {
   readonly completed: BeatId[] = [];
   touch = false;
   names: BeatNames = { q: 'Q', r: 'R' };
-  /** 0..1 progress on the chip's ring (Pudding), or null for none. */
+  /** 0..1 progress (Pudding), or null for none: drawn as a percentage on the resting line. */
   private progress: number | null = null;
+  /** The active beat's words (the resting line while it runs). */
+  private beatTitle = '';
+  private beatDone = false;
+  private beatSub = '';
 
   /** Round 1 standing goal: shown whenever no beat is up ("between them the HUD goal was often blank"). */
   private standingText: StandingText | null = null;
   private standingKey = '';
-  /** GAPS A4: a tap on the standing chip, with its objective key (GAPS B1: the session sends the matching ping). */
+  /** GAPS A4: a tap on the standing goal, with its objective key (GAPS B1: the session sends the matching ping). */
   onTap: ((key: string) => void) | null = null;
 
   constructor(
-    parent: HTMLElement | null,
+    /** The top rail (null in node tests). */
+    private readonly notify: (NotifyLike & { onRestTap?: ((key: string) => void) | null }) | null,
     readonly mode: GuideMode,
   ) {
-    // every match has the chip now: matches 4+ only ever show the standing goal
-    if (parent) {
-      this.el = document.createElement('div');
-      this.el.className = 'pl-goal';
-      this.el.setAttribute('role', 'status');
-      this.el.addEventListener('pointerdown', (e) => {
-        const key = this.el?.dataset.ping;
-        if (!key || this.active) return;
-        e.stopPropagation();
-        e.preventDefault();
-        this.onTap?.(key);
-      });
-      parent.appendChild(this.el);
+    if (notify && 'onRestTap' in notify) {
+      notify.onRestTap = (key) => {
+        if (!this.active) this.onTap?.(key);
+      };
     }
   }
 
@@ -125,7 +124,7 @@ export class Objectives {
     return this.done.has(id);
   }
 
-  /** Show `id` (once a match); queued behind the chip on screen. */
+  /** Show `id` (once a match); queued behind the beat on screen. */
   start(id: BeatId): void {
     if (!this.allows(id) || this.fired.has(id) || this.done.has(id)) return;
     if (this.active) {
@@ -149,41 +148,40 @@ export class Objectives {
     return this.active ? null : (this.standingText?.title ?? null);
   }
 
+  /** The words on the resting goal line now (tests), or null. */
+  get line(): string | null {
+    if (this.active) return this.beatLine();
+    return this.standingText?.title ?? null;
+  }
+
   private drawStanding(): void {
-    const el = this.el;
-    if (!el) return;
     const t = this.standingText;
-    if (!t) {
-      el.classList.remove('on', 'standing');
-      delete el.dataset.ping;
-      return;
-    }
-    el.dataset.goal = 'standing';
-    if (t.key) el.dataset.ping = t.key;
-    else delete el.dataset.ping;
-    el.innerHTML = `<span class="ico">${icon(t.icon)}</span><span class="txt"><b></b><small></small></span>`;
-    (el.querySelector('b') as HTMLElement).textContent = t.title;
-    (el.querySelector('small') as HTMLElement).textContent = t.sub;
-    this.ringEl = null;
-    el.classList.remove('done', 'prog');
-    el.classList.add('on', 'standing');
+    this.notify?.rest('goal', t ? t.title : null, undefined, t?.key);
+  }
+
+  private beatLine(): string {
+    const pct = this.progress !== null ? ` ${Math.round(this.progress * 100)}%` : '';
+    const sub = !this.touch && this.beatSub && !this.beatDone ? ` · ${this.beatSub}` : '';
+    return `${this.beatTitle}${pct}${this.beatDone ? ' ✓' : ''}${sub}`;
+  }
+
+  private drawBeat(): void {
+    this.notify?.rest('goal', this.beatLine(), this.beatDone ? 'good' : 'gold');
   }
 
   private show(id: BeatId): void {
     this.fired.add(id);
     this.active = { id, left: BEAT_TTL[id] };
     this.progress = null;
-    const el = this.el;
-    if (!el) return;
+    this.beatDone = false;
     const t = beatText(id, this.touch, this.names);
-    el.dataset.goal = id;
-    delete el.dataset.ping;
-    el.innerHTML = `<span class="ico">${icon(t.icon)}<i class="ring"></i></span><span class="txt"><b></b><small></small></span>`;
-    (el.querySelector('b') as HTMLElement).textContent = t.title;
-    (el.querySelector('small') as HTMLElement).textContent = t.sub;
-    this.ringEl = el.querySelector('.ring');
-    el.classList.remove('done', 'standing');
-    el.classList.add('on');
+    this.beatTitle = t.title;
+    // the announcement (with the how-to on desktop), then the resting line holds the beat while it runs
+    // phones drop a note's sub, so a short note says the how-to and the resting line the goal (launch finding ftue-4);
+    // desktop's resting line has room for both, so no note there (it would hold the rail a coaching tip needs)
+    this.beatSub = t.sub;
+    if (this.touch) this.notify?.push({ key: `goal:${id}`, prio: 4, title: t.sub, tone: 'gold', icon: icon(t.icon), ttl: 3000 });
+    this.drawBeat();
     setGoalAttr(id);
   }
 
@@ -194,7 +192,9 @@ export class Objectives {
     this.completed.push(id);
     this.queue = this.queue.filter((q) => q !== id);
     if (this.active?.id === id) {
-      this.el?.classList.add('done');
+      this.beatDone = true;
+      this.notify?.drop(`goal:${id}`);
+      this.drawBeat();
       this.active.left = Math.min(this.active.left, 0.9);
     }
   }
@@ -215,7 +215,7 @@ export class Objectives {
     if (this.active?.id !== id || this.done.has(id)) return;
     this.fired.delete(id);
     this.active = null;
-    this.el?.classList.remove('on', 'done', 'prog');
+    this.notify?.drop(`goal:${id}`);
     setGoalAttr('');
     const next = this.queue.shift();
     if (next) this.show(next);
@@ -223,17 +223,18 @@ export class Objectives {
   }
 
   setProgress(p: number | null): void {
-    this.progress = p === null ? null : Math.max(0, Math.min(1, p));
-    if (this.ringEl) this.ringEl.style.setProperty('--p', this.progress === null ? '0' : this.progress.toFixed(3));
-    this.el?.classList.toggle('prog', this.progress !== null);
+    const v = p === null ? null : Math.round(Math.max(0, Math.min(1, p)) * 100) / 100;
+    if (v === this.progress) return;
+    this.progress = v;
+    if (this.active) this.drawBeat();
   }
 
   update(dt: number): void {
     if (!this.active) return;
     this.active.left -= dt;
     if (this.active.left > 0) return;
+    this.notify?.drop(`goal:${this.active.id}`);
     this.active = null;
-    this.el?.classList.remove('on', 'done', 'prog');
     setGoalAttr('');
     this.queue = this.queue.filter((q) => !this.done.has(q) && !this.fired.has(q));
     const next = this.queue.shift();
@@ -242,7 +243,8 @@ export class Objectives {
   }
 
   dispose(): void {
-    this.el?.remove();
+    if (this.active) this.notify?.drop(`goal:${this.active.id}`);
+    this.notify?.rest('goal', null);
     setGoalAttr('');
   }
 }

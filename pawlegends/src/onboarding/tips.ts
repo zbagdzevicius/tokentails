@@ -5,9 +5,13 @@
  * Each hides when done or after 8 s. Only in the player's first match. A tip whose event comes while another tip
  * is up waits in a queue and shows when that one hides (unless the player did it meanwhile), so one-off events
  * (the first wind-up, level 4) are never lost.
+ *
+ * LoL pass (lane A): the tip is a prio 3 note on the top rail (ui/notify.ts), never a card over the field; phones get
+ * the short wording (`tipShort`, at most 6 words). The glowing button stays the main cue.
  */
 import { trackpadOn, trackpadPref } from '../input/presets';
 import { icon } from '../ui/icons';
+import type { NotifyLike } from '../ui/notify';
 
 export type TipId = 'move' | 'attack' | 'q' | 'dodge' | 'ult';
 
@@ -45,6 +49,23 @@ export function tipText(id: TipId, touch: boolean, n: TipNames = DEFAULT_NAMES, 
   }
 }
 
+/** Phone wording for the rail (at most 6 words; the glowing button says the rest). Presentation text only. */
+export function tipShort(id: TipId, touch: boolean, pad: PadMode = savedPadMode()): string {
+  if (!touch) return tipText(id, false, DEFAULT_NAMES, pad);
+  switch (id) {
+    case 'move':
+      return 'Drag on the left to walk';
+    case 'attack':
+      return 'Tap ATK to attack';
+    case 'q':
+      return 'Enemy hero! Tap the glowing skill';
+    case 'dodge':
+      return 'Incoming! Tap the glowing skill';
+    case 'ult':
+      return 'Level 4! Tap the gold button';
+  }
+}
+
 /** The touch button a tip points at (html[data-tip-key] pulses it). */
 const TIP_KEY: Record<TipId, string> = { move: '', attack: 'attack', q: 'q', dodge: 'e', ult: 'r' };
 
@@ -57,7 +78,6 @@ const CALM_ONLY: readonly TipId[] = ['move', 'attack'];
 const PAD_TIPS: readonly TipId[] = ['move', 'attack'];
 
 export class Tips {
-  private el: HTMLElement | null = null;
   private active: { id: TipId; left: number } | null = null;
   private fired = new Set<TipId>();
   private queue: { id: TipId; at: number }[] = [];
@@ -75,16 +95,11 @@ export class Tips {
   private text = '';
 
   constructor(
-    parent: HTMLElement | null,
+    /** The top rail (null in node tests: the tip logic still runs). */
+    private readonly notify: NotifyLike | null,
     readonly enabled: boolean,
     private readonly onDone?: (id: TipId) => void,
-  ) {
-    if (parent && enabled) {
-      this.el = document.createElement('div');
-      this.el.className = 'pl-tip';
-      parent.appendChild(this.el);
-    }
-  }
+  ) {}
 
   /** An event happened that should show `id` (once per match). */
   trigger(id: TipId): void {
@@ -99,20 +114,24 @@ export class Tips {
   private show(id: TipId): void {
     this.fired.add(id);
     this.active = { id, left: TIP_HIDE_S };
-    if (this.el) {
-      this.el.dataset.id = id;
-      this.text = '';
-      this.render(id);
-      this.el.classList.add('on');
-      setTipKey(this.touch ? TIP_KEY[id] : '');
-    }
+    this.text = '';
+    this.render(id);
+    setTipKey(this.touch ? TIP_KEY[id] : '');
   }
 
   private render(id: TipId): void {
-    const text = tipText(id, this.touch, this.names, this.padMode?.() ?? savedPadMode());
-    if (!this.el || text === this.text) return;
+    const pad = this.padMode?.() ?? savedPadMode();
+    const text = this.touch ? tipShort(id, true, pad) : tipText(id, false, this.names, pad);
+    if (!this.notify || text === this.text) return;
     this.text = text;
-    this.el.innerHTML = `<span class="ghost">${icon('paw')}</span><b>${text}</b>`;
+    // prio 3 (not the spec's 4): a tip asks for an action now, so it steps in front of an objective how-to or lane help
+    // (prio 4) instead of waiting behind them; it may wait behind announcements for as long as the tip lives
+    this.notify.push({ key: `tip:${id}`, prio: 3, title: text, tone: 'info', icon: icon('paw'), ttl: Math.max(0, this.active?.left ?? TIP_HIDE_S) * 1000, stale: TIP_HIDE_S * 1000 });
+  }
+
+  /** The tip text on the rail now ('' when none; tests). */
+  get shownText(): string {
+    return this.active ? this.text : '';
   }
 
   /** The player did the thing. */
@@ -140,9 +159,10 @@ export class Tips {
   }
 
   private hide(): void {
+    if (this.active) this.notify?.drop(`tip:${this.active.id}`);
     this.active = null;
+    this.text = '';
     setTipKey('');
-    this.el?.classList.remove('on');
     this.queue = this.queue.filter((q) => !this.done.has(q.id) && !this.fired.has(q.id) && this.clock - q.at <= TIP_QUEUE_S);
     const next = this.queue.shift();
     if (next) this.show(next.id);
@@ -162,7 +182,7 @@ export class Tips {
   }
 
   dispose(): void {
-    this.el?.remove();
+    if (this.active) this.notify?.drop(`tip:${this.active.id}`);
     setTipKey('');
   }
 }

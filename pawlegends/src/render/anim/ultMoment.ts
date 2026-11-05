@@ -2,10 +2,14 @@
  * Ult moments (ANIM-SPEC §8). Own ult: a zoom punch, a 110 ms slow-mo, a 900 ms diagonal banner in the element colour
  * with the hero's name and the ult name (it replaces the old callout), a sting and a soft gold flash (no flash, punch
  * or slow-mo under reduce motion). An enemy ult aimed at or near me: a red edge vignette for 300 ms and a name chip,
- * no slow-mo. An ally ult: the sting at 60% volume only. DOM nodes are made once and reused. While a stage banner
- * (ui .pl-banner, e.g. "We calmed Pudding!") is up, the band and the chip drop below it instead of drawing over it.
+ * no slow-mo. An ally ult: the sting at 60% volume only. DOM nodes are made once and reused.
+ *
+ * LoL pass (lane A): on phones the own ult is a gold note on the top rail (no band over the field); desktop keeps the
+ * skewed band, fixed at 9% from the top and at most 64 px tall, never moved down. The enemy ult chip is a prio 1 rail
+ * note ("Enemy ult: <name>") with the red edge vignette.
  */
 import { sfx } from '../../audio/sfx';
+import type { Note } from '../../ui/notifyQueue';
 import type { FightCam } from './cam';
 
 export interface UltJuice {
@@ -13,11 +17,21 @@ export interface UltJuice {
   flash(kind: 'white' | 'gold' | 'red'): void;
   /** Records the text like a callout does (e2e reads data-said). */
   note(text: string): void;
+  /** A note on the top rail (records it as said too). */
+  push?(n: Note): boolean;
 }
 
+const touchUi = (): boolean => {
+  try {
+    return document.documentElement.dataset.touch === '1';
+  } catch {
+    return false;
+  }
+};
+
 const CSS = `
-.pl-ult{position:absolute;left:0;right:0;top:22%;height:0;pointer-events:none;z-index:6}
-.pl-ult-band{position:absolute;left:-10%;right:-10%;top:-34px;height:68px;transform:skewY(-6deg) scaleX(0);transform-origin:left center;
+.pl-ult{position:absolute;left:0;right:0;top:calc(9% + 32px);height:0;pointer-events:none;z-index:6}
+.pl-ult-band{position:absolute;left:-10%;right:-10%;top:-32px;height:64px;transform:skewY(-6deg) scaleX(0);transform-origin:left center;
  background:linear-gradient(90deg,transparent,var(--ult) 18%,var(--ult) 82%,transparent);opacity:.92}
 .pl-ult-text{position:absolute;left:0;right:0;top:-24px;text-align:center;font:900 30px/48px system-ui,sans-serif;color:#fff;
  text-shadow:0 2px 0 #0008,0 0 12px #0006;letter-spacing:.04em;opacity:0}
@@ -29,12 +43,8 @@ const CSS = `
 .pl-ult-vig{position:absolute;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 80px 20px #ff3040;opacity:0}
 .pl-ult-vig.on{animation:pl-ult-vig .3s ease-out}
 @keyframes pl-ult-vig{0%{opacity:.85}100%{opacity:0}}
-.pl-ult-chip{position:absolute;left:50%;top:14%;transform:translateX(-50%);padding:4px 12px;border-radius:12px;background:#ff3040;color:#fff;
- font:800 14px system-ui,sans-serif;pointer-events:none;z-index:6;opacity:0}
-.pl-ult-chip.on{animation:pl-ult-text 1.1s ease-out forwards}
-html:has(.pl-banner.on) .pl-ult{top:36%}
-html:has(.pl-banner.on) .pl-ult-chip{top:30%}
-@media (prefers-reduced-motion: reduce){.pl-ult.on .pl-ult-band,.pl-ult.on .pl-ult-text,.pl-ult-chip.on{animation-duration:.01s;opacity:1}}
+html[data-touch='1'] .pl-ult{display:none}
+@media (prefers-reduced-motion: reduce){.pl-ult.on .pl-ult-band,.pl-ult.on .pl-ult-text{animation-duration:.01s;opacity:1}}
 `;
 
 export class UltMoment {
@@ -42,7 +52,6 @@ export class UltMoment {
   private band: HTMLElement | null = null;
   private text: HTMLElement | null = null;
   private vig: HTMLElement | null = null;
-  private chip: HTMLElement | null = null;
   reduced = false;
 
   constructor(
@@ -66,9 +75,7 @@ export class UltMoment {
     this.root.append(this.band, this.text);
     this.vig = document.createElement('div');
     this.vig.className = 'pl-ult-vig';
-    this.chip = document.createElement('div');
-    this.chip.className = 'pl-ult-chip';
-    ui.append(this.root, this.vig, this.chip);
+    ui.append(this.root, this.vig);
   }
 
   private restart(el: HTMLElement | null, cls: string): void {
@@ -80,13 +87,16 @@ export class UltMoment {
 
   /** The player's own ult. */
   own(heroName: string, ultName: string, color: number): void {
-    this.juice.note(ultName);
+    const phone = touchUi();
+    // phones: the ult name on the rail (gold), no band over the field
+    if (phone && this.juice.push) this.juice.push({ key: 'own-ult', title: ultName, sub: heroName, tone: 'gold', prio: 2, ttl: 1400 });
+    else this.juice.note(ultName);
     if (!this.reduced) {
       this.cam?.punch(0.05);
       this.juice.slowmo(110, 0.6);
       this.juice.flash('gold');
     }
-    if (this.root && this.text) {
+    if (this.root && this.text && !phone) {
       this.root.style.setProperty('--ult', `#${color.toString(16).padStart(6, '0')}`);
       this.text.textContent = ultName;
       const s = document.createElement('small');
@@ -99,12 +109,9 @@ export class UltMoment {
 
   /** An enemy ult aimed at or near the player. */
   enemy(ultName: string): void {
+    if (this.juice.push) this.juice.push({ key: 'enemy-ult', title: `Enemy ult: ${ultName}`, tone: 'bad', prio: 1, ttl: 1600, cooldown: 1500 });
     this.juice.note(ultName);
     this.restart(this.vig, 'pl-ult-vig');
-    if (this.chip) {
-      this.chip.textContent = ultName;
-      this.restart(this.chip, 'pl-ult-chip');
-    }
   }
 
   /** An ally ult: only the sting, softer. */
@@ -115,6 +122,5 @@ export class UltMoment {
   dispose(): void {
     this.root?.remove();
     this.vig?.remove();
-    this.chip?.remove();
   }
 }

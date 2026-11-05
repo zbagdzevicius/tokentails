@@ -3,13 +3,14 @@
  * Launch findings ftue-3 and ftue-4 (area ftue/objective-chips). ftue-3: the guided Pudding beat of matches 1-3 and
  * the standing "Calm Pudding!" chip of match 4+ must give the same action, and that action is the sim's: damage fills
  * his calm meter and the last hit calms him (src/sim/units/pudding.ts); standing next to him does nothing.
- * ftue-4: on short phone screens the chip keeps its one-line instruction instead of hiding it.
+ * ftue-4: on short phone screens the chip keeps its one-line instruction instead of hiding it (LoL pass: the rail).
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { TIMELINE } from '../../src/data/timeline';
-import { ObjectiveClock, beatText } from '../../src/onboarding/objectives';
+import { ObjectiveClock, Objectives, beatText } from '../../src/onboarding/objectives';
+import type { Note } from '../../src/ui/notify';
 import type { MatchClock } from '../../src/sim/index';
 
 const clock = (tick: number): MatchClock => ({ tick, seconds: Math.floor(tick / 30), phase: 'play', nextPhaseIn: 6000 });
@@ -47,15 +48,21 @@ describe('ftue-3: the Pudding beat and the standing chip agree', () => {
   });
 });
 
-describe('ftue-4: phone chips keep their instruction line', () => {
+describe('ftue-4: phones keep the instruction line (LoL pass: on the top rail)', () => {
   const css = readFileSync(resolve(__dirname, '../../src/ui/ui.css'), 'utf8');
 
-  it('no media query hides the chip or standing chip sub-line', () => {
-    expect(css).not.toMatch(/\.pl-goal(\.standing)?\s+\.txt\s+small\s*\{[^}]*display:\s*none/);
+  it('a beat on touch says the how-to as its rail note, and the goal stays on the resting line', () => {
+    const notes: Note[] = [];
+    const rests: (string | null)[] = [];
+    const g = new Objectives({ push: (n) => (notes.push(n), true), rest: (_k, t) => void rests.push(t), drop: () => {} }, 'rookie');
+    g.touch = true;
+    g.start('pudding');
+    expect(notes[0].title).toBe('Tap ATK on him in the river');
+    expect(rests.at(-1)).toBe('Calm Pudding!');
   });
 
-  it('the short-screen rule keeps it to one ellipsised line', () => {
-    const block = css.match(/@media \(max-height: 460px\) \{[\s\S]*?\n\}/g)?.find((b) => b.includes('.pl-goal .txt small')) ?? '';
-    expect(block).toMatch(/\.pl-goal \.txt small \{[^}]*text-overflow: ellipsis/);
+  it('the rail title is one ellipsised line, never hidden', () => {
+    expect(css).toMatch(/\.pl-rail-line \.tt \{[^}]*text-overflow: ellipsis/);
+    expect(css).not.toMatch(/\.pl-rail-line \.tt\s*\{[^}]*display:\s*none/);
   });
 });

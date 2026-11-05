@@ -153,8 +153,13 @@
 /* the glow is a box-shadow keyframe: it never runs on the small HUD card (only its big reveal moment shows the tier) */
 .tt-respawn .tt-card[data-tier] { animation: none; }
 .pl-match:has(.pl-talents.on) .tt-respawn { display: none; }
-html[data-touch='1'] .tt-respawn { top: calc(136px + var(--safe-t, 0px)); --tt-w: 40px; --tt-big: 2.4; }
-@media (max-height: 420px) { .tt-respawn { --tt-big: 2.1; } }
+/* LoL pass (lane A): never at the centre. Desktop: top-left, 72 × 100; phones: 40 × 56 beside the self portrait. The
+   flip-up stays at that spot at scale 1 (the rail's resting line carries "Back in N"). */
+.tt-respawn { --tt-w: 72px; --tt-big: 1; left: calc(16px + 36px + var(--safe-l, 0px)); top: calc(16px + var(--safe-t, 0px)); }
+html[data-touch='1'] .tt-respawn { --tt-w: 40px; --tt-big: 1; top: calc(8px + var(--safe-t, 0px)); left: calc(8px + 64px + 20px + var(--safe-l, 0px)); }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .tt-respawn { left: calc(8px + 46px + 20px + var(--safe-l, 0px)); top: calc(6px + var(--safe-t, 0px)); }
+}
 
 /* ------------------------------------------------------------------------------------- reduced motion */
 .tt-calm .tt-flip-in, .tt-reveal.calm .tt-flip-in, .tt-respawn.calm .tt-flip-in, .tt-vs.calm .tt-flip-in { transform: none; transition: none; }

@@ -130,7 +130,8 @@ export const RESPAWN_CARD_MS = Object.freeze({ big: 560, fly: 440 });
 
 /**
  * The HUD respawn card: face down (a paw on the back, no number) while the player is out; `reveal()` flips it face up
- * at about 110 px with a sparkle flash for half a second, then it shrinks into the HUD portrait. `down()` puts it face
+ * where it sits (LoL pass, lane A: beside the self portrait on phones, top-left on desktop, never at the centre; cards.css)
+ * with a sparkle flash for half a second, then it shrinks into the HUD portrait. `down()` puts it face
  * down again (the next knockout). Hidden, it is `visibility: hidden` with its animations paused (perf QA: a Legendary
  * card's glow kept repainting under opacity 0).
  */

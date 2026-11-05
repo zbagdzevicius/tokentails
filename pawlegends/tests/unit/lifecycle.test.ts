@@ -11,6 +11,7 @@ import { CORE_GAP_M, GATE_OPEN_TICKS, gateSegments, gateState, StartGate } from 
 import { backCount, IRIS_MIN_DEATH, irisAt, napProgress, RESPAWN_TICKS, spawnPoint } from '../../src/render/fx/lifecycle';
 import { digitGlyph, GLYPH, LifeSprites } from '../../src/render/fx/lifecycleSprites';
 import { LifeHud, livesLabel } from '../../src/render/fx/lifecycleHud';
+import { Notify } from '../../src/ui/notify';
 
 describe('start gate', () => {
   it('stands until the barrier tick, then opens over GATE_OPEN_TICKS', () => {
@@ -71,11 +72,14 @@ describe('overlays and sprites', () => {
 
   it('LifeHud builds its layers and removes them on dispose', () => {
     const root = document.createElement('div');
+    const rail = new Notify(root);
     const hud = new LifeHud(root);
+    // LoL pass (lane A): the gate countdown is the rail's resting line, the lives go to the respawn line
     hud.gate(2, 0.5);
-    expect(root.querySelector('.pl-lc-gate.on .n')?.textContent).toBe('2');
+    expect(rail.queue.restOf('gate')?.text).toBe('Gates open in 2');
     hud.dead(true, 1, false);
-    expect(root.querySelectorAll('.pl-lc-dead .pips i.lost').length).toBe(1);
+    expect(hud.livesText).toBe('8 of 9 lives');
+    expect(root.querySelector('.pl-lc-dead.on')).not.toBeNull();
     hud.iris(1);
     expect(root.querySelector('.pl-lc-iris.on.shut')).not.toBeNull();
     // class driven, never a per-frame mask (perf QA)
@@ -85,6 +89,8 @@ describe('overlays and sprites', () => {
     hud.iris(0);
     expect(root.querySelector('.pl-lc-iris.on')).toBeNull();
     hud.dispose();
+    expect(rail.queue.restOf('gate')).toBeNull();
+    rail.dispose();
     expect(root.children.length).toBe(0);
   });
 

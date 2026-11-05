@@ -4,6 +4,7 @@ import { loadProfile, parseProfile, recordMatch, resetProfileCache } from '../..
 import { decodeDare, dareText, dareUrl, encodeDare } from '../../src/share/dare';
 import { SnapBuffer, lerpAngle } from '../../src/render/interp';
 import { Tips } from '../../src/onboarding/tips';
+import { Notify } from '../../src/ui/notify';
 import { levelBadges, progressStrip } from '../../src/ui/cards';
 import type { EntitySnap, Snapshot } from '../../src/sim/api';
 
@@ -105,11 +106,14 @@ describe('interpolation', () => {
 describe('first-match tips', () => {
   it('fire once, hide when done or after 8 s, and stay off outside the first match', () => {
     const done: string[] = [];
-    const t = new Tips(document.body, true, (id) => done.push(id));
+    const rail = new Notify(document.body);
+    const t = new Tips(rail, true, (id) => done.push(id));
     t.trigger('move');
-    expect(document.querySelector('.pl-tip.on')).not.toBeNull();
+    rail.update(0.01);
+    expect(document.querySelector('.pl-rail-line.on')).not.toBeNull();
     t.complete('move');
-    expect(document.querySelector('.pl-tip.on')).toBeNull();
+    rail.update(0.01);
+    expect(document.querySelector('.pl-rail-line.on')).toBeNull();
     t.trigger('move');
     expect(t.isActive('move')).toBe(false);
     t.trigger('q');
@@ -120,5 +124,6 @@ describe('first-match tips', () => {
     off.trigger('move');
     expect(off.isActive('move')).toBe(false);
     t.dispose();
+    rail.dispose();
   });
 });

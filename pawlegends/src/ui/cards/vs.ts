@@ -75,8 +75,8 @@ export function showVsIntro(parent: HTMLElement, o: VsIntroOpts): () => void {
   const first: 0 | 1 = myTeam as 0 | 1;
   const second: 0 | 1 = (1 - myTeam) as 0 | 1;
   el.innerHTML = `${row(first, 0)}<div class="tt-vs-mid"><b>VS</b></div>${row(second, 3)}`;
-  // before the countdown (the CSS hides that count while the VS screen is up: `.tt-vs.shown:not(.out) ~ .pl-count`)
-  parent.insertBefore(el, parent.querySelector(':scope > .pl-count'));
+  // the countdown is the top rail's resting line (ui/notify.ts); the CSS hides the rail while the VS screen is up
+  parent.appendChild(el);
   const timers: ReturnType<typeof setTimeout>[] = [];
   let gone = false;
   const dispose = (): void => {

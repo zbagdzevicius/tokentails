@@ -1,12 +1,15 @@
 /**
- * Juice (render only, POC.md §3): hitstop, camera shake, announcer banners and "Purrfect!" style call-outs. The sim
- * never waits for any of this: hitstop only slows the render clock for a few frames, and the interpolation catches
- * up right after.
+ * Juice (render only, POC.md §3): hitstop, camera shake, world pops and the rim flash. The sim never waits for any of
+ * this: hitstop only slows the render clock for a few frames, and the interpolation catches up right after.
+ *
+ * LoL pass (lane A): banners and callouts no longer draw in the middle of the screen. `banner()` and `callout()` are
+ * adapters onto the top notification rail (ui/notify.ts), which orders every message by priority, dedupes it and
+ * rate-limits the spammy ones; callers did not change.
  */
 import { CameraShake } from './camera/CameraShake.js';
 import type { Stage } from '../ui/stage';
+import { Notify, TOWER_GLYPH, type Note, type NotePrio } from '../ui/notify';
 
-const nowMs = (): number => (typeof performance !== 'undefined' ? performance.now() : Date.now());
 /** Round 1: a queued ordinary banner older than this is dropped (a "First Blood!" after five knockouts is stale). */
 export const BANNER_STALE_MS = 3000;
 /** XP pops this close together (ms) merge into one sum. */
@@ -19,13 +22,65 @@ export interface Banner {
   title: string;
   sub?: string;
   tone?: 'good' | 'bad' | 'gold' | 'info';
-  /** Kills of structures, the core, the result: shown before ordinary banners. */
+  /** Kills of structures, the core, the result: shown before ordinary banners (rail prio 0). */
   urgent?: boolean;
-  /** When it was queued (ms; set by `banner`). */
+  /** When it was queued (ms; kept for older callers). */
   at?: number;
-  /** Seconds on screen (render time) for a long text such as the match-2 ping tip; default 2.1 (1.4 with a queue). */
+  /** Seconds on screen (render time) for a long text such as the match-2 ping tip; default per priority. */
   hold?: number;
 }
+
+/** Info texts that repeat (lane help, walls, the ping and trackpad tips): rail prio 4, one per key per cooldown. */
+const INFO: readonly { re: RegExp; key: string; cooldown: number }[] = [
+  { re: /^Your team needs you in /, key: 'lane-help', cooldown: 8000 },
+  { re: /^Can't go that way$|^Enemy fountain: you can't go in$/, key: 'cant-go', cooldown: 8000 },
+  { re: /^Tell your team what to do$/, key: 'Tell your team what to do', cooldown: 8000 },
+  { re: /^Trackpad mode: click to move$/, key: 'trackpad', cooldown: 60000 },
+];
+/** Announcer moments drawn big on desktop (with a crest badge and a light sweep). */
+const BIG = /^(First Blood!|Double Pounce|Triple Pounce|Cat-astrophe|Shut down!|COMEBACK!|ACE!|Enemy team ACE|Victory!|Defeat|Enemy (tower|core) down!|We lost a (tower|core))/;
+const MULTI = /^(Double Pounce|Triple Pounce|Cat-astrophe|ACE!)/;
+const CREST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.4l-5.3 2.7 1-5.8L3.5 8.2l5.9-.9z"/></svg>';
+
+/** Rail priority and options for a banner (the adapter's mapping; exported for tests). */
+export function bannerNote(b: Banner): Note {
+  const info = INFO.find((i) => i.re.test(b.title));
+  const big = BIG.test(b.title);
+  const tower = /tower|core/i.test(b.title) && !info;
+  const prio: NotePrio = b.urgent ? 0 : info ? 4 : 2;
+  return {
+    title: b.title,
+    ...(b.sub ? { sub: b.sub } : {}),
+    tone: b.tone ?? 'info',
+    prio,
+    ...(b.hold ? { ttl: b.hold * 1000 } : {}),
+    ...(info ? { key: info.key, cooldown: info.cooldown } : {}),
+    ...(big ? { big: true, icon: tower ? TOWER_GLYPH : CREST } : tower ? { icon: TOWER_GLYPH } : {}),
+    ...(MULTI.test(b.title) ? { tag: 'multi', drops: ['takedown'] } : {}),
+  };
+}
+
+/** Rail note for a callout ("Takedown!", "Level 5"): prio 3, counted. */
+export function calloutNote(text: string, tone: Banner['tone'] = 'gold'): Note {
+  const level = /^Level \d+$/.test(text);
+  const takedown = /^(Takedown!?|Assist!)$/.test(text);
+  return {
+    title: text,
+    tone,
+    prio: 3,
+    count: !level,
+    ...(level ? { key: 'level', tag: 'level', drops: ['level'] } : {}),
+    ...(takedown ? { tag: 'takedown' } : {}),
+  };
+}
+
+const isPhone = (): boolean => {
+  try {
+    return document.documentElement.dataset.touch === '1';
+  } catch {
+    return false;
+  }
+};
 
 export class Juice {
   readonly shake = new CameraShake({ decay: 1.8, pitch: 0.035, yaw: 0.03, roll: 0.025, pos: 0.25, kick: 0.22 });
@@ -33,12 +88,8 @@ export class Juice {
   private stopScale = 0;
   /** Settings: 0..1. */
   shakeScale = 1;
-  private bannerEl: HTMLElement | null = null;
-  private queue: Banner[] = [];
-  private bannerT = 0;
-  /** Seconds left of the fade-out before the banner's text is cleared. */
-  private bannerGone = 0;
-  private calloutLayer: HTMLElement | null = null;
+  /** The top notification rail (null DOM in tests without a root; the queue still works). */
+  readonly notify: Notify;
   private popLayer: HTMLElement | null = null;
   private flashEl: HTMLElement | null = null;
   private popTimes: number[] = [];
@@ -46,22 +97,13 @@ export class Juice {
   private readonly groups = new Map<string, { el: HTMLElement; at: number; n: number }>();
   /** Callouts and pops shown (e2e telemetry and tests). */
   readonly said: string[] = [];
-  /** The centre-screen arbiter (ui/stage.ts); null in tests and the lobby. */
+  /** The match's hold bookkeeping (ui/stage.ts): an open talent card dims the rail; null in tests and the lobby. */
   stage: Stage | null = null;
-  /** Render-time scale for the stale check (the match speed in e2e runs). */
-  speed = 1;
-  /** The stage kind the banner on screen holds. */
-  private bannerKind: 'urgent' | 'banner' = 'banner';
-  private bannerTitle = '';
+  private speedV = 1;
 
   constructor(root: HTMLElement | null) {
+    this.notify = new Notify(root && typeof document !== 'undefined' ? root : null);
     if (root && typeof document !== 'undefined') {
-      this.bannerEl = document.createElement('div');
-      this.bannerEl.className = 'pl-banner';
-      root.appendChild(this.bannerEl);
-      this.calloutLayer = document.createElement('div');
-      this.calloutLayer.className = 'pl-callouts';
-      root.appendChild(this.calloutLayer);
       this.popLayer = document.createElement('div');
       this.popLayer.className = 'pl-pops';
       root.appendChild(this.popLayer);
@@ -69,6 +111,16 @@ export class Juice {
       this.flashEl.className = 'pl-flash';
       root.appendChild(this.flashEl);
     }
+  }
+
+  /** Render-time scale for the stale check (the match speed in e2e runs). */
+  get speed(): number {
+    return this.speedV;
+  }
+
+  set speed(v: number) {
+    this.speedV = v;
+    this.notify.speed = v;
   }
 
   /** Freeze the render clock for `ms` (scale 0) or slow it (`scale` > 0). The longest active request wins. */
@@ -111,46 +163,32 @@ export class Juice {
     return this.stopScale;
   }
 
-  /** Queue a banner (one at a time, ≤ 2.5 s each unless it sets `hold`). `urgent` ones (core, towers, the result) go to the front, and a
-   *  full queue drops its oldest ordinary banner first. */
+  /** Queue a banner on the rail (adapter: `urgent` → prio 0, lane help and tips → prio 4 with a cooldown, else 2). */
   banner(b: Banner): void {
     this.remember(b.title);
-    if (this.queue.some((q) => q.title === b.title)) return;
-    if (this.queue.length > 2) {
-      const k = this.queue.findIndex((q) => !q.urgent);
-      this.queue.splice(k >= 0 ? k : 0, 1);
-    }
-    const q = { ...b, at: nowMs() };
-    if (b.urgent) this.queue.unshift(q);
-    else this.queue.push(q);
+    this.notify.push(bannerNote(b));
   }
 
-  /** The title of the banner on screen now ('' when none). */
+  /** Push a rail note directly (the ult moment, tower alerts). */
+  push(n: Note): boolean {
+    this.remember(n.title);
+    return this.notify.push(n);
+  }
+
+  /** The title of the main rail note on screen now ('' when none). */
   get showing(): string {
-    return this.bannerT > 0 ? this.bannerTitle : '';
+    return this.notify.showing;
   }
 
-  /** Is a banner with this title waiting in the queue? (The queue drops stale and overflow banners.) */
+  /** Is a banner with this title (or its rail key) waiting in the queue? (The queue drops stale and overflow notes.) */
   queued(title: string): boolean {
-    return this.queue.some((q) => q.title === title);
+    return this.notify.queued(bannerNote({ title }).key ?? title);
   }
 
-  /** A short word over the middle of the screen ("Purrfect!", "Takedown!"). */
+  /** A short personal word ("Purrfect!", "Takedown!"): a prio 3 rail note, ×N when it repeats. */
   callout(text: string, tone: Banner['tone'] = 'gold'): void {
-    const layer = this.calloutLayer;
     this.remember(text);
-    if (!layer) return;
-    // round 1: one at a time, and only when nothing more important holds the centre band (it is dropped, not queued:
-    // a callout is a reaction to this very moment)
-    const now = nowMs();
-    if (this.stage && !this.stage.allows('callout', now)) return;
-    while (layer.firstElementChild) layer.firstElementChild.remove();
-    this.stage?.claim('callout', 1300, now);
-    const el = document.createElement('div');
-    el.className = `pl-callout tone-${tone}`;
-    el.textContent = text;
-    layer.appendChild(el);
-    setTimeout(() => el.remove(), 1300);
+    this.notify.push(calloutNote(text, tone));
   }
 
   /** Floating text at a screen point (px): "+40 XP", "Combo x2", "+FRENZY". Rises and fades in ~1 s. */
@@ -158,7 +196,9 @@ export class Juice {
     this.remember(text);
     const layer = this.popLayer;
     if (!layer || !Number.isFinite(x) || !Number.isFinite(y)) return;
-    while (layer.childElementCount > 8) layer.firstElementChild?.remove();
+    // phones: at most 5 at once, stacked closer (LoL pass A6)
+    const phone = isPhone();
+    while (layer.childElementCount > (phone ? 4 : 8)) layer.firstElementChild?.remove();
     // pops that come close together stack upward and alternate sides, so "+40 XP" never covers "Combo x2"
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.popTimes = this.popTimes.filter((t) => now - t < 600);
@@ -167,10 +207,20 @@ export class Juice {
     const el = document.createElement('div');
     el.className = `pl-pop tone-${tone}${big ? ' big' : ''}`;
     el.textContent = text;
-    el.style.left = `${Math.round(x + (k % 2 ? 46 : -46) * Math.min(1, k))}px`;
-    el.style.top = `${Math.round(y - k * 26)}px`;
+    const side = phone ? 30 : 46;
+    el.style.left = `${Math.round(x + (k % 2 ? side : -side) * Math.min(1, k))}px`;
+    el.style.top = `${Math.round(y - k * (phone ? 20 : 26))}px`;
     layer.appendChild(el);
     setTimeout(() => el.remove(), 1200);
+  }
+
+  /** An ally's line over that ally: a pop on a dark pill (phones: 12 px, at most 18 characters). */
+  bark(text: string, x: number, y: number, tone: Banner['tone'] = 'good'): void {
+    const short = isPhone() && text.length > 18 ? `${text.slice(0, 17).trimEnd()}…` : text;
+    this.pop(short, x, y, tone);
+    const el = this.popLayer?.lastElementChild as HTMLElement | null;
+    if (el?.textContent === short) el.classList.add('bark');
+    if (short !== text) this.remember(text);
   }
 
   /**
@@ -204,6 +254,7 @@ export class Juice {
     const el = this.popReplace('xp', `+${n} XP`, x, y, 'gold');
     const g = this.groups.get('xp');
     if (el && g) g.n = n;
+    el?.classList.add('xp');
   }
 
   /** A full-screen rim flash: white (Nine Lives), gold (level up, a multikill), red (low health). */
@@ -226,77 +277,18 @@ export class Juice {
   }
 
   update(dt: number): void {
-    const el = this.bannerEl;
-    if (!el) return;
-    if (this.bannerT > 0) {
-      this.bannerT -= dt;
-      // round 2: hold the centre band while the banner is up, however slow the frames (a clamped dt on a slow
-      // device kept it on screen past its claim, and a callout showed beside it)
-      if (this.bannerT > 0) this.stage?.claim(this.bannerKind, 150, nowMs());
-      if (this.bannerT <= 0) {
-        el.classList.remove('on');
-        // gone means gone: no stale text for a reader, test or screen reader (it lingered for 30 s+ before)
-        this.bannerGone = 0.3;
-      }
-      return;
-    }
-    if (this.bannerGone > 0) {
-      this.bannerGone -= dt;
-      if (this.bannerGone <= 0 && !this.queue.length) {
-        el.innerHTML = '';
-        try {
-          delete document.documentElement.dataset.banner;
-        } catch {
-          /* node */
-        }
-      }
-      if (this.bannerGone > 0) return;
-    }
-    // round 1: wait while a death recap or a tower warning holds the centre band; drop stale ordinary banners
-    const now = nowMs();
-    const stale = BANNER_STALE_MS / Math.max(1, this.speed);
-    this.queue = this.queue.filter((q) => q.urgent || now - (q.at ?? now) <= stale);
-    const head = this.queue[0];
-    if (!head || (this.stage && !this.stage.allows(head.urgent ? 'urgent' : 'banner', now))) return;
-    const b = this.queue.shift() as Banner;
-    el.className = `pl-banner tone-${b.tone ?? 'info'}`;
-    el.innerHTML = '';
-    const t = document.createElement('div');
-    t.className = 'pl-banner-title';
-    t.textContent = b.title;
-    el.appendChild(t);
-    if (b.sub) {
-      const s = document.createElement('div');
-      s.className = 'pl-banner-sub';
-      s.textContent = b.sub;
-      el.appendChild(s);
-    }
-    void el.offsetWidth;
-    el.classList.add('on');
-    this.bannerT = b.hold ?? (this.queue.length > 1 ? 1.4 : 2.1);
-    this.bannerTitle = b.title;
-    // round 2: the banner shows for bannerT seconds of render time (update's dt is not sped up), so it holds the centre
-    // band exactly that long; dividing by the match speed let a callout show beside it (the e2e one-at-a-time check)
-    this.bannerKind = b.urgent ? 'urgent' : 'banner';
-    this.stage?.claim(this.bannerKind, this.bannerT * 1000 + 50, now);
-    try {
-      document.documentElement.dataset.banner = b.title;
-    } catch {
-      /* node */
-    }
+    this.notify.hold = this.stage?.held('talent') ?? false;
+    this.notify.update(dt);
   }
 
   clear(): void {
-    this.queue = [];
-    this.bannerT = 0;
-    this.bannerEl?.classList.remove('on');
+    this.notify.clear();
     this.shake.reset();
     this.stopLeft = 0;
   }
 
   dispose(): void {
-    this.bannerEl?.remove();
-    this.calloutLayer?.remove();
+    this.notify.dispose();
     this.popLayer?.remove();
     this.flashEl?.remove();
   }
