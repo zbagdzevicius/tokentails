@@ -427,14 +427,14 @@ export class Announcer {
         // the first spawn of a match is a banner; later ones only ping the minimap (24 of 68 banners were Frenzy)
         if (e.kind !== 'frenzy') return [];
         return this.frenzySpawns++ === 0
-          ? [{ key: 'frenzySpawn', title: 'Frenzy Catnip in the river!', sub: 'Grab it: more damage and speed.', tone: 'gold', size: 'banner' }]
+          ? [{ key: 'frenzySpawn', title: 'Frenzy Catnip spawned!', sub: 'In the river: more damage and speed.', tone: 'gold', size: 'banner' }]
           : [{ key: 'frenzySpawn', title: 'Frenzy Catnip', tone: 'gold', size: 'ping' }];
       case 'pickup':
         if (e.id === this.mySlot) {
           this.pickups++;
           return [{ key: `pickup-${e.kind}`, title: e.kind === 'frenzy' ? '+FRENZY' : '+SNACK', tone: e.kind === 'frenzy' ? 'gold' : 'good', size: 'pop', crowd: e.kind === 'frenzy' ? 'cheer' : undefined }];
         }
-        if (e.kind === 'frenzy' && teamOf(e.id) !== this.myTeam) return [{ key: 'frenzyThem', title: 'They grabbed the Frenzy Catnip', tone: 'bad', size: 'callout' }];
+        if (e.kind === 'frenzy' && teamOf(e.id) !== this.myTeam) return [{ key: 'frenzyThem', title: 'They took the Frenzy!', tone: 'bad', size: 'callout' }];
         return [];
       case 'buff':
         if (isNineLives(e) && e.id === this.mySlot) {

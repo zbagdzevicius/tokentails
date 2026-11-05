@@ -95,15 +95,36 @@ describe('notify queue', () => {
     expect(fast.waiting).toEqual([]);
   });
 
-  it('caps the queue at 4, dropping the least important (oldest of those) first', () => {
+  it('caps the queue at QUEUE_CAP, dropping the least important first: a plain note before a big one, then the oldest', () => {
     const q = new NoteQueue();
+    expect(QUEUE_CAP).toBe(5);
     q.push(n('info old', 4), 0);
     q.push(n('info new', 4), 1);
     q.push(n('a', 2), 2);
     q.push(n('b', 2), 3);
-    expect(q.push(n('c', 1), 4)).toBe(true);
-    expect(q.waiting.length).toBe(QUEUE_CAP);
-    expect(q.waiting).toEqual(['c', 'a', 'b', 'info new']);
+    q.push(n('ACE!', 2, { big: true }), 4);
+    expect(q.push(n('c', 1), 5)).toBe(true);
+    expect(q.waiting).toEqual(['c', 'a', 'b', 'ACE!', 'info new']);
+    q.push(n('d', 2), 6);
+    expect(q.waiting).toEqual(['c', 'a', 'b', 'ACE!', 'd']);
+    q.push(n('e', 2), 7);
+    // the oldest plain prio 2 note goes; the big ACE stays
+    expect(q.waiting).toEqual(['c', 'b', 'ACE!', 'd', 'e']);
+  });
+
+  it('a burst of announcer notes: the big ones outlive the plain stale time and all show on one line (QA v2 #8)', () => {
+    const q = new NoteQueue();
+    q.push(n('Enemy tower down!', 0, { big: true }), 0);
+    q.push(n('Tower is hitting you!', 1), 0);
+    q.push(n('ACE!', 2, { big: true }), 0);
+    q.push(n('An ally has been slain', 2), 0);
+    const seen: string[] = [];
+    for (let t = 0; t <= 8000; t += 50) {
+      const m = q.tick(t).main?.title;
+      if (m && seen[seen.length - 1] !== m) seen.push(m);
+    }
+    // the tower alert is old news after 1.5 s (danger notes go stale fast); the ACE waits up to NOTE_STALE_BIG
+    expect(seen.slice(0, 2)).toEqual(['Enemy tower down!', 'ACE!']);
   });
 
   it('a multikill drops a queued Takedown from the last 1.5 s; a new Level N drops the older Level note', () => {
@@ -164,7 +185,7 @@ describe('notify queue', () => {
   });
 
   it('the Juice adapter: lane help and the trackpad toast are prio 4 with cooldowns, urgent is prio 0', () => {
-    expect(bannerNote({ title: 'Your team needs you in Sunny Lane' })).toMatchObject({ prio: 4, key: 'lane-help', cooldown: 8000 });
+    expect(bannerNote({ title: 'Help in Sunny Lane!' })).toMatchObject({ prio: 4, key: 'lane-help', cooldown: 20000 });
     expect(bannerNote({ title: "Can't go that way" })).toMatchObject({ prio: 4, key: 'cant-go' });
     expect(bannerNote({ title: 'Trackpad mode: click to move' })).toMatchObject({ prio: 4, cooldown: 60000 });
     expect(bannerNote({ title: 'Our core is under attack!', urgent: true }).prio).toBe(0);

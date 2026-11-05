@@ -722,6 +722,8 @@ html[data-touch='1'] .pl-talents button span.s { -webkit-line-clamp: 2; }
   content: 'Talent!'; position: absolute; left: 50%; bottom: -18px; transform: translateX(-50%); padding: 1px 8px; border-radius: 999px;
   background: var(--butter); color: #4a2a1f; font-size: 11px; font-weight: 700; white-space: nowrap;
 }
+/* QA v2 #3: on phones the tag is a small chip at the portrait's lower right, clear of the ally portraits under it */
+html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px; bottom: -6px; transform: none; padding: 0 5px; font-size: 9px; line-height: 13px; z-index: 2; }
 @keyframes pl-talent-ready { 50% { box-shadow: 0 0 0 5px var(--butter), 0 0 22px 6px rgba(255, 211, 77, 0.7); } }
 
 /* Results (round 0): Play again and Change hero pinned bottom right over the hero stage, always on screen; the
@@ -1142,6 +1144,9 @@ html[data-touch='1'] .pl-portrait .gap { top: 2px; left: calc(100% + 8px); trans
 /* desktop: the second line and the resting line are smaller, under the main line */
 .pl-rail-second, .pl-rail-rest { --rail-h: var(--rail-low); --rail-fs: var(--rail-lowfs); --rail-badge: 20px; }
 .pl-rail:not(.one).has-second .pl-rail-rest { opacity: 0; visibility: hidden; position: absolute; }
+/* QA v2 #12: desktop's resting line steps aside while a note is up (it jumped between y 74 and y 118 many times a
+   minute); notes take its place at the top of the rail, and it comes back in the same spot */
+.pl-rail:not(.one).has-main .pl-rail-rest { opacity: 0; visibility: hidden; position: absolute; }
 .pl-rail.one .pl-rail-second, .pl-rail.one .pl-rail-rest { --rail-h: inherit; --rail-fs: inherit; --rail-badge: inherit; }
 .pl-rail.one .pl-rail-line { height: var(--rail-h); }
 .pl-rail-rest.tap { pointer-events: auto; cursor: pointer; }
@@ -1158,6 +1163,21 @@ html[data-touch='1'] .pl-rail {
 html[data-touch='1'] .pl-rail .sb { display: none; }
 html[data-touch='1'] .pl-rail-line { padding: 0 12px 0 6px; gap: 6px; clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); }
 html[data-touch='1'] .pl-rail-rest.rest-countdown .tt { font-size: 22px; }
+/* QA v2 #9: phone announcer moments (First Blood, a tower, Shut down, ACE, the own ult on desktop) read as a banner,
+   not a tip: 2 px taller, a gold frame and glow, an uppercase title and the light sweep, inside the same top band */
+html[data-touch='1'] .pl-rail-line.big {
+  top: -2px; height: calc(var(--rail-h) + 2px); padding: 0 14px 0 6px; border-top: 2px solid #f0d58a; border-bottom: 2px solid #c8aa6e;
+  background: linear-gradient(180deg, rgba(40, 30, 10, 0.95), rgba(14, 18, 32, 0.95) 60%); box-shadow: inset 3px 0 0 var(--tone), 0 0 14px rgba(240, 213, 138, 0.45);
+}
+html[data-touch='1'] .pl-rail-line.big .tt { font-size: calc(var(--rail-fs) + 2px); font-weight: 900; text-transform: uppercase; letter-spacing: 0.04em; }
+html[data-touch='1'] .pl-rail-line.big .ic { background-color: #1a1408; border-width: 2px; }
+html[data-touch='1'] .pl-rail-line.big.on { animation: pl-rail-big 0.32s cubic-bezier(0.2, 1.5, 0.4, 1) both; }
+html[data-touch='1'] .pl-rail-line.big.on::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(105deg, transparent 35%, rgba(255, 240, 200, 0.4) 50%, transparent 65%) no-repeat;
+  background-size: 250% 100%; animation: pl-rail-sweep 0.6s ease-out 0.1s both;
+}
+@keyframes pl-rail-big { 0% { opacity: 0; transform: scale(1.25); } 60% { opacity: 1; transform: scale(0.97); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { html[data-touch='1'] .pl-rail-line.big.on { animation: none; } html[data-touch='1'] .pl-rail-line.big.on::after { display: none; } }
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
   html[data-touch='1'] .pl-rail { --rail-top: 44px; --rail-h: 26px; --rail-w: min(210px, calc(100vw - 456px)); --rail-fs: 13px; --rail-badge: 18px; }
 }
@@ -1213,5 +1233,15 @@ html[data-touch='1'] .pl-talents .head { left: auto; right: 0; transform: none; 
 html[data-touch='1'] .pl-talents button { width: 132px; height: 44px; padding: 4px 8px; display: flex; align-items: center; justify-content: center; text-align: center; }
 html[data-touch='1'] .pl-talents button b { font-size: 12px; line-height: 1.15; white-space: normal; }
 html[data-touch='1'] .pl-talents button :is(.d, .s, .n, kbd, .tag) { display: none; }
+/* QA v2 #7: a clear gap from the Nap button at 844, and at 667 narrower chips low in the corner, clear of the stick
+   ring (its box ends at y 317) with a short header (no "Branch coming soon" on phones) */
+html[data-touch='1'] .pl-talents { right: calc(282px + var(--safe-r)); }
+html[data-touch='1'] .pl-talents .head .soon { display: none; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-talents { right: calc(276px + var(--safe-r)); bottom: calc(4px + var(--safe-b)); gap: 4px; }
+  html[data-touch='1'] .pl-talents button { width: 108px; height: 40px; padding: 3px 6px; }
+  html[data-touch='1'] .pl-talents button b { font-size: 11px; }
+  html[data-touch='1'] .pl-talents .head { top: -16px; font-size: 10px; }
+}
 /* the phone rank-up toast shares the bottom band with the talent chips: it waits while they are open */
 html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }

@@ -179,6 +179,7 @@ export class RespawnCard {
   reveal(): void {
     if (this.state !== 'down') return;
     this.state = 'up';
+    this.overPortrait();
     this.flipEl.classList.add('up');
     this.el.classList.add('up');
     this.clear();
@@ -192,6 +193,22 @@ export class RespawnCard {
         this.timer = null;
       }, RESPAWN_CARD_MS.fly + 40);
     }, this.calm ? 700 : RESPAWN_CARD_MS.big);
+  }
+
+  /**
+   * Phones (QA v2 #3): the face-down card is hidden while out (it covered the HP bar; the portrait shows the seconds),
+   * and the flip-up happens right over the self portrait, so the card never sits on the HP bar. One layout read.
+   */
+  private overPortrait(): void {
+    if (typeof document === 'undefined' || document.documentElement.dataset.touch !== '1') return;
+    const port = this.el.parentElement?.querySelector<HTMLElement>('.pl-portrait');
+    const box = this.el.offsetParent as HTMLElement | null;
+    const pr = port?.getBoundingClientRect();
+    if (!pr || pr.width <= 0 || !box) return;
+    const br = box.getBoundingClientRect();
+    const h = this.flipEl.offsetHeight || 56;
+    this.el.style.left = `${(pr.left + pr.width / 2 - br.left).toFixed(1)}px`;
+    this.el.style.top = `${Math.max(2, pr.top + pr.height / 2 - h / 2 - br.top).toFixed(1)}px`;
   }
 
   /** The flight into the HUD portrait (one layout read): a fade-out when there is no portrait or under reduced motion. */

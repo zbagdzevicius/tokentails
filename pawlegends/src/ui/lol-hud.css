@@ -127,14 +127,14 @@ html[data-touch='1'] .pl-hud .pl-score.lol { width: 294px; min-width: 0; height:
 html[data-touch='1'] .pl-hud .pl-score.lol .team { font-size: 22px; line-height: 26px; gap: 6px; }
 html[data-touch='1'] .pl-hud .pl-score.lol .team i { font-size: 10px; }
 html[data-touch='1'] .pl-hud .pl-score.lol .clock { font-size: 12px; line-height: 13px; }
-html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 9px; line-height: 13px; }
+html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 10px; line-height: 13px; }
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
   html[data-touch='1'] .pl-hud .pl-score.lol { width: 204px; height: 35px; padding: 1px 8px 0; column-gap: 6px; }
   html[data-touch='1'] .pl-hud .pl-score.lol .team { font-size: 17px; line-height: 20px; gap: 4px; }
   html[data-touch='1'] .pl-hud .pl-score.lol .sw svg { width: 13px; height: 13px; }
   html[data-touch='1'] .pl-hud .pl-score.lol .mid { padding: 0 8px 1px; }
   html[data-touch='1'] .pl-hud .pl-score.lol .clock { font-size: 11px; line-height: 12px; }
-  html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 8.5px; line-height: 12px; }
+  html[data-touch='1'] .pl-hud .pl-score.lol .phase { font-size: 10px; line-height: 12px; }
 }
 
 /* Tab / tap scoreboard: the same plate */
@@ -232,6 +232,21 @@ html:not([data-touch='1']) .pl-crest { width: 760px; }
 .pl-crest::before {
   content: ''; position: absolute; left: -12%; right: -12%; top: 4%; bottom: 4%; z-index: -1;
   background: radial-gradient(ellipse at center, rgba(5, 8, 16, 0.82) 0%, rgba(5, 8, 16, 0.55) 45%, transparent 72%);
+}
+/* QA v2 #4: a LoL end band behind the word, the full screen wide, with gold rules and a dim over the field: the gold
+   VICTORY washed out on the dust at ?quality=low and the grey DEFEAT vanished into the grey explosion */
+.pl-crest::after {
+  content: ''; position: absolute; left: calc(50% - 50vw); width: 100vw; top: 50%; height: 1.5em; transform: translateY(-50%); z-index: -2;
+  font-size: clamp(46px, 11vw, 112px);
+  background: linear-gradient(90deg, transparent 0, rgba(5, 8, 16, 0.9) 18%, rgba(5, 8, 16, 0.94) 50%, rgba(5, 8, 16, 0.9) 82%, transparent 100%);
+  border-top: 2px solid rgba(200, 170, 110, 0.85); border-bottom: 2px solid rgba(120, 90, 40, 0.9);
+  box-shadow: 0 0 0 100vmax rgba(4, 6, 12, 0.42);
+}
+html:not([data-touch='1']) .pl-crest::after { font-size: 112px; }
+.pl-crest.lost::after { border-top-color: rgba(150, 180, 220, 0.75); border-bottom-color: rgba(60, 80, 110, 0.9); }
+/* while the crest is up the field is over: the touch buttons, the rail, the talent chips and the pops step back */
+html[data-crest] .pl-touch, html[data-crest] .pl-rail, html[data-crest] .pl-talents, html[data-crest] .pl-pops, html[data-crest] .tt-respawn {
+  opacity: 0 !important; visibility: hidden; transition: opacity 0.2s, visibility 0s linear 0.2s;
 }
 .pl-crest b {
   display: block; position: relative; font: 900 clamp(46px, 11vw, 112px)/1.05 var(--font); letter-spacing: 0.08em; padding: 0.12em 0;

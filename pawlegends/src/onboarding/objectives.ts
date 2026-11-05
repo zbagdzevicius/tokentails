@@ -61,7 +61,7 @@ export function beatText(id: BeatId, touch: boolean, n: BeatNames = { q: 'Q', r:
     case 'push':
       return { title: 'Push with your minions', sub: 'Walk in behind them: the tower hits them first', icon: 'shield' };
     case 'sunset':
-      return { title: 'Sunset: towers crumble faster', sub: 'Push now and finish their core!', icon: 'sun' };
+      return { title: 'Sunset! Push their core', sub: 'Towers crumble faster now: finish them!', icon: 'sun' };
   }
 }
 

@@ -120,6 +120,22 @@ export function edgeArrow(sx: number, sy: number, w: number, h: number, margin: 
   return { x: cx + dx * k, y: Math.max(safeTop + margin, cy + dy * k), a: Math.atan2(dy, dx) };
 }
 
+type Rect = { left: number; top: number; right: number; bottom: number };
+
+/**
+ * QA v2 #11: move an edge arrow of radius `r` px off the HUD boxes it lands on (the minimap, the portrait strips, the
+ * kill feed): straight down under a box in the top half, up over one in the bottom half, at most 4 steps.
+ */
+export function clearOfRects(p: { x: number; y: number }, r: number, rects: readonly Rect[], h: number): { x: number; y: number } {
+  let { x, y } = p;
+  for (let step = 0; step < 4; step++) {
+    const hit = rects.find((b) => x + r > b.left && x - r < b.right && y + r > b.top && y - r < b.bottom);
+    if (!hit) break;
+    y = (hit.top + hit.bottom) / 2 < h / 2 ? hit.bottom + r + 2 : hit.top - r - 2;
+  }
+  return { x, y };
+}
+
 /** Is a screen point (px) outside a w × h view? (The player's own edge arrow shows then.) */
 export const offScreen = (sx: number, sy: number, w: number, h: number): boolean => sx < 0 || sx > w || sy < 0 || sy > h;
 
@@ -245,6 +261,11 @@ export class Overhead {
    * north of the hero no longer bury the HP panel and the score bar in name plates; edge arrows stay below the band.
    */
   hudRects: readonly { left: number; top: number; right: number; bottom: number }[] = [];
+  /**
+   * QA v2 #11, #14: the other HUD boxes (minimap, portrait strips, kill feed): edge arrows step off them and plates
+   * under them fade, but they do not lower the top band (`safeTop`).
+   */
+  sideRects: readonly { left: number; top: number; right: number; bottom: number }[] = [];
   private get safeTop(): number {
     let b = 0;
     for (const r of this.hudRects) if (r.top < this.h / 3) b = Math.max(b, r.bottom);
@@ -253,7 +274,8 @@ export class Overhead {
   /** Does a hero plate centred at (x, y) touch a HUD rectangle? */
   private underHud(x: number, y: number): boolean {
     const box = plateBox(this.scale, this.phone);
-    for (const r of this.hudRects) if (x + box.right > r.left && x + box.left < r.right && y + box.bottom > r.top && y + box.top < r.bottom) return true;
+    for (const rs of [this.hudRects, this.sideRects])
+      for (const r of rs) if (x + box.right > r.left && x + box.left < r.right && y + box.bottom > r.top && y + box.top < r.bottom) return true;
     return false;
   }
 
@@ -400,8 +422,17 @@ export class Overhead {
     this.drawLocks(g, frame, camera, heroScale);
     this.drawGuide(g, frame, camera);
     this.drawFountain(g, camera);
+    // QA v2 #14: a hero plate at the screen edge slides in (it showed half names, "Gravy the Bru"); a name is up to
+    // ~7 px a letter wider than the bar
+    const pb = plateBox(this.scale, this.phone);
     for (const p of plates) {
-      const fade = this.hudRects.length > 0 && p.e.id !== this.mySlot && this.underHud(p.sx, p.sy + p.dy);
+      if (p.e.kind !== 'hero' || !p.e.hero) continue;
+      const half = Math.max(pb.right, (this.nameOf(p.e).length * nameFont(this.phone) * 0.56) / 2 + 4);
+      if (p.sx < -half || p.sx > this.w + half) continue; // off screen: the edge arrow says it
+      p.sx = Math.min(Math.max(p.sx, Math.max(-pb.left, half) + 2), this.w - half - 2);
+    }
+    for (const p of plates) {
+      const fade = (this.hudRects.length > 0 || this.sideRects.length > 0) && p.e.id !== this.mySlot && this.underHud(p.sx, p.sy + p.dy);
       if (fade) g.globalAlpha = 0.28;
       this.plate(g, p);
       if (fade) g.globalAlpha = 1;
@@ -420,8 +451,9 @@ export class Overhead {
    */
   private drawSelfEdge(g: CanvasRenderingContext2D): void {
     const s = 14 * this.scale;
-    const p = edgeArrow(this.selfSx, this.selfSy, this.w, this.h, 34 * this.scale, this.safeTop);
-    if (!p) return;
+    const e0 = edgeArrow(this.selfSx, this.selfSy, this.w, this.h, 34 * this.scale, this.safeTop);
+    if (!e0) return;
+    const p = { ...e0, ...clearOfRects(e0, 18 * this.scale, this.sideRects, this.h) };
     const pulse = 1 + Math.sin(performance.now() / 160) * 0.06;
     g.save();
     g.translate(p.x, p.y);
@@ -540,10 +572,11 @@ export class Overhead {
     for (const { e, sx, sy } of edge) {
       if (Math.hypot(e.fx - me.fx, e.fy - me.fy) > Overhead.EDGE_RANGE) continue;
       // where the ray from the centre leaves the inset screen rectangle
-      const p = edgeArrow(sx, sy, this.w, this.h, m, this.safeTop);
-      if (!p) continue;
-      const { x, y, a } = p;
+      const p0 = edgeArrow(sx, sy, this.w, this.h, m, this.safeTop);
+      if (!p0) continue;
       const s = 11 * this.scale;
+      const { x, y } = clearOfRects(p0, s * 1.9, this.sideRects, this.h);
+      const a = p0.a;
       g.save();
       g.translate(x, y);
       g.fillStyle = 'rgba(42,26,34,0.85)';
