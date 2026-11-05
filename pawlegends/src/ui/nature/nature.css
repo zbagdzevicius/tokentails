@@ -1,0 +1,163 @@
+/* Cat Nature on a card face (render/nature/natureDefs.ts, ui/nature/natureCss.ts). CSS only: two pseudo-elements on
+   the host (`.pl-nature[data-nature='FIRE']`, usually a `.tt-card`, which leaves its own ::before/::after free):
+   ::before  the moving layer (embers, snow, sparks, leaves, ...), clipped to the card's inner art (inset 6 %);
+   ::after   a still element glow on the inner edge, always on (the reduced-motion look).
+   Only a live card moves: hovered, keyboard-focused, pressed (worn) or marked `.pl-nature-live`; the others keep the
+   still glow, so a drawer of 24 cards animates one. The host must be positioned (`.tt-card` is). Units are cqw (the
+   card is a size container); a non-card host falls back to viewport units, so keep it card-sized. */
+
+.pl-nature[data-nature] {
+  --nat-c: rgba(255, 255, 255, 0.5);
+  --nat-img: none;
+  --nat-size: 100% 100%;
+  --nat-from: 0 0;
+  --nat-to: 0 0;
+  --nat-dur: 3s;
+  --nat-blink: none;
+  --nat-blend: screen;
+  --nat-glow: none;
+}
+.pl-nature[data-nature]::before,
+.pl-nature[data-nature]::after {
+  content: '';
+  position: absolute;
+  inset: 6%;
+  border-radius: 4cqw;
+  pointer-events: none;
+  z-index: 3;
+}
+.pl-nature[data-nature]::before {
+  background-image: var(--nat-img);
+  background-size: var(--nat-size);
+  background-position: var(--nat-from);
+  background-repeat: repeat;
+  mix-blend-mode: var(--nat-blend);
+  opacity: 0;
+  transition: opacity 0.25s ease-out;
+}
+.pl-nature[data-nature]::after {
+  background: var(--nat-glow);
+  mix-blend-mode: screen;
+  box-shadow: inset 0 0 6cqw 0.8cqw var(--nat-c);
+  opacity: 0.75;
+  transition: opacity 0.25s ease-out;
+}
+
+.pl-nature[data-nature]:is(:hover, :focus-visible, [aria-pressed='true'], .pl-nature-live)::before {
+  opacity: 1;
+  animation: pl-nat-move var(--nat-dur) linear infinite, var(--nat-blink);
+}
+.pl-nature[data-nature]:is(:hover, :focus-visible, [aria-pressed='true'], .pl-nature-live)::after {
+  opacity: 1;
+  animation: pl-nat-breathe 2.4s ease-in-out infinite;
+}
+@keyframes pl-nat-move {
+  from { background-position: var(--nat-from); }
+  to { background-position: var(--nat-to); }
+}
+@keyframes pl-nat-breathe {
+  50% { opacity: 0.6; }
+}
+@keyframes pl-nat-flicker {
+  0%, 100% { opacity: 1; } 20% { opacity: 0.75; } 35% { opacity: 1; } 60% { opacity: 0.85; } 80% { opacity: 0.65; }
+}
+@keyframes pl-nat-twinkle {
+  0%, 100% { opacity: 0.35; } 50% { opacity: 1; }
+}
+/* two short stepped flashes per cycle (Spark) */
+@keyframes pl-nat-zap {
+  0%, 9%, 16%, 54%, 60%, 100% { opacity: 0; }
+  10%, 15%, 55%, 59% { opacity: 1; }
+}
+
+/* --------------------------------------------------------------------------------------------- per element */
+/* Colour, timing and the still glow per element (hand-written); the moving layers follow (scattered SVG motes, two
+   layers each at different speeds, so no grid shows). Fire: embers rising, a warm flicker from the bottom. */
+.pl-nature[data-nature='FIRE'] { --nat-c: rgba(255, 106, 61, 0.75); --nat-dur: 3.4s; --nat-blink: pl-nat-flicker 0.9s steps(4) infinite; --nat-glow: linear-gradient(to top, rgba(255, 90, 40, 0.4), transparent 40%); }
+/* Ice: shards and snow falling, frost in two corners */
+.pl-nature[data-nature='ICE'] { --nat-c: rgba(190, 240, 255, 0.85); --nat-dur: 6s; --nat-glow: radial-gradient(ellipse at 0 0, rgba(225, 248, 255, 0.5), transparent 32%), radial-gradient(ellipse at 100% 100%, rgba(225, 248, 255, 0.4), transparent 32%); }
+/* Spark: two stepped lightning flickers and a crackle of sparks */
+.pl-nature[data-nature='ELECTRIC'] { --nat-c: rgba(255, 226, 77, 0.8); --nat-dur: 1.2s; --nat-blink: pl-nat-zap 1.7s steps(1) infinite; }
+/* Grass: leaves drifting down (opaque, not screened) */
+.pl-nature[data-nature='GRASS'] { --nat-c: rgba(111, 211, 111, 0.7); --nat-dur: 7s; --nat-blend: normal; }
+/* Fairy: hearts and four-point twinkles */
+.pl-nature[data-nature='FAIRY'] { --nat-c: rgba(255, 159, 214, 0.8); --nat-dur: 7s; --nat-blink: pl-nat-twinkle 1.4s ease-in-out infinite; }
+/* Shadow: violet smoke curling up */
+.pl-nature[data-nature='DARK'] { --nat-c: rgba(138, 92, 214, 0.85); --nat-dur: 9s; --nat-glow: linear-gradient(to top, rgba(110, 70, 190, 0.35), transparent 45%); }
+/* Wind: pale streaks blowing across */
+.pl-nature[data-nature='WIND'] { --nat-c: rgba(200, 255, 225, 0.75); --nat-dur: 2.2s; }
+/* Water: bubbles rising */
+.pl-nature[data-nature='WATER'] { --nat-c: rgba(77, 166, 255, 0.75); --nat-dur: 5s; --nat-glow: linear-gradient(to top, rgba(60, 150, 255, 0.3), transparent 35%); }
+/* Sand: fine grains drifting sideways */
+.pl-nature[data-nature='SAND'] { --nat-c: rgba(232, 194, 122, 0.75); --nat-dur: 5s; }
+/* Star: five-point stars twinkling upward */
+.pl-nature[data-nature='STELLAR'] { --nat-c: rgba(197, 189, 255, 0.8); --nat-dur: 9s; --nat-blink: pl-nat-twinkle 1.8s ease-in-out infinite; }
+
+/* the moving layers */
+.pl-nature[data-nature='FIRE'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cdefs%3E%3CradialGradient id='g'%3E%3Cstop offset='0' stop-color='%23fff2c0'/%3E%3Cstop offset='.35' stop-color='%23ff9a3d'/%3E%3Cstop offset='1' stop-color='%23ff3b2a' stop-opacity='0'/%3E%3C/radialGradient%3E%3C/defs%3E%3Ccircle cx='33.8' cy='20.9' r='3.18' fill='url(%23g)'/%3E%3Ccircle cx='10.7' cy='64.0' r='2.77' fill='url(%23g)'/%3E%3Ccircle cx='9.3' cy='60.8' r='2.29' fill='url(%23g)'/%3E%3Ccircle cx='43.9' cy='11.8' r='2.37' fill='url(%23g)'/%3E%3Ccircle cx='43.1' cy='96.6' r='2.42' fill='url(%23g)'/%3E%3Ccircle cx='24.5' cy='74.3' r='3.60' fill='url(%23g)'/%3E%3Ccircle cx='57.1' cy='48.4' r='3.65' fill='url(%23g)'/%3E%3Ccircle cx='8.3' cy='100.1' r='2.66' fill='url(%23g)'/%3E%3Ccircle cx='17.3' cy='17.2' r='2.68' fill='url(%23g)'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='79.1' cy='20.6' r='0.75' fill='%23ffd27a'/%3E%3Ccircle cx='62.8' cy='38.3' r='0.74' fill='%23ff8a3d'/%3E%3Ccircle cx='9.8' cy='9.5' r='0.62' fill='%23ffb35c'/%3E%3Ccircle cx='66.6' cy='43.3' r='0.66' fill='%23ffd27a'/%3E%3Ccircle cx='57.9' cy='45.7' r='0.65' fill='%23ff8a3d'/%3E%3Ccircle cx='77.1' cy='68.3' r='0.64' fill='%23ffb35c'/%3E%3Ccircle cx='56.8' cy='52.3' r='0.86' fill='%23ffd27a'/%3E%3Ccircle cx='71.1' cy='30.5' r='0.89' fill='%23ff8a3d'/%3E%3Ccircle cx='14.9' cy='42.5' r='0.81' fill='%23ffb35c'/%3E%3Ccircle cx='18.0' cy='49.0' r='0.56' fill='%23ffd27a'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 120cqw, 100cqw 100cqw;
+  --nat-from: 0 0, 30cqw 0;
+  --nat-to: 0 -120cqw, 30cqw -200cqw;
+}
+.pl-nature[data-nature='ICE'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath transform='translate(65.5 89.6) rotate(160) scale(1.18)' d='M0-4L1.6 0 0 4-1.6 0z' fill='%23e6fbff'/%3E%3Cpath transform='translate(35.3 43.2) rotate(233) scale(1.15)' d='M0-4L1.6 0 0 4-1.6 0z' fill='%23bff2ff'/%3E%3Cpath transform='translate(10.3 14.5) rotate(356) scale(1.06)' d='M0-4L1.6 0 0 4-1.6 0z' fill='%23e6fbff'/%3E%3Cpath transform='translate(65.1 10.8) rotate(331) scale(1.23)' d='M0-4L1.6 0 0 4-1.6 0z' fill='%23bff2ff'/%3E%3Cpath transform='translate(57.2 80.3) rotate(197) scale(1.13)' d='M0-4L1.6 0 0 4-1.6 0z' fill='%23e6fbff'/%3E%3Cpath transform='translate(85.6 42.9) rotate(181) scale(1.33)' d='M0-4L1.6 0 0 4-1.6 0z' fill='%23bff2ff'/%3E%3Cpath transform='translate(19.5 17.1) rotate(147) scale(0.97)' d='M0-4L1.6 0 0 4-1.6 0z' fill='%23e6fbff'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='15.9' cy='26.8' r='0.64' fill='%23ffffff'/%3E%3Ccircle cx='84.2' cy='11.4' r='0.66' fill='%23dff6ff'/%3E%3Ccircle cx='54.5' cy='85.3' r='0.79' fill='%23ffffff'/%3E%3Ccircle cx='83.5' cy='29.6' r='0.65' fill='%23dff6ff'/%3E%3Ccircle cx='37.0' cy='85.3' r='0.84' fill='%23ffffff'/%3E%3Ccircle cx='17.9' cy='20.2' r='0.58' fill='%23dff6ff'/%3E%3Ccircle cx='25.5' cy='48.6' r='0.71' fill='%23ffffff'/%3E%3Ccircle cx='28.2' cy='4.4' r='0.65' fill='%23dff6ff'/%3E%3Ccircle cx='38.0' cy='56.1' r='0.83' fill='%23ffffff'/%3E%3Ccircle cx='67.5' cy='51.4' r='0.72' fill='%23dff6ff'/%3E%3Ccircle cx='66.2' cy='9.0' r='0.81' fill='%23ffffff'/%3E%3Ccircle cx='75.8' cy='84.5' r='0.78' fill='%23dff6ff'/%3E%3Ccircle cx='40.1' cy='40.7' r='0.54' fill='%23ffffff'/%3E%3Ccircle cx='62.4' cy='9.7' r='0.52' fill='%23dff6ff'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 120cqw, 100cqw 100cqw;
+  --nat-from: 0 0, 20cqw 0;
+  --nat-to: 14cqw 120cqw, 8cqw 200cqw;
+}
+.pl-nature[data-nature='ELECTRIC'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 130'%3E%3Cpath transform='translate(23.2 23.8) rotate(26) scale(1.80)' d='M1-9-4 1h3.5L-2 9 4-1H.5L3-9z' fill='%23fff7a6'/%3E%3Cpath transform='translate(13.4 73.1) rotate(186) scale(1.92)' d='M1-9-4 1h3.5L-2 9 4-1H.5L3-9z' fill='%23bfe6ff'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='60.5' cy='10.5' r='0.50' fill='%23fffbe0'/%3E%3Ccircle cx='38.6' cy='62.4' r='0.69' fill='%23fff07a'/%3E%3Ccircle cx='59.4' cy='47.6' r='0.48' fill='%23fffbe0'/%3E%3Ccircle cx='48.9' cy='94.0' r='0.57' fill='%23fff07a'/%3E%3Ccircle cx='32.7' cy='17.3' r='0.64' fill='%23fffbe0'/%3E%3Ccircle cx='72.1' cy='48.0' r='0.62' fill='%23fff07a'/%3E%3Ccircle cx='51.5' cy='22.9' r='0.69' fill='%23fffbe0'/%3E%3Ccircle cx='37.3' cy='67.5' r='0.68' fill='%23fff07a'/%3E%3Ccircle cx='73.7' cy='31.4' r='0.61' fill='%23fffbe0'/%3E%3Ccircle cx='12.4' cy='81.8' r='0.58' fill='%23fff07a'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 130cqw, 100cqw 100cqw;
+  --nat-from: 0 0, 0 0;
+  --nat-to: 0 0, -100cqw 0;
+}
+.pl-nature[data-nature='GRASS'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 130'%3E%3Cpath transform='translate(87.6 47.4) rotate(277) scale(1.29)' d='M-3.5 2C-3.5-1.5-.5-3.5 3.5-3.5 3.5 0 .5 2-3.5 2z' fill='%236fd36f'/%3E%3Cpath transform='translate(75.7 44.2) rotate(99) scale(1.29)' d='M-3.5 2C-3.5-1.5-.5-3.5 3.5-3.5 3.5 0 .5 2-3.5 2z' fill='%23b9f27a'/%3E%3Cpath transform='translate(78.2 103.8) rotate(116) scale(1.50)' d='M-3.5 2C-3.5-1.5-.5-3.5 3.5-3.5 3.5 0 .5 2-3.5 2z' fill='%234fb85a'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 110'%3E%3Cpath transform='translate(22.4 54.3) rotate(14) scale(1.12)' d='M-3.5 2C-3.5-1.5-.5-3.5 3.5-3.5 3.5 0 .5 2-3.5 2z' fill='%238ee07a'/%3E%3Cpath transform='translate(76.7 52.2) rotate(309) scale(0.96)' d='M-3.5 2C-3.5-1.5-.5-3.5 3.5-3.5 3.5 0 .5 2-3.5 2z' fill='%235cc45c'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 130cqw, 100cqw 110cqw;
+  --nat-from: 0 0, 40cqw 0;
+  --nat-to: 26cqw 130cqw, -30cqw 110cqw;
+}
+.pl-nature[data-nature='FAIRY'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath transform='translate(92.0 54.1) rotate(178) scale(1.47)' d='M0 3.4-3.2.2a1.9 1.9 0 0 1 3.2-2.2 1.9 1.9 0 0 1 3.2 2.2z' fill='%23ff9fd6'/%3E%3Cpath transform='translate(91.9 44.8) rotate(116) scale(1.19)' d='M0 3.4-3.2.2a1.9 1.9 0 0 1 3.2-2.2 1.9 1.9 0 0 1 3.2 2.2z' fill='%23ffc2e6'/%3E%3Cpath transform='translate(47.2 41.8) rotate(312) scale(1.29)' d='M0 3.4-3.2.2a1.9 1.9 0 0 1 3.2-2.2 1.9 1.9 0 0 1 3.2 2.2z' fill='%23ff9fd6'/%3E%3Cpath transform='translate(81.3 57.7) rotate(329) scale(1.36)' d='M0 3.4-3.2.2a1.9 1.9 0 0 1 3.2-2.2 1.9 1.9 0 0 1 3.2 2.2z' fill='%23ffc2e6'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath transform='translate(11.8 64.8) rotate(102) scale(1.26)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23fff1fb'/%3E%3Cpath transform='translate(48.0 20.4) rotate(170) scale(1.21)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffd6ef'/%3E%3Cpath transform='translate(12.0 91.0) rotate(237) scale(1.17)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23fff1fb'/%3E%3Cpath transform='translate(40.9 91.1) rotate(87) scale(1.18)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffd6ef'/%3E%3Cpath transform='translate(95.4 6.5) rotate(238) scale(1.12)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23fff1fb'/%3E%3Cpath transform='translate(78.2 17.4) rotate(242) scale(1.22)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffd6ef'/%3E%3Cpath transform='translate(64.5 36.2) rotate(67) scale(1.10)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23fff1fb'/%3E%3Cpath transform='translate(6.0 77.5) rotate(52) scale(1.18)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffd6ef'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 120cqw, 100cqw 100cqw;
+  --nat-from: 0 0, 10cqw 0;
+  --nat-to: 0 -120cqw, 10cqw -100cqw;
+}
+.pl-nature[data-nature='DARK'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cdefs%3E%3Cfilter id='b' x='-50%25' y='-50%25' width='200%25' height='200%25'%3E%3CfeGaussianBlur stdDeviation='4'/%3E%3C/filter%3E%3C/defs%3E%3Cellipse cx='51.9' cy='99.0' rx='12.6' ry='9.5' fill='%236b44b8' filter='url(%23b)'/%3E%3Cellipse cx='72.8' cy='34.0' rx='11.5' ry='7.2' fill='%233c2a63' filter='url(%23b)'/%3E%3Cellipse cx='31.8' cy='67.8' rx='11.6' ry='7.7' fill='%238a5cd6' filter='url(%23b)'/%3E%3Cellipse cx='24.2' cy='96.9' rx='12.1' ry='7.8' fill='%236b44b8' filter='url(%23b)'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='57.7' cy='87.2' r='0.56' fill='%23c9a8ff'/%3E%3Ccircle cx='88.4' cy='50.2' r='0.58' fill='%238a5cd6'/%3E%3Ccircle cx='52.2' cy='5.7' r='0.56' fill='%23c9a8ff'/%3E%3Ccircle cx='20.8' cy='4.4' r='0.65' fill='%238a5cd6'/%3E%3Ccircle cx='19.9' cy='47.6' r='0.63' fill='%23c9a8ff'/%3E%3Ccircle cx='55.2' cy='34.0' r='0.58' fill='%238a5cd6'/%3E%3Ccircle cx='55.1' cy='76.2' r='0.48' fill='%23c9a8ff'/%3E%3Ccircle cx='55.5' cy='26.9' r='0.52' fill='%238a5cd6'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 120cqw, 100cqw 100cqw;
+  --nat-from: 0 0, 0 0;
+  --nat-to: 18cqw -120cqw, -10cqw -200cqw;
+}
+.pl-nature[data-nature='WIND'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 110'%3E%3Cpath transform='translate(75.0 55.8) rotate(0) scale(1.24)' d='M-9 0h18' stroke='%23f0fff5' stroke-width='0.5' stroke-linecap='round'/%3E%3Cpath transform='translate(73.9 97.1) rotate(0) scale(1.17)' d='M-9 0h18' stroke='%23b6f0c8' stroke-width='0.5' stroke-linecap='round'/%3E%3Cpath transform='translate(60.4 55.6) rotate(0) scale(1.21)' d='M-9 0h18' stroke='%23f0fff5' stroke-width='0.5' stroke-linecap='round'/%3E%3Cpath transform='translate(67.7 50.1) rotate(0) scale(1.22)' d='M-9 0h18' stroke='%23b6f0c8' stroke-width='0.5' stroke-linecap='round'/%3E%3Cpath transform='translate(48.0 100.0) rotate(0) scale(1.32)' d='M-9 0h18' stroke='%23f0fff5' stroke-width='0.5' stroke-linecap='round'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 90'%3E%3Cpath transform='translate(84.6 81.3) rotate(0) scale(0.70)' d='M-9 0h18' stroke='%23d8fbe6' stroke-width='0.5' stroke-linecap='round'/%3E%3Cpath transform='translate(55.5 81.3) rotate(0) scale(0.94)' d='M-9 0h18' stroke='%23d8fbe6' stroke-width='0.5' stroke-linecap='round'/%3E%3Cpath transform='translate(16.6 14.0) rotate(0) scale(0.78)' d='M-9 0h18' stroke='%23d8fbe6' stroke-width='0.5' stroke-linecap='round'/%3E%3Cpath transform='translate(10.7 23.7) rotate(0) scale(0.63)' d='M-9 0h18' stroke='%23d8fbe6' stroke-width='0.5' stroke-linecap='round'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 110cqw, 100cqw 90cqw;
+  --nat-from: 0 0, 0 30cqw;
+  --nat-to: 200cqw 0, 300cqw 30cqw;
+}
+.pl-nature[data-nature='WATER'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Ccircle cx='65.6' cy='91.8' r='2.50' fill='none' stroke='%23d9f1ff' stroke-width='0.55'/%3E%3Ccircle cx='64.7' cy='90.9' r='0.45' fill='%23fff'/%3E%3Ccircle cx='18.2' cy='84.2' r='2.26' fill='none' stroke='%23a9dcff' stroke-width='0.50'/%3E%3Ccircle cx='17.4' cy='83.4' r='0.41' fill='%23fff'/%3E%3Ccircle cx='17.2' cy='102.9' r='2.57' fill='none' stroke='%23d9f1ff' stroke-width='0.56'/%3E%3Ccircle cx='16.3' cy='102.0' r='0.46' fill='%23fff'/%3E%3Ccircle cx='24.2' cy='110.7' r='2.00' fill='none' stroke='%23a9dcff' stroke-width='0.44'/%3E%3Ccircle cx='23.5' cy='110.0' r='0.36' fill='%23fff'/%3E%3Ccircle cx='48.8' cy='114.9' r='2.43' fill='none' stroke='%23d9f1ff' stroke-width='0.54'/%3E%3Ccircle cx='48.0' cy='114.0' r='0.44' fill='%23fff'/%3E%3Ccircle cx='18.9' cy='52.3' r='2.12' fill='none' stroke='%23a9dcff' stroke-width='0.47'/%3E%3Ccircle cx='18.1' cy='51.6' r='0.38' fill='%23fff'/%3E%3Ccircle cx='35.2' cy='25.9' r='1.92' fill='none' stroke='%23d9f1ff' stroke-width='0.42'/%3E%3Ccircle cx='34.5' cy='25.3' r='0.35' fill='%23fff'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='70.4' cy='5.8' r='1.18' fill='none' stroke='%23bfe6ff' stroke-width='0.35'/%3E%3Ccircle cx='70.0' cy='5.4' r='0.21' fill='%23fff'/%3E%3Ccircle cx='44.5' cy='5.7' r='1.07' fill='none' stroke='%23bfe6ff' stroke-width='0.35'/%3E%3Ccircle cx='44.1' cy='5.3' r='0.19' fill='%23fff'/%3E%3Ccircle cx='61.4' cy='51.1' r='0.93' fill='none' stroke='%23bfe6ff' stroke-width='0.35'/%3E%3Ccircle cx='61.1' cy='50.8' r='0.17' fill='%23fff'/%3E%3Ccircle cx='94.6' cy='76.5' r='1.39' fill='none' stroke='%23bfe6ff' stroke-width='0.35'/%3E%3Ccircle cx='94.1' cy='76.0' r='0.25' fill='%23fff'/%3E%3Ccircle cx='13.6' cy='28.4' r='0.92' fill='none' stroke='%23bfe6ff' stroke-width='0.35'/%3E%3Ccircle cx='13.3' cy='28.1' r='0.17' fill='%23fff'/%3E%3Ccircle cx='75.7' cy='28.9' r='0.96' fill='none' stroke='%23bfe6ff' stroke-width='0.35'/%3E%3Ccircle cx='75.3' cy='28.5' r='0.17' fill='%23fff'/%3E%3Ccircle cx='42.8' cy='87.9' r='1.31' fill='none' stroke='%23bfe6ff' stroke-width='0.35'/%3E%3Ccircle cx='42.4' cy='87.4' r='0.24' fill='%23fff'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 120cqw, 100cqw 100cqw;
+  --nat-from: 0 0, 20cqw 0;
+  --nat-to: 0 -120cqw, 26cqw -200cqw;
+}
+.pl-nature[data-nature='SAND'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='27.8' cy='17.7' r='0.72' fill='%23fff0c8'/%3E%3Ccircle cx='56.5' cy='68.4' r='0.43' fill='%23e8c27a'/%3E%3Ccircle cx='9.3' cy='67.3' r='0.55' fill='%23f3d9a0'/%3E%3Ccircle cx='10.7' cy='90.3' r='0.62' fill='%23fff0c8'/%3E%3Ccircle cx='77.7' cy='11.7' r='0.70' fill='%23e8c27a'/%3E%3Ccircle cx='10.1' cy='83.4' r='0.56' fill='%23f3d9a0'/%3E%3Ccircle cx='35.2' cy='54.9' r='0.72' fill='%23fff0c8'/%3E%3Ccircle cx='28.6' cy='15.9' r='0.58' fill='%23e8c27a'/%3E%3Ccircle cx='25.9' cy='14.1' r='0.46' fill='%23f3d9a0'/%3E%3Ccircle cx='8.6' cy='22.6' r='0.51' fill='%23fff0c8'/%3E%3Ccircle cx='32.1' cy='73.9' r='0.50' fill='%23e8c27a'/%3E%3Ccircle cx='50.0' cy='20.4' r='0.52' fill='%23f3d9a0'/%3E%3Ccircle cx='5.7' cy='27.0' r='0.41' fill='%23fff0c8'/%3E%3Ccircle cx='71.4' cy='54.7' r='0.47' fill='%23e8c27a'/%3E%3Ccircle cx='47.7' cy='90.0' r='0.44' fill='%23f3d9a0'/%3E%3Ccircle cx='79.3' cy='43.8' r='0.57' fill='%23fff0c8'/%3E%3Ccircle cx='80.8' cy='40.2' r='0.58' fill='%23e8c27a'/%3E%3Ccircle cx='67.3' cy='94.4' r='0.52' fill='%23f3d9a0'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 80'%3E%3Ccircle cx='80.6' cy='54.9' r='0.51' fill='%23e8c27a'/%3E%3Ccircle cx='41.2' cy='29.0' r='0.36' fill='%23c9a060'/%3E%3Ccircle cx='15.9' cy='9.1' r='0.54' fill='%23e8c27a'/%3E%3Ccircle cx='27.5' cy='15.8' r='0.37' fill='%23c9a060'/%3E%3Ccircle cx='81.4' cy='66.7' r='0.52' fill='%23e8c27a'/%3E%3Ccircle cx='29.9' cy='21.4' r='0.42' fill='%23c9a060'/%3E%3Ccircle cx='46.3' cy='15.3' r='0.46' fill='%23e8c27a'/%3E%3Ccircle cx='28.2' cy='73.2' r='0.59' fill='%23c9a060'/%3E%3Ccircle cx='54.3' cy='21.6' r='0.59' fill='%23e8c27a'/%3E%3Ccircle cx='32.5' cy='29.7' r='0.35' fill='%23c9a060'/%3E%3Ccircle cx='39.1' cy='38.2' r='0.48' fill='%23e8c27a'/%3E%3Ccircle cx='22.5' cy='40.3' r='0.35' fill='%23c9a060'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 100cqw, 100cqw 80cqw;
+  --nat-from: 0 0, 0 0;
+  --nat-to: 100cqw 20cqw, 200cqw -30cqw;
+}
+.pl-nature[data-nature='STELLAR'] {
+  --nat-img: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 120'%3E%3Cpath transform='translate(28.3 14.1) rotate(21) scale(1.30)' d='M0-4l1.2 2.6 2.8.3-2.1 1.9.6 2.8L0 2.2l-2.5 1.4.6-2.8-2.1-1.9 2.8-.3z' fill='%23fff1a8'/%3E%3Cpath transform='translate(40.2 37.6) rotate(43) scale(1.41)' d='M0-4l1.2 2.6 2.8.3-2.1 1.9.6 2.8L0 2.2l-2.5 1.4.6-2.8-2.1-1.9 2.8-.3z' fill='%23d6d0ff'/%3E%3Cpath transform='translate(57.9 63.3) rotate(336) scale(1.48)' d='M0-4l1.2 2.6 2.8.3-2.1 1.9.6 2.8L0 2.2l-2.5 1.4.6-2.8-2.1-1.9 2.8-.3z' fill='%23fff1a8'/%3E%3Cpath transform='translate(86.1 91.8) rotate(166) scale(1.40)' d='M0-4l1.2 2.6 2.8.3-2.1 1.9.6 2.8L0 2.2l-2.5 1.4.6-2.8-2.1-1.9 2.8-.3z' fill='%23d6d0ff'/%3E%3Cpath transform='translate(70.3 59.3) rotate(316) scale(1.24)' d='M0-4l1.2 2.6 2.8.3-2.1 1.9.6 2.8L0 2.2l-2.5 1.4.6-2.8-2.1-1.9 2.8-.3z' fill='%23fff1a8'/%3E%3Cpath transform='translate(63.2 8.9) rotate(262) scale(1.52)' d='M0-4l1.2 2.6 2.8.3-2.1 1.9.6 2.8L0 2.2l-2.5 1.4.6-2.8-2.1-1.9 2.8-.3z' fill='%23d6d0ff'/%3E%3C/svg%3E"), url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Cpath transform='translate(61.7 71.5) rotate(71) scale(1.02)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffffff'/%3E%3Cpath transform='translate(87.7 73.3) rotate(8) scale(0.93)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23c5bdff'/%3E%3Cpath transform='translate(80.0 57.7) rotate(349) scale(1.06)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffffff'/%3E%3Cpath transform='translate(92.0 63.1) rotate(21) scale(0.73)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23c5bdff'/%3E%3Cpath transform='translate(16.2 37.2) rotate(231) scale(0.74)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffffff'/%3E%3Cpath transform='translate(55.4 61.8) rotate(348) scale(0.95)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23c5bdff'/%3E%3Cpath transform='translate(26.5 28.3) rotate(35) scale(0.88)' d='M0-4L1 -1 4 0 1 1 0 4-1 1-4 0-1-1z' fill='%23ffffff'/%3E%3C/svg%3E");
+  --nat-size: 100cqw 120cqw, 100cqw 100cqw;
+  --nat-from: 0 0, 30cqw 0;
+  --nat-to: 0 -120cqw, 30cqw -100cqw;
+}
+
+/* Reduced motion: the still glow only (no moving layer, no breathing). */
+@media (prefers-reduced-motion: reduce) {
+  .pl-nature[data-nature]::before { display: none; }
+  .pl-nature[data-nature]::after { animation: none !important; }
+}
+.pl-reduced-motion .pl-nature[data-nature]::before { display: none; }

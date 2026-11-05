@@ -43,8 +43,20 @@ export const GLINT_GAP = 0.3;
  */
 export type TierExt = (fx: TierFx, h: FxHero, wasDead: boolean) => void;
 let tierExt: TierExt | null = null;
+/** The installed extensions, in order: the card flourish (`setTierExt`'s slot) and any `addTierExt` (Nature). */
+const tierExts: TierExt[] = [];
 export const setTierExt = (f: TierExt | null): void => {
+  if (tierExt) tierExts.splice(tierExts.indexOf(tierExt), 1);
   tierExt = f;
+  if (f && !tierExts.includes(f)) tierExts.unshift(f);
+};
+/** Add one more extension (idempotent; render/nature/matchNature.ts); returns its remover. */
+export const addTierExt = (f: TierExt): (() => void) => {
+  if (!tierExts.includes(f)) tierExts.push(f);
+  return () => {
+    const i = tierExts.indexOf(f);
+    if (i >= 0 && f !== tierExt) tierExts.splice(i, 1);
+  };
 };
 const CREAM = 0xfff3dc;
 const STAR8 = 10;
@@ -197,7 +209,7 @@ export class TierFx {
       this.claim(16, 0.7);
     }
     // cards lane (render/skins/tierCardFx.ts, its own chunk): the card flips up as the hero is back, Epic+ twinkles
-    if (ok && tierExt) tierExt(this, h, t.dead);
+    if (ok) for (let i = 0; i < tierExts.length; i++) tierExts[i](this, h, t.dead);
     t.dead = h.dead;
     t.x = h.x;
     t.z = h.z;
