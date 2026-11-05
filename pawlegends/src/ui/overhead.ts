@@ -36,18 +36,56 @@ interface Plate {
 }
 
 /** Hero plate box (px, relative to the bar centre) used by the declutter pass: name above, level badge left. */
-export function plateBox(scale: number): { left: number; right: number; top: number; bottom: number } {
+export function plateBox(scale: number, phone = false): { left: number; right: number; top: number; bottom: number } {
   const bw = SIZE.hero[0] * scale;
-  const r = 9 * scale;
-  return { left: -bw / 2 - 2 * r - 4, right: bw / 2 + 2, top: -SIZE.hero[1] * scale / 2 - 16 * scale, bottom: SIZE.hero[1] * scale / 2 + 3 };
+  const bh = heroBarH(phone);
+  const nf = nameFont(phone);
+  return { left: -bw / 2 - (bh + 6) - 4, right: bw / 2 + 3, top: -bh / 2 - 3 - nf - 6, bottom: bh / 2 + 3 };
+}
+
+/** LoL pass (lane C): hero bar height (px): 10 on desktop, 8 on a phone (short landscape, ≤ 480 px tall). */
+export const heroBarH = (phone: boolean): number => (phone ? 8 : 10);
+/** LoL pass (lane C): hero name size (px) above the bar: 11 on desktop, 9 on a phone. */
+export const nameFont = (phone: boolean): number => (phone ? 9 : 11);
+
+/** LoL pass (lane C): the trailing damage chunk on unit bars holds this long (ms) after a drop, then drains. */
+export const CHUNK_HOLD_MS = 300;
+/** ...at this many max HPs a second. */
+export const CHUNK_RATE = 1.5;
+
+/** A unit bar's trailing chunk: `trail` the HP its far edge shows, `hp` the last HP seen, `at` the last drop (ms), `t` the last step (ms). */
+export interface HpChunk {
+  trail: number;
+  hp: number;
+  at: number;
+  t: number;
+}
+
+/**
+ * LoL pass (lane C), pure: one step of a unit bar's trailing damage chunk. A drop keeps the chunk's far edge where it
+ * was and restarts the hold; after CHUNK_HOLD_MS it drains at CHUNK_RATE × maxHp a second down to the HP. A heal (or
+ * the first sight of the unit) snaps it: no chunk.
+ */
+export function chunkStep(prev: HpChunk | null, hp: number, maxHp: number, now: number): HpChunk {
+  // first sight or a heal: snap (no chunk)
+  if (!prev || hp > prev.hp) return { trail: hp, hp, at: -Infinity, t: now };
+  // a drop: the far edge stays where it was, the hold restarts
+  if (hp < prev.hp) return { trail: Math.max(prev.trail, prev.hp), hp, at: now, t: now };
+  return { trail: drain(prev, hp, maxHp, now), hp, at: prev.at, t: now };
+}
+
+function drain(prev: HpChunk, hp: number, maxHp: number, now: number): number {
+  const from = Math.max(prev.t, prev.at + CHUNK_HOLD_MS);
+  if (now <= from) return prev.trail;
+  return Math.max(hp, prev.trail - (CHUNK_RATE * Math.max(1, maxHp) * (now - from)) / 1000);
 }
 
 /**
  * Screen-space stacking (pure): plates in priority order (the first stays put); each later plate moves up by the
  * plate height above the plate it overlaps until it overlaps none placed before it. Returns the offsets (px, negative = up) and stack depths.
  */
-export function declutter(pts: readonly { x: number; y: number }[], scale: number, maxSteps = 4): { dy: number; depth: number }[] {
-  const b = plateBox(scale);
+export function declutter(pts: readonly { x: number; y: number }[], scale: number, maxSteps = 4, phone = false): { dy: number; depth: number }[] {
+  const b = plateBox(scale, phone);
   const h = b.bottom - b.top + 2;
   const placed: { x: number; y: number }[] = [];
   const out: { dy: number; depth: number }[] = [];
@@ -171,9 +209,18 @@ export class Overhead {
   boxes: { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number }[] | null = null;
   /** Heroes picked on both teams this frame (their enemy copy gets a team prefix). */
   private mirrored = new Set<string>();
+  /** The older 2D dashed tower-to-hero beam (off: the 3D tower beam replaces it). */
+  flatBeams = false;
   /** Tower-to-hero warning beams (a tower is hitting the player): src and dst ids, seconds left. */
   private beams: { src: number; dst: number; t: number }[] = [];
   private lastDraw = 0;
+  /** LoL pass (lane C): the trailing damage chunk per unit id (heroes and structures), and the frame it was last drawn. */
+  private readonly chunks = new Map<number, HpChunk & { seen: number }>();
+  private drawN = 0;
+  /** A short landscape phone (≤ 480 px tall): the smaller LoL bar and name sizes. */
+  private get phone(): boolean {
+    return this.h > 0 && this.h <= 480;
+  }
   /** The player's hero is off screen this frame (panned away): its projected point (px). */
   private selfOff = false;
   private selfSx = 0;
@@ -205,7 +252,7 @@ export class Overhead {
   }
   /** Does a hero plate centred at (x, y) touch a HUD rectangle? */
   private underHud(x: number, y: number): boolean {
-    const box = plateBox(this.scale);
+    const box = plateBox(this.scale, this.phone);
     for (const r of this.hudRects) if (x + box.right > r.left && x + box.left < r.right && y + box.bottom > r.top && y + box.top < r.bottom) return true;
     return false;
   }
@@ -237,8 +284,13 @@ export class Overhead {
     this.locks = this.locks.filter((l) => l.dst !== dst);
   }
 
-  /** Draw a red beam from a tower to the hero it hits, for a moment. */
+  /**
+   * Draw a red beam from a tower to the hero it hits, for a moment. LoL pass (lane C): the 3D tower beam
+   * (render/fx/towerBeams.ts) now draws every tower shot, the player's in red with a flare, so this 2D dashed copy is
+   * off by default (the trailer harness may still turn it on).
+   */
   beam(src: number, dst: number, seconds = 0.7): void {
+    if (!this.flatBeams) return;
     const b = this.beams.find((q) => q.src === src && q.dst === dst);
     if (b) b.t = seconds;
     else this.beams.push({ src, dst, t: seconds });
@@ -328,6 +380,8 @@ export class Overhead {
     const lay = declutter(
       heroes.map((p) => ({ x: p.sx, y: p.sy })),
       this.scale,
+      4,
+      this.phone,
     );
     heroes.forEach((p, i) => {
       p.dy = lay[i].dy;
@@ -340,6 +394,8 @@ export class Overhead {
       if (below) below.chip = true;
     }
     plates.sort((a, b) => a.layer - b.layer);
+    this.drawN++;
+    if (this.drawN % 60 === 0) for (const [id, c] of this.chunks) if (this.drawN - c.seen > 60) this.chunks.delete(id);
     this.drawBeams(g, frame, camera, heroScale);
     this.drawLocks(g, frame, camera, heroScale);
     this.drawGuide(g, frame, camera);
@@ -744,17 +800,18 @@ export class Overhead {
     const e = p.e;
     const [bw0, bh0] = SIZE[e.kind];
     const bw = bw0 * this.scale;
-    const bh = bh0 * this.scale;
+    const bh = e.kind === 'hero' ? heroBarH(this.phone) : e.kind === 'minion' ? 4 : bh0 * this.scale;
     const sy = p.sy + p.dy;
     if (e.kind !== 'hero') return { kind: e.kind, id: e.id, name: '', x0: p.sx - bw / 2 - 2, y0: sy - bh / 2 - 2, x1: p.sx + bw / 2 + 2, y1: sy + bh / 2 + 2, dy: p.dy };
     const name = this.nameOf(e);
-    g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    const nf = nameFont(this.phone);
+    g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
     const tw = g.measureText(name).width;
     const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
     g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
-    const sw = status ? g.measureText(status).width + 12 * this.scale : 0;
-    const b = plateBox(this.scale);
-    return { kind: 'hero', id: e.id, name, x0: Math.min(p.sx + b.left, p.sx - tw / 2 - 5 * this.scale), y0: sy - bh / 2 - 17 * this.scale, x1: Math.max(p.sx + bw / 2 + 2 + sw, p.sx + tw / 2 + 5 * this.scale), y1: sy + Math.max(bh / 2 + 3, 9 * this.scale), dy: p.dy };
+    const sw = status ? g.measureText(status).width + 14 * this.scale : 0;
+    const b = plateBox(this.scale, this.phone);
+    return { kind: 'hero', id: e.id, name, x0: Math.min(p.sx + b.left, p.sx - tw / 2 - 4), y0: sy + b.top, x1: Math.max(p.sx + b.right + sw, p.sx + tw / 2 + 4), y1: sy + Math.max(b.bottom, 9 * this.scale), dy: p.dy };
   }
 
   private nameOf(e: ViewEntity): string {
@@ -762,94 +819,167 @@ export class Overhead {
     return plateName(e, this.mySlot, this.myTeam, this.mirrored, this.names);
   }
 
+  /** LoL pass (lane C): the trailing chunk (HP, 0 = none) of a hero or structure bar this frame. */
+  private chunkOf(e: ViewEntity): number {
+    const now = performance.now();
+    const prev = this.chunks.get(e.id) ?? null;
+    const c = chunkStep(prev, Math.max(0, e.hp), e.maxHp, now);
+    this.chunks.set(e.id, { ...c, seen: this.drawN });
+    return Math.max(0, c.trail - Math.max(0, e.hp));
+  }
+
+  /**
+   * LoL pass (lane C): a hero plate's framed bar: a 1 px black outline, a 1 px dark gap, a square level badge on the
+   * left inside the frame, the HP in the relation colour, the shield as a white piece after it, then the pale trailing
+   * damage chunk; thin ticks every 100 HP and thick ones every 1000.
+   */
+  private heroBar(g: CanvasRenderingContext2D, e: ViewEntity, x: number, y: number, bw: number, bh: number): { bx: number; bs: number } {
+    const total = Math.max(e.maxHp, e.hp + e.shield);
+    const hp = Math.max(0, e.hp);
+    const hpW = (hp / total) * bw;
+    const shW = (Math.max(0, e.shield) / total) * bw;
+    const chW = (Math.min(this.chunkOf(e), total - hp) / total) * bw;
+    const bs = bh + 6;
+    const bx = x - bs - 1;
+    // outline, then the dark gap
+    g.fillStyle = '#05070b';
+    g.fillRect(bx - 2, y - 3, bw + bs + 5, bh + 6);
+    g.fillStyle = '#1a1f2a';
+    g.fillRect(bx - 1, y - 2, bw + bs + 3, bh + 4);
+    // the level badge (square) and the empty bar
+    g.fillStyle = '#0d1018';
+    g.fillRect(bx, y - 1, bs - 1, bh + 2);
+    g.fillStyle = '#10131a';
+    g.fillRect(x, y, bw, bh);
+    g.fillStyle = this.color(e);
+    g.fillRect(x, y, hpW, bh);
+    // a lighter top half reads as a lit bar
+    g.fillStyle = 'rgba(255,255,255,0.18)';
+    g.fillRect(x, y, hpW, Math.max(1, bh * 0.35));
+    if (shW > 0) {
+      g.fillStyle = '#f4f8ff';
+      g.fillRect(x + hpW, y, shW, bh);
+    }
+    if (chW > 0.5) {
+      g.fillStyle = 'rgba(255,246,206,0.92)';
+      g.fillRect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh);
+    }
+    g.fillStyle = 'rgba(5,7,11,0.6)';
+    for (let k = 100; k < total; k += 100) {
+      const tx = Math.round(x + (k / total) * bw);
+      if (k % 1000 === 0) {
+        g.fillStyle = 'rgba(5,7,11,0.95)';
+        g.fillRect(tx - 1, y, 2, bh);
+        g.fillStyle = 'rgba(5,7,11,0.6)';
+      } else g.fillRect(tx, y, 1, bh * 0.5);
+    }
+    return { bx, bs };
+  }
+
   private plate(g: CanvasRenderingContext2D, p: Plate): void {
     const e = p.e;
     const sx = p.sx;
     const sy = p.sy + p.dy;
+    const hero = e.kind === 'hero';
     const [bw0, bh0] = SIZE[e.kind];
     const bw = bw0 * this.scale;
-    const bh = bh0 * this.scale;
+    // LoL pass (lane C): hero bars 10 px (phone 8), minion bars a flat 4 px
+    const bh = hero ? heroBarH(this.phone) : e.kind === 'minion' ? 4 : bh0 * this.scale;
     const x = sx - bw / 2;
     const y = sy - bh / 2;
     const total = Math.max(e.maxHp, e.hp + e.shield);
     const hpW = (Math.max(0, e.hp) / total) * bw;
     const shW = (Math.max(0, e.shield) / total) * bw;
-    if (p.dy < 0 && e.kind === 'hero') {
+    if (p.dy < 0 && hero) {
       // a short leader line from a lifted plate down to its hero
       g.strokeStyle = 'rgba(42,26,34,0.7)';
       g.lineWidth = 1.5;
       g.beginPath();
-      g.moveTo(sx, sy + bh / 2 + 2);
+      g.moveTo(sx, sy + bh / 2 + 3);
       g.lineTo(sx, p.sy - bh / 2);
       g.stroke();
     }
-    g.fillStyle = 'rgba(42,26,34,0.82)';
-    roundRect(g, x - (e.kind === 'minion' ? 1 : 2), y - (e.kind === 'minion' ? 1 : 2), bw + (e.kind === 'minion' ? 2 : 4), bh + (e.kind === 'minion' ? 2 : 4), e.kind === 'minion' ? 2 : 3);
-    g.fill();
-    g.fillStyle = this.color(e);
-    g.fillRect(x, y, hpW, bh);
-    if (shW > 0) {
-      g.fillStyle = '#f4f8ff';
-      g.fillRect(x + hpW, y, shW, bh);
+    if (e.kind === 'minion') {
+      // minions: no frame, no chunk (cheap): a dark track and the fill
+      g.fillStyle = 'rgba(10,12,18,0.85)';
+      g.fillRect(x - 1, y - 1, bw + 2, bh + 2);
+      g.fillStyle = this.color(e);
+      g.fillRect(x, y, hpW, bh);
+      return;
     }
-    if (e.kind === 'hero' || e.kind === 'tower' || e.kind === 'core') {
-      // tick marks every 100 HP (heroes) / 500 HP (structures)
-      const step = e.kind === 'hero' ? 100 : 500;
-      g.fillStyle = 'rgba(42,26,34,0.5)';
-      for (let k = step; k < total; k += step) g.fillRect(x + (k / total) * bw, y, 1, k % (step * 5) === 0 ? bh : bh * 0.55);
+    if (!hero) {
+      g.fillStyle = 'rgba(42,26,34,0.82)';
+      roundRect(g, x - 2, y - 2, bw + 4, bh + 4, 3);
+      g.fill();
+      g.fillStyle = this.color(e);
+      g.fillRect(x, y, hpW, bh);
+      if (shW > 0) {
+        g.fillStyle = '#f4f8ff';
+        g.fillRect(x + hpW, y, shW, bh);
+      }
+      if (e.kind === 'tower' || e.kind === 'core' || e.kind === 'pudding') {
+        // structures: the trailing chunk, and tick marks every 500 HP
+        const chW = (Math.min(this.chunkOf(e), total - Math.max(0, e.hp)) / total) * bw;
+        if (chW > 0.5) {
+          g.fillStyle = 'rgba(255,246,206,0.92)';
+          g.fillRect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh);
+        }
+      }
+      if (e.kind === 'tower' || e.kind === 'core') {
+        g.fillStyle = 'rgba(42,26,34,0.5)';
+        for (let k = 500; k < total; k += 500) g.fillRect(x + (k / total) * bw, y, 1, k % 2500 === 0 ? bh : bh * 0.55);
+      }
+      if ((e.buffs & BuffFlag.Invulnerable) !== 0) {
+        g.strokeStyle = '#9fd3ff';
+        g.lineWidth = 1.5;
+        g.strokeRect(x - 1, y - 1, bw + 2, bh + 2);
+      }
+      return;
     }
-    if ((e.buffs & BuffFlag.Invulnerable) !== 0 && e.kind !== 'hero') {
-      g.strokeStyle = '#9fd3ff';
-      g.lineWidth = 1.5;
-      g.strokeRect(x - 1, y - 1, bw + 2, bh + 2);
-    }
-    if (e.kind !== 'hero') return;
-    if (this.targetLock && this.targetLock.id === e.id) this.lockBrackets(g, x, y, bw, bh, this.targetLock.left);
+    const { bx, bs } = this.heroBar(g, e, x, y, bw, bh);
+    if (this.targetLock && this.targetLock.id === e.id) this.lockBrackets(g, bx, y, bw + bs + 1, bh, this.targetLock.left);
     if (e.id === this.mySlot) {
       // the player's own plate: a gold frame so it is found first in a pile
       g.strokeStyle = RELATION_CSS.self;
       g.lineWidth = 1.5;
-      roundRect(g, x - 3, y - 3, bw + 6, bh + 6, 4);
-      g.stroke();
+      g.strokeRect(bx - 3.25, y - 4.25, bw + bs + 7.5, bh + 8.5);
     }
     const lv = String(e.level ?? 1);
-    const r = 9 * this.scale;
-    g.fillStyle = 'rgba(42,26,34,0.92)';
-    g.beginPath();
-    g.arc(x - r - 2, sy, r, 0, Math.PI * 2);
-    g.fill();
-    this.chargeRing(g, e, x - r - 2, sy, r);
+    const r = bs / 2;
+    const bcx = bx + (bs - 1) / 2;
+    this.chargeRing(g, e, bcx, sy, r);
     this.disdain(g, e, sx, y + bh + 8 * this.scale);
     const stride = strideMeter(e);
     if (stride >= 0) {
       // Stilts's Stride under her bar (own team): sand while it builds, a hot terracotta when full (the pounce is ready)
-      g.fillStyle = 'rgba(42,26,34,0.82)';
-      g.fillRect(x - 1, y + bh + 1, bw + 2, 4 * this.scale);
+      g.fillStyle = 'rgba(5,7,11,0.9)';
+      g.fillRect(x - 1, y + bh + 3, bw + 2, 4 * this.scale);
       g.fillStyle = stride >= 1 ? '#ff8a5c' : '#e8c27a';
-      g.fillRect(x, y + bh + 2, bw * stride, 2.5 * this.scale);
+      g.fillRect(x, y + bh + 4, bw * stride, 2.5 * this.scale);
     }
-    g.fillStyle = '#fff3dc';
-    g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    g.fillStyle = '#f0e6d2';
+    g.font = `800 ${Math.min(12, bh + 3)}px Fredoka, system-ui, sans-serif`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
-    g.fillText(lv, x - r - 2, sy + 0.5);
+    g.fillText(lv, bcx, sy + 0.5);
     const name = this.nameOf(e);
-    g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
-    const ny = y - 10 * this.scale;
+    const nf = nameFont(this.phone);
+    g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
+    const ny = y - 3 - nf / 2 - 3;
     const tw = g.measureText(name).width;
     if (e.id !== this.mySlot) {
       // round 1: a solid side-coloured pill behind every other hero's name, so an enemy Clem never reads as yours
       g.fillStyle = this.color(e);
-      roundRect(g, sx - tw / 2 - 5 * this.scale, ny - 7 * this.scale, tw + 10 * this.scale, 14 * this.scale, 6);
+      roundRect(g, sx - tw / 2 - 4, ny - nf / 2 - 2, tw + 8, nf + 4, 4);
       g.fill();
       g.fillStyle = '#2a1a22';
       g.fillText(name, sx, ny + 0.5);
     } else if (this.goldPlate) {
-      const grad = g.createLinearGradient(0, ny - 8 * this.scale, 0, ny + 8 * this.scale);
+      const grad = g.createLinearGradient(0, ny - nf / 2 - 3, 0, ny + nf / 2 + 3);
       grad.addColorStop(0, '#fff1a8');
       grad.addColorStop(1, '#e0a92e');
       g.fillStyle = grad;
-      roundRect(g, sx - tw / 2 - 7 * this.scale, ny - 8 * this.scale, tw + 14 * this.scale, 16 * this.scale, 7);
+      roundRect(g, sx - tw / 2 - 6, ny - nf / 2 - 3, tw + 12, nf + 6, 5);
       g.fill();
       g.strokeStyle = '#7a4a12';
       g.lineWidth = 1.5;
@@ -858,13 +988,13 @@ export class Overhead {
       g.fillText(name, sx, ny + 0.5);
     } else {
       g.lineWidth = 3;
-      g.strokeStyle = 'rgba(42,26,34,0.85)';
+      g.strokeStyle = 'rgba(10,12,18,0.9)';
       g.strokeText(name, sx, ny);
       g.fillStyle = this.color(e);
       g.fillText(name, sx, ny);
     }
     if (this.watchers.has(e.id)) this.eyeGlyph(g, sx + tw / 2 + 14 * this.scale, ny);
-    let chevronY = ny - 11 * this.scale;
+    let chevronY = ny - nf / 2 - 5;
     if (e.id === this.mySlot && this.catName) {
       // the worn cat, small, above the own name (canvas text: never HTML)
       g.font = `600 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
@@ -875,7 +1005,7 @@ export class Overhead {
       g.fillStyle = '#fff3dc';
       g.fillText(this.catName, sx, cy);
       chevronY = cy - 10 * this.scale;
-      g.font = `700 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
+      g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
     }
     if (e.id === this.mySlot && this.plateGem) {
       const gx = sx + tw / 2 + 10 * this.scale;
@@ -897,7 +1027,7 @@ export class Overhead {
     if (this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
     if (p.chip) {
       // another hero's plate sits right above this one: say so (left of the level badge; status takes the right)
-      const cx = x - 2 * r - 16 * this.scale;
+      const cx = bx - 16 * this.scale;
       g.fillStyle = 'rgba(42,26,34,0.92)';
       roundRect(g, cx - 11 * this.scale, sy - 7 * this.scale, 22 * this.scale, 14 * this.scale, 6);
       g.fill();
@@ -909,7 +1039,7 @@ export class Overhead {
     if (status) {
       g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
       const tw = g.measureText(status).width + 8 * this.scale;
-      const cx = x + bw + 4 * this.scale;
+      const cx = x + bw + 6 * this.scale;
       g.fillStyle = 'rgba(255,224,102,0.95)';
       roundRect(g, cx, sy - 7 * this.scale, tw, 14 * this.scale, 6);
       g.fill();

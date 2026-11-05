@@ -16,21 +16,48 @@
 // `opacity` are written (PERF §10.5). The pool works without a DOM (node tests count nodes; nothing is drawn).
 import * as THREE from 'three';
 
+// pawlegends (LoL pass, lane C): LoL colours: what you deal white, what you take red (smaller, drifting left), shield
+// soak grey with a shield glyph, heals green "+N", heavy hits (the display-only "crit" guess) gold and bigger with "!".
+// `size` is the desktop px; `phone` the phone px (short landscape or touch).
 export const DAMAGE_STYLE = Object.freeze({
-  normal: { color: '#FFFFFF', size: 26 },
-  heavy: { color: '#FFF1C4', size: 32 },
-  crit: { color: '#FFD34D', size: 36 },
-  heal: { color: '#9BE3C4', size: 28 },
-  hurt: { color: '#FF7A3D', size: 24 },                 // pawlegends: red-orange (the team pink read as 'ours')
-  info: { color: '#F4E7C9', size: 22 },
-  word: { color: '#FFF6DA', size: 30, under: '#FF9EC0', every: 0.25 },
-  pop: { color: '#FFE066', fill: '#FFE066', stroke: '#4A2A1F', size: 40 },
+  normal: { color: '#FFFFFF', size: 18, phone: 13 },
+  heavy: { color: '#FFF1C4', size: 24, phone: 16 },
+  crit: { color: '#FFD34D', size: 32, phone: 20 },
+  heal: { color: '#7DFF8A', size: 18, phone: 13 },
+  hurt: { color: '#FF4D4D', size: 16, phone: 12 },
+  shielded: { color: '#B9C2CF', size: 16, phone: 12 },
+  info: { color: '#F4E7C9', size: 16, phone: 12 },
+  word: { color: '#FFF6DA', size: 36, phone: 24, under: '#FF9EC0', every: 0.25 },
+  pop: { color: '#FFE066', fill: '#FFE066', stroke: '#4A2A1F', size: 36, phone: 24 },
 });
+
+/** pawlegends (LoL pass): a phone (short landscape or touch): the smaller sizes, one word on screen at once. */
+export function isPhone() {
+  if (typeof document === 'undefined' || typeof window === 'undefined') return false;
+  return document.documentElement.dataset.touch === '1' || window.innerHeight <= 480;
+}
+
+/** pawlegends (LoL pass): a style's font size (px) on this screen. */
+export function styleSize(style, phone) {
+  const st = DAMAGE_STYLE[style] ?? DAMAGE_STYLE.normal;
+  return phone ? st.phone : st.size;
+}
+
+/**
+ * pawlegends (LoL pass): a number's screen motion (px) at `u` (0..1 of its life): it floats up 30 px with a slight
+ * arc sideways (`side` ±1); hits on the player drift left. Pure.
+ */
+export function numberDrift(u, side, hurt) {
+  const up = 30 * (1 - (1 - u) * (1 - u));
+  const dx = hurt ? -22 * u : side * 12 * u * u;
+  return { dx, dy: -up };
+}
 
 /** WA §5.2 / §5.3 timing and motion (s, m). */
 // pawlegends: a 0.8 s merge window (one counter per target in a teamfight) and at most `perKey` numbers per target.
-export const DAMAGE_FX = Object.freeze({ mergeWindow: 0.8, perKey: 3, bump: 1.15, life: 0.95, lifeCrit: 1.2, rise: 0.6, dx: 0.25,
-  t1: 0.06, s1: 1.35, t2: 0.14, s2: 0.95, t3: 0.2, outScale: 0.7, fade: 0.25, wordLift: 0.25, wordLife: 0.8, popLife: 0.7, popIn: 0.18, popPeak: 1.2,
+// pawlegends (LoL pass): hits on one target within 250 ms merge; a number pops to 1.2 and floats over 0.7 s.
+export const DAMAGE_FX = Object.freeze({ mergeWindow: 0.25, perKey: 3, bump: 1.15, life: 0.7, lifeCrit: 0.85, rise: 0.6, dx: 0.25,
+  t1: 0.06, s1: 1.2, t2: 0.14, s2: 0.95, t3: 0.2, outScale: 0.7, fade: 0.25, wordLift: 0.25, wordLife: 0.8, popLife: 0.7, popIn: 0.18, popPeak: 1.2,
   wordCap: 2, wordLane: 0.35, mergeMax: 1.2 });
 
 /** WA §5.3 words (display text; story may override through ctx.strings `word.<id>`). */
@@ -105,7 +132,7 @@ export function formatHeal(amount) {
 }
 
 // pawlegends: hits you take and hero-on-hero hits merge too (one counter per target in a teamfight)
-const NUMERIC = new Set(['normal', 'heavy', 'crit', 'hurt', 'info']);
+const NUMERIC = new Set(['normal', 'heavy', 'crit', 'hurt', 'info', 'shielded', 'heal']);
 const RANK = { normal: 0, heavy: 1, crit: 2 };
 
 const CSS = `
@@ -113,8 +140,10 @@ const CSS = `
 .fx-dmg{position:absolute;left:0;top:0;will-change:transform,opacity;white-space:nowrap;
   font-family:'Fredoka','SwordcatFredoka',system-ui,sans-serif;font-weight:700;line-height:1;letter-spacing:.01em;
   color:#fff;-webkit-text-stroke:5px #4A2A1F;paint-order:stroke fill;text-shadow:0 3px 0 #4A2A1F;opacity:0}
-.fx-dmg.crit::after{content:'\\2726';position:absolute;right:-.62em;top:-.42em;font-size:.62em;color:#FFF1C4;
-  -webkit-text-stroke:3px #A87C32;animation:fxdmgtw .3s ease-in-out infinite alternate}
+.fx-dmg.crit::after{content:'!';margin-left:.04em;color:#FFD34D}
+.fx-dmg.shielded::before{content:'';display:inline-block;width:.78em;height:.9em;margin-right:.14em;vertical-align:-.08em;
+  background:#B9C2CF;border:2px solid #22262e;border-radius:.1em .1em .45em .45em}
+html[data-touch='1'] .fx-dmg,.fx-dmg.ph{-webkit-text-stroke-width:3px;text-shadow:0 2px 0 #4A2A1F}
 .fx-dmg.word{-webkit-text-stroke:4px #4A2A1F;text-shadow:0 4px 0 #FF9EC0}
 .fx-dmg.pop{-webkit-text-stroke:6px #4A2A1F;text-shadow:0 4px 0 #4A2A1F;letter-spacing:.03em}
 @keyframes fxdmgtw{from{transform:scale(.7) rotate(-12deg)}to{transform:scale(1.15) rotate(12deg)}}`;
@@ -193,9 +222,10 @@ export class DamageNumbers {
     if (!el) return;
     const st = DAMAGE_STYLE[style] ?? DAMAGE_STYLE.normal;
     el.textContent = text;
-    el.className = style === 'crit' ? 'fx-dmg crit' : style === 'word' ? 'fx-dmg word' : style === 'pop' ? 'fx-dmg pop' : 'fx-dmg';
+    const ph = isPhone(); // pawlegends (LoL pass): phone sizes
+    el.className = (style === 'crit' || style === 'word' || style === 'pop' || style === 'shielded' ? `fx-dmg ${style}` : 'fx-dmg') + (ph ? ' ph' : '');
     el.style.color = st.color;
-    el.style.fontSize = st.size + 'px';
+    el.style.fontSize = (ph ? st.phone : st.size) + 'px';
   }
 
   /**
@@ -216,7 +246,7 @@ export class DamageNumbers {
         if ((n.age ?? 0) > DAMAGE_FX.mergeMax) continue;
         n.value += value; n.hitT = now; n.bump = 1;
         n.t = Math.min(n.t, DAMAGE_FX.t3);                 // keep it alive and big
-        if ((RANK[style] ?? 0) > (RANK[n.style] ?? 0)) { n.style = style; n.size = DAMAGE_STYLE[style].size; this._paint(n, String(Math.round(n.shownValue)), style); }
+        if ((RANK[style] ?? 0) > (RANK[n.style] ?? 0)) { n.style = style; n.size = styleSize(style, isPhone()); this._paint(n, String(Math.round(n.shownValue)), style); }
         this.merged++;
         return n;
       }
@@ -241,7 +271,8 @@ export class DamageNumbers {
     // pawlegends: numbers still rising on the same target stack upward instead of on top of each other.
     n.stack = key == null ? 0 : this.pool.reduce((c, o) => c + (o !== n && o.active && o.kind === 'num' && o.key === key ? 1 : 0), 0) % 4;
     n.rise = iso && style === 'heal' ? DAMAGE_ISO.riseHeal : DAMAGE_FX.rise;
-    n.size = (DAMAGE_STYLE[style] ?? DAMAGE_STYLE.normal).size;
+    n.size = styleSize(style, isPhone());
+    n.side = this._side; // pawlegends (LoL pass): the arc's side (screen px drift)
     this._paint(n, text, style);
     return n;
   }
@@ -265,7 +296,7 @@ export class DamageNumbers {
     const cam = this.ctx.camera;
     if (cam?.matrixWorld) { this._lane = -this._lane; _r.setFromMatrixColumn(cam.matrixWorld, 0); n.pos.addScaledVector(_r, DAMAGE_FX.wordLane * this._lane); }
     n.t = 0; n.kind = 'word'; n.active = true; n.key = null; n.style = 'word'; n.life = DAMAGE_FX.wordLife; n.dx = 0; n.rise = 0.35;
-    n.size = DAMAGE_STYLE.word.size; n.value = NaN; n.bump = 0; n.fun = false;
+    n.size = styleSize('word', isPhone()); n.value = NaN; n.bump = 0; n.fun = false;
     this._paint(n, text, 'word');
     n.hw = n.el ? (n.el.offsetWidth || 0) / 2 : 0; // pawlegends: half width for the screen clamp
     return true;
@@ -281,13 +312,13 @@ export class DamageNumbers {
     const text = this._str(`pop.${id}`) ?? POPS[id] ?? String(id);
     if (!text) return false;
     if (fun) {
-      if (this._gameTexts() >= DAMAGE_FX.wordCap) return false;
+      if (this._gameTexts() >= this._wordCap()) return false;
       for (const o of this.pool) if (o.active && o.fun) { o.active = false; o.fun = false; if (o.el) o.el.style.opacity = '0'; }
     } else this._capTexts();
     this.shown++; this.pops++;
     const n = this._take();
     n.pos.copy(pos); n.t = 0; n.kind = 'pop'; n.active = true; n.key = null; n.style = 'pop'; n.life = DAMAGE_FX.popLife; n.dx = 0; n.rise = DAMAGE_FX.rise;
-    n.size = DAMAGE_STYLE.pop.size; n.value = NaN; n.bump = 0; n.fun = fun;
+    n.size = styleSize('pop', isPhone()); n.value = NaN; n.bump = 0; n.fun = fun;
     this._paint(n, text, 'pop');
     // pawlegends: its half width (px, at scale 1), measured once, keeps the whole word inside the screen (render())
     n.hw = n.el ? (n.el.offsetWidth || 0) / 2 : 0;
@@ -311,8 +342,11 @@ export class DamageNumbers {
   get texts() { let k = 0; for (const n of this.pool) if (n.active && (n.kind === 'word' || n.kind === 'pop')) k++; return k; }
 
   /** TT5: make room for one more word / pop (retire the oldest while DAMAGE_FX.wordCap are up). */
+  /** pawlegends (LoL pass): words and pops on screen at once: 1 on a phone, DAMAGE_FX.wordCap on desktop. */
+  _wordCap() { return isPhone() ? 1 : DAMAGE_FX.wordCap; }
+
   _capTexts() {
-    for (let guard = 0; guard < MAX && this.texts >= DAMAGE_FX.wordCap; guard++) {
+    for (let guard = 0; guard < MAX && this.texts >= this._wordCap(); guard++) {
       let old = null;
       // pawlegends: a fun pop goes first (it never costs a gameplay word its place)
       for (const n of this.pool) if (n.active && n.fun) { old = n; break; }
@@ -336,6 +370,7 @@ export class DamageNumbers {
   render(dt) {
     if (!this._any()) return;
     this._touch = typeof document !== 'undefined' && document.documentElement.dataset.touch === '1'; // pawlegends
+    this._phone = isPhone();
     const cam = this.ctx.camera, hasDom = !!this.layer;
     const w = hasDom ? window.innerWidth : 1, h = hasDom ? window.innerHeight : 1;
     const iso = this._iso(), dist = iso ? (this.ctx.cam?.distance ?? cam.position.distanceTo(this.ctx.cam?.focus ?? cam.position)) : 0;
@@ -358,16 +393,21 @@ export class DamageNumbers {
       const u = n.t / n.life;
       const c = n.kind === 'pop' ? popCurve(n.t) : n.kind === 'word' ? numberCurve(n.t, n.life) : numberCurve(n.t, n.life);
       const rise = n.rise * (1 - (1 - u) * (1 - u));
-      _p.copy(n.pos); _p.y += rise + (n.kind === 'num' ? (n.stack ?? 0) * 0.34 : 0); // pawlegends: stack offset
-      if (n.dx) _p.addScaledVector(_r, n.dx * u);
+      const num = n.kind === 'num';
+      // pawlegends (LoL pass): numbers float in screen px (numberDrift), words and pops keep the world rise
+      _p.copy(n.pos); _p.y += (num ? 0 : rise) + (num ? (n.stack ?? 0) * 0.34 : 0); // pawlegends: stack offset
+      if (n.dx && !num) _p.addScaledVector(_r, n.dx * u);
       _p.project(cam);
       if (_p.z > 1 || _p.z < -1) { n.el.style.opacity = '0'; continue; }
       // pawlegends: a number whose anchor is off screen is hidden (it used to be pinned to the
       // border and piled up in the corners); one whose anchor is on screen is kept inside it
       // (a word at the edge was cut in half on a phone).
-      const sx = (_p.x * 0.5 + 0.5) * w, sy = (-_p.y * 0.5 + 0.5) * h;
+      let sx = (_p.x * 0.5 + 0.5) * w, sy = (-_p.y * 0.5 + 0.5) * h;
+      if (num) { const d = numberDrift(u, n.side ?? 1, n.style === 'hurt'); sx += d.dx; sy += d.dy; }
       if (!onScreenAnchor(sx, sy, w, h)) { n.el.style.opacity = '0'; continue; }
-      const s = c.scale * (1 + (DAMAGE_FX.bump - 1) * n.bump) * (iso ? isoNumberScale(n.size ?? 26, dist) : 1);
+      // pawlegends (LoL pass): on a phone the camera zoom never grows a number past its phone size
+      const isoK = iso ? isoNumberScale(n.size ?? 26, dist) : 1;
+      const s = c.scale * (1 + (DAMAGE_FX.bump - 1) * n.bump) * (this._phone ? Math.min(1, isoK) : isoK);
       // pawlegends: words and pops are clamped by their own drawn half width (feel QA: "STRIKE!" was cut at the right
       // edge), and on touch they stay above the thumb controls ("CLANK!" drew under the ability buttons)
       const text = n.kind !== 'num';
