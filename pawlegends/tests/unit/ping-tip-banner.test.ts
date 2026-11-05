@@ -33,11 +33,12 @@ describe('ftue-2: banner hold and on-screen state', () => {
   it('an overflow drop leaves the banner neither queued nor showing (the session queues it again)', () => {
     const j = new Juice(document.body);
     j.banner({ title: 'Tell your team what to do', hold: 5.5 });
-    // LoL pass (lane A): the tip is a prio 4 rail note; four more important notes fill the queue (cap 4) and drop it
+    // LoL pass (lane A): the tip is a prio 4 rail note; five more important notes fill the queue (cap 5) and drop it
     j.banner({ title: 'A' });
     j.banner({ title: 'B' });
     j.banner({ title: 'C' });
     j.banner({ title: 'D' });
+    j.banner({ title: 'E' });
     expect(j.queued('Tell your team what to do')).toBe(false);
     expect(j.showing).toBe('');
     j.dispose();

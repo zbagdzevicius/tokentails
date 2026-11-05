@@ -160,6 +160,9 @@ html[data-touch='1'] .tt-respawn { --tt-w: 40px; --tt-big: 1; top: calc(8px + va
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
   html[data-touch='1'] .tt-respawn { left: calc(8px + 46px + 20px + var(--safe-l, 0px)); top: calc(6px + var(--safe-t, 0px)); }
 }
+/* QA v2 #3: phones hide the face-down card while out (it covered the HP bar and its number; the grey portrait shows the
+   seconds and the rail says "Back in N"); it shows only for the flip-up, over the portrait (reveal.ts overPortrait) */
+html[data-touch='1'] .tt-respawn.on:not(.up) { opacity: 0; visibility: hidden; }
 
 /* ------------------------------------------------------------------------------------- reduced motion */
 .tt-calm .tt-flip-in, .tt-reveal.calm .tt-flip-in, .tt-respawn.calm .tt-flip-in, .tt-vs.calm .tt-flip-in { transform: none; transition: none; }

@@ -65,11 +65,14 @@ export interface RailState {
 }
 
 export const NOTE_TTL: Readonly<Record<NotePrio, number>> = Object.freeze({ 0: 2400, 1: 2000, 2: 2000, 3: 1200, 4: 3000 });
-/** A prio 2 note shows this long when more wait behind it. */
+/** A prio 1-2 note shows this long when more wait behind it (prio 0: NOTE_TTL_BUSY0). */
 export const NOTE_TTL_BUSY = 1400;
+export const NOTE_TTL_BUSY0 = 1800;
+/** A big announcer note (First Blood, ACE, a multikill, a tower) waits this long before it is stale (QA v2 #8). */
+export const NOTE_STALE_BIG = 5000;
 /** A note waiting longer than this in the queue is dropped (Infinity: never). Divided by the match speed. */
 export const NOTE_STALE: Readonly<Record<NotePrio, number>> = Object.freeze({ 0: Infinity, 1: 1500, 2: 3000, 3: 2000, 4: 6000 });
-export const QUEUE_CAP = 4;
+export const QUEUE_CAP = 5;
 /** A more important note replaces the one on screen once that one has been up this long (or is 2+ prio levels lower). */
 export const PREEMPT_AFTER_MS = 400;
 /** A replaced note goes back to the queue when it had more than this left. */
@@ -128,12 +131,15 @@ export class NoteQueue {
     this.q.push(item);
     this.sort();
     while (this.q.length > QUEUE_CAP) {
-      // drop the least important (highest prio number), the oldest of those
+      // drop the least important (highest prio number); among those a plain note before a big announcer one (QA v2
+      // #8: a burst dropped the ACE, the oldest prio 2 note), then the oldest
       let k = 0;
       for (let j = 1; j < this.q.length; j++) {
         const a = this.q[j];
         const b = this.q[k];
-        if (a.n.prio > b.n.prio || (a.n.prio === b.n.prio && a.at < b.at)) k = j;
+        const ab = a.n.big ? 1 : 0;
+        const bb = b.n.big ? 1 : 0;
+        if (a.n.prio > b.n.prio || (a.n.prio === b.n.prio && (ab < bb || (ab === bb && a.at < b.at)))) k = j;
       }
       this.q.splice(k, 1);
     }
@@ -170,7 +176,7 @@ export class NoteQueue {
 
   tick(now: number): RailState {
     const sp = Math.max(1, this.speed);
-    this.q = this.q.filter((q) => now - q.at <= (q.n.stale ?? NOTE_STALE[q.n.prio]) / sp);
+    this.q = this.q.filter((q) => now - q.at <= this.staleOf(q.n) / sp);
     if (this.main && now >= this.main.until) this.main = null;
     if (this.second && now >= this.second.until) this.second = null;
     const ok = (p: NotePrio): boolean => !this.hold || p <= 1;
@@ -180,7 +186,7 @@ export class NoteQueue {
       const m = this.main;
       if (now - m.shownAt >= PREEMPT_AFTER_MS || m.n.prio - head.n.prio >= 2) {
         const left = m.until - now;
-        const fresh = now - m.at <= (m.n.stale ?? NOTE_STALE[m.n.prio]) / sp;
+        const fresh = now - m.at <= this.staleOf(m.n) / sp;
         this.main = null;
         if (left > REQUEUE_MIN_LEFT_MS && fresh) {
           const firstOfGroup = this.q.find((q) => q.n.prio === m.n.prio);
@@ -214,13 +220,19 @@ export class NoteQueue {
 
   private show(it: Item, now: number): Item {
     this.q.splice(this.q.indexOf(it), 1);
-    const ttl = it.left ?? (it.n.ttl ?? (it.n.prio === 2 && this.q.length ? NOTE_TTL_BUSY : NOTE_TTL[it.n.prio]));
+    // more waiting: prio 0-2 notes take turns faster (QA v2 #8: a one-line phone rail held the first note 2.4 s)
+    const busy = this.q.length > 0 && it.n.prio <= 2 ? (it.n.prio === 0 ? NOTE_TTL_BUSY0 : NOTE_TTL_BUSY) : 0;
+    const ttl = it.left ?? it.n.ttl ?? (busy || NOTE_TTL[it.n.prio]);
     it.left = undefined;
     it.id = ++this.seq;
     it.shownAt = now;
     it.until = now + ttl;
     this.lastShown.set(it.key, now);
     return it;
+  }
+
+  private staleOf(n: Note): number {
+    return n.stale ?? (n.big && n.prio === 2 ? NOTE_STALE_BIG : NOTE_STALE[n.prio]);
   }
 
   private ttlOf(n: Note): number {

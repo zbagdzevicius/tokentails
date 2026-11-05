@@ -55,10 +55,21 @@ import { CoreLog, endCause, type CoreSource } from './endCause';
 import { TalentPicker } from '../ui/talents';
 
 /** LoL pass (lane B): the end crest shows this long after the core falls (the camera eases there first), holds
- * CREST_HOLD_MS, and the results wait CREST_EXTRA_MS longer than RESULTS_AFTER_END_MS for it (≤ 2.5 s added). */
+ * CREST_HOLD_MS (QA v2 #4: 1.6 s was too short to read), and the results wait CREST_EXTRA_MS longer than
+ * RESULTS_AFTER_END_MS for it (1.58 s added). */
 const CREST_AT_MS = 900;
-const CREST_HOLD_MS = 1600;
+const CREST_HOLD_MS = 2400;
 const CREST_EXTRA_MS = Math.max(0, CREST_AT_MS + CREST_HOLD_MS + 480 - RESULTS_AFTER_END_MS);
+/**
+ * QA v2 #2: how often each coaching line may show in one match (the dive warning showed 15-25 times a match, lane help
+ * 8 times). After that the player has heard it; the arrow and the ring still teach.
+ */
+const COACH_MAX: Readonly<Record<string, number>> = { dive: 3, 'lane-help': 3, 'cant-go': 2, tower: 4, comeback: 2 };
+/** QA v2 #2: a COMEBACK / "They are rallying" line at most once per this long (ms of match time). */
+const COMEBACK_GAP_MS = 60000;
+/** QA v2 #13: no lane help before this match clock (s): it fired at "Go!" and named two lanes in a few seconds. */
+const LANE_HELP_FROM_S = 40;
+
 /** LoL pass (lane B): the rail badge for big announcer lines that have no portrait (a gold crest). */
 const LOL_CREST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.4l-5.3 2.7 1-5.8L3.5 8.2l5.9-.9z"/></svg>';
 
@@ -836,6 +847,19 @@ export class MatchSession {
   private wasDead = false;
   private usedUlt = false;
   private alertAt = -1e9;
+  /** QA v2 #2: coaching lines said this match, per key (COACH_MAX). */
+  private readonly coachN = new Map<string, number>();
+  private comebackAt = -1e9;
+  /** QA v2 #13: the lane the last lane help named, and when (it stays the same lane for 30 s). */
+  private laneSaid: { lane: string; at: number } | null = null;
+
+  /** May the coaching line `key` show once more this match? Counts it when yes. */
+  private coach(key: string): boolean {
+    const n = this.coachN.get(key) ?? 0;
+    if (n >= (COACH_MAX[key] ?? Infinity)) return false;
+    this.coachN.set(key, n + 1);
+    return true;
+  }
   /** Who hurt the player lately (render ms), for the death recap. */
   private hurtBy: { name: string; tower: boolean; at: number }[] = [];
 
@@ -903,6 +927,7 @@ export class MatchSession {
     const now = performance.now();
     if (now - this.alertAt < 6000) return;
     this.alertAt = now;
+    if (!this.coach('tower')) return;
     this.towerAlert(
       'tower',
       lockOn ? 'Tower aiming at you!' : 'Tower is hitting you!',
@@ -910,9 +935,13 @@ export class MatchSession {
     );
   }
 
-  /** LoL pass (lane A): the red tower or dive alert is a prio 1 note on the top rail (never over the field). */
+  /**
+   * LoL pass (lane A): the red tower or dive alert is a note on the top rail (never over the field). The tower hitting
+   * you is danger (prio 1); the dive warning is advice (prio 2, QA v2 #2: it cut in on First Blood and slain lines).
+   */
   private towerAlert(key: 'tower' | 'dive', title: string, sub: string): void {
-    this.view.juice.push({ key, title, sub, tone: 'bad', prio: 1, icon: TOWER_GLYPH, ttl: 2400 / Math.max(1, this.buffer.speed), cooldown: 6000 / Math.max(1, this.buffer.speed) });
+    const sp = Math.max(1, this.buffer.speed);
+    this.view.juice.push({ key, title, sub, tone: 'bad', prio: key === 'dive' ? 2 : 1, icon: TOWER_GLYPH, ttl: 2000 / sp, cooldown: 6000 / sp, ...(key === 'dive' ? { stale: 1500 } : {}) });
     sfx.play('click', { vol: 0.5, rate: 0.6 });
   }
 
@@ -1118,6 +1147,12 @@ export class MatchSession {
       if (r.width > 0 && r.height > 0 && r.top < window.innerHeight / 3) rects.push({ left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 });
     }
     this.overhead.hudRects = rects;
+    const side: typeof rects = [];
+    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-minimap, .pl-strip, .pl-feed')) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0) side.push({ left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 });
+    }
+    this.overhead.sideRects = side;
   }
 
   /** Round 2: the results card's "why" line (app/endCause.ts). */
@@ -1231,6 +1266,12 @@ export class MatchSession {
         if (at) j.bark(m.title, at.x, at.y - 10, 'good');
         continue;
       }
+      // QA v2 #2: COMEBACK / "They are rallying" at most once a minute and COACH_MAX.comeback times a match
+      if (m.key === 'comeback' || m.key === 'comebackThem') {
+        const t = performance.now();
+        if (t - this.comebackAt < COMEBACK_GAP_MS / Math.max(1, this.buffer.speed) || !this.coach('comeback')) continue;
+        this.comebackAt = t;
+      }
       // LoL pass (lane B): a multikill, an Ace or a takedown makes a queued "An ally has been slain" moot
       if (m.key.startsWith('multi') || m.key === 'ace' || m.key === 'takedown' || m.key === 'allyTakedown') j.notify.drop('ally-slain');
       if (m.size === 'banner' && (m.big || m.face !== undefined)) {
@@ -1260,6 +1301,8 @@ export class MatchSession {
       if (m.shake) j.kick(m.shake);
       if (m.crowd) sfx.play(m.crowd, { vol: m.crowd === 'roar' ? 0.9 : 0.75 });
       if (m.key.startsWith('combo') || m.key.startsWith('multi')) sfx.play('sting', { rate: m.key.startsWith('multi') ? 1.2 : 1 });
+      // QA v2 #9: a big announcer line with no voice of its own gets a soft sting, like LoL's banners
+      else if (m.size === 'banner' && m.big && !m.voice) sfx.play('sting', { vol: 0.5, rate: 1.1 });
       if (m.key.startsWith('multi') || m.key === 'firstBlood' || m.key === 'shutdown') j.flash('gold');
       if (m.key === 'frenzySpawn') {
         for (const p of this.view.pickups.list()) if (p.kind === 'frenzy') this.minimap.ping(p.x, p.y, '#7dff8a', 3000);
@@ -1764,7 +1807,8 @@ export class MatchSession {
     } else if (now - this.stuckFrom > 2000 / sp && now - this.stuckSaidAt > STUCK_REPEAT_MS / sp) {
       this.stuckSaidAt = now;
       if (nearFountain) this.overhead.fountainPulse();
-      this.view.juice.banner(nearFountain ? { title: "Enemy fountain: you can't go in", sub: 'Back to the lane! Follow the arrow.', tone: 'info' } : { title: "Can't go that way", sub: 'Back to the lane: follow the arrow.', tone: 'info' });
+      if (this.coach('cant-go'))
+        this.view.juice.banner(nearFountain ? { title: 'No entry: enemy fountain', sub: 'Back to the lane! Follow the arrow.', tone: 'info' } : { title: "Can't go that way", sub: 'Back to the lane: follow the arrow.', tone: 'info' });
       this.pointToLane(frame, now + 5000 / sp);
     }
     // Round 2: 10 s of no progress (held into the trees, or walking circles) brings the lane prompt, not only 45 s
@@ -1774,11 +1818,18 @@ export class MatchSession {
     }
     // (a veteran waiting in a bush is left alone: only new players, or a hero that keeps walking without getting anywhere)
     const noProgress = (this.setup.newPlayer || me.state === 'moving') && frame.latest.clock.seconds > 20 && now - this.progressAt.t > 10000 / sp;
-    if ((noProgress || (frame.latest.clock.seconds > 60 && now - this.lastUseful > 45000 / sp)) && now - this.idleSaidAt > (noProgress ? 15000 : 60000) / sp) {
+    if (
+      frame.latest.clock.seconds > LANE_HELP_FROM_S &&
+      (noProgress || (frame.latest.clock.seconds > 60 && now - this.lastUseful > 45000 / sp)) &&
+      now - this.idleSaidAt > (noProgress ? 15000 : 60000) / sp
+    ) {
       this.idleSaidAt = now;
       this.lastUseful = now;
-      const lane = this.pointToLane(frame, now + 8000 / sp);
-      this.view.juice.banner({ title: `Your team needs you in ${lane}`, sub: 'Follow the arrow to the fight.', tone: 'info' });
+      let lane = this.pointToLane(frame, now + 8000 / sp);
+      // the same lane for 30 s: it named Puddle Lane, then Sunny Lane, within seconds
+      if (this.laneSaid && now - this.laneSaid.at < 30000 / sp) lane = this.laneSaid.lane;
+      else this.laneSaid = { lane, at: now };
+      if (this.coach('lane-help')) this.view.juice.banner({ title: `Help in ${lane}!`, sub: 'Your team needs you: follow the arrow.', tone: 'info' });
     }
     if (this.laneArrow && now > this.laneArrowUntil) this.laneArrow = null;
     if (this.setup.newPlayer) this.diveWarn(me, team, now, sp);
@@ -1800,11 +1851,13 @@ export class MatchSession {
       if (!ahead) {
         this.riverSaidAt = now;
         this.diveSaidAt = now;
-        this.towerAlert('dive', 'Too far ahead of your minions!', 'Past the river alone, enemy heroes jump you. Wait for your wave.');
+        if (this.coach('dive')) this.towerAlert('dive', 'Too far ahead!', 'Past the river alone, heroes jump you. Wait for your wave.');
         return;
       }
     }
-    if (now - this.diveSaidAt < 8000 / sp) return;
+    // QA v2 #2: at most COACH_MAX.dive a match, and further apart each time (8 s, 24 s, 40 s)
+    if (now - this.diveSaidAt < (8000 + 16000 * (this.coachN.get('dive') ?? 0)) / sp) return;
+    if ((this.coachN.get('dive') ?? 0) >= COACH_MAX.dive) return;
     const reach = TOWERS.outer.range + 2000;
     for (const t of this.units) {
       if ((t.kind !== 'tower' && t.kind !== 'core') || t.team === team || t.team === 2 || t.state === 'dead') continue;
@@ -1812,7 +1865,7 @@ export class MatchSession {
       const tanked = this.units.some((u) => u.kind === 'minion' && u.team === team && u.state !== 'dead' && Math.hypot(u.x - t.x, u.y - t.y) < TOWERS.outer.range);
       if (tanked) return;
       this.diveSaidAt = now;
-      this.towerAlert('dive', 'Too far ahead of your minions!', 'That tower hits hard. Wait for your wave to walk in first.');
+      if (this.coach('dive')) this.towerAlert('dive', 'Too far ahead!', 'That tower hits hard. Let your wave walk in first.');
       return;
     }
   }

@@ -32,8 +32,9 @@ export interface Banner {
 
 /** Info texts that repeat (lane help, walls, the ping and trackpad tips): rail prio 4, one per key per cooldown. */
 const INFO: readonly { re: RegExp; key: string; cooldown: number }[] = [
-  { re: /^Your team needs you in /, key: 'lane-help', cooldown: 8000 },
-  { re: /^Can't go that way$|^Enemy fountain: you can't go in$/, key: 'cant-go', cooldown: 8000 },
+  // QA v2 #2: lane help and the wall line repeated all match; matchSession also caps them per match (COACH_MAX)
+  { re: /^Your team needs you in |^Help in .+!$/, key: 'lane-help', cooldown: 20000 },
+  { re: /^Can't go that way$|^Enemy fountain: you can't go in$|^No entry: enemy fountain$/, key: 'cant-go', cooldown: 12000 },
   { re: /^Tell your team what to do$/, key: 'Tell your team what to do', cooldown: 8000 },
   { re: /^Trackpad mode: click to move$/, key: 'trackpad', cooldown: 60000 },
 ];
@@ -81,6 +82,18 @@ const isPhone = (): boolean => {
     return false;
   }
 };
+
+/**
+ * QA v2 #10: the lowest a pop may start under the top rail (px): a pop rises ~1.5 × its height, so one that starts near
+ * the top drifted into the rail line ("+162 XP" over it at 844 × 390). Only under the rail's span; 0 elsewhere.
+ */
+export function popFloor(x: number, phone: boolean, w = typeof window !== 'undefined' ? window.innerWidth : 1440, h = typeof window !== 'undefined' ? window.innerHeight : 900): number {
+  const small = w < 700 || (w < 844 && h <= 380);
+  const half = phone ? (small ? 105 : Math.min(180, Math.max(100, (w - 480) / 2))) : 320;
+  if (Math.abs(x - w / 2) > half + 40) return 0;
+  const railBottom = phone ? (small ? 70 : 84) : 160;
+  return railBottom + (phone ? 30 : 40);
+}
 
 export class Juice {
   readonly shake = new CameraShake({ decay: 1.8, pitch: 0.035, yaw: 0.03, roll: 0.025, pos: 0.25, kick: 0.22 });
@@ -208,8 +221,9 @@ export class Juice {
     el.className = `pl-pop tone-${tone}${big ? ' big' : ''}`;
     el.textContent = text;
     const side = phone ? 30 : 46;
-    el.style.left = `${Math.round(x + (k % 2 ? side : -side) * Math.min(1, k))}px`;
-    el.style.top = `${Math.round(y - k * (phone ? 20 : 26))}px`;
+    const px = Math.round(x + (k % 2 ? side : -side) * Math.min(1, k));
+    el.style.left = `${px}px`;
+    el.style.top = `${Math.round(Math.max(y - k * (phone ? 20 : 26), popFloor(px, phone)))}px`;
     layer.appendChild(el);
     setTimeout(() => el.remove(), 1200);
   }
