@@ -64,3 +64,23 @@ export function verifyReplay(record: unknown): VerifyResult {
   if (res.finalHash !== r.finalHash) return fail('PAWLEGENDS_HASH_MISMATCH', 'final hash differs');
   return { ok: true, outcome: res.outcome, finalHash: res.finalHash, ticks: res.ticks, stats: res.stats, reason: res.reason };
 }
+
+// ---------------------------------------------------------------------------------------------------------------
+// Party play (docs/plans/moba/MULTIPLAYER.md §1, §3.3): the party verifier, and the live-match API the relay's
+// referee worker steps rooms with (createMatch / step / hash / pilots). Additive: verifyReplay above is unchanged.
+export {
+  PARTY_SINCE,
+  checkPartyShape,
+  fillPicksParty,
+  isHuman,
+  partyLog,
+  partyReplayRecord,
+  runPartyReplay,
+  verifyPartyReplay,
+  createPlayerBotFor,
+} from './party';
+export { createMatch, step, hash, hashTrail, result, tickOf, fillPicks, playerBotCommands, PLAYER_PROFILES, DIFFICULTIES } from './index';
+export { decodeCommand, encodeCommand, quantize, encodeStream, decodeStream, toBase64, fromBase64, DecodeError } from './commands';
+export { Op, NO_TARGET, type PartyReplayRecord, type PartySeat, type Command, type TimedCommand } from './api';
+export { HERO_IDS } from '../data/heroes';
+export { TRICK_IDS } from '../data/tricks';

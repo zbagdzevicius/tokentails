@@ -4,7 +4,8 @@
  * ticks) and the results must be identical. Bundled for Node by tools/determinism.mjs and tests/unit/determinism.test.ts.
  */
 import { Op, type Command, type Difficulty, type HeroId, type TrickId } from '../../src/sim/api';
-import { createMatch, fillPicks, hashTrail, replayRecord, result, step, tickOf } from '../../src/sim/index';
+import { createMatch, createPlayerBotFor, fillPicks, hashTrail, playerBotCommands, replayRecord, result, step, tickOf } from '../../src/sim/index';
+import { fillPicksParty, partyReplayRecord, runPartyReplay } from '../../src/sim/party';
 import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
@@ -93,4 +94,62 @@ export function fuzzMatch(seed: number): FuzzResult {
   for (let i = 0; i < Math.max(a.length, b.length) && firstDiff < 0; i++) if (a[i] !== b[i]) firstDiff = i;
   const same = run.result !== null && JSON.stringify(run.result) === JSON.stringify(res);
   return { seed, hero, difficulty, ticks: res.ticks, commands, ok: firstDiff < 0 && same, firstDiff, finalHash: res.finalHash, inputChars: rec.inputs.length };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Party play mode-flip fuzz (docs/plans/moba/MULTIPLAYER.md §1.5): humans [0, 1, 2]; each slot switches between a
+// pilot (createPlayerBotFor, as the relay's referee flies a dropped human) and a random "human" stream at random
+// turns (2 ticks). Recorded as a PartyReplayRecord and replayed from it; trails must match. Node vs the browser
+// Worker and the inline path compare `fuzzPartyFinal` (tests/e2e/determinism-browser.spec.ts).
+
+export interface PartyFuzzOptions {
+  party: true;
+  flips: boolean;
+}
+
+export function fuzzPartyPlay(seed: number, opts: PartyFuzzOptions = { party: true, flips: true }) {
+  const r = new Rng(seed ^ 0x9a27);
+  const difficulty = LEVELS[r.int(LEVELS.length)];
+  const cats: HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess'];
+  const seats = [0, 1, 2].map((slot) => ({ slot, hero: cats[(fuzzIndex(seed) + slot * 2) % cats.length], trick: TRICKS[r.int(TRICKS.length)] }));
+  const { picks, tricks } = fillPicksParty(seed, seats);
+  const m = createMatch({ seed, picks, tricks, difficulty, humans: [0, 1, 2] });
+  const profiles = ['normal', 'normal', 'easy'] as const;
+  const pilots = [0, 1, 2].map((s) => createPlayerBotFor(m, profiles[s], s));
+  const piloted = [r.int(2) === 0, r.int(2) === 0, r.int(2) === 0];
+  let flips = 0;
+  while (!result(m)) {
+    const t = tickOf(m);
+    if (opts.flips && t % 2 === 0 && r.int(300) === 0) {
+      const s = r.int(3);
+      piloted[s] = !piloted[s];
+      flips++;
+    }
+    const out: Command[][] = [[], [], []];
+    for (let s = 0; s < 3; s++) {
+      // A pilot must be asked every tick it runs, so its memory follows the match (the relay does the same).
+      const cmds = playerBotCommands(m, pilots[s]);
+      if (piloted[s]) out[s] = cmds;
+      else {
+        const c = randomCommand(r, 900);
+        if (c) out[s].push(c);
+      }
+    }
+    step(m, out[0], out);
+  }
+  return { match: m, flips, result: result(m)!, trail: foldTrail(hashTrail(m)) };
+}
+
+export function fuzzPartyFinal(seed: number): { seed: number; finalHash: string; trail: string; ticks: number; flips: number } {
+  const p = fuzzPartyPlay(seed);
+  return { seed, finalHash: p.result.finalHash, trail: p.trail, ticks: p.result.ticks, flips: p.flips };
+}
+
+/** Play, record, replay: true when the trails and results match. */
+export function fuzzPartyMatch(seed: number): { seed: number; ok: boolean; finalHash: string; flips: number } {
+  const p = fuzzPartyPlay(seed);
+  const rec = partyReplayRecord(p.match)!;
+  const run = runPartyReplay(rec);
+  const ok = run.result !== null && run.result.finalHash === p.result.finalHash && foldTrail(run.trail) === p.trail;
+  return { seed, ok, finalHash: p.result.finalHash, flips: p.flips };
 }

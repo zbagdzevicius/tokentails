@@ -10,7 +10,8 @@
  */
 import { HERO_IDS, HEROES, RANK_KEYS, RANK_LEVELS, type AbilitySlot } from '../../data/heroes';
 import { XP } from '../../data/xp';
-import { HUMAN_SLOT, type BotTalentMode } from '../api';
+import { type BotTalentMode } from '../api';
+import { isHumanSlot } from '../humans';
 import { idiv, imod } from '../fixed';
 import { Rng } from '../rng';
 import type { MatchHandle } from '../state';
@@ -179,5 +180,6 @@ export const botTalentMode = (m: MatchHandle): BotTalentMode => m.config.botTale
 export function offerTalent(m: MatchHandle, id: number, tier: number): void {
   const w = m.world;
   m.events.push({ type: 'talentOffer', tick: w.globals[G.Tick], slot: id, tier: tier as 0 | 1 | 2 });
-  if (id !== HUMAN_SLOT) chooseTalent(m, id, tier, botTalentChoice(m.config.seed, id, tier, botTalentMode(m)));
+  // Party play: every human's slot picks talents by command (Op.Talent), never automatically.
+  if (!isHumanSlot(m.world, id)) chooseTalent(m, id, tier, botTalentChoice(m.config.seed, id, tier, botTalentMode(m)));
 }

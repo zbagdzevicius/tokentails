@@ -22,6 +22,7 @@ import { noviceThink } from './novice';
 import { stepLaneSwap } from './orders';
 import { createPingerMem, pingerPing, type PingerMem } from './pinger';
 import { naiveThink } from './naive';
+import { isHumanSlot } from '../humans';
 
 export { pushLane } from './brain';
 export { applyPing, laneRole, orderOf } from './orders';
@@ -56,7 +57,8 @@ export function stepBots(m: MatchHandle): void {
   const tick = w.globals[G.Tick];
   let mem: BotMem | null = null;
   for (let slot = RANGE.heroes; slot < RANGE.minions; slot++) {
-    if (slot === HUMAN_SLOT || !thinksNow(tick, slot)) continue;
+    // Party play: a human's slot (slot 0, and slots 1 and 2 in a party) is never driven from inside the sim.
+    if (isHumanSlot(w, slot) || !thinksNow(tick, slot)) continue;
     mem ??= worldMem(w);
     const cmd = think(m, slot, botParams(m, slot), mem, w.rng);
     if (cmd) applyOrder(m, slot, quantize(cmd));
@@ -74,7 +76,21 @@ export interface PlayerBot {
 }
 
 export function createPlayerBot(m: MatchHandle, profile: PlayerProfile): PlayerBot {
-  return { profile, slot: HUMAN_SLOT, mem: createMem(), rng: new Rng(m.config.seed >>> 0).fork(`player-bot:${profile === "pinger" ? "normal" : profile}`), pings: createPingerMem() };
+  return createPlayerBotFor(m, profile, HUMAN_SLOT);
+}
+
+/**
+ * Party play (MULTIPLAYER.md §1.1, D5): an outside bot for human slot `slot` (0, 1 or 2), the relay's pilot. Its RNG
+ * forks from the root seed only: `player-bot:<profile>` for slot 0 (unchanged), `player-bot:<profile>:s<slot>`
+ * otherwise. Every pilot keeps its own memory and its own SelfOrder (`pings.mine`), so it never writes hashed bot
+ * state (B1). The `pinger` profile is slot 0's only (pings come from slot 0).
+ */
+export function createPlayerBotFor(m: MatchHandle, profile: PlayerProfile, slot: number): PlayerBot {
+  if (!Number.isInteger(slot) || slot < 0 || slot > 2) throw new RangeError(`player-bot slot ${String(slot)} is not 0, 1 or 2`);
+  if (profile === 'pinger' && slot !== HUMAN_SLOT) throw new RangeError('the pinger profile drives slot 0 only');
+  const name = profile === 'pinger' ? 'normal' : profile;
+  const fork = slot === HUMAN_SLOT ? `player-bot:${name}` : `player-bot:${name}:s${slot}`;
+  return { profile, slot, mem: createMem(), rng: new Rng(m.config.seed >>> 0).fork(fork), pings: createPingerMem() };
 }
 
 /**
@@ -102,7 +118,7 @@ export function playerBotCommands(m: MatchHandle, bot: PlayerBot): Command[] {
       ? noviceThink(m, bot.slot, bot.mem, bot.rng)
       : bot.profile === 'naive' || bot.profile === 'feeder'
         ? naiveThink(m, bot.slot, bot.mem, bot.rng, bot.profile === 'feeder' ? FEEDER : undefined)
-        : think(m, bot.slot, BOTS[bot.profile === 'pinger' ? 'normal' : bot.profile], bot.mem, bot.rng, bot.profile === 'pinger' ? bot.pings.mine : null);
+        : think(m, bot.slot, BOTS[bot.profile === 'pinger' ? 'normal' : bot.profile], bot.mem, bot.rng, bot.pings.mine);
   // The pinger plays like `normal` and may ping in the same tick (a ping shares its tick with one other command).
   const ping = bot.profile === 'pinger' ? pingerPing(m, bot.pings) : null;
   const out: Command[] = [];

@@ -25,6 +25,18 @@ export interface InputGate {
   forfeit: boolean;
 }
 
+/**
+ * Party play (MULTIPLAYER.md §1.1): one input gate and one post-gate log per human slot >= 1 (slot 0 keeps `gate` and
+ * `log`). Outside the world hash, like the gate.
+ */
+export interface PartyState {
+  /** Human slots >= 1, ascending (1, 2 or both). */
+  readonly slots: readonly number[];
+  /** Indexed by hero slot (0 unused). */
+  readonly gates: (InputGate | null)[];
+  readonly logs: (TimedCommand[] | null)[];
+}
+
 export interface MatchHandle {
   readonly config: MatchConfig;
   readonly world: World;
@@ -39,4 +51,6 @@ export interface MatchHandle {
   events: SimEvent[];
   ended: MatchResult | null;
   readonly stats: SlotStats[];
+  /** Party play: present only when `config.humans` names more than slot 0. */
+  readonly party?: PartyState;
 }
