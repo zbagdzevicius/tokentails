@@ -80,6 +80,10 @@ float fxHeart( vec2 p ) {
   return sqrt( min( fxDot2( p - vec2( 0.0, 1.0 ) ), fxDot2( p - 0.5 * max( p.x + p.y, 0.0 ) ) ) ) * sign( p.x - p.y );
 }
 float fxAA( float d, float w ) { return 1.0 - smoothstep( -w, w, d ); }
+// pawlegends: distance to the segment a-b (the sticker glyphs below are built from capsules)
+float fxSeg( vec2 p, vec2 a, vec2 b ) { vec2 pa = p - a, ba = b - a; float h = clamp( dot( pa, ba ) / dot( ba, ba ), 0.0, 1.0 ); return length( pa - ba * h ); }
+// pawlegends: a sticker's alpha and shade from its SDF: a crisp edge with a darker ink rim, lit from the upper left
+vec2 fxSticker( float sd, vec2 uv ) { return vec2( fxAA( sd, 0.045 ), 1.02 - 0.38 * smoothstep( -0.09, 0.0, sd ) + 0.1 * ( uv.y - uv.x ) * 0.5 ); }
 
 vec2 fxShape( float shape, vec2 uv ) {
   float d = length( uv );
@@ -146,6 +150,33 @@ vec2 fxShape( float shape, vec2 uv ) {
     float b1 = length( max( q1, 0.0 ) ) + min( max( q1.x, q1.y ), 0.0 );
     float b2 = length( max( q2, 0.0 ) ) + min( max( q2.x, q2.y ), 0.0 );
     return vec2( fxAA( min( b1, b2 ) - 0.1, 0.06 ), 0.9 + 0.2 * step( uv.y, uv.x ) );
+  // pawlegends: the cat / dog sticker glyphs (funKit stickers; they were composed of 2-6 dots and read as debug points)
+  } else if ( s == 14 ) {                           // ZED: a chunky sleepy "Z"
+    float sd = min( min( fxSeg( uv, vec2( -0.5, 0.56 ), vec2( 0.5, 0.56 ) ), fxSeg( uv, vec2( 0.5, 0.56 ), vec2( -0.5, -0.56 ) ) ),
+                    fxSeg( uv, vec2( -0.5, -0.56 ), vec2( 0.5, -0.56 ) ) ) - 0.15;
+    return fxSticker( sd, uv );
+  } else if ( s == 15 ) {                           // PAW: a bean pad and four toe beans
+    vec2 q = ( uv - vec2( 0.0, -0.3 ) ) / vec2( 0.5, 0.4 );
+    float sd = ( length( q ) - 1.0 ) * 0.4;
+    sd = min( sd, length( uv - vec2( -0.6, 0.16 ) ) - 0.19 );
+    sd = min( sd, length( uv - vec2( -0.22, 0.52 ) ) - 0.2 );
+    sd = min( sd, length( uv - vec2( 0.22, 0.52 ) ) - 0.2 );
+    sd = min( sd, length( uv - vec2( 0.6, 0.16 ) ) - 0.19 );
+    return fxSticker( sd, uv );
+  } else if ( s == 16 ) {                           // NOTE: a music note (round head, stem, flag)
+    vec2 q = uv - vec2( -0.22, -0.52 );
+    q = vec2( q.x * 0.87 + q.y * 0.5, -q.x * 0.5 + q.y * 0.87 ) / vec2( 0.32, 0.23 );
+    float sd = ( length( q ) - 1.0 ) * 0.23;
+    sd = min( sd, fxSeg( uv, vec2( 0.06, -0.48 ), vec2( 0.06, 0.74 ) ) - 0.07 );
+    sd = min( sd, fxSeg( uv, vec2( 0.06, 0.74 ), vec2( 0.48, 0.34 ) ) - 0.08 );
+    return fxSticker( sd, uv );
+  } else if ( s == 17 ) {                           // EXCLAIM: "!"
+    float sd = min( fxSeg( uv, vec2( 0.0, 0.72 ), vec2( 0.0, -0.12 ) ) - 0.17 + 0.06 * ( 0.72 - uv.y ) * 0.5, length( uv - vec2( 0.0, -0.6 ) ) - 0.17 );
+    return fxSticker( sd, uv );
+  } else if ( s == 18 ) {                           // BONE: a bar with two knobs at each end
+    float sd = fxSeg( uv, vec2( -0.55, 0.0 ), vec2( 0.55, 0.0 ) ) - 0.15;
+    sd = min( sd, length( vec2( abs( uv.x ), abs( uv.y ) ) - vec2( 0.62, 0.17 ) ) - 0.2 );
+    return fxSticker( sd, uv );
   }
   return vec2( 0.0, 1.0 );
 }`;

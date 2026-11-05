@@ -46,6 +46,8 @@ interface HeroRig {
   simZ: number;
   sepX: number;
   sepZ: number;
+  /** The player's own hero: its see-through silhouette where a body or a tower hides it (null for everyone else). */
+  xray: THREE.SkinnedMesh | null;
   /** Drawn body alpha (eased toward the stealth look; trailer v3.3 review). */
   alpha: number;
 }
@@ -67,7 +69,35 @@ export const OBSTACLE_CLEAR = Object.freeze({ bodyR: 0.5, cap: 3.2 });
  * Clems keep SEPARATION.min apart while wide Meatball and the tanks keep more room and tiny Pixel less. Render only.
  */
 export const BODY_K = 0.37;
-export const bodyRadius = (hero: HeroId): number => HERO_RING[hero] * BODY_K;
+/** The most a big body's radius may add over two Clems' (m): a body drawn far from its sim point misreads skillshots. */
+export const BODY_R_MAX = SEPARATION.min / 2 + 0.1;
+
+/**
+ * The player's own hero, seen through whatever stands in front of it (feel QA: big Lambo or Brutus bodies hid Clem at
+ * spawn and in a fight): the same skinned mesh drawn again in the self gold, additive, only where it is BEHIND
+ * something (depthFunc GreaterDepth). It draws after every other opaque body (renderOrder 1) and before the own body
+ * (renderOrder 2), so the hero never x-rays itself. One draw, one shared material, render only.
+ */
+export const XRAY = Object.freeze({ color: 0xffb02e, opacity: 0.4 });
+let xrayMat: THREE.MeshBasicMaterial | null = null;
+function xrayMaterial(): THREE.MeshBasicMaterial {
+  if (!xrayMat) {
+    xrayMat = new THREE.MeshBasicMaterial({
+      color: XRAY.color,
+      opacity: XRAY.opacity,
+      blending: THREE.AdditiveBlending,
+      depthWrite: false,
+      depthFunc: THREE.GreaterDepth,
+      polygonOffset: true,
+      polygonOffsetFactor: -1,
+      polygonOffsetUnits: -4,
+      fog: false,
+    });
+    xrayMat.name = 'hero-xray';
+  }
+  return xrayMat;
+}
+export const bodyRadius = (hero: HeroId): number => Math.min(BODY_R_MAX, HERO_RING[hero] * BODY_K);
 
 /**
  * Drawn offsets (m) for bodies at `pts` (pure): pairwise push-apart and push-out of the `obs` footprints, relaxed over
@@ -371,7 +401,19 @@ export class HeroView {
       if (!this.outlines) ch.material.userData.u.uRim.value = 0.78;
       ch.object.name = `hero-${e.id}`;
       this.group.add(ch.object);
-      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, alpha: 1 };
+      let xray: THREE.SkinnedMesh | null = null;
+      if (self) {
+        xray = new THREE.SkinnedMesh(ch.mesh.geometry, xrayMaterial());
+        xray.name = 'hero-xray';
+        xray.frustumCulled = false;
+        xray.castShadow = false;
+        xray.renderOrder = 1;
+        ch.mesh.renderOrder = 2;
+        if (ch.outline) ch.outline.renderOrder = 2;
+        ch.mesh.parent?.add(xray);
+        xray.bind(ch.mesh.skeleton, ch.mesh.bindMatrix);
+      }
+      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, xray, alpha: 1 };
       this.rigs.set(e.id, r);
     }
     return r;
@@ -537,6 +579,7 @@ export class HeroView {
       u.uFlashK.value = dead ? 0.35 * fall : Math.min(HIT_FLASH_MAX, r.flash * 0.3);
       u.uFlash.value.setHex(dead ? 0x6b6b80 : 0xffffff);
       const stealth = (e.buffs & BuffFlag.Stealth) !== 0;
+      if (r.xray) r.xray.visible = !dead && !stealth;
       if (e.id >= 0 && e.id < 16) {
         this.slotTeam[e.id] = e.team === 1 ? 1 : 0;
         this.slotStealth[e.id] = stealth ? 1 : 0;
@@ -620,6 +663,8 @@ export class HeroView {
 
   dispose(): void {
     for (const r of [...this.rigs.values()]) this.drop(r);
+    xrayMat?.dispose();
+    xrayMat = null;
     this.rings.dispose();
     this.auras.dispose();
     this.selfRing.dispose();

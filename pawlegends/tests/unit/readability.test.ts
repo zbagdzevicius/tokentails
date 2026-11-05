@@ -65,6 +65,23 @@ describe('damage numbers', () => {
     const live = (dn as unknown as { pool: { active: boolean; key: unknown; t: number; life: number }[] }).pool.filter((n) => n.active && n.key === 7 && n.t < n.life - DAMAGE_FX.fade);
     expect(live.length).toBeLessThanOrEqual(DAMAGE_FX.perKey);
   });
+  it('a fun pop never pushes a gameplay word or pop off the screen (readability QA)', () => {
+    const dn = new DamageNumbers({ game: { realTime: 0 }, cam: { isIso: true, distance: 27 } });
+    const p = new THREE.Vector3();
+    type N = { active: boolean; fun?: boolean; kind: string };
+    const live = (): N[] => (dn as unknown as { pool: N[] }).pool.filter((n) => n.active && n.kind === 'pop');
+    expect(dn.pop('clank', p)).toBe(true);
+    expect(dn.pop('POW!', p, true)).toBe(true);
+    expect(dn.pop('ZOOM!', p, true)).toBe(true);
+    // one fun pop at a time
+    expect(live().filter((n) => n.fun).length).toBe(1);
+    expect(dn.pop('boing', p)).toBe(true);
+    // the gameplay pops both stay; the fun one made room
+    expect(live().filter((n) => !n.fun).length).toBe(2);
+    expect(live().filter((n) => n.fun).length).toBe(0);
+    // the gameplay cap is full: a fun pop does not show at all
+    expect(dn.pop('POW!', p, true)).toBe(false);
+  });
 });
 
 describe('PPK chibi proportions', () => {

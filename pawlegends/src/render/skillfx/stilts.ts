@@ -173,8 +173,9 @@ function swat(fx: FxCtx, id: number, x: number, z: number, yaw: number, side: nu
   const rim = fx.rim(id);
   fx.mesh.spawn('beam', { x, y: 0.15, z, yaw, sx: L, sz: W, life: 0.22, color: side > 0 ? TERRA : CREAM, rim, p3: 1.2, rel, delay });
   fx.mesh.spawn('crescent', { x, z, yaw, sx: L, life: 0.24, color: side > 0 ? CREAM : TERRA, rim, p0: 0.5, p1: 0.55, p2: side, p3: 2.2, rel, delay });
-  // the fun layer: a big cartoon paw flashes at the end of the swat (a cat batting at something)
-  sticker(fx, x + Math.cos(yaw) * L * 0.7, 1.0, z - Math.sin(yaw) * L * 0.7, 'PAW', side > 0 ? CREAM : PRINT, 0.75, 0.24, 0, 0, side * 0.5);
+  // the fun layer: a cartoon paw flashes over the swat, high and short of the target (readability QA: at body height it
+  // covered the victim)
+  sticker(fx, x + Math.cos(yaw) * L * 0.4, 2.5, z - Math.sin(yaw) * L * 0.4, 'PAW', side > 0 ? CREAM : PRINT, 0.6, 0.24, 0, 0, side * 0.5);
 }
 
 function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -219,7 +220,8 @@ function pounceHit(src: number, dst: number, fx: FxCtx, tick = 0): void {
   fx.mesh.spawn('ring', { x: Q.x, z: Q.z, sx: 1.0, life: 0.35, color: TERRA, rim, p1: 0.3, rel });
   fx.linger.add('scratches', Q.x, Q.z, 0.7, yaw + (v - 1) * 0.35, RUST);
   const cy = s3HeadY(fx, dst, -0.5);
-  if (v === 2) sticker(fx, Q.x, cy, Q.z, 'PAW', CREAM, 0.7, 0.35, 0.4, 0, yaw);
+  // the paw stamp floats over the head, never on the body it hit (readability QA)
+  if (v === 2) sticker(fx, Q.x, s3HeadY(fx, dst, 0.9), Q.z, 'PAW', CREAM, 0.6, 0.35, 0.4, 0, yaw);
   stickerBurst(fx, Q.x, cy, Q.z, 'STAR4', CREAM, 0.22, 0.3, 4, 2.4, 1.4, -4, funRand(tick, src, 8));
   // the pounce hit sound: the 'slash' cue when the cue table has it, else a quick swipe
   if (CUE_SFX.slash) fx.sfx.cue('slash', Q);

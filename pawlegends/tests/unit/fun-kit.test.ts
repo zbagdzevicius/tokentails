@@ -53,7 +53,13 @@ describe('fun kit', () => {
     setFunSink({ particles: p });
     sticker(fx(), 0, 1, 0, 'HEART', 0xff9ec8, 0.4, 1);
     expect(p.n).toBe(1);
+    // PAW has its own glyph now (one sprite; it used to be five dots); YARN is still composed of three
     sticker(fx(), 0, 1, 0, 'PAW', 0xffffff, 0.4, 1);
+    expect(p.n).toBe(2);
+    sticker(fx(), 0, 1, 0, 'YARN', 0xffffff, 0.4, 1);
+    expect(p.n).toBe(5);
+    // Low and reduced effects: a composite draws its main part only
+    sticker(fx('low'), 0, 1, 0, 'YARN', 0xffffff, 0.4, 1);
     expect(p.n).toBe(6);
     p.gravity.length = 0;
     stickerBurst(fx(), 0, 1, 0, 'STAR', 0xffffff, 0.3, 0.5, 6, 2, 2, -6);
@@ -74,6 +80,15 @@ describe('fun kit', () => {
     expect(funPop(fx(), 2, 'POW!', 0, 2, 0)).toBe(true);
     expect(funPop(fx(), 2, 'BONK!', 0, 2, 0)).toBe(false);
     expect(shown).toEqual(['POW!']);
+  });
+
+  it('pops: none with reduced effects or in a team fight (readability QA)', () => {
+    const shown: string[] = [];
+    setFunSink({ pop: (t) => (shown.push(t), true) });
+    expect(funPop(fx('med', true), 3, 'POW!', 0, 2, 0)).toBe(false);
+    const fight = { ...fx(), cam: { fight: true } } as unknown as FxCtx;
+    expect(funPop(fight, 4, 'POW!', 0, 2, 0)).toBe(false);
+    expect(shown).toEqual([]);
   });
 
   it('one pool lookup and one tier count for every lane helper', () => {

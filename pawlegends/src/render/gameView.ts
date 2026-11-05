@@ -312,7 +312,7 @@ export class GameView {
     // (the kit is shared by the lazy skill-FX chunks only, so it loads with them and stays out of the first-load JS)
     void import('./fx/fun/funKit')
       .then((m) => {
-        if (!this.lifecycleGone) m.setFunSink({ particles: this.particles, camera: gr.camera, pop: (text, pos) => this.effects.numbers.pop(text, pos) });
+        if (!this.lifecycleGone) m.setFunSink({ particles: this.particles, camera: gr.camera, pop: (text, pos) => this.effects.numbers.pop(text, pos, true) /* fun pops: their own slot */ });
       })
       .catch(() => undefined);
     this.director = new AnimDirector({
