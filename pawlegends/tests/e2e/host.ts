@@ -130,8 +130,13 @@ export async function mockHost(context: BrowserContext, baseURL: string, cfg: Ho
     if (url.origin === origin && url.pathname === '/e2e-host') return route.fulfill({ contentType: 'text/html', body: hostHtml(cfg) });
     if (url.origin === SITE && url.pathname.startsWith('/pawlegends-game/')) {
       const rest = url.pathname.slice('/pawlegends-game/'.length) || 'index.html';
-      const res = await route.fetch({ url: `${baseURL}/${rest}${url.search}` });
-      return route.fulfill({ response: res });
+      // a background fetch (the match chunk's prefetch) can still be in flight when the test closes the page
+      try {
+        const res = await route.fetch({ url: `${baseURL}/${rest}${url.search}` });
+        return await route.fulfill({ response: res });
+      } catch {
+        return route.abort().catch(() => undefined);
+      }
     }
     // cat art from the Token Tails bucket (round 1: Meet cards need art): a 1×1 PNG
     if (url.hostname === 'tokentails-nfts.fra1.cdn.digitaloceanspaces.com') {
