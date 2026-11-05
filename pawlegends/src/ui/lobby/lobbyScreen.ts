@@ -1,0 +1,344 @@
+/**
+ * The lobby (title) screen, redesigned (lobby spec §3a). Replaces `titleScreen` in app.ts `showTitle`; the old
+ * function stays in ui/screens.ts for its tests.
+ *
+ * Left column: the logo, the champion's name block (the worn Token Tails cat's name, else the hero title, with
+ * "Clem the Fighter", an element chip and a role chip), a big Play with a "3v3 vs Easy bots" line, the bots segment
+ * (locked with the existing "More bots after N matches" note), Change hero, Cards (with a count) and the day's quests
+ * folded into a "Today 1/3" chip. Bottom right: a fanned peek of up to three owned cards that opens the cards drawer
+ * (a "your cats become skins" card when there are none; cards are never invented). Top right: icon buttons.
+ *
+ * Keyboard: Enter plays (when no button has focus), C opens the cards, H changes hero, Esc closes the quests popover.
+ * Play runs the stage dolly (`playOut`, skipped with reduced motion) before the match loads.
+ *
+ * Names are host data: always escaped here. Cosmetic only.
+ */
+import './lobby.css';
+import type { Difficulty, HeroId } from '../../sim/api';
+import { ELEMENT_COLOR, FRAME_NAME, type FrameId } from '../../render/cosmetics';
+import { ELEMENT_NAME, type CatTier, type Element } from '../../meta/roster';
+import type { QuestView } from '../../meta/quests';
+import { dareText, type Dare } from '../../share/dare';
+import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT } from '../heroText';
+import { icon } from '../icons';
+import { cardFrame } from '../cards/frame';
+import { cardAttrs } from '../cards/el';
+import type { Choice } from '../screens';
+
+const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
+const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
+
+/** The champion's display identity on the lobby (from meta/cardName `cardIdentity`, else the hero). */
+export interface LobbyIdentity {
+  /** Big name: the worn cat's, else the hero title. */
+  name: string;
+  /** "Clem the Fighter". */
+  sub: string;
+  element: Element;
+  role: string;
+  /** True when `name` is a worn card's cat. */
+  card: boolean;
+  rung?: CatTier | null;
+}
+
+/** One card in the bottom-right peek (an owned card skin). */
+export interface PeekCard {
+  name: string;
+  element: Element;
+  rung: CatTier;
+  art?: string;
+  sprite?: string;
+}
+
+export interface LobbyScreenOpts {
+  firstTime: boolean;
+  last: Choice;
+  dare: Dare | null;
+  muted: boolean;
+  identity: LobbyIdentity;
+  storeOpen?: boolean;
+  frame?: FrameId | null;
+  title?: string | null;
+  /** The lobby hero's portrait (in its look), inside the frame ring. */
+  portrait?: string | null;
+  /** "Signed in: wins save to your account." vs "No account needed." */
+  signedIn: boolean;
+  /** The first match's line ("a guided Rookie match"). */
+  firstLine?: string;
+  /** Pickable bots (firstSession `pickable()`); a locked segment shows `difficultyNote` instead. */
+  difficulties: readonly Difficulty[];
+  difficultyNote?: string;
+  onDifficulty?(d: Difficulty): void;
+  /** Owned card skins (count) and up to three for the peek, worn first. */
+  cardCount: number;
+  peek: readonly PeekCard[];
+  /** The worn card (the peek caption "Wearing <name>"). */
+  wearing?: { name: string } | null;
+  onCards?(): void;
+  onPlay(c: Choice, seed?: number): void;
+  onChoose(): void;
+  onMute(m: boolean): void;
+  onStore?(): void;
+  onSettings?(): void;
+  onCollection?(): void;
+  quests?: readonly QuestView[];
+  /** The stage dolly before the match loads (Lobby.playOut). */
+  playOut?(): Promise<void>;
+  /** A UI sound (sfx.play). */
+  sound?(name: 'click' | 'magic' | 'horn'): void;
+}
+
+const RUNG_NAME: Readonly<Record<CatTier, string>> = Object.freeze({ COMMON: 'Common', RARE: 'Rare', EPIC: 'Epic', LEGENDARY: 'Legendary' });
+
+const GEAR =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><path fill="currentColor" d="M19.4 13a7.6 7.6 0 0 0 0-2l2-1.6-2-3.4-2.4 1a7.4 7.4 0 0 0-1.7-1L15 3.5h-4l-.4 2.5a7.4 7.4 0 0 0-1.7 1l-2.4-1-2 3.4L6.6 11a7.6 7.6 0 0 0 0 2l-2 1.6 2 3.4 2.4-1a7.4 7.4 0 0 0 1.7 1l.4 2.5h4l.4-2.5a7.4 7.4 0 0 0 1.7-1l2.4 1 2-3.4zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z" transform="translate(-1 0)"/></svg>';
+const SPEAKER = (on: boolean): string =>
+  `<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><path fill="currentColor" d="M4 9h4l5-4v14l-5-4H4z"/>${
+    on
+      ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+      : '<path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
+  }</svg>`;
+const CARDS =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><rect x="3" y="6" width="11" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-10 8 13)"/><rect x="9" y="3" width="11" height="15" rx="2" fill="currentColor"/></svg>';
+
+/** Today's quests as "done/total". */
+export function questTally(qs: readonly QuestView[] | undefined): { done: number; total: number } {
+  const list = qs ?? [];
+  return { done: list.filter((q) => q.done).length, total: list.length };
+}
+
+/** The line under Play: "3v3 vs Easy bots", the guided first match, or the dare. Pure. */
+export function playLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstLine' | 'last'>): string {
+  if (o.dare) return dareText(o.dare);
+  if (o.firstTime) return o.firstLine ?? 'Your first match is a guided match.';
+  return `3v3 vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
+}
+
+/** The Play button's label. Pure. */
+export function playLabel(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'identity'>): string {
+  if (o.dare) return 'Accept the dare';
+  if (o.firstTime) return 'Play as Clem';
+  return `Play as ${o.identity.name}`;
+}
+
+/** A card's cat picture: its art, else its sprite's idle frame (pixelated), else a paw. */
+function catPic(c: PeekCard): string {
+  if (c.art) return `<img class="lb-cat" src="${esc(c.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">`;
+  // the sprite sheet's idle frame (48 px cell, row 4), as the cards drawer draws it
+  if (c.sprite) return `<span class="lb-cat lb-sprite" aria-hidden="true"><i style="background-image:url('${esc(c.sprite)}')"></i></span>`;
+  return `<span class="lb-cat lb-noart" aria-hidden="true">${icon('paw')}</span>`;
+}
+
+function peekHtml(o: LobbyScreenOpts): string {
+  if (o.firstTime || o.dare || !o.onCards) return '';
+  const cards = o.peek.slice(0, 3);
+  if (!cards.length) {
+    // no cards: never invent one; a plain card back that opens the drawer's empty state
+    return `<button type="button" class="lb-peek empty" data-a="cards" aria-label="Your cards: none yet. Open">
+      <span class="lb-back" aria-hidden="true">${icon('paw')}</span>
+      <span class="lb-peek-cap"><b>Your cats become skins</b><small>Collect cards on Token Tails</small></span></button>`;
+  }
+  const faces = cards
+    .map((c, i) =>
+      cardFrame({
+        el: c.element,
+        tier: c.rung,
+        tag: 'span',
+        // integrate: the Nature lane's card layer; the front card moves (ui/nature/nature.css, loaded lazily below)
+        cls: `lb-mini n${i} pl-nature${i === 0 ? ' pl-nature-live' : ''}`,
+        foil: i === 0 && (c.rung === 'EPIC' || c.rung === 'LEGENDARY') ? 'sweep' : 'none',
+        attrs: `data-nature="${c.element}" aria-hidden="true"`,
+        inner: `${catPic(c)}<b class="lb-mini-name">${esc(c.name)}</b>`,
+      }),
+    )
+    .reverse()
+    .join('');
+  const cap = o.wearing ? `<span class="lb-peek-cap pl-wearing"><small class="cap">Wearing ${esc(o.wearing.name)}</small></span>` : `<span class="lb-peek-cap"><small>Tap to wear a card</small></span>`;
+  return `<button type="button" class="lb-peek" data-a="cards" data-count="${cards.length}" aria-label="${esc(`Your cards: ${o.cardCount}. Open`)}"><span class="lb-fan">${faces}</span>${cap}</button>`;
+}
+
+function badgeHtml(frame: FrameId | null | undefined, title: string | null | undefined, portrait: string | null | undefined, el: Element): string {
+  if (!frame && !title) return '';
+  const face = portrait ? ` style="background-image:url(${portrait})" ${cardAttrs(el, null)}` : '';
+  const tip = frame?.startsWith('frame.champ.') ? 'Earned on the Treat Track.' : 'Frames come from cats you adopted by name, by their tier.';
+  return `<div class="pl-badge lb-badge" ${frame ? `data-frame="${frame}"` : ''} title="${tip}"><span class="ring${portrait ? ' pic tt-ring' : ''}"${face}></span><span class="lb-badge-t"><small>Profile frame</small>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+}
+
+function segmentHtml(o: LobbyScreenOpts, cur: Difficulty): string {
+  if (o.firstTime || o.dare) return '';
+  if (o.difficultyNote) return `<p class="lb-locked" data-locked="bots"><span class="lb-lock" aria-hidden="true">${icon('crown')}</span>${esc(o.difficultyNote)}</p>`;
+  if (o.difficulties.length < 2) return '';
+  return `<div class="lb-seg" role="radiogroup" aria-label="Bots">${o.difficulties
+    .map((d) => {
+      const on = d === cur;
+      const name = (DIFFICULTY_TEXT as Record<string, string>)[d]?.replace(' bots', '') ?? d;
+      return `<button type="button" role="radio" class="${on ? 'on' : ''}" data-d="${d}" aria-checked="${on}" tabindex="${on ? 0 : -1}" title="${esc(DIFFICULTY_HINT[d] ?? '')}">${esc(name)}</button>`;
+    })
+    .join('')}</div>`;
+}
+
+function questsHtml(qs: readonly QuestView[] | undefined): string {
+  if (!qs || !qs.length) return '';
+  const t = questTally(qs);
+  return `<details class="lb-quests"><summary><span class="lb-dot${t.done === t.total ? ' all' : ''}" aria-hidden="true"></span>Today <b>${t.done}/${t.total}</b></summary><div class="lb-qlist" role="list">${qs
+    .map((q) => `<div role="listitem" class="q ${q.done ? 'done' : ''}"><span class="tick" aria-hidden="true">${q.done ? '✓' : ''}</span><span class="t">${esc(q.quest.text)}</span><span class="n">${q.done ? 'Done' : `${q.value}/${q.quest.goal}`}</span></div>`)
+    .join('')}</div></details>`;
+}
+
+const overlayOpen = (): boolean => !!document.querySelector('.pl-menu, [aria-modal="true"], .pl-store, .plc-meet, .pl-offer');
+
+export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElement {
+  const root = document.createElement('div');
+  root.className = 'pl-screen pl-title pl-lobby';
+  const id = o.identity;
+  const elColor = cssHex(ELEMENT_COLOR[id.element]);
+  root.style.setProperty('--lb-el', elColor);
+  let diff: Difficulty = o.last.difficulty;
+  const choice = (): Choice => ({ ...o.last, difficulty: diff });
+  const dare = o.dare;
+  const secondary =
+    o.firstTime || dare
+      ? ''
+      : `<div class="lb-row">
+          <button type="button" class="pl-btn ghost lb-btn" data-a="choose" aria-keyshortcuts="H">${icon('paw')}<span>Change hero</span></button>
+          ${o.onCards ? `<button type="button" class="pl-btn ghost lb-btn" data-a="cards" aria-keyshortcuts="C">${CARDS}<span>Cards</span>${o.cardCount ? `<span class="lb-count" aria-label="${o.cardCount} cards">${o.cardCount}</span>` : ''}</button>` : ''}
+          ${questsHtml(o.quests)}
+        </div>`;
+  const chips = `<span class="lb-chip el" style="--c:${elColor}"><i aria-hidden="true"></i>${esc(ELEMENT_NAME[id.element])}</span><span class="lb-chip role">${esc(id.role)}</span>${id.card && id.rung ? `<span class="lb-chip rung" data-rung="${id.rung}">${RUNG_NAME[id.rung]} card</span>` : ''}`;
+  // integrate: the card peek's Nature stylesheet stays out of the first load
+  if (o.peek.length && !o.firstTime && !o.dare && o.onCards) void import('../nature/natureCss').catch(() => undefined);
+  root.innerHTML = `
+    <div class="pl-title-col lb-col">
+      <div class="logo"><span class="paw">${icon('paw')}</span><h1>Paw<b>legends</b></h1></div>
+      <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
+      <div class="lb-name" data-card="${id.card ? '1' : '0'}">
+        <small class="lb-eyebrow">${id.card ? 'Your Token Tails cat' : 'Your champion'}</small>
+        <h2 class="lb-hero">${esc(id.name)}</h2>
+        <p class="lb-sub">${esc(id.sub)}</p>
+        <div class="lb-chips">${chips}</div>
+      </div>
+      <div class="lb-play actions">
+        <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter">${esc(playLabel(o))}</button>
+        <p class="lb-line${dare ? ' dare-line' : ''}">${esc(playLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>
+        ${segmentHtml(o, diff)}
+      </div>
+      ${secondary}
+      <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
+      ${badgeHtml(o.frame, o.title, o.portrait, id.element)}
+    </div>
+    ${peekHtml(o)}
+    <div class="pl-corner lb-corner">
+      ${o.storeOpen ? `<button type="button" class="lb-icon" data-a="store" aria-label="Store">${icon('crown')}<span>Store</span></button>` : ''}
+      ${o.onCollection ? `<button type="button" class="lb-icon wide" data-a="collection" aria-label="Treat Track">${icon('crown')}<span>Treat Track</span></button>` : ''}
+      ${o.onSettings ? `<button type="button" class="lb-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
+      <button type="button" class="lb-icon" data-a="mute" aria-label="Sound" aria-pressed="${!o.muted}" title="Sound">${SPEAKER(!o.muted)}</button>
+    </div>`;
+
+  let leaving = false;
+  const play = (c: Choice, seed?: number): void => {
+    if (leaving) return;
+    leaving = true;
+    root.classList.add('leaving');
+    o.sound?.('horn');
+    const go = (): void => o.onPlay(c, seed);
+    const out = o.playOut?.();
+    if (out) void out.then(go, go);
+    else go();
+  };
+  const setDiff = (d: Difficulty, focus = false): void => {
+    diff = d;
+    for (const b of root.querySelectorAll<HTMLButtonElement>('.lb-seg [data-d]')) {
+      const on = b.dataset.d === d;
+      b.classList.toggle('on', on);
+      b.setAttribute('aria-checked', String(on));
+      b.tabIndex = on ? 0 : -1;
+      if (on && focus) b.focus();
+    }
+    const line = root.querySelector('.lb-line');
+    if (line) line.textContent = playLine({ ...o, last: choice() });
+    o.onDifficulty?.(d);
+  };
+  root.addEventListener('click', (e) => {
+    const t = e.target as HTMLElement;
+    const d = t.closest<HTMLElement>('[data-d]')?.dataset.d as Difficulty | undefined;
+    if (d) {
+      o.sound?.('click');
+      setDiff(d);
+      return;
+    }
+    const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;
+    if (leaving && a !== 'mute') return;
+    if (a === 'clem') play({ hero: 'clem', trick: 'pounce', difficulty: 'easy' });
+    else if (a === 'quick') play(choice());
+    else if (a === 'dare' && dare) play({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);
+    else if (a === 'choose') o.onChoose();
+    else if (a === 'cards') {
+      o.sound?.('magic');
+      o.onCards?.();
+    } else if (a === 'store') o.onStore?.();
+    else if (a === 'settings') o.onSettings?.();
+    else if (a === 'collection') o.onCollection?.();
+    else if (a === 'mute') {
+      const b = root.querySelector<HTMLElement>('[data-a="mute"]');
+      if (!b) return;
+      const nowMuted = b.getAttribute('aria-pressed') === 'true';
+      b.setAttribute('aria-pressed', String(!nowMuted));
+      b.innerHTML = SPEAKER(!nowMuted);
+      o.onMute(nowMuted);
+    }
+  });
+  // the quests popover closes on an outside click
+  root.addEventListener('pointerdown', (e) => {
+    const q = root.querySelector<HTMLDetailsElement>('.lb-quests[open]');
+    if (q && !q.contains(e.target as Node)) q.open = false;
+  });
+  // arrow keys inside the bots segment (one tab stop, radio-group pattern)
+  root.querySelector('.lb-seg')?.addEventListener('keydown', (ev) => {
+    const e = ev as KeyboardEvent;
+    const order = o.difficulties;
+    const i = order.indexOf(diff);
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!step || i < 0) return;
+    e.preventDefault();
+    setDiff(order[(i + step + order.length) % order.length], true);
+  });
+  const onKey = (e: KeyboardEvent): void => {
+    if (!root.isConnected) {
+      document.removeEventListener('keydown', onKey);
+      return;
+    }
+    if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || leaving) return;
+    const t = e.target instanceof HTMLElement ? e.target : null;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (e.key === 'Escape') {
+      const q = root.querySelector<HTMLDetailsElement>('.lb-quests[open]');
+      if (q) {
+        q.open = false;
+        q.querySelector('summary')?.focus();
+        e.preventDefault();
+      }
+      return;
+    }
+    if (overlayOpen()) return;
+    const onControl = !!t && t !== document.body && t !== root && !!t.closest('button, a, summary, [role="radio"]');
+    if (e.key === 'Enter' && !onControl) {
+      e.preventDefault();
+      (root.querySelector('.lb-play [data-a]') as HTMLElement | null)?.click();
+    } else if ((e.key === 'c' || e.key === 'C') && o.onCards && !o.firstTime && !dare) {
+      e.preventDefault();
+      (root.querySelector('[data-a="cards"]') as HTMLElement | null)?.click();
+    } else if ((e.key === 'h' || e.key === 'H') && !o.firstTime && !dare) {
+      e.preventDefault();
+      (root.querySelector('[data-a="choose"]') as HTMLElement | null)?.click();
+    }
+  };
+  document.addEventListener('keydown', onKey);
+  parent.appendChild(root);
+  return root;
+}
+
+/** The hero's own identity (no card): its title, "Clem the Fighter", its card element and role. */
+export function heroIdentity(hero: HeroId, element: Element): LobbyIdentity {
+  const t = HERO_TEXT[hero];
+  return { name: t.title, sub: `${t.title} the ${t.role}`, element, role: t.role, card: false, rung: null };
+}

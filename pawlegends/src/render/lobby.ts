@@ -1,6 +1,11 @@
 /**
  * Lobby stage: the picked hero on a turntable for the title, pick and results screens (POC.md §12 "hero
  * turntable"). Its own small scene and lights; the renderer draws it while no match runs.
+ *
+ * Lobby redesign (lobby spec §3a): a shader backdrop tinted by the worn card's element (else the hero colour), a
+ * two-tier pedestal with a turning paw-rune ring and a light cone (Med/High), pointer parallax, the Play dolly
+ * (`playOut`), the equip burst and the card's Nature motes (render/nature/lobbyNature.ts, a lazy chunk). The framing
+ * keeps the whole pedestal in view (it was cut off at 1280x720 and 844x390). Cosmetic only.
  */
 import * as THREE from 'three';
 import type { HeroId } from '../sim/api';
@@ -8,6 +13,11 @@ import { FADE, Particles, SHAPE } from './fx/Particles.js';
 import { Shockwaves } from './fx/Shockwaves.js';
 import { CONFETTI_COLORS } from './ppk/fx/palette.js';
 import { ELEMENT_COLOR, lookKey, mixColor, type Look } from './cosmetics';
+import type { CatTier, Element } from '../meta/roster';
+import { HERO_COLOR_CSS } from './palette';
+import { createBackdrop, type Backdrop } from './lobby/backdrop';
+import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
+import { reducedMotion, StageFx } from './lobby/stageFx';
 import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
 import { getSkin, isCardSkinId } from './skins/skinStore';
 import type { GameRenderer } from './renderer';
@@ -16,6 +26,23 @@ import { HERO_TOP } from './chars/specs';
 
 /** The hero-select frame's reference top (m): the tallest hero's drawn top, so relative sizes show. */
 const LOBBY_REF_TOP = Math.max(...Object.values(HERO_TOP));
+
+/** What the lobby needs of the Nature module (render/nature/lobbyNature.ts, loaded on the first card). */
+interface LobbyNatureLike {
+  setElement(el: Element | null, rung?: CatTier | null): void;
+  update(dt: number): void;
+  burst?(): void;
+  dispose?(): void;
+}
+
+const cssToHex = (c: string): number => {
+  const n = Number.parseInt(c.replace('#', ''), 16);
+  return Number.isFinite(n) ? n : 0xff9f6b;
+};
+
+/** NDC limits the framing keeps the hero top and the pedestal's front rim inside. */
+const NDC_TOP = 0.9;
+const NDC_BOTTOM = -0.92;
 
 export class Lobby {
   readonly scene = new THREE.Scene();
@@ -41,6 +68,15 @@ export class Lobby {
   /** Share of the screen height a footer under the hero takes (short landscape pick: Play and the bots row). */
   private foot = 0;
   private moodAt = -1;
+  private readonly backdrop: Backdrop;
+  private readonly pedestal: Pedestal;
+  private readonly stage: StageFx;
+  private nature: LobbyNatureLike | null = null;
+  private natureLoading = false;
+  private natureEl: Element | null = null;
+  private natureRung: CatTier | null = null;
+  /** The tint of the current look (element colour of a worn card, else the hero colour). */
+  private tint = 0xff9f6b;
 
   constructor(private readonly gr: GameRenderer) {
     const s = this.scene;
@@ -60,21 +96,13 @@ export class Lobby {
     const rim = new THREE.DirectionalLight(0xff9fc0, 1.6);
     rim.position.set(-5, 4, -6);
     s.add(rim);
-    const ped = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.8, 0.4, 32), new THREE.MeshLambertMaterial({ color: 0xfff3dc }));
-    ped.position.y = -0.2;
-    ped.receiveShadow = true;
-    s.add(ped);
-    const trim = new THREE.Mesh(new THREE.TorusGeometry(1.62, 0.06, 8, 48), new THREE.MeshBasicMaterial({ color: 0xff6f91 }));
-    trim.rotation.x = Math.PI / 2;
-    s.add(trim);
-    // soft glow disc behind
-    const glow = new THREE.Mesh(
-      new THREE.CircleGeometry(4.2, 48),
-      new THREE.MeshBasicMaterial({ color: 0x7d4fa8, transparent: true, opacity: 0.35, depthWrite: false }),
-    );
-    glow.position.set(0, 1.6, -2.5);
-    s.add(glow);
+    // backdrop, two-tier pedestal and rune ring (render/lobby/*)
+    this.backdrop = createBackdrop();
+    s.add(this.backdrop.mesh);
+    this.pedestal = createPedestal();
+    s.add(this.pedestal.group);
     this.particles.attach(s);
+    this.stage = new StageFx(s, this.particles);
     // Register the shockwave fx modules before the fx uber program first compiles (else each gets its own program).
     const warm = new Shockwaves(null, { particles: this.particles, groundY: () => 0, rng: Math.random });
     warm.init(new THREE.Scene());
@@ -98,6 +126,11 @@ export class Lobby {
     const u = this.hero.ch.material.userData.u;
     u.uFoil.value = skin?.rung === 'LEGENDARY' ? FOIL_STRENGTH : 0;
     if (skin) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[skin.element], 0.5));
+    // the stage takes the card's element colour (else the hero's own) and its Nature motes
+    this.tint = skin ? ELEMENT_COLOR[skin.element] : cssToHex(HERO_COLOR_CSS[hero] ?? '#ff9f6b');
+    this.backdrop.setTint(this.tint);
+    this.pedestal.setTint(this.tint);
+    this.setNature(skin ? skin.element : null, skin ? skin.rung : null);
     this.hero.object.scale.setScalar(1.0);
     const g = this.hero.ch.mesh.geometry;
     if (!g.boundingBox) g.computeBoundingBox();
@@ -115,36 +148,116 @@ export class Lobby {
     this.confettiT = seconds;
   }
 
+  /**
+   * The worn card's Nature (element and rung), or null for none. The motes module loads on the first card (its own
+   * chunk); setHero calls this itself, so callers only need it for a preview without a hero change.
+   */
+  setNature(el: Element | null, rung: CatTier | null = null): void {
+    this.natureEl = el;
+    this.natureRung = rung;
+    if (this.nature) {
+      this.nature.setElement(el, rung);
+      return;
+    }
+    if (!el || this.natureLoading) return;
+    this.natureLoading = true;
+    void import('./nature/lobbyNature')
+      .then((m) => {
+        this.nature = m.createLobbyNature(this.scene, this.particles, () => this.gr.settings.tier === 'low') as LobbyNatureLike;
+        this.nature.setElement(this.natureEl, this.natureRung);
+      })
+      .catch(() => {
+        // no motes (offline chunk): the tint still shows the element
+        this.natureLoading = false;
+      });
+  }
+
+  /** The equip moment: a ground ring and a star burst in the stage tint, and a pulse of the rune ring. */
+  equipBurst(): void {
+    this.pedestal.pulse();
+    this.stage.equipBurst(this.tint, this.gr.settings.tier === 'low');
+    this.nature?.burst?.();
+  }
+
+  /** The hero's chest on screen (viewport px), for the drawer's card flight; null before the first frame. */
+  heroPoint(): { x: number; y: number } | null {
+    if (!this.hero || typeof window === 'undefined') return null;
+    const cam = this.gr.camera;
+    const r = this.gr.renderer.domElement.getBoundingClientRect();
+    if (!r.width || !r.height) return null;
+    P.set(0, this.top * 0.45, 0).project(cam);
+    return { x: r.left + ((P.x + 1) / 2) * r.width, y: r.top + ((1 - P.y) / 2) * r.height };
+  }
+
+  /** The Play dolly (~400 ms in toward the hero); resolves at once with reduced motion. */
+  playOut(): Promise<void> {
+    return this.stage.playOut();
+  }
+
   enter(): void {
     this.gr.active = this.scene;
     this.gr.preRender = null;
     this.edgeAt = -1;
+    this.stage.reset();
+    this.stage.listen(true);
+    const low = this.gr.settings.tier === 'low';
+    this.pedestal.setCone(!low);
+    this.backdrop.setBokeh(low ? 0.5 : 1);
     this.gr.place = (cam) => {
       const aspect = cam.aspect;
       const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
-      // frame the whole hero plus the pedestal with ~10% headroom (short landscape clipped the helmets and caps)
+      // the whole hero (~10% headroom) and the whole pedestal: its front rim (r PEDESTAL_R, toward the tilted camera)
+      // projects well below its centre, so the frame is fitted on the projected points, not on a guessed bottom
       const top = this.top + 0.35;
-      // the pedestal's front rim (r 1.8 m, toward the tilted camera) projects below its centre: keep it in frame
-      const bottom = -0.8;
       const edge = this.panelEdge();
-      const hero = (top - bottom) * 1.12;
-      // a footer under the hero (844x390 pick: the bots row and Play) gets its own band at the foot of the frame, so
-      // it no longer covers the feet, leg warmers or cushion (the hero frames in the screen above it)
-      const span = hero / (1 - this.foot);
-      const dist = Math.max(7.6, span / 2 / tanV);
-      const cy = (top + bottom) / 2 + hero * 0.03 - (span - hero) / 2;
-      const halfW = tanV * dist * aspect;
-      // keep the hero and the pedestal (r 1.8 m) right of the UI column, inside the screen
-      const ped = 1.85 / halfW;
-      let ndc = this.side * 0.6;
-      if (edge !== null) ndc = Math.max(ndc, edge + ped + 0.03);
-      ndc = Math.min(ndc, 0.97 - ped);
-      const off = ndc * halfW;
+      const lowLimit = Math.min(0.2, NDC_BOTTOM + this.foot * 2);
+      let dist = Math.max(7.6, ((top - PEDESTAL_BOTTOM) * 1.25) / (1 - this.foot) / 2 / tanV);
+      let cy = (top + PEDESTAL_BOTTOM) / 2;
+      let off = 0;
+      for (let i = 0; i < 4; i++) {
+        const halfW = tanV * dist * aspect;
+        // keep the hero and the pedestal right of the UI column, inside the screen
+        const ped = (PEDESTAL_R + 0.05) / halfW;
+        let ndc = this.side * 0.6;
+        if (edge !== null) ndc = Math.max(ndc, edge + ped + 0.03);
+        ndc = Math.min(ndc, 0.97 - ped);
+        off = ndc * halfW;
+        cam.position.set(-off, cy + dist * 0.16, dist);
+        cam.lookAt(-off, cy, 0);
+        cam.updateMatrixWorld();
+        cam.updateProjectionMatrix();
+        const yTop = P.set(0, top, 0).project(cam).y;
+        const yBot = P.set(0, PEDESTAL_BOTTOM, PEDESTAL_R).project(cam).y;
+        const want = NDC_TOP - lowLimit;
+        const span = yTop - yBot;
+        if (Math.abs(span - want) < 0.01 && Math.abs((yTop + yBot) / 2 - (NDC_TOP + lowLimit) / 2) < 0.01) break;
+        // re-fit: the distance scales the span, then the centre slides to the band's middle
+        dist = Math.max(7.6, dist * (span / want));
+        cy += (((yTop + yBot) / 2 - (NDC_TOP + lowLimit) / 2) * tanV * dist) / 1;
+      }
       this.camOff = off;
       this.camDist = dist;
       cam.position.set(-off, cy + dist * 0.16, dist);
-      cam.lookAt(-off, cy, 0);
+      LOOK.set(-off, cy, 0);
+      this.stage.apply(cam, LOOK);
+      if (E2E) this.reportFrame(cam, top);
     };
+  }
+
+  private frameKey = '';
+  /** `?e2e=1`: the framing in NDC (hero top, pedestal front-bottom, pedestal left and right) on `html[data-lobby-frame]`. */
+  private reportFrame(cam: THREE.PerspectiveCamera, top: number): void {
+    cam.updateMatrixWorld();
+    const r = (n: number): string => n.toFixed(2);
+    const k = [
+      P.set(0, top, 0).project(cam).y,
+      P.set(0, PEDESTAL_BOTTOM, PEDESTAL_R).project(cam).y,
+      P.set(-PEDESTAL_R, PEDESTAL_BOTTOM, 0).project(cam).x,
+      P.set(PEDESTAL_R, PEDESTAL_BOTTOM, 0).project(cam).x,
+    ]
+      .map(r)
+      .join(',');
+    if (k !== this.frameKey) document.documentElement.dataset.lobbyFrame = this.frameKey = k;
   }
 
   /** The right edge (NDC) of the screen's UI column (title / pick / results), re-read a few times a second. */
@@ -153,7 +266,7 @@ export class Lobby {
     if (this.t - this.edgeAt < 0.25 && this.edgeAt >= 0) return this.edge;
     this.edgeAt = this.t;
     let right = 0;
-    for (const el of document.querySelectorAll<HTMLElement>('.pl-pick-col, .pl-title-col, .pl-results-col')) {
+    for (const el of document.querySelectorAll<HTMLElement>('.pl-pick-col, .pl-title-col, .pl-results-col, .lb-col')) {
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) right = Math.max(right, r.right);
     }
@@ -177,6 +290,7 @@ export class Lobby {
   }
 
   leave(): void {
+    this.stage.listen(false);
     this.gr.place = null;
     this.gr.active = this.gr.scene;
   }
@@ -223,6 +337,21 @@ export class Lobby {
         });
       }
     }
+    const frozen = this.gr.settings.tier === 'low' || reducedMotion();
+    this.backdrop.update(dt, frozen);
+    this.pedestal.update(dt, frozen);
+    this.stage.update(dt);
+    this.nature?.update(dt);
     this.particles.update(dt);
   }
 }
+
+const P = new THREE.Vector3();
+const E2E = ((): boolean => {
+  try {
+    return typeof location !== 'undefined' && new URLSearchParams(location.search).get('e2e') === '1';
+  } catch {
+    return false;
+  }
+})();
+const LOOK = new THREE.Vector3();

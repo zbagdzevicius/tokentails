@@ -1002,6 +1002,8 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 
 .pl-results .pl-skin { display: flex; align-items: center; gap: 8px; margin: 6px 0 0; font-size: 14px; }
 .pl-results .pl-skin img { width: 40px; height: 40px; image-rendering: pixelated; object-fit: contain; }
+/* integrate: a card cat with no art showed the paw at the column's full height */
+.pl-results .pl-skin > .pl-icon { width: 40px; height: 40px; flex: none; color: var(--butter); }
 .pl-results .pl-skin small { display: block; font-size: 12px; opacity: 0.75; }
 
 .pl-wear-chip { gap: 6px; }
