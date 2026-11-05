@@ -22,15 +22,16 @@ import type { Look } from '../../cosmetics';
 import { mat, mix, type Assembly, type ChibiSpec, type Col, type CoatSpec, type RGB } from '../chibi';
 import * as G from '../gear';
 import type { HeroDress, MotionProfile } from '../specs';
+import { HERO_BUILD } from '../heroSize';
 
 /** Idle and run standing inside the cushion (see the header); cast 'groom' (a paw to the face), attack 'paw' (a flick). */
 export const MOTION: MotionProfile = { idle: 'stand', run: 'stand', cast: 'groom', attack: 'paw', stride: 0.35 };
-/** Standing height (m) in the match. */
+/** Authored standing height (m); the match draws HEIGHT × HERO_BUILD.h (pawlegends: per-hero visual size, heroSize.ts). */
 export const HEIGHT = 2.6;
-/** Top of the bind-pose bounds (m), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. */
+/** Top of the bind-pose bounds (m), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. Authored at HEIGHT; HERO_TOP scales it by HERO_BUILD.h. */
 export const TOP = 2.7;
-/** Relation ring under her (m): the cushion is wide. */
-export const RING = 2.2;
+/** Relation ring under her (m): the cushion is wide (from heroSize.ts HERO_BUILD). */
+export const RING = HERO_BUILD.duchess.ring;
 export const COLOR_CSS = '#8a5cd6';
 /** A heavy plume tail (slow, lagging) and small ears that barely twitch. */
 export const SPRINGS: SpringTuning = { tail: { k: 80, c: 10, lag: 0.65 }, ears: { k: 200, c: 16, lag: 0 } };

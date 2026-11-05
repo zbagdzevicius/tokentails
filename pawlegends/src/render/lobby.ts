@@ -12,6 +12,10 @@ import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
 import { getSkin, isCardSkinId } from './skins/skinStore';
 import type { GameRenderer } from './renderer';
 import { lobbyHero, type LobbyHero } from './views/heroView';
+import { HERO_TOP } from './chars/specs';
+
+/** The hero-select frame's reference top (m): the tallest hero's drawn top, so relative sizes show. */
+const LOBBY_REF_TOP = Math.max(...Object.values(HERO_TOP));
 
 export class Lobby {
   readonly scene = new THREE.Scene();
@@ -97,7 +101,9 @@ export class Lobby {
     this.hero.object.scale.setScalar(1.0);
     const g = this.hero.ch.mesh.geometry;
     if (!g.boundingBox) g.computeBoundingBox();
-    this.top = (g.boundingBox?.max.y ?? 1.05) * this.hero.ch.height;
+    // frame every hero against the same reference (the tallest drawn top), not its own: Pixel stands small and
+    // Sir Brutus big on the same pedestal (per-hero visual size, chars/heroSize.ts); never clip a taller bounds
+    this.top = Math.max(LOBBY_REF_TOP, (g.boundingBox?.max.y ?? 1.05) * this.hero.ch.height);
     this.scene.add(this.hero.object);
     this.hero.ch.anim.respawn();
     this.hop = 0;

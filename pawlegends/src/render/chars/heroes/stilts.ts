@@ -17,24 +17,25 @@ import type { ChibiSpec, CoatSpec } from '../chibi';
 import { mat, mix, SPOT_FREQ, type Assembly, type Col } from '../chibi';
 import * as G from '../gear';
 import type { HeroDress, MotionProfile } from '../specs';
+import { HERO_BUILD } from '../heroSize';
 
 /** Idle on her toes, ready; runs in a long bounding stride; casts with a boop; attacks with claws. */
 export const MOTION: MotionProfile = { idle: 'ready', run: 'stand', cast: 'boop', attack: 'claw', stride: 1.35 };
 /**
  * Standing height (m) in the match: the tallest cat. The spec's 2.95 put her ear tips level with Clem's bow (her lite
  * head is small, so less of her model is head); 3.2 makes her the tallest cat on the field (only Sir Brutus's plume
- * and Lambo's bulk stand higher).
+ * and Lambo's bulk stand higher). The match draws HEIGHT × HERO_BUILD.h (pawlegends: per-hero visual size, heroSize.ts).
  */
 export const HEIGHT = 3.2;
-/** Top of the bind-pose bounds (m: the ear tufts), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. */
+/** Top of the bind-pose bounds (m: the ear tufts), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. Authored at HEIGHT; HERO_TOP scales it by HERO_BUILD.h. */
 export const TOP = 3.23;
 /**
  * Headroom (m) from TOP to her overhead plate (the shared one is 0.15): her radar ears are long sprung cones that lift
  * past the bind-pose top in her chin-up stances and leap, and at 0.15 their tips poked into the plate.
  */
 export const PLATE_HEADROOM = 0.4;
-/** Relation ring under her (m). */
-export const RING = 1.95;
+/** Relation ring under her (m, from heroSize.ts HERO_BUILD). */
+export const RING = HERO_BUILD.stilts.ring;
 export const COLOR_CSS = '#c9874a';
 /** A whippy tail and twitchy radar ears. */
 export const SPRINGS: SpringTuning = { tail: { k: 220, c: 13, lag: 0.6 }, ears: { k: 180, c: 12, lag: 0 } };

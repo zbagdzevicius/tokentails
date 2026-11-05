@@ -14,15 +14,16 @@ import type { Look } from '../../cosmetics';
 import { mat, type Assembly, type ChibiSpec, type Col, type CoatSpec } from '../chibi';
 import * as G from '../gear';
 import type { HeroDress, MotionProfile } from '../specs';
+import { HERO_BUILD } from '../heroSize';
 
 /** Idle sits like a loaf, runs on a short waddle stride, casts in a braced block, attacks with a belly bash. */
 export const MOTION: MotionProfile = { idle: 'sit', run: 'stand', cast: 'block', attack: 'bash', stride: 0.82 };
-/** Standing height (m) in the match. */
+/** Authored standing height (m); the match draws HEIGHT × HERO_BUILD.h (pawlegends: per-hero visual size, heroSize.ts). */
 export const HEIGHT = 2.5;
-/** Top of the bind-pose bounds (m), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. */
+/** Top of the bind-pose bounds (m), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. Authored at HEIGHT; HERO_TOP scales it by HERO_BUILD.h. */
 export const TOP = 2.85;
-/** Relation ring under him (m). */
-export const RING = 2.25;
+/** Relation ring under him (m, from heroSize.ts HERO_BUILD). */
+export const RING = HERO_BUILD.meatball.ring;
 export const COLOR_CSS = '#d9662b';
 /** A heavy, slow tail and floppy ears (a big soft cat). */
 export const SPRINGS: SpringTuning = { tail: { k: 80, c: 9, lag: 0.6 }, ears: { k: 130, c: 11, lag: 0 } };

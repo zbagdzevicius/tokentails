@@ -32,6 +32,7 @@ import * as MEATBALL from './heroes/meatball';
 import * as PIXEL from './heroes/pixel';
 import * as DUCHESS from './heroes/duchess';
 import * as STILTS from './heroes/stilts';
+import { HERO_BUILD } from './heroSize';
 
 const GOLD = 0xffd34d;
 /** Cat hero head scale on top of PPK's hero tier, and the ear size: the squire head-to-ear ratio at hero size. */
@@ -135,14 +136,18 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   stilts: STILTS.MOTION,
 });
 
-/** Standing height (m, ear tips / helmet) of each hero in the match: big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
-export const HERO_HEIGHT: Readonly<Record<HeroId, number>> = Object.freeze({
+/** Standing height (m, ear tips / helmet) of each hero in the match (authored × heroSize.ts HERO_BUILD.h, render only): big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
+const HEIGHT_AUTHORED: Readonly<Record<HeroId, number>> = {
   clem: 2.6, sage: 2.5, brutus: 2.8, cacklejaw: 2.65, lambo: 2.75, aviete: 2.5, bengas: 2.55, gabe: 2.5,
   meatball: MEATBALL.HEIGHT, pixel: PIXEL.HEIGHT, duchess: DUCHESS.HEIGHT, stilts: STILTS.HEIGHT,
-});
+};
+/** Per-hero visual build (heroSize.ts, render only): the authored height and top × `h`, rounded to the centimetre. */
+const byBuild = (t: Readonly<Record<HeroId, number>>): Readonly<Record<HeroId, number>> =>
+  Object.freeze(Object.fromEntries(Object.entries(t).map(([k, v]) => [k, Math.round(v * HERO_BUILD[k as HeroId].h * 100) / 100])) as Record<HeroId, number>);
+export const HERO_HEIGHT: Readonly<Record<HeroId, number>> = byBuild(HEIGHT_AUTHORED);
 
 /** Top of each hero's bind-pose bounds (m: ear tips, Clem's bow, Sir Brutus's plume): overhead bars sit above it. */
-export const HERO_TOP: Readonly<Record<HeroId, number>> = Object.freeze({
+export const HERO_TOP: Readonly<Record<HeroId, number>> = byBuild({
   clem: 3.06, sage: 2.71, brutus: 3.43, cacklejaw: 2.95, lambo: 3.37, aviete: 2.71, bengas: 2.78, gabe: 2.72,
   meatball: MEATBALL.TOP, pixel: PIXEL.TOP, duchess: DUCHESS.TOP, stilts: STILTS.TOP,
 });
