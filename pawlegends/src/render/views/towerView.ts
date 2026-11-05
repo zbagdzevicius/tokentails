@@ -18,6 +18,7 @@ import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
 import { DecalLayer, dashRingTexture } from './decals';
+import { aggroPulse, TowerBeams } from '../fx/towerBeams';
 import { coreGeometry, fountainGeometry, puddingGeometry, ratGeometry, towerGeometry } from './models';
 import { rigMaterial, type RigUniforms } from './rig';
 
@@ -118,6 +119,8 @@ export const FALL_SHAPE = Object.freeze({ crack: 0.12, hit: 0.6, settle: 0.7, to
  */
 export const DEBRIS = Object.freeze({ pool: 48, tower: 12, core: 14, gravity: 22, life: 1.0, coreSpeed: 6, coreSize: 0.42, towerSize: 0.42 });
 
+/** LoL pass (lane C): the idle tower range ring is a pale warm white; it turns red only while the tower is on you. */
+const RANGE_IDLE = 0xffe2c4;
 const TOWER_RANGE_M = Math.max(TOWERS.outer.range, TOWERS.inner.range) / 1000;
 /**
  * X-ray: a tower or core fades while a hero stands in the patch it hides on screen. The camera looks north (−Z)
@@ -174,6 +177,8 @@ export class StructureView {
   });
   private rubbleMat = new THREE.MeshLambertMaterial({ color: 0x9a8f80 });
   private ranges = new DecalLayer(dashRingTexture(), 8, { additive: true, y: 0.06, name: 'tower-ranges' });
+  /** LoL pass (lane C): the red aggro ring, normal blending (an additive red washed out to pink on the pale paths). */
+  private aggroRings = new DecalLayer(dashRingTexture(), 6, { y: 0.065, name: 'tower-aggro' });
   private geoCache = new Map<string, THREE.BufferGeometry>();
   private time = 0;
   private stamp = 0;
@@ -215,9 +220,14 @@ export class StructureView {
   /** Hero positions (m) this frame, for the x-ray fade. */
   heroes: { x: number; z: number }[] = [];
 
+  /** LoL pass (lane C): tower targeting beams and charging lines. */
+  readonly beams = new TowerBeams();
+  /** LoL pass (lane C): when (view seconds) each tower last hit or aimed at the player (the red aggro ring). */
+  private readonly aggroAt = new Map<number, number>();
+
   constructor() {
     this.group.name = 'structures';
-    this.group.add(this.ranges.mesh);
+    this.group.add(this.ranges.mesh, this.aggroRings.mesh, this.beams.group);
     // faceted chunks (a low-poly stone), not unit cubes
     this.debrisMesh = new THREE.InstancedMesh(new THREE.DodecahedronGeometry(0.62, 0), new THREE.MeshLambertMaterial({ color: 0xffffff }), DEBRIS.pool);
     this.debrisMesh.name = 'structure-debris';
@@ -396,6 +406,37 @@ export class StructureView {
     return c <= 0 ? 0 : c >= 1 ? 1 : c * c;
   }
 
+  /**
+   * LoL pass (lane C): tower / core `id` hit a unit at (x, y, z) m: a beam from its tip; `me` = the player (red, thick,
+   * a flare, and the tower's range ring turns red for a moment).
+   */
+  shotAt(id: number, x: number, y: number, z: number, me: boolean): void {
+    const s = this.items.get(id);
+    if (!s || !s.alive || (s.kind !== 'tower' && s.kind !== 'core')) return;
+    const col = s.team === this.myTeam ? 0xffd34d : 0xff7a5c;
+    this.beams.shot(s.x, s.height * 0.85, s.z, x, y, z, col, me);
+    if (me) this.aggroAt.set(id, this.time);
+  }
+
+  /** LoL pass (lane C): tower / core `id` winds up a shot at (x, z) m for `seconds`: a thin charging line toward it. */
+  chargeAt(id: number, x: number, z: number, seconds: number, me: boolean): void {
+    const s = this.items.get(id);
+    if (!s || !s.alive || (s.kind !== 'tower' && s.kind !== 'core')) return;
+    const col = me ? 0xff3b3b : s.team === this.myTeam ? 0xffd34d : 0xff9a7a;
+    this.beams.shot(s.x, s.height * 0.85, s.z, x, 0.9, z, col, me, true, seconds);
+    if (me) this.aggroAt.set(id, this.time);
+  }
+
+  /** LoL pass (lane C): tower `id` aims at the player (its lock-on): the range ring turns red. */
+  markAggro(id: number): void {
+    this.aggroAt.set(id, this.time);
+  }
+
+  /** LoL pass (lane C): is tower `id`'s range ring red now (it hit or aimed at the player within 1.5 s)? */
+  aggro(id: number): boolean {
+    return aggroPulse(this.time - (this.aggroAt.get(id) ?? -99), this.time) > 0;
+  }
+
   hit(id: number): void {
     const s = this.items.get(id);
     if (!s) return;
@@ -414,6 +455,7 @@ export class StructureView {
     this.time += dt;
     const stamp = ++this.stamp;
     this.ranges.begin();
+    this.aggroRings.begin();
     // a new bolt owned by a tower or core is its shot (the recoil and muzzle burst on that frame)
     const ps = frame.projectiles;
     for (let i = 0; i < ps.length; i++) {
@@ -493,10 +535,16 @@ export class StructureView {
       if (s.bubble) s.bubble.visible = (e.buffs & BuffFlag.Invulnerable) !== 0;
       if (s.bubble?.visible) s.bubble.scale.setScalar((s.kind === 'core' ? 3.2 : 2.4) * (1 + Math.sin(this.time * 3) * 0.02));
       if (e.kind === 'tower' && e.team !== this.myTeam && this.me) {
+        // LoL pass (lane C): the range ring turns red and pulses at 2 Hz while the tower is on the player (hit or aim
+        // in the last 1.5 s); otherwise the faint pale ring when the player comes near
+        const ag = aggroPulse(this.time - (this.aggroAt.get(e.id) ?? -99), this.time);
         const d = Math.hypot(this.me.x - s.x, this.me.z - s.z);
-        if (d < TOWER_RANGE_M + 4) {
+        if (ag > 0) {
+          this.aggroRings.add(s.x, s.z, TOWER_RANGE_M * 2, RELATION.danger, ag);
+          this.aggroRings.add(s.x, s.z, TOWER_RANGE_M * 2 * 0.985, RELATION.danger, 0.8 * ag);
+        } else if (d < TOWER_RANGE_M + 4) {
           const a = Math.min(1, (TOWER_RANGE_M + 4 - d) / 3);
-          this.ranges.add(s.x, s.z, TOWER_RANGE_M * 2, RELATION.danger, 0.55 * a);
+          this.ranges.add(s.x, s.z, TOWER_RANGE_M * 2, RANGE_IDLE, 0.5 * a);
         }
       }
     }
@@ -537,6 +585,8 @@ export class StructureView {
       }
     }
     this.ranges.end();
+    this.aggroRings.end();
+    this.beams.update(dt);
     this.updateDebris(dt);
     this.updateRubble();
   }
@@ -762,6 +812,8 @@ export class StructureView {
     for (const s of this.items.values()) s.material.dispose();
     for (const g of this.geoCache.values()) g.dispose();
     this.bubbleGeo.dispose();
+    this.beams.dispose();
+    this.aggroRings.dispose();
     this.bubbleMat.dispose();
     this.group.remove(this.debrisMesh);
     this.debrisMesh.geometry.dispose();

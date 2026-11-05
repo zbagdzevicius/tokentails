@@ -10,8 +10,9 @@
  *   (the worn card's colour), paw prints, a spawn shimmer and a chime as the hero drops in; for the player a long
  *   knockout (4 s+) closes a paw iris (under the HUD) to hide the camera cut to the fountain a moment early, and a
  *   short one pans the camera there instead, so the whole drop plays on screen either way.
- * - Nap (recall): a channel ring and drifting Zzz while napping, a poof where the hero left and a pillow pop with
- *   feathers where it lands.
+ * - Nap (recall), LoL pass (lane C): a blue-gold rune circle that fills clockwise with the channel and three rising
+ *   light motes while napping (no motes on Low), then a short flash and light column where the hero left, and a pillow
+ *   pop with feathers where it lands.
  * - Minion waves: a puff where each new minion appears and a soft march horn near the camera.
  * - Match end: confetti (won) or soft grey puffs (lost), and a paw wipe into the results.
  *
@@ -26,6 +27,7 @@ import { sfx } from '../../audio/sfx';
 import { SHAPE, FADE } from './Particles.js';
 import { dressTeam, RELATION } from '../palette';
 import { boldRingTexture, DecalLayer } from '../views/decals';
+import { NapRunes } from './napRune';
 import { toX, toZ } from '../coords';
 import type { ViewEntity, ViewFrame } from '../interp';
 import type { GameView } from '../gameView';
@@ -50,6 +52,9 @@ function funHash(tick: number, src: number, salt: number): number {
 export const RESPAWN_TICKS = Object.freeze({ pad: 36, close: 54, shut: 42, open: 30, count: 3 * TICK_HZ });
 /** Seconds after the player's respawn during which coaching tips hold (P2-12: no "Press Q" alone in the fountain). */
 export const TIPS_HOLD_AFTER_RESPAWN = 2.5;
+/** LoL pass (lane C): nap motes live this long (s); at most this many over all napping heroes. */
+const NAP_MOTE_LIFE = 0.8;
+const NAP_MOTES = 12;
 /** A nap that ends this far (m) from where the hero slept was a recall to the fountain. */
 const NAP_JUMP_M = 8;
 const MAX_ID = 128;
@@ -110,6 +115,8 @@ interface Track {
   team: number;
   napStart: number;
   napZ: number;
+  /** Seconds until the next nap mote. */
+  napMote: number;
   shield: number;
   sx: number;
   sz: number;
@@ -122,7 +129,11 @@ export class Lifecycle {
   readonly gate = new StartGate();
   readonly hud: LifeHud;
   private readonly decals: DecalLayer;
-  private readonly tr: Track[] = Array.from({ length: 16 }, () => ({ seen: false, dead: false, state: '', x: 0, z: 0, team: 0, napStart: -1, napZ: 0, shield: 0, sx: 0, sz: 0, total: 0 }));
+  /** LoL pass (lane C): the nap rune circles (one pooled ring per hero slot). */
+  readonly napRunes = new NapRunes();
+  /** Birth times (s) of the live nap motes (at most NAP_MOTES at once, all heroes together). */
+  private readonly motes: number[] = [];
+  private readonly tr: Track[] = Array.from({ length: 16 }, () => ({ seen: false, dead: false, state: '', x: 0, z: 0, team: 0, napStart: -1, napZ: 0, napMote: 0, shield: 0, sx: 0, sz: 0, total: 0 }));
   private readonly minionSeen = new Uint32Array(MAX_ID);
   private stamp = 1;
   private first = true;
@@ -152,7 +163,7 @@ export class Lifecycle {
   ) {
     this.hud = new LifeHud(uiRoot);
     this.decals = new DecalLayer(boldRingTexture(), 14, { additive: true, y: 0.08, renderOrder: 2, name: 'lifecycle-decals' });
-    view.scene.add(this.gate.group, this.sprites.mesh, this.decals.mesh);
+    view.scene.add(this.gate.group, this.sprites.mesh, this.decals.mesh, this.napRunes.group);
     // the fence replaces the map's flat ground strip (which also ran under the core)
     view.map.gateStrip = false;
     this.prime();
@@ -197,7 +208,9 @@ export class Lifecycle {
     }
     this.updateGate(tick, frame ? frame.latest.clock.phase === 'gate' : true);
     if (frame) {
+      this.napRunes.begin();
       this.updateHeroes(frame);
+      this.napRunes.end();
       this.updateMinions(frame);
       this.lastTick = frame.tick;
       this.first = false;
@@ -316,6 +329,7 @@ export class Lifecycle {
         if (t.state !== 'napping') {
           t.napStart = frame.tick;
           t.napZ = 0;
+          t.napMote = 0;
         }
         this.napping(e, x, z, t, frame.tick);
       } else if (t.state === 'napping' && !dead && Math.hypot(x - t.x, z - t.z) > NAP_JUMP_M) this.napArrived(e, t.x, t.z, x, z);
@@ -417,25 +431,32 @@ export class Lifecycle {
 
   private napping(e: ViewEntity, x: number, z: number, t: Track, tick: number): void {
     const k = napProgress(t.napStart, tick);
-    const col = e.id === this.view.mySlot ? RELATION.self : e.team === this.view.myTeam ? RELATION.ally : RELATION.enemy;
-    // a faint full ring and one closing on the hero as the nap fills
-    this.decals.add(x, z, 3.4, col, 0.45);
-    this.decals.add(x, z, 3.4 - 1.9 * k, mix(col, 0xffffff, 0.4), 0.65 + 0.35 * k);
-    t.napZ -= this.dt;
-    if (t.napZ <= 0) {
-      t.napZ = this.reduced ? 1.2 : 0.65;
-      this.sprites.spawn({ x: x + 0.3, y: heroTop(e.hero) - 0.5, z, glyph: GLYPH.zzz, color: 0xcfe0ff, size0: 0.35, size1: 0.7, life: 1.4, vy: 0.7, vx: 0.25, sway: 0.15, swayHz: 1.1, rot: -0.2, curve: 2 });
-    }
+    // LoL pass (lane C): the rune circle fills clockwise with the channel (the HUD nap bar reads the same progress)
+    this.napRunes.put(e.id, x, z, k, heroBodyScale(e.hero), this.time);
+    // three rising light motes at a time per hero, at most NAP_MOTES over all heroes; none on Low or reduce motion
+    if (this.reduced || this.view.gr.settings.tier === 'low') return;
+    while (this.motes.length && this.time - this.motes[0] > NAP_MOTE_LIFE) this.motes.shift();
+    t.napMote -= this.dt;
+    if (t.napMote > 0 || this.motes.length >= NAP_MOTES) return;
+    t.napMote = NAP_MOTE_LIFE / 3;
+    this.motes.push(this.time);
+    const a = funHash(tick | 0, e.id, 7) * Math.PI * 2;
+    const r = 1.5 * heroBodyScale(e.hero);
+    this.v.set(x + Math.cos(a) * r, 0.2, z + Math.sin(a) * r);
+    this.view.particles.single(this.v, { shape: SHAPE.STAR4, additive: true, color: k > 0.5 ? 0xffe29a : 0x9cc0ff, intensity: 2, size0: 0.22, size1: 0.06, life: NAP_MOTE_LIFE, vy: 2.2 });
   }
 
   private napArrived(e: ViewEntity, x0: number, z0: number, x: number, z: number): void {
     this.counts.napOut++;
     const mine = e.id === this.view.mySlot;
     const p = this.view.particles;
-    // where it left: a poof and a last Zzz
+    // where it left: LoL pass (lane C) a 200 ms flash and light column, and a poof
     this.v.set(x0, 0.8, z0);
     p.burst(this.v, { n: this.n(12), shape: SHAPE.PUFF, color: 0xf3ecff, alpha: 0.85, size: [0.5, 0.9], sizeEnd: 1.8, life: [0.5, 0.8], speed: [1.5, 3], up: 1, drag: 2 });
-    this.sprites.spawn({ x: x0, y: heroY(e.hero, 1.8), z: z0, glyph: GLYPH.zzz, color: 0xcfe0ff, size0: 0.6, size1: 0.9, life: 0.9, vy: 1.4, curve: 1 });
+    const bs = heroBodyScale(e.hero);
+    this.view.meshFx.spawn('pillar', { x: x0, z: z0, sx: 0.9 * bs, sy: 7, life: 0.2, color: 0xbfd4ff, rim: 0xffd36a, rel: 'ally', p3: 1 });
+    this.v.set(x0, heroY(e.hero, 1.0), z0);
+    p.single(this.v, { shape: SHAPE.STAR4, additive: true, color: 0xfff3c8, intensity: 2.4, size0: 2.6 * bs, size1: 0.4, life: 0.2 });
     // where it lands: a pillow pops and feathers fly
     this.sprites.spawn({ x, y: heroTop(e.hero) - 0.2, z, glyph: GLYPH.pillow, color: 0xfff1f7, size0: 1.9, size1: 1.5, life: 0.85, vy: 0.5, curve: 1 });
     this.v.set(x, heroY(e.hero, 1.8), z);
@@ -535,7 +556,8 @@ export class Lifecycle {
   }
 
   dispose(): void {
-    this.view.scene.remove(this.gate.group, this.sprites.mesh, this.decals.mesh);
+    this.view.scene.remove(this.gate.group, this.sprites.mesh, this.decals.mesh, this.napRunes.group);
+    this.napRunes.dispose();
     this.view.map.gateStrip = true;
     this.gate.dispose();
     this.sprites.dispose();
