@@ -6,7 +6,8 @@
  * hides all, Mine only hides the others', Low and team fights hide the others', a stealthed or dead hero shows
  * nothing, the 80 % particle-pool guard and COSMETIC_MAX):
  * - the player's own hero: at most MATCH_SELF_MAX live motes (MATCH_LOW_MAX on Low);
- * - another hero: Med / High only, at most MATCH_OTHER_MAX, and none under reduced motion;
+ * - another hero: Med / High only, at most MATCH_OTHER_MAX; none under reduced motion for anyone (the own hero too);
+ * - never a featured (unowned) cat: a showcase bot's card has no Nature;
  * - never a ground aura or a trail (gameplay signals, see the tierFx.ts header); yellow (Spark, Star) goes paler on
  *   anyone but the player's own hero, since gold means "you".
  * Pooled option objects, typed-array bookkeeping: nothing is allocated per frame. Cosmetic only, never sim input.
@@ -100,7 +101,8 @@ function liveOf(s: State, k: number, now: number): number {
 /** One hero's Nature this frame (TierFx calls it once the hero may show cosmetics). */
 export function natureMote(fx: TierFx, h: FxHero, _wasDead: boolean): void {
   const p = fx.particles;
-  if (!p || h.dead || h.stealth) return;
+  // Nature comes from a real roster only: a showcase bot in a featured (unowned) cat shows none (QA)
+  if (!p || h.dead || h.stealth || h.featured) return;
   const cap = matchCap(h.self, fx.low, reduced);
   if (cap <= 0) return;
   let s = states.get(fx);

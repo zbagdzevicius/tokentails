@@ -854,7 +854,8 @@ html[data-touch='1'] .pl-talents button span.s { -webkit-line-clamp: 2; }
 .pl-table tr.enemy td { color: #ffb3bd; }
 @media (max-height: 480px) {
   /* the column scrolls: a fade at its foot says so */
-  .pl-results-col { -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent); mask-image: linear-gradient(to bottom, #000 88%, transparent); padding-bottom: 24px; }
+  /* pawlegends (QA): room for the last line ("Legendary card: …") to scroll clear of the fade and the pinned buttons */
+  .pl-results-col { -webkit-mask-image: linear-gradient(to bottom, #000 88%, transparent); mask-image: linear-gradient(to bottom, #000 88%, transparent); padding-bottom: 64px; }
   .pl-results .actions.pinned { bottom: calc(10px + var(--safe-b)); }
   .pl-results .actions.pinned .pl-btn.big { font-size: 17px; padding: 10px 22px; }
 }

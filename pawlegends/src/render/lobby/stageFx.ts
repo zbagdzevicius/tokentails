@@ -131,7 +131,8 @@ export class StageFx {
     }
     if (this.ring.visible) {
       this.ringT = Math.min(1, this.ringT + dt * 1.8);
-      const s = 1.2 + ease(this.ringT) * 1.4;
+      // reduced motion: the ring fades in place (QA: it still expanded)
+      const s = reducedMotion() ? 1.6 : 1.2 + ease(this.ringT) * 1.4;
       this.ring.scale.setScalar(s);
       this.ringMat.opacity = (1 - this.ringT) * 0.9;
       if (this.ringT >= 1) this.ring.visible = false;

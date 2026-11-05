@@ -266,6 +266,10 @@ export class MatchSession {
   private catNames: string[] = [];
   /** Lobby spec §3b: the owned card the player's champion wears (its name replaces the hero title), or null. */
   private myCard: CardIdentity | null = null;
+  /** pawlegends: the card worn this match, as the match named it (the results screen keeps that name, QA). */
+  get card(): CardIdentity | null {
+    return this.myCard;
+  }
   /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (no window globals). */
   private readonly e2e = (() => {
     try {

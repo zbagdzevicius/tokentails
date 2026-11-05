@@ -30,7 +30,9 @@ test('roster cats become chromas, frames and Companion Kittens; the result reach
   const game = await openHost(page);
   await expect.poll(() => gattr(game, 'chromas')).toBe('ICE,FIRE');
   expect(await gattr(game, 'frame')).toBe('frame.legendary');
-  expect(await game.locator('.pl-badge').getAttribute('data-frame')).toBe('frame.legendary');
+  // QA (lobby fix pass): a first visit hides the roster tier frame badge (it read as unexplained); the frame is still
+  // owned and worn in the match (matchFrame below)
+  await expect(game.locator('.pl-badge')).toHaveCount(0);
   const msgs = await received(page);
   expect(msgs[0]).toMatchObject({ type: 'ready' });
 

@@ -1,22 +1,25 @@
-/* "Your cards" drawer (ui/deck/, lobby spec §3b). Desktop: a drawer from the right with a card grid; short
-   landscape phones: a bottom sheet with one scrolling row. The cards are ui/cards frames (cards.css). */
+/* "Your cards" drawer (ui/deck/, lobby spec §3b). A panel from the LEFT with a card grid on every screen, so the hero
+   on the pedestal (centre right) stays in view while a card goes on (QA: the phone bottom sheet covered it, the
+   desktop drawer from the right covered half of it). Short landscape phones: the left 55%, four cards a row. The
+   scrim is dark over the panel side only. The cards are ui/cards frames (cards.css). */
 
 .pl-deck {
   position: absolute; inset: 0; z-index: 50; pointer-events: auto; color: var(--cream, #fff3dc); font-family: var(--font);
 }
 .pl-deck .dk-scrim {
-  position: absolute; inset: 0; background: rgba(20, 12, 22, 0.42); opacity: 0; transition: opacity 0.18s ease-out;
+  position: absolute; inset: 0; opacity: 0; transition: opacity 0.18s ease-out;
+  background: linear-gradient(90deg, rgba(20, 12, 22, 0.5) 0%, rgba(20, 12, 22, 0.42) 38%, rgba(20, 12, 22, 0.06) 62%, rgba(20, 12, 22, 0) 100%);
 }
 .pl-deck.in .dk-scrim { opacity: 1; }
 .pl-deck .dk-panel {
-  position: absolute; top: 0; right: 0; bottom: 0; width: min(408px, 42vw); display: flex; flex-direction: column; gap: 10px;
-  padding: calc(16px + var(--safe-t, 0px)) calc(16px + var(--safe-r, 0px)) calc(14px + var(--safe-b, 0px)) 18px;
+  position: absolute; top: 0; left: 0; bottom: 0; width: min(440px, 42vw); display: flex; flex-direction: column; gap: 10px;
+  padding: calc(16px + var(--safe-t, 0px)) 18px calc(14px + var(--safe-b, 0px)) calc(18px + var(--safe-l, 0px));
   background: linear-gradient(180deg, rgba(52, 34, 58, 0.97), rgba(36, 24, 42, 0.97));
-  border-left: 2px solid rgba(255, 211, 77, 0.35); box-shadow: -18px 0 40px rgba(0, 0, 0, 0.35);
-  transform: translateX(104%); transition: transform 0.22s cubic-bezier(0.2, 1.1, 0.4, 1);
+  border-right: 2px solid rgba(255, 211, 77, 0.35); box-shadow: 18px 0 40px rgba(0, 0, 0, 0.35);
+  transform: translateX(-104%); transition: transform 0.22s cubic-bezier(0.2, 1.1, 0.4, 1);
 }
 .pl-deck.in .dk-panel { transform: none; }
-.pl-deck.out .dk-panel { transform: translateX(104%); transition-duration: 0.16s; }
+.pl-deck.out .dk-panel { transform: translateX(-104%); transition-duration: 0.16s; }
 .pl-deck.out .dk-scrim { opacity: 0; }
 
 .pl-deck .dk-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
@@ -28,11 +31,17 @@
   background: rgba(255, 243, 220, 0.08); color: inherit; font: 700 24px/1 var(--font); cursor: pointer; display: grid; place-items: center;
 }
 .pl-deck .dk-close:hover { background: rgba(255, 243, 220, 0.16); }
+.pl-deck .dk-close:focus { outline: none; }
+.pl-deck .dk-close:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 2px; }
+/* the one-line announcement when a card goes on (deck.ts): read by screen readers, never drawn */
+.pl-deck .dk-sr { position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 
 .pl-deck .dk-row {
   flex: 1 1 auto; min-height: 0; overflow-y: auto; overflow-x: hidden; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px 12px; padding: 8px 6px 10px; align-content: start; scrollbar-width: thin; overscroll-behavior: contain;
 }
+/* more cards below: the row fades at its foot (deck.ts toggles .more) */
+.pl-deck .dk-row.more { -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 34px), transparent); }
 .pl-deck .dk-slot { position: relative; display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 0; }
 .pl-deck .dk-card { width: 100%; cursor: pointer; }
 .pl-deck .dk-card:focus { outline: none; }
@@ -41,7 +50,7 @@
 .pl-deck .dk-card:hover { transform: translateY(-3px); }
 .pl-deck .dk-worn {
   position: absolute; top: -8px; left: 50%; transform: translateX(-50%); z-index: 6; pointer-events: none;
-  font: 700 10px/1 var(--font); letter-spacing: 0.04em; color: #2b1d2e; background: var(--butter, #ffd34d);
+  font: 700 11px/1 var(--font); letter-spacing: 0.04em; color: #2b1d2e; background: var(--butter, #ffd34d);
   padding: 3px 7px; border-radius: 999px; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3); white-space: nowrap;
 }
 
@@ -61,15 +70,16 @@
 .pl-deck .dk-card .dk-noart .pl-icon { width: 34%; height: auto; }
 .pl-deck .dk-card .tt-in { background: radial-gradient(circle at 50% 36%, rgba(255, 255, 255, 0.12), #0b0b2a 70%); }
 .pl-deck .dk-card .tt-pic { height: 70%; }
-.pl-deck .dk-card .dk-name { font: 700 12cqw/1.05 var(--font); }
-.pl-deck .dk-card .dk-meta { display: flex; gap: 3cqw; align-items: center; justify-content: center; font-size: 7.5cqw; opacity: 0.95; }
+/* QA: readable on a phone: names never under 13 px, the small lines never under 11 px */
+.pl-deck .dk-card .dk-name { font: 700 max(13px, 12cqw)/1.05 var(--font); }
+.pl-deck .dk-card .dk-meta { display: flex; flex-wrap: wrap; gap: 2px 3cqw; align-items: center; justify-content: center; font-size: max(11px, 7.5cqw); opacity: 0.95; max-width: 96%; }
 .pl-deck .dk-card .pip { padding: 0.6cqw 3cqw; border-radius: 999px; background: rgba(255, 243, 220, 0.18); }
 .pl-deck .dk-card .pip[data-rung='RARE'] { background: rgba(127, 200, 255, 0.35); }
 .pl-deck .dk-card .pip[data-rung='EPIC'] { background: rgba(197, 140, 255, 0.4); }
 .pl-deck .dk-card .pip[data-rung='LEGENDARY'] { background: rgba(255, 179, 71, 0.45); }
-.pl-deck .dk-card .bond { font-size: 7cqw; opacity: 0.75; }
+.pl-deck .dk-card .bond { font-size: max(11px, 7cqw); opacity: 0.85; }
 .pl-deck .dk-card.locked { cursor: default; filter: saturate(0.4) brightness(0.8); }
-.pl-deck .dk-preview { font-size: 12px; padding: 3px 10px; }
+.pl-deck .dk-preview { font-size: 12px; padding: 3px 10px; min-height: 28px; }
 .pl-deck .dk-preview.spent { opacity: 0.5; pointer-events: none; }
 .pl-deck .dk-preview:focus-visible { outline: 3px solid var(--butter, #ffd34d); outline-offset: 2px; }
 
@@ -102,28 +112,29 @@
 .pl-deck .dk-card.dk-flash { animation: dk-flash 0.45s ease-out; }
 @keyframes dk-flash { 50% { filter: brightness(1.5); } }
 
-/* short landscape phones: a bottom sheet with one scrolling row */
+/* short landscape phones (844x390): the left 55%, four cards a row with a vertical scroll, the footer one line */
 @media (max-height: 480px) {
+  .pl-deck .dk-scrim { background: linear-gradient(90deg, rgba(20, 12, 22, 0.5) 0%, rgba(20, 12, 22, 0.4) 50%, rgba(20, 12, 22, 0) 68%); }
   .pl-deck .dk-panel {
-    top: auto; left: 0; width: auto; height: min(232px, 62vh); gap: 4px; border-left: 0; border-top: 2px solid rgba(255, 211, 77, 0.35);
-    padding: 10px calc(14px + var(--safe-r, 0px)) calc(8px + var(--safe-b, 0px)) calc(14px + var(--safe-l, 0px));
-    transform: translateY(104%); box-shadow: 0 -14px 32px rgba(0, 0, 0, 0.35);
-    display: grid; grid-template-columns: minmax(0, 1fr) minmax(170px, 30%); grid-template-rows: auto minmax(0, 1fr); column-gap: 14px;
+    width: 55vw; gap: 4px; padding: calc(8px + var(--safe-t, 0px)) 12px calc(6px + var(--safe-b, 0px)) calc(12px + var(--safe-l, 0px));
   }
-  .pl-deck.out .dk-panel { transform: translateY(104%); }
-  .pl-deck .dk-head { grid-column: 1 / -1; align-items: center; }
+  .pl-deck .dk-head { align-items: center; }
   .pl-deck .dk-head h2 { font-size: 17px; }
   .pl-deck .dk-sub { font-size: 11.5px; margin-top: 1px; }
-  .pl-deck .dk-close { width: 36px; height: 36px; font-size: 20px; }
-  .pl-deck .dk-row { grid-column: 1; grid-row: 2; display: flex; gap: 10px; overflow-x: auto; overflow-y: hidden; padding: 10px 4px 6px; align-items: flex-start; scroll-snap-type: x proximity; }
-  .pl-deck .dk-slot { flex: 0 0 88px; scroll-snap-align: start; }
-  .pl-deck .dk-empty-slot { flex: 0 0 210px; }
-  .pl-deck .dk-empty { aspect-ratio: auto; height: 120px; }
-  .pl-deck .dk-foot { grid-column: 2; grid-row: 2; border-top: 0; border-left: 1px solid var(--line, rgba(255, 243, 220, 0.16)); padding: 6px 0 0 12px; min-height: 0; overflow: hidden; }
+  .pl-deck .dk-close { width: 40px; height: 40px; font-size: 20px; }
+  .pl-deck .dk-row { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px 8px; padding: 10px 4px 8px; }
+  .pl-deck .dk-empty-slot { grid-column: span 3; }
+  .pl-deck .dk-empty { aspect-ratio: auto; min-height: 120px; }
+  .pl-deck .dk-foot { min-height: 0; padding-top: 4px; }
+  .pl-deck .dk-foot .card-fx { display: none; }
+  .pl-deck .dk-line { flex-direction: row; flex-wrap: wrap; align-items: baseline; column-gap: 8px; }
   .pl-deck .dk-line b { font-size: 14px; }
-  .pl-deck .dk-line small { font-size: 11px; }
+  .pl-deck .dk-line small { font-size: 11.5px; }
   .pl-deck .dk-extra { display: none; }
+  .pl-deck .dk-worn { font-size: 11px; }
 }
+/* Low quality: the Epic / Legendary glow pulse stays still (it repaints the card every frame) */
+html[data-quality='low'] .pl-deck .dk-card { animation: none; }
 
 @media (prefers-reduced-motion: reduce) {
   .pl-deck .dk-panel, .pl-deck .dk-scrim { transition: none; }

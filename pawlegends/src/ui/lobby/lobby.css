@@ -51,6 +51,8 @@
   box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 0 color-mix(in srgb, var(--lb-el) 50%, transparent);
   animation: lb-pulse 2.6s ease-in-out infinite;
 }
+/* Low quality: the Play glow pulse animates a box shadow (a repaint every frame); still on Low */
+html[data-quality='low'] .pl-lobby .lb-play .pl-btn.big { animation: none; }
 @keyframes lb-pulse { 50% { box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); } }
 .lb-line { margin: 2px 0 0 4px; font-size: 14px; font-weight: 600; opacity: 0.85; }
 .lb-line.dare-line { color: var(--butter); opacity: 1; font-size: 15px; }
@@ -61,8 +63,10 @@
 }
 .lb-seg button {
   font: 700 13px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 999px; padding: 8px 16px;
-  cursor: pointer; min-height: 32px;
+  cursor: pointer; min-height: 32px; position: relative;
 }
+/* QA: 44 px tall tap targets on phones without a taller pill: the hit area reaches past the drawn button */
+.lb-seg button::after { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
 .lb-seg button.on { background: var(--cream); color: #3a2440; }
 .lb-locked { display: flex; align-items: center; gap: 6px; margin: 2px 0 0 4px; font-size: 13px; opacity: 0.75; }
 .lb-lock { width: 14px; height: 14px; display: inline-block; }
@@ -77,10 +81,11 @@
 }
 .lb-quests { position: relative; }
 .lb-quests summary {
-  list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 var(--font);
+  position: relative; list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 var(--font);
   padding: 10px 14px; border-radius: 999px; background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
 }
 .lb-quests summary::-webkit-details-marker { display: none; }
+.lb-quests summary::after { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
 .lb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--butter); box-shadow: 0 0 6px var(--butter); }
 .lb-dot.all { background: #9be3c4; box-shadow: 0 0 6px #9be3c4; }
 .lb-qlist {
@@ -139,7 +144,19 @@ img.lb-cat { width: 100%; object-fit: contain; image-rendering: pixelated; }
 }
 .lb-noart { color: rgba(255, 243, 220, 0.5); }
 .lb-noart .pl-icon { width: 40%; height: auto; }
-.lb-mini-name { font-size: 10px; line-height: 1.1; max-width: 92%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+/* QA: the card frame's 13cqw name was 9 px here (6.5 px on a phone); a fixed readable size, cut with "…" */
+.lb-mini.tt-card .tt-in > .lb-mini-name { font: 700 12px/1.1 var(--font); max-width: 94%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #fff; }
+/* the fan shows once the Nature stylesheet is in (lobbyScreen.ts), so the front card never flashes unstyled */
+.lb-peek .lb-fan { transition: opacity 0.2s ease-out; }
+.lb-peek.lb-wait .lb-fan { opacity: 0; }
+/* the first visit: the cards are shown, not worn yet (no button) */
+.lb-peek.first { cursor: default; }
+.lb-peek.first:hover .lb-mini.n0 { transform: none; }
+.lb-peek.first:hover .lb-mini.n1 { transform: rotate(-12deg) translateX(-14px); }
+.lb-peek.first:hover .lb-mini.n2 { transform: rotate(12deg) translateX(14px); }
+.lb-peek.first .lb-peek-cap { max-width: 200px; }
+/* Low quality: no glow pulse on the fan (cards.css animates Epic / Legendary box shadows) */
+html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-card > .tt-in::after { animation: none; }
 .lb-peek-cap { display: flex; flex-direction: column; align-items: flex-end; text-align: right; margin-bottom: 8px; max-width: 170px; }
 .lb-peek-cap b { font-size: 15px; }
 .lb-peek-cap small { font-size: 13px; opacity: 0.85; }
@@ -164,7 +181,7 @@ img.lb-cat { width: 100%; object-fit: contain; image-rendering: pixelated; }
   .pl-lobby h1 { font-size: 28px; text-shadow: 0 3px 0 #7d4fa8; }
   .pl-lobby .tag { display: none; }
   .lb-name { margin: 8px 0 10px; padding-left: 10px; }
-  .lb-eyebrow { font-size: 10px; }
+  .lb-eyebrow { font-size: 11px; }
   .lb-hero { font-size: 30px; }
   .lb-sub { font-size: 13px; margin: 3px 0 6px; }
   .lb-chip { font-size: 11px; padding: 4px 8px; }
@@ -180,14 +197,15 @@ img.lb-cat { width: 100%; object-fit: contain; image-rendering: pixelated; }
   .lb-icon { height: 38px; min-width: 38px; }
   .lb-icon:not(.wide) { width: 38px; }
   .lb-peek { right: calc(10px + var(--safe-r)); bottom: calc(6px + var(--safe-b)); gap: 6px; }
-  .lb-fan { width: 92px; height: 78px; }
-  .lb-mini.tt-card { width: 50px; height: 70px; left: 21px; }
-  .lb-peek-cap { max-width: 110px; margin-bottom: 4px; }
+  .lb-fan { width: 112px; height: 96px; }
+  .lb-mini.tt-card { width: 64px; height: 88px; left: 24px; }
+  .lb-peek-cap { max-width: 120px; margin-bottom: 4px; }
+  .lb-peek.first .lb-peek-cap { max-width: 150px; }
   .lb-peek-cap b { font-size: 12px; }
   .lb-peek-cap small { font-size: 11px; }
   .lb-back { width: 44px; height: 62px; }
-  .lb-mini-name { font-size: 8px; }
-  .lb-sprite > i { transform: scale(0.9); }
+  .lb-mini.tt-card .tt-in > .lb-mini-name { font-size: 11px; }
+  .lb-sprite > i { transform: scale(1.1); }
 }
 @media (max-height: 340px) {
   .lb-eyebrow, .lb-chips { display: none; }
@@ -196,7 +214,8 @@ img.lb-cat { width: 100%; object-fit: contain; image-rendering: pixelated; }
 @media (prefers-reduced-motion: reduce) {
   .pl-lobby, .pl-loading { animation: none; }
   .pl-lobby .lb-play .pl-btn.big { animation: none; }
-  .pl-lobby .logo .paw { animation: none; }
+  /* QA: ui.css `.pl-title .logo .paw` came later and won at the same specificity */
+  .pl-title.pl-lobby .logo .paw { animation: none; }
   .lb-mini.tt-card { transition: none; }
   .pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner { transition: none; transform: none; }
   .pl-lobby.leaving .lb-col { transform: translateY(-50%); }

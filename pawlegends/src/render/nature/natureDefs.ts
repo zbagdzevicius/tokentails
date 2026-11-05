@@ -108,12 +108,15 @@ export const NATURE: Readonly<Record<Element, NatureDef>> = Object.freeze({
   STELLAR: def('STELLAR', { primary: 0xfff1a8, secondary: 0xc5bdff, shape: S.STAR5, shape2: S.STAR4, additive: true, rise: 0.12, gravity: 0, drift: 0.12, spin: 0.6, life: [0.9, 1.5], size: [0.144, 0.252], sizeEnd: 0.5, stretch: 1, alpha: 0.95, rateLobby: 12, rateMatch: 1 / 0.6, fade: F.TWINKLE, from: 'low', sfx: 'levelup' }),
 });
 
-/** The Nature a look shows: the worn card skin's element and rung, or null (no card, or a card not loaded). */
+/**
+ * The Nature a look shows: the worn card skin's element and rung, or null (no card, a card not loaded, or a featured
+ * cat the player does not own: Nature comes from the player's real roster only).
+ */
 export function natureOfLook(look: Look | null | undefined): { element: Element; rung: CatTier } | null {
   const coat = look?.coat;
   if (!isCardSkinId(coat)) return null;
   const s = getSkin(coat);
-  return s ? { element: s.element, rung: s.rung } : null;
+  return s && !s.featured ? { element: s.element, rung: s.rung } : null;
 }
 
 /** Lobby motes per second for an element at a rung and quality (0 under reduced motion). */
@@ -122,9 +125,13 @@ export function lobbyRate(el: Element, rung: CatTier, low: boolean, reduced: boo
   return NATURE[el].rateLobby * RUNG_RATE[rung] * (low ? LOBBY_LOW_RATE : 1);
 }
 
-/** The in-match live-mote cap for one hero (0 = none): own hero always, others only on Med / High without reduced motion. */
+/**
+ * The in-match live-mote cap for one hero (0 = none): none under reduced motion (drifting motes, like the lobby's
+ * rate 0); the own hero on every tier, others only on Med / High.
+ */
 export function matchCap(self: boolean, low: boolean, reduced: boolean): number {
+  if (reduced) return 0;
   if (self) return low ? MATCH_LOW_MAX : MATCH_SELF_MAX;
-  if (low || reduced) return 0;
+  if (low) return 0;
   return MATCH_OTHER_MAX;
 }

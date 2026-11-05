@@ -35,7 +35,7 @@ import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
-import { heroIdentity, lobbyScreen, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
+import { disposeLobby, heroIdentity, lobbyScreen, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 import { heroElement } from '../ui/cards/el';
 import type { DeckCard, DeckHandle } from '../ui/deck/deck';
 import { championOf } from '../data/heroes/shelter';
@@ -459,6 +459,8 @@ export class App {
   // ---------------------------------------------------------------------------------------------- screens
 
   private setScreen(s: Screen, el: HTMLElement | null): void {
+    // QA: the lobby's document key listener left with its screen (it piled up, one per redraw, holding old screens)
+    disposeLobby(this.screenEl);
     this.screenEl?.remove();
     this.screenEl = el;
     this.screen = s;
@@ -531,6 +533,7 @@ export class App {
         title: titleOf(owned, p.wornTitle),
         portrait: this.badgePortrait(),
         signedIn: accountState().signedIn,
+        isApp: this.isApp(),
         firstLine: rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.',
         difficulties: pickable(),
         difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
@@ -541,7 +544,11 @@ export class App {
         peek,
         wearing: card ? { name: card.name } : null,
         onCards: () => this.openCards(),
-        playOut: () => this.lobby.playOut(),
+        // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
+        playOut: () => {
+          void loadMatch().catch(() => undefined);
+          return this.lobby.playOut();
+        },
         sound: (n) => sfx.play(n),
         onPlay: (c, seed) => {
           if (seed !== undefined) this.dare = null;
@@ -733,6 +740,9 @@ export class App {
     // GDD §7.2: the first match never wears a card skin (the tutorial art matches); its coat and chroma stay as before
     const chosen = this.lookFor(c.hero);
     const look = p.matches === 0 && isCardSkinId(chosen.coat) ? resolveLook(c.hero, owned, null) : chosen;
+    // QA: the cat the champion wears does not also walk as a kitten ("Ficus" twice); the next squad cat walks instead
+    const wornCat = cardIdentity(c.hero, look)?.catId ?? null;
+    const companions = wornCat ? this.roster.cats.filter((k) => k.id !== wornCat).slice(0, this.roster.companions.length) : this.roster.companions;
     // no probe here: the match uses the palette cached at its start (a probe landing mid-match would rebuild the rig)
     const setup: MatchSetup = {
       ...c,
@@ -745,7 +755,7 @@ export class App {
       look,
       frame: bestFrame(owned, p.wornFrame),
       title: titleOf(owned, p.wornTitle),
-      companions: this.roster.companions,
+      companions,
       guide: p.tipsOff ? 'off' : seed !== undefined && p.matches > 0 ? 'off' : guideMode(p.matches),
       knowsUlt: p.knowsUlt && p.matches > 0,
       // GAPS B1: the ping tip in the player's second match
@@ -760,7 +770,7 @@ export class App {
     this.analytics.track('match_start', { hero: c.hero, difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
-    const mates = this.roster.companions.map((k) => k.name);
+    const mates = companions.map((k) => k.name);
     // GAPS A6: the loading screen names this hero's match count and, in a card skin, that cat's Bond
     const worn = isCardSkinId(look.coat) ? getSkin(look.coat) : null;
     const veil = loadingVeil(
@@ -814,6 +824,8 @@ export class App {
   }
 
   private showResults(e: MatchEnd): void {
+    // QA: the name the match used (a roster update during the match must not turn "Ficus" back into "Clem")
+    const myCard = this.session?.card ?? null;
     const won = e.result.outcome === 'won';
     const seconds = Math.floor(e.result.ticks / 30);
     const setup = this.lastSetup;
@@ -911,7 +923,7 @@ export class App {
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
     // lobby spec §3b: a worn owned card names the player's row and MVP after the cat (records stay per hero)
-    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, cardIdentity(e.replay.hero, setup?.look));
+    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, myCard);
     const nameOf = (slot: number): string => names[slot] ?? HERO_TEXT[e.result.stats.find((st) => st.slot === slot)?.hero ?? e.replay.hero].title;
     const bestMine = grades.best[myTeam];
     const table = e.result.stats
@@ -934,6 +946,7 @@ export class App {
         won,
         seconds,
         hero: e.replay.hero,
+        heroName: myCard?.name ?? null,
         difficulty: e.replay.difficulty,
         kills: e.kills,
         deaths: e.deaths,

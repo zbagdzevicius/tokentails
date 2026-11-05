@@ -282,7 +282,10 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const label = id ? `Card: ${id.name}, ${ELEMENT_NAME[id.element]}, ${RUNG_NAME[id.rung]}. Change card` : n ? `Card: Classic. Choose one of your ${n} cards` : 'Cards: see how Token Tails cats become skins';
     const btn = `<button type="button" class="deck-pill" data-a="deck" aria-haspopup="dialog" aria-label="${esc(label)}">${face}<span class="chg">${id ? 'Change' : n ? `${n} ${n === 1 ? 'card' : 'cards'}` : 'Cards'}</span></button>`;
     const coatChips = coats.length > 1 ? coats.map((k) => `<button class="chip ${!card && k.id === l.coat ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" data-from="${k.from}">${esc(k.name)}</button>`).join('') : '';
-    const sw = chromas.length > 1 && !card ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(k.name)} chroma" aria-label="${esc(k.name)} chroma" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(k.name)}</span></button>`).join('')}</span>` : '';
+    // pawlegends (QA): "Ice chroma chroma" was read out, and an element-named chroma read like an element card: the
+    // swatches are colour tints, said so ("Ice colour tint, looks only")
+    const tintName = (k: { id: Element | null }): string => (k.id ? `${ELEMENT_NAME[k.id]} colour tint, looks only` : 'No colour tint');
+    const sw = chromas.length > 1 && !card ? `<span class="swatches">${chromas.map((k) => `<button class="chip chroma ${k.id === l.chroma ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(tintName(k))}" aria-label="${esc(tintName(k))}" style="--el:${k.id ? cssHex(ELEMENT_COLOR[k.id]) : 'transparent'}"><span>${esc(tintName(k))}</span></button>`).join('')}</span>` : '';
     // integrate: drawn twice, in the column and in the foot; CSS shows the foot copy on short landscape only, where the
     // column has no room left above the Paw Trick chips (the hidden copy is display: none, so it is never read twice)
     return `<div class="row wardrobe deck-row ${where}"><span class="lbl">Card</span>${btn}${coatChips}${sw}</div>`;
@@ -294,6 +297,8 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
   let numbers = o.numbers === true;
   const render = (): void => {
     const t = HERO_TEXT[c.hero];
+    // pawlegends (QA): the Paw Trick row sits above the ability list, so the card row can never push it under the
+    // footer fade (desktop) or the fold (phones)
     root.innerHTML = `
       <div class="pl-pick-col">
         <div class="pl-pick-head"><button class="pl-btn ghost small" data-a="back">Back</button><h2>Choose your legend</h2></div>
@@ -303,6 +308,8 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
             .join('')}</div>`)
           .join('')}</div>
         ${wardrobeRow(c.hero)}
+        <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(`${TRICK_TEXT[tr].text} (${trickNumbers(tr)})`)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
+        ${trickHint(t.role) ? `<p class="trick-hint">${esc(trickHint(t.role))}</p>` : ''}
         <div class="detail">
           <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>
@@ -314,8 +321,6 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
           </ul>
           ${numbers && pvpNumbers(c.hero) ? `<p class="num pvp">${esc(pvpNumbers(c.hero))}</p>` : ''}
         </div>
-        <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(`${TRICK_TEXT[tr].text} (${trickNumbers(tr)})`)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
-        ${trickHint(t.role) ? `<p class="trick-hint">${esc(trickHint(t.role))}</p>` : ''}
       </div>
       <div class="pl-pick-foot">
         ${o.onDeck ? wardrobeRow(c.hero, 'foot') : ''}
@@ -462,6 +467,8 @@ export interface ResultsOpts {
   quick?: boolean;
   /** Round 2: a hero to tease on the Change hero button ("Try Sage: ranged healer"). */
   tryHero?: HeroId | null;
+  /** pawlegends: the champion's display name this match (the worn cat's, "Ficus"); default the hero title. */
+  heroName?: string | null;
   /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
   skin?: { name: string; art?: string; bond: number; next: number | null; rung?: CatTier; tint?: number } | null;
 }
@@ -612,7 +619,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
     ${o.grade?.mvp.hero ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
-    <div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
+    <div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'again') o.onAgain();

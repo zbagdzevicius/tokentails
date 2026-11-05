@@ -161,3 +161,7 @@
   .pl-nature[data-nature]::after { animation: none !important; }
 }
 .pl-reduced-motion .pl-nature[data-nature]::before { display: none; }
+/* Low quality: the still glow only, like reduced motion (QA: the moving layer animates background-position under a
+   blend mode, which the compositor cannot take, so the card repainted every frame on the phones that chose Low) */
+html[data-quality='low'] .pl-nature[data-nature]::before { display: none; }
+html[data-quality='low'] .pl-nature[data-nature]::after { animation: none !important; }

@@ -202,7 +202,8 @@ export class Lobby {
     this.stage.listen(true);
     const low = this.gr.settings.tier === 'low';
     this.pedestal.setCone(!low);
-    this.backdrop.setBokeh(low ? 0.5 : 1);
+    // QA: Low drew both bokeh layers per pixel every frame for a frozen picture; none on Low
+    this.backdrop.setBokeh(low ? 0 : 1);
     this.gr.place = (cam) => {
       const aspect = cam.aspect;
       const tanV = Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));

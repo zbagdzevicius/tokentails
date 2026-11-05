@@ -75,6 +75,9 @@ describe('definitions', () => {
     expect(natureOfLook(cardLook('cat.missing'))).toBeNull();
     expect(natureOfLook({ coat: null, chroma: 'FIRE' })).toBeNull();
     expect(natureOfLook(null)).toBeNull();
+    // QA: a featured (unowned) cat has no Nature
+    putSkin({ id: 'cat.f.nat2', catId: 'f.nat2', name: 'Star', element: 'FIRE', tierRung: 'EPIC', bond: 0, rung: 'EPIC', featured: true, coat: { pattern: 'solid', base: 0, deep: 0, light: 0, cream: 0, patch: 0, stripe: 0 }, eyes: {} as CatSkin['eyes'], earInner: 0, nose: 0, rev: 0, source: 'family', order: 0 } as CatSkin);
+    expect(natureOfLook(cardLook('cat.f.nat2'))).toBeNull();
   });
   it('caps: lobby rates scale by rung and Low, reduced motion stops them; match caps per hero', () => {
     expect(lobbyRate('FIRE', 'LEGENDARY', false, false)).toBe(NATURE.FIRE.rateLobby);
@@ -83,7 +86,9 @@ describe('definitions', () => {
     for (const t of TIERS) expect(lobbyRate('ICE', t, false, true)).toBe(0);
     expect(matchCap(true, false, false)).toBe(MATCH_SELF_MAX);
     expect(matchCap(true, true, false)).toBe(MATCH_LOW_MAX);
-    expect(matchCap(true, false, true)).toBe(MATCH_SELF_MAX);
+    // QA: reduced motion stops the own hero's drifting motes too (the lobby already sent none)
+    expect(matchCap(true, false, true)).toBe(0);
+    expect(matchCap(true, true, true)).toBe(0);
     expect(matchCap(false, false, false)).toBe(MATCH_OTHER_MAX);
     expect(matchCap(false, true, false)).toBe(0);
     expect(matchCap(false, false, true)).toBe(0);
@@ -139,6 +144,8 @@ describe('in a match (TierFx extension)', () => {
       ['mine only (other)', (fx) => (fx.mode = 'mine'), them(), 0],
       ['stealth', () => undefined, hero({ stealth: true }), 0],
       ['dead', () => undefined, hero({ dead: true }), 0],
+      // QA: a showcase bot in a featured (unowned) cat has no Nature
+      ['featured (other)', () => undefined, hero({ id: 1, x: 30, self: false, featured: true }), 0],
     ];
     for (const [name, set, h, n] of cases) {
       const p = pool();
@@ -161,7 +168,8 @@ describe('in a match (TierFx extension)', () => {
     const r = pool();
     play(new TierFx(r), [hero(), them()], 4);
     expect(from(r, 30), 'reduced: others').toBe(0);
-    expect(from(r, 0), 'reduced: own still shows').toBeGreaterThan(0);
+    // QA: reduced motion stops the own hero's motes too
+    expect(from(r, 0), 'reduced: own').toBe(0);
   });
   it('no gold on another hero; own hero keeps the element colour', () => {
     for (const e of ELEMENTS) for (const accent of [false, true]) expect(isGoldFamily(moteColor(e, false, accent)), e).toBe(false);
