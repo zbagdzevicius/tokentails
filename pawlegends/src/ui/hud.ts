@@ -20,6 +20,11 @@ import { icon } from './icons';
 import { chargeRing } from './overhead';
 import { XP } from '../data/xp';
 import { DIFFICULTY_RULES, type Difficulty } from '../data/bots';
+// cards: the respawn countdown card, kill-feed faces in element rings, the ult-ready and level-up glints
+import { heroElement } from './cards/el';
+import type { RespawnCard } from './cards/reveal';
+import type { CatTier } from '../meta/roster';
+import { getSkin } from '../render/skins/skinStore';
 
 /** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
 const TOWER_SVG = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 15V6h2V3h2v2h2V3h2v3h2v9z" fill="currentColor"/></svg>';
@@ -133,6 +138,8 @@ export function phaseLineShown(line: string, chipTitle: string | null | undefine
 export interface FeedName {
   name: string;
   rel: 'self' | 'ally' | 'enemy' | 'neutral';
+  /** cards: a hero's face in its element ring before the name (heroes only). */
+  hero?: HeroId;
 }
 
 export class Hud {
@@ -168,6 +175,11 @@ export class Hud {
   /** The own hero's cooldowns (ticks) and whether it is down, from the last snapshot (the card counts down live). */
   private cds: readonly number[] = [];
   private dead = false;
+  /** cards: the face-down card that counts the respawn down and flips up at 0. */
+  private respawnCard: RespawnCard | null = null;
+  private cardDead = false;
+  /** The respawn card loads (its own chunk, ui/cards/reveal.ts) on the first knockout. */
+  private cardInit: (() => void) | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -239,7 +251,21 @@ export class Hud {
     this.feed = q('.pl-feed');
     this.respawnNum = q('.pl-respawn b');
     this.recapEl = q('.pl-respawn .recap');
+    // cards: the worn card skin's rung gives the glints their foil (Common when none); the respawn card shows this look
+    const rung = getSkin(look?.coat)?.rung ?? 'COMMON';
+    root.dataset.ttTier = rung;
+    this.cardInit = () => {
+      this.cardInit = null;
+      void import('./cards/reveal')
+        .then((m) => {
+          if (!root.isConnected) return;
+          this.respawnCard = new m.RespawnCard(root, hero, portraitUrl(hero, look) ?? pic, rung as CatTier);
+          if (this.cardDead) this.respawnCard.down(this.cardSecs);
+        })
+        .catch(() => undefined);
+    };
   }
+  private cardSecs = 0;
 
   /**
    * GAPS A4: the portrait strip for the other five heroes (allies and enemies, by slot). `names` are the slot labels
@@ -476,6 +502,13 @@ export class Hud {
     this.root.classList.toggle('dead', dead);
     const back = Math.max(1, Math.ceil((me.respawnIn ?? 0) / 30));
     if (dead) this.set('respawn', this.respawnNum, String(back));
+    // cards: face down while out, flipped up the moment the hero is back
+    if (dead) {
+      this.cardSecs = back;
+      if (this.cardInit) this.cardInit();
+      this.respawnCard?.down(back);
+    } else if (this.cardDead) this.respawnCard?.reveal();
+    this.cardDead = dead;
     // an open talent card hides the respawn chip (CSS) and shows the countdown as a badge on its header
     const head = this.root.parentElement?.querySelector<HTMLElement>('.pl-talents.on .head') ?? null;
     if (head) {
@@ -542,6 +575,16 @@ export class Hud {
       b.textContent = n.name;
       b.style.color = RELATION_CSS[n.rel];
       b.dataset.rel = n.rel;
+      // cards: the hero's face in a ring of its card element
+      if (n.hero) {
+        const face = document.createElement('i');
+        face.className = 'tt-kf';
+        const pic = portraitUrl(n.hero);
+        if (pic) face.style.backgroundImage = `url(${pic})`;
+        face.dataset.ttEl = heroElement(n.hero);
+        face.style.setProperty('--rel', RELATION_CSS[n.rel]);
+        b.before(face);
+      }
     }
     this.feed.prepend(el);
     while (this.feed.children.length > 4) this.feed.lastElementChild?.remove();
@@ -567,6 +610,7 @@ export class Hud {
    */
   levelUp(level: number, ultLevel = ULT_LEVEL): void {
     this.rankUp(level);
+
     const bar = this.root.querySelector<HTMLElement>('.pl-bar');
     if (bar) {
       bar.classList.remove('lvlup');
@@ -637,6 +681,8 @@ export class Hud {
   }
 
   dispose(): void {
+    this.respawnCard?.dispose();
+    this.respawnCard = null;
     this.tipLeave();
     this.root.remove();
   }

@@ -1,0 +1,45 @@
+/* The VS intro (ui/cards/vs.ts): its own lazy chunk. */
+.tt-vs {
+  position: absolute; inset: 0; z-index: 8; pointer-events: none; display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 6px; padding: calc(10px + var(--safe-t, 0px)) 16px calc(10px + var(--safe-b, 0px));
+  background: radial-gradient(120% 90% at 50% 50%, rgba(43, 22, 58, 0.82), rgba(18, 10, 26, 0.94)); opacity: 0; transition: opacity 0.25s ease-out;
+  font-family: var(--font);
+}
+.tt-vs.in { opacity: 1; }
+.tt-vs.out { opacity: 0; transition: opacity 0.42s ease-in; }
+.tt-vs.calm, .tt-vs.calm.out { transition-duration: 0.2s; }
+.tt-vs-row { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.tt-vs-row.theirs { flex-direction: column-reverse; }
+.tt-vs-team { font: 700 14px/1 var(--font); letter-spacing: 0.06em; text-transform: uppercase; color: rgba(255, 243, 220, 0.75); }
+.tt-vs-row.mine .tt-vs-team { color: var(--butter, #ffd27a); }
+.tt-vs-cards { display: flex; gap: clamp(10px, 2vw, 22px); }
+.tt-vs-slot { --tt-w: clamp(84px, min(11vw, 17vh), 150px); position: relative; transform: translateY(14px) scale(0.92); opacity: 0; transition: transform 0.4s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.25s; transition-delay: calc(var(--d) - 220ms); }
+.tt-vs.in .tt-vs-slot { transform: none; opacity: 1; }
+.tt-vs-slot > .tt-flip { transition: transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1); }
+.tt-vs-slot.me.up > .tt-flip { transform: scale(1.06); }
+.tt-vs-row.theirs .tt-flip-in { filter: saturate(0.92); }
+.tt-vs-burst {
+  position: absolute; left: 50%; top: 50%; z-index: -1; width: 230%; aspect-ratio: 1; transform: translate(-50%, -50%) scale(0.4); pointer-events: none;
+  background: center / contain no-repeat; mix-blend-mode: screen; opacity: 0; transition: opacity 0.3s, transform 0.5s cubic-bezier(0.2, 1.4, 0.4, 1);
+}
+.tt-vs-slot.up .tt-vs-burst { opacity: 0.9; transform: translate(-50%, -50%) scale(1); animation: tt-spin 9s linear infinite; }
+.tt-vs-mid { position: relative; height: clamp(30px, 7vh, 56px); display: grid; place-items: center; z-index: 2; }
+.tt-vs-mid b {
+  font: 700 clamp(30px, 6vh, 56px)/1 var(--font); color: #fff; letter-spacing: 0.04em; transform: rotate(-6deg) scale(0.3); opacity: 0;
+  text-shadow: 0 4px 0 #b4386a, 0 0 22px rgba(255, 111, 145, 0.85); transition: transform 0.38s cubic-bezier(0.2, 1.8, 0.4, 1) 0.9s, opacity 0.2s 0.9s;
+}
+.tt-vs.in .tt-vs-mid b { transform: rotate(-6deg) scale(1); opacity: 1; }
+.tt-vs .tt-card .tt-name { font-size: 12cqw; }
+@media (max-height: 520px) {
+  .tt-vs { gap: 0; }
+  .tt-vs-mid { height: 26px; }
+  .tt-vs-slot { --tt-w: clamp(60px, 19vh, 92px); }
+  .tt-vs-team { font-size: 11px; }
+  .tt-vs-mid b { font-size: 28px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tt-vs-slot, .tt-vs-mid b { transition: opacity 0.2s; transform: none; }
+  .tt-vs-slot.up .tt-vs-burst { animation: none; }
+}
+/* the VS screen is the "3, 2" of the countdown (app/matchSession.ts countdown): that count hides under it */
+.tt-vs:not(.out) ~ .pl-count { visibility: hidden; }

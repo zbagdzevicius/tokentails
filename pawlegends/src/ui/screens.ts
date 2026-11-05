@@ -30,6 +30,9 @@ import type { Grade } from '../meta/grade';
 import { toGoText } from './collection';
 import { laneHint } from './pingText';
 import { cardFxPreview } from './cardFxView';
+// Token Tails card art (ui/cards/): pick tiles as collectible cards, skin mini cards, the title badge, the MVP card
+import { cardAttrs, heroElement, heroPic } from './cards/el';
+import { cardFrame } from './cards/frame';
 
 function el(cls: string, html = ''): HTMLElement {
   const d = document.createElement('div');
@@ -76,13 +79,14 @@ function questRow(q: QuestView): string {
   return `<div class="q ${q.done ? 'done' : ''} ${q.fresh ? 'fresh' : ''}"><span class="tick">${q.done ? '✓' : ''}</span><span class="t">${esc(q.quest.text)}</span><span class="n">${q.done ? '' : `${q.value}/${q.quest.goal}`}</span></div>`;
 }
 
-function badge(frame: FrameId | null | undefined, title: string | null | undefined, portrait?: string | null): string {
+function badge(frame: FrameId | null | undefined, title: string | null | undefined, portrait?: string | null, el?: Element): string {
   if (!frame && !title) return '';
-  const face = portrait ? ` style="background-image:url(${portrait})"` : '';
+  // Token Tails cards: the portrait sits in its hero's element frame (the element art and border behind the face)
+  const face = portrait ? ` style="background-image:url(${portrait})"${el ? ` ${cardAttrs(el, null)}` : ''}` : '';
   // round 1: say where frames come from (a Legendary from a pack gives none: decision #19)
   // GAPS A1: a champion frame comes from the Treat Track
   const tip = frame?.startsWith('frame.champ.') ? 'Earned on the Treat Track.' : 'Frames come from cats you adopted by name, by their tier.';
-  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="${tip}"><span class="ring${portrait ? ' pic' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
+  return `<div class="pl-badge" ${frame ? `data-frame="${frame}"` : ''} title="${tip}"><span class="ring${portrait ? ' pic' : ''}${portrait && el ? ' tt-ring' : ''}"${face}></span><span>${frame ? esc(FRAME_NAME[frame]) : ''}${title ? ` <b>${esc(title)}</b>` : ''}</span></div>`;
 }
 
 export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
@@ -100,7 +104,7 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
       <div class="actions">${primary}</div>
       <p class="sub"><span class="acct">${accountState().signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span> ${o.firstTime ? (rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.') : ''}</p>
       ${o.quests && o.quests.length ? `<div class="pl-quests mini"><b>Today</b>${o.quests.map((q) => questRow(q)).join('')}</div>` : ''}
-      ${badge(o.frame, o.title, o.portrait)}
+      ${badge(o.frame, o.title, o.portrait, heroElement(o.last.hero))}
     </div>
     <div class="pl-corner">
       ${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}
@@ -186,22 +190,37 @@ const RUNG_NAME: Readonly<Record<CatTier, string>> = Object.freeze({ COMMON: 'Co
 export function skinTile(k: SkinTile, on: boolean, locked = false): string {
   const art = k.art ? `<img src="${esc(k.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<span class="noart">${icon('paw')}</span>`;
   const el = `<i class="el" style="--el:${cssHex(ELEMENT_COLOR[k.element])}" title="${esc(ELEMENT_NAME[k.element])}"></i>`;
+  // Token Tails cards: a mini card (the element art at 30 % under the cat, the rung's foil, Legendary paws)
+  const card = ` ${cardAttrs(k.element, k.rung)}`;
+  const deco = `<i class="tt-skin-bg" aria-hidden="true"></i><i class="tt-skin-foil" aria-hidden="true"></i>${k.rung === 'LEGENDARY' && !locked ? '<i class="tt-skin-paws" aria-hidden="true"></i>' : ''}`;
   if (locked) {
-    return `<div class="skin-tile locked" data-locked="${esc(k.id)}">${art}<b>${esc(k.name)}</b>${el}<button class="chip small" data-preview="${esc(k.id)}">Preview</button></div>`;
+    return `<div class="skin-tile tt-skin locked" data-locked="${esc(k.id)}"${card}>${deco}${art}<b>${esc(k.name)}</b>${el}<button class="chip small" data-preview="${esc(k.id)}">Preview</button></div>`;
   }
   // round 2: a pack cat's missing frame is explained in the tooltip (as on its squad chip), never in visible text
   const title = k.fromPack ? ` title="${esc(`${k.name}: it gives its look and earns Bond; frames come from cats you adopted by name`)}" data-noframe="1"` : '';
-  return `<button class="skin-tile ${on ? 'on' : ''}" data-coat="${esc(k.id)}" data-rung="${k.rung}" aria-pressed="${on}"${title}>${art}<b>${esc(k.name)}</b><span class="pip" data-rung="${k.rung}">${RUNG_NAME[k.rung]}</span>${el}<small class="bond">Bond ${k.bond}</small></button>`;
+  return `<button class="skin-tile tt-skin ${on ? 'on' : ''}" data-coat="${esc(k.id)}" data-rung="${k.rung}" aria-pressed="${on}"${title}${card}>${deco}${art}<b>${esc(k.name)}</b><span class="pip" data-rung="${k.rung}">${RUNG_NAME[k.rung]}</span>${el}<small class="bond">Bond ${k.bond}</small></button>`;
 }
 
 /** One pick tile: the portrait, and for a shelter champion its card art and the owner badge. */
-function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined): string {
+function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null): string {
   const x = HERO_TEXT[h];
-  const face = pic ? `<i class="pic" style="background-image:url(${pic})"></i>` : `<i>${esc(x.title.replace('Sir ', '').slice(0, 2))}</i>`;
   const c = championOf(h);
   const card = c && champ?.art ? `<img class="champ-art" src="${esc(champ.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : '';
   const badge = c && champ?.owned ? `<span class="champ-owned" title="${esc(`From ${c.cardName}'s card`)}">Card</span>` : '';
-  return `<button class="hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}" data-h="${h}" style="--hero:${HERO_COLOR_CSS[h]}">${face}${card}${badge}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small></button>`;
+  // Token Tails cards: every champion is a collectible card in its element's frame; the picked one gets the foil of
+  // the worn card skin's rung (Common when none) that follows the pointer and sweeps by itself on touch
+  return cardFrame({
+    tag: 'button',
+    el: heroElement(h),
+    tier: on ? tier : null,
+    cls: `hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}`,
+    attrs: `data-h="${h}"`,
+    style: `--hero:${HERO_COLOR_CSS[h]}`,
+    foil: on ? 'sweep' : 'hover',
+    sparkles: on,
+    icon: true,
+    inner: `${heroPic(h, pic)}${card}${badge}<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small>`,
+  });
 }
 
 const faces = new WeakMap<HTMLElement, () => void>();
@@ -213,6 +232,11 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
   const c: Choice = { ...o.initial };
   const looks: Partial<Record<HeroId, Partial<Look>>> = { ...(o.looks ?? {}) };
   const lookOf = (h: HeroId): Look | null => (o.owned ? resolveLook(h, o.owned, looks[h]) : null);
+  // Token Tails cards: the rung of the card skin a hero wears (its pick tile's foil), or null
+  const tierOf = (h: HeroId): CatTier | null => {
+    const coat = lookOf(h)?.coat;
+    return coat ? (o.skins?.owned.find((k) => k.id === coat)?.rung ?? null) : null;
+  };
   const wardrobeRow = (h: HeroId): string => {
     if (!o.owned) return '';
     const coats = wardrobe(h, o.owned);
@@ -238,7 +262,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         <div class="pl-pick-head"><button class="pl-btn ghost small" data-a="back">Back</button><h2>Choose your legend</h2></div>
         <div class="roster">${(['cat', 'dog'] as const)
           .map((side) => `<div class="heroes ${side}s" data-side="${side}">${HERO_IDS.filter((h) => HEROES[h].side === side)
-            .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h]))
+            .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h], tierOf(h)))
             .join('')}</div>`)
           .join('')}</div>
         ${wardrobeRow(c.hero)}
@@ -283,12 +307,14 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     watch();
   };
   renderAll();
+  // cards: the picked card's foil follows the pointer (its own small chunk)
+  void import('./cards/tilt').then((m) => m.attachCardTilt(root)).catch(() => undefined);
   // a sprite probe landed: only the hero portraits are redrawn (the picks, a running Preview and the scroll stay)
   faces.set(root, () => {
     for (const box of root.querySelectorAll<HTMLElement>('.heroes[data-side]')) {
       const side = box.dataset.side;
       box.innerHTML = HERO_IDS.filter((h) => HEROES[h].side === side)
-        .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h]))
+        .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h], tierOf(h)))
         .join('');
     }
   });
@@ -405,7 +431,8 @@ export interface ResultGrade {
   grade: Grade;
   /** Treat XP the grade added (GRADE_TREAT_XP). */
   xp: number;
-  mvp: { name: string; you: boolean };
+  /** Token Tails cards: `hero` (and `portrait`, `tier` for the player's own look) draw the MVP card. */
+  mvp: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null };
   /** A loss only: the best on the player's team. */
   bestOnTeam?: { name: string; you: boolean } | null;
 }
@@ -545,6 +572,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       </div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
+    ${o.grade?.mvp.hero ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
     <div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
@@ -559,6 +587,17 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     }
   });
   parent.appendChild(root);
+  // cards: the MVP card (its own chunk, ui/cards/mvp.ts) drops into its slot; it flips on '.in' like the rest
+  const mvp = o.grade?.mvp;
+  if (mvp?.hero) {
+    const mvpHero = mvp.hero;
+    void import('./cards/mvp')
+      .then((m) => {
+        const slot = root.querySelector<HTMLElement>('[data-slot="mvp"]');
+        if (slot) slot.outerHTML = m.mvpCard({ hero: mvpHero, name: mvp.you ? 'You' : mvp.name, you: mvp.you, portrait: mvp.portrait, tier: mvp.tier ?? null, won: o.won });
+      })
+      .catch(() => undefined);
+  }
   // Staged reveal (§12): the screen opens at End + RESULTS_AFTER_END_MS with the stats and the unlock; the dare link
   // at End + 5 s, "Play again" at End + 10 s (both inert until then, so a stray tap does not skip them).
   requestAnimationFrame(() => root.classList.add('in'));

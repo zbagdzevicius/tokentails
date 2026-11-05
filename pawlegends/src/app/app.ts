@@ -796,7 +796,13 @@ export class App {
         grade: {
           grade: myGrade,
           xp: gradeXp,
-          mvp: { name: nameOf(grades.mvp), you: grades.mvp === mySlot },
+          // cards: the MVP's hero (and, for the player, their look and card rung) draws the results MVP card
+          mvp: {
+            name: nameOf(grades.mvp),
+            you: grades.mvp === mySlot,
+            hero: e.welcome.picks[grades.mvp] ?? e.result.stats.find((st) => st.slot === grades.mvp)?.hero,
+            ...(grades.mvp === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null } : {}),
+          },
           bestOnTeam: won ? null : { name: nameOf(bestMine), you: bestMine === mySlot },
         },
         personal: ladder?.personal ?? null,
