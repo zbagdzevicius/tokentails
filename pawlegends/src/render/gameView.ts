@@ -28,6 +28,7 @@ import { mixHex } from './skins/classify';
 import { TierFx, type SkinFxMode } from './skins/tierFx';
 import { CardVfx, tinted } from './skins/cardFx';
 import { CompanionView } from './views/companionView';
+import { AUTO_TARGET_HOLD, CHEVRON_LIFE, chevronSize, chevronTexture, MOVE_RING_LIFE, TARGET_MARK_LIFE, targetMarkAlpha } from './fx/orderMarks';
 import { boldRingTexture, crosshairTexture, DecalLayer, ringTexture } from './views/decals';
 import { HeroView } from './views/heroView';
 import { HERO_RING } from './views/models';
@@ -151,6 +152,15 @@ export class GameView {
   private moveMarks = new DecalLayer(boldRingTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-move' });
   private attackMarks = new DecalLayer(crosshairTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-attack' });
   private marks = Array.from({ length: MARKERS }, () => ({ x: 0, z: 0, t: -1, attack: false }));
+  /** LoL pass (lane C): move chevrons, the red outline under an attack order's target, the touch auto-attack ring. */
+  private chevrons = new DecalLayer(chevronTexture(), MARKERS, { y: 0.08, renderOrder: 9, name: 'order-chevrons' });
+  private targetRings = new DecalLayer(ringTexture(), 2, { y: 0.07, renderOrder: 9, name: 'target-rings' });
+  private targetMark = { id: -1, t: -1 };
+  /** The unit the player's last basic attack landed on, and when (view s); -1 = none. */
+  autoTarget = -1;
+  autoTargetAt = -99;
+  /** Telemetry (e2e): the touch auto-attack ring's unit this frame, -1 = none. */
+  autoRingId = -1;
   private markNext = 0;
   private who = new Map<number, Who & { t: number }>();
   /** Sim v9: heroes facing a Bengas mid Striking Pose wind-up (the overhead draws a "!" eye glyph over them). */
@@ -195,7 +205,7 @@ export class GameView {
     this.projectiles.vfx = this.vfx;
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.add(this.vfx.auras.mesh);
-    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh);
+    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh);
     this.juice = new Juice(uiRoot);
     // Settings → Screen shake, capped under the OS reduce-motion switch (render/fx/vfxPrefs.ts)
     this.juice.shakeScale = shakeScaleFor(shakePref(), this.vfx.reduced);
@@ -261,6 +271,16 @@ export class GameView {
         onTowerAim: hooks.onTowerAim,
         onCoreDown: hooks.onCoreDown,
         onStructureWindup: (id, sec) => this.structures.windup(id, sec),
+        // LoL pass (lane C): tower beams, charging lines and the red aggro ring
+        onTowerShot: (src, x, y, z, me, charge, sec) => {
+          if (!charge) this.structures.shotAt(src, x, y, z, me);
+          else if (me) this.structures.markAggro(src);
+          else this.structures.chargeAt(src, x, z, sec, false);
+        },
+        onMyBasic: (dst) => {
+          this.autoTarget = dst;
+          this.autoTargetAt = this.time;
+        },
         onStructureFell: (id) => this.structures.fell(id),
         hiddenMinionAt: (x, z) => {
           // a core at 0 HP this frame (its burst starts on this tick) or one already falling
@@ -664,6 +684,23 @@ export class GameView {
     m.z = z;
     m.t = 0;
     m.attack = attack;
+    // LoL pass (lane C): an attack order on a unit outlines that unit in red for a moment
+    if (attack && this.frame) {
+      let best = -1;
+      let bd = 1.2;
+      for (const e of this.frame.entities) {
+        if (e.state === 'dead' || e.team === this.myTeam || e.kind === 'fountain' || e.kind === 'pickup') continue;
+        const d = Math.hypot(toX(e.fx) - x, toZ(e.fy) - z);
+        if (d < bd) {
+          bd = d;
+          best = e.id;
+        }
+      }
+      if (best >= 0) {
+        this.targetMark.id = best;
+        this.targetMark.t = 0;
+      }
+    }
   }
 
   /** Hover ring and order markers for this frame (no allocation). */
@@ -689,6 +726,7 @@ export class GameView {
     }
     this.castRing.end();
     this.moveMarks.begin();
+    this.chevrons.begin();
     this.attackMarks.begin();
     for (const m of this.marks) {
       if (m.t < 0) continue;
@@ -699,10 +737,42 @@ export class GameView {
         continue;
       }
       if (m.attack) this.attackMarks.add(m.x, m.z, size, MARKER_COLOR.attack, 1, m.t * 2);
-      else this.moveMarks.add(m.x, m.z, size, MARKER_COLOR.move, 1);
+      else {
+        // LoL pass (lane C): a steady mint ring that fades, and four chevrons collapsing into the point
+        if (m.t < MOVE_RING_LIFE) this.moveMarks.add(m.x, m.z, 1.3, MARKER_COLOR.move, 1 - (m.t / MOVE_RING_LIFE) * 0.8);
+        const cs = chevronSize(m.t);
+        if (cs > 0) this.chevrons.add(m.x, m.z, cs, MARKER_COLOR.move, 1 - (m.t / CHEVRON_LIFE) * 0.4);
+      }
     }
     this.moveMarks.end();
     this.attackMarks.end();
+    this.chevrons.end();
+    // LoL pass (lane C): the attack order's target outline, and on touch a thin ring under the auto-attack target
+    this.targetRings.begin();
+    const tm = this.targetMark;
+    if (tm.t >= 0) {
+      tm.t += dt;
+      const te = frame?.byId.get(tm.id);
+      const a = targetMarkAlpha(tm.t);
+      if (a <= 0 || !te || te.state === 'dead') tm.t = -1;
+      else {
+        const size = hoverRingSize(te.kind, te.hero);
+        if (size > 0) this.targetRings.add(toX(te.fx), toZ(te.fy), size * (1.08 - 0.08 * (tm.t / TARGET_MARK_LIFE)), MARKER_COLOR.attack, a);
+      }
+    }
+    this.autoRingId = -1;
+    const touch = typeof document !== 'undefined' && document.documentElement.dataset.touch === '1';
+    if (touch && this.autoTarget >= 0 && this.time - this.autoTargetAt < AUTO_TARGET_HOLD && this.autoTarget !== id) {
+      const ae = frame?.byId.get(this.autoTarget);
+      if (ae && ae.state !== 'dead' && ae.hp > 0) {
+        const size = hoverRingSize(ae.kind, ae.hero);
+        if (size > 0) {
+          this.targetRings.add(toX(ae.fx), toZ(ae.fy), size, MARKER_COLOR.attack, 0.75);
+          this.autoRingId = ae.id;
+        }
+      }
+    }
+    this.targetRings.end();
   }
 
   private remember(frame: ViewFrame): void {
@@ -862,7 +932,7 @@ export class GameView {
   dispose(): void {
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
-    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.vfx.auras.mesh);
+    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh);
     this.vfx.dispose();
     this.scene.remove(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);
     this.meshFx.dispose();
@@ -875,6 +945,8 @@ export class GameView {
     this.castRing.dispose();
     this.moveMarks.dispose();
     this.attackMarks.dispose();
+    this.chevrons.dispose();
+    this.targetRings.dispose();
     this.pickups.dispose();
     if (this.companions) {
       this.scene.remove(this.companions.group);

@@ -3,10 +3,10 @@
  * game draws its own: a white halo, a dark ink outline and a bright fill read on light and dark ground alike. One
  * kind per state:
  *
- *   normal      cream arrow
- *   enemy       red arrow with a target badge (a click attacks the unit under it; the unit gets a red ring, and when a
+ *   normal      a gold gauntlet pointing with its index finger (LoL pass, lane C)
+ *   enemy       a red-hilted sword (a click attacks the unit under it; the unit gets a red ring, and when a
  *               unit-target quick cast would hit a different enemy hero, that hero gets a thinner red ring)
- *   ally        mint arrow with a heart badge
+ *   ally        the gauntlet in mint with a heart badge
  *   attackMove  red crosshair (A armed: the next click attack-moves)
  *   aim         gold reticle (an ability indicator is open)
  *
@@ -29,20 +29,33 @@ export function cursorKind(s: { aiming: boolean; attackArmed: boolean; hover: 'e
 const INK = '#1d1018';
 const HALO = '#ffffff';
 export const CURSOR_FILL: Readonly<Record<CursorKind, string>> = Object.freeze({
-  normal: '#fff3dc',
+  normal: '#e8c77a',
   enemy: '#ff3b4d',
   ally: '#5ff0a8',
   attackMove: '#ff3b4d',
   aim: '#ffd34d',
 });
 
-/** Arrow with its tip at (4, 3) in a 32 × 32 box. */
-const ARROW = 'M4 3L4 24.5L9.3 19.4L13.2 28L17.4 26.1L13.6 17.6L21 17.6Z';
-const arrow = (fill: string): string =>
-  `<path d="${ARROW}" fill="none" stroke="${HALO}" stroke-width="5" stroke-linejoin="round" opacity=".9"/>` +
-  `<path d="${ARROW}" fill="${fill}" stroke="${INK}" stroke-width="2.4" stroke-linejoin="round"/>`;
-const target = (c: string): string =>
-  `<circle cx="24.5" cy="24.5" r="6" fill="${INK}" stroke="${HALO}" stroke-width="1.4"/><circle cx="24.5" cy="24.5" r="3.9" fill="none" stroke="${c}" stroke-width="2"/><circle cx="24.5" cy="24.5" r="1.3" fill="${HALO}"/>`;
+/**
+ * LoL pass (lane C): a gauntlet, its index finger tip at (4, 3): the finger, the knuckles, a cuff band; a halo under an
+ * ink outline like every kind.
+ */
+const GAUNTLET = 'M4 3L13.2 7.6L11.4 10.2L17.6 14.6L19.8 13L26.4 18.8L21.4 27.4L14.4 24.8L8.8 17.6L10.2 11.6Z';
+const gauntlet = (fill: string): string =>
+  `<path d="${GAUNTLET}" fill="none" stroke="${HALO}" stroke-width="5" stroke-linejoin="round" opacity=".9"/>` +
+  `<path d="${GAUNTLET}" fill="${fill}" stroke="${INK}" stroke-width="2.2" stroke-linejoin="round"/>` +
+  `<path d="M6.5 5.2L11.6 8.4M11.4 13.6L15.6 16.6M14.6 19.4L17.8 21.6" stroke="${INK}" stroke-width="1.2" stroke-linecap="round" opacity=".7"/>` +
+  `<path d="M17.4 26.4L24.6 19.4" stroke="${INK}" stroke-width="3.4" stroke-linecap="round"/><path d="M17.4 26.4L24.6 19.4" stroke="#fff6da" stroke-width="1.3" stroke-linecap="round"/>`;
+/** LoL pass (lane C): a sword over enemies, its blade tip at (3, 3), a red cross-guard and grip. */
+const BLADE = 'M3 3L8.6 4.2L21.4 17L17 21.4L4.2 8.6Z';
+const sword = (c: string): string =>
+  `<path d="${BLADE}" fill="none" stroke="${HALO}" stroke-width="4.6" stroke-linejoin="round" opacity=".9"/>` +
+  `<path d="M14 25.6L25.6 14M21.6 21.6L27.4 27.4" stroke="${HALO}" stroke-width="7" stroke-linecap="round" opacity=".9"/>` +
+  `<path d="${BLADE}" fill="#eef2f7" stroke="${INK}" stroke-width="2" stroke-linejoin="round"/>` +
+  `<path d="M5 5L18.6 18.6" stroke="#9aa6b8" stroke-width="1.1" stroke-linecap="round"/>` +
+  `<path d="M14 25.6L25.6 14" stroke="${INK}" stroke-width="4.4" stroke-linecap="round"/><path d="M14 25.6L25.6 14" stroke="${c}" stroke-width="2.4" stroke-linecap="round"/>` +
+  `<path d="M21.6 21.6L27.4 27.4" stroke="${INK}" stroke-width="4" stroke-linecap="round"/><path d="M21.6 21.6L27.4 27.4" stroke="#7a2a2a" stroke-width="2" stroke-linecap="round"/>` +
+  `<circle cx="28" cy="28" r="2.4" fill="${c}" stroke="${INK}" stroke-width="1.4"/>`;
 const heart = (c: string): string =>
   `<path d="M24.5 30c-4-2.7-6.4-5-6.4-7.6 0-1.9 1.4-3.2 3.1-3.2 1.4 0 2.6.8 3.3 2 .7-1.2 1.9-2 3.3-2 1.7 0 3.1 1.3 3.1 3.2 0 2.6-2.4 4.9-6.4 7.6z" fill="${c}" stroke="${INK}" stroke-width="1.6" stroke-linejoin="round"/>`;
 /** A ring reticle centred at (16, 16): halo, ink, colour; `ticks` adds four inward crosshair ticks. */
@@ -57,15 +70,15 @@ function art(kind: CursorKind): { svg: string; hx: number; hy: number; fallback:
   const c = CURSOR_FILL[kind];
   switch (kind) {
     case 'enemy':
-      return { svg: arrow(c) + target(c), hx: 4, hy: 3, fallback: 'crosshair' };
+      return { svg: sword(c), hx: 3, hy: 3, fallback: 'crosshair' };
     case 'ally':
-      return { svg: arrow(c) + heart(c), hx: 4, hy: 3, fallback: 'pointer' };
+      return { svg: gauntlet(c) + heart(c), hx: 4, hy: 3, fallback: 'pointer' };
     case 'attackMove':
       return { svg: reticle(c, true), hx: 16, hy: 16, fallback: 'crosshair' };
     case 'aim':
       return { svg: reticle(c, false), hx: 16, hy: 16, fallback: 'crosshair' };
     default:
-      return { svg: arrow(c), hx: 4, hy: 3, fallback: 'default' };
+      return { svg: gauntlet(c), hx: 4, hy: 3, fallback: 'default' };
   }
 }
 

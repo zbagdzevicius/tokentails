@@ -95,6 +95,13 @@ export interface EffectsHooks {
   onCoreDown?(who: Who): void;
   /** A tower or core winds up a shot (any lock-on windup, `seconds` long): the structure's charge. */
   onStructureWindup?(id: number, seconds: number): void;
+  /**
+   * LoL pass (lane C): a tower or core shot landed on a unit at (x, y, z) m (`me`: the player): its targeting beam. Also
+   * a windup (`charge`, `seconds` long) toward (x, z): the charging line.
+   */
+  onTowerShot?(src: number, x: number, y: number, z: number, me: boolean, charge: boolean, seconds: number): void;
+  /** LoL pass (lane C): the player's basic attack landed on `dst` (the touch auto-attack target ring). */
+  onMyBasic?(dst: number): void;
   /** A tower or core fell: its fall animation (render only). */
   onStructureFell?(id: number): void;
   /**
@@ -267,6 +274,9 @@ export class Effects {
     const heavy = e.kind === 'ability' || e.amount >= 120;
     this.hooks.onHit(e.dst, dst.kind, heavy, e.src);
     const pos = this.at(dst, heroDst ? 0.9 : dst.kind === 'tower' || dst.kind === 'core' ? 2.4 : 0.6);
+    // LoL pass (lane C): every tower / core shot draws its beam (red and thick on the player)
+    if (src && (src.kind === 'tower' || src.kind === 'core')) this.hooks.onTowerShot?.(e.src, pos.x, pos.y, pos.z, e.dst === me, false, 0);
+    if (e.src === me && e.kind === 'basic') this.hooks.onMyBasic?.(e.dst);
     const color = src ? (src.team === 0 ? 0xffd27a : 0xc9a8ff) : 0xffffff;
     // Wave C (C3): sparks and flash sized by the damage, element-tinted from a hero; a big hit on a hero pops
     const big = !!src && src.kind === 'hero' && (e.kind === 'basic' || e.kind === 'ability') && isBigHit(e.amount, dst.maxHp ?? 0, heroDst);
@@ -297,8 +307,11 @@ export class Effects {
     // (on the body they hid the model in teamfights); repeat hits merge into one counter per target (DamageNumbers).
     if (dst.kind === 'minion' && this.hooks.hiddenMinionAt?.(dst.x, dst.z)) return;
     const npos = heroDst && dst.hero ? _np.set(dst.x + (Math.random() - 0.5) * 0.7, HERO_TOP[dst.hero] + 1.0, dst.z + (Math.random() - 0.5) * 0.7) : pos;
+    // LoL pass (lane C): what a shield soaked shows as its own grey number (the hit's amount is after the shield)
+    if (e.shielded > 0 && (e.src === me || e.dst === me)) this.numbers.show(npos, String(e.shielded), 'shielded', `s${e.dst}`, e.shielded);
+    const shows = e.amount > 0;
     if (e.src === me) {
-      this.numbers.show(npos, String(e.amount), big ? 'crit' : heavy ? 'heavy' : 'normal', e.dst, e.amount);
+      if (shows) this.numbers.show(npos, String(e.amount), big ? 'crit' : heavy ? 'heavy' : 'normal', e.dst, e.amount);
       if (heroDst) {
         // with the director: local freezes only, the global one for a heavy finisher (≤ 55 ms, §6)
         if (!anim) this.juice.hitstop(big ? 70 : e.kind === 'ability' ? 55 : 28);
@@ -307,11 +320,11 @@ export class Effects {
       }
       sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
     } else if (e.dst === me) {
-      this.numbers.show(npos, String(e.amount), 'hurt', e.dst, e.amount);
+      if (shows) this.numbers.show(npos, String(e.amount), 'hurt', e.dst, e.amount);
       this.juice.kick(Math.max(e.kind === 'tower' ? 0.18 : 0, Math.min(0.35, 0.1 + e.amount / 600)));
       sfx.play('hurt');
     } else {
-      if (heroDst && src?.kind === 'hero') this.numbers.show(npos, String(e.amount), 'info', e.dst, e.amount);
+      if (shows && heroDst && src?.kind === 'hero') this.numbers.show(npos, String(e.amount), 'info', e.dst, e.amount);
       sfx.play(e.kind === 'tower' ? 'towerShot' : 'hit', { at: dst, vol: 0.45 });
     }
   }
@@ -513,7 +526,14 @@ export class Effects {
     this.anim?.windupFired(e);
     const src = this.hooks.who(e.src);
     if (!src) return;
-    if (src.kind === 'tower' || src.kind === 'core') this.hooks.onStructureWindup?.(e.src, e.ticks / 30);
+    if (src.kind === 'tower' || src.kind === 'core') {
+      this.hooks.onStructureWindup?.(e.src, e.ticks / 30);
+      // LoL pass (lane C): the charging line toward the windup point (the player's own lock-on keeps its overlay line)
+      const me = this.hooks.who(this.hooks.mySlot);
+      const atMe = !!me && src.team !== this.hooks.myTeam && Math.hypot(me.x - e.x / 1000, me.z + e.y / 1000) < 3;
+      if (!atMe) this.hooks.onTowerShot?.(e.src, e.x / 1000, 0.9, -e.y / 1000, false, true, e.ticks / 30);
+      else this.hooks.onTowerShot?.(e.src, me.x, 0.9, me.z, true, true, 0);
+    }
     if ((src.kind === 'tower' || src.kind === 'core') && src.team !== this.hooks.myTeam) {
       // tower lock-on (fun plan S5): the red line and ring are drawn by the session's overlay
       const me = this.hooks.who(this.hooks.mySlot);
