@@ -452,7 +452,7 @@ var BOT_MODE = Object.freeze({
 	Pudding: 4,
 	Push: 5
 });
-Object.freeze([
+var PLAYER_PROFILES = Object.freeze([
 	"idle",
 	"novice",
 	"easy",
@@ -462,7 +462,8 @@ Object.freeze([
 	"feeder",
 	"pinger"
 ]);
-Object.freeze({
+/** The `pinger` player-bot (sim v10, GAPS B1 measure). */
+var PINGER = Object.freeze({
 	/** Defend base when an enemy hero is this close to the own core or an inner tower. */
 	baseRange: 12e3,
 	/** Take Pudding and Group on me only with slot 0 (and, for Pudding, both allies) at or above this HP share. */
@@ -480,12 +481,14 @@ Object.freeze({
 	/** The ping kinds it uses, a bit per PING_KIND (tuning experiments switch kinds off here). */
 	kinds: 156
 });
-Object.freeze({
+/** The `parked` player-bot (sim v5 carry-leash gate): walks to an off-lane jungle spot at `at` and stands there. */
+var PARKED = Object.freeze({
 	at: 900,
 	x: 4e4,
 	y: 4e4
 });
-Object.freeze({
+/** The novice player-bot (§7.2 tuning target): plays one lane, attack-moves, casts on cooldown, walks home low. */
+var NOVICE = Object.freeze({
 	/** Notices an enemy hero after this many ticks in view (a human's reaction). */
 	reactionTicks: 15,
 	/** Fights enemy heroes this close. */
@@ -538,7 +541,12 @@ var NAIVE = Object.freeze({
 	/** Follows its wave: attack-moves to this far behind the front allied minion (mm). */
 	followBehind: 1500
 });
-Object.freeze({
+/**
+* The feeder player-bot (sim v7, playtest round 1: a signed-in player lost the guided first match 10 to 15 while
+* diving under towers): the naive bot that never backs off from a tower, walks home only below 8%, chases anything
+* it sees and walks ahead of its wave at the enemy's structures. Gate `feeder`: Rookie still wins ≥ 80%.
+*/
+var FEEDER = Object.freeze({
 	...NAIVE,
 	seekRange: 22e3,
 	chaseRange: 3e4,
@@ -2272,6 +2280,7 @@ var Op = Object.freeze({
 	*/
 	Forfeit: 10
 });
+var NO_TARGET = 255;
 Object.freeze({
 	Stealth: 1,
 	Untargetable: 2,
@@ -2837,6 +2846,25 @@ function readCommand(bytes, at) {
 		cmd,
 		next: at + size
 	};
+}
+/** Decode a single protocol `cmd` payload. */
+function decodeCommand(bytes) {
+	const r = readCommand(bytes, 0);
+	if (r.next !== bytes.length) throw new DecodeError("trailing bytes after command");
+	return r.cmd;
+}
+/** Encode a command stream. Ticks must be non-decreasing. */
+function encodeStream(list) {
+	const w = new ByteWriter();
+	let last = 0;
+	for (let i = 0; i < list.length; i++) {
+		const { tick, cmd } = list[i];
+		if (tick < last) throw new RangeError(`ticks out of order at ${i}`);
+		w.varint(tick - last);
+		last = tick;
+		writeCommand(w, cmd);
+	}
+	return w.bytes();
 }
 /** Decode a command stream. Throws DecodeError on any malformed byte. */
 function decodeStream(bytes, maxTick = Number.MAX_SAFE_INTEGER) {
@@ -3631,7 +3659,8 @@ function createWorld(seed) {
 		pkX: new Int32Array(CAPS.pickups),
 		pkY: new Int32Array(CAPS.pickups),
 		globals: new Int32Array(G.Count),
-		rng: new Rng(seed)
+		rng: new Rng(seed),
+		humans: 1
 	};
 	w.globals[G.Winner] = -1;
 	w.globals[G.InputHash] = FNV_OFFSET | 0;
@@ -3919,6 +3948,26 @@ var SNACK_BEHIND = 4e3;
 /** The match's difficulty rules (data/bots.ts DIFFICULTY_RULES), for sim modules. */
 var rulesOf = (m) => DIFFICULTY_RULES[m.config.difficulty];
 //#endregion
+//#region src/sim/humans.ts
+/**
+* Party play (docs/plans/moba/MULTIPLAYER.md §1): which hero slots belong to a human. Slot 0 always does; slots 1 and
+* 2 do only in a party match (`MatchConfig.humans`). The mask lives on the world (`w.humans`, not hashed) so the bot
+* brain and the combat rules can read it without the match handle. Single-player matches have mask 1, so every
+* `isHuman` check there is the old `slot === HUMAN_SLOT`.
+*/
+/**
+* True when entity `slot` is a human's hero (its commands come from a stream, never from the in-sim bots). Any id
+* outside 0..2 (bots of the other team, minions, structures, −1) is false; the bound also keeps `>>>` from wrapping.
+*/
+var isHumanSlot = (w, slot) => slot >= 0 && slot < 3 && (w.humans >>> slot & 1) === 1;
+/** The human mask of a `humans` slot list (bit s = slot s). */
+function humanMask(humans) {
+	if (!humans) return 1;
+	let mask = 0;
+	for (let i = 0; i < humans.length; i++) mask |= 1 << humans[i];
+	return mask;
+}
+//#endregion
 //#region src/sim/effects/bonus.ts
 /**
 * Sim v4 hero bonuses: Zoomies, Frenzy Catnip, the rat camp's Pack buff and Nine Lives (data/xp.ts ZOOMIES and
@@ -3946,7 +3995,7 @@ function stepBonuses(w) {
 /** Move-speed bonus (bp) from Zoomies, Frenzy Catnip and (the human, Rookie) Scaredy cat. */
 function bonusSpeedBp(w, id) {
 	if (id >= RANGE.minions || w.kind[id] !== Kind.Hero) return 0;
-	const panic = id === 0 && w.globals[G.HumanPanic] > 0 && w.hp[id] * 1e4 < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
+	const panic = isHumanSlot(w, id) && w.globals[G.HumanPanic] > 0 && w.hp[id] * 1e4 < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
 	return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic;
 }
 /** Outgoing damage of hero `id` with Frenzy Catnip and the Pack buff. */
@@ -4414,7 +4463,7 @@ function offerTalent(m, id, tier) {
 		slot: id,
 		tier
 	});
-	if (id !== 0) chooseTalent(m, id, tier, botTalentChoice(m.config.seed, id, tier, botTalentMode(m)));
+	if (!isHumanSlot(m.world, id)) chooseTalent(m, id, tier, botTalentChoice(m.config.seed, id, tier, botTalentMode(m)));
 }
 //#endregion
 //#region src/sim/progression/levels.ts
@@ -7521,12 +7570,12 @@ function aimHunt(m, id) {
 * - Minion: melee 30, ranged 25, siege 60, shared among enemy heroes within 10 m. Every grant gets the per-hero
 *   catch-up (progression/levels.ts).
 */
-var HEROES_N$1 = RANGE.minions - RANGE.heroes;
-var share = new Int32Array(HEROES_N$1);
-var helpedBy = new Uint8Array(HEROES_N$1);
+var HEROES_N$2 = RANGE.minions - RANGE.heroes;
+var share = new Int32Array(HEROES_N$2);
+var helpedBy = new Uint8Array(HEROES_N$2);
 /** Did hero `h` hit `victim` within the assist window? */
 function assisted(w, victim, h) {
-	const t = w.assistTick[victim * HEROES_N$1 + h];
+	const t = w.assistTick[victim * HEROES_N$2 + h];
 	return t !== -1048576 && w.globals[G.Tick] - t <= XP.assistWindow;
 }
 /** Bounty XP on a hero with takedown streak `streak` (0 below XP.bountyStreak). */
@@ -7542,7 +7591,7 @@ function heroKilled(m, victim) {
 		let best = NEVER;
 		for (let h = RANGE.heroes; h < RANGE.minions; h++) {
 			if (w.team[h] !== enemy || !assisted(w, victim, h)) continue;
-			const t = w.assistTick[victim * HEROES_N$1 + h];
+			const t = w.assistTick[victim * HEROES_N$2 + h];
 			if (t > best) {
 				best = t;
 				killer = h;
@@ -7613,7 +7662,7 @@ function heroKilled(m, victim) {
 		}
 		kitOf(w, h).onTakedown?.(m, h, victim);
 	}
-	for (let h = 0; h < HEROES_N$1; h++) w.assistTick[victim * HEROES_N$1 + h] = NEVER;
+	for (let h = 0; h < HEROES_N$2; h++) w.assistTick[victim * HEROES_N$2 + h] = NEVER;
 }
 /** Lane minion `id` died: its XP goes to the enemy heroes within 10 m. */
 function minionKilled(m, id) {
@@ -8136,9 +8185,9 @@ function dealDamage(m, src, srcTeam, srcKind, dst, raw, kind, opts = {}) {
 				raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
 			}
 		}
-		if (src === 0) raw = applyBp(raw, rulesOf(m).humanDamageBp);
+		if (isHumanSlot(w, src)) raw = applyBp(raw, rulesOf(m).humanDamageBp);
 	}
-	if (dst === 0 && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
+	if (isHumanSlot(w, dst) && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
 	let dmg = opts.pure ? raw : idiv(raw * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[dst]);
 	if (structure && !opts.pure) {
 		if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
@@ -8269,7 +8318,7 @@ function resolveDeaths(m) {
 			w.order[id] = Order.None;
 			w.pathLen[id] = 0;
 			w.timer[id] = respawnTicks(w.level[id], tick, w.globals[G.Sunset]);
-			if (id === 0) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
+			if (isHumanSlot(w, id)) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
 			else if (w.team[id] !== teamOfSlot(0)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
 			m.stats[id].deaths++;
 			const enemy = 1 - w.team[id];
@@ -8293,7 +8342,7 @@ function resolveDeaths(m) {
 					const t = weakestTower(w, victimTeam);
 					if (t >= 0) dealDamage(m, -1, enemy, Kind.None, t, applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp), "chip", { pure: true });
 				}
-			} else if (id !== 0 || rulesOf(m).humanDeathCore) {
+			} else if (!isHumanSlot(w, id) || rulesOf(m).humanDeathCore) {
 				const core = RANGE.cores + victimTeam;
 				const bp = tick >= w.globals[G.SuddenDeath] ? SUDDEN_DEATH.takedownCoreBp : coreExposed(w, victimTeam) ? SUNSET.takedownCoreBp : SUNSET.closedCoreBp;
 				dealDamage(m, -1, enemy, Kind.None, core, applyBp(w.maxHp[core], bp), "zone", {
@@ -9927,7 +9976,7 @@ function fight$2(w, id, foe, p, rng) {
 	const hx = w.x[id];
 	const hy = w.y[id];
 	if (canCast(w, id, 3)) {
-		const brawl = allyNear(w, id, foe) && foesNear(w, id, hx, hy, BOT_AI.meatballChonkRange) >= 2;
+		const brawl = allyNear$1(w, id, foe) && foesNear(w, id, hx, hy, BOT_AI.meatballChonkRange) >= 2;
 		const chase = hpBp(w, foe) <= BOT_AI.meatballChaseHpBp && d <= BOT_AI.meatballChaseRange;
 		if (brawl || chase) return cast(3, hx, hy, 255);
 	}
@@ -10079,7 +10128,7 @@ function fight(w, id, foe, p, rng) {
 	const melee = attackRange(w, id) + RANGE_PAD;
 	if (canCast(w, id, 1) && (hiddenFoeNear(w, id, a.w.radius) || commit && d <= melee + a.q.dash)) return cast(1, w.x[id], w.y[id], 255);
 	if (canCast(w, id, 3) && hpBp(w, foe) <= BOT_AI.stiltsZoomiesHpBp && d <= BOT_AI.stiltsZoomiesRange) {
-		if (foesNear(w, id, w.x[id], w.y[id], BOT_AI.awareRange) === 1 && nearestAlly(w, id, BOT_AI.awareRange) < 0 || allyNear(w, id, foe)) return cast(3, w.x[id], w.y[id], 255);
+		if (foesNear(w, id, w.x[id], w.y[id], BOT_AI.awareRange) === 1 && nearestAlly(w, id, BOT_AI.awareRange) < 0 || allyNear$1(w, id, foe)) return cast(3, w.x[id], w.y[id], 255);
 	}
 	if (canCast(w, id, 0) && d <= a.q.dash && (commit || !strideFull(w, id) && d > melee)) return cast(0, fx, fy, 255);
 	if (canCast(w, id, 2) && d <= a.e.range + RANGE_PAD) {
@@ -10167,7 +10216,7 @@ function awayFrom(w, id, fx, fy, dist) {
 	pt[1] = w.y[id] + idiv(isin(a) * dist, TRIG_ONE);
 }
 /** Is an allied hero of `id` (not itself) within BOT_AI.spellAllyRange of enemy `e` (it can follow up a charm)? */
-function allyNear(w, id, e) {
+function allyNear$1(w, id, e) {
 	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
 		if (a === id || w.alive[a] === 0 || w.kind[a] !== Kind.Hero || w.team[a] !== w.team[id]) continue;
 		if (dist2(w.x[e], w.y[e], w.x[a], w.y[a]) <= BOT_AI.spellAllyRange * BOT_AI.spellAllyRange) return true;
@@ -10183,7 +10232,7 @@ function spellWorth(w, id, fx, fy, range, arc) {
 	const hy = w.y[id];
 	const dir = iatan2(fy - hy, fx - hx);
 	const n = collect(w, w.team[id], hits, (e, r) => inCone(hx, hy, dir, range, arc, w.x[e], w.y[e], r), true);
-	return n >= 2 || n === 1 && allyNear(w, id, hits[0]);
+	return n >= 2 || n === 1 && allyNear$1(w, id, hits[0]);
 }
 /** Avietė's Live Wire / Short Circuit return is open. */
 var returnOpen = (w, id) => w.kStage[id] > 0 && w.kWindow[id] > 0;
@@ -10470,7 +10519,7 @@ function applyPing(m, cmd) {
 	const barks = [];
 	let took = 0;
 	if (kind !== PING_KIND.Focus || target >= 0) for (let id = RANGE.heroes; id < 3; id++) {
-		if (id === 0 || w.team[id] !== team || w.alive[id] === 0) continue;
+		if (isHumanSlot(w, id) || w.team[id] !== team || w.alive[id] === 0) continue;
 		let what = "ok";
 		if (kind !== PING_KIND.FallBack && (hpBp(w, id) < PING.refuseHpBp || w.napT[id] > 0)) what = "heal";
 		else {
@@ -10502,7 +10551,7 @@ function applyPing(m, cmd) {
 }
 /** The order allied bot `id` follows now (PING_KIND), or −1. Clears an expired or pointless order. */
 function orderOf(w, id) {
-	if (id === 0 || w.botOrd[id] === 0) return -1;
+	if (isHumanSlot(w, id) || w.botOrd[id] === 0) return -1;
 	const kind = w.botOrd[id] - 1;
 	const t = w.botOrdId[id];
 	if (w.globals[G.Tick] > w.botOrdT[id] || kind === PING_KIND.Focus && (t < 0 || w.alive[t] === 0) || kind === PING_KIND.Group && w.alive[0] === 0) {
@@ -10576,7 +10625,7 @@ function laneRole(w, id) {
 * human holds through a bad fight (not through untanked tower fire). Take Pudding ends once Pudding is no longer wild.
 * Lane roles follow the lane swap (`laneRole`).
 */
-var HEROES_N = RANGE.minions - RANGE.heroes;
+var HEROES_N$1 = RANGE.minions - RANGE.heroes;
 var ROAM = 2;
 /** Lane role by team slot: 0 Sunny, 1 Puddle, 2 roams (rat camp, then the lane that needs help). */
 var roleOf = (id) => id % 3;
@@ -10609,13 +10658,13 @@ function attack(w, id, mem, t) {
 function updateAwareness(w, id, mem, tick, slip) {
 	const r2 = BOT_AI.awareRange * BOT_AI.awareRange;
 	for (let e = RANGE.heroes; e < RANGE.minions; e++) {
-		const k = id * HEROES_N + e;
+		const k = id * HEROES_N$1 + e;
 		if (!(seenEnemy(w, w.team[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= r2)) mem.seen[k] = -1;
 		else if (mem.seen[k] < 0 && !slip) mem.seen[k] = tick;
 	}
 }
 var aware = (mem, id, e, tick, p) => {
-	const t = mem.seen[id * HEROES_N + e];
+	const t = mem.seen[id * HEROES_N$1 + e];
 	return t >= 0 && tick - t >= p.reactionTicks;
 };
 /** Power of `team`'s side around (x, y): allied heroes (all), or enemy heroes (visible only) when `enemy`. */
@@ -10654,7 +10703,7 @@ function leaveToHuman(w, e) {
 	const h = 0;
 	if (w.alive[h] === 0 || hpBp(w, e) >= BOT_AI.stealHpBp) return false;
 	if (dist2(w.x[h], w.y[h], w.x[e], w.y[e]) > BOT_AI.stealRange * BOT_AI.stealRange) return false;
-	const t = w.assistTick[e * HEROES_N + h];
+	const t = w.assistTick[e * HEROES_N$1 + h];
 	return w.target[h] === e || t !== -1048576 && w.globals[G.Tick] - t <= BOT_AI.stealTicks;
 }
 /** The enemy hero to fight now, or −1. Sets `bad` to an aware enemy that is too strong to fight here. */
@@ -10693,7 +10742,7 @@ var scratch = /* @__PURE__ */ new Int32Array(1);
 /** DifficultyRules.truceUntil of the match being thought about (set before pickFoe; the brain is single-threaded). */
 var truceUntil = 0;
 /** Heroes of `team` alive within BOT_AI.powerRange of hero `id` (itself included); −1: all of `team` alive. */
-function alliesNear(w, team, id) {
+function alliesNear$1(w, team, id) {
 	const r2 = BOT_AI.powerRange * BOT_AI.powerRange;
 	let n = 0;
 	for (let h = RANGE.heroes; h < RANGE.minions; h++) {
@@ -10731,7 +10780,7 @@ function pushLane(w, team, id = -1, pressAhead = 0) {
 	const ra = raiders(w, team, 0);
 	const rb = raiders(w, team, 1);
 	const need = pressAhead > 0 && -scoreBehind(w, team) >= pressAhead ? 1 : 0;
-	if (ra !== rb && Math.max(ra, rb) + need <= alliesNear(w, team, id)) return ra > rb ? 0 : 1;
+	if (ra !== rb && Math.max(ra, rb) + need <= alliesNear$1(w, team, id)) return ra > rb ? 0 : 1;
 	const a = laneTowers(w, 1 - team, 0);
 	const b = laneTowers(w, 1 - team, 1);
 	if (a !== b) return a < b ? 0 : 1;
@@ -10965,7 +11014,7 @@ function overextended(w, id, lane) {
 	const front = laneFront(w, team, lane);
 	const fp = front >= 0 ? progressOf(team, w.x[front]) : progressOf(team, w.x[laneStructure(w, team, lane, true)]);
 	if (progressOf(team, w.x[id]) - fp <= BOT_AI.overextend) return false;
-	return alliesNear(w, team, id) <= 1;
+	return alliesNear$1(w, team, id) <= 1;
 }
 /** Mistake kinds (§7.2): ignore a gank, chase too far, miss a last-hit. */
 var SLIP = Object.freeze({
@@ -11114,7 +11163,7 @@ function think(m, id, p, mem, rng, mine = null) {
 	if (low && (hp < applyBp(p.retreatHpBp, BOT_AI.retreatAlwaysBp) || threatened(w, id, mem, p, tick))) return retreat(w, id, mem, p);
 	if (w.napT[id] > 0) return null;
 	let ord = -1;
-	if (id === 0) {
+	if (isHumanSlot(w, id)) {
 		if (mine && tick <= mine.until) {
 			ord = mine.kind;
 			orderPt[0] = mine.x;
@@ -11128,13 +11177,13 @@ function think(m, id, p, mem, rng, mine = null) {
 		orderPt[2] = w.botOrdId[id];
 	}
 	if (ord >= 0 && orderDone(w, id, ord)) {
-		if (id === 0 && mine) mine.until = -1;
+		if (mine) mine.until = -1;
 		else w.botOrd[id] = 0;
 		ord = -1;
 	}
 	if (ord === PING_KIND.FallBack) {
 		if (nearestFoe(w, id, BOT_AI.napSafeRange) >= 0) return retreat(w, id, mem, p);
-		if (id === 0 && mine) mine.until = -1;
+		if (mine) mine.until = -1;
 		else w.botOrd[id] = 0;
 		ord = -1;
 	}
@@ -11230,6 +11279,12 @@ function think(m, id, p, mem, rng, mine = null) {
 }
 //#endregion
 //#region src/sim/bots/mem.ts
+/**
+* Bot memory: what a bot remembers between thinks (mode, lane, foe, Pudding decision, awareness for the reaction
+* delay, its last order). In-sim bots (slots 1..5) keep it in the world, so it is hashed and replays reproduce it.
+* An outside player-bot (slot 0 in headless runs) keeps its own copy, outside the world: it only ever reaches the
+* sim through commands, exactly like a human.
+*/
 /** The in-sim bots' memory: views on the world's arrays. */
 function worldMem(w) {
 	return {
@@ -11243,6 +11298,475 @@ function worldMem(w) {
 		y: w.botY,
 		tid: w.botId,
 		slip: w.botSlip
+	};
+}
+/** A fresh memory for an outside player-bot. */
+function createMem() {
+	const h = CAPS.heroes;
+	return {
+		mode: new Uint8Array(h),
+		lane: new Uint8Array(h),
+		foe: new Int32Array(h).fill(-1),
+		pud: new Int32Array(h).fill(-1),
+		seen: new Int32Array(h * h).fill(-1),
+		op: new Uint8Array(h),
+		x: new Int32Array(h),
+		y: new Int32Array(h),
+		tid: new Int32Array(h).fill(-1),
+		slip: new Int32Array(h).fill(-1)
+	};
+}
+//#endregion
+//#region src/sim/bots/novice.ts
+/**
+* The novice player-bot (POC.md §7.2 tuning target, `npm run match -- --profile novice`): a scripted stand-in for a
+* new human in slot 0, following the first-match tips. It plays Sunny Lane all match: attack-moves with its wave
+* (behind the front allied minion, or in front of its own tower while no wave is out), steps back when an enemy
+* tower shoots it with no minion to tank, fights an enemy hero that comes close (after a human reaction time) and
+* casts whatever is ready at it with a rough aim, walks home when low and comes back when healed, and takes the
+* first talent. It never uses Nap, the Paw Trick, the rat camp or Pudding. It
+* reaches the sim only through commands, like a human.
+*/
+var SUNNY$1 = 0;
+var NOVICE_MODE_HOME = 1;
+/** An enemy hero in view within NOVICE.threatRange, or an enemy structure shooting hero `id`? */
+function noviceThreat(w, id) {
+	const r2 = NOVICE.threatRange * NOVICE.threatRange;
+	for (let e = RANGE.heroes; e < RANGE.minions; e++) if (seenEnemy(w, w.team[id], e) && dist2(w.x[e], w.y[e], w.x[id], w.y[id]) <= r2) return true;
+	for (let t = RANGE.towers; t < RANGE.fountains; t++) if (w.alive[t] === 1 && w.team[t] !== w.team[id] && w.target[t] === id) return true;
+	return false;
+}
+/** More visible enemy heroes than allies (self included) within NOVICE.countRange of hero `id`? */
+function outnumbered(w, id) {
+	const r2 = NOVICE.countRange * NOVICE.countRange;
+	let mine = 0;
+	let theirs = 0;
+	for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+		if (w.alive[h] === 0 || dist2(w.x[h], w.y[h], w.x[id], w.y[id]) > r2) continue;
+		if (w.team[h] === w.team[id]) mine++;
+		else if (seenEnemy(w, w.team[id], h)) theirs++;
+	}
+	return theirs > mine;
+}
+function noviceThink(m, id, mem, rng) {
+	const w = m.world;
+	const tick = w.globals[G.Tick];
+	if (w.alive[id] === 0) {
+		mem.mode[id] = 0;
+		return null;
+	}
+	for (let t = 0; t < unlockedTiers(w, id); t++) if (w.talents[id * 3 + t] < 0) return {
+		op: Op.Talent,
+		tier: t,
+		choice: botTalentChoice(m.config.seed, id, t, botTalentMode(m))
+	};
+	if (w.castPhase[id] !== 0) return null;
+	const team = w.team[id];
+	const hp = hpBp(w, id);
+	if (mem.mode[id] === NOVICE_MODE_HOME && hp >= NOVICE.returnHpBp) mem.mode[id] = 0;
+	if (hp < NOVICE.retreatAlwaysBp || hp < NOVICE.retreatHpBp && noviceThreat(w, id)) mem.mode[id] = NOVICE_MODE_HOME;
+	if (mem.mode[id] === NOVICE_MODE_HOME) {
+		const hx = fountainX(team);
+		const hy = fountainY();
+		if (w.order[id] === Order.Move && w.moveX[id] === hx) return null;
+		return {
+			op: Op.Move,
+			x: hx,
+			y: hy
+		};
+	}
+	let foe = -1;
+	let foeD = 0;
+	const r2 = NOVICE.fightRange * NOVICE.fightRange;
+	for (let e = RANGE.heroes; e < RANGE.minions; e++) {
+		const k = id * (RANGE.minions - RANGE.heroes) + e;
+		const d = dist2(w.x[id], w.y[id], w.x[e], w.y[e]);
+		if (!seenEnemy(w, team, e) || d > r2) {
+			mem.seen[k] = -1;
+			continue;
+		}
+		if (mem.seen[k] < 0) mem.seen[k] = tick;
+		if (tick - mem.seen[k] < NOVICE.reactionTicks) continue;
+		if (foe < 0 || d < foeD) {
+			foe = e;
+			foeD = d;
+		}
+	}
+	if (foe >= 0 && untankedThreat(w, team, w.x[foe], w.y[foe], 0) >= 0) foe = -1;
+	if (foe >= 0 && (outnumbered(w, id) || hp < NOVICE.fightHpBp && foe !== mem.foe[id])) foe = -1;
+	mem.foe[id] = foe;
+	if (foe >= 0) {
+		for (let slot = 3; slot >= 0; slot--) {
+			if (!canCast(w, id, slot)) continue;
+			const a = iatan2(w.y[foe] - w.y[id], w.x[foe] - w.x[id]) + rng.range(-NOVICE.aimErrorSteps, NOVICE.aimErrorSteps);
+			const d = Math.max(isqrt(foeD), 1);
+			const x = w.x[id] + idiv(icos(a) * d, TRIG_ONE);
+			const y = w.y[id] + idiv(isin(a) * d, TRIG_ONE);
+			return {
+				op: Op.Cast,
+				slot,
+				x,
+				y,
+				id: slot === 3 ? foe : 255
+			};
+		}
+		if (w.order[id] === Order.Attack && w.target[id] === foe) return null;
+		return {
+			op: Op.Attack,
+			id: foe
+		};
+	}
+	const lane = SUNNY$1;
+	const own = laneStructure(w, team, lane, true);
+	for (let t = RANGE.towers; t < RANGE.fountains; t++) {
+		if (w.alive[t] === 0 || w.team[t] === team || w.target[t] !== id || tanked(w, t, team)) continue;
+		if (w.order[id] === Order.Move && w.moveX[id] === w.x[own]) return null;
+		return {
+			op: Op.Move,
+			x: w.x[own],
+			y: w.y[own]
+		};
+	}
+	const front = laneFront(w, team, lane);
+	const gx = front >= 0 ? w.x[front] - sign(team) * NOVICE.followBehind : w.x[own] + sign(team) * NOVICE.followBehind;
+	const gy = front >= 0 ? w.y[front] : w.y[own];
+	if (w.order[id] === Order.AttackMove && Math.abs(w.moveX[id] - gx) < NOVICE.followBehind && Math.abs(w.moveY[id] - gy) < NOVICE.followBehind) return null;
+	return {
+		op: Op.AttackMove,
+		x: gx,
+		y: gy
+	};
+}
+//#endregion
+//#region src/sim/bots/pinger.ts
+/**
+* The `pinger` player-bot (sim v10, GAPS B1 measure): plays slot 0 like `normal` and also pings its allied bots the
+* way an attentive human would. GAPS §3: on Normal it should win 5–10 points more than `normal` (over 15 means pings
+* are mandatory). It reads only what slot 0 may know: its own team in full, the enemy through `seenEnemy`.
+*
+* Rules, first match wins, each kind with its own cooldown, within the sim's PING limits (PINGER.kinds switches kinds
+* off): outnumbered around slot 0 with an ally in the fight → Fall back; an enemy hero at an own inner tower or the
+* core with no ally near it → Defend base; Pudding wild, the team healthy and at most one enemy hero at it (once per
+* spawn) → Take Pudding; slot 0 hitting a hurt enemy hero with an ally close → Focus hero; PINGER.pushDown enemy
+* heroes down → Push slot 0's lane; one enemy hero down and an ally far → Group on me. Slot 0 goes along with its own
+* Take Pudding, Defend base, Fall back and Push (`SelfOrder`), as a human who pings would.
+*
+* Tuning (2026-10-20, 800 seeds a run on Normal, --hero random --trick random, against `normal` 50.9% on the same
+* seeds), after the stronger obey rules in bots/brain.ts: Focus −0.6, Take Pudding −0.5, Push +1.0, Defend −1.6,
+* Group +1.0, Fall back −3.8, all kinds −2.6; the default mask Focus + Take Pudding + Push (0x9c) +0.7. Every figure is
+* inside the noise (about ±1.8 points at 800 seeds): pings are control and depth, not an edge. See the B1 note and
+* Your call 19 in docs/plans/moba/GAPS.md.
+*/
+var createPingerMem = () => ({
+	next: new Int32Array(PING_KINDS.length),
+	last: -PING.minGap,
+	sent: 0,
+	pudSpawn: -1,
+	mine: {
+		kind: -1,
+		until: -1,
+		x: 0,
+		y: 0,
+		target: -1
+	}
+});
+/** Kinds slot 0 follows itself (the others it leads: Group on me, Focus hero, Go here, Push). */
+var SELF_KINDS = [
+	PING_KIND.Pudding,
+	PING_KIND.Defend,
+	PING_KIND.FallBack,
+	PING_KIND.PushSunny,
+	PING_KIND.PushPuddle
+];
+/** The own core or inner tower with an enemy hero `team` can see within PINGER.baseRange, or −1. */
+function raidedBase(w, team) {
+	const r2 = PINGER.baseRange * PINGER.baseRange;
+	const base = RANGE.towers + team * TOWER_SPOTS.length;
+	for (let s = 0; s <= TOWER_SPOTS.length; s++) {
+		const id = s === TOWER_SPOTS.length ? RANGE.cores + team : base + s;
+		if (w.alive[id] === 0 || s < TOWER_SPOTS.length && TOWER_SPOTS[s].tier !== "inner") continue;
+		for (let e = RANGE.heroes; e < RANGE.minions; e++) if (seenEnemy(w, team, e) && dist2(w.x[e], w.y[e], w.x[id], w.y[id]) <= r2) return id;
+	}
+	return -1;
+}
+/** Enemy heroes `team` can see within `r` of (x, y). */
+function enemiesNear(w, team, x, y, r) {
+	let n = 0;
+	for (let e = RANGE.heroes; e < RANGE.minions; e++) if (seenEnemy(w, team, e) && dist2(w.x[e], w.y[e], x, y) <= r * r) n++;
+	return n;
+}
+/** The ping slot 0 sends this think, or null. */
+function pingerPing(m, pm) {
+	const w = m.world;
+	const tick = w.globals[G.Tick];
+	const h = 0;
+	if (w.alive[h] === 0 || pm.sent >= PING.maxPerMatch || tick - pm.last < PING.minGap) return null;
+	const team = w.team[h];
+	const send = (kind, x, y, id, cd) => {
+		pm.next[kind] = tick + cd;
+		pm.last = tick;
+		pm.sent++;
+		if (SELF_KINDS.includes(kind)) {
+			pm.mine.kind = kind;
+			pm.mine.until = tick + (kind === PING_KIND.FallBack ? PING.fallBackTicks : PING.orderTicks);
+			pm.mine.x = x;
+			pm.mine.y = y;
+			pm.mine.target = id;
+		}
+		return {
+			op: Op.Ping,
+			kind,
+			x,
+			y,
+			id
+		};
+	};
+	const ready = (kind) => tick >= pm.next[kind] && (PINGER.kinds >> kind & 1) === 1;
+	if (ready(PING_KIND.FallBack)) {
+		const x = w.x[h];
+		const y = w.y[h];
+		const foes = enemiesNear(w, team, x, y, PINGER.fightRange);
+		if (foes > 0 && allyNear(w, team, x, y, PINGER.fightRange) && foes > alliesNear(w, team, x, y, PINGER.fightRange)) return send(PING_KIND.FallBack, x, y, 255, PING.fallBackTicks);
+	}
+	const raided = ready(PING_KIND.Defend) ? raidedBase(w, team) : -1;
+	if (raided >= 0 && !allyNear(w, team, w.x[raided], w.y[raided], PINGER.farRange)) return send(PING_KIND.Defend, w.x[raided], w.y[raided], 255, PING.orderTicks);
+	const pud = RANGE.pudding;
+	const spawns = w.globals[G.PudSpawns];
+	if (ready(PING_KIND.Pudding) && w.globals[G.PudState] === PUD_STATE.Wild && w.alive[pud] === 1 && pm.pudSpawn !== spawns && hpBp(w, h) >= PINGER.groupHpBp && healthy(w, team) && enemiesNear(w, team, w.x[pud], w.y[pud], PINGER.farRange) <= 1) {
+		pm.pudSpawn = spawns;
+		return send(PING_KIND.Pudding, w.x[pud], w.y[pud], 255, PING.orderTicks);
+	}
+	const t = w.target[h];
+	if (ready(PING_KIND.Focus) && t >= 0 && t < CAPS.heroes && seenEnemy(w, team, t) && hpBp(w, t) < PINGER.focusHpBp && allyNear(w, team, w.x[t], w.y[t], PINGER.focusRange)) return send(PING_KIND.Focus, w.x[t], w.y[t], t, PING.focusTicks);
+	const lane = w.y[h] >= MAP.height >> 1 ? PING_KIND.PushSunny : PING_KIND.PushPuddle;
+	if (ready(lane) && enemiesDown(w, team) >= PINGER.pushDown && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane)) {
+		pm.next[PING_KIND.PushSunny + PING_KIND.PushPuddle - lane] = tick + PING.orderTicks;
+		return send(lane, w.x[h], w.y[h], 255, PING.orderTicks);
+	}
+	if (ready(PING_KIND.Group) && enemiesDown(w, team) > 0 && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane) && allyFar(w, team)) return send(PING_KIND.Group, w.x[h], w.y[h], 255, PING.orderTicks);
+	return null;
+}
+/** Enemy heroes of `team` dead now (the scoreboard shows it). */
+function enemiesDown(w, team) {
+	let n = 0;
+	for (let e = RANGE.heroes; e < RANGE.minions; e++) if (w.team[e] !== team && w.alive[e] === 0) n++;
+	return n;
+}
+/** Heroes of `team` alive within `r` of (x, y), slot 0 included. */
+function alliesNear(w, team, x, y, r) {
+	let n = 0;
+	for (let id = RANGE.heroes; id < RANGE.minions; id++) if (w.team[id] === team && w.alive[id] === 1 && dist2(w.x[id], w.y[id], x, y) <= r * r) n++;
+	return n;
+}
+/** An allied bot alive within `r` of (x, y). */
+function allyNear(w, team, x, y, r) {
+	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+		if (id === 0 || w.team[id] !== team || w.alive[id] === 0) continue;
+		if (dist2(w.x[id], w.y[id], x, y) <= r * r) return true;
+	}
+	return false;
+}
+/** Both allied bots alive above PINGER.groupHpBp. */
+function healthy(w, team) {
+	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+		if (id === 0 || w.team[id] !== team) continue;
+		if (w.alive[id] === 0 || hpBp(w, id) < PINGER.groupHpBp) return false;
+	}
+	return true;
+}
+/** An allied bot alive further than PINGER.farRange from slot 0. */
+function allyFar(w, team) {
+	const r2 = PINGER.farRange * PINGER.farRange;
+	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+		if (id === 0 || w.team[id] !== team || w.alive[id] === 0) continue;
+		if (dist2(w.x[id], w.y[id], w.x[0], w.y[0]) > r2) return true;
+	}
+	return false;
+}
+//#endregion
+//#region src/sim/bots/naive.ts
+/**
+* The naive player-bot (`npm run match -- --profile naive`, the fun gates fun1 / fun2): a scripted stand-in for a
+* real first-timer, built from the 2026-10-17 playtest diagnosis instead of the first-match tips the novice follows.
+*
+* - Attack-moves to the nearest enemy hero within NAIVE.seekRange and chases it up to NAIVE.chaseRange, otherwise
+*   follows its wave in Sunny Lane.
+* - Ignores towers: it steps back only after NAIVE.towerHits consecutive tower hits AND below NAIVE.towerHpBp.
+* - Casts Q, E and R the moment they are ready, at the nearest enemy (a hero first, else a minion), ±25° aim.
+* - Walks home below 20% HP and comes back at 80%; never naps, never uses its Paw Trick or W.
+* - Walks over a pickup only within NAIVE.pickupRange.
+* - Hesitates: in 5% of its thinks it stands still for 0.5 to 2 s.
+* - Takes talent 1 at every offer.
+*
+* Calibration on sim v3 (vs Easy, 200 seeds, hero random; see tests/unit/naive.test.ts): see the comment there.
+* It reaches the sim only through commands, like a human.
+*/
+var SUNNY = 0;
+var MODE_HOME = 1;
+var HEROES_N = RANGE.minions - RANGE.heroes;
+/** Nearest visible enemy hero within `r` that has been in view for the reaction time, or −1. */
+function nearestHero(w, id, mem, tick, r, P) {
+	const team = w.team[id];
+	let best = -1;
+	let bestD = 0;
+	for (let e = RANGE.heroes; e < RANGE.minions; e++) {
+		const k = id * HEROES_N + e;
+		if (!seenEnemy(w, team, e)) {
+			mem.seen[k] = -1;
+			continue;
+		}
+		if (mem.seen[k] < 0) mem.seen[k] = tick;
+		const d = dist2(w.x[id], w.y[id], w.x[e], w.y[e]);
+		if (d > r * r || tick - mem.seen[k] < P.reactionTicks) continue;
+		if (best < 0 || d < bestD) {
+			best = e;
+			bestD = d;
+		}
+	}
+	return best;
+}
+/** Nearest visible enemy minion within `r`, or −1. */
+function nearestMinion(w, id, r) {
+	let best = -1;
+	let bestD = 0;
+	for (let e = RANGE.minions; e < RANGE.towers; e++) {
+		if (!seenEnemy(w, w.team[id], e)) continue;
+		const d = dist2(w.x[id], w.y[id], w.x[e], w.y[e]);
+		if (d > r * r) continue;
+		if (best < 0 || d < bestD) {
+			best = e;
+			bestD = d;
+		}
+	}
+	return best;
+}
+/** Has an enemy tower hit hero `id` NAIVE.towerHits times in a row (it is still shooting it)? */
+function towerPounding(w, id, P) {
+	for (let t = RANGE.towers; t < RANGE.fountains; t++) {
+		if (w.alive[t] === 0 || w.team[t] === w.team[id] || w.target[t] !== id) continue;
+		if (w.shotAt[t] === id && w.streak[t] + 1 >= P.towerHits) return true;
+	}
+	return false;
+}
+/** A cast of `slot` aimed at unit `e` with the naive aim error. */
+function castAt(w, id, slot, e, rng, P) {
+	const d = Math.max(isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e])), 1);
+	const a = iatan2(w.y[e] - w.y[id], w.x[e] - w.x[id]) + rng.range(-P.aimErrorSteps, P.aimErrorSteps);
+	const x = w.x[id] + idiv(icos(a) * d, TRIG_ONE);
+	const y = w.y[id] + idiv(isin(a) * d, TRIG_ONE);
+	return {
+		op: Op.Cast,
+		slot,
+		x,
+		y,
+		id: slot === 3 && e < RANGE.minions ? e : 255
+	};
+}
+/** `P`: NAIVE, or FEEDER (the `feeder` profile: dives and feeds, sim v7). */
+function naiveThink(m, id, mem, rng, P = NAIVE) {
+	const w = m.world;
+	const tick = w.globals[G.Tick];
+	if (w.alive[id] === 0) {
+		mem.mode[id] = 0;
+		mem.foe[id] = -1;
+		return null;
+	}
+	for (let t = 0; t < unlockedTiers(w, id); t++) if (w.talents[id * 3 + t] < 0) return {
+		op: Op.Talent,
+		tier: t,
+		choice: botTalentChoice(m.config.seed, id, t, botTalentMode(m))
+	};
+	if (w.castPhase[id] !== 0) return null;
+	if (mem.slip[id] > tick) return null;
+	if (rng.chanceBp(P.idleBp)) {
+		mem.slip[id] = tick + P.idleMin + rng.int(P.idleMax - P.idleMin + 1);
+		return w.order[id] === 0 ? null : { op: Op.Stop };
+	}
+	const team = w.team[id];
+	const hp = hpBp(w, id);
+	if (mem.mode[id] === MODE_HOME && hp >= P.returnHpBp) mem.mode[id] = 0;
+	const pounded = towerPounding(w, id, P);
+	if (hp < P.retreatHpBp || hp < P.towerHpBp && pounded) mem.mode[id] = MODE_HOME;
+	if (mem.mode[id] === MODE_HOME) {
+		mem.foe[id] = -1;
+		const hx = fountainX(team);
+		if (w.order[id] === Order.Move && w.moveX[id] === hx) return null;
+		return {
+			op: Op.Move,
+			x: hx,
+			y: fountainY()
+		};
+	}
+	if (pounded) {
+		mem.foe[id] = -1;
+		const own = laneStructure(w, team, SUNNY, true);
+		if (w.order[id] === Order.Move && w.moveX[id] === w.x[own]) return null;
+		return {
+			op: Op.Move,
+			x: w.x[own],
+			y: w.y[own]
+		};
+	}
+	let foe = mem.foe[id];
+	if (foe >= 0 && (!seenEnemy(w, team, foe) || dist2(w.x[id], w.y[id], w.x[foe], w.y[foe]) > P.chaseRange * P.chaseRange)) foe = -1;
+	const near = nearestHero(w, id, mem, tick, P.seekRange, P);
+	if (foe < 0) foe = near;
+	mem.foe[id] = foe;
+	const aimAt = near >= 0 && dist2(w.x[id], w.y[id], w.x[near], w.y[near]) <= P.castRange * P.castRange ? near : nearestMinion(w, id, P.castRange);
+	if (aimAt >= 0) {
+		for (const slot of [
+			0,
+			2,
+			3
+		]) if (canCast(w, id, slot)) return castAt(w, id, slot, aimAt, rng, P);
+	}
+	const pk = nearestPickup(w, id, P.pickupRange);
+	if (pk >= 0 && foe < 0) {
+		const px = w.pkX[pk];
+		const py = w.pkY[pk];
+		if (w.order[id] === Order.Move && w.moveX[id] === px && w.moveY[id] === py) return null;
+		return {
+			op: Op.Move,
+			x: px,
+			y: py
+		};
+	}
+	if (foe >= 0) {
+		const fx = w.x[foe];
+		const fy = w.y[foe];
+		if (dist2(w.x[id], w.y[id], fx, fy) <= P.lockRange * P.lockRange) {
+			if (w.order[id] === Order.Attack && w.target[id] === foe) return null;
+			return {
+				op: Op.Attack,
+				id: foe
+			};
+		}
+		if (w.order[id] === Order.AttackMove && Math.abs(w.moveX[id] - fx) < P.followBehind && Math.abs(w.moveY[id] - fy) < P.followBehind) return null;
+		return {
+			op: Op.AttackMove,
+			x: fx,
+			y: fy
+		};
+	}
+	if (P.dive) {
+		const s = laneStructure(w, 1 - team, SUNNY, true);
+		if (w.order[id] === Order.AttackMove && w.moveX[id] === w.x[s] && w.moveY[id] === w.y[s]) return null;
+		return {
+			op: Op.AttackMove,
+			x: w.x[s],
+			y: w.y[s]
+		};
+	}
+	const own = laneStructure(w, team, SUNNY, true);
+	const front = laneFront(w, team, SUNNY);
+	const ahead = front >= 0 && progressOf(team, w.x[front]) - P.followBehind > progressOf(team, w.x[own]) + P.followBehind;
+	const gx = ahead ? w.x[front] - sign(team) * P.followBehind : w.x[own] + sign(team) * P.followBehind;
+	const gy = ahead ? w.y[front] : w.y[own];
+	if (w.order[id] === Order.AttackMove && Math.abs(w.moveX[id] - gx) < P.followBehind && Math.abs(w.moveY[id] - gy) < P.followBehind) return null;
+	return {
+		op: Op.AttackMove,
+		x: gx,
+		y: gy
 	};
 }
 //#endregion
@@ -11289,10 +11813,134 @@ function stepBots(m) {
 	const tick = w.globals[G.Tick];
 	let mem = null;
 	for (let slot = RANGE.heroes; slot < RANGE.minions; slot++) {
-		if (slot === 0 || !thinksNow(tick, slot)) continue;
+		if (isHumanSlot(w, slot) || !thinksNow(tick, slot)) continue;
 		mem ??= worldMem(w);
 		const cmd = think(m, slot, botParams(m, slot), mem, w.rng);
 		if (cmd) applyOrder(m, slot, quantize(cmd));
+	}
+}
+/**
+* Party play (MULTIPLAYER.md §1.1, D5): an outside bot for human slot `slot` (0, 1 or 2), the relay's pilot. Its RNG
+* forks from the root seed only: `player-bot:<profile>` for slot 0 (unchanged), `player-bot:<profile>:s<slot>`
+* otherwise. Every pilot keeps its own memory and its own SelfOrder (`pings.mine`), so it never writes hashed bot
+* state (B1). The `pinger` profile is slot 0's only (pings come from slot 0).
+*/
+function createPlayerBotFor(m, profile, slot) {
+	if (!Number.isInteger(slot) || slot < 0 || slot > 2) throw new RangeError(`player-bot slot ${String(slot)} is not 0, 1 or 2`);
+	if (profile === "pinger" && slot !== 0) throw new RangeError("the pinger profile drives slot 0 only");
+	const name = profile === "pinger" ? "normal" : profile;
+	const fork = slot === 0 ? `player-bot:${name}` : `player-bot:${name}:s${slot}`;
+	return {
+		profile,
+		slot,
+		mem: createMem(),
+		rng: new Rng(m.config.seed >>> 0).fork(fork),
+		pings: createPingerMem()
+	};
+}
+/**
+* The player-bot's commands for the tick about to be stepped (empty most ticks). Call it right before
+* `step(match, commands)`.
+*/
+function playerBotCommands(m, bot) {
+	const w = m.world;
+	if (bot.profile === "idle" || m.ended || !thinksNow(w.globals[G.Tick], bot.slot)) return [];
+	if (w.alive[bot.slot] === 1) {
+		for (let t = 0; t < unlockedTiers(w, bot.slot); t++) if (w.talents[bot.slot * 3 + t] < 0) return [{
+			op: Op.Talent,
+			tier: t,
+			choice: botTalentChoice(m.config.seed, bot.slot, t, botTalentMode(m))
+		}];
+	}
+	if (bot.profile === "parked") {
+		const t = w.globals[G.Tick];
+		return t >= PARKED.at && t < PARKED.at + TIMELINE.botThinkEvery && w.alive[bot.slot] === 1 ? [{
+			op: Op.Move,
+			x: PARKED.x,
+			y: PARKED.y
+		}] : [];
+	}
+	const cmd = bot.profile === "novice" ? noviceThink(m, bot.slot, bot.mem, bot.rng) : bot.profile === "naive" || bot.profile === "feeder" ? naiveThink(m, bot.slot, bot.mem, bot.rng, bot.profile === "feeder" ? FEEDER : void 0) : think(m, bot.slot, BOTS[bot.profile === "pinger" ? "normal" : bot.profile], bot.mem, bot.rng, bot.pings.mine);
+	const ping = bot.profile === "pinger" ? pingerPing(m, bot.pings) : null;
+	const out = [];
+	if (ping) out.push(ping);
+	if (cmd) out.push(cmd);
+	return out;
+}
+//#endregion
+//#region src/sim/party-inputs.ts
+/**
+* Party play, the part `step` needs (MULTIPLAYER.md §1.1, §1.2). Kept apart from party.ts (which imports index.ts for
+* the replay) so index.ts can import it without a cycle.
+*
+* Same-tick order (B2, pinned by tests/unit/party-order.test.ts): slot 0's ping, slot 0's command, the forfeit block,
+* then `applyPartyInputs` (slot 1, then slot 2), then the in-sim bots.
+*/
+/** Throws RangeError unless `humans` is ascending, unique, contains 0 and lies within {0, 1, 2}. */
+function validateHumans(humans) {
+	if (!Array.isArray(humans) || humans.length < 1 || humans.length > 3) throw new RangeError("humans must list 1 to 3 slots");
+	if (humans[0] !== 0) throw new RangeError("humans must start with slot 0");
+	for (let i = 0; i < humans.length; i++) {
+		const s = humans[i];
+		if (!Number.isInteger(s) || s < 0 || s >= 3) throw new RangeError(`human slot ${String(s)} is not 0, 1 or 2`);
+		if (i > 0 && s <= humans[i - 1]) throw new RangeError("humans must be ascending and unique");
+	}
+}
+/** One gate and one log per human slot >= 1 (slot 0 keeps the match's own gate and log). */
+function createPartyState(config) {
+	const humans = config.humans ?? [0];
+	validateHumans(humans);
+	const slots = [];
+	const gates = [
+		null,
+		null,
+		null
+	];
+	const logs = [
+		null,
+		null,
+		null
+	];
+	for (let i = 1; i < humans.length; i++) {
+		const s = humans[i];
+		slots.push(s);
+		gates[s] = createGate();
+		logs[s] = [];
+	}
+	return {
+		slots,
+		gates,
+		logs
+	};
+}
+/** The commands slot `s` may send: everything but pings and forfeits (those are slot 0's; v1 drops them unlogged). */
+function ownCommands(list) {
+	if (!list || list.length === 0) return void 0;
+	let clean = true;
+	for (let i = 0; i < list.length && clean; i++) clean = list[i].op !== Op.Ping && list[i].op !== Op.Forfeit;
+	if (clean) return list;
+	const out = [];
+	for (let i = 0; i < list.length; i++) if (list[i].op !== Op.Ping && list[i].op !== Op.Forfeit) out.push(list[i]);
+	return out;
+}
+/**
+* Step 1b (party only): the human slots >= 1 apply their commands through their own gate, in slot order. Each applied
+* command is logged in its slot's log and folded into G.InputHash with the slot (slot 0's fold is unchanged).
+*/
+function applyPartyInputs(m, tick, bySlot) {
+	const party = m.party;
+	if (!party) return;
+	const w = m.world;
+	for (let i = 0; i < party.slots.length; i++) {
+		const slot = party.slots[i];
+		const cmd = gateCommand(party.gates[slot], tick, ownCommands(bySlot ? bySlot[slot] : void 0));
+		if (!cmd) continue;
+		party.logs[slot].push({
+			tick,
+			cmd
+		});
+		w.globals[G.InputHash] = fnvBytes(fnvInt(fnvInt(w.globals[G.InputHash], tick), slot), encodeCommand(cmd)) | 0;
+		applyOrder(m, slot, cmd);
 	}
 }
 //#endregion
@@ -11343,6 +11991,7 @@ function validate(config) {
 	for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
 	if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
 	if (config.botTalents !== void 0 && !BOT_TALENT_MODES.includes(config.botTalents)) throw new RangeError(`unknown botTalents ${config.botTalents}`);
+	if (config.humans !== void 0) validateHumans(config.humans);
 }
 var sideX = (team, x) => team === 0 ? x : mirrorX(x);
 /**
@@ -11433,6 +12082,10 @@ function createMatch(config) {
 		ended: null,
 		stats
 	};
+	if (config.humans !== void 0 && config.humans.length > 1) {
+		w.humans = humanMask(config.humans);
+		m.party = createPartyState(config);
+	}
 	coverStructures(m);
 	refreshVision(w);
 	refreshFlags(w);
@@ -11441,8 +12094,11 @@ function createMatch(config) {
 /**
 * Advance one tick (§4.3). `commands` are the human's commands for this tick; the latest one wins (see input.ts for
 * the move gate). A no-op after the match ended.
+*
+* Party play (MULTIPLAYER.md §1.2): `others[s]` are the commands of human slot s >= 1 (ignored for any slot that is not
+* a human's, and when the match has no party). They apply after slot 0's ping, command and forfeit.
 */
-function step(match, commands) {
+function step(match, commands, others) {
 	const m = match;
 	if (m.ended) return;
 	const w = m.world;
@@ -11478,6 +12134,7 @@ function step(match, commands) {
 		});
 		w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ff)) | 0;
 	}
+	if (m.party) applyPartyInputs(m, tick, others);
 	stepBots(m);
 	const wave = waveAt(tick, w.globals[G.SiegeWaves]);
 	if (wave >= 0) {
@@ -11528,6 +12185,10 @@ function step(match, commands) {
 	checkWin(m);
 	if ((tick + 1) % TIMELINE.hashEvery === 0) m.trail.push(hashWorld(w));
 }
+/** uint32 hash of the whole state. */
+function hash(match) {
+	return hashWorld(match.world);
+}
 function hashTrail(match) {
 	return match.trail;
 }
@@ -11570,6 +12231,181 @@ function runReplay(record) {
 		result: result(match),
 		trail: hashTrail(match).slice(),
 		ticks: tickOf(match)
+	};
+}
+//#endregion
+//#region src/sim/party.ts
+/**
+* Party play (docs/plans/moba/MULTIPLAYER.md §1): co-op against bots, 1 to 3 humans on slot 0's team.
+*
+* MERGE WARNING (§1): this module does not bump SIM_VERSION. Single-player output stays byte-identical
+* (tests/unit/party-identity.test.ts). PARTY_SINCE is the first SIM_VERSION that ships to production with party code:
+* if this branch merges into the v12 work before either ships, set it to 12.
+*
+* Determinism rule (§1.4): a client's sim only ever applies the decoded TURN bytes, its own commands included.
+* A human slot is a command source like slot 0: `step(m, slot0, others)`. A pilot (the relay's bot for a dropped
+* human) is `createPlayerBotFor` and its output is ordinary stream commands for that slot.
+*/
+/** The first SIM_VERSION with party code (see the merge warning above). The backend refuses older party results. */
+var PARTY_SINCE = 11;
+/** Is hero slot `slot` a human's in match `m`? Slot 0 always; slots 1 and 2 only in a party. */
+var isHuman = (m, slot) => isHumanSlot(m.world, slot);
+/**
+* Picks for a party: the bots exactly as `fillPicks(seed, humans[0].hero, humans[0].trick)` draws them, then each
+* human seat overwrites its slot. Invariant: `fillPicksParty(s, [h0])` deep-equals `fillPicks(s, h0.hero, h0.trick)`.
+*/
+function fillPicksParty(seed, humans) {
+	const lead = humans[0];
+	const out = fillPicks(seed, lead.hero, lead.trick);
+	for (let i = 1; i < humans.length; i++) {
+		out.picks[humans[i].slot] = humans[i].hero;
+		out.tricks[humans[i].slot] = humans[i].trick;
+	}
+	return out;
+}
+/** The post-gate command log of human slot `slot` (slot 0: the match log). */
+function partyLog(m, slot) {
+	if (slot === 0) return m.log;
+	return m.party?.logs[slot] ?? [];
+}
+/** Party replay of an ended party match, or null while it runs. */
+function partyReplayRecord(m) {
+	if (!m.ended) return null;
+	const slots = m.config.humans ?? [0];
+	const humans = [];
+	const inputs = [];
+	for (let i = 0; i < slots.length; i++) {
+		const s = slots[i];
+		humans.push({
+			slot: s,
+			hero: m.config.picks[s],
+			trick: m.config.tricks[s]
+		});
+		inputs.push(toBase64(encodeStream(partyLog(m, s))));
+	}
+	return {
+		v: 2,
+		simVersion: 11,
+		seed: m.config.seed >>> 0,
+		difficulty: m.config.difficulty,
+		humans,
+		picks: m.config.picks.slice(),
+		tricks: m.config.tricks.slice(),
+		ticks: m.ended.ticks,
+		inputs,
+		outcome: m.ended.outcome,
+		finalHash: m.ended.finalHash,
+		mutator: "none"
+	};
+}
+/** Re-simulate a party replay (shape already checked). Throws DecodeError on a malformed stream. */
+function runPartyReplay(r) {
+	const limit = Math.min(r.ticks, MAX_TICKS);
+	const streams = [];
+	for (let i = 0; i < r.inputs.length; i++) streams.push(decodeStream(fromBase64(r.inputs[i]), limit - 1));
+	const { picks, tricks } = fillPicksParty(r.seed, r.humans);
+	const humans = [];
+	for (let i = 0; i < r.humans.length; i++) humans.push(r.humans[i].slot);
+	const m = createMatch({
+		seed: r.seed,
+		picks,
+		tricks,
+		difficulty: r.difficulty,
+		humans
+	});
+	const at = [];
+	for (let i = 0; i < streams.length; i++) at.push(0);
+	const slot0 = [];
+	const others = [
+		[],
+		[],
+		[]
+	];
+	for (let t = 0; t < limit && result(m) === null; t++) {
+		slot0.length = 0;
+		others[1].length = 0;
+		others[2].length = 0;
+		for (let i = 0; i < streams.length; i++) {
+			const s = r.humans[i].slot;
+			const list = s === 0 ? slot0 : others[s];
+			const st = streams[i];
+			while (at[i] < st.length && st[at[i]].tick === t) list.push(st[at[i]++].cmd);
+		}
+		step(m, slot0, others);
+	}
+	return {
+		result: result(m),
+		trail: hashTrail(m).slice(),
+		ticks: tickOf(m)
+	};
+}
+var HEX$1 = "0123456789abcdef";
+var isHex8$1 = (s) => typeof s === "string" && s.length === 8 && s.split("").every((c) => HEX$1.includes(c));
+var fail$1 = (code, message) => ({
+	ok: false,
+	code,
+	message
+});
+/** Structural check of a PartyReplayRecord (no simulation). Null when well-formed. */
+function checkPartyShape(r) {
+	if (!r || typeof r !== "object") return fail$1("PAWLEGENDS_REPLAY_INVALID", "not an object");
+	const x = r;
+	if (x.v !== 2) return fail$1("PAWLEGENDS_REPLAY_INVALID", "v must be 2");
+	if (typeof x.simVersion !== "number" || x.simVersion !== 11) return fail$1("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 11`);
+	if (x.simVersion < 11) return fail$1("PAWLEGENDS_SIM_VERSION", `party play needs simVersion 11`);
+	if (typeof x.seed !== "number" || !Number.isInteger(x.seed) || x.seed < 0 || x.seed > 4294967295) return fail$1("PAWLEGENDS_REPLAY_INVALID", "seed must be a uint32");
+	if (typeof x.difficulty !== "string" || !DIFFICULTIES.includes(x.difficulty)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "unknown difficulty");
+	if (!Array.isArray(x.humans) || x.humans.length < 1 || x.humans.length > 3) return fail$1("PAWLEGENDS_REPLAY_INVALID", "humans must list 1 to 3 seats");
+	let last = -1;
+	for (let i = 0; i < x.humans.length; i++) {
+		const h = x.humans[i];
+		if (!h || typeof h !== "object") return fail$1("PAWLEGENDS_REPLAY_INVALID", "bad seat");
+		const s = h.slot;
+		if (typeof s !== "number" || !Number.isInteger(s) || s < 0 || s > 2) return fail$1("PAWLEGENDS_REPLAY_INVALID", "seat slot must be 0, 1 or 2");
+		if (i === 0 && s !== 0) return fail$1("PAWLEGENDS_REPLAY_INVALID", "the first seat must be slot 0");
+		if (s <= last) return fail$1("PAWLEGENDS_REPLAY_INVALID", "seat slots must be ascending and unique");
+		last = s;
+		if (typeof h.hero !== "string" || !HERO_IDS.includes(h.hero)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "unknown hero");
+		if (typeof h.trick !== "string" || !TRICK_IDS.includes(h.trick)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "unknown trick");
+	}
+	if (!Array.isArray(x.picks) || x.picks.length !== 6 || !Array.isArray(x.tricks) || x.tricks.length !== 6) return fail$1("PAWLEGENDS_REPLAY_INVALID", "picks and tricks need 6 slots");
+	if (typeof x.ticks !== "number" || !Number.isInteger(x.ticks) || x.ticks < 1) return fail$1("PAWLEGENDS_REPLAY_INVALID", "ticks must be a positive integer");
+	if (x.ticks > MAX_TICKS) return fail$1("PAWLEGENDS_TOO_LONG", `ticks over ${MAX_TICKS}`);
+	if (!Array.isArray(x.inputs) || x.inputs.length !== x.humans.length) return fail$1("PAWLEGENDS_REPLAY_INVALID", "one input stream per seat");
+	for (let i = 0; i < x.inputs.length; i++) {
+		if (typeof x.inputs[i] !== "string") return fail$1("PAWLEGENDS_REPLAY_INVALID", "inputs must be strings");
+		if (x.inputs[i].length > 40800) return fail$1("PAWLEGENDS_TOO_LONG", `inputs over ${MAX_INPUT_CHARS} characters`);
+	}
+	if (x.outcome !== "won" && x.outcome !== "lost") return fail$1("PAWLEGENDS_REPLAY_INVALID", "outcome must be won or lost");
+	if (!isHex8$1(x.finalHash)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "finalHash must be 8 hex digits");
+	if (x.mutator !== void 0 && !MUTATORS.includes(x.mutator)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "mutator must be 'none'");
+	const want = fillPicksParty(x.seed, x.humans);
+	for (let s = 0; s < 6; s++) if (x.picks[s] !== want.picks[s] || x.tricks[s] !== want.tricks[s]) return fail$1("PAWLEGENDS_REPLAY_INVALID", "picks do not match the seed and seats");
+	return null;
+}
+/** Verify a party replay: shape, then a full re-sim; accepted only when it ends on `ticks` with the outcome and hash. */
+function verifyPartyReplay(record) {
+	const bad = checkPartyShape(record);
+	if (bad) return bad;
+	const r = record;
+	let run;
+	try {
+		run = runPartyReplay(r);
+	} catch (e) {
+		if (e instanceof DecodeError) return fail$1("PAWLEGENDS_REPLAY_INVALID", `inputs: ${e.message}`);
+		throw e;
+	}
+	const res = run.result;
+	if (!res || res.ticks !== r.ticks) return fail$1("PAWLEGENDS_NOT_ENDED", "the match does not end on the reported tick");
+	if (res.outcome !== r.outcome) return fail$1("PAWLEGENDS_OUTCOME_MISMATCH", `re-sim outcome is ${res.outcome}`);
+	if (res.finalHash !== r.finalHash) return fail$1("PAWLEGENDS_HASH_MISMATCH", "final hash differs");
+	return {
+		ok: true,
+		outcome: res.outcome,
+		finalHash: res.finalHash,
+		ticks: res.ticks,
+		stats: res.stats,
+		reason: res.reason
 	};
 }
 //#endregion
@@ -11634,4 +12470,4 @@ function verifyReplay(record) {
 	};
 }
 //#endregion
-export { MAX_INPUT_CHARS, MAX_TICKS, SIM_VERSION, checkReplayShape, verifyReplay };
+export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, SIM_VERSION, TRICK_IDS, checkPartyShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, fromBase64, hash, hashTrail, isHuman, partyLog, partyReplayRecord, playerBotCommands, quantize, result, runPartyReplay, step, tickOf, toBase64, verifyPartyReplay, verifyReplay };

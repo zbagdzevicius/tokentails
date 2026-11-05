@@ -1,6 +1,23 @@
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
+import { readFileSync } from 'node:fs';
 import { recordRelease } from './tools/lib/keep-releases.mjs';
+import { simSourceHash } from './tools/lib/sim-source-hash.mjs';
+
+/**
+ * Party play (MULTIPLAYER.md §2.1): __SIM_HASH__ is the sim source closure's hash, computed from the sources now;
+ * __SIM_GOLDEN__ is what `npm run vendor-sim` measured on the vendored backend bundle (src/net/sim-stamp.json). If the
+ * sim changed without re-vendoring, the golden self-test fails and the client refuses party play (update_required).
+ */
+function simDefines(): Record<string, string> {
+  let golden = '';
+  try {
+    golden = (JSON.parse(readFileSync(path.resolve(__dirname, 'src/net/sim-stamp.json'), 'utf8')) as { golden?: string }).golden ?? '';
+  } catch {
+    golden = '';
+  }
+  return { __SIM_HASH__: JSON.stringify(simSourceHash()), __SIM_GOLDEN__: JSON.stringify(golden) };
+}
 
 /**
  * Deploy path (Vite `base`). Relative by default (`npm run build`). PAWLEGENDS_BASE sets an absolute sub-path or a
@@ -45,6 +62,7 @@ export default defineConfig({
   // Only VITE_* reaches the page (VITE_EMBED_ORIGINS, VITE_PAWLEGENDS_POSTHOG_KEY, ...).
   envPrefix: ['VITE_'],
   base,
+  define: simDefines(),
   server: { port: 5176, host: '127.0.0.1', strictPort: true },
   preview: { port: 4176, host: '127.0.0.1' },
   worker: { format: 'es' },

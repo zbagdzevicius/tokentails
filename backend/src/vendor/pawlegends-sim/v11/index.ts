@@ -75,7 +75,7 @@ export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-export const BUNDLE_SHA256 = '426f9a2ab8434204338a6f9f2e610cc9491779176e3243c24439c6873738eb61';
+export const BUNDLE_SHA256 = 'f68e521bf589e8eb45fb835ff5e5fae472e60388e880998b2f62171845e68486';
 /** The SIM_VERSION this bundle was built with (11). */
 export const BUNDLE_SIM_VERSION = 11;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
@@ -85,3 +85,91 @@ export const PLACEHOLDER = false;
 export const checkReplayShape: (record: unknown) => PawlegendsVerifyResult | null = sim.checkReplayShape;
 /** Re-simulate a replay (up to ~1.5 s for an 11:00 match: call it from a worker thread). */
 export const verifyReplay: (record: unknown) => PawlegendsVerifyResult = sim.verifyReplay;
+
+// ---------------------------------------------------------------------------------------------------------------
+// Party play (docs/plans/moba/MULTIPLAYER.md §1, §2.1): the party verifier and the live-match API the relay's referee
+// steps rooms with. Matches and bots are opaque handles; commands are the sim's `Command` objects.
+
+/** SIM_HASH of the sim source closure this bundle was built from (the game's __SIM_HASH__). */
+export const SIM_SOURCE_HASH = '890d2491bf749986';
+/** goldenHash (pawlegends/src/net/golden.ts) of this bundle, 8 hex (the game's __SIM_GOLDEN__). */
+export const SIM_GOLDEN = '23957c1c';
+
+export interface PawlegendsPartySeat {
+    slot: number;
+    hero: PawlegendsHeroId;
+    trick: PawlegendsTrickId;
+}
+
+export interface PawlegendsPartyReplayRecord {
+    v: 2;
+    simVersion: number;
+    seed: number;
+    difficulty: PawlegendsDifficulty;
+    humans: PawlegendsPartySeat[];
+    picks: PawlegendsHeroId[];
+    tricks: PawlegendsTrickId[];
+    ticks: number;
+    inputs: string[];
+    outcome: PawlegendsOutcome;
+    finalHash: string;
+    mutator?: PawlegendsMutator;
+}
+
+export type PawlegendsCommand = { op: number; [k: string]: number };
+export type PawlegendsMatchHandle = { readonly __pawlegendsMatch: true };
+export type PawlegendsPilot = { readonly __pawlegendsPilot: true };
+
+export interface PawlegendsMatchResult {
+    outcome: PawlegendsOutcome;
+    winner: 0 | 1;
+    reason: 'core' | 'safetyEnd' | 'forfeit';
+    ticks: number;
+    finalHash: string;
+    stats: PawlegendsSlotStats[];
+}
+
+export interface PawlegendsPartySim {
+    PARTY_SINCE: number;
+    HERO_IDS: readonly PawlegendsHeroId[];
+    TRICK_IDS: readonly PawlegendsTrickId[];
+    DIFFICULTIES: readonly PawlegendsDifficulty[];
+    PLAYER_PROFILES: readonly string[];
+    checkPartyShape(record: unknown): PawlegendsVerifyResult | null;
+    verifyPartyReplay(record: unknown): PawlegendsVerifyResult;
+    fillPicksParty(seed: number, humans: readonly PawlegendsPartySeat[]): { picks: PawlegendsHeroId[]; tricks: PawlegendsTrickId[] };
+    createMatch(config: { seed: number; picks: readonly string[]; tricks: readonly string[]; difficulty: string; humans?: readonly number[] }): PawlegendsMatchHandle;
+    step(m: PawlegendsMatchHandle, commands?: readonly PawlegendsCommand[], others?: readonly (readonly PawlegendsCommand[] | undefined)[]): void;
+    hash(m: PawlegendsMatchHandle): number;
+    hashTrail(m: PawlegendsMatchHandle): readonly number[];
+    result(m: PawlegendsMatchHandle): PawlegendsMatchResult | null;
+    tickOf(m: PawlegendsMatchHandle): number;
+    createPlayerBotFor(m: PawlegendsMatchHandle, profile: string, slot: number): PawlegendsPilot;
+    playerBotCommands(m: PawlegendsMatchHandle, bot: PawlegendsPilot): PawlegendsCommand[];
+    partyReplayRecord(m: PawlegendsMatchHandle): PawlegendsPartyReplayRecord | null;
+    decodeCommand(bytes: Uint8Array): PawlegendsCommand;
+    encodeCommand(cmd: PawlegendsCommand): Uint8Array;
+}
+
+/** The party API of this bundle. */
+export const party: PawlegendsPartySim = {
+    PARTY_SINCE: sim.PARTY_SINCE,
+    HERO_IDS: sim.HERO_IDS,
+    TRICK_IDS: sim.TRICK_IDS,
+    DIFFICULTIES: sim.DIFFICULTIES,
+    PLAYER_PROFILES: sim.PLAYER_PROFILES,
+    checkPartyShape: sim.checkPartyShape,
+    verifyPartyReplay: sim.verifyPartyReplay,
+    fillPicksParty: sim.fillPicksParty,
+    createMatch: sim.createMatch,
+    step: sim.step,
+    hash: sim.hash,
+    hashTrail: sim.hashTrail,
+    result: sim.result,
+    tickOf: sim.tickOf,
+    createPlayerBotFor: sim.createPlayerBotFor,
+    playerBotCommands: sim.playerBotCommands,
+    partyReplayRecord: sim.partyReplayRecord,
+    decodeCommand: sim.decodeCommand,
+    encodeCommand: sim.encodeCommand,
+};
