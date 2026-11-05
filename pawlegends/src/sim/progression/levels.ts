@@ -25,9 +25,11 @@ export function levelForXp(xp: number): number {
 }
 
 /** Catch-up bonus (bp) for hero `id`: the rules' catchUpPerLevelBp per level below the enemy average beyond the first,
- *  capped at catchUpMaxBp (sim v10, GAPS B3: per difficulty). */
+ *  capped at catchUpMaxBp (sim v10, GAPS B3: per difficulty), from DifficultyRules.catchUpFrom (sim v12). */
 export function catchUpBp(m: MatchHandle, id: number): number {
   const w = m.world;
+  // Sim v12 (S2): no catch-up before DifficultyRules.catchUpFrom (Normal and Hard 3:00), so an early lead holds.
+  if (w.globals[G.Tick] < rulesOf(m).catchUpFrom) return 0;
   let sum = 0;
   let n = 0;
   for (let h = RANGE.heroes; h < RANGE.minions; h++) {

@@ -1,8 +1,15 @@
 /** Levels, XP and respawn (POC.md §6.1). */
 export const XP = Object.freeze({
   maxLevel: 10,
-  /** Cumulative XP to reach level n (index n − 1). */
-  toLevel: Object.freeze([0, 60, 200, 360, 580, 860, 1200, 1600, 2060, 2580]),
+  /** Cumulative XP to reach level n (index n − 1). Sim v12 (docs/FUN-PROGRESSION-V12.md S2, S6): levels 3 to 6 cost a
+   *  little more and level 7 a lot more (v11: 0, 60, 200, 360, 580, 860, 1200, 1600, 2060, 2580). Balance gate (2,000
+   *  seeds): the lobby's leader reaches level 4 at 1:05, 7 at 3:41 and 10 at 7:55 (v11 0:58, 2:44, 5:15); 16% of heroes
+   *  end at level 10 (v11 70%). */
+  toLevel: Object.freeze([0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500]),
+  /** Sim v12: each of n heroes sharing a minion or a kill gets shareBp[n − 1] of it (1, 2, 3 heroes: 100%, 50%, 34%),
+   *  so three heroes together earn a little more in total than an equal split. The spec's start (57.5%, 39%) put the
+   *  leader's level 4 at 0:54. */
+  shareBp: Object.freeze([10000, 5000, 3400]),
   ultimateLevel: 4,
   talentLevels: Object.freeze([3, 6, 9]),
   /** Kill XP (v4): 80 + 15 × victim level. */
@@ -43,10 +50,13 @@ export const TAKEDOWN_HEAL = Object.freeze({ healBp: 4000 });
 export const PANIC = Object.freeze({ hpBp: 2500 });
 
 export const RESPAWN = Object.freeze({
-  /** v4: 3 s + 0.6 s × level, capped at 9 s; at most 4 s before 2:00 (earlyUntil). */
+  /** v4: 3 s + 0.6 s × level, capped at 9 s; at most 4 s before 2:00 (earlyUntil). Sim v12 (S3): 3 s + 0.9 s × level,
+   *  capped at 12 s, so a late death costs real map time. */
   base: 90,
-  perLevel: 18,
-  cap: 270,
+  perLevel: 27,
+  cap: 360,
+  /** Sim v12: no respawn is longer than 15 s, after Sunset and lead pressure (combat/damage.ts). */
+  hardCap: 450,
   earlyCap: 120,
   earlyUntil: 3600,
   /**

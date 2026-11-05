@@ -11,8 +11,8 @@ export const RAT_CAMP_STATS = Object.freeze({
   armour: 0,
   /** A rat drops its target and runs home once it is this far from the camp (or its target is). */
   leash: 8000,
-  /** 70 XP total for the camp (35 a rat), shared among the killer's team heroes within XP.shareRange. */
-  xpTotal: 70,
+  /** 110 XP total for the camp (55 a rat; sim v12, 70 before), shared among the killer's team heroes within XP.shareRange. */
+  xpTotal: 110,
   /** First at 0:30 (TIMELINE.campsUp), respawn 60 s after both rats fell. */
   respawn: 1800,
   /** Clearing the camp gives the killer's team +15% damage for 45 s (v4, a `buff` event 'pack'). */

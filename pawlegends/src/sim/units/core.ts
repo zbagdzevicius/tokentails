@@ -12,6 +12,7 @@ import type { MatchHandle } from '../state';
 import { G, Kind, RANGE } from '../world';
 import { dealDamage } from '../combat/damage';
 import { trickleXp } from '../progression/xp';
+import { fishTick } from '../progression/fish';
 import { HUMAN_SLOT } from '../api';
 import { rulesOf } from '../rules';
 
@@ -32,7 +33,11 @@ export function stepSeconds(m: MatchHandle): void {
       }
     }
   }
-  if (tick >= TIMELINE.firstWave) trickleXp(m);
+  if (tick >= TIMELINE.firstWave) {
+    trickleXp(m);
+    // Sim v12: passive and comeback Fish, then Toy purchases.
+    fishTick(m);
+  }
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
     // v4: "out of combat" = no damage from an enemy hero for HERO_RULES.outOfCombat (minion and tower chip does not stop it).
     if (w.alive[id] === 0 || w.hp[id] <= 0 || tick - w.kHurt[id] < HERO_RULES.outOfCombat) continue;

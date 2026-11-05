@@ -162,6 +162,8 @@ function beginWindup(m: MatchHandle, id: number, s: SlotAim): void {
   w.castPhase[id] = 2;
   w.castT[id] = s.windup;
   w.pathLen[id] = 0;
+  // Sim v12 (S5b): re-plan the walk as soon as the cast ends (v11 waited out the repath timer, up to 15 ticks).
+  w.timer[id] = 0;
   if (s.windup > 0) {
     w.state[id] = UnitState.Casting;
     m.events.push({ type: 'windup', tick: w.globals[G.Tick], src: id, slot: w.castSlot[id] as CastSlot | 4, x: w.castX[id], y: w.castY[id], ticks: s.windup });

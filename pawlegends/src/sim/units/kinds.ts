@@ -1,5 +1,6 @@
 /** Per-kind lookups shared by the unit modules: radius, attack numbers, invulnerability. */
 import { GROWTH_FLOOR, HERO_IDS, HEROES, ROLE_GROWTH } from '../../data/heroes';
+import { TOY_SUM } from '../../data/toys';
 import { RADIUS, TOWER_SPOTS } from '../../data/map';
 import { MINIONS, MINION_KINDS } from '../../data/minions';
 import { CORE_STATS, TOWERS } from '../../data/towers';
@@ -54,7 +55,8 @@ export function attackEvery(w: World, id: number): number {
   switch (w.kind[id]) {
     case Kind.Hero: {
       const base = heroData(w, id).base.attackEvery;
-      const bp = levelAttackSpeedBp(w, id) + (w.asT[id] > 0 ? w.asBp[id] : 0);
+      // Sim v12: + the Toys' attack speed.
+      const bp = levelAttackSpeedBp(w, id) + (w.asT[id] > 0 ? w.asBp[id] : 0) + (id < RANGE.minions ? TOY_SUM[heroData(w, id).role][w.toy[id]].asBp : 0);
       if (bp <= 0) return base;
       return Math.max(Math.min(base, GROWTH_FLOOR.attackEveryMin), idiv(base * BP_ONE, BP_ONE + bp));
     }
@@ -93,7 +95,9 @@ function baseSpeed(w: World, id: number): number {
 /** Move speed with the active slow and haste (never below EFFECTS.minSpeedBp of the base). */
 export function moveSpeed(w: World, id: number): number {
   const base = baseSpeed(w, id);
-  const bp = BP_ONE - w.slowBp[id] + w.hasteBp[id] + bonusSpeedBp(w, id);
+  // Sim v12: the Toys' move speed joins the bp sum, so slows still apply.
+  const toy = id < RANGE.minions && w.kind[id] === Kind.Hero ? TOY_SUM[heroData(w, id).role][w.toy[id]].speedBp : 0;
+  const bp = BP_ONE - w.slowBp[id] + w.hasteBp[id] + bonusSpeedBp(w, id) + toy;
   return applyBp(base, Math.max(bp, EFFECTS.minSpeedBp));
 }
 

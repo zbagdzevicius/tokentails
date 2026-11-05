@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { DIFFICULTY_RULES, type Difficulty } from '../../src/data/bots';
 import { createMatch, fillPicks } from '../../src/sim/index';
 import { catchUpBp } from '../../src/sim/progression/levels';
-import { Kind, RANGE } from '../../src/sim/world';
+import { G, Kind, RANGE } from '../../src/sim/world';
 
 /** Catch-up for hero 0 when every enemy hero is `enemyLevel` and hero 0 is level 1. */
 function catchUpAt(difficulty: Difficulty, enemyLevel: number): number {
@@ -19,6 +19,8 @@ function catchUpAt(difficulty: Difficulty, enemyLevel: number): number {
     if (w.kind[h] !== Kind.Hero) continue;
     w.level[h] = w.team[h] === w.team[0] ? 1 : enemyLevel;
   }
+  // Sim v12: catch-up starts at DifficultyRules.catchUpFrom (Normal and Hard 3:00).
+  w.globals[G.Tick] = DIFFICULTY_RULES[difficulty].catchUpFrom;
   return catchUpBp(m, 0);
 }
 

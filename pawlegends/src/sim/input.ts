@@ -1,9 +1,12 @@
 /**
  * Input gate (POC.md §11.3, §4.3 step 1): decides which human command, if any, the sim applies this tick.
  *
- * - The latest command of the tick wins.
- * - A `move` within MOVE_MIN_GAP ticks of the last applied move waits; a later waiting move replaces it, any other
- *   command drops it, and it applies on the first tick the gap allows (joystick moves coalesce).
+ * - The latest command of the tick wins, except (sim v12, docs/FUN-PROGRESSION-V12.md S5a) that a cast, trick or
+ *   talent pick wins over a `move` of the same tick, in either order: the move waits instead, so a joystick move sent
+ *   with a cast never eats it.
+ * - A `move` within MOVE_MIN_GAP ticks of the last applied move waits; a later waiting move replaces it. A cast, trick
+ *   or talent leaves it waiting (sim v12); any other command (attack, stop, Nap) drops it. It applies on the first
+ *   tick the gap allows on which no other command applies (joystick moves coalesce).
  * - Once the logged stream would pass MAX_INPUT_BYTES, nothing more is applied (the replay always fits `/live`).
  * - Sim v10 (GAPS B1): pings are gated on their own. The latest ping of the tick applies (`g.ping`) if PING.minGap
  *   ticks passed since the last applied one and fewer than PING.maxPerMatch applied; else it is dropped. A ping never
@@ -44,20 +47,26 @@ function spend(g: InputGate, tick: number, op: number): boolean {
   return true;
 }
 
+/** Sim v12 (S5a): commands that leave a waiting move waiting (and win over a move of their own tick). */
+const keepsMove = (op: number): boolean => op === Op.Cast || op === Op.Trick || op === Op.Talent;
+
 /**
  * The command to apply at `tick` (not a ping or a forfeit), or null; the tick's ping, if one applies, is left in
  * `g.ping` (null otherwise). Updates the gate.
  */
 export function gateCommand(g: InputGate, tick: number, commands: readonly Command[] | undefined): Command | null {
   g.ping = null;
-  let last: Command | null = null;
+  let lastMove = -1;
+  let lastOther = -1;
   let lastPing: Command | null = null;
   if (commands) {
-    for (let i = commands.length - 1; i >= 0 && (last === null || lastPing === null); i--) {
+    for (let i = commands.length - 1; i >= 0 && (lastMove < 0 || lastOther < 0 || lastPing === null); i--) {
       const op = commands[i].op;
       if (op === Op.Forfeit) continue;
       if (op === Op.Ping) lastPing ??= commands[i];
-      else last ??= commands[i];
+      else if (op === Op.Move) {
+        if (lastMove < 0) lastMove = i;
+      } else if (lastOther < 0) lastOther = i;
     }
   }
   if (lastPing && tick - g.lastPingTick >= PING.minGap && g.pings < PING.maxPerMatch && spend(g, tick, Op.Ping)) {
@@ -65,13 +74,21 @@ export function gateCommand(g: InputGate, tick: number, commands: readonly Comma
     g.lastPingTick = tick;
     g.pings++;
   }
-  let cmd: Command | null = last ? quantize(last) : null;
-  if (cmd) {
-    if (cmd.op === Op.Move && tick - g.lastMoveTick < MOVE_MIN_GAP) {
-      g.pending = cmd;
-      cmd = null;
-    } else {
+  let cmd: Command | null = null;
+  const other = lastOther >= 0 && commands ? commands[lastOther] : null;
+  if (other && keepsMove(other.op)) {
+    // Sim v12 (S5a): a cast, trick or talent wins over the tick's move, which waits (replacing any older waiting move).
+    if (lastMove >= 0 && commands) g.pending = quantize(commands[lastMove]);
+    cmd = quantize(other);
+  } else if (other && lastOther > lastMove) {
+    cmd = quantize(other);
+    g.pending = null;
+  } else if (lastMove >= 0 && commands) {
+    const move = quantize(commands[lastMove]);
+    if (tick - g.lastMoveTick < MOVE_MIN_GAP) g.pending = move;
+    else {
       g.pending = null;
+      cmd = move;
     }
   } else if (g.pending && tick - g.lastMoveTick >= MOVE_MIN_GAP) {
     cmd = g.pending;
@@ -79,7 +96,7 @@ export function gateCommand(g: InputGate, tick: number, commands: readonly Comma
   }
   if (!cmd) return null;
   if (!spend(g, tick, cmd.op)) {
-    g.pending = null;
+    if (cmd.op === Op.Move) g.pending = null;
     return null;
   }
   if (cmd.op === Op.Move) g.lastMoveTick = tick;

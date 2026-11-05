@@ -10,6 +10,8 @@ import type { MatchHandle } from '../state';
 import { Buff, G, Kind, RANGE, type World } from '../world';
 import { coverDisc } from '../map/grid';
 import { grantXp } from '../progression/levels';
+import { grantFish } from '../progression/fish';
+import { FISH } from '../../data/fish';
 import { fireBolt, inAttackRange, structureShot } from '../combat/attack';
 import { attackEvery, isInvulnerable, radiusOf, targetable } from './kinds';
 
@@ -96,5 +98,7 @@ export function onStructureDestroyed(m: MatchHandle, id: number): void {
     w.globals[by === 0 ? G.Towers0 : G.Towers1]++;
     m.events.push({ type: 'tower', tick: w.globals[G.Tick], id, destroyedBy: by === 0 ? 0 : 1 });
     for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.team[h] === by) grantXp(m, h, TOWERS.teamXp, 'tower');
+    // Sim v12: every hero of the team that took it, dead or alive.
+    for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.kind[h] === Kind.Hero && w.team[h] === by) grantFish(m, h, FISH.tower, 'tower');
   }
 }

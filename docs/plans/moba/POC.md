@@ -383,6 +383,17 @@ Build spec: [`CATS-V11.md`](CATS-V11.md). None of the four is a shelter champion
 - **Meta.** Four `win_<id>` quests (pool 21, a 12-day rotation) and three Treat Track coats per new cat after reward 30 (42 rewards).
 - **Balance.** Each `pvp` pair is the spec's starting point. The 2,000-seed gate, Easy and Rookie retuning and grade calibration are the next phase (CATS-V11.md §4 Phase 3).
 
+### 6.8d Addendum (sim v12, 2026-11-06): Fish, Toys, progression
+
+Build spec: [`pawlegends/docs/FUN-PROGRESSION-V12.md`](../../../pawlegends/docs/FUN-PROGRESSION-V12.md) (lane S). Numbers live in `src/data/fish.ts`, `src/data/toys.ts`, `src/data/xp.ts`, `src/data/timeline.ts` and `DIFFICULTY_RULES`.
+
+- **Fish** (`progression/fish.ts`): a lane minion pays its last hitter 60% of its value (melee 36, ranged 27, siege 75) and every other hero of that team in range 40%; a kill pays the killer 120 (80 on a victim that died twice in a row, 50 at four), first blood +50, a shutdown 40 × the streak (at most 200); assisters split half the kill value; rats 60 / 20, a tower 100 and Pudding 75 to the whole team, a Fish Snack 40; every hero gets 1 a second. From `catchUpFrom` (Normal and Hard 3:00) the lowest hero of the team behind on raw Fish gets 1 more a second. The human's enemies keep `enemyFishBp` (Rookie 70%, Easy 95%).
+- **Toys**: tiers bought automatically each second at 500 / 700 / 800 / 1,000 Fish. Per role a tier adds damage (heroes, minions, neutrals; never towers or cores), HP levels, attack speed or move speed; tier 3 adds the role passive. `buy` events go to both teams; `fish` events to the own team.
+- **XP and clock**: `toLevel` 0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500; shared XP `shareBp` 100 / 50 / 34%; rat camp 110 XP; catch-up XP from `catchUpFrom`. Respawn 3 s + 0.9 s a level (cap 12 s, 15 s hard cap after Sunset and lead pressure). Sunset / Sudden Death: Easy 5:45 / 7:45, Normal and Hard 6:45 / 8:30, Rookie unchanged.
+- **Input**: a cast, trick or talent wins over a move of the same tick, and a waiting move survives it (`input.ts`); a cast re-plans the walk as soon as it ends (`kit.ts`).
+- **Snapshot**: entity records grow to 60 bytes (u16 own-team Fish at 56, u8 Toy tier at 58). `SlotStats` gains `fish`, `toys`, `lastHits`, `toy1At`..`toy4At`.
+- **Verifier**: `SIM_VERSION` 12; the backend verifies v12 (live), v11 (frozen at 6cb57e05) and v10 (frozen at 18cbcf31). Deploy the backend first.
+
 ### 6.9 Hero art in the POC
 
 - **Dogs** (Sir Brutus, Cacklejaw): the KayKit rig GLB already in PPK, with `BeastHead.js` + `BeastDress.js` parts merged into one skinned mesh by `bake-heroes.mjs`. Clips: idle, run, attack, cast, death.

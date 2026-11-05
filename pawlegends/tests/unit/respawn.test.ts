@@ -15,10 +15,10 @@ import { putHero, quietMatch } from './sim-helpers';
 const bp = (x: number, b: number): number => Math.trunc((x * b) / 10000);
 
 describe('respawn and walking (sim v4)', () => {
-  it('respawn 3 s + 0.6 s a level, max 9 s, at most 4 s before 2:00', () => {
-    expect([RESPAWN.base, RESPAWN.perLevel, RESPAWN.cap, RESPAWN.earlyCap, RESPAWN.earlyUntil]).toEqual([90, 18, 270, 120, 3600]);
-    expect([1, 2, 5, 10].map((l) => respawnTicks(l, 4000))).toEqual([108, 126, 180, 270]);
-    expect([1, 2, 5, 10].map((l) => respawnTicks(l, 0))).toEqual([108, 120, 120, 120]);
+  it('respawn 3 s + 0.9 s a level (sim v12), max 12 s, at most 4 s before 2:00', () => {
+    expect([RESPAWN.base, RESPAWN.perLevel, RESPAWN.cap, RESPAWN.earlyCap, RESPAWN.earlyUntil, RESPAWN.hardCap]).toEqual([90, 27, 360, 120, 3600, 450]);
+    expect([1, 2, 5, 10].map((l) => respawnTicks(l, 4000))).toEqual([117, 144, 225, 360]);
+    expect([1, 2, 5, 10].map((l) => respawnTicks(l, 0))).toEqual([117, 120, 120, 120]);
   });
 
   it('Rookie: the human respawns × 0.6, the enemy × 1.5, the allies as usual', () => {
@@ -30,9 +30,9 @@ describe('respawn and walking (sim v4)', () => {
       return m.world.timer[slot];
     };
     const r = DIFFICULTY_RULES.rookie;
-    expect(timerOf(0)).toBe(bp(108, r.humanRespawnBp));
-    expect(timerOf(1)).toBe(108);
-    expect(timerOf(3)).toBe(bp(108, r.enemyRespawnBp));
+    expect(timerOf(0)).toBe(bp(117, r.humanRespawnBp));
+    expect(timerOf(1)).toBe(117);
+    expect(timerOf(3)).toBe(bp(117, r.enemyRespawnBp));
   });
 
   it('Zoomies: +80% move speed for 6 s out of the fountain, refreshed inside it, ended by damage', () => {

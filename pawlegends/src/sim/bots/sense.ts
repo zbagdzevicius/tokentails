@@ -7,7 +7,9 @@ import { FOUNTAIN, LANES, MAP, RADIUS, TOWER_SPOTS, mirrorX } from '../../data/m
 import { BP_ONE, dist2, idiv } from '../fixed';
 import { visibleTo } from '../map/brush';
 import { Kind, RANGE, type World } from '../world';
-import { attackRange, radiusOf } from '../units/kinds';
+import { attackRange, heroData, radiusOf } from '../units/kinds';
+import { TOY_POWER_TIERS } from '../../data/toys';
+import { BOT_AI } from '../../data/bots';
 
 /** +1 for Purrhaven (pushes toward +x), −1 for Woof. */
 export const sign = (team: number): number => (team === 0 ? 1 : -1);
@@ -96,7 +98,8 @@ export function laneTowers(w: World, team: number, lane: number): number {
   return n;
 }
 
-/** Power of hero `h` for the fight check. */
-export const powerOf = (w: World, h: number, perLevel: number): number => Math.max(0, w.hp[h]) + perLevel * w.level[h];
+/** Power of hero `h` for the fight check. Sim v12: + BOT_AI.powerPerToy per Toy tier that adds no HP. */
+export const powerOf = (w: World, h: number, perLevel: number): number =>
+  Math.max(0, w.hp[h]) + perLevel * w.level[h] + BOT_AI.powerPerToy * TOY_POWER_TIERS[heroData(w, h).role][w.toy[h]];
 
 export const isHero = (w: World, id: number): boolean => w.kind[id] === Kind.Hero;

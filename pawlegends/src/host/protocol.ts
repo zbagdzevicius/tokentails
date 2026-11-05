@@ -105,13 +105,15 @@ export type HostMsgType = HostMsg['t'];
 //
 // header (24 B): u32 tick, u8 team, u8 phase, u16 entityCount, u16 projectileCount, u16 zoneCount,
 //                u16 kills0, u16 kills1, u8 towers0, u8 towers1, u16 seconds, u32 nextPhaseIn
-// entity (56 B): u8 id, u8 kind, u8 team, u8 slot, i32 x, i32 y, u16 facing, u8 state, u8 hero | 0x80+variant,
+// entity (60 B, sim v12; 56 before): u8 id, u8 kind, u8 team, u8 slot, i32 x, i32 y, u16 facing, u8 state, u8 hero | 0x80+variant,
 //                i32 hp, i32 maxHp, i32 shield, u32 buffs, u8 level, u8 lane, u16 respawnIn, u16 cooldowns[5],
 //                u8 flags (1 cooldowns present, 2 respawnIn present, 4 hero extras present),
 //                u8 bountyStreak (heroes, sim v4; was padding), u16 xp, u8 resource, u8 talents (2 bits per tier:
 //                choice + 1), u8 pickup sub (sim v4: index into PICKUP_SUBS + 1, 0 = none), u8 fx (sim v9: 1 charged,
 //                2 charmed; sim v11: 4 form, 8 channel), u8 lockout (sim v9: Avietė's charge lockout ticks, own team,
-//                0 = none), u8 stacks (sim v11: stacks on the hero, Duchess's Disdain; was reserved)
+//                0 = none), u8 stacks (sim v11: stacks on the hero, Duchess's Disdain; was reserved),
+//                u16 fish (sim v12: unspent Fish, own team; 0 for enemies), u8 toy (sim v12: Toy tiers owned, heroes,
+//                both teams), u8 reserved
 // projectile (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 vx, i32 vy, u32 reserved
 // zone (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 radius, i32 ttl, u16 arm (sim v9), u16 reserved
 
@@ -128,7 +130,7 @@ const NONE = 0xff;
 const NO_OWNER = 0xff;
 
 export const HEADER_BYTES = 24;
-export const ENTITY_BYTES = 56;
+export const ENTITY_BYTES = 60;
 export const PROJECTILE_BYTES = 24;
 export const ZONE_BYTES = 24;
 
@@ -183,6 +185,8 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     v.setUint8(o + 52, e.sub ? PICKUP_SUBS.indexOf(e.sub) + 1 : 0);
     v.setUint8(o + 53, (e.charged ? FX_CHARGED : 0) | (e.charmed ? FX_CHARMED : 0) | (e.form ? FX_FORM : 0) | (e.channel ? FX_CHANNEL : 0));
     v.setUint8(o + 55, Math.min(255, Math.max(0, e.stacks ?? 0)));
+    v.setUint16(o + 56, Math.min(0xffff, Math.max(0, e.fish ?? 0)), true);
+    v.setUint8(o + 58, Math.min(255, Math.max(0, e.toy ?? 0)));
     if (extra) {
       v.setUint16(o + 48, e.xp ?? 0, true);
       v.setUint8(o + 50, e.resource ?? 0);
@@ -255,6 +259,7 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
     if (kind === 'hero') {
       e.level = v.getUint8(o + 32);
       e.bountyStreak = v.getUint8(o + 47);
+      e.toy = v.getUint8(o + 58);
     }
     const sub = v.getUint8(o + 52);
     if (sub !== 0) e.sub = PICKUP_SUBS[sub - 1];
@@ -278,6 +283,7 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
       e.resource = v.getUint8(o + 50);
       const lock = v.getUint8(o + 54);
       if (lock > 0) e.lockout = lock;
+      e.fish = v.getUint16(o + 56, true);
     }
     entities.push(e);
     o += ENTITY_BYTES;

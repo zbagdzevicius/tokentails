@@ -35,18 +35,18 @@ describe('hero orders (M1 subset)', () => {
     expect(m.world.hp[id]).toBeLessThan(300);
     expect(m.stats[0].heroDamage).toBe(0); // minions are not hero damage
   });
-  it('a dead hero respawns at its fountain after 3 s + 0.6 s × level (max 9 s; 4 s before 2:00; × 1.25 after Sunset)', () => {
+  it('a dead hero respawns at its fountain after 3 s + 0.9 s × level (sim v12; max 12 s; 4 s before 2:00; × 1.25 after Sunset)', () => {
     const m = quietMatch();
     putHero(m, 0, 40000, 30000);
     m.world.hp[0] = 0;
     resolveDeaths(m);
     expect(m.world.alive[0]).toBe(0);
     expect(m.world.timer[0]).toBe(respawnTicks(1, 0));
-    expect(respawnTicks(1, 0)).toBe(108);
+    expect(respawnTicks(1, 0)).toBe(117);
     expect(respawnTicks(10, 0)).toBe(120); // early cap before 2:00
-    expect(respawnTicks(10, 3600)).toBe(270);
-    expect(respawnTicks(1, 9000)).toBe(135); // Sunset (Easy and Normal: 5:00)
-    for (let t = 0; t < 108; t++) step(m);
+    expect(respawnTicks(10, 3600)).toBe(360);
+    expect(respawnTicks(1, 9000)).toBe(146); // after the default Sunset (5:00)
+    for (let t = 0; t < 117; t++) step(m);
     expect(m.world.alive[0]).toBe(1);
     expect(m.world.x[0]).toBeLessThan(6000);
     expect(m.stats[0].deaths).toBe(1);
