@@ -1,0 +1,18 @@
+/* Token Tails card colours and art per element and tier (ui/cards/): the values of client/models/cats.ts
+   (cardsBorderColor, cardsGradient, cardsBackground) and CardWrapper.tsx (STATIC_TIER_GLOW, in px), kept in CSS so the
+   first-load JS carries none of it. Markup only sets data-tt-el / data-tt-tier. Public-dir URLs: Vite adds the base. */
+:root { --tt-sparkle: url('/assets/cards/fx/sparkle.webp'); }
+[data-tt-el='DARK'] { --tt-bg: url('/assets/cards/el/dark.webp'); --tt-ico: url('/assets/cards/icons/dark.webp'); --tt-border: #A9A9A9; --tt-accent: #9A7BC8; --tt-grad: radial-gradient(circle at 60% 30%, #A9A9A9 0%, #545454 100%); }
+[data-tt-el='ELECTRIC'] { --tt-bg: url('/assets/cards/el/electric.webp'); --tt-ico: url('/assets/cards/icons/electric.webp'); --tt-border: #FFF9B8; --tt-accent: #FFE34D; --tt-grad: radial-gradient(circle at 60% 30%, #FFF9B8 0%, #FFF371 100%); }
+[data-tt-el='FIRE'] { --tt-bg: url('/assets/cards/el/fire.webp'); --tt-ico: url('/assets/cards/icons/fire.webp'); --tt-border: #FFDBF1; --tt-accent: #FF6F71; --tt-grad: radial-gradient(circle at 60% 30%, #FFDBF1 0%, #FF6F71 100%); }
+[data-tt-el='ICE'] { --tt-bg: url('/assets/cards/el/ice.webp'); --tt-ico: url('/assets/cards/icons/ice.webp'); --tt-border: #d4e7f4; --tt-accent: #7FC8F0; --tt-grad: radial-gradient(circle at 60% 30%, #d4e7f4 0%, #a0d1f0 100%); }
+[data-tt-el='SAND'] { --tt-bg: url('/assets/cards/el/sand.webp'); --tt-ico: url('/assets/cards/icons/sand.webp'); --tt-border: #FCDDC3; --tt-accent: #F9BA88; --tt-grad: radial-gradient(circle at 60% 30%, #FCDDC3 0%, #F9BA88 100%); }
+[data-tt-el='WATER'] { --tt-bg: url('/assets/cards/el/water.webp'); --tt-ico: url('/assets/cards/icons/water.webp'); --tt-border: #80C5FF; --tt-accent: #4FB3FF; --tt-grad: radial-gradient(circle at 60% 30%, #B3E7DB 0%, #80C5FF 100%); }
+[data-tt-el='WIND'] { --tt-bg: url('/assets/cards/el/wind.webp'); --tt-ico: url('/assets/cards/icons/wind.webp'); --tt-border: #FFFFFF; --tt-accent: #E9F3F6; --tt-grad: radial-gradient(circle at 60% 30%, #FFFFFF 0%, #D2D2D2 100%); }
+[data-tt-el='GRASS'] { --tt-bg: url('/assets/cards/el/grass.webp'); --tt-ico: url('/assets/cards/icons/grass.webp'); --tt-border: #B3E7DB; --tt-accent: #68D0B6; --tt-grad: radial-gradient(circle at 60% 30%, #B3E7DB 0%, #68D0B6 100%); }
+[data-tt-el='STELLAR'] { --tt-bg: url('/assets/cards/el/stellar.webp'); --tt-ico: url('/assets/cards/icons/stellar.webp'); --tt-border: #C5BDFF; --tt-accent: #8B7CFF; --tt-grad: radial-gradient(circle at 60% 30%, #C5BDFF 0%, #8B7CFF 100%); }
+[data-tt-el='FAIRY'] { --tt-bg: url('/assets/cards/el/fairy.webp'); --tt-ico: url('/assets/cards/icons/fairy.webp'); --tt-border: #FFFFFF; --tt-accent: #FF6FC6; --tt-grad: linear-gradient(135deg, #FF6FC6 0%, #F9BA88 20%, #FFE371 40%, #68D0B6 60%, #008CFF 80%, #8B7CFF 100%); }
+[data-tt-tier='COMMON'] { --tt-pat: url('/assets/cards/tier/COMMON.webp'); --tt-glow: 0 0 0 transparent; }
+[data-tt-tier='RARE'] { --tt-pat: url('/assets/cards/tier/RARE.webp'); --tt-glow: 0 0 10px 2px rgba(110, 190, 255, 0.55); --tt-x: url('/assets/cards/fx/blue-sparkle.webp'); }
+[data-tt-tier='EPIC'] { --tt-pat: url('/assets/cards/tier/EPIC.webp'); --tt-glow: 0 0 12px 3px rgba(214, 120, 255, 0.6); --tt-x: url('/assets/cards/fx/purple-sparkle.webp'); }
+[data-tt-tier='LEGENDARY'] { --tt-pat: url('/assets/cards/tier/LEGENDARY.webp'); --tt-glow: 0 0 14px 4px rgba(255, 205, 90, 0.7); --tt-x: url('/assets/cards/fx/legendary-sparkle.webp'); --tt-lp: url('/assets/cards/fx/legendary-paws.webp'); }

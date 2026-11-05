@@ -8,6 +8,11 @@
  * | Epic      | footfall glints: one STAR8 per footfall (≥ 0.3 s apart), ankle height, alpha ≤ 0.35       |
  * | Legendary | fur foil (`uFoil`, Med / High only) and one cream + element STAR8 ring when a Nap recall lands |
  *
+ * Token Tails card art (cards lane, render/skins/tierCardFx.ts via `setTierExt`), the card "flipping up", same caps:
+ * | Rare+     | respawn: one element STAR4 ring at the feet the frame the hero is back (the HUD card flips too) |
+ * | Epic+     | respawn: + a rising column of STAR8 sparkles; standing still: one body twinkle every 1.1 s     |
+ * | Legendary | respawn: + a wide cream "card flash" ring                                                     |
+ *
  * Never: ground auras (the shared 8-slot aura layer carries Avietė's charge and the charm glow, gameplay signals),
  * a new trail (the Zoomies tell), halos, gold on anyone but the player's own hero (yellow means "you"). Wave C (C4)
  * card-tier ability effects (render/skins/cardFx.ts) tint the existing trails and hits (colour only) and add the cast
@@ -32,6 +37,15 @@ export const POOL_SKIP = 0.8;
 export const TEAM_FIGHT_HEROES = 4;
 export const TEAM_FIGHT_RADIUS = 12;
 export const GLINT_GAP = 0.3;
+/**
+ * Cards lane: an optional per-hero extension, run after the built-in effects with `wasDead` (the hero was down last
+ * frame). Installed by render/skins/tierCardFx.ts (its own chunk) at match start; it uses `room()` and `claim()`.
+ */
+export type TierExt = (fx: TierFx, h: FxHero, wasDead: boolean) => void;
+let tierExt: TierExt | null = null;
+export const setTierExt = (f: TierExt | null): void => {
+  tierExt = f;
+};
 const CREAM = 0xfff3dc;
 const STAR8 = 10;
 
@@ -75,13 +89,16 @@ interface Track {
   z: number;
   napped: boolean;
   seen: boolean;
+  /** cards lane: dead last frame (the tierCardFx respawn flourish). */
+  dead: boolean;
 }
 
 export class TierFx {
   mode: SkinFxMode = 'all';
   /** Low quality (or the FPS governor dropped to Low): own-hero glints only, no foil. */
   low = false;
-  private time = 0;
+  /** Seconds since the first frame. */
+  time = 0;
   private fight = false;
   private readonly expiry = new Float64Array(COSMETIC_MAX);
   private readonly tracks = new Map<number, Track>();
@@ -91,7 +108,7 @@ export class TierFx {
   /** Emits so far (tests). */
   emitted = 0;
 
-  constructor(private readonly particles: FxParticles | null) {}
+  constructor(readonly particles: FxParticles | null) {}
 
   /** Start a frame: the clock and the team-fight test (living hero positions near the camera focus). */
   begin(dt: number, focusX: number, focusZ: number, heroes: readonly { x: number; z: number; dead: boolean }[]): void {
@@ -119,14 +136,16 @@ export class TierFx {
     return n;
   }
 
-  private room(): boolean {
+  /** Is there room for more cosmetics this frame (pool and COSMETIC_MAX caps)? */
+  room(): boolean {
     const p = this.particles;
     if (!p) return false;
     if (p.add.count > p.add.limit * POOL_SKIP || p.alpha.count > p.alpha.limit * POOL_SKIP) return false;
     return this.alive() < COSMETIC_MAX;
   }
 
-  private claim(n: number, life: number): void {
+  /** Count `n` cosmetic particles living `life` s against COSMETIC_MAX. */
+  claim(n: number, life: number): void {
     let k = 0;
     for (let i = 0; i < COSMETIC_MAX && k < n; i++) {
       if (this.expiry[i] <= this.time) {
@@ -152,7 +171,7 @@ export class TierFx {
   hero(h: FxHero): number {
     let t = this.tracks.get(h.id);
     if (!t) {
-      t = { step: Math.floor(h.phase / Math.PI), lastGlint: -1, x: h.x, z: h.z, napped: false, seen: true };
+      t = { step: Math.floor(h.phase / Math.PI), lastGlint: -1, x: h.x, z: h.z, napped: false, seen: true, dead: h.dead };
       this.tracks.set(h.id, t);
     }
     t.seen = true;
@@ -177,6 +196,9 @@ export class TierFx {
       this.particles?.ring(this.at, this.ringOpts);
       this.claim(16, 0.7);
     }
+    // cards lane (render/skins/tierCardFx.ts, its own chunk): the card flips up as the hero is back, Epic+ twinkles
+    if (ok && tierExt) tierExt(this, h, t.dead);
+    t.dead = h.dead;
     t.x = h.x;
     t.z = h.z;
     t.napped = h.napping;

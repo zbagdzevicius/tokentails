@@ -4,6 +4,9 @@ import type { ViewFrame } from '../render/interp';
 import { HERO_COLOR_CSS } from '../render/palette';
 import { HERO_TEXT, slotNames } from './heroText';
 import { HEROES } from '../data/heroes';
+// cards: each row's hero as a 32x44 mini Token Tails card (element art and portrait)
+import { portraitUrl } from '../render/portraits';
+import { cardAttrs, heroElement } from './cards/el';
 
 /** A team's name by who is in it (sim v5 species teams): the cats are Purrhaven, the dogs the Woof pack. */
 export function teamLabel(picks: readonly HeroId[], team: 0 | 1): string {
@@ -22,6 +25,8 @@ export class Scoreboard {
   /** Damage to enemy heroes seen in this team's snapshots (enemy numbers miss what happened out of sight). */
   readonly heroDmg = [0, 0, 0, 0, 0, 0];
   private readonly names: string[];
+  /** cards: the slots whose portrait is already on the root as `--pic<slot>` (data URLs are set once, not per redraw). */
+  private readonly pics = new Set<number>();
 
   constructor(
     parent: HTMLElement,
@@ -61,6 +66,13 @@ export class Scoreboard {
   show(on: boolean, frame: ViewFrame | null): void {
     this.root.classList.toggle('on', on);
     if (!on) return;
+    for (let slot = 0; slot < this.picks.length; slot++) {
+      if (this.pics.has(slot)) continue;
+      const pic = portraitUrl(this.picks[slot]);
+      if (!pic) continue;
+      this.pics.add(slot);
+      this.root.style.setProperty(`--pic${slot}`, `url(${pic})`);
+    }
     const rows = (team: 0 | 1): string =>
       [0, 1, 2]
         .map((k) => {
@@ -70,7 +82,7 @@ export class Scoreboard {
           const dead = e?.state === 'dead';
           const t = HERO_TEXT[hero];
           return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}">
-            <td><i class="dot" style="background:${HERO_COLOR_CSS[hero]}"></i>${esc(this.names[slot] ?? t.title)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
+            <td><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${esc(this.names[slot] ?? t.title)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
             <td>${t.role}</td><td>${e?.level ?? '-'}</td><td>${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td>${this.heroDmg[slot]}</td>
             <td>${dead ? `${Math.ceil((e?.respawnIn ?? 0) / 30)} s` : e ? `${Math.round((e.hp / Math.max(1, e.maxHp)) * 100)}%` : 'hidden'}</td></tr>`;
         })

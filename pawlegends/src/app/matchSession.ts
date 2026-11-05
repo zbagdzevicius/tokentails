@@ -25,7 +25,7 @@ import { setProbeBlocked } from '../render/skins/spriteProbe';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
 import { eyesOf } from '../render/skins/registry';
 import type { SkinFxMode } from '../render/skins/tierFx';
-import { bakePortrait } from '../render/portraits';
+import { bakePortrait, portraitUrl } from '../render/portraits';
 import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
 import { GameView } from '../render/gameView';
@@ -45,7 +45,7 @@ import { Minimap } from '../ui/minimap';
 import { PingWheel } from '../ui/pingWheel';
 import { chipPing } from '../ui/pingText';
 import { Overhead } from '../ui/overhead';
-import { Scoreboard } from '../ui/scoreboard';
+import { Scoreboard, teamLabel } from '../ui/scoreboard';
 import { Stage } from '../ui/stage';
 import { menuScreen, RESULTS_AFTER_END_MS } from '../ui/screens';
 import { CoreLog, endCause, type CoreSource } from './endCause';
@@ -494,6 +494,19 @@ export class MatchSession {
       d.matchSeed = String(w.seed);
     }
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames);
+    // cards: the VS intro (both teams as Token Tails cards flipping up over the held countdown); its own lazy chunk,
+    // skipped in e2e unless ?vs=1 and at test speeds
+    if ((!this.e2e || /[?&]vs=1/.test(location.search)) && Math.max(1, this.buffer.speed) === 1) {
+      const vsPortrait = this.setup.look ? portraitUrl(hero, this.setup.look) : null;
+      void import('../ui/cards/vs')
+        .then((m) => {
+          // a chunk that lands after the count reached "1" would cover the match start: skip it then
+          if (!this.disposed && !this.vsDone) m.showVsIntro(this.ui, { picks: w.picks, mySlot: w.slot, names: this.names, cats: this.catNames, myPortrait: vsPortrait, myTier: mine?.rung ?? null, teamNames: [teamLabel(w.picks, 0), teamLabel(w.picks, 1)] });
+        })
+        .catch(() => undefined);
+    }
+    // cards: carded heroes' card flourish in the world (respawn flip-up, Epic+ twinkle), a TierFx extension chunk
+    void import('../render/skins/tierCardFx').then((m) => m.installCardFlourish()).catch(() => undefined);
     this.scoreboard.root.addEventListener('pointerdown', (e) => {
       if (!this.scoreboard?.root.classList.contains('tap')) return;
       e.stopPropagation();
@@ -598,7 +611,12 @@ export class MatchSession {
       id === this.view.mySlot ? 'self' : team === 2 || team === undefined ? 'neutral' : team === this.view.myTeam ? 'ally' : 'enemy';
     const victimName = e.id === this.view.mySlot ? 'You' : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A hero'));
     const killerLabel = e.killer === this.view.mySlot ? 'You' : killer?.kind === 'hero' && this.names[e.killer] ? this.names[e.killer] : killerName(killer);
-    this.hud?.kill({ name: killerLabel, rel: rel(killer?.team, e.killer) }, { name: victimName, rel: rel(victim.team, e.id) }, good);
+    // cards: heroes carry their face (an element-ringed portrait) into the kill feed
+    this.hud?.kill(
+      { name: killerLabel, rel: rel(killer?.team, e.killer), ...(killer?.kind === 'hero' && killer.hero ? { hero: killer.hero } : {}) },
+      { name: victimName, rel: rel(victim.team, e.id), ...(victim.hero ? { hero: victim.hero } : {}) },
+      good,
+    );
   }
 
   private chromeOff: (() => void) | null = null;
@@ -918,6 +936,9 @@ export class MatchSession {
    * After two drawn frames (shaders compiled, models up), "3, 2, 1, Go!" over the field, then the sim runs. A menu
    * opened meanwhile keeps it paused (resume() unpauses it).
    */
+  /** cards: the countdown reached "1": the VS intro fades now and a late one never shows. */
+  private vsDone = false;
+
   private countdown(go: () => void): void {
     const speed = Math.max(1, this.buffer.speed);
     const el = document.createElement('div');
@@ -939,6 +960,13 @@ export class MatchSession {
         return;
       }
       el.textContent = steps[i];
+      // cards: the VS intro is gone by "1" whatever its own timers say (a late chunk under load would cover "Ready!")
+      if (i === steps.length - 2) {
+        this.vsDone = true;
+        this.ui.querySelector('.tt-vs')?.classList.add('out');
+      }
+      // lifecycle: a tick per step, a brighter one on "Ready!"
+      sfx.play('blip', { vol: 0.5, rate: i === steps.length - 1 ? 1.6 : 1 });
       el.classList.remove('on');
       void el.offsetWidth;
       el.classList.add('on');
