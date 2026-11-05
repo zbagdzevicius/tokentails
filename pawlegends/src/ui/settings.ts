@@ -158,13 +158,38 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       s.stats = !s.stats;
       o.onStats(s.stats);
     } else if (a === 'close' || t === root) {
-      root.remove();
-      o.onClose();
+      close();
       return;
     } else return;
     render();
   });
+  // pawlegends: lobby spec §1 — Esc closes Settings (it kept blocking clicks after Escape) and focus returns to the
+  // button that opened it (the screen under it may have been redrawn: then its Settings button)
+  const opener = document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null;
+  const close = (): void => {
+    if (!root.isConnected) return;
+    document.removeEventListener('keydown', onKey, true);
+    root.remove();
+    o.onClose();
+    const back = opener?.isConnected ? opener : document.querySelector<HTMLElement>('[data-a="settings"]');
+    back?.focus({ preventScroll: true });
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (!root.isConnected) {
+      document.removeEventListener('keydown', onKey, true);
+      return;
+    }
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    close();
+  };
+  document.addEventListener('keydown', onKey, true);
+  root.setAttribute('role', 'dialog');
+  root.setAttribute('aria-modal', 'true');
+  root.setAttribute('aria-label', 'Settings');
   parent.appendChild(root);
+  root.querySelector<HTMLElement>('.card button')?.focus({ preventScroll: true });
   return root;
 }
 
