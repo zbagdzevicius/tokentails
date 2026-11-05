@@ -1074,6 +1074,9 @@ export class MatchSession {
     const cause = this.causeLine(result, won, latest);
     // let the last moments play out before the results screen
     const welcome = this.welcome;
+    // lifecycle: end confetti (won) or soft puffs, then a paw wipe that closes just before the results replace the match
+    const resultsIn = Math.max(300, RESULTS_AFTER_END_MS / Math.max(1, this.buffer.speed));
+    this.view.lifecycle?.matchEnd(won, resultsIn - 480);
     setTimeout(
       () => {
         if (this.disposed) return;
@@ -1259,10 +1262,19 @@ export class MatchSession {
     else if (e.type === 'death' && e.killer === me && e.id < 6) this.goals.complete('dog');
   }
 
+  /** lifecycle: the gate chip's title while the lifecycle pill counts the gates down (the timer's phase line skips it). */
+  private lcGateTitle(): string | null {
+    const chip = this.view.lifecycle ? this.objClock?.chip() : null;
+    return chip?.key === 'gates' ? chip.title : null;
+  }
+
   /** Time and proximity beats, the arrow's target, the Pudding ring. */
   private goalTick(frame: ViewFrame): void {
     const g = this.goals;
-    g.standing(this.objClock?.chip() ?? null);
+    const chip = this.objClock?.chip() ?? null;
+    // lifecycle: its gate pill counts the gates down (with the padlock signs over each gate), so the standing chip waits
+    // for the next objective instead of printing "Gates open in" a second time
+    g.standing(chip?.key === 'gates' && this.view.lifecycle ? null : chip);
     if (!g.enabled || !this.welcome) return;
     const me = frame.byId.get(this.welcome.slot);
     const sec = frame.latest.clock.seconds;
@@ -1537,8 +1549,8 @@ export class MatchSession {
           lvN++;
         }
       }
-      this.hud.blockTips(!!this.menu || this.scoreOn || this.paused || this.ended || (this.talents?.open ?? false));
-      this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle);
+      this.hud.blockTips(!!this.menu || this.scoreOn || this.paused || this.ended || (this.talents?.open ?? false) || (this.view.lifecycle?.holdTips ?? false) /* lifecycle: P2-12 */);
+      this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle ?? this.lcGateTitle());
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
       this.hud.stripUpdate(frame.byId, frame.tick, lock);
       this.overhead.targetLock = lock !== null && this.touch ? { id: lock, left: this.touch.lock.left(performance.now()) } : null;

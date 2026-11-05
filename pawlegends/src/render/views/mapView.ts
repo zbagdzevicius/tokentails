@@ -264,6 +264,8 @@ export interface MapView {
   setShadows(on: boolean): void;
   /** Round 2: team 0 is the dogs: the plazas and base banners wear each side's species colours. */
   setStyleSwap(on: boolean): void;
+  /** lifecycle: false once the start-gate fence (render/fx/lifecycleGate.ts) draws the gates; the ground strip hides. */
+  gateStrip: boolean;
   dispose(): void;
 }
 
@@ -544,6 +546,7 @@ export function createMapView(): MapView {
   let time = 0;
   return {
     group,
+    gateStrip: true,
     update(frame, dt, lens) {
       time += dt;
       // the canopy cut: every live hero (up to CANOPY_CUT.slots) seen from the lens
@@ -561,7 +564,7 @@ export function createMapView(): MapView {
       riverU.uTime.value = time;
       const up = !frame || frame.latest.clock.phase === 'gate';
       gateMat.opacity = up ? 0.5 + Math.sin(time * 4) * 0.12 : Math.max(0, gateMat.opacity - dt * 2);
-      for (const g of gates) g.visible = gateMat.opacity > 0.01;
+      for (const g of gates) g.visible = this.gateStrip && gateMat.opacity > 0.01;
     },
     setShadows(on) {
       for (const m of shadowCasters) m.castShadow = on;
