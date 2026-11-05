@@ -47,6 +47,7 @@ import { FightCam, type FightHero } from './anim/cam';
 import { UltMoment } from './anim/ultMoment';
 import { talentIdsOf } from './anim/timing';
 import { HERO_NAME } from './effects';
+import type { Lifecycle } from './fx/lifecycle'; // lifecycle: start gate, respawn, nap, waves, match end (own chunk)
 
 export interface AimPreview {
   spec: AimSpec;
@@ -170,6 +171,10 @@ export class GameView {
   private readonly fightHeroes: FightHero[] = Array.from({ length: 12 }, () => ({ x: 0, z: 0, team: 0, dead: true }));
   private readonly talentKey = new Map<number, { key: string; ids: string[] }>();
   private coverK = 1;
+  /** lifecycle (render/fx/lifecycle.ts): start gate, death and respawn sequence, nap, wave puffs, match end. Loaded as
+   *  its own chunk during the match load (first-load budget); null until then. */
+  lifecycle: Lifecycle | null = null;
+  private lifecycleGone = false;
 
   constructor(
     readonly gr: GameRenderer,
@@ -404,6 +409,14 @@ export class GameView {
     gr.preRender = (cam) => shake.apply(cam, this.lastDt, 1, { rotMul: 0.5, rotMaxDeg: 1.2, transMul: 2, transMax: 0.35 });
     this.setShadows(gr.settings.shadows);
     gr.zoom = this.zoomTarget;
+    // lifecycle: built last (it reads particles, shock, meshFx, juice, heroes), from its own chunk
+    void import('./fx/lifecycle')
+      .then((m) => {
+        if (!this.lifecycleGone) this.lifecycle = new m.Lifecycle(this, uiRoot);
+      })
+      .catch(() => {
+        /* cosmetic only: the match plays without it */
+      });
   }
 
   private lastDt = 0;
@@ -766,6 +779,8 @@ export class GameView {
         this.gr.focus.z = clampFocusZ(this.follow.z + this.below());
       }
       this.wasDead = meDead;
+      // lifecycle: after the respawn snap, before the camera eases (its iris moves the focus to the fountain early)
+      this.lifecycle?.update(frame, dt);
     }
     this.animPost(frame, dt);
     this.drawMarks(this.frame, dt);
@@ -877,6 +892,11 @@ export class GameView {
     // GameView owns both: dispose (not clear) so their pools, rings and cracks leave the shared scene and free their GL buffers
     this.particles.dispose();
     this.shock.dispose();
+    this.lifecycleGone = true; // lifecycle
+    // fun-fx: drop this view's pools, camera and pop target (the chunk is cached by now, or never loaded)
+    void import('./fx/fun/funKit').then((m) => m.clearFunSink(this.particles)).catch(() => undefined);
+    this.lifecycle?.dispose();
+    this.lifecycle = null;
   }
 }
 
