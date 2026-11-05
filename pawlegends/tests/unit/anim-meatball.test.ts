@@ -12,7 +12,7 @@ import { TimeWarp } from '../../src/render/anim/warp';
 import { ANCHOR_INDEX, newAnchors, type FxCtx, type HeroStatus, type MeshFxKind, type MeshFxSpawn, type MoveCtx } from '../../src/render/anim/types';
 import { MEATBALL_CLIPS, MOVES } from '../../src/render/moves/meatball';
 import { SKILL_FX, meatballFxLive, resetMeatballFx } from '../../src/render/skillfx/meatball';
-import { HERO_TOP } from '../../src/render/chars';
+import { HERO_BUILD, HERO_TOP } from '../../src/render/chars';
 import { ACCENT, HEIGHT, RING, TOP } from '../../src/render/chars/heroes/meatball';
 
 const FRAME = 1 / 60;
@@ -113,7 +113,8 @@ describe('meatball moves', () => {
   });
 
   it('render constants: the measured top, his element accent, a ring wide enough for the ball', () => {
-    expect(HERO_TOP.meatball).toBe(TOP);
+    // per-hero visual size (render/chars/heroSize.ts): the drawn top is the authored one × his build height
+    expect(HERO_TOP.meatball).toBeCloseTo(TOP * HERO_BUILD.meatball.h, 2);
     expect(ACCENT).toBeNull();
     expect(RING).toBeGreaterThan(2);
     expect(HEIGHT).toBe(2.5);

@@ -17,6 +17,7 @@ import { mat, type Assembly, type ChibiSpec, type Col, type CoatSpec } from '../
 import * as G from '../gear';
 import type { PoseDef } from '../skeleton';
 import type { HeroDress, MotionProfile } from '../specs';
+import { HERO_BUILD } from '../heroSize';
 
 export const MOTION: MotionProfile = { idle: 'stand', run: 'stand', cast: 'aim', attack: 'shoot', aim: 'aim', stride: 0.85, moods: { sad: 'boxSad' } };
 
@@ -34,12 +35,12 @@ export const POSES: Record<string, PoseDef> = {
     tail: [[0.4, 0, 0], [0.3, 0, 0], [0.2, 0, 0], [0.1, 0, 0], [0, 0, 0], [0, 0, 0]],
   },
 };
-/** Standing height (m) in the match. */
+/** Authored standing height (m); the match draws HEIGHT × HERO_BUILD.h (pawlegends: per-hero visual size, heroSize.ts). */
 export const HEIGHT = 2.3;
-/** Top of the bind-pose bounds (m: the antenna bead), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. */
+/** Top of the bind-pose bounds (m: the antenna bead), measured from the built chibi (readability.test: within 4%); re-measure after a rig or gear change. Authored at HEIGHT; HERO_TOP scales it by HERO_BUILD.h. */
 export const TOP = 2.5;
-/** Relation ring under her (m). */
-export const RING = 1.9;
+/** Relation ring under her (m, from heroSize.ts HERO_BUILD). */
+export const RING = HERO_BUILD.pixel.ring;
 export const COLOR_CSS = '#7fc8e8';
 export const SPRINGS: SpringTuning = { tail: { k: 140, c: 12, lag: 0.55 }, ears: { k: 160, c: 12, lag: 0 } };
 export const ULT_NAME = 'BOXBOT!';

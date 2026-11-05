@@ -63,6 +63,13 @@ export const SEPARATION = Object.freeze({ min: 1.5, cap: 1.2, rate: 20, iters: 4
 export const OBSTACLE_CLEAR = Object.freeze({ bodyR: 0.5, cap: 3.2 });
 
 /**
+ * Per-hero body radius (m) for the push-apart (per-hero visual size, chars/heroSize.ts): HERO_RING × BODY_K, so two
+ * Clems keep SEPARATION.min apart while wide Meatball and the tanks keep more room and tiny Pixel less. Render only.
+ */
+export const BODY_K = 0.37;
+export const bodyRadius = (hero: HeroId): number => HERO_RING[hero] * BODY_K;
+
+/**
  * Drawn offsets (m) for bodies at `pts` (pure): pairwise push-apart and push-out of the `obs` footprints, relaxed over
  * a few passes so a hero squeezed between a tower and an ally is not pushed back into either. Each offset is capped
  * (`cap` for the push-apart share, OBSTACLE_CLEAR.cap overall).
@@ -73,6 +80,7 @@ export function layoutBodies(
   warm: readonly { x: number; z: number }[] | null = null,
   min = SEPARATION.min,
   cap = SEPARATION.cap,
+  radii: readonly number[] | null = null,
 ): { x: number; z: number }[] {
   // warm start from last frame's offsets (decaying): a body deep inside a moving footprint keeps pushing out the same
   // way instead of flipping sides frame to frame (trailer review: Clem stood in Pudding while he walked through her)
@@ -87,12 +95,13 @@ export function layoutBodies(
       sq[i].x = cur[i].x;
       sq[i].z = cur[i].z / k;
     }
-    const sep = spreadSideways(sq, min, cap);
+    const sep = spreadSideways(sq, min, cap, radii);
     for (let i = 0; i < pts.length; i++) {
       out[i].x += sep[i].x * 0.5;
       out[i].z += sep[i].z * 0.5;
       if (obs.length) {
-        const c = clearOfObstacles(pts[i].x + out[i].x, pts[i].z + out[i].z, obs);
+        // a bigger body clears towers by more (OBSTACLE_CLEAR.bodyR is Clem's, radius 2.03 × BODY_K)
+        const c = clearOfObstacles(pts[i].x + out[i].x, pts[i].z + out[i].z, obs, radii ? OBSTACLE_CLEAR.bodyR * (radii[i] / (2.03 * BODY_K)) : OBSTACLE_CLEAR.bodyR);
         out[i].x += c.x;
         out[i].z += c.z;
       }
@@ -113,15 +122,16 @@ export function layoutBodies(
  * Pairwise push-apart in the depth-scaled space (z / zK: depth counts less), biased sideways: two bodies one behind the other are moved
  * apart across the screen (x), not further along the line of sight, where they would still overlap (pure).
  */
-function spreadSideways(pts: readonly { x: number; z: number }[], min: number, cap: number): { x: number; z: number }[] {
+function spreadSideways(pts: readonly { x: number; z: number }[], min: number, cap: number, radii: readonly number[] | null = null): { x: number; z: number }[] {
   const out = pts.map(() => ({ x: 0, z: 0 }));
   for (let i = 0; i < pts.length; i++) {
     for (let j = i + 1; j < pts.length; j++) {
       const dx = pts[j].x - pts[i].x;
       const dz = pts[j].z - pts[i].z;
       const d = Math.hypot(dx, dz);
-      if (d >= min) continue;
-      const push = (min - d) / 2;
+      const m = radii ? radii[i] + radii[j] : min;
+      if (d >= m) continue;
+      const push = (m - d) / 2;
       const side = Math.abs(dx) > 1e-3 ? Math.sign(dx) : j % 2 === 0 ? 1 : -1;
       let ux = d > 1e-4 ? dx / d : side;
       let uz = d > 1e-4 ? dz / d : 0;
@@ -147,7 +157,7 @@ function spreadSideways(pts: readonly { x: number; z: number }[], min: number, c
 }
 
 /** The offset (m) that moves a body at (x, z) out of every footprint circle (pure; 0 when clear). */
-export function clearOfObstacles(x: number, z: number, obs: readonly { x: number; z: number; r: number }[], bodyR = OBSTACLE_CLEAR.bodyR, cap = OBSTACLE_CLEAR.cap): { x: number; z: number } {
+export function clearOfObstacles(x: number, z: number, obs: readonly { x: number; z: number; r: number }[], bodyR: number = OBSTACLE_CLEAR.bodyR, cap: number = OBSTACLE_CLEAR.cap): { x: number; z: number } {
   let ox = 0;
   let oz = 0;
   for (const o of obs) {
@@ -299,6 +309,7 @@ export class HeroView {
   private readonly sepPts: { x: number; z: number }[] = [];
   private readonly sepIds: number[] = [];
   private readonly sepWarm: { x: number; z: number }[] = [];
+  private readonly sepR: number[] = [];
   shadows = true;
   /** Mesh detail and the outline hull (quality tier: Low is lighter and has no hull, POC.md §10). */
   detail: number = DETAIL.med;
@@ -444,14 +455,16 @@ export class HeroView {
     this.sepPts.length = 0;
     this.sepIds.length = 0;
     this.sepWarm.length = 0;
+    this.sepR.length = 0;
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
       this.sepPts.push({ x: toX(e.fx), z: toZ(e.fy) });
       this.sepIds.push(e.id);
       const was = this.rigs.get(e.id);
       this.sepWarm.push({ x: was?.sepX ?? 0, z: was?.sepZ ?? 0 });
+      this.sepR.push(e.hero ? bodyRadius(e.hero) : SEPARATION.min / 2);
     }
-    const sep = this.reducedSep ? null : layoutBodies(this.sepPts, this.obstacles, this.sepWarm);
+    const sep = this.reducedSep ? null : layoutBodies(this.sepPts, this.obstacles, this.sepWarm, SEPARATION.min, SEPARATION.cap, this.sepR);
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
       const r = this.ensure(e);

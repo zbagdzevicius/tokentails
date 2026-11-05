@@ -7,6 +7,7 @@ import type * as THREE from 'three';
 import type { HeroId } from '../../sim/api';
 import { HERO_TOP } from '../chars';
 import { uprightMinionGeometry } from '../chars';
+import { HERO_BUILD } from '../chars/heroSize';
 import { TEAM } from '../palette';
 import { ModelBuilder } from './rig';
 import { RING as MEATBALL_RING } from '../chars/heroes/meatball';
@@ -39,9 +40,13 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   stilts: (HERO_TOP.stilts + STILTS_PLATE_HEADROOM) / 1.62,
 });
 
-/** Relation ring size under each hero (m; the size the quadruped heroes had, so rings read the same). */
+/**
+ * Relation ring size under each hero (m): follows the per-hero visual build (chars/heroSize.ts, render only), so tiny
+ * Pixel's ring is smaller and the big tanks' and Meatball's are wider (at most +12%: the sim radius is unchanged).
+ */
 export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({
-  clem: 2.03, sage: 1.94, brutus: 2.25, cacklejaw: 2.09, lambo: 2.2, aviete: 2.0, bengas: 2.0, gabe: 1.96,
+  clem: HERO_BUILD.clem.ring, sage: HERO_BUILD.sage.ring, brutus: HERO_BUILD.brutus.ring, cacklejaw: HERO_BUILD.cacklejaw.ring,
+  lambo: HERO_BUILD.lambo.ring, aviete: HERO_BUILD.aviete.ring, bengas: HERO_BUILD.bengas.ring, gabe: HERO_BUILD.gabe.ring,
   meatball: MEATBALL_RING, pixel: PIXEL_RING, duchess: DUCHESS_RING, stilts: STILTS_RING,
 });
 

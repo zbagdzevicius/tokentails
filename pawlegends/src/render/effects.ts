@@ -17,6 +17,7 @@ import type { Shockwaves } from './fx/Shockwaves.js';
 import type { Juice } from './juice';
 import { RELATION, TEAM, dressTeam } from './palette';
 import { HERO_TOP } from './chars/specs';
+import { heroY } from './chars/visualSize';
 import * as MEATBALL from './chars/heroes/meatball';
 import * as PIXEL from './chars/heroes/pixel';
 import * as DUCHESS from './chars/heroes/duchess';
@@ -252,7 +253,8 @@ export class Effects {
   }
 
   private at(w: Who, y = 0.9): THREE.Vector3 {
-    return _p.set(w.x, y, w.z);
+    // per-hero visual size (chars/visualSize.ts): heights authored for a 2.6 m hero follow this hero's drawn body
+    return _p.set(w.x, w.kind === 'hero' && w.hero ? heroY(w.hero, y) : y, w.z);
   }
 
   private hit(e: Extract<SimEvent, { type: 'hit' }>): void {

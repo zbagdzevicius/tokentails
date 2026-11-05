@@ -17,8 +17,10 @@ import { BONE_INDEX, Rig, type BoneName, type Layout } from './skeleton';
 import { HERO_HEIGHT, HERO_MOTION, KITTEN_POSE, POSES_PL, heroSpec, kittenSpec, minionSpec, type HeroCtx, type MotionProfile } from './specs';
 import type { CoatSpec } from './chibi';
 import { PPK_POSES } from './skeleton';
+import { HERO_BUILD } from './heroSize';
 
 export { HERO_HEIGHT, HERO_MOTION, HERO_TOP } from './specs';
+export { HERO_BUILD } from './heroSize';
 export type { CharState, MotionInput } from './motion';
 
 const POSES = { ...PPK_POSES, ...POSES_PL };
@@ -149,6 +151,9 @@ export function makeCharacter(built: Built, profile: MotionProfile, height: numb
 
 export function makeHero(hero: HeroId, team: 0 | 1, look: Look | null, o: { detail?: number; outline?: boolean; shadows?: boolean; match?: boolean; self?: boolean } = {}): Character {
   const c = makeCharacter(heroBuilt(hero, team, look, o.detail ?? 1, { match: o.match === true, self: o.self === true }), HERO_MOTION[hero], HERO_HEIGHT[hero], { ...o, name: `hero-${hero}` });
+  // per-hero girth (heroSize.ts, render only): width and depth of the drawn body; height is already in HERO_HEIGHT
+  const w = HERO_BUILD[hero].w;
+  if (w !== 1) c.inner.scale.set(c.height * w, c.height, c.height * w);
   // settle the idle pose before the first frame (portraits, lobby)
   c.anim.update(1, { state: 'idle', speed: 0, height: c.height, yawRate: 0 });
   return c;
