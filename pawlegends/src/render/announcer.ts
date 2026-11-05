@@ -34,7 +34,17 @@ export interface Moment {
   crowd?: CrowdSfx;
   /** For the results screen's "best moment" (higher is better). */
   rank?: number;
+  /** LoL pass (lane B): drawn big on the rail on desktop (a crest and a light sweep). */
+  big?: boolean;
+  /** LoL pass (lane B): the hero slot whose portrait is the rail badge ("You have been slain" shows the killer). */
+  face?: number;
+  /** LoL pass (lane B): the announcer voice line (audio/voice.ts), said after the sting. */
+  voice?: VoiceKey;
 }
+
+/** LoL pass (lane B): the voice lines (audio/voice.ts). Recorded clips live in public/voice/<key>.mp3. */
+export type VoiceKey = 'firstBlood' | 'double' | 'triple' | 'catastrophe' | 'shutdown' | 'ace' | 'turret' | 'ourTurret' | 'victory' | 'defeat' | 'slain';
+const MULTI_VOICE: Readonly<Record<number, VoiceKey>> = Object.freeze({ 2: 'double', 3: 'triple', 4: 'catastrophe' });
 
 /** Ticks (30 Hz). */
 export const WINDOW = Object.freeze({
@@ -68,6 +78,22 @@ export interface AnnouncerNames {
   /** Display name of a hero slot ("Sage", "Sir Brutus"). */
   (slot: number): string;
 }
+
+/**
+ * LoL pass (lane B): an Ace is all three heroes of a team down at once. `victim` just died; `down(slot)` says whether
+ * another hero of that team is out right now (the snapshot's `state === 'dead'`). Pure; exported for tests.
+ */
+export function isAce(victim: number, down: (slot: number) => boolean): boolean {
+  if (!isHero(victim)) return false;
+  const base = teamOf(victim) * 3;
+  for (let s = base; s < base + 3; s++) if (s !== victim && !down(s)) return false;
+  return true;
+}
+
+/** LoL pass (lane B): an ally's knockout is not called when one of ours took a hero down this close to it (ticks). */
+export const ALLY_SLAIN_QUIET = 45;
+/** LoL pass (lane B): without a snapshot, a hero counts as down for this long after its death (ticks; the shortest respawn). */
+export const DOWN_FALLBACK = 180;
 
 export class Announcer {
   private tick = 0;
@@ -105,6 +131,18 @@ export class Announcer {
   shutdowns = 0;
   /** Our team calmed Pudding at least once. */
   pudding = false;
+  /** Aces seen per team (0 ours wiped, 1 theirs) for the results. */
+  aces = 0;
+  /**
+   * LoL pass (lane B): is hero `slot` out right now (the session reads the latest snapshot)? Without it, a death in
+   * the last DOWN_FALLBACK ticks counts.
+   */
+  down: ((slot: number) => boolean) | null = null;
+  private readonly diedAt = [-1e9, -1e9, -1e9, -1e9, -1e9, -1e9];
+  /** An Ace was called for this team and not all of it has been back since. */
+  private readonly aced = [false, false];
+  /** The last tick one of ours took an enemy hero down (the ally-slain line keeps quiet near it). */
+  private ourTakedownAt = -1e9;
 
   constructor(
     readonly mySlot: number,
@@ -197,6 +235,7 @@ export class Announcer {
   private death(e: Extract<SimEvent, { type: 'death' }>): Moment[] {
     if (!isHero(e.id)) return [];
     const out: Moment[] = [];
+    this.diedAt[e.id] = this.tick;
     const victimStreak = this.streak[e.id];
     const hadBounty = this.bounty(e.id) > 0;
     this.streak[e.id] = 0;
@@ -219,6 +258,7 @@ export class Announcer {
       this.firstBloodAt = this.tick;
       if (killerHero) out.push(this.firstBlood(e.killer));
     }
+    if (killerHero && teamOf(e.killer) === this.myTeam) this.ourTakedownAt = this.tick;
     if (killerHero && hadBounty && victimStreak >= 3) {
       this.lastShutdown = { victim: e.id, tick: this.tick };
       out.push(this.shutdown(e.killer, e.id, 0));
@@ -241,6 +281,8 @@ export class Announcer {
             crowd: n >= 3 ? 'roar' : 'cheer',
             slowmo: n >= 3 ? { ms: 600, scale: 0.3 } : undefined,
             rank: n >= 4 ? 50 : n === 3 ? 40 : 25,
+            big: true,
+            voice: MULTI_VOICE[n],
           }),
         );
       }
@@ -248,7 +290,8 @@ export class Announcer {
       const s = this.streak[this.mySlot];
       if (s >= 3) {
         const k = Math.min(5, s);
-        out.push(this.note({ key: `streak${k}`, title: STREAK_NAMES[k], sub: s > 5 ? `${s} in a row` : undefined, tone: 'gold', size: 'callout', crowd: 'cheer', rank: k === 5 ? 35 : k === 4 ? 28 : 22 }));
+        // LoL pass (lane B): the killing-spree tiers are announcer lines (rail prio 2, big), not personal callouts
+        out.push(this.note({ key: `streak${k}`, title: STREAK_NAMES[k], sub: s > 5 ? `${s} in a row` : undefined, tone: 'gold', size: 'banner', big: true, crowd: 'cheer', rank: k === 5 ? 35 : k === 4 ? 28 : 22 }));
       }
       if (!out.some((m) => m.key.startsWith('multi') || m.key === 'firstBlood')) out.push({ key: 'takedown', title: 'Takedown!', tone: 'gold', size: 'callout', crowd: 'cheer' });
     } else if (killerHero && teamOf(e.killer) === this.myTeam && !out.length) {
@@ -261,7 +304,41 @@ export class Announcer {
     if (killerHero && teamOf(e.killer) !== this.myTeam && this.streak[e.killer] === 3) {
       out.push({ key: 'enemyStreak', title: `${this.name(e.killer)} is on a roll`, sub: 'Take them down for a bounty.', tone: 'bad', size: 'banner' });
     }
+    // LoL pass (lane B): the slain lines ("Enemy slain" is the Takedown callout's job)
+    if (e.id === this.mySlot) {
+      out.push({ key: 'slain', title: 'You have been slain', sub: killerHero ? `${this.name(e.killer)} got you.` : undefined, tone: 'bad', size: 'banner', ...(killerHero ? { face: e.killer } : {}), voice: 'slain' });
+    } else if (teamOf(e.id) === this.myTeam && this.tick - this.ourTakedownAt > ALLY_SLAIN_QUIET) {
+      out.push({ key: 'allySlain', title: 'An ally has been slain', sub: `${this.name(e.id)} is down.`, tone: 'bad', size: 'banner', face: e.id });
+    }
+    const ace = this.aceCheck(e.id);
+    if (ace) out.push(ace);
     return out;
+  }
+
+  /** Is hero `slot` out now: the session's snapshot read, else a death in the last DOWN_FALLBACK ticks. */
+  private isDown(slot: number): boolean {
+    // a death in the last few ticks counts even when the snapshot read still shows the hero up (same-tick kills)
+    const ago = this.tick - this.diedAt[slot];
+    if (ago <= WINDOW.same) return true;
+    return this.down ? this.down(slot) : ago <= DOWN_FALLBACK;
+  }
+
+  /** LoL pass (lane B): all three of the victim's team are down: "ACE!" (theirs) or "Enemy team ACE" (ours). Once per wipe. */
+  private aceCheck(victim: number): Moment | null {
+    const team = teamOf(victim);
+    if (!isAce(victim, (s) => this.isDown(s))) {
+      this.aced[team] = false;
+      return null;
+    }
+    if (this.aced[team]) return null;
+    this.aced[team] = true;
+    this.aces++;
+    const theirs = team !== this.myTeam;
+    return this.note(
+      theirs
+        ? { key: 'ace', title: 'ACE!', sub: 'Their whole team is down: push!', tone: 'gold', size: 'banner', big: true, crowd: 'roar', shake: 0.3, rank: 45, voice: 'ace' }
+        : { key: 'aceThem', title: 'Enemy team ACE', sub: 'Our whole team is down: hold on.', tone: 'bad', size: 'banner', big: true, crowd: 'gasp', voice: 'ace' },
+    );
   }
 
   /**
@@ -293,6 +370,8 @@ export class Announcer {
       shake: mine ? 0.3 : 0.15,
       crowd: ours ? 'cheer' : 'gasp',
       rank: mine ? 20 : 0,
+      big: true,
+      voice: 'firstBlood',
     });
   }
 
@@ -310,6 +389,8 @@ export class Announcer {
       crowd: ours ? 'roar' : 'gasp',
       shake: mine ? 0.3 : 0,
       rank: mine ? 30 : 0,
+      big: true,
+      voice: 'shutdown',
     });
   }
 

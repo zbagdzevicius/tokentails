@@ -5,6 +5,13 @@
  * Render side only; never feeds the sim.
  */
 import { PCM_RATE, ZZFX_DEFS, zzfxSamples } from './sfxDefs.js';
+import type { VoiceKey } from '../render/announcer';
+
+/** LoL pass (lane B): the announcer voice (audio/voice.ts), its own chunk, loaded on the first line said. */
+type VoiceMod = typeof import('./voice');
+let voiceLoad: Promise<VoiceMod> | null = null;
+/** ms between the zzfx sting and the voice line. */
+export const VOICE_AFTER_STING_MS = 160;
 
 // zzfx 1.4 order: [volume, randomness, frequency, attack, sustain, release, shape, shapeCurve, slide, deltaSlide,
 //   pitchJump, pitchJumpTime, repeatTime, noise, modulation, bitCrush, delay, sustainVolume, decay, tremolo, filter]
@@ -138,6 +145,40 @@ export class Sfx {
   /** The master gain (mute and volume apply to everything routed into it). */
   get output(): GainNode | null {
     return this.master;
+  }
+
+  /** Lines said so far (e2e reads `data-voice`). */
+  readonly voiced: string[] = [];
+
+  /**
+   * LoL pass (lane B): an announcer voice line, after the zzfx sting. Muted (or the sound-effects volume at 0) says
+   * nothing and loads nothing; the voice chunk comes in on the first line.
+   */
+  voice(key: VoiceKey): void {
+    this.voiced.push(key);
+    if (this.voiced.length > 20) this.voiced.shift();
+    try {
+      document.documentElement.dataset.voice = this.voiced.join(',');
+    } catch {
+      /* node */
+    }
+    if (this.muted || this.fxScale <= 0.01) return;
+    this.play('sting', { vol: 0.6, rate: 0.9 });
+    voiceLoad ??= import('./voice');
+    void voiceLoad
+      .then((m) =>
+        setTimeout(
+          () =>
+            m.sayLine(key, () => ({
+              ctx: this.ac,
+              bus: this.fx,
+              volume: this.muted ? 0 : this.volume * this.fxScale,
+              muted: this.muted,
+            })),
+          VOICE_AFTER_STING_MS,
+        ),
+      )
+      .catch(() => undefined);
   }
 
   play(name: SfxName, o: PlayOpts = {}): void {
