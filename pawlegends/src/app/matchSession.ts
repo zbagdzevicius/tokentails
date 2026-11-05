@@ -28,6 +28,7 @@ import type { SkinFxMode } from '../render/skins/tierFx';
 import { bakePortrait, portraitUrl } from '../render/portraits';
 import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
+import { LowHp } from '../render/fx/lowHp';
 import { GameView } from '../render/gameView';
 import { SnapBuffer, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
@@ -237,6 +238,8 @@ export class MatchSession {
   private pingTipShown = false;
   private hud: Hud | null = null;
   private overhead: Overhead;
+  /** LoL pass (lane C): the persistent low-health vignette (made on the first body tick). */
+  private lowHp: LowHp | null = null;
   private minimap: Minimap;
   private scoreboard: Scoreboard | null = null;
   private talents: TalentPicker | null = null;
@@ -345,6 +348,8 @@ export class MatchSession {
     // minion bars over the drawn bodies, none for a minion the view does not draw (render only)
     this.overhead.minionAt = (id) => this.view.minions.drawnAt.get(id) ?? null;
     this.overhead.goldPlate = setup.frame === 'frame.legendary';
+    // LoL pass (lane C), e2e only: the view, the overhead bars and the low-health vignette for the in-world checks
+    if (this.e2e) (window as unknown as { __plWorld?: unknown }).__plWorld = { view: this.view, overhead: this.overhead, lowHp: () => this.lowHp };
     this.minimap = new Minimap(this.ui, {
       lookAt: (x, z) => this.view.lookAt(x, z),
       moveTo: (x, y) => this.orders?.move(x, y),
@@ -1398,6 +1403,9 @@ export class MatchSession {
   private bodyTick(frame: ViewFrame, dt: number): void {
     if (!this.welcome) return;
     const me = frame.byId.get(this.welcome.slot);
+    // LoL pass (lane C): the low-health vignette follows the HP every frame (off while dead)
+    this.lowHp ??= new LowHp(this.ui);
+    this.lowHp.update(me && me.maxHp > 0 ? me.hp / me.maxHp : 1, !me || me.state === 'dead');
     if (!me || me.state === 'dead' || me.maxHp <= 0) {
       this.wasLow = false;
       this.wasDead = true;
@@ -1412,7 +1420,7 @@ export class MatchSession {
     if (low && !this.wasLow && now - this.lowAt > 6000) {
       this.lowAt = now;
       sfx.play('gasp');
-      this.view.juice.flash('red');
+      // LoL pass (lane C): the persistent vignette (render/fx/lowHp.ts) replaced the one-shot red rim flash here
     }
     this.wasLow = low;
     // round 1 tier perks: an Epic frame owner's Nap sparkles, a Legendary one's rises in a gold column
