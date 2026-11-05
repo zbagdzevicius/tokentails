@@ -134,8 +134,17 @@ export async function mockHost(context: BrowserContext, baseURL: string, cfg: Ho
       try {
         const res = await route.fetch({ url: `${baseURL}/${rest}${url.search}` });
         return await route.fulfill({ response: res });
-      } catch {
-        return route.abort().catch(() => undefined);
+      } catch (err) {
+        // only a page or context closed under the fetch is expected; a real proxy failure must fail the test
+        const msg = err instanceof Error ? err.message : String(err);
+        let closed = false;
+        try {
+          closed = route.request().frame().page().isClosed();
+        } catch {
+          closed = true;
+        }
+        if (closed || /Target.*closed|has been closed|has been disposed/i.test(msg)) return route.abort().catch(() => undefined);
+        throw err;
       }
     }
     // cat art from the Token Tails bucket (round 1: Meet cards need art): a 1×1 PNG

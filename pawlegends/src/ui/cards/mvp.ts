@@ -19,6 +19,8 @@ export interface MvpCardOpts {
   portrait?: string | null;
   tier?: CatTier | null;
   won: boolean;
+  /** The ribbon text (default "MVP"); a defeat's best-on-your-team card says "TEAM BEST". */
+  ribbon?: string;
 }
 
 export function mvpCard(o: MvpCardOpts): string {
@@ -37,5 +39,8 @@ export function mvpCard(o: MvpCardOpts): string {
         ? `<i class="tt-mvp-deco claw" style="background-image:url(${fxUrl('epic-claw')})"></i><i class="tt-mvp-deco paw" style="background-image:url(${fxUrl('epic-paw')})"></i>`
         : '';
   const front = heroCard(o.hero, { portrait: o.portrait, tier, name: o.name, foil: 'sweep', sparkles: true, foot: true });
-  return `<div class="tt-mvp${o.you ? ' you' : ''}${o.won ? ' won' : ''}" data-mvp-card="${o.hero}" ${cardAttrs(heroElement(o.hero), tier)} aria-label="${esc(`MVP: ${o.name}`)}" role="img">${leg}<i class="tt-mvp-burst" style="background-image:url(${fxUrl('golden-burst')})"></i>${flipCard(front, { cls: 'tt-mvp-flip' })}${deco}<span class="tt-mvp-ribbon">MVP</span></div>`;
+  const ribbon = o.ribbon ?? 'MVP';
+  // a defeat: no turning sunburst behind the card (it read as the enemy celebrating), the tier art stays
+  const burst = o.won ? `<i class="tt-mvp-burst" style="background-image:url(${fxUrl('golden-burst')})"></i>` : '';
+  return `<div class="tt-mvp${o.you ? ' you' : ''}${o.won ? ' won' : ' lost'}" data-mvp-card="${o.hero}" ${cardAttrs(heroElement(o.hero), tier)} aria-label="${esc(`${ribbon === 'MVP' ? 'MVP' : 'Best on your team'}: ${o.name}`)}" role="img">${leg}${burst}${flipCard(front, { cls: 'tt-mvp-flip' })}${deco}<span class="tt-mvp-ribbon">${esc(ribbon)}</span></div>`;
 }

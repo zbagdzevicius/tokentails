@@ -5,7 +5,8 @@
  *   golden or white burst behind it), holds, then fades. Centred, or anchored to a screen point that a callback
  *   updates every frame (a hero's head in the world: project it and return `{x, y}` in CSS px of `parent`).
  *   DOM only: no textures, materials or draw calls in the 3D scene.
- * - `RespawnCard`: the HUD's face-down card that counts down while the player is out, and flips to the portrait at 0.
+ * - `RespawnCard`: the HUD's face-down card while the player is out (a paw on its back); it flips up big at 0 and
+ *   shrinks into the HUD portrait.
  *
  * Reduced motion (OS setting): no 3D turn, no spin; a 200 ms cross-fade from back to front, and the flash is a still
  * glow. Every timer and frame callback is cleared on dispose; disposing twice is safe.
@@ -120,27 +121,35 @@ export function cardReveal(parent: HTMLElement, o: CardRevealOpts): CardRevealHa
   return { el, flip, dispose, done };
 }
 
+/** A paw on the face-down card's back (the HUD's "Back in N" chip is the one countdown: feel QA saw two). */
+const BACK_PAW =
+  '<svg class="tt-back-paw" viewBox="0 0 24 24" aria-hidden="true"><ellipse cx="12" cy="15.5" rx="5.2" ry="4.3"/><ellipse cx="5.6" cy="10" rx="2.1" ry="2.6"/><ellipse cx="9.6" cy="6.4" rx="2.1" ry="2.6"/><ellipse cx="14.4" cy="6.4" rx="2.1" ry="2.6"/><ellipse cx="18.4" cy="10" rx="2.1" ry="2.6"/></svg>';
+
+/** Respawn card timings (ms): the big face-up moment with the flash, then the flight into the HUD portrait. */
+export const RESPAWN_CARD_MS = Object.freeze({ big: 560, fly: 440 });
+
 /**
- * The HUD respawn card: face down with the seconds left while the player is out; `reveal()` flips it to the hero's
- * portrait with a sparkle flash, and it slides away. `down()` puts it face down again (the next knockout).
+ * The HUD respawn card: face down (a paw on the back, no number) while the player is out; `reveal()` flips it face up
+ * at about 110 px with a sparkle flash for half a second, then it shrinks into the HUD portrait. `down()` puts it face
+ * down again (the next knockout). Hidden, it is `visibility: hidden` with its animations paused (perf QA: a Legendary
+ * card's glow kept repainting under opacity 0).
  */
 export class RespawnCard {
   readonly el: HTMLElement;
-  private num: HTMLElement;
   private flipEl: HTMLElement;
-  private last = '';
   private state: 'idle' | 'down' | 'up' = 'idle';
   private timer: ReturnType<typeof setTimeout> | null = null;
+  private readonly calm: boolean;
 
   constructor(parent: HTMLElement, hero: HeroId, portrait: string | null, tier: CatTier | null = null) {
     const el = document.createElement('div');
-    el.className = `tt-respawn${reduced() ? ' calm' : ''}`;
+    this.calm = reduced();
+    el.className = `tt-respawn${this.calm ? ' calm' : ''}`;
     el.setAttribute('aria-hidden', 'true');
     el.dataset.ttEl = heroElement(hero);
-    el.innerHTML = `<i class="tt-flash" style="background-image:url(${fxUrl('reveal-sparkle')})"></i>${flipCard(heroCard(hero, { portrait, name: '', tier, sparkles: true }), { back: '<em class="tt-count"></em>' })}`;
+    el.innerHTML = `<i class="tt-flash" style="background-image:url(${fxUrl('reveal-sparkle')})"></i>${flipCard(heroCard(hero, { portrait, name: '', tier, sparkles: true }), { back: BACK_PAW })}`;
     parent.appendChild(el);
     this.el = el;
-    this.num = el.querySelector('.tt-count') as HTMLElement;
     this.flipEl = el.querySelector('.tt-flip') as HTMLElement;
   }
 
@@ -154,51 +163,63 @@ export class RespawnCard {
     }
   }
 
-  /** Dead: face down, `secs` left (no DOM write when nothing changed). */
-  down(secs: number): void {
-    if (this.state !== 'down') {
-      if (this.timer) clearTimeout(this.timer);
-      this.timer = null;
-      this.state = 'down';
-      this.flipEl.classList.remove('up');
-      this.el.classList.remove('up', 'out');
-      this.el.classList.add('on');
-    }
-    const t = String(Math.max(0, secs));
-    if (t !== this.last) {
-      this.last = t;
-      this.num.textContent = t;
-      this.num.classList.remove('tick');
-      void this.num.offsetWidth;
-      this.num.classList.add('tick');
-    }
+  /** Dead: face down (`_secs` is kept for the API; the HUD chip shows the seconds). No DOM write when unchanged. */
+  down(_secs?: number): void {
+    if (this.state === 'down') return;
+    this.clear();
+    this.state = 'down';
+    this.flipEl.classList.remove('up');
+    this.flipEl.style.removeProperty('--tt-fly');
+    this.el.classList.remove('up', 'out', 'fly');
+    this.el.classList.add('on');
   }
 
-  /** Back in the fight: flip face up, flash, then slide away. */
+  /** Back in the fight: flip face up big with the flash, then shrink into the HUD portrait. */
   reveal(): void {
     if (this.state !== 'down') return;
     this.state = 'up';
-    this.last = '';
     this.flipEl.classList.add('up');
     this.el.classList.add('up');
-    if (this.timer) clearTimeout(this.timer);
+    this.clear();
     this.timer = setTimeout(() => {
-      this.el.classList.add('out');
+      this.fly();
       this.timer = setTimeout(() => {
-        this.el.classList.remove('on', 'up', 'out');
+        this.el.classList.remove('on', 'up', 'out', 'fly');
         this.flipEl.classList.remove('up');
+        this.flipEl.style.removeProperty('--tt-fly');
         this.state = 'idle';
         this.timer = null;
-      }, 320);
-    }, 1100);
+      }, RESPAWN_CARD_MS.fly + 40);
+    }, this.calm ? 700 : RESPAWN_CARD_MS.big);
+  }
+
+  /** The flight into the HUD portrait (one layout read): a fade-out when there is no portrait or under reduced motion. */
+  private fly(): void {
+    const port = this.calm ? null : this.el.parentElement?.querySelector<HTMLElement>('.pl-portrait');
+    const pr = port?.getBoundingClientRect();
+    const cr = this.flipEl.getBoundingClientRect();
+    if (pr && pr.width > 0 && cr.width > 0) {
+      // the transform origin is the card's top centre: its top and its centre x do not move with the scale, so the
+      // card's centre lands on the portrait's at scale k when its top moves to (portrait centre − k × half height)
+      const base = this.flipEl.offsetWidth || 46;
+      const k = pr.width / base;
+      const dx = pr.left + pr.width / 2 - (cr.left + cr.width / 2);
+      const dy = pr.top + pr.height / 2 - cr.top - (k * (this.flipEl.offsetHeight || base * 1.35)) / 2;
+      this.flipEl.style.setProperty('--tt-fly', `translate(${dx.toFixed(1)}px, ${dy.toFixed(1)}px) scale(${k.toFixed(3)})`);
+      this.el.classList.add('fly');
+    } else this.el.classList.add('out');
+  }
+
+  private clear(): void {
+    if (this.timer) clearTimeout(this.timer);
+    this.timer = null;
   }
 
   /** Hide without a reveal (match end, menu). */
   hide(): void {
-    if (this.timer) clearTimeout(this.timer);
-    this.timer = null;
+    this.clear();
     this.state = 'idle';
-    this.el.classList.remove('on', 'up', 'out');
+    this.el.classList.remove('on', 'up', 'out', 'fly');
     this.flipEl.classList.remove('up');
   }
 

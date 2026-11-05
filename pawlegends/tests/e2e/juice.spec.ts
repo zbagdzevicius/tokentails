@@ -10,8 +10,10 @@ const point = async (page: Page, name: string) => {
   return Number.isFinite(x) && Number.isFinite(y) ? { x, y } : null;
 };
 
-test('the first objective chip shows within 5 s and points the way', async ({ page }) => {
+test('the first objective chip shows within 5 s of the gates opening and points the way', async ({ page }) => {
   await startFirstMatch(page);
+  // feel QA: "Run to the lane" waits for the gates (no arrow and no way out before them)
+  await page.waitForSelector('html[data-gate="open"], html[data-gate="opening"]', { timeout: 20_000 });
   await expect(page.locator('.pl-goal.on')).toBeVisible({ timeout: 5000 });
   await expect(page.locator('.pl-goal.on')).toContainText('Run to the lane!');
   expect(await attr(page, 'goal')).toBe('lane');

@@ -75,7 +75,7 @@ export function showVsIntro(parent: HTMLElement, o: VsIntroOpts): () => void {
   const first: 0 | 1 = myTeam as 0 | 1;
   const second: 0 | 1 = (1 - myTeam) as 0 | 1;
   el.innerHTML = `${row(first, 0)}<div class="tt-vs-mid"><b>VS</b></div>${row(second, 3)}`;
-  // before the countdown (the CSS hides that count while the VS screen is up: `.tt-vs:not(.out) ~ .pl-count`)
+  // before the countdown (the CSS hides that count while the VS screen is up: `.tt-vs.shown:not(.out) ~ .pl-count`)
   parent.insertBefore(el, parent.querySelector(':scope > .pl-count'));
   const timers: ReturnType<typeof setTimeout>[] = [];
   let gone = false;
@@ -85,6 +85,11 @@ export function showVsIntro(parent: HTMLElement, o: VsIntroOpts): () => void {
     for (const t of timers) clearTimeout(t);
     el.remove();
   };
+  // the count under it hides only once the VS screen has really drawn (`.shown`, CSS): on a device that stalls at match
+  // start the screen never faded in, yet it hid "3, 2" (correctness QA)
+  el.addEventListener('transitionend', (ev) => {
+    if (ev.target === el && ev.propertyName === 'opacity' && el.classList.contains('in') && !el.classList.contains('out')) el.classList.add('shown');
+  });
   requestAnimationFrame(() => {
     if (gone) return;
     el.classList.add('in');

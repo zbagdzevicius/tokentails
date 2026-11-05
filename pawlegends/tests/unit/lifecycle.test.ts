@@ -8,7 +8,7 @@ import * as THREE from 'three';
 import { TIMELINE, TICK_HZ } from '../../src/data/timeline';
 import { CORE, HERO_SPAWNS, MAP } from '../../src/data/map';
 import { CORE_GAP_M, GATE_OPEN_TICKS, gateSegments, gateState, StartGate } from '../../src/render/fx/lifecycleGate';
-import { backCount, irisAt, napProgress, RESPAWN_TICKS, spawnPoint } from '../../src/render/fx/lifecycle';
+import { backCount, IRIS_MIN_DEATH, irisAt, napProgress, RESPAWN_TICKS, spawnPoint } from '../../src/render/fx/lifecycle';
 import { digitGlyph, GLYPH, LifeSprites } from '../../src/render/fx/lifecycleSprites';
 import { LifeHud, livesLabel } from '../../src/render/fx/lifecycleHud';
 
@@ -51,6 +51,9 @@ describe('respawn sequence', () => {
     expect(irisAt(RESPAWN_TICKS.shut)).toBe(1);
     expect(irisAt(RESPAWN_TICKS.open)).toBe(0);
     expect(irisAt(0)).toBe(0);
+    // feel QA: a short knockout (level 1, ~3 s) gets no iris at all (the camera pans instead)
+    expect(irisAt(RESPAWN_TICKS.shut, IRIS_MIN_DEATH - 1)).toBe(0);
+    expect(irisAt(RESPAWN_TICKS.shut, IRIS_MIN_DEATH)).toBe(1);
     expect(backCount(91)).toBe(0);
     expect(backCount(90)).toBe(3);
     expect(backCount(1)).toBe(1);
@@ -75,6 +78,12 @@ describe('overlays and sprites', () => {
     expect(root.querySelectorAll('.pl-lc-dead .pips i.lost').length).toBe(1);
     hud.iris(1);
     expect(root.querySelector('.pl-lc-iris.on.shut')).not.toBeNull();
+    // class driven, never a per-frame mask (perf QA)
+    expect((root.querySelector('.pl-lc-iris') as HTMLElement).style.getPropertyValue('mask-image')).toBe('');
+    hud.iris(0.5, true);
+    expect(root.querySelector('.pl-lc-iris.on.open')).not.toBeNull();
+    hud.iris(0);
+    expect(root.querySelector('.pl-lc-iris.on')).toBeNull();
     hud.dispose();
     expect(root.children.length).toBe(0);
   });

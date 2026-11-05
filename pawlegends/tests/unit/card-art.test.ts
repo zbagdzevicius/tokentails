@@ -62,14 +62,16 @@ describe('card frame and pick tiles', () => {
 });
 
 describe('respawn and reveal cards', () => {
-  it('RespawnCard: face down with the seconds, flips up once on the way back, hides', () => {
+  it('RespawnCard: face down with a paw (no second countdown), flips up once on the way back, hides', () => {
     document.body.innerHTML = '';
     const c = new RespawnCard(document.body, 'clem', null, 'RARE');
     c.down(9);
     c.down(9);
     c.down(8);
     expect(c.el.classList.contains('on')).toBe(true);
-    expect(c.el.querySelector('.tt-count')?.textContent).toBe('8');
+    // the HUD's "Back in N" chip is the one countdown: the card back shows a paw, never a number
+    expect(c.el.querySelector('.tt-back-paw')).not.toBeNull();
+    expect(c.el.querySelector('.tt-face-back')?.textContent?.trim()).toBe('');
     expect(c.el.querySelector('.tt-flip')?.classList.contains('up')).toBe(false);
     c.reveal();
     expect(c.el.querySelector('.tt-flip')?.classList.contains('up')).toBe(true);

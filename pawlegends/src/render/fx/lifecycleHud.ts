@@ -37,7 +37,7 @@ export class LifeHud {
   private gateShown = -1;
   private gateFrac = -1;
   private deadOn = false;
-  private irisK = -1;
+  private irisKey = '';
   private livesKey = '';
   private wipeTimer: ReturnType<typeof setTimeout> | null = null;
   /** Text said (e2e and tests). */
@@ -52,7 +52,7 @@ export class LifeHud {
       if (html) d.innerHTML = html;
       return d;
     };
-    this.gateEl = el('pl-lc-gate', `<span class="ic">${LOCK_SVG}</span><span class="tx">Gate opens in</span><b class="n">3</b><span class="bar"><i></i></span>`);
+    this.gateEl = el('pl-lc-gate', `<span class="ic">${LOCK_SVG}</span><span class="tx">Gates open in</span><b class="n">3</b><span class="bar"><i></i></span>`);
     this.gateEl.setAttribute('aria-live', 'polite');
     this.gateNum = this.gateEl.querySelector('.n');
     this.gateBar = this.gateEl.querySelector('.bar i');
@@ -113,24 +113,23 @@ export class LifeHud {
     this.said.push(lbl);
   }
 
-  /** Iris 0 (open) .. 1 (closed). */
-  iris(k: number): void {
+  /**
+   * Iris `k` 0 (off) .. 1 (shut); `opening` once the camera has cut. Class changes only, never a per-frame style:
+   * the close is a CSS clip-path circle over the field (as the end wipe), the open a plain opacity fade (perf QA: the
+   * old per-frame mask-image repainted the whole screen on iOS). Under the HUD (z-index), so the score bar, minimap and
+   * kill feed stay whole. Reduced motion: a plain fade both ways (CSS).
+   */
+  iris(k: number, opening = false): void {
     const el = this.irisEl;
     if (!el) return;
-    const q = Math.round(Math.max(0, Math.min(1, k)) * 60) / 60;
-    if (q === this.irisK) return;
-    this.irisK = q;
-    if (q <= 0) {
-      el.classList.remove('on');
-      return;
-    }
-    el.classList.add('on');
-    // the hole's radius as a share of the screen's half-diagonal (75vmax covers any aspect)
-    const r = (1 - q) * 75;
-    const mask = `radial-gradient(circle at 50% 50%, transparent ${r.toFixed(2)}vmax, #000 ${(r + 0.6).toFixed(2)}vmax)`;
-    el.style.setProperty('-webkit-mask-image', mask);
-    el.style.setProperty('mask-image', mask);
-    el.classList.toggle('shut', q >= 0.98);
+    const on = k > 0;
+    const shut = on && !opening && k >= 0.98;
+    const key = on ? `${opening ? 'o' : 'c'}${shut ? 's' : ''}` : '';
+    if (key === this.irisKey) return;
+    this.irisKey = key;
+    el.classList.toggle('on', on);
+    el.classList.toggle('open', on && opening);
+    el.classList.toggle('shut', shut || (on && opening));
   }
 
   /** The end wipe: a paw iris closing over the field `inMs` from now, just before the results replace the match. */

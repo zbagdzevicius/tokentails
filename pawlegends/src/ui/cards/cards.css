@@ -131,27 +131,30 @@
 .tt-reveal.up > .tt-ribbon { opacity: 1; }
 .tt-reveal.out > .tt-ribbon { opacity: 0; transition-delay: 0s; }
 
-/* -------------------------------------------------------------------- the HUD respawn countdown card */
+/* -------------------------------------------------------------------- the HUD respawn card */
+/* Face down while out (a paw on its back: the "Back in N" chip is the one countdown), then face up BIG (~110 px) with
+   the sparkle flash for half a second (it grows down from its top, clear of the score bar and the objective chip),
+   then it shrinks into the HUD portrait (--tt-fly, set once by reveal.ts).
+   Hidden it is visibility: hidden with every animation inside paused: a Legendary card's box-shadow glow and the tier
+   twinkle kept repainting at opacity 0 for the rest of the match (perf QA). */
 .tt-respawn {
-  --tt-w: 46px; position: absolute; left: 50%; top: calc(118px + var(--safe-t, 0px)); z-index: 6; width: 0; height: 0;
-  pointer-events: none; opacity: 0; transition: opacity 0.2s;
+  --tt-w: 46px; --tt-big: 2.4; position: absolute; left: 50%; top: calc(118px + var(--safe-t, 0px)); z-index: 6; width: 0; height: 0;
+  pointer-events: none; opacity: 0; visibility: hidden; transition: opacity 0.2s, visibility 0s linear 0.2s;
 }
-.tt-respawn.on { opacity: 1; }
-.tt-respawn > .tt-flip { position: absolute; left: 0; top: 0; transform: translateX(-50%); transition: transform 0.3s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.3s; }
-.tt-respawn.up > .tt-flip { transform: translateX(-50%) scale(1.25); }
+.tt-respawn:not(.on) * { animation-play-state: paused !important; }
+.tt-respawn.on { opacity: 1; visibility: visible; transition: opacity 0.2s; }
+.tt-respawn > .tt-flip { position: absolute; left: 0; top: 0; transform: translateX(-50%); transform-origin: 50% 0; transition: transform 0.34s cubic-bezier(0.2, 1.4, 0.4, 1), opacity 0.3s; }
+.tt-respawn.up > .tt-flip { transform: translateX(-50%) scale(var(--tt-big)); }
+.tt-respawn.fly > .tt-flip { transform: translateX(-50%) var(--tt-fly, scale(0.5)); opacity: 0.15; transition: transform 0.44s cubic-bezier(0.55, 0, 0.75, 0.4), opacity 0.44s ease-in; }
 .tt-respawn.out > .tt-flip { opacity: 0; transform: translate(-50%, -18px) scale(0.9); }
-.tt-respawn > .tt-flash { top: calc(var(--tt-w) * 0.68); }
-.tt-respawn .tt-count {
-  font: 700 22cqw/1 var(--font); font-size: 22px; font-style: normal; color: #fff;
-  text-shadow: 0 0 4px rgba(0, 0, 0, 0.9), 0 2px 0 rgba(0, 0, 0, 0.7);
-  background: rgba(11, 11, 42, 0.72); border-radius: 999px; min-width: 30px; padding: 3px 4px; text-align: center;
-  box-shadow: 0 0 0 2px rgba(255, 243, 220, 0.85);
-}
+.tt-respawn > .tt-flash { top: calc(var(--tt-w) * 0.68 * var(--tt-big)); width: calc(var(--tt-w) * 2 * var(--tt-big)); }
+.tt-respawn .tt-back-paw { width: 52%; height: auto; fill: rgba(255, 243, 220, 0.92); filter: drop-shadow(0 1px 0 rgba(74, 42, 31, 0.6)); }
 .tt-respawn .tt-card .tt-pic { height: 100%; -webkit-mask-image: none; mask-image: none; }
-.tt-respawn .tt-count.tick { animation: tt-tick 0.32s cubic-bezier(0.2, 1.6, 0.4, 1); }
-@keyframes tt-tick { 0% { transform: scale(1.45); } 100% { transform: scale(1); } }
+/* the glow is a box-shadow keyframe: it never runs on the small HUD card (only its big reveal moment shows the tier) */
+.tt-respawn .tt-card[data-tier] { animation: none; }
 .pl-match:has(.pl-talents.on) .tt-respawn { display: none; }
-html[data-touch='1'] .tt-respawn { top: calc(136px + var(--safe-t, 0px)); --tt-w: 40px; }
+html[data-touch='1'] .tt-respawn { top: calc(136px + var(--safe-t, 0px)); --tt-w: 40px; --tt-big: 2.4; }
+@media (max-height: 420px) { .tt-respawn { --tt-big: 2.1; } }
 
 /* ------------------------------------------------------------------------------------- reduced motion */
 .tt-calm .tt-flip-in, .tt-reveal.calm .tt-flip-in, .tt-respawn.calm .tt-flip-in, .tt-vs.calm .tt-flip-in { transform: none; transition: none; }
@@ -167,7 +170,7 @@ html[data-touch='1'] .tt-respawn { top: calc(136px + var(--safe-t, 0px)); --tt-w
   .tt-reveal > .tt-flip, .tt-respawn > .tt-flip { transition: opacity 0.2s; }
   .tt-reveal.up > .tt-burst { animation: none; }
   .tt-reveal.up > .tt-flash, .tt-respawn.up > .tt-flash { animation: none; opacity: 0.6; transform: translate(-50%, -50%) scale(1); }
-  .tt-respawn .tt-count.tick { animation: none; }
+  .tt-respawn.up > .tt-flip { transform: translateX(-50%) scale(1.25); }
 }
 
 /* ------------------------------------------------------------------------------- results: the MVP card */
@@ -194,6 +197,9 @@ html[data-touch='1'] .tt-respawn { top: calc(136px + var(--safe-t, 0px)); --tt-w
   animation: tt-ribbon 0.45s cubic-bezier(0.2, 1.8, 0.4, 1) 1.15s both;
 }
 @keyframes tt-ribbon { from { opacity: 0; scale: 0.4; } to { opacity: 1; scale: 1; } }
+/* a defeat's "TEAM BEST" ribbon: one line, a touch smaller */
+.tt-mvp-ribbon { white-space: nowrap; }
+.tt-mvp.lost .tt-mvp-ribbon { font-size: 16px; padding: 6px 14px; }
 .tt-mvp-deco { position: absolute; z-index: 3; background: center / contain no-repeat; pointer-events: none; animation: tt-fade-in 0.4s ease-out 1.2s both; }
 .tt-mvp-deco.wl { left: -24%; top: 40%; width: 34%; aspect-ratio: 1; }
 .tt-mvp-deco.wr { right: -24%; top: 40%; width: 34%; aspect-ratio: 1; }

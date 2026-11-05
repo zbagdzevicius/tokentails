@@ -1291,12 +1291,17 @@ export class MatchSession {
       if (u.kind === 'minion') enemyMinion = Math.min(enemyMinion, d);
       if (u.kind === 'hero') enemyHero = Math.min(enemyHero, d);
     }
-    if (sec >= 1) g.start('lane');
+    // feel QA: "Run to the lane ... along the arrow" waits for the gate to open (no arrow, and no way out, before it)
+    const gateUp = frame.latest.clock.phase === 'gate';
+    if (sec >= 1 && !gateUp) g.start('lane');
     // out of the base and with the wave (the first wave walks past the fountain, so near it alone is not enough)
     const out = team === 0 ? me.fx > 14000 : me.fx < 86000;
     if (out && (allyMinion < 9000 || (team === 0 ? me.fx > 26000 : me.fx < 74000))) g.complete('lane');
     if (sec >= 12 || enemyMinion < 10000) g.start('minions');
-    if (enemyHero < 14000 && sec >= 10) g.start('dog');
+    const down = me.state === 'dead';
+    if (enemyHero < 14000 && sec >= 10 && !down) g.start('dog');
+    // feel QA: the dog tip outlived a death into the fountain; take it back while dead or once no dog is near
+    if (g.current === 'dog' && (down || enemyHero > 22000)) g.retract('dog');
     if (g.current === 'pudding') {
       const p = frame.entities.find((e) => e.kind === 'pudding' && e.state !== 'dead');
       g.setProgress(p && p.maxHp > 0 ? 1 - p.hp / p.maxHp : null);
