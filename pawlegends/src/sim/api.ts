@@ -68,6 +68,12 @@ export interface MatchConfig {
    * re-sims with 'seeded', so a match played with another mode does not verify.
    */
   botTalents?: BotTalentMode;
+  /**
+   * Party play (MULTIPLAYER.md §1.1): the human hero slots, ascending, always containing 0, a subset of {0, 1, 2}.
+   * Omitted means [0] (single player). A human slot is never driven by the in-sim bots; its commands come from the
+   * `others` argument of `step` (slots >= 1). Not part of the v:1 replay; a party match records a PartyReplayRecord.
+   */
+  humans?: readonly number[];
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -371,6 +377,33 @@ export interface ReplayRecord {
    * Sim v10: the match mutator; v10 records always carry 'none' and the server accepts only 'none' (or no field).
    * The backend leaves a mutator other than 'none' out of the fastest-win record and catnip (GAPS §8 item 1).
    */
+  mutator?: Mutator;
+}
+
+/** Party play (MULTIPLAYER.md §1.1): one human's seat in a PartyReplayRecord. */
+export interface PartySeat {
+  slot: number;
+  hero: HeroId;
+  trick: TrickId;
+}
+
+/**
+ * Party play (MULTIPLAYER.md §1.1): the replay of a party match. Bots come from `fillPicksParty(seed, humans)`;
+ * `inputs[i]` is the base64 post-gate command stream of `humans[i].slot` (slot 0 first). `picks` and `tricks` are
+ * redundant with the seed and the seats and must equal what fillPicksParty gives (checked on verify).
+ */
+export interface PartyReplayRecord {
+  v: 2;
+  simVersion: number;
+  seed: number;
+  difficulty: Difficulty;
+  humans: PartySeat[];
+  picks: HeroId[];
+  tricks: TrickId[];
+  ticks: number;
+  inputs: string[];
+  outcome: Outcome;
+  finalHash: string;
   mutator?: Mutator;
 }
 

@@ -14,6 +14,7 @@ import { nearLane } from '../map/grid';
 import type { MatchHandle } from '../state';
 import { G, RANGE, type World } from '../world';
 import { hpBp, seenEnemy } from './sense';
+import { isHumanSlot } from '../humans';
 
 type PingCommand = Extract<Command, { op: 9 }>;
 
@@ -31,7 +32,8 @@ export function applyPing(m: MatchHandle, cmd: PingCommand): void {
   let took = 0;
   if (kind !== PING_KIND.Focus || target >= 0) {
     for (let id = RANGE.heroes; id < SLOTS_PER_TEAM; id++) {
-      if (id === HUMAN_SLOT || w.team[id] !== team || w.alive[id] === 0) continue;
+      // Party play (B1): a ping never orders a human's hero (slots 1 and 2 in a party), even while a pilot plays it.
+      if (isHumanSlot(w, id) || w.team[id] !== team || w.alive[id] === 0) continue;
       let what: BarkKind = 'ok';
       if (kind !== PING_KIND.FallBack && (hpBp(w, id) < PING.refuseHpBp || w.napT[id] > 0)) what = 'heal';
       else {
@@ -53,7 +55,8 @@ export function applyPing(m: MatchHandle, cmd: PingCommand): void {
 
 /** The order allied bot `id` follows now (PING_KIND), or −1. Clears an expired or pointless order. */
 export function orderOf(w: World, id: number): number {
-  if (id === HUMAN_SLOT || w.botOrd[id] === 0) return -1;
+  // Party play (B1): no order for a human's slot, so nothing here clears hashed botOrd* state of a piloted hero.
+  if (isHumanSlot(w, id) || w.botOrd[id] === 0) return -1;
   const kind = w.botOrd[id] - 1;
   const t = w.botOrdId[id];
   const over =

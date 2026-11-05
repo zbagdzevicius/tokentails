@@ -369,6 +369,11 @@ export interface World {
   // Scalars
   globals: Int32Array;
   rng: Rng;
+  /**
+   * Party play (MULTIPLAYER.md §1): bit s set = hero slot s is a human's (slot 0 always). NOT hashed: it is part of the
+   * match config, fixed at createMatch. 1 (slot 0 only) in every single-player match. Read it through `isHuman`.
+   */
+  humans: number;
 }
 
 export const COOLDOWN_SLOTS = 5;
@@ -572,6 +577,7 @@ export function createWorld(seed: number): World {
     pkY: new Int32Array(CAPS.pickups),
     globals: new Int32Array(G.Count),
     rng: new Rng(seed),
+    humans: 1,
   };
   w.globals[G.Winner] = -1;
   w.globals[G.InputHash] = FNV_OFFSET | 0;
