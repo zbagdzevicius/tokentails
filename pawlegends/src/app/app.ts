@@ -38,7 +38,13 @@ import { loadingVeil, pickScreen, refreshPickFaces, resultsScreen, rotatePrompt,
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel } from '../ui/store';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
-import { MatchSession, type MatchEnd, type MatchSetup } from './matchSession';
+import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
+
+/**
+ * The match (session, game view, effects, HUD) is its own chunk: the title and menus load without it (first-load JS
+ * budget) and it is prefetched once the title is up, so a match still starts at once.
+ */
+const loadMatch = (): Promise<typeof import('./matchSession')> => import('./matchSession');
 import { canPickDifficulty, difficultyFor, forfeitTick, guideMode, isRookie, pickable, PICK_DIFFICULTY_FROM } from './firstSession';
 import { dayKey, followsHero, loadQuests, progressQuests, questViews, saveQuests } from '../meta/quests';
 import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, saveTreats, treatXpFor } from '../meta/treats';
@@ -471,6 +477,11 @@ export class App {
   /** `offer` false: a redraw after a lobby panel closed (the Treat Track panel never leads to an offer). */
   showTitle(offer = true): void {
     const first = this.screen !== 'title' || !this.screenEl;
+    // the match chunk loads in the background once the title is up (a match then starts without a fetch)
+    if (!this.matchPrefetched) {
+      this.matchPrefetched = true;
+      setTimeout(() => void loadMatch().catch(() => undefined), 1500);
+    }
     // a cat that arrived during a match goes on now (never over the match HUD)
     this.autoEquip(true);
     this.lobby.enter();
@@ -636,7 +647,26 @@ export class App {
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();
-    this.session = new MatchSession(this.gr, this.root, setup, {
+    this.session = null;
+    const token = ++this.matchToken;
+    void loadMatch()
+      .then(({ MatchSession }) => {
+        if (token !== this.matchToken) return;
+        this.beginSession(MatchSession, setup, c, veil);
+      })
+      .catch((err: unknown) => {
+        veil.remove();
+        reportCrash('window', err);
+        this.showTitle();
+      });
+  }
+
+  /** A newer startMatch call wins over a match chunk still loading. */
+  private matchToken = 0;
+  private matchPrefetched = false;
+
+  private beginSession(Session: typeof MatchSession, setup: MatchSetup, c: Choice, veil: HTMLElement): void {
+    this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
       onLeave: () => {
         this.session?.dispose();
