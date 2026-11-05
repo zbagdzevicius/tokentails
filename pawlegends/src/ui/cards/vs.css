@@ -42,4 +42,4 @@
   .tt-vs-slot.up .tt-vs-burst { animation: none; }
 }
 /* the VS screen is the "3, 2" of the countdown (app/matchSession.ts countdown): that count hides under it */
-.tt-vs:not(.out) ~ .pl-count { visibility: hidden; }
+.tt-vs.shown:not(.out) ~ .pl-count { visibility: hidden; }

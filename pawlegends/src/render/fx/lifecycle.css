@@ -40,12 +40,24 @@
 .pl-lc-dead .lbl { margin-top: 3px; font-size: 13px; font-weight: 700; color: var(--cream, #fff3dc); text-shadow: 0 2px 4px rgba(0, 0, 0, 0.7); }
 
 /* ---------------------------------------------------------------- respawn iris and end wipe */
+/* The respawn iris sits UNDER the HUD (.pl-hud is z-index 3), over the field and the nameplates: the score bar,
+   minimap and kill feed stay whole above it (feel QA: the circle edge cut them while "Back in N" floated on top).
+   Class driven: a clip-path circle closes over the field (as the end wipe), then the whole layer fades out; nothing is
+   written per frame (perf QA: the old per-frame mask-image repainted the whole screen on iOS). */
 .pl-lc-iris, .pl-lc-wipe { position: absolute; inset: 0; pointer-events: none; display: none; align-items: center; justify-content: center; }
-.pl-lc-iris { z-index: 8; background: #3b2550; }
-.pl-lc-iris.on { display: flex; }
+.pl-lc-iris {
+  z-index: 2; background: #3b2550; display: flex; visibility: hidden; opacity: 1;
+  clip-path: circle(0% at 50% 50%); -webkit-clip-path: circle(0% at 50% 50%);
+}
+.pl-lc-iris.on {
+  visibility: visible; clip-path: circle(75% at 50% 50%); -webkit-clip-path: circle(75% at 50% 50%);
+  transition: clip-path 0.36s cubic-bezier(0.6, 0, 0.4, 1), -webkit-clip-path 0.36s cubic-bezier(0.6, 0, 0.4, 1);
+}
+.pl-lc-iris.on.open { opacity: 0; transition: opacity 0.38s ease-out; }
 .pl-lc-iris .paw, .pl-lc-wipe .paw { width: 64px; height: 64px; color: #ffd34d; opacity: 0; transform: scale(0.4); transition: opacity 0.12s, transform 0.18s cubic-bezier(0.2, 1.6, 0.4, 1); }
 .pl-lc-iris .paw svg, .pl-lc-wipe .paw svg { width: 100%; height: 100%; fill: currentColor; }
 .pl-lc-iris.shut .paw { opacity: 1; transform: scale(1); }
+.pl-lc-iris.on.open .paw { transform: scale(1.4); transition: transform 0.38s ease-out; }
 .pl-lc-wipe { z-index: 20; background: #3b2550; }
 .pl-lc-wipe.on { display: flex; animation: pl-lc-wipe 0.5s cubic-bezier(0.6, 0, 0.4, 1) both; }
 .pl-lc-wipe.won { background: #ffb347; }
@@ -65,5 +77,10 @@
   .pl-lc-dead .pips i { width: 15px; height: 15px; }
 }
 @media (prefers-reduced-motion: reduce) {
+  /* the iris is a plain fade in and out (no moving circle) */
+  .pl-lc-iris { clip-path: none; -webkit-clip-path: none; opacity: 0; }
+  .pl-lc-iris.on { clip-path: none; -webkit-clip-path: none; opacity: 1; transition: opacity 0.3s; }
+  .pl-lc-iris.on.open { opacity: 0; }
+  .pl-lc-iris .paw, .pl-lc-iris.on.open .paw { transform: none; transition: opacity 0.2s; }
   .pl-lc-gate .n.pop, .pl-lc-dead.on .pips i.now, .pl-lc-wipe.on, .pl-results { animation-duration: 0.01ms !important; }
 }

@@ -247,8 +247,11 @@ export class App {
     });
     this.ent.onChange(() => this.refreshMeta());
     document.addEventListener('visibilitychange', () => {
-      if (document.hidden) this.session?.setPaused(true);
-      else this.analytics.refreshConsent();
+      if (document.hidden) {
+        this.session?.setPaused(true);
+        // the match chunk may still be loading: pause the session the moment it exists
+        if (!this.session && this.screen === 'match') this.pendingPause = true;
+      } else this.analytics.refreshConsent();
     });
     this.gr.resize();
     if (this.dare) this.analytics.track('dare_open', { hero: this.dare.hero, difficulty: this.dare.difficulty });
@@ -265,6 +268,8 @@ export class App {
     if (m.type === 'hello') this.analytics.flush();
     if (m.type === 'pause' || m.type === 'resume') {
       this.session?.setPaused(m.type === 'pause');
+      // correctness QA: a pause sent while the match chunk loads was lost (the bridge said paused, the match ran)
+      if (!this.session) this.pendingPause = m.type === 'pause';
       this.bridge.post('paused', { paused: m.type === 'pause' });
     } else if (m.type === 'audio') {
       this.setMuted(m.muted === true);
@@ -480,7 +485,13 @@ export class App {
     // the match chunk loads in the background once the title is up (a match then starts without a fetch)
     if (!this.matchPrefetched) {
       this.matchPrefetched = true;
-      setTimeout(() => void loadMatch().catch(() => undefined), 1500);
+      setTimeout(() => {
+        void loadMatch().catch(() => undefined);
+        // the match's lazy feel chunks too (start gate, death and respawn, the fun kit): on a slow network they
+        // arrived after the gate had already dropped
+        void import('../render/fx/lifecycle').catch(() => undefined);
+        void import('../render/fx/fun/funKit').catch(() => undefined);
+      }, 1500);
     }
     // a cat that arrived during a match goes on now (never over the match HUD)
     this.autoEquip(true);
@@ -648,6 +659,7 @@ export class App {
     this.lobby.leave();
     this.session?.dispose();
     this.session = null;
+    this.pendingPause = false;
     const token = ++this.matchToken;
     void loadMatch()
       .then(({ MatchSession }) => {
@@ -663,6 +675,8 @@ export class App {
 
   /** A newer startMatch call wins over a match chunk still loading. */
   private matchToken = 0;
+  /** A host pause (or a hidden tab) that arrived while the match chunk loaded: applied when the session starts. */
+  private pendingPause = false;
   private matchPrefetched = false;
 
   private beginSession(Session: typeof MatchSession, setup: MatchSetup, c: Choice, veil: HTMLElement): void {
@@ -683,6 +697,8 @@ export class App {
       onPaused: (paused) => this.bridge.post('paused', { paused }),
       onTalent: (tier, choice) => this.analytics.track('talent_pick', { hero: c.hero, tier, choice }),
     });
+    if (this.pendingPause || document.hidden) this.session.setPaused(true);
+    this.pendingPause = false;
     setTimeout(() => veil.classList.add('out'), 250);
     setTimeout(() => veil.remove(), 900);
   }
@@ -833,7 +849,15 @@ export class App {
             hero: e.welcome.picks[grades.mvp] ?? e.result.stats.find((st) => st.slot === grades.mvp)?.hero,
             ...(grades.mvp === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null } : {}),
           },
-          bestOnTeam: won ? null : { name: nameOf(bestMine), you: bestMine === mySlot },
+          // cards: on a defeat the results card shows the best on the player's team (feel QA: the enemy MVP got the rays)
+          bestOnTeam: won
+            ? null
+            : {
+                name: nameOf(bestMine),
+                you: bestMine === mySlot,
+                hero: e.welcome.picks[bestMine] ?? e.result.stats.find((st) => st.slot === bestMine)?.hero,
+                ...(bestMine === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null } : {}),
+              },
         },
         personal: ladder?.personal ?? null,
         cause: e.cause,

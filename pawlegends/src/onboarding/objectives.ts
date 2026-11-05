@@ -207,6 +207,21 @@ export class Objectives {
     if (this.active?.id === id) this.active.left = 0;
   }
 
+  /**
+   * Take a situational beat back without counting it as seen (the player died, or the dog it named walked off): it
+   * hides now and may show again when its trigger comes back (feel QA: "A dog! Tap Q" stayed up in the fountain).
+   */
+  retract(id: BeatId): void {
+    if (this.active?.id !== id || this.done.has(id)) return;
+    this.fired.delete(id);
+    this.active = null;
+    this.el?.classList.remove('on', 'done', 'prog');
+    setGoalAttr('');
+    const next = this.queue.shift();
+    if (next) this.show(next);
+    else this.drawStanding();
+  }
+
   setProgress(p: number | null): void {
     this.progress = p === null ? null : Math.max(0, Math.min(1, p));
     if (this.ringEl) this.ringEl.style.setProperty('--p', this.progress === null ? '0' : this.progress.toFixed(3));

@@ -30,13 +30,22 @@ export interface GateState {
   secs: number;
 }
 
-/** Gate state at render tick `tick` (fractional); `null` = no snapshot yet (the loading frames): closed. */
-export function gateState(tick: number | null): GateState {
-  if (tick === null) return { up: true, open: 0, secs: Math.ceil(TIMELINE.barrierDrop / TICK_HZ) };
+/**
+ * Gate state at render tick `tick` (fractional); `null` = no snapshot yet (the loading frames): closed. Pass `out` to
+ * fill a reused object (the per-frame caller: no allocation per frame).
+ */
+export function gateState(tick: number | null, out: GateState = { up: true, open: 0, secs: 0 }): GateState {
+  if (tick === null) return set(out, true, 0, Math.ceil(TIMELINE.barrierDrop / TICK_HZ));
   const left = TIMELINE.barrierDrop - tick;
-  if (left > 0) return { up: true, open: 0, secs: Math.ceil(left / TICK_HZ) };
+  if (left > 0) return set(out, true, 0, Math.ceil(left / TICK_HZ));
   const open = Math.min(1, Math.max(0, (tick - TIMELINE.barrierDrop) / GATE_OPEN_TICKS));
-  return { up: open < 1, open, secs: 0 };
+  return set(out, open < 1, open, 0);
+}
+function set(o: GateState, up: boolean, open: number, secs: number): GateState {
+  o.up = up;
+  o.open = open;
+  o.secs = secs;
+  return o;
 }
 
 /** Fence segments (m, map y) on one barrier line: the walkable spans minus the core gap. */
@@ -192,6 +201,11 @@ export interface GateSign {
   side: 0 | 1;
   /** Segment length (m), for the open burst. */
   len: number;
+  /**
+   * Where the padlock sign stands on the segment (m, three.js z): toward the core end, so the far gate's sign is not
+   * hidden under the bottom HUD (feel QA: the bottom gate's padlock sat behind the desktop ability bar).
+   */
+  sz: number;
 }
 
 export class StartGate {
@@ -212,7 +226,10 @@ export class StartGate {
       for (const [y0, y1] of gateSegments(x)) {
         const len = y1 - y0;
         const mid = (y0 + y1) / 2;
-        this.signs.push({ x, z: -mid, side: side as 0 | 1, len });
+        const cy = CORE.y / 1000;
+        const inset = Math.min(2.5, len * 0.3);
+        const signY = mid < cy ? y1 - inset : y0 + inset;
+        this.signs.push({ x, z: -mid, side: side as 0 | 1, len, sz: -signY });
         // the forcefield: an upper half-tube lying along the line (reads as a solid glowing wall from the steep camera,
         // where an upright plane was seen edge-on)
         const tube = new THREE.CylinderGeometry(TUBE_R, TUBE_R, len, 14, 1, true, Math.PI / 2, Math.PI);

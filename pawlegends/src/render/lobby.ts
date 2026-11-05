@@ -40,6 +40,10 @@ export class Lobby {
   private edge: number | null = null;
   /** Share of the screen height a footer under the hero takes (short landscape pick: Play and the bots row). */
   private foot = 0;
+  /** The left edge (NDC) of the results card (MVP / team best), or null: the hero is framed clear of it. */
+  private cardEdge: number | null = null;
+  /** Half the drawn hero's widest horizontal extent (m), at least the pedestal's radius. */
+  private halfWide = 1.85;
   private moodAt = -1;
 
   constructor(private readonly gr: GameRenderer) {
@@ -104,6 +108,12 @@ export class Lobby {
     // frame every hero against the same reference (the tallest drawn top), not its own: Pixel stands small and
     // Sir Brutus big on the same pedestal (per-hero visual size, chars/heroSize.ts); never clip a taller bounds
     this.top = Math.max(LOBBY_REF_TOP, (g.boundingBox?.max.y ?? 1.05) * this.hero.ch.height);
+    // the widest the body gets as it turns (bind-space X/Z × the drawn height and girth): wide Meatball is framed by
+    // his width as well as his height (feel QA: the results card covered his body)
+    const bb = g.boundingBox;
+    const sc = this.hero.ch.inner.scale;
+    const reach = bb ? Math.max(Math.abs(bb.min.x), Math.abs(bb.max.x), Math.abs(bb.min.z), Math.abs(bb.max.z)) * Math.max(sc.x, sc.z) : 0;
+    this.halfWide = Math.max(1.85, reach);
     this.scene.add(this.hero.object);
     this.hero.ch.anim.respawn();
     this.hop = 0;
@@ -131,14 +141,22 @@ export class Lobby {
       // a footer under the hero (844x390 pick: the bots row and Play) gets its own band at the foot of the frame, so
       // it no longer covers the feet, leg warmers or cushion (the hero frames in the screen above it)
       const span = hero / (1 - this.foot);
-      const dist = Math.max(7.6, span / 2 / tanV);
+      let dist = Math.max(7.6, span / 2 / tanV);
       const cy = (top + bottom) / 2 + hero * 0.03 - (span - hero) / 2;
-      const halfW = tanV * dist * aspect;
-      // keep the hero and the pedestal (r 1.8 m) right of the UI column, inside the screen
-      const ped = 1.85 / halfW;
+      let halfW = tanV * dist * aspect;
+      // keep the hero and the pedestal (r 1.8 m) right of the UI column, inside the screen, and left of the results
+      // card: when the gap is too narrow for the widest body, the camera backs off until it fits
+      const right = this.cardEdge !== null ? this.cardEdge - 0.03 : 0.97;
+      const left = edge !== null ? edge + 0.03 : -0.97;
+      const room = right - left;
+      if (room > 0.2 && (2 * this.halfWide) / halfW > room) {
+        dist *= (2 * this.halfWide) / halfW / room;
+        halfW = tanV * dist * aspect;
+      }
+      const ped = this.halfWide / halfW;
       let ndc = this.side * 0.6;
       if (edge !== null) ndc = Math.max(ndc, edge + ped + 0.03);
-      ndc = Math.min(ndc, 0.97 - ped);
+      ndc = Math.min(ndc, right - ped);
       const off = ndc * halfW;
       this.camOff = off;
       this.camDist = dist;
@@ -166,6 +184,12 @@ export class Lobby {
       if (r.width > 0 && r.height > 0 && r.left > w * 0.45) this.foot = Math.min(0.35, Math.max(0, (h - r.top) / h));
     }
     this.edge = right > 0 ? (right / w) * 2 - 1 : null;
+    let card = Infinity;
+    for (const el of document.querySelectorAll<HTMLElement>('.tt-mvp')) {
+      const r = el.getBoundingClientRect();
+      if (r.width > 0 && r.height > 0 && r.left > w * 0.45) card = Math.min(card, r.left);
+    }
+    this.cardEdge = card < Infinity ? (card / w) * 2 - 1 : null;
     return this.edge;
   }
 

@@ -433,8 +433,8 @@ export interface ResultGrade {
   xp: number;
   /** Token Tails cards: `hero` (and `portrait`, `tier` for the player's own look) draw the MVP card. */
   mvp: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null };
-  /** A loss only: the best on the player's team. */
-  bestOnTeam?: { name: string; you: boolean } | null;
+  /** A loss only: the best on the player's team (its `hero` draws the results card in place of the enemy MVP). */
+  bestOnTeam?: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null } | null;
 }
 
 export interface ResultRow {
@@ -572,7 +572,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       </div>
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
-    ${o.grade?.mvp.hero ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
+    ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
     <div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
@@ -588,13 +588,15 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
   });
   parent.appendChild(root);
   // cards: the MVP card (its own chunk, ui/cards/mvp.ts) drops into its slot; it flips on '.in' like the rest
-  const mvp = o.grade?.mvp;
+  // on a defeat: the best on the player's team, with a calmer card (no sunburst rays for the side that lost)
+  const best = !o.won && o.grade?.bestOnTeam?.hero ? o.grade.bestOnTeam : null;
+  const mvp = best ?? o.grade?.mvp;
   if (mvp?.hero) {
     const mvpHero = mvp.hero;
     void import('./cards/mvp')
       .then((m) => {
         const slot = root.querySelector<HTMLElement>('[data-slot="mvp"]');
-        if (slot) slot.outerHTML = m.mvpCard({ hero: mvpHero, name: mvp.you ? 'You' : mvp.name, you: mvp.you, portrait: mvp.portrait, tier: mvp.tier ?? null, won: o.won });
+        if (slot) slot.outerHTML = m.mvpCard({ hero: mvpHero, name: mvp.you ? 'You' : mvp.name, you: mvp.you, portrait: mvp.portrait, tier: mvp.tier ?? null, won: o.won, ...(best ? { ribbon: 'TEAM BEST' } : {}) });
       })
       .catch(() => undefined);
   }
