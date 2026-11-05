@@ -23,6 +23,11 @@
  * - level gap at 6:00 (GAPS B0): the enemy heroes' average level minus the human's (as at 3:00 and 5:00).
  * - pings obeyed (GAPS B1): the share of slot 0's pings at least one ally bot took as an order (`ping` event `took`);
  *   null in a match without pings, and the aggregate shows "n/a" (and pings a match) when no match pinged.
+ * - progression (sim v12, docs/FUN-PROGRESSION-V12.md S6): when the lobby's leader first reached level 4, 7 and 10;
+ *   heroes at level 10 at the end; the human's and the lobby's mean level at each whole minute; when the median hero
+ *   bought Toy tiers 1 to 3; whether the top-Fish hero bought tier 4; Fish by source over every hero (`fish` events;
+ *   the rest of fishTotal is the passive trickle and comeback Fish); the team-average Toy gap at 6:00; the best
+ *   enemy's Fish minus the human's at 3:00. A `buy` counts as a big moment (sim v12).
  */
 
 const HERO = 1;
@@ -70,6 +75,17 @@ export function createFunTracker(sim, m) {
     nineLives: 0,
     followTicks: 0,
     followN: 0,
+    lead4: -1,
+    lead7: -1,
+    lead10: -1,
+    lvMin: [],
+    lobbyMin: [],
+    toyAt: [[], [], [], [], [], []],
+    fishSrc: {},
+    fishEvents: 0,
+    toyGap6: null,
+    fishGap3: null,
+    fishRatio3: null,
   };
   let prevTD = 0;
   const levelGap = () => {
@@ -143,7 +159,18 @@ export function createFunTracker(sim, m) {
         case 'buff':
           if (e.id === 0 && e.kind === 'nineLives') st.nineLives++;
           break;
+        case 'buy':
+          if (e.id < 6) st.toyAt[e.id][e.tier - 1] = t;
+          st.moments.push(t);
+          break;
+        case 'fish':
+          st.fishSrc[e.reason] = (st.fishSrc[e.reason] ?? 0) + e.amount;
+          st.fishEvents += e.amount;
+          break;
         case 'levelup':
+          if (e.level >= 4 && st.lead4 < 0) st.lead4 = t;
+          if (e.level >= 7 && st.lead7 < 0) st.lead7 = t;
+          if (e.level >= 10 && st.lead10 < 0) st.lead10 = t;
           if (e.id === 0) {
             if (e.level >= 2 && st.level2 < 0) st.level2 = t;
             if (e.level >= 4 && st.level4 < 0) {
@@ -188,6 +215,17 @@ export function createFunTracker(sim, m) {
     if (t === 180 * HZ) st.gap3 = levelGap();
     if (t === 300 * HZ) st.gap5 = levelGap();
     if (t === 360 * HZ) st.gap6 = levelGap();
+    if (t > 0 && t % (60 * HZ) === 0) {
+      st.lvMin.push(w.level[0]);
+      let sum = 0;
+      for (let h = 0; h < 6; h++) sum += w.level[h];
+      st.lobbyMin.push(sum / 6);
+    }
+    if (t === 360 * HZ && w.toy) st.toyGap6 = Math.abs(w.toy[0] + w.toy[1] + w.toy[2] - w.toy[3] - w.toy[4] - w.toy[5]) / 3;
+    if (t === 180 * HZ && w.fishTotal) {
+      st.fishGap3 = Math.max(w.fishTotal[3], w.fishTotal[4], w.fishTotal[5]) - w.fishTotal[0];
+      st.fishRatio3 = (w.fishTotal[3] + w.fishTotal[4] + w.fishTotal[5]) / 3 / Math.max(1, w.fishTotal[0]);
+    }
     if (t === 210 * HZ) st.score330 = st.takedowns[0] - st.takedowns[1] + 3 * (w.globals[4] - w.globals[5]);
   }
 
@@ -244,6 +282,29 @@ export function createFunTracker(sim, m) {
       comebacks: st.comebacks,
       nineLives: st.nineLives,
       followShare: st.followN ? st.followTicks / st.followN : 0,
+      lead4: sec(st.lead4),
+      lead7: sec(st.lead7),
+      lead10: sec(st.lead10),
+      level10Heroes: res.stats.filter((x) => x.level >= 10).length,
+      lvMin: st.lvMin,
+      lobbyMin: st.lobbyMin,
+      /** Per tier 1..3: the median of the six heroes' purchase times (null = Infinity: never). */
+      toyMedian: [0, 1, 2, 3].map((k) => {
+        const times = st.toyAt.map((a) => (a[k] === undefined ? Infinity : a[k] / HZf)).sort((a, b) => a - b);
+        return (times[2] + times[3]) / 2;
+      }),
+      topT4: (() => {
+        if (!w.fishTotal) return false;
+        let top = 0;
+        for (let h = 1; h < 6; h++) if (w.fishTotal[h] > w.fishTotal[top]) top = h;
+        return w.toy[top] >= 4;
+      })(),
+      fishSrc: st.fishSrc,
+      fishAll: w.fishTotal ? Array.from(w.fishTotal).reduce((a, b) => a + b, 0) : 0,
+      fishEvents: st.fishEvents,
+      toyGap6: st.toyGap6,
+      fishGap3: st.fishGap3,
+      fishRatio3: st.fishRatio3,
     };
   }
 
@@ -344,6 +405,33 @@ export function aggregateFun(funRows, sdTick) {
     earliestLoss: Math.min(Infinity, ...r.filter((x) => !x.won).map((x) => x.ticks / 30)),
     shortestMatch: Math.min(...r.map((x) => x.ticks / 30)),
     followShareMedian: 100 * median(r.map((x) => x.followShare)),
+    lead4Median: median(orInf(r.map((x) => x.lead4))),
+    lead7Median: median(orInf(r.map((x) => x.lead7))),
+    lead10Median: median(orInf(r.map((x) => x.lead10))),
+    level10Share: (100 * r.reduce((a, x) => a + (x.level10Heroes ?? 0), 0)) / (6 * n),
+    /** Median human level and mean lobby level at minute 1, 2, ... (only matches still running that minute). */
+    lvByMin: Array.from({ length: 11 }, (_, k) => median(r.map((x) => x.lvMin?.[k]).filter((v) => v !== undefined))),
+    lobbyByMin: Array.from({ length: 11 }, (_, k) => mean(r.map((x) => x.lobbyMin?.[k]).filter((v) => v !== undefined))),
+    toyMedians: [0, 1, 2, 3].map((k) => median(r.map((x) => (x.toyMedian ? x.toyMedian[k] : Infinity)))),
+    topT4Rate: (100 * r.filter((x) => x.topT4).length) / n,
+    fishBySource: (() => {
+      const all = r.reduce((a, x) => a + (x.fishAll ?? 0), 0) || 1;
+      const by = {};
+      for (const x of r) for (const [k, v] of Object.entries(x.fishSrc ?? {})) by[k] = (by[k] ?? 0) + v;
+      const ev = r.reduce((a, x) => a + (x.fishEvents ?? 0), 0);
+      const pctOf = (v) => (100 * v) / all;
+      return {
+        killsAssists: pctOf((by.kill ?? 0) + (by.assist ?? 0) + (by.firstBlood ?? 0) + (by.shutdown ?? 0)),
+        minions: pctOf((by.minion ?? 0) + (by.lastHit ?? 0)),
+        camp: pctOf(by.camp ?? 0),
+        objectives: pctOf((by.tower ?? 0) + (by.pudding ?? 0) + (by.pickup ?? 0)),
+        passive: pctOf(all - ev),
+      };
+    })(),
+    toyGap6Median: median(r.map((x) => x.toyGap6)),
+    toyGap6P95: pct(r.map((x) => x.toyGap6), 95),
+    fishGap3Median: median(r.map((x) => x.fishGap3)),
+    fishRatio3Median: median(r.map((x) => x.fishRatio3)),
   };
 }
 
@@ -400,7 +488,8 @@ export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
     // weakest of six and its own play is the gap: 30% to 48% (it was 20% to 40% with two Normal allies).
     add('Normal player vs Hard win 30% to 48%', between(a.winRate, 30, 48), `${f1(a.winRate)}%`);
     add('no safety end', a.safetyEnds === 0, `${a.safetyEnds} safety ends`);
-    add('length median 5:30 to 8:30', between(a.lengthMedian, 330, 510), mmss(a.lengthMedian));
+    // Sim v12: 5:30 to 9:00 (Sunset 6:45, Sudden Death 8:30; 8:30 before).
+    add('length median 5:30 to 9:00', between(a.lengthMedian, 330, 540), mmss(a.lengthMedian));
     add(`down ${DEFICIT}+ takedowns at the end wins < 5%`, a.deficitWonRate < 5, `${f1(a.deficitWonRate)}% of ${a.deficitMatches}`);
   } else if (gate === 'feeder') {
     add('feeder vs Rookie win ≥ 80%', a.winRate >= 80, `${f1(a.winRate)}%`);
@@ -411,8 +500,10 @@ export function funGates(gate, a, perHero, difficulty, catHeroes = []) {
     add('no match ends within 2:00 of the park (0:30)', a.shortestMatch >= 150, mmss(a.shortestMatch));
   } else if (gate === 'balance') {
     const side = 100 - a.winRate; // slot 0 is Purrhaven: winRate is the Purrhaven share
-    add('median 6:00 to 8:00', between(a.lengthMedian, 360, 480), mmss(a.lengthMedian));
-    add('p95 ≤ 8:30', a.lengthP95 <= 510, mmss(a.lengthP95));
+    // Sim v12 (docs/FUN-PROGRESSION-V12.md S3, S6): Normal's Sunset and Sudden Death moved 45 s later (6:45, 8:30), so the
+    // length band is 6:30 to 9:00 and p95 ≤ 10:30 (6:00 to 8:00 and 8:30 before).
+    add('median 6:30 to 9:00', between(a.lengthMedian, 390, 540), mmss(a.lengthMedian));
+    add('p95 ≤ 10:30', a.lengthP95 <= 630, mmss(a.lengthP95));
     add('no safety end', a.safetyEnds === 0, `${a.safetyEnds} safety ends`);
     add('≥ 70% core kill before Sudden Death', a.coreBeforeSD >= 70, `${f1(a.coreBeforeSD)}%`);
     add('side win rate 45% to 55%', between(a.winRate, 45, 55), `Purrhaven ${f1(a.winRate)}% / Woof ${f1(side)}%`);
@@ -457,5 +548,11 @@ export function formatFun(a) {
     `  behind at the end: ${BEHIND}–${DEFICIT - 1} takedowns won ${f1(a.behind5to9.wonRate)}% of ${a.behind5to9.matches}, ` +
       `${DEFICIT}+ won ${f1(a.behind10plus.wonRate)}% of ${a.behind10plus.matches}; human level gap at 6:00 ${f1(a.gap6Median)}; ` +
       `pings ${f1(a.pingsMean)} a match, obeyed ${a.pingsObeyed === null ? 'n/a (no pings)' : `${f1(a.pingsObeyed)}%`}`,
+    `  progression: leader L4 ${mmss(a.lead4Median)}, L7 ${mmss(a.lead7Median)}, L10 ${mmss(a.lead10Median)}; heroes at L10 ${f1(a.level10Share)}%; ` +
+      `human level by minute ${a.lvByMin.map((v) => (Number.isFinite(v) ? v : '-')).join(' ')}; lobby ${a.lobbyByMin.map((v) => (Number.isFinite(v) ? v.toFixed(1) : '-')).join(' ')}`,
+    `  toys: median hero T1 ${mmss(a.toyMedians[0])}, T2 ${mmss(a.toyMedians[1])}, T3 ${mmss(a.toyMedians[2])}, T4 ${mmss(a.toyMedians[3])}; top-Fish hero T4 ${f1(a.topT4Rate)}%; ` +
+      `tier gap at 6:00 median ${f1(a.toyGap6Median)} (p95 ${f1(a.toyGap6P95)}); Fish gap best enemy − human at 3:00 median ${f1(a.fishGap3Median)}, enemy mean ÷ human ${Number.isFinite(a.fishRatio3Median) ? a.fishRatio3Median.toFixed(2) : 'n/a'}`,
+    `  fish by source: kills+assists ${f1(a.fishBySource.killsAssists)}%, minions ${f1(a.fishBySource.minions)}%, camp ${f1(a.fishBySource.camp)}%, ` +
+      `objectives ${f1(a.fishBySource.objectives)}%, passive+comeback ${f1(a.fishBySource.passive)}%`,
   ].join('\n');
 }
