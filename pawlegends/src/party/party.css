@@ -9,7 +9,7 @@
   --pp-gap: clamp(8px, 1.6vw, 20px);
   position: fixed; inset: 0; z-index: 40; display: flex; flex-direction: column; align-items: center; justify-content: center;
   padding: max(12px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
-  background: radial-gradient(ellipse 120% 90% at 50% 0%, rgba(92, 46, 108, 0.97), rgba(22, 13, 32, 0.995) 70%); color: var(--pp-cream);
+  background: radial-gradient(ellipse 120% 90% at 50% 0%, #4f2760, #160d20 70%); color: var(--pp-cream);
   font-family: inherit; overflow: hidden; -webkit-tap-highlight-color: transparent; }
 .pl-party[hidden] { display: none; }
 .pl-party .pp-body { width: 100%; max-height: 100%; display: flex; justify-content: center; min-height: 0; }
@@ -22,6 +22,7 @@
 .pl-party .pp-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
 .pl-party .pp-code-col .pp-row { justify-content: flex-start; }
 .pl-party .pp-col { display: flex; flex-direction: column; gap: 10px; align-items: stretch; width: min(320px, 100%); }
+.pl-party .pp-col .pl-btn.small { align-self: center; }
 .pl-party .pp-err { margin: 0; color: #ffb3bf; font-size: 14px; }
 .pl-party .pp-dim { margin: 0; opacity: 0.75; }
 .pl-party .pp-hint, .pl-party .pp-note { margin: 0; font-size: 13px; line-height: 1.3; color: #ffe28a; }
@@ -82,6 +83,11 @@
 .pl-party .pp-wait { padding: 12px 0; text-align: center; }
 .pl-party .pp-sheet { position: fixed; inset: 0; z-index: 5; background: rgba(12, 8, 20, 0.96); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; }
 .pl-party .pp-sheet-qr { width: min(64vh, 72vw, 360px); }
+@media (max-height: 520px) {
+  /* phones in landscape: the QR left, the code and Close beside it */
+  .pl-party .pp-sheet { flex-direction: row; gap: 24px; }
+  .pl-party .pp-sheet-qr { width: min(82vh, 45vw, 320px); }
+}
 
 /* join by code */
 .pl-party .pp-boxes { display: flex; gap: 6px; align-items: center; justify-content: center; }
@@ -107,8 +113,8 @@
 .pl-party .pp-timer { font: 800 22px ui-monospace, Menlo, monospace; color: var(--pp-gold); min-width: 3ch; text-align: right; }
 .pl-party .pp-roster { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: auto; }
 .pl-party .pp-heroes { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-.pl-party .pp-heroes[data-dim] .hero-card { filter: grayscale(0.85) brightness(0.55); }
-.pl-party .pp-side-note { position: absolute; inset: 0; display: grid; place-items: center; font-weight: 800; font-size: 15px; pointer-events: none; text-shadow: 0 2px 6px #000; }
+.pl-party .pp-heroes .hero-card[data-side='off'] { filter: grayscale(0.85) brightness(0.5); }
+.pl-party .pp-side-note { margin: 0; padding: 3px 10px; border-radius: 999px; background: rgba(255, 243, 220, 0.1); font-weight: 700; font-size: 13px; white-space: nowrap; }
 .pl-party .pp-heroes .hero-card { min-height: 0; position: relative; }
 .pl-party .pp-heroes .hero-card[disabled] { cursor: default; }
 .pl-party .pp-heroes .hero-card[data-taken] { filter: grayscale(1) brightness(0.6); }
@@ -119,6 +125,36 @@
 .pl-party .pp-tricks { display: flex; gap: 6px; flex-wrap: wrap; }
 .pl-party .pp-trick { min-height: 40px; }
 .pl-party .pp-pick-foot .pl-btn.big { min-width: 180px; }
+
+/* the pick's hero cards: the pick screen's card look (ui/cards/cards.css), sized so two rows always fit */
+.pl-party .pp-heroes .hero-card.tt-card {
+  display: block; padding: 0; gap: 0; background: none; border: 0; border-radius: 7% / 5.4%; cursor: pointer; aspect-ratio: 17 / 21;
+  box-shadow: 0 0 0 2px var(--tt-border), 0 3px 8px rgba(0, 0, 0, 0.3); filter: saturate(0.82) brightness(0.92);
+}
+.pl-party .pp-heroes .hero-card.tt-card.on { filter: none; transform: translateY(-3px); box-shadow: 0 0 0 2px var(--pp-gold), 0 0 0 4px rgba(43, 29, 46, 0.6), 0 8px 20px rgba(0, 0, 0, 0.4); }
+.pl-party .pp-heroes .hero-card.tt-card .tt-pic { width: auto; height: 74%; border-radius: 0; box-shadow: none; }
+.pl-party .pp-heroes .hero-card.tt-card .tt-in > b { font-size: 14.5cqw; }
+.pl-party .pp-heroes .hero-card.tt-card .tt-in > small { font-size: 9.5cqw; }
+.pl-party .pp-heroes .hero-card.tt-card > .tt-ico { width: 19%; }
+@media (max-height: 820px) {
+  .pl-party .pp-heroes .hero-card.tt-card { aspect-ratio: 17 / 15; }
+  .pl-party .pp-heroes .hero-card.tt-card .tt-pic { height: 70%; }
+}
+@media (max-height: 520px) {
+  /* 844x390 and 667x375: a landscape card, name only (as the solo pick) */
+  .pl-party .pp-heroes .hero-card.tt-card { aspect-ratio: 17 / 12; }
+  .pl-party .pp-heroes .hero-card.tt-card .tt-pic { height: 74%; background-size: auto 118%, cover; }
+  .pl-party .pp-heroes .hero-card.tt-card .tt-in > b { font-size: 15cqw; }
+  .pl-party .pp-heroes .hero-card.tt-card .tt-in > small { display: none; }
+  .pl-party .pp-heroes .hero-card.tt-card .tt-in { padding-bottom: 2cqw; }
+  .pl-party .pp-heroes .hero-card.tt-card > .tt-ico { width: 15%; left: 7%; top: 9%; }
+  .pl-party .pp-heroes { gap: 5px; }
+}
+
+/* taken by another human, or the other side: greyed (after the card rules, which set their own filter) */
+.pl-party .pp-heroes .hero-card.tt-card[data-side='off'] { filter: grayscale(0.9) brightness(0.45); }
+.pl-party .pp-heroes .hero-card.tt-card[data-taken] { filter: grayscale(1) brightness(0.5); }
+.pl-party .pp-heroes .hero-card.tt-card[disabled]:hover { filter: grayscale(0.9) brightness(0.45); }
 
 /* loading */
 .pl-party .pp-lcs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; width: 100%; }

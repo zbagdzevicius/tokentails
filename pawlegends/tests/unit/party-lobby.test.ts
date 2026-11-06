@@ -153,8 +153,10 @@ describe('shared pick (P7)', () => {
     const v = pick();
     const el = mount(pickHtml({ view: v, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
     decoratePick(el, v);
-    expect(el.querySelector('.pp-heroes[data-side="dog"]')!.getAttribute('data-dim')).toBe('1');
-    expect(el.querySelector('.pp-side-note')!.textContent).toBe('Leader chose cats');
+    const brutus = el.querySelector('[data-testid="party-hero-brutus"]') as HTMLButtonElement;
+    expect(brutus.disabled).toBe(true);
+    expect(brutus.dataset.side).toBe('off');
+    expect(el.querySelector('[data-testid="party-side-note"]')!.textContent).toBe('Leader chose cats');
     expect(heroBlock(v, 'brutus')).toBe('Leader chose cats');
     expect(heroBlock({ ...v, you: 'a' }, 'brutus')).toBe('');
   });
