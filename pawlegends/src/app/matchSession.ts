@@ -534,7 +534,10 @@ export class MatchSession {
       // C2: a buffered cast that never found a free moment: the deny sound and the button's red flash only now
       onDeny: (slot: 0 | 1 | 2 | 3 | 4) => {
         if (this.touch?.isEnabled) this.touch.deny(slot);
-        else sfx.play('deny', { vol: 0.6 });
+        else {
+          sfx.play('deny', { vol: 0.6 });
+          this.hud?.deny(slot);
+        }
       },
     };
     this.orders = new Orders(env);
@@ -559,6 +562,8 @@ export class MatchSession {
       marker: (x, z, attack) => this.marker(x, z, attack),
       pingWheel: this.pingWheel,
       ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
+      // Audit CF-12: a refused desktop cast flashes its HUD slot red
+      onDeny: (slot) => this.hud?.deny(slot),
     };
     this.desktop = new DesktopInput(inputHost);
     this.touch = new TouchControls(inputHost, this.ui, this.desktop);

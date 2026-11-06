@@ -978,6 +978,16 @@ export class Hud {
     return lines;
   }
 
+  /** Audit CF-12: a refused cast flashes its slot red (desktop had the deny sound only). */
+  deny(index: number): void {
+    const s = this.slots[index];
+    if (!s) return;
+    s.root.classList.remove('deny');
+    void s.root.offsetWidth;
+    s.root.classList.add('deny');
+    setTimeout(() => s.root.classList.remove('deny'), 320);
+  }
+
   /** Flash a slot (cast feedback). */
   pulse(index: number): void {
     const s = this.slots[index];

@@ -427,11 +427,21 @@ export class TouchControls {
     if (!me) return;
     if (!g.dragging || this.aimBack(g)) {
       const p = this.tapAim(slot, me);
-      this.h.orders.cast(slot, p.x, p.y, p.id);
+      if (!this.h.orders.cast(slot, p.x, p.y, p.id)) this.refused(slot);
       return;
     }
     const t = this.dragTarget(g, slot, me);
-    if (t) this.h.orders.cast(slot, t.x, t.y, t.id);
+    if (!t || !this.h.orders.cast(slot, t.x, t.y, t.id)) this.refused(slot);
+  }
+
+  /**
+   * Audit CF-07: a cast the orders refused (a unit-target ult, Brutus R or Avietė R, with no enemy hero in reach)
+   * used to do nothing at all on touch: now the deny sound, the red flash and, for a unit aim, a short note.
+   */
+  private refused(slot: CastIndex): void {
+    this.deny(slot);
+    if (this.h.orders.aimSpec(slot).kind !== 'unit') return;
+    this.h.view.juice?.push({ ...bannerNote({ title: 'No hero in range', sub: 'Get closer to an enemy hero, then cast', tone: 'info', hold: 1.6 }), key: 'no-hero', cooldown: 4000 });
   }
 
   private facing(): number {
