@@ -163,6 +163,16 @@ export function chargeRing(e: Pick<ViewEntity, 'hero' | 'charged' | 'lockout' | 
 }
 
 /**
+ * Lane F (F6), pure: an enemy hero ahead of the player on Toys gets a small crown with a pip per Toy it owns. Returns
+ * the pips to draw (0 = none: an ally, a dead hero, or not ahead).
+ */
+export function fedPips(e: Pick<ViewEntity, 'kind' | 'team' | 'toy' | 'state'>, myTeam: number, myToy: number): number {
+  if (e.kind !== 'hero' || e.team === myTeam || e.team === 2 || e.state === 'dead') return 0;
+  const t = Math.max(0, e.toy ?? 0);
+  return t > myToy ? t : 0;
+}
+
+/**
  * Pure: Duchess's Disdain pips on a hero plate (sim v11, Utter Disdain): how many of the `max` crowns are lit, from the
  * snapshot's `stacks` (sent for both teams). 0 for a dead hero or one with no stacks; `max` is her Snub threshold.
  */
@@ -247,6 +257,8 @@ export class Overhead {
   guide: { x: number; y: number } | null = null;
   /** Sim v9: heroes facing a Bengas mid Striking Pose wind-up (render/telegraph.ts poseWatchers): a "!" eye over them. */
   watchers: ReadonlySet<number> = new Set();
+  /** Lane F (F6): the player's Toy tiers (enemies ahead of it get a crown with pips). */
+  myToy = 0;
 
   /** Round 1: the enemy fountain's no-entry ring (sim mm), drawn while the player is near it; null = hidden. */
   enemyFountain: { x: number; y: number; r: number } | null = null;
@@ -650,6 +662,42 @@ export class Overhead {
     g.closePath();
     g.stroke();
     g.fill();
+    g.restore();
+  }
+
+  /** Lane F (F6): a small crown in the danger colour with `pips` gold diamonds under it (Toys owned). */
+  private fedMark(g: CanvasRenderingContext2D, x: number, y: number, pips: number): void {
+    const s = 6 * this.scale;
+    g.save();
+    g.translate(x, y - 2 * this.scale);
+    g.fillStyle = '#ff7a59';
+    g.strokeStyle = '#2a1a22';
+    g.lineWidth = 1.5;
+    g.beginPath();
+    g.moveTo(-s, s * 0.5);
+    g.lineTo(-s, -s * 0.4);
+    g.lineTo(-s * 0.5, s * 0.05);
+    g.lineTo(0, -s * 0.7);
+    g.lineTo(s * 0.5, s * 0.05);
+    g.lineTo(s, -s * 0.4);
+    g.lineTo(s, s * 0.5);
+    g.closePath();
+    g.stroke();
+    g.fill();
+    const d = 1.8 * this.scale;
+    const gap = 4.4 * this.scale;
+    g.fillStyle = '#ffd34d';
+    for (let i = 0; i < pips; i++) {
+      const px = (i - (pips - 1) / 2) * gap;
+      const py = s * 0.5 + 4 * this.scale;
+      g.beginPath();
+      g.moveTo(px, py - d);
+      g.lineTo(px + d, py);
+      g.lineTo(px, py + d);
+      g.lineTo(px - d, py);
+      g.closePath();
+      g.fill();
+    }
     g.restore();
   }
 
@@ -1060,6 +1108,9 @@ export class Overhead {
     if (e.id === this.mySlot) this.selfChevron(g, sx, chevronY);
     // the bounty crown sits left of the name (round 1: it was drawn over it: "Sir▲tus")
     if (this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
+    // Lane F (F6): an enemy ahead of you on Toys: a red-gold crown with its Toy pips right of the name
+    const fed = fedPips(e, this.myTeam, this.myToy);
+    if (fed > 0) this.fedMark(g, sx + tw / 2 + (this.watchers.has(e.id) ? 28 : 14) * this.scale, ny, fed);
     if (p.chip) {
       // another hero's plate sits right above this one: say so (left of the level badge; status takes the right)
       const cx = bx - 16 * this.scale;

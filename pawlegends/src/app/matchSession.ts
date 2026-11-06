@@ -41,7 +41,12 @@ import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
 import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type TrickId } from '../sim/api';
-import { HERO_TEXT, slotNames, TRICK_TEXT } from '../ui/heroText';
+import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
+import { ProgressRail } from '../ui/progressRail';
+import { DIFFICULTY_RULES } from '../data/bots';
+import { FISH } from '../data/fish';
+import { ultHint } from '../render/effects';
+import { levelWhat } from '../ui/toyText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
 import { Minimap } from '../ui/minimap';
@@ -201,6 +206,8 @@ export interface MatchEnd {
   fun: MatchFun;
   /** Round 2: one line naming what decided the match ("Their minions broke our core in Sudden Death ..."). */
   cause?: string;
+  /** Lane F (F5): the player's Fish by `fish` event reason (the results' Fish-by-source bar). */
+  fishBy?: Record<string, number>;
 }
 
 export interface SessionHooks {
@@ -270,6 +277,14 @@ export class MatchSession {
   private objClock: ObjectiveClock | null = null;
   private announcer: Announcer | null = null;
   private readonly xpPops = new XpPops();
+  /** Lane F (F2, F3): the level-up and Toy lines on the rail (one item when they land within 2 s). */
+  private readonly progress = new ProgressRail();
+  /** Lane F (F5): the player's Fish by source from its own `fish` events (the trickle is the rest of SlotStats.fish). */
+  private readonly fishBy: Record<string, number> = {};
+  /** Lane F (F4): the newest kill-feed row of a takedown by our team (its killer's Fish lands in the same tick). */
+  private feedRow: { tick: number; killer: number; el: HTMLElement; fish: number } | null = null;
+  /** Lane F (F6): the underdog line shows once a match. */
+  private underdogSaid = false;
   private readonly music = new Music();
   private towersTaken = 0;
   private coreHitAt = -1e9;
@@ -346,6 +361,15 @@ export class MatchSession {
         }
         return !!this.setup.knowsUlt;
       },
+      levelNote: (lv, guided) => {
+        // Lane F (F3): "Level 4 — Ultimate unlocked!" (with how to cast it on desktop when no tip or chip guides it)
+        const touch = document.documentElement.dataset.touch === '1';
+        const what = levelWhat(lv, touch);
+        const ranks = touch ? [] : rankUpLines(this.welcome?.picks[this.view.mySlot] ?? 'clem', lv, this.lastTalents);
+        const sub = lv === 4 && !guided ? ultHint() : ranks.join(' · ') || undefined;
+        this.view.juice.push(this.progress.level({ level: lv, what, ...(sub ? { sub } : {}) }, this.frameNow?.latest.clock.tick ?? 0));
+        return true;
+      },
       onWindupAtMe: () => this.tips.trigger('dodge'),
       onTowerAim: (src, ticks) => {
         this.overhead.lockOn(src, this.view.mySlot, ticks / 30 / Math.max(1, this.buffer.speed));
@@ -376,7 +400,19 @@ export class MatchSession {
     this.overhead.minionAt = (id) => this.view.minions.drawnAt.get(id) ?? null;
     this.overhead.goldPlate = setup.frame === 'frame.legendary';
     // LoL pass (lane C), e2e only: the view, the overhead bars and the low-health vignette for the in-world checks
-    if (this.e2e) e2eHook('World', { view: this.view, overhead: this.overhead, lowHp: () => this.lowHp });
+    // lane F: `inject` runs one event through the client's event path (effects, feel, announcer), e2e only: the
+    // progression spec shows a Toy buy and a last-hit Fish pop without playing minutes of farm first
+    if (this.e2e)
+      e2eHook('World', {
+        view: this.view,
+        overhead: this.overhead,
+        lowHp: () => this.lowHp,
+        inject: (ev: SimEvent) => {
+          this.view.effects.handle(ev);
+          this.feelEvent(ev);
+          if (this.announcer) this.present(this.announcer.feed(ev));
+        },
+      });
     this.minimap = new Minimap(this.ui, {
       lookAt: (x, z) => this.view.lookAt(x, z),
       moveTo: (x, y) => this.orders?.move(x, y),
@@ -507,7 +543,7 @@ export class MatchSession {
     this.goals.names = { q: ht.abilities[0].name, r: ht.abilities[3].name };
     // sim v5 species teams: a hero twice in one team, the second one is "Sage 2" (one table for every label)
     this.names = selfNames(slotNames(w.picks, w.seed, w.slot), w.slot, myCard);
-    this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero');
+    this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero', (s) => w.picks[s]);
     // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
     this.announcer.down = (slot) => {
       const e = this.frameNow?.byId.get(slot);
@@ -687,11 +723,12 @@ export class MatchSession {
     const victimName = e.id === this.view.mySlot ? self : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A hero'));
     const killerLabel = e.killer === this.view.mySlot ? self : killer?.kind === 'hero' && this.names[e.killer] ? this.names[e.killer] : killerName(killer);
     // cards: heroes carry their face (an element-ringed portrait) into the kill feed
-    this.hud?.kill(
+    const row = this.hud?.kill(
       { name: killerLabel, rel: rel(killer?.team, e.killer), ...(killer?.kind === 'hero' && killer.hero ? { hero: killer.hero } : {}) },
       { name: victimName, rel: rel(victim.team, e.id), ...(victim.hero ? { hero: victim.hero } : {}) },
       good,
     );
+    if (row && good && e.killer >= 0 && e.killer < 6) this.feedRow = { tick: e.tick, killer: e.killer, el: row, fish: 0 };
   }
 
   private chromeOff: (() => void) | null = null;
@@ -1162,6 +1199,7 @@ export class MatchSession {
           activity: this.activity,
           deathsBy: { ...this.deathsBy },
           cause,
+          fishBy: { ...this.fishBy },
           fun: { ...this.funSummary(myStats?.heroDamage ?? 0), ...(myStats ? { takedowns: myStats.kills + myStats.assists } : {}) },
         });
       },
@@ -1306,6 +1344,22 @@ export class MatchSession {
         if (t - this.comebackAt < COMEBACK_GAP_MS / Math.max(1, this.buffer.speed) || !this.coach('comeback')) continue;
         this.comebackAt = t;
       }
+      // Lane F (F2): the player's Toy: the progression rail line (merged with a level-up within 2 s), the chip's burst
+      if (m.key === 'buy' && m.toy) {
+        j.push(this.progress.bought({ name: m.toy.name, head: m.toy.head, sub: m.toy.sub }, m.tick ?? this.frameNow?.latest.clock.tick ?? 0));
+        this.hud?.toyBurst();
+        j.flash('gold');
+        continue;
+      }
+      if (m.key === 'geared') {
+        j.push({ key: 'geared', title: m.title, tone: 'bad', prio: 3, cooldown: 20000 });
+        continue;
+      }
+      // Lane F (F4): the sim's shutdown Fish lands on the "Shut down!" item already on the rail (same key)
+      if (m.key === 'shutdownFish') {
+        j.push({ key: 'shutdown', title: m.title, tone: m.tone, prio: 2, big: true, icon: LOL_CREST });
+        continue;
+      }
       // LoL pass (lane B): a multikill, an Ace or a takedown makes a queued "An ally has been slain" moot
       if (m.key.startsWith('multi') || m.key === 'ace' || m.key === 'takedown' || m.key === 'allyTakedown') j.notify.drop('ally-slain');
       if (m.size === 'banner' && (m.big || m.face !== undefined)) {
@@ -1313,7 +1367,7 @@ export class MatchSession {
         const hero = m.face !== undefined ? this.welcome?.picks[m.face] : undefined;
         const face = hero ? portraitUrl(hero) : null;
         j.push({
-          ...(m.key === 'allySlain' ? { key: 'ally-slain' } : {}),
+          ...(m.key === 'allySlain' ? { key: 'ally-slain' } : m.key === 'shutdown' ? { key: 'shutdown' } : {}),
           title: m.title,
           ...(m.sub ? { sub: m.sub } : {}),
           tone: m.tone,
@@ -1673,6 +1727,8 @@ export class MatchSession {
       this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle ?? this.lcGateTitle());
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
       this.hud.stripUpdate(frame.byId, frame.tick, lock);
+      this.overhead.myToy = me?.toy ?? 0;
+      this.underdogLine(frame);
       this.overhead.targetLock = lock !== null && this.touch ? { id: lock, left: this.touch.lock.left(performance.now()) } : null;
       this.behindCall(frame.latest.score, this.welcome.team);
       const hero = this.welcome.picks[this.welcome.slot];
@@ -1684,6 +1740,22 @@ export class MatchSession {
   }
 
   private respawnShown = '';
+
+  /**
+   * Lane F (F6): once a match, a low-priority rail line when the player's team is 2+ Toy tiers behind after the
+   * difficulty's catch-up start (the sim then pays the team behind on Fish comeback Fish, +1 a second to its
+   * lowest-Fish hero: DifficultyRules.catchUpFrom, FISH.comebackPerSecond). Toys are the client's view of that gap.
+   */
+  private underdogLine(frame: ViewFrame): void {
+    if (this.underdogSaid || this.ended || !this.welcome) return;
+    if (frame.latest.clock.tick < DIFFICULTY_RULES[this.setup.difficulty].catchUpFrom) return;
+    const toys = [0, 0];
+    for (const e of frame.entities) if (e.kind === 'hero' && (e.team === 0 || e.team === 1)) toys[e.team] += e.toy ?? 0;
+    const ours = toys[this.welcome.team];
+    if (toys[1 - this.welcome.team] - ours < 2) return;
+    this.underdogSaid = true;
+    this.view.juice.push({ key: 'underdog', title: `Underdog Fish +${FISH.comebackPerSecond}/s`, sub: 'Behind on Toys: your team’s lowest earns extra Fish.', tone: 'info', prio: 4 });
+  }
 
   /**
    * C2, C3, C11c: the own hero's events for the input and the phone's haptics. A windup or cast confirms the cast
@@ -1703,9 +1775,17 @@ export class MatchSession {
         haptic('cast');
         return;
       case 'fish':
-        if (ev.id === me && ev.reason === 'lastHit') {
-          this.lastHitsSeen++;
-          haptic('lastHit');
+        if (ev.id === me) {
+          this.fishBy[ev.reason] = (this.fishBy[ev.reason] ?? 0) + ev.amount;
+          if (ev.reason === 'lastHit') {
+            this.lastHitsSeen++;
+            haptic('lastHit');
+          }
+        }
+        // F4: the killer's Fish (kill, First Blood, shutdown) shows on its kill-feed row
+        if ((ev.reason === 'kill' || ev.reason === 'firstBlood' || ev.reason === 'shutdown') && this.feedRow && this.feedRow.killer === ev.id && this.feedRow.tick === ev.tick) {
+          this.feedRow.fish += ev.amount;
+          this.hud?.feedFish(this.feedRow.el, this.feedRow.fish);
         }
         return;
       case 'buff':

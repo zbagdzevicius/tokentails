@@ -282,3 +282,58 @@ html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
   .pl-crest { transition: opacity 0.2s; transform: translate(-50%, -50%); }
   .pl-crest b { animation: none; background-position: 40% 0; }
 }
+
+/* ------------------------------------------------------------------ lane F (F1): the Fish chip, (F3) phone XP bar
+   The unspent Fish with a ring that fills toward the next Toy and a pip per Toy owned. Desktop: a tab on the ability
+   plate's top-right corner. Phones: under the portrait, left of the allied portraits (the strip moves right on the
+   compact layout to make room). The ring bursts gold when a Toy is bought (Hud.toyBurst). */
+.pl-hud .pl-fish {
+  position: absolute; display: flex; align-items: center; gap: 5px; padding: 3px 8px 3px 3px; border-radius: 14px; pointer-events: none; z-index: 3;
+  background: linear-gradient(180deg, rgba(17, 26, 44, 0.94), rgba(7, 11, 20, 0.94)); border: 1px solid var(--hx-gold-d);
+  box-shadow: inset 0 1px 0 rgba(200, 170, 110, 0.45), 0 3px 8px rgba(0, 0, 0, 0.4); color: #ffd34d;
+}
+html:not([data-touch='1']) .pl-hud .pl-fish { bottom: calc(100% + 6px); right: 10px; pointer-events: auto; }
+.pl-hud .pl-fish .ring {
+  position: relative; width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-items: center;
+  background: conic-gradient(#ffd34d calc(var(--p, 0) * 360deg), rgba(255, 211, 77, 0.16) 0);
+}
+.pl-hud .pl-fish .ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: #0b1220; }
+.pl-hud .pl-fish .ring svg { position: relative; width: 15px; height: 15px; }
+.pl-hud .pl-fish .col { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 22px; }
+.pl-hud .pl-fish .n { font: 800 13px/1 var(--font); color: #fff1c4; text-shadow: 0 1px 0 #000; font-variant-numeric: tabular-nums; }
+.pl-hud .pl-fish .pips { display: flex; gap: 2px; }
+.pl-hud .pl-fish .pips i { width: 5px; height: 5px; border-radius: 1px; background: rgba(255, 211, 77, 0.22); transform: rotate(45deg); }
+.pl-hud .pl-fish .pips i.on { background: #ffd34d; box-shadow: 0 0 4px rgba(255, 211, 77, 0.8); }
+.pl-hud .pl-fish.max .ring { background: #ffd34d; box-shadow: 0 0 8px rgba(255, 211, 77, 0.6); }
+.pl-hud .pl-fish.burst .ring { animation: lol-fish-burst 0.65s ease-out; }
+.pl-hud .pl-fish.burst { animation: lol-fish-pop 0.65s cubic-bezier(0.2, 1.6, 0.4, 1); }
+@keyframes lol-fish-burst {
+  0% { box-shadow: 0 0 0 0 rgba(255, 238, 170, 0.95); }
+  50% { box-shadow: 0 0 0 7px rgba(255, 211, 77, 0.55), 0 0 18px 6px rgba(255, 211, 77, 0.6); }
+  100% { box-shadow: 0 0 0 12px rgba(255, 211, 77, 0); }
+}
+@keyframes lol-fish-pop { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
+html[data-touch='1'] .pl-hud .pl-fish { left: 0; top: calc(100% + 5px); padding: 2px 6px 2px 2px; gap: 4px; }
+html[data-touch='1'] .pl-hud .pl-fish .ring { width: 22px; height: 22px; }
+html[data-touch='1'] .pl-hud .pl-fish .ring svg { width: 13px; height: 13px; }
+html[data-touch='1'] .pl-hud .pl-fish .n { font-size: 11px; }
+html[data-touch='1'] .pl-hud .pl-fish .pips i { width: 4px; height: 4px; }
+/* F3: phones show the thin XP bar under the health (it flashes gold on a level-up) instead of the portrait ring */
+html[data-touch='1'] .pl-hud .pl-portrait .xpring { display: none; }
+html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-gradient(90deg, #f0d58a, #fff1c4); box-shadow: 0 0 6px #f0d58a; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-hud .pl-fish { top: calc(100% + 4px); padding: 1px 5px 1px 1px; }
+  html[data-touch='1'] .pl-hud .pl-fish .ring { width: 20px; height: 20px; }
+  html[data-touch='1'] .pl-hud .pl-fish .ring svg { width: 12px; height: 12px; }
+  html[data-touch='1'] .pl-hud .pl-portrait .gap { top: calc(100% + 36px); }
+}
+@media (prefers-reduced-motion: reduce) { .pl-hud .pl-fish.burst, .pl-hud .pl-fish.burst .ring { animation: none; } }
+/* F4: a takedown's Fish at the end of its kill-feed row */
+.pl-hud .pl-feed-row .fish { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; padding: 1px 5px 1px 3px; border-radius: 8px; font: 800 11px/1 var(--font); font-style: normal; color: #ffd34d; background: rgba(255, 211, 77, 0.14); }
+.pl-hud .pl-feed-row .fish svg { width: 12px; height: 12px; }
+/* F2: Toy pips on the scoreboard (an enemy's buy lights one) */
+.pl-scoreboard .toy { white-space: nowrap; }
+.pl-scoreboard .toys { display: inline-flex; gap: 3px; vertical-align: middle; }
+.pl-scoreboard .tp { display: inline-block; width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1px; background: rgba(255, 211, 77, 0.2); font-style: normal; }
+.pl-scoreboard .tp.on { background: #ffd34d; box-shadow: 0 0 4px rgba(255, 211, 77, 0.7); }
+.pl-scoreboard .tp.unk { transform: none; width: auto; height: auto; background: none; opacity: 0.35; }

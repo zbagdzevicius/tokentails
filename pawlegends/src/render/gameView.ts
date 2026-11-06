@@ -63,6 +63,8 @@ export interface AimPreview {
 export interface GameViewHooks {
   onKill?(e: Extract<SimEvent, { type: 'death' }>, victim: Who | null, killer: Who | null): void;
   onLevel?(level: number): boolean | void;
+  /** Lane F (F3): the session's own level-up rail line (render/effects.ts EffectsHooks.levelNote). */
+  levelNote?(level: number, guided: boolean): boolean;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
   onTowerDown?(ours: boolean): void;
@@ -274,6 +276,7 @@ export class GameView {
         },
         onKill: hooks.onKill,
         onLevel: hooks.onLevel,
+        levelNote: hooks.levelNote,
         onTalentOffer: hooks.onTalentOffer,
         onWindupAtMe: hooks.onWindupAtMe,
         onTowerDown: hooks.onTowerDown,

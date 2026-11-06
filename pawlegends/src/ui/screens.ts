@@ -3,6 +3,7 @@
  * a dogs row; Paw Trick, difficulty) → match → results, plus the Esc menu and the portrait rotate prompt. DOM
  * overlays over the lobby turntable. English only.
  */
+import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
 import './deck/deckRow.css';
 import { accountState } from '../meta/profile';
@@ -469,6 +470,8 @@ export interface ResultsOpts {
   tryHero?: HeroId | null;
   /** pawlegends: the champion's display name this match (the worn cat's, "Ficus"); default the hero title. */
   heroName?: string | null;
+  /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
+  progress?: ProgressSummary | null;
   /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
   skin?: { name: string; art?: string; bond: number; next: number | null; rung?: CatTier; tint?: number } | null;
 }
@@ -602,6 +605,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         <div><b>${o.level}</b><small>Level</small></div>
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
+      ${o.progress && o.progress.rows.length ? progressBlock(o.progress) : ''}
       ${o.grade ? gradeBlock(o.grade, o.won) : ''}
       ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>${o.skin.rung ? cardFxPreview({ name: o.skin.name, rung: o.skin.rung, ...(o.skin.tint !== undefined ? { tint: o.skin.tint } : {}) }, 'card-fx pl-skin-fx') : ''}` : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}

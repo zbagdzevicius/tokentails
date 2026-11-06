@@ -25,9 +25,11 @@ import { heroElement } from './cards/el';
 import type { RespawnCard } from './cards/reveal';
 import type { CatTier } from '../meta/roster';
 import { getSkin } from '../render/skins/skinStore';
-import { notifyFor } from './notify';
 import { cdLabel } from './cdLabel';
 export { cdLabel } from './cdLabel';
+import { fishProgress, toyCumulative } from './toyText';
+import { FISH_GLYPH } from './progressRail';
+import { TOY_TIERS } from '../data/toys';
 // LoL pass (lane B): the hextech HUD chrome (ability frame, XP ring, score plate, kill feed, death wash, nap bar, crest)
 import './lol-hud.css';
 
@@ -84,6 +86,9 @@ interface SlotEl {
   /** LoL pass (lane B): the slot was cooling on the last update (its ready flash fires on the way back). */
   cooling: boolean;
 }
+
+/** Lane F (F3): how long R pulses after the ultimate unlocks or ranks up (ms). */
+export const ULT_PULSE_MS = 2000;
 
 /** GAPS B1: an enemy portrait held this long (touch) pings Focus hero. */
 export const PORTRAIT_HOLD_MS = 450;
@@ -237,6 +242,11 @@ export class Hud {
   cdFlashes = 0;
   /** `?quality=low`: the death wash is a flat overlay, not a CSS filter on the WebGL canvas. */
   lowQuality = false;
+  /** Lane F (F1): the Fish chip (unspent Fish, a ring to the next Toy, a pip per Toy owned). */
+  private fishEl: HTMLElement;
+  private fishNum: HTMLElement;
+  private fishShown = -1;
+  private toyShown = -1;
   /** Lobby spec §3b: the worn card's cat name ("Ficus"): the portrait card reads "Ficus · Clem", or null. */
   private selfName: string | null = null;
 
@@ -279,6 +289,8 @@ export class Hud {
           <div class="pl-hp"><i class="chunk"></i><i class="fill"></i><i class="shield"></i><span class="txt"></span></div>
           <div class="pl-res${hero === 'stilts' ? ' stride' : ''}" title="${hero === 'stilts' ? 'Stride' : 'XP to the next level'}"><i></i></div>
         </div>
+        <div class="pl-fish" data-fish="0" data-toy="0" title="Fish: last hits, takedowns and objectives pay it. Your Toys buy themselves as the ring fills."><i class="ring">${FISH_GLYPH}</i><span class="col"><b class="n">0</b><span class="pips">${'<i></i>'.repeat(TOY_TIERS)}</span></span></div>
+
       </div>
       <div class="lol-nap" aria-hidden="true"><i class="fill"></i><span></span></div>`;
     parent.appendChild(root);
@@ -302,6 +314,8 @@ export class Hud {
         if (e.pointerType !== 'touch') this.host.onSlot(Number(el.dataset.i));
       });
     }
+    this.fishEl = q('.pl-fish');
+    this.fishNum = q('.pl-fish .n');
     this.hpFill = q('.pl-hp .fill');
     this.hpChunk = q('.pl-hp .chunk');
     this.resFill = q('.pl-res > i');
@@ -561,6 +575,38 @@ export class Hud {
   }
 
   /**
+   * Lane F (F1): the Fish chip. `data-fish` is the unspent Fish, `data-toy` the tiers owned; the ring fills toward the
+   * next Toy's step cost (full and gold at the last tier), one pip lights per Toy.
+   */
+  private fishUpdate(me: EntitySnap): void {
+    const fish = Math.max(0, me.fish ?? 0);
+    const toy = Math.max(0, Math.min(TOY_TIERS, me.toy ?? 0));
+    if (fish === this.fishShown && toy === this.toyShown) return;
+    const el = this.fishEl;
+    if (toy !== this.toyShown) {
+      el.dataset.toy = String(toy);
+      el.querySelectorAll('.pips i').forEach((p, i) => p.classList.toggle('on', i < toy));
+      el.classList.toggle('max', toy >= TOY_TIERS);
+    }
+    this.fishShown = fish;
+    this.toyShown = toy;
+    const { frac, next } = fishProgress(fish, toy);
+    el.dataset.fish = String(fish);
+    el.style.setProperty('--p', frac.toFixed(3));
+    this.fishNum.textContent = String(fish);
+    el.title = toy >= TOY_TIERS ? `${fish} Fish · all ${TOY_TIERS} Toys owned` : `${fish} / ${next} Fish to Toy ${toy + 1} (${toyCumulative(toy + 1)} in all)`;
+  }
+
+  /** Lane F (F2): the chip's ring bursts when a Toy is bought. */
+  toyBurst(): void {
+    const el = this.fishEl;
+    el.classList.remove('burst');
+    void el.offsetWidth;
+    el.classList.add('burst');
+    setTimeout(() => el.classList.remove('burst'), 700);
+  }
+
+  /**
    * Sim v9, Avietė: the portrait ring. A spark ring while Charged (her next damage to a hero stuns), a grey ring with
    * the seconds left during the lockout (Shiny Coat then gives speed only), nothing otherwise.
    */
@@ -641,6 +687,7 @@ export class Hud {
       }
     }
     this.xpUpdate(me, enemyAvg);
+    this.fishUpdate(me);
     this.chargeUpdate(me);
     const cds = me.cooldowns;
     for (let i = 0; i < 5; i++) {
@@ -747,7 +794,7 @@ export class Hud {
    * A line in the kill feed. Both names carry their side's colour (self gold, allies teal, enemies red), and the
    * player's own hero reads "You", so two Clems on opposite sides cannot be confused.
    */
-  kill(killer: FeedName, victim: FeedName, good: boolean): void {
+  kill(killer: FeedName, victim: FeedName, good: boolean): HTMLElement {
     const el = document.createElement('div');
     // LoL pass (lane B): killer face → claw → victim face (greyed, a red X), on a dark row with the team's edge
     el.className = `pl-feed-row kill ${good ? 'good' : 'bad'}`;
@@ -780,6 +827,19 @@ export class Hud {
     while (this.feed.children.length > 4) this.feed.lastElementChild?.remove();
     setTimeout(() => el.classList.add('out'), 5000);
     setTimeout(() => el.remove(), 5600);
+    return el;
+  }
+
+  /** Lane F (F4): the Fish a takedown paid its killer, as a gold chip at the end of its kill-feed row. */
+  feedFish(row: HTMLElement, fish: number): void {
+    let chip = row.querySelector<HTMLElement>('.fish');
+    if (!chip) {
+      chip = document.createElement('em');
+      chip.className = 'fish';
+      row.appendChild(chip);
+    }
+    chip.innerHTML = `${FISH_GLYPH}+${fish}`;
+    row.dataset.fish = String(fish);
   }
 
   /** A neutral line in the kill feed ("Blaze cheered your takedown"; round 1: the squad mates get a moment). */
@@ -819,15 +879,16 @@ export class Hud {
       bar.classList.add('lvlup');
       setTimeout(() => bar.classList.remove('lvlup'), 1200);
     }
-    if (level === ultLevel) {
+    // Lane F (F3): R pulses for 2 s when the ultimate unlocks (level 4) or ranks up (7, 10)
+    if (level === ultLevel || (level > ultLevel && abilityRank(level, 3) > abilityRank(level - 1, 3))) {
       const r = this.slots[3]?.root;
       if (r) {
         r.classList.add('ult-ready');
-        setTimeout(() => r.classList.remove('ult-ready'), 3000);
+        setTimeout(() => r.classList.remove('ult-ready'), ULT_PULSE_MS);
       }
       try {
         document.documentElement.dataset.ultReady = '1';
-        setTimeout(() => delete document.documentElement.dataset.ultReady, 3000);
+        setTimeout(() => delete document.documentElement.dataset.ultReady, ULT_PULSE_MS);
       } catch {
         /* node */
       }
@@ -850,12 +911,9 @@ export class Hud {
       el.classList.add('rankup');
       setTimeout(() => el.classList.remove('rankup'), 1400);
     }
-    // LoL pass (lane B): phones say it on the top rail ("Volley rank 2"); desktop keeps the toast over the bar
-    const rail = typeof document !== 'undefined' && document.documentElement.dataset.touch === '1' ? notifyFor(this.root.parentElement) : null;
-    if (rail) {
-      for (const { line } of ranked) rail.push({ key: `rank:${line.split(':')[0]}`, title: line.split(':')[0], sub: line.split(':').slice(1).join(':').trim() || undefined, tone: 'gold', prio: 3 });
-      return lines;
-    }
+    // LoL pass (lane B): phones keep the bottom band clear: no toast over the bar. Lane F (F3): the level line on the
+    // rail says it ("Level 5 — Skills rank 3"), so phones push no extra rank lines; desktop keeps the toast
+    if (typeof document !== 'undefined' && document.documentElement.dataset.touch === '1') return lines;
     let t = this.rankToast;
     if (!t) {
       t = document.createElement('div');
