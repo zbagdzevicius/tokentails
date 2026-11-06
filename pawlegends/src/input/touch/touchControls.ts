@@ -11,6 +11,9 @@
  * GAPS A5: a tap on an enemy hero (on the field, or its portrait in the HUD strip) locks it for 5 s (assist.ts
  * TargetLock); while locked, Attack sends Attack{id} on it and smart casts aim at it when it is within their reach.
  * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
+ *
+ * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
+ * A pinch whose first finger was the joystick lets the stick go: both fingers zoom.
  */
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
@@ -26,6 +29,7 @@ import { attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, p
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
+import { pinchZoom, saveZoom, zoomMax } from '../../render/camera/zoom';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -132,6 +136,11 @@ export class TouchControls {
   private tap: { id: number; x: number; y: number; at: number } | null = null;
   /** Locks set (e2e telemetry). */
   locks = 0;
+  /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
+  private readonly canvasTouches = new Map<number, { x: number; y: number }>();
+  private pinch: { a: number; b: number; d0: number; z0: number } | null = null;
+  /** Pinches started (e2e telemetry). */
+  pinches = 0;
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
   setIcons(icons: Record<'q' | 'w' | 'e' | 'r' | 'trick', string>): void {
     for (const [k, svg] of Object.entries(icons)) {
@@ -224,6 +233,12 @@ export class TouchControls {
     if (!this.enabled) this.enable(true);
     this.h.onActivity('touch');
     sfx.unlock();
+    this.canvasTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (this.canvasTouches.size === 2 && !this.pinch) {
+      e.preventDefault();
+      this.startPinch();
+      return;
+    }
     if (!this.h.enabled()) return;
     // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
@@ -280,7 +295,33 @@ export class TouchControls {
     this.syncRing();
   }
 
+  /** Two canvas touches: a pinch. The joystick (if one of them) lets go; no tap fires. */
+  private startPinch(): void {
+    const [a, b] = [...this.canvasTouches.keys()];
+    const pa = this.canvasTouches.get(a)!;
+    const pb = this.canvasTouches.get(b)!;
+    this.pinch = { a, b, d0: Math.max(1, Math.hypot(pa.x - pb.x, pa.y - pb.y)), z0: this.h.view.zoomTarget };
+    this.pinches++;
+    this.tap = null;
+    if (this.stick && (this.stick.id === a || this.stick.id === b)) {
+      this.stick = null;
+      this.stickEl.classList.remove('on');
+    }
+  }
+
   private move(e: PointerEvent): void {
+    const ct = this.canvasTouches.get(e.pointerId);
+    if (ct) {
+      ct.x = e.clientX;
+      ct.y = e.clientY;
+      const p = this.pinch;
+      if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
+        const pa = this.canvasTouches.get(p.a);
+        const pb = this.canvasTouches.get(p.b);
+        if (pa && pb) this.h.view.zoomTarget = pinchZoom(p.z0, p.d0, Math.hypot(pa.x - pb.x, pa.y - pb.y), zoomMax(window.innerWidth));
+        return;
+      }
+    }
     if (this.stick && e.pointerId === this.stick.id) {
       this.stick.x = e.clientX;
       this.stick.y = e.clientY;
@@ -330,6 +371,15 @@ export class TouchControls {
   }
 
   private up(e: PointerEvent, cancelled = false): void {
+    if (this.canvasTouches.delete(e.pointerId)) {
+      const p = this.pinch;
+      if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
+        this.pinch = null;
+        saveZoom(this.h.view.zoomTarget);
+        if (this.tap?.id === e.pointerId) this.tap = null;
+        return;
+      }
+    }
     const tp = this.tap;
     if (tp && tp.id === e.pointerId) {
       this.tap = null;

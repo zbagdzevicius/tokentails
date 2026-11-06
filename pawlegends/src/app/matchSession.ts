@@ -230,6 +230,8 @@ export interface SessionHooks {
   /** Audit UX-03: `counted` = this leave is recorded as a forfeit loss (`leaveCounts`), with the match so far. */
   onLeave(counted?: { ticks: number; takedowns: number }): void;
   onMute(m: boolean): void;
+  /** Audit UX-09: open Settings over the paused match; `done` brings the pause menu back. */
+  onSettings?(done: () => void): void;
   onError(msg: string): void;
   onPaused?(p: boolean): void;
   /** Party play analytics (MULTIPLAYER.md §10, lane M8): flat props, never a party code or room id. */
@@ -1143,8 +1145,21 @@ export class MatchSession {
     this.menu = menuScreen(this.ui, {
       muted: this.muted,
       touch,
-      onScores: () => this.showScores(true),
+      // Audit UX-05: Scores hides the pause card (it drew over the scoreboard) and adds a Back to it
+      onScores: () => this.menuScores(),
+      ...(this.hooks.onSettings
+        ? {
+            onSettings: () => {
+              this.menu?.classList.add('under');
+              this.hooks.onSettings?.(() => this.menu?.classList.remove('under'));
+            },
+          }
+        : {}),
       onResume: () => this.resume(),
+      // the camera zoom slider: the view eases to it behind the menu
+      onZoom: (z) => {
+        this.view.zoomTarget = z;
+      },
       onMute: (m) => {
         this.muted = m;
         this.hooks.onMute(m);
@@ -1254,6 +1269,35 @@ export class MatchSession {
   private mpLive = false;
 
   /** Scoreboard by tap (pause menu or the score bar on touch); a tap on it closes it. */
+  /** Audit UX-05: the scoreboard from the pause menu: the menu hides under it, and Back (or Esc) brings it back. */
+  private menuScores(): void {
+    if (!this.menu) return;
+    this.menu.classList.add('under');
+    this.showScores(true);
+    const back = document.createElement('button');
+    back.className = 'pl-btn big pl-scores-back';
+    back.textContent = 'Back';
+    const done = (): void => {
+      back.remove();
+      document.removeEventListener('keydown', onKey, true);
+      this.showScores(false);
+      this.menu?.classList.remove('under');
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      e.preventDefault();
+      done();
+    };
+    back.addEventListener('click', done);
+    document.addEventListener('keydown', onKey, true);
+    this.ui.appendChild(back);
+    this.scoresBack = done;
+  }
+
+  /** Closes the pause menu's scoreboard (UX-05), if it is open. */
+  private scoresBack: (() => void) | null = null;
+
   private showScores(on: boolean): void {
     this.scoreOn = on;
     this.scoreboard?.root.classList.toggle('tap', on);
@@ -1261,6 +1305,8 @@ export class MatchSession {
   }
 
   resume(): void {
+    this.scoresBack?.();
+    this.scoresBack = null;
     if (this.scoreboard?.root.classList.contains('tap')) this.showScores(false);
     this.menu?.remove();
     this.menu = null;

@@ -1,5 +1,6 @@
 /**
- * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, screen shake (Wave C C3: Full / Low / Off), the desktop controls (cast on key release, the default, or quick cast,
+ * Settings (POC.md §3 ui/settings.ts): sound, graphics quality, screen shake (Wave C C3: Full / Low / Off), camera zoom
+ * (ui/zoomSlider.ts), the desktop controls (cast on key release, the default, or quick cast,
  * trackpad mode Auto / On / Off, cursor size Normal / Large; input/presets.ts keeps them), the touch controls (GAPS
  * A5: Target first Heroes / Lowest HP % / Closest, the optional last-hit and tower buttons), first-match tips and anonymous play stats (the
  * analytics consent, shared with tokentails.com). Plus the small consent prompt shown on the title from the second
@@ -26,6 +27,7 @@ import {
 import type { QualityTier } from '../render/quality';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
 import { hideNames, setHideNames } from '../meta/partyPrefs';
+import { bindZoomRow, zoomRowHtml } from './zoomSlider';
 
 export interface SettingsState {
   muted: boolean;
@@ -89,6 +91,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       <div class="set-row"><span>Screen shake</span><span class="chips">${(['full', 'low', 'off'] as const)
         .map((m) => `<button class="chip ${ctl.shake === m ? 'on' : ''}" data-shake="${m}">${SHAKE_NAME[m]}</button>`)
         .join('')}</span></div>
+      ${zoomRowHtml()}
       ${showControls ? `<div class="set-row"><span>Ability keys</span><span class="chips">${(['hold', 'quick'] as const)
         .map((m) => `<button class="chip ${ctl.cast === m ? 'on' : ''}" data-cast="${m}">${CAST_NAME[m]}</button>`)
         .join('')}</span></div>
@@ -113,6 +116,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       <button class="pl-btn big" data-a="close">Done</button></div>`;
   };
   render();
+  bindZoomRow(root);
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;

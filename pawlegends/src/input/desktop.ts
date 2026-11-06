@@ -4,7 +4,7 @@
  * shape at the cursor and the basic attack range ring; release casts at the cursor, LMB while holding casts too, RMB
  * or Esc cancels, another skill key switches the aim, out of range walks in, then casts. Settings "Quick cast" casts at
  * the cursor on the press instead (a brief indicator flash). An armed A shows the attack range ring too. B Nap, 1/2
- * talent pick, Space centres the camera, wheel zooms, Tab scoreboard, Esc menu; edge pan and arrow keys move the
+ * talent pick, Space centres the camera, wheel and +/− zoom, Tab scoreboard, Esc menu; edge pan and arrow keys move the
  * camera. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
  * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
  * moves and attacks too. GAPS B1: hold G for the ping wheel at the cursor (point at a slice, release G to send it);
@@ -18,7 +18,7 @@ import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
 import { cursorCss, cursorKind, type CursorKind } from './cursor';
 import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
-import { saveZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
+import { saveZoom, stepZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
 
@@ -268,9 +268,16 @@ export class DesktopInput {
       return;
     }
     if (!a) return;
-    if (a === 'scoreboard' || a === 'centre' || a === 'menu') e.preventDefault();
+    if (a === 'scoreboard' || a === 'centre' || a === 'menu' || a === 'zoomIn' || a === 'zoomOut') e.preventDefault();
     this.h.onActivity('key');
     sfx.unlock();
+    // +/− zoom like a wheel notch; a held key repeats
+    if (a === 'zoomIn' || a === 'zoomOut') {
+      const v = this.h.view;
+      v.zoomTarget = stepZoom(v.zoomTarget, a === 'zoomOut' ? 1 : -1, zoomMax(window.innerWidth));
+      saveZoom(v.zoomTarget);
+      return;
+    }
     if (e.repeat) return;
     if (a === 'menu') {
       if (this.aiming || this.attackArmed) {
