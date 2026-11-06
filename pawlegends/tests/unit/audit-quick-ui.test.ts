@@ -10,6 +10,7 @@ import { CAT_NAMES, DOG_NAMES } from '../../src/ui/heroText';
 import { collectionPanel } from '../../src/ui/collection';
 import { settingsPanel } from '../../src/ui/settings';
 import { freshTreats } from '../../src/meta/treats';
+import { bareAllies, FIGHT_PX, statusGlyph } from '../../src/ui/overhead';
 import type { SlotStats } from '../../src/sim/api';
 
 const row = (rel: string, k: number, a: number, heroDmg: number): ResultRow => ({ name: rel, rel, k, d: 0, a, heroDmg, towerDmg: 0 });
@@ -118,5 +119,21 @@ describe('UX-10 Treat Track and Settings exits', () => {
     const root = settingsPanel(document.body, { state: { muted: false, tier: 'med', tipsOn: true, stats: null }, onMute: () => undefined, onTier: () => undefined, onTips: () => undefined, onStats: () => undefined, onClose: () => closed++ });
     (root.querySelector('.card > .pl-x') as HTMLElement).click();
     expect(closed).toBe(1);
+  });
+});
+
+describe('GFX-04 phone overhead declutter', () => {
+  const h = (id: number, team: number, sx: number, sy: number) => ({ id, team, sx, sy });
+  it('allied bots next to an enemy hero go bar-only; the player, friends and quiet allies keep their plates', () => {
+    const heroes = [h(0, 0, 400, 200), h(1, 0, 420, 210), h(2, 0, 700, 100), h(3, 1, 440, 190), h(4, 0, 430, 220)];
+    const bare = bareAllies(heroes, 0, 0, new Set([4]));
+    expect([...bare]).toEqual([1]);
+    // an enemy just past the fight box leaves the ally alone
+    expect(bareAllies([h(0, 0, 0, 0), h(1, 0, 100, 100), h(3, 1, 100 + FIGHT_PX.x + 1, 100)], 0, 0).size).toBe(0);
+  });
+  it('status words become one-glyph icons', () => {
+    expect(statusGlyph('Rooted')).toBe('R');
+    expect(statusGlyph('Napping')).toBe('z');
+    expect(statusGlyph('Unknown')).toBe('U');
   });
 });
