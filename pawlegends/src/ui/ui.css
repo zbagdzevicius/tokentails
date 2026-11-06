@@ -681,6 +681,16 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 /* GAPS A1: the Treat Track chest screen and the profile shelf */
 .pl-collection .card { text-align: left; max-width: 640px; max-height: calc(100dvh - 32px); overflow-y: auto; }
 .pl-collection h2 { text-align: center; }
+/* Audit UX-10: Treat Track and Settings keep their exits on screen: a sticky corner ✕ and a sticky Done */
+.pl-settings .card { max-height: calc(100dvh - 24px); overflow-y: auto; }
+.pl-collection .card > .pl-x, .pl-settings .card > .pl-x {
+  position: sticky; top: -8px; align-self: flex-end; margin: -10px -12px -36px 0; z-index: 2; width: 44px; height: 44px; flex: none; border-radius: 50%;
+  border: 1px solid var(--line); background: rgba(30, 19, 35, 0.92); color: var(--cream); font-size: 18px; cursor: pointer;
+}
+.pl-collection .card > .pl-x:hover, .pl-settings .card > .pl-x:hover { background: rgba(60, 38, 68, 0.95); }
+.pl-collection .card > .pl-btn.big[data-a='close'], .pl-settings .card > .pl-btn.big[data-a='close'] {
+  position: sticky; bottom: -14px; z-index: 2; align-self: center; box-shadow: 0 -10px 18px 6px var(--panel), 0 4px 0 #b8456a;
+}
 .pl-collection h3 { margin: 6px 0 0; font-size: 15px; }
 .pl-collection .next-chest { margin: 0; }
 .pl-collection .next-chest small { color: var(--butter); margin-left: 6px; }
