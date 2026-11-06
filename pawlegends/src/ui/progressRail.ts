@@ -1,7 +1,7 @@
 /**
  * Lane F (docs/FUN-PROGRESSION-V12.md F2, F3): the own hero's progression lines on the top rail. A level-up says what
  * it brings ("Level 4 — Ultimate unlocked!"), a Toy says what it adds ("Yarn Ball II — +8% damage"), and a buy and a
- * level-up within MERGE_TICKS of each other share one rail item ("Level 5 · Yarn Ball II") instead of two lines in a
+ * level-up within MERGE_TICKS of each other share one rail item ("Yarn Ball II +8% damage · Lv 5") instead of two lines in a
  * row. Every line uses one rail key, so a later one refreshes the item on screen. Pure: match ticks in, notes out.
  */
 import type { Note } from './notifyQueue';
@@ -60,8 +60,9 @@ export class ProgressRail {
     let title: string;
     let sub: string | undefined;
     if (l && b) {
-      title = `Level ${l.level} · ${b.name}`;
-      sub = [l.what, b.head].filter(Boolean).join(' · ');
+      // fun pass (playtest #9): the phone shows only the title, so the merged line keeps the Toy's stat in it
+      title = b.head ? `${b.name} ${b.head} · Lv ${l.level}` : `${b.name} · Lv ${l.level}`;
+      sub = l.what || undefined;
     } else if (l) {
       title = l.what ? `Level ${l.level} — ${l.what}` : `Level ${l.level}`;
       sub = l.sub;
@@ -77,7 +78,9 @@ export class ProgressRail {
       title,
       ...(sub ? { sub } : {}),
       tone: 'gold',
-      prio: 3,
+      // fun pass (playtest #9): a Toy is the player's big moment (prio 2: it no longer waits behind "Takedown!" and the
+      // objective line while the chip already burst); a level-up alone stays personal (prio 3)
+      prio: b ? 2 : 3,
       // a busy rail (an announcer line, a tip) holds it back; it waits up to PROGRESS_STALE_MS instead of the prio-3 2 s
       stale: PROGRESS_STALE_MS,
       tag: 'level',

@@ -29,7 +29,7 @@ import { TierFx, type SkinFxMode } from './skins/tierFx';
 import { CardVfx, tinted } from './skins/cardFx';
 import { CompanionView } from './views/companionView';
 import { AUTO_TARGET_HOLD, CHEVRON_LIFE, chevronSize, chevronTexture, MOVE_RING_LIFE, TARGET_MARK_LIFE, targetMarkAlpha } from './fx/orderMarks';
-import { boldRingTexture, crosshairTexture, DecalLayer, ringTexture } from './views/decals';
+import { boldRingTexture, crosshairTexture, dashRingTexture, DecalLayer, ringTexture } from './views/decals';
 import { HeroView } from './views/heroView';
 import { HERO_RING } from './views/models';
 import { createMapView, type MapView } from './views/mapView';
@@ -429,6 +429,8 @@ export class GameView {
       this.meshFx.pools.ground.mesh.visible = this.meshFx.pools.vertical.mesh.visible = this.meshFx.pools.dome.mesh.visible = true;
       this.linger.mesh.visible = this.ribbons.mesh.visible = true;
       gr.renderer.compile(this.scene, gr.camera);
+      // fun pass: the Toy rings' dashed texture uploads now, not on the first Toy mid-match (a ~1 s SwiftShader stall)
+      gr.renderer.initTexture(dashRingTexture());
     } catch {
       /* a headless or lost context: they compile on first use */
     }

@@ -98,7 +98,7 @@ describe('announcer', () => {
     const a = new Announcer(0, 0, name);
     expect(a.feed({ type: 'bounty', tick: 1, id: 4, value: 120 })[0]?.title).toBe('Bounty on Sage!');
     expect(a.bounty(4)).toBe(120);
-    expect(a.feed({ type: 'comeback', tick: 2, team: 0 })[0]?.title).toBe('COMEBACK!');
+    expect(a.feed({ type: 'comeback', tick: 2, team: 0 })[0]?.title).toBe('Our waves get stronger');
     expect(a.feed({ type: 'comeback', tick: 3, team: 1 })[0]?.tone).toBe('bad');
     expect(a.feed({ type: 'pickupSpawn', tick: 4, index: 0, kind: 'frenzy', x: 50000, y: 40000 })[0]?.title).toBe('Frenzy Catnip spawned!');
     expect(a.feed({ type: 'pickupSpawn', tick: 4, index: 1, kind: 'snack', x: 30000, y: 40000 })).toEqual([]);

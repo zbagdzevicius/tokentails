@@ -1315,6 +1315,13 @@ html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }
 .pl-results .pl-prog .lg span { background: none; }
 @media (max-height: 480px) {
   .pl-results .pl-prog { font-size: 11px; margin-top: 6px; }
-  .pl-results .pl-prog td.nm { max-width: 108px; }
+  .pl-results .pl-prog td.nm { max-width: 96px; }
   .pl-results .pl-prog .tc { min-width: 24px; font-size: 9px; line-height: 12px; }
+  .pl-results .pl-prog th, .pl-results .pl-prog td { padding: 1px 3px; }
 }
+/* fun pass (playtest #12): a header row per team */
+.pl-results .pl-prog tr.grp th { padding-top: 5px; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.pl-results .pl-prog tr.grp.ours th { color: #9fe0ff; }
+.pl-results .pl-prog tr.grp.enemy th { color: #ffb3bd; }
+/* the "Your Fish" legend clears the results column's bottom fade */
+.pl-results .pl-prog .src { margin-bottom: 14px; }

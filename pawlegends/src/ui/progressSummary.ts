@@ -113,11 +113,17 @@ export function progressBlock(p: ProgressSummary): string {
     return h;
   };
   const medal = (m: Medal | undefined): string => (m ? `<em class="md ${m}" data-medal="${m}" title="${MEDAL_TEXT[m]}">${m === 'mvp' ? 'MVP' : ''}</em>` : '');
+  // fun pass (playtest #12): the two teams are split by a header row, and a "Bolt the Cacklejaw" name shows as "Bolt"
+  // (the full name on hover), so the last-hit column fits at 844 × 390
+  let side = '';
   const rows = p.rows
-    .map(
-      (r) =>
-        `<tr class="${r.rel}" data-slot="${r.slot}" data-toys="${r.toys}"><td class="nm">${medal(r.medal)}<span>${esc(r.name)}</span></td><td>${r.level}</td><td class="tys">${chips(r)}</td><td class="f">${r.fish}</td><td>${r.lastHits}</td></tr>`,
-    )
+    .map((r) => {
+      const team = r.rel === 'enemy' ? 'enemy' : 'ours';
+      const head = team !== side ? `<tr class="grp ${team}"><th colspan="5">${team === 'ours' ? 'Your team' : 'Enemy team'}</th></tr>` : '';
+      side = team;
+      const short = r.name.split(' the ')[0] || r.name;
+      return `${head}<tr class="${r.rel}" data-slot="${r.slot}" data-toys="${r.toys}"><td class="nm" title="${esc(r.name)}">${medal(r.medal)}<span>${esc(short)}</span></td><td>${r.level}</td><td class="tys">${chips(r)}</td><td class="f">${r.fish}</td><td>${r.lastHits}</td></tr>`;
+    })
     .join('');
   const total = p.sources.reduce((a, s) => a + s.amount, 0);
   const bar = total

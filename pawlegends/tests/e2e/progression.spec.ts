@@ -72,16 +72,28 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   await page.setViewportSize({ width: sizes[0].w, height: sizes[0].h });
   await page.waitForTimeout(300);
 
-  // F1: a last-hit Fish event pops a gold "+7" within 300 ms (render path; the sim's last-hit Fish has its own tests)
+  // F1: a last-hit Fish event pops a gold "+7" within 300 ms (render path; the sim's last-hit Fish has its own tests).
+  // Fish pops within 300 ms merge (DAMAGE_FX.fishMerge), and at speed 8 the player's own last hits and assists pop
+  // often (more since the fun pass's bigger last-hit Fish): wait for a moment with no Fish pop on screen first, or the
+  // "+7" merges into a real one and is never shown as "+7" alone.
+  await page
+    .waitForFunction(() => ![...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].some((e) => Number(getComputedStyle(e).opacity) > 0.05), null, { timeout: 15_000, polling: 'raf' })
+    .catch(() => {});
   const popMs = await page.evaluate(
     () =>
       new Promise<number>((resolve) => {
         const w = (window as unknown as { __plWorld: W }).__plWorld;
         const tick = w.view.frame?.latest.clock.tick ?? 0;
+        const num = (e: HTMLElement): number => Number((e.textContent ?? '').replace(/[^0-9]/g, '')) || 0;
+        // a real pop in the same 300 ms merges with the "+7" (it then reads "+7" plus that pop): a new Fish pop, or one
+        // that grew by 7 or more, is the injected Fish shown
+        const before = new Map([...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].map((e) => [e, num(e)] as const));
         const t0 = performance.now();
         w.inject({ type: 'fish', tick, id: w.view.mySlot, amount: 7, reason: 'lastHit' });
         const look = (): void => {
-          const el = [...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].find((e) => e.textContent === '+7' && Number(getComputedStyle(e).opacity) > 0.1);
+          const el = [...document.querySelectorAll<HTMLElement>('.fx-dmg.fish')].find(
+            (e) => Number(getComputedStyle(e).opacity) > 0.1 && (before.has(e) ? num(e) >= before.get(e)! + 7 : e.textContent === '+7'),
+          );
           if (el) resolve(performance.now() - t0);
           else if (performance.now() - t0 > 2000) resolve(9999);
           else requestAnimationFrame(look);
@@ -98,11 +110,12 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   });
   await expect(page.locator('.pl-fish.burst')).toHaveCount(1);
   // it may wait behind a busier line (an announcer banner, a tip): the rail's said list records it once shown
-  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^Level \d+ · (Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I$/.test(t)), { timeout: 20_000 }).toBe(true);
+  await expect.poll(async () => (await said(page)).some((t) => /^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I — \+\d+|^(Chew Rope|Red Dot|Comfy Bed|Feather|Yarn Ball|Bell Collar) I \+\d+.* · Lv \d+$/.test(t)), { timeout: 20_000 }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-toy.png` });
 
-  // F3: the level-up line says what is new; level 4 unlocks the ultimate (the XP trickle gets the player there)
-  await expect.poll(async () => (await said(page)).some((t) => /^Level 4 — Ultimate unlocked!|^Level 4 · /.test(t)), { timeout: 150_000 }).toBe(true);
+  // F3: the level-up line says what is new; level 4 unlocks the ultimate (the XP trickle gets the player there). When the
+  // ult tip or goal chip guides it, that line ("Level 4! ...") is the only one (fun pass, playtest #5)
+  await expect.poll(async () => (await said(page)).some((t) => /^Level 4 — Ultimate unlocked!| · Lv 4$|^Level 4! /.test(t)), { timeout: 150_000 }).toBe(true);
   await page.screenshot({ path: `${SHOTS}/${sizes[0].w}x${sizes[0].h}-level.png` });
   for (const t of await said(page)) expect(t, 'rail text').not.toMatch(/treat/i);
 });
@@ -117,7 +130,9 @@ test('results: the progression summary (Toy timings, Fish, last hits, medals, Fi
   await page.waitForSelector('.pl-results.actions-in', { timeout: 20_000 });
   const prog = page.locator('.pl-results .pl-prog');
   await expect(prog).toHaveCount(1);
-  await expect(prog.locator('tbody tr')).toHaveCount(6);
+  await expect(prog.locator('tbody tr[data-slot]')).toHaveCount(6);
+  // fun pass (playtest #12): a header row per team
+  await expect(prog.locator('tbody tr.grp')).toHaveCount(2);
   await expect(prog.locator('tr.self')).toHaveCount(1);
   await expect(prog.locator('[data-medal="mvp"]')).toHaveCount(1);
   await expect(prog.locator('[data-medal]')).toHaveCount(4);

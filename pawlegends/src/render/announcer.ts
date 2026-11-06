@@ -476,8 +476,10 @@ export class Announcer {
       case 'comeback':
         // no rank: the rubber-band waves are not the player's best moment (it showed on 4-15 losses)
         return e.team === this.myTeam
-          ? [{ key: 'comeback', title: 'COMEBACK!', sub: 'Our next waves hit harder.', tone: 'gold', size: 'banner', crowd: 'roar', shake: 0.25 }]
-          : [{ key: 'comebackThem', title: 'They are rallying', sub: 'Their next waves hit harder. Hold the line.', tone: 'bad', size: 'banner' }];
+          ? // Fun pass (playtest #8): "COMEBACK!" read as a promise while the team was down 4-13; the phone title says
+            // what happens (phones drop the sub)
+            [{ key: 'comeback', title: 'Our waves get stronger', sub: 'We are behind on towers: our next 2 waves hit harder.', tone: 'gold', size: 'banner' }]
+          : [{ key: 'comebackThem', title: 'Their waves get stronger', sub: 'Their next 2 waves hit harder. Hold the line.', tone: 'bad', size: 'banner' }];
       case 'pickupSpawn':
         // the first spawn of a match is a banner; later ones only ping the minimap (24 of 68 banners were Frenzy)
         if (e.kind !== 'frenzy') return [];

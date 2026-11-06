@@ -1107,9 +1107,12 @@ export class Overhead {
     }
     if (e.id === this.mySlot) this.selfChevron(g, sx, chevronY);
     // the bounty crown sits left of the name (round 1: it was drawn over it: "Sir▲tus")
-    if (this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
+    // fun pass (playtest #13): a phone plate pushed up by the declutter (a 3v1) drops its crowns: three stacked crowned
+    // plates over the fight were unreadable; the bottom plate keeps them
+    const quiet = this.phone && p.stacked > 0;
+    if (!quiet && this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
     // Lane F (F6): an enemy ahead of you on Toys: a red-gold crown with its Toy pips right of the name
-    const fed = fedPips(e, this.myTeam, this.myToy);
+    const fed = quiet ? 0 : fedPips(e, this.myTeam, this.myToy);
     if (fed > 0) this.fedMark(g, sx + tw / 2 + (this.watchers.has(e.id) ? 28 : 14) * this.scale, ny, fed);
     if (p.chip) {
       // another hero's plate sits right above this one: say so (left of the level badge; status takes the right)

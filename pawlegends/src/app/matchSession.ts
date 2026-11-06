@@ -363,6 +363,8 @@ export class MatchSession {
       },
       levelNote: (lv, guided) => {
         // Lane F (F3): "Level 4 — Ultimate unlocked!" (with how to cast it on desktop when no tip or chip guides it)
+        // Fun pass (playtest #5): a tip or goal chip that guides the ult already says "Level 4!": no second line
+        if (lv === 4 && guided) return true;
         const touch = document.documentElement.dataset.touch === '1';
         const what = levelWhat(lv, touch);
         const ranks = touch ? [] : rankUpLines(this.welcome?.picks[this.view.mySlot] ?? 'clem', lv, this.lastTalents);
@@ -1342,6 +1344,8 @@ export class MatchSession {
       if (m.key === 'comeback' || m.key === 'comebackThem') {
         const t = performance.now();
         if (t - this.comebackAt < COMEBACK_GAP_MS / Math.max(1, this.buffer.speed) || !this.coach('comeback')) continue;
+        // Fun pass (playtest #8): no "our waves get stronger" while our core is falling (it fired in the same second)
+        if (m.key === 'comeback' && this.welcome && this.coreLow[this.welcome.team]) continue;
         this.comebackAt = t;
       }
       // Lane F (F2): the player's Toy: the progression rail line (merged with a level-up within 2 s), the chip's burst
@@ -1374,7 +1378,8 @@ export class MatchSession {
           prio: 2,
           ...(m.big ? { big: true } : {}),
           ...(face ? { icon: face } : m.big ? { icon: LOL_CREST } : {}),
-          ...(m.key === 'ace' ? { tag: 'multi', drops: ['takedown'] } : {}),
+          // fun pass (playtest #5): a shutdown is the takedown's own bigger line, so a waiting "Takedown!" goes
+          ...(m.key === 'ace' || m.key === 'shutdown' ? { tag: 'multi', drops: ['takedown'] } : {}),
         });
       } else if (m.size === 'banner') j.banner({ title: m.title, sub: m.sub, tone: m.tone });
       else if (m.size === 'callout') j.callout(m.title, m.tone);
@@ -1654,7 +1659,11 @@ export class MatchSession {
       this.helpTick(frame);
       this.hudRectsTick();
       this.overhead.guide = this.laneArrow ?? (this.goals.enabled ? this.goalTarget(frame) : this.guideTarget(frame));
+      // fun pass (playtest #13): on a phone, no "+XP" pop over a hero fight (the XP bar still fills; the fight's damage
+      // numbers and combo need the room). XP from that fight is not shown later either.
+      const quietXp = document.documentElement.dataset.touch === '1' && this.inFight();
       for (const n of this.xpPops.flush(frame.tick)) {
+        if (quietXp) continue;
         const at = this.heroScreen();
         if (at) this.view.juice.popXp(n, at.x + (Math.random() - 0.5) * 40, at.y - 24);
       }
@@ -1754,7 +1763,7 @@ export class MatchSession {
     const ours = toys[this.welcome.team];
     if (toys[1 - this.welcome.team] - ours < 2) return;
     this.underdogSaid = true;
-    this.view.juice.push({ key: 'underdog', title: `Underdog Fish +${FISH.comebackPerSecond}/s`, sub: 'Behind on Toys: your team’s lowest earns extra Fish.', tone: 'info', prio: 4 });
+    this.view.juice.push({ key: 'underdog', title: `Behind on Toys: +${FISH.comebackPerSecond} Fish/s`, sub: 'Your team’s lowest-Fish hero earns extra Fish until you catch up.', tone: 'info', prio: 4 });
   }
 
   /**
