@@ -286,8 +286,13 @@ Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive. Sim v11 (2026-10
 |---|---|---|---|---|---|
 | **Sir Brutus** | Tank | SAND | *Honour* shield; ult *Champion's Challenge* duel ring | **P1** | PPK pug, `BeastHead` |
 | **Cacklejaw** | Assassin | DARK | *Pack Flank* bonus from behind; ult *Pack Hunt* | **P1** | PPK `hyenaStates` |
-| Lord Barkus Grimjaw | Fighter | FIRE | Cleaver hits shred armour | P2 | PPK boss art |
-| Pilfer | Support (thief) | WIND | Steals buffs | P2 | PPK stealer |
+| **Nugget** (corgi) | Support | FAIRY | *Treat Pouch* heals; *Sploot*; ult *Herding Time* herds cats into one spot | **sim v13** | new, `DOGS-V13.md` §1.1 |
+| **Marshmallow** (Samoyed puppy) | Mage | ICE | Snow zones; ult *SNOW DAY!* freezes cats still inside | **sim v13** | new, §1.2 |
+| **Bravo** (black pug) | Tank | STELLAR | *Dramatic Flop* plays dead; ult *ENCORE!* charm | **sim v13** | new, §1.3 |
+| **Chili** (chihuahua) | Marksman | ELECTRIC | *Small Dog Syndrome* Rage; ult *BIG DOG ENERGY* | **sim v13** | new, §1.4 |
+| **Howler** (husky) | Fighter | WIND | *Zoomie Brain*; *Talk Back*; ult *THE SCREAM* | **sim v13** | new, §1.5 |
+| Lord Barkus Grimjaw | Fighter | FIRE | Cleaver hits shred armour | next dog wave (v14) | PPK boss art |
+| Pilfer | Support (thief) | WIND | Steals buffs | next dog wave (v14) | PPK stealer |
 | Frostbark (Husky) | Mage | ICE | Slows stack into a freeze | P2 | Quaternius Husky |
 | Kibo (Shiba) | Marksman | WIND | Attack speed while moving. Never "Doge" (CLAIMS R9) | P2 | Quaternius ShibaInu |
 | Waddles | Support | WATER | Pug shieldbearer; bubble shield | P3 | PPK |

@@ -242,11 +242,12 @@ npm run vendor-sim           # re-vendor the sim into backend/src/vendor/pawlege
 
 Shelter champions (sim v9): the four champions' catalog ids live in three places. Change all of them together:
 the game (`pawlegends/src/data/heroes/shelter.ts`), the backend (`backend/src/pawlegends/pawlegends-champions.ts`)
-and the host, which reads them from `GET /pawlegends/champions`. The hero ids themselves (12 since sim v11, in
+and the host, which reads them from `GET /pawlegends/champions`. The hero ids themselves (17 since sim v13, in
 `HERO_IDS` order, append only) are mirrored in `client/components/pawlegends/bridge.ts` (`PAWLEGENDS_HEROES`), in
 the vendored facade (`PawlegendsHeroId` in `pawlegends/tools/vendor-sim.mjs`, written by `npm run vendor-sim`) and
 in the tool lists (`tools/headless-match.mjs`, `tools/grade-calibrate.mjs`, `tools/lib/fuzz-entry.ts`,
-`tools/anim/capture.mjs`). The sim v11 original cats are not champions and have no catalog id.
+`tools/anim/capture.mjs`). The sim v11 original cats and the sim v13 original dogs are not champions and have no
+catalog id.
 
 The spec is `docs/plans/moba/POC.md`. The client serves the build at `/pawlegends-game/` and hosts it in
 `pages/pawlegends/index.tsx` (GAMES.md, "Pawlegends"). Rebuild `client/public/pawlegends-game` after any

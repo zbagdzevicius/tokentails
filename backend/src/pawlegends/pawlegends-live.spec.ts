@@ -85,7 +85,7 @@ function setup(...accepted: PawlegendsReplayRecord[]) {
 }
 
 /** A fixture `npm run vendor-sim` recorded into backend/src/vendor/pawlegends-sim/v<version>/. */
-const fixture = (version: number, name: 'rookie' | 'champion' | 'forfeit'): PawlegendsReplayRecord =>
+const fixture = (version: number, name: 'rookie' | 'champion' | 'forfeit' | 'dog'): PawlegendsReplayRecord =>
     JSON.parse(
         readFileSync(
             join(__dirname, '..', 'vendor', 'pawlegends-sim', `v${version}`, `${name}-replay.fixture.json`),
@@ -532,6 +532,24 @@ describe('PAWLEGENDS /live branch', () => {
             expect(verifyBySimVersion(v12)).toMatchObject({ ok: true, finalHash: v12.finalHash, ticks: v12.ticks });
             expect(verifyBySimVersion({ ...v12, simVersion: 11 }).ok).toBe(false);
             expect(verifyBySimVersion({ ...v11, simVersion: 12 }).ok).toBe(false);
+        }, 60_000);
+
+        it('sim v13: a v13 replay labelled v12 (or v12 labelled v13) does not verify; the v12 dog-human replay still does', () => {
+            // The v12 Rookie fixture is played as Sir Brutus: a dog human on the frozen v12 bundle.
+            const v12 = fixture(12, 'rookie');
+            const v13 = fixture(13, 'rookie');
+            expect(v12.hero).toBe('brutus');
+            expect(verifyBySimVersion(v12)).toMatchObject({ ok: true, finalHash: v12.finalHash, ticks: v12.ticks });
+            expect(verifyBySimVersion(v13)).toMatchObject({ ok: true, finalHash: v13.finalHash, ticks: v13.ticks });
+            expect(verifyBySimVersion({ ...v13, simVersion: 12 }).ok).toBe(false);
+            expect(verifyBySimVersion({ ...v12, simVersion: 13 }).ok).toBe(false);
+        }, 60_000);
+
+        it('sim v13: a replay played as a new dog (Chili) verifies; the same record labelled v12 is refused (v12 has no Chili)', () => {
+            const dog = fixture(13, 'dog');
+            expect(dog).toMatchObject({ hero: 'chili', simVersion: 13, difficulty: 'easy' });
+            expect(verifyBySimVersion(dog)).toMatchObject({ ok: true, finalHash: dog.finalHash, ticks: dog.ticks });
+            expect(verifyBySimVersion({ ...dog, simVersion: 12 }).ok).toBe(false);
         }, 60_000);
 
         it('sim v13 (party play): the live v13 replay verifies; only v13 carries party code (v12 shipped without it)', () => {

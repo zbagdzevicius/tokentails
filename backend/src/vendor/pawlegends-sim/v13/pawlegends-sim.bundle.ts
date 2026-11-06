@@ -455,10 +455,13 @@ var BOT_AI = Object.freeze({
 	chiliBrawlRange: 6e3,
 	chiliFinishHpBp: 5e3,
 	chiliZoomRange: 2500,
+<<<<<<< HEAD
 	/** Sim v13 QA: Chili also hides when a foe has him targeted below this (his E went unused in 38% of Easy slots);
 	*  Nugget also herds one foe below nuggetHerdFinishHpBp toward an ally (his R was cast half as often as others'). */
 	chiliFocusHpBp: 6e3,
 	nuggetHerdFinishHpBp: 4500,
+=======
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 	howlerScreamReach: 5e3,
 	howlerTalkRange: 3e3,
 	howlerTalkHpBp: 6e3,
@@ -10573,6 +10576,7 @@ function structureShot(w, id, dst) {
 * sees it); `snapshot(team)` and every targeting check read only that, so bots and auto-attacks can never act on a
 * unit the team's snapshot leaves out. Adding the MVP fog grid changes `hiddenFrom` only.
 */
+<<<<<<< HEAD
 /** Hero indices (HERO_IDS) whose kit arrays mean something else; kept local so brush.ts imports no hero kit. */
 var PIXEL_SUB = 9;
 var BRAVO_SUB = 14;
@@ -10586,6 +10590,8 @@ function kitShield(w, id) {
 	const sub = w.sub[id];
 	return sub === BRUTUS_SUB || sub === PIXEL_SUB ? w.kHonour[id] : 0;
 }
+=======
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 /** Bush index at (x, y): 0..n−1 Purrhaven side, n..2n−1 the mirrored Woof side; −1 outside. */
 function bushAt(x, y) {
 	for (let side = 0; side < 2; side++) for (let k = 0; k < BUSHES.length; k++) {
@@ -10652,9 +10658,15 @@ function refreshFlags(w) {
 			if (w.fmKind[id] === FM.Knock) b |= Buff.Stunned;
 			let shield = w.shield[id];
 			if (id < RANGE.minions) {
+<<<<<<< HEAD
 				shield += kitShield(w, id);
 				if (w.napT[id] > 0 || w.castPhase[id] === 2 && w.castT[id] > 0) b |= Buff.Channeling;
 				if (w.kWT[id] > 0 && w.sub[id] !== BRAVO_SUB && w.sub[id] !== CHILI_SUB) b |= Buff.Blocking;
+=======
+				shield += w.kHonour[id];
+				if (w.napT[id] > 0 || w.castPhase[id] === 2 && w.castT[id] > 0) b |= Buff.Channeling;
+				if (w.kWT[id] > 0) b |= Buff.Blocking;
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 				if (w.zoomT[id] > 0) b |= Buff.Zoomies;
 				if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
 				if (w.nineT[id] > 0) b |= Buff.NineLives;
@@ -12186,11 +12198,17 @@ function fight$4(w, id, foe, p, rng) {
 	const fy = w.y[foe];
 	const hx = w.x[id];
 	const hy = w.y[id];
+<<<<<<< HEAD
 	if (canCast(w, id, 3)) {
 		const n = foesNear(w, id, hx, hy, a.r.radius);
 		const ally = nearestAlly(w, id, BOT_AI.awareRange);
 		const finish = n >= 1 && ally >= 0 && d <= a.r.radius && hpBp(w, foe) < BOT_AI.nuggetHerdFinishHpBp;
 		if (n >= BOT_AI.nuggetHerdFoes || finish) return ally >= 0 ? cast(3, w.x[ally], w.y[ally], 255) : cast(3, hx, hy, 255);
+=======
+	if (canCast(w, id, 3) && foesNear(w, id, hx, hy, a.r.radius) >= BOT_AI.nuggetHerdFoes) {
+		const ally = nearestAlly(w, id, BOT_AI.awareRange);
+		return ally >= 0 ? cast(3, w.x[ally], w.y[ally], 255) : cast(3, hx, hy, 255);
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 	}
 	if (canCast(w, id, 1)) {
 		const ally = hurtAlly(w, id, a.w.range, BOT_AI.careHpBp);
@@ -12356,10 +12374,14 @@ function fight$1(w, id, foe, p, rng) {
 	const d = distTo(w, id, foe);
 	const fx = w.x[foe];
 	const fy = w.y[foe];
+<<<<<<< HEAD
 	if (canCast(w, id, 2) && d <= BOT_AI.chiliClose) {
 		const hp = hpBp(w, id);
 		if (hp < BOT_AI.chiliPurseHpBp || hp < BOT_AI.chiliFocusHpBp && w.target[foe] === id) return cast(2, w.x[id], w.y[id], 255);
 	}
+=======
+	if (canCast(w, id, 2) && hpBp(w, id) < BOT_AI.chiliPurseHpBp && d <= BOT_AI.chiliClose) return cast(2, w.x[id], w.y[id], 255);
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 	if (canCast(w, id, 3)) {
 		const brawl = w.kValor[id] >= BOT_AI.chiliBigRage && foesNear(w, id, w.x[id], w.y[id], BOT_AI.chiliBrawlRange) >= 2;
 		const finish = hpBp(w, foe) < BOT_AI.chiliFinishHpBp && d <= attackRange(w, id) + RANGE_PAD;
@@ -12713,6 +12735,7 @@ function nearestFoe(w, id, r) {
 	}
 	return best;
 }
+<<<<<<< HEAD
 /**
 * Sim v13: is a living enemy unit that is not a hero (minion, structure, camp rat, pudding) aiming at `id` from within
 * `r`? Napping there is pointless: the next hit breaks the nap, and a bot with a survival passive (Bravo) could nap,
@@ -12725,6 +12748,8 @@ function underFire(w, id, r) {
 	}
 	return false;
 }
+=======
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 /** Escape while retreating from enemy hero `foe`: a mobility ability toward home, then a defensive Paw Trick. */
 function escapeCast(w, id, foe, p) {
 	const team = w.team[id];
@@ -13256,7 +13281,11 @@ function retreat(w, id, mem, p) {
 	const team = w.team[id];
 	const hx = fountainX(team);
 	const hy = fountainY();
+<<<<<<< HEAD
 	if (dist2(w.x[id], w.y[id], hx, hy) > BOT_AI.napMinDist * BOT_AI.napMinDist && nearestFoe(w, id, BOT_AI.napSafeRange) < 0 && !underFire(w, id, BOT_AI.napSafeRange)) {
+=======
+	if (dist2(w.x[id], w.y[id], hx, hy) > BOT_AI.napMinDist * BOT_AI.napMinDist && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 		mem.op[id] = Op.Nap;
 		return { op: Op.Nap };
 	}
@@ -13340,7 +13369,11 @@ function defend(w, id, mem, s, p, rng) {
 		}
 		return (p.waveClear ? clearCast(w, id, best) : null) ?? attack(w, id, mem, best);
 	}
+<<<<<<< HEAD
 	if (dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.napMinDist * BOT_AI.napMinDist && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0 && !underFire(w, id, BOT_AI.napSafeRange)) {
+=======
+	if (dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.napMinDist * BOT_AI.napMinDist && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+>>>>>>> 5892bcdac (feat(pawlegends): vendor sim v13 into the backend (v12 frozen), docs)
 		mem.op[id] = Op.Nap;
 		return { op: Op.Nap };
 	}
