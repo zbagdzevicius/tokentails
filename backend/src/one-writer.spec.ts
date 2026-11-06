@@ -72,6 +72,8 @@ describe('one writer for game scores', () => {
                     'user/user.controller.ts: gameRepository.create',
                     'badcat/badcat-live.ts: games.create',
                     'pawlegends/pawlegends-live.ts: games.create',
+                    // Party play (MULTIPLAYER.md §6): the v:2 branch of the same PAWLEGENDS /live save.
+                    'pawlegends/pawlegends-party-live.ts: games.create',
                     'user/heist/heist-live.ts: games.create',
                     'user/heist/heist-live.ts: games.delete',
                     'user/guest/guest-lifecycle.ts: games.updateMany',
@@ -100,6 +102,10 @@ describe('one writer for game scores', () => {
                 ({ file }) => file
             );
             expect(pawlegendsCallers.sort()).toEqual(['pawlegends/pawlegends-live.ts', 'user/user.controller.ts']);
+            // And its party branch (MULTIPLAYER.md §6): only the /live handler calls it; the relay never does.
+            expect(methodBody(controller, 'Tcatbassadors')).toContain('savePawlegendsPartyMatch(');
+            const partyCallers = FILES.filter(({ text }) => /\bsavePawlegendsPartyMatch\(/.test(text)).map(({ file }) => file);
+            expect(partyCallers.sort()).toEqual(['pawlegends/pawlegends-party-live.ts', 'user/user.controller.ts']);
             expect(controller).toMatch(/@Post\('catbassadors\/live'\)\s*async Tcatbassadors\(/);
         });
 
@@ -117,6 +123,7 @@ describe('one writer for game scores', () => {
                     'impact/impact.service.ts', // reads: active30d
                     'badcat/badcat-live.ts', // /live, Bad Cat branch: $set
                     'pawlegends/pawlegends-live.ts', // /live, Pawlegends branch: $set
+                    'pawlegends/pawlegends-party-live.ts', // /live, Pawlegends party branch: $set
                     'user/guest/guest-lifecycle.ts', // merge: $max of the guest's existing value
                     'user/heist/heist-live.ts', // /live, Heist branch: $set
                     'user/user.controller.ts', // /live, plain branch: $set

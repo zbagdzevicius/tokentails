@@ -12,6 +12,7 @@ import {
     RawBodyRequest,
     Req,
     Res,
+    ServiceUnavailableException,
     UseGuards,
 } from '@nestjs/common';
 import { SkipThrottle } from '@nestjs/throttler';
@@ -36,6 +37,8 @@ import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { accountIdOf } from './pawlegends-account-id';
 import { PawlegendsStripeService } from './pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends-webhook.service';
+import { PartyTicketService } from './party/party-ticket.service';
+import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
 
 /*
  * Pawlegends store routes (POC.md §8.3). Every route is always on; a route whose secret is missing answers 503 and
@@ -62,6 +65,8 @@ export const PAWLEGENDS_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     champions: { limit: 60, ttl: MINUTE },
     notify: { limit: 3, ttl: 10 * MINUTE },
     notifyConfirm: { limit: 10, ttl: MINUTE },
+    // Party play (MULTIPLAYER.md §5.2): 30 tickets per 10 minutes per client IP.
+    partyTicket: { limit: 30, ttl: 10 * MINUTE },
 };
 
 @Controller('pawlegends')
@@ -75,8 +80,33 @@ export class PawlegendsController {
         private readonly ipThrottler: ClientIpThrottlerGuard,
         // Sim v9 champions: the catalog cats and the direct-purchase check (both already providers in AppModule).
         @Optional() private readonly cats?: CatRepository,
-        @Optional() @Inject(PAWLEGENDS_CAT_SALE) private readonly catSale?: PawlegendsCatSale
+        @Optional() @Inject(PAWLEGENDS_CAT_SALE) private readonly catSale?: PawlegendsCatSale,
+        // Party play tickets (MULTIPLAYER.md §5.2).
+        @Optional() private readonly partyTickets?: PartyTicketService
     ) {}
+
+    /**
+     * Party play ticket (MULTIPLAYER.md §5.2): a 60 s single-use HMAC token naming the caller (a registered account or
+     * a guest) for the relay's `hello`. 503 PAWLEGENDS_PARTY_TICKET_UNAVAILABLE without PAWLEGENDS_PARTY_TICKET_SECRET
+     * (rooms are then unscored; nothing else is disabled).
+     */
+    @UseGuards(AppAuthGuard)
+    @AllowGuest()
+    @HttpCode(200)
+    @Post('party/ticket')
+    async partyTicket(@Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.throttle('partyTicket', req, res);
+        const id = req?.user?._id ?? req?.user?.id;
+        if (!this.partyTickets || !id) {
+            throw new ServiceUnavailableException({
+                statusCode: 503,
+                code: 'PAWLEGENDS_PARTY_TICKET_UNAVAILABLE',
+                message: 'Party tickets are not configured',
+            });
+        }
+        const guest = !!req.user.isGuest;
+        return this.partyTickets.issue({ accountId: String(id), guest });
+    }
 
     private async throttle(name: keyof typeof PAWLEGENDS_THROTTLES, req: any, res?: any): Promise<void> {
         await this.ipThrottler.consume(`PawlegendsController.${name}`, req, PAWLEGENDS_THROTTLES[name], res);
