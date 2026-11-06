@@ -4,9 +4,12 @@
  * UX-08 Home on results, UX-12 hero portraits in the results table and no bot called "Tank".
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { joinedFights, resultLine, resultsScreen, rewardStrip, type ResultRow, type ResultsOpts } from '../../src/ui/screens';
+import { joinedFights, menuScreen, resultLine, resultsScreen, rewardStrip, type ResultRow, type ResultsOpts } from '../../src/ui/screens';
 import { progressBlock, progressRows } from '../../src/ui/progressSummary';
 import { CAT_NAMES, DOG_NAMES } from '../../src/ui/heroText';
+import { collectionPanel } from '../../src/ui/collection';
+import { settingsPanel } from '../../src/ui/settings';
+import { freshTreats } from '../../src/meta/treats';
 import type { SlotStats } from '../../src/sim/api';
 
 const row = (rel: string, k: number, a: number, heroDmg: number): ResultRow => ({ name: rel, rel, k, d: 0, a, heroDmg, towerDmg: 0 });
@@ -77,5 +80,43 @@ describe('UX-12 results table names the hero', () => {
 
   it('no bot is called "Tank" (it read as a role)', () => {
     expect([...CAT_NAMES, ...DOG_NAMES]).not.toContain('Tank');
+  });
+});
+
+describe('UX-09 Settings in the pause menu', () => {
+  it('the pause menu offers Settings when the match can open it', () => {
+    const calls: string[] = [];
+    const root = menuScreen(document.body, { muted: false, onResume: () => undefined, onMute: () => undefined, onLeave: () => undefined, onSettings: () => calls.push('settings') });
+    (root.querySelector('[data-a="settings"]') as HTMLElement).click();
+    expect(calls).toEqual(['settings']);
+    const none = menuScreen(document.body, { muted: false, onResume: () => undefined, onMute: () => undefined, onLeave: () => undefined });
+    expect(none.querySelector('[data-a="settings"]')).toBeNull();
+  });
+});
+
+describe('UX-10 Treat Track and Settings exits', () => {
+  const track = (onClose: () => void) =>
+    collectionPanel(document.body, { treats: freshTreats(), owned: new Set(), art: {}, portrait: () => null, wornTitle: null, wornFrame: null, onTarget: () => undefined, onWear: () => undefined, onClose });
+
+  it('the Treat Track has a corner ✕ and closes on Esc', () => {
+    let n = 0;
+    const a = track(() => n++);
+    expect(a.querySelector('.card > .pl-x')).not.toBeNull();
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(n).toBe(1);
+    expect(a.isConnected).toBe(false);
+    const b = track(() => n++);
+    (b.querySelector('.pl-x') as HTMLElement).click();
+    expect(n).toBe(2);
+    // a later Esc does nothing more
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    expect(n).toBe(2);
+  });
+
+  it('Settings has a corner ✕ that closes it', () => {
+    let closed = 0;
+    const root = settingsPanel(document.body, { state: { muted: false, tier: 'med', tipsOn: true, stats: null }, onMute: () => undefined, onTier: () => undefined, onTips: () => undefined, onStats: () => undefined, onClose: () => closed++ });
+    (root.querySelector('.card > .pl-x') as HTMLElement).click();
+    expect(closed).toBe(1);
   });
 });
