@@ -207,7 +207,8 @@ export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam:
     return ahead(1);
   }
   if (t) return { x: t.x, y: t.y, id: aim.kind === 'unit' ? t.id : 0xff };
-  return aim.kind === 'point' ? ahead(0.6) : ahead(1);
+  // CF-03: a blink with nothing to aim at goes its full range (a tap went 0.6 of it: Pounce 2.4 of 4 m)
+  return aim.kind === 'point' && !aim.blink ? ahead(0.6) : ahead(1);
 }
 
 /** Screen-space pick: the unit whose projected point is nearest (x, y) px within `maxPx`; heroes win ties. */

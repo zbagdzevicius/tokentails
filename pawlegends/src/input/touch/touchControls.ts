@@ -36,6 +36,25 @@ export function turnBetween(a: number, b: number): number {
 export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: (Math.PI * 2) / 32, everyMs: 100, refreshMm: 1000 });
 const DRAG_PX = 16;
 const DRAG_FULL_PX = 90;
+/** CF-03: a ground or unit aim dragged toward a near screen edge reaches full range this many px short of it. */
+const EDGE_PAD_PX = 10;
+/** CF-03: the shortest drag that still means full range, however near the edge. */
+const DRAG_FULL_MIN_PX = 36;
+
+/**
+ * Audit CF-03: the drag length (px) that means full range for a ground or unit aim from (x0, y0) along screen
+ * direction (sx, sy): 90 px, or less when the screen edge is nearer (a Pounce dragged right from the cluster reached
+ * only 1.56 of 4 m, as the thumb hit the edge first).
+ */
+export function dragFullPx(x0: number, y0: number, sx: number, sy: number, w: number, h: number): number {
+  const len = Math.hypot(sx, sy);
+  if (len < 1e-6) return DRAG_FULL_PX;
+  const ux = sx / len;
+  const uy = sy / len;
+  const tx = ux > 0 ? (w - x0) / ux : ux < 0 ? x0 / -ux : Infinity;
+  const ty = uy > 0 ? (h - y0) / uy : uy < 0 ? y0 / -uy : Infinity;
+  return Math.max(DRAG_FULL_MIN_PX, Math.min(DRAG_FULL_PX, Math.min(tx, ty) - EDGE_PAD_PX));
+}
 /**
  * Fun pass (playtest #1): a drag that slides back within this many px of where it started is "back to smart aim"
  * (MLBB's inner ring): the release casts like a tap, at the smart target, and the preview shows that aim. Before, any
@@ -386,7 +405,8 @@ export class TouchControls {
   tapAim(slot: CastIndex, me: Unit): { x: number; y: number; id: number } {
     const aim = this.h.orders.aimSpec(slot);
     const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
-    const a = aim.kind === 'dir' ? this.stickAngle() : null;
+    // CF-03: a blink (Pounce, Avietė E) follows the held stick too, at full range (smartAim's fallback is the facing)
+    const a = aim.kind === 'dir' || aim.blink ? this.stickAngle() : null;
     if (a === null) return p;
     // smartAim's fallback for a direction is straight ahead along the facing: anything else means it found a target
     const f = this.facing();
@@ -424,7 +444,7 @@ export class TouchControls {
     const dy = -(g.y - g.y0);
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
-    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / DRAG_FULL_PX) : 1;
+    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
     const x = me.x + (dx / len) * aim.range * k;
     const y = me.y + (dy / len) * aim.range * k;
     if (aim.kind === 'unit') {
