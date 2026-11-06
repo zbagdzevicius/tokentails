@@ -506,7 +506,11 @@ export class NetHost implements PartyLink {
           document.documentElement.dataset.mpMask = String(m.modeMask);
           document.documentElement.dataset.mpBuffer = String(m.B);
         }
-        this.countPilots(m.lastTurn, m.modeMask);
+        // the core counts every applied turn (a reload's fast-forward too): the bot share and "Bot covered for you"
+        // cover the whole stretch, from the drop, not only from the end of the catch-up
+        if (m.pilotTurns) for (let s = 0; s < 6; s++) this.pilotTurns[s] = m.pilotTurns[s] ?? this.pilotTurns[s];
+        if (typeof m.pilotFrom === 'number' && m.pilotFrom >= 0 && (this.myPilotFrom < 0 || m.pilotFrom < this.myPilotFrom)) this.myPilotFrom = m.pilotFrom;
+        this.countPilots(m.lastTurn, m.modeMask, !!m.pilotTurns);
         this.lastTurn = m.lastTurn;
         this.socket.lastTurn = m.lastTurn;
         this.buffer = m.B;
@@ -553,10 +557,10 @@ export class NetHost implements PartyLink {
    * M6 "bot X%" and M4 "Bot covered for you · 0:42": turns flown by a bot per slot (from the TURN mode bits, in order
    * with the turns), and this player's own covered stretch, timed in turns (right after a catch-up too).
    */
-  private countPilots(lastTurn: number, mask: number): void {
+  private countPilots(lastTurn: number, mask: number, counted = false): void {
     if (lastTurn <= this.countedTurn) return;
     const n = lastTurn - this.countedTurn;
-    for (let s = 0; s < 6; s++) if ((mask >>> s) & 1) this.pilotTurns[s] += n;
+    if (!counted) for (let s = 0; s < 6; s++) if ((mask >>> s) & 1) this.pilotTurns[s] += n;
     this.countedTurn = lastTurn;
     const mine = ((mask >>> this.mySlot) & 1) === 1;
     if (mine && this.myPilotFrom < 0) this.myPilotFrom = lastTurn;
