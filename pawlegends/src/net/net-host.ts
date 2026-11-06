@@ -273,6 +273,55 @@ export class NetHost implements PartyLink {
     this.opts.notify?.(n);
   }
 
+  /**
+   * `back` at most once a second (with a fresh BEAT first, so the relay sees the received turn). The relay's JSON limit
+   * is 5 per second: a `back` per joystick command used to earn strikes and close the socket, a drop loop.
+   */
+  private askBack(): void {
+    const now = this.now();
+    if (now - this.lastBackMs < 1000) return;
+    this.lastBackMs = now;
+    this.socket.beatNow();
+    this.socket.sendJson({ t: 'back' });
+  }
+
+  /**
+   * Drop and back notes for friends, debounced: "dropped" only when still gone 2 s later, "is back" only after a shown
+   * "dropped" (jitter and a busy phone no longer flap the rail). A `laggy` frame (3 s of silence, no takeover) and its
+   * `back` say nothing at all.
+   */
+  private readonly dropTimers = new Map<number, ReturnType<typeof setTimeout>>();
+  private readonly dropShown = new Set<number>();
+  private friendSlot(slot: number, reason: string, laggy: boolean): void {
+    const name = short(this.nameOf(slot));
+    if (laggy) return;
+    if (reason === 'back') {
+      const t = this.dropTimers.get(slot);
+      if (t !== undefined) {
+        clearTimeout(t);
+        this.dropTimers.delete(slot);
+      }
+      if (this.dropShown.delete(slot)) this.note({ key: `mp-pilot-${slot}`, title: `${name} is back`, tone: 'good' });
+      return;
+    }
+    if (reason === 'left') {
+      this.dropShown.add(slot);
+      this.note({ key: `mp-pilot-${slot}`, title: `${name} left · bot plays`, tone: 'bad' });
+      return;
+    }
+    if (reason !== 'drop' && reason !== 'away' && reason !== 'afk') return;
+    if (this.dropTimers.has(slot) || this.dropShown.has(slot)) return;
+    this.dropTimers.set(
+      slot,
+      setTimeout(() => {
+        this.dropTimers.delete(slot);
+        if (this.disposed || !this.piloted(slot)) return;
+        this.dropShown.add(slot);
+        this.note({ key: `mp-pilot-${slot}`, title: `${name} dropped · bot plays`, tone: 'bad' });
+      }, DROP_NOTE_MS),
+    );
+  }
+
   /** MatchSession calls join(); a party match starts from the relay's `match` config. */
   join(): void {
     this.begin();
@@ -317,9 +366,9 @@ export class NetHost implements PartyLink {
     if (cmd.op === Op.Move) this.predictor.move(cmd.x, cmd.y, this.now());
     else this.predictor.stop();
     if (this.piloted(this.match.you.slot)) {
-      // an AFK player reclaims with any command; other pilot reasons need `back`
-      this.socket.beatNow();
-      this.socket.sendJson({ t: 'back' });
+      // an AFK player reclaims with any command; other pilot reasons need `back` (and the player is here: keep asking)
+      this.reclaimUntil = Math.max(this.reclaimUntil, this.now() + 10_000);
+      this.askBack();
     }
     this.coalescer.send(cmd);
   }
@@ -335,6 +384,8 @@ export class NetHost implements PartyLink {
 
   dispose(): void {
     this.disposed = true;
+    for (const t of this.dropTimers.values()) clearTimeout(t);
+    this.dropTimers.clear();
     this.coalescer.dispose();
     this.transport.close();
     this.unwatch?.();
@@ -365,10 +416,11 @@ export class NetHost implements PartyLink {
         const joined = m.joined === true;
         if (joined && typeof m.name === 'string' && m.name) this.names[m.slot] = m.name;
         const name = this.nameOf(m.slot);
-        if (joined) this.note({ key: 'mp-join', title: `${short(name)} joined`, tone: 'good' });
-        else if (m.reason === 'back') this.note({ key: `mp-pilot-${m.slot}`, title: `${short(name)} is back`, tone: 'good' });
-        else if (m.reason === 'drop' || m.reason === 'away' || m.reason === 'afk' || m.reason === 'left')
-          this.note({ key: `mp-pilot-${m.slot}`, title: `${short(name)} dropped · bot plays`, tone: 'bad' });
+        if (joined) {
+          this.dropShown.delete(m.slot);
+          this.note({ key: 'mp-join', title: `${short(name)} joined`, tone: 'good' });
+        } else this.friendSlot(m.slot, m.reason, (m as { laggy?: boolean }).laggy === true);
+        if ((m as { laggy?: boolean }).laggy === true) return;
         this.emit('slot', m.slot, m.reason as SlotReasonText, joined);
         return;
       }
@@ -412,6 +464,8 @@ export class NetHost implements PartyLink {
         this.serverEnd = m;
         this.endInfo.scored = m.scored;
         if (m.why) this.endInfo.why = m.why;
+        // no more TURNs will come: step every queued one now (the jitter buffer would hold the last B forever)
+        this.transport.post({ t: 'drain' });
         this.maybeEnd();
         return;
       case 'match':
@@ -464,11 +518,7 @@ export class NetHost implements PartyLink {
         }
         // a `back` sent before the relay saw our latest BEAT is refused: retry for a while after catching up
         // (a mid-match joiner or a reload takes its hero without having to touch anything first)
-        if (!this.catching && this.piloted(this.match.you.slot) && this.now() < this.reclaimUntil && this.now() - this.lastBackMs >= 1500) {
-          this.lastBackMs = this.now();
-          this.socket.beatNow();
-          this.socket.sendJson({ t: 'back' });
-        }
+        if (!this.catching && this.piloted(this.match.you.slot) && this.now() < this.reclaimUntil) this.askBack();
         if (m.waiting && !this.waitingShown) {
           this.waitingShown = true;
           this.note({ key: 'mp-wait', title: 'Waiting for server…', tone: 'bad', ttl: 3000 });
@@ -527,7 +577,7 @@ export class NetHost implements PartyLink {
 
   /** Caught up after a reload, a resync or a hidden tab: tell the relay and take the hero back. */
   private reclaimUntil = 0;
-  private lastBackMs = 0;
+  private lastBackMs = -Infinity;
 
   /** mp_disconnect, once per outage; the next catch-up reports mp_rejoin. */
   private outage: { at: number; turn: number; via: 'resume' | 'reload' } | null = null;
@@ -547,9 +597,9 @@ export class NetHost implements PartyLink {
     }
     this.catching = false;
     this.reclaimUntil = this.now() + 10_000;
-    this.lastBackMs = this.now();
-    this.socket.beatNow();
-    if (this.piloted(this.match.you.slot)) this.socket.sendJson({ t: 'back' });
+    this.lastBackMs = -Infinity;
+    if (this.piloted(this.match.you.slot)) this.askBack();
+    else this.socket.beatNow();
   }
 
   private endTimer: ReturnType<typeof setTimeout> | null = null;
@@ -602,6 +652,9 @@ export class NetHost implements PartyLink {
     return this.selftestOk;
   }
 }
+
+/** A friend's drop shows on the rail only when it lasts this long (a short blip says nothing). */
+export const DROP_NOTE_MS = 2000;
 
 const short = (name: string): string => (name.length > 14 ? `${name.slice(0, 13)}…` : name);
 const clock = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;

@@ -34,14 +34,39 @@ describe('LockstepRunner', () => {
     expect(r.B).toBeLessThanOrEqual(MAX_B);
   });
 
-  it('shrinks B after 20 s without a hold', () => {
+  it('shrinks B after 10 s without a hold', () => {
     const r = new LockstepRunner<number>(0);
     r.B = 3;
     let t = 0;
     for (let i = 0; i < 6; i++) r.push(t++);
-    // steady arrival: one turn per slot for 25 s
-    slots(r, 0, Math.ceil(25_000 / TURN_MS), () => [t++]);
+    // steady arrival: one turn per slot for 12 s
+    slots(r, 0, Math.ceil(12_000 / TURN_MS), () => [t++]);
     expect(r.B).toBe(2);
+  });
+
+  it('playout deadline: a queued turn steps once it waited B slots, even with fewer than B queued', () => {
+    const r = new LockstepRunner<number>(0);
+    r.B = 5;
+    r.due(0);
+    r.push(0);
+    r.push(1);
+    // two turns queued, B = 5: they wait their 5 slots, then step one per slot (the stream just stopped)
+    const out = slots(r, TURN_MS, 8);
+    expect(out.slice(0, 4).flat()).toEqual([]);
+    expect(out.flat()).toEqual([0, 1]);
+  });
+
+  it('drain: after the end every queued turn steps at once, one per slot (the last turns of a match)', () => {
+    const r = new LockstepRunner<number>(0);
+    r.B = 5;
+    r.due(0);
+    for (let i = 0; i < 3; i++) r.push(i);
+    r.drain();
+    expect([r.due(TURN_MS), r.due(2 * TURN_MS), r.due(3 * TURN_MS)].flat()).toEqual([0, 1, 2]);
+    // a new match (clear) is not draining
+    r.clear();
+    r.push(9);
+    expect(r.due(4 * TURN_MS)).toEqual([]);
   });
 
   it('catch-up: queue > B + 2 steps 2 turns per slot (never more than 10 ticks)', () => {

@@ -37,7 +37,17 @@ export type CoreIn =
   | { t: 'pace'; now: number }
   | { t: 'rebuild' }
   | { t: 'paused'; paused: boolean }
-  | { t: 'hidden'; hidden: boolean };
+  | { t: 'hidden'; hidden: boolean }
+  | { t: 'drain' };
+
+/** A TURN entry's sim command, or null when it does not decode (skipped by every client and the referee alike). */
+function safeDecode(bytes: Uint8Array): Command | null {
+  try {
+    return decodeCommand(bytes);
+  } catch {
+    return null;
+  }
+}
 
 /** Turns behind live above which the core fast-forwards without snapshots (a reload or a resync from turn 0). */
 export const FAST_FORWARD_TURNS = 45;
@@ -158,7 +168,7 @@ export class NetCore {
     const events: SimEvent[] = [];
     let last: TurnFrame | null = null;
     for (let i = 0; i < FF_SLICE && this.runner.queue.length > this.runner.B; i++) {
-      last = this.runner.queue.shift()!;
+      last = this.runner.take(1)[0];
       this.apply(last, events, false);
       if (result(m)) break;
     }
@@ -179,7 +189,12 @@ export class NetCore {
     this.lastMask = f.modeMask;
     for (let sub = 0; sub < 2 && !result(m); sub++) {
       const per: Command[][] = [[], [], []];
-      for (const e of f.entries) if (e.sub === sub) per[e.slot].push(decodeCommand(e.cmd));
+      for (const e of f.entries) {
+        if (e.sub !== sub) continue;
+        // defence in depth: the relay decodes every command before a TURN, and the referee skips the same way
+        const c = safeDecode(e.cmd);
+        if (c) per[e.slot].push(c);
+      }
       step(m, per[0], per);
       if (live) {
         // the team-filtered events of this tick (as the LocalHost's HostCore reads them)
@@ -229,6 +244,9 @@ export class NetCore {
         return;
       case 'hidden':
         this.setHidden(msg.hidden);
+        return;
+      case 'drain':
+        this.runner.drain();
         return;
     }
   }
