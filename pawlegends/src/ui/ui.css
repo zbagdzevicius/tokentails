@@ -185,6 +185,17 @@ kbd {
 /* GAPS B2: Forfeit is disabled until its time (Easy 3:00, Normal and Hard 4:00); the confirm step's line */
 .pl-menu .pl-btn[disabled] { opacity: 0.45; cursor: default; }
 .pl-menu .pl-forfeit .sub, .pl-menu .pl-leave .sub { margin: 0 0 4px; font-size: 14px; opacity: 0.85; line-height: 1.4; }
+/* Short phones: the pause card (Resume, Scores, Sound, Settings, the zoom row, Forfeit, Leave) was 475 px tall at
+   844x390, so Leave sat off screen. Two columns for the smaller buttons, tighter spacing, and a scroll as a safety net. */
+@media (max-height: 480px) {
+  .pl-menu:not(.pl-settings):not(.pl-collection) > .card {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 18px; width: min(560px, calc(100vw - 32px)); max-width: none;
+    max-height: calc(100dvh - 16px); overflow-y: auto; box-sizing: border-box;
+  }
+  .pl-menu:not(.pl-settings):not(.pl-collection) > .card > :is(h2, .pl-btn.big, .set-zoom, .keys, .sub) { grid-column: 1 / -1; }
+  .pl-menu:not(.pl-settings):not(.pl-collection) > .card .pl-btn { padding-top: 9px; padding-bottom: 9px; }
+  .pl-menu h2 { margin: 0; font-size: 20px; }
+}
 
 .pl-loading {
   position: absolute; inset: 0; z-index: 60; display: grid; place-content: center; justify-items: center; gap: 12px; background: var(--bg);
