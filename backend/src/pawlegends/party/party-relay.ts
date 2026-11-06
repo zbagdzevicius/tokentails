@@ -1105,7 +1105,7 @@ export class PartyRelay {
         if (left) {
             live.seats.delete(s.memberId!);
             live.names[s.seatSlot] = null;
-            live.room.vacate(s.seatSlot, this.now());
+            live.room.vacate(s.seatSlot, this.now(), !!this.parties.byId(live.party)?.openSeats);
         } else live.room.disconnect(s.seatSlot, this.now());
         s.seatRoom = null;
         s.seatSlot = -1;
