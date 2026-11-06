@@ -152,7 +152,7 @@ describe('room restore (N9)', () => {
         const base = (id: string, ageMs: number, handoff: boolean): StoredRoom => ({
             _id: id,
             party: `p-${id}`,
-            simVersion: 11,
+            simVersion: LIVE.SIM_VERSION,
             simHash: LIVE.SIM_SOURCE_HASH!,
             config: {
                 seed: 1,

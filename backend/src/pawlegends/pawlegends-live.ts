@@ -20,7 +20,7 @@ export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-
  * Pawlegends score route: this is still the one score writer.
  *
  * 1. The DTO checked the record's shape and work bounds. A `simVersion` outside SIM_VERSIONS (sim v10, GAPS B0: the
- *    live v12 and the frozen v10 and v11, each re-simmed by its own vendored sim) is a 400 PAWLEGENDS_SIM_VERSION naming the
+ *    live v13 and the frozen v10, v11 and v12, each re-simmed by its own vendored sim) is a 400 PAWLEGENDS_SIM_VERSION naming the
  *    backend's sim, before anything is queued, so the game keeps the replay queued until the backend runs its sim.
  * 2. The digest of the canonical record is looked up first: a record that already failed is the same 400 again, and
  *    one that already saved (from any account) is 409 PAWLEGENDS_DUPLICATE, both without a re-sim.
