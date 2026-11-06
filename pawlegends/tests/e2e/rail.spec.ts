@@ -61,7 +61,22 @@ for (const s of SIZES) {
         j.notify.queue.clear();
         j.push(note);
       }, n);
-      await expect.poll(async () => (await railState(page)).lines.some((l) => l.text.includes(n.title)), { timeout: 20_000 }).toBe(true);
+      // A real match note can hold the rail, and an open talent card holds prio 2-4 (NoteQueue.hold) until the note is
+      // stale: a level-up at 667 × 375 did both. Push again on each poll until the note is up (pushing a note that is
+      // on screen only refreshes it).
+      await expect
+        .poll(
+          async () => {
+            if ((await railState(page)).lines.some((l) => l.text.includes(n.title))) return true;
+            await page.evaluate((note) => {
+              (document.querySelector('.pl-talents.on button') as HTMLElement | null)?.click();
+              (window as unknown as { __plJuice: { push(n: unknown): boolean } }).__plJuice.push(note);
+            }, n);
+            return false;
+          },
+          { timeout: 20_000 },
+        )
+        .toBe(true);
       await page.waitForTimeout(250);
       const st = await railState(page);
       expect(st.rail.y1, `rail bottom for prio ${n.prio}`).toBeLessThanOrEqual(s.bottom);

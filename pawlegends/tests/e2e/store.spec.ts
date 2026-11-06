@@ -76,7 +76,11 @@ test('round 0: a cat bought on a 6-cat roster walks in the next match (squad str
   await game.locator('[data-a="start"]').click();
   await game.waitForSelector('html[data-match="live"]');
   expect(await gattr(game, 'kittens')).toBe('2');
-  await expect.poll(() => gattr(game, 'squadNames')).toMatch(/^Luna,/);
+  // Luna walks first, unless the champion wears her card: then she is the hero and the next two squad cats walk
+  // (lobby QA bc0f02fd: a worn cat never also walks as a kitten, "Ficus twice")
+  const worn = await game.evaluate(() => document.querySelector<HTMLElement>('.pl-portrait')?.dataset.name ?? '');
+  if (worn === 'Luna') await expect.poll(() => gattr(game, 'squadNames')).not.toMatch(/Luna/);
+  else await expect.poll(() => gattr(game, 'squadNames')).toMatch(/^Luna,/);
 });
 
 test('restore: a token bought earlier still dresses the hero', async ({ context, page, baseURL }) => {
