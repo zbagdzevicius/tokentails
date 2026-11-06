@@ -239,7 +239,12 @@ second, `SIM_VERSION` 11) in a Web Worker, and the backend replays it (v10 and v
   `/pawlegends` links only; `text` is the optional dare line, one plain line of at most 120 characters, which the
   host passes to the system share sheet, PUB-06), `paused` and `client-error {source, msg, screen, tier, sim}` (a game or worker crash,
   `msg` cut to lower-case `[a-z0-9_ ]` and 80 characters; the host reports it as `app_error`), `analytics {event,
-  props}` (one of the game's own events; the host sends it with `analytics.track`, PUB-02); the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
+  props}` (one of the game's own events; the host sends it with `analytics.track`, PUB-02); the old `purchase-intent {sku}` gets a legacy refusal.
+  Party play (MULTIPLAYER.md §5.3, §6): the game sends `party-ticket-request {id}` and the host answers
+  `party-ticket {id, ticket | null, error?}` (minted with the host's own session; never queued, a ticket lives 60 s);
+  the game sends `party-result {matchId, result: {v: 2, room, slot, simVersion, ticks, outcome, finalHash}}` (the
+  `matchId` is the room id) and the host answers with `save-result`; `share {kind: 'party'}` carries the
+  tokentails.com invite link. The game accepts a host from
   `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com, `http://localhost:3000` in its dev
   server) plus its own origin when the parent is same-origin. Both sides post to the exact origin, never
   `'*'`, and no `accesstoken` or Firebase token crosses.
