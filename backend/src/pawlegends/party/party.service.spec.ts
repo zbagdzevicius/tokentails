@@ -235,6 +235,13 @@ describe('PartyService', () => {
             expect(p.difficulty).toBe('normal');
         });
 
+        it("keeps the leader's pick when every member unlocked it", () => {
+            const t = setup();
+            const p = t.svc.create('A', id('a'), 'normal', { maxDifficulty: 'hard', newbie: false });
+            t.svc.join(p.code, 'B', id('b'), { maxDifficulty: 'hard', newbie: false });
+            expect(p.difficulty).toBe('normal');
+        });
+
         it('an unknown hint tier is ignored', () => {
             const t = setup();
             const p = t.svc.create('A', id('a'), 'normal', { maxDifficulty: 'godlike', newbie: false });

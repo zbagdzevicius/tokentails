@@ -186,10 +186,13 @@ export class PartyService {
         };
     }
 
-    /** Lowest unlocked tier among members (a lie only lowers a UI default). */
+    /**
+     * The party's difficulty capped at the lowest unlocked tier among members, so a new friend is never dropped into
+     * bots above their level (a lie in `hello.hint` only lowers this UI default; the leader may raise it again).
+     */
     private defaultDifficulty(p: Party): string {
         const order = this.rules.difficulties;
-        let lowest = -1;
+        let lowest = order.indexOf(p.difficulty);
         for (const m of p.members) {
             if (!m.maxDifficulty) continue;
             const i = order.indexOf(m.maxDifficulty);
@@ -224,6 +227,7 @@ export class PartyService {
             side: null,
             ended: false,
         };
+        p.difficulty = this.defaultDifficulty(p);
         this.parties.set(id, p);
         this.byCode.set(code, id);
         this.memberParty.set(memberId, id);
