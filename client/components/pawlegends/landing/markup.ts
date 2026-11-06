@@ -1,12 +1,12 @@
 /**
  * The Pawlegends landing markup: a port of the vs-screen landing (docs/plans/moba/landings/02-vs-screen.html) with
- * the content brought up to date (party play, 17 heroes, Fish/Toys/levels). It is one HTML string that the page
+ * the content brought up to date (party play, the new dogs, Fish/Toys/levels). It is one HTML string that the page
  * renders under `.pll`; `motion.js` animates it in place, so React never re-renders inside it.
  *
  * Copy rules: no player counts, no ratings, no claims about features that are not in the game. The roster numbers
  * come from roster.ts, never from literals.
  */
-import { countWord, landingCats, landingDogs, LANDING_ROSTER, rolesOf, type LandingHero } from "./roster";
+import { countWord, gridHeroes, isReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, rolesOf, type LandingHero } from "./roster";
 import { playHref } from "../routes";
 import { PAWLEGENDS_TERMS_PATH } from "../flags";
 
@@ -52,24 +52,21 @@ const PAW_SVG =
   '<svg viewBox="-30 -30 60 60" aria-hidden="true"><ellipse cx="0" cy="8" rx="15" ry="12.5"/><circle cx="-16" cy="-6" r="6.4"/><circle cx="-5.6" cy="-16.5" r="6.4"/><circle cx="5.6" cy="-16.5" r="6.4"/><circle cx="16" cy="-6" r="6.4"/></svg>';
 
 function tile(h: LandingHero, pressed: boolean): string {
-  const art = h.portrait
-    ? `<img src="${h.portrait}" alt="" width="420" height="574" loading="lazy" decoding="async">`
-    : `<span class="sil">${PAW_SVG}</span>`;
+  const art = `<img src="${h.portrait}" alt="" width="420" height="574" loading="lazy" decoding="async">`;
   return (
     `<li class="${h.side}"><button class="tile ${h.side}" type="button" data-side="${h.side}" data-id="${h.id}" data-name="${shown(h.name)}"` +
     ` data-role="${h.role}" data-breed="${esc(h.breed ?? "")}" data-blurb="${esc(h.blurb)}" data-portrait="${h.portrait ?? ""}" aria-pressed="${pressed}">` +
-    `<span class="in">${art}</span>${h.portrait ? "" : '<span class="new" aria-hidden="true">New</span>'}` +
+    `<span class="in">${art}</span>` +
     `<span class="nm">${shown(h.name)}</span><span class="cur" aria-hidden="true"><b>${h.side === "cat" ? "1P" : "2P"}</b></span>` +
-    `<span class="sr">${esc(altOf(h))}${h.portrait ? "" : ", new"}</span></button></li>`
+    `<span class="sr">${esc(altOf(h))}</span></button></li>`
   );
 }
 
 function slot(h: LandingHero): string {
   const isCat = h.side === "cat";
-  return `<div class="slot ${h.side}${h.portrait ? "" : " is-sil"}" id="slot-${h.side}" aria-live="polite">
+  return `<div class="slot ${h.side}" id="slot-${h.side}" aria-live="polite">
         <div class="bg ${isCat ? "halftone-pink" : "halftone-blue"}"></div><div class="rays" aria-hidden="true"></div><div class="vig" aria-hidden="true"></div>
         <div class="pic"><img src="${h.portrait ?? ""}" alt="${esc(altOf(h))}" width="420" height="574" loading="lazy" decoding="async"></div>
-        <div class="sil" aria-hidden="true">${PAW_SVG}<b>New champion</b></div>
         <div class="imp" aria-hidden="true"></div>
         <canvas class="lines" aria-hidden="true"></canvas>
         <div class="who"><span class="pl">${isCat ? "P1 · Cat" : "P2 · Dog"}</span><div class="disp name${longName(h.name) ? " long" : ""}"><span class="ital">${shown(h.name)}</span></div><div class="role">${h.role}</div><div class="breed">${esc(h.breed ?? "")}</div><p class="blurb">${esc(h.blurb)}</p></div>
@@ -78,47 +75,73 @@ function slot(h: LandingHero): string {
 }
 
 /**
- * The party round's drawing: an invite link, your team of three in blue, three bots in red. Not a screenshot.
- * Everything sits inside x 100..860 so the round's Ken Burns zoom (up to 1.14 and a 3% pan) never crops it.
+ * The new dogs: heroes without in-game art yet, or not released yet. Name, breed and role only; a paw, never a
+ * stand-in picture. "Coming next" until every one of them is in the game build.
+ */
+function newDogs(list: LandingHero[]): string {
+  if (!list.length) return "";
+  const out = list.every(isReleased);
+  const n = countWord(list.length).toLowerCase();
+  const head = out ? `New: ${n} dogs join the pack` : `Coming next: ${n} new dogs`;
+  const note = out
+    ? "Play the dogs' side too: the Cats / Dogs switch opens after your first match."
+    : "With them comes a Cats / Dogs switch, so you can play either side.";
+  const card = (h: LandingHero) =>
+    `<li class="nd"><span class="nd-art" aria-hidden="true">${PAW_SVG}</span><span class="nd-t"><b class="nd-nm">${shown(h.name)}</b>` +
+    `<span class="nd-meta">${esc(h.breed ?? "")}</span><span class="nd-role">${h.role}</span><span class="nd-b">${esc(h.blurb)}</span></span></li>`;
+  return `<div class="newdogs" role="group" aria-labelledby="nd-h">
+      <p class="nd-head" id="nd-h"><span class="nd-badge">New</span> ${esc(head)}</p>
+      <ul class="nd-list" role="list">${list.map(card).join("")}</ul>
+      <p class="nd-note">${esc(note)}</p>
+    </div>`;
+}
+
+/**
+ * The party round's drawing: an invite link, then your team in blue (you, a friend, and a bot in the open seat)
+ * against a team of bots in red (dog heroes the bots play). Not a screenshot. Everything sits inside x 100..860 and
+ * y 40..490 so the round's Ken Burns zoom (up to 1.14 and a 3% pan) never crops it; text is large enough to read
+ * at phone width (the drawing is ~0.37x there).
  */
 function squadSvg(): string {
-  const team = [
-    { h: hero("clem"), label: "You" },
-    { h: hero("sage"), label: "Friend" },
-    { h: hero("lambo"), label: "Friend" },
-  ];
-  const W = 104,
-    H = 146,
-    GAP = 12,
-    Y = 178;
+  const W = 108,
+    H = 168,
+    GAP = 10,
+    Y = 156;
   const card = (x: number, inner: string, fill: string, label: string, lfill: string) =>
     `<g transform="translate(${x} ${Y})"><g class="card"><rect width="${W}" height="${H}" rx="11" fill="${fill}" stroke="#12091f" stroke-width="5"/>${inner}` +
-    `<rect x="-4" y="${H + 12}" width="${W + 8}" height="34" rx="7" fill="${lfill}" stroke="#12091f" stroke-width="4"/>` +
-    `<text x="${W / 2}" y="${H + 36}" text-anchor="middle" font-size="19" fill="#12091f" class="lbl">${label.toUpperCase()}</text></g></g>`;
-  const ours = team
-    .map((t, i) => {
-      const inner =
-        `<clipPath id="pll-sq-c${i}"><rect x="3" y="3" width="${W - 6}" height="${H - 6}" rx="8"/></clipPath>` +
-        `<image href="${t.h.portrait}" x="-20" y="-4" width="${W + 40}" height="${Math.round((W + 40) * (574 / 420))}" preserveAspectRatio="xMidYMin slice" clip-path="url(#pll-sq-c${i})"/>`;
-      return card(100 + i * (W + GAP), inner, "#2f6bff", t.label, "#d6e5ff");
-    })
-    .join("");
+    `<rect x="-2" y="${H + 10}" width="${W + 4}" height="46" rx="8" fill="${lfill}" stroke="#12091f" stroke-width="4"/>` +
+    `<text x="${W / 2}" y="${H + 42}" text-anchor="middle" font-size="25" fill="#12091f" class="lbl">${label.toUpperCase()}</text></g></g>`;
+  const pic = (h: LandingHero, id: string) =>
+    `<clipPath id="pll-sq-${id}"><rect x="3" y="3" width="${W - 6}" height="${H - 6}" rx="8"/></clipPath>` +
+    `<image href="${h.portrait}" x="-20" y="-4" width="${W + 40}" height="${Math.round((W + 40) * (574 / 420))}" preserveAspectRatio="xMidYMin slice" clip-path="url(#pll-sq-${id})"/>`;
   const bot =
-    `<g transform="translate(${W / 2} 74) scale(.85)" fill="#fff3e3" stroke="#12091f" stroke-width="4"><line x1="0" y1="-46" x2="0" y2="-30"/><circle cx="0" cy="-50" r="7" fill="#fff04d"/>` +
+    `<g transform="translate(${W / 2} ${H / 2}) scale(.9)" fill="#fff3e3" stroke="#12091f" stroke-width="4"><line x1="0" y1="-46" x2="0" y2="-30"/><circle cx="0" cy="-50" r="7" fill="#fff04d"/>` +
     '<rect x="-38" y="-30" width="76" height="60" rx="14"/><circle cx="-15" cy="-2" r="8" fill="#12091f"/><circle cx="15" cy="-2" r="8" fill="#12091f"/><rect x="-14" y="16" width="28" height="6" rx="3" fill="#12091f" stroke="none"/></g>';
-  const theirs = [0, 1, 2].map((i) => card(524 + i * (W + GAP), bot, "#e8344a", "Bot", "#ffd0d6")).join("");
-  return `<svg class="sq" viewBox="0 0 960 540" role="img" aria-label="Illustration: an invite link at the top; below it your team of three, you and two friends in blue, against three bots in red">
+  const badge = `<g transform="translate(${W - 22} 22)"><circle r="17" fill="#fff3e3" stroke="#12091f" stroke-width="3.5"/><rect x="-9" y="-7" width="18" height="14" rx="4" fill="none" stroke="#12091f" stroke-width="3"/><circle cx="-3.5" cy="0" r="2" fill="#12091f"/><circle cx="3.5" cy="0" r="2" fill="#12091f"/></g>`;
+  const x0 = 100,
+    x1 = 860 - (3 * W + 2 * GAP);
+  const ours = [
+    card(x0, pic(hero("clem"), "c0"), "#2f6bff", "You", "#d6e5ff"),
+    card(x0 + W + GAP, pic(hero("sage"), "c1"), "#2f6bff", "Friend", "#d6e5ff"),
+    card(x0 + 2 * (W + GAP), bot, "#2f6bff", "Bot", "#d6e5ff"),
+  ].join("");
+  const theirs = [
+    card(x1, pic(hero("brutus"), "d0") + badge, "#e8344a", "Bot", "#ffd0d6"),
+    card(x1 + W + GAP, pic(hero("cacklejaw"), "d1") + badge, "#e8344a", "Bot", "#ffd0d6"),
+    card(x1 + 2 * (W + GAP), bot, "#e8344a", "Bot", "#ffd0d6"),
+  ].join("");
+  return `<svg class="sq" viewBox="0 0 960 540" role="img" aria-label="Illustration: an invite link at the top; below it your team in blue, you, a friend and a bot in the open seat, against a team of bots in red">
           <defs><pattern id="pll-sq-dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="8" cy="8" r="2.2" fill="rgba(255,255,255,.08)"/></pattern></defs>
           <rect width="960" height="540" fill="#0b1d52"/><rect width="960" height="540" fill="url(#pll-sq-dots)"/>
-          <rect x="0" y="150" width="480" height="390" fill="rgba(47,107,255,.18)"/><rect x="480" y="150" width="480" height="390" fill="rgba(232,52,74,.16)"/>
-          <g class="chip"><rect x="140" y="50" width="680" height="64" rx="32" fill="#fff" stroke="#12091f" stroke-width="5"/>
-            <g transform="translate(182 82)" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round"><path d="M-4,6 L6,-4"/><path d="M-10,0 l-4,4 a8,8 0 0 0 11,11 l4,-4"/><path d="M10,0 l4,-4 a8,8 0 0 0 -11,-11 l-4,4"/></g>
-            <text x="210" y="92" font-size="25" fill="#12091f" class="url">tokentails.com/pawlegends?party=<tspan fill="#2f6bff" class="code">K7QX2M</tspan></text></g>
-          <circle class="tapdot" cx="770" cy="82" r="22" fill="none" stroke="#fff04d" stroke-width="5" opacity="0"/>
+          <rect x="0" y="136" width="480" height="404" fill="rgba(47,107,255,.18)"/><rect x="480" y="136" width="480" height="404" fill="rgba(232,52,74,.16)"/>
+          <g class="chip"><rect x="120" y="44" width="720" height="68" rx="34" fill="#fff" stroke="#12091f" stroke-width="5"/>
+            <g transform="translate(164 78)" fill="none" stroke="#2f6bff" stroke-width="6" stroke-linecap="round"><path d="M-4,6 L6,-4"/><path d="M-10,0 l-4,4 a8,8 0 0 0 11,11 l4,-4"/><path d="M10,0 l4,-4 a8,8 0 0 0 -11,-11 l-4,4"/></g>
+            <text x="192" y="90" font-size="30" fill="#12091f" class="url">tokentails.com/pawlegends?party=<tspan fill="#2f6bff" class="code">K7QX2M</tspan></text></g>
+          <circle class="tapdot" cx="790" cy="78" r="22" fill="none" stroke="#fff04d" stroke-width="5" opacity="0"/>
           ${ours}
           <text x="480" y="${Y + H / 2 + 18}" text-anchor="middle" font-size="44" fill="#fff04d" stroke="#12091f" stroke-width="6" paint-order="stroke" class="vsx">VS</text>
           ${theirs}
-          <text x="480" y="440" text-anchor="middle" font-size="22" fill="rgba(255,255,255,.78)" class="cap">Bots fill every open seat</text>
+          <text x="480" y="460" text-anchor="middle" font-size="34" fill="rgba(255,255,255,.86)" class="cap">Bots fill every open seat</text>
         </svg>`;
 }
 
@@ -154,7 +177,10 @@ function shelterSection(champions: LandingHero[]): string {
 export function landingMarkup(): string {
   const cats = landingCats();
   const dogs = landingDogs();
-  const total = LANDING_ROSTER.length;
+  const total = liveRoster().length;
+  const grid = gridHeroes();
+  const gridCats = grid.filter((h) => h.side === "cat");
+  const gridDogs = grid.filter((h) => h.side === "dog");
   const catRoles = rolesOf("cat");
   const dogRoles = rolesOf("dog");
   const lambo = hero("lambo");
@@ -199,7 +225,7 @@ export function landingMarkup(): string {
     <div class="announcer" aria-hidden="true">Fight!</div>
     <div class="hero-copy">
       <h1 class="logo" aria-label="Pawlegends"><span class="paw-c" aria-hidden="true"><span class="ch">P</span><span class="ch">a</span><span class="ch">w</span></span><span class="leg-c" aria-hidden="true"><span class="ch">l</span><span class="ch">e</span><span class="ch">g</span><span class="ch">e</span><span class="ch">n</span><span class="ch">d</span><span class="ch">s</span></span></h1>
-      <p class="sub">Cats vs dogs, three on three. Play solo or bring two friends. Free, right in your browser on desktop or phone.</p>
+      <p class="sub">Cats vs dogs, three on three. Play solo or bring up to two friends. Free, right in your browser on desktop or phone.</p>
       <div class="ctas">
         <span class="mag"><a class="btn big" href="${HERO_CTA_HREF}" data-cta="landing_hero"><span>Play free in your browser <span class="arrow" aria-hidden="true">&#9654;</span></span></a></span>
       </div>
@@ -218,25 +244,23 @@ export function landingMarkup(): string {
     <div class="select-head">
       <p class="kicker"><span class="live">${total} heroes live</span></p>
       <h2 class="disp h2" id="sel-h"><span class="ital"><span class="w">Choose</span> <span class="w">your</span> <span class="w">legend</span></span></h2>
-      <p class="lede">${countWord(cats.length)} cats, ${countWord(dogs.length).toLowerCase()} dogs. Pick a side, hover a hero to throw them into the ring, click to lock them in.</p>
+      <p class="lede">${countWord(cats.length)} cats, ${countWord(dogs.length).toLowerCase()} dogs. Pick a cat and a dog to throw them into the ring.</p>
     </div>
     <div class="stage" id="stage">
       ${slot(hero("clem"))}
       <div class="grid-wrap">
         <div class="stage-vs" aria-hidden="true"><span>VS</span></div>
-        <div class="side-switch" role="group" aria-label="Show cats or dogs">
-          <button type="button" class="cat" data-show="cat" aria-pressed="true"><span>Cats<small>· ${cats.length}</small></span></button>
-          <button type="button" class="dog" data-show="dog" aria-pressed="false"><span>Dogs<small>· ${dogs.length}</small></span></button>
-        </div>
-        <ul class="grid" role="list" data-show="cat">
-          ${cats.map((h) => tile(h, h.id === "clem")).join("\n          ")}
-          ${dogs.map((h) => tile(h, h.id === "brutus")).join("\n          ")}
+        <ul class="grid" role="list">
+          ${gridCats.map((h) => tile(h, h.id === "clem")).join("\n          ")}
+          ${gridDogs.map((h) => tile(h, h.id === "brutus")).join("\n          ")}
         </ul>
+        <div class="grid-legend" aria-hidden="true"><span>&#9664; Cats · ${gridCats.length}</span><span>Dogs · ${gridDogs.length} &#9654;</span></div>
         <p class="pick-bio" aria-hidden="true"><b>Clem</b> <span class="meta">· Fighter</span><br><span class="txt">${esc(hero("clem").blurb)}</span></p>
       </div>
       ${slot(brutus)}
     </div>
-    <p class="hint">Every match is <b>3v3 against bots</b>, solo or with up to two friends on your team. No PvP yet.</p>
+    ${newDogs(newcomers())}
+    <p class="hint">Every match is <b>3v3 against bots</b>, solo or with up to two friends on your team. No PvP.</p>
   </div>
   <div class="dotband" aria-hidden="true" style="--c:var(--cream)"><i></i><i></i><i></i><i></i></div>
 </section>
@@ -256,7 +280,7 @@ export function landingMarkup(): string {
       <div class="txt">
         <span class="banner">Round 1</span>
         <h3 class="disp"><span class="ital">Push the lane</span></h3>
-        <p>Lanes run from your base to theirs, guarded by towers. Farm minions and take down heroes to earn Fish and level up, then spend your Fish on Toys mid-match.</p>
+        <p>Lanes run from your base to theirs, guarded by towers. Farm minions and take down heroes to earn Fish and level up. Fish buys you Toys that make you stronger.</p>
         <ul class="chips"><li>Lanes</li><li>Towers</li><li>Fish</li><li>Toys</li><li>Levels</li></ul>
       </div>
     </div>
@@ -276,7 +300,7 @@ export function landingMarkup(): string {
       <div class="txt">
         <span class="banner">Round 2</span>
         <h3 class="disp"><span class="ital">Hold to aim</span></h3>
-        <p>Hold a skill to aim it, let go to fire. Every skill has a tooltip, so you learn a hero by playing it.</p>
+        <p>Hold a skill to aim it, let go to fire. On a phone, tap to cast or drag to aim. Every skill has a tooltip, so you learn a hero by playing it.</p>
         <ul class="chips"><li>Hold-to-aim skills</li><li>Tooltips</li></ul>
       </div>
     </div>
@@ -294,7 +318,7 @@ export function landingMarkup(): string {
       <div class="txt">
         <span class="banner">Round 3</span>
         <h3 class="disp"><span class="ital">Team fight</span></h3>
-        <p>Three on three. Line up your skills with your team and win the fight together. Your team shows blue, theirs red.</p>
+        <p>Three on three. Line up your skills with your team and win the fight together.</p>
         <ul class="chips"><li>3v3</li><li>Team fights</li><li>Short matches</li></ul>
       </div>
     </div>
@@ -308,7 +332,7 @@ export function landingMarkup(): string {
         <span class="banner">Round 4</span>
         <h3 class="disp"><span class="ital">Squad up</span></h3>
         <p>Send a link. Your friends tap it and pick a hero: no account, no install. Up to three of you on one team against bots. If someone drops, a full-strength bot holds their hero until they're back, and the party stays together for the next match.</p>
-        <ul class="chips"><li>Invite link</li><li>No account needed</li><li>Bot covers drops</li><li>Play again together</li></ul>
+        <ul class="chips"><li>Invite link</li><li>No account</li><li>Bot covers drops</li><li>Play again</li></ul>
         <p class="small">Pings, quick chat and emotes. No open chat.</p>
       </div>
     </div>
@@ -346,9 +370,8 @@ export function landingMarkup(): string {
       <div class="tale-row" role="row"><div class="l" role="cell"><span class="val" data-count="${catRoles.length}">${catRoles.length}</span><span class="note">${catRoles.join(", ")}</span><i class="tb" style="--v:${bar(catRoles.length, 6)}" aria-hidden="true"></i></div><div class="m" role="rowheader"><span>Roles</span></div><div class="r" role="cell"><span class="val" data-count="${dogRoles.length}">${dogRoles.length}</span><span class="note">${dogRoles.join(", ")}</span><i class="tb" style="--v:${bar(dogRoles.length, 6)}" aria-hidden="true"></i></div></div>
       <div class="tale-row" role="row"><div class="l" role="cell"><span class="val" data-count="3">3</span><span class="note">per team</span><i class="tb" style="--v:1" aria-hidden="true"></i></div><div class="m" role="rowheader"><span>Team size</span></div><div class="r" role="cell"><span class="val" data-count="3">3</span><span class="note">per team</span><i class="tb" style="--v:1" aria-hidden="true"></i></div></div>
       <div class="tale-row" role="row"><div class="l" role="cell"><span class="val">1–3</span><span class="note">players, bots fill the rest</span><i class="tb" style="--v:1" aria-hidden="true"></i></div><div class="m" role="rowheader"><span>Squad</span></div><div class="r" role="cell"><span class="val">1–3</span><span class="note">players, bots fill the rest</span><i class="tb" style="--v:1" aria-hidden="true"></i></div></div>
-      <div class="tale-row" role="row"><div class="l" role="cell"><span class="val">Free</span><span class="note">browser, desktop + phone</span><i class="tb" style="--v:1" aria-hidden="true"></i></div><div class="m" role="rowheader"><span>Price</span></div><div class="r" role="cell"><span class="val">Free</span><span class="note">browser, desktop + phone</span><i class="tb" style="--v:1" aria-hidden="true"></i></div></div>
+      <div class="tale-row" role="row"><div class="l" role="cell"><span class="val">Free to play</span><span class="note">browser, desktop + phone</span><i class="tb" style="--v:1" aria-hidden="true"></i></div><div class="m" role="rowheader"><span>Price</span></div><div class="r" role="cell"><span class="val">Free to play</span><span class="note">browser, desktop + phone</span><i class="tb" style="--v:1" aria-hidden="true"></i></div></div>
     </div>
-    <p class="tale-foot">Every match is your team against bots. Bring up to two friends; PvP is not live yet.</p>
   </div>
   <div class="dotband" aria-hidden="true" style="--c:var(--cream)"><i></i><i></i><i></i><i></i></div>
 </section>

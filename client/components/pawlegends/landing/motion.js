@@ -253,6 +253,14 @@ export function startLandingMotion(rootEl, libs) {
     })(t0);
   }
 
+  /* SplitText on a <span>: its default aria-label on a role-less span is not allowed (axe aria-prohibited-attr), so
+     the split pieces are hidden and the heading keeps a plain screen-reader copy of the text */
+  function srSplit(el, opts){
+    var sr = document.createElement('span'); sr.className = 'sr'; sr.textContent = el.textContent;
+    el.parentNode.insertBefore(sr, el);
+    var o = {aria:'hidden'}; for (var k in opts) o[k] = opts[k];
+    return SplitText.create(el, o);
+  }
   function chars(el){
     /* one span per letter; a combining mark stays with its letter (Avie\u0307te\u0307 is written decomposed for Fredoka) */
     var t = el.textContent, parts = t.match(/[^\u0300-\u036f][\u0300-\u036f]*/g) || []; el.textContent = '';
@@ -281,7 +289,6 @@ export function startLandingMotion(rootEl, libs) {
     if (current[side] === name) return false;
     current[side] = name;
     var slot = slots[side], img = $('.pic img', slot);
-    slot.classList.toggle('is-sil', !portrait);
     if (portrait) img.src = portrait;
     img.alt = name.normalize('NFC') + ', ' + side + ' ' + role.toLowerCase();
     var nameEl = $('.name .ital', slot); nameEl.textContent = name; $('.role', slot).textContent = role;
@@ -289,7 +296,7 @@ export function startLandingMotion(rootEl, libs) {
     $('.breed', slot).textContent = tile.dataset.breed || '';
     $('.blurb', slot).textContent = tile.dataset.blurb || '';
     if (!anim) return true;
-    var art = portrait ? img : $('.sil', slot);
+    var art = img;
     var dir = side === 'cat' ? -1 : 1, cs = chars(nameEl);
     G.killTweensOf([art, cs]);
     slot.classList.add('f1');
@@ -299,26 +306,12 @@ export function startLandingMotion(rootEl, libs) {
     G.fromTo(cs, {yPercent:120, rotation:dir*-14, opacity:0}, {yPercent:0, rotation:0, opacity:1, duration:.5, ease:'back.out(2.6)', stagger:.025, delay:.06});
     G.fromTo([$('.role', slot), $('.breed', slot), $('.blurb', slot)], {x:dir*-30, opacity:0}, {x:0, opacity:1, duration:.4, ease:'power3.out', delay:.12, stagger:.04});
     G.fromTo(stageVs, {scale:1.4, rotation:dir*14}, {scale:1, rotation:0, duration:.5, ease:'elastic.out(1,.4)'});
-    var shownLis = lis.filter(function(l){ return l.offsetParent !== null; }), i = shownLis.indexOf(tile.parentNode);
-    G.fromTo(shownLis.filter(function(l,j){return j!==i}), {scale:1}, {scale:.96, duration:.1, ease:'power2.out', yoyo:true, repeat:1, stagger:{grid:'auto', from:Math.max(0,i), amount:.22}});
+    var i = lis.indexOf(tile.parentNode);
+    G.fromTo(lis.filter(function(l,j){return j!==i}), {scale:1}, {scale:.96, duration:.1, ease:'power2.out', yoyo:true, repeat:1, stagger:{grid:'auto', from:Math.max(0,i), amount:.22}});
     burst($('.lines', slot), side === 'cat' ? '#ffffff' : '#fff04d');
     shake(stage, 9, .3);
     return true;
   }
-  /* CATS / DOGS switch: one side's tiles at a time (the game's pick screen has the same switch) */
-  var grid = $('.grid'), switches = $$('.side-switch button');
-  function showSide(side){
-    if (grid.dataset.show === side) return;
-    grid.dataset.show = side;
-    switches.forEach(function(b){ b.setAttribute('aria-pressed', b.dataset.show === side ? 'true' : 'false'); });
-    var pressed = tiles.filter(function(t){ return t.dataset.side === side && t.getAttribute('aria-pressed') === 'true'; })[0];
-    if (pressed) setBio(pressed);
-    if (!anim) return;
-    var vis = tiles.filter(function(t){ return t.dataset.side === side; });
-    G.fromTo(vis, {y:40, rotation:function(i){return (i%2?1:-1)*12}, opacity:0, scale:.6}, {y:0, rotation:0, opacity:1, scale:1, duration:.45, ease:'back.out(1.8)', stagger:{each:.035, from:'random'}, clearProps:'transform,opacity'});
-    G.fromTo(stageVs, {scale:1.4, rotation:side === 'cat' ? -14 : 14}, {scale:1, rotation:0, duration:.5, ease:'elastic.out(1,.4)'});
-  }
-  switches.forEach(function(b){ b.addEventListener('click', function(){ showSide(b.dataset.show); }); });
   var lockT = {};
   function lock(tile){
     var side = tile.dataset.side, slot = slots[side], rd = $('.ready', slot);
@@ -560,6 +553,12 @@ export function startLandingMotion(rootEl, libs) {
   G.from('#slot-dog', {xPercent:60, rotation:14, opacity:0, duration:.8, ease:'expo.out', scrollTrigger:{trigger:'#stage', start:'top 80%', once:true}});
   G.from('.stage-vs', {scale:0, rotation:-90, duration:.6, ease:'back.out(3)', delay:.4, scrollTrigger:{trigger:'#stage', start:'top 80%', once:true}});
   G.to('.stage-vs', {y:-5, duration:1.2, ease:'sine.inOut', yoyo:true, repeat:-1});
+  /* the new dogs: cards drop in after the grid */
+  if ($('.newdogs')){
+    G.from($$('.newdogs .nd'), {y:40, rotation:function(i){return (i%2?1:-1)*8}, opacity:0, duration:.55, ease:'back.out(1.8)', stagger:.07, clearProps:'transform,opacity',
+      scrollTrigger:{trigger:'.newdogs', start:'top 88%', once:true}});
+    G.from('.newdogs .nd-badge', {scale:0, rotation:-20, duration:.5, ease:'back.out(3)', scrollTrigger:{trigger:'.newdogs', start:'top 88%', once:true}});
+  }
   $$('.slot .pic').forEach(function(p,i){ G.to(p, {y:-6, duration:1.9, ease:'sine.inOut', yoyo:true, repeat:-1, delay:i*.6}); });
 
   /* halftone dot transitions */
@@ -576,7 +575,7 @@ export function startLandingMotion(rootEl, libs) {
      ROUNDS
      ========================================================= */
   var rs = $$('.round');
-  var split = has.SplitText ? function(el){ return SplitText.create(el, {type:'words', wordsClass:'w'}).words; } : function(el){ return [el]; };
+  var split = has.SplitText ? function(el){ return srSplit(el, {type:'words', wordsClass:'w'}).words; } : function(el){ return [el]; };
   var h3w = rs.map(function(r){ return split($('h3 .ital', r)); });
   /* overlays: ambient loops that play while their round is on screen */
   var amb = [];
@@ -731,7 +730,6 @@ export function startLandingMotion(rootEl, libs) {
     r.addEventListener('pointerenter', function(){ G.to(m.firstElementChild, {rotationX:'+=360', duration:.5, ease:'back.out(1.6)'}); G.to(l, {x:-6, duration:.3, ease:'power3.out'}); G.to(rr, {x:6, duration:.3, ease:'power3.out'}); });
     r.addEventListener('pointerleave', function(){ G.to([l, rr], {x:0, duration:.6, ease:'elastic.out(1,.5)'}); });
   });
-  G.from('.tale-foot', {opacity:0, y:12, duration:.6, ease:'power3.out', scrollTrigger:{trigger:'.tale-foot', start:'top 95%', once:true}});
 
   /* =========================================================
      SHELTER: the real title belt
@@ -766,7 +764,7 @@ export function startLandingMotion(rootEl, libs) {
   }
   var shH = $('.shelter h2 .ital');
   if (has.SplitText){
-    var shSplit = SplitText.create(shH, {type:'words,chars', charsClass:'char'});
+    var shSplit = srSplit(shH, {type:'words,chars', charsClass:'char'});
     G.from(shSplit.chars, {yPercent:-120, rotation:function(){return (Math.random()-.5)*30}, opacity:0, duration:.6, ease:'back.out(2.4)', stagger:{each:.025, from:'start'},
       scrollTrigger:{trigger:shH, start:'top 85%', once:true}, onComplete:function(){
         G.timeline({repeat:-1, repeatDelay:6, delay:2}).to(shSplit.chars, {yPercent:-14, duration:.2, ease:'sine.out', yoyo:true, repeat:1, stagger:.03});

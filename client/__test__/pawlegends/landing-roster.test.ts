@@ -6,7 +6,16 @@
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
 import { landingMarkup } from "@/components/pawlegends/landing/markup";
-import { countWord, LANDING_ROSTER, landingCats, landingDogs } from "@/components/pawlegends/landing/roster";
+import {
+  countWord,
+  GAME_SIM_VERSION,
+  gridHeroes,
+  LANDING_ROSTER,
+  landingCats,
+  landingDogs,
+  liveRoster,
+  newcomers,
+} from "@/components/pawlegends/landing/roster";
 
 const GAME = join(__dirname, "../../../pawlegends/src");
 const read = (p: string) => readFileSync(join(GAME, p), "utf8");
@@ -20,6 +29,10 @@ describe("Pawlegends landing roster", () => {
   it("reads the game's hero list and sim version", () => {
     expect(simVersion).toBeGreaterThanOrEqual(12);
     expect(heroIds.length).toBeGreaterThanOrEqual(12);
+  });
+
+  it("tracks the game's sim version, so released heroes move into the grid and the counts", () => {
+    expect(GAME_SIM_VERSION).toBe(simVersion);
   });
 
   it("lists every hero the game ships", () => {
@@ -40,12 +53,22 @@ describe("Pawlegends landing roster", () => {
 
   it("takes every count in the copy from the roster", () => {
     const html = landingMarkup();
-    expect(html).toContain(`${LANDING_ROSTER.length} heroes live`);
+    expect(html).toContain(`${liveRoster().length} heroes live`);
     expect(html).toContain(`${countWord(landingCats().length)} cats, ${countWord(landingDogs().length).toLowerCase()} dogs.`);
-    expect(html).toContain(`Cats<small>· ${landingCats().length}</small>`);
-    expect(html).toContain(`Dogs<small>· ${landingDogs().length}</small>`);
+    expect(html).toContain(`Cats · ${gridHeroes().filter((h) => h.side === "cat").length}<`);
+    expect(html).toContain(`Dogs · ${gridHeroes().filter((h) => h.side === "dog").length} `);
     expect(html).toContain(`data-count="${landingCats().length}"`);
     expect(html).toContain(`data-count="${landingDogs().length}"`);
+  });
+
+  it("puts every hero in the grid (released, real art) or the new-dogs strip, never both", () => {
+    const grid = gridHeroes().map((h) => h.id);
+    const strip = newcomers().map((h) => h.id);
+    expect([...grid, ...strip].sort()).toEqual(LANDING_ROSTER.map((h) => h.id).sort());
+    for (const id of grid) expect(strip).not.toContain(id);
+    const html = landingMarkup();
+    for (const h of newcomers()) expect(html).toContain(`<b class="nd-nm">${h.name.normalize("NFD")}</b>`);
+    if (newcomers().some((h) => h.since > simVersion)) expect(html).toContain("Coming next:");
   });
 
   it("keeps blurbs word for word with the game where the game has them", () => {
