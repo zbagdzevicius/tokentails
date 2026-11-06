@@ -723,6 +723,14 @@ name ("Sunny Tabby"); `catId` and the custom cat name (`ownName`) stay in the ow
 art is the hero's skin in the match cosmetics. `hello.hint {maxDifficulty, newbie}` only caps the party's default
 difficulty at the lowest member tier and marks a new player; it is trusted for nothing else.
 
+In a match, `social {kind, id, x?, y?, target?}` carries enumerated ids only (D8, no player text): `ping` 0..7 (the
+ping kinds), `chat` 0..7 (the quick lines), `emote` 0..3 (`SOCIAL_COUNT` in `proto.ts`). Any other id is dropped
+without a strike; points are clamped to the map as integers; one per 2 s and 10 per 30 s per member (the client
+mirrors it). The echo adds `from` and `slot`. A JIP `slot` frame adds `joined: true` and the friend's display `name`.
+In the results phase each member's `party` entry carries `again: true` once they pressed "Play again together".
+Relay counters (`PartyRelay.counters()`, logs only): `rooms_live, sockets, turn_overrun_ms_p99, loop_delay_p99,
+referee_lag_turns, desyncs, divergences, restores, refused_busy, join_fail_global`.
+
 `POST /user/catbassadors/live` with `type: 'PAWLEGENDS'` also accepts a party result in `pawlegends`:
 `{v: 2, room, slot, simVersion, ticks, outcome, finalHash}`. It is checked against the room log the relay stored
 and the referee's three-way verified verdict; errors `PAWLEGENDS_PARTY_ROOM` (no verified match), `PAWLEGENDS_PARTY_SLOT`

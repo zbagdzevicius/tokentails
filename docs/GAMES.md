@@ -437,7 +437,9 @@ second, `SIM_VERSION` 11) in a Web Worker, and the backend replays it (v10 and v
   `FROZEN` in `pawlegends/tools/vendor-sim.mjs`), deploy the
   backend, then the client build. The backend must be live first, or every replay of the new version is refused. `GET /pawlegends/sim`
   serves the bundle hash (`npm run vendor-sim:check-remote -- <backend url>`). The backend refuses replays of
-  any other version, and the host purges queued matches of an old version.
+  any other version, and the host purges queued matches of an old version. The game's party events (`party_*`, `mp_*`, MULTIPLAYER.md §10) come through
+`analytics {event, props}` like the others (`PAWLEGENDS_GAME_EVENTS`); their props never carry a party code, a room
+id, a member id or a name.
 
 Known gaps (POC): heroes are procedural runtime models (the §6.9 fallback, no baked GLBs; `bake:heroes` and
 `bake:map` are not written); chromas tint the hero only; the device gate (iPhone 11, Pixel 6a, Iris Xe) is not
