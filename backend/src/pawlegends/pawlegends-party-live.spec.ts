@@ -10,6 +10,7 @@ import { checkRoomLog, liveSim, RefereeRoom } from './party/referee-core';
 import { MemoryRoomStore, type StoredRoom } from './party/room-store';
 import { PARTY_DAILY_CAP, partyDigest, savePawlegendsPartyMatch } from './pawlegends-party-live';
 import { savePawlegendsMatch } from './pawlegends-live';
+import { SIM_VERSION } from '../vendor/pawlegends-sim';
 import { PartyRelayService } from './party/party-relay.service';
 
 /* Party play N8 (MULTIPLAYER.md §6, §12 N8): scoring through /live against the stored, verified room log. */
@@ -22,7 +23,7 @@ function room(over: Partial<StoredRoom> = {}): StoredRoom {
     return {
         _id: 'room1',
         party: 'p1',
-        simVersion: 11,
+        simVersion: SIM_VERSION,
         simHash: 'x',
         config: { seed: 1, picks: [], tricks: [], difficulty: 'normal', humans: [0, 1] },
         occupants: [
@@ -71,7 +72,7 @@ function setup(r: StoredRoom = room()) {
             v: 2 as const,
             room: r._id,
             slot,
-            simVersion: 11,
+            simVersion: SIM_VERSION,
             ticks: 8000,
             outcome: 'won' as const,
             finalHash: 'abcdef12',
@@ -153,6 +154,8 @@ describe('pawlegends party live (N8)', () => {
     it('simVersion below PARTY_SINCE (or a non-party bundle) → PAWLEGENDS_SIM_VERSION', async () => {
         const s = setup();
         expect(await codeOf(s.save(s.a, s.body(0, { simVersion: 10 })))).toBe('PAWLEGENDS_SIM_VERSION');
+        // sim v12 is vendored (frozen) but shipped without party code: party play needs v13 (PARTY_SINCE)
+        expect(await codeOf(s.save(s.a, s.body(0, { simVersion: 12 })))).toBe('PAWLEGENDS_SIM_VERSION');
     });
 
     it('never a fastest win from a party; an unclaimed open seat pays a tier lower', async () => {
@@ -182,7 +185,7 @@ describe('pawlegends party live (N8)', () => {
                 v: 2,
                 room: 'room1',
                 slot: 1,
-                simVersion: 11,
+                simVersion: SIM_VERSION,
                 ticks: 10,
                 outcome: 'won',
                 finalHash: 'abcdef12',
@@ -199,7 +202,7 @@ describe('pawlegends party live (N8)', () => {
                 v: 2,
                 room: 'ROOM!',
                 slot: 5,
-                simVersion: 11,
+                simVersion: SIM_VERSION,
                 ticks: 10,
                 outcome: 'won',
                 finalHash: 'abcdef12',
@@ -213,7 +216,7 @@ describe('pawlegends party live (N8)', () => {
                 v: 2,
                 room: 'abcdefghijkl',
                 slot: 2,
-                simVersion: 11,
+                simVersion: SIM_VERSION,
                 ticks: 19800,
                 outcome: 'lost',
                 finalHash: 'abcdef12',

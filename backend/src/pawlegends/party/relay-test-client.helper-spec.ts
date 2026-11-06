@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { simFor } from '../../vendor/pawlegends-sim';
+import { SIM_VERSION, simFor } from '../../vendor/pawlegends-sim';
 import {
     Frame,
     PROTO,
@@ -15,7 +15,8 @@ import {
 
 /* A headless party client for the relay specs (and mp/load.mjs): JSON in a list, TURNs in order. */
 
-export const LIVE = simFor(11)!;
+/** The live party sim (sim v13 and later carry party code). */
+export const LIVE = simFor(SIM_VERSION)!;
 export const SIM_HASH = LIVE.SIM_SOURCE_HASH!;
 
 export class TestClient {
@@ -70,7 +71,7 @@ export class TestClient {
     }
 
     hello(extra: Record<string, unknown> = {}): void {
-        this.send({ t: 'hello', proto: PROTO, sim: 11, simHash: SIM_HASH, build: 'spec.1', ...extra });
+        this.send({ t: 'hello', proto: PROTO, sim: SIM_VERSION, simHash: SIM_HASH, build: 'spec.1', ...extra });
     }
 
     cmd(bytes: Uint8Array): void {

@@ -158,12 +158,13 @@ describe('party referee (N4)', () => {
         const got: string[] = [];
         pool.onRoom = m => got.push(m.t);
         const { config, ref, log } = playRoom(78);
-        const live = (await import('../../vendor/pawlegends-sim')).simFor(11)!;
-        pool.open('p1', 11, live.SIM_SOURCE_HASH!, config);
+        const vendor = await import('../../vendor/pawlegends-sim');
+        const live = vendor.simFor(vendor.SIM_VERSION)!;
+        pool.open('p1', live.SIM_VERSION, live.SIM_SOURCE_HASH!, config);
         for (const b of log.slice(0, 60)) pool.turn('p1', b);
         await new Promise(r => setImmediate(r));
         expect(got).toContain('hash');
-        const v = await pool.verify(11, live.SIM_SOURCE_HASH!, config, concat(log), ref.ended!);
+        const v = await pool.verify(live.SIM_VERSION, live.SIM_SOURCE_HASH!, config, concat(log), ref.ended!);
         expect(v).toMatchObject({ ok: true });
         await pool.shutdown();
     });
