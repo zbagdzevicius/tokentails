@@ -717,6 +717,12 @@ Co-op against bots for 1 to 3 friends, deterministic lockstep through a relay. A
 | POST | `/pawlegends/party/ticket` | `{ticket, expiresIn: 60}`: a single-use HMAC token naming the caller, sent inside the relay `hello`. 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE` without the secret | `AppAuthGuard` + `@AllowGuest()`, 30 per 10 min per IP |
 | WS | `/pawlegends/ws` (subprotocol `pl.1`) | The relay. JSON text frames (`hello`, `party.*`, `pick.*`, `load`, `loaded`, `vote`, `social`, `sync`, `away`, `back`, `bye`; server `welcome`, `error`, `party`, `match`, `slot`, `vote`, `social`, `resync`, `end`, ...) and binary frames (CMD, BEAT, HASH; TURN, CATCHUP, ECHO). Shapes and limits: `pawlegends/src/net/proto.ts` (vendored to `backend/src/vendor/pawlegends-net/`) | Origin in the CORS list; caps in `party-limits.ts` |
 
+`party.card {catId}` wears one of the caller's own cats in the party (ticketed accounts only; the relay checks
+ownership with `CatRepository`). Peers get only `{image, element, tier}` and a name from the card's catalog or breed
+name ("Sunny Tabby"); `catId` and the custom cat name (`ownName`) stay in the owner's own `party` frame. The card
+art is the hero's skin in the match cosmetics. `hello.hint {maxDifficulty, newbie}` only caps the party's default
+difficulty at the lowest member tier and marks a new player; it is trusted for nothing else.
+
 `POST /user/catbassadors/live` with `type: 'PAWLEGENDS'` also accepts a party result in `pawlegends`:
 `{v: 2, room, slot, simVersion, ticks, outcome, finalHash}`. It is checked against the room log the relay stored
 and the referee's three-way verified verdict; errors `PAWLEGENDS_PARTY_ROOM` (no verified match), `PAWLEGENDS_PARTY_SLOT`
