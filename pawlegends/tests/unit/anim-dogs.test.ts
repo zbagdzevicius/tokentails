@@ -1,5 +1,5 @@
 /**
- * The sim v13 dogs' move sets and skill FX (DOGS-V13 §1, lane RENDER): every dog is filled (no stub art left), each
+ * The sim v14 dogs' move sets and skill FX (DOGS-V13 §1, lane RENDER): every dog is filled (no stub art left), each
  * clip binds to the sim timings (basic contact, dashes on travelEnd, windups on windupStart), compiles on its own rig,
  * keeps the root caps, and the viral moments are wired: Nugget's sploot pose, Bravo's flop clip for the `clip` event,
  * Chili's BIG DOG form hold (additive, 1.35×, never in the bag), Howler's inhale over the 21 t windup with the wide
@@ -31,7 +31,7 @@ const MODS = { nugget: NUGGET, marshmallow: MARSHMALLOW, bravo: BRAVO, chili: CH
 const moves = async (h: HeroId): Promise<MoveSet> => (await HERO_ANIM[h].moves()).MOVES;
 const fxOf = async (h: HeroId): Promise<SkillFxSet> => (await HERO_ANIM[h].fx()).SKILL_FX;
 
-describe('sim v13 dog moves', () => {
+describe('sim v14 dog moves', () => {
   for (const h of DOGS) {
     it(`${h}: filled, basics on the windup, dashes on travelEnd, windups on windupStart`, async () => {
       const m = await moves(h);
@@ -166,7 +166,7 @@ function fakeFx(hero: HeroId) {
 const cast = (slot: number, x = 4000, y = 0) => ({ type: 'cast' as const, tick: 0, src: 0, slot: slot as 0 | 1 | 2 | 3, x, y, target: -1 });
 const ctx = { form: false, buffs: 0, resource: 0 } as unknown as MoveCtx;
 
-describe('sim v13 dog skill FX', () => {
+describe('sim v14 dog skill FX', () => {
   for (const h of DOGS) {
     it(`${h}: owns all four slots, every cast and update draws without throwing`, async () => {
       const fxs = await fxOf(h);

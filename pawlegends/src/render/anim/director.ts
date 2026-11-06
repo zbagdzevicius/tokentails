@@ -836,7 +836,7 @@ export class AnimDirector {
   }
 
   /**
-   * Sim v13 `clip` event fired at render time (a viral moment no cast starts): the hero's own clip from its move set
+   * Sim v14 `clip` event fired at render time (a viral moment no cast starts): the hero's own clip from its move set
    * (Bravo's flop), then every loaded skill FX set's onClip (the frozen cat's ice cube is Marshmallow's).
    */
   clipFired(e: Extract<SimEvent, { type: 'clip' }>): void {

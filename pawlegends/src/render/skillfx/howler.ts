@@ -1,5 +1,5 @@
 /**
- * Howler's skill FX (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.5 "Moves and VFX"): mint wind and sound.
+ * Howler's skill FX (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.5 "Moves and VFX"): mint wind and sound.
  *
  * - Q AWOO: visible sound-wave arcs rolling out over the sim cone (its arc and range), music notes, the howl.
  * - W Derp Dash: speed lines and a snow spray.

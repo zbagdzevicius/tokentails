@@ -28,7 +28,7 @@ export type IconId =
   | 'lance' | 'dome'
   // sim v11 original cats (drawn in ./icons/<hero>.ts)
   | 'roll' | 'loaf' | 'bodyguard' | 'chonk' | 'capCannon' | 'laser' | 'duck' | 'boxbot' | 'fluffPuff' | 'glare' | 'cushion' | 'decree' | 'leap' | 'ears' | 'swat' | 'zoomies'
-  // sim v13 original dogs (drawn in ./icons/<hero>.ts), and the bone of the pick screen's DOGS tab
+  // sim v14 original dogs (drawn in ./icons/<hero>.ts), and the bone of the pick screen's DOGS tab
   | 'frisbee' | 'bestfriend' | 'sploot' | 'herd' | 'snowball' | 'snowpatch' | 'slide' | 'blizzard' | 'tear' | 'spotlight' | 'stagedive' | 'encore'
   | 'yap' | 'purse' | 'bigdog' | 'howl' | 'derpdash' | 'talkback' | 'scream' | 'bone';
 
@@ -246,7 +246,7 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
 });
 
 /**
- * Sim v13: the dog side's names for the same Paw Tricks (QA 2026-11-06: a dog that hisses and purrs read as a cat).
+ * Sim v14: the dog side's names for the same Paw Tricks (QA 2026-11-06: a dog that hisses and purrs read as a cat).
  * Same numbers, same icons; only the words change.
  */
 const DOG_TRICK_TEXT: Readonly<Partial<Record<TrickId, AbilityText>>> = Object.freeze({
@@ -259,7 +259,7 @@ export function trickText(trick: TrickId, hero?: HeroId): AbilityText {
   return (hero && HEROES[hero]?.side === 'dog' ? DOG_TRICK_TEXT[trick] : undefined) ?? TRICK_TEXT[trick];
 }
 
-/** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none); sim v13: by side too. */
+/** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none); sim v14: by side too. */
 export function trickHint(role: string, side: 'cat' | 'dog' = 'cat'): string {
   if (role !== 'Tank') return '';
   return side === 'dog' ? 'Tank → Shake Off: you take the stuns, so shake them off.' : 'Tank → Purr-ify: you take the stuns, so shake them off.';
@@ -300,7 +300,7 @@ function reachAndTimer(a: Nums, parts: string[]): void {
   if (a.push !== undefined && a.push > 0) parts.push(`push ${metres(a.push)}`);
   const dur = a.stun ?? a.root ?? a.fear ?? a.charm ?? a.duration;
   if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'fear' : a.charm ? 'charm' : 'lasts'} ${sec(dur)}`);
-  // Sim v13 (the dogs): shots in a burst, shares of max HP, the freeze, the splash cap and a fading slow's tail.
+  // Sim v14 (the dogs): shots in a burst, shares of max HP, the freeze, the splash cap and a fading slow's tail.
   if (a.count !== undefined && a.count > 1) parts.push(`×${a.count}`);
   if (a.healBp !== undefined && a.healBp > 0) parts.push(`heal ${Math.round(a.healBp / 100)}% max HP`);
   if (a.shieldBp !== undefined && a.shieldBp > 0) parts.push(`shield ${Math.round(a.shieldBp / 100)}% max HP`);

@@ -1,5 +1,5 @@
 /**
- * Marshmallow's move set (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.2 "Moves and VFX", ANIM-SPEC §14 brief).
+ * Marshmallow's move set (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.2 "Moves and VFX", ANIM-SPEC §14 brief).
  *
  * A bouncy Samoyed puppy: two-paw tosses, belly flops, a head tilt and a sneeze.
  * - basics (ranged, release on the 8 t windup): A a two-paw overhead toss, B a one-paw underarm flick;

@@ -29,7 +29,7 @@ export async function seedSide(page: Page, side: 'cat' | 'dog', extra: Record<st
 }
 
 /**
- * Title → first match (one tap). With `side`, a played profile on that side is seeded first (sim v13: `dog` starts the
+ * Title → first match (one tap). With `side`, a played profile on that side is seeded first (sim v14: `dog` starts the
  * match as Sir Brutus on the dog side, so the bots fill both teams by species).
  */
 export async function startFirstMatch(page: Page, query = '', side?: 'cat' | 'dog'): Promise<void> {

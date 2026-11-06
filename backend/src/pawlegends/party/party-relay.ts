@@ -245,7 +245,8 @@ export class PartyRelay {
     }
 
     private liveSim(): PawlegendsPartySim {
-        // the live bundle's party API (any party-capable bundle has the same hero/trick lists for the lobby)
+        // the live bundle's party API: the lobby offers its heroes and tricks (an older party bundle may lack some,
+        // e.g. sim v13 has no v14 dogs; startMatch refuses those seats on an older pinned sim)
         for (const v of [20, 19, 18, 17, 16, 15, 14, 13, 12, 11]) {
             const s = simFor(v);
             if (s?.party) return s.party;
@@ -961,6 +962,14 @@ export class PartyRelay {
                 this.sendJsonTo(m.id, { t: 'error', code: 'update_required' });
         }
         const ps = entry.party;
+        // the lobby offers the live sim's heroes: a party pinned to an older sim (sim v13 has no v14 dogs) cannot
+        // field a hero that sim lacks, so its members are told to update instead of starting a broken room
+        if (plan.seats.some(seat => !ps.HERO_IDS.includes(seat.hero as never))) {
+            for (const m of party.members) this.sendJsonTo(m.id, { t: 'error', code: 'update_required' });
+            this.parties.matchEnded(party.id);
+            this.log('refused_old_sim', { simVersion: sim.version });
+            return;
+        }
         const { picks, tricks } = ps.fillPicksParty(plan.seed, plan.seats as never);
         const config = {
             seed: plan.seed,

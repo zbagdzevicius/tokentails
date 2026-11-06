@@ -56,13 +56,13 @@ const P: Record<IconId, string> = {
   ...PIXEL_ICONS,
   ...DUCHESS_ICONS,
   ...STILTS_ICONS,
-  // sim v13 original dogs
+  // sim v14 original dogs
   ...NUGGET_ICONS,
   ...MARSHMALLOW_ICONS,
   ...BRAVO_ICONS,
   ...CHILI_ICONS,
   ...HOWLER_ICONS,
-  // sim v13: the DOGS tab of the pick screen (the CATS tab uses `paw`), a dog bone
+  // sim v14: the DOGS tab of the pick screen (the CATS tab uses `paw`), a dog bone
   bone: '<path d="M14 18 L34 30" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><g fill="currentColor"><circle cx="9" cy="17" r="5"/><circle cx="14" cy="11" r="5"/><circle cx="34" cy="37" r="5"/><circle cx="39" cy="31" r="5"/></g>',
 };
 

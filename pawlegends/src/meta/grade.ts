@@ -53,7 +53,7 @@ export const FRONTLINE_ROLES: readonly HeroRole[] = Object.freeze(['tank', 'supp
  * A 23.8%, B 41.8%), so every role was refit on the same 1,400 seeds a hero. Held out on 3001..3400 and 4001..4400,
  * the two-hero roles (tank, assassin) stay within 3.4 points of every target; one single-hero role per block lands 5.5
  * to 6.5 points off one share (support A 23.5% on 3001..; marksman B 40.8% on 4001..), a different one each time, which
- * is the 400-seed sampling error, not drift. Losses graded A or S: 34.6% and 35.9%. Sim v13 (seven dogs, the pvp
+ * is the 400-seed sampling error, not drift. Losses graded A or S: 34.6% and 35.9%. Sim v14 (seven dogs, the pvp
  * retune and Bravo joining the tanks) drifted tank (C 28.3%) and assassin (A 23.8%, C 30.5%) past the gate on
  * 1001..1400; both were refit on that block (tank 0.582 / 0.503 / 0.424, assassin 0.593 / 0.506 / 0.418) and pass
  * held out on 3001..3400. Howler joining Clem moved fighter (A 24.8%, C 29.0% on 3001..3400): refit to the mean of

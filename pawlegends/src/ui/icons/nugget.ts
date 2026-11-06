@@ -1,4 +1,4 @@
-/** Nugget's ability icons (sim v13), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
+/** Nugget's ability icons (sim v14), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
 export const ICONS = {
   // Frisbee: a flying disc with a rim and speed lines
   frisbee: '<ellipse cx="28" cy="24" rx="15" ry="7" fill="currentColor"/><ellipse cx="28" cy="22" rx="9" ry="3.5" fill="#0003"/><path d="M3 20 H11 M5 28 H12" stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".6"/>',

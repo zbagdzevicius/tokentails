@@ -182,7 +182,7 @@ export interface MoveSet {
   respawn?: ClipDef;
   levelUp?: ClipDef;
   /**
-   * Sim v13 `clip` events (render only): the hero's own clip for a viral moment that no cast starts (Bravo's flop is
+   * Sim v14 `clip` events (render only): the hero's own clip for a viral moment that no cast starts (Bravo's flop is
    * his passive). Played on the hero named by the event.
    */
   clips?: Readonly<Partial<Record<ClipMoment, ClipDef>>>;
@@ -194,7 +194,7 @@ export interface MoveSet {
   formHoldWhen?: (ctx: MoveCtx) => boolean;
 }
 
-/** Sim v13 (sim/api ClipKind): the viral moments a `clip` event names. */
+/** Sim v14 (sim/api ClipKind): the viral moments a `clip` event names. */
 export type ClipMoment = 'flop' | 'bigdog' | 'scream' | 'frozen';
 
 export interface V3Out {
@@ -321,7 +321,7 @@ export interface SkillFxSet {
   /** sustained effects (tethers, curtains, wires) */
   update?(dt: number, fx: FxCtx): void;
   /**
-   * Sim v13 `clip` event on hero `id` (Bravo's flop, Chili's BIG DOG, Howler's scream, a cat frozen by SNOW DAY!).
+   * Sim v14 `clip` event on hero `id` (Bravo's flop, Chili's BIG DOG, Howler's scream, a cat frozen by SNOW DAY!).
    * Called for every loaded hero's FX set; a set filters by the moment (and by the hero for its own moments).
    */
   onClip?(id: number, what: ClipMoment, fx: FxCtx): void;

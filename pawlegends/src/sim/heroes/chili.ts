@@ -1,5 +1,5 @@
 /**
- * Chili, Marksman (sim v13, original dog; build spec docs/plans/moba/DOGS-V13.md §1.4). Bespoke hooks: Small Dog
+ * Chili, Marksman (sim v14, original dog; build spec docs/plans/moba/DOGS-V13.md §1.4). Bespoke hooks: Small Dog
  * Syndrome (Rage from enemy-hero damage, at most once a tick, and from Yaps that hit a hero; each Rage is attack speed),
  * Yap Yap Yap's three queued shots, Tiny Zoomies, Purse Mode (untargetable and `busy` in the bag, a slow on the way
  * out) and BIG DOG ENERGY (Rage locked full, +damage on heroes, basics splash onto at most two heroes or minions).

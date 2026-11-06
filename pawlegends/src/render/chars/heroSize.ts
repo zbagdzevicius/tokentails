@@ -50,7 +50,7 @@ export const HERO_BUILD: Readonly<Record<HeroId, HeroBuild>> = Object.freeze({
   lambo: { h: 1.08, w: 1.16, ring: 2.45 },
   // big pug tank
   brutus: { h: 1.08, w: 1.14, ring: 2.45 },
-  // sim v13 original dogs
+  // sim v14 original dogs
   // the low corgi loaf: wide and long, short
   nugget: { h: 0.96, w: 1.16, ring: 2.15 },
   // the round white puppy ball

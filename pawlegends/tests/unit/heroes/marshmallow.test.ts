@@ -31,7 +31,7 @@ function arena() {
   return m;
 }
 
-describe('Marshmallow, original dog mage (sim v13)', () => {
+describe('Marshmallow, original dog mage (sim v14)', () => {
   it('data: an ICE dog mage, index 13, no stacks', () => {
     expect([MARSHMALLOW.side, MARSHMALLOW.role, MARSHMALLOW.element, MARSHMALLOW.name]).toEqual(['dog', 'mage', 'ICE', 'Marshmallow']);
     expect(HERO_IDS.indexOf('marshmallow')).toBe(13);

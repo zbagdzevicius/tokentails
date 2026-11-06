@@ -24,7 +24,7 @@ export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, Her
 /**
  * Sim v9: the shelter champions are appended, so Clem (0), Sage (1), Sir Brutus (2) and Cacklejaw (3) keep their indices.
  * Sim v11: the four original cats follow (Meatball 8, Pixel 9, Duchess 10, Stilts 11).
- * Sim v13: the five original dogs follow (Nugget 12, Marshmallow 13, Bravo 14, Chili 15, Howler 16;
+ * Sim v14: the five original dogs follow (Nugget 12, Marshmallow 13, Bravo 14, Chili 15, Howler 16;
  * docs/plans/moba/DOGS-V13.md).
  */
 export const HERO_IDS: readonly HeroId[] = Object.freeze([

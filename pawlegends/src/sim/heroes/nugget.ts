@@ -1,5 +1,5 @@
 /**
- * Nugget, Support (sim v13, original dog; build spec docs/plans/moba/DOGS-V13.md §1.1). Bespoke hooks: Treat Pouch
+ * Nugget, Support (sim v14, original dog; build spec docs/plans/moba/DOGS-V13.md §1.1). Bespoke hooks: Treat Pouch
  * (every few seconds his next basic on an enemy hero heals the weakest allied hero near him), Frisbee's piercing disc,
  * Best Friend's ally pick and landing, the Sploot (rooted, tougher, a heal over time on the allies round him) and
  * Herding Time (enemy heroes pulled toward a point that never sits inside his own tower's range).

@@ -82,7 +82,7 @@ function moveTo(w: World, id: number, mem: BotMem, x: number, y: number): Comman
 }
 
 function attack(w: World, id: number, mem: BotMem, t: number): Command | null {
-  // Sim v13: a hero whose kit deters basics (Howler's Talk Back) is not swung at; the bot steps back instead.
+  // Sim v14: a hero whose kit deters basics (Howler's Talk Back) is not swung at; the bot steps back instead.
   if (t < RANGE.minions && w.kind[t] === Kind.Hero && kitOf(w, t).deterBasics?.(w, t) === true) {
     awayFrom(w, id, w.x[t], w.y[t], BOT_AI.deterStep);
     return moveTo(w, id, mem, pt[0], pt[1]);

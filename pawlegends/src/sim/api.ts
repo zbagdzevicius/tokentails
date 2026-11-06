@@ -318,11 +318,11 @@ export type SimEvent =
   | { type: 'ping'; tick: number; kind: PingKind; x: number; y: number; target: number; took: number }
   /** Ally bot `id` answers a ping: 'ok' (on it) or 'heal' (refused: "Healing first!"). The render picks the text. */
   | { type: 'bark'; tick: number; id: number; what: BarkKind }
-  // Sim v13 (docs/plans/moba/DOGS-V13.md): a viral moment for the render and the share tools (not hashed).
+  // Sim v14 (docs/plans/moba/DOGS-V13.md): a viral moment for the render and the share tools (not hashed).
   /** Hero `id`: 'flop' Bravo played dead, 'bigdog' Chili went BIG DOG, 'scream' Howler screamed, 'frozen' it was frozen by SNOW DAY!. */
   | { type: 'clip'; tick: number; id: number; what: ClipKind };
 
-/** Sim v13: what a `clip` event shows. */
+/** Sim v14: what a `clip` event shows. */
 export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen';
 
 export type SimEventType = SimEvent['type'];

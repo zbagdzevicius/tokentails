@@ -1,5 +1,5 @@
 /**
- * Bravo's move set (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.3 "Moves and VFX", ANIM-SPEC §14 brief).
+ * Bravo's move set (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.3 "Moves and VFX", ANIM-SPEC §14 brief).
  *
  * A theatre pug: every move is played to the back row.
  * - basics (melee, contact on the 8 t windup): A a cape swat, B a dramatic backhand slap;

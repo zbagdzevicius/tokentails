@@ -1,5 +1,5 @@
 /**
- * Chili's move set (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.4 "Moves and VFX", ANIM-SPEC §14 brief).
+ * Chili's move set (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.4 "Moves and VFX", ANIM-SPEC §14 brief).
  *
  * A tiny furious chihuahua: everything is a yap with the whole body behind it.
  * - basics (ranged, release on the 8 t windup): A a yap (a hop and a head thrust, the body recoiling), B a double

@@ -1,5 +1,5 @@
 /**
- * Marshmallow, Mage (sim v13, original dog; build spec docs/plans/moba/DOGS-V13.md §1.2). A zone mage. Bespoke hooks:
+ * Marshmallow, Mage (sim v14, original dog; build spec docs/plans/moba/DOGS-V13.md §1.2). A zone mage. Bespoke hooks:
  * Fresh Snow (standing in her own snow she is faster and her basics slow), the Snowball, the Snow Patch, the Belly
  * Slide's landing (haste and a shield) and SNOW DAY! (a blizzard; enemy heroes still inside when it ends are Frozen).
  *

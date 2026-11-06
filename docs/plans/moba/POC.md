@@ -394,14 +394,14 @@ Build spec: [`pawlegends/docs/FUN-PROGRESSION-V12.md`](../../../pawlegends/docs/
 - **Snapshot**: entity records grow to 60 bytes (u16 own-team Fish at 56, u8 Toy tier at 58). `SlotStats` gains `fish`, `toys`, `lastHits`, `toy1At`..`toy4At`.
 - **Verifier**: `SIM_VERSION` 12; the backend verifies v12 (live), v11 (frozen at 6cb57e05) and v10 (frozen at 18cbcf31). Deploy the backend first.
 
-### 6.8e Addendum (sim v13, 2026-11-06): five original dogs
+### 6.8e Addendum (sim v14, 2026-11-06): five original dogs
 
 Build spec: [`DOGS-V13.md`](DOGS-V13.md) (lane SIM). Numbers live in `src/data/heroes/{nugget,marshmallow,bravo,chili,howler}.ts` and `BOT_AI`.
 
 - **Roster**: Nugget (corgi support, 12), Marshmallow (Samoyed mage, 13), Bravo (pug tank, 14), Chili (chihuahua marksman, 15), Howler (husky fighter, 16), appended to `HERO_IDS`. The dogs cover all six roles; with 7 dogs for 3 slots a dog team never repeats a hero (GAPS N4 closed). `validate` still allows any team (party picks may mix species).
 - **Engine**: `PROJECTILE_KIND` `frisbee` 14 and `yap` 15 (ability damage); the snowball and the tear reuse `fluff`. Two optional kit hooks: `busy` (no move, basic or cast; Bravo's flop, Chili's purse) and `deterBasics` (bots step back instead of swinging; Howler's Talk Back). `absorb` takes the match handle (Bravo's flop clamps every hit, `pure` too, and clears tower locks). A `clip` event (`flop`, `bigdog`, `scream`, `frozen`) for the render and share tools, not hashed. No new primitive, World array or zone kind.
 - **Tuning**: every hero's `pvp` was retuned on the 2,000-seed balance gate (the old dogs' edge came down); see `DOGS-V13.md` "As built (lane SIM)".
-- **Verifier**: `SIM_VERSION` 13; the backend verifies v13 (live), v12 (frozen at 5bf2a938), v11 (6cb57e05) and v10 (18cbcf31). v13 adds a `dog-replay.fixture.json` (Chili). Deploy the backend first.
+- **Verifier**: `SIM_VERSION` 14 (the dogs were built as v13 in parallel with party play, which shipped first as v13, so they ride v14); the backend verifies v14 (live), v13 (party play, frozen at eaba6ae7), v12 (frozen at 5bf2a938), v11 (6cb57e05) and v10 (18cbcf31). v14 adds a `dog-replay.fixture.json` (Chili). Deploy the backend first.
 
 ### 6.9 Hero art in the POC
 

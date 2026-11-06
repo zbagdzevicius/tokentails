@@ -1,4 +1,4 @@
-/** Bravo's ability icons (sim v13), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
+/** Bravo's ability icons (sim v14), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
 export const ICONS = {
   // Crocodile Tears: one big tear drop
   tear: '<path d="M24 4 C24 4 10 22 10 30 C10 38 16 44 24 44 C32 44 38 38 38 30 C38 22 24 4 24 4 Z" fill="currentColor"/><path d="M18 30 C18 34 20 37 23 38" stroke="#fff6" stroke-width="3" fill="none" stroke-linecap="round"/>',

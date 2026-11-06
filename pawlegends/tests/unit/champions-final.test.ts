@@ -19,7 +19,7 @@ import { HERO_TEXT } from '../../src/ui/heroText';
 import { MID, heroMatch, hold, place, setLevel } from './heroes/kit-helpers';
 
 describe('hero-fight tuning (final spec, species balance nudges)', () => {
-  it('sim v13 balance pass: Lambo 9200/9100, Avietė 12700/7825, Gabė 9050/9600, Bengas 10550/8700', () => {
+  it('sim v14 balance pass: Lambo 9200/9100, Avietė 12700/7825, Gabė 9050/9600, Bengas 10550/8700', () => {
     expect(HEROES.lambo.pvp).toEqual({ dmgBp: 9150, takenBp: 9125 });
     expect(HEROES.aviete.pvp).toEqual({ dmgBp: 12750, takenBp: 7800 });
     expect(HEROES.gabe.pvp).toEqual({ dmgBp: 9050, takenBp: 9600 });

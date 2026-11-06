@@ -1,7 +1,7 @@
 /** Shared shape of hero data (POC.md §6). Integer units: mm, mm/s, ticks, bp, angle steps (1/4096 turn). */
 /**
  * HERO_IDS order is the sim index; the four shelter champions (sim v9) are appended so 0..3 keep their values, and the
- * four original cats (sim v11: Meatball, Pixel, Duchess, Stilts) after them, 8..11, and the five original dogs (sim v13:
+ * four original cats (sim v11: Meatball, Pixel, Duchess, Stilts) after them, 8..11, and the five original dogs (sim v14:
  * Nugget, Marshmallow, Bravo, Chili, Howler) after those, 12..16.
  */
 export type HeroId =

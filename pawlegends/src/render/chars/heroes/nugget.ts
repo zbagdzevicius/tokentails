@@ -1,5 +1,5 @@
 /**
- * Nugget (sim v13, original dog; build spec docs/plans/moba/DOGS-V13.md §1.1 "Render"): everything the render needs
+ * Nugget (sim v14, original dog; build spec docs/plans/moba/DOGS-V13.md §1.1 "Render"): everything the render needs
  * that is his alone. The shared tables (specs.ts HERO_MOTION / HERO_HEIGHT / HERO_TOP and heroBase, views/models.ts
  * HERO_RING, palette.ts HERO_COLOR_CSS, anim/common.ts HERO_SPRINGS, effects.ts ultName and heroAccentRaw) read the
  * constants exported here. Import only types from specs.ts (it imports this module).

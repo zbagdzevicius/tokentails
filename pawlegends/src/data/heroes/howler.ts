@@ -1,4 +1,4 @@
-/** Howler, Fighter (sim v13, original dog): a loud husky whose screams slow, fear and finally blow cats away. */
+/** Howler, Fighter (sim v14, original dog): a loud husky whose screams slow, fear and finally blow cats away. */
 import type { HeroData } from './types';
 
 export const HOWLER: HeroData = Object.freeze<HeroData>({
@@ -6,7 +6,7 @@ export const HOWLER: HeroData = Object.freeze<HeroData>({
   name: 'Howler',
   side: 'dog',
   role: 'fighter',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 9100 / takes 9650 (51.3% of the 2,000-seed gate). */
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9100 / takes 9650 (51.3% of the 2,000-seed gate). */
   pvp: { dmgBp: 9100, takenBp: 9650 },
   element: 'WIND',
   base: { hp: 640, hpPerLevel: 66, attack: 58, attackPerLevel: 6, attackEvery: 30, range: 1700, speed: 5000, armour: 30, armourPerLevel: 3 },

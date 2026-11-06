@@ -85,7 +85,7 @@ describe('profile: card skins', () => {
   });
 });
 
-describe('profile: sim v13 side', () => {
+describe('profile: sim v14 side', () => {
   it('a new profile is on the cat side with no last heroes', () => {
     const f = freshProfile();
     expect(f.side).toBe('cat');

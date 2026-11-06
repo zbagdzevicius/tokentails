@@ -1,5 +1,5 @@
 /**
- * Sim v13 (DOGS-V13 §2, review item 13): the CATS / DOGS switch fills the active side in a neutral species colour
+ * Sim v14 (DOGS-V13 §2, review item 13): the CATS / DOGS switch fills the active side in a neutral species colour
  * (cat rose, bone amber), never a relation hue: blue means "my team" and red "the enemy" everywhere else (palette.ts).
  */
 import { describe, expect, it } from 'vitest';

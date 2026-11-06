@@ -32,7 +32,7 @@ function arena() {
   return m;
 }
 
-describe('Howler, original dog fighter (sim v13)', () => {
+describe('Howler, original dog fighter (sim v14)', () => {
   it('data: a WIND dog fighter, index 16', () => {
     expect([HOWLER.side, HOWLER.role, HOWLER.element, HOWLER.name]).toEqual(['dog', 'fighter', 'WIND', 'Howler']);
     expect(HERO_IDS.indexOf('howler')).toBe(16);

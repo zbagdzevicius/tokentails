@@ -11,7 +11,7 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
    * (10300 before; with seeded bot talents Sage fell to 45.8% of the 2,000-seed balance gate, floor 46%). Wave C:
    * 10900 (47.0%, Piercing Shot 45.3%, once heroes grew with levels and ranks). Sim v11 (four new cats): 10800 /
    * takes 9500 (51.2%).
-   * Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 9325 (48.7% of the 2,000-seed gate).
+   * Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 9325 (48.7% of the 2,000-seed gate).
    */
   pvp: { dmgBp: 10550, takenBp: 9325 },
   element: 'WIND',

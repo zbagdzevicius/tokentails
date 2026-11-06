@@ -1,5 +1,5 @@
 /**
- * Nugget's move set (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.1 "Moves and VFX", ANIM-SPEC §14 brief).
+ * Nugget's move set (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.1 "Moves and VFX", ANIM-SPEC §14 brief).
  *
  * A happy corgi loaf: everything bounces, the ears flop, the bum wiggles.
  * - basics (ranged, release on the 8 t windup): A a bark recoil (head thrust, mouth open, hop back), B a two-paw pat;

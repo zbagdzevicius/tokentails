@@ -57,7 +57,7 @@ export const HERO_SPRINGS: Readonly<Record<HeroId, SpringTuning>> = Object.freez
   pixel: PIXEL_SPRINGS,
   duchess: DUCHESS_SPRINGS,
   stilts: STILTS_SPRINGS,
-  // sim v13 original dogs
+  // sim v14 original dogs
   nugget: NUGGET_SPRINGS,
   marshmallow: MARSHMALLOW_SPRINGS,
   bravo: BRAVO_SPRINGS,

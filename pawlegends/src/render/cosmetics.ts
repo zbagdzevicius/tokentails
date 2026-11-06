@@ -162,7 +162,7 @@ export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; c
   'coat.stilts.desert': { hero: 'stilts', name: 'Desert coat', coat: { base: 0xe0b878, light: 0xfaecd0, dark: 0x8a5a2c, accent: 0xff7a3d } },
   'coat.stilts.silver': { hero: 'stilts', name: 'Silver coat', coat: { base: 0xc8ccd2, light: 0xf4f6f8, dark: 0x3a3e46, accent: 0x9be3c4 } },
   'coat.stilts.cinder': { hero: 'stilts', name: 'Cinder coat', coat: { base: 0x5a4a42, light: 0xc8b0a0, dark: 0x1e1612, accent: 0xff8fb1 } },
-  // sim v13: three coats for each original dog (first palettes; the RENDER lane tunes them on the models)
+  // sim v14: three coats for each original dog (first palettes; the RENDER lane tunes them on the models)
   'coat.nugget.tricolour': { hero: 'nugget', name: 'Tricolour coat', coat: { base: 0x2a2426, light: 0xfbe9d2, dark: 0xa0521f, accent: 0xff8fb1 } },
   'coat.nugget.fluffy': { hero: 'nugget', name: 'Fluffy coat', coat: { base: 0xf2d9b0, light: 0xffffff, dark: 0xc4a070, accent: 0xff8fb1 } },
   'coat.nugget.bread': { hero: 'nugget', name: 'Bread Loaf coat', coat: { base: 0xb07a3c, light: 0xe8c890, dark: 0x6b4420, accent: 0xffd34d } },

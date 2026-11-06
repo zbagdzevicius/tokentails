@@ -1,5 +1,5 @@
 /**
- * How Nugget's abilities are aimed and drawn (sim v13; docs/plans/moba/DOGS-V13.md §1.1 "Sim kit" aim), read by
+ * How Nugget's abilities are aimed and drawn (sim v14; docs/plans/moba/DOGS-V13.md §1.1 "Sim kit" aim), read by
  * ../abilities.ts heroAims. Numbers come from the hero data (mm, 1/4096 turn); this file only adds the aiming shape.
  */
 import type { HeroData } from '../../data/heroes/types';

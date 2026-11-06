@@ -276,7 +276,7 @@ export function stepHeroes(m: MatchHandle): void {
       w.state[id] = UnitState.Moving;
       continue;
     }
-    // Sim v13: Bravo playing dead and Chili in his purse stay put and start nothing (orders wait).
+    // Sim v14: Bravo playing dead and Chili in his purse stay put and start nothing (orders wait).
     if (kitBusy(w, id)) {
       w.state[id] = UnitState.Idle;
       continue;

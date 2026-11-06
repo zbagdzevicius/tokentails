@@ -1,5 +1,5 @@
 /**
- * Shared head parts for the sim v13 dogs (Nugget, Marshmallow, Bravo, Chili, Howler): render only. beast.ts keeps
+ * Shared head parts for the sim v14 dogs (Nugget, Marshmallow, Bravo, Chili, Howler): render only. beast.ts keeps
  * Sir Brutus's and Cacklejaw's recipes untouched (DOGS-V13 §7 lane RENDER); these are the PPK-chibi pieces the five
  * new heads share: big glossy dog eyes (two catchlights, so they read as cute at lobby scale and as two bright dots
  * from the iso camera), pointed or rounded ears on the ear bones, and a few small face helpers.

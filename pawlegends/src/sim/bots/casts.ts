@@ -7,7 +7,7 @@
  * Each function returns one cast command, or null.
  *
  * Sim v11: every hero has an explicit case (the `default` is a no-op, so a new hero never silently plays as Gabė);
- * the original cats (sim v11) and dogs (sim v13) delegate to their own module in ./heroes/, which builds on the
+ * the original cats (sim v11) and dogs (sim v14) delegate to their own module in ./heroes/, which builds on the
  * helpers exported here.
  */
 import { BOT_AI, type BotParams } from '../../data/bots';
@@ -336,7 +336,7 @@ export function nearestFoe(w: World, id: number, r: number): number {
 }
 
 /**
- * Sim v13: is a living enemy unit that is not a hero (minion, structure, camp rat, pudding) aiming at `id` from within
+ * Sim v14: is a living enemy unit that is not a hero (minion, structure, camp rat, pudding) aiming at `id` from within
  * `r`? Napping there is pointless: the next hit breaks the nap, and a bot with a survival passive (Bravo) could nap,
  * wake and nap again for a minute under minion fire.
  */
@@ -408,7 +408,7 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
       if (c) return c;
       break;
     }
-    // Sim v13: the original dogs.
+    // Sim v14: the original dogs.
     case 'nugget': {
       const c = nuggetBot.escape(w, id, foe, hx, hy);
       if (c) return c;

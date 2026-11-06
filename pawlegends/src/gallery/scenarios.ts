@@ -131,7 +131,7 @@ class Stream {
 }
 
 const SLOT_INDEX: Readonly<Record<Slot, CastSlot>> = { q: 0, w: 1, e: 2, r: 3 };
-/** Heroes whose R sets the snapshot's `form` bit (sim/index.ts SNAP_FX.Form; sim v13 Chili's BIG DOG). */
+/** Heroes whose R sets the snapshot's `form` bit (sim/index.ts SNAP_FX.Form; sim v14 Chili's BIG DOG). */
 const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilts', 'chili']);
 
 /**

@@ -76,7 +76,7 @@ export interface Profile {
   wornTitle: string | null;
   wornFrame: string | null;
   /**
-   * Sim v13 (DOGS-V13 §2): the side the pick screen's CATS / DOGS switch shows, and the last hero picked on each side
+   * Sim v14 (DOGS-V13 §2): the side the pick screen's CATS / DOGS switch shows, and the last hero picked on each side
    * (switching back restores it). Additive fields, so `v` stays 1; an old profile gets the side of its hero.
    */
   side: HeroSide;
@@ -85,7 +85,7 @@ export interface Profile {
 
 export type SkinFx = 'all' | 'mine' | 'off';
 /**
- * Most free unlocks kept (GAPS A1: the track rewards, the coat loop and the first-win coat fit with room). Sim v13: 57
+ * Most free unlocks kept (GAPS A1: the track rewards, the coat loop and the first-win coat fit with room). Sim v14: 57
  * track rewards and a 104-coat loop (13 originals × 8 palettes), so 160 became 200.
  */
 export const UNLOCKS_MAX = 200;
@@ -122,7 +122,7 @@ export function parseProfile(raw: string | null): Profile {
     p.wins = n(o.wins);
     p.firstWinDone = o.firstWinDone === true;
     p.hero = HEROES.includes(o.hero as HeroId) ? (o.hero as HeroId) : 'clem';
-    // sim v13: the switch side (else the hero's side) and the last hero per side (a hero of that side only)
+    // sim v14: the switch side (else the hero's side) and the last hero per side (a hero of that side only)
     p.side = o.side === 'cat' || o.side === 'dog' ? o.side : HERO_DATA[p.hero].side;
     if (o.lastBySide && typeof o.lastBySide === 'object') {
       for (const sd of ['cat', 'dog'] as const) {
@@ -414,7 +414,7 @@ export function resetProfileCache(): void {
   account = { signedIn: false, progress: null };
 }
 
-/** Sim v13 (DOGS-V13 §2): the hero a side opens on when the player has not picked one there yet. */
+/** Sim v14 (DOGS-V13 §2): the hero a side opens on when the player has not picked one there yet. */
 export const SIDE_DEFAULT: Readonly<Record<HeroSide, HeroId>> = Object.freeze({ cat: 'clem', dog: 'brutus' });
 
 /** The hero the CATS / DOGS switch selects on `side`: the last one picked there, else the side's default. */

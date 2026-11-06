@@ -1,5 +1,5 @@
 /**
- * Bravo's skill FX (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.3 "Moves and VFX"): stage light, velvet and
+ * Bravo's skill FX (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.3 "Moves and VFX"): stage light, velvet and
  * tears. Silver and warm white only (never gold: gold means "you").
  *
  * - Q Crocodile Tears: the sob (a falling whimper, tear drops off his face), the big blue tear's ribbon riding the

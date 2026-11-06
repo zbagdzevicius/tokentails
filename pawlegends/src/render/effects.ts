@@ -147,7 +147,7 @@ export interface AnimFxHooks {
   deathFired(e: Extract<SimEvent, { type: 'death' }>): void;
   /** A hero levelled up (seen now): its own level-up flourish. Optional. */
   levelFired?(id: number): void;
-  /** Sim v13 `clip` event (a viral moment: flop, BIG DOG, scream, frozen): the hero's clip and the skill FX. Optional. */
+  /** Sim v14 `clip` event (a viral moment: flop, BIG DOG, scream, frozen): the hero's clip and the skill FX. Optional. */
   clipFired?(e: Extract<SimEvent, { type: 'clip' }>): void;
   /** The own / enemy / ally ult moment (§8). True when it showed (the callout is skipped). */
   ult(src: Who, mine: boolean, name: string, color: number, aimedAtMe: boolean): boolean;
@@ -228,7 +228,7 @@ export class Effects {
         this.juice.banner({ title: 'Sunset', sub: 'Towers and cores take more damage. Respawns get longer.', tone: 'gold' });
         return;
       case 'clip':
-        // sim v13 viral moments: hidden heroes (brush, fog) draw nothing, like level-ups
+        // sim v14 viral moments: hidden heroes (brush, fog) draw nothing, like level-ups
         if (this.hooks.visible?.(e.id) === false) return;
         this.anim?.clipFired?.(e);
         return;
@@ -793,7 +793,7 @@ function heroAccentRaw(h: HeroId): number {
       return DUCHESS.ACCENT ?? elementColor(h);
     case 'stilts':
       return STILTS.ACCENT ?? elementColor(h);
-    // sim v13 original dogs: their render module's accent
+    // sim v14 original dogs: their render module's accent
     case 'nugget':
       return NUGGET.ACCENT ?? elementColor(h);
     case 'marshmallow':

@@ -1,5 +1,5 @@
 /**
- * Bravo, Tank (sim v13, original dog; build spec docs/plans/moba/DOGS-V13.md §1.3). Bespoke hooks: the Dramatic Flop
+ * Bravo, Tank (sim v14, original dog; build spec docs/plans/moba/DOGS-V13.md §1.3). Bespoke hooks: the Dramatic Flop
  * (playing dead), Crocodile Tears' fading slow and W refund, Center Stage's spotlight cut, Stage Dive's landing ring
  * and ENCORE!'s charm (his only charm).
  *

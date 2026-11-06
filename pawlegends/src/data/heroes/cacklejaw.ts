@@ -6,7 +6,7 @@ export const CACKLEJAW: HeroData = Object.freeze<HeroData>({
   name: 'Cacklejaw',
   side: 'dog',
   role: 'assassin',
-  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 11250 / takes 8825 (48.1% of the 2,000-seed gate). */
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11250 / takes 8825 (48.1% of the 2,000-seed gate). */
   pvp: { dmgBp: 11250, takenBp: 8825 },
   element: 'DARK',
   base: { hp: 520, hpPerLevel: 55, attack: 60, attackPerLevel: 6, attackEvery: 29, range: 1600, speed: 5200, armour: 20, armourPerLevel: 2 },

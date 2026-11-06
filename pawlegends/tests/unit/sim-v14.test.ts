@@ -1,5 +1,5 @@
 /**
- * Sim v13 (docs/plans/moba/DOGS-V13.md): five original dogs (Nugget, Marshmallow, Bravo, Chili, Howler), two new
+ * Sim v14 (docs/plans/moba/DOGS-V13.md): five original dogs (Nugget, Marshmallow, Bravo, Chili, Howler), two new
  * projectile kinds, the `busy` and `deterBasics` kit hooks and the `clip` event; a dog team never fields a hero twice.
  */
 import { describe, expect, it } from 'vitest';
@@ -27,9 +27,9 @@ function play(seed: number, picks: readonly HeroId[], ticks = 30 * 60 * 4) {
   return m;
 }
 
-describe('sim v13: the dogs', { timeout: 300000 }, () => {
-  it('SIM_VERSION is 13; the five dogs are appended at 12..16, all dogs, every role covered on the dog side', () => {
-    expect(SIM_VERSION).toBe(13);
+describe('sim v14: the dogs', { timeout: 300000 }, () => {
+  it('SIM_VERSION is 14; the five dogs are appended at 12..16, all dogs, every role covered on the dog side', () => {
+    expect(SIM_VERSION).toBe(14);
     expect(HERO_IDS.slice(12)).toEqual([...DOGS]);
     for (const h of DOGS) expect(HEROES[h].side, h).toBe('dog');
     const dogRoles = new Set(HERO_IDS.filter((h) => HEROES[h].side === 'dog').map((h) => HEROES[h].role));

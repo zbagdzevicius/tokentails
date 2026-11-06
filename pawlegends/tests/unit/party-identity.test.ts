@@ -1,10 +1,14 @@
 /**
  * Party play N0 (docs/plans/moba/MULTIPLAYER.md §1.5): the party hooks leave single-player output byte-identical.
- * Every vendored v11 fixture, the 20 determinism fuzz seeds and player-bot matches (including the `pinger`, which
+ * Every vendored live fixture, the 20 determinism fuzz seeds and player-bot matches (including the `pinger`, which
  * drives applyPing and the bots' orders) give the same final hash and hash trail as the golden JSON produced on
- * a923f0ac (the base before any party code). Part of the merge checklist.
+ * 262c36a0 (the five dogs on the released sim v12, no party code; its v13 fixtures). Party play rode sim v13 (v12 with
+ * party code, now frozen); the dogs ship as sim v14, and with no party v14 plays exactly like that dogs-only sim.
+ * Part of the merge checklist.
  *
- * Regenerate ONLY on a commit without party code: `PARTY_GOLDEN_WRITE=1 npx vitest run tests/unit/party-identity.test.ts`.
+ * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
+ * at its live fixtures): `PARTY_GOLDEN_WRITE=1 npx vitest run tests/unit/party-identity.test.ts`. A new sim version
+ * that changes single-player play regenerates it from that version's sim BEFORE party code is merged in.
  */
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,7 +19,7 @@ import { runReplay } from '../../src/sim/replay';
 import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v11');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v14');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {
@@ -55,10 +59,10 @@ function rows(): Row[] {
 }
 
 describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 600_000 }, () => {
-  it('single-player output equals the a923f0ac golden', () => {
+  it('single-player output equals the 262c36a0 (dogs-only sim) golden', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {
-      writeFileSync(GOLDEN, JSON.stringify({ base: 'a923f0ac', simVersion: 11, rows: got }, null, 2) + '\n');
+      writeFileSync(GOLDEN, JSON.stringify({ base: '262c36a0', simVersion: 14, rows: got }, null, 2) + '\n');
       return;
     }
     expect(existsSync(GOLDEN)).toBe(true);

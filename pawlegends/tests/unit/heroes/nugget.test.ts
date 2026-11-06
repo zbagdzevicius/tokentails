@@ -34,7 +34,7 @@ function arena() {
 
 const dist = (ax: number, ay: number, bx: number, by: number): number => Math.round(Math.hypot(ax - bx, ay - by));
 
-describe('Nugget, original dog support (sim v13)', () => {
+describe('Nugget, original dog support (sim v14)', () => {
   it('data: a FAIRY dog support, index 12', () => {
     expect([NUGGET.side, NUGGET.role, NUGGET.element, NUGGET.name]).toEqual(['dog', 'support', 'FAIRY', 'Nugget']);
     expect(HERO_IDS.indexOf('nugget')).toBe(12);

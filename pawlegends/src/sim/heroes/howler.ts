@@ -1,5 +1,5 @@
 /**
- * Howler, Fighter (sim v13, original dog; build spec docs/plans/moba/DOGS-V13.md §1.5). Bespoke hooks: Zoomie Brain
+ * Howler, Fighter (sim v14, original dog; build spec docs/plans/moba/DOGS-V13.md §1.5). Bespoke hooks: Zoomie Brain
  * (after any ability his next basic hits harder and slows), AWOO's cone, Derp Dash's hits along the path, Talk Back
  * (tougher; each enemy hero that hits him is feared once; bots stop starting basics on him: `deterBasics`) and THE
  * SCREAM (a cone that knocks back, then fears).
