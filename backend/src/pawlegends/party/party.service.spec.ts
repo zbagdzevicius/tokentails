@@ -499,6 +499,8 @@ describe('PartyService', () => {
             t.svc.matchEnded(t.p.id);
             t.svc.rematch('B', true);
             expect(t.p.phase).toBe('results');
+            // lane M6: "Play again together (1/3)" counts who pressed it
+            expect(t.svc.view(t.p, 'A').members.map(m => m.again === true)).toEqual([false, true, false]);
             t.svc.rematch('C', true);
             expect(t.p.phase).toBe('pick');
         });

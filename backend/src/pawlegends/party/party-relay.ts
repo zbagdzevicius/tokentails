@@ -23,7 +23,10 @@ import {
     SUBPROTOCOL,
     TURN_TICKS,
     WS_PATH,
+    SocialLimiter,
+    clampSocialPoint,
     decodeClientBinary,
+    socialIdOk,
     encodeCatchup,
     encodeTurnBody,
     splitTurnBodies,
@@ -99,7 +102,8 @@ interface Sock {
     strikes: number;
     json: { tokens: number; atMs: number };
     lastSyncMs: number;
-    socialAt: number[];
+    /** Social rate limit (1 per 2 s, 10 per 30 s; the client mirrors it). */
+    social: SocialLimiter;
     catchup: { bodies: Uint8Array[]; from: number; to: number; sentBytes: number; windowStartMs: number } | null;
     seatRoom: string | null;
     seatSlot: number;
@@ -134,6 +138,16 @@ const roomId = () => {
     for (let i = 0; i < 12; i++) s += (b[i] % 36).toString(36);
     return s;
 };
+
+/** Logged events that also bump a server counter (MULTIPLAYER.md §10). */
+const COUNTED: Readonly<Record<string, 'desyncs' | 'divergences' | 'restores' | 'refused_busy' | 'join_fail_global'>> =
+    {
+        mp_desync: 'desyncs',
+        mp_referee_divergence: 'divergences',
+        restores: 'restores',
+        refused_busy: 'refused_busy',
+        join_fail_global: 'join_fail_global',
+    };
 
 export class PartyRelay {
     readonly wss: WebSocketServer;
@@ -206,8 +220,13 @@ export class PartyRelay {
     }
 
     private log(event: string, props: Record<string, unknown> = {}): void {
+        const c = COUNTED[event];
+        if (c) this.tally[c]++;
         this.opts.log?.(event, props);
     }
+
+    /** Server counters (MULTIPLAYER.md §10): totals since boot, read by `counters()` (structured logs, never ids). */
+    private readonly tally = { desyncs: 0, divergences: 0, restores: 0, refused_busy: 0, join_fail_global: 0 };
 
     // -----------------------------------------------------------------------------------------------------------
     // Upgrade and sockets
@@ -269,7 +288,7 @@ export class PartyRelay {
             strikes: 0,
             json: { tokens: PARTY_LIMITS.json.burst, atMs: this.now() },
             lastSyncMs: 0,
-            socialAt: [],
+            social: new SocialLimiter(),
             catchup: null,
             seatRoom: null,
             seatSlot: -1,
@@ -613,10 +632,11 @@ export class PartyRelay {
     private social(s: Sock, msg: Extract<ClientJson, { t: 'social' }>): void {
         const live = this.seatOf(s);
         if (!live) return;
+        // D8: enumerated ids only (the quick lines and emotes of src/data/social.ts, the ping kinds); anything else is
+        // dropped without a strike (an older client may know fewer lines)
+        if (!socialIdOk(msg.kind, msg.id)) return;
         const now = this.now();
-        s.socialAt = s.socialAt.filter(t => now - t < 30_000);
-        if (s.socialAt.length >= 10 || (s.socialAt.length && now - s.socialAt[s.socialAt.length - 1] < 2000)) return;
-        s.socialAt.push(now);
+        if (!s.social.allow(now)) return;
         const out: Record<string, unknown> = {
             t: 'social',
             kind: msg.kind,
@@ -625,8 +645,9 @@ export class PartyRelay {
             slot: s.seatSlot,
         };
         if (msg.x !== undefined && msg.y !== undefined) {
-            out.x = Math.max(0, Math.min(100_000, msg.x));
-            out.y = Math.max(0, Math.min(60_000, msg.y));
+            const p = clampSocialPoint(msg.x, msg.y);
+            out.x = p.x;
+            out.y = p.y;
         }
         if (msg.target !== undefined && msg.target < 6) out.target = msg.target;
         for (const member of live.seats.keys()) this.sendJsonTo(member, out);
@@ -1326,6 +1347,7 @@ export class PartyRelay {
             turn_overrun_ms_p99: overruns.length ? overruns[Math.floor(overruns.length * 0.99)] : 0,
             loop_delay_p99: this.gate.p99Ms(),
             referee_lag_turns: this.gate.lag,
+            ...this.tally,
         };
     }
 
