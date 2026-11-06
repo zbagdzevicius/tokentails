@@ -25,6 +25,8 @@ test('Choose hero → Sir Brutus → Play starts the match (Play is never covere
   await page.waitForSelector('html[data-screen="title"]');
   await page.locator('[data-a="choose"]').click();
   await page.waitForSelector('html[data-screen="pick"]');
+  // sim v13: Sir Brutus is on the DOGS side of the switch
+  await page.locator('.side-tab.dog').click();
   await page.locator('[data-h="brutus"]').click();
   await expect(page.locator('.pl-pick-foot [data-a="start"]')).toBeVisible();
   expect(await topmost(page, '.pl-pick-foot [data-a="start"]')).toBe(true);

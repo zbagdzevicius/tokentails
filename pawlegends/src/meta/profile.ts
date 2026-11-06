@@ -6,7 +6,7 @@ import { TICK_HZ } from '../data/timeline';
 import { PROGRESS_LEVELS, type Progress } from '../embed/bridge';
 import type { OfferHistory } from '../money/offer';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
-import { HERO_IDS } from '../data/heroes';
+import { HERO_IDS, HEROES as HERO_DATA, type HeroSide } from '../data/heroes';
 import { CHAMPION_IDS } from '../data/heroes/shelter';
 
 export interface Profile {
@@ -75,6 +75,12 @@ export interface Profile {
   /** GAPS A1: the Treat Track title and frame the player chose to wear (ids, checked against the unlocks). */
   wornTitle: string | null;
   wornFrame: string | null;
+  /**
+   * Sim v13 (DOGS-V13 §2): the side the pick screen's CATS / DOGS switch shows, and the last hero picked on each side
+   * (switching back restores it). Additive fields, so `v` stays 1; an old profile gets the side of its hero.
+   */
+  side: HeroSide;
+  lastBySide: Partial<Record<HeroSide, HeroId>>;
 }
 
 export type SkinFx = 'all' | 'mine' | 'off';
@@ -101,7 +107,7 @@ const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, wornTitle: null, wornFrame: null };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, wornTitle: null, wornFrame: null, side: 'cat', lastBySide: {} };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -116,6 +122,14 @@ export function parseProfile(raw: string | null): Profile {
     p.wins = n(o.wins);
     p.firstWinDone = o.firstWinDone === true;
     p.hero = HEROES.includes(o.hero as HeroId) ? (o.hero as HeroId) : 'clem';
+    // sim v13: the switch side (else the hero's side) and the last hero per side (a hero of that side only)
+    p.side = o.side === 'cat' || o.side === 'dog' ? o.side : HERO_DATA[p.hero].side;
+    if (o.lastBySide && typeof o.lastBySide === 'object') {
+      for (const sd of ['cat', 'dog'] as const) {
+        const h = (o.lastBySide as Record<string, unknown>)[sd];
+        if (HEROES.includes(h as HeroId) && HERO_DATA[h as HeroId].side === sd) p.lastBySide[sd] = h as HeroId;
+      }
+    }
     p.trick = TRICKS.includes(o.trick as TrickId) ? (o.trick as TrickId) : 'pounce';
     p.difficulty = o.difficulty === 'normal' || o.difficulty === 'hard' ? o.difficulty : 'easy';
     p.muted = o.muted === true;
@@ -398,4 +412,13 @@ export function setAccountState(a: AccountState): void {
 export function resetProfileCache(): void {
   cached = null;
   account = { signedIn: false, progress: null };
+}
+
+/** Sim v13 (DOGS-V13 §2): the hero a side opens on when the player has not picked one there yet. */
+export const SIDE_DEFAULT: Readonly<Record<HeroSide, HeroId>> = Object.freeze({ cat: 'clem', dog: 'brutus' });
+
+/** The hero the CATS / DOGS switch selects on `side`: the last one picked there, else the side's default. */
+export function heroForSide(p: Pick<Profile, 'lastBySide'>, side: HeroSide): HeroId {
+  const h = p.lastBySide[side];
+  return h && HERO_DATA[h]?.side === side ? h : SIDE_DEFAULT[side];
 }

@@ -1,11 +1,41 @@
-/* Sim v11 pick screen: 12 heroes on one 6-column grid of two rows: the cats (10: Clem, Sage, the four shelter
-   champions and the four original cats) fill the first row and four tiles of the second, the dogs (2) close it, so
-   every tile is the same size and the Paw Trick chips stay above the fold (a third row pushed them under the foot).
-   The side grids are display: contents (they keep their data-side for the portrait redraw). A champion tile carries
-   its Token Tails card art and, web only, the owner badge. */
-.pl-pick .roster { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-.pl-pick .roster .heroes { display: contents; }
+/* Sim v13 pick screen (DOGS-V13 §2): a CATS / DOGS switch over the grid shows one side at a time (cats 10, dogs 7).
+   Both sides use the same fixed two-row grid (ten half columns, each tile spans two), so the Paw Trick chips and Play
+   never move on a switch: cats 5 + 5, dogs 4 + 3 centred. The other side's box keeps its data-side, hidden, for the
+   portrait redraw. A champion tile carries its Token Tails card art and, web only, the owner badge. */
+.pl-pick .roster { display: block; }
+.pl-pick .roster .heroes { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); grid-template-rows: repeat(2, auto); gap: 6px; }
+.pl-pick .roster .heroes[hidden] { display: none; }
+.pl-pick .roster .heroes .hero-card { grid-column: span 2; }
+.pl-pick .roster .heroes.dogs .hero-card:nth-child(1) { grid-column: 2 / span 2; }
+.pl-pick .roster .heroes.dogs .hero-card:nth-child(5) { grid-column: 3 / span 2; }
+
+/* The switch: a segmented radio group, 36 px tall with a 44 px hit area, the active side filled in its species colour
+   (cat rose, bone amber: never the ally blue / enemy red relation hues). */
+.pl-pick .side-row { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
+.pl-pick .side-switch { display: inline-flex; align-items: center; gap: 4px; padding: 3px; border-radius: 999px; background: var(--panel); border: 1px solid var(--line); }
+.pl-pick .side-tab {
+  position: relative; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; padding: 4px 14px 4px 10px; border-radius: 999px;
+  font: 700 15px var(--font); letter-spacing: 0.04em; color: var(--cream); background: transparent; border: 2px solid transparent; cursor: pointer;
+  touch-action: manipulation; transition: background 0.12s, color 0.12s, transform 0.1s;
+}
+.pl-pick .side-tab::before { content: ''; position: absolute; inset: -5px -2px; }
+.pl-pick .side-tab .pl-icon { width: 20px; height: 20px; color: var(--side); }
+.pl-pick .side-tab .n { font-size: 11px; font-weight: 700; line-height: 1; padding: 3px 6px; border-radius: 999px; background: rgba(255, 243, 220, 0.14); }
+.pl-pick .side-tab:hover:not(.on):not(.locked) { border-color: var(--side); }
+.pl-pick .side-tab:focus-visible { outline: 3px solid var(--cream); outline-offset: 2px; }
+.pl-pick .side-tab:active:not(.locked) { transform: scale(0.96); }
+.pl-pick .side-tab.on { background: var(--side); color: #2a1a22; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3); }
+.pl-pick .side-tab.on .pl-icon { color: #2a1a22; }
+.pl-pick .side-tab.on .n { background: rgba(42, 26, 34, 0.18); }
+.pl-pick .side-tab.locked { cursor: not-allowed; opacity: 0.6; flex-direction: row; }
+.pl-pick .side-tab.locked .lock { font-size: 10px; font-weight: 600; letter-spacing: 0; opacity: 0.9; white-space: nowrap; }
+.pl-pick .side-tab.nudge { animation: pl-side-nudge 0.32s; }
+@keyframes pl-side-nudge { 25% { transform: translateX(-4px); } 75% { transform: translateX(4px); } }
+.pl-pick .side-switch .vs { font-size: 11px; font-weight: 700; opacity: 0.55; padding: 0 2px; }
+.pl-pick .side-line { margin: 0; font-size: 12px; opacity: 0.75; }
+
 .pl-pick .heroes .hero-card { position: relative; padding: 8px 2px; min-width: 0; }
+.pl-pick .heroes .hero-card[data-long] b { font-size: 11px; letter-spacing: -0.02em; }
 .pl-pick .heroes .hero-card b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .pl-pick .heroes .hero-card small { font-size: 10px; }
 .pl-pick .heroes .hero-card i.pic { width: 48px; height: 48px; }
@@ -16,10 +46,14 @@
 .pl-pick .champ-flavour { margin: -2px 0 8px; font-size: 12px; font-style: italic; opacity: 0.7; }
 @media (max-height: 520px) {
   /* 844x390: two hero rows must leave the Paw Trick chips above the fold (round 1). */
-  .pl-pick .roster { gap: 4px; }
+  .pl-pick .roster .heroes { gap: 4px; }
+  .pl-pick .side-tab { min-height: 32px; font-size: 13px; padding: 3px 12px 3px 8px; }
+  .pl-pick .side-tab .pl-icon { width: 17px; height: 17px; }
+  .pl-pick .side-tab::before { inset: -6px -2px; }
   .pl-pick .heroes .hero-card { padding: 4px 2px; }
   .pl-pick .heroes .hero-card i.pic, .pl-pick .heroes .hero-card i { width: 28px; height: 28px; }
   .pl-pick .heroes .hero-card b { font-size: 11px; }
+  .pl-pick .heroes .hero-card[data-long] b { font-size: 9px; letter-spacing: -0.03em; }
   .hero-card .champ-art { width: 16px; height: 16px; }
   .pl-pick .champ-flavour { display: none; }
 }
@@ -38,6 +72,8 @@
   .pl-pick .pl-pick-col { bottom: 92px; }
 }
 @media (min-height: 481px) {
+  /* five tiles a row (v13) would be a third taller than v11's six: the grid keeps v11's tile size */
+  .pl-pick .roster { max-width: 480px; }
   .pl-pick .pl-pick-col { padding-bottom: 14px; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); }
 }
 @media (min-height: 481px) and (max-height: 820px) {
@@ -49,4 +85,8 @@
   .pl-pick .blurb { margin: 2px 0 6px; }
   .pl-pick .kit { gap: 5px; }
   .pl-pick .kit li .ico { width: 22px; height: 22px; }
+}
+@media (max-height: 420px) {
+  /* 667x375 and 844x390: the explainer line goes; "CATS vs DOGS" inside the switch says it */
+  .pl-pick .side-line { display: none; }
 }

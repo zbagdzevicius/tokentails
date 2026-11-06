@@ -20,8 +20,8 @@ import { squadPrefs } from '../meta/squad';
 import { DEMO_ROSTER, skinDemoOn } from './skinDemo';
 import { recordLadder } from '../meta/ladder';
 import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
-import { HERO_IDS } from '../data/heroes';
-import { accountState, loadProfile, noteBond, noteChampionMatch, noteHeroMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { HERO_IDS, HEROES } from '../data/heroes';
+import { accountState, heroForSide, loadProfile, noteBond, noteChampionMatch, noteHeroMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
@@ -114,9 +114,13 @@ function installFont(): void {
 }
 
 /** p95 of a list of frame times (ms). */
-/** Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own. */
+/**
+ * Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own.
+ * Sim v13: only heroes of the current hero's side (the player chose cats or dogs on the switch).
+ */
 export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknown>>): HeroId {
-  const order: readonly HeroId[] = HERO_IDS;
+  const side = HEROES[current]?.side ?? 'cat';
+  const order: readonly HeroId[] = HERO_IDS.filter((h) => HEROES[h].side === side);
   const start = order.indexOf(current);
   const rest = order.map((_, k) => order[(start + k + 1) % order.length]).slice(0, order.length - 1);
   return rest.find((h) => !bests[h]) ?? rest[0];
@@ -183,7 +187,8 @@ export class App {
     this.sessionNo = p.sessions;
     migrateTreatTrack();
     sfx.setMuted(p.muted);
-    this.choice = { hero: p.hero, trick: p.trick, difficulty: p.difficulty };
+    // sim v13: the hero follows the side the switch was left on (the last hero picked there)
+    this.choice = { hero: HEROES[p.hero].side === p.side ? p.hero : heroForSide(p, p.side), trick: p.trick, difficulty: p.difficulty };
     this.human.install(window);
     // PUB-02: embedded, events go to the host's analytics (the site's policy and id); standalone, to PostHog after consent
     this.analytics = createAnalytics(
@@ -705,6 +710,23 @@ export class App {
           sfx.play('click');
           this.choice = { ...this.choice, hero: h };
           this.setLobbyHero(h);
+          // sim v13: the picked hero, its side and the last hero per side (the CATS / DOGS switch restores it) are
+          // remembered, so a reload opens on the same side and hero
+          const q = loadProfile();
+          q.hero = h;
+          q.side = HEROES[h].side;
+          q.lastBySide[q.side] = h;
+          saveProfile(q);
+        },
+        // sim v13 (DOGS-V13 §2): the CATS / DOGS switch; DOGS waits for the guided first match (a dog dare skips it)
+        lastBySide: p.lastBySide,
+        dogsLocked: p.matches === 0 && !(this.dare && HEROES[this.dare.hero]?.side === 'dog'),
+        onSide: (side, _hero, left) => {
+          // the hero the player switched away from is the one that side restores
+          const q = loadProfile();
+          q.side = side;
+          q.lastBySide[HEROES[left].side] = left;
+          saveProfile(q);
         },
         onStart: (c) => {
           sfx.play('click');
@@ -741,6 +763,8 @@ export class App {
     const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty, undefined, undefined, p.veteran) };
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
     p.hero = c.hero;
+    p.side = HEROES[c.hero]?.side ?? p.side;
+    p.lastBySide[p.side] = c.hero;
     p.trick = c.trick;
     if (!isRookie(c.difficulty)) p.difficulty = c.difficulty;
     const tips = tipsDue(p);
@@ -779,7 +803,7 @@ export class App {
       showcase: this.skinShowcaseOpen(p.matches === 0 || tips).bots ? this.integration.state().featured.map((f) => `${FEATURED_SKIN_PREFIX}${f.catalogId}`) : [],
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero: c.hero, difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
+    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     const mates = companions.map((k) => k.name);
