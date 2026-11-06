@@ -50,10 +50,15 @@ export const HERO_BUILD: Readonly<Record<HeroId, HeroBuild>> = Object.freeze({
   lambo: { h: 1.08, w: 1.16, ring: 2.45 },
   // big pug tank
   brutus: { h: 1.08, w: 1.14, ring: 2.45 },
-  // sim v13 original dogs: PLACEHOLDER builds (their stand-in body's) until the RENDER lane sizes them
-  nugget: { h: 1.08, w: 0.88, ring: 2.09 },
-  marshmallow: { h: 1.08, w: 0.88, ring: 2.09 },
-  bravo: { h: 1.08, w: 1.14, ring: 2.45 },
-  chili: { h: 1.08, w: 0.88, ring: 2.09 },
-  howler: { h: 1.08, w: 0.88, ring: 2.09 },
+  // sim v13 original dogs
+  // the low corgi loaf: wide and long, short
+  nugget: { h: 0.96, w: 1.16, ring: 2.15 },
+  // the round white puppy ball
+  marshmallow: { h: 0.97, w: 1.14, ring: 2.15 },
+  // the small black pug in the wide cape (smaller than Sir Brutus)
+  bravo: { h: 1.0, w: 1.1, ring: 2.3 },
+  // the tiny one
+  chili: { h: 0.95, w: 0.9, ring: 1.75 },
+  // the tall broad-chested husky (Stilts is the stick)
+  howler: { h: 1.05, w: 1.04, ring: 2.15 },
 });

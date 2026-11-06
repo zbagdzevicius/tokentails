@@ -181,7 +181,21 @@ export interface MoveSet {
   death: ClipDef;
   respawn?: ClipDef;
   levelUp?: ClipDef;
+  /**
+   * Sim v13 `clip` events (render only): the hero's own clip for a viral moment that no cast starts (Bravo's flop is
+   * his passive). Played on the hero named by the event.
+   */
+  clips?: Readonly<Partial<Record<ClipMoment, ClipDef>>>;
+  /**
+   * An ADDITIVE loop held while the snapshot's form bit is set (and `formHoldWhen` agrees): Chili's BIG DOG swell. It
+   * plays under every other clip (basics, casts, the run), fades in and out with its blends, and outlives any cast.
+   */
+  formHold?: ClipDef;
+  formHoldWhen?: (ctx: MoveCtx) => boolean;
 }
+
+/** Sim v13 (sim/api ClipKind): the viral moments a `clip` event names. */
+export type ClipMoment = 'flop' | 'bigdog' | 'scream' | 'frozen';
 
 export interface V3Out {
   x: number;
@@ -306,6 +320,11 @@ export interface SkillFxSet {
   onZone?(zoneIndex: number, phase: 'spawn' | 'arm' | 'pulse' | 'end', fx: FxCtx): void;
   /** sustained effects (tethers, curtains, wires) */
   update?(dt: number, fx: FxCtx): void;
+  /**
+   * Sim v13 `clip` event on hero `id` (Bravo's flop, Chili's BIG DOG, Howler's scream, a cat frozen by SNOW DAY!).
+   * Called for every loaded hero's FX set; a set filters by the moment (and by the hero for its own moments).
+   */
+  onClip?(id: number, what: ClipMoment, fx: FxCtx): void;
 }
 
 export type ReactKind = 'light' | 'heavy' | 'knock' | 'pull' | 'stun' | 'root' | 'charm' | 'fear' | 'slow';
