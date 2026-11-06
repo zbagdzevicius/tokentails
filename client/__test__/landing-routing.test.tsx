@@ -522,6 +522,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
       "/home/media/:path*",
       "/music/back-on-track-v1/:path*",
       "/pawlegends-game/build/:path*",
+      "/pawlegends/landing/:path*",
     ]);
     // Moon Rave's second track: every file name is versioned, so the folder is immutable.
     const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");

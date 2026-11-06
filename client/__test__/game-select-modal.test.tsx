@@ -291,7 +291,7 @@ describe("Swordcat card art (SWORDCAT_PREVIEW)", () => {
 });
 
 describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => {
-  it("sits right after the Moon Rave and opens /pawlegends?from=picker with a full page load, showing a teamfight frame", () => {
+  it("sits right after the Moon Rave and opens /pawlegends/play?from=picker with a full page load, showing a teamfight frame", () => {
     const { navigate, setGameType, dialog } = open({ showSwordcat: true, showPawlegends: true });
     const items = within(dialog).getAllByRole("listitem");
     // Every web card in the Cupid season (mocked on): the Moon Rave first, then Pawlegends (the new flagship).
@@ -320,7 +320,7 @@ describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => 
     expect(within(dialog).getByTestId("game-card-pawlegends-preview").tagName).toBe("SPAN");
     expect(within(dialog).getByTestId("game-card-pawlegends-preview").textContent).toMatch(/3v3/);
     fireEvent.click(card);
-    expect(navigate).toHaveBeenCalledWith("/pawlegends?from=picker");
+    expect(navigate).toHaveBeenCalledWith("/pawlegends/play?from=picker");
     expect(setGameType).not.toHaveBeenCalled();
   });
 
@@ -341,7 +341,7 @@ describe("Pawlegends card (POC.md §11.4: web only, kill switches only)", () => 
     ]);
     // Without the Moon Rave it leads the list.
     expect(gameCards(true, new Date("2026-05-01"), true, true, false, true)[0].key).toBe(PAWLEGENDS_CARD_KEY);
-    expect(cardHref({ key: PAWLEGENDS_CARD_KEY, href: PAWLEGENDS_PICKER_HREF })).toBe("/pawlegends?from=picker");
+    expect(cardHref({ key: PAWLEGENDS_CARD_KEY, href: PAWLEGENDS_PICKER_HREF })).toBe("/pawlegends/play?from=picker");
   });
 
   it("sits four to a row from md with eight cards, three to a row with nine, 4 + 3 + 3 with ten (every web card outside the Cupid season) and four to a row with eleven (in it)", () => {
@@ -393,7 +393,7 @@ describe("Pawlegends card: web builds only (pawlegendsPickerEnabled) and its art
   it("shows by default in a web build (no showPawlegends override) and never in an app build", () => {
     const web = render(<GameSelectModal onClose={jest.fn()} setGameType={jest.fn()} navigate={jest.fn()} />);
     const card = within(screen.getByRole("dialog")).getByTestId("game-card-pawlegends");
-    expect(card.getAttribute("href")).toBe("/pawlegends?from=picker");
+    expect(card.getAttribute("href")).toBe("/pawlegends/play?from=picker");
     web.unmount();
     cleanup();
     // The app build (NEXT_PUBLIC_IS_APP, read at call time): no Pawlegends card, the other app cards stay.

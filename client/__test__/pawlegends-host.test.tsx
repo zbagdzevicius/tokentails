@@ -32,7 +32,7 @@ jest.mock("@/context/ProfileContext", () => ({
   useProfile: () => ({ setProfileUpdate: mockSetProfileUpdate, ...(mockProfile() as object) }),
 }));
 const replace = jest.fn(() => Promise.resolve(true));
-const mockRouter = { replace, pathname: "/pawlegends", query: {} as Record<string, string>, isReady: true };
+const mockRouter = { replace, pathname: "/pawlegends/play", query: {} as Record<string, string>, isReady: true };
 jest.mock("next/router", () => ({ useRouter: () => mockRouter }));
 // next/dynamic: resolve the loader after mount, like the real one does in the browser.
 jest.mock("next/dynamic", () => (loader: () => Promise<React.ComponentType<Record<string, unknown>>>) => {
@@ -99,7 +99,7 @@ jest.mock("@/components/ui/modal", () => ({
 }));
 
 import { PawlegendsHost, PAWLEGENDS_FRAME_TESTID, PAWLEGENDS_PENDING_KEY } from "@/components/pawlegends/PawlegendsHost";
-import PawlegendsPage, { PAWLEGENDS_SEO } from "@/pages/pawlegends";
+import PawlegendsPage, { PAWLEGENDS_SEO } from "@/pages/pawlegends/play";
 import PawlegendsTermsPage from "@/pages/pawlegends/terms";
 import { PAWLEGENDS_HELLO_TIMEOUT_MS, PAWLEGENDS_NS } from "@/components/pawlegends/bridge";
 import {
@@ -234,7 +234,7 @@ beforeEach(() => {
   delete process.env.NEXT_PUBLIC_PAWLEGENDS;
 });
 
-describe("/pawlegends page", () => {
+describe("/pawlegends/play page", () => {
   it("frames the same-origin build with embed=1 and no sandbox, noindex meta", async () => {
     render(<PawlegendsPage />);
     await settle();
@@ -242,14 +242,14 @@ describe("/pawlegends page", () => {
     expect(frame.getAttribute("src")).toBe("/pawlegends-game/index.html?embed=1");
     expect(frame.getAttribute("title")).toBe(PAWLEGENDS_TITLE);
     expect(frame.hasAttribute("sandbox")).toBe(false);
-    expect(seoProps).toHaveBeenCalledWith(expect.objectContaining({ path: "/pawlegends", noindex: true }));
+    expect(seoProps).toHaveBeenCalledWith(expect.objectContaining({ path: "/pawlegends/play", noindex: true }));
   });
 
   it("keeps noindex and the sitemap exclusion in step, and one length phrase in both metas (PUB-08)", () => {
     // LAUNCH.md a.8 step 1 lifts both together: flip `noindex: true` above and this exclusion in the same commit.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const sitemap = require("../next-sitemap.config.js");
-    expect(sitemap.exclude).toEqual(expect.arrayContaining(["/pawlegends", "/pawlegends/terms"]));
+    expect(sitemap.exclude).toEqual(expect.arrayContaining(["/pawlegends", "/pawlegends/play", "/pawlegends/terms"]));
     expect(PAWLEGENDS_SEO.description).toContain("Seven-minute matches");
     for (const file of ["../public/pawlegends-game/index.html", "../../pawlegends/index.html"]) {
       const html = readFileSync(join(__dirname, file), "utf8");
@@ -328,7 +328,7 @@ describe("PawlegendsHost: shell", () => {
     window.localStorage.setItem(PAWLEGENDS_SESSIONS_KEY, "4");
     await mount();
     expect(window.localStorage.getItem(PAWLEGENDS_SESSIONS_KEY)).toBe("5");
-    expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends", query: {} }, undefined, { shallow: true, scroll: false });
+    expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: {} }, undefined, { shallow: true, scroll: false });
   });
 
   it("sends the shell's mute and both volumes", async () => {

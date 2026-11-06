@@ -329,19 +329,20 @@ and EU withdrawal lines (LAUNCH-READY.md U4, U5); trademark search passed (a.1).
 
 ### a.8 Launch day (Thu Nov 12)
 
-1. Once a.1 passed, in one commit (launch finding PUB-08): remove `noindex` from `client/pages/pawlegends/index.tsx`
-   (`<SeoHead … noindex />`) and remove `'/pawlegends'` from the `exclude` list in `client/next-sitemap.config.js`, so
-   the page is in the sitemap the moment it can be indexed. `'/pawlegends/terms'` stays excluded (its page stays
-   `noindex`). Then flip the two guards in `client/__test__/pawlegends-host.test.tsx` (`noindex: true` and the sitemap
-   check), run `npm test` in `client/`, and push to `main`. Ready diff:
+1. Once a.1 passed, in one commit (launch finding PUB-08): remove `noindex` from the landing,
+   `client/pages/pawlegends/index.tsx` (`<SeoHead … noindex />`), and remove `'/pawlegends'` from the `exclude` list
+   in `client/next-sitemap.config.js`, so the page is in the sitemap the moment it can be indexed. The game
+   (`'/pawlegends/play'`) and `'/pawlegends/terms'` stay excluded (those pages stay `noindex`). Then flip the guards in
+   `client/__test__/pawlegends/landing.test.tsx` (`noindex: true`) and `client/__test__/pawlegends-host.test.tsx` (the
+   sitemap check), run `npm test` in `client/`, and push to `main`. Ready diff:
 
    ```diff
    --- a/client/pages/pawlegends/index.tsx
-   -      <SeoHead {...PAWLEGENDS_SEO} noindex />
-   +      <SeoHead {...PAWLEGENDS_SEO} />
+   -      <SeoHead {...PAWLEGENDS_LANDING_SEO} noindex />
+   +      <SeoHead {...PAWLEGENDS_LANDING_SEO} />
    --- a/client/next-sitemap.config.js
-   -    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/pawlegends', '/pawlegends/terms'],
-   +    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/pawlegends/terms'],
+   -    exclude: [..., '/pawlegends', '/pawlegends/play', '/pawlegends/terms'],
+   +    exclude: [..., '/pawlegends/play', '/pawlegends/terms'],
    ```
 2. 16:00 UTC (18:00 Vilnius, 11:00 New York): X thread, Reddit posts, email to the opted-in Token Tails list
    (copy in §c).

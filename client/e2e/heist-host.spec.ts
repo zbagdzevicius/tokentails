@@ -197,7 +197,7 @@ test.describe("game picker (G2 layer 1, G14)", () => {
     // (outside the Cupid season; 4 + 3 + 3 from md).
     await expect(dialog.getByRole("listitem")).toHaveCount(10);
     await expect(dialog.getByRole("listitem").nth(1)).toHaveAttribute("data-card", "PAWLEGENDS");
-    await expect(dialog.getByTestId("game-card-pawlegends")).toHaveAttribute("href", "/pawlegends?from=picker");
+    await expect(dialog.getByTestId("game-card-pawlegends")).toHaveAttribute("href", "/pawlegends/play?from=picker");
     await expect(dialog.getByRole("listitem").nth(8)).toHaveAttribute("data-card", "ULTRA_CAT");
     await expect(dialog.getByTestId("game-card-ultra_cat")).toHaveAttribute("href", "/ultra-cat?from=picker");
     await expect(dialog.getByRole("listitem").last()).toHaveAttribute("data-card", "MEOW_RUN");
