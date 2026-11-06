@@ -27,6 +27,7 @@ for (const name of ["ScrollTrigger", "SplitText", "CustomEase", "DrawSVGPlugin",
 import LandingPage, { PAWLEGENDS_LANDING_SEO } from "@/pages/pawlegends";
 import { CONTINUE_CTA_HREF, HERO_CTA_HREF, LANDING_FILES, landingMarkup } from "@/components/pawlegends/landing/markup";
 import { PAWLEGENDS_PLAY_QUERY_KEYS, playHref, wantsGame } from "@/components/pawlegends/routes";
+import { gridHeroes, liveRoster, newcomers } from "@/components/pawlegends/landing/roster";
 
 const ENV = { ...process.env };
 afterEach(() => {
@@ -40,11 +41,13 @@ describe("/pawlegends landing", () => {
     render(<LandingPage />);
     const root = screen.getByTestId("pawlegends-landing");
     expect(root.querySelector("h1")?.getAttribute("aria-label")).toBe("Pawlegends");
-    expect(root.textContent).toContain("17 heroes live");
+    expect(root.textContent).toContain(`${liveRoster().length} heroes live`);
     expect(root.textContent).toContain("Squad up");
-    expect(root.textContent).toContain("No PvP yet");
-    expect(root.querySelectorAll(".grid .tile.cat")).toHaveLength(10);
-    expect(root.querySelectorAll(".grid .tile.dog")).toHaveLength(7);
+    expect(root.textContent).toContain("No PvP.");
+    const grid = gridHeroes();
+    expect(root.querySelectorAll(".grid .tile.cat")).toHaveLength(grid.filter((h) => h.side === "cat").length);
+    expect(root.querySelectorAll(".grid .tile.dog")).toHaveLength(grid.filter((h) => h.side === "dog").length);
+    expect(root.querySelectorAll(".newdogs .nd")).toHaveLength(newcomers().length);
     expect(seoProps).toHaveBeenCalledWith(expect.objectContaining({ path: "/pawlegends", noindex: true }));
     expect(PAWLEGENDS_LANDING_SEO.image.url).toBe("/pawlegends/og.jpg");
     await Promise.resolve();

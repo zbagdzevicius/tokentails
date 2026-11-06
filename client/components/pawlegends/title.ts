@@ -4,4 +4,4 @@
  * The name is a working title until the trademark search passes (GDD §1), so the page stays `noindex`.
  */
 export const PAWLEGENDS_TITLE = "Pawlegends";
-export const PAWLEGENDS_SUBTITLE = "3v3 cat heroes vs dog bots";
+export const PAWLEGENDS_SUBTITLE = "3v3 cats vs dogs, you and your team against bots";

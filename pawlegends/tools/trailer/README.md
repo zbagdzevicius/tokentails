@@ -1,8 +1,7 @@
 # Trailer capture rig (dev only)
 
-> **Not releasable yet.** The end card sends viewers to `tokentails.com/pawlegends`, which returns HTTP 404 (checked
-> 2026-10-23, also `/pawlegends-game/index.html`): the Pawlegends client route exists only on `feat/pawlegends` and is
-> not deployed. Deploy it and confirm a 200 before anyone posts a master.
+> The end card sends viewers to `tokentails.com/pawlegends`, the landing page (`client/pages/pawlegends/index.tsx`);
+> the game itself is `/pawlegends/play`. Confirm the live URL returns 200 before anyone posts a master.
 
 **Capture QC (v3.1).** `harness.ts` `frame()` returns a per-frame `qc` (`FrameQc`): every on-screen hero's body-and-plate
 box, the pairs of bodies whose screen boxes share more than 45 % (`overlap`), heroes standing in a tower, core or Pudding

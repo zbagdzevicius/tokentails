@@ -341,7 +341,7 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .belt .disc{position:absolute;inset:6%;border-radius:50%;border:5px solid var(--ink);background:conic-gradient(from -30deg,var(--bolt),var(--amber),var(--bolt),#fff7a8,var(--bolt));box-shadow:12px 14px 0 var(--ink)}
 .pll .belt .disc::after{content:"";position:absolute;inset:12%;border-radius:50%;border:4px dashed rgba(18,9,31,.5)}
 .pll .belt .disc::before{content:"";position:absolute;inset:0;border-radius:50%;background:repeating-conic-gradient(from 0deg,rgba(255,255,255,.35) 0 4deg,transparent 4deg 30deg)}
-.pll .belt img{position:absolute;inset:20%;width:60%;object-fit:contain;filter:drop-shadow(4px 5px 0 rgba(18,9,31,.4))}
+.pll .belt img{position:absolute;inset:20%;width:60%;height:60%;object-fit:contain;filter:drop-shadow(4px 5px 0 rgba(18,9,31,.4))}
 .pll .belt .split{position:absolute;right:-2%;top:2%;width:38%;aspect-ratio:1;border-radius:50%;background:var(--pink);border:4px solid var(--ink);display:grid;place-items:center;text-align:center;
   font-family:var(--disp);font-weight:700;color:var(--white);-webkit-text-stroke:.08em var(--ink);paint-order:stroke fill;line-height:.9;box-shadow:6px 7px 0 var(--ink);transform:rotate(10deg)}
 .pll .belt .split b{font-size:clamp(28px,3.4vw,46px);display:block}
@@ -444,29 +444,36 @@ html:has(.pll),body:has(.pll){background:#12091f;overflow-x:clip;scroll-behavior
   /* hidden until the intro sets its start pose; shown after 5 s anyway if the motion chunk never runs */
   .pll.js-intro .hero-shake{visibility:hidden;animation:pll-reveal 0s linear 5s forwards}
 }
-/* ---------- select: CATS / DOGS switch ---------- */
-.pll .side-switch{display:flex;justify-content:center;gap:clamp(8px,1vw,14px);margin:0 0 clamp(14px,1.6vw,22px)}
-.pll .side-switch button{font-family:var(--disp);font-weight:700;font-size:clamp(14px,1.2vw,17px);letter-spacing:.12em;text-transform:uppercase;line-height:1;
-  padding:.62em 1.15em .55em;border:3px solid var(--ink);border-radius:6px;transform:skewX(-9deg);box-shadow:4px 5px 0 #000;cursor:pointer;
-  color:rgba(255,255,255,.78);background:#2a1d40;transition:transform .25s cubic-bezier(.34,1.56,.64,1),background-color .2s,color .2s}
-.pll .side-switch button>span{display:inline-block;transform:skewX(9deg)}
-.pll .side-switch button small{font-size:.8em;opacity:.85;margin-left:.35em}
-.pll .side-switch button:hover{transform:skewX(-9deg) translateY(-3px)}
-.pll .side-switch button.cat[aria-pressed="true"]{background:var(--pink);color:var(--white);-webkit-text-stroke:.12em var(--ink);paint-order:stroke fill}
-.pll .side-switch button.dog[aria-pressed="true"]{background:var(--blue);color:var(--white);-webkit-text-stroke:.12em var(--ink);paint-order:stroke fill}
-.pll .grid[data-show="cat"] li.dog,.pll .grid[data-show="dog"] li.cat{display:none}
-/* new champions: no portrait yet, so a paw card instead of art that is not the hero */
-.pll .tile .new{position:absolute;z-index:3;top:5px;left:5px;font-family:var(--disp);font-weight:700;font-size:10px;letter-spacing:.08em;line-height:1.2;
-  padding:1px 5px;background:var(--bolt);color:var(--ink);border:2px solid var(--ink);border-radius:4px;transform:rotate(-6deg)}
-.pll .tile .sil,.pll .slot .sil{position:absolute;inset:0;display:grid;place-items:center;pointer-events:none}
-.pll .tile .sil svg{width:50%;margin-top:-14%;transform:skewX(6deg)}
-.pll .sil svg{fill:rgba(255,255,255,.26);stroke:rgba(18,9,31,.55);stroke-width:2.4}
-.pll .slot .sil{z-index:1;display:none;padding-bottom:34%}
-.pll .slot .sil svg{width:44%}
-.pll .slot .sil b{position:absolute;top:clamp(10px,1.4vw,18px);right:clamp(10px,1.4vw,18px);font-family:var(--disp);font-weight:700;font-size:clamp(11px,1vw,14px);
-  letter-spacing:.16em;text-transform:uppercase;color:var(--ink);background:var(--bolt);border:2px solid var(--ink);border-radius:4px;padding:.2em .7em;transform:rotate(4deg)}
-.pll .slot.is-sil .sil{display:grid}
-.pll .slot.is-sil .pic img{visibility:hidden}
+/* ---------- select: the new dogs (no in-game art yet: a paw, the name, breed and role; never a stand-in picture) ---------- */
+.pll .newdogs{margin:clamp(26px,3.4vw,44px) auto 0;max-width:1120px;text-align:center}
+.pll .nd-head{font-family:var(--disp);font-weight:700;font-size:clamp(18px,1.9vw,26px);letter-spacing:.06em;text-transform:uppercase;color:var(--white);
+  display:inline-flex;align-items:center;gap:.55em;flex-wrap:wrap;justify-content:center}
+.pll .nd-badge{display:inline-block;font-size:.62em;letter-spacing:.14em;padding:.22em .6em .16em;background:var(--bolt);color:var(--ink);border:3px solid var(--ink);
+  border-radius:5px;box-shadow:3px 3px 0 #000;transform:rotate(-6deg)}
+.pll .nd-list{list-style:none;display:flex;flex-wrap:wrap;justify-content:center;gap:clamp(10px,1.2vw,16px);margin-top:clamp(14px,1.6vw,20px)}
+.pll .nd{position:relative;flex:1 1 0;min-width:0;max-width:220px;display:flex;flex-direction:column;align-items:center;text-align:center;gap:6px;
+  padding:clamp(12px,1.2vw,16px) clamp(10px,1vw,14px) clamp(14px,1.3vw,18px);border:3px solid var(--ink);border-radius:10px;box-shadow:4px 5px 0 #000;
+  background:radial-gradient(circle at 50% 18%,rgba(214,229,255,.32),transparent 55%),linear-gradient(160deg,var(--blue),var(--blue-d));color:var(--white)}
+.pll .nd-art{display:grid;place-items:center;width:clamp(48px,4.4vw,62px);aspect-ratio:1;border-radius:50%;background:rgba(7,19,52,.45);border:3px solid var(--ink)}
+.pll .nd-art svg{width:62%;fill:var(--ice);stroke:var(--ink);stroke-width:2.4}
+.pll .nd-t{display:flex;flex-direction:column;gap:3px;min-width:0}
+.pll .nd-nm{font-family:var(--disp);font-weight:700;font-size:clamp(17px,1.5vw,21px);letter-spacing:.04em;text-transform:uppercase;line-height:1.05;white-space:nowrap;
+  -webkit-text-stroke:.1em var(--ink);paint-order:stroke fill}
+.pll .nd-meta{font-family:var(--body);font-weight:800;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--ice)}
+.pll .nd-role{font-family:var(--disp);font-weight:700;font-size:13px;letter-spacing:.12em;text-transform:uppercase;color:var(--bolt);margin-bottom:2px}
+.pll .nd-b{font-family:var(--body);font-weight:700;font-size:13px;line-height:1.35;color:#e6eeff}
+.pll .nd-note{margin-top:clamp(12px,1.4vw,18px);color:#cbbde6;font-size:14px}
+@media (max-width:820px){
+  .pll .nd{flex:1 1 calc(33.333% - 12px);max-width:none}
+  .pll .nd-b{display:none}
+}
+@media (max-width:560px){
+  .pll .nd{flex:1 1 calc(50% - 10px);padding:10px 8px 12px;gap:0}
+  .pll .nd-art{display:none}
+  .pll .nd-nm{font-size:clamp(15px,4.3vw,18px);letter-spacing:.02em}
+  .pll .nd-meta{font-size:11px;letter-spacing:.04em}
+  .pll .nd-role{font-size:12px}
+}
 /* slot copy: breed and the in-game blurb */
 .pll .slot.cat .pic::after{background:linear-gradient(180deg,transparent 46%,rgba(62,8,32,.92))}
 .pll .slot.dog .pic::after{background:linear-gradient(180deg,transparent 46%,rgba(7,19,52,.92))}
@@ -493,7 +500,6 @@ html:has(.pll),body:has(.pll){background:#12091f;overflow-x:clip;scroll-behavior
 @media (max-width:560px){
   .pll .slot .name.long{font-size:clamp(16px,4.9vw,24px)}
   .pll .rounds.pinned .shot svg.sq{max-height:34svh}
-  .pll .side-switch button{font-size:14px}
 }
 @media (max-width:560px) and (max-height:720px){
   /* short phones: the squad round's small print would run into the round pips */

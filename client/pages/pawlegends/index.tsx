@@ -2,7 +2,7 @@ import { isAppBuild } from "@/components/claims/build";
 import { pawlegendsEnabled, PAWLEGENDS_EXIT_PATH } from "@/components/pawlegends/flags";
 import { LANDING_FONT } from "@/components/pawlegends/landing/markup";
 import { PawlegendsLanding } from "@/components/pawlegends/landing/PawlegendsLanding";
-import { LANDING_ROSTER } from "@/components/pawlegends/landing/roster";
+import { liveRoster } from "@/components/pawlegends/landing/roster";
 import { PAWLEGENDS_LANDING_PATH, PAWLEGENDS_PLAY_PATH, wantsGame } from "@/components/pawlegends/routes";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
@@ -17,7 +17,7 @@ import { useEffect } from "react";
  */
 export const PAWLEGENDS_LANDING_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE}: Cats vs Dogs - Token Tails`,
-  description: `${PAWLEGENDS_TITLE} is a free 3v3 cats vs dogs game by Token Tails. ${LANDING_ROSTER.length} heroes; play solo or with two friends against bots, right in your browser on desktop or phone.`,
+  description: `${PAWLEGENDS_TITLE} is a free 3v3 cats vs dogs game by Token Tails. ${liveRoster().length} heroes; play solo or with up to two friends against bots, right in your browser on desktop or phone.`,
   path: PAWLEGENDS_LANDING_PATH,
   image: Object.freeze({
     url: "/pawlegends/og.jpg",

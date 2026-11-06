@@ -6,6 +6,9 @@
  * fails CI instead of being advertised.
  *
  * `portrait` is null until real in-game art exists: the landing then shows a paw card, never a stand-in image.
+ *
+ * Only released heroes (`since <= GAME_SIM_VERSION`) with real art go in the pick grid and the counts. The rest are
+ * the "new dogs" strip, headed "Coming next" until their sim version is out, so the page is right in any merge order.
  */
 export type LandingSide = "cat" | "dog";
 
@@ -21,6 +24,12 @@ export interface LandingHero {
   portrait: string | null;
   since: number;
 }
+
+/**
+ * The sim version of the game build this page links to (`pawlegends/src/sim/version.ts`). landing-roster.test.ts
+ * fails until it matches the game, so a sim release that adds heroes also moves them onto the landing.
+ */
+export const GAME_SIM_VERSION = 12;
 
 const P = (id: string, hash: string) => `/pawlegends/landing/portrait-${id}.${hash}.webp`;
 
@@ -44,13 +53,20 @@ export const LANDING_ROSTER: readonly LandingHero[] = Object.freeze([
   { id: "howler", name: "Howler", side: "dog", role: "Fighter", breed: "Siberian husky", blurb: "A husky with opinions. Every ability is a scream.", portrait: null, since: 13 },
 ] as LandingHero[]);
 
-export const landingCats = (): LandingHero[] => LANDING_ROSTER.filter((h) => h.side === "cat");
-export const landingDogs = (): LandingHero[] => LANDING_ROSTER.filter((h) => h.side === "dog");
+export const isReleased = (h: LandingHero): boolean => h.since <= GAME_SIM_VERSION;
+/** Heroes players can pick today. */
+export const liveRoster = (): LandingHero[] => LANDING_ROSTER.filter(isReleased);
+export const landingCats = (): LandingHero[] => liveRoster().filter((h) => h.side === "cat");
+export const landingDogs = (): LandingHero[] => liveRoster().filter((h) => h.side === "dog");
+/** The pick grid: released heroes with real in-game art. */
+export const gridHeroes = (): LandingHero[] => liveRoster().filter((h) => !!h.portrait);
+/** The new-dogs strip: everyone not in the grid (no art yet, or not released yet). */
+export const newcomers = (): LandingHero[] => LANDING_ROSTER.filter((h) => !isReleased(h) || !h.portrait);
 
 /** Distinct roles on one side, in the order the tale-of-the-tape row lists them. */
 const ROLE_ORDER = ["Fighter", "Marksman", "Tank", "Assassin", "Mage", "Support"] as const;
 export const rolesOf = (side: LandingSide): string[] =>
-  ROLE_ORDER.filter((r) => LANDING_ROSTER.some((h) => h.side === side && h.role === r));
+  ROLE_ORDER.filter((r) => liveRoster().some((h) => h.side === side && h.role === r));
 
 /** Spelled-out side counts for the lede ("Ten cats, seven dogs."). */
 const WORDS = ["Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine", "Ten", "Eleven", "Twelve"];
