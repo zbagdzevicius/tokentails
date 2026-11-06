@@ -278,7 +278,11 @@ Sizes are enforced per type **before** decoding. Any other first byte is a strik
 | Zero connected humans after play | abandoned after 120 s (unscored, status `abandoned`) |
 | Tick ≥ `MAX_TICKS` with no end | assert (the sim ends at `safetyEnd`) |
 
-**Reclaim:** a `back` from a client whose last reported turn is within `B + 2` of live makes the slot `human` from the next turn. An AFK player reclaims with any CMD.
+**Reclaim:** a `back` from a client whose last **received** turn (BEAT `lastTurn`) is within 15 turns (1 s) of live makes the slot `human` from the next turn. The received turn, not the applied one: the jitter buffer holds up to 5 turns on purpose, and with 150 ms RTT a caught-up client applies 7 to 10 turns behind live (the old `B + 2` rule refused every reclaim on such a link). The client sends `back` at most once a second (the JSON limit is 5 per second). An AFK player reclaims with any CMD. Any frame from the slot (CMD, HASH, BEAT) counts as presence, so a BEAT delayed behind a busy phone is not a drop; the 3 s "laggy" frame is not a takeover and the rail says nothing about it.
+
+**Leave mid-match:** `party.leave` gives the seat up: the member gets no more room messages, the seat is open again (piloted, reason `open`, claimable with Open seats) and the others see "left". `bye` (back to the title, party kept) only disconnects.
+
+**Wall cap:** a room older than 60 minutes is abandoned (no match lasts that long; a stuck room never holds a live-room slot). A referee error abandons the room at once (clients get `room_gone`, the party goes back to results).
 
 ### 3.3 The referee: `party/referee.worker.ts` + `party/referee-pool.ts`
 
@@ -304,13 +308,18 @@ Identity = account id, else guest key hash, else verified client IP. Caps are ke
 |---|---|
 | Sockets per instance / pre-`hello` sockets / upgrades | 2,000 / 200 / 50 per second |
 | Sockets per identity / per IP | 4 / 50 |
-| Parties created per identity / per IP | 3 live and 20 per hour / 10 live |
-| Live rooms per identity / per IP | 1 / 2 |
+| Parties created per identity / per IP | 3 live and 20 per hour / 10 live and 60 per hour |
+| Seats per person in one party | 1 (same account or guest key: `already_in_party` while the other tab is connected; the invite link gives a closed tab's seat back) |
+| Live rooms per identity / per IP | 1 / 4 (guests included: rooms are counted by every seated identity and IP) |
 | Live rooms | `MAX_LIVE_ROOMS` (§3.3); unticketed rooms may use at most 50% |
-| Failed `party.join` per identity | 10 per 10 min, then progressive delay (no lockout of others) |
-| Failed `party.join` per IP | soft cap 30 per 10 min with progressive reply delay |
-| Failed `party.join` per instance | 200 per minute, then every join is refused for 30 s with `rate_limited` (this global cap is what bounds code guessing: about 1 hit per 125 days at 600 parties) |
+| Failed `party.join` per identity | 10 per 10 min (`rate_limited` with `retryMs`) |
+| Failed `party.join` per IP / per network (/24, /48) | 30 per 10 min / 100 per 10 min: each backs off only itself (a new guest key does not reset the IP count) |
+| Failed `party.join` per instance | 200 per minute logs `join_fail_global` (an alert). **Never a global lock:** one IP could otherwise stop joins for everyone. Guessing stays bounded by the per-IP and per-network caps (31⁶ codes) |
 | JSON frames per socket | 5 per second, burst 10 |
+| Binary frames per socket (CMD, BEAT, HASH) | 40 per second, burst 60; a frame over it is a strike (3 strikes close). A frame from a socket without a seat costs 4. At most one ECHO per 250 ms |
+| HASH | one per slot per 30-tick mark (a repeat or an off-cadence tick is refused and costs the binary budget again) |
+| CMD | the full sim decode runs **before** the command can enter a turn; undecodable bytes are a strike and never reach a TURN (clients and the referee also skip an undecodable entry the same way, never throw) |
+| `party.card` | one lookup per 2 s per socket, none for the card already worn |
 | `party` broadcasts | 10 Hz per party |
 | Desync resyncs | 3 per slot per match (survives reconnects), 6 per room |
 | Room log | 160 KB |
@@ -362,7 +371,8 @@ Rules:
 
 ### 4.2 Lockstep runner rules
 
-- **Buffer** starts at **B = 1** turn. It grows by 1 when there are more than 2 holds in 5 s, and shrinks by 1 after 20 s with no hold. B stays in 1..5 and changes at most once every 3 s.
+- **Buffer** starts at **B = 1** turn. It grows by 1 when there are more than 2 holds in 5 s, and shrinks by 1 after 10 s with no hold. B stays in 1..5 and changes at most once every 3 s.
+- **Playout deadline:** a queued turn steps once B turns are queued **or** once it waited B pacing slots, so a stream that stops (the match end, a stall) never strands queued turns. On the relay's `end` the client drains: every queued turn steps (the old rule held the last B turns forever and the results never showed).
 - **Queue > B + 2:** step 2 turns per pacing slot (catch-up), capped at 10 ticks per frame like `TickLoop`.
 - **Queue empty:** hold. The renderer interpolates the last snapshot and does not extrapolate. After 500 ms of holding, the rail shows "Waiting for server…", except while the room is paused by vote.
 - Stepping is driven by turn arrival in the worker, not by main-thread rAF. Chrome throttles rAF in offscreen cross-origin iframes (the embed scrolled away) without firing `visibilitychange`, so rAF stepping would fall behind silently. Rendering stays on rAF and reads the latest snapshot.
@@ -386,13 +396,13 @@ Budget at B=1 on a 60 ms 4G link: RTT/2 (30) + average turn wait (33) + B (67) +
   2. send `resync{reason:'desync'}` and CATCHUP from turn 0;
   3. the slot is piloted during the rebuild (reason `desync`, not counted for AFK);
   4. the client recreates the match, fast-forwards and sends `back`.
-- **Referee divergence:** if 2 or more clients agree with each other and disagree with the referee, or a client rebuilt from turn 0 disagrees again at the same tick, the referee is suspect. Log `mp_referee_divergence`, stop resyncing, mark the room unscored (`why:'referee'`), and let the match finish.
+- **The referee is the authority.** A client hash can only resync (then, past the caps, pilot) that client. It never makes the room unscored and never switches detection off: one member (or two colluding ones) cannot void the room's rewards with forged HASH frames. When 2 or more clients agree against the referee, `mp_referee_divergence` is logged once for ops and those clients are not resynced; the end-of-match verify (the raw log re-simmed independently) is what keeps a wrong referee from ever scoring a room.
 - Cap: 3 resyncs per slot per match (it survives reconnects), 6 per room. After that the client watches, its slot stays piloted, and the rail says "Connection problem. A bot plays for you."
 
 ### 4.5 Reconnect, reload, tab sleep (N7)
 
 - **Socket drop:** `PartySocket` reconnects with `hello{resume}`. The server re-binds the slot, sends `match` again (with `lastSeq`) and CATCHUP **from the client's last turn**. The client keeps its sim (delta, not rebuild). The same CATCHUP delivered twice gives the same hash.
-- **Resume token:** bound to the seat's identity (a resume presenting a different ticket identity is refused) and rotated on every resume. Kept in `sessionStorage` and `localStorage` (try/catch).
+- **Resume token:** bound to the seat's identity (a resume presenting a different ticket identity is refused; a token issued to an IP-keyed guest works only from that IP) and rotated on every resume. Kept in `sessionStorage` only (survives a reload, gone with the tab; never `localStorage`, where any script on the origin could read it later). A closed tab rejoins through the invite link: the relay gives the same person (account or guest key) their own seat back. The relay keeps one token per member, looks it up by hash in O(1) and sweeps expired ones.
 - **Two tabs:** the tab that loses the seat gets `error{code:'seat_elsewhere'}` and the rail "Playing in another tab". It does not retry.
 - **Reload or app restart:** a `?party=` link or a stored token resumes. CATCHUP from turn 0 fast-forwards in the worker with no render and no snapshot encoding until the end, and HASH sends stop during catch-up. The rail shows "Catching up 62%", then the client sends `back`.
   - Targets: 19,800 ticks in ≤ 1.5 s on Node and desktop; ≤ 7 s on WebKit and a ×4 CPU-throttled Chromium.
@@ -425,7 +435,8 @@ Phases: `lobby → pick → loading → match → results → (lobby | pick)`. T
 | **Start** | Leader. **A party of one with Open seats off starts a local solo match (D10).** Otherwise, when every member is `conn:'on'` and visible, go to `pick`. If someone is away, the party shows `waiting` and a "Waiting for Mira · Nudge" chip; `party.nudge` sends that member a rail note and a vibration. The leader can start anyway after 10 s; the away member is then piloted from tick 0 (reason `late`) and reclaims on arrival. |
 | **Pick** | 30 s, simultaneous. `pick.hover` is shown live. A lock takes the hero **for other humans** (bots may still duplicate, per sim rules). All humans are on the leader's side: the leader's hover decides cat or dog, and a side change resets other humans' unlocked hovers. Each human picks a trick. **At timeout:** lock the hover, else the last hero if free, else a free hero in seeded order. A member with `newbie` auto-locks the "New? Try this" hero if it is free. Nobody is kicked. Rematch prefills the last picks. |
 | **Loading** | `config = fillPicksParty(seed, humans)` with `seed = crypto.randomInt(2**32) >>> 0`. Clients start loading match assets **during lobby and pick**, so this phase is near instant. Start when all are `loaded` or after 20 s; late members are piloted from tick 0 and reclaim on arrival. |
-| **Results** | After `end`. "Play again together" is `vote{rematch}`: the leader's tap or a majority starts it, and members get a 3 s "Leader started a rematch" rail note before pick. Rematch goes straight to pick with prefilled heroes. Members who left are dropped. "Leave party" is always available. |
+| **Results** | After `end`. "Play again together" is `vote{rematch}`: the leader's tap or a majority starts it, and members get a 3 s "Leader started a rematch" rail note before pick. Rematch goes to pick with prefilled heroes ("Play again together" locks the same hero at once, "Change hero" leaves it open). The rematch pick stays up at least 5 s even when everyone is locked, so everyone sees the team, and a locked player can still press "Change hero" (`pick.unlock`) until loading. Members who left are dropped. "Leave party" is always available and returns to the title. |
+| **Pick rules** | A hero a friend locked, or one of the other side, can never be hovered or locked (Lock in is disabled, a stale hover falls back with "Mira took Sage"). The leader's side decides the team: a side switch also unlocks a friend locked on the old side ("Leader switched sides: pick again"), so a team is never cats and dogs mixed. A Start interrupted by an away friend goes on by itself when the friend is back. |
 | **Persistence** | Survives across matches and restarts (`PawlegendsParty`, §3.6). Member identity is the resume token, so a reload keeps the seat. |
 
 ### 5.2 Identity, tickets and names
@@ -597,7 +608,7 @@ Order: **N0** first, then **N1**, then **N2 to N5** in parallel with **P1, P2**,
 | N3 | Room, clock, intake, pilots, votes | `party/room.ts`, `party/room-scheduler.ts` | `room.spec.ts` (fake clock): a turn every 66.7 ms, no skips under a 300 ms stall (5 turns closed in order); staggered phases; late commands go to the next turn; sub placement; seq dedupe; Move replaced, never dropped, over budget; Forfeit from a client dropped; surrender `need` formula and injection only after `forfeitFrom`; pause stops turns, freezes AFK and silence timers, auto-resumes at 60 s; AFK 60 s → pilot, any CMD reclaims; away → immediate pilot; `back` reclaims only within B+2; flip turn discards pilot commands; `pilotTicks` by reason; 30 s and 120 s abandonment; log cap |
 | N4 | Referee pool | `party/referee.worker.ts`, `party/referee-pool.ts` | `referee.spec.ts`: 3 scripted human streams + 1 piloted slot give a final hash equal to `verifyPartyReplay` of the stored log and of the raw TURN re-sim; **3 rooms interleaved tick by tick in one isolate** equal their solo runs; event-loop gate refuses new rooms at p99 > 20 ms; harness test with a 300 ms main-thread busy loop shows turns closed in order afterwards. `mp/load.mjs` (nightly, `@perf`): 100 rooms keep overrun p99 < 5 ms, records rooms per core and memory per room |
 | N5 | Client transport and lockstep | `src/net/socket.ts`, `lockstep.ts`, `net-host.ts`, `net-host.worker.ts`, `input.ts`, `predict.ts`, `src/host/protocol.ts` | `lockstep.test.ts` (B starts at 1, grows on holds, ≤ 1 change per 3 s; catch-up ≤ 10 ticks per frame; hold on empty; no "waiting" note while paused); `net-host.test.ts` against an in-process fake relay (pattern from `socket-host.ts`): same final hash as the server; a sent `x=123.456` reaches every sim as the quantized value; `socket.test.ts` (backoff; re-send only unacked commands < 500 ms and none after a pilot period; seq continues from `lastSeq`; token rotation); `input.test.ts` (**joystick flood:** 60 Hz moves for 3 s then release, the final position equals the last target); `predict.test.ts` (divergence bound, converges in 150 ms, off under CC) |
-| N6 | Desync detect and recover | room HASH compare, client `resync` path | `net-desync.test.ts`: corrupt one TURN for client B, server flags it within 30 ticks, B rebuilds, equal final hash; caps per slot survive reconnects; **majority rule:** a referee forced to diverge triggers `mp_referee_divergence`, no resync storm, room unscored; a slot piloted for `desync` is not counted as AFK |
+| N6 | Desync detect and recover | room HASH compare, client `resync` path | `net-desync.test.ts`: corrupt one TURN for client B, server flags it within 30 ticks, B rebuilds, equal final hash; caps per slot survive reconnects; **majority rule:** a referee forced to diverge triggers `mp_referee_divergence`, no resync storm, the room stays scored (forged hashes from one member only resync that member); a slot piloted for `desync` is not counted as AFK |
 | N7 | Reconnect, reload, tab sleep | `socket.ts`, `src/net/visibility.ts`, worker fast-forward | `net-rejoin.test.ts`: drop at tick 6,000 → delta catch-up; reload → full catch-up; the same CATCHUP twice → same hash; `seat_elsewhere` for a second tab; equal final hash; `perf-ff.test.ts`: 19,800 ticks < 1.5 s on Node; e2e budget ≤ 7 s on WebKit and ×4-throttled Chromium; server catch-up pacing under backpressure never closes with 4001 |
 | N8 | Scoring via `/live` | `pawlegends-live.ts` (`savePawlegendsPartyMatch`), `pawlegends-replay.dto.ts`, `dto/live-game.dto.ts`, `shared-contracts/errors.ts` + client copies, `party/party-room.schema.ts` | `pawlegends-party-live.spec.ts`: valid post saves catnip from `stats[slot]`; second post `PAWLEGENDS_DUPLICATE`; wrong account `PAWLEGENDS_PARTY_SLOT`; forged hash or outcome `PAWLEGENDS_REPLAY_INVALID`; 51% `drop/away/afk` → `PAWLEGENDS_PARTY_AFK`, while 90% `late` or `desync` still scores; `simVersion < PARTY_SINCE` → `PAWLEGENDS_SIM_VERSION`; no fastest win from party; unclaimed open seat → lower tier catnip; 31st party match of the day gives no catnip; turnlog→record conversion including pilot commands and the injected Forfeit; all of `pawlegends-live.spec.ts` stays green; `party-relay.no-score.spec.ts` |
 | N9 | Checkpoint, lease, restore | `party/room-store.ts` (Mongo and Memory), `party/party.schema.ts`, restore on boot | `room-restore.spec.ts` (MemoryRoomStore): kill at tick 9,000, boot a new service; clients resume with tokens; the party (leader, members, last picks) is back; the clock runs before the referee catches up; equal final hash to an uninterrupted run; stale room (> 120 s) → `abandoned`; **two services at once:** only one claims each room (epoch), the old one stops on SIGTERM with `handoff`; checkpoints append deltas |
