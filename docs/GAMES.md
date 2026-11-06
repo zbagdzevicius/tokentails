@@ -31,7 +31,7 @@ tap to the Shelter), the md+ impact strip, PROGRESS, ABOUT ME, Settings and a mu
 Cat (seasonal, tagged SEASONAL: shown only from 1 January to 31 March in the player's local time, see
 `components/game/seasons.ts`; off-season the picker has three cards and `setGameType` refuses
 PIXEL_RESCUE, while saves of a run already started still go through), Purrsuit (tagged CLASSIC; there is no promise of new levels, decision #94), Paw Match and Catnip
-Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it. The Pawlegends card ("Cats vs dogs: 3v3 hero battles against bots", badge "NEW", an in-engine teamfight frame `client/public/game-select/pawlegends-preview@2x.webp` with a "3v3" tile as the fallback, a full-page link to `/pawlegends?from=picker`) comes second, right after the Moon Rave, on the web only (never in the app build); `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` or `NEXT_PUBLIC_PAWLEGENDS=0` hides it.
+Heist (badge "NO SIGN-UP", decision #16; a link to `/heist?from=picker`). The Heist card is on by default in every build (decision #15 overridden 2026-10-05); `NEXT_PUBLIC_HEIST_PICKER=0` hides it. Cards are 2x2 on phones and one row from `md`. By default (launch, Oct 16 2026) a fifth card titled `SWORDCAT_TITLE` upper-cased (today PINK PAW KNIGHT; badge "NEW", an inline SVG preview, a link to `/swordcat`), follows the Heist; it has no game type. `NEXT_PUBLIC_SWORDCAT_PICKER=0` or `NEXT_PUBLIC_SWORDCAT=0` (also `false`/`no`/`off`) hides it. The Pawlegends card ("Cats vs dogs: 3v3 hero battles against bots", badge "NEW", an in-engine teamfight frame `client/public/game-select/pawlegends-preview@2x.webp` with a "3v3" tile as the fallback, a full-page link to `/pawlegends/play?from=picker`) comes second, right after the Moon Rave, on the web only (never in the app build); `NEXT_PUBLIC_PAWLEGENDS_PICKER=0` or `NEXT_PUBLIC_PAWLEGENDS=0` hides it.
 
 A new player is routed straight to their first level: after Meet your cat the hand-off shows the
 lobby with "Up next: Cupid Cat · Day 1" for 1.8 s, then opens Cupid Cat level 1 with the starter
@@ -224,7 +224,7 @@ retired).
   when a unit-target quick cast would hit a different enemy hero, that hero gets a thinner red ring. Touch keeps
   the joystick and button cluster.
 - **Hosting**: same origin, like the Heist. `npm run build:client` in `pawlegends/` writes
-  `client/public/pawlegends-game/` (about 1.4 MB, committed); `/pawlegends` frames
+  `client/public/pawlegends-game/` (about 1.4 MB, committed); `/pawlegends/play` frames
   `/pawlegends-game/index.html?embed=1` (CLIENT.md, "Pawlegends (/pawlegends)").
 - **Bridge v1**: envelope `{ns: 'tt-pawlegends', v: 1, type}`, host side
   `client/components/pawlegends/bridge.ts`, game side `pawlegends/src/embed/bridge.ts` and
@@ -241,7 +241,12 @@ retired).
   `/pawlegends` links only; `text` is the optional dare line, one plain line of at most 120 characters, which the
   host passes to the system share sheet, PUB-06), `paused` and `client-error {source, msg, screen, tier, sim}` (a game or worker crash,
   `msg` cut to lower-case `[a-z0-9_ ]` and 80 characters; the host reports it as `app_error`), `analytics {event,
-  props}` (one of the game's own events; the host sends it with `analytics.track`, PUB-02); the old `purchase-intent {sku}` gets a legacy refusal. The game accepts a host from
+  props}` (one of the game's own events; the host sends it with `analytics.track`, PUB-02); the old `purchase-intent {sku}` gets a legacy refusal.
+  Party play (MULTIPLAYER.md §5.3, §6): the game sends `party-ticket-request {id}` and the host answers
+  `party-ticket {id, ticket | null, error?}` (minted with the host's own session; never queued, a ticket lives 60 s);
+  the game sends `party-result {matchId, result: {v: 2, room, slot, simVersion, ticks, outcome, finalHash}}` (the
+  `matchId` is the room id) and the host answers with `save-result`; `share {kind: 'party'}` carries the
+  tokentails.com invite link. The game accepts a host from
   `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com, `http://localhost:3000` in its dev
   server) plus its own origin when the parent is same-origin. Both sides post to the exact origin, never
   `'*'`, and no `accesstoken` or Firebase token crosses.
@@ -439,7 +444,9 @@ retired).
   `FROZEN` in `pawlegends/tools/vendor-sim.mjs`), deploy the
   backend, then the client build. The backend must be live first, or every replay of the new version is refused. `GET /pawlegends/sim`
   serves the bundle hash (`npm run vendor-sim:check-remote -- <backend url>`). The backend refuses replays of
-  any other version, and the host purges queued matches of an old version.
+  any other version, and the host purges queued matches of an old version. The game's party events (`party_*`, `mp_*`, MULTIPLAYER.md §10) come through
+`analytics {event, props}` like the others (`PAWLEGENDS_GAME_EVENTS`); their props never carry a party code, a room
+id, a member id or a name.
 
 Known gaps (POC): heroes are procedural runtime models (the §6.9 fallback, no baked GLBs; `bake:heroes` and
 `bake:map` are not written); chromas tint the hero only; the device gate (iPhone 11, Pixel 6a, Iris Xe) is not

@@ -10,6 +10,7 @@ import { BP_ONE, applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { rulesOf } from '../rules';
 import { G, Kind, RANGE, type World } from '../world';
+import { isHumanSlot } from '../humans';
 
 const WIN = NINE_LIVES.window;
 
@@ -36,7 +37,7 @@ export function stepBonuses(w: World): void {
 /** Move-speed bonus (bp) from Zoomies, Frenzy Catnip and (the human, Rookie) Scaredy cat. */
 export function bonusSpeedBp(w: World, id: number): number {
   if (id >= RANGE.minions || w.kind[id] !== Kind.Hero) return 0;
-  const panic = id === 0 && w.globals[G.HumanPanic] > 0 && w.hp[id] * BP_ONE < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
+  const panic = isHumanSlot(w, id) && w.globals[G.HumanPanic] > 0 && w.hp[id] * BP_ONE < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
   return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic;
 }
 

@@ -41,6 +41,13 @@ Requirements:
 
 There is no Dockerfile, process manager config, or health probe beyond `GET /`.
 
+Pawlegends party play (docs/plans/moba/MULTIPLAYER.md): the relay is a WebSocket on the same host
+(`wss://<api>/pawlegends/ws`). Cloudflare proxies WebSockets on the orange cloud; the relay pings every 5 s in a
+match (15 s in the lobby), well inside Cloudflare's 100 s idle limit. On SIGTERM the backend stops the room clocks,
+tells clients to come back in 3 s and checkpoints every room with `handoff`; the next instance claims them by lease
+at boot (within 120 s). Deploy the backend before the game (the relay accepts the live, the frozen and the previous
+sim bundle, never a newer one).
+
 Cron jobs run inside the process, each behind a lease (or, for the codex reset, a period claim) in
 the `jobruns` collection.
 

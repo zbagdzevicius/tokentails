@@ -6,7 +6,7 @@ export const PAWLEGENDS_MUTATORS = ['none'] as const;
 
 /**
  * The Pawlegends replay posted with a `PAWLEGENDS` save in the `pawlegends` field (POC.md §11.3): the
- * `ReplayRecord` of `pawlegends/src/sim/api.ts` as the game recorded it (sim v10, v11, v12 or v13).
+ * `ReplayRecord` of `pawlegends/src/sim/api.ts` as the game recorded it (sim v10 to v13).
  *
  * Shape and work bounds only (ticks ≤ PAWLEGENDS_MAX_TICKS, inputs ≤ PAWLEGENDS_MAX_INPUT_CHARS base64 characters),
  * checked before anything is queued. The sim version is compared in `pawlegends-live.ts` (so the 400 can name the
@@ -59,4 +59,40 @@ export class PawlegendsReplayDto {
     @IsOptional()
     @IsIn(PAWLEGENDS_MUTATORS)
     mutator?: 'none';
+}
+
+/**
+ * Party play (docs/plans/moba/MULTIPLAYER.md §6, D7): the result a party member posts in `pawlegends` with `v: 2`.
+ * It names the room and the member's slot; the backend checks it against the room log the relay stored and the
+ * referee's verified verdict (`pawlegends-party-live.ts`), so a client can never forge a party result. Under 300 B.
+ */
+export class PawlegendsPartyResultDto {
+    @Equals(2)
+    v: 2;
+
+    @IsString()
+    @Matches(/^[a-z0-9]{1,16}$/)
+    room: string;
+
+    @IsInt()
+    @Min(0)
+    @Max(2)
+    slot: number;
+
+    @IsInt()
+    @Min(1)
+    @Max(1_000_000)
+    simVersion: number;
+
+    @IsInt()
+    @Min(1)
+    @Max(PAWLEGENDS_MAX_TICKS)
+    ticks: number;
+
+    @IsIn(['won', 'lost'])
+    outcome: 'won' | 'lost';
+
+    @IsString()
+    @Matches(/^[0-9a-f]{8}$/)
+    finalHash: string;
 }

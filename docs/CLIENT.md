@@ -125,7 +125,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `components/impact/` | Lobby RESCUE tile, impact board (`ImpactStrip`), `PawProgress`, MY IMPACT summary, end-of-run paw line. |
 | `components/onboarding/` | Meet your cat (step machine, altar, starters, names, draft, commit, hand-off), `RenameSheet`. |
 | `components/heist/` | The `/heist` host: bridge, suspension stand-in, saves queue, save chip. |
-| `components/pawlegends/` | The `/pawlegends` host: flags, title, the v1 bridge, roster and featured-cat bridges, session, offer and retired store client (`checkout.ts`), cat sheet, saves queue, `PawlegendsHost`. |
+| `components/pawlegends/` | The `/pawlegends` landing (`landing/`: roster, markup, scoped CSS, the GSAP motion chunk) and routes (`routes.json`), and the `/pawlegends/play` host: flags, title, the v1 bridge, roster and featured-cat bridges, session, offer and retired store client (`checkout.ts`), cat sheet, saves queue, `PawlegendsHost`. |
 | `components/swordcat/` | The `/swordcat` host (Pink Paw Knight): flags, the title constant (`title.ts`), the v1 postMessage bridge, `SwordcatHost`. |
 | `components/audio/` | Audio settings store, music engine, system mute, tracks, Settings modal, mute toggle, graphics control. |
 | `components/typography/`, `components/Phaser/typography/` | Type roles, `loadGameFonts`, `ttCanvasFont`; the Phaser side (`TTFontsFile`, `ttText`, `ttFit`, font healing, `ttWorldText`). |
@@ -168,7 +168,8 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/game` | `pages/game.tsx` | Main web game shell: auth in `guest` mode (a silent anonymous session, no sign-in wall), game provider, the night intro curtain, Meet your cat for a pending player, the lobby. `?meet=1` replays Meet your cat (read once `router.isReady`, then removed); `?ref=` is captured for the referral. Canonical `/game` without the query. |
 | `/heist` | `pages/heist.tsx` | Catnip Heist host: optional auth, SeoHead, the `/heist-game/index.html?embed=1` iframe in the server HTML, the bridge and the save chip. `?from=` feeds `heist_open` and is stripped. `/heist/index.html` redirects here; `/heist/:path+` redirects to `/heist-game/:path+` (old asset links) |
 | `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host, on by default (`NEXT_PUBLIC_SWORDCAT=0` is the kill switch: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
-| `/pawlegends` | `pages/pawlegends/index.tsx` | Pawlegends host, on by default (`NEXT_PUBLIC_PAWLEGENDS=0` is the kill switch). Optional auth, `noindex`, left out of the sitemap. See "Pawlegends (/pawlegends)" below |
+| `/pawlegends` | `pages/pawlegends/index.tsx` | Pawlegends landing page (port of the vs-screen landing, `components/pawlegends/landing/`). A URL with a game key (`?party=`, `?dare=`, `?checkout=`, `?restore=`, `?notify=`, `?from=`) goes on to `/pawlegends/play` with its query; app builds go straight there. `noindex`, left out of the sitemap. See "Pawlegends (/pawlegends)" below |
+| `/pawlegends/play` | `pages/pawlegends/play.tsx` | Pawlegends host (the game), on by default (`NEXT_PUBLIC_PAWLEGENDS=0` is the kill switch for both pages). Optional auth, always `noindex`, left out of the sitemap |
 | `/pawlegends/terms` | `pages/pawlegends/terms.tsx` | Pawlegends presale terms and refund policy (POC.md §8.6), left out of the sitemap |
 | `/pawlegends-game/` | `public/pawlegends-game/` | The static Pawlegends build (`npm run build:client` in `pawlegends/`, committed) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
@@ -535,8 +536,24 @@ needed: the page, the picker card and the landing section (web only, never in th
 
 ### Pawlegends (/pawlegends)
 
-Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hosted by
-`components/pawlegends/PawlegendsHost.tsx`. It is on by default with no env needed;
+`/pawlegends` is the landing page and `/pawlegends/play` the game.
+
+- **Landing** (`pages/pawlegends/index.tsx`, `components/pawlegends/landing/`): a port of the vs-screen landing
+  (`docs/plans/moba/landings/02-vs-screen.html`, not in git) with its look and motion. The markup is one HTML string
+  (`markup.ts`) rendered under `.pll`; its stylesheet (`landingCss.ts`) is scoped to `.pll`, keyframes `pll-*`, and
+  ships in the server HTML. `motion.js` is the original engine (canvas seam, sparks, sprite fighters, GSAP 3.13 from
+  npm) loaded as its own chunk on this page; it tracks every listener, rAF, timer and observer and stops on unmount.
+  `prefers-reduced-motion` shows the finished page. Media live in `public/pawlegends/landing/` with content hashes in
+  their names (cached for good in `next.config.js`; pruned from the app export), Fredoka with its OFL licence too.
+  The roster (`roster.ts`) is the game's own words; heroes without in-game art yet show a paw card with a "New" badge,
+  never a stand-in image. `__test__/pawlegends/landing-roster.test.ts` checks it against the game's `HERO_IDS` and
+  `SIM_VERSION`, so a cut hero fails CI. Play buttons link `/pawlegends/play?from=landing_hero|landing_continue`.
+- **Routing** (`components/pawlegends/routes.json`): a `/pawlegends` URL with `party`, `dare`, `checkout`, `restore`,
+  `notify` or `from` is redirected (307) to `/pawlegends/play` with its query by `next.config.js`, and the landing
+  repeats the check in the browser (app export, client-side navigation). Party invites, dare links, Stripe returns,
+  account emails, the PLAY picker and the home hub keep working unchanged; `?utm_*` links stay on the landing.
+- **Game** (`pages/pawlegends/play.tsx`): Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin
+  iframe hosted by `components/pawlegends/PawlegendsHost.tsx`. It is on by default with no env needed;
 `NEXT_PUBLIC_PAWLEGENDS` and `NEXT_PUBLIC_PAWLEGENDS_PICKER` are kill switches only (`flags.ts`).
 
 - The iframe loads `/pawlegends-game/index.html?embed=1`. Rebuild it after any game change with
@@ -562,6 +579,15 @@ Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hos
   guest's matches go back to the prompt when another uid signs in. Each POST is aborted after 20 s
   (`PAWLEGENDS_SAVE_TIMEOUT_MS`), so a stalled connection reads as offline and backs off instead of holding
   the chip on "saving" and blocking later retries.
+- Party play (`docs/plans/moba/MULTIPLAYER.md` §5.3, §6): `flags.ts` forwards a valid `?party=K7QX2M` to the
+  frame's src (upper-cased, the 31-letter alphabet only) and the host strips it from the address bar. The iframe
+  allows `web-share` and `clipboard-write`. `partySaves.ts`: the game's `party-ticket-request {id}` is answered
+  with `party-ticket {id, ticket}` minted by `POST /pawlegends/party/ticket` with the host's own session (a guest
+  session on 428; one in flight, 10 a minute; `ticket: null` and an error code on failure, so the friend plays as
+  an unscored guest); the access token never crosses. A party match's `party-result {matchId: room, result}` is
+  posted once to `POST /user/catbassadors/live` as `{type: 'PAWLEGENDS', pawlegends: {v: 2, ...}}` (no device
+  queue: the ticket fixed the account; retried 2 s, 6 s, 18 s on a network or server failure) and its status goes
+  back as `save-result`. A `share {kind: 'party'}` link is accepted only as `https://tokentails.com/pawlegends?party=…`.
 - `checkout.ts` has the offer API (`GET /pawlegends/offer` once per visit, after `ready` and the featured list;
   `POST /pawlegends/offer/seen` on `offer-seen`), the device id, the age band and the session counter (every
   storage access in try/catch). It also keeps the retired `pl_*` store client (`status`, `checkout`,
@@ -601,7 +627,8 @@ Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin iframe hos
   is a 320x200 frame of the loop take. `scripts/sync-home.mjs` rebuilds `public/home` from `landing-poc/v16c1`, which
   has no Pawlegends entry yet: add the entry and the media there before the next sync, or the sync drops the tab.
   `/pawlegends` stays out of the sitemap and keeps its `noindex` until the trademark search passes
-  (docs/plans/moba/LAUNCH.md a.1), so the games taxonomy line does not name it yet.
+  (docs/plans/moba/LAUNCH.md a.1), so the games taxonomy line does not name it yet. `/pawlegends/play` and
+  `/pawlegends/terms` stay out of the sitemap and `noindex` after launch.
 
 ### Home page (/)
 

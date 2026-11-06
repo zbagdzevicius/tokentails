@@ -14,6 +14,7 @@ import {
   parseFeatured,
   parseHostMessage,
   parseOffer,
+  parsePartyTicket,
   parsePurchaseResult,
   parseSaveResult,
   parseSession,
@@ -53,6 +54,8 @@ export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {
       return wrap(parseAudio(m));
     case 'entitlements':
       return wrap(parseEntitlements(m));
+    case 'party-ticket':
+      return wrap(parsePartyTicket(m));
     case 'champions': {
       // The wire shape (sim v9): only the champion catalog ids the game knows, `catImg` from the NFT bucket only.
       const cats = parseChampions(m);

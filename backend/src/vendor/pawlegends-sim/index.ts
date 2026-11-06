@@ -10,6 +10,13 @@ import * as v12 from './v12';
 import * as v13 from './v13';
 
 export type {
+    PawlegendsPartySim,
+    PawlegendsPartyReplayRecord,
+    PawlegendsPartySeat,
+    PawlegendsCommand,
+    PawlegendsMatchHandle,
+    PawlegendsMatchResult,
+    PawlegendsPilot,
     PawlegendsDifficulty,
     PawlegendsHeroId,
     PawlegendsMutator,
@@ -21,7 +28,7 @@ export type {
     PawlegendsVerifyCode,
     PawlegendsVerifyResult,
 } from './v13';
-import type { PawlegendsVerifyResult } from './v13';
+import type { PawlegendsPartySim, PawlegendsVerifyResult } from './v13';
 
 /** One vendored sim version. */
 export interface PawlegendsSim {
@@ -31,6 +38,10 @@ export interface PawlegendsSim {
     MAX_INPUT_CHARS: number;
     checkReplayShape: (record: unknown) => PawlegendsVerifyResult | null;
     verifyReplay: (record: unknown) => PawlegendsVerifyResult;
+    /** Party play (MULTIPLAYER.md §2.1): set only on bundles with party code. */
+    SIM_SOURCE_HASH?: string;
+    SIM_GOLDEN?: string;
+    party?: PawlegendsPartySim;
 }
 
 /** Every accepted sim, by SIM_VERSION. */
@@ -52,6 +63,14 @@ export const PLACEHOLDER = false;
 /** The sim of `simVersion`, or null when this backend does not verify that version. */
 export const simFor = (simVersion: unknown): PawlegendsSim | null =>
     typeof simVersion === 'number' && Object.prototype.hasOwnProperty.call(SIMS, simVersion) ? SIMS[simVersion] : null;
+
+/**
+ * Party play (MULTIPLAYER.md §2.1 skew window): the sim for a party client's `{simVersion, simHash}`, from the live
+ * bundle, the frozen ones — only bundles with party code. Null = update_required.
+ */
+export const PARTY_SIMS: readonly PawlegendsSim[] = Object.freeze([v10 as PawlegendsSim, v11 as PawlegendsSim, v12 as PawlegendsSim, v13 as PawlegendsSim].filter((s) => !!s.party && !!s.SIM_SOURCE_HASH));
+export const partySimFor = (simVersion: unknown, simHash: unknown): PawlegendsSim | null =>
+    PARTY_SIMS.find((s) => s.SIM_VERSION === simVersion && s.SIM_SOURCE_HASH === simHash) ?? null;
 
 const refuse = (record: unknown): PawlegendsVerifyResult => ({
     ok: false,

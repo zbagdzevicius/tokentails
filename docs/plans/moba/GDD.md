@@ -578,6 +578,8 @@ Heroes: 1 skinned mesh each, shared skeletons, a 256² palette texture. Minions:
 
 ### 9.6 Networking (Phase 2)
 
+> Co-op vs bots (1 to 3 friends against bots) uses relay lockstep on the Nest box: see [MULTIPLAYER.md](MULTIPLAYER.md). PvP still follows this section. Friends in slots 1 and 2 get no XP catch-up in v1 (known balance gap, not a bug).
+
 | Option | Verdict |
 |---|---|
 | POC: bots, sim in a Worker, backend re-sim on save | ✅ No server cost |

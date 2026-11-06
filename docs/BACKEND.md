@@ -1050,6 +1050,26 @@ Known gaps: the `purchase{sku}` analytics event is not sent from the webhook (no
 server-side PostHog); the specs mock the sim (the real bundle is exercised by the game's tests and was checked
 by hand against browser-recorded replays).
 
+
+### Pawlegends party relay (docs/plans/moba/MULTIPLAYER.md)
+
+`src/pawlegends/party/`: a WebSocket relay on the Nest HTTP server (`ws`, `noServer` upgrade on `/pawlegends/ws`)
+for co-op party play. It orders commands into 15 Hz turns (2 ticks), broadcasts them and stores the log; every sim
+step (the referee and the pilots that fly dropped players) runs in `worker_threads` (`referee.worker.ts`), never on
+the main thread. An event-loop delay gate (p99 > 20 ms) and a referee-lag gate refuse new rooms with `server_busy`.
+
+- Providers in `AppModule`: `PartyRelayService` (bootstrap: restore; SIGTERM: `room_gone` + handoff checkpoint, via
+  `app.enableShutdownHooks()`), `PartyTicketService`, `MongoRoomStore`; collections `pawlegendsrooms` (append-only
+  log chunks, lease `owner`/`epoch`, verdict; TTL 30 days once ended) and `pawlegendsparties` (TTL 3 h).
+- Env (name only): `PAWLEGENDS_PARTY_TICKET_SECRET` (and optional `PAWLEGENDS_PARTY_TICKET_KID`). Without it rooms are
+  unscored guest rooms; nothing else is disabled.
+- Single instance: rooms live in one process; a rolling deploy hands rooms over through the lease (N9).
+  `MAX_LIVE_ROOMS` is 60 until `mp/load.mjs` measures the droplet.
+- The relay never writes a score (`party-relay.no-score` check in `pawlegends-party-live.spec.ts`); party results save
+  through `/live` (`pawlegends-party-live.ts`).
+- The vendored sim keeps the previous production bundle in `vendor/pawlegends-sim/prev/` (one deep, from
+  `origin/main`) so a game build one deploy behind can still join; a party is pinned to its leader's sim.
+
 ### Tails Club (`/club`)
 
 A monthly ($9.99) or yearly ($79) membership, prices including VAT, paid in place in the club card of the

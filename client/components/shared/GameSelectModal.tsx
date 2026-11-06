@@ -55,8 +55,8 @@ export const SWORDCAT_CARD_KEY = "SWORDCAT";
 /** The Swordcat card's line (plan §12.3 E): the kittens carry real Pink Paw cats' names and photos. */
 export const SWORDCAT_PICKER_DESCRIPTION = "Every cat you save is a real Pink Paw cat";
 
-/** Where the Pawlegends card goes: its host page, by a full page load (POC.md §11.4; web builds only). */
-export const PAWLEGENDS_PICKER_HREF = "/pawlegends";
+/** Where the Pawlegends card goes: the game page (not the landing), by a full page load (POC.md §11.4; web builds only). */
+export const PAWLEGENDS_PICKER_HREF = "/pawlegends/play";
 /** The Pawlegends card's key: `GameType.PAWLEGENDS` is the save type, the card itself is a link. */
 export const PAWLEGENDS_CARD_KEY = "PAWLEGENDS";
 /** The Pawlegends card's line: what the game is (both sides are playable, the other five heroes are bots). */

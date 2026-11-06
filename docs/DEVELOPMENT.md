@@ -323,6 +323,16 @@ because `.env.app` sets `NEXT_PUBLIC_IS_APP`; `npm run check:app-export` then ve
 - Client and CMS: Prettier defaults with 2-space indent and single quotes in the CMS. Tailwind for styling. Path alias `@/`.
 - Shared enums, error codes, caps and reward constants come from `shared/` (next section). Change them there, never in a generated copy, and check the hand-kept copies listed below.
 
+## Pawlegends party play: merge and deploy rules
+
+- `PARTY_SINCE` (pawlegends/src/sim/party.ts) is the first `SIM_VERSION` that ships to production with party code.
+  If the party branch merges into a sim version bump before either ships, set it to that version. After any merge
+  touching `src/sim`, run `npm run vendor-sim` (never hand-merge the vendor directory) and check `party-identity`,
+  `party-pilot-purity`, `party-order`, `lint:sim` and `vendor-sim:check`.
+- Party error codes (`PAWLEGENDS_PARTY_ROOM`, `PAWLEGENDS_PARTY_SLOT`, `PAWLEGENDS_PARTY_AFK`,
+  `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE`) live in `shared/errors.ts` like the others.
+- Deploy order: backend first, then the game.
+
 ## Shared contracts and generated files
 
 The packages stay separate, but duplicated contracts are generated, not hand-edited (plan F2).

@@ -1,24 +1,24 @@
+import { isAppBuild } from "@/components/claims/build";
 import { pawlegendsEnabled, PAWLEGENDS_EXIT_PATH } from "@/components/pawlegends/flags";
-import { PawlegendsHost } from "@/components/pawlegends/PawlegendsHost";
-import { lockPageZoom, PAWLEGENDS_VIEWPORT } from "@/components/pawlegends/noZoom";
-import { PAWLEGENDS_SUBTITLE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
+import { LANDING_FONT } from "@/components/pawlegends/landing/markup";
+import { PawlegendsLanding } from "@/components/pawlegends/landing/PawlegendsLanding";
+import { liveRoster } from "@/components/pawlegends/landing/roster";
+import { PAWLEGENDS_LANDING_PATH, PAWLEGENDS_PLAY_PATH, wantsGame } from "@/components/pawlegends/routes";
+import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
-import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
 /**
- * `/pawlegends` meta. `noindex` until the trademark search passes (POC.md §11.4); left out of the sitemap
- * (`client/next-sitemap.config.js`). LAUNCH.md a.8 step 1 lifts both in the same change. "Seven-minute" is the one
- * length phrase, from the 2,000-seed balance gate median (LAUNCH.md c.6); the game's own meta uses it too.
- * The share card (launch finding PUB-06) is a 1200 x 630 match frame, `public/pawlegends/og.jpg`, so launch
- * and dare links preview the game, not the generic Token Tails card.
+ * `/pawlegends` meta: the landing page. `noindex` until the trademark search passes (POC.md §11.4) and left out of
+ * the sitemap (`client/next-sitemap.config.js`); LAUNCH.md a.8 step 1 lifts both for this page only (the game at
+ * `/pawlegends/play` and the terms stay out). Same share card as the game (`public/pawlegends/og.jpg`).
  */
-export const PAWLEGENDS_SEO = Object.freeze({
-  title: `${PAWLEGENDS_TITLE} - Token Tails`,
-  description: `${PAWLEGENDS_SUBTITLE}. Seven-minute matches in your browser, no download.`,
-  path: "/pawlegends",
+export const PAWLEGENDS_LANDING_SEO = Object.freeze({
+  title: `${PAWLEGENDS_TITLE}: Cats vs Dogs - Token Tails`,
+  description: `${PAWLEGENDS_TITLE} is a free 3v3 cats vs dogs game by Token Tails. ${liveRoster().length} heroes; play solo or with up to two friends against bots, right in your browser on desktop or phone.`,
+  path: PAWLEGENDS_LANDING_PATH,
   image: Object.freeze({
     url: "/pawlegends/og.jpg",
     width: 1200,
@@ -27,34 +27,32 @@ export const PAWLEGENDS_SEO = Object.freeze({
   }),
 });
 
-/** Kill switch on: a client-side redirect to the lobby (no `getServerSideProps`, so the app export works). */
-const BackToGame = () => {
-  const router = useRouter();
-  useEffect(() => {
-    void router.replace(PAWLEGENDS_EXIT_PATH);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-  return null;
-};
-
 /**
- * `/pawlegends` (POC.md §11.4): the Pawlegends three.js build in the Token Tails shell, a copy of `/swordcat`.
- * On by default; `NEXT_PUBLIC_PAWLEGENDS=0` (or false/no/off) is the kill switch. Auth is `optional`: an
- * existing session is reused, none is created; the game only learns whether the player is signed in.
+ * `/pawlegends`: the landing page; the game is `/pawlegends/play`. A URL that carries a game key (`?party=`,
+ * `?dare=`, `?checkout=`, ...; components/pawlegends/routes.ts) is redirected there by next.config.js; this page
+ * repeats the check in the browser (app export, client-side navigation). The app never shows the landing: it goes
+ * straight to the game. The kill switch sends players to `/game`, as the game page does.
  */
-export default function PawlegendsPage() {
+export default function PawlegendsLandingPage() {
+  const router = useRouter();
   const enabled = pawlegendsEnabled();
-  // No page zoom around the game iframe (components/pawlegends/noZoom.ts); restored when the page unmounts.
-  useEffect(() => (enabled ? lockPageZoom() : undefined), [enabled]);
-  if (!enabled) return <BackToGame />;
+  const toGame = enabled && (isAppBuild() || (router.isReady && wantsGame(router.query)));
+  useEffect(() => {
+    if (!enabled) {
+      void router.replace(PAWLEGENDS_EXIT_PATH);
+      return;
+    }
+    if (toGame) void router.replace({ pathname: PAWLEGENDS_PLAY_PATH, query: router.query });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled, toGame]);
+  if (!enabled || toGame) return null;
   return (
-    <FirebaseAuthProvider authMode="optional">
-      <SeoHead {...PAWLEGENDS_SEO} noindex />
+    <>
+      <SeoHead {...PAWLEGENDS_LANDING_SEO} noindex />
       <Head>
-        {/* Same key as _app's tag, so next/head keeps this one on this page only. */}
-        <meta name="viewport" content={PAWLEGENDS_VIEWPORT} key="viewport" />
+        <link rel="preload" href={LANDING_FONT} as="font" type="font/woff2" crossOrigin="anonymous" key="pll-fredoka" />
       </Head>
-      <PawlegendsHost />
-    </FirebaseAuthProvider>
+      <PawlegendsLanding />
+    </>
   );
 }

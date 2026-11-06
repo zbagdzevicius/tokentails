@@ -25,6 +25,7 @@ import {
 } from '../input/presets';
 import type { QualityTier } from '../render/quality';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
+import { hideNames, setHideNames } from '../meta/partyPrefs';
 
 export interface SettingsState {
   muted: boolean;
@@ -75,7 +76,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref(), hide: hideNames() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -105,6 +106,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
+      ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
       <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
@@ -130,6 +132,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     } else if (a === 'lasthit') {
       ctl.lastHit = !ctl.lastHit;
       setLastHitButton(ctl.lastHit);
+    } else if (a === 'hidenames') {
+      ctl.hide = !ctl.hide;
+      setHideNames(ctl.hide);
     } else if (a === 'tower') {
       ctl.tower = !ctl.tower;
       setTowerButton(ctl.tower);

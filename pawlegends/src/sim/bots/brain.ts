@@ -43,6 +43,7 @@ import type { BotMem } from './mem';
 import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast, underFire } from './casts';
 import { kitOf } from '../heroes/kit';
 import { laneRole, orderOf } from './orders';
+import { isHumanSlot } from '../humans';
 import {
   fountainX,
   fountainY,
@@ -710,7 +711,7 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   if (w.napT[id] > 0) return null;
   // Sim v10 ping orders (allied bots only): Fall back is a retreat; the others are worked on below the fights.
   let ord = -1;
-  if (id === HUMAN_SLOT) {
+  if (isHumanSlot(w, id)) {
     if (mine && tick <= mine.until) {
       ord = mine.kind;
       orderPt[0] = mine.x;
@@ -724,14 +725,14 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     orderPt[2] = w.botOrdId[id];
   }
   if (ord >= 0 && orderDone(w, id, ord)) {
-    if (id === HUMAN_SLOT && mine) mine.until = -1;
+    if (mine) mine.until = -1;
     else w.botOrd[id] = 0;
     ord = -1;
   }
   // Fall back is the pre-v10 retreat (escape casts, then home) while an enemy hero is close; once safe it ends.
   if (ord === PING_KIND.FallBack) {
     if (nearestFoe(w, id, BOT_AI.napSafeRange) >= 0) return retreat(w, id, mem, p);
-    if (id === HUMAN_SLOT && mine) mine.until = -1;
+    if (mine) mine.until = -1;
     else w.botOrd[id] = 0;
     ord = -1;
   }

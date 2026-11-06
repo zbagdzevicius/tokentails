@@ -30,10 +30,10 @@ module.exports = {
     // /yourcat is paused until launch (YOURCAT_ENABLED off, docs/YOURCAT.md): remove it here as a
     // launch checklist step.
     // /feed/* auto-detected pages are replaced by the rows below (same set, with real dates).
-    // /pawlegends and its terms are noindex until the trademark search passes (POC.md §11.4). Launch day
-    // (docs/plans/moba/LAUNCH.md a.8 step 1) removes '/pawlegends' here together with the page's `noindex`;
-    // '/pawlegends/terms' stays out (its page stays noindex).
-    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/feed', '/feed/*', '/pawlegends', '/pawlegends/terms'],
+    // /pawlegends (the landing), its game and its terms are noindex until the trademark search passes (POC.md §11.4).
+    // Launch day (docs/plans/moba/LAUNCH.md a.8 step 1) removes '/pawlegends' here together with the landing's
+    // `noindex`; '/pawlegends/play' (the game) and '/pawlegends/terms' stay out (those pages stay noindex).
+    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/feed', '/feed/*', '/pawlegends', '/pawlegends/play', '/pawlegends/terms'],
     transform: async (config, path) => plain(config, path),
     additionalPaths: async () => {
         if (process.env.NEXT_PUBLIC_IS_APP) {

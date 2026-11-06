@@ -118,7 +118,7 @@ export default function PawlegendsTermsPage() {
           </Section>
 
           <p>
-            <a href={open ? "/pawlegends" : "/game"} className="font-bold text-tt-gold-400 underline underline-offset-4">
+            <a href={open ? "/pawlegends/play" : "/game"} className="font-bold text-tt-gold-400 underline underline-offset-4">
               {open ? `Back to ${PAWLEGENDS_TITLE}` : "Back to games"}
             </a>
           </p>

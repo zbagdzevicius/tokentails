@@ -34,6 +34,7 @@ import {
   parseChampions,
   parseFeatured,
   parseOffer,
+  parsePartyTicket,
   parsePurchaseResult,
   parseSaveResult,
   parseSession,
@@ -44,13 +45,16 @@ import {
   type FeaturedCat,
   type HostMessage,
   type MeetOffer,
+  type PartyResult,
   type Progress,
   type SaveResult,
   type SignInReason,
 } from './bridge';
 
 /** Messages the integration fully owns: the app has nothing to do with them. */
-export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions']);
+export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions', 'party-ticket']);
+/** How long the game waits for the host's party ticket before it joins as an unscored guest. */
+export const PARTY_TICKET_WAIT_MS = 6000;
 /** A results chip waits this long for the host's first `save-result`, then hides (an older host sends none). */
 export const SAVE_WAIT_MS = 12000;
 
@@ -119,6 +123,13 @@ export interface Integration {
    * puts it first in its next Meet offer ask (`skin-preview`); the server's caps decide whether a card shows.
    */
   notePreview(catalogId: string): boolean;
+  /**
+   * Party play (MULTIPLAYER.md §5.3): a single-use party ticket minted by the embed host with its own session, or null
+   * (standalone, no host answer within PARTY_TICKET_WAIT_MS, or the host had none): the player is an unscored guest.
+   */
+  partyTicket(): Promise<string | null>;
+  /** Party play (§6): hand a party match's v:2 result to the host's save path; the save chip follows the room id. */
+  partyResult(result: PartyResult, info?: MatchInfo): boolean;
   dispose(): void;
 }
 
@@ -231,6 +242,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   let saveV = 1;
   let waitedOut = false;
   let waitTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Party tickets the game is waiting for, by request id. */
+  const ticketWaits = new Map<string, (ticket: string | null) => void>();
   let disposed = false;
   let lastScreen: ScreenKind | null = null;
   /** Champion cards already sent to the host this page load (`champion-offer`). */
@@ -593,6 +606,14 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         redraw();
         return;
       }
+      case 'party-ticket': {
+        const v = parsePartyTicket(m);
+        const wait = v ? ticketWaits.get(v.id) : undefined;
+        if (!v || !wait) return;
+        ticketWaits.delete(v.id);
+        wait(v.ticket);
+        return;
+      }
       default:
         return;
     }
@@ -613,6 +634,39 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       }, SAVE_WAIT_MS);
       saveV++;
       return s.matchId;
+    },
+    partyTicket: () => {
+      if (!bridge.active) return Promise.resolve(null);
+      const id = makeMatchId();
+      return new Promise<string | null>((resolve) => {
+        const timer = setTimeout(() => {
+          ticketWaits.delete(id);
+          resolve(null);
+        }, PARTY_TICKET_WAIT_MS);
+        ticketWaits.set(id, (t) => {
+          clearTimeout(timer);
+          resolve(t);
+        });
+        if (!bridge.post('party-ticket-request', { id })) {
+          clearTimeout(timer);
+          ticketWaits.delete(id);
+          resolve(null);
+        }
+      });
+    },
+    partyResult: (result, info) => {
+      s.matchId = result.room;
+      s.match = info ?? null;
+      s.progressAtMatch = s.progress ?? accountState().progress;
+      s.save = null;
+      waitedOut = false;
+      if (waitTimer) clearTimeout(waitTimer);
+      waitTimer = setTimeout(() => {
+        waitedOut = true;
+        if (!s.save) redraw(false, true);
+      }, SAVE_WAIT_MS);
+      saveV++;
+      return bridge.post('party-result', { matchId: result.room, result });
     },
     state: () => s,
     refresh: () => redraw(true, true),

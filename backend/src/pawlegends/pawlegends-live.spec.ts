@@ -16,7 +16,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { createHash } from 'crypto';
 import { PawlegendsReplayDto } from './pawlegends-replay.dto';
-import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSION, SIM_VERSIONS } from 'src/vendor/pawlegends-sim';
+import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSION, SIM_VERSIONS, simFor } from 'src/vendor/pawlegends-sim';
 import { PAWLEGENDS_SIM_INFO } from './pawlegends-sim-info';
 import { verifyBySimVersion } from './pawlegends-replay.worker';
 import {
@@ -512,7 +512,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(verifyBySimVersion(v11)).toMatchObject({ ok: true, finalHash: v11.finalHash, ticks: v11.ticks });
             expect(verifyBySimVersion({ ...v10, simVersion: 11 }).ok).toBe(false);
             expect(verifyBySimVersion({ ...v11, simVersion: 10 }).ok).toBe(false);
-            for (const simVersion of [9, 14]) {
+            for (const simVersion of [9, SIM_VERSION + 1]) {
                 expect(verifyBySimVersion({ ...v11, simVersion })).toMatchObject({
                     ok: false,
                     code: 'PAWLEGENDS_SIM_VERSION',
@@ -550,6 +550,13 @@ describe('PAWLEGENDS /live branch', () => {
             expect(dog).toMatchObject({ hero: 'chili', simVersion: 13, difficulty: 'easy' });
             expect(verifyBySimVersion(dog)).toMatchObject({ ok: true, finalHash: dog.finalHash, ticks: dog.ticks });
             expect(verifyBySimVersion({ ...dog, simVersion: 12 }).ok).toBe(false);
+        }, 60_000);
+
+        it('sim v13 (party play): the live v13 replay verifies; only v13 carries party code (v12 shipped without it)', () => {
+            const v13 = fixture(13, 'rookie');
+            expect(verifyBySimVersion(v13)).toMatchObject({ ok: true, finalHash: v13.finalHash, ticks: v13.ticks });
+            expect(simFor(12)?.party).toBeUndefined();
+            expect(simFor(13)?.party?.PARTY_SINCE).toBe(13);
         }, 60_000);
 
         it('sim v12: the verified stats carry Fish, Toys, last hits and Toy timings (older versions leave them out)', () => {

@@ -67,9 +67,15 @@ import { applyBp } from './fixed';
 import { DIFFICULTY_RULES } from '../data/bots';
 import { PICKUP_KINDS } from '../data/pickups';
 import { BOT_TALENT_MODES, PICKUP_ID_BASE } from './api';
+import { humanMask } from './humans';
+import { applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
 
 export * from './api';
 export { SIM_VERSION } from './version';
+// Party play (MULTIPLAYER.md §1.1): the in-step hooks; the replay side is in party.ts (it imports this file).
+export { isHumanSlot, humanMask } from './humans';
+export { applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
+export { createPlayerBotFor } from './bots';
 export { TICK_HZ } from '../data/timeline';
 
 
@@ -126,6 +132,7 @@ function validate(config: MatchConfig): void {
   for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
   if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
   if (config.botTalents !== undefined && !BOT_TALENT_MODES.includes(config.botTalents)) throw new RangeError(`unknown botTalents ${config.botTalents}`);
+  if (config.humans !== undefined) validateHumans(config.humans);
   // Sim v5: a team may field a hero twice (species teams: 2 heroes a side for 3 slots).
 }
 
@@ -197,6 +204,11 @@ export function createMatch(config: MatchConfig): MatchHandle {
   initPudding(w);
   initPickups(w);
   const m: MatchHandle = { config, world: w, grid: createGrid(), log: [], gate: createGate(), trail: [], events: [], ended: null, stats };
+  // Party play (MULTIPLAYER.md §1.1): human slots >= 1 get their own gate and log; the mask is not hashed.
+  if (config.humans !== undefined && config.humans.length > 1) {
+    w.humans = humanMask(config.humans);
+    (m as { party?: MatchHandle['party'] }).party = createPartyState(config);
+  }
   coverStructures(m);
   refreshVision(w);
   refreshFlags(w);
@@ -206,8 +218,11 @@ export function createMatch(config: MatchConfig): MatchHandle {
 /**
  * Advance one tick (§4.3). `commands` are the human's commands for this tick; the latest one wins (see input.ts for
  * the move gate). A no-op after the match ended.
+ *
+ * Party play (MULTIPLAYER.md §1.2): `others[s]` are the commands of human slot s >= 1 (ignored for any slot that is not
+ * a human's, and when the match has no party). They apply after slot 0's ping, command and forfeit.
  */
-export function step(match: Match, commands?: readonly Command[]): void {
+export function step(match: Match, commands?: readonly Command[], others?: readonly (readonly Command[] | undefined)[]): void {
   const m = match as MatchHandle;
   if (m.ended) return;
   const w = m.world;
@@ -239,6 +254,8 @@ export function step(match: Match, commands?: readonly Command[]): void {
     m.log.push({ tick, cmd: ff });
     w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ff)) | 0;
   }
+  // 1b. Party play: human slots 1 and 2, in slot order (after the forfeit block, MULTIPLAYER.md §1.2).
+  if (m.party) applyPartyInputs(m, tick, others);
   // 2. Bots think (every 6 ticks, staggered by slot).
   stepBots(m);
   // 3. Timeline: waves, rat camps, Pudding, phase events, per-second map rules.
