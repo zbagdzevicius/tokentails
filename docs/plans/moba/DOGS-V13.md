@@ -76,6 +76,72 @@ because the sim itself needs to tell a yap from other skillshots.
 
 ---
 
+## As built (lane SIM, 2026-11-06)
+
+Status: **LANE SIM done** on `feat/pawlegends-dogs` (not pushed). RENDER and PICKER can start: every client table
+keyed by `HeroId` has an entry, the five dogs draw as **placeholder bodies** (`src/render/chars/heroes/<id>.ts`
+`BODY`: Bravo as Sir Brutus, the others as Cacklejaw; stub moves and skill FX; first-pass icons, aims and Treat
+Track palettes) and the final `bone` icon is in `src/ui/icons.ts`. Never ship the placeholder art (§7 art gate).
+
+**Where the build differs from the spec above:**
+- **Nugget R** is `Aim.Point` with reach **0** (not `r.radius`): the aim is clamped onto his ring in the cast, so a
+  far aim never walks him in. The tower clamp keeps the herd point `attackRange + radius + towerMargin` from each
+  allied tower and core (`herdPoint`, exported for the test).
+- **Marshmallow R**: the cast wind-up (`r.windup`, 0.6 s) is the only telegraph; the blizzard zone arms at once and
+  the freeze lands when `kRT` (= `r.duration`) reaches 0. If she dies first, `reset` clears `kRT` and **no freeze
+  fires** (the spec allowed either; the kit only steps while she is alive).
+- **Bravo**: while flopped `absorb` soaks **every** hit (not only the clamped one), so a second hit in the flop's
+  tick cannot kill him. The flop also drops his swing and cast. Nine Lives still softens the clamped hit when a
+  second's loss passes its line, so "stops at 1 HP" holds only for a hit Nine Lives does not cut.
+- **Chili Q** fires the first yap in the cast and the other two `gap` ticks apart. Rage from yaps keys on "ability
+  damage that is not the BIG DOG splash" (his only other ability damage), which is exactly the `yap` kind.
+- **Bravo Q** keys its fading slow and W refund the same way (ability damage outside Stage Dive and ENCORE!).
+- **`deterBasics`**: a bot that would swing at Howler in Talk Back steps back `BOT_AI.deterStep` (1.5 m) instead.
+- **Treat Track**: the loop (`LOOP_REWARDS`) now runs over all 13 originals, so the dogs get the 8 loop palettes too;
+  `UNLOCKS_MAX` 160 → **200** (57 track rewards + 104 loop coats).
+- **Balance tuning** (Phase 3, done in this lane): the new dogs' kit numbers are the spec's except Marshmallow
+  (Q 62 / +6 / rank 16, W 12 / +1 / rank 4, R 20 / +2 / rank 10) and Bravo (HP 780 +80, armour 42, flop heal 15%);
+  everything else is `pvp`. Final `pvp` (dmgBp / takenBp; before → after for the old heroes):
+
+| Hero | v12 | v13 | Gate 22 win | | Hero | v13 | Gate 22 win |
+|---|---|---|---|---|---|---|---|
+| Clem | 8200 / 10100 | 8850 / 9725 | 51.2% | | Sir Brutus | 11100 / 9350 → 9750 / 9575 | 48.9% |
+| Sage | 10800 / 9500 | 10550 / 9325 | 48.7% | | Cacklejaw | 11100 / 9350 → 11250 / 8825 | 48.1% |
+| Lambo | 10500 / 8800 | 9150 / 9125 | 53.0% | | Nugget | 9650 / 9425 | 51.3% |
+| Avietė | 12100 / 8400 | 12750 / 7800 | 50.4% | | Marshmallow | 9000 / 9800 | 50.3% |
+| Bengas | 11200 / 8700 | 10550 / 8700 | 48.0% | | Bravo | 11350 / 8250 | 49.1% |
+| Gabė | 9500 / 9700 | 9050 / 9600 | 49.7% | | Chili | 9500 / 9425 | 52.0% |
+| Meatball | 9100 / 9600 | 7900 / 9925 | 48.9% | | Howler | 9100 / 9650 | 51.3% |
+| Pixel | 9400 / 9600 | 8750 / 9600 | 48.8% | | | | |
+| Duchess | 11400 / 8700 | 11100 / 8550 | 49.6% | | | | |
+| Stilts | 10300 / 9000 | 10900 / 8500 | 50.2% | | | | |
+
+  The species edge on the old dogs came down as decision 3 expected (Brutus now deals less than par). Every
+  `dmgBp` also took a shared 4% then 3% cut along the way to bring the pace from 3.60 to 3.43 takedowns a minute.
+- **Rookie** (`DIFFICULTY_RULES.rookie`): with seven dogs a cat human met more varied dog bots and a dog human won
+  match 1 too fast (fun1: length 4:47, deaths p90 5). Rookie now has `structureHpBp` 12000, `coreHpBp` 13500,
+  `humanDamageBp` 13000 (was 14000), `humanTakenBp` 8500 (was 10000) and `humanRespawnBp` 5000 (was 5500).
+- **Vendor**: the live v13 dir also ships `dog-replay.fixture.json` (Chili, seed 1313, Easy); the backend spec
+  verifies it, and the same record labelled v12 is refused. v12 is frozen at 5bf2a938; v10 and v11 stay frozen.
+
+**Gates** (lane SIM exit):
+- Balance (gate 6, 2,000 seeds): **all pass**. Length median 7:14, p95 8:32, 0 safety ends, core kill before
+  Sudden Death 92%+; side 46.8 / 53.3; species cats 49.9 / dogs 50.1; every hero 48.0–53.0% (table above); pace
+  3.43 a minute; trailing at 3:30 and the 10+ deficit inside their bands; every trick 47–53%; both level-6 branches
+  45–55%. (Run-to-run noise on one hero is about ±3 points at 2,000 seeds, because every match is cats vs dogs.)
+- fun1, fun2, novice (Easy), idle, parked, feeder, feedNormal: pass. hard: win 39.0% passes; its "down 10+
+  takedowns wins < 5%" check fails at 6.3% of 16 matches (1 match), as it did before this work (11.8% of 17 at
+  `c49733c2`). novice vs Normal: 35.0% (known failing; 32.3% at `c49733c2`, so not worse).
+- Grade calibration (gate 8, `--seeds 400 --from 1001 --check`): pass after refitting tank, assassin and fighter in
+  `src/meta/grade.ts` (Bravo joined the tanks, Howler the fighters); losses graded A or S 34.4%.
+- Gate 10: on the 2,000 balance seeds 57.1% of dog teams have no support and 28.6% no tank; the dog side wins 50.1%,
+  inside 47–53%, so the role-pass fallback (§3) is not needed. In bot matches the flop, BIG DOG, the scream and the
+  freeze all fire (`sim-v13.test`).
+- Determinism (gate 4): `node tools/determinism.mjs --seeds 1000` all identical (all 17 heroes as the human), and the
+  200 Bravo-and-Chili-on-both-teams seeds (`PAWLEGENDS_NIGHTLY=1`, `sim-v13.test`) identical.
+- `vendor-sim:check`: v10, v11, v12 frozen, v13 live. Backend `npx jest src/pawlegends` (115 tests), `npm run lint`
+  and `npm run build` green.
+
 ## 0. Roster after v13
 
 | HERO_IDS index | id | Name | Breed | Role | Element | Vibe | Difficulty | HERO_COLOR_CSS |

@@ -6,7 +6,7 @@ export const PAWLEGENDS_MUTATORS = ['none'] as const;
 
 /**
  * The Pawlegends replay posted with a `PAWLEGENDS` save in the `pawlegends` field (POC.md §11.3): the
- * `ReplayRecord` of `pawlegends/src/sim/api.ts` as the game recorded it (sim v10, v11 or v12).
+ * `ReplayRecord` of `pawlegends/src/sim/api.ts` as the game recorded it (sim v10, v11, v12 or v13).
  *
  * Shape and work bounds only (ticks ≤ PAWLEGENDS_MAX_TICKS, inputs ≤ PAWLEGENDS_MAX_INPUT_CHARS base64 characters),
  * checked before anything is queued. The sim version is compared in `pawlegends-live.ts` (so the 400 can name the
