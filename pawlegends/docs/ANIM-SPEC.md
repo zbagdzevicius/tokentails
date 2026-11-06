@@ -817,7 +817,7 @@ forelegs, 1.6× cadence). Level-up 4/7/10: hero flourish through the existing `l
 | R Under Her Spell | windup 15 t; cone 6 m, 90° (Long Glance 7.5 m); charm 30 t (Smitten 38) | windupStart→cast: one-turn **twirl** over 400 ms, hearts gather; C = cast: lean forward, wink (eye scale), blown kiss, wings snap wide | heart-shaped wavefront crosses the cone to its exact range in 200 ms; charmed enemies: heart eyes + pink leash ribbon to Gabė for the charm duration; victims play the charm gait; ult moment |
 | Gait / idle / end | | skipping hop-run (0.12 m hop every second step), wings bobbing; idle hover bob 0.05 m, wing flutter, hugs heart float, tosses a little heart that pops; victory: heart burst, spinning wing-spread, blown kisses; death: swoon, wings fold over her, feathers drift | |
 
-### Sim v13 dogs (DOGS-V13 §1; render modules `chars/heroes/<id>.ts`, `moves/<id>.ts`, `skillfx/<id>.ts`)
+### Sim v14 dogs (DOGS-V13 §1; render modules `chars/heroes/<id>.ts`, `moves/<id>.ts`, `skillfx/<id>.ts`)
 
 Shared helpers: `moves/dogKit.ts` (clip builder, gallop legs) and `skillfx/dogFx.ts` (pooled mesh spawn, aim and
 facing). Lying poses are the dogs' own `PoseDef`s (the body bone turned a quarter and lowered), never a negative root

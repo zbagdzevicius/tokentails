@@ -460,7 +460,7 @@ export const BOT_AI = Object.freeze({
   stiltsZoomiesRange: 9000,
   stiltsOrbit: 4500,
   /**
-   * Sim v13 original dogs (sim/bots/heroes/*.ts; docs/plans/moba/DOGS-V13.md §1). Nugget peels for a hurt ally with a
+   * Sim v14 original dogs (sim/bots/heroes/*.ts; docs/plans/moba/DOGS-V13.md §1). Nugget peels for a hurt ally with a
    * foe within nuggetPeelRange of it, Sploots below nuggetSplootHpBp (or to heal a group) and herds with
    * nuggetHerdFoes enemy heroes in his ring. Marshmallow slides away from a melee foe within marshPeelRange, keeps
    * marshSpacing, and drops SNOW DAY! on marshSnowFoes. Bravo bows with bravoEncoreFoes in his ring and takes the stage
@@ -493,14 +493,14 @@ export const BOT_AI = Object.freeze({
   chiliBrawlRange: 6000,
   chiliFinishHpBp: 5000,
   chiliZoomRange: 2500,
-  /** Sim v13 QA: Chili also hides when a foe has him targeted below this (his E went unused in 38% of Easy slots);
+  /** Sim v14 QA: Chili also hides when a foe has him targeted below this (his E went unused in 38% of Easy slots);
    *  Nugget also herds one foe below nuggetHerdFinishHpBp toward an ally (his R was cast half as often as others'). */
   chiliFocusHpBp: 6000,
   nuggetHerdFinishHpBp: 4500,
   howlerScreamReach: 5000,
   howlerTalkRange: 3000,
   howlerTalkHpBp: 6000,
-  /** Sim v13: a bot that would swing at a hero whose kit deters basics (Howler's Talk Back) steps this far back (mm). */
+  /** Sim v14: a bot that would swing at a hero whose kit deters basics (Howler's Talk Back) steps this far back (mm). */
   deterStep: 1500,
   /** "Carry" allies (DifficultyRules.carryAllies): stay within followRange of the human, never more than leadMax
    *  ahead of it; leave a foe under stealHpBp to the human while it is within stealRange and hit it in the last stealTicks. */

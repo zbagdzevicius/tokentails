@@ -1,4 +1,4 @@
-/* Sim v13 pick screen (DOGS-V13 §2): a CATS / DOGS switch over the grid shows one side at a time (cats 10, dogs 7).
+/* Sim v14 pick screen (DOGS-V13 §2): a CATS / DOGS switch over the grid shows one side at a time (cats 10, dogs 7).
    Both sides use the same fixed two-row grid (ten half columns, each tile spans two), so the Paw Trick chips and Play
    never move on a switch: cats 5 + 5, dogs 5 + 2, both from the left edge (centred dogs made the first card jump
    sideways on a switch, QA 2026-11-06). The other side's box keeps its data-side, hidden, for the
@@ -71,7 +71,7 @@
   .pl-pick .pl-pick-col { bottom: 92px; }
 }
 @media (min-height: 481px) {
-  /* five tiles a row (v13) would be a third taller than v11's six: the grid keeps v11's tile size */
+  /* five tiles a row (v14) would be a third taller than v11's six: the grid keeps v11's tile size */
   .pl-pick .roster { max-width: 480px; }
   .pl-pick .pl-pick-col { padding-bottom: 14px; -webkit-mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(to bottom, #000 calc(100% - 14px), transparent); }
 }

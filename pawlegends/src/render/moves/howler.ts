@@ -1,5 +1,5 @@
 /**
- * Howler's move set (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.5 "Moves and VFX", ANIM-SPEC §14 brief).
+ * Howler's move set (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.5 "Moves and VFX", ANIM-SPEC §14 brief).
  *
  * A husky with opinions: every move is a howl, a grumble or a scream. His mouth sits on the `mouth` bone, so the
  * `mouthOpen` cues (with a 'ms*scale' arg for the big ones) open it.

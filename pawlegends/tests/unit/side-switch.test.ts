@@ -1,6 +1,6 @@
 // @vitest-environment happy-dom
 /**
- * Sim v13 (DOGS-V13 §2): the pick screen's CATS / DOGS switch. One side's heroes show at a time (cats 10, dogs 7);
+ * Sim v14 (DOGS-V13 §2): the pick screen's CATS / DOGS switch. One side's heroes show at a time (cats 10, dogs 7);
  * a switch selects the side's last hero (else Clem / Sir Brutus) and tells the app; DOGS is locked before the first
  * match is complete (it keeps its count and says when it opens); arrow keys move the radio; a long name never
  * truncates. Looks only: nothing here touches the sim.

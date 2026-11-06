@@ -177,7 +177,7 @@ export interface PickOpts {
    */
   onDeck?(hero: HeroId): void;
   /**
-   * Sim v13 (DOGS-V13 §2): the CATS / DOGS switch. The screen opens on the side of `initial.hero`; a switch selects
+   * Sim v14 (DOGS-V13 §2): the CATS / DOGS switch. The screen opens on the side of `initial.hero`; a switch selects
    * `lastBySide[side]` (else the side's default) and calls `onHero`, then `onSide`. `dogsLocked`: DOGS shows its count
    * and "after your first match" and does not switch (match 1 is the guided Clem match).
    */
@@ -187,7 +187,7 @@ export interface PickOpts {
   onSide?(side: HeroSide, hero: HeroId, left: HeroId): void;
 }
 
-/** Sim v13: the side the switch defaults to when nothing was picked there yet. */
+/** Sim v14: the side the switch defaults to when nothing was picked there yet. */
 const SIDE_HERO: Readonly<Record<HeroSide, HeroId>> = { cat: 'clem', dog: 'brutus' };
 const SIDE_NAME: Readonly<Record<HeroSide, string>> = { cat: 'Cats', dog: 'Dogs' };
 const SIDE_ICON: Readonly<Record<HeroSide, 'paw' | 'bone'>> = { cat: 'paw', dog: 'bone' };
@@ -256,7 +256,7 @@ export function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { ar
     el: heroElement(h),
     tier: on ? tier : null,
     cls: `hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}`,
-    // sim v13: a long name ("Marshmallow") sets a smaller label instead of an ellipsis on a 667 px wide phone
+    // sim v14: a long name ("Marshmallow") sets a smaller label instead of an ellipsis on a 667 px wide phone
     attrs: `data-h="${h}"${(cardName ?? x.title).length > 9 ? ' data-long="1"' : ''}${cardName ? ` aria-label="${esc(`${cardName}: ${x.title}, ${x.side} ${x.role}`)}"` : ''}`,
     style: `--hero:${HERO_COLOR_CSS[h]}`,
     foil: on ? 'sweep' : 'hover',
@@ -329,7 +329,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     renderAll();
   });
   let numbers = o.numbers === true;
-  // sim v13: the CATS / DOGS switch (the side always follows the selected hero, so Play is never a dog side with a cat)
+  // sim v14: the CATS / DOGS switch (the side always follows the selected hero, so Play is never a dog side with a cat)
   let side: HeroSide = HEROES[c.hero]?.side ?? 'cat';
   const lastBySide: Partial<Record<HeroSide, HeroId>> = { ...(o.lastBySide ?? {}), [side]: c.hero };
   const dogsLocked = o.dogsLocked === true && side !== 'dog';

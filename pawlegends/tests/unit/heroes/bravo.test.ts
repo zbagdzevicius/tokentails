@@ -41,7 +41,7 @@ const kill = (m: ReturnType<typeof arena>, pure = false) => {
   return hit(m, 5000, pure);
 };
 
-describe('Bravo, original dog tank (sim v13)', () => {
+describe('Bravo, original dog tank (sim v14)', () => {
   it('data: a STELLAR dog tank, index 14; R is his only charm', () => {
     expect([BRAVO.side, BRAVO.role, BRAVO.element, BRAVO.name]).toEqual(['dog', 'tank', 'STELLAR', 'Bravo']);
     expect(HERO_IDS.indexOf('bravo')).toBe(14);

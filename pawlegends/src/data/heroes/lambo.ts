@@ -6,7 +6,7 @@ export const LAMBO: HeroData = Object.freeze<HeroData>({
   name: 'Lambo',
   side: 'cat',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 9150 / takes 9125 (53.0% of the 2,000-seed gate). */
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9150 / takes 9125 (53.0% of the 2,000-seed gate). */
   pvp: { dmgBp: 9150, takenBp: 9125 },
   element: 'STELLAR',
   base: { hp: 740, hpPerLevel: 78, attack: 56, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 4700, armour: 38, armourPerLevel: 3 },

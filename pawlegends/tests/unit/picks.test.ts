@@ -13,8 +13,8 @@ describe('fillPicks and createMatch (§6.8)', () => {
         expect(tricks[0]).toBe('hiss');
         const catTeam = humanCat ? picks.slice(0, 3) : picks.slice(3);
         const dogTeam = humanCat ? picks.slice(3) : picks.slice(0, 3);
-        // Sim v11: 10 cats, so a cat team never repeats a hero. Sim v13: 7 dogs, so a dog team never repeats one either
-        // (GAPS N4; before v13 the 2 dogs meant one always played twice).
+        // Sim v11: 10 cats, so a cat team never repeats a hero. Sim v14: 7 dogs, so a dog team never repeats one either
+        // (GAPS N4; before v14 the 2 dogs meant one always played twice).
         for (const h of catTeam) expect(cats).toContain(h);
         for (const h of dogTeam) expect(dogs).toContain(h);
         expect(new Set(catTeam).size).toBe(3);
@@ -30,7 +30,7 @@ describe('fillPicks and createMatch (§6.8)', () => {
     expect([...seen].sort()).toEqual(['aviete', 'bengas', 'clem', 'duchess', 'gabe', 'lambo', 'meatball', 'pixel', 'sage', 'stilts']);
   });
 
-  it('sim v13: every dog shows up as a bot pick, as an ally of a dog human and as an enemy of a cat human', () => {
+  it('sim v14: every dog shows up as a bot pick, as an ally of a dog human and as an enemy of a cat human', () => {
     const allies = new Set<string>();
     const enemies = new Set<string>();
     for (let seed = 0; seed < 200; seed++) {

@@ -1,4 +1,4 @@
-/** Howler's player-facing copy (sim v13; docs/plans/moba/DOGS-V13.md §1.5 "heroText"), read by ../heroText.ts HERO_TEXT. */
+/** Howler's player-facing copy (sim v14; docs/plans/moba/DOGS-V13.md §1.5 "heroText"), read by ../heroText.ts HERO_TEXT. */
 import type { HeroText } from '../heroText';
 
 export const TEXT: HeroText = {

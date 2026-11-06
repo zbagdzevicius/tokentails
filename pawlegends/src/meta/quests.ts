@@ -45,7 +45,7 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'win_pixel', text: 'Win with Pixel', goal: 1, metric: 'win', hero: 'pixel' },
   { id: 'win_duchess', text: 'Win with Duchess', goal: 1, metric: 'win', hero: 'duchess' },
   { id: 'win_stilts', text: 'Win with Stilts', goal: 1, metric: 'win', hero: 'stilts' },
-  // sim v13: the five original dogs join the hero slot
+  // sim v14: the five original dogs join the hero slot
   { id: 'win_nugget', text: 'Win with Nugget', goal: 1, metric: 'win', hero: 'nugget' },
   { id: 'win_marshmallow', text: 'Win with Marshmallow', goal: 1, metric: 'win', hero: 'marshmallow' },
   { id: 'win_bravo', text: 'Win with Bravo', goal: 1, metric: 'win', hero: 'bravo' },
@@ -60,7 +60,7 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
 export const QUEST_FOLLOW_UNTIL = 3;
 export const followsHero = (matchesBefore: number): boolean => matchesBefore < QUEST_FOLLOW_UNTIL;
 
-/** The hero slot's order: one hero a day, round-robin, so each hero comes up every 17 days (sim v13; 12 in v11). */
+/** The hero slot's order: one hero a day, round-robin, so each hero comes up every 17 days (sim v14; 12 in v11). */
 export const QUEST_HEROES: readonly HeroId[] = HERO_IDS;
 
 export interface QuestState {

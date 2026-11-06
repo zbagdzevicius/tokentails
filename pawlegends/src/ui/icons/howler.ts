@@ -1,4 +1,4 @@
-/** Howler's ability icons (sim v13), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
+/** Howler's ability icons (sim v14), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
 export const ICONS = {
   // AWOO: a raised muzzle with sound arcs
   howl: '<path d="M8 42 L18 16 L28 12 L24 24 L30 42 Z" fill="currentColor"/><g stroke="currentColor" stroke-width="3" fill="none" stroke-linecap="round"><path d="M32 8 Q38 12 36 20"/><path d="M36 2 Q46 10 42 22"/></g>',

@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, PROFILE_KEY, seedSide, startFirstMatch } from './helpers';
 
-// Sim v13 (DOGS-V13 §2, gate 13): the CATS / DOGS switch on the pick screen. The switch filters the grid to one side
+// Sim v14 (DOGS-V13 §2, gate 13): the CATS / DOGS switch on the pick screen. The switch filters the grid to one side
 // (cats 10, dogs 7), choosing DOGS plays the dog side (the bots fill both teams by species, a dog team never fields a
 // hero twice), the choice is remembered across a reload, the arrow keys move it, and at 667x375 and 844x390 the
 // switch, the grid, the Paw Trick chips and Play sit inside the viewport with Play in the same place on both sides.

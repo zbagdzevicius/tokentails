@@ -86,7 +86,7 @@ function resolveSwing(m: MatchHandle, id: number): void {
   if (w.alive[id] === 0) return;
   if (w.attackTimer[id] > 0) w.attackTimer[id]--;
   if (w.windup[id] === 0) return;
-  // Sim v13: a busy kit (Bravo's flop, Chili's purse) drops the swing like hard CC does.
+  // Sim v14: a busy kit (Bravo's flop, Chili's purse) drops the swing like hard CC does.
   if (disabled(w, id) || (id < RANGE.minions && w.kind[id] === Kind.Hero && kitBusy(w, id))) {
     w.windup[id] = 0;
     return;

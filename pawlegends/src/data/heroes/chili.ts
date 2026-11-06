@@ -1,4 +1,4 @@
-/** Chili, Marksman (sim v13, original dog): a chihuahua whose Rage turns into attack speed, then into a big dog. */
+/** Chili, Marksman (sim v14, original dog): a chihuahua whose Rage turns into attack speed, then into a big dog. */
 import type { HeroData } from './types';
 
 export const CHILI: HeroData = Object.freeze<HeroData>({
@@ -6,7 +6,7 @@ export const CHILI: HeroData = Object.freeze<HeroData>({
   name: 'Chili',
   side: 'dog',
   role: 'marksman',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 9500 / takes 9425 (52.0% of the 2,000-seed gate). */
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9500 / takes 9425 (52.0% of the 2,000-seed gate). */
   pvp: { dmgBp: 9500, takenBp: 9425 },
   element: 'ELECTRIC',
   base: { hp: 450, hpPerLevel: 47, attack: 50, attackPerLevel: 5, attackEvery: 27, range: 5500, speed: 5000, armour: 15, armourPerLevel: 2 },

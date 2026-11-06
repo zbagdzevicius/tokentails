@@ -6,7 +6,7 @@ export const DUCHESS: HeroData = Object.freeze<HeroData>({
   name: 'Duchess',
   side: 'cat',
   role: 'mage',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). */
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). */
   pvp: { dmgBp: 11100, takenBp: 8550 },
   element: 'DARK',
   base: { hp: 480, hpPerLevel: 50, attack: 50, attackPerLevel: 5, attackEvery: 30, range: 5000, speed: 4800, armour: 16, armourPerLevel: 2 },

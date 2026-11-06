@@ -26,7 +26,7 @@ import { radiusOf, targetable } from '../units/kinds';
 
 /**
  * Source kind a bolt's damage counts as (backdoor and tower-aggro rules), by PROJECTILE_KIND (sim v11: cap, fluff;
- * sim v13: frisbee, yap).
+ * sim v14: frisbee, yap).
  */
 const SRC_KIND: readonly number[] = [
   Kind.Minion,

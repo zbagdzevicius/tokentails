@@ -20,7 +20,7 @@ const CHILI_SUB = 15;
 const BRUTUS_SUB = 2;
 
 /**
- * The extra shield a hero's kit holds in `kHonour`: Sir Brutus's Honour and Pixel's plate. Sim v13: Bravo and
+ * The extra shield a hero's kit holds in `kHonour`: Sir Brutus's Honour and Pixel's plate. Sim v14: Bravo and
  * Marshmallow keep a spot's x-coordinate there, which is not a shield (it showed as a 40,000+ point shield).
  */
 export function kitShield(w: World, id: number): number {
@@ -102,7 +102,7 @@ export function refreshFlags(w: World): void {
       if (id < RANGE.minions) {
         shield += kitShield(w, id);
         if (w.napT[id] > 0 || (w.castPhase[id] === 2 && w.castT[id] > 0)) b |= Buff.Channeling;
-        // Clem's The Stand, Sir Brutus's Front Guard. Sim v13: Bravo's spotlight and Chili's BIG DOG use kWT too.
+        // Clem's The Stand, Sir Brutus's Front Guard. Sim v14: Bravo's spotlight and Chili's BIG DOG use kWT too.
         if (w.kWT[id] > 0 && w.sub[id] !== BRAVO_SUB && w.sub[id] !== CHILI_SUB) b |= Buff.Blocking;
         if (w.zoomT[id] > 0) b |= Buff.Zoomies;
         if (w.frenzyT[id] > 0) b |= Buff.Frenzy;

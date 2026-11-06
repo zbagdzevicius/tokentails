@@ -1,4 +1,4 @@
-/** Marshmallow's ability icons (sim v13), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
+/** Marshmallow's ability icons (sim v14), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
 export const ICONS = {
   // Snowball: a round snowball with a puff trail
   snowball: '<circle cx="30" cy="24" r="12" fill="currentColor"/><circle cx="26" cy="20" r="3" fill="#fff6"/><g fill="currentColor" opacity=".55"><circle cx="12" cy="24" r="4"/><circle cx="5" cy="24" r="2.5"/></g>',

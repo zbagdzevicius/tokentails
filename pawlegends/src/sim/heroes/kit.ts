@@ -2,7 +2,7 @@
  * Hero kits: the cast pipeline every ability and Paw Trick goes through (POC.md §4.3 steps 1 and 5), and the
  * dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, the sim v9 shelter champions
  * lambo.ts, aviete.ts, bengas.ts, gabe.ts, the sim v11 original cats meatball.ts, pixel.ts, duchess.ts, stilts.ts, and
- * the sim v13 original dogs nugget.ts, marshmallow.ts, bravo.ts, chili.ts, howler.ts) for their abilities, passives and
+ * the sim v14 original dogs nugget.ts, marshmallow.ts, bravo.ts, chili.ts, howler.ts) for their abilities, passives and
  * damage hooks.
  *
  * Cast flow: a `cast`/`trick` command checks readiness (cooldown or an open recast window, level 4 for R, not
@@ -89,7 +89,7 @@ export interface HeroKit {
   incoming?(m: MatchHandle, id: number, src: number, dmg: number): number;
   /**
    * Extra shield beyond the flat one (Pixel's plate); returns the amount absorbed. Runs after the flat shield for every
-   * hit, `pure` ones (true damage, executes) included, and before Nine Lives. Sim v13: takes the match (Bravo's flop
+   * hit, `pure` ones (true damage, executes) included, and before Nine Lives. Sim v14: takes the match (Bravo's flop
    * pushes a `clip` event and clears tower locks).
    */
   absorb?(m: MatchHandle, id: number, dmg: number): number;
@@ -104,11 +104,11 @@ export interface HeroKit {
   /** Sim v11: the passive resource the own team's HUD shows (EntitySnap.resource, 0..255); absent = 0. */
   resource?(w: World, id: number): number;
   /**
-   * Sim v13: true while the hero can neither move, start or land a basic, nor cast (Bravo playing dead, Chili in his
+   * Sim v14: true while the hero can neither move, start or land a basic, nor cast (Bravo playing dead, Chili in his
    * purse). Independent of stun, so CC immunity does not lift it.
    */
   busy?(w: World, id: number): boolean;
-  /** Sim v13: true while bots should not start basic attacks on this hero (Howler's Talk Back). They still cast at it. */
+  /** Sim v14: true while bots should not start basic attacks on this hero (Howler's Talk Back). They still cast at it. */
   deterBasics?(w: World, id: number): boolean;
 }
 
@@ -138,7 +138,7 @@ const KITS: readonly HeroKit[] = [
 
 export const kitOf = (w: World, id: number): HeroKit => KITS[w.sub[id]];
 
-/** Sim v13: is hero `id` held by its own kit (no move, basic or cast)? */
+/** Sim v14: is hero `id` held by its own kit (no move, basic or cast)? */
 export const kitBusy = (w: World, id: number): boolean => kitOf(w, id).busy?.(w, id) === true;
 
 /** Ability damage at the hero's level: base + perLevel × (level − 1). */

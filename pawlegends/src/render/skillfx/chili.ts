@@ -1,5 +1,5 @@
 /**
- * Chili's skill FX (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.4 "Moves and VFX"): hot-sauce red, white
+ * Chili's skill FX (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.4 "Moves and VFX"): hot-sauce red, white
  * sound waves and anger marks.
  *
  * - Basics: a small white "yap" wave in front of him (each yap's pitch from a render-side hash, never the sim RNG);

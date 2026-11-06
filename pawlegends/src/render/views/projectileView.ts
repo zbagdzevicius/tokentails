@@ -70,7 +70,7 @@ export function look(kind: number, team: number): Look {
       return set(...PIXEL_SHOT);
     case PROJECTILE_KIND.fluff:
       return set(...DUCHESS_SHOT);
-    // sim v13: Nugget's Frisbee (a team-coloured disc) and Chili's yaps (white sound blobs; skill FX draws the waves)
+    // sim v14: Nugget's Frisbee (a team-coloured disc) and Chili's yaps (white sound blobs; skill FX draws the waves)
     case PROJECTILE_KIND.frisbee:
       return set(0.4, 0.95, t.main, 0.16);
     case PROJECTILE_KIND.yap:
@@ -105,7 +105,7 @@ export function shadeBolts(mat: THREE.MeshBasicMaterial): void {
 export const HERO_SHOTS: ReadonlySet<number> = new Set([PROJECTILE_KIND.hero, PROJECTILE_KIND.tuna, PROJECTILE_KIND.toast, PROJECTILE_KIND.lance, PROJECTILE_KIND.cap, PROJECTILE_KIND.fluff, PROJECTILE_KIND.frisbee, PROJECTILE_KIND.yap]);
 
 /**
- * Sim v13: shots that share a kind but not a look, by owner: Marshmallow's Snowball and Bravo's Crocodile Tear fly as
+ * Sim v14: shots that share a kind but not a look, by owner: Marshmallow's Snowball and Bravo's Crocodile Tear fly as
  * `fluff` (Duchess's Fluff Puff kind). [size, y, colour, trail].
  */
 const OWNER_SHOT: Partial<Record<string, readonly [number, number, number, number]>> = {

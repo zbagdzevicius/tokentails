@@ -1,4 +1,4 @@
-/** Marshmallow, Mage (sim v13, original dog): a Samoyed puppy who covers the ground in snow and freezes cats who stay. */
+/** Marshmallow, Mage (sim v14, original dog): a Samoyed puppy who covers the ground in snow and freezes cats who stay. */
 import type { HeroData } from './types';
 
 export const MARSHMALLOW: HeroData = Object.freeze<HeroData>({
@@ -6,7 +6,7 @@ export const MARSHMALLOW: HeroData = Object.freeze<HeroData>({
   name: 'Marshmallow',
   side: 'dog',
   role: 'mage',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 9000 / takes 9800 (50.3% of the 2,000-seed gate). */
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9000 / takes 9800 (50.3% of the 2,000-seed gate). */
   pvp: { dmgBp: 9000, takenBp: 9800 },
   element: 'ICE',
   base: { hp: 470, hpPerLevel: 50, attack: 48, attackPerLevel: 5, attackEvery: 29, range: 5200, speed: 4800, armour: 16, armourPerLevel: 2 },

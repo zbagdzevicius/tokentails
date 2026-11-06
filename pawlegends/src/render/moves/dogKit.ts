@@ -1,5 +1,5 @@
 /**
- * Shared authoring helpers for the sim v13 dogs' move sets (moves/nugget, marshmallow, bravo, chili, howler): a clip
+ * Shared authoring helpers for the sim v14 dogs' move sets (moves/nugget, marshmallow, bravo, chili, howler): a clip
  * builder with the house defaults, a delta merge, and the gallop leg cycle the dash clips share. Plain data, render
  * only. Joint conventions are common.ts's (thigh x < 0 forward, knee x > 0 bends, shoulder x < 0 raises the arm,
  * chest / hips x > 0 lean forward, head x < 0 lifts the chin; root yaw / pitch / roll in turns, sx / sy factors).

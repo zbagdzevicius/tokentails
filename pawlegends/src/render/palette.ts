@@ -73,7 +73,7 @@ export const HERO_COLOR_CSS = Object.freeze({
   pixel: PIXEL_CSS,
   duchess: DUCHESS_CSS,
   stilts: STILTS_CSS,
-  // sim v13 original dogs (their render modules own the colour)
+  // sim v14 original dogs (their render modules own the colour)
   nugget: NUGGET_CSS,
   marshmallow: MARSHMALLOW_CSS,
   bravo: BRAVO_CSS,

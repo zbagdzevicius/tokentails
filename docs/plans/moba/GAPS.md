@@ -58,7 +58,7 @@ Severity: **critical** blocks fun 8 or launch quality; **high** is a strong leve
 | Modes | Rotating mutators (WR/MLBB arcade, Brawl modifiers) | One mode | high | N0 (launch +1 week) |
 | Loadout | Battle spells (MLBB 1 of 12, WR 2) | 3 Paw Tricks | high | B5 Purr-ify, N5 more |
 | Map | Repeating stacking objective (WR drakes) | Pudding only | high | N3 |
-| Roster | Varied roster; no forced mirrors | Done in sim v13: 7 dogs (Nugget, Marshmallow, Bravo, Chili, Howler added), a dog team never duplicates | — | N4 (done) |
+| Roster | Varied roster; no forced mirrors | Done in sim v14: 7 dogs (Nugget, Marshmallow, Bravo, Chili, Howler added), a dog team never duplicates | — | N4 (done) |
 | Replay | Replay viewer (missing in WR) | `runReplay`, no viewer | high | N1 |
 | Live-ops | Remote config and an event calendar | Date-seeded daily quests only | high | N2 |
 | Ranked | Protected low tiers, loss protection | Local ladder | medium–high | N6 |
@@ -412,7 +412,7 @@ parked pass. Perf (Med, every hero Legendary): 61 draws at most (≤ 110), 2,451
   - Fields: `activeMutators`, `event`, `featuredQuests`; the baked-in rotation is the fallback.
   - Winter Nap, Dec 15 – Jan 4: 5 missions unlock a free winter coat for the 4 original heroes and a winter title and frame for the 4 champions. No purchase, no extra catnip.
 - **N3. Crow roost.** M–L. From 4:00, a 1,200 HP roost every 90 s at two mirrored river spots. The Feather order (Swift +6% speed / Sturdy 5% shield on respawn / Sharp +5% hero damage) is drawn from the seed and shown in advance, up to 3 stacks. Gates: median 7–9 min; more Feathers wins ≤ 65%.
-- **N4. Third dog.** Done in sim v13 (`DOGS-V13.md`): five original dogs (Nugget, Marshmallow, Bravo, Chili, Howler) end the forced dog mirror; Lord Barkus, Pilfer and Longfellow wait for the next dog wave. Clowder keeps the joke.
+- **N4. Third dog.** Done in sim v14 (`DOGS-V13.md`): five original dogs (Nugget, Marshmallow, Bravo, Chili, Howler) end the forced dog mirror; Lord Barkus, Pilfer and Longfellow wait for the next dog wave. Clowder keeps the joke.
 - **N5. More tricks and the rest of the branches.** Whisker Ward (with N12 vision rules and `sense.ts`), Scratch (ignite plus anti-heal), Yowl (area slow); Clem charges; Avietė, Bengas and Gabė branches.
 - **N6. Ranked against bots, server-verified.** L (backend). Kitten, Tabby, Alley, Lion, Legend; the bottom two tiers never lose points; S/A losses are cushioned; 8-week seasons, no decay, a season frame. Points come from the verified stats and the grade, posted only through `POST /user/catbassadors/live`. The grade function moves into the vendored sim facade so the server computes the same number.
 - **N7. Training ground.** S–M. `mode: 'practice'`, dummies, sliders, never posted.

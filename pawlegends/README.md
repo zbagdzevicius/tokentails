@@ -76,7 +76,7 @@ like in Pink Paw Knight"):
 Team colour sits on the shoulder mantle, the helmet / hood / cap, the pauldrons and the cape (21% to 34% of the
 up-facing area, `tests/unit/team-read.test.ts`). `bake:heroes` and `bake:map` stay unwritten.
 
-## Cats or dogs (sim v13, DOGS-V13 §2)
+## Cats or dogs (sim v14, DOGS-V13 §2)
 
 The pick screen opens with a **CATS / DOGS** switch over the hero grid (`src/ui/screens.ts` `sideSwitch`,
 `src/ui/champions.css`). The grid shows one side at a time (cats 10, dogs 7) in the same two-row space, so the Paw

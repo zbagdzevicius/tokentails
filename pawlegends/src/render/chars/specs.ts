@@ -105,7 +105,7 @@ export const POSES_PL: Record<string, PoseDef> = {
   },
   // sim v11 heroes' own poses (Pixel's `boxSad` results-screen loss)
   ...PIXEL.POSES,
-  // sim v13 dogs' own poses (corgi crouch and sit, puppy sit, stage stand, yap stance, husky stand)
+  // sim v14 dogs' own poses (corgi crouch and sit, puppy sit, stage stand, yap stance, husky stand)
   ...NUGGET.POSES,
   ...MARSHMALLOW.POSES,
   ...BRAVO.POSES,
@@ -145,7 +145,7 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   pixel: PIXEL.MOTION,
   duchess: DUCHESS.MOTION,
   stilts: STILTS.MOTION,
-  // sim v13 original dogs: each profile lives in its hero's own module (./heroes/<hero>.ts)
+  // sim v14 original dogs: each profile lives in its hero's own module (./heroes/<hero>.ts)
   nugget: NUGGET.MOTION,
   marshmallow: MARSHMALLOW.MOTION,
   bravo: BRAVO.MOTION,
@@ -512,7 +512,7 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Omi
       return DUCHESS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('duchess', look) });
     case 'stilts':
       return STILTS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('stilts', look) });
-    // sim v13 original dogs: each builds its chibi in its own module (./heroes/<hero>.ts)
+    // sim v14 original dogs: each builds its chibi in its own module (./heroes/<hero>.ts)
     case 'nugget':
       return NUGGET.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('nugget', look) });
     case 'marshmallow':

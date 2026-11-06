@@ -1,5 +1,5 @@
 /**
- * Marshmallow's skill FX (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.2 "Moves and VFX"): ice blue and snow.
+ * Marshmallow's skill FX (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.2 "Moves and VFX"): ice blue and snow.
  *
  * - Q Snowball: a snow puff at her paws, a white ribbon and flakes riding the snowball (`fluff` kind, drawn white by
  *   projectileView), a snow poof and a ring on the hero it hits.

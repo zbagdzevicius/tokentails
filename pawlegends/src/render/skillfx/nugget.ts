@@ -1,5 +1,5 @@
 /**
- * Nugget's skill FX (sim v13; build spec docs/plans/moba/DOGS-V13.md §1.1 "Moves and VFX"): fairy pink and a happy
+ * Nugget's skill FX (sim v14; build spec docs/plans/moba/DOGS-V13.md §1.1 "Moves and VFX"): fairy pink and a happy
  * corgi's dust and hearts.
  *
  * - Q Frisbee: a bork, the disc's ribbon riding the frisbee projectile, a spinning paw-print sticker on it, a bonk ring

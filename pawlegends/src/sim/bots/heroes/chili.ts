@@ -1,5 +1,5 @@
 /**
- * Chili's bot casts (sim v13, build spec docs/plans/moba/DOGS-V13.md §1.4 "Bot"), called from ../casts.ts. Each
+ * Chili's bot casts (sim v14, build spec docs/plans/moba/DOGS-V13.md §1.4 "Bot"), called from ../casts.ts. Each
  * function returns one cast command, or null. Build on the helpers casts.ts exports; tuning numbers live in
  * data/bots.ts BOT_AI.
  *

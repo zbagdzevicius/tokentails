@@ -121,7 +121,7 @@ function installFont(): void {
 /** p95 of a list of frame times (ms). */
 /**
  * Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own.
- * Sim v13: only heroes of the current hero's side (the player chose cats or dogs on the switch).
+ * Sim v14: only heroes of the current hero's side (the player chose cats or dogs on the switch).
  */
 export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknown>>): HeroId {
   const side = HEROES[current]?.side ?? 'cat';
@@ -196,7 +196,7 @@ export class App {
     this.sessionNo = p.sessions;
     migrateTreatTrack();
     sfx.setMuted(p.muted);
-    // sim v13: the hero follows the side the switch was left on (the last hero picked there)
+    // sim v14: the hero follows the side the switch was left on (the last hero picked there)
     this.choice = { hero: HEROES[p.hero].side === p.side ? p.hero : heroForSide(p, p.side), trick: p.trick, difficulty: p.difficulty };
     this.human.install(window);
     // PUB-02: embedded, events go to the host's analytics (the site's policy and id); standalone, to PostHog after consent
@@ -744,7 +744,7 @@ export class App {
           sfx.play('click');
           this.choice = { ...this.choice, hero: h };
           this.setLobbyHero(h);
-          // sim v13: the picked hero, its side and the last hero per side (the CATS / DOGS switch restores it) are
+          // sim v14: the picked hero, its side and the last hero per side (the CATS / DOGS switch restores it) are
           // remembered, so a reload opens on the same side and hero
           const q = loadProfile();
           q.hero = h;
@@ -752,7 +752,7 @@ export class App {
           q.lastBySide[q.side] = h;
           saveProfile(q);
         },
-        // sim v13 (DOGS-V13 §2): the CATS / DOGS switch; DOGS waits for the guided first match (a dog dare skips it)
+        // sim v14 (DOGS-V13 §2): the CATS / DOGS switch; DOGS waits for the guided first match (a dog dare skips it)
         lastBySide: p.lastBySide,
         dogsLocked: p.matches === 0 && !(this.dare && HEROES[this.dare.hero]?.side === 'dog'),
         onSide: (side, _hero, left) => {

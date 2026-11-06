@@ -34,7 +34,7 @@ function arena() {
 
 const kit = (m: ReturnType<typeof arena>) => kitOf(m.world, CH);
 
-describe('Chili, original dog marksman (sim v13)', () => {
+describe('Chili, original dog marksman (sim v14)', () => {
   it('data: an ELECTRIC dog marksman, index 15', () => {
     expect([CHILI.side, CHILI.role, CHILI.element, CHILI.name]).toEqual(['dog', 'marksman', 'ELECTRIC', 'Chili']);
     expect(HERO_IDS.indexOf('chili')).toBe(15);

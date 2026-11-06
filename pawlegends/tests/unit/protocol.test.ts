@@ -47,7 +47,7 @@ function samples(): { client: ClientMsg[]; host: HostMsg[] } {
     { t: 'pause', paused: false },
   ];
   const core = new HostCore();
-  // Seed 301: the idle human's team holds out past Sunset, so the samples include a `sunset` event (sim v13 with seven
+  // Seed 301: the idle human's team holds out past Sunset, so the samples include a `sunset` event (sim v14 with seven
   // dogs and sim v12 fun pass; 302 in v10 to v12 with the bots' tricks on their own stream, 303 before B5, 300 in v9,
   // 301 in v8, 308 before).
   const host: HostMsg[] = [core.join({ ...JOIN, seed: 301 }), core.initial()!];

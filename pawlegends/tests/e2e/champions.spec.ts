@@ -1,7 +1,7 @@
 import { expect, test, type Frame } from '@playwright/test';
 import { art, mockHost, openHost, received } from './host';
 
-// Sim v9 shelter champions (sim v13: 17 pick tiles, 10 cats and 7 dogs behind the CATS / DOGS switch), the card art and the web-only owner
+// Sim v9 shelter champions (sim v14: 17 pick tiles, 10 cats and 7 dogs behind the CATS / DOGS switch), the card art and the web-only owner
 // badge on a champion tile, no Meet link on hero pick or in the lobby (title) champion info panel (information only:
 // the champion-offer Meet card is the one purchase surface), none of the badges in an app build, and the Avietė /
 // Gabė diacritics drawn in the UI font.
@@ -36,7 +36,7 @@ test('17 pick tiles (10 cats, 7 dogs), card art and the owner badge on the web; 
   await toPick(game);
   await expect(game.locator('.heroes.cats .hero-card')).toHaveCount(10);
   await expect(game.locator('.heroes.dogs .hero-card')).toHaveCount(7);
-  // sim v13: the cat side shows; the dogs wait behind the switch, and no dog is a champion
+  // sim v14: the cat side shows; the dogs wait behind the switch, and no dog is a champion
   await expect(game.locator('.heroes.dogs')).toBeHidden();
   await expect(game.locator('.heroes.dogs .champ-art, .heroes.dogs .champ-owned, .heroes.dogs .hero-card.champion')).toHaveCount(0);
   await expect(game.locator('.hero-card[data-h="lambo"] .champ-art')).toHaveCount(1);

@@ -23,8 +23,8 @@ const talentsOf = (m: ReturnType<typeof play>): number[][] =>
   Array.from({ length: 6 }, (_, slot) => Array.from({ length: TALENT_TIERS }, (_, t) => m.world.talents[slot * TALENT_TIERS + t]));
 
 describe('sim v10 (GAPS B0)', () => {
-  it('SIM_VERSION is 13 (sim v11 to v13 kept the v10 rules)', () => {
-    expect(SIM_VERSION).toBe(13);
+  it('SIM_VERSION is 14 (sim v11 to v14 kept the v10 rules)', () => {
+    expect(SIM_VERSION).toBe(14);
   });
 
   it("a bot's talent is draw number `tier` of its own stream fork('talent:' + slot), from the seed alone", () => {
@@ -98,7 +98,7 @@ describe('sim v10 (GAPS B0)', () => {
     expect(checkReplayShape({ ...rec, simVersion: 10 })).toMatchObject({ ok: false, code: 'PAWLEGENDS_SIM_VERSION' });
   });
 
-  // 18 full matches: ~50 s alone, over 60 s in a full parallel run since v13's 17-hero roster (180 s headroom)
+  // 18 full matches: ~50 s alone, over 60 s in a full parallel run since v14's 17-hero roster (180 s headroom)
   it('SlotStats: damage taken for every hero, heal and shield for the heroes that give them, objective damage', { timeout: 180000 }, () => {
     const totals: Record<string, { taken: number; heal: number; objective: number }> = {};
     for (let seed = 1; seed <= 6; seed++) {

@@ -70,7 +70,7 @@ describe('A0: Cacklejaw coats', () => {
 
 describe('A1: Treat Track, 57 chests then a loop', () => {
   it('57 unique rewards cover all 17 heroes: originals get coats and palette variants, champions a title, frame and postcard', () => {
-    // sim v11: 30, then three coats for each of the four original cats; sim v13: three for each of the five original dogs
+    // sim v11: 30, then three coats for each of the four original cats; sim v14: three for each of the five original dogs
     expect(TREAT_REWARDS).toHaveLength(57);
     const ids = [...TREAT_REWARDS, ...LOOP_REWARDS].map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
@@ -193,7 +193,7 @@ describe('A1: migration from the 9-chest track', () => {
 
 describe('A1: quests for all 17 heroes', () => {
   it('26 quests; every hero has a win quest; the hero slot is round-robin (each hero every 17 days)', () => {
-    // sim v11: the four original cats add a win quest each; sim v13: the five original dogs too
+    // sim v11: the four original cats add a win quest each; sim v14: the five original dogs too
     expect(QUEST_POOL).toHaveLength(26);
     expect(new Set(QUEST_POOL.map((q) => q.id)).size).toBe(26);
     for (const h of HERO_IDS) expect(QUEST_POOL.filter((q) => q.metric === 'win' && q.hero === h), h).toHaveLength(1);

@@ -1,4 +1,4 @@
-/** Chili's ability icons (sim v13), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. Tiny Zoomies reuses `zoomies`. */
+/** Chili's ability icons (sim v14), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. Tiny Zoomies reuses `zoomies`. */
 export const ICONS = {
   // Yap Yap Yap: three sound-wave crescents
   yap: '<g stroke="currentColor" stroke-width="4" fill="none" stroke-linecap="round"><path d="M12 14 Q18 24 12 34"/><path d="M22 10 Q30 24 22 38"/><path d="M32 6 Q42 24 32 42"/></g>',

@@ -1,5 +1,5 @@
 /**
- * Shared pieces for the sim v13 dogs' skill FX (skillfx/nugget, marshmallow, bravo, chili, howler): one pooled mesh
+ * Shared pieces for the sim v14 dogs' skill FX (skillfx/nugget, marshmallow, bravo, chili, howler): one pooled mesh
  * spawn, scratch vectors, the facing / aim helpers and a render-side variety hash. Everything is pooled: nothing
  * allocates per event or per frame. Render only (never the sim RNG: render-no-sim-rng.test).
  */

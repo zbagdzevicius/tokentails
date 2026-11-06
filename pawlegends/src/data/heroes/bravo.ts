@@ -1,4 +1,4 @@
-/** Bravo, Tank (sim v13, original dog): a dramatic pug who slows, holds the stage, charms on R and fakes his own death. */
+/** Bravo, Tank (sim v14, original dog): a dramatic pug who slows, holds the stage, charms on R and fakes his own death. */
 import type { HeroData } from './types';
 
 export const BRAVO: HeroData = Object.freeze<HeroData>({
@@ -6,7 +6,7 @@ export const BRAVO: HeroData = Object.freeze<HeroData>({
   name: 'Bravo',
   side: 'dog',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 11350 / takes 8250 (49.1% of the 2,000-seed gate). */
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11350 / takes 8250 (49.1% of the 2,000-seed gate). */
   pvp: { dmgBp: 11350, takenBp: 8250 },
   element: 'STELLAR',
   base: { hp: 780, hpPerLevel: 80, attack: 46, attackPerLevel: 4, attackEvery: 35, range: 1600, speed: 4700, armour: 42, armourPerLevel: 3 },

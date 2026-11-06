@@ -86,7 +86,7 @@ describe('bots (§7.2)', { timeout: 300000 }, () => {
     for (const h of ['meatball', 'pixel', 'duchess', 'stilts']) expect([...(casts.get(h) ?? [])].sort(), h).toEqual([0, 1, 2, 3]);
   });
 
-  it('sim v13: bots play the five original dogs and cast all four of their slots', () => {
+  it('sim v14: bots play the five original dogs and cast all four of their slots', () => {
     const casts = new Map<string, Set<number>>();
     for (const seed of [5, 6, 7, 8]) {
       const m = botsOn(heroMatch(['brutus', 'nugget', 'marshmallow', 'clem', 'sage', 'gabe'], undefined, seed));

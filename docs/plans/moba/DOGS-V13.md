@@ -1,4 +1,11 @@
-# Pawlegends sim v13 build spec: five new dogs and the Cats / Dogs switch
+# Pawlegends sim v14 build spec: five new dogs and the Cats / Dogs switch
+
+> **Renumbered to sim v14 (2026-11-07).** The dogs were built as sim v13 on `feat/pawlegends-dogs`, but party play
+> (`docs/plans/moba/MULTIPLAYER.md`) shipped to production first as v13 (`PARTY_SINCE = 13`). After merging
+> `origin/main`, the dogs ride `SIM_VERSION = 14`: the released v13 (party play, no dogs) is frozen at `eaba6ae7`
+> (bundle `7daed0d2…`) beside v10, v11 and v12, so production v13 replays and v13 party clients keep working, and the
+> backend verifies 10 to 14. Party play runs on v14 too (`PARTY_SINCE` stays 13). The file name keeps `V13`; every
+> "v14" below means the dogs' version.
 
 **The five:** Nugget (corgi, support), Marshmallow (Samoyed puppy, mage), Bravo (pug, tank), Chili (chihuahua,
 marksman) and Howler (husky, fighter). Nugget and Marshmallow are the cute ones. Bravo, Chili and Howler are the
@@ -21,7 +28,7 @@ v12 build docs (`CATS-V11.md`, `pawlegends/docs/FUN-PROGRESSION-V12.md`).
 **Decisions for the user.** Each has a default; the build goes ahead with the default unless the user says otherwise.
 
 1. **Lord Barkus.** The request asks for cute dogs and funny ones; five slots leave no room for Barkus, a serious
-   boss character. Default: he waits for the next dog wave (v14), together with Pilfer and a sausage dog
+   boss character. Default: he waits for the next dog wave (v15), together with Pilfer and a sausage dog
    (Longfellow, GDD §heroes). Swap option: Barkus replaces Howler as the fighter, keeping the scream as a Barkus
    skin moment.
 2. **Meme names.** No real meme names and no trademarked dogs: no "Doge" or "Cheems" (CLAIMS R9 and GDD Kibo) and
@@ -47,7 +54,7 @@ A review of revision 1 raised 24 points. All were checked against the code named
 | # | Point | Verdict | What changed |
 |---|---|---|---|
 | 1 | Marshmallow copies Duchess | Accepted | Chill removed. She is now a zone mage: W snow patch, E belly slide with haste and a small shield (no cloud), and the R end freezes cats still inside (kit timer + `root`). No `fluffPuffs`. |
-| 2 | Shared `mkStack` unsafe | Accepted via 1 | Chill is gone, so no hero shares `mkStack` with Duchess. `validate` stays as it is: v13 explicitly **allows** mixed-species teams (party picks), and `sim-v13.test` pins that. |
+| 2 | Shared `mkStack` unsafe | Accepted via 1 | Chill is gone, so no hero shares `mkStack` with Duchess. `validate` stays as it is: v14 explicitly **allows** mixed-species teams (party picks), and `sim-v14.test` pins that. |
 | 3 | Bravo out-charms Gabė | Accepted | Q is a fading slow with a W refund, no charm. R is the only charm: 1.0 s, 4.5 m, 60 damage, shield. E's knockback becomes a 25% slow. |
 | 4 | Two fawn pugs | Accepted | Black is the default coat (`fur` ≈ 0x2a2628, silver hem); fawn is a skin. The cape covers his full outline. New colour (item 12). |
 | 5 | Flop rules | Accepted | (a) The flop clamps every hit, true damage too: it runs in `absorb`, which also sees `pure` hits (`incoming` does not). (b) A new kit hook `busy` blocks move, basics and casts while `kRT > 0`, independent of `stun`. (c) Flop and Nine Lives lock each other out. (d) 90 s cooldown, 8% heal. |
@@ -65,7 +72,7 @@ A review of revision 1 raised 24 points. All were checked against the code named
 | 17 | Cut order | Accepted | Art gate after the RENDER lane; cut order Howler, then Marshmallow (reworked, so she is no longer first). Never ship stub art. |
 | 18 | Clip-worthiness | Accepted | Sploot camera nudge, flop drops tower and bot locks, "…bravo?" for both teams, and a new `clip` sim event (`flop`, `bigdog`, `scream`, `frozen`). |
 | 19 | Herd into tower | Accepted | 4.5 m / 2 m, the herd point is clamped out of his own tower range + 1 m, no tower rule for bots, Herding Pro 2500. |
-| 20 | Role-blind draws | Accepted | Gate 10 reports the share; a named Phase 3 fallback (role pass in v13) if dog-team win rate leaves 47–53%. |
+| 20 | Role-blind draws | Accepted | Gate 10 reports the share; a named Phase 3 fallback (role pass in v14) if dog-team win rate leaves 47–53%. |
 | 21 | Name "Boomer" | Accepted | Howler (decision 6). |
 | 22 | Projectile kinds | Partly accepted | 2 new kinds, not 0: `frisbee` (pierce disc) and `yap` (Rage keys on it). The snowball and the tear reuse `fluff` (13); render picks the look by the owner's hero (`ProjectileSnap.owner`). |
 | 23 | Determinism and versioning | Accepted | v12 dog-human replay on the v12 bundle; mixed-species input explicitly allowed; 1,000-seed fuzz over 17; 200 extra seeds with Bravo and Chili on both teams. |
@@ -103,7 +110,7 @@ Track palettes) and the final `bone` icon is in `src/ui/icons.ts`. Never ship th
   (Q 62 / +6 / rank 16, W 12 / +1 / rank 4, R 20 / +2 / rank 10) and Bravo (HP 780 +80, armour 42, flop heal 15%);
   everything else is `pvp`. Final `pvp` (dmgBp / takenBp; before → after for the old heroes):
 
-| Hero | v12 | v13 | Gate 22 win | | Hero | v13 | Gate 22 win |
+| Hero | v12 | v14 | Gate 22 win | | Hero | v14 | Gate 22 win |
 |---|---|---|---|---|---|---|---|
 | Clem | 8200 / 10100 | 8850 / 9725 | 51.2% | | Sir Brutus | 11100 / 9350 → 9750 / 9575 | 48.9% |
 | Sage | 10800 / 9500 | 10550 / 9325 | 48.7% | | Cacklejaw | 11100 / 9350 → 11250 / 8825 | 48.1% |
@@ -121,8 +128,9 @@ Track palettes) and the final `bone` icon is in `src/ui/icons.ts`. Never ship th
 - **Rookie** (`DIFFICULTY_RULES.rookie`): with seven dogs a cat human met more varied dog bots and a dog human won
   match 1 too fast (fun1: length 4:47, deaths p90 5). Rookie now has `structureHpBp` 12000, `coreHpBp` 13500,
   `humanDamageBp` 13000 (was 14000), `humanTakenBp` 8500 (was 10000) and `humanRespawnBp` 5000 (was 5500).
-- **Vendor**: the live v13 dir also ships `dog-replay.fixture.json` (Chili, seed 1313, Easy); the backend spec
-  verifies it, and the same record labelled v12 is refused. v12 is frozen at 5bf2a938; v10 and v11 stay frozen.
+- **Vendor**: the live v14 dir also ships `dog-replay.fixture.json` (Chili, seed 1313, Easy); the backend spec
+  verifies it, and the same record labelled v13 or v12 is refused. v13 is frozen at eaba6ae7, v12 at 5bf2a938; v10
+  and v11 stay frozen.
 
 **Gates** (lane SIM exit):
 - Balance (gate 6, 2,000 seeds): **all pass**. Length median 7:14, p95 8:32, 0 safety ends, core kill before
@@ -136,10 +144,10 @@ Track palettes) and the final `bone` icon is in `src/ui/icons.ts`. Never ship th
   `src/meta/grade.ts` (Bravo joined the tanks, Howler the fighters); losses graded A or S 34.4%.
 - Gate 10: on the 2,000 balance seeds 57.1% of dog teams have no support and 28.6% no tank; the dog side wins 50.1%,
   inside 47–53%, so the role-pass fallback (§3) is not needed. In bot matches the flop, BIG DOG, the scream and the
-  freeze all fire (`sim-v13.test`).
+  freeze all fire (`sim-v14.test`).
 - Determinism (gate 4): `node tools/determinism.mjs --seeds 1000` all identical (all 17 heroes as the human), and the
-  200 Bravo-and-Chili-on-both-teams seeds (`PAWLEGENDS_NIGHTLY=1`, `sim-v13.test`) identical.
-- `vendor-sim:check`: v10, v11, v12 frozen, v13 live. Backend `npx jest src/pawlegends` (115 tests), `npm run lint`
+  200 Bravo-and-Chili-on-both-teams seeds (`PAWLEGENDS_NIGHTLY=1`, `sim-v14.test`) identical.
+- `vendor-sim:check`: v10, v11, v12, v13 frozen, v14 live. Backend `npx jest src/pawlegends` (115 tests), `npm run lint`
   and `npm run build` green.
 
 ## As built (lane RENDER, 2026-11-06)
@@ -168,7 +176,7 @@ briefs. Where the build differs from §1:
 - **No camera side-on nudge** for the sploot: the fight camera has no orbit hook, so the player's own sploot gets a
   small camera punch instead.
 
-## 0. Roster after v13
+## 0. Roster after v14
 
 | HERO_IDS index | id | Name | Breed | Role | Element | Vibe | Difficulty | HERO_COLOR_CSS |
 |---|---|---|---|---|---|---|---|---|
@@ -180,7 +188,7 @@ briefs. Where the build differs from §1:
 | **15** | `chili` | Chili | chihuahua | **marksman** | ELECTRIC | viral | medium | `#ff5a3c` |
 | **16** | `howler` | Howler | Siberian husky | **fighter** | WIND | viral | medium | `#7a86a0` |
 
-The dogs before v13 covered only tank and assassin; they now cover all six roles (tank × 2). Every element is one
+The dogs before v14 covered only tank and assassin; they now cover all six roles (tank × 2). Every element is one
 the `Element` union already has, so `types.ts` gets no new element and `ELEMENT_COLOR`, `ELEMENT_TRAIL` and the
 backend `CatAbilityType` stay as they are.
 
@@ -214,7 +222,7 @@ not start basics on this hero); a `clip` SimEvent (`{ type: 'clip'; tick; id; wh
 
 **HeroData** `src/data/heroes/nugget.ts`:
 ```ts
-/** Nugget, Support (sim v13, original dog): a corgi who herds foes, rushes to friends and heals by splooting. */
+/** Nugget, Support (sim v14, original dog): a corgi who herds foes, rushes to friends and heals by splooting. */
 import type { HeroData } from './types';
 
 export const NUGGET: HeroData = Object.freeze<HeroData>({
@@ -346,7 +354,7 @@ when it ends is frozen in an ice cube."
 
 **HeroData** `src/data/heroes/marshmallow.ts`:
 ```ts
-/** Marshmallow, Mage (sim v13, original dog): a Samoyed puppy who covers the ground in snow and freezes cats who stay. */
+/** Marshmallow, Mage (sim v14, original dog): a Samoyed puppy who covers the ground in snow and freezes cats who stay. */
 import type { HeroData } from './types';
 
 export const MARSHMALLOW: HeroData = Object.freeze<HeroData>({
@@ -465,7 +473,7 @@ to die he plays dead (and it works)."
 
 **HeroData** `src/data/heroes/bravo.ts`:
 ```ts
-/** Bravo, Tank (sim v13, original dog): a dramatic pug who slows, holds the stage, charms on R and fakes his own death. */
+/** Bravo, Tank (sim v14, original dog): a dramatic pug who slows, holds the stage, charms on R and fakes his own death. */
 import type { HeroData } from './types';
 
 export const BRAVO: HeroData = Object.freeze<HeroData>({
@@ -592,7 +600,7 @@ half-mask, no copyrighted logo), `coat.bravo.understudy` (brindle, a paper crown
 
 **HeroData** `src/data/heroes/chili.ts`:
 ```ts
-/** Chili, Marksman (sim v13, original dog): a chihuahua whose Rage turns into attack speed, then into a big dog. */
+/** Chili, Marksman (sim v14, original dog): a chihuahua whose Rage turns into attack speed, then into a big dog. */
 import type { HeroData } from './types';
 
 export const CHILI: HeroData = Object.freeze<HeroData>({
@@ -719,7 +727,7 @@ scream."
 
 **HeroData** `src/data/heroes/howler.ts`:
 ```ts
-/** Howler, Fighter (sim v13, original dog): a loud husky whose screams slow, fear and finally blow cats away. */
+/** Howler, Fighter (sim v14, original dog): a loud husky whose screams slow, fear and finally blow cats away. */
 import type { HeroData } from './types';
 
 export const HOWLER: HeroData = Object.freeze<HeroData>({
@@ -887,12 +895,12 @@ team = dogs"; a unit test asserts it. Below the toggle, on tall screens only, on
 
 `fillPicks` already takes each hero of a side once before it repeats one (`fresh` vs `kin`, `src/sim/index.ts:113`).
 With 7 dogs and 3 slots, **a dog team never duplicates**, and nothing in the rule changes. `validate` keeps allowing
-any team (party picks can mix species or repeat a hero); v13 states that explicitly and tests it. What does change:
+any team (party picks can mix species or repeat a hero); v14 states that explicitly and tests it. What does change:
 - The dog pool is 7 instead of 2, so every replay with a dog bot draws different heroes. That is the main reason for
-  SIM_VERSION 13 (alongside the kits themselves).
+  SIM_VERSION 14 (alongside the kits themselves).
 - **Role spread.** `fillPicks` is uniform and role-blind. With Nugget as the dog side's only support, about 57% of
   dog bot teams have no support. Gate 10 reports that share and the dog-team win rate. **Named Phase 3 fallback:** if
-  the dog-team win rate falls outside 47–53%, do a role pass in v13 (draw at most one of each role until the roles
+  the dog-team win rate falls outside 47–53%, do a role pass in v14 (draw at most one of each role until the roles
   run out, still deterministic on the seed). It is not deferred to v14.
 - Rookie and Easy: `scriptFrom`/`enemiesToHuman` and the human damage edge were tuned while cats were 10 of 12
   picks. Re-run `novice` and `fun1` for **a dog human against cat bots** and **a cat human against 7 possible dogs**
@@ -947,29 +955,31 @@ of max HP), `freeze`, `splashMax` and `slowTail`. `push`, `charm`, `splash` and 
 
 ---
 
-## 5. SIM_VERSION 13 plan (exactly as v11 → v12)
+## 5. SIM_VERSION 14 plan (exactly as v11 → v12)
 
 1. Check the frozen v12 copy: `git diff 5bf2a938bc520f7dc38eb03f068b3edeb6e53fc7 HEAD --
    ../backend/src/vendor/pawlegends-sim/v12` must be empty (it is at `c49733c2`; `ally-blue` was client-only).
-2. `src/sim/version.ts`: `SIM_VERSION = 13`.
+2. `src/sim/version.ts`: `SIM_VERSION = 14` (built as 13; renumbered when party play shipped as v13, see the note at the top).
 3. `tools/vendor-sim.mjs` FROZEN: add
    `{ simVersion: 12, commit: '5bf2a938bc520f7dc38eb03f068b3edeb6e53fc7', from: 'backend/src/vendor/pawlegends-sim/v12', bundle: '59426998be81a7439eba33c06b81635840f34a5ec26adc368e38210159e51531', extra: ['forfeit-replay.fixture.json'] }`.
    Follow commit `58db7391` (the v12 vendor step) line for line.
    - Keep v10 and v11 frozen: v10's 30-day replay window runs to about Dec 1. The dispatcher then serves 10–13.
-     Retire v10 in the first sim change after Dec 1.
-   - Update the FROZEN header comment and `tools/vendor-sim.test.mjs` (v10, v11, v12 frozen; v13 live).
+     Retire v10 in the first sim change after Dec 1. After the renumber v13 (party play) is frozen too, at
+     `eaba6ae742b33cde1333e99fdbf7d14e5e8c19e3` (bundle `7daed0d274a9a9f414bab5d12f8e3711c5e5d5a4c13776cf95c64cc22e0e9ea1`),
+     and the dispatcher serves 10–14.
+   - Update the FROZEN header comment and `tools/vendor-sim.test.mjs` (v10 to v13 frozen; v14 live).
    - The facade type `PawlegendsHeroId` gains the 5 ids. That widens the type, so older versions still type-check.
-4. Backend `pawlegends-live.spec.ts`: `[10,11,12,13]`, `toBe(13)`, a fake hash per version; "v12 labelled v13" and
-   "v13 labelled v12" dispatch tests; a v12 replay still verifies after v13 is vendored; a v13 replay with a dog
+4. Backend `pawlegends-live.spec.ts`: `[10,11,12,13]`, `toBe(13)`, a fake hash per version; "v12 labelled v14" and
+   "v14 labelled v12" dispatch tests; a v12 replay still verifies after v14 is vendored; a v14 replay with a dog
    human (e.g. `chili`) verifies. Update the comments in `pawlegends-live.ts`, `pawlegends-replay.dto.ts` and
    `pawlegends-replay.worker.ts`. `CHAMPION_FIXTURE_HERO` stays `'gabe'`; the rookie, champion and forfeit fixtures
    are re-recorded.
 5. Game tests that pin the version: `round2.test.ts`, `sim-v10.test.ts`, `sim-v11.test.ts`, `sim-v7.test.ts`,
    `sim-v12.test.ts`. Pin to `SIM_VERSION` or `>= 12`, as they do today.
-6. **Order:** v13 stays live while tuning. Run `npm run vendor-sim && npm run vendor-sim:check` after the last
-   tuning change, right before the final sim commit (expect "v10 (frozen), v11 (frozen), v12 (frozen), v13"). Then
+6. **Order:** v14 stays live while tuning. Run `npm run vendor-sim && npm run vendor-sim:check` after the last
+   tuning change, right before the final sim commit (expect "v10 (frozen), v11 (frozen), v12 (frozen), v14"). Then
    `cd ../backend && npx jest src/pawlegends && npm run lint && npm run build`. **Deploy the backend before any
-   client build that ships v13** (`vendor-sim:check-remote`).
+   client build that ships v14** (`vendor-sim:check-remote`).
 7. **Collision risk:** branch `feat/pawlegends-mp` (party referee API, commits `e012f0ce`, `2c9b0b51`) also edits
    `vendor-sim.mjs` and the vendored facade, and adds a `SIM_HASH`. Whichever lands second rebases its vendor step
    and re-runs `vendor-sim`. Never hand-merge the generated bundle.
@@ -997,9 +1007,9 @@ of max HP), `freeze`, `splashMax` and `slowTail`. `push`, `charm`, `splash` and 
   - howler: the empowered basic after a cast; Talk Back fears each attacker once; **bots stop starting basics on him
     during Talk Back**; the R knockback travels the full 2 m, then the fear runs 23 ticks.
 - `tests/unit/anim-<id>.test.ts` × 5.
-- `tests/unit/sim-v13.test.ts`: `SIM_VERSION === 13`; the 2 new projectile kinds are > hero and have SRC_KIND
+- `tests/unit/sim-v14.test.ts`: `SIM_VERSION === 13`; the 2 new projectile kinds are > hero and have SRC_KIND
   `Kind.Hero`; `fillPicks` never duplicates within a dog team across 1,000 seeds; every dog appears on both sides of
-  the draw; **a v12 replay with a dog human (`brutus`) verifies on the v12 bundle**; **a v13 input with a
+  the draw; **a v12 replay with a dog human (`brutus`) verifies on the v12 bundle**; **a v14 input with a
   mixed-species team passes `validate` and replays deterministically** (explicitly allowed).
 - `tests/unit/render-no-sim-rng.test.ts`: fails if any file under `src/render` reads `w.rng` or imports
   `src/sim/rng`.
@@ -1045,7 +1055,7 @@ Paths are relative to `pawlegends/` unless they start with `../`.
 
 ### LANE SIM (first, alone)
 
-Scope: hero data, kits, bots, engine hooks, SIM_VERSION 13, vendor, backend vendored copy, unit tests, headless
+Scope: hero data, kits, bots, engine hooks, SIM_VERSION 14, vendor, backend vendored copy, unit tests, headless
 balance, meta data tables, and **compile stubs** for every client table keyed by `HeroId`, so `tsc` is green before
 RENDER and PICKER start.
 
@@ -1074,10 +1084,10 @@ Owns (writes):
 - Backend: `../backend/src/vendor/pawlegends-sim/**` (generated), `../backend/src/pawlegends/pawlegends-live.spec.ts`,
   `pawlegends-live.ts`, `pawlegends-replay.dto.ts`, `pawlegends-replay.worker.ts`, the re-recorded fixtures
 - Client mirror: `../client/components/pawlegends/bridge.ts` (`PAWLEGENDS_HEROES`)
-- Tests: `tests/unit/heroes/{5 ids}.test.ts`, `tests/unit/sim-v13.test.ts`, `sim-v12/v11/v10/v7.test.ts`,
+- Tests: `tests/unit/heroes/{5 ids}.test.ts`, `tests/unit/sim-v14.test.ts`, `sim-v12/v11/v10/v7.test.ts`,
   `round2.test.ts`, `picks.test.ts`, `bots.test.ts`, `determinism.test.ts`, `grade.test.ts`, `gaps-wave-a.test.ts`,
   `wave-c.test.ts`, `world.test.ts` (only if an array is added)
-- Docs: this file (status), `../docs/plans/moba/GAPS.md` (N4), the GDD hero table, POC.md v13 addendum,
+- Docs: this file (status), `../docs/plans/moba/GAPS.md` (N4), the GDD hero table, POC.md v14 addendum,
   `../docs/DEVELOPMENT.md` / `../docs/GAMES.md` mirrors
 
 Exit: `tsc`, `lint:sim`, unit tests, `determinism --seeds 1000` + the 200 Bravo/Chili seeds, the balance gates 6–10,
@@ -1165,7 +1175,7 @@ Run from `pawlegends/` unless noted.
 3. `npx vitest run --project unit`: green (call out any failure that already existed before this work).
 4. `npm run determinism -- --seeds 1000`: 0 mismatches (all 17 as the human), plus 200 seeds with Bravo and Chili on
    both teams.
-5. `npm run vendor-sim:check` shows v10, v11 and v12 frozen and v13 live. In `backend/`: `npx jest src/pawlegends`,
+5. `npm run vendor-sim:check` shows v10, v11 and v12 frozen and v14 live. In `backend/`: `npx jest src/pawlegends`,
    `npm run lint` and `npm run build` are green.
 
 **Balance** (`npm run match -- --seeds 200 … --balance --quiet` while iterating, then `npm run match -- --gate

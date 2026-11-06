@@ -30,7 +30,7 @@ describe('card frame and pick tiles', () => {
     expect(html.match(/tt-sp /g)).toHaveLength(4);
     expect(html).not.toMatch(/url\(/);
   });
-  it('pick: a card tile per hero (17 in sim v13), one <b> each, the picked one wears its card skin rung and the sweep foil', () => {
+  it('pick: a card tile per hero (17 in sim v14), one <b> each, the picked one wears its card skin rung and the sweep foil', () => {
     document.body.innerHTML = '';
     const root = pickScreen(document.body, {
       initial: { hero: 'meatball', trick: 'pounce', difficulty: 'easy' },
