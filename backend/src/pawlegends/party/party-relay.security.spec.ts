@@ -195,7 +195,8 @@ describe('party relay hardening', () => {
         await sleep(300);
         expect(c.json.slice(n).filter(j => j.t === 'social' || j.t === 'slot')).toEqual([]);
         expect(live.seats.size).toBe(1);
-        expect(live.room.slots[1]).toMatchObject({ occupied: false, reason: 'open', mode: 'pilot' });
+        // no Open seats: a bot flies it (never an unclaimed open seat that would lower the others' catnip)
+        expect(live.room.slots[1]).toMatchObject({ occupied: false, reason: 'drop', mode: 'pilot' });
         stopBeats();
         await b.stop();
     });

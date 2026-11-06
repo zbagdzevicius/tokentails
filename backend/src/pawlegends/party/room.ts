@@ -284,17 +284,19 @@ export class Room {
     }
 
     /**
-     * The member left the party mid-match (`party.leave`): the seat is open again (a pilot flies it; with Open seats a
-     * friend may claim it) and the others are told it was a leave, not a drop.
+     * The member left the party mid-match (`party.leave`): a pilot flies the seat (with Open seats a friend may claim
+     * it) and the others are told it was a leave, not a drop.
      */
-    vacate(slot: number, nowMs: number): void {
+    vacate(slot: number, nowMs: number, reopen = true): void {
         const s = this.slots[slot];
         if (!s || !this.isHumanSlot(slot)) return;
         s.connected = false;
         s.conn = 'off';
         s.occupied = false;
         s.mode = 'pilot';
-        s.reason = 'open';
+        // with Open seats the seat is claimable again; without, a bot just flies it (never an "unclaimed open seat"
+        // that would lower the others' catnip at tick 1,800)
+        s.reason = reopen ? 'open' : 'drop';
         s.open = emptyOpen();
         this.io.json(null, { t: 'slot', slot, reason: 'left' });
         this.io.log?.('mp_takeover', { slot, reason: 'left' });
