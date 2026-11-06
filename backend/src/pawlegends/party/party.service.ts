@@ -326,6 +326,21 @@ export class PartyService {
         this.touch(p);
     }
 
+    /**
+     * `party.card` (lobby or results): wear a card the relay resolved and checked for ownership (D8). `null` takes it
+     * off. Peers see only `{image, element, tier}` and a name built from the card's catalog or breed name; the
+     * custom name (`ownName`) stays in the owner's own copy.
+     */
+    setCard(memberId: string, card: Member['card'] | null): void {
+        const p = this.partyOf(memberId);
+        const m = p?.members.find(x => x.id === memberId);
+        if (!p || !m || (p.phase !== 'lobby' && p.phase !== 'results')) return;
+        if (card) m.card = card;
+        else delete m.card;
+        this.rename(p);
+        this.touch(p);
+    }
+
     setConn(memberId: string, conn: Member['conn']): void {
         const p = this.partyOf(memberId);
         const m = p?.members.find(x => x.id === memberId);

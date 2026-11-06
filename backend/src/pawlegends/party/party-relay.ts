@@ -66,7 +66,23 @@ export interface RelayOptions {
     now?: () => number;
     log?: (event: string, props: Record<string, unknown>) => void;
     maxLiveRooms?: number;
+    /**
+     * `party.card` (D8): resolve a card the caller owns, or null. Production reads `CatRepository`
+     * (party-cards.ts); without it (harness, specs) every card is refused and members keep generated names.
+     */
+    cards?: PartyCardResolver;
 }
+
+/** A card the relay may show: art, element, tier, the catalog or breed name, and the owner-only custom name. */
+export interface PartyCard {
+    catId: string;
+    image: string;
+    element: string;
+    tier: string;
+    catalog?: string;
+    ownName?: string;
+}
+export type PartyCardResolver = (accountId: string, catId: string) => Promise<PartyCard | null>;
 
 interface Sock {
     ws: WebSocket;
@@ -76,6 +92,8 @@ interface Sock {
     helloed: boolean;
     helloTimer: NodeJS.Timeout | null;
     identity: MemberIdentity | null;
+    /** `hello.hint`: UI defaults only (the lowest member tier, the newbie hero); never trusted for anything else. */
+    hint: { maxDifficulty: string; newbie: boolean } | undefined;
     memberId: string | null;
     sim: { version: number; hash: string } | null;
     strikes: number;
@@ -245,6 +263,7 @@ export class PartyRelay {
             helloed: false,
             helloTimer: null,
             identity: null,
+            hint: undefined,
             memberId: null,
             sim: null,
             strikes: 0,
@@ -373,6 +392,7 @@ export class PartyRelay {
         s.helloed = true;
         if (s.helloTimer) clearTimeout(s.helloTimer);
         s.identity = identity;
+        s.hint = msg.hint;
         s.sim = { version: msg.sim, hash: msg.simHash };
         let memberId: string | null = null;
         let lastSeq: number | undefined;
@@ -478,12 +498,12 @@ export class PartyRelay {
             case 'party.create': {
                 const live = p.all().filter(x => x.members.some(m => m.identity.key === s.identity!.key)).length;
                 if (live >= PARTY_LIMITS.partiesLivePerIdentity) return this.error(s, 'rate_limited');
-                p.create(member, s.identity!, msg.difficulty);
+                p.create(member, s.identity!, msg.difficulty, s.hint);
                 return;
             }
             case 'party.join': {
                 if (this.joinBlocked(s)) return this.error(s, 'rate_limited', 30_000);
-                const party = p.join(msg.code, member, s.identity!);
+                const party = p.join(msg.code, member, s.identity!, s.hint);
                 if (typeof party === 'string') {
                     if (party === 'party_not_found' || party === 'party_ended') this.joinFailed(s);
                     return this.error(s, party as ErrorCode);
@@ -517,7 +537,7 @@ export class PartyRelay {
             case 'party.newcode':
                 return p.newCodeFor(member);
             case 'party.card':
-                return; // lane P: card resolution through CatRepository (D8)
+                return void this.card(s, msg.catId);
             case 'party.start': {
                 const r = p.start(member);
                 if (r === 'pick' && this.gate.busy()) {
@@ -572,6 +592,22 @@ export class PartyRelay {
             case 'bye':
                 return this.leaveSeat(s);
         }
+    }
+
+    /** `party.card` (D8): only a card the ticketed account owns; peers never get its catId or custom name. */
+    private async card(s: Sock, catId: string | null): Promise<void> {
+        const member = s.memberId!;
+        if (catId === null) return this.parties.setCard(member, null);
+        const account = s.identity?.ticketed ? s.identity.accountId : null;
+        if (!account || !this.opts.cards) return;
+        let card: PartyCard | null = null;
+        try {
+            card = await this.opts.cards(account, catId);
+        } catch {
+            card = null;
+        }
+        if (!card || s.memberId !== member) return;
+        this.parties.setCard(member, card);
     }
 
     private social(s: Sock, msg: Extract<ClientJson, { t: 'social' }>): void {
@@ -735,7 +771,7 @@ export class PartyRelay {
             ticketed,
             referee: { lagTurns: 0, restored: true },
             ending: false,
-            heroSkins: [null, null, null, null, null, null],
+            heroSkins: [0, 1, 2, 3, 4, 5].map(slot => party.members.find(m => m.slot === slot)?.card?.image ?? null),
         };
         this.rooms.set(id, live);
         party.room = id;
