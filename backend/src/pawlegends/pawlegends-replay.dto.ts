@@ -60,3 +60,39 @@ export class PawlegendsReplayDto {
     @IsIn(PAWLEGENDS_MUTATORS)
     mutator?: 'none';
 }
+
+/**
+ * Party play (docs/plans/moba/MULTIPLAYER.md §6, D7): the result a party member posts in `pawlegends` with `v: 2`.
+ * It names the room and the member's slot; the backend checks it against the room log the relay stored and the
+ * referee's verified verdict (`pawlegends-party-live.ts`), so a client can never forge a party result. Under 300 B.
+ */
+export class PawlegendsPartyResultDto {
+    @Equals(2)
+    v: 2;
+
+    @IsString()
+    @Matches(/^[a-z0-9]{1,16}$/)
+    room: string;
+
+    @IsInt()
+    @Min(0)
+    @Max(2)
+    slot: number;
+
+    @IsInt()
+    @Min(1)
+    @Max(1_000_000)
+    simVersion: number;
+
+    @IsInt()
+    @Min(1)
+    @Max(PAWLEGENDS_MAX_TICKS)
+    ticks: number;
+
+    @IsIn(['won', 'lost'])
+    outcome: 'won' | 'lost';
+
+    @IsString()
+    @Matches(/^[0-9a-f]{8}$/)
+    finalHash: string;
+}
