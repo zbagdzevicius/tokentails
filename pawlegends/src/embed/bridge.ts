@@ -19,7 +19,7 @@ export const DEV_EMBED_ORIGINS = 'http://localhost:3000';
  * shelter champions' cards: art and whether each card is for sale, from `GET /pawlegends/champions`). Payload
  * shapes: docs/plans/moba integration plan §1; the parsers below are the game's half of the contract.
  */
-export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions'] as const);
+export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions', 'party-ticket'] as const);
 export type HostType = (typeof HOST_TYPES)[number];
 /**
  * POC.md §11.1 types, plus the additive `notify{where}` (Legends Pass notify-me, only after `app{notify: true}`),
@@ -34,7 +34,13 @@ export type HostType = (typeof HOST_TYPES)[number];
  * own `analytics.track`, so it follows the site's policy). `purchase-intent{sku}` is retired: the game no longer sells its own SKUs, so it never
  * sends it (the host still answers older builds).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics'] as const);
+/**
+ * Party play (docs/plans/moba/MULTIPLAYER.md §5.3, §6): `party-ticket-request{id}` asks the host for a single-use party
+ * ticket, which the host mints with its own session and answers as `party-ticket{id, ticket|null, error?}` (the
+ * access token never crosses); `party-result{matchId, result}` hands a party match's v:2 result to the host's save
+ * path (`POST /user/catbassadors/live`), whose status comes back as `save-result{matchId: room}`.
+ */
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 
 export interface HostMessage {
@@ -209,6 +215,34 @@ export function parseSaveResult(m: Record<string, unknown>): SaveResult | null {
   const out: SaveResult = { matchId: m.matchId, status: m.status as SaveStatus, catnipPaid: paid, catnipTotal: total, fastestWin: fastest };
   if (typeof m.code === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(m.code)) out.code = m.code;
   return out;
+}
+
+/** Party play: the host's answer to a ticket request. */
+export interface PartyTicketAnswer {
+  id: string;
+  ticket: string | null;
+  error?: string;
+}
+
+const PARTY_TICKET = /^[A-Za-z0-9_-]{16,460}\.[A-Za-z0-9_-]{43}$/;
+
+export function parsePartyTicket(m: Record<string, unknown>): PartyTicketAnswer | null {
+  if (typeof m.id !== 'string' || !MATCH_ID.test(m.id)) return null;
+  if (m.ticket !== null && (typeof m.ticket !== 'string' || !PARTY_TICKET.test(m.ticket))) return null;
+  const out: PartyTicketAnswer = { id: m.id, ticket: m.ticket };
+  if (m.ticket === null && typeof m.error === 'string' && /^[A-Z0-9_]{1,48}$/.test(m.error)) out.error = m.error;
+  return out;
+}
+
+/** Party play (§6): the v:2 result the host posts to `/live`; the backend checks it against the relay's room log. */
+export interface PartyResult {
+  v: 2;
+  room: string;
+  slot: number;
+  simVersion: number;
+  ticks: number;
+  outcome: 'won' | 'lost';
+  finalHash: string;
 }
 
 /** A cat image URL the game may load, or undefined (anything else is dropped, never fetched). */
