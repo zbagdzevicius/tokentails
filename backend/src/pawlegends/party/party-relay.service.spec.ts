@@ -65,14 +65,17 @@ describe('party relay (N2)', () => {
         await h.stop();
     });
 
-    it('trusts cf-connecting-ip only from a Cloudflare peer', () => {
+    it('trusts cf-connecting-ip from our own hops only (Cloudflare, or the private ingress hop), never a public peer', () => {
         const req = (peer: string) =>
             ({
                 socket: { remoteAddress: peer },
                 headers: { 'cf-connecting-ip': '9.9.9.9' },
             } as unknown as IncomingMessage);
-        expect(PartyRelay.clientIp(req('10.0.0.1'))).toBe('10.0.0.1');
+        // a public peer that is not Cloudflare (someone hitting the origin directly) cannot pick its address
+        expect(PartyRelay.clientIp(req('8.8.4.4'))).toBe('8.8.4.4');
         expect(PartyRelay.clientIp(req('173.245.48.10'))).toBe('9.9.9.9');
+        // behind the DigitalOcean ingress (a private hop) the visitor is the Cloudflare header, not the shared hop
+        expect(PartyRelay.clientIp(req('10.0.0.1'))).toBe('9.9.9.9');
     });
 
     it('hello: update_required for an unknown sim hash or protocol; welcome otherwise', async () => {
