@@ -418,13 +418,11 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-tbtn.down { transform: scale(0.92); border-color: var(--butter); }
 .pl-tbtn.deny { border-color: var(--enemy); }
 .pl-tbtn.locked { opacity: 0.4; filter: grayscale(1); }
-.pl-tbtn.attack { right: 0; bottom: 0; width: 96px; height: 96px; font-size: 18px; background: rgba(229, 72, 77, 0.78); border-color: rgba(255, 243, 220, 0.75); }
-.pl-tbtn.q { right: 112px; bottom: 6px; }
-.pl-tbtn.w { right: 94px; bottom: 82px; }
-.pl-tbtn.e { right: 26px; bottom: 116px; }
-.pl-tbtn.r { right: 164px; bottom: 100px; width: 70px; height: 70px; border-color: rgba(255, 210, 122, 0.8); }
-.pl-tbtn.trick { right: -16px; bottom: 112px; width: 48px; height: 48px; font-size: 13px; }
-.pl-tbtn.nap { right: 186px; bottom: 6px; width: 46px; height: 46px; font-size: 12px; }
+/* Audit CF-04: every button's place and size comes from input/touch/touchArc.ts (inline styles, scaled per screen) */
+.pl-tbtn.attack { font-size: 18px; background: rgba(229, 72, 77, 0.78); border-color: rgba(255, 243, 220, 0.75); }
+.pl-tbtn.r { border-color: rgba(255, 210, 122, 0.8); }
+.pl-tbtn.trick { font-size: 13px; }
+.pl-tbtn.nap { font-size: 12px; }
 /* C9: Nap is a 300 ms hold: a cream ring fills around the button while it is held */
 .pl-tbtn.nap::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(255, 243, 220, 0.85) var(--napfill, 0deg), transparent 0); opacity: 0; }
 .pl-tbtn.nap.holding::before { opacity: 1; animation: pl-napfill 300ms linear forwards; }
@@ -434,13 +432,15 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-tbtn.attack.deny { animation: pl-atkdeny 300ms ease-out; }
 @keyframes pl-atkdeny { 0%, 40% { border-color: #fff; box-shadow: 0 0 0 4px var(--enemy), 0 4px 12px rgba(0, 0, 0, 0.35); } 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); } }
 .pl-cancel {
-  /* C9: above the ability cluster (out of the screen's middle third, where it sat over the fight), under the minimap. */
-  position: absolute; right: calc(118px + var(--safe-r)); bottom: calc(196px + var(--safe-b)); width: 56px; height: 56px; border-radius: 50%;
+  /* Audit CF-01: top centre, under the score bar, out of every skill's drag reach (it sat 86-91 px from E and W, so a
+     full-range up or up-left aim landed on it). It cancels only after a 120 ms rest (touchControls CANCEL_DWELL_MS). */
+  position: absolute; left: 50%; top: calc(72px + var(--safe-t)); width: 56px; height: 56px; border-radius: 50%; transform: translateX(-50%);
   display: none; place-items: center; font-size: 30px; background: rgba(20, 12, 22, 0.85); border: 3px solid rgba(255, 243, 220, 0.9); color: var(--cream);
-  box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75);
+  box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75); transition: background 0.12s, transform 0.12s;
 }
 .pl-cancel.on { display: grid; }
-.pl-cancel.hot { background: var(--enemy); border-color: #fff; transform: scale(1.15); }
+.pl-cancel.arming { border-color: #fff; transform: translateX(-50%) scale(1.06); }
+.pl-cancel.hot { background: var(--enemy); border-color: #fff; transform: translateX(-50%) scale(1.15); }
 html[data-touch='1'] .pl-slots { display: none; }
 html[data-touch='1'] .pl-bar { left: calc(16px + var(--safe-l)); transform: none; bottom: auto; top: calc(10px + var(--safe-t)); padding: 6px 10px 6px 6px; border-radius: 16px; }
 html[data-touch='1'] .pl-portrait { width: 44px; height: 44px; }
@@ -935,10 +935,7 @@ html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolut
   background: conic-gradient(rgba(255, 243, 220, 0.85) calc(var(--lock, 0) * 360deg), transparent 0);
   -webkit-mask: radial-gradient(circle, transparent 60%, #000 62%); mask: radial-gradient(circle, transparent 60%, #000 62%);
 }
-.pl-tbtn.lasthit, .pl-tbtn.tower { width: 44px; height: 44px; }
 .pl-tbtn.lasthit span, .pl-tbtn.tower span { font-size: 11px; }
-.pl-tbtn.lasthit { right: 42px; bottom: 182px; }
-.pl-tbtn.tower { right: -18px; bottom: 176px; }
 
 /* ---------------------------------------------------------------------------------------------- GAPS B1
    Command pings: the six-slice wheel (desktop: hold G at the cursor; touch: the paw button by the minimap), the paw

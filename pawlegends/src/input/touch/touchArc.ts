@@ -1,0 +1,72 @@
+/**
+ * Audit CF-04: the touch button arc as data. Every button is placed on rings around Attack, so no two buttons ever
+ * touch (before, E and the trick overlapped by 5 px and five pairs sat 13-18 px apart), and the whole arc scales
+ * with the screen height (667x375 gets a slightly smaller arc than 932x430 instead of the same fixed px).
+ *
+ * Coordinates are px from the cluster's bottom-right corner (`.pl-tcluster`): `rx` leftwards, `by` upwards, to the
+ * button's centre; `d` is its diameter. TouchControls writes them as inline right/bottom/width/height.
+ */
+export type ArcButton = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
+
+export interface ArcSpot {
+  rx: number;
+  by: number;
+  d: number;
+}
+
+/** The smallest edge-to-edge gap (px at scale 1) between any two buttons. */
+export const ARC_GAP = 16;
+
+const ATK = 96;
+const ATK_R = ATK / 2;
+/** Q, W and E sit on the inner ring, R, the trick and the last-hit button on the outer one. Angles: 0 = left of Attack, 90 = straight above. */
+const INNER = ATK_R + 30 + ARC_GAP + 2;
+const OUTER = 166;
+const at = (deg: number, dist: number, d: number): ArcSpot => {
+  const a = (deg * Math.PI) / 180;
+  return { rx: ATK_R + Math.cos(a) * dist, by: ATK_R + Math.sin(a) * dist, d };
+};
+
+const BASE: Readonly<Record<ArcButton, ArcSpot>> = Object.freeze({
+  attack: { rx: ATK_R, by: ATK_R, d: ATK },
+  q: at(0, INNER, 60),
+  w: at(50, INNER, 60),
+  e: at(100, INNER, 60),
+  r: at(25, OUTER, 70),
+  trick: at(74, OUTER, 48),
+  nap: { rx: 216, by: 29, d: 46 },
+  // the optional last-hit and tower buttons (Settings, off by default)
+  lasthit: at(46, 222, 44),
+  tower: { rx: 6, by: 214, d: 44 },
+});
+
+/** The arc's scale for a viewport: 1 at 390 px of height, a little smaller on short phones, a little larger on tall ones. */
+export function arcScale(_vw: number, vh: number): number {
+  return Math.max(0.92, Math.min(1.12, vh / 390));
+}
+
+/** Every button's spot for a viewport (px); no button is under the 44 px touch minimum. */
+export function arcLayout(vw: number, vh: number): Record<ArcButton, ArcSpot> {
+  const k = arcScale(vw, vh);
+  const out = {} as Record<ArcButton, ArcSpot>;
+  for (const [id, s] of Object.entries(BASE) as [ArcButton, ArcSpot][]) out[id] = { rx: s.rx * k, by: s.by * k, d: Math.max(44, Math.round(s.d * k)) };
+  return out;
+}
+
+/** The inline style of one button: its box inside the cluster. */
+export function arcStyle(s: ArcSpot): { right: string; bottom: string; width: string; height: string } {
+  return { right: `${Math.round(s.rx - s.d / 2)}px`, bottom: `${Math.round(s.by - s.d / 2)}px`, width: `${s.d}px`, height: `${s.d}px` };
+}
+
+/** The smallest edge-to-edge gap between two buttons of a layout (px; negative = overlap). */
+export function minGap(l: Record<ArcButton, ArcSpot>, ids: readonly ArcButton[] = Object.keys(l) as ArcButton[]): { gap: number; a: ArcButton; b: ArcButton } {
+  let best = { gap: Infinity, a: ids[0], b: ids[0] };
+  for (let i = 0; i < ids.length; i++)
+    for (let j = i + 1; j < ids.length; j++) {
+      const p = l[ids[i]];
+      const q = l[ids[j]];
+      const gap = Math.hypot(p.rx - q.rx, p.by - q.by) - p.d / 2 - q.d / 2;
+      if (gap < best.gap) best = { gap, a: ids[i], b: ids[j] };
+    }
+  return best;
+}
