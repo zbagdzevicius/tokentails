@@ -690,6 +690,11 @@ export interface MenuOpts {
   onMute(m: boolean): void;
   onLeave(): void;
   /**
+   * Audit UX-03: Leave asks first; `leaveCounts` (from match 4, solo, off Rookie: the matches that offer Forfeit)
+   * says the leave is recorded as a forfeit loss.
+   */
+  leaveCounts?: boolean;
+  /**
    * GAPS B2: Forfeit, offered from match tick `from` (the menu opened at `tick`; before `from` the button is disabled
    * and names the time). Absent: no Forfeit button (matches 1–3, Rookie).
    */
@@ -730,12 +735,23 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     <button class="pl-btn big" data-a="forfeit-no">Keep playing</button>
     <button class="pl-btn ghost danger" data-a="forfeit-yes">Forfeit</button></div>`;
   };
+  // Audit UX-03: Leave was one free tap (nothing recorded); now a confirm step that says what it costs
+  const leaveAsk = (): void => {
+    root.innerHTML = `<div class="card pl-leave"><h2>Leave this match?</h2>
+    <p class="sub">${party ? 'You go back to your party. Bots take your place.' : o.leaveCounts ? 'It counts as a loss on your record, like a forfeit.' : 'This match is not saved.'}</p>
+    <button class="pl-btn big" data-a="leave-no">Keep playing</button>
+    <button class="pl-btn ghost danger" data-a="leave-yes">Leave match</button></div>`;
+  };
   main();
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'resume') o.onResume();
     else if (a === 'scores') o.onScores?.();
-    else if (a === 'leave') o.onLeave();
+    else if (a === 'leave') leaveAsk();
+    else if (a === 'leave-yes') o.onLeave();
+    else if (a === 'leave-no') {
+      main();
+    }
     else if (a === 'forfeit' && ffReady) {
       if (party) o.onForfeit?.();
       else confirm();

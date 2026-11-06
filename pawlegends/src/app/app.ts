@@ -973,8 +973,9 @@ export class App {
   private beginSession(Session: typeof MatchSession, setup: MatchSetup, c: Choice, veil: HTMLElement): void {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
-      onLeave: () => {
+      onLeave: (counted) => {
         if (setup.party) return this.backToParty();
+        if (counted) this.recordLeave(c, counted);
         this.session?.dispose();
         this.session = null;
         this.showTitle();
@@ -997,6 +998,18 @@ export class App {
     this.pendingPause = false;
     setTimeout(() => veil.classList.add('out'), 250);
     setTimeout(() => veil.remove(), 900);
+  }
+
+  /**
+   * Audit UX-03: from match 4 (solo, off Rookie) a Leave is recorded as a forfeit (client meta only, no sim op): a
+   * match and a loss on the profile, the full ladder loss, and match_end with reason 'leave' (the forfeit-rate
+   * measure saw nothing before). No Treat XP, quests or grade.
+   */
+  private recordLeave(c: Choice, at: { ticks: number; takedowns: number }): void {
+    const seconds = Math.floor(at.ticks / 30);
+    recordMatch(false, seconds, c.difficulty);
+    recordLadder({ won: false, difficulty: c.difficulty, hero: c.hero, heroName: HERO_TEXT[c.hero].title, seconds, takedowns: at.takedowns, grade: 'C', forfeit: true });
+    this.analytics.track('match_end', { result: 'lost', reason: 'leave', length: seconds, hero: c.hero, difficulty: c.difficulty, takedowns: at.takedowns, pl_match_len_s: seconds, pl_rookie: isRookie(c.difficulty) });
   }
 
   private showResults(e: MatchEnd): void {

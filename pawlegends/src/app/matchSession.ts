@@ -227,7 +227,8 @@ export interface MatchEnd {
 export interface SessionHooks {
   onEnd(e: MatchEnd): void;
   onTalent?(tier: number, choice: number): void;
-  onLeave(): void;
+  /** Audit UX-03: `counted` = this leave is recorded as a forfeit loss (`leaveCounts`), with the match so far. */
+  onLeave(counted?: { ticks: number; takedowns: number }): void;
   onMute(m: boolean): void;
   onError(msg: string): void;
   onPaused?(p: boolean): void;
@@ -1148,9 +1149,11 @@ export class MatchSession {
         this.muted = m;
         this.hooks.onMute(m);
       },
+      leaveCounts: this.leaveCounts(),
       onLeave: () => {
+        const counted = this.leaveCounts() ? { ticks: this.buffer.latest?.clock.tick ?? 0, takedowns: this.myTakedowns() } : undefined;
         this.resume();
-        this.hooks.onLeave();
+        this.hooks.onLeave(counted);
       },
       // GAPS B2: Forfeit (a confirm step in the menu); the sim ends the match on its next tick
       ...(this.setup.forfeitFrom ? { forfeit: { from: this.setup.forfeitFrom, tick: this.buffer.latest?.clock.tick ?? 0 }, onForfeit: () => this.forfeit() } : {}),
@@ -1166,6 +1169,16 @@ export class MatchSession {
           }
         : {}),
     });
+  }
+
+  /** Audit UX-03: a solo match that offers Forfeit (match 4 on, never Rookie) records a Leave as a forfeit loss. */
+  private leaveCounts(): boolean {
+    return !this.setup.party && !!this.setup.forfeitFrom;
+  }
+
+  /** The player's takedowns so far (kills + assists), for a leave recorded as a forfeit. */
+  private myTakedowns(): number {
+    return this.announcer?.takedowns ?? 0;
   }
 
   /** GAPS B2: send Op.Forfeit and unpause; the end arrives as a normal (lost, reason 'forfeit') match end. */
