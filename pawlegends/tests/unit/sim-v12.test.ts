@@ -44,7 +44,7 @@ function kill(m: MatchHandle, by: number, victim: number): void {
 const fishEvents = (m: MatchHandle): Extract<SimEvent, { type: 'fish' }>[] => m.events.filter((e): e is Extract<SimEvent, { type: 'fish' }> => e.type === 'fish');
 
 describe('sim v12 Fish (S1)', () => {
-  it('a lane minion pays its last hitter FISH.lastHitBp and each other hero in range FISH.nearBp (spec start: melee 12 → 7 and 4)', () => {
+  it('a lane minion pays its last hitter FISH.lastHitBp and each other hero in range FISH.nearBp (fun pass: 80% and 30%)', () => {
     const m = match();
     const w = m.world;
     const minion = putMinion(m, 1, MID.x, MID.y);
@@ -53,8 +53,10 @@ describe('sim v12 Fish (S1)', () => {
     w.lastHitBy[minion] = 0;
     w.hp[minion] = 0;
     resolveDeaths(m);
-    expect(applyBp(12, FISH.lastHitBp)).toBe(7);
-    expect(applyBp(12, FISH.nearBp)).toBe(4);
+    // fun pass (playtest #3): a last hit is worth 80% of the minion, a hero standing near gets 30% (60% / 40% before):
+    // +18 Fish for a melee last hit over standing near (+7 before)
+    expect([FISH.lastHitBp, FISH.nearBp]).toEqual([8000, 3000]);
+    expect(applyBp(FISH.minion[0], FISH.lastHitBp) - applyBp(FISH.minion[0], FISH.nearBp)).toBe(18);
     expect(w.fish[0]).toBe(applyBp(FISH.minion[0], FISH.lastHitBp));
     expect(w.fish[1]).toBe(applyBp(FISH.minion[0], FISH.nearBp));
     expect(w.fish[2]).toBe(0);
@@ -230,7 +232,7 @@ describe('sim v12 Fish (S1)', () => {
     }
   });
 
-  it('per-role power at level 6 (effective HP × damage a second × speed): each tier +5% to +15%, the full set within ±10% across roles', () => {
+  it('per-role power at level 6 (effective HP × damage a second × speed): each tier +10% to +25% (fun pass: bigger spikes), the full set within ±10% across roles', () => {
     const roles = new Map<HeroRole, number[]>();
     for (const hero of HERO_IDS) {
       const role = HEROES[hero].role;
@@ -255,8 +257,8 @@ describe('sim v12 Fish (S1)', () => {
     for (const [role, row] of roles) {
       for (let t = 1; t <= TOY_TIERS; t++) {
         const gain = row[t] / row[t - 1] - 1;
-        expect(gain, `${role} tier ${t}`).toBeGreaterThanOrEqual(0.05);
-        expect(gain, `${role} tier ${t}`).toBeLessThanOrEqual(0.15);
+        expect(gain, `${role} tier ${t}`).toBeGreaterThanOrEqual(0.1);
+        expect(gain, `${role} tier ${t}`).toBeLessThanOrEqual(0.25);
       }
       full.push(row[TOY_TIERS] / row[0]);
     }
@@ -453,5 +455,51 @@ describe('sim v12 input (S5)', () => {
 describe('sim v12 RANGE sanity', () => {
   it('heroes keep ids 0..5', () => {
     expect(RANGE.minions - RANGE.heroes).toBe(6);
+  });
+});
+
+describe('sim v12 fun pass (playtest round)', () => {
+  it('a victim on a death streak is worth less kill XP (75% from the 3rd death in a row, 50% from the 5th), as its Fish', () => {
+    const xpOf = (deathStreak: number): number => {
+      const m = match();
+      const w = m.world;
+      w.deathStreak[0] = deathStreak;
+      setLevel(m, 0, 3);
+      setLevel(m, 3, 3);
+      place(m, 3, MID.x, MID.y, 0);
+      place(m, 0, MID.x + 1000, MID.y, 0);
+      // nobody else near: the killer takes the whole kill XP
+      for (const id of [1, 2, 4, 5]) place(m, id, MID.x + (id < 3 ? -40000 : 40000), MID.y, 0);
+      const before = w.xp[3];
+      kill(m, 3, 0);
+      return w.xp[3] - before;
+    };
+    const full = XP.killBase + XP.killPerLevel * 3;
+    expect(xpOf(0)).toBe(full);
+    expect(xpOf(1)).toBe(full);
+    expect(xpOf(FISH.killRepeatFrom)).toBe(applyBp(full, XP.killRepeatXpBp));
+    expect(xpOf(FISH.killFedFrom)).toBe(applyBp(full, XP.killFedXpBp));
+  });
+
+  it('a struggling human (3rd death in a row) respawns at RESPAWN.humanStreakBp without lead pressure; bots and a first death keep it', () => {
+    const waitOf = (id: number, deathStreak: number, difficulty: 'normal' | 'rookie' = 'normal'): number => {
+      const m = quietMatch(2, false, difficulty);
+      const w = m.world;
+      w.globals[G.Tick] = 6000;
+      // the human's team is 8 takedowns behind (lead pressure on Normal)
+      w.globals[w.team[id] === 0 ? G.Kills1 : G.Kills0] = 8;
+      setLevel(m, id, 6);
+      w.deathStreak[id] = deathStreak;
+      w.hp[id] = 0;
+      resolveDeaths(m);
+      return w.timer[id];
+    };
+    const level = respawnTicks(6, 6000, TIMELINE_BY.normal.sunset);
+    expect(waitOf(0, RESPAWN.humanStreakFrom)).toBe(applyBp(level, RESPAWN.humanStreakBp));
+    // a first death, and an ally bot on a streak: the lead pressure as before (longer than the level wait)
+    expect(waitOf(0, 0)).toBeGreaterThan(level);
+    expect(waitOf(1, RESPAWN.humanStreakFrom)).toBeGreaterThan(level);
+    // Rookie keeps its own human respawn rule
+    expect(waitOf(0, RESPAWN.humanStreakFrom, 'rookie')).toBe(waitOf(0, 0, 'rookie'));
   });
 });

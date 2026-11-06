@@ -48,7 +48,7 @@ var DIFFICULTY_RULES = Object.freeze({
 		campBehindBp: 15e3,
 		forfeitFrom: 0,
 		catchUpFrom: 0,
-		enemyFishBp: 7e3
+		enemyFishBp: 8500
 	}),
 	easy: Object.freeze({
 		coreOpenAt: 10800,
@@ -81,14 +81,14 @@ var DIFFICULTY_RULES = Object.freeze({
 		takedownChipCapBp: 0,
 		takedownTowerChipBp: 0,
 		truceUntil: 1200,
-		enemyAheadXpBp: 1e4,
+		enemyAheadXpBp: 8500,
 		humanDeathCore: true,
 		catchUpPerLevelBp: 3500,
 		catchUpMaxBp: 7500,
 		campBehindBp: 15e3,
 		forfeitFrom: 5400,
 		catchUpFrom: 0,
-		enemyFishBp: 9500
+		enemyFishBp: 1e4
 	}),
 	/**
 	* Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
@@ -184,7 +184,7 @@ var DIFFICULTY_RULES = Object.freeze({
 		takedownChipCapBp: 2e3,
 		takedownTowerChipBp: 2e3,
 		truceUntil: 900,
-		enemyAheadXpBp: 1e4,
+		enemyAheadXpBp: 8500,
 		humanDeathCore: true,
 		catchUpPerLevelBp: 3500,
 		catchUpMaxBp: 7500,
@@ -3057,6 +3057,11 @@ var XP = Object.freeze({
 	*  +75%. Sim v10 (GAPS B3): the rate and cap are DifficultyRules.catchUpPerLevelBp / catchUpMaxBp.
 	*  The first level behind earns no catch-up (a small team lead stays a lead). */
 	catchUpFreeLevels: 1,
+	/** Fun pass (playtest #2: a fed player's enemies ran to level 9 by 3:35): a victim that died FISH.killRepeatFrom+
+	*  times in a row gives this share of its kill XP (bounty not included), FISH.killFedFrom+ times killFedXpBp, as the
+	*  kill Fish already does. */
+	killRepeatXpBp: 7500,
+	killFedXpBp: 5e3,
 	/** A victim more than one level above its killer gives +50% kill XP. */
 	upsetBp: 15e3,
 	/** Sim v7 rubber band (DifficultyRules.enemyAheadXpBp): enemy heroes this many levels above the human. */
@@ -3093,7 +3098,15 @@ var RESPAWN = Object.freeze({
 	*/
 	gapFree: 2,
 	gapPerBp: 800,
-	gapCapBp: 6400
+	gapCapBp: 6400,
+	/**
+	* Fun pass (playtest #10: a struggling player spent 19% to 24% of the match dead, respawns 10.6 s to 15.2 s): from
+	* the human's humanStreakFrom-th death in a row (deathStreak before this death, so the third) its wait is
+	* humanStreakBp of the level wait, without the lead pressure above (not on Rookie: DifficultyRules.humanRespawnBp).
+	* A plain human death keeps the pressure, so the balance gates (a Normal-level player) do not move.
+	*/
+	humanStreakFrom: 2,
+	humanStreakBp: 7e3
 });
 /**
 * Zoomies (v4): +80% move speed for 6 s after leaving the fountain or respawning (it refreshes while the hero stands
@@ -3923,12 +3936,12 @@ var ZONE_KIND = Object.freeze({
 });
 //#endregion
 //#region src/data/toys.ts
-/** Step cost of tier 1..4 (index 0..3): 500, 1200, 2000 and 3000 Fish cumulative. */
+/** Step cost of tier 1..4 (index 0..3): 550, 1300, 2200 and 3150 Fish cumulative (fun pass; 500, 1200, 2000, 3000 before). */
 var TOY_COST = Object.freeze([
-	500,
-	700,
-	800,
-	1e3
+	550,
+	750,
+	900,
+	950
 ]);
 var t = (dmgBp, hpLevels, asBp, speedBp) => Object.freeze({
 	dmgBp,
@@ -3939,40 +3952,40 @@ var t = (dmgBp, hpLevels, asBp, speedBp) => Object.freeze({
 /** What each tier adds, per role (index 0 = tier 1). */
 var TOY_TIER = Object.freeze({
 	fighter: Object.freeze([
-		t(800, 0, 0, 0),
-		t(0, 1, 300, 0),
-		t(800, 0, 0, 0),
-		t(600, 1, 0, 0)
+		t(1400, 0, 0, 0),
+		t(0, 2, 500, 0),
+		t(1300, 0, 0, 0),
+		t(1e3, 2, 0, 0)
 	]),
 	marksman: Object.freeze([
-		t(0, 0, 900, 0),
-		t(800, 0, 0, 0),
-		t(0, 0, 500, 400),
-		t(1e3, 0, 0, 0)
+		t(0, 0, 1500, 0),
+		t(1400, 0, 0, 0),
+		t(0, 0, 800, 700),
+		t(1700, 0, 0, 0)
 	]),
 	tank: Object.freeze([
+		t(0, 3, 0, 0),
+		t(500, 2, 0, 0),
 		t(0, 2, 0, 0),
-		t(300, 1, 0, 0),
-		t(0, 2, 0, 0),
-		t(0, 2, 0, 400)
+		t(0, 3, 0, 600)
 	]),
 	assassin: Object.freeze([
-		t(900, 0, 0, 0),
-		t(500, 0, 0, 600),
-		t(1e3, 0, 0, 0),
-		t(1200, 0, 0, 0)
+		t(1500, 0, 0, 0),
+		t(800, 0, 0, 1e3),
+		t(1700, 0, 0, 0),
+		t(2e3, 0, 0, 0)
 	]),
 	mage: Object.freeze([
-		t(800, 0, 0, 0),
-		t(600, 1, 0, 0),
-		t(800, 0, 0, 0),
-		t(1e3, 0, 0, 0)
+		t(1400, 0, 0, 0),
+		t(1e3, 2, 0, 0),
+		t(1300, 0, 0, 0),
+		t(1700, 0, 0, 0)
 	]),
 	support: Object.freeze([
-		t(300, 1, 0, 0),
-		t(500, 0, 0, 400),
-		t(0, 2, 0, 0),
-		t(500, 1, 0, 0)
+		t(500, 2, 0, 0),
+		t(800, 0, 0, 700),
+		t(0, 3, 0, 0),
+		t(800, 2, 0, 0)
 	])
 });
 /**
@@ -3982,45 +3995,45 @@ var TOY_TIER = Object.freeze({
 var TOY_SUM = Object.freeze({
 	fighter: Object.freeze([
 		t(0, 0, 0, 0),
-		t(800, 0, 0, 0),
-		t(800, 1, 300, 0),
-		t(1600, 1, 300, 0),
-		t(2200, 2, 300, 0)
+		t(1400, 0, 0, 0),
+		t(1400, 2, 500, 0),
+		t(2700, 2, 500, 0),
+		t(3700, 4, 500, 0)
 	]),
 	marksman: Object.freeze([
 		t(0, 0, 0, 0),
-		t(0, 0, 900, 0),
-		t(800, 0, 900, 0),
-		t(800, 0, 1400, 400),
-		t(1800, 0, 1400, 400)
+		t(0, 0, 1500, 0),
+		t(1400, 0, 1500, 0),
+		t(1400, 0, 2300, 700),
+		t(3100, 0, 2300, 700)
 	]),
 	tank: Object.freeze([
 		t(0, 0, 0, 0),
-		t(0, 2, 0, 0),
-		t(300, 3, 0, 0),
-		t(300, 5, 0, 0),
-		t(300, 7, 0, 400)
+		t(0, 3, 0, 0),
+		t(500, 5, 0, 0),
+		t(500, 7, 0, 0),
+		t(500, 10, 0, 600)
 	]),
 	assassin: Object.freeze([
 		t(0, 0, 0, 0),
-		t(900, 0, 0, 0),
-		t(1400, 0, 0, 600),
-		t(2400, 0, 0, 600),
-		t(3600, 0, 0, 600)
+		t(1500, 0, 0, 0),
+		t(2300, 0, 0, 1e3),
+		t(4e3, 0, 0, 1e3),
+		t(6e3, 0, 0, 1e3)
 	]),
 	mage: Object.freeze([
 		t(0, 0, 0, 0),
-		t(800, 0, 0, 0),
-		t(1400, 1, 0, 0),
-		t(2200, 1, 0, 0),
-		t(3200, 1, 0, 0)
+		t(1400, 0, 0, 0),
+		t(2400, 2, 0, 0),
+		t(3700, 2, 0, 0),
+		t(5400, 2, 0, 0)
 	]),
 	support: Object.freeze([
 		t(0, 0, 0, 0),
-		t(300, 1, 0, 0),
-		t(800, 1, 0, 400),
-		t(800, 3, 0, 400),
-		t(1300, 4, 0, 400)
+		t(500, 2, 0, 0),
+		t(1300, 2, 0, 700),
+		t(1300, 5, 0, 700),
+		t(2100, 7, 0, 700)
 	])
 });
 /** Tiers owned (0..4) that add no HP, per role: what the bots' fight check counts (BOT_AI.powerPerToy). */
@@ -4726,10 +4739,13 @@ var FISH = Object.freeze({
 		27,
 		75
 	]),
-	/** The hero who landed the last hit takes this share of the minion's value. */
-	lastHitBp: 6e3,
-	/** Every other hero of that team within WAVE.xpRange takes this share (each, not split). */
-	nearBp: 4e3,
+	/** The hero who landed the last hit takes this share of the minion's value. Fun pass (playtest #3: a last hit was
+	*  worth +7 Fish over standing near, so the trickle was half a casual player's Fish): 80% (60% before), so a melee
+	*  last hit is +18 over standing near. The full value (near 25%) let the ranged-heavy cat roster out-farm the dogs
+	*  (balance gate cats 53.4%, 47% to 53%). */
+	lastHitBp: 8e3,
+	/** Every other hero of that team within WAVE.xpRange takes this share (each, not split). Fun pass: 30% (40%). */
+	nearBp: 3e3,
 	/** Hero kill value (killer); 80 when the victim died 2+ times in a row, 50 at 4+ (deathStreak). */
 	kill: 120,
 	killRepeat: 80,
@@ -7950,6 +7966,9 @@ function heroKilled(m, victim) {
 	const bounty = bountyOf(w.killStreak[victim]);
 	let reward = XP.killBase + XP.killPerLevel * w.level[victim];
 	if (killer >= 0 && w.level[victim] > w.level[killer] + 1) reward = applyBp(reward, XP.upsetBp);
+	const ds = w.deathStreak[victim];
+	if (ds >= FISH.killFedFrom) reward = applyBp(reward, XP.killFedXpBp);
+	else if (ds >= FISH.killRepeatFrom) reward = applyBp(reward, XP.killRepeatXpBp);
 	reward += bounty;
 	const nearAssists = rulesOf(m).nearAssists;
 	const r2 = XP.shareRange * XP.shareRange;
@@ -8710,7 +8729,9 @@ function resolveDeaths(m) {
 			m.stats[id].deaths++;
 			const enemy = 1 - w.team[id];
 			w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
-			if (rulesOf(m).leadPressure) {
+			const struggling = id === 0 && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= 1e4;
+			if (struggling) w.timer[id] = Math.max(1, applyBp(w.timer[id], RESPAWN.humanStreakBp));
+			if (rulesOf(m).leadPressure && !struggling) {
 				const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;
 				if (gap > 0) w.timer[id] = applyBp(w.timer[id], BP_ONE + Math.min(RESPAWN.gapCapBp, gap * RESPAWN.gapPerBp));
 			}

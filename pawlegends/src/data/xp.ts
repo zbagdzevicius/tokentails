@@ -27,6 +27,11 @@ export const XP = Object.freeze({
    *  +75%. Sim v10 (GAPS B3): the rate and cap are DifficultyRules.catchUpPerLevelBp / catchUpMaxBp.
    *  The first level behind earns no catch-up (a small team lead stays a lead). */
   catchUpFreeLevels: 1,
+  /** Fun pass (playtest #2: a fed player's enemies ran to level 9 by 3:35): a victim that died FISH.killRepeatFrom+
+   *  times in a row gives this share of its kill XP (bounty not included), FISH.killFedFrom+ times killFedXpBp, as the
+   *  kill Fish already does. */
+  killRepeatXpBp: 7500,
+  killFedXpBp: 5000,
   /** A victim more than one level above its killer gives +50% kill XP. */
   upsetBp: 15000,
   /** Sim v7 rubber band (DifficultyRules.enemyAheadXpBp): enemy heroes this many levels above the human. */
@@ -67,6 +72,14 @@ export const RESPAWN = Object.freeze({
   gapFree: 2,
   gapPerBp: 800,
   gapCapBp: 6400,
+  /**
+   * Fun pass (playtest #10: a struggling player spent 19% to 24% of the match dead, respawns 10.6 s to 15.2 s): from
+   * the human's humanStreakFrom-th death in a row (deathStreak before this death, so the third) its wait is
+   * humanStreakBp of the level wait, without the lead pressure above (not on Rookie: DifficultyRules.humanRespawnBp).
+   * A plain human death keeps the pressure, so the balance gates (a Normal-level player) do not move.
+   */
+  humanStreakFrom: 2,
+  humanStreakBp: 7000,
 });
 
 /**
