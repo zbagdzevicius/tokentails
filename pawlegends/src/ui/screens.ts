@@ -439,6 +439,8 @@ export interface ResultsOpts {
   speed?: number;
   onAgain(): void;
   onChange(): void;
+  /** Audit UX-08: Home (the lobby) from the results, top right. */
+  onHome?(): void;
   /** `text`: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!"), sent with the link to the share sheet (PUB-06). */
   onShare(url: string, text: string): void;
   onStore?(): void;
@@ -518,12 +520,29 @@ function resultTable(rows: readonly ResultRow[]): string {
  *  sim v12: Rookie 6:30, Easy 7:45, Normal and Hard 8:30): after it the clock, not the player, ends the match. */
 export const SUDDEN_DEATH_S = 600;
 
+/**
+ * Audit GP-05: below this share of the team's takedowns (K + A over the team's) and of its hero damage, a win says
+ * "jump into a fight", not "with your help" (an idle player won 50.5% of match 1 and only 4 of 101 such wins had 0
+ * hero damage, so the old "0 damage" rule praised waiting).
+ */
+export const FIGHT_SHARE = Object.freeze({ kp: 0.25, heroDmg: 0.15 });
+
+/** Did the player take a real part in the fights? From the results table's own team rows when present. Pure. */
+export function joinedFights(o: Pick<ResultsOpts, 'kills' | 'assists' | 'teamKills' | 'heroDamage' | 'table'>): boolean {
+  const team = (o.table ?? []).filter((r) => r.rel === 'self' || r.rel === 'ally');
+  const self = team.find((r) => r.rel === 'self');
+  if (!self) return o.heroDamage !== undefined ? o.heroDamage > 0 : o.kills > 0;
+  const dmg = team.reduce((a, r) => a + r.heroDmg, 0);
+  const kp = (self.k + self.a) / Math.max(1, o.teamKills[0]);
+  return kp >= FIGHT_SHARE.kp || (dmg > 0 && self.heroDmg / dmg >= FIGHT_SHARE.heroDmg);
+}
+
 /** The line under Victory / Defeat, chosen by the margin (a 1–14 loss is not "so close"). Pure. */
-export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty' | 'heroDamage'>): string {
+export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty' | 'heroDamage'> & Partial<Pick<ResultsOpts, 'assists' | 'table'>>): string {
   const [ours, theirs] = o.teamKills;
   if (o.won) {
-    // only when the player really stayed out of every fight (real stats, not just no takedowns)
-    if (o.heroDamage !== undefined ? o.heroDamage === 0 : o.kills === 0) return 'Your team took the core. Next time, jump into a fight!';
+    // GP-05: only a real part in the fights earns "with your help" (a share of the team's takedowns or hero damage)
+    if (!joinedFights(o)) return 'Your team took the core. Next time, jump into a fight!';
     if (o.kills === 0) return 'Your team took the core, with your help.';
     return ours - theirs >= 6 ? 'A clean sweep. The core is yours.' : 'The core is yours.';
   }
@@ -579,6 +598,24 @@ function gradeBlock(g: ResultGrade, won: boolean): string {
   </div>`;
 }
 
+/**
+ * Audit UX-04: the rewards pinned beside Run it back (on phones the Treat Track, chest and share sat 600 px below the
+ * fold): the grade, the Treat XP bar, a chest toast and the dare link. The full blocks stay in the column.
+ */
+export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'>): string {
+  const parts: string[] = [];
+  if (o.grade) parts.push(`<span class="rw-grade" data-grade="${o.grade.grade}" title="Grade ${o.grade.grade}"><b>${o.grade.grade}</b><small>Grade</small></span>`);
+  const t = o.treats;
+  if (t) {
+    const pct = (v: number): string => `${Math.round(v * 100)}%`;
+    const opened = t.rewards.length > 0;
+    parts.push(`<span class="rw-treat" style="--from:${pct(t.before)};--to:${pct(opened ? 1 : t.after)}"><small>+${t.gained} Treat XP</small><i class="bar"><i class="fill"></i></i></span>`);
+    if (opened) parts.push(`<span class="rw-chest">${icon('crown')}<span><b>Chest opened</b><small>${esc(t.rewards.map((r) => r.name).join(', '))}</small></span></span>`);
+  }
+  if (o.dareLink) parts.push(`<button class="pl-btn ghost small rw-share" data-a="share" title="Copy dare link">Dare a friend</button>`);
+  return parts.length ? `<div class="pl-reward" data-reward>${parts.join('')}</div>` : '';
+}
+
 function treatBlock(t: TreatGain): string {
   const pct = (v: number): string => `${Math.round(v * 100)}%`;
   const opened = t.rewards.length > 0;
@@ -630,6 +667,8 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
     ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
+    ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-home" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
+    ${o.party ? '' : rewardStrip(o)}
     ${
       o.party
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">Leave party</button><button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button><button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
@@ -640,12 +679,12 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     if (a === 'again') o.onAgain();
     else if (a === 'change') o.onChange();
     else if (a === 'leave-party') o.party?.onLeave();
+    else if (a === 'home') o.onHome?.();
     else if (a === 'store') o.onStore?.();
     else if (a === 'notify') o.onNotify?.();
     else if (a === 'share' && o.dareLink) {
       o.onShare(o.dareLink, dareLine);
-      const b = root.querySelector('[data-a="share"]') as HTMLElement;
-      b.textContent = 'Link copied!';
+      for (const b of root.querySelectorAll<HTMLElement>('[data-a="share"]')) b.textContent = 'Link copied!';
     }
   });
   parent.appendChild(root);

@@ -744,7 +744,12 @@ export class App {
           sfx.play('click');
           this.startMatch(c);
         },
-        onBack: () => this.showTitle(),
+        onBack: () => {
+          // Audit UX-08: Back from a "Try <hero>" pick goes home on the hero the player had, not the teased one
+          if (this.beforeTry) this.choice = { ...this.choice, hero: this.beforeTry.hero, trick: this.beforeTry.trick };
+          this.beforeTry = null;
+          this.showTitle();
+        },
         difficulties: pickable(),
         difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `Easy bots. More bots after ${PICK_DIFFICULTY_FROM} matches.`,
         numbers: p.numbers,
@@ -889,6 +894,7 @@ export class App {
   }
 
   private startMatch(pick: Choice, seed?: number): void {
+    this.beforeTry = null;
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
     // a dare keeps its own bots (the seed and the difficulty make the dare)
@@ -963,6 +969,9 @@ export class App {
         this.showTitle();
       });
   }
+
+  /** Audit UX-08: the hero and trick before the results' "Try <hero>" swapped them in (Back on the pick restores them). */
+  private beforeTry: { hero: HeroId; trick: Choice['trick'] } | null = null;
 
   /** A newer startMatch call wins over a match chunk still loading. */
   private matchToken = 0;
@@ -1151,7 +1160,7 @@ export class App {
     // Lane F (F5): the progression summary from the sim's own stats (sim v12) and the player's Fish events
     const medalOf = medals(e.result.stats, grades.slots, grades.mvp);
     const progress = e.result.stats.some((st) => typeof st.fish === 'number')
-      ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
+      ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf, (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null))), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
       : null;
     const resultsEl = resultsScreen(this.root, {
         won,
@@ -1222,8 +1231,15 @@ export class App {
           if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
           const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;
+          this.beforeTry = tease ? { hero: this.choice.hero, trick: this.choice.trick } : null;
           this.choice = { ...this.choice, difficulty: keep, ...(tease ? { hero: tease } : {}) };
           this.showPick();
+        },
+        // Audit UX-08: Home from the results (the lobby, on the hero just played)
+        onHome: () => {
+          sfx.play('click');
+          if (partyEnd) return this.backToParty();
+          this.showTitle();
         },
         onShare: (url, text) => {
           try {
