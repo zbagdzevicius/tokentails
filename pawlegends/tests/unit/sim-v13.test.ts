@@ -5,8 +5,9 @@
 import { describe, expect, it } from 'vitest';
 import { HERO_IDS, HEROES } from '../../src/data/heroes';
 import { PROJECTILE_KIND } from '../../src/data/towers';
-import type { HeroId, TrickId } from '../../src/sim/api';
-import { createMatch, fillPicks, hash, hashTrail, result, step } from '../../src/sim/index';
+import { BuffFlag, type HeroId, type TrickId } from '../../src/sim/api';
+import type { MatchHandle } from '../../src/sim/state';
+import { createMatch, fillPicks, hash, hashTrail, result, snapshot, step } from '../../src/sim/index';
 import { Rng } from '../../src/sim/rng';
 import { SIM_VERSION } from '../../src/sim/version';
 import { randomCommand } from './helpers';
@@ -86,5 +87,23 @@ describe('sim v13: the dogs', { timeout: 300000 }, () => {
       }
     }
     expect([...seen].sort()).toEqual(['bigdog', 'flop', 'frozen', 'scream']);
+  });
+
+  it('Bravo\'s spotlight and Marshmallow\'s blizzard centre never show as a shield or a block (kHonour, kWT)', () => {
+    const picks: HeroId[] = ['bravo', 'marshmallow', 'chili', 'bravo', 'marshmallow', 'chili'];
+    const m = createMatch({ seed: 9, picks, tricks: ['pounce', 'pounce', 'pounce', 'pounce', 'pounce', 'pounce'], difficulty: 'hard' });
+    const w = (m as unknown as MatchHandle).world;
+    let spots = 0;
+    for (let t = 0; t < 30 * 60 * 6 && !result(m); t++) {
+      step(m);
+      for (let id = 0; id < 6; id++) {
+        if (w.kHonour[id] > 0) spots++;
+        const e = snapshot(m, 0).entities.find((x) => x.id === id);
+        if (!e) continue;
+        expect(e.shield, `${e.hero} shield`).toBeLessThanOrEqual(e.maxHp);
+        if (e.hero === 'bravo' || e.hero === 'chili') expect(e.buffs & BuffFlag.Blocking, `${e.hero} blocking`).toBe(0);
+      }
+    }
+    expect(spots).toBeGreaterThan(0);
   });
 });

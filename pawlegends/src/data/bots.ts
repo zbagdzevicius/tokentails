@@ -493,6 +493,10 @@ export const BOT_AI = Object.freeze({
   chiliBrawlRange: 6000,
   chiliFinishHpBp: 5000,
   chiliZoomRange: 2500,
+  /** Sim v13 QA: Chili also hides when a foe has him targeted below this (his E went unused in 38% of Easy slots);
+   *  Nugget also herds one foe below nuggetHerdFinishHpBp toward an ally (his R was cast half as often as others'). */
+  chiliFocusHpBp: 6000,
+  nuggetHerdFinishHpBp: 4500,
   howlerScreamReach: 5000,
   howlerTalkRange: 3000,
   howlerTalkHpBp: 6000,

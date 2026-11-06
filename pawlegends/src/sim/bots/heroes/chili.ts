@@ -27,7 +27,10 @@ export function fight(w: World, id: number, foe: number, p: BotParams, rng: Rng)
   const d = distTo(w, id, foe);
   const fx = w.x[foe];
   const fy = w.y[foe];
-  if (canCast(w, id, 2) && hpBp(w, id) < BOT_AI.chiliPurseHpBp && d <= BOT_AI.chiliClose) return cast(2, w.x[id], w.y[id], NO_TARGET);
+  if (canCast(w, id, 2) && d <= BOT_AI.chiliClose) {
+    const hp = hpBp(w, id);
+    if (hp < BOT_AI.chiliPurseHpBp || (hp < BOT_AI.chiliFocusHpBp && w.target[foe] === id)) return cast(2, w.x[id], w.y[id], NO_TARGET);
+  }
   if (canCast(w, id, 3)) {
     const brawl = w.kValor[id] >= BOT_AI.chiliBigRage && foesNear(w, id, w.x[id], w.y[id], BOT_AI.chiliBrawlRange) >= 2;
     const finish = hpBp(w, foe) < BOT_AI.chiliFinishHpBp && d <= attackRange(w, id) + RANGE_PAD;
