@@ -196,6 +196,34 @@ export interface PawlegendsSaveResult {
   code?: string;
 }
 
+/**
+ * Party play (docs/plans/moba/MULTIPLAYER.md §6): the v:2 result of a party match. The backend checks it against the
+ * room log its relay stored (one write path, `POST /user/catbassadors/live`); the client sends nothing else.
+ */
+export interface PawlegendsPartyResult {
+  v: 2;
+  room: string;
+  slot: number;
+  simVersion: number;
+  ticks: number;
+  outcome: "won" | "lost";
+  finalHash: string;
+}
+
+/** A party ticket as the backend mints it: base64url(payload) "." base64url(HMAC-SHA256). Never logged. */
+const PARTY_TICKET = /^[A-Za-z0-9_-]{16,460}\.[A-Za-z0-9_-]{43}$/;
+export const isPartyTicket = (value: unknown): value is string => typeof value === "string" && PARTY_TICKET.test(value);
+
+/** A clean v:2 party result, or null. */
+export function partyResultOf(value: unknown): PawlegendsPartyResult | null {
+  if (!isRecord(value) || value.v !== 2) return null;
+  const { room, slot, simVersion, ticks, outcome, finalHash } = value;
+  if (!isMatchId(room) || !intIn(slot, 0, 2) || !intIn(simVersion, 1, 1_000_000) || !intIn(ticks, 1, PAWLEGENDS_MAX_TICKS)) return null;
+  if (outcome !== "won" && outcome !== "lost") return null;
+  if (typeof finalHash !== "string" || !/^[0-9a-f]{8}$/.test(finalHash)) return null;
+  return { v: 2, room, slot, simVersion, ticks, outcome, finalHash };
+}
+
 export interface PawlegendsAudio {
   muted: boolean;
   music?: number;
@@ -217,6 +245,7 @@ export type HostToPawlegendsMessage = Envelope &
     | { type: "purchase-result"; catalogId: string; ok: boolean }
     | { type: "app"; isApp: boolean; store: boolean; notify: boolean }
     | { type: "champions"; cats: PawlegendsChampionCard[] }
+    | { type: "party-ticket"; id: string; ticket: string | null; error?: string }
   );
 
 export type PawlegendsToHostMessage =
@@ -232,7 +261,9 @@ export type PawlegendsToHostMessage =
   | { type: "champion-offer"; catalogId: string }
   | { type: "skin-preview"; catalogId: string }
   | ({ type: "client-error" } & PawlegendsClientError)
-  | { type: "analytics"; event: PawlegendsGameEventName; props: PawlegendsGameProps };
+  | { type: "analytics"; event: PawlegendsGameEventName; props: PawlegendsGameProps }
+  | { type: "party-ticket-request"; id: string }
+  | { type: "party-result"; matchId: string; result: PawlegendsPartyResult };
 
 /** Relayed game events a page sends at most (PUB-02): a runaway loop must not flood PostHog. About 15 per match. */
 export const PAWLEGENDS_GAME_EVENT_BUDGET = 1000;
@@ -476,6 +507,14 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
       }
       return { ...base, type: "champions", cats };
     }
+    case "party-ticket": {
+      // Party play (MULTIPLAYER.md §5.3): the answer to the game's `party-ticket-request`; null ticket = unscored guest.
+      if (!isMatchId(data.id)) return null;
+      if (data.ticket !== null && !isPartyTicket(data.ticket)) return null;
+      const message: HostToPawlegendsMessage = { ...base, type: "party-ticket", id: data.id, ticket: data.ticket };
+      if (data.ticket === null && typeof data.error === "string" && ERROR_CODE.test(data.error)) message.error = data.error;
+      return message;
+    }
     case "app":
       if (typeof data.isApp !== "boolean" || typeof data.store !== "boolean") return null;
       return {
@@ -504,6 +543,10 @@ export function hostMessage(type: "offer", payload: { offer: PawlegendsMeetOffer
 export function hostMessage(type: "save-result", payload: PawlegendsSaveResult): HostToPawlegendsMessage | null;
 export function hostMessage(type: "entitlements", payload: { token: string | null }): HostToPawlegendsMessage;
 export function hostMessage(type: "audio", payload: PawlegendsAudio): HostToPawlegendsMessage;
+export function hostMessage(
+  type: "party-ticket",
+  payload: { id: string; ticket: string | null; error?: string }
+): HostToPawlegendsMessage | null;
 export function hostMessage(
   type: "purchase-result",
   payload: { catalogId: string; ok: boolean }
@@ -614,6 +657,13 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
         intIn(data.sim, 1, 999)
         ? { type: "client-error", source: data.source, msg: data.msg, screen: data.screen, tier: data.tier, sim: data.sim }
         : null;
+    case "party-ticket-request":
+      return isMatchId(data.id) ? { type: "party-ticket-request", id: data.id } : null;
+    case "party-result": {
+      const result = partyResultOf(data.result);
+      // the save chip follows the room id: a result for another id is refused
+      return result && data.matchId === result.room ? { type: "party-result", matchId: result.room, result } : null;
+    }
     case "analytics": {
       if (!oneOf(PAWLEGENDS_GAME_EVENTS, data.event)) return null;
       const props = gamePropsOf(data.props);
@@ -671,6 +721,13 @@ export interface PawlegendsBridgeHandlers {
   onClientError?(error: PawlegendsClientError): void;
   /** One of the game's analytics events (PUB-02), cleaned; at most `PAWLEGENDS_GAME_EVENT_BUDGET` a page. */
   onGameEvent?(event: PawlegendsGameEventName, props: PawlegendsGameProps): void;
+  /**
+   * Party play (MULTIPLAYER.md §5.3): the game asks for a party ticket. The host mints it with its own session
+   * (`POST /pawlegends/party/ticket`, its `accesstoken`) and answers with `partyTicket`; the token never crosses.
+   */
+  onPartyTicketRequest?(id: string): void;
+  /** Party play (§6): a party match ended; the host posts the v:2 result to `/live` and answers with `saveResult`. */
+  onPartyResult?(result: PawlegendsPartyResult, matchId: string): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
@@ -687,6 +744,8 @@ export interface PawlegendsBridge {
   setAudio(audio: PawlegendsAudio): void;
   setApp(isApp: boolean, store: boolean, notify: boolean): void;
   saveResult(result: PawlegendsSaveResult): void;
+  /** The answer to `party-ticket-request` (only while the game is ready: a ticket lives 60 s, it is never queued). */
+  partyTicket(id: string, ticket: string | null, error?: string): void;
   purchaseResult(catalogId: string, ok: boolean): void;
   pause(): void;
   resume(): void;
@@ -845,6 +904,12 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
           sim: message.sim,
         });
         break;
+      case "party-ticket-request":
+        handlers.onPartyTicketRequest?.(message.id);
+        break;
+      case "party-result":
+        handlers.onPartyResult?.(message.result, message.matchId);
+        break;
       case "analytics":
         if (gameEvents >= PAWLEGENDS_GAME_EVENT_BUDGET) break;
         gameEvents += 1;
@@ -917,6 +982,10 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         pendingSaves.push(message);
         while (pendingSaves.length > PENDING_SAVE_RESULTS) pendingSaves.shift();
       }
+    },
+    partyTicket(id, ticket, error) {
+      const message = hostMessage("party-ticket", { id, ticket, ...(error ? { error } : {}) });
+      if (ready && message) post(message);
     },
     purchaseResult(catalogId, ok) {
       const message = hostMessage("purchase-result", { catalogId, ok });

@@ -8,7 +8,7 @@ import { getPlatform } from "@/analytics/platform";
 import { GameType } from "@/models/game";
 import { errorCodeOf, type ErrorCode } from "@/shared-contracts/errors";
 import type { HeistRunLog } from "@/shared-contracts/heist-bridge";
-import type { PawlegendsReplay } from "@/components/pawlegends/bridge";
+import type { PawlegendsPartyResult, PawlegendsReplay } from "@/components/pawlegends/bridge";
 import {
   ApiError,
   apiFetch,
@@ -357,7 +357,8 @@ export interface HeistMatch {
  */
 export interface PawlegendsMatch {
   type: typeof GameType.PAWLEGENDS;
-  pawlegends: PawlegendsReplay;
+  /** A solo replay (v:1, re-simulated), or a party result (v:2, checked against the relay's stored room log). */
+  pawlegends: PawlegendsReplay | PawlegendsPartyResult;
   platform?: IMatch["platform"];
 }
 
@@ -411,6 +412,39 @@ const saveMatchDetailed = async (
     if (wait > 0 && Number.isFinite(wait)) result.retryAfter = wait;
   }
   return result;
+};
+
+/** What `pawlegendsPartyTicket` reports: the ticket, or the HTTP status and code (0 for a network failure). */
+export interface PartyTicketResult {
+  ticket: string | null;
+  status: number;
+  code: ErrorCode | null;
+}
+
+/**
+ * `POST /pawlegends/party/ticket` (MULTIPLAYER.md §5.2): a 60 s single-use party ticket for the caller (an account or
+ * a guest: a 428 creates the guest session once, like a save). Never throws; the ticket is handed to the game and
+ * never stored or logged. 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE` means the backend has no ticket secret: the game
+ * then plays as an unscored guest.
+ */
+const pawlegendsPartyTicket = async (options: { signal?: AbortSignal } = {}): Promise<PartyTicketResult> => {
+  let response: Response;
+  try {
+    response = await apiFetch(
+      `${apiUrl}/pawlegends/party/ticket`,
+      { method: "POST", body: "{}", headers: authHeaders(), signal: options.signal },
+      { guestSession: true, requireAccount: false }
+    );
+  } catch {
+    return { ticket: null, status: 0, code: null };
+  }
+  if (!response.ok) return { ticket: null, status: response.status, code: await readErrorCode(response) };
+  try {
+    const body = (await response.json()) as { ticket?: unknown } | null;
+    return { ticket: typeof body?.ticket === "string" ? body.ticket : null, status: response.status, code: null };
+  } catch {
+    return { ticket: null, status: response.status, code: null };
+  }
 };
 
 /**
@@ -539,6 +573,7 @@ export const USER_API = {
   saveProfileTwitter,
   saveMatch,
   saveMatchDetailed,
+  pawlegendsPartyTicket,
   redeem,
   saveCodex,
   airdropProgression,
