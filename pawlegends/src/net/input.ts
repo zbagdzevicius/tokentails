@@ -1,12 +1,13 @@
 /**
- * Command coalescing for party play (MULTIPLAYER.md §4.1 input.ts, B4): at most one Move per 2 turns (133 ms), the
+ * Command coalescing for party play (MULTIPLAYER.md §4.1 input.ts, B4): at most one Move per turn (66.7 ms), the
  * latest wins, and the final Move of a drag is always sent (a timer flushes the pending one). Non-move commands are
  * never coalesced: they go at once and replace a pending Move (the sim's own gate drops a waiting move for any other
  * command). Sends on input, never on rAF.
  */
 import { Op, type Command } from '../sim/api';
 
-export const MOVE_EVERY_MS = 400 / 3;
+/** One turn: the relay keeps the newest Move per open turn anyway, so a faster drag only adds delay (was 2 turns). */
+export const MOVE_EVERY_MS = 200 / 3;
 
 export interface CoalescerEnv {
   now(): number;
