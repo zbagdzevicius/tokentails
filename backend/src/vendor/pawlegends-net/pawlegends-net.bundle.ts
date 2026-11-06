@@ -313,6 +313,16 @@ export const encodeCatchup = (fromTurn: number, toTurn: number, last: boolean, b
   return w.out();
 };
 
+/** The concatenated TURN bodies of a CATCHUP frame (after its header). */
+export function catchupBodies(frame: Uint8Array): Uint8Array {
+  const r = new Reader(frame);
+  if (r.u8() !== Frame.CATCHUP) throw new ProtoError('not a catchup frame');
+  r.varint();
+  r.varint();
+  r.u8();
+  return frame.slice(r.at);
+}
+
 export type ClientBinary = { type: typeof Frame.CMD; f: CmdFrame } | { type: typeof Frame.BEAT; f: BeatFrame } | { type: typeof Frame.HASH; f: HashFrame };
 export type ServerBinary = { type: typeof Frame.TURN; f: TurnFrame } | { type: typeof Frame.CATCHUP; f: CatchupFrame } | { type: typeof Frame.ECHO; f: EchoFrame };
 
@@ -616,7 +626,7 @@ export type ServerJson =
   | MatchMsg
   | { t: 'slot'; slot: number; reason: SlotReason }
   | { t: 'vote'; kind: VoteKind; yes?: string[]; need?: number; endsMs?: number; result?: 'pass' | 'fail' }
-  | { t: 'social'; kind: SocialKind; id: number; x?: number; y?: number; target?: number; from: string }
+  | { t: 'social'; kind: SocialKind; id: number; x?: number; y?: number; target?: number; from: string; slot: number }
   | { t: 'nudge'; from: string }
   | { t: 'resync'; reason: 'desync' | 'gap' }
   | { t: 'end'; winner: number; outcome: string; ticks: number; finalHash: string; scored: boolean; why?: string }

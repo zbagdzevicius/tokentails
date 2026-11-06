@@ -12,6 +12,11 @@ import * as v13 from './v13';
 export type {
     PawlegendsPartySim,
     PawlegendsPartyReplayRecord,
+    PawlegendsPartySeat,
+    PawlegendsCommand,
+    PawlegendsMatchHandle,
+    PawlegendsMatchResult,
+    PawlegendsPilot,
     PawlegendsDifficulty,
     PawlegendsHeroId,
     PawlegendsMutator,

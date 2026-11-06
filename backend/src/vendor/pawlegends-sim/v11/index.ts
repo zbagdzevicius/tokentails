@@ -78,6 +78,7 @@ export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 <<<<<<< HEAD
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 export const BUNDLE_SHA256 = '20f42b2a4ea8fb4f1d22cfd5e62e981a98f6081200583b7fa63ea8b4c6238478';
 =======
 export const BUNDLE_SHA256 = '64cc38f94aa66e1906c5c32b177730d29ada491c3be5c77e5f739acd7e38050a';
@@ -88,6 +89,9 @@ export const BUNDLE_SHA256 = '426f9a2ab8434204338a6f9f2e610cc9491779176e3243c244
 =======
 export const BUNDLE_SHA256 = 'f68e521bf589e8eb45fb835ff5e5fae472e60388e880998b2f62171845e68486';
 >>>>>>> e012f0ce2 (feat(pawlegends): party wire protocol, SIM_HASH and vendoring (lane N1))
+=======
+export const BUNDLE_SHA256 = '20f42b2a4ea8fb4f1d22cfd5e62e981a98f6081200583b7fa63ea8b4c6238478';
+>>>>>>> 2c9b0b51a (feat(pawlegends): party referee API in the vendored sim; proto catch-up helper)
 /** The SIM_VERSION this bundle was built with (11). */
 export const BUNDLE_SIM_VERSION = 11;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
@@ -108,10 +112,14 @@ export const verifyReplay: (record: unknown) => PawlegendsVerifyResult = sim.ver
 
 /** SIM_HASH of the sim source closure this bundle was built from (the game's __SIM_HASH__). */
 <<<<<<< HEAD
+<<<<<<< HEAD
 export const SIM_SOURCE_HASH = 'b8524415ce3051dc';
 =======
 export const SIM_SOURCE_HASH = '890d2491bf749986';
 >>>>>>> e012f0ce2 (feat(pawlegends): party wire protocol, SIM_HASH and vendoring (lane N1))
+=======
+export const SIM_SOURCE_HASH = 'b8524415ce3051dc';
+>>>>>>> 2c9b0b51a (feat(pawlegends): party referee API in the vendored sim; proto catch-up helper)
 /** goldenHash (pawlegends/src/net/golden.ts) of this bundle, 8 hex (the game's __SIM_GOLDEN__). */
 export const SIM_GOLDEN = '23957c1c';
 
@@ -170,14 +178,20 @@ export interface PawlegendsPartySim {
     decodeCommand(bytes: Uint8Array): PawlegendsCommand;
     encodeCommand(cmd: PawlegendsCommand): Uint8Array;
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 2c9b0b51a (feat(pawlegends): party referee API in the vendored sim; proto catch-up helper)
     /** The tick from which a surrender applies on a difficulty (0 = never). */
     forfeitFromOf(difficulty: string): number;
     /** Bit s = hero slot s (0..2) alive. */
     humanAliveMask(m: PawlegendsMatchHandle): number;
     /** 'cat' | 'dog' for a hero id, else null. */
     heroSideOf(hero: string): string | null;
+<<<<<<< HEAD
 =======
 >>>>>>> e012f0ce2 (feat(pawlegends): party wire protocol, SIM_HASH and vendoring (lane N1))
+=======
+>>>>>>> 2c9b0b51a (feat(pawlegends): party referee API in the vendored sim; proto catch-up helper)
 }
 
 /** The party API of this bundle. */
@@ -202,6 +216,9 @@ export const party: PawlegendsPartySim = {
     decodeCommand: sim.decodeCommand,
     encodeCommand: sim.encodeCommand,
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 2c9b0b51a (feat(pawlegends): party referee API in the vendored sim; proto catch-up helper)
     forfeitFromOf: sim.forfeitFromOf,
     humanAliveMask: sim.humanAliveMask,
     heroSideOf: sim.heroSideOf,

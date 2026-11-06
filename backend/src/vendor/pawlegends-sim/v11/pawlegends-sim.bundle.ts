@@ -13035,6 +13035,9 @@ function verifyReplay(record) {
 	};
 }
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 2c9b0b51a (feat(pawlegends): party referee API in the vendored sim; proto catch-up helper)
 /** Party play: the tick from which a surrender (Op.Forfeit) applies on difficulty `d` (0 = never). */
 function forfeitFromOf(d) {
 	const r = DIFFICULTY_RULES[d];
@@ -13053,6 +13056,7 @@ function heroSideOf(hero) {
 }
 //#endregion
 export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, SIM_VERSION, TRICK_IDS, checkPartyShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, forfeitFromOf, fromBase64, hash, hashTrail, heroSideOf, humanAliveMask, isHuman, partyLog, partyReplayRecord, playerBotCommands, quantize, result, runPartyReplay, step, tickOf, toBase64, verifyPartyReplay, verifyReplay };
+<<<<<<< HEAD
 =======
 //#endregion
 <<<<<<< HEAD
@@ -13061,3 +13065,5 @@ export { MAX_INPUT_CHARS, MAX_TICKS, SIM_VERSION, checkReplayShape, verifyReplay
 =======
 export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, SIM_VERSION, TRICK_IDS, checkPartyShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, fromBase64, hash, hashTrail, isHuman, partyLog, partyReplayRecord, playerBotCommands, quantize, result, runPartyReplay, step, tickOf, toBase64, verifyPartyReplay, verifyReplay };
 >>>>>>> e012f0ce2 (feat(pawlegends): party wire protocol, SIM_HASH and vendoring (lane N1))
+=======
+>>>>>>> 2c9b0b51a (feat(pawlegends): party referee API in the vendored sim; proto catch-up helper)
