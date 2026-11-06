@@ -7,7 +7,7 @@ import { aimFor, trickAim } from '../../src/input/abilities';
 import type { InputHost } from '../../src/input/desktop';
 import { Orders, type OrderEnv } from '../../src/input/orders';
 import { smartAim, type Unit } from '../../src/input/targeting';
-import { dragFullPx, TouchControls } from '../../src/input/touch/touchControls';
+import { dragFullPx, stickBase, STICK_EDGE_PX, TouchControls } from '../../src/input/touch/touchControls';
 import { Op, type Command, type HeroId } from '../../src/sim/api';
 import { TRICKS } from '../../src/data/tricks';
 
@@ -110,5 +110,34 @@ describe('CF-08 a smart cast never walks in under an untanked enemy tower', () =
     // a foe within range is still a target under the tower (no walk-in)
     const near = { ...foe, x: 20000 + aim.range - 500 };
     expect(smartAim(aim, [me, near, tower], me, 0, 0).id).toBe(4);
+  });
+});
+
+describe('CF-14, CF-09, CF-06 touch details', () => {
+  it('CF-14: the joystick base stays inside the screen edges', () => {
+    expect(stickBase(4, 370, 844, 390)).toEqual({ x: STICK_EDGE_PX, y: 390 - STICK_EDGE_PX });
+    expect(stickBase(200, 200, 844, 390)).toEqual({ x: 200, y: 200 });
+  });
+
+  it('CF-09: the locked R carries a "Lv 4" badge', () => {
+    const r = rig('clem');
+    r.t.update([0, 0, 0, 0, 0], [1, 1, 1, 1, 1], 2);
+    const btn = r.t.root.querySelector('[data-b="r"]') as HTMLElement;
+    expect(btn.classList.contains('locked')).toBe(true);
+    expect(btn.querySelector('.lv')?.textContent).toBe('Lv 4');
+  });
+
+  it('CF-06: a skill drag shows the aim ring at the thumb; release hides it', () => {
+    const r = rig('clem');
+    const btn = r.t.root.querySelector('[data-b="trick"]') as HTMLElement;
+    const ring = r.t.root.querySelector('.pl-aimring') as HTMLElement;
+    btn.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, clientX: 300, clientY: 200, pointerType: 'touch', bubbles: true }));
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 5, clientX: 340, clientY: 200, pointerType: 'touch' }));
+    expect(ring.classList.contains('on')).toBe(true);
+    expect(ring.classList.contains('dir')).toBe(false);
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 5, clientX: 305, clientY: 200, pointerType: 'touch' }));
+    expect(ring.classList.contains('back')).toBe(true);
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 5, clientX: 305, clientY: 200, pointerType: 'touch' }));
+    expect(ring.classList.contains('on')).toBe(false);
   });
 });

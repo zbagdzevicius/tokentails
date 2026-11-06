@@ -21,7 +21,7 @@ import { rankPips } from '../../ui/heroText';
 import { cdLabel } from '../../ui/cdLabel';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
-import { basicRange, minionHitEstimate } from '../abilities';
+import { basicRange, minionHitEstimate, ULT_LEVEL } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
@@ -50,6 +50,15 @@ const DRAG_FULL_MIN_PX = 36;
  * direction (sx, sy): 90 px, or less when the screen edge is nearer (a Pounce dragged right from the cluster reached
  * only 1.56 of 4 m, as the thumb hit the edge first).
  */
+/** Audit CF-14: the joystick ring stays this far (px) inside the screen edges (its 60 px radius plus its border). */
+export const STICK_EDGE_PX = 66;
+
+/** CF-14: the joystick base for a touch at (x, y): the touch point, pulled in so the whole ring is on screen. */
+export function stickBase(x: number, y: number, w: number, h: number): { x: number; y: number } {
+  const m = STICK_EDGE_PX;
+  return { x: Math.max(m, Math.min(Math.max(m, w - m), x)), y: Math.max(m, Math.min(Math.max(m, h - m), y)) };
+}
+
 export function dragFullPx(x0: number, y0: number, sx: number, sy: number, w: number, h: number): number {
   const len = Math.hypot(sx, sy);
   if (len < 1e-6) return DRAG_FULL_PX;
@@ -121,6 +130,8 @@ export class TouchControls {
   private stickEl: HTMLElement;
   private knobEl: HTMLElement;
   private cancelEl: HTMLElement;
+  /** Audit CF-06: the aim ring at the thumb (the full-range ring and the smart-cast centre). */
+  private aimRingEl: HTMLElement;
   private buttons = new Map<ButtonId, HTMLElement>();
   private drags = new Map<number, Drag>();
   private lastStick = { a: NaN, at: 0, tx: 0, ty: 0 };
@@ -158,13 +169,14 @@ export class TouchControls {
     root.className = 'pl-touch';
     root.innerHTML = `
       <div class="pl-stick"><div class="pl-knob"></div></div>
+      <div class="pl-aimring" aria-hidden="true"><i class="full"></i><i class="smart"></i></div>
       <div class="pl-cancel" aria-label="Cancel">✕</div>
       <div class="pl-tcluster">
         <button class="pl-tbtn attack" data-b="attack" aria-label="Attack"><span>ATK</span></button>
         <button class="pl-tbtn q" data-b="q" aria-label="Q"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn w" data-b="w" aria-label="W"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn e" data-b="e" aria-label="E"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
-        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
+        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i><i class="lv">Lv ${ULT_LEVEL}</i></button>
         <button class="pl-tbtn trick" data-b="trick" aria-label="Paw Trick"><b class="ico"></b><i class="cd"></i><span></span></button>
         <button class="pl-tbtn nap" data-b="nap" aria-label="Nap"><span>Nap</span></button>
         ${lastHitButton() ? '<button class="pl-tbtn lasthit" data-b="lasthit" aria-label="Last hit a minion"><span>LH</span></button>' : ''}
@@ -175,6 +187,7 @@ export class TouchControls {
     this.stickEl = root.querySelector('.pl-stick') as HTMLElement;
     this.knobEl = root.querySelector('.pl-knob') as HTMLElement;
     this.cancelEl = root.querySelector('.pl-cancel') as HTMLElement;
+    this.aimRingEl = root.querySelector('.pl-aimring') as HTMLElement;
     for (const b of root.querySelectorAll<HTMLElement>('.pl-tbtn')) this.buttons.set(b.dataset.b as ButtonId, b);
     const on = (t: EventTarget, type: string, fn: (e: PointerEvent) => void): void => {
       t.addEventListener(type, fn as EventListener, { passive: false });
@@ -244,10 +257,12 @@ export class TouchControls {
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
     if (e.clientX < window.innerWidth * 0.5 && !this.stick) {
       e.preventDefault();
-      this.stick = { id: e.pointerId, bx: e.clientX, by: e.clientY, x: e.clientX, y: e.clientY, moved: false, at: e.timeStamp };
-      this.stickEl.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
+      // CF-14: the ring never hangs off the screen edge (a thumb at the edge pushes the knob from a base inside it)
+      const b = stickBase(e.clientX, e.clientY, window.innerWidth, window.innerHeight);
+      this.stick = { id: e.pointerId, bx: b.x, by: b.y, x: e.clientX, y: e.clientY, moved: false, at: e.timeStamp };
+      this.stickEl.style.transform = `translate(${b.x}px, ${b.y}px)`;
       this.stickEl.classList.add('on');
-      this.knobEl.style.transform = 'translate(-50%, -50%)';
+      this.knobEl.style.transform = `translate(calc(-50% + ${e.clientX - b.x}px), calc(-50% + ${e.clientY - b.y}px))`;
       this.lastStick.a = NaN;
     }
   }
@@ -350,11 +365,30 @@ export class TouchControls {
     if (!g.dragging && Math.hypot(g.x - g.x0, g.y - g.y0) > DRAG_PX) {
       g.dragging = true;
       this.cancelEl.classList.add('on');
+      this.showAimRing(g);
     }
+    if (g.dragging) this.aimRingEl.classList.toggle('back', this.aimBack(g));
     if (g.dragging) {
       this.checkCancel(g, performance.now());
       this.preview(g);
     }
+  }
+
+  /**
+   * Audit CF-06: the drag's zones drawn at the button: the inner ring is the smart-cast centre (AIM_BACK_PX: slide
+   * back into it to cast like a tap), the outer one where a ground or unit aim reaches full range (90 px, less toward
+   * a near screen edge). A direction skill shows only the centre (any drag past it aims at full length).
+   */
+  private showAimRing(g: Drag): void {
+    const slot = SLOT_OF[g.btn];
+    if (slot === undefined) return;
+    const kind = this.h.orders.aimSpec(slot).kind;
+    const el = this.aimRingEl;
+    el.style.transform = `translate(${g.x0}px, ${g.y0}px)`;
+    el.style.setProperty('--full', `${DRAG_FULL_PX * 2}px`);
+    el.style.setProperty('--smart', `${AIM_BACK_PX * 2}px`);
+    el.classList.toggle('dir', kind !== 'point' && kind !== 'unit');
+    el.classList.add('on');
   }
 
   /** CF-01: is the thumb on the ✕, and has it rested there for CANCEL_DWELL_MS? ('arming' while it waits, 'hot' once armed). */
@@ -419,6 +453,7 @@ export class TouchControls {
     this.syncRing();
     this.buttons.get(g.btn)?.classList.remove('down');
     this.cancelEl.classList.remove('on', 'hot', 'arming');
+    this.aimRingEl.classList.remove('on', 'back', 'dir');
     this.h.view.aim = null;
     if (cancelled || g.overCancel || !this.h.enabled()) return;
     const slot = SLOT_OF[g.btn];
