@@ -83,6 +83,8 @@ export interface LobbyScreenOpts {
   /** The worn card (the peek caption "Wearing <name>"). */
   wearing?: { name: string } | null;
   onCards?(): void;
+  /** Party play (MULTIPLAYER.md §8): "Play with friends" creates a party at once; absent = no relay configured. */
+  onParty?(): void;
   onPlay(c: Choice, seed?: number): void;
   onChoose(): void;
   onMute(m: boolean): void;
@@ -250,6 +252,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
       ? ''
       : `<div class="lb-row">
           <button type="button" class="pl-btn ghost lb-btn" data-a="choose" aria-keyshortcuts="H">${icon('paw')}<span>Change hero</span></button>
+          ${o.onParty ? `<button type="button" class="pl-btn ghost lb-btn" data-a="party" data-testid="play-friends">${icon('paw')}<span>Play with friends</span></button>` : ''}
           ${o.onCards ? `<button type="button" class="pl-btn ghost lb-btn" data-a="cards" aria-keyshortcuts="C">${CARDS}<span>Cards</span>${o.cardCount ? `<span class="lb-count" aria-label="${o.cardCount} cards">${o.cardCount}</span>` : ''}</button>` : ''}
           ${questsHtml(o.quests)}
         </div>`;
@@ -322,6 +325,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     else if (a === 'quick') play(choice());
     else if (a === 'dare' && dare) play({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);
     else if (a === 'choose') o.onChoose();
+    else if (a === 'party') o.onParty?.();
     else if (a === 'cards') {
       o.sound?.('magic');
       o.onCards?.();

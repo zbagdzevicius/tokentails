@@ -1,0 +1,58 @@
+/* Party play screens (docs/plans/moba/MULTIPLAYER.md §8), scoped to .pl-party. Lane N's minimal flow; lane P owns the
+   final designs. Phone landscape first: no scroll at 667x375, 16 px gutters. */
+.pl-party { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px;
+  background: radial-gradient(ellipse at 50% 30%, rgba(60, 30, 70, 0.92), rgba(20, 12, 28, 0.97)); color: var(--cream, #fff3dc);
+  font-family: inherit; overflow: hidden; }
+.pl-party[hidden] { display: none; }
+.pl-party h2 { margin: 0; font-size: clamp(18px, 4.2vh, 28px); }
+.pl-party small { opacity: 0.75; font-size: 12px; }
+.pl-party .pp-card { width: min(1100px, 100%); max-height: 100%; display: flex; flex-direction: column; gap: clamp(6px, 2vh, 14px); }
+.pl-party .pp-narrow { width: min(420px, 100%); align-items: center; text-align: center; }
+.pl-party .pp-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.pl-party .pp-grid { display: grid; grid-template-columns: 1fr 1.2fr 1fr; gap: clamp(8px, 2vw, 24px); align-items: start; }
+.pl-party .pp-code-col { display: flex; flex-direction: column; gap: 8px; }
+.pl-party .pp-code { font: 700 clamp(24px, 7vh, 40px) / 1 ui-monospace, Menlo, monospace; letter-spacing: 0.08em; }
+.pl-party .pp-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; justify-content: center; }
+.pl-party .pp-seats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
+.pl-party .pp-seat { display: flex; align-items: center; gap: 8px; min-height: 44px; padding: 6px 12px; border-radius: 12px;
+  background: rgba(255, 243, 220, 0.08); }
+.pl-party .pp-seat b { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-party .pp-seat.empty { justify-content: center; border: 2px dashed rgba(255, 243, 220, 0.25); background: none; }
+.pl-party .pp-invite { background: none; border: 0; color: inherit; font: inherit; min-height: 40px; cursor: pointer; text-decoration: underline; }
+.pl-party .pp-dot { width: 10px; height: 10px; border-radius: 50%; background: #6c6; flex: none; }
+.pl-party [data-conn='away'] .pp-dot { background: #fc4; }
+.pl-party [data-conn='off'] .pp-dot { background: #888; }
+.pl-party .pp-crown { color: #ffd34d; }
+.pl-party .pp-ctl { display: flex; flex-direction: column; gap: 8px; align-items: stretch; }
+.pl-party .pp-seg { display: flex; border-radius: 10px; overflow: hidden; background: rgba(255, 243, 220, 0.08); }
+.pl-party .pp-seg button { flex: 1; min-height: 40px; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
+.pl-party .pp-seg button[aria-checked='true'] { background: rgba(255, 211, 77, 0.3); font-weight: 700; }
+.pl-party .pp-check { display: flex; gap: 8px; align-items: center; min-height: 40px; }
+.pl-party .pp-chip { margin: 0; padding: 6px 10px; border-radius: 999px; background: rgba(255, 204, 68, 0.2); }
+.pl-party .pp-err { margin: 0; color: #ffb3bf; }
+.pl-party .pp-dim { margin: 0; opacity: 0.75; }
+.pl-party .pp-big { font-size: 20px; margin: 0; }
+.pl-party .pp-join { display: flex; gap: 8px; }
+.pl-party .pp-join input { width: 9ch; min-height: 40px; font: 700 20px ui-monospace, Menlo, monospace; text-transform: uppercase; text-align: center;
+  border-radius: 10px; border: 2px solid rgba(255, 243, 220, 0.3); background: rgba(0, 0, 0, 0.3); color: inherit; }
+.pl-party .pp-pick { width: min(1100px, 100%); }
+.pl-party .pp-strip { list-style: none; margin: 0; padding: 0; display: flex; gap: 8px; }
+.pl-party .pp-strip li { flex: 1; padding: 6px 10px; border-radius: 10px; border: 2px dashed rgba(255, 243, 220, 0.4); display: flex; flex-direction: column; min-width: 0; }
+.pl-party .pp-strip li[data-locked='true'] { border-style: solid; border-color: #ffd34d; }
+.pl-party .pp-strip b { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-party .pp-heroes { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.pl-party .pp-hero, .pl-party .pp-trick { min-height: 40px; border-radius: 10px; border: 2px solid transparent; background: rgba(255, 243, 220, 0.1);
+  color: inherit; font: inherit; font-size: 13px; cursor: pointer; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+.pl-party .pp-hero[aria-pressed='true'], .pl-party .pp-trick[aria-pressed='true'] { border-color: #ffd34d; background: rgba(255, 211, 77, 0.2); }
+.pl-party .pp-hero:disabled, .pl-party .pp-trick:disabled { opacity: 0.4; cursor: default; }
+.pl-party .pp-tricks { display: flex; gap: 6px; }
+.pl-party .pp-tricks button { flex: 1; text-transform: capitalize; }
+.pl-party .pp-timer { font: 700 20px ui-monospace, Menlo, monospace; }
+@media (max-height: 430px) {
+  .pl-party .pl-btn.big { font-size: 18px; padding: 10px 24px; }
+  .pl-party .pp-hero { min-height: 40px; font-size: 12px; }
+}
+@media (max-width: 720px) and (orientation: portrait) {
+  .pl-party .pp-grid { grid-template-columns: 1fr; }
+}
+@media (prefers-reduced-motion: reduce) { .pl-party * { transition: none !important; } }

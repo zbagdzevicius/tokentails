@@ -13,7 +13,7 @@ import path from 'node:path';
 import zlib from 'node:zlib';
 import { fileURLToPath } from 'node:url';
 import { argValue, positionals } from './lib/args.mjs';
-import { BUDGET_KB, DEBUG_HOOK_RE, TOTAL_MB, baseOf, distPath, firstLoadAssets, kb, mb, summarize } from './lib/budget-lib.mjs';
+import { BUDGET_KB, DEBUG_HOOK_RE, PARTY_KB, TOTAL_MB, baseOf, distPath, firstLoadAssets, kb, mb, partyChunk, summarize } from './lib/budget-lib.mjs';
 
 const PKG_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const dist = path.resolve(PKG_ROOT, positionals(['--limit', '--total-mb'])[0] ?? 'dist');
@@ -55,6 +55,16 @@ if (s.over) {
 }
 if (s.totalOver) {
   console.error(`FAIL: output is ${mb(totalBytes - s.totalLimit)} over the ${totalMb} MB budget`);
+  failed = true;
+}
+const party = partyChunk(files);
+console.log(`party chunk ${party.found ? kb(party.gzip) : 'missing'} gzip (budget ${PARTY_KB} KB)`);
+if (party.over) {
+  console.error(`FAIL: the party chunk is ${kb(party.gzip - PARTY_KB * 1024)} over budget`);
+  failed = true;
+}
+if (party.found && first.some((f) => party.files.includes(f))) {
+  console.error('FAIL: the party chunk is in the first load');
   failed = true;
 }
 if (hooks.length) {

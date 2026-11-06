@@ -64,3 +64,13 @@ export function summarize(files, first, limitKb = BUDGET_KB, totalBytes = 0, tot
 
 export const kb = (bytes) => `${(bytes / 1000).toFixed(1)} KB`;
 export const mb = (bytes) => `${(bytes / 1e6).toFixed(2)} MB`;
+
+/** Party play (MULTIPLAYER.md §11): the lazy party chunk (UI, socket, lockstep, input, predict) stays <= 45 KB gzip. */
+export const PARTY_KB = 45;
+
+/** The party chunk's gzip bytes (the sum when it splits), and whether it is over PARTY_KB. */
+export function partyChunk(files, limitKb = PARTY_KB) {
+  const own = files.filter((f) => /(^|\/)party-[^/]+\.js$/.test(f.file));
+  const gzip = own.reduce((s, f) => s + f.gzip, 0);
+  return { files: own.map((f) => f.file), gzip, over: gzip > limitKb * 1024, found: own.length > 0 };
+}
