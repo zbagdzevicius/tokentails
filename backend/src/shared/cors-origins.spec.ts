@@ -61,13 +61,16 @@ describe('CORS origins', () => {
 describe('party relay origins', () => {
     it('drops the localhost dev ports in production, keeps the app origins and the sites', () => {
         const list = corsOrigins('https://example.test');
-        expect(isRelayOriginAllowed('http://localhost:3000', true, list)).toBe(false);
-        expect(isRelayOriginAllowed('http://localhost:3001', true, list)).toBe(false);
-        expect(isRelayOriginAllowed('http://127.0.0.1:5173', true, list)).toBe(false);
-        expect(isRelayOriginAllowed('http://localhost', true, list)).toBe(true);
-        expect(isRelayOriginAllowed('capacitor://localhost', true, list)).toBe(true);
-        expect(isRelayOriginAllowed('https://tokentails.com', true, list)).toBe(true);
-        expect(isRelayOriginAllowed('https://evil.example.com', true, list)).toBe(false);
+        expect(isRelayOriginAllowed('http://localhost:3000', true, list, '')).toBe(false);
+        expect(isRelayOriginAllowed('http://localhost:3001', true, list, '')).toBe(false);
+        expect(isRelayOriginAllowed('http://127.0.0.1:5173', true, list, '')).toBe(false);
+        expect(isRelayOriginAllowed('http://localhost', true, list, '')).toBe(true);
+        expect(isRelayOriginAllowed('capacitor://localhost', true, list, '')).toBe(true);
+        expect(isRelayOriginAllowed('https://tokentails.com', true, list, '')).toBe(true);
+        expect(isRelayOriginAllowed('https://evil.example.com', true, list, '')).toBe(false);
         expect(isRelayOriginAllowed('http://localhost:5400', false, list)).toBe(true);
+        // an explicit FRONT_END_URLS entry still wins in production
+        expect(isRelayOriginAllowed('http://127.0.0.1:5422', true, list, 'http://127.0.0.1:5422')).toBe(true);
+        expect(isRelayOriginAllowed('http://localhost:3000', true, list, 'http://127.0.0.1:5422')).toBe(false);
     });
 });
