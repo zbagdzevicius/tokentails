@@ -111,6 +111,8 @@ export interface MatchHost {
   readonly kind: 'worker' | 'inline';
   readonly restarts: number;
   welcome: WelcomeMsg | null;
+  /** Party play (§4.3): a view-only touch on each interpolated frame (the own hero's cosmetic lead). */
+  present?(f: import('../render/interp').ViewFrame): void;
 }
 
 export type ClientMsgType = ClientMsg['t'];

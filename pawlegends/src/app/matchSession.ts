@@ -1716,6 +1716,7 @@ export class MatchSession {
     if (this.disposed) return;
     const scale = this.view.juice.timeScale(dt);
     const frame = this.paused ? this.buffer.sample(this.buffer.renderTick) : this.buffer.advance(dt, scale);
+    if (frame && !this.paused) this.host.present?.(frame);
     this.frameNow = frame;
     if (frame && this.lastPhase === 'gate' && frame.latest.clock.phase === 'play') this.goFlash();
     if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;

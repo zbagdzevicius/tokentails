@@ -372,7 +372,7 @@ export class MpHud {
     if (this.started && this.now() - this.netAt >= 60_000) {
       this.netAt = this.now();
       const n = this.link.net();
-      this.h.track('mp_net', { rtt_p50: n.rttMs, rtt_p95: n.rttMs, jitter_p95: 0, buffer: n.buffer, holds: n.holds, catchups: n.catchups });
+      this.h.track('mp_net', { rtt_p50: n.rttMs, rtt_p95: n.rttMs, jitter_p95: 0, buffer: n.buffer, holds: n.holds, catchups: n.catchups, ...(n.inputMs !== undefined ? { input_ms: n.inputMs } : {}) });
     }
   }
 
