@@ -215,6 +215,8 @@ export class NetHost implements PartyLink {
     this.mySlot = match.you.slot;
     this.bornAt = this.now();
     this.humans = [...match.config.humans];
+    // ?e2e=1: a new match starts its own hash trail (a rematch never shows the last match's ticks)
+    if (E2E) delete document.documentElement.dataset.mpTrail;
     this.endInfo = { room: match.room, slot: match.you.slot, record: null, scored: null };
     this.coalescer = new MoveCoalescer((cmd) => this.socket.sendCmd(encodeCommand(cmd)), {
       now: this.now,
