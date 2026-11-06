@@ -98,3 +98,38 @@ export async function shot(p: Player, stage: string, label: string): Promise<voi
   const s = SIZES[p.kind];
   await p.page.screenshot({ path: `${SHOTS}/${stage}/${label}-${s.width}x${s.height}.png`, timeout: 60_000 });
 }
+
+/** Every rail note this match pushed (main and second line, the last 40): `__plJuice.notify.said`. */
+export async function pushed(p: Player): Promise<string> {
+  return p.page.evaluate(() => ((window as unknown as { __plJuice?: { notify: { said: string[] } } }).__plJuice?.notify.said ?? []).join(' | '));
+}
+
+/** The match tick on this client (`html[data-tick]`). */
+export async function tickOf(p: Player): Promise<number> {
+  return p.page.evaluate(() => Number(document.documentElement.dataset.tick ?? 0));
+}
+
+/** The party HUD's names table (`html[data-mp-names]`, e2e only). */
+export async function mpNames(p: Player): Promise<string[]> {
+  return p.page.evaluate(() => (document.documentElement.dataset.mpNames ?? '').split('|'));
+}
+
+/** A party of the given players (first = leader), each locks a hero, and all reach the live match. */
+export async function partyMatch(players: Player[], heroes: string[]): Promise<string> {
+  const [a, ...rest] = players;
+  const code = await createParty(a);
+  for (const p of rest) await joinByLink(p, code);
+  await expect(a.page.locator('[data-testid="party-seat"]')).toHaveCount(players.length, { timeout: 30_000 });
+  await tap(a, a.page.locator('[data-p="diff"][data-v="easy"]'));
+  await tap(a, a.page.locator('[data-testid="party-start"]'));
+  for (let i = 0; i < players.length; i++) {
+    const p = players[i];
+    await expect(p.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 30_000 });
+    await tap(p, p.page.locator(`[data-testid="party-hero-${heroes[i]}"]`));
+    await tap(p, p.page.locator('[data-testid="party-lock"]'));
+  }
+  for (const p of players) await p.page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
+  // the party HUD chunk is in
+  for (const p of players) await p.page.waitForFunction(() => !!(window as unknown as { __plMp?: unknown }).__plMp, null, { timeout: 30_000 });
+  return code;
+}
