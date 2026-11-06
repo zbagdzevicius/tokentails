@@ -1,6 +1,6 @@
 import { createServer, type IncomingMessage, type Server } from 'http';
 import type { AddressInfo } from 'net';
-import { CMD_OP } from './net';
+import { CMD_OP, Frame, encodeBeat } from './net';
 import { LoopGate } from './loop-gate';
 import { PartyRelay } from './party-relay';
 import { PARTY_LIMITS } from './party-limits';
@@ -256,6 +256,36 @@ describe('party relay hardening', () => {
         await a.until(() => (slot.mode === 'human' && slot.connected) || null, 10_000);
         clearInterval(beat);
         stopBeats();
+        await b.stop();
+    });
+
+    it('at the end a client short of the last turns gets them (a tail CATCHUP), and can still sync for 2 minutes', async () => {
+        const b = await boot();
+        const { a, c, live, stopBeats } = await twoInMatch(b);
+        stopBeats();
+        await a.until(() => live.room.nextTurn > 40 || null, 10_000);
+        // C reports it received only up to turn 5 (its stream stalled); then the referee ends the match
+        c.raw(encodeBeat({ lastTurn: 5, clientMs: Date.now() >>> 0 }));
+        await sleep(200);
+        const before = c.binary.filter(x => x.type === Frame.CATCHUP).length;
+        const end = {
+            winner: 1,
+            outcome: 'lost',
+            ticks: live.room.tick,
+            finalHash: '00000000',
+            reason: 'core',
+            stats: [],
+        };
+        await (b.relay as unknown as { endRoom(l: unknown, e: unknown): Promise<void> }).endRoom(live, end);
+        await c.until(() => c.last('end'));
+        const tail = c.binary.filter(x => x.type === Frame.CATCHUP).slice(before);
+        expect(tail.length).toBeGreaterThan(0);
+        expect(Math.max(...c.turns.map(t => t.turn))).toBe(live.room.nextTurn - 1);
+        // the room is gone from the live list, yet a sync is still answered
+        expect(b.relay.rooms.has(live.room.id)).toBe(false);
+        const n = c.binary.length;
+        c.send({ t: 'sync', fromTurn: 10 });
+        await c.until(() => c.binary.length > n || null, 5000);
         await b.stop();
     });
 

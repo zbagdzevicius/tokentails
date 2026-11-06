@@ -173,6 +173,8 @@ export class PartyRelay {
     readonly referee: RefereePool;
     readonly gate: LoopGate;
     readonly rooms = new Map<string, LiveRoom>();
+    /** Rooms that ended in the last 2 minutes: a client still missing the last turns can `sync` them (§3.4). */
+    private readonly finished = new Map<string, { live: LiveRoom; untilMs: number }>();
     private readonly socks = new Set<Sock>();
     private readonly byMember = new Map<string, Sock>();
     /**
@@ -535,9 +537,10 @@ export class PartyRelay {
         return r.identityKey === identity.key ? r.member : null;
     }
 
-    /** Every 500 ms: forget expired resume tokens and old join-failure and creation stamps. */
+    /** Every 500 ms: forget expired resume tokens, ended rooms past their grace, old join-failure and creation stamps. */
     private sweep(): void {
         const now = this.now();
+        for (const [id, f] of this.finished) if (f.untilMs <= now) this.finished.delete(id);
         for (const [h, r] of this.resume) {
             if (r.expMs >= now || this.byMember.has(r.member) || this.parties.partyOf(r.member)) continue;
             this.resume.delete(h);
@@ -745,7 +748,7 @@ export class PartyRelay {
             case 'social':
                 return this.social(s, msg);
             case 'sync': {
-                const live = this.seatOf(s);
+                const live = this.seatOf(s) ?? this.finishedSeat(s);
                 if (!live) return;
                 const now = this.now();
                 if (now - s.lastSyncMs < PARTY_LIMITS.syncEveryMs && s.lastSyncMs !== 0) return;
@@ -1123,6 +1126,13 @@ export class PartyRelay {
         s.seatSlot = -1;
     }
 
+    /** The ended room this socket sat in (kept 2 minutes for the tail catch-up), or null. */
+    private finishedSeat(s: Sock): LiveRoom | null {
+        if (!s.seatRoom) return null;
+        const f = this.finished.get(s.seatRoom);
+        return f && f.live.seats.get(s.memberId ?? '') === s.seatSlot ? f.live : null;
+    }
+
     private seatOf(s: Sock): LiveRoom | null {
         if (!s.seatRoom) return null;
         const live = this.rooms.get(s.seatRoom);
@@ -1357,6 +1367,13 @@ export class PartyRelay {
             reason: end.reason,
         });
         this.scheduler.remove(room);
+        // the tail first: a client whose last received turn is behind the log gets the rest now (a stalled stream at
+        // the very end otherwise leaves it short of the end turn, frozen without a results screen)
+        for (const s of this.socketsOf(live)) {
+            const seen = room.slots[s.seatSlot]?.lastTurnSeen ?? 0;
+            if (!s.catchup && seen + 1 < room.nextTurn) this.startCatchup(s, live, seen + 1);
+        }
+        this.finished.set(room.id, { live, untilMs: this.now() + 120_000 });
         await this.checkpoint(live, false);
         // §6 item 1: raw log re-sim → record → verifyPartyReplay must equal the verdict
         const check = await this.referee.verify(
