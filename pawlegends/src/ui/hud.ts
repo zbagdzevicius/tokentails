@@ -590,7 +590,8 @@ export class Hud {
       if (this.toyShown >= 0 && toy > this.toyShown) {
         let spent = 0;
         for (let t = this.toyShown; t < toy; t++) spent += TOY_COST[t] ?? 0;
-        this.fishNum.textContent = `−${spent} → Toy`;
+        // phones: the chip is narrow (the ally portraits sit right of it), so only the spend
+        this.fishNum.textContent = document.documentElement.dataset.touch === '1' ? `−${spent}` : `−${spent} → Toy`;
         el.classList.add('spent');
         this.spentUntil = performance.now() + 1500;
         setTimeout(() => {
