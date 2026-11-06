@@ -83,6 +83,12 @@ export interface EffectsHooks {
   onKill?(e: Extract<SimEvent, { type: 'death' }>, victim: Who | null, killer: Who | null): void;
   /** Returns true when the session shows its own ultimate prompt (goal chip or tip): no ULTIMATE READY banner then. */
   onLevel?(level: number): boolean | void;
+  /**
+   * Lane F (F3): the session puts the player's level-up on the rail itself ("Level 4 — Ultimate unlocked!", merged
+   * with a Toy bought at the same moment). Returns true when it did: no "Level N" callout or ULTIMATE READY banner here.
+   * `guided`: onLevel said the session shows its own ultimate prompt.
+   */
+  levelNote?(level: number, guided: boolean): boolean;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
   onTowerDown?(destroyedByMyTeam: boolean): void;
@@ -118,6 +124,9 @@ export interface EffectsHooks {
 
 const _p = new THREE.Vector3();
 const _np = new THREE.Vector3();
+const _fp = new THREE.Vector3();
+/** Lane F (F1): the player's Fish that pop a gold "+N" (not minion shares, snacks or the trickle). */
+const FISH_POP: ReadonlySet<string> = new Set(['lastHit', 'kill', 'assist', 'firstBlood', 'shutdown', 'tower', 'pudding', 'camp']);
 const _d = new THREE.Vector3();
 
 /**
@@ -203,6 +212,10 @@ export class Effects {
         return this.tower(e);
       case 'pudding':
         return this.pudding(e);
+      case 'fish':
+        return this.fish(e);
+      case 'buy':
+        return this.buy(e);
       case 'sunset':
         sfx.play('horn');
         this.juice.banner({ title: 'Sunset', sub: 'Towers and cores take more damage. Respawns get longer.', tone: 'gold' });
@@ -563,9 +576,45 @@ export class Effects {
     }
   }
 
+  /** Lane F (F1): where the player's last minion kill fell this tick (its "+N" Fish pops there, not over the hero). */
+  private lastHitAt: { tick: number; x: number; y: number; z: number } | null = null;
+  /** Fish pops shown (tests, e2e). */
+  fishPops = 0;
+
+  /**
+   * Lane F (F1): gold "+N" Fish over the action for the player's own last hits, takedowns, assists, First Blood,
+   * shutdowns and objectives (shares of minions someone else killed, the trickle and snacks stay quiet). Pops within
+   * DAMAGE_FX.fishMerge (300 ms) merge into one number.
+   */
+  private fish(e: Extract<SimEvent, { type: 'fish' }>): void {
+    if (e.id !== this.hooks.mySlot || !FISH_POP.has(e.reason)) return;
+    const me = this.hooks.who(e.id);
+    let pos: THREE.Vector3 | null = null;
+    const lh = this.lastHitAt;
+    if (e.reason === 'lastHit' && lh && lh.tick === e.tick) pos = _fp.set(lh.x, lh.y, lh.z);
+    else if (me) pos = this.at(me, 4.4);
+    if (!pos) return;
+    this.numbers.show(pos, `+${e.amount}`, 'fish', 'fish', e.amount);
+    this.fishPops++;
+    if (e.reason === 'lastHit') sfx.play('coin', { vol: 0.35, rate: 1.2 });
+  }
+
+  /** Lane F (F2): a Toy bought: a gold ring at that hero (seen now), and for the player a shockwave and the buy sound. */
+  private buy(e: Extract<SimEvent, { type: 'buy' }>): void {
+    const v = this.hooks.who(e.id);
+    if (!v || this.hooks.visible?.(e.id) === false) return;
+    const mine = e.id === this.hooks.mySlot;
+    this.particles.ring(this.at(v, 0.15), { n: mine ? 20 : 10, r0: 0.5, speed: [1.6, 2.6], up: 1.8, color: 0xffd34d, alpha: 0.95, additive: true, size: [0.18, 0.28], shape: SHAPE.STAR4, intensity: 1.8, drag: 1.5 });
+    if (!mine) return;
+    this.particles.single(this.at(v, 0.05), { shape: SHAPE.RING, color: 0xffd34d, intensity: 1.8, size0: 0.6, size1: 4, life: 0.5, grow: GROW.OUT });
+    this.shock.start(this.at(v, 0), { r1: 3.5, dur: 0.4, color: '#FFD34D', height: 0.4 });
+    sfx.play('buy');
+  }
+
   private death(e: Extract<SimEvent, { type: 'death' }>): void {
     const v = this.hooks.who(e.id);
     const k = this.hooks.who(e.killer);
+    if (v && v.kind === 'minion' && e.killer === this.hooks.mySlot) this.lastHitAt = { tick: e.tick, x: v.x, y: 1.2, z: v.z };
     this.hooks.onKill?.(e, v, k);
     if (v?.kind === 'hero') this.anim?.deathFired(e);
     if (!v) return;
@@ -620,6 +669,7 @@ export class Effects {
       }
       this.juice.flash('gold');
       this.juice.kick(0.12);
+      if (this.hooks.levelNote?.(e.level, guided) === true) return;
       this.juice.callout(`Level ${e.level}`, 'gold');
       // one channel per message: the goal chip or tip carries it when the session guides; else the banner
       if (e.level === 4 && !guided) this.juice.banner({ title: 'ULTIMATE READY', sub: ultHint(), tone: 'gold' });

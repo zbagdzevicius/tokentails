@@ -4,6 +4,7 @@
  * entitlement token, free unlocks and the host roster; the store, the offer card and settings; consent-gated
  * analytics. `html[data-screen]` names the current screen (tests read it; there is no debug global).
  */
+import { fishSources, medals, progressRows } from '../ui/progressSummary';
 import { HumanFilter } from '../analytics/human';
 import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
 import { sfx } from '../audio/sfx';
@@ -956,6 +957,11 @@ export class App {
         towerDmg: st.towerDamage,
       }))
       .sort((a, b) => Number(a.rel === 'enemy') - Number(b.rel === 'enemy'));
+    // Lane F (F5): the progression summary from the sim's own stats (sim v12) and the player's Fish events
+    const medalOf = medals(e.result.stats, grades.slots, grades.mvp);
+    const progress = e.result.stats.some((st) => typeof st.fish === 'number')
+      ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
+      : null;
     this.setScreen(
       'results',
       resultsScreen(this.root, {
@@ -978,6 +984,7 @@ export class App {
         treats,
         quests: quests.views,
         table,
+        progress,
         ladder: ladder && !isRookie(e.replay.difficulty) ? { rating: ladder.rating, delta: ladder.delta, placement: ladder.placement, impact: ladder.impact, grade: ladder.grade } : null,
         grade: {
           grade: myGrade,

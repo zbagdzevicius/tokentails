@@ -65,11 +65,11 @@ describe('announcer', () => {
     expect(a.feed({ type: 'shutdown', tick: 401, killer: 0, victim: 3, value: 120 })).toEqual([{ key: 'shutdownXp', title: '+120 XP', tone: 'gold', size: 'pop' }]);
   });
 
-  it('own streak: On a Roll, Unstoppa-paw, Legend-dairy', () => {
+  it('own streak: On a Roll, Unstoppa-paw, On the Prowl (lane F: a streak of 5)', () => {
     const a = new Announcer(0, 0, name);
     const titles: string[] = [];
     for (let i = 0; i < 5; i++) for (const m of a.feed(death(1000 + i * 600, 3 + (i % 3), 0))) if (m.key.startsWith('streak')) titles.push(m.title);
-    expect(titles).toEqual(['On a Roll', 'Unstoppa-paw', 'Legend-dairy']);
+    expect(titles).toEqual(['On a Roll', 'Unstoppa-paw', 'On the Prowl']);
   });
 
   it('assists count as takedowns; ally kills read as good', () => {
