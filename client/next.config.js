@@ -120,12 +120,23 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
 // hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
 // redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
 // index.html and build-releases.json keep the default revalidation.
-const pawlegendsHeaders = [
-  {
-    source: "/pawlegends-game/build/:path*",
-    headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
-  },
-];
+// The landing's media (public/pawlegends/landing) carry a content hash in their names, so they are cached for good too.
+const pawlegendsHeaders = ["/pawlegends-game/build/:path*", "/pawlegends/landing/:path*"].map((source) => ({
+  source,
+  headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
+}));
+// `/pawlegends` is the landing page, `/pawlegends/play` the game (components/pawlegends/routes.json). Links that need
+// the game carry one of its query keys (party invites, dares, Stripe returns, account emails, `from` from the PLAY
+// picker and the home hub), so those go on to the game with their query (Next carries it over). Marketing links
+// (`?utm_*`) stay on the landing. The landing repeats the check in the browser for the app export.
+// eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS config
+const pawlegendsRoutes = require("./components/pawlegends/routes.json");
+const pawlegendsRedirects = pawlegendsRoutes.playQueryKeys.map((key) => ({
+  source: pawlegendsRoutes.landingPath,
+  has: [{ type: "query", key }],
+  destination: pawlegendsRoutes.playPath,
+  permanent: false,
+}));
 
 // The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
 // redirect to its repo-content replacement (lib/feed/legacy-redirects.json plus each article's
@@ -179,6 +190,7 @@ const nextConfig = {
             { source: "/proof", destination: "/impact", permanent: true },
             ...homeRedirects,
             ...heistRedirects,
+            ...pawlegendsRedirects,
             ...feedRedirects(),
             // The Sponsor Match Desk statement is a static page in public/match-desk. Next.js does
             // not serve a directory's index.html, and it strips the trailing slash of

@@ -14,6 +14,8 @@ test.use({ allowUnmocked: true });
 test.describe("/pawlegends dare links (PUB-03)", () => {
   test("a dare link opens the dared match on the title screen @ci-desktop", async ({ page }) => {
     await gotoAndSettle(page, `/pawlegends?dare=${DARE}&from=x`);
+    // `/pawlegends` is the landing: a dare link goes on to the game page with its query (next.config.js).
+    await expect(page).toHaveURL(/\/pawlegends\/play\?/);
     const frameEl = page.getByTestId("pawlegends-frame");
     await expect(frameEl).toHaveAttribute("src", `/pawlegends-game/index.html?embed=1&dare=${DARE}`);
     const game = page.frameLocator('[data-testid="pawlegends-frame"]');

@@ -45,6 +45,7 @@ const DECLARED = new Set(
     "Roboto", // Google sign-in button (self-hosted, G9)
     "paws", // the paw-print icon font declared in globals.scss
     "Cat Paw", // the Heist brand face, shipped in catnip-heist/public/assets/fonts
+    "Fredoka", // the Pawlegends brand face (the game's UI font); the /pawlegends landing ships it in public/pawlegends/landing
     // Generic families and the system stacks (`code` role, sign-in button platform faces).
     "sans-serif",
     "serif",

@@ -46,6 +46,8 @@ export const WEB_ONLY_DIRS = Object.freeze([
   // The web home page (about 105 MB with its videos): the app starts at pages/index.tsx, and the
   // export has no rewrite that could serve it (docs/CLIENT.md "Home page (/)").
   "home",
+  // The Pawlegends landing's media: the app goes straight to the game (pages/pawlegends/index.tsx).
+  "pawlegends/landing",
 ]);
 
 /** Every file under out/ that matches a web-only prefix. */

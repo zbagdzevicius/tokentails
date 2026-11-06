@@ -547,6 +547,7 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
       "/badcat-game/sw.js",
       "/badcat/sw.js",
       "/pawlegends-game/build/:path*",
+      "/pawlegends/landing/:path*",
     ]);
   });
 

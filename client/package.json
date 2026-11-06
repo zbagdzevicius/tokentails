@@ -87,6 +87,7 @@
     "env-cmd": "^10.1.0",
     "firebase": "^11.0.0",
     "framer-motion": "^12.30.0",
+    "gsap": "3.13.0",
     "lucide-react": "^0.563.0",
     "markdown-it": "^14.3.3",
     "next": "16.1.1",

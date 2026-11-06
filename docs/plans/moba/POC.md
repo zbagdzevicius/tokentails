@@ -32,7 +32,7 @@ Gates and kill criteria are in GDD §10.1.
 | Runtime deps | `three` ^0.186.1 (PPK pins 0.186.1, so lifted code needs no API churn) |
 | Dev deps | Versions as in `bad-cat/package.json`: `typescript` ^7.0.2, `vite` ^8.3.1, `vitest` ^5.0.2, `@playwright/test` ^1.63.0, `@types/node`, `@types/three` ^0.186, `happy-dom` |
 | Embed output | `client/public/pawlegends-game/` (committed, like `heist-game/` and `badcat-game/`) |
-| Host route | `/pawlegends` and `/pawlegends/terms` |
+| Host route | `/pawlegends` (landing), `/pawlegends/play` (the game) and `/pawlegends/terms` |
 | Bridge namespace | `{ns:'tt-pawlegends', v:1}` |
 | GameType | `PAWLEGENDS` |
 
