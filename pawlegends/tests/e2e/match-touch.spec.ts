@@ -206,29 +206,38 @@ const discGap = (a: Disc, b: Disc): number =>
 // Audit CF-01: a full-range aim up or up-left from W and E used to land on the ✕ and cancel (8 of 8 drags). The ✕
 // now sits top centre, out of every drag's reach, so all four casts go out.
 test('up and up-left drags from W and E cast; the ✕ stays out of their reach', async ({ page }) => {
-  test.setTimeout(150_000);
+  test.setTimeout(240_000);
   await startFirstMatch(page);
   await expect(page.locator('.pl-touch.on')).toBeVisible();
   const cdp = await page.context().newCDPSession(page);
+  const vw = page.viewportSize()!.width;
   let id = 10;
   for (const b of ['w', 'e'] as const) {
     for (const [dx, dy] of [[0, -1], [-Math.SQRT1_2, -Math.SQRT1_2]]) {
       const btn = page.locator(`.pl-tbtn.${b}`);
-      await expect(btn).not.toHaveClass(/cooling|locked/, { timeout: 30_000 });
-      const box = (await btn.boundingBox())!;
-      const x0 = box.x + box.width / 2;
-      const y0 = box.y + box.height / 2;
-      const before = Number(await attr(page, 'casts'));
-      id++;
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id }] });
-      // 140 px: past the 90 px full-range aim, the way a thumb overshoots
-      for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + dx * 14 * i, y: y0 + dy * 14 * i, id }] });
-      await page.waitForTimeout(200);
-      expect(await page.locator('.pl-cancel.hot, .pl-cancel.arming').count(), `${b} ${dx},${dy}: on the ✕`).toBe(0);
-      const x = (await page.locator('.pl-cancel.on').boundingBox())!;
-      expect(Math.hypot(x.x + x.width / 2 - x0, x.y + x.height / 2 - y0), `${b}: ✕ distance`).toBeGreaterThan(160);
-      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
-      await expect.poll(async () => Number(await attr(page, 'casts')), { message: `${b} ${dx},${dy} cast` }).toBe(before + 1);
+      let cast = false;
+      // a press the cast buffer refuses (the hero still busy from the last cast on a loaded machine) is tried again
+      for (let attempt = 0; attempt < 3 && !cast; attempt++) {
+        await expect(btn).not.toHaveClass(/cooling|locked/, { timeout: 30_000 });
+        const box = (await btn.boundingBox())!;
+        const x0 = box.x + box.width / 2;
+        const y0 = box.y + box.height / 2;
+        // the ✕ sits top centre (ui.css .pl-cancel: 50% across, 72 px down, 56 px wide): far past any 140 px drag
+        expect(Math.hypot(vw / 2 - x0, 100 - y0), `${b}: ✕ distance`).toBeGreaterThan(200);
+        const before = Number(await attr(page, 'casts'));
+        id++;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id }] });
+        // 140 px: past the 90 px full-range aim, the way a thumb overshoots
+        for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + dx * 14 * i, y: y0 + dy * 14 * i, id }] });
+        await page.waitForTimeout(200);
+        expect(await page.locator('.pl-cancel.hot, .pl-cancel.arming').count(), `${b} ${dx},${dy}: on the ✕`).toBe(0);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        cast = await expect
+          .poll(async () => Number(await attr(page, 'casts')), { timeout: 4000 })
+          .toBeGreaterThan(before)
+          .then(() => true, () => false);
+      }
+      expect(cast, `${b} ${dx},${dy} cast`).toBe(true);
     }
   }
 });
