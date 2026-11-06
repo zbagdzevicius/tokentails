@@ -69,6 +69,13 @@ describe('party client reducer (P3)', () => {
     expect(s.error?.code).toBe('party_not_found');
   });
 
+  it('a closed tab resumes by its kept code: it joins again; a party that is gone closes quietly', () => {
+    const { s, fx } = run(initialParty('resume', 'K7QX2M'), welcome, 'decide');
+    expect(fx).toContainEqual({ t: 'send', msg: { t: 'party.join', code: 'K7QX2M' } });
+    const gone = reduceParty(s, { e: 'server', m: { t: 'error', code: 'party_ended' } });
+    expect(gone.effects).toContainEqual({ t: 'close' });
+  });
+
   it('an expired link shows "This party has ended" (never a bare not found)', () => {
     const { s } = run(initialParty('join', 'K7QX2M'), welcome, 'decide', { t: 'error', code: 'party_ended' });
     expect(screenOf(s)).toBe('ended');
