@@ -179,8 +179,11 @@ describe('HUD chrome', () => {
     expect(root.classList.contains('dead')).toBe(true);
     expect(document.documentElement.dataset.plDead).toBe('1');
     expect(document.querySelector('.pl-portrait .dsec')?.textContent).toBe('7');
+    // audit GFX-12: the big central countdown shows the same seconds while out
+    expect(document.querySelector('.pl-backin.on b')?.textContent).toBe('7');
     hud.update(me(), CLOCK, { kills: [0, 0], towers: [0, 0] }, 0);
     expect(root.classList.contains('dead')).toBe(false);
+    expect(document.querySelector('.pl-backin.on')).toBeNull();
     expect(document.documentElement.dataset.plDead).toBeUndefined();
     hud.lowQuality = true;
     hud.update(me({ state: 'dead', hp: 0, respawnIn: 60 }), CLOCK, { kills: [0, 0], towers: [0, 0] }, 0);
