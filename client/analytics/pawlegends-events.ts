@@ -68,6 +68,26 @@ export const PAWLEGENDS_GAME_EVENTS = [
   "notify_signup",
   "quality_tier",
   "perf_sample",
+  // party play (docs/plans/moba/MULTIPLAYER.md §10): flat props; the game never puts a party code or room id in them
+  "party_create",
+  "party_join",
+  "party_share",
+  "party_leave",
+  "party_kick",
+  "party_start",
+  "party_pick",
+  "mp_match_start",
+  "mp_net",
+  "mp_disconnect",
+  "mp_rejoin",
+  "mp_takeover",
+  "mp_reclaim",
+  "mp_desync",
+  "mp_referee_divergence",
+  "mp_vote",
+  "mp_social",
+  "mp_match_end",
+  "mp_rematch",
 ] as const;
 
 export type PawlegendsGameEventName = (typeof PAWLEGENDS_GAME_EVENTS)[number];
