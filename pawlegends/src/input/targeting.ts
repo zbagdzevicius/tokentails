@@ -8,6 +8,7 @@ import type { EntitySnap } from '../sim/api';
 import { TOWERS } from '../data/towers';
 import type { AimSpec } from './abilities';
 import type { TargetFirst } from './presets';
+import { headingPoint } from './heading';
 
 export interface Unit {
   id: number;
@@ -239,10 +240,18 @@ export const QUICK_UNIT_AIM: AimSpec = Object.freeze({ kind: 'unit', shape: 'non
  * refused, not wasted). Self casts go at the hero; directions toward the cursor; ground points at the cursor,
  * pulled in to the range when `clamp` (quick cast fires at once instead of walking in); unit aims at the enemy hero
  * under the cursor, else the one nearest the cursor within QUICK_UNIT_SEEK. No cursor on the ground: straight ahead
- * (+x), like the touch smart-cast fallback.
+ * (+x), like the touch smart-cast fallback. A heading aim (Pounce, Live Wire, the escape dashes) goes its full
+ * distance toward the cursor, quick cast or not (heading.ts).
  */
 export function cursorCast(aim: AimSpec, me: Unit, cursor: { x: number; y: number } | null, under: Unit | null, units: readonly Unit[], myTeam: number, clamp: boolean): { x: number; y: number; id: number } | null {
   if (aim.kind === 'self') return { x: me.x, y: me.y, id: 0xff };
+  if (aim.heading) {
+    // a heading blink or dash (heading.ts): the full distance toward the cursor, never a shortened point
+    const dx = cursor ? cursor.x - me.x : 1;
+    const dy = cursor ? cursor.y - me.y : 0;
+    const p = headingPoint(aim, me, dx === 0 && dy === 0 ? 0 : Math.atan2(dy, dx));
+    return { x: p.x, y: p.y, id: 0xff };
+  }
   if (aim.kind === 'unit') {
     let t = under && under.kind === 'hero' && isEnemy(under, myTeam) ? under : null;
     if (!t && cursor) {

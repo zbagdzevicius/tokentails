@@ -21,6 +21,7 @@ import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule
 import { saveZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
+import { landing } from './heading';
 
 export interface InputHost {
   canvas: HTMLElement;
@@ -426,7 +427,11 @@ export class DesktopInput {
   private quickCast(slot: CastIndex): void {
     const c = this.castAtCursor(slot, true);
     if (!c) return;
-    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true };
+    const spec = this.h.orders.aimSpec(slot);
+    // a heading blink or dash: the flash marks where it lands (its command point is past the range, heading.ts)
+    const me = spec.heading ? this.h.units().find((u) => u.id === this.h.view.mySlot) : undefined;
+    const p = me ? landing(spec, me, Math.atan2(c.y - me.y, c.x - me.x)) : c;
+    this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true };
     this.flashUntil = performance.now() + FLASH_MS;
   }
 
@@ -471,8 +476,14 @@ export class DesktopInput {
     const g = this.groundUnderCursor();
     const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
     if (!me) return;
-    const gx = g ? g.x : me.x / 1000 + 1;
-    const gz = g ? g.z : -me.y / 1000;
+    let gx = g ? g.x : me.x / 1000 + 1;
+    let gz = g ? g.z : -me.y / 1000;
+    if (spec.heading) {
+      // a heading blink or dash always goes its full distance toward the cursor: show where it lands
+      const p = landing(spec, me, Math.atan2(toSimY(gz) - me.y, toSimX(gx) - me.x));
+      gx = p.x / 1000;
+      gz = -p.y / 1000;
+    }
     let valid = true;
     let target = -1;
     if (spec.kind === 'unit') {

@@ -350,8 +350,9 @@ export class Orders {
       else this.walkIn(slot, t.x, t.y, t.id);
       return true;
     }
-    // point
-    if (this.inReach(me, x, y, aim.range)) this.fire(slot, x, y, NO_TARGET, until);
+    // point; a heading blink (Pounce, Live Wire) never walks in: the sim casts it where the hero stands and clamps the
+    // point to the blink distance, so a point past the range is the full blink (heading.ts)
+    if (aim.heading || this.inReach(me, x, y, aim.range)) this.fire(slot, x, y, NO_TARGET, until);
     else this.walkIn(slot, x, y, NO_TARGET);
     return true;
   }

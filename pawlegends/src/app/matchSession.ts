@@ -42,7 +42,7 @@ import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
-import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type TrickId } from '../sim/api';
+import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
 import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { ProgressRail } from '../ui/progressRail';
 import { DIFFICULTY_RULES } from '../data/bots';
@@ -460,7 +460,10 @@ export class MatchSession {
     this.buffer.speed = matchSpeedFor(!!setup.party, setup.speed);
     this.host.listen({
       welcome: (w) => this.onWelcome(w),
-      snap: (s) => this.buffer.push(s),
+      snap: (s) => {
+        this.buffer.push(s);
+        if (this.e2e) this.trackOwn(s);
+      },
       events: (_t, list) => this.buffer.pushEvents(list),
       end: (result, replay) => this.onEnd(result, replay),
       error: (m) => hooks.onError(m),
@@ -1882,6 +1885,20 @@ export class MatchSession {
 
   private respawnShown = '';
 
+  /** `?e2e=1` only (flash-touch.spec.ts): the own hero's sim position per snapshot, [tick, x, y], the last 900. */
+  private ownTrack: number[][] | null = null;
+
+  private trackOwn(s: Snapshot): void {
+    if (!this.ownTrack) {
+      this.ownTrack = [];
+      e2eHook('Track', this.ownTrack);
+    }
+    const me = s.entities.find((e) => e.id === this.view.mySlot);
+    if (!me) return;
+    this.ownTrack.push([s.clock.tick, me.x, me.y]);
+    if (this.ownTrack.length > 900) this.ownTrack.splice(0, this.ownTrack.length - 900);
+  }
+
   /**
    * Lane F (F6): once a match, a low-priority rail line when the player's team is 2+ Toy tiers behind after the
    * difficulty's catch-up start (the sim then pays the team behind on Fish comeback Fish, +1 a second to its
@@ -1994,6 +2011,8 @@ export class MatchSession {
     // C2 / C5 / C6 telemetry: cast buffer counters, Attack presses with nothing in reach, the drawn own position
     if (this.orders) d.castBuf = `${this.orders.buffers.kept},${this.orders.buffers.sent},${this.orders.buffers.expired},${this.orders.buffers.retried},${this.orders.busyWhy()},${this.orders.queued ?? ''},${this.orders.busyLeftMs}`;
     d.atkNone = String(this.touch?.atkNone ?? 0);
+    // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
+    d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.release}` : '';
     d.lastHits = String(this.lastHitsSeen);
     if (me) d.meF = `${Math.round(me.fx)},${Math.round(me.fy)}`;
     d.hits = String(this.hitsLanded);
