@@ -8,7 +8,7 @@
  * top notification rail through `notify` (never mid-screen on phones).
  */
 import { encodeCommand } from '../sim/commands';
-import { Op, type Command, type MatchResult, type PartyReplayRecord, type ReplayRecord, type SimEvent, type Snapshot } from '../sim/api';
+import { Op, type Command, type HeroId, type MatchResult, type PartyReplayRecord, type ReplayRecord, type SimEvent } from '../sim/api';
 import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
@@ -17,9 +17,12 @@ import type { PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../
 import { socialLine } from '../data/social';
 import type { PartySocket } from './socket';
 import { MoveCoalescer } from './input';
-import { Predictor } from './predict';
+import { DEFAULT_SPEED, Predictor } from './predict';
 import { NetCore, type CoreIn, type CoreOut } from './net-core';
 import { TURN_MS } from './lockstep';
+import { Pacer } from './pacer';
+import { HEROES } from '../data/heroes/index';
+import type { ViewFrame } from '../render/interp';
 import { watchVisibility } from './visibility';
 
 export interface NetNote {
@@ -80,27 +83,17 @@ function workerTransport(onMsg: (m: CoreOut | { t: 'error'; message: string }) =
 }
 
 function inlineTransport(onMsg: (m: CoreOut) => void, now: () => number) {
-  const core = new NetCore((m) => onMsg(m));
-  let timer: ReturnType<typeof setTimeout> | null = null;
-  let base = 0;
-  let n = 0;
-  const pace = () => {
-    core.pace(now());
-    n++;
-    timer = setTimeout(pace, Math.max(0, base + n * TURN_MS - now()));
-  };
+  const core = new NetCore((m) => onMsg(m), now);
+  const pacer = new Pacer(core, { now, setTimer: (fn, ms) => setTimeout(fn, ms), clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>) }, (err) => {
+    throw err;
+  });
   return {
     post: (m: CoreIn) => {
       core.handle(m);
-      if (m.t === 'start' && timer === null) {
-        base = now();
-        timer = setTimeout(pace, TURN_MS);
-      }
+      if (m.t === 'start') pacer.start();
+      else if (m.t === 'turns' || m.t === 'drain' || m.t === 'hidden' || m.t === 'rebuild') pacer.kick();
     },
-    close: () => {
-      if (timer !== null) clearTimeout(timer);
-      timer = null;
-    },
+    close: () => pacer.stop(),
   };
 }
 
@@ -194,8 +187,8 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'vote', kind, yes });
   }
 
-  net(): { rttMs: number; buffer: number; holds: number; catchups: number } {
-    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups };
+  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs: number } {
+    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups, inputMs: Math.round(this.inputLatencyMs()) };
   }
   private buffer = 1;
 
@@ -218,7 +211,7 @@ export class NetHost implements PartyLink {
     // ?e2e=1: a new match starts its own hash trail (a rematch never shows the last match's ticks)
     if (E2E) delete document.documentElement.dataset.mpTrail;
     this.endInfo = { room: match.room, slot: match.you.slot, record: null, scored: null };
-    this.coalescer = new MoveCoalescer((cmd) => this.socket.sendCmd(encodeCommand(cmd)), {
+    this.coalescer = new MoveCoalescer((cmd) => this.sent(this.socket.sendCmd(encodeCommand(cmd))), {
       now: this.now,
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
@@ -401,7 +394,7 @@ export class NetHost implements PartyLink {
       this.transport.post({ t: 'turns', bytes: body.buffer as ArrayBuffer }, [body.buffer as ArrayBuffer]);
     } else if (f.type === Frame.CATCHUP) {
       const body = catchupBodies(raw);
-      this.transport.post({ t: 'turns', bytes: body.buffer as ArrayBuffer }, [body.buffer as ArrayBuffer]);
+      this.transport.post({ t: 'turns', bytes: body.buffer as ArrayBuffer, catchup: true }, [body.buffer as ArrayBuffer]);
       if (f.f.turns.length > 30) this.catching = true;
     }
   }
@@ -489,7 +482,7 @@ export class NetHost implements PartyLink {
         if (!m.ok) this.note({ key: 'mp-update', title: 'Update to play together', tone: 'bad', ttl: 10_000 });
         return;
       case 'snap':
-        this.listener.snap?.(this.lead(decodeSnap(m.buf)));
+        this.listener.snap?.(decodeSnap(m.buf));
         return;
       case 'events':
         this.listener.events?.(m.tick, m.list as SimEvent[]);
@@ -518,6 +511,7 @@ export class NetHost implements PartyLink {
         if (m.pilotTurns) for (let s = 0; s < 6; s++) this.pilotTurns[s] = m.pilotTurns[s] ?? this.pilotTurns[s];
         if (typeof m.pilotFrom === 'number' && m.pilotFrom >= 0 && (this.myPilotFrom < 0 || m.pilotFrom < this.myPilotFrom)) this.myPilotFrom = m.pilotFrom;
         this.countPilots(m.lastTurn, m.modeMask, !!m.pilotTurns);
+        this.acked(m.acks[this.mySlot]);
         this.lastTurn = m.lastTurn;
         this.socket.lastTurn = m.lastTurn;
         this.buffer = m.B;
@@ -663,23 +657,70 @@ export class NetHost implements PartyLink {
     else if (this.endTimer === null) this.endTimer = setTimeout(go, 1500);
   }
 
-  /** Cosmetic lead on the player's own hero (§4.3); the sim is never touched. */
-  private lead(s: Snapshot): Snapshot {
-    const slot = this.match.you.slot;
-    const me = s.entities.find((e) => e.id === slot);
-    if (!me || me.state === 'dead') return s;
-    const locked = (me.buffs & (8 | 16)) !== 0 || me.charmed === true;
-    const off = this.predictor.offset({ x: me.x, y: me.y, locked, speed: 120 }, Math.min(250, this.socket.rttMs / 2 + TURN_MS * 1.5), this.now());
-    if (off.dx === 0 && off.dy === 0) return s;
-    me.x = Math.round(me.x + off.dx);
-    me.y = Math.round(me.y + off.dy);
-    return s;
+  /**
+   * Measured input latency (§4.3): a command's send to the local apply of the TURN that acks it (the snapshot for that
+   * turn is posted just before its `turn` status), an EWMA. It drives the cosmetic lead and `mp_net.input_ms`.
+   */
+  private readonly inflight: { seq: number; at: number }[] = [];
+  private inputEwma = 0;
+  private sent(seq: number | undefined): void {
+    if (typeof seq !== 'number') return;
+    if (this.inflight.length >= 32) this.inflight.shift();
+    this.inflight.push({ seq, at: this.now() });
+  }
+
+  private acked(ack: number | undefined): void {
+    if (ack === undefined || this.catching) return;
+    const now = this.now();
+    while (this.inflight.length && this.inflight[0].seq <= ack) {
+      const ms = now - this.inflight.shift()!.at;
+      // a stale one (a reload, a resume) says nothing about the link
+      if (ms > 2000) continue;
+      this.inputEwma = this.inputEwma === 0 ? ms : this.inputEwma * 0.8 + ms * 0.2;
+    }
+  }
+
+  /** Click to the own hero drawn moving: the measured latency (before any: RTT plus two turns), plus the draw lag. */
+  inputLatencyMs(): number {
+    const est = this.inputEwma > 0 ? this.inputEwma : this.socket.rttMs + 2 * TURN_MS;
+    return Math.max(0, Math.min(PREDICT_MAX_MS, est + SELF_DRAW_MS));
+  }
+
+  /**
+   * Cosmetic lead on the player's own hero (§4.3), per render frame on the interpolated view (MatchSession calls it
+   * after `SnapBuffer.advance`); the sim and the snapshots are never touched. The hero also turns to the target at once.
+   */
+  present(f: ViewFrame): void {
+    const v = f.byId.get(this.mySlot);
+    if (!v || v.state === 'dead') {
+      this.predictor.stop();
+      return;
+    }
+    const locked = (v.buffs & (8 | 16)) !== 0 || v.charmed === true;
+    const moving = v.speed > 1;
+    const base = v.hero ? HEROES[v.hero as HeroId]?.base.speed : undefined;
+    const speed = moving ? v.speed : base ? base / 30 : DEFAULT_SPEED;
+    const off = this.predictor.offset({ x: v.fx, y: v.fy, locked, speed, moving }, this.inputLatencyMs(), this.now());
+    const h = this.predictor.heading;
+    if (h && !locked) {
+      const dx = h.x - v.fx;
+      const dy = h.y - v.fy;
+      if (Math.hypot(dx, dy) > 50) v.yaw = Math.atan2(dy, dx);
+    }
+    if (off.dx === 0 && off.dy === 0) return;
+    v.fx += off.dx;
+    v.fy += off.dy;
   }
 
   get ready(): boolean | null {
     return this.selftestOk;
   }
 }
+
+/** The cosmetic lead never covers more than this (ms of movement). */
+export const PREDICT_MAX_MS = 600;
+/** The own hero is drawn this far behind the newest snapshot (SELF_LAG ticks plus the render clock's smoothing). */
+const SELF_DRAW_MS = 15;
 
 /** A friend's drop shows on the rail only when it lasts this long (a short blip says nothing). */
 export const DROP_NOTE_MS = 2000;
