@@ -38,7 +38,43 @@ export type AnalyticsEvent =
    * `[a-z0-9_ ]`, at most 80 characters), `screen`, `tier`, `sim`. Same name as the host's scrubbed `app_error`, so one
    * PostHog filter sees both; sent from here only when the game is not embedded (embedded, the host reports it).
    */
-  | 'app_error';
+  | 'app_error'
+  /** Party play (docs/plans/moba/MULTIPLAYER.md §10): never a party code or room id in any prop. */
+  | MpEvent;
+
+/**
+ * Party play events (MULTIPLAYER.md §10, lane M8): the names are pinned by MP_EVENTS in src/app/mpTypes.ts (not here:
+ * this file is first-load). Props are flat; no prop ever carries a party code, a room id, a member id or a name.
+ */
+export type MpEvent =
+  | 'party_create'
+  | 'party_join'
+  | 'party_share'
+  | 'party_leave'
+  | 'party_kick'
+  | 'party_start'
+  | 'party_pick'
+  | 'mp_match_start'
+  | 'mp_net'
+  | 'mp_disconnect'
+  | 'mp_rejoin'
+  | 'mp_takeover'
+  | 'mp_reclaim'
+  | 'mp_desync'
+  | 'mp_referee_divergence'
+  | 'mp_vote'
+  | 'mp_social'
+  | 'mp_match_end'
+  | 'mp_rematch';
+export const isMpEvent = (e: string): e is MpEvent => /^(mp|party)_[a-z_]{2,24}$/.test(e);
+
+/** A party event's props, scrubbed: id-like keys dropped, and any string that looks like a party code or a random id. */
+export function cleanMpProps(props: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(props))
+    if (!/^(code|room|roomId|member|memberId|party|partyId|name|token|ticket)$/.test(k) && !(typeof v === 'string' && /^[2-9A-HJ-NP-Z]{6}$|^[\w-]{16,}$/.test(v))) out[k] = v;
+  return out;
+}
 
 export type AnalyticsProps = Record<string, string | number | boolean>;
 
@@ -225,7 +261,8 @@ export class Analytics {
   track(event: AnalyticsEvent, props?: Record<string, unknown>): void {
     try {
       if (this.consent === 'denied') return;
-      this.queue.push({ event, props: { ...cleanProps(this.common()), ...cleanProps(props) }, at: this.now() });
+      const own = isMpEvent(event) ? cleanMpProps(props ?? {}) : props;
+      this.queue.push({ event, props: { ...cleanProps(this.common()), ...cleanProps(own) }, at: this.now() });
       if (this.queue.length > BUFFER_MAX) this.queue.splice(0, this.queue.length - BUFFER_MAX);
       this.schedule();
     } catch {

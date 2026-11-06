@@ -12,7 +12,9 @@ import { Op, type Command, type MatchResult, type PartyReplayRecord, type Replay
 import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
-import { Frame, catchupBodies, type MatchMsg, type ServerBinary, type ServerJson } from './proto';
+import { Frame, SocialLimiter, catchupBodies, clampSocialPoint, socialIdOk, type MatchMsg, type ServerBinary, type ServerJson, type SocialKind, type VoteKind } from './proto';
+import type { PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
+import { socialLine } from '../data/social';
 import type { PartySocket } from './socket';
 import { MoveCoalescer } from './input';
 import { Predictor } from './predict';
@@ -32,6 +34,8 @@ export interface NetHostOptions {
   /** Test seam: a worker-like transport. */
   makeWorker?: (onMsg: (m: CoreOut | { t: 'error'; message: string }) => void, onFail: (msg: string) => void) => { post(m: CoreIn, transfer?: Transferable[]): void; close(): void } | null;
   notify?: (n: NetNote) => void;
+  /** Party analytics (MULTIPLAYER.md §10): mp_disconnect and mp_rejoin, flat props only. */
+  track?: (event: string, props: Record<string, string | number | boolean>) => void;
   /** Watch tab visibility (off in node tests). */
   visibility?: boolean;
   now?: () => number;
@@ -44,6 +48,9 @@ export interface PartyEnd {
   record: PartyReplayRecord | null;
   scored: boolean | null;
   why?: string;
+  /** Lane M6: the relay's display names per slot (null = a bot) and the share of turns a bot flew each slot. */
+  names?: (string | null)[];
+  pilotPct?: number[];
 }
 
 /** `?e2e=1`: the hash trail and the applied turn on <html data-*> (the multi-client e2e compares them). */
@@ -97,7 +104,7 @@ function inlineTransport(onMsg: (m: CoreOut) => void, now: () => number) {
   };
 }
 
-export class NetHost {
+export class NetHost implements PartyLink {
   private listener: HostListener = {};
   private transport: { post(m: CoreIn, transfer?: Transferable[]): void; close(): void };
   private readonly coalescer: MoveCoalescer;
@@ -117,15 +124,97 @@ export class NetHost {
   private serverEnd: Extract<ServerJson, { t: 'end' }> | null = null;
   private unwatch: (() => void) | null = null;
   private readonly now: () => number;
-  private readonly names: (string | null)[];
+  /** Display names per slot (null = a bot); a friend taking an open seat mid-match fills one in. */
+  readonly names: (string | null)[];
+  readonly mySlot: number;
+  readonly humans: readonly number[];
+  seats: SeatInfo[] = [];
+  /** The party HUD's names (mute, Hide names); the rail notes use it. */
+  nameOf: (slot: number) => string = (slot) => this.names[slot] ?? `Teammate ${slot + 1}`;
+  private readonly links = new Set<PartyLinkListener>();
+  private readonly bornAt: number;
+  private rejoinSent = false;
+  private readonly limiter = new SocialLimiter();
+  /** Turns each slot was flown by a bot (M6 "bot X%"), and the turns applied. */
+  private readonly pilotTurns = [0, 0, 0, 0, 0, 0];
+  private countedTurn = -1;
+  /** The turn this player's own hero went to a bot (−1: flown by the player). */
+  private myPilotFrom = -1;
+  private holds = 0;
+  catchups = 0;
   /** Turn mode bits of the last applied turn: slot s piloted. */
   piloted(slot: number): boolean {
     return ((this.lastMask >>> slot) & 1) === 1;
   }
 
+  /** The party side of this host (PartyLink): MatchSession's party HUD reads it. */
+  get party(): PartyLink {
+    return this;
+  }
+
+  pilotPct(slot: number): number {
+    const total = this.countedTurn + 1;
+    return total > 0 ? Math.round((this.pilotTurns[slot] / total) * 100) : 0;
+  }
+
+  listen(l: HostListener): void;
+  listen(l: PartyLinkListener): () => void;
+  listen(l: HostListener | PartyLinkListener): void | (() => void) {
+    if (isHostListener(l)) {
+      this.listener = l;
+      return;
+    }
+    this.links.add(l);
+    return () => void this.links.delete(l);
+  }
+
+  private emit<K extends keyof PartyLinkListener>(k: K, ...args: Parameters<NonNullable<PartyLinkListener[K]>>): boolean {
+    let any = false;
+    for (const l of this.links) {
+      const f = l[k] as ((...a: unknown[]) => void) | undefined;
+      if (f) {
+        any = true;
+        f.apply(l, args);
+      }
+    }
+    return any;
+  }
+
+  /** A social message (§7 M2-M3): enumerated ids only, clamped integer points, the relay's rate limit mirrored. */
+  social(kind: SocialKind, id: number, x?: number, y?: number, target?: number): boolean {
+    if (!socialIdOk(kind, id) || !this.limiter.allow(this.now())) return false;
+    const msg: { t: 'social'; kind: SocialKind; id: number; x?: number; y?: number; target?: number } = { t: 'social', kind, id };
+    if (x !== undefined && y !== undefined) Object.assign(msg, clampSocialPoint(x, y));
+    if (target !== undefined && Number.isInteger(target) && target >= 0 && target < 6) msg.target = target;
+    this.socket.sendJson(msg);
+    return true;
+  }
+
+  vote(kind: VoteKind, yes: boolean): void {
+    this.socket.sendJson({ t: 'vote', kind, yes });
+  }
+
+  net(): { rttMs: number; buffer: number; holds: number; catchups: number } {
+    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups };
+  }
+  private buffer = 1;
+
+  /** The party view changed (PartyClient, through the socket tap): names, connection dots and card art per slot. */
+  setSeats(seats: SeatInfo[]): void {
+    this.seats = seats;
+    for (const s of seats) {
+      if (s.slot === this.mySlot || s.name === null) continue;
+      if (this.names[s.slot] === null) this.names[s.slot] = s.name;
+    }
+    this.emit('seats', seats);
+  }
+
   constructor(readonly socket: PartySocket, readonly match: MatchMsg, private readonly opts: NetHostOptions = {}) {
     this.now = opts.now ?? (() => performance.now());
-    this.names = match.names;
+    this.names = [...match.names];
+    this.mySlot = match.you.slot;
+    this.bornAt = this.now();
+    this.humans = [...match.config.humans];
     this.endInfo = { room: match.room, slot: match.you.slot, record: null, scored: null };
     this.coalescer = new MoveCoalescer((cmd) => this.socket.sendCmd(encodeCommand(cmd)), {
       now: this.now,
@@ -143,12 +232,16 @@ export class NetHost {
       json: (m) => this.fromJson(m),
       binary: (f, raw) => this.fromBinary(f, raw),
       state: (s) => {
-        if (s === 'reconnecting') this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
+        if (s === 'reconnecting') {
+          this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
+          this.lostAt(this.now(), 'socket');
+        }
       },
     });
     if (opts.visibility !== false && typeof document !== 'undefined') {
       this.unwatch = watchVisibility({
         hidden: () => {
+          this.lostAt(this.now(), 'hidden');
           this.socket.sendJson({ t: 'away' });
           this.transport.post({ t: 'hidden', hidden: true });
         },
@@ -174,10 +267,6 @@ export class NetHost {
     this.kind = 'inline';
     this.transport = inlineTransport((m) => this.fromCore(m), this.now);
     this.begin();
-  }
-
-  listen(l: HostListener): void {
-    this.listener = l;
   }
 
   private note(n: NetNote): void {
@@ -269,11 +358,18 @@ export class NetHost {
       case 'slot': {
         if (m.slot === this.match.you.slot) {
           if (m.reason === 'desync') this.note({ key: 'mp-resync', title: 'Re-syncing…', tone: 'info' });
+          this.emit('slot', m.slot, m.reason as SlotReasonText, false);
           return;
         }
-        const name = this.names[m.slot] ?? `Teammate ${m.slot + 1}`;
-        if (m.reason === 'back') this.note({ key: `mp-pilot-${m.slot}`, title: `${short(name)} is back`, tone: 'good' });
-        else if (m.reason === 'drop' || m.reason === 'away' || m.reason === 'afk' || m.reason === 'left') this.note({ key: `mp-pilot-${m.slot}`, title: `${short(name)} dropped · bot plays`, tone: 'bad' });
+        // a friend took an open seat mid-match (§7 "Mira joined"): its name arrives with the frame
+        const joined = m.joined === true;
+        if (joined && typeof m.name === 'string' && m.name) this.names[m.slot] = m.name;
+        const name = this.nameOf(m.slot);
+        if (joined) this.note({ key: 'mp-join', title: `${short(name)} joined`, tone: 'good' });
+        else if (m.reason === 'back') this.note({ key: `mp-pilot-${m.slot}`, title: `${short(name)} is back`, tone: 'good' });
+        else if (m.reason === 'drop' || m.reason === 'away' || m.reason === 'afk' || m.reason === 'left')
+          this.note({ key: `mp-pilot-${m.slot}`, title: `${short(name)} dropped · bot plays`, tone: 'bad' });
+        this.emit('slot', m.slot, m.reason as SlotReasonText, joined);
         return;
       }
       case 'resync':
@@ -287,15 +383,25 @@ export class NetHost {
         return;
       case 'paused':
         this.transport.post({ t: 'paused', paused: m.paused });
-        this.note({ key: 'mp-pause', title: m.paused ? 'Paused' : 'Resumed', tone: 'info' });
+        // the party HUD draws "Paused 0:47 · Resume" with its chip; without it, a plain note
+        if (!this.emit('paused', { paused: m.paused, ...(m.leftMs !== undefined ? { leftMs: m.leftMs } : {}), ...(m.resuming ? { resuming: true } : {}) }))
+          this.note({ key: 'mp-pause', title: m.paused ? 'Paused' : 'Resumed', tone: 'info' });
         return;
-      case 'vote':
+      case 'vote': {
+        if (m.kind === 'rematch') return;
+        const yes = (m.yes ?? []).map(Number).filter((n) => Number.isInteger(n));
+        const v = { kind: m.kind, yes, need: m.need ?? 0, leftMs: m.endsMs ? Math.max(0, m.endsMs - this.serverNow()) : 0, ...(m.result ? { result: m.result } : {}) };
+        if (this.emit('vote', v)) return;
         if (m.result) this.note({ key: `mp-vote-${m.kind}`, title: `${m.kind === 'surrender' ? 'Surrender' : 'Pause'} vote ${m.result === 'pass' ? 'passed' : 'failed'}`, tone: m.result === 'pass' ? 'gold' : 'info' });
-        else if (m.yes && m.need) this.note({ key: `mp-vote-${m.kind}`, title: `${m.kind === 'surrender' ? 'Surrender' : 'Pause'}? ${m.yes.length}/${m.need}`, tone: 'info', ttl: 5000 });
+        else if (m.need) this.note({ key: `mp-vote-${m.kind}`, title: `${m.kind === 'surrender' ? 'Surrender' : 'Pause'}? ${yes.length}/${m.need}`, tone: 'info', ttl: 5000 });
         return;
+      }
       case 'social': {
-        const from = this.names[m.slot] ?? 'Teammate';
-        this.note({ key: `mp-social-${m.from}`, title: `${short(from)}: ${socialText(m.kind, m.id)}`, tone: 'info' });
+        if (!socialIdOk(m.kind, m.id) || m.slot < 0 || m.slot > 5) return;
+        const msg = { slot: m.slot, kind: m.kind, id: m.id, mine: m.slot === this.mySlot, ...(m.x !== undefined && m.y !== undefined ? clampSocialPoint(m.x, m.y) : {}), ...(m.target !== undefined ? { target: m.target } : {}) };
+        if (this.emit('social', msg) || msg.mine) return;
+        const line = socialLine(this.nameOf(m.slot), m.kind, m.id);
+        if (line) this.note({ key: `mp-social-${m.slot}`, title: line, tone: 'info' });
         return;
       }
       case 'error':
@@ -346,9 +452,16 @@ export class NetHost {
           document.documentElement.dataset.mpMask = String(m.modeMask);
           document.documentElement.dataset.mpBuffer = String(m.B);
         }
+        this.countPilots(m.lastTurn, m.modeMask);
         this.lastTurn = m.lastTurn;
         this.socket.lastTurn = m.lastTurn;
-        this.lastMask = m.modeMask;
+        this.buffer = m.B;
+        this.holds = m.holds;
+        if (m.modeMask !== this.lastMask) {
+          const prev = this.lastMask;
+          this.lastMask = m.modeMask;
+          this.emit('mask', m.modeMask, prev);
+        }
         // a `back` sent before the relay saw our latest BEAT is refused: retry for a while after catching up
         // (a mid-match joiner or a reload takes its hero without having to touch anything first)
         if (!this.catching && this.piloted(this.match.you.slot) && this.now() < this.reclaimUntil && this.now() - this.lastBackMs >= 1500) {
@@ -362,6 +475,7 @@ export class NetHost {
         } else if (!m.waiting) this.waitingShown = false;
         return;
       case 'progress':
+        if (!this.catching) this.catchups++;
         this.note({ key: 'mp-catchup', title: `Catching up ${m.pct}%`, tone: 'info', ttl: m.done ? 1200 : 4000 });
         if (m.done) this.caughtUp();
         return;
@@ -385,11 +499,52 @@ export class NetHost {
     }
   }
 
+  /**
+   * M6 "bot X%" and M4 "Bot covered for you · 0:42": turns flown by a bot per slot (from the TURN mode bits, in order
+   * with the turns), and this player's own covered stretch, timed in turns (right after a catch-up too).
+   */
+  private countPilots(lastTurn: number, mask: number): void {
+    if (lastTurn <= this.countedTurn) return;
+    const n = lastTurn - this.countedTurn;
+    for (let s = 0; s < 6; s++) if ((mask >>> s) & 1) this.pilotTurns[s] += n;
+    this.countedTurn = lastTurn;
+    const mine = ((mask >>> this.mySlot) & 1) === 1;
+    if (mine && this.myPilotFrom < 0) this.myPilotFrom = lastTurn;
+    else if (!mine && this.myPilotFrom >= 0) {
+      const seconds = Math.round(((lastTurn - this.myPilotFrom) * 2) / 30);
+      this.myPilotFrom = -1;
+      // a loading start (the first turns) is not "covering"; 2 s or more is worth saying
+      if (seconds >= 2 && lastTurn > 60) {
+        if (!this.emit('covered', seconds)) this.note({ key: 'mp-covered', title: `Bot covered for you · ${clock(seconds)}`, tone: 'info', ttl: 4000 });
+      }
+    }
+  }
+
+  /** The relay's clock now (vote `endsMs` is server time): local time plus the offset from `welcome`. */
+  private serverNow(): number {
+    return Date.now() + (this.socket.serverOffsetMs ?? 0);
+  }
+
   /** Caught up after a reload, a resync or a hidden tab: tell the relay and take the hero back. */
   private reclaimUntil = 0;
   private lastBackMs = 0;
 
+  /** mp_disconnect, once per outage; the next catch-up reports mp_rejoin. */
+  private outage: { at: number; turn: number; via: 'resume' | 'reload' } | null = null;
+  private lostAt(now: number, cause: 'socket' | 'hidden'): void {
+    if (this.outage) return;
+    this.outage = { at: now, turn: this.lastTurn, via: 'resume' };
+    this.opts.track?.('mp_disconnect', { cause });
+  }
+
   private caughtUp(): void {
+    // a reload starts with no turns: its first catch-up is a rejoin too (reported once)
+    if (!this.outage && this.lastTurn > 30 && !this.rejoinSent && this.match.startInMs === 0) this.outage = { at: this.bornAt, turn: 0, via: 'reload' };
+    if (this.outage) {
+      this.opts.track?.('mp_rejoin', { ms: Math.round(this.now() - this.outage.at), ticks_ff: Math.max(0, this.lastTurn - this.outage.turn) * 2, via: this.outage.via });
+      this.outage = null;
+      this.rejoinSent = true;
+    }
     this.catching = false;
     this.reclaimUntil = this.now() + 10_000;
     this.lastBackMs = this.now();
@@ -406,6 +561,8 @@ export class NetHost {
       if (!this.result || this.disposed) return;
       const res = this.result;
       this.result = null;
+      this.endInfo.names = [...this.names];
+      this.endInfo.pilotPct = [0, 1, 2, 3, 4, 5].map((slot) => this.pilotPct(slot));
       const me = res.record?.humans.find((h) => h.slot === this.match.you.slot);
       const replay: ReplayRecord & { party?: PartyEnd } = {
         v: 1,
@@ -447,10 +604,7 @@ export class NetHost {
 }
 
 const short = (name: string): string => (name.length > 14 ? `${name.slice(0, 13)}…` : name);
+const clock = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-const CHAT = ['Nice!', 'On my way', 'Help me', 'Group up', 'Back off', 'Push', 'Thanks', 'GG'];
-function socialText(kind: string, id: number): string {
-  if (kind === 'chat') return CHAT[id] ?? '…';
-  if (kind === 'emote') return 'Emote';
-  return 'Ping!';
-}
+const isHostListener = (l: HostListener | PartyLinkListener): l is HostListener =>
+  'welcome' in l || 'snap' in l || 'events' in l || 'end' in l || 'error' in l;

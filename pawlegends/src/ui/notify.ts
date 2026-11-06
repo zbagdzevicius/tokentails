@@ -9,7 +9,7 @@
  */
 import { NoteQueue, type Note, type NoteTone, type RailState, type RestKind, type RestLine, type ShownNote } from './notifyQueue';
 
-export type { Note, NotePrio, NoteTone, RestKind } from './notifyQueue';
+export type { Note, NoteAction, NotePrio, NoteTone, RestKind } from './notifyQueue';
 
 /** What the rest of the client needs from the rail (tips, objectives, the lifecycle HUD take this, tests fake it). */
 export interface NotifyLike {
@@ -46,6 +46,8 @@ class Line {
   private readonly tt: HTMLElement;
   private readonly sb: HTMLElement;
   private readonly ct: HTMLElement;
+  private readonly ac: HTMLElement;
+  private shownActs = '';
   private shownId = -1;
   private shownText = '';
   private shownSub = '';
@@ -57,11 +59,12 @@ class Line {
   constructor(parent: HTMLElement, cls: string) {
     this.el = document.createElement('div');
     this.el.className = cls;
-    this.el.innerHTML = '<span class="ic"></span><b class="tt"></b><span class="ct"></span><span class="sb"></span>';
+    this.el.innerHTML = '<span class="ic"></span><b class="tt"></b><span class="ct"></span><span class="sb"></span><span class="ac"></span>';
     this.ic = this.el.firstElementChild as HTMLElement;
     this.tt = this.el.querySelector('.tt') as HTMLElement;
     this.ct = this.el.querySelector('.ct') as HTMLElement;
     this.sb = this.el.querySelector('.sb') as HTMLElement;
+    this.ac = this.el.querySelector('.ac') as HTMLElement;
     parent.appendChild(this.el);
   }
 
@@ -107,8 +110,26 @@ class Line {
       this.shownN = n.n;
       this.ct.textContent = n.n > 1 ? `×${n.n}` : '';
     }
+    this.actions(n.actions);
     this.on = true;
     this.outAt = 0;
+  }
+
+  /** Party votes (lane M5): the note's chips, each a ≥ 40 px button; the rail's pointerdown dispatches them. */
+  private actions(list: Note['actions']): void {
+    const key = list?.length ? list.map((a) => `${a.id}:${a.label}`).join('|') : '';
+    if (key === this.shownActs) return;
+    this.shownActs = key;
+    this.ac.textContent = '';
+    this.el.classList.toggle('has-act', !!key);
+    for (const a of list ?? []) {
+      const b = document.createElement('button');
+      b.type = 'button';
+      b.className = 'pl-rail-act';
+      b.dataset.act = a.id;
+      b.textContent = a.label;
+      this.ac.appendChild(b);
+    }
   }
 
   /** Show a resting line. */
@@ -127,6 +148,7 @@ class Line {
       }
       this.el.className = cls;
       this.el.dataset.key = `rest:${r.kind}`;
+      this.actions(undefined);
       this.tt.textContent = r.text;
       if (r.ping) this.el.dataset.ping = r.ping;
       else delete this.el.dataset.ping;
@@ -143,6 +165,7 @@ class Line {
         this.tt.textContent = '';
         this.sb.textContent = '';
         this.ct.textContent = '';
+        this.actions(undefined);
         this.shownText = '';
         this.shownSub = '';
         this.shownN = 1;
@@ -166,6 +189,8 @@ export class Notify implements NotifyLike {
   readonly said: string[] = [];
   /** A tap on the resting goal line (its ping key). */
   onRestTap: ((key: string) => void) | null = null;
+  /** A tap on a note's chip (party votes, lane M5): the action id and the note's key. */
+  onAction: ((id: string, key: string) => void) | null = null;
   private main: Line | null = null;
   private second: Line | null = null;
   private restLine: Line | null = null;
@@ -195,6 +220,15 @@ export class Notify implements NotifyLike {
       e.stopPropagation();
       e.preventDefault();
       this.onRestTap?.(key);
+    });
+    // a note's chips: the rail itself lets taps through (pointer-events: none); the chips take them (ui.css)
+    el.addEventListener('pointerdown', (e) => {
+      const b = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-act]');
+      if (!b) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const key = b.closest<HTMLElement>('.pl-rail-line')?.dataset.key ?? '';
+      this.onAction?.(b.dataset.act ?? '', key);
     });
     byRoot.set(root, this);
     this.layout();
@@ -298,6 +332,8 @@ export class Notify implements NotifyLike {
     el.classList.toggle('has-main', !!s.main);
     el.classList.toggle('has-rest', !!s.rest);
     el.classList.toggle('has-second', !!s.second);
+    // party votes (lane M5): a note waiting on this player stays on screen over a local menu (ui.css)
+    el.classList.toggle('act', !!s.main?.actions?.length);
   }
 
   clear(): void {

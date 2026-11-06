@@ -152,6 +152,8 @@ export class Minimap {
   }
 
   /** Pickups on the ground (sim mm): a glowing dot each (fun plan F2 item 8). Set by the match session. */
+  /** Party play (§7 M1): a friend's ring colour by slot (null: a bot or solo). */
+  ringOf: (slot: number) => string | null = () => null;
   pickups: () => readonly { x: number; y: number; kind: 'frenzy' | 'snack' }[] = () => [];
 
   /** GAPS A4: objective countdowns (sim mm; ticks left of total). A ring fills as the timer runs out. */
@@ -250,6 +252,15 @@ export class Minimap {
       g.beginPath();
       g.arc(x, y, e.id === me ? 4.5 : 3.6, 0, Math.PI * 2);
       g.fill();
+      // party play (§7 M1): a friend's dot wears its slot ring colour
+      const ring = e.id !== me ? this.ringOf(e.id) : null;
+      if (ring) {
+        g.strokeStyle = ring;
+        g.lineWidth = 2;
+        g.beginPath();
+        g.arc(x, y, 6.5, 0, Math.PI * 2);
+        g.stroke();
+      }
     }
     const now = performance.now();
     this.pings = this.pings.filter((p) => p.until > now);

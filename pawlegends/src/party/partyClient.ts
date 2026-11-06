@@ -21,6 +21,11 @@ import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
 import { decoratePick, heroBlock, pickHtml } from './ui/partyPick';
 import { loadingHtml } from './ui/partyLoading';
 import { qrSvg } from './qr';
+import { cleanArt } from '../embed/bridge';
+import { hideNames } from '../meta/partyPrefs';
+import type { SeatInfo } from '../app/mpTypes';
+import type { SlotStats } from '../sim/api';
+import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
 
 // ------------------------------------------------------------------------------------------------ the reducer
 
@@ -175,6 +180,13 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
   }
 }
 
+/** The in-match seats of a party view (lane M1): name, connection and card art per human slot. Pure. */
+export function seatsOf(v: PartyView): SeatInfo[] {
+  return v.members
+    .filter((m) => typeof m.slot === 'number' && m.slot >= 0 && m.slot < 3)
+    .map((m) => ({ slot: m.slot!, name: m.id === v.you ? (m.ownName ?? m.name) : m.name, conn: m.conn, art: cleanArt(m.card?.image) ?? null }));
+}
+
 // ------------------------------------------------------------------------------------------------ the client
 
 export interface PartyHooks {
@@ -301,7 +313,30 @@ export class PartyClient {
     if (state.view?.deadlineMs !== undefined && ev.e === 'server' && ev.m.t === 'party') this.deadlineAt = this.now() + state.view.deadlineMs;
     if (state.view?.waiting?.length && !prev.view?.waiting?.length) this.waitingAt = this.now();
     if (!state.view?.waiting?.length) this.waitingAt = 0;
+    // results together (M6): the rematch passed: hand the screen back to the party first, so "Leader started a
+    // rematch" shows on the party's own band (the match rail is gone with the match)
+    if (ev.e === 'server' && ev.m.t === 'vote' && ev.m.kind === 'rematch' && ev.m.result === 'pass' && this.resultsDone) {
+      const done = this.resultsDone;
+      this.resultsEl = null;
+      this.resultsDone = null;
+      done();
+    }
     for (const f of effects) this.run(f);
+    // in a match, the party HUD keeps names, connection dots and card art current (a friend dropped, came back, joined)
+    if (this.host && state.view && state.view !== prev.view) this.host.setSeats(seatsOf(state.view));
+    if (ev.e === 'server' && ev.m.t === 'vote' && ev.m.kind === 'rematch' && ev.m.result === 'pass')
+      this.h.analytics?.('mp_rematch', { members: state.view?.members.length ?? 0, kept_heroes: this.keepHero });
+    // results together (M6): the label counts who pressed Play again; the pick takes over once the rematch passed
+    if (this.resultsEl && state.view && state.view !== prev.view) {
+      const b = this.resultsEl.querySelector<HTMLElement>('[data-a="again"]');
+      if (b) b.textContent = againLabel(state.view, this.againPressed);
+      if (state.view.phase === 'pick') {
+        const done = this.resultsDone;
+        this.resultsEl = null;
+        this.resultsDone = null;
+        done?.();
+      }
+    }
     if (state.view && !prev.view) this.enteredParty();
     if (state.view?.phase === 'pick' && prev.view?.phase !== 'pick') this.enteredPick();
     if (state.view?.phase === 'loading' && prev.view?.phase !== 'loading') void this.enteredLoading();
@@ -328,7 +363,8 @@ export class PartyClient {
         this.el.hidden = true;
         this.h.startMatch(
           () => {
-            this.host = new NetHost(this.socket, f.match, { notify: (n) => this.h.notify(n) });
+            this.host = new NetHost(this.socket, f.match, { notify: (n) => this.h.notify(n), track: (e, p) => this.h.analytics?.(e, p) });
+            if (this.state.view) this.host.setSeats(seatsOf(this.state.view));
             return this.host;
           },
           f.match,
@@ -375,6 +411,58 @@ export class PartyClient {
     if (me?.hero) this.hover = me.hero;
     if (me?.trick) this.trick = me.trick;
     if (!heroBlock(v, this.hover)) this.socket.sendJson({ t: 'pick.hover', hero: this.hover });
+    // M6 "Play again together": the same hero, locked at once ("Change hero" leaves the pick open)
+    if (this.keepHero && me?.hero && !heroBlock(v, me.hero)) this.socket.sendJson({ t: 'pick.lock', hero: me.hero, trick: me.trick ?? this.trick });
+    this.keepHero = false;
+    this.againPressed = false;
+  }
+
+  // -------------------------------------------------------------------------------------------- results together (M6)
+
+  private resultsEl: HTMLElement | null = null;
+  private resultsDone: (() => void) | null = null;
+  private againPressed = false;
+  private keepHero = false;
+
+  /** The party rows of the results screen (names honour Hide names; card art from the party view). */
+  resultsRows(stats: readonly SlotStats[], mySlot: number, baseNames: readonly string[], end: { names?: (string | null)[]; pilotPct?: number[] }): string {
+    const v = this.state.view;
+    const art: (string | null)[] = [null, null, null, null, null, null];
+    if (v) for (const s of seatsOf(v)) art[s.slot] = s.art;
+    return partyRowsHtml(
+      partyRows({ stats, mySlot, partyNames: end.names ?? [], baseNames, pilotPct: end.pilotPct ?? [], art, hide: hideNames() }),
+    );
+  }
+
+  /** "Play again together (0/2)" now. */
+  againText(): string {
+    return againLabel(this.state.view, this.againPressed);
+  }
+
+  /** The app's results screen is up: keep its Play again label current; `done` hands the screen back for the pick. */
+  bindResults(el: HTMLElement, done: () => void): void {
+    this.resultsEl = el;
+    this.resultsDone = done;
+    this.againPressed = false;
+  }
+
+  /** "Play again together" (keep the hero) or "Change hero" (the pick stays open). */
+  again(keepHero: boolean): void {
+    this.keepHero = keepHero;
+    this.againPressed = true;
+    this.socket.sendJson({ t: 'vote', kind: 'rematch', yes: true });
+    const b = this.resultsEl?.querySelector<HTMLElement>('[data-a="again"]');
+    if (b) b.textContent = againLabel(this.state.view, true);
+    this.resultsEl?.querySelectorAll<HTMLButtonElement>('[data-a="again"], [data-a="change"]').forEach((x) => x.classList.add('pressed'));
+  }
+
+  /** "Leave party" from the results screen. */
+  leaveParty(): void {
+    this.resultsEl = null;
+    this.resultsDone = null;
+    if (this.state.view) this.socket.sendJson({ t: 'party.leave' });
+    this.h.analytics?.('party_leave', { phase: 'results', reason: 'button' });
+    this.close();
   }
 
   private async enteredLoading(): Promise<void> {
@@ -391,6 +479,8 @@ export class PartyClient {
   matchOver(): void {
     this.state = { ...this.state, inMatch: false, solo: false };
     this.host = null;
+    this.resultsEl = null;
+    this.resultsDone = null;
     this.el.hidden = false;
     this.drawn = '';
     this.render();
@@ -653,10 +743,11 @@ export class PartyClient {
           startAnyway: this.anyway,
           nudged: new Set(this.nudged.keys()),
           difficulties: this.h.difficulties ?? DIFFS,
+          hideNames: hideNames(),
         });
         break;
       case 'pick':
-        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err });
+        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames() });
         break;
       case 'loading':
         html = loadingHtml(s.view!);
