@@ -223,6 +223,7 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .tile .cur b{display:inline-block;font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.06em;padding:1px 7px;border:2px solid var(--ink);border-radius:4px;color:var(--ink)}
 .pll .tile.cat .cur{left:-6px}.pll .tile.cat .cur b{background:var(--pink-l)}
 .pll .tile.dog .cur{right:-6px}.pll .tile.dog .cur b{background:var(--ice)}
+.pll .tile .new{position:absolute;z-index:2;top:4px;left:4px;font-family:var(--disp);font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:1px 5px;background:var(--bolt);color:var(--ink);border:2px solid var(--ink);border-radius:4px;pointer-events:none}
 .pll .tile:hover,.pll .tile:focus-visible{transform:skewX(-6deg) translateY(-6px) scale(1.06);z-index:2}
 .pll .tile:hover img,.pll .tile:focus-visible img{transform:skewX(6deg) scale(1.34)}
 .pll .tile[aria-pressed="true"]::after{border-color:var(--bolt);animation:pll-selpulse 1s cubic-bezier(.45,0,.55,1) infinite}
