@@ -68,7 +68,7 @@ export interface SlotState {
     loaded: boolean;
     afkWarned: boolean;
     resyncs: number;
-    /** The slot rebuilt from turn 0 at least once (a second mismatch at the same tick makes the referee suspect). */
+    /** The tick of the slot's last rebuild from turn 0 (>= 0 until it agrees with the referee again; -1 never). */
     rebuiltAtTick: number;
     /** No more resyncs: watch only, piloted (after the caps). */
     watching: boolean;
@@ -587,11 +587,14 @@ export class Room {
         const e = this.entry(tick);
         e.referee = hash >>> 0;
         this.checkHashes(tick);
+        this.sweepHashes();
     }
 
     /** A client's hash at `tick`. */
     clientHash(slot: number, tick: number, hash: number): void {
         if (tick > this.tick + TURN_TICKS * 4) return;
+        // a slot rebuilding after a resync reports nothing until it is back (stale hashes would look like a 2nd miss)
+        if (this.slots[slot]?.reason === 'desync' || this.slots[slot]?.watching) return;
         const e = this.entry(tick);
         e.clients.set(slot, hash >>> 0);
         this.checkHashes(tick);
@@ -614,24 +617,41 @@ export class Room {
         return e;
     }
 
+    /**
+     * Compare the clients' hashes at `tick` with the referee's. A mismatch is judged once every connected, non-watching
+     * human slot reported that tick, or once the referee is 90 ticks past it (a slow or catching-up client).
+     */
     private checkHashes(tick: number): void {
         const e = this.hashes.get(tick);
         if (!e || e.referee === undefined || this.refereeSuspect) return;
         for (const [slot, h] of e.clients) {
+            if (h === e.referee && this.slots[slot].rebuiltAtTick >= 0) this.slots[slot].rebuiltAtTick = -2;
+        }
+        const expected = this.slots.filter(
+            s => this.isHumanSlot(s.slot) && s.connected && !s.watching && s.reason !== 'desync'
+        );
+        const all = expected.every(s => e.clients.has(s.slot));
+        if (!all && this.refereeTick < tick + 90) return;
+        for (const [slot, h] of e.clients) {
             if (h === e.referee || e.flagged.has(slot)) continue;
             e.flagged.add(slot);
             const s = this.slots[slot];
-            // majority rule: two clients agreeing on a hash the referee does not have, or a rebuilt client failing
-            // again at the same tick, make the referee the suspect.
+            // majority rule: two clients agreeing on a hash the referee does not have, or a client rebuilt from turn 0
+            // that disagrees again before it ever agreed, make the referee the suspect (no resync storm).
             let agree = 0;
             for (const [other, oh] of e.clients) if (other !== slot && oh === h) agree++;
-            if (agree >= 1 || s.rebuiltAtTick === tick) {
+            if (agree >= 1 || s.rebuiltAtTick >= 0) {
                 this.refereeDiverged(tick);
                 return;
             }
             this.io.log?.('mp_desync', { slot, tick });
             this.resync(slot, tick);
         }
+    }
+
+    /** Judge every pending tick the referee has passed by 90 (called as its hashes arrive). */
+    private sweepHashes(): void {
+        for (const tick of [...this.hashes.keys()]) if (tick + 90 <= this.refereeTick) this.checkHashes(tick);
     }
 
     private refereeDiverged(tick: number): void {
