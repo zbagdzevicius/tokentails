@@ -1291,6 +1291,7 @@ export class MatchSession {
     };
     back.addEventListener('click', done);
     document.addEventListener('keydown', onKey, true);
+    // beside the scoreboard (it redraws its own markup), above its tap layer
     this.ui.appendChild(back);
     this.scoresBack = done;
   }
