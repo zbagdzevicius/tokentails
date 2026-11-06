@@ -20,11 +20,12 @@ function rig(hero: HeroId, extra: Unit[] = []) {
   const orders = new Orders(env);
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
-  const view = { myTeam: 0, mySlot: 0, aim: null as unknown, attackRange: false, lock: null, me: () => ({ hero, yaw: 0 }), recentre() {}, gr: { camera: null } };
+  const notes: string[] = [];
+  const view = { myTeam: 0, mySlot: 0, aim: null as unknown, attackRange: false, lock: null, me: () => ({ hero, yaw: 0 }), recentre() {}, gr: { camera: null }, juice: { push: (n: { title: string }) => notes.push(n.title) } };
   const host = { canvas, view, orders, enabled: () => true, units: () => units, onScoreboard() {}, onMenu() {}, onTalent: () => false, onActivity() {}, marker() {} } as unknown as InputHost;
   const t = new TouchControls(host, document.body);
   t.enable(true);
-  return { t, sent, units, view };
+  return { t, sent, units, view, notes, orders };
 }
 
 afterEach(() => {
@@ -72,5 +73,28 @@ describe('CF-03 blink taps go the full range', () => {
     const cast = r.sent.find((c) => c.op === Op.Cast || c.op === Op.Trick) as { x: number; y: number } | undefined;
     expect(cast, JSON.stringify(r.sent)).toBeTruthy();
     expect(cast!.x - 20000).toBeGreaterThanOrEqual(TRICKS.pounce.blink - 20);
+  });
+});
+
+describe('CF-07 a refused unit-target cast says so on touch', () => {
+  it('Avietė R with no enemy hero: no command, the red flash and "No hero in range"', () => {
+    expect(aimFor('aviete', 3).kind).toBe('unit');
+    const r = rig('aviete');
+    expect(r.orders.cast(3, 21000, 10000, 0xff)).toBe(false);
+    const btn = r.t.root.querySelector('[data-b="r"]') as HTMLElement;
+    btn.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 7, clientX: 600, clientY: 200, pointerType: 'touch', bubbles: true }));
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 7, clientX: 600, clientY: 200, pointerType: 'touch' }));
+    expect(r.sent.filter((c) => c.op === Op.Cast)).toEqual([]);
+    expect(btn.classList.contains('deny')).toBe(true);
+    expect(r.notes).toContain('No hero in range');
+  });
+
+  it('with an enemy hero in reach the same tap casts on it', () => {
+    const r = rig('aviete', [unit(4, 'hero', 1, 23000, 10000)]);
+    const btn = r.t.root.querySelector('[data-b="r"]') as HTMLElement;
+    btn.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 8, clientX: 600, clientY: 200, pointerType: 'touch', bubbles: true }));
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 8, clientX: 600, clientY: 200, pointerType: 'touch' }));
+    expect(r.sent.find((c) => c.op === Op.Cast)).toMatchObject({ slot: 3, id: 4 });
+    expect(r.notes).toEqual([]);
   });
 });

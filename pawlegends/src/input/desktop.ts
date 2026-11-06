@@ -36,6 +36,8 @@ export interface InputHost {
   onActivity(kind: 'pointer' | 'key' | 'touch'): void;
   /** Ground order marker (m). */
   marker(x: number, z: number, attack: boolean): void;
+  /** Audit CF-12: a refused cast: its HUD slot flashes red (the deny sound plays here). */
+  onDeny?(slot: CastIndex): void;
   /** GAPS B1: the ping wheel (desktop: hold G), and a ping to send (PING_KIND, point in mm, target id or 255). */
   pingWheel?: { openAt(x: number, y: number): void; aim(x: number, y: number): void; commit(): void; close(): void; readonly open: boolean };
   ping?(kind: number, x: number, y: number, id: number): void;
@@ -310,7 +312,7 @@ export class DesktopInput {
     if (slot !== undefined) {
       // C2: the same cast buffer as touch: a key within a few ticks of the cooldown (or mid-dash) is kept, not denied
       if (!this.h.orders.canQueue(slot)) {
-        sfx.play('deny', { vol: 0.6 });
+        this.deny(slot);
         return;
       }
       if (this.mode === 'quick') {
@@ -437,6 +439,12 @@ export class DesktopInput {
     this.flashUntil = performance.now() + FLASH_MS;
   }
 
+  /** A refused cast: the deny sound and (CF-12) the HUD slot's red flash. */
+  private deny(slot: CastIndex): void {
+    sfx.play('deny', { vol: 0.6 });
+    this.h.onDeny?.(slot);
+  }
+
   /** Cast `slot` at the cursor (cursorCast); a unit aim with no enemy hero there is refused with the deny sound. */
   private castAtCursor(slot: CastIndex, clamp: boolean): { x: number; y: number; id: number } | null {
     const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
@@ -446,10 +454,13 @@ export class DesktopInput {
     const cursor = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
     const c = cursorCast(spec, me, cursor, spec.kind === 'unit' ? this.unitUnderCursor(true) : null, this.h.units(), this.h.view.myTeam, clamp);
     if (!c) {
-      sfx.play('deny', { vol: 0.6 });
+      this.deny(slot);
       return null;
     }
-    if (!this.h.orders.cast(slot, c.x, c.y, c.id)) return null;
+    if (!this.h.orders.cast(slot, c.x, c.y, c.id)) {
+      this.deny(slot);
+      return null;
+    }
     this.casts++;
     return c;
   }

@@ -278,6 +278,9 @@ kbd {
 .pl-slot .num { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; color: #fff; text-shadow: 0 2px 0 #000; }
 .pl-slot kbd { position: absolute; left: 2px; bottom: 2px; font-size: 9px; padding: 2px 3px; }
 .pl-slot.pulse { animation: pl-pulse 0.3s; }
+/* Audit CF-12: a refused cast on desktop flashes its slot red (the deny sound alone was easy to miss) */
+.pl-slot.deny { animation: pl-slotdeny 0.32s ease-out; }
+@keyframes pl-slotdeny { 0%, 45% { box-shadow: 0 0 0 3px var(--enemy), 0 0 14px rgba(255, 77, 94, 0.7); } 100% { box-shadow: none; } }
 @keyframes pl-pulse { 40% { transform: scale(1.14); border-color: var(--butter); } }
 .pl-hp { position: relative; height: 16px; border-radius: 8px; background: rgba(20, 12, 22, 0.8); overflow: hidden; }
 .pl-hp .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #8ff07a, #4fc35f); transition: width 0.15s; }
