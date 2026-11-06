@@ -326,7 +326,7 @@ export class HeroView {
    * turning dashed ring in the tier's metal (bronze, silver, gold; tier 4 adds a second, counter-turning ring), so a
    * fed enemy and your own spike read at a glance. Two rings a hero at most: capacity 12.
    */
-  private toyRings = new DecalLayer(dashRingTexture(), 12, { additive: true, y: 0.055, renderOrder: 2, name: 'hero-toy-rings' });
+  private toyRings = new DecalLayer(dashRingTexture(), 12, { additive: false, y: 0.055, renderOrder: 2, name: 'hero-toy-rings' });
   private selfPing = new DecalLayer(ringTexture(), 1, { additive: true, y: 0.06, renderOrder: 9, name: 'hero-self-ping' });
   private time = 0;
   /** Seconds the render clock has stood still, and the real time idled since the match ended (END_IDLE). */
@@ -638,9 +638,10 @@ export class HeroView {
         const toy = Math.min(4, Math.max(0, e.toy ?? 0));
         if (toy > 0 && !stealth) {
           const metal = TOY_METAL[Math.min(3, toy) - 1];
-          const ts = HERO_RING[r.hero] * (rel === 'self' ? SELF_RING_SCALE * 1.18 : 1.3);
-          this.toyRings.add(x, z, ts, metal, 0.42 + toy * 0.1, this.time * (0.5 + toy * 0.15) + e.id);
-          if (toy >= 4) this.toyRings.add(x, z, ts * 1.14, metal, 0.5, -this.time * 0.9 + e.id);
+          // normal blending (an additive bronze vanished on sand and water at 667 × 375), outside the own gold ring
+          const ts = HERO_RING[r.hero] * (rel === 'self' ? SELF_RING_SCALE * 1.32 : 1.4);
+          this.toyRings.add(x, z, ts, metal, 0.75 + toy * 0.06, this.time * (0.5 + toy * 0.15) + e.id);
+          if (toy >= 4) this.toyRings.add(x, z, ts * 1.14, metal, 0.8, -this.time * 0.9 + e.id);
         }
         const chroma = this.looks.get(e.id)?.chroma;
         if (chroma && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, ELEMENT_COLOR[chroma], 0.55 + Math.sin(this.time * 3 + e.id) * 0.12);
