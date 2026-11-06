@@ -164,15 +164,16 @@ describe('round 2 client: why the match ended', () => {
     expect(dareText({ seed: 1, hero: 'clem', trick: 'pounce', difficulty: 'easy', seconds: 301 })).toBe('Beat my 5:01 vs Easy bots in Pawlegends!');
   });
 
-  it('Change hero teases a hero not yet won with', () => {
+  it('Change hero teases a hero not yet won with, on the side the player picked', () => {
     expect(tryHeroFor('clem', {})).toBe('sage');
-    expect(tryHeroFor('clem', { sage: { fastest: 1, takedowns: 1 } })).toBe('brutus');
-    // sim v9: after Cacklejaw come the shelter champions
-    expect(tryHeroFor('cacklejaw', { clem: {}, sage: {}, brutus: {} })).toBe('lambo');
-    // sim v11: after Gabė come the original cats; sim v13: the original dogs after Stilts, and the list wraps after Howler
+    // sim v13 (DOGS-V13 §2): the tease stays on the player's side, so a cat player is never sent to the dogs
+    expect(tryHeroFor('clem', { sage: { fastest: 1, takedowns: 1 } })).toBe('lambo');
+    expect(tryHeroFor('cacklejaw', { clem: {}, sage: {}, brutus: {} })).toBe('nugget');
     expect(tryHeroFor('gabe', {})).toBe('meatball');
-    expect(tryHeroFor('stilts', {})).toBe('nugget');
-    expect(tryHeroFor('howler', {})).toBe('clem');
+    // the side's list wraps: after Stilts comes Clem, after Howler Sir Brutus
+    expect(tryHeroFor('stilts', {})).toBe('clem');
+    expect(tryHeroFor('howler', {})).toBe('brutus');
+    expect(tryHeroFor('nugget', { marshmallow: {}, bravo: {} })).toBe('chili');
   });
 });
 
