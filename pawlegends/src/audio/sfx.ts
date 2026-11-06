@@ -52,6 +52,33 @@ export const PL_SFX = {
   sting: [0.45, 0, 660, 0.005, 0.05, 0.16, 1, 1, 0, 0, 330, 0.05, 0, 0, 0, 0, 0.02, 0.8, 0.02, 0, 0],
   /** A pickup was taken. */
   pickup: [0.5, 0, 880, 0.005, 0.06, 0.2, 0, 1, 6, 0, 440, 0.06, 0, 0, 0, 0, 0, 0.7, 0.02, 0, 0],
+  // Sim v13 dogs (DOGS-V13 §1 "Voice / emote"): synth voices, no recordings. Each joke is a generic behaviour.
+  /** Nugget: a short high double bark (Frisbee, Herding Time). */
+  nuggetBork: [0.5, 0, 720, 0.004, 0.03, 0.06, 1, 1.6, -7, 0, 0, 0, 0.1, 0.25, 0, 0, 0, 0.8, 0.02, 0, -3200],
+  /** Nugget's Sploot: a happy rubber squeak. */
+  nuggetSqueak: [0.5, 0, 1500, 0.01, 0.05, 0.08, 1, 1.4, 6, 0, 300, 0.03, 0, 0, 9, 0, 0, 0.85, 0.02, 0, 0],
+  /** Marshmallow's SNOW DAY!: a tiny puppy "awoo" that cracks on the high note. */
+  marshAwoo: [0.45, 0, 520, 0.05, 0.2, 0.16, 0, 1, 2.6, 0, 300, 0.2, 0, 0, 6, 0, 0, 0.8, 0.04, 0.15, 0],
+  /** A soft snow poof (the Snowball bursting, the snow shaken off her hat). */
+  marshPoof: [0.45, 0, 380, 0.005, 0.03, 0.2, 4, 1, -1, 0, 0, 0, 0, 0.6, 0, 0, 0, 0.5, 0.04, 0, -1500],
+  /** Bravo's Crocodile Tears: a falling three-note whimper. */
+  bravoSob: [0.42, 0, 640, 0.02, 0.06, 0.1, 1, 1, -4, 0, -70, 0.07, 0.12, 0, 5, 0, 0, 0.8, 0.03, 0.2, 0],
+  /** Bravo's flop: the theatrical gasp. */
+  bravoGasp: [0.5, 0, 480, 0.03, 0.05, 0.14, 4, 1, 9, 0, 0, 0, 0, 1, 0, 0, 0, 0.6, 0.03, 0, 1400],
+  /** Bravo's ENCORE! (and the flop's sting): a small brassy fanfare. */
+  bravoBow: [0.5, 0, 392, 0.01, 0.12, 0.3, 2, 1, 0, 0, 196, 0.1, 0.1, 0, 0, 0, 0.05, 0.75, 0.03, 0, -2600],
+  /** Chili: a high square-wave yap (each shot's pitch comes from the playback rate, render-side). */
+  chiliYap: [0.4, 0, 1250, 0.003, 0.02, 0.05, 5, 1, -14, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0.01, 0, 0],
+  /** Chili in BIG DOG ENERGY: the same yap, a deep low-passed bark. */
+  chiliBigBark: [0.8, 0, 150, 0.005, 0.07, 0.2, 2, 2, -2, 0, 0, 0, 0, 0.4, 0, 0.1, 0, 0.7, 0.04, 0, -1200],
+  /** Chili at full Rage: a low growl. */
+  chiliGrowl: [0.45, 0, 110, 0.04, 0.3, 0.15, 2, 1, 0, 0, 0, 0, 0.04, 0.8, 0, 0, 0, 0.6, 0.05, 0.4, -900],
+  /** Howler's AWOO: a long rising sine. */
+  howlerAwoo: [0.5, 0, 330, 0.06, 0.42, 0.25, 0, 1, 2.4, -0.1, 0, 0, 0, 0, 4, 0, 0, 0.85, 0.08, 0.12, 0],
+  /** THE SCREAM: noise and saw with a pitch slide, about 0.9 s (the master limiter ducks it). */
+  howlerScream: [0.75, 0, 900, 0.02, 0.6, 0.28, 2, 1.5, -3, 0, 0, 0, 0, 1.4, 0, 0.05, 0, 0.8, 0.05, 0.15, -3600],
+  /** Howler's Talk Back: three short "woo-woo-wooo" grumbles. */
+  howlerArgue: [0.5, 0, 260, 0.02, 0.05, 0.08, 1, 1, 4, 0, -80, 0.06, 0.13, 0.3, 8, 0, 0, 0.75, 0.02, 0, -2000],
 } satisfies Record<string, number[]>;
 
 export type SfxName = keyof typeof PL_SFX | 'shieldUp' | 'shieldChime' | 'squeak' | 'hyenaLaugh' | 'blip';

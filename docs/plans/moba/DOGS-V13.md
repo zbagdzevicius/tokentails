@@ -142,6 +142,32 @@ Track palettes) and the final `bone` icon is in `src/ui/icons.ts`. Never ship th
 - `vendor-sim:check`: v10, v11, v12 frozen, v13 live. Backend `npx jest src/pawlegends` (115 tests), `npm run lint`
   and `npm run build` green.
 
+## As built (lane RENDER, 2026-11-06)
+
+Status: **LANE RENDER done** on `feat/pawlegends-dogs` (not pushed). The placeholder bodies are gone: each dog has its
+own chibi (`src/render/chars/heroes/<id>.ts`, shared head parts in `dogParts.ts`), move set (`src/render/moves/<id>.ts`,
+helpers in `dogKit.ts`) and skill FX (`src/render/skillfx/<id>.ts`, helpers in `dogFx.ts`); ANIM-SPEC §14 has the
+briefs. Where the build differs from §1:
+- **Team read:** the dogs wear a rounded team shawl (`dogParts.shawl`), not gear.ts `mantle`: on a dog with no
+  pauldrons the flat saucer read as a plate held at the chest in the lobby. Every dog shows 34–43% team colour from
+  above (team-read.test).
+- **Lying poses** (Nugget's sploot, Marshmallow's belly slide and snow angel, Bravo's flop) are pose definitions that
+  turn and lower the body bone, not root pitch: the runtime clamps a negative root `up`, so a pitched body floated.
+- **Bravo's flop** plays from the sim `clip` event (`MoveSet.clips.flop`, new `AnimDirector.clipFired`, wired in
+  effects.ts and gameView.ts). **Marshmallow's ice cube** comes from the same event (`SkillFxSet.onClip`, 'frozen'):
+  a translucent ice pillar with a cap for the 30 t freeze.
+- **Chili's BIG DOG** size is an additive loop the director holds while the snapshot form bit is set outside the bag
+  (`MoveSet.formHold`, `formHoldWhen`): it survives his other casts and basics. His purse is a pink shell (mesh FX)
+  round a squashed Chili, and the handbag prop is always on his hip (no prop toggling). Rage pips show over his head on
+  each basic for his own team (the resource is own-team only), not in `overhead.ts`.
+- **Props not toggled:** Nugget's frisbee rides on his back (not in his mouth), Bravo's tear is always on his cheek,
+  Chili's angry brows are always on (no lid mesh).
+- **Sizes** (`heroSize.ts`): Chili is the smallest drawn top (2.16 m), Howler the tallest dog (3.10 m), Bravo 2.40 m
+  (Sir Brutus 3.70 m). Chili's rig is `width 0.78, bodyScale 1.1, headScale 1.25` so the neck clears the upright test.
+- **Sounds:** 14 zzfx voices in `audio/sfx.ts` (`nuggetBork` … `howlerArgue`); every yap's pitch is a render-side hash.
+- **No camera side-on nudge** for the sploot: the fight camera has no orbit hook, so the player's own sploot gets a
+  small camera punch instead.
+
 ## 0. Roster after v13
 
 | HERO_IDS index | id | Name | Breed | Role | Element | Vibe | Difficulty | HERO_COLOR_CSS |

@@ -376,6 +376,7 @@ export class GameView {
       hitFired: (e, sh, dh, big) => this.director.hitFired(e, sh, dh, big),
       deathFired: (e) => this.director.deathFired(e),
       levelFired: (id) => this.director.levelFired(id),
+      clipFired: (e) => this.director.clipFired(e),
       ult: (src, mine, name, color, atMe) => {
         if (src.kind !== 'hero' || !src.hero) return false;
         if (mine) this.ultMoment.own(HERO_NAME(src.hero), name, color);

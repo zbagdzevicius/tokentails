@@ -70,6 +70,11 @@ export function look(kind: number, team: number): Look {
       return set(...PIXEL_SHOT);
     case PROJECTILE_KIND.fluff:
       return set(...DUCHESS_SHOT);
+    // sim v13: Nugget's Frisbee (a team-coloured disc) and Chili's yaps (white sound blobs; skill FX draws the waves)
+    case PROJECTILE_KIND.frisbee:
+      return set(0.4, 0.95, t.main, 0.16);
+    case PROJECTILE_KIND.yap:
+      return set(0.28, 1.0, 0xfff6e8, 0.12);
     default:
       return set(0.3, 0.9, team === 0 ? 0xfff1a8 : 0xd7b8ff, 0.18);
   }
@@ -97,7 +102,16 @@ export function shadeBolts(mat: THREE.MeshBasicMaterial): void {
 }
 
 /** Projectiles a hero fires (they trail the hero's element colour; minion, tower and core shots keep theirs). */
-export const HERO_SHOTS: ReadonlySet<number> = new Set([PROJECTILE_KIND.hero, PROJECTILE_KIND.tuna, PROJECTILE_KIND.toast, PROJECTILE_KIND.lance, PROJECTILE_KIND.cap, PROJECTILE_KIND.fluff]);
+export const HERO_SHOTS: ReadonlySet<number> = new Set([PROJECTILE_KIND.hero, PROJECTILE_KIND.tuna, PROJECTILE_KIND.toast, PROJECTILE_KIND.lance, PROJECTILE_KIND.cap, PROJECTILE_KIND.fluff, PROJECTILE_KIND.frisbee, PROJECTILE_KIND.yap]);
+
+/**
+ * Sim v13: shots that share a kind but not a look, by owner: Marshmallow's Snowball and Bravo's Crocodile Tear fly as
+ * `fluff` (Duchess's Fluff Puff kind). [size, y, colour, trail].
+ */
+const OWNER_SHOT: Partial<Record<string, readonly [number, number, number, number]>> = {
+  marshmallow: [0.46, 1.0, 0xf8fcff, 0.24],
+  bravo: [0.28, 1.15, 0x8fd8ff, 0.14],
+};
 
 /** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabė's heart bolts). */
 const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a };
@@ -172,6 +186,8 @@ export class ProjectileView {
       const owner = HERO_SHOTS.has(p.kind) ? frame.byId.get(p.owner)?.hero : undefined;
       const tint = p.kind === PROJECTILE_KIND.hero && owner ? BOLT_TINT[owner] : undefined;
       if (tint !== undefined) L.color = tint;
+      const own = p.kind === PROJECTILE_KIND.fluff && owner ? OWNER_SHOT[owner] : undefined;
+      if (own) set(own[0], own[1], own[2], own[3]);
       const x = toX(p.fx);
       const z = toZ(p.fy);
       _dir.set(p.vx, 0, -p.vy);

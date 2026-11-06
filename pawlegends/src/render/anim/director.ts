@@ -345,6 +345,16 @@ export class AnimDirector {
     const x = toX(e.fx);
     const z = toZ(e.fy);
     this.idle(s, r, e, x, z, dt);
+    // a form-held additive loop (Chili's BIG DOG swell): on while the form bit says so, whatever else plays
+    const fh = s.moves && !s.moves.stub ? s.moves.formHold : undefined;
+    if (fh) {
+      const want = e.form === true && e.state !== 'dead' && (s.moves?.formHoldWhen?.(this.fillCtx(s, e)) ?? true);
+      const on = stack.playing(fh.id) !== null;
+      if (want && !on) {
+        this.anchorsReset(s);
+        stack.play(fh, { anchors: s.anchors, loop: true });
+      } else if (!want && on) stack.stop(fh.id, fh.blendOut ?? 0.15);
+    }
     // dash progress (progress-driven warp segments)
     const d = s.dash;
     if (d.on) {
@@ -542,7 +552,8 @@ export class AnimDirector {
     // post-contact speeds up with the attack speed (Golden Hour, Frenzy): authored period / measured period
     const post = Math.max(1, Math.min(1.8, SIM_TIMING[s.hero].period / Math.max(6, s.clock.P)));
     // a basic over a sustained hold (BOXBOT, Zoomies) re-arms the hold: it resumes once the swing is done
-    const held = s.holdLoop !== null && r.ch.anim.stack.playing(s.holdLoop.id) !== null;
+    // (an additive hold, Chili's BIG DOG swell, keeps playing under the swing: never re-armed, or it would stack)
+    const held = s.holdLoop !== null && s.holdLoop.mode !== 'additive' && r.ch.anim.stack.playing(s.holdLoop.id) !== null;
     if (r.ch.anim.stack.play(clip, { anchors: s.anchors, post })) {
       s.swingClip = clip.id;
       if (held) s.holdClip = s.holdLoop;
@@ -824,6 +835,29 @@ export class AnimDirector {
     }
   }
 
+  /**
+   * Sim v13 `clip` event fired at render time (a viral moment no cast starts): the hero's own clip from its move set
+   * (Bravo's flop), then every loaded skill FX set's onClip (the frozen cat's ice cube is Marshmallow's).
+   */
+  clipFired(e: Extract<SimEvent, { type: 'clip' }>): void {
+    const r = e.id >= 0 && e.id < MAX_IDS ? this.env.rig(e.id) : null;
+    const s = e.id >= 0 && e.id < MAX_IDS ? this.st[e.id] : null;
+    const clip = s && !this.stub(s) ? s.moves?.clips?.[e.what] : undefined;
+    if (r && s && clip && r.visible) {
+      if (s.idleOn) {
+        r.ch.anim.stack.stop(s.idleOn, 0.08);
+        s.idleOn = '';
+      }
+      this.anchorsReset(s);
+      s.anchors[A.contact] = this.now;
+      r.ch.anim.stack.play(clip, { anchors: s.anchors });
+    }
+    for (const h of this.loaded) {
+      const fx = skillFxFor(h);
+      if (!fx.stub && fx.onClip) fx.onClip(e.id, e.what, this.runtime);
+    }
+  }
+
   /** A hero came back (HeroView edge): the respawn drop from the sky (shared clip). */
   respawned(id: number): void {
     const r = this.env.rig(id);
@@ -982,10 +1016,19 @@ export class AnimDirector {
         r.ch.rig.bones[BONE_INDEX.weapon].scale.set(1, 1.8, 1);
         s.smearT = 2 / 60;
         return;
-      case 'mouthOpen':
-        r.ch.rig.bones[BONE_INDEX.mouth].scale.set(1, 1.6, 1);
-        s.mouthT = typeof arg === 'number' ? arg / 1000 : 0.3;
+      case 'mouthOpen': {
+        // a number is the hold (ms); a string 'ms*scale' opens wider (Howler's AWOO and THE SCREAM)
+        let ms = typeof arg === 'number' ? arg : 300;
+        let k = 1.6;
+        if (typeof arg === 'string') {
+          const i = arg.indexOf('*');
+          ms = Number(i < 0 ? arg : arg.slice(0, i)) || 300;
+          if (i >= 0) k = Number(arg.slice(i + 1)) || 1.6;
+        }
+        r.ch.rig.bones[BONE_INDEX.mouth].scale.set(1 + (k - 1) * 0.35, k, 1 + (k - 1) * 0.25);
+        s.mouthT = ms / 1000;
         return;
+      }
       case 'fx': {
         const fx = skillFxFor(s.hero);
         if (!fx.stub && fx.onMarker && typeof arg === 'string') fx.onMarker(id, _clip, arg, this.runtime);

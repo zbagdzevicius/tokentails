@@ -105,6 +105,12 @@ export const POSES_PL: Record<string, PoseDef> = {
   },
   // sim v11 heroes' own poses (Pixel's `boxSad` results-screen loss)
   ...PIXEL.POSES,
+  // sim v13 dogs' own poses (corgi crouch and sit, puppy sit, stage stand, yap stance, husky stand)
+  ...NUGGET.POSES,
+  ...MARSHMALLOW.POSES,
+  ...BRAVO.POSES,
+  ...CHILI.POSES,
+  ...HOWLER.POSES,
 };
 
 const ALL_POSES: Record<string, PoseDef | null> = { ...PPK_POSES, ...POSES_PL };
@@ -506,17 +512,17 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Omi
       return DUCHESS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('duchess', look) });
     case 'stilts':
       return STILTS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('stilts', look) });
-    // sim v13 original dogs: PLACEHOLDER bodies (./heroes/<hero>.ts BODY) until the RENDER lane draws them
+    // sim v13 original dogs: each builds its chibi in its own module (./heroes/<hero>.ts)
     case 'nugget':
-      return heroBase(NUGGET.BODY, team, look, detail, dr);
+      return NUGGET.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('nugget', look) });
     case 'marshmallow':
-      return heroBase(MARSHMALLOW.BODY, team, look, detail, dr);
+      return MARSHMALLOW.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('marshmallow', look) });
     case 'bravo':
-      return heroBase(BRAVO.BODY, team, look, detail, dr);
+      return BRAVO.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('bravo', look) });
     case 'chili':
-      return heroBase(CHILI.BODY, team, look, detail, dr);
+      return CHILI.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('chili', look) });
     case 'howler':
-      return heroBase(HOWLER.BODY, team, look, detail, dr);
+      return HOWLER.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('howler', look) });
     case 'gabe': {
       return {
         rig: { width: 0.92, tier: 'hero', headScale: CAT_HEAD * 0.98, earSplay: 0.14 },
