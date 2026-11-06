@@ -422,6 +422,37 @@ export type ErrorCode = (typeof ERROR_CODES)[number];
 
 export type VoteKind = 'surrender' | 'pause' | 'resume' | 'rematch';
 export type SocialKind = 'ping' | 'chat' | 'emote';
+
+/**
+ * Social ids (MULTIPLAYER.md §7 M2-M3, D8: no player text ever reaches a peer): each kind has ids 0..count-1 (pings
+ * are the PING_KINDS order, chat the 8 quick lines and emotes the 4 of src/data/social.ts). The relay drops any other
+ * id; the client mirrors the rate limit (1 per 2 s, 10 per 30 s per member).
+ */
+export const SOCIAL_COUNT = Object.freeze({ ping: 8, chat: 8, emote: 4 } as const);
+export const SOCIAL_RATE = Object.freeze({ gapMs: 2000, windowMs: 30_000, perWindow: 10 });
+/** Map bounds social coordinates are clamped to (sim units, data/map.ts MAP). */
+export const SOCIAL_BOUNDS = Object.freeze({ width: 100_000, height: 60_000 });
+
+export const socialIdOk = (kind: SocialKind, id: number): boolean =>
+  Number.isInteger(id) && id >= 0 && id < (SOCIAL_COUNT[kind] ?? 0);
+
+/** Clamp a social point to the map as integers (never reaches the sim). */
+export function clampSocialPoint(x: number, y: number): { x: number; y: number } {
+  const c = (v: number, max: number): number => (Number.isFinite(v) ? Math.max(0, Math.min(max, Math.round(v))) : 0);
+  return { x: c(x, SOCIAL_BOUNDS.width), y: c(y, SOCIAL_BOUNDS.height) };
+}
+
+/** A member's social rate limit (the relay's and the client's mirror). Times in ms. */
+export class SocialLimiter {
+  private at: number[] = [];
+  allow(now: number): boolean {
+    this.at = this.at.filter((t) => now - t < SOCIAL_RATE.windowMs);
+    if (this.at.length >= SOCIAL_RATE.perWindow) return false;
+    if (this.at.length && now - this.at[this.at.length - 1] < SOCIAL_RATE.gapMs) return false;
+    this.at.push(now);
+    return true;
+  }
+}
 export type PartyPhase = 'lobby' | 'pick' | 'loading' | 'match' | 'results';
 export type SlotReason = 'drop' | 'afk' | 'away' | 'late' | 'left' | 'back' | 'desync' | 'restore' | 'open';
 
@@ -576,6 +607,8 @@ export interface MemberView {
   trick?: string;
   locked?: boolean;
   loadPct?: number;
+  /** Results phase: this member pressed "Play again together" (lane M6 counts them). */
+  again?: boolean;
 }
 
 export interface PartyView {
@@ -621,15 +654,16 @@ export type ServerJson =
   | { t: 'error'; code: ErrorCode; retryMs?: number }
   | PartyView
   | MatchMsg
-  | { t: 'slot'; slot: number; reason: SlotReason }
-  | { t: 'vote'; kind: VoteKind; yes?: string[]; need?: number; endsMs?: number; result?: 'pass' | 'fail' }
+  | { t: 'slot'; slot: number; reason: SlotReason; joined?: boolean; name?: string; laggy?: boolean }
+  /** `yes` lists the slots that voted yes (match votes) or member ids. */
+  | { t: 'vote'; kind: VoteKind; yes?: (string | number)[]; need?: number; endsMs?: number; result?: 'pass' | 'fail' }
   | { t: 'social'; kind: SocialKind; id: number; x?: number; y?: number; target?: number; from: string; slot: number }
   | { t: 'nudge'; from: string }
   | { t: 'resync'; reason: 'desync' | 'gap' }
   | { t: 'end'; winner: number; outcome: string; ticks: number; finalHash: string; scored: boolean; why?: string }
   | { t: 'local'; difficulty: string }
   | { t: 'afk'; inMs: number }
-  | { t: 'paused'; paused: boolean; leftMs?: number };
+  | { t: 'paused'; paused: boolean; leftMs?: number; resuming?: boolean };
 
 export type ServerJsonType = ServerJson['t'];
 const SERVER_TYPES: readonly ServerJsonType[] = ['welcome', 'error', 'party', 'match', 'slot', 'vote', 'social', 'nudge', 'resync', 'end', 'local', 'afk', 'paused'];
