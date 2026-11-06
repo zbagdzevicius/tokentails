@@ -1,7 +1,7 @@
 /**
- * Audit CF-04: the touch button arc as data. Every button is placed on rings around Attack, so no two buttons ever
- * touch (before, E and the trick overlapped by 5 px and five pairs sat 13-18 px apart), and the whole arc scales
- * with the screen height (667x375 gets a slightly smaller arc than 932x430 instead of the same fixed px).
+ * Audit CF-04: the touch button arc as data. No two buttons touch (before, E and the trick overlapped by 5 px and
+ * five pairs sat 13-18 px apart), and the whole arc scales with the screen height (667x375 gets a slightly smaller
+ * arc than 932x430 instead of the same fixed px).
  *
  * Coordinates are px from the cluster's bottom-right corner (`.pl-tcluster`): `rx` leftwards, `by` upwards, to the
  * button's centre; `d` is its diameter. TouchControls writes them as inline right/bottom/width/height.
@@ -14,30 +14,34 @@ export interface ArcSpot {
   d: number;
 }
 
-/** The smallest edge-to-edge gap (px at scale 1) between any two buttons. */
+/** The smallest edge-to-edge gap (px at scale 1) between any two of the main buttons. */
 export const ARC_GAP = 16;
+
+/**
+ * The highest point (px above the cluster's bottom, at scale 1) any main button may reach: the phone kill feed and
+ * the enemy portraits under the minimap end there (hud-compact.spec.ts), as the old E button did.
+ */
+export const ARC_TOP = 176;
 
 const ATK = 96;
 const ATK_R = ATK / 2;
-/** Q, W and E sit on the inner ring, R, the trick and the last-hit button on the outer one. Angles: 0 = left of Attack, 90 = straight above. */
-const INNER = ATK_R + 30 + ARC_GAP + 2;
-const OUTER = 166;
-const at = (deg: number, dist: number, d: number): ArcSpot => {
-  const a = (deg * Math.PI) / 180;
-  return { rx: ATK_R + Math.cos(a) * dist, by: ATK_R + Math.sin(a) * dist, d };
-};
 
+/**
+ * The familiar places (Q left of Attack, W up-left, E above, R further up-left, the trick up-right, Nap bottom-left),
+ * each moved at most 20 px from the old CSS spot to the layout with the widest smallest gap (17 px at scale 1) under
+ * ARC_TOP; the optional last-hit and tower buttons sit above, as before.
+ */
 const BASE: Readonly<Record<ArcButton, ArcSpot>> = Object.freeze({
   attack: { rx: ATK_R, by: ATK_R, d: ATK },
-  q: at(0, INNER, 60),
-  w: at(50, INNER, 60),
-  e: at(100, INNER, 60),
-  r: at(25, OUTER, 70),
-  trick: at(74, OUTER, 48),
-  nap: { rx: 216, by: 29, d: 46 },
+  q: { rx: 160, by: 30, d: 60 },
+  w: { rx: 140, by: 105, d: 60 },
+  e: { rx: 75, by: 146, d: 60 },
+  r: { rx: 214, by: 140, d: 70 },
+  trick: { rx: 6, by: 127, d: 48 },
+  nap: { rx: 229, by: 47, d: 46 },
   // the optional last-hit and tower buttons (Settings, off by default)
-  lasthit: at(46, 222, 44),
-  tower: { rx: 6, by: 214, d: 44 },
+  lasthit: { rx: 92, by: 212, d: 44 },
+  tower: { rx: 4, by: 200, d: 44 },
 });
 
 /** The arc's scale for a viewport: 1 at 390 px of height, a little smaller on short phones, a little larger on tall ones. */
