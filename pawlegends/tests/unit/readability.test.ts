@@ -7,7 +7,7 @@ import * as THREE from 'three';
 import { describe, expect, it } from 'vitest';
 import type { HeroId } from '../../src/sim/api';
 import { HERO_IDS } from '../../src/data/heroes';
-import { MINION_BAR_CSS, RELATION, RELATION_CSS, TEAM } from '../../src/render/palette';
+import { MINION_BAR_CSS, RELATION, RELATION_CSS } from '../../src/render/palette';
 import { HERO_TOP, heroBuilt, makeHero } from '../../src/render/chars';
 import { HERO_SCALE } from '../../src/render/views/models';
 import { DAMAGE_FX, DamageNumbers } from '../../src/render/fx/DamageNumbers.js';
@@ -17,16 +17,20 @@ const HEROES: HeroId[] = [...HERO_IDS];
 const hue = (hex: number): number => new THREE.Color(hex).getHSL({ h: 0, s: 0, l: 0 }).h * 360;
 
 describe('team colour encoding (rings, plates, minimap, towers)', () => {
-  it('our side is the Purrhaven rose, the enemy the Woof blue, yellow only for you', () => {
-    expect(RELATION.ally).toBe(TEAM[0].main);
+  it('our side is blue, the enemy red (MOBA convention), yellow only for you', () => {
+    const ally = hue(RELATION.ally);
+    expect(ally).toBeGreaterThan(200);
+    expect(ally).toBeLessThan(230);
     const enemy = hue(RELATION.enemy);
-    expect(enemy).toBeGreaterThan(200);
-    expect(enemy).toBeLessThan(250);
-    expect(Math.abs(hue(TEAM[1].main) - enemy)).toBeLessThan(15);
-    // the enemy is never red any more (red read as "our pink"); red is kept for threats only
+    expect(enemy < 10 || enemy > 345).toBe(true);
+    // red threats (telegraphs, tower range) stay a separate, hotter red
     expect(RELATION.danger).not.toBe(RELATION.enemy);
     for (const css of [RELATION_CSS.ally, RELATION_CSS.enemy, MINION_BAR_CSS.ally, MINION_BAR_CSS.enemy]) expect(css).toMatch(/^#[0-9a-f]{6}$/i);
-    expect(hue(Number(`0x${RELATION_CSS.enemy.slice(1)}`))).toBeGreaterThan(200);
+    const cssHue = (c: string): number => hue(Number(`0x${c.slice(1)}`));
+    expect(cssHue(RELATION_CSS.ally)).toBeGreaterThan(200);
+    expect(cssHue(MINION_BAR_CSS.ally)).toBeGreaterThan(200);
+    const red = cssHue(RELATION_CSS.enemy);
+    expect(red < 10 || red > 345).toBe(true);
   });
 });
 

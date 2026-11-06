@@ -5,10 +5,10 @@
   --panel-2: rgba(43, 29, 46, 0.66);
   --line: rgba(255, 243, 220, 0.16);
   --self: #ffd34d;
-  --ally: #ff7a9a;
-  --enemy: #ff4d5e;
-  --t0: #ff6f91;
-  --t1: #6f8fe0;
+  --ally: #4da0ff;
+  --enemy: #ff4f58;
+  --t0: var(--ally);
+  --t1: var(--enemy);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);

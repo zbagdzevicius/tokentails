@@ -22,15 +22,11 @@ export interface TeleWho {
 }
 
 /**
- * Rim colours: own gold, ally the team rose, enemy danger red. (The spec's "blue" ally rim would read as the enemy:
- * this game's one relation encoding has the enemy in blue, render/palette.ts RELATION.)
+ * Rim colours: own gold, ally blue, enemy danger red (render/palette.ts RELATION).
  */
 export const RIM: Readonly<Record<Relation3, number>> = Object.freeze({
   own: RELATION.self,
-  // read live: the ally hue follows the side swap (palette.ts setSideSwap)
-  get ally(): number {
-    return RELATION.ally;
-  },
+  ally: RELATION.ally,
   enemy: RELATION.danger,
 });
 
