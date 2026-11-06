@@ -508,4 +508,4 @@ export function slotNames(picks: readonly HeroId[], seed?: number, humanSlot = 0
 
 /** Bot persona names (round 2), by side. Generic pet names, not any real Token Tails cat. */
 export const CAT_NAMES: readonly string[] = Object.freeze(['Biscuit', 'Pepper', 'Noodle', 'Tofu', 'Marmalade', 'Socks', 'Pickle', 'Waffle', 'Nutmeg', 'Button']);
-export const DOG_NAMES: readonly string[] = Object.freeze(['Rex', 'Bruno', 'Duke', 'Bean', 'Rocky', 'Muffin', 'Gravy', 'Tank', 'Chomp', 'Bolt']);
+export const DOG_NAMES: readonly string[] = Object.freeze(['Rex', 'Bruno', 'Duke', 'Bean', 'Rocky', 'Muffin', 'Gravy', 'Pretzel', 'Chomp', 'Bolt']);

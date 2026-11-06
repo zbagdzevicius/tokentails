@@ -1,0 +1,81 @@
+// @vitest-environment happy-dom
+/**
+ * Audit 2026-11-06 quick wins, UI and meta (no sim change): GP-05 results copy by fight share, UX-04 reward strip,
+ * UX-08 Home on results, UX-12 hero portraits in the results table and no bot called "Tank".
+ */
+import { afterEach, describe, expect, it } from 'vitest';
+import { joinedFights, resultLine, resultsScreen, rewardStrip, type ResultRow, type ResultsOpts } from '../../src/ui/screens';
+import { progressBlock, progressRows } from '../../src/ui/progressSummary';
+import { CAT_NAMES, DOG_NAMES } from '../../src/ui/heroText';
+import type { SlotStats } from '../../src/sim/api';
+
+const row = (rel: string, k: number, a: number, heroDmg: number): ResultRow => ({ name: rel, rel, k, d: 0, a, heroDmg, towerDmg: 0 });
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+describe('GP-05 results copy follows the player share of the fights', () => {
+  it('a win with an assist and a little damage is not "with your help"', () => {
+    // the audit's idle win at 0/0/1: an assist and some auto-attack damage
+    const table = [row('self', 0, 1, 300), row('ally', 6, 3, 4000), row('ally', 4, 5, 3500)];
+    expect(joinedFights({ kills: 0, assists: 1, teamKills: [10, 4], heroDamage: 300, table })).toBe(false);
+    expect(resultLine({ won: true, kills: 0, assists: 1, teamKills: [10, 4], difficulty: 'rookie', heroDamage: 300, table })).toMatch(/jump into a fight/);
+  });
+
+  it('a real share of takedowns or hero damage earns "with your help"', () => {
+    const kp = [row('self', 0, 4, 900), row('ally', 6, 1, 4000), row('ally', 4, 2, 3500)];
+    expect(resultLine({ won: true, kills: 0, assists: 4, teamKills: [10, 4], difficulty: 'easy', heroDamage: 900, table: kp })).toMatch(/with your help/);
+    const dmg = [row('self', 0, 1, 2000), row('ally', 6, 3, 4000), row('ally', 4, 5, 3500)];
+    expect(joinedFights({ kills: 0, assists: 1, teamKills: [10, 4], heroDamage: 2000, table: dmg })).toBe(true);
+  });
+});
+
+describe('UX-04 reward strip, UX-08 Home', () => {
+  const base: ResultsOpts = {
+    won: true, seconds: 400, hero: 'clem', difficulty: 'easy', kills: 3, deaths: 1, assists: 2, level: 7, teamKills: [9, 4], firstWin: false, best: false,
+    dareLink: 'https://example.test/dare', onAgain: () => undefined, onChange: () => undefined, onShare: () => undefined,
+  };
+
+  it('pins the grade, the Treat XP bar, the chest and the dare link', () => {
+    const html = rewardStrip({
+      grade: { grade: 'A', xp: 25, mvp: { name: 'You', you: true } },
+      treats: { before: 0.2, after: 0.6, gained: 80, rewards: [{ id: 'emote.wave', name: 'Wave emote' }], next: { name: 'Next' }, toGo: 50, dayBonus: 0 } as never,
+      dareLink: 'https://example.test/dare',
+    });
+    document.body.innerHTML = html;
+    expect(document.querySelector('.rw-grade b')?.textContent).toBe('A');
+    expect(document.querySelector('.rw-treat small')?.textContent).toBe('+80 Treat XP');
+    expect(document.querySelector('.rw-chest')?.textContent).toContain('Wave emote');
+    expect(document.querySelector('.rw-share[data-a="share"]')).not.toBeNull();
+    expect(rewardStrip({ grade: null, treats: null, dareLink: null })).toBe('');
+  });
+
+  it('the results screen has Home and the strip; Home calls onHome; both share buttons say "Link copied!"', () => {
+    const calls: string[] = [];
+    const root = resultsScreen(document.body, { ...base, onHome: () => calls.push('home'), onShare: () => calls.push('share') });
+    expect(root.querySelector('.pl-reward')).not.toBeNull();
+    (root.querySelector('[data-a="home"]') as HTMLElement).click();
+    (root.querySelector('.rw-share') as HTMLElement).click();
+    expect(calls).toEqual(['home', 'share']);
+    for (const b of root.querySelectorAll('[data-a="share"]')) expect(b.textContent).toBe('Link copied!');
+  });
+});
+
+describe('UX-12 results table names the hero', () => {
+  const stat = (slot: number, hero: SlotStats['hero']): SlotStats => ({ slot, hero, kills: 0, deaths: 0, assists: 0, heroDamage: 0, towerDamage: 0, level: 5, damageTaken: 0, healShield: 0, objective: 0, fish: 100 }) as SlotStats;
+
+  it('each row carries its hero and a portrait (a letter without one)', () => {
+    const rows = progressRows([stat(0, 'clem'), stat(3, 'brutus')], 0, (s) => (s === 0 ? 'You' : 'Rex the Brutus'), new Map(), (h) => (h === 'clem' ? 'data:image/png;base64,AAAA' : null));
+    document.body.innerHTML = progressBlock({ rows, sources: [] });
+    expect(document.querySelector('tr[data-hero="clem"] img.hp')).not.toBeNull();
+    expect(document.querySelector('tr[data-hero="brutus"] .hp.none')?.textContent).toBe('B');
+    // only baked data or blob URLs are used
+    const bad = progressRows([stat(0, 'clem')], 0, () => 'x', new Map(), () => 'javascript:alert(1)');
+    expect(progressBlock({ rows: bad, sources: [] })).not.toContain('javascript:');
+  });
+
+  it('no bot is called "Tank" (it read as a role)', () => {
+    expect([...CAT_NAMES, ...DOG_NAMES]).not.toContain('Tank');
+  });
+});

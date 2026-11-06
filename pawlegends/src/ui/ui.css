@@ -775,6 +775,48 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .pl-results .actions.pinned .pl-btn.big { font-size: 17px; padding: 10px 22px; }
 }
 
+/* Audit UX-04: the reward strip pinned above Run it back (grade, Treat XP bar, chest toast, dare link); UX-08 Home */
+.pl-results .pl-reward {
+  position: absolute; right: calc(18px + var(--safe-r)); bottom: calc(96px + var(--safe-b)); z-index: 3; display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 16px; background: rgba(30, 19, 35, 0.82); border: 1px solid var(--line); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  max-width: min(560px, calc(100vw - 36px)); opacity: 0; transform: translateY(8px); transition: opacity 0.4s, transform 0.4s; pointer-events: none;
+}
+.pl-results.in .pl-reward { opacity: 1; transform: none; pointer-events: auto; }
+.pl-reward .rw-grade { display: flex; align-items: center; gap: 6px; }
+.pl-reward .rw-grade b {
+  display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; font-size: 21px; line-height: 1;
+  background: rgba(255, 243, 220, 0.14); box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.35);
+}
+.pl-reward .rw-grade[data-grade='S'] b { background: var(--butter); color: #4a2a1f; }
+.pl-reward .rw-grade[data-grade='A'] b { color: var(--butter); box-shadow: inset 0 0 0 2px var(--butter); }
+.pl-reward small { font-size: 11px; opacity: 0.85; white-space: nowrap; }
+.pl-reward .rw-treat { display: flex; flex-direction: column; gap: 3px; min-width: 110px; }
+.pl-reward .rw-treat small { color: var(--butter); opacity: 1; font-weight: 700; }
+.pl-reward .rw-treat .bar { display: block; height: 7px; border-radius: 99px; background: rgba(255, 243, 220, 0.14); overflow: hidden; }
+.pl-reward .rw-treat .fill { display: block; height: 100%; width: var(--from); background: linear-gradient(90deg, #ffb84d, var(--butter)); border-radius: inherit; animation: pl-rwfill 0.9s 0.5s ease-out forwards; }
+@keyframes pl-rwfill { to { width: var(--to); } }
+.pl-reward .rw-chest { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 10px; background: linear-gradient(90deg, rgba(255, 210, 122, 0.3), transparent); animation: pl-pop 0.5s 0.9s both; }
+.pl-reward .rw-chest .pl-icon { width: 20px; height: 20px; color: var(--butter); flex: none; }
+.pl-reward .rw-chest b, .pl-reward .rw-chest small { display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-reward .rw-chest b { font-size: 12px; }
+.pl-reward .rw-share { white-space: nowrap; }
+.pl-results .pl-home {
+  position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); z-index: 4; display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
+}
+.pl-results .pl-home .pl-icon { width: 18px; height: 18px; }
+/* the MVP card sits top right: Home goes to its left on wide screens */
+.pl-results:has(.tt-mvp, .tt-mvp-slot) .pl-home { right: auto; left: calc(50% - 40px); }
+@media (prefers-reduced-motion: reduce) { .pl-reward .rw-treat .fill { animation: none; width: var(--to); } }
+@media (max-height: 480px) {
+  .pl-results .pl-reward { bottom: calc(74px + var(--safe-b)); padding: 4px 6px; gap: 6px; }
+  .pl-reward .rw-grade b { width: 28px; height: 28px; font-size: 17px; }
+  .pl-reward .rw-grade small { display: none; }
+  .pl-reward .rw-treat { min-width: 90px; }
+  .pl-reward .rw-chest small { display: none; }
+  .pl-reward .rw-share { padding: 6px 10px; font-size: 13px; }
+  .pl-results .pl-home { top: calc(8px + var(--safe-t)); padding: 6px 12px; }
+}
+
 /* Pick screen (round 0): chromas are colour swatches (the name in the tooltip and for screen readers), Play and the
    bots line sit outside the scrolling column so neither covers the other or the ability list. */
 .pl-pick .swatches { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -1289,6 +1331,10 @@ html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }
 .pl-results .pl-prog tr.enemy td.nm span { color: #ffb3bd; }
 .pl-results .pl-prog td.nm { display: flex; align-items: center; gap: 4px; max-width: 150px; }
 .pl-results .pl-prog td.nm span { overflow: hidden; text-overflow: ellipsis; }
+/* Audit UX-12: each row's hero portrait (a letter when no portrait is baked yet) */
+.pl-results .pl-prog .hp { flex: none; width: 18px; height: 18px; border-radius: 50%; object-fit: cover; background: rgba(255, 243, 220, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 243, 220, 0.3); }
+.pl-results .pl-prog .hp.none { display: inline-grid; place-items: center; font: 700 10px/1 var(--font); font-style: normal; }
+.pl-results .pl-prog tr.enemy .hp { box-shadow: inset 0 0 0 1px rgba(255, 120, 140, 0.6); }
 .pl-results .pl-prog .tys { display: flex; gap: 2px; }
 .pl-results .pl-prog .tc { font-style: normal; font-size: 10px; line-height: 14px; min-width: 26px; text-align: center; border-radius: 4px; background: rgba(255, 255, 255, 0.06); opacity: 0.45; }
 .pl-results .pl-prog .tc.on { opacity: 1; background: rgba(255, 211, 77, 0.18); color: #fff1c4; }
