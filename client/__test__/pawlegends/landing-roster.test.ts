@@ -1,7 +1,7 @@
 /**
  * The landing must not advertise heroes the game does not have (DOGS-V13 art gate: a dog can be cut before release).
  * Reads the game's own source as text: every landing hero whose `since` sim version is out must be in `HERO_IDS`, and
- * every game hero must be on the landing. With sim v13 merged, a cut Howler or Marshmallow fails here.
+ * every game hero must be on the landing. The five dogs shipped in sim v14; a cut dog fails here.
  */
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -10,6 +10,7 @@ import {
   countWord,
   GAME_SIM_VERSION,
   gridHeroes,
+  justReleased,
   LANDING_ROSTER,
   landingCats,
   landingDogs,
@@ -72,8 +73,20 @@ describe("Pawlegends landing roster", () => {
   });
 
   it("keeps blurbs word for word with the game where the game has them", () => {
-    const text = read("ui/heroText.ts") + ["meatball", "pixel", "duchess", "stilts"].map((h) => read(`ui/heroText/${h}.ts`)).join("\n");
+    const own = ["meatball", "pixel", "duchess", "stilts", "nugget", "marshmallow", "bravo", "chili", "howler"];
+    const text = read("ui/heroText.ts") + own.map((h) => read(`ui/heroText/${h}.ts`)).join("\n");
     for (const h of LANDING_ROSTER.filter((x) => x.since <= simVersion)) expect(text).toContain(h.blurb);
+  });
+
+  it("tags the heroes new in this build and names them over the grid (sim v14: the five dogs)", () => {
+    const html = landingMarkup();
+    const fresh = justReleased();
+    expect(fresh.map((h) => h.id)).toEqual(["nugget", "marshmallow", "bravo", "chili", "howler"]);
+    expect(html).toContain("New: five dogs join the pack");
+    expect(html).not.toContain("Coming next:");
+    expect(html.match(/<span class="new" aria-hidden="true">New<\/span>/g)).toHaveLength(fresh.length);
+    expect(liveRoster()).toHaveLength(17);
+    expect(gridHeroes()).toHaveLength(17);
   });
 
   it("matches the party invite URL the game builds, once party play is in this tree", () => {
