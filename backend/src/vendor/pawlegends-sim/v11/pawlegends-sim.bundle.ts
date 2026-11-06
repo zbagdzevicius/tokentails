@@ -12469,5 +12469,21 @@ function verifyReplay(record) {
 		reason: res.reason
 	};
 }
+/** Party play: the tick from which a surrender (Op.Forfeit) applies on difficulty `d` (0 = never). */
+function forfeitFromOf(d) {
+	const r = DIFFICULTY_RULES[d];
+	return r ? r.forfeitFrom : 0;
+}
+/** Party play: bit s set = hero slot s (0..2) is alive (the relay's AFK timer pauses while a hero is dead). */
+function humanAliveMask(m) {
+	let mask = 0;
+	for (let s = RANGE.heroes; s < 3; s++) if (m.world.alive[s] === 1) mask |= 1 << s;
+	return mask;
+}
+/** Party play: the side ('cat' | 'dog') of a hero (all humans pick from the leader's side), or null. */
+function heroSideOf(hero) {
+	const h = HEROES[hero];
+	return h ? h.side : null;
+}
 //#endregion
-export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, SIM_VERSION, TRICK_IDS, checkPartyShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, fromBase64, hash, hashTrail, isHuman, partyLog, partyReplayRecord, playerBotCommands, quantize, result, runPartyReplay, step, tickOf, toBase64, verifyPartyReplay, verifyReplay };
+export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, SIM_VERSION, TRICK_IDS, checkPartyShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, forfeitFromOf, fromBase64, hash, hashTrail, heroSideOf, humanAliveMask, isHuman, partyLog, partyReplayRecord, playerBotCommands, quantize, result, runPartyReplay, step, tickOf, toBase64, verifyPartyReplay, verifyReplay };

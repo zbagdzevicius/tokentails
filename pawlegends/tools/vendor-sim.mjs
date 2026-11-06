@@ -100,6 +100,11 @@ ${sorted.map((v) => `import * as v${v} from './v${v}';`).join('\n')}${hasPrev ? 
 export type {
     PawlegendsPartySim,
     PawlegendsPartyReplayRecord,
+    PawlegendsPartySeat,
+    PawlegendsCommand,
+    PawlegendsMatchHandle,
+    PawlegendsMatchResult,
+    PawlegendsPilot,
     PawlegendsDifficulty,
     PawlegendsHeroId,
     PawlegendsMutator,
@@ -334,6 +339,12 @@ export interface PawlegendsPartySim {
     partyReplayRecord(m: PawlegendsMatchHandle): PawlegendsPartyReplayRecord | null;
     decodeCommand(bytes: Uint8Array): PawlegendsCommand;
     encodeCommand(cmd: PawlegendsCommand): Uint8Array;
+    /** The tick from which a surrender applies on a difficulty (0 = never). */
+    forfeitFromOf(difficulty: string): number;
+    /** Bit s = hero slot s (0..2) alive. */
+    humanAliveMask(m: PawlegendsMatchHandle): number;
+    /** 'cat' | 'dog' for a hero id, else null. */
+    heroSideOf(hero: string): string | null;
 }
 
 /** The party API of this bundle. */
@@ -357,6 +368,9 @@ export const party: PawlegendsPartySim = {
     partyReplayRecord: sim.partyReplayRecord,
     decodeCommand: sim.decodeCommand,
     encodeCommand: sim.encodeCommand,
+    forfeitFromOf: sim.forfeitFromOf,
+    humanAliveMask: sim.humanAliveMask,
+    heroSideOf: sim.heroSideOf,
 };
 `;
 
@@ -419,22 +433,35 @@ async function goldenOf(bundleText) {
   return (golden.goldenHash(sim) >>> 0).toString(16).padStart(8, '0');
 }
 
-/** The prev/ files to write: the current live dir when its simSourceHash differs from `simHash`, else today's prev/. */
+/**
+ * The prev/ files (MULTIPLAYER.md §2.1 skew window): the live bundle production serves, i.e. the one on `origin/main`
+ * (else `main`), when it has party code (a simSourceHash) and differs from this build. Dev iterations never rotate it.
+ * Without git or either ref, today's prev/ on disk is kept as it is.
+ */
 function previousLive(simVersion, simHash) {
-  const liveDir = join(outDir, `v${simVersion}`);
-  const prevDir = join(outDir, 'prev');
-  const read = (dir) => {
+  const rel = `backend/src/vendor/pawlegends-sim/v${simVersion}`;
+  for (const ref of ['origin/main', 'main']) {
+    let info;
+    try {
+      info = JSON.parse(execFileSync('git', ['show', `${ref}:${rel}/pawlegends-sim.sha256.json`], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }));
+    } catch {
+      continue;
+    }
+    if (!info.simSourceHash || info.simSourceHash === simHash) return {};
     const out = {};
-    if (!existsSync(dir)) return out;
-    for (const f of readdirSync(dir)) out[f] = readFileSync(join(dir, f), 'utf8');
+    for (const name of [...VERSION_FILES, 'forfeit-replay.fixture.json']) {
+      try {
+        out[name] = execFileSync('git', ['show', `${ref}:${rel}/${name}`], { cwd: repo, encoding: 'utf8', maxBuffer: 64 << 20, stdio: ['ignore', 'pipe', 'ignore'] });
+      } catch {
+        /* a file that version did not ship */
+      }
+    }
     return out;
-  };
-  const infoPath = join(liveDir, 'pawlegends-sim.sha256.json');
-  if (existsSync(infoPath)) {
-    const info = JSON.parse(readFileSync(infoPath, 'utf8'));
-    if (info.simSourceHash && info.simSourceHash !== simHash) return read(liveDir);
   }
-  return read(prevDir);
+  const out = {};
+  const prevDir = join(outDir, 'prev');
+  if (existsSync(prevDir)) for (const f of readdirSync(prevDir)) out[f] = readFileSync(join(prevDir, f), 'utf8');
+  return out;
 }
 
 /** backend/src/vendor/pawlegends-net/: proto.ts verbatim (it has no imports) and its sha256. */

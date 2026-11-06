@@ -75,7 +75,7 @@ export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-export const BUNDLE_SHA256 = 'f68e521bf589e8eb45fb835ff5e5fae472e60388e880998b2f62171845e68486';
+export const BUNDLE_SHA256 = '20f42b2a4ea8fb4f1d22cfd5e62e981a98f6081200583b7fa63ea8b4c6238478';
 /** The SIM_VERSION this bundle was built with (11). */
 export const BUNDLE_SIM_VERSION = 11;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
@@ -91,7 +91,7 @@ export const verifyReplay: (record: unknown) => PawlegendsVerifyResult = sim.ver
 // steps rooms with. Matches and bots are opaque handles; commands are the sim's `Command` objects.
 
 /** SIM_HASH of the sim source closure this bundle was built from (the game's __SIM_HASH__). */
-export const SIM_SOURCE_HASH = '890d2491bf749986';
+export const SIM_SOURCE_HASH = 'b8524415ce3051dc';
 /** goldenHash (pawlegends/src/net/golden.ts) of this bundle, 8 hex (the game's __SIM_GOLDEN__). */
 export const SIM_GOLDEN = '23957c1c';
 
@@ -149,6 +149,12 @@ export interface PawlegendsPartySim {
     partyReplayRecord(m: PawlegendsMatchHandle): PawlegendsPartyReplayRecord | null;
     decodeCommand(bytes: Uint8Array): PawlegendsCommand;
     encodeCommand(cmd: PawlegendsCommand): Uint8Array;
+    /** The tick from which a surrender applies on a difficulty (0 = never). */
+    forfeitFromOf(difficulty: string): number;
+    /** Bit s = hero slot s (0..2) alive. */
+    humanAliveMask(m: PawlegendsMatchHandle): number;
+    /** 'cat' | 'dog' for a hero id, else null. */
+    heroSideOf(hero: string): string | null;
 }
 
 /** The party API of this bundle. */
@@ -172,4 +178,7 @@ export const party: PawlegendsPartySim = {
     partyReplayRecord: sim.partyReplayRecord,
     decodeCommand: sim.decodeCommand,
     encodeCommand: sim.encodeCommand,
+    forfeitFromOf: sim.forfeitFromOf,
+    humanAliveMask: sim.humanAliveMask,
+    heroSideOf: sim.heroSideOf,
 };
