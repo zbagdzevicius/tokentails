@@ -13,10 +13,13 @@ export const FISH = Object.freeze({
   passivePerSecond: 1,
   /** Lane minion value by kind index (0 melee, 1 ranged, 2 siege). */
   minion: Object.freeze([36, 27, 75]),
-  /** The hero who landed the last hit takes this share of the minion's value. */
-  lastHitBp: 6000,
-  /** Every other hero of that team within WAVE.xpRange takes this share (each, not split). */
-  nearBp: 4000,
+  /** The hero who landed the last hit takes this share of the minion's value. Fun pass (playtest #3: a last hit was
+   *  worth +7 Fish over standing near, so the trickle was half a casual player's Fish): 80% (60% before), so a melee
+   *  last hit is +18 over standing near. The full value (near 25%) let the ranged-heavy cat roster out-farm the dogs
+   *  (balance gate cats 53.4%, 47% to 53%). */
+  lastHitBp: 8000,
+  /** Every other hero of that team within WAVE.xpRange takes this share (each, not split). Fun pass: 30% (40%). */
+  nearBp: 3000,
   /** Hero kill value (killer); 80 when the victim died 2+ times in a row, 50 at 4+ (deathStreak). */
   kill: 120,
   killRepeat: 80,

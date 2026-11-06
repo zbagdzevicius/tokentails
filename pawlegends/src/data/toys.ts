@@ -12,11 +12,17 @@
  * second × move speed). S6 tuning: the spec's starting table gave tanks +75% and marksmen +34% on that measure
  * (fighter tier 2 +18%), so HP tiers carry fewer levels, marksmen more attack speed; the balance gate keeps every
  * hero within 46% to 54% and cats 48.9% / dogs 51.1%.
+ *
+ * Fun pass (playtest #4: "+8% damage" after 500 to 1,000 Fish was too small to feel): every tier is about 1.7× the S6
+ * row, so a tier is +10% to +24% fight power (avg ~+16%) and the full set +70% to +92% (avg ~+79%, still within ±10%
+ * across roles), at slightly higher prices (550, 1,300, 2,200, 3,150 cumulative). Balance gate (2,000 seeds): every
+ * hero 47.0% to 53.8%, cats 51.6% / dogs 48.4%, Toy tier 1 to 4 at 2:20, 4:27, 6:43, 7:37 for the median hero.
+ * Each tier also shows underfoot on the hero (render/views/heroView.ts toyRings).
  */
 import type { HeroRole } from './heroes/types';
 
-/** Step cost of tier 1..4 (index 0..3): 500, 1200, 2000 and 3000 Fish cumulative. */
-export const TOY_COST: readonly number[] = Object.freeze([500, 700, 800, 1000]);
+/** Step cost of tier 1..4 (index 0..3): 550, 1300, 2200 and 3150 Fish cumulative (fun pass; 500, 1200, 2000, 3000 before). */
+export const TOY_COST: readonly number[] = Object.freeze([550, 750, 900, 950]);
 export const TOY_TIERS = 4;
 /** The tier whose purchase turns the role passive on (1-based). */
 export const TOY_PASSIVE_TIER = 3;
@@ -32,12 +38,12 @@ const t = (dmgBp: number, hpLevels: number, asBp: number, speedBp: number): Read
 
 /** What each tier adds, per role (index 0 = tier 1). */
 export const TOY_TIER: Readonly<Record<HeroRole, readonly Readonly<ToyStats>[]>> = Object.freeze({
-  fighter: Object.freeze([t(800, 0, 0, 0), t(0, 1, 300, 0), t(800, 0, 0, 0), t(600, 1, 0, 0)]),
-  marksman: Object.freeze([t(0, 0, 900, 0), t(800, 0, 0, 0), t(0, 0, 500, 400), t(1000, 0, 0, 0)]),
-  tank: Object.freeze([t(0, 2, 0, 0), t(300, 1, 0, 0), t(0, 2, 0, 0), t(0, 2, 0, 400)]),
-  assassin: Object.freeze([t(900, 0, 0, 0), t(500, 0, 0, 600), t(1000, 0, 0, 0), t(1200, 0, 0, 0)]),
-  mage: Object.freeze([t(800, 0, 0, 0), t(600, 1, 0, 0), t(800, 0, 0, 0), t(1000, 0, 0, 0)]),
-  support: Object.freeze([t(300, 1, 0, 0), t(500, 0, 0, 400), t(0, 2, 0, 0), t(500, 1, 0, 0)]),
+  fighter: Object.freeze([t(1400, 0, 0, 0), t(0, 2, 500, 0), t(1300, 0, 0, 0), t(1000, 2, 0, 0)]),
+  marksman: Object.freeze([t(0, 0, 1500, 0), t(1400, 0, 0, 0), t(0, 0, 800, 700), t(1700, 0, 0, 0)]),
+  tank: Object.freeze([t(0, 3, 0, 0), t(500, 2, 0, 0), t(0, 2, 0, 0), t(0, 3, 0, 600)]),
+  assassin: Object.freeze([t(1500, 0, 0, 0), t(800, 0, 0, 1000), t(1700, 0, 0, 0), t(2000, 0, 0, 0)]),
+  mage: Object.freeze([t(1400, 0, 0, 0), t(1000, 2, 0, 0), t(1300, 0, 0, 0), t(1700, 0, 0, 0)]),
+  support: Object.freeze([t(500, 2, 0, 0), t(800, 0, 0, 700), t(0, 3, 0, 0), t(800, 2, 0, 0)]),
 });
 
 /**
@@ -45,12 +51,12 @@ export const TOY_TIER: Readonly<Record<HeroRole, readonly Readonly<ToyStats>[]>>
  * entry. A unit test checks every row against TOY_TIER.
  */
 export const TOY_SUM: Readonly<Record<HeroRole, readonly Readonly<ToyStats>[]>> = Object.freeze({
-  fighter: Object.freeze([t(0, 0, 0, 0), t(800, 0, 0, 0), t(800, 1, 300, 0), t(1600, 1, 300, 0), t(2200, 2, 300, 0)]),
-  marksman: Object.freeze([t(0, 0, 0, 0), t(0, 0, 900, 0), t(800, 0, 900, 0), t(800, 0, 1400, 400), t(1800, 0, 1400, 400)]),
-  tank: Object.freeze([t(0, 0, 0, 0), t(0, 2, 0, 0), t(300, 3, 0, 0), t(300, 5, 0, 0), t(300, 7, 0, 400)]),
-  assassin: Object.freeze([t(0, 0, 0, 0), t(900, 0, 0, 0), t(1400, 0, 0, 600), t(2400, 0, 0, 600), t(3600, 0, 0, 600)]),
-  mage: Object.freeze([t(0, 0, 0, 0), t(800, 0, 0, 0), t(1400, 1, 0, 0), t(2200, 1, 0, 0), t(3200, 1, 0, 0)]),
-  support: Object.freeze([t(0, 0, 0, 0), t(300, 1, 0, 0), t(800, 1, 0, 400), t(800, 3, 0, 400), t(1300, 4, 0, 400)]),
+  fighter: Object.freeze([t(0, 0, 0, 0), t(1400, 0, 0, 0), t(1400, 2, 500, 0), t(2700, 2, 500, 0), t(3700, 4, 500, 0)]),
+  marksman: Object.freeze([t(0, 0, 0, 0), t(0, 0, 1500, 0), t(1400, 0, 1500, 0), t(1400, 0, 2300, 700), t(3100, 0, 2300, 700)]),
+  tank: Object.freeze([t(0, 0, 0, 0), t(0, 3, 0, 0), t(500, 5, 0, 0), t(500, 7, 0, 0), t(500, 10, 0, 600)]),
+  assassin: Object.freeze([t(0, 0, 0, 0), t(1500, 0, 0, 0), t(2300, 0, 0, 1000), t(4000, 0, 0, 1000), t(6000, 0, 0, 1000)]),
+  mage: Object.freeze([t(0, 0, 0, 0), t(1400, 0, 0, 0), t(2400, 2, 0, 0), t(3700, 2, 0, 0), t(5400, 2, 0, 0)]),
+  support: Object.freeze([t(0, 0, 0, 0), t(500, 2, 0, 0), t(1300, 2, 0, 700), t(1300, 5, 0, 700), t(2100, 7, 0, 700)]),
 });
 
 /** Tiers owned (0..4) that add no HP, per role: what the bots' fight check counts (BOT_AI.powerPerToy). */

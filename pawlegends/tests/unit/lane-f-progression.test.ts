@@ -47,7 +47,7 @@ describe('toy words (F2)', () => {
   it('a tier-3 toast names the role passive; the last tier says fully geared', () => {
     expect(toyToast('clem', 3).sub).toContain('new: basics heal 8% of hero damage');
     expect(toyToast('sage', 4).sub).toContain('fully geared');
-    expect(toyToast('clem', 1)).toMatchObject({ title: 'Chew Rope I — +8% damage', name: 'Chew Rope I', head: '+8% damage' });
+    expect(toyToast('clem', 1)).toMatchObject({ title: 'Chew Rope I — +14% damage', name: 'Chew Rope I', head: '+14% damage' });
   });
 
   it('the Fish chip ring fills toward the next step and is full at the last tier', () => {
@@ -55,7 +55,7 @@ describe('toy words (F2)', () => {
     expect(fishProgress(TOY_COST[0] / 2, 0).frac).toBeCloseTo(0.5);
     expect(fishProgress(350, 1)).toEqual({ frac: 350 / TOY_COST[1], next: TOY_COST[1] });
     expect(fishProgress(9999, TOY_TIERS)).toEqual({ frac: 1, next: 0 });
-    expect([1, 2, 3, 4].map(toyCumulative)).toEqual([500, 1200, 2000, 3000]);
+    expect([1, 2, 3, 4].map(toyCumulative)).toEqual([550, 1300, 2200, 3150]);
     expect(mmss(131 * 30)).toBe('2:11');
     expect(mmss(-1)).toBe('–');
   });

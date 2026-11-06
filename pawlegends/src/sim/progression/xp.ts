@@ -76,6 +76,10 @@ export function heroKilled(m: MatchHandle, victim: number): void {
   const bounty = bountyOf(w.killStreak[victim]);
   let reward = XP.killBase + XP.killPerLevel * w.level[victim];
   if (killer >= 0 && w.level[victim] > w.level[killer] + 1) reward = applyBp(reward, XP.upsetBp);
+  // Fun pass (playtest #2): a victim on a death streak is worth less XP (its kill Fish drops the same way)
+  const ds = w.deathStreak[victim];
+  if (ds >= FISH.killFedFrom) reward = applyBp(reward, XP.killFedXpBp);
+  else if (ds >= FISH.killRepeatFrom) reward = applyBp(reward, XP.killRepeatXpBp);
   reward += bounty;
   const nearAssists = rulesOf(m).nearAssists;
   const r2 = XP.shareRange * XP.shareRange;
