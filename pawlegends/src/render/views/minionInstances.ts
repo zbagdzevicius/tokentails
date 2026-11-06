@@ -41,6 +41,8 @@ interface Anim {
   phase: number;
   walk: number;
   hit: number;
+  /** C11b: the white flash of the player's own hit (1 decaying). */
+  flash: number;
   /** Seconds since the last strike (contact / release); −1 = none yet. */
   strikeT: number;
   /** Seconds the minion has been attacking without a strike yet (the first windup). */
@@ -223,6 +225,14 @@ export class MinionInstances {
     }
   }
 
+  /** C11b: the player's own hit on minion `id`: a light squash and a short white flash. */
+  flash(id: number): void {
+    const a = this.anim.get(id);
+    if (!a) return;
+    a.flash = 1;
+    a.hit = Math.max(a.hit, 0.7);
+  }
+
   /** A melee minion's contact (its basic hit fired): the strike lands now. Ranged / siege strike on their bolt. */
   swing(id: number): void {
     const a = this.anim.get(id);
@@ -275,7 +285,7 @@ export class MinionInstances {
       let a = this.anim.get(e.id);
       if (!a) {
         if (this.anim.size >= MAX_IDS) continue;
-        a = { phase: e.id * 0.7, walk: 0, hit: 0, strikeT: -1, attackT: 0, freeze: 0, hx: 1, hz: 0, shove: 0, x: 0, z: 0, yaw: 0, k, stamp, variant: v };
+        a = { phase: e.id * 0.7, walk: 0, hit: 0, flash: 0, strikeT: -1, attackT: 0, freeze: 0, hx: 1, hz: 0, shove: 0, x: 0, z: 0, yaw: 0, k, stamp, variant: v };
         this.anim.set(e.id, a);
       }
       a.stamp = stamp;
@@ -290,6 +300,7 @@ export class MinionInstances {
       a.phase += moving ? (mps * fdt * Math.PI) / (SCALE[v] * 0.55) : 0;
       a.walk += ((moving ? 1 : 0) - a.walk) * Math.min(1, dt * 10);
       a.hit = Math.max(0, a.hit - dt * 5);
+      a.flash = Math.max(0, a.flash - dt * 9);
       a.shove = Math.max(0, a.shove - dt * 6);
       const attacking = e.state === 'attacking';
       if (a.strikeT >= 0) a.strikeT += fdt;
@@ -334,7 +345,8 @@ export class MinionInstances {
       const hop = upright ? Math.abs(Math.cos(a.phase)) * 0.06 * a.walk : moving ? Math.abs(Math.sin(a.phase * 0.5)) * 0.03 : 0;
       const sq = 1 - a.hit * 0.18;
       const s = SCALE[v];
-      this.animAttr[k].setXYZW(i, a.phase, a.walk, upright ? arm : Math.max(0, arm), a.hit);
+      // aAnim.w packs the hit (0..1) and C11b's flash in 8 steps above it (rig.ts UPRIGHT_PARS unpacks it)
+      this.animAttr[k].setXYZW(i, a.phase, a.walk, upright ? arm : Math.max(0, arm), Math.min(1, a.hit) + 2 * Math.round(a.flash * 8));
       // body: lean into the strike, back on the cock (siege: the cart bucks on its shot)
       const lean = upright ? -a.walk * 0.08 + a.hit * 0.15 - Math.max(0, arm) * 0.16 - Math.min(0, arm) * 0.22 : -Math.max(0, arm) * 0.3 + Math.sin(time * 2 + e.id) * 0.02;
       _e.set(0, a.yaw, lean);

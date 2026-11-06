@@ -65,6 +65,7 @@ uniform float uTime;
 uniform float uInk;     // 1: a dark ink band on the outer edge (the player's own indicator, drawn over the VFX)
 uniform float uRimW;    // radial: rim width as a fraction of the radius (0.1 = the usual bold rim)
 uniform float uDash;    // radial: > 0 = a dashed, ink-outlined outline with this many dashes and no body (the attack range ring)
+uniform float uSolid;   // C10: > 0 = the player's aim: a filled body at this alpha (no ripple) and, on lines and dashes, an arrowhead
 varying vec2 vUv;
 void main(){
   float a = 0.0;
@@ -91,6 +92,7 @@ void main(){
     float body = 0.16 + 0.06 * sin(d * 18.0 - uTime * 6.0);
     if (uInner > 0.0) body *= smoothstep(uInner - 0.05, uInner, d) * 0.5;
     if (uDash > 0.0) body = 0.0;
+    if (uSolid > 0.0 && uDash <= 0.0 && uInner <= 0.0) body = uSolid;
     float fill = uFill >= 0.0 ? step(d, uFill) * 0.32 + smoothstep(uFill - 0.06, uFill, d) * step(d, uFill) * 0.5 : 0.0;
     a = inside * (body + fill) + max(rim, side) * 0.95;
     ink = max(ink, uInk * smoothstep(0.95, 0.972, d) * inside);
@@ -101,8 +103,19 @@ void main(){
     float body = 0.16 + 0.05 * sin(along * 30.0 - uTime * 8.0);
     float fill = uFill >= 0.0 ? step(along, uFill) * 0.32 + smoothstep(uFill - 0.04, uFill, along) * step(along, uFill) * 0.5 : 0.0;
     float chevron = 0.18 * step(0.5, fract(along * 8.0 - across * 0.6 - uTime * 2.0));
-    a = body + fill + chevron * 0.5 + min(1.0, rim) * 0.95;
     ink = uInk * max(smoothstep(0.93, 0.97, across), smoothstep(0.992, 0.998, along));
+    if (uSolid > 0.0) {
+      body = uSolid;
+      chevron = 0.0;
+      // the arrowhead: the last 22% narrows to a point, drawn solid with an ink edge
+      float tip = (1.0 - along) / 0.22;
+      float head = step(0.78, along) * step(across, tip);
+      float edge = step(0.78, along) * smoothstep(tip - 0.18, tip, across) * step(across, tip);
+      rim = rim * step(along, 0.78) + head * 0.9;
+      ink = ink * step(along, 0.78) + uInk * edge;
+      body *= step(along, 0.78) + step(0.78, along) * step(across, tip);
+    }
+    a = body + fill + chevron * 0.5 + min(1.0, rim) * 0.95;
   }
   if (a < 0.01 && ink < 0.01) discard;
   gl_FragColor = vec4(mix(uColor, vec3(0.08, 0.04, 0.06), ink), max(a * uAlpha, ink * 0.9));
@@ -139,6 +152,8 @@ export interface TelegraphSpec {
   top?: boolean;
   /** Wave C (C3): an enemy wind-up: drawn after every particle and shockwave layer (TELEGRAPH_OVER), no ink. */
   over?: boolean;
+  /** C10: the player's aim shape: a filled body at this alpha and an arrowhead on lines and dashes. */
+  solid?: number;
   /** Ring only: a thin dashed, ink-outlined outline with no body (the basic attack range ring, subtler than a skill's range ring). */
   dashed?: boolean;
 }
@@ -179,6 +194,7 @@ export class TelegraphPool {
           uInk: { value: 0 },
           uRimW: { value: 0.1 },
           uDash: { value: 0 },
+          uSolid: { value: 0 },
         },
         transparent: true,
         depthWrite: false,
@@ -220,6 +236,7 @@ export class TelegraphPool {
     u.uAlpha.value = s.alpha ?? 1;
     u.uTime.value = this.time;
     u.uInk.value = s.top ? 1 : 0;
+    u.uSolid.value = s.solid ?? 0;
     const dashed = s.dashed === true && s.shape === 'ring';
     u.uRimW.value = dashed ? Math.min(0.1, DASH_RIM_M / s.length) : 0.1;
     u.uDash.value = dashed ? Math.max(12, Math.round((Math.PI * 2 * s.length) / DASH_EVERY_M)) : 0;

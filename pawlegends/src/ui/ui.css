@@ -425,9 +425,17 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-tbtn.r { right: 164px; bottom: 100px; width: 70px; height: 70px; border-color: rgba(255, 210, 122, 0.8); }
 .pl-tbtn.trick { right: -16px; bottom: 112px; width: 48px; height: 48px; font-size: 13px; }
 .pl-tbtn.nap { right: 186px; bottom: 6px; width: 46px; height: 46px; font-size: 12px; }
+/* C9: Nap is a 300 ms hold: a cream ring fills around the button while it is held */
+.pl-tbtn.nap::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(255, 243, 220, 0.85) var(--napfill, 0deg), transparent 0); opacity: 0; }
+.pl-tbtn.nap.holding::before { opacity: 1; animation: pl-napfill 300ms linear forwards; }
+@property --napfill { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes pl-napfill { to { --napfill: 360deg; } }
+/* C5: Attack with nothing in reach flashes red (the ground ring flashes with it) */
+.pl-tbtn.attack.deny { animation: pl-atkdeny 300ms ease-out; }
+@keyframes pl-atkdeny { 0%, 40% { border-color: #fff; box-shadow: 0 0 0 4px var(--enemy), 0 4px 12px rgba(0, 0, 0, 0.35); } 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); } }
 .pl-cancel {
-  /* Left of the ability cluster, clear of the minimap (top right) and of R. */
-  position: absolute; right: calc(262px + var(--safe-r)); bottom: calc(150px + var(--safe-b)); width: 62px; height: 62px; border-radius: 50%;
+  /* C9: above the ability cluster (out of the screen's middle third, where it sat over the fight), under the minimap. */
+  position: absolute; right: calc(118px + var(--safe-r)); bottom: calc(196px + var(--safe-b)); width: 56px; height: 56px; border-radius: 50%;
   display: none; place-items: center; font-size: 30px; background: rgba(20, 12, 22, 0.85); border: 3px solid rgba(255, 243, 220, 0.9); color: var(--cream);
   box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75);
 }
@@ -1164,6 +1172,12 @@ html[data-touch='1'] .pl-rail {
   --rail-top: 56px; --rail-h: 28px; --rail-w: clamp(200px, calc(100vw - 480px), 360px); --rail-fs: 14px; --rail-badge: 20px;
 }
 html[data-touch='1'] .pl-rail .sb { display: none; }
+/* C13: on the narrowest phones (667 px) a coaching line wraps to two lines instead of being cut with an ellipsis */
+@media (max-width: 700px) {
+  html[data-touch='1'] .pl-rail { --rail-w: 240px; }
+  html[data-touch='1'] .pl-rail-line { height: auto; min-height: var(--rail-h); padding-top: 3px; padding-bottom: 3px; white-space: normal; }
+  html[data-touch='1'] .pl-rail-line .tt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.15; }
+}
 html[data-touch='1'] .pl-rail-line { padding: 0 12px 0 6px; gap: 6px; clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); }
 html[data-touch='1'] .pl-rail-rest.rest-countdown .tt { font-size: 22px; }
 /* QA v2 #9: phone announcer moments (First Blood, a tower, Shut down, ACE, the own ult on desktop) read as a banner,

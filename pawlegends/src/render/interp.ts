@@ -7,6 +7,11 @@ import type { EntitySnap, ProjectileSnap, SimEvent, Snapshot, ZoneSnap } from '.
 
 /** How far behind the newest snapshot the view runs, in ticks. */
 export const INTERP_LAG = 1.6;
+/**
+ * C6: the player's own hero runs this far behind (ticks) instead: the LocalHost has no latency, so the newest
+ * snapshot is the truth and the own hero reacts to the stick ~40 ms sooner, with no extrapolation (no rubber-band).
+ */
+export const SELF_LAG = 0.3;
 /** A jump longer than this between two snapshots is drawn as a teleport (mm). */
 export const TELEPORT_MM = 3500;
 const KEEP = 12;
@@ -47,6 +52,8 @@ export class SnapBuffer {
   /** Render clock in ticks (fractional). */
   renderTick = 0;
   speed = 1;
+  /** C6: the own hero's entity id (−1: none, every entity at the shared lag). */
+  selfId = -1;
 
   get latest(): Snapshot | null {
     return this.snaps.length > 0 ? this.snaps[this.snaps.length - 1] : null;
@@ -113,7 +120,46 @@ export class SnapBuffer {
     if (Math.abs(err) > 30 * this.speed) this.renderTick = target;
     else this.renderTick += err * Math.min(1, dt * 6) * Math.min(1, scale);
     if (this.renderTick > last.clock.tick) this.renderTick = last.clock.tick;
-    return this.sample(this.renderTick);
+    const f = this.sample(this.renderTick);
+    if (f && this.selfId >= 0) {
+      const ahead = (INTERP_LAG - SELF_LAG) * Math.max(1, this.speed * 0.5);
+      this.sampleSelf(f, Math.min(last.clock.tick, this.renderTick + ahead));
+    }
+    return f;
+  }
+
+  /** C6: move the own hero in `f` to its place at tick `t` (position, facing and speed only; the rest stays at `f.tick`). */
+  sampleSelf(f: ViewFrame, t: number): void {
+    const v = f.byId.get(this.selfId);
+    if (!v || v.state === 'dead') return;
+    const n = this.snaps.length;
+    let b = n - 1;
+    while (b > 0 && this.snaps[b - 1].clock.tick >= t) b--;
+    const B = this.snaps[b];
+    const A = b > 0 ? this.snaps[b - 1] : B;
+    const e = B.entities.find((q) => q.id === this.selfId);
+    const p = A.entities.find((q) => q.id === this.selfId);
+    if (!e || e.state === 'dead') return;
+    const span = B.clock.tick - A.clock.tick;
+    const u = span > 0 ? Math.max(0, Math.min(1, (t - A.clock.tick) / span)) : 1;
+    let fx = e.x;
+    let fy = e.y;
+    let yaw = facingToRad(e.facing);
+    if (p && p.state !== 'dead') {
+      const dx = e.x - p.x;
+      const dy = e.y - p.y;
+      const d = Math.hypot(dx, dy);
+      if (d >= TELEPORT_MM) return;
+      fx = p.x + dx * u;
+      fy = p.y + dy * u;
+      yaw = lerpAngle(facingToRad(p.facing), facingToRad(e.facing), u);
+      v.speed = span > 0 ? d / span : 0;
+    }
+    // a teleport between the shared sample and this one (a blink just now): keep the shared sample, the snap comes next
+    if (Math.hypot(fx - v.fx, fy - v.fy) >= TELEPORT_MM) return;
+    v.fx = fx;
+    v.fy = fy;
+    v.yaw = yaw;
   }
 
   sample(t: number): ViewFrame | null {

@@ -162,7 +162,19 @@ for (const s of [
     }
 
     // C6 nap rune: it fills with the channel and is gone after a cancel
-    if (s.phone) await page.locator('.pl-tbtn.nap').tap({ force: true }).catch(() => undefined);
+    // C9: Nap is a 300 ms hold on the phone
+    if (s.phone) {
+      await page
+        .evaluate(async () => {
+          const el = document.querySelector('.pl-tbtn.nap') as HTMLElement;
+          const r = el.getBoundingClientRect();
+          const ev = (type: string): PointerEvent => new PointerEvent(type, { pointerId: 9, pointerType: 'touch', clientX: r.x + r.width / 2, clientY: r.y + r.height / 2, bubbles: true, cancelable: true });
+          el.dispatchEvent(ev('pointerdown'));
+          await new Promise((res) => setTimeout(res, 380));
+          window.dispatchEvent(ev('pointerup'));
+        })
+        .catch(() => undefined);
+    }
     else await page.keyboard.press('b');
     const fills: number[] = [];
     for (let i = 0; i < 6; i++) {

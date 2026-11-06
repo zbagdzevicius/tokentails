@@ -184,15 +184,18 @@ mat3 plRz(float a){ float c = cos(a), s = sin(a); return mat3(c, s, 0.0, -s, c, 
 mat3 plRy(float a){ float c = cos(a), s = sin(a); return mat3(c, 0.0, -s, 0.0, 1.0, 0.0, s, 0.0, c); }
 mat3 plRx(float a){ float c = cos(a), s = sin(a); return mat3(1.0, 0.0, 0.0, 0.0, c, s, 0.0, -s, c); }
 // aAnim: x walk phase, y walk weight, z weapon arm (minionInstances.ts minionArm: < 0 cocked back, 1 the strike on the
-// contact, > 1 the overshoot, back to 0 on the follow-through), w hit (1 decaying)
+// contact, > 1 the overshoot, back to 0 on the follow-through), w hit (1 decaying) plus 2 × the own-hit flash (0..8)
+varying float vPlFlash;
 mat3 plUpright(float p){
+  float hw = mod(aAnim.w, 2.0);
+  vPlFlash = floor(aAnim.w * 0.5) / 8.0;
   float s = sin(aAnim.x) * aAnim.y;
   float sw = aAnim.z;
   float idle = sin(uTime * 2.1 + aAnim.x * 0.3);
   if (p < 0.5) return mat3(1.0);
-  if (p < 1.5) return plRz(idle * 0.04 - sw * 0.2 - aAnim.w * 0.35 + aAnim.y * sin(aAnim.x * 2.0) * 0.05);
-  if (p < 2.5) return plRz(-s * 0.8) * plRx(-0.08 - aAnim.w * 0.5);
-  if (p < 3.5) return plRz(s * 0.7 + sw * 2.1) * plRx(0.08 + aAnim.w * 0.5);
+  if (p < 1.5) return plRz(idle * 0.04 - sw * 0.2 - hw * 0.35 + aAnim.y * sin(aAnim.x * 2.0) * 0.05);
+  if (p < 2.5) return plRz(-s * 0.8) * plRx(-0.08 - hw * 0.5);
+  if (p < 3.5) return plRz(s * 0.7 + sw * 2.1) * plRx(0.08 + hw * 0.5);
   if (p < 4.5) return plRz(s * 0.7);
   if (p < 5.5) return plRz(-s * 0.7);
   return plRy(sin(uTime * 3.2 + aAnim.x * 0.5) * (0.3 + aAnim.y * 0.3));
@@ -215,12 +218,14 @@ export function uprightMaterial(): THREE.MeshLambertMaterial & { userData: { rig
       .replace('#include <common>', `#include <common>\n${UPRIGHT_PARS}`)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nmat3 plR = plUpright(aPart);\nobjectNormal = plR * objectNormal;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = plR * (transformed - aPivot) + aPivot;');
-    shader.fragmentShader = shader.fragmentShader.replace(
-      '#include <opaque_fragment>',
-      '#include <opaque_fragment>\nfloat plEdge = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));\ngl_FragColor.rgb *= 1.0 - 0.5 * smoothstep(0.62, 0.92, plEdge);',
-    );
+    shader.fragmentShader = shader.fragmentShader
+      .replace('#include <common>', '#include <common>\nvarying float vPlFlash;')
+      .replace(
+        '#include <opaque_fragment>',
+        '#include <opaque_fragment>\nfloat plEdge = 1.0 - abs(dot(normalize(normal), normalize(vViewPosition)));\ngl_FragColor.rgb *= 1.0 - 0.5 * smoothstep(0.62, 0.92, plEdge);\ngl_FragColor.rgb = mix(gl_FragColor.rgb, vec3(1.0), vPlFlash * 0.75);',
+      );
   };
-  m.customProgramCacheKey = () => 'pl-rig-v2';
+  m.customProgramCacheKey = () => 'pl-rig-v3';
   return m;
 }
 

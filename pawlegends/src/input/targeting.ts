@@ -63,7 +63,16 @@ export function guardedByTower(units: readonly Unit[], u: { x: number; y: number
  * share among the heroes, minions and camp monsters in range; 'closest' the nearest of them. Both still put towers
  * after units in range and keep the same out-of-range fallback ('closest' takes the nearer of the two fallbacks).
  */
-export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number, range: number, seek = 7000, first: TargetFirst = 'heroes'): number | null {
+export function attackPriority(
+  units: readonly Unit[],
+  me: Unit,
+  myTeam: number,
+  range: number,
+  seek = 7000,
+  first: TargetFirst = 'heroes',
+  /** C5: the next basic's damage to a minion or camp monster; one it kills wins the minion pick (the last hit). */
+  killDmg?: (u: Unit) => number,
+): number | null {
   let hero: Unit | null = null;
   let minion: Unit | null = null;
   let tower: Unit | null = null;
@@ -72,10 +81,21 @@ export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number,
   let lowest: Unit | null = null;
   let closest: Unit | null = null;
   let closestD = Infinity;
+  /** C5: a minion the next basic kills (nearest first), from attack range + 1 m. */
+  let kill: Unit | null = null;
+  let killD = Infinity;
   for (const u of units) {
     if (u.id === me.id || !isEnemy(u, myTeam)) continue;
     const d = dist(u, me) - BODY_MM[u.kind];
     const inRange = d <= range + 300;
+    const farm = u.kind === 'minion' || u.kind === 'camp';
+    if (farm && d <= range + LAST_HIT_REACH) {
+      if (killDmg && u.hp <= killDmg(u) && d < killD) {
+        kill = u;
+        killD = d;
+      }
+      if (!minion || u.hp < minion.hp) minion = u;
+    }
     const unit = u.kind === 'hero' || u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding';
     if (inRange && unit) {
       if (!lowest || u.hp / Math.max(1, u.maxHp) < lowest.hp / Math.max(1, lowest.maxHp)) lowest = u;
@@ -88,7 +108,7 @@ export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number,
       if (inRange && (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp)) hero = u;
       if (d <= seek && (!nearHero || d < dist(nearHero, me) - BODY_MM.hero) && !guardedByTower(units, u, myTeam)) nearHero = u;
     } else if (u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding') {
-      if (inRange && (!minion || u.hp < minion.hp)) minion = u;
+      if (inRange && !farm && (!minion || u.hp < minion.hp)) minion = u;
       if (d <= seek && (!nearMinion || d < dist(nearMinion, me) - BODY_MM[nearMinion.kind]) && !guardedByTower(units, u, myTeam)) nearMinion = u;
     } else if (inRange && (!tower || u.hp < tower.hp)) tower = u;
   }
@@ -98,8 +118,11 @@ export function attackPriority(units: readonly Unit[], me: Unit, myTeam: number,
     const fallback = edge(nearMinion) < edge(nearHero) ? nearMinion : nearHero;
     return (closest ?? tower ?? fallback)?.id ?? null;
   }
-  return (hero ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
+  return (hero ?? kill ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
 }
+
+/** C5: the Attack button looks this far (mm) past the attack range for a minion to last-hit. */
+export const LAST_HIT_REACH = 1000;
 
 /**
  * GAPS A5 last-hit button (MLBB Advanced Aim): the lowest-HP enemy minion or camp monster in range, never a hero or a

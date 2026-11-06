@@ -17,6 +17,10 @@ export const XP_MERGE_MS = 900;
 
 /** Global slow motion never runs longer than this (ms) unless asked for the match end (ANIM-SPEC §6). */
 export const SLOWMO_CAP_MS = 110;
+/** C11a: a full freeze of the global clock lasts at most this long (3 frames at 60 Hz). */
+export const FREEZE_CAP_MS = 48;
+/** C11d: kicks under this trauma are dropped: the screen shakes for the player's kills and big hits only. */
+export const KICK_MIN = 0.2;
 
 export interface Banner {
   title: string;
@@ -138,7 +142,7 @@ export class Juice {
 
   /** Freeze the render clock for `ms` (scale 0) or slow it (`scale` > 0). The longest active request wins. */
   hitstop(ms: number, scale = 0): void {
-    const s = ms / 1000;
+    const s = (scale <= 0 ? Math.min(ms, FREEZE_CAP_MS) : ms) / 1000;
     if (s > this.stopLeft) {
       this.stopLeft = s;
       this.stopScale = scale;
@@ -166,6 +170,7 @@ export class Juice {
 
   /** Trauma 0..1. */
   kick(trauma: number): void {
+    if (trauma < KICK_MIN) return;
     this.shake.add(trauma * this.shakeScale);
   }
 

@@ -86,7 +86,11 @@ describe('orders → commands', () => {
     const { o, sent } = rig();
     expect(o.cast(0, 12000, 10000)).toBe(true);
     expect(sent.at(-1)).toMatchObject({ op: Op.Cast, slot: 0, x: 12000, y: 10000 });
+    // C2: a second cast right behind the first waits in the buffer until the first is seen (its cast event)
     o.cast(3, 0, 0);
+    expect(sent.at(-1)).toMatchObject({ op: Op.Cast, slot: 0 });
+    o.onEvent({ type: 'cast', tick: 1, src: 0, slot: 0, x: 12000, y: 10000, target: -1 });
+    o.update();
     expect(sent.at(-1)).toMatchObject({ op: Op.Cast, slot: 3, x: 10000, y: 10000 });
   });
   it('refuses when on cooldown or the ultimate is locked', () => {
