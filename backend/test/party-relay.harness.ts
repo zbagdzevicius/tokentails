@@ -33,12 +33,15 @@ const relay = new PartyRelay({
     tickets: new PartyTicketService(),
     referee: new RefereePool({ inline: process.env.REFEREE_INLINE === '1' }),
     allowNoOrigin: true,
-    originAllowed: (o) => origins.includes(o),
+    originAllowed: o => origins.includes(o),
     log: (event, props) => {
-        if (/desync|divergence|error|lag|verify|refused|match_/.test(event)) console.log(`[relay] ${event} ${JSON.stringify(props)}`);
+        if (/desync|divergence|error|lag|verify|refused|match_/.test(event))
+            console.log(`[relay] ${event} ${JSON.stringify(props)}`);
     },
 });
-server.listen(port, '127.0.0.1', () => console.log(`[relay] listening on ${port} for ${origins.join(', ') || '(no origins)'}`));
+server.listen(port, '127.0.0.1', () =>
+    console.log(`[relay] listening on ${port} for ${origins.join(', ') || '(no origins)'}`)
+);
 const stop = async () => {
     await relay.shutdown();
     server.close();
