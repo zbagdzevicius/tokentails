@@ -104,7 +104,9 @@ describe('one writer for game scores', () => {
             expect(pawlegendsCallers.sort()).toEqual(['pawlegends/pawlegends-live.ts', 'user/user.controller.ts']);
             // And its party branch (MULTIPLAYER.md §6): only the /live handler calls it; the relay never does.
             expect(methodBody(controller, 'Tcatbassadors')).toContain('savePawlegendsPartyMatch(');
-            const partyCallers = FILES.filter(({ text }) => /\bsavePawlegendsPartyMatch\(/.test(text)).map(({ file }) => file);
+            const partyCallers = FILES.filter(({ text }) => /\bsavePawlegendsPartyMatch\(/.test(text)).map(
+                ({ file }) => file
+            );
             expect(partyCallers.sort()).toEqual(['pawlegends/pawlegends-party-live.ts', 'user/user.controller.ts']);
             expect(controller).toMatch(/@Post\('catbassadors\/live'\)\s*async Tcatbassadors\(/);
         });
