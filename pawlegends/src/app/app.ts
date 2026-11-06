@@ -96,14 +96,11 @@ function installFont(): void {
   try {
     if (typeof FontFace === 'undefined' || !document.fonts) return;
     const base = import.meta.env.BASE_URL ?? './';
-    const face = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Latin.woff2") format("woff2")`, { weight: '300 700', display: 'swap' });
-    face
-      .load()
-      .then((f) => document.fonts.add(f))
-      .catch(() => undefined);
     // Sim v9: the champion names Avietė and Gabė. Fredoka has no precomposed ė, but it has e and the combining dot
     // (U+0307), so the UI writes those names decomposed (data/heroes/shelter.ts `uiName`). A cluster e + dot must come
-    // from one face, so this one (the whole font) covers Basic Latin too, not only the marks.
+    // from one face, so this one (the whole font) covers Basic Latin too.
+    // Audit GFX-14: it is the only face now. The separate Latin file (65 KB) only duplicated its Basic Latin, so the
+    // game loaded 152 KB of fonts for one family; index.html preloads this file.
     const ext = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Ext.woff2") format("woff2")`, {
       weight: '300 700',
       display: 'swap',

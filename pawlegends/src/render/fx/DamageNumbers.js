@@ -203,7 +203,7 @@ export class DamageNumbers {
     try {
       if (typeof FontFace === 'undefined' || !document.fonts) return;
       for (const f of document.fonts) if (/fredoka/i.test(f.family)) return;
-      const url = this.ctx.assets?.url?.('fonts/Fredoka-Latin.woff2');            // ui's PERF I2 subset (same file, cached)
+      const url = this.ctx.assets?.url?.('fonts/Fredoka-Ext.woff2');              // the app's one Fredoka file (audit GFX-14; same file, cached)
       if (!url) return;
       const face = new FontFace('Fredoka', `url("${url}") format("woff2")`, { weight: '300 700', display: 'swap' });
       face.load().then((f) => document.fonts.add(f)).catch((e) => console.warn('[fx] damage-number font', e?.message ?? e));
