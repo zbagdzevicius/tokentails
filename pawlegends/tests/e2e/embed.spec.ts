@@ -95,3 +95,54 @@ test('game events go to the host as analytics messages, with no stats prompt in 
   expect(events.some((e) => e.event === 'app_error')).toBe(false);
   await expect(game.locator('.pl-consent')).toHaveCount(0);
 });
+
+test('party play (P9): the game asks its host for a ticket and sends it in the relay hello, never a token', async ({ context, page, baseURL }) => {
+  test.setTimeout(120_000);
+  await recordPostTargets(context);
+  const TICKET = `eyJhdWQiOiJwbC1wYXJ0eSIsInYiOjF9.${'A'.repeat(43)}`;
+  const hellos: Record<string, unknown>[] = [];
+  // the relay: only record the hello (no answer, the lobby stays on "Connecting…")
+  await context.routeWebSocket(/\/pawlegends\/ws$/, (ws) => {
+    ws.onMessage((m) => {
+      try {
+        const j = JSON.parse(String(m)) as Record<string, unknown>;
+        if (j.t === 'hello') hellos.push(j);
+      } catch {
+        /* binary */
+      }
+    });
+  });
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, partyTicket: TICKET });
+  const game = await openHost(page);
+  await game.locator('[data-testid="play-friends"]').click();
+  await expect.poll(() => hellos.length, { timeout: 30_000 }).toBeGreaterThan(0);
+  expect(hellos[0].ticket).toBe(TICKET);
+  const asks = (await received(page)).filter((m) => m.type === 'party-ticket-request');
+  expect(asks).toHaveLength(1);
+  expect(String(asks[0].id)).toMatch(/^[a-z0-9]{1,16}$/);
+  // every post named the exact origin; nothing the game sent carries an access token
+  const targets = await game.evaluate(() => (window as unknown as { __targets: string[] }).__targets);
+  expect(targets.every((t) => t === SITE)).toBe(true);
+  expect(JSON.stringify(await received(page))).not.toMatch(/accesstoken/i);
+});
+
+test('party play (P9): a host without a ticket answers null and the player joins as a guest', async ({ context, page, baseURL }) => {
+  test.setTimeout(120_000);
+  const hellos: Record<string, unknown>[] = [];
+  await context.routeWebSocket(/\/pawlegends\/ws$/, (ws) => {
+    ws.onMessage((m) => {
+      try {
+        const j = JSON.parse(String(m)) as Record<string, unknown>;
+        if (j.t === 'hello') hellos.push(j);
+      } catch {
+        /* binary */
+      }
+    });
+  });
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true }, partyTicket: null });
+  const game = await openHost(page);
+  await game.locator('[data-testid="play-friends"]').click();
+  await expect.poll(() => hellos.length, { timeout: 30_000 }).toBeGreaterThan(0);
+  expect(hellos[0].ticket).toBeUndefined();
+  expect(typeof hellos[0].guestKey).toBe('string');
+});

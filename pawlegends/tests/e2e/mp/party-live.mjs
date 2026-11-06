@@ -69,7 +69,7 @@ await shot(A, '03-pick');
 await shot(B, '03-pick');
 for (const c of [A, B, C]) {
   // a free hero of the leader's side, then lock
-  const free = c.page.locator('.pp-hero:not([disabled])');
+  const free = c.page.locator('.pp-heroes [data-p="hero"]:not([disabled])');
   if (c !== A) await free.nth(1).click();
   await c.page.locator('[data-testid="party-lock"]').click();
   await c.page.waitForTimeout(300);
