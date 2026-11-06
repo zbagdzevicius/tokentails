@@ -97,10 +97,11 @@ describe('progression rail (F2, F3)', () => {
     const r = new ProgressRail();
     r.level({ level: 5, what: 'Q W E rank 3' }, 1000);
     const n = r.bought(buy, 1000 + MERGE_TICKS);
-    expect(n).toMatchObject({ key: PROGRESS_KEY, title: 'Level 5 · Yarn Ball II', sub: 'Q W E rank 3 · +6% damage' });
+    // fun pass (playtest #9): the stat stays in the title (phones show only the title); a Toy line is prio 2
+    expect(n).toMatchObject({ key: PROGRESS_KEY, title: 'Yarn Ball II +6% damage · Lv 5', sub: 'Q W E rank 3', prio: 2 });
     const r2 = new ProgressRail();
     r2.bought(buy, 50);
-    expect(r2.level({ level: 6, what: 'pick a talent' }, 80).title).toBe('Level 6 · Yarn Ball II');
+    expect(r2.level({ level: 6, what: 'pick a talent' }, 80).title).toBe('Yarn Ball II +6% damage · Lv 6');
     for (const l of [...r.lines, ...r2.lines]) expect(l).not.toMatch(/treat/i);
   });
 });
@@ -271,5 +272,8 @@ describe('results summary (F5)', () => {
     expect(html).toContain('data-medal="mvp"');
     expect(html).toContain('data-fish-total="2040"');
     expect(html).not.toMatch(/treat/i);
+    // fun pass (playtest #12): the teams are split by header rows
+    expect(html.match(/<tr class="grp /g)?.length).toBe(2);
+    expect(html.indexOf('Your team')).toBeLessThan(html.indexOf('Enemy team'));
   });
 });

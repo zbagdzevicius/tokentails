@@ -161,3 +161,37 @@ test('no skill hover card on touch', async ({ page }) => {
   }
   expect(await attr(page, 'slotTip')).toBe('');
 });
+
+// Fun pass (playtest #1): a skill dragged out and slid back onto its button (a 2 px wobble left) aims like a tap (the
+// smart aim, MLBB's inner ring), not along the leftover 2 px at full range.
+test('a drag slid back to its button aims and casts like a tap', async ({ page }) => {
+  await startFirstMatch(page);
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
+  const aim = () => page.evaluate(() => {
+    const a = (window as unknown as { __plWorld?: { view: { aim: { x: number; z: number } | null } } }).__plWorld?.view.aim;
+    return a ? { x: a.x, z: a.z } : null;
+  });
+  const q = (await page.locator('.pl-tbtn.q').boundingBox())!;
+  const x0 = q.x + q.width / 2;
+  const y0 = q.y + q.height / 2;
+  const cdp = await page.context().newCDPSession(page);
+  const touch = (type: 'touchStart' | 'touchMove' | 'touchEnd', x?: number, y?: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: x === undefined ? [] : [{ x, y: y!, id: 3 }] });
+  // the held button's preview (the smart aim a tap casts at)
+  await touch('touchStart', x0, y0);
+  await page.waitForTimeout(350);
+  const held = await aim();
+  expect(held).not.toBeNull();
+  for (let i = 1; i <= 6; i++) await touch('touchMove', x0 - 10 * i, y0 - 5 * i);
+  await page.waitForTimeout(100);
+  const out = (await aim())!;
+  for (let i = 5; i >= 1; i--) await touch('touchMove', x0 - 10 * i, y0 - 5 * i);
+  await touch('touchMove', x0 - 2, y0 + 1);
+  await page.waitForTimeout(100);
+  const back = (await aim())!;
+  const d = (a: { x: number; z: number }, b: { x: number; z: number }) => Math.hypot(a.x - b.x, a.z - b.z);
+  // back near the button: the preview is the smart aim again (the hero may have walked a little), not the drag's
+  expect(d(back, held!), `back ${JSON.stringify(back)} held ${JSON.stringify(held)} out ${JSON.stringify(out)}`).toBeLessThan(d(back, out));
+  const before = Number(await attr(page, 'casts'));
+  await touch('touchEnd');
+  await expect.poll(async () => Number(await attr(page, 'casts'))).toBe(before + 1);
+});

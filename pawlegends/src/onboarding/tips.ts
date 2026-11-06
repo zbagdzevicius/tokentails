@@ -70,6 +70,9 @@ export function tipShort(id: TipId, touch: boolean, pad: PadMode = savedPadMode(
 const TIP_KEY: Record<TipId, string> = { move: '', attack: 'attack', q: 'q', dodge: 'e', ult: 'r' };
 
 export const TIP_HIDE_S = 8;
+/** Fun pass (playtest #5): a queued tip waits this long after the last one hides, so two "Tap the glowing skill" lines
+ *  never swap within one second. */
+export const TIP_GAP_S = 1.2;
 /** Round 1 ("tips for things I had already done appeared late"): a queued tip older than this is dropped. */
 export const TIP_QUEUE_S = 20;
 /** Tips that make no sense in a hero fight (they step aside while an enemy hero is in combat range). */
@@ -93,6 +96,8 @@ export class Tips {
   padMode: (() => PadMode | undefined) | null = null;
   /** The tip text on screen (re-rendered when the pad mode flips). */
   private text = '';
+  /** Seconds before a queued tip may show (TIP_GAP_S after a hide). */
+  private gap = 0;
 
   constructor(
     /** The top rail (null in node tests: the tip logic still runs). */
@@ -104,8 +109,8 @@ export class Tips {
   /** An event happened that should show `id` (once per match). */
   trigger(id: TipId): void {
     if (!this.enabled || this.fired.has(id) || this.done.has(id)) return;
-    if (this.active) {
-      if (this.active.id !== id && !this.queue.some((q) => q.id === id)) this.queue.push({ id, at: this.clock });
+    if (this.active || this.gap > 0) {
+      if (this.active?.id !== id && !this.queue.some((q) => q.id === id)) this.queue.push({ id, at: this.clock });
       return;
     }
     this.show(id);
@@ -163,6 +168,10 @@ export class Tips {
     this.active = null;
     this.text = '';
     setTipKey('');
+    this.gap = TIP_GAP_S;
+  }
+
+  private next(): void {
     this.queue = this.queue.filter((q) => !this.done.has(q.id) && !this.fired.has(q.id) && this.clock - q.at <= TIP_QUEUE_S);
     const next = this.queue.shift();
     if (next) this.show(next.id);
@@ -170,12 +179,23 @@ export class Tips {
 
   /** An enemy hero is in combat range: a move or attack tip steps aside (it does not come back). */
   combat(on: boolean): void {
-    if (on && this.active && CALM_ONLY.includes(this.active.id)) this.hide();
+    if (on && this.active && CALM_ONLY.includes(this.active.id)) {
+      this.hide();
+      // a calm tip stepping aside is not a line the player just read: the fight tip may come at once
+      this.gap = 0;
+      this.next();
+    }
   }
 
   update(dt: number): void {
     this.clock += dt;
-    if (!this.active) return;
+    if (!this.active) {
+      if (this.gap > 0 && (this.gap -= dt) <= 0) {
+        this.gap = 0;
+        this.next();
+      }
+      return;
+    }
     if (!this.touch && PAD_TIPS.includes(this.active.id)) this.render(this.active.id);
     this.active.left -= dt;
     if (this.active.left <= 0) this.hide();

@@ -21,7 +21,7 @@ import { basicRange, minionHitEstimate } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
-import { attackPriority, BODY_MM, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
+import { attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 
@@ -34,6 +34,12 @@ export function turnBetween(a: number, b: number): number {
 export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: (Math.PI * 2) / 32, everyMs: 100, refreshMm: 1000 });
 const DRAG_PX = 16;
 const DRAG_FULL_PX = 90;
+/**
+ * Fun pass (playtest #1): a drag that slides back within this many px of where it started is "back to smart aim"
+ * (MLBB's inner ring): the release casts like a tap, at the smart target, and the preview shows that aim. Before, any
+ * leftover 1 px offset picked the direction, so a 2 px wobble fired a line or dash the wrong way at full range.
+ */
+export const AIM_BACK_PX = 24;
 const ATTACK_REPEAT_MS = 350;
 /** C9: Nap goes after the button is held this long (ms), so a stray thumb never sends the hero home. */
 export const NAP_HOLD_MS = 300;
@@ -313,7 +319,7 @@ export class TouchControls {
     if (slot === undefined) return;
     const me = this.me();
     if (!me) return;
-    if (!g.dragging) {
+    if (!g.dragging || this.aimBack(g)) {
       const p = this.tapAim(slot, me);
       this.h.orders.cast(slot, p.x, p.y, p.id);
       return;
@@ -369,6 +375,11 @@ export class TouchControls {
     this.lastStick.at = 0;
   }
 
+  /** The drag slid back to its start (within AIM_BACK_PX): it aims like a tap. */
+  private aimBack(g: Drag): boolean {
+    return Math.hypot(g.x - g.x0, g.y - g.y0) < AIM_BACK_PX;
+  }
+
   /** World aim point (mm) of a drag from its button. */
   private dragTarget(g: Drag, slot: CastIndex, me: Unit): { x: number; y: number; id: number } | null {
     const aim = this.h.orders.aimSpec(slot);
@@ -391,6 +402,10 @@ export class TouchControls {
     const slot = SLOT_OF[g.btn];
     const me = this.me();
     if (slot === undefined || !me) return;
+    if (this.aimBack(g)) {
+      this.previewHold(g);
+      return;
+    }
     const spec = this.h.orders.aimSpec(slot);
     const t = this.dragTarget(g, slot, me) ?? { x: me.x, y: me.y, id: 0xff };
     this.h.view.aim = { spec, x: t.x / 1000, z: -t.y / 1000, target: t.id, valid: !g.overCancel && (spec.kind !== 'unit' || t.id !== 0xff) };
@@ -514,6 +529,16 @@ export class TouchControls {
       void atk.offsetWidth;
       atk.classList.add('deny');
       setTimeout(() => atk.classList.remove('deny'), 300);
+    }
+    // fun pass (playtest #11): ATK said "Nothing in reach" next to minions it skips on purpose (under an untanked enemy
+    // tower); it now says why, at most every 10 s
+    const myTeam = this.h.view.myTeam;
+    const guarded = units.some(
+      (u) => (u.kind === 'minion' || u.kind === 'hero') && u.team !== myTeam && u.team <= 1 && u.state !== 'dead' && Math.hypot(u.x - me.x, u.y - me.y) <= 7000 && guardedByTower(units, u, myTeam),
+    );
+    if (guarded) {
+      this.h.view.juice?.push({ ...bannerNote({ title: 'Their tower guards it', sub: 'Let your minions walk in first, then tap ATK', tone: 'info', hold: 2.2 }), key: 'atk-tower', cooldown: 10000 });
+      return;
     }
     if (this.atkTipsLeft > 0 && this.atkNone === 1) {
       this.atkTipsLeft--;

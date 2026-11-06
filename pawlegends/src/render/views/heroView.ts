@@ -11,7 +11,7 @@ import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
 import { ELEMENT_COLOR, lookKey, type Look } from '../cosmetics';
-import { boldRingTexture, DecalLayer, discTexture, ringTexture } from './decals';
+import { boldRingTexture, dashRingTexture, DecalLayer, discTexture, ringTexture } from './decals';
 import { HERO_RING } from './models';
 import { DETAIL, makeHero, type Character, type CharState } from '../chars';
 import { getSkin, isCardSkinId } from '../skins/skinStore';
@@ -276,6 +276,9 @@ export function animStep(dtR: number, dt: number, ended: boolean, stillT: number
   return ended && dtR <= 1e-4 && stillT >= END_IDLE.after ? dt : dtR;
 }
 
+/** Fun pass (playtest #4): the Toy ring colour by tier (1 bronze, 2 silver, 3 and 4 gold). */
+const TOY_METAL = [0xd99560, 0xdfe6f0, 0xffd34d] as const;
+
 /** The player's own ring is this much larger than a relation ring (it sits outside the hero's footprint). */
 export const SELF_RING_SCALE = 1.15;
 /** Seconds between the own ring's outward pings. */
@@ -318,6 +321,12 @@ export class HeroView {
    * so sparks and shockwaves never bury them; the depth test stays on, so the hero's body still sits in front.
    */
   private selfRing = new DecalLayer(boldRingTexture(), 1, { y: 0.065, renderOrder: 9, name: 'hero-self-ring' });
+  /**
+   * Fun pass (playtest #4: "nothing on the model changes" after a Toy): each Toy tier shows underfoot on every hero, a
+   * turning dashed ring in the tier's metal (bronze, silver, gold; tier 4 adds a second, counter-turning ring), so a
+   * fed enemy and your own spike read at a glance. Two rings a hero at most: capacity 12.
+   */
+  private toyRings = new DecalLayer(dashRingTexture(), 12, { additive: true, y: 0.055, renderOrder: 2, name: 'hero-toy-rings' });
   private selfPing = new DecalLayer(ringTexture(), 1, { additive: true, y: 0.06, renderOrder: 9, name: 'hero-self-ping' });
   private time = 0;
   /** Seconds the render clock has stood still, and the real time idled since the match ended (END_IDLE). */
@@ -359,7 +368,7 @@ export class HeroView {
 
   constructor() {
     this.group.name = 'heroes';
-    this.group.add(this.rings.mesh);
+    this.group.add(this.rings.mesh, this.toyRings.mesh);
     this.group.add(this.auras.mesh);
     this.group.add(this.selfRing.mesh, this.selfPing.mesh);
   }
@@ -477,6 +486,7 @@ export class HeroView {
     else if (!ended) this.endIdle = 0;
     const now = frame.tick / 30 + this.endIdle;
     this.rings.begin();
+    this.toyRings.begin();
     this.auras.begin();
     this.selfRing.begin();
     this.selfPing.begin();
@@ -625,6 +635,13 @@ export class HeroView {
           const ph = (this.time % SELF_PING) / SELF_PING;
           this.selfPing.add(x, z, size * (1 + ph * 0.6), RELATION.self, (1 - ph) * 0.9);
         } else this.rings.add(x, z, HERO_RING[r.hero], RELATION[rel], 0.75);
+        const toy = Math.min(4, Math.max(0, e.toy ?? 0));
+        if (toy > 0 && !stealth) {
+          const metal = TOY_METAL[Math.min(3, toy) - 1];
+          const ts = HERO_RING[r.hero] * (rel === 'self' ? SELF_RING_SCALE * 1.18 : 1.3);
+          this.toyRings.add(x, z, ts, metal, 0.42 + toy * 0.1, this.time * (0.5 + toy * 0.15) + e.id);
+          if (toy >= 4) this.toyRings.add(x, z, ts * 1.14, metal, 0.5, -this.time * 0.9 + e.id);
+        }
         const chroma = this.looks.get(e.id)?.chroma;
         if (chroma && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, ELEMENT_COLOR[chroma], 0.55 + Math.sin(this.time * 3 + e.id) * 0.12);
         // Sim v9: Avietė's charge (a fast spark flicker both teams see: the counterplay) and a charmed hero's pink glow.
@@ -640,6 +657,7 @@ export class HeroView {
     }
     fx?.end();
     this.rings.end();
+    this.toyRings.end();
     this.auras.end();
     this.selfRing.end();
     this.selfPing.end();
@@ -667,6 +685,7 @@ export class HeroView {
     xrayMat?.dispose();
     xrayMat = null;
     this.rings.dispose();
+    this.toyRings.dispose();
     this.auras.dispose();
     this.selfRing.dispose();
     this.selfPing.dispose();

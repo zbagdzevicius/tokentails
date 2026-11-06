@@ -29,7 +29,7 @@ import { cdLabel } from './cdLabel';
 export { cdLabel } from './cdLabel';
 import { fishProgress, toyCumulative } from './toyText';
 import { FISH_GLYPH } from './progressRail';
-import { TOY_TIERS } from '../data/toys';
+import { TOY_COST, TOY_TIERS } from '../data/toys';
 // LoL pass (lane B): the hextech HUD chrome (ability frame, XP ring, score plate, kill feed, death wash, nap bar, crest)
 import './lol-hud.css';
 
@@ -247,6 +247,8 @@ export class Hud {
   private fishNum: HTMLElement;
   private fishShown = -1;
   private toyShown = -1;
+  /** Fun pass (playtest #14): until this time (ms) the chip number says what a buy spent ("−550 → Toy"). */
+  private spentUntil = 0;
   /** Lobby spec §3b: the worn card's cat name ("Ficus"): the portrait card reads "Ficus · Clem", or null. */
   private selfName: string | null = null;
 
@@ -584,6 +586,19 @@ export class Hud {
     if (fish === this.fishShown && toy === this.toyShown) return;
     const el = this.fishEl;
     if (toy !== this.toyShown) {
+      // fun pass (playtest #14): 511 → 11 read like losing Fish; for a moment the chip says where the Fish went
+      if (this.toyShown >= 0 && toy > this.toyShown) {
+        let spent = 0;
+        for (let t = this.toyShown; t < toy; t++) spent += TOY_COST[t] ?? 0;
+        this.fishNum.textContent = `−${spent} → Toy`;
+        el.classList.add('spent');
+        this.spentUntil = performance.now() + 1500;
+        setTimeout(() => {
+          this.spentUntil = 0;
+          el.classList.remove('spent');
+          this.fishShown = -1;
+        }, 1500);
+      }
       el.dataset.toy = String(toy);
       el.querySelectorAll('.pips i').forEach((p, i) => p.classList.toggle('on', i < toy));
       el.classList.toggle('max', toy >= TOY_TIERS);
@@ -593,7 +608,7 @@ export class Hud {
     const { frac, next } = fishProgress(fish, toy);
     el.dataset.fish = String(fish);
     el.style.setProperty('--p', frac.toFixed(3));
-    this.fishNum.textContent = String(fish);
+    if (performance.now() >= this.spentUntil) this.fishNum.textContent = String(fish);
     el.title = toy >= TOY_TIERS ? `${fish} Fish · all ${TOY_TIERS} Toys owned` : `${fish} / ${next} Fish to Toy ${toy + 1} (${toyCumulative(toy + 1)} in all)`;
   }
 

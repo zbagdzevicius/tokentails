@@ -43,8 +43,8 @@ const INFO: readonly { re: RegExp; key: string; cooldown: number }[] = [
   { re: /^Trackpad mode: click to move$/, key: 'trackpad', cooldown: 60000 },
 ];
 /** Announcer moments drawn big on desktop (with a crest badge and a light sweep). */
-const BIG = /^(First Blood!|Double Pounce|Triple Pounce|Cat-astrophe|Shut down!|COMEBACK!|ACE!|Enemy team ACE|Victory!|Defeat|Enemy (tower|core) down!|We lost a (tower|core))/;
-const MULTI = /^(Double Pounce|Triple Pounce|Cat-astrophe|ACE!)/;
+const BIG = /^(First Blood!|Double Pounce|Triple Pounce|Cat-astrophe|Shut down!|ACE!|Enemy team ACE|Victory!|Defeat|Enemy (tower|core) down!|We lost a (tower|core))/;
+const MULTI = /^(Double Pounce|Triple Pounce|Cat-astrophe|ACE!|Shut down!)/;
 const CREST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.4l-5.3 2.7 1-5.8L3.5 8.2l5.9-.9z"/></svg>';
 
 /** Rail priority and options for a banner (the adapter's mapping; exported for tests). */
@@ -219,9 +219,9 @@ export class Juice {
     this.remember(text);
     const layer = this.popLayer;
     if (!layer || !Number.isFinite(x) || !Number.isFinite(y)) return;
-    // phones: at most 5 at once, stacked closer (LoL pass A6)
+    // phones: at most 3 at once (5 before, LoL pass A6; fun pass playtest #13: a 3v1 was a pile of text), stacked closer
     const phone = isPhone();
-    while (layer.childElementCount > (phone ? 4 : 8)) layer.firstElementChild?.remove();
+    while (layer.childElementCount > (phone ? 2 : 8)) layer.firstElementChild?.remove();
     // pops that come close together stack upward and alternate sides, so "+40 XP" never covers "Combo x2"
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.popTimes = this.popTimes.filter((t) => now - t < 600);

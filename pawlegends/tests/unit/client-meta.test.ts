@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { loadProfile, parseProfile, recordMatch, resetProfileCache } from '../../src/meta/profile';
 import { decodeDare, dareText, dareUrl, encodeDare } from '../../src/share/dare';
 import { SnapBuffer, lerpAngle } from '../../src/render/interp';
-import { Tips } from '../../src/onboarding/tips';
+import { TIP_GAP_S, Tips } from '../../src/onboarding/tips';
 import { Notify } from '../../src/ui/notify';
 import { levelBadges, progressStrip } from '../../src/ui/cards';
 import type { EntitySnap, Snapshot } from '../../src/sim/api';
@@ -116,6 +116,7 @@ describe('first-match tips', () => {
     expect(document.querySelector('.pl-rail-line.on')).toBeNull();
     t.trigger('move');
     expect(t.isActive('move')).toBe(false);
+    t.update(TIP_GAP_S + 0.01); // fun pass: the gap after a tip hides
     t.trigger('q');
     t.update(8.1);
     expect(t.isActive('q')).toBe(false);

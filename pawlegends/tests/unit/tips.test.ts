@@ -4,7 +4,7 @@
  * (lane A): a tip is a prio 3 note on the top rail (ui/notify.ts), not a card of its own.
  */
 import { describe, expect, it } from 'vitest';
-import { TIP_HIDE_S, tipShort, Tips, type TipId } from '../../src/onboarding/tips';
+import { TIP_GAP_S, TIP_HIDE_S, tipShort, Tips, type TipId } from '../../src/onboarding/tips';
 import { Notify } from '../../src/ui/notify';
 
 const rails = new WeakMap<HTMLElement, Notify>();
@@ -38,6 +38,7 @@ describe('first-match tips', () => {
       tips.complete(id);
       expect(tips.current).toBeNull();
       expect(shown(root)).toBe('');
+      tips.update(TIP_GAP_S + 0.01);
     }
     expect(tips.completed).toEqual(['move', 'attack', 'q', 'dodge', 'ult']);
     // Once done, a tip never comes back.
@@ -77,6 +78,9 @@ describe('first-match tips', () => {
     tips.trigger('dodge');
     expect(tips.current).toBe('move');
     tips.complete('move');
+    // fun pass (playtest #5): the next tip waits TIP_GAP_S, so two tips never swap within a second
+    expect(tips.current).toBeNull();
+    tips.update(TIP_GAP_S + 0.01);
     expect(tips.current).toBe('dodge');
     tips.complete('ult'); // the player pressed R before its tip came up
     tips.update(TIP_HIDE_S + 1);

@@ -414,3 +414,51 @@ goes through the top rail (`ui/notify.ts`); nothing is drawn mid-screen on phone
 
 Not done: the F5 sparkline (cut item 1, as the spec allows). The underdog line uses the Toy gap as a stand-in for the
 sim's raw-Fish comparison, which the client cannot see for the enemy team.
+
+## As built: fun pass (playtest round, sim v12 amended)
+
+v12 had not been pushed or deployed when the playtest came back (`origin/main` is v11), so the gameplay fixes amend
+v12 in place instead of opening v13: v10 and v11 stay frozen byte for byte, `npm run vendor-sim` rebuilt the live v12
+copy and re-recorded its rookie, champion and forfeit fixtures, and the backend still serves 10, 11 and 12. All
+numbers below are the headless gates (`npm run match -- --gate …`); "before" is `f8c97239`.
+
+**Sim and data (v12):**
+
+| Knob | Before | After | Why (playtest finding) |
+|---|---|---|---|
+| `FISH.lastHitBp` / `nearBp` | 60% / 40% | 80% / 30% | #3: a melee last hit was +7 Fish over standing near; now +18. The full value (100% / 25%) let the ranged cat roster out-farm the dogs (cats 53.4%). |
+| Toy table (`TOY_TIER`) | each tier +7% to +15% fight power, set +41% to +59% | each tier +10% to +24%, set +70% to +92% (avg +79%, roles within ±10%) | #4: "+8% damage" was too small to feel. |
+| `TOY_COST` | 500, 700, 800, 1000 | 550, 750, 900, 950 | Bigger, slightly dearer tiers; T1 still lands at ~2:20. |
+| `XP.killRepeatXpBp` / `killFedXpBp` (new) | – | 75% / 50% | #2: a victim on a 2+ (4+) death streak gives less kill XP, as its kill Fish already did. |
+| `RESPAWN.humanStreakFrom` / `humanStreakBp` (new) | – | 2 / 70% | #10: the human's 3rd death in a row waits 70% of the level wait and skips the lead pressure (not on Rookie, which has its own rule). Bots and a first death keep the pressure, so the balance gates do not move. |
+| `enemyAheadXpBp` | Rookie 50%, others 100% | Rookie 50%, Easy 85%, Normal 85%, Hard 100% | #2: an enemy 2+ levels above the human earns less XP. |
+| `enemyFishBp` | Rookie 70%, Easy 95% | Rookie 85%, Easy 100% | Re-balance: with bigger Toys the human's side out-farmed Rookie and Easy bots (fun1 4:47, fun2 84%). |
+
+**Gates (before → after):**
+
+| Gate | Before | After |
+|---|---|---|
+| balance (2,000) | median 7:18, p95 8:32, every hero 46–54%, cats 48.9%, takedowns 3.45/min | 7:20, 8:33, every hero 47.0–53.8%, cats 51.6%, 3.50/min: all pass |
+| balance first takedown / leader L4, L7, L10 | 0:33 / 1:05, 3:41, 7:55 (16.1% of heroes reach 10) | 0:33 / 1:05, 3:42, 8:29 (14.4%) |
+| balance Toys T1 / T2 / T3 / T4 (median hero) | 2:11 / 4:13 / 6:22 / 7:40 | 2:20 / 4:27 / 6:43 / 7:37 |
+| fun1 (naive vs Rookie) | 99.5%, 5:02 | 98.5%, 5:00: all pass |
+| fun2 (naive vs Easy) | 77.5%, 6:44 | 79.0%, 6:38: all pass |
+| novice vs Easy | 91.3% | 94.0% |
+| novice vs Normal | 31.5% (fails ≥ 40%, as v11) | 32.3% (still fails) |
+| hard (Normal player vs Hard) | 42.0%; down 10+ won 1 of 18 (fails < 5%) | 45.5%; down 10+ won 2 of 17 (fails, 17-match sample) |
+| feeder (vs Rookie) | 82.0% | 85.0% |
+| feedNormal | 2.5%, human deaths median 9 | 4.5%, 10 |
+
+**Client (no sim):** a skill dragged out and slid back within 24 px of its button aims and casts like a tap (#1);
+the talent chips on phones show the 2–5 word short line and no longer slide in from below the screen edge (#6, gate
+hud-compact 667/640); the phone rail keeps at most two waiting prio 3–4 notes, a queued tip waits 1.2 s after the
+last one, a guided level 4 says it once, and a shutdown drops the waiting "Takedown!" (#5); "Our waves get stronger"
+replaces "COMEBACK!" and is skipped while our core is falling, and the Fish line reads "Behind on Toys: +1 Fish/s"
+(#8); the catch-up tag sits under the ally portraits at 667 (#7); a Toy line merged with a level-up keeps its stat
+("Red Dot I +14% damage · Lv 6") and is prio 2 (#9); ATK next to tower-guarded minions says "Their tower guards it"
+(#11); the results table has a header row per team and short names (#12); phones show at most 3 world pops, no "+XP"
+pop during a hero fight, and stacked plates drop their crowns (#13); the Fish chip shows "−550 → Toy" for 1.5 s after
+a buy (#14); and every hero with Toys has a turning ring underfoot in the tier's metal (bronze, silver, gold, a second
+ring at tier 4) (#4).
+
+Release order: deploy the backend (vendored v12, `vendor-sim:check-remote`) before any client build that ships v12.

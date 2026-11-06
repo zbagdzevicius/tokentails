@@ -78,6 +78,11 @@ export const PREEMPT_AFTER_MS = 400;
 /** A replaced note goes back to the queue when it had more than this left. */
 export const REQUEUE_MIN_LEFT_MS = 800;
 export const SUPERSEDE_MS = 1500;
+/**
+ * Fun pass (playtest #5: five lines in one second at 2:30 on Rookie): a one-line rail (phones) keeps at most this many
+ * personal and info notes (prio 3-4) waiting; a newer one drops the oldest. Tips and big announcer lines are kept.
+ */
+export const LOW_WAIT_CAP_ONE_LINE = 2;
 
 interface Item {
   n: Note;
@@ -130,6 +135,11 @@ export class NoteQueue {
     const item: Item = { n: note, key, at: now, rank: now, id: 0, count: 1, shownAt: 0, until: 0 };
     this.q.push(item);
     this.sort();
+    if (this.slots === 1 && note.prio >= 3) {
+      // the oldest waiting prio 3-4 notes go first (never the note just pushed, a tip or a note cut off on screen)
+      const low = this.q.filter((q) => q !== item && q.n.prio >= 3 && q.left === undefined && !q.key.startsWith('tip:')).sort((x, y) => x.at - y.at);
+      for (let k = 0; k < low.length + 1 - LOW_WAIT_CAP_ONE_LINE; k++) this.q.splice(this.q.indexOf(low[k]), 1);
+    }
     while (this.q.length > QUEUE_CAP) {
       // drop the least important (highest prio number); among those a plain note before a big announcer one (QA v2
       // #8: a burst dropped the ACE, the oldest prio 2 note), then the oldest
