@@ -18,7 +18,8 @@ import { HERO_IDS } from '../data/heroes';
 import { COPY, errorText, esc } from './ui/copy';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
-import { decoratePick, heroBlock, pickHtml } from './ui/partyPick';
+import { decoratePick, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
+import { HERO_TEXT } from '../ui/heroText';
 import { loadingHtml } from './ui/partyLoading';
 import { qrSvg } from './qr';
 import { cleanArt } from '../embed/bridge';
@@ -72,7 +73,7 @@ export const initialParty = (mode: OpenMode, code: string | null = null): PartyS
 /** The screen a state shows. */
 export type PartyScreen = 'connecting' | 'joincode' | 'ended' | 'error' | 'lobby' | 'pick' | 'loading' | 'match';
 
-const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_locked', 'party_busy', 'kicked']);
+const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_locked', 'party_busy', 'kicked', 'code_changed', 'already_in_party']);
 const FATAL = new Set(['update_required', 'seat_elsewhere']);
 
 export function screenOf(s: PartyState): PartyScreen {
@@ -227,6 +228,8 @@ export interface PartyHooks {
   now?(): number;
 }
 
+const heroName = (h: string): string => (h in HERO_TEXT ? HERO_TEXT[h as keyof typeof HERO_TEXT].title : h);
+
 const simHash = (): string => (typeof __SIM_HASH__ !== 'undefined' ? __SIM_HASH__ : '0000000000000000');
 const DIFFS = ['easy', 'normal', 'hard'] as const;
 
@@ -258,6 +261,7 @@ export class PartyClient {
     opts: { mode: OpenMode; code?: string | null },
   ) {
     this.now = h.now ?? (() => Date.now());
+    this.openedAt = this.now();
     this.hover = h.hero;
     this.trick = h.trick;
     this.state = initialParty(opts.mode, opts.code ?? null);
@@ -339,6 +343,7 @@ export class PartyClient {
     }
     if (state.view && !prev.view) this.enteredParty();
     if (state.view?.phase === 'pick' && prev.view?.phase !== 'pick') this.enteredPick();
+    else if (state.view?.phase === 'pick' && prev.view?.phase === 'pick') this.pickChanged(prev.view, state.view);
     if (state.view?.phase === 'loading' && prev.view?.phase !== 'loading') void this.enteredLoading();
     if (!state.inMatch && !state.solo) this.render();
   }
@@ -417,6 +422,24 @@ export class PartyClient {
     this.againPressed = false;
   }
 
+  /**
+   * The pick view changed under us: a hero we hovered was just locked by a friend (or is on the other side now), so the
+   * local hover falls back to what the relay holds for us; a lock the leader's side switch undid says so.
+   */
+  private unlocking = false;
+  private pickChanged(prev: PartyView, v: PartyView): void {
+    const me = v.members.find((m) => m.id === v.you);
+    const was = prev.members.find((m) => m.id === prev.you);
+    if (was?.locked && me && !me.locked && !this.unlocking) this.note({ key: 'pp-side', title: COPY.sideSwitched, tone: 'info', ttl: 4000 });
+    if (me && !me.locked) this.unlocking = false;
+    if (me?.locked || !this.hover) return;
+    const taker = lockedByOthers(v).get(this.hover);
+    if (!taker && !heroBlock(v, this.hover)) return;
+    if (taker) this.note({ key: 'pp-taken', title: COPY.heroTaken(heroName(this.hover), taker), tone: 'info', ttl: 3500 });
+    this.hover = me?.hero && !heroBlock(v, me.hero) ? me.hero : '';
+    this.drawn = '';
+  }
+
   // -------------------------------------------------------------------------------------------- results together (M6)
 
   private resultsEl: HTMLElement | null = null;
@@ -456,7 +479,7 @@ export class PartyClient {
     this.resultsEl?.querySelectorAll<HTMLButtonElement>('[data-a="again"], [data-a="change"]').forEach((x) => x.classList.add('pressed'));
   }
 
-  /** "Leave party" from the results screen. */
+  /** "Leave party" from the results screen (the app then goes back to the title). */
   leaveParty(): void {
     this.resultsEl = null;
     this.resultsDone = null;
@@ -529,9 +552,15 @@ export class PartyClient {
         t.setAttribute('disabled', '');
         return;
       case 'leave':
+        // one tap arms it ("Tap again to leave"), the second within 3 s leaves: a stray tap never drops the party
+        if (v && v.members.length > 1 && !this.armed(t, 'leave')) return;
         if (v) s.sendJson({ t: 'party.leave' });
         this.h.analytics?.('party_leave', { phase: v?.phase ?? 'none' });
         this.close();
+        return;
+      case 'unlock':
+        this.unlocking = true;
+        s.sendJson({ t: 'pick.unlock' });
         return;
       case 'back':
         this.close();
@@ -555,6 +584,7 @@ export class PartyClient {
         s.sendJson({ t: 'party.newcode' });
         return;
       case 'kick':
+        if (!this.armed(t, `kick:${t.dataset.m}`)) return;
         s.sendJson({ t: 'party.kick', member: t.dataset.m! });
         return;
       case 'lead':
@@ -582,6 +612,7 @@ export class PartyClient {
         this.render();
         return;
       case 'lock':
+        if (!v || !this.hover || heroBlock(v, this.hover)) return;
         s.sendJson({ t: 'pick.lock', hero: this.hover, trick: this.trick });
         this.h.analytics?.('party_pick', { hero: this.hover, locked_s_left: Math.max(0, Math.round((this.deadlineAt - this.now()) / 1000)), auto: false, newbie: this.h.newbie });
         return;
@@ -623,6 +654,29 @@ export class PartyClient {
         location.reload();
         return;
     }
+  }
+
+  /** A two-tap confirm: the first tap marks the button (`data-sure`, "Tap again…") for 3 s; true on the second. */
+  private sure: { key: string; until: number } | null = null;
+  private armed(btn: HTMLElement, key: string): boolean {
+    const now = this.now();
+    if (this.sure && this.sure.key === key && now < this.sure.until) {
+      this.sure = null;
+      return true;
+    }
+    this.sure = { key, until: now + 3000 };
+    btn.dataset.sure = '1';
+    const label = key === 'leave' ? COPY.leaveSure : COPY.removeSure;
+    const old = btn.innerHTML;
+    if (key === 'leave') btn.textContent = label;
+    btn.setAttribute('aria-label', label);
+    btn.title = label;
+    setTimeout(() => {
+      if (!btn.isConnected) return;
+      delete btn.dataset.sure;
+      if (key === 'leave') btn.innerHTML = old;
+    }, 3000);
+    return false;
   }
 
   private codeBoxes: ReturnType<typeof wireCodeBoxes> | null = null;
@@ -689,6 +743,7 @@ export class PartyClient {
 
   private everySecond(): void {
     if (this.closed || this.state.inMatch || this.state.solo) return;
+    if (screenOf(this.state) === 'connecting') this.render();
     const v = this.state.view;
     if (v?.phase === 'pick') {
       const t = this.card.querySelector('[data-timer]');
@@ -706,6 +761,7 @@ export class PartyClient {
     if (changed) this.render();
   }
   private anyway = false;
+  private openedAt = 0;
 
   private secondsLeft(): number {
     return Math.max(0, Math.ceil((this.deadlineAt - this.now()) / 1000));
@@ -721,14 +777,17 @@ export class PartyClient {
     switch (screen) {
       case 'match':
         return;
-      case 'connecting':
-        html = `<div class="pp-card pp-narrow" data-testid="party-connecting"><h2>${COPY.title}</h2><p class="pp-dim">${esc(s.code ? COPY.joining(`${s.code.slice(0, 3)} ${s.code.slice(3)}`) : COPY.connecting)}</p><button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div>`;
+      case 'connecting': {
+        const waited = Math.floor((this.now() - this.openedAt) / 1000);
+        const slow = waited >= 6 ? `<p class="pp-dim pp-slow" data-testid="party-slow">${esc(COPY.slowJoin(waited))}</p>` : '';
+        html = `<div class="pp-card pp-narrow" data-testid="party-connecting"><h2>${COPY.title}</h2><p class="pp-dim">${esc(s.code ? COPY.joining(`${s.code.slice(0, 3)} ${s.code.slice(3)}`) : COPY.connecting)}</p>${slow}<button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div>`;
         break;
+      }
       case 'joincode':
         html = joinCodeHtml(err, s.code ?? '');
         break;
       case 'ended': {
-        const title = s.error?.code === 'party_not_found' || s.error?.code === 'party_ended' ? COPY.ended : errorText(s.error?.code ?? '');
+        const title = errorText(s.error?.code ?? 'party_ended');
         html = `<div class="pp-card pp-narrow pp-ended" data-testid="party-ended"><h2>${esc(title)}</h2><div class="pp-col"><button type="button" class="pl-btn big" data-p="solo" data-testid="party-play-now">${COPY.playNow}</button><button type="button" class="pl-btn ghost" data-p="own" data-testid="party-own">${COPY.ownParty}</button><button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div></div>`;
         break;
       }

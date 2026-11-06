@@ -20,18 +20,19 @@ test('a link opens "Joining…" then the lobby; the address bar drops ?party=', 
 
 test('Share falls back to Copy when navigator.share is missing ("Link copied", the embed URL)', async ({ browser }) => {
   const a = await player(browser, 'desktop', { noShare: true });
-  await a.ctx.grantPermissions(['clipboard-read', 'clipboard-write'], { origin: new URL(a.page.url() === 'about:blank' ? 'http://127.0.0.1:5402' : a.page.url()).origin });
+  // every origin of the context (the page is still about:blank here, and the preview port varies)
+  await a.ctx.grantPermissions(['clipboard-read', 'clipboard-write']);
   const code = await createParty(a);
   await a.page.locator('[data-testid="party-share"]').click();
   await expect(a.page.locator('.pp-notes')).toContainText('Link copied');
   expect(await a.page.evaluate(() => navigator.clipboard.readText())).toBe(`https://tokentails.com/pawlegends?party=${code}`);
 });
 
-test('an ended party: "This party has ended" with Play now (a solo match) and Start your own party', async ({ browser }) => {
+test('an unknown code: "No party with that code" with Play now (a solo match) and Start your own party', async ({ browser }) => {
   const b = await player(browser, 'phone');
   await b.page.goto('/?e2e=1&party=ZZZZZZ', { waitUntil: 'commit' });
   const ended = b.page.locator('[data-testid="party-ended"]');
-  await expect(ended).toContainText('This party has ended', { timeout: 120_000 });
+  await expect(ended).toContainText('No party with that code', { timeout: 120_000 });
   await expect(b.page.locator('[data-testid="party-own"]')).toBeVisible();
   await shot(b, 'lane-P', '11-ended');
   await tap(b, b.page.locator('[data-testid="party-play-now"]'));

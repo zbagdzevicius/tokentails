@@ -66,9 +66,9 @@ describe('rail action notes (M5)', () => {
 
   it('voteNote: chips until this player voted; results replace the line; pausedNote counts down with Resume', () => {
     const v = { kind: 'surrender' as const, yes: [1], need: 2, leftMs: 18_000 };
-    expect(voteNote(v, 0)).toMatchObject({ title: 'Surrender? 1/2', actions: [{ id: 'vote-surrender-yes' }, { id: 'vote-surrender-no' }] });
+    expect(voteNote(v, 0)).toMatchObject({ title: 'Surrender 1/2 · 18s', actions: [{ id: 'vote-surrender-yes' }, { id: 'vote-surrender-no' }] });
     expect(voteNote(v, 1)!.actions).toBeUndefined();
-    expect(voteNote({ kind: 'pause', yes: [0], need: 3, leftMs: 9000 }, 1)).toMatchObject({ title: 'Pause? 1/3', actions: [{ id: 'vote-pause-yes', label: 'Yes' }] });
+    expect(voteNote({ kind: 'pause', yes: [0], need: 3, leftMs: 9000 }, 1)).toMatchObject({ title: 'Pause 1/3 · 9s', actions: [{ id: 'vote-pause-yes', label: 'Yes' }] });
     expect(voteNote({ ...v, result: 'fail' }, 0)).toMatchObject({ title: 'Surrender vote failed' });
     expect(voteNote({ kind: 'rematch', yes: [], need: 0, leftMs: 0 }, 0)).toBeNull();
     expect(pausedNote({ paused: true }, 47_000)).toMatchObject({ title: 'Paused 0:47', actions: [{ id: 'vote-resume', label: 'Resume' }] });

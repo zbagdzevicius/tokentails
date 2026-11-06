@@ -91,7 +91,7 @@ export function lobbyHtml(o: LobbyModel): string {
     .filter((m): m is MemberView => !!m)
     .map(
       (m) =>
-        `<p class="pp-chip" data-testid="party-waiting"><span>${esc(COPY.waitingFor(shownName(v, m, hide)))}</span> · <button type="button" class="pp-link" data-p="nudge" data-m="${esc(m.id)}" ${o.nudged.has(m.id) ? 'disabled' : ''}>${o.nudged.has(m.id) ? COPY.nudged : COPY.nudge}</button></p>`,
+        `<p class="pp-chip" data-testid="party-waiting"><span>${esc(leader ? COPY.waitingFor(shownName(v, m, hide)) : COPY.startWhenBack(shownName(v, m, hide)))}</span> · <button type="button" class="pp-link" data-p="nudge" data-m="${esc(m.id)}" ${o.nudged.has(m.id) ? 'disabled' : ''}>${o.nudged.has(m.id) ? COPY.nudged : COPY.nudge}</button></p>`,
     )
     .join('');
   const solo = v.members.length === 1 && !v.openSeats;
@@ -101,7 +101,9 @@ export function lobbyHtml(o: LobbyModel): string {
     ? `<button type="button" class="pl-btn big pp-start" data-p="${results ? 'rematch' : 'start'}" data-testid="party-start">${startLabel}</button>`
     : results
       ? `<button type="button" class="pl-btn big pp-start" data-p="rematch" data-testid="party-rematch">${COPY.playAgain}</button>`
-      : `<p class="pp-dim pp-wait" data-testid="party-wait-leader">${COPY.waitingLeader}</p>`;
+      : waitingIds.length
+        ? ''
+        : `<p class="pp-dim pp-wait" data-testid="party-wait-leader">${COPY.waitingLeader}</p>`;
   const err = o.error ? `<p class="pp-err" role="alert">${esc(o.error)}</p>` : '';
   return `<div class="pp-card pp-lobby" data-phase="${v.phase}">
     <div class="pp-head"><h2>${COPY.party}${v.locked ? ' <span class="pp-pill">Locked</span>' : ''}</h2><button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leave}</button></div>

@@ -177,8 +177,10 @@
   .pl-party .pp-hint, .pl-party .pp-note { font-size: 12px; }
   .pl-party .pp-heroes .hero-card small { display: none; }
   .pl-party .pp-heroes .hero-card b { font-size: 11px; }
-  .pl-party .pp-ts small { display: none; }
-  .pl-party .pp-ts { grid-template-rows: auto; }
+  /* the strip keeps each friend's hero visible (that is how friends coordinate), under a shorter name */
+  .pl-party .pp-ts small { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; opacity: 0.9; }
+  .pl-party .pp-ts b { font-size: 11px; max-width: 9ch; }
+  .pl-party .pp-ts { grid-template-rows: auto auto; }
   .pl-party .pp-ts-face { grid-row: auto; width: 26px; height: 26px; }
   .pl-party .pp-strip { gap: 4px; }
   .pl-party .pp-pick h2 { font-size: 16px; }
@@ -221,3 +223,19 @@
 .pl-party-results .pr-dmg { flex: none; width: 48px; text-align: right; opacity: 0.8; }
 .pl-results .actions.party { gap: 8px; }
 .pl-results .actions.party .pressed { opacity: 0.6; }
+
+/* touch targets (44 px) on every party control: small buttons, the seat tools and the toggles */
+.pl-party .pl-btn.small { min-height: 44px; }
+.pl-party .pp-tools { display: inline-flex; gap: 8px; }
+.pl-party .pp-mini { min-width: 44px; min-height: 44px; }
+.pl-party .pp-mini[data-sure] { background: rgba(255, 90, 90, 0.35); opacity: 1; }
+.pl-party .pp-check { min-height: 44px; }
+.pl-party .pp-check input { width: 24px; height: 24px; }
+.pl-party .pp-link { min-height: 44px; padding: 0 8px; }
+.pl-party [data-p='leave'][data-sure] { background: rgba(255, 90, 90, 0.35); }
+.pl-party .pp-skip { color: #ffd38a; font-size: 13px; margin: 0; }
+.pl-party .pp-pick-foot [data-p='unlock'] { margin-right: 8px; }
+.pl-party .pp-slow { font-size: 13px; opacity: 0.8; }
+@media (max-height: 430px) {
+  .pl-party .pl-btn.small { padding: 6px 12px; }
+}

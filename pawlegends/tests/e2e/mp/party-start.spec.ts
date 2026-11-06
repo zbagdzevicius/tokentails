@@ -30,17 +30,20 @@ test('Start with everyone present goes to pick; a hidden tab shows "Waiting for 
   await expect(b.page.locator('[data-testid="party-lock"]')).toBeVisible();
 });
 
-test('kick: the member is told, the code rotates, the old link has ended', async ({ browser }) => {
+test('kick: the member is told, the code rotates, the old link says it is out of date', async ({ browser }) => {
   const a = await player(browser, 'desktop');
   const b = await player(browser, 'phone');
   const code = await createParty(a);
   await joinByLink(b, code);
+  // a two-tap confirm: the first tap arms it ("Tap again to remove")
+  await a.page.locator('[data-p="kick"]').click();
+  await expect(a.page.locator('[data-p="kick"][data-sure]')).toHaveCount(1);
   await a.page.locator('[data-p="kick"]').click();
   await expect(b.page.locator('[data-testid="party-ended"]')).toContainText('You were removed from the party');
   await expect(a.page.locator('[data-testid="party-code"]')).not.toHaveText(`${code.slice(0, 3)} ${code.slice(3)}`);
   const c = await player(browser, 'phone-small');
   await c.page.goto(`/?e2e=1&party=${code}`, { waitUntil: 'commit' });
-  await expect(c.page.locator('[data-testid="party-ended"]')).toContainText('This party has ended', { timeout: 120_000 });
+  await expect(c.page.locator('[data-testid="party-ended"]')).toContainText('This invite is out of date', { timeout: 120_000 });
   await tap(c, c.page.locator('[data-testid="party-own"]'));
   await expect(c.page.locator('[data-testid="party-code"]')).toBeVisible({ timeout: 30_000 });
 });
