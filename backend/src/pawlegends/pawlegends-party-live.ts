@@ -25,7 +25,7 @@ import {
  * Checks, in order: simVersion >= PARTY_SINCE; the room exists, ended, verified, scored; the posted ticks, outcome and
  * hash equal the verdict; the caller holds that slot; the AFK rule (drop + away + afk pilot ticks <= 50%; late, desync,
  * restore and open never count); one save per room and slot (digest sha256('party:room:slot') in the unique digest
- * index). Catnip follows the solo first-win rule of the difficulty, one tier lower when an open seat stayed empty past
+ * index), and one per account per room (an account seated twice saves once). Catnip follows the solo first-win rule of the difficulty, one tier lower when an open seat stayed empty past
  * tick 1,800 (S5); never a fastest win from a party (v1); at most 30 scored party matches per account per UTC day
  * (over it the match counts, no catnip).
  */
@@ -108,8 +108,12 @@ export async function savePawlegendsPartyMatch(
     const index = PAWLEGENDS_LEVELS.indexOf(room.config.difficulty);
     if (index < 0) throw reject(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'unknown difficulty');
     const digest = partyDigest(r.room, r.slot);
-    const saved = await deps.games.findOne({ searchObject: { replayDigest: digest }, projection: '_id' });
-    if (saved) throw pawlegendsDuplicate();
+    // once per account per room: an account that somehow held two seats saves one of them, never both
+    const mine = room.occupants.filter(o => o.accountId === String(userId)).map(o => partyDigest(r.room, o.slot));
+    for (const d of new Set([digest, ...mine])) {
+        const saved = await deps.games.findOne({ searchObject: { replayDigest: d }, projection: '_id' });
+        if (saved) throw pawlegendsDuplicate();
+    }
 
     const user = await deps.users.findOne({
         searchObject: { _id: userId },

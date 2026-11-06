@@ -162,17 +162,18 @@ describe('party room (N3)', () => {
         expect(room.slots[0].mode).toBe('human');
     });
 
-    it('away pilots at once; back reclaims only within B + 2 of live; the flip turn discards pilot commands', () => {
+    it('away pilots at once; back reclaims only within 1 s of live; the flip turn discards pilot commands', () => {
         const { room, turns } = setup();
-        run(room, 1000, 2000);
+        run(room, 1000, 4000);
         room.away(1);
         expect(room.slots[1]).toMatchObject({ mode: 'pilot', reason: 'away' });
-        room.beat(1, 0, 2001);
-        expect(room.back(1, 2001)).toBe(false);
-        room.beat(1, room.nextTurn - 2, 2002);
+        room.beat(1, room.nextTurn - PARTY_LIMITS.reclaimWithinTurns - 1, 4001);
+        expect(room.back(1, 4001)).toBe(false);
+        // received turns lag live by RTT and a buffer: a client 10 turns behind (150 ms RTT, B = 5) still reclaims
+        room.beat(1, room.nextTurn - 10, 4002);
         room.pilotCommands(1, [stop()]);
-        expect(room.back(1, 2003)).toBe(true);
-        run(room, 2010, 2100);
+        expect(room.back(1, 4003)).toBe(true);
+        run(room, 4010, 4100);
         const last = turns[turns.length - 1];
         expect(turns.flatMap(t => t.entries).some(e => e.pilot)).toBe(false);
         expect(last.modeMask & 2).toBe(0);

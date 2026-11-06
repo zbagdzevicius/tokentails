@@ -20,6 +20,8 @@ export const PARTY_TIMING = Object.freeze({
     codeReuseMs: 60 * 60_000,
     nudgeEveryMs: 10_000,
     rematchNoteMs: 3000,
+    /** A rematch pick stays up at least this long (everyone sees the locked heroes and may change theirs). */
+    rematchPickMinMs: 5000,
     idleMs: 30 * 60_000,
     hardMaxMs: 3 * 3600_000,
     startInMs: 3000,
@@ -34,6 +36,8 @@ export interface MemberIdentity {
     key: string;
     ticketed: boolean;
     guest: boolean;
+    /** The hashed IP of the socket that joined (per-IP caps only; never shown, never a ban key). */
+    ipKey?: string;
 }
 
 export interface Member {
@@ -75,6 +79,8 @@ export interface Party {
     rematchYes: Set<string>;
     /** Leader side for the pick ('cat' | 'dog'), from the leader's hover. */
     side: string | null;
+    /** A rematch pick: loading waits until this time even when everyone is locked. */
+    pickMinUntilMs?: number;
     ended: boolean;
 }
 
@@ -111,12 +117,15 @@ export type PartyError =
     | 'party_locked'
     | 'kicked'
     | 'party_ended'
+    | 'already_in_party'
+    | 'code_changed'
     | 'bad_message';
 
 export class PartyService {
     private readonly parties = new Map<string, Party>();
     private readonly byCode = new Map<string, string>();
-    private readonly retiredCodes = new Map<string, number>();
+    /** Codes held back from reuse for an hour: until when, and whether the party ended (else the code was replaced). */
+    private readonly retiredCodes = new Map<string, { until: number; ended: boolean }>();
     private readonly memberParty = new Map<string, string>();
 
     constructor(
@@ -127,6 +136,11 @@ export class PartyService {
 
     get size(): number {
         return this.parties.size;
+    }
+
+    /** Retired codes still held back from reuse (bounded by the sweep in `tick`). */
+    get retiredCount(): number {
+        return this.retiredCodes.size;
     }
 
     partyOf(memberId: string): Party | null {
@@ -155,14 +169,14 @@ export class PartyService {
             let c = '';
             for (let i = 0; i < 6; i++) c += CODE_ALPHABET[randomInt(CODE_ALPHABET.length)];
             const retired = this.retiredCodes.get(c);
-            if (this.byCode.has(c) || (retired !== undefined && retired > this.now())) continue;
+            if (this.byCode.has(c) || (retired !== undefined && retired.until > this.now())) continue;
             return c;
         }
     }
 
-    private retire(code: string): void {
+    private retire(code: string, ended: boolean): void {
         this.byCode.delete(code);
-        this.retiredCodes.set(code, this.now() + PARTY_TIMING.codeReuseMs);
+        this.retiredCodes.set(code, { until: this.now() + PARTY_TIMING.codeReuseMs, ended });
     }
 
     private makeMember(
@@ -243,8 +257,15 @@ export class PartyService {
     ): Party | PartyError {
         const pid = this.byCode.get(code);
         const p = pid ? this.parties.get(pid) : undefined;
-        if (!p) return this.retiredCodes.has(code) ? 'party_ended' : 'party_not_found';
+        if (!p) {
+            const retired = this.retiredCodes.get(code);
+            return retired ? (retired.ended ? 'party_ended' : 'code_changed') : 'party_not_found';
+        }
         if (p.members.some(m => m.id === memberId)) return p;
+        // one seat per person: the same account, guest key or IP-keyed guest cannot take a second seat (a second tab)
+        // (an identity keyed by IP only is many people behind one address: the IP caps cover it instead)
+        if (!identity.key.startsWith('ip:') && p.members.some(m => m.identity.key === identity.key))
+            return 'already_in_party';
         const ban = p.bans.get(identity.key);
         if (ban !== undefined && ban > this.now()) return 'kicked';
         if (p.locked) return 'party_locked';
@@ -258,6 +279,17 @@ export class PartyService {
         if (p.phase === 'lobby') p.difficulty = this.defaultDifficulty(p);
         this.touch(p);
         return p;
+    }
+
+    /**
+     * The member of the party behind `code` that is this same person (account or guest key; never an IP-keyed guest),
+     * or null: a player who closed the tab and opens the invite link again gets their own seat back.
+     */
+    twinOf(code: string, identity: MemberIdentity): string | null {
+        if (identity.key.startsWith('ip:')) return null;
+        const pid = this.byCode.get(code);
+        const p = pid ? this.parties.get(pid) : undefined;
+        return p?.members.find(m => m.identity.key === identity.key)?.id ?? null;
     }
 
     private rename(p: Party): void {
@@ -284,7 +316,7 @@ export class PartyService {
 
     end(p: Party): void {
         p.ended = true;
-        this.retire(p.code);
+        this.retire(p.code, true);
         this.parties.delete(p.id);
         for (const m of p.members) this.memberParty.delete(m.id);
     }
@@ -303,7 +335,7 @@ export class PartyService {
     }
 
     private rotateCode(p: Party): void {
-        this.retire(p.code);
+        this.retire(p.code, false);
         p.code = this.newCode();
         this.byCode.set(p.code, p.id);
         this.touch(p);
@@ -352,6 +384,14 @@ export class PartyService {
         m.conn = conn;
         m.offSinceMs = conn === 'on' ? null : this.now();
         this.touch(p);
+        // the leader pressed Start while a friend was away: the friend is back, so the Start goes on by itself
+        if (
+            conn === 'on' &&
+            p.waitingSinceMs !== undefined &&
+            (p.phase === 'lobby' || p.phase === 'results') &&
+            p.members.every(x => x.conn === 'on')
+        )
+            this.toPick(p, false);
     }
 
     nudge(by: string, target: string): void {
@@ -386,6 +426,7 @@ export class PartyService {
     private toPick(p: Party, rematch: boolean): void {
         p.phase = 'pick';
         p.deadlineMs = this.now() + PARTY_TIMING.pickMs + (rematch ? PARTY_TIMING.rematchNoteMs : 0);
+        p.pickMinUntilMs = rematch ? this.now() + PARTY_TIMING.rematchPickMinMs : undefined;
         p.waitingSinceMs = undefined;
         p.rematchYes.clear();
         if (!p.openSeats) p.locked = true;
@@ -415,12 +456,19 @@ export class PartyService {
         this.touch(p);
     }
 
+    /**
+     * The leader's hero sets the team's side. A side change resets the others' hovers on the old side and unlocks a
+     * friend locked on it (a team is never cats and dogs mixed); the unlocked friend picks again.
+     */
     private leaderSide(p: Party, side: string | null): void {
         if (side === p.side) return;
         p.side = side;
-        // a side change resets the others' unlocked hovers
-        for (const o of p.members)
-            if (o.id !== p.leader && !o.locked && o.hero && this.rules.sideOf(o.hero) !== side) o.hero = undefined;
+        for (const o of p.members) {
+            if (o.id === p.leader || !o.hero || this.rules.sideOf(o.hero) === side) continue;
+            o.hero = undefined;
+            // the friend's client sees its lock drop and says why ("Leader switched sides")
+            o.locked = false;
+        }
     }
 
     private heroAllowed(p: Party, m: Member, hero: string): boolean {
@@ -440,7 +488,23 @@ export class PartyService {
         m.locked = true;
         if (memberId === p.leader) this.leaderSide(p, this.rules.sideOf(hero));
         this.touch(p);
-        if (p.members.every(x => x.locked)) this.toLoading(p);
+        this.maybeLoad(p);
+    }
+
+    /** Everyone locked: loading (a rematch pick waits for its minimum time, then `tick` moves it on). */
+    private maybeLoad(p: Party): void {
+        if (p.phase !== 'pick' || !p.members.every(x => x.locked)) return;
+        if (p.pickMinUntilMs !== undefined && this.now() < p.pickMinUntilMs) return;
+        this.toLoading(p);
+    }
+
+    /** "Change hero" on the pick after a lock (the rematch pick): open again until the deadline. */
+    unlock(memberId: string): void {
+        const p = this.partyOf(memberId);
+        const m = p?.members.find(x => x.id === memberId);
+        if (!p || !m || p.phase !== 'pick' || !m.locked) return;
+        m.locked = false;
+        this.touch(p);
     }
 
     /** Timeout: lock the hover, else the last hero if free, else a free hero in seeded order. Nobody is kicked. */
@@ -543,8 +607,11 @@ export class PartyService {
     /** Timers: pick and load deadlines, leader handover, idle TTL. */
     tick(): void {
         const now = this.now();
+        for (const [code, r] of this.retiredCodes) if (r.until <= now) this.retiredCodes.delete(code);
+        for (const p of this.parties.values()) for (const [k, until] of p.bans) if (until <= now) p.bans.delete(k);
         for (const p of [...this.parties.values()]) {
             if (p.phase === 'pick' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.autoLock(p);
+            else if (p.phase === 'pick') this.maybeLoad(p);
             else if (p.phase === 'loading' && p.deadlineMs !== undefined && now >= p.deadlineMs) this.launch(p);
             if (p.phase === 'lobby' || p.phase === 'results') {
                 const lead = p.members.find(m => m.id === p.leader);

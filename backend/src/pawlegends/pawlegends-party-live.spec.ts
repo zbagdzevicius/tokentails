@@ -112,6 +112,19 @@ describe('pawlegends party live (N8)', () => {
         expect(await codeOf(s.save(s.b, s.body(1)))).toBe('ok');
     });
 
+    it('one account seated twice in a room saves once (the second seat is PAWLEGENDS_DUPLICATE)', async () => {
+        const s = setup(
+            room({
+                occupants: [
+                    { slot: 0, accountId: ACCOUNT_A, guestKeyHash: null, name: 'Sunny Tabby', ticketed: true },
+                    { slot: 1, accountId: ACCOUNT_A, guestKeyHash: null, name: 'Sunny Tabby 2', ticketed: true },
+                ],
+            })
+        );
+        expect(await codeOf(s.save(s.a, s.body(0)))).toBe('ok');
+        expect(await codeOf(s.save(s.a, s.body(1)))).toBe('PAWLEGENDS_DUPLICATE');
+    });
+
     it('wrong account → PAWLEGENDS_PARTY_SLOT; forged hash or outcome → PAWLEGENDS_REPLAY_INVALID; unknown room → PAWLEGENDS_PARTY_ROOM', async () => {
         const s = setup();
         expect(await codeOf(s.save(s.b, s.body(0)))).toBe('PAWLEGENDS_PARTY_SLOT');

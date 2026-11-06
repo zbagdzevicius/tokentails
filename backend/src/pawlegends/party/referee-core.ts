@@ -86,7 +86,18 @@ export class RefereeRoom {
         const pilotOut: Uint8Array[][] = [[], [], []];
         for (let sub = 0; sub < TURN_TICKS; sub++) {
             const per: PawlegendsCommand[][] = [[], [], []];
-            for (const e of f.entries) if (e.sub === sub) per[e.slot].push(this.sim.decodeCommand(e.cmd));
+            for (const e of f.entries) {
+                if (e.sub !== sub) continue;
+                // defence in depth: the relay decodes every command before a TURN; an entry that still does not
+                // decode is skipped here exactly as every client skips it (net-core.ts), never thrown on
+                let c: PawlegendsCommand;
+                try {
+                    c = this.sim.decodeCommand(e.cmd);
+                } catch {
+                    continue;
+                }
+                per[e.slot].push(c);
+            }
             if (this.flyPilots) {
                 for (let s = 0; s < MAX_HUMANS; s++) {
                     if (!this.config.humans.includes(s) || ((f.modeMask >>> s) & 1) === 0) continue;

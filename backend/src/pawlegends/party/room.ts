@@ -162,9 +162,13 @@ export class Room {
     private refereeTick = 0;
     private resyncsTotal = 0;
     private refereeSuspect = false;
+    /** Ticks each slot already reported a hash for (one per 30-tick mark; a repeat is ignored). */
+    private readonly hashTicks: Set<number>[] = [new Set(), new Set(), new Set()];
+    private readonly createdMs: number;
 
     constructor(init: RoomInit, private readonly io: RoomIO) {
         this.id = init.id;
+        this.createdMs = init.nowMs;
         this.humans = init.humans.slice();
         this.difficulty = init.difficulty;
         this.forfeitFrom = init.forfeitFrom;
@@ -264,12 +268,37 @@ export class Room {
     beat(slot: number, lastTurn: number, nowMs: number): void {
         const s = this.slots[slot];
         if (!s || !s.connected) return;
-        s.lastBeatMs = nowMs;
         s.lastTurnSeen = Math.min(lastTurn, this.nextTurn);
+        this.heard(slot, nowMs);
+    }
+
+    /** Any frame from the slot's socket proves it is there (a BEAT delayed behind a busy main thread is not a drop). */
+    heard(slot: number, nowMs: number): void {
+        const s = this.slots[slot];
+        if (!s || !s.connected) return;
+        s.lastBeatMs = Math.max(s.lastBeatMs, nowMs);
         if (s.conn === 'away') {
             s.conn = 'on';
-            this.io.json(null, { t: 'slot', slot, reason: 'back' });
+            this.io.json(null, { t: 'slot', slot, reason: 'back', laggy: true });
         }
+    }
+
+    /**
+     * The member left the party mid-match (`party.leave`): the seat is open again (a pilot flies it; with Open seats a
+     * friend may claim it) and the others are told it was a leave, not a drop.
+     */
+    vacate(slot: number, nowMs: number): void {
+        const s = this.slots[slot];
+        if (!s || !this.isHumanSlot(slot)) return;
+        s.connected = false;
+        s.conn = 'off';
+        s.occupied = false;
+        s.mode = 'pilot';
+        s.reason = 'open';
+        s.open = emptyOpen();
+        this.io.json(null, { t: 'slot', slot, reason: 'left' });
+        this.io.log?.('mp_takeover', { slot, reason: 'left' });
+        this.touchEmpty(nowMs);
     }
 
     /** The tab was hidden (or the app paused): pilot at once. */
@@ -377,6 +406,12 @@ export class Room {
     /** Run the room up to `nowMs`: close every overdue turn in order, then the timers. */
     advance(nowMs: number): void {
         if (this.status === 'ended' || this.status === 'abandoned') return;
+        if (nowMs - this.createdMs >= PARTY_LIMITS.roomMaxMs) {
+            // no match lasts an hour: a stuck room never holds a live-room slot for good
+            this.status = 'abandoned';
+            this.io.log?.('room_abandoned', { played: this.played, turn: this.nextTurn, why: 'wall' });
+            return;
+        }
         this.timers(nowMs);
         if (this.status === 'paused') {
             if (this.resumeAtMs > 0 && nowMs >= this.resumeAtMs) this.resume(nowMs);
@@ -590,14 +625,24 @@ export class Room {
         this.sweepHashes();
     }
 
-    /** A client's hash at `tick`. */
-    clientHash(slot: number, tick: number, hash: number): void {
-        if (tick > this.tick + TURN_TICKS * 4) return;
+    /**
+     * A client's hash at `tick` (a 30-tick mark it has not reported yet; anything else is ignored). Returns false for a
+     * frame that breaks those rules (the relay counts it against the socket's binary budget).
+     */
+    clientHash(slot: number, tick: number, hash: number): boolean {
+        if (tick <= 0 || tick % 30 !== 0 || tick > this.tick + TURN_TICKS * 4) return false;
+        const seen = this.hashTicks[slot];
+        if (!seen) return false;
+        // a rebuilt slot reports the same marks again: a mark below the last one starts a new series
+        if (seen.has(tick)) return false;
+        seen.add(tick);
+        if (seen.size > 64) seen.delete(Math.min(...seen));
         // a slot rebuilding after a resync reports nothing until it is back (stale hashes would look like a 2nd miss)
-        if (this.slots[slot]?.reason === 'desync' || this.slots[slot]?.watching) return;
+        if (this.slots[slot]?.reason === 'desync' || this.slots[slot]?.watching) return true;
         const e = this.entry(tick);
         e.clients.set(slot, hash >>> 0);
         this.checkHashes(tick);
+        return true;
     }
 
     get refereeAt(): number {
@@ -620,10 +665,16 @@ export class Room {
     /**
      * Compare the clients' hashes at `tick` with the referee's. A mismatch is judged once every connected, non-watching
      * human slot reported that tick, or once the referee is 90 ticks past it (a slow or catching-up client).
+     *
+     * The referee is the authority: a client hash can only resync (then, past the caps, pilot) that client. It never
+     * makes the room unscored or switches desync detection off, so one member (or two colluding ones) cannot void the
+     * room's rewards with forged HASH frames. Two clients agreeing against the referee is logged for ops
+     * (`mp_referee_divergence`) and they are not resynced: the end-of-match verify re-sims the raw log independently, so a
+     * wrong referee can never score a room.
      */
     private checkHashes(tick: number): void {
         const e = this.hashes.get(tick);
-        if (!e || e.referee === undefined || this.refereeSuspect) return;
+        if (!e || e.referee === undefined) return;
         for (const [slot, h] of e.clients) {
             if (h === e.referee && this.slots[slot].rebuiltAtTick >= 0) this.slots[slot].rebuiltAtTick = -2;
         }
@@ -635,14 +686,13 @@ export class Room {
         for (const [slot, h] of e.clients) {
             if (h === e.referee || e.flagged.has(slot)) continue;
             e.flagged.add(slot);
-            const s = this.slots[slot];
-            // majority rule: two clients agreeing on a hash the referee does not have, or a client rebuilt from turn 0
-            // that disagrees again before it ever agreed, make the referee the suspect (no resync storm).
             let agree = 0;
             for (const [other, oh] of e.clients) if (other !== slot && oh === h) agree++;
-            if (agree >= 1 || s.rebuiltAtTick >= 0) {
-                this.refereeDiverged(tick);
-                return;
+            if (agree >= 1) {
+                // two clients agree against the referee: no resync storm for them, a log line for ops, nothing else
+                // (no unscored room, detection stays on for everyone else and for later ticks)
+                if (!this.refereeSuspect) this.refereeDiverged(tick);
+                continue;
             }
             this.io.log?.('mp_desync', { slot, tick });
             this.resync(slot, tick);
@@ -654,9 +704,9 @@ export class Room {
         for (const tick of [...this.hashes.keys()]) if (tick + 90 <= this.refereeTick) this.checkHashes(tick);
     }
 
+    /** Logged once per room for ops; never changes scoring (see checkHashes). */
     private refereeDiverged(tick: number): void {
         this.refereeSuspect = true;
-        this.unscored = 'referee';
         this.io.log?.('mp_referee_divergence', { tick });
     }
 
@@ -675,6 +725,8 @@ export class Room {
         s.resyncs++;
         this.resyncsTotal++;
         s.rebuiltAtTick = tick;
+        // the rebuilt client reports every mark again from tick 30
+        this.hashTicks[slot]?.clear();
         this.pilot(slot, 'desync');
         this.io.json(slot, { t: 'resync', reason: 'desync' });
         this.io.catchup(slot, 0);
