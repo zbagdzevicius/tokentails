@@ -1,9 +1,13 @@
 /**
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 80ff2cbe2 (feat(pawlegends): match camera ~17% further out, player zoom control, CF-05 look-ahead)
  * Match camera zoom (render only): a factor on the camera distance (renderer.ts MOBA_DIST × zoom, × the short-landscape
  * factor on phones). The wheel and the +/− keys (desktop), a pinch (touch) and the Settings / pause-menu slider move
  * the target; the match view eases toward it. Clamped to ZOOM_MIN..zoomMax(width) and remembered per viewer (browser
  * storage, a convenience only: it may be missing or throw, and the default is used then).
+<<<<<<< HEAD
  */
 export const ZOOM_MIN = 0.72;
 export const ZOOM_MAX = 1.35;
@@ -42,6 +46,8 @@ export const clampZoom = (z: number, max = ZOOM_MAX): number => (Number.isFinite
  * Match camera zoom (render only): a target the wheel (and later pinch) moves in smooth, delta-sized steps, eased by
  * the match view, clamped to 0.72x..1.35x of the default distance and remembered per viewer (browser storage, a
  * convenience only: it may be missing or throw, and the default is used then).
+=======
+>>>>>>> 80ff2cbe2 (feat(pawlegends): match camera ~17% further out, player zoom control, CF-05 look-ahead)
  */
 export const ZOOM_MIN = 0.72;
 export const ZOOM_MAX = 1.35;
@@ -53,9 +59,19 @@ export const ZOOM_MAX_WIDE = 1.9;
 export const ZOOM_WIDE_FROM = 1100;
 /** The zoom-out limit for a viewport `width` CSS px wide. */
 export const zoomMax = (width: number): number => (width >= ZOOM_WIDE_FROM ? ZOOM_MAX_WIDE : ZOOM_MAX);
-/** Desktop default: a little closer than the old 1.0 so a hero reads at ~70 px tall on 1280x720. */
-export const ZOOM_DEFAULT = 0.88;
-const KEY = 'pawlegends.zoom';
+/**
+ * Default zoom, desktop and phones alike (phones multiply the distance by renderer.ts SHORT_LANDSCAPE_ZOOM).
+ * Polish 2026-11-06 (founder: "zoomed in a little too much"): 0.88 → 1.03, the camera ~17% further out. Ground
+ * across the hero's row: 1440x900 31 m (was 27), 844x390 30 m (was 25), 667x375 25 m (was 21), with 16–17 m on the
+ * open (right) side on phones, so the longest aimed skill (12 m) and a tower's 7 m reach fit beside the hero.
+ */
+export const ZOOM_DEFAULT = 1.03;
+/**
+ * Storage key. v2 with the new default: a zoom saved under the old key was picked against the old, too-close default,
+ * so everybody starts once from the new one.
+ */
+export const ZOOM_KEY = 'pawlegends.zoom.v2';
+const KEY = ZOOM_KEY;
 
 <<<<<<< HEAD
 export const clampZoom = (z: number): number => (Number.isFinite(z) ? Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z)) : ZOOM_DEFAULT);
@@ -131,6 +147,7 @@ export function pinchZoom(z0: number, d0: number, d: number, max = ZOOM_MAX): nu
 
 /** The slider's label: the view size against the default (100% = default, bigger = more of the map). */
 export const zoomPercent = (z: number): number => Math.round((z / ZOOM_DEFAULT) * 100);
+<<<<<<< HEAD
 =======
 export function saveZoom(z: number): void {
   try {
@@ -140,3 +157,5 @@ export function saveZoom(z: number): void {
   }
 }
 >>>>>>> ad97eff13 (feat(pawlegends): upright PPK-style cat and dog heroes and minions, playtest fixes)
+=======
+>>>>>>> 80ff2cbe2 (feat(pawlegends): match camera ~17% further out, player zoom control, CF-05 look-ahead)

@@ -22,14 +22,30 @@ export const isShortLandscape = (w: number, h: number): boolean => h <= 480 && w
 /** Radians below IsoRig's pitch: a MOBA reads better a little more side-on (heroes, not hats). */
 export const MOBA_PITCH_DROP = 0.16;
 
+/**
+ * Sun shadow box (m): the half-size follows the ground the camera sees (the farthest view corner from the box centre
+ * plus a margin for tall casters), in 2 m steps so the projection only rebuilds when the zoom really moved. Clamped:
+ * a bigger box spreads the same 1024² map over more ground, so past SHADOW_BOX.max the far corners lose shadows
+ * rather than every shadow going soft.
+ */
+export const SHADOW_BOX = Object.freeze({ min: 22, max: 46, margin: 3, step: 2 });
+export function shadowHalfFor(farthest: number): number {
+  const h = Math.ceil((farthest + SHADOW_BOX.margin) / SHADOW_BOX.step) * SHADOW_BOX.step;
+  return Math.min(SHADOW_BOX.max, Math.max(SHADOW_BOX.min, Number.isFinite(h) ? h : SHADOW_BOX.max));
+}
+
 export interface GameRenderer {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
   camera: THREE.PerspectiveCamera;
   /** Ground point the camera looks at (metres, three.js coordinates). */
   focus: THREE.Vector3;
-  /** Zoom factor for IsoRig (clamped by CAMERA.iso.zoom). */
+  /** Zoom factor (render/camera/zoom.ts): the camera distance is MOBA_DIST × zoom (× SHORT_LANDSCAPE_ZOOM on phones). */
   zoom: number;
+  /** The camera's distance to the focus (m) at the last draw. */
+  dist: number;
+  /** The sun's shadow box half-size (m) at the last draw: it grows with the visible ground (shadowHalf). */
+  shadowHalf: number;
   settings: TierSettings;
   /** Called after the camera is placed and before the draw (camera shake). */
   preRender: ((camera: THREE.PerspectiveCamera) => void) | null;
@@ -68,6 +84,36 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   sc.top = 30;
   sc.bottom = -30;
   scene.add(sun, sun.target);
+  // the view's ground corners (NDC → ground plane), reused every frame
+  const ndc = [new THREE.Vector3(-1, 1, 0.5), new THREE.Vector3(1, 1, 0.5), new THREE.Vector3(1, -1, 0.5), new THREE.Vector3(-1, -1, 0.5)];
+  const ray = new THREE.Vector3();
+  const corners = ndc.map(() => new THREE.Vector3());
+  const boxAt = new THREE.Vector3();
+  /** Fit the sun's shadow box to the visible ground: centred on the view's ground quad, sized to its farthest corner. */
+  const fitShadow = (): void => {
+    let n = 0;
+    boxAt.set(0, 0, 0);
+    for (let i = 0; i < 4; i++) {
+      ray.copy(ndc[i]).unproject(camera).sub(camera.position);
+      if (ray.y >= -1e-4) continue;
+      const t = -camera.position.y / ray.y;
+      corners[n].set(camera.position.x + ray.x * t, 0, camera.position.z + ray.z * t);
+      boxAt.add(corners[n++]);
+    }
+    if (n < 4) boxAt.copy(focus);
+    else boxAt.multiplyScalar(0.25);
+    let far = 0;
+    for (let i = 0; i < n; i++) far = Math.max(far, Math.hypot(corners[i].x - boxAt.x, corners[i].z - boxAt.z));
+    const half = shadowHalfFor(n < 4 ? Infinity : far);
+    if (half !== gr.shadowHalf) {
+      gr.shadowHalf = half;
+      sc.left = sc.bottom = -half;
+      sc.right = sc.top = half;
+      sc.updateProjectionMatrix();
+    }
+    sun.target.position.copy(boxAt);
+    sun.position.set(boxAt.x - 20, 40, boxAt.z + 25);
+  };
 
   const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 300);
   const focus = new THREE.Vector3(10, 0, -30);
@@ -80,6 +126,8 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
     camera,
     focus,
     zoom: 1,
+    dist: MOBA_DIST,
+    shadowHalf: 30,
     settings: settings0,
     preRender: null,
     active: scene,
@@ -109,12 +157,17 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
         return;
       }
       const d = MOBA_DIST * gr.zoom * near;
+      gr.dist = d;
       isoPosition(focus, CAMERA_YAW, Math.max(0.8, isoPitch(d) - MOBA_PITCH_DROP), d, pos);
       camera.position.set(pos.x, pos.y, pos.z);
       camera.lookAt(focus);
       camera.updateProjectionMatrix();
-      sun.target.position.copy(focus);
-      sun.position.set(focus.x - 20, 40, focus.z + 25);
+      camera.updateMatrixWorld();
+      if (gr.settings.shadows) fitShadow();
+      else {
+        sun.target.position.copy(focus);
+        sun.position.set(focus.x - 20, 40, focus.z + 25);
+      }
       gr.preRender?.(camera);
       renderer.render(gr.active, camera);
     },
