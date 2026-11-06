@@ -445,6 +445,20 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
   box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75); transition: background 0.12s, transform 0.12s;
 }
 .pl-cancel.on { display: grid; }
+/* Audit CF-06: the aim ring at the thumb: the smart-cast centre and the full-range ring of a ground or unit aim */
+.pl-aimring { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; pointer-events: none; z-index: 1; }
+.pl-aimring.on { display: block; }
+.pl-aimring i { position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
+.pl-aimring .full { width: var(--full, 180px); height: var(--full, 180px); border: 2px dashed rgba(255, 243, 220, 0.55); background: radial-gradient(circle, transparent 60%, rgba(255, 210, 122, 0.08)); }
+.pl-aimring .smart { width: var(--smart, 48px); height: var(--smart, 48px); border: 2px solid rgba(255, 243, 220, 0.7); background: rgba(20, 12, 22, 0.25); }
+.pl-aimring.dir .full { display: none; }
+.pl-aimring.back .smart { border-color: var(--butter); background: rgba(255, 211, 77, 0.28); box-shadow: 0 0 10px rgba(255, 211, 77, 0.6); }
+/* Audit CF-09: the locked ult says when it opens */
+.pl-tbtn .lv { display: none; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); z-index: 4; padding: 0 6px; border-radius: 999px; font: 800 10px/15px var(--font); font-style: normal; white-space: nowrap; background: var(--butter); color: #4a2a1f; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.pl-tbtn.r.locked .lv { display: block; }
+/* the button dims its insides, not the badge */
+.pl-tbtn.r.locked { overflow: visible; opacity: 1; filter: none; }
+.pl-tbtn.r.locked > :not(.lv) { opacity: 0.4; filter: grayscale(1); }
 .pl-cancel.arming { border-color: #fff; transform: translateX(-50%) scale(1.06); }
 .pl-cancel.hot { background: var(--enemy); border-color: #fff; transform: translateX(-50%) scale(1.15); }
 html[data-touch='1'] .pl-slots { display: none; }
