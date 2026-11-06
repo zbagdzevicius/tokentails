@@ -41,7 +41,13 @@ export class Scoreboard {
   private readonly credits = [0, 0, 0, 0, 0, 0];
   /** Damage to enemy heroes seen in this team's snapshots (enemy numbers miss what happened out of sight). */
   readonly heroDmg = [0, 0, 0, 0, 0, 0];
-  private readonly names: string[];
+  private names: string[];
+  /**
+   * Party play (MULTIPLAYER.md §7 M1, M3): friends' rows get a ring badge, a connection dot and a "bot" chip while a
+   * bot flies them; a tap on a friend's name mutes or unmutes them (`onMute`). Null in solo matches.
+   */
+  seats: ReadonlyMap<number, { ring: string; bot: boolean; conn: 'on' | 'away' | 'off'; muted: boolean }> | null = null;
+  onMute: ((slot: number) => void) | null = null;
   /** cards: the slots whose portrait is already on the root as `--pic<slot>` (data URLs are set once, not per redraw). */
   private readonly pics = new Set<number>();
 
@@ -56,7 +62,33 @@ export class Scoreboard {
     this.names = names ? [...names] : slotNames(picks);
     this.root = document.createElement('div');
     this.root.className = 'pl-scoreboard';
+    // registered first, so a tap on a friend's name mutes them instead of closing the board (matchSession)
+    this.root.addEventListener('pointerdown', (e) => {
+      const b = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-mute]');
+      if (!b || !this.onMute) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+      this.onMute(Number(b.dataset.mute));
+    });
     parent.appendChild(this.root);
+  }
+
+  /** Party play: names changed (a friend joined, was muted, Hide names). */
+  setNames(names: readonly string[]): void {
+    this.names = [...names];
+  }
+
+  private seatHtml(slot: number): string {
+    const seat = this.seats?.get(slot);
+    if (!seat || slot === this.mySlot) return '';
+    const conn = seat.conn === 'on' ? 'Here' : seat.conn === 'away' ? 'Away' : 'Offline';
+    return ` <i class="sb-ring" style="--ring:${seat.ring}" title="Friend"></i><i class="sb-conn" data-conn="${seat.conn}" title="${conn}"></i>${seat.bot ? ' <span class="sb-bot">bot</span>' : ''}${seat.muted ? ' <span class="sb-muted">muted</span>' : ''}`;
+  }
+
+  private nameHtml(slot: number, text: string): string {
+    const seat = this.seats?.get(slot);
+    if (!seat || slot === this.mySlot || !this.onMute) return esc(text);
+    return `<button type="button" class="sb-name" data-mute="${slot}" aria-label="${esc(`${seat.muted ? 'Unmute' : 'Mute'} ${text}`)}" title="${seat.muted ? 'Tap to unmute' : 'Tap to mute'}">${esc(text)}</button>`;
   }
 
   /** A hero knockout: victim id, killer id (any entity). */
@@ -98,8 +130,8 @@ export class Scoreboard {
           const e = frame?.byId.get(slot);
           const dead = e?.state === 'dead';
           const t = HERO_TEXT[hero];
-          return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}">
-            <td><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${esc(this.names[slot] ?? t.title)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
+          return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}${this.seats?.has(slot) ? ' friend' : ''}" data-slot="${slot}">
+            <td><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
             <td>${t.role}</td><td class="lv">${e?.level ?? '-'}</td><td class="kda">${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td class="tal">${talentChips(hero, e?.talents)}</td><td>${this.heroDmg[slot]}</td>
             <td>${dead ? `${Math.ceil((e?.respawnIn ?? 0) / 30)} s` : e ? `${Math.round((e.hp / Math.max(1, e.maxHp)) * 100)}%` : 'hidden'}</td></tr>`;
         })

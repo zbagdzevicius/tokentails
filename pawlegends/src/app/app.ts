@@ -34,6 +34,8 @@ import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl } from '../share/partyLink';
 import type { PartyClient } from '../party';
+import { hideNames } from '../meta/partyPrefs';
+import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
@@ -260,7 +262,9 @@ export class App {
     this.ent.onChange(() => this.refreshMeta());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        this.session?.setPaused(true);
+        // party play (§4.5): a hidden tab is "away" (NetHost; a bot flies the hero) and comes back to the match, not
+        // to a menu over it (the menu would also hide a friend's vote on the rail)
+        if (!this.lastSetup?.party || this.screen !== 'match') this.session?.setPaused(true);
         // the match chunk may still be loading: pause the session the moment it exists
         if (!this.session && this.screen === 'match') this.pendingPause = true;
       } else this.analytics.refreshConsent();
@@ -834,7 +838,8 @@ export class App {
       speed: 1,
       firstMatch: false,
       newPlayer: p.matches < 5,
-      emote: owned.items.has('emote.starter') || owned.unlocks.has('emote.wave'),
+      // party play: quick chat and its 4 emotes replace the solo Wave chip (T opens the chat wheel)
+      emote: false,
       muted: sfx.isMuted,
       look,
       frame: bestFrame(owned, p.wornFrame),
@@ -849,7 +854,7 @@ export class App {
       showcase: [],
       host: host as unknown as MatchSetup['host'],
       // a resume or a reload joins a running match (the relay sends startInMs 0): no countdown, no VS intro
-      party: { slot, names: match.names, rejoin: match.startInMs === 0 },
+      party: { slot, names: match.names, rejoin: match.startInMs === 0, newbie: p.matches === 0, hideNames: hideNames() },
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false });
@@ -979,6 +984,10 @@ export class App {
       },
       onPaused: (paused) => this.bridge.post('paused', { paused }),
       onTalent: (tier, choice) => this.analytics.track('talent_pick', { hero: c.hero, tier, choice }),
+      // party play analytics (MULTIPLAYER.md §10): mp_* names only, flat props
+      track: (event, props) => {
+        if (isMpEvent(event)) this.analytics.track(event, props);
+      },
     });
     if (this.pendingPause || document.hidden) this.session.setPaused(true);
     this.pendingPause = false;
@@ -1078,7 +1087,8 @@ export class App {
     this.setLobbyHero(e.replay.hero);
     if (won) this.lobby.confetti(3);
     let link: string | null = null;
-    if (won) {
+    // a party match has no dare link (its seed belongs to the party)
+    if (won && !partyEnd) {
       const base = this.bridge.active && document.referrer ? `${new URL(document.referrer).origin}/pawlegends` : location.href;
       try {
         link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < suddenDeathS(e.replay.difficulty) ? seconds : 0 }, base);
@@ -1101,6 +1111,8 @@ export class App {
     const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, myCard);
     const nameOf = (slot: number): string => names[slot] ?? HERO_TEXT[e.result.stats.find((st) => st.slot === slot)?.hero ?? e.replay.hero].title;
     const bestMine = grades.best[myTeam];
+    // Party play (M6): results together, the party's rows and actions (the save chip stays this player's own)
+    const party = partyEnd && this.party ? this.party : null;
     const table = e.result.stats
       .map((st) => ({
         name: nameOf(st.slot),
@@ -1115,9 +1127,7 @@ export class App {
         towerDmg: st.towerDamage,
       }))
       .sort((a, b) => Number(a.rel === 'enemy') - Number(b.rel === 'enemy'));
-    this.setScreen(
-      'results',
-      resultsScreen(this.root, {
+    const resultsEl = resultsScreen(this.root, {
         won,
         seconds,
         hero: e.replay.hero,
@@ -1159,9 +1169,10 @@ export class App {
               },
         },
         personal: ladder?.personal ?? null,
-        cause: e.cause,
+        // a party's surrender is the team's vote, not one player's forfeit
+        cause: partyEnd && e.result.reason === 'forfeit' ? 'Your team voted to surrender.' : e.cause,
         // round 2: a returning player (4+ matches or "played MOBAs before") gets Play again at End + 2.5 s
-        quick: lp.matches >= 4 || lp.veteran,
+        quick: lp.matches >= 4 || lp.veteran || !!partyEnd,
         tryHero: tease,
         skin: skinLine,
         touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
@@ -1172,6 +1183,7 @@ export class App {
         // It stays in this page session, so the offer's once-a-session rule (money/offer.ts) never shows a second card.
         onAgain: () => {
           sfx.play('click');
+          if (party) return party.again(true);
           if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'again', hero: e.replay.hero, difficulty: e.replay.difficulty });
           this.startMatch(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice);
@@ -1179,6 +1191,7 @@ export class App {
         // GAPS A3 "Switch cat": the pick screen with this match's difficulty kept (round 2: on the teased hero)
         onChange: () => {
           sfx.play('click');
+          if (party) return party.again(false);
           if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
           const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;
@@ -1196,8 +1209,18 @@ export class App {
         },
         onStore: () => this.openStore('results'),
         onNotify: () => this.notify('results'),
-      }),
-    );
+        ...(party
+          ? {
+              party: {
+                rowsHtml: party.resultsRows(e.result.stats, mySlot, names, partyEnd as { names?: (string | null)[]; pilotPct?: number[] }),
+                again: party.againText(),
+                onLeave: () => party.leaveParty(),
+              },
+            }
+          : {}),
+      });
+    this.setScreen('results', resultsEl);
+    party?.bindResults(resultsEl, () => this.backToParty());
     // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen),
     // never after the Rookie match (fun plan F4)
     if (won && !isRookie(e.replay.difficulty))

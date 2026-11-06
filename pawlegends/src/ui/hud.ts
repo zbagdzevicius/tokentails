@@ -337,6 +337,32 @@ export class Hud {
    * GAPS A4: the portrait strip for the other five heroes (allies and enemies, by slot). `names` are the slot labels
    * (ui/heroText.ts slotNames). Enemy portraits are buttons: a tap locks that hero on touch (A5).
    */
+  /**
+   * Party play (MULTIPLAYER.md §7 M1, M4): a friend's strip portrait wears its slot ring and its card art (when the
+   * friend wears a card), and greys with a robot badge while a bot flies it. `null` clears it (a bot slot).
+   */
+  setStripSeat(slot: number, seat: { ring: string; bot: boolean; art: string | null; name: string } | null): void {
+    const s = this.strip.find((x) => x.slot === slot);
+    if (!s) return;
+    const pic = s.el.querySelector<HTMLElement>('.pic');
+    if (!seat) {
+      delete s.el.dataset.ring;
+      delete s.el.dataset.bot;
+      return;
+    }
+    s.el.dataset.ring = '1';
+    s.el.style.setProperty('--ring', seat.ring);
+    s.el.dataset.bot = seat.bot ? '1' : '0';
+    s.el.title = seat.name;
+    s.el.setAttribute('aria-label', seat.name);
+    if (pic && seat.art && pic.dataset.art !== seat.art) {
+      pic.dataset.art = seat.art;
+      pic.classList.remove('none');
+      pic.textContent = '';
+      pic.style.backgroundImage = `url("${seat.art.replace(/["\\]/g, '')}")`;
+    }
+  }
+
   mountStrip(picks: readonly HeroId[], mySlot: number, myTeam: number, names: readonly string[]): void {
     for (const s of this.strip) s.el.remove();
     this.strip = [];

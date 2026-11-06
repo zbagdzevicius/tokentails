@@ -282,3 +282,71 @@ html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
   .pl-crest { transition: opacity 0.2s; transform: translate(-50%, -50%); }
   .pl-crest b { animation: none; background-position: 40% 0; }
 }
+
+/* Party play (MULTIPLAYER.md §7 M1, M3): friends on the scoreboard (ring badge, connection dot, bot chip, tap to mute)
+   and in the HUD strip (ring colour, card art, a robot badge while a bot flies them). */
+.pl-scoreboard .sb-ring { display: inline-block; width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--ring); margin-left: 4px; vertical-align: middle; }
+.pl-scoreboard .sb-conn { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-left: 3px; vertical-align: middle; background: #7fe0a6; }
+.pl-scoreboard .sb-conn[data-conn='away'] { background: #f0d58a; }
+.pl-scoreboard .sb-conn[data-conn='off'] { background: #8a8a96; }
+.pl-scoreboard .sb-bot, .pl-scoreboard .sb-muted { display: inline-block; margin-left: 4px; padding: 0 5px; border-radius: 6px; font-size: 10px; font-weight: 800; line-height: 15px; background: #3a4258; color: #c9d3e0; vertical-align: middle; }
+.pl-scoreboard .sb-muted { background: #4a2a32; color: #ffc9c9; }
+.pl-scoreboard .sb-name { all: unset; cursor: pointer; text-decoration: underline dotted; min-height: 28px; pointer-events: auto; }
+.pl-strip .pp[data-ring] { box-shadow: 0 0 0 2px var(--ring); }
+.pl-strip .pp[data-bot='1'] { filter: grayscale(0.7); }
+.pl-strip .pp[data-bot='1']::after { content: '🤖'; position: absolute; right: -4px; top: -6px; font-size: 11px; }
+
+/* Party play quick chat (MULTIPLAYER.md §7 M3, src/party/ui/quickChat.ts). Touch: a 44 px bubble under the paw
+   button (right edges aligned, left of the minimap; the solo Wave chip is not mounted in party matches), so it never
+   reaches the ability bar at 667x375. Desktop: a chip over the minimap (the top band holds the portrait strips), hold T for the wheel. */
+.pl-chatbtn {
+  position: absolute; right: calc(16px + var(--safe-r)); bottom: calc(150px + var(--safe-b, 0px)); z-index: 5; pointer-events: auto; cursor: pointer;
+  display: flex; align-items: center; gap: 6px; font: 600 13px var(--font); color: var(--cream); background: var(--panel); border: 1px solid var(--line);
+  border-radius: 999px; padding: 5px 10px 5px 7px; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); touch-action: none;
+}
+.pl-chatbtn svg { width: 18px; height: 18px; color: #7fd4ff; }
+.pl-chatbtn kbd { font-size: 9px; padding: 1px 4px; }
+.pl-chatbtn.cool { opacity: 0.45; }
+html[data-touch='1'] .pl-chatbtn {
+  left: auto; bottom: auto; right: calc(152px + var(--safe-r)); top: calc(104px + var(--safe-t)); width: 44px; height: 44px; padding: 0; justify-content: center;
+  border-radius: 50%; border: 2px solid rgba(255, 243, 220, 0.55);
+}
+html[data-touch='1'] .pl-chatbtn span, html[data-touch='1'] .pl-chatbtn kbd { display: none; }
+html[data-touch='1'] .pl-chatbtn svg { width: 22px; height: 22px; }
+html[data-touch='1']:has(.pl-chatbtn) .pl-feed-row { max-width: 128px; }
+.pl-chatwheel { position: fixed; inset: 0; z-index: 30; display: none; pointer-events: auto; touch-action: none; }
+.pl-chatwheel.on { display: block; }
+.pl-chatwheel::before {
+  content: ''; position: absolute; left: var(--x); top: var(--y); width: 290px; height: 290px; transform: translate(-50%, -50%);
+  border-radius: 50%; background: radial-gradient(circle, rgba(43, 29, 46, 0.2) 0 12%, rgba(43, 29, 46, 0.55) 13% 38%, rgba(43, 29, 46, 0.75) 39% 100%);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4); pointer-events: none;
+}
+.pl-chatwheel .cw {
+  position: absolute; left: var(--x); top: var(--y); margin: 0; min-height: 40px; border: 2px solid #7fd4ff; border-radius: 14px;
+  transform: translate(-50%, -50%) rotate(var(--a)) translateY(var(--r)) rotate(calc(-1 * var(--a)));
+  background: var(--panel); color: var(--cream); font: 700 12px/1.1 var(--font); text-align: center; cursor: pointer; white-space: nowrap;
+}
+.pl-chatwheel .cw.line { width: 82px; padding: 4px 2px; }
+.pl-chatwheel .cw.emote { width: 44px; height: 44px; padding: 0; border-radius: 50%; border-color: #ff9fc8; font-size: 20px; }
+.pl-chatwheel .cw.hot, .pl-chatwheel .cw:active { background: #7fd4ff; color: var(--ink); }
+.pl-chatwheel .cw.emote.hot, .pl-chatwheel .cw.emote:active { background: #ff9fc8; }
+
+/* Party play (MULTIPLAYER.md §7, lane M5): chips on a rail note ("Surrender? 1/2 · Yes · No"). The rail lets taps
+   through; only the chips take them. 40 px tall touch targets; the one-line phone rail grows to fit them. */
+.pl-rail-line .ac { display: flex; gap: 6px; flex: none; }
+.pl-rail-line .ac:empty { display: none; }
+.pl-rail-line.has-act { pointer-events: auto; padding-right: 6px; }
+.pl-rail-line.has-act:not(.on) { pointer-events: none; }
+.pl-rail-act {
+  pointer-events: auto; min-width: 52px; min-height: 40px; padding: 0 12px; border: 1px solid #c8aa6e; border-radius: 6px;
+  background: linear-gradient(180deg, #2a3a5c, #1a2440); color: #f0e6d2; font: 800 15px/1 var(--font); cursor: pointer;
+  touch-action: manipulation;
+}
+.pl-rail-act[data-act$='-no'] { border-color: #8a5a5a; color: #ffc9c9; }
+.pl-rail-act:active { transform: translateY(1px); }
+.pl-rail.one .pl-rail-line.has-act.on { height: 44px; }
+/* "Scores" from the menu opened the board under the menu card (z 30 < 40): it goes over it, so a friend's name can be
+   tapped to mute (lane M3); a tap on the board closes it back to the menu. */
+.pl-scoreboard.tap { z-index: 45; }
+/* a party vote waiting on this player stays visible (and tappable) over the local menu, which otherwise hides the rail */
+.pl-match:has(.pl-menu) .pl-rail.act { display: block; z-index: 41; }

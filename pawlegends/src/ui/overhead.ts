@@ -195,6 +195,12 @@ export class Overhead {
   scale = 1;
   /** Display names by slot ("Clem 2"; ui/heroText.ts slotNames); empty = hero titles. */
   names: readonly string[] = [];
+  /**
+   * Party play (MULTIPLAYER.md §7 M1, M4): the human slots' ring colour (slot 0 gold, 1 cyan, 2 pink) and whether a
+   * bot flies that hero now (from the TURN mode bits): a friend's name pill gets its ring; a bot-flown one a greyed
+   * ring and a robot glyph. Null in solo matches.
+   */
+  seats: ReadonlyMap<number, { ring: string; bot: boolean }> | null = null;
   /** Round 1 tier perk: a Legendary frame owner's "You" sits on a gold name plate. */
   goldPlate = false;
   /** Card skins (GDD §7.2): the cat the player's hero wears, a small line over the own plate only (null = none). */
@@ -1002,11 +1008,20 @@ export class Overhead {
     g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
     const ny = y - 3 - nf / 2 - 3;
     const tw = g.measureText(name).width;
+    const seat = this.seats?.get(e.id);
     if (e.id !== this.mySlot) {
       // round 1: a solid side-coloured pill behind every other hero's name, so an enemy Clem never reads as yours
       g.fillStyle = this.color(e);
       roundRect(g, sx - tw / 2 - 4, ny - nf / 2 - 2, tw + 8, nf + 4, 4);
       g.fill();
+      if (seat) {
+        // a friend: the slot ring around the pill (greyed while a bot flies it, with a robot glyph)
+        g.strokeStyle = seat.bot ? 'rgba(150,150,160,0.95)' : seat.ring;
+        g.lineWidth = 2.5;
+        roundRect(g, sx - tw / 2 - 6, ny - nf / 2 - 4, tw + 12, nf + 8, 6);
+        g.stroke();
+        if (seat.bot) robotGlyph(g, sx + tw / 2 + 15 * this.scale, ny, 7 * this.scale);
+      }
       g.fillStyle = '#2a1a22';
       g.fillText(name, sx, ny + 0.5);
     } else if (this.goldPlate) {
@@ -1104,6 +1119,22 @@ function statusWord(b: number): string {
   if (b & BuffFlag.Slowed) return 'Slowed';
   if (b & BuffFlag.Purrified) return 'Purr-ified';
   return '';
+}
+
+/** Party play (M4): a small robot head (a bot flies this friend's hero), centred on (x, y), half-size r. */
+function robotGlyph(g: CanvasRenderingContext2D, x: number, y: number, r: number): void {
+  g.save();
+  g.fillStyle = 'rgba(42,26,34,0.92)';
+  roundRect(g, x - r - 2, y - r - 2, 2 * r + 4, 2 * r + 4, 4);
+  g.fill();
+  g.fillStyle = '#c9d3e0';
+  roundRect(g, x - r, y - r * 0.7, 2 * r, 1.6 * r, 2);
+  g.fill();
+  g.fillRect(x - 0.6, y - r - 1, 1.2, r * 0.35);
+  g.fillStyle = '#2a1a22';
+  g.fillRect(x - r * 0.55, y - r * 0.25, r * 0.35, r * 0.35);
+  g.fillRect(x + r * 0.2, y - r * 0.25, r * 0.35, r * 0.35);
+  g.restore();
 }
 
 function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {

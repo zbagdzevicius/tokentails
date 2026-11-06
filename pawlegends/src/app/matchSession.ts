@@ -9,6 +9,7 @@ import { intensityOf, Music } from '../audio/music';
 import { LocalHost } from '../host/local-host';
 import type { MatchHost } from '../host/protocol';
 import type { WelcomeMsg } from '../host/protocol';
+import { matchSpeedFor } from './mpTypes';
 import { maxCooldown } from '../input/abilities';
 import { DesktopInput, type InputHost } from '../input/desktop';
 import { Orders } from '../input/orders';
@@ -118,7 +119,15 @@ export interface MatchSetup {
   /** Party play: the host to drive (a NetHost); absent = the solo LocalHost. */
   host?: () => MatchHost;
   /** Party play: the session is one seat of a party match (§4.6 guards: no local pause or speed). */
-  party?: { slot: number; names: readonly (string | null)[]; rejoin?: boolean };
+  party?: {
+    slot: number;
+    names: readonly (string | null)[];
+    rejoin?: boolean;
+    /** The player has never finished a match: 2 or 3 control hints on the rail instead of the tutorial (§4.6). */
+    newbie?: boolean;
+    /** Settings' Hide names (friends read "Teammate 2"). */
+    hideNames?: boolean;
+  };
 }
 
 /**
@@ -214,6 +223,8 @@ export interface SessionHooks {
   onMute(m: boolean): void;
   onError(msg: string): void;
   onPaused?(p: boolean): void;
+  /** Party play analytics (MULTIPLAYER.md §10, lane M8): flat props, never a party code or room id. */
+  track?(event: string, props: Record<string, string | number | boolean>): void;
 }
 
 /** Round 2: "Can't go that way" repeats this often (ms) while the player stays blocked (12 s before). */
@@ -297,6 +308,8 @@ export class MatchSession {
   private deathsBy: Record<string, number> = {};
   /** Display names by slot ("Clem 2" for a team's second Clem). */
   private names: string[] = [];
+  /** Party play (lane M): the party HUD (its own lazy chunk), once loaded. */
+  private mp: import('./mpHud').MpHud | null = null;
   /** Count of real input events (analytics human filter). */
   activity = 0;
   /** The player's hits that landed (e2e telemetry). */
@@ -368,7 +381,7 @@ export class MatchSession {
       },
     });
     this.view.juice.stage = this.stage;
-    this.view.juice.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
+    this.view.juice.speed = matchSpeedFor(!!setup.party, setup.speed);
     // e2e (rail.spec.ts): the juice instance, to push one note of each priority
     if (this.e2e) e2eHook('Juice', this.view.juice);
     // ANIM-SPEC §4.1: the animation director binds clips to events a few frames before they fire (read-only peek)
@@ -404,7 +417,8 @@ export class MatchSession {
     };
     // Party play (MULTIPLAYER.md §4.1): a NetHost from the party chunk; solo keeps the LocalHost.
     this.host = setup.host ? setup.host() : new LocalHost();
-    this.buffer.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
+    // party play (§4.6): the relay's clock sets the pace; a speed is refused
+    this.buffer.speed = matchSpeedFor(!!setup.party, setup.speed);
     this.host.listen({
       welcome: (w) => this.onWelcome(w),
       snap: (s) => this.buffer.push(s),
@@ -588,6 +602,7 @@ export class MatchSession {
       this.showScores(false);
     });
     this.mountTouchChrome();
+    if (this.setup.party) this.mountParty(w);
     this.talents = new TalentPicker(this.ui, hero, (tier, choice) => {
       this.orders?.talent(tier, choice);
       this.hooks.onTalent?.(tier, choice);
@@ -645,9 +660,13 @@ export class MatchSession {
       this.ui.querySelector('.tt-vs')?.classList.add('out');
       this.host.pause(false);
       document.documentElement.dataset.match = 'live';
+      this.mpLive = true;
+      this.mp?.start();
     } else
       this.countdown(() => {
         document.documentElement.dataset.match = 'live';
+        this.mpLive = true;
+        this.mp?.start();
         setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
       });
   }
@@ -716,6 +735,14 @@ export class MatchSession {
    */
   private sendPing(kind: number, x: number, y: number, id?: number): boolean {
     if (!this.orders || this.ended || this.paused) return false;
+    // party play (§7 M2): slots 1 and 2 ping socially (markers only; the leader's pings command the bots in the sim)
+    if (this.setup.party && this.view.mySlot !== 0) {
+      const ok = this.mp?.ping(kind, x, y, id) ?? false;
+      if (!ok) sfx.play('deny', { vol: 0.5 });
+      else sfx.play('click', { vol: 0.6 });
+      if (this.e2e && ok) document.documentElement.dataset.pingsSent = String(Number(document.documentElement.dataset.pingsSent ?? 0) + 1);
+      return ok;
+    }
     const ok = this.orders.ping(kind, x, y, id);
     if (!ok) sfx.play('deny', { vol: 0.5 });
     if (this.e2e) document.documentElement.dataset.pingsSent = String(this.orders.pings);
@@ -1080,15 +1107,91 @@ export class MatchSession {
       },
       // GAPS B2: Forfeit (a confirm step in the menu); the sim ends the match on its next tick
       ...(this.setup.forfeitFrom ? { forfeit: { from: this.setup.forfeitFrom, tick: this.buffer.latest?.clock.tick ?? 0 }, onForfeit: () => this.forfeit() } : {}),
+      // party play (§4.6, M5): a local overlay over a running match; Pause and Forfeit are votes
+      ...(this.setup.party
+        ? {
+            party: {
+              onVotePause: () => {
+                this.mp?.vote('pause', true);
+                this.resume();
+              },
+            },
+          }
+        : {}),
     });
   }
 
   /** GAPS B2: send Op.Forfeit and unpause; the end arrives as a normal (lost, reason 'forfeit') match end. */
   private forfeit(): void {
     if (this.ended) return;
+    // party play: NetHost turns it into a surrender vote (§4.6); the rail shows "Surrender? 1/2"
     this.host.send({ op: Op.Forfeit });
     this.resume();
   }
+
+  /**
+   * Party play (MULTIPLAYER.md §7, lane M): load the party HUD chunk and hand it the views it decorates. Until it
+   * lands (a few ms) the NetHost's own rail notes stand in.
+   */
+  private mountParty(w: WelcomeMsg): void {
+    const link = (this.host as { party?: import('./mpTypes').PartyLink }).party;
+    if (!link) return;
+    const base = [...this.names];
+    void import('./mpHud')
+      .then(({ MpHud }) => {
+        if (this.disposed || this.mp) return;
+        this.mp = new MpHud(
+          {
+            ui: this.ui,
+            rail: this.view.juice.notify,
+            overhead: this.overhead,
+            minimap: this.minimap,
+            scoreboard: () => this.scoreboard,
+            hud: () => this.hud,
+            baseNames: base,
+            setNames: (names) => {
+              this.names = names;
+              this.overhead.names = names;
+              this.scoreboard?.setNames(names);
+              if (this.e2e) document.documentElement.dataset.mpNames = names.join('|');
+            },
+            pingAt: (x, y, color) => {
+              this.minimap.ping(x, y, color, 3000);
+              this.marker(x / 1000, -y / 1000, false);
+              if (this.e2e) document.documentElement.dataset.mpPingAt = `${x},${y}`;
+            },
+            popOver: (slot, text, tone) => {
+              if (!text) return;
+              const at = slot === w.slot ? this.heroScreen() : this.barkScreen(slot, true);
+              if (at) this.view.juice.pop(text, at.x, at.y - 34, tone);
+            },
+            emote: (slot, pose, color) => {
+              if (!this.view.heroes.emote(slot, pose)) return;
+              const hero = w.picks[slot];
+              const e = this.frameNow?.byId.get(slot);
+              if (!hero || !e) return;
+              const p = new THREE.Vector3(toX(e.fx), 1.62 * HERO_SCALE[hero], toZ(e.fy));
+              this.view.particles.ring(p, { n: 8, r0: 0.3, speed: [0.6, 1.2], up: 1.4, color, alpha: 0.95, additive: true, size: [0.18, 0.28], life: [0.6, 0.9], fade: FADE.LINEAR });
+              if (this.e2e) document.documentElement.dataset.emotes = String(Number(document.documentElement.dataset.emotes ?? 0) + 1);
+            },
+            enabled: () => !this.ended && !this.menu && !this.talentsBlock(),
+            touch: document.documentElement.dataset.touch === '1' || (typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches),
+            newbie: this.setup.party?.newbie === true,
+            difficulty: this.setup.difficulty,
+            track: (event, props) => this.hooks.track?.(event, props),
+            tick: () => this.buffer.latest?.clock.tick ?? 0,
+          },
+          link,
+          { hideNames: this.setup.party?.hideNames === true },
+        );
+        if (this.e2e) e2eHook('Mp', this.mp);
+        if (this.mpLive) this.mp.start();
+      })
+      .catch(() => undefined);
+  }
+
+  /** The match is live (party analytics and hints start then). */
+  private mpLive = false;
 
   /** Scoreboard by tap (pause menu or the score bar on touch); a tap on it closes it. */
   private showScores(on: boolean): void {
@@ -1121,6 +1224,9 @@ export class MatchSession {
     document.documentElement.dataset.endReason = result.reason;
     const me = this.welcome.slot;
     const won = result.outcome === 'won';
+    // party play (M8): mp_match_end with the bot share of this player's turns; the save status stays private
+    const pe = (replay as { party?: { scored: boolean | null } }).party;
+    this.mp?.ended(result.outcome, result.reason, pe?.scored ?? null);
     // LoL pass (lane B): the result is a prio 0 rail note (data-said), said by the announcer, then the crest
     this.view.juice.banner({ title: won ? 'Victory!' : 'Defeat', tone: won ? 'good' : 'bad', urgent: true });
     sfx.voice(won ? 'victory' : 'defeat');
@@ -1283,6 +1389,14 @@ export class MatchSession {
       if (m.size === 'ping') {
         if (m.key === 'frenzySpawn') for (const p of this.view.pickups.list()) if (p.kind === 'frenzy') this.minimap.ping(p.x, p.y, '#7dff8a', 3000);
         // GAPS B1: the player's ping: a minimap ring and a ground marker where it points, and its name over the hero
+        if (m.key === 'ping' && m.at && this.setup.party && this.view.mySlot !== 0) {
+          // party play: the leader's ping, as a friend sees it (muted: nothing)
+          if (this.mp?.isMuted(0)) continue;
+          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
+          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          this.mp?.leaderPing(m.title);
+          continue;
+        }
         if (m.key === 'ping' && m.at) {
           this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
           this.marker(m.at.x / 1000, -m.at.y / 1000, false);
@@ -1993,6 +2107,8 @@ export class MatchSession {
     this.touch?.dispose();
     this.emoteOff?.();
     this.chromeOff?.();
+    this.mp?.dispose();
+    this.mp = null;
     this.hud?.dispose();
     this.scoreboard?.dispose();
     this.talents?.dispose();

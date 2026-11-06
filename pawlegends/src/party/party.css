@@ -198,3 +198,26 @@
 @media (prefers-reduced-motion: reduce) {
   .pl-party *, .pl-party .pp-note-item { animation: none !important; transition: none !important; }
 }
+
+/* Results together (MULTIPLAYER.md §7 M6, src/party/ui/partyResults.ts): on the app's results screen, so these rules
+   are not under .pl-party. One row per teammate; bots greyed; a "bot 34%" chip when a bot flew a friend. */
+.pl-party-results { margin: 6px 0; padding: 8px 10px; border-radius: 12px; background: rgba(20, 16, 30, 0.55); border: 1px solid rgba(255, 243, 220, 0.18); }
+.pl-party-results .pr-h { display: block; font-size: 12px; letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.8; margin-bottom: 4px; }
+.pl-party-results ul { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; }
+.pl-party-results .pr-row { display: flex; align-items: center; gap: 8px; min-height: 34px; font-size: 13px; }
+.pl-party-results .pr-row.botrow { opacity: 0.5; filter: grayscale(0.8); }
+.pl-party-results .pr-row.me b { color: #f5c542; }
+.pl-party-results .pr-av { flex: none; width: 30px; height: 30px; border-radius: 8px; background: #3a2a40 center / cover no-repeat; border: 2px solid rgba(255, 243, 220, 0.4); }
+.pl-party-results .pr-row[data-slot='0'].human .pr-av, .pl-party-results .pr-row[data-slot='3'].human .pr-av { border-color: #f5c542; }
+.pl-party-results .pr-row[data-slot='1'].human .pr-av, .pl-party-results .pr-row[data-slot='4'].human .pr-av { border-color: #3ad0e0; }
+.pl-party-results .pr-row[data-slot='2'].human .pr-av, .pl-party-results .pr-row[data-slot='5'].human .pr-av { border-color: #ff6fb1; }
+.pl-party-results .pr-who { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.1; }
+.pl-party-results .pr-who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-party-results .pr-who small { opacity: 0.7; font-size: 11px; }
+.pl-party-results .pr-you, .pl-party-results .pr-tag, .pl-party-results .pr-bot { flex: none; padding: 1px 6px; border-radius: 6px; font-size: 10px; font-weight: 800; background: #3a4258; color: #c9d3e0; }
+.pl-party-results .pr-you { background: #5a4a1a; color: #f5e3a0; }
+.pl-party-results .pr-bot { background: #4a3a20; color: #ffd38a; }
+.pl-party-results .pr-kda { flex: none; width: 54px; text-align: right; font-weight: 700; }
+.pl-party-results .pr-dmg { flex: none; width: 48px; text-align: right; opacity: 0.8; }
+.pl-results .actions.party { gap: 8px; }
+.pl-results .actions.party .pressed { opacity: 0.6; }
