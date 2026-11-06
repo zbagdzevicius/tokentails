@@ -11,6 +11,7 @@
  */
 import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
 import { BODY_MM, isEnemy, type Unit } from '../targeting';
+import type { TargetFirst } from '../presets';
 
 export const ASSIST = Object.freeze({
   /** Snap when the stick is within this angle of the lane (rad). C8: 8° (25° before: it fought small corrections). */
@@ -101,25 +102,34 @@ export function edgeGoal(meX: number, meY: number, tx: number, ty: number, myTea
 }
 
 /**
- * Auto-attack target: the lowest-health enemy minion in range, else the nearest enemy hero in range, else null. C13:
- * edge to edge (the target's body is subtracted), like the Attack button.
+ * Auto-attack target, in range only (it never walks the hero). Audit CF-02: the same order as the Attack button and
+ * its Settings "Target first" (it was minion first while Attack was hero first, so the two disagreed): 'heroes' takes
+ * the enemy hero in range with the lowest HP share, else the lowest-HP minion; 'lowest' the lowest HP share of
+ * either; 'closest' the nearest. C13: edge to edge (the target's body is subtracted), like the Attack button.
  */
-export function autoAttackTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number): number | null {
+export function autoAttackTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number, first: TargetFirst = 'heroes'): number | null {
   let minion: Unit | null = null;
   let hero: Unit | null = null;
-  let heroD = Infinity;
+  let lowest: Unit | null = null;
+  let closest: Unit | null = null;
+  let closestD = Infinity;
   for (const u of units) {
     if (u.id === me.id || u.state === 'dead' || u.team === myTeam || u.team === 2) continue;
+    if (u.kind !== 'minion' && u.kind !== 'hero') continue;
     const d = Math.hypot(u.x - me.x, u.y - me.y) - BODY_MM[u.kind];
     if (d > range) continue;
     if (u.kind === 'minion') {
       if (!minion || u.hp < minion.hp) minion = u;
-    } else if (u.kind === 'hero' && d < heroD) {
-      hero = u;
-      heroD = d;
+    } else if (!hero || u.hp / Math.max(1, u.maxHp) < hero.hp / Math.max(1, hero.maxHp)) hero = u;
+    if (!lowest || u.hp / Math.max(1, u.maxHp) < lowest.hp / Math.max(1, lowest.maxHp)) lowest = u;
+    if (d < closestD) {
+      closestD = d;
+      closest = u;
     }
   }
-  return minion?.id ?? hero?.id ?? null;
+  if (first === 'lowest') return lowest?.id ?? null;
+  if (first === 'closest') return closest?.id ?? null;
+  return hero?.id ?? minion?.id ?? null;
 }
 
 /** GAPS A5: how long a tap lock holds (ms) and how far the locked hero may get from the player (mm). */

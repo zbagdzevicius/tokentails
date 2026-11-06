@@ -230,10 +230,14 @@ describe('touch assists', () => {
     const inside = edgeGoal(50000, 30000, 52000, 30000, 0)!;
     expect(inside.x).toBeLessThan(MAP.width);
   });
-  it('auto-attack picks the weakest minion in range, then a hero', () => {
+  it('auto-attack picks like the Attack button (audit CF-02): a hero in range, then the weakest minion', () => {
     const me: Unit = { id: 0, kind: 'hero', team: 0, x: 0, y: 0, hp: 100, maxHp: 100, state: 'idle' };
     const u = (id: number, kind: Unit['kind'], x: number, hp: number, team = 1): Unit => ({ id, kind, team, x, y: 0, hp, maxHp: 100, state: 'idle' });
-    expect(autoAttackTarget([me, u(3, 'hero', 1000, 50), u(10, 'minion', 1500, 80), u(11, 'minion', 1200, 30)], me, 0, 1800)).toBe(11);
+    expect(autoAttackTarget([me, u(3, 'hero', 1000, 50), u(10, 'minion', 1500, 80), u(11, 'minion', 1200, 30)], me, 0, 1800)).toBe(3);
+    expect(autoAttackTarget([me, u(10, 'minion', 1500, 80), u(11, 'minion', 1200, 30)], me, 0, 1800)).toBe(11);
+    // the Settings order: lowest HP share, or the nearest
+    expect(autoAttackTarget([me, u(3, 'hero', 1000, 50), u(11, 'minion', 1200, 30)], me, 0, 1800, 'lowest')).toBe(11);
+    expect(autoAttackTarget([me, u(3, 'hero', 1500, 50), u(11, 'minion', 1200, 30)], me, 0, 1800, 'closest')).toBe(11);
     expect(autoAttackTarget([me, u(3, 'hero', 1000, 50), u(10, 'minion', 2500, 80)], me, 0, 1800)).toBe(3);
     expect(autoAttackTarget([me, u(12, 'minion', 500, 10, 0)], me, 0, 1800)).toBeNull();
   });

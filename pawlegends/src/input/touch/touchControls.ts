@@ -687,7 +687,8 @@ export class TouchControls {
     const lu = locked !== null ? this.h.units().find((u) => u.id === locked) : undefined;
     const lockIn = lu && Math.hypot(lu.x - me.x, lu.y - me.y) - BODY_MM.hero <= range ? lu.id : null;
     // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
-    const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range);
+    // CF-02: the Attack button's order (Settings "Target first"), in range only
+    const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first);
     if (id === null) return;
     this.autoAt = now;
     this.autos++;

@@ -199,6 +199,9 @@ export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam:
     if (l && dist(l, me) <= reach) return { x: l.x, y: l.y, id: aim.kind === 'unit' ? l.id : 0xff };
   }
   let t = aim.smart !== 'none' ? nearestEnemy(units, me, myTeam, reach, true) : null;
+  // Audit CF-08: a smart cast that would walk in (a ground or unit aim past its range) never walks the hero under an
+  // untanked enemy tower for it, the same rule as the Attack button
+  if (t && (aim.kind === 'point' || aim.kind === 'unit') && dist(t, me) > aim.range + (aim.kind === 'unit' ? BODY_MM[t.kind] : 0) && guardedByTower(units, t, myTeam)) t = null;
   if (!t && aim.smart === 'any') t = nearestEnemy(units, me, myTeam, aim.range, false);
   if (aim.away) {
     // Hop Back: away from the nearest threat, else backwards.

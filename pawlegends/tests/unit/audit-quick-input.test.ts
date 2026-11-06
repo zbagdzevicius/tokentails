@@ -98,3 +98,17 @@ describe('CF-07 a refused unit-target cast says so on touch', () => {
     expect(r.notes).toEqual([]);
   });
 });
+
+describe('CF-08 a smart cast never walks in under an untanked enemy tower', () => {
+  it('Avietė R (unit aim) skips a hero past its range that a tower guards; it takes it with no tower', () => {
+    const aim = aimFor('aviete', 3);
+    const me = unit(0, 'hero', 0, 20000, 10000);
+    const foe = unit(4, 'hero', 1, 20000 + aim.range + 1500, 10000);
+    const tower: Unit = { ...unit(30, 'tower', 1, foe.x + 2000, 10000), hp: 1000, maxHp: 1000 };
+    expect(smartAim(aim, [me, foe], me, 0, 0).id).toBe(4);
+    expect(smartAim(aim, [me, foe, tower], me, 0, 0).id).toBe(0xff);
+    // a foe within range is still a target under the tower (no walk-in)
+    const near = { ...foe, x: 20000 + aim.range - 500 };
+    expect(smartAim(aim, [me, near, tower], me, 0, 0).id).toBe(4);
+  });
+});
