@@ -201,7 +201,7 @@ describe('party relay hardening', () => {
         await b.stop();
     });
 
-    it('a second tab of the same guest cannot take a second seat', async () => {
+    it('a second tab of the same guest never gets a second seat: it takes the one seat over', async () => {
         const b = await boot();
         const a = await b.client();
         a.hello({ guestKey: 'leader-key-0002' });
@@ -216,11 +216,16 @@ describe('party relay hardening', () => {
         const tab2 = await b.client('10.0.0.3');
         tab2.hello({ guestKey: 'twin-key-000001' });
         await tab2.until(() => tab2.last('welcome'));
-        tab2.send({ t: 'party.join', code: pa.code });
-        expect((await tab2.until(() => tab2.last('error'))).code).toBe('already_in_party');
-        // the first tab closes; the link again (no resume token) gets that same seat back, not a second one
         const seatId = twin.last('welcome')!.member;
-        twin.close();
+        tab2.send({ t: 'party.join', code: pa.code });
+        // the newer tab holds the seat; the older one is told "Playing in another tab" and closed
+        await tab2.until(() => tab2.json.filter(j => j.t === 'welcome').length === 2 || null);
+        expect(tab2.last('welcome')!.member).toBe(seatId);
+        await twin.until(() => twin.json.find(j => j.t === 'error' && j.code === 'seat_elsewhere'));
+        await twin.until(() => twin.closed);
+        expect(a.last('party')!.members).toHaveLength(2);
+        // that tab closes too; the link again (no resume token) gets that same seat back, not a second one
+        tab2.close();
         await a.until(() => a.last('party')?.members.find((m: any) => m.id === seatId)?.conn === 'off' || null);
         const tab3 = await b.client('10.0.0.4');
         tab3.hello({ guestKey: 'twin-key-000001' });
@@ -230,6 +235,27 @@ describe('party relay hardening', () => {
         expect(tab3.last('welcome')!.member).toBe(seatId);
         await a.until(() => a.last('party')?.members.find((m: any) => m.id === seatId)?.conn === 'on' || null);
         expect(a.last('party')!.members).toHaveLength(2);
+        await b.stop();
+    });
+
+    it('a closed tab rejoins a running match through the code: its own seat, the match frame, then its hero', async () => {
+        const b = await boot();
+        const { a, c, code, live, stopBeats } = await twoInMatch(b);
+        const slot = live.room.slots[1];
+        c.close();
+        await a.until(() => (!slot.connected && slot.mode === 'pilot') || null, 10_000);
+        const again = await b.client('10.0.0.2');
+        again.hello({ guestKey: 'member-key-0001' });
+        await again.until(() => again.last('welcome'));
+        again.send({ t: 'party.join', code });
+        const m = await again.until(() => again.last('match'), 10_000);
+        expect(m.you.slot).toBe(1);
+        const beat = setInterval(() => again.beat(), 250);
+        await again.until(() => again.turns.length > 5 || null, 10_000);
+        again.send({ t: 'back' });
+        await a.until(() => (slot.mode === 'human' && slot.connected) || null, 10_000);
+        clearInterval(beat);
+        stopBeats();
         await b.stop();
     });
 

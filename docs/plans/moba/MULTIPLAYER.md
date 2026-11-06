@@ -309,7 +309,7 @@ Identity = account id, else guest key hash, else verified client IP. Caps are ke
 | Sockets per instance / pre-`hello` sockets / upgrades | 2,000 / 200 / 50 per second |
 | Sockets per identity / per IP | 4 / 50 |
 | Parties created per identity / per IP | 3 live and 20 per hour / 10 live and 60 per hour |
-| Seats per person in one party | 1 (same account or guest key: `already_in_party` while the other tab is connected; the invite link gives a closed tab's seat back) |
+| Seats per person in one party | 1 (same account or guest key): joining again takes that one seat over, as a resume does (the older tab hears `seat_elsewhere`, "Playing in another tab"); the invite link gives a closed tab its seat back at once, even before the server noticed the old socket died |
 | Live rooms per identity / per IP | 1 / 4 (guests included: rooms are counted by every seated identity and IP) |
 | Live rooms | `MAX_LIVE_ROOMS` (§3.3); unticketed rooms may use at most 50% |
 | Failed `party.join` per identity | 10 per 10 min (`rate_limited` with `retryMs`) |

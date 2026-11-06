@@ -670,13 +670,11 @@ export class PartyRelay {
             case 'party.join': {
                 const wait = this.joinBlockedMs(s);
                 if (wait > 0) return this.error(s, 'rate_limited', Math.min(wait, PARTY_LIMITS.joinFailPerIp.windowMs));
-                // the same person again (a closed tab, a new tab without the resume token): their own seat back, or
-                // "already in this party" while their other tab is still connected
+                // the same person again (a closed tab, a new tab without the resume token): their own seat back. A
+                // tab still holding it loses it ("Playing in another tab"), as a resume does: one seat per person,
+                // and a phone whose old socket is not dead yet on the server still gets back in at once
                 const twin = p.twinOf(msg.code, s.identity!);
-                if (twin && twin !== member) {
-                    if (this.byMember.has(twin)) return this.error(s, 'already_in_party');
-                    return this.adopt(s, twin);
-                }
+                if (twin && twin !== member) return this.adopt(s, twin);
                 const party = p.join(msg.code, member, s.identity!, s.hint);
                 if (typeof party === 'string') {
                     if (party === 'party_not_found' || party === 'party_ended' || party === 'code_changed')
@@ -777,6 +775,14 @@ export class PartyRelay {
      * fresh resume token), the party view and, mid-match, the seat (the client catches up and takes its hero back).
      */
     private adopt(s: Sock, twin: string): void {
+        const holder = this.byMember.get(twin);
+        if (holder && holder !== s) {
+            this.sendJson(holder, { t: 'error', code: 'seat_elsewhere' });
+            holder.memberId = null;
+            holder.seatRoom = null;
+            holder.seatSlot = -1;
+            holder.ws.close(4005, 'seat elsewhere');
+        }
         const old = s.memberId!;
         if (this.parties.partyOf(old)) {
             this.leaveSeat(s, true);
