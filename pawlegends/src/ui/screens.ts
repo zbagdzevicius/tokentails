@@ -19,7 +19,7 @@ const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 import { HERO_COLOR_CSS } from '../render/palette';
 import type { Dare } from '../share/dare';
 import { dareText } from '../share/dare';
-import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT, abilityNumbers, pvpNumbers, trickHint, trickNumbers } from './heroText';
+import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, abilityNumbers, pvpNumbers, trickHint, trickNumbers, trickText } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
 import { wearingCard } from './cards';
@@ -368,8 +368,8 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
             .join('')}</div>`)
           .join('')}</div>
         ${wardrobeRow(c.hero)}
-        <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(`${TRICK_TEXT[tr].text} (${trickNumbers(tr)})`)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
-        ${trickHint(t.role) ? `<p class="trick-hint">${esc(trickHint(t.role))}</p>` : ''}
+        <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => trickText(tr, c.hero)).map((tt, i) => `<button class="chip ${TRICK_IDS[i] === c.trick ? 'on' : ''}" data-t="${TRICK_IDS[i]}" title="${esc(`${tt.text} (${trickNumbers(TRICK_IDS[i])})`)}">${icon(tt.icon)}${esc(tt.name)}</button>`).join('')}</div>
+        ${trickHint(t.role, HEROES[c.hero].side) ? `<p class="trick-hint">${esc(trickHint(t.role, HEROES[c.hero].side))}</p>` : ''}
         <div class="detail">
           <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>

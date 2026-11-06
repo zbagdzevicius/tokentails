@@ -7,7 +7,7 @@
  * The other cute one: a Samoyed puppy. From the iso camera she is "the white ball with a hat": a smooth round white
  * body (no fluff puffs: Duchess is the fluffy one), a big round head with puffy cheeks, small rounded ears poking out
  * under a team bobble hat, the Samoyed smile (a black lip line with upturned corners and a pink tongue), black
- * button eyes, and a plume tail curled over her back. Team colour on the hat and the scarf.
+ * button eyes, and a plume tail curled over her back. Team colour on the hat crown and a slim scarf; the body stays white.
  */
 import * as THREE from 'three';
 import type { SpringTuning } from '../../anim/types';
@@ -17,7 +17,7 @@ import * as G from '../gear';
 import type { PoseDef } from '../skeleton';
 import type { HeroDress, MotionProfile } from '../specs';
 import { HERO_BUILD } from '../heroSize';
-import { blushDots, C, dogEyes, dogNose, faceLine, mixC, pointedEar, smooth, shawl } from './dogParts';
+import { blushDots, C, dogEyes, dogNose, faceLine, mixC, pointedEar, smooth } from './dogParts';
 
 /** Her poses: a puppy sit with the head tilted (the cute idle) and a two-paw ready stance. */
 export const POSES: Record<string, PoseDef> = {
@@ -95,8 +95,9 @@ function samoyedHead(A: Assembly, coat: CoatSpec): void {
 }
 
 /**
- * The bobble hat: a knit crown in the team colour over the top of the skull, a cream ribbed cuff, and a white
- * pompom on top (the silhouette's mark).
+ * The bobble hat: a knit crown in the team colour over the top of the skull (her team read from the iso camera,
+ * team-read.test ≥ 15%), a cream ribbed cuff and a white pompom. The body stays white: the team mantle she wore at
+ * first turned her into "a blue spiky ball" in a match (QA 2026-11-06), so the rest is a slim scarf.
  */
 function bobbleHat(A: Assembly, color: Col): void {
   const at = mat([0, 0.2, -0.012], [-0.1, 0, 0], [1.17, 0.98, 1.1]);
@@ -104,21 +105,20 @@ function bobbleHat(A: Assembly, color: Col): void {
   const rimY = Math.cos(Math.PI * 0.42) * 0.162;
   const rimR = Math.sin(Math.PI * 0.42) * 0.162;
   A.add('head', new THREE.CylinderGeometry(rimR * 1.02, rimR * 1.06, 0.045, A.seg(16, 9), 1, true), { m: at.clone().multiply(mat([0, rimY - 0.012, 0])), color: KNIT_WHITE });
-  // knit ribs on the crown (darker lines from the cuff up)
   A.add('head', new THREE.IcosahedronGeometry(0.058, A.detail >= 0.9 ? 1 : 0), { m: mat([0, 0.385, -0.03]), color: KNIT_WHITE });
 }
 
-/** The scarf: a team mantle with two knitted tails hanging down her chest, cream fringe. */
-function scarf(A: Assembly, color: Col, trim: Col): void {
-  shawl(A, color, trim, { r: 0.19, y: 0.17 });
-  for (const [x, len, rz] of [[0.05, 0.16, 0.12], [-0.02, 0.12, -0.08]] as const) {
-    A.add('chest', new THREE.BoxGeometry(0.06, len, 0.022), { m: mat([x, 0.19 - len / 2, 0.15], [-0.3, 0, rz]), color });
-    A.add('chest', new THREE.BoxGeometry(0.062, 0.02, 0.024), { m: mat([x + Math.sin(rz) * len * 0.5, 0.19 - len - 0.005, 0.15 + len * 0.15], [-0.3, 0, rz]), color: KNIT_WHITE });
+/** The scarf: a slim team knit band round her neck with two short tails on her chest (a trim, not a mantle). */
+function scarf(A: Assembly, color: Col): void {
+  A.add('chest', new THREE.TorusGeometry(0.118, 0.03, A.seg(6, 4), A.seg(18, 10)), { m: mat([0, 0.2, 0.0], [Math.PI / 2 - 0.25, 0, 0], [1.08 * A.w, 1, 0.85]), color });
+  for (const [x, len, rz] of [[0.05, 0.12, 0.12], [-0.02, 0.09, -0.08]] as const) {
+    A.add('chest', new THREE.BoxGeometry(0.05, len, 0.02), { m: mat([x, 0.19 - len / 2, 0.15], [-0.3, 0, rz]), color });
+    A.add('chest', new THREE.BoxGeometry(0.052, 0.018, 0.022), { m: mat([x + Math.sin(rz) * len * 0.5, 0.19 - len - 0.005, 0.15 + len * 0.15], [-0.3, 0, rz]), color: KNIT_WHITE });
   }
 }
 
 export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
-  const { t, founder, chroma, capeColor, trim, capeHem, extras, poses, lc } = dr;
+  const { t, founder, chroma, capeColor, capeHem, extras, poses, lc } = dr;
   const coat: CoatSpec = lc ? { pattern: 'solid', base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT;
   return {
     rig: { width: 1.3, tier: 'kid', headScale: 1.15, bodyScale: 1.2, tailCurve: TAIL },
@@ -133,7 +133,7 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
     gear: (A) => {
       samoyedHead(A, coat);
       bobbleHat(A, t.main);
-      scarf(A, t.main, trim ?? KNIT_WHITE);
+      scarf(A, t.main);
       if (founder || chroma !== null) G.cape(A, capeColor, capeHem, { len: 0.2, top: 0.14, bot: 0.2 });
       extras(A);
     },

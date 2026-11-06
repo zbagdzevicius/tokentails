@@ -13,7 +13,7 @@ import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
-import { HERO_TEXT, TRICK_TEXT, rankPips, rankUpSlots } from './heroText';
+import { HERO_TEXT, rankPips, rankUpSlots, trickText } from './heroText';
 import { abilityRank, maxRank } from '../sim/heroes/talents';
 import { icon as iconSvg } from './icons';
 import { icon } from './icons';
@@ -264,7 +264,7 @@ export class Hud {
     const t = HERO_TEXT[hero];
     // the portrait shows the equipped look (a bought skin shows in the HUD too)
     const pic = portraitUrl(hero, look);
-    const tt = TRICK_TEXT[trick];
+    const tt = trickText(trick, hero);
     const root = document.createElement('div');
     root.className = 'pl-hud';
     const slotHtml = SLOT_ACTIONS.map((a, i) => {

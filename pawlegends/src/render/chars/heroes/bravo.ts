@@ -42,17 +42,21 @@ export const HEIGHT = 2.45;
 export const TOP = 2.4;
 /** Relation ring under him (m, from heroSize.ts HERO_BUILD). */
 export const RING = HERO_BUILD.bravo.ring;
-export const COLOR_CSS = '#6b3fa0';
+/** A light lilac (his card and portrait backdrop): a black pug on dark purple read as a smudge (QA 2026-11-06). */
+export const COLOR_CSS = '#b693e6';
 /** A stiff curly tail and soft folded ears. */
 export const SPRINGS: SpringTuning = { tail: { k: 300, c: 20, lag: 0.3 }, ears: { k: 160, c: 12, lag: 0 } };
 export const ULT_NAME = 'ENCORE!';
 /** Cast accent (combat-vfx.test: no gold-family colour). */
 export const ACCENT: number | null = 0xb07cff;
 
-/** The black pug coat (a soft charcoal so the shading reads; the chest a touch lighter). */
-const COAT: CoatSpec = { pattern: 'solid', base: 0x3a3540, deep: 0x1c1a20, light: 0x6a6472, cream: 0x55505c };
-const MUZZLE = 0x1c1a1e;
-const WRINKLE = 0x5a5462;
+/**
+ * The black pug coat: a soft slate charcoal with a strong silver-lilac sheen on top (his rim light: on the dark map a
+ * true black pug read as a thin dark sliver), the chest a touch lighter.
+ */
+const COAT: CoatSpec = { pattern: 'solid', base: 0x575163, deep: 0x2e2b35, light: 0xa69fb6, cream: 0x7a7488 };
+const MUZZLE = 0x26232b;
+const WRINKLE = 0x8a8496;
 const TEAR = 0x8fd8ff;
 const RUFF = 0xfaf7f2;
 const RUFF_RIB = 0xd8d4de;
@@ -69,7 +73,7 @@ const TAIL: readonly (readonly [number, number, number])[] = [[0, 0.22, -0.13], 
 function actorPugHead(A: Assembly, coat: CoatSpec): void {
   const fur = C(coat.base as number);
   const sheen = C(coat.light as number);
-  const skin = (_v: THREE.Vector3, _n: THREE.Vector3, lp: THREE.Vector3): RGB => mixC(fur, sheen, smooth(0.24, 0.31, lp.y) * smooth(-0.05, 0.06, lp.z) * 0.35);
+  const skin = (_v: THREE.Vector3, _n: THREE.Vector3, lp: THREE.Vector3): RGB => mixC(fur, sheen, smooth(0.2, 0.31, lp.y) * smooth(-0.08, 0.06, lp.z) * 0.6);
   A.add('head', new THREE.SphereGeometry(0.152, A.seg(20, 10), A.seg(14, 8)).scale(1.22, 0.95, 1.0).translate(0, 0.165, 0), { color: skin });
   for (const s of [1, -1]) A.add('head', new THREE.SphereGeometry(0.075, A.seg(9, 6), A.seg(7, 4)).scale(1, 0.85, 0.9).translate(s * 0.075, 0.09, 0.09), { color: skin });
   A.add('head', new THREE.SphereGeometry(0.075, A.seg(10, 6), A.seg(8, 5)).scale(1.2, 0.8, 0.72).translate(0, 0.1, 0.14), { color: MUZZLE });
@@ -87,7 +91,7 @@ function actorPugHead(A: Assembly, coat: CoatSpec): void {
   // folded velvet ears
   for (const s of ['L', 'R'] as const) {
     const sign = s === 'L' ? 1 : -1;
-    A.add(`ear${s}`, new THREE.SphereGeometry(0.075, A.seg(8, 5), A.seg(6, 4)).scale(0.95, 0.75, 0.32), { m: mat([sign * 0.03, -0.015, 0.03], [0.9, 0, sign * 0.9]), color: 0x161418 });
+    A.add(`ear${s}`, new THREE.SphereGeometry(0.075, A.seg(8, 5), A.seg(6, 4)).scale(0.95, 0.75, 0.32), { m: mat([sign * 0.03, -0.015, 0.03], [0.9, 0, sign * 0.9]), color: 0x2c2933 });
   }
 }
 

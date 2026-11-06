@@ -245,9 +245,24 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
   purrify: { name: 'Purr-ify', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 0.5 s.', icon: 'purr' },
 });
 
-/** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none). */
-export function trickHint(role: string): string {
-  return role === 'Tank' ? 'Tank → Purr-ify: you take the stuns, so shake them off.' : '';
+/**
+ * Sim v13: the dog side's names for the same Paw Tricks (QA 2026-11-06: a dog that hisses and purrs read as a cat).
+ * Same numbers, same icons; only the words change.
+ */
+const DOG_TRICK_TEXT: Readonly<Partial<Record<TrickId, AbilityText>>> = Object.freeze({
+  hiss: { name: 'Growl', text: 'Scare enemies around you for 1 s.', icon: 'hiss' },
+  purrify: { name: 'Shake Off', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 0.5 s.', icon: 'purr' },
+});
+
+/** A Paw Trick's words for `hero`'s side (a dog growls and shakes off; a cat hisses and purrs). */
+export function trickText(trick: TrickId, hero?: HeroId): AbilityText {
+  return (hero && HEROES[hero]?.side === 'dog' ? DOG_TRICK_TEXT[trick] : undefined) ?? TRICK_TEXT[trick];
+}
+
+/** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none); sim v13: by side too. */
+export function trickHint(role: string, side: 'cat' | 'dog' = 'cat'): string {
+  if (role !== 'Tank') return '';
+  return side === 'dog' ? 'Tank → Shake Off: you take the stuns, so shake them off.' : 'Tank → Purr-ify: you take the stuns, so shake them off.';
 }
 
 export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Normal bots', hard: 'Hard bots' });
