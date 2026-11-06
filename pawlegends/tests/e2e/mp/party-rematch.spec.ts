@@ -9,8 +9,8 @@ async function surrender(p: Player): Promise<void> {
   if (p.kind === 'desktop') await p.page.keyboard.press('Escape');
   else await tap(p, p.page.locator('.pl-pause'));
   await expect(p.page.locator('.pl-menu')).toBeVisible();
+  // a party match's Forfeit is "Vote surrender" (no confirm step, lane M5)
   await tap(p, p.page.locator('.pl-menu [data-a="forfeit"]'));
-  await tap(p, p.page.locator('.pl-menu [data-a="forfeit-yes"]'));
 }
 
 test('after a match, Play again together from the leader: a rematch note, then the pick with last heroes', async ({ browser }) => {
@@ -34,13 +34,8 @@ test('after a match, Play again together from the leader: a rematch note, then t
   await surrender(b);
   for (const p of [a, b]) await p.page.waitForSelector('html[data-screen="results"]', { timeout: 60_000 });
   await shot(a, 'lane-P', '40-results');
-  // Run it back returns to the party (its results phase)
-  for (const p of [a, b]) {
-    await tap(p, p.page.locator('[data-a="again"]'));
-    await expect(p.page.locator('.pp-lobby[data-phase="results"]')).toBeVisible({ timeout: 30_000 });
-  }
-  await shot(b, 'lane-P', '41-party-results');
-  await a.page.locator('[data-testid="party-start"]').click();
+  // results together (lane M6): "Play again together" from the leader starts the rematch
+  await a.page.locator('[data-testid="party-again"]').click();
   await expect.poll(() => notes(b), { timeout: 10_000 }).toContain('Leader started a rematch');
   await expect(b.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 15_000 });
   // prefilled: each strip seat shows its last hero
