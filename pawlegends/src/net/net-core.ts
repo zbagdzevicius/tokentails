@@ -37,6 +37,9 @@ export type CoreOut =
       pilotTurns?: number[];
       /** The turn this player's current bot-flown stretch began (-1: flown by the player). */
       pilotFrom?: number;
+      /** Turns queued and the highest turn received (diagnostics: `?e2e=1` puts them on <html data-*>). */
+      queue?: number;
+      high?: number;
     }
   | { t: 'progress'; pct: number; done: boolean }
   | { t: 'gap'; expected: number }
@@ -173,7 +176,7 @@ export class NetCore {
     }
     const due = this.runner.due(now);
     if (due.length === 0) {
-      this.post({ t: 'turn', lastTurn: this.applied, modeMask: this.lastMask, acks: [], B: this.runner.B, waiting: this.runner.waiting(now), holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom });
+      this.post({ t: 'turn', lastTurn: this.applied, modeMask: this.lastMask, acks: [], B: this.runner.B, waiting: this.runner.waiting(now), holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued });
       return;
     }
     const events: SimEvent[] = [];
@@ -236,7 +239,7 @@ export class NetCore {
     if (events.length) this.post({ t: 'events', tick: s.clock.tick, list: events });
     const buf = encodeSnap(s);
     this.post({ t: 'snap', buf }, [buf]);
-    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks: last.acks, B: this.runner.B, waiting: false, holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom });
+    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks: last.acks, B: this.runner.B, waiting: false, holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued });
     const r = result(m);
     if (r && !this.endSent) {
       this.endSent = true;

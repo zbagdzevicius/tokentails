@@ -506,6 +506,10 @@ export class NetHost implements PartyLink {
           document.documentElement.dataset.mpTurn = String(m.lastTurn);
           document.documentElement.dataset.mpMask = String(m.modeMask);
           document.documentElement.dataset.mpBuffer = String(m.B);
+          document.documentElement.dataset.mpQueue = String(m.queue ?? '');
+          document.documentElement.dataset.mpHigh = String(m.high ?? '');
+          document.documentElement.dataset.mpRecv = String(this.socket.receivedTurn ?? '');
+          document.documentElement.dataset.mpEnd = this.serverEnd ? (this.coreEnded ? 'both' : 'relay') : this.coreEnded ? 'sim' : '';
         }
         // the core counts every applied turn (a reload's fast-forward too): the bot share and "Bot covered for you"
         // cover the whole stretch, from the drop, not only from the end of the catch-up
