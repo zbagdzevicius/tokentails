@@ -317,9 +317,9 @@ kbd {
 .pl-minimap canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
 
 .pl-scoreboard { position: absolute; inset: 0; display: none; place-items: center; z-index: 8; }
-/* Audit UX-05 / UX-09: the pause card steps aside while its Scores or Settings are open; Back sits under the scoreboard */
+/* Audit UX-05 / UX-09: the pause card steps aside while its Scores or Settings are open; Back sits beside the scoreboard, above its tap layer */
 .pl-menu.under { visibility: hidden; }
-.pl-scores-back { position: absolute; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translateX(-50%); z-index: 41; pointer-events: auto; min-width: 160px; }
+.pl-scores-back { position: absolute; right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); z-index: 46; pointer-events: auto; min-width: 110px; }
 .pl-scoreboard.on { display: grid; }
 .pl-scoreboard .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 20px; min-width: 520px; }
 .pl-scoreboard h3 { margin: 6px 0; font-size: 16px; }

@@ -990,6 +990,8 @@ export class App {
         this.showTitle();
       },
       onMute: (m) => this.setMuted(m),
+      // Audit UX-09: Settings from the pause menu (the menu comes back when it closes)
+      onSettings: (done) => this.openSettings(done),
       onError: (msg) => {
         // Reported as a worker crash; the window listener then only shows the overlay for it.
         const err = new Error(`sim: ${msg}`);
@@ -1390,8 +1392,11 @@ export class App {
     this.overlay = { close: () => el.remove() };
   }
 
-  private openSettings(): void {
-    if (this.overlay) return;
+  private openSettings(after?: () => void): void {
+    if (this.overlay) {
+      after?.();
+      return;
+    }
     const p = loadProfile();
     const el = settingsPanel(this.root, {
       state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.live : null, skinFx: p.skinFx },
@@ -1413,6 +1418,7 @@ export class App {
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();
+        after?.();
       },
     });
     this.overlay = { close: () => el.remove() };
