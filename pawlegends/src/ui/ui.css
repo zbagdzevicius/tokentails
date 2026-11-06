@@ -184,7 +184,7 @@ kbd {
 .pl-menu .keys { font-size: 12px; opacity: 0.75; line-height: 2; margin: 6px 0 0; }
 /* GAPS B2: Forfeit is disabled until its time (Easy 3:00, Normal and Hard 4:00); the confirm step's line */
 .pl-menu .pl-btn[disabled] { opacity: 0.45; cursor: default; }
-.pl-menu .pl-forfeit .sub { margin: 0 0 4px; font-size: 14px; opacity: 0.85; line-height: 1.4; }
+.pl-menu .pl-forfeit .sub, .pl-menu .pl-leave .sub { margin: 0 0 4px; font-size: 14px; opacity: 0.85; line-height: 1.4; }
 
 .pl-loading {
   position: absolute; inset: 0; z-index: 60; display: grid; place-content: center; justify-items: center; gap: 12px; background: var(--bg);

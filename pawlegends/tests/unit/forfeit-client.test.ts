@@ -110,4 +110,20 @@ describe('pause menu Forfeit (GAPS B2)', () => {
     click('forfeit-yes');
     expect(calls).toEqual(['forfeit']);
   });
+
+  it('audit UX-03: Leave asks first, and says when it counts as a forfeit', () => {
+    const { root, calls, click } = open();
+    click('leave');
+    expect(calls).toEqual([]);
+    expect(root.textContent).toContain('Leave this match?');
+    expect(root.textContent).toContain('not saved');
+    click('leave-no');
+    expect(root.querySelector('[data-a="resume"]')).not.toBeNull();
+    click('leave');
+    click('leave-yes');
+    expect(calls).toEqual(['leave']);
+    const counted = menuScreen(document.body, { muted: false, onResume: () => undefined, onMute: () => undefined, onLeave: () => undefined, leaveCounts: true });
+    (counted.querySelector('[data-a="leave"]') as HTMLElement).click();
+    expect(counted.textContent).toContain('counts as a loss');
+  });
 });
