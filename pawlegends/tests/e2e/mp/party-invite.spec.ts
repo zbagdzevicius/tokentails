@@ -54,10 +54,12 @@ test('Join with code: six boxes, paste, join', async ({ browser }) => {
 
 test('a party of one presses Play: a normal local match, no room on the relay (D10)', async ({ browser }) => {
   const a = await player(browser, 'desktop');
+  // rooms an earlier spec left running (closed contexts are abandoned only after 120 s) are not ours
+  const before = (await relayHealth()).rooms_live;
   await createParty(a);
   await expect(a.page.locator('[data-testid="party-start"]')).toHaveText('Play');
   await a.page.locator('[data-testid="party-start"]').click();
   await a.page.waitForSelector('html[data-match="live"]', { timeout: 120_000 });
-  expect((await relayHealth()).rooms_live).toBe(0);
+  expect((await relayHealth()).rooms_live).toBeLessThanOrEqual(before);
   expect(await notes(a)).not.toContain('dropped');
 });
