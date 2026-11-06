@@ -375,3 +375,23 @@ joystick release or a tap on an enemy is never undone by a stale move a tick lat
 - Fish gap, best enemy minus the human at 3:00: median 248 (target ≤ 150). It compares the best of three bots with one
   player; the enemy mean is 1.08× the human's (novice vs Normal 1.36×, the S4 ≤ 1.4 proxy).
 - Hard win 42.0% (spec 35–45%, met); Normal comeback "trailing at 3:30 and won" 25.3% (25–40%, met).
+
+## As built: lane C (controls and feel, client only)
+
+No sim change: `src/sim` is untouched, `vendor-sim:check` still reads v10 (frozen), v11 (frozen), v12. Measured in
+headless Chromium (SwiftShader, about 18 fps) at 844×390 touch and 1440×900, `?e2e=1&speed=1`. The audit numbers in
+brackets are from `scratchpad/fun/audit/` before this lane.
+
+| Item | As built | Measured |
+|---|---|---|
+| C2 cast buffer | `Orders` keeps the newest cast for 400 ms while the hero is winding up, dashing (the dash time from the aim range and `EFFECTS.dashSpeed`), or has a cast sent and not yet seen, or the slot is within 3 ticks of ready; it sends it when free. A sent cast with no windup or cast event within 140 ms is tried again inside the same window; a stalled frame (over 100 ms) pauses the window, not the dash estimate. Touch and desktop keys share it; the deny sound and flash come only when the window runs out. | `castmove3`: 18 of 18 casts go on cooldown (8 dropped). E then W 60 ms apart: both go on cooldown (`combo`, 2 runs × 8 pairs: 14 within 0.6 s; the other 2 were each match's first cast, where SwiftShader stalls ~1.7 s compiling shaders, and W was still waiting, not lost; 0 denied). |
+| C3 re-steer | An own `cast` event clears the stick's last angle and throttle, so the next frame re-sends the held stick. | `stall`: longest standstill after a Q tap 35–105 ms, median 50 (333–442). |
+| C4 no stray Stop | The stick sends Stop on release only after it passed the 12 px dead zone or was held longer than `TAP.ms`. | A still tap on the left half while attacking: ops unchanged (sent op 6 before). |
+| C5 ATK priority | `attackPriority` takes an enemy hero in range, then the nearest minion or camp monster within attack range + 1 m that the next basic kills (`minionHitEstimate`: level, Toys, armour, ×0.95), then the lowest-HP one there, then as before. No attack-move fallback: nothing in reach flashes the ground ring and the button red, and the first 2 times on a device a rail tip says "Nothing in reach". | ATK held 5 s at base: 0 mm moved, no op 2 (walked under a tower before). Sim test: a minion at 10% HP pays a `lastHit` Fish event within 45 ticks. |
+| C6 own hero | The own hero is drawn 0.3 ticks behind the newest snapshot (others 1.6); no extrapolation. The model turns to the newest move order (stick or right-click) for 250 ms. The stick sends its move from the pointer event, not the next frame. Camera follow `dt × 14` (was 7) with a 0.6 catch-up on a jump over 2 m. | Stick to drawn hero moving, page pointer events: median 40–49 ms (snapshot position 83 ms). With CDP touch events the harness itself adds ~100 ms; the audit's 179 ms used that harness on the snapshot position. |
+| C7 | A tapped dash aims along the held stick (Hop Back away from it); any other direction skill does too when the smart aim finds no target. | Running back and tapping E: the dash went back (−6.3 m in 0.5 s). |
+| C8 | Lane magnet 8° (25°), only at 90%+ tilt, off with an enemy hero within 8 m. | Unit test of the angles. |
+| C9 | Nap is a 300 ms hold with a fill ring. The ✕ sits above the ability cluster. | An 80 ms tap sends nothing; ✕ at x 664–726 of 844, 487–549 of 667, 735–797 of 915: outside the middle third at all three sizes. |
+| C10 | The own aim shape has a filled body (0.35), an ink-edged arrowhead on lines and dashes, and is at least 18 px wide on screen. | Screenshots. |
+| C11 | Global freezes are capped at 48 ms and happen only on the player's kills and the first hit of their ultimate; basics freeze locally (the director). Kicks under 0.2 trauma are dropped (shake for kills and big hits only). Minions the player hits get a squash and a white flash (`aAnim.w` packs the flash, `pl-rig-v3`). `src/ui/haptics.ts`: cast 8, last hit 10, takedown 15, Toy [10, 40, 10], level-up 12, crowd control 25 ms, touch only. | Unit tests. |
+| C13 | The idle auto-attack measures edge to edge with the ATK slack. On phones narrower than 700 px a rail line wraps to two lines (240 px wide). The respawn number was already the rail's resting line (lane A); nothing mid-screen. Desktop keeps release-cast. | Screenshots at 667×375. |

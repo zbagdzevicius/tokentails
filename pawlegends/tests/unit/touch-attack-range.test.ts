@@ -29,7 +29,7 @@ function rig(hero: HeroId) {
   const down = (b: string, id: number) => btn(b).dispatchEvent(new PointerEvent('pointerdown', { pointerId: id, clientX: 500, clientY: 300, pointerType: 'touch', bubbles: true }));
   const up = (id: number) => window.dispatchEvent(new PointerEvent('pointerup', { pointerId: id, clientX: 500, clientY: 300, pointerType: 'touch' }));
   const tick = () => t.update([0, 0, 0, 0, 0], [1, 1, 1, 1, 1], 5);
-  return { t, view, sent, down, up, tick };
+  return { t, view, sent, down, up, tick, orders };
 }
 
 afterEach(() => {
@@ -71,7 +71,8 @@ describe('touch Attack button and range rings', () => {
     expect(r.view.aim).toBeNull();
     expect(r.view.attackRange).toBe(false);
     expect(r.sent.at(-1)).toMatchObject({ op: Op.Cast, slot: 1 });
-    // a quick tap: no preview, the cast still goes
+    // a quick tap: no preview, the cast still goes (once W's cast is seen: C2's buffer holds a cast behind an unseen one)
+    r.orders.onEvent({ type: 'cast', tick: 1, src: 0, slot: 1, x: 0, y: 0, target: -1 });
     const n = r.sent.length;
     r.down('q', 3);
     r.up(3);

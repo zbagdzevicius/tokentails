@@ -24,7 +24,9 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
 
   const atk = await page.locator('.pl-tbtn.attack').boundingBox();
   await page.touchscreen.tap(atk!.x + atk!.width / 2, atk!.y + atk!.height / 2);
-  await expect.poll(async () => (await ops(page)).some((o) => o === 2 || o === 3)).toBe(true);
+  // C5: Attack on something, or (nothing within reach) no order at all and the red ring instead of a walk
+  await expect.poll(async () => (await ops(page)).some((o) => o === 3) || Number(await attr(page, 'atkNone')) > 0).toBe(true);
+  expect((await ops(page)).slice(-1)).not.toEqual([2]);
 
   const before = await attr(page, 'casts');
   const w = await page.locator('.pl-tbtn.w').boundingBox();
@@ -64,7 +66,7 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
 const BODY: Record<string, number> = { hero: 500, minion: 400, tower: 1300, core: 3000, fountain: 0, camp: 500, pudding: 2000 };
 const TOWER_RANGE = 7000;
 type Seen = { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number };
-function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]; allyMinions: { x: number; y: number }[] }): { id: number | null; why: string } {
+function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]; allyMinions: { x: number; y: number }[]; killable?: number[] }): { id: number | null; why: string } {
   const dd = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
   const guarded = (u: Seen) =>
     p.seen.some(
@@ -79,7 +81,11 @@ function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]
   const by = <T,>(xs: T[], key: (x: T) => number) => xs.reduce<T | null>((b, x) => (b === null || key(x) < key(b) ? x : b), null);
   const hero = by(inRange.filter((u) => u.kind === 'hero'), (u) => u.hp / u.maxHp);
   if (hero) return { id: hero.id, why: 'hero in range' };
-  const minion = by(inRange.filter((u) => u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding'), (u) => u.hp);
+  // C5: minions and camp monsters within attack range + 1 m; the one the next basic kills (nearest) first
+  const farm = p.seen.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && d(u) <= p.range + 1000);
+  const kill = by(farm.filter((u) => (p.killable ?? []).includes(u.id)), d);
+  if (kill) return { id: kill.id, why: 'last hit in range' };
+  const minion = by([...farm, ...inRange.filter((u) => u.kind === 'pudding')], (u) => u.hp);
   if (minion) return { id: minion.id, why: 'lowest-HP minion in range' };
   const tower = by(inRange.filter((u) => u.kind === 'tower' || u.kind === 'core'), (u) => u.hp);
   if (tower) return { id: tower.id, why: 'tower in range' };
@@ -98,10 +104,11 @@ test('Attack picks by priority: hero in range, then the lowest-HP minion, then a
   let checked = 0;
   let lastN = '';
   const deadline = Date.now() + 120_000;
-  while (Date.now() < deadline && (reasons.size < 2 || checked < 25)) {
+  while (Date.now() < deadline && (reasons.size < 3 || checked < 25)) {
     if ((await attr(page, 'screen')) === 'results') break;
-    // Walk toward the enemy side, then press Attack a few times.
-    await touchDrag(page, 150, 250, 230, 250, 700);
+    // Walk toward the enemy side, then press Attack a few times. C5: Attack no longer walks the hero when nothing is
+    // in reach (the old attack-move did half the walking here), so the stick walks further.
+    await touchDrag(page, 150, 250, 230, 250, 1400);
     for (let i = 0; i < 3; i++) {
       await page.touchscreen.tap(atk.x + atk.width / 2, atk.y + atk.height / 2);
       await page.waitForTimeout(120);
@@ -111,10 +118,9 @@ test('Attack picks by priority: hero in range, then the lowest-HP minion, then a
       const pick = JSON.parse(await attr(page, 'atk'));
       const want = expected(pick);
       expect(pick.id, `pick ${n} (${want.why})`).toBe(want.id);
-      if (want.id !== null) {
-        checked++;
-        reasons.set(want.why, (reasons.get(want.why) ?? 0) + 1);
-      }
+      // C5: a press with nothing in reach is a checked pick too (null: the button sends nothing)
+      checked++;
+      reasons.set(want.why, (reasons.get(want.why) ?? 0) + 1);
     }
   }
   console.log(`attack priority: ${checked} picks checked, ${[...reasons].map(([k, v]) => `${k} ${v}`).join(', ')}`);

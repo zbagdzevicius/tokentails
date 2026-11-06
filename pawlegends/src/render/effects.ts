@@ -14,7 +14,7 @@ import { CONFETTI_COLORS } from './ppk/fx/palette.js';
 import { DamageNumbers } from './fx/DamageNumbers.js';
 import { FADE, GROW, SHAPE, type Particles } from './fx/Particles.js';
 import type { Shockwaves } from './fx/Shockwaves.js';
-import type { Juice } from './juice';
+import { FREEZE_CAP_MS, type Juice } from './juice';
 import { RELATION, TEAM, dressTeam } from './palette';
 import { HERO_TOP } from './chars/specs';
 import { heroY } from './chars/visualSize';
@@ -313,10 +313,14 @@ export class Effects {
     if (e.src === me) {
       if (shows) this.numbers.show(npos, String(e.amount), big ? 'crit' : heavy ? 'heavy' : 'normal', e.dst, e.amount);
       if (heroDst) {
-        // with the director: local freezes only, the global one for a heavy finisher (≤ 55 ms, §6)
-        if (!anim) this.juice.hitstop(big ? 70 : e.kind === 'ability' ? 55 : 28);
-        else if (big) this.juice.hitstop(55);
-        this.juice.kick(big ? 0.2 : e.kind === 'ability' ? 0.16 : 0.08);
+        // C11a: basics and normal skills freeze only the target and the swing (the director's local hit-stop); the
+        // global clock stops only for the player's ultimate landing (once per cast, ≤ 3 frames) and for kills
+        if (e.kind === 'ability' && this.time - this.myUltAt < 1.5 && !this.ultFrozen) {
+          this.ultFrozen = true;
+          this.juice.hitstop(FREEZE_CAP_MS);
+        }
+        // C11d: the screen shakes for big hits only
+        if (big) this.juice.kick(0.2);
       }
       sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
     } else if (e.dst === me) {
@@ -330,6 +334,9 @@ export class Effects {
   }
 
   private coneSide = 1;
+  /** C11a: when the player's own ultimate resolved (view time, s) and whether its first hit froze the clock yet. */
+  private myUltAt = -9;
+  private ultFrozen = true;
 
   /**
    * Wave C (C3) hit juice: damage-scaled sparks, a flash, an element ring on ability hits, the big-hit pop, ground
@@ -404,6 +411,8 @@ export class Effects {
       const shown = this.anim?.ult(src, mine, name, accent, atMe) === true;
       if (mine) {
         this.juice.kick(0.2);
+        this.myUltAt = this.time;
+        this.ultFrozen = false;
         if (!shown) this.juice.callout(name, 'gold');
       }
     }
@@ -572,7 +581,7 @@ export class Effects {
       // the words ("Takedown!", First Blood, multikills) come from the announcer (render/announcer.ts)
       if (e.killer === this.hooks.mySlot) {
         // the killing blow: the killer freezes locally (140 ms); the global hitstop stays short (≤ 70 ms, §6)
-        this.juice.hitstop(this.anim ? 70 : 120, 0.08);
+        this.juice.hitstop(FREEZE_CAP_MS);
         this.juice.kick(0.3);
       }
       if (e.id === this.hooks.mySlot) this.juice.kick(0.35);

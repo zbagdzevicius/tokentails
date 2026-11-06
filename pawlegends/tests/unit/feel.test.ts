@@ -213,7 +213,7 @@ describe('daily quests', () => {
 });
 
 describe('touch assists', () => {
-  it('lane magnet snaps a stick within 25° of the lane, not one far off', () => {
+  it('lane magnet snaps a stick within 8° of the lane (C8), not one far off', () => {
     // on the Sunny Lane river stretch (22,50 → 50,53 m), pushing east-ish
     const a = laneMagnet(30000, 51000, (10 * Math.PI) / 180);
     const lane = Math.atan2(3000, 28000);

@@ -17,12 +17,13 @@ import { rankPips } from '../../ui/heroText';
 import { cdLabel } from '../../ui/cdLabel';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
-import { basicRange, isRangedHero } from '../abilities';
+import { basicRange, minionHitEstimate } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
 import { attackPriority, BODY_MM, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
-import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, TargetLock } from './assist';
+import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
+import { bannerNote } from '../../render/juice';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -34,10 +35,15 @@ export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: 
 const DRAG_PX = 16;
 const DRAG_FULL_PX = 90;
 const ATTACK_REPEAT_MS = 350;
+/** C9: Nap goes after the button is held this long (ms), so a stray thumb never sends the hero home. */
+export const NAP_HOLD_MS = 300;
+/** C5: the "nothing in reach" tip shows this many times on a device, then only the red ring flashes. */
+const ATK_TIP_MAX = 2;
+const ATK_TIP_KEY = 'pawlegends.atkNoneTips';
 /** A skill button held this long (ms) without a drag shows its range and smart aim (CAST.hold; a tap stays a tap). */
 const HOLD_PREVIEW_MS = 200;
-/** The idle auto-attack reaches this much (mm) past a melee hero's range (ranged heroes use their range as is). */
-const AUTO_MELEE_SLACK = 200;
+/** The idle auto-attack measures edge to edge with this slack (mm), like the Attack button (C13). */
+const AUTO_SLACK = 300;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 
@@ -59,7 +65,19 @@ interface Drag {
 
 export class TouchControls {
   readonly root: HTMLElement;
-  private stick: { id: number; bx: number; by: number; x: number; y: number } | null = null;
+  /** `moved`: the thumb passed the dead zone; `at`: when it went down (C4: a short still tap never sends Stop). */
+  private stick: { id: number; bx: number; by: number; x: number; y: number; moved: boolean; at: number } | null = null;
+  /** C9: the Nap button held since (ms), and whether it already fired. */
+  private napHeld: { id: number; at: number; fired: boolean } | null = null;
+  /** C5: Attack presses with nothing in reach (e2e telemetry). */
+  atkNone = 0;
+  private atkTipsLeft = ((): number => {
+    try {
+      return Math.max(0, ATK_TIP_MAX - Number(localStorage.getItem(ATK_TIP_KEY) ?? 0));
+    } catch {
+      return ATK_TIP_MAX;
+    }
+  })();
   private stickEl: HTMLElement;
   private knobEl: HTMLElement;
   private cancelEl: HTMLElement;
@@ -165,7 +183,7 @@ export class TouchControls {
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
     if (e.clientX < window.innerWidth * 0.5 && !this.stick) {
       e.preventDefault();
-      this.stick = { id: e.pointerId, bx: e.clientX, by: e.clientY, x: e.clientX, y: e.clientY };
+      this.stick = { id: e.pointerId, bx: e.clientX, by: e.clientY, x: e.clientX, y: e.clientY, moved: false, at: e.timeStamp };
       this.stickEl.style.transform = `translate(${e.clientX}px, ${e.clientY}px)`;
       this.stickEl.classList.add('on');
       this.knobEl.style.transform = 'translate(-50%, -50%)';
@@ -196,7 +214,9 @@ export class TouchControls {
       return;
     }
     if (btn === 'nap') {
-      this.h.orders.nap();
+      // C9: a 300 ms hold (the fill ring shows it), not a tap
+      this.napHeld = { id: e.pointerId, at: performance.now(), fired: false };
+      el.classList.add('holding');
       return;
     }
     if (btn === 'lasthit' || btn === 'tower') {
@@ -205,10 +225,9 @@ export class TouchControls {
     }
     const slot = SLOT_OF[btn];
     if (slot === undefined) return;
-    if (!this.h.orders.ready(slot)) {
-      sfx.play('deny', { vol: 0.6 });
-      el.classList.add('deny');
-      setTimeout(() => el.classList.remove('deny'), 250);
+    // C2: a press within a few ticks of the cooldown ending goes into the cast buffer instead of a deny
+    if (!this.h.orders.canQueue(slot)) {
+      this.deny(slot);
       return;
     }
     this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, at: performance.now() });
@@ -222,6 +241,7 @@ export class TouchControls {
       let dx = e.clientX - this.stick.bx;
       let dy = e.clientY - this.stick.by;
       const d = Math.hypot(dx, dy);
+      if (d > STICK.dead) this.stick.moved = true;
       if (d > STICK.radius) {
         // the base follows a thumb that runs past the ring
         const k = (d - STICK.radius) / d;
@@ -232,6 +252,8 @@ export class TouchControls {
         dy = e.clientY - this.stick.by;
       }
       this.knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
+      const me = this.h.enabled() ? this.me() : null;
+      if (me) this.steer(me, performance.now());
       return;
     }
     const g = this.drags.get(e.pointerId);
@@ -257,9 +279,17 @@ export class TouchControls {
       if (!cancelled && e.timeStamp - tp.at <= TAP.ms && Math.hypot(e.clientX - tp.x, e.clientY - tp.y) <= TAP.px) this.tapAt(tp.x, tp.y);
     }
     if (this.stick && e.pointerId === this.stick.id) {
+      const s = this.stick;
       this.stick = null;
       this.stickEl.classList.remove('on');
-      if (!cancelled && this.h.enabled()) this.h.orders.stop();
+      // C4: only a real stick release stops the hero; a still tap (locking a hero, a stray touch) keeps its attack going
+      if (!cancelled && this.h.enabled() && (s.moved || e.timeStamp - s.at > TAP.ms)) this.h.orders.stop();
+      return;
+    }
+    if (this.napHeld && this.napHeld.id === e.pointerId) {
+      this.napHeld = null;
+      const nap = this.buttons.get('nap');
+      nap?.classList.remove('down', 'holding');
       return;
     }
     if (this.attackHeld === e.pointerId) {
@@ -284,8 +314,7 @@ export class TouchControls {
     const me = this.me();
     if (!me) return;
     if (!g.dragging) {
-      const aim = this.h.orders.aimSpec(slot);
-      const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
+      const p = this.tapAim(slot, me);
       this.h.orders.cast(slot, p.x, p.y, p.id);
       return;
     }
@@ -295,6 +324,49 @@ export class TouchControls {
 
   private facing(): number {
     return this.h.view.me()?.yaw ?? 0;
+  }
+
+  /** The joystick's direction (rad, sim convention) while it is held past the dead zone, else null. */
+  stickAngle(): number | null {
+    const s = this.stick;
+    if (!s) return null;
+    const dx = s.x - s.bx;
+    const dy = -(s.y - s.by);
+    return Math.hypot(dx, dy) > STICK.dead ? Math.atan2(dy, dx) : null;
+  }
+
+  /**
+   * Where a tapped (not dragged) skill aims. C7: a dash goes along the held joystick (Hop Back away from it, so it
+   * still flees the way the thumb runs), and any other direction skill with no smart target goes along it too;
+   * everything else is the smart aim.
+   */
+  tapAim(slot: CastIndex, me: Unit): { x: number; y: number; id: number } {
+    const aim = this.h.orders.aimSpec(slot);
+    const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
+    const a = aim.kind === 'dir' ? this.stickAngle() : null;
+    if (a === null) return p;
+    // smartAim's fallback for a direction is straight ahead along the facing: anything else means it found a target
+    const f = this.facing();
+    const found = Math.hypot(p.x - (me.x + Math.cos(f) * aim.range), p.y - (me.y + Math.sin(f) * aim.range)) > 1;
+    if (aim.shape !== 'dash' && found) return p;
+    const k = aim.away ? -1 : 1;
+    return { x: me.x + Math.cos(a) * aim.range * k, y: me.y + Math.sin(a) * aim.range * k, id: 0xff };
+  }
+
+  /** A skill press refused (on cooldown, or the cast buffer ran out): the deny sound and a red flash. */
+  deny(slot: CastIndex): void {
+    const b = (['q', 'w', 'e', 'r', 'trick'] as const)[slot];
+    const el = this.buttons.get(b);
+    sfx.play('deny', { vol: 0.6 });
+    if (!el) return;
+    el.classList.add('deny');
+    setTimeout(() => el.classList.remove('deny'), 250);
+  }
+
+  /** C3: the hero's own cast resolved: the next frame re-sends the held stick, so the hero walks on at once. */
+  onOwnCast(): void {
+    this.lastStick.a = NaN;
+    this.lastStick.at = 0;
   }
 
   /** World aim point (mm) of a drag from its button. */
@@ -330,7 +402,7 @@ export class TouchControls {
     const me = this.me();
     if (slot === undefined || !me) return;
     const spec = this.h.orders.aimSpec(slot);
-    const p = smartAim(spec, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
+    const p = this.tapAim(slot, me);
     this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: p.id, valid: spec.kind !== 'unit' || p.id !== 0xff };
   }
 
@@ -344,6 +416,8 @@ export class TouchControls {
     me: { x: number; y: number };
     seen: { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number }[];
     allyMinions: { x: number; y: number }[];
+    /** C5: the minions and camp monsters the next basic would kill (by the client estimate). */
+    killable: number[];
   } | null = null;
   picks = 0;
 
@@ -409,7 +483,12 @@ export class TouchControls {
     const range = this.range();
     const units = this.h.units();
     const locked = this.lockedId();
-    const id = locked ?? attackPriority(units, me, this.h.view.myTeam, range, 7000, this.first);
+    const hero = this.h.view.me()?.hero;
+    const lv = this.h.view.me()?.level ?? 1;
+    const toy = this.h.view.me()?.toy ?? 0;
+    // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
+    const kill = hero ? (u: Unit): number => minionHitEstimate(hero, lv, toy, u) : undefined;
+    const id = locked ?? attackPriority(units, me, this.h.view.myTeam, range, 7000, this.first, kill);
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play).
     this.lastPick = {
       id,
@@ -419,10 +498,32 @@ export class TouchControls {
       me: { x: me.x, y: me.y },
       seen: units.filter((u) => u.id !== me.id && u.team !== this.h.view.myTeam && u.state !== 'dead').map((u) => ({ id: u.id, kind: u.kind, team: u.team, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp })),
       allyMinions: units.filter((u) => u.kind === 'minion' && u.team === this.h.view.myTeam && u.state !== 'dead').map((u) => ({ x: u.x, y: u.y })),
+      killable: kill ? units.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && u.team !== this.h.view.myTeam && u.state !== 'dead' && u.hp <= kill(u)).map((u) => u.id) : [],
     };
     this.picks++;
-    if (id !== null) this.h.orders.attack(id);
-    else this.h.orders.attackMove(me.x + Math.cos(this.facing()) * 3000, me.y + Math.sin(this.facing()) * 3000);
+    if (id !== null) {
+      this.h.orders.attack(id);
+      return;
+    }
+    // C5: nothing in reach: no walk (the old attack-move walked players under towers), a red ring and, twice, a tip
+    this.atkNone++;
+    this.h.view.denyRing?.();
+    const atk = this.buttons.get('attack');
+    if (atk) {
+      atk.classList.remove('deny');
+      void atk.offsetWidth;
+      atk.classList.add('deny');
+      setTimeout(() => atk.classList.remove('deny'), 300);
+    }
+    if (this.atkTipsLeft > 0 && this.atkNone === 1) {
+      this.atkTipsLeft--;
+      try {
+        localStorage.setItem(ATK_TIP_KEY, String(ATK_TIP_MAX - this.atkTipsLeft));
+      } catch {
+        /* private mode: the tip may show again next match */
+      }
+      this.h.view.juice?.push({ ...bannerNote({ title: 'Nothing in reach', sub: 'Walk closer, then tap ATK', tone: 'info', hold: 2.2 }), key: 'atk-none' });
+    }
   }
 
   /** Last touch input (ms) and the last auto-attack order. */
@@ -438,17 +539,47 @@ export class TouchControls {
   private autoAttack(me: Unit, now: number): void {
     if (now - this.inputAt < ASSIST.idleMs || now - this.autoAt < 900) return;
     if (me.state !== 'idle') return;
-    const hero = this.h.view.me()?.hero;
-    const range = this.range() + (hero && isRangedHero(hero) ? 0 : AUTO_MELEE_SLACK);
+    const range = this.range() + AUTO_SLACK;
     // GAPS A5: a locked hero in range is the idle target too
     const locked = this.lockedId();
     const lu = locked !== null ? this.h.units().find((u) => u.id === locked) : undefined;
     const lockIn = lu && Math.hypot(lu.x - me.x, lu.y - me.y) - BODY_MM.hero <= range ? lu.id : null;
+    // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
     const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range);
     if (id === null) return;
     this.autoAt = now;
     this.autos++;
     this.h.orders.attack(id);
+  }
+
+  /**
+   * The joystick's move order: sent from the frame loop and (C6) straight from the pointer event, so a fresh push does
+   * not wait for the next frame. Throttled by STICK.turn / STICK.everyMs as before.
+   */
+  private steer(me: Unit, now: number): void {
+    const s = this.stick;
+    if (!s) return;
+    const dx = s.x - s.bx;
+    const dy = -(s.y - s.by);
+    if (Math.hypot(dx, dy) > STICK.dead) {
+      // the lane magnet (fun plan F3): close to the lane's direction, walk exactly along it
+      // round 2: a push into a wall slides along it (orders.ts slideAngle)
+      // C8: only at full tilt (90%+) and with no enemy hero within 8 m, and only within 8° of the lane
+      const raw = Math.atan2(dy, dx);
+      const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
+      const a = slideAngle(me.x, me.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(me.x, me.y, raw) : raw);
+      const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
+      const near = Math.hypot(me.x - this.lastStick.tx, me.y - this.lastStick.ty) < STICK.refreshMm;
+      if ((turn > STICK.turn || near) && now - this.lastStick.at >= STICK.everyMs) {
+        // the map edge and the enemy fountain stop the stick (null: the hero is already at the edge)
+        const goal = edgeGoal(me.x, me.y, me.x + Math.cos(a) * STICK.aheadMm, me.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
+        if (goal) {
+          this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
+          this.h.orders.move(goal.x, goal.y);
+          this.h.view.recentre();
+        } else this.lastStick = { a, at: now, tx: me.x, ty: me.y };
+      }
+    }
   }
 
   /** Wave C (C2): the level the rank pips were drawn for (0 = not drawn yet). */
@@ -467,32 +598,19 @@ export class TouchControls {
     void this.desktop;
     const now = performance.now();
     if (this.attackHeld !== null && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
+    const nh = this.napHeld;
+    if (nh && !nh.fired && now - nh.at >= NAP_HOLD_MS && this.h.enabled()) {
+      nh.fired = true;
+      this.buttons.get('nap')?.classList.remove('holding');
+      this.h.orders.nap();
+    }
     for (const g of this.drags.values()) if (!g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
     this.syncRing();
     const s = this.stick;
     const me = this.me();
-    if (s || this.drags.size > 0 || this.attackHeld !== null) this.inputAt = now;
+    if (s || this.drags.size > 0 || this.attackHeld !== null || this.napHeld) this.inputAt = now;
     else if (me && this.h.enabled()) this.autoAttack(me, now);
-    if (s && me && this.h.enabled()) {
-      const dx = s.x - s.bx;
-      const dy = -(s.y - s.by);
-      if (Math.hypot(dx, dy) > STICK.dead) {
-        // the lane magnet (fun plan F3): close to the lane's direction, walk exactly along it
-        // round 2: a push into a wall slides along it (orders.ts slideAngle)
-        const a = slideAngle(me.x, me.y, laneMagnet(me.x, me.y, Math.atan2(dy, dx)));
-        const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
-        const near = Math.hypot(me.x - this.lastStick.tx, me.y - this.lastStick.ty) < STICK.refreshMm;
-        if ((turn > STICK.turn || near) && now - this.lastStick.at >= STICK.everyMs) {
-          // the map edge and the enemy fountain stop the stick (null: the hero is already at the edge)
-          const goal = edgeGoal(me.x, me.y, me.x + Math.cos(a) * STICK.aheadMm, me.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
-          if (goal) {
-            this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
-            this.h.orders.move(goal.x, goal.y);
-            this.h.view.recentre();
-          } else this.lastStick = { a, at: now, tx: me.x, ty: me.y };
-        }
-      }
-    }
+    if (s && me && this.h.enabled()) this.steer(me, now);
     const order: ButtonId[] = ['q', 'w', 'e', 'r', 'trick'];
     order.forEach((b, i) => {
       const el = this.buttons.get(b);

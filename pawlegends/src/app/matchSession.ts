@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
+import { haptic } from '../ui/haptics';
 import { intensityOf, Music } from '../audio/music';
 import { LocalHost } from '../host/local-host';
 import type { WelcomeMsg } from '../host/protocol';
@@ -423,6 +424,8 @@ export class MatchSession {
     // perf-2: which loop runs this match and how many Worker starts failed first (e2e reads it)
     if (this.e2e) document.documentElement.dataset.simHost = `${this.host.kind}:${this.host.restarts}`;
     this.view.setTeam(w.slot, w.team, w.tricks);
+    // C6: the own hero is drawn at a much shorter interpolation lag than everyone else
+    this.buffer.selfId = w.slot;
     // ANIM-SPEC §13: the heroes' move sets and skill FX load with the match (their own lazy chunks)
     void this.view.loadAnim(w.picks);
     this.objClock = new ObjectiveClock(w.team);
@@ -462,6 +465,11 @@ export class MatchSession {
       level: () => this.frameNow?.byId.get(w.slot)?.level ?? 1,
       branch: () => this.frameNow?.byId.get(w.slot)?.branch === true,
       nowMs: () => performance.now(),
+      // C2: a buffered cast that never found a free moment: the deny sound and the button's red flash only now
+      onDeny: (slot: 0 | 1 | 2 | 3 | 4) => {
+        if (this.touch?.isEnabled) this.touch.deny(slot);
+        else sfx.play('deny', { vol: 0.6 });
+      },
     };
     this.orders = new Orders(env);
     this.orders.speed = this.buffer.speed;
@@ -1521,11 +1529,14 @@ export class MatchSession {
     if (frame && this.lastPhase === 'gate' && frame.latest.clock.phase === 'play') this.goFlash();
     if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;
     if (frame) {
+      this.turnToInput(frame);
       this.units.length = 0;
       for (const e of frame.entities) this.units.push({ id: e.id, kind: e.kind, team: e.team, x: e.fx, y: e.fy, hp: e.hp, maxHp: e.maxHp, state: e.state });
+      this.ccHaptic(frame);
       this.events.length = 0;
       for (const ev of this.buffer.takeEvents(this.events)) {
         this.view.effects.handle(ev);
+        this.feelEvent(ev);
         const a = this.announcer;
         if (a) this.present(a.feed(ev));
         const fe = ev as AnyEvent;
@@ -1674,6 +1685,72 @@ export class MatchSession {
 
   private respawnShown = '';
 
+  /**
+   * C2, C3, C11c: the own hero's events for the input and the phone's haptics. A windup or cast confirms the cast
+   * buffer's cast; a cast re-sends a held stick at once (the hero walks on); buzzes for a cast, a last hit, a
+   * takedown, a Toy and a level-up.
+   */
+  private feelEvent(ev: SimEvent): void {
+    const me = this.view.mySlot;
+    switch (ev.type) {
+      case 'windup':
+        if (ev.src === me) this.orders?.onEvent(ev);
+        return;
+      case 'cast':
+        if (ev.src !== me) return;
+        this.orders?.onEvent(ev);
+        this.touch?.onOwnCast();
+        haptic('cast');
+        return;
+      case 'fish':
+        if (ev.id === me && ev.reason === 'lastHit') {
+          this.lastHitsSeen++;
+          haptic('lastHit');
+        }
+        return;
+      case 'buff':
+        if (ev.id === me && ev.kind === 'takedown') haptic('takedown');
+        return;
+      case 'buy':
+        if (ev.id === me) haptic('toy');
+        return;
+      case 'levelup':
+        if (ev.id === me) haptic('levelUp');
+        return;
+      default:
+        return;
+    }
+  }
+
+  private ccWas = false;
+  /** Own last-hit Fish events seen (e2e telemetry, C5). */
+  private lastHitsSeen = 0;
+
+  /** C11c: one buzz as the own hero gets stunned, rooted or feared. */
+  private ccHaptic(frame: ViewFrame): void {
+    const me = frame.byId.get(this.view.mySlot);
+    const cc = !!me && me.state !== 'dead' && (me.buffs & (BuffFlag.Stunned | BuffFlag.Rooted | BuffFlag.Feared)) !== 0;
+    if (cc && !this.ccWas) haptic('cc');
+    this.ccWas = cc;
+  }
+
+  /**
+   * C6: the own hero's model turns to the newest move order at once (the stick or a right-click), instead of waiting
+   * for the sim's facing to come back through the snapshots. Only while it walks (never mid-cast, -swing, or under
+   * crowd control) and for a moment after the order.
+   */
+  private turnToInput(frame: ViewFrame): void {
+    const o = this.orders?.lastMove;
+    const me = frame.byId.get(this.view.mySlot);
+    if (!o || !me || (me.state !== 'moving' && me.state !== 'idle')) return;
+    if ((me.buffs & (BuffFlag.Stunned | BuffFlag.Rooted | BuffFlag.Feared)) !== 0) return;
+    if (performance.now() - o.at > 250 / Math.max(1, this.buffer.speed)) return;
+    const dx = o.x - me.fx;
+    const dy = o.y - me.fy;
+    if (dx * dx + dy * dy < 250000) return;
+    me.yaw = Math.atan2(dy, dx);
+  }
+
   /** "Back in 7 · 8 of 9 lives" on the rail's resting line while the player is out (cleared on respawn). */
   private respawnLine(me: { state: string; respawnIn?: number } | undefined): void {
     const dead = !!me && me.state === 'dead' && !this.ended;
@@ -1693,6 +1770,11 @@ export class MatchSession {
     // the basic attack range ring's radius (m) when drawn (A armed, a skill aimed, touch Attack held)
     d.atkRing = this.view.attackRingM > 0 ? this.view.attackRingM.toFixed(2) : '';
     d.casts = String(this.orders?.casts ?? 0);
+    // C2 / C5 / C6 telemetry: cast buffer counters, Attack presses with nothing in reach, the drawn own position
+    if (this.orders) d.castBuf = `${this.orders.buffers.kept},${this.orders.buffers.sent},${this.orders.buffers.expired},${this.orders.buffers.retried},${this.orders.busyWhy()},${this.orders.queued ?? ''},${this.orders.busyLeftMs}`;
+    d.atkNone = String(this.touch?.atkNone ?? 0);
+    d.lastHits = String(this.lastHitsSeen);
+    if (me) d.meF = `${Math.round(me.fx)},${Math.round(me.fy)}`;
     d.hits = String(this.hitsLanded);
     const pick = this.touch?.lastPick;
     if (pick && d.atkN !== String(this.touch!.picks)) {
