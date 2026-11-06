@@ -12,10 +12,18 @@
  * TargetLock); while locked, Attack sends Attack{id} on it and smart casts aim at it when it is within their reach.
  * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
  *
+<<<<<<< HEAD
  * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
  * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
  * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
  * fingers have moved past TAP.px and their gap changed by PINCH_PX; then the stick lets go and both fingers zoom.
+=======
+ * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): a tap goes the full distance where the player is
+ * heading (the held joystick, else the hero's movement, else its facing). With the joystick held the press itself
+ * fires (running + tap is the common case, and a drag could only repeat the stick's direction); with the joystick free
+ * the release fires, so a drag can still pick the direction (always the full distance; a drag that slides back
+ * within AIM_BACK_PX is a tap). A ghost marker shows the landing for GHOST_MS.
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
  */
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
@@ -30,8 +38,12 @@ import { project } from '../screen';
 import { attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
+<<<<<<< HEAD
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
 import { pinchZoom, saveZoom, zoomMax } from '../../render/camera/zoom';
+=======
+import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS } from '../heading';
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -95,6 +107,7 @@ const HOLD_PREVIEW_MS = 200;
 const AUTO_SLACK = 300;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
+<<<<<<< HEAD
 /** A joystick finger plus a second finger turn into a pinch only after their gap changes by this many CSS px. */
 export const PINCH_PX = 24;
 
@@ -109,6 +122,12 @@ export function pinchCommitted(a: TouchPt, b: TouchPt): boolean {
   return moved(a) && moved(b) && Math.abs(gap - gap0) >= PINCH_PX;
 }
 export type TouchPt = { x: number; y: number; x0: number; y0: number };
+=======
+/** How long (ms) the ghost landing marker of a tapped heading cast shows (no delay: the cast goes first). */
+export const GHOST_MS = 150;
+/** After a heading cast with the joystick held, the stick waits at most this long (ms) for the drawn hero to land. */
+export const BLINK_GUARD_MS = 600;
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
 
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -126,6 +145,8 @@ interface Drag {
   cancelIn: number | null;
   /** When the button went down (ms, performance.now). */
   at: number;
+  /** A heading cast already sent on the press (joystick held): the release only lets the button go. */
+  fired?: boolean;
 }
 
 export class TouchControls {
@@ -163,6 +184,7 @@ export class TouchControls {
   private tap: { id: number; x: number; y: number; at: number } | null = null;
   /** Locks set (e2e telemetry). */
   locks = 0;
+<<<<<<< HEAD
   /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
   private readonly canvasTouches = new Map<number, TouchPt>();
   private pinch: { a: number; b: number; d0: number; z0: number } | null = null;
@@ -170,6 +192,19 @@ export class TouchControls {
   private pinchMaybe = false;
   /** Pinches started (e2e telemetry). */
   pinches = 0;
+=======
+  /** The hero's movement direction (heading casts with no joystick). */
+  private readonly motion = new MotionHeading();
+  /** The ghost landing marker of the last heading cast shows until (ms, performance.now), or 0. */
+  private ghostUntil = 0;
+  /**
+   * A heading cast sent while the joystick steers: its landing (mm) and until when (ms) the stick holds its move
+   * orders, so the drawn hero (a few ticks behind the sim) does not aim the next move back from where it was.
+   */
+  private blinkGuard: { x: number; y: number; until: number } | null = null;
+  /** Heading casts sent: on the press, on the release (e2e telemetry). */
+  heads = { press: 0, release: 0 };
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
   setIcons(icons: Record<'q' | 'w' | 'e' | 'r' | 'trick', string>): void {
     for (const [k, svg] of Object.entries(icons)) {
@@ -331,7 +366,20 @@ export class TouchControls {
       this.deny(slot);
       return;
     }
+<<<<<<< HEAD
     this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, cancelIn: null, at: performance.now() });
+=======
+    const g: Drag = { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, at: performance.now() };
+    // heading casts fire on the press while the joystick steers (no aim step, no wait for the release)
+    if (this.h.orders.aimSpec(slot).heading && this.stickAngle() !== null) {
+      const me = this.me();
+      if (me && this.headingCast(slot, me)) {
+        g.fired = true;
+        this.heads.press++;
+      }
+    }
+    this.drags.set(e.pointerId, g);
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
     this.syncRing();
   }
 
@@ -395,6 +443,7 @@ export class TouchControls {
     if (!g) return;
     g.x = e.clientX;
     g.y = e.clientY;
+    if (g.fired) return;
     if (!g.dragging && Math.hypot(g.x - g.x0, g.y - g.y0) > DRAG_PX) {
       g.dragging = true;
       this.cancelEl.classList.add('on');
@@ -486,14 +535,24 @@ export class TouchControls {
     }
     this.syncRing();
     this.buttons.get(g.btn)?.classList.remove('down');
+<<<<<<< HEAD
     this.cancelEl.classList.remove('on', 'hot', 'arming');
     this.aimRingEl.classList.remove('on', 'back', 'dir');
+=======
+    if (g.fired) return;
+    this.cancelEl.classList.remove('on', 'hot');
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
     this.h.view.aim = null;
+    this.ghostUntil = 0;
     if (cancelled || g.overCancel || !this.h.enabled()) return;
     const slot = SLOT_OF[g.btn];
     if (slot === undefined) return;
     const me = this.me();
     if (!me) return;
+    if (this.h.orders.aimSpec(slot).heading && (!g.dragging || this.aimBack(g))) {
+      if (this.headingCast(slot, me)) this.heads.release++;
+      return;
+    }
     if (!g.dragging || this.aimBack(g)) {
       const p = this.tapAim(slot, me);
       if (!this.h.orders.cast(slot, p.x, p.y, p.id)) this.refused(slot);
@@ -533,6 +592,7 @@ export class TouchControls {
    */
   tapAim(slot: CastIndex, me: Unit): { x: number; y: number; id: number } {
     const aim = this.h.orders.aimSpec(slot);
+    if (aim.heading) return { ...headingPoint(aim, me, this.heading(me)), id: 0xff };
     const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
     // CF-03: a blink (Pounce, Avietė E) follows the held stick too, at full range (smartAim's fallback is the facing)
     const a = aim.kind === 'dir' || aim.blink ? this.stickAngle() : null;
@@ -543,6 +603,54 @@ export class TouchControls {
     if (aim.shape !== 'dash' && found) return p;
     const k = aim.away ? -1 : 1;
     return { x: me.x + Math.cos(a) * aim.range * k, y: me.y + Math.sin(a) * aim.range * k, id: 0xff };
+  }
+
+  /**
+   * Where the player is heading (rad, sim convention): the held joystick, else the hero's movement (its drawn track,
+   * then a move order it is still walking), else its facing (heading.ts).
+   */
+  heading(me: Unit): number {
+    const now = performance.now();
+    const lm = this.h.orders.lastMove;
+    const walking = me.state === 'moving' && lm !== null && now - lm.at <= MOVE_ORDER_MS;
+    return headingAngle(me, { stick: this.stickAngle(), motion: this.motion.angle(now), moveGoal: walking ? lm : null, facing: this.facing() });
+  }
+
+  /**
+   * Send a heading cast of `slot` the full distance along the heading and show the ghost landing marker for GHOST_MS.
+   * Returns whether the order went (or was buffered).
+   */
+  private headingCast(slot: CastIndex, me: Unit): boolean {
+    const spec = this.h.orders.aimSpec(slot);
+    const a = this.heading(me);
+    const p = headingPoint(spec, me, a);
+    if (!this.h.orders.cast(slot, p.x, p.y, 0xff)) return false;
+    const l = landing(spec, me, a);
+    const now = performance.now();
+    this.h.view.aim = { spec, x: l.x / 1000, z: -l.y / 1000, target: 0xff, valid: true };
+    this.ghostUntil = now + GHOST_MS;
+    if (this.stickAngle() !== null) this.runOnFrom(l, now);
+    return true;
+  }
+
+  /**
+   * After a heading cast with the joystick held: the next move goes on from the landing (sent now; the sim lets a cast
+   * win over a move of its tick and applies the move after it), and the stick sends no other move until the drawn
+   * hero has caught up with the landing (BLINK_GUARD_MS at most). Before, the next stick move was aimed from the drawn
+   * hero, still short of the landing, and walked the hero back.
+   */
+  private runOnFrom(l: { x: number; y: number }, now: number): void {
+    const raw = this.stickAngle();
+    if (raw === null) return;
+    const a = slideAngle(l.x, l.y, raw);
+    this.blinkGuard = { x: l.x, y: l.y, until: now + BLINK_GUARD_MS };
+    const goal = edgeGoal(l.x, l.y, l.x + Math.cos(a) * STICK.aheadMm, l.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
+    if (!goal) {
+      this.lastStick = { a, at: now, tx: l.x, ty: l.y };
+      return;
+    }
+    this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
+    this.h.orders.move(goal.x, goal.y);
   }
 
   /** A skill press refused (on cooldown, or the cast buffer ran out): the deny sound and a red flash. */
@@ -573,7 +681,14 @@ export class TouchControls {
     const dy = -(g.y - g.y0);
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
+<<<<<<< HEAD
     const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
+=======
+    // heading casts: the drag picks the direction, the distance is always the full one (CF-03: a drag toward the
+    // screen edge reached only 1.56 m)
+    if (aim.heading) return { ...headingPoint(aim, me, Math.atan2(dy, dx)), id: 0xff };
+    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / DRAG_FULL_PX) : 1;
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
     const x = me.x + (dx / len) * aim.range * k;
     const y = me.y + (dy / len) * aim.range * k;
     if (aim.kind === 'unit') {
@@ -593,7 +708,8 @@ export class TouchControls {
       return;
     }
     const spec = this.h.orders.aimSpec(slot);
-    const t = this.dragTarget(g, slot, me) ?? { x: me.x, y: me.y, id: 0xff };
+    let t = this.dragTarget(g, slot, me) ?? { x: me.x, y: me.y, id: 0xff };
+    if (spec.heading) t = { ...landing(spec, me, Math.atan2(t.y - me.y, t.x - me.x)), id: 0xff };
     this.h.view.aim = { spec, x: t.x / 1000, z: -t.y / 1000, target: t.id, valid: !g.overCancel && (spec.kind !== 'unit' || t.id !== 0xff) };
   }
 
@@ -603,7 +719,7 @@ export class TouchControls {
     const me = this.me();
     if (slot === undefined || !me) return;
     const spec = this.h.orders.aimSpec(slot);
-    const p = this.tapAim(slot, me);
+    const p = spec.heading ? { ...landing(spec, me, this.heading(me)), id: 0xff } : this.tapAim(slot, me);
     this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: p.id, valid: spec.kind !== 'unit' || p.id !== 0xff };
   }
 
@@ -771,6 +887,12 @@ export class TouchControls {
   private steer(me: Unit, now: number): void {
     const s = this.stick;
     if (!s) return;
+    const bg = this.blinkGuard;
+    if (bg) {
+      // a heading cast is landing: hold the stick's moves until the drawn hero is there (runOnFrom sent the next one)
+      if (now < bg.until && Math.hypot(me.x - bg.x, me.y - bg.y) > 1500) return;
+      this.blinkGuard = null;
+    }
     const dx = s.x - s.bx;
     const dy = -(s.y - s.by);
     if (Math.hypot(dx, dy) > STICK.dead) {
@@ -816,14 +938,24 @@ export class TouchControls {
       this.buttons.get('nap')?.classList.remove('holding');
       this.h.orders.nap();
     }
+<<<<<<< HEAD
     for (const g of this.drags.values()) {
       if (!g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
       // CF-01: a thumb resting still on the ✕ sends no pointermove, so the dwell is checked per frame too
       if (g.dragging && g.cancelIn !== null && !g.overCancel) this.checkCancel(g, now);
     }
+=======
+    const me = this.me();
+    if (me && me.state !== 'dead') this.motion.sample(me.x, me.y, now);
+    else this.motion.reset();
+    if (this.ghostUntil > 0 && now >= this.ghostUntil) {
+      this.ghostUntil = 0;
+      if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;
+    }
+    for (const g of this.drags.values()) if (!g.fired && !g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
+>>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
     this.syncRing();
     const s = this.stick;
-    const me = this.me();
     if (s || this.drags.size > 0 || this.attackHeld !== null || this.napHeld) this.inputAt = now;
     else if (me && this.h.enabled()) this.autoAttack(me, now);
     if (s && me && this.h.enabled()) this.steer(me, now);
