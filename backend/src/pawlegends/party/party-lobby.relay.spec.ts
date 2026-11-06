@@ -197,4 +197,44 @@ describe('party relay lane P', () => {
             await b.stop();
         }
     });
+
+    it('lane M: social echoes enumerated ids only (clamped points, rate limit); counters list the totals', async () => {
+        const b = await boot();
+        try {
+            const a = await b.client();
+            a.hello();
+            await a.until(() => a.last('welcome'));
+            a.send({ t: 'party.create', difficulty: 'normal' });
+            const pa = await a.until(() => a.last('party'));
+            const c = await b.client();
+            c.hello();
+            await c.until(() => c.last('welcome'));
+            c.send({ t: 'party.join', code: pa.code });
+            await a.until(() => a.last('party')?.members.length === 2);
+            a.send({ t: 'party.start' });
+            await a.until(() => a.last('party')?.phase === 'pick');
+            a.send({ t: 'pick.lock', hero: 'clem', trick: 'pounce' });
+            c.send({ t: 'pick.lock', hero: 'sage', trick: 'snack' });
+            await a.until(() => a.last('party')?.phase === 'loading');
+            a.send({ t: 'loaded' });
+            c.send({ t: 'loaded' });
+            await c.until(() => c.last('match'));
+            // an id past the quick lines is dropped (no echo, no strike); a good one reaches both, from the slot
+            c.send({ t: 'social', kind: 'chat', id: 9 });
+            c.send({ t: 'social', kind: 'emote', id: 4 });
+            c.send({ t: 'social', kind: 'ping', id: 0, x: 999_999, y: -5 });
+            const got = await a.until(() => a.last('social'));
+            expect(got).toMatchObject({ kind: 'ping', id: 0, x: 100_000, y: 0, slot: 1 });
+            // the rate limit: a second one inside 2 s is dropped
+            c.send({ t: 'social', kind: 'chat', id: 1 });
+            await new Promise(r => setTimeout(r, 300));
+            expect(a.json.filter(m => m.t === 'social')).toHaveLength(1);
+            expect(c.closed).toBeNull();
+            const n = b.relay.counters();
+            for (const k of ['desyncs', 'divergences', 'restores', 'refused_busy', 'join_fail_global'])
+                expect(typeof (n as Record<string, unknown>)[k]).toBe('number');
+        } finally {
+            await b.stop();
+        }
+    });
 });

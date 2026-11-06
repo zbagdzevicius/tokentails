@@ -639,6 +639,8 @@ export class PartyService {
             if (m.hero) v.hero = m.hero;
             if (m.trick && (own || m.locked)) v.trick = m.trick;
             if (p.phase === 'loading' || p.phase === 'match') v.loadPct = m.loadPct;
+            // lane M6: "Play again together (2/3)" counts who pressed it
+            if (p.phase === 'results' && p.rematchYes.has(m.id)) v.again = true;
             if (m.card) {
                 v.card = { image: m.card.image, element: m.card.element, tier: m.card.tier };
                 if (own) {
