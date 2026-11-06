@@ -417,6 +417,10 @@ export const ERROR_CODES = [
   'room_gone',
   'seat_elsewhere',
   'bad_message',
+  /** A second seat for the same person (another tab with the same guest key or account). */
+  'already_in_party',
+  /** The party is alive but this code was replaced (New code, or the leader removed someone): ask for the new link. */
+  'code_changed',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -482,6 +486,7 @@ export type ClientJson =
   | { t: 'party.nudge'; member: string }
   | { t: 'pick.hover'; hero: string }
   | { t: 'pick.lock'; hero: string; trick: string }
+  | { t: 'pick.unlock' }
   | { t: 'load'; pct: number }
   | { t: 'loaded' }
   | { t: 'vote'; kind: VoteKind; yes: boolean }
@@ -538,6 +543,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
   'party.nudge': { member: [isStr(MEMBER), false] },
   'pick.hover': { hero: [isStr(ID), false] },
   'pick.lock': { hero: [isStr(ID), false], trick: [isStr(ID), false] },
+  'pick.unlock': {},
   load: { pct: [isInt(0, 100), false] },
   loaded: {},
   vote: { kind: [(v) => v === 'surrender' || v === 'pause' || v === 'resume' || v === 'rematch', false], yes: [isBool, false] },
@@ -581,12 +587,13 @@ export function parseClientJson(text: string): ClientJson {
   const rules = SCHEMA[t as ClientJsonType];
   for (const k of Object.keys(o)) {
     if (k === 't') continue;
-    const rule = rules[k];
+    // own keys only: `constructor`, `__proto__` and friends are unknown keys, never inherited rules
+    const rule = Object.prototype.hasOwnProperty.call(rules, k) ? rules[k] : undefined;
     if (!rule) throw new ProtoError('unknown key');
     if (o[k] === undefined && rule[1]) continue;
     if (!rule[0](o[k])) throw new ProtoError('bad field');
   }
-  for (const k of Object.keys(rules)) if (!rules[k][1] && !(k in o)) throw new ProtoError('missing field');
+  for (const k of Object.keys(rules)) if (!rules[k][1] && !Object.prototype.hasOwnProperty.call(o, k)) throw new ProtoError('missing field');
   if (t === 'party.join') o.code = normalizeCode(o.code);
   return o as unknown as ClientJson;
 }

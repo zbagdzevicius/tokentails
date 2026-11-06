@@ -93,6 +93,10 @@ describe('net-proto', () => {
     expect(() => parseClientJson('{"t":"social","kind":"chat","id":3,"x":1.5}')).toThrow(ProtoError);
     expect(() => parseClientJson(`{"t":"party.create","difficulty":"${'a'.repeat(1100)}"}`)).toThrow('json too large');
     expect(() => parseClientJson('{"t":"__proto__"}')).toThrow(ProtoError);
+    // inherited names are unknown keys (a clean ProtoError, never a TypeError)
+    for (const k of ['constructor', 'toString', 'hasOwnProperty', '__proto__'])
+      expect(() => parseClientJson(`{"t":"hello","${k}":1}`)).toThrow(ProtoError);
+    expect(parseClientJson('{"t":"pick.unlock"}')).toEqual({ t: 'pick.unlock' });
     const hello = parseClientJson(JSON.stringify({ t: 'hello', proto: 1, sim: 11, simHash: '0123456789abcdef', build: 'web.1', resume: { token: 'abcdefgh12' } }));
     expect(hello.t).toBe('hello');
     expect(() => parseClientJson(JSON.stringify({ t: 'hello', proto: 1, sim: 11, simHash: '0123456789abcdef', build: 'web.1', resume: { token: 'abcdefgh12', x: 1 } }))).toThrow(ProtoError);
