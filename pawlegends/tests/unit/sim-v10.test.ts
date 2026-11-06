@@ -23,8 +23,8 @@ const talentsOf = (m: ReturnType<typeof play>): number[][] =>
   Array.from({ length: 6 }, (_, slot) => Array.from({ length: TALENT_TIERS }, (_, t) => m.world.talents[slot * TALENT_TIERS + t]));
 
 describe('sim v10 (GAPS B0)', () => {
-  it('SIM_VERSION is 12 (sim v11 and v12 kept the v10 rules)', () => {
-    expect(SIM_VERSION).toBe(12);
+  it('SIM_VERSION is 13 (sim v11 to v13 kept the v10 rules)', () => {
+    expect(SIM_VERSION).toBe(13);
   });
 
   it("a bot's talent is draw number `tier` of its own stream fork('talent:' + slot), from the seed alone", () => {
@@ -88,7 +88,7 @@ describe('sim v10 (GAPS B0)', () => {
     expect(MUTATORS).toEqual(['none']);
     const m = play(5, 'gabe', undefined, 'easy');
     const rec = replayRecord(m)!;
-    expect(rec).toMatchObject({ simVersion: 12, mutator: 'none' });
+    expect(rec).toMatchObject({ simVersion: SIM_VERSION, mutator: 'none' });
     expect(checkReplayShape(rec)).toBeNull();
     const { mutator: _drop, ...bare } = rec;
     expect(checkReplayShape(bare)).toBeNull();

@@ -40,7 +40,8 @@ import { PICKUP_FRENZY, PICKUP_SNACK, nearestPickup } from '../units/pickup';
 import { heroData, attackDamage, attackRange, radiusOf, targetable } from '../units/kinds';
 import { firstRat } from '../units/camp';
 import type { BotMem } from './mem';
-import { clearCast, escapeCast, fightCast, nearestFoe, purrifyCast, snackCast } from './casts';
+import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast } from './casts';
+import { kitOf } from '../heroes/kit';
 import { laneRole, orderOf } from './orders';
 import {
   fountainX,
@@ -80,6 +81,11 @@ function moveTo(w: World, id: number, mem: BotMem, x: number, y: number): Comman
 }
 
 function attack(w: World, id: number, mem: BotMem, t: number): Command | null {
+  // Sim v13: a hero whose kit deters basics (Howler's Talk Back) is not swung at; the bot steps back instead.
+  if (t < RANGE.minions && w.kind[t] === Kind.Hero && kitOf(w, t).deterBasics?.(w, t) === true) {
+    awayFrom(w, id, w.x[t], w.y[t], BOT_AI.deterStep);
+    return moveTo(w, id, mem, pt[0], pt[1]);
+  }
   if (w.order[id] === Order.Attack && w.target[id] === t) return null;
   mem.op[id] = Op.Attack;
   mem.tid[id] = t;

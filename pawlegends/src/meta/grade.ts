@@ -53,14 +53,18 @@ export const FRONTLINE_ROLES: readonly HeroRole[] = Object.freeze(['tank', 'supp
  * A 23.8%, B 41.8%), so every role was refit on the same 1,400 seeds a hero. Held out on 3001..3400 and 4001..4400,
  * the two-hero roles (tank, assassin) stay within 3.4 points of every target; one single-hero role per block lands 5.5
  * to 6.5 points off one share (support A 23.5% on 3001..; marksman B 40.8% on 4001..), a different one each time, which
- * is the 400-seed sampling error, not drift. Losses graded A or S: 34.6% and 35.9%.
+ * is the 400-seed sampling error, not drift. Losses graded A or S: 34.6% and 35.9%. Sim v13 (seven dogs, the pvp
+ * retune and Bravo joining the tanks) drifted tank (C 28.3%) and assassin (A 23.8%, C 30.5%) past the gate on
+ * 1001..1400; both were refit on that block (tank 0.582 / 0.503 / 0.424, assassin 0.593 / 0.506 / 0.418) and pass
+ * held out on 3001..3400. Howler joining Clem moved fighter (A 24.8%, C 29.0% on 3001..3400): refit to the mean of
+ * the two blocks' fits (0.588 / 0.5 / 0.416).
  */
 export const GRADE_THRESHOLDS: Readonly<Record<HeroRole, Readonly<{ S: number; A: number; B: number }>>> = Object.freeze({
-  fighter: Object.freeze({ S: 0.604, A: 0.516, B: 0.433 }),
+  fighter: Object.freeze({ S: 0.588, A: 0.5, B: 0.416 }),
   marksman: Object.freeze({ S: 0.633, A: 0.548, B: 0.453 }),
-  assassin: Object.freeze({ S: 0.611, A: 0.528, B: 0.439 }),
+  assassin: Object.freeze({ S: 0.593, A: 0.506, B: 0.418 }),
   mage: Object.freeze({ S: 0.6, A: 0.511, B: 0.432 }),
-  tank: Object.freeze({ S: 0.585, A: 0.511, B: 0.437 }),
+  tank: Object.freeze({ S: 0.582, A: 0.503, B: 0.424 }),
   support: Object.freeze({ S: 0.726, A: 0.65, B: 0.572 }),
 });
 

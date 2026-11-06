@@ -78,8 +78,11 @@ export interface Profile {
 }
 
 export type SkinFx = 'all' | 'mine' | 'off';
-/** Most free unlocks kept (GAPS A1: 30 track rewards, the 32-coat loop and the first-win coat fit with room). */
-export const UNLOCKS_MAX = 160;
+/**
+ * Most free unlocks kept (GAPS A1: the track rewards, the coat loop and the first-win coat fit with room). Sim v13: 57
+ * track rewards and a 104-coat loop (13 originals × 8 palettes), so 160 became 200.
+ */
+export const UNLOCKS_MAX = 200;
 /** Most bond entries kept (the lowest not in the roster are dropped first). */
 export const BOND_MAX = 64;
 /** Featured-skin previews a page session allows: a guest, a signed-in player. */

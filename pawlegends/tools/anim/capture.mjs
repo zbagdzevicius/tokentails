@@ -35,7 +35,7 @@ const PKG = resolve(HERE, '..', '..');
 const require = createRequire(join(PKG, 'package.json'));
 const { chromium } = require('@playwright/test');
 
-const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
+const HEROES = ['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler'];
 const heroArg = argValue('--hero') ?? 'clem';
 const heroes = heroArg === 'all' ? HEROES : heroArg.split(',').filter((h) => HEROES.includes(h));
 const only = (argValue('--scenario') ?? argValue('--clip') ?? '').split(',').filter(Boolean);

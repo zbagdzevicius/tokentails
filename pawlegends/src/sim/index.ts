@@ -311,6 +311,7 @@ function eventFor(w: World, e: SimEvent, team: Team): SimEvent | null {
     case 'fish':
       return teamOfSlot(e.id) === team ? e : null;
     case 'buff':
+    case 'clip':
       return visibleTo(w, e.id, team) ? e : null;
     // Sim v10: pings and barks are the human's team's own (enemy bots and their snapshot never see them).
     case 'ping':

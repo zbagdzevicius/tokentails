@@ -6,8 +6,8 @@ export const AVIETE: HeroData = Object.freeze<HeroData>({
   name: 'Avietė',
   side: 'cat',
   role: 'assassin',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). Sim v11 (four new cats): 12100 / takes 8400 (balance gate 50.6%). */
-  pvp: { dmgBp: 12100, takenBp: 8400 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). Sim v11 (four new cats): 12100 / takes 8400 (balance gate 50.6%). Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 12750 / takes 7800 (50.4% of the 2,000-seed gate). */
+  pvp: { dmgBp: 12750, takenBp: 7800 },
   element: 'ELECTRIC',
   base: { hp: 500, hpPerLevel: 54, attack: 58, attackPerLevel: 6, attackEvery: 28, range: 1600, speed: 5200, armour: 18, armourPerLevel: 2 },
   /**
