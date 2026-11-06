@@ -42,9 +42,12 @@ export function fight(w: World, id: number, foe: number, p: BotParams, rng: Rng)
   const fy = w.y[foe];
   const hx = w.x[id];
   const hy = w.y[id];
-  if (canCast(w, id, 3) && foesNear(w, id, hx, hy, a.r.radius) >= BOT_AI.nuggetHerdFoes) {
+  if (canCast(w, id, 3)) {
+    const n = foesNear(w, id, hx, hy, a.r.radius);
     const ally = nearestAlly(w, id, BOT_AI.awareRange);
-    return ally >= 0 ? cast(3, w.x[ally], w.y[ally], NO_TARGET) : cast(3, hx, hy, NO_TARGET);
+    // two or more in his ring, or one low foe in it with an ally to herd it into
+    const finish = n >= 1 && ally >= 0 && d <= a.r.radius && hpBp(w, foe) < BOT_AI.nuggetHerdFinishHpBp;
+    if (n >= BOT_AI.nuggetHerdFoes || finish) return ally >= 0 ? cast(3, w.x[ally], w.y[ally], NO_TARGET) : cast(3, hx, hy, NO_TARGET);
   }
   if (canCast(w, id, 1)) {
     const ally = hurtAlly(w, id, a.w.range, BOT_AI.careHpBp);

@@ -335,6 +335,19 @@ export function nearestFoe(w: World, id: number, r: number): number {
   return best;
 }
 
+/**
+ * Sim v13: is a living enemy unit that is not a hero (minion, structure, camp rat, pudding) aiming at `id` from within
+ * `r`? Napping there is pointless: the next hit breaks the nap, and a bot with a survival passive (Bravo) could nap,
+ * wake and nap again for a minute under minion fire.
+ */
+export function underFire(w: World, id: number, r: number): boolean {
+  for (let e = RANGE.minions; e < RANGE.end; e++) {
+    if (w.alive[e] === 0 || w.target[e] !== id || w.team[e] === w.team[id]) continue;
+    if (dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= r * r) return true;
+  }
+  return false;
+}
+
 /** Escape while retreating from enemy hero `foe`: a mobility ability toward home, then a defensive Paw Trick. */
 export function escapeCast(w: World, id: number, foe: number, p: BotParams): Command | null {
   const team = w.team[id];

@@ -40,7 +40,7 @@ import { PICKUP_FRENZY, PICKUP_SNACK, nearestPickup } from '../units/pickup';
 import { heroData, attackDamage, attackRange, radiusOf, targetable } from '../units/kinds';
 import { firstRat } from '../units/camp';
 import type { BotMem } from './mem';
-import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast } from './casts';
+import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast, underFire } from './casts';
 import { kitOf } from '../heroes/kit';
 import { laneRole, orderOf } from './orders';
 import {
@@ -421,7 +421,7 @@ function retreat(w: World, id: number, mem: BotMem, p: BotParams): Command | nul
   const hx = fountainX(team);
   const hy = fountainY();
   const far = dist2(w.x[id], w.y[id], hx, hy) > BOT_AI.napMinDist * BOT_AI.napMinDist;
-  if (far && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+  if (far && nearestFoe(w, id, BOT_AI.napSafeRange) < 0 && !underFire(w, id, BOT_AI.napSafeRange)) {
     mem.op[id] = Op.Nap;
     return { op: Op.Nap };
   }
@@ -520,7 +520,7 @@ function defend(w: World, id: number, mem: BotMem, s: number, p: BotParams, rng:
     return (p.waveClear ? clearCast(w, id, best) : null) ?? attack(w, id, mem, best);
   }
   const far = dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.napMinDist * BOT_AI.napMinDist;
-  if (far && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+  if (far && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0 && !underFire(w, id, BOT_AI.napSafeRange)) {
     mem.op[id] = Op.Nap;
     return { op: Op.Nap };
   }

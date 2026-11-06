@@ -98,7 +98,8 @@ describe('sim v10 (GAPS B0)', () => {
     expect(checkReplayShape({ ...rec, simVersion: 10 })).toMatchObject({ ok: false, code: 'PAWLEGENDS_SIM_VERSION' });
   });
 
-  it('SlotStats: damage taken for every hero, heal and shield for the heroes that give them, objective damage', { timeout: 60000 }, () => {
+  // 18 full matches: ~50 s alone, over 60 s in a full parallel run since v13's 17-hero roster (180 s headroom)
+  it('SlotStats: damage taken for every hero, heal and shield for the heroes that give them, objective damage', { timeout: 180000 }, () => {
     const totals: Record<string, { taken: number; heal: number; objective: number }> = {};
     for (let seed = 1; seed <= 6; seed++) {
       for (const hero of ['gabe', 'lambo', 'brutus'] as HeroId[]) {
