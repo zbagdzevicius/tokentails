@@ -269,7 +269,12 @@ export class App {
     if (this.dare) this.analytics.track('dare_open', { hero: this.dare.hero, difficulty: this.dare.difficulty });
     this.analytics.track('quality_tier', { tier: this.tier });
     this.showTitle();
-    if (this.partyCode && this.partyApi) this.openParty(this.partyCode);
+    // a `?party=` link joins at once; a reload with a party seat (a stored resume token) rejoins it
+    if (this.partyApi && this.partyCode) this.openParty('join', this.partyCode);
+    else if (this.partyApi && hasPartySeat()) this.openParty('resume');
+    if (this.partyCode) stripPartyParam();
+    // the party chunk is fetched while idle once the title is up (never part of the first load, §11)
+    if (this.partyApi) idle(() => void import('../party').catch(() => undefined));
     requestAnimationFrame((t) => this.frame(t));
     document.documentElement.dataset.ready = '1';
   }
@@ -515,6 +520,8 @@ export class App {
         void import('../render/fx/fun/funKit').catch(() => undefined);
       }, 1500);
     }
+    // a party of one played its solo match (D10): the party is still open, back to it
+    if (this.party?.suspended && this.screen !== 'title') queueMicrotask(() => this.party?.show());
     // a cat that arrived during a match goes on now (never over the match HUD)
     this.autoEquip(true);
     this.lobby.enter();
@@ -580,7 +587,13 @@ export class App {
         onParty: this.partyApi
           ? () => {
               sfx.play('click');
-              this.openParty(null);
+              this.openParty('create');
+            }
+          : undefined,
+        onJoinCode: this.partyApi
+          ? () => {
+              sfx.play('click');
+              this.openParty('code');
             }
           : undefined,
         onMute: (m) => this.setMuted(m),
@@ -749,31 +762,41 @@ export class App {
 
   // ------------------------------------------------------------------------------------------- party play
 
-  /** Open the party chunk: create a party at once (the first tap), or join `code` (a link). */
-  private openParty(code: string | null): void {
-    if (this.party || !this.partyApi) return;
+  /** Open the party chunk: create a party at once (the first tap), join a link's code, type a code, or resume a seat. */
+  private openParty(mode: 'create' | 'join' | 'code' | 'resume', code: string | null = null): void {
+    if (!this.partyApi) return;
+    // the party survived a solo match (D10): the title's button shows it again
+    if (this.party) {
+      if (this.party.suspended) this.party.show();
+      return;
+    }
+    if (this.partyOpening) return;
     const api = this.partyApi;
     const p = loadProfile();
+    const picks = canPickDifficulty(p.matches, p.veteran);
+    this.partyOpening = true;
     void import('../party')
       .then(({ openParty }) => {
+        this.partyOpening = false;
+        if (this.party) return;
         this.party = openParty(
           {
             root: this.root,
             api,
             hero: this.choice.hero,
             trick: this.choice.trick,
-            difficulty: canPickDifficulty(p.matches, p.veteran) ? this.choice.difficulty : 'easy',
-            maxDifficulty: canPickDifficulty(p.matches, p.veteran) ? 'hard' : 'easy',
+            difficulty: picks ? this.choice.difficulty : 'easy',
+            difficulties: picks ? ['easy', 'normal', 'hard'] : ['easy'],
+            maxDifficulty: picks ? 'hard' : 'easy',
             newbie: p.matches === 0,
             build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
-            // lane P9: the embed host mints the ticket over the bridge; standalone players are unscored guests
-            ticket: async () => null,
+            // P9: the embed host mints a single-use ticket with its own session; standalone players are unscored guests
+            ticket: () => this.integration.partyTicket(),
             guestKey: () => partyGuestKey(),
+            cardId: () => cardIdentity(this.choice.hero, this.lookFor(this.choice.hero))?.catId ?? null,
+            preload: () => loadMatch(),
             startMatch: (host, match) => this.startPartyMatch(host, match),
-            startSolo: (difficulty) => {
-              this.party?.close();
-              this.startMatch({ ...this.choice, difficulty: difficulty as Choice['difficulty'] });
-            },
+            startSolo: (difficulty) => this.startMatch({ ...this.choice, difficulty: difficulty as Choice['difficulty'] }),
             notify: (n) => this.session?.rail(n),
             close: () => {
               this.party = null;
@@ -784,11 +807,15 @@ export class App {
             share: (url, text) => this.bridge.post('share', { kind: 'party', url, text }),
             analytics: (event, props) => this.analytics.track(event as never, props as never),
           },
-          { code, create: code === null },
+          { mode, code },
         );
       })
-      .catch((err: unknown) => reportCrash('window', err));
+      .catch((err: unknown) => {
+        this.partyOpening = false;
+        reportCrash('window', err);
+      });
   }
+  private partyOpening = false;
 
   /** A party match: the MatchSession runs on the party's NetHost (no first-session rules, no speed). */
   private startPartyMatch(host: () => import('../net/net-host').NetHost, match: MatchMsg): void {
@@ -978,9 +1005,16 @@ export class App {
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
-    // Party play (MULTIPLAYER.md §6): a party match never posts a solo replay; its v:2 result goes through the host's
-    // save queue once the bridge carries it (lane P9). Only its owner ever sees the save status.
-    const partyEnd = (e.replay as { party?: { room: string } }).party;
+    // Party play (MULTIPLAYER.md §6): a party match never posts a solo replay; its v:2 result goes to the host, which
+    // posts it to `/live` (checked against the relay's stored room log). Only its owner ever sees the save status. A
+    // room the relay said is unscored (no ticket, no secret, a suspected referee) posts nothing.
+    const partyEnd = (e.replay as { party?: { room: string; slot: number; scored: boolean | null } }).party;
+    if (partyEnd && partyEnd.scored !== false && (e.replay.outcome === 'won' || e.replay.outcome === 'lost')) {
+      this.integration.partyResult(
+        { v: 2, room: partyEnd.room, slot: partyEnd.slot, simVersion: e.replay.simVersion, ticks: e.result.ticks, outcome: e.replay.outcome, finalHash: e.replay.finalHash },
+        { ticks: e.result.ticks, difficulty: e.replay.difficulty, won },
+      );
+    }
     if (!partyEnd) {
       const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
       this.bridge.post('match-result', {
@@ -1371,6 +1405,34 @@ function skuOfItem(item: string): string {
   if (item === 'skin.clem.pink_bow') return 'pl_starter';
   if (item === 'skin.clem.dawnblade') return 'pl_founder_legend';
   return 'pl_founder';
+}
+
+/** A stored party resume token (a reload while in a party rejoins it; the party chunk checks it with the relay). */
+function hasPartySeat(): boolean {
+  try {
+    return !!localStorage.getItem('pl.party.resume');
+  } catch {
+    return false;
+  }
+}
+
+/** Drop `?party=` from the address bar once read, so a later reload does not rejoin an old party by code. */
+function stripPartyParam(): void {
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.has('party')) return;
+    u.searchParams.delete('party');
+    history.replaceState(history.state, '', `${u.pathname}${u.search}${u.hash}`);
+  } catch {
+    /* sandboxed */
+  }
+}
+
+/** Run `fn` when the main thread is idle (a timeout where requestIdleCallback is missing, as on Safari). */
+function idle(fn: () => void): void {
+  const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (ric) ric(fn, { timeout: 8000 });
+  else setTimeout(fn, 3000);
 }
 
 /** A per-browser random guest key (party identity for the relay's caps; never a secret, never shown to peers). */

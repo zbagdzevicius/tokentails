@@ -85,6 +85,8 @@ export interface LobbyScreenOpts {
   onCards?(): void;
   /** Party play (MULTIPLAYER.md §8): "Play with friends" creates a party at once; absent = no relay configured. */
   onParty?(): void;
+  /** "Join with code" under it (opens the party chunk on the code boxes). */
+  onJoinCode?(): void;
   onPlay(c: Choice, seed?: number): void;
   onChoose(): void;
   onMute(m: boolean): void;
@@ -273,7 +275,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
         <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter">${esc(playLabel(o))}</button>
         <p class="lb-line${dare ? ' dare-line' : ''}">${esc(playLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>
         ${segmentHtml(o, diff)}
-        ${o.onParty && !dare ? `<button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>` : ''}
+        ${o.onParty && !dare ? `<div class="lb-friends-row"><button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>${o.onJoinCode ? `<button type="button" class="lb-joincode" data-a="joincode" data-testid="join-code">Join with code</button>` : ''}</div>` : ''}
       </div>
       ${secondary}
       <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
@@ -326,6 +328,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     else if (a === 'dare' && dare) play({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);
     else if (a === 'choose') o.onChoose();
     else if (a === 'party') o.onParty?.();
+    else if (a === 'joincode') o.onJoinCode?.();
     else if (a === 'cards') {
       o.sound?.('magic');
       o.onCards?.();

@@ -139,9 +139,20 @@ export class PartySocket {
     this.listener = l;
   }
 
+  private emitState(st: 'connecting' | 'open' | 'reconnecting' | 'closed'): void {
+    this.side.state?.(st);
+    this.listener.state?.(st);
+  }
+
+  /** The party client's own view of the socket (lane P): every JSON frame and state, whoever holds `listen`. */
+  private side: SocketListener = {};
+  tap(l: SocketListener): void {
+    this.side = l;
+  }
+
   connect(): void {
     this.stopped = false;
-    this.listener.state?.(this.attempt === 0 ? 'connecting' : 'reconnecting');
+    this.emitState(this.attempt === 0 ? 'connecting' : 'reconnecting');
     const ws = this.env.open(this.url, SUBPROTOCOL);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
@@ -172,7 +183,7 @@ export class PartySocket {
         this.token = m.resumeToken;
         this.env.store?.set(TOKEN_KEY, m.resumeToken);
         if (typeof m.lastSeq === 'number') this.applyLastSeq(m.lastSeq, true);
-        this.listener.state?.('open');
+        this.emitState('open');
         for (const q of this.queued.splice(0)) this.ws?.send(q);
       } else if (m.t === 'match') {
         this.slot = m.you.slot;
@@ -186,6 +197,7 @@ export class PartySocket {
         this.inMatch = false;
         this.stopBeats();
       }
+      this.side.json?.(m);
       this.listener.json?.(m);
       return;
     }
@@ -247,7 +259,7 @@ export class PartySocket {
     this.ws = null;
     this.stopBeats();
     if (this.stopped || this.elsewhere) {
-      this.listener.state?.('closed');
+      this.emitState('closed');
       return;
     }
     this.pilotedSince = this.inMatch ? this.pilotedSince : false;
@@ -255,7 +267,7 @@ export class PartySocket {
     const delay = Math.round(base / 2 + this.env.random() * (base / 2));
     this.attempt++;
     this.reconnects++;
-    this.listener.state?.('reconnecting');
+    this.emitState('reconnecting');
     this.reconnectTimer = this.env.setTimer(() => {
       this.reconnectTimer = null;
       if (!this.stopped) this.connect();

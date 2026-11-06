@@ -1,7 +1,36 @@
 {
-  "$comment": "The tt-pawlegends v1 bridge, one valid and one invalid sample per message type (docs/plans/moba integration plan, section 1). Read by the host parser tests (client/__test__/pawlegends) and the game parser tests (pawlegends/src/embed/__tests__) by relative path; not copied by sync-contracts. `valid` must parse to the same message (unknown fields dropped); `invalid` must be ignored (the parser returns null). `sanitize` cases parse to `expected`: a bad optional field is dropped, the message still counts. Art URLs: the CDN serves cat art from https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/ (virtual-host style, what `catImg` holds) and the same bucket path-style at https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/; both are allowed, nothing else. Sim v9: `champions` carries the shelter champions' cards (the game keeps only the champion catalog ids it knows) and `champion-offer` names one of them.",
+  "$comment": "The tt-pawlegends v1 bridge, one valid and one invalid sample per message type (docs/plans/moba integration plan, section 1). Read by the host parser tests (client/__test__/pawlegends) and the game parser tests (pawlegends/src/embed/__tests__) by relative path; not copied by sync-contracts. `valid` must parse to the same message (unknown fields dropped); `invalid` must be ignored (the parser returns null). `sanitize` cases parse to `expected`: a bad optional field is dropped, the message still counts. Art URLs: the CDN serves cat art from https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/ (virtual-host style, what `catImg` holds) and the same bucket path-style at https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/; both are allowed, nothing else. Sim v9: `champions` carries the shelter champions' cards (the game keeps only the champion catalog ids it knows) and `champion-offer` names one of them. Party play (MULTIPLAYER.md §5.3, §6): `party-ticket` answers a `party-ticket-request` with a single-use relay ticket (or null and an error code); `party-result` carries a party match's v:2 result, whose `matchId` is its room id.",
   "envelope": { "ns": "tt-pawlegends", "v": 1 },
   "hostToGame": {
+    "party-ticket": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket", "id": "k2j9x8", "ticket": "eyJhdWQiOiJwbC1wYXJ0eSIsInYiOjF9.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket", "id": "k2j9x8", "ticket": "not a ticket" },
+      "sanitize": [
+        {
+          "input": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "party-ticket",
+            "id": "k2j9x8",
+            "ticket": null,
+            "error": "PAWLEGENDS_PARTY_TICKET_UNAVAILABLE",
+            "extra": 1
+          },
+          "expected": {
+            "ns": "tt-pawlegends",
+            "v": 1,
+            "type": "party-ticket",
+            "id": "k2j9x8",
+            "ticket": null,
+            "error": "PAWLEGENDS_PARTY_TICKET_UNAVAILABLE"
+          }
+        },
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket", "id": "k2j9x8", "ticket": null, "error": "bad error!" },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket", "id": "k2j9x8", "ticket": null }
+        }
+      ]
+    },
     "hello": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "hello" },
       "invalid": { "ns": "tt-heist", "v": 1, "type": "hello" }
@@ -320,6 +349,26 @@
     }
   },
   "gameToHost": {
+    "party-ticket-request": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "k2j9x8" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "BAD ID" }
+    },
+    "party-result": {
+      "valid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "party-result",
+        "matchId": "r0om12abc",
+        "result": { "v": 2, "room": "r0om12abc", "slot": 1, "simVersion": 11, "ticks": 9000, "outcome": "won", "finalHash": "0a1b2c3d" }
+      },
+      "invalid": {
+        "ns": "tt-pawlegends",
+        "v": 1,
+        "type": "party-result",
+        "matchId": "other",
+        "result": { "v": 2, "room": "r0om12abc", "slot": 3, "simVersion": 11, "ticks": 9000, "outcome": "won", "finalHash": "0a1b2c3d" }
+      }
+    },
     "ready": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "ready", "version": "0.3.0" },
       "invalid": { "ns": "tt-pawlegends", "v": 2, "type": "ready", "version": "0.3.0" }

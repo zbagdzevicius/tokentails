@@ -209,7 +209,7 @@ export function skinTile(k: SkinTile, on: boolean, locked = false): string {
 }
 
 /** One pick tile: the portrait, and for a shelter champion its card art and the owner badge. */
-function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null, cardName: string | null = null): string {
+export function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null, cardName: string | null = null): string {
   const x = HERO_TEXT[h];
   // lobby spec §3b: a hero wearing one of the player's cards is called by the cat's name, the hero underneath
   const label = cardName ? `<b>${esc(cardName)}</b><small>${esc(`${x.title} · ${x.role}`)}</small>` : `<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small>`;
