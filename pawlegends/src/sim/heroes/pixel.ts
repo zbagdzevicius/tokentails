@@ -143,7 +143,8 @@ export const PIXEL_KIT: HeroKit = {
     if (src >= 0 && w.kind[src] === Kind.Hero && w.team[src] !== w.team[id] && attackRange(w, src) <= e.meleeRange) slow(w, src, e.slowBp, e.slow);
     return applyBp(dmg, BP_ONE - e.reduceBp);
   },
-  absorb(w, id, dmg) {
+  absorb(m, id, dmg) {
+    const w = m.world;
     if (w.kHonour[id] === 0) return 0;
     const used = Math.min(w.kHonour[id], dmg);
     w.kHonour[id] -= used;

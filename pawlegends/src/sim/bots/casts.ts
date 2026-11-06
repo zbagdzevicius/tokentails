@@ -7,7 +7,8 @@
  * Each function returns one cast command, or null.
  *
  * Sim v11: every hero has an explicit case (the `default` is a no-op, so a new hero never silently plays as Gabė);
- * the original cats delegate to their own module in ./heroes/, which builds on the helpers exported here.
+ * the original cats (sim v11) and dogs (sim v13) delegate to their own module in ./heroes/, which builds on the
+ * helpers exported here.
  */
 import { BOT_AI, type BotParams } from '../../data/bots';
 import { HERO_IDS } from '../../data/heroes';
@@ -27,6 +28,11 @@ import * as duchessBot from './heroes/duchess';
 import * as meatballBot from './heroes/meatball';
 import * as pixelBot from './heroes/pixel';
 import * as stiltsBot from './heroes/stilts';
+import * as nuggetBot from './heroes/nugget';
+import * as marshmallowBot from './heroes/marshmallow';
+import * as bravoBot from './heroes/bravo';
+import * as chiliBot from './heroes/chili';
+import * as howlerBot from './heroes/howler';
 
 /** Scratch hit list for `collect` (shared with ./heroes/*: read it right after the call that filled it). */
 export const hits = new Int32Array(ENTITY_CAP);
@@ -213,6 +219,16 @@ export function fightCast(w: World, id: number, foe: number, p: BotParams, rng: 
       return duchessBot.fight(w, id, foe, p, rng);
     case 'stilts':
       return stiltsBot.fight(w, id, foe, p, rng);
+    case 'nugget':
+      return nuggetBot.fight(w, id, foe, p, rng);
+    case 'marshmallow':
+      return marshmallowBot.fight(w, id, foe, p, rng);
+    case 'bravo':
+      return bravoBot.fight(w, id, foe, p, rng);
+    case 'chili':
+      return chiliBot.fight(w, id, foe, p, rng);
+    case 'howler':
+      return howlerBot.fight(w, id, foe, p, rng);
     default:
       return null;
   }
@@ -288,6 +304,16 @@ export function clearCast(w: World, id: number, t: number): Command | null {
       return duchessBot.clear(w, id, t, need);
     case 'stilts':
       return stiltsBot.clear(w, id, t, need);
+    case 'nugget':
+      return nuggetBot.clear(w, id, t, need);
+    case 'marshmallow':
+      return marshmallowBot.clear(w, id, t, need);
+    case 'bravo':
+      return bravoBot.clear(w, id, t, need);
+    case 'chili':
+      return chiliBot.clear(w, id, t, need);
+    case 'howler':
+      return howlerBot.clear(w, id, t, need);
     default:
       return null;
   }
@@ -366,6 +392,32 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
     }
     case 'stilts': {
       const c = stiltsBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    // Sim v13: the original dogs.
+    case 'nugget': {
+      const c = nuggetBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'marshmallow': {
+      const c = marshmallowBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'bravo': {
+      const c = bravoBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'chili': {
+      const c = chiliBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'howler': {
+      const c = howlerBot.escape(w, id, foe, hx, hy);
       if (c) return c;
       break;
     }

@@ -173,7 +173,8 @@ export const BRUTUS_KIT: HeroKit = {
     if (w.kRT[id] > 0 && src >= 0 && src === w.kFoe[id]) return applyBp(d, BP_ONE - a.r.reduceBp);
     return d;
   },
-  absorb(w, id, dmg) {
+  absorb(m, id, dmg) {
+    const w = m.world;
     const used = Math.min(w.kHonour[id], dmg);
     w.kHonour[id] -= used;
     return used;

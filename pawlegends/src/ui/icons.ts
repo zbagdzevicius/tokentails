@@ -4,6 +4,11 @@ import { ICONS as MEATBALL_ICONS } from './icons/meatball';
 import { ICONS as PIXEL_ICONS } from './icons/pixel';
 import { ICONS as DUCHESS_ICONS } from './icons/duchess';
 import { ICONS as STILTS_ICONS } from './icons/stilts';
+import { ICONS as NUGGET_ICONS } from './icons/nugget';
+import { ICONS as MARSHMALLOW_ICONS } from './icons/marshmallow';
+import { ICONS as BRAVO_ICONS } from './icons/bravo';
+import { ICONS as CHILI_ICONS } from './icons/chili';
+import { ICONS as HOWLER_ICONS } from './icons/howler';
 
 const P: Record<IconId, string> = {
   sword: '<path d="M38 6 L42 10 L20 32 L16 28 Z" fill="currentColor"/><path d="M12 30 L22 40 M14 36 L8 42" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>',
@@ -51,6 +56,14 @@ const P: Record<IconId, string> = {
   ...PIXEL_ICONS,
   ...DUCHESS_ICONS,
   ...STILTS_ICONS,
+  // sim v13 original dogs
+  ...NUGGET_ICONS,
+  ...MARSHMALLOW_ICONS,
+  ...BRAVO_ICONS,
+  ...CHILI_ICONS,
+  ...HOWLER_ICONS,
+  // sim v13: the DOGS tab of the pick screen (the CATS tab uses `paw`), a dog bone
+  bone: '<path d="M14 18 L34 30" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><g fill="currentColor"><circle cx="9" cy="17" r="5"/><circle cx="14" cy="11" r="5"/><circle cx="34" cy="37" r="5"/><circle cx="39" cy="31" r="5"/></g>',
 };
 
 export function icon(id: IconId, cls = ''): string {

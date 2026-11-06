@@ -101,7 +101,7 @@ export function dealDamage(
     dmg -= shielded;
   }
   if (heroDst && dmg > 0) {
-    const extra = kitOf(w, dst).absorb?.(w, dst, dmg) ?? 0;
+    const extra = kitOf(w, dst).absorb?.(m, dst, dmg) ?? 0;
     shielded += extra;
     dmg -= extra;
   }

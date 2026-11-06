@@ -30,8 +30,8 @@ import { coreId, quietMatch } from './sim-helpers';
 import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
-  it('SIM_VERSION is 12 (sim v9 to v12 kept the chip)', () => {
-    expect(SIM_VERSION).toBe(12);
+  it('SIM_VERSION is 13 (sim v9 to v13 kept the chip)', () => {
+    expect(SIM_VERSION).toBe(13);
   });
 
   it('stops at the cap before Sunset, then chips the weakest tower that can be hit', () => {
@@ -124,13 +124,13 @@ describe('sim v8: bots', () => {
     expect(XP.catchUpFreeLevels).toBe(1);
   });
 
-  it('per-hero tuning replaced the species edge (dogs deal more and take less)', () => {
-    expect(HEROES.brutus.pvp.dmgBp).toBeGreaterThan(10000);
+  it('per-hero tuning replaced the species edge (sim v13: with seven dogs the old dogs’ edge came down)', () => {
+    expect(HEROES.brutus.pvp.dmgBp).toBeLessThan(11100);
     expect(HEROES.cacklejaw.pvp.takenBp).toBeLessThan(10000);
-    // sim v9 balance pass: the cat heroes carry their own small numbers too (Clem 8200/10100 since the sim v11 balance pass)
-    expect(HEROES.clem.pvp).toEqual({ dmgBp: 8200, takenBp: 10100 });
-    expect(pvpNumbers('clem')).toBe('Hero fights (Normal, Hard): deals 18% less · takes 1% more');
-    expect(pvpNumbers('brutus')).toMatch(/^Hero fights \(Normal, Hard\): deals 11% more · takes 6.5% less$/);
+    // sim v9 balance pass: the cat heroes carry their own small numbers too (Clem 9100/9600 since the sim v13 balance pass)
+    expect(HEROES.clem.pvp).toEqual({ dmgBp: 8850, takenBp: 9725 });
+    expect(pvpNumbers('clem')).toBe('Hero fights (Normal, Hard): deals 11.5% less · takes 2.8% less');
+    expect(pvpNumbers('brutus')).toMatch(/^Hero fights \(Normal, Hard\): deals 2\.5% less · takes 4\.3% less$/);
     // the bots chips no longer print a species handicap
     for (const h of Object.values(DIFFICULTY_HINT)) expect(h).not.toMatch(/species|Woof pack/);
   });
@@ -169,9 +169,10 @@ describe('round 2 client: why the match ended', () => {
     expect(tryHeroFor('clem', { sage: { fastest: 1, takedowns: 1 } })).toBe('brutus');
     // sim v9: after Cacklejaw come the shelter champions
     expect(tryHeroFor('cacklejaw', { clem: {}, sage: {}, brutus: {} })).toBe('lambo');
-    // sim v11: after Gabė come the original cats, and the list wraps after Stilts
+    // sim v11: after Gabė come the original cats; sim v13: the original dogs after Stilts, and the list wraps after Howler
     expect(tryHeroFor('gabe', {})).toBe('meatball');
-    expect(tryHeroFor('stilts', {})).toBe('clem');
+    expect(tryHeroFor('stilts', {})).toBe('nugget');
+    expect(tryHeroFor('howler', {})).toBe('clem');
   });
 });
 

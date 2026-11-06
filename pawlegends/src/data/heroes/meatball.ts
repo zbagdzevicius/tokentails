@@ -6,8 +6,8 @@ export const MEATBALL: HeroData = Object.freeze<HeroData>({
   name: 'Meatball',
   side: 'cat',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). */
-  pvp: { dmgBp: 9100, takenBp: 9600 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 7900 / takes 9925 (48.9% of the 2,000-seed gate). */
+  pvp: { dmgBp: 7900, takenBp: 9925 },
   element: 'GRASS',
   base: { hp: 780, hpPerLevel: 80, attack: 50, attackPerLevel: 4, attackEvery: 34, range: 1600, speed: 4700, armour: 36, armourPerLevel: 3 },
   /** Food Coma: a hit that drops him below 30% HP puts him to sleep: a shield of 15% max HP for 3 s. 60 s lockout. */

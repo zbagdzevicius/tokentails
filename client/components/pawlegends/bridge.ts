@@ -67,6 +67,11 @@ export const PAWLEGENDS_HEROES = [
   "pixel",
   "duchess",
   "stilts",
+  "nugget",
+  "marshmallow",
+  "bravo",
+  "chili",
+  "howler",
 ] as const;
 export const PAWLEGENDS_TRICKS = ["pounce", "snack", "hiss"] as const;
 

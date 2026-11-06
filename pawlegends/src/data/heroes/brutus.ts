@@ -6,8 +6,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
   name: 'Sir Brutus',
   side: 'dog',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). */
-  pvp: { dmgBp: 11100, takenBp: 9350 },
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v13 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). */
+  pvp: { dmgBp: 9750, takenBp: 9575 },
   element: 'SAND',
   base: { hp: 760, hpPerLevel: 80, attack: 46, attackPerLevel: 4, attackEvery: 36, range: 1600, speed: 4800, armour: 40, armourPerLevel: 3 },
   /** Honour: damage from heroes builds a shield up to 12% max HP over 4 s; decays after 3 s out of combat. */
