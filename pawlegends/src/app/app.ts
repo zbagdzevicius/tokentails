@@ -1103,12 +1103,16 @@ export class App {
       saveProfile(lp);
     }
     // GAPS A2: the grade replaces the old KDA impact on the ladder (an S or A loss costs half; not stacked)
-    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
+    // the bot ladder is a solo rating: a party match (friends, a shared seed, bots flying dropped friends) never moves it
+    const ladder = partyEnd ? null : recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
     // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
     // lobby spec §3b: a worn owned card names the player's row and MVP after the cat (records stay per hero)
     const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, myCard);
+    // party play: every human row (yours too), the MVP and "Best on your team" use the party names the friends saw
+    const partyNames = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
+    if (partyNames) partyNames.forEach((n, slot) => n && (names[slot] = n));
     const nameOf = (slot: number): string => names[slot] ?? HERO_TEXT[e.result.stats.find((st) => st.slot === slot)?.hero ?? e.replay.hero].title;
     const bestMine = grades.best[myTeam];
     // Party play (M6): results together, the party's rows and actions (the save chip stays this player's own)
@@ -1214,7 +1218,13 @@ export class App {
               party: {
                 rowsHtml: party.resultsRows(e.result.stats, mySlot, names, partyEnd as { names?: (string | null)[]; pilotPct?: number[] }),
                 again: party.againText(),
-                onLeave: () => party.leaveParty(),
+                // leave the party and the results: back to the title (never a stranded results screen)
+                onLeave: () => {
+                  party.leaveParty();
+                  this.session?.dispose();
+                  this.session = null;
+                  this.showTitle();
+                },
               },
             }
           : {}),

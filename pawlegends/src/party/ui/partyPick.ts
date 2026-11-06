@@ -53,7 +53,8 @@ function stripSeat(v: PartyView, m: MemberView | undefined, hide: boolean): stri
   const hero = m.hero && m.hero in HEROES ? (m.hero as HeroId) : null;
   const pic = hero ? portraitUrl(hero) : null;
   const face = pic ? `<span class="pp-ts-face" style="background-image:url('${esc(pic)}')"></span>` : '<span class="pp-ts-face">?</span>';
-  return `<li class="pp-ts" data-hero="${hero ?? ''}" data-locked="${!!m.locked}" data-hover="${!!hero && !m.locked}"${m.id === v.you ? ' data-me="1"' : ''}>${face}<b>${esc(shownName(v, m, hide))}</b><small>${hero ? esc(HERO_TEXT[hero].title) : '…'}</small></li>`;
+  const heroName = hero ? HERO_TEXT[hero].title : '…';
+  return `<li class="pp-ts" data-hero="${hero ?? ''}" data-locked="${!!m.locked}" data-hover="${!!hero && !m.locked}"${m.id === v.you ? ' data-me="1"' : ''} title="${esc(`${shownName(v, m, hide)}: ${heroName}`)}">${face}<b>${esc(shownName(v, m, hide))}</b><small class="pp-ts-hero">${esc(heroName)}</small></li>`;
 }
 
 export function pickHtml(o: PickModel): string {
@@ -73,10 +74,15 @@ export function pickHtml(o: PickModel): string {
       `<button type="button" class="chip pp-trick ${t === o.trick ? 'on' : ''}" data-p="trick" data-v="${t}" aria-pressed="${t === o.trick}" ${locked ? 'disabled' : ''} title="${esc(TRICK_TEXT[t].text)}">${icon(TRICK_TEXT[t].icon)}${esc(TRICK_TEXT[t].name)}</button>`,
   ).join('');
   const err = o.error ? `<p class="pp-err" role="alert">${esc(o.error)}</p>` : '';
+  // Lock in only for a hero this player can really get (a hero someone just locked, or the other side, is refused)
+  const canLock = !locked && !!o.hover && !heroBlock(v, o.hover, hide);
+  const lockBtn = locked
+    ? `<button type="button" class="pl-btn ghost" data-p="unlock" data-testid="party-unlock">${COPY.changeHero}</button><button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" disabled>${COPY.lockedIn}</button>`
+    : `<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${canLock ? '' : 'disabled'}>${COPY.lockIn}</button>`;
   return `<div class="pp-card pp-pick" data-locked="${locked}">
     <div class="pp-head"><h2>${COPY.pickTitle}</h2>${sideNote}<ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
     <div class="pp-roster">${rows}</div>
-    <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${locked ? 'disabled' : ''}>${locked ? COPY.lockedIn : COPY.lockIn}</button></div>
+    <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${lockBtn}</div>
   </div>`;
 }
 

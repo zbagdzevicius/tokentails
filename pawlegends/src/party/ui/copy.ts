@@ -39,7 +39,8 @@ export const COPY = Object.freeze({
   back: 'Back',
   playAgain: 'Play again together',
   joinWithCode: 'Join with code',
-  enterCode: 'Enter the 6-letter code',
+  enterCode: 'Enter the 6-character code',
+  codeSkipped: 'Codes never use 0, 1, I, L or O',
   paste: 'Paste',
   join: 'Join',
   joining: (code: string) => `Joining ${code}…`,
@@ -65,6 +66,17 @@ export const COPY = Object.freeze({
   youLead: 'You lead the party now',
   // errors (§8)
   ended: 'This party has ended',
+  notFound: 'No party with that code',
+  codeChanged: 'This invite is out of date: ask for a new link',
+  alreadyIn: 'You are already in this party in another tab',
+  sideSwitched: 'Leader switched sides: pick again',
+  heroTaken: (hero: string, name: string) => `${name} took ${hero}`,
+  leaveSure: 'Tap again to leave',
+  removeSure: 'Tap again to remove',
+  rematchSoon: (s: number) => `Starting in ${s}s`,
+  changeHero: 'Change hero',
+  slowJoin: (s: number) => `Still connecting · ${s}s (slow network?)`,
+  startWhenBack: (name: string) => `Starting when ${name} is back`,
   playNow: 'Play now',
   ownParty: 'Start your own party',
   updateRequired: 'Update to play together',
@@ -77,7 +89,7 @@ export const COPY = Object.freeze({
   slowDown: 'Slow down a moment',
   elsewhere: 'Playing in another tab',
   badTicket: 'Sign-in expired: playing as a guest',
-  badCode: 'That code has 6 letters and numbers',
+  badCode: 'A code has 6 letters and digits',
   generic: 'Something went wrong',
   offline: 'Reconnecting…',
 });
@@ -88,9 +100,14 @@ export function errorText(code: string, retryS = 0): string {
     case 'update_required':
       return COPY.updateRequired;
     case 'party_not_found':
+      return COPY.notFound;
     case 'party_ended':
     case 'room_gone':
       return COPY.ended;
+    case 'code_changed':
+      return COPY.codeChanged;
+    case 'already_in_party':
+      return COPY.alreadyIn;
     case 'party_full':
       return COPY.full;
     case 'party_busy':

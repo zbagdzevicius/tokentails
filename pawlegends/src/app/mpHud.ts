@@ -82,7 +82,8 @@ export function voteNote(v: VoteMsg, mySlot: number): Note | null {
       : [{ id: 'vote-pause-yes', label: 'Yes' }];
   return {
     key: VOTE_KEY(v.kind),
-    title: `${word}? ${v.yes.length}/${v.need}`,
+    // short enough for a phone rail with two chips: who is in, out of how many are needed, and the time left
+    title: `${word} ${v.yes.length}/${v.need}${v.leftMs > 0 ? ` · ${Math.ceil(v.leftMs / 1000)}s` : ''}`,
     tone: 'gold',
     // a vote waits on this player: it takes the phone's one rail line from any announcer line (prio 0)
     prio: actions ? 0 : 1,
