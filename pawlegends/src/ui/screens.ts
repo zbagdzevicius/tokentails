@@ -319,7 +319,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
           ${championOf(c.hero) ? `<p class="champ-from">${esc(`Inspired by ${championOf(c.hero)?.cardName}'s Token Tails card.`)}${o.champions?.[c.hero]?.owned ? ` <span class="champ-owned">${esc(`From ${championOf(c.hero)?.cardName}'s card`)}</span>` : ''}</p>${t.flavour ? `<p class="champ-flavour">${esc(t.flavour)}</p>` : ''}` : ''}
           <ul class="kit">
             <li><span class="ico passive">${icon('paw')}</span><span class="t"><b>${esc(t.passive.name)}</b> ${esc(t.passive.text)}</span></li>
-            ${t.abilities.map((a, i) => `<li title="${esc(`${a.name}: ${a.text} (${abilityNumbers(c.hero, i)})`)}"><span class="ico">${icon(a.icon)}</span><span class="t"><kbd>${'QWER'[i]}</kbd> <b>${esc(a.name)}</b> ${esc(a.text)}${numbers ? `<span class="num">${esc(abilityNumbers(c.hero, i))}</span>` : ''}</span></li>`).join('')}
+            ${t.abilities.map((a, i) => `<li${i === 3 ? ' class="ult"' : ''} title="${esc(`${a.name}: ${a.text} (${abilityNumbers(c.hero, i)})`)}"><span class="ico">${icon(a.icon)}</span><span class="t"><kbd>${'QWER'[i]}</kbd> <b>${esc(a.name)}</b> ${esc(a.text)}${numbers ? `<span class="num">${esc(abilityNumbers(c.hero, i))}</span>` : ''}</span></li>`).join('')}
           </ul>
           ${numbers && pvpNumbers(c.hero) ? `<p class="num pvp">${esc(pvpNumbers(c.hero))}</p>` : ''}
         </div>
@@ -380,6 +380,12 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         b.classList.add(ok ? 'playing' : 'spent');
         b.textContent = ok ? 'Previewing' : 'Seen';
       }
+      return;
+    }
+    // Audit UX-06: on short screens a kit row is one line; a tap shows its full text
+    const kitRow = t.closest<HTMLElement>('.kit li');
+    if (kitRow) {
+      kitRow.classList.toggle('open');
       return;
     }
     if (h) {
