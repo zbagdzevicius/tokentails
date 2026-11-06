@@ -125,6 +125,8 @@ export class PartySocket {
   /** The slot was piloted since the last ack: unacked commands are dropped, never re-sent. */
   private pilotedSince = false;
   rttMs = 0;
+  /** The relay's clock minus ours (ms, from `welcome.serverMs`): vote deadlines are relay time. */
+  serverOffsetMs = 0;
   private rttSamples: number[] = [];
   lastTurn = 0;
   inMatch = false;
@@ -180,6 +182,7 @@ export class PartySocket {
       if (m.t === 'welcome') {
         this.attempt = 0;
         this.member = m.member;
+        if (typeof m.serverMs === 'number' && Number.isFinite(m.serverMs)) this.serverOffsetMs = m.serverMs - Date.now();
         this.token = m.resumeToken;
         this.env.store?.set(TOKEN_KEY, m.resumeToken);
         if (typeof m.lastSeq === 'number') this.applyLastSeq(m.lastSeq, true);
