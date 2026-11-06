@@ -7,6 +7,8 @@ const vite = './node_modules/.bin/vite';
 
 export default defineConfig({
   testDir: 'tests/e2e',
+  // party play runs against a relay: its own config (playwright.mp.config.ts)
+  testIgnore: ['**/mp/**'],
   timeout: 60_000,
   fullyParallel: false,
   workers: 1,

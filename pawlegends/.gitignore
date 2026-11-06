@@ -1,6 +1,7 @@
 node_modules/
 dist/
 .e2e-dist/
+.e2e-mp-dist/
 test-results/
 playwright-report/
 .vitest/
