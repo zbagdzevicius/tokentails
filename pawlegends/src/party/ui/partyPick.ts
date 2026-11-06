@@ -1,8 +1,8 @@
 /**
  * The shared pick (docs/plans/moba/MULTIPLAYER.md §5.1, §8, lane P7): 30 s, simultaneous. Top: the team strip with
  * the three human seats (a pulsing outline while hovering, a solid frame once locked) and bot seats as "?". Middle:
- * the existing pick cards; a hero another human locked is greyed with that player's name; the other side is greyed
- * with "Leader chose cats" (the leader's hover decides the side); a "New? Try this" badge on the easy hero for a new
+ * the existing pick cards in one grid; a hero another human locked is greyed with that player's name; the other side
+ * is greyed and the header says "Leader chose cats" (the leader's hover decides the side); a "New? Try this" badge on the easy hero for a new
  * player. Bottom: the Paw Trick row, the timer and Lock in.
  *
  * Pure markup; the party client dispatches the `data-p` actions (`hero`, `trick`, `lock`).
@@ -53,7 +53,7 @@ function stripSeat(v: PartyView, m: MemberView | undefined, hide: boolean): stri
   const hero = m.hero && m.hero in HEROES ? (m.hero as HeroId) : null;
   const pic = hero ? portraitUrl(hero) : null;
   const face = pic ? `<span class="pp-ts-face" style="background-image:url('${esc(pic)}')"></span>` : '<span class="pp-ts-face">?</span>';
-  return `<li class="pp-ts" data-locked="${!!m.locked}" data-hover="${!!hero && !m.locked}"${m.id === v.you ? ' data-me="1"' : ''}>${face}<b>${esc(shownName(v, m, hide))}</b><small>${hero ? esc(HERO_TEXT[hero].title) : '…'}</small></li>`;
+  return `<li class="pp-ts" data-hero="${hero ?? ''}" data-locked="${!!m.locked}" data-hover="${!!hero && !m.locked}"${m.id === v.you ? ' data-me="1"' : ''}>${face}<b>${esc(shownName(v, m, hide))}</b><small>${hero ? esc(HERO_TEXT[hero].title) : '…'}</small></li>`;
 }
 
 export function pickHtml(o: PickModel): string {
@@ -64,20 +64,17 @@ export function pickHtml(o: PickModel): string {
   const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
   const strip = [0, 1, 2].map((i) => stripSeat(v, humans[i], hide)).join('');
   const leaderSide = sideOf(v.members.find((m) => m.id === v.leader)?.hero);
-  const rows = (['cat', 'dog'] as const)
-    .map((side) => {
-      const heroes = HERO_IDS.filter((h) => HEROES[h].side === side);
-      const dim = v.leader !== v.you && leaderSide && leaderSide !== side;
-      return `<div class="pp-heroes" data-side="${side}"${dim ? ' data-dim="1"' : ''}>${heroes.map((h) => heroTile(h, h === o.hover, portraitUrl(h), undefined)).join('')}${dim ? `<span class="pp-side-note">${esc(COPY.leaderChose(leaderSide))}</span>` : ''}</div>`;
-    })
-    .join('');
+  // one grid (cats then dogs): two rows of six fit a 375 px tall phone
+  const order = [...HERO_IDS.filter((h) => HEROES[h].side === 'cat'), ...HERO_IDS.filter((h) => HEROES[h].side === 'dog')];
+  const sideNote = v.leader !== v.you && leaderSide ? `<p class="pp-side-note" data-testid="party-side-note">${esc(COPY.leaderChose(leaderSide))}</p>` : '';
+  const rows = `<div class="pp-heroes">${order.map((h) => heroTile(h, h === o.hover, portraitUrl(h), undefined)).join('')}</div>`;
   const tricks = TRICK_IDS.map(
     (t) =>
       `<button type="button" class="chip pp-trick ${t === o.trick ? 'on' : ''}" data-p="trick" data-v="${t}" aria-pressed="${t === o.trick}" ${locked ? 'disabled' : ''} title="${esc(TRICK_TEXT[t].text)}">${icon(TRICK_TEXT[t].icon)}${esc(TRICK_TEXT[t].name)}</button>`,
   ).join('');
   const err = o.error ? `<p class="pp-err" role="alert">${esc(o.error)}</p>` : '';
   return `<div class="pp-card pp-pick" data-locked="${locked}">
-    <div class="pp-head"><h2>${COPY.pickTitle}</h2><ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
+    <div class="pp-head"><h2>${COPY.pickTitle}</h2>${sideNote}<ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
     <div class="pp-roster">${rows}</div>
     <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${locked ? 'disabled' : ''}>${locked ? COPY.lockedIn : COPY.lockIn}</button></div>
   </div>`;
@@ -96,6 +93,7 @@ export function decoratePick(root: HTMLElement, v: PartyView, hide = false): voi
     el.dataset.testid = `party-hero-${h}`;
     const why = heroBlock(v, h, hide);
     const taken = lockedByOthers(v, hide).get(h);
+    if (why && !taken) el.dataset.side = 'off';
     if (why || me?.locked) {
       (el as HTMLButtonElement).disabled = true;
       el.setAttribute('aria-disabled', 'true');

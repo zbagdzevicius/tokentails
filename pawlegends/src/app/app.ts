@@ -843,7 +843,8 @@ export class App {
       guide: 'off',
       knowsUlt: p.knowsUlt,
       pingTip: false,
-      forfeitFrom: 0,
+      // the Esc menu's Forfeit is a surrender vote in party play (NetHost), open from the difficulty's forfeit time
+      forfeitFrom: forfeitTick(99, difficulty),
       skinFx: p.skinFx,
       showcase: [],
       host: host as unknown as MatchSetup['host'],
