@@ -207,4 +207,21 @@ describe('party relay (N2)', () => {
         expect(pa.code).toBeTruthy();
         await b.stop();
     });
+
+    it('a second tab resuming the same seat takes it; the first tab gets seat_elsewhere', async () => {
+        const b = await boot();
+        const first = await b.client();
+        first.hello();
+        const w = await first.until(() => first.last('welcome'));
+        first.send({ t: 'party.create', difficulty: 'easy' });
+        await first.until(() => first.last('party'));
+        const second = await b.client();
+        second.hello({ resume: { token: w.resumeToken } });
+        const w2 = await second.until(() => second.last('welcome'));
+        expect(w2.member).toBe(w.member);
+        expect(w2.resumeToken).not.toBe(w.resumeToken);
+        await first.until(() => first.json.some(j => j.t === 'error' && j.code === 'seat_elsewhere'));
+        await first.until(() => first.closed);
+        await b.stop();
+    });
 });
