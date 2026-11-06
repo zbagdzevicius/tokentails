@@ -29,7 +29,7 @@ export interface LandingHero {
  * The sim version of the game build this page links to (`pawlegends/src/sim/version.ts`). landing-roster.test.ts
  * fails until it matches the game, so a sim release that adds heroes also moves them onto the landing.
  */
-export const GAME_SIM_VERSION = 12;
+export const GAME_SIM_VERSION = 13;
 
 const P = (id: string, hash: string) => `/pawlegends/landing/portrait-${id}.${hash}.webp`;
 
@@ -46,11 +46,11 @@ export const LANDING_ROSTER: readonly LandingHero[] = Object.freeze([
   { id: "stilts", name: "Stilts", side: "cat", role: "Assassin", blurb: "All legs and ears. Runs to build Stride, then pounces.", portrait: P("stilts", "2ce19c52"), since: 11 },
   { id: "brutus", name: "Sir Brutus", side: "dog", role: "Tank", breed: "Pug knight", blurb: "A pug of honour. Stands in front so friends do not have to.", portrait: P("brutus", "b8e8e407"), since: 1 },
   { id: "cacklejaw", name: "Cacklejaw", side: "dog", role: "Assassin", breed: "Hyena", blurb: "Giggles in the bushes. Then pounces.", portrait: P("cacklejaw", "e7dfabb6"), since: 1 },
-  { id: "nugget", name: "Nugget", side: "dog", role: "Support", breed: "Pembroke corgi", blurb: "A loaf with legs. Herds cats, rushes to friends and heals by splooting.", portrait: null, since: 13 },
-  { id: "marshmallow", name: "Marshmallow", side: "dog", role: "Mage", breed: "Samoyed puppy", blurb: "Pure smile. Snow on the ground, and cats who stay get frozen.", portrait: null, since: 13 },
-  { id: "bravo", name: "Bravo", side: "dog", role: "Tank", breed: "Black pug", blurb: "A pug who lives for the drama. Slows cats, owns the stage, fakes his own death.", portrait: null, since: 13 },
-  { id: "chili", name: "Chili", side: "dog", role: "Marksman", breed: "Chihuahua", blurb: "Tiny. Shaking. Furious. Gets faster the angrier he gets.", portrait: null, since: 13 },
-  { id: "howler", name: "Howler", side: "dog", role: "Fighter", breed: "Siberian husky", blurb: "A husky with opinions. Every ability is a scream.", portrait: null, since: 13 },
+  { id: "nugget", name: "Nugget", side: "dog", role: "Support", breed: "Pembroke corgi", blurb: "A loaf with legs. Herds cats, rushes to friends and heals by splooting.", portrait: null, since: 14 },
+  { id: "marshmallow", name: "Marshmallow", side: "dog", role: "Mage", breed: "Samoyed puppy", blurb: "Pure smile. Snow on the ground, and cats who stay get frozen.", portrait: null, since: 14 },
+  { id: "bravo", name: "Bravo", side: "dog", role: "Tank", breed: "Black pug", blurb: "A pug who lives for the drama. Slows cats, owns the stage, fakes his own death.", portrait: null, since: 14 },
+  { id: "chili", name: "Chili", side: "dog", role: "Marksman", breed: "Chihuahua", blurb: "Tiny. Shaking. Furious. Gets faster the angrier he gets.", portrait: null, since: 14 },
+  { id: "howler", name: "Howler", side: "dog", role: "Fighter", breed: "Siberian husky", blurb: "A husky with opinions. Every ability is a scream.", portrait: null, since: 14 },
 ] as LandingHero[]);
 
 export const isReleased = (h: LandingHero): boolean => h.since <= GAME_SIM_VERSION;
