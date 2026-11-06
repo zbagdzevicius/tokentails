@@ -98,6 +98,29 @@ describe('PartySocket', () => {
     expect(t.store.get('pl.party.resume')).not.toBe(first);
   });
 
+  it('BEAT reports the highest turn received (not the applied one); a new room starts the count again', () => {
+    const t = setup();
+    t.s.connect();
+    t.sockets[0].open();
+    welcome(t.sockets[0]);
+    const match = { t: 'match', room: 'r1', config: { seed: 1, picks: [], tricks: [], difficulty: 'easy', humans: [0, 1] }, cosmetics: { heroSkins: [] }, you: { slot: 1 }, names: [], turnTicks: 2, startTurn: 0, startInMs: 0, lastSeq: 0, simVersion: 11 };
+    t.sockets[0].json(match);
+    for (let turn = 0; turn <= 40; turn++) t.sockets[0].bin(encodeTurn({ turn, modeMask: 0, acks: [], entries: [] }));
+    t.s.lastTurn = 35; // the jitter buffer holds 5
+    t.s.beatNow();
+    const beats = () =>
+      t.sockets[0].sent
+        .filter((x): x is Uint8Array => typeof x !== 'string' && x[0] === Frame.BEAT)
+        .map((x) => {
+          const f = decodeClientBinary(x);
+          return f.type === Frame.BEAT ? f.f.lastTurn : -1;
+        });
+    expect(beats().at(-1)).toBe(40);
+    t.sockets[0].json({ ...match, room: 'r2' });
+    t.s.beatNow();
+    expect(beats().at(-1)).toBe(0);
+  });
+
   it('reconnects with exponential backoff (250 ms to 5 s, jitter)', () => {
     expect(PartySocket.backoff(0)).toEqual([125, 250]);
     expect(PartySocket.backoff(10)[1]).toBe(BACKOFF_MAX_MS);

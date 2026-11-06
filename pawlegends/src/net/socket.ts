@@ -65,11 +65,20 @@ export interface SocketListener {
 
 const TOKEN_KEY = 'pl.party.resume';
 
+/**
+ * The resume token lives in sessionStorage only (this tab, survives a reload, gone with the tab): never localStorage,
+ * where any script on the origin could read it later. An older build's localStorage copy is removed on first use.
+ */
 export function browserSocketEnv(): SocketEnv {
   const store = {
     get: (k: string) => {
       try {
-        return sessionStorage.getItem(k) ?? localStorage.getItem(k);
+        localStorage.removeItem(k);
+      } catch {
+        /* private mode */
+      }
+      try {
+        return sessionStorage.getItem(k);
       } catch {
         return null;
       }
@@ -77,7 +86,6 @@ export function browserSocketEnv(): SocketEnv {
     set: (k: string, v: string) => {
       try {
         sessionStorage.setItem(k, v);
-        localStorage.setItem(k, v);
       } catch {
         /* private mode */
       }
@@ -85,7 +93,6 @@ export function browserSocketEnv(): SocketEnv {
     del: (k: string) => {
       try {
         sessionStorage.removeItem(k);
-        localStorage.removeItem(k);
       } catch {
         /* private mode */
       }
@@ -129,6 +136,12 @@ export class PartySocket {
   serverOffsetMs = 0;
   private rttSamples: number[] = [];
   lastTurn = 0;
+  /**
+   * The highest turn received (TURN or CATCHUP). BEAT reports it: the relay's reclaim check asks "is the stream
+   * reaching this client", and the applied turn lags it by the jitter buffer (up to 5 turns) on purpose.
+   */
+  receivedTurn = -1;
+  private room = '';
   inMatch = false;
   reconnects = 0;
   private queued: string[] = [];
@@ -189,6 +202,12 @@ export class PartySocket {
         this.emitState('open');
         for (const q of this.queued.splice(0)) this.ws?.send(q);
       } else if (m.t === 'match') {
+        // a new room (the rematch on the same socket) starts its turn count again; a resume keeps it
+        if (m.room !== this.room) {
+          this.room = m.room;
+          this.receivedTurn = -1;
+          this.lastTurn = 0;
+        }
         this.slot = m.you.slot;
         this.inMatch = true;
         this.applyLastSeq(m.lastSeq, true);
@@ -215,8 +234,14 @@ export class PartySocket {
       this.sampleRtt(this.env.now() - f.f.clientMs);
       return;
     }
-    if (f.type === Frame.TURN) this.onTurnMeta(f.f.modeMask, f.f.acks);
-    else if (f.type === Frame.CATCHUP) for (const t of f.f.turns) this.onTurnMeta(t.modeMask, t.acks);
+    if (f.type === Frame.TURN) {
+      this.onTurnMeta(f.f.modeMask, f.f.acks);
+      this.receivedTurn = Math.max(this.receivedTurn, f.f.turn);
+    } else if (f.type === Frame.CATCHUP) {
+      for (const t of f.f.turns) this.onTurnMeta(t.modeMask, t.acks);
+      const last = f.f.turns[f.f.turns.length - 1];
+      if (last) this.receivedTurn = Math.max(this.receivedTurn, last.turn);
+    }
     this.listener.binary?.(f, raw);
   }
 
@@ -310,7 +335,7 @@ export class PartySocket {
   private startBeats(): void {
     this.stopBeats();
     const beat = () => {
-      if (this.open) this.ws!.send(encodeBeat({ lastTurn: Math.max(0, this.lastTurn), clientMs: Math.floor(this.env.now()) >>> 0 }));
+      if (this.open) this.ws!.send(encodeBeat({ lastTurn: this.beatTurn, clientMs: Math.floor(this.env.now()) >>> 0 }));
       this.beatTimer = this.env.setTimer(beat, BEAT_MS);
     };
     beat();
@@ -318,7 +343,12 @@ export class PartySocket {
 
   /** Send a BEAT now (right before `back`, so the relay sees the caught-up turn). */
   beatNow(): void {
-    if (this.open) this.ws!.send(encodeBeat({ lastTurn: Math.max(0, this.lastTurn), clientMs: Math.floor(this.env.now()) >>> 0 }));
+    if (this.open) this.ws!.send(encodeBeat({ lastTurn: this.beatTurn, clientMs: Math.floor(this.env.now()) >>> 0 }));
+  }
+
+  /** What a BEAT reports: the highest turn received (never below the applied one). */
+  private get beatTurn(): number {
+    return Math.max(0, this.lastTurn, this.receivedTurn);
   }
 
   private stopBeats(): void {

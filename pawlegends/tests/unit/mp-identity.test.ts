@@ -4,12 +4,12 @@
  * name, D8); Hide names and mute read "Teammate 2"; rings and the robot glyph follow the TURN mode bits; a friend
  * joining mid-match gets their name and "Mira joined"; results together show one row per human with a bot chip.
  */
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { partySlotNames, teammateName } from '../../src/app/mpTypes';
 import { seatsOf } from '../../src/party/partyClient';
 import { MpHud } from '../../src/app/mpHud';
 import { SLOT_RING } from '../../src/app/mpTypes';
-import { NetHost } from '../../src/net/net-host';
+import { DROP_NOTE_MS, NetHost } from '../../src/net/net-host';
 import { partyRows, partyRowsHtml, againLabel } from '../../src/party/ui/partyResults';
 import type { MatchMsg, PartyView, ServerJson } from '../../src/net/proto';
 import type { SlotStats } from '../../src/sim/api';
@@ -105,12 +105,32 @@ describe('NetHost party link (M1, M4)', () => {
     expect(r.h.names[1]).toBe('Mira');
     expect(r.notes).toContain('Mira joined');
     expect(slots).toEqual(['1:back:true']);
-    r.json({ t: 'slot', slot: 1, reason: 'drop' });
-    expect(r.notes).toContain('Mira dropped · bot plays');
-    r.h.nameOf = () => 'Teammate 2';
-    r.json({ t: 'slot', slot: 1, reason: 'back' });
-    expect(r.notes).toContain('Teammate 2 is back');
-    r.h.dispose();
+    vi.useFakeTimers();
+    try {
+      // a drop says so only when it lasts 2 s (the TURN mode bits still show the bot)
+      r.json({ t: 'slot', slot: 1, reason: 'drop' });
+      r.turn(10, 0b10);
+      expect(r.notes).not.toContain('Mira dropped · bot plays');
+      vi.advanceTimersByTime(DROP_NOTE_MS);
+      expect(r.notes).toContain('Mira dropped · bot plays');
+      r.h.nameOf = () => 'Teammate 2';
+      r.json({ t: 'slot', slot: 1, reason: 'back' });
+      expect(r.notes).toContain('Teammate 2 is back');
+      // a blip (drop, back within 2 s) and a laggy frame say nothing at all
+      const before = r.notes.length;
+      r.json({ t: 'slot', slot: 1, reason: 'drop' });
+      r.json({ t: 'slot', slot: 1, reason: 'back' });
+      r.json({ t: 'slot', slot: 1, reason: 'drop', laggy: true });
+      r.json({ t: 'slot', slot: 1, reason: 'back', laggy: true });
+      vi.advanceTimersByTime(DROP_NOTE_MS * 2);
+      expect(r.notes.length).toBe(before);
+      // a leave is said at once
+      r.json({ t: 'slot', slot: 1, reason: 'left' });
+      expect(r.notes[r.notes.length - 1]).toBe('Teammate 2 left · bot plays');
+    } finally {
+      vi.useRealTimers();
+      r.h.dispose();
+    }
   });
 
   it('mode bits: bot share per slot, and "Bot covered for you · m:ss" when the player takes the hero back', () => {
