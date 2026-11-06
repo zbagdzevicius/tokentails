@@ -7,6 +7,7 @@
  * bar and the rail on desktop, QA v2 #1); desktop draws it as a big announcer line. The enemy ult chip is a prio 1 rail
  * note ("Enemy ult: <name>") with the red edge vignette.
  */
+import { claimScreen } from '../fx/screenLayer';
 import { sfx } from '../../audio/sfx';
 import type { Note } from '../../ui/notifyQueue';
 import type { FightCam } from './cam';
@@ -79,7 +80,8 @@ export class UltMoment {
   enemy(ultName: string): void {
     if (this.juice.push) this.juice.push({ key: 'enemy-ult', title: `Enemy ult: ${ultName}`, tone: 'bad', prio: 1, ttl: 1600, cooldown: 1500 });
     this.juice.note(ultName);
-    this.restart(this.vig, 'pl-ult-vig');
+    // GFX-10: the red edge only when no other full-screen layer shows (the rail note above always does)
+    if (claimScreen(300)) this.restart(this.vig, 'pl-ult-vig');
   }
 
   /** An ally ult: only the sting, softer. */

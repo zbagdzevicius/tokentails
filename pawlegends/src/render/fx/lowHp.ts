@@ -5,6 +5,7 @@
  * Under reduce motion the pulse is off. It replaced the one-shot red rim flash at 25% (the rim flash stays for others).
  */
 import './inworld.css';
+import { holdScreen } from './screenLayer';
 
 export const LOW_HP = Object.freeze({ from: 0.3, to: 0.08, min: 0.18, max: 0.5, beatBelow: 0.15, beatHz: 1.1, beat: 0.08 });
 
@@ -51,6 +52,8 @@ export class LowHp {
     const t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
     const o = base > 0 ? Math.max(0, Math.min(1, base + lowHpBeat(frac, t, this.reduced))) : 0;
     this.opacity = o;
+    // GFX-10: while the vignette is on it is the one full-screen layer
+    holdScreen(base > 0);
     const q = Math.round(o * 200) / 200;
     if (q === this.shown || !this.el) return;
     this.shown = q;
@@ -60,5 +63,6 @@ export class LowHp {
 
   dispose(): void {
     this.el?.remove();
+    holdScreen(false);
   }
 }
