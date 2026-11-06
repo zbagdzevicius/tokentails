@@ -2,7 +2,8 @@
  * Touch cluster (POC.md §9, landscape): a floating joystick on the left; on the right an Attack button with
  * auto-target (enemy hero in range, then the lowest-HP minion, then a tower), Q/W/E on an arc and a larger R, plus
  * Trick and Nap. Tap smart-casts; holding a skill button still shows its range ring and the smart aim before the
- * release casts; drag aims (the indicator follows the thumb); dragging onto the ✕ cancels. While Attack is held or a
+ * release casts; drag aims (the indicator follows the thumb); resting on the ✕ (top centre, out of every drag's
+ * reach; audit CF-01) for CANCEL_DWELL_MS cancels. The arc is laid out by touchArc.ts (CF-04). While Attack is held or a
  * skill is aimed, the hero's basic attack range ring shows too (range from hero data, so every ranged hero reads right).
  * The joystick sends `move` to a point 2 m ahead when its direction turns by more than 1/32 turn, at most every
  * 3 ticks (and again before the hero reaches that point, so a held stick keeps walking).
@@ -24,6 +25,7 @@ import { project } from '../screen';
 import { attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
+import { arcLayout, arcStyle, type ArcButton } from './touchArc';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -40,6 +42,13 @@ const DRAG_FULL_PX = 90;
  * leftover 1 px offset picked the direction, so a 2 px wobble fired a line or dash the wrong way at full range.
  */
 export const AIM_BACK_PX = 24;
+/**
+ * Audit CF-01: a drag cancels only after the thumb has rested on the ✕ this long (ms), so a fast aim that sweeps
+ * across it still casts.
+ */
+export const CANCEL_DWELL_MS = 120;
+/** Hit slack around the ✕ (px). */
+const CANCEL_SLACK = 12;
 const ATTACK_REPEAT_MS = 350;
 /** C9: Nap goes after the button is held this long (ms), so a stray thumb never sends the hero home. */
 export const NAP_HOLD_MS = 300;
@@ -65,6 +74,8 @@ interface Drag {
   y: number;
   dragging: boolean;
   overCancel: boolean;
+  /** CF-01: when the thumb entered the ✕ (ms, performance.now), else null. */
+  cancelIn: number | null;
   /** When the button went down (ms, performance.now). */
   at: number;
 }
@@ -146,6 +157,16 @@ export class TouchControls {
     on(window, 'pointerup', (e) => this.up(e));
     on(window, 'pointercancel', (e) => this.up(e, true));
     on(h.canvas, 'pointerdown', (e) => this.canvasDown(e));
+    const fit = (): void => this.layoutArc();
+    window.addEventListener('resize', fit);
+    this.off.push(() => window.removeEventListener('resize', fit));
+    this.layoutArc();
+  }
+
+  /** CF-04: place every button from touchArc.ts for this viewport (no two touch at 667, 844 or 932 px wide). */
+  private layoutArc(): void {
+    const l = arcLayout(window.innerWidth, window.innerHeight);
+    for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton]));
   }
 
   enable(on: boolean): void {
@@ -236,7 +257,7 @@ export class TouchControls {
       this.deny(slot);
       return;
     }
-    this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, at: performance.now() });
+    this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, cancelIn: null, at: performance.now() });
     this.syncRing();
   }
 
@@ -271,11 +292,22 @@ export class TouchControls {
       this.cancelEl.classList.add('on');
     }
     if (g.dragging) {
-      const r = this.cancelEl.getBoundingClientRect();
-      g.overCancel = g.x >= r.left - 12 && g.x <= r.right + 12 && g.y >= r.top - 12 && g.y <= r.bottom + 12;
-      this.cancelEl.classList.toggle('hot', g.overCancel);
+      this.checkCancel(g, performance.now());
       this.preview(g);
     }
+  }
+
+  /** CF-01: is the thumb on the ✕, and has it rested there for CANCEL_DWELL_MS? ('arming' while it waits, 'hot' once armed). */
+  private checkCancel(g: Drag, now: number): void {
+    const r = this.cancelEl.getBoundingClientRect();
+    const inside = r.width > 0 && g.x >= r.left - CANCEL_SLACK && g.x <= r.right + CANCEL_SLACK && g.y >= r.top - CANCEL_SLACK && g.y <= r.bottom + CANCEL_SLACK;
+    if (!inside) g.cancelIn = null;
+    else if (g.cancelIn === null) g.cancelIn = now;
+    const was = g.overCancel;
+    g.overCancel = inside && g.cancelIn !== null && now - g.cancelIn >= CANCEL_DWELL_MS;
+    this.cancelEl.classList.toggle('arming', inside && !g.overCancel);
+    this.cancelEl.classList.toggle('hot', g.overCancel);
+    if (g.overCancel !== was) this.preview(g);
   }
 
   private up(e: PointerEvent, cancelled = false): void {
@@ -310,9 +342,14 @@ export class TouchControls {
       return;
     }
     this.drags.delete(e.pointerId);
+    if (g.dragging) {
+      g.x = e.clientX;
+      g.y = e.clientY;
+      this.checkCancel(g, performance.now());
+    }
     this.syncRing();
     this.buttons.get(g.btn)?.classList.remove('down');
-    this.cancelEl.classList.remove('on', 'hot');
+    this.cancelEl.classList.remove('on', 'hot', 'arming');
     this.h.view.aim = null;
     if (cancelled || g.overCancel || !this.h.enabled()) return;
     const slot = SLOT_OF[g.btn];
@@ -629,7 +666,11 @@ export class TouchControls {
       this.buttons.get('nap')?.classList.remove('holding');
       this.h.orders.nap();
     }
-    for (const g of this.drags.values()) if (!g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
+    for (const g of this.drags.values()) {
+      if (!g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
+      // CF-01: a thumb resting still on the ✕ sends no pointermove, so the dwell is checked per frame too
+      if (g.dragging && g.cancelIn !== null && !g.overCancel) this.checkCancel(g, now);
+    }
     this.syncRing();
     const s = this.stick;
     const me = this.me();

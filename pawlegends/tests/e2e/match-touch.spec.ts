@@ -48,6 +48,9 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
   for (let i = 1; i <= 8; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx + ((cx - sx) * i) / 8, y: sy + ((cy - sy) * i) / 8, id: 2 }] });
   await expect.poll(() => attr(page, 'aim')).toBe('1');
   await expect.poll(() => attr(page, 'cancel')).toBe('1');
+  // audit CF-01: the ✕ cancels after a 120 ms rest on it (CANCEL_DWELL_MS)
+  await page.waitForTimeout(250);
+  await expect(page.locator('.pl-cancel.hot')).toBeVisible();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => attr(page, 'aim')).toBe('');
   await page.waitForTimeout(150);
@@ -194,4 +197,56 @@ test('a drag slid back to its button aims and casts like a tap', async ({ page }
   const before = Number(await attr(page, 'casts'));
   await touch('touchEnd');
   await expect.poll(async () => Number(await attr(page, 'casts'))).toBe(before + 1);
+});
+
+type Disc = { x: number; y: number; width: number; height: number };
+const discGap = (a: Disc, b: Disc): number =>
+  Math.hypot(a.x + a.width / 2 - (b.x + b.width / 2), a.y + a.height / 2 - (b.y + b.height / 2)) - a.width / 2 - b.width / 2;
+
+// Audit CF-01: a full-range aim up or up-left from W and E used to land on the ✕ and cancel (8 of 8 drags). The ✕
+// now sits top centre, out of every drag's reach, so all four casts go out.
+test('up and up-left drags from W and E cast; the ✕ stays out of their reach', async ({ page }) => {
+  test.setTimeout(150_000);
+  await startFirstMatch(page);
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
+  const cdp = await page.context().newCDPSession(page);
+  let id = 10;
+  for (const b of ['w', 'e'] as const) {
+    for (const [dx, dy] of [[0, -1], [-Math.SQRT1_2, -Math.SQRT1_2]]) {
+      const btn = page.locator(`.pl-tbtn.${b}`);
+      await expect(btn).not.toHaveClass(/cooling|locked/, { timeout: 30_000 });
+      const box = (await btn.boundingBox())!;
+      const x0 = box.x + box.width / 2;
+      const y0 = box.y + box.height / 2;
+      const before = Number(await attr(page, 'casts'));
+      id++;
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id }] });
+      // 140 px: past the 90 px full-range aim, the way a thumb overshoots
+      for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + dx * 14 * i, y: y0 + dy * 14 * i, id }] });
+      await page.waitForTimeout(200);
+      expect(await page.locator('.pl-cancel.hot, .pl-cancel.arming').count(), `${b} ${dx},${dy}: on the ✕`).toBe(0);
+      const x = (await page.locator('.pl-cancel.on').boundingBox())!;
+      expect(Math.hypot(x.x + x.width / 2 - x0, x.y + x.height / 2 - y0), `${b}: ✕ distance`).toBeGreaterThan(160);
+      await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+      await expect.poll(async () => Number(await attr(page, 'casts')), { message: `${b} ${dx},${dy} cast` }).toBe(before + 1);
+    }
+  }
+});
+
+// Audit CF-04: no two touch buttons touch (E and the trick overlapped by 5 px) at 667, 844 and 932 px wide.
+test('the touch arc keeps a gap between every pair of buttons at 667, 844 and 932', async ({ page }) => {
+  await startFirstMatch(page);
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
+  for (const [width, height] of [[667, 375], [844, 390], [932, 430]]) {
+    await page.setViewportSize({ width, height });
+    await page.waitForTimeout(150);
+    const boxes: Disc[] = [];
+    for (const l of await page.locator('.pl-tbtn').all()) boxes.push((await l.boundingBox())!);
+    expect(boxes.length).toBeGreaterThanOrEqual(7);
+    for (let i = 0; i < boxes.length; i++) {
+      const a = boxes[i];
+      expect(a.x >= 0 && a.y >= 0 && a.x + a.width <= width && a.y + a.height <= height, `${width}: on screen`).toBe(true);
+      for (let j = i + 1; j < boxes.length; j++) expect(discGap(a, boxes[j]), `${width}x${height}: ${i} vs ${j}`).toBeGreaterThanOrEqual(12);
+    }
+  }
 });
