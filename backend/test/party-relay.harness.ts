@@ -27,7 +27,14 @@ const server = createServer((req, res) => {
     res.end();
 });
 const store = new MemoryRoomStore();
+// every e2e browser connects from 127.0.0.1: give each socket its own address, so the per-IP caps (rooms, parties,
+// failed joins; pinned by party-relay.security.spec.ts) never couple one spec to the rooms an earlier spec left behind
+let sockets = 0;
 const relay = new PartyRelay({
+    clientIp: () => {
+        sockets++;
+        return `10.77.${(sockets >> 8) & 255}.${sockets & 255}`;
+    },
     server,
     store,
     tickets: new PartyTicketService(),

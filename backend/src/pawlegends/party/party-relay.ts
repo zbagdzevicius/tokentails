@@ -13,6 +13,7 @@ import type { Duplex } from 'stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { isRelayOriginAllowed } from '../../shared/cors-origins';
 import { isCloudflareIp } from '../../shared/cloudflare-ips';
+import { isTrustedProxyHop } from '../../shared/trust-proxy';
 import { partySimFor, simFor, type PawlegendsPartySim } from '../../vendor/pawlegends-sim';
 import {
     CATCHUP_CHUNK,
@@ -262,11 +263,16 @@ export class PartyRelay {
     // -----------------------------------------------------------------------------------------------------------
     // Upgrade and sockets
 
-    /** The visitor's IP: the Cloudflare header only from a real Cloudflare peer (S1). */
+    /**
+     * The visitor's IP (S1): the Cloudflare header from one of our own hops (a Cloudflare edge, or the private, CGNAT or
+     * loopback hop of the DigitalOcean ingress in front of the app, the same hops `trust proxy` trusts), else the peer.
+     * Before, only a Cloudflare peer was trusted: behind the DigitalOcean hop every player shared that hop's address,
+     * and the per-IP caps (sockets, rooms, parties, failed joins) would have grouped everyone.
+     */
     static clientIp(req: IncomingMessage): string {
         const peer = req.socket.remoteAddress ?? '';
         const cf = req.headers['cf-connecting-ip'];
-        if (typeof cf === 'string' && cf && isCloudflareIp(peer)) return cf.trim();
+        if (typeof cf === 'string' && cf.trim() && (isCloudflareIp(peer) || isTrustedProxyHop(peer))) return cf.trim();
         return peer;
     }
 
