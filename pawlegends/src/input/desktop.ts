@@ -301,7 +301,8 @@ export class DesktopInput {
     }
     const slot = CAST_ACTIONS[a];
     if (slot !== undefined) {
-      if (!this.h.orders.ready(slot)) {
+      // C2: the same cast buffer as touch: a key within a few ticks of the cooldown (or mid-dash) is kept, not denied
+      if (!this.h.orders.canQueue(slot)) {
         sfx.play('deny', { vol: 0.6 });
         return;
       }

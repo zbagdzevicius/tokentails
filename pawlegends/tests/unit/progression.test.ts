@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { FOUNTAIN } from '../../src/data/map';
 import { TRICKS } from '../../src/data/tricks';
 import { TAKEDOWN_HEAL, XP } from '../../src/data/xp';
+import { DIFFICULTY_RULES } from '../../src/data/bots';
 import { Op } from '../../src/sim/api';
 import { dealDamage, resolveDeaths } from '../../src/sim/combat/damage';
 import { stun } from '../../src/sim/effects';
@@ -29,9 +30,9 @@ function kill(m: ReturnType<typeof match>, by: number, victim: number): void {
 }
 
 describe('levels and XP (§6.1)', () => {
-  it('XP table (sim v4): levels 1 to 10 at 0, 60, 200, 360, 580, 860, 1200, 1600, 2060, 2580', () => {
-    expect(XP.toLevel).toEqual([0, 60, 200, 360, 580, 860, 1200, 1600, 2060, 2580]);
-    expect([0, 59, 60, 199, 200, 2579, 2580, 99999].map(levelForXp)).toEqual([1, 1, 2, 2, 3, 9, 10, 10]);
+  it('XP table (sim v12): levels 1 to 10 at 0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500', () => {
+    expect(XP.toLevel).toEqual([0, 60, 210, 420, 650, 960, 1750, 2350, 2950, 3500]);
+    expect([0, 59, 60, 209, 210, 3499, 3500, 99999].map(levelForXp)).toEqual([1, 1, 2, 2, 3, 9, 10, 10]);
   });
 
   it('a level adds per-level HP and armour; talents are offered at 3, 6 and 9; bots take the seeded choice (sim v10)', () => {
@@ -154,6 +155,7 @@ describe('levels and XP (§6.1)', () => {
     const minionXp = (enemyLevel: number): number => {
       const m2 = match();
       for (const e of [3, 4, 5]) setLevel(m2, e, enemyLevel);
+      m2.world.globals[G.Tick] = DIFFICULTY_RULES[m2.config.difficulty].catchUpFrom; // sim v12: catch-up starts here
       const minion2 = putMinion(m2, 1, MID.x, MID.y);
       place(m2, 0, MID.x - 3000, MID.y, 0);
       m2.world.hp[minion2] = 0;

@@ -25,8 +25,8 @@
  *    with this sim, so the backend's /live spec re-sims a real replay (`vendor-sim:check` catches a stale one).
  * 6. champion-replay.fixture.json (sim v9): one genuine Easy match played as a shelter champion (Gabė), so the spec
  *    shows a champion replay verifies (every champion is free: no entitlement check) and its v8 twin is refused.
- * 7. forfeit-replay.fixture.json (sim v10, GAPS B2): a Normal match forfeited at 4:00 (live version only).
- * backend/src/vendor/pawlegends-sim/v9/: the first five files, frozen (FROZEN below).
+ * 7. forfeit-replay.fixture.json (sim v10, GAPS B2): a Normal match forfeited at 4:00.
+ * backend/src/vendor/pawlegends-sim/v10/, v11/ and v12/: those files, frozen (FROZEN below; sim v13 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -59,7 +59,10 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * Older sims the backend still verifies, copied out of git (GAPS B0). `commit` holds the version's files at `from`;
  * `bundle` pins the sha256 of its bundle, so a wrong commit can never be vendored; `extra` names files beyond
  * VERSION_FILES that version also shipped (v10's forfeit fixture). Sim v11 froze v10 and retired v9 (its replays are
- * refused with PAWLEGENDS_SIM_VERSION; stored v9 rows and their digests stay as they are).
+ * refused with PAWLEGENDS_SIM_VERSION; stored v9 rows and their digests stay as they are). Sim v12 (Fish and Toys,
+ * docs/FUN-PROGRESSION-V12.md) froze v11 at 6cb57e05 and keeps v10, so the backend verifies 10, 11 and 12. Sim v13
+ * (party play, docs/plans/moba/MULTIPLAYER.md; the dog heroes join the same v13) froze the released v12 at 5bf2a938,
+ * so the backend verifies 10, 11, 12 and 13.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -67,6 +70,20 @@ export const FROZEN = Object.freeze([
     commit: '18cbcf3163fbc58f1759c5d49fa30c958f3993b5',
     from: 'backend/src/vendor/pawlegends-sim/v10',
     bundle: 'edd2b47e63dfa4786efda9da80efde9b8c200c4351d9f78584f694527f5c749a',
+    extra: Object.freeze(['forfeit-replay.fixture.json']),
+  }),
+  Object.freeze({
+    simVersion: 11,
+    commit: '6cb57e053992e1e3d9bf1e003db16839735ca0f2',
+    from: 'backend/src/vendor/pawlegends-sim/v11',
+    bundle: '426f9a2ab8434204338a6f9f2e610cc9491779176e3243c24439c6873738eb61',
+    extra: Object.freeze(['forfeit-replay.fixture.json']),
+  }),
+  Object.freeze({
+    simVersion: 12,
+    commit: '5bf2a938bc520f7dc38eb03f068b3edeb6e53fc7',
+    from: 'backend/src/vendor/pawlegends-sim/v12',
+    bundle: '59426998be81a7439eba33c06b81635840f34a5ec26adc368e38210159e51531',
     extra: Object.freeze(['forfeit-replay.fixture.json']),
   }),
 ]);
@@ -246,6 +263,14 @@ export interface PawlegendsSlotStats {
     damageTaken?: number;
     healShield?: number;
     objective?: number;
+    /** Sim v12 and later: Fish earned, Toy tiers owned at the end, lane minion last hits, the tick each Toy tier was bought (−1 never). */
+    fish?: number;
+    toys?: number;
+    lastHits?: number;
+    toy1At?: number;
+    toy2At?: number;
+    toy3At?: number;
+    toy4At?: number;
 }
 
 export type PawlegendsVerifyCode =

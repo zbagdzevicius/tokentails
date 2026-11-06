@@ -249,6 +249,16 @@ export interface World {
   talents: Int32Array;
   /** Kills since the last death (kill XP streak bonus). */
   killStreak: Int32Array;
+  /**
+   * Sim v12 Fish and Toys (progression/fish.ts), per hero: unspent Fish, Fish earned in total (after the difficulty
+   * handicap), Fish earned before the handicap (the comeback check only), Toy tiers owned (0..4), and deaths since the
+   * hero's last takedown (the kill Fish falls on a hero who keeps dying).
+   */
+  fish: Int32Array;
+  fishTotal: Int32Array;
+  fishRaw: Int32Array;
+  toy: Int32Array;
+  deathStreak: Int32Array;
   /** Tick hero j last damaged hero i, at i × heroes + j (assists). */
   assistTick: Int32Array;
   /** Sim v4 bonuses, ticks left per hero: Zoomies, Frenzy Catnip, Nine Lives, the rat camp's Pack buff. */
@@ -491,6 +501,11 @@ export function createWorld(seed: number): World {
     trick: new Uint8Array(h),
     talents: new Int32Array(h * TALENT_TIERS).fill(-1),
     killStreak: new Int32Array(h),
+    fish: new Int32Array(h),
+    fishTotal: new Int32Array(h),
+    fishRaw: new Int32Array(h),
+    toy: new Int32Array(h),
+    deathStreak: new Int32Array(h),
     assistTick: new Int32Array(h * h).fill(NEVER),
     zoomT: new Int32Array(h),
     frenzyT: new Int32Array(h),
@@ -597,7 +612,8 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.stunT, w.rootT, w.fearT, w.fearX, w.fearY, w.fearSrc, w.slowT, w.slowBp, w.hasteT, w.hasteBp, w.asT, w.asBp, w.cdrT, w.cdrBp,
     w.stealthT, w.untargT, w.ccImmT, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
     w.tether, w.bush, w.seen,
-    w.castPhase, w.castSlot, w.castT, w.castX, w.castY, w.castId, w.napT, w.trick, w.talents, w.killStreak, w.assistTick,
+    w.castPhase, w.castSlot, w.castT, w.castX, w.castY, w.castId, w.napT, w.trick, w.talents, w.killStreak,
+    w.fish, w.fishTotal, w.fishRaw, w.toy, w.deathStreak, w.assistTick,
     w.zoomT, w.frenzyT, w.nineT, w.packT, w.nineReady, w.dmgRing, w.lockId, w.lockT,
     w.kValor, w.kStage, w.kWindow, w.kRT, w.kWT, w.kWAge, w.kCount, w.kHonour, w.kHuntT, w.kHuntVictim, w.kChain,
     w.kFoe, w.kEmpower, w.kHurt, w.volleyHits, w.mkStack, w.mkT, w.mkLock, w.wave,

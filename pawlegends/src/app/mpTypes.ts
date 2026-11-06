@@ -55,8 +55,12 @@ export function partySlotNames(
 /** "Teammate 2": a friend's name hidden or muted (by slot, so it never changes mid-match). */
 export const teammateName = (slot: number): string => `Teammate ${slot + 1}`;
 
-/** Ring colour per human slot (§7 M1): slot 0 gold, 1 cyan, 2 pink. Plates, scoreboard, minimap, HUD strip. */
-export const SLOT_RING: readonly string[] = Object.freeze(['#f5c542', '#3ad0e0', '#ff6fb1']);
+/**
+ * Ring colour per human slot (§7 M1): slot 0 mint, 1 violet, 2 orange. Plates, scoreboard, minimap, HUD strip. A
+ * friend's identity, never a relation: none is the self yellow, the ally blue or the enemy red of RELATION_CSS
+ * (render/palette.ts), so a ring around an ally-blue dot still reads, and yellow keeps meaning "you".
+ */
+export const SLOT_RING: readonly string[] = Object.freeze(['#5fe3a1', '#c08cff', '#ff9f43']);
 
 export type Conn = 'on' | 'away' | 'off';
 

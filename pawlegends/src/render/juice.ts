@@ -17,6 +17,10 @@ export const XP_MERGE_MS = 900;
 
 /** Global slow motion never runs longer than this (ms) unless asked for the match end (ANIM-SPEC §6). */
 export const SLOWMO_CAP_MS = 110;
+/** C11a: a full freeze of the global clock lasts at most this long (3 frames at 60 Hz). */
+export const FREEZE_CAP_MS = 48;
+/** C11d: kicks under this trauma are dropped: the screen shakes for the player's kills and big hits only. */
+export const KICK_MIN = 0.2;
 
 export interface Banner {
   title: string;
@@ -39,8 +43,8 @@ const INFO: readonly { re: RegExp; key: string; cooldown: number }[] = [
   { re: /^Trackpad mode: click to move$/, key: 'trackpad', cooldown: 60000 },
 ];
 /** Announcer moments drawn big on desktop (with a crest badge and a light sweep). */
-const BIG = /^(First Blood!|Double Pounce|Triple Pounce|Cat-astrophe|Shut down!|COMEBACK!|ACE!|Enemy team ACE|Victory!|Defeat|Enemy (tower|core) down!|We lost a (tower|core))/;
-const MULTI = /^(Double Pounce|Triple Pounce|Cat-astrophe|ACE!)/;
+const BIG = /^(First Blood!|Double Pounce|Triple Pounce|Cat-astrophe|Shut down!|ACE!|Enemy team ACE|Victory!|Defeat|Enemy (tower|core) down!|We lost a (tower|core))/;
+const MULTI = /^(Double Pounce|Triple Pounce|Cat-astrophe|ACE!|Shut down!)/;
 const CREST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.4l-5.3 2.7 1-5.8L3.5 8.2l5.9-.9z"/></svg>';
 
 /** Rail priority and options for a banner (the adapter's mapping; exported for tests). */
@@ -138,7 +142,7 @@ export class Juice {
 
   /** Freeze the render clock for `ms` (scale 0) or slow it (`scale` > 0). The longest active request wins. */
   hitstop(ms: number, scale = 0): void {
-    const s = ms / 1000;
+    const s = (scale <= 0 ? Math.min(ms, FREEZE_CAP_MS) : ms) / 1000;
     if (s > this.stopLeft) {
       this.stopLeft = s;
       this.stopScale = scale;
@@ -166,6 +170,7 @@ export class Juice {
 
   /** Trauma 0..1. */
   kick(trauma: number): void {
+    if (trauma < KICK_MIN) return;
     this.shake.add(trauma * this.shakeScale);
   }
 
@@ -214,9 +219,9 @@ export class Juice {
     this.remember(text);
     const layer = this.popLayer;
     if (!layer || !Number.isFinite(x) || !Number.isFinite(y)) return;
-    // phones: at most 5 at once, stacked closer (LoL pass A6)
+    // phones: at most 3 at once (5 before, LoL pass A6; fun pass playtest #13: a 3v1 was a pile of text), stacked closer
     const phone = isPhone();
-    while (layer.childElementCount > (phone ? 4 : 8)) layer.firstElementChild?.remove();
+    while (layer.childElementCount > (phone ? 2 : 8)) layer.firstElementChild?.remove();
     // pops that come close together stack upward and alternate sides, so "+40 XP" never covers "Combo x2"
     const now = typeof performance !== 'undefined' ? performance.now() : Date.now();
     this.popTimes = this.popTimes.filter((t) => now - t < 600);

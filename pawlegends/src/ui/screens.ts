@@ -3,6 +3,7 @@
  * a dogs row; Paw Trick, difficulty) → match → results, plus the Esc menu and the portrait rotate prompt. DOM
  * overlays over the lobby turntable. English only.
  */
+import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
 import './deck/deckRow.css';
 import { accountState } from '../meta/profile';
@@ -474,6 +475,8 @@ export interface ResultsOpts {
    * party actions: "Play again together (1/2)" (onAgain), "Change hero" (onChange), "Leave party".
    */
   party?: { rowsHtml: string; again: string; onLeave(): void };
+  /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
+  progress?: ProgressSummary | null;
   /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
   skin?: { name: string; art?: string; bond: number; next: number | null; rung?: CatTier; tint?: number } | null;
 }
@@ -511,7 +514,8 @@ function resultTable(rows: readonly ResultRow[]): string {
   return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
-/** Sudden Death starts at 10:00 (data/timeline.ts TIMELINE.suddenDeath): after it the clock, not the player, ends the match. */
+/** A fallback Sudden Death second (10:00). The real one is per difficulty (`suddenDeathS`, data/timeline.ts TIMELINE_BY;
+ *  sim v12: Rookie 6:30, Easy 7:45, Normal and Hard 8:30): after it the clock, not the player, ends the match. */
 export const SUDDEN_DEATH_S = 600;
 
 /** The line under Victory / Defeat, chosen by the margin (a 1–14 loss is not "so close"). Pure. */
@@ -606,6 +610,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         <div><b>${o.level}</b><small>Level</small></div>
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
+      ${o.progress && o.progress.rows.length ? progressBlock(o.progress) : ''}
       ${o.party ? o.party.rowsHtml : ''}
       ${o.grade ? gradeBlock(o.grade, o.won) : ''}
       ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>${o.skin.rung ? cardFxPreview({ name: o.skin.name, rung: o.skin.rung, ...(o.skin.tint !== undefined ? { tint: o.skin.tint } : {}) }, 'card-fx pl-skin-fx') : ''}` : ''}

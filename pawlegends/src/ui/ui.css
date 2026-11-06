@@ -5,10 +5,10 @@
   --panel-2: rgba(43, 29, 46, 0.66);
   --line: rgba(255, 243, 220, 0.16);
   --self: #ffd34d;
-  --ally: #ff7a9a;
-  --enemy: #ff4d5e;
-  --t0: #ff6f91;
-  --t1: #6f8fe0;
+  --ally: #4da0ff;
+  --enemy: #ff4f58;
+  --t0: var(--ally);
+  --t1: var(--enemy);
   --safe-l: env(safe-area-inset-left, 0px);
   --safe-r: env(safe-area-inset-right, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
@@ -425,9 +425,17 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-tbtn.r { right: 164px; bottom: 100px; width: 70px; height: 70px; border-color: rgba(255, 210, 122, 0.8); }
 .pl-tbtn.trick { right: -16px; bottom: 112px; width: 48px; height: 48px; font-size: 13px; }
 .pl-tbtn.nap { right: 186px; bottom: 6px; width: 46px; height: 46px; font-size: 12px; }
+/* C9: Nap is a 300 ms hold: a cream ring fills around the button while it is held */
+.pl-tbtn.nap::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(255, 243, 220, 0.85) var(--napfill, 0deg), transparent 0); opacity: 0; }
+.pl-tbtn.nap.holding::before { opacity: 1; animation: pl-napfill 300ms linear forwards; }
+@property --napfill { syntax: '<angle>'; inherits: false; initial-value: 0deg; }
+@keyframes pl-napfill { to { --napfill: 360deg; } }
+/* C5: Attack with nothing in reach flashes red (the ground ring flashes with it) */
+.pl-tbtn.attack.deny { animation: pl-atkdeny 300ms ease-out; }
+@keyframes pl-atkdeny { 0%, 40% { border-color: #fff; box-shadow: 0 0 0 4px var(--enemy), 0 4px 12px rgba(0, 0, 0, 0.35); } 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); } }
 .pl-cancel {
-  /* Left of the ability cluster, clear of the minimap (top right) and of R. */
-  position: absolute; right: calc(262px + var(--safe-r)); bottom: calc(150px + var(--safe-b)); width: 62px; height: 62px; border-radius: 50%;
+  /* C9: above the ability cluster (out of the screen's middle third, where it sat over the fight), under the minimap. */
+  position: absolute; right: calc(118px + var(--safe-r)); bottom: calc(196px + var(--safe-b)); width: 56px; height: 56px; border-radius: 50%;
   display: none; place-items: center; font-size: 30px; background: rgba(20, 12, 22, 0.85); border: 3px solid rgba(255, 243, 220, 0.9); color: var(--cream);
   box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75);
 }
@@ -1056,7 +1064,8 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
   /* the ::after box starts inside the 2 px border: -8 px makes the 32 px disc a 44 px area */
   html[data-touch='1'] .pl-strip.enemy .pp::after { inset: -8px; }
   html[data-touch='1'] .pl-strip .pp .t { font-size: 13px; }
-  html[data-touch='1'] .pl-strip.ally { left: calc(56px + var(--safe-l)); top: calc(58px + var(--safe-t)); gap: 4px; }
+  /* lane F: 10 px further right, clear of the Fish chip under the portrait */
+  html[data-touch='1'] .pl-strip.ally { left: calc(66px + var(--safe-l)); top: calc(58px + var(--safe-t)); gap: 4px; }
   html[data-touch='1'] .pl-strip.ally .pp { width: 28px; height: 28px; }
 
   /* the top band's messages start under the enemy portraits */
@@ -1164,6 +1173,12 @@ html[data-touch='1'] .pl-rail {
   --rail-top: 56px; --rail-h: 28px; --rail-w: clamp(200px, calc(100vw - 480px), 360px); --rail-fs: 14px; --rail-badge: 20px;
 }
 html[data-touch='1'] .pl-rail .sb { display: none; }
+/* C13: on the narrowest phones (667 px) a coaching line wraps to two lines instead of being cut with an ellipsis */
+@media (max-width: 700px) {
+  html[data-touch='1'] .pl-rail { --rail-w: 240px; }
+  html[data-touch='1'] .pl-rail-line { height: auto; min-height: var(--rail-h); padding-top: 3px; padding-bottom: 3px; white-space: normal; }
+  html[data-touch='1'] .pl-rail-line .tt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-height: 1.15; }
+}
 html[data-touch='1'] .pl-rail-line { padding: 0 12px 0 6px; gap: 6px; clip-path: polygon(6px 0, calc(100% - 6px) 0, 100% 6px, 100% calc(100% - 6px), calc(100% - 6px) 100%, 6px 100%, 0 calc(100% - 6px), 0 6px); }
 html[data-touch='1'] .pl-rail-rest.rest-countdown .tt { font-size: 22px; }
 /* QA v2 #9: phone announcer moments (First Blood, a tower, Shut down, ACE, the own ult on desktop) read as a banner,
@@ -1247,5 +1262,66 @@ html[data-touch='1'] .pl-talents .head .soon { display: none; }
   html[data-touch='1'] .pl-talents button b { font-size: 11px; }
   html[data-touch='1'] .pl-talents .head { top: -16px; font-size: 10px; }
 }
+/* Fun pass (playtest #6, gate hud-compact 667/640): phones read what a talent does, not only its name (the 2-5 word
+   short line under the name), and the closed card no longer slides in from below the screen edge: a chip still
+   mid-transition measured 2 px off screen at 667 × 375 and 640 × 360. */
+html[data-touch='1'] .pl-talents, html[data-touch='1'] .pl-talents.on { transform: none; }
+html[data-touch='1'] .pl-talents button { height: 48px; flex-direction: column; gap: 1px; animation-name: pl-talent-in; }
+html[data-touch='1'] .pl-talents button b { line-height: 1.1; }
+html[data-touch='1'] .pl-talents button span.s {
+  display: block; font-size: 10px; line-height: 1.15; opacity: 0.9; color: var(--cream); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+}
+@keyframes pl-talent-in { from { opacity: 0; } }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-talents { bottom: calc(6px + var(--safe-b)); }
+  html[data-touch='1'] .pl-talents button { width: 118px; height: 44px; padding: 2px 6px; }
+  html[data-touch='1'] .pl-talents button span.s { font-size: 9.5px; }
+}
 /* the phone rank-up toast shares the bottom band with the talent chips: it waits while they are open */
 html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }
+
+/* ------------------------------------------------------------------ lane F (F5): results progression summary
+   Per hero: medal, level, Toy timings (mm:ss chips), Fish and last hits; the player's Fish by source as one bar. */
+.pl-results .pl-prog { margin: 8px 0 0; font-size: 12px; max-width: 470px; }
+.pl-results .pl-prog table { border-collapse: collapse; width: 100%; }
+.pl-results .pl-prog th, .pl-results .pl-prog td { text-align: left; padding: 1px 5px; white-space: nowrap; }
+.pl-results .pl-prog th { opacity: 0.7; font-weight: 600; font-size: 11px; }
+.pl-results .pl-prog td.f { color: var(--butter); font-weight: 700; font-variant-numeric: tabular-nums; }
+.pl-results .pl-prog tr.self td { background: rgba(255, 211, 77, 0.1); font-weight: 700; }
+.pl-results .pl-prog tr.self td.nm span { color: var(--butter); }
+.pl-results .pl-prog tr.enemy td.nm span { color: #ffb3bd; }
+.pl-results .pl-prog td.nm { display: flex; align-items: center; gap: 4px; max-width: 150px; }
+.pl-results .pl-prog td.nm span { overflow: hidden; text-overflow: ellipsis; }
+.pl-results .pl-prog .tys { display: flex; gap: 2px; }
+.pl-results .pl-prog .tc { font-style: normal; font-size: 10px; line-height: 14px; min-width: 26px; text-align: center; border-radius: 4px; background: rgba(255, 255, 255, 0.06); opacity: 0.45; }
+.pl-results .pl-prog .tc.on { opacity: 1; background: rgba(255, 211, 77, 0.18); color: #fff1c4; }
+.pl-results .pl-prog .md { flex: none; display: inline-grid; place-items: center; width: 14px; height: 14px; border-radius: 50%; font-style: normal; font-size: 0; box-shadow: inset 0 -2px 0 rgba(0, 0, 0, 0.25); }
+.pl-results .pl-prog .md.mvp { width: auto; padding: 0 5px; border-radius: 999px; font-size: 9px; font-weight: 800; background: var(--butter); color: #4a2a1f; }
+.pl-results .pl-prog .md.gold { background: #ffd34d; }
+.pl-results .pl-prog .md.silver { background: #d7dee8; }
+.pl-results .pl-prog .md.bronze { background: #d99560; }
+.pl-results .pl-prog .src { margin-top: 6px; display: grid; grid-template-columns: auto 1fr; gap: 3px 8px; align-items: center; }
+.pl-results .pl-prog .src > b { font-size: 11px; opacity: 0.85; }
+.pl-results .pl-prog .bar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; background: rgba(255, 255, 255, 0.08); }
+.pl-results .pl-prog .lg { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 2px 10px; font-size: 10px; opacity: 0.85; }
+.pl-results .pl-prog .lg i { display: inline-block; width: 7px; height: 7px; border-radius: 2px; margin-right: 3px; vertical-align: 0; }
+.pl-results .pl-prog .s-lastHit, .pl-results .pl-prog .s-lastHit i { background: #ffd34d; }
+.pl-results .pl-prog .s-minion, .pl-results .pl-prog .s-minion i { background: #c9a24a; }
+.pl-results .pl-prog .s-takedown, .pl-results .pl-prog .s-takedown i { background: #ff7a8a; }
+.pl-results .pl-prog .s-camp, .pl-results .pl-prog .s-camp i { background: #8fd16a; }
+.pl-results .pl-prog .s-objective, .pl-results .pl-prog .s-objective i { background: #7fb6ff; }
+.pl-results .pl-prog .s-snack, .pl-results .pl-prog .s-snack i { background: #ff9fd6; }
+.pl-results .pl-prog .s-trickle, .pl-results .pl-prog .s-trickle i { background: #8d86a8; }
+.pl-results .pl-prog .lg span { background: none; }
+@media (max-height: 480px) {
+  .pl-results .pl-prog { font-size: 11px; margin-top: 6px; }
+  .pl-results .pl-prog td.nm { max-width: 96px; }
+  .pl-results .pl-prog .tc { min-width: 24px; font-size: 9px; line-height: 12px; }
+  .pl-results .pl-prog th, .pl-results .pl-prog td { padding: 1px 3px; }
+}
+/* fun pass (playtest #12): a header row per team */
+.pl-results .pl-prog tr.grp th { padding-top: 5px; font-size: 10px; letter-spacing: 0.04em; text-transform: uppercase; opacity: 0.8; border-bottom: 1px solid rgba(255, 255, 255, 0.12); }
+.pl-results .pl-prog tr.grp.ours th { color: #9fe0ff; }
+.pl-results .pl-prog tr.grp.enemy th { color: #ffb3bd; }
+/* the "Your Fish" legend clears the results column's bottom fade */
+.pl-results .pl-prog .src { margin-bottom: 14px; }

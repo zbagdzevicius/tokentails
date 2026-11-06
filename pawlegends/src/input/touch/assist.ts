@@ -1,6 +1,7 @@
 /**
  * Touch assists (fun plan F3), pure and unit-tested:
- * - lane magnet: a joystick direction within 25° of the lane under the hero snaps to the lane's direction;
+ * - lane magnet: a joystick direction within 8° of the lane under the hero snaps to the lane's direction, only at
+ *   full tilt and with no enemy hero within 8 m (C8; 25° and always before);
  * - map edge: a stick goal past the playable edge or inside the enemy fountain is pulled back, and a goal that
  *   would not move the hero any more means "stop" (a held stick no longer grinds into a corner);
  * - auto-attack: standing still with no input, the nearest enemy minion in range (then a hero) is the target;
@@ -9,11 +10,15 @@
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
 import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
-import { isEnemy, type Unit } from '../targeting';
+import { BODY_MM, isEnemy, type Unit } from '../targeting';
 
 export const ASSIST = Object.freeze({
-  /** Snap when the stick is within this angle of the lane (rad). */
-  magnetArc: (25 * Math.PI) / 180,
+  /** Snap when the stick is within this angle of the lane (rad). C8: 8° (25° before: it fought small corrections). */
+  magnetArc: (8 * Math.PI) / 180,
+  /** C8: the magnet only works at this much tilt (share of the stick radius) or more. */
+  magnetTilt: 0.9,
+  /** C8: and never with an enemy hero this close (mm): fights need the exact angle. */
+  magnetFoeMm: 8000,
   /** Only when the hero is this close to the lane's centre line (mm). */
   magnetRange: 6000,
   /** Keep goals this far inside the map (mm). */
@@ -67,6 +72,15 @@ export function laneMagnet(x: number, y: number, angle: number, segs: readonly S
   return best ? Math.atan2(Math.sin(best.a), Math.cos(best.a)) : angle;
 }
 
+/** C8: is the lane magnet on (full tilt, no enemy hero within ASSIST.magnetFoeMm)? */
+export function magnetOn(tilt: number, me: { x: number; y: number }, units: readonly Unit[], myTeam: number): boolean {
+  if (tilt < ASSIST.magnetTilt) return false;
+  for (const u of units) {
+    if (u.kind === 'hero' && u.team !== myTeam && u.team !== 2 && u.state !== 'dead' && Math.hypot(u.x - me.x, u.y - me.y) <= ASSIST.magnetFoeMm) return false;
+  }
+  return true;
+}
+
 /** A stick goal kept inside the map and out of the enemy fountain; null = do not move (already at the edge). */
 export function edgeGoal(meX: number, meY: number, tx: number, ty: number, myTeam: number): { x: number; y: number } | null {
   let x = Math.max(ASSIST.edge, Math.min(MAP.width - ASSIST.edge, tx));
@@ -86,14 +100,17 @@ export function edgeGoal(meX: number, meY: number, tx: number, ty: number, myTea
   return { x, y };
 }
 
-/** Auto-attack target: the lowest-health enemy minion in range, else the nearest enemy hero in range, else null. */
+/**
+ * Auto-attack target: the lowest-health enemy minion in range, else the nearest enemy hero in range, else null. C13:
+ * edge to edge (the target's body is subtracted), like the Attack button.
+ */
 export function autoAttackTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number): number | null {
   let minion: Unit | null = null;
   let hero: Unit | null = null;
   let heroD = Infinity;
   for (const u of units) {
     if (u.id === me.id || u.state === 'dead' || u.team === myTeam || u.team === 2) continue;
-    const d = Math.hypot(u.x - me.x, u.y - me.y);
+    const d = Math.hypot(u.x - me.x, u.y - me.y) - BODY_MM[u.kind];
     if (d > range) continue;
     if (u.kind === 'minion') {
       if (!minion || u.hp < minion.hp) minion = u;

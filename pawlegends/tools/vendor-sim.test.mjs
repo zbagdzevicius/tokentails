@@ -13,11 +13,19 @@ describe('vendor-sim', () => {
     expect(/^\s*import\s/m.test(bundle)).toBe(false);
     expect(modules.every((m) => m.startsWith('src/sim/') || m.startsWith('src/data/'))).toBe(true);
     expect(JSON.parse(files[`v${SIM_VERSION}/pawlegends-sim.sha256.json`]).simVersion).toBe(SIM_VERSION);
-    // GAPS B0 dual verifier: v10 stays frozen beside the live sim (v9 retired), and the root index dispatches by simVersion.
+    // GAPS B0 dual verifier: v10, v11 and v12 stay frozen beside the live sim v13 (v9 retired), and the root index
+    // dispatches by simVersion.
+    expect(SIM_VERSION).toBe(13);
     expect(JSON.parse(files['v10/pawlegends-sim.sha256.json']).simVersion).toBe(10);
+    expect(JSON.parse(files['v11/pawlegends-sim.sha256.json']).simVersion).toBe(11);
+    expect(JSON.parse(files['v12/pawlegends-sim.sha256.json']).simVersion).toBe(12);
     expect(files['v10/forfeit-replay.fixture.json']).toBeDefined();
+    expect(files['v11/forfeit-replay.fixture.json']).toBeDefined();
+    expect(files['v12/forfeit-replay.fixture.json']).toBeDefined();
     expect(Object.keys(files).some((k) => k.startsWith('v9/'))).toBe(false);
     expect(files['index.ts']).toContain("import * as v10 from './v10';");
+    expect(files['index.ts']).toContain("import * as v11 from './v11';");
+    expect(files['index.ts']).toContain("import * as v12 from './v12';");
     expect(files['index.ts']).toContain(`import * as v${SIM_VERSION} from './v${SIM_VERSION}';`);
 
     const server = await importSim('src/sim/server.ts');

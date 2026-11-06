@@ -27,6 +27,8 @@ export const DAMAGE_STYLE = Object.freeze({
   hurt: { color: '#FF4D4D', size: 16, phone: 12 },
   shielded: { color: '#B9C2CF', size: 16, phone: 12 },
   info: { color: '#F4E7C9', size: 16, phone: 12 },
+  // pawlegends (lane F, F1): the player's Fish ("+7" over a last-hit minion, "+170" on First Blood), gold with a fish
+  fish: { color: '#FFD34D', size: 22, phone: 16 },
   word: { color: '#FFF6DA', size: 36, phone: 24, under: '#FF9EC0', every: 0.25 },
   pop: { color: '#FFE066', fill: '#FFE066', stroke: '#4A2A1F', size: 36, phone: 24 },
 });
@@ -58,7 +60,7 @@ export function numberDrift(u, side, hurt) {
 // pawlegends (LoL pass): hits on one target within 250 ms merge; a number pops to 1.2 and floats over 0.7 s.
 export const DAMAGE_FX = Object.freeze({ mergeWindow: 0.25, perKey: 3, bump: 1.15, life: 0.7, lifeCrit: 0.85, rise: 0.6, dx: 0.25,
   t1: 0.06, s1: 1.2, t2: 0.14, s2: 0.95, t3: 0.2, outScale: 0.7, fade: 0.25, wordLift: 0.25, wordLife: 0.8, popLife: 0.7, popIn: 0.18, popPeak: 1.2,
-  wordCap: 2, wordLane: 0.35, mergeMax: 1.2 });
+  wordCap: 2, wordLane: 0.35, mergeMax: 1.2, fishMerge: 0.3, fishLife: 0.95 }); // pawlegends (lane F): fishMerge, fishLife
 
 /** WA §5.3 words (display text; story may override through ctx.strings `word.<id>`). */
 export const WORDS = Object.freeze({ slash1: 'Snip!', slash2: 'Snap!', slash3: 'Swoosh!', bright: 'Shine!', holy: 'Sunburst!', parry: 'Ting!',
@@ -132,7 +134,9 @@ export function formatHeal(amount) {
 }
 
 // pawlegends: hits you take and hero-on-hero hits merge too (one counter per target in a teamfight)
-const NUMERIC = new Set(['normal', 'heavy', 'crit', 'hurt', 'info', 'shielded', 'heal']);
+const NUMERIC = new Set(['normal', 'heavy', 'crit', 'hurt', 'info', 'shielded', 'heal', 'fish']); // pawlegends (lane F): fish
+/** pawlegends (lane F): text in front of a counted number ("+7" Fish). */
+const PREFIX = { fish: '+' };
 const RANK = { normal: 0, heavy: 1, crit: 2 };
 
 const CSS = `
@@ -141,6 +145,10 @@ const CSS = `
   font-family:'Fredoka','SwordcatFredoka',system-ui,sans-serif;font-weight:700;line-height:1;letter-spacing:.01em;
   color:#fff;-webkit-text-stroke:5px #4A2A1F;paint-order:stroke fill;text-shadow:0 3px 0 #4A2A1F;opacity:0}
 .fx-dmg.crit::after{content:'!';margin-left:.04em;color:#FFD34D}
+.fx-dmg.fish{-webkit-text-stroke:4px #5a3a00;text-shadow:0 2px 0 #5a3a00,0 0 8px rgba(255,211,77,.55)}
+.fx-dmg.fish::after{content:'';display:inline-block;width:.9em;height:.7em;margin-left:.12em;vertical-align:.02em;background:#FFD34D;
+  -webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3 6 20 12'%3E%3Cpath d='M3 12c2.6-3.6 6-5.4 9.6-5.4 3.2 0 5.6 1.5 7 3.4L22.5 7v10L19.6 14c-1.4 1.9-3.8 3.4-7 3.4C9 17.4 5.6 15.6 3 12z'/%3E%3C/svg%3E") center/contain no-repeat;
+  mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='3 6 20 12'%3E%3Cpath d='M3 12c2.6-3.6 6-5.4 9.6-5.4 3.2 0 5.6 1.5 7 3.4L22.5 7v10L19.6 14c-1.4 1.9-3.8 3.4-7 3.4C9 17.4 5.6 15.6 3 12z'/%3E%3C/svg%3E") center/contain no-repeat}
 .fx-dmg.shielded::before{content:'';display:inline-block;width:.78em;height:.9em;margin-right:.14em;vertical-align:-.08em;
   background:#B9C2CF;border:2px solid #22262e;border-radius:.1em .1em .45em .45em}
 html[data-touch='1'] .fx-dmg,.fx-dmg.ph{-webkit-text-stroke-width:3px;text-shadow:0 2px 0 #4A2A1F}
@@ -223,7 +231,7 @@ export class DamageNumbers {
     const st = DAMAGE_STYLE[style] ?? DAMAGE_STYLE.normal;
     el.textContent = text;
     const ph = isPhone(); // pawlegends (LoL pass): phone sizes
-    el.className = (style === 'crit' || style === 'word' || style === 'pop' || style === 'shielded' ? `fx-dmg ${style}` : 'fx-dmg') + (ph ? ' ph' : '');
+    el.className = (style === 'crit' || style === 'word' || style === 'pop' || style === 'shielded' || style === 'fish' ? `fx-dmg ${style}` : 'fx-dmg') + (ph ? ' ph' : ''); // pawlegends: fish
     el.style.color = st.color;
     el.style.fontSize = (ph ? st.phone : st.size) + 'px';
   }
@@ -237,7 +245,8 @@ export class DamageNumbers {
     const now = this._now();
     if (key != null && NUMERIC.has(style) && Number.isFinite(value)) {
       for (const n of this.pool) {
-        if (!n.active || n.kind !== 'num' || n.key !== key || now - n.hitT > DAMAGE_FX.mergeWindow) continue;
+        // pawlegends (lane F): Fish merge over DAMAGE_FX.fishMerge, never into a damage number (and the other way)
+        if (!n.active || n.kind !== 'num' || n.key !== key || (n.style === 'fish') !== (style === 'fish') || now - n.hitT > (style === 'fish' ? DAMAGE_FX.fishMerge : DAMAGE_FX.mergeWindow)) continue;
         // pawlegends: a counter merges for at most mergeMax s, then a new one starts (trailer review: steady fire on a
         // core kept one number frozen in place for seconds)
         if (now - (n.born ?? now) > DAMAGE_FX.mergeMax) continue;
@@ -246,7 +255,7 @@ export class DamageNumbers {
         if ((n.age ?? 0) > DAMAGE_FX.mergeMax) continue;
         n.value += value; n.hitT = now; n.bump = 1;
         n.t = Math.min(n.t, DAMAGE_FX.t3);                 // keep it alive and big
-        if ((RANK[style] ?? 0) > (RANK[n.style] ?? 0)) { n.style = style; n.size = styleSize(style, isPhone()); this._paint(n, String(Math.round(n.shownValue)), style); }
+        if ((RANK[style] ?? 0) > (RANK[n.style] ?? 0)) { n.style = style; n.size = styleSize(style, isPhone()); this._paint(n, (PREFIX[style] ?? '') + Math.round(n.shownValue), style); }
         this.merged++;
         return n;
       }
@@ -264,7 +273,7 @@ export class DamageNumbers {
     const n = this._take();
     const iso = this._iso();
     n.pos.copy(pos); n.t = 0; n.age = 0; n.kind = 'num'; n.active = true; n.key = key; n.style = style;
-    n.life = style === 'crit' ? DAMAGE_FX.lifeCrit : DAMAGE_FX.life;
+    n.life = style === 'crit' ? DAMAGE_FX.lifeCrit : style === 'fish' ? DAMAGE_FX.fishLife : DAMAGE_FX.life; // pawlegends: fishLife
     n.value = Number.isFinite(value) ? value : NaN; n.shownValue = n.value; n.hitT = now; n.born = now; n.bump = 0;
     this._side = -this._side;
     n.dx = DAMAGE_FX.dx * this._side;
@@ -386,7 +395,7 @@ export class DamageNumbers {
         n.shownValue = n.shownValue + (n.value - n.shownValue) * Math.min(1, dt / 0.12 + 0.2);
         if (Math.abs(n.value - n.shownValue) < 0.5) n.shownValue = n.value;
         const now = Math.round(n.shownValue);
-        if (now !== prev && n.el) n.el.textContent = String(now);
+        if (now !== prev && n.el) n.el.textContent = (PREFIX[n.style] ?? '') + now; // pawlegends: "+N" Fish
       }
       if (n.bump > 0) n.bump = Math.max(0, n.bump - dt / 0.15);
       if (!hasDom || !cam) continue;

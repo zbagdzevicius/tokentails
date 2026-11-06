@@ -19,8 +19,8 @@ import { SIM_VERSION } from '../../src/sim/version';
 import { coreId, putHero, quietMatch } from './sim-helpers';
 
 describe('sim v7 lead pressure', () => {
-  it('is on for Normal and Hard only; SIM_VERSION is 11 (sim v8 to v11 kept it)', () => {
-    expect(SIM_VERSION).toBe(11);
+  it('is on for Normal and Hard only; SIM_VERSION is 13 (sim v8 to v13 kept it)', () => {
+    expect(SIM_VERSION).toBe(13);
     expect(DIFFICULTY_RULES.normal.leadPressure && DIFFICULTY_RULES.hard.leadPressure).toBe(true);
     expect(DIFFICULTY_RULES.easy.leadPressure || DIFFICULTY_RULES.rookie.leadPressure).toBe(false);
   });
@@ -94,15 +94,15 @@ describe('sim v7 Rookie protection', () => {
     expect(FEEDER.towerHits).toBeGreaterThan(100);
   });
 
-  it('an enemy hero 2+ levels above the human earns half XP on Rookie only', () => {
-    for (const d of ['rookie', 'easy'] as const) {
+  it('an enemy hero 2+ levels above the human earns half XP on Rookie, 85% on Easy and Normal (fun pass), all on Hard', () => {
+    for (const d of ['rookie', 'easy', 'normal', 'hard'] as const) {
       const m = quietMatch(1, false, d);
       const w = m.world;
       w.level[3] = w.level[0] + XP.aheadLevels;
       w.xp[3] = XP.toLevel[w.level[3] - 1];
       const before = w.xp[3];
       grantXp(m, 3, 100, 'minion', true);
-      expect(w.xp[3] - before).toBe(d === 'rookie' ? 50 : 100);
+      expect(w.xp[3] - before).toBe({ rookie: 50, easy: 85, normal: 85, hard: 100 }[d]);
     }
   });
 

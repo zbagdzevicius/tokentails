@@ -32,6 +32,13 @@ const row = (slot: number, hero: HeroId, k: number, d: number, a: number, heroDa
   damageTaken,
   healShield,
   objective: 0,
+  fish: 0,
+  toys: 0,
+  lastHits: 0,
+  toy1At: -1,
+  toy2At: -1,
+  toy3At: -1,
+  toy4At: -1,
 });
 
 const MATCH: SlotStats[] = [

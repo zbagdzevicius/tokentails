@@ -36,6 +36,8 @@ export const PL_SFX = {
   victory: [0.6, 0, 392, 0.02, 0.2, 0.5, 0, 1, 0, 0, 196, 0.12, 0.12, 0, 0, 0, 0.08, 0.8, 0.04, 0, 0],
   defeat: [0.5, 0, 330, 0.03, 0.25, 0.6, 1, 1, -0.6, 0, -40, 0.18, 0, 0, 0, 0, 0.1, 0.6, 0.05, 0, -1800],
   coin: [0.45, 0, 1500, 0, 0.03, 0.18, 0, 1, 0, 0, 500, 0.05, 0, 0, 0, 0, 0, 0.7, 0.01, 0, 0],
+  /** Lane F (F2): a Toy bought: a bright three-step chime (rising pitch jumps, a short echo). */
+  buy: [0.5, 0, 784, 0.005, 0.07, 0.3, 0, 1, 0, 0, 392, 0.06, 0.06, 0, 0, 0, 0.05, 0.75, 0.02, 0, 0],
   horn: [0.6, 0, 180, 0.05, 0.35, 0.3, 2, 1, 0, 0, 0, 0, 0, 0, 3, 0, 0, 0.7, 0.05, 0.1, -1400],
   // Crowd (fun plan F2 item 12), procedural: a band-limited noise swell reads as a far-off stadium.
   /** Takedowns: a bright swell of voices. */

@@ -223,6 +223,10 @@ export interface EntitySnap {
   channel?: boolean;
   /** Heroes only (sim v11), both teams: stacks on this hero (Duchess's Disdain, 1..3); absent = 0. */
   stacks?: number;
+  /** Heroes only (sim v12), the viewer's own team: unspent Fish. */
+  fish?: number;
+  /** Heroes only (sim v12), both teams: Toy tiers owned (0..4). */
+  toy?: number;
   /** Heroes only (sim v4): takedowns since the last death; 3+ means a bounty is on the hero (a crown). */
   bountyStreak?: number;
   /** Pickups only (sim v4): which pickup. `team` 2 = anyone may take it, else only that team (Fish Snack). */
@@ -291,12 +295,20 @@ export type SimEvent =
   | { type: 'pickupSpawn'; tick: number; index: number; kind: PickupKind; x: number; y: number }
   /** Hero `id` reached a takedown streak of 3+: killing it now pays `value` bonus XP. */
   | { type: 'bounty'; tick: number; id: number; value: number }
-  /** `killer` (−1: a tower or minion) ended `victim`'s bounty worth `value` XP. */
-  | { type: 'shutdown'; tick: number; killer: number; victim: number; value: number }
+  /** `killer` (−1: a tower or minion) ended `victim`'s bounty worth `value` XP; sim v12: and `fish` Fish (0 without a killer). */
+  | { type: 'shutdown'; tick: number; killer: number; victim: number; value: number; fish: number }
   /** `team`'s underdog waves start (COMEBACK in data/minions.ts: +10% minion HP on its next 2 waves). */
   | { type: 'comeback'; tick: number; team: Team }
   /** XP for hero `id` (sent to its own team only). 'tower' (sim v4): its team took an enemy tower. */
-  | { type: 'xp'; tick: number; id: number; amount: number; reason: 'kill' | 'assist' | 'minion' | 'lastHit' | 'camp' | 'trickle' | 'pickup' | 'tower' }
+  | { type: 'xp'; tick: number; id: number; amount: number; reason: 'kill' | 'assist' | 'minion' | 'lastHit' | 'camp' | 'trickle' | 'tower' }
+  // Sim v12 (docs/FUN-PROGRESSION-V12.md S1):
+  /**
+   * Fish for hero `id` (its own team only). Not sent for the passive trickle or comeback Fish. 'minion' is a share
+   * of a lane minion someone else last-hit, 'lastHit' the last hitter's share; 'pickup' a Fish Snack.
+   */
+  | { type: 'fish'; tick: number; id: number; amount: number; reason: FishReason }
+  /** Hero `id` bought Toy tier `tier` (1..4); every team sees it (enemy spikes show on the scoreboard). */
+  | { type: 'buy'; tick: number; id: number; tier: number }
   /** The match's first takedown. */
   | { type: 'firstBlood'; tick: number; killer: number; victim: number }
   /** A bonus on hero `id` started (for `ticks`): Nine Lives saved it, a pickup, the rat camp's Pack buff, Zoomies. */
@@ -308,6 +320,10 @@ export type SimEvent =
   | { type: 'bark'; tick: number; id: number; what: BarkKind };
 
 export type SimEventType = SimEvent['type'];
+
+/** Sim v12: why a `fish` event paid. */
+export type FishReason = 'kill' | 'assist' | 'firstBlood' | 'shutdown' | 'minion' | 'lastHit' | 'camp' | 'tower' | 'pudding' | 'pickup';
+export const FISH_REASONS: readonly FishReason[] = Object.freeze(['kill', 'assist', 'firstBlood', 'shutdown', 'minion', 'lastHit', 'camp', 'tower', 'pudding', 'pickup'] as FishReason[]);
 
 export interface Snapshot {
   /** The team this snapshot is filtered for. */
@@ -342,6 +358,15 @@ export interface SlotStats {
   healShield: number;
   /** Sim v10: damage this hero dealt to neutral objectives (the rat camp and Pudding). */
   objective: number;
+  /** Sim v12: Fish earned in the match (after the difficulty handicap), Toy tiers owned at the end, lane minion last hits. */
+  fish: number;
+  toys: number;
+  lastHits: number;
+  /** Sim v12: the tick each Toy tier was bought, −1 when it never was. */
+  toy1At: number;
+  toy2At: number;
+  toy3At: number;
+  toy4At: number;
 }
 
 export interface MatchResult {

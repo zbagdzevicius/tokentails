@@ -29,7 +29,7 @@ import { TierFx, type SkinFxMode } from './skins/tierFx';
 import { CardVfx, tinted } from './skins/cardFx';
 import { CompanionView } from './views/companionView';
 import { AUTO_TARGET_HOLD, CHEVRON_LIFE, chevronSize, chevronTexture, MOVE_RING_LIFE, TARGET_MARK_LIFE, targetMarkAlpha } from './fx/orderMarks';
-import { boldRingTexture, crosshairTexture, DecalLayer, ringTexture } from './views/decals';
+import { boldRingTexture, crosshairTexture, dashRingTexture, DecalLayer, ringTexture } from './views/decals';
 import { HeroView } from './views/heroView';
 import { HERO_RING } from './views/models';
 import { createMapView, type MapView } from './views/mapView';
@@ -63,6 +63,8 @@ export interface AimPreview {
 export interface GameViewHooks {
   onKill?(e: Extract<SimEvent, { type: 'death' }>, victim: Who | null, killer: Who | null): void;
   onLevel?(level: number): boolean | void;
+  /** Lane F (F3): the session's own level-up rail line (render/effects.ts EffectsHooks.levelNote). */
+  levelNote?(level: number, guided: boolean): boolean;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
   onTowerDown?(ours: boolean): void;
@@ -135,6 +137,13 @@ export class GameView {
    * input sets it while A is armed or a skill is aimed, the touch input while Attack is held or a skill is aimed.
    */
   attackRange = false;
+  /** C5: when (view time, s) the Attack button found nothing in reach: the range ring flashes red for a moment. */
+  private ringDenyAt = -9;
+  denyRing(): void {
+    this.ringDenyAt = this.time;
+  }
+  /** C6: the camera follow point last frame (m), for the damped snap after a long jump. */
+  private lastFollow = { x: NaN, z: NaN };
   /** Radius (m) of the attack range ring drawn this frame, 0 when none (e2e telemetry). */
   attackRingM = 0;
   /** The unit under the desktop cursor (DesktopInput.hover): a bright ring shows what a click or cast hits. */
@@ -261,10 +270,13 @@ export class GameView {
           else if (kind === 'minion') {
             const w = src !== undefined ? this.who.get(src) : undefined;
             this.minions.hit(id, w ? w.x : NaN, w ? w.z : NaN);
+            // C11b: the player's own hits read on the minion (a squash and a white flash)
+            if (src === this.mySlot) this.minions.flash(id);
           } else this.structures.hit(id);
         },
         onKill: hooks.onKill,
         onLevel: hooks.onLevel,
+        levelNote: hooks.levelNote,
         onTalentOffer: hooks.onTalentOffer,
         onWindupAtMe: hooks.onWindupAtMe,
         onTowerDown: hooks.onTowerDown,
@@ -417,6 +429,8 @@ export class GameView {
       this.meshFx.pools.ground.mesh.visible = this.meshFx.pools.vertical.mesh.visible = this.meshFx.pools.dome.mesh.visible = true;
       this.linger.mesh.visible = this.ribbons.mesh.visible = true;
       gr.renderer.compile(this.scene, gr.camera);
+      // fun pass: the Toy rings' dashed texture uploads now, not on the first Toy mid-match (a ~1 s SwiftShader stall)
+      gr.renderer.initTexture(dashRingTexture());
     } catch {
       /* a headless or lost context: they compile on first use */
     }
@@ -872,7 +886,13 @@ export class GameView {
     this.gr.zoom += (fight * this.fightCam.punchScale() - this.gr.zoom) * Math.min(1, dt * 10);
     const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead() + this.fightCam.leanX));
     const tz = clampFocusZ(this.follow.z + this.pan.z + this.below() + (this.panned ? 0 : this.fightCam.leanZ));
-    const k = Math.min(1, dt * (this.panned ? 12 : 7));
+    // C6: a tighter follow (dt × 14, was 7); a jump of more than 2 m in one frame (a blink, a dash) closes most of the
+    // gap at once instead of a long slide behind the hero
+    const lf = this.lastFollow;
+    const jump = Number.isFinite(lf.x) && Math.hypot(this.follow.x - lf.x, this.follow.z - lf.z) > 2;
+    lf.x = this.follow.x;
+    lf.z = this.follow.z;
+    const k = jump && !this.panned ? 0.6 : Math.min(1, dt * (this.panned ? 12 : 14));
     this.gr.focus.x += (tx - this.gr.focus.x) * k;
     this.gr.focus.z += (tz - this.gr.focus.z) * k;
     sfx.ear.x = this.gr.focus.x;
@@ -913,9 +933,10 @@ export class GameView {
     const mz = toZ(me.fy);
     // the basic attack range ring: thin, dashed, cream with an ink outline per dash (reads on the cream plaza and sand
     // lanes), under the VFX, so it never reads as a skill's solid range ring
-    if (this.attackRange && me.hero) {
+    const deny = this.time - this.ringDenyAt < 0.35;
+    if ((this.attackRange || deny) && me.hero) {
       this.attackRingM = attackRingMm(me.hero) / 1000;
-      this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: ATTACK_RING_COLOR, alpha: 0.9, dashed: true });
+      this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: deny ? RELATION.danger : ATTACK_RING_COLOR, alpha: 0.9, dashed: !deny });
     }
     if (!a) return;
     const color = a.valid ? RELATION.self : 0xff9f7a;
@@ -926,7 +947,22 @@ export class GameView {
     // the player's own indicator draws over the VFX with an ink edge (top), so a thumb or cursor aim reads in a brawl
     if (a.spec.kind !== 'self' && r > 0 && r <= RANGE_RING_MAX_M) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: r, color: RELATION.self, alpha: 0.7, top: true });
     const spec = toSpec(a.spec, mx, mz, a.x, a.z, Number.isFinite(yaw) ? yaw : me.yaw, color);
-    if (spec) this.telegraphs.draw({ ...spec, alpha: 0.95, top: true });
+    // C10: a filled body (0.35), an arrowhead on lines and dashes, and never thinner than 18 px on screen
+    if (spec && spec.width !== undefined) spec.width = Math.max(spec.width, AIM_MIN_PX / Math.max(1, this.pxPerMetre(mx, mz)));
+    if (spec) this.telegraphs.draw({ ...spec, alpha: 0.95, top: true, solid: 0.35 });
+  }
+
+  private readonly _pa = new THREE.Vector3();
+  private readonly _pb = new THREE.Vector3();
+
+  /** Screen pixels per world metre at ground point (x, z) (C10's minimum aim width). */
+  pxPerMetre(x: number, z: number): number {
+    const cam = this.gr.camera;
+    const h = this.gr.renderer.domElement.clientHeight || 1;
+    this._pa.set(x, 0, z).project(cam);
+    this._pb.set(x + 1, 0, z).project(cam);
+    const w = this.gr.renderer.domElement.clientWidth || 1;
+    return Math.hypot(((this._pb.x - this._pa.x) * w) / 2, ((this._pb.y - this._pa.y) * h) / 2);
   }
 
   dispose(): void {
@@ -974,6 +1010,8 @@ export class GameView {
 
 /** The basic attack range ring's colour (warm cream: neither the gold skill ring nor a team colour). */
 const ATTACK_RING_COLOR = 0xfff1d6;
+/** C10: the aim shape's width is at least this many screen pixels. */
+const AIM_MIN_PX = 18;
 /** A skill range ring wider than this (m) is not drawn (it would only fill the screen). */
 const RANGE_RING_MAX_M = 15;
 

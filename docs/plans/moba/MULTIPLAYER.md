@@ -1,8 +1,21 @@
 # Paw Legends Party Play: final architecture and build spec
 
 **Mode:** co-op against bots. 1 to 3 humans share the player team (slots 0 to 2). Bots fill every empty slot.
-**Worktree:** `/Users/zygimantasbagdzevicius/me/tokentails-pawlegends-mp` (branch `feat/pawlegends-mp`, base a923f0ac, `SIM_VERSION = 11`).
+**Worktree:** `/Users/zygimantasbagdzevicius/me/tokentails-pawlegends-mp` (branch `feat/pawlegends-mp`, base a923f0ac, merged with `feat/pawlegends` c49733c2; `SIM_VERSION = 13`, `PARTY_SINCE = 13`).
 **Status:** final. It merges the draft with the netcode review (B1 to B4, determinism, latency, reconnect, server) and the security and casual-UX review (S1 to S9, U1 to U7). Every accepted review point is folded into the section it changes. §15 lists what was cut and why.
+
+### Merge notes (2026-11-06: `feat/pawlegends` c49733c2 merged in; sim v13 shared with the dogs)
+
+- Sim v12 shipped to production **without** party code, so party play rides **`SIM_VERSION = 13`** and `PARTY_SINCE = 13`. `tools/vendor-sim.mjs` freezes the released v12 at 5bf2a938 (bundle `59426998…`); v10 and v11 stay frozen. v13 is **not** live and nothing new is frozen: the dogs branch (`feat/pawlegends-dogs`, `docs/plans/moba/DOGS-V13.md`) builds its five dog heroes into the **same** v13 and merges on top of this branch.
+- Single-player v13 equals v12 until the dogs land: `tests/unit/golden/party-identity.json` was regenerated on a clean c49733c2 worktree (v12 fixtures, 20 fuzz seeds, 5 bot runs), and `tools/determinism.mjs --seeds 200` gives the same rows (hero, ticks, commands, finalHash, input size) on c49733c2 and on the merged tree.
+- **Files the dogs v13 merge will touch in common with this branch** (expect conflicts or a re-run in these, nowhere else):
+  - Sim: `pawlegends/src/sim/version.ts` (both say 13: no conflict), `src/sim/api.ts`, `src/sim/index.ts`, `src/sim/bots/brain.ts`, `src/sim/combat/damage.ts`. The party edits there are small and additive (`humans` in `MatchConfig`, `PartyReplayRecord`, party exports, `isHumanSlot` guards in the brain and in `combat/damage.ts`, including v12's struggling-human respawn rule, which now covers every party human); keep both sides.
+  - Tooling: `pawlegends/tools/vendor-sim.mjs` (the v12 `FROZEN` entry is byte-identical on both branches; keep the dogs' hero ids and `dog-replay.fixture.json`, and this branch's party facade, `PARTY_SIMS`, net bundle and `prev/`), `tools/vendor-sim.test.mjs`, `tools/lib/fuzz-entry.ts` (party fuzz appended at the end).
+  - Tests: `tests/unit/round2.test.ts`, `sim-v7.test.ts`, `sim-v10.test.ts`, `sim-v11.test.ts` (the same `SIM_VERSION` 13 pins on both sides).
+  - Backend: `backend/src/pawlegends/pawlegends-live.spec.ts` (sim versions `[10, 11, 12, 13]`), `pawlegends-replay.dto.ts` (doc comment), `pawlegends-replay.worker.ts` (doc comment). Generated, never hand-merged: `backend/src/vendor/pawlegends-sim/**`, `backend/src/vendor/pawlegends-net/**`, `pawlegends/src/net/sim-stamp.json`: run `npm run vendor-sim` after the merge.
+  - Client and docs: `client/components/pawlegends/bridge.ts`, `docs/DEVELOPMENT.md`, `docs/GAMES.md`, `docs/plans/moba/GDD.md`.
+- **After the dogs merge:** the dogs change single-player play (new heroes in the pick pools), so regenerate `party-identity.json` from the dogs' v13 single-player sim **before** this branch's party code is in it (a worktree at the dogs commit with `tests/unit/party-identity.test.ts` copied in, `PARTY_GOLDEN_WRITE=1`, `VENDOR` pointing at that commit's v13 fixtures), then prove the merged tree matches it, as above. `party-sim`, `party-pilot-purity` and `party-order` must stay green with dogs in the party pick pool.
+- Friend slot rings moved off the relation colours (main's ally blue / enemy red / self yellow, `RELATION_CSS`): slot 0 mint, 1 violet, 2 orange.
 
 ---
 
@@ -41,6 +54,8 @@
 
 ## 1. Sim changes (lane N0, blocks everything)
 
+> **Resolved 2026-11-06 (see Merge notes at the top):** v12 shipped without party code, so party code rides v13 with `PARTY_SINCE = 13`. The original warning follows for history.
+>
 > **MERGE WARNING. Say this loudly in every report and in the merge PR.**
 > The other workflow is bumping `SIM_VERSION` to 12 on `feat/pawlegends`. It also edits the bot brain, so `bots/brain.ts` and `bots/orders.ts` **will conflict**.
 > - This change does **not** bump `SIM_VERSION`. Single-player output (hashes, logs, replays, v10 and v11 fixtures) stays byte-identical, and a test proves it.
@@ -59,7 +74,7 @@
 - `ReplayRecord` (v:1) is unchanged. Add `interface PartyReplayRecord { v: 2; simVersion; seed; difficulty; humans: {slot, hero, trick}[]; picks: HeroId[6]; tricks: TrickId[6]; ticks; inputs: string[] /* base64 of each human slot's post-gate log, same order as humans */; outcome; finalHash; mutator? }`.
 
 `src/sim/party.ts` (new; all party logic):
-- `PARTY_SINCE = 11` (see the merge rule).
+- `PARTY_SINCE = 13` (see the merge rule and the Merge notes: v12 shipped without party code).
 - `isHuman(m, slot)`: true for slots in `config.humans`; returns `slot === 0` when `humans` is absent.
 - `createPartyState(config)`: one `InputGate` and one `TimedCommand[]` log **per human slot ≥ 1**. Slot 0 keeps `m.gate` and `m.log`.
 - `applyPartyInputs(m, tick, bySlot)`: slots 1 then 2 (see §1.2 for the exact place):
@@ -517,7 +532,7 @@ Every in-match message goes through `src/ui/notify.ts` `push()`, one line of ≤
 
 - **`notify.ts`:** add optional `actions?: {id, label}[]` to `Note`, rendered as chips in the rail item (≥ 40 px touch targets), dispatched through `onAction(id)`. `notifyQueue.ts` keeps action notes sticky until resolved or expired.
 - **Pilot state in the UI** comes from TURN `modeMask` bits (in order with the turns); the `slot` JSON supplies only the reason text.
-- **M1 Teammate identity:** overhead plates for humans show the name plus a slot ring (slot 0 gold, 1 cyan, 2 pink) (`ui/overhead.ts`); the scoreboard (`ui/scoreboard.ts`) gets a human badge, a connection dot and a "bot" chip while piloted; the minimap (`ui/minimap.ts`) shows human dots in ring colour; HUD portraits use card art; `slotNames` (`meta/cardName.ts`) accepts `names[6]` from `party.members`.
+- **M1 Teammate identity:** overhead plates for humans show the name plus a slot ring (slot 0 mint, 1 violet, 2 orange; never the self yellow, ally blue or enemy red of `RELATION_CSS`) (`ui/overhead.ts`); the scoreboard (`ui/scoreboard.ts`) gets a human badge, a connection dot and a "bot" chip while piloted; the minimap (`ui/minimap.ts`) shows human dots in ring colour; HUD portraits use card art; `slotNames` (`meta/cardName.ts`) accepts `names[6]` from `party.members`.
 - **M2 Pings:** the ping wheel (`ui/pingWheel.ts`) gets a `social` mode. Slots 1 and 2 send `social{kind:'ping'}` (markers only, not simulated). The leader still sends the in-sim `Op.Ping` (it commands the bots), and the relay echoes it socially.
 - **M3 Quick chat and emotes:** a speech-bubble button next to the paw button (bottom right; must fit 667x375 without overlapping the ability bar). 8 lines in `src/data/social.ts` ("Nice!", "On my way", "Help me", "Group up", "Back off", "Push", "Thanks", "GG") and 4 emotes shown over the hero for 2 s. Desktop: hold T for the radial. Rate limit 1 per 2 s and 10 per 30 s per member (server-enforced, client-mirrored). Mute: tap a name on the scoreboard (local, per session; hides pings, chat, emotes and the name).
 - **M4 Takeover:** the dropped teammate's plate shows a robot glyph and a greyed ring.

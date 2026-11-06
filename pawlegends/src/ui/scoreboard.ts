@@ -7,6 +7,7 @@ import { HEROES } from '../data/heroes';
 // cards: each row's hero as a 32x44 mini Token Tails card (element art and portrait)
 import { portraitUrl } from '../render/portraits';
 import { cardAttrs, heroElement } from './cards/el';
+import { TOY_TIERS } from '../data/toys';
 
 /** A team's name by who is in it (sim v5 species teams): the cats are Purrhaven, the dogs the Woof pack. */
 export function teamLabel(picks: readonly HeroId[], team: 0 | 1): string {
@@ -29,6 +30,18 @@ export function talentChips(hero: HeroId, talents: readonly number[] | undefined
       return `<i class="tc" title="Level ${[3, 6, 9][t]}: ${esc(opt.name)}">${esc(opt.name.charAt(0))}</i>`;
     })
     .join('');
+}
+
+/**
+ * Lane F (F2): a hero's Toy tiers as four pips (the snapshot's `toy`, both teams; an enemy's buy lights one), "?" when
+ * the hero is out of sight. Pure.
+ */
+export function toyPips(toy: number | undefined): string {
+  if (toy === undefined) return '<i class="tp unk" title="Hidden">?</i>';
+  const t = Math.max(0, Math.min(TOY_TIERS, toy));
+  let h = '';
+  for (let i = 0; i < TOY_TIERS; i++) h += `<i class="tp${i < t ? ' on' : ''}"></i>`;
+  return `<span class="toys" data-toy="${t}" title="${t} of ${TOY_TIERS} Toys">${h}</span>`;
 }
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
@@ -132,11 +145,11 @@ export class Scoreboard {
           const t = HERO_TEXT[hero];
           return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}${this.seats?.has(slot) ? ' friend' : ''}" data-slot="${slot}">
             <td><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
-            <td>${t.role}</td><td class="lv">${e?.level ?? '-'}</td><td class="kda">${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td class="tal">${talentChips(hero, e?.talents)}</td><td>${this.heroDmg[slot]}</td>
+            <td>${t.role}</td><td class="lv">${e?.level ?? '-'}</td><td class="kda">${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td class="tal">${talentChips(hero, e?.talents)}</td><td class="toy">${toyPips(e?.toy)}</td><td>${this.heroDmg[slot]}</td>
             <td>${dead ? `${Math.ceil((e?.respawnIn ?? 0) / 30)} s` : e ? `${Math.round((e.hp / Math.max(1, e.maxHp)) * 100)}%` : 'hidden'}</td></tr>`;
         })
         .join('');
-    const head = '<tr><th>Hero</th><th>Role</th><th>Lv</th><th title="Knockouts / knocked out / assists">K / D / A</th><th>Talents</th><th>Hero dmg</th><th>Health</th></tr>';
+    const head = '<tr><th>Hero</th><th>Role</th><th>Lv</th><th title="Knockouts / knocked out / assists">K / D / A</th><th>Talents</th><th>Toys</th><th>Hero dmg</th><th>Health</th></tr>';
     this.root.innerHTML = `<div class="card lol"><h3 class="t0">${teamLabel(this.picks, 0)}${this.mySlot < 3 ? ' (you)' : ''}</h3><table>${head}${rows(0)}</table><h3 class="t1">${teamLabel(this.picks, 1)}</h3><table>${head}${rows(1)}</table><p class="hint">${document.documentElement.dataset.touch === '1' ? 'Tap to close' : 'Hold Tab'}</p></div>`;
   }
 

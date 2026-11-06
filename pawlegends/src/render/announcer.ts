@@ -8,8 +8,11 @@
  * Works with or without the fun-plan sim events: First Blood, streaks, shutdowns and the bounty crown are also
  * inferred from `death` events, and a sim `firstBlood` / `shutdown` / `bounty` for the same kill is not announced twice.
  */
-import type { PingKind, SimEvent } from '../sim/api';
+import type { HeroId, PingKind, SimEvent } from '../sim/api';
 import { HEAL_BARK, PING_TEXT } from '../ui/pingText';
+import { FISH } from '../data/fish';
+import { TOY_TIERS } from '../data/toys';
+import { gearedLine, toyToast } from '../ui/toyText';
 import { isCampBuff, isFun, isNineLives, tickOf, type AnyEvent, type FunEvent } from './feelEvents';
 
 export type MomentTone = 'good' | 'bad' | 'gold' | 'info';
@@ -40,6 +43,10 @@ export interface Moment {
   face?: number;
   /** LoL pass (lane B): the announcer voice line (audio/voice.ts), said after the sting. */
   voice?: VoiceKey;
+  /** Lane F: the match tick it happened on (the progression rail merges a buy and a level-up by it). */
+  tick?: number;
+  /** Lane F (buy): the Toy tier bought and its parts for the progression rail. */
+  toy?: { tier: number; name: string; head: string; sub: string };
 }
 
 /** LoL pass (lane B): the voice lines (audio/voice.ts). Recorded clips live in public/voice/<key>.mp3. */
@@ -68,7 +75,10 @@ export const BARKS = Object.freeze({
   assist: ['Thanks for the help!', 'Teamwork!', 'Got your back!', 'We did it together!'],
 });
 
-export const STREAK_NAMES: Readonly<Record<number, string>> = Object.freeze({ 3: 'On a Roll', 4: 'Unstoppa-paw', 5: 'Legend-dairy' });
+/** Lane F (F4): a streak of 5 is "On the Prowl"; 6 and more "Legend-dairy". */
+export const STREAK_NAMES: Readonly<Record<number, string>> = Object.freeze({ 3: 'On a Roll', 4: 'Unstoppa-paw', 5: 'On the Prowl', 6: 'Legend-dairy' });
+/** The highest STREAK_NAMES step. */
+const STREAK_TOP = 6;
 export const MULTI_NAMES: Readonly<Record<number, string>> = Object.freeze({ 2: 'Double Pounce', 3: 'Triple Pounce', 4: 'Cat-astrophe' });
 
 const isHero = (id: number): boolean => id >= 0 && id < 6;
@@ -148,7 +158,14 @@ export class Announcer {
     readonly mySlot: number,
     readonly myTeam: number,
     private readonly name: AnnouncerNames = (s) => `Slot ${s}`,
+    /** Lane F: the hero in a slot (Toy names); without it the buy line is skipped. */
+    private readonly heroOf: (slot: number) => HeroId | undefined = () => undefined,
   ) {}
+
+  /** Lane F (F4): enemy knockouts the player took part in, each within WINDOW.multikill of the last (Clean Sweep). */
+  private sweep = { n: 0, last: -1e9, ids: 0 };
+  /** Toy buys seen (results). */
+  toysBought = 0;
 
   /** Bounty crown per slot: the sim value, or 1 for a 3+ streak seen locally (0 = no crown). */
   bounty(slot: number): number {
@@ -179,6 +196,8 @@ export class Announcer {
       case 'levelup':
         if (ev.id === this.mySlot && ev.level >= 4 && this.level4Tick < 0) this.level4Tick = this.tick;
         return [];
+      case 'buy':
+        return this.buy(ev);
       case 'pudding':
         if (ev.what === 'calmed' && ev.team === this.myTeam) {
           this.pudding = true;
@@ -289,9 +308,9 @@ export class Announcer {
       // streak (First Blood already covers a streak of 1)
       const s = this.streak[this.mySlot];
       if (s >= 3) {
-        const k = Math.min(5, s);
+        const k = Math.min(STREAK_TOP, s);
         // LoL pass (lane B): the killing-spree tiers are announcer lines (rail prio 2, big), not personal callouts
-        out.push(this.note({ key: `streak${k}`, title: STREAK_NAMES[k], sub: s > 5 ? `${s} in a row` : undefined, tone: 'gold', size: 'banner', big: true, crowd: 'cheer', rank: k === 5 ? 35 : k === 4 ? 28 : 22 }));
+        out.push(this.note({ key: `streak${k}`, title: STREAK_NAMES[k], sub: s > STREAK_TOP ? `${s} in a row` : undefined, tone: 'gold', size: 'banner', big: true, crowd: 'cheer', rank: k >= 5 ? 35 : k === 4 ? 28 : 22 }));
       }
       if (!out.some((m) => m.key.startsWith('multi') || m.key === 'firstBlood')) out.push({ key: 'takedown', title: 'Takedown!', tone: 'gold', size: 'callout', crowd: 'cheer' });
     } else if (killerHero && teamOf(e.killer) === this.myTeam && !out.length) {
@@ -309,6 +328,19 @@ export class Announcer {
       out.push({ key: 'slain', title: 'You have been slain', sub: killerHero ? `${this.name(e.killer)} got you.` : undefined, tone: 'bad', size: 'banner', ...(killerHero ? { face: e.killer } : {}), voice: 'slain' });
     } else if (teamOf(e.id) === this.myTeam && this.tick - this.ourTakedownAt > ALLY_SLAIN_QUIET) {
       out.push({ key: 'allySlain', title: 'An ally has been slain', sub: `${this.name(e.id)} is down.`, tone: 'bad', size: 'banner', face: e.id });
+    }
+    // Lane F (F4): the player took part (a kill or an assist) in all three enemy knockouts, each within the multikill
+    // window of the last: "Clean Sweep!" (a personal line beside the team's ACE)
+    if ((mine || assist) && teamOf(e.id) !== this.myTeam) {
+      if (this.tick - this.sweep.last > WINDOW.multikill) this.sweep = { n: 0, last: this.tick, ids: 0 };
+      this.sweep.n++;
+      this.sweep.last = this.tick;
+      this.sweep.ids |= 1 << e.id;
+      const all = 7 << (teamOf(e.id) * 3);
+      if ((this.sweep.ids & all) === all) {
+        this.sweep.ids = 0;
+        out.push(this.note({ key: 'cleanSweep', title: 'Clean Sweep!', sub: 'You took all three down in a row.', tone: 'gold', size: 'callout', crowd: 'roar', rank: 46 }));
+      }
     }
     const ace = this.aceCheck(e.id);
     if (ace) out.push(ace);
@@ -362,7 +394,8 @@ export class Announcer {
     const ours = teamOf(killer) === this.myTeam;
     return this.note({
       key: 'firstBlood',
-      title: 'First Blood!',
+      // Lane F (F4): the player's First Blood says what it paid (the kill and its bonus, from data/fish.ts)
+      title: mine ? `First Blood! +${FISH.kill + FISH.firstBlood} Fish` : 'First Blood!',
       sub: mine ? 'You drew first blood.' : ours ? `${this.name(killer)} drew first blood.` : 'They drew first blood.',
       tone: mine ? 'gold' : ours ? 'good' : 'bad',
       size: 'banner',
@@ -375,14 +408,14 @@ export class Announcer {
     });
   }
 
-  private shutdown(killer: number, victim: number, value: number): Moment {
+  private shutdown(killer: number, victim: number, value: number, fish = 0): Moment {
     const mine = killer === this.mySlot;
     // killer −1: a tower or minion ended it (sim v4), on the victim's enemies' side
     const ours = killer >= 0 ? teamOf(killer) === this.myTeam : teamOf(victim) !== this.myTeam;
     if (mine) this.shutdowns++;
     return this.note({
       key: 'shutdown',
-      title: 'Shut down!',
+      title: mine && fish > 0 ? `Shut down! +${fish} Fish` : 'Shut down!',
       sub: mine ? (value > 0 ? `+${value} XP` : `You stopped ${this.name(victim)}.`) : ours ? `${this.name(killer)} stopped ${this.name(victim)}.` : victim === this.mySlot ? 'They ended your streak.' : `${this.name(victim)} was stopped.`,
       tone: ours ? 'gold' : 'bad',
       size: 'banner',
@@ -394,6 +427,24 @@ export class Announcer {
     });
   }
 
+  /**
+   * Lane F (F2): a Toy bought. The player's own: a 'buy' moment for the progression rail (merged with a level-up), a
+   * ring burst and the buy sound. An enemy's last tier: "Rex is fully geared up". Other buys show only as scoreboard
+   * pips (the snapshot's `toy`).
+   */
+  private buy(e: Extract<SimEvent, { type: 'buy' }>): Moment[] {
+    if (!isHero(e.id)) return [];
+    const hero = this.heroOf(e.id);
+    if (e.id === this.mySlot) {
+      this.toysBought++;
+      if (!hero) return [];
+      const t = toyToast(hero, e.tier);
+      return [{ key: 'buy', title: t.title, sub: t.sub, tone: 'gold', size: 'banner', tick: this.tick, toy: { tier: e.tier, name: t.name, head: t.head, sub: t.sub }, rank: e.tier >= TOY_TIERS ? 10 : 0 }];
+    }
+    if (teamOf(e.id) !== this.myTeam && e.tier >= TOY_TIERS) return [{ key: 'geared', title: gearedLine(this.name(e.id)), tone: 'bad', size: 'banner', tick: this.tick }];
+    return [];
+  }
+
   private fun(e: FunEvent): Moment[] {
     switch (e.type) {
       case 'firstBlood':
@@ -402,12 +453,16 @@ export class Announcer {
         return [this.firstBlood(e.killer)];
       case 'shutdown': {
         if (this.lastShutdown.victim === e.victim && Math.abs(this.tick - this.lastShutdown.tick) <= WINDOW.same) {
-          // already announced from the death: only the XP line is new
-          if (e.killer === this.mySlot && e.value > 0) return [{ key: 'shutdownXp', title: `+${e.value} XP`, tone: 'gold', size: 'pop' }];
-          return [];
+          // already announced from the death: only the XP and (sim v12) Fish are new. The Fish goes onto the same rail
+          // item ("Shut down! +160 Fish", key 'shutdown'), the XP over the hero.
+          const out: Moment[] = [];
+          const fish = (e as { fish?: number }).fish ?? 0;
+          if (e.killer === this.mySlot && fish > 0) out.push({ key: 'shutdownFish', title: `Shut down! +${fish} Fish`, tone: 'gold', size: 'banner', big: true });
+          if (e.killer === this.mySlot && e.value > 0) out.push({ key: 'shutdownXp', title: `+${e.value} XP`, tone: 'gold', size: 'pop' });
+          return out;
         }
         this.lastShutdown = { victim: e.victim, tick: this.tick };
-        return [this.shutdown(e.killer, e.victim, e.value)];
+        return [this.shutdown(e.killer, e.victim, e.value, (e as { fish?: number }).fish ?? 0)];
       }
       case 'bounty': {
         if (!isHero(e.id)) return [];
@@ -421,8 +476,10 @@ export class Announcer {
       case 'comeback':
         // no rank: the rubber-band waves are not the player's best moment (it showed on 4-15 losses)
         return e.team === this.myTeam
-          ? [{ key: 'comeback', title: 'COMEBACK!', sub: 'Our next waves hit harder.', tone: 'gold', size: 'banner', crowd: 'roar', shake: 0.25 }]
-          : [{ key: 'comebackThem', title: 'They are rallying', sub: 'Their next waves hit harder. Hold the line.', tone: 'bad', size: 'banner' }];
+          ? // Fun pass (playtest #8): "COMEBACK!" read as a promise while the team was down 4-13; the phone title says
+            // what happens (phones drop the sub)
+            [{ key: 'comeback', title: 'Our waves get stronger', sub: 'We are behind on towers: our next 2 waves hit harder.', tone: 'gold', size: 'banner' }]
+          : [{ key: 'comebackThem', title: 'Their waves get stronger', sub: 'Their next 2 waves hit harder. Hold the line.', tone: 'bad', size: 'banner' }];
       case 'pickupSpawn':
         // the first spawn of a match is a banner; later ones only ping the minimap (24 of 68 banners were Frenzy)
         if (e.kind !== 'frenzy') return [];

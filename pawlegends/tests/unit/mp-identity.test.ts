@@ -151,7 +151,7 @@ describe('NetHost party link (M1, M4)', () => {
 });
 
 describe('results together (M6)', () => {
-  const st = (slot: number, hero: string, k: number): SlotStats => ({ slot, hero: hero as never, kills: k, deaths: 1, assists: 2, heroDamage: 900 + slot, towerDamage: 0, level: 7, damageTaken: 0, healShield: 0, objective: 0 });
+  const st = (slot: number, hero: string, k: number): SlotStats => ({ slot, hero: hero as never, kills: k, deaths: 1, assists: 2, heroDamage: 900 + slot, towerDamage: 0, level: 7, damageTaken: 0, healShield: 0, objective: 0, fish: 0, toys: 0, lastHits: 0, toy1At: -1, toy2At: -1, toy3At: -1, toy4At: -1 });
   const stats = [st(0, 'clem', 3), st(1, 'sage', 1), st(2, 'lambo', 0), st(3, 'gabe', 2), st(4, 'pixel', 1), st(5, 'stilts', 0)];
 
   it('one row per teammate: two humans (a bot chip over 10%), the bot greyed, Hide names honoured', () => {

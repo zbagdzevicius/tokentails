@@ -1,9 +1,10 @@
 /**
  * Party play (docs/plans/moba/MULTIPLAYER.md §1): co-op against bots, 1 to 3 humans on slot 0's team.
  *
- * MERGE WARNING (§1): this module does not bump SIM_VERSION. Single-player output stays byte-identical
- * (tests/unit/party-identity.test.ts). PARTY_SINCE is the first SIM_VERSION that ships to production with party code:
- * if this branch merges into the v12 work before either ships, set it to 12.
+ * MERGE NOTE (§1): sim v12 shipped without party code, so party play rides SIM_VERSION 13 (v12 is frozen). Party code
+ * leaves single-player output byte-identical to v12 (tests/unit/party-identity.test.ts). PARTY_SINCE is the first
+ * SIM_VERSION that ships to production with party code. The dogs branch (feat/pawlegends-dogs) also targets v13 and
+ * merges on top into the same version.
  *
  * Determinism rule (§1.4): a client's sim only ever applies the decoded TURN bytes, its own commands included.
  * A human slot is a command source like slot 0: `step(m, slot0, others)`. A pilot (the relay's bot for a dropped
@@ -25,7 +26,7 @@ export { createPlayerBotFor } from './bots';
 export { humanMask, isHumanSlot } from './humans';
 
 /** The first SIM_VERSION with party code (see the merge warning above). The backend refuses older party results. */
-export const PARTY_SINCE = 11; // lint-sim: allow (a version number, not tuning)
+export const PARTY_SINCE = 13; // lint-sim: allow (a version number, not tuning)
 
 /** Is hero slot `slot` a human's in match `m`? Slot 0 always; slots 1 and 2 only in a party. */
 export const isHuman = (m: MatchHandle, slot: number): boolean => isHumanSlot(m.world, slot);

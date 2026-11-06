@@ -65,11 +65,11 @@ describe('announcer', () => {
     expect(a.feed({ type: 'shutdown', tick: 401, killer: 0, victim: 3, value: 120 })).toEqual([{ key: 'shutdownXp', title: '+120 XP', tone: 'gold', size: 'pop' }]);
   });
 
-  it('own streak: On a Roll, Unstoppa-paw, Legend-dairy', () => {
+  it('own streak: On a Roll, Unstoppa-paw, On the Prowl (lane F: a streak of 5)', () => {
     const a = new Announcer(0, 0, name);
     const titles: string[] = [];
     for (let i = 0; i < 5; i++) for (const m of a.feed(death(1000 + i * 600, 3 + (i % 3), 0))) if (m.key.startsWith('streak')) titles.push(m.title);
-    expect(titles).toEqual(['On a Roll', 'Unstoppa-paw', 'Legend-dairy']);
+    expect(titles).toEqual(['On a Roll', 'Unstoppa-paw', 'On the Prowl']);
   });
 
   it('assists count as takedowns; ally kills read as good', () => {
@@ -98,7 +98,7 @@ describe('announcer', () => {
     const a = new Announcer(0, 0, name);
     expect(a.feed({ type: 'bounty', tick: 1, id: 4, value: 120 })[0]?.title).toBe('Bounty on Sage!');
     expect(a.bounty(4)).toBe(120);
-    expect(a.feed({ type: 'comeback', tick: 2, team: 0 })[0]?.title).toBe('COMEBACK!');
+    expect(a.feed({ type: 'comeback', tick: 2, team: 0 })[0]?.title).toBe('Our waves get stronger');
     expect(a.feed({ type: 'comeback', tick: 3, team: 1 })[0]?.tone).toBe('bad');
     expect(a.feed({ type: 'pickupSpawn', tick: 4, index: 0, kind: 'frenzy', x: 50000, y: 40000 })[0]?.title).toBe('Frenzy Catnip spawned!');
     expect(a.feed({ type: 'pickupSpawn', tick: 4, index: 1, kind: 'snack', x: 30000, y: 40000 })).toEqual([]);
@@ -213,7 +213,7 @@ describe('daily quests', () => {
 });
 
 describe('touch assists', () => {
-  it('lane magnet snaps a stick within 25° of the lane, not one far off', () => {
+  it('lane magnet snaps a stick within 8° of the lane (C8), not one far off', () => {
     // on the Sunny Lane river stretch (22,50 → 50,53 m), pushing east-ish
     const a = laneMagnet(30000, 51000, (10 * Math.PI) / 180);
     const lane = Math.atan2(3000, 28000);

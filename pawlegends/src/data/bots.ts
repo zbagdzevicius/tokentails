@@ -161,6 +161,15 @@ export interface DifficultyRules {
    * and Hard 4:00, Rookie never (the client also blocks matches 1–3). Bots never forfeit, so the gates do not move.
    */
   forfeitFrom: number;
+  /**
+   * Sim v12 (docs/FUN-PROGRESSION-V12.md S2): catch-up XP (catchUpPerLevelBp) and comeback Fish (FISH.comebackPerSecond)
+   * start at this tick, so the early lead a player earns is not taken back at once. Rookie and Easy 0, Normal and
+   * Hard 3:00.
+   */
+  catchUpFrom: number;
+  /** Sim v12 (S4): the human's enemies earn this share of their Fish (10000 = the same), so a new player's farm is not
+   *  outpaced by bots that last-hit perfectly. */
+  enemyFishBp: number;
 }
 
 export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRules>>> = Object.freeze({
@@ -177,8 +186,15 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
   // enemiesToHuman draws there, and each one raised its rally. Rookie now credits only real assists (idle 47.5%, but
   // feeder 80.0%) and its rally is +13% a takedown (12% before; idle 48.0%, feeder 87.0%, fun1 97.5%, length median
   // 5:00; at 14% fun1 ended at 4:58).
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 6000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 10000, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1300, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0 }),
-  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400 }),
+  // Sim v12 (Fish and Toys, docs/FUN-PROGRESSION-V12.md; respawns 3 s + 0.9 s a level): Rookie's human respawns
+  // × 0.55 (0.6 before: fun1 "back in the fight" median 12.5 s; at 0.5 the match median fell to 4:58, at 0.55 it is
+  // 5:02 and 11.5 s). Easy's enemies keep 95% of their Fish (the spec's 85% put fun2 at 81.0%, 70–80%; 78.5% at 95%).
+  // Fun pass (playtest #2: a weak player on Normal faced level 9 enemies with Toy III at 3:35 as a level 6): an enemy
+  // hero 2+ levels above the human earns 85% of its XP on Easy and Normal (Hard stays even). With the bigger Toys and
+  // last hits the human's side out-farmed Rookie and Easy bots (fun1 median 4:47, under 5:00; fun2 won 84.0%, 70-80%):
+  // the human's enemies now keep 85% of their Fish on Rookie (70% before) and all of it on Easy (95%).
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 5500, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 10000, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1300, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500 }),
+  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000 }),
   /**
    * Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
    * 69.5% of the 2,000-seed balance gate ended in a core kill before Sudden Death (70% floor); 125% gave 70.5%,
@@ -202,8 +218,8 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
    * player won 54.5%, then 42% of 200 seeds with fightPowerBp 7000 and retreat at 20%), so Hard also gets these
    * two edges: the `hard` gate (Normal player-bot vs Hard) is 36.0% and 29.5% on seeds 1..200 and 1,001..1,200.
    */
-  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200 }),
-  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200 }),
+  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000 }),
+  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000 }),
 });
 
 export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze({
@@ -338,6 +354,8 @@ export const BOT_AI = Object.freeze({
   powerRange: 10000,
   /** Power of a hero in the fight check (BotParams.fightPowerBp): HP + powerPerLevel × level. */
   powerPerLevel: 40,
+  /** Sim v12: + this per Toy tier owned that adds no HP (data/toys.ts TOY_POWER_TIERS; HP tiers already raise HP). */
+  powerPerToy: 25,
   /** A structure covering the fight adds this to its side's power (untanked enemy towers count against us). */
   towerPower: 600,
   /** Foe choice: lowest HP + distance / distWeight (mm per HP point). */

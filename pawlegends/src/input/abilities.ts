@@ -14,6 +14,8 @@ import { kitNumbers } from '../sim/heroes/talents';
 import { TRICKS } from '../data/tricks';
 import { RADIUS } from '../data/map';
 import { HERO_RULES } from '../data/xp';
+import { MINIONS } from '../data/minions';
+import { TOY_SUM } from '../data/toys';
 import type { CastSlot, HeroId, TrickId } from '../sim/api';
 import { aims as meatballAims } from './aims/meatball';
 import { aims as pixelAims } from './aims/pixel';
@@ -194,6 +196,20 @@ export const isRangedHero = (hero: HeroId): boolean => basicRange(hero) > HERO_R
  * so a ring at range + own radius is where an enemy's edge comes into reach.
  */
 export const attackRingMm = (hero: HeroId): number => basicRange(hero) + RADIUS.hero;
+
+/**
+ * C5 (client estimate, never a replay input): what the hero's next basic deals to minion or camp `u` after armour,
+ * with its level and Toys, a little under (×0.95) so a "kills it" guess rarely misses. The minion's kind is read from
+ * its max HP (siege carts are big, ranged pups small); camps have no armour.
+ */
+export function minionHitEstimate(hero: HeroId, level: number, toy: number, u: { kind: string; maxHp: number }): number {
+  const b = HEROES[hero].base;
+  const raw = b.attack + b.attackPerLevel * Math.max(0, level - 1);
+  const sum = TOY_SUM[HEROES[hero].role][Math.max(0, Math.min(4, toy))];
+  const armour = u.kind !== 'minion' ? 0 : u.maxHp >= MINIONS.siege.hp * 0.85 ? MINIONS.siege.armour : u.maxHp < (MINIONS.ranged.hp + MINIONS.melee.hp) / 2 ? MINIONS.ranged.armour : MINIONS.melee.armour;
+  const dmg = (raw * (10000 + sum.dmgBp)) / 10000;
+  return Math.floor(((dmg * HERO_RULES.armourBase) / (HERO_RULES.armourBase + armour)) * 0.95);
+}
 
 /** Level at which the ultimate unlocks (§6.1). */
 export const ULT_LEVEL = 4;

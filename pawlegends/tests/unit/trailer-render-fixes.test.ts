@@ -11,7 +11,7 @@ import * as THREE from 'three';
 import { onScreenAnchor } from '../../src/render/fx/DamageNumbers.js';
 import { normalizeShock, SHOCK_MAX_INTENSITY } from '../../src/render/fx/Shockwaves.js';
 import { DEBRIS, RUBBLE, STRUCT_ANIM, StructureView, xrayOpacity } from '../../src/render/views/towerView';
-import { MINION_BAR_CSS, RELATION, RELATION_CSS, TEAM, dressTeam, setSideSwap, setTeam0Dogs, sidesSwapped } from '../../src/render/palette';
+import { MINION_BAR_CSS, RELATION, RELATION_CSS, dressTeam, setSideSwap, setTeam0Dogs, sidesSwapped } from '../../src/render/palette';
 import { RIM } from '../../src/render/anim/fxkit/readability';
 import { SEPARATION, separate } from '../../src/render/views/heroView';
 import { inClearZone } from '../../src/render/views/minionInstances';
@@ -50,22 +50,19 @@ describe('cats vs dogs colours', () => {
     setTeam0Dogs(false);
   });
 
-  it('a dog-picking human: ally takes the dog blue, enemy the cat rose, and it switches back', () => {
+  it('a dog-picking human keeps ally blue and enemy red; only the team cloth swaps', () => {
     const ally = RELATION.ally;
     const enemy = RELATION.enemy;
-    expect(ally).toBe(TEAM[0].main);
     setSideSwap(true);
     expect(sidesSwapped()).toBe(true);
-    expect(RELATION.ally).toBe(enemy);
-    expect(RELATION.enemy).toBe(ally);
-    expect(RIM.ally).toBe(enemy);
-    expect(RELATION_CSS.ally).toBe('#7a9cff');
-    expect(MINION_BAR_CSS.enemy).toBe('#ffb8c9');
+    expect(RELATION.ally).toBe(ally);
+    expect(RELATION.enemy).toBe(enemy);
+    expect(RIM.ally).toBe(ally);
+    expect(RELATION_CSS.ally).toBe('#4da0ff');
+    expect(MINION_BAR_CSS.enemy).toBe('#ff9ea3');
     expect(document.documentElement.dataset.sides).toBe('dogs');
     setSideSwap(false);
-    expect(RELATION.ally).toBe(ally);
-    expect(RIM.ally).toBe(ally);
-    expect(document.documentElement.style.getPropertyValue('--ally')).toBe('');
+    expect(document.documentElement.dataset.sides).toBe('cats');
   });
 
   it('team cloth follows the species', () => {
