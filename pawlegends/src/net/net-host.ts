@@ -462,6 +462,7 @@ export class NetHost implements PartyLink {
         return;
       case 'end':
         this.serverEnd = m;
+        this.endAtMs = this.now();
         this.endInfo.scored = m.scored;
         if (m.why) this.endInfo.why = m.why;
         // no more TURNs will come: step every queued one now (the jitter buffer would hold the last B forever)
@@ -523,6 +524,12 @@ export class NetHost implements PartyLink {
         // a `back` sent before the relay saw our latest BEAT is refused: retry for a while after catching up
         // (a mid-match joiner or a reload takes its hero without having to touch anything first)
         if (!this.catching && this.piloted(this.match.you.slot) && this.now() < this.reclaimUntil) this.askBack();
+        if (this.gapAt >= 0) {
+          if (m.lastTurn >= this.gapAt) this.gapAt = -1;
+          else this.retrySync(this.gapAt);
+        }
+        // the relay said the match ended but this sim has not: the last turns are missing, ask for them
+        if (this.serverEnd && !this.coreEnded && this.now() - this.endAtMs > 2000) this.retrySync(m.lastTurn + 1);
         if (m.waiting && !this.waitingShown) {
           this.waitingShown = true;
           this.note({ key: 'mp-wait', title: 'Waiting for server…', tone: 'bad', ttl: 3000 });
@@ -534,15 +541,14 @@ export class NetHost implements PartyLink {
         if (m.done) this.caughtUp();
         return;
       case 'gap': {
-        // one sync per 5 s (the relay's limit): the catch-up it starts also covers later gaps
-        const now = this.now();
-        if (now - this.lastSyncMs >= 5000) {
-          this.lastSyncMs = now;
-          this.socket.sendJson({ t: 'sync', fromTurn: m.expected });
-        }
+        // one sync per 5 s (the relay's limit): the catch-up it starts also covers later gaps. The gap is kept, and
+        // the sync retried every 5 s from the pacing ticks until it is filled (no more frames may come to retry on)
+        if (this.gapAt < 0 || m.expected < this.gapAt) this.gapAt = m.expected;
+        this.retrySync(this.gapAt);
         return;
       }
       case 'end':
+        this.coreEnded = true;
         this.result = { r: m.result, record: m.record };
         this.endInfo.record = m.record;
         this.maybeEnd();
@@ -582,6 +588,18 @@ export class NetHost implements PartyLink {
   /** Caught up after a reload, a resync or a hidden tab: tell the relay and take the hero back. */
   private reclaimUntil = 0;
   private lastBackMs = -Infinity;
+  /** The first missing turn after a gap (-1: none), and when the relay's `end` came. */
+  private gapAt = -1;
+  private endAtMs = 0;
+  private coreEnded = false;
+
+  /** `sync` from `fromTurn`, at most once per 5 s (the relay's limit). */
+  private retrySync(fromTurn: number): void {
+    const now = this.now();
+    if (now - this.lastSyncMs < 5000) return;
+    this.lastSyncMs = now;
+    this.socket.sendJson({ t: 'sync', fromTurn: Math.max(0, fromTurn) });
+  }
 
   /** mp_disconnect, once per outage; the next catch-up reports mp_rejoin. */
   private outage: { at: number; turn: number; via: 'resume' | 'reload' } | null = null;
