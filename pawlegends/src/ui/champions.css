@@ -1,13 +1,12 @@
 /* Sim v13 pick screen (DOGS-V13 §2): a CATS / DOGS switch over the grid shows one side at a time (cats 10, dogs 7).
    Both sides use the same fixed two-row grid (ten half columns, each tile spans two), so the Paw Trick chips and Play
-   never move on a switch: cats 5 + 5, dogs 4 + 3 centred. The other side's box keeps its data-side, hidden, for the
+   never move on a switch: cats 5 + 5, dogs 5 + 2, both from the left edge (centred dogs made the first card jump
+   sideways on a switch, QA 2026-11-06). The other side's box keeps its data-side, hidden, for the
    portrait redraw. A champion tile carries its Token Tails card art and, web only, the owner badge. */
 .pl-pick .roster { display: block; }
 .pl-pick .roster .heroes { display: grid; grid-template-columns: repeat(10, minmax(0, 1fr)); grid-template-rows: repeat(2, auto); gap: 6px; }
 .pl-pick .roster .heroes[hidden] { display: none; }
 .pl-pick .roster .heroes .hero-card { grid-column: span 2; }
-.pl-pick .roster .heroes.dogs .hero-card:nth-child(1) { grid-column: 2 / span 2; }
-.pl-pick .roster .heroes.dogs .hero-card:nth-child(5) { grid-column: 3 / span 2; }
 
 /* The switch: a segmented radio group, 36 px tall with a 44 px hit area, the active side filled in its species colour
    (cat rose, bone amber: never the ally blue / enemy red relation hues). */

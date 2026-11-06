@@ -352,7 +352,7 @@ export function pickCards(m: PickCardsModel, on: { signIn(): void; choose?(id: s
   const root = h('div', 'plc plc-pick');
   const head = h('div', 'plc-head');
   head.appendChild(h('b', '', 'Your squad'));
-  head.appendChild(h('small', '', m.squad.length ? 'They walk with your waves and nap at the fountain.' : 'Your Token Tails cats walk with your waves.'));
+  head.appendChild(h('small', '', m.squad.length ? 'They walk with your waves and nap at the fountain.' : 'Your Token Tails pets walk with your waves, on either side.'));
   root.appendChild(head);
   const row = h('div', 'plc-row');
   // face up (round 1: the pick dock redraws, and a flip restarted face down each time: blank cards with a paw)

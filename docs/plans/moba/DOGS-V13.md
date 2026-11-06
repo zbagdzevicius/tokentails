@@ -1216,3 +1216,22 @@ balance`, 2,000 seeds):
   data (`touchControls.ts` header). Chili, Nugget and Marshmallow need no special case.
 - The novice vs Normal gap between cat and dog humans (v11 Phase 3) is expected to move with this roster; it is
   measured in gate 7, not fixed here.
+
+## 10. QA fixes (2026-11-06, before release)
+
+- **Fake shield (P0).** Bravo and Marshmallow keep a spot's x-coordinate in `kHonour`, and the snapshot and
+  `refreshFlags` added `kHonour` to every hero's shield (a 40,000+ point shield: bars looked empty). Now only Sir
+  Brutus's Honour and Pixel's plate count (`kitShield`, `sim/map/brush.ts`). Bravo's spotlight and Chili's BIG DOG
+  (both `kWT`) no longer set `Buff.Blocking`, which drew Clem's block pose over them.
+- **Nap loop.** A retreating or defending bot napped whenever no enemy *hero* was near; minion hits broke the nap and
+  it napped again (Bravo's flop kept him alive for up to 84 s of it). Bots now never nap while a non-hero enemy unit
+  is aiming at them within `napSafeRange` (`underFire`, `sim/bots/casts.ts`); they walk home instead. Bravo's
+  longest broken-nap chain in 300 Normal seeds dropped from 121 naps / 84 s to 7 naps / 4 s.
+- **Bots.** Chili hides in the purse when focused below 60% HP (his E went unused in 38% of Easy slots); Nugget also
+  herds one foe below 45% toward an ally.
+- **Look.** Marshmallow's team colour is a trim (hat cuff, pompom, a slim scarf): she reads as the white ball in a
+  match. Bravo's coat is a slate charcoal with a lilac sheen and his card is light lilac (a black pug on dark purple
+  was a smudge). SNOW DAY! dumps opaque snow puffs (additive stars vanished on the grass). "BIG DOG ENERGY!" pops
+  above his grown head and the overhead plate. The gallery sets Chili's form bit so the 1.35× swell shows there.
+- **Words.** On the dog side Hiss is Growl and Purr-ify is Shake Off (same trick, same numbers); the squad panel says
+  "pets". The dog grid starts at the left edge like the cat grid, so a switch does not move the first card.

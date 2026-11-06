@@ -142,7 +142,8 @@ export const SKILL_FX: SkillFxSet = {
         return;
       }
       case 'ch:grow':
-        funPop(fx, id, 'BIG DOG ENERGY!', P.x, funOverY(fx, id, 0.8), P.z);
+        // over his GROWN head and clear of the overhead plate (QA: at +0.8 m it read "BIG DOG YOU NERGY" over "You")
+        funPop(fx, id, 'BIG DOG ENERGY!', P.x, funOverY(fx, id, 0) * 1.35 + 1.3, P.z);
         shower(fx, P.x, funOverY(fx, id, 0), P.z, 8, SHAPE.PLUS, ANGER, 0.28, 0.8, 2.4, 2.0, 2, vary());
         mesh(fx, 'ring', P.x, P.z, 2.0, 0.4, HOT, rim, rel, { p1: 0.7 });
         funSound('chiliGrowl', P, 0.8, 0.6);

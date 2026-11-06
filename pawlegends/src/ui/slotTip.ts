@@ -12,7 +12,7 @@ import { TICK_HZ } from '../data/timeline';
 import { TRICKS } from '../data/tricks';
 import { HERO_RULES } from '../data/xp';
 import { abilityRank, kitNumbers, maxRank } from '../sim/heroes/talents';
-import { HERO_TEXT, TRICK_TEXT, metres, sec, type Nums } from './heroText';
+import { HERO_TEXT, metres, sec, trickText, type Nums } from './heroText';
 
 /** One row of the desktop hover card: a label and its value ("Cooldown", "5.5 s"). */
 export type StatRow = readonly [string, string];
@@ -152,7 +152,7 @@ function left(ticks: number): string {
 export function slotTip(hero: HeroId, trick: TrickId, slot: number, key: string, s: TipState): SlotTip {
   const t = HERO_TEXT[hero];
   const br = s.branch && t.branch?.slot === slot ? t.branch : null;
-  const ab = slot < 4 ? (br ?? t.abilities[slot]) : slot === 4 ? TRICK_TEXT[trick] : null;
+  const ab = slot < 4 ? (br ?? t.abilities[slot]) : slot === 4 ? trickText(trick, hero) : null;
   const name = ab ? ab.name : 'Nap';
   const text = ab ? ab.text : 'Return to your fountain. Damage breaks it.';
   const rows = slot < 4 ? abilityRows(hero, slot, s.level, s.choices) : slot === 4 ? trickRows(trick) : napRows();

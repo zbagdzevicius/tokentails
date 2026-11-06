@@ -99,6 +99,10 @@ export const SKILL_FX: SkillFxSet = {
         const z = -e.y / 1000;
         mesh(fx, 'ring', x, z, rad, life, FROST, rim, rel, { p1: 0.85 });
         mesh(fx, 'glow', x, z, rad, life, ICE, rim, rel, { p3: 0.35 });
+        // the snow dump: a big burst of glowing flakes over the whole area and a puff ring at its edge, so SNOW DAY!
+        // reads as snow on the first frame, not as a blue disc (QA 2026-11-06)
+        shower(fx, x, 3.6, z, 28, SHAPE.PUFF, 0xffffff, 0.4, 1.6, rad * 0.9, 0.6, 1.4, vary());
+        shower(fx, x, 0.4, z, 16, SHAPE.PUFF, SNOW, 0.6, 0.9, rad * 1.1, 0.8, 1.5, vary());
         addArea(x, z, rad, life, true);
         funSound('marshAwoo', P, 1, 0.6);
         funPop(fx, e.src, 'SNOW DAY!', P.x, funOverY(fx, e.src, 0.5), P.z);
@@ -174,10 +178,11 @@ export const SKILL_FX: SkillFxSet = {
       AN[i] -= dt;
       if (AN[i] > 0) continue;
       // slow falling flakes over the patch (more in the blizzard), fewer on Low
-      AN[i] = (ABIG[i] ? 0.06 : 0.14) * (fx.tier === 'low' ? 2 : 1);
+      AN[i] = (ABIG[i] ? 0.035 : 0.14) * (fx.tier === 'low' ? 2 : 1);
       const a = vary() * Math.PI * 2;
       const r = Math.sqrt(vary()) * AR[i];
-      sticker(fx, AX[i] + Math.cos(a) * r, ABIG[i] ? 3.2 : 1.8, AZ[i] + Math.sin(a) * r, 'STAR4', SNOW, ABIG[i] ? 0.3 : 0.22, ABIG[i] ? 1.6 : 1.1, -1.8, 1.5);
+      // the blizzard's flakes are soft opaque puffs: additive stars vanished on the bright grass (QA 2026-11-06)
+      sticker(fx, AX[i] + Math.cos(a) * r, ABIG[i] ? 3.2 : 1.8, AZ[i] + Math.sin(a) * r, ABIG[i] ? 'PUFF' : 'STAR4', SNOW, ABIG[i] ? 0.34 : 0.22, ABIG[i] ? 1.6 : 1.1, -1.8, 1.5);
     }
     for (let id = 0; id < 16; id++) {
       if (TRAIL[id] >= 0) {

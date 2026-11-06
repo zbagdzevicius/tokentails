@@ -131,8 +131,8 @@ class Stream {
 }
 
 const SLOT_INDEX: Readonly<Record<Slot, CastSlot>> = { q: 0, w: 1, e: 2, r: 3 };
-/** Heroes whose R sets the snapshot's `form` bit (sim/index.ts SNAP_FX.Form). */
-const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilts']);
+/** Heroes whose R sets the snapshot's `form` bit (sim/index.ts SNAP_FX.Form; sim v13 Chili's BIG DOG). */
+const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilts', 'chili']);
 
 /**
  * Gallery-wide extras (main.ts sets them from the query): BuffFlag bits and a shield on the dummy (Gabė's W shield
