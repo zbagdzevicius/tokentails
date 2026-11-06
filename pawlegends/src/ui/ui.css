@@ -993,8 +993,9 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 html[data-touch='1'] .pl-strip.ally { right: auto; left: calc(80px + var(--safe-l)); top: calc(70px + var(--safe-t)); }
 html[data-touch='1'] .pl-strip .pp { width: 30px; height: 30px; }
 html[data-touch='1'] .pl-strip.enemy .pp { pointer-events: auto; touch-action: none; }
-/* a bigger hit area than the 30 px disc */
-html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolute; inset: -6px -3px; }
+/* Audit CF-10: a 44 px hit area around the 30 px disc (it was 42 × 36): the ::after starts inside the 2 px border */
+html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolute; inset: -9px; }
+html[data-touch='1'] .pl-top .pl-strip.enemy { gap: 14px; }
 /* the owned emote chip moves under the enemy strip */
 .pl-emote { top: calc(56px + var(--safe-t)); }
 /* A5: the Attack button while a hero is locked, and the optional last-hit and tower buttons (off by default) */
