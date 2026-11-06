@@ -32,6 +32,9 @@ import { FpsProbe, QualityGovernor, qualityOverride, rememberTier, startTier, ty
 import { createRenderer, type GameRenderer } from '../render/renderer';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
+import { inviteUrl, partyApi, partyFromUrl } from '../share/partyLink';
+import type { PartyClient } from '../party';
+import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
@@ -148,6 +151,10 @@ export class App {
   private readonly forcedTier = qualityOverride() !== null;
   private last = performance.now();
   private dare: Dare | null = dareFromUrl();
+  /** Party play (MULTIPLAYER.md): the open party (lazy chunk), and a `?party=` code to join at boot. */
+  private party: PartyClient | null = null;
+  private partyCode: string | null = partyFromUrl();
+  private readonly partyApi = partyApi();
   private readonly speed = speedFromUrl();
   private choice: Choice;
   private lastSetup: MatchSetup | null = null;
@@ -262,6 +269,7 @@ export class App {
     if (this.dare) this.analytics.track('dare_open', { hero: this.dare.hero, difficulty: this.dare.difficulty });
     this.analytics.track('quality_tier', { tier: this.tier });
     this.showTitle();
+    if (this.partyCode && this.partyApi) this.openParty(this.partyCode);
     requestAnimationFrame((t) => this.frame(t));
     document.documentElement.dataset.ready = '1';
   }
@@ -569,6 +577,12 @@ export class App {
           sfx.play('click');
           this.showPick();
         },
+        onParty: this.partyApi
+          ? () => {
+              sfx.play('click');
+              this.openParty(null);
+            }
+          : undefined,
         onMute: (m) => this.setMuted(m),
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
@@ -733,6 +747,109 @@ export class App {
     );
   }
 
+  // ------------------------------------------------------------------------------------------- party play
+
+  /** Open the party chunk: create a party at once (the first tap), or join `code` (a link). */
+  private openParty(code: string | null): void {
+    if (this.party || !this.partyApi) return;
+    const api = this.partyApi;
+    const p = loadProfile();
+    void import('../party')
+      .then(({ openParty }) => {
+        this.party = openParty(
+          {
+            root: this.root,
+            api,
+            hero: this.choice.hero,
+            trick: this.choice.trick,
+            difficulty: canPickDifficulty(p.matches, p.veteran) ? this.choice.difficulty : 'easy',
+            maxDifficulty: canPickDifficulty(p.matches, p.veteran) ? 'hard' : 'easy',
+            newbie: p.matches === 0,
+            build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
+            // lane P9: the embed host mints the ticket over the bridge; standalone players are unscored guests
+            ticket: async () => null,
+            guestKey: () => partyGuestKey(),
+            startMatch: (host, match) => this.startPartyMatch(host, match),
+            startSolo: (difficulty) => {
+              this.party?.close();
+              this.startMatch({ ...this.choice, difficulty: difficulty as Choice['difficulty'] });
+            },
+            notify: (n) => this.session?.rail(n),
+            close: () => {
+              this.party = null;
+              this.partyCode = null;
+              if (this.screen === 'title') this.showTitle(false);
+            },
+            inviteUrl,
+            share: (url, text) => this.bridge.post('share', { kind: 'party', url, text }),
+            analytics: (event, props) => this.analytics.track(event as never, props as never),
+          },
+          { code, create: code === null },
+        );
+      })
+      .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /** A party match: the MatchSession runs on the party's NetHost (no first-session rules, no speed). */
+  private startPartyMatch(host: () => import('../net/net-host').NetHost, match: MatchMsg): void {
+    const p = loadProfile();
+    const slot = match.you.slot;
+    const hero = match.config.picks[slot] as Choice['hero'];
+    const trick = match.config.tricks[slot] as Choice['trick'];
+    const difficulty = match.config.difficulty as Choice['difficulty'];
+    const owned = this.owned();
+    const look = this.lookFor(hero);
+    const setup: MatchSetup = {
+      hero,
+      trick,
+      difficulty,
+      seed: match.config.seed,
+      speed: 1,
+      firstMatch: false,
+      newPlayer: p.matches < 5,
+      emote: owned.items.has('emote.starter') || owned.unlocks.has('emote.wave'),
+      muted: sfx.isMuted,
+      look,
+      frame: bestFrame(owned, p.wornFrame),
+      title: titleOf(owned, p.wornTitle),
+      companions: [],
+      guide: 'off',
+      knowsUlt: p.knowsUlt,
+      pingTip: false,
+      forfeitFrom: 0,
+      skinFx: p.skinFx,
+      showcase: [],
+      host: host as unknown as MatchSetup['host'],
+      party: { slot, names: match.names },
+    };
+    this.lastSetup = setup;
+    this.analytics.track('match_start', { hero, difficulty, trick, dare: false });
+    const veil = loadingVeil(this.root, 'Into the Crossing...', 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
+    this.setScreen('match', null);
+    this.lobby.leave();
+    this.session?.dispose();
+    this.session = null;
+    const token = ++this.matchToken;
+    void loadMatch()
+      .then(({ MatchSession }) => {
+        if (token !== this.matchToken) return;
+        this.beginSession(MatchSession, setup, { hero, trick, difficulty }, veil);
+      })
+      .catch((err: unknown) => {
+        veil.remove();
+        reportCrash('window', err);
+        this.showTitle();
+      });
+  }
+
+  /** After a party match's results: back to the party (rematch or leave there). */
+  private backToParty(): void {
+    this.session?.dispose();
+    this.session = null;
+    this.showTitle(false);
+    this.party?.matchOver();
+  }
+
   private startMatch(pick: Choice, seed?: number): void {
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
@@ -819,6 +936,7 @@ export class App {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
       onLeave: () => {
+        if (setup.party) return this.backToParty();
         this.session?.dispose();
         this.session = null;
         this.showTitle();
@@ -859,12 +977,17 @@ export class App {
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
-    const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
-    this.bridge.post('match-result', {
-      matchId,
-      replay: e.replay,
-      summary: { won, ticks: e.result.ticks, hero: e.replay.hero, difficulty: e.replay.difficulty, takedowns: e.kills },
-    });
+    // Party play (MULTIPLAYER.md §6): a party match never posts a solo replay; its v:2 result goes through the host's
+    // save queue once the bridge carries it (lane P9). Only its owner ever sees the save status.
+    const partyEnd = (e.replay as { party?: { room: string } }).party;
+    if (!partyEnd) {
+      const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
+      this.bridge.post('match-result', {
+        matchId,
+        replay: e.replay,
+        summary: { won, ticks: e.result.ticks, hero: e.replay.hero, difficulty: e.replay.difficulty, takedowns: e.kills },
+      });
+    }
     // pl_* (fun plan F5): real-player numbers to check against the fun1 gate
     this.analytics.track('match_end', {
       result: e.result.outcome,
@@ -1013,12 +1136,14 @@ export class App {
         // It stays in this page session, so the offer's once-a-session rule (money/offer.ts) never shows a second card.
         onAgain: () => {
           sfx.play('click');
+          if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'again', hero: e.replay.hero, difficulty: e.replay.difficulty });
           this.startMatch(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice);
         },
         // GAPS A3 "Switch cat": the pick screen with this match's difficulty kept (round 2: on the teased hero)
         onChange: () => {
           sfx.play('click');
+          if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
           const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;
           this.choice = { ...this.choice, difficulty: keep, ...(tease ? { hero: tease } : {}) };
@@ -1245,4 +1370,24 @@ function skuOfItem(item: string): string {
   if (item === 'skin.clem.pink_bow') return 'pl_starter';
   if (item === 'skin.clem.dawnblade') return 'pl_founder_legend';
   return 'pl_founder';
+}
+
+/** A per-browser random guest key (party identity for the relay's caps; never a secret, never shown to peers). */
+function partyGuestKey(): string {
+  const k = 'pl.party.guest';
+  try {
+    const old = localStorage.getItem(k);
+    if (old && /^[A-Za-z0-9_-]{8,64}$/.test(old)) return old;
+  } catch {
+    /* private mode */
+  }
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  const key = Array.from(a, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 24);
+  try {
+    localStorage.setItem(k, key);
+  } catch {
+    /* private mode */
+  }
+  return key;
 }

@@ -7,6 +7,7 @@ import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import { intensityOf, Music } from '../audio/music';
 import { LocalHost } from '../host/local-host';
+import type { MatchHost } from '../host/protocol';
 import type { WelcomeMsg } from '../host/protocol';
 import { maxCooldown } from '../input/abilities';
 import { DesktopInput, type InputHost } from '../input/desktop';
@@ -114,6 +115,10 @@ export interface MatchSetup {
    * DifficultyRules.forfeitFrom, 0 in matches 1–3 and on Rookie); 0 or absent = no Forfeit button.
    */
   forfeitFrom?: number;
+  /** Party play: the host to drive (a NetHost); absent = the solo LocalHost. */
+  host?: () => MatchHost;
+  /** Party play: the session is one seat of a party match (§4.6 guards: no local pause or speed). */
+  party?: { slot: number; names: readonly (string | null)[] };
 }
 
 /**
@@ -243,7 +248,7 @@ export function behindBanner(kOurs: number, kTheirs: number, tOurs: number, tThe
 }
 
 export class MatchSession {
-  readonly host: LocalHost;
+  readonly host: MatchHost;
   readonly buffer = new SnapBuffer();
   readonly view: GameView;
   readonly ui: HTMLElement;
@@ -397,7 +402,8 @@ export class MatchSession {
       const me = this.units.find((u) => u.id === this.view.mySlot);
       this.sendPing(kind, chip?.x ?? me?.x ?? MAP.width / 2, chip?.y ?? me?.y ?? MAP.height / 2);
     };
-    this.host = new LocalHost();
+    // Party play (MULTIPLAYER.md §4.1): a NetHost from the party chunk; solo keeps the LocalHost.
+    this.host = setup.host ? setup.host() : new LocalHost();
     this.buffer.speed = Math.max(1, Math.min(64, Math.round(setup.speed ?? 1)));
     this.host.listen({
       welcome: (w) => this.onWelcome(w),
@@ -412,6 +418,11 @@ export class MatchSession {
     document.documentElement.dataset.match = 'loading';
     delete document.documentElement.dataset.endReason;
     delete document.documentElement.dataset.crest;
+  }
+
+  /** Party play: a note on the top rail (MULTIPLAYER.md §7: every in-match message goes there). */
+  rail(n: { key: string; title: string; tone: 'good' | 'bad' | 'gold' | 'info'; ttl?: number }): void {
+    this.view.juice.notify.push({ key: n.key, title: n.title, tone: n.tone, prio: 2, ...(n.ttl ? { ttl: n.ttl } : {}) });
   }
 
   get matchId(): string | null {

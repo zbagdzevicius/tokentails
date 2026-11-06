@@ -97,6 +97,22 @@ export interface EndMsg {
 
 export type HostMsg = WelcomeMsg | SnapMsg | EventsMsg | EndMsg;
 
+/**
+ * What MatchSession drives (docs/plans/moba/MULTIPLAYER.md §4.1): the LocalHost (solo, a Worker) and the NetHost (party
+ * play, lockstep over the relay) both implement it with the same listener API.
+ */
+export interface MatchHost {
+  listen(l: import('./local-host').HostListener): void;
+  join(o: import('./local-host').JoinOptions): void;
+  send(cmd: import('../sim/api').Command): void;
+  pause(paused: boolean): void;
+  leave(): void;
+  dispose(): void;
+  readonly kind: 'worker' | 'inline';
+  readonly restarts: number;
+  welcome: WelcomeMsg | null;
+}
+
 export type ClientMsgType = ClientMsg['t'];
 export type HostMsgType = HostMsg['t'];
 
