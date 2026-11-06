@@ -12,6 +12,18 @@
 export type NotePrio = 0 | 1 | 2 | 3 | 4;
 export type NoteTone = 'good' | 'bad' | 'gold' | 'info';
 
+/**
+ * Party play (MULTIPLAYER.md §7, lane M5): a chip on a rail note ("Surrender? 1/2 · Yes · No"), at least 40 px to
+ * tap. A note with actions is sticky: it never goes stale in the queue and the cap drops it last; it leaves when its
+ * key is dropped (resolved) or its ttl runs out (expired).
+ */
+export interface NoteAction {
+  /** Handed to `Notify.onAction` on a tap (`[a-z0-9-]`). */
+  id: string;
+  /** One or two words ("Yes", "Resume"). */
+  label: string;
+}
+
 export interface Note {
   /** Dedupe key; default = title. */
   key?: string;
@@ -33,6 +45,8 @@ export interface Note {
   cooldown?: number;
   /** The same key while showing → "×N" instead of a re-show. */
   count?: boolean;
+  /** Chips on the note (party votes); the note is sticky until dropped or its ttl runs out (MULTIPLAYER.md §7). */
+  actions?: readonly NoteAction[];
   /** Supersede group ('takedown', 'multi', 'level'). */
   tag?: string;
   /** Queued notes of these tags (pushed in the last SUPERSEDE_MS, or any age for its own tag) are dropped. */
@@ -148,8 +162,9 @@ export class NoteQueue {
       for (let j = 1; j < this.q.length; j++) {
         const a = this.q[j];
         const b = this.q[k];
-        const ar = a.left !== undefined ? 1 : 0;
-        const br = b.left !== undefined ? 1 : 0;
+        // an action note (a vote) counts as already chosen to be read
+        const ar = a.left !== undefined || a.n.actions?.length ? 1 : 0;
+        const br = b.left !== undefined || b.n.actions?.length ? 1 : 0;
         const ab = a.n.big ? 1 : 0;
         const bb = b.n.big ? 1 : 0;
         if (ar < br || (ar === br && (a.n.prio > b.n.prio || (a.n.prio === b.n.prio && (ab < bb || (ab === bb && a.at < b.at)))))) k = j;
@@ -247,6 +262,7 @@ export class NoteQueue {
   }
 
   private staleOf(n: Note): number {
+    if (n.actions?.length) return Infinity;
     return n.stale ?? (n.big && n.prio === 2 ? NOTE_STALE_BIG : NOTE_STALE[n.prio]);
   }
 

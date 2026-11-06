@@ -706,6 +706,37 @@ bought from the game go through `POST /web3/create-payment` or `POST /payments/c
 
 Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
 
+
+### Pawlegends party play (docs/plans/moba/MULTIPLAYER.md)
+
+Co-op against bots for 1 to 3 friends, deterministic lockstep through a relay. Always on (D9): without
+`PAWLEGENDS_PARTY_TICKET_SECRET` the ticket route answers 503 and every room is unscored.
+
+| Method | Path | Purpose | Auth, limit |
+|---|---|---|---|
+| POST | `/pawlegends/party/ticket` | `{ticket, expiresIn: 60}`: a single-use HMAC token naming the caller, sent inside the relay `hello`. 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE` without the secret | `AppAuthGuard` + `@AllowGuest()`, 30 per 10 min per IP |
+| WS | `/pawlegends/ws` (subprotocol `pl.1`) | The relay. JSON text frames (`hello`, `party.*`, `pick.*`, `load`, `loaded`, `vote`, `social`, `sync`, `away`, `back`, `bye`; server `welcome`, `error`, `party`, `match`, `slot`, `vote`, `social`, `resync`, `end`, ...) and binary frames (CMD, BEAT, HASH; TURN, CATCHUP, ECHO). Shapes and limits: `pawlegends/src/net/proto.ts` (vendored to `backend/src/vendor/pawlegends-net/`) | Origin in the CORS list; caps in `party-limits.ts` |
+
+`party.card {catId}` wears one of the caller's own cats in the party (ticketed accounts only; the relay checks
+ownership with `CatRepository`). Peers get only `{image, element, tier}` and a name from the card's catalog or breed
+name ("Sunny Tabby"); `catId` and the custom cat name (`ownName`) stay in the owner's own `party` frame. The card
+art is the hero's skin in the match cosmetics. `hello.hint {maxDifficulty, newbie}` only caps the party's default
+difficulty at the lowest member tier and marks a new player; it is trusted for nothing else.
+
+In a match, `social {kind, id, x?, y?, target?}` carries enumerated ids only (D8, no player text): `ping` 0..7 (the
+ping kinds), `chat` 0..7 (the quick lines), `emote` 0..3 (`SOCIAL_COUNT` in `proto.ts`). Any other id is dropped
+without a strike; points are clamped to the map as integers; one per 2 s and 10 per 30 s per member (the client
+mirrors it). The echo adds `from` and `slot`. A JIP `slot` frame adds `joined: true` and the friend's display `name`.
+In the results phase each member's `party` entry carries `again: true` once they pressed "Play again together".
+Relay counters (`PartyRelay.counters()`, logs only): `rooms_live, sockets, turn_overrun_ms_p99, loop_delay_p99,
+referee_lag_turns, desyncs, divergences, restores, refused_busy, join_fail_global`.
+
+`POST /user/catbassadors/live` with `type: 'PAWLEGENDS'` also accepts a party result in `pawlegends`:
+`{v: 2, room, slot, simVersion, ticks, outcome, finalHash}`. It is checked against the room log the relay stored
+and the referee's three-way verified verdict; errors `PAWLEGENDS_PARTY_ROOM` (no verified match), `PAWLEGENDS_PARTY_SLOT`
+(not the caller's slot), `PAWLEGENDS_PARTY_AFK` (409: a bot played most of the match), `PAWLEGENDS_DUPLICATE`,
+`PAWLEGENDS_SIM_VERSION`, `PAWLEGENDS_REPLAY_INVALID`.
+
 ## Web3 and payments
 
 | Method | Path | Purpose | Auth |

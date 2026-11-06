@@ -220,3 +220,9 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner { transition: none; transform: none; }
   .pl-lobby.leaving .lb-col { transform: translateY(-50%); }
 }
+/* Party play (MULTIPLAYER.md §8): "Play with friends" under Play. */
+.pl-lobby .lb-friends { min-height: 40px; }
+.pl-lobby .lb-friends-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.pl-lobby .lb-joincode { min-height: 40px; padding: 0 4px; border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
+  text-decoration: underline; text-underline-offset: 3px; opacity: 0.85; cursor: pointer; }
+.pl-lobby .lb-joincode:hover, .pl-lobby .lb-joincode:focus-visible { opacity: 1; }

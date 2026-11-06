@@ -27,6 +27,7 @@ import { toyIncoming, toyLifesteal, toyOutgoing } from '../progression/fish';
 import { creditHealShield, heal } from '../effects/heal';
 import { bonusDamage, nineLives } from '../effects/bonus';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
+import { isHumanSlot } from '../humans';
 import { rulesOf } from '../rules';
 
 export { respawnTicks } from '../progression/respawn';
@@ -81,9 +82,9 @@ export function dealDamage(
         raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
       }
     }
-    if (src === HUMAN_SLOT) raw = applyBp(raw, rulesOf(m).humanDamageBp);
+    if (isHumanSlot(w, src)) raw = applyBp(raw, rulesOf(m).humanDamageBp);
   }
-  if (dst === HUMAN_SLOT && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
+  if (isHumanSlot(w, dst) && !opts.pure && srcTeam !== w.team[dst]) raw = applyBp(raw, rulesOf(m).humanTakenBp);
   let dmg = opts.pure ? raw : idiv(raw * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[dst]);
   if (structure && !opts.pure) {
     if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
@@ -221,7 +222,7 @@ export function resolveDeaths(m: MatchHandle): void {
       w.order[id] = Order.None;
       w.pathLen[id] = 0;
       w.timer[id] = respawnTicks(w.level[id], tick, w.globals[G.Sunset]);
-      if (id === HUMAN_SLOT) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
+      if (isHumanSlot(w, id)) w.timer[id] = Math.max(1, applyBp(w.timer[id], rulesOf(m).humanRespawnBp));
       else if (w.team[id] !== teamOfSlot(HUMAN_SLOT)) w.timer[id] = applyBp(w.timer[id], rulesOf(m).enemyRespawnBp);
       m.stats[id].deaths++;
       const enemy = 1 - w.team[id];
@@ -229,7 +230,7 @@ export function resolveDeaths(m: MatchHandle): void {
       // Sim v7: a team that keeps losing fights stays down longer (DifficultyRules.leadPressure).
       // Fun pass (playtest #10): a struggling human (RESPAWN.humanStreakFrom+ deaths in a row) waits RESPAWN.humanStreakBp
       // of the wait and no lead pressure. Not on Rookie, whose human respawn has its own rule (humanRespawnBp).
-      const struggling = id === HUMAN_SLOT && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= BP_ONE;
+      const struggling = isHumanSlot(w, id) && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= BP_ONE;
       if (struggling) w.timer[id] = Math.max(1, applyBp(w.timer[id], RESPAWN.humanStreakBp));
       if (rulesOf(m).leadPressure && !struggling) {
         const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;
@@ -257,7 +258,7 @@ export function resolveDeaths(m: MatchHandle): void {
           const t = weakestTower(w, victimTeam);
           if (t >= 0) dealDamage(m, -1, enemy, Kind.None, t, applyBp(w.maxHp[t], rulesOf(m).takedownTowerChipBp), 'chip', { pure: true });
         }
-      } else if (id !== HUMAN_SLOT || rulesOf(m).humanDeathCore) {
+      } else if (!isHumanSlot(w, id) || rulesOf(m).humanDeathCore) {
         // Sim v7: on Rookie the human's own deaths cost its core nothing (DifficultyRules.humanDeathCore).
         const core = RANGE.cores + victimTeam;
         const sd = tick >= w.globals[G.SuddenDeath];

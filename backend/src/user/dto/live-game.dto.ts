@@ -23,7 +23,7 @@ import { BadcatRunDto } from 'src/badcat/badcat-run.dto';
 import { badcatSimErrorDetail } from 'src/badcat/badcat-sim-info';
 import { HeistReplayDto } from '../heist/heist-replay.dto';
 import { heistSimErrorDetail } from '../heist/heist-sim-info';
-import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
+import { PawlegendsPartyResultDto, PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
 import { pawlegendsSimErrorDetail } from 'src/pawlegends/pawlegends-sim-info';
 
 /** Longest game `time` accepted, in seconds. Paw Match levels run for minutes; the other modes send 0. */
@@ -138,8 +138,13 @@ export class LiveGameDto {
     @IsDefined()
     @IsObject()
     @ValidateNested()
-    @Type(() => PawlegendsReplayDto)
-    pawlegends?: PawlegendsReplayDto;
+    // Party play (MULTIPLAYER.md §6): `v: 2` is a party result checked against the relay's stored room log.
+    @Type(o =>
+        (o?.object as { pawlegends?: { v?: unknown } } | undefined)?.pawlegends?.v === 2
+            ? PawlegendsPartyResultDto
+            : PawlegendsReplayDto
+    )
+    pawlegends?: PawlegendsReplayDto | PawlegendsPartyResultDto;
 }
 
 /** `property.child: constraint message` for every failed constraint, as Nest's default pipe lists them. */

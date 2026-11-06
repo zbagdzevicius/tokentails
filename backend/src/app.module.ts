@@ -172,6 +172,9 @@ import { BadcatLinksService } from './badcat/badcat-links.service';
 import { BadcatPushService } from './badcat/badcat-push.service';
 import { PawlegendsController } from './pawlegends/pawlegends.controller';
 import { PAWLEGENDS_SCHEMAS, PawlegendsStore } from './pawlegends/pawlegends.schema';
+import { PAWLEGENDS_PARTY_SCHEMAS, MongoRoomStore } from './pawlegends/party/room-store';
+import { PartyRelayService } from './pawlegends/party/party-relay.service';
+import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
@@ -270,6 +273,8 @@ const config = {
             ...BADCAT_ONLINE_SCHEMAS,
             // Pawlegends POC store (docs/plans/moba/POC.md section 8): secret-backed routes answer 503 until configured.
             ...PAWLEGENDS_SCHEMAS,
+            // Pawlegends party play (docs/plans/moba/MULTIPLAYER.md section 3.6): relay rooms and parties.
+            ...PAWLEGENDS_PARTY_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -402,6 +407,10 @@ const config = {
         { provide: PAWLEGENDS_CAT_SALE, useExisting: ShelterCatSaleService },
         // Age band and spend cap on the Token Tails cat checkout when it opens from Pawlegends.
         PawlegendsCheckoutGuard,
+        // Pawlegends party play (docs/plans/moba/MULTIPLAYER.md): the WebSocket relay, its room store and tickets.
+        PartyTicketService,
+        MongoRoomStore,
+        PartyRelayService,
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,

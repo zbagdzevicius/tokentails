@@ -210,7 +210,7 @@ export function skinTile(k: SkinTile, on: boolean, locked = false): string {
 }
 
 /** One pick tile: the portrait, and for a shelter champion its card art and the owner badge. */
-function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null, cardName: string | null = null): string {
+export function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null, cardName: string | null = null): string {
   const x = HERO_TEXT[h];
   // lobby spec §3b: a hero wearing one of the player's cards is called by the cat's name, the hero underneath
   const label = cardName ? `<b>${esc(cardName)}</b><small>${esc(`${x.title} · ${x.role}`)}</small>` : `<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small>`;
@@ -470,6 +470,11 @@ export interface ResultsOpts {
   tryHero?: HeroId | null;
   /** pawlegends: the champion's display name this match (the worn cat's, "Ficus"); default the hero title. */
   heroName?: string | null;
+  /**
+   * Party play (MULTIPLAYER.md §7 M6): the party's rows (src/party/ui/partyResults.ts markup, escaped there), and the
+   * party actions: "Play again together (1/2)" (onAgain), "Change hero" (onChange), "Leave party".
+   */
+  party?: { rowsHtml: string; again: string; onLeave(): void };
   /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
   progress?: ProgressSummary | null;
   /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
@@ -606,6 +611,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         <div><b>${o.teamKills[0]} – ${o.teamKills[1]}</b><small>Team takedowns</small></div>
       </div>
       ${o.progress && o.progress.rows.length ? progressBlock(o.progress) : ''}
+      ${o.party ? o.party.rowsHtml : ''}
       ${o.grade ? gradeBlock(o.grade, o.won) : ''}
       ${o.skin ? `<p class="pl-skin" data-bond="${o.skin.bond}">${o.skin.art ? `<img src="${esc(o.skin.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : icon('paw')}<span><b>${esc(o.skin.name)}</b> fought as ${esc(HERO_TEXT[o.hero].title)}<small>Bond ${o.skin.bond}${o.skin.next !== null ? ` · next look at ${o.skin.next}` : ''}</small></span></p>${o.skin.rung ? cardFxPreview({ name: o.skin.name, rung: o.skin.rung, ...(o.skin.tint !== undefined ? { tint: o.skin.tint } : {}) }, 'card-fx pl-skin-fx') : ''}` : ''}
       ${o.bestMoment ? `<p class="pl-best">${icon('crown')}<span>Best moment: <b>${esc(o.bestMoment)}</b></span></p>` : ''}
@@ -624,11 +630,16 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
     ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
-    <div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`;
+    ${
+      o.party
+        ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">Leave party</button><button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button><button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
+        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
+    }`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'again') o.onAgain();
     else if (a === 'change') o.onChange();
+    else if (a === 'leave-party') o.party?.onLeave();
     else if (a === 'store') o.onStore?.();
     else if (a === 'notify') o.onNotify?.();
     else if (a === 'share' && o.dareLink) {
@@ -684,6 +695,11 @@ export interface MenuOpts {
    */
   forfeit?: { from: number; tick: number };
   onForfeit?(): void;
+  /**
+   * Party play (MULTIPLAYER.md §4.6, §7 M5): the menu is a local overlay over a running match: "Menu" and "Back to
+   * match"; Pause becomes "Vote pause" and Forfeit "Vote surrender" (no confirm step: friends answer the vote).
+   */
+  party?: { onVotePause(): void };
 }
 
 const clockText = (ticks: number): string => {
@@ -696,12 +712,14 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
   let muted = o.muted;
   const ff = o.forfeit && o.onForfeit ? o.forfeit : null;
   const ffReady = !!ff && ff.tick >= ff.from;
+  const party = o.party ?? null;
   const main = (): void => {
-    root.innerHTML = `<div class="card"><h2>Paused</h2>
-    <button class="pl-btn big" data-a="resume">Resume</button>
+    root.innerHTML = `<div class="card"><h2>${party ? 'Menu' : 'Paused'}</h2>
+    <button class="pl-btn big" data-a="resume">${party ? 'Back to match' : 'Resume'}</button>
+    ${party ? '<button class="pl-btn ghost" data-a="vote-pause" data-testid="vote-pause">Vote pause</button>' : ''}
     ${o.onScores ? `<button class="pl-btn ghost" data-a="scores">Scores</button>` : ''}
     <button class="pl-btn ghost" data-a="mute">${muted ? 'Sound: off' : 'Sound: on'}</button>
-    ${ff ? `<button class="pl-btn ghost danger" data-a="forfeit"${ffReady ? '' : ' disabled'}>${ffReady ? 'Forfeit' : `Forfeit from ${clockText(ff.from)}`}</button>` : ''}
+    ${ff ? `<button class="pl-btn ghost danger" data-a="forfeit"${ffReady ? '' : ' disabled'}>${party ? (ffReady ? 'Vote surrender' : `Vote surrender from ${clockText(ff.from)}`) : ffReady ? 'Forfeit' : `Forfeit from ${clockText(ff.from)}`}</button>` : ''}
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
     ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Tab</kbd> scores</p>`}</div>`;
   };
@@ -718,7 +736,10 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     if (a === 'resume') o.onResume();
     else if (a === 'scores') o.onScores?.();
     else if (a === 'leave') o.onLeave();
-    else if (a === 'forfeit' && ffReady) confirm();
+    else if (a === 'forfeit' && ffReady) {
+      if (party) o.onForfeit?.();
+      else confirm();
+    } else if (a === 'vote-pause') party?.onVotePause();
     else if (a === 'forfeit-no') main();
     else if (a === 'forfeit-yes') o.onForfeit?.();
     else if (a === 'mute') {

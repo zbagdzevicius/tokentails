@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { baseOf, distPath, firstLoadAssets, summarize } from './lib/budget-lib.mjs';
+import { PARTY_KB, baseOf, distPath, firstLoadAssets, partyChunk, summarize } from './lib/budget-lib.mjs';
 
 describe('budget-lib', () => {
   const html = '<script type="module" crossorigin src="/pawlegends-game/build/index-a.js"></script><link rel="modulepreload" href="/pawlegends-game/build/three-b.js"><link rel="stylesheet" href="/pawlegends-game/build/index-c.css">';
@@ -22,5 +22,11 @@ describe('budget-lib', () => {
     expect(s.over).toBe(true);
     expect(s.totalOver).toBe(true);
     expect(summarize(files, ['build/index-a.js'], 450, 1, 10).over).toBe(false);
+  });
+  it('checks the lazy party chunk against its 45 KB budget', () => {
+    const ok = partyChunk([{ file: 'build/party-x.js', raw: 1, gzip: 12_000 }, { file: 'build/index-a.js', raw: 1, gzip: 300_000 }]);
+    expect(ok).toMatchObject({ found: true, over: false, gzip: 12_000 });
+    expect(partyChunk([{ file: 'build/party-x.js', raw: 1, gzip: PARTY_KB * 1024 + 1 }]).over).toBe(true);
+    expect(partyChunk([{ file: 'build/index-a.js', raw: 1, gzip: 1 }]).found).toBe(false);
   });
 });

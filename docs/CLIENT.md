@@ -579,6 +579,15 @@ needed: the page, the picker card and the landing section (web only, never in th
   guest's matches go back to the prompt when another uid signs in. Each POST is aborted after 20 s
   (`PAWLEGENDS_SAVE_TIMEOUT_MS`), so a stalled connection reads as offline and backs off instead of holding
   the chip on "saving" and blocking later retries.
+- Party play (`docs/plans/moba/MULTIPLAYER.md` §5.3, §6): `flags.ts` forwards a valid `?party=K7QX2M` to the
+  frame's src (upper-cased, the 31-letter alphabet only) and the host strips it from the address bar. The iframe
+  allows `web-share` and `clipboard-write`. `partySaves.ts`: the game's `party-ticket-request {id}` is answered
+  with `party-ticket {id, ticket}` minted by `POST /pawlegends/party/ticket` with the host's own session (a guest
+  session on 428; one in flight, 10 a minute; `ticket: null` and an error code on failure, so the friend plays as
+  an unscored guest); the access token never crosses. A party match's `party-result {matchId: room, result}` is
+  posted once to `POST /user/catbassadors/live` as `{type: 'PAWLEGENDS', pawlegends: {v: 2, ...}}` (no device
+  queue: the ticket fixed the account; retried 2 s, 6 s, 18 s on a network or server failure) and its status goes
+  back as `save-result`. A `share {kind: 'party'}` link is accepted only as `https://tokentails.com/pawlegends?party=…`.
 - `checkout.ts` has the offer API (`GET /pawlegends/offer` once per visit, after `ready` and the featured list;
   `POST /pawlegends/offer/seen` on `offer-seen`), the device id, the age band and the session counter (every
   storage access in try/catch). It also keeps the retired `pl_*` store client (`status`, `checkout`,

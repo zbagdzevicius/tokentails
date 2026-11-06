@@ -9,6 +9,7 @@ import {
     Header,
     Headers,
     Logger,
+    Optional,
     Param,
     Post,
     Put,
@@ -63,6 +64,9 @@ import { HeistReplayIpThrottleGuard } from './heist/heist-ip-throttle.guard';
 import { saveHeistRun } from './heist/heist-live';
 import { saveBadcatRun } from 'src/badcat/badcat-live';
 import { savePawlegendsMatch } from 'src/pawlegends/pawlegends-live';
+import { isPartyResult, savePawlegendsPartyMatch } from 'src/pawlegends/pawlegends-party-live';
+import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
+import { MongoRoomStore } from 'src/pawlegends/party/room-store';
 import { HEIST_SIM_INFO, IHeistSimInfo } from './heist/heist-sim-info';
 import { heistReplayQueue, ReplayQueueFullException } from './heist/replay-queue';
 import { UserRepository } from './user.repository';
@@ -192,7 +196,9 @@ export class UserController {
         private gameRepository: GameRepository,
         private orderRepository: OrderRepository,
         private catService: CatService,
-        private imageRepository: ImageRepository
+        private imageRepository: ImageRepository,
+        // Party play (MULTIPLAYER.md §6): the relay's stored rooms, read-only here.
+        @Optional() private partyRooms?: MongoRoomStore
     ) {
         // this.getUsers();
         // this.getTwitters();
@@ -1432,13 +1438,22 @@ export class UserController {
         if (body.pawlegends !== undefined && body.type !== GameType.PAWLEGENDS) {
             throw new BadRequestException('pawlegends is only accepted with type PAWLEGENDS');
         }
+        if (body.type === GameType.PAWLEGENDS && isPartyResult(body)) {
+            // Pawlegends party play (MULTIPLAYER.md §6): checked against the relay's stored, verified room log.
+            if (!this.partyRooms) throw new BadRequestException('party results are not accepted here');
+            return await savePawlegendsPartyMatch(
+                { users: this.repository as any, games: this.gameRepository as any, rooms: this.partyRooms },
+                userId,
+                body as any
+            );
+        }
         if (body.type === GameType.PAWLEGENDS) {
             // Pawlegends matches (POC.md §11.5): re-simulated in a worker thread through their own bounded queue.
             try {
                 return await savePawlegendsMatch(
                     { users: this.repository as any, games: this.gameRepository as any },
                     userId,
-                    body
+                    body as LiveGameDto & { pawlegends?: PawlegendsReplayDto }
                 );
             } catch (error) {
                 if (error instanceof ReplayQueueFullException) {

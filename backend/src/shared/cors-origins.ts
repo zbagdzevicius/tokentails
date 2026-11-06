@@ -37,3 +37,22 @@ export function corsOrigins(frontEndUrls: string | undefined = process.env.FRONT
 export function isCorsOriginAllowed(origin: string, allowed: CorsOrigin[] = corsOrigins()): boolean {
     return allowed.some(entry => (entry instanceof RegExp ? entry.test(origin) : entry === origin));
 }
+
+/** Dev-server origins (Next.js and Vite ports on localhost): accepted by the party relay outside production only. */
+const DEV_ORIGIN = /^http:\/\/(localhost|127\.0\.0\.1):\d+$/;
+
+/**
+ * The party relay's WebSocket Origin check (`/pawlegends/ws`). The CORS list minus the built-in localhost dev ports in
+ * production (unless FRONT_END_URLS names one); the app origins (`http://localhost` for the Android WebView, `capacitor://localhost` on iOS) stay.
+ * Origin is a browser-side guard only: the relay's auth is the ticket inside `hello`, never a cookie.
+ */
+export function isRelayOriginAllowed(
+    origin: string,
+    production: boolean = process.env.NODE_ENV === 'production',
+    allowed: CorsOrigin[] = corsOrigins(),
+    frontEndUrls: string | undefined = process.env.FRONT_END_URLS
+): boolean {
+    // a dev port in production only when FRONT_END_URLS names it explicitly (a staging box, a soak run)
+    if (DEV_ORIGIN.test(origin)) return !production || !!frontEndUrls?.split(',').includes(origin);
+    return isCorsOriginAllowed(origin, allowed);
+}

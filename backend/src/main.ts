@@ -54,6 +54,8 @@ async function bootstrap() {
     // plain ValidationPipe except that it leaves `LiveGameDto` to `liveGamePipe`, so a bad Heist log
     // gets its F5.6 code (HEIST_SIM_VERSION, HEIST_REPLAY_INVALID) instead of a generic 400.
     app.useGlobalPipes(new AppValidationPipe({ transform: true }));
+    // SIGTERM runs OnApplicationShutdown hooks: the party relay hands its rooms off (MULTIPLAYER.md section 3.6).
+    app.enableShutdownHooks();
     await app.listen(process.env.PORT || 3005);
     // await app.listen(process.env.PORT || 3005, '0.0.0.0');
 }

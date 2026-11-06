@@ -37,6 +37,8 @@ export interface HostConfig {
   gameOrigin?: string;
   /** Target origin of host posts (default: our own origin). The wrong-origin test uses '*' so the post arrives. */
   sendTarget?: string;
+  /** Party play (P9): answer `party-ticket-request{id}` with this ticket (null: answer `ticket: null`). */
+  partyTicket?: string | null;
 }
 
 const b64url = (s: string): string => Buffer.from(s).toString('base64url');
@@ -80,6 +82,9 @@ function hostHtml(cfg: HostConfig): string {
       if (m.type === 'open-cat' && cfg.catGrants && cfg.catGrants[m.catalogId]) {
         var cats = cfg.catGrants[m.catalogId];
         setTimeout(function () { send('purchase-result', { catalogId: m.catalogId, ok: true }); send('roster', { cats: cats }); }, 50);
+      }
+      if (m.type === 'party-ticket-request' && cfg.partyTicket !== undefined) {
+        send('party-ticket', cfg.partyTicket ? { id: m.id, ticket: cfg.partyTicket } : { id: m.id, ticket: null, error: 'PAWLEGENDS_PARTY_TICKET_UNAVAILABLE' });
       }
       if (m.type === 'match-result') {
         fetch('/user/catbassadors/live', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'PAWLEGENDS', pawlegends: m.replay }) });

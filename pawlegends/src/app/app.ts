@@ -33,6 +33,11 @@ import { FpsProbe, QualityGovernor, qualityOverride, rememberTier, startTier, ty
 import { createRenderer, type GameRenderer } from '../render/renderer';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
+import { inviteUrl, partyApi, partyFromUrl } from '../share/partyLink';
+import type { PartyClient } from '../party';
+import { hideNames } from '../meta/partyPrefs';
+import { isMpEvent } from '../analytics/posthog';
+import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
@@ -149,6 +154,10 @@ export class App {
   private readonly forcedTier = qualityOverride() !== null;
   private last = performance.now();
   private dare: Dare | null = dareFromUrl();
+  /** Party play (MULTIPLAYER.md): the open party (lazy chunk), and a `?party=` code to join at boot. */
+  private party: PartyClient | null = null;
+  private partyCode: string | null = partyFromUrl();
+  private readonly partyApi = partyApi();
   private readonly speed = speedFromUrl();
   private choice: Choice;
   private lastSetup: MatchSetup | null = null;
@@ -254,7 +263,9 @@ export class App {
     this.ent.onChange(() => this.refreshMeta());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
-        this.session?.setPaused(true);
+        // party play (§4.5): a hidden tab is "away" (NetHost; a bot flies the hero) and comes back to the match, not
+        // to a menu over it (the menu would also hide a friend's vote on the rail)
+        if (!this.lastSetup?.party || this.screen !== 'match') this.session?.setPaused(true);
         // the match chunk may still be loading: pause the session the moment it exists
         if (!this.session && this.screen === 'match') this.pendingPause = true;
       } else this.analytics.refreshConsent();
@@ -263,6 +274,15 @@ export class App {
     if (this.dare) this.analytics.track('dare_open', { hero: this.dare.hero, difficulty: this.dare.difficulty });
     this.analytics.track('quality_tier', { tier: this.tier });
     this.showTitle();
+    // a `?party=` link joins at once; a reload with a party seat (a stored resume token) rejoins it
+    if (this.partyApi && this.partyCode) this.openParty('join', this.partyCode);
+    else if (this.partyApi && hasPartySeat()) this.openParty('resume');
+    // a closed tab (no resume token left) still in a party: rejoin it by its code (the relay gives this player their
+    // own seat back; a party that ended meanwhile closes quietly)
+    else if (this.partyApi && lastPartyCode()) this.openParty('resume', lastPartyCode());
+    if (this.partyCode) stripPartyParam();
+    // the party chunk is fetched while idle once the title is up (never part of the first load, §11)
+    if (this.partyApi) idle(() => void import('../party').catch(() => undefined));
     requestAnimationFrame((t) => this.frame(t));
     document.documentElement.dataset.ready = '1';
   }
@@ -508,6 +528,8 @@ export class App {
         void import('../render/fx/fun/funKit').catch(() => undefined);
       }, 1500);
     }
+    // a party of one played its solo match (D10): the party is still open, back to it
+    if (this.party?.suspended && this.screen !== 'title') queueMicrotask(() => this.party?.show());
     // a cat that arrived during a match goes on now (never over the match HUD)
     this.autoEquip(true);
     this.lobby.enter();
@@ -570,6 +592,18 @@ export class App {
           sfx.play('click');
           this.showPick();
         },
+        onParty: this.partyApi
+          ? () => {
+              sfx.play('click');
+              this.openParty('create');
+            }
+          : undefined,
+        onJoinCode: this.partyApi
+          ? () => {
+              sfx.play('click');
+              this.openParty('code');
+            }
+          : undefined,
         onMute: (m) => this.setMuted(m),
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
@@ -734,6 +768,126 @@ export class App {
     );
   }
 
+  // ------------------------------------------------------------------------------------------- party play
+
+  /** Open the party chunk: create a party at once (the first tap), join a link's code, type a code, or resume a seat. */
+  private openParty(mode: 'create' | 'join' | 'code' | 'resume', code: string | null = null): void {
+    if (!this.partyApi) return;
+    // the party survived a solo match (D10): the title's button shows it again
+    if (this.party) {
+      if (this.party.suspended) this.party.show();
+      return;
+    }
+    if (this.partyOpening) return;
+    const api = this.partyApi;
+    const p = loadProfile();
+    const picks = canPickDifficulty(p.matches, p.veteran);
+    this.partyOpening = true;
+    void import('../party')
+      .then(({ openParty }) => {
+        this.partyOpening = false;
+        if (this.party) return;
+        this.party = openParty(
+          {
+            root: this.root,
+            api,
+            hero: this.choice.hero,
+            trick: this.choice.trick,
+            difficulty: picks ? this.choice.difficulty : 'easy',
+            difficulties: picks ? ['easy', 'normal', 'hard'] : ['easy'],
+            maxDifficulty: picks ? 'hard' : 'easy',
+            newbie: p.matches === 0,
+            build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
+            // P9: the embed host mints a single-use ticket with its own session; standalone players are unscored guests
+            ticket: () => this.integration.partyTicket(),
+            guestKey: () => partyGuestKey(),
+            cardId: () => cardIdentity(this.choice.hero, this.lookFor(this.choice.hero))?.catId ?? null,
+            preload: () => loadMatch(),
+            startMatch: (host, match) => this.startPartyMatch(host, match),
+            startSolo: (difficulty) => this.startMatch({ ...this.choice, difficulty: difficulty as Choice['difficulty'] }),
+            notify: (n) => this.session?.rail(n),
+            close: () => {
+              this.party = null;
+              this.partyCode = null;
+              if (this.screen === 'title') this.showTitle(false);
+            },
+            inviteUrl,
+            share: (url, text) => this.bridge.post('share', { kind: 'party', url, text }),
+            analytics: (event, props) => this.analytics.track(event as never, props as never),
+          },
+          { mode, code },
+        );
+      })
+      .catch((err: unknown) => {
+        this.partyOpening = false;
+        reportCrash('window', err);
+      });
+  }
+  private partyOpening = false;
+
+  /** A party match: the MatchSession runs on the party's NetHost (no first-session rules, no speed). */
+  private startPartyMatch(host: () => import('../net/net-host').NetHost, match: MatchMsg): void {
+    const p = loadProfile();
+    const slot = match.you.slot;
+    const hero = match.config.picks[slot] as Choice['hero'];
+    const trick = match.config.tricks[slot] as Choice['trick'];
+    const difficulty = match.config.difficulty as Choice['difficulty'];
+    const owned = this.owned();
+    const look = this.lookFor(hero);
+    const setup: MatchSetup = {
+      hero,
+      trick,
+      difficulty,
+      seed: match.config.seed,
+      speed: 1,
+      firstMatch: false,
+      newPlayer: p.matches < 5,
+      // party play: quick chat and its 4 emotes replace the solo Wave chip (T opens the chat wheel)
+      emote: false,
+      muted: sfx.isMuted,
+      look,
+      frame: bestFrame(owned, p.wornFrame),
+      title: titleOf(owned, p.wornTitle),
+      companions: [],
+      guide: 'off',
+      knowsUlt: p.knowsUlt,
+      pingTip: false,
+      // the Esc menu's Forfeit is a surrender vote in party play (NetHost), open from the difficulty's forfeit time
+      forfeitFrom: forfeitTick(99, difficulty),
+      skinFx: p.skinFx,
+      showcase: [],
+      host: host as unknown as MatchSetup['host'],
+      // a resume or a reload joins a running match (the relay sends startInMs 0): no countdown, no VS intro
+      party: { slot, names: match.names, rejoin: match.startInMs === 0, newbie: p.matches === 0, hideNames: hideNames() },
+    };
+    this.lastSetup = setup;
+    this.analytics.track('match_start', { hero, difficulty, trick, dare: false });
+    const veil = loadingVeil(this.root, 'Into the Crossing...', 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
+    this.setScreen('match', null);
+    this.lobby.leave();
+    this.session?.dispose();
+    this.session = null;
+    const token = ++this.matchToken;
+    void loadMatch()
+      .then(({ MatchSession }) => {
+        if (token !== this.matchToken) return;
+        this.beginSession(MatchSession, setup, { hero, trick, difficulty }, veil);
+      })
+      .catch((err: unknown) => {
+        veil.remove();
+        reportCrash('window', err);
+        this.showTitle();
+      });
+  }
+
+  /** After a party match's results: back to the party (rematch or leave there). */
+  private backToParty(): void {
+    this.session?.dispose();
+    this.session = null;
+    this.showTitle(false);
+    this.party?.matchOver();
+  }
+
   private startMatch(pick: Choice, seed?: number): void {
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
@@ -820,6 +974,7 @@ export class App {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
       onLeave: () => {
+        if (setup.party) return this.backToParty();
         this.session?.dispose();
         this.session = null;
         this.showTitle();
@@ -833,6 +988,10 @@ export class App {
       },
       onPaused: (paused) => this.bridge.post('paused', { paused }),
       onTalent: (tier, choice) => this.analytics.track('talent_pick', { hero: c.hero, tier, choice }),
+      // party play analytics (MULTIPLAYER.md §10): mp_* names only, flat props
+      track: (event, props) => {
+        if (isMpEvent(event)) this.analytics.track(event, props);
+      },
     });
     if (this.pendingPause || document.hidden) this.session.setPaused(true);
     this.pendingPause = false;
@@ -860,12 +1019,24 @@ export class App {
     this.matchesThisSession++;
     this.human.match(seconds);
     // Bridge: the replay is the record; the summary is display only (host `summaryOf`).
-    const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
-    this.bridge.post('match-result', {
-      matchId,
-      replay: e.replay,
-      summary: { won, ticks: e.result.ticks, hero: e.replay.hero, difficulty: e.replay.difficulty, takedowns: e.kills },
-    });
+    // Party play (MULTIPLAYER.md §6): a party match never posts a solo replay; its v:2 result goes to the host, which
+    // posts it to `/live` (checked against the relay's stored room log). Only its owner ever sees the save status. A
+    // room the relay said is unscored (no ticket, no secret, a suspected referee) posts nothing.
+    const partyEnd = (e.replay as { party?: { room: string; slot: number; scored: boolean | null } }).party;
+    if (partyEnd && partyEnd.scored !== false && (e.replay.outcome === 'won' || e.replay.outcome === 'lost')) {
+      this.integration.partyResult(
+        { v: 2, room: partyEnd.room, slot: partyEnd.slot, simVersion: e.replay.simVersion, ticks: e.result.ticks, outcome: e.replay.outcome, finalHash: e.replay.finalHash },
+        { ticks: e.result.ticks, difficulty: e.replay.difficulty, won },
+      );
+    }
+    if (!partyEnd) {
+      const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
+      this.bridge.post('match-result', {
+        matchId,
+        replay: e.replay,
+        summary: { won, ticks: e.result.ticks, hero: e.replay.hero, difficulty: e.replay.difficulty, takedowns: e.kills },
+      });
+    }
     // pl_* (fun plan F5): real-player numbers to check against the fun1 gate
     this.analytics.track('match_end', {
       result: e.result.outcome,
@@ -920,7 +1091,8 @@ export class App {
     this.setLobbyHero(e.replay.hero);
     if (won) this.lobby.confetti(3);
     let link: string | null = null;
-    if (won) {
+    // a party match has no dare link (its seed belongs to the party)
+    if (won && !partyEnd) {
       const base = this.bridge.active && document.referrer ? `${new URL(document.referrer).origin}/pawlegends` : location.href;
       try {
         link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < suddenDeathS(e.replay.difficulty) ? seconds : 0 }, base);
@@ -935,14 +1107,20 @@ export class App {
       saveProfile(lp);
     }
     // GAPS A2: the grade replaces the old KDA impact on the ladder (an S or A loss costs half; not stacked)
-    const ladder = recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
+    // the bot ladder is a solo rating: a party match (friends, a shared seed, bots flying dropped friends) never moves it
+    const ladder = partyEnd ? null : recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
     // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
     // lobby spec §3b: a worn owned card names the player's row and MVP after the cat (records stay per hero)
     const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, myCard);
+    // party play: every human row (yours too), the MVP and "Best on your team" use the party names the friends saw
+    const partyNames = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
+    if (partyNames) partyNames.forEach((n, slot) => n && (names[slot] = n));
     const nameOf = (slot: number): string => names[slot] ?? HERO_TEXT[e.result.stats.find((st) => st.slot === slot)?.hero ?? e.replay.hero].title;
     const bestMine = grades.best[myTeam];
+    // Party play (M6): results together, the party's rows and actions (the save chip stays this player's own)
+    const party = partyEnd && this.party ? this.party : null;
     const table = e.result.stats
       .map((st) => ({
         name: nameOf(st.slot),
@@ -962,9 +1140,7 @@ export class App {
     const progress = e.result.stats.some((st) => typeof st.fish === 'number')
       ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
       : null;
-    this.setScreen(
-      'results',
-      resultsScreen(this.root, {
+    const resultsEl = resultsScreen(this.root, {
         won,
         seconds,
         hero: e.replay.hero,
@@ -1007,9 +1183,10 @@ export class App {
               },
         },
         personal: ladder?.personal ?? null,
-        cause: e.cause,
+        // a party's surrender is the team's vote, not one player's forfeit
+        cause: partyEnd && e.result.reason === 'forfeit' ? 'Your team voted to surrender.' : e.cause,
         // round 2: a returning player (4+ matches or "played MOBAs before") gets Play again at End + 2.5 s
-        quick: lp.matches >= 4 || lp.veteran,
+        quick: lp.matches >= 4 || lp.veteran || !!partyEnd,
         tryHero: tease,
         skin: skinLine,
         touch: typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches,
@@ -1020,12 +1197,16 @@ export class App {
         // It stays in this page session, so the offer's once-a-session rule (money/offer.ts) never shows a second card.
         onAgain: () => {
           sfx.play('click');
+          if (party) return party.again(true);
+          if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'again', hero: e.replay.hero, difficulty: e.replay.difficulty });
           this.startMatch(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice);
         },
         // GAPS A3 "Switch cat": the pick screen with this match's difficulty kept (round 2: on the teased hero)
         onChange: () => {
           sfx.play('click');
+          if (party) return party.again(false);
+          if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
           const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;
           this.choice = { ...this.choice, difficulty: keep, ...(tease ? { hero: tease } : {}) };
@@ -1042,8 +1223,24 @@ export class App {
         },
         onStore: () => this.openStore('results'),
         onNotify: () => this.notify('results'),
-      }),
-    );
+        ...(party
+          ? {
+              party: {
+                rowsHtml: party.resultsRows(e.result.stats, mySlot, names, partyEnd as { names?: (string | null)[]; pilotPct?: number[] }),
+                again: party.againText(),
+                // leave the party and the results: back to the title (never a stranded results screen)
+                onLeave: () => {
+                  party.leaveParty();
+                  this.session?.dispose();
+                  this.session = null;
+                  this.showTitle();
+                },
+              },
+            }
+          : {}),
+      });
+    this.setScreen('results', resultsEl);
+    party?.bindResults(resultsEl, () => this.backToParty());
     // the offer card waits for the staged results reveal, and shows only after a win (never on a Defeat screen),
     // never after the Rookie match (fun plan F4)
     if (won && !isRookie(e.replay.difficulty))
@@ -1252,4 +1449,63 @@ function skuOfItem(item: string): string {
   if (item === 'skin.clem.pink_bow') return 'pl_starter';
   if (item === 'skin.clem.dawnblade') return 'pl_founder_legend';
   return 'pl_founder';
+}
+
+/** A stored party resume token (a reload of this tab while in a party rejoins it; the relay checks it). */
+function hasPartySeat(): boolean {
+  try {
+    return !!sessionStorage.getItem('pl.party.resume');
+  } catch {
+    return false;
+  }
+}
+
+/** The code of the party this browser was last in (src/party/partyClient.ts keeps it), within 3 hours, or null. */
+function lastPartyCode(): string | null {
+  try {
+    const v = JSON.parse(localStorage.getItem('pl.party.last') ?? 'null') as { code?: unknown; at?: unknown } | null;
+    if (!v || typeof v.code !== 'string' || !/^[2-9A-HJ-NP-Z]{6}$/.test(v.code) || typeof v.at !== 'number') return null;
+    return Date.now() - v.at < 3 * 3600_000 ? v.code : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Drop `?party=` from the address bar once read, so a later reload does not rejoin an old party by code. */
+function stripPartyParam(): void {
+  try {
+    const u = new URL(location.href);
+    if (!u.searchParams.has('party')) return;
+    u.searchParams.delete('party');
+    history.replaceState(history.state, '', `${u.pathname}${u.search}${u.hash}`);
+  } catch {
+    /* sandboxed */
+  }
+}
+
+/** Run `fn` when the main thread is idle (a timeout where requestIdleCallback is missing, as on Safari). */
+function idle(fn: () => void): void {
+  const ric = (globalThis as { requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number }).requestIdleCallback;
+  if (ric) ric(fn, { timeout: 8000 });
+  else setTimeout(fn, 3000);
+}
+
+/** A per-browser random guest key (party identity for the relay's caps; never a secret, never shown to peers). */
+function partyGuestKey(): string {
+  const k = 'pl.party.guest';
+  try {
+    const old = localStorage.getItem(k);
+    if (old && /^[A-Za-z0-9_-]{8,64}$/.test(old)) return old;
+  } catch {
+    /* private mode */
+  }
+  const a = new Uint8Array(16);
+  crypto.getRandomValues(a);
+  const key = Array.from(a, (b) => b.toString(36).padStart(2, '0')).join('').slice(0, 24);
+  try {
+    localStorage.setItem(k, key);
+  } catch {
+    /* private mode */
+  }
+  return key;
 }

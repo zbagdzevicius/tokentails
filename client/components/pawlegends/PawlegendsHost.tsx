@@ -44,10 +44,13 @@ import {
   PAWLEGENDS_EXIT_PATH,
   PAWLEGENDS_FRAME_SRC,
   PAWLEGENDS_PRIVACY_URL,
+  PAWLEGENDS_PARTY_LINK,
   PAWLEGENDS_TERMS_PATH,
   pawlegendsFrameSrc,
+  withoutParty,
 } from "./flags";
 import { rosterOf } from "./rosterBridge";
+import { PartySaves, PartyTickets } from "./partySaves";
 import { PawlegendsSaver } from "./saves";
 import { openedFrom, profileAfterSave, progressFromProfile, type PawlegendsProfileFields } from "./session";
 import { PAWLEGENDS_TITLE } from "./title";
@@ -236,6 +239,44 @@ export const PawlegendsHost = ({
         },
         onStalePurged: () => setNote("An older match could not be saved after an update"),
         onChange: () => setUnclaimed(saver.unclaimed().length),
+      }),
+    []
+  );
+  // Party play (MULTIPLAYER.md §5.3, §6): tickets minted with this page's session, v:2 results posted to `/live`.
+  const partySaves = useMemo(
+    () =>
+      new PartySaves({
+        save: (result) => saveRef.current({ type: GameType.PAWLEGENDS, pawlegends: result }),
+        onStatus: (matchId, saveStatus, detail) => {
+          const answer = detail.answer;
+          // only the owner's own game hears its save status (§6.7); peers never see it
+          bridgeRef.current?.saveResult({
+            matchId,
+            status: saveStatus,
+            catnipPaid: answer?.catnipPaid ?? 0,
+            catnipTotal: answer?.catnipCount ?? null,
+            fastestWin: null,
+            ...(detail.code ? { code: detail.code } : {}),
+          });
+          if (saveStatus !== "saving")
+            track(
+              buildPawlegendsEvent("pawlegends_save", {
+                status: saveStatus,
+                catnipPaid: answer?.catnipPaid ?? 0,
+                code: pawlegendsSaveCode(detail.code),
+                httpStatus: detail.httpStatus,
+              })
+            );
+          if (saveStatus === "saved" && answer?.catnipPaid) void latest.current.auth?.refreshProfile?.().catch(() => undefined);
+        },
+      }),
+    []
+  );
+  const partyTickets = useMemo(
+    () =>
+      new PartyTickets({
+        mint: () => USER_API.pawlegendsPartyTicket(),
+        answer: (id, ticket, error) => bridgeRef.current?.partyTicket(id, ticket, error),
       }),
     []
   );
@@ -538,14 +579,25 @@ export const PawlegendsHost = ({
             await authKnown();
             await saver.submit(matchId, replay);
           })(),
+        onPartyTicketRequest: (id) =>
+          void (async () => {
+            await authKnown();
+            await partyTickets.request(id);
+          })(),
+        onPartyResult: (result) =>
+          void (async () => {
+            await authKnown();
+            await partySaves.submit(result);
+          })(),
         onRequestSignIn: (reason) => handlers.current.onRequestSignIn(reason),
         onOpenCat: (catalogId) => handlers.current.onOpenCat(catalogId),
         onOfferSeen: (catalogId) => handlers.current.onOfferSeen(catalogId),
         onNotify: (where) => handlers.current.onNotify(where),
         onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
         onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
-        onShare: (_kind, url, text) => {
-          const safe = shareUrlOf(url, window.location.origin);
+        onShare: (kind, url, text) => {
+          // a party invite is always the tokentails.com embed URL (D12), also from a preview or local host
+          const safe = kind === "party" && PAWLEGENDS_PARTY_LINK.test(url) ? url : shareUrlOf(url, window.location.origin);
           if (!safe) return;
           const nav = window.navigator as Navigator & { share?: (data: ShareData) => Promise<void> };
           // PUB-06: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!") goes with the link when the game sent one.
@@ -560,7 +612,7 @@ export const PawlegendsHost = ({
       bridge.dispose();
       bridgeRef.current = null;
     };
-  }, [authKnown, saver]);
+  }, [authKnown, saver, partySaves, partyTickets]);
 
   // `app.store`: the Token Tails cat checkout is reachable (web). `notify`: the backend can send the email.
   const notify = !isApp && !!status?.email;
@@ -651,6 +703,10 @@ export const PawlegendsHost = ({
   // frame is started again with the dare in its src (a fresh iframe, as the reload button does).
   useEffect(() => {
     const src = pawlegendsFrameSrc(window.location.search);
+    // a party invite: the frame got the code; the address bar drops it, so a reload does not rejoin an old party
+    const stripped = withoutParty(window.location.href);
+    // (the Next router's own history state keeps working: its `as` and `url` follow the new address)
+    if (stripped) window.history.replaceState({ ...(window.history.state ?? {}), as: stripped, url: stripped }, "", stripped);
     if (src === PAWLEGENDS_FRAME_SRC) return;
     setFrameSrc(src);
     setFrameKey((k) => k + 1);
@@ -692,7 +748,7 @@ export const PawlegendsHost = ({
         data-testid={PAWLEGENDS_FRAME_TESTID}
         className="absolute border-0 bg-tt-night-900"
         style={SAFE_FRAME_STYLE}
-        allow="autoplay; fullscreen; gamepad"
+        allow="autoplay; fullscreen; gamepad; web-share; clipboard-write"
         onLoad={onFrameLoad}
         inert={suspended}
       />
