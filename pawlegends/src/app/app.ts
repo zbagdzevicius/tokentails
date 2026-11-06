@@ -276,6 +276,9 @@ export class App {
     // a `?party=` link joins at once; a reload with a party seat (a stored resume token) rejoins it
     if (this.partyApi && this.partyCode) this.openParty('join', this.partyCode);
     else if (this.partyApi && hasPartySeat()) this.openParty('resume');
+    // a closed tab (no resume token left) still in a party: rejoin it by its code (the relay gives this player their
+    // own seat back; a party that ended meanwhile closes quietly)
+    else if (this.partyApi && lastPartyCode()) this.openParty('resume', lastPartyCode());
     if (this.partyCode) stripPartyParam();
     // the party chunk is fetched while idle once the title is up (never part of the first load, §11)
     if (this.partyApi) idle(() => void import('../party').catch(() => undefined));
@@ -1441,12 +1444,23 @@ function skuOfItem(item: string): string {
   return 'pl_founder';
 }
 
-/** A stored party resume token (a reload while in a party rejoins it; the party chunk checks it with the relay). */
+/** A stored party resume token (a reload of this tab while in a party rejoins it; the relay checks it). */
 function hasPartySeat(): boolean {
   try {
-    return !!localStorage.getItem('pl.party.resume');
+    return !!sessionStorage.getItem('pl.party.resume');
   } catch {
     return false;
+  }
+}
+
+/** The code of the party this browser was last in (src/party/partyClient.ts keeps it), within 3 hours, or null. */
+function lastPartyCode(): string | null {
+  try {
+    const v = JSON.parse(localStorage.getItem('pl.party.last') ?? 'null') as { code?: unknown; at?: unknown } | null;
+    if (!v || typeof v.code !== 'string' || !/^[2-9A-HJ-NP-Z]{6}$/.test(v.code) || typeof v.at !== 'number') return null;
+    return Date.now() - v.at < 3 * 3600_000 ? v.code : null;
+  } catch {
+    return null;
   }
 }
 

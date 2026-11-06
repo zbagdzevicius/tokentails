@@ -120,6 +120,11 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     case 'decide': {
       // after `welcome`: a resumed seat already got its party frame; otherwise do what the player opened us for
       if (s.view || s.asked || !s.welcomed) return { state: s, effects: [] };
+      // a closed tab's party (its code kept, no token): join it again; the relay hands back this player's own seat
+      if (s.mode === 'resume' && s.code) {
+        send({ t: 'party.join', code: s.code });
+        return { state: { ...s, asked: true }, effects: fx };
+      }
       if (s.mode === 'resume') return { state: s, effects: [{ t: 'close' }] };
       if (s.mode === 'join' && s.code) {
         send({ t: 'party.join', code: s.code });
@@ -172,6 +177,8 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         const leader = !!s.view && s.view.leader === s.view.you;
         return { state: { ...s, error }, effects: leader ? [{ t: 'retry-start', ms: m.retryMs ?? 15_000 }] : [] };
       }
+      // a quiet resume of a party that is gone: back to the title, no error screen
+      if (s.mode === 'resume' && ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false }, effects: [{ t: 'close' }] };
       // a refused join leaves us without a party (the code screen or the ended screen)
       if (ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false }, effects: [] };
       return { state: { ...s, error }, effects: [] };
@@ -226,6 +233,16 @@ export interface PartyHooks {
   /** Test seams. */
   env?: SocketEnv;
   now?(): number;
+}
+
+/** The party code this browser is in (or null when it left): a closed tab rejoins by it (src/app/app.ts). */
+function rememberParty(code: string | null): void {
+  try {
+    if (code) localStorage.setItem('pl.party.last', JSON.stringify({ code, at: Date.now() }));
+    else localStorage.removeItem('pl.party.last');
+  } catch {
+    /* private mode */
+  }
 }
 
 const heroName = (h: string): string => (h in HERO_TEXT ? HERO_TEXT[h as keyof typeof HERO_TEXT].title : h);
@@ -342,6 +359,7 @@ export class PartyClient {
       }
     }
     if (state.view && !prev.view) this.enteredParty();
+    if (state.view?.code && state.view.code !== prev.view?.code) rememberParty(state.view.code);
     if (state.view?.phase === 'pick' && prev.view?.phase !== 'pick') this.enteredPick();
     else if (state.view?.phase === 'pick' && prev.view?.phase === 'pick') this.pickChanged(prev.view, state.view);
     if (state.view?.phase === 'loading' && prev.view?.phase !== 'loading') void this.enteredLoading();
@@ -831,6 +849,7 @@ export class PartyClient {
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    rememberParty(null);
     if (this.timer) clearInterval(this.timer);
     if (this.decideTimer) clearTimeout(this.decideTimer);
     if (this.retryTimer) clearTimeout(this.retryTimer);
