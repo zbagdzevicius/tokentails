@@ -706,6 +706,23 @@ bought from the game go through `POST /web3/create-payment` or `POST /payments/c
 
 Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
 
+
+### Pawlegends party play (docs/plans/moba/MULTIPLAYER.md)
+
+Co-op against bots for 1 to 3 friends, deterministic lockstep through a relay. Always on (D9): without
+`PAWLEGENDS_PARTY_TICKET_SECRET` the ticket route answers 503 and every room is unscored.
+
+| Method | Path | Purpose | Auth, limit |
+|---|---|---|---|
+| POST | `/pawlegends/party/ticket` | `{ticket, expiresIn: 60}`: a single-use HMAC token naming the caller, sent inside the relay `hello`. 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE` without the secret | `AppAuthGuard` + `@AllowGuest()`, 30 per 10 min per IP |
+| WS | `/pawlegends/ws` (subprotocol `pl.1`) | The relay. JSON text frames (`hello`, `party.*`, `pick.*`, `load`, `loaded`, `vote`, `social`, `sync`, `away`, `back`, `bye`; server `welcome`, `error`, `party`, `match`, `slot`, `vote`, `social`, `resync`, `end`, ...) and binary frames (CMD, BEAT, HASH; TURN, CATCHUP, ECHO). Shapes and limits: `pawlegends/src/net/proto.ts` (vendored to `backend/src/vendor/pawlegends-net/`) | Origin in the CORS list; caps in `party-limits.ts` |
+
+`POST /user/catbassadors/live` with `type: 'PAWLEGENDS'` also accepts a party result in `pawlegends`:
+`{v: 2, room, slot, simVersion, ticks, outcome, finalHash}`. It is checked against the room log the relay stored
+and the referee's three-way verified verdict; errors `PAWLEGENDS_PARTY_ROOM` (no verified match), `PAWLEGENDS_PARTY_SLOT`
+(not the caller's slot), `PAWLEGENDS_PARTY_AFK` (409: a bot played most of the match), `PAWLEGENDS_DUPLICATE`,
+`PAWLEGENDS_SIM_VERSION`, `PAWLEGENDS_REPLAY_INVALID`.
+
 ## Web3 and payments
 
 | Method | Path | Purpose | Auth |
