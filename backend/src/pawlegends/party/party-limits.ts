@@ -20,12 +20,27 @@ export const PARTY_LIMITS = Object.freeze({
     socketsPerIp: 50,
     partiesLivePerIdentity: 3,
     partiesPerHourPerIdentity: 20,
+    partiesPerHourPerIp: 60,
     partiesLivePerIp: 10,
     roomsLivePerIdentity: 1,
-    roomsLivePerIp: 2,
+    /** Rooms with anyone from one IP (a home, a school or a carrier NAT shares one): enough for a few parties. */
+    roomsLivePerIp: 4,
     joinFailPerIdentity: { limit: 10, windowMs: 10 * 60_000 },
     joinFailPerIp: { limit: 30, windowMs: 10 * 60_000 },
-    joinFailGlobal: { limit: 200, windowMs: 60_000, lockMs: 30_000 },
+    /** Failed joins per /24 (IPv4) or /48 (IPv6) network: a backoff for that network only, never a global lock. */
+    joinFailPerNet: { limit: 100, windowMs: 10 * 60_000 },
+    /** Counted for the `join_fail_global` alert only; never locks joins for everyone (one IP could hold it). */
+    joinFailGlobal: { limit: 200, windowMs: 60_000 },
+    /** Binary frames per socket (CMD, BEAT, HASH): a token bucket; over it each frame is a strike. */
+    binary: { perSecond: 40, burst: 60 },
+    /** At most one ECHO per this many ms per socket (a BEAT flood never doubles into an ECHO flood). */
+    echoEveryMs: 250,
+    /** A frame from a socket without a seat costs this many tokens (a late BEAT after the match is fine, a flood is not). */
+    unseatedCost: 4,
+    /** `party.card` per member (each one reads the cat collection). */
+    cardEveryMs: 2000,
+    /** Hard cap on a room's wall time (a match never lasts this long; a stuck room is abandoned). */
+    roomMaxMs: 60 * 60_000,
     json: { perSecond: 5, burst: 10 },
     partyBroadcastHz: 10,
     resyncsPerSlot: 3,
@@ -56,8 +71,11 @@ export const PARTY_LIMITS = Object.freeze({
     lateLoadMs: 20_000,
     abandonBeforePlayMs: 30_000,
     abandonAfterPlayMs: 120_000,
-    /** A `back` is honoured only from a client within this many turns of live (B + 2 with B <= 5). */
-    reclaimWithinTurns: 7,
+    /**
+     * A `back` is honoured only from a client whose last RECEIVED turn (BEAT.lastTurn) is within this many turns of
+     * live: one second, enough for 150 ms RTT, jitter and a TCP retransmit, never a client still catching up.
+     */
+    reclaimWithinTurns: 15,
     /** B4: non-move token bucket per slot. */
     cmdBucket: { perSecond: 20, burst: 10 },
     /** Votes (§3.2). */

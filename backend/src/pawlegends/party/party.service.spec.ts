@@ -186,8 +186,9 @@ describe('PartyService', () => {
             expect(t.sent).toContainEqual({ to: 'B', msg: { t: 'error', code: 'kicked' } });
             expect(t.p.members.map(m => m.id)).toEqual(['A']);
             expect(t.p.code).not.toBe(old);
-            // the old link is dead; the new code refuses the kicked identity, even under a new member id
-            expect(t.svc.join(old, 'B2', id('b'))).toBe('party_ended');
+            // the old link is dead (it says the code changed, not that the party ended); the new code refuses the kicked
+            // identity, even under a new member id
+            expect(t.svc.join(old, 'B2', id('b'))).toBe('code_changed');
             expect(t.svc.join(t.p.code, 'B2', id('b'))).toBe('kicked');
             t.advance(PARTY_TIMING.kickBanMs + 1);
             expect(t.svc.join(t.p.code, 'B2', id('b'))).toBe(t.p);
@@ -204,7 +205,22 @@ describe('PartyService', () => {
             const old = t.p.code;
             t.svc.newCodeFor('A');
             expect(t.p.code).not.toBe(old);
-            expect(t.svc.join(old, 'B', id('b'))).toBe('party_ended');
+            expect(t.svc.join(old, 'B', id('b'))).toBe('code_changed');
+        });
+
+        it('one seat per person: the same identity under a second member id is refused', () => {
+            const t = lobby(1);
+            expect(t.svc.join(t.p.code, 'A2', t.p.members[0].identity)).toBe('already_in_party');
+            expect(t.p.members).toHaveLength(1);
+        });
+
+        it('retired codes are swept after the hour', () => {
+            const t = lobby(1);
+            t.svc.newCodeFor('A');
+            t.svc.newCodeFor('A');
+            expect(t.svc.retiredCount).toBe(2);
+            t.advance(PARTY_TIMING.codeReuseMs + 1000);
+            expect(t.svc.retiredCount).toBe(0);
         });
 
         it('codes use the 31-letter alphabet and are unique over 100k draws', () => {
@@ -307,13 +323,13 @@ describe('PartyService', () => {
             expect(t.sent.filter(s => s.msg.t === 'nudge')).toHaveLength(2);
         });
 
-        it('waiting clears once everyone is back', () => {
+        it('waiting clears once everyone is back, and the interrupted Start goes on by itself', () => {
             const t = lobby(2);
             t.svc.setConn('B', 'away');
             t.svc.start('A');
             t.svc.setConn('B', 'on');
-            expect(t.svc.view(t.p, 'A').waiting).toEqual([]);
-            expect(t.svc.start('A')).toBe('pick');
+            expect(t.svc.view(t.p, 'A').waiting).toBeUndefined();
+            expect(t.p.phase).toBe('pick');
         });
     });
 
@@ -330,7 +346,7 @@ describe('PartyService', () => {
             expect(t.p.phase).toBe('loading');
         });
 
-        it("the leader's hover decides the side; a side change resets the others' unlocked hovers", () => {
+        it("the leader's hover decides the side; a side change resets the others' hovers and locks on the old side", () => {
             const t = lobby(3);
             t.svc.start('A');
             t.svc.hover('A', 'clem');
@@ -342,8 +358,21 @@ describe('PartyService', () => {
             t.svc.hover('A', 'rex');
             expect(t.p.side).toBe('dog');
             expect(t.p.members[1].hero).toBeUndefined();
-            // a lock stays
-            expect(t.p.members[2].hero).toBe('nova');
+            // a lock on the old side is undone too: a team is never cats and dogs mixed
+            expect(t.p.members[2].hero).toBeUndefined();
+            expect(t.p.members[2].locked).toBe(false);
+            expect(t.p.phase).toBe('pick');
+        });
+
+        it('a timeout after a side switch still gives one side only', () => {
+            const t = lobby(3);
+            t.svc.start('A');
+            t.svc.lock('B', 'clem', 'dash');
+            t.svc.lock('C', 'mochi', 'dash');
+            t.svc.hover('A', 'rex');
+            t.advance(PARTY_TIMING.pickMs);
+            expect(t.p.phase).toBe('loading');
+            expect(new Set(t.p.members.map(m => SIDE[m.hero!]))).toEqual(new Set(['dog']));
         });
 
         it('an unknown hero or trick is ignored', () => {
@@ -459,6 +488,17 @@ describe('PartyService', () => {
         });
     });
 
+    describe('a Start interrupted by an away friend', () => {
+        it('goes on by itself when the friend is back', () => {
+            const t = lobby(2);
+            t.svc.setConn('B', 'away');
+            expect(t.svc.start('A')).toBe('waiting');
+            expect(t.p.phase).toBe('lobby');
+            t.svc.setConn('B', 'on');
+            expect(t.p.phase).toBe('pick');
+        });
+    });
+
     describe('results and rematch', () => {
         const toResults = () => {
             const t = lobby(2);
@@ -487,6 +527,20 @@ describe('PartyService', () => {
                 'B',
             ]);
             expect(t.svc.view(t.p, 'B').deadlineMs).toBe(PARTY_TIMING.pickMs + PARTY_TIMING.rematchNoteMs);
+        });
+
+        it('a rematch pick stays up for its minimum time even when everyone locks at once; Change hero unlocks', () => {
+            const t = toResults();
+            t.svc.rematch('A', true);
+            t.svc.lock('A', 'clem', 'dash');
+            t.svc.lock('B', 'mochi', 'heal');
+            expect(t.p.phase).toBe('pick');
+            t.svc.unlock('B');
+            expect(t.p.members[1].locked).toBe(false);
+            t.svc.lock('B', 'nova', 'heal');
+            t.advance(PARTY_TIMING.rematchPickMinMs);
+            expect(t.p.phase).toBe('loading');
+            expect(t.p.members[1].hero).toBe('nova');
         });
 
         it('a majority also starts it; a single member of three does not', () => {

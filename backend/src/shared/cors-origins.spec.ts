@@ -1,7 +1,7 @@
 // `cors` is what @nestjs/platform-express runs for enableCors (no @types package here).
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const cors = require('cors');
-import { corsOrigins, isCorsOriginAllowed } from './cors-origins';
+import { corsOrigins, isCorsOriginAllowed, isRelayOriginAllowed } from './cors-origins';
 
 /** Runs the real `cors` middleware (as Nest's enableCors does) and returns the allow-origin header. */
 function allowOriginHeader(origin: string, frontEndUrls?: string): string | undefined {
@@ -55,5 +55,19 @@ describe('CORS origins', () => {
         // Unset FRONT_END_URLS adds a literal '*', which matches no real origin.
         expect(corsOrigins(undefined)).toContain('*');
         expect(allowOriginHeader('https://anything.example.com')).toBeUndefined();
+    });
+});
+
+describe('party relay origins', () => {
+    it('drops the localhost dev ports in production, keeps the app origins and the sites', () => {
+        const list = corsOrigins('https://example.test');
+        expect(isRelayOriginAllowed('http://localhost:3000', true, list)).toBe(false);
+        expect(isRelayOriginAllowed('http://localhost:3001', true, list)).toBe(false);
+        expect(isRelayOriginAllowed('http://127.0.0.1:5173', true, list)).toBe(false);
+        expect(isRelayOriginAllowed('http://localhost', true, list)).toBe(true);
+        expect(isRelayOriginAllowed('capacitor://localhost', true, list)).toBe(true);
+        expect(isRelayOriginAllowed('https://tokentails.com', true, list)).toBe(true);
+        expect(isRelayOriginAllowed('https://evil.example.com', true, list)).toBe(false);
+        expect(isRelayOriginAllowed('http://localhost:5400', false, list)).toBe(true);
     });
 });

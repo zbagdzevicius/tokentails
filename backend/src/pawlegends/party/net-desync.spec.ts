@@ -131,15 +131,41 @@ describe('net desync (N6)', () => {
         );
     });
 
-    it('majority rule: a diverged referee is suspected (two clients agree), no resync storm, the room is unscored', () => {
+    it('majority rule: a diverged referee is logged (two clients agree), no resync storm, the room stays scored', () => {
         const w = world(2);
         for (let i = 0; i < 100; i++) w.turn();
         w.turn({ who: 'referee' });
         for (let i = 0; i < 40; i++) w.turn();
         expect(w.room.suspect).toBe(true);
-        expect(w.room.unscored).toBe('referee');
+        // client hashes never void a room: the end-of-match verify of the raw log is the independent check
+        expect(w.room.unscored).toBeNull();
         expect(w.resyncs).toEqual([]);
         expect(w.events).toContain('mp_referee_divergence');
+    });
+
+    it('forged HASH frames from one member only resync that member; the room stays scored and detection stays on', () => {
+        const w = world(4);
+        for (let i = 0; i < 60; i++) w.turn();
+        // slot 1 lies at the next two marks (a resync in between, then `back`, then the second lie)
+        for (let k = 0; k < 2; k++) {
+            const mark = (Math.floor(w.room.tick / 30) + 1) * 30;
+            // just before the honest client reaches the mark (a forged frame arrives first)
+            while (w.room.tick + 8 < mark) w.turn();
+            expect(w.room.clientHash(1, mark, 0xdeadbeef)).toBe(true);
+            // the same mark again is refused (one per slot and mark), and so are off-cadence ticks
+            expect(w.room.clientHash(1, mark, 0xdeadbeef)).toBe(false);
+            expect(w.room.clientHash(1, mark + 1, 1)).toBe(false);
+            for (let i = 0; i < 60; i++) w.turn();
+            w.room.beat(1, w.room.nextTurn, 1e9);
+            w.room.back(1, 1e9);
+        }
+        expect(w.resyncs).toEqual([1, 1]);
+        expect(w.room.unscored).toBeNull();
+        expect(w.room.suspect).toBe(false);
+        // a real desync on slot 2 is still caught
+        w.turn({ who: 'client', slot: 2 });
+        for (let i = 0; i < 16; i++) w.turn();
+        expect(w.resyncs).toEqual([1, 1, 2]);
     });
 
     it('resync caps: 3 per slot (they survive a reconnect), then the slot only watches, piloted', () => {

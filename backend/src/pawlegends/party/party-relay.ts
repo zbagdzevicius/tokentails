@@ -11,7 +11,7 @@ import { createHash, randomBytes } from 'crypto';
 import type { IncomingMessage, Server } from 'http';
 import type { Duplex } from 'stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
-import { isCorsOriginAllowed } from '../../shared/cors-origins';
+import { isRelayOriginAllowed } from '../../shared/cors-origins';
 import { isCloudflareIp } from '../../shared/cloudflare-ips';
 import { partySimFor, simFor, type PawlegendsPartySim } from '../../vendor/pawlegends-sim';
 import {
@@ -63,7 +63,9 @@ export interface RelayOptions {
     referee?: RefereePool;
     /** Harness only (a constructor option, never env or a header): accept sockets without an Origin. */
     allowNoOrigin?: boolean;
-    /** Allowed origins check (default: the CORS list). */
+    /** Specs only (a constructor option): the visitor IP of an upgrade (default: `PartyRelay.clientIp`). */
+    clientIp?: (req: IncomingMessage) => string;
+    /** Allowed origins check (default: the relay list, no dev localhost ports in production). */
     originAllowed?: (origin: string) => boolean;
     gate?: LoopGate;
     now?: () => number;
@@ -101,6 +103,11 @@ interface Sock {
     sim: { version: number; hash: string } | null;
     strikes: number;
     json: { tokens: number; atMs: number };
+    /** Binary frames (CMD, BEAT, HASH): token bucket. */
+    bin: { tokens: number; atMs: number };
+    lastEchoMs: number;
+    /** `party.card`: last request time (each one reads the cat collection). */
+    lastCardMs: number;
     lastSyncMs: number;
     /** Social rate limit (1 per 2 s, 10 per 30 s; the client mirrors it). */
     social: SocialLimiter;
@@ -128,9 +135,18 @@ interface LiveRoom {
     ending: boolean;
     checkpointing?: boolean;
     heroSkins: (string | null)[];
+    /** Identity keys and IP keys of the members seated at the start (or later claims): per-identity and per-IP room caps. */
+    keys: Set<string>;
+    ips: Set<string>;
 }
 
 const hashKey = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
+/** The /24 (IPv4) or /48 (IPv6) network of an IP, hashed: failed joins back off a whole network after its own limit. */
+export const netKey = (ip: string): string => {
+    const v4 = ip.replace(/^::ffff:/, '');
+    if (/^\d+\.\d+\.\d+\.\d+$/.test(v4)) return hashKey(`net4:${v4.split('.').slice(0, 3).join('.')}`);
+    return hashKey(`net6:${ip.toLowerCase().split(':').slice(0, 3).join(':')}`);
+};
 const token128 = () => randomBytes(16).toString('base64url');
 const roomId = () => {
     const b = randomBytes(12);
@@ -158,10 +174,22 @@ export class PartyRelay {
     readonly rooms = new Map<string, LiveRoom>();
     private readonly socks = new Set<Sock>();
     private readonly byMember = new Map<string, Sock>();
-    /** member id → resume token hash (and the identity it is bound to). */
-    private readonly resume = new Map<string, { hash: string; identityKey: string; expMs: number }>();
+    /**
+     * Resume tokens by token hash (O(1) on `hello`), with the member, the identity it is bound to and, for an identity
+     * keyed by IP only, that IP. One live token per member (`resumeOf`); expired ones are swept.
+     */
+    private readonly resume = new Map<string, { member: string; identityKey: string; ipKey: string; expMs: number }>();
+    private readonly resumeOf = new Map<string, string>();
     private readonly upgrades: number[] = [];
-    private readonly joinFails = { global: [] as number[], lockUntil: 0, byKey: new Map<string, number[]>() };
+    /** Failed joins: global (an alert only), per identity, per IP and per network (each one backs off only itself). */
+    private readonly joinFails = {
+        global: [] as number[],
+        byKey: new Map<string, number[]>(),
+        byIp: new Map<string, number[]>(),
+        byNet: new Map<string, number[]>(),
+    };
+    /** Parties created per IP and per identity in the last hour. */
+    private readonly created = { byIp: new Map<string, number[]>(), byKey: new Map<string, number[]>() };
     private readonly pendingParty = new Set<string>();
     private partyFlush: NodeJS.Timeout | null = null;
     private partyTimer: NodeJS.Timeout | null = null;
@@ -206,7 +234,10 @@ export class PartyRelay {
         this.scheduler.onAdvanced = room => this.afterAdvance(room);
         this.upgradeHandler = (req, socket, head) => this.onUpgrade(req, socket, head);
         opts.server.on('upgrade', this.upgradeHandler);
-        this.partyTimer = setInterval(() => this.parties.tick(), 500);
+        this.partyTimer = setInterval(() => {
+            this.parties.tick();
+            this.sweep();
+        }, 500);
         this.partyTimer.unref?.();
     }
 
@@ -255,7 +286,7 @@ export class PartyRelay {
         const origin = req.headers.origin;
         if (!origin) {
             if (!this.opts.allowNoOrigin) return this.refuseUpgrade(socket, 403);
-        } else if (!(this.opts.originAllowed ?? ((o: string) => isCorsOriginAllowed(o)))(origin))
+        } else if (!(this.opts.originAllowed ?? ((o: string) => isRelayOriginAllowed(o)))(origin))
             return this.refuseUpgrade(socket, 403);
         const now = this.now();
         while (this.upgrades.length && now - this.upgrades[0] > 1000) this.upgrades.shift();
@@ -264,7 +295,7 @@ export class PartyRelay {
         let pre = 0;
         for (const s of this.socks) if (!s.helloed) pre++;
         if (pre >= PARTY_LIMITS.preHelloSockets) return this.refuseUpgrade(socket, 503);
-        const ip = PartyRelay.clientIp(req);
+        const ip = (this.opts.clientIp ?? PartyRelay.clientIp)(req);
         const ipKey = hashKey(`ip:${ip}`);
         let perIp = 0;
         for (const s of this.socks) if (s.ipKey === ipKey) perIp++;
@@ -279,6 +310,9 @@ export class PartyRelay {
             id: token128(),
             ip,
             ipKey,
+            bin: { tokens: PARTY_LIMITS.binary.burst, atMs: this.now() },
+            lastEchoMs: -Infinity,
+            lastCardMs: -Infinity,
             helloed: false,
             helloTimer: null,
             identity: null,
@@ -316,6 +350,20 @@ export class PartyRelay {
         s.pingTimer.unref?.();
     }
 
+    /** The per-socket binary token bucket (40/s, burst 60). */
+    private binaryAllowed(s: Sock, cost: number): boolean {
+        const now = this.now();
+        const b = s.bin;
+        b.tokens = Math.min(
+            PARTY_LIMITS.binary.burst,
+            b.tokens + ((now - b.atMs) * PARTY_LIMITS.binary.perSecond) / 1000
+        );
+        b.atMs = now;
+        if (b.tokens < cost) return false;
+        b.tokens -= cost;
+        return true;
+    }
+
     private strike(s: Sock): void {
         s.strikes++;
         if (s.strikes >= PARTY_LIMITS.strikes) s.ws.close(4002, 'strikes');
@@ -342,6 +390,8 @@ export class PartyRelay {
             : Buffer.from(data as ArrayBuffer);
         if (isBinary) {
             if (!s.helloed) return this.strike(s);
+            // a frame from a socket without a seat (a late BEAT right after the match) costs more; a flood strikes
+            if (!this.binaryAllowed(s, this.seatOf(s) ? 1 : PARTY_LIMITS.unseatedCost)) return this.strike(s);
             let f;
             try {
                 f = decodeClientBinary(new Uint8Array(buf.buffer, buf.byteOffset, buf.length));
@@ -400,6 +450,7 @@ export class PartyRelay {
             key,
             ticketed: !!ticket,
             guest: ticket ? ticket.guest : true,
+            ipKey: s.ipKey,
         };
         let perIdentity = 0;
         for (const o of this.socks) if (o.identity?.key === key) perIdentity++;
@@ -415,11 +466,7 @@ export class PartyRelay {
         s.sim = { version: msg.sim, hash: msg.simHash };
         let memberId: string | null = null;
         let lastSeq: number | undefined;
-        if (msg.resume) {
-            const found = this.findResume(msg.resume.token, identity);
-            if (found === 'elsewhere') return this.error(s, 'seat_elsewhere');
-            memberId = found;
-        }
+        if (msg.resume) memberId = this.findResume(msg.resume.token, identity, s.ipKey);
         if (memberId) {
             const old = this.byMember.get(memberId);
             if (old && old !== s) {
@@ -433,11 +480,7 @@ export class PartyRelay {
         s.memberId = memberId;
         this.byMember.set(memberId, s);
         const resumeToken = token128();
-        this.resume.set(memberId, {
-            hash: hashKey(resumeToken),
-            identityKey: identity.key,
-            expMs: this.now() + PARTY_LIMITS.lobbyResumeMs,
-        });
+        this.setResume(memberId, hashKey(resumeToken), identity.key, s.ipKey);
         const party = this.parties.partyOf(memberId);
         if (party) {
             this.parties.setConn(memberId, 'on');
@@ -460,16 +503,60 @@ export class PartyRelay {
         }
     }
 
-    private findResume(token: string, identity: MemberIdentity): string | null | 'elsewhere' {
-        const h = hashKey(token);
-        for (const [member, r] of this.resume) {
-            if (r.hash !== h) continue;
-            if (r.expMs < this.now() && !this.parties.partyOf(member)?.room) return null;
-            // bound to the seat's identity: a different ticket identity is refused
-            if (r.identityKey !== identity.key && !r.identityKey.startsWith('ip:')) return null;
-            return member;
+    /** One live resume token per member: the old one is forgotten when a new one is issued. */
+    private setResume(member: string, hash: string, identityKey: string, ipKey: string): void {
+        const old = this.resumeOf.get(member);
+        if (old) this.resume.delete(old);
+        this.resume.set(hash, { member, identityKey, ipKey, expMs: this.now() + PARTY_LIMITS.lobbyResumeMs });
+        this.resumeOf.set(member, hash);
+    }
+
+    private dropResume(member: string): void {
+        const h = this.resumeOf.get(member);
+        if (h) this.resume.delete(h);
+        this.resumeOf.delete(member);
+    }
+
+    /**
+     * The member a resume token names, or null. Bound to the identity it was issued to: a different identity is refused,
+     * and a token issued to an identity keyed by IP only (no ticket, no guest key) works only from that IP.
+     */
+    private findResume(token: string, identity: MemberIdentity, ipKey: string): string | null {
+        const r = this.resume.get(hashKey(token));
+        if (!r) return null;
+        if (r.expMs < this.now() && !this.parties.partyOf(r.member)?.room) return null;
+        if (r.identityKey.startsWith('ip:')) return r.ipKey === ipKey ? r.member : null;
+        return r.identityKey === identity.key ? r.member : null;
+    }
+
+    /** Every 500 ms: forget expired resume tokens and old join-failure and creation stamps. */
+    private sweep(): void {
+        const now = this.now();
+        for (const [h, r] of this.resume) {
+            if (r.expMs >= now || this.byMember.has(r.member) || this.parties.partyOf(r.member)) continue;
+            this.resume.delete(h);
+            if (this.resumeOf.get(r.member) === h) this.resumeOf.delete(r.member);
         }
-        return null;
+        const prune = (m: Map<string, number[]>, windowMs: number) => {
+            for (const [k, list] of m) {
+                while (list.length && now - list[0] > windowMs) list.shift();
+                if (!list.length) m.delete(k);
+            }
+        };
+        prune(this.joinFails.byKey, PARTY_LIMITS.joinFailPerIdentity.windowMs);
+        prune(this.joinFails.byIp, PARTY_LIMITS.joinFailPerIp.windowMs);
+        prune(this.joinFails.byNet, PARTY_LIMITS.joinFailPerNet.windowMs);
+        prune(this.created.byIp, 3600_000);
+        prune(this.created.byKey, 3600_000);
+    }
+
+    /** Test seam: sizes of the maps the sweep keeps bounded. */
+    memo() {
+        return {
+            resume: this.resume.size,
+            joinFailKeys: this.joinFails.byKey.size + this.joinFails.byIp.size + this.joinFails.byNet.size,
+            retiredCodes: this.parties.retiredCount,
+        };
     }
 
     private onClose(s: Sock): void {
@@ -479,6 +566,8 @@ export class PartyRelay {
         if (s.pingTimer) clearInterval(s.pingTimer);
         if (!s.memberId || this.byMember.get(s.memberId) !== s) return;
         this.byMember.delete(s.memberId);
+        // a member without a party keeps nothing to resume
+        if (!this.parties.partyOf(s.memberId)) this.dropResume(s.memberId);
         this.parties.setConn(s.memberId, 'off');
         const live = s.seatRoom ? this.rooms.get(s.seatRoom) : undefined;
         if (live && s.seatSlot >= 0) live.room.disconnect(s.seatSlot, this.now());
@@ -487,25 +576,71 @@ export class PartyRelay {
     // -----------------------------------------------------------------------------------------------------------
     // Party messages
 
+    /**
+     * A failed join (unknown or ended code). Counted per identity, per IP and per network; each backs off only itself.
+     * The global count is an alert (`join_fail_global` past its limit), never a lock: one IP must not be able to stop
+     * joins for everyone.
+     */
     private joinFailed(s: Sock): void {
         const now = this.now();
         const g = this.joinFails.global;
         g.push(now);
         while (g.length && now - g[0] > PARTY_LIMITS.joinFailGlobal.windowMs) g.shift();
-        if (g.length >= PARTY_LIMITS.joinFailGlobal.limit)
-            this.joinFails.lockUntil = now + PARTY_LIMITS.joinFailGlobal.lockMs;
-        const key = s.identity!.key;
-        const list = this.joinFails.byKey.get(key) ?? [];
-        list.push(now);
-        while (list.length && now - list[0] > PARTY_LIMITS.joinFailPerIdentity.windowMs) list.shift();
-        this.joinFails.byKey.set(key, list);
-        this.log('join_fail_global', { n: g.length });
+        const add = (m: Map<string, number[]>, k: string) => {
+            const list = m.get(k) ?? [];
+            list.push(now);
+            if (list.length > 256) list.splice(0, list.length - 256);
+            m.set(k, list);
+        };
+        add(this.joinFails.byKey, s.identity!.key);
+        add(this.joinFails.byIp, s.ipKey);
+        add(this.joinFails.byNet, netKey(s.ip));
+        if (g.length >= PARTY_LIMITS.joinFailGlobal.limit) this.log('join_fail_global', { n: g.length });
     }
 
-    private joinBlocked(s: Sock): boolean {
-        if (this.now() < this.joinFails.lockUntil) return true;
-        const list = this.joinFails.byKey.get(s.identity!.key) ?? [];
-        return list.length >= PARTY_LIMITS.joinFailPerIdentity.limit;
+    /** The ms until this socket may try a code again (0: allowed). */
+    private joinBlockedMs(s: Sock): number {
+        const now = this.now();
+        const check = (m: Map<string, number[]>, k: string, rule: { limit: number; windowMs: number }) => {
+            const list = (m.get(k) ?? []).filter(t => now - t <= rule.windowMs);
+            return list.length >= rule.limit ? list[list.length - rule.limit] + rule.windowMs - now : 0;
+        };
+        return Math.max(
+            check(this.joinFails.byKey, s.identity!.key, PARTY_LIMITS.joinFailPerIdentity),
+            check(this.joinFails.byIp, s.ipKey, PARTY_LIMITS.joinFailPerIp),
+            check(this.joinFails.byNet, netKey(s.ip), PARTY_LIMITS.joinFailPerNet)
+        );
+    }
+
+    /** Live parties with a member from this identity or IP, and parties created in the last hour by either. */
+    private createRefused(s: Sock): boolean {
+        const key = s.identity!.key;
+        let byKey = 0;
+        let byIp = 0;
+        for (const x of this.parties.all()) {
+            if (x.members.some(m => m.identity.key === key)) byKey++;
+            if (x.members.some(m => m.identity.ipKey === s.ipKey)) byIp++;
+        }
+        if (byKey >= PARTY_LIMITS.partiesLivePerIdentity || byIp >= PARTY_LIMITS.partiesLivePerIp) return true;
+        const now = this.now();
+        const hour = (m: Map<string, number[]>, k: string) => (m.get(k) ?? []).filter(t => now - t < 3600_000).length;
+        return (
+            hour(this.created.byKey, key) >= PARTY_LIMITS.partiesPerHourPerIdentity ||
+            hour(this.created.byIp, s.ipKey) >= PARTY_LIMITS.partiesPerHourPerIp
+        );
+    }
+
+    private countCreate(s: Sock): void {
+        const now = this.now();
+        for (const [m, k] of [
+            [this.created.byKey, s.identity!.key],
+            [this.created.byIp, s.ipKey],
+        ] as const) {
+            const list = m.get(k) ?? [];
+            list.push(now);
+            if (list.length > 64) list.shift();
+            m.set(k, list);
+        }
     }
 
     private onJson(s: Sock, msg: ClientJson): void {
@@ -515,16 +650,31 @@ export class PartyRelay {
             case 'hello':
                 return this.strike(s);
             case 'party.create': {
-                const live = p.all().filter(x => x.members.some(m => m.identity.key === s.identity!.key)).length;
-                if (live >= PARTY_LIMITS.partiesLivePerIdentity) return this.error(s, 'rate_limited');
+                // leaving the old party first is part of create: count only the parties this create would keep
+                const mine = p.partyOf(member);
+                if (mine) {
+                    this.leaveSeat(s, true);
+                    p.leave(member);
+                }
+                if (this.createRefused(s)) return this.error(s, 'rate_limited', 60_000);
+                this.countCreate(s);
                 p.create(member, s.identity!, msg.difficulty, s.hint);
                 return;
             }
             case 'party.join': {
-                if (this.joinBlocked(s)) return this.error(s, 'rate_limited', 30_000);
+                const wait = this.joinBlockedMs(s);
+                if (wait > 0) return this.error(s, 'rate_limited', Math.min(wait, PARTY_LIMITS.joinFailPerIp.windowMs));
+                // the same person again (a closed tab, a new tab without the resume token): their own seat back, or
+                // "already in this party" while their other tab is still connected
+                const twin = p.twinOf(msg.code, s.identity!);
+                if (twin && twin !== member) {
+                    if (this.byMember.has(twin)) return this.error(s, 'already_in_party');
+                    return this.adopt(s, twin);
+                }
                 const party = p.join(msg.code, member, s.identity!, s.hint);
                 if (typeof party === 'string') {
-                    if (party === 'party_not_found' || party === 'party_ended') this.joinFailed(s);
+                    if (party === 'party_not_found' || party === 'party_ended' || party === 'code_changed')
+                        this.joinFailed(s);
                     return this.error(s, party as ErrorCode);
                 }
                 const live = party.room ? this.rooms.get(party.room) : undefined;
@@ -532,8 +682,9 @@ export class PartyRelay {
                 return;
             }
             case 'party.leave':
-                this.leaveSeat(s);
+                this.leaveSeat(s, true);
                 p.leave(member);
+                this.dropResume(member);
                 this.sendJson(s, {
                     t: 'party',
                     code: '',
@@ -571,6 +722,8 @@ export class PartyRelay {
                 return p.hover(member, msg.hero);
             case 'pick.lock':
                 return p.lock(member, msg.hero, msg.trick);
+            case 'pick.unlock':
+                return p.unlock(member);
             case 'load':
                 return p.load(member, msg.pct);
             case 'loaded': {
@@ -613,12 +766,51 @@ export class PartyRelay {
         }
     }
 
+    /**
+     * The socket becomes `twin`, a member of the same identity whose socket is gone: a new `welcome` (member id and a
+     * fresh resume token), the party view and, mid-match, the seat (the client catches up and takes its hero back).
+     */
+    private adopt(s: Sock, twin: string): void {
+        const old = s.memberId!;
+        if (this.parties.partyOf(old)) {
+            this.leaveSeat(s, true);
+            this.parties.leave(old);
+        }
+        if (this.byMember.get(old) === s) this.byMember.delete(old);
+        this.dropResume(old);
+        s.memberId = twin;
+        this.byMember.set(twin, s);
+        const resumeToken = token128();
+        this.setResume(twin, hashKey(resumeToken), s.identity!.key, s.ipKey);
+        const party = this.parties.partyOf(twin);
+        const live = party?.room ? this.rooms.get(party.room) : undefined;
+        const slot = live?.seats.get(twin);
+        this.sendJson(s, {
+            t: 'welcome',
+            proto: PROTO,
+            member: twin,
+            resumeToken,
+            serverMs: this.now(),
+            ...(live && slot !== undefined ? { lastSeq: live.room.slots[slot].lastSeq } : {}),
+        });
+        this.parties.setConn(twin, 'on');
+        if (!party) return;
+        this.sendJson(s, this.parties.view(party, twin) as unknown as Record<string, unknown>);
+        if (live && slot !== undefined) this.bindSeat(s, live, twin);
+        this.log('party_rejoin_link', {});
+    }
+
     /** `party.card` (D8): only a card the ticketed account owns; peers never get its catId or custom name. */
     private async card(s: Sock, catId: string | null): Promise<void> {
         const member = s.memberId!;
         if (catId === null) return this.parties.setCard(member, null);
         const account = s.identity?.ticketed ? s.identity.accountId : null;
         if (!account || !this.opts.cards) return;
+        // one lookup per 2 s per socket, and none for the card already worn
+        const now = this.now();
+        if (now - s.lastCardMs < PARTY_LIMITS.cardEveryMs) return;
+        if (this.parties.member(member)?.card?.catId === catId) return;
+        s.lastCardMs = now;
         let card: PartyCard | null = null;
         try {
             card = await this.opts.cards(account, catId);
@@ -650,7 +842,7 @@ export class PartyRelay {
             out.y = p.y;
         }
         if (msg.target !== undefined && msg.target < 6) out.target = msg.target;
-        for (const member of live.seats.keys()) this.sendJsonTo(member, out);
+        for (const o of this.socketsOf(live)) this.sendJson(o, out);
     }
 
     private queueParty(partyId: string): void {
@@ -692,7 +884,8 @@ export class PartyRelay {
                         lastHero: m.lastHero,
                         lastTrick: m.lastTrick,
                         slot: m.slot,
-                        resume: this.resume.get(m.id)?.hash,
+                        resume: this.resumeOf.get(m.id),
+                        ipKey: m.identity.ipKey,
                     })),
                 },
                 updatedAt: new Date(this.now()),
@@ -705,11 +898,16 @@ export class PartyRelay {
     // -----------------------------------------------------------------------------------------------------------
     // Rooms
 
-    private liveRoomsOf(key: string): number {
-        let n = 0;
-        for (const r of this.rooms.values())
-            if (r.room.live && r.occupants.some(o => (o.accountId ? `acct:${o.accountId}` : '') === key)) n++;
-        return n;
+    /** Live rooms seating this identity (account, guest key or IP-keyed) or anyone from this IP. */
+    private liveRoomsOf(key: string, ipKey?: string): { key: number; ip: number } {
+        let byKey = 0;
+        let byIp = 0;
+        for (const r of this.rooms.values()) {
+            if (!r.room.live) continue;
+            if (r.keys.has(key)) byKey++;
+            if (ipKey && r.ips.has(ipKey)) byIp++;
+        }
+        return { key: byKey, ip: byIp };
     }
 
     private async startMatch(plan: StartPlan): Promise<void> {
@@ -727,14 +925,18 @@ export class PartyRelay {
         };
         if (!sim || this.stopped || this.gate.busy() || this.rooms.size >= maxRooms) return refuse();
         if (!ticketed && unticketedRooms >= maxRooms * PARTY_LIMITS.unticketedRoomShare) return refuse();
+        // every member, guests included: one live room per identity, two per IP (a party from one home shares an IP,
+        // so the IP rule counts rooms, not seats)
+        const ipsHere = new Set(party.members.map(m => m.identity.ipKey).filter((x): x is string => !!x));
         if (
             party.members.some(
                 m =>
-                    m.identity.accountId &&
-                    this.liveRoomsOf(`acct:${m.identity.accountId}`) >= PARTY_LIMITS.roomsLivePerIdentity
+                    !m.identity.key.startsWith('ip:') &&
+                    this.liveRoomsOf(m.identity.key).key >= PARTY_LIMITS.roomsLivePerIdentity
             )
         )
             return refuse();
+        for (const ip of ipsHere) if (this.liveRoomsOf('', ip).ip >= PARTY_LIMITS.roomsLivePerIp) return refuse();
         const entry = partySimFor(sim.version, sim.hash);
         if (!entry?.party) return refuse();
         // every member must run the leader's sim (the party is pinned to it)
@@ -793,6 +995,8 @@ export class PartyRelay {
             referee: { lagTurns: 0, restored: true },
             ending: false,
             heroSkins: [0, 1, 2, 3, 4, 5].map(slot => party.members.find(m => m.slot === slot)?.card?.image ?? null),
+            keys: new Set(party.members.map(m => m.identity.key)),
+            ips: ipsHere,
         };
         this.rooms.set(id, live);
         party.room = id;
@@ -868,10 +1072,14 @@ export class PartyRelay {
         const taken = new Set(live.seats.values());
         const slot = live.room.humans.find(h => !taken.has(h) && live.room.slots[h].reason === 'open');
         if (slot === undefined) return;
+        const key = s.identity!.key;
+        if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity) return;
         const m = party.members.find(x => x.id === memberId);
         if (m) m.slot = slot;
         live.seats.set(memberId, slot);
         live.names[slot] = m?.name ?? null;
+        // a seat left mid-match is claimed again: the newcomer replaces the old occupant row
+        live.occupants = live.occupants.filter(o => o.slot !== slot);
         live.occupants.push({
             slot,
             accountId: s.identity!.accountId,
@@ -879,16 +1087,26 @@ export class PartyRelay {
             name: m?.name ?? '',
             ticketed: s.identity!.ticketed,
         });
+        live.keys.add(s.identity!.key);
+        live.ips.add(s.ipKey);
         this.bindSeat(s, live, memberId);
         for (const other of live.seats.keys())
             if (other !== memberId)
                 this.sendJsonTo(other, { t: 'slot', slot, reason: 'back', joined: true, name: m?.name });
     }
 
-    private leaveSeat(s: Sock): void {
+    /**
+     * `bye` (back to the title, the party kept) disconnects the seat; `party.leave` (`left`) also gives it up: the member
+     * gets no more room messages, the seat is open again and the others see "left", not "dropped".
+     */
+    private leaveSeat(s: Sock, left = false): void {
         const live = this.seatOf(s);
         if (!live) return;
-        live.room.disconnect(s.seatSlot, this.now());
+        if (left) {
+            live.seats.delete(s.memberId!);
+            live.names[s.seatSlot] = null;
+            live.room.vacate(s.seatSlot, this.now());
+        } else live.room.disconnect(s.seatSlot, this.now());
         s.seatRoom = null;
         s.seatSlot = -1;
     }
@@ -926,8 +1144,7 @@ export class PartyRelay {
             json: (slot: number | null, msg: Record<string, unknown>) => {
                 const live = this.rooms.get(id);
                 if (!live) return;
-                for (const [member, seat] of live.seats)
-                    if (slot === null || seat === slot) this.sendJsonTo(member, msg);
+                for (const s of this.socketsOf(live)) if (slot === null || s.seatSlot === slot) this.sendJson(s, msg);
             },
             catchup: (slot: number, fromTurn: number) => {
                 const live = this.rooms.get(id);
@@ -1008,21 +1225,26 @@ export class PartyRelay {
         if (!live) return;
         const now = this.now();
         if (f.type === Frame.CMD) {
+            // the full sim decode runs BEFORE the command can enter a turn: bytes every client and the referee would
+            // throw on (a cast slot 4, a bad talent, a ping kind out of range) never reach a TURN
+            try {
+                live.partySim.decodeCommand(f.f.cmd);
+            } catch {
+                return this.strike(s);
+            }
+            live.room.heard(s.seatSlot, now);
             const r = live.room.intake(s.seatSlot, f.f.seq, f.f.cmd, now);
             if (r === 'bad_op') this.strike(s);
-            if (r === 'ok') {
-                try {
-                    live.partySim.decodeCommand(f.f.cmd);
-                } catch {
-                    this.strike(s);
-                }
-            }
         } else if (f.type === Frame.BEAT) {
             live.room.beat(s.seatSlot, f.f.lastTurn, now);
-            if (s.ws.readyState === WebSocket.OPEN)
+            if (s.ws.readyState === WebSocket.OPEN && now - s.lastEchoMs >= PARTY_LIMITS.echoEveryMs) {
+                s.lastEchoMs = now;
                 s.ws.send(encodeEcho({ clientMs: f.f.clientMs, serverMs: now >>> 0 }));
+            }
         } else if (f.type === Frame.HASH) {
-            live.room.clientHash(s.seatSlot, f.f.tick, f.f.hash);
+            live.room.heard(s.seatSlot, now);
+            // an off-cadence or repeated mark costs the socket's budget again (a HASH flood strikes)
+            if (!live.room.clientHash(s.seatSlot, f.f.tick, f.f.hash) && !this.binaryAllowed(s, 2)) this.strike(s);
         }
     }
 
@@ -1052,10 +1274,34 @@ export class PartyRelay {
                 void this.endRoom(live, m.end);
                 return;
             case 'error':
+                // the referee dropped the room: no more hashes, pilots or `end`. End it now (abandoned, unscored) so
+                // the clients get their screen back and the live-room slot is freed
                 this.log('referee_error', { message: m.message });
                 live.room.unscored = 'referee';
+                this.abandon(live, 'referee');
                 return;
         }
+    }
+
+    /** Close a room without a verdict: the store row abandoned, clients told `room_gone`, the party back to results. */
+    private abandon(live: LiveRoom, why: string): void {
+        const room = live.room;
+        if (live.ending || !this.rooms.has(room.id)) return;
+        live.ending = true;
+        if (room.status !== 'abandoned') room.status = 'abandoned';
+        this.scheduler.remove(room);
+        this.referee.close(room.id);
+        void this.opts.store
+            .finish(room.id, live.epoch, { status: 'abandoned' }, new Date(this.now()))
+            .catch(() => undefined);
+        for (const s of this.socketsOf(live)) {
+            this.sendJson(s, { t: 'error', code: 'room_gone' });
+            s.seatRoom = null;
+            s.seatSlot = -1;
+        }
+        this.parties.matchEnded(live.party);
+        this.rooms.delete(room.id);
+        this.log('room_abandoned', { why });
     }
 
     private reopenReferee(id: string): void {
@@ -1073,13 +1319,7 @@ export class PartyRelay {
             live.checkpointing = true;
             void this.checkpoint(live, false).finally(() => (live.checkpointing = false));
         }
-        if (room.status === 'abandoned') {
-            this.referee.close(room.id);
-            void this.opts.store.finish(room.id, live.epoch, { status: 'abandoned' }, new Date(this.now()));
-            for (const s of this.socketsOf(live)) this.error(s, 'room_gone');
-            this.parties.matchEnded(live.party);
-            this.rooms.delete(room.id);
-        }
+        if (room.status === 'abandoned') this.abandon(live, 'timer');
     }
 
     private concatLog(live: LiveRoom): Uint8Array {
@@ -1268,6 +1508,8 @@ export class PartyRelay {
                 referee: { lagTurns: room.nextTurn, restored: false },
                 ending: false,
                 heroSkins: [null, null, null, null, null, null],
+                keys: new Set(),
+                ips: new Set(),
             };
             await this.restoreParty(claimed, live);
             this.rooms.set(claimed._id, live);
@@ -1300,6 +1542,7 @@ export class PartyRelay {
                 lastTrick?: string;
                 slot?: number;
                 resume?: string;
+                ipKey?: string;
             }[];
         };
         const leaderDoc = doc.members.find(m => m.id === doc.leader) ?? doc.members[0];
@@ -1310,6 +1553,7 @@ export class PartyRelay {
             key: m.key,
             ticketed: m.ticketed,
             guest: m.guest,
+            ...(m.ipKey ? { ipKey: m.ipKey } : {}),
         });
         const party = this.parties.restoreParty(
             stored._id,
@@ -1327,13 +1571,10 @@ export class PartyRelay {
             room._id
         );
         for (const m of doc.members) {
-            if (m.resume)
-                this.resume.set(m.id, {
-                    hash: m.resume,
-                    identityKey: m.key,
-                    expMs: this.now() + PARTY_LIMITS.lobbyResumeMs,
-                });
+            if (m.resume) this.setResume(m.id, m.resume, m.key, m.ipKey ?? '');
             if (m.slot !== undefined) live.seats.set(m.id, m.slot);
+            live.keys.add(m.key);
+            if (m.ipKey) live.ips.add(m.ipKey);
         }
         void party;
     }
