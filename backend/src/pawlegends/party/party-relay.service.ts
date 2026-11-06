@@ -1,6 +1,8 @@
 import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import type { Server } from 'http';
+import { CatRepository } from '../../cat/cat.repository';
+import { partyCardResolver, type PartyCatDoc } from './party-cards';
 import { PartyRelay } from './party-relay';
 import { PartyTicketService } from './party-ticket.service';
 import { MongoRoomStore } from './room-store';
@@ -20,7 +22,8 @@ export class PartyRelayService implements OnApplicationBootstrap, OnApplicationS
     constructor(
         private readonly adapter: HttpAdapterHost,
         private readonly store: MongoRoomStore,
-        private readonly tickets: PartyTicketService
+        private readonly tickets: PartyTicketService,
+        private readonly cats: CatRepository
     ) {}
 
     async onApplicationBootstrap(): Promise<void> {
@@ -30,6 +33,10 @@ export class PartyRelayService implements OnApplicationBootstrap, OnApplicationS
             server,
             store: this.store,
             tickets: this.tickets,
+            // D8: only a card the ticketed account owns; peers see its art, element, tier and catalog name
+            cards: partyCardResolver({
+                byId: async id => (await this.cats.get(id)) as unknown as PartyCatDoc | null,
+            }),
             log: (event, props) => this.logger.log(`${event} ${JSON.stringify(props)}`),
         });
         try {
