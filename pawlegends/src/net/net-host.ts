@@ -349,6 +349,13 @@ export class NetHost {
         this.lastTurn = m.lastTurn;
         this.socket.lastTurn = m.lastTurn;
         this.lastMask = m.modeMask;
+        // a `back` sent before the relay saw our latest BEAT is refused: retry for a while after catching up
+        // (a mid-match joiner or a reload takes its hero without having to touch anything first)
+        if (!this.catching && this.piloted(this.match.you.slot) && this.now() < this.reclaimUntil && this.now() - this.lastBackMs >= 1500) {
+          this.lastBackMs = this.now();
+          this.socket.beatNow();
+          this.socket.sendJson({ t: 'back' });
+        }
         if (m.waiting && !this.waitingShown) {
           this.waitingShown = true;
           this.note({ key: 'mp-wait', title: 'Waiting for server…', tone: 'bad', ttl: 3000 });
@@ -379,8 +386,13 @@ export class NetHost {
   }
 
   /** Caught up after a reload, a resync or a hidden tab: tell the relay and take the hero back. */
+  private reclaimUntil = 0;
+  private lastBackMs = 0;
+
   private caughtUp(): void {
     this.catching = false;
+    this.reclaimUntil = this.now() + 10_000;
+    this.lastBackMs = this.now();
     this.socket.beatNow();
     if (this.piloted(this.match.you.slot)) this.socket.sendJson({ t: 'back' });
   }
