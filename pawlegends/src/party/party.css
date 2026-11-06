@@ -1,7 +1,7 @@
 /* Party play screens (docs/plans/moba/MULTIPLAYER.md §8), scoped to .pl-party. Lane N's minimal flow; lane P owns the
    final designs. Phone landscape first: no scroll at 667x375, 16 px gutters. */
 .pl-party { position: fixed; inset: 0; z-index: 40; display: flex; align-items: center; justify-content: center; padding: 16px;
-  background: radial-gradient(ellipse at 50% 30%, rgba(60, 30, 70, 0.92), rgba(20, 12, 28, 0.97)); color: var(--cream, #fff3dc);
+  background: radial-gradient(ellipse at 50% 30%, rgba(60, 30, 70, 0.98), rgba(20, 12, 28, 0.995)); color: var(--cream, #fff3dc);
   font-family: inherit; overflow: hidden; }
 .pl-party[hidden] { display: none; }
 .pl-party h2 { margin: 0; font-size: clamp(18px, 4.2vh, 28px); }

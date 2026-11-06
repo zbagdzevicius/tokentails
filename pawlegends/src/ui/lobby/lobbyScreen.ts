@@ -252,7 +252,6 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
       ? ''
       : `<div class="lb-row">
           <button type="button" class="pl-btn ghost lb-btn" data-a="choose" aria-keyshortcuts="H">${icon('paw')}<span>Change hero</span></button>
-          ${o.onParty ? `<button type="button" class="pl-btn ghost lb-btn" data-a="party" data-testid="play-friends">${icon('paw')}<span>Play with friends</span></button>` : ''}
           ${o.onCards ? `<button type="button" class="pl-btn ghost lb-btn" data-a="cards" aria-keyshortcuts="C">${CARDS}<span>Cards</span>${o.cardCount ? `<span class="lb-count" aria-label="${o.cardCount} cards">${o.cardCount}</span>` : ''}</button>` : ''}
           ${questsHtml(o.quests)}
         </div>`;
@@ -274,6 +273,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
         <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter">${esc(playLabel(o))}</button>
         <p class="lb-line${dare ? ' dare-line' : ''}">${esc(playLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>
         ${segmentHtml(o, diff)}
+        ${o.onParty && !dare ? `<button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>` : ''}
       </div>
       ${secondary}
       <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>

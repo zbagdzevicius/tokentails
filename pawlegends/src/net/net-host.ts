@@ -46,6 +46,15 @@ export interface PartyEnd {
   why?: string;
 }
 
+/** `?e2e=1`: the hash trail and the applied turn on <html data-*> (the multi-client e2e compares them). */
+const E2E = (() => {
+  try {
+    return typeof location !== 'undefined' && new URLSearchParams(location.search).get('e2e') === '1';
+  } catch {
+    return false;
+  }
+})();
+
 const golden = (): string => (typeof __SIM_GOLDEN__ !== 'undefined' ? __SIM_GOLDEN__ : '');
 
 function workerTransport(onMsg: (m: CoreOut | { t: 'error'; message: string }) => void, onFail: (msg: string) => void) {
@@ -197,7 +206,11 @@ export class NetHost {
       picks: m.config.picks as WelcomeMsg['picks'],
       tricks: m.config.tricks as WelcomeMsg['tricks'],
     };
-    this.listener.welcome?.(this.welcome);
+    // asynchronous, as the LocalHost's (its welcome comes back from the Worker): MatchSession finishes its constructor first
+    const w = this.welcome;
+    setTimeout(() => {
+      if (!this.disposed) this.listener.welcome?.(w);
+    }, 0);
   }
 
   /** The player's command: own commands reach the local sim only through the relay's TURNs (§1.4). */
@@ -320,8 +333,19 @@ export class NetHost {
         return;
       case 'hash':
         if (!this.catching) this.socket.sendHash(m.tick, m.hash);
+        if (E2E) {
+          const d = document.documentElement.dataset;
+          const trail = (d.mpTrail ?? '').split(' ').filter(Boolean);
+          trail.push(`${m.tick}:${(m.hash >>> 0).toString(16)}`);
+          d.mpTrail = trail.slice(-40).join(' ');
+        }
         return;
       case 'turn':
+        if (E2E) {
+          document.documentElement.dataset.mpTurn = String(m.lastTurn);
+          document.documentElement.dataset.mpMask = String(m.modeMask);
+          document.documentElement.dataset.mpBuffer = String(m.B);
+        }
         this.lastTurn = m.lastTurn;
         this.socket.lastTurn = m.lastTurn;
         this.lastMask = m.modeMask;
