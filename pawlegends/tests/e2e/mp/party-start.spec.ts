@@ -5,7 +5,7 @@ test.afterEach(closeAll);
 
 /* Party play P6 (MULTIPLAYER.md §5.1, §12 P6): Start without a ready check, the waiting chip and Nudge; kick. */
 
-test('Start with everyone present goes to pick; a hidden tab shows "Waiting for … · Nudge" and the nudge reaches it', async ({ browser }) => {
+test('Start with someone away shows "Waiting for … · Nudge", the nudge reaches them, and the Start goes on when they are back', async ({ browser }) => {
   const a = await player(browser, 'desktop');
   const b = await player(browser, 'phone');
   const code = await createParty(a);
@@ -23,9 +23,8 @@ test('Start with everyone present goes to pick; a hidden tab shows "Waiting for 
   await expect(b.page.locator('.pp-notes')).toContainText('nudged you');
   // after 10 s the leader may start anyway
   await expect(a.page.locator('[data-testid="party-start"]')).toHaveText('Start anyway', { timeout: 15_000 });
+  // the friend comes back: the interrupted Start goes on by itself (no second tap)
   await setHidden(b, false);
-  await expect(chip).toHaveCount(0);
-  await a.page.locator('[data-testid="party-start"]').click();
   await expect(a.page.locator('[data-testid="party-lock"]')).toBeVisible();
   await expect(b.page.locator('[data-testid="party-lock"]')).toBeVisible();
 });

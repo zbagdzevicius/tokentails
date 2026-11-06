@@ -25,7 +25,19 @@ export type CoreOut =
   | { t: 'snap'; buf: ArrayBuffer }
   | { t: 'events'; tick: number; list: SimEvent[] }
   | { t: 'hash'; tick: number; hash: number }
-  | { t: 'turn'; lastTurn: number; modeMask: number; acks: (number | undefined)[]; B: number; waiting: boolean; holds: number }
+  | {
+      t: 'turn';
+      lastTurn: number;
+      modeMask: number;
+      acks: (number | undefined)[];
+      B: number;
+      waiting: boolean;
+      holds: number;
+      /** Turns a bot flew each slot so far, counted turn by turn (a fast-forward included). */
+      pilotTurns?: number[];
+      /** The turn this player's current bot-flown stretch began (-1: flown by the player). */
+      pilotFrom?: number;
+    }
   | { t: 'progress'; pct: number; done: boolean }
   | { t: 'gap'; expected: number }
   | { t: 'end'; result: MatchResult; record: PartyReplayRecord | null };
@@ -69,6 +81,10 @@ export class NetCore {
   private ffFrom = 0;
   private hidden = false;
   lastMask = 0;
+  /** Per slot: turns a bot flew it (from the TURN mode bits of every applied turn). */
+  readonly pilotTurns = [0, 0, 0, 0, 0, 0];
+  /** The turn this player's current bot-flown stretch began, or -1. */
+  pilotFrom = -1;
 
   constructor(private readonly post: (m: CoreOut, transfer?: Transferable[]) => void) {}
 
@@ -100,6 +116,8 @@ export class NetCore {
     this.m = createMatch({ seed: s.config.seed, picks: s.config.picks as never, tricks: s.config.tricks as never, difficulty: s.config.difficulty as never, humans: s.config.humans });
     this.applied = -1;
     this.queued = -1;
+    this.pilotTurns.fill(0);
+    this.pilotFrom = -1;
     this.trailSent = 0;
     this.endSent = false;
     this.runner.clear();
@@ -155,7 +173,7 @@ export class NetCore {
     }
     const due = this.runner.due(now);
     if (due.length === 0) {
-      this.post({ t: 'turn', lastTurn: this.applied, modeMask: this.lastMask, acks: [], B: this.runner.B, waiting: this.runner.waiting(now), holds: this.runner.holds });
+      this.post({ t: 'turn', lastTurn: this.applied, modeMask: this.lastMask, acks: [], B: this.runner.B, waiting: this.runner.waiting(now), holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom });
       return;
     }
     const events: SimEvent[] = [];
@@ -187,6 +205,10 @@ export class NetCore {
     const m = this.m!;
     this.applied = f.turn;
     this.lastMask = f.modeMask;
+    for (let s = 0; s < 6; s++) if ((f.modeMask >>> s) & 1) this.pilotTurns[s]++;
+    const mine = this.start_ ? ((f.modeMask >>> this.start_.slot) & 1) === 1 : false;
+    if (mine && this.pilotFrom < 0) this.pilotFrom = f.turn;
+    else if (!mine) this.pilotFrom = -1;
     for (let sub = 0; sub < 2 && !result(m); sub++) {
       const per: Command[][] = [[], [], []];
       for (const e of f.entries) {
@@ -214,7 +236,7 @@ export class NetCore {
     if (events.length) this.post({ t: 'events', tick: s.clock.tick, list: events });
     const buf = encodeSnap(s);
     this.post({ t: 'snap', buf }, [buf]);
-    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks: last.acks, B: this.runner.B, waiting: false, holds: this.runner.holds });
+    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks: last.acks, B: this.runner.B, waiting: false, holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom });
     const r = result(m);
     if (r && !this.endSent) {
       this.endSent = true;
