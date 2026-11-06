@@ -118,7 +118,7 @@ export interface MatchSetup {
   /** Party play: the host to drive (a NetHost); absent = the solo LocalHost. */
   host?: () => MatchHost;
   /** Party play: the session is one seat of a party match (§4.6 guards: no local pause or speed). */
-  party?: { slot: number; names: readonly (string | null)[] };
+  party?: { slot: number; names: readonly (string | null)[]; rejoin?: boolean };
 }
 
 /**
@@ -639,10 +639,17 @@ export class MatchSession {
       this.gateNote();
     };
     if (this.setup.emote) this.mountEmote();
-    this.countdown(() => {
+    if (this.setup.party?.rejoin) {
+      // party play (MULTIPLAYER.md §4.5): a rejoin mid-match has no countdown; the rail shows the catch-up instead
+      this.vsDone = true;
+      this.ui.querySelector('.tt-vs')?.classList.add('out');
+      this.host.pause(false);
       document.documentElement.dataset.match = 'live';
-      setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
-    });
+    } else
+      this.countdown(() => {
+        document.documentElement.dataset.match = 'live';
+        setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
+      });
   }
 
   private gateNoteAt = -1e9;

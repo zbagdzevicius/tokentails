@@ -220,3 +220,5 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner { transition: none; transform: none; }
   .pl-lobby.leaving .lb-col { transform: translateY(-50%); }
 }
+/* Party play (MULTIPLAYER.md §8): "Play with friends" under Play. */
+.pl-lobby .lb-friends { min-height: 40px; }

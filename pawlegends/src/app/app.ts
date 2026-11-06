@@ -820,7 +820,8 @@ export class App {
       skinFx: p.skinFx,
       showcase: [],
       host: host as unknown as MatchSetup['host'],
-      party: { slot, names: match.names },
+      // a resume or a reload joins a running match (the relay sends startInMs 0): no countdown, no VS intro
+      party: { slot, names: match.names, rejoin: match.startInMs === 0 },
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false });
