@@ -1,0 +1,76 @@
+// @vitest-environment happy-dom
+/**
+ * Audit 2026-11-06 quick wins, input layer (no sim change): CF-03 full-range blink taps and edge-scaled drags.
+ */
+import { afterEach, describe, expect, it } from 'vitest';
+import { aimFor, trickAim } from '../../src/input/abilities';
+import type { InputHost } from '../../src/input/desktop';
+import { Orders, type OrderEnv } from '../../src/input/orders';
+import { smartAim, type Unit } from '../../src/input/targeting';
+import { dragFullPx, TouchControls } from '../../src/input/touch/touchControls';
+import { Op, type Command, type HeroId } from '../../src/sim/api';
+import { TRICKS } from '../../src/data/tricks';
+
+const unit = (id: number, kind: Unit['kind'], team: number, x: number, y: number): Unit => ({ id, kind, team, x, y, hp: 100, maxHp: 100, state: 'idle' });
+
+function rig(hero: HeroId, extra: Unit[] = []) {
+  const units: Unit[] = [unit(0, 'hero', 0, 20000, 10000), ...extra];
+  const sent: Command[] = [];
+  const env: OrderEnv = { send: (c) => sent.push(c), units: () => units, meId: 0, hero, trick: 'pounce', cooldowns: () => [0, 0, 0, 0, 0], level: () => 5, nowMs: () => 0 };
+  const orders = new Orders(env);
+  const canvas = document.createElement('canvas');
+  document.body.appendChild(canvas);
+  const view = { myTeam: 0, mySlot: 0, aim: null as unknown, attackRange: false, lock: null, me: () => ({ hero, yaw: 0 }), recentre() {}, gr: { camera: null } };
+  const host = { canvas, view, orders, enabled: () => true, units: () => units, onScoreboard() {}, onMenu() {}, onTalent: () => false, onActivity() {}, marker() {} } as unknown as InputHost;
+  const t = new TouchControls(host, document.body);
+  t.enable(true);
+  return { t, sent, units, view };
+}
+
+afterEach(() => {
+  document.body.innerHTML = '';
+});
+
+describe('CF-03 blink taps go the full range', () => {
+  it('Pounce and Avietė E are blinks; other ground aims are not', () => {
+    expect(trickAim('pounce').blink).toBe(true);
+    expect(aimFor('aviete', 2).blink).toBe(true);
+    expect(aimFor('aviete', 0).blink).toBeFalsy();
+  });
+
+  it('a smart (tap) blink with nothing around lands at the full range along the facing', () => {
+    const me = unit(0, 'hero', 0, 20000, 10000);
+    const p = smartAim(trickAim('pounce'), [me], me, 0, 0);
+    expect(p.x - me.x).toBeCloseTo(TRICKS.pounce.blink, 0);
+    expect(p.y).toBeCloseTo(me.y, 0);
+  });
+
+  it('a tapped Pounce follows the held joystick at full range', () => {
+    const r = rig('clem');
+    // hold the stick straight up (screen) = +y in the sim
+    (r.t as unknown as { stick: unknown }).stick = { id: 9, bx: 100, by: 300, x: 100, y: 200, moved: true, at: 0 };
+    const p = r.t.tapAim(4, r.units[0]);
+    expect(p.x).toBeCloseTo(20000, 0);
+    expect(p.y - 10000).toBeCloseTo(TRICKS.pounce.blink, 0);
+  });
+
+  it('a drag toward a near screen edge reaches full range before the edge', () => {
+    // 60 px from the right edge: dragging right means full range at 50 px, not 90
+    expect(dragFullPx(784, 200, 1, 0, 844, 390)).toBe(50);
+    // open space: the usual 90 px
+    expect(dragFullPx(400, 200, -1, 0, 844, 390)).toBe(90);
+    // never shorter than 36 px
+    expect(dragFullPx(840, 200, 1, 0, 844, 390)).toBe(36);
+    // a casting drag sends the full blink when the thumb is stopped by the edge
+    const r = rig('clem');
+    const btn = r.t.root.querySelector('[data-b="trick"]') as HTMLElement;
+    const W = window.innerWidth;
+    const x0 = W - 60;
+    btn.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 4, clientX: x0, clientY: 200, pointerType: 'touch', bubbles: true }));
+    window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 4, clientX: x0 + 52, clientY: 200, pointerType: 'touch' }));
+    window.dispatchEvent(new PointerEvent('pointerup', { pointerId: 4, clientX: x0 + 52, clientY: 200, pointerType: 'touch' }));
+    const cast = r.sent.find((c) => c.op === Op.Cast || c.op === Op.Trick) as { x: number; y: number } | undefined;
+    expect(cast, JSON.stringify(r.sent)).toBeTruthy();
+    expect(cast!.x - 20000).toBeGreaterThanOrEqual(TRICKS.pounce.blink - 20);
+  });
+});
