@@ -13,7 +13,7 @@ export const STEEL_DARK = 0x8e96a2;
 export const BRASS = 0xe8c27a;
 export const LEATHER = 0x6b4429;
 export const WOOD = 0xb08a55;
-/** Kibble Corp uniform charcoal (close to but never the Woof navy 0x3d5a9e, so team-colour reads stay clean). */
+/** Kibble Corp uniform charcoal (never a team colour, so team-colour reads stay clean). */
 export const KIBBLE = 0x34363f;
 
 type Flat = number | string | RGB;

@@ -99,7 +99,7 @@ export const STRUCT_ANIM = Object.freeze({ period: TOWERS.outer.attackEvery / 30
 /** Peak hit-flash tint during a fall (render only): the core's swell and burst stay a glow on its own colour. */
 /**
  * The core's fall glow: a warm tint at `core` of the mix (the mix runs in linear light, so 0.2 of white lifted the dark
- * navy doghouse to a pale grey see-through-looking box on its last frames; trailer v3.2 review), in `color`. v3.3
+ * Woof doghouse to a pale grey see-through-looking box on its last frames; trailer v3.2 review), in `color`. v3.3
  * review: the tower's crack flash (0.8 of white) turned the navy dog tower pale and see-through-looking on one frame
  * two frames before it toppled; a tower now cracks with the same warm tint at `tower`.
  */
@@ -146,7 +146,7 @@ export const BUBBLE = Object.freeze({ rim: 0.42, core: 0.02 });
 
 /** Chunk colours per side (walls, trim, roof) and scratch objects (no per-frame allocation). */
 const DEBRIS_CAT = [0xf3ead8, 0xe6d6b8, 0xff6f91, 0xc94a72, 0xffd27a];
-const DEBRIS_DOG = [0x6f84b5, 0x3d5a9e, 0x26396b, 0xd9a441, 0x52679a];
+const DEBRIS_DOG = [0x9a8366, 0xb5762b, 0x6e4520, 0xd9a441, 0x7a6448];
 const _col = new THREE.Color();
 const _m4 = new THREE.Matrix4();
 const _q = new THREE.Quaternion();
@@ -647,7 +647,7 @@ export class StructureView {
       const c = u < F.burst ? 0 : Math.min(1, (u - F.burst) / (CORE_GONE - F.burst));
       const cave = c * c;
       s.flash = u < F.burst ? 0.4 + 0.6 * (u / F.burst) : Math.max(0, 1 - (u - F.burst) * 4);
-      // a warm glow, not a white-out: at 0.75 the navy doghouse turned pale grey and read as a ghost box
+      // a warm glow, not a white-out: at 0.75 the Woof doghouse turned pale grey and read as a ghost box
       s.rig.uFlash.value.setHex(FALL_FLASH.color);
       s.rig.uFlashK.value = s.flash * FALL_FLASH.core;
       if (!s.impacted && u >= F.burst) {
