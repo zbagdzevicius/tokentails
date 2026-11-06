@@ -376,20 +376,32 @@ Rules:
 |---|---|
 | `src/net/proto.ts` | shared codec (N1) |
 | `src/net/socket.ts` | `PartySocket`: connect, `hello`, reconnect with exponential backoff (250 ms to 5 s, jitter), resume token, seq and unacked queue (§2.4), BEAT, RTT estimator (EWMA RTT, p95 jitter over 64 samples). Sends on input, never on rAF |
-| `src/net/lockstep.ts` | `LockstepRunner` (pure, fake-clock testable): jitter buffer and pacing |
+| `src/net/lockstep.ts` | `LockstepRunner` (pure, fake-clock testable): playout buffer (§4.2) |
+| `src/net/pacer.ts` | `Pacer`: steps a turn the moment it is due (a kick on every arrival), otherwise sleeps until `wakeAt`; shared by the worker and the inline fallback |
 | `src/net/net-host.ts` | `NetHost implements MatchHost`, same listener API as `LocalHost` (`welcome` with `slot = you.slot`, `snap`, `events`, `end`). Uses the existing worker, or inline when the worker fails (same retry and fallback as `local-host.ts`) |
 | `src/net/net-host.worker.ts` | worker entry: runs the golden self-test, creates the match from `match.config`, **steps when turns arrive** (paced by `LockstepRunner`), posts snapshots, events, HASH values and catch-up progress. The socket stays on the main thread; turns cross as transferable `ArrayBuffer`s |
-| `src/net/input.ts` | coalesces moves (at most 1 per 2 turns, latest wins), always flushes the final Move when a drag ends, never coalesces non-move commands |
+| `src/net/input.ts` | coalesces moves (at most 1 per turn, latest wins; was 1 per 2 turns until the Nov 2026 latency pass), always flushes the final Move when a drag ends, never coalesces non-move commands |
 | `src/net/predict.ts` | cosmetic prediction (§4.3); never touches the sim |
 | `src/net/visibility.ts` | `visibilitychange` and Capacitor `App` `pause`/`resume` |
 | `src/host/protocol.ts` | extract `interface MatchHost` (join, cmd, pause, leave, on) if not explicit; `LocalHost` and `NetHost` both implement it |
 
 ### 4.2 Lockstep runner rules
 
-- **Buffer** starts at **B = 1** turn. It grows by 1 when there are more than 2 holds in 5 s, and shrinks by 1 after 10 s with no hold. B stays in 1..5 and changes at most once every 3 s.
-- **Playout deadline:** a queued turn steps once B turns are queued **or** once it waited B pacing slots, so a stream that stops (the match end, a stall) never strands queued turns. On the relay's `end` the client drains: every queued turn steps (the old rule held the last B turns forever and the results never showed).
-- **Queue > B + 2:** step 2 turns per pacing slot (catch-up), capped at 10 ticks per frame like `TickLoop`.
-- **Queue empty:** hold. The renderer interpolates the last snapshot and does not extrapolate. After 500 ms of holding, the rail shows "Waiting for server…", except while the room is paused by vote.
+Latency pass (Nov 2026, client only, no sim or protocol change): the runner used to step on a free-running 15 Hz slot
+timer and caught up only above B + 2, so a backlog from start-up or one jitter burst stayed queued for the whole match
+(measured: TURN arrival to applied 105 ms at RTT 0, with one turn always queued). It is now a playout clock:
+
+- **Offset samples:** live turn k arriving at time a gives e = a − k × 66.7 ms. The smallest e over the last 45 live
+  turns (3 s) is "on time"; a turn's lateness is e minus that. Catch-up frames give no sample. Turns that arrive within
+  8 ms of each other (a TCP burst) all move the on-time offset but only the first counts as lateness.
+- **Margin M** = the 90th percentile of lateness in the window, 0..267 ms (lateness above 267 ms, a stall or a vote
+  pause, is left out: no buffer should cover it). M rises at once and falls by at most 8 ms per turn.
+- **Playout:** turn k steps at max(arrival, k × 66.7 + on-time offset + M). On a clean link a turn steps the moment it
+  arrives; on a jittery one early turns wait just enough to keep an even pace. No turn waits longer than M.
+- **B** (analytics `buffer`, the fast-forward floor) = 1 + round(M / 66.7), 1..5.
+- **Catch-up:** two or more turns due at once step 2 per call, 5 per call (10 ticks) above 6 due; the pacer calls again
+  half a turn later while a backlog is left. On the relay's `end` every queued turn is due (drain).
+- **Hold:** nothing queued and no turn for 1.5 turns plus M. The renderer interpolates the last snapshot and does not extrapolate. After 500 ms of holding, the rail shows "Waiting for server…", except while the room is paused by vote.
 - Stepping is driven by turn arrival in the worker, not by main-thread rAF. Chrome throttles rAF in offscreen cross-origin iframes (the embed scrolled away) without firing `visibilitychange`, so rAF stepping would fall behind silently. Rendering stays on rAF and reads the latest snapshot.
 - **Gaps:** a TURN with turn ≠ expected + 1 makes the client send `sync{fromTurn}`. Turns ≤ the last applied turn are dropped (idempotent).
 - **Readout:** Settings shows "Ping 48 ms". In match, an icon appears only above 200 ms.
@@ -398,7 +410,7 @@ Rules:
 
 Budget at B=1 on a 60 ms 4G link: RTT/2 (30) + average turn wait (33) + B (67) + frame (16) ≈ 150 ms, p95 about 200 ms. Solo today is about 33 ms, so cosmetic prediction hides the rest:
 
-- Your own hero gets a **visual lead** toward the Move target at its snapshot speed, by at most the measured input latency, and blends back to the authoritative position over 120 ms when a snapshot disagrees.
+- Your own hero gets a **visual lead** toward the Move target: speed × min(time since the click, measured input latency). Since the Nov 2026 latency pass it runs per render frame on the interpolated view (`NetHost.present`, called by MatchSession after `SnapBuffer.advance`), not per snapshot, so the hero starts moving on the next frame. Speed is the hero's interpolated speed while moving, else its base move speed (was a fixed 120 mm/tick, ~25% short). Input latency is measured: send of a CMD to the local apply of the TURN that acks it, an EWMA (before the first sample: RTT + 2 turns), plus the draw lag, capped at 600 ms (was rtt/2 + 1.5 turns capped at 250, so the drawn hero stalled mid-move). The hero also faces the target at once. A lead with no authoritative movement behind it after the latency + 150 ms is dropped (a blocked or refused Move). Jumps in the wanted lead (a new target, crowd control, arrival) blend over 120 ms; smooth growth is followed exactly.
 - No lead while the snapshot shows stun, root, fear, forced movement or a dash.
 - The click marker, facing and footstep SFX are instant.
 - Casts: only the indicator and wind-up audio are predicted. A predicted cast that then fails feels worse than delay.
@@ -589,7 +601,7 @@ Game side: existing `analytics/posthog.ts` and the bridge `analytics{event, prop
 | `party_start` | `members, waited_s, nudges` |
 | `party_pick` | `hero, locked_s_left, auto: bool, newbie` |
 | `mp_match_start` | `humans, difficulty, rtt_p50, buffer` |
-| `mp_net` (every 60 s) | `rtt_p50, rtt_p95, jitter_p95, buffer, holds, catchups` |
+| `mp_net` (every 60 s) | `rtt_p50, rtt_p95, jitter_p95, buffer, holds, catchups, input_ms` (`input_ms`: the measured click-to-applied latency, Nov 2026) |
 | `mp_disconnect` / `mp_rejoin` | `cause` / `ms, ticks_ff, via: resume\|reload` |
 | `mp_takeover` / `mp_reclaim` | `reason` / `after_s` |
 | `mp_desync` / `mp_referee_divergence` | `tick, n` |
