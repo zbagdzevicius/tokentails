@@ -102,3 +102,15 @@ variable "log_sample_rate" {
   type        = number
   default     = 0.2
 }
+
+variable "canary_tag" {
+  description = "Cloud Run revision tag the canary backends point at (deploy-gcp.yml deploys new revisions with it)."
+  type        = string
+  default     = "canary"
+}
+
+variable "canary_header" {
+  description = "Request header (value 1) that routes a request to the canary revision, for smoke tests before traffic moves."
+  type        = string
+  default     = "x-tt-canary"
+}

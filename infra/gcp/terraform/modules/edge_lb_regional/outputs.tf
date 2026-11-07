@@ -43,5 +43,9 @@ output "settings" {
       expr     = try(r.match[0].expr[0].expression, null)
     }]
     backends_with_armor = [for b in concat(values(google_compute_region_backend_service.run), [google_compute_region_backend_service.relay]) : b.name if b.security_policy != null]
+    backend_count       = length(google_compute_region_backend_service.run) + 1
+    relay_route         = [for m in google_compute_region_url_map.edge.path_matcher[0].route_rules[0].match_rules : coalesce(m.full_path_match, m.prefix_match)]
+    relay_route_service = google_compute_region_url_map.edge.path_matcher[0].route_rules[0].service == google_compute_region_backend_service.relay.id
+    canary_header       = var.canary_header
   }
 }

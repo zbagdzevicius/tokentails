@@ -73,7 +73,7 @@ variable "web_hosts" {
 }
 
 variable "cms_hosts" {
-  description = "null: cats.<domain>."
+  description = "null: cats.<domain> and the shadow gcp-cats.<domain>."
   type        = list(string)
   default     = null
 }
