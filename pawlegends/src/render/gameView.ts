@@ -3,6 +3,8 @@
  * telegraphs, juice) and draws one interpolated frame per animation frame. The camera follows the player's hero
  * unless the player pans it (edge pan, arrows, minimap); Space re-centres. Render only: no sim imports beyond types.
  */
+import { PingMarkers } from './views/pingMarkers';
+import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
 import { loadZoom, ZOOM_DEFAULT, zoomMax } from './camera/zoom';
 import { easeLookAhead, lookAheadTarget } from './camera/lookAhead';
@@ -229,7 +231,7 @@ export class GameView {
     this.projectiles.vfx = this.vfx;
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.add(this.vfx.auras.mesh);
-    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh);
+    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.pingMarks.group);
     this.juice = new Juice(uiRoot);
     // Settings → Screen shake, capped under the OS reduce-motion switch (render/fx/vfxPrefs.ts)
     this.juice.shakeScale = shakeScaleFor(shakePref(), this.vfx.reduced);
@@ -732,6 +734,13 @@ export class GameView {
     this.panHold = hold;
   }
 
+  /** MAP-GAPS A10: the ground ping markers (a ring, a pillar and the ping's glyph in its colour). */
+  readonly pingMarks = new PingMarkers();
+  /** A ping on the ground at (x, z) m: its own marker, never the move-order one. */
+  pingMarker(x: number, z: number, color: string, kind: PingKind | null): void {
+    this.pingMarks.add(x, z, color, kind);
+  }
+
   /** A ground order marker at (x, z) m: mint for a move, red with crosshair ticks for an attack. */
   orderMarker(x: number, z: number, attack: boolean): void {
     const m = this.marks[this.markNext];
@@ -781,6 +790,7 @@ export class GameView {
       if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, 0.85);
     }
     this.castRing.end();
+    this.pingMarks.update(dt);
     this.moveMarks.begin();
     this.chevrons.begin();
     this.attackMarks.begin();
@@ -1012,6 +1022,7 @@ export class GameView {
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh);
+    this.pingMarks.dispose();
     this.vfx.dispose();
     this.scene.remove(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);
     this.meshFx.dispose();

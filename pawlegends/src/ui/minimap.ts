@@ -5,12 +5,14 @@
  * or an Alt-click (desktop) pings "Go here" at that spot.
  */
 import { NX, NY, createGrid, onPlayfield } from '../sim/map/grid';
-import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../data/map';
+import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PUDDING_SPOT, mirrorX, type LaneId } from '../data/map';
 import type { ViewFrame } from '../render/interp';
 import { HERO_COLOR_CSS, RELATION_CSS, sidesSwapped } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import { HERO_TEXT } from './heroText';
-import type { HeroId } from '../sim/api';
+import type { HeroId, SimEvent } from '../sim/api';
+import type { PingKind } from '../data/pings';
+import { pingGlyph } from './pingGlyph';
 import { applyMinimapSize, colourBlind } from './minimapPrefs';
 
 export interface MinimapHost {
@@ -362,9 +364,38 @@ export class Minimap {
   }
 
   /** Pulsing rings on the minimap (core under attack), sim mm, until `until` (ms, performance clock). */
-  private pings: { x: number; y: number; color: string; until: number }[] = [];
-  ping(xMm: number, yMm: number, color: string, ms = 3000): void {
-    this.pings.push({ x: xMm, y: yMm, color, until: performance.now() + ms });
+  private pings: { x: number; y: number; color: string; until: number; kind: PingKind | null }[] = [];
+  /** MAP-GAPS A10: `kind` draws its glyph in a dark bubble inside the ring. */
+  ping(xMm: number, yMm: number, color: string, ms = 3000, kind: PingKind | null = null): void {
+    this.pings.push({ x: xMm, y: yMm, color, until: performance.now() + ms, kind });
+  }
+  /** Glyph bubbles drawn last frame (tests). */
+  glyphsDrawn = 0;
+
+  /** MAP-GAPS A10: the lane Pudding's escort walks, once it shows (null: no escort). */
+  escortLane: LaneId | null = null;
+  private escorting = false;
+  /** Sim events the minimap reads (the Pudding escort's start and end). */
+  event(ev: SimEvent): void {
+    if (ev.type !== 'pudding') return;
+    if (ev.what === 'escort') this.escorting = true;
+    else if (ev.what === 'leave' || ev.what === 'spawn' || ev.what === 'calmed') {
+      this.escorting = false;
+      this.escortLane = null;
+    }
+  }
+
+  /** Stroke a lane's whole centre line (both halves). */
+  private strokeLane(g: CanvasRenderingContext2D, lane: LaneId, color: string, width: number): void {
+    const pts = LANE_WAYPOINTS[lane];
+    g.strokeStyle = color;
+    g.lineWidth = width;
+    g.lineCap = 'round';
+    g.lineJoin = 'round';
+    g.beginPath();
+    pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
+    for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
+    g.stroke();
   }
 
   /** Pickups on the ground (sim mm): a glowing dot each (fun plan F2 item 8). Set by the match session. */
@@ -427,6 +458,16 @@ export class Minimap {
     this.minionsDrawn = { square: 0, diamond: 0, dot: 0 };
     const me = this.host.mySlot();
     const team = this.host.myTeam();
+    // MAP-GAPS A10: the lane Pudding's escort walks, from the moment it leaves its spot
+    if (this.escorting && !this.escortLane) {
+      const pud = frame.entities.find((e) => e.kind === 'pudding' && e.state !== 'dead');
+      if (pud && Math.abs(pud.fy - PUDDING_SPOT.y) > 2500) this.escortLane = pud.fy > PUDDING_SPOT.y ? 'sunny' : 'puddle';
+    }
+    if (this.escortLane) {
+      g.globalAlpha = 0.45 + 0.2 * Math.sin(performance.now() / 260);
+      this.strokeLane(g, this.escortLane, MM_OBJECTIVE, 3 * this.k);
+      g.globalAlpha = 1;
+    }
     const rel = minimapRelation(colourBlind());
     const col = (t: number, id: number): string => (id === me ? rel.self : t === 2 ? rel.neutral : t === team ? rel.ally : rel.enemy);
     for (const e of frame.entities) {
@@ -484,15 +525,32 @@ export class Minimap {
     }
     const now = performance.now();
     this.pings = this.pings.filter((p) => p.until > now);
+    this.glyphsDrawn = 0;
     for (const p of this.pings) {
-      const k = ((now / 700) % 1);
+      const k = (now / 700) % 1;
+      const x = this.X(p.x);
+      const y = this.Y(p.y);
       g.strokeStyle = p.color;
       g.globalAlpha = 1 - k;
       g.lineWidth = 2;
       g.beginPath();
-      g.arc(this.X(p.x), this.Y(p.y), (5 + k * 12) * this.k, 0, Math.PI * 2);
+      g.arc(x, y, (5 + k * 12) * this.k, 0, Math.PI * 2);
       g.stroke();
       g.globalAlpha = 1;
+      if (p.kind) {
+        // MAP-GAPS A10: the kind's glyph in a dark bubble, so a ping reads by shape and not only by colour
+        const r = 5.5 * Math.max(0.85, this.k);
+        g.fillStyle = MM_OUTLINE;
+        g.strokeStyle = p.color;
+        g.lineWidth = 1.2;
+        g.beginPath();
+        g.arc(x, y, r, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+        const icon = pingGlyph(p.kind, Math.round(r * 1.5 * this.dpr), p.color);
+        if (icon) g.drawImage(icon, x - r * 0.75, y - r * 0.75, r * 1.5, r * 1.5);
+        this.glyphsDrawn++;
+      }
     }
     const q = this.host.viewQuad();
     if (q) {

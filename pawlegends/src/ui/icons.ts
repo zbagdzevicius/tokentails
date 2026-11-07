@@ -66,6 +66,11 @@ const P: Record<IconId, string> = {
   bone: '<path d="M14 18 L34 30" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><g fill="currentColor"><circle cx="9" cy="17" r="5"/><circle cx="14" cy="11" r="5"/><circle cx="34" cy="37" r="5"/><circle cx="39" cy="31" r="5"/></g>',
 };
 
+/** An icon as a standalone SVG document in one colour (canvas drawing: the minimap and the ground ping glyphs). */
+export function iconSvg(id: IconId, color: string): string {
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" style="color:${color}">${P[id] ?? P.paw}</svg>`;
+}
+
 export function icon(id: IconId, cls = ''): string {
   return `<svg class="pl-icon ${cls}" viewBox="0 0 48 48" aria-hidden="true">${P[id] ?? P.paw}</svg>`;
 }

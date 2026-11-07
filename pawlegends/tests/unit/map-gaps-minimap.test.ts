@@ -208,3 +208,50 @@ describe('MAP-GAPS A9 base tint by relation', () => {
     expect(tints()).toEqual([RELATION_CSS.enemy, RELATION_CSS.ally]);
   });
 });
+
+describe('MAP-GAPS A10 ping glyphs and the ground ping marker', () => {
+  it('gives every ping kind its own glyph and colour', async () => {
+    const { PING_KINDS } = await import('../../src/data/pings');
+    const { PING_TEXT } = await import('../../src/ui/pingText');
+    const { pingKindOfColor } = await import('../../src/ui/pingGlyph');
+    expect(new Set(PING_KINDS.map((k) => PING_TEXT[k].icon)).size).toBe(PING_KINDS.length);
+    expect(new Set(PING_KINDS.map((k) => PING_TEXT[k].color)).size).toBe(PING_KINDS.length);
+    for (const k of PING_KINDS) expect(pingKindOfColor(PING_TEXT[k].color)).toBe(k);
+  });
+
+  it('draws a glyph bubble for a ping with a kind', () => {
+    const m = new Minimap(document.body, host());
+    m.ping(40000, 30000, '#7fd4ff', 3000, 'goHere');
+    m.ping(60000, 30000, '#ff4d5e', 3000);
+    draw(m, frame([]));
+    expect(m.glyphsDrawn).toBe(1);
+  });
+
+  it('places a world ping with its own marker, never the move-order one', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync('src/app/matchSession.ts', 'utf8');
+    const body = src.slice(src.indexOf('  private pingMark('), src.indexOf('  private pingEdge('));
+    expect(body).toContain('pingMarker(');
+    expect(body).not.toMatch(/orderMarker|this\.marker\(/);
+    // every ping path goes through pingMark
+    expect(src.match(/this\.pingMark\(/g)?.length).toBeGreaterThanOrEqual(3);
+    const { PingMarkers, PING_LIFE } = await import('../../src/render/views/pingMarkers');
+    const p = new PingMarkers();
+    p.add(10, -20, '#7fd4ff', 'goHere');
+    p.update(0.1);
+    expect(p.live()).toBe(1);
+    p.update(PING_LIFE);
+    expect(p.live()).toBe(0);
+  });
+
+  it('shows the Pudding escort lane once the escort leaves the spot', () => {
+    const m = new Minimap(document.body, host());
+    m.event({ type: 'pudding', tick: 10, what: 'escort', team: 0 });
+    draw(m, frame([ent({ id: 30, kind: 'pudding', team: 2, fx: 50000, fy: 30500 })]));
+    expect(m.escortLane).toBeNull();
+    draw(m, frame([ent({ id: 30, kind: 'pudding', team: 2, fx: 49000, fy: 36000 })]));
+    expect(m.escortLane).toBe('sunny');
+    m.event({ type: 'pudding', tick: 99, what: 'leave' });
+    expect(m.escortLane).toBeNull();
+  });
+});
