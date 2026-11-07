@@ -113,6 +113,11 @@ export interface MatchHost {
   welcome: WelcomeMsg | null;
   /** Party play (§4.3): a view-only touch on each interpolated frame (the own hero's cosmetic lead). */
   present?(f: import('../render/interp').ViewFrame): void;
+  /**
+   * Party play: while a predicted walk is in flight, where the own hero will be when a command sent now lands (the
+   * walker, ahead of the newest snapshot); null otherwise. The input steers and aims heading casts from it.
+   */
+  predictedSelf?(): { x: number; y: number } | null;
 }
 
 export type ClientMsgType = ClientMsg['t'];

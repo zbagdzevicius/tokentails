@@ -120,6 +120,11 @@ export class Predictor {
     return this.inFlight;
   }
 
+  /** While a prediction is in flight: where the walker is drawn (where the authoritative hero is headed); else null. */
+  get position(): { x: number; y: number } | null {
+    return this.inFlight && this.d ? { x: this.d.x, y: this.d.y } : null;
+  }
+
   /** The drawn hero's speed over the last frames, mm per tick. */
   get drawnSpeed(): number {
     return this.speedShown;

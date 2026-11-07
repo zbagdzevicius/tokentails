@@ -577,6 +577,15 @@ export class MatchSession {
       pingWheel: this.pingWheel,
       ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+      // party play: while the own hero's predicted walk is in flight, the walker is where a command sent now lands
+      // (the newest snapshot is a round trip behind it); the tick stays the snapshot's
+      simMe: () => {
+        const p = this.ownSim ? this.host.predictedSelf?.() : null;
+        return p && this.ownSim ? { x: p.x, y: p.y, tick: this.ownSim.tick } : this.ownSim;
+      },
+>>>>>>> 89c363c3a (fix(pawlegends): steady walker speed and input aimed from the walker in party play)
       // Audit CF-12: a refused desktop cast flashes its HUD slot red
       onDeny: (slot) => this.hud?.deny(slot),
 =======
