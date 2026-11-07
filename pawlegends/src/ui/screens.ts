@@ -8,7 +8,7 @@ import './champions.css';
 import './deck/deckRow.css';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
-import { HERO_IDS, HEROES } from '../data/heroes';
+import { HERO_IDS, HEROES, type HeroSide } from '../data/heroes';
 import { championOf } from '../data/heroes/shelter';
 import { TRICK_IDS } from '../data/tricks';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
@@ -19,7 +19,7 @@ const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
 import { HERO_COLOR_CSS } from '../render/palette';
 import type { Dare } from '../share/dare';
 import { dareText } from '../share/dare';
-import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, TRICK_TEXT, abilityNumbers, pvpNumbers, trickHint, trickNumbers } from './heroText';
+import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, abilityNumbers, pvpNumbers, trickHint, trickNumbers, trickText } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
 import { wearingCard } from './cards';
@@ -177,6 +177,38 @@ export interface PickOpts {
    * ("Card: Simas · Change"); the drawer wears cards and the app calls `setPickLook` to redraw.
    */
   onDeck?(hero: HeroId): void;
+  /**
+   * Sim v14 (DOGS-V13 §2): the CATS / DOGS switch. The screen opens on the side of `initial.hero`; a switch selects
+   * `lastBySide[side]` (else the side's default) and calls `onHero`, then `onSide`. `dogsLocked`: DOGS shows its count
+   * and "after your first match" and does not switch (match 1 is the guided Clem match).
+   */
+  lastBySide?: Partial<Record<HeroSide, HeroId>>;
+  dogsLocked?: boolean;
+  /** `left`: the hero selected before the switch (the side switched away from restores it). */
+  onSide?(side: HeroSide, hero: HeroId, left: HeroId): void;
+}
+
+/** Sim v14: the side the switch defaults to when nothing was picked there yet. */
+const SIDE_HERO: Readonly<Record<HeroSide, HeroId>> = { cat: 'clem', dog: 'brutus' };
+const SIDE_NAME: Readonly<Record<HeroSide, string>> = { cat: 'Cats', dog: 'Dogs' };
+const SIDE_ICON: Readonly<Record<HeroSide, 'paw' | 'bone'>> = { cat: 'paw', dog: 'bone' };
+/** The switch's species colours: neutral, never an ally / enemy relation hue (side-colors.test). */
+export const SIDE_TAB_CSS: Readonly<Record<HeroSide, string>> = Object.freeze({ cat: '#f28bb0', dog: '#e8c27a' });
+const SIDE_COUNT: Readonly<Record<HeroSide, number>> = {
+  cat: HERO_IDS.filter((h) => HEROES[h].side === 'cat').length,
+  dog: HERO_IDS.filter((h) => HEROES[h].side === 'dog').length,
+};
+
+/** The CATS / DOGS radio group (role radio, arrow keys move it); the enemy side rides along as a small "vs" glyph. */
+export function sideSwitch(side: HeroSide, dogsLocked: boolean): string {
+  const other: HeroSide = side === 'cat' ? 'dog' : 'cat';
+  const tab = (sd: HeroSide): string => {
+    const on = sd === side;
+    const locked = sd === 'dog' && dogsLocked && !on;
+    const label = `${SIDE_NAME[sd]}, ${SIDE_COUNT[sd]} heroes${locked ? ', unlocks after your first match' : ''}`;
+    return `<button type="button" class="side-tab ${sd}${on ? ' on' : ''}${locked ? ' locked' : ''}" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}"${locked ? ' aria-disabled="true"' : ''} data-a="side" data-side="${sd}" aria-label="${esc(label)}" style="--side:${SIDE_TAB_CSS[sd]}">${icon(SIDE_ICON[sd])}<b>${SIDE_NAME[sd].toUpperCase()}</b><span class="n">${SIDE_COUNT[sd]}</span>${locked ? `<small class="lock">after your first match</small>` : ''}</button>`;
+  };
+  return `<div class="side-row"><div class="side-switch" role="radiogroup" aria-label="Choose your side">${tab('cat')}<span class="vs" aria-hidden="true" title="${esc(`Your enemies: the ${other}s`)}">vs</span>${tab('dog')}</div><p class="side-line">${esc(`You play the ${side}s. Your enemies: the ${other}s.`)}</p></div>`;
 }
 
 export interface SkinTile {
@@ -225,7 +257,8 @@ export function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { ar
     el: heroElement(h),
     tier: on ? tier : null,
     cls: `hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}`,
-    attrs: `data-h="${h}"${cardName ? ` aria-label="${esc(`${cardName}: ${x.title}, ${x.side} ${x.role}`)}"` : ''}`,
+    // sim v14: a long name ("Marshmallow") sets a smaller label instead of an ellipsis on a 667 px wide phone
+    attrs: `data-h="${h}"${(cardName ?? x.title).length > 9 ? ' data-long="1"' : ''}${cardName ? ` aria-label="${esc(`${cardName}: ${x.title}, ${x.side} ${x.role}`)}"` : ''}`,
     style: `--hero:${HERO_COLOR_CSS[h]}`,
     foil: on ? 'sweep' : 'hover',
     sparkles: on,
@@ -297,6 +330,31 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     renderAll();
   });
   let numbers = o.numbers === true;
+  // sim v14: the CATS / DOGS switch (the side always follows the selected hero, so Play is never a dog side with a cat)
+  let side: HeroSide = HEROES[c.hero]?.side ?? 'cat';
+  const lastBySide: Partial<Record<HeroSide, HeroId>> = { ...(o.lastBySide ?? {}), [side]: c.hero };
+  const dogsLocked = o.dogsLocked === true && side !== 'dog';
+  const markSide = (): void => {
+    document.documentElement.dataset.pickSide = side;
+  };
+  const setSide = (sd: HeroSide): boolean => {
+    if (sd === side) return false;
+    if (sd === 'dog' && dogsLocked) {
+      const tab = root.querySelector<HTMLElement>('.side-tab.dog');
+      tab?.classList.remove('nudge');
+      void tab?.offsetWidth;
+      tab?.classList.add('nudge');
+      return false;
+    }
+    side = sd;
+    const left = c.hero;
+    const h = lastBySide[sd] && HEROES[lastBySide[sd] as HeroId]?.side === sd ? (lastBySide[sd] as HeroId) : SIDE_HERO[sd];
+    c.hero = h;
+    o.onHero(h);
+    o.onSide?.(sd, h, left);
+    markSide();
+    return true;
+  };
   const render = (): void => {
     const t = HERO_TEXT[c.hero];
     // pawlegends (QA): the Paw Trick row sits above the ability list, so the card row can never push it under the
@@ -304,14 +362,15 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     root.innerHTML = `
       <div class="pl-pick-col">
         <div class="pl-pick-head"><button class="pl-btn ghost small" data-a="back">Back</button><h2>Choose your legend</h2></div>
-        <div class="roster">${(['cat', 'dog'] as const)
-          .map((side) => `<div class="heroes ${side}s" data-side="${side}">${HERO_IDS.filter((h) => HEROES[h].side === side)
+        ${sideSwitch(side, dogsLocked)}
+        <div class="roster" data-side="${side}">${(['cat', 'dog'] as const)
+          .map((sd) => `<div class="heroes ${sd}s" data-side="${sd}"${sd === side ? '' : ' hidden'}>${HERO_IDS.filter((h) => HEROES[h].side === sd)
             .map((h) => heroTile(h, h === c.hero, portraitUrl(h, lookOf(h)), o.champions?.[h], tierOf(h), cardIdentity(h, lookOf(h))?.name ?? null))
             .join('')}</div>`)
           .join('')}</div>
         ${wardrobeRow(c.hero)}
-        <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => `<button class="chip ${tr === c.trick ? 'on' : ''}" data-t="${tr}" title="${esc(`${TRICK_TEXT[tr].text} (${trickNumbers(tr)})`)}">${icon(TRICK_TEXT[tr].icon)}${esc(TRICK_TEXT[tr].name)}</button>`).join('')}</div>
-        ${trickHint(t.role) ? `<p class="trick-hint">${esc(trickHint(t.role))}</p>` : ''}
+        <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => trickText(tr, c.hero)).map((tt, i) => `<button class="chip ${TRICK_IDS[i] === c.trick ? 'on' : ''}" data-t="${TRICK_IDS[i]}" title="${esc(`${tt.text} (${trickNumbers(TRICK_IDS[i])})`)}">${icon(tt.icon)}${esc(tt.name)}</button>`).join('')}</div>
+        ${trickHint(t.role, HEROES[c.hero].side) ? `<p class="trick-hint">${esc(trickHint(t.role, HEROES[c.hero].side))}</p>` : ''}
         <div class="detail">
           <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>
@@ -382,6 +441,14 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       }
       return;
     }
+    if (a === 'side') {
+      const sd = t.closest<HTMLElement>('[data-side]')?.dataset.side as HeroSide | undefined;
+      if (sd && setSide(sd)) {
+        renderAll();
+        root.querySelector<HTMLElement>(`.side-tab.${sd}`)?.focus();
+      }
+      return;
+    }
     // Audit UX-06: on short screens a kit row is one line; a tap shows its full text
     const kitRow = t.closest<HTMLElement>('.kit li');
     if (kitRow) {
@@ -390,6 +457,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     }
     if (h) {
       c.hero = h;
+      lastBySide[HEROES[h].side] = h;
       o.onHero(h);
     }
     if (coat !== undefined || chroma !== undefined) {
@@ -416,6 +484,21 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     if (a === 'back') return o.onBack();
     if (h || tr || d) renderAll();
   });
+  // the radio group: left / right (and up / down) move the checked side, Home / End jump
+  root.addEventListener('keydown', (e) => {
+    const tab = (e.target as HTMLElement).closest<HTMLElement>('.side-tab');
+    if (!tab) return;
+    const k = e.key;
+    let sd: HeroSide | null = null;
+    if (k === 'ArrowLeft' || k === 'ArrowUp' || k === 'Home') sd = 'cat';
+    else if (k === 'ArrowRight' || k === 'ArrowDown' || k === 'End') sd = 'dog';
+    if (!sd) return;
+    e.preventDefault();
+    if (!setSide(sd)) return;
+    renderAll();
+    root.querySelector<HTMLElement>(`.side-tab.${sd}`)?.focus();
+  });
+  markSide();
   parent.appendChild(root);
   return root;
 }
@@ -679,7 +762,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     ${
       o.party
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">Leave party</button><button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button><button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
-        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">Switch cat${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
+        : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
     }`;
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;

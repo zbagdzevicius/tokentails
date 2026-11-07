@@ -12,7 +12,7 @@ export function aims(a: HeroData['abilities']): readonly [AimSpec, AimSpec, AimS
   return [
     { kind: 'dir', shape: 'line', range: n(a.q.range, 7500), width: n(a.q.width, 1400), smart: 'hero' },
     { kind: 'dir', shape: 'cone', range: n(a.w.range, 5000), arc: n(a.w.arc, 910) * STEP_TO_RAD, smart: 'hero' },
-    { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: n(a.e.radius, 2200), smart: 'none' },
+    { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: n(a.e.radius, 2200), smart: 'none', heading: true },
     { kind: 'self', shape: 'ring', range: n(a.r.radius, 6000), radius: n(a.r.radius, 6000), smart: 'none' },
   ];
 }

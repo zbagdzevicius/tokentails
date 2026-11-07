@@ -40,7 +40,8 @@ import { PICKUP_FRENZY, PICKUP_SNACK, nearestPickup } from '../units/pickup';
 import { heroData, attackDamage, attackRange, radiusOf, targetable } from '../units/kinds';
 import { firstRat } from '../units/camp';
 import type { BotMem } from './mem';
-import { clearCast, escapeCast, fightCast, nearestFoe, purrifyCast, snackCast } from './casts';
+import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast, underFire } from './casts';
+import { kitOf } from '../heroes/kit';
 import { laneRole, orderOf } from './orders';
 import { isHumanSlot } from '../humans';
 import {
@@ -81,6 +82,11 @@ function moveTo(w: World, id: number, mem: BotMem, x: number, y: number): Comman
 }
 
 function attack(w: World, id: number, mem: BotMem, t: number): Command | null {
+  // Sim v14: a hero whose kit deters basics (Howler's Talk Back) is not swung at; the bot steps back instead.
+  if (t < RANGE.minions && w.kind[t] === Kind.Hero && kitOf(w, t).deterBasics?.(w, t) === true) {
+    awayFrom(w, id, w.x[t], w.y[t], BOT_AI.deterStep);
+    return moveTo(w, id, mem, pt[0], pt[1]);
+  }
   if (w.order[id] === Order.Attack && w.target[id] === t) return null;
   mem.op[id] = Op.Attack;
   mem.tid[id] = t;
@@ -416,7 +422,7 @@ function retreat(w: World, id: number, mem: BotMem, p: BotParams): Command | nul
   const hx = fountainX(team);
   const hy = fountainY();
   const far = dist2(w.x[id], w.y[id], hx, hy) > BOT_AI.napMinDist * BOT_AI.napMinDist;
-  if (far && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+  if (far && nearestFoe(w, id, BOT_AI.napSafeRange) < 0 && !underFire(w, id, BOT_AI.napSafeRange)) {
     mem.op[id] = Op.Nap;
     return { op: Op.Nap };
   }
@@ -515,7 +521,7 @@ function defend(w: World, id: number, mem: BotMem, s: number, p: BotParams, rng:
     return (p.waveClear ? clearCast(w, id, best) : null) ?? attack(w, id, mem, best);
   }
   const far = dist2(w.x[id], w.y[id], w.x[s], w.y[s]) > BOT_AI.napMinDist * BOT_AI.napMinDist;
-  if (far && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0) {
+  if (far && w.napT[id] === 0 && nearestFoe(w, id, BOT_AI.napSafeRange) < 0 && !underFire(w, id, BOT_AI.napSafeRange)) {
     mem.op[id] = Op.Nap;
     return { op: Op.Nap };
   }

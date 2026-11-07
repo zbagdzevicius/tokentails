@@ -207,6 +207,7 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .grid-wrap{position:relative;padding-top:clamp(36px,3.6vw,52px)}
 .pll .grid{display:grid;grid-template-columns:repeat(4,1fr);gap:clamp(8px,1vw,14px);list-style:none}
 .pll .grid li{position:relative}
+.pll .grid.split li{grid-column:var(--c4);grid-row:var(--r4)}
 .pll .tile{position:relative;display:block;width:100%;aspect-ratio:1;border:3px solid var(--ink);border-radius:10px;overflow:visible;cursor:pointer;padding:0;
   background:none;font:inherit;color:inherit;transform:skewX(-6deg);transition:transform .35s cubic-bezier(.34,1.56,.64,1)}
 .pll .tile .in{position:absolute;inset:0;border-radius:7px;overflow:hidden}
@@ -223,6 +224,8 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .tile .cur b{display:inline-block;font-family:var(--disp);font-weight:700;font-size:12px;letter-spacing:.06em;padding:1px 7px;border:2px solid var(--ink);border-radius:4px;color:var(--ink)}
 .pll .tile.cat .cur{left:-6px}.pll .tile.cat .cur b{background:var(--pink-l)}
 .pll .tile.dog .cur{right:-6px}.pll .tile.dog .cur b{background:var(--ice)}
+.pll .tile .new{position:absolute;z-index:2;top:4px;left:4px;font-family:var(--disp);font-weight:700;font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:1px 5px;background:var(--bolt);color:var(--ink);border:2px solid var(--ink);border-radius:4px;pointer-events:none}
+.pll .tile .nm.long{font-size:clamp(9.5px,.82vw,12px)}
 .pll .tile:hover,.pll .tile:focus-visible{transform:skewX(-6deg) translateY(-6px) scale(1.06);z-index:2}
 .pll .tile:hover img,.pll .tile:focus-visible img{transform:skewX(6deg) scale(1.34)}
 .pll .tile[aria-pressed="true"]::after{border-color:var(--bolt);animation:pll-selpulse 1s cubic-bezier(.45,0,.55,1) infinite}
@@ -388,6 +391,7 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
   .pll .slot.cat{grid-area:p1}.pll .slot.dog{grid-area:p2}.pll .grid-wrap{grid-area:grid}
   .pll .slot{aspect-ratio:4/4.2}
   .pll .grid{grid-template-columns:repeat(6,1fr)}
+  .pll .grid.split li{grid-column:var(--c6);grid-row:var(--r6)}
 }
 @media (max-width:820px){
   .pll .fighter{width:clamp(130px,36vw,220px);top:31%}
@@ -411,6 +415,8 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 @media (max-width:560px){
   .pll .foot{padding-bottom:120px}
   .pll .grid{grid-template-columns:repeat(4,1fr)}
+  .pll .grid.split li{grid-column:var(--c4);grid-row:var(--r4)}
+  .pll .tile .nm.long{font-size:9.5px;letter-spacing:0;left:2px;right:2px}
   .pll .slot{aspect-ratio:3/3.9}
   .pll .slot .name{font-size:clamp(22px,6.6vw,32px);white-space:normal}
   .pll .round{padding:64px 0}

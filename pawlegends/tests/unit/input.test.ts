@@ -1,6 +1,6 @@
 /** Party play N5 (MULTIPLAYER.md §4.1 input.ts, B4): move coalescing and the joystick flood. */
 import { describe, expect, it } from 'vitest';
-import { MOVE_EVERY_MS, MoveCoalescer } from '../../src/net/input';
+import { BUSY_HOLD_MS, MOVE_EVERY_MS, MoveCoalescer } from '../../src/net/input';
 import { Op, type Command } from '../../src/sim/api';
 
 function fakeEnv() {
@@ -62,4 +62,30 @@ describe('MoveCoalescer', () => {
     f.advance(1000);
     expect(sent.map((s) => s.op)).toEqual([Op.Move, Op.Cast, Op.Stop]);
   });
+
+  it('a backed-up socket holds coalesced Moves (the newest wins), at most BUSY_HOLD_MS; non-moves still go at once', () => {
+    const f = fakeEnv();
+    let busy = true;
+    const sent: { at: number; cmd: Command }[] = [];
+    const c = new MoveCoalescer((cmd) => sent.push({ at: f.env.now(), cmd }), { ...f.env, busy: () => busy });
+    for (let i = 0; i < 10; i++) {
+      c.send({ op: Op.Move, x: i, y: 0 });
+      f.advance(16);
+    }
+    expect(sent.length).toBe(0);
+    busy = false;
+    f.advance(MOVE_EVERY_MS);
+    expect(sent.length).toBe(1);
+    expect(sent[0].cmd).toMatchObject({ x: 9 });
+    // stuck busy: the Move still goes after the cap
+    busy = true;
+    f.advance(MOVE_EVERY_MS);
+    c.send({ op: Op.Move, x: 42, y: 0 });
+    f.advance(BUSY_HOLD_MS + MOVE_EVERY_MS);
+    expect(sent.length).toBe(2);
+    expect(sent[1].cmd).toMatchObject({ x: 42 });
+    c.send({ op: Op.Stop } as Command);
+    expect(sent.length).toBe(3);
+  });
 });
+

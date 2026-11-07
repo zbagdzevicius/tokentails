@@ -1,104 +1,185 @@
 /**
- * The client's lockstep runner (docs/plans/moba/MULTIPLAYER.md §4.2): a jitter buffer and pacing for TURN frames.
- * Pure and fake-clock testable; the net-host worker calls `due(now)` once per pacing slot (one turn, 66.7 ms) and
- * steps that many turns. Stepping is driven by turn arrival in the worker, never by main-thread rAF (an offscreen
- * cross-origin iframe throttles rAF without a visibilitychange).
+ * The client's lockstep runner (docs/plans/moba/MULTIPLAYER.md §4.2): a playout buffer and pacing for TURN frames.
+ * Pure and fake-clock testable. Stepping is driven by turn arrival in the worker (the Pacer kicks on every arrival and
+ * otherwise sleeps until `wakeAt`), never by main-thread rAF (an offscreen cross-origin iframe throttles rAF without a
+ * visibilitychange). Which turns step, and in which order, never changes: only WHEN they step.
  *
- * - The buffer B starts at 1 turn: a turn steps once B turns are queued, or once it waited B pacing slots (its playout
- *   deadline: a late stream never strands queued turns, and the last turns of a match always step).
- * - `drain()` (the relay ended the match): every queued turn steps, B no longer matters.
- * - B grows by 1 after more than 2 hold episodes in 5 s, shrinks by 1 after 10 s without a hold; 1..5, at most one
- *   change every 3 s.
- * - Queue > B + 2: 2 turns per slot (catch-up); never more than 5 turns (10 ticks) per slot.
- * - Queue empty: hold (the renderer interpolates the last snapshot). After 500 ms of holding `waiting` is true, except
- *   while the room is paused by vote.
+ * Playout clock (§4.2 latency pass; it replaced a free-running 15 Hz slot timer whose B..B+2 queue never drained):
+ * - Every live turn k that arrives at time a gives an offset sample e = a − k × TURN_MS (the relay's turn clock seen
+ *   from here). The smallest offset over the last JITTER_WINDOW samples is "on time"; a sample's lateness is e − that.
+ * - The margin M is the JITTER_PCT percentile of the window's lateness (stalls longer than MAX_MARGIN_MS are left out:
+ *   no buffer should cover them), 0..MAX_MARGIN_MS. M rises at once and falls by at most MARGIN_FALL_MS per sample
+ *   (smooth changes: never a sudden speed-up).
+ * - Turn k steps at max(arrival, k × TURN_MS + smallest offset + M): on a clean link (M ≈ 0) a turn steps the moment
+ *   it arrives; on a jittery one the early turns wait just long enough to keep an even pace. No turn waits longer than
+ *   M after it arrived.
+ * - Turns that arrive together (a TCP burst after a stall) all move the on-time offset (the burst's last turn is the
+ *   most on time), but only the first counts as a lateness sample; catch-up frames give no sample at all.
+ * - Two or more turns due at once step 2 per call (catch-up), MAX_TURNS_PER_SLOT once more than BIG_BACKLOG are due;
+ *   the pacer calls again half a turn later while a backlog is left.
+ * - `drain()` (the relay ended the match): every queued turn is due.
+ * - A hold episode: nothing queued and no turn arrived for 1.5 turns plus M. `waiting` is true after 500 ms of
+ *   holding, never while the room is paused by vote. Before the first turn of a stream, the relay has not started it
+ *   yet (the match goes live a moment before the turns flow): a hold counts only after FIRST_TURN_GRACE_MS.
+ * - `B` (analytics `buffer`, the fast-forward floor) is the margin in turns: 1 + round(M / TURN_MS), 1..5.
  */
 export const TURN_MS = 200 / 3;
+/** Before a stream's first turn, a hold counts only after this long (ms): the relay starts the turns a moment late. */
+export const FIRST_TURN_GRACE_MS = 5000;
 export const MIN_B = 1;
 export const MAX_B = 5;
-const GROW_HOLDS = 2;
-const GROW_WINDOW_MS = 5000;
-const SHRINK_AFTER_MS = 10_000;
-const CHANGE_EVERY_MS = 3000;
+/** Offset samples kept (3 s of turns). */
+export const JITTER_WINDOW = 45;
+/** The lateness percentile the margin covers. */
+export const JITTER_PCT = 0.9;
+/** The largest margin (4 turns, ≈ 267 ms): as much as the old B = 5. */
+export const MAX_MARGIN_MS = (MAX_B - 1) * TURN_MS;
+/** How fast the margin may fall per sample (≈ 8 ms per turn: a 12% speed-up at most). */
+export const MARGIN_FALL_MS = TURN_MS / 8;
+/** Turns that arrive closer together than this came in one burst (one sample). */
+export const BURST_MS = 8;
 export const WAITING_AFTER_MS = 500;
 export const MAX_TURNS_PER_SLOT = 5;
+const CATCHUP_TURNS = 2;
+const BIG_BACKLOG = 6;
 
 export class LockstepRunner<T> {
   B = MIN_B;
+  /** The playout margin now (ms). */
+  marginMs = 0;
   readonly queue: T[] = [];
-  /** When each queued turn arrived (the last pacing time, same clock as `due`). */
-  private readonly arrived: number[] = [];
+  /** When each queued turn may step (ms, the clock of `push` and `due`). */
+  private readonly playAt: number[] = [];
+  /** Stream index of the next pushed turn (relative: only differences matter). */
+  private pushed = 0;
+  private offsets: number[] = [];
+  /** Per offset: a lateness sample too (not a burst follower). */
+  private spaced: boolean[] = [];
+  private minOffset = 0;
+  private lastArrivalMs = -Infinity;
+  /** The first `due` call of this stream (−∞: none yet): the grace before the first turn runs from it. */
+  private firstDueMs = -Infinity;
+  private lastStepMs = -Infinity;
   private lastNowMs: number;
   private draining = false;
-  /** Starts of hold episodes (ms). */
-  private holdStarts: number[] = [];
   private holdingSince: number | null = null;
-  private lastChangeMs = -Infinity;
-  private lastHoldMs: number;
   /** The room is paused by vote: holds are expected and never show "Waiting for server". */
   paused = false;
   /** Every hold episode so far (analytics `mp_net.holds`). */
   holds = 0;
   catchups = 0;
+  /** Live turns that came after their playout time (they step on arrival). Diagnostics. */
+  late = 0;
 
   constructor(nowMs = 0) {
-    this.lastHoldMs = nowMs;
     this.lastNowMs = nowMs;
   }
 
-  push(item: T, nowMs = this.lastNowMs): void {
+  /**
+   * A turn arrived at `nowMs`. `sample` is false for catch-up frames (a resync or a gap fill): they say nothing about
+   * the live link.
+   */
+  push(item: T, nowMs = this.lastNowMs, sample = true): void {
+    const k = this.pushed++;
+    const e = nowMs - k * TURN_MS;
+    const burst = nowMs - this.lastArrivalMs < BURST_MS;
+    this.lastArrivalMs = nowMs;
+    if (sample) this.addSample(e, !burst);
+    // a catch-up turn (or one before any sample) is due on arrival
+    const at = !sample || this.offsets.length === 0 ? nowMs : Math.max(nowMs, k * TURN_MS + this.minOffset + this.marginMs);
+    if (sample && this.offsets.length > 1 && e - this.minOffset > this.marginMs + 1) this.late++;
     this.queue.push(item);
-    this.arrived.push(nowMs);
+    this.playAt.push(at);
   }
 
-  /** The stream is over (the relay's `end`): step whatever is queued, one slot at a time. */
+  private addSample(e: number, spaced: boolean): void {
+    this.offsets.push(e);
+    this.spaced.push(spaced);
+    if (this.offsets.length > JITTER_WINDOW) {
+      this.offsets.shift();
+      this.spaced.shift();
+    }
+    let min = Infinity;
+    for (const o of this.offsets) if (o < min) min = o;
+    this.minOffset = min;
+    const lateness: number[] = [];
+    for (let i = 0; i < this.offsets.length; i++) {
+      const l = this.offsets[i] - min;
+      if (this.spaced[i] && l <= MAX_MARGIN_MS) lateness.push(l);
+    }
+    lateness.sort((a, b) => a - b);
+    const target = lateness.length ? lateness[Math.min(lateness.length - 1, Math.floor(lateness.length * JITTER_PCT))] : 0;
+    this.marginMs = target >= this.marginMs ? target : Math.max(target, this.marginMs - MARGIN_FALL_MS);
+    this.B = Math.max(MIN_B, Math.min(MAX_B, 1 + Math.round(this.marginMs / TURN_MS)));
+  }
+
+  /**
+   * The relay's turn clock moved (a vote pause shifts it by the pause length; a hidden tab or a resume may come back on
+   * another path): forget the offset window so the next arrivals set a new baseline instead of all reading as stalls.
+   * The margin is kept and decays as usual.
+   */
+  resetClock(): void {
+    this.offsets = [];
+    this.spaced = [];
+    this.minOffset = 0;
+  }
+
+  /** The stream is over (the relay's `end`): every queued turn is due. */
   drain(): void {
     this.draining = true;
   }
 
-  /** How many queued turns to step in this pacing slot (and take them off the queue). */
+  private ready(nowMs: number): number {
+    if (this.draining) return this.queue.length;
+    let n = 0;
+    while (n < this.queue.length && this.playAt[n] <= nowMs + 0.5) n++;
+    return n;
+  }
+
+  /** The turns to step now (taken off the queue). */
   due(nowMs: number): T[] {
     this.lastNowMs = nowMs;
-    this.adapt(nowMs);
-    const q = this.queue.length;
-    const late = q > 0 && (this.draining || nowMs - this.arrived[0] >= this.B * TURN_MS - 1);
-    if (q < this.B && !late) {
-      if (this.holdingSince === null && !this.paused) {
-        this.holdingSince = nowMs;
-        this.holdStarts.push(nowMs);
-        this.holds++;
-      }
-      this.lastHoldMs = this.paused ? this.lastHoldMs : nowMs;
+    if (this.firstDueMs === -Infinity) this.firstDueMs = nowMs;
+    const ready = this.ready(nowMs);
+    if (ready === 0) {
+      if (this.queue.length === 0) this.markHold(nowMs);
       return [];
     }
     this.holdingSince = null;
     let n = 1;
-    if (q > this.B + 2) {
-      n = Math.min(MAX_TURNS_PER_SLOT, 2, q - this.B + 1);
+    if (ready > 1) {
+      n = Math.min(ready, ready > BIG_BACKLOG ? MAX_TURNS_PER_SLOT : CATCHUP_TURNS);
       this.catchups++;
     }
-    this.arrived.splice(0, n);
+    this.lastStepMs = nowMs;
+    this.playAt.splice(0, n);
     return this.queue.splice(0, n);
+  }
+
+  /** When the pacer should call `due` next (≤ now: at once). At most every half turn while a backlog is left. */
+  wakeAt(nowMs: number): number {
+    if (this.queue.length === 0) return nowMs + TURN_MS;
+    const gap = this.lastStepMs + TURN_MS / 2;
+    if (this.ready(nowMs) > 0) return Math.max(nowMs, gap);
+    return Math.max(this.playAt[0], gap);
+  }
+
+  private markHold(nowMs: number): void {
+    if (this.paused) {
+      this.holdingSince = null;
+      return;
+    }
+    if (this.holdingSince !== null) return;
+    // starved: nothing arrived for 1.5 turns plus the margin (before the first turn: after the start grace)
+    if (this.lastArrivalMs === -Infinity ? nowMs - this.firstDueMs < FIRST_TURN_GRACE_MS : nowMs - this.lastArrivalMs < TURN_MS * 1.5 + this.marginMs) return;
+    this.holdingSince = nowMs;
+    this.holds++;
   }
 
   /** Take `n` turns off the queue outside `due` (a fast-forward slice). */
   take(n: number): T[] {
-    this.arrived.splice(0, n);
+    this.playAt.splice(0, n);
     return this.queue.splice(0, n);
-  }
-
-  private adapt(nowMs: number): void {
-    while (this.holdStarts.length && nowMs - this.holdStarts[0] > GROW_WINDOW_MS) this.holdStarts.shift();
-    if (nowMs - this.lastChangeMs < CHANGE_EVERY_MS) return;
-    if (this.holdStarts.length > GROW_HOLDS && this.B < MAX_B) {
-      this.B++;
-      this.lastChangeMs = nowMs;
-      this.holdStarts = [];
-    } else if (nowMs - this.lastHoldMs >= SHRINK_AFTER_MS && this.B > MIN_B) {
-      this.B--;
-      this.lastChangeMs = nowMs;
-      this.lastHoldMs = nowMs;
-    }
   }
 
   /** True after 500 ms of holding (not while paused): the rail shows "Waiting for server…". */
@@ -106,9 +187,17 @@ export class LockstepRunner<T> {
     return !this.paused && this.holdingSince !== null && nowMs - this.holdingSince >= WAITING_AFTER_MS;
   }
 
+  /** A new stream (rebuild): the queue and the link estimate start over. */
   clear(): void {
     this.queue.length = 0;
-    this.arrived.length = 0;
+    this.playAt.length = 0;
+    this.offsets = [];
+    this.spaced = [];
+    this.pushed = 0;
+    this.marginMs = 0;
+    this.B = MIN_B;
+    this.lastArrivalMs = -Infinity;
+    this.firstDueMs = -Infinity;
     this.holdingSince = null;
     this.draining = false;
   }

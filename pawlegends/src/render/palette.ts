@@ -3,6 +3,11 @@ import { COLOR_CSS as MEATBALL_CSS } from './chars/heroes/meatball';
 import { COLOR_CSS as PIXEL_CSS } from './chars/heroes/pixel';
 import { COLOR_CSS as DUCHESS_CSS } from './chars/heroes/duchess';
 import { COLOR_CSS as STILTS_CSS } from './chars/heroes/stilts';
+import { COLOR_CSS as NUGGET_CSS } from './chars/heroes/nugget';
+import { COLOR_CSS as MARSHMALLOW_CSS } from './chars/heroes/marshmallow';
+import { COLOR_CSS as BRAVO_CSS } from './chars/heroes/bravo';
+import { COLOR_CSS as CHILI_CSS } from './chars/heroes/chili';
+import { COLOR_CSS as HOWLER_CSS } from './chars/heroes/howler';
 
 export const TEAM = Object.freeze({
   /** Purrhaven: cream and rose. */
@@ -72,6 +77,12 @@ export const HERO_COLOR_CSS = Object.freeze({
   pixel: PIXEL_CSS,
   duchess: DUCHESS_CSS,
   stilts: STILTS_CSS,
+  // sim v14 original dogs (their render modules own the colour)
+  nugget: NUGGET_CSS,
+  marshmallow: MARSHMALLOW_CSS,
+  bravo: BRAVO_CSS,
+  chili: CHILI_CSS,
+  howler: HOWLER_CSS,
 });
 
 let team0Dogs = false;

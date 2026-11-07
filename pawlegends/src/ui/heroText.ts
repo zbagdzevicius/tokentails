@@ -8,6 +8,11 @@ import { TEXT as MEATBALL_TEXT } from './heroText/meatball';
 import { TEXT as PIXEL_TEXT } from './heroText/pixel';
 import { TEXT as DUCHESS_TEXT } from './heroText/duchess';
 import { TEXT as STILTS_TEXT } from './heroText/stilts';
+import { TEXT as NUGGET_TEXT } from './heroText/nugget';
+import { TEXT as MARSHMALLOW_TEXT } from './heroText/marshmallow';
+import { TEXT as BRAVO_TEXT } from './heroText/bravo';
+import { TEXT as CHILI_TEXT } from './heroText/chili';
+import { TEXT as HOWLER_TEXT } from './heroText/howler';
 
 export interface AbilityText {
   name: string;
@@ -22,7 +27,10 @@ export type IconId =
   // sim v10 level-6 shape branches (GAPS B6)
   | 'lance' | 'dome'
   // sim v11 original cats (drawn in ./icons/<hero>.ts)
-  | 'roll' | 'loaf' | 'bodyguard' | 'chonk' | 'capCannon' | 'laser' | 'duck' | 'boxbot' | 'fluffPuff' | 'glare' | 'cushion' | 'decree' | 'leap' | 'ears' | 'swat' | 'zoomies';
+  | 'roll' | 'loaf' | 'bodyguard' | 'chonk' | 'capCannon' | 'laser' | 'duck' | 'boxbot' | 'fluffPuff' | 'glare' | 'cushion' | 'decree' | 'leap' | 'ears' | 'swat' | 'zoomies'
+  // sim v14 original dogs (drawn in ./icons/<hero>.ts), and the bone of the pick screen's DOGS tab
+  | 'frisbee' | 'bestfriend' | 'sploot' | 'herd' | 'snowball' | 'snowpatch' | 'slide' | 'blizzard' | 'tear' | 'spotlight' | 'stagedive' | 'encore'
+  | 'yap' | 'purse' | 'bigdog' | 'howl' | 'derpdash' | 'talkback' | 'scream' | 'bone';
 
 export interface HeroText {
   title: string;
@@ -223,6 +231,11 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
   pixel: PIXEL_TEXT,
   duchess: DUCHESS_TEXT,
   stilts: STILTS_TEXT,
+  nugget: NUGGET_TEXT,
+  marshmallow: MARSHMALLOW_TEXT,
+  bravo: BRAVO_TEXT,
+  chili: CHILI_TEXT,
+  howler: HOWLER_TEXT,
 });
 
 export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze({
@@ -232,9 +245,24 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
   purrify: { name: 'Purr-ify', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 0.5 s.', icon: 'purr' },
 });
 
-/** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none). */
-export function trickHint(role: string): string {
-  return role === 'Tank' ? 'Tank → Purr-ify: you take the stuns, so shake them off.' : '';
+/**
+ * Sim v14: the dog side's names for the same Paw Tricks (QA 2026-11-06: a dog that hisses and purrs read as a cat).
+ * Same numbers, same icons; only the words change.
+ */
+const DOG_TRICK_TEXT: Readonly<Partial<Record<TrickId, AbilityText>>> = Object.freeze({
+  hiss: { name: 'Growl', text: 'Scare enemies around you for 1 s.', icon: 'hiss' },
+  purrify: { name: 'Shake Off', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 0.5 s.', icon: 'purr' },
+});
+
+/** A Paw Trick's words for `hero`'s side (a dog growls and shakes off; a cat hisses and purrs). */
+export function trickText(trick: TrickId, hero?: HeroId): AbilityText {
+  return (hero && HEROES[hero]?.side === 'dog' ? DOG_TRICK_TEXT[trick] : undefined) ?? TRICK_TEXT[trick];
+}
+
+/** Sim v10 (GAPS B5): the Paw Trick hint under the trick chips, by role ('' when none); sim v14: by side too. */
+export function trickHint(role: string, side: 'cat' | 'dog' = 'cat'): string {
+  if (role !== 'Tank') return '';
+  return side === 'dog' ? 'Tank → Shake Off: you take the stuns, so shake them off.' : 'Tank → Purr-ify: you take the stuns, so shake them off.';
 }
 
 export const DIFFICULTY_TEXT = Object.freeze({ easy: 'Easy bots', normal: 'Normal bots', hard: 'Hard bots' });
@@ -272,6 +300,13 @@ function reachAndTimer(a: Nums, parts: string[]): void {
   if (a.push !== undefined && a.push > 0) parts.push(`push ${metres(a.push)}`);
   const dur = a.stun ?? a.root ?? a.fear ?? a.charm ?? a.duration;
   if (dur !== undefined && dur > 0) parts.push(`${a.stun ? 'stun' : a.root ? 'root' : a.fear ? 'fear' : a.charm ? 'charm' : 'lasts'} ${sec(dur)}`);
+  // Sim v14 (the dogs): shots in a burst, shares of max HP, the freeze, the splash cap and a fading slow's tail.
+  if (a.count !== undefined && a.count > 1) parts.push(`×${a.count}`);
+  if (a.healBp !== undefined && a.healBp > 0) parts.push(`heal ${Math.round(a.healBp / 100)}% max HP`);
+  if (a.shieldBp !== undefined && a.shieldBp > 0) parts.push(`shield ${Math.round(a.shieldBp / 100)}% max HP`);
+  if (a.freeze !== undefined && a.freeze > 0) parts.push(`freeze ${sec(a.freeze)}`);
+  if (a.splashMax !== undefined && a.splashMax > 0) parts.push(`splash up to ${a.splashMax}`);
+  if (a.slowTail !== undefined && a.slowTail > 0) parts.push(`slow fades over ${sec(a.slowTail)}`);
 }
 
 /**

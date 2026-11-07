@@ -6,8 +6,8 @@ export const GABE: HeroData = Object.freeze<HeroData>({
   name: 'Gabė',
   side: 'cat',
   role: 'support',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). */
-  pvp: { dmgBp: 9500, takenBp: 9700 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9050 / takes 9600 (49.7% of the 2,000-seed gate). */
+  pvp: { dmgBp: 9050, takenBp: 9600 },
   element: 'WIND',
   base: { hp: 500, hpPerLevel: 52, attack: 52, attackPerLevel: 5, attackEvery: 28, range: 5000, speed: 5000, armour: 18, armourPerLevel: 2 },
   /** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 10 (+2/lvl). */

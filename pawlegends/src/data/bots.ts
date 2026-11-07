@@ -193,7 +193,7 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
   // hero 2+ levels above the human earns 85% of its XP on Easy and Normal (Hard stays even). With the bigger Toys and
   // last hits the human's side out-farmed Rookie and Easy bots (fun1 median 4:47, under 5:00; fun2 won 84.0%, 70-80%):
   // the human's enemies now keep 85% of their Fish on Rookie (70% before) and all of it on Easy (95%).
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 5500, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 14000, humanTakenBp: 10000, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1300, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500 }),
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 12000, coreHpBp: 13500, humanRespawnBp: 5000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 13000, humanTakenBp: 8500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1300, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500 }),
   easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000 }),
   /**
    * Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
@@ -459,6 +459,49 @@ export const BOT_AI = Object.freeze({
   stiltsZoomiesHpBp: 5000,
   stiltsZoomiesRange: 9000,
   stiltsOrbit: 4500,
+  /**
+   * Sim v14 original dogs (sim/bots/heroes/*.ts; docs/plans/moba/DOGS-V13.md §1). Nugget peels for a hurt ally with a
+   * foe within nuggetPeelRange of it, Sploots below nuggetSplootHpBp (or to heal a group) and herds with
+   * nuggetHerdFoes enemy heroes in his ring. Marshmallow slides away from a melee foe within marshPeelRange, keeps
+   * marshSpacing, and drops SNOW DAY! on marshSnowFoes. Bravo bows with bravoEncoreFoes in his ring and takes the stage
+   * with bravoStageFoes close. Chili kites at chiliSpacing, hides in his purse below chiliPurseHpBp with a foe close,
+   * and goes BIG DOG from chiliBigRage Rage. Howler engages a foe below howlerEngageHpBp and screams at
+   * howlerScreamFoes, or at one foe below howlerScreamHpBp.
+   */
+  nuggetPeelRange: 3000,
+  nuggetSplootHpBp: 7000,
+  nuggetHerdFoes: 2,
+  marshPeelRange: 3000,
+  marshSpacing: 4500,
+  marshSnowFoes: 2,
+  bravoEncoreFoes: 2,
+  bravoStageFoes: 2,
+  chiliSpacing: 4800,
+  chiliPurseHpBp: 3500,
+  chiliBigRage: 3,
+  howlerEngageHpBp: 5000,
+  howlerScreamFoes: 2,
+  howlerScreamHpBp: 4500,
+  /** Nugget Sploots when a foe targets him below this; Marshmallow's SNOW DAY! and Chili's BIG DOG finish a foe below
+   *  their HpBp; Bravo bows on one foe below bravoEncoreHpBp; Chili hides, zooms and brawls within these ranges;
+   *  Howler screams at one low foe within howlerScreamReach and talks back within howlerTalkRange below howlerTalkHpBp. */
+  nuggetFocusHpBp: 5000,
+  marshPinnedHpBp: 5000,
+  bravoEncoreHpBp: 4000,
+  bravoDiveHpBp: 4000,
+  chiliClose: 3000,
+  chiliBrawlRange: 6000,
+  chiliFinishHpBp: 5000,
+  chiliZoomRange: 2500,
+  /** Sim v14 QA: Chili also hides when a foe has him targeted below this (his E went unused in 38% of Easy slots);
+   *  Nugget also herds one foe below nuggetHerdFinishHpBp toward an ally (his R was cast half as often as others'). */
+  chiliFocusHpBp: 6000,
+  nuggetHerdFinishHpBp: 4500,
+  howlerScreamReach: 5000,
+  howlerTalkRange: 3000,
+  howlerTalkHpBp: 6000,
+  /** Sim v14: a bot that would swing at a hero whose kit deters basics (Howler's Talk Back) steps this far back (mm). */
+  deterStep: 1500,
   /** "Carry" allies (DifficultyRules.carryAllies): stay within followRange of the human, never more than leadMax
    *  ahead of it; leave a foe under stealHpBp to the human while it is within stealRange and hit it in the last stealTicks. */
   followRange: 7000,

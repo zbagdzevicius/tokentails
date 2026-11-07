@@ -6,7 +6,7 @@
  * Copy rules: no player counts, no ratings, no claims about features that are not in the game. The roster numbers
  * come from roster.ts, never from literals.
  */
-import { countWord, gridHeroes, isReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, rolesOf, type LandingHero } from "./roster";
+import { countWord, gridHeroes, isReleased, justReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, rolesOf, type LandingHero, type LandingSide } from "./roster";
 import { playHref } from "../routes";
 import { PAWLEGENDS_TERMS_PATH } from "../flags";
 
@@ -78,16 +78,29 @@ const longName = (name: string) => name.length > 9;
 const PAW_SVG =
   '<svg viewBox="-30 -30 60 60" aria-hidden="true"><ellipse cx="0" cy="8" rx="15" ry="12.5"/><circle cx="-16" cy="-6" r="6.4"/><circle cx="-5.6" cy="-16.5" r="6.4"/><circle cx="5.6" cy="-16.5" r="6.4"/><circle cx="16" cy="-6" r="6.4"/></svg>';
 
-function tile(h: LandingHero, pressed: boolean): string {
+/**
+ * Grid placement when the two sides are close in size (the 10 v 7 roster from sim v14): cats fill the left half of the
+ * grid and dogs the right half, under the "Cats / Dogs" legend. `--c4/--r4` place a tile in the 4-column grid (2 per
+ * side per row), `--c6/--r6` in the 6-column one (3 per side). With a lopsided roster (10 v 2) the grid fills row by
+ * row as before, so the dogs do not leave a tall empty half.
+ */
+const sideSplit = (cats: number, dogs: number) => Math.min(cats, dogs) * 2 >= Math.max(cats, dogs);
+const place = (i: number, side: LandingSide) => {
+  const at = (perSide: number) => `--c${perSide * 2}:${(side === "cat" ? 1 : perSide + 1) + (i % perSide)};--r${perSide * 2}:${1 + Math.floor(i / perSide)}`;
+  return ` style="${at(2)};${at(3)}"`;
+};
+
+function tile(h: LandingHero, pressed: boolean, fresh = false, at = ""): string {
   // Grid heroes always have a portrait (gridHeroes).
   const src = h.portrait ?? "";
   const art = `<img src="${src}" srcset="${srcset(src, TILE_PORTRAIT_WIDTH, 420)}" sizes="${TILE_SIZES}" alt="" width="420" height="574" loading="lazy" decoding="async">`;
+  const tag = fresh ? `<span class="new" aria-hidden="true">New</span>` : "";
   return (
-    `<li class="${h.side}"><button class="tile ${h.side}" type="button" data-side="${h.side}" data-id="${h.id}" data-name="${shown(h.name)}"` +
+    `<li class="${h.side}"${at}><button class="tile ${h.side}" type="button" data-side="${h.side}" data-id="${h.id}" data-name="${shown(h.name)}"` +
     ` data-role="${h.role}" data-breed="${esc(h.breed ?? "")}" data-blurb="${esc(h.blurb)}" data-portrait="${h.portrait ?? ""}" aria-pressed="${pressed}">` +
-    `<span class="in">${art}</span>` +
-    `<span class="nm">${shown(h.name)}</span><span class="cur" aria-hidden="true"><b>${h.side === "cat" ? "1P" : "2P"}</b></span>` +
-    `<span class="sr">${esc(altOf(h))}</span></button></li>`
+    `<span class="in">${art}</span>${tag}` +
+    `<span class="nm${longName(h.name) ? " long" : ""}">${shown(h.name)}</span><span class="cur" aria-hidden="true"><b>${h.side === "cat" ? "1P" : "2P"}</b></span>` +
+    `<span class="sr">${esc(altOf(h))}${fresh ? ", new" : ""}</span></button></li>`
   );
 }
 
@@ -122,6 +135,26 @@ function newDogs(list: LandingHero[]): string {
       <p class="nd-head" id="nd-h"><span class="nd-badge">New</span> ${esc(head)}</p>
       <ul class="nd-list" role="list">${list.map(card).join("")}</ul>
       <p class="nd-note">${esc(note)}</p>
+    </div>`;
+}
+
+/**
+ * The heroes new in this game build (released in GAME_SIM_VERSION with real art): one line over the grid, by name.
+ * They are in the grid like everyone else; their tiles carry a New tag.
+ */
+function freshLine(list: LandingHero[]): string {
+  if (!list.length) return "";
+  const dogsOnly = list.every((h) => h.side === "dog");
+  const n = countWord(list.length).toLowerCase();
+  const head = dogsOnly ? `New: ${n} dogs join the pack` : `New: ${n} heroes join the fight`;
+  const names = list.map((h) => shown(h.name));
+  const named = names.length > 1 ? `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}` : names[0];
+  const note = dogsOnly
+    ? `${named} are in the grid. Play the dogs' side too: the Cats / Dogs switch opens after your first match.`
+    : `${named} are in the grid.`;
+  return `<div class="newdogs fresh" role="note" aria-labelledby="nd-fresh">
+      <p class="nd-head" id="nd-fresh"><span class="nd-badge">New</span> ${esc(head)}</p>
+      <p class="nd-note">${note}</p>
     </div>`;
 }
 
@@ -210,6 +243,8 @@ export function landingMarkup(): string {
   const grid = gridHeroes();
   const gridCats = grid.filter((h) => h.side === "cat");
   const gridDogs = grid.filter((h) => h.side === "dog");
+  const fresh = new Set(justReleased().map((h) => h.id));
+  const split = sideSplit(gridCats.length, gridDogs.length);
   const catRoles = rolesOf("cat");
   const dogRoles = rolesOf("dog");
   const lambo = hero("lambo");
@@ -279,15 +314,16 @@ export function landingMarkup(): string {
       ${slot(hero("clem"))}
       <div class="grid-wrap">
         <div class="stage-vs" aria-hidden="true"><span>VS</span></div>
-        <ul class="grid" role="list">
-          ${gridCats.map((h) => tile(h, h.id === "clem")).join("\n          ")}
-          ${gridDogs.map((h) => tile(h, h.id === "brutus")).join("\n          ")}
+        <ul class="grid${split ? " split" : ""}" role="list">
+          ${gridCats.map((h, i) => tile(h, h.id === "clem", fresh.has(h.id), split ? place(i, "cat") : "")).join("\n          ")}
+          ${gridDogs.map((h, i) => tile(h, h.id === "brutus", fresh.has(h.id), split ? place(i, "dog") : "")).join("\n          ")}
         </ul>
         <div class="grid-legend" aria-hidden="true"><span>&#9664; Cats · ${gridCats.length}</span><span>Dogs · ${gridDogs.length} &#9654;</span></div>
         <p class="pick-bio" aria-hidden="true"><b>Clem</b> <span class="meta">· Fighter</span><br><span class="txt">${esc(hero("clem").blurb)}</span></p>
       </div>
       ${slot(brutus)}
     </div>
+    ${freshLine(justReleased())}
     ${newDogs(newcomers())}
     <p class="hint">Every match is <b>3v3 against bots</b>, solo or with up to two friends on your team. No PvP.</p>
   </div>

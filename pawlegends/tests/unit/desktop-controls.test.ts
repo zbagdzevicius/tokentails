@@ -5,7 +5,7 @@
  */
 import * as THREE from 'three';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { aimFor, attackRingMm, basicRange, isRangedHero, trickAim } from '../../src/input/abilities';
+import { aimFor, attackRingMm, basicRange, isRangedHero } from '../../src/input/abilities';
 import { HERO_IDS, HEROES } from '../../src/data/heroes';
 import { RADIUS } from '../../src/data/map';
 import { HERO_RULES } from '../../src/data/xp';
@@ -43,8 +43,8 @@ describe('cursorCast (quick cast targeting)', () => {
     expect(q.x - me.x).toBeLessThanOrEqual(range);
     expect(q.x - me.x).toBeGreaterThan(range - 50);
     expect(cursorCast(aimFor('sage', 1), me, { x: 10000 + range * 3, y: 10000 }, null, [me], 0, false)).toMatchObject({ x: 10000 + range * 3 });
-    // inside the range: exactly at the cursor
-    expect(cursorCast(trickAim('pounce'), me, { x: 11000, y: 10500 }, null, [me], 0, true)).toEqual({ x: 11000, y: 10500, id: 0xff });
+    // inside the range: exactly at the cursor (Pounce is a heading blink now: always its full distance, heading.test.ts)
+    expect(cursorCast(aimFor('sage', 1), me, { x: 11000, y: 10500 }, null, [me], 0, true)).toEqual({ x: 11000, y: 10500, id: 0xff });
   });
   it('unit aims take the enemy hero under the cursor, else the nearest one near the cursor, else refuse', () => {
     const units = [me, foe, minion];
@@ -135,6 +135,29 @@ function rig(hero: HeroId = 'clem', units: Unit[] = [unit(0, 'hero', 0, 20000, 1
 }
 
 describe('DesktopInput', () => {
+  it('the flash (Pounce on D) casts on the key press in the default hold mode: full range toward the cursor, no aim step', () => {
+    expect(castMode()).toBe('hold');
+    const r = rig();
+    r.point(22000, 10000);
+    r.key('keydown', 'KeyD');
+    const tricks = () => r.sent.filter((c) => c.op === Op.Trick) as { x: number; y: number }[];
+    expect(tricks()).toHaveLength(1);
+    expect(tricks()[0].x - 20000).toBeGreaterThan(4000);
+    expect(Math.abs(tricks()[0].y - 10000)).toBeLessThan(150);
+    expect(r.d.aimingSlot).toBeNull();
+    // the indicator marks the 4 m landing, not the cursor 2 m away
+    expect((r.view.aim as { x: number }).x * 1000 - 20000).toBeGreaterThan(3800);
+    r.key('keyup', 'KeyD');
+    expect(tricks()).toHaveLength(1);
+    r.d.dispose();
+  });
+  it('hovering a heading skill on the HUD previews its full landing along the facing (not 0.6 × range)', () => {
+    const r = rig();
+    r.d.previewSlot(4);
+    expect((r.view.aim as { x: number }).x * 1000 - 20000).toBeGreaterThan(3800);
+    r.d.previewSlot(null);
+    r.d.dispose();
+  });
   it('quick cast: Q casts at the cursor on press, with a brief indicator', () => {
     setCastMode('quick');
     const r = rig();

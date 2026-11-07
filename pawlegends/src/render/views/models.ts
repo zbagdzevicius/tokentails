@@ -12,6 +12,11 @@ import { TEAM } from '../palette';
 import { ModelBuilder } from './rig';
 import { RING as MEATBALL_RING } from '../chars/heroes/meatball';
 import { RING as PIXEL_RING } from '../chars/heroes/pixel';
+import { RING as NUGGET_RING } from '../chars/heroes/nugget';
+import { RING as MARSHMALLOW_RING } from '../chars/heroes/marshmallow';
+import { RING as BRAVO_RING } from '../chars/heroes/bravo';
+import { RING as CHILI_RING } from '../chars/heroes/chili';
+import { RING as HOWLER_RING } from '../chars/heroes/howler';
 import { RING as DUCHESS_RING } from '../chars/heroes/duchess';
 import { PLATE_HEADROOM as STILTS_PLATE_HEADROOM, RING as STILTS_RING } from '../chars/heroes/stilts';
 
@@ -38,6 +43,11 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   pixel: (HERO_TOP.pixel + 0.15) / 1.62,
   duchess: (HERO_TOP.duchess + 0.15) / 1.62,
   stilts: (HERO_TOP.stilts + STILTS_PLATE_HEADROOM) / 1.62,
+  nugget: (HERO_TOP.nugget + 0.15) / 1.62,
+  marshmallow: (HERO_TOP.marshmallow + 0.15) / 1.62,
+  bravo: (HERO_TOP.bravo + 0.15) / 1.62,
+  chili: (HERO_TOP.chili + 0.15) / 1.62,
+  howler: (HERO_TOP.howler + 0.15) / 1.62,
 });
 
 /**
@@ -48,6 +58,7 @@ export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({
   clem: HERO_BUILD.clem.ring, sage: HERO_BUILD.sage.ring, brutus: HERO_BUILD.brutus.ring, cacklejaw: HERO_BUILD.cacklejaw.ring,
   lambo: HERO_BUILD.lambo.ring, aviete: HERO_BUILD.aviete.ring, bengas: HERO_BUILD.bengas.ring, gabe: HERO_BUILD.gabe.ring,
   meatball: MEATBALL_RING, pixel: PIXEL_RING, duchess: DUCHESS_RING, stilts: STILTS_RING,
+  nugget: NUGGET_RING, marshmallow: MARSHMALLOW_RING, bravo: BRAVO_RING, chili: CHILI_RING, howler: HOWLER_RING,
 });
 
 // ------------------------------------------------------------------------------------------------ minions

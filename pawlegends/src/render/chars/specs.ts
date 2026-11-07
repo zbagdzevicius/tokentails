@@ -32,6 +32,11 @@ import * as MEATBALL from './heroes/meatball';
 import * as PIXEL from './heroes/pixel';
 import * as DUCHESS from './heroes/duchess';
 import * as STILTS from './heroes/stilts';
+import * as NUGGET from './heroes/nugget';
+import * as MARSHMALLOW from './heroes/marshmallow';
+import * as BRAVO from './heroes/bravo';
+import * as CHILI from './heroes/chili';
+import * as HOWLER from './heroes/howler';
 import { HERO_BUILD } from './heroSize';
 
 const GOLD = 0xffd34d;
@@ -100,6 +105,12 @@ export const POSES_PL: Record<string, PoseDef> = {
   },
   // sim v11 heroes' own poses (Pixel's `boxSad` results-screen loss)
   ...PIXEL.POSES,
+  // sim v14 dogs' own poses (corgi crouch and sit, puppy sit, stage stand, yap stance, husky stand)
+  ...NUGGET.POSES,
+  ...MARSHMALLOW.POSES,
+  ...BRAVO.POSES,
+  ...CHILI.POSES,
+  ...HOWLER.POSES,
 };
 
 const ALL_POSES: Record<string, PoseDef | null> = { ...PPK_POSES, ...POSES_PL };
@@ -134,12 +145,19 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   pixel: PIXEL.MOTION,
   duchess: DUCHESS.MOTION,
   stilts: STILTS.MOTION,
+  // sim v14 original dogs: each profile lives in its hero's own module (./heroes/<hero>.ts)
+  nugget: NUGGET.MOTION,
+  marshmallow: MARSHMALLOW.MOTION,
+  bravo: BRAVO.MOTION,
+  chili: CHILI.MOTION,
+  howler: HOWLER.MOTION,
 });
 
 /** Standing height (m, ear tips / helmet) of each hero in the match (authored × heroSize.ts HERO_BUILD.h, render only): big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
 const HEIGHT_AUTHORED: Readonly<Record<HeroId, number>> = {
   clem: 2.6, sage: 2.5, brutus: 2.8, cacklejaw: 2.65, lambo: 2.75, aviete: 2.5, bengas: 2.55, gabe: 2.5,
   meatball: MEATBALL.HEIGHT, pixel: PIXEL.HEIGHT, duchess: DUCHESS.HEIGHT, stilts: STILTS.HEIGHT,
+  nugget: NUGGET.HEIGHT, marshmallow: MARSHMALLOW.HEIGHT, bravo: BRAVO.HEIGHT, chili: CHILI.HEIGHT, howler: HOWLER.HEIGHT,
 };
 /** Per-hero visual build (heroSize.ts, render only): the authored height and top × `h`, rounded to the centimetre. */
 const byBuild = (t: Readonly<Record<HeroId, number>>): Readonly<Record<HeroId, number>> =>
@@ -150,6 +168,7 @@ export const HERO_HEIGHT: Readonly<Record<HeroId, number>> = byBuild(HEIGHT_AUTH
 export const HERO_TOP: Readonly<Record<HeroId, number>> = byBuild({
   clem: 3.06, sage: 2.71, brutus: 3.43, cacklejaw: 2.95, lambo: 3.37, aviete: 2.71, bengas: 2.78, gabe: 2.72,
   meatball: MEATBALL.TOP, pixel: PIXEL.TOP, duchess: DUCHESS.TOP, stilts: STILTS.TOP,
+  nugget: NUGGET.TOP, marshmallow: MARSHMALLOW.TOP, bravo: BRAVO.TOP, chili: CHILI.TOP, howler: HOWLER.TOP,
 });
 
 const IVORY: CoatSpec = { pattern: 'solid', base: PAL.furIvory, deep: PAL.furIvoryShade, light: PAL.furIvoryLight, cream: PAL.furIvoryLight };
@@ -493,6 +512,17 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Omi
       return DUCHESS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('duchess', look) });
     case 'stilts':
       return STILTS.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('stilts', look) });
+    // sim v14 original dogs: each builds its chibi in its own module (./heroes/<hero>.ts)
+    case 'nugget':
+      return NUGGET.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('nugget', look) });
+    case 'marshmallow':
+      return MARSHMALLOW.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('marshmallow', look) });
+    case 'bravo':
+      return BRAVO.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('bravo', look) });
+    case 'chili':
+      return CHILI.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('chili', look) });
+    case 'howler':
+      return HOWLER.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('howler', look) });
     case 'gabe': {
       return {
         rig: { width: 0.92, tier: 'hero', headScale: CAT_HEAD * 0.98, earSplay: 0.14 },

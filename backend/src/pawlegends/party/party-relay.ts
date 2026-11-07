@@ -14,7 +14,12 @@ import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { isRelayOriginAllowed } from '../../shared/cors-origins';
 import { isCloudflareIp } from '../../shared/cloudflare-ips';
 import { isTrustedProxyHop } from '../../shared/trust-proxy';
-import { partySimFor, simFor, type PawlegendsPartySim } from '../../vendor/pawlegends-sim';
+import {
+    partySimFor,
+    simFor,
+    SIM_VERSION as LIVE_SIM_VERSION,
+    type PawlegendsPartySim,
+} from '../../vendor/pawlegends-sim';
 import {
     CATCHUP_CHUNK,
     Frame,
@@ -217,6 +222,7 @@ export class PartyRelay {
         this.parties = new PartyService(
             {
                 heroes: sim.HERO_IDS,
+                heroesOf: p => this.pinnedSimOf(p)?.HERO_IDS ?? sim.HERO_IDS,
                 tricks: sim.TRICK_IDS,
                 difficulties: ['rookie', 'easy', 'normal', 'hard'].filter(d => sim.DIFFICULTIES.includes(d as never)),
                 sideOf: h => sim.heroSideOf(h),
@@ -244,8 +250,15 @@ export class PartyRelay {
         this.partyTimer.unref?.();
     }
 
+    /** The party API of the sim the party is pinned to (its leader's), or null before the leader's hello. */
+    private pinnedSimOf(p: Party): PawlegendsPartySim | null {
+        const s = this.byMember.get(p.leader)?.sim;
+        return (s && partySimFor(s.version, s.hash)?.party) || null;
+    }
+
     private liveSim(): PawlegendsPartySim {
-        // the live bundle's party API (any party-capable bundle has the same hero/trick lists for the lobby)
+        // the live bundle's party API: the lobby offers its heroes and tricks (an older party bundle may lack some,
+        // e.g. sim v13 has no v14 dogs; startMatch refuses those seats on an older pinned sim)
         for (const v of [20, 19, 18, 17, 16, 15, 14, 13, 12, 11]) {
             const s = simFor(v);
             if (s?.party) return s.party;
@@ -961,6 +974,19 @@ export class PartyRelay {
                 this.sendJsonTo(m.id, { t: 'error', code: 'update_required' });
         }
         const ps = entry.party;
+        // the lobby only offers the pinned sim's heroes (PartyRules.heroesOf), so a seat with a hero that sim lacks is a
+        // bug or a forged lock: refuse the room. Only members on an older sim than the live one are told to update; a
+        // member already on the live sim (a v14 member in a v13 leader's party) gets a plain, non-fatal refusal.
+        if (plan.seats.some(seat => !ps.HERO_IDS.includes(seat.hero as never))) {
+            for (const m of party.members) {
+                const ms = this.byMember.get(m.id)?.sim;
+                const code = !ms || ms.version < LIVE_SIM_VERSION ? 'update_required' : 'bad_message';
+                this.sendJsonTo(m.id, { t: 'error', code });
+            }
+            this.parties.matchEnded(party.id);
+            this.log('refused_old_sim', { simVersion: sim.version });
+            return;
+        }
         const { picks, tricks } = ps.fillPicksParty(plan.seed, plan.seats as never);
         const config = {
             seed: plan.seed,

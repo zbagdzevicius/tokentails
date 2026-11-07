@@ -3,7 +3,7 @@
  * when the cat is gone, Bond counting and its cap, the skin effects setting and the preview cap.
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { BOND_MAX, capBond, freshProfile, loadProfile, noteBond, notePreview, parseProfile, previewAllowed, resetProfileCache, saveProfile } from '../../src/meta/profile';
+import { BOND_MAX, capBond, freshProfile, heroForSide, loadProfile, noteBond, notePreview, parseProfile, previewAllowed, resetProfileCache, saveProfile } from '../../src/meta/profile';
 import { rosterCosmetics } from '../../src/meta/roster';
 import { resolveLook, type Owned } from '../../src/render/cosmetics';
 
@@ -82,5 +82,35 @@ describe('profile: card skins', () => {
     q.sessions = 6;
     saveProfile(q);
     expect(previewAllowed(loadProfile(), false)).toBe(true);
+  });
+});
+
+describe('profile: sim v14 side', () => {
+  it('a new profile is on the cat side with no last heroes', () => {
+    const f = freshProfile();
+    expect(f.side).toBe('cat');
+    expect(f.lastBySide).toEqual({});
+    expect(heroForSide(f, 'cat')).toBe('clem');
+    expect(heroForSide(f, 'dog')).toBe('brutus');
+  });
+  it('an old profile gets the side of its hero; side and lastBySide normalise (a hero of that side only)', () => {
+    expect(parseProfile(JSON.stringify({ hero: 'cacklejaw' })).side).toBe('dog');
+    expect(parseProfile(JSON.stringify({ hero: 'sage' })).side).toBe('cat');
+    const p = parseProfile(JSON.stringify({ hero: 'sage', side: 'dog', lastBySide: { cat: 'chili', dog: 'howler', bird: 'clem' } }));
+    expect(p.side).toBe('dog');
+    expect(p.lastBySide).toEqual({ dog: 'howler' });
+    expect(heroForSide(p, 'dog')).toBe('howler');
+    expect(heroForSide(p, 'cat')).toBe('clem');
+    expect(parseProfile(JSON.stringify({ side: 'wolf', hero: 'nugget' })).side).toBe('dog');
+  });
+  it('round-trips through storage', () => {
+    const p = loadProfile();
+    p.side = 'dog';
+    p.lastBySide = { dog: 'bravo', cat: 'pixel' };
+    saveProfile(p);
+    resetProfileCache();
+    const q = loadProfile();
+    expect(q.side).toBe('dog');
+    expect(q.lastBySide).toEqual({ dog: 'bravo', cat: 'pixel' });
   });
 });

@@ -21,6 +21,11 @@ import { aims as meatballAims } from './aims/meatball';
 import { aims as pixelAims } from './aims/pixel';
 import { aims as duchessAims } from './aims/duchess';
 import { aims as stiltsAims } from './aims/stilts';
+import { aims as nuggetAims } from './aims/nugget';
+import { aims as marshmallowAims } from './aims/marshmallow';
+import { aims as bravoAims } from './aims/bravo';
+import { aims as chiliAims } from './aims/chili';
+import { aims as howlerAims } from './aims/howler';
 
 export type AimKind = 'self' | 'dir' | 'point' | 'unit';
 export type AimShape = 'cone' | 'line' | 'dash' | 'circle' | 'ring' | 'none';
@@ -42,6 +47,19 @@ export interface AimSpec {
   blink?: boolean;
   /** Smart-cast targets (touch tap / bots-like auto aim); 'ally' (sim v9, Gabė's Wing Wrap): the most hurt allied hero. */
   smart: 'hero' | 'any' | 'ally' | 'none';
+  /**
+   * A mobility blink or escape dash (heading.ts): a touch press fires at once, the full distance where the player is
+   * heading (the held joystick, else the movement, else the way the hero last walked, else the facing); never a
+   * smart target, no aim step. The sim takes a point past the range for these (blink() clamps it, a dash reads only
+   * the angle), and a point blink never walks in.
+   */
+  heading?: boolean;
+  /** The Paw Trick flash (Pounce): desktop casts it on the key press, the full distance toward the cursor. */
+  flash?: boolean;
+  /** Avietė's Live Wire: for this many ticks after it (or a cast of a `opensReturn` slot) E blinks back instead. */
+  returnTicks?: number;
+  /** Avietė's Short Circuit: its cast opens the Live Wire return window too. */
+  opensReturn?: boolean;
 }
 
 const STEP_TO_RAD = (Math.PI * 2) / 4096;
@@ -54,7 +72,7 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return [
         { kind: 'dir', shape: 'cone', range: n(a.q.range, 2400), arc: n(a.q.arc, 1024) * STEP_TO_RAD, smart: 'any' },
         { kind: 'self', shape: 'cone', range: 1600, arc: Math.PI * 0.75, smart: 'none' },
-        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: 900, smart: 'none' },
+        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: 900, smart: 'none', heading: true },
         { kind: 'self', shape: 'ring', range: n(a.r.waveRange, 5000), radius: n(a.r.waveRange, 5000), smart: 'none' },
       ];
     case 'sage':
@@ -89,21 +107,21 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return [
         { kind: 'dir', shape: 'cone', range: n(a.q.range, 2200), arc: n(a.q.arc, 1138) * STEP_TO_RAD, smart: 'any' },
         { kind: 'self', shape: 'none', range: 0, smart: 'none' },
-        { kind: 'point', shape: 'circle', range: n(a.e.blink, 4500), radius: 600, blink: true, smart: 'none' },
-        { kind: 'unit', shape: 'ring', range: n(a.r.range, 6000), radius: n(a.r.dazzleRadius, 3000), smart: 'hero' },
+        { kind: 'point', shape: 'circle', range: n(a.e.blink, 4500), radius: 600, blink: true, smart: 'none', heading: true, returnTicks: n(a.e.recastWindow, 60) },
+        { kind: 'unit', shape: 'ring', range: n(a.r.range, 6000), radius: n(a.r.dazzleRadius, 3000), smart: 'hero', opensReturn: true },
       ];
     case 'bengas':
       return [
         { kind: 'dir', shape: 'line', range: n(a.q.range, 7000), width: n(a.q.width, 800), smart: 'hero' },
         { kind: 'dir', shape: 'cone', range: n(a.w.range, 4000), arc: n(a.w.arc, 796) * STEP_TO_RAD, smart: 'hero' },
-        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 3500), width: 900, smart: 'none' },
+        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 3500), width: 900, smart: 'none', heading: true },
         { kind: 'point', shape: 'circle', range: n(a.r.range, 9000), radius: n(a.r.radius, 3500), smart: 'hero' },
       ];
     case 'gabe':
       return [
         { kind: 'point', shape: 'circle', range: n(a.q.range, 7000), radius: n(a.q.radius, 2200), smart: 'hero' },
         { kind: 'point', shape: 'circle', range: n(a.w.range, 6000), radius: n(a.w.pickRadius, 2500), smart: 'ally' },
-        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: n(a.e.touch, 1500) * 2, smart: 'none' },
+        { kind: 'dir', shape: 'dash', range: n(a.e.dash, 4000), width: n(a.e.touch, 1500) * 2, smart: 'none', heading: true },
         { kind: 'dir', shape: 'cone', range: n(a.r.range, 6000), arc: n(a.r.arc, 1024) * STEP_TO_RAD, smart: 'hero' },
       ];
     // sim v11 original cats: each hero's aims live in ./aims/<hero>.ts
@@ -115,6 +133,16 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return duchessAims(a);
     case 'stilts':
       return stiltsAims(a);
+    case 'nugget':
+      return nuggetAims(a);
+    case 'marshmallow':
+      return marshmallowAims(a);
+    case 'bravo':
+      return bravoAims(a);
+    case 'chili':
+      return chiliAims(a);
+    case 'howler':
+      return howlerAims(a);
   }
 }
 
@@ -156,7 +184,7 @@ export function aimFor(hero: HeroId, slot: CastSlot, branch = false): AimSpec {
 export function trickAim(trick: TrickId): AimSpec {
   switch (trick) {
     case 'pounce':
-      return { kind: 'point', shape: 'circle', range: TRICKS.pounce.blink, radius: 600, blink: true, smart: 'none' };
+      return { kind: 'point', shape: 'circle', range: TRICKS.pounce.blink, radius: 600, blink: true, smart: 'none', heading: true, flash: true };
     case 'hiss':
       return { kind: 'self', shape: 'ring', range: TRICKS.hiss.radius, radius: TRICKS.hiss.radius, smart: 'none' };
     // Snack Break and Purr-ify: self casts, no aim

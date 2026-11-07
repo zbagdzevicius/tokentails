@@ -139,7 +139,8 @@ describe('golden: the existing looks are unchanged', () => {
     const golden = JSON.parse(fs.readFileSync(path.resolve(__dirname, '../fixtures/skins/golden-looks.json'), 'utf8')) as Record<string, string>;
     const looks: (Look | null)[] = [null, { coat: null, chroma: 'FIRE' }, { coat: 'coat.breed.SCOUT', chroma: null }, { coat: 'skin.clem.pink_bow', chroma: 'ICE' }, { coat: 'coat.founder.brutus', chroma: null }, { coat: 'coat.brutus.biscuit', chroma: 'DARK' }];
     let n = 0;
-    for (const h of HEROES)
+    // Sim v14: the five new dogs have no captured look yet (placeholder bodies until the RENDER lane draws them).
+    for (const h of HEROES.filter((x) => `${x}:0:-:${DETAIL.low}` in golden))
       for (const t of [0, 1] as const)
         for (const l of looks)
           for (const d of [DETAIL.low, DETAIL.med]) {

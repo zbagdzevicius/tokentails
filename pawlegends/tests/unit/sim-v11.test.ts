@@ -22,9 +22,9 @@ import { MID, heroMatch, place } from './heroes/kit-helpers';
 const NEW = ['meatball', 'pixel', 'duchess', 'stilts'] as const;
 
 describe('sim v11 roster', () => {
-  it('SIM_VERSION is 13 (v12 and v13 kept the v11 roster); the four cats are appended at 8..11, with new roles and elements', () => {
-    expect(SIM_VERSION).toBe(13);
-    expect(HERO_IDS.slice(8)).toEqual([...NEW]);
+  it('SIM_VERSION is 12 or later; the four cats are appended at 8..11, with new roles and elements', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(12);
+    expect(HERO_IDS.slice(8, 12)).toEqual([...NEW]);
     expect(HERO_IDS.indexOf('stilts')).toBe(STILTS_INDEX);
     expect(NEW.map((h) => HEROES[h].role)).toEqual(['tank', 'marksman', 'mage', 'assassin']);
     expect(NEW.map((h) => HEROES[h].element)).toEqual(['GRASS', 'ICE', 'DARK', 'SAND']);

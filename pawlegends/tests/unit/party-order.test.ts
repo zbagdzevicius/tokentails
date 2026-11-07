@@ -14,8 +14,11 @@ const GOLDEN_INPUT_HASH = 0x991330f4;
 
 describe('party-order (B2 golden)', () => {
   it('forfeit and a slot-1 command on the same tick give the golden InputHash', () => {
-    const m = partyMatch(2024, [0, 1, 2], 'normal');
-    while (tickOf(m) < 7300) step(m, tickOf(m) === 120 ? [{ op: Op.Move, x: 30000, y: 30000 }] : undefined);
+    // Sim v14: with the dogs in the pool seed 2024's idle party loses at 6425 (before Normal's forfeit window), and
+    // the old loop never left a match that had ended. InputHash folds only the commands, so the golden holds on 2025.
+    const m = partyMatch(2025, [0, 1, 2], 'normal');
+    while (tickOf(m) < 7300 && !result(m)) step(m, tickOf(m) === 120 ? [{ op: Op.Move, x: 30000, y: 30000 }] : undefined);
+    expect(result(m)).toBeNull();
     step(
       m,
       [{ op: Op.Ping, kind: 1, x: 40000, y: 30000, id: 255 }, { op: Op.Move, x: 41000, y: 29000 }, { op: Op.Forfeit }],
