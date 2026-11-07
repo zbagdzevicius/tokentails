@@ -5,7 +5,7 @@
  * or an Alt-click (desktop) pings "Go here" at that spot.
  */
 import { NX, NY, createGrid, onPlayfield } from '../sim/map/grid';
-import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PUDDING_SPOT, mirrorX, type LaneId } from '../data/map';
+import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PUDDING_SPOT, RAT_CAMP, mirrorX, type LaneId } from '../data/map';
 import type { ViewFrame } from '../render/interp';
 import { HERO_COLOR_CSS, RELATION_CSS, sidesSwapped } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
@@ -115,6 +115,18 @@ export function minimapMapping(w: number, h: number, pad = MM_PAD, flip = false)
 
 /** MAP-GAPS A3: below this drawn diameter (CSS px) a hero is its initial; at and above it, its portrait. */
 export const PORTRAIT_MIN_PX = 12;
+
+/** MAP-GAPS A19: the lane a line of text names ("Push Sunny", "Puddle Lane tower down"), or null. */
+export function laneNamed(text: string): LaneId | null {
+  if (/\bsunny\b/i.test(text)) return 'sunny';
+  if (/\bpuddle\b/i.test(text)) return 'puddle';
+  return null;
+}
+
+/** MAP-GAPS A19: where each lane's glyph sits (sim mm): over its river crossing, at the map edge side. */
+export const LANE_GLYPH_AT: Readonly<Record<LaneId, { x: number; y: number }>> = Object.freeze({ sunny: { x: 50000, y: 57000 }, puddle: { x: 50000, y: 3200 } });
+/** MAP-GAPS A19: how long (ms) a named lane flashes. */
+export const LANE_FLASH_MS = 1000;
 
 /** A rounded rectangle path (no CanvasRenderingContext2D.roundRect needed). */
 function roundRectPath(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
@@ -363,6 +375,72 @@ export class Minimap {
       g.arc(this.X(fx), this.Y(FOUNTAIN.y), 3, 0, Math.PI * 2);
       g.fill();
     }
+    // MAP-GAPS A19: static landmarks, dimmed: the rat camps (a ring and a dot), Pudding's pit (a violet ring), and
+    // each lane's glyph (a sun, a puddle) with its name on desktop
+    g.globalAlpha = 0.7;
+    for (const x of [RAT_CAMP.x, mirrorX(RAT_CAMP.x)]) {
+      g.strokeStyle = MM_OUTLINE;
+      g.lineWidth = 1;
+      g.beginPath();
+      g.arc(this.X(x), this.Y(RAT_CAMP.y), 3.2 * this.k, 0, Math.PI * 2);
+      g.stroke();
+      g.fillStyle = '#cdb784';
+      g.beginPath();
+      g.arc(this.X(x), this.Y(RAT_CAMP.y), 1.4 * this.k, 0, Math.PI * 2);
+      g.fill();
+    }
+    g.strokeStyle = MM_OBJECTIVE;
+    g.lineWidth = 1.4;
+    g.setLineDash([2, 2]);
+    g.beginPath();
+    g.arc(this.X(PUDDING_SPOT.x), this.Y(PUDDING_SPOT.y), 6.5 * this.k, 0, Math.PI * 2);
+    g.stroke();
+    g.setLineDash([]);
+    g.globalAlpha = 1;
+    const desktop = typeof document === 'undefined' || document.documentElement?.dataset.touch !== '1';
+    for (const lane of ['sunny', 'puddle'] as const) {
+      const at = LANE_GLYPH_AT[lane];
+      const x = this.X(at.x);
+      const y = this.Y(at.y);
+      const r = 2.6 * Math.max(0.85, this.k);
+      g.fillStyle = MM_OUTLINE;
+      g.beginPath();
+      g.arc(x, y, r + 2, 0, Math.PI * 2);
+      g.fill();
+      if (lane === 'sunny') {
+        g.fillStyle = '#ffd166';
+        g.beginPath();
+        g.arc(x, y, r * 0.55, 0, Math.PI * 2);
+        g.fill();
+        g.strokeStyle = '#ffd166';
+        g.lineWidth = 1;
+        g.beginPath();
+        for (let i = 0; i < 8; i++) {
+          const a = (i / 8) * Math.PI * 2;
+          g.moveTo(x + Math.cos(a) * r * 0.75, y + Math.sin(a) * r * 0.75);
+          g.lineTo(x + Math.cos(a) * r * 1.05, y + Math.sin(a) * r * 1.05);
+        }
+        g.stroke();
+      } else {
+        g.fillStyle = '#7fd4ff';
+        g.beginPath();
+        g.moveTo(x, y - r);
+        g.quadraticCurveTo(x + r * 0.9, y + r * 0.1, x, y + r * 0.8);
+        g.quadraticCurveTo(x - r * 0.9, y + r * 0.1, x, y - r);
+        g.fill();
+      }
+      if (desktop) {
+        g.font = `700 ${(7.5 * Math.max(0.9, this.k)).toFixed(1)}px Fredoka, system-ui, sans-serif`;
+        g.textAlign = 'left';
+        g.textBaseline = 'middle';
+        g.lineWidth = 2.5;
+        g.strokeStyle = MM_OUTLINE;
+        const name = lane === 'sunny' ? 'Sunny' : 'Puddle';
+        g.strokeText(name, x + r + 4, y + 0.5);
+        g.fillStyle = '#fff3dc';
+        g.fillText(name, x + r + 4, y + 0.5);
+      }
+    }
     return c;
   }
 
@@ -401,6 +479,16 @@ export class Minimap {
       out.push({ id, x: g.x, y: g.y, hero: g.hero, age });
     }
     return out;
+  }
+
+  /** MAP-GAPS A19: lanes flashing until (ms, performance clock). */
+  private flashes: { lane: LaneId; until: number }[] = [];
+  /** Lane flashes drawn last frame (tests). */
+  lanesFlashed = 0;
+  /** Flash `lane` for LANE_FLASH_MS (an announcement or a ping named it). */
+  flashLane(lane: LaneId): void {
+    this.flashes = this.flashes.filter((f) => f.lane !== lane);
+    this.flashes.push({ lane, until: performance.now() + LANE_FLASH_MS });
   }
 
   /** MAP-GAPS A18: every tower seen this match (sim mm), so a fallen one keeps its mark. */
@@ -499,6 +587,18 @@ export class Minimap {
     if (this.escorting && !this.escortLane) {
       const pud = frame.entities.find((e) => e.kind === 'pudding' && e.state !== 'dead');
       if (pud && Math.abs(pud.fy - PUDDING_SPOT.y) > 2500) this.escortLane = pud.fy > PUDDING_SPOT.y ? 'sunny' : 'puddle';
+    }
+    {
+      const now = performance.now();
+      this.flashes = this.flashes.filter((f) => f.until > now);
+      this.lanesFlashed = 0;
+      for (const f of this.flashes) {
+        const left = (f.until - now) / LANE_FLASH_MS;
+        g.globalAlpha = 0.25 + 0.55 * Math.abs(Math.sin(left * Math.PI * 3));
+        this.strokeLane(g, f.lane, '#fff3dc', 4 * this.k);
+        g.globalAlpha = 1;
+        this.lanesFlashed++;
+      }
     }
     if (this.escortLane) {
       g.globalAlpha = 0.45 + 0.2 * Math.sin(performance.now() / 260);

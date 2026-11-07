@@ -299,3 +299,37 @@ describe('MAP-GAPS A18 fallen towers', () => {
     expect(m.fallenDrawn).toBe(1);
   });
 });
+
+describe('MAP-GAPS A19 lane glyphs, landmarks and the lane flash', () => {
+  it('reads the lane an announcer line or a ping names, and flashes it for 1 s', async () => {
+    const { laneNamed, LANE_FLASH_MS } = await import('../../src/ui/minimap');
+    const { PING_TEXT } = await import('../../src/ui/pingText');
+    const { Announcer } = await import('../../src/render/announcer');
+    const a = new Announcer(0, 0) as unknown as { feed(ev: unknown): { title: string }[] };
+    const titles = a.feed({ type: 'ping', tick: 10, kind: 'pushPuddle', x: 50000, y: 7000, target: -1 }).map((m) => m.title);
+    expect(titles.map(laneNamed)).toContain('puddle');
+    expect(laneNamed(PING_TEXT.pushSunny.label)).toBe('sunny');
+    expect(laneNamed('Pudding calmed')).toBeNull();
+    vi.useFakeTimers({ toFake: ['performance'] });
+    const m = new Minimap(document.body, host());
+    m.flashLane('sunny');
+    draw(m, frame([]));
+    expect(m.lanesFlashed).toBe(1);
+    vi.advanceTimersByTime(LANE_FLASH_MS + 50);
+    draw(m, frame([]));
+    expect(m.lanesFlashed).toBe(0);
+    vi.useRealTimers();
+  });
+
+  it('paints the lane names on desktop and only glyphs on touch', () => {
+    document.documentElement.dataset.touch = '0';
+    draw(new Minimap(document.body, host()), frame([]));
+    const desk = calls.filter((c) => c[0] === 'fillText').map((c) => c[1]);
+    expect(desk).toEqual(expect.arrayContaining(['Sunny', 'Puddle']));
+    calls.length = 0;
+    document.documentElement.dataset.touch = '1';
+    draw(new Minimap(document.body, host()), frame([]));
+    expect(calls.filter((c) => c[0] === 'fillText').map((c) => c[1])).not.toContain('Sunny');
+    delete document.documentElement.dataset.touch;
+  });
+});
