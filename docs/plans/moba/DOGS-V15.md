@@ -136,6 +136,43 @@ not a guarantee; retune from these numbers if a later change moves the gate.
   seed cost the same on both builds (975 vs 940 ms). The Normal-match check passes (median 764–862 ms). Re-measure on
   an idle machine before the release; `net-rejoin` perf-ff passes when run alone.
 
+## As built (lanes RENDER and PICKER, 2026-11-07)
+
+Status: **LANES RENDER and PICKER done** on `feat/pawlegends-dogs-v15` (committed locally, not pushed). The placeholder
+bodies are gone: each dog has its own chibi (`src/render/chars/heroes/<id>.ts`), move set (`src/render/moves/<id>.ts`)
+and skill FX (`src/render/skillfx/<id>.ts`); ANIM-SPEC §14 has the briefs. Where the build differs from §1:
+- **Frankie stands in a low crouch, not a level body.** A body pitched a quarter forward (the "lying in the bun" read)
+  broke the shared poses, the lobby turntable and the portrait framing. He is the Nugget-style `weenieStand` crouch
+  (body leaning well forward on bent short legs), the bun halves along his flanks and the team mustard squiggle down
+  his back facing the iso camera. He is still the lowest hero drawn (top 2.12 m, Chili 2.16 m).
+- **Dig hides the body with the existing form hold.** `MoveSet.formHold` (additive root scale 0.04) runs while the
+  form bit is set *and* he is untargetable (`formHoldWhen`): the FOOTLONG flight sets the form bit too but is not
+  untargetable, so he stays drawn while he stretches. The pop is skill FX on the untargetable falling edge
+  (`onStatus`), not a new event. No new director hook.
+- **FOOTLONG!'s stretch** is a row of opaque bun and sausage puffs redrawn each frame from where he stands to the
+  flying `fluff` tip (drawn in his coat colour by projectileView `OWNER_SHOT`), not a tube mesh: no bone scales and
+  nothing allocates per frame. Ribbons were tried first: they are additive, and a brown ribbon vanished on the grass.
+- **Domino's coat spots do not hide one by one.** The 12 spots are flat discs in the one merged mesh (6,000-triangle
+  Med budget kept); hiding them per Spot would need a per-vertex attribute in the shared character material. A spot
+  flies off his coat to the cat on each ability hit, and flies home on the R. Coat skins tint the spots (Liver,
+  Lemon); Firehouse keeps the team beret (a red helmet would remove the team read).
+- **The dot-to-dot path is drawn from the hits on the R's cast tick**, nearest first from the previous link point
+  with the lower id on a tie (the sim's rule), using drawn positions. Line-crossing heroes hit on the same tick are
+  linked too (render only; it reads as the same constellation).
+- **Rocket's "Zzz"** rides on his skill FX (`onClip` 'zzz', letters for the whole 18 t nap), not overhead.ts; the
+  Spot pips are in overhead.ts (`spotPips`, `EntitySnap.dots`, both teams, under Duchess's crowns when both show).
+- **Sizes** (`heroSize.ts` unchanged): Rocket top 3.15 m (over Howler 3.10, under Sir Brutus and Cacklejaw), Domino
+  2.55 m, Frankie 2.12 m. Rocket's rose ears fold flat back with a dark (not pink) fold: pink round ears read as a rat.
+- **Sounds:** 11 zzfx voices in `audio/sfx.ts` (`rocketWhoosh` … `dominoDraw`).
+- **Gallery:** `src/gallery/scenarios.ts` plays each signature moment from the sim's own events (Rocket's untargetable
+  sprint and `zzz` nap with the form bit, the feared dummy on SQUIRREL!; Frankie's dig to the dummy and the FOOTLONG
+  grab and snap; Domino's R on three Spotted cats with root and `dots` pips).
+- **Picker:** the dog grid has 10 tiles (5 + 5); the three carry a New tag while `SIM_VERSION` is 15
+  (`screens.ts` `HERO_SINCE`, `isNewHero`). The landing roster has the three at `since: 15`: "Coming next: three new
+  dogs" ("They join the dogs' side: ten cats, ten dogs.") until the v15 build stamp lands, then 20 heroes and
+  "New: three dogs join the pack". Portraits and their `.w280` tile copies are in `client/public/pawlegends/landing/`
+  (`tools/landing-portraits.mjs` now writes both and frames Frankie wider).
+
 ---
 
 ## 0. Roster after v15

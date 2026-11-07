@@ -1,7 +1,7 @@
 /**
  * The Pawlegends landing roster (`/pawlegends`). Names, roles and blurbs are the game's own words
- * (`pawlegends/src/ui/heroText.ts` and `ui/heroText/<hero>.ts`; the five new dogs from DOGS-V13.md, shipped in sim
- * v14). `since` is the sim version the hero ships in: `__test__/pawlegends/landing-roster.test.ts` checks every hero with
+ * (`pawlegends/src/ui/heroText.ts` and `ui/heroText/<hero>.ts`; the five dogs from DOGS-V13.md, shipped in sim v14;
+ * Rocket, Frankie and Domino from DOGS-V15.md, shipping in sim v15). `since` is the sim version the hero ships in: `__test__/pawlegends/landing-roster.test.ts` checks every hero with
  * `since <= SIM_VERSION` against the game's `HERO_IDS`, so a cut dog (DOGS-V13 art gate: Howler, then Marshmallow)
  * fails CI instead of being advertised.
  *
@@ -11,7 +11,7 @@
  * grid and the counts. The rest are the "new dogs" strip, headed "Coming next" until a game build with their sim
  * version is committed, so the page is right in any merge or release order.
  * Heroes released in the current sim version (`justReleased`) get a "New" line above the grid and a New tag on
- * their tiles. The five dogs' portraits are rendered by `pawlegends/tools/landing-portraits.mjs`.
+ * their tiles. The dogs' portraits (and their 280 px tile copies) are rendered by `pawlegends/tools/landing-portraits.mjs`.
  */
 import shippedGame from "@/public/pawlegends-game/build-releases.json";
 
@@ -59,6 +59,10 @@ export const LANDING_ROSTER: readonly LandingHero[] = Object.freeze([
   { id: "bravo", name: "Bravo", side: "dog", role: "Tank", breed: "Black pug", blurb: "A pug who lives for the drama. Slows cats, owns the stage, fakes his own death.", portrait: P("bravo", "4fe420f3"), since: 14 },
   { id: "chili", name: "Chili", side: "dog", role: "Marksman", breed: "Chihuahua", blurb: "Tiny. Shaking. Furious. Gets faster the angrier he gets.", portrait: P("chili", "d224d43a"), since: 14 },
   { id: "howler", name: "Howler", side: "dog", role: "Fighter", breed: "Siberian husky", blurb: "A husky with opinions. Every ability is a scream.", portrait: P("howler", "75a27b88"), since: 14 },
+  // sim v15 (DOGS-V15.md): three more dogs, 10 v 10 with the same roles on both sides
+  { id: "rocket", name: "Rocket", side: "dog", role: "Marksman", breed: "Greyhound", blurb: "Fastest dog on the island. Hits hardest from far away, then needs a nap.", portrait: P("rocket", "246b1c99"), since: 15 },
+  { id: "frankie", name: "Frankie", side: "dog", role: "Assassin", breed: "Dachshund in a hot-dog costume", blurb: "A sausage dog dressed as a hot dog. Digs, rolls, and stretches across half the map.", portrait: P("frankie", "01cab27c"), since: 15 },
+  { id: "domino", name: "Domino", side: "dog", role: "Mage", breed: "Dalmatian puppy", blurb: "Throws his own spots at cats. Then connects the dots.", portrait: P("domino", "8bfe11ac"), since: 15 },
 ] as LandingHero[]);
 
 export const isReleased = (h: LandingHero): boolean => h.since <= GAME_SIM_VERSION;

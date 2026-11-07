@@ -79,8 +79,8 @@ up-facing area, `tests/unit/team-read.test.ts`). `bake:heroes` and `bake:map` st
 ## Cats or dogs (sim v14, DOGS-V13 §2)
 
 The pick screen opens with a **CATS / DOGS** switch over the hero grid (`src/ui/screens.ts` `sideSwitch`,
-`src/ui/champions.css`). The grid shows one side at a time (cats 10, dogs 7) in the same two-row space, so the Paw
-Trick chips and Play never move. Choosing a side selects that side's last hero (else Clem / Sir Brutus); the human's
+`src/ui/champions.css`). The grid shows one side at a time (cats 10, dogs 10 from sim v15; the heroes new in the live
+sim version carry a New tag) in the same two-row space, so the Paw Trick chips and Play never move. Choosing a side selects that side's last hero (else Clem / Sir Brutus); the human's
 team then plays that species and `fillPicks` gives the bots theirs (client only: no sim or replay change).
 
 - Remembered in the local profile (`side`, `lastBySide`, `meta/profile.ts`); a new player starts on Cats, and DOGS

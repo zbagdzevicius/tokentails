@@ -1,14 +1,14 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, PROFILE_KEY, seedSide, startFirstMatch } from './helpers';
 
-// Sim v14 (DOGS-V13 §2, gate 13): the CATS / DOGS switch on the pick screen. The switch filters the grid to one side
-// (cats 10, dogs 7), choosing DOGS plays the dog side (the bots fill both teams by species, a dog team never fields a
+// Sim v14 (DOGS-V13 §2, gate 13; DOGS-V15 §2: 10 v 10): the CATS / DOGS switch on the pick screen. The switch filters
+// the grid to one side (cats 10, dogs 10), choosing DOGS plays the dog side (the bots fill both teams by species, a dog team never fields a
 // hero twice), the choice is remembered across a reload, the arrow keys move it, and at 667x375 and 844x390 the
 // switch, the grid, the Paw Trick chips and Play sit inside the viewport with Play in the same place on both sides.
 // The DOGS lock before match 1 has no UI path in e2e (a first-time player only sees "Play as Clem"); it is covered by
 // tests/unit/side-switch.test.ts, and first-match.spec still checks match 1 opens on Clem.
 
-const DOGS = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler'];
+const DOGS = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
 const CATS = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
 
 const visibleTiles = (page: Page) => page.locator('.heroes:not([hidden]) .hero-card');
@@ -25,20 +25,23 @@ async function tapOrClick(page: Page, sel: string, touch: boolean): Promise<void
   else await page.locator(sel).click();
 }
 
-test('DOGS shows the 7 dogs and plays the dog side with no duplicate on the team', async ({ page }, info) => {
+test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the team', async ({ page }, info) => {
   test.setTimeout(120_000);
   const touch = info.project.name === 'landscape';
   await seedSide(page, 'cat');
   await toPick(page);
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(visibleTiles(page)).toHaveCount(10);
-  await expect(page.locator('.side-tab.dog')).toContainText('7');
+  await expect(page.locator('.side-tab.dog')).toContainText('10');
   await expect(page.locator('.side-tab.dog')).not.toHaveAttribute('aria-disabled', 'true');
 
   await tapOrClick(page, '.side-tab.dog', touch);
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
-  await expect(visibleTiles(page)).toHaveCount(7);
+  await expect(visibleTiles(page)).toHaveCount(10);
+  // the three v15 dogs carry the New tag (and no one else)
+  const fresh = await page.locator('.heroes:not([hidden]) .hero-card[data-new="1"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
+  expect(fresh.sort()).toEqual(['domino', 'frankie', 'rocket']);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...DOGS].sort());
   expect(await page.locator('.heroes:not([hidden])').getAttribute('data-side')).toBe('dog');

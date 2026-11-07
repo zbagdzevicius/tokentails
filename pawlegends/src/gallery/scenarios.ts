@@ -9,7 +9,7 @@ import type { HeroId } from '../data/heroes/types';
 import { HEROES } from '../data/heroes';
 import { PROJECTILE_KIND } from '../data/towers';
 import { ZONE_KIND } from '../data/effects';
-import type { EntitySnap, ProjectileSnap, SimEvent, Snapshot, ZoneSnap, CastSlot } from '../sim/api';
+import { BuffFlag, type EntitySnap, type ProjectileSnap, type SimEvent, type Snapshot, type ZoneSnap, type CastSlot } from '../sim/api';
 import { BASIC_WINDUP, BOLT_SPEED, SIM_TIMING, travelTicks } from '../render/anim/timing';
 import type { Slot } from '../render/anim/types';
 
@@ -30,6 +30,8 @@ interface Unit {
   hp: number;
   /** EntitySnap.form (sim v11): the kit's alternate body while its R lasts. */
   form?: boolean;
+  /** EntitySnap.dots (sim v15): Domino's Spots on this hero. */
+  dots?: number;
 }
 
 interface Proj {
@@ -71,6 +73,16 @@ class Stream {
     ];
   }
 
+  /** More enemy heroes beside the dummy (offsets in mm), ids 4, 5…: Domino's dot-to-dot needs a few cats. */
+  extra(hero: HeroId, offs: readonly (readonly [number, number])[]): Unit[] {
+    const du = this.units[1];
+    return offs.map(([dx, dy], i) => {
+      const u: Unit = { id: DUMMY + 1 + i, hero, team: 1, x: du.x + dx, y: du.y + dy, facing: 2048, state: 'idle', buffs: 0, hp: 900 };
+      this.units.push(u);
+      return u;
+    });
+  }
+
   ev(tick: number, e: SimEvent): void {
     const l = this.events.get(tick) ?? [];
     l.push(e);
@@ -78,7 +90,7 @@ class Stream {
   }
 
   bolt(tick: number, owner: number, kind: number, tx: number, ty: number, speed: number, hitAmount: number, hitKind: 'basic' | 'ability', dst: number): number {
-    const o = this.units[owner === ME ? 0 : 1];
+    const o = this.units.find((u) => u.id === owner) ?? this.units[0];
     const d = Math.hypot(tx - o.x, ty - o.y);
     const n = Math.max(1, Math.ceil((d * 30) / speed));
     const p: Proj = { index: this.nextProj++ % 40, owner, kind, x: o.x, y: o.y, vx: ((tx - o.x) / d) * (speed / 30), vy: ((ty - o.y) / d) * (speed / 30), until: tick + n };
@@ -113,6 +125,7 @@ class Stream {
       buffs: u.buffs | (u.id !== ME ? DUMMY_BUFFS.bits : 0),
       resource: 0,
       form: u.form === true ? true : undefined,
+      dots: u.dots ? u.dots : undefined,
       // gallery query branch=1: the level-6 shape branch on the hero (Sage's lance, Brutus's Guard Post)
       branch: u.id === ME && DUMMY_BUFFS.branch ? true : undefined,
     }));
@@ -131,6 +144,11 @@ class Stream {
 }
 
 const SLOT_INDEX: Readonly<Record<Slot, CastSlot>> = { q: 0, w: 1, e: 2, r: 3 };
+/** BuffFlag bits (sim/api) the signature scenarios set. */
+const UNTARGETABLE = BuffFlag.Untargetable;
+const STUNNED = BuffFlag.Stunned;
+const ROOTED = BuffFlag.Rooted;
+const FEARED = BuffFlag.Feared;
 /** Heroes whose R sets the snapshot's `form` bit (sim/index.ts SNAP_FX.Form; sim v14 Chili's BIG DOG). */
 const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilts', 'chili']);
 
@@ -139,6 +157,9 @@ const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilt
  * glow, a Feared charm target), and the level-6 branch flag on the hero.
  */
 export const DUMMY_BUFFS = { bits: 0, shield: 0, branch: false };
+
+/** Sim v15 dogs: their own projectile kind (Lure Shot, FOOTLONG! and Spot Shot all fly as `fluff`). */
+const FLUFF_SHOTS: ReadonlySet<HeroId> = new Set<HeroId>(['rocket', 'frankie', 'domino', 'marshmallow', 'bravo']);
 
 /** The scenario list for a hero. */
 export function scenarioNames(hero: HeroId): string[] {
@@ -183,6 +204,10 @@ export function makeScenario(name: string, hero: HeroId, vs: HeroId): Scenario {
     const sl: Slot = name === 'q-recast' ? 'q' : (name as Slot);
     const st = T.slots[sl];
     const casts = name === 'q-recast' ? 1 + st.recasts : 1;
+    // Frankie's dig and FOOTLONG! travel: the dummy stands well away (a melee hero's dummy is at 1.5 m)
+    if (hero === 'frankie' && (sl === 'w' || sl === 'r')) du.x = me.x + 6000;
+    /** A scenario's own last tick (Rocket's nap). */
+    let tail = 0;
     let t = T0;
     for (let c = 0; c < casts; c++) {
       const away = hero === 'sage' && sl === 'e';
@@ -223,12 +248,80 @@ export function makeScenario(name: string, hero: HeroId, vs: HeroId): Scenario {
         });
         s.ev(cast + st.arm, { type: 'hit', tick: cast + st.arm, src: ME, dst: DUMMY, amount: 70, shielded: 0, kind: 'ability' });
       } else if (st.projSpeed > 0) {
-        const kind = hero === 'sage' ? (sl === 'r' ? PROJECTILE_KIND.moonshot : PROJECTILE_KIND.arrow) : hero === 'lambo' ? PROJECTILE_KIND.tuna : hero === 'bengas' ? PROJECTILE_KIND.toast : PROJECTILE_KIND.wave;
-        anchors.hit ??= s.bolt(cast, ME, kind, du.x, du.y, st.projSpeed, 80, 'ability', DUMMY);
+        const kind = hero === 'sage' ? (sl === 'r' ? PROJECTILE_KIND.moonshot : PROJECTILE_KIND.arrow) : hero === 'lambo' ? PROJECTILE_KIND.tuna : hero === 'bengas' ? PROJECTILE_KIND.toast : FLUFF_SHOTS.has(hero) ? PROJECTILE_KIND.fluff : PROJECTILE_KIND.wave;
+        if (hero === 'frankie' && sl === 'w') {
+          // Dig: he travels underground to the dummy (untargetable, the form bit), pops up and stuns it
+          const x0 = me.x;
+          const dist = du.x - 1200 - x0;
+          const n = travelTicks(dist, st.projSpeed);
+          anchors.travelEnd ??= cast + n;
+          s.moves.push((tt) => {
+            const under = tt >= cast && tt < cast + n;
+            me.form = under;
+            me.buffs = under ? me.buffs | UNTARGETABLE : me.buffs & ~UNTARGETABLE;
+            if (tt > cast && tt <= cast + n) me.x = x0 + Math.min(dist, ((tt - cast) * st.projSpeed) / 30);
+            du.buffs = tt >= cast + n && tt < cast + n + 15 ? du.buffs | STUNNED : du.buffs & ~STUNNED;
+          });
+          s.ev(cast + n, { type: 'hit', tick: cast + n, src: ME, dst: DUMMY, amount: 70, shielded: 0, kind: 'ability' });
+        } else {
+          const at = s.bolt(cast, ME, kind, du.x, du.y, st.projSpeed, 80, 'ability', DUMMY);
+          anchors.hit ??= at;
+          if (hero === 'frankie' && sl === 'r') {
+            // FOOTLONG!: the form bit while the stretch flies, the grab (the `clip` event), the snap to the dummy
+            const x0 = me.x;
+            const snap = du.x - 1300 - x0;
+            const n = travelTicks(snap, 30000);
+            s.ev(at, { type: 'clip', tick: at, id: ME, what: 'footlong' });
+            s.moves.push((tt) => {
+              me.form = tt >= cast && tt < at;
+              if (tt > at && tt <= at + n) me.x = x0 + Math.min(snap, ((tt - at) * 30000) / 30);
+              du.buffs = tt >= at && tt < at + 23 ? du.buffs | STUNNED : du.buffs & ~STUNNED;
+            });
+          }
+        }
       } else {
         s.ev(cast, { type: 'hit', tick: cast, src: ME, dst: DUMMY, amount: 80, shielded: 0, kind: 'ability' });
       }
       if (st.duration > 0) anchors.stateEnd ??= cast + Math.min(st.duration, 120);
+      if (hero === 'rocket' && sl === 'r') {
+        // ZOOM… ZZZ: untargetable while he sprints, then the roach nap (the `clip` event, the form bit for 18 t)
+        const n = travelTicks(dash, st.dashSpeed);
+        s.ev(cast + n, { type: 'clip', tick: cast + n, id: ME, what: 'zzz' });
+        s.moves.push((tt) => {
+          me.buffs = tt >= cast && tt < cast + n ? me.buffs | UNTARGETABLE : me.buffs & ~UNTARGETABLE;
+          me.form = tt >= cast + n && tt < cast + n + 18;
+        });
+        tail = cast + n + 18 + 30;
+      }
+      if (hero === 'rocket' && sl === 'e') {
+        // SQUIRREL!: the dummy chases the toy for the lure (feared)
+        s.moves.push((tt) => {
+          du.buffs = tt >= cast && tt < cast + 21 ? du.buffs | FEARED : du.buffs & ~FEARED;
+          if (tt >= cast && tt < cast + 21) du.x -= 40;
+        });
+      }
+      if (hero === 'domino' && sl === 'r') {
+        // CONNECT THE DOTS!: three Spotted cats (the dummy and two more), hit on the cast tick, rooted after
+        for (const u of s.extra(vs, [[-1500, 2600], [2200, -2400]])) {
+          u.dots = 2;
+          s.ev(cast, { type: 'hit', tick: cast, src: ME, dst: u.id, amount: 170, shielded: 0, kind: 'ability' });
+          s.moves.push((tt) => {
+            u.dots = tt < cast ? 2 : 0;
+            u.buffs = tt >= cast && tt < cast + 25 ? u.buffs | ROOTED : u.buffs & ~ROOTED;
+          });
+        }
+        s.moves.push((tt) => {
+          du.dots = tt < cast ? 3 : 0;
+          du.buffs = tt >= cast && tt < cast + 25 ? du.buffs | ROOTED : du.buffs & ~ROOTED;
+        });
+        s.ev(cast, { type: 'clip', tick: cast, id: ME, what: 'dots' });
+      }
+      if (hero === 'domino' && sl !== 'r') {
+        // Spot On: the dummy wears his Spots (the plate pips)
+        s.moves.push((tt) => {
+          du.dots = tt >= T0 + 20 ? 2 : 1;
+        });
+      }
       // the sim's fx `form` bit: Meatball's Chonk, Pixel's BOXBOT and Stilts's Zoomies show their alternate body
       if (sl === 'r' && FORM_R.has(hero) && st.duration > 0) {
         const until = cast + Math.min(st.duration, 120);
@@ -239,7 +332,7 @@ export function makeScenario(name: string, hero: HeroId, vs: HeroId): Scenario {
       key = anchors.cast;
       t = cast + (dash > 0 ? travelTicks(dash, st.dashSpeed) : 0) + 22;
     }
-    end = Math.max(t + 20, (anchors.stateEnd ?? 0) + 10, (anchors.zoneArm ?? 0) + 25);
+    end = Math.max(t + 20, (anchors.stateEnd ?? 0) + 10, (anchors.zoneArm ?? 0) + 25, tail);
   } else if (name === 'react-light' || name === 'react-heavy' || name === 'knock') {
     const heavy = name !== 'react-light';
     for (let k = 0; k < 3; k++) {

@@ -9,6 +9,7 @@ import './deck/deckRow.css';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
 import { HERO_IDS, HEROES, type HeroSide } from '../data/heroes';
+import { SIM_VERSION } from '../sim/version';
 import { championOf } from '../data/heroes/shelter';
 import { TRICK_IDS } from '../data/tricks';
 import type { Difficulty, HeroId, TrickId } from '../sim/api';
@@ -243,13 +244,20 @@ export function skinTile(k: SkinTile, on: boolean, locked = false): string {
 }
 
 /** One pick tile: the portrait, and for a shelter champion its card art and the owner badge. */
+/**
+ * Sim v15 (DOGS-V15 §2): the sim version each newer hero shipped in. A tile is tagged New while its hero's version is
+ * the live SIM_VERSION (the landing's rule: `since === GAME_SIM_VERSION`); the tag goes away in the next sim version.
+ */
+const HERO_SINCE: Readonly<Partial<Record<HeroId, number>>> = { rocket: 15, frankie: 15, domino: 15 };
+export const isNewHero = (h: HeroId): boolean => HERO_SINCE[h] === SIM_VERSION;
+
 export function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { art?: string; owned: boolean } | undefined, tier: CatTier | null = null, cardName: string | null = null): string {
   const x = HERO_TEXT[h];
   // lobby spec §3b: a hero wearing one of the player's cards is called by the cat's name, the hero underneath
   const label = cardName ? `<b>${esc(cardName)}</b><small>${esc(`${x.title} · ${x.role}`)}</small>` : `<b>${esc(x.title)}</b><small>${x.side} · ${x.role}</small>`;
   const c = championOf(h);
   const card = c && champ?.art ? `<img class="champ-art" src="${esc(champ.art)}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : '';
-  const badge = c && champ?.owned ? `<span class="champ-owned" title="${esc(`From ${c.cardName}'s card`)}">Card</span>` : '';
+  const badge = c && champ?.owned ? `<span class="champ-owned" title="${esc(`From ${c.cardName}'s card`)}">Card</span>` : isNewHero(h) ? '<span class="new-tag">New</span>' : '';
   // Token Tails cards: every champion is a collectible card in its element's frame; the picked one gets the foil of
   // the worn card skin's rung (Common when none) that follows the pointer and sweeps by itself on touch
   return cardFrame({
@@ -258,7 +266,7 @@ export function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { ar
     tier: on ? tier : null,
     cls: `hero-card ${on ? 'on' : ''}${c ? ' champion' : ''}`,
     // sim v14: a long name ("Marshmallow") sets a smaller label instead of an ellipsis on a 667 px wide phone
-    attrs: `data-h="${h}"${(cardName ?? x.title).length > 9 ? ' data-long="1"' : ''}${cardName ? ` aria-label="${esc(`${cardName}: ${x.title}, ${x.side} ${x.role}`)}"` : ''}`,
+    attrs: `data-h="${h}"${isNewHero(h) ? ' data-new="1"' : ''}${(cardName ?? x.title).length > 9 ? ' data-long="1"' : ''}${cardName ? ` aria-label="${esc(`${cardName}: ${x.title}, ${x.side} ${x.role}`)}"` : ''}`,
     style: `--hero:${HERO_COLOR_CSS[h]}`,
     foil: on ? 'sweep' : 'hover',
     sparkles: on,
