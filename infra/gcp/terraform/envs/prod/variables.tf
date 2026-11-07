@@ -115,9 +115,9 @@ variable "relay_machine_type" {
 }
 
 variable "max_live_rooms" {
-  description = "The relay's live-room cap (PARTY_MAX_LIVE_ROOMS, default PARTY_LIMITS.maxLiveRooms) after the mp/load.mjs run on the relay machine; alerts at 80 %."
+  description = "The relay's live-room cap (PARTY_MAX_LIVE_ROOMS); alerts at 80 %. 100 = 70 % of the 150 rooms t2d-standard-2 held within budget in the staging load run (STAGING-PROOF.md). Re-measure after a machine change."
   type        = number
-  default     = 60
+  default     = 100
 }
 
 variable "api" {

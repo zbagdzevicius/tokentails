@@ -233,7 +233,9 @@ What the first real staging run (2026-11-07, all four steps) showed; each one ap
 - **IAP SSH with a personal Google account is refused** when the project belongs to an organization (tokentails-staging
   is in `tokentails.com`): OS Login wants `roles/compute.osLoginExternalUser` on the organization for an account outside
   it. Grant that at organization level, or operate the relay from a `tokentails.com` account, before you rely on
-  `gcloud compute ssh` for relay restarts and deploys. Without SSH, a one-off Cloud Run job in the VPC
+  `gcloud compute ssh` for relay restarts and deploys. On staging only, `gcloud compute instances add-metadata
+  INSTANCE --metadata enable-oslogin=FALSE` on the relay VM let `deploy-relay.sh` and `replace-relay.sh` run (a VM
+  replacement drops it; never do this in production). Without SSH, a one-off Cloud Run job in the VPC
   (`curlimages/curl`, `--network vpc-main --subnet vpc-main-europe-west3 --vpc-egress all-traffic`) can still probe
   internal addresses; delete it afterwards.
 - **The default network** (step 3b) appears in any project where Compute is enabled, with SSH and RDP open to the
@@ -432,8 +434,11 @@ Then, in order:
      node --import ../infra/gcp/tools/ws-origin-shim.mjs tests/e2e/mp/load.mjs
    ```
    Raise the total until `turn_overrun_ms_p99` or `loop_delay_p99` breaks budget (overrun < 5 ms, loop < 15 ms), take
-   70 % of the last good room count (30 % headroom), set it in `party-limits.ts` (a backend PR, coordinated with the
-   netcode workflow) and in `max_live_rooms` (alerts at 80 %). If t2d-standard-2 cannot hold the expected peak, set
+   70 % of the last good room count (30 % headroom) and set `max_live_rooms` (Terraform: the relay's
+   `PARTY_MAX_LIVE_ROOMS` and the 80 % alert; apply, then restart the relay). The staging run on the same machine
+   type (`STAGING-PROOF.md`, 2026-11-07) held budget at 150 rooms and tripped the busy gate at ~250, so the prod
+   default is 100; this run only confirms it through Cloudflare. Through Cloudflare one host is one IP
+   (`roomsLivePerIp` 4), so use several hosts. If t2d-standard-2 cannot hold the expected peak, set
    `relay_machine_type = "t2d-standard-4"` and apply. The apply only creates a new instance template (the MIG never
    replaces the VM by itself); then run `PROJECT_ID=gleaming-medium-480114-g5 REGION=europe-west3
    infra/gcp/scripts/replace-relay.sh`, which waits until no room is live and replaces the VM. Re-run the load test
@@ -596,7 +601,7 @@ Each is a variable or a step above; the default is what the code does unless you
 | Hot-wallet signing crons in their own service now? | No: they stay in tt-api, leased, for the cutover; split into a signer service with its own account in phase 2 | phase 2 |
 | Relay deploy policy | Only when relay code changes or on manual dispatch, in a quiet hour; drain up to 30 min when the relay offers it, then restart; handoff and resume cover the rest | `deploy-gcp.yml` input `relay` |
 | Relay machine | t2d-standard-2; t2d-standard-4 if the load run calls for it | `relay_machine_type` |
-| `MAX_LIVE_ROOMS` | 60 (placeholder) until the load run on the VM, then 70 % of the measured limit | `party-limits.ts`, `max_live_rooms` |
+| `MAX_LIVE_ROOMS` | 100 on t2d-standard-2: 70 % of the 150 rooms that held budget in the staging load run (`STAGING-PROOF.md`; e2-standard-2 was at budget with 60). The code default (60) stays for DigitalOcean | `max_live_rooms` -> `PARTY_MAX_LIVE_ROOMS` |
 | CI apply | Off: the founder applies locally | `ci_apply_enabled = false` |
 
 ## Known gaps and things to verify on the first apply
