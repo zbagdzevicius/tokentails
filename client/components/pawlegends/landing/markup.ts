@@ -125,9 +125,13 @@ function newDogs(list: LandingHero[]): string {
   const out = list.every(isReleased);
   const n = countWord(list.length).toLowerCase();
   const head = out ? `New: ${n} dogs join the pack` : `Coming next: ${n} new dogs`;
+  // sim v15: the switch is out already, so the next dogs even the sides instead
+  const after = landingDogs().length + list.filter((h) => h.side === "dog" && !isReleased(h)).length;
   const note = out
     ? "Play the dogs' side too: the Cats / Dogs switch opens after your first match."
-    : "With them comes a Cats / Dogs switch, so you can play either side.";
+    : landingDogs().length > 2
+      ? `They join the dogs' side: ${countWord(landingCats().length).toLowerCase()} cats, ${countWord(after).toLowerCase()} dogs.`
+      : "With them comes a Cats / Dogs switch, so you can play either side.";
   const card = (h: LandingHero) =>
     `<li class="nd"><span class="nd-art" aria-hidden="true">${PAW_SVG}</span><span class="nd-t"><b class="nd-nm">${shown(h.name)}</b>` +
     `<span class="nd-meta">${esc(h.breed ?? "")}</span><span class="nd-role">${h.role}</span><span class="nd-b">${esc(h.blurb)}</span></span></li>`;

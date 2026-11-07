@@ -111,6 +111,10 @@ export const HERO_SHOTS: ReadonlySet<number> = new Set([PROJECTILE_KIND.hero, PR
 const OWNER_SHOT: Partial<Record<string, readonly [number, number, number, number]>> = {
   marshmallow: [0.46, 1.0, 0xf8fcff, 0.24],
   bravo: [0.28, 1.15, 0x8fd8ff, 0.14],
+  // sim v15: Rocket's Lure Shot dart (plush white), Frankie's FOOTLONG! tip (his head, in his coat) and Domino's Spot Shot (a black spot)
+  rocket: [0.22, 1.1, 0xf6f0e6, 0.12],
+  frankie: [0.5, 0.75, 0x9c4a1f, 0.1],
+  domino: [0.34, 1.0, 0x16141a, 0.16],
 };
 
 /** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabė's heart bolts). */
