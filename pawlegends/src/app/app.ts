@@ -10,6 +10,7 @@ import { askConsent, createAnalytics, type Analytics } from '../analytics/postho
 import { sfx } from '../audio/sfx';
 import { crashSender, reportCrash, setCrashHook } from './crash';
 import { SIM_VERSION } from '../sim/version';
+import { inAppShell, shareBase } from './platform';
 import type { Bridge, HostMessage } from '../embed/bridge';
 import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type CatTier, type RosterCat, type RosterCosmetics } from '../meta/roster';
 import { coatGlow } from '../render/skins/cardFx';
@@ -1138,8 +1139,8 @@ export class App {
     let link: string | null = null;
     // a party match has no dare link (its seed belongs to the party)
     if (won && !partyEnd) {
-      const base = this.bridge.active && document.referrer ? `${new URL(document.referrer).origin}/pawlegends` : location.href;
       try {
+        const base = shareBase({ appShell: inAppShell(), embedded: this.bridge.active, referrer: document.referrer, href: location.href });
         link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < suddenDeathS(e.replay.difficulty) ? seconds : 0 }, base);
       } catch {
         link = null;

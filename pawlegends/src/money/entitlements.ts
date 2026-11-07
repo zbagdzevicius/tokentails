@@ -13,6 +13,7 @@
  * The token lives in memory only: the host keeps it and re-sends it on every `ready`.
  */
 import { KNOWN_ITEMS, isSku, type SkuId } from './skus';
+import { isAppBuild } from '../meta/roster';
 
 export interface TokenPayload {
   items: string[];
@@ -106,17 +107,19 @@ export class Entitlements {
   }
 
   private snapshotKey(): unknown[] {
-    return [this.embedded, this.isApp, this.store, this.notify, this.signedIn, this.payload?.items, this.payload?.skus];
+    return [this.embedded, this.isApp || isAppBuild(), this.store, this.notify, this.signedIn, this.payload?.items, this.payload?.skus];
   }
 
   snapshot(): StoreSnapshot {
-    const paid = !this.isApp && this.payload ? this.payload : null;
+    // the native app shell (meta/roster.ts lockAppBuild) is an app build whatever a host says
+    const isApp = this.isApp || isAppBuild();
+    const paid = !isApp && this.payload ? this.payload : null;
     return {
       embedded: this.embedded,
-      isApp: this.isApp,
+      isApp,
       storeOpen: false,
-      catCheckout: this.embedded && this.store && !this.isApp,
-      notifyOpen: this.embedded && this.notify && !this.isApp,
+      catCheckout: this.embedded && this.store && !isApp,
+      notifyOpen: this.embedded && this.notify && !isApp,
       signedIn: this.signedIn,
       items: new Set(paid?.items ?? []),
       skus: new Set(paid?.skus ?? []),
