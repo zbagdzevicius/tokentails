@@ -137,8 +137,9 @@ function paintGround(swap = false): THREE.Texture {
     const bx = team === 0 ? cx : W - cx;
     const fx = team === 0 ? FOUNTAIN.x / 1000 : W - FOUNTAIN.x / 1000;
     const style = swap ? 1 - team : team;
-    const stone = style === 0 ? '#efe2c9' : '#c9d0e2';
-    const edge = style === 0 ? '#d9c3a0' : '#a5b0cc';
+    // audit GFX-01: the Woof plaza is sandstone and ochre, not blue-grey (blue is the ally colour only)
+    const stone = style === 0 ? '#efe2c9' : '#dcc39a';
+    const edge = style === 0 ? '#d9c3a0' : '#b38f5e';
     disc(bx, cy, 10.5, edge);
     disc(bx, cy, 9.7, stone);
     g.strokeStyle = edge;
@@ -158,7 +159,7 @@ function paintGround(swap = false): THREE.Texture {
     disc(fx, FOUNTAIN.y / 1000, FOUNTAIN.radius / 1000 + 1.6, edge);
     disc(fx, FOUNTAIN.y / 1000, FOUNTAIN.radius / 1000 + 1.0, stone);
     // team-coloured paw print in the plaza
-    g.fillStyle = style === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(61,90,158,0.35)';
+    g.fillStyle = style === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(150,92,30,0.38)';
     const px = bx + (team === 0 ? 5.5 : -5.5);
     disc(px, cy - 5.5, 1.2, g.fillStyle as string);
     for (let k = 0; k < 4; k++) disc(px - 1.2 + k * 0.8, cy - 5.5 + 1.5 + (k === 0 || k === 3 ? -0.3 : 0), 0.45, g.fillStyle as string);

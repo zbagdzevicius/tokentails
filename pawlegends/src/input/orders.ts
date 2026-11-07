@@ -379,6 +379,8 @@ export class Orders {
    */
   cast(slot: CastIndex, x: number, y: number, id: number = NO_TARGET): boolean {
     if (!this.canQueue(slot)) return false;
+    // Audit CF-07: a unit-target cast with no living target is refused here (it was buffered, then dropped silently)
+    if (this.aimSpec(slot).kind === 'unit' && !this.env.units().some((u) => u.id === id && u.state !== 'dead')) return false;
     if (!this.ready(slot) || this.busy()) {
       // C2: keep the newest press and send it the moment the hero is free (never two buffered casts)
       this.buffered = { slot, x, y, id, until: this.env.nowMs() + CAST_BUFFER.ms };

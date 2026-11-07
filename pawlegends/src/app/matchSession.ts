@@ -228,8 +228,11 @@ export interface MatchEnd {
 export interface SessionHooks {
   onEnd(e: MatchEnd): void;
   onTalent?(tier: number, choice: number): void;
-  onLeave(): void;
+  /** Audit UX-03: `counted` = this leave is recorded as a forfeit loss (`leaveCounts`), with the match so far. */
+  onLeave(counted?: { ticks: number; takedowns: number }): void;
   onMute(m: boolean): void;
+  /** Audit UX-09: open Settings over the paused match; `done` brings the pause menu back. */
+  onSettings?(done: () => void): void;
   onError(msg: string): void;
   onPaused?(p: boolean): void;
   /** Party play analytics (MULTIPLAYER.md §10, lane M8): flat props, never a party code or room id. */
@@ -539,7 +542,10 @@ export class MatchSession {
       // C2: a buffered cast that never found a free moment: the deny sound and the button's red flash only now
       onDeny: (slot: 0 | 1 | 2 | 3 | 4) => {
         if (this.touch?.isEnabled) this.touch.deny(slot);
-        else sfx.play('deny', { vol: 0.6 });
+        else {
+          sfx.play('deny', { vol: 0.6 });
+          this.hud?.deny(slot);
+        }
       },
     };
     this.orders = new Orders(env);
@@ -565,6 +571,8 @@ export class MatchSession {
       pingWheel: this.pingWheel,
       ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
       simMe: () => this.ownSim,
+      // Audit CF-12: a refused desktop cast flashes its HUD slot red
+      onDeny: (slot) => this.hud?.deny(slot),
     };
     this.desktop = new DesktopInput(inputHost);
     this.touch = new TouchControls(inputHost, this.ui, this.desktop);
@@ -1159,15 +1167,30 @@ export class MatchSession {
     this.menu = menuScreen(this.ui, {
       muted: this.muted,
       touch,
-      onScores: () => this.showScores(true),
+      // Audit UX-05: Scores hides the pause card (it drew over the scoreboard) and adds a Back to it
+      onScores: () => this.menuScores(),
+      ...(this.hooks.onSettings
+        ? {
+            onSettings: () => {
+              this.menu?.classList.add('under');
+              this.hooks.onSettings?.(() => this.menu?.classList.remove('under'));
+            },
+          }
+        : {}),
       onResume: () => this.resume(),
+      // the camera zoom slider: the view eases to it behind the menu
+      onZoom: (z) => {
+        this.view.zoomTarget = z;
+      },
       onMute: (m) => {
         this.muted = m;
         this.hooks.onMute(m);
       },
+      leaveCounts: this.leaveCounts(),
       onLeave: () => {
+        const counted = this.leaveCounts() ? { ticks: this.buffer.latest?.clock.tick ?? 0, takedowns: this.myTakedowns() } : undefined;
         this.resume();
-        this.hooks.onLeave();
+        this.hooks.onLeave(counted);
       },
       // GAPS B2: Forfeit (a confirm step in the menu); the sim ends the match on its next tick
       ...(this.setup.forfeitFrom ? { forfeit: { from: this.setup.forfeitFrom, tick: this.buffer.latest?.clock.tick ?? 0 }, onForfeit: () => this.forfeit() } : {}),
@@ -1183,6 +1206,16 @@ export class MatchSession {
           }
         : {}),
     });
+  }
+
+  /** Audit UX-03: a solo match that offers Forfeit (match 4 on, never Rookie) records a Leave as a forfeit loss. */
+  private leaveCounts(): boolean {
+    return !this.setup.party && !!this.setup.forfeitFrom;
+  }
+
+  /** The player's takedowns so far (kills + assists), for a leave recorded as a forfeit. */
+  private myTakedowns(): number {
+    return this.announcer?.takedowns ?? 0;
   }
 
   /** GAPS B2: send Op.Forfeit and unpause; the end arrives as a normal (lost, reason 'forfeit') match end. */
@@ -1258,6 +1291,36 @@ export class MatchSession {
   private mpLive = false;
 
   /** Scoreboard by tap (pause menu or the score bar on touch); a tap on it closes it. */
+  /** Audit UX-05: the scoreboard from the pause menu: the menu hides under it, and Back (or Esc) brings it back. */
+  private menuScores(): void {
+    if (!this.menu) return;
+    this.menu.classList.add('under');
+    this.showScores(true);
+    const back = document.createElement('button');
+    back.className = 'pl-btn big pl-scores-back';
+    back.textContent = 'Back';
+    const done = (): void => {
+      back.remove();
+      document.removeEventListener('keydown', onKey, true);
+      this.showScores(false);
+      this.menu?.classList.remove('under');
+    };
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      e.preventDefault();
+      done();
+    };
+    back.addEventListener('click', done);
+    document.addEventListener('keydown', onKey, true);
+    // beside the scoreboard (it redraws its own markup), above its tap layer
+    this.ui.appendChild(back);
+    this.scoresBack = done;
+  }
+
+  /** Closes the pause menu's scoreboard (UX-05), if it is open. */
+  private scoresBack: (() => void) | null = null;
+
   private showScores(on: boolean): void {
     this.scoreOn = on;
     this.scoreboard?.root.classList.toggle('tap', on);
@@ -1265,6 +1328,8 @@ export class MatchSession {
   }
 
   resume(): void {
+    this.scoresBack?.();
+    this.scoresBack = null;
     if (this.scoreboard?.root.classList.contains('tap')) this.showScores(false);
     this.menu?.remove();
     this.menu = null;

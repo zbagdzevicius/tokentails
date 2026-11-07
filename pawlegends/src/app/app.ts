@@ -96,14 +96,11 @@ function installFont(): void {
   try {
     if (typeof FontFace === 'undefined' || !document.fonts) return;
     const base = import.meta.env.BASE_URL ?? './';
-    const face = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Latin.woff2") format("woff2")`, { weight: '300 700', display: 'swap' });
-    face
-      .load()
-      .then((f) => document.fonts.add(f))
-      .catch(() => undefined);
     // Sim v9: the champion names Avietė and Gabė. Fredoka has no precomposed ė, but it has e and the combining dot
     // (U+0307), so the UI writes those names decomposed (data/heroes/shelter.ts `uiName`). A cluster e + dot must come
-    // from one face, so this one (the whole font) covers Basic Latin too, not only the marks.
+    // from one face, so this one (the whole font) covers Basic Latin too.
+    // Audit GFX-14: it is the only face now. The separate Latin file (65 KB) only duplicated its Basic Latin, so the
+    // game loaded 152 KB of fonts for one family; index.html preloads this file.
     const ext = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Ext.woff2") format("woff2")`, {
       weight: '300 700',
       display: 'swap',
@@ -744,7 +741,12 @@ export class App {
           sfx.play('click');
           this.startMatch(c);
         },
-        onBack: () => this.showTitle(),
+        onBack: () => {
+          // Audit UX-08: Back from a "Try <hero>" pick goes home on the hero the player had, not the teased one
+          if (this.beforeTry) this.choice = { ...this.choice, hero: this.beforeTry.hero, trick: this.beforeTry.trick };
+          this.beforeTry = null;
+          this.showTitle();
+        },
         difficulties: pickable(),
         difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `Easy bots. More bots after ${PICK_DIFFICULTY_FROM} matches.`,
         numbers: p.numbers,
@@ -889,6 +891,7 @@ export class App {
   }
 
   private startMatch(pick: Choice, seed?: number): void {
+    this.beforeTry = null;
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
     // a dare keeps its own bots (the seed and the difficulty make the dare)
@@ -964,6 +967,9 @@ export class App {
       });
   }
 
+  /** Audit UX-08: the hero and trick before the results' "Try <hero>" swapped them in (Back on the pick restores them). */
+  private beforeTry: { hero: HeroId; trick: Choice['trick'] } | null = null;
+
   /** A newer startMatch call wins over a match chunk still loading. */
   private matchToken = 0;
   /** A host pause (or a hidden tab) that arrived while the match chunk loaded: applied when the session starts. */
@@ -973,13 +979,16 @@ export class App {
   private beginSession(Session: typeof MatchSession, setup: MatchSetup, c: Choice, veil: HTMLElement): void {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
-      onLeave: () => {
+      onLeave: (counted) => {
         if (setup.party) return this.backToParty();
+        if (counted) this.recordLeave(c, counted);
         this.session?.dispose();
         this.session = null;
         this.showTitle();
       },
       onMute: (m) => this.setMuted(m),
+      // Audit UX-09: Settings from the pause menu (the menu comes back when it closes)
+      onSettings: (done) => this.openSettings(done),
       onError: (msg) => {
         // Reported as a worker crash; the window listener then only shows the overlay for it.
         const err = new Error(`sim: ${msg}`);
@@ -997,6 +1006,18 @@ export class App {
     this.pendingPause = false;
     setTimeout(() => veil.classList.add('out'), 250);
     setTimeout(() => veil.remove(), 900);
+  }
+
+  /**
+   * Audit UX-03: from match 4 (solo, off Rookie) a Leave is recorded as a forfeit (client meta only, no sim op): a
+   * match and a loss on the profile, the full ladder loss, and match_end with reason 'leave' (the forfeit-rate
+   * measure saw nothing before). No Treat XP, quests or grade.
+   */
+  private recordLeave(c: Choice, at: { ticks: number; takedowns: number }): void {
+    const seconds = Math.floor(at.ticks / 30);
+    recordMatch(false, seconds, c.difficulty);
+    recordLadder({ won: false, difficulty: c.difficulty, hero: c.hero, heroName: HERO_TEXT[c.hero].title, seconds, takedowns: at.takedowns, grade: 'C', forfeit: true });
+    this.analytics.track('match_end', { result: 'lost', reason: 'leave', length: seconds, hero: c.hero, difficulty: c.difficulty, takedowns: at.takedowns, pl_match_len_s: seconds, pl_rookie: isRookie(c.difficulty) });
   }
 
   private showResults(e: MatchEnd): void {
@@ -1138,7 +1159,7 @@ export class App {
     // Lane F (F5): the progression summary from the sim's own stats (sim v12) and the player's Fish events
     const medalOf = medals(e.result.stats, grades.slots, grades.mvp);
     const progress = e.result.stats.some((st) => typeof st.fish === 'number')
-      ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
+      ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf, (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null))), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
       : null;
     const resultsEl = resultsScreen(this.root, {
         won,
@@ -1209,8 +1230,15 @@ export class App {
           if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
           const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;
+          this.beforeTry = tease ? { hero: this.choice.hero, trick: this.choice.trick } : null;
           this.choice = { ...this.choice, difficulty: keep, ...(tease ? { hero: tease } : {}) };
           this.showPick();
+        },
+        // Audit UX-08: Home from the results (the lobby, on the hero just played)
+        onHome: () => {
+          sfx.play('click');
+          if (partyEnd) return this.backToParty();
+          this.showTitle();
         },
         onShare: (url, text) => {
           try {
@@ -1361,8 +1389,11 @@ export class App {
     this.overlay = { close: () => el.remove() };
   }
 
-  private openSettings(): void {
-    if (this.overlay) return;
+  private openSettings(after?: () => void): void {
+    if (this.overlay) {
+      after?.();
+      return;
+    }
     const p = loadProfile();
     const el = settingsPanel(this.root, {
       state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.live : null, skinFx: p.skinFx },
@@ -1384,6 +1415,7 @@ export class App {
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();
+        after?.();
       },
     });
     this.overlay = { close: () => el.remove() };

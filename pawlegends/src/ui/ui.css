@@ -184,7 +184,20 @@ kbd {
 .pl-menu .keys { font-size: 12px; opacity: 0.75; line-height: 2; margin: 6px 0 0; }
 /* GAPS B2: Forfeit is disabled until its time (Easy 3:00, Normal and Hard 4:00); the confirm step's line */
 .pl-menu .pl-btn[disabled] { opacity: 0.45; cursor: default; }
-.pl-menu .pl-forfeit .sub { margin: 0 0 4px; font-size: 14px; opacity: 0.85; line-height: 1.4; }
+.pl-menu .pl-forfeit .sub, .pl-menu .pl-leave .sub { margin: 0 0 4px; font-size: 14px; opacity: 0.85; line-height: 1.4; }
+/* Short phones: the pause card (Resume, Scores, Sound, Settings, the zoom row, Forfeit, Leave) was 475 px tall at
+   844x390, so Leave sat off screen. Two columns for the smaller buttons, tighter spacing, and a scroll as a safety net. */
+@media (max-height: 480px) {
+  .pl-menu:not(.pl-settings):not(.pl-collection) > .card {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px; padding: 14px 18px; width: min(560px, calc(100vw - 32px)); max-width: none;
+    max-height: calc(100dvh - 16px); overflow-y: auto; box-sizing: border-box;
+  }
+  .pl-menu:not(.pl-settings):not(.pl-collection) > .card > :is(h2, .pl-btn.big, .set-zoom, .keys, .sub) { grid-column: 1 / -1; }
+  /* the confirm cards (Forfeit, Leave): both buttons full width */
+  .pl-menu > .card:is(.pl-forfeit, .pl-leave) > .pl-btn { grid-column: 1 / -1; }
+  .pl-menu:not(.pl-settings):not(.pl-collection) > .card .pl-btn { padding-top: 9px; padding-bottom: 9px; }
+  .pl-menu h2 { margin: 0; font-size: 20px; }
+}
 
 .pl-loading {
   position: absolute; inset: 0; z-index: 60; display: grid; place-content: center; justify-items: center; gap: 12px; background: var(--bg);
@@ -278,6 +291,9 @@ kbd {
 .pl-slot .num { position: absolute; inset: 0; display: grid; place-items: center; font-size: 20px; color: #fff; text-shadow: 0 2px 0 #000; }
 .pl-slot kbd { position: absolute; left: 2px; bottom: 2px; font-size: 9px; padding: 2px 3px; }
 .pl-slot.pulse { animation: pl-pulse 0.3s; }
+/* Audit CF-12: a refused cast on desktop flashes its slot red (the deny sound alone was easy to miss) */
+.pl-slot.deny { animation: pl-slotdeny 0.32s ease-out; }
+@keyframes pl-slotdeny { 0%, 45% { box-shadow: 0 0 0 3px var(--enemy), 0 0 14px rgba(255, 77, 94, 0.7); } 100% { box-shadow: none; } }
 @keyframes pl-pulse { 40% { transform: scale(1.14); border-color: var(--butter); } }
 .pl-hp { position: relative; height: 16px; border-radius: 8px; background: rgba(20, 12, 22, 0.8); overflow: hidden; }
 .pl-hp .fill { position: absolute; left: 0; top: 0; bottom: 0; background: linear-gradient(180deg, #8ff07a, #4fc35f); transition: width 0.15s; }
@@ -316,7 +332,19 @@ kbd {
 }
 .pl-minimap canvas { width: 100%; height: 100%; display: block; cursor: pointer; }
 
+/* Audit GFX-12: the big "Back in N" in the middle of the screen while the hero is out (under the respawn card) */
+.pl-backin {
+  position: absolute; left: 50%; top: 40%; transform: translate(-50%, -50%); z-index: 6; pointer-events: none; display: none; text-align: center;
+  color: #fff3dc; text-shadow: 0 3px 0 rgba(42, 26, 34, 0.85), 0 0 18px rgba(0, 0, 0, 0.55);
+}
+.pl-backin.on { display: block; }
+.pl-backin small { display: block; font: 700 15px/1 var(--font); letter-spacing: 0.06em; text-transform: uppercase; opacity: 0.9; }
+.pl-backin b { display: block; font: 800 64px/1 var(--font); font-variant-numeric: tabular-nums; }
+@media (max-height: 480px) { .pl-backin small { font-size: 12px; } .pl-backin b { font-size: 44px; } }
 .pl-scoreboard { position: absolute; inset: 0; display: none; place-items: center; z-index: 8; }
+/* Audit UX-05 / UX-09: the pause card steps aside while its Scores or Settings are open; Back sits beside the scoreboard, above its tap layer */
+.pl-menu.under { visibility: hidden; }
+.pl-scores-back { position: absolute; right: calc(14px + var(--safe-r)); bottom: calc(14px + var(--safe-b)); z-index: 46; pointer-events: auto; min-width: 110px; }
 .pl-scoreboard.on { display: grid; }
 .pl-scoreboard .card { background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 14px 20px; min-width: 520px; }
 .pl-scoreboard h3 { margin: 6px 0; font-size: 16px; }
@@ -418,13 +446,11 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-tbtn.down { transform: scale(0.92); border-color: var(--butter); }
 .pl-tbtn.deny { border-color: var(--enemy); }
 .pl-tbtn.locked { opacity: 0.4; filter: grayscale(1); }
-.pl-tbtn.attack { right: 0; bottom: 0; width: 96px; height: 96px; font-size: 18px; background: rgba(229, 72, 77, 0.78); border-color: rgba(255, 243, 220, 0.75); }
-.pl-tbtn.q { right: 112px; bottom: 6px; }
-.pl-tbtn.w { right: 94px; bottom: 82px; }
-.pl-tbtn.e { right: 26px; bottom: 116px; }
-.pl-tbtn.r { right: 164px; bottom: 100px; width: 70px; height: 70px; border-color: rgba(255, 210, 122, 0.8); }
-.pl-tbtn.trick { right: -16px; bottom: 112px; width: 48px; height: 48px; font-size: 13px; }
-.pl-tbtn.nap { right: 186px; bottom: 6px; width: 46px; height: 46px; font-size: 12px; }
+/* Audit CF-04: every button's place and size comes from input/touch/touchArc.ts (inline styles, scaled per screen) */
+.pl-tbtn.attack { font-size: 18px; background: rgba(229, 72, 77, 0.78); border-color: rgba(255, 243, 220, 0.75); }
+.pl-tbtn.r { border-color: rgba(255, 210, 122, 0.8); }
+.pl-tbtn.trick { font-size: 13px; }
+.pl-tbtn.nap { font-size: 12px; }
 /* C9: Nap is a 300 ms hold: a cream ring fills around the button while it is held */
 .pl-tbtn.nap::before { content: ''; position: absolute; inset: 0; border-radius: 50%; background: conic-gradient(rgba(255, 243, 220, 0.85) var(--napfill, 0deg), transparent 0); opacity: 0; }
 .pl-tbtn.nap.holding::before { opacity: 1; animation: pl-napfill 300ms linear forwards; }
@@ -434,13 +460,29 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-tbtn.attack.deny { animation: pl-atkdeny 300ms ease-out; }
 @keyframes pl-atkdeny { 0%, 40% { border-color: #fff; box-shadow: 0 0 0 4px var(--enemy), 0 4px 12px rgba(0, 0, 0, 0.35); } 100% { box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35); } }
 .pl-cancel {
-  /* C9: above the ability cluster (out of the screen's middle third, where it sat over the fight), under the minimap. */
-  position: absolute; right: calc(118px + var(--safe-r)); bottom: calc(196px + var(--safe-b)); width: 56px; height: 56px; border-radius: 50%;
+  /* Audit CF-01: top centre, under the score bar, out of every skill's drag reach (it sat 86-91 px from E and W, so a
+     full-range up or up-left aim landed on it). It cancels only after a 120 ms rest (touchControls CANCEL_DWELL_MS). */
+  position: absolute; left: 50%; top: calc(72px + var(--safe-t)); width: 56px; height: 56px; border-radius: 50%; transform: translateX(-50%);
   display: none; place-items: center; font-size: 30px; background: rgba(20, 12, 22, 0.85); border: 3px solid rgba(255, 243, 220, 0.9); color: var(--cream);
-  box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75);
+  box-shadow: 0 0 0 2px rgba(20, 12, 22, 0.75); transition: background 0.12s, transform 0.12s;
 }
 .pl-cancel.on { display: grid; }
-.pl-cancel.hot { background: var(--enemy); border-color: #fff; transform: scale(1.15); }
+/* Audit CF-06: the aim ring at the thumb: the smart-cast centre and the full-range ring of a ground or unit aim */
+.pl-aimring { position: absolute; left: 0; top: 0; width: 0; height: 0; display: none; pointer-events: none; z-index: 1; }
+.pl-aimring.on { display: block; }
+.pl-aimring i { position: absolute; left: 0; top: 0; border-radius: 50%; transform: translate(-50%, -50%); }
+.pl-aimring .full { width: var(--full, 180px); height: var(--full, 180px); border: 2px dashed rgba(255, 243, 220, 0.55); background: radial-gradient(circle, transparent 60%, rgba(255, 210, 122, 0.08)); }
+.pl-aimring .smart { width: var(--smart, 48px); height: var(--smart, 48px); border: 2px solid rgba(255, 243, 220, 0.7); background: rgba(20, 12, 22, 0.25); }
+.pl-aimring.dir .full { display: none; }
+.pl-aimring.back .smart { border-color: var(--butter); background: rgba(255, 211, 77, 0.28); box-shadow: 0 0 10px rgba(255, 211, 77, 0.6); }
+/* Audit CF-09: the locked ult says when it opens */
+.pl-tbtn .lv { display: none; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); z-index: 4; padding: 0 6px; border-radius: 999px; font: 800 10px/15px var(--font); font-style: normal; white-space: nowrap; background: var(--butter); color: #4a2a1f; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
+.pl-tbtn.r.locked .lv { display: block; }
+/* the button dims its insides, not the badge */
+.pl-tbtn.r.locked { overflow: visible; opacity: 1; filter: none; }
+.pl-tbtn.r.locked > :not(.lv) { opacity: 0.4; filter: grayscale(1); }
+.pl-cancel.arming { border-color: #fff; transform: translateX(-50%) scale(1.06); }
+.pl-cancel.hot { background: var(--enemy); border-color: #fff; transform: translateX(-50%) scale(1.15); }
 html[data-touch='1'] .pl-slots { display: none; }
 html[data-touch='1'] .pl-bar { left: calc(16px + var(--safe-l)); transform: none; bottom: auto; top: calc(10px + var(--safe-t)); padding: 6px 10px 6px 6px; border-radius: 16px; }
 html[data-touch='1'] .pl-portrait { width: 44px; height: 44px; }
@@ -590,6 +632,12 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .pl-settings .set-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .pl-settings .chips { display: flex; gap: 6px; }
 .pl-settings .pl-btn.big { align-self: center; }
+/* camera zoom slider (ui/zoomSlider.ts): Settings and the pause menu */
+.set-zoom { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.set-zoom .zoom-ctl { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.set-zoom input[type='range'] { width: min(200px, 40vw); accent-color: var(--butter); touch-action: pan-x; }
+.set-zoom output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
+.pl-menu .set-zoom { font-size: 14px; }
 
 .pl-consent {
   position: absolute; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translateX(-50%); z-index: 25; display: flex; gap: 10px; align-items: center;
@@ -672,6 +720,17 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 /* GAPS A1: the Treat Track chest screen and the profile shelf */
 .pl-collection .card { text-align: left; max-width: 640px; max-height: calc(100dvh - 32px); overflow-y: auto; }
 .pl-collection h2 { text-align: center; }
+/* Audit UX-10: Treat Track and Settings keep their exits on screen: a sticky corner ✕ and a sticky Done (bottom -6px:
+   the button and its 4 px shadow end above the viewport edge at 844x390 and 667x375; -14px cut 2 px off) */
+.pl-settings .card { max-height: calc(100dvh - 24px); overflow-y: auto; }
+.pl-collection .card > .pl-x, .pl-settings .card > .pl-x {
+  position: sticky; top: -8px; align-self: flex-end; margin: -10px -12px -36px 0; z-index: 2; width: 44px; height: 44px; flex: none; border-radius: 50%;
+  border: 1px solid var(--line); background: rgba(30, 19, 35, 0.92); color: var(--cream); font-size: 18px; cursor: pointer;
+}
+.pl-collection .card > .pl-x:hover, .pl-settings .card > .pl-x:hover { background: rgba(60, 38, 68, 0.95); }
+.pl-collection .card > .pl-btn.big[data-a='close'], .pl-settings .card > .pl-btn.big[data-a='close'] {
+  position: sticky; bottom: -6px; z-index: 2; align-self: center; box-shadow: 0 -10px 18px 6px var(--panel), 0 4px 0 #b8456a;
+}
 .pl-collection h3 { margin: 6px 0 0; font-size: 15px; }
 .pl-collection .next-chest { margin: 0; }
 .pl-collection .next-chest small { color: var(--butter); margin-left: 6px; }
@@ -775,6 +834,48 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .pl-results .actions.pinned .pl-btn.big { font-size: 17px; padding: 10px 22px; }
 }
 
+/* Audit UX-04: the reward strip pinned above Run it back (grade, Treat XP bar, chest toast, dare link); UX-08 Home */
+.pl-results .pl-reward {
+  position: absolute; right: calc(18px + var(--safe-r)); bottom: calc(96px + var(--safe-b)); z-index: 3; display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; border-radius: 16px; background: rgba(30, 19, 35, 0.82); border: 1px solid var(--line); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.3);
+  max-width: min(560px, calc(100vw - 36px)); opacity: 0; transform: translateY(8px); transition: opacity 0.4s, transform 0.4s; pointer-events: none;
+}
+.pl-results.in .pl-reward { opacity: 1; transform: none; pointer-events: auto; }
+.pl-reward .rw-grade { display: flex; align-items: center; gap: 6px; }
+.pl-reward .rw-grade b {
+  display: inline-grid; place-items: center; width: 34px; height: 34px; border-radius: 9px; font-size: 21px; line-height: 1;
+  background: rgba(255, 243, 220, 0.14); box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.35);
+}
+.pl-reward .rw-grade[data-grade='S'] b { background: var(--butter); color: #4a2a1f; }
+.pl-reward .rw-grade[data-grade='A'] b { color: var(--butter); box-shadow: inset 0 0 0 2px var(--butter); }
+.pl-reward small { font-size: 11px; opacity: 0.85; white-space: nowrap; }
+.pl-reward .rw-treat { display: flex; flex-direction: column; gap: 3px; min-width: 110px; }
+.pl-reward .rw-treat small { color: var(--butter); opacity: 1; font-weight: 700; }
+.pl-reward .rw-treat .bar { display: block; height: 7px; border-radius: 99px; background: rgba(255, 243, 220, 0.14); overflow: hidden; }
+.pl-reward .rw-treat .fill { display: block; height: 100%; width: var(--from); background: linear-gradient(90deg, #ffb84d, var(--butter)); border-radius: inherit; animation: pl-rwfill 0.9s 0.5s ease-out forwards; }
+@keyframes pl-rwfill { to { width: var(--to); } }
+.pl-reward .rw-chest { display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 10px; background: linear-gradient(90deg, rgba(255, 210, 122, 0.3), transparent); animation: pl-pop 0.5s 0.9s both; }
+.pl-reward .rw-chest .pl-icon { width: 20px; height: 20px; color: var(--butter); flex: none; }
+.pl-reward .rw-chest b, .pl-reward .rw-chest small { display: block; max-width: 160px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-reward .rw-chest b { font-size: 12px; }
+.pl-reward .rw-share { white-space: nowrap; }
+.pl-results .pl-home {
+  position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); z-index: 4; display: inline-flex; align-items: center; gap: 6px; min-height: 44px;
+}
+.pl-results .pl-home .pl-icon { width: 18px; height: 18px; }
+/* the MVP card sits top right: Home goes to its left on wide screens */
+.pl-results:has(.tt-mvp, .tt-mvp-slot) .pl-home { right: auto; left: calc(50% - 40px); }
+@media (prefers-reduced-motion: reduce) { .pl-reward .rw-treat .fill { animation: none; width: var(--to); } }
+@media (max-height: 480px) {
+  .pl-results .pl-reward { bottom: calc(74px + var(--safe-b)); padding: 4px 6px; gap: 6px; }
+  .pl-reward .rw-grade b { width: 28px; height: 28px; font-size: 17px; }
+  .pl-reward .rw-grade small { display: none; }
+  .pl-reward .rw-treat { min-width: 90px; }
+  .pl-reward .rw-chest small { display: none; }
+  .pl-reward .rw-share { padding: 6px 10px; font-size: 13px; }
+  .pl-results .pl-home { top: calc(8px + var(--safe-t)); padding: 6px 12px; }
+}
+
 /* Pick screen (round 0): chromas are colour swatches (the name in the tooltip and for screen readers), Play and the
    bots line sit outside the scrolling column so neither covers the other or the ability list. */
 .pl-pick .swatches { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
@@ -794,6 +895,9 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .pl-pick-foot { left: auto; right: calc(18px + var(--safe-r)); bottom: calc(10px + var(--safe-b)); width: auto; max-width: 42vw; align-items: flex-end; gap: 6px; }
   .pl-pick-foot .bots-hint { display: none; }
   .pl-pick .kit .t { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+  /* Audit UX-06: a tapped row shows its full text */
+  .pl-pick .kit li { cursor: pointer; }
+  .pl-pick .kit li.open .t { -webkit-line-clamp: unset; display: block; }
   .pl-pick .kit .num { display: none; }
   .pl-pick .kit li .ico { width: 20px; height: 20px; }
   .pl-pick .kit li { grid-template-columns: 22px 1fr; }
@@ -801,6 +905,11 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .hero-card { padding: 5px 4px; }
   .hero-card small { display: none; }
   .pl-pick-col { -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); padding-bottom: 18px; }
+}
+/* Audit UX-06: under 420 px of height (667x375) the ult row leads the kit, so R is never the row below the fold */
+@media (max-height: 420px) {
+  .pl-pick .kit { display: flex; flex-direction: column; }
+  .pl-pick .kit li.ult { order: -1; }
 }
 .pl-loading small.squad { display: block; margin-top: 6px; font-size: 14px; opacity: 0.85; }
 
@@ -924,8 +1033,10 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 html[data-touch='1'] .pl-strip.ally { right: auto; left: calc(80px + var(--safe-l)); top: calc(70px + var(--safe-t)); }
 html[data-touch='1'] .pl-strip .pp { width: 30px; height: 30px; }
 html[data-touch='1'] .pl-strip.enemy .pp { pointer-events: auto; touch-action: none; }
-/* a bigger hit area than the 30 px disc */
-html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolute; inset: -6px -3px; }
+/* Audit CF-10: a 44 px tall hit area around the 30 px disc (it was 32 × 38; the ::after starts inside the 2 px
+   border). Sideways it stops at the 4 px gap, since the 844x390 strip keeps its width; the phone layouts below give
+   each disc a full 44 × 44 area. */
+html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolute; inset: -9px -2px; }
 /* the owned emote chip moves under the enemy strip */
 .pl-emote { top: calc(56px + var(--safe-t)); }
 /* A5: the Attack button while a hero is locked, and the optional last-hit and tower buttons (off by default) */
@@ -935,10 +1046,7 @@ html[data-touch='1'] .pl-strip.enemy .pp::after { content: ''; position: absolut
   background: conic-gradient(rgba(255, 243, 220, 0.85) calc(var(--lock, 0) * 360deg), transparent 0);
   -webkit-mask: radial-gradient(circle, transparent 60%, #000 62%); mask: radial-gradient(circle, transparent 60%, #000 62%);
 }
-.pl-tbtn.lasthit, .pl-tbtn.tower { width: 44px; height: 44px; }
 .pl-tbtn.lasthit span, .pl-tbtn.tower span { font-size: 11px; }
-.pl-tbtn.lasthit { right: 42px; bottom: 182px; }
-.pl-tbtn.tower { right: -18px; bottom: 176px; }
 
 /* ---------------------------------------------------------------------------------------------- GAPS B1
    Command pings: the six-slice wheel (desktop: hold G at the cursor; touch: the paw button by the minimap), the paw
@@ -1292,6 +1400,10 @@ html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }
 .pl-results .pl-prog tr.enemy td.nm span { color: #ffb3bd; }
 .pl-results .pl-prog td.nm { display: flex; align-items: center; gap: 4px; max-width: 150px; }
 .pl-results .pl-prog td.nm span { overflow: hidden; text-overflow: ellipsis; }
+/* Audit UX-12: each row's hero portrait (a letter when no portrait is baked yet) */
+.pl-results .pl-prog .hp { flex: none; width: 18px; height: 18px; border-radius: 50%; object-fit: cover; background: rgba(255, 243, 220, 0.12); box-shadow: inset 0 0 0 1px rgba(255, 243, 220, 0.3); }
+.pl-results .pl-prog .hp.none { display: inline-grid; place-items: center; font: 700 10px/1 var(--font); font-style: normal; }
+.pl-results .pl-prog tr.enemy .hp { box-shadow: inset 0 0 0 1px rgba(255, 120, 140, 0.6); }
 .pl-results .pl-prog .tys { display: flex; gap: 2px; }
 .pl-results .pl-prog .tc { font-style: normal; font-size: 10px; line-height: 14px; min-width: 26px; text-align: center; border-radius: 4px; background: rgba(255, 255, 255, 0.06); opacity: 0.45; }
 .pl-results .pl-prog .tc.on { opacity: 1; background: rgba(255, 211, 77, 0.18); color: #fff1c4; }

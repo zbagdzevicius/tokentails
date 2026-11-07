@@ -294,7 +294,8 @@ html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
 .pl-scoreboard .sb-name { all: unset; cursor: pointer; text-decoration: underline dotted; min-height: 28px; pointer-events: auto; }
 .pl-strip .pp[data-ring] { box-shadow: 0 0 0 2px var(--ring); }
 .pl-strip .pp[data-bot='1'] { filter: grayscale(0.7); }
-.pl-strip .pp[data-bot='1']::after { content: '🤖'; position: absolute; right: -4px; top: -6px; font-size: 11px; }
+/* the bot badge is a ::before: the enemy portrait's ::after is its 44 px tap area on touch (audit CF-10) */
+.pl-strip .pp[data-bot='1']::before { content: '🤖'; position: absolute; right: -4px; top: -6px; font-size: 11px; z-index: 1; }
 
 /* Party play quick chat (MULTIPLAYER.md §7 M3, src/party/ui/quickChat.ts). Touch: a 44 px bubble under the paw
    button (right edges aligned, left of the minimap; the solo Wave chip is not mounted in party matches), so it never
