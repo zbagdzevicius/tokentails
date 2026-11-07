@@ -21,6 +21,11 @@ export const NATIVE_COMPAT = 1;
 /** Where tokentails.com serves the updates (client/public is the Vercel site root). */
 export const UPDATES_URL = 'https://tokentails.com/pawlegends-app/updates';
 export const MANIFEST_URL = `${UPDATES_URL}/ios/${NATIVE_COMPAT}/manifest.json`;
+/** The local test server a Debug build's `dev` channel reads (scripts/ota-local.mjs; the simulator shares the Mac's localhost). */
+export const LOCAL_PORT = 8787;
+export const LOCAL_UPDATES_URL = `http://localhost:${LOCAL_PORT}/pawlegends-app/updates`;
+/** How long a bundle stays on the beta channel (TestFlight) before the scheduled job promotes it to stable. */
+export const SOAK_HOURS = 24;
 /** OTA_UPDATES_DIR overrides it (a dry run into a scratch folder). */
 export const UPDATES_DIR = process.env.OTA_UPDATES_DIR ? resolve(process.env.OTA_UPDATES_DIR) : resolve(REPO_DIR, 'client/public/pawlegends-app/updates');
 

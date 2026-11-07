@@ -39,19 +39,45 @@ export interface BundleStamp {
 
 const VERSION = /^[0-9]{1,14}-[0-9a-z]{1,40}$/;
 const HTTPS_TT = /^https:\/\/(www\.)?tokentails\.com\/pawlegends-app\/updates\/ios\/[0-9]{1,3}\/bundles\/[0-9a-z.-]{1,80}\.zip$/;
+/** The local test server (scripts/ota-local.mjs). Accepted only on the `dev` channel, which only Debug builds have. */
+const LOCAL = /^http:\/\/(localhost|127\.0\.0\.1):[0-9]{2,5}\/pawlegends-app\/updates\/ios\/[0-9]{1,3}\/bundles\/[0-9a-z.-]{1,80}\.zip$/;
 const HEX = /^[0-9a-f]{512}$/;
 const SESSION = /^[A-Za-z0-9+/=]{24}:[A-Za-z0-9+/=]{344}$/;
 const SEMVER = /^[0-9]{1,4}(\.[0-9]{1,4}){0,2}$/;
 const B64 = /^[A-Za-z0-9+/=]{16,1024}$/;
 
-/** A manifest, or null for anything malformed or not meant for this compat level. Never throws. */
-export function parseManifest(v: unknown, compat: number): OtaManifest | null {
+/**
+ * Update channels. The native shell injects `window.__PL_CHANNEL__` (GameViewController.swift): App Store installs
+ * read `stable`, TestFlight installs `beta` (every push to main lands there first; `stable` follows after a soak,
+ * see scripts/ota-publish.mjs --promote), and Debug builds `dev` (a local server on the Mac, scripts/ota-local.mjs).
+ */
+export type Channel = 'stable' | 'beta' | 'dev';
+
+export function channelOf(v: unknown): Channel {
+  return v === 'beta' || v === 'dev' ? v : 'stable';
+}
+
+/** The manifest file a channel reads, inside `<updates>/ios/<compat>/`. */
+export function manifestFile(channel: Channel): string {
+  return channel === 'stable' ? 'manifest.json' : 'manifest-beta.json';
+}
+
+/** Where a channel's manifest lives (`dev` reads the beta file from the local test server). */
+export function manifestUrl(channel: Channel, updatesUrl: string, localUrl: string, compat: number): string {
+  return `${channel === 'dev' ? localUrl : updatesUrl}/ios/${compat}/${manifestFile(channel)}`;
+}
+
+/**
+ * A manifest, or null for anything malformed or not meant for this compat level. Never throws. Bundles must come
+ * from tokentails.com over https; `allowLocal` (the dev channel only) also accepts the local test server.
+ */
+export function parseManifest(v: unknown, compat: number, allowLocal = false): OtaManifest | null {
   if (!v || typeof v !== 'object') return null;
   const m = v as Record<string, unknown>;
   if (m.schema !== 1 || m.platform !== 'ios' || m.compat !== compat) return null;
   if (typeof m.version !== 'string' || !VERSION.test(m.version)) return null;
   if (typeof m.seq !== 'number' || !Number.isSafeInteger(m.seq) || m.seq <= 0) return null;
-  if (typeof m.url !== 'string' || !HTTPS_TT.test(m.url)) return null;
+  if (typeof m.url !== 'string' || !(HTTPS_TT.test(m.url) || (allowLocal && LOCAL.test(m.url)))) return null;
   if (typeof m.checksum !== 'string' || !HEX.test(m.checksum)) return null;
   if (typeof m.sessionKey !== 'string' || !SESSION.test(m.sessionKey)) return null;
   if (typeof m.simVersion !== 'number' || !Number.isInteger(m.simVersion)) return null;

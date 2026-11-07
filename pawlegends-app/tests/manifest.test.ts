@@ -5,7 +5,7 @@
 import { createDecipheriv, createHash, createPublicKey, publicDecrypt, constants } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { canonicalManifest as scriptCanonical, encryptBundle, generateKeys, signManifest, spkiPem } from '../scripts/lib/capgo-crypto.mjs';
-import { canonicalManifest, compareVersions, decide, parseManifest, safeToApply, verifyManifest, type BundleStamp, type OtaManifest } from '../src/shell/manifest';
+import { canonicalManifest, channelOf, compareVersions, decide, manifestFile, manifestUrl, parseManifest, safeToApply, verifyManifest, type BundleStamp, type OtaManifest } from '../src/shell/manifest';
 
 const keys = generateKeys() as { privatePem: string; publicPem: string };
 const other = generateKeys() as { privatePem: string; publicPem: string };
@@ -46,6 +46,32 @@ describe('parseManifest', () => {
     expect(parseManifest({ ...manifest(), version: '../../etc' }, 1)).toBeNull();
     expect(parseManifest(null, 1)).toBeNull();
     expect(parseManifest('{}', 1)).toBeNull();
+  });
+});
+
+describe('channels', () => {
+  const site = 'https://tokentails.com/pawlegends-app/updates';
+  const local = 'http://localhost:8787/pawlegends-app/updates';
+  it('App Store reads stable, TestFlight and Debug read beta (Debug from the local server)', () => {
+    expect(manifestUrl('stable', site, local, 1)).toBe(`${site}/ios/1/manifest.json`);
+    expect(manifestUrl('beta', site, local, 1)).toBe(`${site}/ios/1/manifest-beta.json`);
+    expect(manifestUrl('dev', site, local, 2)).toBe(`${local}/ios/2/manifest-beta.json`);
+    expect(manifestFile('stable')).toBe('manifest.json');
+  });
+  it('anything but beta or dev from the native shell is stable', () => {
+    expect(channelOf('beta')).toBe('beta');
+    expect(channelOf('dev')).toBe('dev');
+    for (const v of [undefined, null, '', 'BETA', 'staging', 1]) expect(channelOf(v)).toBe('stable');
+  });
+  it('the local test server is accepted on the dev channel only', () => {
+    const m = manifest({ url: 'http://localhost:8787/pawlegends-app/updates/ios/1/bundles/202611071530-abc1234.zip' });
+    expect(parseManifest(m, 1)).toBeNull();
+    expect(parseManifest(m, 1, true)?.url).toBe(m.url);
+    expect(parseManifest(manifest({ url: 'http://127.0.0.1:8787/pawlegends-app/updates/ios/1/bundles/x.zip' }), 1, true)).not.toBeNull();
+    expect(parseManifest(manifest({ url: 'http://evil.example:8787/pawlegends-app/updates/ios/1/bundles/x.zip' }), 1, true)).toBeNull();
+    expect(parseManifest(manifest({ url: 'http://localhost.evil.example/pawlegends-app/updates/ios/1/bundles/x.zip' }), 1, true)).toBeNull();
+    // production bundles still pass on the dev channel
+    expect(parseManifest(manifest(), 1, true)).not.toBeNull();
   });
 });
 

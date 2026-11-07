@@ -37,4 +37,23 @@ class GameViewController: CAPBridgeViewController {
         config.suppressesIncrementalRendering = false
         return config
     }
+
+    /// The OTA channel (src/shell/manifest.ts), set before any page script so every bundle (built in or updated)
+    /// reads the channel of the binary it runs in. Added here, not in webViewConfiguration: Capacitor swaps in its
+    /// own userContentController between the two calls.
+    override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
+        let channel = WKUserScript(source: "window.__PL_CHANNEL__ = '\(GameViewController.otaChannel)';", injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        configuration.userContentController.addUserScript(channel)
+        return super.webView(with: frame, configuration: configuration)
+    }
+
+    /// `dev` for Debug builds (a local update server, scripts/ota-local.mjs), `beta` for TestFlight installs (their
+    /// receipt is a sandbox receipt), `stable` for App Store installs. Beta gets each update a day before stable.
+    static var otaChannel: String {
+        #if DEBUG
+        return "dev"
+        #else
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt" ? "beta" : "stable"
+        #endif
+    }
 }

@@ -19,6 +19,7 @@
     "screenshots": "node scripts/screenshots.mjs",
     "ota:keygen": "node scripts/ota-keygen.mjs",
     "ota:publish": "node scripts/ota-publish.mjs",
+    "ota:local": "node scripts/ota-local.mjs",
     "privacy:check": "node scripts/check-privacy-manifests.mjs"
   },
   "dependencies": {
