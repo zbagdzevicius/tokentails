@@ -6,7 +6,7 @@ Google Cloud, one region (europe-west3, Frankfurt), with Cloudflare staying in f
 billable step below is yours to run, in your own terminal.
 
 Contents: [Architecture](#architecture) · [Guardrails](#guardrails) · [What is in this folder](#what-is-in-this-folder) ·
-[Testing without a cloud](#testing-without-a-cloud) · [Migration steps](#migration-steps) · [Deploys](#deploys) ·
+[Testing without a cloud](#testing-without-a-cloud) · [Staging](#staging-throwaway-rehearsal) · [Migration steps](#migration-steps) · [Deploys](#deploys) ·
 [Operations](#operations) · [Cost](#cost) · [Decisions and defaults](#decisions-and-defaults) ·
 [Known gaps](#known-gaps-and-things-to-verify-on-the-first-apply)
 
@@ -50,21 +50,25 @@ in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a 
 
 ## Guardrails
 
-- The project is **`tokentails-prod`** on the founder's own billing account. The gcloud default on the founder's
-  Mac is `motored-497708`, which belongs to another company: **never target it**. Terraform's `project_id` has no
-  default and a validation refuses anything that is not `tokentails-*` (and that id by name); `bootstrap/` does the
-  same; `deploy-gcp.yml`, `deploy-run.sh` and `deploy-relay.sh` refuse any other project; `preflight.sh` refuses to run
-  when an env var or tfvars file targets it.
+- Production is the project **`gleaming-medium-480114-g5`** (already created by the founder) on the founder's own
+  billing account; **`tokentails-staging`** is a throwaway project for the rehearsal ([Staging](#staging-throwaway-rehearsal)).
+  The gcloud default on the founder's Mac is `motored-497708`, which belongs to another company: **never target it,
+  nor any `motored-*` project**. Terraform's `project_id` has no default and a validation admits only the allow-list
+  `gleaming-medium-480114-g5`, `tokentails-staging` and refuses anything starting with `motored` (`envs/prod` and
+  `bootstrap/`; `envs/staging` admits `tokentails-staging` only); `deploy-run.sh`, `deploy-relay.sh`,
+  `replace-relay.sh` and `cutover-relay.sh` refuse any project off that list; `deploy-gcp.yml` and `terraform.yml`
+  accept the production project only; `preflight.sh` refuses to run when an env var or tfvars file targets a project
+  off the list.
 - Use a separate gcloud configuration for every command in this runbook, so a missing `--project` can never land on
   the other company's project:
 
   ```bash
   gcloud config configurations create tokentails --no-activate
   export CLOUDSDK_ACTIVE_CONFIG_NAME=tokentails          # in each shell you use for Token Tails
-  gcloud config set project tokentails-prod
+  gcloud config set project gleaming-medium-480114-g5
   gcloud config set compute/region europe-west3
   gcloud auth login                                     # the founder's Token Tails Google account
-  gcloud config get project                             # must print tokentails-prod
+  gcloud config get project                             # must print gleaming-medium-480114-g5
   ```
 - Terraform creates secret **containers and IAM only**, never secret versions. Values are added by you with
   `gcloud secrets versions add` (step 3). Terraform state never holds a secret value.
@@ -75,14 +79,16 @@ in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a 
 
 | Path | What |
 |---|---|
-| `terraform/bootstrap/` | The versioned, private state bucket `tokentails-prod-tfstate` (local state, run once) |
+| `terraform/bootstrap/` | The versioned, private state bucket `gleaming-medium-480114-g5-tfstate` (local state, run once) |
+| `terraform/envs/staging/` | The throwaway rehearsal stack in `tokentails-staging`: the same modules, no DNS (self-signed certificate, HTTP on :80, the operator's /32 in Cloud Armor), a mongo:7 VM instead of Atlas, deletion protection off, local state outside the repo ([Staging](#staging-throwaway-rehearsal)) |
 | `terraform/envs/prod/` | The production stack: `main.tf`, `variables.tf` (validations), `versions.tf` (google and google-beta `~> 6.0`, terraform `>= 1.9`), `backend.tf` (partial GCS config), `terraform.tfvars.example` |
 | `terraform/modules/` | `project_services`, `network` (VPC, subnet, proxy-only subnet, router, NAT + static IP, firewall), `artifact_registry`, `secrets`, `service_accounts`, `cloud_run_service`, `cloud_run_job` (`tt-migrate`), `relay_vm` (template, cloud-init, regional MIG, health checks, autohealing), `edge_lb_regional` (IP, cert, NEGs, backends, URL map, proxy, forwarding rule, Cloud Armor), `wif_github`, `monitoring` (log metrics, uptime checks, alerts, latency SLO), `budget`, `static_assets` (private media bucket, off by default) |
-| `tests/` | `terraform test` suites with mocked providers (no credentials): `prod.tftest.hcl`, `guard.tftest.hcl`, `bootstrap/` |
+| `tests/` | `terraform test` suites with mocked providers (no credentials): `prod.tftest.hcl`, `guard.tftest.hcl`, `bootstrap/`, `staging/` |
 | `tools/ws-latency.mjs` | Relay latency check: N sockets, hello/welcome and ping/pong p50/p95/p99; also the forged-header test |
 | `tools/ws-origin-shim.mjs` | Lets `pawlegends/tests/e2e/mp/load.mjs` run against a production-mode relay (Origin header, `/healthz` counters) |
 | `scripts/preflight.sh` | Every offline check below in one command |
 | `scripts/deploy-run.sh`, `scripts/deploy-relay.sh` | Called by `.github/workflows/deploy-gcp.yml` |
+| `scripts/staging-secrets.sh` | Throwaway secret values for `tokentails-staging` only (openssl rand, a fresh RSA key; never a production value) |
 | `scripts/replace-relay.sh` | Rolls a changed relay instance template out in a quiet hour (waits for 0 live rooms) |
 | `scripts/cutover-relay.sh` | Step 6.3: hands DigitalOcean's live matches to the Google relay while you archive DigitalOcean |
 | `../../backend/Dockerfile`, `../../client/Dockerfile`, `../../cms/Dockerfile` | Images (multi-stage, non-root, tini, `PORT`) |
@@ -104,7 +110,9 @@ infra/gcp/scripts/preflight.sh --all    # + backend lint/build/tests, backend im
 
 What the runs assert (all passing on 2026-11-07):
 
-- **Project guard**: `motored-497708`, `acme-prod` and `tokentails` are refused; `tokentails-prod` is accepted.
+- **Project guard**: `motored-497708`, `motored-dev`, `acme-prod`, `tokentails`, `tokentails-prod` and the look-alike
+  `gleaming-medium-480114-g6` are refused; `gleaming-medium-480114-g5` and `tokentails-staging` are accepted;
+  `envs/staging` refuses the production project, an operator range of `0.0.0.0/0` and real (non-`.test`) hostnames.
 - **Relay**: MIG size ≥ 1, never two at once (`max_surge 0`), `MIGRATE` on host maintenance, no external IP, Shielded
   VM, autoheal delay ≥ 120 s, `NODE_ENV=production` + `BACKEND_ROLE=relay`, systemd unit with `docker stop -t 60`, no
   konlet; `OPPORTUNISTIC` updates (a template change never replaces the VM by itself); env and secret pins in project
@@ -140,6 +148,84 @@ What the runs assert (all passing on 2026-11-07):
 
 Docker Desktop numbers are not a sizing result. `MAX_LIVE_ROOMS` is set from the run on the real VM (step 5).
 
+## Staging (throwaway rehearsal)
+
+`terraform/envs/staging` deploys the same modules into **`tokentails-staging`** to prove the setup works, then
+everything is destroyed. Budget: under about $15, torn down within a few hours. What differs from production:
+
+| | Production (`envs/prod`) | Staging (`envs/staging`) |
+|---|---|---|
+| Project | `gleaming-medium-480114-g5` | `tokentails-staging` only (validation) |
+| Hosts and DNS | real hosts, Cloudflare, managed certificate (DNS authorization) | fake `*.staging.tokentails.test` hosts, no DNS; a self-signed certificate (Terraform `tls`), plain HTTP on :80 too |
+| Cloud Armor | Cloudflare ranges only, default deny | the same rules plus the operator's own `/32` (`operator_cidrs`, never `0.0.0.0/0`), default deny |
+| Cloud Run ingress | load balancer only | the same (reached through the load balancer IP) |
+| Database | MongoDB Atlas | a throwaway `mongo:7` VM (`tt-mongo`, e2-small, COS, no external IP, no auth, port 27017 from the main subnet only, fixed IP 10.10.0.50) |
+| Secrets | the founder's real values | throwaway values from `scripts/staging-secrets.sh` (openssl rand, a fresh RSA key as `FB_PRIVATE_KEY`); 6 secrets, each at version 1 |
+| Sizes | api 1 vCPU/2 GiB min 1, web min 1, relay t2d-standard-2, 3 zones | api 1 vCPU/1 GiB min 1 max 1, web and cms min 0 max 1, relay e2-standard-2, one zone |
+| CI, WIF, deploy/plan accounts, custom role | yes | none (the operator deploys with their own owner credentials) |
+| Monitoring, budget | on | off by default (`monitoring_enabled`, `budget_enabled`) |
+| Deletion protection | on | off; `force_destroy` on the optional media bucket |
+| State | GCS bucket from `bootstrap/` | local state **outside the repo** (`-backend-config=path=...`) |
+
+Crons are off on staging by default (`api_extra_env`: `CRONS_ENABLED=false`, `IMPACT_JOBS_ENABLED=false`), since no
+real keys exist there. Firebase sign-in cannot work (the key is a throwaway), so the test covers health, readiness,
+Mongo, the relay WebSocket path, Cloud Armor, web and CMS, not signed-in flows.
+
+The budget is optional because a billing budget needs billing-account rights; with `monitoring_enabled = false` a
+budget mails the billing account's admins by default, which on this account includes a mailbox of another company,
+so keep it off unless `monitoring_enabled` (with your own `alert_email`) is on too.
+
+Run it from your own terminal. Every gcloud call names the project; nothing changes the gcloud default:
+
+```bash
+export P=tokentails-staging S=/path/outside/the/repo     # S: state, plan and logs
+export GOOGLE_CLOUD_QUOTA_PROJECT=$P                      # quota and billing headers on the staging project
+gcloud auth application-default print-access-token >/dev/null || \
+  export GOOGLE_OAUTH_ACCESS_TOKEN=$(gcloud auth print-access-token)   # without ADC; refresh hourly
+cd infra/gcp/terraform/envs/staging
+cp terraform.tfvars.example terraform.tfvars              # operator_cidrs = ["$(curl -s https://api.ipify.org)/32"]
+terraform init -backend-config="path=$S/staging.tfstate"
+
+# 0. the provider bills API calls to $P (user_project_override): a fresh project needs these two on first
+gcloud services enable cloudresourcemanager.googleapis.com serviceusage.googleapis.com --project $P
+
+# 1. APIs, registry, accounts, secret containers, network, mongo VM (tags can be placeholders for this pass)
+terraform apply -target=module.project_services -target=module.artifact_registry -target=module.service_accounts \
+  -target=module.secrets -target=module.network -target=google_compute_instance.mongo \
+  -target=google_compute_firewall.mongo_from_subnet -target=google_compute_firewall.mongo_iap_ssh
+
+# 2. throwaway secret values (version 1 of each)
+../../../scripts/staging-secrets.sh
+
+# 3. images (linux/amd64), then set backend_tag, web_tag, cms_tag in terraform.tfvars
+gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
+SHA=$(git rev-parse --short HEAD); REG=europe-west3-docker.pkg.dev/$P/tokentails
+docker build --platform linux/amd64 -t $REG/backend:$SHA ../../../../../backend && docker push $REG/backend:$SHA
+#   web: build with a public.env whose API URL is https://api.staging.tokentails.test (no real values needed)
+
+# 4. everything else
+terraform plan -out "$S/staging.tfplan" && terraform apply "$S/staging.tfplan"
+terraform output smoke                                     # curl / ws-latency commands with the LB IP filled in
+```
+
+Checks (each command is in `terraform output smoke`): `/healthz` and `/readyz` on tt-api through :80 and :443 (`-k`),
+the relay through `/pawlegends/ws` (`ws-latency.mjs --connect <lb_ip> --insecure`), web and CMS answer, a request
+from another address gets 403 from Cloud Armor, `gcloud run jobs execute tt-migrate --region europe-west3 --project
+$P --wait` runs against the staging Mongo, and `systemctl restart tt-relay` over IAP SSH hands rooms off.
+
+Tear down the same day:
+
+```bash
+terraform destroy                                          # deletion protection is off, so this removes everything
+gcloud compute addresses list --project $P; gcloud run services list --project $P --region europe-west3   # empty
+rm -f "$S"/staging.tfstate* "$S"/staging.tfplan
+```
+
+If the destroy stops on the subnet ("in use by a serverless address"), Cloud Run direct VPC egress still holds
+addresses for a while after the services are gone: run `terraform destroy` again an hour later. Secret Manager
+containers (with their versions) and the Artifact Registry repository (with its images) go with the destroy; the
+enabled APIs stay enabled, which costs nothing. Deleting the whole project (`gcloud projects delete tokentails-staging`) is the founder's call.
+
 ## Migration steps
 
 Times are Europe/Vilnius. Do the cutover flips in a quiet hour (live matches are few around 05:00–07:00).
@@ -157,16 +243,16 @@ Times are Europe/Vilnius. Do the cutover flips in a quiet hour (live matches are
 
 ```bash
 export CLOUDSDK_ACTIVE_CONFIG_NAME=tokentails
-gcloud projects create tokentails-prod --name="Token Tails"          # no organization, or Token Tails' own
-gcloud billing accounts list                                          # pick the founder's Token Tails account
-gcloud billing projects link tokentails-prod --billing-account=XXXXXX-XXXXXX-XXXXXX
-gcloud config get project                                             # tokentails-prod
+# the project gleaming-medium-480114-g5 already exists (created by the founder); check billing is linked:
+gcloud billing projects describe gleaming-medium-480114-g5            # billingEnabled: true
+# if not: gcloud billing projects link gleaming-medium-480114-g5 --billing-account=XXXXXX-XXXXXX-XXXXXX
+gcloud config get project                                             # gleaming-medium-480114-g5
 gcloud auth application-default login                                 # Terraform uses ADC
-gcloud auth application-default set-quota-project tokentails-prod
+gcloud auth application-default set-quota-project gleaming-medium-480114-g5
 
 cd infra/gcp/terraform/bootstrap
 terraform init
-terraform apply -var project_id=tokentails-prod                       # creates tokentails-prod-tfstate (versioned)
+terraform apply -var project_id=gleaming-medium-480114-g5                       # creates gleaming-medium-480114-g5-tfstate (versioned)
 ```
 
 ### Step 2. First images, then Terraform apply
@@ -177,7 +263,7 @@ apply in two passes:
 ```bash
 cd infra/gcp/terraform/envs/prod
 cp terraform.tfvars.example terraform.tfvars        # fill billing_account, alert_email; tags come next
-terraform init -backend-config="bucket=tokentails-prod-tfstate" -backend-config="prefix=envs/prod"
+terraform init -backend-config="bucket=gleaming-medium-480114-g5-tfstate" -backend-config="prefix=envs/prod"
 
 # pass 1: APIs, registry, accounts, secrets containers, network (no services yet)
 terraform apply -target=module.project_services -target=module.artifact_registry -target=module.service_accounts \
@@ -185,7 +271,7 @@ terraform apply -target=module.project_services -target=module.artifact_registry
 
 # first images, pushed by you (or by a deploy-gcp.yml run once the WIF variables exist)
 gcloud auth configure-docker europe-west3-docker.pkg.dev
-SHA=$(git rev-parse HEAD); REG=europe-west3-docker.pkg.dev/tokentails-prod/tokentails
+SHA=$(git rev-parse HEAD); REG=europe-west3-docker.pkg.dev/gleaming-medium-480114-g5/tokentails
 docker build --platform linux/amd64 -t $REG/backend:$SHA backend && docker push $REG/backend:$SHA
 docker build --platform linux/amd64 --secret id=public_env,src=public.env -t $REG/web:$SHA client && docker push $REG/web:$SHA
 docker build --platform linux/amd64 --secret id=public_env,src=public-cms.env -t $REG/cms:$SHA cms && docker push $REG/cms:$SHA
@@ -210,7 +296,7 @@ they ship in the browser bundle). The committed `client/.env.production` is the 
    start: pass 2, relay deploys, the step 5 drills).
 
 ```bash
-terraform plan -out tfplan        # read it: nothing outside tokentails-prod, no secret values
+terraform plan -out tfplan        # read it: nothing outside gleaming-medium-480114-g5, no secret values
 terraform apply tfplan
 terraform output                  # lb_ip, nat_ip, dns_authorization_records, workload_identity_provider, ...
 ```
@@ -223,10 +309,10 @@ file in the repo, or shell history:
 
 ```bash
 export CLOUDSDK_ACTIVE_CONFIG_NAME=tokentails
-add() { printf 'value for %s: ' "$1"; IFS= read -rs v; echo; printf '%s' "$v" | gcloud secrets versions add "$1" --data-file=- --project=tokentails-prod; unset v; }
+add() { printf 'value for %s: ' "$1"; IFS= read -rs v; echo; printf '%s' "$v" | gcloud secrets versions add "$1" --data-file=- --project=gleaming-medium-480114-g5; unset v; }
 add MONGODB_URI
 # multi-line values (FB_PRIVATE_KEY): write to a temp file outside the repo, then
-#   gcloud secrets versions add FB_PRIVATE_KEY --data-file=/path/to/tmpfile --project=tokentails-prod && rm -P /path/to/tmpfile
+#   gcloud secrets versions add FB_PRIVATE_KEY --data-file=/path/to/tmpfile --project=gleaming-medium-480114-g5 && rm -P /path/to/tmpfile
 ```
 
 Carried over 1:1 from DigitalOcean (21, mounted on `tt-api`, version 1):
@@ -270,8 +356,8 @@ Plain (non-secret) env that DigitalOcean sets and Cloud Run must also get, if an
    shows `ACTIVE` (minutes to an hour).
 2. Atlas: the NAT IP is already on the access list (before pass 2). Keep the DigitalOcean entries until step 8.
 3. GitHub repository variables (Settings > Secrets and variables > Actions > Variables; these are not secrets):
-   `GCP_PROJECT_ID=tokentails-prod`, `GCP_WIF_PROVIDER` (= `terraform output workload_identity_provider`),
-   `GCP_DEPLOY_SA` (= `sa-deploy@tokentails-prod.iam.gserviceaccount.com`), optional `GCP_REGION`, `GCP_API_HOST`,
+   `GCP_PROJECT_ID=gleaming-medium-480114-g5`, `GCP_WIF_PROVIDER` (= `terraform output workload_identity_provider`),
+   `GCP_DEPLOY_SA` (= `sa-deploy@gleaming-medium-480114-g5.iam.gserviceaccount.com`), optional `GCP_REGION`, `GCP_API_HOST`,
    `GCP_WEB_HOST`, `GCP_CMS_HOST`, every `NEXT_PUBLIC_*` the web build needs, and `CMS_NEXT_PUBLIC_*` for CMS-only
    values. For the plan job: `TF_PROJECT_ID`, `TF_STATE_BUCKET`, `TF_BILLING_ACCOUNT`, `TF_ALERT_EMAIL`,
    `TF_BACKEND_TAG`, `TF_WEB_TAG`, `TF_CMS_TAG`, `GCP_TF_PLAN_SA` (`sa-tf-plan@...`). Create the GitHub environments
@@ -315,7 +401,7 @@ Then, in order:
    70 % of the last good room count (30 % headroom), set it in `party-limits.ts` (a backend PR, coordinated with the
    netcode workflow) and in `max_live_rooms` (alerts at 80 %). If t2d-standard-2 cannot hold the expected peak, set
    `relay_machine_type = "t2d-standard-4"` and apply. The apply only creates a new instance template (the MIG never
-   replaces the VM by itself); then run `PROJECT_ID=tokentails-prod REGION=europe-west3
+   replaces the VM by itself); then run `PROJECT_ID=gleaming-medium-480114-g5 REGION=europe-west3
    infra/gcp/scripts/replace-relay.sh`, which waits until no room is live and replaces the VM. Re-run the load test
    after it: until the replacement the relay is still on 2 cores.
 3. **Per-IP test from 2 networks**: open a party from Wi-Fi and join from mobile data; the relay log
@@ -344,7 +430,7 @@ the DNS flip.
 3. Right after the flip (minutes, not hours), hand DigitalOcean's matches over and **archive the DigitalOcean app**,
    in one go, from your terminal, with the App Platform "Archive app" dialog already open:
    ```bash
-   PROJECT_ID=tokentails-prod REGION=europe-west3 DO_APP_URL=https://<app>.ondigitalocean.app \
+   PROJECT_ID=gleaming-medium-480114-g5 REGION=europe-west3 DO_APP_URL=https://<app>.ondigitalocean.app \
      infra/gcp/scripts/cutover-relay.sh
    ```
    It pauses autohealing, stops `tt-relay` (the Google relay must not answer reconnects before it has adopted the
@@ -404,7 +490,7 @@ After step 9, remove `0.0.0.0/0` and the DigitalOcean entries from the Atlas acc
   success is IMAGE committed to the MIG metadata, which a new or autohealed VM starts; a crash restart keeps the
   verified image (`/var/lib/tt-relay/image`). A re-run after a failure deploys again (the check reads the container,
   not the metadata). API deploys never touch live matches.
-- Migrations: `gcloud run jobs execute tt-migrate --region europe-west3 --project tokentails-prod --wait` (runs `npx
+- Migrations: `gcloud run jobs execute tt-migrate --region europe-west3 --project gleaming-medium-480114-g5 --wait` (runs `npx
   migrate-mongo up` in the backend image currently set on the job; update the job image first with `gcloud run jobs
   update tt-migrate --image ...`).
 - Terraform: `terraform.yml` checks every PR; plan on main as `sa-tf-plan` (it has Billing Account Viewer on the
@@ -464,8 +550,8 @@ Each is a variable or a step above; the default is what the code does unless you
 
 | Question | Default (as built) | Where |
 |---|---|---|
-| Project, org and billing | New project `tokentails-prod` on the founder's own personal or Token Tails MB billing account, no organization (or Token Tails' own). Never Nortal's org or `motored-497708` | `project_id`, `billing_account` |
-| Staging | No permanent staging. Create `tokentails-staging` with the same Terraform for the rehearsal (load test, soak, IP tests), then destroy it; the prod shadow hosts cover the final check | `project_id = "tokentails-staging"` |
+| Project, org and billing | Production project `gleaming-medium-480114-g5` (created by the founder) on the founder's own billing account. Never Nortal's org or any `motored-*` project | `project_id`, `billing_account` |
+| Staging | No permanent staging. `tokentails-staging` gets `envs/staging` (same modules) for the rehearsal, then is destroyed; the prod shadow hosts cover the final check | `envs/staging` |
 | Region | europe-west3 (Frankfurt), the same metro as DigitalOcean fra. If Atlas is elsewhere, move Atlas to GCP europe-west3 first | `region`, `zones` |
 | Database | Keep MongoDB Atlas on GCP europe-west3, NAT static IP on the access list, remove `0.0.0.0/0` after cutover; Private Service Connect only at M10+, phase 2 | step 0, step 8 |
 | Move web and CMS off Vercel now? | Yes, phase 2 of the same migration, about a week after API and relay are stable; Vercel warm for 14 days; Pawlegends landing experiments, landing-lab and pitch stay on Vercel or retire | step 7 |

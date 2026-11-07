@@ -124,3 +124,43 @@ variable "canary_header" {
   type        = string
   default     = "x-tt-canary"
 }
+
+variable "certificate_mode" {
+  description = "managed: Google-managed certificate with DNS authorization (production). self_managed: upload self_managed_certificate (a test stack without DNS)."
+  type        = string
+  default     = "managed"
+
+  validation {
+    condition     = contains(["managed", "self_managed"], var.certificate_mode)
+    error_message = "certificate_mode is managed or self_managed."
+  }
+}
+
+variable "self_managed_certificate" {
+  description = "PEM certificate and private key, used only when certificate_mode = self_managed."
+  type = object({
+    certificate_pem = string
+    private_key_pem = string
+  })
+  default   = null
+  sensitive = true
+}
+
+variable "http_listener" {
+  description = "Also serve plain HTTP on port 80 (test stacks only; production is HTTPS from Cloudflare)."
+  type        = bool
+  default     = false
+}
+
+variable "extra_allowed_source_ranges" {
+  description = "Extra source ranges Cloud Armor admits besides Cloudflare (test stacks only: the operator's /32). Empty in production."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = length(var.extra_allowed_source_ranges) <= 10 && alltrue([
+      for c in var.extra_allowed_source_ranges : can(cidrhost(c, 0)) && !contains(["0.0.0.0/0", "::/0"], c)
+    ])
+    error_message = "At most 10 CIDRs, never 0.0.0.0/0 or ::/0."
+  }
+}

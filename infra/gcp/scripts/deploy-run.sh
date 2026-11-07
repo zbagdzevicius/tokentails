@@ -5,11 +5,11 @@
 # 3. traffic back to LATEST (= that revision)  4. the same check without the header. If 2 fails, traffic never moved.
 # Traffic ends on LATEST, not on a named revision: a revision Terraform creates later (a rotated secret, env, sizing)
 # then serves as soon as it is ready, instead of sitting at 0 % behind a pinned one.
-# Needs PROJECT_ID and REGION; refuses any project that is not tokentails-*.
+# Needs PROJECT_ID and REGION; refuses any project but gleaming-medium-480114-g5 and tokentails-staging.
 set -euo pipefail
 SERVICE=$1 IMAGE=$2 HOST=$3 SMOKE_PATH=${4:-/}
 : "${PROJECT_ID:?}" "${REGION:?}"
-case "$PROJECT_ID" in motored-497708 | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; tokentails-*) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
+case "$PROJECT_ID" in motored* | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; gleaming-medium-480114-g5 | tokentails-staging) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
 G=(--project "$PROJECT_ID" --region "$REGION" --quiet)
 
 echo "::group::deploy $SERVICE $IMAGE (no traffic, tag canary)"

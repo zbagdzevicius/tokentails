@@ -14,10 +14,10 @@
 #   6. restore autohealing
 # Steps 2 to 5 must fit the relay's 120 s restore window: have the DigitalOcean archive dialog open before you run this.
 #
-#   PROJECT_ID=tokentails-prod REGION=europe-west3 DO_APP_URL=https://<app>.ondigitalocean.app infra/gcp/scripts/cutover-relay.sh
+#   PROJECT_ID=gleaming-medium-480114-g5 REGION=europe-west3 DO_APP_URL=https://<app>.ondigitalocean.app infra/gcp/scripts/cutover-relay.sh
 set -euo pipefail
 : "${PROJECT_ID:?}" "${REGION:?}" "${RELAY_MIG:=tt-relay}" "${AUTOHEAL_DELAY_S:=120}"
-case "$PROJECT_ID" in motored-497708 | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; tokentails-*) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
+case "$PROJECT_ID" in motored* | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; gleaming-medium-480114-g5 | tokentails-staging) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
 G=(--project "$PROJECT_ID" --region "$REGION" --quiet)
 
 URL=$(gcloud compute instance-groups managed list-instances "$RELAY_MIG" "${G[@]}" --format='value(instance)' | head -n 1)

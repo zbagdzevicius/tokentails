@@ -36,6 +36,9 @@ output "settings" {
     relay_draining_sec     = google_compute_region_backend_service.relay.connection_draining_timeout_sec
     relay_paths            = var.relay_paths
     hosts                  = local.all_hosts
+    certificate_mode       = var.certificate_mode
+    http_listener          = var.http_listener
+    extra_allowed_ranges   = var.extra_allowed_source_ranges
     armor_rules = [for r in google_compute_region_security_policy.edge.rules : {
       priority = r.priority
       action   = r.action

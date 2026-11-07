@@ -12,7 +12,7 @@
 # Needs PROJECT_ID, REGION, IMAGE, RELAY_MIG, RELAY_IMAGE_KEY, API_HOST, RELAY_MODE.
 set -euo pipefail
 : "${PROJECT_ID:?}" "${REGION:?}" "${IMAGE:?}" "${RELAY_MIG:=tt-relay}" "${RELAY_IMAGE_KEY:=tt-relay-image}" "${RELAY_MODE:=if-changed}"
-case "$PROJECT_ID" in tokentails-*) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
+case "$PROJECT_ID" in motored* | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; gleaming-medium-480114-g5 | tokentails-staging) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
 [ "$PROJECT_ID" != "motored-497708" ] || exit 1
 [[ "$IMAGE" =~ ^${REGION}-docker\.pkg\.dev/${PROJECT_ID}/[a-z0-9-]+/backend:[A-Za-z0-9._-]+$ ]] || { echo "refused image '$IMAGE'" >&2; exit 1; }
 G=(--project "$PROJECT_ID" --region "$REGION" --quiet)

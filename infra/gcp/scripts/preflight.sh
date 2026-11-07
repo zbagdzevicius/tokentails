@@ -47,15 +47,19 @@ step "Project guard"
 # Neutralise any ambient gcloud or Google SDK project for this process: nothing below may pick one up.
 unset CLOUDSDK_CORE_PROJECT GOOGLE_CLOUD_PROJECT GOOGLE_PROJECT GCLOUD_PROJECT 2>/dev/null || true
 guard_fail=0
+# Allow-list: production gleaming-medium-480114-g5 and the throwaway tokentails-staging. motored-* is another company.
+ALLOWED_PROJECTS="gleaming-medium-480114-g5 tokentails-staging"
+allowed() { case " $ALLOWED_PROJECTS " in *" $1 "*) return 0 ;; *) return 1 ;; esac; }
 for v in "${TF_VAR_project_id:-}" "${TF_PROJECT_ID:-}" "${GCP_PROJECT_ID:-}"; do
-    if [ "$v" = "$FORBIDDEN_PROJECT" ]; then bad "an env var targets $FORBIDDEN_PROJECT"; guard_fail=1; fi
+    case "$v" in motored*) bad "an env var targets $v (another company)"; guard_fail=1 ;; esac
+    if [ -n "$v" ] && ! allowed "$v"; then bad "an env var targets $v, which is not on the allow-list ($ALLOWED_PROJECTS)"; guard_fail=1; fi
 done
 for f in "$TF"/envs/*/terraform.tfvars "$TF"/envs/*/*.auto.tfvars; do
     [ -f "$f" ] || continue
-    if /usr/bin/grep -Eq "^\s*project_id\s*=\s*\"$FORBIDDEN_PROJECT\"" "$f"; then bad "$f targets $FORBIDDEN_PROJECT"; guard_fail=1; fi
-    if /usr/bin/grep -Eq '^\s*project_id\s*=' "$f" && ! /usr/bin/grep -Eq '^\s*project_id\s*=\s*"tokentails-' "$f"; then
-        bad "$f: project_id is not a tokentails-* project"; guard_fail=1
-    fi
+    if /usr/bin/grep -Eq '^\s*project_id\s*=\s*"motored' "$f"; then bad "$f targets a motored-* project"; guard_fail=1; fi
+    pid=$(sed -nE 's/^[[:space:]]*project_id[[:space:]]*=[[:space:]]*"([^"]*)".*/\1/p' "$f" | head -1)
+    if [ -n "$pid" ] && ! allowed "$pid"; then bad "$f: project_id $pid is not on the allow-list"; guard_fail=1; fi
+    case "$f" in */envs/staging/*) [ -z "$pid" ] || [ "$pid" = tokentails-staging ] || { bad "$f: envs/staging must target tokentails-staging"; guard_fail=1; } ;; esac
 done
 if /usr/bin/grep -rIl --exclude-dir=.terraform --exclude-dir=.preflight "$FORBIDDEN_PROJECT" "$TF" "$ROOT/.github/workflows" 2>/dev/null |
     /usr/bin/grep -vE '(variables\.tf|bootstrap/main\.tf|terraform\.tfvars\.example|\.tftest\.hcl|deploy-gcp\.yml|terraform\.yml)$' | /usr/bin/grep -q .; then
@@ -69,14 +73,14 @@ if have gcloud; then
         printf '        deploys must pass --project explicitly and deploy-gcp.yml refuses any other project.\n'
     fi
 fi
-[ $guard_fail -eq 0 ] && ok "no target project is $FORBIDDEN_PROJECT; every project_id is tokentails-*"
+[ $guard_fail -eq 0 ] && ok "no target project is motored-*; every project_id is on the allow-list ($ALLOWED_PROJECTS)"
 if [ $guard_fail -ne 0 ]; then echo "refusing to continue"; exit 1; fi
 
 # ---------------------------------------------------------------------------------------------------------------
 step "Terraform: format, init (no backend), validate"
 if have terraform; then
     run "terraform fmt -check" tf-fmt.log terraform fmt -check -recursive "$TF"
-    for dir in "$TF/bootstrap" "$TF/envs/prod" "$TF"/modules/*; do
+    for dir in "$TF/bootstrap" "$TF/envs/prod" "$TF/envs/staging" "$TF"/modules/*; do
         name=${dir#"$TF"/}
         run "validate $name" "tf-validate-${name//\//-}.log" bash -c \
             "terraform -chdir='$dir' init -backend=false -input=false -no-color >/dev/null && terraform -chdir='$dir' validate -no-color"
@@ -89,8 +93,10 @@ fi
 step "Terraform tests (mock providers, no credentials)"
 if have terraform; then
     run "terraform test envs/prod" tf-test-prod.log terraform -chdir="$TF/envs/prod" test -no-color
+    run "terraform test envs/staging" tf-test-staging.log terraform -chdir="$TF/envs/staging" test -no-color
     run "terraform test bootstrap" tf-test-bootstrap.log terraform -chdir="$TF/bootstrap" test -no-color
     /usr/bin/grep -E 'Success!|Failure!' "$OUT/tf-test-prod.log" | sed 's/^/        envs\/prod: /'
+    /usr/bin/grep -E 'Success!|Failure!' "$OUT/tf-test-staging.log" | sed 's/^/        envs\/staging: /'
 else
     skip "terraform not installed"
 fi
@@ -113,7 +119,8 @@ if /usr/bin/grep -rn 'gce-container-declaration' "$TF" --include='*.tf' --includ
     bad "deprecated konlet (gce-container-declaration) in use"
 else ok "relay runs from systemd, no konlet"; fi
 # Cloudflare ranges: Terraform (Cloud Armor allow list) vs the backend copy (trust proxy, client IP).
-tf_cf=$(python3 - "$TF/envs/prod/variables.tf" <<'PY'
+cf_list() {
+    python3 - "$1" <<'PY'
 import re, sys
 s = open(sys.argv[1]).read()
 out = []
@@ -124,7 +131,10 @@ for name in ("cloudflare_ipv4", "cloudflare_ipv6"):
     out += re.findall(r'"([0-9a-f:.]+/[0-9]+)"', block)
 print("\n".join(sorted(out)))
 PY
-)
+}
+tf_cf=$(cf_list "$TF/envs/prod/variables.tf")
+if [ "$tf_cf" = "$(cf_list "$TF/envs/staging/variables.tf")" ]; then ok "envs/staging carries the same Cloudflare ranges as envs/prod"
+else bad "Cloudflare ranges differ between envs/prod and envs/staging"; fi
 be_cf=$(/usr/bin/grep -oE "'[0-9a-f:.]+/[0-9]+'" "$ROOT/backend/src/shared/cloudflare-ips.ts" | tr -d "'" | sort)
 if [ -n "$tf_cf" ] && [ "$tf_cf" = "$be_cf" ]; then ok "Cloudflare ranges match backend/src/shared/cloudflare-ips.ts ($(echo "$tf_cf" | wc -l | tr -d ' ') ranges)"
 else bad "Cloudflare ranges differ between variables.tf and backend/src/shared/cloudflare-ips.ts"; fi

@@ -8,7 +8,7 @@
 # forced) -> web -> cms. Every Cloud Run deploy goes to a no-traffic revision tagged `canary`, is smoke-tested through
 # the load balancer with `x-tt-canary: 1`, then gets 100 % of traffic. A failed smoke leaves traffic where it was.
 #
-# Repository variables: GCP_PROJECT_ID (tokentails-*), GCP_WIF_PROVIDER, GCP_DEPLOY_SA, optional GCP_REGION,
+# Repository variables: GCP_PROJECT_ID (gleaming-medium-480114-g5), GCP_WIF_PROVIDER, GCP_DEPLOY_SA, optional GCP_REGION,
 # GCP_API_HOST (default gcp-api.tokentails.com), GCP_WEB_HOST (gcp.tokentails.com), GCP_CMS_HOST
 # (gcp-cats.tokentails.com), and the public build values NEXT_PUBLIC_* (CMS-only overrides as CMS_NEXT_PUBLIC_*).
 # No secret is read here: runtime secrets live in Secret Manager and only the runtime service accounts can read them.
@@ -50,13 +50,13 @@ jobs:
   guard:
     runs-on: ubuntu-latest
     steps:
-      - name: Refuse anything but a tokentails-* project on main
+      - name: Refuse anything but the production project on main
         run: |
           set -euo pipefail
           case "${PROJECT_ID}" in
-            motored-497708) echo "::error::motored-497708 belongs to another company. Refused."; exit 1 ;;
-            tokentails-*) ;;
-            *) echo "::error::GCP_PROJECT_ID must be a tokentails-* project (got '${PROJECT_ID}')."; exit 1 ;;
+            motored*) echo "::error::motored-* projects belong to another company. Refused."; exit 1 ;;
+            gleaming-medium-480114-g5) ;;
+            *) echo "::error::GCP_PROJECT_ID must be gleaming-medium-480114-g5 (got '${PROJECT_ID}')."; exit 1 ;;
           esac
           if [ "${GITHUB_REF}" != "refs/heads/main" ]; then echo "::error::deploys run from main only"; exit 1; fi
           [ -n "${{ vars.GCP_WIF_PROVIDER }}" ] || { echo "::error::set the GCP_WIF_PROVIDER repository variable"; exit 1; }

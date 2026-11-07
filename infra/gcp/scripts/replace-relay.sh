@@ -7,11 +7,11 @@
 # the relay's 120 s restore window, which a cold boot plus an uncached image pull may miss. So this waits until no
 # room is live (up to WAIT_MAX_S, default 3600), then replaces. FORCE=1 replaces at once (live matches may be lost).
 #
-#   PROJECT_ID=tokentails-prod REGION=europe-west3 infra/gcp/scripts/replace-relay.sh
+#   PROJECT_ID=gleaming-medium-480114-g5 REGION=europe-west3 infra/gcp/scripts/replace-relay.sh
 # Optional: RELAY_MIG (tt-relay), API_HOST (api.tokentails.com: checked through Cloudflare afterwards).
 set -euo pipefail
 : "${PROJECT_ID:?}" "${REGION:?}" "${RELAY_MIG:=tt-relay}" "${WAIT_MAX_S:=3600}" "${FORCE:=0}"
-case "$PROJECT_ID" in motored-497708 | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; tokentails-*) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
+case "$PROJECT_ID" in motored* | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; gleaming-medium-480114-g5 | tokentails-staging) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
 G=(--project "$PROJECT_ID" --region "$REGION" --quiet)
 
 if [ "$(gcloud compute instance-groups managed describe "$RELAY_MIG" "${G[@]}" --format='value(status.versionTarget.isReached)')" = "True" ] &&
