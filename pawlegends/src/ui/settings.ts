@@ -28,6 +28,7 @@ import type { QualityTier } from '../render/quality';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
 import { hideNames, setHideNames } from '../meta/partyPrefs';
 import { bindZoomRow, zoomRowHtml } from './zoomSlider';
+import { colourBlind, setColourBlind } from './minimapPrefs';
 
 export interface SettingsState {
   muted: boolean;
@@ -78,7 +79,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref(), hide: hideNames() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref(), hide: hideNames(), cvd: colourBlind() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -109,6 +110,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
+      ${row('Colour-blind map colours', 'cvd', ctl.cvd)}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
@@ -137,6 +139,9 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     } else if (a === 'lasthit') {
       ctl.lastHit = !ctl.lastHit;
       setLastHitButton(ctl.lastHit);
+    } else if (a === 'cvd') {
+      ctl.cvd = !ctl.cvd;
+      setColourBlind(ctl.cvd);
     } else if (a === 'hidenames') {
       ctl.hide = !ctl.hide;
       setHideNames(ctl.hide);
