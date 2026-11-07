@@ -82,6 +82,24 @@ export interface Party {
     /** A rematch pick: loading waits until this time even when everyone is locked. */
     pickMinUntilMs?: number;
     ended: boolean;
+    /**
+     * Quick Play (M1A-IMPL.md §5.2): a party the matchmaker built or filled. The side is fixed for everyone; strangers
+     * (members the queue added) never see the code and cannot be kicked or locked out, so the leader-only actions and
+     * the rematch vote are off while any is present. `host`: a friend party that queued (its own members are not
+     * strangers); it drops `mm` when its last stranger leaves.
+     */
+    mm?: PartyMm;
+    /** A friend party queued for Quick Play (every member shows the queue card). */
+    queued?: { sinceMs: number; side: 'cat' | 'dog' | 'any' };
+}
+
+export interface PartyMm {
+    match: string;
+    queue: 'coop';
+    side: 'cat' | 'dog';
+    strangers: Set<string>;
+    host: boolean;
+    resultsSinceMs?: number;
 }
 
 export interface StartPlan {
@@ -311,6 +329,21 @@ export class PartyService {
             this.end(p);
             return;
         }
+        if (p.mm) {
+            p.mm.strangers.delete(memberId);
+            // a friend party whose last stranger left is a plain party again (back to its own results or lobby)
+            if (
+                p.mm.host &&
+                p.mm.strangers.size === 0 &&
+                p.phase !== 'pick' &&
+                p.phase !== 'loading' &&
+                p.phase !== 'match'
+            ) {
+                delete p.mm;
+                p.locked = false;
+            }
+        }
+        if (p.queued) delete p.queued;
         if (p.leader === memberId) p.leader = this.longestPresent(p)?.id ?? p.members[0].id;
         this.touch(p);
     }
@@ -326,9 +359,19 @@ export class PartyService {
         for (const m of p.members) this.memberParty.delete(m.id);
     }
 
+    /** Strangers present: no kick, lead, set, new code, start or rematch (nobody can lock a stranger out). */
+    private withStrangers(p: Party): boolean {
+        return !!p.mm && p.mm.strangers.size > 0;
+    }
+
+    /** Is this member a stranger in its (Quick Play) party? */
+    isStranger(memberId: string): boolean {
+        return !!this.partyOf(memberId)?.mm?.strangers.has(memberId);
+    }
+
     kick(by: string, target: string): PartyError | null {
         const p = this.partyOf(by);
-        if (!p || p.leader !== by || by === target) return 'bad_message';
+        if (!p || p.leader !== by || by === target || this.withStrangers(p)) return 'bad_message';
         if (p.phase !== 'lobby' && p.phase !== 'results') return 'party_busy';
         const m = p.members.find(x => x.id === target);
         if (!m) return 'bad_message';
@@ -348,19 +391,19 @@ export class PartyService {
 
     newCodeFor(by: string): void {
         const p = this.partyOf(by);
-        if (p && p.leader === by) this.rotateCode(p);
+        if (p && p.leader === by && !this.withStrangers(p)) this.rotateCode(p);
     }
 
     lead(by: string, target: string): void {
         const p = this.partyOf(by);
-        if (!p || p.leader !== by || !p.members.some(m => m.id === target)) return;
+        if (!p || p.leader !== by || !p.members.some(m => m.id === target) || this.withStrangers(p)) return;
         p.leader = target;
         this.touch(p);
     }
 
     set(by: string, s: { difficulty?: string; openSeats?: boolean; locked?: boolean }): void {
         const p = this.partyOf(by);
-        if (!p || p.leader !== by || (p.phase !== 'lobby' && p.phase !== 'results')) return;
+        if (!p || p.leader !== by || (p.phase !== 'lobby' && p.phase !== 'results') || this.withStrangers(p)) return;
         if (s.difficulty !== undefined && this.rules.difficulties.includes(s.difficulty)) p.difficulty = s.difficulty;
         if (s.openSeats !== undefined) p.openSeats = s.openSeats;
         if (s.locked !== undefined) p.locked = s.locked;
@@ -411,7 +454,14 @@ export class PartyService {
     /** Leader taps Start. Returns 'local' for a party of one with Open seats off (D10). */
     start(by: string): 'local' | 'pick' | 'waiting' | null {
         const p = this.partyOf(by);
-        if (!p || p.leader !== by || (p.phase !== 'lobby' && p.phase !== 'results')) return null;
+        if (
+            !p ||
+            p.leader !== by ||
+            (p.phase !== 'lobby' && p.phase !== 'results') ||
+            this.withStrangers(p) ||
+            p.queued
+        )
+            return null;
         if (p.members.length === 1 && !p.openSeats) {
             this.events.send(by, { t: 'local', difficulty: p.difficulty });
             return 'local';
@@ -447,7 +497,8 @@ export class PartyService {
             m.trick = rematch ? m.lastTrick : undefined;
         });
         const lead = ordered[0];
-        if (lead.hero) p.side = this.rules.sideOf(lead.hero);
+        if (p.mm) p.side = p.mm.side;
+        else if (lead.hero) p.side = this.rules.sideOf(lead.hero);
         this.touch(p);
     }
 
@@ -466,7 +517,8 @@ export class PartyService {
      * friend locked on it (a team is never cats and dogs mixed); the unlocked friend picks again.
      */
     private leaderSide(p: Party, side: string | null): void {
-        if (side === p.side) return;
+        // Quick Play: the side is the match's, never the leader's hover
+        if (p.mm || side === p.side) return;
         p.side = side;
         for (const o of p.members) {
             if (o.id === p.leader || !o.hero || this.rules.sideOf(o.hero) === side) continue;
@@ -482,6 +534,7 @@ export class PartyService {
 
     private heroAllowed(p: Party, m: Member, hero: string): boolean {
         if (p.members.some(o => o.id !== m.id && o.locked && o.hero === hero)) return false;
+        if (p.mm && this.rules.sideOf(hero) !== p.mm.side) return false;
         if (m.id !== p.leader && p.side && this.rules.sideOf(hero) !== p.side) return false;
         return true;
     }
@@ -598,13 +651,18 @@ export class PartyService {
         p.phase = 'results';
         p.room = undefined;
         if (!p.openSeats) p.locked = false;
+        if (p.mm) {
+            p.mm.resultsSinceMs = this.now();
+            // a Quick Play party stays locked: nobody joins it by code
+            p.locked = true;
+        }
         this.touch(p);
     }
 
     /** "Play again together": the leader's tap or a majority starts it. */
     rematch(memberId: string, yes: boolean): void {
         const p = this.partyOf(memberId);
-        if (!p || p.phase !== 'results') return;
+        if (!p || p.phase !== 'results' || p.mm) return;
         if (yes) p.rematchYes.add(memberId);
         else p.rematchYes.delete(memberId);
         const majority = p.rematchYes.size * 2 > p.members.length;
@@ -727,9 +785,11 @@ export class PartyService {
             }
             return v;
         });
+        const stranger = !!p.mm?.strangers.has(forMember);
         const view: PartyView = {
             t: 'party',
-            code: p.code,
+            // a stranger never sees the friend party's code
+            code: stranger ? '' : p.code,
             phase: p.phase,
             leader: p.leader,
             difficulty: p.difficulty,
@@ -740,6 +800,111 @@ export class PartyService {
         };
         if (p.deadlineMs !== undefined) view.deadlineMs = Math.max(0, p.deadlineMs - this.now());
         if (p.waitingSinceMs !== undefined) view.waiting = p.members.filter(m => m.conn !== 'on').map(m => m.id);
+        if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
+        if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };
         return view;
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    // Quick Play (M1A-IMPL.md §5.2)
+
+    /** A friend party queued (or stopped queueing): the members' views show the queue card. */
+    setQueued(p: Party, queued: { sinceMs: number; side: 'cat' | 'dog' | 'any' } | null): void {
+        if (queued) p.queued = { ...queued };
+        else delete p.queued;
+        this.touch(p);
+    }
+
+    /**
+     * A new Quick Play party of strangers (no host): members in slot order (the first is the leader, slot 0), locked,
+     * Open seats off, straight to the shared pick with the side fixed.
+     */
+    createMatched(
+        members: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[],
+        opts: { match: string; side: 'cat' | 'dog'; difficulty: string }
+    ): Party {
+        for (const m of members) this.leave(m.id);
+        const id = randomBytes(12).toString('base64url');
+        const code = this.newCode();
+        const p: Party = {
+            id,
+            code,
+            leader: members[0].id,
+            members: members.map(m => this.makeMember(m.id, m.identity, m.hint)),
+            difficulty: this.rules.difficulties.includes(opts.difficulty)
+                ? opts.difficulty
+                : this.rules.difficulties[0],
+            openSeats: false,
+            locked: true,
+            phase: 'lobby',
+            createdMs: this.now(),
+            updatedMs: this.now(),
+            bans: new Map(),
+            rematchYes: new Set(),
+            side: opts.side,
+            ended: false,
+            mm: {
+                match: opts.match,
+                queue: 'coop',
+                side: opts.side,
+                strangers: new Set(members.map(m => m.id)),
+                host: false,
+            },
+        };
+        this.rename(p);
+        this.parties.set(id, p);
+        this.byCode.set(code, id);
+        for (const m of p.members) this.memberParty.set(m.id, id);
+        this.toPick(p, false);
+        return p;
+    }
+
+    /**
+     * A stranger joins a Quick Play party: a queued friend party being matched (before `startMatched`), or a running mm
+     * party (a backfill). Bypasses the code, the lock and `party_busy`; the member leaves any other party first.
+     */
+    joinMatched(
+        p: Party,
+        memberId: string,
+        identity: MemberIdentity,
+        hint?: { maxDifficulty: string; newbie: boolean }
+    ): Member | null {
+        if (p.ended || p.members.length >= MAX_MEMBERS || p.members.some(m => m.id === memberId)) return null;
+        this.leave(memberId);
+        const m = this.makeMember(memberId, identity, hint);
+        p.members.push(m);
+        this.memberParty.set(memberId, p.id);
+        if (p.mm) p.mm.strangers.add(memberId);
+        this.rename(p);
+        this.touch(p);
+        return m;
+    }
+
+    /**
+     * A queued friend party was matched: Quick Play state, the room difficulty, the strangers seated after the friends
+     * (in queue order), and the shared pick with the side fixed.
+     */
+    startMatched(
+        p: Party,
+        opts: { match: string; side: 'cat' | 'dog'; difficulty: string },
+        strangers: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[]
+    ): void {
+        delete p.queued;
+        p.mm = { match: opts.match, queue: 'coop', side: opts.side, strangers: new Set(), host: true };
+        p.difficulty = this.rules.difficulties.includes(opts.difficulty) ? opts.difficulty : p.difficulty;
+        p.openSeats = false;
+        p.locked = true;
+        for (const s of strangers) this.joinMatched(p, s.id, s.identity, s.hint);
+        this.toPick(p, false);
+    }
+
+    /** Restore helper (N9): the Quick Play state of a stored party. */
+    restoreMm(
+        p: Party,
+        mm: { match: string; side: 'cat' | 'dog'; strangers: string[]; host: boolean } | undefined
+    ): void {
+        if (!mm) return;
+        p.mm = { match: mm.match, queue: 'coop', side: mm.side, strangers: new Set(mm.strangers), host: mm.host };
+        p.side = mm.side;
     }
 }

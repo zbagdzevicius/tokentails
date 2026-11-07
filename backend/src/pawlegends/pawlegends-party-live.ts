@@ -5,6 +5,9 @@ import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_TICK_HZ } from 'sr
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { simFor } from 'src/vendor/pawlegends-sim';
+import { coopRatingStep } from './mm/rating-update';
+import type { MmRoomRecord } from './mm/mm-room.schema';
+import type { MmRatingRow } from './mm/rating.schema';
 import { AFK_REASONS } from './party/room';
 import type { StoredRoom } from './party/room-store';
 import { PawlegendsPartyResultDto } from './pawlegends-replay.dto';
@@ -37,6 +40,21 @@ export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'gam
         get(id: string): Promise<StoredRoom | null>;
         countEnded(accountId: string, since: Date): Promise<number>;
     };
+    /**
+     * Quick Play (M1A-IMPL.md §4.2): the mm room records and the hidden rating model. This file is the ONE place that
+     * writes a rating (mm-no-write.spec.ts), after the Game row exists; a failed write never fails the save.
+     */
+    mm?: {
+        rooms: { get(id: string): Promise<MmRoomRecord | null> };
+        ratings: PawlegendsRatingModel;
+    };
+}
+
+/** The rating model calls the update needs (a Mongoose Model satisfies it). */
+export interface PawlegendsRatingModel {
+    findById(id: string): { lean(): Promise<unknown> };
+    updateOne(filter: Record<string, unknown>, update: Record<string, unknown>): Promise<{ modifiedCount?: number }>;
+    create(doc: Record<string, unknown>): Promise<unknown>;
 }
 
 export interface IPartyLiveResult {
@@ -161,6 +179,8 @@ export async function savePawlegendsPartyMatch(
         $set: { lastPlayedAt: now },
     });
     const catnipCount = await recomputeCatnipCount(deps.users, userId);
+    if (deps.mm)
+        await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
     return {
         party: true,
         difficulty,
@@ -172,6 +192,45 @@ export async function savePawlegendsPartyMatch(
         catnipCount,
         ...(daily ? { why: 'daily' as const } : {}),
     };
+}
+
+/**
+ * The hidden co-op rating (M1A-IMPL.md §4.2): only for a Quick Play room, once per account per room (`appliedRooms`),
+ * with an optimistic version (`v`); insert-then-retry once on a version miss or a duplicate key. Logged, never thrown:
+ * the Game row and the catnip are the score, the rating is matchmaking data.
+ */
+async function applyCoopRating(
+    mm: NonNullable<IPartyLiveDeps['mm']>,
+    accountId: string,
+    roomId: string,
+    outcome: 'won' | 'lost',
+    difficulty: string,
+    now: Date,
+    log: Pick<Logger, 'warn'>
+): Promise<void> {
+    try {
+        const room = await mm.rooms.get(roomId);
+        if (!room) return;
+        for (let attempt = 0; attempt < 2; attempt++) {
+            const row = ((await mm.ratings.findById(`${accountId}:coop`).lean()) as MmRatingRow | null) ?? null;
+            const step = coopRatingStep({ room, accountId, outcome, difficulty, row, nowMs: now.getTime() });
+            if (!step.row) return;
+            const { _id, v, ...fields } = step.row;
+            try {
+                if (!row) {
+                    await mm.ratings.create({ _id, v, ...fields });
+                    return;
+                }
+                const res = await mm.ratings.updateOne({ _id, v: row.v ?? 0 }, { $set: fields, $inc: { v: 1 } });
+                if ((res?.modifiedCount ?? 0) === 1) return;
+            } catch (error) {
+                if ((error as { code?: unknown })?.code !== 11000) throw error;
+            }
+        }
+        log.warn('pawlegends coop rating: version conflict twice, skipped');
+    } catch (error) {
+        log.warn(`pawlegends coop rating write failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
+    }
 }
 
 /** Is this `/live` PAWLEGENDS body a party result (v: 2)? */

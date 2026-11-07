@@ -729,7 +729,28 @@ without a strike; points are clamped to the map as integers; one per 2 s and 10 
 mirrors it). The echo adds `from` and `slot`. A JIP `slot` frame adds `joined: true` and the friend's display `name`.
 In the results phase each member's `party` entry carries `again: true` once they pressed "Play again together".
 Relay counters (`PartyRelay.counters()`, logs only): `rooms_live, sockets, turn_overrun_ms_p99, loop_delay_p99,
-referee_lag_turns, desyncs, divergences, restores, refused_busy, join_fail_global`.
+referee_lag_turns, desyncs, divergences, restores, refused_busy, join_fail_global`, plus the Quick Play counters
+`mm_queued, mm_joins, mm_matches, mm_humans_1..3, mm_wait_ms_p50, mm_wait_ms_p95, mm_fills_quiet|normal|busy,
+mm_backfill_offers, mm_backfills, mm_leaver_events, mm_refused, mm_cancels`.
+
+**Quick Play (PROTO 2, M1a co-op; docs/plans/moba/M1A-IMPL.md §5.5).** `hello.proto` may be 1 or 2 (`PROTO_MIN` ..
+`PROTO`); `welcome.proto` echoes it; the subprotocol stays `pl.1`. A PROTO 1 socket never receives an `mm.*` frame or
+the codes `mm_locked` / `seat_taken`, and an `mm.*` frame from it is `bad_message` (a strike).
+
+| Client frame | Fields | Rules |
+|---|---|---|
+| `mm.join` | `queue: 'coop'`, `side: 'cat'\|'dog'\|'any'`, `region?` (`^[a-z0-9-]{1,16}$`, only `eu` today) | Solo, or the leader of a party of 1 or 2 in lobby or results (every member on PROTO 2, else they get `update_required`). In results of a Quick Play party a stranger's `mm.join` is "Play again" |
+| `mm.leave` | | Cancel before `mm.found` |
+| `mm.side` | `side` | While queued, one per 2 s |
+| `mm.backfill` | `offer` (`^[a-z0-9]{12}$`), `yes` | Within 10 s of the offer |
+
+Server frames: `mm.status {queue, side, waitedMs, estimateMs, found, lowPriorityMs?, warn?: 'leaver'}` (on change and
+every 2 s), `mm.found {side, humans, bots, difficulty}` (the `party` frame in `pick` follows), `mm.cancel {reason:
+'left'|'away'|'party'|'server'|'update'}`, `mm.backfill.offer {offer, side, clockS, score, expiresMs}` (`score` is
+`[0, 0]`: the relay does not run the sim), `error` codes `mm_locked {retryMs}` (join caps: 30 / 120 / 600 per 10 min per
+identity / address / network; 12 / 40 queued per address / network) and `seat_taken` (a backfill took the seat; sent
+on the resume). `match` gains `mode: 'coop'`; the `party` frame gains `mm {side, strangers}` and `queue {sinceMs,
+side}`, and a stranger's copy has `code: ''`. A full queue (600) is `server_busy` with `retryMs` 15000.
 
 `POST /user/catbassadors/live` with `type: 'PAWLEGENDS'` also accepts a party result in `pawlegends`:
 `{v: 2, room, slot, simVersion, ticks, outcome, finalHash}`. It is checked against the room log the relay stored

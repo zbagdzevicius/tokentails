@@ -67,6 +67,7 @@ import { savePawlegendsMatch } from 'src/pawlegends/pawlegends-live';
 import { isPartyResult, savePawlegendsPartyMatch } from 'src/pawlegends/pawlegends-party-live';
 import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
 import { MongoRoomStore } from 'src/pawlegends/party/room-store';
+import { MmService } from 'src/pawlegends/mm/mm.service';
 import { HEIST_SIM_INFO, IHeistSimInfo } from './heist/heist-sim-info';
 import { heistReplayQueue, ReplayQueueFullException } from './heist/replay-queue';
 import { UserRepository } from './user.repository';
@@ -198,7 +199,9 @@ export class UserController {
         private catService: CatService,
         private imageRepository: ImageRepository,
         // Party play (MULTIPLAYER.md §6): the relay's stored rooms, read-only here.
-        @Optional() private partyRooms?: MongoRoomStore
+        @Optional() private partyRooms?: MongoRoomStore,
+        // Quick Play (M1A-IMPL.md §4.2): the mm room records and the hidden rating `/live` writes.
+        @Optional() private mm?: MmService
     ) {
         // this.getUsers();
         // this.getTwitters();
@@ -1442,7 +1445,12 @@ export class UserController {
             // Pawlegends party play (MULTIPLAYER.md §6): checked against the relay's stored, verified room log.
             if (!this.partyRooms) throw new BadRequestException('party results are not accepted here');
             return await savePawlegendsPartyMatch(
-                { users: this.repository as any, games: this.gameRepository as any, rooms: this.partyRooms },
+                {
+                    users: this.repository as any,
+                    games: this.gameRepository as any,
+                    rooms: this.partyRooms,
+                    mm: this.mm?.liveDeps() as any,
+                },
                 userId,
                 body as any
             );

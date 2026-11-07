@@ -175,6 +175,7 @@ import { PAWLEGENDS_SCHEMAS, PawlegendsStore } from './pawlegends/pawlegends.sch
 import { PAWLEGENDS_PARTY_SCHEMAS, MongoRoomStore } from './pawlegends/party/room-store';
 import { PartyRelayService } from './pawlegends/party/party-relay.service';
 import { PartyTicketService } from './pawlegends/party/party-ticket.service';
+import { MmService, PAWLEGENDS_MM_SCHEMAS } from './pawlegends/mm/mm.service';
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
@@ -275,6 +276,7 @@ const config = {
             ...PAWLEGENDS_SCHEMAS,
             // Pawlegends party play (docs/plans/moba/MULTIPLAYER.md section 3.6): relay rooms and parties.
             ...PAWLEGENDS_PARTY_SCHEMAS,
+            ...PAWLEGENDS_MM_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -410,6 +412,7 @@ const config = {
         // Pawlegends party play (docs/plans/moba/MULTIPLAYER.md): the WebSocket relay, its room store and tickets.
         PartyTicketService,
         MongoRoomStore,
+        MmService,
         PartyRelayService,
         // Moon Rave checkout.
         RaveService,

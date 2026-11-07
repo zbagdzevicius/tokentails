@@ -25,6 +25,7 @@ import {
     Frame,
     MAX_JSON,
     PROTO,
+    PROTO_MIN,
     ProtoError,
     SUBPROTOCOL,
     TURN_TICKS,
@@ -60,6 +61,8 @@ import type { RefereeOut } from './referee-host';
 import { AFK_REASONS, Room, type PilotReason } from './room';
 import { RoomScheduler, phaseOf } from './room-scheduler';
 import type { Occupant, RoomStore, StoredRoom } from './room-store';
+import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
+import { MemoryMmRoomStore } from '../mm/mm-room.schema';
 
 export interface RelayOptions {
     server: Server;
@@ -82,6 +85,11 @@ export interface RelayOptions {
      * (party-cards.ts); without it (harness, specs) every card is refused and members keep generated names.
      */
     cards?: PartyCardResolver;
+    /**
+     * Quick Play (docs/plans/moba/M1A-IMPL.md §5): the matchmaker glue. Production passes MmService (Mongo records and
+     * ratings); without it the relay uses an in-memory one (specs, the e2e harness). Always on (no flag).
+     */
+    mm?: MmHookFactory;
 }
 
 /** A card the relay may show: art, element, tier, the catalog or breed name, and the owner-only custom name. */
@@ -107,6 +115,10 @@ interface Sock {
     hint: { maxDifficulty: string; newbie: boolean } | undefined;
     memberId: string | null;
     sim: { version: number; hash: string } | null;
+    /** The `hello.proto` of this socket (PROTO_MIN..PROTO): no `mm.*` frame or new error code ever reaches a PROTO 1. */
+    proto: number;
+    /** The tab is hidden (`away` until `back`). */
+    away: boolean;
     strikes: number;
     json: { tokens: number; atMs: number };
     /** Binary frames (CMD, BEAT, HASH): token bucket. */
@@ -144,6 +156,8 @@ interface LiveRoom {
     /** Identity keys and IP keys of the members seated at the start (or later claims): per-identity and per-IP room caps. */
     keys: Set<string>;
     ips: Set<string>;
+    /** A Quick Play room (`match.mode: 'coop'`). */
+    coop?: boolean;
 }
 
 const hashKey = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
@@ -154,6 +168,10 @@ export const netKey = (ip: string): string => {
     return hashKey(`net6:${ip.toLowerCase().split(':').slice(0, 3).join(':')}`);
 };
 const token128 = () => randomBytes(16).toString('base64url');
+/** Error codes only a PROTO 2 socket understands. */
+const PROTO2_ERRORS: ReadonlySet<string> = new Set(['mm_locked', 'seat_taken']);
+/** How long the resume token of a backfilled leaver answers `seat_taken`. */
+const MM_SEAT_TAKEN_MS = 30 * 60_000;
 const roomId = () => {
     const b = randomBytes(12);
     let s = '';
@@ -188,6 +206,10 @@ export class PartyRelay {
      */
     private readonly resume = new Map<string, { member: string; identityKey: string; ipKey: string; expMs: number }>();
     private readonly resumeOf = new Map<string, string>();
+    /** Resume token hashes of members whose seat a backfill took: a resume answers `seat_taken` until the time. */
+    private readonly seatTaken = new Map<string, number>();
+    /** Quick Play (M1A-IMPL.md §5.1): hooks into the matchmaker glue. */
+    readonly mm: MmHooks;
     private readonly upgrades: number[] = [];
     /** Failed joins: global (an alert only), per identity, per IP and per network (each one backs off only itself). */
     private readonly joinFails = {
@@ -229,7 +251,10 @@ export class PartyRelay {
                 newbieHero: 'clem',
             },
             {
-                changed: p => this.queueParty(p.id),
+                changed: p => {
+                    this.queueParty(p.id);
+                    this.mm?.onPartyChanged(p);
+                },
                 send: (member, msg) => this.sendJsonTo(member, msg),
                 startMatch: plan => void this.startMatch(plan),
             },
@@ -241,10 +266,12 @@ export class PartyRelay {
             clearTimer: h => clearTimeout(h as NodeJS.Timeout),
         });
         this.scheduler.onAdvanced = room => this.afterAdvance(room);
+        this.mm = (opts.mm ?? memoryMm({ rooms: new MemoryMmRoomStore(), ratings: null })).hooks(this.mmApi());
         this.upgradeHandler = (req, socket, head) => this.onUpgrade(req, socket, head);
         opts.server.on('upgrade', this.upgradeHandler);
         this.partyTimer = setInterval(() => {
             this.parties.tick();
+            this.mm.onTick();
             this.sweep();
         }, 500);
         this.partyTimer.unref?.();
@@ -343,6 +370,8 @@ export class PartyRelay {
             strikes: 0,
             json: { tokens: PARTY_LIMITS.json.burst, atMs: this.now() },
             lastSyncMs: 0,
+            proto: PROTO_MIN,
+            away: false,
             social: new SocialLimiter(),
             catchup: null,
             seatRoom: null,
@@ -391,6 +420,12 @@ export class PartyRelay {
     }
 
     private sendJson(s: Sock, msg: Record<string, unknown>): void {
+        // PROTO 1 (the live build before M1a) never gets a Quick Play frame or error code
+        if (
+            s.proto < 2 &&
+            (String(msg.t).startsWith('mm.') || (msg.t === 'error' && PROTO2_ERRORS.has(String(msg.code))))
+        )
+            return;
         if (s.ws.readyState === WebSocket.OPEN) s.ws.send(JSON.stringify(msg));
     }
 
@@ -459,7 +494,7 @@ export class PartyRelay {
     // hello, identity, resume
 
     private hello(s: Sock, msg: Extract<ClientJson, { t: 'hello' }>): void {
-        if (msg.proto !== PROTO) return this.error(s, 'update_required');
+        if (msg.proto < PROTO_MIN || msg.proto > PROTO) return this.error(s, 'update_required');
         if (!partySimFor(msg.sim, msg.simHash)) return this.error(s, 'update_required');
         const ticket = msg.ticket ? this.opts.tickets.verify(msg.ticket, this.now()) : null;
         if (msg.ticket && !ticket && this.opts.tickets.available) this.error(s, 'bad_ticket');
@@ -485,6 +520,7 @@ export class PartyRelay {
         s.identity = identity;
         s.hint = msg.hint;
         s.sim = { version: msg.sim, hash: msg.simHash };
+        s.proto = msg.proto;
         let memberId: string | null = null;
         let lastSeq: number | undefined;
         if (msg.resume) memberId = this.findResume(msg.resume.token, identity, s.ipKey);
@@ -497,6 +533,9 @@ export class PartyRelay {
                 old.ws.close(4005, 'seat elsewhere');
             }
         }
+        // a backfill took this member's seat: say so once (PROTO 2), then a fresh member as usual
+        const taken = !memberId && msg.resume ? this.seatTaken.get(hashKey(msg.resume.token)) : undefined;
+        if (taken !== undefined && msg.resume) this.seatTaken.delete(hashKey(msg.resume.token));
         memberId ??= this.parties.newMemberId();
         s.memberId = memberId;
         this.byMember.set(memberId, s);
@@ -511,12 +550,14 @@ export class PartyRelay {
         }
         this.sendJson(s, {
             t: 'welcome',
-            proto: PROTO,
+            proto: s.proto,
             member: memberId,
             resumeToken,
             serverMs: this.now(),
             ...(lastSeq !== undefined ? { lastSeq } : {}),
         });
+        if (taken !== undefined && taken > this.now()) this.error(s, 'seat_taken');
+        this.mm.onPresence(memberId, 'on');
         if (party) {
             this.sendJson(s, this.parties.view(party, memberId) as unknown as Record<string, unknown>);
             const live = party.room ? this.rooms.get(party.room) : undefined;
@@ -554,8 +595,15 @@ export class PartyRelay {
     private sweep(): void {
         const now = this.now();
         for (const [id, f] of this.finished) if (f.untilMs <= now) this.finished.delete(id);
+        for (const [h, until] of this.seatTaken) if (until <= now) this.seatTaken.delete(h);
         for (const [h, r] of this.resume) {
-            if (r.expMs >= now || this.byMember.has(r.member) || this.parties.partyOf(r.member)) continue;
+            if (
+                r.expMs >= now ||
+                this.byMember.has(r.member) ||
+                this.parties.partyOf(r.member) ||
+                this.mm.queued(r.member)
+            )
+                continue;
             this.resume.delete(h);
             if (this.resumeOf.get(r.member) === h) this.resumeOf.delete(r.member);
         }
@@ -588,9 +636,10 @@ export class PartyRelay {
         if (s.pingTimer) clearInterval(s.pingTimer);
         if (!s.memberId || this.byMember.get(s.memberId) !== s) return;
         this.byMember.delete(s.memberId);
-        // a member without a party keeps nothing to resume
-        if (!this.parties.partyOf(s.memberId)) this.dropResume(s.memberId);
+        // a member without a party (or a Quick Play entry) keeps nothing to resume
+        if (!this.parties.partyOf(s.memberId) && !this.mm.queued(s.memberId)) this.dropResume(s.memberId);
         this.parties.setConn(s.memberId, 'off');
+        this.mm.onPresence(s.memberId, 'off');
         const live = s.seatRoom ? this.rooms.get(s.seatRoom) : undefined;
         if (live && s.seatSlot >= 0) live.room.disconnect(s.seatSlot, this.now());
     }
@@ -672,6 +721,7 @@ export class PartyRelay {
             case 'hello':
                 return this.strike(s);
             case 'party.create': {
+                if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
                 // leaving the old party first is part of create: count only the parties this create would keep
                 const mine = p.partyOf(member);
                 if (mine) {
@@ -689,6 +739,7 @@ export class PartyRelay {
                 // the same person again (a closed tab, a new tab without the resume token): their own seat back. A
                 // tab still holding it loses it ("Playing in another tab"), as a resume does: one seat per person,
                 // and a phone whose old socket is not dead yet on the server still gets back in at once
+                if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
                 const twin = p.twinOf(msg.code, s.identity!);
                 if (twin && twin !== member) return this.adopt(s, twin);
                 const party = p.join(msg.code, member, s.identity!, s.hint);
@@ -702,22 +753,8 @@ export class PartyRelay {
                 return;
             }
             case 'party.leave':
-                this.leaveSeat(s, true);
-                p.leave(member);
-                this.dropResume(member);
-                this.sendJson(s, {
-                    t: 'party',
-                    code: '',
-                    phase: 'lobby',
-                    leader: '',
-                    difficulty: '',
-                    openSeats: false,
-                    locked: false,
-                    members: [],
-                    you: member,
-                    left: true,
-                });
-                return;
+                if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
+                return this.leaveParty(member);
             case 'party.kick':
                 return void p.kick(member, msg.member);
             case 'party.lead':
@@ -772,18 +809,53 @@ export class PartyRelay {
             case 'away': {
                 const live = this.seatOf(s);
                 if (live) live.room.away(s.seatSlot);
+                s.away = true;
                 p.setConn(member, 'away');
+                this.mm.onPresence(member, 'away');
                 return;
             }
             case 'back': {
                 const live = this.seatOf(s);
+                s.away = false;
                 p.setConn(member, 'on');
                 if (live) live.room.back(s.seatSlot, this.now());
+                this.mm.onPresence(member, 'on');
                 return;
             }
             case 'bye':
                 return this.leaveSeat(s);
+            case 'mm.join':
+            case 'mm.leave':
+            case 'mm.side':
+            case 'mm.backfill':
+                // PROTO 2 only: a PROTO 1 socket sending one is a malformed frame
+                if (s.proto < 2) {
+                    this.error(s, 'bad_message');
+                    return this.strike(s);
+                }
+                return this.mm.onJson(member, msg as unknown as { t: string } & Record<string, unknown>);
         }
+    }
+
+    /** `party.leave` (and a stranger leaving a Quick Play party): the seat, the party, the resume token, a `left` frame. */
+    private leaveParty(member: string): void {
+        const s = this.byMember.get(member);
+        if (s) this.leaveSeat(s, true);
+        this.parties.leave(member);
+        this.dropResume(member);
+        if (!s) return;
+        this.sendJson(s, {
+            t: 'party',
+            code: '',
+            phase: 'lobby',
+            leader: '',
+            difficulty: '',
+            openSeats: false,
+            locked: false,
+            members: [],
+            you: member,
+            left: true,
+        });
     }
 
     /**
@@ -815,7 +887,7 @@ export class PartyRelay {
         const slot = live?.seats.get(twin);
         this.sendJson(s, {
             t: 'welcome',
-            proto: PROTO,
+            proto: s.proto,
             member: twin,
             resumeToken,
             serverMs: this.now(),
@@ -902,6 +974,17 @@ export class PartyRelay {
                     openSeats: party.openSeats,
                     locked: party.locked,
                     room: party.room ?? null,
+                    // Quick Play: strangers and the fixed side survive a restore (the queue itself does not)
+                    ...(party.mm
+                        ? {
+                              mm: {
+                                  match: party.mm.match,
+                                  side: party.mm.side,
+                                  strangers: [...party.mm.strangers],
+                                  host: party.mm.host,
+                              },
+                          }
+                        : {}),
                     members: party.members.map(m => ({
                         id: m.id,
                         accountId: m.identity.accountId,
@@ -1038,6 +1121,7 @@ export class PartyRelay {
             heroSkins: [0, 1, 2, 3, 4, 5].map(slot => party.members.find(m => m.slot === slot)?.card?.image ?? null),
             keys: new Set(party.members.map(m => m.identity.key)),
             ips: ipsHere,
+            ...(party.mm ? { coop: true } : {}),
         };
         this.rooms.set(id, live);
         party.room = id;
@@ -1075,7 +1159,12 @@ export class PartyRelay {
             const s = this.byMember.get(m.id);
             if (s) this.bindSeat(s, live, m.id, startMs - now);
         }
-        this.log('mp_match_start', { humans: plan.humans.length, difficulty: plan.difficulty });
+        this.mm.onRoomStarted(id, party);
+        this.log('mp_match_start', {
+            humans: plan.humans.length,
+            difficulty: plan.difficulty,
+            ...(party.mm ? { mode: 'coop' } : {}),
+        });
     }
 
     private matchMsg(live: LiveRoom, slot: number, startInMs: number): MatchMsg {
@@ -1091,6 +1180,7 @@ export class PartyRelay {
             startInMs: Math.max(0, startInMs),
             lastSeq: live.room.slots[slot]?.lastSeq ?? 0,
             simVersion: live.sim.version,
+            ...(live.coop ? { mode: 'coop' as const } : {}),
         };
     }
 
@@ -1108,10 +1198,12 @@ export class PartyRelay {
         this.sendJson(s, this.matchMsg(live, slot, startInMs) as unknown as Record<string, unknown>);
     }
 
-    private claimOpenSeat(s: Sock, live: LiveRoom, party: Party, memberId: string): void {
-        // P10: the lowest empty piloted slot
+    private claimOpenSeat(s: Sock, live: LiveRoom, party: Party, memberId: string, want?: number): void {
+        // P10: the lowest empty piloted slot (a Quick Play backfill names its slot)
         const taken = new Set(live.seats.values());
-        const slot = live.room.humans.find(h => !taken.has(h) && live.room.slots[h].reason === 'open');
+        const slot = live.room.humans.find(
+            h => !taken.has(h) && live.room.slots[h].reason === 'open' && (want === undefined || h === want)
+        );
         if (slot === undefined) return;
         const key = s.identity!.key;
         if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity) return;
@@ -1335,6 +1427,7 @@ export class PartyRelay {
     private abandon(live: LiveRoom, why: string): void {
         const room = live.room;
         if (live.ending || !this.rooms.has(room.id)) return;
+        void this.mm.onRoomEnded(room.id, null, room.tick).catch(() => undefined);
         live.ending = true;
         if (room.status !== 'abandoned') room.status = 'abandoned';
         this.scheduler.remove(room);
@@ -1411,6 +1504,10 @@ export class PartyRelay {
         );
         const verified = check.ok && !room.unscored;
         if (!check.ok) this.log('mp_verify_failed', { why: check.why });
+        // the Quick Play record (events, outcome) is written before the verdict, so a `/live` save sees it
+        await this.mm
+            .onRoomEnded(room.id, end.outcome === 'won' || end.outcome === 'lost' ? end.outcome : null, end.ticks)
+            .catch(() => undefined);
         await this.opts.store.finish(
             room.id,
             live.epoch,
@@ -1494,6 +1591,7 @@ export class PartyRelay {
     /** SIGTERM: stop clocks, tell clients to come back in 3 s, write the final checkpoint with `handoff`. */
     async shutdown(): Promise<void> {
         if (this.stopped) return;
+        this.mm.shutdown();
         this.stopped = true;
         this.scheduler.stop();
         for (const live of this.rooms.values()) for (const s of this.socketsOf(live)) this.error(s, 'room_gone', 3000);
@@ -1599,6 +1697,7 @@ export class PartyRelay {
                 resume?: string;
                 ipKey?: string;
             }[];
+            mm?: { match: string; side: 'cat' | 'dog'; strangers: string[]; host: boolean };
         };
         const leaderDoc = doc.members.find(m => m.id === doc.leader) ?? doc.members[0];
         if (!leaderDoc) return;
@@ -1625,13 +1724,114 @@ export class PartyRelay {
             leaderDoc.id,
             room._id
         );
+        this.parties.restoreMm(party, doc.mm);
+        if (doc.mm) live.coop = true;
         for (const m of doc.members) {
             if (m.resume) this.setResume(m.id, m.resume, m.key, m.ipKey ?? '');
             if (m.slot !== undefined) live.seats.set(m.id, m.slot);
             live.keys.add(m.key);
             if (m.ipKey) live.ips.add(m.ipKey);
         }
-        void party;
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    // Quick Play glue (M1A-IMPL.md §5.1): what the matchmaker may see and do
+
+    private mmApi(): MmRelayApi {
+        return {
+            parties: this.parties,
+            now: () => this.now(),
+            log: (event, props) => this.log(event, props),
+            sock: member => {
+                const s = this.byMember.get(member);
+                if (!s || !s.identity || !s.sim || s.closed) return null;
+                return {
+                    member,
+                    proto: s.proto,
+                    identity: s.identity,
+                    ip: s.ip,
+                    netKey: netKey(s.ip),
+                    hint: s.hint,
+                    sim: s.sim,
+                    conn: s.away ? 'away' : 'on',
+                };
+            },
+            send: (member, msg) => this.sendJsonTo(member, msg),
+            canSeat: identity =>
+                !(
+                    !identity.key.startsWith('ip:') &&
+                    this.liveRoomsOf(identity.key).key >= PARTY_LIMITS.roomsLivePerIdentity
+                ) && !(identity.ipKey && this.liveRoomsOf('', identity.ipKey).ip >= PARTY_LIMITS.roomsLivePerIp),
+            room: roomId => this.mmRoomView(roomId),
+            leaveParty: member => this.leaveParty(member),
+            backfill: (member, roomId, slot) => this.backfillSeat(member, roomId, slot),
+            evict: (member, roomId) => this.evictSeat(member, roomId),
+        };
+    }
+
+    private mmRoomView(roomId: string): MmRoomView | null {
+        const live = this.rooms.get(roomId);
+        if (!live) return null;
+        const room = live.room;
+        return {
+            id: roomId,
+            party: live.party,
+            tick: room.tick,
+            live: room.live,
+            ending: live.ending,
+            humans: room.humans,
+            slots: room.slots.map(x => ({
+                slot: x.slot,
+                occupied: x.occupied,
+                mode: x.mode,
+                reason: x.reason,
+                connected: x.connected,
+                pilotTicks: { ...x.pilotTicks },
+            })),
+            keys: [...live.keys],
+            seats: new Map(live.seats),
+        };
+    }
+
+    /**
+     * A Quick Play backfill (§3): the member joins the room's party as a stranger, the piloted slot reopens (the
+     * earlier holder's AFK ticks no longer count) and the open-seat claim seats them; the client catches up as in P10.
+     */
+    private backfillSeat(member: string, roomId: string, slot: number): boolean {
+        const s = this.byMember.get(member);
+        const live = this.rooms.get(roomId);
+        const party = live ? this.parties.byId(live.party) : null;
+        if (!s || !s.identity || !live || !party?.mm || live.ending || !live.room.live) return false;
+        const key = s.identity.key;
+        if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity) return false;
+        if (live.room.slots[slot]?.mode !== 'pilot') return false;
+        if (!this.parties.joinMatched(party, member, s.identity, s.hint)) return false;
+        if (!live.room.reopen(slot, this.now())) {
+            this.parties.leave(member);
+            return false;
+        }
+        this.claimOpenSeat(s, live, party, member, slot);
+        if (live.seats.get(member) !== slot) {
+            this.parties.leave(member);
+            return false;
+        }
+        return true;
+    }
+
+    /** The holder of a backfilled seat: out of the seat and the party; a resume answers `seat_taken` (PROTO 2). */
+    private evictSeat(member: string, roomId: string): void {
+        const live = this.rooms.get(roomId);
+        live?.seats.delete(member);
+        const h = this.resumeOf.get(member);
+        if (h) this.seatTaken.set(h, this.now() + MM_SEAT_TAKEN_MS);
+        const s = this.byMember.get(member);
+        if (s && s.seatRoom === roomId) {
+            s.seatRoom = null;
+            s.seatSlot = -1;
+            this.error(s, 'seat_taken');
+        }
+        this.parties.leave(member);
+        this.dropResume(member);
     }
 
     /** Counters for logs and the load test. */
@@ -1644,6 +1844,7 @@ export class PartyRelay {
             loop_delay_p99: this.gate.p99Ms(),
             referee_lag_turns: this.gate.lag,
             ...this.tally,
+            ...this.mm.counters(),
         };
     }
 

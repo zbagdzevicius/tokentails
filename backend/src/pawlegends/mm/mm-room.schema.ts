@@ -1,0 +1,170 @@
+import { Injectable, Optional } from '@nestjs/common';
+import { InjectModel, Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
+import { createHash } from 'crypto';
+import type { Model } from 'mongoose';
+import type { Glicko } from './glicko2';
+
+/*
+ * The Quick Play room record (docs/plans/moba/M1A-IMPL.md §4.3): a small collection keyed by the room id, kept apart
+ * from `party/room-store.ts` on purpose. Written by the relay glue (mm-bridge.ts: room records are the relay's to
+ * write); read by `/live` (the hidden rating update) and by the leaver ladder (leaver.ts). Never a score. No IP is ever
+ * stored: `identityHash` is sha256 of the identity key (account or guest key), never of an address.
+ */
+
+export interface MmRoomMember {
+    slot: number;
+    identityHash: string;
+    accountId: string | null;
+    /** The tick the member took the seat (0 at the start; later for a backfill). */
+    joinedTick: number;
+    backfill: boolean;
+    ratingAtStart: Glicko | null;
+    event?: 'left' | 'afk';
+    eventTick?: number;
+}
+
+export interface MmRoomRecord {
+    _id: string;
+    queue: 'coop';
+    region: string;
+    side: 'cat' | 'dog';
+    difficulty: string;
+    sim: string;
+    /** Bot-filled teammate slots. */
+    fill: number[];
+    /** How long each human waited in the queue, by slot (the done measures). */
+    queueMs: Record<string, number>;
+    members: MmRoomMember[];
+    outcome?: 'won' | 'lost' | null;
+    endedAt?: Date | null;
+    createdAt: Date;
+}
+
+export interface MmRoomStore {
+    create(rec: MmRoomRecord): Promise<void>;
+    get(id: string): Promise<MmRoomRecord | null>;
+    /** A backfiller took a seat. */
+    addMember(id: string, member: MmRoomMember): Promise<void>;
+    /** The room ended: its events and outcome. */
+    finish(id: string, members: MmRoomMember[], outcome: 'won' | 'lost' | null, endedAt: Date): Promise<void>;
+    /** The mm rooms of an identity since `since`, oldest first (the leaver ladder). */
+    recentFor(identityHash: string, since: Date): Promise<MmRoomRecord[]>;
+}
+
+/** sha256 of an identity key (`acct:…` or `guest:…`); never called with an IP. */
+export const identityHash = (key: string): string => createHash('sha256').update(`mm:${key}`).digest('hex');
+
+const clone = <T>(x: T): T =>
+    JSON.parse(JSON.stringify(x), (k, v) =>
+        (k === 'endedAt' || k === 'createdAt') && typeof v === 'string' ? new Date(v) : v
+    );
+
+/** In memory (specs, the e2e harness, a relay built without Nest). */
+export class MemoryMmRoomStore implements MmRoomStore {
+    readonly rooms = new Map<string, MmRoomRecord>();
+
+    async create(rec: MmRoomRecord): Promise<void> {
+        this.rooms.set(rec._id, clone(rec));
+    }
+
+    async get(id: string): Promise<MmRoomRecord | null> {
+        const r = this.rooms.get(id);
+        return r ? clone(r) : null;
+    }
+
+    async addMember(id: string, member: MmRoomMember): Promise<void> {
+        this.rooms.get(id)?.members.push(clone(member));
+    }
+
+    async finish(id: string, members: MmRoomMember[], outcome: 'won' | 'lost' | null, endedAt: Date): Promise<void> {
+        const r = this.rooms.get(id);
+        if (!r) return;
+        r.members = clone(members);
+        r.outcome = outcome;
+        r.endedAt = endedAt;
+    }
+
+    async recentFor(hash: string, since: Date): Promise<MmRoomRecord[]> {
+        return [...this.rooms.values()]
+            .filter(r => r.createdAt.getTime() >= since.getTime() && r.members.some(m => m.identityHash === hash))
+            .sort((a, b) => a.createdAt.getTime() - b.createdAt.getTime())
+            .map(clone);
+    }
+}
+
+@Schema({ collection: 'pawlegendsmmrooms' })
+export class PawlegendsMmRoom {
+    @Prop({ type: String, required: true })
+    _id: string;
+
+    @Prop({ required: true, default: 'coop' })
+    queue: string;
+
+    @Prop({ required: true })
+    region: string;
+
+    @Prop({ required: true })
+    side: string;
+
+    @Prop({ required: true })
+    difficulty: string;
+
+    @Prop({ required: true })
+    sim: string;
+
+    @Prop({ type: [Number], default: [] })
+    fill: number[];
+
+    @Prop({ type: Object, default: {} })
+    queueMs: Record<string, number>;
+
+    @Prop({ type: [Object], default: [] })
+    members: MmRoomMember[];
+
+    @Prop({ type: String, default: null })
+    outcome: string | null;
+
+    @Prop({ type: Date, default: null })
+    endedAt: Date | null;
+
+    @Prop({ type: Date, required: true })
+    createdAt: Date;
+}
+export const PawlegendsMmRoomSchema = SchemaFactory.createForClass(PawlegendsMmRoom);
+PawlegendsMmRoomSchema.index({ 'members.identityHash': 1, createdAt: -1 });
+PawlegendsMmRoomSchema.index({ 'members.accountId': 1 });
+PawlegendsMmRoomSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 86400 });
+
+@Injectable()
+export class MongoMmRoomStore implements MmRoomStore {
+    constructor(@Optional() @InjectModel(PawlegendsMmRoom.name) private readonly model?: Model<PawlegendsMmRoom>) {}
+
+    private get m(): Model<PawlegendsMmRoom> {
+        if (!this.model) throw new Error('PawlegendsMmRoom model missing');
+        return this.model;
+    }
+
+    async create(rec: MmRoomRecord): Promise<void> {
+        await this.m.create(rec as any);
+    }
+
+    async get(id: string): Promise<MmRoomRecord | null> {
+        return (await this.m.findById(id).lean()) as unknown as MmRoomRecord | null;
+    }
+
+    async addMember(id: string, member: MmRoomMember): Promise<void> {
+        await this.m.updateOne({ _id: id }, { $push: { members: member } });
+    }
+
+    async finish(id: string, members: MmRoomMember[], outcome: 'won' | 'lost' | null, endedAt: Date): Promise<void> {
+        await this.m.updateOne({ _id: id }, { $set: { members, outcome, endedAt } });
+    }
+
+    async recentFor(hash: string, since: Date): Promise<MmRoomRecord[]> {
+        return (await this.m
+            .find({ 'members.identityHash': hash, createdAt: { $gte: since } })
+            .sort({ createdAt: 1 })
+            .limit(200)
+            .lean()) as unknown as MmRoomRecord[];
+    }
+}
