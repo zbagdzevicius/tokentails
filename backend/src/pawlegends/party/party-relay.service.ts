@@ -1,4 +1,4 @@
-import { Injectable, Logger, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
+import { BeforeApplicationShutdown, Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
 import { HttpAdapterHost } from '@nestjs/core';
 import type { Server } from 'http';
 import { CatRepository } from '../../cat/cat.repository';
@@ -15,7 +15,7 @@ import { MongoRoomStore } from './room-store';
  * No feature flag (D9): always on; without PAWLEGENDS_PARTY_TICKET_SECRET rooms are simply unscored.
  */
 @Injectable()
-export class PartyRelayService implements OnApplicationBootstrap, OnApplicationShutdown {
+export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicationShutdown {
     private relay: PartyRelay | null = null;
     private readonly logger = new Logger('PartyRelay');
 
@@ -47,7 +47,9 @@ export class PartyRelayService implements OnApplicationBootstrap, OnApplicationS
         }
     }
 
-    async onApplicationShutdown(): Promise<void> {
+    // Before, not on, application shutdown: Nest closes the HTTP server between the two, and server.close() waits for
+    // every upgraded socket, which only relay.shutdown() closes (1012). Mongo is still connected here for the handoff.
+    async beforeApplicationShutdown(): Promise<void> {
         await this.relay?.shutdown();
     }
 
