@@ -309,7 +309,7 @@ html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
 .pl-chatbtn kbd { font-size: 9px; padding: 1px 4px; }
 .pl-chatbtn.cool { opacity: 0.45; }
 html[data-touch='1'] .pl-chatbtn {
-  left: auto; bottom: auto; right: calc(152px + var(--safe-r)); top: calc(104px + var(--safe-t)); width: 44px; height: 44px; padding: 0; justify-content: center;
+  left: auto; bottom: auto; right: calc(16px + var(--mm-w, 132px) + var(--safe-r)); top: calc(104px + var(--safe-t)); width: 44px; height: 44px; padding: 0; justify-content: center;
   border-radius: 50%; border: 2px solid rgba(255, 243, 220, 0.55);
 }
 html[data-touch='1'] .pl-chatbtn span, html[data-touch='1'] .pl-chatbtn kbd { display: none; }

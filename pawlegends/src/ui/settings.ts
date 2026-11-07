@@ -28,7 +28,7 @@ import type { QualityTier } from '../render/quality';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
 import { hideNames, setHideNames } from '../meta/partyPrefs';
 import { bindZoomRow, zoomRowHtml } from './zoomSlider';
-import { colourBlind, setColourBlind } from './minimapPrefs';
+import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize, type MinimapSize } from './minimapPrefs';
 
 export interface SettingsState {
   muted: boolean;
@@ -79,7 +79,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref(), hide: hideNames(), cvd: colourBlind() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref(), hide: hideNames(), cvd: colourBlind(), mm: minimapSize() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -110,6 +110,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
+      <div class="set-row"><span>Minimap size</span><span class="chips">${MINIMAP_SIZES.map((m) => `<button class="chip ${ctl.mm === m ? 'on' : ''}" data-mm="${m}">${m.toUpperCase()}</button>`).join('')}</span></div>
       ${row('Colour-blind map colours', 'cvd', ctl.cvd)}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
@@ -130,7 +131,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const sfx = t.closest<HTMLElement>('[data-skinfx]')?.dataset.skinfx as 'all' | 'mine' | 'off' | undefined;
     const tgt = t.closest<HTMLElement>('[data-target]')?.dataset.target as TargetFirst | undefined;
     const shake = t.closest<HTMLElement>('[data-shake]')?.dataset.shake as ShakePref | undefined;
-    if (shake) {
+    const mm = t.closest<HTMLElement>('[data-mm]')?.dataset.mm as MinimapSize | undefined;
+    if (mm) {
+      ctl.mm = mm;
+      setMinimapSize(mm);
+    } else if (shake) {
       ctl.shake = shake;
       setShakePref(shake);
     } else if (tgt) {
