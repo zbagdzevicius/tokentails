@@ -118,6 +118,9 @@ resource "google_cloud_run_v2_service" "this" {
       traffic,
       client,
       client_version,
+      # the service-level scaling block (manual instance count) is not managed here; the API echoes it back as
+      # zeros, which showed as a change on every plan (found on the first staging apply)
+      scaling,
     ]
   }
 }
