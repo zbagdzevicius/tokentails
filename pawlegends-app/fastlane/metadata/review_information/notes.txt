@@ -1,7 +1,22 @@
-Pawlegends is a self-contained game: all game files are inside the app and it plays offline against computer-controlled bots from the first launch. No login, no account, no purchases, no ads.
+NO LOGIN NEEDED
+Pawlegends has no account and no sign-in, so there is no demo account. All game files are inside the app, and it plays offline against computer-controlled bots from the first launch.
 
-To test: tap Play, pick any hero, and play a match against the bots (about 5 to 7 minutes; the Easy difficulty is the quickest).
+HOW TO PLAY (about 7 minutes, never more than 11)
+1. On the title screen tap "Play as <hero>" (Easy is the quickest).
+2. Move by dragging on the left side of the screen. Tap the round skill buttons on the right; ATK is the basic attack.
+3. Walk up a lane with your bots, knock down the dog towers, then the dogs' core to win.
+"Change hero" opens the hero list (10 cat heroes). Settings is the gear icon.
 
-Party play (optional, needs the internet): tap Party to create a party; it shows a 6-letter code. A second device can join with that code. Matches with friends also work with bots filling empty seats.
+PARTY PLAY (optional, needs the internet)
+"Play with friends" creates a party and shows a 6-letter code; a second device joins with "Join with code". Friends play together on one team against bots; bots also fill empty seats. Chat is fixed quick-chat phrases and pings only: there is no free-text chat and no user-generated content.
 
-The app updates its own game content (HTML, JavaScript, images) from our server, signed by us, within the app's existing purpose (guideline 2.5.2 / DPLA 3.3.1(B)). It never downloads native code.
+NO PURCHASES
+The iOS build has no in-app purchases, no ads, no external purchase links, no crypto or wallet features and no donations. The card collection only shows the free starter cats. The title screen line "Your cats become skins / Your Token Tails cats show up here" is information only: the app has no sign-in, and nothing in it links to a store or website to get more.
+
+GAME CONTENT UPDATES (guideline 2.5.2, 4.7)
+The app checks tokentails.com on launch for a newer version of its own game files (HTML, JavaScript, images, sounds), signed and encrypted with our key, and applies it only on the title screen, never during a match. These updates run inside the system WKWebView and only change game content within the app's existing purpose (balance, bug fixes, new heroes). They never download or execute native code, and they never add purchases or change the app's main purpose. Any change that needs new permissions or native features goes through App Review as a new build. If an update does not start correctly, the app returns to the previous version automatically.
+
+PRIVACY
+No analytics, no tracking, no advertising identifier. Party play sends a random party key, a generated player name and match inputs to our game server only to run the match (details: https://tokentails.com/pawlegends/privacy).
+
+Contact: info@tokentails.com

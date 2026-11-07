@@ -25,6 +25,7 @@ import {
   type TrackpadPref,
 } from '../input/presets';
 import type { QualityTier } from '../render/quality';
+import { APP_ENV } from '../app/platform';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
 import { hideNames, setHideNames } from '../meta/partyPrefs';
 import { bindZoomRow, zoomRowHtml } from './zoomSlider';
@@ -52,7 +53,11 @@ export interface SettingsOpts {
 }
 
 /** Token Tails privacy policy (the same page as the site footer and the sign-in sheet). */
-export const PRIVACY_URL = 'https://docs.tokentails.com/community-and-social-impact/privacy-policy';
+export const WEB_PRIVACY_URL = 'https://docs.tokentails.com/community-and-social-impact/privacy-policy';
+/** The iOS app's own notice (client/pages/pawlegends/privacy.tsx; the App Store listing's privacy policy URL). */
+export const APP_PRIVACY_URL = 'https://tokentails.com/pawlegends/privacy';
+/** The Settings link: the app build links the app's notice, the web build the Token Tails policy. */
+export const PRIVACY_URL = APP_ENV ? APP_PRIVACY_URL : WEB_PRIVACY_URL;
 
 const linkAttr = (url: string): string => url.replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c] ?? c);
 

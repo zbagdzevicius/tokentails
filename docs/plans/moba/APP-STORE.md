@@ -112,7 +112,7 @@ Rules:
 | 2.1 completeness | Reviewer cannot test multiplayer | Bots work offline; review notes explain party play with a code |
 | 2.3 metadata | Screenshots not from the app | Screenshots captured from the app build in the simulator |
 | Privacy manifest | Upload warning or rejection | `PrivacyInfo.xcprivacy` in the target; check pods ship their own |
-| Age rating | Missing answers block submit | Pre-filled answers file (`pawlegends-app/store/age-rating.md`) |
+| Age rating | Missing answers block submit | Pre-filled answers file (`docs/plans/moba/APP-STORE-ANSWERS.md`) |
 | iPadOS orientation | Landscape-only warnings | iPhone only in v1 |
 
 ## IAP, crypto and donations on iOS
@@ -129,7 +129,7 @@ Rules:
 
 - No login. The profile lives in localStorage on the device. It survives OTA updates (same origin).
 - No App Tracking Transparency prompt. No IDFA.
-- v1 ships without the PostHog key. Nutrition label: "Data Not Collected".
+- v1 ships without the PostHog key. Nutrition label (corrected 2026-11-07, see APP-STORE-ANSWERS.md): no analytics, no tracking; optional party play collects a random party key (User ID) and Gameplay Content for App Functionality, because the relay keeps finished rooms 30 days.
 - If PostHog is turned on later (a native release): Usage Data (Product Interaction) and Diagnostics (crashes), not linked to identity, not used for tracking. Update the label first.
 - `PrivacyInfo.xcprivacy`: `NSPrivacyTracking = false`, no tracking domains, no collected data in v1, `NSPrivacyAccessedAPICategoryUserDefaults` reason `CA92.1`. Add others only if our code uses them.
 - After `pod install`, CI checks that Capacitor, CapacitorCordova and CapgoCapacitorUpdater ship their own privacy manifests.
@@ -181,7 +181,7 @@ Files in `pawlegends-app/fastlane/metadata/en-US/`, uploaded by `deliver`:
 - Icon: 1024×1024 PNG, no alpha, from the existing Pawlegends art.
 - App preview video: optional, later.
 - Review notes: "Plays offline against bots. Party play: tap Party, share the code. No login, no purchases."
-- Pre-filled answers: `pawlegends-app/store/age-rating.md` (expected 9+: mild cartoon violence, no UGC, no browsing, no gambling, no purchases) and `pawlegends-app/store/privacy-label.md` (Data Not Collected).
+- Pre-filled answers: `docs/plans/moba/APP-STORE-ANSWERS.md` (age rating, expected 9+: mild cartoon violence, no UGC, no browsing, no gambling, no purchases; App Privacy; export compliance; other App Store Connect fields).
 
 ## Milestones
 
@@ -208,6 +208,6 @@ Everything else is automated by us.
 4. Add the GitHub secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`, and `OTA_PRIVATE_KEY`
    (`gh secret set OTA_PRIVATE_KEY < pawlegends-app/ota/.keys/private-key.pem`; keep a copy in the password manager).
 5. Create the app record "Pawlegends" with bundle id `com.tokentails.pawlegends` (or let `fastlane bootstrap` register the id, then create the record).
-6. Answer the age rating and App Privacy questionnaires, copying from `pawlegends-app/store/age-rating.md` and `privacy-label.md`. Confirm the export compliance answer.
+6. Answer the age rating and App Privacy questionnaires, copying from `docs/plans/moba/APP-STORE-ANSWERS.md`. Confirm the export compliance answer.
 7. Install the TestFlight build on your iPhone and play one match.
 8. Press Submit for Review, and later Release.

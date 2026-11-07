@@ -4,7 +4,7 @@
  *
  * 1. `pawlegends` built for the app: relative base (served from capacitor://localhost), VITE_PAWLEGENDS_APP=1 (no
  *    purchase links, app build locked), the production API for party play, and no PostHog key (the App Store privacy
- *    label is "Data Not Collected"; nothing is sent, so there is no consent prompt and no tracking).
+ *    label has no analytics data; nothing is sent, so there is no consent prompt and no tracking).
  * 2. The shell (src/shell/main.ts) bundled to `www/shell.js` with this bundle's stamp, and loaded before the game.
  * 3. `www/bundle.json`: the stamp (version, seq, compat, simVersion), read by the OTA publish job.
  *
@@ -66,7 +66,7 @@ if (!args.includes('--skip-game')) {
     VITE_PAWLEGENDS_APP: '1',
     VITE_PAWLEGENDS_API: API_ORIGIN,
     VITE_PAWLEGENDS_BUILD: `app-${version}`,
-    // no analytics in v1 (privacy label "Data Not Collected"): an empty key wins over any .env file
+    // no analytics in v1 (no analytics data on the privacy label): an empty key wins over any .env file
     VITE_PAWLEGENDS_POSTHOG_KEY: '',
   };
   execFileSync('npx', ['tsc', '--noEmit'], { cwd: gameDir, stdio: 'inherit', env });
