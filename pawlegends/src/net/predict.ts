@@ -17,6 +17,8 @@ export const DEFAULT_SPEED = 160;
 export const JUMP_MM = 150;
 /** Grace after the expected start of the authoritative move before a lead with no movement behind it is dropped. */
 export const STALL_MS = 150;
+/** A re-issued Move within this angle (30°) of the current heading keeps the lead (joystick hold, steer, re-clicks). */
+export const KEEP_COS = Math.cos(Math.PI / 6);
 
 export interface PredictInput {
   x: number;
@@ -34,15 +36,40 @@ export class Predictor {
   private from = { dx: 0, dy: 0 };
   private want = { dx: 0, dy: 0 };
   private blendAt = -Infinity;
+  /** The authoritative position at the last `offset` call (null: none yet). */
+  private pos: { x: number; y: number } | null = null;
+  /** The last `offset` call led the hero (the shown move is growing or held). */
+  private leadingNow = false;
 
-  /** The player issued a Move to (x, y). */
+  /**
+   * The player issued a Move to (x, y). A Move that keeps roughly the same heading (a held joystick, right-button
+   * steer, repeated clicks along the path) keeps the running lead: restarting it at 0 would pull the drawn hero back
+   * and surge it forward again on every re-issue.
+   */
   move(x: number, y: number, nowMs: number): void {
-    this.target = { x, y, atMs: nowMs };
+    let atMs = nowMs;
+    const t = this.target;
+    const p = this.pos;
+    if (t && p) {
+      const ax = t.x - p.x;
+      const ay = t.y - p.y;
+      const bx = x - p.x;
+      const by = y - p.y;
+      const na = Math.hypot(ax, ay);
+      const nb = Math.hypot(bx, by);
+      if (na > 1 && nb > 1 && (ax * bx + ay * by) / (na * nb) >= KEEP_COS) atMs = t.atMs;
+    }
+    this.target = { x, y, atMs };
   }
 
   /** Any other command (or arrival): stop leading. */
   stop(): void {
     this.target = null;
+  }
+
+  /** The last frame drew a lead toward the target (the hero should look like it walks). */
+  get leading(): boolean {
+    return this.leadingNow;
   }
 
   /** The move target being led toward, or null. */
@@ -54,6 +81,8 @@ export class Predictor {
   offset(a: PredictInput, latencyMs: number, nowMs: number): { dx: number; dy: number } {
     let wx = 0;
     let wy = 0;
+    this.pos = { x: a.x, y: a.y };
+    this.leadingNow = false;
     if (this.target && a.moving === false && nowMs - this.target.atMs > latencyMs + STALL_MS) this.target = null;
     if (this.target && !a.locked) {
       const tx = this.target.x - a.x;
@@ -64,6 +93,7 @@ export class Predictor {
       if (dist > 1) {
         wx = (tx / dist) * lead;
         wy = (ty / dist) * lead;
+        this.leadingNow = lead > 0;
       } else this.target = null;
     }
     if (Math.hypot(wx - this.want.dx, wy - this.want.dy) > JUMP_MM) {
