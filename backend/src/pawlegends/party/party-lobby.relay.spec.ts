@@ -5,9 +5,14 @@ import { PartyRelay, type PartyCard } from './party-relay';
 import { PartyTicketService } from './party-ticket.service';
 import { RefereePool } from './referee-pool';
 import { MemoryRoomStore } from './room-store';
+import { simFor } from '../../vendor/pawlegends-sim';
 import { TestClient } from './relay-test-client.helper-spec';
 
 /* Party play lane P over real sockets: hello hints, party.card (D8), hero skins, ticketed identity on resume. */
+
+/** Production v13 (party play, no dogs): a party its leader pins to it never fields a v14 dog. */
+const V13 = simFor(13)!;
+const DOGS_V14 = ['nugget', 'marshmallow', 'bravo', 'chili', 'howler'];
 
 const SECRET = 'spec-secret-0123456789abcdef';
 const ART = 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/cats/a.gif';
@@ -233,6 +238,57 @@ describe('party relay lane P', () => {
             const n = b.relay.counters();
             for (const k of ['desyncs', 'divergences', 'restores', 'refused_busy', 'join_fail_global'])
                 expect(typeof (n as Record<string, unknown>)[k]).toBe('number');
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('a v13 leader with open seats on the dog side starts a v13 room with v13 heroes (no update_required)', async () => {
+        const b = await boot();
+        try {
+            const a = await b.client();
+            a.hello({ sim: 13, simHash: V13.SIM_SOURCE_HASH });
+            await a.until(() => a.last('welcome'));
+            a.send({ t: 'party.create', difficulty: 'normal' });
+            await a.until(() => a.last('party'));
+            a.send({ t: 'party.set', openSeats: true });
+            await a.until(() => a.last('party')?.openSeats === true);
+            a.send({ t: 'party.start' });
+            await a.until(() => a.last('party')?.phase === 'pick');
+            a.send({ t: 'pick.lock', hero: 'brutus', trick: 'pounce' });
+            await a.until(() => a.last('party')?.phase === 'loading');
+            a.send({ t: 'loaded' });
+            const m = await a.until(() => a.last('match') ?? a.json.find(j => j.t === 'error'));
+            expect(m.t).toBe('match');
+            expect(m.simVersion).toBe(13);
+            const picks: string[] = m.config.picks;
+            for (const d of DOGS_V14) expect(picks).not.toContain(d);
+            expect(a.json.some(j => j.t === 'error' && j.code === 'update_required')).toBe(false);
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('in a party a v13 leader pins, a v14 member cannot lock a v14 dog', async () => {
+        const b = await boot();
+        try {
+            const a = await b.client();
+            a.hello({ sim: 13, simHash: V13.SIM_SOURCE_HASH });
+            await a.until(() => a.last('welcome'));
+            a.send({ t: 'party.create', difficulty: 'normal' });
+            const pa = await a.until(() => a.last('party'));
+            const c = await b.client();
+            c.hello();
+            await c.until(() => c.last('welcome'));
+            c.send({ t: 'party.join', code: pa.code });
+            await a.until(() => a.last('party')?.members.length === 2);
+            a.send({ t: 'party.start' });
+            await a.until(() => a.last('party')?.phase === 'pick');
+            a.send({ t: 'pick.lock', hero: 'brutus', trick: 'pounce' });
+            c.send({ t: 'pick.lock', hero: 'nugget', trick: 'pounce' });
+            c.send({ t: 'pick.lock', hero: 'cacklejaw', trick: 'pounce' });
+            const v = await a.until(() => (a.last('party')?.phase === 'loading' ? a.last('party') : null));
+            expect(v.members.map((x: { hero?: string }) => x.hero)).toEqual(['brutus', 'cacklejaw']);
         } finally {
             await b.stop();
         }
