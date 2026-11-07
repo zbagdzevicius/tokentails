@@ -33,7 +33,8 @@ module.exports = {
     // /pawlegends (the landing), its game and its terms are noindex until the trademark search passes (POC.md §11.4).
     // Launch day (docs/plans/moba/LAUNCH.md a.8 step 1) removes '/pawlegends' here together with the landing's
     // `noindex`; '/pawlegends/play' (the game) and '/pawlegends/terms' stay out (those pages stay noindex).
-    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/feed', '/feed/*', '/pawlegends', '/pawlegends/play', '/pawlegends/terms'],
+    // '/legends' (the landing A/B arm B) always stays out: its canonical is '/pawlegends'.
+    exclude: ['/gaming', '/cats/view', '/feed/article', '/swordcat', '/yourcat', '/feed', '/feed/*', '/pawlegends', '/pawlegends/play', '/pawlegends/terms', '/legends'],
     transform: async (config, path) => plain(config, path),
     additionalPaths: async () => {
         if (process.env.NEXT_PUBLIC_IS_APP) {
