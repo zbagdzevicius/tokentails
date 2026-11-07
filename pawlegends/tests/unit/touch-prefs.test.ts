@@ -48,7 +48,8 @@ describe('left-handed mirror and button size', () => {
       expect(l.q.d / n.q.d).toBeCloseTo(ARC_LARGE, 1);
       expect(minGap(l).gap).toBeGreaterThan(minGap(n).gap);
       for (const s of Object.values(l)) {
-        expect(s.rx + s.d / 2 + 28).toBeLessThan(w / 2);
+        // Large reaches a little past the middle on a 667 px phone (the joystick still has the left 45%)
+        expect(s.rx + s.d / 2 + 28).toBeLessThan(w * 0.56);
         expect(s.by + s.d / 2 + 24).toBeLessThan(h - 60);
       }
     }

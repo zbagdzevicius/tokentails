@@ -39,9 +39,10 @@ const BASE: Readonly<Record<ArcButton, ArcSpot>> = Object.freeze({
   r: { rx: 214, by: 140, d: 70 },
   trick: { rx: 6, by: 127, d: 48 },
   nap: { rx: 229, by: 47, d: 46 },
-  // the last-hit (minion) and tower buttons (Settings; on by default since UX pass 2, Wild Rift shows both)
-  lasthit: { rx: 92, by: 212, d: 44 },
-  tower: { rx: 4, by: 200, d: 44 },
+  // the last-hit (minion) and tower buttons (Settings; on by default since UX pass 2, Wild Rift shows both): left of R
+  // and Nap, under ARC_TOP like the rest (above it they sat on the phone kill feed, hud-compact.spec.ts)
+  lasthit: { rx: 275, by: 95, d: 44 },
+  tower: { rx: 290, by: 30, d: 44 },
 });
 
 /** UX pass 2: Settings "Button size: Large" scales the whole arc up by this much (gaps and all). */
