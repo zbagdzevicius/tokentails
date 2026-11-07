@@ -36,9 +36,10 @@ describe('party-sim', { timeout: 300_000 }, () => {
   });
 
   it('Ping and Forfeit from slots >= 1 are dropped and never logged; slot 1 never touches m.log', () => {
-    const m = partyMatch(5, [0, 1]);
+    // Sim v14: with the dogs in the pool seed 5's idle team loses its core at 7,917, so seed 6 (still going at 9,000)
+    const m = partyMatch(6, [0, 1]);
     const ping: Command = { op: Op.Ping, kind: 0, x: 50000, y: 30000, id: 255 };
-    // 8,000 ticks: past the Normal surrender window (4:00), before sim v12's balance lets the idle team's core fall (8,990)
+    // 8,000 ticks: past the Normal surrender window (4:00), before the idle team's core falls
     for (let t = 0; t < 8000; t++) {
       const list: Command[] = t % 50 === 0 ? [ping, { op: Op.Forfeit }] : [];
       if (t % 97 === 0) list.push({ op: Op.Move, x: 20000 + t, y: 20000 });
