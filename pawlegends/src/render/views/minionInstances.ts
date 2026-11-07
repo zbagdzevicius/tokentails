@@ -148,6 +148,32 @@ export function clearOf(px: number, pz: number, hx: number, hz: number, clear: n
 const _clr = { x: 0, z: 0 };
 
 /** True when (x, z) m lies inside one of the zones (render only). */
+/**
+ * MAP-GAPS A16: the direction (unit, render x/z) a minion at (px, pz) is pushed out of a structure footprint at
+ * (bx, bz): away from the centre, but near the centre (inside `bias` × r) toward the lane's outside, away from the
+ * map's middle, so a minion walking through a tower never flips from one side to the other frame to frame.
+ */
+export const PUSH_BIAS = 0.6;
+const MID_X = 50;
+const MID_Z = -30;
+export function pushOutDir(px: number, pz: number, bx: number, bz: number, r: number): { x: number; z: number } {
+  const dx = px - bx;
+  const dz = pz - bz;
+  const d = Math.hypot(dx, dz);
+  if (d >= r * PUSH_BIAS && d > 1e-4) return { x: dx / d, z: dz / d };
+  let ox = bx - MID_X;
+  let oz = bz - MID_Z;
+  const ol = Math.hypot(ox, oz) || 1;
+  ox /= ol;
+  oz /= ol;
+  // blend toward the outside the closer the minion is to the centre (continuous at the bias radius)
+  const k = d > 1e-4 ? d / (r * PUSH_BIAS) : 0;
+  const ux = (d > 1e-4 ? dx / d : 0) * k + ox * (1 - k) * 2;
+  const uz = (d > 1e-4 ? dz / d : 0) * k + oz * (1 - k) * 2;
+  const ul = Math.hypot(ux, uz) || 1;
+  return { x: ux / ul, z: uz / ul };
+}
+
 export function inClearZone(zones: readonly { x: number; z: number; r: number }[], x: number, z: number): boolean {
   for (const c of zones) if ((x - c.x) * (x - c.x) + (z - c.z) * (z - c.z) < c.r * c.r) return true;
   return false;
@@ -336,10 +362,13 @@ export class MinionInstances {
           const d = Math.hypot(dx, dz);
           const min = b.r + 0.35;
           if (d >= min) continue;
-          const ux = d > 1e-4 ? dx / d : 1;
-          const uz = d > 1e-4 ? dz / d : 0;
-          px += ux * Math.min(2, min - d);
-          pz += uz * Math.min(2, min - d);
+          const u = pushOutDir(px, pz, b.x, b.z, b.r);
+          // the push reaches the footprint's edge along that direction
+          const along = (px - b.x) * u.x + (pz - b.z) * u.z;
+          const perp2 = Math.max(0, d * d - along * along);
+          const need = Math.sqrt(Math.max(0, min * min - perp2)) - along;
+          px += u.x * Math.min(2, Math.max(0, need));
+          pz += u.z * Math.min(2, Math.max(0, need));
         }
       }
       const hop = upright ? Math.abs(Math.cos(a.phase)) * 0.06 * a.walk : moving ? Math.abs(Math.sin(a.phase * 0.5)) * 0.03 : 0;

@@ -73,3 +73,50 @@ describe('MAP-GAPS A15 river past the map edge', () => {
     for (const t of over) expect(outsideBy(t.x, t.y)).toBeGreaterThanOrEqual(RIVER_RUN * 0.75);
   });
 });
+
+describe('MAP-GAPS A16 bridges and minion push-out', () => {
+  it('decks the whole walkable lane band, flush with the water, with nothing standing in the river', async () => {
+    const { bridgeParts, BRIDGE_HALF } = await import('../../src/render/views/mapView');
+    const { NX, createGrid } = await import('../../src/sim/map/grid');
+    const g = createGrid();
+    const r0 = MAP.riverX[0] / 1000;
+    const r1 = MAP.riverX[1] / 1000;
+    for (const b of bridgeParts()) {
+      expect(b.width).toBeGreaterThanOrEqual(11.4);
+      expect(b.top).toBeLessThanOrEqual(0.015);
+      expect(BRIDGE_HALF).toBeGreaterThanOrEqual(5.7);
+      for (const p of b.posts) {
+        expect(p.x < r0 - 1 || p.x > r1 + 1).toBe(true);
+        // no post on a walkable cell of the lane band
+        const c = Math.floor(p.y) * NX + Math.floor(p.x);
+        if (Math.abs(p.y - b.y) <= 5.5) expect(g.walls[c]).toBe(1);
+      }
+    }
+  });
+  it('pushes a minion near a tower centre out the same way for a ±1 mm offset', async () => {
+    const { pushOutDir } = await import('../../src/render/views/minionInstances');
+    for (const [bx, bz] of [
+      [34, -51],
+      [20, -48],
+      [34, -9],
+      [66, -51],
+    ]) {
+      for (const [ox, oz] of [
+        [0.001, 0],
+        [-0.001, 0],
+        [0, 0.001],
+        [0, -0.001],
+        [0, 0],
+      ]) {
+        const a = pushOutDir(bx + ox, bz + oz, bx, bz, 1.2);
+        const ref = pushOutDir(bx, bz, bx, bz, 1.2);
+        expect(a.x * ref.x + a.z * ref.z).toBeGreaterThan(0.99);
+        // toward the lane's outside: away from the map middle
+        expect((bx - 50) * a.x + (bz + 30) * a.z).toBeGreaterThan(0);
+      }
+    }
+    // far from the centre it is the plain radial push
+    const r = pushOutDir(36, -51, 34, -51, 1.2);
+    expect(r.x).toBeCloseTo(1, 5);
+  });
+});
