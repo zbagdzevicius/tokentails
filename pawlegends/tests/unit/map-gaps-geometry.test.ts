@@ -43,3 +43,18 @@ describe('MAP-GAPS A12 outer forest to the camera reach', () => {
     expect(low / trees.length).toBeLessThan(0.6);
   });
 });
+
+describe('MAP-GAPS A13 fountains clear of the hedge', () => {
+  it('keeps every hedge sphere off the fountain rim torus, and walls the basin behind instead', async () => {
+    const { FOUNTAIN } = await import('../../src/data/map');
+    const { hedgeSpots, fountainWall, FOUNTAIN_CLEAR } = await import('../../src/render/views/mapView');
+    const rimOuter = FOUNTAIN.radius / 1000 + 0.28;
+    for (const fx of [FOUNTAIN.x / 1000, W - FOUNTAIN.x / 1000]) {
+      for (const h of hedgeSpots()) expect(Math.hypot(h.x - fx, h.y - FOUNTAIN.y / 1000) - h.r).toBeGreaterThan(rimOuter);
+      const wall = fountainWall().filter((s) => Math.abs(s.x - fx) < 10);
+      expect(wall.length).toBeGreaterThan(10);
+      for (const s of wall) expect(Math.hypot(s.x - fx, s.y - FOUNTAIN.y / 1000) - s.r).toBeGreaterThan(rimOuter);
+    }
+    expect(FOUNTAIN_CLEAR).toBeGreaterThan(rimOuter);
+  });
+});
