@@ -920,6 +920,7 @@ export class GameView {
     }
     this.animPost(frame, dt);
     this.drawMarks(this.frame, dt);
+    this.map.setDetail?.(this.gr.settings.tier === 'low');
     this.map.update(frame, dt, this.gr.camera.position);
     this.pickups.update(dt);
     this.vfx.update(dt, this.frame?.entities ?? NO_ENTITIES, this.mySlot);

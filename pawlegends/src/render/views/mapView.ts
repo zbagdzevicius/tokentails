@@ -417,8 +417,47 @@ export function gateSpans(x: number): [number, number][] {
   return out.filter(([a, b]) => b - a > 0.5);
 }
 
+/**
+ * MAP-GAPS A12: how far (m) past each map edge the ground is dressed with trees: past the camera's real reach at the
+ * widest zoom (desktop zoomMax 1.9, any focus inside CAMERA_FRAME) plus 5 m.
+ */
+export const OUTER_DRESS = Object.freeze({ west: 46, east: 46, north: 40, south: 25, near: 6, nearSouth: 10 });
+
+/** Distance (m) of (x, y) outside the map rectangle (0 inside). */
+export const outsideBy = (x: number, y: number): number => Math.hypot(Math.max(0 - x, x - W, 0), Math.max(0 - y, y - H, 0));
+
+/**
+ * MAP-GAPS A12: the far forest (m): a jittered 3.2 m grid from OUTER_DRESS.near (nearSouth below the map) out to the dressed edge, all four
+ * sides and the corner squares, thinning with distance (never under 35%). `low` marks the half a Low tier keeps.
+ */
+export function outerTrees(): { x: number; y: number; s: number; low: boolean }[] {
+  const rnd = lcg(37);
+  const out: { x: number; y: number; s: number; low: boolean }[] = [];
+  const r0 = MAP.riverX[0] / 1000;
+  const r1 = MAP.riverX[1] / 1000;
+  for (let x = -OUTER_DRESS.west; x <= W + OUTER_DRESS.east; x += 3.2) {
+    for (let y = -OUTER_DRESS.south; y <= H + OUTER_DRESS.north; y += 3.2) {
+      const px = x + (rnd() - 0.5) * 2.2;
+      const py = y + (rnd() - 0.5) * 2.2;
+      const keep = rnd();
+      const s = 0.85 + rnd() * 0.75;
+      const lowPick = rnd() < 0.5;
+      const d = outsideBy(px, py);
+      // south of the map the trees stand between the camera and the units: they start further out
+      if (d < (py < 0 ? OUTER_DRESS.nearSouth : OUTER_DRESS.near)) continue;
+      // the river runs on under the canopy only near the map (MAP-GAPS A15 closes the forest over it further out)
+      if (px > r0 - 2 && px < r1 + 2 && d < OUTER_DRESS.near + 4) continue;
+      if (keep > Math.max(0.35, 1 - (d - OUTER_DRESS.near) / 70)) continue;
+      out.push({ x: px, y: py, s, low: lowPick });
+    }
+  }
+  return out;
+}
+
 export interface MapView {
   group: THREE.Group;
+  /** MAP-GAPS A12: the Low tier draws half the far forest. */
+  setDetail?(low: boolean): void;
   /** `lens`: the camera position (m), for the canopy cut over heroes near the tree line. */
   update(frame: ViewFrame | null, dt: number, lens?: THREE.Vector3): void;
   setShadows(on: boolean): void;
@@ -688,6 +727,29 @@ export function createMapView(): MapView {
   }
   addMerged(wallB, 'walls', true, canopyMat(0.6, 'pl-wall-cut-v1'));
 
+  // MAP-GAPS A12: the far forest out to the camera's reach at max zoom, one instanced tree (Low keeps half)
+  const farB = new ModelBuilder();
+  farB.cyl(0.25, 0.35, 1.6, 0x8a5a3a, { at: [0, 0.8, 0] }, 6);
+  farB.add(new THREE.IcosahedronGeometry(1.5, 0), 0x55a055, { at: [0, 2.3, 0] });
+  farB.add(new THREE.IcosahedronGeometry(1.05, 0), 0x7cc46e, { at: [0.2, 3.2, -0.1] });
+  const farGeo = keep(farB.build());
+  const far = outerTrees().sort((a, b) => Number(b.low) - Number(a.low));
+  const farLow = far.filter((t) => t.low).length;
+  const farMesh = new THREE.InstancedMesh(farGeo, sceneryMat, far.length);
+  farMesh.name = 'far-forest';
+  const fm = new THREE.Matrix4();
+  const fq = new THREE.Quaternion();
+  const fv = new THREE.Vector3();
+  far.forEach((t, i) => {
+    fq.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (t.x * 7.1 + t.y * 3.3) % (Math.PI * 2));
+    fm.compose(fv.set(t.x, 0, -t.y), fq, new THREE.Vector3(t.s, t.s * (0.9 + ((i * 37) % 10) / 40), t.s));
+    farMesh.setMatrixAt(i, fm);
+    const tint = 0.82 + ((i * 53) % 17) / 90;
+    farMesh.setColorAt(i, new THREE.Color(tint, tint, tint));
+  });
+  farMesh.receiveShadow = true;
+  group.add(farMesh);
+
   const hedge = new ModelBuilder();
   const edgeBush = (x: number, y: number): void => {
     if (x > r0 - 1.5 && x < r1 + 1.5) return;
@@ -749,6 +811,9 @@ export function createMapView(): MapView {
     },
     setShadows(on) {
       for (const m of shadowCasters) m.castShadow = on;
+    },
+    setDetail(low) {
+      farMesh.count = low ? farLow : far.length;
     },
     setStyleSwap(on) {
       banners.visible = !on;
