@@ -208,7 +208,7 @@ platform :ios do
     upload_to_testflight(
       api_key: api_key,
       app_identifier: APP_ID,
-      skip_waiting_for_build_processing: true,
+      skip_waiting_for_build_processing: false,
       changelog: ENV["TESTFLIGHT_CHANGELOG"].to_s.empty? ? "Pawlegends #{marketing_version}: bundled game, offline bots, party play." : ENV["TESTFLIGHT_CHANGELOG"],
       # new builds go straight to the external "Friends" TestFlight group (Beta App Review runs automatically)
       distribute_external: true,
