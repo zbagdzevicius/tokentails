@@ -59,6 +59,12 @@ export interface AimPreview {
   /** For unit aims: the target entity id, or -1. */
   target: number;
   valid: boolean;
+  /**
+   * The point is the ground under the desktop cursor: the CF-05 look-ahead must not lean toward it, or the camera
+   * slides the ground under a still cursor and the aim drifts (QA 2026-11-07). Touch drag aims are measured from the
+   * button, so they keep the lean.
+   */
+  pointer?: boolean;
 }
 
 export interface GameViewHooks {
@@ -686,7 +692,8 @@ export class GameView {
     const i = this.aheadIn;
     i.vx = alive ? this.heroVel.x : 0;
     i.vz = alive ? this.heroVel.z : 0;
-    const a = alive ? this.aim : null;
+    // a cursor aim keeps the walking lean only (see AimPreview.pointer)
+    const a = alive && !this.aim?.pointer ? this.aim : null;
     i.aimDx = a ? a.x - this.follow.x : null;
     i.aimDz = a ? a.z - this.follow.z : null;
     i.scale = this.gr.zoom / ZOOM_DEFAULT;

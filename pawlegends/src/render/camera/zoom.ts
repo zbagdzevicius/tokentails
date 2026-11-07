@@ -49,12 +49,16 @@ export function loadZoom(): number {
   }
 }
 
+/** Window event sent by saveZoom (detail: the zoom), so an open slider (ui/zoomSlider.ts) follows the wheel, +/− or a pinch. */
+export const ZOOM_EVENT = 'pl:zoom';
+
 export function saveZoom(z: number): void {
   try {
     localStorage.setItem(KEY, clampZoom(z, ZOOM_MAX_WIDE).toFixed(3));
   } catch {
     /* storage blocked: the zoom just is not remembered */
   }
+  if (typeof window !== 'undefined' && typeof CustomEvent === 'function') window.dispatchEvent(new CustomEvent(ZOOM_EVENT, { detail: z }));
 }
 
 /** One +/− key press: the same ~9% as one wheel notch (`dir` +1 = out, −1 = in). */

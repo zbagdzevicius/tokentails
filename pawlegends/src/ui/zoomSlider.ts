@@ -3,7 +3,7 @@
  * view (100% = default; bigger shows more of the map). Moving it saves the zoom (render/camera/zoom.ts) and calls
  * `onZoom`, so a running match follows at once.
  */
-import { clampZoom, loadZoom, saveZoom, ZOOM_DEFAULT, ZOOM_MIN, zoomMax, zoomPercent } from '../render/camera/zoom';
+import { clampZoom, loadZoom, saveZoom, ZOOM_DEFAULT, ZOOM_EVENT, ZOOM_MIN, zoomMax, zoomPercent } from '../render/camera/zoom';
 
 const viewportWidth = (): number => (typeof window !== 'undefined' ? window.innerWidth : 1280);
 
@@ -22,16 +22,28 @@ export function zoomRowHtml(value: number = loadZoom()): string {
  * (innerHTML) keeps working, and binding again would call `onZoom` twice. Returns the unbind.
  */
 export function bindZoomRow(root: HTMLElement, onZoom?: (z: number) => void): () => void {
-  const set = (z: number): void => {
-    const max = zoomMax(viewportWidth());
-    const v = clampZoom(z, max);
-    saveZoom(v);
+  const show = (v: number): void => {
     const input = root.querySelector<HTMLInputElement>('input[data-zoom]');
     const out = root.querySelector<HTMLElement>('[data-zoom-out]');
     if (input && Math.abs(Number(input.value) - v) > 0.004) input.value = v.toFixed(2);
     input?.setAttribute('aria-valuetext', `${zoomPercent(v)}% of the default view`);
     if (out) out.textContent = `${zoomPercent(v)}%`;
+  };
+  const set = (z: number): void => {
+    const v = clampZoom(z, zoomMax(viewportWidth()));
+    saveZoom(v);
+    show(v);
     onZoom?.(v);
+  };
+  // the wheel, +/− or a pinch while the row is open (the pause menu): the slider follows
+  const onSaved = (e: Event): void => {
+    // the menu or Settings closed without calling the unbind: drop the window listener
+    if (!root.isConnected) {
+      window.removeEventListener(ZOOM_EVENT, onSaved);
+      return;
+    }
+    const z = Number((e as CustomEvent<number>).detail);
+    if (Number.isFinite(z)) show(clampZoom(z, zoomMax(viewportWidth())));
   };
   const onInput = (e: Event): void => {
     const t = e.target as HTMLElement;
@@ -45,7 +57,9 @@ export function bindZoomRow(root: HTMLElement, onZoom?: (z: number) => void): ()
   };
   root.addEventListener('input', onInput);
   root.addEventListener('click', onClick, true);
+  window.addEventListener(ZOOM_EVENT, onSaved);
   return () => {
+    window.removeEventListener(ZOOM_EVENT, onSaved);
     root.removeEventListener('input', onInput);
     root.removeEventListener('click', onClick, true);
   };

@@ -13,6 +13,7 @@ import { MOBA_DIST, MOBA_PITCH_DROP, SHADOW_BOX, SHORT_LANDSCAPE_ZOOM, shadowHal
 import { CAMERA_FRAME } from '../../src/render/gameView';
 import { actionFor, keyLabel } from '../../src/input/presets';
 import { bindZoomRow, zoomRowHtml } from '../../src/ui/zoomSlider';
+import { PINCH_PX, pinchCommitted, TAP } from '../../src/input/touch/touchControls';
 
 /** The old default zoom (before this pass). */
 const OLD_DEFAULT = 0.88;
@@ -136,6 +137,22 @@ describe('player zoom', () => {
     expect(seen.at(-1)).toBe(ZOOM_DEFAULT);
     root.remove();
   });
+
+  it('an open slider follows a zoom saved elsewhere (+/−, the wheel or a pinch while the pause menu is up)', () => {
+    const root = document.createElement('div');
+    root.innerHTML = zoomRowHtml();
+    document.body.appendChild(root);
+    const seen: number[] = [];
+    bindZoomRow(root, (z) => seen.push(z));
+    saveZoom(1.25);
+    expect(Number(root.querySelector<HTMLInputElement>('input[data-zoom]')!.value)).toBeCloseTo(1.25, 2);
+    expect(root.querySelector('[data-zoom-out]')!.textContent).toBe(`${zoomPercent(1.25)}%`);
+    // showing a zoom saved elsewhere does not call back into the match (it already has it)
+    expect(seen).toEqual([]);
+    root.remove();
+    saveZoom(1.1);
+    expect(root.querySelector('[data-zoom-out]')!.textContent).toBe(`${zoomPercent(1.25)}%`);
+  });
 });
 
 describe('CF-05 intent look-ahead', () => {
@@ -177,5 +194,21 @@ describe('shadow box', () => {
     expect(shadowHalfFor(0)).toBe(SHADOW_BOX.min);
     expect(shadowHalfFor(400)).toBe(SHADOW_BOX.max);
     expect(shadowHalfFor(Infinity)).toBe(SHADOW_BOX.max);
+  });
+});
+
+describe('pinch next to the joystick (QA 2026-11-07)', () => {
+  const pt = (x0: number, y0: number, x = x0, y = y0) => ({ x0, y0, x, y });
+  it('a second-finger tap or a steering thumb alone never becomes a pinch', () => {
+    // the thumb steers 40 px while the other finger rests: the gap changes, but one finger did not move
+    expect(pinchCommitted(pt(150, 250, 190, 250), pt(520, 160))).toBe(false);
+    // a tap that wobbles within TAP.px
+    expect(pinchCommitted(pt(150, 250, 190, 250), pt(520, 160, 520 + TAP.px - 1, 160))).toBe(false);
+  });
+  it('both fingers spreading or closing by PINCH_PX is a pinch', () => {
+    expect(pinchCommitted(pt(360, 210, 345, 210), pt(440, 210, 455, 210))).toBe(true);
+    expect(pinchCommitted(pt(300, 210, 315, 210), pt(500, 210, 485, 210))).toBe(true);
+    // both moved, the same way (a two-finger drag): the gap barely changes
+    expect(pinchCommitted(pt(300, 210, 320, 230), pt(500, 210, 520, 230 + PINCH_PX / 2))).toBe(false);
   });
 });
