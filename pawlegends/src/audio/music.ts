@@ -69,7 +69,8 @@ export class Music {
   private tryInit(): void {
     if (this.ac || !this.running) return;
     const ac = sfx.context;
-    const out = sfx.output;
+    // the music's own input on the master: the announcer's voice ducks it (audio/voice.ts)
+    const out = sfx.musicOutput ?? sfx.output;
     if (!ac || !out) return;
     try {
       this.ac = ac;

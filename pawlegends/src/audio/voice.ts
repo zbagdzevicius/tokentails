@@ -1,72 +1,30 @@
 /**
  * The announcer's voice (LoL pass, lane B): "First Blood", "Double Pounce", "Ace", "Victory"... Loaded with a dynamic
- * import on the first announced line (audio/sfx.ts `voice`), so it is never in the first-load JS.
+ * import on the first line or the match's preload (audio/sfx.ts), so it is never in the first-load JS.
  *
- * Source per line: a recorded clip at public/voice/<key>.mp3 when public/voice/manifest.json lists it (no request for
- * a clip that is not there), else the browser's speech synthesis (low pitch, a little fast, an English voice when one
- * exists). One line at a time: the newest wins, and lines start at most VOICE_GAP_MS apart. Mute and the sound-effects
- * volume apply. Render side only; never feeds the sim.
+ * Every line is a recorded clip at public/voice/<key>.mp3 (an original designed female announcer voice, Qwen3-TTS,
+ * Apache-2.0), played only when public/voice/manifest.json lists it. A key with no clip is silent: the browser's
+ * speech synthesis is never used. Lines go through the VoiceQueue (audio/voiceLines.ts): one at a time, highest
+ * priority first, stale ones dropped, the result cuts in. Music ducks under a line. Mute and the sound-effects volume
+ * apply. Render side only; never feeds the sim.
  */
-import type { VoiceKey } from '../render/announcer';
-
-/** What each line says when no clip is recorded. */
-export const VOICE_TEXT: Readonly<Record<VoiceKey, string>> = Object.freeze({
-  firstBlood: 'First blood!',
-  double: 'Double pounce!',
-  triple: 'Triple pounce!',
-  catastrophe: 'Cat-astrophe!',
-  shutdown: 'Shut down!',
-  ace: 'Ace!',
-  turret: 'Turret destroyed!',
-  ourTurret: 'Our turret has been destroyed.',
-  victory: 'Victory!',
-  defeat: 'Defeat.',
-  slain: 'You have been slain.',
-});
-
-/** Two lines never start closer than this (ms); a newer line waiting for its turn replaces an older one. */
-export const VOICE_GAP_MS = 1200;
+import { VoiceQueue, type VoiceKey } from './voiceLines';
 
 export interface VoiceOut {
-  /** The audio context and the bus to play clips into (null: speech only). */
+  /** The audio context and the bus to play clips into (null: nothing is said). */
   ctx: AudioContext | null;
   bus: AudioNode | null;
+  /** The music's own gain, lowered while a line plays (null: no ducking). */
+  duck: GainNode | null;
   /** 0..1 (sound-effects volume × master); 0 or muted says nothing. */
   volume: number;
   muted: boolean;
 }
 
-/**
- * The scheduler, pure (time passed in): `want(key, now)` returns the line to start now, or null when it must wait;
- * `due(now)` returns a waiting line once its turn has come. Exported for tests.
- */
-export class VoiceGate {
-  private lastAt = -1e9;
-  private pending: VoiceKey | null = null;
-
-  want(key: VoiceKey, now: number): VoiceKey | null {
-    if (now - this.lastAt >= VOICE_GAP_MS) {
-      this.lastAt = now;
-      this.pending = null;
-      return key;
-    }
-    this.pending = key;
-    return null;
-  }
-
-  /** ms until the waiting line may start (−1 none waiting). */
-  waitMs(now: number): number {
-    return this.pending ? Math.max(0, this.lastAt + VOICE_GAP_MS - now) : -1;
-  }
-
-  due(now: number): VoiceKey | null {
-    if (!this.pending || now - this.lastAt < VOICE_GAP_MS) return null;
-    const k = this.pending;
-    this.pending = null;
-    this.lastAt = now;
-    return k;
-  }
-}
+/** The music's level under a line (of its own level). */
+export const DUCK_LEVEL = 0.35;
+/** The clip's own gain into the sound-effects bus (the clips are levelled to −16 LUFS). */
+const CLIP_GAIN = 0.9;
 
 const BASE = (() => {
   try {
@@ -85,97 +43,159 @@ function clips(): Promise<ReadonlySet<string>> {
   return manifest;
 }
 
-const buffers = new Map<string, Promise<AudioBuffer | null>>();
-function clip(ctx: AudioContext, key: VoiceKey): Promise<AudioBuffer | null> {
-  let p = buffers.get(key);
+/** The fetched bytes (fetched before the audio context exists), then the decoded clip. */
+const bytes = new Map<string, Promise<ArrayBuffer | null>>();
+const decoded = new Map<string, Promise<AudioBuffer | null>>();
+
+function fetchClip(key: VoiceKey): Promise<ArrayBuffer | null> {
+  let p = bytes.get(key);
   if (!p) {
-    p = fetch(`${BASE}voice/${key}.mp3`)
-      .then((r) => (r.ok ? r.arrayBuffer() : null))
-      .then((b) => (b ? ctx.decodeAudioData(b) : null))
-      .catch(() => null);
-    buffers.set(key, p);
+    p = clips().then((have) =>
+      have.has(key)
+        ? fetch(`${BASE}voice/${key}.mp3`)
+            .then((r) => (r.ok ? r.arrayBuffer() : null))
+            .catch(() => null)
+        : null,
+    );
+    bytes.set(key, p);
   }
   return p;
 }
 
-let speechVoice: SpeechSynthesisVoice | null | undefined;
-function englishVoice(): SpeechSynthesisVoice | null {
-  if (speechVoice !== undefined && speechVoice !== null) return speechVoice;
-  try {
-    const list = speechSynthesis.getVoices();
-    speechVoice = list.find((v) => /^en(-|_|$)/i.test(v.lang) && /male|daniel|alex|fred|google uk english male/i.test(v.name)) ?? list.find((v) => /^en/i.test(v.lang)) ?? null;
-  } catch {
-    speechVoice = null;
+function clip(ctx: AudioContext, key: VoiceKey): Promise<AudioBuffer | null> {
+  let p = decoded.get(key);
+  if (!p) {
+    // decodeAudioData detaches the bytes: decode a copy, once
+    p = fetchClip(key)
+      .then((b) => (b ? ctx.decodeAudioData(b.slice(0)) : null))
+      .catch(() => null);
+    decoded.set(key, p);
+    void p.then((buf) => {
+      if (buf) bytes.delete(key);
+    });
   }
-  return speechVoice;
+  return p;
 }
 
-let playing: AudioBufferSourceNode | null = null;
+/** Fetch (and, once audio is unlocked, decode) these lines ahead of their moment. Missing ones cost nothing. */
+export function preload(keys: readonly VoiceKey[], ctx: AudioContext | null): void {
+  for (const k of keys) {
+    if (ctx) void clip(ctx, k);
+    else void fetchClip(k);
+  }
+}
 
-function speak(key: VoiceKey, out: VoiceOut): void {
+const queue = new VoiceQueue();
+let playing: { src: AudioBufferSourceNode; key: VoiceKey } | null = null;
+let timer: ReturnType<typeof setTimeout> | null = null;
+let outOf: () => VoiceOut = () => ({ ctx: null, bus: null, duck: null, volume: 0, muted: true });
+
+function duck(out: VoiceOut, on: boolean): void {
+  const g = out.duck;
+  const ctx = out.ctx;
+  if (!g || !ctx) return;
   try {
-    playing?.stop();
+    g.gain.cancelScheduledValues(ctx.currentTime);
+    g.gain.setTargetAtTime(on ? DUCK_LEVEL : 1, ctx.currentTime, on ? 0.04 : 0.25);
+  } catch {
+    g.gain.value = on ? DUCK_LEVEL : 1;
+  }
+}
+
+function stopPlaying(): void {
+  const p = playing;
+  playing = null;
+  if (!p) return;
+  p.src.onended = null;
+  try {
+    p.src.stop();
   } catch {
     /* already ended */
   }
-  playing = null;
-  const synth = typeof speechSynthesis !== 'undefined' ? speechSynthesis : null;
-  try {
-    synth?.cancel();
-  } catch {
-    /* best effort */
+}
+
+/** Start `key` now: its clip, or silence (the queue moves on) when there is none. */
+function start(key: VoiceKey, cut: boolean): void {
+  if (cut) stopPlaying();
+  const out = outOf();
+  const at = performance.now();
+  const silent = (): void => {
+    queue.length(key, at, 0);
+    pump();
+  };
+  if (out.muted || out.volume <= 0.01 || !out.ctx || !out.bus) {
+    silent();
+    return;
   }
-  void clips().then(async (have) => {
-    if (out.muted || out.volume <= 0.01) return;
-    if (have.has(key) && out.ctx && out.bus) {
-      const buf = await clip(out.ctx, key);
-      if (buf) {
-        try {
-          const src = out.ctx.createBufferSource();
-          src.buffer = buf;
-          const g = out.ctx.createGain();
-          g.gain.value = 1;
-          src.connect(g);
-          g.connect(out.bus);
-          src.start();
-          playing = src;
-          return;
-        } catch {
-          /* fall through to speech */
-        }
-      }
+  const ctx = out.ctx;
+  const bus = out.bus;
+  void clip(ctx, key).then((buf) => {
+    // a line that cut in meanwhile wins
+    if (queue.current !== key) return;
+    const now = outOf();
+    if (!buf || now.muted || now.volume <= 0.01) {
+      silent();
+      return;
     }
-    if (!synth || typeof SpeechSynthesisUtterance === 'undefined') return;
     try {
-      const u = new SpeechSynthesisUtterance(VOICE_TEXT[key]);
-      u.pitch = 0.8;
-      u.rate = 1.05;
-      u.volume = Math.max(0, Math.min(1, out.volume));
-      u.lang = 'en-US';
-      const v = englishVoice();
-      if (v) u.voice = v;
-      synth.speak(u);
+      stopPlaying();
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.value = CLIP_GAIN;
+      src.connect(g);
+      g.connect(bus);
+      src.onended = () => {
+        if (playing?.src !== src) return;
+        playing = null;
+        if (queue.waitMs(performance.now()) < 0) duck(outOf(), false);
+      };
+      src.start();
+      playing = { src, key };
+      duck(now, true);
+      queue.length(key, performance.now(), buf.duration * 1000);
+      pump();
     } catch {
-      /* speech is best effort */
+      silent();
     }
   });
 }
 
-const gate = new VoiceGate();
-let timer: ReturnType<typeof setTimeout> | null = null;
-
-/** Say `key` (newest wins; at most one line per VOICE_GAP_MS). `out()` is read when the line actually starts. */
-export function sayLine(key: VoiceKey, out: () => VoiceOut): void {
+/** Start the next waiting line when the voice is free, or wake up when it will be. */
+function pump(): void {
+  if (timer) {
+    clearTimeout(timer);
+    timer = null;
+  }
   const now = performance.now();
-  const go = gate.want(key, now);
+  const go = queue.next(now);
   if (go) {
-    speak(go, out());
+    start(go.key, go.cut);
     return;
   }
-  if (timer) return;
-  timer = setTimeout(() => {
-    timer = null;
-    const k = gate.due(performance.now());
-    if (k) speak(k, out());
-  }, gate.waitMs(now) + 5);
+  const wait = queue.waitMs(now);
+  if (wait >= 0) timer = setTimeout(pump, wait + 5);
+}
+
+/** Say `key` (queued by priority; see VoiceQueue). `out()` is read when the line actually starts. */
+export function sayLine(key: VoiceKey, out: () => VoiceOut): void {
+  outOf = out;
+  const o = out();
+  if (o.muted || o.volume <= 0.01) return;
+  void clips().then((have) => {
+    // no clip, no line (and no robotic stand-in)
+    if (!have.has(key)) return;
+    const go = queue.push(key, performance.now());
+    if (go) start(go.key, go.cut);
+    else pump();
+  });
+}
+
+/** Stop the line playing and forget the waiting ones (mute, leaving a match). */
+export function hush(out?: VoiceOut): void {
+  queue.clear();
+  if (timer) clearTimeout(timer);
+  timer = null;
+  stopPlaying();
+  if (out) duck(out, false);
 }
