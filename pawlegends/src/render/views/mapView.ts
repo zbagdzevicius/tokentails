@@ -454,6 +454,54 @@ export function outerTrees(): { x: number; y: number; s: number; low: boolean }[
   return out;
 }
 
+/** MAP-GAPS A13: the fountain basin's outer rim (m, the rim torus of models.ts fountainGeometry) plus a gap. */
+export const FOUNTAIN_CLEAR = FOUNTAIN.radius / 1000 + 0.28 + 0.3;
+
+/**
+ * The hedge along the map edge (m, sphere centre and its widest radius), skipping the river and, MAP-GAPS A13, a
+ * clear arc round each fountain (the hedge cut through the basin rim).
+ */
+export function hedgeSpots(): { x: number; y: number; r: number; color: number }[] {
+  const rnd = lcg(41);
+  const r0 = MAP.riverX[0] / 1000;
+  const r1 = MAP.riverX[1] / 1000;
+  const fountains = [FOUNTAIN.x / 1000, W - FOUNTAIN.x / 1000].map((x) => [x, FOUNTAIN.y / 1000] as const);
+  const out: { x: number; y: number; r: number; color: number }[] = [];
+  const at = (x: number, y: number): void => {
+    const r = (0.7 + rnd() * 0.3) * 1.2;
+    const color = rnd() < 0.5 ? 0x5fa860 : 0x6db86a;
+    if (x > r0 - 1.5 && x < r1 + 1.5) return;
+    if (fountains.some(([fx, fy]) => Math.hypot(x - fx, y - fy) - r < FOUNTAIN_CLEAR + 0.6)) return;
+    out.push({ x, y, r, color });
+  };
+  for (let x = 0; x <= W; x += 1.6) {
+    at(x, -0.8);
+    at(x, H + 0.8);
+  }
+  for (let y = 0; y <= H; y += 1.6) {
+    at(-0.8, y);
+    at(W + 0.8, y);
+  }
+  return out;
+}
+
+/** MAP-GAPS A13: the stones of the low wall behind each fountain (m): an arc 1.2 m outside the rim, map-edge side. */
+export function fountainWall(): { x: number; y: number; r: number; color: number }[] {
+  const rnd = lcg(43);
+  const out: { x: number; y: number; r: number; color: number }[] = [];
+  for (const side of [0, 1] as const) {
+    const fx = side === 0 ? FOUNTAIN.x / 1000 : W - FOUNTAIN.x / 1000;
+    const fy = FOUNTAIN.y / 1000;
+    const R = FOUNTAIN_CLEAR + 1.2;
+    for (let a = -1.25; a <= 1.25; a += 0.16) {
+      const ang = (side === 0 ? Math.PI : 0) + a;
+      const r = 0.35 + rnd() * 0.2;
+      out.push({ x: fx + Math.cos(ang) * R, y: fy + Math.sin(ang) * R, r, color: rnd() < 0.5 ? 0xd8cdb8 : 0xc4b79e });
+    }
+  }
+  return out;
+}
+
 export interface MapView {
   group: THREE.Group;
   /** MAP-GAPS A12: the Low tier draws half the far forest. */
@@ -498,6 +546,32 @@ export function createMapView(): MapView {
   ground.receiveShadow = true;
   ground.name = 'ground';
   group.add(ground);
+
+  // MAP-GAPS A13: each fountain plaza as a mesh disc, so it runs on past x = 0 / x = W (the painted one stops there)
+  const plazaMats = [0, 1].map(() => ({ edge: keep(new THREE.MeshLambertMaterial({ polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })), stone: keep(new THREE.MeshLambertMaterial({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })) }));
+  const plazaStyle = (swap: boolean): void => {
+    for (const team of [0, 1] as const) {
+      const style = swap ? 1 - team : team;
+      plazaMats[team].edge.color.set(style === 0 ? '#d9c3a0' : '#b38f5e');
+      plazaMats[team].stone.color.set(style === 0 ? '#efe2c9' : '#dcc39a');
+    }
+  };
+  plazaStyle(false);
+  for (const team of [0, 1] as const) {
+    const fx = team === 0 ? FOUNTAIN.x / 1000 : W - FOUNTAIN.x / 1000;
+    for (const [r, mat, y] of [
+      [FOUNTAIN.radius / 1000 + 1.6, plazaMats[team].edge, 0.004],
+      [FOUNTAIN.radius / 1000 + 1.0, plazaMats[team].stone, 0.006],
+    ] as const) {
+      const geo = keep(new THREE.CircleGeometry(r, 40));
+      geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(fx, y, -FOUNTAIN.y / 1000);
+      m.receiveShadow = true;
+      m.name = 'fountain-plaza';
+      group.add(m);
+    }
+  }
 
   // river
   const riverU = { uTime: { value: 0 } };
@@ -751,18 +825,9 @@ export function createMapView(): MapView {
   group.add(farMesh);
 
   const hedge = new ModelBuilder();
-  const edgeBush = (x: number, y: number): void => {
-    if (x > r0 - 1.5 && x < r1 + 1.5) return;
-    hedge.sphere(0.7 + rnd() * 0.3, rnd() < 0.5 ? 0x5fa860 : 0x6db86a, { at: [x, 0.4, -y], scale: [1.2, 0.8, 1.2] }, 8);
-  };
-  for (let x = 0; x <= W; x += 1.6) {
-    edgeBush(x, -0.8);
-    edgeBush(x, H + 0.8);
-  }
-  for (let y = 0; y <= H; y += 1.6) {
-    edgeBush(-0.8, y);
-    edgeBush(W + 0.8, y);
-  }
+  for (const h of hedgeSpots()) hedge.sphere(h.r, h.color, { at: [h.x, 0.4, -h.y], scale: [1.2, 0.8, 1.2] }, 8);
+  // MAP-GAPS A13: a low stone wall arcs behind each fountain basin where the hedge stops
+  for (const st of fountainWall()) hedge.add(new THREE.DodecahedronGeometry(st.r, 0), st.color, { at: [st.x, st.r * 0.55, -st.y], rot: [st.x, st.y, st.r * 5], scale: [1, 0.75, 1] });
   // MAP-GAPS A1: low pebbles round the rat camps (under 0.25 m, outside the clearing, off the footpaths): the old
   // loop asked for rocks on unwalkable ground only, of which there is none there, and placed 0 of 400
   for (const k of campPebbles()) hedge.add(new THREE.DodecahedronGeometry(k.r, 0), 0xb9b2a6, { at: [k.x, 0, -k.y], rot: [k.x, k.y, k.r * 9], scale: [1, k.h / k.r, 1] });
@@ -816,6 +881,7 @@ export function createMapView(): MapView {
       farMesh.count = low ? farLow : far.length;
     },
     setStyleSwap(on) {
+      plazaStyle(on);
       banners.visible = !on;
       bannersSwapped.visible = on;
       if (on === texSwap || !tex) return;
