@@ -33,6 +33,7 @@ import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ImpactEligibilityService } from 'src/impact/eligibility.service';
 import { EligibilityResult } from 'src/impact/eligibility';
 import { UserThrottle, UserThrottlerGuard } from 'src/shared/guards/user-throttler.guard';
+import { visitorIp } from 'src/shared/client-ip';
 import { isUsableClientIp, requestIp } from 'src/user/guest/ip-throttle';
 import { DonateMe, DonateResult, DonateStatus, ShelterDonateService } from './shelter-donate.service';
 import { DONATION_SOURCES, DonationSource } from './shelter-onchain.schema';
@@ -162,7 +163,7 @@ export class ShelterOnchainController {
     @HttpCode(200)
     @Post('relay')
     async relay(@Body(donatePipe) body: ShelterRelayDto, @Req() req: any): Promise<RelayResult> {
-        return this.relayService.relay(body, req?.ip);
+        return this.relayService.relay(body, visitorIp(req));
     }
 
     @Throttle({ default: SHELTER_STATUS_THROTTLE })

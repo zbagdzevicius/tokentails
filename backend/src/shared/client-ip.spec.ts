@@ -1,4 +1,4 @@
-import { clientIp, clientIpKey } from './client-ip';
+import { clientIp, clientIpKey, visitorIp } from './client-ip';
 
 const VISITOR = '203.0.113.7';
 const CLOUDFLARE_EDGE = '172.70.1.2';
@@ -53,5 +53,21 @@ describe('clientIp', () => {
         expect(clientIp(request({ 'cf-connecting-ip': '2001:db8:aa:bb:1:2:3:4' }), {} as any)?.key).toBe(
             '2001:db8:aa:bb::/64'
         );
+    });
+
+    it('visitorIp: behind the Google load balancer every visitor keeps their own address', () => {
+        // Cloud Run behind the regional ALB: X-Forwarded-For ends with the balancer's public IP, which Express does
+        // not trust, so req.ip is that one address for everyone. cf-connecting-ip must win.
+        const LB = '34.107.1.2';
+        const a = { headers: { 'cf-connecting-ip': VISITOR }, ip: LB, ips: [LB] };
+        const b = { headers: { 'cf-connecting-ip': '198.51.100.9' }, ip: LB, ips: [LB] };
+        expect(visitorIp(a)).toBe(VISITOR);
+        expect(visitorIp(b)).toBe('198.51.100.9');
+        // no usable header: the Express address, as before (DigitalOcean, local development)
+        expect(visitorIp({ headers: {}, ip: VISITOR, ips: [] })).toBe(VISITOR);
+        expect(visitorIp({ headers: { 'cf-connecting-ip': CLOUDFLARE_EDGE }, ip: '10.0.0.4', ips: [] })).toBe(
+            '10.0.0.4'
+        );
+        expect(visitorIp(undefined)).toBe('unknown');
     });
 });

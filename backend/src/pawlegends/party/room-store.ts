@@ -1,6 +1,7 @@
 import { Injectable, Optional } from '@nestjs/common';
 import { InjectModel, Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
+import { PARTY_LIMITS } from './party-limits';
 
 /*
  * Room and party persistence (docs/plans/moba/MULTIPLAYER.md §3.6, lane N9). Checkpoints APPEND the log delta since
@@ -91,8 +92,12 @@ export interface RoomStore {
     claim(id: string, epoch: number, owner: string, now: Date): Promise<StoredRoom | null>;
     /** Live rooms another instance handed off (or whose lease went stale) within the restore window. */
     restorable(owner: string, now: Date, staleMs: number, windowMs: number): Promise<StoredRoom[]>;
-    /** Mark every other live room abandoned. */
-    abandonLive(except: readonly string[], now: Date): Promise<number>;
+    /**
+     * Mark abandoned every other live room that nobody holds: handed off, or not checkpointed for `staleMs`. A room
+     * another running instance still checkpoints is left alone (two relays, or a relay and DigitalOcean, can share one
+     * database during a rollout or a migration).
+     */
+    abandonLive(except: readonly string[], now: Date, staleMs?: number): Promise<number>;
     /** Scored party matches of an account since `since` (the daily cap, §6). */
     countEnded(accountId: string, since: Date): Promise<number>;
     saveParty(p: StoredParty): Promise<void>;
@@ -172,10 +177,11 @@ export class MemoryRoomStore implements RoomStore {
             .map(r => ({ ...r, chunks: [...r.chunks] }));
     }
 
-    async abandonLive(except: readonly string[], now: Date): Promise<number> {
+    async abandonLive(except: readonly string[], now: Date, staleMs = PARTY_LIMITS.staleLeaseMs): Promise<number> {
         let n = 0;
         for (const r of this.rooms.values()) {
             if (r.status !== 'live' || except.includes(r._id)) continue;
+            if (!r.handoff && now.getTime() - r.updatedAt.getTime() <= staleMs) continue;
             r.status = 'abandoned';
             r.updatedAt = now;
             n++;
@@ -380,9 +386,13 @@ export class MongoRoomStore implements RoomStore {
         return rows.map(x => lean(x)!);
     }
 
-    async abandonLive(except: readonly string[], now: Date): Promise<number> {
+    async abandonLive(except: readonly string[], now: Date, staleMs = PARTY_LIMITS.staleLeaseMs): Promise<number> {
         const res = await this.r.updateMany(
-            { status: 'live', _id: { $nin: except as string[] } },
+            {
+                status: 'live',
+                _id: { $nin: except as string[] },
+                $or: [{ handoff: true }, { updatedAt: { $lt: new Date(now.getTime() - staleMs) } }],
+            },
             { $set: { status: 'abandoned', updatedAt: now } }
         );
         return res.modifiedCount;

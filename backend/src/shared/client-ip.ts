@@ -68,3 +68,19 @@ export function clientIp(req: any, env: NodeJS.ProcessEnv = process.env): Client
     }
     return { ip: 'dev', key: 'dev' };
 }
+
+/**
+ * The visitor address for the per-IP creation throttles (new accounts, guest sessions) and the donation relay hash:
+ * a usable `cf-connecting-ip` first, else the Express address (`requestIp`), never null. Behind the Google Cloud
+ * load balancer the Express address is the balancer's own public forwarding-rule IP for every visitor (it appends
+ * itself to X-Forwarded-For and is not a hop `trust-proxy.ts` trusts), so reading `requestIp` directly there would put
+ * the whole site in one bucket. An unusable result is skipped downstream (`IpWindowThrottle` fails open).
+ */
+export function visitorIp(req: any): string {
+    const header = req?.headers?.['cf-connecting-ip'];
+    const cf = typeof header === 'string' ? header.trim() : '';
+    if (isUsableClientIp(cf) && !isCloudflareIp(cf)) {
+        return cf;
+    }
+    return requestIp(req);
+}

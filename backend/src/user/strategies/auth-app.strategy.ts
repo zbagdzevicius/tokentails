@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
-import { requestIp } from '../guest/ip-throttle';
+import { visitorIp } from 'src/shared/client-ip';
 import { ANONYMOUS_PROVIDER, UserService } from '../user.service';
 import { AppAuthStrategy } from './auth.strategy';
 
@@ -25,6 +25,6 @@ export class AuthStrategy extends PassportStrategy(AppAuthStrategy, 'appauth') {
             throw new UnauthorizedException();
         }
 
-        return this.userService.getFirebaseUser(payload, { ip: requestIp(req) });
+        return this.userService.getFirebaseUser(payload, { ip: visitorIp(req) });
     }
 }
