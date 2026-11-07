@@ -57,6 +57,16 @@ describe('MAP-GAPS A13 fountains clear of the hedge', () => {
     }
     expect(FOUNTAIN_CLEAR).toBeGreaterThan(rimOuter);
   });
+
+  it('cuts the plaza ring under the rim torus so it never paints over the basin water', async () => {
+    const { FOUNTAIN } = await import('../../src/data/map');
+    const { PLAZA_HOLE } = await import('../../src/render/views/mapView');
+    const rimInner = FOUNTAIN.radius / 1000 - 0.28;
+    const rimOuter = FOUNTAIN.radius / 1000 + 0.28;
+    // the hole edge hides under the torus: water (r <= 3.85) shows inside it, the plaza outside it
+    expect(PLAZA_HOLE).toBeGreaterThanOrEqual(rimInner);
+    expect(PLAZA_HOLE).toBeLessThan(rimOuter);
+  });
 });
 
 describe('MAP-GAPS A15 river past the map edge', () => {
@@ -81,8 +91,16 @@ describe('MAP-GAPS A16 bridges and minion push-out', () => {
     const g = createGrid();
     const r0 = MAP.riverX[0] / 1000;
     const r1 = MAP.riverX[1] / 1000;
+    const { PLAYFIELD } = await import('../../src/data/map');
+    const rim = PLAYFIELD.rim / 1000;
     for (const b of bridgeParts()) {
-      expect(b.width).toBeGreaterThanOrEqual(11.4);
+      // the deck covers the walkable lane band (±5.7 m, inside the rim) and stops at the rim, where the log jam lies
+      const lo = b.deckY - b.width / 2;
+      const hi = b.deckY + b.width / 2;
+      expect(lo).toBeLessThanOrEqual(Math.max(b.y - 5.7, rim));
+      expect(hi).toBeGreaterThanOrEqual(Math.min(b.y + 5.7, H - rim));
+      expect(lo).toBeGreaterThanOrEqual(rim);
+      expect(hi).toBeLessThanOrEqual(H - rim);
       expect(b.top).toBeLessThanOrEqual(0.015);
       expect(BRIDGE_HALF).toBeGreaterThanOrEqual(5.7);
       for (const p of b.posts) {

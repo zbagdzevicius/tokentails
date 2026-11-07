@@ -522,15 +522,19 @@ export const BRIDGE_HALF = 5.7;
  * MAP-GAPS A16: each bridge (m): where it crosses (y at x = 50 m), its deck width and top, its plank count and its low
  * end posts on the banks (outside the river: nothing stands in the walkable band).
  */
-export function bridgeParts(): { y: number; width: number; top: number; planks: number; posts: { x: number; y: number }[] }[] {
+export function bridgeParts(): { y: number; deckY: number; width: number; top: number; planks: number; posts: { x: number; y: number }[] }[] {
   const r0 = MAP.riverX[0] / 1000;
   const r1 = MAP.riverX[1] / 1000;
+  const rim = PLAYFIELD.rim / 1000;
   return lanePolylines().map((lane) => {
     const mid = lane.find(([x]) => Math.abs(x - W / 2) < 0.01) ?? lane[Math.floor(lane.length / 2)];
     const y = mid[1];
     const posts: { x: number; y: number }[] = [];
     for (const x of [r0 - 1.3, r1 + 1.3]) for (const s of [-1, 1]) posts.push({ x, y: y + s * BRIDGE_HALF });
-    return { y, width: BRIDGE_HALF * 2 + 0.4, top: 0.015, planks: 12, posts };
+    // the deck stops at the playfield rim (the log jam of A15 lies just past it), so an edge lane's deck is trimmed
+    const lo = Math.max(y - BRIDGE_HALF - 0.2, rim);
+    const hi = Math.min(y + BRIDGE_HALF + 0.2, H - rim);
+    return { y, deckY: (lo + hi) / 2, width: hi - lo, top: 0.015, planks: 12, posts };
   });
 }
 
@@ -546,6 +550,8 @@ export function riverMarkers(): { y: number; out: 1 | -1 }[] {
 }
 
 /** MAP-GAPS A13: the fountain basin's outer rim (m, the rim torus of models.ts fountainGeometry) plus a gap. */
+/** The fountain plaza ring's inner radius (m): under the basin rim torus (4.0 m, tube 0.28 m), outside the water. */
+export const PLAZA_HOLE = FOUNTAIN.radius / 1000 - 0.25;
 export const FOUNTAIN_CLEAR = FOUNTAIN.radius / 1000 + 0.28 + 0.3;
 
 /**
@@ -687,7 +693,9 @@ export function createMapView(): MapView {
       [FOUNTAIN.radius / 1000 + 1.6, plazaMats[team].edge, 0.004],
       [FOUNTAIN.radius / 1000 + 1.0, plazaMats[team].stone, 0.006],
     ] as const) {
-      const geo = keep(new THREE.CircleGeometry(r, 40));
+      // a ring, not a disc: its hole sits under the basin rim torus (inner edge 3.72 m), so the pulled-forward plaza
+      // never covers the basin water (0.05 m), which it did at grazing zooms (>= 1.03) with a full disc
+      const geo = keep(new THREE.RingGeometry(PLAZA_HOLE, r, 40, 1));
       geo.rotateX(-Math.PI / 2);
       const m = new THREE.Mesh(geo, mat);
       m.position.set(fx, y, -FOUNTAIN.y / 1000);
@@ -747,7 +755,7 @@ export function createMapView(): MapView {
   for (const b of bridgeParts()) {
     for (let i = 0; i < b.planks; i++) {
       const x = r0 - 1 + (i + 0.5) * ((r1 - r0 + 2) / b.planks);
-      deck.box(((r1 - r0 + 2) / b.planks) * 0.92, 0.01, b.width, i % 2 ? 0xb07a4a : 0xc08a56, { at: [x, b.top - 0.005, -b.y] });
+      deck.box(((r1 - r0 + 2) / b.planks) * 0.92, 0.01, b.width, i % 2 ? 0xb07a4a : 0xc08a56, { at: [x, b.top - 0.005, -b.deckY] });
     }
     for (const p of b.posts) {
       props.cyl(0.14, 0.17, 0.75, 0x8a5a3a, { at: [p.x, 0.37, -p.y] }, 6);
@@ -764,14 +772,15 @@ export function createMapView(): MapView {
   // reeds marks the boundary across the water
   const jr = lcg(47);
   for (const m of riverMarkers()) {
+    // all of it past the rim (m.out side): logs or reeds inside it stood on the bridge deck, in the walkable band
     for (let i = 0; i < 3; i++) {
-      const y = m.y + (i - 1) * 0.45 * m.out;
+      const y = m.y + (0.25 + i * 0.42) * m.out;
       props.cyl(0.2, 0.24, r1 - r0 + 1.6 - i * 0.6, i % 2 ? 0x7a5133 : 0x8a5a3a, { at: [(r0 + r1) / 2 + (jr() - 0.5) * 0.8, 0.18 + (i === 1 ? 0.14 : 0), -y], rot: [0, (jr() - 0.5) * 0.25, Math.PI / 2] }, 7);
     }
     for (const bx of [r0 - 0.4, r1 + 0.4, (r0 + r1) / 2 - 2.2, (r0 + r1) / 2 + 2.4]) props.add(new THREE.DodecahedronGeometry(0.45 + jr() * 0.3, 0), 0xa9a194, { at: [bx, 0.2, -(m.y + m.out * 0.9)], rot: [jr() * 3, jr() * 3, 0], scale: [1, 0.7, 1] });
     for (let k = 0; k < 9; k++) {
       const rx = r0 + 0.3 + jr() * (r1 - r0 - 0.6);
-      props.cyl(0.03, 0.05, 0.9 + jr() * 0.5, 0x6a9a4a, { at: [rx, 0.5, -(m.y - m.out * (0.5 + jr() * 0.6))], rot: [(jr() - 0.5) * 0.3, 0, (jr() - 0.5) * 0.3] }, 4);
+      props.cyl(0.03, 0.05, 0.9 + jr() * 0.5, 0x6a9a4a, { at: [rx, 0.5, -(m.y + m.out * (1.2 + jr() * 0.6))], rot: [(jr() - 0.5) * 0.3, 0, (jr() - 0.5) * 0.3] }, 4);
     }
   }
   addMerged(props, 'props');
