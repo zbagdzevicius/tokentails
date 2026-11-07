@@ -677,12 +677,9 @@ export function createMapView(): MapView {
     const len = (long ? cl.x1 - cl.x0 : cl.y1 - cl.y0) * 0.55;
     const mx = (cl.x0 + cl.x1) / 2;
     const my = (cl.y0 + cl.y1) / 2;
-    const logs = 1;
-    for (let i = 0; i < logs; i++) {
-      const off = logs === 2 ? (i ? 0.6 : -0.6) : 0;
-      const at: [number, number, number] = long ? [mx + (wr() - 0.5) * 0.6, 1.25 + i * 0.1, -(my + off)] : [mx + off, 1.25 + i * 0.1, -(my + (wr() - 0.5) * 0.6)];
-      wallB.cyl(0.24, 0.28, len, 0x7a5133, { at, rot: long ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0] }, 7);
-    }
+    // one fallen log along the cluster's long side
+    const at: [number, number, number] = long ? [mx + (wr() - 0.5) * 0.6, 1.25, -my] : [mx, 1.25, -(my + (wr() - 0.5) * 0.6)];
+    wallB.cyl(0.24, 0.28, len, 0x7a5133, { at, rot: long ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0] }, 7);
     // a root stump and a moss cap at one end
     const sx = long ? cl.x0 + 0.7 : mx;
     const sy = long ? my : cl.y1 - 0.7;
