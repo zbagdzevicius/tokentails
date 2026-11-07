@@ -36,6 +36,8 @@ export const MINIMAP_HOLD_MS = 450;
  * for MINIMAP_HOLD_MS pings Go here and never moves the camera; a short tap peeks for `peekS` s.
  */
 export const MINIMAP_TOUCH = Object.freeze({ slopPx: 6, releaseS: 0.6, peekS: 2.5 });
+/** MAP-GAPS A21: a second tap within `ms` and `px` of the first is a double tap: a move order there. */
+export const MINIMAP_DOUBLE_TAP = Object.freeze({ ms: 320, px: 24 });
 
 /**
  * MAP-GAPS A3: the order heroes are drawn in: allies and enemies by id, the player's own hero last (always on top).
@@ -182,6 +184,10 @@ export class Minimap {
   /** The finger or mouse button on the minimap (MAP-GAPS A2): where it went down, and whether it scrubs or pinged. */
   private press: { id: number; touch: boolean; x0: number; y0: number; scrub: boolean; pinged: boolean; last: { xMm: number; yMm: number } } | null = null;
 
+  private lastTap: { t: number; x: number; y: number } | null = null;
+  /** MAP-GAPS A21: the minimap move order's goal (sim mm), shown until the hero gets there (or 10 s). */
+  moveGoal: { x: number; y: number; until: number } | null = null;
+
   private clearHold(): void {
     if (this.hold) clearTimeout(this.hold);
     this.hold = null;
@@ -216,6 +222,18 @@ export class Minimap {
       /* a synthetic event without an active pointer */
     }
     const touch = e.pointerType === 'touch';
+    // MAP-GAPS A21: a double tap (from the pointerdown times: app/noZoom.ts cancels dblclick) is a move order
+    const now = e.timeStamp || performance.now();
+    const last = this.lastTap;
+    this.lastTap = touch ? { t: now, x: e.clientX, y: e.clientY } : null;
+    if (touch && last && now - last.t <= MINIMAP_DOUBLE_TAP.ms && Math.hypot(e.clientX - last.x, e.clientY - last.y) <= MINIMAP_DOUBLE_TAP.px) {
+      this.lastTap = null;
+      this.clearHold();
+      this.press = null;
+      this.host.moveTo(p.xMm, p.yMm);
+      this.moveGoal = { x: p.xMm, y: p.yMm, until: performance.now() + 10000 };
+      return;
+    }
     this.press = { id: e.pointerId, touch, x0: e.clientX, y0: e.clientY, scrub: !touch, pinged: false, last: p };
     // desktop: a click looks there at once and a drag keeps scrubbing; touch waits to see a tap, a drag or a hold
     if (!touch) this.look(p, Infinity);
@@ -764,6 +782,26 @@ export class Minimap {
         const icon = pingGlyph(p.kind, Math.round(r * 1.5 * this.dpr), p.color);
         if (icon) g.drawImage(icon, x - r * 0.75, y - r * 0.75, r * 1.5, r * 1.5);
         this.glyphsDrawn++;
+      }
+    }
+    const mg = this.moveGoal;
+    if (mg) {
+      const meE = frame.byId.get(me);
+      if (performance.now() > mg.until || (meE && Math.hypot(meE.fx - mg.x, meE.fy - mg.y) < 1500)) this.moveGoal = null;
+      else {
+        g.strokeStyle = '#5ff0a8';
+        g.lineWidth = 1.6;
+        g.setLineDash([3, 2]);
+        if (meE) {
+          g.beginPath();
+          g.moveTo(this.X(meE.fx), this.Y(meE.fy));
+          g.lineTo(this.X(mg.x), this.Y(mg.y));
+          g.stroke();
+        }
+        g.setLineDash([]);
+        g.beginPath();
+        g.arc(this.X(mg.x), this.Y(mg.y), 3.5 * Math.max(0.85, this.k), 0, Math.PI * 2);
+        g.stroke();
       }
     }
     const q = this.host.viewQuad();
