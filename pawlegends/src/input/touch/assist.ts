@@ -10,7 +10,7 @@
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
 import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
-import { attackPreview, BODY_MM, isEnemy, type Unit } from '../targeting';
+import { attackPreview, BODY_MM, inAttackReach, isEnemy, type Unit } from '../targeting';
 import type { TargetFirst } from '../presets';
 
 export const ASSIST = Object.freeze({
@@ -113,15 +113,18 @@ export function autoAttackTarget(
   myTeam: number,
   range: number,
   first: TargetFirst = 'heroes',
-  /** UX pass 2: the Attack button's last-hit estimate: with it, the idle pick is the Attack button's in-range pick. */
+  /** UX pass 2: the Attack button's last-hit estimate: with it, the idle pick is the Attack button's own pick. */
   killDmg?: (u: Unit) => number,
+  /** UX pass 2: the touch lock (the Attack button's first pick while it holds). */
+  locked: number | null = null,
 ): number | null {
   if (killDmg) {
-    // UX pass 2: ATK and the idle auto-attack agree: the Attack button's own pick (attackPreview, ranged by the same
-    // edge-to-edge reach this caller passes), never a structure or a neutral camp (standing idle must not pull one)
-    const id = attackPreview(units, me, myTeam, range - 300, first, killDmg);
+    // UX pass 2: the idle auto-attack hits only the unit ATK rings (attackPreview, the tap's own pick) and only while
+    // it is in reach (`range` carries this caller's 300 mm slack): never a different unit than the ring (a far
+    // last-hit or a locked hero out of reach rings, and standing idle then waits), never a structure or a camp
+    const id = attackPreview(units, me, myTeam, range - 300, first, killDmg, locked);
     const u = id !== null ? units.find((q) => q.id === id) : undefined;
-    if (u && (u.kind === 'hero' || u.kind === 'minion')) return u.id;
+    return u && (u.kind === 'hero' || u.kind === 'minion') && inAttackReach(u, me, range - 300) ? u.id : null;
   }
   let minion: Unit | null = null;
   let hero: Unit | null = null;

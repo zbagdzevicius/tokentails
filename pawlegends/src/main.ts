@@ -3,7 +3,7 @@
  * probe, renderer, lobby, title → pick → match → results). The match runs the sim in the LocalHost Worker (src/host/).
  */
 import { App } from './app/app';
-import { installCrashOverlay, reportCrash, setCrashHook, showCrash } from './app/crash';
+import { installCrashOverlay, reportCrash, setCrashExit, setCrashHook, showCrash } from './app/crash';
 import { createAnalytics } from './analytics/posthog';
 import { SIM_VERSION } from './sim/version';
 import { installNoZoom } from './app/noZoom';
@@ -14,6 +14,8 @@ function boot(): void {
   installCrashOverlay();
   installNoZoom();
   const bridge = installBridge();
+  // embedded: the crash panel's "Back to games" leaves through the host (no host close button any more)
+  if (bridge.active) setCrashExit(() => bridge.post('exit'));
   const app = document.getElementById('app');
   if (!app) throw new Error('no #app element');
   new App(app, bridge);

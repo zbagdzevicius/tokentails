@@ -175,6 +175,21 @@ describe('flash press-to-blink against the real sim (UX pass 2)', () => {
     expect(r.orders.flash.atOnce).toBe(1);
   });
 
+  it('a skill and the flash in the same tick: the flash goes at once and the skill is sent again after it (not lost)', () => {
+    const r = rig({ hero: 'sage' });
+    r.run(100);
+    const qCd = () => r.snaps[r.snaps.length - 1].entities.find((e) => e.id === HUMAN_SLOT)!.cooldowns?.[0] ?? 0;
+    expect(qCd()).toBe(0);
+    r.orders.cast(0, 26000, 29000);
+    // no frame between: both commands reach the same sim tick, where the flash (newer) wins
+    r.press();
+    r.run(900);
+    expect(r.ticks()).toBe(1);
+    expect(r.orders.buffers.retried).toBeGreaterThanOrEqual(1);
+    // the skill went after all (its cooldown runs)
+    expect(qCd()).toBeGreaterThan(0);
+  });
+
   it('the drawn cooldown still shows 2 ticks while the sim has it ready: goes at once (was held for the display)', () => {
     const r = rig();
     r.run(100);

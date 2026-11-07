@@ -36,9 +36,12 @@ input, select, textarea { font-size: max(16px, 1em); }
 #crash h2 { margin: 0 0 8px; font-size: 20px; }
 #crash .crash-msg { margin: 0 0 16px; font-size: 14px; opacity: 0.75; word-break: break-word; }
 #crash button {
-  font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 10px 26px;
+  font: inherit; font-weight: 700; border: 0; border-radius: 999px; padding: 10px 26px; min-height: 44px;
   background: var(--rose); color: #fff; cursor: pointer;
 }
+#crash .crash-actions { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; }
+#crash .crash-exit { background: transparent; color: var(--ink); box-shadow: inset 0 0 0 2px var(--ink); }
+#crash .crash-exit:disabled { opacity: 0.5; cursor: default; }
 #game-canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
 /* The match cursor (input/cursor.ts) is an inline SVG style set by DesktopInput; these are the stock fallbacks. */
 #game-canvas[data-cursor='enemy'], #game-canvas[data-cursor='attackMove'], #game-canvas[data-cursor='aim'] { cursor: crosshair; }
@@ -1387,6 +1390,12 @@ html[data-touch='1'] .pl-talents button span.s {
   html[data-touch='1'] .pl-talents button { width: 118px; height: 44px; padding: 2px 6px; }
   html[data-touch='1'] .pl-talents button span.s { font-size: 9.5px; }
 }
+/* UX pass 2: the talent card docks 8 px past the button arc's own reach (--arc-reach, set by touchControls.ts from
+   touchArc.ts: the last-hit and tower buttons, the Large size), so it never opens under a button at any phone size;
+   the left-handed mirror docks it on the left, past the mirrored arc */
+html[data-touch='1'] .pl-talents { right: calc(36px + var(--safe-r) + var(--arc-reach, 254px)); }
+html[data-touch='1'][data-lefty='1'] .pl-talents { right: auto; left: calc(36px + var(--safe-l) + var(--arc-reach, 254px)); }
+html[data-touch='1'][data-lefty='1'] .pl-talents .head { right: auto; left: 0; }
 /* the phone rank-up toast shares the bottom band with the talent chips: it waits while they are open */
 html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }
 

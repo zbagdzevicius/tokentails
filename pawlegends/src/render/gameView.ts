@@ -167,6 +167,8 @@ export class GameView {
   lock: number | null = null;
   /** UX pass 2 (touch): the unit the Attack button would hit now (TouchControls.preview): a thin red ring under it. */
   atkPreview: number | null = null;
+  /** UX pass 2: the Attack target is out of reach (the tap walks to it first): its ring is drawn fainter. */
+  atkPreviewFar = false;
   frame: ViewFrame | null = null;
   /**
    * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
@@ -661,8 +663,14 @@ export class GameView {
    * hero sits in the middle of the screen, not under the ability cluster on the right. Scales with the zoom.
    */
   lead(): number {
-    return (this.myTeam === 0 ? 1 : -1) * CAMERA_FRAME.lead * this.gr.zoom;
+    return (this.myTeam === 0 ? 1 : -1) * (this.mirrorLead ? -1 : 1) * CAMERA_FRAME.lead * this.gr.zoom;
   }
+
+  /**
+   * UX pass 2: the touch left-handed mirror is on (TouchControls): the button arc sits bottom-left, so the lead flips
+   * and the hero sits right of centre, clear of R and E (with the usual lead it walked under them).
+   */
+  mirrorLead = false;
 
   /**
    * Ground offset (m, +z = screen down) from the hero to the camera focus. Round 2: on short landscape screens the
@@ -782,7 +790,7 @@ export class GameView {
     const ce = cid >= 0 && frame ? frame.byId.get(cid) : null;
     if (ce && ce.state !== 'dead') {
       const size = hoverRingSize(ce.kind, ce.hero);
-      if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, 0.85);
+      if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, cid === pid && this.atkPreviewFar ? 0.45 : 0.85);
     }
     this.castRing.end();
     this.moveMarks.begin();

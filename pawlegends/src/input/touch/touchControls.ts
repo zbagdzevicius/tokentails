@@ -11,8 +11,8 @@
  * GAPS A5: a tap on an enemy hero (on the field, or its portrait in the HUD strip) locks it for 5 s (assist.ts
  * TargetLock); while locked, Attack sends Attack{id} on it and smart casts aim at it when it is within their reach.
  * Settings "Target first" picks the Attack button's order; the last-hit and tower buttons are on by default (UX pass 2).
- * UX pass 2 (Wild Rift): the field rings the unit Attack would hit right now (attackPreview), and the idle auto-attack
- * takes that same unit.
+ * UX pass 2 (Wild Rift): the field rings the unit an Attack tap hits right now (attackPreview, the tap's own pick; fainter
+ * when the tap would walk to it first), and the idle auto-attack hits only that unit, only while it is in reach.
  *
  * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): the PRESS fires, the full distance where the
  * player is heading (the held joystick, or along the wall it slides the hero on when that lands further than straight
@@ -38,7 +38,7 @@ import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abili
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
-import { attackPreview, attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
+import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
@@ -282,7 +282,18 @@ export class TouchControls {
     this.lefty = lefty;
     this.root.classList.toggle('lefty', lefty);
     const l = arcLayout(window.innerWidth, window.innerHeight, touchSize() === 'large');
-    for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton], lefty));
+    let reach = 0;
+    for (const [id, el] of this.buttons) {
+      const spot = l[id as ArcButton];
+      Object.assign(el.style, arcStyle(spot, lefty));
+      reach = Math.max(reach, spot.rx + spot.d / 2);
+    }
+    // how far the arc reaches in from its corner (px): the phone talent card docks just past it (ui.css), clear of the
+    // last-hit and tower buttons at every size, mirrored with the arc
+    const html = document.documentElement;
+    html.style.setProperty('--arc-reach', `${Math.ceil(reach)}px`);
+    html.dataset.lefty = lefty ? '1' : '';
+    this.h.view.mirrorLead = lefty && this.enabled;
   }
 
   /** UX pass 2: the left-handed mirror is on (the joystick takes the right half of the screen). */
@@ -290,6 +301,7 @@ export class TouchControls {
 
   enable(on: boolean): void {
     this.enabled = on;
+    this.h.view.mirrorLead = on && this.lefty;
     this.root.classList.toggle('on', on);
     document.documentElement.dataset.touch = on ? '1' : '';
   }
@@ -893,12 +905,13 @@ export class TouchControls {
     const locked = this.lockedId();
     // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
     const kill = this.killFn();
-    const id = locked ?? attackPriority(units, me, this.h.view.myTeam, range, 7000, this.first, kill);
+    // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
+    const id = attackPreview(units, me, this.h.view.myTeam, range, this.first, kill, locked);
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
-    // field rings at this very moment (UX pass 2: the same unit whenever one is in reach)
+    // field had ringed before this tap (the last preview drawn, at most 100 ms old)
     this.lastPick = {
       id,
-      ring: attackPreview(units, me, this.h.view.myTeam, range, this.first, kill, locked),
+      ring: this.atkPreview,
       lock: locked,
       first: this.first,
       range,
@@ -953,7 +966,11 @@ export class TouchControls {
   private updatePreview(me: Unit | null, now: number): void {
     if (now - this.previewAt < 100) return;
     this.previewAt = now;
-    const id = me && me.state !== 'dead' ? attackPreview(this.h.units(), me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
+    const units = this.h.units();
+    const id = me && me.state !== 'dead' ? attackPreview(units, me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
+    // out of reach the tap walks first: the ring dims
+    const far = id !== null && !!me && !inAttackReach(units.find((u) => u.id === id), me, this.range());
+    this.h.view.atkPreviewFar = far;
     if (id === this.atkPreview) return;
     this.atkPreview = id;
     this.h.view.atkPreview = id;
@@ -974,13 +991,10 @@ export class TouchControls {
     if (me.state !== 'idle') return;
     const range = this.range() + AUTO_SLACK;
     // GAPS A5: a locked hero in range is the idle target too
-    const locked = this.lockedId();
-    const lu = locked !== null ? this.h.units().find((u) => u.id === locked) : undefined;
-    const lockIn = lu && Math.hypot(lu.x - me.x, lu.y - me.y) - BODY_MM.hero <= range ? lu.id : null;
     // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
     // CF-02: the Attack button's order (Settings "Target first"), in range only
-    // UX pass 2: with the last-hit estimate, the very unit the Attack button would hit (it rings it: attackPreview)
-    const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first, this.killFn());
+    // UX pass 2: only the very unit the Attack button rings (attackPreview, the lock first), and only in reach
+    const id = autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.lockedId());
     if (id === null) return;
     this.autoAt = now;
     this.autos++;

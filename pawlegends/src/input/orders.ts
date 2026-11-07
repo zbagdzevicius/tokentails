@@ -423,7 +423,16 @@ export class Orders {
       this.flash.presses++;
       if (this.ready(slot) && !this.flashBusy()) {
         this.flash.atOnce++;
-        return this.castNow(slot, x, y, id);
+        // a skill sent just before and not shown by the sim yet may share the flash's tick, where the newer command
+        // wins and the skill is lost: it is kept and sent again once the flash is seen (the buffer's retry), so a
+        // Q-then-flash in one breath does both, or ends in the usual deny when it cannot go
+        const prev = this.inflight;
+        const ok = this.castNow(slot, x, y, id);
+        if (ok && prev && !prev.seen && prev.slot !== slot && !this.buffered) {
+          this.buffered = { slot: prev.slot, x: prev.x, y: prev.y, id: prev.id, until: Math.max(prev.until, this.env.nowMs() + CAST_BUFFER.ms), retry: true };
+          this.buffers.retried++;
+        }
+        return ok;
       }
       this.flash.kept++;
     }
