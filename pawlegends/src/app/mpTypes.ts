@@ -138,5 +138,5 @@ export interface PartyLink {
   /** Rail notes use these names (the HUD's mute and Hide names). */
   nameOf: (slot: number) => string;
   /** Network numbers for analytics (`mp_net`). */
-  net(): { rttMs: number; buffer: number; holds: number; catchups: number };
+  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs?: number };
 }

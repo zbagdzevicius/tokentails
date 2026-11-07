@@ -85,6 +85,8 @@ function e2eHook(name: string, v: unknown): void {
 const COACH_MAX: Readonly<Record<string, number>> = { dive: 3, 'lane-help': 3, 'cant-go': 2, tower: 4, comeback: 2 };
 /** QA v2 #2: a COMEBACK / "They are rallying" line at most once per this long (ms of match time). */
 const COMEBACK_GAP_MS = 60000;
+/** "Go!" shows only when the first play snapshot is this close (ticks) to the last gate one (not after a catch-up). */
+const GO_MAX_JUMP_TICKS = 15;
 /** QA v2 #13: no lane help before this match clock (s): it fired at "Go!" and named two lanes in a few seconds. */
 const LANE_HELP_FROM_S = 40;
 
@@ -570,7 +572,12 @@ export class MatchSession {
       marker: (x, z, attack) => this.marker(x, z, attack),
       pingWheel: this.pingWheel,
       ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
-      simMe: () => this.ownSim,
+      // party play: while the own hero's predicted walk is in flight, the walker is where a command sent now lands
+      // (the newest snapshot is a round trip behind it); the tick stays the snapshot's
+      simMe: () => {
+        const p = this.ownSim ? this.host.predictedSelf?.() : null;
+        return p && this.ownSim ? { x: p.x, y: p.y, tick: this.ownSim.tick } : this.ownSim;
+      },
       // Audit CF-12: a refused desktop cast flashes its HUD slot red
       onDeny: (slot) => this.hud?.deny(slot),
     };
@@ -953,6 +960,8 @@ export class MatchSession {
   private coreLog = new CoreLog();
   private heroDeathTick: [number, number] = [-1, -1];
   private lastPhase: string = 'play';
+  /** The newest snapshot tick seen in the gate phase. */
+  private lastGateTick = 0;
 
   /**
    * A core took a hit: "Our core is under attack!" / "Their core is under attack!" (at most every 20 s per core)
@@ -1798,8 +1807,11 @@ export class MatchSession {
     if (this.disposed) return;
     const scale = this.view.juice.timeScale(dt);
     const frame = this.paused ? this.buffer.sample(this.buffer.renderTick) : this.buffer.advance(dt, scale);
+    if (frame && !this.paused) this.host.present?.(frame);
     this.frameNow = frame;
-    if (frame && this.lastPhase === 'gate' && frame.latest.clock.phase === 'play') this.goFlash();
+    // "Go!" only when the drop is watched live: a rejoin's catch-up jumps from a gate snapshot to the match clock
+    if (frame && this.lastPhase === 'gate' && frame.latest.clock.phase === 'play' && frame.latest.clock.tick - this.lastGateTick <= GO_MAX_JUMP_TICKS) this.goFlash();
+    if (frame && frame.latest.clock.phase === 'gate') this.lastGateTick = frame.latest.clock.tick;
     if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;
     if (frame) {
       this.turnToInput(frame);

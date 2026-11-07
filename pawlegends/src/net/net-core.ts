@@ -1,7 +1,8 @@
 /**
  * The party client's sim core (docs/plans/moba/MULTIPLAYER.md §4.1, §4.2, §4.4, §4.5). Runs inside the net-host
  * worker (or inline when Workers fail, the same retry and fallback as the LocalHost). Transport-free and timer-free:
- * the caller feeds TURN bodies and calls `pace(now)` once per 66.7 ms slot.
+ * the caller feeds TURN bodies (stamped with their arrival time) and a Pacer (pacer.ts) calls `pace(now)` whenever
+ * `wakeAt(now)` says a turn is due, and at once on every arrival.
  *
  * Determinism rule (§1.4): the local sim only ever applies decoded TURN bytes, the player's own commands included.
  * The match is created from the relay's `match.config`, so every client and the referee run the same inputs.
@@ -12,7 +13,7 @@ import { fillPicksParty, partyReplayRecord } from '../sim/party';
 import type { Command, MatchResult, PartyReplayRecord, SimEvent } from '../sim/api';
 import { encodeSnap } from '../host/protocol';
 import { decodeTurnBody, splitTurnBodies, type TurnFrame } from './proto';
-import { LockstepRunner } from './lockstep';
+import { LockstepRunner, TURN_MS } from './lockstep';
 import { goldenHash, type GoldenSim } from './golden';
 
 export interface NetStart {
@@ -48,7 +49,7 @@ export type CoreOut =
 export type CoreIn =
   | { t: 'selftest'; golden: string }
   | { t: 'start'; start: NetStart }
-  | { t: 'turns'; bytes: ArrayBuffer }
+  | { t: 'turns'; bytes: ArrayBuffer; catchup?: boolean }
   | { t: 'pace'; now: number }
   | { t: 'rebuild' }
   | { t: 'paused'; paused: boolean }
@@ -89,7 +90,11 @@ export class NetCore {
   /** The turn this player's current bot-flown stretch began, or -1. */
   pilotFrom = -1;
 
-  constructor(private readonly post: (m: CoreOut, transfer?: Transferable[]) => void) {}
+  constructor(
+    private readonly post: (m: CoreOut, transfer?: Transferable[]) => void,
+    /** Arrival stamps for the playout clock (the worker's own clock: the same one `pace` gets). */
+    private readonly now: () => number = () => performance.now(),
+  ) {}
 
   /** The golden self-test (§2.1): this build's sim against the vendored backend bundle's value. */
   selftest(golden: string): boolean {
@@ -140,9 +145,13 @@ export class NetCore {
     return this.m ? result(this.m) : null;
   }
 
-  /** TURN bodies from TURN or CATCHUP frames (in order; old and duplicate turns are dropped, a gap is reported). */
-  turns(bytes: Uint8Array, single = false): void {
+  /**
+   * TURN bodies from TURN or CATCHUP frames (in order; old and duplicate turns are dropped, a gap is reported).
+   * `catchup`: a CATCHUP frame, whose turns step at once and say nothing about the live link's jitter.
+   */
+  turns(bytes: Uint8Array, single = false, catchup = false): void {
     const frames = single ? [decodeTurnBody(bytes)] : splitTurnBodies(bytes);
+    const now = this.now();
     for (const f of frames) {
       if (f.turn <= this.queued) continue;
       if (f.turn !== this.queued + 1) {
@@ -150,7 +159,7 @@ export class NetCore {
         return;
       }
       this.queued = f.turn;
-      this.runner.push(f);
+      this.runner.push(f, now, !catchup);
     }
     if (!this.fastForward && this.runner.queue.length > FAST_FORWARD_TURNS) {
       this.fastForward = true;
@@ -160,14 +169,22 @@ export class NetCore {
   }
 
   setPaused(p: boolean): void {
+    if (this.runner.paused && !p) this.runner.resetClock();
     this.runner.paused = p;
   }
 
   setHidden(h: boolean): void {
+    if (this.hidden && !h) this.runner.resetClock();
     this.hidden = h;
   }
 
-  /** One pacing slot. */
+  /** When the pacer should call `pace` next (≤ now: at once). */
+  wakeAt(now: number): number {
+    if (!this.m || this.hidden || this.fastForward) return now + TURN_MS;
+    return this.runner.wakeAt(now);
+  }
+
+  /** One pacing call: step whatever is due. */
   pace(now: number): void {
     if (!this.m || this.hidden) return;
     if (this.fastForward) {
@@ -181,15 +198,17 @@ export class NetCore {
     }
     const events: SimEvent[] = [];
     for (const f of due) this.apply(f, events, true);
-    this.publish(events, due[due.length - 1]);
+    this.publish(events, due[due.length - 1], mergeAcks(due));
   }
 
   private ffSlice(): void {
     const m = this.m!;
     const events: SimEvent[] = [];
     let last: TurnFrame | null = null;
+    const stepped: TurnFrame[] = [];
     for (let i = 0; i < FF_SLICE && this.runner.queue.length > this.runner.B; i++) {
       last = this.runner.take(1)[0];
+      stepped.push(last);
       this.apply(last, events, false);
       if (result(m)) break;
     }
@@ -200,7 +219,7 @@ export class NetCore {
     this.post({ t: 'progress', pct: Math.min(100, Math.round(((this.applied - this.ffFrom + 1) / span) * 100)), done });
     if (done) {
       this.fastForward = false;
-      this.publish([], last);
+      this.publish([], last, mergeAcks(stepped));
     }
   }
 
@@ -233,13 +252,14 @@ export class NetCore {
     }
   }
 
-  private publish(events: SimEvent[], last: TurnFrame | null): void {
+  /** `acks`: merged over every turn stepped since the last publish (an ack rides only the turn where it changed). */
+  private publish(events: SimEvent[], last: TurnFrame | null, acks: (number | undefined)[] = last?.acks ?? []): void {
     const m = this.m!;
     const s = snapshot(m, 0);
     if (events.length) this.post({ t: 'events', tick: s.clock.tick, list: events });
     const buf = encodeSnap(s);
     this.post({ t: 'snap', buf }, [buf]);
-    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks: last.acks, B: this.runner.B, waiting: false, holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued });
+    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks, B: this.runner.B, waiting: false, holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued });
     const r = result(m);
     if (r && !this.endSent) {
       this.endSent = true;
@@ -256,7 +276,7 @@ export class NetCore {
         this.start(msg.start);
         return;
       case 'turns':
-        this.turns(new Uint8Array(msg.bytes));
+        this.turns(new Uint8Array(msg.bytes), false, msg.catchup === true);
         return;
       case 'pace':
         this.pace(msg.now);
@@ -275,4 +295,15 @@ export class NetCore {
         return;
     }
   }
+}
+
+/** Per slot, the newest ack across several stepped turns (TURN acks are sent only on the turn where they change). */
+export function mergeAcks(frames: readonly { acks: readonly (number | undefined)[] }[]): (number | undefined)[] {
+  const out: (number | undefined)[] = [];
+  for (const f of frames)
+    for (let s = 0; s < f.acks.length; s++) {
+      const a = f.acks[s];
+      if (a !== undefined && (out[s] === undefined || a > out[s]!)) out[s] = a;
+    }
+  return out;
 }

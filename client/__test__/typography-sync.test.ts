@@ -94,7 +94,9 @@ describe("sync-fonts", () => {
       expect(existsSync(path.join(CLIENT, "public", stripVersion(file)))).toBe(true);
     }
     const doc = read(CLIENT, "pages/_document.js");
-    expect(doc).toContain("PRELOAD_FONT_FILES.map");
+    // Every page preloads them except the Pawlegends landing (Nunito only, preloadFontsFor).
+    expect(doc).toContain("preloadFonts = PRELOAD_FONT_FILES");
+    expect(doc).toContain("preloadFonts.map");
     expect(doc).toContain('as="font"');
     expect(doc).toContain('crossOrigin="anonymous"');
   });

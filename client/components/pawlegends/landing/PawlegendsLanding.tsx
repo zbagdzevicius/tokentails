@@ -1,10 +1,30 @@
+import dynamic from "next/dynamic";
 import { useEffect, useRef } from "react";
 import { LANDING_CSS } from "./landingCss";
 import { landingMarkup } from "./markup";
+import { revealLanding } from "./reveal";
+import { guardMotionChunk } from "./motionChunk";
+import { useLandingVariant } from "../landingVariant";
 
 /** Built once: React compares this string on every render, so it never rewrites the animated DOM. */
 const MARKUP = { __html: landingMarkup() };
 const CSS = { __html: LANDING_CSS };
+
+/** The motion chunk did not load: show the finished page now instead of after the 5 s CSS fallback. */
+export function MotionFailed({ error }: { error?: Error | null }) {
+  useEffect(() => {
+    if (error) revealLanding();
+  }, [error]);
+  return null;
+}
+
+/**
+ * Server rendered on purpose (it renders nothing): next/dynamic then lists the chunk's scripts in the page HTML, so
+ * GSAP downloads in parallel with the framework rather than in a second round trip after hydration. The pages router
+ * waits for those scripts before it hydrates, so guardMotionChunk gives up on a failed or stalled chunk (the page then
+ * hydrates without motion and MotionFailed shows the hero).
+ */
+const LandingMotion = dynamic(() => guardMotionChunk(import("./LandingMotion")), { loading: MotionFailed });
 
 /**
  * The Pawlegends landing (port of the vs-screen landing). The server renders the markup and its scoped stylesheet;
@@ -14,45 +34,13 @@ const CSS = { __html: LANDING_CSS };
  */
 export function PawlegendsLanding() {
   const ref = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    let live = true;
-    let stop: (() => void) | undefined;
-    Promise.all([
-      import("./motion"),
-      import("gsap"),
-      import("gsap/ScrollTrigger"),
-      import("gsap/SplitText"),
-      import("gsap/CustomEase"),
-      import("gsap/DrawSVGPlugin"),
-      import("gsap/MorphSVGPlugin"),
-      import("gsap/MotionPathPlugin"),
-    ])
-      .then(([m, g, st, split, ease, draw, morph, path]) => {
-        const el = ref.current;
-        if (!live || !el) return;
-        stop = m.startLandingMotion(el, {
-          gsap: g.gsap,
-          ScrollTrigger: st.ScrollTrigger,
-          SplitText: split.SplitText,
-          CustomEase: ease.CustomEase,
-          DrawSVGPlugin: draw.DrawSVGPlugin,
-          MorphSVGPlugin: morph.MorphSVGPlugin,
-          MotionPathPlugin: path.MotionPathPlugin,
-        });
-      })
-      .catch(() => {
-        // No motion: show the finished page.
-        ref.current?.classList.remove("js-intro");
-      });
-    return () => {
-      live = false;
-      stop?.();
-    };
-  }, []);
+  // Landing A/B arm A (`/legends` is B): reported on view and on every play click.
+  useLandingVariant(ref, "A");
   return (
     <>
       <style dangerouslySetInnerHTML={CSS} />
       <div ref={ref} className="pll js-intro" data-testid="pawlegends-landing" dangerouslySetInnerHTML={MARKUP} />
+      <LandingMotion rootRef={ref} />
     </>
   );
 }
