@@ -7,6 +7,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { SplitText } from "gsap/SplitText";
 import { useEffect, type RefObject } from "react";
 import { startLandingMotion } from "./motion";
+import { revealLanding } from "./reveal";
 
 /**
  * The landing's motion chunk: GSAP, its plugins and the engine (`motion.js`) in one async chunk. PawlegendsLanding
@@ -21,7 +22,13 @@ export default function LandingMotion({ rootRef }: { rootRef: RefObject<HTMLDivE
     // A task of its own, so hydration and the motion's setup (SplitText, ScrollTrigger) are not one long task.
     let stop: (() => void) | undefined;
     const id = setTimeout(() => {
-      stop = startLandingMotion(el, { gsap, ScrollTrigger, SplitText, CustomEase, DrawSVGPlugin, MorphSVGPlugin, MotionPathPlugin });
+      try {
+        stop = startLandingMotion(el, { gsap, ScrollTrigger, SplitText, CustomEase, DrawSVGPlugin, MorphSVGPlugin, MotionPathPlugin });
+      } catch (err) {
+        // A broken engine must not leave the hero hidden until the 5 s CSS fallback: show the finished page.
+        console.error("Pawlegends landing motion failed", err);
+        revealLanding(el);
+      }
     }, 0);
     return () => {
       clearTimeout(id);

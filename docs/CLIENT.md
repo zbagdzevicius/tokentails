@@ -551,11 +551,20 @@ needed: the page, the picker card and the landing section (web only, never in th
 - **Landing load speed** (2026-11-07): the hero is hidden until the GSAP intro runs, so the motion chunk is the LCP
   path. `LandingMotion.tsx` (GSAP, plugins and `motion.js`) is a server-rendered `next/dynamic` component that renders
   nothing, so its scripts are in the page HTML and download next to the framework; it starts the motion in its own
-  task after hydration. Analytics waits for the intro (see "Analytics"). Tiles, the round screenshots and the footer
-  logo have smaller copies (`<name>.w<width>.webp`, `srcset`/`sizes` in `markup.ts`); the two hero stills stay full
-  size with `fetchpriority="high"`. Fredoka drops its Hebrew glyphs (Latin, punctuation and combining marks stay; width
-  axis pinned at 100): 33 KB. `_document.js` preloads only Nunito here (`preloadFontsFor`). Endless idle loops pause
-  while their section is off screen (`loopIn` in `motion.js`).
+  task after hydration, and if the engine throws it shows the finished hero (`reveal.ts`). The pages router waits for
+  those scripts before it hydrates, and webpack would wait 120 s for a script tag that already failed, so a blocked or
+  missing motion chunk would stop hydration of the whole page. `_document.js` therefore inlines a watcher on
+  `/pawlegends` (`CHUNK_ERROR_WATCH`) that counts failed `/_next/static/chunks/` scripts, and `guardMotionChunk`
+  (`motionChunk.ts`) rejects as soon as one fails (or after 6 s): the page hydrates without motion, `MotionFailed`
+  shows the hero and tells analytics the page is ready. A request that hangs without failing still holds every
+  deferred script, Next's own included; the 5 s CSS fallback then shows the hero. Analytics waits for the intro (see
+  "Analytics"). Tiles, the round screenshots and the footer logo have smaller copies (`<name>.w<width>.webp`,
+  `srcset`/`sizes` in `markup.ts`; the tile `sizes` follows the measured tile width, so a DPR 3 phone at 390 takes the
+  280w copy); the two hero stills stay full size with `fetchpriority="high"`. Fredoka drops only its Hebrew glyphs
+  (Latin, punctuation, combining marks and the fi/fl ligature characters stay; width axis pinned at 100, weight axis
+  300 to 700 kept): 33 KB. `_document.js` preloads only Nunito here (`preloadFontsFor`) and warms the brand faces
+  after the first contentful paint instead of at load (`warmBrandFonts`). Endless idle loops pause while their section
+  is off screen (`loopIn` in `motion.js`).
 - **Routing** (`components/pawlegends/routes.json`): a `/pawlegends` URL with `party`, `dare`, `checkout`, `restore`,
   `notify` or `from` is redirected (307) to `/pawlegends/play` with its query by `next.config.js`, and the landing
   repeats the check in the browser (app export, client-side navigation). Party invites, dare links, Stripe returns,
@@ -811,10 +820,14 @@ cookies. If the GTM container has its own consent settings in the GTM web UI, th
 There is no `<noscript>` iframe.
 
 One exception to "on mount": on the Pawlegends landing (`/pawlegends`) GTM and PostHog start when the
-intro has played (`pawlegends:landing-ready` from `landing/motion.js`), on the first tap, key or
-scroll, or after 4 s, whichever comes first (`afterLandingReady`). The hero stays hidden until its
-GSAP intro runs, and the GTM tags (about 470 KB of script) would otherwise compete with it. A route
-change before that starts them at once.
+intro has played (`pawlegends:landing-ready` from `landing/motion.js`, or from `reveal.ts` when there
+is no motion), on the first tap, key or scroll, or after 4 s, whichever comes first
+(`afterLandingReady`). The hero stays hidden until its GSAP intro runs, and the GTM tags (about
+470 KB of script) would otherwise compete with it. When the page is hidden first (app or tab switch,
+close) they start at once and the page_view is pushed without the 100 ms delay, so a quick bounce
+still has a chance to be counted. A route change before the start starts them at once, and the
+landing's page_view still goes first, then the new page's. The trade-off: a visitor who closes the
+tab within about 4 s without touching the page may send no page_view (the hide start is best effort).
 
 | Event | Sent when | Properties |
 |---|---|---|
@@ -892,6 +905,12 @@ Home page (`public/home`, "Home page (/)"):
 - The web home page loads no analytics: no PostHog, no Google Tag Manager, no page_view, and the landing lab's click beacon is off. Home visits, give taps and club sign-ups are not counted anywhere except Stripe and the API's own records.
 - It is about 2,800 lines of hand-written HTML, CSS and JS outside the TypeScript, ESLint and copy-lint checks, and its numbers are not `components/claims/Claim` registry entries. `__test__/home-static.test.ts` checks only routing, meta, paths and the beacon.
 - `scripts/sync-home.mjs` downloads the community reel clips from the pitch deck site (`token-tails-pitch.vercel.app`) at sync time; the page then serves its own copies.
+
+Pawlegends landing (`/pawlegends`):
+
+- Scrolling the phone landing with motion shifts layout: a layout-shift observer during a full scroll at 390 px
+  reports CLS about 1.9 (one shift of about 1.0 on `.stripes` and one of about 0.9 on `.round`). Lighthouse, which
+  does not scroll, reports 0. It was already there before the 2026-11-07 load-speed work and is not fixed yet.
 
 Build and SSR:
 
