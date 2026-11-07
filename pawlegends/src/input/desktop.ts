@@ -4,7 +4,7 @@
  * shape at the cursor and the basic attack range ring; release casts at the cursor, LMB while holding casts too, RMB
  * or Esc cancels, another skill key switches the aim, out of range walks in, then casts. Settings "Quick cast" casts at
  * the cursor on the press instead (a brief indicator flash). An armed A shows the attack range ring too. B Nap, 1/2
- * talent pick, Space centres the camera, wheel zooms, Tab scoreboard, Esc menu; edge pan and arrow keys move the
+ * talent pick, Space centres the camera, wheel and +/− zoom, Tab scoreboard, Esc menu; edge pan and arrow keys move the
  * camera. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
  * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
  * moves and attacks too. GAPS B1: hold G for the ping wheel at the cursor (point at a slice, release G to send it);
@@ -18,7 +18,7 @@ import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
 import { cursorCss, cursorKind, type CursorKind } from './cursor';
 import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
-import { saveZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
+import { saveZoom, stepZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
 
@@ -36,6 +36,8 @@ export interface InputHost {
   onActivity(kind: 'pointer' | 'key' | 'touch'): void;
   /** Ground order marker (m). */
   marker(x: number, z: number, attack: boolean): void;
+  /** Audit CF-12: a refused cast: its HUD slot flashes red (the deny sound plays here). */
+  onDeny?(slot: CastIndex): void;
   /** GAPS B1: the ping wheel (desktop: hold G), and a ping to send (PING_KIND, point in mm, target id or 255). */
   pingWheel?: { openAt(x: number, y: number): void; aim(x: number, y: number): void; commit(): void; close(): void; readonly open: boolean };
   ping?(kind: number, x: number, y: number, id: number): void;
@@ -268,9 +270,16 @@ export class DesktopInput {
       return;
     }
     if (!a) return;
-    if (a === 'scoreboard' || a === 'centre' || a === 'menu') e.preventDefault();
+    if (a === 'scoreboard' || a === 'centre' || a === 'menu' || a === 'zoomIn' || a === 'zoomOut') e.preventDefault();
     this.h.onActivity('key');
     sfx.unlock();
+    // +/− zoom like a wheel notch; a held key repeats
+    if (a === 'zoomIn' || a === 'zoomOut') {
+      const v = this.h.view;
+      v.zoomTarget = stepZoom(v.zoomTarget, a === 'zoomOut' ? 1 : -1, zoomMax(window.innerWidth));
+      saveZoom(v.zoomTarget);
+      return;
+    }
     if (e.repeat) return;
     if (a === 'menu') {
       if (this.aiming || this.attackArmed) {
@@ -303,7 +312,7 @@ export class DesktopInput {
     if (slot !== undefined) {
       // C2: the same cast buffer as touch: a key within a few ticks of the cooldown (or mid-dash) is kept, not denied
       if (!this.h.orders.canQueue(slot)) {
-        sfx.play('deny', { vol: 0.6 });
+        this.deny(slot);
         return;
       }
       if (this.mode === 'quick') {
@@ -426,8 +435,14 @@ export class DesktopInput {
   private quickCast(slot: CastIndex): void {
     const c = this.castAtCursor(slot, true);
     if (!c) return;
-    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true };
+    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true, pointer: true };
     this.flashUntil = performance.now() + FLASH_MS;
+  }
+
+  /** A refused cast: the deny sound and (CF-12) the HUD slot's red flash. */
+  private deny(slot: CastIndex): void {
+    sfx.play('deny', { vol: 0.6 });
+    this.h.onDeny?.(slot);
   }
 
   /** Cast `slot` at the cursor (cursorCast); a unit aim with no enemy hero there is refused with the deny sound. */
@@ -439,10 +454,13 @@ export class DesktopInput {
     const cursor = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
     const c = cursorCast(spec, me, cursor, spec.kind === 'unit' ? this.unitUnderCursor(true) : null, this.h.units(), this.h.view.myTeam, clamp);
     if (!c) {
-      sfx.play('deny', { vol: 0.6 });
+      this.deny(slot);
       return null;
     }
-    if (!this.h.orders.cast(slot, c.x, c.y, c.id)) return null;
+    if (!this.h.orders.cast(slot, c.x, c.y, c.id)) {
+      this.deny(slot);
+      return null;
+    }
     this.casts++;
     return c;
   }
@@ -481,7 +499,7 @@ export class DesktopInput {
       valid = !!u;
       target = u?.id ?? -1;
     }
-    this.h.view.aim = { spec, x: gx, z: gz, target, valid };
+    this.h.view.aim = { spec, x: gx, z: gz, target, valid, pointer: true };
   }
 
   /**

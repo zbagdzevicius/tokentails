@@ -4,7 +4,7 @@
  * Silver and Bronze medals. Everything comes from the sim's own SlotStats (sim v12) and the player's `fish` events,
  * so it is the same numbers the replay verifies. Pure: data in, HTML out.
  */
-import type { SlotStats } from '../sim/api';
+import type { HeroId, SlotStats } from '../sim/api';
 import { TOY_TIERS } from '../data/toys';
 import { mmss } from './toyText';
 
@@ -66,6 +66,9 @@ export function fishSources(by: Readonly<Record<string, number>>, total: number)
 export interface ProgressRow {
   slot: number;
   name: string;
+  /** Audit UX-12: the hero this slot played, and its portrait (a baked data or blob URL), so a bot's pet name has a face. */
+  hero?: HeroId;
+  pic?: string | null;
   /** 'self' | 'ally' | 'enemy' */
   rel: string;
   level: number;
@@ -83,12 +86,14 @@ export interface ProgressSummary {
 }
 
 /** The rows from the sim's stats (own team first). */
-export function progressRows(stats: readonly SlotStats[], mySlot: number, nameOf: (slot: number) => string, medalOf: ReadonlyMap<number, Medal>): ProgressRow[] {
+export function progressRows(stats: readonly SlotStats[], mySlot: number, nameOf: (slot: number) => string, medalOf: ReadonlyMap<number, Medal>, picOf?: (hero: HeroId, slot: number) => string | null): ProgressRow[] {
   const myTeam = mySlot < 3 ? 0 : 1;
   return stats
     .map((st) => ({
       slot: st.slot,
       name: nameOf(st.slot),
+      hero: st.hero,
+      ...(picOf ? { pic: picOf(st.hero, st.slot) } : {}),
       rel: st.slot === mySlot ? 'self' : (st.slot < 3 ? 0 : 1) === myTeam ? 'ally' : 'enemy',
       level: st.level,
       toys: st.toys ?? 0,
@@ -122,7 +127,9 @@ export function progressBlock(p: ProgressSummary): string {
       const head = team !== side ? `<tr class="grp ${team}"><th colspan="5">${team === 'ours' ? 'Your team' : 'Enemy team'}</th></tr>` : '';
       side = team;
       const short = r.name.split(' the ')[0] || r.name;
-      return `${head}<tr class="${r.rel}" data-slot="${r.slot}" data-toys="${r.toys}"><td class="nm" title="${esc(r.name)}">${medal(r.medal)}<span>${esc(short)}</span></td><td>${r.level}</td><td class="tys">${chips(r)}</td><td class="f">${r.fish}</td><td>${r.lastHits}</td></tr>`;
+      // UX-12: the hero's portrait before the name (a bot's pet name alone did not say which hero it played)
+      const pic = r.pic && /^(data:image\/|blob:)/.test(r.pic) ? `<img class="hp" src="${esc(r.pic)}" alt="" draggable="false">` : r.hero ? `<i class="hp none" aria-hidden="true">${esc(r.hero.slice(0, 1).toUpperCase())}</i>` : '';
+      return `${head}<tr class="${r.rel}" data-slot="${r.slot}" data-toys="${r.toys}"${r.hero ? ` data-hero="${r.hero}"` : ''}><td class="nm" title="${esc(r.name)}">${pic}${medal(r.medal)}<span>${esc(short)}</span></td><td>${r.level}</td><td class="tys">${chips(r)}</td><td class="f">${r.fish}</td><td>${r.lastHits}</td></tr>`;
     })
     .join('');
   const total = p.sources.reduce((a, s) => a + s.amount, 0);

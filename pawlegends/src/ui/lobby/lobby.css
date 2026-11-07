@@ -207,6 +207,39 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .lb-mini.tt-card .tt-in > .lb-mini-name { font-size: 11px; }
   .lb-sprite > i { transform: scale(1.1); }
 }
+/* Audit UX-01: short phones (a returning player with Play with friends spanned -37 to 412 px at 667x375, with no
+   scroll): a smaller logo and name, the "3v3 vs Normal bots" line folded into the bots segment it repeats, tighter
+   rows, and the column scrolls as a safety net. GFX-13: the card peek moves off the pedestal to the top right, under
+   the corner buttons, as a card over a two-line caption. */
+@media (max-height: 480px) {
+  .pl-lobby .lb-col {
+    max-height: calc(100dvh - 12px - var(--safe-t) - var(--safe-b)); overflow-y: auto; overflow-x: visible; scrollbar-width: none;
+    padding: 2px 6px 4px 2px; margin-left: -2px;
+  }
+  .pl-lobby .lb-col::-webkit-scrollbar { display: none; }
+  /* ui.css `.pl-title h1` (48 px on short screens) loads later at the same specificity */
+  .pl-title.pl-lobby .logo .paw { width: 24px; height: 24px; }
+  .pl-title.pl-lobby h1 { font-size: 30px; text-shadow: 0 3px 0 #7d4fa8; }
+  .lb-name { margin: 4px 0 6px; }
+  .lb-eyebrow { font-size: 10px; }
+  .lb-hero { font-size: 26px; }
+  .lb-sub { margin: 2px 0 4px; font-size: 12px; }
+  .pl-lobby .lb-play .pl-btn.big { font-size: 19px; padding: 11px 26px; }
+  .pl-lobby .lb-play:has(.lb-seg) .lb-line { display: none; }
+  .lb-seg { margin-top: 2px; }
+  .pl-lobby .lb-friends, .pl-lobby .lb-joincode { min-height: 36px; }
+  .pl-lobby .lb-friends.small { padding: 8px 14px; font-size: 13px; }
+  .lb-row { margin-top: 8px; }
+  .lb-peek { top: calc(60px + var(--safe-t)); bottom: auto; flex-direction: column; align-items: flex-end; gap: 4px; padding: 4px; }
+  .lb-peek.empty { align-items: flex-end; }
+  .lb-peek-cap, .lb-peek.first .lb-peek-cap { max-width: 132px; margin: 0; }
+  .lb-peek-cap b, .lb-peek-cap small { display: block; max-width: 132px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lb-peek-cap b { font-size: 11px; }
+  .lb-peek-cap small { font-size: 10px; }
+  .lb-fan { width: 96px; height: 80px; }
+  .lb-mini.tt-card { width: 54px; height: 74px; left: 21px; }
+  .lb-back { width: 40px; height: 56px; }
+}
 @media (max-height: 340px) {
   .lb-eyebrow, .lb-chips { display: none; }
 }

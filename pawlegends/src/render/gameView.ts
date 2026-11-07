@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { loadZoom, ZOOM_DEFAULT, zoomMax } from './camera/zoom';
+import { easeLookAhead, lookAheadTarget } from './camera/lookAhead';
 import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
@@ -58,6 +59,12 @@ export interface AimPreview {
   /** For unit aims: the target entity id, or -1. */
   target: number;
   valid: boolean;
+  /**
+   * The point is the ground under the desktop cursor: the CF-05 look-ahead must not lean toward it, or the camera
+   * slides the ground under a still cursor and the aim drifts (QA 2026-11-07). Touch drag aims are measured from the
+   * button, so they keep the lean.
+   */
+  pointer?: boolean;
 }
 
 export interface GameViewHooks {
@@ -76,9 +83,12 @@ export interface GameViewHooks {
  * Camera framing (m). The focus may run a few metres past the playable edge (the outer ground plane fills it), so a
  * hero at its fountain or in a lane corner stays near the middle of the screen instead of in a corner under the
  * minimap. `lead` is the look-ahead toward the enemy base, `below` shifts the focus south a little (the hero sits
- * slightly above centre, clear of the bottom bar).
+ * slightly above centre, clear of the bottom bar). `shortBelow` (short landscape phones) lifts the focus north of the
+ * hero; CF-05 (audit 2026-11-06) lowered it from −1.5 to −0.8: with the camera further out the top HUD no longer
+ * hides much, and the 4.8 m of ground below the hero at 667x375 was too little. The intent look-ahead
+ * (camera/lookAhead.ts) adds a few metres toward the aim or the walking direction on top of `lead`.
  */
-export const CAMERA_FRAME = Object.freeze({ minX: 0, maxX: 100, minZ: -62, maxZ: 2, lead: 4, below: 0.8, shortBelow: -1.5 });
+export const CAMERA_FRAME = Object.freeze({ minX: 0, maxX: 100, minZ: -62, maxZ: 2, lead: 4, below: 0.8, shortBelow: -0.8 });
 export const clampFocusX = (x: number): number => Math.min(CAMERA_FRAME.maxX, Math.max(CAMERA_FRAME.minX, x));
 export const clampFocusZ = (z: number): number => Math.min(CAMERA_FRAME.maxZ, Math.max(CAMERA_FRAME.minZ, z));
 const WHO_TTL = 3;
@@ -144,6 +154,11 @@ export class GameView {
   }
   /** C6: the camera follow point last frame (m), for the damped snap after a long jump. */
   private lastFollow = { x: NaN, z: NaN };
+  /** CF-05: the eased intent look-ahead (m), its target, and the hero's smoothed ground velocity (m/s). */
+  readonly ahead = { x: 0, z: 0 };
+  private readonly aheadWant = { x: 0, z: 0 };
+  private readonly heroVel = { x: 0, z: 0 };
+  private readonly aheadIn = { vx: 0, vz: 0, aimDx: null as number | null, aimDz: null as number | null, scale: 1 };
   /** Radius (m) of the attack range ring drawn this frame, 0 when none (e2e telemetry). */
   attackRingM = 0;
   /** The unit under the desktop cursor (DesktopInput.hover): a bright ring shows what a click or cast hits. */
@@ -661,6 +676,32 @@ export class GameView {
     return this.frame?.byId.get(this.mySlot) ?? null;
   }
 
+  /**
+   * CF-05 intent look-ahead (render only): the hero's smoothed velocity from the followed point (a blink or a respawn
+   * jump is not a velocity), the aimed point while a skill is aimed, eased into `ahead`. 0 while dead or panned.
+   */
+  private lookAhead(jump: boolean, dt: number): void {
+    const lf = this.lastFollow;
+    const me = this.lastMe;
+    const alive = !!me && me.state !== 'dead';
+    if (dt > 0 && dt < 0.25 && Number.isFinite(lf.x) && !jump) {
+      const k = Math.min(1, dt * 8);
+      this.heroVel.x += ((this.follow.x - lf.x) / dt - this.heroVel.x) * k;
+      this.heroVel.z += ((this.follow.z - lf.z) / dt - this.heroVel.z) * k;
+    } else if (jump) this.heroVel.x = this.heroVel.z = 0;
+    const i = this.aheadIn;
+    i.vx = alive ? this.heroVel.x : 0;
+    i.vz = alive ? this.heroVel.z : 0;
+    // a cursor aim keeps the walking lean only (see AimPreview.pointer)
+    const a = alive && !this.aim?.pointer ? this.aim : null;
+    i.aimDx = a ? a.x - this.follow.x : null;
+    i.aimDz = a ? a.z - this.follow.z : null;
+    i.scale = this.gr.zoom / ZOOM_DEFAULT;
+    lookAheadTarget(i, this.aheadWant);
+    if (this.panned) this.aheadWant.x = this.aheadWant.z = 0;
+    easeLookAhead(this.ahead, this.aheadWant, dt);
+  }
+
   /** Re-centre on the hero (Space). */
   recentre(): void {
     this.pan.set(0, 0, 0);
@@ -884,12 +925,13 @@ export class GameView {
     const cw = this.gr.renderer.domElement.clientWidth;
     const fight = this.fightCam.extra > 0 ? Math.min(zoomMax(cw || 1000), this.zoomTarget * (1 + this.fightCam.extra / MOBA_DIST)) : this.zoomTarget;
     this.gr.zoom += (fight * this.fightCam.punchScale() - this.gr.zoom) * Math.min(1, dt * 10);
-    const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead() + this.fightCam.leanX));
-    const tz = clampFocusZ(this.follow.z + this.pan.z + this.below() + (this.panned ? 0 : this.fightCam.leanZ));
+    const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead() + this.fightCam.leanX + this.ahead.x));
+    const tz = clampFocusZ(this.follow.z + this.pan.z + this.below() + (this.panned ? 0 : this.fightCam.leanZ + this.ahead.z));
     // C6: a tighter follow (dt × 14, was 7); a jump of more than 2 m in one frame (a blink, a dash) closes most of the
     // gap at once instead of a long slide behind the hero
     const lf = this.lastFollow;
     const jump = Number.isFinite(lf.x) && Math.hypot(this.follow.x - lf.x, this.follow.z - lf.z) > 2;
+    this.lookAhead(jump, dt);
     lf.x = this.follow.x;
     lf.z = this.follow.z;
     const k = jump && !this.panned ? 0.6 : Math.min(1, dt * (this.panned ? 12 : 14));
