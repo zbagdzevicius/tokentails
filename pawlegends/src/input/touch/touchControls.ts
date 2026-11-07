@@ -13,6 +13,7 @@
  * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
  *
 <<<<<<< HEAD
+<<<<<<< HEAD
  * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
  * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
  * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
@@ -24,6 +25,13 @@
  * the release fires, so a drag can still pick the direction (always the full distance; a drag that slides back
  * within AIM_BACK_PX is a tap). A ghost marker shows the landing for GHOST_MS.
 >>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
+=======
+ * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): the PRESS fires, the full distance where the
+ * player is heading (the held joystick, else the hero's movement, else the way it last walked, else its facing). No
+ * aim step, no wait for the release, no cancel: the joystick is the aim (founder: "there can't be any friction"). A
+ * ghost marker shows the landing for GHOST_MS. With the joystick held, the run goes on from the landing at once and
+ * the stick keeps steering from there (never from the drawn hero still short of it) until the sim shows the cast.
+>>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
  */
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
@@ -39,11 +47,17 @@ import { attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, p
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 <<<<<<< HEAD
+<<<<<<< HEAD
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
 import { pinchZoom, saveZoom, zoomMax } from '../../render/camera/zoom';
 =======
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS } from '../heading';
 >>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
+=======
+import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
+import { TICK_HZ } from '../../data/timeline';
+import type { SimEvent } from '../../sim/api';
+>>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -51,7 +65,11 @@ export function turnBetween(a: number, b: number): number {
   return d > Math.PI ? Math.PI * 2 - d : d;
 }
 
-export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: (Math.PI * 2) / 32, everyMs: 100, refreshMm: 1000 });
+/**
+ * `stallMs`: a held stick whose hero stands (its move was dropped by the sim's input gate, or ran out) sends its move
+ * again after this long, so the hero never freezes with the thumb on the stick.
+ */
+export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: (Math.PI * 2) / 32, everyMs: 100, refreshMm: 1000, stallMs: 300 });
 const DRAG_PX = 16;
 const DRAG_FULL_PX = 90;
 /** CF-03: a ground or unit aim dragged toward a near screen edge reaches full range this many px short of it. */
@@ -125,7 +143,7 @@ export type TouchPt = { x: number; y: number; x0: number; y0: number };
 =======
 /** How long (ms) the ghost landing marker of a tapped heading cast shows (no delay: the cast goes first). */
 export const GHOST_MS = 150;
-/** After a heading cast with the joystick held, the stick waits at most this long (ms) for the drawn hero to land. */
+/** After a heading cast with the joystick held, the stick steers from the landing at most this long (ms) before the sim shows it. */
 export const BLINK_GUARD_MS = 600;
 >>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
 
@@ -145,7 +163,7 @@ interface Drag {
   cancelIn: number | null;
   /** When the button went down (ms, performance.now). */
   at: number;
-  /** A heading cast already sent on the press (joystick held): the release only lets the button go. */
+  /** A heading cast: the press sent it, the release only lets the button go. */
   fired?: boolean;
 }
 
@@ -198,13 +216,22 @@ export class TouchControls {
   /** The ghost landing marker of the last heading cast shows until (ms, performance.now), or 0. */
   private ghostUntil = 0;
   /**
-   * A heading cast sent while the joystick steers: its landing (mm) and until when (ms) the stick holds its move
-   * orders, so the drawn hero (a few ticks behind the sim) does not aim the next move back from where it was.
+   * A heading cast that went out while the joystick steers: its landing (mm), its slot, until when (ms) at most, and
+   * the sim tick it showed up in (null until the raw events show it). Until the sim's position includes it, the stick
+   * steers from the landing (the sim and the drawn hero still have the hero where it was).
    */
+<<<<<<< HEAD
   private blinkGuard: { x: number; y: number; until: number } | null = null;
   /** Heading casts sent: on the press, on the release (e2e telemetry). */
   heads = { press: 0, release: 0 };
 >>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
+=======
+  private runOn: { x: number; y: number; slot: CastIndex; until: number; tick: number | null } | null = null;
+  /** Avietė's Live Wire return window (heading.ts ReturnWindow). */
+  private readonly wire = new ReturnWindow();
+  /** Heading presses that sent (or buffered) a cast, and heading casts that went out (e2e telemetry). */
+  heads = { press: 0, fired: 0 };
+>>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
   setIcons(icons: Record<'q' | 'w' | 'e' | 'r' | 'trick', string>): void {
     for (const [k, svg] of Object.entries(icons)) {
@@ -251,6 +278,7 @@ export class TouchControls {
     on(window, 'pointerup', (e) => this.up(e));
     on(window, 'pointercancel', (e) => this.up(e, true));
     on(h.canvas, 'pointerdown', (e) => this.canvasDown(e));
+<<<<<<< HEAD
     const fit = (): void => this.layoutArc();
     window.addEventListener('resize', fit);
     this.off.push(() => window.removeEventListener('resize', fit));
@@ -261,6 +289,10 @@ export class TouchControls {
   private layoutArc(): void {
     const l = arcLayout(window.innerWidth, window.innerHeight);
     for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton]));
+=======
+    // every heading cast that goes out (the press, the cast buffer, a retry) shows its landing and runs on from it
+    h.orders.onFire = (slot, x, y) => this.fired(slot, x, y);
+>>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
   }
 
   enable(on: boolean): void {
@@ -370,13 +402,11 @@ export class TouchControls {
     this.drags.set(e.pointerId, { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, cancelIn: null, at: performance.now() });
 =======
     const g: Drag = { id: e.pointerId, btn, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false, overCancel: false, at: performance.now() };
-    // heading casts fire on the press while the joystick steers (no aim step, no wait for the release)
-    if (this.h.orders.aimSpec(slot).heading && this.stickAngle() !== null) {
+    // heading casts fire on the press, stick held or not (no aim step, no wait for the release, no cancel)
+    if (this.h.orders.aimSpec(slot).heading) {
+      g.fired = true;
       const me = this.me();
-      if (me && this.headingCast(slot, me)) {
-        g.fired = true;
-        this.heads.press++;
-      }
+      if (me && this.headingCast(slot, me)) this.heads.press++;
     }
     this.drags.set(e.pointerId, g);
 >>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
@@ -549,10 +579,6 @@ export class TouchControls {
     if (slot === undefined) return;
     const me = this.me();
     if (!me) return;
-    if (this.h.orders.aimSpec(slot).heading && (!g.dragging || this.aimBack(g))) {
-      if (this.headingCast(slot, me)) this.heads.release++;
-      return;
-    }
     if (!g.dragging || this.aimBack(g)) {
       const p = this.tapAim(slot, me);
       if (!this.h.orders.cast(slot, p.x, p.y, p.id)) this.refused(slot);
@@ -607,50 +633,109 @@ export class TouchControls {
 
   /**
    * Where the player is heading (rad, sim convention): the held joystick, else the hero's movement (its drawn track,
-   * then a move order it is still walking), else its facing (heading.ts).
+   * then a move order it is still walking), else the way it last walked, else its facing (heading.ts).
    */
   heading(me: Unit): number {
     const now = performance.now();
     const lm = this.h.orders.lastMove;
     const walking = me.state === 'moving' && lm !== null && now - lm.at <= MOVE_ORDER_MS;
-    return headingAngle(me, { stick: this.stickAngle(), motion: this.motion.angle(now), moveGoal: walking ? lm : null, facing: this.facing() });
+    return headingAngle(me, { stick: this.stickAngle(), motion: this.motion.angle(now), moveGoal: walking ? lm : null, lastMotion: this.motion.last(), facing: this.facing() });
+  }
+
+  /** Where the sim has the own hero (the newest snapshot), else the drawn hero: casts and the stick start from there. */
+  private simPos(me: Unit): { x: number; y: number } {
+    const s = this.h.simMe?.();
+    return s ? { x: s.x, y: s.y } : { x: me.x, y: me.y };
   }
 
   /**
-   * Send a heading cast of `slot` the full distance along the heading and show the ghost landing marker for GHOST_MS.
-   * Returns whether the order went (or was buffered).
+   * Send a heading cast of `slot` the full distance along the heading, from where the sim has the hero. Returns
+   * whether the order went (or was buffered); `fired` shows the landing once it really goes out.
    */
   private headingCast(slot: CastIndex, me: Unit): boolean {
     const spec = this.h.orders.aimSpec(slot);
-    const a = this.heading(me);
-    const p = headingPoint(spec, me, a);
-    if (!this.h.orders.cast(slot, p.x, p.y, 0xff)) return false;
-    const l = landing(spec, me, a);
+    const p = headingPoint(spec, this.simPos(me), this.heading(me));
+    return this.h.orders.cast(slot, p.x, p.y, 0xff);
+  }
+
+  /**
+   * A cast or trick command went out (Orders.onFire: the press, the cast buffer or a retry). For a heading cast: the
+   * ghost marker at its landing for GHOST_MS (no delay: the order is already sent), and with the joystick held the
+   * run goes on from the landing. Live Wire's return lands where the wire started, not ahead.
+   */
+  private fired(slot: CastIndex, x: number, y: number): void {
+    if (!this.enabled) return;
+    const spec = this.h.orders.aimSpec(slot);
+    if (!spec.heading) return;
+    const me = this.me();
+    if (!me) return;
     const now = performance.now();
+    const o = this.simPos(me);
+    const back = spec.returnTicks ? this.wire.point(now) : null;
+    const l = back ?? landing(spec, o, Math.atan2(y - o.y, x - o.x));
+    this.heads.fired++;
     this.h.view.aim = { spec, x: l.x / 1000, z: -l.y / 1000, target: 0xff, valid: true };
     this.ghostUntil = now + GHOST_MS;
-    if (this.stickAngle() !== null) this.runOnFrom(l, now);
-    return true;
+    if (this.stickAngle() !== null) this.runOnFrom(slot, l, now);
   }
 
   /**
    * After a heading cast with the joystick held: the next move goes on from the landing (sent now; the sim lets a cast
-   * win over a move of its tick and applies the move after it), and the stick sends no other move until the drawn
-   * hero has caught up with the landing (BLINK_GUARD_MS at most). Before, the next stick move was aimed from the drawn
+   * win over a move of its tick and applies the move after it), and until the sim shows the cast the stick keeps
+   * steering from the landing (turning the stick works at once). Before, the next stick move was aimed from the drawn
    * hero, still short of the landing, and walked the hero back.
    */
-  private runOnFrom(l: { x: number; y: number }, now: number): void {
-    const raw = this.stickAngle();
-    if (raw === null) return;
-    const a = slideAngle(l.x, l.y, raw);
-    this.blinkGuard = { x: l.x, y: l.y, until: now + BLINK_GUARD_MS };
-    const goal = edgeGoal(l.x, l.y, l.x + Math.cos(a) * STICK.aheadMm, l.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
-    if (!goal) {
-      this.lastStick = { a, at: now, tx: l.x, ty: l.y };
+  private runOnFrom(slot: CastIndex, l: { x: number; y: number }, now: number): void {
+    this.runOn = { x: l.x, y: l.y, slot, until: now + BLINK_GUARD_MS, tick: null };
+    this.lastStick.a = NaN;
+    this.lastStick.at = 0;
+    const me = this.me();
+    if (me) this.steer(me, now);
+  }
+
+  /**
+   * The sim's own events as the host hands them over (before the render clock plays them): a cast of the slot the
+   * stick runs on from marks the tick its position includes it; Live Wire and Short Circuit open (or a return closes)
+   * the Live Wire return window, from where the sim had her before the blink (the snapshot of the tick before).
+   */
+  onSimEvent(ev: SimEvent): void {
+    if (ev.type !== 'cast' || ev.src !== this.h.view.mySlot) return;
+    const r = this.runOn;
+    if (r && r.slot === ev.slot && r.tick === null) r.tick = ev.tick;
+    const spec = this.h.orders.aimSpec(ev.slot);
+    if (!spec.returnTicks && !spec.opensReturn) return;
+    const now = performance.now();
+    if (spec.returnTicks && this.wire.point(now)) {
+      this.wire.close();
       return;
     }
-    this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
-    this.h.orders.move(goal.x, goal.y);
+    const me = this.me();
+    const s = this.h.simMe?.() ?? me;
+    if (!s) return;
+    const ticks = spec.returnTicks ?? this.h.orders.aimSpec(2).returnTicks ?? 0;
+    // a tick short: the window opened at the cast's tick, a little before this event reached the page
+    const tickMs = 1000 / TICK_HZ / Math.max(1, this.h.orders.speed);
+    this.wire.open(s.x, s.y, now + (ticks - 1) * tickMs);
+  }
+
+  /**
+   * Where the stick steers from: the landing of a heading cast still on its way (runOn), else where the sim has the
+   * hero. The run-on ends once the snapshot of the cast's tick is in, the cast was given up (refused, expired), or
+   * after BLINK_GUARD_MS; the stick then sends its move again at once from where the hero really is.
+   */
+  private steerFrom(me: Unit, now: number): { x: number; y: number } {
+    const r = this.runOn;
+    if (r) {
+      const sim = this.h.simMe?.();
+      const landed = r.tick !== null && !!sim && sim.tick >= r.tick;
+      const dropped = r.tick === null && this.h.orders.castState(r.slot) === null;
+      const drawn = Math.hypot(me.x - r.x, me.y - r.y) <= 1500;
+      if (!landed && !dropped && !drawn && now < r.until) return r;
+      this.runOn = null;
+      this.lastStick.a = NaN;
+      this.lastStick.at = 0;
+    }
+    return this.simPos(me);
   }
 
   /** A skill press refused (on cooldown, or the cast buffer ran out): the deny sound and a red flash. */
@@ -682,11 +767,14 @@ export class TouchControls {
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
 <<<<<<< HEAD
+<<<<<<< HEAD
     const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
 =======
     // heading casts: the drag picks the direction, the distance is always the full one (CF-03: a drag toward the
     // screen edge reached only 1.56 m)
     if (aim.heading) return { ...headingPoint(aim, me, Math.atan2(dy, dx)), id: 0xff };
+=======
+>>>>>>> 90b574f44 (fix(pawlegends): flash fires on every touch press, never eaten by the stick's Stop, no frozen run-on)
     const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / DRAG_FULL_PX) : 1;
 >>>>>>> 770a5068d (fix(pawlegends): flash goes the full 4 m where you are heading, on the press)
     const x = me.x + (dx / len) * aim.range * k;
@@ -708,8 +796,7 @@ export class TouchControls {
       return;
     }
     const spec = this.h.orders.aimSpec(slot);
-    let t = this.dragTarget(g, slot, me) ?? { x: me.x, y: me.y, id: 0xff };
-    if (spec.heading) t = { ...landing(spec, me, Math.atan2(t.y - me.y, t.x - me.x)), id: 0xff };
+    const t = this.dragTarget(g, slot, me) ?? { x: me.x, y: me.y, id: 0xff };
     this.h.view.aim = { spec, x: t.x / 1000, z: -t.y / 1000, target: t.id, valid: !g.overCancel && (spec.kind !== 'unit' || t.id !== 0xff) };
   }
 
@@ -719,7 +806,7 @@ export class TouchControls {
     const me = this.me();
     if (slot === undefined || !me) return;
     const spec = this.h.orders.aimSpec(slot);
-    const p = spec.heading ? { ...landing(spec, me, this.heading(me)), id: 0xff } : this.tapAim(slot, me);
+    const p = this.tapAim(slot, me);
     this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: p.id, valid: spec.kind !== 'unit' || p.id !== 0xff };
   }
 
@@ -887,12 +974,9 @@ export class TouchControls {
   private steer(me: Unit, now: number): void {
     const s = this.stick;
     if (!s) return;
-    const bg = this.blinkGuard;
-    if (bg) {
-      // a heading cast is landing: hold the stick's moves until the drawn hero is there (runOnFrom sent the next one)
-      if (now < bg.until && Math.hypot(me.x - bg.x, me.y - bg.y) > 1500) return;
-      this.blinkGuard = null;
-    }
+    // from the landing of a heading cast still on its way, else from where the sim has the hero (the drawn hero
+    // trails it, and after a blink it stands at the old spot for a few frames: a goal from there walks back)
+    const o = this.steerFrom(me, now);
     const dx = s.x - s.bx;
     const dy = -(s.y - s.by);
     if (Math.hypot(dx, dy) > STICK.dead) {
@@ -901,17 +985,19 @@ export class TouchControls {
       // C8: only at full tilt (90%+) and with no enemy hero within 8 m, and only within 8° of the lane
       const raw = Math.atan2(dy, dx);
       const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
-      const a = slideAngle(me.x, me.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(me.x, me.y, raw) : raw);
+      const a = slideAngle(o.x, o.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(o.x, o.y, raw) : raw);
       const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
-      const near = Math.hypot(me.x - this.lastStick.tx, me.y - this.lastStick.ty) < STICK.refreshMm;
-      if ((turn > STICK.turn || near) && now - this.lastStick.at >= STICK.everyMs) {
+      const near = Math.hypot(o.x - this.lastStick.tx, o.y - this.lastStick.ty) < STICK.refreshMm;
+      // the hero stands although the stick is held (its move was dropped or ran out): send it again
+      const stalled = me.state === 'idle' && !this.runOn && now - this.lastStick.at >= STICK.stallMs;
+      if ((turn > STICK.turn || near || stalled) && now - this.lastStick.at >= STICK.everyMs) {
         // the map edge and the enemy fountain stop the stick (null: the hero is already at the edge)
-        const goal = edgeGoal(me.x, me.y, me.x + Math.cos(a) * STICK.aheadMm, me.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
+        const goal = edgeGoal(o.x, o.y, o.x + Math.cos(a) * STICK.aheadMm, o.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
         if (goal) {
           this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
           this.h.orders.move(goal.x, goal.y);
           this.h.view.recentre();
-        } else this.lastStick = { a, at: now, tx: me.x, ty: me.y };
+        } else this.lastStick = { a, at: now, tx: o.x, ty: o.y };
       }
     }
   }
@@ -947,7 +1033,11 @@ export class TouchControls {
 =======
     const me = this.me();
     if (me && me.state !== 'dead') this.motion.sample(me.x, me.y, now);
-    else this.motion.reset();
+    else {
+      this.motion.clear();
+      this.wire.close();
+      this.runOn = null;
+    }
     if (this.ghostUntil > 0 && now >= this.ghostUntil) {
       this.ghostUntil = 0;
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;
