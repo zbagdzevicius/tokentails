@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
+import { matchVoiceKeys } from '../audio/voiceLines';
 import { haptic } from '../ui/haptics';
 import { intensityOf, Music } from '../audio/music';
 import { LocalHost } from '../host/local-host';
@@ -607,6 +608,8 @@ export class MatchSession {
       return Math.max(this.announcer?.bounty(slot) ?? 0, snap >= 3 ? snap : 0);
     };
     this.music.start();
+    // the announcer's lines for this match (its six heroes' lines too), fetched and decoded before they are needed
+    sfx.preloadVoice(matchVoiceKeys(w.picks));
     if (this.setup.look) bakePortrait(this.gr, hero, this.setup.look);
     this.hud = new Hud(this.ui, hero, trick, {
       onSlot: (i) => {
@@ -977,6 +980,7 @@ export class MatchSession {
       this.coreLow[core.team] = true;
       this.coreCall[core.team] = now;
       this.view.juice.banner({ title: ours ? 'Our core is falling!' : 'Their core is falling!', sub: ours ? 'Everyone home: defend it.' : 'Finish it!', tone: ours ? 'bad' : 'gold', urgent: true });
+      sfx.voice(ours ? 'coreFalling' : 'theirCoreFalling');
       this.minimap.ping(core.fx, core.fy, color, 4000);
       return;
     }
@@ -989,10 +993,12 @@ export class MatchSession {
     if (ours && far) {
       // Round 2: "Defend!" with a ping when the player is far from its own core under attack.
       this.view.juice.banner({ title: 'Defend!', sub: this.touch ? 'Our core is under attack: tap Nap to go home.' : 'Our core is under attack: press B to Nap home.', tone: 'bad', urgent: true });
+      sfx.voice('coreAttacked');
       this.minimap.ping(core.fx, core.fy, color, 4000);
       return;
     }
     this.view.juice.banner({ title: ours ? 'Our core is under attack!' : 'Their core is under attack!', tone: ours ? 'bad' : 'good', urgent: true });
+    sfx.voice(ours ? 'coreAttacked' : 'theirCoreAttacked');
     this.minimap.ping(core.fx, core.fy, color);
   }
 
@@ -1148,6 +1154,7 @@ export class MatchSession {
         return;
       }
       rail.rest('countdown', steps[i], 'gold');
+      if (i === 0) sfx.voice('welcome', { sting: false });
       // cards: the VS intro is gone by "1" whatever its own timers say (a late chunk under load would cover "Ready!")
       if (i === steps.length - 2) {
         this.vsDone = true;
@@ -1165,6 +1172,7 @@ export class MatchSession {
   private goFlash(): void {
     if (this.disposed) return;
     this.view.juice.push({ key: 'go', title: 'Go!', tone: 'gold', prio: 0, ttl: 700 });
+    sfx.voice('gatesOpen', { sting: false });
   }
 
   private openMenu(): void {
@@ -2428,6 +2436,7 @@ export class MatchSession {
     this.tips.dispose();
     this.goals.dispose();
     this.music.stop();
+    sfx.hushVoice();
     this.view.dispose();
     this.ui.remove();
     delete document.documentElement.dataset.match;

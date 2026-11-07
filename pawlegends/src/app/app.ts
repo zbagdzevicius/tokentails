@@ -8,6 +8,7 @@ import { fishSources, medals, progressRows } from '../ui/progressSummary';
 import { HumanFilter } from '../analytics/human';
 import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
 import { sfx } from '../audio/sfx';
+import { nameLine } from '../audio/voiceLines';
 import { crashSender, reportCrash, setCrashHook } from './crash';
 import { SIM_VERSION } from '../sim/version';
 import type { Bridge, HostMessage } from '../embed/bridge';
@@ -739,6 +740,8 @@ export class App {
         },
         onHero: (h) => {
           sfx.play('click');
+          // champion select: the announcer says the hero's name (a newer pick cuts the last name off)
+          sfx.voice(nameLine(h), { sting: false });
           this.choice = { ...this.choice, hero: h };
           this.setLobbyHero(h);
           // sim v14: the picked hero, its side and the last hero per side (the CATS / DOGS switch restores it) are
