@@ -44,6 +44,7 @@ import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
 import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
 import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
+import { headingPoint } from '../input/heading';
 import { ProgressRail } from '../ui/progressRail';
 import { DIFFICULTY_RULES } from '../data/bots';
 import { FISH } from '../data/fish';
@@ -462,9 +463,13 @@ export class MatchSession {
       welcome: (w) => this.onWelcome(w),
       snap: (s) => {
         this.buffer.push(s);
+        this.simOwn(s);
         if (this.e2e) this.trackOwn(s);
       },
-      events: (_t, list) => this.buffer.pushEvents(list),
+      events: (_t, list) => {
+        this.buffer.pushEvents(list);
+        this.rawOwnEvents(list);
+      },
       end: (result, replay) => this.onEnd(result, replay),
       error: (m) => hooks.onError(m),
     });
@@ -559,6 +564,7 @@ export class MatchSession {
       marker: (x, z, attack) => this.marker(x, z, attack),
       pingWheel: this.pingWheel,
       ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
+      simMe: () => this.ownSim,
     };
     this.desktop = new DesktopInput(inputHost);
     this.touch = new TouchControls(inputHost, this.ui, this.desktop);
@@ -591,8 +597,16 @@ export class MatchSession {
       onSlot: (i) => {
         const me = this.units.find((u) => u.id === w.slot);
         if (!me || !this.orders) return;
-        if (i === 5) this.orders.nap();
-        else this.orders.cast(i as 0 | 1 | 2 | 3 | 4, me.x + Math.cos(this.view.me()?.yaw ?? 0) * 2000, me.y + Math.sin(this.view.me()?.yaw ?? 0) * 2000);
+        if (i === 5) {
+          this.orders.nap();
+          return;
+        }
+        const slot = i as 0 | 1 | 2 | 3 | 4;
+        const spec = this.orders.aimSpec(slot);
+        // a heading blink or dash (Pounce, the escape dashes): its full distance where the hero is heading, not 2 m
+        const a = spec.heading && this.touch ? this.touch.heading(me) : (this.view.me()?.yaw ?? 0);
+        const p = spec.heading ? headingPoint(spec, me, a) : { x: me.x + Math.cos(a) * 2000, y: me.y + Math.sin(a) * 2000 };
+        this.orders.cast(slot, p.x, p.y);
       },
       onPortrait: (slot) => {
         this.touch?.lockOn(slot);
@@ -1885,6 +1899,37 @@ export class MatchSession {
 
   private respawnShown = '';
 
+  /** The own hero in the newest snapshot (the input steers and casts from there, ahead of the drawn hero). */
+  private ownSim: { x: number; y: number; tick: number } | null = null;
+
+  private simOwn(s: Snapshot): void {
+    if (!this.welcome) return;
+    const me = s.entities.find((e) => e.id === this.view.mySlot);
+    if (!me) return;
+    if (me.state === 'dead') {
+      this.ownSim = null;
+      return;
+    }
+    if (this.ownSim) {
+      this.ownSim.x = me.x;
+      this.ownSim.y = me.y;
+      this.ownSim.tick = s.clock.tick;
+    } else this.ownSim = { x: me.x, y: me.y, tick: s.clock.tick };
+  }
+
+  /**
+   * The own hero's casts as the host hands the events over (the render clock plays them later): the cast buffer
+   * lets an order held behind a cast go, and the touch input learns the tick its run-on lands (orders.ts, touchControls.ts).
+   */
+  private rawOwnEvents(list: readonly SimEvent[]): void {
+    const me = this.view.mySlot;
+    for (const ev of list) {
+      if ((ev.type !== 'cast' && ev.type !== 'windup') || ev.src !== me) continue;
+      this.orders?.applied(ev);
+      this.touch?.onSimEvent(ev);
+    }
+  }
+
   /** `?e2e=1` only (flash-touch.spec.ts): the own hero's sim position per snapshot, [tick, x, y], the last 900. */
   private ownTrack: number[][] | null = null;
 
@@ -2012,7 +2057,7 @@ export class MatchSession {
     if (this.orders) d.castBuf = `${this.orders.buffers.kept},${this.orders.buffers.sent},${this.orders.buffers.expired},${this.orders.buffers.retried},${this.orders.busyWhy()},${this.orders.queued ?? ''},${this.orders.busyLeftMs}`;
     d.atkNone = String(this.touch?.atkNone ?? 0);
     // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
-    d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.release}` : '';
+    d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
     d.lastHits = String(this.lastHitsSeen);
     if (me) d.meF = `${Math.round(me.fx)},${Math.round(me.fy)}`;
     d.hits = String(this.hitsLanded);

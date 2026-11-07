@@ -135,6 +135,29 @@ function rig(hero: HeroId = 'clem', units: Unit[] = [unit(0, 'hero', 0, 20000, 1
 }
 
 describe('DesktopInput', () => {
+  it('the flash (Pounce on D) casts on the key press in the default hold mode: full range toward the cursor, no aim step', () => {
+    expect(castMode()).toBe('hold');
+    const r = rig();
+    r.point(22000, 10000);
+    r.key('keydown', 'KeyD');
+    const tricks = () => r.sent.filter((c) => c.op === Op.Trick) as { x: number; y: number }[];
+    expect(tricks()).toHaveLength(1);
+    expect(tricks()[0].x - 20000).toBeGreaterThan(4000);
+    expect(Math.abs(tricks()[0].y - 10000)).toBeLessThan(150);
+    expect(r.d.aimingSlot).toBeNull();
+    // the indicator marks the 4 m landing, not the cursor 2 m away
+    expect((r.view.aim as { x: number }).x * 1000 - 20000).toBeGreaterThan(3800);
+    r.key('keyup', 'KeyD');
+    expect(tricks()).toHaveLength(1);
+    r.d.dispose();
+  });
+  it('hovering a heading skill on the HUD previews its full landing along the facing (not 0.6 × range)', () => {
+    const r = rig();
+    r.d.previewSlot(4);
+    expect((r.view.aim as { x: number }).x * 1000 - 20000).toBeGreaterThan(3800);
+    r.d.previewSlot(null);
+    r.d.dispose();
+  });
   it('quick cast: Q casts at the cursor on press, with a brief indicator', () => {
     setCastMode('quick');
     const r = rig();
