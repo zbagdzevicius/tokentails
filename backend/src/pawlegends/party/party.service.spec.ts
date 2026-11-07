@@ -31,7 +31,7 @@ const id = (n: string, extra: Partial<MemberIdentity> = {}): MemberIdentity => (
     ...extra,
 });
 
-function setup() {
+function setup(heroesOf?: (p: Party) => readonly string[]) {
     let now = 1_000_000;
     const sent: { to: string; msg: Record<string, unknown> }[] = [];
     const starts: StartPlan[] = [];
@@ -43,6 +43,7 @@ function setup() {
             difficulties: ['rookie', 'easy', 'normal', 'hard'],
             sideOf: h => SIDE[h] ?? null,
             newbieHero: 'clem',
+            heroesOf,
         },
         {
             changed: () => void changes++,
@@ -485,6 +486,60 @@ describe('PartyService', () => {
             expect(plan.seats.map(s => s.slot)).toEqual([0, 1, 2]);
             expect(plan.seats.slice(1).every(s => SIDE[s.hero] === 'dog' && s.hero !== 'rex')).toBe(true);
             expect(p.locked).toBe(false);
+        });
+    });
+
+    describe('a party pinned to an older sim (heroesOf: a v13 leader has no v14 dogs)', () => {
+        // 'duke' stands in for a dog only the live sim has; the pinned sim lacks it
+        const OLD = HEROES.filter(h => h !== 'duke');
+        const pinned = () => {
+            const t = setup(() => OLD);
+            const p = t.svc.create('A', id('a'), 'normal');
+            return { ...t, p };
+        };
+
+        it('ignores a hover or lock of a hero the pinned sim lacks', () => {
+            const t = pinned();
+            t.svc.join(t.p.code, 'B', id('b'));
+            t.svc.start('A');
+            t.svc.lock('A', 'rex', 'dash');
+            t.svc.hover('B', 'duke');
+            t.svc.lock('B', 'duke', 'dash');
+            expect(t.p.members[1].hero).toBeUndefined();
+            expect(t.p.members[1].locked).toBe(false);
+            t.svc.lock('B', 'biscuit', 'dash');
+            expect(t.p.members[1].locked).toBe(true);
+        });
+
+        it('Open seats never bot-fill a hero the pinned sim lacks', () => {
+            const t = pinned();
+            t.svc.set('A', { openSeats: true });
+            t.svc.start('A');
+            t.svc.lock('A', 'rex', 'dash');
+            t.svc.loaded('A');
+            const heroes = t.starts[0].seats.map(s => s.hero);
+            expect(heroes).toHaveLength(3);
+            expect(heroes).not.toContain('duke');
+            expect(heroes.every(h => OLD.includes(h))).toBe(true);
+        });
+
+        it('a pick timeout never auto-locks a hero the pinned sim lacks', () => {
+            const t = pinned();
+            t.svc.join(t.p.code, 'B', id('b'));
+            t.svc.join(t.p.code, 'C', id('c'));
+            t.svc.start('A');
+            t.svc.lock('A', 'rex', 'dash');
+            t.advance(PARTY_TIMING.pickMs);
+            expect(t.p.members.map(m => m.hero)).not.toContain('duke');
+            expect(t.p.members[1].hero).toBe('biscuit');
+        });
+
+        it('without heroesOf every hero is offered (the live sim)', () => {
+            const t = lobby(2);
+            t.svc.start('A');
+            t.svc.lock('A', 'rex', 'dash');
+            t.svc.lock('B', 'duke', 'dash');
+            expect(t.p.members[1].locked).toBe(true);
         });
     });
 

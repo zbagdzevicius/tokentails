@@ -103,6 +103,11 @@ export interface PartyEvents {
 
 export interface PartyRules {
     heroes: readonly string[];
+    /**
+     * The heroes this party's pinned sim has (the leader's sim). Defaults to `heroes`. A party pinned to an older sim
+     * (v13 has no v14 dogs) never hovers, locks, auto-locks or bot-fills a hero that sim lacks.
+     */
+    heroesOf?(p: Party): readonly string[];
     tricks: readonly string[];
     difficulties: readonly string[];
     sideOf(hero: string): string | null;
@@ -449,7 +454,7 @@ export class PartyService {
     hover(memberId: string, hero: string): void {
         const p = this.partyOf(memberId);
         const m = p?.members.find(x => x.id === memberId);
-        if (!p || !m || p.phase !== 'pick' || m.locked || !this.rules.heroes.includes(hero)) return;
+        if (!p || !m || p.phase !== 'pick' || m.locked || !this.heroesOf(p).includes(hero)) return;
         if (!this.heroAllowed(p, m, hero)) return;
         m.hero = hero;
         if (memberId === p.leader) this.leaderSide(p, this.rules.sideOf(hero));
@@ -471,6 +476,10 @@ export class PartyService {
         }
     }
 
+    private heroesOf(p: Party): readonly string[] {
+        return this.rules.heroesOf?.(p) ?? this.rules.heroes;
+    }
+
     private heroAllowed(p: Party, m: Member, hero: string): boolean {
         if (p.members.some(o => o.id !== m.id && o.locked && o.hero === hero)) return false;
         if (m.id !== p.leader && p.side && this.rules.sideOf(hero) !== p.side) return false;
@@ -481,7 +490,7 @@ export class PartyService {
         const p = this.partyOf(memberId);
         const m = p?.members.find(x => x.id === memberId);
         if (!p || !m || p.phase !== 'pick' || m.locked) return;
-        if (!this.rules.heroes.includes(hero) || !this.rules.tricks.includes(trick) || !this.heroAllowed(p, m, hero))
+        if (!this.heroesOf(p).includes(hero) || !this.rules.tricks.includes(trick) || !this.heroAllowed(p, m, hero))
             return;
         m.hero = hero;
         m.trick = trick;
@@ -516,9 +525,10 @@ export class PartyService {
                 m.newbie ? this.rules.newbieHero : undefined,
                 m.hero,
                 m.lastHero,
-                ...this.rules.heroes,
+                ...this.heroesOf(p),
             ].filter((h): h is string => !!h);
-            const hero = candidates.find(h => this.heroAllowed(p, m, h));
+            const heroes = this.heroesOf(p);
+            const hero = candidates.find(h => heroes.includes(h) && this.heroAllowed(p, m, h));
             if (!hero) continue;
             m.hero = hero;
             m.trick = m.trick ?? m.lastTrick ?? this.rules.tricks[0];
@@ -564,9 +574,9 @@ export class PartyService {
             for (const s of [0, 1, 2]) {
                 if (seats.some(x => x.slot === s)) continue;
                 const used = seats.map(x => x.hero);
+                const heroes = this.heroesOf(p);
                 const hero =
-                    this.rules.heroes.find(h => !used.includes(h) && this.rules.sideOf(h) === (p.side ?? 'cat')) ??
-                    this.rules.heroes[0];
+                    heroes.find(h => !used.includes(h) && this.rules.sideOf(h) === (p.side ?? 'cat')) ?? heroes[0];
                 seats.push({ slot: s, hero, trick: this.rules.tricks[s % this.rules.tricks.length] });
             }
             seats.sort((a, b) => a.slot - b.slot);
