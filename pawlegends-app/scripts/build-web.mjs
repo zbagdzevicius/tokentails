@@ -9,7 +9,7 @@
  * 3. `www/bundle.json`: the stamp (version, seq, compat, simVersion), read by the OTA publish job.
  *
  * Usage: node scripts/build-web.mjs [--seq <n>] [--skip-game]
- *   --seq: publish order (default: UTC yyyymmddHHMM now). The bundle version is `<seq>-<git short sha>`.
+ *   --seq: publish order (default: UTC yyyymmddHHMMSS now). The bundle version is `<seq>-<git short sha>`.
  *   --skip-game: reuse ../pawlegends/dist-app (shell-only rebuild).
  */
 import { execFileSync } from 'node:child_process';
@@ -18,7 +18,7 @@ import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { build } from 'esbuild';
 import { spkiPem } from './lib/capgo-crypto.mjs';
-import { NATIVE_COMPAT, MANIFEST_URL, PUBLIC_KEY_PATH, API_ORIGIN } from './lib/app-config.mjs';
+import { NATIVE_COMPAT, UPDATES_URL, LOCAL_UPDATES_URL, PUBLIC_KEY_PATH, API_ORIGIN } from './lib/app-config.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appDir = resolve(here, '..');
@@ -34,7 +34,7 @@ const arg = (name) => {
 
 function utcSeq(d = new Date()) {
   const p = (n) => String(n).padStart(2, '0');
-  return Number(`${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}`);
+  return Number(`${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`);
 }
 
 function gitSha() {
@@ -90,7 +90,8 @@ await build({
   define: {
     __PL_STAMP__: JSON.stringify(stamp),
     __PL_SPKI__: JSON.stringify(spkiPem(publicPem)),
-    __PL_MANIFEST_URL__: JSON.stringify(MANIFEST_URL),
+    __PL_UPDATES_URL__: JSON.stringify(UPDATES_URL),
+    __PL_LOCAL_UPDATES_URL__: JSON.stringify(LOCAL_UPDATES_URL),
   },
   logLevel: 'warning',
 });

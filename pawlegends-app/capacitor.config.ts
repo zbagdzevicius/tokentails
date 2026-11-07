@@ -37,7 +37,7 @@ const config: CapacitorConfig = {
       statsUrl: '',
       channelUrl: '',
       updateUrl: '',
-      appReadyTimeout: 15000,
+      appReadyTimeout: 30000,
       responseTimeout: 30,
       autoDeleteFailed: true,
       autoDeletePrevious: true,

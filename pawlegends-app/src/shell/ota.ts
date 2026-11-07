@@ -40,6 +40,8 @@ export interface OtaDeps {
   stamp: BundleStamp;
   nativeVersion(): Promise<string>;
   manifestUrl: string;
+  /** Accept bundles from the local test server (the dev channel of a Debug build only). */
+  allowLocal?: boolean;
   spkiPem: string;
   kv: KV;
   /** The game's state, for safeToApply. */
@@ -127,7 +129,7 @@ export class Ota {
       } catch {
         return 'offline';
       }
-      const m = parseManifest(raw, this.d.stamp.compat);
+      const m = parseManifest(raw, this.d.stamp.compat, this.d.allowLocal === true);
       if (!m) return 'no-manifest';
       const sig = await verifyManifest(m, this.d.spkiPem, this.d.subtle);
       if (sig === 'bad') {
