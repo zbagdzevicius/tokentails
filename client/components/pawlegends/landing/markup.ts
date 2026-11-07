@@ -19,7 +19,7 @@ const A = {
   teamfight: LANDING_ASSET("shot-teamfight.1be7757e.webp"),
   phone: LANDING_ASSET("shot-phone.24bce0a7.webp"),
   logo: LANDING_ASSET("tt-logo.19b6c796.webp"),
-  fredoka: LANDING_ASSET("fredoka-latin.eda1d43a.woff2"),
+  fredoka: LANDING_ASSET("fredoka-latin.ec85d7eb.woff2"),
   mascot: LANDING_ASSET("mascot.92c3f404.webp"),
   mascot2: LANDING_ASSET("mascot2.ff449081.webp"),
 };
@@ -35,13 +35,19 @@ export const SMALLER: Readonly<Record<string, number>> = Object.freeze({
 });
 /** The tile copy of a hero portrait: tiles draw at most about 140 CSS px wide (scale 1.34 on hover). */
 export const TILE_PORTRAIT_WIDTH = 280;
+/**
+ * The tile image's layout width, a little over the measured one (2026-11-07: 4 columns up to 560 px wide, about 21vw;
+ * 6 columns to 820, about 14.5vw; then 4 columns in the stage's middle, about 8.8vw, capped at 118 px from 1360).
+ * Erring large by more than this made a DPR 3 phone at 390 pick the 420w original instead of the 280w copy.
+ */
+export const TILE_SIZES = "(max-width:560px) 22vw, (max-width:820px) 15vw, (max-width:1360px) 9vw, 120px";
 const sized = (src: string, w: number) => src.replace(/\.webp$/, `.w${w}.webp`);
 /** `srcset` for an image whose original is `full` px wide and whose smaller copy is `w` px wide. */
 const srcset = (src: string, w: number, full: number) => `${sized(src, w)} ${w}w, ${src} ${full}w`;
 /**
- * Fredoka (OFL, LICENSE-fredoka.txt next to it): the game's UI face. Its Hebrew glyphs are dropped (every Latin glyph,
- * the punctuation and the combining marks stay, so ė still draws from it), the width axis is pinned at its default 100
- * and the weight axis kept (300 to 700): 33 KB instead of 88 KB, same glyphs on the page.
+ * Fredoka (OFL, LICENSE-fredoka.txt next to it): the game's UI face. Only its Hebrew glyphs are dropped (every Latin
+ * glyph, the fi/fl ligature characters, the punctuation and the combining marks stay, so ė still draws from it), the
+ * width axis is pinned at its default 100 and the weight axis kept (300 to 700): 34 KB instead of 88 KB.
  */
 export const LANDING_FONT = A.fredoka;
 /** Every file the landing loads from public/ (the unit test checks they exist). */
@@ -75,7 +81,7 @@ const PAW_SVG =
 function tile(h: LandingHero, pressed: boolean): string {
   // Grid heroes always have a portrait (gridHeroes).
   const src = h.portrait ?? "";
-  const art = `<img src="${src}" srcset="${srcset(src, TILE_PORTRAIT_WIDTH, 420)}" sizes="(max-width:560px) 34vw, (max-width:820px) 20vw, 150px" alt="" width="420" height="574" loading="lazy" decoding="async">`;
+  const art = `<img src="${src}" srcset="${srcset(src, TILE_PORTRAIT_WIDTH, 420)}" sizes="${TILE_SIZES}" alt="" width="420" height="574" loading="lazy" decoding="async">`;
   return (
     `<li class="${h.side}"><button class="tile ${h.side}" type="button" data-side="${h.side}" data-id="${h.id}" data-name="${shown(h.name)}"` +
     ` data-role="${h.role}" data-breed="${esc(h.breed ?? "")}" data-blurb="${esc(h.blurb)}" data-portrait="${h.portrait ?? ""}" aria-pressed="${pressed}">` +
