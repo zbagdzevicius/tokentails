@@ -14,6 +14,13 @@ const WARM_BRAND_FONTS = `(function(){var f=document.fonts;if(!f||!f.load)return
 // Only the background is global; cream ink and the dark colour scheme stay under [data-sky].
 const FIRST_PAINT = `html,body{background-color:${THEME_COLOR}}html[data-sky]{color-scheme:dark}`;
 
+// Pages that never draw the brand display faces (Passion One, Bebas Neue) before load: preloading them there only takes
+// bandwidth from the page's own font and scripts. The Pawlegends landing uses Fredoka (its own preload) and Nunito.
+// WARM_BRAND_FONTS still fetches them after load, so /game's first canvas text is unchanged.
+const BODY_FONT_ONLY_PATHS = new Set(["/pawlegends"]);
+export const preloadFontsFor = (path) =>
+  BODY_FONT_ONLY_PATHS.has(path) ? PRELOAD_FONT_FILES.filter((href) => href.includes("/nunito-")) : PRELOAD_FONT_FILES;
+
 /** Favicon (16, 32 and 48 frames), PNG icons for browsers that prefer them, and the iOS home icon. */
 export const ICON_LINKS = [
   { rel: "icon", href: "/favicon.ico", sizes: "16x16 32x32 48x48" },
@@ -27,11 +34,11 @@ class MyDocument extends Document {
     const initialProps = await Document.getInitialProps(ctx);
     // ctx.pathname is the page pattern (`/game`, `/feed/[category]`), also during `next export`.
     const path = ctx.pathname || "/";
-    return { ...initialProps, sky: skyForPath(path), zoomLocked: isZoomLocked(path) };
+    return { ...initialProps, sky: skyForPath(path), zoomLocked: isZoomLocked(path), preloadFonts: preloadFontsFor(path) };
   }
 
   render() {
-    const { sky, zoomLocked } = this.props;
+    const { sky, zoomLocked, preloadFonts = PRELOAD_FONT_FILES } = this.props;
     // The viewport meta lives in _app (next/head), so it follows client-side navigation:
     // zoom stays enabled everywhere except /game (WCAG 1.4.4, plan G6).
     return (
@@ -60,7 +67,7 @@ class MyDocument extends Document {
           <link rel="manifest" href="/manifest.webmanifest" />
           <meta name="format-detection" content="telephone=no" />
           {/* Self-hosted brand faces (plan F4): Passion One 900, Bebas Neue, Nunito, latin. */}
-          {PRELOAD_FONT_FILES.map((href) => (
+          {preloadFonts.map((href) => (
             <link
               key={href}
               rel="preload"

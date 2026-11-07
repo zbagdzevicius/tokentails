@@ -548,6 +548,14 @@ needed: the page, the picker card and the landing section (web only, never in th
   The roster (`roster.ts`) is the game's own words; heroes without in-game art yet show a paw card with a "New" badge,
   never a stand-in image. `__test__/pawlegends/landing-roster.test.ts` checks it against the game's `HERO_IDS` and
   `SIM_VERSION`, so a cut hero fails CI. Play buttons link `/pawlegends/play?from=landing_hero|landing_continue`.
+- **Landing load speed** (2026-11-07): the hero is hidden until the GSAP intro runs, so the motion chunk is the LCP
+  path. `LandingMotion.tsx` (GSAP, plugins and `motion.js`) is a server-rendered `next/dynamic` component that renders
+  nothing, so its scripts are in the page HTML and download next to the framework; it starts the motion in its own
+  task after hydration. Analytics waits for the intro (see "Analytics"). Tiles, the round screenshots and the footer
+  logo have smaller copies (`<name>.w<width>.webp`, `srcset`/`sizes` in `markup.ts`); the two hero stills stay full
+  size with `fetchpriority="high"`. Fredoka drops its Hebrew glyphs (Latin, punctuation and combining marks stay; width
+  axis pinned at 100): 33 KB. `_document.js` preloads only Nunito here (`preloadFontsFor`). Endless idle loops pause
+  while their section is off screen (`loopIn` in `motion.js`).
 - **Routing** (`components/pawlegends/routes.json`): a `/pawlegends` URL with `party`, `dare`, `checkout`, `restore`,
   `notify` or `from` is redirected (307) to `/pawlegends/play` with its query by `next.config.js`, and the landing
   repeats the check in the browser (app export, client-side navigation). Party invites, dare links, Stripe returns,
@@ -801,6 +809,12 @@ and on every route change, and `trackEvent` pushes the portrait shop steps. No C
 commands are pushed, so Google Analytics 4 in the container uses its default storage and sets its
 cookies. If the GTM container has its own consent settings in the GTM web UI, they still apply.
 There is no `<noscript>` iframe.
+
+One exception to "on mount": on the Pawlegends landing (`/pawlegends`) GTM and PostHog start when the
+intro has played (`pawlegends:landing-ready` from `landing/motion.js`), on the first tap, key or
+scroll, or after 4 s, whichever comes first (`afterLandingReady`). The hero stays hidden until its
+GSAP intro runs, and the GTM tags (about 470 KB of script) would otherwise compete with it. A route
+change before that starts them at once.
 
 | Event | Sent when | Properties |
 |---|---|---|
