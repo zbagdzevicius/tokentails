@@ -5,6 +5,40 @@
 #   egress -> Cloud NAT (one static IP on the MongoDB Atlas access list)
 
 locals {
+  service_accounts = {
+    "sa-api" = {
+      display_name  = "tt-api runtime (Cloud Run)"
+      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
+    }
+    "sa-relay" = {
+      display_name  = "party relay VM"
+      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
+    }
+    "sa-web" = {
+      display_name  = "tt-web runtime (Cloud Run)"
+      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
+    }
+    "sa-cms" = {
+      display_name  = "tt-cms runtime (Cloud Run)"
+      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
+    }
+    "sa-migrate" = {
+      display_name  = "tt-migrate job (migrate-mongo)"
+      project_roles = ["roles/logging.logWriter"]
+    }
+    "sa-deploy" = {
+      display_name = "GitHub Actions deploy (deploy-gcp.yml)"
+      project_roles = [
+        "roles/run.developer",
+        "projects/${var.project_id}/roles/ttRelayDeployer",
+      ]
+    }
+    "sa-tf-plan" = {
+      display_name  = "GitHub Actions terraform plan (read only)"
+      project_roles = ["roles/viewer", "roles/iam.securityReviewer"]
+    }
+  }
+
   labels = {
     app        = "tokentails"
     env        = var.environment
@@ -15,12 +49,15 @@ locals {
   web_hosts = coalesce(var.web_hosts, [var.domain, "www.${var.domain}", "gcp.${var.domain}"])
   cms_hosts = coalesce(var.cms_hosts, ["cats.${var.domain}"])
 
-  registry       = module.artifact_registry.repository_url
-  backend_image  = "${local.registry}/backend:${var.backend_tag}"
-  web_image      = "${local.registry}/web:${var.web_tag}"
-  cms_image      = "${local.registry}/cms:${var.cms_tag}"
-  relay_port     = 8080
-  sa             = module.service_accounts.emails
+  registry      = module.artifact_registry.repository_url
+  backend_image = "${local.registry}/backend:${var.backend_tag}"
+  web_image     = "${local.registry}/web:${var.web_tag}"
+  cms_image     = "${local.registry}/cms:${var.cms_tag}"
+  relay_port    = 8080
+  # Emails are derived, not read from the account resources, so every for_each key below is known at plan time
+  # (secret, registry and bucket bindings). Modules that bind them depend on module.service_accounts.
+  sa             = { for id in keys(local.service_accounts) : id => "${id}@${var.project_id}.iam.gserviceaccount.com" }
+  sa_id          = { for id, email in local.sa : id => "projects/${var.project_id}/serviceAccounts/${email}" }
   all_secret_ids = distinct(concat(var.do_secret_keys, var.extra_secret_keys))
 
   api_secret_versions = coalesce(var.api_secret_versions, { for k in var.do_secret_keys : k => "1" })
@@ -39,7 +76,7 @@ locals {
 check "hot_wallet_only_api" {
   assert {
     condition = alltrue([
-      for k in var.hot_wallet_secret_keys : !contains(keys(local.secret_readers), k) || local.secret_readers[k] == [local.sa["sa-api"]]
+      for k in var.hot_wallet_secret_keys : !contains(keys(local.secret_readers), k) || (length(local.secret_readers[k]) == 1 && local.secret_readers[k][0] == local.sa["sa-api"])
     ])
     error_message = "A hot-wallet secret is readable by something other than sa-api."
   }
@@ -66,42 +103,7 @@ module "network" {
 module "service_accounts" {
   source     = "../../modules/service_accounts"
   project_id = var.project_id
-
-  accounts = {
-    "sa-api" = {
-      display_name  = "tt-api runtime (Cloud Run)"
-      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
-    }
-    "sa-relay" = {
-      display_name  = "party relay VM"
-      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
-    }
-    "sa-web" = {
-      display_name  = "tt-web runtime (Cloud Run)"
-      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
-    }
-    "sa-cms" = {
-      display_name  = "tt-cms runtime (Cloud Run)"
-      project_roles = ["roles/logging.logWriter", "roles/monitoring.metricWriter"]
-    }
-    "sa-migrate" = {
-      display_name  = "tt-migrate job (migrate-mongo)"
-      project_roles = ["roles/logging.logWriter"]
-    }
-    "sa-deploy" = {
-      display_name = "GitHub Actions deploy (deploy-gcp.yml)"
-      project_roles = [
-        "roles/run.developer",
-        "roles/iap.tunnelResourceAccessor",
-        "roles/compute.osAdminLogin",
-        "projects/${var.project_id}/roles/ttRelayDeployer",
-      ]
-    }
-    "sa-tf-plan" = {
-      display_name  = "GitHub Actions terraform plan (read only)"
-      project_roles = ["roles/viewer", "roles/iam.securityReviewer"]
-    }
-  }
+  accounts   = local.service_accounts
 
   depends_on = [module.project_services, google_project_iam_custom_role.relay_deployer]
 }
@@ -129,10 +131,39 @@ resource "google_project_iam_custom_role" "relay_deployer" {
   depends_on = [module.project_services]
 }
 
+# sa-deploy reaches the relay VM only: IAP TCP forwarding on port 22 and OS Login (sudo for deploy.sh) on tt-relay
+# instances. The MIG recreates the VM under new names, so the binding is a project one narrowed by a condition.
+resource "google_project_iam_member" "deploy_iap_ssh" {
+  project    = var.project_id
+  depends_on = [module.service_accounts]
+  role       = "roles/iap.tunnelResourceAccessor"
+  member     = "serviceAccount:${local.sa["sa-deploy"]}"
+
+  condition {
+    title       = "relay-ssh-only"
+    description = "IAP TCP forwarding to port 22 only."
+    expression  = "destination.port == 22"
+  }
+}
+
+resource "google_project_iam_member" "deploy_os_login" {
+  project    = var.project_id
+  depends_on = [module.service_accounts]
+  role       = "roles/compute.osAdminLogin"
+  member     = "serviceAccount:${local.sa["sa-deploy"]}"
+
+  condition {
+    title       = "relay-vm-only"
+    description = "OS Login with sudo on the party relay VMs only."
+    expression  = "resource.type == 'compute.googleapis.com/Instance' && resource.name.extract('/instances/{name}').startsWith('${var.relay_name}')"
+  }
+}
+
 # sa-deploy deploys revisions that run as these accounts and SSHes into the VM that runs as sa-relay.
 resource "google_service_account_iam_member" "deploy_acts_as" {
   for_each           = toset(["sa-api", "sa-web", "sa-cms", "sa-migrate", "sa-relay"])
-  service_account_id = module.service_accounts.ids[each.value]
+  depends_on         = [module.service_accounts]
+  service_account_id = local.sa_id[each.value]
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${local.sa["sa-deploy"]}"
 }
@@ -144,7 +175,7 @@ module "artifact_registry" {
   writers    = [local.sa["sa-deploy"]]
   readers    = [local.sa["sa-relay"]]
 
-  depends_on = [module.project_services]
+  depends_on = [module.project_services, module.service_accounts]
 }
 
 module "secrets" {
@@ -154,7 +185,21 @@ module "secrets" {
   secrets    = local.secret_readers
   labels     = local.labels
 
-  depends_on = [module.project_services]
+  depends_on = [module.project_services, module.service_accounts]
+}
+
+# Private bucket for new uploads, served later through cdn.<domain> (RUNBOOK.md "Later"). Off until that step:
+# DigitalOcean Spaces stays the media store and its URLs never change.
+module "static_assets" {
+  source      = "../../modules/static_assets"
+  count       = var.static_bucket_enabled ? 1 : 0
+  project_id  = var.project_id
+  region      = var.region
+  bucket_name = "${var.project_id}-media"
+  writers     = [local.sa["sa-api"]]
+  labels      = local.labels
+
+  depends_on = [module.project_services, module.service_accounts]
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
@@ -260,6 +305,7 @@ module "migrate" {
 
 module "relay_vm" {
   source          = "../../modules/relay_vm"
+  name            = var.relay_name
   project_id      = var.project_id
   region          = var.region
   zones           = var.zones
@@ -306,13 +352,13 @@ module "wif" {
   project_id                = var.project_id
   repository                = var.github_repository
   repository_id             = var.github_repository_id
-  deploy_service_account_id = module.service_accounts.ids["sa-deploy"]
+  deploy_service_account_id = local.sa_id["sa-deploy"]
   extra_bindings = merge(
-    { (module.service_accounts.ids["sa-tf-plan"]) = "gcp-plan" },
-    var.ci_apply_enabled ? { (google_service_account.tf_apply[0].id) = "gcp-prod" } : {}
+    { plan = { service_account_id = local.sa_id["sa-tf-plan"], environment = "gcp-plan" } },
+    var.ci_apply_enabled ? { apply = { service_account_id = google_service_account.tf_apply[0].id, environment = "gcp-prod" } } : {}
   )
 
-  depends_on = [module.project_services]
+  depends_on = [module.project_services, module.service_accounts]
 }
 
 # Optional: the environment-gated `terraform apply` job (terraform.yml). Broad rights by nature, so off by default.
@@ -348,14 +394,15 @@ resource "google_storage_bucket_iam_member" "state_writer" {
 }
 
 module "monitoring" {
-  source            = "../../modules/monitoring"
-  project_id        = var.project_id
-  alert_email       = var.alert_email
-  api_service       = module.api.name
-  api_max_instances = var.api.max_instances
-  max_live_rooms    = var.max_live_rooms
-  api_host          = local.api_hosts[0]
-  web_host          = local.web_hosts[0]
+  source                = "../../modules/monitoring"
+  project_id            = var.project_id
+  alert_email           = var.alert_email
+  api_service           = module.api.name
+  api_max_instances     = var.api.max_instances
+  relay_instance_prefix = var.relay_name
+  max_live_rooms        = var.max_live_rooms
+  api_host              = local.api_hosts[0]
+  web_host              = local.web_hosts[0]
 
   depends_on = [module.project_services]
 }

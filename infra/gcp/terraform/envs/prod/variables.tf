@@ -97,6 +97,17 @@ variable "cms_tag" {
 # ---------------------------------------------------------------------------------------------------------------------
 # Sizing
 
+variable "relay_name" {
+  description = "Base name of the relay MIG and its VMs (the deploy OS Login condition matches this prefix)."
+  type        = string
+  default     = "tt-relay"
+
+  validation {
+    condition     = can(regex("^[a-z][a-z0-9-]{2,30}$", var.relay_name))
+    error_message = "relay_name is a lower-case resource name."
+  }
+}
+
 variable "relay_machine_type" {
   description = "t2d-standard-2 (2 cores, no SMT); t2d-standard-4 if mp/load.mjs calls for it."
   type        = string
@@ -281,4 +292,10 @@ variable "budget_currency" {
   description = "Currency of the billing account."
   type        = string
   default     = "USD"
+}
+
+variable "static_bucket_enabled" {
+  description = "Create the private media bucket for future uploads (cdn.<domain>, a later step). Spaces stays until then."
+  type        = bool
+  default     = false
 }

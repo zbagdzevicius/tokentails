@@ -19,6 +19,8 @@ output "cloud_init" {
 output "settings" {
   description = "Key settings (for tests and review)."
   value = {
+    region              = google_compute_region_instance_group_manager.relay.region
+    zones               = google_compute_region_instance_group_manager.relay.distribution_policy_zones
     machine_type        = var.machine_type
     target_size         = google_compute_region_instance_group_manager.relay.target_size
     on_host_maintenance = google_compute_instance_template.relay.scheduling[0].on_host_maintenance

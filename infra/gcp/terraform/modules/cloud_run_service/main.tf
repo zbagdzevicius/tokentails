@@ -132,6 +132,7 @@ output "id" {
 output "settings" {
   description = "Key settings (for tests and review)."
   value = {
+    location             = google_cloud_run_v2_service.this.location
     ingress              = google_cloud_run_v2_service.this.ingress
     default_uri_disabled = google_cloud_run_v2_service.this.default_uri_disabled
     invoker_iam_disabled = google_cloud_run_v2_service.this.invoker_iam_disabled

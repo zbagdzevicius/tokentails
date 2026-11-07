@@ -28,6 +28,8 @@ output "backend_services" {
 output "settings" {
   description = "Key settings (for tests and review)."
   value = {
+    region                 = google_compute_address.lb.region
+    scheme                 = google_compute_forwarding_rule.https.load_balancing_scheme
     relay_timeout_sec      = google_compute_region_backend_service.relay.timeout_sec
     relay_protocol         = google_compute_region_backend_service.relay.protocol
     relay_session_affinity = google_compute_region_backend_service.relay.session_affinity
