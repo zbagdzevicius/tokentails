@@ -56,8 +56,8 @@ describe("/pawlegends landing", () => {
 
   it("links every play button to the game page with a from tag, never the raw build", () => {
     const html = landingMarkup();
-    expect(HERO_CTA_HREF).toBe("/pawlegends/play?from=landing_hero");
-    expect(CONTINUE_CTA_HREF).toBe("/pawlegends/play?from=landing_continue");
+    expect(HERO_CTA_HREF).toBe("/pawlegends/play?from=landing_hero&lv=A");
+    expect(CONTINUE_CTA_HREF).toBe("/pawlegends/play?from=landing_continue&lv=A");
     expect(html).toContain(`href="${HERO_CTA_HREF}"`);
     expect(html).toContain(`href="${CONTINUE_CTA_HREF}"`);
     expect(html).not.toContain("pawlegends-game");
