@@ -2158,6 +2158,11 @@ export class MatchSession {
     // C2 / C5 / C6 telemetry: cast buffer counters, Attack presses with nothing in reach, the drawn own position
     if (this.orders) d.castBuf = `${this.orders.buffers.kept},${this.orders.buffers.sent},${this.orders.buffers.expired},${this.orders.buffers.retried},${this.orders.busyWhy()},${this.orders.queued ?? ''},${this.orders.busyLeftMs}`;
     d.atkNone = String(this.touch?.atkNone ?? 0);
+    // UX pass 2: the unit ATK rings now, the newest Attack order's target, last-hit / tower presses that found one
+    d.atkTarget = this.touch?.atkPreview != null ? String(this.touch.atkPreview) : '';
+    const sentId = this.orders?.lastAttackId ?? -1;
+    d.atkSent = sentId >= 0 ? `${sentId}:${frame?.byId.get(sentId)?.kind ?? ''}` : '';
+    d.extraHits = this.touch ? `${this.touch.extraHits.lasthit},${this.touch.extraHits.tower}` : '';
     // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
     d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
     d.lastHits = String(this.lastHitsSeen);

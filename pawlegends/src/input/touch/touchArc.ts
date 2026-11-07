@@ -39,7 +39,7 @@ const BASE: Readonly<Record<ArcButton, ArcSpot>> = Object.freeze({
   r: { rx: 214, by: 140, d: 70 },
   trick: { rx: 6, by: 127, d: 48 },
   nap: { rx: 229, by: 47, d: 46 },
-  // the optional last-hit and tower buttons (Settings, off by default)
+  // the last-hit (minion) and tower buttons (Settings; on by default since UX pass 2, Wild Rift shows both)
   lasthit: { rx: 92, by: 212, d: 44 },
   tower: { rx: 4, by: 200, d: 44 },
 });

@@ -359,7 +359,11 @@ export class Orders {
     this.order({ op: Op.AttackMove, x: clampX(x), y: clampY(y) });
   }
 
+  /** The target id of the newest Attack order (tests, e2e telemetry), or -1. */
+  lastAttackId = -1;
+
   attack(id: number): void {
+    this.lastAttackId = id;
     this.order({ op: Op.Attack, id });
   }
 

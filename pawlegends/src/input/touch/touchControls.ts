@@ -10,7 +10,9 @@
  *
  * GAPS A5: a tap on an enemy hero (on the field, or its portrait in the HUD strip) locks it for 5 s (assist.ts
  * TargetLock); while locked, Attack sends Attack{id} on it and smart casts aim at it when it is within their reach.
- * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
+ * Settings "Target first" picks the Attack button's order; the last-hit and tower buttons are on by default (UX pass 2).
+ * UX pass 2 (Wild Rift): the field rings the unit Attack would hit right now (attackPreview), and the idle auto-attack
+ * takes that same unit.
  *
  * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): the PRESS fires, the full distance where the
  * player is heading (the held joystick, or along the wall it slides the hero on when that lands further than straight
@@ -36,7 +38,7 @@ import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abili
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
-import { attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
+import { attackPreview, attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
@@ -798,6 +800,8 @@ export class TouchControls {
     me: { x: number; y: number };
     seen: { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number }[];
     allyMinions: { x: number; y: number }[];
+    /** UX pass 2: the unit the field rings at the tap (attackPreview), or null. */
+    ring: number | null;
     /** C5: the minions and camp monsters the next basic would kill (by the client estimate). */
     killable: number[];
   } | null = null;
@@ -843,13 +847,24 @@ export class TouchControls {
     return hero ? basicRange(hero) : 0;
   }
 
-  /** The optional last-hit / tower button: attack that target, else a short deny flash (never a walk-in). */
+  /** C5: the next basic's damage to a minion or camp monster (the last-hit estimate), or undefined before the hero is known. */
+  private killFn(): ((u: Unit) => number) | undefined {
+    const v = this.h.view.me();
+    const hero = v?.hero;
+    if (!hero) return undefined;
+    const lv = v?.level ?? 1;
+    const toy = v?.toy ?? 0;
+    return (u: Unit): number => minionHitEstimate(hero, lv, toy, u);
+  }
+
+  /** The last-hit (minion) / tower button: attack that target, else a short deny flash (never a walk-in). */
   private extraButton(btn: 'lasthit' | 'tower', el: HTMLElement): void {
     const me = this.me();
     if (!me) return;
     const units = this.h.units();
-    const id = btn === 'lasthit' ? lastHitTarget(units, me, this.h.view.myTeam, this.range()) : towerTarget(units, me, this.h.view.myTeam, this.range());
+    const id = btn === 'lasthit' ? lastHitTarget(units, me, this.h.view.myTeam, this.range(), this.killFn()) : towerTarget(units, me, this.h.view.myTeam, this.range());
     if (id !== null) {
+      this.extraHits[btn]++;
       this.h.orders.attack(id);
       return;
     }
@@ -865,15 +880,14 @@ export class TouchControls {
     const range = this.range();
     const units = this.h.units();
     const locked = this.lockedId();
-    const hero = this.h.view.me()?.hero;
-    const lv = this.h.view.me()?.level ?? 1;
-    const toy = this.h.view.me()?.toy ?? 0;
     // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
-    const kill = hero ? (u: Unit): number => minionHitEstimate(hero, lv, toy, u) : undefined;
+    const kill = this.killFn();
     const id = locked ?? attackPriority(units, me, this.h.view.myTeam, range, 7000, this.first, kill);
-    // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play).
+    // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
+    // field rings at this very moment (UX pass 2: the same unit whenever one is in reach)
     this.lastPick = {
       id,
+      ring: attackPreview(units, me, this.h.view.myTeam, range, this.first, kill, locked),
       lock: locked,
       first: this.first,
       range,
@@ -918,6 +932,22 @@ export class TouchControls {
     }
   }
 
+  /** Last-hit and tower button presses that found a target (e2e telemetry). */
+  extraHits = { lasthit: 0, tower: 0 };
+  /** UX pass 2: what Attack would hit now without walking (ringed on the field), and when it was last worked out (ms). */
+  atkPreview: number | null = null;
+  private previewAt = 0;
+
+  /** UX pass 2 (Wild Rift's target reticle): ring the unit the Attack button would hit, every 100 ms. */
+  private updatePreview(me: Unit | null, now: number): void {
+    if (now - this.previewAt < 100) return;
+    this.previewAt = now;
+    const id = me && me.state !== 'dead' ? attackPreview(this.h.units(), me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
+    if (id === this.atkPreview) return;
+    this.atkPreview = id;
+    this.h.view.atkPreview = id;
+  }
+
   /** Last touch input (ms) and the last auto-attack order. */
   private inputAt = 0;
   private autoAt = 0;
@@ -938,7 +968,8 @@ export class TouchControls {
     const lockIn = lu && Math.hypot(lu.x - me.x, lu.y - me.y) - BODY_MM.hero <= range ? lu.id : null;
     // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
     // CF-02: the Attack button's order (Settings "Target first"), in range only
-    const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first);
+    // UX pass 2: with the last-hit estimate, the very unit the Attack button would hit (it rings it: attackPreview)
+    const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first, this.killFn());
     if (id === null) return;
     this.autoAt = now;
     this.autos++;
@@ -1044,6 +1075,7 @@ export class TouchControls {
       this.wire.close();
       this.runOn = null;
     }
+    this.updatePreview(this.h.enabled() ? me : null, now);
     if (this.ghostUntil > 0 && now >= this.ghostUntil) {
       this.ghostUntil = 0;
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;

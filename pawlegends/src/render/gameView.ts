@@ -165,6 +165,8 @@ export class GameView {
   hover: { id: number; rel: 'enemy' | 'ally'; castId?: number } | null = null;
   /** GAPS A5: the touch-locked enemy hero (TouchControls.lock): the same ring as an enemy hover while it holds. */
   lock: number | null = null;
+  /** UX pass 2 (touch): the unit the Attack button would hit now (TouchControls.preview): a thin red ring under it. */
+  atkPreview: number | null = null;
   frame: ViewFrame | null = null;
   /**
    * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
@@ -774,7 +776,9 @@ export class GameView {
     }
     this.hoverRing.end();
     this.castRing.begin();
-    const cid = this.hover?.castId ?? -1;
+    // a desktop unit-cast preview, else (touch, UX pass 2) the Attack button's target when no bold ring is on it
+    const pid = this.atkPreview ?? -1;
+    const cid = this.hover?.castId ?? (pid >= 0 && pid !== id ? pid : -1);
     const ce = cid >= 0 && frame ? frame.byId.get(cid) : null;
     if (ce && ce.state !== 'dead') {
       const size = hoverRingSize(ce.kind, ce.hero);
