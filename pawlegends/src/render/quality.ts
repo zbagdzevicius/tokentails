@@ -21,6 +21,8 @@ export interface TierSettings {
   bloom: boolean;
   outlines: boolean;
   antialias: boolean;
+  /** MAP-GAPS A23: the sun's shadow map size (px square): 2048 on High, 1024 below. */
+  shadowMap: number;
 }
 
 interface PpkQuality {
@@ -33,7 +35,7 @@ interface PpkQuality {
 /** Settings for a tier: PPK values where they exist, the §10 Low rules always. */
 export function tierSettings(tier: QualityTier): TierSettings {
   const q = ((QUALITY as Record<string, PpkQuality | undefined>)[tier] ?? {}) as PpkQuality;
-  if (tier === 'low') return { tier, maxDpr: 1.25, shadows: false, bloom: false, outlines: false, antialias: false };
+  if (tier === 'low') return { tier, maxDpr: 1.25, shadows: false, bloom: false, outlines: false, antialias: false, shadowMap: 1024 };
   return {
     tier,
     maxDpr: Math.max(1.25, q.maxDpr ?? 1.5),
@@ -41,6 +43,7 @@ export function tierSettings(tier: QualityTier): TierSettings {
     bloom: tier === 'high' && q.cinematic !== false,
     outlines: (q.outline ?? 'none') !== 'none',
     antialias: true,
+    shadowMap: tier === 'high' ? 2048 : 1024,
   };
 }
 

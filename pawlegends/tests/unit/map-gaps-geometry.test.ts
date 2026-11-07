@@ -156,3 +156,20 @@ describe('MAP-GAPS A22 a natural hedge', () => {
     for (const s of south) expect(Math.abs(s.y + 0.8)).toBeLessThanOrEqual(0.5 + 1e-9);
   });
 });
+
+describe('MAP-GAPS A23 shadow budget at max zoom', () => {
+  it('sizes the shadow map per tier and widens the box past zoom 1.5 on Medium and High', async () => {
+    const { tierSettings } = await import('../../src/render/quality');
+    const { SHADOW_BOX, shadowHalfFor, shadowMaxFor } = await import('../../src/render/renderer');
+    expect(tierSettings('high').shadowMap).toBe(2048);
+    expect(tierSettings('med').shadowMap).toBe(1024);
+    expect(tierSettings('low').shadowMap).toBe(1024);
+    expect(shadowMaxFor(1.9, 'high')).toBe(54);
+    expect(shadowMaxFor(1.9, 'med')).toBe(54);
+    expect(shadowMaxFor(1.9, 'low')).toBe(SHADOW_BOX.max);
+    expect(shadowMaxFor(1.03, 'high')).toBe(SHADOW_BOX.max);
+    // the farthest visible ground corner at zoom 1.9 on 1440x900 is ~50 m from the box centre: inside the wide box
+    expect(shadowHalfFor(50, shadowMaxFor(1.9, 'high'))).toBeGreaterThanOrEqual(50 + SHADOW_BOX.margin - SHADOW_BOX.step);
+    expect(shadowHalfFor(50)).toBe(SHADOW_BOX.max);
+  });
+});
