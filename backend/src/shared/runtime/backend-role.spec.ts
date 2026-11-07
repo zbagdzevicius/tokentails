@@ -4,6 +4,8 @@ import { SCHEDULER_TYPE } from '@nestjs/schedule/dist/schedule.constants';
 import { PartyRelayService } from '../../pawlegends/party/party-relay.service';
 import { BACKEND_ROLE, backendRole, checkProductionEnv, productionEnvProblem, servesRelay } from './backend-role';
 import { HealthController } from './health.controller';
+import { RelayProbeController } from './relay-probe.controller';
+import { RelayStatsReporter, relayStatsLine } from './relay-stats.reporter';
 import { rootModuleFor } from './root-module';
 
 // Never read a local env file; Firebase Admin needs a real service account. Only metadata is read.
@@ -181,7 +183,6 @@ describe('HealthController', () => {
 
 describe('relay stats line', () => {
     it('is one JSON line with severity, the event name and the counters (no ids)', () => {
-        const { relayStatsLine, RelayStatsReporter } = require('./relay-stats.reporter');
         const line = relayStatsLine({ rooms_live: 3, loop_delay_p99: 4.5 }, new Date('2026-11-07T00:00:00Z'));
         expect(JSON.parse(line)).toEqual({
             severity: 'INFO',
@@ -199,8 +200,6 @@ describe('relay stats line', () => {
     });
 
     it('the relay role registers the reporter and the routing probe', async () => {
-        const { RelayStatsReporter } = require('./relay-stats.reporter');
-        const { RelayProbeController } = require('./relay-probe.controller');
         const relay = await rootModuleFor('relay');
         expect(providerClasses(relay)).toContain(RelayStatsReporter);
         expect(meta(relay, MODULE_METADATA.CONTROLLERS)).toContain(RelayProbeController);
