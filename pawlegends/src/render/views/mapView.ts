@@ -9,6 +9,7 @@ import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, R
 import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
+import { BUSH_COUNT, clearedBushes } from '../bushClear';
 import { ModelBuilder } from './rig';
 import { NX, NY, createGrid, onPlayfield } from '../../sim/map/grid';
 
@@ -459,6 +460,13 @@ export function outerTrees(): { x: number; y: number; s: number; low: boolean }[
   return out;
 }
 
+/** The Catnip Bushes, both sides, in sim/map/brush.ts bushAt order (m: centre and half sizes). */
+export function bushRects(): { x: number; y: number; hw: number; hh: number }[] {
+  const out: { x: number; y: number; hw: number; hh: number }[] = [];
+  for (const side of [0, 1]) for (const b of BUSHES) out.push({ x: (side === 0 ? b.x : mirrorX(b.x)) / 1000, y: b.y / 1000, hw: b.w / 2000, hh: b.h / 2000 });
+  return out;
+}
+
 /** MAP-GAPS A16: the walkable lane band's half width (m) a bridge deck covers. */
 export const BRIDGE_HALF = 5.7;
 
@@ -541,6 +549,10 @@ export interface MapView {
   group: THREE.Group;
   /** MAP-GAPS A12: the Low tier draws half the far forest. */
   setDetail?(low: boolean): void;
+  /** MAP-GAPS A20: our team (an ally in a bush clears it). */
+  setTeam?(team: number): void;
+  /** MAP-GAPS A20: each bush's cleared tint now, 0..1 (tests). */
+  clearedTint?(): number[];
   /** `lens`: the camera position (m), for the canopy cut over heroes near the tree line. */
   update(frame: ViewFrame | null, dt: number, lens?: THREE.Vector3): void;
   setShadows(on: boolean): void;
@@ -715,6 +727,13 @@ export function createMapView(): MapView {
   bannersSwapped.visible = false;
 
   const forestU = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
+  // MAP-GAPS A20: the bush rects (render x/z centre, half sizes + a leaf margin) and their cleared fade (0..1)
+  const bushU = {
+    uBushRect: { value: bushRects().map((r) => new THREE.Vector4(r.x, -r.y, r.hw + 1.1, r.hh + 1.1)) },
+    uBushOn: { value: new Array(BUSH_COUNT).fill(0) as number[] },
+  };
+  let myTeam = 0;
+  const cleared: boolean[] = [];
   // Catnip Bushes
   const bush = new ModelBuilder();
   for (const b of BUSHES) {
@@ -745,7 +764,7 @@ export function createMapView(): MapView {
   // a hero in a bush: the leaves round it are dithered half away (they poked through the body, trailer review)
   const bushMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
   bushMat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, forestU);
+    Object.assign(sh.uniforms, forestU, bushU);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -763,7 +782,23 @@ export function createMapView(): MapView {
   if (cut * ${BUSH_CUT.strength.toFixed(2)} > th) discard;`,
       );
   };
-  bushMat.customProgramCacheKey = () => 'pl-bush-cut-v1';
+  // MAP-GAPS A20: a cleared bush (an ally in it) is drawn lighter
+  bushMat.onBeforeCompile = ((prev) => (sh: Parameters<NonNullable<typeof bushMat.onBeforeCompile>>[0], r: Parameters<NonNullable<typeof bushMat.onBeforeCompile>>[1]) => {
+    prev(sh, r);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>\nuniform vec4 uBushRect[${BUSH_COUNT}];\nuniform float uBushOn[${BUSH_COUNT}];`)
+      .replace(
+        '#include <dithering_fragment>',
+        `#include <dithering_fragment>
+  float lit = 0.0;
+  for (int i = 0; i < ${BUSH_COUNT}; i++) {
+    vec2 q = abs(vFW.xz - uBushRect[i].xy) - uBushRect[i].zw;
+    if (max(q.x, q.y) < 0.0) lit = max(lit, uBushOn[i]);
+  }
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 1.25 + vec3(0.06, 0.08, 0.02), lit * 0.55);`,
+      );
+  })(bushMat.onBeforeCompile);
+  bushMat.customProgramCacheKey = () => 'pl-bush-cut-v2';
   addMerged(bush, 'bushes', false, bushMat);
 
   // forest ring outside the playfield, plus a hedge on the edge
@@ -938,6 +973,10 @@ export function createMapView(): MapView {
         }
       }
       for (let i = n; i < see.length; i++) see[i].w = 0;
+      // MAP-GAPS A20: ease each bush's cleared tint toward whether an ally stands in it
+      if (frame) clearedBushes(frame.entities, myTeam, cleared);
+      const on = bushU.uBushOn.value;
+      for (let i = 0; i < BUSH_COUNT; i++) on[i] += ((cleared[i] ? 1 : 0) - on[i]) * Math.min(1, dt * 6);
       riverU.uTime.value = time;
       const up = !frame || frame.latest.clock.phase === 'gate';
       gateMat.opacity = up ? 0.5 + Math.sin(time * 4) * 0.12 : Math.max(0, gateMat.opacity - dt * 2);
@@ -945,6 +984,12 @@ export function createMapView(): MapView {
     },
     setShadows(on) {
       for (const m of shadowCasters) m.castShadow = on;
+    },
+    setTeam(team) {
+      myTeam = team;
+    },
+    clearedTint() {
+      return bushU.uBushOn.value.slice();
     },
     setDetail(low) {
       farMesh.count = low ? farLow : far.length;
