@@ -85,6 +85,9 @@ const CURSOR_KEY = 'pawlegends.cursorSize';
 const TARGET_KEY = 'pawlegends.targetFirst';
 const LASTHIT_KEY = 'pawlegends.lastHitButton';
 const TOWER_KEY = 'pawlegends.towerButton';
+/** UX pass 2 (Wild Rift): the left-handed mirror (buttons left, joystick right) and the touch button size. */
+const LEFTY_KEY = 'pawlegends.leftHanded';
+const TSIZE_KEY = 'pawlegends.touchSize';
 
 function read(key: string): string | null {
   try {
@@ -103,7 +106,7 @@ function write(key: string, v: string): void {
 }
 
 /** In-memory copy, so a blocked storage still keeps the choice for this page. */
-const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean } = {};
+const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean; lefty?: boolean; tsize?: TouchSize } = {};
 
 export function castMode(): CastMode {
   return mem.cast ?? (read(CAST_KEY) === 'quick' ? 'quick' : 'hold');
@@ -184,6 +187,42 @@ export function setTowerButton(on: boolean): void {
   write(TOWER_KEY, on ? '1' : '0');
 }
 
+/** Touch button size (Settings): Normal, or Large (Wild Rift's button size slider, one step up). */
+export type TouchSize = 'normal' | 'large';
+
+/** The touch layout changed (left-handed or button size): the touch controls lay their buttons out again. */
+export const TOUCH_PREFS_EVENT = 'pawlegends:touchprefs';
+
+const touchPrefsChanged = (): void => {
+  try {
+    window.dispatchEvent(new Event(TOUCH_PREFS_EVENT));
+  } catch {
+    /* no window (tests, workers) */
+  }
+};
+
+/** UX pass 2: the left-handed mirror (the buttons on the left, the joystick on the right). Off by default. */
+export function leftHanded(): boolean {
+  return mem.lefty ?? read(LEFTY_KEY) === '1';
+}
+
+export function setLeftHanded(on: boolean): void {
+  mem.lefty = on;
+  write(LEFTY_KEY, on ? '1' : '0');
+  touchPrefsChanged();
+}
+
+/** UX pass 2: the touch button size. Normal by default. */
+export function touchSize(): TouchSize {
+  return mem.tsize ?? (read(TSIZE_KEY) === 'large' ? 'large' : 'normal');
+}
+
+export function setTouchSize(t: TouchSize): void {
+  mem.tsize = t;
+  write(TSIZE_KEY, t);
+  touchPrefsChanged();
+}
+
 /** Tests: forget the in-memory copy (storage is read again). */
 export function resetControlPrefs(): void {
   delete mem.cast;
@@ -193,6 +232,8 @@ export function resetControlPrefs(): void {
   delete mem.target;
   delete mem.lastHit;
   delete mem.tower;
+  delete mem.lefty;
+  delete mem.tsize;
 }
 
 /** Auto trackpad: how long the opening watch lasts (ms of match play) and how many left-clicks on the ground it needs. */
