@@ -1,0 +1,7 @@
+Pawlegends is a self-contained game: all game files are inside the app and it plays offline against computer-controlled bots from the first launch. No login, no account, no purchases, no ads.
+
+To test: tap Play, pick any hero, and play a match against the bots (about 5 to 7 minutes; the Easy difficulty is the quickest).
+
+Party play (optional, needs the internet): tap Party to create a party; it shows a 6-letter code. A second device can join with that code. Matches with friends also work with bots filling empty seats.
+
+The app updates its own game content (HTML, JavaScript, images) from our server, signed by us, within the app's existing purpose (guideline 2.5.2 / DPLA 3.3.1(B)). It never downloads native code.

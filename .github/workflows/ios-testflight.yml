@@ -1,0 +1,122 @@
+# Pawlegends iOS app: build, sign and upload to TestFlight; upload the listing; submit for review
+# (docs/plans/moba/APP-STORE.md "Release pipeline", pawlegends-app/README.md).
+#
+# Runs on a tag `pawlegends-ios-v*` (TestFlight build) or by hand (Actions → Pawlegends iOS → Run workflow) with a
+# lane: beta (TestFlight), metadata (listing text, screenshots, icon), submit (submit the latest build for review;
+# type SUBMIT to confirm). Releasing an approved build stays a manual button in App Store Connect.
+#
+# Secrets (Settings → Secrets and variables → Actions): ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (base64 of the .p8),
+# APPLE_TEAM_ID. Optional: DIST_CERT_P12 + DIST_CERT_PASSWORD (only when the API key cannot use cloud signing).
+# Without the App Store Connect secrets the job stops with a notice and does nothing.
+name: Pawlegends iOS
+
+on:
+  push:
+    tags: ['pawlegends-ios-v*']
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'beta = TestFlight build, metadata = listing only, submit = submit the latest build for review'
+        required: true
+        default: beta
+        type: choice
+        options: [beta, metadata, submit]
+      confirm:
+        description: 'For submit: type SUBMIT'
+        required: false
+        default: ''
+      changelog:
+        description: 'TestFlight "What to test" (optional)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pawlegends-ios
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  ios:
+    name: ${{ github.event.inputs.lane || 'beta' }}
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
+      DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+      LANE: ${{ github.event.inputs.lane || 'beta' }}
+      BUILD_NUMBER: ${{ github.run_number }}
+      TESTFLIGHT_CHANGELOG: ${{ github.event.inputs.changelog }}
+      CONFIRM: ${{ github.event.inputs.confirm }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+    steps:
+      - name: Secrets present
+        id: secrets
+        run: |
+          missing=""
+          for k in ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8; do
+            if [ -z "${!k}" ]; then missing="$missing $k"; fi
+          done
+          if [ -n "$missing" ]; then
+            echo "::notice::Missing App Store Connect secrets:$missing. Nothing was built. See pawlegends-app/README.md."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          elif [ "$LANE" = "submit" ] && [ "$CONFIRM" != "SUBMIT" ]; then
+            echo "::error::Type SUBMIT in the confirm field to submit for review."
+            exit 1
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ok == 'true'
+      - uses: maxim-lobanov/setup-xcode@v1
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          xcode-version: latest-stable
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: ruby/setup-ruby@v1
+        if: steps.secrets.outputs.ok == 'true'
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: pawlegends-app
+      - name: Install
+        if: steps.secrets.outputs.ok == 'true' && env.LANE == 'beta'
+        run: |
+          (cd pawlegends && npm ci)
+          (cd pawlegends-app && npm ci)
+      - name: Build the bundled game and sync the iOS project
+        if: steps.secrets.outputs.ok == 'true' && env.LANE == 'beta'
+        working-directory: pawlegends-app
+        run: |
+          node scripts/build-web.mjs --seq "$(date -u +%Y%m%d%H%M)"
+          npx cap sync ios
+          node scripts/check-privacy-manifests.mjs
+      - name: fastlane ${{ env.LANE }}
+        if: steps.secrets.outputs.ok == 'true'
+        working-directory: pawlegends-app
+        run: |
+          case "$LANE" in
+            beta) bundle exec fastlane ios beta ;;
+            metadata) bundle exec fastlane ios metadata ;;
+            submit) SUBMIT=yes bundle exec fastlane ios release ;;
+          esac
+      - name: Keep the .ipa (7 days)
+        if: steps.secrets.outputs.ok == 'true' && env.LANE == 'beta'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawlegends-ios-${{ github.run_number }}
+          path: pawlegends-app/build/release/*.ipa
+          retention-days: 7
+          if-no-files-found: ignore

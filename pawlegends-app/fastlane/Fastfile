@@ -1,0 +1,245 @@
+# Pawlegends iOS release lanes (docs/plans/moba/APP-STORE.md "Release pipeline").
+#
+# Secrets (GitHub Actions secrets, or fastlane/.secrets.local for local runs; see .secrets.local.example):
+#   ASC_KEY_ID, ASC_ISSUER_ID, ASC_KEY_P8 (base64 of the .p8, or its PEM text), APPLE_TEAM_ID
+# Optional, only when cloud signing is not allowed for the key (App Manager role): DIST_CERT_P12 (base64) and
+# DIST_CERT_PASSWORD, made once by `bundle exec fastlane certs`.
+#
+# Lanes:
+#   bootstrap  register the bundle id com.tokentails.pawlegends (the app record itself is made in App Store Connect)
+#   build      archive and export the signed .ipa (web bundle must be built and synced first: npm run build)
+#   beta       build + upload to TestFlight
+#   metadata   upload the listing text, screenshots and icon (no binary, no submission)
+#   release    submit the latest build for review; only with SUBMIT=yes (never automatic)
+#   certs      make a distribution certificate + App Store profile once and print them as secrets
+#   check      validate secrets and the API key without changing anything
+
+require "base64"
+require "json"
+require "securerandom"
+require "tmpdir"
+
+opt_out_usage
+default_platform(:ios)
+
+APP_ID = "com.tokentails.pawlegends"
+APP_DIR = File.expand_path("..", __dir__)
+IOS_DIR = File.join(APP_DIR, "ios/App")
+WORKSPACE = File.join(IOS_DIR, "App.xcworkspace")
+OUTPUT_DIR = File.join(APP_DIR, "build/release")
+
+def load_local_secrets
+  path = File.join(__dir__, ".secrets.local")
+  return unless File.exist?(path)
+
+  File.readlines(path).each do |line|
+    line = line.strip
+    next if line.empty? || line.start_with?("#")
+
+    key, value = line.split("=", 2)
+    ENV[key] = value if value && !value.empty? && ENV[key].to_s.empty?
+  end
+end
+
+def team_id
+  ENV["APPLE_TEAM_ID"].to_s.empty? ? "BVLDTU9V83" : ENV["APPLE_TEAM_ID"]
+end
+
+# The .p8 as PEM text (ASC_KEY_P8 may be base64 of the file, or the PEM itself with real or escaped newlines).
+def p8_pem
+  raw = ENV["ASC_KEY_P8"].to_s.strip
+  return raw.gsub("\\n", "\n") if raw.include?("BEGIN PRIVATE KEY")
+
+  Base64.decode64(raw)
+end
+
+def require_secrets!
+  load_local_secrets
+  missing = %w[ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_P8].select { |k| ENV[k].to_s.strip.empty? }
+  return if missing.empty?
+
+  UI.user_error!("Missing App Store Connect secrets: #{missing.join(', ')}. Add them as GitHub secrets or to pawlegends-app/fastlane/.secrets.local (see .secrets.local.example).")
+end
+
+def asc_api_key
+  require_secrets!
+  pem = p8_pem
+  UI.user_error!("ASC_KEY_P8 is not a .p8 private key (base64 of the file, or its PEM text)") unless pem.include?("BEGIN PRIVATE KEY")
+  app_store_connect_api_key(key_id: ENV["ASC_KEY_ID"], issuer_id: ENV["ASC_ISSUER_ID"], key_content: pem, duration: 1200, in_house: false)
+end
+
+# The .p8 on disk for xcodebuild's -authenticationKeyPath (cloud signing). Deleted when the process exits.
+def p8_file
+  @p8_file ||= begin
+    dir = Dir.mktmpdir("asc")
+    path = File.join(dir, "AuthKey_#{ENV['ASC_KEY_ID']}.p8")
+    File.write(path, p8_pem)
+    File.chmod(0o600, path)
+    at_exit { FileUtils.rm_rf(dir) }
+    path
+  end
+end
+
+def marketing_version
+  ENV["APP_VERSION"].to_s.empty? ? JSON.parse(File.read(File.join(APP_DIR, "package.json")))["version"] : ENV["APP_VERSION"]
+end
+
+def next_build_number(api_key)
+  return ENV["BUILD_NUMBER"].to_i if ENV["BUILD_NUMBER"].to_s =~ /\A\d+\z/
+
+  latest = latest_testflight_build_number(api_key: api_key, app_identifier: APP_ID, version: marketing_version, initial_build_number: 0)
+  latest.to_i + 1
+rescue StandardError => e
+  UI.important("Could not read the latest TestFlight build (#{e.message}); using a timestamp build number")
+  Time.now.utc.strftime("%y%m%d%H%M").to_i
+end
+
+# A distribution certificate from DIST_CERT_P12 into a temporary keychain (only when the secret is set).
+def import_dist_cert
+  return false if ENV["DIST_CERT_P12"].to_s.empty?
+
+  keychain = "pawlegends-ci.keychain"
+  password = SecureRandom.hex(16)
+  create_keychain(name: keychain, password: password, default_keychain: false, unlock: true, timeout: 3600, lock_when_sleeps: false)
+  p12 = File.join(Dir.mktmpdir("p12"), "dist.p12")
+  File.binwrite(p12, Base64.decode64(ENV["DIST_CERT_P12"]))
+  import_certificate(certificate_path: p12, certificate_password: ENV["DIST_CERT_PASSWORD"].to_s, keychain_name: keychain, keychain_password: password)
+  at_exit { delete_keychain(name: keychain) rescue nil }
+  true
+end
+
+platform :ios do
+  desc "Validate the secrets and the App Store Connect API key (changes nothing)"
+  lane :check do
+    key = asc_api_key
+    UI.success("App Store Connect API key #{ENV['ASC_KEY_ID']} loaded for team #{team_id}")
+    app = Spaceship::ConnectAPI::App.find(APP_ID)
+    if app
+      UI.success("App record found: #{app.name} (#{app.id})")
+    else
+      UI.important("No App Store Connect app record for #{APP_ID} yet: create it (My Apps → + → New App) after `fastlane bootstrap`")
+    end
+    key
+  end
+
+  desc "Register the bundle id com.tokentails.pawlegends in the Developer Portal"
+  lane :bootstrap do
+    asc_api_key
+    if Spaceship::ConnectAPI::BundleId.find(APP_ID)
+      UI.success("Bundle id #{APP_ID} already registered")
+    else
+      Spaceship::ConnectAPI::BundleId.create(name: "Pawlegends", platform: Spaceship::ConnectAPI::BundleIdPlatform::IOS, identifier: APP_ID)
+      UI.success("Registered #{APP_ID}")
+    end
+    UI.message("Next: App Store Connect → My Apps → + → New App: name Pawlegends, bundle id #{APP_ID}, SKU pawlegends-ios, primary language English (U.S.)")
+  end
+
+  desc "Make a distribution certificate and App Store profile once (for keys without cloud signing)"
+  lane :certs do
+    api_key = asc_api_key
+    out = Dir.mktmpdir("certs")
+    get_certificates(api_key: api_key, development: false, output_path: out, keychain_password: nil)
+    get_provisioning_profile(api_key: api_key, app_identifier: APP_ID, output_path: out)
+    UI.important("Certificate and profile in #{out}. Export the certificate from Keychain Access as .p12, then:")
+    UI.important("  gh secret set DIST_CERT_P12 --body \"$(base64 -i dist.p12)\" && gh secret set DIST_CERT_PASSWORD")
+  end
+
+  desc "Archive and export the App Store .ipa (run `npm run build` in pawlegends-app first)"
+  lane :build do |options|
+    api_key = options[:api_key] || asc_api_key
+    UI.user_error!("No web bundle in ios/App/App/public: run `npm run build` in pawlegends-app first") unless File.exist?(File.join(IOS_DIR, "App/public/index.html"))
+
+    build_number = next_build_number(api_key)
+
+    manual_cert = import_dist_cert
+    # Xcode signs with the API key (cloud-managed distribution certificate), for the archive and the export
+    auth = [
+      "-allowProvisioningUpdates",
+      "-authenticationKeyPath #{p8_file}",
+      "-authenticationKeyID #{ENV['ASC_KEY_ID']}",
+      "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']}"
+    ].join(" ")
+    xcargs = [
+      auth,
+      "DEVELOPMENT_TEAM=#{team_id}",
+      "CODE_SIGN_STYLE=Automatic",
+      # version and build number as build settings: the project files stay unchanged
+      "MARKETING_VERSION=#{marketing_version}",
+      "CURRENT_PROJECT_VERSION=#{build_number}"
+    ].join(" ")
+
+    build_app(
+      workspace: WORKSPACE,
+      scheme: "App",
+      configuration: "Release",
+      export_method: "app-store",
+      export_team_id: team_id,
+      export_options: { signingStyle: "automatic", teamID: team_id, uploadSymbols: true, manageAppVersionAndBuildNumber: false },
+      xcargs: xcargs,
+      export_xcargs: auth,
+      output_directory: OUTPUT_DIR,
+      output_name: "Pawlegends-#{marketing_version}-#{build_number}.ipa",
+      clean: true,
+      skip_profile_detection: true
+    )
+    UI.success("Built #{lane_context[SharedValues::IPA_OUTPUT_PATH]} (#{marketing_version} build #{build_number}#{manual_cert ? ', imported certificate' : ', cloud signing'})")
+  end
+
+  desc "Build and upload to TestFlight"
+  lane :beta do
+    api_key = asc_api_key
+    build(api_key: api_key)
+    upload_to_testflight(
+      api_key: api_key,
+      app_identifier: APP_ID,
+      skip_waiting_for_build_processing: true,
+      changelog: ENV["TESTFLIGHT_CHANGELOG"].to_s.empty? ? "Pawlegends #{marketing_version}: bundled game, offline bots, party play." : ENV["TESTFLIGHT_CHANGELOG"],
+      distribute_external: false
+    )
+  end
+
+  desc "Upload the listing: text, screenshots and icon (no binary, no submission)"
+  lane :metadata do
+    api_key = asc_api_key
+    screenshots = File.join(__dir__, "screenshots")
+    deliver(
+      api_key: api_key,
+      app_identifier: APP_ID,
+      app_version: marketing_version,
+      skip_binary_upload: true,
+      skip_screenshots: !Dir.exist?(screenshots) || Dir.glob(File.join(screenshots, "**/*.png")).empty?,
+      screenshots_path: screenshots,
+      overwrite_screenshots: true,
+      metadata_path: File.join(__dir__, "metadata"),
+      submit_for_review: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      run_precheck_before_submit: false
+    )
+  end
+
+  desc "Submit the latest uploaded build for review (needs SUBMIT=yes; the release itself stays manual)"
+  lane :release do
+    UI.user_error!("Refusing to submit without SUBMIT=yes") unless ENV["SUBMIT"] == "yes"
+
+    api_key = asc_api_key
+    deliver(
+      api_key: api_key,
+      app_identifier: APP_ID,
+      app_version: marketing_version,
+      skip_binary_upload: true,
+      skip_screenshots: true,
+      skip_metadata: true,
+      submit_for_review: true,
+      automatic_release: false,
+      force: true,
+      precheck_include_in_app_purchases: false,
+      submission_information: {
+        add_id_info_uses_idfa: false,
+        export_compliance_uses_encryption: false,
+        export_compliance_encryption_updated: false,
+        content_rights_contains_third_party_content: false
+      }
+    )
+  end
+end

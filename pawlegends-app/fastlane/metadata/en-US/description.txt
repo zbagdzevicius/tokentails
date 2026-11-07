@@ -1,0 +1,18 @@
+Pawlegends is a fast 3v3 arena battler: a team of cat heroes against a pack of dogs, in matches that last five to seven minutes.
+
+Pick a hero, push your lane, and knock down the dog towers before they reach yours. Every hero has three skills, a big ultimate and a talent to choose as they level up. Learn when to strike, when to fall back, and when to call your team for a push.
+
+PLAY ANYWHERE
+- Plays offline against bots from the first launch. No account, no sign-up.
+- Built for touch in landscape: one thumb moves, the other casts.
+- Easy to start, with tips in your first matches and a ladder that grows with you.
+
+PLAY WITH FRIENDS
+- Make a party, share the code, and team up against the dogs together.
+- Quick chat and pings to plan the next push.
+
+HEROES WITH CHARACTER
+- Every hero has their own look, skills and way to win a lane.
+- Grade every match from C to S and chase your best.
+
+Pawlegends is made by Token Tails, a small studio from Vilnius whose games feature real cats from the Pink Paw shelter.
