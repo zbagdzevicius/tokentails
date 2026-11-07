@@ -75,10 +75,12 @@ switch, and every feature stays on in the role that serves it.
 | `api` | `ApiAppModule`: the same controllers, providers and 26 leased crons, without `PartyRelayService`, so it never attaches to `/pawlegends/ws` and never restores rooms | Cloud Run `tt-api` (infra/gcp) |
 | `relay` | `RelayModule` (`src/relay.module.ts`): the relay, its room store, ticket verifier and the cat collection; no `ScheduleModule`, no Stripe, Firebase, AI or hot-wallet provider | the relay VM (infra/gcp) |
 
-Every role serves `GET /healthz` (liveness: `{ ok, role, uptimeS }`, plus `revision` on Cloud Run and the relay
+Every role serves `GET /healthz` (liveness: `{ ok, role }`, plus `revision` on Cloud Run and the relay
 counters on the relay role) and `GET /readyz` (503 while MongoDB is down, while shutting down, or when the role serves
 the relay and it has not started). `GET /` still answers `1`. The relay role also answers `GET /pawlegends/ws/healthz`
-(proves a route reaches the relay) and logs one `relay_stats` JSON line a minute for log-based metrics. In a split role
+(proves a route reaches the relay) and logs one `relay_stats` JSON line a minute for log-based metrics. Both health
+routes are public and skip the throttler (no database I/O: `readyz` reads the Mongo connection state only); they show
+the role and readiness, never uptime or relay counters outside the relay role. In a split role
 `IS_PROD` without `NODE_ENV=production` is fatal at boot; under `all` it is a loud log line only. Deployment:
 `infra/gcp/RUNBOOK.md`.
 
@@ -1446,6 +1448,24 @@ Route and logic bugs:
   DigitalOcean URL, or a Cloudflare Worker) can set `cf-connecting-ip` and get fresh per-IP buckets for
   guest treats, Heist replays, AI previews and uploads, and the per-IP route throttlers. The founder
   accepted this on 2026-10-16. The per-chain treat budget and the AI euro caps still bound the cost.
+  Not covered by that acceptance: the new-account and guest-session caps and the donation relay hash use
+  `visitorIp()` (`src/shared/client-ip.ts`), which reads `cf-connecting-ip` only in the split roles
+  (`api`, `relay`, Google Cloud, where Cloud Armor admits Cloudflare ranges only). Under role `all`
+  (DigitalOcean) they key on the Express address as before, so a direct caller can neither skip them with
+  forged addresses nor fill a victim address's bucket.
+- Known (existing, not a regression): a DigitalOcean rolling deploy (2 instances) still drops party
+  matches in progress. New instances run `PartyRelayService.restore()` once at boot, before the old ones
+  get SIGTERM; the old instance's handoff checkpoint lands after that and nothing restores later, so its
+  players get `room_gone` and the room waits for the next boot to abandon it. Since the Google Cloud
+  branch, a boot leaves another instance's room alone while it checkpointed in the last 15 s (it used to
+  abandon every live room), and the handoff runs in `beforeApplicationShutdown`, before HTTP and Mongo
+  close. A sibling room with no checkpoint for 15 s (not yet live, or a starved event loop) is still
+  abandoned by any boot. On Google Cloud the single relay VM avoids the overlap.
+- Known (minor): the party-ticket single-use nonce map is per process, so with 2 DigitalOcean instances
+  one ticket can be redeemed once on each instance within its 60 s TTL (one extra ticketed seat). Moot
+  today: DigitalOcean has no `PAWLEGENDS_PARTY_TICKET_SECRET`, so `POST /pawlegends/party/ticket`
+  answers 503 and party rooms are unscored. Tickets minted before the deploy carry no `iat` and are
+  refused (`bad_ticket`, the player goes on as a guest).
 - Fixed (Stellar portraits, 2026-10-16): `POST /web3/confirm` creates a portrait order after the client
   paid, so it has no stored server price; it is checked against the current $16 table. A $6 Stellar
   payment from a tab opened before the $16 price is no longer refused with only the hash released: it is

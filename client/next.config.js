@@ -165,9 +165,10 @@ const nextConfig = {
   sassOptions: {
     silenceDeprecations: ["legacy-js-api"],
   },
-  // App builds are a static export for Capacitor. Web builds are `standalone`: the self-contained server that the
-  // Google Cloud image runs (client/Dockerfile, infra/gcp/RUNBOOK.md). Vercel builds it the same way.
-  output: isApp ? "export" : "standalone",
+  // App builds are a static export for Capacitor. Vercel (it sets VERCEL=1 at build time) keeps Next's default
+  // output, exactly as before the migration. Other web builds are `standalone`: the self-contained server that the
+  // Google Cloud image runs (client/Dockerfile, infra/gcp/RUNBOOK.md).
+  output: isApp ? "export" : process.env.VERCEL ? undefined : "standalone",
   transpilePackages: ["@creit.tech/stellar-wallets-kit"],
   // Not supported under output: "export", so app builds skip them;
   // pages/gaming.tsx covers /gaming client-side there.

@@ -40,8 +40,10 @@ ALB appends its own public forwarding-rule address to X-Forwarded-For before Clo
 untrusted address, so `req.ip` / `req.ips[0]` on tt-api is the same balancer IP for every visitor. Everything per-IP
 must therefore read `cf-connecting-ip` first: `shared/client-ip.ts` (`clientIp`, `visitorIp`) does; the new-account and
 guest-session throttles and the donation relay hash were moved onto `visitorIp` in this branch (they read `req.ip`
-directly, which would have made them one site-wide bucket of 10 accounts and 30 guests an hour). Any new per-IP code
-must use `clientIp`/`visitorIp`, never `req.ip`. Cloud Armor admits only Cloudflare and Cloud Run ingress is
+directly, which would have made them one site-wide bucket of 10 accounts and 30 guests an hour). `visitorIp` reads the
+header only in the split roles (`api`, `relay`); under role `all` (DigitalOcean, whose origin URL is reachable
+directly) it keeps the Express address, so those caps cannot be forged there. Any new per-IP code must use
+`clientIp`/`visitorIp`, never `req.ip`. Cloud Armor admits only Cloudflare and Cloud Run ingress is
 load-balancer-only, so the header cannot be forged from outside. That closes the `cf-connecting-ip` forgery known issue
 in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a global ALB without adding the GFE ranges
 (35.191.0.0/16, 130.211.0.0/22) to trust-proxy.
@@ -88,8 +90,8 @@ in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a 
 Backend changes for deployment only: `BACKEND_ROLE` (`all` default = DigitalOcean unchanged, `api`, `relay`) in
 `backend/src/shared/runtime/`, `backend/src/relay.module.ts`, `GET /healthz` and `GET /readyz`, a one-line-a-minute
 `relay_stats` JSON log, and a startup check that exits a split role when `IS_PROD` is set without `NODE_ENV=production`.
-`client/next.config.js` and `cms/next.config.ts` build `output: "standalone"` for the web (the Capacitor app build is
-still a static export).
+`client/next.config.js` and `cms/next.config.ts` build `output: "standalone"` for the web images (the Capacitor app build
+is still a static export; a Vercel build, `VERCEL=1`, keeps Next's default output).
 
 ## Testing without a cloud
 
@@ -487,8 +489,8 @@ Each is a variable or a step above; the default is what the code does unless you
   Explorer shows them as `textPayload`, change those two metric filters to a `REGEXP_EXTRACT` on `textPayload`.
 - The canary header route is reachable by anyone who sends `x-tt-canary: 1`; it only ever serves the revision about
   to go live (same code), but do not leave a broken canary tagged for long.
-- `client/next.config.js` now builds `output: "standalone"` for the web. Vercel supports it; check the first Vercel
-  deploy after this merges.
+- `client/next.config.js` and `cms/next.config.ts` build `output: "standalone"` for the web images only. Vercel sets
+  `VERCEL=1` at build time and keeps Next's default output, so its production build is unchanged by this branch.
 - `mp/load.mjs` lives in `pawlegends/` (owned by the netcode workflow); `tools/ws-origin-shim.mjs` adapts it from the
   outside instead of editing it. The drain endpoint `POST /pawlegends/relay/drain` is optional and not in the backend
   yet; `deploy.sh` skips the drain until it exists.

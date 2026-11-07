@@ -1,6 +1,7 @@
 import { isIP } from 'net';
 import { isUsableClientIp, requestIp } from 'src/user/guest/ip-throttle';
 import { isCloudflareIp } from './cloudflare-ips';
+import { BackendRole, backendRole } from './runtime/backend-role';
 
 /*
  * The visitor's address for the AI quotas, the per-IP throttlers and the Heist replay bucket (bet #3,
@@ -70,17 +71,28 @@ export function clientIp(req: any, env: NodeJS.ProcessEnv = process.env): Client
 }
 
 /**
- * The visitor address for the per-IP creation throttles (new accounts, guest sessions) and the donation relay hash:
- * a usable `cf-connecting-ip` first, else the Express address (`requestIp`), never null. Behind the Google Cloud
- * load balancer the Express address is the balancer's own public forwarding-rule IP for every visitor (it appends
- * itself to X-Forwarded-For and is not a hop `trust-proxy.ts` trusts), so reading `requestIp` directly there would put
- * the whole site in one bucket. An unusable result is skipped downstream (`IpWindowThrottle` fails open).
+ * The visitor address for the per-IP creation throttles (new accounts, guest sessions) and the donation relay hash.
+ *
+ * - Split roles (`api`, `relay`: Google Cloud only): a usable `cf-connecting-ip` first, else the Express address.
+ *   There the origin is reachable only through the regional load balancer, whose Cloud Armor policy admits Cloudflare
+ *   ranges only (infra/gcp `edge_lb_regional`, Cloud Run ingress `INTERNAL_LOAD_BALANCER`), so the header was set by
+ *   Cloudflare. The Express address is the balancer's own public forwarding-rule IP for every visitor (it appends
+ *   itself to X-Forwarded-For and is not a hop `trust-proxy.ts` trusts), so reading `requestIp` directly there would
+ *   put the whole site in one bucket.
+ * - Role `all` (DigitalOcean, local development): the Express address (`requestIp`) only, as before the migration.
+ *   The DigitalOcean origin URL is reachable directly, so a client-sent `cf-connecting-ip` cannot be told from
+ *   Cloudflare's; trusting it would let a direct caller skip these caps with a fresh address per request, or fill a
+ *   victim address's bucket. These caps do not take the "Accepted (founder, 2026-10-16)" risk of `clientIp()`.
+ *
+ * Never null. An unusable result is skipped downstream (`IpWindowThrottle` fails open).
  */
-export function visitorIp(req: any): string {
-    const header = req?.headers?.['cf-connecting-ip'];
-    const cf = typeof header === 'string' ? header.trim() : '';
-    if (isUsableClientIp(cf) && !isCloudflareIp(cf)) {
-        return cf;
+export function visitorIp(req: any, role: BackendRole = backendRole()): string {
+    if (role !== 'all') {
+        const header = req?.headers?.['cf-connecting-ip'];
+        const cf = typeof header === 'string' ? header.trim() : '';
+        if (isUsableClientIp(cf) && !isCloudflareIp(cf)) {
+            return cf;
+        }
     }
     return requestIp(req);
 }
