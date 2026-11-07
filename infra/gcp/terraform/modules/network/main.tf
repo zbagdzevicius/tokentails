@@ -27,6 +27,9 @@ resource "google_compute_subnetwork" "main" {
   }
 }
 
+# Waiver: a REGIONAL_MANAGED_PROXY subnet holds only the load balancer's Envoy proxies and does not support Private
+# Google Access (the main subnet has it on).
+#trivy:ignore:GCP-0075
 resource "google_compute_subnetwork" "proxy_only" {
   project       = var.project_id
   name          = "${var.name}-proxy-only-${var.region}"
