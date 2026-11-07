@@ -20,7 +20,7 @@ import { CheckoutBridge, INTENT_HOLD_MS } from '../money/checkoutBridge';
 import type { Entitlements } from '../money/entitlements';
 import { pickMeet } from '../money/offer';
 import { accountState, mergeServerProgress, playSession, progressChanged, saveProfile, setAccountState, type Profile } from '../meta/profile';
-import { parseRoster, rosterCosmetics, setAppBuild, type RosterCat } from '../meta/roster';
+import { isAppBuild, parseRoster, rosterCosmetics, setAppBuild, type RosterCat } from '../meta/roster';
 import { chooseSquadMate, noteNewCat, squadPrefs } from '../meta/squad';
 import { championInfo, meetCard, pickCards, resultsCards, saveChip, titleCards, levelBadges, type ChipState, type SquadMate } from '../ui/cards';
 import { HEROES } from '../data/heroes';
@@ -254,7 +254,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   /** Featured cats whose skin preview the host was told about this page load (`skin-preview`). */
   const previewAsked = new Set<string>();
 
-  const isApp = (): boolean => s.app?.isApp === true || deps.ent.snapshot().isApp;
+  const isApp = (): boolean => s.app?.isApp === true || deps.ent.snapshot().isApp || isAppBuild();
   const embedded = (): boolean => bridge.active && deps.ent.snapshot().embedded;
   const featuredIds = (): string[] => s.featured.map((c) => c.catalogId);
   const cosmetics = () => rosterCosmetics(s.roster, squadPrefs());

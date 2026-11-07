@@ -1,0 +1,163 @@
+#cloud-config
+# Token Tails party relay on Container-Optimized OS (infra/gcp/terraform/modules/relay_vm).
+# systemd unit tt-relay runs the backend image with BACKEND_ROLE=relay on the host network. Stop = `docker stop -t
+# ${stop_timeout_seconds}`: SIGTERM makes the relay hand its rooms off to MongoDB (MULTIPLAYER.md §3.6); the next start
+# restores them. No secret and no env value is in this file: at every start prepare.sh reads the plain env and the
+# pinned secret versions from project metadata (${env_metadata_key}, ${secrets_metadata_key}; Terraform owns both) and
+# the secret values from Secret Manager into tmpfs. So a Terraform apply reaches the running VM on its next restart,
+# without recreating it.
+#
+# Which image runs: /var/lib/tt-relay/image, written by deploy.sh only after that image passed readiness on this VM.
+# A new or recreated VM has no such file and starts the MIG's ${image_metadata_key} metadata, which CI commits only
+# after a successful deploy. A crash restart therefore never boots an image that was not verified.
+
+write_files:
+  - path: /var/lib/tt-relay/prepare.sh
+    permissions: "0700"
+    owner: root
+    content: |
+      #!/bin/bash
+      # ExecStartPre of tt-relay: host firewall, registry login, image name, env and secrets into /run/tt-relay (tmpfs).
+      set -euo pipefail
+      MD=http://metadata.google.internal/computeMetadata/v1
+      md() { curl -sf -H "Metadata-Flavor: Google" "$MD/$1"; }
+      export HOME=/var/lib/tt-relay
+      # COS drops inbound traffic except SSH: open the relay port (health checks and the LB proxy-only subnet;
+      # the VPC firewall still decides who may reach it).
+      iptables -C INPUT -p tcp --dport ${port} -j ACCEPT 2>/dev/null || iptables -A INPUT -p tcp --dport ${port} -j ACCEPT
+      docker-credential-gcr configure-docker --registries=${registry_host} >/dev/null
+      install -d -m 0700 /run/tt-relay
+      if [ -s /var/lib/tt-relay/image ]; then
+        IMAGE=$(cat /var/lib/tt-relay/image)
+      else
+        IMAGE=$(md instance/attributes/${image_metadata_key} || true)
+      fi
+      if [ -z "$IMAGE" ]; then echo "tt-relay: no image (/var/lib/tt-relay/image and ${image_metadata_key} are empty)" >&2; exit 1; fi
+      printf '%s\n' "$IMAGE" > /run/tt-relay/image
+      PROJECT=$(md project/project-id)
+      TOKEN=$(md instance/service-accounts/default/token | sed -E 's/.*"access_token" *: *"([^"]+)".*/\1/')
+      umask 077
+      ENV_FILE=/run/tt-relay/env.next
+      : > "$ENV_FILE"
+      ENV_LINES=$(md project/attributes/${env_metadata_key}) || { echo "tt-relay: project metadata ${env_metadata_key} is missing" >&2; exit 1; }
+      while IFS= read -r line; do
+        [ -n "$line" ] || continue
+        if [[ ! "$line" =~ ^[A-Z][A-Z0-9_]*= ]]; then echo "tt-relay: refused env line in ${env_metadata_key}" >&2; exit 1; fi
+        printf '%s\n' "$line" >> "$ENV_FILE"
+      done <<< "$ENV_LINES"
+      SECRET_LINES=$(md project/attributes/${secrets_metadata_key} || true)
+      while IFS='=' read -r name version; do
+        [ -n "$name" ] || continue
+        if [[ ! "$name" =~ ^[A-Z][A-Z0-9_]*$ || ! "$version" =~ ^[0-9]+$ ]]; then
+          echo "tt-relay: refused line in ${secrets_metadata_key} (NAME=numeric version)" >&2; exit 1
+        fi
+        BODY=$(curl -s -H "Authorization: Bearer $TOKEN" "https://secretmanager.googleapis.com/v1/projects/$PROJECT/secrets/$name/versions/$version:access" | tr -d '\n')
+        DATA=$(printf '%s' "$BODY" | sed -nE 's/.*"data" *: *"([^"]+)".*/\1/p')
+        if [ -z "$DATA" ]; then
+          echo "tt-relay: secret $name version $version is not readable yet, started without it" >&2
+        else
+          VALUE=$(printf '%s' "$DATA" | base64 -d)
+          case "$VALUE" in *$'\n'*) echo "tt-relay: secret $name has a newline, refused" >&2; exit 1 ;; esac
+          printf '%s=%s\n' "$name" "$VALUE" >> "$ENV_FILE"
+        fi
+      done <<< "$SECRET_LINES"
+      mv "$ENV_FILE" /run/tt-relay/env
+      docker pull -q "$IMAGE" >/dev/null
+
+  - path: /var/lib/tt-relay/run.sh
+    permissions: "0700"
+    owner: root
+    content: |
+      #!/bin/bash
+      # ExecStart of tt-relay. Host network: no NAT hop, the socket peer is the LB proxy (10.x, a trusted hop), so the
+      # relay reads cf-connecting-ip set by Cloudflare. --init forwards SIGTERM to node.
+      set -euo pipefail
+      export HOME=/var/lib/tt-relay
+      docker rm -f tt-relay >/dev/null 2>&1 || true
+      exec docker run --rm --name tt-relay --init --network host \
+        --env-file /run/tt-relay/env \
+        --ulimit nofile=65536:65536 \
+        --log-driver json-file --log-opt max-size=50m --log-opt max-file=3 \
+        "$(cat /run/tt-relay/image)"
+
+  - path: /var/lib/tt-relay/deploy.sh
+    permissions: "0700"
+    owner: root
+    content: |
+      #!/bin/bash
+      # Run by CI over IAP SSH (infra/gcp/scripts/deploy-relay.sh):
+      #   sudo bash /var/lib/tt-relay/deploy.sh current   print the image the running container was started from
+      #   sudo bash /var/lib/tt-relay/deploy.sh IMAGE     pre-pull, drain when the relay offers it, restart on IMAGE,
+      #                                                   wait for /readyz; on failure start the previous image again
+      # CI commits IMAGE to the MIG metadata only after this exits 0, so an autoheal never boots an unverified image.
+      set -euo pipefail
+      export HOME=/var/lib/tt-relay
+      STATE=/var/lib/tt-relay/image
+      running() { docker inspect -f '{{.Config.Image}}' tt-relay 2>/dev/null || true; }
+      if [ "$${1:-}" = "current" ]; then running; exit 0; fi
+      IMAGE=$${1:-}
+      if [[ ! "$IMAGE" =~ ^${replace(registry_host, ".", "\\.")}/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9._-]+:[A-Za-z0-9._-]+$ ]]; then
+        echo "tt-relay deploy: refused image '$IMAGE'" >&2; exit 2
+      fi
+      PREV=$(cat "$STATE" 2>/dev/null || running)
+      echo "tt-relay deploy: $${PREV:-none} -> $IMAGE"
+      docker-credential-gcr configure-docker --registries=${registry_host} >/dev/null
+      docker pull -q "$IMAGE"
+      DRAIN_MAX_S=$${DRAIN_MAX_S:-${drain_max_seconds}}
+      code=$(curl -s -o /dev/null -w '%%{http_code}' -X POST "http://127.0.0.1:${port}/pawlegends/relay/drain" || true)
+      if [ "$code" = "200" ] || [ "$code" = "202" ]; then
+        end=$(( $(date +%s) + DRAIN_MAX_S ))
+        while [ "$(date +%s)" -lt "$end" ]; do
+          rooms=$(curl -s "http://127.0.0.1:${port}/healthz" | sed -nE 's/.*"rooms_live" *: *([0-9]+).*/\1/p')
+          [ "$${rooms:-0}" = "0" ] && break
+          echo "tt-relay deploy: draining, $rooms live room(s)"; sleep 20
+        done
+      else
+        echo "tt-relay deploy: no drain endpoint ($code), relying on handoff and resume"
+      fi
+      start_on() { # start_on IMAGE: restart the unit on IMAGE and wait up to 120 s for /readyz
+        printf '%s\n' "$1" > "$STATE.next" && mv "$STATE.next" "$STATE"
+        systemctl restart tt-relay
+        for _ in $(seq 1 60); do
+          if curl -sf "http://127.0.0.1:${port}/readyz" >/dev/null && [ "$(running)" = "$1" ]; then return 0; fi
+          sleep 2
+        done
+        return 1
+      }
+      if start_on "$IMAGE"; then echo "tt-relay deploy: ready on $IMAGE"; exit 0; fi
+      echo "tt-relay deploy: not ready on $IMAGE after 120 s" >&2
+      journalctl -u tt-relay -n 50 --no-pager >&2 || true
+      if [ -n "$PREV" ] && [ "$PREV" != "$IMAGE" ]; then
+        if start_on "$PREV"; then echo "tt-relay deploy: serving the previous image $PREV again" >&2
+        else echo "tt-relay deploy: the previous image $PREV is not ready either" >&2; fi
+      fi
+      exit 1
+
+  - path: /etc/systemd/system/tt-relay.service
+    permissions: "0644"
+    owner: root
+    content: |
+      [Unit]
+      Description=Token Tails party relay (backend image, BACKEND_ROLE=relay)
+      Wants=network-online.target
+      After=network-online.target docker.service
+      Requires=docker.service
+
+      [Service]
+      Type=simple
+      Environment=HOME=/var/lib/tt-relay
+      ExecStartPre=/bin/bash /var/lib/tt-relay/prepare.sh
+      ExecStart=/bin/bash /var/lib/tt-relay/run.sh
+      ExecStop=/usr/bin/docker stop -t ${stop_timeout_seconds} tt-relay
+      TimeoutStartSec=300
+      TimeoutStopSec=${stop_timeout_seconds + 30}
+      Restart=always
+      RestartSec=3
+
+      [Install]
+      WantedBy=multi-user.target
+
+runcmd:
+  - systemctl daemon-reload
+  - systemctl enable tt-relay.service
+  - systemctl start --no-block tt-relay.service

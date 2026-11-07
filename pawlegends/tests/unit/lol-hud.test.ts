@@ -1,12 +1,11 @@
 // @vitest-environment happy-dom
 /**
  * LoL pass, lane B: the announcer's Ace and slain lines, the cooldown label, the trailing damage chunk, the XP ring,
- * the voice scheduler, the scoreboard's talent chips, and the HUD's crest, kill feed, death wash and nap bar.
+ * the scoreboard's talent chips, and the HUD's crest, kill feed, death wash and nap bar.
  */
 import { describe, expect, it } from 'vitest';
 import { Announcer, isAce, ALLY_SLAIN_QUIET, type Moment } from '../../src/render/announcer';
 import { cdLabel, Hud, trailStep, TRAIL_HOLD_MS, TRAIL_RATE, xpFrac } from '../../src/ui/hud';
-import { VoiceGate, VOICE_GAP_MS } from '../../src/audio/voice';
 import { talentChips } from '../../src/ui/scoreboard';
 import { XP } from '../../src/data/xp';
 import type { EntitySnap, MatchClock } from '../../src/sim/api';
@@ -55,6 +54,7 @@ describe('Ace', () => {
     const m = a.feed(death(900, 0, 3)).find((x) => x.key === 'aceThem');
     expect(m?.title).toBe('Enemy team ACE');
     expect(m?.tone).toBe('bad');
+    expect(m?.voice).toBe('aceUs');
   });
 
   it('without a snapshot, deaths close together count (same-tick kills too)', () => {
@@ -125,20 +125,6 @@ describe('ability bar numbers', () => {
     expect(xpFrac(2, lo)).toBe(0);
     expect(xpFrac(2, (lo + hi) / 2)).toBeCloseTo(0.5, 5);
     expect(xpFrac(XP.maxLevel, 1e9)).toBe(1);
-  });
-});
-
-describe('voice', () => {
-  it('one line at a time: at most one start per VOICE_GAP_MS, the newest waiting line wins', () => {
-    const g = new VoiceGate();
-    expect(g.want('firstBlood', 0)).toBe('firstBlood');
-    expect(g.want('double', 300)).toBeNull();
-    expect(g.want('triple', 500)).toBeNull();
-    expect(g.waitMs(500)).toBe(VOICE_GAP_MS - 500);
-    expect(g.due(VOICE_GAP_MS - 1)).toBeNull();
-    expect(g.due(VOICE_GAP_MS)).toBe('triple');
-    expect(g.due(VOICE_GAP_MS + 10)).toBeNull();
-    expect(g.want('ace', 3 * VOICE_GAP_MS)).toBe('ace');
   });
 });
 

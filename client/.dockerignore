@@ -1,0 +1,31 @@
+# Keep the web build context small and free of local secrets (client/Dockerfile).
+node_modules
+.next
+out
+coverage
+playwright-report
+test-results
+*.log
+*.tsbuildinfo
+.git
+.vscode
+.idea
+# native projects and local tooling are not part of the web image
+android
+ios
+resources
+art
+docs
+e2e
+__test__
+gg.js
+*.pdf
+.gitlab-ci.yml
+# Env files: only the committed, public .env.production is used (Next loads it during `next build`, as on Vercel).
+.env
+.env.*
+!.env.production
+*.pem
+*.key
+Dockerfile
+.dockerignore

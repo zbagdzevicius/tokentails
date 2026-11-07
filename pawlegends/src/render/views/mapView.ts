@@ -5,12 +5,13 @@
  * About 12 draw calls in all. Render only.
  */
 import * as THREE from 'three';
-import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
+import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
 import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
+import { BUSH_COUNT, clearedBushes } from '../bushClear';
 import { ModelBuilder } from './rig';
-import { onPlayfield } from '../../sim/map/grid';
+import { NX, NY, createGrid, onPlayfield } from '../../sim/map/grid';
 
 const W = MAP.width / 1000;
 const H = MAP.height / 1000;
@@ -47,6 +48,146 @@ function distToPolyline(x: number, y: number, pl: readonly Pt[]): number {
     best = Math.min(best, Math.hypot(x - (ax + dx * t), y - (ay + dy * t)));
   }
   return best;
+}
+
+/**
+ * MAP-GAPS A1: the jungle walls as the nav grid blocks them: `createGrid().walls` minus the off-playfield (forest)
+ * cells, split into 4-connected clusters (the 4 WALLS rects and their mirrors). Bounds are cell edges in metres
+ * (whole metres: the grid's cell-centre rule), so the rocks always match what blocks a hero. Render only.
+ */
+export interface WallCluster {
+  cells: number[];
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+let clusterCache: WallCluster[] | null = null;
+export function wallClusters(): WallCluster[] {
+  if (clusterCache) return clusterCache;
+  const walls = createGrid().walls;
+  const cellM = MAP.navCell / 1000;
+  const isWall = (c: number): boolean => walls[c] === 1 && onPlayfield((c % NX) * MAP.navCell + MAP.navCell / 2, Math.floor(c / NX) * MAP.navCell + MAP.navCell / 2);
+  const seen = new Uint8Array(NX * NY);
+  const out: WallCluster[] = [];
+  for (let c0 = 0; c0 < NX * NY; c0++) {
+    if (seen[c0] || !isWall(c0)) continue;
+    const cells: number[] = [];
+    const stack = [c0];
+    seen[c0] = 1;
+    while (stack.length) {
+      const c = stack.pop()!;
+      cells.push(c);
+      const i = c % NX;
+      const j = Math.floor(c / NX);
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const ni = i + di;
+        const nj = j + dj;
+        if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+        const k = nj * NX + ni;
+        if (!seen[k] && isWall(k)) {
+          seen[k] = 1;
+          stack.push(k);
+        }
+      }
+    }
+    cells.sort((a, b) => a - b);
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const c of cells) {
+      const i = c % NX;
+      const j = Math.floor(c / NX);
+      x0 = Math.min(x0, i * cellM);
+      x1 = Math.max(x1, (i + 1) * cellM);
+      y0 = Math.min(y0, j * cellM);
+      y1 = Math.max(y1, (j + 1) * cellM);
+    }
+    out.push({ cells, x0, y0, x1, y1 });
+  }
+  clusterCache = out;
+  return out;
+}
+
+/** One rock of a wall cluster (m): ground centre, footprint radius, height. */
+export interface WallRock {
+  x: number;
+  y: number;
+  r: number;
+  h: number;
+}
+/**
+ * MAP-GAPS A1: the boulders of every wall cluster, a jittered 0.9 m grid filled to the cluster's edges (each cell
+ * centre lies inside at least one footprint), 0.8 to 1.6 m tall. Seeded, the same every load.
+ */
+export function wallRocks(): WallRock[] {
+  const rnd = lcg(23);
+  const out: WallRock[] = [];
+  for (const cl of wallClusters()) {
+    const step = 0.9;
+    const nx = Math.max(1, Math.round((cl.x1 - cl.x0) / step));
+    const ny = Math.max(1, Math.round((cl.y1 - cl.y0) / step));
+    const sx = (cl.x1 - cl.x0) / nx;
+    const sy = (cl.y1 - cl.y0) / ny;
+    for (let a = 0; a < nx; a++) {
+      for (let b = 0; b < ny; b++) {
+        const x = cl.x0 + (a + 0.5) * sx + (rnd() - 0.5) * 0.12;
+        const y = cl.y0 + (b + 0.5) * sy + (rnd() - 0.5) * 0.12;
+        // only on the cluster's own cells (a cluster that is not a full rectangle stays exact)
+        if (!cl.cells.includes(Math.floor(y) * NX + Math.floor(x))) continue;
+        const edge = Math.min(x - cl.x0, cl.x1 - x, y - cl.y0, cl.y1 - y) < 0.7;
+        out.push({ x, y, r: 0.7 + rnd() * 0.22, h: edge ? 0.8 + rnd() * 0.35 : 1.1 + rnd() * 0.5 });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * MAP-GAPS A1: the jungle footpaths (m): core → rat camp → river edge, both sides, bent round the x 16–18 and
+ * x 35–37 walls along y 34.5 (the A* detour) so no painted path runs under a rock.
+ */
+export function footpaths(): Pt[][] {
+  const cx = CORE.x / 1000;
+  const cy = CORE.y / 1000;
+  const rx = RAT_CAMP.x / 1000;
+  const ry = RAT_CAMP.y / 1000;
+  const out: Pt[][] = [];
+  for (const flip of [false, true]) {
+    const f = (x: number): number => (flip ? W - x : x);
+    out.push([
+      [f(cx), cy],
+      [f(14.2), 34.5],
+      [f(19.8), 34.5],
+      [f(rx), ry],
+      [f(33.4), 34.5],
+      [f(38.8), 34.5],
+      [f(44), 30],
+    ]);
+  }
+  return out;
+}
+
+/** The pebbles round the rat camps (m): low (< 0.25 m), outside the 5.5 m clearing, off the footpaths and walls. */
+export function campPebbles(): WallRock[] {
+  const rnd = lcg(31);
+  const paths = footpaths();
+  const walls = createGrid().walls;
+  const out: WallRock[] = [];
+  for (let i = 0; i < 400 && out.length < 28; i++) {
+    const flip = out.length % 2 === 1;
+    const a = rnd() * Math.PI * 2;
+    const d = 5.7 + rnd() * 2.6;
+    const x0 = RAT_CAMP.x / 1000 + Math.cos(a) * d;
+    const y = RAT_CAMP.y / 1000 + Math.sin(a) * d;
+    const x = flip ? W - x0 : x0;
+    const r = 0.12 + rnd() * 0.16;
+    if (Math.min(...paths.map((pl) => distToPolyline(x, y, pl))) < 1.9 + r) continue;
+    if (walls[Math.floor(y) * NX + Math.floor(x)]) continue;
+    out.push({ x, y, r, h: 0.1 + rnd() * 0.13 });
+  }
+  return out;
 }
 
 /** `swap`: team 0 is the dogs (round 2): each plaza's stone and paw print take its species' colours. */
@@ -103,21 +244,40 @@ function paintGround(swap = false): THREE.Texture {
     g.arc(X(x), Y(y), r * PX, 0, Math.PI * 2);
     g.fill();
   };
-  // jungle footpaths: core → rat camp → river (both sides)
+  // jungle footpaths: core → rat camp → river (both sides), bent round the walls (MAP-GAPS A1)
   const cx = CORE.x / 1000;
   const cy = CORE.y / 1000;
   const rx = RAT_CAMP.x / 1000;
-  for (const flip of [false, true]) {
-    const f = (x: number): number => (flip ? W - x : x);
-    const path: Pt[] = [
-      [f(cx), cy],
-      [f(rx), RAT_CAMP.y / 1000],
-      [f(44), 30],
-    ];
+  for (const path of footpaths()) {
     stroke(path, 3.4, '#c9b27c');
     stroke(path, 2.4, '#dcc792');
+  }
+  for (const flip of [false, true]) {
+    const f = (x: number): number => (flip ? W - x : x);
     disc(f(rx), RAT_CAMP.y / 1000, 5.5, '#cdb784');
     disc(f(rx), RAT_CAMP.y / 1000, 4.6, '#d9c595');
+  }
+  // MAP-GAPS A1: a trodden dirt footprint under each jungle wall (its rocks stand on it)
+  for (const cl of wallClusters()) {
+    for (const [pad, color] of [
+      [0.7, 'rgba(120,92,58,0.35)'],
+      [0.3, 'rgba(104,80,50,0.55)'],
+    ] as const) {
+      g.fillStyle = color;
+      const x = X(cl.x0 - pad);
+      const y = Y(cl.y1 + pad);
+      const w = (cl.x1 - cl.x0 + 2 * pad) * PX;
+      const h = (cl.y1 - cl.y0 + 2 * pad) * PX;
+      const r = pad * PX * 1.4;
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r);
+      g.arcTo(x, y, x + w, y, r);
+      g.closePath();
+      g.fill();
+    }
   }
   // lanes
   const lanes = lanePolylines();
@@ -196,12 +356,62 @@ function paintGround(swap = false): THREE.Texture {
   return t;
 }
 
+/** MAP-GAPS A22: the outer grass tile (m across): 256 px at the playfield's 20 px/m is 12.8 m. */
+export const GRASS_TILE_M = 12.8;
+
+/** A tileable grass canvas in the painted playfield's colours (noise blobs and tufts wrap across the edges). */
+function grassTile(): THREE.Texture {
+  const N = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d')!;
+  const rnd = lcg(53);
+  g.fillStyle = '#9fd383';
+  g.fillRect(0, 0, N, N);
+  const wrap = (f: (dx: number, dy: number) => void): void => {
+    for (const dx of [-N, 0, N]) for (const dy of [-N, 0, N]) f(dx, dy);
+  };
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * N;
+    const y = rnd() * N;
+    const r = (0.6 + rnd() * 3.2) * 20;
+    const col = rnd() < 0.5 ? 'rgba(120,180,95,0.16)' : 'rgba(190,230,150,0.16)';
+    const k = 0.6 + rnd() * 0.4;
+    const a = rnd() * 3;
+    wrap((dx, dy) => {
+      g.fillStyle = col;
+      g.beginPath();
+      g.ellipse(x + dx, y + dy, r, r * k, a, 0, Math.PI * 2);
+      g.fill();
+    });
+  }
+  g.strokeStyle = 'rgba(95,150,80,0.45)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 110; i++) {
+    const x = rnd() * (N - 8) + 4;
+    const y = rnd() * (N - 8) + 4;
+    g.beginPath();
+    g.moveTo(x - 3, y + 3);
+    g.lineTo(x - 1, y - 3);
+    g.moveTo(x + 1, y + 3);
+    g.lineTo(x + 3, y - 2);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 const RIVER_VERT = /* glsl */ `
 varying vec2 vUv;
 varying vec3 vW;
 void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const RIVER_FRAG = /* glsl */ `
 uniform float uTime;
+uniform float uH;
+uniform float uFade;
 varying vec2 vUv;
 varying vec3 vW;
 void main(){
@@ -215,7 +425,10 @@ void main(){
   col += sparkle * 0.35;
   float foam = smoothstep(0.09, 0.0, edge);
   col = mix(col, vec3(0.97, 0.99, 1.0), foam * 0.85);
-  gl_FragColor = vec4(col, smoothstep(0.0, 0.03, edge));
+  // MAP-GAPS A15: past the map's north and south edges the river fades out under the closing forest
+  float out_ = max(-vW.z - uH, vW.z);
+  float fade = 1.0 - smoothstep(uFade * 0.35, uFade, out_);
+  gl_FragColor = vec4(col, smoothstep(0.0, 0.03, edge) * fade);
 }`;
 
 /** True when a rock of radius r at (x, y) m stands only on ground nobody can walk (render only). */
@@ -258,8 +471,153 @@ export function gateSpans(x: number): [number, number][] {
   return out.filter(([a, b]) => b - a > 0.5);
 }
 
+/**
+ * MAP-GAPS A12: how far (m) past each map edge the ground is dressed with trees: past the camera's real reach at the
+ * widest zoom (desktop zoomMax 1.9, any focus inside CAMERA_FRAME) plus 5 m.
+ */
+export const OUTER_DRESS = Object.freeze({ west: 46, east: 46, north: 40, south: 25, near: 6, nearSouth: 10 });
+
+/** Distance (m) of (x, y) outside the map rectangle (0 inside). */
+export const outsideBy = (x: number, y: number): number => Math.hypot(Math.max(0 - x, x - W, 0), Math.max(0 - y, y - H, 0));
+
+/**
+ * MAP-GAPS A12: the far forest (m): a jittered 3.2 m grid from OUTER_DRESS.near (nearSouth below the map) out to the dressed edge, all four
+ * sides and the corner squares, thinning with distance (never under 35%). `low` marks the half a Low tier keeps.
+ */
+export function outerTrees(): { x: number; y: number; s: number; low: boolean }[] {
+  const rnd = lcg(37);
+  const out: { x: number; y: number; s: number; low: boolean }[] = [];
+  const r0 = MAP.riverX[0] / 1000;
+  const r1 = MAP.riverX[1] / 1000;
+  for (let x = -OUTER_DRESS.west; x <= W + OUTER_DRESS.east; x += 3.2) {
+    for (let y = -OUTER_DRESS.south; y <= H + OUTER_DRESS.north; y += 3.2) {
+      const px = x + (rnd() - 0.5) * 2.2;
+      const py = y + (rnd() - 0.5) * 2.2;
+      const keep = rnd();
+      const s = 0.85 + rnd() * 0.75;
+      const lowPick = rnd() < 0.5;
+      const d = outsideBy(px, py);
+      // south of the map the trees stand between the camera and the units: they start further out
+      if (d < (py < 0 ? OUTER_DRESS.nearSouth : OUTER_DRESS.near)) continue;
+      // the river runs on under the canopy only near the map (MAP-GAPS A15 closes the forest over it further out)
+      if (px > r0 - 2 && px < r1 + 2 && d < RIVER_RUN * 0.75) continue;
+      if (keep > Math.max(0.35, 1 - (d - OUTER_DRESS.near) / 70)) continue;
+      out.push({ x: px, y: py, s, low: lowPick });
+    }
+  }
+  return out;
+}
+
+/** The Catnip Bushes, both sides, in sim/map/brush.ts bushAt order (m: centre and half sizes). */
+export function bushRects(): { x: number; y: number; hw: number; hh: number }[] {
+  const out: { x: number; y: number; hw: number; hh: number }[] = [];
+  for (const side of [0, 1]) for (const b of BUSHES) out.push({ x: (side === 0 ? b.x : mirrorX(b.x)) / 1000, y: b.y / 1000, hw: b.w / 2000, hh: b.h / 2000 });
+  return out;
+}
+
+/** MAP-GAPS A16: the walkable lane band's half width (m) a bridge deck covers. */
+export const BRIDGE_HALF = 5.7;
+
+/**
+ * MAP-GAPS A16: each bridge (m): where it crosses (y at x = 50 m), its deck width and top, its plank count and its low
+ * end posts on the banks (outside the river: nothing stands in the walkable band).
+ */
+export function bridgeParts(): { y: number; deckY: number; width: number; top: number; planks: number; posts: { x: number; y: number }[] }[] {
+  const r0 = MAP.riverX[0] / 1000;
+  const r1 = MAP.riverX[1] / 1000;
+  const rim = PLAYFIELD.rim / 1000;
+  return lanePolylines().map((lane) => {
+    const mid = lane.find(([x]) => Math.abs(x - W / 2) < 0.01) ?? lane[Math.floor(lane.length / 2)];
+    const y = mid[1];
+    const posts: { x: number; y: number }[] = [];
+    for (const x of [r0 - 1.3, r1 + 1.3]) for (const s of [-1, 1]) posts.push({ x, y: y + s * BRIDGE_HALF });
+    // the deck stops at the playfield rim (the log jam of A15 lies just past it), so an edge lane's deck is trimmed
+    const lo = Math.max(y - BRIDGE_HALF - 0.2, rim);
+    const hi = Math.min(y + BRIDGE_HALF + 0.2, H - rim);
+    return { y, deckY: (lo + hi) / 2, width: hi - lo, top: 0.015, planks: 12, posts };
+  });
+}
+
+/** MAP-GAPS A15: how far (m) the river runs on past the map edge before it has faded out under the forest. */
+export const RIVER_RUN = 16;
+
+/** MAP-GAPS A15: the boundary markers across the river: where the playfield rim stops units (m), and `out` (±1). */
+export function riverMarkers(): { y: number; out: 1 | -1 }[] {
+  return [
+    { y: PLAYFIELD.rim / 1000, out: -1 },
+    { y: H - PLAYFIELD.rim / 1000, out: 1 },
+  ];
+}
+
+/** MAP-GAPS A13: the fountain basin's outer rim (m, the rim torus of models.ts fountainGeometry) plus a gap. */
+/** The fountain plaza ring's inner radius (m): under the basin rim torus (4.0 m, tube 0.28 m), outside the water. */
+export const PLAZA_HOLE = FOUNTAIN.radius / 1000 - 0.25;
+export const FOUNTAIN_CLEAR = FOUNTAIN.radius / 1000 + 0.28 + 0.3;
+
+/**
+ * The hedge along the map edge (m, sphere centre and its widest radius), skipping the river and, MAP-GAPS A13, a
+ * clear arc round each fountain (the hedge cut through the basin rim).
+ */
+export function hedgeSpots(): { x: number; y: number; r: number; color: number; kind: 'bush' | 'rock' | 'flower' }[] {
+  const rnd = lcg(41);
+  const r0 = MAP.riverX[0] / 1000;
+  const r1 = MAP.riverX[1] / 1000;
+  const fountains = [FOUNTAIN.x / 1000, W - FOUNTAIN.x / 1000].map((x) => [x, FOUNTAIN.y / 1000] as const);
+  const out: { x: number; y: number; r: number; color: number; kind: 'bush' | 'rock' | 'flower' }[] = [];
+  const petals = [0xffffff, 0xffd27a, 0xff9fc0, 0xc7a6ff];
+  // MAP-GAPS A22: a natural hedge: jittered ±0.5 m, varied sizes, ~15% gaps, a rock or a flowering bush now and then
+  const at = (x0: number, y0: number, nx: number, ny: number): void => {
+    const gap = rnd() < 0.15;
+    const along = (rnd() - 0.5) * 1.0;
+    const across = (rnd() - 0.5) * 1.0;
+    const x = x0 + ny * along + nx * across;
+    const y = y0 + nx * along + ny * across;
+    const pick = rnd();
+    const kind = pick < 0.1 ? 'rock' : pick < 0.25 ? 'flower' : 'bush';
+    const r = kind === 'rock' ? 0.45 + rnd() * 0.35 : (0.6 + rnd() * 0.5) * 1.2;
+    const color = kind === 'rock' ? (rnd() < 0.5 ? 0xb9b2a6 : 0xa59d90) : rnd() < 0.5 ? 0x5fa860 : 0x6db86a;
+    if (gap) return;
+    if (x > r0 - 1.5 && x < r1 + 1.5) return;
+    if (fountains.some(([fx, fy]) => Math.hypot(x - fx, y - fy) - r < FOUNTAIN_CLEAR + 0.6)) return;
+    out.push({ x, y, r, color, kind });
+    if (kind === 'flower') for (let i = 0; i < 3; i++) out.push({ x: x + (rnd() - 0.5) * r, y: y + (rnd() - 0.5) * r, r: 0.12, color: petals[(rnd() * petals.length) | 0], kind: 'flower' });
+  };
+  for (let x = 0; x <= W; x += 1.6) {
+    at(x, -0.8, 0, 1);
+    at(x, H + 0.8, 0, 1);
+  }
+  for (let y = 0; y <= H; y += 1.6) {
+    at(-0.8, y, 1, 0);
+    at(W + 0.8, y, 1, 0);
+  }
+  return out;
+}
+
+/** MAP-GAPS A13: the stones of the low wall behind each fountain (m): an arc 1.2 m outside the rim, map-edge side. */
+export function fountainWall(): { x: number; y: number; r: number; color: number }[] {
+  const rnd = lcg(43);
+  const out: { x: number; y: number; r: number; color: number }[] = [];
+  for (const side of [0, 1] as const) {
+    const fx = side === 0 ? FOUNTAIN.x / 1000 : W - FOUNTAIN.x / 1000;
+    const fy = FOUNTAIN.y / 1000;
+    const R = FOUNTAIN_CLEAR + 1.2;
+    for (let a = -1.25; a <= 1.25; a += 0.16) {
+      const ang = (side === 0 ? Math.PI : 0) + a;
+      const r = 0.35 + rnd() * 0.2;
+      out.push({ x: fx + Math.cos(ang) * R, y: fy + Math.sin(ang) * R, r, color: rnd() < 0.5 ? 0xd8cdb8 : 0xc4b79e });
+    }
+  }
+  return out;
+}
+
 export interface MapView {
   group: THREE.Group;
+  /** MAP-GAPS A12: the Low tier draws half the far forest. */
+  setDetail?(low: boolean): void;
+  /** MAP-GAPS A20: our team (an ally in a bush clears it). */
+  setTeam?(team: number): void;
+  /** MAP-GAPS A20: each bush's cleared tint now, 0..1 (tests). */
+  clearedTint?(): number[];
   /** `lens`: the camera position (m), for the canopy cut over heroes near the tree line. */
   update(frame: ViewFrame | null, dt: number, lens?: THREE.Vector3): void;
   setShadows(on: boolean): void;
@@ -281,10 +639,28 @@ export function createMapView(): MapView {
   const shadowCasters: THREE.Object3D[] = [];
   const rnd = lcg(11);
 
-  // outside grass
+  // outside grass. MAP-GAPS A22: a tileable grass texture at the playfield's 20 px/m in its colours (the flat green
+  // left a seam at the map edge), darkening with the distance from the map
   const outerGeo = keep(new THREE.PlaneGeometry(W + 160, H + 140));
   outerGeo.rotateX(-Math.PI / 2);
-  const outer = new THREE.Mesh(outerGeo, keep(new THREE.MeshLambertMaterial({ color: 0x86bf6c })));
+  const grassTex = typeof document !== 'undefined' ? keep(grassTile()) : null;
+  if (grassTex) grassTex.repeat.set((W + 160) / GRASS_TILE_M, (H + 140) / GRASS_TILE_M);
+  const outerMat = keep(new THREE.MeshLambertMaterial({ color: grassTex ? 0xffffff : 0x9fd383, map: grassTex }));
+  outerMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vOW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vOW;').replace(
+      '#include <dithering_fragment>',
+      `#include <dithering_fragment>
+  vec2 o = max(vec2(-vOW.x - 0.0, vOW.x - ${W.toFixed(1)}), 0.0);
+  vec2 p = max(vec2(vOW.z, -vOW.z - ${H.toFixed(1)}), 0.0);
+  float d = length(vec2(max(o.x, o.y), max(p.x, p.y)));
+  gl_FragColor.rgb *= 1.0 - 0.22 * smoothstep(4.0, 40.0, d);`,
+    );
+  };
+  outerMat.customProgramCacheKey = () => 'pl-outer-grass-v1';
+  const outer = new THREE.Mesh(outerGeo, outerMat);
   outer.position.set(W / 2, -0.02, -H / 2);
   outer.receiveShadow = true;
   group.add(outer);
@@ -301,11 +677,39 @@ export function createMapView(): MapView {
   ground.name = 'ground';
   group.add(ground);
 
+  // MAP-GAPS A13: each fountain plaza as a mesh disc, so it runs on past x = 0 / x = W (the painted one stops there)
+  const plazaMats = [0, 1].map(() => ({ edge: keep(new THREE.MeshLambertMaterial({ polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -1 })), stone: keep(new THREE.MeshLambertMaterial({ polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })) }));
+  const plazaStyle = (swap: boolean): void => {
+    for (const team of [0, 1] as const) {
+      const style = swap ? 1 - team : team;
+      plazaMats[team].edge.color.set(style === 0 ? '#d9c3a0' : '#b38f5e');
+      plazaMats[team].stone.color.set(style === 0 ? '#efe2c9' : '#dcc39a');
+    }
+  };
+  plazaStyle(false);
+  for (const team of [0, 1] as const) {
+    const fx = team === 0 ? FOUNTAIN.x / 1000 : W - FOUNTAIN.x / 1000;
+    for (const [r, mat, y] of [
+      [FOUNTAIN.radius / 1000 + 1.6, plazaMats[team].edge, 0.004],
+      [FOUNTAIN.radius / 1000 + 1.0, plazaMats[team].stone, 0.006],
+    ] as const) {
+      // a ring, not a disc: its hole sits under the basin rim torus (inner edge 3.72 m), so the pulled-forward plaza
+      // never covers the basin water (0.05 m), which it did at grazing zooms (>= 1.03) with a full disc
+      const geo = keep(new THREE.RingGeometry(PLAZA_HOLE, r, 40, 1));
+      geo.rotateX(-Math.PI / 2);
+      const m = new THREE.Mesh(geo, mat);
+      m.position.set(fx, y, -FOUNTAIN.y / 1000);
+      m.receiveShadow = true;
+      m.name = 'fountain-plaza';
+      group.add(m);
+    }
+  }
+
   // river
-  const riverU = { uTime: { value: 0 } };
+  const riverU = { uTime: { value: 0 }, uH: { value: H }, uFade: { value: RIVER_RUN } };
   const r0 = MAP.riverX[0] / 1000;
   const r1 = MAP.riverX[1] / 1000;
-  const riverGeo = keep(new THREE.PlaneGeometry(r1 - r0, H + 140, 1, 1));
+  const riverGeo = keep(new THREE.PlaneGeometry(r1 - r0, H + 2 * RIVER_RUN, 1, 1));
   riverGeo.rotateX(-Math.PI / 2);
   const river = new THREE.Mesh(
     riverGeo,
@@ -314,6 +718,20 @@ export function createMapView(): MapView {
   river.position.set((r0 + r1) / 2, 0.02, -H / 2);
   river.renderOrder = 1;
   group.add(river);
+  // MAP-GAPS A15: the sand banks run on with the river past the map edge (strips under the painted ground inside it)
+  const bankMat = keep(new THREE.MeshLambertMaterial({ color: 0xe8d6a0 }));
+  for (const [x0, x1] of [
+    [r0 - 1.1, r0 + 0.05],
+    [r1 - 0.05, r1 + 1.1],
+  ] as const) {
+    const geo = keep(new THREE.PlaneGeometry(x1 - x0, H + 2 * RIVER_RUN));
+    geo.rotateX(-Math.PI / 2);
+    const bank = new THREE.Mesh(geo, bankMat);
+    bank.position.set((x0 + x1) / 2, -0.008, -H / 2);
+    bank.receiveShadow = true;
+    bank.name = 'river-bank';
+    group.add(bank);
+  }
 
   // scenery built into a few merged meshes (vertex colours, toon lit)
   const sceneryMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
@@ -331,17 +749,38 @@ export function createMapView(): MapView {
   const props = new ModelBuilder();
   props.cyl(6.2, 6.6, 0.08, 0xe8d6a0, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
   props.cyl(5.6, 5.6, 0.1, 0xd7c189, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
-  for (const lane of lanePolylines()) {
-    // the lane crosses the river at the middle point (x = 50 m)
-    const mid = lane.find(([x]) => Math.abs(x - W / 2) < 0.01) ?? lane[Math.floor(lane.length / 2)];
-    const [bx, by] = mid;
-    for (let i = 0; i < 12; i++) {
-      const x = r0 - 1 + i * ((r1 - r0 + 2) / 11);
-      props.box(0.75, 0.08, 7.2, i % 2 ? 0xb07a4a : 0xc08a56, { at: [x, 0.03, -by] });
+  // MAP-GAPS A16: the bridge decks cover the whole walkable lane band (±5.7 m), flush with the water (drawn over the
+  // river, not above it), with low end posts on the banks only: rails across the river stood inside the walkable band
+  const deck = new ModelBuilder();
+  for (const b of bridgeParts()) {
+    for (let i = 0; i < b.planks; i++) {
+      const x = r0 - 1 + (i + 0.5) * ((r1 - r0 + 2) / b.planks);
+      deck.box(((r1 - r0 + 2) / b.planks) * 0.92, 0.01, b.width, i % 2 ? 0xb07a4a : 0xc08a56, { at: [x, b.top - 0.005, -b.deckY] });
     }
-    for (const s of [-1, 1]) {
-      props.box(r1 - r0 + 2.6, 0.18, 0.22, 0x8a5a3a, { at: [bx, 0.75, -(by + s * 3.5)] });
-      for (let i = 0; i < 6; i++) props.cyl(0.13, 0.13, 0.9, 0x8a5a3a, { at: [r0 - 1.2 + i * ((r1 - r0 + 2.4) / 5), 0.45, -(by + s * 3.5)] }, 6);
+    for (const p of b.posts) {
+      props.cyl(0.14, 0.17, 0.75, 0x8a5a3a, { at: [p.x, 0.37, -p.y] }, 6);
+      props.sphere(0.17, 0x7a5133, { at: [p.x, 0.78, -p.y] }, 6);
+    }
+  }
+  const deckMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
+  const deckMesh = new THREE.Mesh(keep(deck.build()), deckMat);
+  deckMesh.name = 'bridge-decks';
+  deckMesh.renderOrder = 2;
+  deckMesh.receiveShadow = true;
+  group.add(deckMesh);
+  // MAP-GAPS A15: where the playfield rim stops units in the river (y = 2 m and y = 58 m), a log jam with rocks and
+  // reeds marks the boundary across the water
+  const jr = lcg(47);
+  for (const m of riverMarkers()) {
+    // all of it past the rim (m.out side): logs or reeds inside it stood on the bridge deck, in the walkable band
+    for (let i = 0; i < 3; i++) {
+      const y = m.y + (0.25 + i * 0.42) * m.out;
+      props.cyl(0.2, 0.24, r1 - r0 + 1.6 - i * 0.6, i % 2 ? 0x7a5133 : 0x8a5a3a, { at: [(r0 + r1) / 2 + (jr() - 0.5) * 0.8, 0.18 + (i === 1 ? 0.14 : 0), -y], rot: [0, (jr() - 0.5) * 0.25, Math.PI / 2] }, 7);
+    }
+    for (const bx of [r0 - 0.4, r1 + 0.4, (r0 + r1) / 2 - 2.2, (r0 + r1) / 2 + 2.4]) props.add(new THREE.DodecahedronGeometry(0.45 + jr() * 0.3, 0), 0xa9a194, { at: [bx, 0.2, -(m.y + m.out * 0.9)], rot: [jr() * 3, jr() * 3, 0], scale: [1, 0.7, 1] });
+    for (let k = 0; k < 9; k++) {
+      const rx = r0 + 0.3 + jr() * (r1 - r0 - 0.6);
+      props.cyl(0.03, 0.05, 0.9 + jr() * 0.5, 0x6a9a4a, { at: [rx, 0.5, -(m.y + m.out * (1.2 + jr() * 0.6))], rot: [(jr() - 0.5) * 0.3, 0, (jr() - 0.5) * 0.3] }, 4);
     }
   }
   addMerged(props, 'props');
@@ -374,6 +813,13 @@ export function createMapView(): MapView {
   bannersSwapped.visible = false;
 
   const forestU = { uLens: { value: new THREE.Vector3(0, 1e4, 0) }, uSee: { value: Array.from({ length: CANOPY_CUT.slots }, () => new THREE.Vector4()) } };
+  // MAP-GAPS A20: the bush rects (render x/z centre, half sizes + a leaf margin) and their cleared fade (0..1)
+  const bushU = {
+    uBushRect: { value: bushRects().map((r) => new THREE.Vector4(r.x, -r.y, r.hw + 1.1, r.hh + 1.1)) },
+    uBushOn: { value: new Array(BUSH_COUNT).fill(0) as number[] },
+  };
+  let myTeam = 0;
+  const cleared: boolean[] = [];
   // Catnip Bushes
   const bush = new ModelBuilder();
   for (const b of BUSHES) {
@@ -404,7 +850,7 @@ export function createMapView(): MapView {
   // a hero in a bush: the leaves round it are dithered half away (they poked through the body, trailer review)
   const bushMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
   bushMat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, forestU);
+    Object.assign(sh.uniforms, forestU, bushU);
     sh.vertexShader = sh.vertexShader
       .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
       .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
@@ -422,7 +868,23 @@ export function createMapView(): MapView {
   if (cut * ${BUSH_CUT.strength.toFixed(2)} > th) discard;`,
       );
   };
-  bushMat.customProgramCacheKey = () => 'pl-bush-cut-v1';
+  // MAP-GAPS A20: a cleared bush (an ally in it) is drawn lighter
+  bushMat.onBeforeCompile = ((prev) => (sh: Parameters<NonNullable<typeof bushMat.onBeforeCompile>>[0], r: Parameters<NonNullable<typeof bushMat.onBeforeCompile>>[1]) => {
+    prev(sh, r);
+    sh.fragmentShader = sh.fragmentShader
+      .replace('#include <common>', `#include <common>\nuniform vec4 uBushRect[${BUSH_COUNT}];\nuniform float uBushOn[${BUSH_COUNT}];`)
+      .replace(
+        '#include <dithering_fragment>',
+        `#include <dithering_fragment>
+  float lit = 0.0;
+  for (int i = 0; i < ${BUSH_COUNT}; i++) {
+    vec2 q = abs(vFW.xz - uBushRect[i].xy) - uBushRect[i].zw;
+    if (max(q.x, q.y) < 0.0) lit = max(lit, uBushOn[i]);
+  }
+  gl_FragColor.rgb = mix(gl_FragColor.rgb, gl_FragColor.rgb * 1.25 + vec3(0.06, 0.08, 0.02), lit * 0.55);`,
+      );
+  })(bushMat.onBeforeCompile);
+  bushMat.customProgramCacheKey = () => 'pl-bush-cut-v2';
   addMerged(bush, 'bushes', false, bushMat);
 
   // forest ring outside the playfield, plus a hedge on the edge
@@ -468,18 +930,19 @@ export function createMapView(): MapView {
   }
   // trailer review: canopies between the lens and a hero (any hero, not only the player) are cut away with a dither,
   // so a fight by the tree line is never hidden under the leaves (trunks below 1.2 m stay)
-  const forestMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
-  forestMat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, forestU);
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nuniform vec3 uLens;\nuniform vec4 uSee[${CANOPY_CUT.slots}];`)
-      .replace(
-        '#include <clipping_planes_fragment>',
-        `#include <clipping_planes_fragment>
-  if (vFW.y > ${CANOPY_CUT.minY.toFixed(2)}) {
+  const canopyMat = (minY: number, key: string): THREE.MeshLambertMaterial => {
+    const mat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, forestU);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nuniform vec3 uLens;\nuniform vec4 uSee[${CANOPY_CUT.slots}];`)
+        .replace(
+          '#include <clipping_planes_fragment>',
+          `#include <clipping_planes_fragment>
+  if (vFW.y > ${minY.toFixed(2)}) {
     float cut = 0.0;
     for (int i = 0; i < ${CANOPY_CUT.slots}; i++) {
       if (uSee[i].w < 0.5) continue;
@@ -491,39 +954,77 @@ export function createMapView(): MapView {
     float th = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     if (cut * ${CANOPY_CUT.strength.toFixed(2)} > th) discard;
   }`,
-      );
+        );
+    };
+    mat.customProgramCacheKey = () => key;
+    return mat;
   };
-  forestMat.customProgramCacheKey = () => 'pl-forest-cut-v1';
+  const forestMat = canopyMat(CANOPY_CUT.minY, 'pl-forest-cut-v1');
   addMerged(trees, 'forest', true, forestMat);
 
+  // MAP-GAPS A1: the 8 jungle walls the nav grid blocks, as rock-and-root clusters filled to their edges (they were
+  // invisible: heroes stopped against bare grass). Cut like the canopy (from 0.6 m up), so a hero behind a tall rock
+  // stays visible.
+  const wallB = new ModelBuilder();
+  const wr = lcg(29);
+  const rockTones = [0x9d958a, 0xaaa294, 0x8c857b, 0xb3ab9c];
+  for (const k of wallRocks()) {
+    wallB.add(new THREE.DodecahedronGeometry(k.r, 0), rockTones[(wr() * rockTones.length) | 0], {
+      at: [k.x, k.h * 0.42, -k.y],
+      rot: [wr() * 3, wr() * 3, wr() * 3],
+      scale: [1, k.h / (2 * k.r) + 0.1, 1],
+    });
+  }
+  for (const cl of wallClusters()) {
+    const long = cl.x1 - cl.x0 >= cl.y1 - cl.y0;
+    const len = (long ? cl.x1 - cl.x0 : cl.y1 - cl.y0) * 0.55;
+    const mx = (cl.x0 + cl.x1) / 2;
+    const my = (cl.y0 + cl.y1) / 2;
+    // one fallen log along the cluster's long side
+    const at: [number, number, number] = long ? [mx + (wr() - 0.5) * 0.6, 1.25, -my] : [mx, 1.25, -(my + (wr() - 0.5) * 0.6)];
+    wallB.cyl(0.24, 0.28, len, 0x7a5133, { at, rot: long ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0] }, 7);
+    // a root stump and a moss cap at one end
+    const sx = long ? cl.x0 + 0.7 : mx;
+    const sy = long ? my : cl.y1 - 0.7;
+    wallB.cyl(0.38, 0.5, 1.5, 0x6e4a2e, { at: [sx, 0.75, -sy] }, 7);
+    wallB.sphere(0.5, 0x5f9a52, { at: [sx, 1.55, -sy], scale: [1, 0.45, 1] }, 7);
+  }
+  addMerged(wallB, 'walls', true, canopyMat(0.6, 'pl-wall-cut-v1'));
+
+  // MAP-GAPS A12: the far forest out to the camera's reach at max zoom, one instanced tree (Low keeps half)
+  const farB = new ModelBuilder();
+  farB.cyl(0.25, 0.35, 1.6, 0x8a5a3a, { at: [0, 0.8, 0] }, 6);
+  farB.add(new THREE.IcosahedronGeometry(1.5, 0), 0x55a055, { at: [0, 2.3, 0] });
+  farB.add(new THREE.IcosahedronGeometry(1.05, 0), 0x7cc46e, { at: [0.2, 3.2, -0.1] });
+  const farGeo = keep(farB.build());
+  const far = outerTrees().sort((a, b) => Number(b.low) - Number(a.low));
+  const farLow = far.filter((t) => t.low).length;
+  const farMesh = new THREE.InstancedMesh(farGeo, sceneryMat, far.length);
+  farMesh.name = 'far-forest';
+  const fm = new THREE.Matrix4();
+  const fq = new THREE.Quaternion();
+  const fv = new THREE.Vector3();
+  far.forEach((t, i) => {
+    fq.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (t.x * 7.1 + t.y * 3.3) % (Math.PI * 2));
+    fm.compose(fv.set(t.x, 0, -t.y), fq, new THREE.Vector3(t.s, t.s * (0.9 + ((i * 37) % 10) / 40), t.s));
+    farMesh.setMatrixAt(i, fm);
+    const tint = 0.82 + ((i * 53) % 17) / 90;
+    farMesh.setColorAt(i, new THREE.Color(tint, tint, tint));
+  });
+  farMesh.receiveShadow = true;
+  group.add(farMesh);
+
   const hedge = new ModelBuilder();
-  const edgeBush = (x: number, y: number): void => {
-    if (x > r0 - 1.5 && x < r1 + 1.5) return;
-    hedge.sphere(0.7 + rnd() * 0.3, rnd() < 0.5 ? 0x5fa860 : 0x6db86a, { at: [x, 0.4, -y], scale: [1.2, 0.8, 1.2] }, 8);
-  };
-  for (let x = 0; x <= W; x += 1.6) {
-    edgeBush(x, -0.8);
-    edgeBush(x, H + 0.8);
+  for (const h of hedgeSpots()) {
+    if (h.kind === 'rock') hedge.add(new THREE.DodecahedronGeometry(h.r, 0), h.color, { at: [h.x, h.r * 0.45, -h.y], rot: [h.x, h.y, h.r * 7], scale: [1, 0.7, 1] });
+    else if (h.r < 0.2) hedge.sphere(h.r, h.color, { at: [h.x, 0.95, -h.y] }, 5);
+    else hedge.sphere(h.r / 1.2, h.color, { at: [h.x, 0.4, -h.y], scale: [1.2, 0.8, 1.2] }, 8);
   }
-  for (let y = 0; y <= H; y += 1.6) {
-    edgeBush(-0.8, y);
-    edgeBush(W + 0.8, y);
-  }
-  // rocks dotted around the rat camps and the river banks
-  // trailer review: only where nobody can walk (units stood inside rocks on the camp paths: the sim has no decor collision)
-  for (let i = 0, placed = 0; i < 400 && placed < 26; i++) {
-    const flip = placed % 2 === 0;
-    const a = rnd() * Math.PI * 2;
-    const d = 5.5 + rnd() * 2.5;
-    const x0 = RAT_CAMP.x / 1000 + Math.cos(a) * d;
-    const y0 = RAT_CAMP.y / 1000 + Math.sin(a) * d;
-    const size = 0.4 + rnd() * 0.4;
-    const rot: [number, number, number] = [rnd(), rnd(), rnd()];
-    const x = flip ? W - x0 : x0;
-    if (!rockClear(x, y0, size + 0.6)) continue;
-    hedge.add(new THREE.DodecahedronGeometry(size, 0), 0xb9b2a6, { at: [x, 0.15, -y0], rot });
-    placed++;
-  }
+  // MAP-GAPS A13: a low stone wall arcs behind each fountain basin where the hedge stops
+  for (const st of fountainWall()) hedge.add(new THREE.DodecahedronGeometry(st.r, 0), st.color, { at: [st.x, st.r * 0.55, -st.y], rot: [st.x, st.y, st.r * 5], scale: [1, 0.75, 1] });
+  // MAP-GAPS A1: low pebbles round the rat camps (under 0.25 m, outside the clearing, off the footpaths): the old
+  // loop asked for rocks on unwalkable ground only, of which there is none there, and placed 0 of 400
+  for (const k of campPebbles()) hedge.add(new THREE.DodecahedronGeometry(k.r, 0), 0xb9b2a6, { at: [k.x, 0, -k.y], rot: [k.x, k.y, k.r * 9], scale: [1, k.h / k.r, 1] });
   addMerged(hedge, 'hedge', false);
 
   // gate barriers (up until the gates open): a glowing line on the ground across the walkable part of each base
@@ -562,6 +1063,10 @@ export function createMapView(): MapView {
         }
       }
       for (let i = n; i < see.length; i++) see[i].w = 0;
+      // MAP-GAPS A20: ease each bush's cleared tint toward whether an ally stands in it
+      if (frame) clearedBushes(frame.entities, myTeam, cleared);
+      const on = bushU.uBushOn.value;
+      for (let i = 0; i < BUSH_COUNT; i++) on[i] += ((cleared[i] ? 1 : 0) - on[i]) * Math.min(1, dt * 6);
       riverU.uTime.value = time;
       const up = !frame || frame.latest.clock.phase === 'gate';
       gateMat.opacity = up ? 0.5 + Math.sin(time * 4) * 0.12 : Math.max(0, gateMat.opacity - dt * 2);
@@ -570,7 +1075,17 @@ export function createMapView(): MapView {
     setShadows(on) {
       for (const m of shadowCasters) m.castShadow = on;
     },
+    setTeam(team) {
+      myTeam = team;
+    },
+    clearedTint() {
+      return bushU.uBushOn.value.slice();
+    },
+    setDetail(low) {
+      farMesh.count = low ? farLow : far.length;
+    },
     setStyleSwap(on) {
+      plazaStyle(on);
       banners.visible = !on;
       bannersSwapped.visible = on;
       if (on === texSwap || !tex) return;

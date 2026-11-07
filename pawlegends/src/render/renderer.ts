@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { isoPitch, isoPosition } from './camera/IsoRig.js';
-import { CAMERA_YAW } from './coords';
+import { cameraYaw } from './coords';
 import { RENDER } from './ppk/core/config.js';
 import { installToon } from './toon.js';
 import { setOutlineViewport } from './chars/charMaterial';
@@ -28,10 +28,17 @@ export const MOBA_PITCH_DROP = 0.16;
  * a bigger box spreads the same 1024² map over more ground, so past SHADOW_BOX.max the far corners lose shadows
  * rather than every shadow going soft.
  */
-export const SHADOW_BOX = Object.freeze({ min: 22, max: 46, margin: 3, step: 2 });
-export function shadowHalfFor(farthest: number): number {
+export const SHADOW_BOX = Object.freeze({ min: 22, max: 46, margin: 3, step: 2, maxWide: 54, wideZoom: 1.5 });
+export function shadowHalfFor(farthest: number, max: number = SHADOW_BOX.max): number {
   const h = Math.ceil((farthest + SHADOW_BOX.margin) / SHADOW_BOX.step) * SHADOW_BOX.step;
-  return Math.min(SHADOW_BOX.max, Math.max(SHADOW_BOX.min, Number.isFinite(h) ? h : SHADOW_BOX.max));
+  return Math.min(max, Math.max(SHADOW_BOX.min, Number.isFinite(h) ? h : max));
+}
+/**
+ * MAP-GAPS A23: the shadow box's cap for a zoom and tier: past zoom 1.5 (desktop, zoomed far out) Medium and High
+ * stretch it to SHADOW_BOX.maxWide so the far ground corners keep their shadows (High has a 2048² map for it).
+ */
+export function shadowMaxFor(zoom: number, tier: QualityTier): number {
+  return zoom > SHADOW_BOX.wideZoom && tier !== 'low' ? SHADOW_BOX.maxWide : SHADOW_BOX.max;
 }
 
 export interface GameRenderer {
@@ -104,7 +111,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
     else boxAt.multiplyScalar(0.25);
     let far = 0;
     for (let i = 0; i < n; i++) far = Math.max(far, Math.hypot(corners[i].x - boxAt.x, corners[i].z - boxAt.z));
-    const half = shadowHalfFor(n < 4 ? Infinity : far);
+    const half = shadowHalfFor(n < 4 ? Infinity : far, shadowMaxFor(gr.zoom, gr.settings.tier));
     if (half !== gr.shadowHalf) {
       gr.shadowHalf = half;
       sc.left = sc.bottom = -half;
@@ -134,6 +141,12 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
     place: null,
     setTier(t) {
       gr.settings = tierSettings(t);
+      // MAP-GAPS A23: the shadow map size per tier (a new size reallocates the map)
+      if (sun.shadow.mapSize.x !== gr.settings.shadowMap) {
+        sun.shadow.mapSize.set(gr.settings.shadowMap, gr.settings.shadowMap);
+        sun.shadow.map?.dispose();
+        sun.shadow.map = null;
+      }
       renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, gr.settings.maxDpr));
       renderer.shadowMap.enabled = gr.settings.shadows;
       sun.castShadow = gr.settings.shadows;
@@ -158,7 +171,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       }
       const d = MOBA_DIST * gr.zoom * near;
       gr.dist = d;
-      isoPosition(focus, CAMERA_YAW, Math.max(0.8, isoPitch(d) - MOBA_PITCH_DROP), d, pos);
+      isoPosition(focus, cameraYaw(), Math.max(0.8, isoPitch(d) - MOBA_PITCH_DROP), d, pos);
       camera.position.set(pos.x, pos.y, pos.z);
       camera.lookAt(focus);
       camera.updateProjectionMatrix();

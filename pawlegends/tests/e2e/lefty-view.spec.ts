@@ -23,7 +23,7 @@ for (const size of [
     const sx = size.w * 0.72;
     const sy = size.h * 0.6;
     const cdp = await page.context().newCDPSession(page);
-    const touch = async (type: string, x: number, y: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
+    const touch = async (type: 'touchStart' | 'touchMove' | 'touchEnd', x: number, y: number) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y, id: 1 }] });
     await touch('touchStart', sx, sy);
     for (let i = 1; i <= 6; i++) {
       await touch('touchMove', sx + i * 10, sy - i * 2);

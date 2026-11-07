@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
+import { matchVoiceKeys } from '../audio/voiceLines';
 import { haptic } from '../ui/haptics';
 import { intensityOf, Music } from '../audio/music';
 import { LocalHost } from '../host/local-host';
@@ -52,7 +53,9 @@ import { ultHint } from '../render/effects';
 import { levelWhat } from '../ui/toyText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
-import { Minimap } from '../ui/minimap';
+import { pingKindOfColor } from '../ui/pingGlyph';
+import { resetStructures, syncStructures } from '../input/navMirror';
+import { Minimap, laneNamed } from '../ui/minimap';
 import { PingWheel } from '../ui/pingWheel';
 import { chipPing } from '../ui/pingText';
 import { Overhead } from '../ui/overhead';
@@ -452,8 +455,9 @@ export class MatchSession {
           if (this.announcer) this.present(this.announcer.feed(ev));
         },
       });
+    resetStructures();
     this.minimap = new Minimap(this.ui, {
-      lookAt: (x, z) => this.view.lookAt(x, z),
+      lookAt: (x, z, hold) => this.view.lookAt(x, z, hold),
       moveTo: (x, y) => this.orders?.move(x, y),
       viewQuad: () => this.viewQuad(),
       mySlot: () => this.view.mySlot,
@@ -628,6 +632,8 @@ export class MatchSession {
       return Math.max(this.announcer?.bounty(slot) ?? 0, snap >= 3 ? snap : 0);
     };
     this.music.start();
+    // the announcer's lines for this match (its six heroes' lines too), fetched and decoded before they are needed
+    sfx.preloadVoice(matchVoiceKeys(w.picks));
     if (this.setup.look) bakePortrait(this.gr, hero, this.setup.look);
     this.hud = new Hud(this.ui, hero, trick, {
       onSlot: (i) => {
@@ -998,6 +1004,7 @@ export class MatchSession {
       this.coreLow[core.team] = true;
       this.coreCall[core.team] = now;
       this.view.juice.banner({ title: ours ? 'Our core is falling!' : 'Their core is falling!', sub: ours ? 'Everyone home: defend it.' : 'Finish it!', tone: ours ? 'bad' : 'gold', urgent: true });
+      sfx.voice(ours ? 'coreFalling' : 'theirCoreFalling');
       this.minimap.ping(core.fx, core.fy, color, 4000);
       return;
     }
@@ -1010,10 +1017,12 @@ export class MatchSession {
     if (ours && far) {
       // Round 2: "Defend!" with a ping when the player is far from its own core under attack.
       this.view.juice.banner({ title: 'Defend!', sub: this.touch ? 'Our core is under attack: tap Nap to go home.' : 'Our core is under attack: press B to Nap home.', tone: 'bad', urgent: true });
+      sfx.voice('coreAttacked');
       this.minimap.ping(core.fx, core.fy, color, 4000);
       return;
     }
     this.view.juice.banner({ title: ours ? 'Our core is under attack!' : 'Their core is under attack!', tone: ours ? 'bad' : 'good', urgent: true });
+    sfx.voice(ours ? 'coreAttacked' : 'theirCoreAttacked');
     this.minimap.ping(core.fx, core.fy, color);
   }
 
@@ -1118,6 +1127,48 @@ export class MatchSession {
     sfx.play('click', { vol: 0.5, rate: 0.6 });
   }
 
+  /**
+   * MAP-GAPS A10: a ping at (x, y) mm: a minimap ring with the kind's glyph, its own ground marker (never the mint
+   * move-order marker) and, when the spot is off screen, an arrow at the screen edge for 1 s.
+   */
+  private pingMark(xMm: number, yMm: number, color: string): void {
+    const kind = pingKindOfColor(color);
+    this.minimap.ping(xMm, yMm, color, 3000, kind);
+    if (kind === 'pushSunny' || kind === 'pushPuddle') this.minimap.flashLane(kind === 'pushSunny' ? 'sunny' : 'puddle');
+    this.view.pingMarker(xMm / 1000, -yMm / 1000, color, kind);
+    this.pingEdge(xMm / 1000, -yMm / 1000, color);
+    sfx.play('click', { vol: 0.35, rate: 1.2 });
+    if (this.e2e) document.documentElement.dataset.pingMarks = String(this.view.pingMarks.placed);
+  }
+
+  /** MAP-GAPS A10: a 1 s arrow at the screen edge toward a ping at (x, z) m that is off screen. */
+  private pingEdge(x: number, z: number, color: string): void {
+    const c = this.gr.renderer.domElement;
+    const r = c.getBoundingClientRect();
+    const p = new THREE.Vector3(x, 0, z).project(this.gr.camera);
+    const sx = r.left + ((p.x + 1) / 2) * r.width;
+    const sy = r.top + ((1 - p.y) / 2) * r.height;
+    if (p.z < 1 && sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom) return;
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let dx = sx - cx;
+    let dy = sy - cy;
+    if (p.z >= 1) {
+      dx = -dx;
+      dy = -dy;
+    }
+    const m = 28;
+    const k = Math.min((r.width / 2 - m) / Math.max(1e-3, Math.abs(dx)), (r.height / 2 - m) / Math.max(1e-3, Math.abs(dy)));
+    const el = document.createElement('div');
+    el.className = 'pl-pingedge';
+    el.style.left = `${cx + dx * k}px`;
+    el.style.top = `${cy + dy * k}px`;
+    el.style.setProperty('--c', color);
+    el.style.setProperty('--a', `${Math.atan2(dy, dx)}rad`);
+    this.ui.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+
   private marker(x: number, z: number, attack: boolean): void {
     // the bold ring marker (GameView.orderMarker: over the VFX, red with crosshair ticks for attacks) and a few sparks
     this.view.orderMarker(x, z, attack);
@@ -1169,6 +1220,7 @@ export class MatchSession {
         return;
       }
       rail.rest('countdown', steps[i], 'gold');
+      if (i === 0) sfx.voice('welcome', { sting: false });
       // cards: the VS intro is gone by "1" whatever its own timers say (a late chunk under load would cover "Ready!")
       if (i === steps.length - 2) {
         this.vsDone = true;
@@ -1186,6 +1238,7 @@ export class MatchSession {
   private goFlash(): void {
     if (this.disposed) return;
     this.view.juice.push({ key: 'go', title: 'Go!', tone: 'gold', prio: 0, ttl: 700 });
+    sfx.voice('gatesOpen', { sting: false });
   }
 
   private openMenu(): void {
@@ -1283,8 +1336,7 @@ export class MatchSession {
               if (this.e2e) document.documentElement.dataset.mpNames = names.join('|');
             },
             pingAt: (x, y, color) => {
-              this.minimap.ping(x, y, color, 3000);
-              this.marker(x / 1000, -y / 1000, false);
+              this.pingMark(x, y, color);
               if (this.e2e) document.documentElement.dataset.mpPingAt = `${x},${y}`;
             },
             popOver: (slot, text, tone) => {
@@ -1544,6 +1596,9 @@ export class MatchSession {
     const j = this.view.juice;
     const me = this.view.me();
     for (const m of list) {
+      // MAP-GAPS A19: a line that names a lane flashes it on the minimap
+      const named = laneNamed(m.title);
+      if (named) this.minimap.flashLane(named);
       // Nine Lives read like "you survived" when it fired on the killing blow: only while alive
       if (m.key === 'nineLives' && (!me || me.state === 'dead' || me.hp <= 0)) continue;
       if (m.size === 'ping') {
@@ -1552,14 +1607,12 @@ export class MatchSession {
         if (m.key === 'ping' && m.at && this.setup.party && this.view.mySlot !== 0) {
           // party play: the leader's ping, as a friend sees it (muted: nothing)
           if (this.mp?.isMuted(0)) continue;
-          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
-          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          this.pingMark(m.at.x, m.at.y, m.at.color);
           this.mp?.leaderPing(m.title);
           continue;
         }
         if (m.key === 'ping' && m.at) {
-          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
-          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          this.pingMark(m.at.x, m.at.y, m.at.color);
           const at = this.heroScreen();
           if (at) j.pop(m.title, at.x, at.y - 34, 'info');
           sfx.play('click', { vol: 0.6 });
@@ -1836,6 +1889,8 @@ export class MatchSession {
     if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;
     if (frame) {
       this.turnToInput(frame);
+      // MAP-GAPS A14: the input grid mirrors the standing towers and cores
+      syncStructures(frame.latest.entities);
       this.units.length = 0;
       for (const e of frame.entities) this.units.push({ id: e.id, kind: e.kind, team: e.team, x: e.fx, y: e.fy, hp: e.hp, maxHp: e.maxHp, state: e.state });
       this.ccHaptic(frame);
@@ -1843,6 +1898,7 @@ export class MatchSession {
       for (const ev of this.buffer.takeEvents(this.events)) {
         this.view.effects.handle(ev);
         this.feelEvent(ev);
+        this.minimap.event(ev);
         const a = this.announcer;
         if (a) this.present(a.feed(ev));
         const fe = ev as AnyEvent;
@@ -2458,6 +2514,7 @@ export class MatchSession {
     this.tips.dispose();
     this.goals.dispose();
     this.music.stop();
+    sfx.hushVoice();
     this.view.dispose();
     this.ui.remove();
     delete document.documentElement.dataset.match;

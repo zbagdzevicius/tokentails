@@ -1,0 +1,217 @@
+# Pawlegends app: over-the-air web updates (docs/plans/moba/APP-STORE.md "OTA flow", pawlegends-app/README.md).
+#
+# Every push to main that changes the game (pawlegends/) or the app shell (pawlegends-app/src, scripts) publishes a
+# signed, encrypted web bundle to client/public/pawlegends-app/updates/ios/<compat>/ on the BETA channel
+# (manifest-beta.json: TestFlight installs) and commits it to main; Vercel then serves it from tokentails.com. The
+# hourly `promote` job moves a beta bundle to STABLE (manifest.json: App Store installs) once it is 24 h old, so
+# TestFlight sees every update a day before players. Apps pick an update up on their next launch or resume (on the
+# title screen, never mid-match). Pull requests run the checks only.
+#
+# Gates before publishing: the game's unit tests (wall-clock perf budgets skipped: shared runners) and typecheck,
+# the shell tests, and the backend accepting this exact sim (`vendor-sim:check-remote`): deploy the backend first
+# when the sim changes.
+#
+# Secret: OTA_PRIVATE_KEY (the PEM text of pawlegends-app/ota/.keys/private-key.pem). Without it the publish and
+# promote jobs stop with a notice and publish nothing.
+#
+# Manual runs: `rollback_to` = a kept version (see the bundles folder) points beta AND stable at it (signed again);
+# `promote_now` moves the current beta bundle to stable without waiting for the 24 h.
+name: Pawlegends OTA
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'pawlegends/**'
+      - 'pawlegends-app/src/**'
+      - 'pawlegends-app/scripts/**'
+      - 'pawlegends-app/package-lock.json'
+      - '.github/workflows/pawlegends-ota.yml'
+  pull_request:
+    paths:
+      - 'pawlegends/src/**'
+      - 'pawlegends-app/**'
+      - '.github/workflows/pawlegends-ota.yml'
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      promote_now:
+        description: 'Promote the current beta bundle to stable (App Store installs) now, without the 24 h soak'
+        type: boolean
+        required: false
+        default: false
+      rollback_to:
+        description: 'Roll back: re-point the manifest at this kept bundle version (empty = build and publish a new bundle)'
+        required: false
+        default: ''
+      min_native:
+        description: 'Lowest native app version that may run the new bundle (empty = keep the current value)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pawlegends-ota-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  check:
+    name: game + shell checks
+    runs-on: ubuntu-latest
+    if: ${{ github.event_name != 'schedule' && !github.event.inputs.rollback_to && github.event.inputs.promote_now != 'true' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install (pawlegends)
+        working-directory: pawlegends
+        run: npm ci
+      - name: Install (pawlegends-app)
+        working-directory: pawlegends-app
+        run: npm ci
+      # the game's unit project includes tools/**/*.test.mjs; the trailer tests import tools/copy-lint, which needs
+      # its own pinned typescript
+      - name: Install (tools/copy-lint)
+        working-directory: tools/copy-lint
+        run: npm ci
+      - name: Game typecheck
+        working-directory: pawlegends
+        run: npx tsc --noEmit
+      - name: Game unit tests
+        working-directory: pawlegends
+        env:
+          PAWLEGENDS_SKIP_TIMING: '1'
+        run: npx vitest run --project unit
+      - name: Shell typecheck and tests
+        working-directory: pawlegends-app
+        run: npx tsc --noEmit && npx vitest run
+      - name: App bundle builds (no publish)
+        working-directory: pawlegends-app
+        run: node scripts/build-web.mjs --seq 1
+
+  publish:
+    name: publish OTA bundle
+    needs: check
+    if: always() && (github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && github.event.inputs.promote_now != 'true')) && github.ref == 'refs/heads/main' && (needs.check.result == 'success' || needs.check.result == 'skipped')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
+      ROLLBACK: ${{ github.event.inputs.rollback_to || '' }}
+      MIN_NATIVE: ${{ github.event.inputs.min_native || '' }}
+    steps:
+      - name: Secret present
+        id: secret
+        run: |
+          if [ -z "$OTA_PRIVATE_KEY" ]; then
+            echo "::notice::OTA_PRIVATE_KEY is not set: nothing published. See pawlegends-app/README.md (OTA key)."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secret.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secret.outputs.ok == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Install
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          (cd pawlegends && npm ci)
+          (cd pawlegends-app && npm ci)
+      - name: Roll back the manifest
+        if: steps.secret.outputs.ok == 'true' && env.ROLLBACK != ''
+        working-directory: pawlegends-app
+        run: node scripts/ota-publish.mjs --rollback "$ROLLBACK"
+      - name: The backend serves this sim (deploy gate)
+        if: steps.secret.outputs.ok == 'true' && env.ROLLBACK == ''
+        working-directory: pawlegends
+        run: npm run vendor-sim:check-remote -- https://api.tokentails.com
+      - name: Build the app bundle
+        if: steps.secret.outputs.ok == 'true' && env.ROLLBACK == ''
+        working-directory: pawlegends-app
+        run: node scripts/build-web.mjs --seq "$(date -u +%Y%m%d%H%M%S)"
+      - name: Sign, encrypt and publish
+        if: steps.secret.outputs.ok == 'true' && env.ROLLBACK == ''
+        working-directory: pawlegends-app
+        run: |
+          args="--check-sim --keep 3"
+          if [ -n "$MIN_NATIVE" ]; then args="$args --min-native $MIN_NATIVE"; fi
+          node scripts/ota-publish.mjs $args
+      - name: Commit to main (Vercel serves it)
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A client/public/pawlegends-app/updates
+          if git diff --cached --quiet; then echo "nothing to commit"; exit 0; fi
+          version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json').version)")
+          if [ -n "$ROLLBACK" ]; then msg="OTA rollback to ${version} (beta and stable)"; else msg="OTA bundle ${version} (beta)"; fi
+          git commit -m "chore(pawlegends-app): ${msg}"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1
+      - name: Summary
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          echo "### Pawlegends OTA" >> "$GITHUB_STEP_SUMMARY"
+          echo '```json' >> "$GITHUB_STEP_SUMMARY"
+          node -e "const m=require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+
+  promote:
+    name: promote beta to stable
+    # hourly, and on a manual `promote_now`; never on pull requests or pushes (a push publishes to beta first)
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && github.event.inputs.promote_now == 'true'))
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    env:
+      OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
+      SOAK: ${{ github.event.inputs.promote_now == 'true' && '0' || '24' }}
+    steps:
+      - name: Secret present
+        id: secret
+        run: |
+          if [ -z "$OTA_PRIVATE_KEY" ]; then
+            echo "::notice::OTA_PRIVATE_KEY is not set: nothing promoted."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/checkout@v4
+        if: steps.secret.outputs.ok == 'true'
+      - uses: actions/setup-node@v4
+        if: steps.secret.outputs.ok == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      # node built-ins only: no install needed
+      - name: Promote when soaked
+        if: steps.secret.outputs.ok == 'true'
+        working-directory: pawlegends-app
+        run: node scripts/ota-publish.mjs --promote --soak-hours "$SOAK"
+      - name: Commit to main (Vercel serves it)
+        if: steps.secret.outputs.ok == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A client/public/pawlegends-app/updates
+          if git diff --cached --quiet; then echo "nothing to promote"; exit 0; fi
+          version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest.json').version)")
+          git commit -m "chore(pawlegends-app): OTA ${version} promoted to stable"
+          for i in 1 2 3; do
+            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            sleep 5
+          done
+          exit 1

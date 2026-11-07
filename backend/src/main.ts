@@ -2,12 +2,13 @@ import { INestApplication } from '@nestjs/common';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
-import { AppModule } from './app.module';
 import { corsOrigins } from './shared/cors-origins';
 import { loadDevShelterKey } from './shelter/onchain/shelter-dev-key';
 import { applyTrustProxy } from './shared/trust-proxy';
 import { AppValidationPipe } from './user/dto/live-game.dto';
 import { applyBodyParsers } from './user/heist/live-body-limit';
+import { backendRole, checkProductionEnv } from './shared/runtime/backend-role';
+import { rootModuleFor } from './shared/runtime/root-module';
 dotenv.config();
 
 function initializeCors(app: INestApplication): void {
@@ -39,7 +40,10 @@ async function bootstrap() {
     // Dev only (never NODE_ENV=production): the hot wallet key from the local Foundry keystore when
     // SHELTER_DONATE_PRIVATE_KEY is unset, before any service reads the shelter config.
     await loadDevShelterKey();
-    const app = await NestFactory.create(AppModule, { rawBody: true });
+    // BACKEND_ROLE (all | api | relay, src/shared/runtime/backend-role.ts) picks the root module.
+    const role = backendRole();
+    checkProductionEnv(role);
+    const app = await NestFactory.create(await rootModuleFor(role), { rawBody: true });
     initializeCors(app);
     applyTrustProxy(app);
 
@@ -54,7 +58,8 @@ async function bootstrap() {
     // plain ValidationPipe except that it leaves `LiveGameDto` to `liveGamePipe`, so a bad Heist log
     // gets its F5.6 code (HEIST_SIM_VERSION, HEIST_REPLAY_INVALID) instead of a generic 400.
     app.useGlobalPipes(new AppValidationPipe({ transform: true }));
-    // SIGTERM runs OnApplicationShutdown hooks: the party relay hands its rooms off (MULTIPLAYER.md section 3.6).
+    // SIGTERM runs the shutdown hooks: the party relay hands its rooms off (MULTIPLAYER.md section 3.6) before Nest
+    // closes the HTTP server, so open sockets get 1012 and the handoff checkpoint reaches Mongo.
     app.enableShutdownHooks();
     await app.listen(process.env.PORT || 3005);
     // await app.listen(process.env.PORT || 3005, '0.0.0.0');

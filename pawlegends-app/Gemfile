@@ -1,0 +1,8 @@
+# fastlane for the Pawlegends iOS app (docs/plans/moba/APP-STORE.md "Release pipeline"). Installed per project:
+#   cd pawlegends-app && bundle config set --local path vendor/bundle && bundle install
+# Ruby 3.3 (Homebrew locally: /opt/homebrew/opt/ruby/bin; ruby/setup-ruby in CI).
+source "https://rubygems.org"
+
+ruby ">= 3.1"
+
+gem "fastlane", "~> 2.228"

@@ -335,6 +335,32 @@ describe("PawlegendsHost: shell", () => {
     expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: {} }, undefined, { shallow: true, scroll: false });
   });
 
+  it("reports the landing A/B arm (?lv=) on pawlegends_open and strips lv and from, keeping other keys", async () => {
+    mockRouter.query = { from: "legends_hero", lv: "B", utm_source: "ad" };
+    window.history.replaceState(null, "", "/pawlegends/play?from=legends_hero&lv=B&utm_source=ad");
+    try {
+      await mount();
+      const open = mockTrack.mock.calls.map(([e]) => e as { name: string; properties: Record<string, unknown> }).find((e) => e.name === "pawlegends_open");
+      expect(open?.properties).toEqual({ from: "legends_hero", landing_variant: "B" });
+      expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: { utm_source: "ad" } }, undefined, { shallow: true, scroll: false });
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("an unknown ?lv= is not reported as an arm", async () => {
+    mockRouter.query = { lv: "Z" };
+    window.history.replaceState(null, "", "/pawlegends/play?lv=Z");
+    try {
+      await mount();
+      const open = mockTrack.mock.calls.map(([e]) => e as { name: string; properties: Record<string, unknown> }).find((e) => e.name === "pawlegends_open");
+      expect(open?.properties).not.toHaveProperty("landing_variant");
+      expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: {} }, undefined, { shallow: true, scroll: false });
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
   it("sends the shell's mute and both volumes", async () => {
     const h = await mount();
     expect(h.last("audio")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "audio", muted: false, music: 0.4, sfx: 0.6 });

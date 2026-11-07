@@ -1,4 +1,4 @@
-import { clientIp, clientIpKey } from './client-ip';
+import { clientIp, clientIpKey, visitorIp } from './client-ip';
 
 const VISITOR = '203.0.113.7';
 const CLOUDFLARE_EDGE = '172.70.1.2';
@@ -53,5 +53,47 @@ describe('clientIp', () => {
         expect(clientIp(request({ 'cf-connecting-ip': '2001:db8:aa:bb:1:2:3:4' }), {} as any)?.key).toBe(
             '2001:db8:aa:bb::/64'
         );
+    });
+
+    it('visitorIp: behind the Google load balancer (split roles) every visitor keeps their own address', () => {
+        // Cloud Run behind the regional ALB: X-Forwarded-For ends with the balancer's public IP, which Express does
+        // not trust, so req.ip is that one address for everyone. cf-connecting-ip must win.
+        const LB = '34.107.1.2';
+        const a = { headers: { 'cf-connecting-ip': VISITOR }, ip: LB, ips: [LB] };
+        const b = { headers: { 'cf-connecting-ip': '198.51.100.9' }, ip: LB, ips: [LB] };
+        expect(visitorIp(a, 'api')).toBe(VISITOR);
+        expect(visitorIp(b, 'api')).toBe('198.51.100.9');
+        expect(visitorIp(a, 'relay')).toBe(VISITOR);
+        // no usable header: the Express address
+        expect(visitorIp({ headers: {}, ip: VISITOR, ips: [] }, 'api')).toBe(VISITOR);
+        expect(visitorIp({ headers: { 'cf-connecting-ip': CLOUDFLARE_EDGE }, ip: '10.0.0.4', ips: [] }, 'api')).toBe(
+            '10.0.0.4'
+        );
+        expect(visitorIp(undefined, 'api')).toBe('unknown');
+    });
+
+    it('visitorIp: role all (DigitalOcean, origin reachable directly) ignores a client-sent cf-connecting-ip', () => {
+        const DIRECT = '198.51.100.20';
+        // a direct caller rotating forged headers stays in its own bucket
+        expect(visitorIp({ headers: { 'cf-connecting-ip': '198.51.100.9' }, ip: DIRECT, ips: [DIRECT] }, 'all')).toBe(
+            DIRECT
+        );
+        expect(visitorIp({ headers: { 'cf-connecting-ip': VISITOR }, ip: DIRECT, ips: [] }, 'all')).toBe(DIRECT);
+        expect(visitorIp({ headers: {}, ip: VISITOR, ips: [] }, 'all')).toBe(VISITOR);
+        expect(visitorIp(undefined, 'all')).toBe('unknown');
+    });
+
+    it('visitorIp: the role defaults to BACKEND_ROLE', () => {
+        const req = { headers: { 'cf-connecting-ip': VISITOR }, ip: '198.51.100.20', ips: [] };
+        const saved = process.env.BACKEND_ROLE;
+        try {
+            delete process.env.BACKEND_ROLE;
+            expect(visitorIp(req)).toBe('198.51.100.20');
+            process.env.BACKEND_ROLE = 'api';
+            expect(visitorIp(req)).toBe(VISITOR);
+        } finally {
+            if (saved === undefined) delete process.env.BACKEND_ROLE;
+            else process.env.BACKEND_ROLE = saved;
+        }
     });
 });
