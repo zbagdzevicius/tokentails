@@ -150,3 +150,17 @@ describe('MAP-GAPS A6 edge inset', () => {
     }
   });
 });
+
+describe('MAP-GAPS A7 bush, forest and rock', () => {
+  it('keeps a bush apart from the forest and the rocks under deuteranopia (ΔE ≥ 25)', async () => {
+    const { deltaE } = await import('./cvd');
+    const { MM_GROUND } = await import('../../src/ui/minimap');
+    expect(MM_GROUND.bush).toBe('#5fae4a');
+    for (const v of ['deut', 'prot'] as const) {
+      expect(deltaE(MM_GROUND.bush, MM_GROUND.forest, v)).toBeGreaterThanOrEqual(25);
+      expect(deltaE(MM_GROUND.bush, MM_GROUND.wall, v)).toBeGreaterThanOrEqual(25);
+      // the bush edge is what sets it off the grass
+      expect(deltaE(MM_GROUND.bushEdge, MM_GROUND.grass, v)).toBeGreaterThanOrEqual(25);
+    }
+  });
+});
