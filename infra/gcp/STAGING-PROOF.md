@@ -188,17 +188,21 @@ rules, Cloud Run services and the job, secrets, the Artifact Registry repository
 and the relay's project metadata. Checked afterwards with `gcloud`: no instances, disks, templates, forwarding rules,
 firewalls, routers, security policies, repositories, secrets, buckets or project metadata left.
 
-It stopped, as the RUNBOOK warns, on the subnet: Cloud Run's direct VPC egress still holds
-`serverless-ipv4-cloudrun-…` (an internal address that cannot be deleted by hand; Google releases it 1–2 hours after
-the last revision is gone). What is left costs nothing: the `vpc-main` network and its subnet, that reserved internal
-address, the enabled APIs and the default compute service account. To finish (the state file stays in the scratch
-directory until then):
+It stopped, as the RUNBOOK warns, on the subnet: Cloud Run's direct VPC egress still held
+`serverless-ipv4-cloudrun-…`, an internal address that cannot be deleted by hand (`gcloud compute addresses delete`
+fails with "already being used by //serverless.googleapis.com/…/addressReservations/…"). Google released it at about
+14:15 UTC, two hours after the last revision was deleted at 12:14 UTC. A second `terraform destroy` (same `-var`s)
+then removed the last 18 state entries: `vpc-main`, its subnet and the 16 `google_project_service` entries. Those
+entries have `disable_on_destroy = false`, so the APIs stay enabled and only leave the state. Over both runs, 98
+resource addresses were destroyed. The local state and plan files were deleted afterwards; only the address outline
+was kept, outside the repo.
 
-```bash
-cd infra/gcp/terraform/envs/staging
-terraform destroy -var relay_machine_type=t2d-standard-2 -var max_live_rooms=300    # an hour or more later
-gcloud compute networks list --project tokentails-staging                           # empty
-rm -f "$S"/staging.tfstate* "$S"/*.tfplan
-```
+Final check on 2026-11-07 at 14:25 UTC, with `gcloud … --project=tokentails-staging`: Terraform state empty, and zero
+instances, disks, addresses, forwarding rules, firewall rules, networks, NEGs, routers, instance templates, snapshots,
+own images, proxies, URL maps, backend services, SSL certificates, security policies, Cloud Run services and jobs,
+Artifact Registry repositories (all locations), buckets, secrets, Certificate Manager certificates. The Cloud SQL
+API was never enabled. What remains is free: the enabled APIs and the default compute service account
+(`…-compute@developer.gserviceaccount.com`, created by Google when Compute was enabled). Billing stays on and the
+project still exists. Deleting the project (`gcloud projects delete tokentails-staging`) is the founder's call.
 
-Deleting the project itself (`gcloud projects delete tokentails-staging`) is the founder's call.
+For a future staging run: plan for the two-hour wait, or run the second `terraform destroy` later from the same state.
