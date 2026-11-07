@@ -403,6 +403,11 @@ export class Minimap {
     return out;
   }
 
+  /** MAP-GAPS A18: every tower seen this match (sim mm), so a fallen one keeps its mark. */
+  private towers = new Map<number, { x: number; y: number; team: number }>();
+  /** Fallen tower marks drawn last frame (tests). */
+  fallenDrawn = 0;
+
   /** MAP-GAPS A10: the lane Pudding's escort walks, once it shows (null: no escort). */
   escortLane: LaneId | null = null;
   private escorting = false;
@@ -502,6 +507,31 @@ export class Minimap {
     }
     const rel = minimapRelation(colourBlind());
     const col = (t: number, id: number): string => (id === me ? rel.self : t === 2 ? rel.neutral : t === team ? rel.ally : rel.enemy);
+    // MAP-GAPS A18: a fallen tower stays as a greyed, crossed-out square where it stood
+    for (const e of frame.entities) if (e.kind === 'tower' && !this.towers.has(e.id)) this.towers.set(e.id, { x: e.fx, y: e.fy, team: e.team });
+    this.fallenDrawn = 0;
+    for (const [id, t] of this.towers) {
+      const e = frame.byId.get(id);
+      if (e && e.state !== 'dead' && e.hp > 0) continue;
+      const x = this.X(t.x);
+      const y = this.Y(t.y);
+      const s = 6 * this.k;
+      g.globalAlpha = 0.35;
+      g.fillStyle = MM_OUTLINE;
+      g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
+      g.fillStyle = '#9a948c';
+      g.fillRect(x - s / 2, y - s / 2, s, s);
+      g.strokeStyle = MM_OUTLINE;
+      g.lineWidth = 1.3;
+      g.beginPath();
+      g.moveTo(x - s / 2, y - s / 2);
+      g.lineTo(x + s / 2, y + s / 2);
+      g.moveTo(x + s / 2, y - s / 2);
+      g.lineTo(x - s / 2, y + s / 2);
+      g.stroke();
+      g.globalAlpha = 1;
+      this.fallenDrawn++;
+    }
     for (const e of frame.entities) {
       if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero' || (e.kind as string) === 'pickup') continue;
       const x = this.X(e.fx);
