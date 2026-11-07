@@ -342,6 +342,9 @@ export function catNameOf(value: unknown): string | null {
   return clean ? clean.slice(0, PAWLEGENDS_CAT_NAME_MAX) : null;
 }
 
+/** A Unicode letter or digit (built at runtime: the client's TypeScript target predates the `u` regex flag). */
+const LETTER_OR_DIGIT = new RegExp("[\\p{L}\\p{N}]", "u");
+
 /** Most characters of `session.name` (the game cuts it to 14 with an ellipsis on screen). */
 export const PAWLEGENDS_PLAYER_NAME_MAX = 24;
 
@@ -356,7 +359,7 @@ export function playerNameOf(value: unknown): string | null {
     .replace(/[\u0000-\u001f\u007f-\u009f<>&"'`\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/g, "")
     .replace(/\s+/g, " ")
     .trim();
-  if (!/[\p{L}\p{N}]/u.test(clean)) return null;
+  if (!LETTER_OR_DIGIT.test(clean)) return null;
   return Array.from(clean).slice(0, PAWLEGENDS_PLAYER_NAME_MAX).join("").trim() || null;
 }
 
