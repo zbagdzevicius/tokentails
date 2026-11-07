@@ -4,7 +4,7 @@
  * minion the next basic kills. Client only: these decide which id an Attack command carries.
  */
 import { describe, expect, it } from 'vitest';
-import { attackPreview, attackPriority, lastHitTarget, type Unit } from '../../src/input/targeting';
+import { attackPreview, attackPriority, inAttackReach, lastHitTarget, type Unit } from '../../src/input/targeting';
 import { autoAttackTarget } from '../../src/input/touch/assist';
 
 const u = (id: number, kind: Unit['kind'], team: number, x: number, hp = 100, maxHp = 100, y = 30000): Unit => ({ id, kind, team, x, y, hp, maxHp, state: 'idle' });
@@ -26,18 +26,20 @@ describe('the Attack button target, three scenarios', () => {
     expect(attackPreview(units.filter((x) => x.id !== 21), me, 0, RANGE, 'heroes', kill60)).toBe(20);
   });
 
-  it('3. only a tower in reach: the tower; nothing in reach: no preview (ATK would not walk)', () => {
+  it('3. only a tower in reach: the tower; an enemy hero 6 m away: rung too (the tap walks to it), out of reach', () => {
     const tower = u(30, 'tower', 1, 52500, 3000, 3000);
     expect(attackPreview([me, tower], me, 0, RANGE)).toBe(30);
-    // an enemy hero 6 m away is ATK's walk-in fallback, but nothing to ring before the tap
-    expect(attackPriority([me, u(3, 'hero', 1, 56000)], me, 0, RANGE)).toBe(3);
-    expect(attackPreview([me, u(3, 'hero', 1, 56000)], me, 0, RANGE)).toBeNull();
+    const far = u(3, 'hero', 1, 56000);
+    expect(attackPriority([me, far], me, 0, RANGE)).toBe(3);
+    expect(attackPreview([me, far], me, 0, RANGE)).toBe(3);
+    expect(inAttackReach(far, me, RANGE)).toBe(false);
+    expect(attackPreview([me, u(3, 'hero', 1, 60000)], me, 0, RANGE)).toBeNull();
   });
 
-  it('a locked hero in range wins the preview; out of range the normal pick shows', () => {
+  it('a locked hero wins the preview, in range or not (the tap walks to it)', () => {
     const units = [me, u(3, 'hero', 1, 51500, 600, 600), u(4, 'hero', 1, 51600, 100, 600), u(5, 'hero', 1, 58000)];
     expect(attackPreview(units, me, 0, RANGE, 'heroes', undefined, 3)).toBe(3);
-    expect(attackPreview(units, me, 0, RANGE, 'heroes', undefined, 5)).toBe(4);
+    expect(attackPreview(units, me, 0, RANGE, 'heroes', undefined, 5)).toBe(5);
   });
 
   it('the Settings order: Lowest HP % or Closest', () => {
@@ -67,6 +69,31 @@ describe('the idle auto-attack takes what ATK rings (they agree)', () => {
     expect(attackPreview([me, tower], me, 0, RANGE)).toBe(30);
     expect(autoAttackTarget([me, tower], me, 0, RANGE + 300, 'heroes', kill60)).toBeNull();
     expect(autoAttackTarget([me, u(41, 'camp', 2, 51000, 100, 450)], me, 0, RANGE + 300, 'heroes', kill60)).toBeNull();
+  });
+});
+
+describe('the ring, the tap and the idle auto-attack never name three different units (review cases)', () => {
+  it('A. a full-HP minion in reach and a 150-HP one 0.7 m past reach (killable): ring = tap = the far one; idle waits', () => {
+    const near = u(20, 'minion', 1, 51600, 400, 400);
+    const farKill = u(21, 'minion', 1, 50000 + RANGE + 300 + 400 + 700, 50, 400);
+    const units = [me, near, farKill];
+    const ring = attackPreview(units, me, 0, RANGE, 'heroes', kill60);
+    expect(ring).toBe(21);
+    expect(inAttackReach(farKill, me, RANGE)).toBe(false);
+    expect(autoAttackTarget(units, me, 0, RANGE + 300, 'heroes', kill60)).toBeNull();
+  });
+
+  it('B. a killable minion just past reach: rung (out of reach) and the tap walks to it', () => {
+    const m = u(21, 'minion', 1, 50000 + RANGE + 300 + 400 + 300, 50, 400);
+    expect(attackPreview([me, m], me, 0, RANGE, 'heroes', kill60)).toBe(21);
+  });
+
+  it('C. a locked hero out of range with a minion in range: the ring is on the locked hero, idle never hits the minion', () => {
+    const units = [me, u(20, 'minion', 1, 51000, 300, 400), u(5, 'hero', 1, 56000)];
+    expect(attackPreview(units, me, 0, RANGE, 'heroes', kill60, 5)).toBe(5);
+    expect(autoAttackTarget(units, me, 0, RANGE + 300, 'heroes', kill60, 5)).toBeNull();
+    // in range, the lock is the idle target too
+    expect(autoAttackTarget([me, u(5, 'hero', 1, 51500)], me, 0, RANGE + 300, 'heroes', kill60, 5)).toBe(5);
   });
 });
 

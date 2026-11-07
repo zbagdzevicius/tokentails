@@ -8,6 +8,7 @@ import {
   installCrashOverlay,
   reportCrash,
   resetCrashForTests,
+  setCrashExit,
   setCrashHook,
   showCrash,
   type CrashSource,
@@ -82,6 +83,31 @@ describe('crash overlay', () => {
     expect(el?.textContent).toContain('kaput');
     expect(showCrash(new Error('again'))).toBeNull();
     expect(document.querySelectorAll('#crash').length).toBe(1);
+    // standalone: Reload only
+    expect(el?.querySelector('.crash-exit')).toBeNull();
+  });
+
+  it('embedded: "Back to games" posts the exit (set before or after the panel opens)', () => {
+    resetCrashForTests();
+    document.querySelectorAll('#crash').forEach((e) => e.remove());
+    let exits = 0;
+    setCrashExit(() => {
+      exits++;
+      return true;
+    });
+    const el = showCrash(new Error('kaput'))!;
+    const b = el.querySelector<HTMLButtonElement>('.crash-exit')!;
+    expect(b.textContent).toBe('Back to games');
+    b.click();
+    expect(exits).toBe(1);
+    // the host never said hello: the button greys out (the host page shows its own Back link meanwhile)
+    setCrashExit(() => false);
+    expect(el.querySelectorAll('.crash-exit').length).toBe(1);
+    el.querySelector<HTMLButtonElement>('.crash-exit')!.click();
+    expect(el.querySelector<HTMLButtonElement>('.crash-exit')!.disabled).toBe(true);
+    setCrashExit(null);
+    expect(el.querySelector('.crash-exit')).toBeNull();
+    el.remove();
   });
 });
 

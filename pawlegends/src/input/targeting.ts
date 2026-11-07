@@ -147,11 +147,17 @@ export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, 
   return (kill ?? best)?.id ?? null;
 }
 
+/** UX pass 2: is `u` within the Attack button's own reach (edge to edge, its 300 mm slack)? */
+export function inAttackReach(u: Unit | undefined, me: { x: number; y: number }, range: number): boolean {
+  return !!u && u.state !== 'dead' && dist(u, me) - BODY_MM[u.kind] <= range + 300;
+}
+
 /**
- * UX pass 2 (Wild Rift: the auto-target reticle): what the Attack button would hit right now WITHOUT walking: the
- * locked hero when it is in range, else `attackPriority`'s pick when that unit is in range (towers included), else
- * null. The touch HUD rings it, so the player sees the target before the tap, and the idle auto-attack takes the same
- * unit (towers aside: it never starts on a structure by itself).
+ * UX pass 2 (Wild Rift: the auto-target reticle): exactly what an Attack tap hits right now, or walks to: the locked
+ * hero while the lock holds, else `attackPriority`'s pick (its 7 m walk-in fallback included); null when the tap would
+ * find nothing. The tap itself calls this, so the ring the touch HUD draws and the tap never disagree; the HUD dims the
+ * ring when the unit is out of reach (`inAttackReach`: the tap walks first), and the idle auto-attack only takes the
+ * ringed unit when it is in reach (it never walks, and never hits a different unit than the ring).
  */
 export function attackPreview(
   units: readonly Unit[],
@@ -161,11 +167,10 @@ export function attackPreview(
   first: TargetFirst = 'heroes',
   killDmg?: (u: Unit) => number,
   locked: number | null = null,
+  seek = 7000,
 ): number | null {
-  const inRange = (u: Unit | undefined): boolean => !!u && u.state !== 'dead' && dist(u, me) - BODY_MM[u.kind] <= range + 300;
-  if (locked !== null && inRange(units.find((u) => u.id === locked))) return locked;
-  const id = attackPriority(units, me, myTeam, range, 0, first, killDmg);
-  return id !== null && inRange(units.find((u) => u.id === id)) ? id : null;
+  if (locked !== null && units.some((u) => u.id === locked && u.state !== 'dead')) return locked;
+  return attackPriority(units, me, myTeam, range, seek, first, killDmg);
 }
 
 /**
