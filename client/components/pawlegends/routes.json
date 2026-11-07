@@ -1,5 +1,6 @@
 {
   "landingPath": "/pawlegends",
+  "legendsPath": "/legends",
   "playPath": "/pawlegends/play",
   "playQueryKeys": ["party", "dare", "checkout", "restore", "notify", "from"]
 }

@@ -9,6 +9,7 @@ import * as THREE from 'three';
 import { BuffFlag, type HeroId } from '../../sim/api';
 import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
+import { NX, NY, createGrid } from '../../sim/map/grid';
 import { RELATION } from '../palette';
 import { ELEMENT_COLOR, lookKey, type Look } from '../cosmetics';
 import { boldRingTexture, dashRingTexture, DecalLayer, discTexture, ringTexture } from './decals';
@@ -209,6 +210,33 @@ export function clearOfObstacles(x: number, z: number, obs: readonly { x: number
   return { x: ox, z: oz };
 }
 
+/**
+ * MAP-GAPS A25 (cosmetic stopgap; the sim fix is MAP-GAPS B7): the static wall cells (rocks, forest) round each body
+ * as footprint circles (cell centre, radius WALL_CELL_R m), so a body that grazes a corner is not drawn inside the
+ * rock or the trees. A body on the next cell's centre is not pushed (1 m ≥ the body's 0.5 + 0.5).
+ */
+export const WALL_CELL_R = 0.5;
+let wallGrid: Uint8Array | null = null;
+export function wallObstacles(pts: readonly { x: number; z: number }[], out: { x: number; z: number; r: number }[] = []): { x: number; z: number; r: number }[] {
+  wallGrid ??= createGrid().walls;
+  out.length = 0;
+  const seen = new Set<number>();
+  for (const p of pts) {
+    const ci = Math.floor(p.x);
+    const cj = Math.floor(-p.z);
+    for (let j = cj - 1; j <= cj + 1; j++) {
+      for (let i = ci - 1; i <= ci + 1; i++) {
+        if (i < 0 || j < 0 || i >= NX || j >= NY) continue;
+        const c = j * NX + i;
+        if (!wallGrid[c] || seen.has(c)) continue;
+        seen.add(c);
+        out.push({ x: i + 0.5, z: -(j + 0.5), r: WALL_CELL_R });
+      }
+    }
+  }
+  return out;
+}
+
 /** Pairwise push-apart offsets (pure): for points (x, z) m, the offset (m) each is drawn at. Coincident points fan out. */
 export function separate(pts: readonly { x: number; z: number }[], min = SEPARATION.min, cap = SEPARATION.cap): { x: number; z: number }[] {
   const out = pts.map(() => ({ x: 0, z: 0 }));
@@ -345,6 +373,8 @@ export class HeroView {
   reducedSep = false;
   /** Footprints (m) of standing structures and Pudding this frame (gameView): bodies are drawn outside them. */
   obstacles: readonly { x: number; z: number; r: number }[] = [];
+  private sepObs: { x: number; z: number; r: number }[] = [];
+  private wallObs: { x: number; z: number; r: number }[] = [];
   private readonly sepPts: { x: number; z: number }[] = [];
   private readonly sepIds: number[] = [];
   private readonly sepWarm: { x: number; z: number }[] = [];
@@ -516,7 +546,11 @@ export class HeroView {
       this.sepWarm.push({ x: was?.sepX ?? 0, z: was?.sepZ ?? 0 });
       this.sepR.push(e.hero ? bodyRadius(e.hero) : SEPARATION.min / 2);
     }
-    const sep = this.reducedSep ? null : layoutBodies(this.sepPts, this.obstacles, this.sepWarm, SEPARATION.min, SEPARATION.cap, this.sepR);
+    // MAP-GAPS A25: the structures plus the wall cells round the heroes
+    this.sepObs.length = 0;
+    for (const o of this.obstacles) this.sepObs.push(o);
+    for (const o of wallObstacles(this.sepPts, this.wallObs)) this.sepObs.push(o);
+    const sep = this.reducedSep ? null : layoutBodies(this.sepPts, this.sepObs, this.sepWarm, SEPARATION.min, SEPARATION.cap, this.sepR);
     for (const e of frame.entities) {
       if (e.kind !== 'hero') continue;
       const r = this.ensure(e);

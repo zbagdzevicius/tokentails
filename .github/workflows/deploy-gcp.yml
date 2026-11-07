@@ -1,0 +1,250 @@
+# Deploy Token Tails to Google Cloud (infra/gcp/RUNBOOK.md). Manual only (workflow_dispatch) until the cutover is done;
+# DigitalOcean and Vercel keep deploying from their own integrations meanwhile. No JSON keys: Workload Identity
+# Federation, and sa-deploy may be impersonated only by this workflow file on refs/heads/main (job_workflow_ref,
+# infra/gcp/terraform/modules/wif_github): renaming this file needs the Terraform binding changed too. Every action in a
+# job with id-token: write is pinned to a commit SHA.
+#
+# Order: test -> build backend image once (tag = commit SHA) -> tt-api -> relay (only if relay code changed, or
+# forced) -> web -> cms. Every Cloud Run deploy goes to a no-traffic revision tagged `canary`, is smoke-tested through
+# the load balancer with `x-tt-canary: 1`, then gets 100 % of traffic. A failed smoke leaves traffic where it was.
+#
+# Repository variables: GCP_PROJECT_ID (gleaming-medium-480114-g5), GCP_WIF_PROVIDER, GCP_DEPLOY_SA, optional GCP_REGION,
+# GCP_API_HOST (default gcp-api.tokentails.com), GCP_WEB_HOST (gcp.tokentails.com), GCP_CMS_HOST
+# (gcp-cats.tokentails.com), and the public build values NEXT_PUBLIC_* (CMS-only overrides as CMS_NEXT_PUBLIC_*).
+# No secret is read here: runtime secrets live in Secret Manager and only the runtime service accounts can read them.
+name: deploy-gcp
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: What to deploy
+        type: choice
+        default: all
+        options: [all, backend, web, cms, relay-only]
+      relay:
+        description: "Relay: if-changed (relay code changed since the running image), yes, no"
+        type: choice
+        default: if-changed
+        options: [if-changed, "yes", "no"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-gcp
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22
+  PROJECT_ID: ${{ vars.GCP_PROJECT_ID }}
+  REGION: ${{ vars.GCP_REGION || 'europe-west3' }}
+  REGISTRY: ${{ vars.GCP_REGION || 'europe-west3' }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/tokentails
+  API_HOST: ${{ vars.GCP_API_HOST || 'gcp-api.tokentails.com' }}
+  WEB_HOST: ${{ vars.GCP_WEB_HOST || 'gcp.tokentails.com' }}
+  CMS_HOST: ${{ vars.GCP_CMS_HOST || 'gcp-cats.tokentails.com' }}
+  RELAY_MIG: tt-relay
+  RELAY_IMAGE_KEY: tt-relay-image
+
+jobs:
+  guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Refuse anything but the production project on main
+        run: |
+          set -euo pipefail
+          case "${PROJECT_ID}" in
+            motored*) echo "::error::motored-* projects belong to another company. Refused."; exit 1 ;;
+            gleaming-medium-480114-g5) ;;
+            *) echo "::error::GCP_PROJECT_ID must be gleaming-medium-480114-g5 (got '${PROJECT_ID}')."; exit 1 ;;
+          esac
+          if [ "${GITHUB_REF}" != "refs/heads/main" ]; then echo "::error::deploys run from main only"; exit 1; fi
+          [ -n "${{ vars.GCP_WIF_PROVIDER }}" ] || { echo "::error::set the GCP_WIF_PROVIDER repository variable"; exit 1; }
+          [ -n "${{ vars.GCP_DEPLOY_SA }}" ] || { echo "::error::set the GCP_DEPLOY_SA repository variable"; exit 1; }
+
+  test-backend:
+    needs: guard
+    if: inputs.targets == 'all' || inputs.targets == 'backend' || inputs.targets == 'relay-only'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+      - run: npm test -- --silent
+
+  build-backend:
+    needs: test-backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      image: ${{ steps.img.outputs.image }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - id: auth
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+          project_id: ${{ env.PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+      - name: gcloud targets the Token Tails project only
+        run: |
+          active=$(gcloud config get-value project 2>/dev/null)
+          [ "$active" = "$PROJECT_ID" ] || { echo "::error::gcloud project is '$active', expected '$PROJECT_ID'"; exit 1; }
+      - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - id: img
+        name: Build and push backend:${{ github.sha }} (once; tags are immutable)
+        run: |
+          set -euo pipefail
+          IMAGE="${REGISTRY}/backend:${GITHUB_SHA}"
+          echo "image=${IMAGE}" >> "$GITHUB_OUTPUT"
+          if gcloud artifacts docker images describe "$IMAGE" --project "$PROJECT_ID" >/dev/null 2>&1; then
+            echo "already pushed: $IMAGE"; exit 0
+          fi
+          docker build --platform linux/amd64 -t "$IMAGE" backend
+          docker push "$IMAGE"
+
+  deploy-api:
+    needs: build-backend
+    if: inputs.targets == 'all' || inputs.targets == 'backend'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+          project_id: ${{ env.PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+      - name: Deploy tt-api (no traffic, tag canary), smoke through the LB, then move traffic
+        env:
+          IMAGE: ${{ needs.build-backend.outputs.image }}
+        run: bash infra/gcp/scripts/deploy-run.sh tt-api "$IMAGE" "$API_HOST" /readyz
+
+  deploy-relay:
+    needs: [build-backend, deploy-api]
+    # After the API (tickets are minted there); skipped when the API job failed.
+    if: >-
+      always() && needs.build-backend.result == 'success' &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped') &&
+      inputs.relay != 'no' && (inputs.targets == 'all' || inputs.targets == 'backend' || inputs.targets == 'relay-only')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          fetch-depth: 0
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+          project_id: ${{ env.PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+      - name: Deploy the relay (drain if offered, hand off, restart, restore)
+        env:
+          IMAGE: ${{ needs.build-backend.outputs.image }}
+          RELAY_MODE: ${{ inputs.relay }}
+        run: bash infra/gcp/scripts/deploy-relay.sh
+
+  deploy-web:
+    needs: [guard, deploy-api]
+    if: >-
+      always() && needs.guard.result == 'success' &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped') &&
+      (inputs.targets == 'all' || inputs.targets == 'web')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+          project_id: ${{ env.PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+      - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - name: Public build values (NEXT_PUBLIC_* repository variables only)
+        env:
+          VARS_JSON: ${{ toJSON(vars) }}
+        run: |
+          printf '%s' "$VARS_JSON" | jq -r 'to_entries[] | select(.key | startswith("NEXT_PUBLIC_")) | "\(.key)=\(.value | @sh)"' > "$RUNNER_TEMP/public.env"
+          cut -d= -f1 "$RUNNER_TEMP/public.env" | sed 's/^/  /'
+      - name: Build and push web:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          IMAGE="${REGISTRY}/web:${GITHUB_SHA}"
+          if ! gcloud artifacts docker images describe "$IMAGE" --project "$PROJECT_ID" >/dev/null 2>&1; then
+            DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --secret id=public_env,src="$RUNNER_TEMP/public.env" -t "$IMAGE" client
+            docker push "$IMAGE"
+          fi
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy tt-web (no traffic, tag canary), smoke through the LB, then move traffic
+        run: bash infra/gcp/scripts/deploy-run.sh tt-web "$IMAGE" "$WEB_HOST" /
+
+  deploy-cms:
+    needs: [guard, deploy-api]
+    if: >-
+      always() && needs.guard.result == 'success' &&
+      (needs.deploy-api.result == 'success' || needs.deploy-api.result == 'skipped') &&
+      (inputs.targets == 'all' || inputs.targets == 'cms')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_DEPLOY_SA }}
+          project_id: ${{ env.PROJECT_ID }}
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
+        with:
+          project_id: ${{ env.PROJECT_ID }}
+      - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
+      - name: Public build values (NEXT_PUBLIC_*, CMS_NEXT_PUBLIC_* override)
+        env:
+          VARS_JSON: ${{ toJSON(vars) }}
+        run: |
+          printf '%s' "$VARS_JSON" | jq -r '
+            (to_entries | map(select(.key | startswith("NEXT_PUBLIC_"))) | from_entries) as $base
+            | (to_entries | map(select(.key | startswith("CMS_NEXT_PUBLIC_")) | .key |= ltrimstr("CMS_")) | from_entries) as $cms
+            | ($base + $cms) | to_entries[] | "\(.key)=\(.value | @sh)"' > "$RUNNER_TEMP/public.env"
+          cut -d= -f1 "$RUNNER_TEMP/public.env" | sed 's/^/  /'
+      - name: Build and push cms:${{ github.sha }}
+        run: |
+          set -euo pipefail
+          IMAGE="${REGISTRY}/cms:${GITHUB_SHA}"
+          if ! gcloud artifacts docker images describe "$IMAGE" --project "$PROJECT_ID" >/dev/null 2>&1; then
+            DOCKER_BUILDKIT=1 docker build --platform linux/amd64 --secret id=public_env,src="$RUNNER_TEMP/public.env" -t "$IMAGE" cms
+            docker push "$IMAGE"
+          fi
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+      - name: Deploy tt-cms (no traffic, tag canary), smoke through the LB, then move traffic
+        run: bash infra/gcp/scripts/deploy-run.sh tt-cms "$IMAGE" "$CMS_HOST" /

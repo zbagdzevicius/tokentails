@@ -14,6 +14,7 @@ import { FISH } from '../data/fish';
 import { TOY_TIERS } from '../data/toys';
 import { gearedLine, toyToast } from '../ui/toyText';
 import { isCampBuff, isFun, isNineLives, tickOf, type AnyEvent, type FunEvent } from './feelEvents';
+import { bountyLine, onRollLine, type VoiceKey } from '../audio/voiceLines';
 
 export type MomentTone = 'good' | 'bad' | 'gold' | 'info';
 export type CrowdSfx = 'cheer' | 'roar' | 'gasp' | 'ooh';
@@ -49,8 +50,8 @@ export interface Moment {
   toy?: { tier: number; name: string; head: string; sub: string };
 }
 
-/** LoL pass (lane B): the voice lines (audio/voice.ts). Recorded clips live in public/voice/<key>.mp3. */
-export type VoiceKey = 'firstBlood' | 'double' | 'triple' | 'catastrophe' | 'shutdown' | 'ace' | 'turret' | 'ourTurret' | 'victory' | 'defeat' | 'slain';
+/** LoL pass (lane B): the voice lines (audio/voiceLines.ts). Recorded clips live in public/voice/<key>.mp3. */
+export type { VoiceKey };
 const MULTI_VOICE: Readonly<Record<number, VoiceKey>> = Object.freeze({ 2: 'double', 3: 'triple', 4: 'catastrophe' });
 
 /** Ticks (30 Hz). */
@@ -310,7 +311,7 @@ export class Announcer {
       if (s >= 3) {
         const k = Math.min(STREAK_TOP, s);
         // LoL pass (lane B): the killing-spree tiers are announcer lines (rail prio 2, big), not personal callouts
-        out.push(this.note({ key: `streak${k}`, title: STREAK_NAMES[k], sub: s > STREAK_TOP ? `${s} in a row` : undefined, tone: 'gold', size: 'banner', big: true, crowd: 'cheer', rank: k >= 5 ? 35 : k === 4 ? 28 : 22 }));
+        out.push(this.note({ key: `streak${k}`, title: STREAK_NAMES[k], sub: s > STREAK_TOP ? `${s} in a row` : undefined, tone: 'gold', size: 'banner', big: true, crowd: 'cheer', rank: k >= 5 ? 35 : k === 4 ? 28 : 22, voice: `streak${k}` as VoiceKey }));
       }
       if (!out.some((m) => m.key.startsWith('multi') || m.key === 'firstBlood')) out.push({ key: 'takedown', title: 'Takedown!', tone: 'gold', size: 'callout', crowd: 'cheer' });
     } else if (killerHero && teamOf(e.killer) === this.myTeam && !out.length) {
@@ -321,13 +322,14 @@ export class Announcer {
       if (b) out.push(b);
     }
     if (killerHero && teamOf(e.killer) !== this.myTeam && this.streak[e.killer] === 3) {
-      out.push({ key: 'enemyStreak', title: `${this.name(e.killer)} is on a roll`, sub: 'Take them down for a bounty.', tone: 'bad', size: 'banner' });
+      const hero = this.heroOf(e.killer);
+      out.push({ key: 'enemyStreak', title: `${this.name(e.killer)} is on a roll`, sub: 'Take them down for a bounty.', tone: 'bad', size: 'banner', ...(hero ? { voice: onRollLine(hero) } : {}) });
     }
     // LoL pass (lane B): the slain lines ("Enemy slain" is the Takedown callout's job)
     if (e.id === this.mySlot) {
       out.push({ key: 'slain', title: 'You have been slain', sub: killerHero ? `${this.name(e.killer)} got you.` : undefined, tone: 'bad', size: 'banner', ...(killerHero ? { face: e.killer } : {}), voice: 'slain' });
     } else if (teamOf(e.id) === this.myTeam && this.tick - this.ourTakedownAt > ALLY_SLAIN_QUIET) {
-      out.push({ key: 'allySlain', title: 'An ally has been slain', sub: `${this.name(e.id)} is down.`, tone: 'bad', size: 'banner', face: e.id });
+      out.push({ key: 'allySlain', title: 'An ally has been slain', sub: `${this.name(e.id)} is down.`, tone: 'bad', size: 'banner', face: e.id, voice: 'allySlain' });
     }
     // Lane F (F4): the player took part (a kill or an assist) in all three enemy knockouts, each within the multikill
     // window of the last: "Clean Sweep!" (a personal line beside the team's ACE)
@@ -339,7 +341,7 @@ export class Announcer {
       const all = 7 << (teamOf(e.id) * 3);
       if ((this.sweep.ids & all) === all) {
         this.sweep.ids = 0;
-        out.push(this.note({ key: 'cleanSweep', title: 'Clean Sweep!', sub: 'You took all three down in a row.', tone: 'gold', size: 'callout', crowd: 'roar', rank: 46 }));
+        out.push(this.note({ key: 'cleanSweep', title: 'Clean Sweep!', sub: 'You took all three down in a row.', tone: 'gold', size: 'callout', crowd: 'roar', rank: 46, voice: 'cleanSweep' }));
       }
     }
     const ace = this.aceCheck(e.id);
@@ -369,7 +371,7 @@ export class Announcer {
     return this.note(
       theirs
         ? { key: 'ace', title: 'ACE!', sub: 'Their whole team is down: push!', tone: 'gold', size: 'banner', big: true, crowd: 'roar', shake: 0.3, rank: 45, voice: 'ace' }
-        : { key: 'aceThem', title: 'Enemy team ACE', sub: 'Our whole team is down: hold on.', tone: 'bad', size: 'banner', big: true, crowd: 'gasp', voice: 'ace' },
+        : { key: 'aceThem', title: 'Enemy team ACE', sub: 'Our whole team is down: hold on.', tone: 'bad', size: 'banner', big: true, crowd: 'gasp', voice: 'aceUs' },
     );
   }
 
@@ -441,7 +443,7 @@ export class Announcer {
       const t = toyToast(hero, e.tier);
       return [{ key: 'buy', title: t.title, sub: t.sub, tone: 'gold', size: 'banner', tick: this.tick, toy: { tier: e.tier, name: t.name, head: t.head, sub: t.sub }, rank: e.tier >= TOY_TIERS ? 10 : 0 }];
     }
-    if (teamOf(e.id) !== this.myTeam && e.tier >= TOY_TIERS) return [{ key: 'geared', title: gearedLine(this.name(e.id)), tone: 'bad', size: 'banner', tick: this.tick }];
+    if (teamOf(e.id) !== this.myTeam && e.tier >= TOY_TIERS) return [{ key: 'geared', title: gearedLine(this.name(e.id)), tone: 'bad', size: 'banner', tick: this.tick, voice: 'geared' }];
     return [];
   }
 
@@ -469,8 +471,11 @@ export class Announcer {
         const had = this.bountyValue[e.id] > 0 || this.streak[e.id] >= 3;
         this.bountyValue[e.id] = Math.max(0, e.value);
         if (had) return [];
-        if (e.id === this.mySlot) return [{ key: 'bountyMe', title: 'You have a bounty!', sub: 'Stay alive: they want your crown.', tone: 'gold', size: 'banner' }];
-        if (teamOf(e.id) !== this.myTeam) return [{ key: 'bounty', title: `Bounty on ${this.name(e.id)}!`, sub: e.value > 0 ? `Take them down: +${e.value} XP` : 'Take them down for extra XP.', tone: 'gold', size: 'banner' }];
+        if (e.id === this.mySlot) return [{ key: 'bountyMe', title: 'You have a bounty!', sub: 'Stay alive: they want your crown.', tone: 'gold', size: 'banner', voice: 'bountyMe' }];
+        if (teamOf(e.id) !== this.myTeam) {
+          const hero = this.heroOf(e.id);
+          return [{ key: 'bounty', title: `Bounty on ${this.name(e.id)}!`, sub: e.value > 0 ? `Take them down: +${e.value} XP` : 'Take them down for extra XP.', tone: 'gold', size: 'banner', ...(hero ? { voice: bountyLine(hero) } : {}) }];
+        }
         return [];
       }
       case 'comeback':
@@ -478,20 +483,20 @@ export class Announcer {
         return e.team === this.myTeam
           ? // Fun pass (playtest #8): "COMEBACK!" read as a promise while the team was down 4-13; the phone title says
             // what happens (phones drop the sub)
-            [{ key: 'comeback', title: 'Our waves get stronger', sub: 'We are behind on towers: our next 2 waves hit harder.', tone: 'gold', size: 'banner' }]
-          : [{ key: 'comebackThem', title: 'Their waves get stronger', sub: 'Their next 2 waves hit harder. Hold the line.', tone: 'bad', size: 'banner' }];
+            [{ key: 'comeback', title: 'Our waves get stronger', sub: 'We are behind on towers: our next 2 waves hit harder.', tone: 'gold', size: 'banner', voice: 'comebackUs' }]
+          : [{ key: 'comebackThem', title: 'Their waves get stronger', sub: 'Their next 2 waves hit harder. Hold the line.', tone: 'bad', size: 'banner', voice: 'comebackThem' }];
       case 'pickupSpawn':
         // the first spawn of a match is a banner; later ones only ping the minimap (24 of 68 banners were Frenzy)
         if (e.kind !== 'frenzy') return [];
         return this.frenzySpawns++ === 0
-          ? [{ key: 'frenzySpawn', title: 'Frenzy Catnip spawned!', sub: 'In the river: more damage and speed.', tone: 'gold', size: 'banner' }]
+          ? [{ key: 'frenzySpawn', title: 'Frenzy Catnip spawned!', sub: 'In the river: more damage and speed.', tone: 'gold', size: 'banner', voice: 'frenzySpawn' }]
           : [{ key: 'frenzySpawn', title: 'Frenzy Catnip', tone: 'gold', size: 'ping' }];
       case 'pickup':
         if (e.id === this.mySlot) {
           this.pickups++;
           return [{ key: `pickup-${e.kind}`, title: e.kind === 'frenzy' ? '+FRENZY' : '+SNACK', tone: e.kind === 'frenzy' ? 'gold' : 'good', size: 'pop', crowd: e.kind === 'frenzy' ? 'cheer' : undefined }];
         }
-        if (e.kind === 'frenzy' && teamOf(e.id) !== this.myTeam) return [{ key: 'frenzyThem', title: 'They took the Frenzy!', tone: 'bad', size: 'callout' }];
+        if (e.kind === 'frenzy' && teamOf(e.id) !== this.myTeam) return [{ key: 'frenzyThem', title: 'They took the Frenzy!', tone: 'bad', size: 'callout', voice: 'frenzyThem' }];
         return [];
       case 'buff':
         if (isNineLives(e) && e.id === this.mySlot) {
@@ -499,7 +504,7 @@ export class Announcer {
           // meant nothing to a new player. Now a plain verb over the hero (and the white rim flash): never a banner.
           return [{ key: 'nineLives', title: this.nineSeen++ === 0 ? 'Big hits softened: run!' : 'Run!', tone: 'gold', size: 'pop', crowd: 'ooh' }];
         }
-        if (isCampBuff(e) && e.id === this.mySlot) return [{ key: 'pack', title: 'Pack power!', sub: 'The rat camp gives your team +15% damage.', tone: 'good', size: 'banner', crowd: 'cheer' }];
+        if (isCampBuff(e) && e.id === this.mySlot) return [{ key: 'pack', title: 'Pack power!', sub: 'The rat camp gives your team +15% damage.', tone: 'good', size: 'banner', crowd: 'cheer', voice: 'packPower' }];
         return [];
       default:
         return [];

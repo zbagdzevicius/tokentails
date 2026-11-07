@@ -1,0 +1,20 @@
+# Terraform working files, state and real variable values never go into git.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+crash.*.log
+terraform.tfvars
+*.auto.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
+# local tool output
+.preflight/
+# Lock files are kept for the roots (bootstrap, envs/*) only; module ones are validation byproducts.
+terraform/modules/**/.terraform.lock.hcl
+scripts/render-cloud-init/.terraform.lock.hcl

@@ -11,9 +11,8 @@ import { NO_TARGET, Op, type CastSlot, type Command, type HeroId, type SimEvent,
 import { aimFor, trickAim, ULT_LEVEL, type AimSpec } from './abilities';
 import { BODY_MM, type Unit } from './targeting';
 import { edgeGoal } from './touch/assist';
-import { cellOf, centreX, centreY, createGrid, snapCell, walkable, type NavGrid } from '../sim/map/grid';
-
-let walls: NavGrid | null = null;
+import { cellOf, centreX, centreY, snapCell, walkable } from '../sim/map/grid';
+import { clientGrid } from './navMirror';
 
 /**
  * A move goal the sim can reach (input side, static walls only): the sim snaps a blocked goal to walkable ground
@@ -22,8 +21,15 @@ let walls: NavGrid | null = null;
  * reachable point". Pure apart from the cached wall grid; floats are fine (the command carries integers).
  */
 export function reachableGoal(fromX: number, fromY: number, x: number, y: number): { x: number; y: number } {
-  walls ??= createGrid();
-  if (snapCell(walls, cellOf(x, y)) >= 0) return { x, y };
+  const walls = clientGrid();
+  const c0 = cellOf(x, y);
+  // MAP-GAPS A14: a goal inside a standing tower or core snaps to the nearest walkable cell at its edge (the hero
+  // walks up to the structure and the move ends, instead of chasing a point it can never reach)
+  if (walls.cover[c0] > 0) {
+    const s = snapCell(walls, c0);
+    if (s >= 0) return { x: centreX(s), y: centreY(s) };
+  }
+  if (snapCell(walls, c0) >= 0) return { x, y };
   const d = Math.hypot(x - fromX, y - fromY);
   const steps = Math.max(1, Math.ceil(d / 500));
   for (let k = 1; k <= steps; k++) {
@@ -38,7 +44,7 @@ export function reachableGoal(fromX: number, fromY: number, x: number, y: number
 
 /** Is the ground clear (static walls) for `probe` mm from (x, y) along angle `a`? Sampled every 400 mm. */
 function clearAlong(x: number, y: number, a: number, probe: number): boolean {
-  walls ??= createGrid();
+  const walls = clientGrid();
   const cx = Math.cos(a);
   const cy = Math.sin(a);
   for (let d = 400; d <= probe; d += 400) {

@@ -226,6 +226,7 @@ export class Effects {
       case 'sunset':
         sfx.play('horn');
         this.juice.banner({ title: 'Sunset', sub: 'Towers and cores take more damage. Respawns get longer.', tone: 'gold' });
+        sfx.voice('sunset', { sting: false });
         return;
       case 'clip':
         // sim v14 viral moments: hidden heroes (brush, fog) draw nothing, like level-ups
@@ -235,6 +236,7 @@ export class Effects {
       case 'suddenDeath':
         sfx.play('horn', { rate: 0.8 });
         this.juice.banner({ title: 'Sudden Death', sub: 'Cores crumble. Every takedown hits the core.', tone: 'bad' });
+        sfx.voice('suddenDeath', { sting: false });
         this.juice.kick(0.3);
         return;
       default:
@@ -729,6 +731,7 @@ export class Effects {
       case 'spawn':
         sfx.play('horn', { rate: 1.3 });
         this.juice.banner({ title: 'Pudding is here!', sub: 'Calm him in the river to win his courage.', tone: 'gold' });
+        sfx.voice('puddingWild', { sting: false });
         break;
       case 'hop':
         sfx.play('slam', { rate: 0.7 });
@@ -736,6 +739,7 @@ export class Effects {
       case 'calmed': {
         const ours = e.team === this.hooks.myTeam;
         this.juice.banner({ title: ours ? 'We calmed Pudding!' : 'They calmed Pudding', sub: ours ? 'He walks with our next wave.' : 'He walks with their next wave.', tone: ours ? 'good' : 'bad' });
+        sfx.voice(ours ? 'puddingOurs' : 'puddingTheirs');
         break;
       }
       default:
