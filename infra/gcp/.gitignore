@@ -15,3 +15,6 @@ override.tf.json
 terraform.rc
 # local tool output
 .preflight/
+# Lock files are kept for the roots (bootstrap, envs/*) only; module ones are validation byproducts.
+terraform/modules/**/.terraform.lock.hcl
+scripts/render-cloud-init/.terraform.lock.hcl
