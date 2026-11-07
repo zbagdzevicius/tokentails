@@ -10,7 +10,8 @@ import type { ViewFrame } from '../render/interp';
 import { RELATION_CSS } from '../render/palette';
 
 export interface MinimapHost {
-  lookAt(xM: number, zM: number): void;
+  /** Look at (x, z) m; `hold` s before the camera drifts back (Infinity: until the next look). */
+  lookAt(xM: number, zM: number, hold?: number): void;
   moveTo(xMm: number, yMm: number): void;
   /** Ground corners (m, three.js X/Z) of the camera view, or null. */
   viewQuad(): { x: number; z: number }[] | null;
@@ -22,6 +23,12 @@ export interface MinimapHost {
 
 /** GAPS B1: a touch held this long on the minimap pings "Go here". */
 export const MINIMAP_HOLD_MS = 450;
+/**
+ * MAP-GAPS A2: touch scrub. A finger that moves more than `slopPx` from where it went down drags the camera over the
+ * map (held while the finger is down) and lets it go `releaseS` s after the lift; a finger that stays inside the slop
+ * for MINIMAP_HOLD_MS pings Go here and never moves the camera; a short tap peeks for `peekS` s.
+ */
+export const MINIMAP_TOUCH = Object.freeze({ slopPx: 6, releaseS: 0.6, peekS: 2.5 });
 
 export class Minimap {
   readonly root: HTMLElement;
@@ -44,26 +51,33 @@ export class Minimap {
     parent.appendChild(this.root);
     this.g = this.canvas.getContext('2d');
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
-    this.canvas.addEventListener('pointerdown', (e) => this.click(e));
-    const clear = (): void => {
-      if (this.hold) clearTimeout(this.hold);
-      this.hold = null;
-    };
-    this.canvas.addEventListener('pointerup', clear);
-    this.canvas.addEventListener('pointercancel', clear);
-    this.canvas.addEventListener('pointerleave', clear);
+    this.canvas.addEventListener('pointerdown', (e) => this.down(e));
+    this.canvas.addEventListener('pointermove', (e) => this.move(e));
+    this.canvas.addEventListener('pointerup', (e) => this.up(e, false));
+    this.canvas.addEventListener('pointercancel', (e) => this.up(e, true));
   }
 
   private hold: ReturnType<typeof setTimeout> | null = null;
+  /** The finger or mouse button on the minimap (MAP-GAPS A2): where it went down, and whether it scrubs or pinged. */
+  private press: { id: number; touch: boolean; x0: number; y0: number; scrub: boolean; pinged: boolean; last: { xMm: number; yMm: number } } | null = null;
 
-  private toMap(e: PointerEvent): { xMm: number; yMm: number } {
+  private clearHold(): void {
+    if (this.hold) clearTimeout(this.hold);
+    this.hold = null;
+  }
+
+  private toMap(e: { clientX: number; clientY: number }): { xMm: number; yMm: number } {
     const r = this.canvas.getBoundingClientRect();
     const u = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
     const v = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
     return { xMm: u * MAP.width, yMm: (1 - v) * MAP.height };
   }
 
-  private click(e: PointerEvent): void {
+  private look(p: { xMm: number; yMm: number }, hold?: number): void {
+    this.host.lookAt(p.xMm / 1000, -p.yMm / 1000, hold);
+  }
+
+  private down(e: PointerEvent): void {
     e.preventDefault();
     e.stopPropagation();
     const p = this.toMap(e);
@@ -71,15 +85,57 @@ export class Minimap {
       this.host.goHere(p.xMm, p.yMm);
       return;
     }
-    if (e.button === 2) this.host.moveTo(p.xMm, p.yMm);
-    else this.host.lookAt(p.xMm / 1000, -p.yMm / 1000);
-    if (e.pointerType === 'touch' && this.host.goHere) {
-      if (this.hold) clearTimeout(this.hold);
+    if (e.button === 2) {
+      this.host.moveTo(p.xMm, p.yMm);
+      return;
+    }
+    try {
+      this.canvas.setPointerCapture(e.pointerId);
+    } catch {
+      /* a synthetic event without an active pointer */
+    }
+    const touch = e.pointerType === 'touch';
+    this.press = { id: e.pointerId, touch, x0: e.clientX, y0: e.clientY, scrub: !touch, pinged: false, last: p };
+    // desktop: a click looks there at once and a drag keeps scrubbing; touch waits to see a tap, a drag or a hold
+    if (!touch) this.look(p, Infinity);
+    else if (this.host.goHere) {
+      this.clearHold();
       this.hold = setTimeout(() => {
         this.hold = null;
+        if (!this.press || this.press.scrub) return;
+        this.press.pinged = true;
         this.host.goHere?.(p.xMm, p.yMm);
       }, MINIMAP_HOLD_MS);
     }
+  }
+
+  private move(e: PointerEvent): void {
+    const pr = this.press;
+    if (!pr || e.pointerId !== pr.id) return;
+    e.preventDefault();
+    const p = this.toMap(e);
+    pr.last = p;
+    if (!pr.scrub) {
+      if (pr.pinged || Math.hypot(e.clientX - pr.x0, e.clientY - pr.y0) <= MINIMAP_TOUCH.slopPx) return;
+      pr.scrub = true;
+      this.clearHold();
+    }
+    this.look(p, Infinity);
+  }
+
+  private up(e: PointerEvent, cancel: boolean): void {
+    const pr = this.press;
+    if (!pr || e.pointerId !== pr.id) return;
+    this.press = null;
+    this.clearHold();
+    try {
+      this.canvas.releasePointerCapture(e.pointerId);
+    } catch {
+      /* not captured */
+    }
+    if (pr.pinged) return;
+    if (pr.scrub) this.look(pr.last, pr.touch ? MINIMAP_TOUCH.releaseS : MINIMAP_TOUCH.peekS);
+    else if (!cancel) this.look(pr.last, MINIMAP_TOUCH.peekS);
   }
 
   private size(): void {

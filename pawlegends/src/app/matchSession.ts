@@ -440,7 +440,7 @@ export class MatchSession {
         },
       });
     this.minimap = new Minimap(this.ui, {
-      lookAt: (x, z) => this.view.lookAt(x, z),
+      lookAt: (x, z, hold) => this.view.lookAt(x, z, hold),
       moveTo: (x, y) => this.orders?.move(x, y),
       viewQuad: () => this.viewQuad(),
       mySlot: () => this.view.mySlot,
