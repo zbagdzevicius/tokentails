@@ -132,7 +132,7 @@ export class Minimap {
       for (const x of [b.x, mirrorX(b.x)]) g.fillRect(this.X(x - b.w / 2), this.Y(b.y + b.h / 2), (b.w / MAP.width) * this.w, (b.h / MAP.height) * this.h);
     for (const team of [0, 1]) {
       const cx = team === 0 ? CORE.x : mirrorX(CORE.x);
-      g.fillStyle = team === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(61,90,158,0.45)';
+      g.fillStyle = team === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(150,92,30,0.45)';
       g.beginPath();
       g.arc(this.X(cx), this.Y(CORE.y), (10000 / MAP.width) * this.w, 0, Math.PI * 2);
       g.fill();

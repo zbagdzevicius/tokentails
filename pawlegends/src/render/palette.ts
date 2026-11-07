@@ -12,8 +12,12 @@ import { COLOR_CSS as HOWLER_CSS } from './chars/heroes/howler';
 export const TEAM = Object.freeze({
   /** Purrhaven: cream and rose. */
   0: Object.freeze({ main: 0xff6f91, second: 0xfff3dc, deep: 0xc94a72, name: 'Purrhaven' }),
-  /** Woof: navy and brass. */
-  1: Object.freeze({ main: 0x3d5a9e, second: 0xd9a441, deep: 0x26396b, name: 'Woof' }),
+  /**
+   * Woof: ochre mustard and brown (audit GFX-01: the old navy 0x3d5a9e sat next to RELATION.ally blue, so enemy dog
+   * towers read as ours; blue and red stay the relation colours only). The main stays just under the gold "you" hue
+   * family (skins/registry.ts isGoldFamily, 35-62°).
+   */
+  1: Object.freeze({ main: 0xb5762b, second: 0x5b3a1e, deep: 0x6e4520, name: 'Woof' }),
   /** Neutral (rats, Pudding). */
   2: Object.freeze({ main: 0xb8a27a, second: 0xf0e2c0, deep: 0x7d6b4c, name: 'Wild' }),
 });

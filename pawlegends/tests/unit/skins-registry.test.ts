@@ -99,10 +99,13 @@ describe('opposing-team hue clamp (match only)', () => {
     expect(clampForTeam(pink, 0).base).toBe(pink.base);
     expect(clampForTeam(pink, 1).cream).toBe(0xffffff);
   });
-  it('saturated blue fur on a Purrhaven hero (team 0) is clamped against the Woof hue', () => {
+  it('saturated ochre fur on a Purrhaven hero (team 0) is clamped against the Woof hue (audit GFX-01: ochre, not navy)', () => {
+    const ochre = { pattern: 'solid' as const, base: 0xc07a20, deep: 0x7a4a1a, light: 0xe8b878, cream: 0xffffff };
+    expect(sat(clampForTeam(ochre, 0).base)).toBeCloseTo(0.35, 1);
+    expect(clampForTeam(ochre, 1).base).toBe(ochre.base);
+    // blue fur is no longer a Woof read on a cat
     const navy = { pattern: 'solid' as const, base: 0x2a4fc0, deep: 0x26396b, light: 0x8a9ad0, cream: 0xffffff };
-    expect(sat(clampForTeam(navy, 0).base)).toBeCloseTo(0.35, 1);
-    expect(clampForTeam(navy, 1).base).toBe(navy.base);
+    expect(clampForTeam(navy, 0).base).toBe(navy.base);
   });
 });
 

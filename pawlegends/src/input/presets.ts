@@ -1,12 +1,12 @@
 /**
  * Desktop bindings (POC.md §9): PPK's `moba` preset (INPUT.presets.moba, lifted as data) remapped to MOBA defaults.
  * PPK gives right-click move, A attack-move and S stop; Pawlegends adds Q/W/E/R casts, D Paw Trick, B Nap, 1/2
- * talents, Space centre, Tab scoreboard, Esc menu and (GAPS B1) G the ping wheel. No binding uses Ctrl, Alt, Meta or an
+ * talents, Space centre, Tab scoreboard, Esc menu, (GAPS B1) G the ping wheel and +/− camera zoom. No binding uses Ctrl, Alt, Meta or an
  * F-key (Alt-click is a ping gesture, not a binding).
  */
 import { PPK_INPUT_PRESETS } from './ppkInput.data.js';
 
-export type Action = 'move' | 'attackMove' | 'stop' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'talent1' | 'talent2' | 'centre' | 'scoreboard' | 'menu' | 'ping';
+export type Action = 'move' | 'attackMove' | 'stop' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'talent1' | 'talent2' | 'centre' | 'scoreboard' | 'menu' | 'ping' | 'zoomIn' | 'zoomOut';
 
 type Keys = Record<string, readonly string[]>;
 const ppk = ((PPK_INPUT_PRESETS as Record<string, { keys?: Keys }>).moba?.keys ?? {}) as Keys;
@@ -35,6 +35,9 @@ export const MOBA_BINDINGS: Readonly<Record<Action, readonly string[]>> = Object
   menu: ['Escape'],
   // GAPS B1: hold G for the ping wheel (Alt-click pings Focus on an enemy hero, Go here on the ground).
   ping: ['KeyG'],
+  // camera zoom (the wheel does the same): + closer, − further out
+  zoomIn: ['Equal', 'NumpadAdd'],
+  zoomOut: ['Minus', 'NumpadSubtract'],
 });
 
 const BY_CODE = new Map<string, Action>();
@@ -50,6 +53,8 @@ export function keyLabel(a: Action): string {
   if (c.startsWith('Key')) return c.slice(3);
   if (c.startsWith('Digit')) return c.slice(5);
   if (c === 'Escape') return 'Esc';
+  if (c === 'Equal') return '+';
+  if (c === 'Minus') return '−';
   return c;
 }
 

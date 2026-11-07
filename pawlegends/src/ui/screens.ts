@@ -26,6 +26,7 @@ import { wearingCard } from './cards';
 import * as TL from '../data/timeline';
 import { rookieAvailable } from '../app/firstSession';
 import { castMode, trackpadOn } from '../input/presets';
+import { bindZoomRow, zoomRowHtml } from './zoomSlider';
 import type { QuestView } from '../meta/quests';
 import { TREAT_XP, type TreatGain } from '../meta/treats';
 import type { Grade } from '../meta/grade';
@@ -377,7 +378,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
           ${championOf(c.hero) ? `<p class="champ-from">${esc(`Inspired by ${championOf(c.hero)?.cardName}'s Token Tails card.`)}${o.champions?.[c.hero]?.owned ? ` <span class="champ-owned">${esc(`From ${championOf(c.hero)?.cardName}'s card`)}</span>` : ''}</p>${t.flavour ? `<p class="champ-flavour">${esc(t.flavour)}</p>` : ''}` : ''}
           <ul class="kit">
             <li><span class="ico passive">${icon('paw')}</span><span class="t"><b>${esc(t.passive.name)}</b> ${esc(t.passive.text)}</span></li>
-            ${t.abilities.map((a, i) => `<li title="${esc(`${a.name}: ${a.text} (${abilityNumbers(c.hero, i)})`)}"><span class="ico">${icon(a.icon)}</span><span class="t"><kbd>${'QWER'[i]}</kbd> <b>${esc(a.name)}</b> ${esc(a.text)}${numbers ? `<span class="num">${esc(abilityNumbers(c.hero, i))}</span>` : ''}</span></li>`).join('')}
+            ${t.abilities.map((a, i) => `<li${i === 3 ? ' class="ult"' : ''} title="${esc(`${a.name}: ${a.text} (${abilityNumbers(c.hero, i)})`)}"><span class="ico">${icon(a.icon)}</span><span class="t"><kbd>${'QWER'[i]}</kbd> <b>${esc(a.name)}</b> ${esc(a.text)}${numbers ? `<span class="num">${esc(abilityNumbers(c.hero, i))}</span>` : ''}</span></li>`).join('')}
           </ul>
           ${numbers && pvpNumbers(c.hero) ? `<p class="num pvp">${esc(pvpNumbers(c.hero))}</p>` : ''}
         </div>
@@ -446,6 +447,12 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         renderAll();
         root.querySelector<HTMLElement>(`.side-tab.${sd}`)?.focus();
       }
+      return;
+    }
+    // Audit UX-06: on short screens a kit row is one line; a tap shows its full text
+    const kitRow = t.closest<HTMLElement>('.kit li');
+    if (kitRow) {
+      kitRow.classList.toggle('open');
       return;
     }
     if (h) {
@@ -522,6 +529,8 @@ export interface ResultsOpts {
   speed?: number;
   onAgain(): void;
   onChange(): void;
+  /** Audit UX-08: Home (the lobby) from the results, top right. */
+  onHome?(): void;
   /** `text`: the dare line ("Beat my 7:12 vs Easy bots in Pawlegends!"), sent with the link to the share sheet (PUB-06). */
   onShare(url: string, text: string): void;
   onStore?(): void;
@@ -601,12 +610,29 @@ function resultTable(rows: readonly ResultRow[]): string {
  *  sim v12: Rookie 6:30, Easy 7:45, Normal and Hard 8:30): after it the clock, not the player, ends the match. */
 export const SUDDEN_DEATH_S = 600;
 
+/**
+ * Audit GP-05: below this share of the team's takedowns (K + A over the team's) and of its hero damage, a win says
+ * "jump into a fight", not "with your help" (an idle player won 50.5% of match 1 and only 4 of 101 such wins had 0
+ * hero damage, so the old "0 damage" rule praised waiting).
+ */
+export const FIGHT_SHARE = Object.freeze({ kp: 0.25, heroDmg: 0.15 });
+
+/** Did the player take a real part in the fights? From the results table's own team rows when present. Pure. */
+export function joinedFights(o: Pick<ResultsOpts, 'kills' | 'assists' | 'teamKills' | 'heroDamage' | 'table'>): boolean {
+  const team = (o.table ?? []).filter((r) => r.rel === 'self' || r.rel === 'ally');
+  const self = team.find((r) => r.rel === 'self');
+  if (!self) return o.heroDamage !== undefined ? o.heroDamage > 0 : o.kills > 0;
+  const dmg = team.reduce((a, r) => a + r.heroDmg, 0);
+  const kp = (self.k + self.a) / Math.max(1, o.teamKills[0]);
+  return kp >= FIGHT_SHARE.kp || (dmg > 0 && self.heroDmg / dmg >= FIGHT_SHARE.heroDmg);
+}
+
 /** The line under Victory / Defeat, chosen by the margin (a 1–14 loss is not "so close"). Pure. */
-export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty' | 'heroDamage'>): string {
+export function resultLine(o: Pick<ResultsOpts, 'won' | 'kills' | 'teamKills' | 'difficulty' | 'heroDamage'> & Partial<Pick<ResultsOpts, 'assists' | 'table'>>): string {
   const [ours, theirs] = o.teamKills;
   if (o.won) {
-    // only when the player really stayed out of every fight (real stats, not just no takedowns)
-    if (o.heroDamage !== undefined ? o.heroDamage === 0 : o.kills === 0) return 'Your team took the core. Next time, jump into a fight!';
+    // GP-05: only a real part in the fights earns "with your help" (a share of the team's takedowns or hero damage)
+    if (!joinedFights(o)) return 'Your team took the core. Next time, jump into a fight!';
     if (o.kills === 0) return 'Your team took the core, with your help.';
     return ours - theirs >= 6 ? 'A clean sweep. The core is yours.' : 'The core is yours.';
   }
@@ -662,6 +688,24 @@ function gradeBlock(g: ResultGrade, won: boolean): string {
   </div>`;
 }
 
+/**
+ * Audit UX-04: the rewards pinned beside Run it back (on phones the Treat Track, chest and share sat 600 px below the
+ * fold): the grade, the Treat XP bar, a chest toast and the dare link. The full blocks stay in the column.
+ */
+export function rewardStrip(o: Pick<ResultsOpts, 'grade' | 'treats' | 'dareLink'>): string {
+  const parts: string[] = [];
+  if (o.grade) parts.push(`<span class="rw-grade" data-grade="${o.grade.grade}" title="Grade ${o.grade.grade}"><b>${o.grade.grade}</b><small>Grade</small></span>`);
+  const t = o.treats;
+  if (t) {
+    const pct = (v: number): string => `${Math.round(v * 100)}%`;
+    const opened = t.rewards.length > 0;
+    parts.push(`<span class="rw-treat" style="--from:${pct(t.before)};--to:${pct(opened ? 1 : t.after)}"><small>+${t.gained} Treat XP</small><i class="bar"><i class="fill"></i></i></span>`);
+    if (opened) parts.push(`<span class="rw-chest">${icon('crown')}<span><b>Chest opened</b><small>${esc(t.rewards.map((r) => r.name).join(', '))}</small></span></span>`);
+  }
+  if (o.dareLink) parts.push(`<button class="pl-btn ghost small rw-share" data-a="share" title="Copy dare link">Dare a friend</button>`);
+  return parts.length ? `<div class="pl-reward" data-reward>${parts.join('')}</div>` : '';
+}
+
 function treatBlock(t: TreatGain): string {
   const pct = (v: number): string => `${Math.round(v * 100)}%`;
   const opened = t.rewards.length > 0;
@@ -713,6 +757,8 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
       ${o.storeOpen || o.notifyOpen ? `<div class="extras">${o.storeOpen ? `<button class="pl-btn ghost small" data-a="store">${icon('crown')}Store</button>` : ''}${o.notifyOpen ? `<button class="pl-btn ghost small" data-a="notify">Legends Pass: notify me</button>` : ''}</div>` : ''}
     </div>
     ${(o.won ? o.grade?.mvp.hero : (o.grade?.bestOnTeam?.hero ?? o.grade?.mvp.hero)) ? '<div class="tt-mvp-slot" data-slot="mvp"></div>' : ''}
+    ${o.onHome && !o.party ? `<button class="pl-btn ghost small pl-home" data-a="home" aria-label="Home">${icon('paw')}<span>Home</span></button>` : ''}
+    ${o.party ? '' : rewardStrip(o)}
     ${
       o.party
         ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">Leave party</button><button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button><button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
@@ -723,12 +769,12 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     if (a === 'again') o.onAgain();
     else if (a === 'change') o.onChange();
     else if (a === 'leave-party') o.party?.onLeave();
+    else if (a === 'home') o.onHome?.();
     else if (a === 'store') o.onStore?.();
     else if (a === 'notify') o.onNotify?.();
     else if (a === 'share' && o.dareLink) {
       o.onShare(o.dareLink, dareLine);
-      const b = root.querySelector('[data-a="share"]') as HTMLElement;
-      b.textContent = 'Link copied!';
+      for (const b of root.querySelectorAll<HTMLElement>('[data-a="share"]')) b.textContent = 'Link copied!';
     }
   });
   parent.appendChild(root);
@@ -769,9 +815,16 @@ export interface MenuOpts {
   touch?: boolean;
   /** Show the scoreboard (touch has no Tab key). */
   onScores?(): void;
+  /** Audit UX-09: full Settings from the pause menu. */
+  onSettings?(): void;
   onResume(): void;
   onMute(m: boolean): void;
   onLeave(): void;
+  /**
+   * Audit UX-03: Leave asks first; `leaveCounts` (from match 4, solo, off Rookie: the matches that offer Forfeit)
+   * says the leave is recorded as a forfeit loss.
+   */
+  leaveCounts?: boolean;
   /**
    * GAPS B2: Forfeit, offered from match tick `from` (the menu opened at `tick`; before `from` the button is disabled
    * and names the time). Absent: no Forfeit button (matches 1–3, Rookie).
@@ -783,6 +836,8 @@ export interface MenuOpts {
    * match"; Pause becomes "Vote pause" and Forfeit "Vote surrender" (no confirm step: friends answer the vote).
    */
   party?: { onVotePause(): void };
+  /** The camera zoom slider moved (it already saved the zoom): the match view follows at once. */
+  onZoom?(z: number): void;
 }
 
 const clockText = (ticks: number): string => {
@@ -802,9 +857,11 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     ${party ? '<button class="pl-btn ghost" data-a="vote-pause" data-testid="vote-pause">Vote pause</button>' : ''}
     ${o.onScores ? `<button class="pl-btn ghost" data-a="scores">Scores</button>` : ''}
     <button class="pl-btn ghost" data-a="mute">${muted ? 'Sound: off' : 'Sound: on'}</button>
+    ${o.onSettings ? '<button class="pl-btn ghost" data-a="settings">Settings</button>' : ''}
+    ${o.onZoom ? zoomRowHtml() : ''}
     ${ff ? `<button class="pl-btn ghost danger" data-a="forfeit"${ffReady ? '' : ' disabled'}>${party ? (ffReady ? 'Vote surrender' : `Vote surrender from ${clockText(ff.from)}`) : ffReady ? 'Forfeit' : `Forfeit from ${clockText(ff.from)}`}</button>` : ''}
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
-    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Tab</kbd> scores</p>`}</div>`;
+    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Wheel</kbd> or <kbd>+</kbd><kbd>−</kbd> zoom · <kbd>Tab</kbd> scores</p>`}</div>`;
   };
   // GAPS B2: the confirm step names what a forfeit costs before anything is sent
   const confirm = (): void => {
@@ -813,12 +870,24 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     <button class="pl-btn big" data-a="forfeit-no">Keep playing</button>
     <button class="pl-btn ghost danger" data-a="forfeit-yes">Forfeit</button></div>`;
   };
+  // Audit UX-03: Leave was one free tap (nothing recorded); now a confirm step that says what it costs
+  const leaveAsk = (): void => {
+    root.innerHTML = `<div class="card pl-leave"><h2>Leave this match?</h2>
+    <p class="sub">${party ? 'You go back to your party. Bots take your place.' : o.leaveCounts ? 'It counts as a loss on your record, like a forfeit.' : 'This match is not saved.'}</p>
+    <button class="pl-btn big" data-a="leave-no">Keep playing</button>
+    <button class="pl-btn ghost danger" data-a="leave-yes">Leave match</button></div>`;
+  };
   main();
+  if (o.onZoom) bindZoomRow(root, o.onZoom);
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'resume') o.onResume();
     else if (a === 'scores') o.onScores?.();
-    else if (a === 'leave') o.onLeave();
+    else if (a === 'settings') o.onSettings?.();
+    else if (a === 'leave') leaveAsk();
+    else if (a === 'leave-yes') o.onLeave();
+    // the zoom slider's listeners sit on `root` (bound once above), so a redrawn card keeps them
+    else if (a === 'leave-no') main();
     else if (a === 'forfeit' && ffReady) {
       if (party) o.onForfeit?.();
       else confirm();
