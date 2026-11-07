@@ -29,6 +29,31 @@ export function startLandingMotion(rootEl, libs) {
   function later(cb, ms){ if (dead) return 0; var id = setTimeout(function(){ timers.delete(id); if (!dead) cb(); }, ms); timers.add(id); return id; }
   function io(cb){ var o = new IntersectionObserver(function(en){ if (!dead) cb(en); }); observers.push(o); return o; }
   function addTicker(f){ tickers.push(f); gsap.ticker.add(f); }
+  /* Endless idle loops (bobbing, breathing, spinning) pause while their section is off screen and carry on where they
+     stopped when it comes back, so a long scroll is not animating the whole page every frame. */
+  var loopSecs = new Map(), loopIO = null;
+  /* GSAP unlinks a tween from its timeline when it finishes or is killed (an overwrite, the hero's tap): never wake those */
+  function alive(tw){ return !!tw.parent; }
+  function loopIn(sec, t){
+    if (!sec || !t) return t;
+    var s = loopSecs.get(sec);
+    if (!s){
+      s = {on:true, ts:[]}; loopSecs.set(sec, s);
+      if (!loopIO) loopIO = io(function(en){ en.forEach(function(e){
+        var x = loopSecs.get(e.target); if (!x) return;
+        x.on = e.isIntersecting;
+        x.ts = x.ts.filter(alive);
+        x.ts.forEach(function(tw){ if (x.on) tw.resume(); else tw.pause(); });
+      }); });
+      loopIO.observe(sec);
+    }
+    s.ts = s.ts.filter(alive);
+    s.ts.push(t);
+    if (!s.on) t.pause();
+    return t;
+  }
+  /* The intro has played (or there is none): the page can start its deferred work (analytics, components/GoogleTagManager). */
+  function ready(){ try { window.dispatchEvent(new Event('pawlegends:landing-ready')); } catch (e) {} }
 
   var ctx = gsap.context(body, rootEl);
 
@@ -377,7 +402,7 @@ export function startLandingMotion(rootEl, libs) {
   /* =========================================================
      no GSAP or reduced motion: static, finished page
      ========================================================= */
-  if (!anim){ S.crack = 1; frameDraw(performance.now(), 0); return; }
+  if (!anim){ S.crack = 1; frameDraw(performance.now(), 0); ready(); return; }
 
   /* =========================================================
      INTRO SEQUENCE
@@ -452,8 +477,9 @@ export function startLandingMotion(rootEl, libs) {
   var puppets = $$('.fighter .puppet');
   tl.add(function(){
     S.ready = true;
-    G.to('.vs-word', {scale:1.04, duration:.9, ease:'sine.inOut', yoyo:true, repeat:-1});
-    puppets.forEach(function(p,i){ G.to(p, {scaleY:1.025, scaleX:.99, duration:1.8, ease:'sine.inOut', yoyo:true, repeat:-1, delay:i*.5}); });
+    ready();
+    loopIn(hero, G.to('.vs-word', {scale:1.04, duration:.9, ease:'sine.inOut', yoyo:true, repeat:-1}));
+    puppets.forEach(function(p,i){ loopIn(hero, G.to(p, {scaleY:1.025, scaleX:.99, duration:1.8, ease:'sine.inOut', yoyo:true, repeat:-1, delay:i*.5})); });
     (function thunder(){
       G.delayedCall(3 + Math.random()*3, function(){
         if (dead) return;
@@ -552,14 +578,14 @@ export function startLandingMotion(rootEl, libs) {
   G.from('#slot-cat', {xPercent:-60, rotation:-14, opacity:0, duration:.8, ease:'expo.out', scrollTrigger:{trigger:'#stage', start:'top 80%', once:true}});
   G.from('#slot-dog', {xPercent:60, rotation:14, opacity:0, duration:.8, ease:'expo.out', scrollTrigger:{trigger:'#stage', start:'top 80%', once:true}});
   G.from('.stage-vs', {scale:0, rotation:-90, duration:.6, ease:'back.out(3)', delay:.4, scrollTrigger:{trigger:'#stage', start:'top 80%', once:true}});
-  G.to('.stage-vs', {y:-5, duration:1.2, ease:'sine.inOut', yoyo:true, repeat:-1});
+  loopIn($('#stage'), G.to('.stage-vs', {y:-5, duration:1.2, ease:'sine.inOut', yoyo:true, repeat:-1}));
   /* the new dogs: cards drop in after the grid */
   if ($('.newdogs')){
     G.from($$('.newdogs .nd'), {y:40, rotation:function(i){return (i%2?1:-1)*8}, opacity:0, duration:.55, ease:'back.out(1.8)', stagger:.07, clearProps:'transform,opacity',
       scrollTrigger:{trigger:'.newdogs', start:'top 88%', once:true}});
     G.from('.newdogs .nd-badge', {scale:0, rotation:-20, duration:.5, ease:'back.out(3)', scrollTrigger:{trigger:'.newdogs', start:'top 88%', once:true}});
   }
-  $$('.slot .pic').forEach(function(p,i){ G.to(p, {y:-6, duration:1.9, ease:'sine.inOut', yoyo:true, repeat:-1, delay:i*.6}); });
+  $$('.slot .pic').forEach(function(p,i){ loopIn($('#stage'), G.to(p, {y:-6, duration:1.9, ease:'sine.inOut', yoyo:true, repeat:-1, delay:i*.6})); });
 
   /* halftone dot transitions */
   $$('.dotband').forEach(function(b){
@@ -736,14 +762,14 @@ export function startLandingMotion(rootEl, libs) {
      ========================================================= */
   var beltT = {trigger:'.belt', start:'top 80%', once:true};
   var disc = $('.belt .disc'), splitB = $('.belt .split'), beltIn = $('.belt-in');
-  G.from(disc, {rotation:-540, scale:.4, opacity:0, duration:1.6, ease:'expo.out', scrollTrigger:beltT, onComplete:function(){ G.to(disc, {rotation:'+=360', duration:50, ease:'none', repeat:-1}); }});
+  G.from(disc, {rotation:-540, scale:.4, opacity:0, duration:1.6, ease:'expo.out', scrollTrigger:beltT, onComplete:function(){ loopIn($('.belt'), G.to(disc, {rotation:'+=360', duration:50, ease:'none', repeat:-1})); }});
   G.from('.belt img', {scale:0, rotation:-20, duration:.8, ease:'back.out(2.2)', delay:.35, scrollTrigger:beltT});
   G.timeline({scrollTrigger:beltT, delay:.8})
     .from(splitB, {scale:3, rotation:-30, opacity:0, duration:.32, ease:'expo.in'})
     .to(splitB, {scaleY:.78, scaleX:1.18, duration:.06, ease:'power2.out'})
     .add(function(){ dust(); })
     .to(splitB, {scaleY:1, scaleX:1, duration:.6, ease:'elastic.out(1,.4)'})
-    .to(splitB, {rotation:16, duration:2, ease:'sine.inOut', yoyo:true, repeat:-1}, '+=.2');
+    .add(function(){ loopIn($('.belt'), G.to(splitB, {rotation:16, duration:2, ease:'sine.inOut', yoyo:true, repeat:-1})); }, '+=.2');
   function dust(){
     var c = $('.belt canvas'), r = c.getBoundingClientRect(), d = DPR; c.width = r.width*d; c.height = r.height*d;
     var g = c.getContext('2d'), sr = splitB.getBoundingClientRect(), ox = sr.left - r.left + sr.width/2, oy = sr.top - r.top + sr.height*.9, ps = [];
@@ -767,7 +793,7 @@ export function startLandingMotion(rootEl, libs) {
     var shSplit = srSplit(shH, {type:'words,chars', charsClass:'char'});
     G.from(shSplit.chars, {yPercent:-120, rotation:function(){return (Math.random()-.5)*30}, opacity:0, duration:.6, ease:'back.out(2.4)', stagger:{each:.025, from:'start'},
       scrollTrigger:{trigger:shH, start:'top 85%', once:true}, onComplete:function(){
-        G.timeline({repeat:-1, repeatDelay:6, delay:2}).to(shSplit.chars, {yPercent:-14, duration:.2, ease:'sine.out', yoyo:true, repeat:1, stagger:.03});
+        loopIn($('.shelter'), G.timeline({repeat:-1, repeatDelay:6, delay:2})).to(shSplit.chars, {yPercent:-14, duration:.2, ease:'sine.out', yoyo:true, repeat:1, stagger:.03});
       }});
   }
   var strongs = $$('.shelter p strong');
@@ -777,13 +803,13 @@ export function startLandingMotion(rootEl, libs) {
   /* =========================================================
      CONTINUE: mascots
      ========================================================= */
-  var m1 = $('.cont .mascot'), m2 = $('.cont .mascot2');
+  var m1 = $('.cont .mascot'), m2 = $('.cont .mascot2'), contSec = $('.cont');
   G.set(m2, {scaleX:-1, scaleY:1, rotation:0}); /* GSAP reads CSS scaleX(-1) as rotate(180) scaleY(-1); pin it explicitly */
   G.from(m1, {yPercent:100, rotation:12, duration:.8, ease:'back.out(1.6)', scrollTrigger:{trigger:'.cont', start:'top 60%', once:true}});
   G.from(m2, {yPercent:100, duration:.8, ease:'back.out(1.6)', delay:.15, scrollTrigger:{trigger:'.cont', start:'top 60%', once:true}});
   [m1, m2].forEach(function(m,i){
-    G.to(m, {scaleY:1.03, duration:2, ease:'sine.inOut', yoyo:true, repeat:-1, delay:i*.7});
-    (function twitch(){ G.delayedCall(3 + Math.random()*2, function(){ if (dead) return; G.to(m, {rotation:(Math.random()<.5?-4:4), duration:.15, ease:'power2.out', yoyo:true, repeat:1}); twitch(); }); })();
+    loopIn(contSec, G.to(m, {scaleY:1.03, duration:2, ease:'sine.inOut', yoyo:true, repeat:-1, delay:i*.7}));
+    (function twitch(){ loopIn(contSec, G.delayedCall(3 + Math.random()*2, function(){ if (dead) return; G.to(m, {rotation:(Math.random()<.5?-4:4), duration:.15, ease:'power2.out', yoyo:true, repeat:1}); twitch(); })); })();
   });
   var ctaMag = $('#cont-cta').parentNode;
   ctaMag.addEventListener('pointerenter', function(){ G.to(m1, {keyframes:{rotation:[0,-7,6,-6,5,-3,0]}, duration:.6, ease:'none', overwrite:'auto'}); });

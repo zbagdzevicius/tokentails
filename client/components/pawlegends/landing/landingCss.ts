@@ -4,7 +4,7 @@
  * `.pll`, `:root`/`body`/`html.x` mapped onto the root, keyframes renamed `pll-*`. Edit it here by hand now.
  */
 // eslint-disable-next-line tt/no-raw-font -- the ported landing keeps its own faces (Fredoka display, site Nunito body), scoped to .pll
-export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("/pawlegends/landing/fredoka.218d0e8a.woff2") format("woff2");font-weight:300 700;font-display:swap}
+export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("/pawlegends/landing/fredoka-latin.eda1d43a.woff2") format("woff2");font-weight:300 700;font-display:swap}
 .pll{
   --pink:#ff3d7f;--pink-d:#c8135b;--pink-l:#ffb3cd;--cream:#fff3e3;--berry:#3e0820;
   --blue:#2f6bff;--blue-d:#0d2f9a;--navy:#071334;--ice:#d6e5ff;

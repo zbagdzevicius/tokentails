@@ -19,16 +19,37 @@ const A = {
   teamfight: LANDING_ASSET("shot-teamfight.1be7757e.webp"),
   phone: LANDING_ASSET("shot-phone.24bce0a7.webp"),
   logo: LANDING_ASSET("tt-logo.19b6c796.webp"),
-  fredoka: LANDING_ASSET("fredoka.218d0e8a.woff2"),
+  fredoka: LANDING_ASSET("fredoka-latin.eda1d43a.woff2"),
   mascot: LANDING_ASSET("mascot.92c3f404.webp"),
   mascot2: LANDING_ASSET("mascot2.ff449081.webp"),
 };
-/** Fredoka (OFL, LICENSE-fredoka.txt next to it): the game's UI face, the whole font so ė draws from it. */
+/**
+ * Smaller copies (`<name>.w<width>.webp`, the same picture resized next to the original) for images that never draw
+ * at their full size: tiles, the footer logo and the round screenshots. `sizes` errs large, so no image upscales.
+ */
+export const SMALLER: Readonly<Record<string, number>> = Object.freeze({
+  [A.logo]: 244,
+  [A.map]: 720,
+  [A.aim]: 720,
+  [A.teamfight]: 720,
+});
+/** The tile copy of a hero portrait: tiles draw at most about 140 CSS px wide (scale 1.34 on hover). */
+export const TILE_PORTRAIT_WIDTH = 280;
+const sized = (src: string, w: number) => src.replace(/\.webp$/, `.w${w}.webp`);
+/** `srcset` for an image whose original is `full` px wide and whose smaller copy is `w` px wide. */
+const srcset = (src: string, w: number, full: number) => `${sized(src, w)} ${w}w, ${src} ${full}w`;
+/**
+ * Fredoka (OFL, LICENSE-fredoka.txt next to it): the game's UI face. Its Hebrew glyphs are dropped (every Latin glyph,
+ * the punctuation and the combining marks stay, so ė still draws from it), the width axis is pinned at its default 100
+ * and the weight axis kept (300 to 700): 33 KB instead of 88 KB, same glyphs on the page.
+ */
 export const LANDING_FONT = A.fredoka;
 /** Every file the landing loads from public/ (the unit test checks they exist). */
 export const LANDING_FILES: readonly string[] = Object.freeze([
   ...Object.values(A),
+  ...Object.entries(SMALLER).map(([src, w]) => sized(src, w)),
   ...LANDING_ROSTER.map((h) => h.portrait).filter((p): p is string => !!p),
+  ...gridHeroes().map((h) => h.portrait).filter((p): p is string => !!p).map((p) => sized(p, TILE_PORTRAIT_WIDTH)),
 ]);
 
 export const HERO_CTA_HREF = playHref("landing_hero");
@@ -52,7 +73,9 @@ const PAW_SVG =
   '<svg viewBox="-30 -30 60 60" aria-hidden="true"><ellipse cx="0" cy="8" rx="15" ry="12.5"/><circle cx="-16" cy="-6" r="6.4"/><circle cx="-5.6" cy="-16.5" r="6.4"/><circle cx="5.6" cy="-16.5" r="6.4"/><circle cx="16" cy="-6" r="6.4"/></svg>';
 
 function tile(h: LandingHero, pressed: boolean): string {
-  const art = `<img src="${h.portrait}" alt="" width="420" height="574" loading="lazy" decoding="async">`;
+  // Grid heroes always have a portrait (gridHeroes).
+  const src = h.portrait ?? "";
+  const art = `<img src="${src}" srcset="${srcset(src, TILE_PORTRAIT_WIDTH, 420)}" sizes="(max-width:560px) 34vw, (max-width:820px) 20vw, 150px" alt="" width="420" height="574" loading="lazy" decoding="async">`;
   return (
     `<li class="${h.side}"><button class="tile ${h.side}" type="button" data-side="${h.side}" data-id="${h.id}" data-name="${shown(h.name)}"` +
     ` data-role="${h.role}" data-breed="${esc(h.breed ?? "")}" data-blurb="${esc(h.blurb)}" data-portrait="${h.portrait ?? ""}" aria-pressed="${pressed}">` +
@@ -270,7 +293,7 @@ export function landingMarkup(): string {
     <div class="stripes"></div>
     <svg class="num" viewBox="0 0 100 100" aria-hidden="true"><text x="50" y="92" text-anchor="middle">1</text></svg>
     <div class="wrap">
-      <div class="shot"><div class="kb"><img src="${A.map}" alt="Top-down view of the Pawlegends map: a pink cat base on the left, a blue dog base on the right, lanes looping between them across a river" width="1200" height="675" loading="lazy" decoding="async">
+      <div class="shot"><div class="kb"><img src="${A.map}" srcset="${srcset(A.map, SMALLER[A.map], 1200)}" sizes="(max-width:820px) 92vw, 760px" alt="Top-down view of the Pawlegends map: a pink cat base on the left, a blue dog base on the right, lanes looping between them across a river" width="1200" height="675" loading="lazy" decoding="async">
         <svg class="ov ov1" viewBox="0 0 1200 675" aria-hidden="true">
           <circle class="base c" cx="168" cy="318" r="62"/><circle class="base d" cx="1032" cy="330" r="62"/>
           <path class="lane-ink" d="M168,300 C140,220 200,150 310,146 L890,146 C970,150 1010,220 1032,312"/>
@@ -289,7 +312,7 @@ export function landingMarkup(): string {
     <div class="stripes"></div><div class="zap" aria-hidden="true"></div>
     <svg class="num" viewBox="0 0 100 100" aria-hidden="true"><text x="50" y="92" text-anchor="middle">2</text></svg>
     <div class="wrap">
-      <div class="shot"><div class="kb"><img src="${A.aim}" alt="A cat hero at the start of a match, with the skill bar along the bottom of the screen and a hint saying run to the lane" width="960" height="540" loading="lazy" decoding="async">
+      <div class="shot"><div class="kb"><img src="${A.aim}" srcset="${srcset(A.aim, SMALLER[A.aim], 960)}" sizes="(max-width:820px) 92vw, 760px" alt="A cat hero at the start of a match, with the skill bar along the bottom of the screen and a hint saying run to the lane" width="960" height="540" loading="lazy" decoding="async">
         <svg class="ov ov2" viewBox="0 0 960 540" aria-hidden="true">
           <circle class="holdt" cx="355" cy="226" r="46"/><circle class="hold" cx="355" cy="226" r="46" pathLength="1" stroke-dasharray="1" stroke-dashoffset="0" transform="rotate(-90 355 226)"/>
           <g transform="translate(355 226) rotate(-14)">
@@ -309,7 +332,7 @@ export function landingMarkup(): string {
     <div class="stripes"></div><div class="zap" aria-hidden="true"></div>
     <svg class="num" viewBox="0 0 100 100" aria-hidden="true"><text x="50" y="92" text-anchor="middle">3</text></svg>
     <div class="wrap">
-      <div class="shot"><div class="kb"><img src="${A.teamfight}" alt="Cat heroes Sage, Clem and Bengas fight on a lane as a dog tower takes a hit" width="1000" height="563" loading="lazy" decoding="async">
+      <div class="shot"><div class="kb"><img src="${A.teamfight}" srcset="${srcset(A.teamfight, SMALLER[A.teamfight], 1000)}" sizes="(max-width:820px) 92vw, 760px" alt="Cat heroes Sage, Clem and Bengas fight on a lane as a dog tower takes a hit" width="1000" height="563" loading="lazy" decoding="async">
         <svg class="ov ov3" viewBox="0 0 1000 563" aria-hidden="true">
           <path class="star" transform="translate(500 290)" d="M0,-52 L13,-17 L50,-16 L21,7 L31,42 L0,22 L-31,42 L-21,7 L-50,-16 L-13,-17 Z"/>
           <path class="star" transform="translate(770 322) scale(.85)" d="M0,-52 L13,-17 L50,-16 L21,7 L31,42 L0,22 L-31,42 L-21,7 L-50,-16 L-13,-17 Z"/>
@@ -395,7 +418,7 @@ ${shelterSection(champions)}
     </div>
   </div>
   <footer class="foot">
-    <img src="${A.logo}" alt="Token Tails" width="420" height="236" loading="lazy" decoding="async">
+    <img src="${A.logo}" srcset="${srcset(A.logo, SMALLER[A.logo], 420)}" sizes="120px" alt="Token Tails" width="420" height="236" loading="lazy" decoding="async">
     <span>Pawlegends by Token Tails</span>
     <a href="${PAWLEGENDS_TERMS_PATH}">Terms</a>
     <a href="#top">Back to top</a>
