@@ -107,6 +107,7 @@ html[data-quality='low'] .pl-lobby .lb-play .pl-btn.big { animation: none; }
 .lb-corner {
   position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); display: flex; gap: 8px; align-items: center;
 }
+.lb-exit { padding: 0 14px 0 10px; }
 .lb-icon {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; height: 44px; padding: 0 12px;
   border-radius: 999px; border: 0; cursor: pointer; color: var(--cream); background: var(--lb-panel);

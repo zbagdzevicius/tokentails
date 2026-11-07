@@ -1614,11 +1614,10 @@ body.ui-touch .bc-badge { width: 40px; height: 40px; left: -20px; top: -40px; }
 .go-title { color: var(--tt-ink); }
 
 /* ================================================================== Token Tails embed (`<html data-embed="1">`, core/embed.js)
-   The host page's "Back to games" button sits in the frame's top-left corner (44 px, 6 px in: docs/TOKENTAILS-PLAN.md
-   §5.1, tokentails SwordcatHost SWORDCAT_EXIT_GUTTER_PX), so the HUD keeps that corner free: the top-left block steps
-   right on wide screens and down on portrait phones (stepping right there would push the hearts into ❚❚). The
-   left-handed landscape mirror moves the top-right counters to that corner, so they step right instead. */
-html[data-embed="1"] { --embed-gut: 56px; }
+   The host page used to lay a round CLOSE button over the frame's top-left corner, and the HUD kept a 56 px gutter
+   free for it. The host no longer draws it (UX pass 2: it sat on top of the game's own Back buttons); the lobby's
+   "Games" button (bridge `exit`) is the way out, so the gutter is 0. The rules below stay keyed on it. */
+html[data-embed="1"] { --embed-gut: 0px; }
 html[data-embed="1"] body .ui-root .hud-tl { left: calc(16px + var(--embed-gut)); }
 @media (orientation: landscape) {
   html[data-embed="1"] body.ui-touch.ui-lefty .ui-root .hud-tr { left: calc(16px + var(--embed-gut) + env(safe-area-inset-left)); }
