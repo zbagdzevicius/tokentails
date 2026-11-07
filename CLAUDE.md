@@ -17,6 +17,7 @@ not at the root. Documentation lives in `docs/`; start with `docs/ARCHITECTURE.m
 | `contracts/stellar/soroban-nft/` Rust | `cargo test` | `stellar contract build` |
 | `shelter-rail/` MIT JS SDK + donate widget, no deps (copy `src/widget.js` to `client/public/rail/`) | – | `npm test` |
 | `contracts/shelter-split/` ShelterSplit + DonateRouter + CappedSpender (Solidity, Foundry, MIT) | – | `forge build`, `forge test` |
+| `infra/gcp/` Google Cloud migration: Terraform (europe-west3), images, deploy workflow, runbook `infra/gcp/RUNBOOK.md`. Never target project `motored-497708`; no apply from an AI session | – | `infra/gcp/scripts/preflight.sh` (offline: validate, mocked `terraform test`, tflint, trivy, cloud-init; `--all` adds backend tests and a Docker smoke) |
 
 ## Rules that matter here
 

@@ -57,12 +57,30 @@ with `npx tsc -p tsconfig.build.json --outDir <scratch dir>` instead.
 
 `src/main.ts` does the following:
 
-- Creates the app with `rawBody: true`.
+- Picks the root module from `BACKEND_ROLE` (see Process roles below) and creates the app with `rawBody: true`.
 - `applyBodyParsers` (`src/user/heist/live-body-limit.ts`) mounts, in order: `express.raw()` on `/image/webhook` so Stripe signature verification can read the untouched body; a 64 KB JSON parser on `/user/catbassadors/live` (a non-JSON body there is 415 before any parser, an oversized one a JSON 413); then `express.json({ limit: '50mb' })` for everything else (known issue).
 - Registers a global `AppValidationPipe({ transform: true })` (`src/user/dto/live-game.dto.ts`): the old `ValidationPipe` except that it leaves `LiveGameDto` to its route pipe, so a bad Heist log gets its coded 400 instead of a code-less one. There is no global `whitelist`: most `@Body()` types are undecorated Mongoose schema classes that it would strip to `{}`, and interface or inline body types are never validated. Routes with a decorated DTO add a strict route-level pipe (`profileWritePipe` on the profile write routes, `liveGamePipe` on `POST /user/catbassadors/live`, `ShelterWriteDto` on the shelter writes). Everywhere else unknown body fields still pass through, so search handlers pass `pickSearchParams(params)` (`src/common/validators.ts`: `page`, `perPage`, `sort` only) to `BaseRepository.find`, never the raw body.
 - Sets Express `trust proxy` (`src/shared/trust-proxy.ts`). By default it trusts our own hops only: loopback, private, link-local, carrier-grade NAT (100.64.0.0/10) and Cloudflare's edge ranges, so `req.ip` is the first address from the right that is not ours (the visitor) with no env. `TRUST_PROXY` is an optional override (any Express value; `0` or `false` turns trust off). It logs once what the first request resolved to (the kind of address, never the address).
 - Enables CORS with credentials for `localhost` variants, `capacitor://localhost`, the production domains, and any origins listed in `FRONT_END_URLS`. If that variable is unset the origin list falls back to `*`.
 - Listens on `PORT`, defaulting to 3005.
+
+### Process roles
+
+One image, three ways to start it (`src/shared/runtime/backend-role.ts`). It wires the process; it is not a feature
+switch, and every feature stays on in the role that serves it.
+
+| `BACKEND_ROLE` | Root module | Used by |
+|---|---|---|
+| unset or `all` | `AppModule`: everything, the party relay included | DigitalOcean, local dev (unchanged) |
+| `api` | `ApiAppModule`: the same controllers, providers and 26 leased crons, without `PartyRelayService`, so it never attaches to `/pawlegends/ws` and never restores rooms | Cloud Run `tt-api` (infra/gcp) |
+| `relay` | `RelayModule` (`src/relay.module.ts`): the relay, its room store, ticket verifier and the cat collection; no `ScheduleModule`, no Stripe, Firebase, AI or hot-wallet provider | the relay VM (infra/gcp) |
+
+Every role serves `GET /healthz` (liveness: `{ ok, role, uptimeS }`, plus `revision` on Cloud Run and the relay
+counters on the relay role) and `GET /readyz` (503 while MongoDB is down, while shutting down, or when the role serves
+the relay and it has not started). `GET /` still answers `1`. The relay role also answers `GET /pawlegends/ws/healthz`
+(proves a route reaches the relay) and logs one `relay_stats` JSON line a minute for log-based metrics. In a split role
+`IS_PROD` without `NODE_ENV=production` is fatal at boot; under `all` it is a loud log line only. Deployment:
+`infra/gcp/RUNBOOK.md`.
 
 There is no Swagger, no global guard other than the throttler (`AppThrottlerGuard`, registered as `APP_GUARD`), no global exception filter, and no static file serving.
 

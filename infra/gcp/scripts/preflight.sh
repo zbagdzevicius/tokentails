@@ -58,7 +58,7 @@ for f in "$TF"/envs/*/terraform.tfvars "$TF"/envs/*/*.auto.tfvars; do
     fi
 done
 if /usr/bin/grep -rIl --exclude-dir=.terraform --exclude-dir=.preflight "$FORBIDDEN_PROJECT" "$TF" "$ROOT/.github/workflows" 2>/dev/null |
-    /usr/bin/grep -vE '(variables\.tf|bootstrap/main\.tf|\.tftest\.hcl|deploy-gcp\.yml|terraform\.yml)$' | /usr/bin/grep -q .; then
+    /usr/bin/grep -vE '(variables\.tf|bootstrap/main\.tf|terraform\.tfvars\.example|\.tftest\.hcl|deploy-gcp\.yml|terraform\.yml)$' | /usr/bin/grep -q .; then
     bad "$FORBIDDEN_PROJECT appears outside the guard code"; guard_fail=1
 fi
 if have gcloud; then

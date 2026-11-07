@@ -414,6 +414,13 @@ Hand-kept copies that remain (keep them equal by hand; most are pinned by a test
 | Bad Cat Daily money and cameo contract: `backend/src/badcat/badcat.contracts.ts` (SKUs and prices, `CheckoutMeta`, request and response shapes, `BADCAT_ROUTES` incl. the Phase 2 routes, the Phase 2 status flags and shapes, cameo kinds, weights and constants, Day #1) | The money and cameo block of `bad-cat/src/types.ts` (the game package is the source of truth) and `DAY1` in `bad-cat/src/content/daily.ts` | `backend/src/badcat/badcat.contracts.spec.ts` reads both files and fails on drift |
 | Bad Cat Daily sim on the backend: `backend/src/vendor/badcat-sim/` (generated) and `backend/src/badcat/fixtures/badcat-golden.json` | `bad-cat/src/server/index.ts` and everything it imports | `npm run vendor-sim:check` in bad-cat/, `backend/src/badcat/badcat-sim.spec.ts` (hash + golden replays), `bad-cat/src/server/server.test.ts` (golden fixture) |
 
+## Google Cloud (migration in progress)
+
+`infra/gcp/` holds the Terraform, the deploy workflow (`.github/workflows/deploy-gcp.yml`, manual until the cutover)
+and the step-by-step `infra/gcp/RUNBOOK.md`. The backend image takes a process role, `BACKEND_ROLE` (`all` by default,
+`api`, `relay`; docs/BACKEND.md "Process roles"). Run `infra/gcp/scripts/preflight.sh` before changing anything there;
+it needs no cloud credentials.
+
 ## Continuous integration
 
 `.github/workflows/ci.yml` (decision #59, GitHub Actions replaces GitLab): `contracts`
