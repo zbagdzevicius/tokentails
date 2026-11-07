@@ -150,8 +150,10 @@ export function towerGeometry(team: 0 | 1, tier: 'outer' | 'inner'): THREE.Buffe
 export function coreGeometry(team: 0 | 1): THREE.BufferGeometry {
   const b = new ModelBuilder();
   const t = TEAM[team];
-  b.cyl(3.2, 3.6, 0.8, team === 0 ? 0xf3ead8 : 0x9a8366, { at: [0, 0.4, 0] }, 20);
-  b.cyl(3.25, 3.25, 0.16, t.main, { at: [0, 0.85, 0] }, 20);
+  // QA 2026-11-07: the Woof base is dark walnut with a brass rim, so the ochre doghouse stands off its ochre plaza
+  // (a mid-tone base on the sandstone plaza read as one blob)
+  b.cyl(3.2, 3.6, 0.8, team === 0 ? 0xf3ead8 : 0x4e3524, { at: [0, 0.4, 0] }, 20);
+  b.cyl(3.25, 3.25, 0.16, team === 0 ? t.main : 0xd9a441, { at: [0, 0.85, 0] }, 20);
   if (team === 0) {
     // the Great Yarn Ball
     b.sphere(2.2, 0xff6f91, { at: [0, 3.1, 0] }, 20);

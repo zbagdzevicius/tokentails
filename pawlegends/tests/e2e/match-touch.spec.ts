@@ -106,12 +106,16 @@ test('Attack picks by priority: hero in range, then the lowest-HP minion, then a
   const reasons = new Map<string, number>();
   let checked = 0;
   let lastN = '';
+  // under machine load the sim runs slower than the wall clock: a round that saw nothing in reach walks longer
+  // (QA 2026-11-07: one loaded run checked 82 picks, 80 of them nothing, and never reached a fight)
+  let walkMs = 1400;
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline && (reasons.size < 3 || checked < 25)) {
     if ((await attr(page, 'screen')) === 'results') break;
     // Walk toward the enemy side, then press Attack a few times. C5: Attack no longer walks the hero when nothing is
     // in reach (the old attack-move did half the walking here), so the stick walks further.
-    await touchDrag(page, 150, 250, 230, 250, 1400);
+    await touchDrag(page, 150, 250, 230, 250, walkMs);
+    let sawTarget = false;
     for (let i = 0; i < 3; i++) {
       await page.touchscreen.tap(atk.x + atk.width / 2, atk.y + atk.height / 2);
       await page.waitForTimeout(120);
@@ -124,7 +128,9 @@ test('Attack picks by priority: hero in range, then the lowest-HP minion, then a
       // C5: a press with nothing in reach is a checked pick too (null: the button sends nothing)
       checked++;
       reasons.set(want.why, (reasons.get(want.why) ?? 0) + 1);
+      if (want.id !== null) sawTarget = true;
     }
+    walkMs = sawTarget ? 1400 : Math.min(4000, walkMs + 600);
   }
   console.log(`attack priority: ${checked} picks checked, ${[...reasons].map(([k, v]) => `${k} ${v}`).join(', ')}`);
   expect(checked).toBeGreaterThan(5);
