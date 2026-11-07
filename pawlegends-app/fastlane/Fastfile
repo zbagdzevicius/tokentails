@@ -23,13 +23,15 @@ opt_out_usage
 default_platform(:ios)
 
 APP_ID = "com.tokentails.pawlegends"
-APP_DIR = File.expand_path("..", __dir__)
+# Absolute at load time: fastlane runs actions from the project root, so "./metadata" would miss
+FASTLANE_DIR = File.expand_path(__dir__)
+APP_DIR = File.expand_path("..", FASTLANE_DIR)
 IOS_DIR = File.join(APP_DIR, "ios/App")
 WORKSPACE = File.join(IOS_DIR, "App.xcworkspace")
 OUTPUT_DIR = File.join(APP_DIR, "build/release")
 
 def load_local_secrets
-  path = File.join(__dir__, ".secrets.local")
+  path = File.join(FASTLANE_DIR, ".secrets.local")
   return unless File.exist?(path)
 
   File.readlines(path).each do |line|
@@ -110,7 +112,7 @@ def import_dist_cert
 end
 
 def review_information
-  dir = File.join(__dir__, "metadata", "review_information")
+  dir = File.join(FASTLANE_DIR, "metadata", "review_information")
   %w[first_name last_name phone_number email_address demo_user demo_password notes].each_with_object({}) do |key, info|
     path = File.join(dir, "#{key}.txt")
     value = File.exist?(path) ? File.read(path).strip : ""
@@ -215,7 +217,7 @@ platform :ios do
   desc "Upload the listing: text, screenshots and icon (no binary, no submission)"
   lane :metadata do
     api_key = asc_api_key
-    screenshots = File.join(__dir__, "screenshots")
+    screenshots = File.join(FASTLANE_DIR, "screenshots")
     deliver(
       api_key: api_key,
       # deliver does not load metadata/review_information on its own for a new app, and without a review detail it
@@ -227,7 +229,7 @@ platform :ios do
       skip_screenshots: !Dir.exist?(screenshots) || Dir.glob(File.join(screenshots, "**/*.png")).empty?,
       screenshots_path: screenshots,
       overwrite_screenshots: true,
-      metadata_path: File.join(__dir__, "metadata"),
+      metadata_path: File.join(FASTLANE_DIR, "metadata"),
       submit_for_review: false,
       force: true,
       precheck_include_in_app_purchases: false,
