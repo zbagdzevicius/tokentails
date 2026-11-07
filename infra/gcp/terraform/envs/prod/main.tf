@@ -358,7 +358,7 @@ module "relay_vm" {
   service_account = local.sa["sa-relay"]
   port            = local.relay_port
   initial_image   = local.backend_image
-  plain_env       = { NO_COLOR = "1" }
+  plain_env       = { NO_COLOR = "1", PARTY_MAX_LIVE_ROOMS = tostring(var.max_live_rooms) }
   secrets         = local.relay_secret_versions
   labels          = local.labels
 

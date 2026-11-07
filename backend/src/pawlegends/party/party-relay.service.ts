@@ -3,6 +3,7 @@ import { HttpAdapterHost } from '@nestjs/core';
 import type { Server } from 'http';
 import { CatRepository } from '../../cat/cat.repository';
 import { partyCardResolver, type PartyCatDoc } from './party-cards';
+import { maxLiveRoomsFrom } from './party-limits';
 import { PartyRelay } from './party-relay';
 import { PartyTicketService } from './party-ticket.service';
 import { MongoRoomStore } from './room-store';
@@ -33,6 +34,7 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
             server,
             store: this.store,
             tickets: this.tickets,
+            maxLiveRooms: maxLiveRoomsFrom(),
             // D8: only a card the ticketed account owns; peers see its art, element, tier and catalog name
             cards: partyCardResolver({
                 byId: async id => (await this.cats.get(id)) as unknown as PartyCatDoc | null,
