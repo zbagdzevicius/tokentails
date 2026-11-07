@@ -40,8 +40,10 @@ async function frames(page: Page, n: number): Promise<void> {
 
 async function walkToSpot(page: Page): Promise<void> {
   const map = (await page.locator('.pl-minimap canvas').boundingBox())!;
-  const mx = map.x + (SPOT.x / 100000) * map.width;
-  const my = map.y + (1 - SPOT.y / 60000) * map.height;
+  // MAP-GAPS A6: the minimap draws the map inset 6 px (ui/minimap.ts MM_PAD)
+  const pad = 6;
+  const mx = map.x + pad + (SPOT.x / 100000) * (map.width - 2 * pad);
+  const my = map.y + pad + (1 - SPOT.y / 60000) * (map.height - 2 * pad);
   // a right-click on the minimap is a move order (the sim paths around the base walls)
   await page.mouse.click(mx, my, { button: 'right' });
   await expect

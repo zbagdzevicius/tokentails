@@ -9,6 +9,7 @@
  * Particles pools (no new draw calls); nothing allocates per call. Low tier and reduced effects: no spin, and the
  * callers halve their counts with funKit's `funCount`. Every helper does nothing when the pools are not reachable (tests).
  */
+import { viewSign } from '../../coords';
 import { FADE, GROW, SHAPE } from '../Particles.js';
 import { setColor } from '../../ppk/fx/util.js';
 import type { FxCtx } from '../../anim/types';
@@ -78,19 +79,21 @@ export function zed(fx: FxCtx, x: number, y: number, z: number, size: number, co
 
 /**
  * Two eyes peeking (Pixel over her box flaps, a shy blink): white puffs with dark pupils, `blink` closes them at the
- * end of their life (they fade on FADE.HOLD). Screen-right is world +x (CAMERA_YAW 0).
+ * end of their life (they fade on FADE.HOLD). Screen-right is world +x, or −x for a team-1 seat (MAP-GAPS A24).
  */
 export function eyes(fx: FxCtx, x: number, y: number, z: number, size: number, life: number, look = 0): void {
   const p = funPool(fx);
   if (!p) return;
-  const gap = size * 0.62;
+  const sg = viewSign();
+  const gap = size * 0.62 * sg;
+  look *= sg;
   C.setRGB(1, 1, 1);
   spr(p, false, x - gap, y, z, 0, 0, 0, SHAPE.PUFF, size, 1, life, 0, 0, 0, 0, FADE.HOLD, GROW.BACK);
   spr(p, false, x + gap, y, z, 0, 0, 0, SHAPE.PUFF, size, 1, life, 0, 0, 0, 0, FADE.HOLD, GROW.BACK);
   setColor(C, 0x2a1a14);
   // pupils sit a hair toward the camera so they draw over the whites
-  spr(p, false, x - gap + look * size * 0.18, y - size * 0.05, z + 0.02, 0, 0, 0, SHAPE.SOFT, size * 0.62, 1, life, 0, 0, 0, 0, FADE.HOLD, GROW.BACK);
-  spr(p, false, x + gap + look * size * 0.18, y - size * 0.05, z + 0.02, 0, 0, 0, SHAPE.SOFT, size * 0.62, 1, life, 0, 0, 0, 0, FADE.HOLD, GROW.BACK);
+  spr(p, false, x - gap + look * size * 0.18, y - size * 0.05, z + 0.02 * sg, 0, 0, 0, SHAPE.SOFT, size * 0.62, 1, life, 0, 0, 0, 0, FADE.HOLD, GROW.BACK);
+  spr(p, false, x + gap + look * size * 0.18, y - size * 0.05, z + 0.02 * sg, 0, 0, 0, SHAPE.SOFT, size * 0.62, 1, life, 0, 0, 0, 0, FADE.HOLD, GROW.BACK);
 }
 
 /** A slice of toast: a crust puff and a lighter crumb face, flying with (vx, vy, vz) (Bengas's Burnt Toast). */
