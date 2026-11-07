@@ -1,13 +1,13 @@
 # ---------------------------------------------------------------------------------------------------------------------
-# Project guard: Token Tails only. The workstation's default gcloud project belongs to another company.
+# Project guard: Token Tails projects only. The workstation's default gcloud project belongs to another company.
 
 variable "project_id" {
-  description = "Token Tails project, e.g. tokentails-prod. No default on purpose."
+  description = "Token Tails project: gleaming-medium-480114-g5 (production) or tokentails-staging (throwaway test). No default on purpose."
   type        = string
 
   validation {
-    condition     = can(regex("^tokentails-[a-z0-9-]{1,19}$", var.project_id)) && var.project_id != "motored-497708"
-    error_message = "project_id must be a tokentails-* project (for example tokentails-prod). motored-497708 and any other project are refused."
+    condition     = contains(["gleaming-medium-480114-g5", "tokentails-staging"], var.project_id) && !startswith(var.project_id, "motored")
+    error_message = "project_id must be gleaming-medium-480114-g5 (production) or tokentails-staging. motored-* projects (another company) and any other project are refused."
   }
 }
 

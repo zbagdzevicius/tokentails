@@ -6,7 +6,7 @@ run "state_bucket_private_and_versioned" {
   command = apply
 
   variables {
-    project_id = "tokentails-prod"
+    project_id = "gleaming-medium-480114-g5"
   }
 
   assert {
@@ -22,7 +22,7 @@ run "state_bucket_private_and_versioned" {
     error_message = "State is versioned."
   }
   assert {
-    condition     = google_storage_bucket.state.name == "tokentails-prod-tfstate" && google_storage_bucket.state.location == "europe-west3"
+    condition     = google_storage_bucket.state.name == "gleaming-medium-480114-g5-tfstate" && google_storage_bucket.state.location == "europe-west3"
     error_message = "Bucket name and region follow the variables."
   }
 }
@@ -35,4 +35,22 @@ run "bootstrap_refuses_motored" {
   }
 
   expect_failures = [var.project_id]
+}
+
+run "bootstrap_refuses_other_projects" {
+  command = plan
+
+  variables {
+    project_id = "tokentails-prod"
+  }
+
+  expect_failures = [var.project_id]
+}
+
+run "bootstrap_accepts_staging" {
+  command = plan
+
+  variables {
+    project_id = "tokentails-staging"
+  }
 }

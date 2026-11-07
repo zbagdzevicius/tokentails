@@ -1,0 +1,25 @@
+#cloud-config
+# Throwaway mongo:7 for the staging stack (envs/staging/main.tf). Container-Optimized OS: Docker is preinstalled,
+# /mnt/stateful_partition survives reboots. No auth on purpose: the VM has no external IP and the firewall admits
+# port 27017 from the main subnet only. Never used for production data.
+write_files:
+  - path: /etc/systemd/system/tt-mongo.service
+    permissions: "0644"
+    owner: root
+    content: |
+      [Unit]
+      Description=throwaway mongo:7 (Token Tails staging)
+      Wants=network-online.target docker.socket
+      After=network-online.target docker.socket
+
+      [Service]
+      ExecStartPre=-/usr/bin/docker rm -f tt-mongo
+      ExecStart=/usr/bin/docker run --rm --name tt-mongo -p 27017:27017 -v /mnt/stateful_partition/mongo:/data/db mongo:7 --quiet
+      ExecStop=/usr/bin/docker stop -t 30 tt-mongo
+      Restart=always
+      RestartSec=5
+
+runcmd:
+  - mkdir -p /mnt/stateful_partition/mongo
+  - systemctl daemon-reload
+  - systemctl start tt-mongo.service

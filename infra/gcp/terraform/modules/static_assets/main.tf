@@ -29,6 +29,12 @@ variable "labels" {
   default = {}
 }
 
+variable "force_destroy" {
+  description = "Let terraform destroy delete a non-empty bucket. Throwaway test stacks only (envs/staging); false in production."
+  type        = bool
+  default     = false
+}
+
 # Waiver: Google-managed encryption. CMEK adds a KMS key ring, rotation and an outage mode for no gain at this
 # scale; nothing in this bucket is a secret value (uploaded cat and game media, written by sa-api only).
 #trivy:ignore:GCP-0066
@@ -40,7 +46,7 @@ resource "google_storage_bucket" "media" {
   storage_class               = "STANDARD"
   uniform_bucket_level_access = true
   public_access_prevention    = "enforced"
-  force_destroy               = false
+  force_destroy               = var.force_destroy
   labels                      = var.labels
 
   versioning {

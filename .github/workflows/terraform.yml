@@ -86,12 +86,12 @@ jobs:
       id-token: write
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
-      - name: Refuse anything but a tokentails-* project
+      - name: Refuse anything but the production project
         run: |
           case "${{ vars.TF_PROJECT_ID }}" in
-            motored-497708) echo "::error::refused"; exit 1 ;;
-            tokentails-*) ;;
-            *) echo "::error::TF_PROJECT_ID must be tokentails-*"; exit 1 ;;
+            motored*) echo "::error::refused"; exit 1 ;;
+            gleaming-medium-480114-g5) ;;
+            *) echo "::error::TF_PROJECT_ID must be gleaming-medium-480114-g5"; exit 1 ;;
           esac
       - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
@@ -150,7 +150,7 @@ jobs:
       - name: apply the reviewed plan
         run: |
           set -euo pipefail
-          case "${{ vars.TF_PROJECT_ID }}" in tokentails-*) ;; *) exit 1 ;; esac
+          case "${{ vars.TF_PROJECT_ID }}" in gleaming-medium-480114-g5) ;; *) exit 1 ;; esac
           terraform -chdir="$TF_DIR" init -input=false -no-color \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="prefix=envs/prod"
           terraform -chdir="$TF_DIR" apply -input=false -no-color tfplan

@@ -1,4 +1,4 @@
-# The project guard: only tokentails-* projects, never the workstation's other-company project.
+# The project guard: an allow-list (gleaming-medium-480114-g5 production, tokentails-staging), never motored-*.
 
 mock_provider "google" {
   mock_data "google_project" {
@@ -28,6 +28,16 @@ run "refuses_motored_project" {
   expect_failures = [var.project_id]
 }
 
+run "refuses_any_motored_project" {
+  command = plan
+
+  variables {
+    project_id = "motored-dev"
+  }
+
+  expect_failures = [var.project_id]
+}
+
 run "refuses_non_tokentails_project" {
   command = plan
 
@@ -48,11 +58,39 @@ run "refuses_a_lookalike" {
   expect_failures = [var.project_id]
 }
 
-run "accepts_tokentails_prod" {
+run "refuses_a_tokentails_project_not_on_the_list" {
   command = plan
 
   variables {
     project_id = "tokentails-prod"
+  }
+
+  expect_failures = [var.project_id]
+}
+
+run "refuses_a_production_lookalike" {
+  command = plan
+
+  variables {
+    project_id = "gleaming-medium-480114-g6"
+  }
+
+  expect_failures = [var.project_id]
+}
+
+run "accepts_production" {
+  command = plan
+
+  variables {
+    project_id = "gleaming-medium-480114-g5"
+  }
+}
+
+run "accepts_staging" {
+  command = plan
+
+  variables {
+    project_id = "tokentails-staging"
   }
 }
 

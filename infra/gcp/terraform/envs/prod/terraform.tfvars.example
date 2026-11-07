@@ -1,6 +1,6 @@
 # Copy to terraform.tfvars (gitignored) and fill in. No secret goes here: secret VALUES are added with gcloud
-# (RUNBOOK.md step 3). project_id must be a tokentails-* project; motored-497708 is refused by validation.
-project_id      = "tokentails-prod"
+# (RUNBOOK.md step 3). project_id is gleaming-medium-480114-g5 (production); only it and tokentails-staging pass validation, motored-* is refused.
+project_id      = "gleaming-medium-480114-g5"
 billing_account = "000000-000000-000000"
 alert_email     = "founder@example.com"
 
@@ -16,5 +16,5 @@ cms_tag     = "REPLACE_WITH_SHA"
 # max_live_rooms     = 60
 # budget_amount      = 400
 # budget_currency    = "USD"
-# state_bucket       = "tokentails-prod-tfstate"
+# state_bucket       = "gleaming-medium-480114-g5-tfstate"
 # ci_apply_enabled   = false

@@ -5,7 +5,8 @@ locals {
   cf_chunks = chunklist(local.cf_ranges, 10)
   # Advanced expressions allow 5 subexpressions: the path test plus 4 ranges per throttle rule.
   ws_chunks     = chunklist(local.cf_ranges, 4)
-  dns_auth_keys = { for h in local.all_hosts : replace(h, ".", "-") => h }
+  managed_cert  = var.certificate_mode == "managed"
+  dns_auth_keys = local.managed_cert ? { for h in local.all_hosts : replace(h, ".", "-") => h } : {}
 }
 
 resource "terraform_data" "proxy_subnet" {
@@ -21,7 +22,8 @@ resource "google_compute_address" "lb" {
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
-# Certificate (Certificate Manager, regional, DNS authorization: a CNAME per host at Cloudflare, DNS only)
+# Certificate (Certificate Manager, regional). Production: Google-managed, DNS authorization (a CNAME per host at
+# Cloudflare, DNS only). A test stack without DNS (envs/staging) uploads a self-managed (self-signed) certificate.
 
 resource "google_certificate_manager_dns_authorization" "host" {
   for_each = local.dns_auth_keys
@@ -37,9 +39,27 @@ resource "google_certificate_manager_certificate" "edge" {
   name     = "${var.name}-cert"
   location = var.region
 
-  managed {
-    domains            = local.all_hosts
-    dns_authorizations = [for k in keys(local.dns_auth_keys) : google_certificate_manager_dns_authorization.host[k].id]
+  dynamic "managed" {
+    for_each = local.managed_cert ? [1] : []
+    content {
+      domains            = local.all_hosts
+      dns_authorizations = [for k in keys(local.dns_auth_keys) : google_certificate_manager_dns_authorization.host[k].id]
+    }
+  }
+
+  dynamic "self_managed" {
+    for_each = local.managed_cert ? [] : [1]
+    content {
+      pem_certificate = var.self_managed_certificate.certificate_pem
+      pem_private_key = var.self_managed_certificate.private_key_pem
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.managed_cert || var.self_managed_certificate != null
+      error_message = "certificate_mode = self_managed needs self_managed_certificate."
+    }
   }
 }
 
@@ -91,6 +111,22 @@ resource "google_compute_region_security_policy" "edge" {
       priority    = 1000 + rules.key
       action      = "allow"
       description = "Cloudflare edge ranges ${rules.key}"
+      match {
+        versioned_expr = "SRC_IPS_V1"
+        config {
+          src_ip_ranges = rules.value
+        }
+      }
+    }
+  }
+
+  # Test stacks only (envs/staging, no Cloudflare in front): the operator's own addresses. Empty in production.
+  dynamic "rules" {
+    for_each = length(var.extra_allowed_source_ranges) > 0 ? [var.extra_allowed_source_ranges] : []
+    content {
+      priority    = 900
+      action      = "allow"
+      description = "Operator test addresses (staging only)"
       match {
         versioned_expr = "SRC_IPS_V1"
         config {
@@ -283,6 +319,32 @@ resource "google_compute_forwarding_rule" "https" {
   load_balancing_scheme = "EXTERNAL_MANAGED"
   port_range            = "443"
   target                = google_compute_region_target_https_proxy.edge.id
+  ip_address            = google_compute_address.lb.id
+  network               = var.network
+  network_tier          = "PREMIUM"
+
+  depends_on = [terraform_data.proxy_subnet]
+}
+
+# Plain HTTP on port 80, same address and URL map. Off in production (Cloudflare connects over HTTPS, SSL Full
+# strict); a test stack without DNS turns it on to curl the backends without a certificate.
+resource "google_compute_region_target_http_proxy" "edge" {
+  count   = var.http_listener ? 1 : 0
+  project = var.project_id
+  name    = "${var.name}-http"
+  region  = var.region
+  url_map = google_compute_region_url_map.edge.id
+}
+
+resource "google_compute_forwarding_rule" "http" {
+  count                 = var.http_listener ? 1 : 0
+  project               = var.project_id
+  name                  = "${var.name}-http"
+  region                = var.region
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  port_range            = "80"
+  target                = google_compute_region_target_http_proxy.edge[0].id
   ip_address            = google_compute_address.lb.id
   network               = var.network
   network_tier          = "PREMIUM"

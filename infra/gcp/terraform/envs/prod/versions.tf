@@ -12,7 +12,7 @@ terraform {
   }
 }
 
-# Every resource lands in var.project_id, which has no default and must be a tokentails-* project (variables.tf).
+# Every resource lands in var.project_id, which has no default and must be on the allow-list in variables.tf.
 provider "google" {
   project               = var.project_id
   region                = var.region

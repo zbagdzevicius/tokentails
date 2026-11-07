@@ -13,7 +13,7 @@ mock_provider "google" {
 mock_provider "google-beta" {}
 
 variables {
-  project_id      = "tokentails-prod"
+  project_id      = "gleaming-medium-480114-g5"
   billing_account = "000000-000000-000000"
   alert_email     = "alerts@example.com"
   backend_tag     = "0000000"
@@ -286,7 +286,7 @@ run "secrets_have_no_values_and_least_privilege" {
     error_message = "sa-tf-plan can read the budget (plan refreshes it on the billing account)."
   }
   assert {
-    condition     = output.service_accounts["sa-api"] == "sa-api@tokentails-prod.iam.gserviceaccount.com"
+    condition     = output.service_accounts["sa-api"] == "sa-api@gleaming-medium-480114-g5.iam.gserviceaccount.com"
     error_message = "Service account emails are derived from the project id."
   }
   assert {
@@ -391,5 +391,22 @@ run "budget_alerts_only" {
   assert {
     condition     = toset(module.budget.thresholds) == toset(["0.5:CURRENT_SPEND", "0.9:CURRENT_SPEND", "1:CURRENT_SPEND", "1:FORECASTED_SPEND"])
     error_message = "Budget alerts at 50/90/100 % actual and 100 % forecast."
+  }
+}
+
+run "edge_has_no_staging_shortcuts" {
+  command = apply
+
+  assert {
+    condition     = module.edge.settings.certificate_mode == "managed" && !module.edge.settings.http_listener
+    error_message = "Production uses the Google-managed certificate and HTTPS only (the self-signed cert and :80 are staging-only)."
+  }
+  assert {
+    condition     = length(module.edge.settings.extra_allowed_ranges) == 0
+    error_message = "Production Cloud Armor admits Cloudflare only: no operator ranges."
+  }
+  assert {
+    condition     = length(module.edge.dns_authorization_records) == length(module.edge.settings.hosts)
+    error_message = "Every production host has a DNS authorization."
   }
 }

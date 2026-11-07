@@ -1,5 +1,5 @@
 # One-time bootstrap, run by the founder in their own terminal with local state (RUNBOOK.md step 1):
-#   terraform init && terraform apply -var project_id=tokentails-prod
+#   terraform init && terraform apply -var project_id=gleaming-medium-480114-g5
 # It creates only the versioned, private Terraform state bucket. Everything else lives in ../envs/prod.
 terraform {
   required_version = ">= 1.9"
@@ -15,8 +15,8 @@ variable "project_id" {
   type = string
 
   validation {
-    condition     = can(regex("^tokentails-[a-z0-9-]{1,19}$", var.project_id)) && var.project_id != "motored-497708"
-    error_message = "project_id must be a tokentails-* project. motored-497708 and any other project are refused."
+    condition     = contains(["gleaming-medium-480114-g5", "tokentails-staging"], var.project_id) && !startswith(var.project_id, "motored")
+    error_message = "project_id must be gleaming-medium-480114-g5 (production) or tokentails-staging. motored-* projects (another company) and any other project are refused."
   }
 }
 
