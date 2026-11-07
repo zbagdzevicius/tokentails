@@ -108,7 +108,8 @@ describe('net rejoin (N7)', { timeout: 300_000 }, () => {
     expect(core.worldHash).toBe(ref.worldHash);
   });
 
-  it('perf-ff: fast-forward runs at least 19,800 ticks in 1.5 s on Node, without snapshots or HASH posts', async () => {
+  // a wall-clock budget: skipped where the cores are shared and slow (the OTA publish gate on GitHub runners)
+  it.skipIf(process.env.PAWLEGENDS_SKIP_TIMING === '1')('perf-ff: fast-forward runs at least 19,800 ticks in 1.5 s on Node, without snapshots or HASH posts', async () => {
     // timed on the bundled core (as the worker ships it): vitest's transform runs the sim ~2.5x slower (perf-sim.test.ts)
     const { importSim } = await import('../../tools/lib/sim-bundle.mjs');
     const mod = (await importSim('src/net/net-core.ts')) as { NetCore: typeof NetCore };

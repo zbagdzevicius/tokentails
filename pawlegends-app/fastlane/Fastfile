@@ -84,14 +84,15 @@ def marketing_version
   ENV["APP_VERSION"].to_s.empty? ? JSON.parse(File.read(File.join(APP_DIR, "package.json")))["version"] : ENV["APP_VERSION"]
 end
 
+# The next build number: one above the latest TestFlight build of this version, and never below BUILD_NUMBER (CI
+# passes its run number). Taking the larger of the two lets local and CI builds mix without a duplicate number.
 def next_build_number(api_key)
-  return ENV["BUILD_NUMBER"].to_i if ENV["BUILD_NUMBER"].to_s =~ /\A\d+\z/
-
+  floor = ENV["BUILD_NUMBER"].to_s =~ /\A\d+\z/ ? ENV["BUILD_NUMBER"].to_i : 0
   latest = latest_testflight_build_number(api_key: api_key, app_identifier: APP_ID, version: marketing_version, initial_build_number: 0)
-  latest.to_i + 1
+  [latest.to_i + 1, floor].max
 rescue StandardError => e
   UI.important("Could not read the latest TestFlight build (#{e.message}); using a timestamp build number")
-  Time.now.utc.strftime("%y%m%d%H%M").to_i
+  [Time.now.utc.strftime("%y%m%d%H%M").to_i, floor || 0].max
 end
 
 # A distribution certificate from DIST_CERT_P12 into a temporary keychain (only when the secret is set).
