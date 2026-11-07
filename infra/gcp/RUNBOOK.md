@@ -88,7 +88,7 @@ still a static export).
 
 ```bash
 infra/gcp/scripts/preflight.sh          # guard, fmt, init -backend=false + validate (every root and module),
-                                         # terraform test (mocked), static guards, tflint, trivy, cloud-init schema,
+                                         # terraform test (mocked), static guards, tflint, trivy, checkov, cloud-init schema,
                                          # tool tests, actionlint
 infra/gcp/scripts/preflight.sh --all    # + backend lint/build/tests, backend image build, local smoke on mongo:7
 ```
@@ -115,8 +115,13 @@ What the runs assert (all passing on 2026-11-07):
 - **Images and roles (Docker, local)**: the backend image builds; `BACKEND_ROLE=relay` on `--cpus=2` answers
   `/healthz` and `/readyz`, maps only the health and relay routes, logs no cron; `ws-latency` gets 20/20 welcomes;
   `mp/load.mjs` runs rooms through it; `BACKEND_ROLE=api` maps 280 routes and answers `/pawlegends/ws` with 404 (no
-  relay, no stray `restore()`); SIGTERM stops the relay cleanly. The web image serves `/`, `/heist`, game builds,
+  relay, no stray `restore()`); both roles boot on a read-only root filesystem (`--read-only --tmpfs /tmp`,
+  `PORT=8080`); SIGTERM with 20 players connected (10 in parties) closes every socket with `1012 restart` in about
+  0.1 s and the relay exits in under a second (`tools/ws-sigterm.mjs`), well inside the 60 s `docker stop` grace; the
+  API exits in under a second (Cloud Run allows 10 s). The web image serves `/`, `/heist`, game builds,
   `/sitemap.xml`, `/feed/rss.xml` and ISR pages; the CMS image serves `/`.
+- **Second scanner**: checkov (66 passed, 4 skips justified inline: access-log buckets, CMEK on Artifact Registry, and
+  a false positive on the WIF condition that it cannot resolve from a local).
 
 Docker Desktop numbers are not a sizing result. `MAX_LIVE_ROOMS` is set from the run on the real VM (step 5).
 
@@ -430,5 +435,12 @@ Each is a variable or a step above; the default is what the code does unless you
 - `mp/load.mjs` lives in `pawlegends/` (owned by the netcode workflow); `tools/ws-origin-shim.mjs` adapts it from the
   outside instead of editing it. The drain endpoint `POST /pawlegends/relay/drain` is optional and not in the backend
   yet; `deploy.sh` skips the drain until it exists.
+- Fixed on the way (2026-11-07): the relay's SIGTERM handoff ran in `onApplicationShutdown`, after Nest's
+  `server.close()`, which waits for every open WebSocket, so with players connected nothing closed and `docker stop`
+  would SIGKILL at 60 s without the handoff checkpoint (the same on DigitalOcean). It now runs in
+  `beforeApplicationShutdown`, while Mongo is still connected. Rooms in a live match (`room_gone` + checkpoint) are not
+  exercised locally; check one handoff on the VM (`systemctl restart tt-relay` mid-match, step 5).
+- Also fixed: `/healthz` and `/readyz` were behind the app's global throttler (a burst of probes from one IP got 429,
+  which a health check reads as unhealthy); the health controller now skips it.
 - Known backend issues listed at the end of docs/BACKEND.md are unchanged by this work, apart from the
   `cf-connecting-ip` forgery, which this topology closes at the edge once DigitalOcean is gone.

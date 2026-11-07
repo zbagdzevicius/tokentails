@@ -139,8 +139,10 @@ if have docker && docker info >/dev/null 2>&1; then
     run "tflint (google ruleset)" tflint.log docker run --rm -v "$TF":/data -w /data --entrypoint sh \
         ghcr.io/terraform-linters/tflint:latest -c 'tflint --init >/dev/null && tflint --recursive --config /data/.tflint.hcl -f compact'
     run "trivy config (waivers inline)" trivy.log docker run --rm -v "$TF":/src aquasec/trivy:latest config --quiet --exit-code 1 /src
+    run "checkov (skips justified inline)" checkov.log docker run --rm -v "$TF":/tf bridgecrew/checkov:latest \
+        -d /tf --framework terraform --compact --quiet --skip-path .terraform
 else
-    skip "docker not available: tflint, trivy"
+    skip "docker not available: tflint, trivy, checkov"
 fi
 
 # ---------------------------------------------------------------------------------------------------------------
@@ -201,7 +203,7 @@ if [ $WANT_DOCKER -eq 1 ]; then
         cleanup
         docker network create $net >/dev/null
         docker run -d --name tt-pf-mongo --network $net mongo:7 --quiet >/dev/null
-        docker run -d --name tt-pf-relay --network $net --cpus=2 -p 18180:8080 \
+        docker run -d --name tt-pf-relay --network $net --cpus=2 --read-only --tmpfs /tmp -p 18180:8080 \
             -e BACKEND_ROLE=relay -e NODE_ENV=production -e NO_COLOR=1 -e MONGODB_URI=mongodb://tt-pf-mongo:27017/tokentails \
             -e FRONT_END_URLS=http://localhost:3000 -e PAWLEGENDS_PARTY_TICKET_SECRET=preflight-only-not-a-secret \
             tt-backend:preflight >/dev/null
@@ -227,7 +229,7 @@ if [ $WANT_DOCKER -eq 1 ]; then
         fi
         # api role: a throwaway RSA key generated here lets Firebase Admin parse its config; it is never a real key.
         key=$(openssl genrsa 2048 2>/dev/null)
-        docker run -d --name tt-pf-api --network $net --cpus=1 -p 18181:8080 \
+        docker run -d --name tt-pf-api --network $net --cpus=1 --read-only --tmpfs /tmp -p 18181:8080 \
             -e BACKEND_ROLE=api -e NODE_ENV=development -e NO_COLOR=1 -e MONGODB_URI=mongodb://tt-pf-mongo:27017/tokentails \
             -e FRONT_END_URLS=http://localhost:3000 -e OPENAI_API_KEY=placeholder -e INVALIDATE_CACHE_SECRET=placeholder \
             -e CRONS_ENABLED=false -e IMPACT_JOBS_ENABLED=false -e "FB_PRIVATE_KEY=$key" tt-backend:preflight >/dev/null
@@ -240,9 +242,18 @@ if [ $WANT_DOCKER -eq 1 ]; then
         else
             bad "api role did not start"; docker logs tt-pf-api 2>&1 | tail -15 | sed 's/^/        /'
         fi
+        # SIGTERM with players connected: every socket must get 1012 and the container must exit well inside the
+        # 60 s grace of the VM's systemd unit (else SIGKILL and no handoff checkpoint).
+        rm -f "$OUT/sigterm.ready" "$OUT/sigterm.ready.sent"
+        node "$GCP/tools/ws-sigterm.mjs" http://127.0.0.1:18180 20 "$OUT/sigterm.ready" >"$OUT/ws-sigterm.json" 2>&1 &
+        wpid=$!
+        for _ in $(seq 1 100); do [ -f "$OUT/sigterm.ready" ] && break; perl -e 'select(undef,undef,undef,0.1)'; done
         start=$(date +%s)
+        touch "$OUT/sigterm.ready.sent"
         docker stop -t 60 tt-pf-relay >/dev/null
-        ok "relay stopped on SIGTERM in $(($(date +%s) - start)) s"
+        took=$(($(date +%s) - start))
+        if wait $wpid && [ $took -lt 30 ]; then ok "relay SIGTERM with 20 open sockets: all closed 1012, stopped in $took s"
+        else bad "relay SIGTERM with open sockets (stopped in $took s): $(cat "$OUT/ws-sigterm.json")"; fi
         cleanup
     else
         skip "docker not available"

@@ -64,6 +64,7 @@ resource "google_iam_workload_identity_pool" "github" {
 }
 
 resource "google_iam_workload_identity_pool_provider" "github" {
+  #checkov:skip=CKV_GCP_125:False positive: checkov cannot resolve local.condition, which pins assertion.repository, assertion.ref and assertion.repository_id (asserted in tests/prod.tftest.hcl wif_pinned_to_repo_and_main).
   project                            = var.project_id
   workload_identity_pool_id          = google_iam_workload_identity_pool.github.workload_identity_pool_id
   workload_identity_pool_provider_id = var.provider_id

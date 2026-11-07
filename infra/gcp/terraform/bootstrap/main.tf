@@ -48,6 +48,7 @@ resource "google_project_service" "storage" {
 # scale; nothing in this bucket is a secret value (state holds names and settings only, never secret versions).
 #trivy:ignore:GCP-0066
 resource "google_storage_bucket" "state" {
+  #checkov:skip=CKV_GCP_62:Access logs to a second bucket add a bucket to secure for a single-writer state bucket; Admin Activity audit logs already record IAM and bucket changes.
   project                     = var.project_id
   name                        = coalesce(var.bucket_name, "${var.project_id}-tfstate")
   location                    = var.region

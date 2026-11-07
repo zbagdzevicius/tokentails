@@ -30,9 +30,10 @@ variable "labels" {
 }
 
 # Waiver: Google-managed encryption. CMEK adds a KMS key ring, rotation and an outage mode for no gain at this
-# scale; nothing in this bucket is a secret value (state holds names and settings only, never secret versions).
+# scale; nothing in this bucket is a secret value (uploaded cat and game media, written by sa-api only).
 #trivy:ignore:GCP-0066
 resource "google_storage_bucket" "media" {
+  #checkov:skip=CKV_GCP_62:Off by default and private (public access prevention, sa-api writes only); Admin Activity audit logs record IAM and bucket changes, a second log bucket adds cost for no reader.
   project                     = var.project_id
   name                        = var.bucket_name
   location                    = var.region
