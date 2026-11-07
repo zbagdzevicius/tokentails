@@ -459,6 +459,25 @@ export function outerTrees(): { x: number; y: number; s: number; low: boolean }[
   return out;
 }
 
+/** MAP-GAPS A16: the walkable lane band's half width (m) a bridge deck covers. */
+export const BRIDGE_HALF = 5.7;
+
+/**
+ * MAP-GAPS A16: each bridge (m): where it crosses (y at x = 50 m), its deck width and top, its plank count and its low
+ * end posts on the banks (outside the river: nothing stands in the walkable band).
+ */
+export function bridgeParts(): { y: number; width: number; top: number; planks: number; posts: { x: number; y: number }[] }[] {
+  const r0 = MAP.riverX[0] / 1000;
+  const r1 = MAP.riverX[1] / 1000;
+  return lanePolylines().map((lane) => {
+    const mid = lane.find(([x]) => Math.abs(x - W / 2) < 0.01) ?? lane[Math.floor(lane.length / 2)];
+    const y = mid[1];
+    const posts: { x: number; y: number }[] = [];
+    for (const x of [r0 - 1.3, r1 + 1.3]) for (const s of [-1, 1]) posts.push({ x, y: y + s * BRIDGE_HALF });
+    return { y, width: BRIDGE_HALF * 2 + 0.4, top: 0.015, planks: 12, posts };
+  });
+}
+
 /** MAP-GAPS A15: how far (m) the river runs on past the map edge before it has faded out under the forest. */
 export const RIVER_RUN = 16;
 
@@ -633,19 +652,25 @@ export function createMapView(): MapView {
   const props = new ModelBuilder();
   props.cyl(6.2, 6.6, 0.08, 0xe8d6a0, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
   props.cyl(5.6, 5.6, 0.1, 0xd7c189, { at: [toX(PUDDING_SPOT.x), 0.0, toZ(PUDDING_SPOT.y)] }, 28);
-  for (const lane of lanePolylines()) {
-    // the lane crosses the river at the middle point (x = 50 m)
-    const mid = lane.find(([x]) => Math.abs(x - W / 2) < 0.01) ?? lane[Math.floor(lane.length / 2)];
-    const [bx, by] = mid;
-    for (let i = 0; i < 12; i++) {
-      const x = r0 - 1 + i * ((r1 - r0 + 2) / 11);
-      props.box(0.75, 0.08, 7.2, i % 2 ? 0xb07a4a : 0xc08a56, { at: [x, 0.03, -by] });
+  // MAP-GAPS A16: the bridge decks cover the whole walkable lane band (±5.7 m), flush with the water (drawn over the
+  // river, not above it), with low end posts on the banks only: rails across the river stood inside the walkable band
+  const deck = new ModelBuilder();
+  for (const b of bridgeParts()) {
+    for (let i = 0; i < b.planks; i++) {
+      const x = r0 - 1 + (i + 0.5) * ((r1 - r0 + 2) / b.planks);
+      deck.box(((r1 - r0 + 2) / b.planks) * 0.92, 0.01, b.width, i % 2 ? 0xb07a4a : 0xc08a56, { at: [x, b.top - 0.005, -b.y] });
     }
-    for (const s of [-1, 1]) {
-      props.box(r1 - r0 + 2.6, 0.18, 0.22, 0x8a5a3a, { at: [bx, 0.75, -(by + s * 3.5)] });
-      for (let i = 0; i < 6; i++) props.cyl(0.13, 0.13, 0.9, 0x8a5a3a, { at: [r0 - 1.2 + i * ((r1 - r0 + 2.4) / 5), 0.45, -(by + s * 3.5)] }, 6);
+    for (const p of b.posts) {
+      props.cyl(0.14, 0.17, 0.75, 0x8a5a3a, { at: [p.x, 0.37, -p.y] }, 6);
+      props.sphere(0.17, 0x7a5133, { at: [p.x, 0.78, -p.y] }, 6);
     }
   }
+  const deckMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true, transparent: true, polygonOffset: true, polygonOffsetFactor: -1, polygonOffsetUnits: -2 }));
+  const deckMesh = new THREE.Mesh(keep(deck.build()), deckMat);
+  deckMesh.name = 'bridge-decks';
+  deckMesh.renderOrder = 2;
+  deckMesh.receiveShadow = true;
+  group.add(deckMesh);
   // MAP-GAPS A15: where the playfield rim stops units in the river (y = 2 m and y = 58 m), a log jam with rocks and
   // reeds marks the boundary across the water
   const jr = lcg(47);
