@@ -255,3 +255,34 @@ describe('MAP-GAPS A10 ping glyphs and the ground ping marker', () => {
     expect(m.escortLane).toBeNull();
   });
 });
+
+describe('MAP-GAPS A11 last-seen ghosts', () => {
+  const enemy = (fx: number, state: ViewEntity['state'] = 'moving') => ent({ id: 3, kind: 'hero', hero: 'brutus', team: 1, fx, fy: 30000, state });
+  it('shows a ghost after an enemy leaves sight and expires it after 6 s', () => {
+    const m = new Minimap(document.body, host());
+    draw(m, frame([enemy(60000)], 100));
+    expect(m.ghostsDrawn).toEqual([]);
+    draw(m, frame([], 130));
+    expect(m.ghostsDrawn).toEqual([3]);
+    draw(m, frame([], 100 + 5 * 30));
+    expect(m.ghostsDrawn).toEqual([3]);
+    draw(m, frame([], 100 + 7 * 30));
+    expect(m.ghostsDrawn).toEqual([]);
+  });
+  it('clears the ghost on re-sight and never ghosts a dead or napping hero', () => {
+    const m = new Minimap(document.body, host());
+    draw(m, frame([enemy(60000)], 100));
+    draw(m, frame([], 110));
+    draw(m, frame([enemy(62000)], 120));
+    expect(m.ghostsDrawn).toEqual([]);
+    m.event({ type: 'death', tick: 121, id: 3, killer: 0 });
+    draw(m, frame([], 130));
+    expect(m.ghostsDrawn).toEqual([]);
+    draw(m, frame([enemy(60000, 'dead')], 140));
+    draw(m, frame([], 150));
+    expect(m.ghostsDrawn).toEqual([]);
+    draw(m, frame([enemy(60000, 'napping')], 160));
+    draw(m, frame([], 170));
+    expect(m.ghostsDrawn).toEqual([]);
+  });
+});
