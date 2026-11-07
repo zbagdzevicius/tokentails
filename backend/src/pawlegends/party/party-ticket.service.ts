@@ -7,13 +7,18 @@ import { createHmac, randomBytes, timingSafeEqual } from 'crypto';
  * inside `hello`, never in a URL. Keyed by PAWLEGENDS_PARTY_TICKET_SECRET (never logged); without it the endpoint
  * answers 503 and the relay treats every ticket as absent: rooms are unscored, nothing else is disabled (D9).
  *
- * Token: base64url(payload) + '.' + base64url(hmac). Payload: {aud:'pl-party', v:1, kid, boot, accountId, guest, exp,
- * nonce}. `boot` is this instance's boot id (a ticket from before a restart is dead after it); the nonce is kept until
- * expiry (single use).
+ * Token: base64url(payload) + '.' + base64url(hmac). Payload: {aud:'pl-party', v:1, kid, boot, accountId, guest, iat,
+ * exp, nonce}. The minting process and the verifying one differ when the API and the relay run apart (Google Cloud:
+ * tt-api mints, the relay VM verifies; DigitalOcean: either of two instances), so a ticket is not bound to the
+ * verifier's boot id. Instead a ticket issued before the verifier started (`iat` older than its start, minus
+ * `PARTY_TICKET_CLOCK_SKEW_S`) is refused: the nonce memory (single use, kept until expiry) is per process, so a
+ * ticket spent before a restart must not verify again after it. `boot` stays in the payload for logs only.
  */
 
 export const PARTY_TICKET_TTL_S = 60;
 export const PARTY_TICKET_AUD = 'pl-party';
+/** Clock skew allowed between the minting and the verifying host (both NTP-synced). */
+export const PARTY_TICKET_CLOCK_SKEW_S = 2;
 
 export interface PartyIdentity {
     accountId: string;
@@ -25,6 +30,7 @@ interface Payload extends PartyIdentity {
     v: number;
     kid: string;
     boot: string;
+    iat: number;
     exp: number;
     nonce: string;
 }
@@ -35,6 +41,8 @@ const b64 = (b: Buffer) => b.toString('base64url');
 export class PartyTicketService {
     /** This process's boot id (also the room lease owner). */
     readonly boot = randomBytes(12).toString('hex');
+    /** When this process started: tickets issued earlier may already be spent here, so they are refused. */
+    readonly startedAtMs = Date.now();
     private readonly used = new Map<string, number>();
 
     /** The secret, read at call time (tests set it per case); undefined = no trusted tickets. */
@@ -64,6 +72,7 @@ export class PartyTicketService {
             boot: this.boot,
             accountId: identity.accountId,
             guest: identity.guest,
+            iat: Math.floor(nowMs / 1000),
             exp: Math.floor(nowMs / 1000) + PARTY_TICKET_TTL_S,
             nonce: randomBytes(12).toString('hex'),
         };
@@ -72,7 +81,7 @@ export class PartyTicketService {
         return { ticket: `${body}.${mac}`, expiresIn: PARTY_TICKET_TTL_S };
     }
 
-    /** The identity of a valid, unused, unexpired ticket of this boot; null otherwise (never trusted unsigned). */
+    /** The identity of a valid, unused, unexpired ticket issued since this process started; null otherwise. */
     verify(ticket: unknown, nowMs = Date.now()): PartyIdentity | null {
         const s = this.secret();
         if (!s || typeof ticket !== 'string' || ticket.length > 512) return null;
@@ -88,8 +97,9 @@ export class PartyTicketService {
         } catch {
             return null;
         }
-        if (p.aud !== PARTY_TICKET_AUD || p.v !== 1 || p.kid !== s.kid || p.boot !== this.boot) return null;
+        if (p.aud !== PARTY_TICKET_AUD || p.v !== 1 || p.kid !== s.kid) return null;
         if (typeof p.exp !== 'number' || p.exp * 1000 < nowMs) return null;
+        if (typeof p.iat !== 'number' || (p.iat + PARTY_TICKET_CLOCK_SKEW_S) * 1000 < this.startedAtMs) return null;
         if (typeof p.accountId !== 'string' || !p.accountId || typeof p.guest !== 'boolean') return null;
         this.sweep(nowMs);
         if (this.used.has(p.nonce)) return null;

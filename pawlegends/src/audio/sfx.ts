@@ -5,7 +5,7 @@
  * Render side only; never feeds the sim.
  */
 import { PCM_RATE, ZZFX_DEFS, zzfxSamples } from './sfxDefs.js';
-import type { VoiceKey } from '../render/announcer';
+import { voicePriority, type VoiceKey } from './voiceLines';
 
 /** LoL pass (lane B): the announcer voice (audio/voice.ts), its own chunk, loaded on the first line said. */
 type VoiceMod = typeof import('./voice');
@@ -96,6 +96,8 @@ export class Sfx {
   private master: GainNode | null = null;
   /** Sound effects only (the host's sfx volume), into the master. Music has its own bus (audio/music.ts). */
   private fx: GainNode | null = null;
+  /** The music's input (audio/music.ts), into the master: the announcer's voice ducks it. */
+  private musicIn: GainNode | null = null;
   private buffers = new Map<string, AudioBuffer>();
   private lastAt = new Map<string, number>();
   private muted = false;
@@ -109,7 +111,8 @@ export class Sfx {
   /** Call from a user gesture. Safe to call many times. */
   unlock(): void {
     if (this.ac) {
-      if (this.ac.state === 'suspended') void this.ac.resume().catch(() => undefined);
+      // 'suspended' before a gesture, 'interrupted' on iOS after a call or the app going to the background
+      if (this.ac.state !== 'running') void this.ac.resume().catch(() => undefined);
       return;
     }
     const Ctor = (globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ??
@@ -123,6 +126,8 @@ export class Sfx {
       this.fx = this.ac.createGain();
       this.fx.gain.value = this.fxScale;
       this.fx.connect(this.master);
+      this.musicIn = this.ac.createGain();
+      this.musicIn.connect(this.master);
       const defs: Record<string, number[]> = { ...PL_SFX };
       for (const k of PPK_USED) defs[k] = (ZZFX_DEFS as Record<string, number[]>)[k];
       // Bake in small slices so the first gesture never stalls a frame.
@@ -147,6 +152,7 @@ export class Sfx {
   setMuted(m: boolean): void {
     this.muted = m;
     if (this.master) this.master.gain.value = m ? 0 : this.volume;
+    if (m) this.hushVoice();
   }
 
   /** Host volumes (0..1 each; a missing one keeps its value). Mute still wins over both. */
@@ -176,14 +182,20 @@ export class Sfx {
     return this.master;
   }
 
+  /** Where the music connects (into the master; the voice ducks it), or null before unlock. */
+  get musicOutput(): GainNode | null {
+    return this.musicIn;
+  }
+
   /** Lines said so far (e2e reads `data-voice`). */
   readonly voiced: string[] = [];
 
   /**
-   * LoL pass (lane B): an announcer voice line, after the zzfx sting. Muted (or the sound-effects volume at 0) says
-   * nothing and loads nothing; the voice chunk comes in on the first line.
+   * LoL pass (lane B): an announcer voice line (a recorded clip; audio/voice.ts queues it by priority). Lines of
+   * priority 3 and up come after the zzfx sting (`sting` overrides). Muted (or the sound-effects volume at 0) says
+   * nothing and loads nothing; the voice chunk comes in on the first line or the match's preload.
    */
-  voice(key: VoiceKey): void {
+  voice(key: VoiceKey, o: { sting?: boolean } = {}): void {
     this.voiced.push(key);
     if (this.voiced.length > 20) this.voiced.shift();
     try {
@@ -192,22 +204,44 @@ export class Sfx {
       /* node */
     }
     if (this.muted || this.fxScale <= 0.01) return;
-    this.play('sting', { vol: 0.6, rate: 0.9 });
-    voiceLoad ??= import('./voice');
-    void voiceLoad
-      .then((m) =>
-        setTimeout(
-          () =>
-            m.sayLine(key, () => ({
-              ctx: this.ac,
-              bus: this.fx,
-              volume: this.muted ? 0 : this.volume * this.fxScale,
-              muted: this.muted,
-            })),
-          VOICE_AFTER_STING_MS,
-        ),
-      )
+    const sting = o.sting ?? voicePriority(key) >= 3;
+    if (sting) this.play('sting', { vol: 0.6, rate: 0.9 });
+    void this.voiceMod()
+      .then((m) => {
+        const say = (): void => m.sayLine(key, () => this.voiceOut());
+        if (sting) setTimeout(say, VOICE_AFTER_STING_MS);
+        else say();
+      })
       .catch(() => undefined);
+  }
+
+  /** Fetch and decode these lines ahead of time (match start); nothing while muted. */
+  preloadVoice(keys: readonly VoiceKey[]): void {
+    if (this.muted || this.fxScale <= 0.01) return;
+    void this.voiceMod()
+      .then((m) => m.preload(keys, this.ac))
+      .catch(() => undefined);
+  }
+
+  /** Stop the announcer and drop its waiting lines (mute, leaving a match). */
+  hushVoice(): void {
+    if (!voiceLoad) return;
+    void voiceLoad.then((m) => m.hush(this.voiceOut())).catch(() => undefined);
+  }
+
+  private voiceMod(): Promise<VoiceMod> {
+    voiceLoad ??= import('./voice');
+    return voiceLoad;
+  }
+
+  private voiceOut(): import('./voice').VoiceOut {
+    return {
+      ctx: this.ac,
+      bus: this.fx,
+      duck: this.musicIn,
+      volume: this.muted ? 0 : this.volume * this.fxScale,
+      muted: this.muted,
+    };
   }
 
   play(name: SfxName, o: PlayOpts = {}): void {

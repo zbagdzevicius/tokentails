@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, ModuleMetadata } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { MongooseModule } from '@nestjs/mongoose';
 import { PassportModule } from '@nestjs/passport';
@@ -191,6 +191,8 @@ import { ClubController } from './club/club.controller';
 import { ClubMember, ClubMemberSchema, ClubWebhookEvent, ClubWebhookEventSchema } from './club/club.schema';
 import { ClubService } from './club/club.service';
 import { ClubWebhookService } from './club/club-webhook.service';
+import { BACKEND_ROLE } from './shared/runtime/backend-role';
+import { HealthController } from './shared/runtime/health.controller';
 
 const JwtModules = [
     PassportModule,
@@ -214,7 +216,12 @@ const config = {
         'https://www.googleapis.com/robot/v1/metadata/x509/firebase-adminsdk-yyfh7%40news-ccd33.iam.gserviceaccount.com',
 };
 
-@Module({
+/*
+ * The API module for BACKEND_ROLE `all` (default: DigitalOcean, local dev) and `api` (Cloud Run `tt-api`), see
+ * src/shared/runtime/backend-role.ts. The two differ only in the party relay: `api` does not register
+ * PartyRelayService, so it never attaches to `/pawlegends/ws` and never restores rooms. `relay` is src/relay.module.ts.
+ */
+export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
     imports: [
         ScheduleModule.forRoot(),
         // Applied to every route by the APP_GUARD below; routes tighten it with @Throttle.
@@ -288,6 +295,7 @@ const config = {
         ...JwtModules,
     ],
     controllers: [
+        HealthController,
         AppController,
         UserController,
         StarterController,
@@ -410,7 +418,7 @@ const config = {
         // Pawlegends party play (docs/plans/moba/MULTIPLAYER.md): the WebSocket relay, its room store and tickets.
         PartyTicketService,
         MongoRoomStore,
-        PartyRelayService,
+        ...(role === 'all' ? [PartyRelayService] : []),
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,
@@ -419,6 +427,12 @@ const config = {
         ClubService,
         ClubWebhookService,
         { provide: APP_GUARD, useClass: AppThrottlerGuard },
+        { provide: BACKEND_ROLE, useValue: role },
     ],
-})
+});
+
+@Module(appModuleMetadata('all'))
 export class AppModule {}
+
+@Module(appModuleMetadata('api'))
+export class ApiAppModule {}

@@ -6,6 +6,13 @@
 import { monitorEventLoopDelay, type IntervalHistogram } from 'perf_hooks';
 import { PARTY_LIMITS } from './party-limits';
 
+/**
+ * The histogram's sampling interval (ms). Node records the whole interval between two samples, so an idle loop reads
+ * about this much (p99 ~11 ms on the staging relay VM with nothing running); the gate and the `loop_delay_p99` counter
+ * subtract it and report the delay beyond the timer, as the 20 ms budget (D13) means.
+ */
+export const LOOP_SAMPLE_MS = 10;
+
 export class LoopGate {
     private h: IntervalHistogram | null = null;
     private lastP99 = 0;
@@ -17,7 +24,7 @@ export class LoopGate {
 
     start(): void {
         if (this.sample || this.h) return;
-        this.h = monitorEventLoopDelay({ resolution: 10 });
+        this.h = monitorEventLoopDelay({ resolution: LOOP_SAMPLE_MS });
         this.h.enable();
         this.resetAt = this.now();
     }
@@ -27,11 +34,11 @@ export class LoopGate {
         this.h = null;
     }
 
-    /** p99 event-loop delay in ms over the current window. */
+    /** p99 event-loop delay in ms over the current window, beyond the sampling interval. */
     p99Ms(): number {
         if (this.sample) return this.sample();
         if (!this.h) return 0;
-        const p = this.h.percentile(99) / 1e6;
+        const p = Math.max(0, this.h.percentile(99) / 1e6 - LOOP_SAMPLE_MS);
         if (this.now() - this.resetAt >= PARTY_LIMITS.loopDelayWindowMs) {
             this.lastP99 = p;
             this.h.reset();
