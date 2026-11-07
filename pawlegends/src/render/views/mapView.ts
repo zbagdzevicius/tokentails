@@ -10,7 +10,7 @@ import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
 import { ModelBuilder } from './rig';
-import { onPlayfield } from '../../sim/map/grid';
+import { NX, NY, createGrid, onPlayfield } from '../../sim/map/grid';
 
 const W = MAP.width / 1000;
 const H = MAP.height / 1000;
@@ -47,6 +47,146 @@ function distToPolyline(x: number, y: number, pl: readonly Pt[]): number {
     best = Math.min(best, Math.hypot(x - (ax + dx * t), y - (ay + dy * t)));
   }
   return best;
+}
+
+/**
+ * MAP-GAPS A1: the jungle walls as the nav grid blocks them: `createGrid().walls` minus the off-playfield (forest)
+ * cells, split into 4-connected clusters (the 4 WALLS rects and their mirrors). Bounds are cell edges in metres
+ * (whole metres: the grid's cell-centre rule), so the rocks always match what blocks a hero. Render only.
+ */
+export interface WallCluster {
+  cells: number[];
+  x0: number;
+  y0: number;
+  x1: number;
+  y1: number;
+}
+let clusterCache: WallCluster[] | null = null;
+export function wallClusters(): WallCluster[] {
+  if (clusterCache) return clusterCache;
+  const walls = createGrid().walls;
+  const cellM = MAP.navCell / 1000;
+  const isWall = (c: number): boolean => walls[c] === 1 && onPlayfield((c % NX) * MAP.navCell + MAP.navCell / 2, Math.floor(c / NX) * MAP.navCell + MAP.navCell / 2);
+  const seen = new Uint8Array(NX * NY);
+  const out: WallCluster[] = [];
+  for (let c0 = 0; c0 < NX * NY; c0++) {
+    if (seen[c0] || !isWall(c0)) continue;
+    const cells: number[] = [];
+    const stack = [c0];
+    seen[c0] = 1;
+    while (stack.length) {
+      const c = stack.pop()!;
+      cells.push(c);
+      const i = c % NX;
+      const j = Math.floor(c / NX);
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]] as const) {
+        const ni = i + di;
+        const nj = j + dj;
+        if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+        const k = nj * NX + ni;
+        if (!seen[k] && isWall(k)) {
+          seen[k] = 1;
+          stack.push(k);
+        }
+      }
+    }
+    cells.sort((a, b) => a - b);
+    let x0 = Infinity;
+    let y0 = Infinity;
+    let x1 = -Infinity;
+    let y1 = -Infinity;
+    for (const c of cells) {
+      const i = c % NX;
+      const j = Math.floor(c / NX);
+      x0 = Math.min(x0, i * cellM);
+      x1 = Math.max(x1, (i + 1) * cellM);
+      y0 = Math.min(y0, j * cellM);
+      y1 = Math.max(y1, (j + 1) * cellM);
+    }
+    out.push({ cells, x0, y0, x1, y1 });
+  }
+  clusterCache = out;
+  return out;
+}
+
+/** One rock of a wall cluster (m): ground centre, footprint radius, height. */
+export interface WallRock {
+  x: number;
+  y: number;
+  r: number;
+  h: number;
+}
+/**
+ * MAP-GAPS A1: the boulders of every wall cluster, a jittered 0.9 m grid filled to the cluster's edges (each cell
+ * centre lies inside at least one footprint), 0.8 to 1.6 m tall. Seeded, the same every load.
+ */
+export function wallRocks(): WallRock[] {
+  const rnd = lcg(23);
+  const out: WallRock[] = [];
+  for (const cl of wallClusters()) {
+    const step = 0.9;
+    const nx = Math.max(1, Math.round((cl.x1 - cl.x0) / step));
+    const ny = Math.max(1, Math.round((cl.y1 - cl.y0) / step));
+    const sx = (cl.x1 - cl.x0) / nx;
+    const sy = (cl.y1 - cl.y0) / ny;
+    for (let a = 0; a < nx; a++) {
+      for (let b = 0; b < ny; b++) {
+        const x = cl.x0 + (a + 0.5) * sx + (rnd() - 0.5) * 0.12;
+        const y = cl.y0 + (b + 0.5) * sy + (rnd() - 0.5) * 0.12;
+        // only on the cluster's own cells (a cluster that is not a full rectangle stays exact)
+        if (!cl.cells.includes(Math.floor(y) * NX + Math.floor(x))) continue;
+        const edge = Math.min(x - cl.x0, cl.x1 - x, y - cl.y0, cl.y1 - y) < 0.7;
+        out.push({ x, y, r: 0.7 + rnd() * 0.22, h: edge ? 0.8 + rnd() * 0.35 : 1.1 + rnd() * 0.5 });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * MAP-GAPS A1: the jungle footpaths (m): core → rat camp → river edge, both sides, bent round the x 16–18 and
+ * x 35–37 walls along y 34.5 (the A* detour) so no painted path runs under a rock.
+ */
+export function footpaths(): Pt[][] {
+  const cx = CORE.x / 1000;
+  const cy = CORE.y / 1000;
+  const rx = RAT_CAMP.x / 1000;
+  const ry = RAT_CAMP.y / 1000;
+  const out: Pt[][] = [];
+  for (const flip of [false, true]) {
+    const f = (x: number): number => (flip ? W - x : x);
+    out.push([
+      [f(cx), cy],
+      [f(14.2), 34.5],
+      [f(19.8), 34.5],
+      [f(rx), ry],
+      [f(33.4), 34.5],
+      [f(38.8), 34.5],
+      [f(44), 30],
+    ]);
+  }
+  return out;
+}
+
+/** The pebbles round the rat camps (m): low (< 0.25 m), outside the 5.5 m clearing, off the footpaths and walls. */
+export function campPebbles(): WallRock[] {
+  const rnd = lcg(31);
+  const paths = footpaths();
+  const walls = createGrid().walls;
+  const out: WallRock[] = [];
+  for (let i = 0; i < 400 && out.length < 28; i++) {
+    const flip = out.length % 2 === 1;
+    const a = rnd() * Math.PI * 2;
+    const d = 5.7 + rnd() * 2.6;
+    const x0 = RAT_CAMP.x / 1000 + Math.cos(a) * d;
+    const y = RAT_CAMP.y / 1000 + Math.sin(a) * d;
+    const x = flip ? W - x0 : x0;
+    const r = 0.12 + rnd() * 0.16;
+    if (Math.min(...paths.map((pl) => distToPolyline(x, y, pl))) < 1.9 + r) continue;
+    if (walls[Math.floor(y) * NX + Math.floor(x)]) continue;
+    out.push({ x, y, r, h: 0.1 + rnd() * 0.13 });
+  }
+  return out;
 }
 
 /** `swap`: team 0 is the dogs (round 2): each plaza's stone and paw print take its species' colours. */
@@ -103,21 +243,40 @@ function paintGround(swap = false): THREE.Texture {
     g.arc(X(x), Y(y), r * PX, 0, Math.PI * 2);
     g.fill();
   };
-  // jungle footpaths: core → rat camp → river (both sides)
+  // jungle footpaths: core → rat camp → river (both sides), bent round the walls (MAP-GAPS A1)
   const cx = CORE.x / 1000;
   const cy = CORE.y / 1000;
   const rx = RAT_CAMP.x / 1000;
-  for (const flip of [false, true]) {
-    const f = (x: number): number => (flip ? W - x : x);
-    const path: Pt[] = [
-      [f(cx), cy],
-      [f(rx), RAT_CAMP.y / 1000],
-      [f(44), 30],
-    ];
+  for (const path of footpaths()) {
     stroke(path, 3.4, '#c9b27c');
     stroke(path, 2.4, '#dcc792');
+  }
+  for (const flip of [false, true]) {
+    const f = (x: number): number => (flip ? W - x : x);
     disc(f(rx), RAT_CAMP.y / 1000, 5.5, '#cdb784');
     disc(f(rx), RAT_CAMP.y / 1000, 4.6, '#d9c595');
+  }
+  // MAP-GAPS A1: a trodden dirt footprint under each jungle wall (its rocks stand on it)
+  for (const cl of wallClusters()) {
+    for (const [pad, color] of [
+      [0.7, 'rgba(120,92,58,0.35)'],
+      [0.3, 'rgba(104,80,50,0.55)'],
+    ] as const) {
+      g.fillStyle = color;
+      const x = X(cl.x0 - pad);
+      const y = Y(cl.y1 + pad);
+      const w = (cl.x1 - cl.x0 + 2 * pad) * PX;
+      const h = (cl.y1 - cl.y0 + 2 * pad) * PX;
+      const r = pad * PX * 1.4;
+      g.beginPath();
+      g.moveTo(x + r, y);
+      g.arcTo(x + w, y, x + w, y + h, r);
+      g.arcTo(x + w, y + h, x, y + h, r);
+      g.arcTo(x, y + h, x, y, r);
+      g.arcTo(x, y, x + w, y, r);
+      g.closePath();
+      g.fill();
+    }
   }
   // lanes
   const lanes = lanePolylines();
@@ -468,18 +627,19 @@ export function createMapView(): MapView {
   }
   // trailer review: canopies between the lens and a hero (any hero, not only the player) are cut away with a dither,
   // so a fight by the tree line is never hidden under the leaves (trunks below 1.2 m stay)
-  const forestMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
-  forestMat.onBeforeCompile = (sh) => {
-    Object.assign(sh.uniforms, forestU);
-    sh.vertexShader = sh.vertexShader
-      .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
-    sh.fragmentShader = sh.fragmentShader
-      .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nuniform vec3 uLens;\nuniform vec4 uSee[${CANOPY_CUT.slots}];`)
-      .replace(
-        '#include <clipping_planes_fragment>',
-        `#include <clipping_planes_fragment>
-  if (vFW.y > ${CANOPY_CUT.minY.toFixed(2)}) {
+  const canopyMat = (minY: number, key: string): THREE.MeshLambertMaterial => {
+    const mat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
+    mat.onBeforeCompile = (sh) => {
+      Object.assign(sh.uniforms, forestU);
+      sh.vertexShader = sh.vertexShader
+        .replace('#include <common>', '#include <common>\nvarying vec3 vFW;')
+        .replace('#include <begin_vertex>', '#include <begin_vertex>\nvFW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+      sh.fragmentShader = sh.fragmentShader
+        .replace('#include <common>', `#include <common>\nvarying vec3 vFW;\nuniform vec3 uLens;\nuniform vec4 uSee[${CANOPY_CUT.slots}];`)
+        .replace(
+          '#include <clipping_planes_fragment>',
+          `#include <clipping_planes_fragment>
+  if (vFW.y > ${minY.toFixed(2)}) {
     float cut = 0.0;
     for (int i = 0; i < ${CANOPY_CUT.slots}; i++) {
       if (uSee[i].w < 0.5) continue;
@@ -491,10 +651,45 @@ export function createMapView(): MapView {
     float th = fract(52.9829189 * fract(dot(gl_FragCoord.xy, vec2(0.06711056, 0.00583715))));
     if (cut * ${CANOPY_CUT.strength.toFixed(2)} > th) discard;
   }`,
-      );
+        );
+    };
+    mat.customProgramCacheKey = () => key;
+    return mat;
   };
-  forestMat.customProgramCacheKey = () => 'pl-forest-cut-v1';
+  const forestMat = canopyMat(CANOPY_CUT.minY, 'pl-forest-cut-v1');
   addMerged(trees, 'forest', true, forestMat);
+
+  // MAP-GAPS A1: the 8 jungle walls the nav grid blocks, as rock-and-root clusters filled to their edges (they were
+  // invisible: heroes stopped against bare grass). Cut like the canopy (from 0.6 m up), so a hero behind a tall rock
+  // stays visible.
+  const wallB = new ModelBuilder();
+  const wr = lcg(29);
+  const rockTones = [0x9d958a, 0xaaa294, 0x8c857b, 0xb3ab9c];
+  for (const k of wallRocks()) {
+    wallB.add(new THREE.DodecahedronGeometry(k.r, 0), rockTones[(wr() * rockTones.length) | 0], {
+      at: [k.x, k.h * 0.42, -k.y],
+      rot: [wr() * 3, wr() * 3, wr() * 3],
+      scale: [1, k.h / (2 * k.r) + 0.1, 1],
+    });
+  }
+  for (const cl of wallClusters()) {
+    const long = cl.x1 - cl.x0 >= cl.y1 - cl.y0;
+    const len = (long ? cl.x1 - cl.x0 : cl.y1 - cl.y0) * 0.55;
+    const mx = (cl.x0 + cl.x1) / 2;
+    const my = (cl.y0 + cl.y1) / 2;
+    const logs = 1;
+    for (let i = 0; i < logs; i++) {
+      const off = logs === 2 ? (i ? 0.6 : -0.6) : 0;
+      const at: [number, number, number] = long ? [mx + (wr() - 0.5) * 0.6, 1.25 + i * 0.1, -(my + off)] : [mx + off, 1.25 + i * 0.1, -(my + (wr() - 0.5) * 0.6)];
+      wallB.cyl(0.24, 0.28, len, 0x7a5133, { at, rot: long ? [0, 0, Math.PI / 2] : [Math.PI / 2, 0, 0] }, 7);
+    }
+    // a root stump and a moss cap at one end
+    const sx = long ? cl.x0 + 0.7 : mx;
+    const sy = long ? my : cl.y1 - 0.7;
+    wallB.cyl(0.38, 0.5, 1.5, 0x6e4a2e, { at: [sx, 0.75, -sy] }, 7);
+    wallB.sphere(0.5, 0x5f9a52, { at: [sx, 1.55, -sy], scale: [1, 0.45, 1] }, 7);
+  }
+  addMerged(wallB, 'walls', true, canopyMat(0.6, 'pl-wall-cut-v1'));
 
   const hedge = new ModelBuilder();
   const edgeBush = (x: number, y: number): void => {
@@ -509,21 +704,9 @@ export function createMapView(): MapView {
     edgeBush(-0.8, y);
     edgeBush(W + 0.8, y);
   }
-  // rocks dotted around the rat camps and the river banks
-  // trailer review: only where nobody can walk (units stood inside rocks on the camp paths: the sim has no decor collision)
-  for (let i = 0, placed = 0; i < 400 && placed < 26; i++) {
-    const flip = placed % 2 === 0;
-    const a = rnd() * Math.PI * 2;
-    const d = 5.5 + rnd() * 2.5;
-    const x0 = RAT_CAMP.x / 1000 + Math.cos(a) * d;
-    const y0 = RAT_CAMP.y / 1000 + Math.sin(a) * d;
-    const size = 0.4 + rnd() * 0.4;
-    const rot: [number, number, number] = [rnd(), rnd(), rnd()];
-    const x = flip ? W - x0 : x0;
-    if (!rockClear(x, y0, size + 0.6)) continue;
-    hedge.add(new THREE.DodecahedronGeometry(size, 0), 0xb9b2a6, { at: [x, 0.15, -y0], rot });
-    placed++;
-  }
+  // MAP-GAPS A1: low pebbles round the rat camps (under 0.25 m, outside the clearing, off the footpaths): the old
+  // loop asked for rocks on unwalkable ground only, of which there is none there, and placed 0 of 400
+  for (const k of campPebbles()) hedge.add(new THREE.DodecahedronGeometry(k.r, 0), 0xb9b2a6, { at: [k.x, 0, -k.y], rot: [k.x, k.y, k.r * 9], scale: [1, k.h / k.r, 1] });
   addMerged(hedge, 'hedge', false);
 
   // gate barriers (up until the gates open): a glowing line on the ground across the walkable part of each base
