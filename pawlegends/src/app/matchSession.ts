@@ -612,7 +612,7 @@ export class MatchSession {
         const slot = i as 0 | 1 | 2 | 3 | 4;
         const spec = this.orders.aimSpec(slot);
         // a heading blink or dash (Pounce, the escape dashes): its full distance where the hero is heading, not 2 m
-        const a = spec.heading && this.touch ? this.touch.heading(me) : (this.view.me()?.yaw ?? 0);
+        const a = spec.heading && this.touch ? this.touch.heading(me, spec) : (this.view.me()?.yaw ?? 0);
         const p = spec.heading ? headingPoint(spec, me, a) : { x: me.x + Math.cos(a) * 2000, y: me.y + Math.sin(a) * 2000 };
         this.orders.cast(slot, p.x, p.y);
       },

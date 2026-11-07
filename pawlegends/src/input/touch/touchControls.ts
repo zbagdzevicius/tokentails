@@ -13,15 +13,18 @@
  * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
  *
  * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): the PRESS fires, the full distance where the
- * player is heading (the held joystick, else the hero's movement, else the way it last walked, else its facing). No
- * aim step, no wait for the release, no cancel: the joystick is the aim (founder: "there can't be any friction"). A
- * ghost marker shows the landing for GHOST_MS. With the joystick held, the run goes on from the landing at once and
+ * player is heading (the held joystick, or along the wall it slides the hero on when that lands further than straight
+ * into it; else the hero's movement, else the way it last walked, else its facing). No aim step, no wait for the
+ * release, no cancel: the joystick is the aim (founder: "there can't be any friction"). A ghost marker shows the
+ * landing for GHOST_MS. With the joystick held, the run goes on from the landing at once and
  * the stick keeps steering from there (never from the drawn hero still short of it) until the sim shows the cast.
  *
  * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
  * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
  * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
  * fingers have moved past TAP.px and their gap changed by PINCH_PX; then the stick lets go and both fingers zoom.
+ * Once that thumb steers on its own (stickSteersAlone) the pair can no longer become a pinch. When the other finger
+ * lifts after a pinch, the joystick thumb still down is a joystick again (a fresh base under it).
  */
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
@@ -29,7 +32,7 @@ import { rankPips } from '../../ui/heroText';
 import { cdLabel } from '../../ui/cdLabel';
 import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
-import { basicRange, minionHitEstimate, ULT_LEVEL } from '../abilities';
+import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
@@ -114,6 +117,8 @@ export const GHOST_MS = 150;
 export const BLINK_GUARD_MS = 600;
 /** A joystick finger plus a second finger turn into a pinch only after their gap changes by this many CSS px. */
 export const PINCH_PX = 24;
+/** A held stick's heading cast takes the wall-slide direction over the raw stick only when it lands this much further (mm). */
+const CAST_SLIDE_GAIN_MM = 300;
 
 /**
  * Two canvas touches, one of them a still joystick: has the pair become a pinch? Both fingers moved past TAP.px from
@@ -126,6 +131,15 @@ export function pinchCommitted(a: TouchPt, b: TouchPt): boolean {
   return moved(a) && moved(b) && Math.abs(gap - gap0) >= PINCH_PX;
 }
 export type TouchPt = { x: number; y: number; x0: number; y0: number };
+/**
+ * A still joystick plus a resting second finger: has the thumb started steering on its own? It travelled past 2 × TAP.px
+ * while the other finger stayed within TAP.px. From then on the stick is in use and the pair never becomes a pinch,
+ * however the resting finger drifts later (a real pinch moves both fingers together, so it commits first).
+ */
+export function stickSteersAlone(stick: TouchPt, other: TouchPt): boolean {
+  const travel = (p: TouchPt) => Math.hypot(p.x - p.x0, p.y - p.y0);
+  return travel(stick) > TAP.px * 2 && travel(other) <= TAP.px;
+}
 
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -198,7 +212,7 @@ export class TouchControls {
   heads = { press: 0, fired: 0 };
   /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
   private readonly canvasTouches = new Map<number, TouchPt>();
-  private pinch: { a: number; b: number; d0: number; z0: number } | null = null;
+  private pinch: { a: number; b: number; d0: number; z0: number; stickId: number | null } | null = null;
   /** A still joystick plus a second finger: a pinch only if both fingers then move apart or together (pinchCommitted). */
   private pinchMaybe = false;
   /** Pinches started (e2e telemetry). */
@@ -317,14 +331,19 @@ export class TouchControls {
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
     if (e.clientX < window.innerWidth * 0.5 && !this.stick) {
       e.preventDefault();
-      // CF-14: the ring never hangs off the screen edge (a thumb at the edge pushes the knob from a base inside it)
-      const b = stickBase(e.clientX, e.clientY, window.innerWidth, window.innerHeight);
-      this.stick = { id: e.pointerId, bx: b.x, by: b.y, x: e.clientX, y: e.clientY, moved: false, at: e.timeStamp };
-      this.stickEl.style.transform = `translate(${b.x}px, ${b.y}px)`;
-      this.stickEl.classList.add('on');
-      this.knobEl.style.transform = `translate(calc(-50% + ${e.clientX - b.x}px), calc(-50% + ${e.clientY - b.y}px))`;
-      this.lastStick.a = NaN;
+      this.grabStick(e.pointerId, e.clientX, e.clientY, e.timeStamp);
     }
+  }
+
+  /** A finger at (x, y) takes the joystick: the ring shows under it, still (it steers once it moves). */
+  private grabStick(id: number, x: number, y: number, at: number): void {
+    // CF-14: the ring never hangs off the screen edge (a thumb at the edge pushes the knob from a base inside it)
+    const b = stickBase(x, y, window.innerWidth, window.innerHeight);
+    this.stick = { id, bx: b.x, by: b.y, x, y, moved: false, at };
+    this.stickEl.style.transform = `translate(${b.x}px, ${b.y}px)`;
+    this.stickEl.classList.add('on');
+    this.knobEl.style.transform = `translate(calc(-50% + ${x - b.x}px), calc(-50% + ${y - b.y}px))`;
+    this.lastStick.a = NaN;
   }
 
   private down(e: PointerEvent): void {
@@ -382,10 +401,11 @@ export class TouchControls {
     const [a, b] = [...this.canvasTouches.keys()];
     const pa = this.canvasTouches.get(a)!;
     const pb = this.canvasTouches.get(b)!;
-    this.pinch = { a, b, d0: Math.max(1, Math.hypot(pa.x - pb.x, pa.y - pb.y)), z0: this.h.view.zoomTarget };
+    const stickId = this.stick && (this.stick.id === a || this.stick.id === b) ? this.stick.id : null;
+    this.pinch = { a, b, d0: Math.max(1, Math.hypot(pa.x - pb.x, pa.y - pb.y)), z0: this.h.view.zoomTarget, stickId };
     this.pinches++;
     this.tap = null;
-    if (this.stick && (this.stick.id === a || this.stick.id === b)) {
+    if (stickId !== null) {
       this.stick = null;
       this.stickEl.classList.remove('on');
     }
@@ -403,6 +423,8 @@ export class TouchControls {
           this.startPinch();
           return;
         }
+        const st = this.stick ? this.canvasTouches.get(this.stick.id) : undefined;
+        if (st && stickSteersAlone(st, st === a ? b : a)) this.pinchMaybe = false;
       }
       const p = this.pinch;
       if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
@@ -488,6 +510,10 @@ export class TouchControls {
         this.pinch = null;
         saveZoom(this.h.view.zoomTarget);
         if (this.tap?.id === e.pointerId) this.tap = null;
+        // the joystick thumb that stays down steers again (a fresh base where it rests), no lift and press needed
+        const rest = p.stickId !== null && p.stickId !== e.pointerId ? this.canvasTouches.get(p.stickId) : undefined;
+        // (at: Infinity, so lifting it still stops the hero only if it steered: a zoom alone never stops a walk)
+        if (rest && !this.stick && this.h.enabled()) this.grabStick(p.stickId!, rest.x, rest.y, Infinity);
         return;
       }
     }
@@ -578,10 +604,10 @@ export class TouchControls {
    */
   tapAim(slot: CastIndex, me: Unit): { x: number; y: number; id: number } {
     const aim = this.h.orders.aimSpec(slot);
-    if (aim.heading) return { ...headingPoint(aim, me, this.heading(me)), id: 0xff };
+    if (aim.heading) return { ...headingPoint(aim, me, this.heading(me, aim)), id: 0xff };
     const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
     // CF-03: a blink (Pounce, Avietė E) follows the held stick too, at full range (smartAim's fallback is the facing)
-    const a = aim.kind === 'dir' || aim.blink ? this.stickAngle() : null;
+    const a = aim.blink ? this.stickCastAngle(me, aim, performance.now()) : aim.kind === 'dir' ? this.stickAngle() : null;
     if (a === null) return p;
     // smartAim's fallback for a direction is straight ahead along the facing: anything else means it found a target
     const f = this.facing();
@@ -592,14 +618,15 @@ export class TouchControls {
   }
 
   /**
-   * Where the player is heading (rad, sim convention): the held joystick, else the hero's movement (its drawn track,
-   * then a move order it is still walking), else the way it last walked, else its facing (heading.ts).
+   * Where the player is heading (rad, sim convention) for a heading cast of `aim`: the held joystick (stickCastAngle:
+   * along a wall it slides the hero on when that lands further), else the hero's movement (its drawn track, then a
+   * move order it is still walking), else the way it last walked, else its facing (heading.ts).
    */
-  heading(me: Unit): number {
+  heading(me: Unit, aim: AimSpec): number {
     const now = performance.now();
     const lm = this.h.orders.lastMove;
     const walking = me.state === 'moving' && lm !== null && now - lm.at <= MOVE_ORDER_MS;
-    return headingAngle(me, { stick: this.stickAngle(), motion: this.motion.angle(now), moveGoal: walking ? lm : null, lastMotion: this.motion.last(), facing: this.facing() });
+    return headingAngle(me, { stick: this.stickCastAngle(me, aim, now), motion: this.motion.angle(now), moveGoal: walking ? lm : null, lastMotion: this.motion.last(), facing: this.facing() });
   }
 
   /** Where the sim has the own hero (the newest snapshot), else the drawn hero: casts and the stick start from there. */
@@ -614,7 +641,7 @@ export class TouchControls {
    */
   private headingCast(slot: CastIndex, me: Unit): boolean {
     const spec = this.h.orders.aimSpec(slot);
-    const p = headingPoint(spec, this.simPos(me), this.heading(me));
+    const p = headingPoint(spec, this.simPos(me), this.heading(me, spec));
     return this.h.orders.cast(slot, p.x, p.y, 0xff);
   }
 
@@ -919,6 +946,36 @@ export class TouchControls {
   }
 
   /**
+   * The way a held joystick walks the hero from `o` (rad, sim convention): the stick's angle, pulled onto the lane by
+   * the lane magnet, and turned to slide along a wall it pushes into (steer() walks this; a heading cast flies it).
+   */
+  private walkAngle(me: Unit, o: { x: number; y: number }, dx: number, dy: number): number {
+    const raw = Math.atan2(dy, dx);
+    const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
+    return slideAngle(o.x, o.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(o.x, o.y, raw) : raw);
+  }
+
+  /**
+   * Where a heading cast or blink of `aim` goes with the joystick held past the dead zone (rad), else null: the raw
+   * stick, unless the way the stick walks the hero (walkAngle: sliding along a wall it pushes into) lands further. So a
+   * stick pushed into a wall flashes along the wall the hero slides on, never short into it, while a blink that clears
+   * a wall straight ahead still goes straight (QA 2026-11-07).
+   */
+  private stickCastAngle(me: Unit, aim: AimSpec, now: number): number | null {
+    const s = this.stick;
+    const raw = this.stickAngle();
+    if (!s || raw === null) return null;
+    const o = this.steerFrom(me, now);
+    const walk = this.walkAngle(me, o, s.x - s.bx, -(s.y - s.by));
+    if (walk === raw) return raw;
+    const far = (a: number) => {
+      const l = landing(aim, o, a);
+      return Math.hypot(l.x - o.x, l.y - o.y);
+    };
+    return far(walk) > far(raw) + CAST_SLIDE_GAIN_MM ? walk : raw;
+  }
+
+  /**
    * The joystick's move order: sent from the frame loop and (C6) straight from the pointer event, so a fresh push does
    * not wait for the next frame. Throttled by STICK.turn / STICK.everyMs as before.
    */
@@ -934,9 +991,7 @@ export class TouchControls {
       // the lane magnet (fun plan F3): close to the lane's direction, walk exactly along it
       // round 2: a push into a wall slides along it (orders.ts slideAngle)
       // C8: only at full tilt (90%+) and with no enemy hero within 8 m, and only within 8° of the lane
-      const raw = Math.atan2(dy, dx);
-      const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
-      const a = slideAngle(o.x, o.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(o.x, o.y, raw) : raw);
+      const a = this.walkAngle(me, o, dx, dy);
       const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
       const near = Math.hypot(o.x - this.lastStick.tx, o.y - this.lastStick.ty) < STICK.refreshMm;
       // the hero stands although the stick is held (its move was dropped or ran out): send it again
