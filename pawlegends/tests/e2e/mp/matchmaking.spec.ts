@@ -157,11 +157,13 @@ test('co-op: two strangers on one team vs bots; a leaver is backfilled by a thir
     await expect(c.page.locator('[data-testid="mm-offer"]')).toBeVisible({ timeout: 15_000 });
     await expect(c.page.locator('[data-testid="mm-offer"]')).toContainText('Join a match in progress');
     await shot(c, 'm1a', '13-backfill-offer');
+    const namesBefore = (await mpNames(b)).slice(0, 3).join('|');
     await tap(c, c.page.locator('[data-testid="mm-offer-join"]'));
     await c.page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
     await c.page.waitForFunction(() => (document.documentElement.dataset.mpTurn ?? '') !== '', null, { timeout: 60_000 });
-    // the seat turns human on C's caught-up `back`: B sees one piloted seat fewer
-    await b.page.waitForFunction((before) => (Number(document.documentElement.dataset.mpMask ?? 0) & 7) < before, pilotedBefore, { timeout: 90_000 });
+    // the seat is C's now: B's team plates name C (the relay's generated name) where the bot flew A's seat
+    // (the pilot mask is no proof: an idle e2e player is AFK-piloted after a minute anyway)
+    await expect.poll(async () => (await mpNames(b)).slice(0, 3).join('|'), { timeout: 90_000 }).not.toBe(namesBefore);
     // C's own clock caught up with B's (a join in progress, not a new match)
     expect(Math.abs((await tickOf(c)) - (await tickOf(b)))).toBeLessThan(300);
     expect(await tickOf(c)).toBeGreaterThan(450);
