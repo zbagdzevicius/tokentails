@@ -109,10 +109,10 @@ export function lobbyHtml(o: LobbyModel): string {
   const err = o.error ? `<p class="pp-err" role="alert">${esc(o.error)}</p>` : '';
   const online =
     o.online && leader && !v.mm && v.members.length <= 2 && (v.phase === 'lobby' || v.phase === 'results')
-      ? `<button type="button" class="pl-btn ghost pp-online" data-p="queue" data-testid="party-queue">${COPY.online}</button>`
+      ? `<button type="button" class="pl-btn small pp-online" data-p="queue" data-testid="party-queue">${COPY.online}</button>`
       : '';
   return `<div class="pp-card pp-lobby" data-phase="${v.phase}">
-    <div class="pp-head"><h2>${COPY.party}${v.locked ? ' <span class="pp-pill">Locked</span>' : ''}</h2><button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leave}</button></div>
+    <div class="pp-head"><h2>${COPY.party}${v.locked ? ' <span class="pp-pill">Locked</span>' : ''}</h2><span class="pp-row">${online}<button type="button" class="pl-btn ghost small" data-p="leave" data-testid="party-leave">${COPY.leave}</button></span></div>
     <div class="pp-grid">
       <section class="pp-code-col" aria-label="${COPY.partyCode}">
         <small>${COPY.partyCode}</small>
@@ -126,7 +126,7 @@ export function lobbyHtml(o: LobbyModel): string {
         <small>${COPY.bots}</small>${diff}${newbie}
         ${toggles}${openNotes}
         ${waiting}${err}
-        ${action}${online}
+        ${action}
       </section>
     </div>
   </div>`;
