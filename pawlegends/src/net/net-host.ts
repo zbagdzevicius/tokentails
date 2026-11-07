@@ -707,8 +707,18 @@ export class NetHost implements PartyLink {
     const locked = (v.buffs & (8 | 16)) !== 0 || v.charmed === true;
     const moving = v.speed > 1;
     const base = v.hero ? HEROES[v.hero as HeroId]?.base.speed : undefined;
-    const speed = moving ? v.speed : base ? base / 30 : DEFAULT_SPEED;
+    const baseSpeed = base ? base / 30 : DEFAULT_SPEED;
     const now = this.now();
+    // the walker's speed: the interpolated speed comes in bursts (a snapshot per turn, a hero that stops and starts on
+    // every re-issued Move), so it is averaged over the frames around movement (~400 ms) and kept within 0.5..2.5×
+    // the base speed (slows, Zoomies); after 2 s without movement it starts again at the base speed
+    const sdt = Math.max(0, Math.min(100, now - this.speedAt));
+    this.speedAt = now;
+    if (moving) this.movingAt = now;
+    if (this.speedAvg === 0) this.speedAvg = baseSpeed;
+    if (now - this.movingAt < 150) this.speedAvg += (v.speed - this.speedAvg) * (1 - Math.exp(-sdt / SPEED_AVG_MS));
+    else if (now - this.movingAt > 2000) this.speedAvg = baseSpeed;
+    const speed = Math.max(0.5 * baseSpeed, Math.min(2.5 * baseSpeed, this.speedAvg));
     const latency = this.inputLatencyMs();
     // the sim's gate barrier holds the hero at its line until it drops; the walker stops there too
     const gated = f.tick + latency / (1000 / TICK_HZ) < TIMELINE.barrierDrop;
@@ -736,7 +746,15 @@ export class NetHost implements PartyLink {
     v.fy += off.dy;
   }
 
+  /** MatchHost.predictedSelf: the walker while a predicted walk is in flight (where a command sent now lands). */
+  predictedSelf(): { x: number; y: number } | null {
+    return this.predictor.position;
+  }
+
   private yawShown: number | null = null;
+  private speedAvg = 0;
+  private speedAt = 0;
+  private movingAt = -Infinity;
   private yawAt = 0;
   private yawEaseUntil = -Infinity;
 
@@ -749,6 +767,8 @@ export class NetHost implements PartyLink {
 export const PREDICT_MAX_MS = 600;
 /** The own hero is drawn this far behind the newest snapshot (SELF_LAG ticks plus the render clock's smoothing). */
 const SELF_DRAW_MS = 15;
+/** Time constant (ms) of the walker's speed average. */
+const SPEED_AVG_MS = 400;
 /** The own hero's drawn facing eases toward the wanted one with this time constant (ms). */
 const YAW_EASE_MS = 50;
 const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
