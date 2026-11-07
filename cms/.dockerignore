@@ -1,0 +1,17 @@
+node_modules
+.next
+out
+coverage
+*.log
+*.tsbuildinfo
+.git
+.vscode
+.idea
+__tests__
+.env
+.env.*
+!.env.production
+*.pem
+*.key
+Dockerfile
+.dockerignore
