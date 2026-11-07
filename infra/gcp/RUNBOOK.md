@@ -34,12 +34,17 @@ SIGTERM limit, and a stop-then-start order, so the relay's existing handoff (SIG
 `restore()` at boot work unchanged. On Cloud Run the new revision boots before the old one hands off, so `restore()`
 would find nothing. One VM owns every party, so there is no session affinity to get wrong.
 
-Client IP: Cloudflare sets `cf-connecting-ip`; the backend's peer is the ALB proxy-only subnet (10.129.0.0/23) for the
-relay or Cloud Run's link-local hop for the API. `backend/src/shared/trust-proxy.ts` already trusts both, so the relay's
-`clientIp()` and `shared/client-ip.ts` see the real player with **no code change**. Cloud Armor admits only Cloudflare
-and Cloud Run ingress is load-balancer-only, so the header cannot be forged from outside. That closes the
-`cf-connecting-ip` forgery known issue in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a
-global ALB without adding the GFE ranges (35.191.0.0/16, 130.211.0.0/22) to trust-proxy.
+Client IP: Cloudflare sets `cf-connecting-ip`. The relay's peer is the ALB proxy-only subnet (10.129.0.0/23), a hop
+`backend/src/shared/trust-proxy.ts` trusts, so the relay's `clientIp()` reads the header. **The API is different**: the
+ALB appends its own public forwarding-rule address to X-Forwarded-For before Cloud Run, and Express stops at that
+untrusted address, so `req.ip` / `req.ips[0]` on tt-api is the same balancer IP for every visitor. Everything per-IP
+must therefore read `cf-connecting-ip` first: `shared/client-ip.ts` (`clientIp`, `visitorIp`) does; the new-account and
+guest-session throttles and the donation relay hash were moved onto `visitorIp` in this branch (they read `req.ip`
+directly, which would have made them one site-wide bucket of 10 accounts and 30 guests an hour). Any new per-IP code
+must use `clientIp`/`visitorIp`, never `req.ip`. Cloud Armor admits only Cloudflare and Cloud Run ingress is
+load-balancer-only, so the header cannot be forged from outside. That closes the `cf-connecting-ip` forgery known issue
+in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a global ALB without adding the GFE ranges
+(35.191.0.0/16, 130.211.0.0/22) to trust-proxy.
 
 ## Guardrails
 
@@ -76,6 +81,8 @@ global ALB without adding the GFE ranges (35.191.0.0/16, 130.211.0.0/22) to trus
 | `tools/ws-origin-shim.mjs` | Lets `pawlegends/tests/e2e/mp/load.mjs` run against a production-mode relay (Origin header, `/healthz` counters) |
 | `scripts/preflight.sh` | Every offline check below in one command |
 | `scripts/deploy-run.sh`, `scripts/deploy-relay.sh` | Called by `.github/workflows/deploy-gcp.yml` |
+| `scripts/replace-relay.sh` | Rolls a changed relay instance template out in a quiet hour (waits for 0 live rooms) |
+| `scripts/cutover-relay.sh` | Step 6.3: hands DigitalOcean's live matches to the Google relay while you archive DigitalOcean |
 | `../../backend/Dockerfile`, `../../client/Dockerfile`, `../../cms/Dockerfile` | Images (multi-stage, non-root, tini, `PORT`) |
 
 Backend changes for deployment only: `BACKEND_ROLE` (`all` default = DigitalOcean unchanged, `api`, `relay`) in
@@ -98,17 +105,23 @@ What the runs assert (all passing on 2026-11-07):
 - **Project guard**: `motored-497708`, `acme-prod` and `tokentails` are refused; `tokentails-prod` is accepted.
 - **Relay**: MIG size ≥ 1, never two at once (`max_surge 0`), `MIGRATE` on host maintenance, no external IP, Shielded
   VM, autoheal delay ≥ 120 s, `NODE_ENV=production` + `BACKEND_ROLE=relay`, systemd unit with `docker stop -t 60`, no
-  konlet.
+  konlet; `OPPORTUNISTIC` updates (a template change never replaces the VM by itself); env and secret pins in project
+  metadata, not in the template; the VM runs the image `deploy.sh` verified.
 - **API**: ingress internal-and-cloud-load-balancing, default URL disabled, min instances ≥ 1, CPU always allocated
   (no throttling), `NODE_ENV=production`, all egress through NAT; web and CMS also LB-only.
-- **Edge**: relay backend `HTTP` (HTTP/1.1), timeout 86,400 s (≥ 3,600), no session affinity, draining 600 s;
+- **Edge**: relay backend `HTTP` (HTTP/1.1), timeout 86,400 s (≥ 3,600), no session affinity, no connection draining
+  (≤ 30 s: a VM recreate must fit the 120 s restore window);
   `/pawlegends/ws` exact and `/pawlegends/ws/` prefix go to the relay first; Cloud Armor on all 7 backends, default
   rule `deny(403)`, ≤ 10 ranges per rule, every Cloudflare v4 and v6 range admitted once, a per-IP throttle on
   `/pawlegends/ws`; the ranges match `backend/src/shared/cloudflare-ips.ts`.
 - **Secrets and IAM**: no `google_secret_manager_secret_version` anywhere; hot-wallet keys (`SHELTER_DONATE_PRIVATE_KEY`,
   `INVALIDATE_CACHE_SECRET`, `SHELTER_TRY_PRIVATE_KEY`) readable by `sa-api` only; `sa-relay` reads only the relay's
   keys; web, CMS and CI read none; no owner/editor/project-wide secret access; sa-deploy's IAP and OS Login rights are
-  conditioned to SSH on `tt-relay*`; WIF pinned to `zbagdzevicius/tokentails`, repo id `835381356`, `refs/heads/main`.
+  conditioned to SSH on `tt-relay*`; sa-deploy has Cloud Run write rights only on `tt-api`, `tt-web`, `tt-cms` and
+  `tt-migrate` (project-wide it can only read), never `compute.instances.setMetadata`; WIF pinned to
+  `zbagdzevicius/tokentails`, repo id `835381356`, `refs/heads/main`, and sa-deploy only to
+  `.github/workflows/deploy-gcp.yml@refs/heads/main`; the party ticket secret is one variable mounted on tt-api and the
+  relay at the same version; sa-tf-plan can read the budget.
 - **Network**: health checkers only on 8080 to the relay tag, player traffic only from the proxy-only subnet, SSH only
   from IAP. **Regions** follow `var.region` everywhere. **Buckets**: state and media buckets enforce public access
   prevention. **Budget**: 50/90/100 % actual and 100 % forecast.
@@ -180,8 +193,19 @@ docker build --platform linux/amd64 --secret id=public_env,src=public-cms.env -t
 `public.env` holds the web's `NEXT_PUBLIC_*` values as `KEY='value'` lines (names in docs/CLIENT.md; they are public,
 they ship in the browser bundle). The committed `client/.env.production` is the fallback, as on Vercel.
 
-**Before pass 2, add the secret values (step 3)**: Cloud Run refuses to create a revision whose pinned secret version
-does not exist.
+**Before pass 2**:
+
+1. Add the secret values (step 3): Cloud Run refuses to create a revision whose pinned secret version does not exist.
+2. Put the NAT IP on the Atlas IP access list (it exists after pass 1): `terraform output -raw nat_ip` (or
+   `gcloud compute addresses list --filter='name~nat'`). Pass 2 starts tt-api and the relay against production Mongo
+   through that IP; without the entry tt-api never becomes ready (`terraform apply` fails) and the relay VM
+   autoheal-loops. Keep the existing entries (DigitalOcean) until step 8.
+3. Pass 2 boots the relay VM against the production database while DigitalOcean still serves every match. The relay
+   now only claims rooms that were handed off or whose lease went stale, and only abandons rooms nobody checkpoints,
+   so it leaves DigitalOcean's live matches alone. It can still claim a match a DigitalOcean instance handed off in
+   the same two minutes (a DigitalOcean deploy), which those players then cannot reach. So: turn DigitalOcean
+   auto-deploy off from pass 2 until step 6 (deploy DigitalOcean by hand, never within 3 minutes of a `tt-relay`
+   start: pass 2, relay deploys, the step 5 drills).
 
 ```bash
 terraform plan -out tfplan        # read it: nothing outside tokentails-prod, no secret values
@@ -218,14 +242,19 @@ values): `PAWLEGENDS_PARTY_TICKET_SECRET`, `PAWLEGENDS_STRIPE_SECRET_KEY`, `PAWL
 To mount one on `tt-api` after you add its value, add it to `api_secret_versions` in `terraform.tfvars` (the full map:
 the 21 keys plus the new one, each with its version) and apply.
 
-The relay reads only `MONGODB_URI`, `PAWLEGENDS_PARTY_TICKET_SECRET` and `FRONT_END_URLS` (versions in
-`relay_secret_versions`). The ticket secret must be the **same value on tt-api and the relay** (the API mints tickets,
-the relay verifies them): when you set it, add it to `api_secret_versions` too. Until it is set, party rooms are
-unscored, exactly as on DigitalOcean today. Relay secret values must be one line.
+The relay reads only `MONGODB_URI`, `PAWLEGENDS_PARTY_TICKET_SECRET` and `FRONT_END_URLS`, and follows tt-api's pins
+for the first and the last (override one in `relay_secret_versions` only if you must). The ticket secret has its own
+variable, `party_ticket_secret_version`, which mounts it on tt-api (it mints tickets) and the relay (it verifies them)
+at the same version; putting it in `api_secret_versions` or `relay_secret_versions` is refused. Until it is set, the
+ticket endpoint answers 503 and party rooms are unscored, as on DigitalOcean today. Tickets are no longer bound to the
+minting process's boot id (that made every ticket minted on tt-api fail on the relay); a ticket issued before the
+verifying process started is refused instead. Relay secret values must be one line.
 
-Rotation: add a new version, change the pinned version in `terraform.tfvars`, apply (a new Cloud Run revision picks
-it up; the relay reads its pinned versions at every start, so `systemctl restart tt-relay` after the apply). Disable
-the old version only after the new revision serves. Secret reads are in the Data Access audit log.
+Rotation: add a new version, change the pinned version in `terraform.tfvars`, apply. tt-api: the apply creates a new
+revision, which serves as soon as it is ready (traffic is on LATEST; `deploy-run.sh` leaves it there). Relay: the pins
+live in project metadata (`tt-relay-secrets`, `tt-relay-env`), read at every container start, so after the apply run
+`sudo systemctl restart tt-relay` on the VM in a quiet hour (handoff and restore) or let the next relay deploy pick it
+up. Disable the old version only after both serve. Secret reads are in the Data Access audit log.
 
 Plain (non-secret) env that DigitalOcean sets and Cloud Run must also get, if any is set there today: copy it into the
 `env` map of `module "api"` in `envs/prod/main.tf`. Terraform already sets `NODE_ENV=production`, `BACKEND_ROLE=api`,
@@ -237,7 +266,7 @@ Plain (non-secret) env that DigitalOcean sets and Cloud Run must also get, if an
    (grey cloud)**. The regional certificate covers `api`, `gcp-api`, `tokentails.com`, `www`, `gcp`, `cats`,
    `gcp-cats`. Wait until `gcloud certificate-manager certificates describe tt-edge-cert --location=europe-west3`
    shows `ACTIVE` (minutes to an hour).
-2. Atlas: add `terraform output nat_ip` to the IP access list. Keep the current entries (DigitalOcean) until step 9.
+2. Atlas: the NAT IP is already on the access list (before pass 2). Keep the DigitalOcean entries until step 8.
 3. GitHub repository variables (Settings > Secrets and variables > Actions > Variables; these are not secrets):
    `GCP_PROJECT_ID=tokentails-prod`, `GCP_WIF_PROVIDER` (= `terraform output workload_identity_provider`),
    `GCP_DEPLOY_SA` (= `sa-deploy@tokentails-prod.iam.gserviceaccount.com`), optional `GCP_REGION`, `GCP_API_HOST`,
@@ -249,8 +278,9 @@ Plain (non-secret) env that DigitalOcean sets and Cloud Run must also get, if an
 ### Step 5. Shadow hosts and tests (nothing user-facing changes)
 
 At Cloudflare add **proxied** (orange) A records for `gcp-api`, `gcp` and `gcp-cats` → `terraform output lb_ip`. Add
-`https://gcp.tokentails.com` to the `FRONT_END_URLS` secret (new version, pin it, apply), to Firebase Auth authorized
-domains and to the App Check site's allowed domains. Then:
+`https://gcp.tokentails.com` to the `FRONT_END_URLS` secret (new version, pin it in `api_secret_versions`, apply; the
+relay follows that pin, so also `sudo systemctl restart tt-relay`, else its Origin check refuses the shadow web's
+WebSocket), to Firebase Auth authorized domains and to the App Check site's allowed domains. Then:
 
 ```bash
 # health through Cloudflare
@@ -282,20 +312,25 @@ Then, in order:
    Raise the total until `turn_overrun_ms_p99` or `loop_delay_p99` breaks budget (overrun < 5 ms, loop < 15 ms), take
    70 % of the last good room count (30 % headroom), set it in `party-limits.ts` (a backend PR, coordinated with the
    netcode workflow) and in `max_live_rooms` (alerts at 80 %). If t2d-standard-2 cannot hold the expected peak, set
-   `relay_machine_type = "t2d-standard-4"` and apply (the MIG replaces the VM; do it in a quiet hour).
+   `relay_machine_type = "t2d-standard-4"` and apply. The apply only creates a new instance template (the MIG never
+   replaces the VM by itself); then run `PROJECT_ID=tokentails-prod REGION=europe-west3
+   infra/gcp/scripts/replace-relay.sh`, which waits until no room is live and replaces the VM. Re-run the load test
+   after it: until the replacement the relay is still on 2 cores.
 3. **Per-IP test from 2 networks**: open a party from Wi-Fi and join from mobile data; the relay log
    (`gcloud compute ssh` + `docker logs tt-relay`, or Logs Explorer) must show two distinct `ipKey`s. One `ipKey` for
    both means the client IP is not reaching the relay: stop and check `TrustProxy` log lines.
 4. **Relay restart drill**: start a guest match, then run the relay deploy (`deploy-gcp.yml` with `targets=relay-only`,
    `relay=yes`) or on the VM `sudo systemctl restart tt-relay`. Clients must get `room_gone`, reconnect in 3–15 s and
-   continue the same match (`restored` in the log).
+   continue the same match (`restored` in the log). Only with DigitalOcean auto-deploy off (step 2). Do it once with a
+   **signed-in** player too: a ticketed player currently loses their seat on a relay restart (Known gaps).
 5. **65-minute soak**: keep one party socket open in a lobby for 65 minutes through Cloudflare (proves no 60-minute
    cap anywhere on the path): `node infra/gcp/tools/ws-latency.mjs https://gcp-api.tokentails.com --n 2 --pings 800 --gap 5000`
    (about 67 min), with zero errors.
 
 Crons: `tt-api` runs all 26 leased jobs; with DigitalOcean still running, both pick jobs from the same Mongo
-`jobruns` leases, so each tick runs once. Keep this overlap short (hours, not days): the traction refresh has no lease
-and the `rave-stripe-events` cursor is per process.
+`jobruns` leases, so each tick runs once. Keep the shadow phase short (days, not weeks): the traction refresh has no
+lease and the `rave-stripe-events` cursor is per process. Step 6 ends the overlap: DigitalOcean is archived right after
+the DNS flip.
 
 ### Step 6. API and relay cutover (quiet hour)
 
@@ -304,12 +339,22 @@ and the `rave-stripe-events` cursor is per process.
    `tokenURI`s, Stripe webhooks and installed apps keep working.
 2. Watch for 15 minutes: `curl https://api.tokentails.com/healthz` (role api), `/pawlegends/ws/healthz` (role relay),
    Cloud Run request logs, `ws-latency` against `api.tokentails.com`.
-3. DigitalOcean: scale `tokentails-backend` to **1 instance** and turn **auto-deploy off** (App Platform settings).
-   The scale-down sends SIGTERM: those rooms hand off to Mongo. Then on GCP adopt them:
-   `gcloud compute ssh <relay vm> --zone <zone> --tunnel-through-iap --command 'sudo systemctl restart tt-relay'`
-   (`restored N room(s)` in the log). Players resume within the 120 s window.
-4. If something is wrong, fix forward on GCP. A DNS flip back to the DigitalOcean CNAME is possible for 14 days and
-   takes seconds, but rooms would hand off again; prefer a fix.
+3. Right after the flip (minutes, not hours), hand DigitalOcean's matches over and **archive the DigitalOcean app**,
+   in one go, from your terminal, with the App Platform "Archive app" dialog already open:
+   ```bash
+   PROJECT_ID=tokentails-prod REGION=europe-west3 DO_APP_URL=https://<app>.ondigitalocean.app \
+     infra/gcp/scripts/cutover-relay.sh
+   ```
+   It pauses autohealing, stops `tt-relay` (the Google relay must not answer reconnects before it has adopted the
+   rooms: it would hand players new resume tokens and their old seats would be lost), waits while you archive the app
+   (every DigitalOcean instance gets SIGTERM and hands off), then starts `tt-relay`, whose `restore()` adopts every
+   handed-off room within the 120 s window, and restores autohealing. Players see one disconnect of 1–2 minutes.
+   Archiving matters beyond the relay: DigitalOcean runs role `all`, so as long as it runs it also runs the 26 leased
+   crons, including the hot-wallet signers, on frozen code, racing tt-api for every lease, and its relay keeps
+   parties that players can no longer reach after a reconnect. Verify the archive option in the console before the
+   quiet hour (if it is missing, delete the backend component instead, after `doctl apps spec get` saved privately).
+4. If something is wrong, fix forward on GCP. For 14 days the archived app can be restored and the DNS flipped back,
+   but rooms would hand off again; prefer a fix.
 
 ### Step 7. Web and CMS cutover (about a week later)
 
@@ -327,7 +372,7 @@ After step 9, remove `0.0.0.0/0` and the DigitalOcean entries from the Atlas acc
 
 ### Step 9. Decommission (after 14 clean days)
 
-1. Delete the DigitalOcean app `tokentails-be` (after a last `doctl apps spec get` saved privately, keys only).
+1. Delete the archived DigitalOcean app `tokentails-be` (after a last `doctl apps spec get` saved privately, keys only).
 2. Delete the Vercel projects `cats` and `tokentails-cms`.
 3. **Keep DigitalOcean Spaces** (`tokentails-nfts`, `tokentails`, `tokentails-apps`): stored URLs, NFT metadata and
    installed apps point at it. New uploads move to GCS behind `cdn.tokentails.com` only as a separate, later step
@@ -343,20 +388,29 @@ After step 9, remove `0.0.0.0/0` and the DigitalOcean entries from the Atlas acc
 - Order: backend tests → backend image `backend:<sha>` (built once, tags are immutable) → `tt-api` → relay (if
   changed) → web → CMS.
 - Cloud Run (`scripts/deploy-run.sh`): `gcloud run deploy --no-traffic --tag canary`, smoke through Cloudflare and the
-  LB with `x-tt-canary: 1` (the API's `/healthz` must name the new revision), `update-traffic` to 100 %, smoke again.
+  LB with `x-tt-canary: 1` (the API's `/healthz` must name the new revision), `update-traffic --to-latest` (refused if
+  another revision appeared meanwhile), smoke again. Traffic stays on LATEST, so a revision a Terraform apply creates
+  (rotated secret, env, sizing) serves as soon as it is ready.
   A failed canary leaves traffic untouched. Rollback exists (`gcloud run services update-traffic tt-api
   --to-revisions <old>=100`), but the house rule is fix forward.
-- Relay (`scripts/deploy-relay.sh`), only when relay files changed since the running image or with `relay=yes`, in a
-  quiet hour: set the image on the MIG (so an autoheal also comes up on it), refresh the VM metadata, then over IAP
-  SSH run `/var/lib/tt-relay/deploy.sh`: pre-pull, `POST /pawlegends/relay/drain` and wait up to 30 min for live rooms
-  to reach 0 **if the relay offers that endpoint** (the netcode workflow may add it; until then it is skipped), then
-  `systemctl restart tt-relay` (`docker stop -t 60`: SIGTERM → handoff and checkpoint; the new container restores the
-  rooms; clients resume in about 3–15 s), then wait for `/readyz`. API deploys never touch live matches.
+- Relay (`scripts/deploy-relay.sh`), only when relay files changed since the image the running container reports or
+  with `relay=yes`, in a quiet hour: over IAP SSH run `/var/lib/tt-relay/deploy.sh IMAGE`: pre-pull,
+  `POST /pawlegends/relay/drain` and wait up to 30 min for live rooms to reach 0 **if the relay offers that endpoint**
+  (the netcode workflow may add it; until then it is skipped), then restart on IMAGE (`docker stop -t 60`: SIGTERM →
+  handoff and checkpoint; the new container restores the rooms; clients resume in about 3–15 s) and wait for
+  `/readyz`. If it is not ready in 120 s, deploy.sh starts the previous image again and the job fails. Only after
+  success is IMAGE committed to the MIG metadata, which a new or autohealed VM starts; a crash restart keeps the
+  verified image (`/var/lib/tt-relay/image`). A re-run after a failure deploys again (the check reads the container,
+  not the metadata). API deploys never touch live matches.
 - Migrations: `gcloud run jobs execute tt-migrate --region europe-west3 --project tokentails-prod --wait` (runs `npx
   migrate-mongo up` in the backend image currently set on the job; update the job image first with `gcloud run jobs
   update tt-migrate --image ...`).
-- Terraform: `terraform.yml` checks every PR; plan on main as `sa-tf-plan`; apply locally (or the gated job with
-  `ci_apply_enabled = true`). Terraform ignores Cloud Run images, traffic and the relay image metadata: CI owns those.
+- Terraform: `terraform.yml` checks every PR; plan on main as `sa-tf-plan` (it has Billing Account Viewer on the
+  billing account to refresh the budget: the founder must be a billing account administrator when applying that
+  binding); apply locally (or the gated job with `ci_apply_enabled = true`: sa-tf-apply then also gets the IAM admin
+  roles Editor lacks and Billing Account Costs Manager). Terraform ignores Cloud Run images, traffic and the relay
+  image metadata: CI owns those. A change to the relay instance template (cloud-init, machine type) needs
+  `scripts/replace-relay.sh` afterwards; relay deploys warn while one is pending.
 
 ## Operations
 
@@ -373,8 +427,11 @@ After step 9, remove `0.0.0.0/0` and the DigitalOcean entries from the Atlas acc
 - **Relay VM by hand**: `gcloud compute ssh $(gcloud compute instance-groups managed list-instances tt-relay
   --region europe-west3 --format='value(name)') --tunnel-through-iap`, then `curl -s localhost:8080/healthz`,
   `sudo journalctl -u tt-relay -f`, `docker logs -f tt-relay`.
-- **Scaling the relay**: `relay_machine_type = "t2d-standard-4"` (4 cores: 3 referee workers) and raise
-  `MAX_LIVE_ROOMS` after a new load run. More regions (us-east4, asia-southeast1) are a `relay_vm` module instance
+- **Scaling the relay**: `relay_machine_type = "t2d-standard-4"` (4 cores: 3 referee workers), apply, then
+  `scripts/replace-relay.sh` in a quiet hour (it waits for 0 live rooms), and raise `MAX_LIVE_ROOMS` after a new load
+  run.
+- **Relay env or secret pins**: change them in Terraform and apply (project metadata), then `sudo systemctl restart
+  tt-relay` on the VM or the next relay deploy. No VM replacement. More regions (us-east4, asia-southeast1) are a `relay_vm` module instance
   per region behind its own regional ALB, after the netcode workflow ships region-prefixed party codes.
 - **Phase 2** (separate changes): move the signer crons (treat reconcile, shelter-share keeper, paw settlement) into a
   min=max=1 service or job with its own `sa-signer`, so the public API holds no hot-wallet key; Private Service
@@ -442,5 +499,22 @@ Each is a variable or a step above; the default is what the code does unless you
   exercised locally; check one handoff on the VM (`systemctl restart tt-relay` mid-match, step 5).
 - Also fixed: `/healthz` and `/readyz` were behind the app's global throttler (a burst of probes from one IP got 429,
   which a health check reads as unhealthy); the health controller now skips it.
+- **Ticketed players lose their seat on a relay restart** (deploy, autoheal, cutover): `pawlegends/src/net/socket.ts`
+  re-sends the original single-use ticket on every reconnect, the restarted relay refuses it (`bad_ticket`), the
+  identity drops to a guest key and `findResume` refuses the account-bound resume token. Guests resume fine. Fix in
+  the client (fetch a fresh ticket per reconnect) or the relay (accept the resume token alone), owned by the netcode
+  workflow. Until then relay restarts cost signed-in players their match: keep them to quiet hours.
+- **VM recreate vs the 120 s restore window**: an autoheal (60 s of failed checks first), a host failure or a
+  replacement boots a fresh COS VM, runs cloud-init and pulls the image uncached before `restore()` runs. That may
+  exceed `PARTY_LIMITS.restoreWithinMs` (120 s), and then the matches are lost. Draining is 0 so nothing adds to it;
+  measure the first real replacement (step 5) and, if it is over, ask the netcode workflow to raise the window.
+  `replace-relay.sh` avoids the question by replacing only with no live room.
+- **Stale-lease takeover**: a relay that boots while another instance's checkpoint is more than 15 s late
+  (`staleLeaseMs`) claims that room. The epoch fences the old owner's writes, but its players lose the match. Rare
+  (checkpoints every 10 s); a reason to keep DigitalOcean deploys and relay starts apart until step 6.
+- Fixed in this branch (2026-11-07 review): party tickets minted on tt-api never verified on the relay VM (boot-id
+  binding; also failed about half the time on DigitalOcean's 2 instances); every relay boot marked all other live rooms
+  in the shared database abandoned (`abandonLive` had no owner filter; also hit DigitalOcean's second instance); the
+  account and guest throttles read the balancer IP on tt-api (`visitorIp`).
 - Known backend issues listed at the end of docs/BACKEND.md are unchanged by this work, apart from the
   `cf-connecting-ip` forgery, which this topology closes at the edge once DigitalOcean is gone.

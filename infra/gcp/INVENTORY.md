@@ -151,6 +151,11 @@ payout indexers and the goal scan use; watch for 429s.
   `X-Forwarded-For`. Without a `TRUST_PROXY` setting (or adding those ranges in code) every visitor
   would get the same IP and the per-IP caps would lock players out. This is a deployment-blocking item
   for any LB-fronted design; verify with the startup `first request: req.ip is ...` line.
+  **Resolved in the migration branch**: the relay reads `cf-connecting-ip` from the proxy-only subnet (a
+  trusted private hop); on tt-api `req.ip` is still the balancer's address, so every per-IP path now goes
+  through `shared/client-ip.ts` (`clientIp`, `visitorIp`), which reads `cf-connecting-ip` first. The
+  account and guest-session throttles and the donation relay hash read `req.ip` directly before
+  (RUNBOOK.md, Architecture).
 - `cf-ipcountry` (Rave buyer flags) needs Cloudflare IP geolocation; it is lost if Cloudflare is
   removed.
 - WebSockets: Cloudflare's 100 s idle limit is covered by the 5 s/15 s pings. Cloud Run caps a request

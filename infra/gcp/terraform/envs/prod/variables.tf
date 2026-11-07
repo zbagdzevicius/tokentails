@@ -199,9 +199,25 @@ variable "extra_secret_keys" {
 }
 
 variable "api_secret_versions" {
-  description = "Secrets mounted on tt-api => pinned version. null: every DigitalOcean key at version 1. Add an extra key here only after its value exists."
+  description = "Secrets mounted on tt-api => pinned version. null: every DigitalOcean key at version 1. Add an extra key here only after its value exists. The party ticket secret goes in party_ticket_secret_version instead."
   type        = map(string)
   default     = null
+
+  validation {
+    condition     = !contains(keys(coalesce(var.api_secret_versions, {})), "PAWLEGENDS_PARTY_TICKET_SECRET")
+    error_message = "Pin PAWLEGENDS_PARTY_TICKET_SECRET with party_ticket_secret_version, so tt-api and the relay always use the same version."
+  }
+}
+
+variable "party_ticket_secret_version" {
+  description = "Pinned version of PAWLEGENDS_PARTY_TICKET_SECRET, mounted on tt-api (mints party tickets) and the relay (verifies them) at the same version. null until its value exists: tickets answer 503 and party rooms are unscored."
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.party_ticket_secret_version == null || can(regex("^[0-9]+$", coalesce(var.party_ticket_secret_version, "0")))
+    error_message = "party_ticket_secret_version is a numeric version."
+  }
 }
 
 variable "relay_secret_keys" {
@@ -211,9 +227,14 @@ variable "relay_secret_keys" {
 }
 
 variable "relay_secret_versions" {
-  description = "Relay secrets => pinned version (a secret without a value yet is skipped at start, with a log line)."
+  description = "Overrides of the relay's secret pins. null: the relay uses tt-api's pins for MONGODB_URI and FRONT_END_URLS, and party_ticket_secret_version for the ticket secret."
   type        = map(string)
-  default     = { MONGODB_URI = "1", PAWLEGENDS_PARTY_TICKET_SECRET = "1", FRONT_END_URLS = "1" }
+  default     = null
+
+  validation {
+    condition     = !contains(keys(coalesce(var.relay_secret_versions, {})), "PAWLEGENDS_PARTY_TICKET_SECRET")
+    error_message = "Pin PAWLEGENDS_PARTY_TICKET_SECRET with party_ticket_secret_version, so tt-api and the relay always use the same version."
+  }
 }
 
 variable "hot_wallet_secret_keys" {

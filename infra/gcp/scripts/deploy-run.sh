@@ -2,7 +2,9 @@
 # Cloud Run deploy with a pre-traffic smoke test (deploy-gcp.yml, RUNBOOK.md "Deploys").
 #   deploy-run.sh SERVICE IMAGE HOST PATH
 # 1. new revision, no traffic, tag `canary`  2. requests through Cloudflare and the LB with `x-tt-canary: 1` must pass
-# 3. 100 % of traffic to that revision  4. the same check without the header. If 2 fails, traffic never moved.
+# 3. traffic back to LATEST (= that revision)  4. the same check without the header. If 2 fails, traffic never moved.
+# Traffic ends on LATEST, not on a named revision: a revision Terraform creates later (a rotated secret, env, sizing)
+# then serves as soon as it is ready, instead of sitting at 0 % behind a pinned one.
 # Needs PROJECT_ID and REGION; refuses any project that is not tokentails-*.
 set -euo pipefail
 SERVICE=$1 IMAGE=$2 HOST=$3 SMOKE_PATH=${4:-/}
@@ -48,8 +50,13 @@ if ! smoke -H 'x-tt-canary: 1'; then
 fi
 echo "::endgroup::"
 
-echo "::group::move 100 % of traffic to $REV"
-gcloud run services update-traffic "$SERVICE" "${G[@]}" --to-revisions "${REV}=100"
+echo "::group::move 100 % of traffic to LATEST ($REV)"
+LATEST=$(gcloud run services describe "$SERVICE" "${G[@]}" --format='value(status.latestCreatedRevisionName)')
+if [ "$LATEST" != "$REV" ]; then
+    echo "::error::$LATEST was created after $REV (a Terraform apply?): traffic not moved. Re-run the deploy."
+    exit 1
+fi
+gcloud run services update-traffic "$SERVICE" "${G[@]}" --to-latest
 echo "::endgroup::"
 
 echo "::group::smoke live https://${HOST}${SMOKE_PATH}"

@@ -5,15 +5,35 @@ locals {
     BACKEND_ROLE = "relay"
     PORT         = tostring(var.port)
   })
+  env_metadata_key     = "${var.name}-env"
+  secrets_metadata_key = "${var.name}-secrets"
+  # One NAME=value (env) or NAME=version (secrets) per line, read by prepare.sh at every container start.
+  env_lines     = join("\n", [for k in sort(keys(local.plain_env)) : "${k}=${local.plain_env[k]}"])
+  secrets_lines = join("\n", [for k in sort(keys(var.secrets)) : "${k}=${var.secrets[k]}"])
   cloud_init = templatefile("${path.module}/templates/cloud-init.yaml.tftpl", {
     port                 = var.port
     registry_host        = local.registry_host
     image_metadata_key   = var.image_metadata_key
-    plain_env            = local.plain_env
-    secrets              = var.secrets
+    env_metadata_key     = local.env_metadata_key
+    secrets_metadata_key = local.secrets_metadata_key
     stop_timeout_seconds = var.stop_timeout_seconds
     drain_max_seconds    = var.drain_max_seconds
   })
+}
+
+# The relay's plain env and pinned secret versions (names and numbers, never values) live in project metadata, not in
+# the instance template: prepare.sh reads them at every start, so a rotation or an env change reaches the running VM
+# with `systemctl restart tt-relay` (or the next relay deploy) instead of waiting for a VM replacement.
+resource "google_compute_project_metadata_item" "env" {
+  project = var.project_id
+  key     = local.env_metadata_key
+  value   = local.env_lines
+}
+
+resource "google_compute_project_metadata_item" "secrets" {
+  project = var.project_id
+  key     = local.secrets_metadata_key
+  value   = local.secrets_lines
 }
 
 resource "google_compute_instance_template" "relay" {
@@ -127,7 +147,9 @@ resource "google_compute_region_instance_group_manager" "relay" {
     initial_delay_sec = var.autoheal_initial_delay_seconds
   }
 
-  # One relay owns every party: never two at once (no surge), replace in place.
+  # One relay owns every party: never two at once (no surge), replace in place. OPPORTUNISTIC: a template change
+  # (cloud-init, machine type) never replaces the VM by itself; scripts/replace-relay.sh rolls it out in a quiet hour,
+  # once no room is live. Relay deploys and secret or env changes need no template change (see the metadata items).
   update_policy {
     type                           = "OPPORTUNISTIC"
     minimal_action                 = "REPLACE"
@@ -143,8 +165,8 @@ resource "google_compute_region_instance_group_manager" "relay" {
     default_action_on_failure = "REPAIR"
   }
 
-  # The image to run, applied to every instance the MIG creates (autoheal included). CI updates it with
-  # `gcloud compute instance-groups managed all-instances-config update` before running deploy.sh.
+  # The image a new or recreated VM starts (autoheal included). CI commits it with `gcloud compute instance-groups
+  # managed all-instances-config update` only after deploy.sh made that image ready on the running VM.
   all_instances_config {
     metadata = {
       (var.image_metadata_key) = var.initial_image

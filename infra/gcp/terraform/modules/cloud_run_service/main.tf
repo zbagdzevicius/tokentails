@@ -109,7 +109,8 @@ resource "google_cloud_run_v2_service" "this" {
   }
 
   lifecycle {
-    # CI (deploy-gcp.yml) owns the running image, tagged revisions and traffic.
+    # CI (deploy-gcp.yml) owns the running image, tagged revisions and traffic. deploy-run.sh leaves traffic on LATEST,
+    # so a revision an apply creates here (secret pin, env, sizing) serves as soon as it is ready.
     ignore_changes = [
       template[0].containers[0].image,
       template[0].revision,

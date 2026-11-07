@@ -16,6 +16,16 @@ output "cloud_init" {
   value       = local.cloud_init
 }
 
+output "runtime_config" {
+  description = "Project metadata the relay reads at every start: env lines and NAME=version secret pins (no values)."
+  value = {
+    env_key     = google_compute_project_metadata_item.env.key
+    env         = google_compute_project_metadata_item.env.value
+    secrets_key = google_compute_project_metadata_item.secrets.key
+    secrets     = google_compute_project_metadata_item.secrets.value
+  }
+}
+
 output "settings" {
   description = "Key settings (for tests and review)."
   value = {
@@ -28,6 +38,7 @@ output "settings" {
     shielded            = google_compute_instance_template.relay.shielded_instance_config[0].enable_secure_boot
     autoheal_delay      = var.autoheal_initial_delay_seconds
     max_surge_fixed     = google_compute_region_instance_group_manager.relay.update_policy[0].max_surge_fixed
+    update_type         = google_compute_region_instance_group_manager.relay.update_policy[0].type
     plain_env           = local.plain_env
     secrets             = var.secrets
     tags                = google_compute_instance_template.relay.tags

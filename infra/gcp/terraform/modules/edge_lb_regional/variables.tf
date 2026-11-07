@@ -77,8 +77,18 @@ variable "relay_timeout_sec" {
 }
 
 variable "relay_draining_sec" {
-  type    = number
-  default = 600
+  description = <<-EOT
+    Connection draining on the relay backend. GCP waits this long before it deletes or recreates a MIG VM that serves a
+    backend, which with one relay only delays the replacement past the relay's 120 s restore window (every handed-off
+    match lost). The relay hands its rooms off on SIGTERM instead, so no draining.
+  EOT
+  type        = number
+  default     = 0
+
+  validation {
+    condition     = var.relay_draining_sec >= 0 && var.relay_draining_sec <= 30
+    error_message = "Keep relay draining at 30 s or less: a VM replacement must finish inside the 120 s restore window."
+  }
 }
 
 variable "cloudflare_ipv4" {
