@@ -1,5 +1,6 @@
 import { BeforeApplicationShutdown, Controller, Get, HttpStatus, Inject, Optional, Res } from '@nestjs/common';
 import { InjectConnection } from '@nestjs/mongoose';
+import { SkipThrottle } from '@nestjs/throttler';
 import type { Response } from 'express';
 import type { Connection } from 'mongoose';
 import { PartyRelayService } from '../../pawlegends/party/party-relay.service';
@@ -14,6 +15,8 @@ import { BACKEND_ROLE, type BackendRole, servesRelay } from './backend-role';
  * - `GET /readyz`: readiness. 503 while MongoDB is not connected, while the process is shutting down (SIGTERM, the
  *   relay handing its rooms off), or when this role should serve the relay and it has not started.
  */
+// Probes are never throttled: a 429 from the app's global ThrottlerGuard would read as unhealthy.
+@SkipThrottle()
 @Controller()
 export class HealthController implements BeforeApplicationShutdown {
     private stopping = false;
