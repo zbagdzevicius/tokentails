@@ -13,7 +13,9 @@
  * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
  *
  * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
- * A pinch whose first finger was the joystick lets the stick go: both fingers zoom.
+ * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
+ * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
+ * fingers have moved past TAP.px and their gap changed by PINCH_PX; then the stick lets go and both fingers zoom.
  */
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
@@ -93,6 +95,20 @@ const HOLD_PREVIEW_MS = 200;
 const AUTO_SLACK = 300;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
+/** A joystick finger plus a second finger turn into a pinch only after their gap changes by this many CSS px. */
+export const PINCH_PX = 24;
+
+/**
+ * Two canvas touches, one of them a still joystick: has the pair become a pinch? Both fingers moved past TAP.px from
+ * where they landed and their gap changed by PINCH_PX (a tap or a steering thumb alone never zooms).
+ */
+export function pinchCommitted(a: TouchPt, b: TouchPt): boolean {
+  const moved = (p: TouchPt) => Math.hypot(p.x - p.x0, p.y - p.y0) > TAP.px;
+  const gap0 = Math.hypot(a.x0 - b.x0, a.y0 - b.y0);
+  const gap = Math.hypot(a.x - b.x, a.y - b.y);
+  return moved(a) && moved(b) && Math.abs(gap - gap0) >= PINCH_PX;
+}
+export type TouchPt = { x: number; y: number; x0: number; y0: number };
 
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -148,8 +164,10 @@ export class TouchControls {
   /** Locks set (e2e telemetry). */
   locks = 0;
   /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
-  private readonly canvasTouches = new Map<number, { x: number; y: number }>();
+  private readonly canvasTouches = new Map<number, TouchPt>();
   private pinch: { a: number; b: number; d0: number; z0: number } | null = null;
+  /** A still joystick plus a second finger: a pinch only if both fingers then move apart or together (pinchCommitted). */
+  private pinchMaybe = false;
   /** Pinches started (e2e telemetry). */
   pinches = 0;
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
@@ -246,11 +264,18 @@ export class TouchControls {
     if (!this.enabled) this.enable(true);
     this.h.onActivity('touch');
     sfx.unlock();
-    this.canvasTouches.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    this.canvasTouches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
+    this.pinchMaybe = false;
     if (this.canvasTouches.size === 2 && !this.pinch) {
       e.preventDefault();
-      this.startPinch();
-      return;
+      const stickIn = this.stick !== null && this.canvasTouches.has(this.stick.id);
+      if (!stickIn) {
+        this.startPinch();
+        return;
+      }
+      // the joystick is one of the two: a steering stick keeps steering and this finger is a tap; a still one may
+      // still turn into a pinch once both fingers move (move())
+      this.pinchMaybe = !this.stick!.moved;
     }
     if (!this.h.enabled()) return;
     // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
@@ -329,6 +354,14 @@ export class TouchControls {
     if (ct) {
       ct.x = e.clientX;
       ct.y = e.clientY;
+      if (this.pinchMaybe && this.canvasTouches.size === 2) {
+        const [a, b] = [...this.canvasTouches.values()];
+        if (pinchCommitted(a, b)) {
+          this.pinchMaybe = false;
+          this.startPinch();
+          return;
+        }
+      }
       const p = this.pinch;
       if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
         const pa = this.canvasTouches.get(p.a);
@@ -406,6 +439,7 @@ export class TouchControls {
 
   private up(e: PointerEvent, cancelled = false): void {
     if (this.canvasTouches.delete(e.pointerId)) {
+      this.pinchMaybe = false;
       const p = this.pinch;
       if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
         this.pinch = null;

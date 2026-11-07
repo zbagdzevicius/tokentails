@@ -92,3 +92,50 @@ test('phones: the default camera is further out, and a two-finger pinch zooms an
   // the joystick finger let go: no stick is left on screen
   await expect(page.locator('.pl-stick.on')).toHaveCount(0);
 });
+
+test('phones: a second-finger tap while the joystick steers is a tap, not a pinch (QA 2026-11-07)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'landscape', 'touch');
+  test.setTimeout(120_000);
+  await startFirstMatch(page);
+  const z0 = (await cam(page)).target;
+  const vw = page.viewportSize()!;
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', touchPoints: { x: number; y: number; id: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+  const stick = (dx: number) => ({ x: 150 + dx, y: 250, id: 1 });
+  const tap = { x: Math.round(vw.width * 0.62), y: Math.round(vw.height * 0.4), id: 2 };
+  await send('touchStart', [stick(0)]);
+  for (let i = 1; i <= 6; i++) await send('touchMove', [stick(i * 8)]);
+  await expect(page.locator('.pl-stick.on')).toHaveCount(1);
+  // the second finger lands and lifts while the thumb keeps steering
+  await send('touchStart', [stick(48), tap]);
+  for (let i = 1; i <= 4; i++) await send('touchMove', [stick(48 - i * 6), tap]);
+  await send('touchMove', [stick(24)]); // CDP: a point left out of the list lifts (touchEnd lifts every finger)
+  for (let i = 1; i <= 6; i++) await send('touchMove', [stick(24 + i * 8)]);
+  await expect(page.locator('.pl-stick.on')).toHaveCount(1);
+  expect((await cam(page)).target).toBeCloseTo(z0, 3);
+  expect(await saved(page)).toBeNull();
+  await send('touchEnd', []);
+  await expect(page.locator('.pl-stick.on')).toHaveCount(0);
+});
+
+test('desktop: a held skill does not slide the aim out from under a still cursor (QA 2026-11-07)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'desktop', 'mouse aim');
+  test.setTimeout(120_000);
+  await startFirstMatch(page);
+  const vw = page.viewportSize()!;
+  await page.mouse.move(Math.round(vw.width * 0.7), Math.round(vw.height * 0.72));
+  const aim = () =>
+    page.evaluate(() => {
+      const a = (window as unknown as { __plWorld: { view: { aim: { x: number; z: number } | null } } }).__plWorld.view.aim;
+      return a ? { x: a.x, z: a.z } : null;
+    });
+  await page.keyboard.down('KeyQ');
+  await expect.poll(aim, { timeout: 5000 }).not.toBeNull();
+  const a0 = (await aim())!;
+  await page.waitForTimeout(1400);
+  const a1 = await aim();
+  await page.keyboard.up('KeyQ');
+  expect(a1, 'still aiming').not.toBeNull();
+  // the hero stands, so the ground under the cursor stays put (the look-ahead used to lean ~3.4 m toward it)
+  expect(Math.hypot(a1!.x - a0.x, a1!.z - a0.z)).toBeLessThan(0.6);
+});

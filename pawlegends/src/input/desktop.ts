@@ -435,7 +435,7 @@ export class DesktopInput {
   private quickCast(slot: CastIndex): void {
     const c = this.castAtCursor(slot, true);
     if (!c) return;
-    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true };
+    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true, pointer: true };
     this.flashUntil = performance.now() + FLASH_MS;
   }
 
@@ -499,7 +499,7 @@ export class DesktopInput {
       valid = !!u;
       target = u?.id ?? -1;
     }
-    this.h.view.aim = { spec, x: gx, z: gz, target, valid };
+    this.h.view.aim = { spec, x: gx, z: gz, target, valid, pointer: true };
   }
 
   /**

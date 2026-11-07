@@ -122,6 +122,9 @@ export function loadZoom(): number {
 }
 
 <<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 8fa5ee6a0 (fix(pawlegends): pinch, look-ahead and zoom slider QA fixes)
 /** Window event sent by saveZoom (detail: the zoom), so an open slider (ui/zoomSlider.ts) follows the wheel, +/− or a pinch. */
 export const ZOOM_EVENT = 'pl:zoom';
 
