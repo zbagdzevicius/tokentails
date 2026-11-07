@@ -109,6 +109,19 @@ def import_dist_cert
   true
 end
 
+def review_information
+  dir = File.join(__dir__, "metadata", "review_information")
+  %w[first_name last_name phone_number email_address demo_user demo_password notes].each_with_object({}) do |key, info|
+    path = File.join(dir, "#{key}.txt")
+    value = File.exist?(path) ? File.read(path).strip : ""
+    info[key.to_sym] = value unless value.empty?
+  end.tap do |info|
+    # Apple requires a review contact phone (+country code); kept out of the public repo when set as an env var
+    phone = ENV["REVIEW_CONTACT_PHONE"].to_s.strip
+    info[:phone_number] = phone unless phone.empty?
+  end
+end
+
 platform :ios do
   desc "Validate the secrets and the App Store Connect API key (changes nothing)"
   lane :check do
@@ -205,6 +218,9 @@ platform :ios do
     screenshots = File.join(__dir__, "screenshots")
     deliver(
       api_key: api_key,
+      # deliver does not load metadata/review_information on its own for a new app, and without a review detail it
+      # crashes with "No data" while checking review attachments; pass it explicitly so the detail gets created first
+      app_review_information: review_information,
       app_identifier: APP_ID,
       app_version: marketing_version,
       skip_binary_upload: true,
