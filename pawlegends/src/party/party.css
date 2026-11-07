@@ -269,7 +269,7 @@
 .pl-party .pp-sideswitch button:not([aria-checked='true']) { opacity: 0.45; }
 .pl-party .pp-pick[data-mm] .pp-head { flex-wrap: wrap; row-gap: 4px; }
 .pl-party .pp-pick[data-mm] .pp-heroes { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
-.pl-party .pp-online { min-height: 40px; }
+.pl-party .pp-online { min-height: 36px; }
 @media (max-height: 430px) {
   .pl-party .pp-queue h2 { font-size: 18px; }
   .pl-party .pp-qtime b { font-size: 26px; }
