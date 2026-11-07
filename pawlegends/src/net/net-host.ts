@@ -213,6 +213,7 @@ export class NetHost implements PartyLink {
     this.endInfo = { room: match.room, slot: match.you.slot, record: null, scored: null };
     this.coalescer = new MoveCoalescer((cmd) => this.sent(this.socket.sendCmd(encodeCommand(cmd))), {
       now: this.now,
+      busy: () => this.socket.backlogged,
       setTimer: (fn, ms) => setTimeout(fn, ms),
       clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     });
@@ -694,23 +695,49 @@ export class NetHost implements PartyLink {
     const v = f.byId.get(this.mySlot);
     if (!v || v.state === 'dead') {
       this.predictor.stop();
+      this.yawShown = null;
       return;
     }
     const locked = (v.buffs & (8 | 16)) !== 0 || v.charmed === true;
     const moving = v.speed > 1;
     const base = v.hero ? HEROES[v.hero as HeroId]?.base.speed : undefined;
     const speed = moving ? v.speed : base ? base / 30 : DEFAULT_SPEED;
-    const off = this.predictor.offset({ x: v.fx, y: v.fy, locked, speed, moving }, this.inputLatencyMs(), this.now());
+    const now = this.now();
+    const off = this.predictor.offset({ x: v.fx, y: v.fy, locked, speed, moving }, this.inputLatencyMs(), now);
+    // facing: before the authoritative hero moves, turn to the target; once it walks, its interpolated yaw follows the
+    // A* path. Eased (about 50 ms), so the switch never snaps the turn-lean springs.
     const h = this.predictor.heading;
-    if (h && !locked) {
+    let yaw = v.yaw;
+    let turning = false;
+    if (h && !locked && !moving) {
       const dx = h.x - v.fx;
       const dy = h.y - v.fy;
-      if (Math.hypot(dx, dy) > 50) v.yaw = Math.atan2(dy, dx);
+      if (Math.hypot(dx, dy) > 50) {
+        yaw = Math.atan2(dy, dx);
+        turning = true;
+      }
     }
+    if (this.yawShown === null) {
+      this.yawShown = v.yaw;
+      this.yawAt = now;
+    }
+    const dt = Math.max(0, Math.min(100, now - this.yawAt));
+    this.yawAt = now;
+    if (turning) this.yawEaseUntil = now + 4 * YAW_EASE_MS;
+    // outside a turn and its settle window, the interpolated yaw passes through untouched
+    if (now > this.yawEaseUntil) this.yawShown = yaw;
+    else this.yawShown += wrapAngle(yaw - this.yawShown) * Math.min(1, dt / YAW_EASE_MS);
+    v.yaw = this.yawShown;
     if (off.dx === 0 && off.dy === 0) return;
     v.fx += off.dx;
     v.fy += off.dy;
+    // the walk cycle reads the speed: a hero sliding ahead of a still snapshot must still move its feet
+    if (this.predictor.leading && v.speed < speed) v.speed = speed;
   }
+
+  private yawShown: number | null = null;
+  private yawAt = 0;
+  private yawEaseUntil = -Infinity;
 
   get ready(): boolean | null {
     return this.selftestOk;
@@ -721,6 +748,9 @@ export class NetHost implements PartyLink {
 export const PREDICT_MAX_MS = 600;
 /** The own hero is drawn this far behind the newest snapshot (SELF_LAG ticks plus the render clock's smoothing). */
 const SELF_DRAW_MS = 15;
+/** The own hero's drawn facing eases toward the wanted one with this time constant (ms). */
+const YAW_EASE_MS = 50;
+const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 
 /** A friend's drop shows on the rail only when it lasts this long (a short blip says nothing). */
 export const DROP_NOTE_MS = 2000;

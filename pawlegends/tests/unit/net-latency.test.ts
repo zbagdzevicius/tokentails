@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { NetHost, PREDICT_MAX_MS } from '../../src/net/net-host';
 import { Op } from '../../src/sim/api';
 import type { MatchMsg } from '../../src/net/proto';
-import type { CoreOut } from '../../src/net/net-core';
+import { mergeAcks, type CoreOut } from '../../src/net/net-core';
 import type { ViewEntity, ViewFrame } from '../../src/render/interp';
 
 const match = { t: 'match', room: 'r', config: { seed: 5, picks: ['clem', 'sage', 'lambo', 'gabe', 'pixel', 'stilts'], tricks: ['pounce', 'pounce', 'pounce', 'pounce', 'pounce', 'pounce'], difficulty: 'easy', humans: [0, 1] }, cosmetics: { heroSkins: [] }, you: { slot: 1 }, names: ['A', 'B', null, null, null, null], turnTicks: 2, startTurn: 0, startInMs: 0, lastSeq: 0, simVersion: 13 } as unknown as MatchMsg;
@@ -67,6 +67,71 @@ describe('NetHost latency (§4.2, §4.3)', () => {
     expect(me.fy).toBeCloseTo(20_000, 0);
     expect(me.yaw).toBeCloseTo(0, 3);
     expect(me.x).toBe(20_000);
+    t.h.dispose();
+  });
+
+  it('while the lead runs ahead of a still snapshot, the drawn hero walks (speed), and its facing eases instead of snapping', () => {
+    const t = setup();
+    // the target is straight +y: a 90° turn from yaw 0
+    t.h.send({ op: Op.Move, x: 20_000, y: 30_000 });
+    t.h.present(frame(20_000, 20_000));
+    t.tick(16);
+    const f1 = frame(20_000, 20_000);
+    t.h.present(f1);
+    const y1 = f1.byId.get(1)!.yaw;
+    expect(y1).toBeGreaterThan(0.05);
+    expect(y1).toBeLessThan(Math.PI / 2 - 0.05);
+    let f = f1;
+    for (let i = 0; i < 10; i++) {
+      t.tick(16);
+      f = frame(20_000, 20_000);
+      t.h.present(f);
+    }
+    const me = f.byId.get(1)!;
+    expect(me.fy).toBeGreaterThan(20_000 + 100);
+    expect(me.yaw).toBeCloseTo(Math.PI / 2, 1);
+    // the walk cycle runs (heroView: speed × 30 / 1000 > 0.35 is 'moving')
+    expect((me.speed * 30) / 1000).toBeGreaterThan(0.35);
+    t.h.dispose();
+  });
+
+  it('once the authoritative hero walks, its interpolated yaw (the A* path) is drawn, not the click direction', () => {
+    const t = setup();
+    t.h.send({ op: Op.Move, x: 30_000, y: 20_000 });
+    for (let i = 0; i < 30; i++) {
+      t.tick(16);
+      const f = frame(20_000 + i * 50, 20_000, 160);
+      f.byId.get(1)!.yaw = 1.2; // walking around an obstacle
+      t.h.present(f);
+    }
+    const f = frame(21_500, 20_000, 160);
+    f.byId.get(1)!.yaw = 1.2;
+    t.tick(16);
+    t.h.present(f);
+    expect(f.byId.get(1)!.yaw).toBeCloseTo(1.2, 3);
+    t.h.dispose();
+  });
+});
+
+
+describe('mergeAcks (§4.3)', () => {
+  it('keeps the newest ack per slot across the turns of one pace call', () => {
+    expect(mergeAcks([{ acks: [undefined, 4] }, { acks: [2, undefined] }, { acks: [undefined, undefined, 7] }])).toEqual([2, 4, 7]);
+    expect(mergeAcks([{ acks: [undefined, 4] }, { acks: [undefined, 6] }])).toEqual([undefined, 6]);
+  });
+
+  it('an ack on an earlier turn of a 2-turn step still makes a clean latency sample', () => {
+    const t = setup();
+    t.h.send({ op: Op.Move, x: 20_000, y: 20_000 });
+    t.tick(200);
+    t.turn(5, 1);
+    const clean = t.h.inputLatencyMs();
+    t.tick(1500);
+    t.h.send({ op: Op.Move, x: 25_000, y: 20_000 });
+    t.tick(200);
+    // the core merged [ack 2, no ack] into one status
+    t.turn(9, mergeAcks([{ acks: [undefined, 2] }, { acks: [undefined, undefined] }])[1]!);
+    expect(Math.abs(t.h.inputLatencyMs() - clean)).toBeLessThan(10);
     t.h.dispose();
   });
 });

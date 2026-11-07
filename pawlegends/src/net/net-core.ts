@@ -169,10 +169,12 @@ export class NetCore {
   }
 
   setPaused(p: boolean): void {
+    if (this.runner.paused && !p) this.runner.resetClock();
     this.runner.paused = p;
   }
 
   setHidden(h: boolean): void {
+    if (this.hidden && !h) this.runner.resetClock();
     this.hidden = h;
   }
 
@@ -196,15 +198,17 @@ export class NetCore {
     }
     const events: SimEvent[] = [];
     for (const f of due) this.apply(f, events, true);
-    this.publish(events, due[due.length - 1]);
+    this.publish(events, due[due.length - 1], mergeAcks(due));
   }
 
   private ffSlice(): void {
     const m = this.m!;
     const events: SimEvent[] = [];
     let last: TurnFrame | null = null;
+    const stepped: TurnFrame[] = [];
     for (let i = 0; i < FF_SLICE && this.runner.queue.length > this.runner.B; i++) {
       last = this.runner.take(1)[0];
+      stepped.push(last);
       this.apply(last, events, false);
       if (result(m)) break;
     }
@@ -215,7 +219,7 @@ export class NetCore {
     this.post({ t: 'progress', pct: Math.min(100, Math.round(((this.applied - this.ffFrom + 1) / span) * 100)), done });
     if (done) {
       this.fastForward = false;
-      this.publish([], last);
+      this.publish([], last, mergeAcks(stepped));
     }
   }
 
@@ -248,13 +252,14 @@ export class NetCore {
     }
   }
 
-  private publish(events: SimEvent[], last: TurnFrame | null): void {
+  /** `acks`: merged over every turn stepped since the last publish (an ack rides only the turn where it changed). */
+  private publish(events: SimEvent[], last: TurnFrame | null, acks: (number | undefined)[] = last?.acks ?? []): void {
     const m = this.m!;
     const s = snapshot(m, 0);
     if (events.length) this.post({ t: 'events', tick: s.clock.tick, list: events });
     const buf = encodeSnap(s);
     this.post({ t: 'snap', buf }, [buf]);
-    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks: last.acks, B: this.runner.B, waiting: false, holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued });
+    if (last) this.post({ t: 'turn', lastTurn: this.applied, modeMask: last.modeMask, acks, B: this.runner.B, waiting: false, holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued });
     const r = result(m);
     if (r && !this.endSent) {
       this.endSent = true;
@@ -290,4 +295,15 @@ export class NetCore {
         return;
     }
   }
+}
+
+/** Per slot, the newest ack across several stepped turns (TURN acks are sent only on the turn where they change). */
+export function mergeAcks(frames: readonly { acks: readonly (number | undefined)[] }[]): (number | undefined)[] {
+  const out: (number | undefined)[] = [];
+  for (const f of frames)
+    for (let s = 0; s < f.acks.length; s++) {
+      const a = f.acks[s];
+      if (a !== undefined && (out[s] === undefined || a > out[s]!)) out[s] = a;
+    }
+  return out;
 }
