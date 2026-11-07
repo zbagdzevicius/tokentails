@@ -4,7 +4,7 @@
 /**
  * `/legends`: the landing A/B arm B (the scroll-lane-map landing). It must say only what the game does (the facts are
  * read from the game's source here), ship every file it loads and no inlined pictures, carry its arm to the game
- * (`lv=B`), report it on view and on play clicks, and point its canonical at `/pawlegends` so SEO never splits.
+ * (`lv=B`), report it on view (a fixed dwell, the same as arm A) and on play clicks, and share as itself (og:url `/legends`).
  */
 import { existsSync, readFileSync } from "fs";
 import { join } from "path";
@@ -35,9 +35,9 @@ import { LEGENDS_FACTS } from "@/components/pawlegends/legends/facts";
 import { LEGENDS_CTA, LEGENDS_FILES, LEGENDS_FONT, legendsMarkup } from "@/components/pawlegends/legends/markup";
 import { LANDING_FONT } from "@/components/pawlegends/landing/markup";
 import { countWord, gridHeroes, landingCats, landingDogs, liveRoster, newcomers } from "@/components/pawlegends/landing/roster";
-import { ctaOf, landingVariantOf, variantPlayHref } from "@/components/pawlegends/landingVariant";
+import { ctaOf, LANDING_VIEW_DWELL_MS, landingVariantOf, useLandingVariant, variantPlayHref } from "@/components/pawlegends/landingVariant";
 import { PAWLEGENDS_PLAY_QUERY_KEYS } from "@/components/pawlegends/routes";
-import { LANDING_READY_EVENT } from "@/components/GoogleTagManager";
+import { ANALYTICS_DEFER_MAX_MS, LANDING_READY_EVENT } from "@/components/GoogleTagManager";
 import { PRELOAD_FONT_FILES } from "@/components/typography/fonts.generated";
 // eslint-disable-next-line @typescript-eslint/no-require-imports
 const { preloadFontsFor, watchesChunksFor } = require("@/pages/_document");
@@ -56,7 +56,7 @@ afterEach(() => {
 });
 
 describe("/legends landing", () => {
-  it("renders the lane page with today's roster, canonical /pawlegends and noindex", async () => {
+  it("renders the lane page with today's roster, og:url /legends and noindex", async () => {
     render(<LegendsPage />);
     const root = screen.getByTestId("legends-landing");
     expect(root.classList.contains("lgb")).toBe(true);
@@ -71,8 +71,8 @@ describe("/legends landing", () => {
     expect(root.querySelectorAll(".tower")).toHaveLength(LEGENDS_FACTS.towersPerTeam);
     expect(root.querySelectorAll(".twi i")).toHaveLength(LEGENDS_FACTS.towersPerTeam);
     expect(root.textContent).toContain("No PvP.");
-    // canonical and og:url come from `path`: the two arms are one page to search engines
-    expect(seoProps).toHaveBeenCalledWith(expect.objectContaining({ path: "/pawlegends", noindex: true }));
+    // og:url comes from `path`: a shared /legends link must send its clicks to arm B, not to /pawlegends
+    expect(seoProps).toHaveBeenCalledWith(expect.objectContaining({ path: "/legends", noindex: true }));
     expect(LEGENDS_SEO.image.url).toBe("/pawlegends/og.jpg");
     await Promise.resolve();
     expect(replace).not.toHaveBeenCalled();
@@ -221,21 +221,72 @@ describe("landing A/B arm reporting", () => {
     expect(ctaOf(document.body)).toBeNull();
   });
 
-  it("reports B on view (after the intro) and on a play click, not before", () => {
+  it("reports B on view after the fixed dwell, never on the intro's ready signal or a scroll", () => {
     jest.useFakeTimers();
     try {
       render(<LegendsPage />);
-      expect(mockPushes).toEqual([]);
       act(() => {
         window.dispatchEvent(new Event(LANDING_READY_EVENT));
+        window.dispatchEvent(new Event("scroll"));
+        jest.advanceTimersByTime(LANDING_VIEW_DWELL_MS - 1);
       });
-      expect(mockPushes).toContainEqual(expect.objectContaining({ event: "landing_variant_view", landing_variant: "B" }));
+      expect(mockPushes).toEqual([]);
+      expect(mockTrack).not.toHaveBeenCalled();
+      act(() => {
+        jest.advanceTimersByTime(1);
+      });
+      expect(mockPushes).toEqual([expect.objectContaining({ event: "landing_variant_view", landing_variant: "B", landing_path: "/" })]);
       expect(mockTrack).toHaveBeenCalledWith({ name: "pawlegends_landing_view", properties: { landing_variant: "B" } });
+      act(() => {
+        jest.advanceTimersByTime(LANDING_VIEW_DWELL_MS * 3);
+      });
+      expect(mockPushes.filter((d) => d.event === "landing_variant_view")).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("a play click before the dwell sends the view first, then the click, and the view only once", () => {
+    jest.useFakeTimers();
+    try {
+      render(<LegendsPage />);
       const cta = screen.getByTestId("legends-landing").querySelector('a[data-cta="legends_final"]') as HTMLAnchorElement;
       cta.addEventListener("click", (e) => e.preventDefault());
       fireEvent.click(cta);
-      expect(mockPushes).toContainEqual(expect.objectContaining({ event: "landing_variant_cta", landing_variant: "B", cta: "legends_final" }));
+      expect(mockPushes.map((d) => d.event)).toEqual(["landing_variant_view", "landing_variant_cta"]);
+      expect(mockPushes[1]).toEqual(expect.objectContaining({ landing_variant: "B", cta: "legends_final" }));
       expect(mockTrack).toHaveBeenCalledWith({ name: "pawlegends_landing_cta", properties: { landing_variant: "B", cta: "legends_final" } });
+      act(() => {
+        jest.advanceTimersByTime(LANDING_VIEW_DWELL_MS * 2);
+      });
+      expect(mockPushes.filter((d) => d.event === "landing_variant_view")).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("arm A counts its view by the same rule (the same dwell, not its intro)", () => {
+    expect(LANDING_VIEW_DWELL_MS).toBe(ANALYTICS_DEFER_MAX_MS);
+    jest.useFakeTimers();
+    try {
+      const root = document.createElement("div");
+      document.body.appendChild(root);
+      const ref = { current: root };
+      const Probe = () => {
+        useLandingVariant(ref, "A");
+        return null;
+      };
+      render(<Probe />);
+      act(() => {
+        window.dispatchEvent(new Event(LANDING_READY_EVENT));
+        jest.advanceTimersByTime(LANDING_VIEW_DWELL_MS - 1);
+      });
+      expect(mockPushes).toEqual([]);
+      act(() => {
+        jest.advanceTimersByTime(1);
+      });
+      expect(mockPushes).toEqual([expect.objectContaining({ event: "landing_variant_view", landing_variant: "A" })]);
+      root.remove();
     } finally {
       jest.useRealTimers();
     }

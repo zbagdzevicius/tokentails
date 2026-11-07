@@ -462,4 +462,23 @@ html:has(.lgb),body:has(.lgb){background:#86c95c;overflow-x:clip;scroll-behavior
   .lgb .mini .mk{width:6px;height:6px}
   .lgb .mini .mk.base{width:8px;height:8px}
 }
+/* the HUD steps aside while the dog base and its VICTORY banner pass under it (motion.js), so the win is never covered */
+.lgb .hud{transition:opacity .25s,visibility .25s}
+.lgb .hud.off{opacity:0;visibility:hidden}
+/* a phone on its side: the final section side by side (call to action | dog base), so the base and its banner fit on screen */
+@media (max-height:500px) and (min-width:600px){
+  .lgb .final,.lgb .leg.final[data-side]{grid-template-columns:minmax(0,1fr) 250px;grid-template-areas:"content lane";padding:28px 16px 22px;text-align:left;align-items:end}
+  .lgb .final .content{margin:0}
+  .lgb .final .ctas{justify-content:flex-start}
+  .lgb .final .tag{margin:0 0 6px}
+  .lgb .final .lanecol{height:200px}
+  .lgb .final .plaza{--pz:176px}
+  .lgb .victory{top:40%}
+}
+/* narrow phones: the roster cards are about 117 px wide at 375, so the side tag and role wrap and the tracking tightens */
+@media (max-width:420px){
+  .lgb .hc .meta{padding:8px 8px 10px;min-width:0}
+  .lgb .hc .nm{font-size:16px;overflow-wrap:anywhere}
+  .lgb .hc .rl{flex-wrap:wrap;gap:4px 5px;letter-spacing:.06em}
+}
 `;
