@@ -202,6 +202,14 @@ gcloud auth configure-docker europe-west3-docker.pkg.dev --quiet
 SHA=$(git rev-parse --short HEAD); REG=europe-west3-docker.pkg.dev/$P/tokentails
 docker build --platform linux/amd64 -t $REG/backend:$SHA ../../../../../backend && docker push $REG/backend:$SHA
 #   web: build with a public.env whose API URL is https://api.staging.tokentails.test (no real values needed)
+#   infra-only rehearsal: push Google's sample image as web and cms instead (it listens on $PORT)
+#   docker pull --platform linux/amd64 us-docker.pkg.dev/cloudrun/container/hello
+#   for s in web cms; do docker tag us-docker.pkg.dev/cloudrun/container/hello $REG/$s:placeholder && docker push $REG/$s:placeholder; done
+# (on Docker Desktop, plain `docker build --platform` works; `docker buildx build --builder default` is refused there)
+
+# 3b. enabling Compute created a `default` network with 0.0.0.0/0 SSH and RDP rules; nothing uses it, delete it
+gcloud compute firewall-rules delete default-allow-icmp default-allow-internal default-allow-rdp default-allow-ssh --project $P --quiet
+gcloud compute networks delete default --project $P --quiet
 
 # 4. everything else
 terraform plan -out "$S/staging.tfplan" && terraform apply "$S/staging.tfplan"
@@ -212,6 +220,29 @@ Checks (each command is in `terraform output smoke`): `/healthz` and `/readyz` o
 the relay through `/pawlegends/ws` (`ws-latency.mjs --connect <lb_ip> --insecure`), web and CMS answer, a request
 from another address gets 403 from Cloud Armor, `gcloud run jobs execute tt-migrate --region europe-west3 --project
 $P --wait` runs against the staging Mongo, and `systemctl restart tt-relay` over IAP SSH hands rooms off.
+
+What the first real staging run (2026-11-07, all four steps) showed; each one applies to production too:
+
+- **HTTPS needs a few minutes.** Right after the apply, :443 answers with a TLS handshake failure (curl exit 35,
+  alert 40, no certificate sent) while :80 already works. The certificate reached the proxy about 3 minutes later.
+  Retry before calling it broken; in production the managed certificate takes longer still (DNS authorization).
+- **`tt-migrate` cannot succeed from a git-built image.** `backend/.gitignore` ignores `/migrations`, so the
+  migration files exist only in a local checkout, the image has none, and the job exits 1 with `migrations directory
+  does not exist: /app/migrations/tokentails`. Until the founder decides whether to commit `migrations/tokentails/`
+  (it sits next to a `data/` folder that stays private), run migrations by hand as today; the job is the hook for later.
+- **IAP SSH with a personal Google account is refused** when the project belongs to an organization (tokentails-staging
+  is in `tokentails.com`): OS Login wants `roles/compute.osLoginExternalUser` on the organization for an account outside
+  it. Grant that at organization level, or operate the relay from a `tokentails.com` account, before you rely on
+  `gcloud compute ssh` for relay restarts and deploys. Without SSH, a one-off Cloud Run job in the VPC
+  (`curlimages/curl`, `--network vpc-main --subnet vpc-main-europe-west3 --vpc-egress all-traffic`) can still probe
+  internal addresses; delete it afterwards.
+- **The default network** (step 3b) appears in any project where Compute is enabled, with SSH and RDP open to the
+  internet. Delete it in production too, after pass 1 (or set `constraints/compute.skipDefaultNetworkCreation` on the
+  organization).
+- Results of that run: `/healthz` and `/readyz` (`mongo: true`) 200 on :80 and :443; `ws-latency.mjs` 5/5 sockets
+  `101` and welcomed (ping p50 44 ms from Vilnius); web and CMS (placeholder images) 200 on every host; a request from
+  the NAT address (not on the list) got 403 from Cloud Armor; the relay port is closed to the subnet; `tt-migrate`
+  failed as above.
 
 Tear down the same day:
 
@@ -268,6 +299,9 @@ terraform init -backend-config="bucket=gleaming-medium-480114-g5-tfstate" -backe
 # pass 1: APIs, registry, accounts, secrets containers, network (no services yet)
 terraform apply -target=module.project_services -target=module.artifact_registry -target=module.service_accounts \
   -target=module.secrets -target=module.network -target=google_project_iam_custom_role.relay_deployer
+# enabling Compute created a `default` network with SSH and RDP open to 0.0.0.0/0; nothing uses it (seen on staging)
+gcloud compute firewall-rules delete default-allow-icmp default-allow-internal default-allow-rdp default-allow-ssh \
+  --project gleaming-medium-480114-g5 --quiet && gcloud compute networks delete default --project gleaming-medium-480114-g5 --quiet
 
 # first images, pushed by you (or by a deploy-gcp.yml run once the WIF variables exist)
 gcloud auth configure-docker europe-west3-docker.pkg.dev
