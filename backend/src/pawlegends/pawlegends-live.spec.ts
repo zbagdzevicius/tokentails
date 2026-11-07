@@ -16,7 +16,13 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { createHash } from 'crypto';
 import { PawlegendsReplayDto } from './pawlegends-replay.dto';
-import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSION, SIM_VERSIONS, simFor } from 'src/vendor/pawlegends-sim';
+import {
+    PawlegendsReplayRecord,
+    PawlegendsVerifyResult,
+    SIM_VERSION,
+    SIM_VERSIONS,
+    simFor,
+} from 'src/vendor/pawlegends-sim';
 import { PAWLEGENDS_SIM_INFO } from './pawlegends-sim-info';
 import { verifyBySimVersion } from './pawlegends-replay.worker';
 import {
@@ -204,7 +210,13 @@ describe('PAWLEGENDS /live branch', () => {
         expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14]);
         expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 14, simVersions: [10, 11, 12, 13, 14] });
         expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11', '12', '13', '14']);
-        const fakeHash: Record<number, string> = { 10: '10100000', 11: '11110000', 12: '12120000', 13: '13130000', 14: '14140000' };
+        const fakeHash: Record<number, string> = {
+            10: '10100000',
+            11: '11110000',
+            12: '12120000',
+            13: '13130000',
+            14: '14140000',
+        };
         for (const simVersion of [10, 11, 12, 13, 14]) {
             const record = genuine({ simVersion, finalHash: fakeHash[simVersion] });
             const { save, games } = setup(record);
