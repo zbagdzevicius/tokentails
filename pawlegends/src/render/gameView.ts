@@ -963,7 +963,15 @@ export class GameView {
       const yaw = Math.atan2(-(tz - who.z), tx - who.x);
       const spec = toSpec(aim, who.x, who.z, tx, tz, Number.isFinite(yaw) ? yaw : who.yaw, color);
       // Wave C (C3): an enemy wind-up draws after every VFX layer, so no spark, slash or debris ever hides it
-      if (spec) this.telegraphs.draw({ ...spec, fill, alpha: 0.95, over: who.team !== this.myTeam });
+      if (!spec) continue;
+      const over = who.team !== this.myTeam;
+      // QA v15: a big self ring (Domino's 11 m CONNECT THE DOTS!) filled as a disc covered half a phone screen in
+      // fights. Past BIG_RING_M it is the hollow edge plus a thin front that grows to it, so the edge still says
+      // where it reaches and the front says when it lands.
+      if (spec.shape === 'ring' && spec.length > BIG_RING_M) {
+        this.telegraphs.draw({ ...spec, alpha: 0.95, over });
+        this.telegraphs.draw({ ...spec, length: Math.max(0.5, spec.length * fill), alpha: 0.75, over });
+      } else this.telegraphs.draw({ ...spec, fill, alpha: 0.95, over });
     }
   }
 
@@ -1057,6 +1065,8 @@ const ATTACK_RING_COLOR = 0xfff1d6;
 const AIM_MIN_PX = 18;
 /** A skill range ring wider than this (m) is not drawn (it would only fill the screen). */
 const RANGE_RING_MAX_M = 15;
+/** A wind-up ring wider than this (m) draws hollow with a growing front instead of a filled disc (QA v15). */
+const BIG_RING_M = 7;
 
 /** Aim spec + caster + aim point (m) → a telegraph shape. */
 export function toSpec(aim: AimSpec, x: number, z: number, ax: number, az: number, yaw: number, color: number): TelegraphSpec | null {

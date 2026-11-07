@@ -108,6 +108,13 @@ share their role on the dog side, went 52.0 → 51.2%, 48.1 → 48.3% and 50.3 �
 `pvp` change on a few heroes moved single heroes by up to ±5 points and the species by ±2, so r8 is one passing draw,
 not a guarantee; retune from these numbers if a later change moves the gate.
 
+**QA v15 fixes** (re-gated on seeds 1..2,000, no `pvp` change): Frankie's roll hit is guarded by `kEmpower`, a
+mid-dash FOOTLONG hit gives no refund, Rocket's R is a mobility slot (a root refuses it), Rocket's bot sprint skips
+any enemy structure reach (tanked or not) and Frankie's bot FOOTLONG skips a foe under an untanked tower. A first try
+with `towerMargin` on the sprint check moved the dogs to 49.0% (Rocket 47.2, Bravo 45.2, Bengas and Lambo 54.0 / 54.1:
+gate fail); with the plain structure reach the gate passes: Rocket 50.9, Frankie 50.2, Domino 50.8, species 50.0 /
+50.0, every hero 47.0–53.1%, pace 3.48, 0 safety ends.
+
 **Gates** (lane SIM exit):
 - Balance (gate 6, 2,000 seeds): **all pass**. Every hero 47.2–52.4% (inside the task's 47–53), species cats 50.2 /
   dogs 49.8, side 49.6 / 50.4, length median 7:13, p95 8:30, 0 safety ends, core kill before Sudden Death 93.8%,
@@ -313,8 +320,9 @@ Hits hardest from far away, then needs a nap."
 (R dash in flight), `kRT` nap ticks, `kCount` the bitmask of Clocked hero ids (heroes are ids < 32), `kWAge` Clocked
 ticks left, `kHonour` / `kChain` the squirrel point, `kWT` squirrel wind-up ticks, `kEmpower` the in-kit guard.
 - `aim`: Q `Aim.Dir`. W `Aim.Dir`, mobility (escape tap: away from the nearest enemy hero). E `Aim.Point`, reach
-  `e.range`, tap = the nearest enemy hero in reach, else full range ahead. R `Aim.Dir`, windup `r.windup`, tap = toward
-  the nearest enemy hero within `r.dash`, else facing.
+  `e.range`, tap = the nearest enemy hero in reach, else full range ahead. R `Aim.Dir`, windup `r.windup`, mobility (QA v15:
+  it is an 11 m dash, so a root refuses it like every other dash), tap = toward the nearest enemy hero within
+  `r.dash`, else facing.
 - **Passive.** `outgoing(m, id, dst, raw)`: for a *basic* on an enemy hero, multiply by `bonusBp` if
   `dist(id, dst) >= range`. The basic pipeline tells a basic from other damage the way Howler's empowered basic does
   (`howler.ts:111`). It stacks multiplicatively with Photo Finish and Clocked. Order: Sighthound, then Photo Finish,
@@ -348,14 +356,15 @@ ticks left, `kHonour` / `kChain` the squirrel point, `kWT` squirrel wind-up tick
 - No new World array.
 
 **Bot** (`src/sim/bots/heroes/rocket.ts`):
-- fight: Q on a foe in the 9 m line. Keep spacing at `BOT_AI.rocketSpacing (5000)`, so most of his basics get
-  Sighthound. Use W to kite when a foe is within `BOT_AI.rocketPeelRange (3000)`: dash away, then basic. Use E when
-  a foe is diving an ally or himself (a foe within 3 m), aimed at that foe. Use R when the sprint line from him
-  passes 2+ foes (`BOT_AI.rocketSprintFoes 2`), or 1 foe under 35% HP, **and** the line's end point is not within
-  enemy tower range: he naps where he stops.
+- fight: Q on a foe in the 9 m line. He keeps the generic ranged hold (`holdRanged`; a `rocketSpacing` key was
+  planned but never read, so QA v15 removed it). Use W to kite when a foe is within `BOT_AI.rocketPeelRange (3000)`:
+  dash away, then basic. Use E when a foe is diving an ally or himself (a foe within 3 m), aimed at that foe. Use R
+  when the sprint line from him passes 2+ foes (`BOT_AI.rocketSprintFoes 2`), or 1 foe under 35% HP, **and** the
+  line's end point is not within reach of an enemy structure, tanked or not: he naps where he stops (QA v15: the
+  untanked-only check let 15% of his naps start in tower range).
 - clear: Q through a minion line toward a hero if one is in range, otherwise basics only.
 - escape: W away from the threat; then E on the closest chaser.
-- New BOT_AI keys: `rocketSpacing 5000`, `rocketPeelRange 3000`, `rocketSprintFoes 2`, `rocketSprintHpBp 3500`.
+- New BOT_AI keys: `rocketPeelRange 3000`, `rocketSquirrelRange 3000`, `rocketSprintFoes 2`, `rocketSprintHpBp 3500`.
 
 **Signature moment:** **the sprint nap.** He blurs through three cats, then drops onto his back with his legs in the
 air and a "Zzz". The cats he Clocked are hurt and slowed, and he is helpless for 0.6 s. The clip is the contrast, and
@@ -487,7 +496,10 @@ FOOTLONG in flight, 4 = snapping; `kWT` the flight ticks left, `kHuntVictim` the
   (`kit.ts:171`), and E is no exception. So the hop clears **slows only**, and the heroText says "shake off slows".
 - **R.** On resolve: `fireSkillshot` with `PFLAG.HeroStop`, `PROJECTILE_KIND.fluff`, `minionBp`, `dmg =
   lvl(dmg)`. Set `kStage = 3` and `kWT = travelTicks(range, speed) + 1`. In `afterDeal(…, 'ability')` with `dst` an
-  enemy hero, `kStage === 3` and `fmKind[id] !== FM.Dash` (so it is not a Q roll hit), the hit is the grab:
+  enemy hero while `kWT > 0` and outside the guard, the hit is the grab. QA v15: the Q roll hit runs under the
+  `kEmpower` guard (ROLLING), not an `fmKind` check, because `stepForced` clears `fmKind` before `onDashTick` on a
+  dash's landing tick; an R hit while he is mid-dash (roll, dig, hop) zeroes `kWT` (a hit, so no refund) without a
+  grab. The grab:
   `stun(w, dst, stun)`. Then `kStage = 4`, `kHuntVictim = dst`, and `startForced` him to the point `dist − radii`
   short of the victim at `snapSpeed` (FM.Dash). Emit `clip` `footlong`. The Combo passive also sees this hit (it is
   ability damage), so a bite right after the snap completes the Combo. If `kWT` reaches 0 while `kStage === 3`, he
@@ -653,10 +665,11 @@ and `dotT[hero]` (ticks left), §4. Domino's own kit arrays: `kEmpower` the guar
 **Bot** (`src/sim/bots/heroes/domino.ts`):
 - fight: Q on a foe in the line. W on the foe cluster, or on a slowed or rooted foe. E when a melee foe is within
   `BOT_AI.dominoShakeRange (2600)`. R when 2+ Spotted foes are in 11 m (`BOT_AI.dominoDotsMin 2`), or one foe with 3
-  Spots under 50%, or one Spotted foe that would die from the R damage. Keep spacing `BOT_AI.dominoSpacing 4800`.
+  Spots under 50%, or one Spotted foe that would die from the R damage. He keeps the generic ranged hold (the
+  planned `dominoSpacing` key was never read; QA v15 removed it).
 - clear: W on 3+ minions; Q otherwise.
 - escape: E when anything is within 2.6 m, then walk.
-- New BOT_AI keys: `dominoShakeRange 2600`, `dominoDotsMin 2`, `dominoSpacing 4800`, `dominoDotsHpBp 5000`.
+- New BOT_AI keys: `dominoShakeRange 2600`, `dominoDotsMin 2`, `dominoDotsHpBp 5000`.
 
 **Signature moment:** **the dot-to-dot.** Three cats get joined by glowing lines into a little constellation, all
 three are rooted at once, and Domino, now completely white, does a happy spin as his spots fly home. The

@@ -64,7 +64,7 @@ describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 60
   it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15)', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {
-      writeFileSync(GOLDEN, JSON.stringify({ base: 'v15 (DOGS-V15 lane SIM)', simVersion: 15, rows: got }, null, 2) + '\n');
+      writeFileSync(GOLDEN, JSON.stringify({ base: 'v15 (DOGS-V15 lane SIM, QA v15 fixes)', simVersion: 15, rows: got }, null, 2) + '\n');
       return;
     }
     expect(existsSync(GOLDEN)).toBe(true);

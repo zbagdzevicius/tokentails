@@ -42,6 +42,16 @@ test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the tea
   // the three v15 dogs carry the New tag (and no one else)
   const fresh = await page.locator('.heroes:not([hidden]) .hero-card[data-new="1"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(fresh.sort()).toEqual(['domino', 'frankie', 'rocket']);
+  // QA v15: the tag stays clear of the element icon (it sat under it and read "EW")
+  const overlaps = await page.locator('.heroes:not([hidden]) .hero-card[data-new="1"]').evaluateAll((els) =>
+    els.map((e) => {
+      const a = e.querySelector('.new-tag')?.getBoundingClientRect();
+      const b = e.querySelector('.tt-ico')?.getBoundingClientRect();
+      if (!a || !b) return false;
+      return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+    }),
+  );
+  expect(overlaps).toEqual([false, false, false]);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...DOGS].sort());
   expect(await page.locator('.heroes:not([hidden])').getAttribute('data-side')).toBe('dog');

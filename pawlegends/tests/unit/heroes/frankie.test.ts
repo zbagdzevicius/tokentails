@@ -143,6 +143,44 @@ describe('Frankie, original dog assassin (sim v15)', () => {
     expect(w.kHuntVictim[FR]).toBe(-1);
   });
 
+  it('FOOTLONG!: a Q roll hit on the dash landing tick is not the grab either (QA v15)', () => {
+    // The R flies away from every cat; the roll lands on a cat 4.0 to 5.6 m away (5.1+ hit on the last dash tick,
+    // where stepForced has already cleared fmKind).
+    for (let d = 4000; d <= 5600; d += 100) {
+      const m = arena();
+      const w = m.world;
+      w.level[FR] = 4;
+      cast(m, FR, 3, MID.x, MID.y - 9000);
+      steps(m, A.r.windup + 1);
+      expect(w.kWT[FR]).toBeGreaterThan(0);
+      place(m, FOE, MID.x + d, MID.y, 2048);
+      cast(m, FR, 0, MID.x + d, MID.y);
+      let clips = 0;
+      for (let t = 0; t < 20; t++) {
+        steps(m, 1);
+        clips += m.events.filter((e) => e.type === 'clip' && e.what === 'footlong').length;
+      }
+      expect([d, w.stunT[FOE], w.kHuntVictim[FR], clips]).toEqual([d, 0, -1, 0]);
+    }
+  });
+
+  it('FOOTLONG!: a hit while he is mid-dash lands without the grab and without the miss refund (QA v15)', () => {
+    const m = arena();
+    const w = m.world;
+    w.level[FR] = 4;
+    place(m, FOE, MID.x + 6000, MID.y, 2048);
+    const hp = w.hp[FOE];
+    cast(m, FR, 3, MID.x + 6000, MID.y);
+    steps(m, A.r.windup + 1);
+    // Dig away while the shot flies.
+    cast(m, FR, 1, MID.x, MID.y - A.w.range);
+    expect(w.fmKind[FR]).toBe(FM.Dash);
+    for (let t = 0; t < 40; t++) steps(m, 1);
+    expect(w.hp[FOE]).toBeLessThan(hp);
+    expect(w.kHuntVictim[FR]).toBe(-1);
+    expect(cd(m, FR, 3)).toBeGreaterThan(idiv(A.r.cooldown * (10000 - A.r.missRefundBp), 10000));
+  });
+
   it('FOOTLONG!: a miss gives back 40% of the cooldown exactly, and no clip', () => {
     const m = arena();
     const w = m.world;

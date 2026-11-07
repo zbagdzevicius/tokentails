@@ -463,15 +463,15 @@ var BOT_AI = Object.freeze({
 	howlerTalkRange: 3e3,
 	howlerTalkHpBp: 6e3,
 	/**
-	* Sim v15 dogs (sim/bots/heroes/{rocket,frankie,domino}.ts; docs/plans/moba/DOGS-V15.md §1). Rocket keeps
-	* rocketSpacing, dashes away from a foe within rocketPeelRange, throws the squirrel at a foe within
+	* Sim v15 dogs (sim/bots/heroes/{rocket,frankie,domino}.ts; docs/plans/moba/DOGS-V15.md §1). Rocket keeps the generic
+	* ranged hold (holdRanged), dashes away from a foe within rocketPeelRange, throws the squirrel at a foe within
 	* rocketSquirrelRange and sprints through rocketSprintFoes (or one foe below rocketSprintHpBp) when the line does not
-	* end under an enemy tower. Frankie digs onto a foe below frankieDigHpBp (or a clump) with an ally near or the foe
-	* alone within frankieDiveAllyRange, and FOOTLONGs a foe below frankieFootlongHpBp. Domino shakes within
-	* dominoShakeRange, keeps dominoSpacing, and connects the dots on dominoDotsMin Spotted foes or one full foe below
-	* dominoDotsHpBp.
+	* end within reach of an enemy structure (tanked or not: he naps where he stops). Frankie digs onto a foe below
+	* frankieDigHpBp (or a clump) with an ally near or the foe alone within frankieDiveAllyRange, and FOOTLONGs a foe
+	* below frankieFootlongHpBp (not one under an untanked enemy tower unless it is below executeHpBp: he snaps to it).
+	* Domino shakes within dominoShakeRange, keeps the generic ranged hold, and connects the dots on dominoDotsMin
+	* Spotted foes or one full foe below dominoDotsHpBp.
 	*/
-	rocketSpacing: 5e3,
 	rocketPeelRange: 3e3,
 	rocketSquirrelRange: 3e3,
 	rocketSprintFoes: 2,
@@ -481,7 +481,6 @@ var BOT_AI = Object.freeze({
 	frankieDiveAllyRange: 8e3,
 	dominoShakeRange: 2600,
 	dominoDotsMin: 2,
-	dominoSpacing: 4800,
 	dominoDotsHpBp: 5e3,
 	/** Sim v14: a bot that would swing at a hero whose kit deters basics (Howler's Talk Back) steps this far back (mm). */
 	deterStep: 1500,
@@ -9658,7 +9657,7 @@ function aim$2(a, slot) {
 			aim: Aim.Dir,
 			reach: 0,
 			windup: a.r.windup,
-			mobility: false
+			mobility: true
 		};
 	}
 }
@@ -9824,16 +9823,19 @@ var ROCKET_KIT = {
 * point, a stun on the pop), Bun Hop (a hop that shakes off slows) and FOOTLONG! (a hero-stop shot; the hero it hits
 * is stunned and he snaps to it; a miss refunds part of the cooldown).
 *
-* The grab is the R shot's ability hit on an enemy hero while the shot is in flight (kWT > 0), outside a Q roll
-* (fmKind Dash) and outside the guard: the Combo hit and the Dig pop run under kEmpower = COMBO / POP.
+* The grab is the R shot's ability hit on an enemy hero while the shot is in flight (kWT > 0) and outside the guard:
+* the Combo hit, the Dig pop and the Weenie Roll hit run under kEmpower = COMBO / POP / ROLLING (the roll hit is
+* guarded by kEmpower, not by fmKind: on a dash's landing tick stepForced has already cleared fmKind). An R hit while
+* he is mid-dash (roll, dig, hop) ends the flight with no grab and no miss refund.
 *
 * Kit arrays: kFoe the last Combo victim; kValor what landed on it (1 ability, 2 basic); kWindow the Combo window;
 * kHuntT the Combo lockout; kStage 1 = rolling, 2 = digging, 4 = snapping to the grabbed hero; kWT FOOTLONG flight
 * ticks left; kHuntVictim the grabbed hero; kEmpower the in-kit guard.
 */
-/** kEmpower values: the Combo hit (no new Combo from it) and the Dig pop (never a FOOTLONG grab). */
+/** kEmpower values: the Combo hit (no new Combo from it), the Dig pop and the Weenie Roll hit (never a FOOTLONG grab). */
 var COMBO = 1;
 var POP = 2;
+var ROLLING = 3;
 /** kStage values. */
 var ROLL = 1;
 var DIG = 2;
@@ -10006,21 +10008,28 @@ var FRANKIE_KIT = {
 			if (e < 32) w.fmHitLo[id] |= 1 << e;
 			else w.fmHitHi[id] |= 1 << e - 32;
 			if (w.kind[e] === Kind.Hero) {
+				w.kEmpower[id] = ROLLING;
 				dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, "ability");
+				w.kEmpower[id] = 0;
 				knockback(m, e, hx, hy, q.push, w.facing[id]);
 				w.fmT[id] = 0;
 				w.fmKind[id] = FM.None;
 				w.kStage[id] = 0;
 				return;
 			}
+			w.kEmpower[id] = ROLLING;
 			dealDamage(m, id, w.team[id], Kind.Hero, e, applyBp(dmg, q.minionBp), "ability");
+			w.kEmpower[id] = 0;
 		}
 	},
 	afterDeal(m, id, dst, _dmg, kind) {
 		const w = m.world;
 		if (w.alive[id] === 0 || !isFoeHero$1(w, id, dst)) return;
 		const guard = w.kEmpower[id];
-		if (kind === "ability" && guard === 0 && w.kWT[id] > 0 && w.fmKind[id] !== FM.Dash) grab(m, id, dst);
+		if (kind === "ability" && guard === 0 && w.kWT[id] > 0) {
+			if (w.fmKind[id] === FM.Dash) w.kWT[id] = 0;
+			else grab(m, id, dst);
+		}
 		if (guard === COMBO) return;
 		if (kind === "ability") combo(m, id, dst, 1);
 		else if (kind === "basic") combo(m, id, dst, 2);
@@ -13535,10 +13544,23 @@ function escape$3(w, id, foe, _hx, _hy) {
 * function returns one cast command, or null. Build on the helpers casts.ts exports; tuning numbers live in
 * data/bots.ts BOT_AI.
 *
-* Fight: ZOOM… ZZZ when the sprint line passes 2+ foes (or one low foe) and does not end under an enemy tower (he naps
-* where he stops); Photo Finish away from a foe on top of him; SQUIRREL! on a foe diving him or close; Lure Shot on
-* the line. Clear: Lure Shot through a pack toward a hero. Escape: Photo Finish away, then SQUIRREL! on the chaser.
+* Fight: ZOOM… ZZZ when the sprint line passes 2+ foes (or one low foe) and does not end near an enemy structure,
+* tanked or not (he naps where he stops); Photo Finish away from a foe on top of him; SQUIRREL! on a foe diving him or
+* close; Lure Shot on the line. Clear: Lure Shot through a pack toward a hero. Escape: Photo Finish away, then
+* SQUIRREL! on the chaser.
 */
+/**
+* Is (x, y) within reach of an alive enemy structure, tanked or not? He naps 1+ s where the sprint stops, and
+* a wave that tanks the tower now is gone by then (QA v15: 15% of his naps started in enemy tower range).
+*/
+function hotSpot(w, team, x, y) {
+	for (let s = RANGE.towers; s < RANGE.fountains; s++) {
+		if (w.alive[s] === 0 || w.team[s] === team) continue;
+		const r = structReach(w, s);
+		if (dist2(w.x[s], w.y[s], x, y) <= r * r) return true;
+	}
+	return false;
+}
 /** Fight casts at enemy hero `foe` (visible, aware). */
 function fight$2(w, id, foe, p, rng) {
 	const a = abil(w, id);
@@ -13552,7 +13574,7 @@ function fight$2(w, id, foe, p, rng) {
 		const ex = hx + idiv(icos(dir) * a.r.dash, TRIG_ONE);
 		const ey = hy + idiv(isin(dir) * a.r.dash, TRIG_ONE);
 		const n = collect(w, w.team[id], hits, (e, r) => inLine(hx, hy, ex, ey, a.r.width >> 1, w.x[e], w.y[e], r), true);
-		if ((n >= BOT_AI.rocketSprintFoes || n >= 1 && hpBp(w, foe) < BOT_AI.rocketSprintHpBp) && untankedThreat(w, w.team[id], ex, ey, 0) < 0) return cast(3, fx, fy, 255);
+		if ((n >= BOT_AI.rocketSprintFoes || n >= 1 && hpBp(w, foe) < BOT_AI.rocketSprintHpBp) && !hotSpot(w, w.team[id], ex, ey)) return cast(3, fx, fy, 255);
 	}
 	if (canCast(w, id, 1) && d <= BOT_AI.rocketPeelRange) {
 		awayFrom(w, id, fx, fy, a.w.dash);
@@ -13594,7 +13616,7 @@ function escape$2(w, id, foe, _hx, _hy) {
 * function returns one cast command, or null. Build on the helpers casts.ts exports; tuning numbers live in
 * data/bots.ts BOT_AI. Ketchup and Mustard follows through the brain's attack order (a bite after a skill).
 *
-* Fight: FOOTLONG! on a low foe in reach with no other foe in the way (or a stunned foe); Dig onto a hurt foe or a
+* Fight: FOOTLONG! on a low foe in reach with no other foe in the way (or a stunned foe), not under an enemy tower; Dig onto a hurt foe or a
 * clump with a friend near (never under an enemy tower unless the foe is about to fall); Weenie Roll into the foe.
 * Clear: the roll through a pack. Escape: Bun Hop away, else Dig toward home.
 */
@@ -13613,7 +13635,8 @@ function fight$1(w, id, foe, p, rng) {
 	const d = distTo(w, id, foe);
 	const fx = w.x[foe];
 	const fy = w.y[foe];
-	if (canCast(w, id, 3) && d <= a.r.range - RANGE_PAD && (hpBp(w, foe) < BOT_AI.frankieFootlongHpBp || w.stunT[foe] > 0) && !blocked(w, id, foe, a.r.width)) {
+	const snapTower = untankedThreat(w, w.team[id], fx, fy, 0) >= 0 && hpBp(w, foe) >= BOT_AI.executeHpBp;
+	if (canCast(w, id, 3) && d <= a.r.range - RANGE_PAD && (hpBp(w, foe) < BOT_AI.frankieFootlongHpBp || w.stunT[foe] > 0) && !snapTower && !blocked(w, id, foe, a.r.width)) {
 		aimed(w, id, fx, fy, p.aimErrorSteps, rng, Math.max(d, RANGE_PAD));
 		return cast(3, pt[0], pt[1], 255);
 	}
