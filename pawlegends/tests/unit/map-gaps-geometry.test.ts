@@ -58,3 +58,18 @@ describe('MAP-GAPS A13 fountains clear of the hedge', () => {
     expect(FOUNTAIN_CLEAR).toBeGreaterThan(rimOuter);
   });
 });
+
+describe('MAP-GAPS A15 river past the map edge', () => {
+  it('marks the boundary across the river at each rim crossing, and the forest closes over it further out', async () => {
+    const { PLAYFIELD } = await import('../../src/data/map');
+    const { riverMarkers, RIVER_RUN } = await import('../../src/render/views/mapView');
+    const ys = riverMarkers().map((m) => m.y).sort((a, b) => a - b);
+    expect(ys).toEqual([PLAYFIELD.rim / 1000, H - PLAYFIELD.rim / 1000]);
+    const r0 = MAP.riverX[0] / 1000;
+    const r1 = MAP.riverX[1] / 1000;
+    const over = outerTrees().filter((t) => t.x > r0 && t.x < r1);
+    expect(over.some((t) => t.y > H + 10)).toBe(true);
+    expect(over.some((t) => t.y < -10)).toBe(true);
+    for (const t of over) expect(outsideBy(t.x, t.y)).toBeGreaterThanOrEqual(RIVER_RUN * 0.75);
+  });
+});
