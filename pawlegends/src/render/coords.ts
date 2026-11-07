@@ -10,3 +10,17 @@ export const toZ = (yMm: number): number => -yMm / MM;
 export const toYaw = (facing: number): number => (facing / 4096) * Math.PI * 2;
 /** Camera yaw that puts sim +x right and sim +y up on screen. */
 export const CAMERA_YAW = 0;
+
+/**
+ * MAP-GAPS A24: a team-1 seat sees the map turned 180° (its base bottom left, the enemy's top right, as every MOBA
+ * shows the red side): the camera, the stick and drag aims, the yaw-baked effects and the minimap all read this.
+ */
+let viewYaw = CAMERA_YAW;
+/** The camera yaw now: CAMERA_YAW, or + π for a team-1 seat. */
+export const cameraYaw = (): number => viewYaw;
+/** +1, or −1 for a team-1 seat: a screen vector (right, up) maps to sim (x, y) times this. */
+export const viewSign = (): 1 | -1 => (viewYaw === CAMERA_YAW ? 1 : -1);
+/** Turn the view for `team` (1: 180°). */
+export function setViewTeam(team: number): void {
+  viewYaw = team === 1 ? CAMERA_YAW + Math.PI : CAMERA_YAW;
+}

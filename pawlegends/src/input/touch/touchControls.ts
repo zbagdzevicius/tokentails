@@ -44,6 +44,7 @@
  * lifts after a pinch, the joystick thumb still down is a joystick again (a fresh base under it).
 >>>>>>> 889403a09 (fix(pawlegends): a steering stick never joins a pinch, a stick into a wall flashes along it, the thumb left after a pinch steers again)
  */
+import { viewSign } from '../../render/coords';
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { rankPips } from '../../ui/heroText';
@@ -653,8 +654,10 @@ export class TouchControls {
   stickAngle(): number | null {
     const s = this.stick;
     if (!s) return null;
-    const dx = s.x - s.bx;
-    const dy = -(s.y - s.by);
+    // MAP-GAPS A24: a team-1 seat's screen is turned 180° from the map
+    const k = viewSign();
+    const dx = (s.x - s.bx) * k;
+    const dy = -(s.y - s.by) * k;
     return Math.hypot(dx, dy) > STICK.dead ? Math.atan2(dy, dx) : null;
   }
 
@@ -810,8 +813,9 @@ export class TouchControls {
   /** World aim point (mm) of a drag from its button. */
   private dragTarget(g: Drag, slot: CastIndex, me: Unit): { x: number; y: number; id: number } | null {
     const aim = this.h.orders.aimSpec(slot);
-    const dx = g.x - g.x0;
-    const dy = -(g.y - g.y0);
+    const sg = viewSign();
+    const dx = (g.x - g.x0) * sg;
+    const dy = -(g.y - g.y0) * sg;
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
 <<<<<<< HEAD
@@ -1020,7 +1024,8 @@ export class TouchControls {
    * the lane magnet, and turned to slide along a wall it pushes into (steer() walks this; a heading cast flies it).
    */
   private walkAngle(me: Unit, o: { x: number; y: number }, dx: number, dy: number): number {
-    const raw = Math.atan2(dy, dx);
+    const k = viewSign();
+    const raw = Math.atan2(dy * k, dx * k);
     const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
     return slideAngle(o.x, o.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(o.x, o.y, raw) : raw);
   }

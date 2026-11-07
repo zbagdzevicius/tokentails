@@ -282,6 +282,8 @@ export class Minimap {
     const w = Math.round(r.width) || 220;
     const h = Math.round(r.height) || 132;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
+    // MAP-GAPS A24: a team-1 seat's minimap is turned 180° like its camera
+    this.flip = this.host.myTeam() === 1;
     const key = this.bgKey();
     if (w === this.w && h === this.h && dpr === this.dpr && this.bg && key === this.bgKeyNow) return;
     this.bgKeyNow = key;

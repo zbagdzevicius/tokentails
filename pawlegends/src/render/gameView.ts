@@ -3,6 +3,7 @@
  * telegraphs, juice) and draws one interpolated frame per animation frame. The camera follows the player's hero
  * unless the player pans it (edge pan, arrows, minimap); Space re-centres. Render only: no sim imports beyond types.
  */
+import { setViewTeam, viewSign } from './coords';
 import { PingMarkers } from './views/pingMarkers';
 import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
@@ -553,6 +554,8 @@ export class GameView {
   setTeam(slot: number, team: 0 | 1, tricks: TrickId[]): void {
     this.mySlot = slot;
     this.myTeam = team;
+    // MAP-GAPS A24: a team-1 seat sees the map turned 180°
+    setViewTeam(team);
     this.tricks = tricks;
     this.heroes.mySlot = slot;
     this.heroes.myTeam = team;
@@ -671,7 +674,7 @@ export class GameView {
    */
   below(): number {
     const c = this.gr.renderer.domElement;
-    return isShortLandscape(c.clientWidth, c.clientHeight) ? CAMERA_FRAME.shortBelow * (this.gr.zoom / ZOOM_DEFAULT) : CAMERA_FRAME.below;
+    return viewSign() * (isShortLandscape(c.clientWidth, c.clientHeight) ? CAMERA_FRAME.shortBelow * (this.gr.zoom / ZOOM_DEFAULT) : CAMERA_FRAME.below);
   }
 
   /** The player's hero in the current frame. */
@@ -714,6 +717,9 @@ export class GameView {
 
   /** Pan the camera by (dx, dz) metres. */
   panBy(dx: number, dz: number): void {
+    // MAP-GAPS A24: screen directions (edge pan, arrow keys) turn with a team-1 seat's camera
+    dx *= viewSign();
+    dz *= viewSign();
     this.pan.x += dx;
     this.pan.z += dz;
     this.pan.x = Math.max(-40, Math.min(40, this.pan.x));
