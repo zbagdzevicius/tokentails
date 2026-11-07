@@ -108,6 +108,17 @@ export class LockstepRunner<T> {
     this.B = Math.max(MIN_B, Math.min(MAX_B, 1 + Math.round(this.marginMs / TURN_MS)));
   }
 
+  /**
+   * The relay's turn clock moved (a vote pause shifts it by the pause length; a hidden tab or a resume may come back on
+   * another path): forget the offset window so the next arrivals set a new baseline instead of all reading as stalls.
+   * The margin is kept and decays as usual.
+   */
+  resetClock(): void {
+    this.offsets = [];
+    this.spaced = [];
+    this.minOffset = 0;
+  }
+
   /** The stream is over (the relay's `end`): every queued turn is due. */
   drain(): void {
     this.draining = true;

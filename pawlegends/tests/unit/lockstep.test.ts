@@ -178,4 +178,23 @@ describe('LockstepRunner (playout clock)', () => {
     h.due(1000 + 2 * TURN_MS);
     expect(h.holds).toBe(1);
   });
+
+  it('resetClock after a vote pause: jitter smoothing works again at once (no 3 s of every turn reading late)', () => {
+    const jitter = (k: number) => ((k * 37) % 5) * 12; // 0..48 ms
+    const run = (reset: boolean) => {
+      const r = new LockstepRunner<number>(0);
+      let k = 0;
+      for (; k < 60; k++) r.push(k, 50 + k * TURN_MS + jitter(k));
+      if (reset) r.resetClock();
+      const late0 = r.late;
+      for (; k < 90; k++) r.push(k, 5_050 + k * TURN_MS + jitter(k));
+      return { late: r.late - late0, margin: r.marginMs };
+    };
+    const without = run(false);
+    const withReset = run(true);
+    expect(without.late).toBeGreaterThan(25);
+    expect(withReset.late).toBeLessThan(10);
+    expect(withReset.margin).toBeGreaterThan(0);
+  });
 });
+
