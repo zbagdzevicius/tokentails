@@ -49,4 +49,14 @@ test('touch minimap: drag scrubs, release returns, long press pings without pann
   const after = await focus(page);
   expect(Math.abs(after.x - before.x)).toBeLessThan(2);
   expect(Math.abs(after.z - before.z)).toBeLessThan(2);
+
+  // MAP-GAPS A21: a double tap is a move order there (Op.Move = 1)
+  await page.waitForTimeout(400);
+  expect((await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1)).not.toBe(1);
+  await touch('touchStart', ...at(0.25, 0.5));
+  await touch('touchEnd');
+  await page.waitForTimeout(120);
+  await touch('touchStart', ...at(0.25, 0.5));
+  await touch('touchEnd');
+  await expect.poll(async () => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1)).toBe(1);
 });
