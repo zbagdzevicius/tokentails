@@ -1069,6 +1069,14 @@ the main thread. An event-loop delay gate (p99 > 20 ms) and a referee-lag gate r
   through `/live` (`pawlegends-party-live.ts`).
 - The vendored sim keeps the previous production bundle in `vendor/pawlegends-sim/prev/` (one deep, from
   `origin/main`) so a game build one deploy behind can still join; a party is pinned to its leader's sim.
+- Quick Play (M1a co-op, `src/pawlegends/mm/`, docs/plans/moba/M1A-IMPL.md): an in-memory matchmaker
+  (`matchmaker.ts`, pure, fake-clock specs) ticked by the relay's 500 ms timer through `mm-bridge.ts`; strangers on
+  one team (slots 0..2), bots fill the rest after 8 / 20 / 30 s by pool activity (`mm-limits.ts`, checked by
+  `test/mm-sim.ts`). `MmService` (provider) adds two collections: `pawlegendsratings` (the hidden Glicko-2 co-op
+  rating, `_id` `${accountId}:coop`, written only by `/live` in `pawlegends-party-live.ts` after the Game row, re-keyed
+  by the guest merge) and `pawlegendsmmrooms` (per Quick Play room: side, difficulty, bot-filled slots, queue times,
+  members with an identity hash, backfill flag, `left`/`afk` events; TTL 30 days; no IP is stored). No new env var
+  and no flag. The queue does not survive a restart: clients get `mm.cancel{server}` and re-queue.
 
 ### Tails Club (`/club`)
 

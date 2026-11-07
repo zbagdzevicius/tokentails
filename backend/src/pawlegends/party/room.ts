@@ -19,10 +19,22 @@ import {
 } from './net';
 import { PARTY_LIMITS, TURN_MS, TURN_TICKS } from './party-limits';
 
-export type PilotReason = 'drop' | 'away' | 'afk' | 'late' | 'desync' | 'restore' | 'open';
-/** Pilot reasons that count toward the AFK rule (§6 item 4); the others never do. */
+export type PilotReason = 'drop' | 'away' | 'afk' | 'late' | 'desync' | 'restore' | 'open' | 'before';
+/**
+ * Pilot reasons that count toward the AFK rule (§6 item 4); the others never do. `before` is never a live reason: it
+ * holds the AFK-reason ticks of a seat's earlier holder after a Quick Play backfill (`reopen`).
+ */
 export const AFK_REASONS: readonly PilotReason[] = ['drop', 'away', 'afk'];
-export const PILOT_REASONS: readonly PilotReason[] = ['drop', 'away', 'afk', 'late', 'desync', 'restore', 'open'];
+export const PILOT_REASONS: readonly PilotReason[] = [
+    'drop',
+    'away',
+    'afk',
+    'late',
+    'desync',
+    'restore',
+    'open',
+    'before',
+];
 
 export type RoomStatus = 'waiting' | 'live' | 'paused' | 'ended' | 'abandoned';
 
@@ -109,6 +121,7 @@ const zeroTicks = (): Record<PilotReason, number> => ({
     desync: 0,
     restore: 0,
     open: 0,
+    before: 0,
 });
 
 /** Ops a client may send (Forfeit never; Ping only from slot 0). */
@@ -301,6 +314,35 @@ export class Room {
         this.io.json(null, { t: 'slot', slot, reason: 'left' });
         this.io.log?.('mp_takeover', { slot, reason: 'left' });
         this.touchEmpty(nowMs);
+    }
+
+    /**
+     * Quick Play backfill (M1A-IMPL.md §3): a piloted human seat whose holder left, dropped or went AFK becomes
+     * claimable again (`open`, not occupied). Its AFK-reason pilot ticks so far move to `before`, which the AFK rule
+     * never counts, so the backfiller is not judged on the leaver's ticks. The caller claims it at once (the S5
+     * "open seat unclaimed at tick 1,800" flag never sees it open across that tick).
+     */
+    reopen(slot: number, nowMs: number): boolean {
+        const s = this.slots[slot];
+        if (!s || !this.isHumanSlot(slot) || s.mode !== 'pilot' || !this.live) return false;
+        s.connected = false;
+        s.conn = 'off';
+        s.occupied = false;
+        s.reason = 'open';
+        s.watching = false;
+        s.afkWarned = false;
+        s.loaded = false;
+        s.lastBeatMs = nowMs;
+        s.lastCmdMs = nowMs;
+        s.rebuiltAtTick = -1;
+        // the new holder's client reports every hash mark again from its catch-up
+        this.hashTicks[slot]?.clear();
+        for (const r of AFK_REASONS) {
+            s.pilotTicks.before += s.pilotTicks[r];
+            s.pilotTicks[r] = 0;
+        }
+        this.touchEmpty(nowMs);
+        return true;
     }
 
     /** The tab was hidden (or the app paused): pilot at once. */

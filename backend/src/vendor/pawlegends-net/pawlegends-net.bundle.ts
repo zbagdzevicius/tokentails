@@ -16,8 +16,21 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 1;
+export const PROTO = 2;
+/**
+ * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
+ * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
+ * relay echoes the socket's own proto in `welcome` and never sends an `mm.*` frame or a new error code to a PROTO 1
+ * socket.
+ */
+export const PROTO_MIN = 1;
 export const SUBPROTOCOL = 'pl.1';
+/** Quick Play queues: only co-op in M1a ('casual' and 'ranked' are reserved for M1b and M2). */
+export const MM_QUEUES = Object.freeze(['coop'] as const);
+export type MmQueue = (typeof MM_QUEUES)[number];
+/** The side a queued player asks for: cats, dogs, or either. A team is never mixed. */
+export const MM_SIDES = Object.freeze(['cat', 'dog', 'any'] as const);
+export type MmSide = (typeof MM_SIDES)[number];
 /** Ticks per lockstep turn (D3: 2 ticks, 66.7 ms, 15 Hz). */
 export const TURN_TICKS = 2;
 export const TURN_MS = 200 / 3;
@@ -424,6 +437,10 @@ export const ERROR_CODES = [
   'already_in_party',
   /** The party is alive but this code was replaced (New code, or the leader removed someone): ask for the new link. */
   'code_changed',
+  /** PROTO 2: Quick Play refused for now (too many queue joins from this player, address or network); `retryMs`. */
+  'mm_locked',
+  /** PROTO 2: the seat this member left was given to another player (backfill); there is no seat to come back to. */
+  'seat_taken',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
@@ -497,7 +514,12 @@ export type ClientJson =
   | { t: 'sync'; fromTurn: number }
   | { t: 'away' }
   | { t: 'back' }
-  | { t: 'bye' };
+  | { t: 'bye' }
+  // PROTO 2 (Quick Play co-op)
+  | { t: 'mm.join'; queue: MmQueue; side: MmSide; region?: string }
+  | { t: 'mm.leave' }
+  | { t: 'mm.side'; side: MmSide }
+  | { t: 'mm.backfill'; offer: string; yes: boolean };
 
 export type ClientJsonType = ClientJson['t'];
 
@@ -561,7 +583,18 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
   away: {},
   back: {},
   bye: {},
+  'mm.join': {
+    queue: [(v) => typeof v === 'string' && (MM_QUEUES as readonly string[]).includes(v), false],
+    side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false],
+    region: [isStr(/^[a-z0-9-]{1,16}$/), true],
+  },
+  'mm.leave': {},
+  'mm.side': { side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false] },
+  'mm.backfill': { offer: [isStr(/^[a-z0-9]{12}$/), false], yes: [isBool, false] },
 };
+
+/** JSON frame types that only a PROTO 2 socket may send or receive. */
+export const isMmType = (t: string): boolean => t.startsWith('mm.');
 
 function isPlain(v: unknown): boolean {
   return typeof v === 'object' && v !== null && !Array.isArray(v) && Object.getPrototypeOf(v) === Object.prototype;
@@ -634,6 +667,10 @@ export interface PartyView {
   members: MemberView[];
   /** The recipient's own member id. */
   you: string;
+  /** PROTO 2: a Quick Play party (strangers matched by the queue). The side is fixed for the whole party. */
+  mm?: { side: 'cat' | 'dog'; strangers: boolean };
+  /** PROTO 2: the friend party is queued for Quick Play (every member shows the queue card). */
+  queue?: { sinceMs: number; side: MmSide };
 }
 
 export interface MatchConfigView {
@@ -657,6 +694,8 @@ export interface MatchMsg {
   startInMs: number;
   lastSeq: number;
   simVersion: number;
+  /** PROTO 2: 'coop' for a Quick Play room (absent for a friend party). */
+  mode?: 'coop';
 }
 
 export type ServerJson =
@@ -673,10 +712,33 @@ export type ServerJson =
   | { t: 'end'; winner: number; outcome: string; ticks: number; finalHash: string; scored: boolean; why?: string }
   | { t: 'local'; difficulty: string }
   | { t: 'afk'; inMs: number }
-  | { t: 'paused'; paused: boolean; leftMs?: number; resuming?: boolean };
+  | { t: 'paused'; paused: boolean; leftMs?: number; resuming?: boolean }
+  // PROTO 2 (Quick Play co-op): only ever sent to a PROTO 2 socket
+  | { t: 'mm.status'; queue: MmQueue; side: MmSide; waitedMs: number; estimateMs: number; found: number; lowPriorityMs?: number; warn?: 'leaver' }
+  | { t: 'mm.found'; side: 'cat' | 'dog'; humans: number; bots: number; difficulty: string }
+  | { t: 'mm.cancel'; reason: 'left' | 'away' | 'party' | 'server' | 'update' }
+  | { t: 'mm.backfill.offer'; offer: string; side: 'cat' | 'dog'; clockS: number; score: [number, number]; expiresMs: number };
 
 export type ServerJsonType = ServerJson['t'];
-const SERVER_TYPES: readonly ServerJsonType[] = ['welcome', 'error', 'party', 'match', 'slot', 'vote', 'social', 'nudge', 'resync', 'end', 'local', 'afk', 'paused'];
+const SERVER_TYPES: readonly ServerJsonType[] = [
+  'welcome',
+  'error',
+  'party',
+  'match',
+  'slot',
+  'vote',
+  'social',
+  'nudge',
+  'resync',
+  'end',
+  'local',
+  'afk',
+  'paused',
+  'mm.status',
+  'mm.found',
+  'mm.cancel',
+  'mm.backfill.offer',
+];
 
 /** Parse a server JSON frame (the client trusts the relay's fields but still refuses unknown types). */
 export function parseServerJson(text: string): ServerJson {

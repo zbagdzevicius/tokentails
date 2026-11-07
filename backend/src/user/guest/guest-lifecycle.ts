@@ -14,6 +14,7 @@ import {
     pawlegendsFieldRepair,
     pawlegendsMatchesInc,
 } from 'src/pawlegends/pawlegends-merge';
+import { mergeRating, ratingModelBesides } from 'src/pawlegends/mm/rating-merge';
 
 /*
  * Guest lifecycle without transactions (plan G1, F5.5): the resumable merge, the explicit erase and
@@ -378,6 +379,9 @@ export async function runGuestMerge(deps: IGuestLifecycleDeps, claimedGuest: any
             }
             await mergeCodex(deps, guest, targetId);
             await mergePawlegendsBests(deps, guest, targetId);
+            // Quick Play hidden rating (M1A-IMPL.md §4.2): a re-key, not a score write; never blocks the merge
+            const ratings = ratingModelBesides(deps.users);
+            if (ratings) await mergeRating(ratings, guestId.toString(), targetId.toString()).catch(() => undefined);
             await deps.recomputeTotals(targetId.toString());
         }
         state = await advance(deps, guestId, 'gamesMoved', 'bestsMerged');

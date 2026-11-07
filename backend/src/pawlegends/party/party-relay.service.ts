@@ -6,6 +6,7 @@ import { partyCardResolver, type PartyCatDoc } from './party-cards';
 import { PartyRelay } from './party-relay';
 import { PartyTicketService } from './party-ticket.service';
 import { MongoRoomStore } from './room-store';
+import { MmService } from '../mm/mm.service';
 
 /*
  * Nest wiring of the party relay (docs/plans/moba/MULTIPLAYER.md §3.1). On bootstrap it takes the HTTP server from
@@ -23,7 +24,8 @@ export class PartyRelayService implements OnApplicationBootstrap, OnApplicationS
         private readonly adapter: HttpAdapterHost,
         private readonly store: MongoRoomStore,
         private readonly tickets: PartyTicketService,
-        private readonly cats: CatRepository
+        private readonly cats: CatRepository,
+        private readonly mm: MmService
     ) {}
 
     async onApplicationBootstrap(): Promise<void> {
@@ -38,6 +40,7 @@ export class PartyRelayService implements OnApplicationBootstrap, OnApplicationS
                 byId: async id => (await this.cats.get(id)) as unknown as PartyCatDoc | null,
             }),
             log: (event, props) => this.logger.log(`${event} ${JSON.stringify(props)}`),
+            mm: this.mm,
         });
         try {
             const restored = await this.relay.restore();
