@@ -84,6 +84,9 @@ export function minimapRelation(cvd: boolean): { self: string; ally: string; ene
 /** MAP-GAPS A8: Pudding and its countdown wear their own objective hue (gold is the player's own mark only). */
 export const MM_OBJECTIVE = '#b07cff';
 
+/** MAP-GAPS A11: how long (s) a last-seen ghost stays after an enemy hero leaves our sight. */
+export const GHOST_S = 6;
+
 /** MAP-GAPS A6: the minimap draws the map into a rectangle this far (CSS px) inside the canvas edge. */
 export const MM_PAD = 6;
 
@@ -372,11 +375,40 @@ export class Minimap {
   /** Glyph bubbles drawn last frame (tests). */
   glyphsDrawn = 0;
 
+  /**
+   * MAP-GAPS A11: where each enemy hero was last seen (sim mm) and at which tick, from the snapshot only. For
+   * GHOST_S s after it leaves our sight alive (not dead, not napping home) a faded mark with a "?" stays there.
+   */
+  private lastSeen = new Map<number, { x: number; y: number; hero: HeroId | undefined; tick: number; napping: boolean }>();
+  /** Ghost marks drawn last frame, by hero id (tests). */
+  ghostsDrawn: number[] = [];
+
+  private updateGhosts(frame: ViewFrame, myTeam: number): { id: number; x: number; y: number; hero: HeroId | undefined; age: number }[] {
+    const out: { id: number; x: number; y: number; hero: HeroId | undefined; age: number }[] = [];
+    const tick = frame.tick;
+    for (const e of frame.entities) {
+      if (e.kind !== 'hero' || e.team === myTeam) continue;
+      if (e.state === 'dead') this.lastSeen.delete(e.id);
+      else this.lastSeen.set(e.id, { x: e.fx, y: e.fy, hero: e.hero, tick, napping: e.state === 'napping' });
+    }
+    for (const [id, g] of this.lastSeen) {
+      if (frame.byId.has(id)) continue;
+      const age = (tick - g.tick) / 30;
+      if (g.napping || age > GHOST_S || age < 0) {
+        this.lastSeen.delete(id);
+        continue;
+      }
+      out.push({ id, x: g.x, y: g.y, hero: g.hero, age });
+    }
+    return out;
+  }
+
   /** MAP-GAPS A10: the lane Pudding's escort walks, once it shows (null: no escort). */
   escortLane: LaneId | null = null;
   private escorting = false;
-  /** Sim events the minimap reads (the Pudding escort's start and end). */
+  /** Sim events the minimap reads (the Pudding escort's start and end, a hero's death for the ghosts). */
   event(ev: SimEvent): void {
+    if (ev.type === 'death') this.lastSeen.delete(ev.id);
     if (ev.type !== 'pudding') return;
     if (ev.what === 'escort') this.escorting = true;
     else if (ev.what === 'leave' || ev.what === 'spawn' || ev.what === 'calmed') {
@@ -517,6 +549,31 @@ export class Minimap {
       g.fill();
     }
     this.drawTimers(g);
+    this.ghostsDrawn = [];
+    for (const gh of this.updateGhosts(frame, team)) {
+      // faded and desaturated, a shrinking ring and a "?"
+      const x = this.X(gh.x);
+      const y = this.Y(gh.y);
+      const r = this.heroR(false);
+      const left = 1 - gh.age / GHOST_S;
+      g.globalAlpha = 0.35 + 0.3 * left;
+      g.fillStyle = '#6b6470';
+      g.beginPath();
+      g.arc(x, y, r, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = rel.enemy;
+      g.lineWidth = 1.2;
+      g.beginPath();
+      g.arc(x, y, r + 1 + 3 * left, 0, Math.PI * 2);
+      g.stroke();
+      g.fillStyle = '#fff3dc';
+      g.font = `800 ${(r * 1.5).toFixed(1)}px Fredoka, system-ui, sans-serif`;
+      g.textAlign = 'center';
+      g.textBaseline = 'middle';
+      g.fillText('?', x, y + 0.4);
+      g.globalAlpha = 1;
+      this.ghostsDrawn.push(gh.id);
+    }
     const heroes = frame.entities.filter((e) => e.kind === 'hero' && e.state !== 'dead');
     const ids = heroes.map((e) => e.hero).filter((h): h is HeroId => !!h);
     for (const e of heroDrawOrder(heroes, me)) {
