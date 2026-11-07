@@ -48,6 +48,7 @@ jobs:
     env:
       ASC_KEY_ID: ${{ secrets.ASC_KEY_ID || 'AP7D5SQU7F' }}
       ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID || '2683eb66-99d5-4b39-96ef-b02e1991ef0d' }}
+      REVIEW_CONTACT_PHONE: ${{ vars.REVIEW_CONTACT_PHONE }}
       ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'BVLDTU9V83' }}
       DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
