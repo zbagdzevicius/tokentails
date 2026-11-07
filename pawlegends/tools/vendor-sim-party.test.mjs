@@ -41,5 +41,10 @@ describe('vendor-sim party (N1)', () => {
     expect(d).toContain("import * as prev from './prev';");
     expect(d).toContain('prev as PawlegendsSim');
     expect(d).toContain('export const partySimFor');
+    // Sim v15: the frozen v14 (seven dogs, party play) keeps serving v14 party clients during the rollout.
+    const v15 = dispatcher([10, 11, 12, 13, 14, 15], false);
+    expect(v15).toContain('v13 as PawlegendsSim');
+    expect(v15).toContain('v14 as PawlegendsSim');
+    expect(v15).toContain('v15 as PawlegendsSim');
   });
 });

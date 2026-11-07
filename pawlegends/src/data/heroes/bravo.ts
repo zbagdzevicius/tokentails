@@ -6,8 +6,8 @@ export const BRAVO: HeroData = Object.freeze<HeroData>({
   name: 'Bravo',
   side: 'dog',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11350 / takes 8250 (49.1% of the 2,000-seed gate). */
-  pvp: { dmgBp: 11350, takenBp: 8250 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11350 / takes 8250 (49.1% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10400 / takes 8225 (47.2% of the 2,000-seed gate). */
+  pvp: { dmgBp: 10400, takenBp: 8225 },
   element: 'STELLAR',
   base: { hp: 780, hpPerLevel: 80, attack: 46, attackPerLevel: 4, attackEvery: 35, range: 1600, speed: 4700, armour: 42, armourPerLevel: 3 },
   /** Dramatic Flop: a hit that would drop him below 25% HP (any hit, true damage too) makes him play dead: the hit stops at 1 HP, 1 s untargetable and still, healing 15% max HP. 90 s lockout, shared with Nine Lives. */

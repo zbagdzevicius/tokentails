@@ -13,23 +13,28 @@ describe('vendor-sim', () => {
     expect(/^\s*import\s/m.test(bundle)).toBe(false);
     expect(modules.every((m) => m.startsWith('src/sim/') || m.startsWith('src/data/'))).toBe(true);
     expect(JSON.parse(files[`v${SIM_VERSION}/pawlegends-sim.sha256.json`]).simVersion).toBe(SIM_VERSION);
-    // GAPS B0 dual verifier: v10, v11, v12 and v13 (party play, no dogs) stay frozen beside the live sim v14 (the
-    // dogs; v9 retired), and the root index dispatches by simVersion.
-    expect(SIM_VERSION).toBe(14);
+    // GAPS B0 dual verifier: v10 to v13 and v14 (seven dogs, party play) stay frozen beside the live sim v15 (ten dogs;
+    // v9 retired), and the root index dispatches by simVersion.
+    expect(SIM_VERSION).toBe(15);
     expect(JSON.parse(files['v10/pawlegends-sim.sha256.json']).simVersion).toBe(10);
     expect(JSON.parse(files['v11/pawlegends-sim.sha256.json']).simVersion).toBe(11);
     expect(JSON.parse(files['v12/pawlegends-sim.sha256.json']).simVersion).toBe(12);
     expect(JSON.parse(files['v13/pawlegends-sim.sha256.json']).simVersion).toBe(13);
+    expect(JSON.parse(files['v14/pawlegends-sim.sha256.json']).simVersion).toBe(14);
     expect(files['v10/forfeit-replay.fixture.json']).toBeDefined();
     expect(files['v11/forfeit-replay.fixture.json']).toBeDefined();
     expect(files['v12/forfeit-replay.fixture.json']).toBeDefined();
     expect(files['v13/forfeit-replay.fixture.json']).toBeDefined();
+    expect(files['v14/forfeit-replay.fixture.json']).toBeDefined();
+    expect(files['v14/dog-replay.fixture.json']).toBeDefined();
     expect(files[`v${SIM_VERSION}/dog-replay.fixture.json`]).toBeDefined();
+    expect(files[`v${SIM_VERSION}/new-dog-replay.fixture.json`]).toBeDefined();
     expect(Object.keys(files).some((k) => k.startsWith('v9/'))).toBe(false);
     expect(files['index.ts']).toContain("import * as v10 from './v10';");
     expect(files['index.ts']).toContain("import * as v11 from './v11';");
     expect(files['index.ts']).toContain("import * as v12 from './v12';");
     expect(files['index.ts']).toContain("import * as v13 from './v13';");
+    expect(files['index.ts']).toContain("import * as v14 from './v14';");
     expect(files['index.ts']).toContain(`import * as v${SIM_VERSION} from './v${SIM_VERSION}';`);
 
     const server = await importSim('src/sim/server.ts');

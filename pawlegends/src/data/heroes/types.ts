@@ -2,7 +2,8 @@
 /**
  * HERO_IDS order is the sim index; the four shelter champions (sim v9) are appended so 0..3 keep their values, and the
  * four original cats (sim v11: Meatball, Pixel, Duchess, Stilts) after them, 8..11, and the five original dogs (sim v14:
- * Nugget, Marshmallow, Bravo, Chili, Howler) after those, 12..16.
+ * Nugget, Marshmallow, Bravo, Chili, Howler) after those, 12..16, and the three sim v15 dogs (Rocket,
+ * Frankie, Domino) last, 17..19.
  */
 export type HeroId =
   | 'clem'
@@ -21,7 +22,10 @@ export type HeroId =
   | 'marshmallow'
   | 'bravo'
   | 'chili'
-  | 'howler';
+  | 'howler'
+  | 'rocket'
+  | 'frankie'
+  | 'domino';
 export type HeroSide = 'cat' | 'dog';
 export type HeroRole = 'fighter' | 'marksman' | 'tank' | 'assassin' | 'mage' | 'support';
 /** Sim v11: ICE and GRASS for the original cats (Pixel, Meatball); SAND and DARK were dog-only before. */

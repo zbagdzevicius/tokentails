@@ -178,6 +178,16 @@ export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; c
   'coat.howler.red': { hero: 'howler', name: 'Copper coat', coat: { base: 0xb8683a, light: 0xf8ece0, dark: 0x6a3418, accent: 0x9fe8ff } },
   'coat.howler.agouti': { hero: 'howler', name: 'Agouti coat', coat: { base: 0x6a6a5a, light: 0xd8d4c8, dark: 0x2e2c24, accent: 0x9fe8ff } },
   'coat.howler.pied': { hero: 'howler', name: 'Pied coat', coat: { base: 0xf4f4f6, light: 0xffffff, dark: 0x5a5e68, accent: 0x9fe8ff } },
+  // sim v15 dogs (first-pass palettes; RENDER may retune them)
+  'coat.rocket.fawn': { hero: 'rocket', name: 'Fawn coat', coat: { base: 0xd2a874, light: 0xf4e2c8, dark: 0x2a2220, accent: 0x9be07a } },
+  'coat.rocket.blue': { hero: 'rocket', name: 'Slate Blue coat', coat: { base: 0x6a7a8c, light: 0xd8e0ea, dark: 0x3a4250, accent: 0x9be07a } },
+  'coat.rocket.retired': { hero: 'rocket', name: 'Retired Racer coat', coat: { base: 0x9a948e, light: 0xe8e4e0, dark: 0x5e5955, accent: 0xff8fb1 } },
+  'coat.frankie.chili': { hero: 'frankie', name: 'Chili Dog coat', coat: { base: 0x9c4a1f, light: 0xd88a56, dark: 0x5a2410, accent: 0xff5a3a } },
+  'coat.frankie.dapple': { hero: 'frankie', name: 'Silver Dapple coat', coat: { base: 0x8a8a90, light: 0xd8d8de, dark: 0x3a3a40, accent: 0xff7a5c } },
+  'coat.frankie.corndog': { hero: 'frankie', name: 'Corn Dog coat', coat: { base: 0xc8843a, light: 0xf0c078, dark: 0x7a4818, accent: 0xff7a5c } },
+  'coat.domino.liver': { hero: 'domino', name: 'Liver Spot coat', coat: { base: 0xf7f5f2, light: 0xffffff, dark: 0x6a3a24, accent: 0xd8c8ff } },
+  'coat.domino.lemon': { hero: 'domino', name: 'Lemon Spot coat', coat: { base: 0xfaf6ec, light: 0xffffff, dark: 0xd8b860, accent: 0xd8c8ff } },
+  'coat.domino.firehouse': { hero: 'domino', name: 'Firehouse coat', coat: { base: 0xf7f5f2, light: 0xffffff, dark: 0x1a1a1e, accent: 0xff4a3a } },
   ...loopCoats(),
 });
 

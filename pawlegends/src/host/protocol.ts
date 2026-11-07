@@ -136,7 +136,7 @@ export type HostMsgType = HostMsg['t'];
 //                2 charmed; sim v11: 4 form, 8 channel), u8 lockout (sim v9: Avietė's charge lockout ticks, own team,
 //                0 = none), u8 stacks (sim v11: stacks on the hero, Duchess's Disdain; was reserved),
 //                u16 fish (sim v12: unspent Fish, own team; 0 for enemies), u8 toy (sim v12: Toy tiers owned, heroes,
-//                both teams), u8 reserved
+//                both teams), u8 dots (sim v15: Domino's Spots on the hero, both teams; was reserved)
 // projectile (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 vx, i32 vy, u32 reserved
 // zone (24 B): u8 index, u8 team, u8 kind, u8 owner, i32 x, i32 y, i32 radius, i32 ttl, u16 arm (sim v9), u16 reserved
 
@@ -210,6 +210,7 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     v.setUint8(o + 55, Math.min(255, Math.max(0, e.stacks ?? 0)));
     v.setUint16(o + 56, Math.min(0xffff, Math.max(0, e.fish ?? 0)), true);
     v.setUint8(o + 58, Math.min(255, Math.max(0, e.toy ?? 0)));
+    v.setUint8(o + 59, Math.min(255, Math.max(0, e.dots ?? 0)));
     if (extra) {
       v.setUint16(o + 48, e.xp ?? 0, true);
       v.setUint8(o + 50, e.resource ?? 0);
@@ -293,6 +294,8 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
     if (fx & FX_CHANNEL) e.channel = true;
     const stacks = v.getUint8(o + 55);
     if (stacks > 0) e.stacks = stacks;
+    const dots = v.getUint8(o + 59);
+    if (dots > 0) e.dots = dots;
     if (lane !== NONE) e.lane = LANES[lane];
     if (flags & HAS_RESPAWN) e.respawnIn = v.getUint16(o + 34, true);
     if (flags & HAS_COOLDOWNS) {

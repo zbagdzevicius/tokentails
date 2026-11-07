@@ -17,6 +17,9 @@ import { RING as MARSHMALLOW_RING } from '../chars/heroes/marshmallow';
 import { RING as BRAVO_RING } from '../chars/heroes/bravo';
 import { RING as CHILI_RING } from '../chars/heroes/chili';
 import { RING as HOWLER_RING } from '../chars/heroes/howler';
+import { RING as ROCKET_RING } from '../chars/heroes/rocket';
+import { RING as FRANKIE_RING } from '../chars/heroes/frankie';
+import { RING as DOMINO_RING } from '../chars/heroes/domino';
 import { RING as DUCHESS_RING } from '../chars/heroes/duchess';
 import { PLATE_HEADROOM as STILTS_PLATE_HEADROOM, RING as STILTS_RING } from '../chars/heroes/stilts';
 
@@ -48,6 +51,9 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   bravo: (HERO_TOP.bravo + 0.15) / 1.62,
   chili: (HERO_TOP.chili + 0.15) / 1.62,
   howler: (HERO_TOP.howler + 0.15) / 1.62,
+  rocket: (HERO_TOP.rocket + 0.15) / 1.62,
+  frankie: (HERO_TOP.frankie + 0.15) / 1.62,
+  domino: (HERO_TOP.domino + 0.15) / 1.62,
 });
 
 /**
@@ -59,6 +65,7 @@ export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({
   lambo: HERO_BUILD.lambo.ring, aviete: HERO_BUILD.aviete.ring, bengas: HERO_BUILD.bengas.ring, gabe: HERO_BUILD.gabe.ring,
   meatball: MEATBALL_RING, pixel: PIXEL_RING, duchess: DUCHESS_RING, stilts: STILTS_RING,
   nugget: NUGGET_RING, marshmallow: MARSHMALLOW_RING, bravo: BRAVO_RING, chili: CHILI_RING, howler: HOWLER_RING,
+  rocket: ROCKET_RING, frankie: FRANKIE_RING, domino: DOMINO_RING,
 });
 
 // ------------------------------------------------------------------------------------------------ minions

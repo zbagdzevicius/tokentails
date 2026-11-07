@@ -195,7 +195,7 @@ export interface MoveSet {
 }
 
 /** Sim v14 (sim/api ClipKind): the viral moments a `clip` event names. */
-export type ClipMoment = 'flop' | 'bigdog' | 'scream' | 'frozen';
+export type ClipMoment = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots';
 
 export interface V3Out {
   x: number;

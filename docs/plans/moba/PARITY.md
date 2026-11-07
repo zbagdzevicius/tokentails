@@ -561,8 +561,9 @@ Lockstep makes both cheap. A match is `config + TURN log`. Any client with the r
 | When | Heroes | Cats / Dogs | Notes |
 |---|---|---|---|
 | After the dogs merge | 17 | 10 / 7 | every dog role covered (`DOGS-V13.md`) |
-| M4 + 8 weeks | 21 | 12 / 9 | Lord Barkus, Pilfer, Longfellow first (`DOGS-V13.md` decision 1) |
-| M4 + 16 weeks | 24 | 13 / 11 | **bans on** in ranked (1 per team) |
+| v15 | 20 | 10 / 10 | Rocket, Frankie, Domino: the same roles a side (`DOGS-V15.md`) |
+| M4 + 8 weeks | 24 | 12 / 12 | v16: Lord Barkus, Pilfer, the Golden Retriever and two cats (Longfellow dropped, `DOGS-V15.md` decision 3) |
+| M4 + 16 weeks | 26 | 13 / 13 | **bans on** in ranked (1 per team) |
 | End of 2027 | 30 | 15 / 15 | parity of sides |
 
 Cadence:

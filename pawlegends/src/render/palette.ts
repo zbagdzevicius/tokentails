@@ -8,6 +8,9 @@ import { COLOR_CSS as MARSHMALLOW_CSS } from './chars/heroes/marshmallow';
 import { COLOR_CSS as BRAVO_CSS } from './chars/heroes/bravo';
 import { COLOR_CSS as CHILI_CSS } from './chars/heroes/chili';
 import { COLOR_CSS as HOWLER_CSS } from './chars/heroes/howler';
+import { COLOR_CSS as ROCKET_CSS } from './chars/heroes/rocket';
+import { COLOR_CSS as FRANKIE_CSS } from './chars/heroes/frankie';
+import { COLOR_CSS as DOMINO_CSS } from './chars/heroes/domino';
 
 export const TEAM = Object.freeze({
   /** Purrhaven: cream and rose. */
@@ -83,6 +86,10 @@ export const HERO_COLOR_CSS = Object.freeze({
   bravo: BRAVO_CSS,
   chili: CHILI_CSS,
   howler: HOWLER_CSS,
+  // sim v15 dogs
+  rocket: ROCKET_CSS,
+  frankie: FRANKIE_CSS,
+  domino: DOMINO_CSS,
 });
 
 let team0Dogs = false;

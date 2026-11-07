@@ -2,8 +2,8 @@
  * Hero kits: the cast pipeline every ability and Paw Trick goes through (POC.md §4.3 steps 1 and 5), and the
  * dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, the sim v9 shelter champions
  * lambo.ts, aviete.ts, bengas.ts, gabe.ts, the sim v11 original cats meatball.ts, pixel.ts, duchess.ts, stilts.ts, and
- * the sim v14 original dogs nugget.ts, marshmallow.ts, bravo.ts, chili.ts, howler.ts) for their abilities, passives and
- * damage hooks.
+ * the sim v14 original dogs nugget.ts, marshmallow.ts, bravo.ts, chili.ts, howler.ts, and the sim v15 dogs rocket.ts,
+ * frankie.ts, domino.ts) for their abilities, passives and damage hooks.
  *
  * Cast flow: a `cast`/`trick` command checks readiness (cooldown or an open recast window, level 4 for R, not
  * disabled, no mobility cast while rooted) and either walks in (a unit or ground target out of reach) or starts the
@@ -35,6 +35,9 @@ import { MARSHMALLOW_KIT } from './marshmallow';
 import { BRAVO_KIT } from './bravo';
 import { CHILI_KIT } from './chili';
 import { HOWLER_KIT } from './howler';
+import { ROCKET_KIT } from './rocket';
+import { FRANKIE_KIT } from './frankie';
+import { DOMINO_KIT } from './domino';
 import { castsThroughCc, castTrick, trickAim } from './tricks';
 
 /** How a slot is aimed. */
@@ -114,7 +117,7 @@ export interface HeroKit {
 
 /**
  * HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe, meatball, pixel, duchess, stilts, nugget,
- * marshmallow, bravo, chili, howler.
+ * marshmallow, bravo, chili, howler, rocket, frankie, domino.
  */
 const KITS: readonly HeroKit[] = [
   CLEM_KIT,
@@ -134,6 +137,9 @@ const KITS: readonly HeroKit[] = [
   BRAVO_KIT,
   CHILI_KIT,
   HOWLER_KIT,
+  ROCKET_KIT,
+  FRANKIE_KIT,
+  DOMINO_KIT,
 ];
 
 export const kitOf = (w: World, id: number): HeroKit => KITS[w.sub[id]];

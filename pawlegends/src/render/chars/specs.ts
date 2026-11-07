@@ -37,6 +37,9 @@ import * as MARSHMALLOW from './heroes/marshmallow';
 import * as BRAVO from './heroes/bravo';
 import * as CHILI from './heroes/chili';
 import * as HOWLER from './heroes/howler';
+import * as ROCKET from './heroes/rocket';
+import * as FRANKIE from './heroes/frankie';
+import * as DOMINO from './heroes/domino';
 import { HERO_BUILD } from './heroSize';
 
 const GOLD = 0xffd34d;
@@ -111,6 +114,9 @@ export const POSES_PL: Record<string, PoseDef> = {
   ...BRAVO.POSES,
   ...CHILI.POSES,
   ...HOWLER.POSES,
+  ...ROCKET.POSES,
+  ...FRANKIE.POSES,
+  ...DOMINO.POSES,
 };
 
 const ALL_POSES: Record<string, PoseDef | null> = { ...PPK_POSES, ...POSES_PL };
@@ -151,6 +157,9 @@ export const HERO_MOTION: Readonly<Record<HeroId, MotionProfile>> = Object.freez
   bravo: BRAVO.MOTION,
   chili: CHILI.MOTION,
   howler: HOWLER.MOTION,
+  rocket: ROCKET.MOTION,
+  frankie: FRANKIE.MOTION,
+  domino: DOMINO.MOTION,
 });
 
 /** Standing height (m, ear tips / helmet) of each hero in the match (authored × heroSize.ts HERO_BUILD.h, render only): big enough that the upright chibi reads at ~45+ px on 844×390 Low (the iso lens sees mostly the head and shoulders). */
@@ -158,6 +167,7 @@ const HEIGHT_AUTHORED: Readonly<Record<HeroId, number>> = {
   clem: 2.6, sage: 2.5, brutus: 2.8, cacklejaw: 2.65, lambo: 2.75, aviete: 2.5, bengas: 2.55, gabe: 2.5,
   meatball: MEATBALL.HEIGHT, pixel: PIXEL.HEIGHT, duchess: DUCHESS.HEIGHT, stilts: STILTS.HEIGHT,
   nugget: NUGGET.HEIGHT, marshmallow: MARSHMALLOW.HEIGHT, bravo: BRAVO.HEIGHT, chili: CHILI.HEIGHT, howler: HOWLER.HEIGHT,
+  rocket: ROCKET.HEIGHT, frankie: FRANKIE.HEIGHT, domino: DOMINO.HEIGHT,
 };
 /** Per-hero visual build (heroSize.ts, render only): the authored height and top × `h`, rounded to the centimetre. */
 const byBuild = (t: Readonly<Record<HeroId, number>>): Readonly<Record<HeroId, number>> =>
@@ -169,6 +179,7 @@ export const HERO_TOP: Readonly<Record<HeroId, number>> = byBuild({
   clem: 3.06, sage: 2.71, brutus: 3.43, cacklejaw: 2.95, lambo: 3.37, aviete: 2.71, bengas: 2.78, gabe: 2.72,
   meatball: MEATBALL.TOP, pixel: PIXEL.TOP, duchess: DUCHESS.TOP, stilts: STILTS.TOP,
   nugget: NUGGET.TOP, marshmallow: MARSHMALLOW.TOP, bravo: BRAVO.TOP, chili: CHILI.TOP, howler: HOWLER.TOP,
+  rocket: ROCKET.TOP, frankie: FRANKIE.TOP, domino: DOMINO.TOP,
 });
 
 const IVORY: CoatSpec = { pattern: 'solid', base: PAL.furIvory, deep: PAL.furIvoryShade, light: PAL.furIvoryLight, cream: PAL.furIvoryLight };
@@ -523,6 +534,13 @@ function heroBase(hero: HeroId, team: 0 | 1, look: Look, detail: number, dr: Omi
       return CHILI.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('chili', look) });
     case 'howler':
       return HOWLER.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('howler', look) });
+    // sim v15 dogs (placeholder bodies until the RENDER lane)
+    case 'rocket':
+      return ROCKET.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('rocket', look) });
+    case 'frankie':
+      return FRANKIE.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('frankie', look) });
+    case 'domino':
+      return DOMINO.spec(look, detail, { ...dr, poses: ALL_POSES, lc: lookCoat('domino', look) });
     case 'gabe': {
       return {
         rig: { width: 0.92, tier: 'hero', headScale: CAT_HEAD * 0.98, earSplay: 0.14 },

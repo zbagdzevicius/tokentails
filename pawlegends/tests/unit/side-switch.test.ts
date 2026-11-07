@@ -27,9 +27,9 @@ afterEach(() => {
 });
 
 describe('CATS / DOGS switch', () => {
-  it('the roster has 10 cats and 7 dogs; the grid shows only the chosen side', () => {
+  it('the roster has 10 cats and 10 dogs (sim v15); the grid shows only the chosen side', () => {
     expect(HERO_IDS.filter((h) => HEROES[h].side === 'cat')).toHaveLength(10);
-    expect(HERO_IDS.filter((h) => HEROES[h].side === 'dog')).toHaveLength(7);
+    expect(HERO_IDS.filter((h) => HEROES[h].side === 'dog')).toHaveLength(10);
     const root = mount();
     expect(visible(root)).toHaveLength(10);
     expect(visible(root).every((h) => HEROES[h as keyof typeof HEROES].side === 'cat')).toBe(true);
@@ -41,7 +41,7 @@ describe('CATS / DOGS switch', () => {
     expect(root.querySelectorAll('.heroes[data-side]')).toHaveLength(2);
   });
 
-  it('DOGS selects the side default, calls onHero and onSide, and shows 7 dog tiles', () => {
+  it('DOGS selects the side default, calls onHero and onSide, and shows 10 dog tiles', () => {
     const onHero = vi.fn();
     const onSide = vi.fn();
     const root = mount({ onHero, onSide });
@@ -79,7 +79,7 @@ describe('CATS / DOGS switch', () => {
     const root = mount({ dogsLocked: true, onHero });
     const dog = tab(root, 'dog');
     expect(dog.getAttribute('aria-disabled')).toBe('true');
-    expect(dog.textContent).toContain('7');
+    expect(dog.textContent).toContain('10');
     expect(dog.textContent).toContain('after your first match');
     dog.click();
     expect(onHero).not.toHaveBeenCalled();

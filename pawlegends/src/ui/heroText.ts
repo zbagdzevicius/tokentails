@@ -13,6 +13,9 @@ import { TEXT as MARSHMALLOW_TEXT } from './heroText/marshmallow';
 import { TEXT as BRAVO_TEXT } from './heroText/bravo';
 import { TEXT as CHILI_TEXT } from './heroText/chili';
 import { TEXT as HOWLER_TEXT } from './heroText/howler';
+import { TEXT as ROCKET_TEXT } from './heroText/rocket';
+import { TEXT as FRANKIE_TEXT } from './heroText/frankie';
+import { TEXT as DOMINO_TEXT } from './heroText/domino';
 
 export interface AbilityText {
   name: string;
@@ -30,7 +33,9 @@ export type IconId =
   | 'roll' | 'loaf' | 'bodyguard' | 'chonk' | 'capCannon' | 'laser' | 'duck' | 'boxbot' | 'fluffPuff' | 'glare' | 'cushion' | 'decree' | 'leap' | 'ears' | 'swat' | 'zoomies'
   // sim v14 original dogs (drawn in ./icons/<hero>.ts), and the bone of the pick screen's DOGS tab
   | 'frisbee' | 'bestfriend' | 'sploot' | 'herd' | 'snowball' | 'snowpatch' | 'slide' | 'blizzard' | 'tear' | 'spotlight' | 'stagedive' | 'encore'
-  | 'yap' | 'purse' | 'bigdog' | 'howl' | 'derpdash' | 'talkback' | 'scream' | 'bone';
+  | 'yap' | 'purse' | 'bigdog' | 'howl' | 'derpdash' | 'talkback' | 'scream' | 'bone'
+  // sim v15 dogs (drawn in ./icons/<hero>.ts)
+  | 'lure' | 'photofinish' | 'squirrel' | 'sprint' | 'weenieroll' | 'dig' | 'bunhop' | 'footlong' | 'spot' | 'splatter' | 'shake' | 'dots';
 
 export interface HeroText {
   title: string;
@@ -236,6 +241,9 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
   bravo: BRAVO_TEXT,
   chili: CHILI_TEXT,
   howler: HOWLER_TEXT,
+  rocket: ROCKET_TEXT,
+  frankie: FRANKIE_TEXT,
+  domino: DOMINO_TEXT,
 });
 
 export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze({
@@ -415,7 +423,7 @@ export function rankPips(rank: number, max: number): string {
 /** A number of `key` in words for the talent card ("3.5 s", "4 m", "20%"). */
 function numberText(key: string, v: number): string {
   if (/Bp$/.test(key)) return `${v / 100}%`;
-  if (/^(cooldown|duration|stun|root|fear|charm|slow|haste|arm|windup|recastWindow|hold|lockout|postDuration|immune|reveal|untargetable|brushLinger|ttl)$/.test(key)) return sec(v);
+  if (/^(cooldown|duration|stun|root|fear|charm|slow|haste|arm|windup|recastWindow|hold|lockout|postDuration|immune|reveal|untargetable|brushLinger|ttl|clocked|nap|lure|rootPerDot)$/.test(key)) return sec(v);
   if (/^(range|dash|blink|radius|width|leap|postRadius|pierceRange|knockback|pull|push|splash|touch)$/.test(key)) return metres(v);
   if (key === 'speed') return `${Math.round(v / 100) / 10} m/s`;
   // an arc in 1/4096 turns as degrees (Grand Glare 910 → 1200 reads 80° → 105°)

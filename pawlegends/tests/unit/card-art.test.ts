@@ -30,7 +30,7 @@ describe('card frame and pick tiles', () => {
     expect(html.match(/tt-sp /g)).toHaveLength(4);
     expect(html).not.toMatch(/url\(/);
   });
-  it('pick: a card tile per hero (17 in sim v14), one <b> each, the picked one wears its card skin rung and the sweep foil', () => {
+  it('pick: a card tile per hero (20 in sim v15), one <b> each, the picked one wears its card skin rung and the sweep foil', () => {
     document.body.innerHTML = '';
     const root = pickScreen(document.body, {
       initial: { hero: 'meatball', trick: 'pounce', difficulty: 'easy' },
@@ -42,7 +42,7 @@ describe('card frame and pick tiles', () => {
       onBack: () => undefined,
     });
     const tiles = root.querySelectorAll<HTMLElement>('.hero-card.tt-card');
-    expect(tiles).toHaveLength(17);
+    expect(tiles).toHaveLength(20);
     for (const t of tiles) expect(t.querySelectorAll('b')).toHaveLength(1);
     const on = root.querySelector<HTMLElement>('.hero-card.on') as HTMLElement;
     expect(on.dataset.h).toBe('meatball');

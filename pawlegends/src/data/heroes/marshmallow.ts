@@ -6,8 +6,8 @@ export const MARSHMALLOW: HeroData = Object.freeze<HeroData>({
   name: 'Marshmallow',
   side: 'dog',
   role: 'mage',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9000 / takes 9800 (50.3% of the 2,000-seed gate). */
-  pvp: { dmgBp: 9000, takenBp: 9800 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9000 / takes 9800 (50.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8475 / takes 9750 (48.9% of the 2,000-seed gate). */
+  pvp: { dmgBp: 8475, takenBp: 9750 },
   element: 'ICE',
   base: { hp: 470, hpPerLevel: 50, attack: 48, attackPerLevel: 5, attackEvery: 29, range: 5200, speed: 4800, armour: 16, armourPerLevel: 2 },
   /** Fresh Snow: while she stands in her own snow (W patch or R blizzard) she has +15% speed and her basics slow 15% for 1 s. */

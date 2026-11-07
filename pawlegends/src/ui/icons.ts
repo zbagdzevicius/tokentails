@@ -9,6 +9,9 @@ import { ICONS as MARSHMALLOW_ICONS } from './icons/marshmallow';
 import { ICONS as BRAVO_ICONS } from './icons/bravo';
 import { ICONS as CHILI_ICONS } from './icons/chili';
 import { ICONS as HOWLER_ICONS } from './icons/howler';
+import { ICONS as ROCKET_ICONS } from './icons/rocket';
+import { ICONS as FRANKIE_ICONS } from './icons/frankie';
+import { ICONS as DOMINO_ICONS } from './icons/domino';
 
 const P: Record<IconId, string> = {
   sword: '<path d="M38 6 L42 10 L20 32 L16 28 Z" fill="currentColor"/><path d="M12 30 L22 40 M14 36 L8 42" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>',
@@ -62,6 +65,10 @@ const P: Record<IconId, string> = {
   ...BRAVO_ICONS,
   ...CHILI_ICONS,
   ...HOWLER_ICONS,
+  // sim v15 dogs (first pass; RENDER owns the final glyphs)
+  ...ROCKET_ICONS,
+  ...FRANKIE_ICONS,
+  ...DOMINO_ICONS,
   // sim v14: the DOGS tab of the pick screen (the CATS tab uses `paw`), a dog bone
   bone: '<path d="M14 18 L34 30" stroke="currentColor" stroke-width="7" stroke-linecap="round"/><g fill="currentColor"><circle cx="9" cy="17" r="5"/><circle cx="14" cy="11" r="5"/><circle cx="34" cy="37" r="5"/><circle cx="39" cy="31" r="5"/></g>',
 };

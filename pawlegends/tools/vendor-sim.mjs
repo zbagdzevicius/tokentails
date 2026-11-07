@@ -28,7 +28,9 @@
  * 7. forfeit-replay.fixture.json (sim v10, GAPS B2): a Normal match forfeited at 4:00.
  * 8. dog-replay.fixture.json (sim v14): one genuine Easy match played as a new dog (Chili), so the spec shows a v14
  *    dog-human replay verifies (a frozen version that has it lists it in `extra`).
- * backend/src/vendor/pawlegends-sim/v10/, v11/, v12/ and v13/: those files, frozen (FROZEN below; sim v14 is live).
+ * 9. new-dog-replay.fixture.json (sim v15): one genuine Easy match played as a sim v15 dog (Frankie), so the spec shows
+ *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
+ * backend/src/vendor/pawlegends-sim/v10/ to v14/: those files, frozen (FROZEN below; sim v15 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -68,6 +70,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * Sim v14 (the five original dogs, docs/plans/moba/DOGS-V13.md) froze the released v13 (party play, no dogs; its
  * party API stays served for v13 clients through PARTY_SIMS) at eaba6ae7 and keeps v10 to v12 (v10's 30-day replay
  * window runs to about Dec 1; retire it in the first sim change after that), so the backend verifies 10 to 14.
+ * Sim v15 (three more dogs, 10 v 10, docs/plans/moba/DOGS-V15.md) froze the released v14 (seven dogs, party play) at
+ * bb18ae2a and keeps v10 to v13 (it landed before Dec 1, so v10 stays), so the backend verifies 10 to 15.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -97,6 +101,13 @@ export const FROZEN = Object.freeze([
     from: 'backend/src/vendor/pawlegends-sim/v13',
     bundle: '7daed0d274a9a9f414bab5d12f8e3711c5e5d5a4c13776cf95c64cc22e0e9ea1',
     extra: Object.freeze(['forfeit-replay.fixture.json']),
+  }),
+  Object.freeze({
+    simVersion: 14,
+    commit: 'bb18ae2aa3eb822d2ac26104717f68eb457f5416',
+    from: 'backend/src/vendor/pawlegends-sim/v14',
+    bundle: 'dba1ec165fdb7734339016dfccd55b08d370ee65e98fd900cb36c42f98997c59',
+    extra: Object.freeze(['forfeit-replay.fixture.json', 'dog-replay.fixture.json']),
   }),
 ]);
 
@@ -242,7 +253,10 @@ export type PawlegendsHeroId =
     | 'marshmallow'
     | 'bravo'
     | 'chili'
-    | 'howler';
+    | 'howler'
+    | 'rocket'
+    | 'frankie'
+    | 'domino';
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
@@ -457,6 +471,20 @@ export async function dogFixture(seed = DOG_FIXTURE_SEED) {
   return sim.replayRecord(m);
 }
 
+/** Seed and hero of the recorded new-dog fixture (sim v15, docs/plans/moba/DOGS-V15.md §5). */
+export const NEW_DOG_FIXTURE_SEED = 1515;
+export const NEW_DOG_FIXTURE_HERO = 'frankie';
+
+/** Play one Easy match as a sim v15 dog with the naive player-bot and return its replay record. */
+export async function newDogFixture(seed = NEW_DOG_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const { picks, tricks } = sim.fillPicks(seed, NEW_DOG_FIXTURE_HERO, 'pounce');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'easy' });
+  const bot = sim.createPlayerBot(m, 'naive');
+  while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+  return sim.replayRecord(m);
+}
+
 /** Seed and forfeit tick of the recorded forfeit fixture (sim v10, GAPS B2): a Normal match forfeited at 4:00. */
 export const FORFEIT_FIXTURE_SEED = 1010;
 export const FORFEIT_FIXTURE_TICK = 7200;
@@ -561,6 +589,7 @@ export async function buildFiles() {
   const champion = JSON.stringify(await championFixture(), null, 2) + '\n';
   const forfeit = JSON.stringify(await forfeitFixture(), null, 2) + '\n';
   const dog = JSON.stringify(await dogFixture(), null, 2) + '\n';
+  const newDog = JSON.stringify(await newDogFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -571,6 +600,8 @@ export async function buildFiles() {
     'forfeit-replay.fixture.json': forfeit,
     // Sim v14: a dog human (Chili); a later freeze lists it in `extra`
     'dog-replay.fixture.json': dog,
+    // Sim v15: a new-dog human (Frankie); a later freeze lists it in `extra`
+    'new-dog-replay.fixture.json': newDog,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

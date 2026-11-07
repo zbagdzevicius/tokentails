@@ -4,7 +4,7 @@ import { createMatch, fillPicks, snapshot } from '../../src/sim/index';
 describe('fillPicks and createMatch (§6.8)', () => {
   it('keeps the human pick, species teams (sim v5: cats vs dogs), stable per seed', () => {
     const cats = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
-    const dogs = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler'];
+    const dogs = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
     for (const human of ['cacklejaw', 'clem', 'gabe', 'chili'] as const) {
       const humanCat = human !== 'cacklejaw' && human !== 'chili';
       for (let seed = 0; seed < 300; seed++) {
@@ -14,7 +14,7 @@ describe('fillPicks and createMatch (§6.8)', () => {
         const catTeam = humanCat ? picks.slice(0, 3) : picks.slice(3);
         const dogTeam = humanCat ? picks.slice(3) : picks.slice(0, 3);
         // Sim v11: 10 cats, so a cat team never repeats a hero. Sim v14: 7 dogs, so a dog team never repeats one either
-        // (GAPS N4; before v14 the 2 dogs meant one always played twice).
+        // (GAPS N4; before v14 the 2 dogs meant one always played twice). Sim v15: 10 dogs.
         for (const h of catTeam) expect(cats).toContain(h);
         for (const h of dogTeam) expect(dogs).toContain(h);
         expect(new Set(catTeam).size).toBe(3);
@@ -30,14 +30,14 @@ describe('fillPicks and createMatch (§6.8)', () => {
     expect([...seen].sort()).toEqual(['aviete', 'bengas', 'clem', 'duchess', 'gabe', 'lambo', 'meatball', 'pixel', 'sage', 'stilts']);
   });
 
-  it('sim v14: every dog shows up as a bot pick, as an ally of a dog human and as an enemy of a cat human', () => {
+  it('sim v14 (v15: ten dogs): every dog shows up as a bot pick, as an ally of a dog human and as an enemy of a cat human', () => {
     const allies = new Set<string>();
     const enemies = new Set<string>();
     for (let seed = 0; seed < 200; seed++) {
       for (const h of fillPicks(seed, 'chili', 'pounce').picks.slice(1, 3)) allies.add(h);
       for (const h of fillPicks(seed, 'clem', 'pounce').picks.slice(3)) enemies.add(h);
     }
-    const dogs = ['bravo', 'brutus', 'cacklejaw', 'chili', 'howler', 'marshmallow', 'nugget'];
+    const dogs = ['bravo', 'brutus', 'cacklejaw', 'chili', 'domino', 'frankie', 'howler', 'marshmallow', 'nugget', 'rocket'];
     expect([...enemies].sort()).toEqual(dogs);
     expect([...allies].sort()).toEqual(dogs.filter((h) => h !== 'chili'));
   });

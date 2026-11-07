@@ -7,7 +7,7 @@
  * Each function returns one cast command, or null.
  *
  * Sim v11: every hero has an explicit case (the `default` is a no-op, so a new hero never silently plays as Gabė);
- * the original cats (sim v11) and dogs (sim v14) delegate to their own module in ./heroes/, which builds on the
+ * the original cats (sim v11) and dogs (sim v14, v15) delegate to their own module in ./heroes/, which builds on the
  * helpers exported here.
  */
 import { BOT_AI, type BotParams } from '../../data/bots';
@@ -33,6 +33,9 @@ import * as marshmallowBot from './heroes/marshmallow';
 import * as bravoBot from './heroes/bravo';
 import * as chiliBot from './heroes/chili';
 import * as howlerBot from './heroes/howler';
+import * as rocketBot from './heroes/rocket';
+import * as frankieBot from './heroes/frankie';
+import * as dominoBot from './heroes/domino';
 
 /** Scratch hit list for `collect` (shared with ./heroes/*: read it right after the call that filled it). */
 export const hits = new Int32Array(ENTITY_CAP);
@@ -229,6 +232,13 @@ export function fightCast(w: World, id: number, foe: number, p: BotParams, rng: 
       return chiliBot.fight(w, id, foe, p, rng);
     case 'howler':
       return howlerBot.fight(w, id, foe, p, rng);
+    // Sim v15: three more dogs.
+    case 'rocket':
+      return rocketBot.fight(w, id, foe, p, rng);
+    case 'frankie':
+      return frankieBot.fight(w, id, foe, p, rng);
+    case 'domino':
+      return dominoBot.fight(w, id, foe, p, rng);
     default:
       return null;
   }
@@ -314,6 +324,12 @@ export function clearCast(w: World, id: number, t: number): Command | null {
       return chiliBot.clear(w, id, t, need);
     case 'howler':
       return howlerBot.clear(w, id, t, need);
+    case 'rocket':
+      return rocketBot.clear(w, id, t, need);
+    case 'frankie':
+      return frankieBot.clear(w, id, t, need);
+    case 'domino':
+      return dominoBot.clear(w, id, t, need);
     default:
       return null;
   }
@@ -431,6 +447,22 @@ export function escapeCast(w: World, id: number, foe: number, p: BotParams): Com
     }
     case 'howler': {
       const c = howlerBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    // Sim v15: three more dogs.
+    case 'rocket': {
+      const c = rocketBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'frankie': {
+      const c = frankieBot.escape(w, id, foe, hx, hy);
+      if (c) return c;
+      break;
+    }
+    case 'domino': {
+      const c = dominoBot.escape(w, id, foe, hx, hy);
       if (c) return c;
       break;
     }
