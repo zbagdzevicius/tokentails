@@ -1211,8 +1211,12 @@ balance`, 2,000 seeds):
     §7.
 
 **Release:**
-15. `npm run build:client`; commit `client/public/pawlegends-game` and the backend vendor folder; deploy the backend
-    first.
+15. Deploy the backend first and confirm it serves v14 (`npm run vendor-sim:check-remote -- <backend url>`). Then
+    `npm run build:client` (after a fresh merge of origin/main, so the build carries main's fixes) and commit
+    `client/public/pawlegends-game`. The build stamps `build-releases.json` with `sim: {simVersion: 14, simHash}`;
+    the landing (`client/components/pawlegends/landing/roster.ts`, GAME_SIM_VERSION) reads that stamp, so `/pawlegends`
+    switches from "Coming next: five new dogs" to 17 heroes, New tags and "New: five dogs join the pack" in that same
+    commit, never before the game has them.
 
 ---
 

@@ -7,11 +7,14 @@
  *
  * `portrait` is null until real in-game art exists: the landing then shows a paw card, never a stand-in image.
  *
- * Only released heroes (`since <= GAME_SIM_VERSION`) with real art go in the pick grid and the counts. The rest are
- * the "new dogs" strip, headed "Coming next" until their sim version is out, so the page is right in any merge order.
+ * Only released heroes (`since <= GAME_SIM_VERSION`, the sim of the shipped game build) with real art go in the pick
+ * grid and the counts. The rest are the "new dogs" strip, headed "Coming next" until a game build with their sim
+ * version is committed, so the page is right in any merge or release order.
  * Heroes released in the current sim version (`justReleased`) get a "New" line above the grid and a New tag on
  * their tiles. The five dogs' portraits are rendered by `pawlegends/tools/landing-portraits.mjs`.
  */
+import shippedGame from "@/public/pawlegends-game/build-releases.json";
+
 export type LandingSide = "cat" | "dog";
 
 export interface LandingHero {
@@ -28,10 +31,13 @@ export interface LandingHero {
 }
 
 /**
- * The sim version of the game build this page links to (`pawlegends/src/sim/version.ts`). landing-roster.test.ts
- * fails until it matches the game, so a sim release that adds heroes also moves them onto the landing.
+ * The sim version of the game build this page links to: `build-releases.json` in `public/pawlegends-game`, which
+ * `npm run build:client` stamps with the sim it bundled (`pawlegends/tools/lib/keep-releases.mjs`). Heroes from a newer
+ * sim (`since > GAME_SIM_VERSION`) stay in the "Coming next" strip until that release commit lands, so the landing and
+ * the game always deploy together. landing-roster.test.ts checks the stamp against the shipped bundle and against
+ * `pawlegends/src/sim/version.ts` (never newer than the source).
  */
-export const GAME_SIM_VERSION = 14;
+export const GAME_SIM_VERSION: number = shippedGame.sim.simVersion;
 
 const P = (id: string, hash: string) => `/pawlegends/landing/portrait-${id}.${hash}.webp`;
 

@@ -177,6 +177,8 @@
   .pl-party .pp-hint, .pl-party .pp-note { font-size: 12px; }
   .pl-party .pp-heroes .hero-card small { display: none; }
   .pl-party .pp-heroes .hero-card b { font-size: 11px; }
+  /* sim v14: "Marshmallow" fits a 667x375 tile at 9.5px instead of ending in an ellipsis */
+  .pl-party .pp-heroes .hero-card[data-long] b { font-size: 9.5px; letter-spacing: -0.03em; }
   /* the strip keeps each friend's hero visible (that is how friends coordinate), under a shorter name */
   .pl-party .pp-ts small { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; opacity: 0.9; }
   .pl-party .pp-ts b { font-size: 11px; max-width: 9ch; }
