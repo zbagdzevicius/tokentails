@@ -10,7 +10,7 @@
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
 import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
-import { BODY_MM, isEnemy, type Unit } from '../targeting';
+import { attackPreview, BODY_MM, isEnemy, type Unit } from '../targeting';
 import type { TargetFirst } from '../presets';
 
 export const ASSIST = Object.freeze({
@@ -107,7 +107,22 @@ export function edgeGoal(meX: number, meY: number, tx: number, ty: number, myTea
  * the enemy hero in range with the lowest HP share, else the lowest-HP minion; 'lowest' the lowest HP share of
  * either; 'closest' the nearest. C13: edge to edge (the target's body is subtracted), like the Attack button.
  */
-export function autoAttackTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number, first: TargetFirst = 'heroes'): number | null {
+export function autoAttackTarget(
+  units: readonly Unit[],
+  me: Unit,
+  myTeam: number,
+  range: number,
+  first: TargetFirst = 'heroes',
+  /** UX pass 2: the Attack button's last-hit estimate: with it, the idle pick is the Attack button's in-range pick. */
+  killDmg?: (u: Unit) => number,
+): number | null {
+  if (killDmg) {
+    // UX pass 2: ATK and the idle auto-attack agree: the Attack button's own pick (attackPreview, ranged by the same
+    // edge-to-edge reach this caller passes), never a structure or a neutral camp (standing idle must not pull one)
+    const id = attackPreview(units, me, myTeam, range - 300, first, killDmg);
+    const u = id !== null ? units.find((q) => q.id === id) : undefined;
+    if (u && (u.kind === 'hero' || u.kind === 'minion')) return u.id;
+  }
   let minion: Unit | null = null;
   let hero: Unit | null = null;
   let lowest: Unit | null = null;

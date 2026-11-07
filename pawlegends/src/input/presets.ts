@@ -81,7 +81,7 @@ const PAD_KEY = 'pawlegends.trackpad';
 /** Auto mode switched trackpad mode on once (it stays on in later matches; the toast shows only that once). */
 const PAD_SEEN_KEY = 'pawlegends.trackpadSeen';
 const CURSOR_KEY = 'pawlegends.cursorSize';
-/** GAPS A5 (touch): what the Attack button hits first, and the optional last-hit and tower buttons (off by default). */
+/** GAPS A5 (touch): what the Attack button hits first, and the last-hit and tower buttons (on by default, UX pass 2). */
 const TARGET_KEY = 'pawlegends.targetFirst';
 const LASTHIT_KEY = 'pawlegends.lastHitButton';
 const TOWER_KEY = 'pawlegends.towerButton';
@@ -161,9 +161,12 @@ export function setTargetFirst(t: TargetFirst): void {
   write(TARGET_KEY, t);
 }
 
-/** The touch last-hit button (MLBB Advanced Aim): off by default. */
+/**
+ * The touch last-hit button (Wild Rift's minion button, MLBB Advanced Aim). UX pass 2: on by default (Settings turns it
+ * off), so a player can pick minions over the Attack button's hero-first order.
+ */
 export function lastHitButton(): boolean {
-  return mem.lastHit ?? read(LASTHIT_KEY) === '1';
+  return mem.lastHit ?? read(LASTHIT_KEY) !== '0';
 }
 
 export function setLastHitButton(on: boolean): void {
@@ -171,9 +174,9 @@ export function setLastHitButton(on: boolean): void {
   write(LASTHIT_KEY, on ? '1' : '0');
 }
 
-/** The touch tower button: off by default. */
+/** The touch tower button (Wild Rift's turret button). UX pass 2: on by default (Settings turns it off). */
 export function towerButton(): boolean {
-  return mem.tower ?? read(TOWER_KEY) === '1';
+  return mem.tower ?? read(TOWER_KEY) !== '0';
 }
 
 export function setTowerButton(on: boolean): void {

@@ -126,17 +126,46 @@ export function attackPriority(
 export const LAST_HIT_REACH = 1000;
 
 /**
- * GAPS A5 last-hit button (MLBB Advanced Aim): the lowest-HP enemy minion or camp monster in range, never a hero or a
- * structure; null when none is in range (the button never walks the hero anywhere).
+ * GAPS A5 last-hit button (Wild Rift's minion button, MLBB Advanced Aim): in range, a minion or camp monster the next
+ * basic kills (`killDmg`, nearest first; UX pass 2), else the lowest-HP one; never a hero or a structure; null when
+ * none is in range (the button never walks the hero anywhere).
  */
-export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number): number | null {
+export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number, killDmg?: (u: Unit) => number): number | null {
   let best: Unit | null = null;
+  let kill: Unit | null = null;
+  let killD = Infinity;
   for (const u of units) {
     if (u.id === me.id || !isEnemy(u, myTeam) || (u.kind !== 'minion' && u.kind !== 'camp')) continue;
-    if (dist(u, me) - BODY_MM[u.kind] > range + 300) continue;
+    const d = dist(u, me) - BODY_MM[u.kind];
+    if (d > range + 300) continue;
+    if (killDmg && u.hp <= killDmg(u) && d < killD) {
+      kill = u;
+      killD = d;
+    }
     if (!best || u.hp < best.hp) best = u;
   }
-  return best?.id ?? null;
+  return (kill ?? best)?.id ?? null;
+}
+
+/**
+ * UX pass 2 (Wild Rift: the auto-target reticle): what the Attack button would hit right now WITHOUT walking: the
+ * locked hero when it is in range, else `attackPriority`'s pick when that unit is in range (towers included), else
+ * null. The touch HUD rings it, so the player sees the target before the tap, and the idle auto-attack takes the same
+ * unit (towers aside: it never starts on a structure by itself).
+ */
+export function attackPreview(
+  units: readonly Unit[],
+  me: Unit,
+  myTeam: number,
+  range: number,
+  first: TargetFirst = 'heroes',
+  killDmg?: (u: Unit) => number,
+  locked: number | null = null,
+): number | null {
+  const inRange = (u: Unit | undefined): boolean => !!u && u.state !== 'dead' && dist(u, me) - BODY_MM[u.kind] <= range + 300;
+  if (locked !== null && inRange(units.find((u) => u.id === locked))) return locked;
+  const id = attackPriority(units, me, myTeam, range, 0, first, killDmg);
+  return id !== null && inRange(units.find((u) => u.id === id)) ? id : null;
 }
 
 /**

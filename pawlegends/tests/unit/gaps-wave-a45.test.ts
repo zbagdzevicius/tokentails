@@ -277,15 +277,15 @@ describe('A5: Target first, last-hit and tower buttons', () => {
     resetControlPrefs();
   });
 
-  it('defaults: Heroes first, both extra buttons off; choices persist', () => {
+  it('defaults: Heroes first, both extra buttons on (UX pass 2: Wild Rift shows them); choices persist', () => {
     expect(targetFirst()).toBe('heroes');
-    expect(lastHitButton()).toBe(false);
-    expect(towerButton()).toBe(false);
+    expect(lastHitButton()).toBe(true);
+    expect(towerButton()).toBe(true);
     setTargetFirst('closest');
-    setLastHitButton(true);
+    setLastHitButton(false);
     resetControlPrefs();
     expect(targetFirst()).toBe('closest');
-    expect(lastHitButton()).toBe(true);
+    expect(lastHitButton()).toBe(false);
   });
 
   it('Settings shows the touch rows on a touch device (no hover), the desktop rows otherwise', () => {
@@ -299,13 +299,13 @@ describe('A5: Target first, last-hit and tower buttons', () => {
       const touch = panel(true);
       expect(touch.querySelector('[data-target="heroes"]')?.classList.contains('on')).toBe(true);
       expect(touch.textContent).toContain('Lowest HP %');
-      expect(touch.querySelector('[data-a="lasthit"]')?.textContent).toBe('Off');
-      expect(touch.querySelector('[data-a="tower"]')?.textContent).toBe('Off');
+      expect(touch.querySelector('[data-a="lasthit"]')?.textContent).toBe('On');
+      expect(touch.querySelector('[data-a="tower"]')?.textContent).toBe('On');
       expect(touch.querySelector('[data-cast]')).toBeNull();
       (touch.querySelector('[data-target="lowest"]') as HTMLElement).click();
       expect(targetFirst()).toBe('lowest');
       (touch.querySelector('[data-a="tower"]') as HTMLElement).click();
-      expect(towerButton()).toBe(true);
+      expect(towerButton()).toBe(false);
       const desk = panel(false);
       expect(desk.querySelector('[data-target]')).toBeNull();
       expect(desk.querySelector('[data-cast]')).not.toBeNull();
