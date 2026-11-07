@@ -193,12 +193,12 @@ test('844x390 keeps the full touch HUD', async ({ page }) => {
   const score = r((await boxes(page, '.pl-score'))[0]);
   expect(score.slice(0, 3)).toEqual([275, 8, 294]);
   expect([45, 54]).toContain(score[3]);
-  // MAP-GAPS A5: the bigger minimap reaches where the enemy portraits sat right of the score: they sit at the right
-  // edge under it, as on small phones
+  // MAP-GAPS A5: the bigger minimap reaches where the enemy portraits sat right of the score: they stand in a column
+  // just left of it
   const mm = (await boxes(page, '.pl-minimap'))[0];
   const enemy = (await boxes(page, '.pl-top .pl-strip.enemy'))[0];
-  expect(enemy.y).toBeGreaterThanOrEqual(mm.y + mm.height);
-  expect(Math.round(enemy.x + enemy.width)).toBe(834);
+  expect(enemy.x + enemy.width).toBeLessThanOrEqual(mm.x);
+  expect(enemy.height).toBeGreaterThan(enemy.width);
   expect(r((await boxes(page, '.pl-strip.ally'))[0])).toEqual([80, 70, 72, 34]);
   await page.screenshot({ path: `${SHOTS}/844x390-unchanged.png` });
 });

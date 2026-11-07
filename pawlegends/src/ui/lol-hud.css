@@ -309,7 +309,7 @@ html:not([data-touch='1']) .pl-crest.won .ears { font-size: 112px; }
 .pl-chatbtn kbd { font-size: 9px; padding: 1px 4px; }
 .pl-chatbtn.cool { opacity: 0.45; }
 html[data-touch='1'] .pl-chatbtn {
-  left: auto; bottom: auto; right: calc(16px + var(--mm-w, 132px) + var(--safe-r)); top: calc(104px + var(--safe-t)); width: 44px; height: 44px; padding: 0; justify-content: center;
+  left: auto; bottom: auto; right: calc(68px + var(--mm-w, 132px) + var(--safe-r)); top: calc(118px + var(--safe-t)); width: 44px; height: 44px; padding: 0; justify-content: center;
   border-radius: 50%; border: 2px solid rgba(255, 243, 220, 0.55);
 }
 html[data-touch='1'] .pl-chatbtn span, html[data-touch='1'] .pl-chatbtn kbd { display: none; }
@@ -409,3 +409,8 @@ html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-grad
 .pl-scoreboard .tp { display: inline-block; width: 7px; height: 7px; transform: rotate(45deg); border-radius: 1px; background: rgba(255, 211, 77, 0.2); font-style: normal; }
 .pl-scoreboard .tp.on { background: #ffd34d; box-shadow: 0 0 4px rgba(255, 211, 77, 0.7); }
 .pl-scoreboard .tp.unk { transform: none; width: auto; height: auto; background: none; opacity: 0.35; }
+
+/* MAP-GAPS A5: on small phones the chat bubble sits beside the minimap again, under the paw */
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-chatbtn { right: calc(16px + var(--mm-w, 132px) + var(--safe-r)); top: calc(104px + var(--safe-t)); }
+}

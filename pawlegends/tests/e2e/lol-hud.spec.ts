@@ -51,7 +51,8 @@ for (const s of [
         return { x: r.x, y: r.y, r: r.right, b: r.bottom, names: [...e.querySelectorAll('b')].some((b) => getComputedStyle(b).display !== 'none') };
       }),
     );
-    expect(rows.length).toBe(2);
+    // MAP-GAPS A5: one row on small phones under the bigger minimap and the portraits, two at 844
+    expect(rows.length).toBe(s.w === 667 ? 1 : 2);
     for (const r of rows) {
       expect(r.names, 'no names on touch').toBe(false);
       expect(r.r - r.x).toBeLessThanOrEqual(120);
