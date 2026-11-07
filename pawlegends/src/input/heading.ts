@@ -18,7 +18,8 @@
 import { EFFECTS } from '../data/effects';
 import { MAP } from '../data/map';
 import { iatan2, icos, idiv, isin, isqrt, TRIG_ONE } from '../sim/fixed';
-import { cellOf, createGrid, walkable, type NavGrid } from '../sim/map/grid';
+import { cellOf, walkable, type NavGrid } from '../sim/map/grid';
+import { clientGrid } from './navMirror';
 import { quantize } from '../sim/commands';
 import { Op } from '../sim/api';
 import type { AimSpec } from './abilities';
@@ -34,7 +35,6 @@ export const MOTION = Object.freeze({ windowMs: 250, minMm: 120, jumpMm: 1500, b
 /** A recent move order counts as the heading this long (ms) after it went, while the hero is moving. */
 export const MOVE_ORDER_MS = 700;
 
-let walls: NavGrid | null = null;
 
 /**
  * The hero's movement direction from its drawn positions (rad, sim convention), or null when it stands still. A jump
@@ -151,7 +151,7 @@ export function headingPoint(aim: AimSpec, me: { x: number; y: number }, angle: 
  * first wall). For the ghost marker and the aim preview only.
  */
 export function landing(aim: AimSpec, me: { x: number; y: number }, angle: number): { x: number; y: number } {
-  walls ??= createGrid();
+  const walls = clientGrid();
   const p = headingPoint(aim, me, angle);
   const ax = Math.round(me.x);
   const ay = Math.round(me.y);
