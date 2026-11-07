@@ -7,7 +7,10 @@
 import { NX, NY, createGrid } from '../sim/map/grid';
 import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../data/map';
 import type { ViewFrame } from '../render/interp';
-import { RELATION_CSS } from '../render/palette';
+import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
+import { portraitUrl } from '../render/portraits';
+import { HERO_TEXT } from './heroText';
+import type { HeroId } from '../sim/api';
 
 export interface MinimapHost {
   /** Look at (x, z) m; `hold` s before the camera drifts back (Infinity: until the next look). */
@@ -29,6 +32,40 @@ export const MINIMAP_HOLD_MS = 450;
  * for MINIMAP_HOLD_MS pings Go here and never moves the camera; a short tap peeks for `peekS` s.
  */
 export const MINIMAP_TOUCH = Object.freeze({ slopPx: 6, releaseS: 0.6, peekS: 2.5 });
+
+/**
+ * MAP-GAPS A3: the order heroes are drawn in: allies and enemies by id, the player's own hero last (always on top).
+ */
+export function heroDrawOrder<T extends { id: number }>(heroes: readonly T[], me: number): T[] {
+  const out = heroes.filter((h) => h.id !== me).sort((a, b) => a.id - b.id);
+  const self = heroes.find((h) => h.id === me);
+  if (self) out.push(self);
+  return out;
+}
+
+/**
+ * MAP-GAPS A3: a hero's minimap initial: the first letter of its name, or two letters when another hero in `others`
+ * starts with the same letter (Clem and Cacklejaw: "Cl", "Ca").
+ */
+export function heroInitial(hero: HeroId, others: readonly HeroId[] = []): string {
+  const name = HERO_TEXT[hero]?.title ?? hero;
+  const first = name[0].toUpperCase();
+  const clash = others.some((o) => o !== hero && (HERO_TEXT[o]?.title ?? o)[0].toUpperCase() === first);
+  if (!clash) return first;
+  const taken = new Set(others.filter((o) => o !== hero && (HERO_TEXT[o]?.title ?? o)[0].toUpperCase() === first).map(heroPair));
+  for (let i = 1; i < name.length; i++) {
+    const two = first + name[i].toLowerCase();
+    if (!taken.has(two)) return two;
+  }
+  return heroPair(hero);
+}
+const heroPair = (h: HeroId): string => {
+  const n = HERO_TEXT[h]?.title ?? h;
+  return n[0].toUpperCase() + n[1].toLowerCase();
+};
+
+/** MAP-GAPS A3: below this drawn diameter (CSS px) a hero is its initial; at and above it, its portrait. */
+export const PORTRAIT_MIN_PX = 12;
 
 export class Minimap {
   readonly root: HTMLElement;
@@ -262,6 +299,7 @@ export class Minimap {
     g.drawImage(this.bg, 0, 0);
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (!frame) return;
+    this.heroesDrawn = [];
     const me = this.host.mySlot();
     const team = this.host.myTeam();
     const col = (t: number, id: number): string => (id === me ? RELATION_CSS.self : t === 2 ? RELATION_CSS.neutral : t === team ? RELATION_CSS.ally : RELATION_CSS.enemy);
@@ -296,27 +334,11 @@ export class Minimap {
       g.fill();
     }
     this.drawTimers(g);
-    for (const e of frame.entities) {
-      if (e.kind !== 'hero' || e.state === 'dead') continue;
-      const x = this.X(e.fx);
-      const y = this.Y(e.fy);
-      g.fillStyle = 'rgba(42,26,34,0.95)';
-      g.beginPath();
-      g.arc(x, y, e.id === me ? 6 : 5, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = col(e.team, e.id);
-      g.beginPath();
-      g.arc(x, y, e.id === me ? 4.5 : 3.6, 0, Math.PI * 2);
-      g.fill();
-      // party play (§7 M1): a friend's dot wears its slot ring colour
-      const ring = e.id !== me ? this.ringOf(e.id) : null;
-      if (ring) {
-        g.strokeStyle = ring;
-        g.lineWidth = 2;
-        g.beginPath();
-        g.arc(x, y, 6.5, 0, Math.PI * 2);
-        g.stroke();
-      }
+    const heroes = frame.entities.filter((e) => e.kind === 'hero' && e.state !== 'dead');
+    const ids = heroes.map((e) => e.hero).filter((h): h is HeroId => !!h);
+    for (const e of heroDrawOrder(heroes, me)) {
+      const self = e.id === me;
+      this.drawHero(g, this.X(e.fx), this.Y(e.fy), e.hero, col(e.team, e.id), self, self ? null : this.ringOf(e.id), ids.filter((_, i) => heroes[i].team === e.team));
     }
     const now = performance.now();
     this.pings = this.pings.filter((p) => p.until > now);
@@ -337,6 +359,77 @@ export class Minimap {
       g.beginPath();
       q.forEach((p, i) => (i ? g.lineTo(this.X(p.x * 1000), this.Y(-p.z * 1000)) : g.moveTo(this.X(p.x * 1000), this.Y(-p.z * 1000))));
       g.closePath();
+      g.stroke();
+    }
+  }
+
+  /** Hero marks drawn last frame, in order (tests and e2e): `id:kind` with kind `p` portrait or `i` initial. */
+  heroesDrawn: string[] = [];
+  private portraits = new Map<string, HTMLCanvasElement | null>();
+
+  /** A round portrait of `hero` `d` px across (device px), from the baked HUD portrait; null until it has loaded. */
+  private portrait(hero: HeroId, d: number): HTMLCanvasElement | null {
+    const key = `${hero}|${d}`;
+    if (this.portraits.has(key)) return this.portraits.get(key) ?? null;
+    const url = portraitUrl(hero);
+    if (!url || typeof Image === 'undefined') return null;
+    this.portraits.set(key, null);
+    const img = new Image();
+    img.onload = () => {
+      const c = document.createElement('canvas');
+      c.width = c.height = d;
+      const g = c.getContext('2d');
+      if (!g) return;
+      g.beginPath();
+      g.arc(d / 2, d / 2, d / 2, 0, Math.PI * 2);
+      g.clip();
+      g.fillStyle = HERO_COLOR_CSS[hero] ?? '#fff3dc';
+      g.fillRect(0, 0, d, d);
+      // the portrait frames head and shoulders: crop to the face
+      g.drawImage(img, img.width * 0.14, img.height * 0.08, img.width * 0.72, img.height * 0.72, 0, 0, d, d);
+      this.portraits.set(key, c);
+    };
+    img.src = url;
+    return null;
+  }
+
+  /** MAP-GAPS A3: a hero's mark: its portrait (or its initial on a coat-coloured disc) in a relation-colour ring. */
+  private drawHero(g: CanvasRenderingContext2D, x: number, y: number, hero: HeroId | undefined, color: string, self: boolean, ring: string | null, team: readonly HeroId[]): void {
+    const r = self ? 6 : 5;
+    g.fillStyle = 'rgba(42,26,34,0.95)';
+    g.beginPath();
+    g.arc(x, y, r + 1.4, 0, Math.PI * 2);
+    g.fill();
+    const inner = r - (self ? 1.8 : 1.3);
+    const pic = hero && inner * 2 >= PORTRAIT_MIN_PX ? this.portrait(hero, Math.round(inner * 2 * this.dpr)) : null;
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(x, y, r, 0, Math.PI * 2);
+    g.fill();
+    if (pic) {
+      g.drawImage(pic, x - inner, y - inner, inner * 2, inner * 2);
+      this.heroesDrawn.push(`${hero}:p`);
+    } else {
+      g.fillStyle = hero ? (HERO_COLOR_CSS[hero] ?? '#fff3dc') : '#fff3dc';
+      g.beginPath();
+      g.arc(x, y, inner, 0, Math.PI * 2);
+      g.fill();
+      if (hero) {
+        const t = heroInitial(hero, team);
+        g.fillStyle = '#2a1a22';
+        g.font = `800 ${(inner * (t.length > 1 ? 1.15 : 1.5)).toFixed(1)}px Fredoka, system-ui, sans-serif`;
+        g.textAlign = 'center';
+        g.textBaseline = 'middle';
+        g.fillText(t, x, y + 0.4);
+      }
+      this.heroesDrawn.push(`${hero}:i`);
+    }
+    // party play (§7 M1): a friend's mark wears its slot ring colour
+    if (ring) {
+      g.strokeStyle = ring;
+      g.lineWidth = 1.6;
+      g.beginPath();
+      g.arc(x, y, r + 2.2, 0, Math.PI * 2);
       g.stroke();
     }
   }
