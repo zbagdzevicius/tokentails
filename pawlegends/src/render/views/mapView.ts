@@ -356,6 +356,54 @@ function paintGround(swap = false): THREE.Texture {
   return t;
 }
 
+/** MAP-GAPS A22: the outer grass tile (m across): 256 px at the playfield's 20 px/m is 12.8 m. */
+export const GRASS_TILE_M = 12.8;
+
+/** A tileable grass canvas in the painted playfield's colours (noise blobs and tufts wrap across the edges). */
+function grassTile(): THREE.Texture {
+  const N = 256;
+  const c = document.createElement('canvas');
+  c.width = c.height = N;
+  const g = c.getContext('2d')!;
+  const rnd = lcg(53);
+  g.fillStyle = '#9fd383';
+  g.fillRect(0, 0, N, N);
+  const wrap = (f: (dx: number, dy: number) => void): void => {
+    for (const dx of [-N, 0, N]) for (const dy of [-N, 0, N]) f(dx, dy);
+  };
+  for (let i = 0; i < 70; i++) {
+    const x = rnd() * N;
+    const y = rnd() * N;
+    const r = (0.6 + rnd() * 3.2) * 20;
+    const col = rnd() < 0.5 ? 'rgba(120,180,95,0.16)' : 'rgba(190,230,150,0.16)';
+    const k = 0.6 + rnd() * 0.4;
+    const a = rnd() * 3;
+    wrap((dx, dy) => {
+      g.fillStyle = col;
+      g.beginPath();
+      g.ellipse(x + dx, y + dy, r, r * k, a, 0, Math.PI * 2);
+      g.fill();
+    });
+  }
+  g.strokeStyle = 'rgba(95,150,80,0.45)';
+  g.lineWidth = 2;
+  for (let i = 0; i < 110; i++) {
+    const x = rnd() * (N - 8) + 4;
+    const y = rnd() * (N - 8) + 4;
+    g.beginPath();
+    g.moveTo(x - 3, y + 3);
+    g.lineTo(x - 1, y - 3);
+    g.moveTo(x + 1, y + 3);
+    g.lineTo(x + 3, y - 2);
+    g.stroke();
+  }
+  const t = new THREE.CanvasTexture(c);
+  t.wrapS = t.wrapT = THREE.RepeatWrapping;
+  t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  return t;
+}
+
 const RIVER_VERT = /* glsl */ `
 varying vec2 vUv;
 varying vec3 vW;
@@ -504,26 +552,37 @@ export const FOUNTAIN_CLEAR = FOUNTAIN.radius / 1000 + 0.28 + 0.3;
  * The hedge along the map edge (m, sphere centre and its widest radius), skipping the river and, MAP-GAPS A13, a
  * clear arc round each fountain (the hedge cut through the basin rim).
  */
-export function hedgeSpots(): { x: number; y: number; r: number; color: number }[] {
+export function hedgeSpots(): { x: number; y: number; r: number; color: number; kind: 'bush' | 'rock' | 'flower' }[] {
   const rnd = lcg(41);
   const r0 = MAP.riverX[0] / 1000;
   const r1 = MAP.riverX[1] / 1000;
   const fountains = [FOUNTAIN.x / 1000, W - FOUNTAIN.x / 1000].map((x) => [x, FOUNTAIN.y / 1000] as const);
-  const out: { x: number; y: number; r: number; color: number }[] = [];
-  const at = (x: number, y: number): void => {
-    const r = (0.7 + rnd() * 0.3) * 1.2;
-    const color = rnd() < 0.5 ? 0x5fa860 : 0x6db86a;
+  const out: { x: number; y: number; r: number; color: number; kind: 'bush' | 'rock' | 'flower' }[] = [];
+  const petals = [0xffffff, 0xffd27a, 0xff9fc0, 0xc7a6ff];
+  // MAP-GAPS A22: a natural hedge: jittered ±0.5 m, varied sizes, ~15% gaps, a rock or a flowering bush now and then
+  const at = (x0: number, y0: number, nx: number, ny: number): void => {
+    const gap = rnd() < 0.15;
+    const along = (rnd() - 0.5) * 1.0;
+    const across = (rnd() - 0.5) * 1.0;
+    const x = x0 + ny * along + nx * across;
+    const y = y0 + nx * along + ny * across;
+    const pick = rnd();
+    const kind = pick < 0.1 ? 'rock' : pick < 0.25 ? 'flower' : 'bush';
+    const r = kind === 'rock' ? 0.45 + rnd() * 0.35 : (0.6 + rnd() * 0.5) * 1.2;
+    const color = kind === 'rock' ? (rnd() < 0.5 ? 0xb9b2a6 : 0xa59d90) : rnd() < 0.5 ? 0x5fa860 : 0x6db86a;
+    if (gap) return;
     if (x > r0 - 1.5 && x < r1 + 1.5) return;
     if (fountains.some(([fx, fy]) => Math.hypot(x - fx, y - fy) - r < FOUNTAIN_CLEAR + 0.6)) return;
-    out.push({ x, y, r, color });
+    out.push({ x, y, r, color, kind });
+    if (kind === 'flower') for (let i = 0; i < 3; i++) out.push({ x: x + (rnd() - 0.5) * r, y: y + (rnd() - 0.5) * r, r: 0.12, color: petals[(rnd() * petals.length) | 0], kind: 'flower' });
   };
   for (let x = 0; x <= W; x += 1.6) {
-    at(x, -0.8);
-    at(x, H + 0.8);
+    at(x, -0.8, 0, 1);
+    at(x, H + 0.8, 0, 1);
   }
   for (let y = 0; y <= H; y += 1.6) {
-    at(-0.8, y);
-    at(W + 0.8, y);
+    at(-0.8, y, 1, 0);
+    at(W + 0.8, y, 1, 0);
   }
   return out;
 }
@@ -574,10 +633,28 @@ export function createMapView(): MapView {
   const shadowCasters: THREE.Object3D[] = [];
   const rnd = lcg(11);
 
-  // outside grass
+  // outside grass. MAP-GAPS A22: a tileable grass texture at the playfield's 20 px/m in its colours (the flat green
+  // left a seam at the map edge), darkening with the distance from the map
   const outerGeo = keep(new THREE.PlaneGeometry(W + 160, H + 140));
   outerGeo.rotateX(-Math.PI / 2);
-  const outer = new THREE.Mesh(outerGeo, keep(new THREE.MeshLambertMaterial({ color: 0x86bf6c })));
+  const grassTex = typeof document !== 'undefined' ? keep(grassTile()) : null;
+  if (grassTex) grassTex.repeat.set((W + 160) / GRASS_TILE_M, (H + 140) / GRASS_TILE_M);
+  const outerMat = keep(new THREE.MeshLambertMaterial({ color: grassTex ? 0xffffff : 0x9fd383, map: grassTex }));
+  outerMat.onBeforeCompile = (sh) => {
+    sh.vertexShader = sh.vertexShader
+      .replace('#include <common>', '#include <common>\nvarying vec3 vOW;')
+      .replace('#include <begin_vertex>', '#include <begin_vertex>\nvOW = (modelMatrix * vec4(transformed, 1.0)).xyz;');
+    sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nvarying vec3 vOW;').replace(
+      '#include <dithering_fragment>',
+      `#include <dithering_fragment>
+  vec2 o = max(vec2(-vOW.x - 0.0, vOW.x - ${W.toFixed(1)}), 0.0);
+  vec2 p = max(vec2(vOW.z, -vOW.z - ${H.toFixed(1)}), 0.0);
+  float d = length(vec2(max(o.x, o.y), max(p.x, p.y)));
+  gl_FragColor.rgb *= 1.0 - 0.22 * smoothstep(4.0, 40.0, d);`,
+    );
+  };
+  outerMat.customProgramCacheKey = () => 'pl-outer-grass-v1';
+  const outer = new THREE.Mesh(outerGeo, outerMat);
   outer.position.set(W / 2, -0.02, -H / 2);
   outer.receiveShadow = true;
   group.add(outer);
@@ -929,7 +1006,11 @@ export function createMapView(): MapView {
   group.add(farMesh);
 
   const hedge = new ModelBuilder();
-  for (const h of hedgeSpots()) hedge.sphere(h.r, h.color, { at: [h.x, 0.4, -h.y], scale: [1.2, 0.8, 1.2] }, 8);
+  for (const h of hedgeSpots()) {
+    if (h.kind === 'rock') hedge.add(new THREE.DodecahedronGeometry(h.r, 0), h.color, { at: [h.x, h.r * 0.45, -h.y], rot: [h.x, h.y, h.r * 7], scale: [1, 0.7, 1] });
+    else if (h.r < 0.2) hedge.sphere(h.r, h.color, { at: [h.x, 0.95, -h.y] }, 5);
+    else hedge.sphere(h.r / 1.2, h.color, { at: [h.x, 0.4, -h.y], scale: [1.2, 0.8, 1.2] }, 8);
+  }
   // MAP-GAPS A13: a low stone wall arcs behind each fountain basin where the hedge stops
   for (const st of fountainWall()) hedge.add(new THREE.DodecahedronGeometry(st.r, 0), st.color, { at: [st.x, st.r * 0.55, -st.y], rot: [st.x, st.y, st.r * 5], scale: [1, 0.75, 1] });
   // MAP-GAPS A1: low pebbles round the rat camps (under 0.25 m, outside the clearing, off the footpaths): the old

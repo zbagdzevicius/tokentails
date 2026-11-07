@@ -138,3 +138,21 @@ describe('MAP-GAPS A17 structure clearance from the sim radius', () => {
     }
   });
 });
+
+describe('MAP-GAPS A22 a natural hedge', () => {
+  it('jitters the hedge, leaves gaps and mixes in rocks and flowers', async () => {
+    const { hedgeSpots } = await import('../../src/render/views/mapView');
+    const h = hedgeSpots();
+    const main = h.filter((s) => s.r >= 0.2);
+    const slots = 2 * (Math.floor(W / 1.6) + 1) + 2 * (Math.floor(H / 1.6) + 1);
+    // gaps (~15%) plus the river and fountain cuts
+    expect(main.length / slots).toBeLessThan(0.9);
+    expect(main.length / slots).toBeGreaterThan(0.65);
+    expect(h.some((s) => s.kind === 'rock')).toBe(true);
+    expect(h.some((s) => s.kind === 'flower' && s.r < 0.2)).toBe(true);
+    // off the straight line
+    const south = main.filter((s) => s.y < 0.5 && s.x > 5 && s.x < 40);
+    expect(new Set(south.map((s) => s.y.toFixed(2))).size).toBeGreaterThan(5);
+    for (const s of south) expect(Math.abs(s.y + 0.8)).toBeLessThanOrEqual(0.5 + 1e-9);
+  });
+});
