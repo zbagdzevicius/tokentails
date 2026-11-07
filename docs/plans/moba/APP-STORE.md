@@ -1,6 +1,31 @@
 # Pawlegends on the App Store
 
-Status: plan, written 2026-11-07. Branch `feat/pawlegends-ios`.
+Status: built on `feat/pawlegends-ios` (2026-11-07): `pawlegends-app/` builds for the simulator, OTA, fastlane and
+both workflows are in place. Waiting for the founder steps under "Only you can do this". How to run it:
+[`pawlegends-app/README.md`](../../../pawlegends-app/README.md).
+
+## Implementation notes (2026-11-07)
+
+Where the build differs from the plan below, the build wins:
+
+- No storyboards. The window and `GameViewController` are made in `AppDelegate`; the launch screen is the
+  Info.plist `UILaunchScreen` (game background colour and the boot paw from the asset catalog). This avoids `ibtool`
+  in CI and matches the web boot splash.
+- iPhone only (`TARGETED_DEVICE_FAMILY = 1`) as planned; the iPad landscape keys and `UIRequiresFullScreen` are set
+  too, so adding iPad later is one build setting plus iPad screenshots.
+- OTA: our own encryption and signing code (`pawlegends-app/scripts/lib/capgo-crypto.mjs`) in the format the
+  updater checks natively, instead of the Capgo CLI. Secret name `OTA_PRIVATE_KEY` (not `CAPGO_PRIVATE_KEY`). Files
+  at `client/public/pawlegends-app/updates/ios/<compat>/` (`manifest.json`, `bundles/<version>.zip`). The manifest is
+  also signed. `appReadyTimeout` is 15 s. The update applies on the title screen at the next launch or resume.
+- Haptics: the shell gives WKWebView a `navigator.vibrate` backed by `@capacitor/haptics`, so the game needed no
+  change for it.
+- Workflows: `.github/workflows/ios-testflight.yml` (lanes beta, metadata, submit) and
+  `.github/workflows/pawlegends-ota.yml` (checks on pull requests, publish on `main`, manual rollback).
+- Signing: Xcode cloud signing with the API key needs the key's role to be **Admin**. With an App Manager key, run
+  `fastlane ios certs` once and add `DIST_CERT_P12` and `DIST_CERT_PASSWORD`.
+- Associated Domains (invite links opening the app) is not in v1: it needs a capability on the App ID and an
+  `apple-app-site-association` change shared with `com.tokentails.app`. Invite links open the web game.
+- Backend: no change. `capacitor://localhost` is already allowed for CORS and the party relay.
 
 ## Goal
 
@@ -179,8 +204,9 @@ Everything else is automated by us.
 
 1. Check the Apple Developer Program membership is active as an Organization (Token Tails MB). If it is not, enroll; a D-U-N-S number is needed for an Organization.
 2. In App Store Connect, accept the latest agreements, and fill tax and banking (needed even for a free app's agreement status).
-3. Create an App Store Connect API key (Users and Access → Integrations, role App Manager). Download the `.p8` once.
-4. Add the 4 GitHub secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`.
+3. Create an App Store Connect API key (Users and Access → Integrations, role Admin, so CI can sign). Download the `.p8` once.
+4. Add the GitHub secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`, and `OTA_PRIVATE_KEY`
+   (`gh secret set OTA_PRIVATE_KEY < pawlegends-app/ota/.keys/private-key.pem`; keep a copy in the password manager).
 5. Create the app record "Pawlegends" with bundle id `com.tokentails.pawlegends` (or let `fastlane bootstrap` register the id, then create the record).
 6. Answer the age rating and App Privacy questionnaires, copying from `pawlegends-app/store/age-rating.md` and `privacy-label.md`. Confirm the export compliance answer.
 7. Install the TestFlight build on your iPhone and play one match.
