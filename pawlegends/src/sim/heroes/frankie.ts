@@ -5,8 +5,10 @@
  * point, a stun on the pop), Bun Hop (a hop that shakes off slows) and FOOTLONG! (a hero-stop shot; the hero it hits
  * is stunned and he snaps to it; a miss refunds part of the cooldown).
  *
- * The grab is the R shot's ability hit on an enemy hero while the shot is in flight (kWT > 0), outside a Q roll
- * (fmKind Dash) and outside the guard: the Combo hit and the Dig pop run under kEmpower = COMBO / POP.
+ * The grab is the R shot's ability hit on an enemy hero while the shot is in flight (kWT > 0) and outside the guard:
+ * the Combo hit, the Dig pop and the Weenie Roll hit run under kEmpower = COMBO / POP / ROLLING (the roll hit is
+ * guarded by kEmpower, not by fmKind: on a dash's landing tick stepForced has already cleared fmKind). An R hit while
+ * he is mid-dash (roll, dig, hop) ends the flight with no grab and no miss refund.
  *
  * Kit arrays: kFoe the last Combo victim; kValor what landed on it (1 ability, 2 basic); kWindow the Combo window;
  * kHuntT the Combo lockout; kStage 1 = rolling, 2 = digging, 4 = snapping to the grabbed hero; kWT FOOTLONG flight
@@ -22,9 +24,10 @@ import { radiusOf } from '../units/kinds';
 import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-/** kEmpower values: the Combo hit (no new Combo from it) and the Dig pop (never a FOOTLONG grab). */
+/** kEmpower values: the Combo hit (no new Combo from it), the Dig pop and the Weenie Roll hit (never a FOOTLONG grab). */
 const COMBO = 1;
 const POP = 2;
+const ROLLING = 3;
 /** kStage values. */
 const ROLL = 1;
 const DIG = 2;
@@ -189,21 +192,29 @@ export const FRANKIE_KIT: HeroKit = {
       else w.fmHitHi[id] |= 1 << (e - 0x20);
       if (w.kind[e] === Kind.Hero) {
         // The first enemy hero stops the roll (hero ids come first in `collect`).
+        w.kEmpower[id] = ROLLING;
         dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, 'ability');
+        w.kEmpower[id] = 0;
         knockback(m, e, hx, hy, q.push, w.facing[id]);
         w.fmT[id] = 0;
         w.fmKind[id] = FM.None;
         w.kStage[id] = 0;
         return;
       }
+      w.kEmpower[id] = ROLLING;
       dealDamage(m, id, w.team[id], Kind.Hero, e, applyBp(dmg, q.minionBp), 'ability');
+      w.kEmpower[id] = 0;
     }
   },
   afterDeal(m, id, dst, _dmg, kind) {
     const w = m.world;
     if (w.alive[id] === 0 || !isFoeHero(w, id, dst)) return;
     const guard = w.kEmpower[id];
-    if (kind === 'ability' && guard === 0 && w.kWT[id] > 0 && w.fmKind[id] !== FM.Dash) grab(m, id, dst);
+    if (kind === 'ability' && guard === 0 && w.kWT[id] > 0) {
+      // Mid-dash the shot still lands (a hit, so no miss refund) but he does not snap.
+      if (w.fmKind[id] === FM.Dash) w.kWT[id] = 0;
+      else grab(m, id, dst);
+    }
     if (guard === COMBO) return;
     if (kind === 'ability') combo(m, id, dst, 1);
     else if (kind === 'basic') combo(m, id, dst, 2);

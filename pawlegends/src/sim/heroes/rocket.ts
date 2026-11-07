@@ -41,7 +41,8 @@ function aim(a: KitNumbers, slot: number): SlotAim {
     case 2:
       return { aim: Aim.Point, reach: a.e.range, windup: 0, mobility: false };
     default:
-      return { aim: Aim.Dir, reach: 0, windup: a.r.windup, mobility: false };
+      // ZOOM… ZZZ is an 11 m dash: a root refuses it like every other dash.
+      return { aim: Aim.Dir, reach: 0, windup: a.r.windup, mobility: true };
   }
 }
 

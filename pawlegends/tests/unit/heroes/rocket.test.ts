@@ -163,6 +163,17 @@ describe('Rocket, original dog marksman (sim v15)', () => {
     expect(m.events.some((e) => e.type === 'clip' && e.what === 'zzz')).toBe(true);
   });
 
+  it('ZOOM… ZZZ: a root refuses it like every other dash (QA v15)', () => {
+    const m = arena();
+    const w = m.world;
+    w.level[RK] = 4;
+    w.rootT[RK] = 60;
+    expect(canCast(w, RK, 1)).toBe(false);
+    expect(canCast(w, RK, 3)).toBe(false);
+    w.rootT[RK] = 0;
+    expect(canCast(w, RK, 3)).toBe(true);
+  });
+
   it('Power Nap: the nap heals', () => {
     const m = arena();
     const w = m.world;

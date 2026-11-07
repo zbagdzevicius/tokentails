@@ -131,9 +131,18 @@ export class RootState {
       sy *= k;
       sz *= k;
     }
-    sx = clampS(sx);
-    sy = clampS(sy);
-    sz = clampS(sz);
+    // QA v15: an authored vanish (both axes under the clamp floor: Frankie's Dig form hold, 0.04) is honoured on all
+    // three axes. The 0.45 floor (and an untouched depth) kept him near full size underground once his dive clip ended.
+    if (this.sx < S_MIN && this.sy < S_MIN) {
+      const v = Math.max(this.sx, this.sy);
+      sx = Math.min(sx, v);
+      sy = Math.min(sy, v);
+      sz = Math.min(sz, v);
+    } else {
+      sx = clampS(sx);
+      sy = clampS(sy);
+      sz = clampS(sz);
+    }
     const comY = COM_SHARE * height;
     mover.position.set(fwd, comY * sy + up, side);
     mover.rotation.set(this.roll * TAU, this.yaw * TAU + this.dirYaw, -this.pitch * TAU, 'YZX');
@@ -142,4 +151,5 @@ export class RootState {
   }
 }
 
-const clampS = (s: number): number => (s < 0.45 ? 0.45 : s > 1.6 ? 1.6 : s);
+const S_MIN = 0.45;
+const clampS = (s: number): number => (s < S_MIN ? S_MIN : s > 1.6 ? 1.6 : s);

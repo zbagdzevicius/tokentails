@@ -92,11 +92,11 @@ function drawDots(id: number, fx: FxCtx): void {
     const dz = bz - az;
     const l = Math.hypot(dx, dz);
     const delay = (len - 1) * 0.1;
-    // the starry beam along the link, lit after its pencil line is drawn
-    if (l > 0.05) mesh(fx, 'beam', ax, az, l, 0.7, STAR, rim, rel, { yaw: yawOf(dx / l, dz / l), sz: 0.6, delay, y: 0.6, p3: 1.6 });
+    // the starry beam along the link, lit after its pencil line is drawn (QA v15: wider and longer, it barely showed)
+    if (l > 0.05) mesh(fx, 'beam', ax, az, l, 1.0, STAR, rim, rel, { yaw: yawOf(dx / l, dz / l), sz: 1.0, delay, y: 0.6, p3: 1.6 });
     // the dotted pencil line: black dots along the link
-    const dots = Math.min(10, Math.max(2, Math.round(l / 0.6)));
-    for (let k = 1; k < dots; k++) sticker(fx, ax + (dx * k) / dots, 0.7, az + (dz * k) / dots, 'SOFT', SPOT, 0.18, 0.5 + delay);
+    const dots = Math.min(14, Math.max(2, Math.round(l / 0.5)));
+    for (let k = 1; k < dots; k++) sticker(fx, ax + (dx * k) / dots, 0.7, az + (dz * k) / dots, 'SOFT', SPOT, 0.3, 0.7 + delay);
     // the star burst and the root ring on the target, its spots flying home to his coat
     mesh(fx, 'ring', bx, bz, 0.9, 0.6, STAR, rim, rel, { p1: 0.7, delay });
     shower(fx, bx, 1.1, bz, 8, SHAPE.STAR4, STAR, 0.26, 0.6, 2.2, 1.2, 0, vary(), true);

@@ -242,6 +242,8 @@ html[data-touch='1'] .tt-respawn.on:not(.up) { opacity: 0; visibility: hidden; }
 .pl-pick .heroes .hero-card.tt-card .tt-in > small { font-size: 9.5cqw; }
 .pl-pick .heroes .hero-card.tt-card .champ-art { position: absolute; top: auto; bottom: 27%; right: 3%; width: 22%; height: auto; aspect-ratio: 1; z-index: 2; border-radius: 3cqw; }
 .pl-pick .heroes .hero-card.tt-card .champ-owned { position: absolute; top: 3%; left: auto; right: 3%; z-index: 2; font-size: 8.5cqw; padding: 1.5cqw 4cqw; }
+/* QA v15: the New tag takes the Card badge's corner (a new hero has no card art); top left is the element icon's. */
+.pl-pick .heroes .hero-card.tt-card .new-tag { top: 3%; left: auto; right: 3%; z-index: 2; font-size: 8.5cqw; padding: 1.5cqw 4cqw; }
 .pl-pick .heroes .hero-card.tt-card > .tt-ico { width: 19%; }
 @media (min-height: 481px) and (max-height: 820px) {
   .pl-pick .heroes .hero-card.tt-card { aspect-ratio: 17 / 19; padding: 0; }

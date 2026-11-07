@@ -506,15 +506,15 @@ export const BOT_AI = Object.freeze({
   howlerTalkRange: 3000,
   howlerTalkHpBp: 6000,
   /**
-   * Sim v15 dogs (sim/bots/heroes/{rocket,frankie,domino}.ts; docs/plans/moba/DOGS-V15.md §1). Rocket keeps
-   * rocketSpacing, dashes away from a foe within rocketPeelRange, throws the squirrel at a foe within
+   * Sim v15 dogs (sim/bots/heroes/{rocket,frankie,domino}.ts; docs/plans/moba/DOGS-V15.md §1). Rocket keeps the generic
+   * ranged hold (holdRanged), dashes away from a foe within rocketPeelRange, throws the squirrel at a foe within
    * rocketSquirrelRange and sprints through rocketSprintFoes (or one foe below rocketSprintHpBp) when the line does not
-   * end under an enemy tower. Frankie digs onto a foe below frankieDigHpBp (or a clump) with an ally near or the foe
-   * alone within frankieDiveAllyRange, and FOOTLONGs a foe below frankieFootlongHpBp. Domino shakes within
-   * dominoShakeRange, keeps dominoSpacing, and connects the dots on dominoDotsMin Spotted foes or one full foe below
-   * dominoDotsHpBp.
+   * end within reach of an enemy structure (tanked or not: he naps where he stops). Frankie digs onto a foe below
+   * frankieDigHpBp (or a clump) with an ally near or the foe alone within frankieDiveAllyRange, and FOOTLONGs a foe
+   * below frankieFootlongHpBp (not one under an untanked enemy tower unless it is below executeHpBp: he snaps to it).
+   * Domino shakes within dominoShakeRange, keeps the generic ranged hold, and connects the dots on dominoDotsMin
+   * Spotted foes or one full foe below dominoDotsHpBp.
    */
-  rocketSpacing: 5000,
   rocketPeelRange: 3000,
   rocketSquirrelRange: 3000,
   rocketSprintFoes: 2,
@@ -524,7 +524,6 @@ export const BOT_AI = Object.freeze({
   frankieDiveAllyRange: 8000,
   dominoShakeRange: 2600,
   dominoDotsMin: 2,
-  dominoSpacing: 4800,
   dominoDotsHpBp: 5000,
   /** Sim v14: a bot that would swing at a hero whose kit deters basics (Howler's Talk Back) steps this far back (mm). */
   deterStep: 1500,

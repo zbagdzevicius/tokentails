@@ -3,7 +3,7 @@
  * function returns one cast command, or null. Build on the helpers casts.ts exports; tuning numbers live in
  * data/bots.ts BOT_AI. Ketchup and Mustard follows through the brain's attack order (a bite after a skill).
  *
- * Fight: FOOTLONG! on a low foe in reach with no other foe in the way (or a stunned foe); Dig onto a hurt foe or a
+ * Fight: FOOTLONG! on a low foe in reach with no other foe in the way (or a stunned foe), not under an enemy tower; Dig onto a hurt foe or a
  * clump with a friend near (never under an enemy tower unless the foe is about to fall); Weenie Roll into the foe.
  * Clear: the roll through a pack. Escape: Bun Hop away, else Dig toward home.
  */
@@ -35,7 +35,9 @@ export function fight(w: World, id: number, foe: number, p: BotParams, rng: Rng)
   const d = distTo(w, id, foe);
   const fx = w.x[foe];
   const fy = w.y[foe];
-  if (canCast(w, id, 3) && d <= a.r.range - RANGE_PAD && (hpBp(w, foe) < BOT_AI.frankieFootlongHpBp || w.stunT[foe] > 0) && !blocked(w, id, foe, a.r.width)) {
+  // He snaps to the grabbed foe: not under an untanked enemy tower unless the foe is about to fall (QA v15).
+  const snapTower = untankedThreat(w, w.team[id], fx, fy, 0) >= 0 && hpBp(w, foe) >= BOT_AI.executeHpBp;
+  if (canCast(w, id, 3) && d <= a.r.range - RANGE_PAD && (hpBp(w, foe) < BOT_AI.frankieFootlongHpBp || w.stunT[foe] > 0) && !snapTower && !blocked(w, id, foe, a.r.width)) {
     aimed(w, id, fx, fy, p.aimErrorSteps, rng, Math.max(d, RANGE_PAD));
     return cast(3, pt[0], pt[1], NO_TARGET);
   }

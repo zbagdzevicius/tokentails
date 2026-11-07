@@ -3,20 +3,34 @@
  * function returns one cast command, or null. Build on the helpers casts.ts exports; tuning numbers live in
  * data/bots.ts BOT_AI.
  *
- * Fight: ZOOM… ZZZ when the sprint line passes 2+ foes (or one low foe) and does not end under an enemy tower (he naps
- * where he stops); Photo Finish away from a foe on top of him; SQUIRREL! on a foe diving him or close; Lure Shot on
- * the line. Clear: Lure Shot through a pack toward a hero. Escape: Photo Finish away, then SQUIRREL! on the chaser.
+ * Fight: ZOOM… ZZZ when the sprint line passes 2+ foes (or one low foe) and does not end near an enemy structure,
+ * tanked or not (he naps where he stops); Photo Finish away from a foe on top of him; SQUIRREL! on a foe diving him or
+ * close; Lure Shot on the line. Clear: Lure Shot through a pack toward a hero. Escape: Photo Finish away, then
+ * SQUIRREL! on the chaser.
  */
 import { BOT_AI, type BotParams } from '../../../data/bots';
 import { NO_TARGET, type Command } from '../../api';
-import { TRIG_ONE, iatan2, icos, idiv, isin } from '../../fixed';
+import { TRIG_ONE, dist2, iatan2, icos, idiv, isin } from '../../fixed';
 import type { Rng } from '../../rng';
-import type { World } from '../../world';
+import { RANGE, type World } from '../../world';
 import { collect, inLine } from '../../effects';
 import { canCast } from '../../heroes/kit';
 import { abil } from '../../heroes/talents';
-import { hpBp, untankedThreat } from '../sense';
+import { hpBp, structReach } from '../sense';
 import { RANGE_PAD, aimed, awayFrom, cast, distTo, hits, nearestFoe, pt } from '../casts';
+
+/**
+ * Is (x, y) within reach of an alive enemy structure, tanked or not? He naps 1+ s where the sprint stops, and
+ * a wave that tanks the tower now is gone by then (QA v15: 15% of his naps started in enemy tower range).
+ */
+function hotSpot(w: World, team: number, x: number, y: number): boolean {
+  for (let s = RANGE.towers; s < RANGE.fountains; s++) {
+    if (w.alive[s] === 0 || w.team[s] === team) continue;
+    const r = structReach(w, s);
+    if (dist2(w.x[s], w.y[s], x, y) <= r * r) return true;
+  }
+  return false;
+}
 
 /** Fight casts at enemy hero `foe` (visible, aware). */
 export function fight(w: World, id: number, foe: number, p: BotParams, rng: Rng): Command | null {
@@ -32,7 +46,7 @@ export function fight(w: World, id: number, foe: number, p: BotParams, rng: Rng)
     const ey = hy + idiv(isin(dir) * a.r.dash, TRIG_ONE);
     const n = collect(w, w.team[id], hits, (e, r) => inLine(hx, hy, ex, ey, a.r.width >> 1, w.x[e], w.y[e], r), true);
     const worth = n >= BOT_AI.rocketSprintFoes || (n >= 1 && hpBp(w, foe) < BOT_AI.rocketSprintHpBp);
-    if (worth && untankedThreat(w, w.team[id], ex, ey, 0) < 0) return cast(3, fx, fy, NO_TARGET);
+    if (worth && !hotSpot(w, w.team[id], ex, ey)) return cast(3, fx, fy, NO_TARGET);
   }
   if (canCast(w, id, 1) && d <= BOT_AI.rocketPeelRange) {
     awayFrom(w, id, fx, fy, a.w.dash);

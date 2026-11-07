@@ -1,5 +1,5 @@
 {
-  "base": "v15 (DOGS-V15 lane SIM)",
+  "base": "v15 (DOGS-V15 lane SIM, QA v15 fixes)",
   "simVersion": 15,
   "rows": [
     {
@@ -70,9 +70,9 @@
     },
     {
       "key": "fuzz:8",
-      "finalHash": "2a878712",
-      "trail": "010c9b8a",
-      "ticks": 10955
+      "finalHash": "7ec71901",
+      "trail": "4bcdae42",
+      "ticks": 10740
     },
     {
       "key": "fuzz:9",
@@ -142,9 +142,9 @@
     },
     {
       "key": "bot:pinger:11",
-      "finalHash": "8c5e7a04",
-      "trail": "9e6daa4e",
-      "ticks": 12986
+      "finalHash": "4ad7d422",
+      "trail": "f788e93b",
+      "ticks": 12907
     },
     {
       "key": "bot:pinger:12",
