@@ -433,6 +433,8 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
   border: 3px solid #1d1018; transform: translate(-50%, -50%); box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.85), 0 4px 10px rgba(0, 0, 0, 0.45);
 }
 .pl-tcluster { position: absolute; right: calc(28px + var(--safe-r)); bottom: calc(24px + var(--safe-b)); width: 96px; height: 96px; }
+/* UX pass 2: the left-handed mirror: the cluster in the bottom-left corner (touchArc.ts arcStyle measures from its left) */
+.pl-touch.lefty .pl-tcluster { right: auto; left: calc(28px + var(--safe-l, 0px)); }
 .pl-tbtn {
   position: absolute; pointer-events: auto; border-radius: 50%; border: 3px solid rgba(255, 243, 220, 0.55); background: rgba(58, 39, 66, 0.66);
   color: var(--cream); font: 700 16px var(--font); display: grid; place-items: center; touch-action: none; overflow: hidden;

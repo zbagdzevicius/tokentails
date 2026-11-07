@@ -10,7 +10,11 @@ import {
   castMode,
   cursorSize,
   lastHitButton,
+  leftHanded,
   setCastMode,
+  setLeftHanded,
+  setTouchSize,
+  touchSize,
   setCursorSize,
   setLastHitButton,
   setTargetFirst,
@@ -22,6 +26,7 @@ import {
   type CastMode,
   type CursorSize,
   type TargetFirst,
+  type TouchSize,
   type TrackpadPref,
 } from '../input/presets';
 import type { QualityTier } from '../render/quality';
@@ -64,6 +69,7 @@ const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'O
 const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
 const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', lowest: 'Lowest HP %', closest: 'Closest' };
 const SHAKE_NAME: Record<ShakePref, string> = { full: 'Full', low: 'Low', off: 'Off' };
+const TSIZE_NAME: Record<TouchSize, string> = { normal: 'Normal', large: 'Large' };
 
 /** Phones and tablets have no keys or cursor: the controls rows hide. */
 const keyboardDevice = (): boolean => {
@@ -78,7 +84,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref(), hide: hideNames() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -105,7 +111,11 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .map((m) => `<button class="chip ${ctl.target === m ? 'on' : ''}" data-target="${m}">${TARGET_NAME[m]}</button>`)
         .join('')}</span></div>
       ${row('Last-hit button', 'lasthit', ctl.lastHit)}
-      ${row('Tower button', 'tower', ctl.tower)}`}
+      ${row('Tower button', 'tower', ctl.tower)}
+      ${row('Left-handed (buttons left, stick right)', 'lefty', ctl.lefty)}
+      <div class="set-row"><span>Button size</span><span class="chips">${(['normal', 'large'] as const)
+        .map((m) => `<button class="chip ${ctl.tsize === m ? 'on' : ''}" data-tsize="${m}">${TSIZE_NAME[m]}</button>`)
+        .join('')}</span></div>`}
       ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
@@ -127,6 +137,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const cur = t.closest<HTMLElement>('[data-cursor]')?.dataset.cursor as CursorSize | undefined;
     const sfx = t.closest<HTMLElement>('[data-skinfx]')?.dataset.skinfx as 'all' | 'mine' | 'off' | undefined;
     const tgt = t.closest<HTMLElement>('[data-target]')?.dataset.target as TargetFirst | undefined;
+    const tsize = t.closest<HTMLElement>('[data-tsize]')?.dataset.tsize as TouchSize | undefined;
     const shake = t.closest<HTMLElement>('[data-shake]')?.dataset.shake as ShakePref | undefined;
     if (shake) {
       ctl.shake = shake;
@@ -143,6 +154,12 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     } else if (a === 'tower') {
       ctl.tower = !ctl.tower;
       setTowerButton(ctl.tower);
+    } else if (a === 'lefty') {
+      ctl.lefty = !ctl.lefty;
+      setLeftHanded(ctl.lefty);
+    } else if (tsize) {
+      ctl.tsize = tsize;
+      setTouchSize(tsize);
     } else if (sfx) {
       s.skinFx = sfx;
       o.onSkinFx?.(sfx);

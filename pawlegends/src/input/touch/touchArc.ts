@@ -44,22 +44,29 @@ const BASE: Readonly<Record<ArcButton, ArcSpot>> = Object.freeze({
   tower: { rx: 4, by: 200, d: 44 },
 });
 
+/** UX pass 2: Settings "Button size: Large" scales the whole arc up by this much (gaps and all). */
+export const ARC_LARGE = 1.12;
+
 /** The arc's scale for a viewport: 1 at 390 px of height, a little smaller on short phones, a little larger on tall ones. */
 export function arcScale(_vw: number, vh: number): number {
   return Math.max(0.92, Math.min(1.12, vh / 390));
 }
 
-/** Every button's spot for a viewport (px); no button is under the 44 px touch minimum. */
-export function arcLayout(vw: number, vh: number): Record<ArcButton, ArcSpot> {
-  const k = arcScale(vw, vh);
+/** Every button's spot for a viewport (px); no button is under the 44 px touch minimum. `large`: Settings' big buttons. */
+export function arcLayout(vw: number, vh: number, large = false): Record<ArcButton, ArcSpot> {
+  const k = arcScale(vw, vh) * (large ? ARC_LARGE : 1);
   const out = {} as Record<ArcButton, ArcSpot>;
   for (const [id, s] of Object.entries(BASE) as [ArcButton, ArcSpot][]) out[id] = { rx: s.rx * k, by: s.by * k, d: Math.max(44, Math.round(s.d * k)) };
   return out;
 }
 
-/** The inline style of one button: its box inside the cluster. */
-export function arcStyle(s: ArcSpot): { right: string; bottom: string; width: string; height: string } {
-  return { right: `${Math.round(s.rx - s.d / 2)}px`, bottom: `${Math.round(s.by - s.d / 2)}px`, width: `${s.d}px`, height: `${s.d}px` };
+/**
+ * The inline style of one button: its box inside the cluster. `mirror` (UX pass 2, left-handed): the same arc measured
+ * from the cluster's bottom-LEFT corner, so Attack sits in the left corner and the skills fan out to the right.
+ */
+export function arcStyle(s: ArcSpot, mirror = false): { left: string; right: string; bottom: string; width: string; height: string } {
+  const side = `${Math.round(s.rx - s.d / 2)}px`;
+  return { left: mirror ? side : '', right: mirror ? '' : side, bottom: `${Math.round(s.by - s.d / 2)}px`, width: `${s.d}px`, height: `${s.d}px` };
 }
 
 /** The smallest edge-to-edge gap between two buttons of a layout (px; negative = overlap). */

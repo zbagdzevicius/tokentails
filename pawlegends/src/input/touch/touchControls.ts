@@ -36,7 +36,7 @@ import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
-import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
+import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
 import { attackPreview, attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
@@ -270,14 +270,23 @@ export class TouchControls {
     const fit = (): void => this.layoutArc();
     window.addEventListener('resize', fit);
     this.off.push(() => window.removeEventListener('resize', fit));
+    // UX pass 2: Settings' left-handed mirror and button size apply at once, mid-match too
+    window.addEventListener(TOUCH_PREFS_EVENT, fit);
+    this.off.push(() => window.removeEventListener(TOUCH_PREFS_EVENT, fit));
     this.layoutArc();
   }
 
   /** CF-04: place every button from touchArc.ts for this viewport (no two touch at 667, 844 or 932 px wide). */
   private layoutArc(): void {
-    const l = arcLayout(window.innerWidth, window.innerHeight);
-    for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton]));
+    const lefty = leftHanded();
+    this.lefty = lefty;
+    this.root.classList.toggle('lefty', lefty);
+    const l = arcLayout(window.innerWidth, window.innerHeight, touchSize() === 'large');
+    for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton], lefty));
   }
+
+  /** UX pass 2: the left-handed mirror is on (the joystick takes the right half of the screen). */
+  private lefty = false;
 
   enable(on: boolean): void {
     this.enabled = on;
@@ -331,7 +340,9 @@ export class TouchControls {
     if (!this.h.enabled()) return;
     // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
-    if (e.clientX < window.innerWidth * 0.5 && !this.stick) {
+    // the joystick half: the left one, or the right one in the left-handed mirror
+    const stickSide = this.lefty ? e.clientX >= window.innerWidth * 0.5 : e.clientX < window.innerWidth * 0.5;
+    if (stickSide && !this.stick) {
       e.preventDefault();
       this.grabStick(e.pointerId, e.clientX, e.clientY, e.timeStamp);
     }
