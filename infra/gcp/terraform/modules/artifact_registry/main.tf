@@ -35,6 +35,7 @@ variable "readers" {
 }
 
 resource "google_artifact_registry_repository" "docker" {
+  #checkov:skip=CKV_GCP_84:Google-managed encryption (same waiver as the buckets): images hold no secret value, CMEK adds a KMS outage mode for no gain.
   project                = var.project_id
   location               = var.region
   repository_id          = var.repository_id
