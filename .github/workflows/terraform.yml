@@ -1,0 +1,156 @@
+# Terraform checks for infra/gcp (RUNBOOK.md). Every PR and push: fmt, init without a backend, validate, the mocked
+# `terraform test` suites, tflint and trivy. No credentials are needed for any of that.
+# `terraform plan` runs only on main (WIF allows main only) and only when the TF_PROJECT_ID repository variable is set,
+# as the read-only sa-tf-plan account (GitHub environment gcp-plan). Apply stays manual: the founder runs it locally,
+# or dispatches this workflow with apply=true, which waits for the gcp-prod environment's reviewers and needs
+# ci_apply_enabled=true in Terraform (sa-tf-apply).
+name: terraform
+
+on:
+  pull_request:
+    paths: [infra/gcp/**, .github/workflows/terraform.yml]
+  push:
+    branches: [main]
+    paths: [infra/gcp/**, .github/workflows/terraform.yml]
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: Apply the reviewed plan (gcp-prod environment approval required)
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: terraform-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  TF_VERSION: 1.9.8
+  TF_DIR: infra/gcp/terraform/envs/prod
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - name: fmt
+        run: terraform fmt -check -recursive infra/gcp/terraform
+      - name: init (no backend) and validate, every root and module
+        run: |
+          set -euo pipefail
+          for d in infra/gcp/terraform/bootstrap infra/gcp/terraform/envs/prod infra/gcp/terraform/modules/*; do
+            echo "== $d"
+            terraform -chdir="$d" init -backend=false -input=false -no-color >/dev/null
+            terraform -chdir="$d" validate -no-color
+          done
+      - name: terraform test (mock providers)
+        run: |
+          terraform -chdir="$TF_DIR" test -no-color
+          terraform -chdir=infra/gcp/terraform/bootstrap test -no-color
+      - name: no secret versions, no public members, no "latest" secret refs
+        run: |
+          if grep -rn --include='*.tf' 'resource "google_secret_manager_secret_version"' infra/gcp/terraform; then exit 1; fi
+          if grep -rnE --include='*.tf' '"allUsers"|"allAuthenticatedUsers"' infra/gcp/terraform; then exit 1; fi
+          if grep -rnE --include='*.tf' 'version\s*=\s*"latest"' infra/gcp/terraform; then exit 1; fi
+      - uses: terraform-linters/setup-tflint@v4
+      - name: tflint
+        working-directory: infra/gcp/terraform
+        run: |
+          tflint --init
+          tflint --recursive --config "$PWD/.tflint.hcl" -f compact
+      - name: trivy config
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: config
+          scan-ref: infra/gcp/terraform
+          exit-code: "1"
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: 22
+      - name: relay latency tool tests
+        run: node --test infra/gcp/tools/ws-latency.test.mjs
+
+  plan:
+    needs: check
+    if: github.ref == 'refs/heads/main' && vars.TF_PROJECT_ID != ''
+    runs-on: ubuntu-latest
+    environment: gcp-plan
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - name: Refuse anything but the production project
+        run: |
+          case "${{ vars.TF_PROJECT_ID }}" in
+            motored*) echo "::error::refused"; exit 1 ;;
+            gleaming-medium-480114-g5) ;;
+            *) echo "::error::TF_PROJECT_ID must be gleaming-medium-480114-g5"; exit 1 ;;
+          esac
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TF_PLAN_SA }}
+          project_id: ${{ vars.TF_PROJECT_ID }}
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - name: plan (read only, no state lock)
+        env:
+          # Non-secret inputs as repository variables; the rest come from variables.tf defaults.
+          TF_VAR_project_id: ${{ vars.TF_PROJECT_ID }}
+          TF_VAR_billing_account: ${{ vars.TF_BILLING_ACCOUNT }}
+          TF_VAR_alert_email: ${{ vars.TF_ALERT_EMAIL }}
+          TF_VAR_backend_tag: ${{ vars.TF_BACKEND_TAG }}
+          TF_VAR_web_tag: ${{ vars.TF_WEB_TAG }}
+          TF_VAR_cms_tag: ${{ vars.TF_CMS_TAG }}
+          TF_VAR_state_bucket: ${{ vars.TF_STATE_BUCKET }}
+        run: |
+          set -euo pipefail
+          terraform -chdir="$TF_DIR" init -input=false -no-color \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="prefix=envs/prod"
+          terraform -chdir="$TF_DIR" plan -lock=false -input=false -no-color -out=tfplan | tee plan.txt
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: terraform-plan
+          path: |
+            plan.txt
+            ${{ env.TF_DIR }}/tfplan
+          retention-days: 7
+
+  apply:
+    needs: plan
+    if: github.event_name == 'workflow_dispatch' && inputs.apply && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: gcp-prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: terraform-plan
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
+        with:
+          workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
+          service_account: ${{ vars.GCP_TF_APPLY_SA }}
+          project_id: ${{ vars.TF_PROJECT_ID }}
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
+        with:
+          terraform_version: ${{ env.TF_VERSION }}
+          terraform_wrapper: false
+      - name: apply the reviewed plan
+        run: |
+          set -euo pipefail
+          case "${{ vars.TF_PROJECT_ID }}" in gleaming-medium-480114-g5) ;; *) exit 1 ;; esac
+          terraform -chdir="$TF_DIR" init -input=false -no-color \
+            -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="prefix=envs/prod"
+          terraform -chdir="$TF_DIR" apply -input=false -no-color tfplan

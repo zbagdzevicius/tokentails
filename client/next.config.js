@@ -131,12 +131,15 @@ const pawlegendsHeaders = ["/pawlegends-game/build/:path*", "/pawlegends/landing
 // (`?utm_*`) stay on the landing. The landing repeats the check in the browser for the app export.
 // eslint-disable-next-line @typescript-eslint/no-require-imports -- CommonJS config
 const pawlegendsRoutes = require("./components/pawlegends/routes.json");
-const pawlegendsRedirects = pawlegendsRoutes.playQueryKeys.map((key) => ({
-  source: pawlegendsRoutes.landingPath,
-  has: [{ type: "query", key }],
-  destination: pawlegendsRoutes.playPath,
-  permanent: false,
-}));
+// `/legends` (the landing A/B arm B, components/pawlegends/landingVariant.ts) forwards the same keys.
+const pawlegendsRedirects = [pawlegendsRoutes.landingPath, pawlegendsRoutes.legendsPath].flatMap((source) =>
+  pawlegendsRoutes.playQueryKeys.map((key) => ({
+    source,
+    has: [{ type: "query", key }],
+    destination: pawlegendsRoutes.playPath,
+    permanent: false,
+  }))
+);
 
 // The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
 // redirect to its repo-content replacement (lib/feed/legacy-redirects.json plus each article's
@@ -165,7 +168,10 @@ const nextConfig = {
   sassOptions: {
     silenceDeprecations: ["legacy-js-api"],
   },
-  output: isApp ? "export" : undefined,
+  // App builds are a static export for Capacitor. Vercel (it sets VERCEL=1 at build time) keeps Next's default
+  // output, exactly as before the migration. Other web builds are `standalone`: the self-contained server that the
+  // Google Cloud image runs (client/Dockerfile, infra/gcp/RUNBOOK.md).
+  output: isApp ? "export" : process.env.VERCEL ? undefined : "standalone",
   transpilePackages: ["@creit.tech/stellar-wallets-kit"],
   // Not supported under output: "export", so app builds skip them;
   // pages/gaming.tsx covers /gaming client-side there.

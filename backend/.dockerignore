@@ -1,0 +1,22 @@
+# Keep the build context small and secret-free (infra/gcp/RUNBOOK.md).
+node_modules
+dist
+coverage
+.nyc_output
+*.log
+*.tsbuildinfo
+# never ship env files or keys into an image
+.env
+.env.*
+!.env.example
+local.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+.git
+.vscode
+.idea
+Dockerfile
+.dockerignore

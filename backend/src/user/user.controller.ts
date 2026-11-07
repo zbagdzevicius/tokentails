@@ -92,7 +92,7 @@ import {
     startGuestMerge,
 } from './guest/guest-lifecycle';
 import { identityConfig } from './guest/identity-config';
-import { requestIp } from './guest/ip-throttle';
+import { visitorIp } from 'src/shared/client-ip';
 import { applyReferral, IReferralResult } from './guest/referral';
 import { ANONYMOUS_PROVIDER } from './user.service';
 import { earnedBoardField, earnedTails, earnTailsInc } from './tails-ledger';
@@ -566,7 +566,7 @@ export class UserController {
         }
         await this.verifyAppCheck(appCheckToken);
         const uid = authUser.transient ? authUser.firebaseUid : authUser.firebaseUids?.[0];
-        const guest = await this.userService.createGuestSession(uid as string, requestIp(req));
+        const guest = await this.userService.createGuestSession(uid as string, visitorIp(req));
         return this.loadProfile(guest._id.toString());
     }
 

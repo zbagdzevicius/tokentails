@@ -1,0 +1,353 @@
+locals {
+  all_hosts = distinct(concat(var.api_hosts, var.web_hosts, var.cms_hosts))
+  # Cloud Armor: at most 10 source ranges per basic rule.
+  cf_ranges = concat(var.cloudflare_ipv4, var.cloudflare_ipv6)
+  cf_chunks = chunklist(local.cf_ranges, 10)
+  # Advanced expressions allow 5 subexpressions: the path test plus 4 ranges per throttle rule.
+  ws_chunks     = chunklist(local.cf_ranges, 4)
+  managed_cert  = var.certificate_mode == "managed"
+  dns_auth_keys = local.managed_cert ? { for h in local.all_hosts : replace(h, ".", "-") => h } : {}
+}
+
+resource "terraform_data" "proxy_subnet" {
+  input = var.proxy_only_subnet_id
+}
+
+resource "google_compute_address" "lb" {
+  project      = var.project_id
+  name         = "${var.name}-ip"
+  region       = var.region
+  address_type = "EXTERNAL"
+  network_tier = "PREMIUM"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Certificate (Certificate Manager, regional). Production: Google-managed, DNS authorization (a CNAME per host at
+# Cloudflare, DNS only). A test stack without DNS (envs/staging) uploads a self-managed (self-signed) certificate.
+
+resource "google_certificate_manager_dns_authorization" "host" {
+  for_each = local.dns_auth_keys
+  project  = var.project_id
+  name     = "${var.name}-${each.key}"
+  location = var.region
+  domain   = each.value
+  type     = "PER_PROJECT_RECORD"
+}
+
+resource "google_certificate_manager_certificate" "edge" {
+  project  = var.project_id
+  name     = "${var.name}-cert"
+  location = var.region
+
+  dynamic "managed" {
+    for_each = local.managed_cert ? [1] : []
+    content {
+      domains            = local.all_hosts
+      dns_authorizations = [for k in keys(local.dns_auth_keys) : google_certificate_manager_dns_authorization.host[k].id]
+    }
+  }
+
+  dynamic "self_managed" {
+    for_each = local.managed_cert ? [] : [1]
+    content {
+      pem_certificate = var.self_managed_certificate.certificate_pem
+      pem_private_key = var.self_managed_certificate.private_key_pem
+    }
+  }
+
+  lifecycle {
+    precondition {
+      condition     = local.managed_cert || var.self_managed_certificate != null
+      error_message = "certificate_mode = self_managed needs self_managed_certificate."
+    }
+  }
+}
+
+resource "google_compute_region_ssl_policy" "modern" {
+  project         = var.project_id
+  name            = "${var.name}-tls12"
+  region          = var.region
+  profile         = "MODERN"
+  min_tls_version = "TLS_1_2"
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Cloud Armor: Cloudflare only, per-player throttle on the relay path, default deny
+
+resource "google_compute_region_security_policy" "edge" {
+  project     = var.project_id
+  name        = "${var.name}-cloudflare-only"
+  region      = var.region
+  type        = "CLOUD_ARMOR"
+  description = "Admit Cloudflare edges only (cf-connecting-ip cannot be forged), throttle relay upgrades per player."
+
+  dynamic "rules" {
+    for_each = { for i, c in local.ws_chunks : i => c }
+    content {
+      priority    = 100 + rules.key
+      action      = "throttle"
+      description = "relay upgrades per cf-connecting-ip (Cloudflare ranges ${rules.key})"
+      match {
+        expr {
+          expression = "request.path.startsWith('/pawlegends/ws') && (${join(" || ", [for r in rules.value : "inIpRange(origin.ip, '${r}')"])})"
+        }
+      }
+      rate_limit_options {
+        conform_action      = "allow"
+        exceed_action       = "deny(429)"
+        enforce_on_key      = "HTTP_HEADER"
+        enforce_on_key_name = "cf-connecting-ip"
+        rate_limit_threshold {
+          count        = var.ws_rate_limit_per_minute
+          interval_sec = 60
+        }
+      }
+    }
+  }
+
+  dynamic "rules" {
+    for_each = { for i, c in local.cf_chunks : i => c }
+    content {
+      priority    = 1000 + rules.key
+      action      = "allow"
+      description = "Cloudflare edge ranges ${rules.key}"
+      match {
+        versioned_expr = "SRC_IPS_V1"
+        config {
+          src_ip_ranges = rules.value
+        }
+      }
+    }
+  }
+
+  # Test stacks only (envs/staging, no Cloudflare in front): the operator's own addresses. Empty in production.
+  dynamic "rules" {
+    for_each = length(var.extra_allowed_source_ranges) > 0 ? [var.extra_allowed_source_ranges] : []
+    content {
+      priority    = 900
+      action      = "allow"
+      description = "Operator test addresses (staging only)"
+      match {
+        versioned_expr = "SRC_IPS_V1"
+        config {
+          src_ip_ranges = rules.value
+        }
+      }
+    }
+  }
+
+  rules {
+    priority    = 2147483647
+    action      = "deny(403)"
+    description = "Default: anything not from Cloudflare"
+    match {
+      versioned_expr = "SRC_IPS_V1"
+      config {
+        src_ip_ranges = ["*"]
+      }
+    }
+  }
+}
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Backends
+
+# Live traffic goes to each service; `<key>-canary` goes to the revision tagged `canary` (deploy-gcp.yml deploys a new
+# revision with --no-traffic --tag canary, smoke-tests it through this load balancer with the canary header, then moves
+# traffic). The services have no run.app URL, so this is the only way to reach a revision before it is live.
+locals {
+  run_services = { api = var.api_service, web = var.web_service, cms = var.cms_service }
+  run_negs = merge(
+    { for k, svc in local.run_services : k => { service = svc, tag = null } },
+    { for k, svc in local.run_services : "${k}-canary" => { service = svc, tag = var.canary_tag } },
+  )
+}
+
+resource "google_compute_region_network_endpoint_group" "run" {
+  for_each              = local.run_negs
+  project               = var.project_id
+  name                  = "${var.name}-${each.key}-neg"
+  region                = var.region
+  network_endpoint_type = "SERVERLESS"
+
+  cloud_run {
+    service = each.value.service
+    tag     = each.value.tag
+  }
+}
+
+resource "google_compute_region_backend_service" "run" {
+  provider              = google-beta
+  for_each              = google_compute_region_network_endpoint_group.run
+  project               = var.project_id
+  name                  = "${var.name}-${each.key}"
+  region                = var.region
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  protocol              = "HTTPS"
+  security_policy       = google_compute_region_security_policy.edge.id
+
+  backend {
+    group           = each.value.id
+    balancing_mode  = "UTILIZATION"
+    capacity_scaler = 1
+  }
+
+  log_config {
+    enable      = true
+    sample_rate = var.log_sample_rate
+  }
+}
+
+# The party relay: plain HTTP/1.1 to the VM (WebSocket upgrade), one VM so no affinity is needed, long sockets.
+resource "google_compute_region_backend_service" "relay" {
+  provider                        = google-beta
+  project                         = var.project_id
+  name                            = "${var.name}-relay"
+  region                          = var.region
+  load_balancing_scheme           = "EXTERNAL_MANAGED"
+  protocol                        = "HTTP"
+  port_name                       = var.relay_port_name
+  timeout_sec                     = var.relay_timeout_sec
+  connection_draining_timeout_sec = var.relay_draining_sec
+  session_affinity                = "NONE"
+  locality_lb_policy              = "ROUND_ROBIN"
+  health_checks                   = [var.relay_health_check]
+  security_policy                 = google_compute_region_security_policy.edge.id
+
+  backend {
+    group           = var.relay_instance_group
+    balancing_mode  = "UTILIZATION"
+    max_utilization = 1
+    capacity_scaler = 1
+  }
+
+  log_config {
+    enable      = true
+    sample_rate = 1
+  }
+}
+
+resource "google_compute_region_url_map" "edge" {
+  project         = var.project_id
+  name            = "${var.name}-map"
+  region          = var.region
+  default_service = google_compute_region_backend_service.run["web"].id
+
+  host_rule {
+    hosts        = var.api_hosts
+    path_matcher = "api"
+  }
+
+  host_rule {
+    hosts        = var.web_hosts
+    path_matcher = "web"
+  }
+
+  host_rule {
+    hosts        = var.cms_hosts
+    path_matcher = "cms"
+  }
+
+  # api: the relay paths first (WebSocket to the VM), then the canary header, then tt-api.
+  path_matcher {
+    name            = "api"
+    default_service = google_compute_region_backend_service.run["api"].id
+
+    route_rules {
+      priority = 1
+      service  = google_compute_region_backend_service.relay.id
+
+      dynamic "match_rules" {
+        for_each = var.relay_paths
+        content {
+          full_path_match = endswith(match_rules.value, "/*") ? null : match_rules.value
+          prefix_match    = endswith(match_rules.value, "/*") ? trimsuffix(match_rules.value, "*") : null
+        }
+      }
+    }
+
+    route_rules {
+      priority = 2
+      service  = google_compute_region_backend_service.run["api-canary"].id
+
+      match_rules {
+        prefix_match = "/"
+        header_matches {
+          header_name = var.canary_header
+          exact_match = "1"
+        }
+      }
+    }
+  }
+
+  dynamic "path_matcher" {
+    for_each = ["web", "cms"]
+    content {
+      name            = path_matcher.value
+      default_service = google_compute_region_backend_service.run[path_matcher.value].id
+
+      route_rules {
+        priority = 1
+        service  = google_compute_region_backend_service.run["${path_matcher.value}-canary"].id
+
+        match_rules {
+          prefix_match = "/"
+          header_matches {
+            header_name = var.canary_header
+            exact_match = "1"
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "google_compute_region_target_https_proxy" "edge" {
+  project                          = var.project_id
+  name                             = "${var.name}-https"
+  region                           = var.region
+  url_map                          = google_compute_region_url_map.edge.id
+  certificate_manager_certificates = [google_certificate_manager_certificate.edge.id]
+  ssl_policy                       = google_compute_region_ssl_policy.modern.id
+}
+
+resource "google_compute_forwarding_rule" "https" {
+  project               = var.project_id
+  name                  = "${var.name}-https"
+  region                = var.region
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  port_range            = "443"
+  target                = google_compute_region_target_https_proxy.edge.id
+  ip_address            = google_compute_address.lb.id
+  network               = var.network
+  network_tier          = "PREMIUM"
+
+  depends_on = [terraform_data.proxy_subnet]
+}
+
+# Plain HTTP on port 80, same address and URL map. Off in production (Cloudflare connects over HTTPS, SSL Full
+# strict); a test stack without DNS turns it on to curl the backends without a certificate.
+resource "google_compute_region_target_http_proxy" "edge" {
+  count   = var.http_listener ? 1 : 0
+  project = var.project_id
+  name    = "${var.name}-http"
+  region  = var.region
+  url_map = google_compute_region_url_map.edge.id
+}
+
+resource "google_compute_forwarding_rule" "http" {
+  count                 = var.http_listener ? 1 : 0
+  project               = var.project_id
+  name                  = "${var.name}-http"
+  region                = var.region
+  ip_protocol           = "TCP"
+  load_balancing_scheme = "EXTERNAL_MANAGED"
+  port_range            = "80"
+  target                = google_compute_region_target_http_proxy.edge[0].id
+  ip_address            = google_compute_address.lb.id
+  network               = var.network
+  network_tier          = "PREMIUM"
+
+  depends_on = [terraform_data.proxy_subnet]
+}

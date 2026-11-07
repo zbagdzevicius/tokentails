@@ -118,17 +118,39 @@ describe("page_view on the landing", () => {
   afterAll(() => setPath("/"));
   const views = () => mockPushes.filter((d) => d.event === "page_view").map((d) => d.page_path);
 
-  it("waits for the intro, then sends the landing's page_view", () => {
+  it.each(["/pawlegends", "/legends"])("%s (an A/B arm) starts on the same rule: not on the intro's ready signal, at the cap", (path) => {
+    setPath(path);
     const view = render(<GoogleTagManager />);
-    jest.advanceTimersByTime(1000);
-    expect(mockGtmStart).not.toHaveBeenCalled();
     act(() => {
       window.dispatchEvent(new Event(LANDING_READY_EVENT));
+    });
+    jest.advanceTimersByTime(ANALYTICS_DEFER_MAX_MS - 1);
+    expect(mockGtmStart).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(1 + 200);
+    expect(mockGtmStart).toHaveBeenCalledTimes(1);
+    expect(views()).toEqual([path]);
+    view.unmount();
+  });
+
+  it("a landing's first tap starts it at once", () => {
+    const view = render(<GoogleTagManager />);
+    act(() => {
+      window.dispatchEvent(new Event("pointerdown"));
     });
     jest.advanceTimersByTime(200);
     expect(mockGtmStart).toHaveBeenCalledTimes(1);
     expect(views()).toEqual(["/pawlegends"]);
     view.unmount();
+  });
+
+  it("afterLandingReady with waitForIntro: false ignores the ready signal", () => {
+    const start = jest.fn();
+    const cancel = afterLandingReady(start, window, { waitForIntro: false });
+    window.dispatchEvent(new Event(LANDING_READY_EVENT));
+    expect(start).not.toHaveBeenCalled();
+    jest.advanceTimersByTime(ANALYTICS_DEFER_MAX_MS);
+    expect(start).toHaveBeenCalledTimes(1);
+    cancel();
   });
 
   it("a route change before the start sends the landing's page_view first, then the new page's", () => {

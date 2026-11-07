@@ -7,7 +7,7 @@
  * come from roster.ts, never from literals.
  */
 import { countWord, gridHeroes, isReleased, justReleased, landingCats, landingDogs, LANDING_ROSTER, liveRoster, newcomers, rolesOf, type LandingHero, type LandingSide } from "./roster";
-import { playHref } from "../routes";
+import { variantPlayHref } from "../landingVariant";
 import { PAWLEGENDS_TERMS_PATH } from "../flags";
 
 export const LANDING_ASSET = (name: string) => `/pawlegends/landing/${name}`;
@@ -58,8 +58,9 @@ export const LANDING_FILES: readonly string[] = Object.freeze([
   ...gridHeroes().map((h) => h.portrait).filter((p): p is string => !!p).map((p) => sized(p, TILE_PORTRAIT_WIDTH)),
 ]);
 
-export const HERO_CTA_HREF = playHref("landing_hero");
-export const CONTINUE_CTA_HREF = playHref("landing_continue");
+/** Play links carry the landing A/B arm (`lv=A`; components/pawlegends/landingVariant.ts). */
+export const HERO_CTA_HREF = variantPlayHref("landing_hero", "A");
+export const CONTINUE_CTA_HREF = variantPlayHref("landing_continue", "A");
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
