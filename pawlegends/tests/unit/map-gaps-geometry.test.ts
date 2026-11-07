@@ -173,3 +173,21 @@ describe('MAP-GAPS A23 shadow budget at max zoom', () => {
     expect(shadowHalfFor(50)).toBe(SHADOW_BOX.max);
   });
 });
+
+describe('MAP-GAPS A25 bodies drawn clear of static walls (cosmetic)', () => {
+  it('pushes a body grazing a rock out of it, and leaves a body on open ground alone', async () => {
+    const { layoutBodies, wallObstacles } = await import('../../src/render/views/heroView');
+    // the jungle rock at x 16–18 m, y 26–34 m: a body 0.2 m inside its west face
+    const inRock = { x: 16.2, z: -30 };
+    const out = layoutBodies([inRock], wallObstacles([inRock]));
+    expect(inRock.x + out[0].x).toBeLessThan(16);
+    // open jungle at (30, 25): nothing to push
+    const open = { x: 30.5, z: -25.5 };
+    const o2 = layoutBodies([open], wallObstacles([open]));
+    expect(Math.hypot(o2[0].x, o2[0].z)).toBe(0);
+    // on the walkable cell next to the rock (centre 15.5): not pushed
+    const next = { x: 15.5, z: -30.5 };
+    const o3 = layoutBodies([next], wallObstacles([next]));
+    expect(Math.hypot(o3[0].x, o3[0].z)).toBeLessThan(1e-9);
+  });
+});
