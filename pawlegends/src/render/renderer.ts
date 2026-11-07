@@ -4,7 +4,7 @@
  */
 import * as THREE from 'three';
 import { isoPitch, isoPosition } from './camera/IsoRig.js';
-import { CAMERA_YAW } from './coords';
+import { cameraYaw } from './coords';
 import { RENDER } from './ppk/core/config.js';
 import { installToon } from './toon.js';
 import { setOutlineViewport } from './chars/charMaterial';
@@ -171,7 +171,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       }
       const d = MOBA_DIST * gr.zoom * near;
       gr.dist = d;
-      isoPosition(focus, CAMERA_YAW, Math.max(0.8, isoPitch(d) - MOBA_PITCH_DROP), d, pos);
+      isoPosition(focus, cameraYaw(), Math.max(0.8, isoPitch(d) - MOBA_PITCH_DROP), d, pos);
       camera.position.set(pos.x, pos.y, pos.z);
       camera.lookAt(focus);
       camera.updateProjectionMatrix();

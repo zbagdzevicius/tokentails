@@ -353,3 +353,20 @@ describe('MAP-GAPS A20 cleared bushes', () => {
     expect(m.bushesCleared).toBe(0);
   });
 });
+
+describe('MAP-GAPS A24 team-1 view', () => {
+  it('turns the camera yaw 180° and the screen-to-map sign for a team-1 seat, and flips the minimap', async () => {
+    const { CAMERA_YAW, cameraYaw, setViewTeam, viewSign } = await import('../../src/render/coords');
+    setViewTeam(1);
+    expect(cameraYaw()).toBeCloseTo(CAMERA_YAW + Math.PI);
+    expect(viewSign()).toBe(-1);
+    setViewTeam(0);
+    expect(cameraYaw()).toBe(CAMERA_YAW);
+    expect(viewSign()).toBe(1);
+    const m = new Minimap(document.body, host({ myTeam: () => 1 }));
+    draw(m, frame([]));
+    // the team-1 fountain (x 97 m) is drawn at the left of the minimap
+    expect(m.X(97000)).toBeLessThan(m.X(3000));
+    expect(m.Y(57000)).toBeGreaterThan(m.Y(3000));
+  });
+});

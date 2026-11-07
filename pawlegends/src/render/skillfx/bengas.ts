@@ -38,7 +38,7 @@
 import { stubFx } from '../anim/common';
 import { TICK_S } from '../anim/timing';
 import { CAPS } from '../../data/map';
-import { CAMERA_YAW } from '../coords';
+import { cameraYaw } from '../coords';
 import type { FxCtx, HeroStatus, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
 import { isBigHit } from '../fx/combatVfx';
@@ -63,7 +63,8 @@ const STUNNED = 1 << 3;
 const SLOWED = 1 << 6;
 const TAU = Math.PI * 2;
 /** Mesh yaw (forward = (cos, −sin)) of the direction toward the camera (the iso camera sits at (sin yaw, cos yaw)). */
-const TOWARD_CAM = Math.atan2(-Math.cos(CAMERA_YAW), Math.sin(CAMERA_YAW));
+/** MAP-GAPS A24: read per effect, so a team-1 seat (camera turned 180°) gets it too. */
+const towardCam = (): number => Math.atan2(-Math.cos(cameraYaw()), Math.sin(cameraYaw()));
 
 // ------------------------------------------------------------------------------------------------ pooled scratch
 
@@ -276,15 +277,15 @@ let pendZoneAt = -9;
 
 function curtains(fx: FxCtx, s: Stage, life: number): void {
   // two faint halves, the far one and the one facing the camera (lower); Low has no curtain pool: flame pillars stand in
-  const a = mesh(fx, 'curtain', s.x, s.z, s.rad, life, FIRE, s.rim, s.rel, TOWARD_CAM + Math.PI, 0.02, CURTAIN_FAR, Math.PI * 0.98, 0, 0, 0);
-  const b = mesh(fx, 'curtain', s.x, s.z, s.rad, life, FIRE, s.rim, s.rel, TOWARD_CAM, 0.02, CURTAIN_NEAR, Math.PI * 0.98, 0, 0, 0);
+  const a = mesh(fx, 'curtain', s.x, s.z, s.rad, life, FIRE, s.rim, s.rel, towardCam() + Math.PI, 0.02, CURTAIN_FAR, Math.PI * 0.98, 0, 0, 0);
+  const b = mesh(fx, 'curtain', s.x, s.z, s.rad, life, FIRE, s.rim, s.rel, towardCam(), 0.02, CURTAIN_NEAR, Math.PI * 0.98, 0, 0, 0);
   if (a < 0 || b < 0) {
     // the far half's pillars stand taller (the parting curtain), the near ones low
     for (let i = 0; i < 6; i++) {
       const ang = s.yaw + (i * TAU) / 6;
       const px = s.x + Math.cos(ang) * s.rad * 0.9;
       const pz = s.z - Math.sin(ang) * s.rad * 0.9;
-      const far = Math.cos(ang - TOWARD_CAM) < 0;
+      const far = Math.cos(ang - towardCam()) < 0;
       mesh(fx, 'pillar', px, pz, 0.3, life, FIRE, s.rim, s.rel, 0, 0.02, far ? CURTAIN_FAR : CURTAIN_NEAR + 0.2, 0, 0, 0, 0.5);
     }
   }
@@ -324,8 +325,8 @@ function rose(fx: FxCtx, s: Stage, k: number): void {
   const a = funRand(s.tick, s.owner, 20 + k);
   const b = funRand(s.tick, s.owner, 40 + k);
   const side = (a - 0.5) * 1.6;
-  const x0 = s.x + Math.cos(TOWARD_CAM + side) * (s.rad + 1.2);
-  const z0 = s.z - Math.sin(TOWARD_CAM + side) * (s.rad + 1.2);
+  const x0 = s.x + Math.cos(towardCam() + side) * (s.rad + 1.2);
+  const z0 = s.z - Math.sin(towardCam() + side) * (s.rad + 1.2);
   const ang = b * TAU;
   const rr = s.rad * (0.25 + 0.5 * a);
   const x1 = s.x + Math.cos(ang) * rr;
