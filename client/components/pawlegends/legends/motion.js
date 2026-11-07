@@ -530,7 +530,9 @@ export function startLegendsMotion(rootEl, libs) {
     $$('.rv').forEach(function(e){ G.fromTo(e,{opacity:0,y:28},{opacity:1,y:0,duration:.9,ease:'expo.out',delay:.2,scrollTrigger:{trigger:e,start:'top 92%',once:true}}); });
     $$('.leg:not(.hero) .maplabel').forEach(function(e){ G.fromTo(e,{opacity:0,x:-20},{opacity:1,x:0,duration:.7,ease:'expo.out',scrollTrigger:{trigger:e,start:'top 92%',once:true}}); });
 
-    // headlines: masked lines, words rise, em lands last with punch + underline
+    // headlines: masked lines, words rise, em lands last with punch + underline. Split only once the fonts are in
+    // (SplitText measures the lines: a split in the fallback face wraps differently once Fredoka lands), capped at 3 s.
+    function splitHeads(){
     $$('.kin').forEach(function(h){
       var side=(h.closest('.leg')||{dataset:{}}).dataset.side==='R'?1:-1;
       var sp=SplitText.create(h,{type:'lines,words',mask:'lines',linesClass:'ln',wordsClass:'word'});
@@ -544,6 +546,9 @@ export function startLegendsMotion(rootEl, libs) {
         .fromTo(em,{scale:1.15},{scale:1,duration:.9,ease:'elastic.out(1,.5)',transformOrigin:'50% 70%'},'-=.35')
         .fromTo($$('svg.ul path',h),{drawSVG:'0%'},{drawSVG:'100%',duration:.5,ease:'power2.inOut',stagger:.1},'-=.75'); }
     });
+    }
+    (function(){ var done=false; function go(){ if (done||dead) return; done=true; if (ctx) ctx.add(splitHeads); else splitHeads(); } // ctx is unset while the context's own body runs
+      if (D.fonts && D.fonts.ready && D.fonts.status!=='loaded'){ D.fonts.ready.then(go,go); later(go,3000); } else go(); })();
 
     // bridge planks thunk down
     G.from('#bridge i',{y:-20,opacity:0,duration:.5,ease:'bounce.out',stagger:.03,scrollTrigger:{trigger:'#river',start:'top 80%',once:true}});
@@ -724,5 +729,10 @@ export function startLegendsMotion(rootEl, libs) {
     function upd(){ var ph=innerWidth<=760; m.classList.toggle('off',!!(on.foot||(ph&&(on.hero||on.final)))); }
     function watch(sel,key,mg){ var el=$(sel); if(!el) return; ioT(function(es){ on[key]=es[0].isIntersecting; upd(); },{rootMargin:mg||'0px'}).observe(el); }
     watch('.foot','foot'); watch('.hero','hero','0px 0px -45% 0px'); watch('.final','final','0px 0px -25% 0px'); onWin('resize',upd); })();
+  /* ---------- HUD: steps aside while the dog base (and its VICTORY banner) is under it, mostly on phones ---------- */
+  (function(){ var hud=$('.hud'), base=$('.final .lanecol'); if(!hud||!base) return; var off=false;
+    function upd(){ var hb=hud.getBoundingClientRect().bottom, r=base.getBoundingClientRect(), v=finalSec.classList.contains('won')?$('.victory').getBoundingClientRect():null;
+      var top=v?Math.min(r.top,v.top):r.top, now=top<hb+8&&r.bottom>hb; if(now!==off){ off=now; hud.classList.toggle('off',now); } }
+    onWin('scroll',upd,{passive:true}); onWin('resize',upd); upd(); })();
   }
 }

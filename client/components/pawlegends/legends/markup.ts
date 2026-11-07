@@ -222,7 +222,7 @@ export function legendsMarkup(): string {
       <div class="duo">
         <div class="card">
           <h2 class="kin" id="lgb-h-aim">Hold. Aim. <em>Let go.</em></h2>
-          <p class="lede rv">Hold a skill key to see its range, aim with your cursor, release to cast. Quick cast in Settings fires on the press instead. On a phone, tap a skill to smart-cast or drag it to aim. Dashes and blinks go off the moment you press, the full distance toward where you&#8217;re heading.</p>
+          <p class="lede rv">Hold a skill key to see its range, aim with your cursor, release to cast. Quick cast in Settings fires on the press instead. On a phone, tap a skill to smart-cast or drag it to aim. On a phone, escape dashes and blinks fire on the tap, the full distance toward where you&#8217;re heading; the Pounce trick (D) fires on the press everywhere.</p>
           <p class="note rv">Try it on the practice pad &#8594;</p>
         </div>
         <div class="rv">

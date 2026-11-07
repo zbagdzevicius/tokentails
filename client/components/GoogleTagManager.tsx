@@ -73,8 +73,11 @@ export const LANDING_READY_EVENT = "pawlegends:landing-ready";
 /** The longest a landing waits before analytics starts anyway (ms after mount). */
 export const ANALYTICS_DEFER_MAX_MS = 4000;
 /**
- * Pages whose first seconds belong to the page: the Pawlegends landing hides its hero until the GSAP intro runs, and
- * GTM's tags (about 470 KB of third-party script) would compete with it for the network and the main thread.
+ * Pages whose first seconds belong to the page: the Pawlegends landings hide their hero until the GSAP intro runs, and
+ * GTM's tags (about 470 KB of third-party script) would compete with it for the network and the main thread. These two
+ * pages are the landing A/B arms, so GTM starts on the same rule on both (the visitor's first tap, key or scroll,
+ * leaving, or ANALYTICS_DEFER_MAX_MS) and not on their intros' ready signal: `/legends`'s intro is about 2 s shorter, and
+ * an earlier start there would load the third-party tags during its intro and skew the comparison.
  */
 const DEFERRED_PATHS: ReadonlySet<string> = new Set(["/pawlegends", "/legends"]);
 
@@ -82,12 +85,17 @@ const DEFERRED_PATHS: ReadonlySet<string> = new Set(["/pawlegends", "/legends"])
  * Calls `start` once, after the landing says it is ready, the visitor's first tap, key or scroll, or
  * ANALYTICS_DEFER_MAX_MS, whichever comes first, then in an idle moment. When the page is hidden or left first (the
  * visitor switches app or tab, or closes it), `start` runs at once, so a quick bounce still has a chance to send its
- * page_view. Returns a cleanup.
+ * page_view. `waitForIntro: false` ignores the landing's ready signal (the landing A/B pages, see DEFERRED_PATHS).
+ * Returns a cleanup.
  */
-export function afterLandingReady(start: () => void, win: Window = window): () => void {
+export function afterLandingReady(
+  start: () => void,
+  win: Window = window,
+  { waitForIntro = true }: { waitForIntro?: boolean } = {}
+): () => void {
   let done = false;
   let idleId: number | undefined;
-  const events = [LANDING_READY_EVENT, "pointerdown", "keydown", "scroll"] as const;
+  const events = waitForIntro ? [LANDING_READY_EVENT, "pointerdown", "keydown", "scroll"] : ["pointerdown", "keydown", "scroll"];
   const go = () => {
     if (done) return;
     done = true;
@@ -120,8 +128,8 @@ export function afterLandingReady(start: () => void, win: Window = window): () =
 
 /**
  * Starts GTM and PostHog on mount for every visitor (see `analytics/gtm.ts`)
- * and pushes `page_view` on route changes. On the Pawlegends landing the start
- * waits for its intro (afterLandingReady); a route change starts it at once,
+ * and pushes `page_view` on route changes. On the Pawlegends landings the start
+ * is deferred (afterLandingReady, DEFERRED_PATHS); a route change starts it at once,
  * and the first page_view is still the page the visitor landed on.
  * Renders nothing and only touches `window` in effects, so it is SSR safe.
  */
@@ -155,7 +163,7 @@ export const GoogleTagManager = () => {
       if (document.visibilityState === "hidden") flush();
       else timeoutId = setTimeout(flush, 100);
     };
-    const cancelDefer = DEFERRED_PATHS.has(landedOn) ? afterLandingReady(start) : (start(), () => {});
+    const cancelDefer = DEFERRED_PATHS.has(landedOn) ? afterLandingReady(start, window, { waitForIntro: false }) : (start(), () => {});
 
     const onRouteChange = (pagePath: string) => {
       if (flushed) return pushPageView(pagePath);

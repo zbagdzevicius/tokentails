@@ -4,7 +4,7 @@ import { LegendsLanding } from "@/components/pawlegends/legends/LegendsLanding";
 import { LEGENDS_FACTS } from "@/components/pawlegends/legends/facts";
 import { LEGENDS_FONT } from "@/components/pawlegends/legends/markup";
 import { countWord, liveRoster } from "@/components/pawlegends/landing/roster";
-import { PAWLEGENDS_LANDING_PATH, PAWLEGENDS_PLAY_PATH, wantsGame } from "@/components/pawlegends/routes";
+import { PAWLEGENDS_LEGENDS_PATH, PAWLEGENDS_PLAY_PATH, wantsGame } from "@/components/pawlegends/routes";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 import Head from "next/head";
@@ -14,15 +14,15 @@ import { useEffect } from "react";
 const T = LEGENDS_FACTS.teamSize;
 
 /**
- * `/legends` meta: the landing A/B arm B (components/pawlegends/landingVariant.ts). Its canonical and og:url are
- * `/pawlegends`, so search engines treat the two arms as one page and SEO never splits; like `/pawlegends` it stays
- * `noindex` until the trademark search passes, and it is never in the sitemap (`client/next-sitemap.config.js`).
- * Same share card as `/pawlegends` (`public/pawlegends/og.jpg`).
+ * `/legends` meta: the landing A/B arm B (components/pawlegends/landingVariant.ts). og:url is `/legends` itself, so a
+ * shared `/legends` post sends its clicks to arm B, not to arm A. Like `/pawlegends` it stays `noindex` until the
+ * trademark search passes (SeoHead then sends no canonical, and two noindex pages cannot split SEO), and it is never in
+ * the sitemap (`client/next-sitemap.config.js`). Same share card as `/pawlegends` (`public/pawlegends/og.jpg`).
  */
 export const LEGENDS_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE}: Cats vs Dogs - Token Tails`,
   description: `${PAWLEGENDS_TITLE} is a free ${T}v${T} cats vs dogs game by Token Tails. ${liveRoster().length} heroes; push the lanes solo or with up to ${countWord(LEGENDS_FACTS.partyMax - 1).toLowerCase()} friends against bots, right in your browser on desktop or phone.`,
-  path: PAWLEGENDS_LANDING_PATH,
+  path: PAWLEGENDS_LEGENDS_PATH,
   image: Object.freeze({
     url: "/pawlegends/og.jpg",
     width: 1200,
