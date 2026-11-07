@@ -286,3 +286,16 @@ describe('MAP-GAPS A11 last-seen ghosts', () => {
     expect(m.ghostsDrawn).toEqual([]);
   });
 });
+
+describe('MAP-GAPS A18 fallen towers', () => {
+  it('keeps a greyed, crossed-out mark once a tower is dead or gone', () => {
+    const m = new Minimap(document.body, host());
+    const tower = (state: ViewEntity['state'], hp = 100) => ent({ id: 12, kind: 'tower', team: 1, fx: 66000, fy: 51000, state, hp });
+    draw(m, frame([tower('idle')]));
+    expect(m.fallenDrawn).toBe(0);
+    draw(m, frame([tower('dead', 0)]));
+    expect(m.fallenDrawn).toBe(1);
+    draw(m, frame([]));
+    expect(m.fallenDrawn).toBe(1);
+  });
+});
