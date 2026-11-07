@@ -162,6 +162,22 @@ export const FREE_COATS: Readonly<Record<string, { hero: HeroId; name: string; c
   'coat.stilts.desert': { hero: 'stilts', name: 'Desert coat', coat: { base: 0xe0b878, light: 0xfaecd0, dark: 0x8a5a2c, accent: 0xff7a3d } },
   'coat.stilts.silver': { hero: 'stilts', name: 'Silver coat', coat: { base: 0xc8ccd2, light: 0xf4f6f8, dark: 0x3a3e46, accent: 0x9be3c4 } },
   'coat.stilts.cinder': { hero: 'stilts', name: 'Cinder coat', coat: { base: 0x5a4a42, light: 0xc8b0a0, dark: 0x1e1612, accent: 0xff8fb1 } },
+  // sim v14: three coats for each original dog (first palettes; the RENDER lane tunes them on the models)
+  'coat.nugget.tricolour': { hero: 'nugget', name: 'Tricolour coat', coat: { base: 0x2a2426, light: 0xfbe9d2, dark: 0xa0521f, accent: 0xff8fb1 } },
+  'coat.nugget.fluffy': { hero: 'nugget', name: 'Fluffy coat', coat: { base: 0xf2d9b0, light: 0xffffff, dark: 0xc4a070, accent: 0xff8fb1 } },
+  'coat.nugget.bread': { hero: 'nugget', name: 'Bread Loaf coat', coat: { base: 0xb07a3c, light: 0xe8c890, dark: 0x6b4420, accent: 0xffd34d } },
+  'coat.marshmallow.cream': { hero: 'marshmallow', name: 'Biscuit Cream coat', coat: { base: 0xf2dfb8, light: 0xfffaf0, dark: 0xc8b088, accent: 0xff8fb1 } },
+  'coat.marshmallow.cocoa': { hero: 'marshmallow', name: 'Hot Cocoa coat', coat: { base: 0x7a5038, light: 0xe0c4ac, dark: 0x40281a, accent: 0xffffff } },
+  'coat.marshmallow.snowcone': { hero: 'marshmallow', name: 'Snowcone coat', coat: { base: 0xf4f8ff, light: 0xffffff, dark: 0xa8c8f0, accent: 0xffb3c8 } },
+  'coat.bravo.fawn': { hero: 'bravo', name: 'Fawn coat', coat: { base: 0xd9b07a, light: 0xf6e4c8, dark: 0x3a2a20, accent: 0xfff1d6 } },
+  'coat.bravo.opera': { hero: 'bravo', name: 'Opera coat', coat: { base: 0xf2e6d0, light: 0xffffff, dark: 0x2a2628, accent: 0xb07cff } },
+  'coat.bravo.understudy': { hero: 'bravo', name: 'Understudy coat', coat: { base: 0x6a5040, light: 0xb89878, dark: 0x2a1c14, accent: 0xffd34d } },
+  'coat.chili.black-tan': { hero: 'chili', name: 'Black and Tan coat', coat: { base: 0x2a2426, light: 0xd9a46a, dark: 0x141214, accent: 0xff8fb1 } },
+  'coat.chili.long-hair': { hero: 'chili', name: 'Long-Hair coat', coat: { base: 0xe8c08a, light: 0xfff0d8, dark: 0xb08050, accent: 0xff8fb1 } },
+  'coat.chili.hot-sauce': { hero: 'chili', name: 'Hot Sauce coat', coat: { base: 0xc8402a, light: 0xffb08a, dark: 0x6a1a10, accent: 0xffd34d } },
+  'coat.howler.red': { hero: 'howler', name: 'Copper coat', coat: { base: 0xb8683a, light: 0xf8ece0, dark: 0x6a3418, accent: 0x9fe8ff } },
+  'coat.howler.agouti': { hero: 'howler', name: 'Agouti coat', coat: { base: 0x6a6a5a, light: 0xd8d4c8, dark: 0x2e2c24, accent: 0x9fe8ff } },
+  'coat.howler.pied': { hero: 'howler', name: 'Pied coat', coat: { base: 0xf4f4f6, light: 0xffffff, dark: 0x5a5e68, accent: 0x9fe8ff } },
   ...loopCoats(),
 });
 

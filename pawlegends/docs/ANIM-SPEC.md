@@ -817,6 +817,22 @@ forelegs, 1.6× cadence). Level-up 4/7/10: hero flourish through the existing `l
 | R Under Her Spell | windup 15 t; cone 6 m, 90° (Long Glance 7.5 m); charm 30 t (Smitten 38) | windupStart→cast: one-turn **twirl** over 400 ms, hearts gather; C = cast: lean forward, wink (eye scale), blown kiss, wings snap wide | heart-shaped wavefront crosses the cone to its exact range in 200 ms; charmed enemies: heart eyes + pink leash ribbon to Gabė for the charm duration; victims play the charm gait; ult moment |
 | Gait / idle / end | | skipping hop-run (0.12 m hop every second step), wings bobbing; idle hover bob 0.05 m, wing flutter, hugs heart float, tosses a little heart that pops; victory: heart burst, spinning wing-spread, blown kisses; death: swoon, wings fold over her, feathers drift | |
 
+### Sim v14 dogs (DOGS-V13 §1; render modules `chars/heroes/<id>.ts`, `moves/<id>.ts`, `skillfx/<id>.ts`)
+
+Shared helpers: `moves/dogKit.ts` (clip builder, gallop legs) and `skillfx/dogFx.ts` (pooled mesh spawn, aim and
+facing). Lying poses are the dogs' own `PoseDef`s (the body bone turned a quarter and lowered), never a negative root
+`up` (the runtime clamps it to 0). Two director additions serve them: `MoveSet.clips` (a clip for a sim `clip` event:
+Bravo's flop) with `SkillFxSet.onClip`, and `MoveSet.formHold` (an additive loop held while the form bit is set:
+Chili's BIG DOG swell). A `mouthOpen` cue takes `'ms*scale'` for the wide howl and scream.
+
+| Dog | Signature pose | Body | Skill FX |
+|---|---|---|---|
+| Nugget (corgi, support) | **sploot** (E, 45 t; victory) | low `corgiStand` run, `corgiSit` idle; bark-recoil basics; Q spin-throw on the cast; W happy leap; E flat on his belly with a bum-wiggle hold, hop up on stateEnd; R zoomie circle over the 15 t windup, bark and stomp on the cast; emote: bum wiggle facing away | frisbee ribbon and paw print on the disc; heart pop on W; heal ring at the sim radius for 45 t, "SPLOOT!", own-camera punch; R dust ring sweeping round the sim ring, paw prints pointing in |
+| Marshmallow (Samoyed puppy, mage) | **snow angel** (R), **ice cube** (on the frozen cat) | `pupSit` idle with head tilt; two-paw toss basics; Q overhead heave; W paws up over the 9 t windup, slap on the cast; E `bellySlide` for the dash; R arms rise over the 18 t windup, jump, flop onto her back and wave (`snowAngel`); fidget and emote: the sneeze | snow ribbon on the snowball (`fluff`, drawn white); patch disc and falling flakes for the 120 t zone; R frosted ring and snowfall, "SNOW DAY!"; ice pillar + cap round a frozen cat for the 30 t freeze, "BRR!" |
+| Bravo (black pug actor, tank) | **flop** (`clip` 'flop', 30 t) | `stageStand` idle (paw on heart); cape swat / backhand basics; Q tear flick then sob; W "ta-da" held for 90 t, bow on stateEnd; E grand leap (travelEnd); R flourish over the 18 t windup, deep bow on the cast; flop: clutch, quarter turn, `playDead` legs up, twitch, pop up | tear ribbon (`fluff`, drawn blue) and splash; spotlight pillar + stage-board ring at the sim radius; "WOOO!" on the dive; ENCORE spotlights round the ring; flop: gasp, dizzy stars, "…bravo?" |
+| Chili (chihuahua, marksman) | **purse** (E, 30 t), **BIG DOG** (R, 180 t) | `yapStance` idle with a 3 Hz bob (off under reduced motion); yap basics, a heavy bark under BIG DOG; Q three yaps `gap` apart; W gallop + spin (travelEnd); E hop into the bag (squashed small), tremble hold, pop out on stateEnd; R squash and roar, the 1.35× swell is the additive form hold | white sound-wave crescents riding each yap; Rage pips (anger marks, own team) on his basics; handbag shell for 30 t, "!" and the slow ring; "BIG DOG ENERGY!", splash rings at the sim radius |
+| Howler (husky, fighter) | **inhale + THE SCREAM** (R, 21 t windup) | `huskyStand` idle with head tilt; lunge bite / paw swipe; Q chin-up AWOO (mouth ×2); W derp-face gallop (travelEnd); E arguing hold (head bobbing, mouth flapping), huff on stateEnd; R chest back and body ballooning to 1.3× over the windup, lurch and tremble with the mouth ×2.8 on the cast | sound-wave arcs to the sim cone's range; speech bubble of "!" / anger / note for Talk Back; R inhale puffs, cone shockwave to the sim range, distortion rings, "AAAAAA!" |
+
 ---
 
 ## 15. Sim timing reference (from data; `timing.ts` derives all of these)

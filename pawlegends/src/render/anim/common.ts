@@ -15,6 +15,11 @@ import { SPRINGS as MEATBALL_SPRINGS } from '../chars/heroes/meatball';
 import { SPRINGS as PIXEL_SPRINGS } from '../chars/heroes/pixel';
 import { SPRINGS as DUCHESS_SPRINGS } from '../chars/heroes/duchess';
 import { SPRINGS as STILTS_SPRINGS } from '../chars/heroes/stilts';
+import { SPRINGS as NUGGET_SPRINGS } from '../chars/heroes/nugget';
+import { SPRINGS as MARSHMALLOW_SPRINGS } from '../chars/heroes/marshmallow';
+import { SPRINGS as BRAVO_SPRINGS } from '../chars/heroes/bravo';
+import { SPRINGS as CHILI_SPRINGS } from '../chars/heroes/chili';
+import { SPRINGS as HOWLER_SPRINGS } from '../chars/heroes/howler';
 import { Prio, type Anchor, type ClipDef, type Cue, type GaitProfile, type Key, type Mask, type MoveSet, type ScalarKey, type SkillFxSet, type SlotMoves, type SpringTuning } from './types';
 
 /** The basic contact time (s) every basic clip pins to `contact` / `release`. */
@@ -52,6 +57,12 @@ export const HERO_SPRINGS: Readonly<Record<HeroId, SpringTuning>> = Object.freez
   pixel: PIXEL_SPRINGS,
   duchess: DUCHESS_SPRINGS,
   stilts: STILTS_SPRINGS,
+  // sim v14 original dogs
+  nugget: NUGGET_SPRINGS,
+  marshmallow: MARSHMALLOW_SPRINGS,
+  bravo: BRAVO_SPRINGS,
+  chili: CHILI_SPRINGS,
+  howler: HOWLER_SPRINGS,
 });
 
 // ------------------------------------------------------------------------------------------------ templates

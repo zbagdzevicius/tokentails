@@ -1,13 +1,18 @@
 /** Hero table. Order is the HeroId index used by the sim and the command stream. */
 import { AVIETE } from './aviete';
 import { BENGAS } from './bengas';
+import { BRAVO } from './bravo';
 import { BRUTUS } from './brutus';
 import { CACKLEJAW } from './cacklejaw';
+import { CHILI } from './chili';
 import { CLEM } from './clem';
 import { DUCHESS } from './duchess';
 import { GABE } from './gabe';
+import { HOWLER } from './howler';
 import { LAMBO } from './lambo';
+import { MARSHMALLOW } from './marshmallow';
 import { MEATBALL } from './meatball';
+import { NUGGET } from './nugget';
 import { PIXEL } from './pixel';
 import { SAGE } from './sage';
 import { STILTS } from './stilts';
@@ -19,8 +24,28 @@ export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, Her
 /**
  * Sim v9: the shelter champions are appended, so Clem (0), Sage (1), Sir Brutus (2) and Cacklejaw (3) keep their indices.
  * Sim v11: the four original cats follow (Meatball 8, Pixel 9, Duchess 10, Stilts 11).
+ * Sim v14: the five original dogs follow (Nugget 12, Marshmallow 13, Bravo 14, Chili 15, Howler 16;
+ * docs/plans/moba/DOGS-V13.md).
  */
-export const HERO_IDS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'] as HeroId[]);
+export const HERO_IDS: readonly HeroId[] = Object.freeze([
+  'clem',
+  'sage',
+  'brutus',
+  'cacklejaw',
+  'lambo',
+  'aviete',
+  'bengas',
+  'gabe',
+  'meatball',
+  'pixel',
+  'duchess',
+  'stilts',
+  'nugget',
+  'marshmallow',
+  'bravo',
+  'chili',
+  'howler',
+] as HeroId[]);
 
 export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   clem: CLEM,
@@ -35,6 +60,11 @@ export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   pixel: PIXEL,
   duchess: DUCHESS,
   stilts: STILTS,
+  nugget: NUGGET,
+  marshmallow: MARSHMALLOW,
+  bravo: BRAVO,
+  chili: CHILI,
+  howler: HOWLER,
 });
 
 /**
@@ -54,6 +84,11 @@ export const BRANCH_TALENT: Readonly<Record<HeroId, string | null>> = Object.fre
   pixel: null,
   duchess: null,
   stilts: null,
+  nugget: null,
+  marshmallow: null,
+  bravo: null,
+  chili: null,
+  howler: null,
 });
 
 /** Heroes with a level-6 shape branch, HERO_IDS order. */

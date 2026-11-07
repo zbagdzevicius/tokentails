@@ -199,15 +199,18 @@ override.
 ## Pawlegends
 
 A 3v3 cat-and-dog MOBA in `pawlegends/` (three.js, Vite; Phase 1 POC, spec
-`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of twelve
+`docs/plans/moba/POC.md`, which wins over `GDD.md` in the same folder). The player picks one of seventeen
 upright, Pink Paw Knight-style heroes and a Paw Trick (Pounce, Snack Break, Hiss, Purr-ify), and plays with two bot
 allies of its own side against three bots of the other side on Purrhaven Crossing. Cats (10): Clem, Sage, the
 four shelter champions (sim v9) Lambo (tank), Avietė (assassin), Bengas (mage) and Gabė (support), and the four
 original cats (sim v11, POC.md §6.8c) Meatball (tank), Pixel (marksman), Duchess (mage) and Stilts (assassin);
-dogs: Sir Brutus and Cacklejaw. A match ends on a core kill, at the latest at 11:00 (safety end); most end
+dogs (7): Sir Brutus, Cacklejaw and the five original dogs (sim v14, `docs/plans/moba/DOGS-V13.md`) Nugget
+(support), Marshmallow (mage), Bravo (tank), Chili (marksman) and Howler (fighter). A match ends on a core kill, at the latest at 11:00 (safety end); most end
 between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a
-second, `SIM_VERSION` 12) in a Web Worker, and the backend replays it (v10, v11 and v12 replays all verify, by
-`simVersion`; v11 for 30 days after the v12 deploy; v9 is retired).
+second, `SIM_VERSION` 14) in a Web Worker, and the backend replays it (v10 to v14 replays all verify, by
+`simVersion`; v13 is party play without the dogs, frozen at its release and still served to party clients on v13;
+v12 and v13 for 30 days after the v14 deploy; v10 retires in the first sim change after about Dec 1; v9 is
+retired).
 
 - **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
   the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play

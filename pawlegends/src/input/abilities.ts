@@ -21,6 +21,11 @@ import { aims as meatballAims } from './aims/meatball';
 import { aims as pixelAims } from './aims/pixel';
 import { aims as duchessAims } from './aims/duchess';
 import { aims as stiltsAims } from './aims/stilts';
+import { aims as nuggetAims } from './aims/nugget';
+import { aims as marshmallowAims } from './aims/marshmallow';
+import { aims as bravoAims } from './aims/bravo';
+import { aims as chiliAims } from './aims/chili';
+import { aims as howlerAims } from './aims/howler';
 
 export type AimKind = 'self' | 'dir' | 'point' | 'unit';
 export type AimShape = 'cone' | 'line' | 'dash' | 'circle' | 'ring' | 'none';
@@ -128,6 +133,16 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return duchessAims(a);
     case 'stilts':
       return stiltsAims(a);
+    case 'nugget':
+      return nuggetAims(a);
+    case 'marshmallow':
+      return marshmallowAims(a);
+    case 'bravo':
+      return bravoAims(a);
+    case 'chili':
+      return chiliAims(a);
+    case 'howler':
+      return howlerAims(a);
   }
 }
 

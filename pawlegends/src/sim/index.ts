@@ -37,7 +37,7 @@ import {
 import { resolveAttacks, stepProjectiles } from './combat/attack';
 import { ageZones, clampTethers, stepHeals, stepZones, tickStatus } from './effects';
 import { kitOf, resolveCasts, SNAP_FX, stepKits, tickCooldowns } from './heroes/kit';
-import { refreshFlags, refreshVision, visibleTo } from './map/brush';
+import { kitShield, refreshFlags, refreshVision, visibleTo } from './map/brush';
 import { resolveDeaths } from './combat/damage';
 import { encodeCommand, encodeStream, toBase64 } from './commands';
 import { fnvBytes, fnvInt } from './hash';
@@ -328,6 +328,7 @@ function eventFor(w: World, e: SimEvent, team: Team): SimEvent | null {
     case 'fish':
       return teamOfSlot(e.id) === team ? e : null;
     case 'buff':
+    case 'clip':
       return visibleTo(w, e.id, team) ? e : null;
     // Sim v10: pings and barks are the human's team's own (enemy bots and their snapshot never see them).
     case 'ping':
@@ -359,7 +360,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
       y: w.y[id],
       hp: w.hp[id],
       maxHp: w.maxHp[id],
-      shield: w.shield[id] + (isHero ? w.kHonour[id] : 0),
+      shield: w.shield[id] + (isHero ? kitShield(w, id) : 0),
       state: STATE_NAME[w.alive[id] === 0 ? UnitState.Dead : w.state[id]],
       facing: w.facing[id],
       buffs: w.buffs[id],

@@ -25,12 +25,15 @@ test('Choose hero → Sir Brutus → Play starts the match (Play is never covere
   await page.waitForSelector('html[data-screen="title"]');
   await page.locator('[data-a="choose"]').click();
   await page.waitForSelector('html[data-screen="pick"]');
+  // sim v14: Sir Brutus is on the DOGS side of the switch
+  await page.locator('.side-tab.dog').click();
   await page.locator('[data-h="brutus"]').click();
   await expect(page.locator('.pl-pick-foot [data-a="start"]')).toBeVisible();
   expect(await topmost(page, '.pl-pick-foot [data-a="start"]')).toBe(true);
   // the Paw Trick chips fit above the fold at 844×390 (they were cut off at y = 376 to 383); sim v10 (GAPS B5): the
-  // 4th chip, Purr-ify, too, and the Tank hint shows for Sir Brutus
-  await expect(page.locator('.pl-pick .trick-hint')).toContainText('Purr-ify');
+  // 4th chip, Purr-ify, too, and the Tank hint shows for Sir Brutus (sim v14: a dog's Purr-ify is called Shake Off)
+  await expect(page.locator('.pl-pick .trick-hint')).toContainText('Shake Off');
+  await expect(page.locator('[data-t="purrify"]')).toContainText('Shake Off');
   const trick = await page.locator('[data-t="purrify"]').boundingBox();
   expect(trick && trick.y + trick.height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 720) + 1);
   if (info.project.name === 'landscape') await page.locator('.pl-pick-foot [data-a="start"]').tap();

@@ -1,8 +1,9 @@
 /**
  * Hero kits: the cast pipeline every ability and Paw Trick goes through (POC.md §4.3 steps 1 and 5), and the
  * dispatch to the bespoke hero modules (clem.ts, sage.ts, brutus.ts, cacklejaw.ts, the sim v9 shelter champions
- * lambo.ts, aviete.ts, bengas.ts, gabe.ts, and the sim v11 original cats meatball.ts, pixel.ts, duchess.ts, stilts.ts)
- * for their abilities, passives and damage hooks.
+ * lambo.ts, aviete.ts, bengas.ts, gabe.ts, the sim v11 original cats meatball.ts, pixel.ts, duchess.ts, stilts.ts, and
+ * the sim v14 original dogs nugget.ts, marshmallow.ts, bravo.ts, chili.ts, howler.ts) for their abilities, passives and
+ * damage hooks.
  *
  * Cast flow: a `cast`/`trick` command checks readiness (cooldown or an open recast window, level 4 for R, not
  * disabled, no mobility cast while rooted) and either walks in (a unit or ground target out of reach) or starts the
@@ -29,6 +30,11 @@ import { MEATBALL_KIT } from './meatball';
 import { PIXEL_KIT } from './pixel';
 import { DUCHESS_KIT } from './duchess';
 import { STILTS_KIT } from './stilts';
+import { NUGGET_KIT } from './nugget';
+import { MARSHMALLOW_KIT } from './marshmallow';
+import { BRAVO_KIT } from './bravo';
+import { CHILI_KIT } from './chili';
+import { HOWLER_KIT } from './howler';
 import { castsThroughCc, castTrick, trickAim } from './tricks';
 
 /** How a slot is aimed. */
@@ -81,8 +87,12 @@ export interface HeroKit {
   outgoing?(m: MatchHandle, id: number, dst: number, raw: number): number;
   /** Incoming damage after armour, from `src` (−1: the map). */
   incoming?(m: MatchHandle, id: number, src: number, dmg: number): number;
-  /** Extra shield beyond the flat one (Honour); returns the amount absorbed. */
-  absorb?(w: World, id: number, dmg: number): number;
+  /**
+   * Extra shield beyond the flat one (Pixel's plate); returns the amount absorbed. Runs after the flat shield for every
+   * hit, `pure` ones (true damage, executes) included, and before Nine Lives. Sim v14: takes the match (Bravo's flop
+   * pushes a `clip` event and clears tower locks).
+   */
+  absorb?(m: MatchHandle, id: number, dmg: number): number;
   /** After `id` dealt `dmg` (shield included) to `dst`. */
   afterDeal?(m: MatchHandle, id: number, dst: number, dmg: number, kind: string): void;
   /** `id` took part in the takedown of enemy hero `victim`. */
@@ -93,12 +103,43 @@ export interface HeroKit {
   snapFx?(w: World, id: number): number;
   /** Sim v11: the passive resource the own team's HUD shows (EntitySnap.resource, 0..255); absent = 0. */
   resource?(w: World, id: number): number;
+  /**
+   * Sim v14: true while the hero can neither move, start or land a basic, nor cast (Bravo playing dead, Chili in his
+   * purse). Independent of stun, so CC immunity does not lift it.
+   */
+  busy?(w: World, id: number): boolean;
+  /** Sim v14: true while bots should not start basic attacks on this hero (Howler's Talk Back). They still cast at it. */
+  deterBasics?(w: World, id: number): boolean;
 }
 
-/** HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe, meatball, pixel, duchess, stilts. */
-const KITS: readonly HeroKit[] = [CLEM_KIT, SAGE_KIT, BRUTUS_KIT, CACKLEJAW_KIT, LAMBO_KIT, AVIETE_KIT, BENGAS_KIT, GABE_KIT, MEATBALL_KIT, PIXEL_KIT, DUCHESS_KIT, STILTS_KIT];
+/**
+ * HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe, meatball, pixel, duchess, stilts, nugget,
+ * marshmallow, bravo, chili, howler.
+ */
+const KITS: readonly HeroKit[] = [
+  CLEM_KIT,
+  SAGE_KIT,
+  BRUTUS_KIT,
+  CACKLEJAW_KIT,
+  LAMBO_KIT,
+  AVIETE_KIT,
+  BENGAS_KIT,
+  GABE_KIT,
+  MEATBALL_KIT,
+  PIXEL_KIT,
+  DUCHESS_KIT,
+  STILTS_KIT,
+  NUGGET_KIT,
+  MARSHMALLOW_KIT,
+  BRAVO_KIT,
+  CHILI_KIT,
+  HOWLER_KIT,
+];
 
 export const kitOf = (w: World, id: number): HeroKit => KITS[w.sub[id]];
+
+/** Sim v14: is hero `id` held by its own kit (no move, basic or cast)? */
+export const kitBusy = (w: World, id: number): boolean => kitOf(w, id).busy?.(w, id) === true;
 
 /** Ability damage at the hero's level: base + perLevel × (level − 1). */
 export const lvl = (w: World, id: number, base: number, perLevel: number): number => base + (perLevel ?? 0) * (w.level[id] - 1);
@@ -120,6 +161,7 @@ function slotAim(w: World, id: number, slot: number): SlotAim {
 /** Can hero `id` start `slot` now? */
 export function canCast(w: World, id: number, slot: number): boolean {
   if (w.kind[id] !== Kind.Hero || w.alive[id] === 0) return false;
+  if (kitBusy(w, id)) return false;
   if (disabled(w, id) && !(slot === TRICK_SLOT && castsThroughCc(w, id))) return false;
   if (w.fmKind[id] !== FM.None) return false;
   if (w.castPhase[id] === 2) return false;

@@ -26,7 +26,9 @@
  * 6. champion-replay.fixture.json (sim v9): one genuine Easy match played as a shelter champion (Gabė), so the spec
  *    shows a champion replay verifies (every champion is free: no entitlement check) and its v8 twin is refused.
  * 7. forfeit-replay.fixture.json (sim v10, GAPS B2): a Normal match forfeited at 4:00.
- * backend/src/vendor/pawlegends-sim/v10/, v11/ and v12/: those files, frozen (FROZEN below; sim v13 is live).
+ * 8. dog-replay.fixture.json (sim v14): one genuine Easy match played as a new dog (Chili), so the spec shows a v14
+ *    dog-human replay verifies (a frozen version that has it lists it in `extra`).
+ * backend/src/vendor/pawlegends-sim/v10/, v11/, v12/ and v13/: those files, frozen (FROZEN below; sim v14 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -48,7 +50,8 @@ const argv = process.argv.slice(2);
 const check = argv.includes('--check');
 const dry = argv.includes('--dry');
 const remoteFlag = argv.indexOf('--check-remote');
-const remote = remoteFlag >= 0 ? argv[remoteFlag + 1] || process.env.PAWLEGENDS_BACKEND_URL : undefined;
+const remoteArg = remoteFlag >= 0 ? argv[remoteFlag + 1] : undefined;
+const remote = remoteFlag >= 0 ? (remoteArg && !remoteArg.startsWith('--') ? remoteArg : process.env.PAWLEGENDS_BACKEND_URL) : undefined;
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 
@@ -61,8 +64,10 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * VERSION_FILES that version also shipped (v10's forfeit fixture). Sim v11 froze v10 and retired v9 (its replays are
  * refused with PAWLEGENDS_SIM_VERSION; stored v9 rows and their digests stay as they are). Sim v12 (Fish and Toys,
  * docs/FUN-PROGRESSION-V12.md) froze v11 at 6cb57e05 and keeps v10, so the backend verifies 10, 11 and 12. Sim v13
- * (party play, docs/plans/moba/MULTIPLAYER.md; the dog heroes join the same v13) froze the released v12 at 5bf2a938,
- * so the backend verifies 10, 11, 12 and 13.
+ * (party play, docs/plans/moba/MULTIPLAYER.md) froze the released v12 at 5bf2a938, so the backend verified 10 to 13.
+ * Sim v14 (the five original dogs, docs/plans/moba/DOGS-V13.md) froze the released v13 (party play, no dogs; its
+ * party API stays served for v13 clients through PARTY_SIMS) at eaba6ae7 and keeps v10 to v12 (v10's 30-day replay
+ * window runs to about Dec 1; retire it in the first sim change after that), so the backend verifies 10 to 14.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -84,6 +89,13 @@ export const FROZEN = Object.freeze([
     commit: '5bf2a938bc520f7dc38eb03f068b3edeb6e53fc7',
     from: 'backend/src/vendor/pawlegends-sim/v12',
     bundle: '59426998be81a7439eba33c06b81635840f34a5ec26adc368e38210159e51531',
+    extra: Object.freeze(['forfeit-replay.fixture.json']),
+  }),
+  Object.freeze({
+    simVersion: 13,
+    commit: 'eaba6ae742b33cde1333e99fdbf7d14e5e8c19e3',
+    from: 'backend/src/vendor/pawlegends-sim/v13',
+    bundle: '7daed0d274a9a9f414bab5d12f8e3711c5e5d5a4c13776cf95c64cc22e0e9ea1',
     extra: Object.freeze(['forfeit-replay.fixture.json']),
   }),
 ]);
@@ -225,7 +237,12 @@ export type PawlegendsHeroId =
     | 'meatball'
     | 'pixel'
     | 'duchess'
-    | 'stilts';
+    | 'stilts'
+    | 'nugget'
+    | 'marshmallow'
+    | 'bravo'
+    | 'chili'
+    | 'howler';
 export type PawlegendsTrickId = string;
 export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
@@ -426,6 +443,20 @@ export async function championFixture(seed = CHAMPION_FIXTURE_SEED) {
   return sim.replayRecord(m);
 }
 
+/** Seed and hero of the recorded dog fixture (sim v14, docs/plans/moba/DOGS-V13.md §5). */
+export const DOG_FIXTURE_SEED = 1313;
+export const DOG_FIXTURE_HERO = 'chili';
+
+/** Play one Easy match as a sim v14 dog with the naive player-bot and return its replay record. */
+export async function dogFixture(seed = DOG_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const { picks, tricks } = sim.fillPicks(seed, DOG_FIXTURE_HERO, 'pounce');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'easy' });
+  const bot = sim.createPlayerBot(m, 'naive');
+  while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+  return sim.replayRecord(m);
+}
+
 /** Seed and forfeit tick of the recorded forfeit fixture (sim v10, GAPS B2): a Normal match forfeited at 4:00. */
 export const FORFEIT_FIXTURE_SEED = 1010;
 export const FORFEIT_FIXTURE_TICK = 7200;
@@ -529,6 +560,7 @@ export async function buildFiles() {
   const fixture = JSON.stringify(await rookieFixture(), null, 2) + '\n';
   const champion = JSON.stringify(await championFixture(), null, 2) + '\n';
   const forfeit = JSON.stringify(await forfeitFixture(), null, 2) + '\n';
+  const dog = JSON.stringify(await dogFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -537,6 +569,8 @@ export async function buildFiles() {
     'champion-replay.fixture.json': champion,
     // Sim v10 (GAPS B2): not in VERSION_FILES (the old flat v9 had none); a frozen version lists it in `extra`
     'forfeit-replay.fixture.json': forfeit,
+    // Sim v14: a dog human (Chili); a later freeze lists it in `extra`
+    'dog-replay.fixture.json': dog,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;
@@ -572,6 +606,9 @@ const versionsOf = (files) =>
     .join(', ');
 
 async function main() {
+  // --check-remote is read-only: without a URL it fails instead of falling through to write mode
+  if (remoteFlag >= 0 && !remote)
+    throw new Error('vendor-sim: --check-remote needs a backend URL (npm run vendor-sim:check-remote -- <url>, or PAWLEGENDS_BACKEND_URL)');
   const { files, net, stamp, bundleSha, modules, size } = await buildFiles();
   if (remote) {
     const url = `${remote.replace(/\/+$/, '')}/pawlegends/sim`;

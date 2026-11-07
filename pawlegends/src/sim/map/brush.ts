@@ -13,6 +13,21 @@ import { BRUSH_REVEAL_MM, BUSHES, mirrorX } from '../../data/map';
 import { dist2 } from '../fixed';
 import { Buff, FM, Kind, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
 
+/** Hero indices (HERO_IDS) whose kit arrays mean something else; kept local so brush.ts imports no hero kit. */
+const PIXEL_SUB = 9;
+const BRAVO_SUB = 14;
+const CHILI_SUB = 15;
+const BRUTUS_SUB = 2;
+
+/**
+ * The extra shield a hero's kit holds in `kHonour`: Sir Brutus's Honour and Pixel's plate. Sim v14: Bravo and
+ * Marshmallow keep a spot's x-coordinate there, which is not a shield (it showed as a 40,000+ point shield).
+ */
+export function kitShield(w: World, id: number): number {
+  const sub = w.sub[id];
+  return sub === BRUTUS_SUB || sub === PIXEL_SUB ? w.kHonour[id] : 0;
+}
+
 /** Bush index at (x, y): 0..n−1 Purrhaven side, n..2n−1 the mirrored Woof side; −1 outside. */
 export function bushAt(x: number, y: number): number {
   for (let side = 0; side < 2; side++) {
@@ -85,9 +100,10 @@ export function refreshFlags(w: World): void {
       if (w.fmKind[id] === FM.Knock) b |= Buff.Stunned;
       let shield = w.shield[id];
       if (id < RANGE.minions) {
-        shield += w.kHonour[id];
+        shield += kitShield(w, id);
         if (w.napT[id] > 0 || (w.castPhase[id] === 2 && w.castT[id] > 0)) b |= Buff.Channeling;
-        if (w.kWT[id] > 0) b |= Buff.Blocking; // Clem's The Stand, Sir Brutus's Front Guard
+        // Clem's The Stand, Sir Brutus's Front Guard. Sim v14: Bravo's spotlight and Chili's BIG DOG use kWT too.
+        if (w.kWT[id] > 0 && w.sub[id] !== BRAVO_SUB && w.sub[id] !== CHILI_SUB) b |= Buff.Blocking;
         if (w.zoomT[id] > 0) b |= Buff.Zoomies;
         if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
         if (w.nineT[id] > 0) b |= Buff.NineLives;
