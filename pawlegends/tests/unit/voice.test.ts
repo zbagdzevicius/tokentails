@@ -159,6 +159,13 @@ describe('voice clips', () => {
       expect(readFileSync(join(ROOT, f), 'utf8'), f).not.toMatch(/speechSynthesis|SpeechSynthesisUtterance/);
     }
   });
+
+  it('iOS Safari: audio unlocks on the end of a tap too, resumes any non-running context, and a held line is not said late', () => {
+    const app = readFileSync(join(ROOT, 'src/app/app.ts'), 'utf8');
+    for (const ev of ['pointerup', 'touchend', 'click']) expect(app).toContain(`'${ev}'`);
+    expect(readFileSync(join(ROOT, 'src/audio/sfx.ts'), 'utf8')).toContain("this.ac.state !== 'running'");
+    expect(readFileSync(join(ROOT, 'src/audio/voice.ts'), 'utf8')).toContain("out.ctx.state !== 'running'");
+  });
 });
 
 describe('announcer lines', () => {

@@ -123,7 +123,8 @@ function start(key: VoiceKey, cut: boolean): void {
     queue.length(key, at, 0);
     pump();
   };
-  if (out.muted || out.volume <= 0.01 || !out.ctx || !out.bus) {
+  // a suspended context (iOS before the first tap's end, or interrupted) would hold the line and say it late
+  if (out.muted || out.volume <= 0.01 || !out.ctx || !out.bus || out.ctx.state !== 'running') {
     silent();
     return;
   }
