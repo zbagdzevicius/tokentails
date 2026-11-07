@@ -68,10 +68,11 @@ describe('A0: Cacklejaw coats', () => {
   });
 });
 
-describe('A1: Treat Track, 57 chests then a loop', () => {
-  it('57 unique rewards cover all 17 heroes: originals get coats and palette variants, champions a title, frame and postcard', () => {
-    // sim v11: 30, then three coats for each of the four original cats; sim v14: three for each of the five original dogs
-    expect(TREAT_REWARDS).toHaveLength(57);
+describe('A1: Treat Track, 66 chests then a loop', () => {
+  it('66 unique rewards cover all 20 heroes: originals get coats and palette variants, champions a title, frame and postcard', () => {
+    // sim v11: 30, then three coats for each of the four original cats; sim v14: three for each of the five original dogs;
+    // sim v15: three for each of the three new dogs
+    expect(TREAT_REWARDS).toHaveLength(66);
     const ids = [...TREAT_REWARDS, ...LOOP_REWARDS].map((r) => r.id);
     expect(new Set(ids).size).toBe(ids.length);
     for (const h of TRACK_ORIGINALS) {
@@ -100,7 +101,7 @@ describe('A1: Treat Track, 57 chests then a loop', () => {
     for (const h of CHAMPION_IDS) expect(wardrobe(h, o).map((c) => c.id)).toEqual([null]);
   });
 
-  it('the track never runs dry: 500 chests in a row always hold a reward, and the loop follows chest 57', () => {
+  it('the track never runs dry: 500 chests in a row always hold a reward, and the loop follows chest 66', () => {
     let s: TreatState = freshTreats();
     const have = new Set<string>();
     const got: string[] = [];
@@ -191,11 +192,11 @@ describe('A1: migration from the 9-chest track', () => {
   });
 });
 
-describe('A1: quests for all 17 heroes', () => {
-  it('26 quests; every hero has a win quest; the hero slot is round-robin (each hero every 17 days)', () => {
-    // sim v11: the four original cats add a win quest each; sim v14: the five original dogs too
-    expect(QUEST_POOL).toHaveLength(26);
-    expect(new Set(QUEST_POOL.map((q) => q.id)).size).toBe(26);
+describe('A1: quests for all 20 heroes', () => {
+  it('29 quests; every hero has a win quest; the hero slot is round-robin (each hero every 20 days)', () => {
+    // sim v11: the four original cats add a win quest each; sim v14: the five original dogs too; sim v15 three more
+    expect(QUEST_POOL).toHaveLength(29);
+    expect(new Set(QUEST_POOL.map((q) => q.id)).size).toBe(29);
     for (const h of HERO_IDS) expect(QUEST_POOL.filter((q) => q.metric === 'win' && q.hero === h), h).toHaveLength(1);
     expect(QUEST_POOL.map((q) => q.id)).toEqual(expect.arrayContaining(['win_lambo', 'win_aviete', 'win_bengas', 'win_gabe', 'champion', 'pudding2']));
     const start = Date.UTC(2026, 9, 20);

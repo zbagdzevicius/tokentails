@@ -26,6 +26,9 @@ import { aims as marshmallowAims } from './aims/marshmallow';
 import { aims as bravoAims } from './aims/bravo';
 import { aims as chiliAims } from './aims/chili';
 import { aims as howlerAims } from './aims/howler';
+import { aims as rocketAims } from './aims/rocket';
+import { aims as frankieAims } from './aims/frankie';
+import { aims as dominoAims } from './aims/domino';
 
 export type AimKind = 'self' | 'dir' | 'point' | 'unit';
 export type AimShape = 'cone' | 'line' | 'dash' | 'circle' | 'ring' | 'none';
@@ -143,6 +146,12 @@ function heroAims(hero: HeroId): readonly [AimSpec, AimSpec, AimSpec, AimSpec] {
       return chiliAims(a);
     case 'howler':
       return howlerAims(a);
+    case 'rocket':
+      return rocketAims(a);
+    case 'frankie':
+      return frankieAims(a);
+    case 'domino':
+      return dominoAims(a);
   }
 }
 

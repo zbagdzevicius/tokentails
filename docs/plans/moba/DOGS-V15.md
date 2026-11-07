@@ -45,6 +45,97 @@ otherwise.
 6. **Mixed-species party teams.** Unchanged: `validate` allows them (v14). Domino's Spots get their own World arrays
    (§4) so that a Duchess and a Domino on the same mixed team never share a stack counter.
 
+## As built (lane SIM, 2026-11-07)
+
+Status: **LANE SIM done** on `feat/pawlegends-dogs-v15` (committed locally, not pushed). RENDER and PICKER can start:
+every client table keyed by `HeroId` has an entry. The three dogs draw as **placeholder bodies**
+(`src/render/chars/heroes/<id>.ts` `BODY`: Rocket and Domino as Howler and Marshmallow, Frankie as Nugget), with stub
+moves and skill FX, first-pass icons (`src/ui/icons/<id>.ts`) and first-pass Treat Track palettes
+(`render/cosmetics.ts`). Never ship the placeholder art (§7 art gate). The aims (`src/input/aims/<id>.ts`) are final.
+
+**Where the build differs from the spec above:**
+- **Spots tick in `tickStatus`**, next to Duchess's stacks, not in Domino's `stepKit`: they count down for every hero
+  each tick and clear in `clearStatus`, so they expire on time even while Domino is dead (his `reset` still clears the
+  Spots he put on the enemy team). A dead Domino's Splatter still hits but adds no Spot: `afterDeal` runs for a dead
+  source (`dealDamage` checks the source's kind, not that it is alive), so the kit checks `alive` itself. The same
+  check guards Rocket's Lure Shot haste and Frankie's grab.
+- **CONNECT THE DOTS! path**: each next link is the unvisited Spotted enemy hero nearest the *previous link point*
+  (Domino first), every one within `r.range` of Domino; ties go to the lower id. `dotsPath()` exposes the last path for
+  tests.
+- **Rocket's basic multipliers** are applied in his `basic` hook when the bolt fires (he fires the bolt himself when any
+  multiplier applies), not in `outgoing`: `outgoing` cannot tell a basic from other damage. Sighthound is measured
+  centre to centre at that moment. Photo Finish's slow lands when the bolt is fired (`afterBasic`).
+- **Frankie's guard** has two values: `COMBO` (the Combo hit makes no new half) and `POP` (the Dig pop is never taken as
+  the FOOTLONG grab); the grab is an ability hit on an enemy hero while the R shot is in flight (`kWT > 0`) outside an
+  `FM.Dash`. A miss sets the R cooldown to `cd × (10000 − missRefundBp) / 10000` (`idiv`) when that is lower than what
+  is left. His Q icon is `weenieroll` (`roll` is Meatball's).
+- **Escape taps** (Rocket W, Frankie E) use the shared `heading: true` rule (the full distance where the player is
+  heading), as every other escape dash does, not "away from the nearest enemy": that is the founder's flash rule and
+  the mobile pass owns any change to it. Bots dash away from the threat.
+- **Kit numbers moved on the gate:** Rocket `r.clockedBp` 11500 → **11000** (the spec's first fix); Domino
+  `r.rootPerDot` 8 → **5** and Tight Knot 12 → **8**; Frankie's FOOTLONG flies at **20 m/s** (30 before) and is **1 m**
+  wide (1.2 before) so a cat can step out of it (the bots hit 89% of their FOOTLONGs at 30 m/s and 91% at 20 m/s: they
+  fire it at low or stunned cats and never dodge it, so the 35–60% target is a human number, not a bot one).
+- **Treat Track**: 66 chests (57 + 9 coats), the loop runs over 16 originals (128 palette coats); `UNLOCKS_MAX`
+  200 → **240** (66 + 128 + the first-win coat fit with room). The spec's "about 233" counted 20 originals.
+- **Rookie and Easy** (`DIFFICULTY_RULES`, where `pvp` is off): with ten dogs the naive player won fun2 84.5% (v14
+  80.0%) and fun1 ended at a 4:47 median (v14 5:02). Easy's enemies now respawn × 0.85; Rookie's enemies respawn × 1.5
+  (1.75 before) and its rally is +11.5% a takedown (13% before). Closing Rookie's cores until 5:00 also fixed fun1, but
+  raised the idle win to 38%, so it was not kept.
+- **party-identity golden** regenerated from the v15 sim (`tests/unit/golden/party-identity.json`, its own v15
+  fixtures): v15 adds no party code, and the v14 golden already proved the hooks change nothing single-player.
+- Unit tests whose seed only picked a scene moved: the protocol sample (seed 300 holds out past Sunset now) and the
+  Rookie script test (seed 4: on seed 3 Domino's Normal wave front sits 0.2 m past the river).
+
+**Final `pvp`** (dmgBp / takenBp, v14 → v15, gate run r8 on seeds 1..2,000):
+
+| Hero | v14 | v15 | Win | | Hero | v14 | v15 | Win |
+|---|---|---|---|---|---|---|---|---|
+| Clem | 8850 / 9725 | 8100 / 9625 | 50.5% | | Sir Brutus | 9750 / 9575 | 8625 / 9725 | 49.6% |
+| Sage | 10550 / 9325 | 9650 / 9375 | 48.7% | | Cacklejaw | 11250 / 8825 | 10400 / 8825 | 48.3% |
+| Lambo | 9150 / 9125 | 8425 / 8925 | 52.4% | | Nugget | 9650 / 9425 | 8825 / 9325 | 49.8% |
+| Avietė | 12750 / 7800 | 11650 / 7725 | 49.7% | | Marshmallow | 9000 / 9800 | 8475 / 9750 | 48.9% |
+| Bengas | 10550 / 8700 | 9700 / 8725 | 52.1% | | Bravo | 11350 / 8250 | 10400 / 8225 | 47.2% |
+| Gabė | 9050 / 9600 | 8075 / 9725 | 48.4% | | Chili | 9500 / 9425 | 8850 / 9250 | 51.2% |
+| Meatball | 7900 / 9925 | 7200 / 10000 | 48.0% | | Howler | 9100 / 9650 | 8350 / 9575 | 51.9% |
+| Pixel | 8750 / 9600 | 8000 / 9575 | 50.9% | | **Rocket** | (10200 / 9500) | 8925 / 9775 | 49.9% |
+| Duchess | 11100 / 8550 | 10175 / 8525 | 51.9% | | **Frankie** | (11000 / 8800) | 9950 / 8825 | 50.0% |
+| Stilts | 10900 / 8500 | 9975 / 8375 | 49.5% | | **Domino** | (10400 / 9200) | 8825 / 9775 | 51.2% |
+
+Every `dmgBp` came down about 8%: with the three new dogs the pace was 3.69 takedowns a minute (gate ≤ 3.5). The
+first untuned run had the dogs at 53.9% (Rocket 60.1%, Domino 60.2%). Chili, Cacklejaw and Marshmallow, which now
+share their role on the dog side, went 52.0 → 51.2%, 48.1 → 48.3% and 50.3 → 48.9%. Run-to-run noise is large: a 1%
+`pvp` change on a few heroes moved single heroes by up to ±5 points and the species by ±2, so r8 is one passing draw,
+not a guarantee; retune from these numbers if a later change moves the gate.
+
+**Gates** (lane SIM exit):
+- Balance (gate 6, 2,000 seeds): **all pass**. Every hero 47.2–52.4% (inside the task's 47–53), species cats 50.2 /
+  dogs 49.8, side 49.6 / 50.4, length median 7:13, p95 8:30, 0 safety ends, core kill before Sudden Death 93.8%,
+  pace 3.48 a minute, trailing at 3:30 won 30.0%, down 10+ won 1.8%, every trick 48.7–51.1%, both level-6 branches
+  46.1% (Brutus) and 51.3% (Sage).
+- fun1 (median 5:01, win 97.0%), fun2 (win 79.0%), novice vs Easy (88.8%), idle (23.0%, never loses before 6:00),
+  parked, feeder (84.0%), feedNormal (0.7%): pass; each is as good as v14 or better (v14 on this machine: fun1 5:02,
+  fun2 80.0%, idle 25.0%, novice 89.8%, feeder 84.0%). hard: win 37.0% and the deficit check 0.0% of 27 pass (it failed
+  in v14). novice vs Normal: 41.5%, passes (35.0% in v14).
+- Gate 10 probe (150 Normal matches, the human hero by seed): Rocket naps 4.1 a match and died in 1 of 214 naps;
+  SQUIRREL! catches 1.1 heroes a throw; Frankie's Dig hits 1.2 heroes; Domino casts R on 2.35 Spots on average and
+  makes 1.1 `dots` clips a match; 75% of dog teams have no support (Nugget) and 48% no tank (cats: Gabė, Lambo and
+  Meatball); the dog side wins 49.8%, so the §3 role pass is not needed.
+- Grade calibration (gate 8, `--seeds 400 --from 1001 --check`): **pass** with no change to `src/meta/grade.ts`
+  (Rocket joined the marksmen, Frankie the assassins, Domino the mages); losses graded A or S 33.3%.
+- Determinism (gate 4): `node tools/determinism.mjs --seeds 1000` all identical (all 20 heroes as the human);
+  `sim-v15.test` plays Rocket and Frankie on both teams (6 seeds, 200 with `PAWLEGENDS_NIGHTLY=1`).
+- `vendor-sim:check`: v10 to v14 frozen, v15 live (v14 at bb18ae2a, bundle `dba1ec16…`; v10 kept: this lands before
+  Dec 1). Backend `npx jest src/pawlegends`, `npm run lint` and `npm run build` green.
+
+**Reported, not fixed:**
+- `tools/trailer/mg.test.mjs` and `tools/trailer/v3/timeline.test.mjs` fail in this worktree before and after the change
+  (the repo-root `tools/copy-lint` import needs its own install).
+- `perf-sim.test` "11:00 worst case ≤ 1.5 s": 1,533–1,555 ms CPU here at load average 75–110 (v14: 1,428 ms at the same
+  load). It is the seed's new picks, not the kits: seed 32 now draws Domino and Sir Brutus, and the v14 picks for that
+  seed cost the same on both builds (975 vs 940 ms). The Normal-match check passes (median 764–862 ms). Re-measure on
+  an idle machine before the release; `net-rejoin` perf-ff passes when run alone.
+
 ---
 
 ## 0. Roster after v15

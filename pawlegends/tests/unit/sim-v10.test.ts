@@ -23,8 +23,8 @@ const talentsOf = (m: ReturnType<typeof play>): number[][] =>
   Array.from({ length: 6 }, (_, slot) => Array.from({ length: TALENT_TIERS }, (_, t) => m.world.talents[slot * TALENT_TIERS + t]));
 
 describe('sim v10 (GAPS B0)', () => {
-  it('SIM_VERSION is 14 (sim v11 to v14 kept the v10 rules)', () => {
-    expect(SIM_VERSION).toBe(14);
+  it('SIM_VERSION is 15 (sim v11 to v15 kept the v10 rules)', () => {
+    expect(SIM_VERSION).toBe(15);
   });
 
   it("a bot's talent is draw number `tier` of its own stream fork('talent:' + slot), from the seed alone", () => {

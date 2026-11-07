@@ -27,6 +27,9 @@ import * as MARSHMALLOW from './chars/heroes/marshmallow';
 import * as BRAVO from './chars/heroes/bravo';
 import * as CHILI from './chars/heroes/chili';
 import * as HOWLER from './chars/heroes/howler';
+import * as ROCKET from './chars/heroes/rocket';
+import * as FRANKIE from './chars/heroes/frankie';
+import * as DOMINO from './chars/heroes/domino';
 import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
 import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, type CombatVfx } from './fx/combatVfx';
 import { mixHex } from './skins/classify';
@@ -804,6 +807,13 @@ function heroAccentRaw(h: HeroId): number {
       return CHILI.ACCENT ?? elementColor(h);
     case 'howler':
       return HOWLER.ACCENT ?? elementColor(h);
+    // sim v15 dogs
+    case 'rocket':
+      return ROCKET.ACCENT ?? elementColor(h);
+    case 'frankie':
+      return FRANKIE.ACCENT ?? elementColor(h);
+    case 'domino':
+      return DOMINO.ACCENT ?? elementColor(h);
     // Wave C (C3): the champions cast in their own element colour (they all fell back to Cacklejaw's purple)
     default:
       return elementColor(h);
@@ -844,6 +854,12 @@ function ultName(h: HeroId): string {
       return CHILI.ULT_NAME;
     case 'howler':
       return HOWLER.ULT_NAME;
+    case 'rocket':
+      return ROCKET.ULT_NAME;
+    case 'frankie':
+      return FRANKIE.ULT_NAME;
+    case 'domino':
+      return DOMINO.ULT_NAME;
     default:
       return 'Pack Hunt!';
   }

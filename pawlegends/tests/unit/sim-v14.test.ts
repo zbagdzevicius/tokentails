@@ -28,14 +28,14 @@ function play(seed: number, picks: readonly HeroId[], ticks = 30 * 60 * 4) {
 }
 
 describe('sim v14: the dogs', { timeout: 300000 }, () => {
-  it('SIM_VERSION is 14; the five dogs are appended at 12..16, all dogs, every role covered on the dog side', () => {
-    expect(SIM_VERSION).toBe(14);
-    expect(HERO_IDS.slice(12)).toEqual([...DOGS]);
+  it('SIM_VERSION is 14 or later; the five dogs are appended at 12..16, all dogs, every role covered on the dog side', () => {
+    expect(SIM_VERSION).toBeGreaterThanOrEqual(14);
+    expect(HERO_IDS.slice(12, 17)).toEqual([...DOGS]);
     for (const h of DOGS) expect(HEROES[h].side, h).toBe('dog');
     const dogRoles = new Set(HERO_IDS.filter((h) => HEROES[h].side === 'dog').map((h) => HEROES[h].role));
     expect([...dogRoles].sort()).toEqual(['assassin', 'fighter', 'mage', 'marksman', 'support', 'tank']);
-    // None of them is a shelter champion (no catalogId).
-    expect(HERO_IDS.filter((h) => HEROES[h].side === 'dog')).toHaveLength(7);
+    // Sim v15 adds three more dogs (sim-v15.test.ts).
+    expect(HERO_IDS.filter((h) => HEROES[h].side === 'dog').length).toBeGreaterThanOrEqual(7);
   });
 
   it('projectile kinds frisbee 14 and yap 15 come after hero (ability damage)', () => {

@@ -193,8 +193,13 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
   // hero 2+ levels above the human earns 85% of its XP on Easy and Normal (Hard stays even). With the bigger Toys and
   // last hits the human's side out-farmed Rookie and Easy bots (fun1 median 4:47, under 5:00; fun2 won 84.0%, 70-80%):
   // the human's enemies now keep 85% of their Fish on Rookie (70% before) and all of it on Easy (95%).
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 12000, coreHpBp: 13500, humanRespawnBp: 5000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 13000, humanTakenBp: 8500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 17500, enemyComeback: false, rallyBp: 1300, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500 }),
-  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000 }),
+  // Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md; 3 of the 10 dogs are new, `pvp` off on Rookie and Easy): the
+  // naive player won fun2 84.5% (v14 80.0%) and fun1 ended at a 4:47 median (v14 5:02). Easy's enemies respawn ×
+  // 0.85 (fun2 79.0%, novice 88.8%); Rookie's enemies respawn × 1.5 (1.75 before) and its rally is +11.5% a takedown
+  // (13% before): fun1 median 5:01, win 97.0%; idle 23.0% (v14 25.0%), feeder 84.0% (v14 84.0%). Tried: Rookie cores
+  // closed to 5:00 (fun1 5:03, but idle 38.0%), human damage × 1.15 to 1.25 (fun1 4:56 to 5:04, burst 6.0 to 6.2 s).
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 12000, coreHpBp: 13500, humanRespawnBp: 5000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 13000, humanTakenBp: 8500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 15000, enemyComeback: false, rallyBp: 1150, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500 }),
+  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 8500, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000 }),
   /**
    * Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
    * 69.5% of the 2,000-seed balance gate ended in a core kill before Sudden Death (70% floor); 125% gave 70.5%,
@@ -500,6 +505,27 @@ export const BOT_AI = Object.freeze({
   howlerScreamReach: 5000,
   howlerTalkRange: 3000,
   howlerTalkHpBp: 6000,
+  /**
+   * Sim v15 dogs (sim/bots/heroes/{rocket,frankie,domino}.ts; docs/plans/moba/DOGS-V15.md §1). Rocket keeps
+   * rocketSpacing, dashes away from a foe within rocketPeelRange, throws the squirrel at a foe within
+   * rocketSquirrelRange and sprints through rocketSprintFoes (or one foe below rocketSprintHpBp) when the line does not
+   * end under an enemy tower. Frankie digs onto a foe below frankieDigHpBp (or a clump) with an ally near or the foe
+   * alone within frankieDiveAllyRange, and FOOTLONGs a foe below frankieFootlongHpBp. Domino shakes within
+   * dominoShakeRange, keeps dominoSpacing, and connects the dots on dominoDotsMin Spotted foes or one full foe below
+   * dominoDotsHpBp.
+   */
+  rocketSpacing: 5000,
+  rocketPeelRange: 3000,
+  rocketSquirrelRange: 3000,
+  rocketSprintFoes: 2,
+  rocketSprintHpBp: 3500,
+  frankieDigHpBp: 6000,
+  frankieFootlongHpBp: 4500,
+  frankieDiveAllyRange: 8000,
+  dominoShakeRange: 2600,
+  dominoDotsMin: 2,
+  dominoSpacing: 4800,
+  dominoDotsHpBp: 5000,
   /** Sim v14: a bot that would swing at a hero whose kit deters basics (Howler's Talk Back) steps this far back (mm). */
   deterStep: 1500,
   /** "Carry" allies (DifficultyRules.carryAllies): stay within followRange of the human, never more than leadMax

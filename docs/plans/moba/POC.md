@@ -403,6 +403,15 @@ Build spec: [`DOGS-V13.md`](DOGS-V13.md) (lane SIM). Numbers live in `src/data/h
 - **Tuning**: every hero's `pvp` was retuned on the 2,000-seed balance gate (the old dogs' edge came down); see `DOGS-V13.md` "As built (lane SIM)".
 - **Verifier**: `SIM_VERSION` 14 (the dogs were built as v13 in parallel with party play, which shipped first as v13, so they ride v14); the backend verifies v14 (live), v13 (party play, frozen at eaba6ae7), v12 (frozen at 5bf2a938), v11 (6cb57e05) and v10 (18cbcf31). v14 adds a `dog-replay.fixture.json` (Chili). Deploy the backend first.
 
+### 6.8f Addendum (sim v15, 2026-11-07): three more dogs, 10 v 10
+
+Build spec: [`DOGS-V15.md`](DOGS-V15.md) (lane SIM). Numbers live in `src/data/heroes/{rocket,frankie,domino}.ts` and `BOT_AI`.
+
+- **Roster**: Rocket (greyhound marksman, 17), Frankie (dachshund assassin in a hot-dog costume, 18), Domino (dalmatian mage, 19), appended to `HERO_IDS`. Both sides now have 10 heroes with the same roles (1 fighter, 2 marksmen, 2 tanks, 2 assassins, 2 mages, 1 support).
+- **Engine**: two hashed World arrays for Domino's Spots on the victim (`dotN`, `dotT`; they count down in `tickStatus` and clear in `clearStatus`), the optional `EntitySnap.dots` (byte 59 of the entity record, was reserved), and three `clip` kinds (`zzz`, `footlong`, `dots`). No new primitive, hook, projectile kind or zone kind: all three heroes' shots reuse `fluff`.
+- **Tuning**: every hero's `pvp` was retuned on the 2,000-seed balance gate; see `DOGS-V15.md` "As built (lane SIM)".
+- **Verifier**: `SIM_VERSION` 15; the backend verifies v15 (live), v14 (seven dogs, party play, frozen at bb18ae2a), v13, v12, v11 and v10. v15 adds a `new-dog-replay.fixture.json` (Frankie). `PARTY_SINCE` stays 13. Deploy the backend first.
+
 ### 6.9 Hero art in the POC
 
 - **Dogs** (Sir Brutus, Cacklejaw): the KayKit rig GLB already in PPK, with `BeastHead.js` + `BeastDress.js` parts merged into one skinned mesh by `bake-heroes.mjs`. Clips: idle, run, attack, cast, death.

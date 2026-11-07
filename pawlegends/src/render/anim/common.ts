@@ -20,6 +20,9 @@ import { SPRINGS as MARSHMALLOW_SPRINGS } from '../chars/heroes/marshmallow';
 import { SPRINGS as BRAVO_SPRINGS } from '../chars/heroes/bravo';
 import { SPRINGS as CHILI_SPRINGS } from '../chars/heroes/chili';
 import { SPRINGS as HOWLER_SPRINGS } from '../chars/heroes/howler';
+import { SPRINGS as ROCKET_SPRINGS } from '../chars/heroes/rocket';
+import { SPRINGS as FRANKIE_SPRINGS } from '../chars/heroes/frankie';
+import { SPRINGS as DOMINO_SPRINGS } from '../chars/heroes/domino';
 import { Prio, type Anchor, type ClipDef, type Cue, type GaitProfile, type Key, type Mask, type MoveSet, type ScalarKey, type SkillFxSet, type SlotMoves, type SpringTuning } from './types';
 
 /** The basic contact time (s) every basic clip pins to `contact` / `release`. */
@@ -63,6 +66,10 @@ export const HERO_SPRINGS: Readonly<Record<HeroId, SpringTuning>> = Object.freez
   bravo: BRAVO_SPRINGS,
   chili: CHILI_SPRINGS,
   howler: HOWLER_SPRINGS,
+  // sim v15 dogs
+  rocket: ROCKET_SPRINGS,
+  frankie: FRANKIE_SPRINGS,
+  domino: DOMINO_SPRINGS,
 });
 
 // ------------------------------------------------------------------------------------------------ templates

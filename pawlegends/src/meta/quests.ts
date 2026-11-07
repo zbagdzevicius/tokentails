@@ -51,6 +51,10 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   { id: 'win_bravo', text: 'Win with Bravo', goal: 1, metric: 'win', hero: 'bravo' },
   { id: 'win_chili', text: 'Win with Chili', goal: 1, metric: 'win', hero: 'chili' },
   { id: 'win_howler', text: 'Win with Howler', goal: 1, metric: 'win', hero: 'howler' },
+  // sim v15: three more dogs
+  { id: 'win_rocket', text: 'Win with Rocket', goal: 1, metric: 'win', hero: 'rocket' },
+  { id: 'win_frankie', text: 'Win with Frankie', goal: 1, metric: 'win', hero: 'frankie' },
+  { id: 'win_domino', text: 'Win with Domino', goal: 1, metric: 'win', hero: 'domino' },
 ] as Quest[]);
 
 /**

@@ -291,16 +291,18 @@ Pip move to P3. Dogs stay at 2 heroes until the P2 dogs arrive. Sim v11 (2026-10
 | **Bravo** (black pug) | Tank | STELLAR | *Dramatic Flop* plays dead; ult *ENCORE!* charm | **sim v14** | new, §1.3 |
 | **Chili** (chihuahua) | Marksman | ELECTRIC | *Small Dog Syndrome* Rage; ult *BIG DOG ENERGY* | **sim v14** | new, §1.4 |
 | **Howler** (husky) | Fighter | WIND | *Zoomie Brain*; *Talk Back*; ult *THE SCREAM* | **sim v14** | new, §1.5 |
-| Lord Barkus Grimjaw | Fighter | FIRE | Cleaver hits shred armour | next dog wave (v15) | PPK boss art |
-| Pilfer | Support (thief) | WIND | Steals buffs | next dog wave (v15) | PPK stealer |
+| **Rocket** (greyhound) | Marksman | GRASS | *Sighthound* long-range basics; ult *ZOOM… ZZZ* sprint, then a nap | **sim v15** | new, `DOGS-V15.md` §1.1 |
+| **Frankie** (dachshund in a hot-dog costume) | Assassin | FIRE | *Ketchup and Mustard* combo; *Dig*; ult *FOOTLONG!* stretch and grab | **sim v15** | new, §1.2 |
+| **Domino** (dalmatian puppy) | Mage | STELLAR | *Spot On* sticks his spots on cats; ult *CONNECT THE DOTS!* | **sim v15** | new, §1.3 |
+| Lord Barkus Grimjaw | Fighter | FIRE | Cleaver hits shred armour | next dog wave (v16) | PPK boss art |
+| Pilfer | Support (thief) | WIND | Steals buffs | next dog wave (v16) | PPK stealer |
+| Golden Retriever | Support | FAIRY | "Fetch": pulls an ally back to him | next dog wave (v16) | new (`DOGS-V15.md` §9) |
 | Frostbark (Husky) | Mage | ICE | Slows stack into a freeze | P2 | Quaternius Husky |
 | Kibo (Shiba) | Marksman | WIND | Attack speed while moving. Never "Doge" (CLAIMS R9) | P2 | Quaternius ShibaInu |
 | Waddles | Support | WATER | Pug shieldbearer; bubble shield | P3 | PPK |
 | Ashfang (Wolf) | Assassin | DARK | Marks the lowest-HP hero | P3 | Quaternius Wolf |
 | Bonehead Shaman | Mage | DARK | Summons Bonelings | P3 | PPK Boneheads |
 | Sir Loafington (corgi) | Fighter | SAND | Curls into an unstoppable roll | P3 | new |
-| Longfellow (dachshund) | Marksman | FIRE | Long line shots | P3 | new |
-| Spot (dalmatian) | Mage | STELLAR | Spot marks detonate | P3 | new |
 | Madame Fifi (poodle) | Support | FAIRY | Charm, pom shield | P3 | new |
 | Gentle Gus (Great Dane) | Tank | GRASS | Redirects ally damage to himself | P3 | new |
 | Sniffer (beagle) | Assassin | WIND | Scent trail gives vision | P3 | new |

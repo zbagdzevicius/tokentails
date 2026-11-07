@@ -47,10 +47,10 @@ function samples(): { client: ClientMsg[]; host: HostMsg[] } {
     { t: 'pause', paused: false },
   ];
   const core = new HostCore();
-  // Seed 301: the idle human's team holds out past Sunset, so the samples include a `sunset` event (sim v14 with seven
-  // dogs and sim v12 fun pass; 302 in v10 to v12 with the bots' tricks on their own stream, 303 before B5, 300 in v9,
-  // 301 in v8, 308 before).
-  const host: HostMsg[] = [core.join({ ...JOIN, seed: 301 }), core.initial()!];
+  // Seed 300: the idle human's team holds out past Sunset, so the samples include a `sunset` event (sim v15 with ten
+  // dogs; 301 in v14 and the v12 fun pass; 302 in v10 to v12 with the bots' tricks on their own stream, 303 before B5,
+  // 300 in v9, 301 in v8, 308 before).
+  const host: HostMsg[] = [core.join({ ...JOIN, seed: 300 }), core.initial()!];
   core.command(encodeCommand({ op: Op.Move, x: 30000, y: 30000 }));
   for (let i = 0; i < 2000 && !core.ended; i++) host.push(...core.advance(30));
   return { client, host };
@@ -80,6 +80,8 @@ describe('protocol (§11.2, §15 item 13)', { timeout: 120000 }, () => {
     s.entities.push({ id: 64, kind: 'pickup', team: 1, slot: 1, sub: 'snack', x: 80000, y: 8000, hp: 0, maxHp: 0, shield: 0, state: 'idle', facing: 0, buffs: 0 });
     const hero = s.entities.find((e) => e.kind === 'hero')!;
     hero.bountyStreak = 4;
+    // Sim v15: Domino's Spots on a hero (both teams) travel in the last entity byte.
+    hero.dots = 3;
     expect(decodeSnap(encodeSnap(s))).toEqual({ ...s, events: [] });
   });
 
