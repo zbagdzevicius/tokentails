@@ -120,3 +120,21 @@ describe('MAP-GAPS A16 bridges and minion push-out', () => {
     expect(r.x).toBeCloseTo(1, 5);
   });
 });
+
+describe('MAP-GAPS A17 structure clearance from the sim radius', () => {
+  it('draws a hero hugging a tower or core within 0.6 m of its sim point', async () => {
+    const { RADIUS } = await import('../../src/data/map');
+    const { structureClearRadius } = await import('../../src/render/views/towerView');
+    const { clearOfObstacles } = await import('../../src/render/views/heroView');
+    for (const kind of ['tower', 'core'] as const) {
+      const r = structureClearRadius(kind);
+      expect(r).toBeCloseTo((kind === 'core' ? RADIUS.core : RADIUS.tower) / 1000 + 0.6, 6);
+      // a hero as close as the sim lets it stand: footprint plus its own radius
+      const d = (kind === 'core' ? RADIUS.core : RADIUS.tower) / 1000 + RADIUS.hero / 1000;
+      for (const a of [0, 1, 2.5, 4]) {
+        const o = clearOfObstacles(Math.cos(a) * d, Math.sin(a) * d, [{ x: 0, z: 0, r }]);
+        expect(Math.hypot(o.x, o.z)).toBeLessThanOrEqual(0.6 + 1e-9);
+      }
+    }
+  });
+});

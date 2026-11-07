@@ -13,6 +13,7 @@
  */
 import * as THREE from 'three';
 import { CORE_STATS, TOWERS } from '../../data/towers';
+import { RADIUS } from '../../data/map';
 import { BuffFlag } from '../../sim/api';
 import type { ViewEntity, ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
@@ -65,6 +66,15 @@ interface Structure {
  * strobed between washed-out and saturated. Now only the first hit after a quiet `gap` s pulses; while hits keep
  * coming the structure holds a light `tint` (smoothed at `rate` per s).
  */
+/**
+ * MAP-GAPS A17: the clear radius (m) unit bodies are drawn outside of round a tower or core: its sim footprint
+ * (RADIUS) plus 0.6 m, not the mesh's bounding box (a body drawn far out misread where the hero really stood).
+ */
+export const STRUCT_CLEAR_PAD = 0.6;
+export function structureClearRadius(kind: 'tower' | 'core'): number {
+  return (kind === 'core' ? RADIUS.core : RADIUS.tower) / 1000 + STRUCT_CLEAR_PAD;
+}
+
 export const STRUCT_HIT = Object.freeze({ gap: 1.0, pulse: 0.8, tint: 0.1, hold: 0.5, rate: 6 });
 
 /** The hit pulse a structure takes now (pure): a full pulse after a quiet gap, none under steady fire. */
@@ -369,7 +379,7 @@ export class StructureView {
       const bb = mesh.geometry.boundingBox;
       const height = bb ? bb.max.y : 4;
       // the footprint: the base's half-width (towers and cores are drawn at their entity point)
-      const radius = bb ? Math.min(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z), 3.2) * (e.kind === 'tower' || e.kind === 'core' ? 0.9 : 1) : 1.2;
+      const radius = e.kind === 'tower' || e.kind === 'core' ? structureClearRadius(e.kind) : bb ? Math.min(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z), 3.2) : 1.2;
       s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius };
       this.items.set(e.id, s);
     }
