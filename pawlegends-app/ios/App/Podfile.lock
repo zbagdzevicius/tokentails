@@ -1,0 +1,40 @@
+PODS:
+  - Capacitor (7.6.10):
+    - CapacitorCordova
+  - CapacitorApp (7.1.2):
+    - Capacitor
+  - CapacitorCordova (7.6.10)
+  - CapacitorHaptics (7.0.5):
+    - Capacitor
+  - CapgoCapacitorUpdater (7.53.0):
+    - Capacitor
+
+DEPENDENCIES:
+  - "Capacitor (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorApp (from `../../node_modules/@capacitor/app`)"
+  - "CapacitorCordova (from `../../node_modules/@capacitor/ios`)"
+  - "CapacitorHaptics (from `../../node_modules/@capacitor/haptics`)"
+  - "CapgoCapacitorUpdater (from `../../node_modules/@capgo/capacitor-updater`)"
+
+EXTERNAL SOURCES:
+  Capacitor:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorApp:
+    :path: "../../node_modules/@capacitor/app"
+  CapacitorCordova:
+    :path: "../../node_modules/@capacitor/ios"
+  CapacitorHaptics:
+    :path: "../../node_modules/@capacitor/haptics"
+  CapgoCapacitorUpdater:
+    :path: "../../node_modules/@capgo/capacitor-updater"
+
+SPEC CHECKSUMS:
+  Capacitor: 6f16b88ca74aa4989d59b02844658455bdab9af2
+  CapacitorApp: 6b89831465d6bc99bc89779b1b7f5327e33011ce
+  CapacitorCordova: 33313bf8891d44741970e16534be781ff3caa00a
+  CapacitorHaptics: ec024a10130c230743219149c76a02da5cff6aed
+  CapgoCapacitorUpdater: d2141eb77d3f3919d3114afdb19db7c6fc915b39
+
+PODFILE CHECKSUM: da0402babb31e85d868f5ef63a5165998b7ae331
+
+COCOAPODS: 1.15.2
