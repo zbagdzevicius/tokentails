@@ -610,6 +610,12 @@ export class App {
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
         onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
+        onExit: this.bridge.active
+          ? () => {
+              sfx.play('click');
+              this.bridge.post('exit');
+            }
+          : undefined,
         // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
         // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
         quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,

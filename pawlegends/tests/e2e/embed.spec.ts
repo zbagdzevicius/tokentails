@@ -146,3 +146,16 @@ test('party play (P9): a host without a ticket answers null and the player joins
   expect(hellos[0].ticket).toBeUndefined();
   expect(typeof hellos[0].guestKey).toBe('string');
 });
+
+test('UX pass 2: the lobby "Games" button posts exit to the host (the host draws no close button)', async ({ context, page, baseURL }) => {
+  await mockHost(context, baseURL!, { app: { isApp: false, store: true } });
+  const game = await openHost(page);
+  await game.waitForSelector('html[data-screen="title"]');
+  const exit = game.getByTestId('lobby-exit');
+  await expect(exit).toBeVisible();
+  // it sits in the lobby's top corner group, inside the frame
+  const box = await exit.boundingBox();
+  expect(box!.y).toBeLessThan(40);
+  await exit.click();
+  await expect.poll(async () => (await received(page)).some((m) => m.type === 'exit')).toBe(true);
+});

@@ -431,6 +431,11 @@
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": true },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": "yes" }
     },
+    "exit": {
+      "$comment": "UX pass 2: the lobby's \"Games\" button (no payload); the host leaves for its games page.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "exit" },
+      "invalid": { "ns": "tt-pawlegends", "v": 2, "type": "exit" }
+    },
     "champion-offer": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "6a30473c1d6649b19b03622b" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "lambo" }

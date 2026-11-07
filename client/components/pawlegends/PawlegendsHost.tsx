@@ -5,7 +5,6 @@ import { USER_API } from "@/api/user-api";
 import { getAudioSettings, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
 import { isAppBuild } from "@/components/claims/build";
 import { registerHeistSuspension } from "@/components/heist/suspension";
-import { CloseButton } from "@/components/shared/CloseButton";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { GameModal } from "@/components/ui/GameModal";
 import { ActionRow, ModalButton } from "@/components/ui/modal";
@@ -169,6 +168,9 @@ export const PawlegendsHost = ({
   const authStatus = auth ? auth.authStatus : "signed-out";
   const signedIn = !!auth?.user && !auth.user.isAnonymous && authStatus === "ready";
   const go = useCallback((url: string) => (navigate ?? ((u: string) => window.location.assign(u)))(url), [navigate]);
+  // The game's lobby "Games" button (bridge `exit`): the one way out once the game is up (no host close button).
+  const goRef = useRef(go);
+  goRef.current = go;
 
   // Refs follow the latest render (synced in an effect, never written during render).
   const latest = useRef({ uid, anonymous: !!auth?.user?.isAnonymous, signedIn, authStatus, profile, setProfileUpdate, auth });
@@ -595,6 +597,7 @@ export const PawlegendsHost = ({
         onNotify: (where) => handlers.current.onNotify(where),
         onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
         onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
+        onExit: () => goRef.current(PAWLEGENDS_EXIT_PATH),
         onShare: (kind, url, text) => {
           // a party invite is always the tokentails.com embed URL (D12), also from a preview or local host
           const safe = kind === "party" && PAWLEGENDS_PARTY_LINK.test(url) ? url : shareUrlOf(url, window.location.origin);
@@ -752,13 +755,6 @@ export const PawlegendsHost = ({
         onLoad={onFrameLoad}
         inert={suspended}
       />
-      <div
-        className="fixed z-10"
-        data-testid="pawlegends-exit"
-        style={{ top: "calc(env(safe-area-inset-top) + 6px)", left: "calc(env(safe-area-inset-left) + 6px)" }}
-      >
-        <CloseButton label="Back to games" onClick={() => go(PAWLEGENDS_EXIT_PATH)} className="!static lg:!h-[44px] lg:!w-[44px]" />
-      </div>
       {note && (
         <div
           role="status"
@@ -779,6 +775,10 @@ export const PawlegendsHost = ({
           <button type="button" onClick={reload} className={reloadClass}>
             Reload
           </button>
+          {/* No host close button any more: until the game's own "Games" button is up, this is the way out. */}
+          <a href={PAWLEGENDS_EXIT_PATH} data-testid="pawlegends-slow-exit" className="px-2 font-sans text-p6 font-bold text-tt-gold-400 underline underline-offset-4">
+            Back
+          </a>
         </div>
       )}
       {bridgeState === "timeout" && (

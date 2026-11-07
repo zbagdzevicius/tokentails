@@ -21,6 +21,7 @@
  *   still decide), `client-error {source, msg, screen, tier, sim}` (launch finding R1: a game or worker crash; the
  *   host reports it as a scrubbed `app_error`), `analytics {event, props}` (launch finding PUB-02: one of the game's
  *   own events; the host sends it with `analytics.track`, at most `PAWLEGENDS_GAME_EVENT_BUDGET` a page), and the
+ *   `exit {}` (the lobby's "Games" button: the host leaves for its games page), and the
  *   deprecated `purchase-intent {sku}`
  *   (answered with a legacy refusal).
  *
@@ -268,7 +269,8 @@ export type PawlegendsToHostMessage =
   | ({ type: "client-error" } & PawlegendsClientError)
   | { type: "analytics"; event: PawlegendsGameEventName; props: PawlegendsGameProps }
   | { type: "party-ticket-request"; id: string }
-  | { type: "party-result"; matchId: string; result: PawlegendsPartyResult };
+  | { type: "party-result"; matchId: string; result: PawlegendsPartyResult }
+  | { type: "exit" };
 
 /** Relayed game events a page sends at most (PUB-02): a runaway loop must not flood PostHog. About 15 per match. */
 export const PAWLEGENDS_GAME_EVENT_BUDGET = 1000;
@@ -669,6 +671,8 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
       // the save chip follows the room id: a result for another id is refused
       return result && data.matchId === result.room ? { type: "party-result", matchId: result.room, result } : null;
     }
+    case "exit":
+      return { type: "exit" };
     case "analytics": {
       if (!oneOf(PAWLEGENDS_GAME_EVENTS, data.event)) return null;
       const props = gamePropsOf(data.props);
@@ -733,6 +737,8 @@ export interface PawlegendsBridgeHandlers {
   onPartyTicketRequest?(id: string): void;
   /** Party play (§6): a party match ended; the host posts the v:2 result to `/live` and answers with `saveResult`. */
   onPartyResult?(result: PawlegendsPartyResult, matchId: string): void;
+  /** The player tapped the game lobby's "Games" button: leave for the games page (the host draws no close button). */
+  onExit?(): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
@@ -891,6 +897,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         break;
       case "paused":
         handlers.onPaused?.(message.paused);
+        break;
+      case "exit":
+        handlers.onExit?.();
         break;
       case "champion-offer":
         if (isApp || !championIds.has(message.catalogId)) break;

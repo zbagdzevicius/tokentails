@@ -93,6 +93,11 @@ export interface LobbyScreenOpts {
   onStore?(): void;
   onSettings?(): void;
   onCollection?(): void;
+  /**
+   * Embedded in Token Tails: "Games" (first in the top-right corner group; the top-left is the title) leaves for the host's games page (the bridge `exit`).
+   * The host no longer lays its own close button over the game. Absent = standalone (nothing to leave to).
+   */
+  onExit?(): void;
   quests?: readonly QuestView[];
   /** The stage dolly before the match loads (Lobby.playOut). */
   playOut?(): Promise<void>;
@@ -110,6 +115,8 @@ const SPEAKER = (on: boolean): string =>
       ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
       : '<path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
   }</svg>`;
+/** The lobby's "Games" exit (embedded): a chevron back. */
+const EXIT = '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const CARDS =
   '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><rect x="3" y="6" width="11" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-10 8 13)"/><rect x="9" y="3" width="11" height="15" rx="2" fill="currentColor"/></svg>';
 
@@ -283,6 +290,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     </div>
     ${peekHtml(o, live)}
     <div class="pl-corner lb-corner">
+      ${o.onExit ? `<button type="button" class="lb-icon wide lb-exit" data-a="exit" data-testid="lobby-exit" aria-label="Back to Token Tails games" title="Back to Token Tails games">${EXIT}<span>Games</span></button>` : ''}
       ${o.storeOpen ? `<button type="button" class="lb-icon" data-a="store" aria-label="Store">${icon('crown')}<span>Store</span></button>` : ''}
       ${o.onCollection ? `<button type="button" class="lb-icon wide" data-a="collection" aria-label="Treat Track">${icon('crown')}<span>Treat Track</span></button>` : ''}
       ${o.onSettings ? `<button type="button" class="lb-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
@@ -335,6 +343,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     } else if (a === 'store') o.onStore?.();
     else if (a === 'settings') o.onSettings?.();
     else if (a === 'collection') o.onCollection?.();
+    else if (a === 'exit') o.onExit?.();
     else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');
       if (!b) return;

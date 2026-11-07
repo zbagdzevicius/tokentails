@@ -39,8 +39,10 @@ export type HostType = (typeof HOST_TYPES)[number];
  * ticket, which the host mints with its own session and answers as `party-ticket{id, ticket|null, error?}` (the
  * access token never crosses); `party-result{matchId, result}` hands a party match's v:2 result to the host's save
  * path (`POST /user/catbassadors/live`), whose status comes back as `save-result{matchId: room}`.
+ * `exit{}`: the player tapped the lobby's "Games" button; the host leaves for its games page (it lays no close
+ * button of its own over the game any more).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 
 export interface HostMessage {

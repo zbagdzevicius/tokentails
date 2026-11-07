@@ -313,12 +313,16 @@ describe("/pawlegends/play page", () => {
 });
 
 describe("PawlegendsHost: shell", () => {
-  it("posts only to its own origin; the checkout is reachable on the web; the exit goes to /game", async () => {
+  it("posts only to its own origin; the checkout is reachable on the web; the game's exit goes to /game", async () => {
     const h = await mount();
     expect(h.origins.every((o) => o === window.location.origin)).toBe(true);
     expect(h.last("app")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "app", isApp: false, store: true, notify: true });
     expect(h.last("session")).toMatchObject({ signedIn: false, progress: null });
-    fireEvent.click(screen.getByRole("button", { name: "Back to games" }));
+    // UX pass 2: no host close button over the game; the lobby's "Games" button posts `exit`
+    expect(screen.queryByRole("button", { name: "Back to games" })).toBeNull();
+    expect(screen.queryByTestId("pawlegends-exit")).toBeNull();
+    expect(h.navigate).not.toHaveBeenCalled();
+    h.fromGame({ type: "exit" });
     expect(h.navigate).toHaveBeenCalledWith("/game");
     expect(eventNames()).toContain("pawlegends_open");
   });
