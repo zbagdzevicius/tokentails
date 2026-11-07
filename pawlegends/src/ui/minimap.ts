@@ -7,7 +7,7 @@
 import { NX, NY, createGrid, onPlayfield } from '../sim/map/grid';
 import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../data/map';
 import type { ViewFrame } from '../render/interp';
-import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
+import { HERO_COLOR_CSS, RELATION_CSS, sidesSwapped } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import { HERO_TEXT } from './heroText';
 import type { HeroId } from '../sim/api';
@@ -243,7 +243,9 @@ export class Minimap {
     const w = Math.round(r.width) || 220;
     const h = Math.round(r.height) || 132;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    if (w === this.w && h === this.h && dpr === this.dpr && this.bg) return;
+    const key = this.bgKey();
+    if (w === this.w && h === this.h && dpr === this.dpr && this.bg && key === this.bgKeyNow) return;
+    this.bgKeyNow = key;
     this.w = w;
     this.h = h;
     this.dpr = dpr;
@@ -254,6 +256,18 @@ export class Minimap {
     this.bg = this.paintBg();
   }
 
+  /** MAP-GAPS A9: what the cached background depends on besides its size: our team, the flip, colours, species. */
+  private bgKeyNow = '';
+  private bgKey(): string {
+    return `${this.host.myTeam()}|${this.flip ? 1 : 0}|${colourBlind() ? 1 : 0}|${sidesSwapped() ? 1 : 0}`;
+  }
+  /** Repaint the background on the next draw (species or side swap, a setting change). */
+  invalidate(): void {
+    this.bg = null;
+  }
+  /** Background repaints so far (tests). */
+  bgPaints = 0;
+
   /** MAP-GAPS A6 / A24: the current mapping (inset, flipped for a team-1 seat). */
   private map = minimapMapping(this.w, this.h);
   private flip = false;
@@ -261,6 +275,7 @@ export class Minimap {
   readonly Y = (yMm: number): number => this.map.Y(yMm);
 
   private paintBg(): HTMLCanvasElement {
+    this.bgPaints++;
     const c = document.createElement('canvas');
     c.width = this.w * this.dpr;
     c.height = this.h * this.dpr;
@@ -326,12 +341,17 @@ export class Minimap {
         g.fillStyle = 'rgba(30,70,25,0.55)';
         for (let a = 0; a < 3; a++) for (let c = 0; c < 2; c++) g.fillRect(rx + rw * (0.3 + c * 0.4) - 0.5, ry + rh * (0.2 + a * 0.3) - 0.5, 1.2, 1.2);
       }
+    // MAP-GAPS A9: each base tinted by relation (ours ally blue, theirs enemy), whichever species or side we play
+    const rel = minimapRelation(colourBlind());
+    const myTeam = this.host.myTeam();
     for (const team of [0, 1]) {
       const cx = team === 0 ? CORE.x : mirrorX(CORE.x);
-      g.fillStyle = team === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(150,92,30,0.45)';
+      g.fillStyle = team === myTeam ? rel.ally : rel.enemy;
+      g.globalAlpha = 0.3;
       g.beginPath();
       g.arc(this.X(cx), this.Y(CORE.y), (10000 / MAP.width) * (this.w - 2 * MM_PAD), 0, Math.PI * 2);
       g.fill();
+      g.globalAlpha = 1;
       const fx = team === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x);
       g.fillStyle = '#bfe8ff';
       g.beginPath();

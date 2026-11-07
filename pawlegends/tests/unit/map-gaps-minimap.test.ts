@@ -180,3 +180,31 @@ describe('MAP-GAPS A8 Pudding leaves the self gold', () => {
     expect(fills).not.toContain('#ffd34d');
   });
 });
+
+describe('MAP-GAPS A9 base tint by relation', () => {
+  const tints = (): unknown[] => {
+    const out: unknown[] = [];
+    let fill: unknown = null;
+    for (const c of calls) {
+      if (c[0] === 'set:fillStyle') fill = c[1];
+      if (c[0] === 'set:globalAlpha' && c[1] === 0.3) out.push(fill);
+    }
+    return out;
+  };
+  it('tints our own base ally blue as a team-0 dog player, and repaints on a side swap', async () => {
+    const { setSideSwap, RELATION_CSS } = await import('../../src/render/palette');
+    setSideSwap(true);
+    const m = new Minimap(document.body, host({ myTeam: () => 0 }));
+    draw(m, frame([]));
+    // team 0's base is drawn first: ours
+    expect(tints()).toEqual([RELATION_CSS.ally, RELATION_CSS.enemy]);
+    const paints = m.bgPaints;
+    setSideSwap(false);
+    draw(m, frame([]));
+    expect(m.bgPaints).toBe(paints + 1);
+    calls.length = 0;
+    const them = new Minimap(document.body, host({ myTeam: () => 1 }));
+    draw(them, frame([]));
+    expect(tints()).toEqual([RELATION_CSS.enemy, RELATION_CSS.ally]);
+  });
+});
