@@ -33,9 +33,10 @@ import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
 
 /**
  * How the party chunk was opened: the title's first tap, a link, "Join with code", a reload with a seat, or "Play
- * online" (Quick Play co-op, M1A-IMPL.md §6: `mm.join` goes out by itself after `welcome`).
+ * online" (Quick Play co-op, M1A-IMPL.md §6: `mm.join` goes out by itself after `welcome`), or `back`: a closed tab
+ * that was a stranger in a live Quick Play match (no code to rejoin by) asks for its own seat with `mm.back`.
  */
-export type OpenMode = 'create' | 'join' | 'code' | 'resume' | 'queue';
+export type OpenMode = 'create' | 'join' | 'code' | 'resume' | 'queue' | 'back';
 
 /** What the queue found (`mm.found`: counts only, never names). */
 export interface MmFound {
@@ -114,6 +115,8 @@ export type PartyEffect =
   | { t: 'found-hold' }
   /** A backfill took this player's seat: end the running match, if any. */
   | { t: 'seat-taken' }
+  /** `mm.cancel{server}`: wait for the restarted relay's welcome, and search again by ourselves if none comes. */
+  | { t: 'server-wait' }
   | { t: 'track'; event: string; props: Record<string, string | number | boolean> };
 
 export type PartyEvent =
@@ -217,6 +220,12 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         return { state: { ...s, asked: true }, effects: fx };
       }
       if (s.mode === 'resume') return { state: s, effects: [{ t: 'close' }] };
+      // a stranger's closed tab: its own live Quick Play seat back (a guest without one gets party_not_found)
+      if (s.mode === 'back') {
+        if (!s.mmOk) return { state: s, effects: [{ t: 'close' }] };
+        send({ t: 'mm.back' });
+        return { state: { ...s, asked: true }, effects: fx };
+      }
       if (s.mode === 'join' && s.code) {
         send({ t: 'party.join', code: s.code });
         return { state: { ...s, asked: true }, effects: fx };
@@ -308,8 +317,9 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     }
     case 'mm.cancel': {
       if (!s.queue) return { state: s, effects: [] };
-      // a restart: keep searching; the reconnect's welcome re-sends `mm.join` (one continuous timer)
-      if (m.reason === 'server') return { state: { ...s, queue: { ...s.queue, status: null } }, effects: [] };
+      // a restart: keep searching; the reconnect's welcome re-sends `mm.join` (one continuous timer). If no welcome
+      // comes (the socket stayed up), the client searches again by itself: never a card that spins forever
+      if (m.reason === 'server') return { state: { ...s, queue: { ...s.queue, status: null } }, effects: [{ t: 'server-wait' }] };
       // a friend party's search ended for everyone: back to its lobby
       if (s.view && !isStranger(s.view) && s.queue.party) {
         const title = m.reason === 'away' ? COPY.stoppedAway : COPY.stoppedParty;
@@ -344,6 +354,10 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       if (s.inMatch) return { state: s, effects: [] }; // NetHost shows in-match errors on the rail
       if (s.queue && !s.queue.found && (m.code === 'mm_locked' || m.code === 'server_busy'))
         return { state: { ...s, queue: { ...s.queue, stopped: m.code === 'mm_locked' ? 'locked' : 'busy', retryMs: m.retryMs ?? 15_000, status: null }, offer: null }, effects: [] };
+      // the relay refused this search for the party (not the leader, a member offline or still in a match): stop the
+      // card with Search again instead of searching forever
+      if (s.queue && !s.queue.found && !s.queue.stopped && (m.code === 'party_busy' || m.code === 'party_full'))
+        return { state: { ...s, queue: { ...s.queue, stopped: 'party', status: null }, offer: null }, effects: [] };
       const error = { code: m.code, ...(m.retryMs !== undefined ? { retryMs: m.retryMs } : {}) };
       if (m.code === 'kicked') return { state: { ...s, view: null, error, asked: false }, effects: [] };
       if (m.code === 'bad_ticket') return { state: s, effects: [{ t: 'note', note: { key: 'pp-ticket', title: COPY.badTicket, tone: 'info', ttl: 5000 } }] };
@@ -353,7 +367,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         return { state: { ...s, error }, effects: leader ? [{ t: 'retry-start', ms: m.retryMs ?? 15_000 }] : [] };
       }
       // a quiet resume of a party that is gone: back to the title, no error screen
-      if (s.mode === 'resume' && ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false }, effects: [{ t: 'close' }] };
+      if ((s.mode === 'resume' || s.mode === 'back') && ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false }, effects: [{ t: 'close' }] };
       // a refused join leaves us without a party (the code screen or the ended screen)
       if (ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false }, effects: [] };
       return { state: { ...s, error }, effects: [] };
@@ -420,10 +434,14 @@ export interface PartyHooks {
   now?(): number;
 }
 
-/** The party code this browser is in (or null when it left): a closed tab rejoins by it (src/app/app.ts). */
-function rememberParty(code: string | null): void {
+/**
+ * The party code this browser is in (or null when it left): a closed tab rejoins by it (src/app/app.ts). A stranger in
+ * a Quick Play match has no code: `mm` marks it, and a closed tab asks for its own seat back (`mm.back`). Nothing
+ * secret is kept here (no token): the relay matches the same guest key or account.
+ */
+function rememberParty(code: string | null, mm = false): void {
   try {
-    if (code) localStorage.setItem('pl.party.last', JSON.stringify({ code, at: Date.now() }));
+    if (code || mm) localStorage.setItem('pl.party.last', JSON.stringify(mm && !code ? { mm: true, at: Date.now() } : { code, at: Date.now() }));
     else localStorage.removeItem('pl.party.last');
   } catch {
     /* private mode */
@@ -436,6 +454,9 @@ const heroName = (h: string): string => (h in HERO_TEXT ? HERO_TEXT[h as keyof t
 export const FOUND_HOLD_MS = 1200;
 /** The relay takes one `mm.side` per 2 s; the client waits a little longer. */
 const SIDE_EVERY_MS = 2100;
+
+/** `mm.cancel{server}` with no restart welcome after this long: search again on the same socket. */
+export const SERVER_WAIT_MS = 6000;
 
 const simHash = (): string => (typeof __SIM_HASH__ !== 'undefined' ? __SIM_HASH__ : '0000000000000000');
 const DIFFS = ['easy', 'normal', 'hard'] as const;
@@ -554,6 +575,11 @@ export class PartyClient {
     }
     if (state.view && !prev.view) this.enteredParty();
     if (state.view?.code && state.view.code !== prev.view?.code) rememberParty(state.view.code);
+    // a stranger seated in a live Quick Play match: a closed tab (a phone that killed it) comes back to it
+    const strangerLive = isStranger(state.view) && (state.inMatch || state.view?.phase === 'match');
+    const wasLive = isStranger(prev.view) && (prev.inMatch || prev.view?.phase === 'match');
+    if (strangerLive && !wasLive) rememberParty(null, true);
+    else if (!strangerLive && wasLive && !state.view?.code) rememberParty(null);
     if (state.view?.phase === 'pick' && prev.view?.phase !== 'pick') this.enteredPick();
     else if (state.view?.phase === 'pick' && prev.view?.phase === 'pick') this.pickChanged(prev.view, state.view);
     if (state.view?.phase === 'loading' && prev.view?.phase !== 'loading') void this.enteredLoading();
@@ -613,6 +639,15 @@ export class PartyClient {
         if (this.foundTimer) clearTimeout(this.foundTimer);
         this.foundTimer = setTimeout(() => this.dispatch({ e: 'found-shown' }), FOUND_HOLD_MS);
         return;
+      case 'server-wait':
+        if (this.serverWait) clearTimeout(this.serverWait);
+        this.serverWait = setTimeout(() => {
+          this.serverWait = null;
+          const q = this.state.queue;
+          // still waiting with no status (no restart welcome came): search again on this socket
+          if (q && !q.stopped && !q.found && !q.status && this.state.welcomed) this.dispatch({ e: 'queue', side: q.side, requeue: q.requeue });
+        }, SERVER_WAIT_MS);
+        return;
       case 'seat-taken':
         this.backfilled = false;
         if (this.host) {
@@ -638,6 +673,7 @@ export class PartyClient {
   private offerAt = 0;
   private foundTimer: ReturnType<typeof setTimeout> | null = null;
   private sideTimer: ReturnType<typeof setTimeout> | null = null;
+  private serverWait: ReturnType<typeof setTimeout> | null = null;
   private sideSentAt = -Infinity;
   private joinTracked = false;
   private penaltyTracked = false;
@@ -1057,6 +1093,14 @@ export class PartyClient {
       case 'mm-again':
         this.queueNow(false);
         return;
+      case 'mm-found-cancel':
+        // "Match found" → Cancel: the stranger leaves the matched party before its room starts (a bot takes the seat;
+        // no room yet, so no leaver event). `mm.leave` covers a Cancel that crossed `mm.found` on the relay.
+        s.sendJson({ t: 'mm.leave' });
+        s.sendJson({ t: 'party.leave' });
+        this.h.analytics?.('party_leave', { phase: 'found' });
+        this.close();
+        return;
       case 'mm-cancel': {
         const solo = !this.state.view || isStranger(this.state.view);
         this.dispatch({ e: 'unqueue' });
@@ -1294,6 +1338,7 @@ export class PartyClient {
     if (this.retryTimer) clearTimeout(this.retryTimer);
     if (this.foundTimer) clearTimeout(this.foundTimer);
     if (this.sideTimer) clearTimeout(this.sideTimer);
+    if (this.serverWait) clearTimeout(this.serverWait);
     this.unwatch();
     this.socket.close(true);
     this.el.remove();

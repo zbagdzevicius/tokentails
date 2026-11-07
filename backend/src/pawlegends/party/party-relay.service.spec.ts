@@ -76,6 +76,15 @@ describe('party relay (N2)', () => {
         expect(PartyRelay.clientIp(req('173.245.48.10'))).toBe('9.9.9.9');
         // behind the DigitalOcean ingress (a private hop) the visitor is the Cloudflare header, not the shared hop
         expect(PartyRelay.clientIp(req('10.0.0.1'))).toBe('9.9.9.9');
+        // a header that is not an IP never becomes a fresh per-IP bucket
+        const bad = { socket: { remoteAddress: '10.0.0.1' }, headers: { 'cf-connecting-ip': 'abc' } };
+        expect(PartyRelay.clientIp(bad as unknown as IncomingMessage)).toBe('10.0.0.1');
+        // a direct caller through the DigitalOcean ingress (X-Forwarded-For is not a Cloudflare edge): its own address
+        const direct = {
+            socket: { remoteAddress: '10.0.0.1' },
+            headers: { 'cf-connecting-ip': '9.9.9.9', 'x-forwarded-for': '1.2.3.4' },
+        };
+        expect(PartyRelay.clientIp(direct as unknown as IncomingMessage)).toBe('1.2.3.4');
     });
 
     it('hello: update_required for an unknown sim hash or protocol; welcome otherwise', async () => {

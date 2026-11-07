@@ -89,7 +89,7 @@ export interface LobbyScreenOpts {
   onJoinCode?(): void;
   /**
    * Quick Play co-op (M1A-IMPL.md §1, §6): "Play online" queues with strangers in one tap, first in the friends row;
-   * absent = no relay, or the guided first match is not played yet.
+   * absent = no relay. Shown from the very first visit (zero friction; a new guest queues with the newbie hint).
    */
   onOnline?(): void;
   onPlay(c: Choice, seed?: number): void;
@@ -280,7 +280,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
         <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter">${esc(playLabel(o))}</button>
         <p class="lb-line${dare ? ' dare-line' : ''}">${esc(playLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>
         ${segmentHtml(o, diff)}
-        ${(o.onParty || o.onOnline) && !dare ? `<div class="lb-friends-row">${o.onOnline ? `<button type="button" class="pl-btn ghost small lb-friends lb-online" data-a="online" data-testid="play-online">Play online</button>` : ''}${o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>` : ''}${o.onJoinCode ? `<button type="button" class="lb-joincode" data-a="joincode" data-testid="join-code">Join with code</button>` : ''}</div>` : ''}
+        ${(o.onParty || o.onOnline) && !dare ? `<div class="lb-friends-row">${o.onOnline ? `<button type="button" class="pl-btn small lb-friends lb-online" data-a="online" data-testid="play-online">Play online</button>` : ''}${o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>` : ''}${o.onJoinCode ? `<button type="button" class="lb-joincode" data-a="joincode" data-testid="join-code">Join with code</button>` : ''}</div>` : ''}
       </div>
       ${secondary}
       <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>

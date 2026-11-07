@@ -23,8 +23,10 @@ flash, walker prediction and camera zoom live).
 
 ## 1. What the player gets
 
-1. The title (from match 1 on, so DOGS is unlocked and the guided first match stays solo) shows **Play online** in
-   the friends row, next to **Play with friends** and **Join with code**. Play (solo) stays the primary button.
+1. The title shows **Play online** in the friends row, next to **Play with friends** and **Join with code**, from the
+   very first visit (changed 2026-11-07, zero friction: a new guest who came to play with strangers must not hunt for
+   it). Play (solo, the guided first match) stays the big button; Play online is a solid small button, not a ghost one.
+   A brand-new player (no match yet) searches as Cats by default and sends the newbie hint.
 2. One tap. The party chunk loads (already prefetched while idle), the socket opens, `hello`, then `mm.join` goes out
    by itself. No other screen comes first.
 3. The **queue card**: "Finding teammates… 0:07 · usually 0:15", humans found as pips (●●○), the side chip
@@ -188,8 +190,9 @@ moves it straight to `pick` with `fixedSide` and `difficulty` set. From there th
 
 A seat in an **mm room** is backfillable when all hold:
 - it is a human slot, the room is live and not ending, `tick < 5,400` (3:00);
-- its member left (`party.leave` mid-match, the room's `vacate`), **or** the slot has been piloted for reason `drop` or
-  `afk` continuously for 60 s;
+- its member left (`party.leave` mid-match, the room's `vacate`), **or** the slot has been piloted for reason `drop`,
+  `away` or `afk` continuously for 60 s. A friend in a host friend party is never backfilled while they hold the seat
+  (only a seat they left): a phone call must not cost them their friends' match;
 - it was not backfilled before (one backfill per slot).
 
 Flow:
@@ -208,6 +211,8 @@ Flow:
    - the existing `claimOpenSeat` path binds the socket, replaces the occupant row (so the leaver can no longer save
      that slot), sends `match` with `startInMs: 0`, and the client catches up (the P10 join-in-progress path);
    - the seat turns human on the client's caught-up `back`, as today.
+   - every check that can refuse (sockets, caps, the slot still piloted) runs before the holder is evicted, and the
+     holder's row gets its `left` event only once the seat changed hands: a refused backfill costs nobody anything.
 5. **The leaver:** if they were only dropped and come back before a backfill, they reclaim as today. After a backfill,
    they are removed from the mm party, their resume token is dropped, and a reconnect gets
    `error{code:'seat_taken'}` ("Your seat was taken"). The match counts as `left` for them (§4.4).
@@ -329,7 +334,7 @@ header only from a Cloudflare or trusted ingress hop). The mm `ipKey` is `hash('
 | Queue size per instance | 600 entries | `server_busy` with `retryMs: 15 000` |
 | Backfill offers per identity | 3 per 10 min | not offered |
 | `mm.side` changes | 1 per 2 s | dropped |
-| Live rooms per identity / per IP | the existing 1 / 4 | the entry is skipped at match time and told `mm.cancel{reason:'server'}` |
+| Live rooms per identity / per IP | the existing 1 / 4 | checked at `mm.join`: a seat this identity still holds from a socket that is gone (a closed tab) is given up first (as `party.leave`; a bot keeps it, a backfill can take it); a cap that still binds answers `error{code:'mm_locked', retryMs: 30 000}` at once. A seat given up (`party.leave`, eviction) stops counting at once. At match time the same check repeats; never `mm.cancel{server}` (the client reads that as a restart) |
 | Unticketed rooms | the existing 50 % share of `maxLiveRooms` | the match waits for capacity, then `server_busy` |
 | JSON frames | the existing 5 per second, burst 10 | strike |
 
@@ -437,6 +442,7 @@ New constants: `PROTO = 2`, `PROTO_MIN = 1`, `MM_QUEUES = ['coop']`, `MM_SIDES =
 | `mm.leave` | | Any time before `mm.found` |
 | `mm.side` | `side` | While queued, 1 per 2 s |
 | `mm.backfill` | `offer: string (^[a-z0-9]{12}$)`, `yes: boolean` | Within 10 s of the offer |
+| `mm.back` | none | A stranger's closed tab (no party code to rejoin by): the same identity takes its own live Quick Play seat back (the `party.join` twin path); `error{code:'party_not_found'}` when there is none. The client marks `pl.party.last` as `{mm: true}` while a stranger is in a live match (no token, no code) |
 
 **Server to client** (only to `PROTO 2` sockets):
 
@@ -461,8 +467,15 @@ New constants: `PROTO = 2`, `PROTO_MIN = 1`, `MM_QUEUES = ['coop']`, `MM_SIDES =
 
 The matchmaker is in memory in the one API instance (`PARITY.md` §9). On SIGTERM `MmBridge.shutdown()` sends
 `mm.cancel{reason:'server'}`; the client keeps its queued intent and its local start time, reconnects (the existing
-resume path) and re-sends `mm.join` after `welcome`, so the player sees one continuous timer. Rooms survive through N9 as
-today; an mm party's strangers and fixed side survive with the party doc (§5.4).
+resume path) and re-sends `mm.join` after `welcome`, so the player sees one continuous timer. If no new `welcome` comes
+within 6 s (the socket stayed up), the client sends `mm.join` again by itself: the card never spins without a search
+behind it. Rooms survive through N9 as today; an mm party's strangers and fixed side survive with the party doc (§5.4).
+Known gap: the glue's per-room bookkeeping (`MmBridge.live`) is memory only, so a restored room gets no backfill
+seats, no leaver events and no finished record (the rating step still runs from `/live`).
+
+Other exits: **Match found** has **Cancel** for a solo (`mm.leave` + `party.leave`: the stranger leaves before the
+room starts, so no leaver event); the Quick Play pick has **Leave** (two taps; a bot takes the seat). A `mm.leave` that
+crosses `mm.found` on the relay does the same; a `mm.leave` during the join's rating and ladder reads drops that join.
 
 ---
 

@@ -1,7 +1,8 @@
 /**
  * The Quick Play queue card (docs/plans/moba/M1A-IMPL.md §1, §6): "Finding teammates… 0:07 · usually 0:15", the humans
  * found as pips (●●○), the side chip (Cats · Dogs · Either, a radio group the arrow keys move), a low-priority
- * countdown and the leaver warning, **Cancel** from the first frame, the 1.2 s "Match found" strip, the stopped states
+ * countdown and the leaver warning, **Cancel** from the first frame (also on the 1.2 s "Match found" strip for a solo,
+ * `mm-found-cancel`: a bot takes the seat), the stopped states
  * (away, another tab, locked, busy) with **Search again**, and the backfill offer on top.
  *
  * Pure markup: the party client fills the model and dispatches the `data-p` actions (`mm-cancel`, `mm-side`,
@@ -70,7 +71,9 @@ export function sideChipHtml(side: MmSide, disabled = false): string {
 export function queueCardHtml(m: QueueModel): string {
   if (m.match) {
     const diff = DIFF_LABEL[m.match.difficulty] ?? m.match.difficulty;
-    return `<div class="pp-card pp-narrow pp-queue" data-state="found" data-testid="mm-queue"><h2>${COPY.online}</h2><p class="pp-found" role="status" data-testid="mm-found"><b>${COPY.matchFound}</b><span>${esc(COPY.foundLine(m.match.humans, m.match.bots, sideText(m.match.side), diff))}</span></p></div>`;
+    // a friend party's match is the party's: its members leave from the pick (two taps), not from this strip
+    const cancel = m.party ? '' : `<button type="button" class="pl-btn ghost small" data-p="mm-found-cancel" data-testid="mm-cancel">${COPY.cancel}</button>`;
+    return `<div class="pp-card pp-narrow pp-queue" data-state="found" data-testid="mm-queue"><h2>${COPY.online}</h2><p class="pp-found" role="status" data-testid="mm-found"><b>${COPY.matchFound}</b><span>${esc(COPY.foundLine(m.match.humans, m.match.bots, sideText(m.match.side), diff))}</span></p>${cancel}</div>`;
   }
   if (m.stopped) {
     const wait = m.retryS > 0;

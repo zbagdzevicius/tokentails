@@ -76,10 +76,17 @@ export interface MmRelayApi {
     room(roomId: string): MmRoomView | null;
     /** As `party.leave`: the seat, the party and the resume token, then the `left` party frame. */
     leaveParty(member: string): void;
-    /** A backfill: the member joins the room's party as a stranger and claims `slot` (Room.reopen + claimOpenSeat). */
-    backfill(member: string, roomId: string, slot: number): boolean;
+    /**
+     * A backfill: the member joins the room's party as a stranger and claims `slot` (Room.reopen + claimOpenSeat).
+     * `holder` (the seat's AFK or dropped member) is evicted only once every check that can refuse has passed.
+     */
+    backfill(member: string, roomId: string, slot: number, holder?: string): boolean;
     /** The leaver of a backfilled seat: out of the party and the seat; a resume answers `seat_taken`. */
     evict(member: string, roomId: string): void;
+    /** Give up this identity's seats in live Quick Play rooms held by a socket that is gone (not `except`). */
+    release(identity: MemberIdentity, except: string): void;
+    /** `mm.back`: this socket takes its identity's own live Quick Play seat back; false when there is none. */
+    rejoin(member: string): boolean;
 }
 
 /** The relay's hooks into Quick Play. */
@@ -142,9 +149,11 @@ export class MmBridge implements MmHooks {
     private readonly lastSide = new Map<string, number>();
     private readonly lastStatus = new Map<string, { ms: number; key: string }>();
     private readonly offSince = new Map<string, number>();
-    private readonly pending = new Map<string, { match: MmMatch; members: MatchedMember[] }>();
+    private readonly pending = new Map<string, { match: MmMatch; members: MatchedMember[]; at: number }>();
     private readonly live = new Map<string, LiveMm>();
     private readonly joining = new Set<string>();
+    /** `mm.leave` arrived while the join's reads ran: that join is dropped when they return. */
+    private readonly joinAborted = new Set<string>();
     private readonly joins = {
         byKey: new Map<string, number[]>(),
         byIp: new Map<string, number[]>(),
@@ -189,6 +198,10 @@ export class MmBridge implements MmHooks {
                 return this.side(member, msg.side as MmSideChoice);
             case 'mm.backfill':
                 return this.answer(member, msg.offer as string, msg.yes === true);
+            case 'mm.back':
+                if (this.queued(member)) this.leaveQueue(member, 'left');
+                if (!this.api.rejoin(member)) this.api.send(member, { t: 'error', code: 'party_not_found' });
+                return;
         }
     }
 
@@ -208,7 +221,8 @@ export class MmBridge implements MmHooks {
         const j = MM_LIMITS.joins;
         const check = (m: Map<string, number[]>, k: string, limit: number) => {
             const list = (m.get(k) ?? []).filter(t => now - t < j.windowMs);
-            m.set(k, list);
+            if (list.length) m.set(k, list);
+            else m.delete(k);
             return list.length >= limit ? list[list.length - limit] + j.windowMs - now : 0;
         };
         const wait = Math.max(
@@ -239,6 +253,12 @@ export class MmBridge implements MmHooks {
         if (this.joining.has(member)) return;
         const parties = api.parties;
         let p = parties.partyOf(member);
+        // Play online from a stranger's seat still in a match (the title after Leave, a second tab): that seat is given
+        // up (a bot flies it, a backfill can take it), as `party.leave` would
+        if (p?.mm && p.mm.strangers.has(member) && p.phase !== 'results' && p.phase !== 'lobby') {
+            api.leaveParty(member);
+            p = null;
+        }
         // Play again after a Quick Play match: a stranger leaves the matched party and queues alone; a host friend
         // party's leader drops the strangers still there and queues the friends
         if (p?.mm && p.phase === 'results') {
@@ -251,7 +271,9 @@ export class MmBridge implements MmHooks {
             }
         }
         if (p) {
-            if (p.leader !== member || p.mm) return;
+            // only the leader queues a friend party, and not from inside a Quick Play match: say so (never a silent
+            // return: the card would spin forever)
+            if (p.leader !== member || p.mm) return this.refuse(member, 'party_busy', undefined, 'party_role');
             if (p.members.length > 2) return this.refuse(member, 'party_full');
             if (p.phase !== 'lobby' && p.phase !== 'results') return this.refuse(member, 'party_busy');
             let old = false;
@@ -269,7 +291,12 @@ export class MmBridge implements MmHooks {
         if (blocked > 0) return this.refuse(member, 'mm_locked', blocked, 'join_rate');
         const memberIds = p ? p.members.map(m => m.id) : [member];
         const socks = memberIds.map(id => api.sock(id)).filter((x): x is MmSock => !!x);
-        if (socks.length !== memberIds.length) return;
+        if (socks.length !== memberIds.length) return this.refuse(member, 'party_busy', undefined, 'party_away');
+        // the live-room caps (1 per identity, 4 per IP) are checked now, not after the fill: a seat this identity
+        // still holds from a closed tab is given up; anything else is refused with a time (never a silent cancel)
+        for (const s of socks) if (!api.canSeat(s.identity)) api.release(s.identity, s.member);
+        if (socks.some(s => !api.canSeat(s.identity)))
+            return this.refuse(member, 'mm_locked', MM_LIMITS.liveRoomRetryMs, 'live_room');
         // one entry per identity: the newest socket wins (the old entry is cancelled)
         for (const s of socks) {
             if (s.identity.key.startsWith('ip:')) continue;
@@ -287,7 +314,10 @@ export class MmBridge implements MmHooks {
             return this.refuse(member, 'mm_locked', 60_000, 'queued_cap');
         if (this.mm.size >= MM_LIMITS.queueMax) return this.refuse(member, 'server_busy', 15_000, 'queue_full');
         const partyId = p?.id ?? null;
-        for (const id of memberIds) this.joining.add(id);
+        for (const id of memberIds) {
+            this.joining.add(id);
+            this.joinAborted.delete(id);
+        }
         let ratings: Glicko[];
         let ladders: LeaverStatus[];
         try {
@@ -298,8 +328,10 @@ export class MmBridge implements MmHooks {
         } finally {
             for (const id of memberIds) this.joining.delete(id);
         }
-        // the world may have moved during the reads
-        if (this.stopped || memberIds.some(id => !api.sock(id) || this.byMember.has(id))) return;
+        // the world may have moved during the reads (a Cancel, a closed socket, a party change)
+        const aborted = memberIds.some(id => this.joinAborted.has(id));
+        for (const id of memberIds) this.joinAborted.delete(id);
+        if (aborted || this.stopped || memberIds.some(id => !api.sock(id) || this.byMember.has(id))) return;
         if (partyId) {
             const again = parties.byId(partyId);
             if (!again || again.leader !== member || again.members.map(m => m.id).join() !== memberIds.join()) return;
@@ -424,7 +456,18 @@ export class MmBridge implements MmHooks {
     private leaveQueue(member: string, reason: 'left' | 'party'): void {
         const id = this.byMember.get(member);
         const e = id ? this.entries.get(id) : undefined;
-        if (e) this.cancelEntry(e, e.members.length > 1 && reason === 'left' ? 'party' : reason);
+        if (e) return this.cancelEntry(e, e.members.length > 1 && reason === 'left' ? 'party' : reason);
+        // a Cancel during the join's reads: drop that join when they return
+        if (this.joining.has(member)) {
+            const p = this.api.parties.partyOf(member);
+            for (const m of p && p.leader === member ? p.members.map(x => x.id) : [member]) this.joinAborted.add(m);
+            return;
+        }
+        // a Cancel that crossed `mm.found`: the stranger leaves the matched party before its room starts (a bot takes
+        // the seat; no room, so no leaver event)
+        const p = this.api.parties.partyOf(member);
+        if (reason === 'left' && p?.mm && p.mm.strangers.has(member) && !p.room && p.phase !== 'results')
+            this.api.leaveParty(member);
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -480,6 +523,7 @@ export class MmBridge implements MmHooks {
         }
         // seats first: a backfillable seat is offered before a long-waiting solo is filled with bots
         this.scanRooms(now);
+        this.prune(now);
         const t = this.mm.tick();
         for (const c of t.cancelled) {
             const e = this.entries.get(c.entry.id) ?? c.entry;
@@ -543,20 +587,28 @@ export class MmBridge implements MmHooks {
         const group = match.entries.map(id => this.entries.get(id)).filter((e): e is MmEntry => !!e);
         const ok: MmEntry[] = [];
         for (const e of group) {
-            const fine = e.members.every(m => {
-                const s = api.sock(m.member);
-                return !!s && s.proto >= 2 && api.canSeat(s.identity);
-            });
+            const socks = e.members.map(m => api.sock(m.member));
+            const present = socks.every(s => !!s && s.proto >= 2);
+            // a seat from a closed tab is given up first (as at join); a cap still hit is refused with a time
+            if (present) for (const s of socks) if (!api.canSeat(s!.identity)) api.release(s!.identity, s!.member);
+            const seatable = present && socks.every(s => api.canSeat(s!.identity));
             const partyFine =
                 !e.partyId ||
                 (() => {
                     const p = api.parties.byId(e.partyId!);
                     return !!p && !p.mm && (p.phase === 'lobby' || p.phase === 'results');
                 })();
-            if (fine && partyFine) ok.push(e);
+            if (seatable && partyFine) ok.push(e);
             else {
                 this.mm.leave(e.id);
-                this.cancelEntry(e, 'server');
+                // never `server` here: the client reads `mm.cancel{server}` as a relay restart and waits for a welcome
+                if (present && partyFine) {
+                    this.cancelEntry(e, 'party', false);
+                    for (const m of e.members)
+                        api.send(m.member, { t: 'error', code: 'mm_locked', retryMs: MM_LIMITS.liveRoomRetryMs });
+                    this.tally.mm_refused++;
+                    api.log('mm_refused', { reason: 'live_room' });
+                } else this.cancelEntry(e, 'party');
             }
         }
         if (ok.length !== group.length) {
@@ -595,7 +647,7 @@ export class MmBridge implements MmHooks {
                     rating: this.ratingOf.get(m.member) ?? { ...DEFAULT_GLICKO },
                     queueMs: match.waitedMs[e.id] ?? 0,
                 });
-        this.pending.set(party.id, { match, members });
+        this.pending.set(party.id, { match, members, at: api.now() });
         for (const m of members) {
             this.ratingOf.delete(m.member);
             this.warnOf.delete(m.member);
@@ -619,10 +671,9 @@ export class MmBridge implements MmHooks {
     // Rooms: the record, backfill seats, events
 
     onRoomStarted(roomId: string, party: Party): void {
-        if (!party.mm) return;
         const pend = this.pending.get(party.id);
         this.pending.delete(party.id);
-        if (!pend) return;
+        if (!party.mm || !pend) return;
         const slotOf = new Map(party.members.map(m => [m.id, m.slot ?? -1]));
         const members: MmRoomMember[] = [];
         const keys = new Map<string, string>();
@@ -682,6 +733,7 @@ export class MmBridge implements MmHooks {
         for (const [roomId, lm] of this.live) {
             const room = this.api.room(roomId);
             if (!room) continue;
+            const hostParty = this.api.parties.byId(lm.party);
             for (const s of room.slots) {
                 if (!room.humans.includes(s.slot)) continue;
                 if (!s.connected) {
@@ -689,8 +741,12 @@ export class MmBridge implements MmHooks {
                 } else lm.offSince.delete(s.slot);
                 const leftSeat = !s.occupied;
                 if (leftSeat && !lm.left.has(s.slot)) lm.left.set(s.slot, room.tick);
+                // a friend in a host friend party is never backfilled while their seat exists (only a seat they left):
+                // a phone call or app switch must not cost them their friends' match
+                const holderNow = [...room.seats].find(([, slot]) => slot === s.slot)?.[0];
+                const friend = !!holderNow && !!hostParty?.mm?.host && !hostParty.mm.strangers.has(holderNow);
                 const afkPilot =
-                    s.mode === 'pilot' && (s.reason === 'drop' || s.reason === 'away' || s.reason === 'afk');
+                    !friend && s.mode === 'pilot' && (s.reason === 'drop' || s.reason === 'away' || s.reason === 'afk');
                 if (afkPilot && !lm.pilotSince.has(s.slot)) lm.pilotSince.set(s.slot, now);
                 if (!afkPilot && !leftSeat) {
                     lm.pilotSince.delete(s.slot);
@@ -760,19 +816,19 @@ export class MmBridge implements MmHooks {
             this.mm.join({ ...e, awaySinceMs: null });
             return;
         }
-        // the leaver's row gets its event now; a leaver still in the party (dropped or AFK) is evicted
+        // a leaver still in the party (dropped or AFK) is evicted by the relay, and only once the backfill can no longer
+        // be refused; the leaver's row gets its event only when the seat really changed hands
+        const holder = [...room!.seats].find(([, slot]) => slot === o.seat.slot)?.[0];
+        if (!this.api.backfill(member, o.seat.room, o.seat.slot, holder && holder !== member ? holder : undefined)) {
+            this.mm.join({ ...e, awaySinceMs: null });
+            return;
+        }
         const holderRow = lm!.members
             .filter(m => m.slot === o.seat.slot && !m.event)
             .sort((a, b) => b.joinedTick - a.joinedTick)[0];
         if (holderRow) {
             holderRow.event = 'left';
             holderRow.eventTick = lm!.left.get(o.seat.slot) ?? room!.tick;
-        }
-        const holder = [...room!.seats].find(([, slot]) => slot === o.seat.slot)?.[0];
-        if (holder && holder !== member) this.api.evict(holder, o.seat.room);
-        if (!this.api.backfill(member, o.seat.room, o.seat.slot)) {
-            this.mm.join({ ...e, awaySinceMs: null });
-            return;
         }
         this.dropEntry(e);
         lm!.backfilled.add(o.seat.slot);
@@ -821,6 +877,27 @@ export class MmBridge implements MmHooks {
         }
         // the leaver ladders of these identities read fresh next time
         for (const m of members) this.leaverCache.delete(m.identityHash);
+    }
+
+    private prunedMs = -Infinity;
+    /**
+     * Once a minute: forget what can no longer matter (guest identities cost nothing, so nothing may grow per key):
+     * matches whose room never started (pick abandoned, start refused, the party dropped `mm`), join logs past the
+     * window, side-change stamps.
+     */
+    private prune(now: number): void {
+        if (now - this.prunedMs < 60_000) return;
+        this.prunedMs = now;
+        for (const [pid, pend] of this.pending) {
+            const p = this.api.parties.byId(pid);
+            const waiting = !!p && !p.ended && !!p.mm && p.mm.match === pend.match.id && !p.room;
+            if (!waiting || now - pend.at > MM_LIMITS.pendingMaxMs) this.pending.delete(pid);
+        }
+        const j = MM_LIMITS.joins;
+        for (const m of [this.joins.byKey, this.joins.byIp, this.joins.byNet])
+            for (const [k, list] of m) if (!list.length || now - list[list.length - 1] >= j.windowMs) m.delete(k);
+        for (const [k, at] of this.lastSide) if (now - at >= MM_LIMITS.sideEveryMs) this.lastSide.delete(k);
+        for (const [k, at] of this.leaverCache) if (now - at.at >= MM_LIMITS.readCacheMs) this.leaverCache.delete(k);
     }
 
     /** A stranger idle 60 s in results leaves the matched party. */

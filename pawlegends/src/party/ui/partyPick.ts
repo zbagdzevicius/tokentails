@@ -39,11 +39,12 @@ export function firstFree(v: PartyView, side: 'cat' | 'dog', prefer?: string): s
   return HERO_IDS.find((h) => HEROES[h].side === side && !heroBlock(v, h)) ?? '';
 }
 
-/** Quick Play: the CATS/DOGS switch, shown locked on the side the queue assigned. */
-function sideSwitchHtml(side: 'cat' | 'dog'): string {
-  return `<div class="pp-seg pp-sideswitch" role="radiogroup" aria-label="${esc(COPY.yourTeam(sideText(side)))}" aria-disabled="true" data-testid="mm-side-switch" data-side="${side}">${(['cat', 'dog'] as const)
-    .map((s) => `<button type="button" role="radio" aria-checked="${s === side}" disabled>${s === 'cat' ? 'CATS' : 'DOGS'}</button>`)
-    .join('')}</div>`;
+/**
+ * Quick Play: the side the queue assigned, as a plain badge ("Your team: Dogs"). Not a disabled CATS/DOGS toggle: on a
+ * phone that looked tappable and did nothing. It stays visible at every height.
+ */
+function sideBadgeHtml(side: 'cat' | 'dog'): string {
+  return `<p class="pp-side-note pp-team" role="status" data-testid="mm-side-switch" data-side="${side}"><span data-testid="mm-your-team">${esc(COPY.yourTeam(sideText(side)))}</span></p>`;
 }
 
 const sideOf = (h: string | undefined): 'cat' | 'dog' | null => (h && h in HEROES ? HEROES[h as HeroId].side : null);
@@ -90,7 +91,7 @@ export function pickHtml(o: PickModel): string {
     : [...HERO_IDS.filter((h) => HEROES[h].side === 'cat'), ...HERO_IDS.filter((h) => HEROES[h].side === 'dog')];
   const found = mm && o.found ? `<p class="pp-side-note pp-found-line" data-testid="mm-found-line">${esc(COPY.foundLine(o.found.humans, o.found.bots, sideText(o.found.side), DIFF_LABEL[o.found.difficulty] ?? o.found.difficulty))}</p>` : '';
   const sideNote = mm
-    ? `<p class="pp-side-note" data-testid="mm-your-team">${esc(COPY.yourTeam(sideText(mm)))}</p>${sideSwitchHtml(mm)}${found}`
+    ? `${sideBadgeHtml(mm)}${found}`
     : v.leader !== v.you && leaderSide
       ? `<p class="pp-side-note" data-testid="party-side-note">${esc(COPY.leaderChose(leaderSide))}</p>`
       : '';
@@ -105,10 +106,12 @@ export function pickHtml(o: PickModel): string {
   const lockBtn = locked
     ? `<button type="button" class="pl-btn ghost" data-p="unlock" data-testid="party-unlock">${COPY.changeHero}</button><button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" disabled>${COPY.lockedIn}</button>`
     : `<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${canLock ? '' : 'disabled'}>${COPY.lockIn}</button>`;
+  // Quick Play: a way out of the pick (two taps, as in the friend lobby); a bot takes the seat
+  const leave = mm ? `<button type="button" class="pl-btn ghost small pp-pick-leave" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>` : '';
   return `<div class="pp-card pp-pick" data-locked="${locked}"${mm ? ` data-mm="${mm}"` : ''}>
     <div class="pp-head"><h2>${COPY.pickTitle}</h2>${sideNote}<ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
     <div class="pp-roster">${rows}</div>
-    <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${lockBtn}</div>
+    <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${leave}${lockBtn}</div>
   </div>`;
 }
 

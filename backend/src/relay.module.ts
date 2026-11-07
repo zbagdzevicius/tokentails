@@ -28,7 +28,11 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
             useNewUrlParser: true,
             useUnifiedTopology: true,
         }),
-        MongooseModule.forFeature([{ name: Cat.name, schema: CatSchema }, ...PAWLEGENDS_PARTY_SCHEMAS, ...PAWLEGENDS_MM_SCHEMAS]),
+        MongooseModule.forFeature([
+            { name: Cat.name, schema: CatSchema },
+            ...PAWLEGENDS_PARTY_SCHEMAS,
+            ...PAWLEGENDS_MM_SCHEMAS,
+        ]),
     ],
     controllers: [HealthController, RelayProbeController],
     providers: [

@@ -10,6 +10,10 @@ function make() {
     const clock = { now: 1_700_000_000_000 };
     const sent: { to: string; msg: Record<string, any> }[] = [];
     const socks = new Map<string, MmSock>();
+    /** Identity keys the live-room cap blocks (canSeat false); `release` frees the ones in `stale`. */
+    const blocked = new Set<string>();
+    const stale = new Set<string>();
+    const released: string[] = [];
     const parties = new PartyService(
         {
             heroes: ['clem', 'sage', 'nugget'],
@@ -27,11 +31,16 @@ function make() {
         log: () => undefined,
         sock: m => socks.get(m) ?? null,
         send: (to, msg) => sent.push({ to, msg }),
-        canSeat: () => true,
+        canSeat: i => !blocked.has(i.key),
         room: () => null,
         leaveParty: m => parties.leave(m),
         backfill: () => false,
         evict: () => undefined,
+        release: i => {
+            released.push(i.key);
+            if (stale.has(i.key)) blocked.delete(i.key);
+        },
+        rejoin: () => false,
     };
     const rooms = new MemoryMmRoomStore();
     const ratings = new MemoryRatingSource();
@@ -65,7 +74,7 @@ function make() {
         await new Promise(r => setImmediate(r));
     };
     const last = (to: string, t: string) => [...sent].reverse().find(x => x.to === to && x.msg.t === t)?.msg;
-    return { clock, sent, bridge, rooms, ratings, sock, join, last, parties };
+    return { clock, sent, bridge, rooms, ratings, sock, join, last, parties, blocked, stale, released };
 }
 
 describe('MmBridge', () => {
@@ -81,6 +90,77 @@ describe('MmBridge', () => {
         const other = t.sock({ ip: '2a02:1234:5678:9abd::1' });
         await t.join(other);
         expect(t.last(other.member, 'mm.status')).toBeDefined();
+    });
+
+    it('Play online with a seat from a closed tab: that seat is given up and the search starts', async () => {
+        const t = make();
+        const s = t.sock();
+        t.blocked.add(s.identity.key);
+        t.stale.add(s.identity.key);
+        await t.join(s);
+        expect(t.released).toEqual([s.identity.key]);
+        expect(t.last(s.member, 'mm.status')).toBeDefined();
+        expect(t.last(s.member, 'error')).toBeUndefined();
+    });
+
+    it('a live-room cap that still binds is refused at once with a time, never a silent mm.cancel{server}', async () => {
+        const t = make();
+        const s = t.sock();
+        t.blocked.add(s.identity.key);
+        await t.join(s);
+        expect(t.last(s.member, 'error')).toEqual({
+            t: 'error',
+            code: 'mm_locked',
+            retryMs: MM_LIMITS.liveRoomRetryMs,
+        });
+        expect(t.bridge.queued(s.member)).toBe(false);
+        // the cap starts to bind after the join (another tab took a room): at the fill, mm_locked, not `server`
+        const u = t.sock();
+        await t.join(u);
+        t.blocked.add(u.identity.key);
+        t.clock.now += 31_000;
+        t.bridge.onTick();
+        expect(t.last(u.member, 'mm.found')).toBeUndefined();
+        expect(t.sent.some(x => x.to === u.member && x.msg.t === 'mm.cancel' && x.msg.reason === 'server')).toBe(false);
+        expect(t.last(u.member, 'error')).toMatchObject({ code: 'mm_locked' });
+        expect(t.bridge.queued(u.member)).toBe(false);
+    });
+
+    it('mm.leave while the join reads run: the join is dropped when they return', async () => {
+        const t = make();
+        const s = t.sock();
+        let release!: () => void;
+        const gate = new Promise<void>(r => (release = r));
+        const get = t.ratings.get.bind(t.ratings);
+        t.ratings.get = async (id: string) => {
+            await gate;
+            return get(id);
+        };
+        t.bridge.onJson(s.member, { t: 'mm.join', queue: 'coop', side: 'any' });
+        t.bridge.onJson(s.member, { t: 'mm.leave' });
+        release();
+        for (let i = 0; i < 5; i++) await Promise.resolve();
+        await new Promise(r => setImmediate(r));
+        expect(t.bridge.queued(s.member)).toBe(false);
+        expect(t.last(s.member, 'mm.status')).toBeUndefined();
+    });
+
+    it('nothing grows per identity: unstarted matches and old join logs are pruned', async () => {
+        const t = make();
+        for (let i = 0; i < 5; i++) await t.join(t.sock({ ip: `10.9.0.${i}`, netKey: `nn${i}` }));
+        t.clock.now += 31_000;
+        t.bridge.onTick();
+        const inner = t.bridge as unknown as {
+            pending: Map<string, unknown>;
+            joins: { byKey: Map<string, unknown>; byIp: Map<string, unknown>; byNet: Map<string, unknown> };
+        };
+        expect(inner.pending.size).toBeGreaterThan(0);
+        // every matched party ends before its room starts (the pick was abandoned)
+        for (const p of t.parties.all()) for (const m of [...p.members]) t.parties.leave(m.id);
+        t.clock.now += MM_LIMITS.joins.windowMs + 61_000;
+        t.bridge.onTick();
+        expect(inner.pending.size).toBe(0);
+        expect(inner.joins.byKey.size + inner.joins.byIp.size + inner.joins.byNet.size).toBe(0);
     });
 
     it('a full queue answers server_busy with retryMs 15 s', async () => {

@@ -38,14 +38,14 @@ const mount = (v: PartyView, hover = ''): HTMLElement => {
 };
 
 describe('Quick Play pick (M1a)', () => {
-  it('the side switch is locked on the assigned side, with the team line', () => {
+  it('the assigned side is a plain badge (no disabled toggle that looks tappable), with the team line', () => {
     const d = mount(view());
     const sw = d.querySelector('[data-testid="mm-side-switch"]')!;
     expect(sw.getAttribute('data-side')).toBe('dog');
-    const opts = [...sw.querySelectorAll('button')];
-    expect(opts.every((b) => b.disabled)).toBe(true);
-    expect(opts.find((b) => b.getAttribute('aria-checked') === 'true')?.textContent).toBe('DOGS');
+    expect(sw.querySelectorAll('button')).toHaveLength(0);
     expect(d.querySelector('[data-testid="mm-your-team"]')?.textContent).toBe('Your team: Dogs');
+    // a way out of the pick (two taps in the client; a bot takes the seat)
+    expect(d.querySelector('[data-testid="party-leave"]')?.getAttribute('data-p')).toBe('leave');
     expect(d.querySelector('[data-testid="mm-found-line"]')?.textContent).toContain('2 players + 1 bot');
   });
 
@@ -80,5 +80,6 @@ describe('Quick Play pick (M1a)', () => {
     const d = mount(view({ mm: undefined, code: 'K7QX2M' }));
     expect(d.querySelector('[data-testid="mm-side-switch"]')).toBeNull();
     expect(d.querySelectorAll('.pp-heroes [data-h]')).toHaveLength(HERO_IDS.length);
+    expect(d.querySelector('[data-testid="party-leave"]')).toBeNull();
   });
 });

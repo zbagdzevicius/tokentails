@@ -127,7 +127,7 @@ export class Matchmaker {
     private readonly declined = new Map<string, Set<string>>();
     /** Offers made per identity key (the 3 per 10 minutes cap). */
     private readonly offerLog = new Map<string, number[]>();
-    /** Joins per pool: [ms, identity key] (the arrival-rate estimator). */
+    /** Joins per pool: [ms, address key] (the arrival-rate estimator counts addresses: guest keys cost nothing). */
     private readonly arrivals = new Map<string, { ms: number; key: string }[]>();
     /** Sides of the recent matches per region (side balance when everyone asked for either). */
     private readonly recentSides = new Map<string, ('cat' | 'dog')[]>();
@@ -176,7 +176,7 @@ export class Matchmaker {
         const key = poolKey(e);
         const list = this.arrivals.get(key) ?? [];
         const now = this.now();
-        for (const m of e.members) list.push({ ms: now, key: m.identityKey });
+        for (const m of e.members) list.push({ ms: now, key: m.ipKey || m.identityKey });
         this.arrivals.set(key, list);
         return 'ok';
     }
@@ -239,6 +239,22 @@ export class Matchmaker {
         return o;
     }
 
+    private prunedMs = -Infinity;
+    /** Once a minute: forget offer logs and arrival lists that aged out (guest identities are free; no growth). */
+    private prune(now: number): void {
+        if (now - this.prunedMs < 60_000) return;
+        this.prunedMs = now;
+        for (const [k, log] of this.offerLog)
+            if (!log.length || now - log[log.length - 1] >= this.limits.backfill.offerWindowMs) this.offerLog.delete(k);
+        for (const [k, list] of this.arrivals)
+            if (!list.length || now - list[list.length - 1].ms > this.limits.fill.arrivalWindowMs)
+                this.arrivals.delete(k);
+        for (const [k, set] of this.declined) {
+            const i = k.lastIndexOf(':');
+            if (!set.size || !this.hasSeat(k.slice(0, i), Number(k.slice(i + 1)))) this.declined.delete(k);
+        }
+    }
+
     private decline(o: MmOffer): void {
         const k = `${o.seat.room}:${o.seat.slot}`;
         const set = this.declined.get(k) ?? new Set<string>();
@@ -246,14 +262,17 @@ export class Matchmaker {
         this.declined.set(k, set);
     }
 
-    /** Distinct identities that joined this pool in the last 5 minutes, per minute (without `exclude`'s members). */
+    /**
+     * Distinct addresses (/64 for IPv6) that joined this pool in the last 5 minutes, per minute (without `exclude`'s).
+     * Not identities: one address cycling free guest keys would otherwise push the pool into the busy band.
+     */
     arrivalsPerMin(pool: string, exclude?: MmEntry): number {
         const list = this.arrivals.get(pool);
         if (!list) return 0;
         const now = this.now();
         const windowMs = this.limits.fill.arrivalWindowMs;
         while (list.length && now - list[0].ms > windowMs) list.shift();
-        const skip = new Set(exclude?.members.map(m => m.identityKey) ?? []);
+        const skip = new Set(exclude?.members.map(m => m.ipKey || m.identityKey) ?? []);
         const keys = new Set<string>();
         for (const a of list) if (!skip.has(a.key)) keys.add(a.key);
         return keys.size / (windowMs / 60_000);
@@ -348,6 +367,7 @@ export class Matchmaker {
     tick(): MmTick {
         const now = this.now();
         const out: MmTick = { matches: [], offers: [], expired: [], cancelled: [] };
+        this.prune(now);
         for (const e of [...this.entries.values()]) {
             if (e.awaySinceMs !== null && now - e.awaySinceMs >= this.limits.awayCancelMs) {
                 this.leave(e.id);
