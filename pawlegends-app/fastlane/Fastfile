@@ -177,7 +177,7 @@ platform :ios do
       export_team_id: team_id,
       export_options: { signingStyle: "automatic", teamID: team_id, uploadSymbols: true, manageAppVersionAndBuildNumber: false },
       xcargs: xcargs,
-      export_xcargs: auth,
+      # gym appends xcargs (which already carry the API key auth) to the export command as well, so no export_xcargs
       output_directory: OUTPUT_DIR,
       output_name: "Pawlegends-#{marketing_version}-#{build_number}.ipa",
       clean: true,
