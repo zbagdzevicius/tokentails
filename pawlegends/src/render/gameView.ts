@@ -3,6 +3,9 @@
  * telegraphs, juice) and draws one interpolated frame per animation frame. The camera follows the player's hero
  * unless the player pans it (edge pan, arrows, minimap); Space re-centres. Render only: no sim imports beyond types.
  */
+import { setViewTeam, viewSign } from './coords';
+import { PingMarkers } from './views/pingMarkers';
+import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
 import { loadZoom, ZOOM_DEFAULT, zoomMax } from './camera/zoom';
 import { easeLookAhead, lookAheadTarget } from './camera/lookAhead';
@@ -165,6 +168,10 @@ export class GameView {
   hover: { id: number; rel: 'enemy' | 'ally'; castId?: number } | null = null;
   /** GAPS A5: the touch-locked enemy hero (TouchControls.lock): the same ring as an enemy hover while it holds. */
   lock: number | null = null;
+  /** UX pass 2 (touch): the unit the Attack button would hit now (TouchControls.preview): a thin red ring under it. */
+  atkPreview: number | null = null;
+  /** UX pass 2: the Attack target is out of reach (the tap walks to it first): its ring is drawn fainter. */
+  atkPreviewFar = false;
   frame: ViewFrame | null = null;
   /**
    * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
@@ -229,7 +236,7 @@ export class GameView {
     this.projectiles.vfx = this.vfx;
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.add(this.vfx.auras.mesh);
-    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh);
+    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.pingMarks.group);
     this.juice = new Juice(uiRoot);
     // Settings → Screen shake, capped under the OS reduce-motion switch (render/fx/vfxPrefs.ts)
     this.juice.shakeScale = shakeScaleFor(shakePref(), this.vfx.reduced);
@@ -551,6 +558,8 @@ export class GameView {
   setTeam(slot: number, team: 0 | 1, tricks: TrickId[]): void {
     this.mySlot = slot;
     this.myTeam = team;
+    // MAP-GAPS A24: a team-1 seat sees the map turned 180°
+    setViewTeam(team);
     this.tricks = tricks;
     this.heroes.mySlot = slot;
     this.heroes.myTeam = team;
@@ -659,8 +668,14 @@ export class GameView {
    * hero sits in the middle of the screen, not under the ability cluster on the right. Scales with the zoom.
    */
   lead(): number {
-    return (this.myTeam === 0 ? 1 : -1) * CAMERA_FRAME.lead * this.gr.zoom;
+    return (this.myTeam === 0 ? 1 : -1) * (this.mirrorLead ? -1 : 1) * CAMERA_FRAME.lead * this.gr.zoom;
   }
+
+  /**
+   * UX pass 2: the touch left-handed mirror is on (TouchControls): the button arc sits bottom-left, so the lead flips
+   * and the hero sits right of centre, clear of R and E (with the usual lead it walked under them).
+   */
+  mirrorLead = false;
 
   /**
    * Ground offset (m, +z = screen down) from the hero to the camera focus. Round 2: on short landscape screens the
@@ -669,7 +684,7 @@ export class GameView {
    */
   below(): number {
     const c = this.gr.renderer.domElement;
-    return isShortLandscape(c.clientWidth, c.clientHeight) ? CAMERA_FRAME.shortBelow * (this.gr.zoom / ZOOM_DEFAULT) : CAMERA_FRAME.below;
+    return viewSign() * (isShortLandscape(c.clientWidth, c.clientHeight) ? CAMERA_FRAME.shortBelow * (this.gr.zoom / ZOOM_DEFAULT) : CAMERA_FRAME.below);
   }
 
   /** The player's hero in the current frame. */
@@ -712,6 +727,9 @@ export class GameView {
 
   /** Pan the camera by (dx, dz) metres. */
   panBy(dx: number, dz: number): void {
+    // MAP-GAPS A24: screen directions (edge pan, arrow keys) turn with a team-1 seat's camera
+    dx *= viewSign();
+    dz *= viewSign();
     this.pan.x += dx;
     this.pan.z += dz;
     this.pan.x = Math.max(-40, Math.min(40, this.pan.x));
@@ -730,6 +748,13 @@ export class GameView {
     this.panned = true;
     this.panAt = this.time;
     this.panHold = hold;
+  }
+
+  /** MAP-GAPS A10: the ground ping markers (a ring, a pillar and the ping's glyph in its colour). */
+  readonly pingMarks = new PingMarkers();
+  /** A ping on the ground at (x, z) m: its own marker, never the move-order one. */
+  pingMarker(x: number, z: number, color: string, kind: PingKind | null): void {
+    this.pingMarks.add(x, z, color, kind);
   }
 
   /** A ground order marker at (x, z) m: mint for a move, red with crosshair ticks for an attack. */
@@ -774,13 +799,16 @@ export class GameView {
     }
     this.hoverRing.end();
     this.castRing.begin();
-    const cid = this.hover?.castId ?? -1;
+    // a desktop unit-cast preview, else (touch, UX pass 2) the Attack button's target when no bold ring is on it
+    const pid = this.atkPreview ?? -1;
+    const cid = this.hover?.castId ?? (pid >= 0 && pid !== id ? pid : -1);
     const ce = cid >= 0 && frame ? frame.byId.get(cid) : null;
     if (ce && ce.state !== 'dead') {
       const size = hoverRingSize(ce.kind, ce.hero);
-      if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, 0.85);
+      if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, cid === pid && this.atkPreviewFar ? 0.45 : 0.85);
     }
     this.castRing.end();
+    this.pingMarks.update(dt);
     this.moveMarks.begin();
     this.chevrons.begin();
     this.attackMarks.begin();
@@ -910,6 +938,8 @@ export class GameView {
     }
     this.animPost(frame, dt);
     this.drawMarks(this.frame, dt);
+    this.map.setDetail?.(this.gr.settings.tier === 'low');
+    this.map.setTeam?.(this.myTeam);
     this.map.update(frame, dt, this.gr.camera.position);
     this.pickups.update(dt);
     this.vfx.update(dt, this.frame?.entities ?? NO_ENTITIES, this.mySlot);
@@ -1020,6 +1050,7 @@ export class GameView {
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh);
+    this.pingMarks.dispose();
     this.vfx.dispose();
     this.scene.remove(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);
     this.meshFx.dispose();

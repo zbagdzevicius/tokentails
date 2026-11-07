@@ -113,8 +113,8 @@ for (const [width, height] of [
     const feed = await boxes(page, '.pl-feed-row');
     const enemy = await boxes(page, '.pl-top .pl-strip.enemy .pp');
     const fixed = [...(await boxes(page, '.pl-bar')), ...pause, ...(await boxes(page, '.pl-score')), ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), ...minimap, ...paw, ...emote];
-    // LoL pass (lane A): two lines at 667×375, one at 640×360 (the feed sits under the enemy portraits now)
-    expect(feed.length, 'feed lines on a small phone').toBe(height <= 365 ? 1 : 2);
+    // MAP-GAPS A5: one line on small phones (the bigger minimap and the portraits under it leave room for one)
+    expect(feed.length, 'feed lines on a small phone').toBe(1);
     noOverlap('top band', fixed, fixed);
     noOverlap('feed', feed, [...fixed, ...buttons]);
     noOverlap('buttons', buttons, fixed);
@@ -193,7 +193,12 @@ test('844x390 keeps the full touch HUD', async ({ page }) => {
   const score = r((await boxes(page, '.pl-score'))[0]);
   expect(score.slice(0, 3)).toEqual([275, 8, 294]);
   expect([45, 54]).toContain(score[3]);
-  expect(r((await boxes(page, '.pl-top .pl-strip.enemy'))[0])).toEqual([577, 12, 98, 30]);
+  // MAP-GAPS A5: the bigger minimap reaches where the enemy portraits sat right of the score: they stand in a column
+  // just left of it
+  const mm = (await boxes(page, '.pl-minimap'))[0];
+  const enemy = (await boxes(page, '.pl-top .pl-strip.enemy'))[0];
+  expect(enemy.x + enemy.width).toBeLessThanOrEqual(mm.x);
+  expect(enemy.height).toBeGreaterThan(enemy.width);
   expect(r((await boxes(page, '.pl-strip.ally'))[0])).toEqual([80, 70, 72, 34]);
   await page.screenshot({ path: `${SHOTS}/844x390-unchanged.png` });
 });

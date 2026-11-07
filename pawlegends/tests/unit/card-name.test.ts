@@ -171,7 +171,7 @@ describe('cards drawer (ui/deck)', () => {
     expect(emptyAction({ signedIn: false, isApp: true, embed: true })).toBe('none');
     expect(emptyAction({ signedIn: false, isApp: true, embed: false })).toBe('none');
     const app = emptyCard({ signedIn: false, isApp: true, embed: false });
-    expect(app).not.toMatch(/href|<button/);
+    expect(app).not.toMatch(/href|<button|token tails/i);
     const web = emptyCard({ signedIn: false, isApp: false, embed: false });
     expect(web).toContain('href="https://tokentails.com"');
     expect(web).toContain('rel="noopener"');

@@ -3,17 +3,23 @@
  * probe, renderer, lobby, title → pick → match → results). The match runs the sim in the LocalHost Worker (src/host/).
  */
 import { App } from './app/app';
-import { installCrashOverlay, reportCrash, setCrashHook, showCrash } from './app/crash';
+import { installCrashOverlay, reportCrash, setCrashExit, setCrashHook, showCrash } from './app/crash';
 import { createAnalytics } from './analytics/posthog';
 import { SIM_VERSION } from './sim/version';
 import { installNoZoom } from './app/noZoom';
 import { installBridge } from './embed/bridge';
+import { inAppShell } from './app/platform';
+import { lockAppBuild } from './meta/roster';
 import './ui/ui.css';
 
 function boot(): void {
+  // the App Store build (docs/plans/moba/APP-STORE.md): no purchase links, starter and redeemed cats only
+  if (inAppShell()) lockAppBuild();
   installCrashOverlay();
   installNoZoom();
   const bridge = installBridge();
+  // embedded: the crash panel's "Back to games" leaves through the host (no host close button any more)
+  if (bridge.active) setCrashExit(() => bridge.post('exit'));
   const app = document.getElementById('app');
   if (!app) throw new Error('no #app element');
   new App(app, bridge);

@@ -81,10 +81,13 @@ const PAD_KEY = 'pawlegends.trackpad';
 /** Auto mode switched trackpad mode on once (it stays on in later matches; the toast shows only that once). */
 const PAD_SEEN_KEY = 'pawlegends.trackpadSeen';
 const CURSOR_KEY = 'pawlegends.cursorSize';
-/** GAPS A5 (touch): what the Attack button hits first, and the optional last-hit and tower buttons (off by default). */
+/** GAPS A5 (touch): what the Attack button hits first, and the last-hit and tower buttons (on by default, UX pass 2). */
 const TARGET_KEY = 'pawlegends.targetFirst';
 const LASTHIT_KEY = 'pawlegends.lastHitButton';
 const TOWER_KEY = 'pawlegends.towerButton';
+/** UX pass 2 (Wild Rift): the left-handed mirror (buttons left, joystick right) and the touch button size. */
+const LEFTY_KEY = 'pawlegends.leftHanded';
+const TSIZE_KEY = 'pawlegends.touchSize';
 
 function read(key: string): string | null {
   try {
@@ -103,7 +106,7 @@ function write(key: string, v: string): void {
 }
 
 /** In-memory copy, so a blocked storage still keeps the choice for this page. */
-const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean } = {};
+const mem: { cast?: CastMode; pad?: TrackpadPref; seen?: boolean; cursor?: CursorSize; target?: TargetFirst; lastHit?: boolean; tower?: boolean; lefty?: boolean; tsize?: TouchSize } = {};
 
 export function castMode(): CastMode {
   return mem.cast ?? (read(CAST_KEY) === 'quick' ? 'quick' : 'hold');
@@ -161,9 +164,12 @@ export function setTargetFirst(t: TargetFirst): void {
   write(TARGET_KEY, t);
 }
 
-/** The touch last-hit button (MLBB Advanced Aim): off by default. */
+/**
+ * The touch last-hit button (Wild Rift's minion button, MLBB Advanced Aim). UX pass 2: on by default (Settings turns it
+ * off), so a player can pick minions over the Attack button's hero-first order.
+ */
 export function lastHitButton(): boolean {
-  return mem.lastHit ?? read(LASTHIT_KEY) === '1';
+  return mem.lastHit ?? read(LASTHIT_KEY) !== '0';
 }
 
 export function setLastHitButton(on: boolean): void {
@@ -171,14 +177,50 @@ export function setLastHitButton(on: boolean): void {
   write(LASTHIT_KEY, on ? '1' : '0');
 }
 
-/** The touch tower button: off by default. */
+/** The touch tower button (Wild Rift's turret button). UX pass 2: on by default (Settings turns it off). */
 export function towerButton(): boolean {
-  return mem.tower ?? read(TOWER_KEY) === '1';
+  return mem.tower ?? read(TOWER_KEY) !== '0';
 }
 
 export function setTowerButton(on: boolean): void {
   mem.tower = on;
   write(TOWER_KEY, on ? '1' : '0');
+}
+
+/** Touch button size (Settings): Normal, or Large (Wild Rift's button size slider, one step up). */
+export type TouchSize = 'normal' | 'large';
+
+/** The touch layout changed (left-handed or button size): the touch controls lay their buttons out again. */
+export const TOUCH_PREFS_EVENT = 'pawlegends:touchprefs';
+
+const touchPrefsChanged = (): void => {
+  try {
+    window.dispatchEvent(new Event(TOUCH_PREFS_EVENT));
+  } catch {
+    /* no window (tests, workers) */
+  }
+};
+
+/** UX pass 2: the left-handed mirror (the buttons on the left, the joystick on the right). Off by default. */
+export function leftHanded(): boolean {
+  return mem.lefty ?? read(LEFTY_KEY) === '1';
+}
+
+export function setLeftHanded(on: boolean): void {
+  mem.lefty = on;
+  write(LEFTY_KEY, on ? '1' : '0');
+  touchPrefsChanged();
+}
+
+/** UX pass 2: the touch button size. Normal by default. */
+export function touchSize(): TouchSize {
+  return mem.tsize ?? (read(TSIZE_KEY) === 'large' ? 'large' : 'normal');
+}
+
+export function setTouchSize(t: TouchSize): void {
+  mem.tsize = t;
+  write(TSIZE_KEY, t);
+  touchPrefsChanged();
 }
 
 /** Tests: forget the in-memory copy (storage is read again). */
@@ -190,6 +232,8 @@ export function resetControlPrefs(): void {
   delete mem.target;
   delete mem.lastHit;
   delete mem.tower;
+  delete mem.lefty;
+  delete mem.tsize;
 }
 
 /** Auto trackpad: how long the opening watch lasts (ms of match play) and how many left-clicks on the ground it needs. */

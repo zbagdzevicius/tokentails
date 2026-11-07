@@ -10,7 +10,11 @@ import {
   castMode,
   cursorSize,
   lastHitButton,
+  leftHanded,
   setCastMode,
+  setLeftHanded,
+  setTouchSize,
+  touchSize,
   setCursorSize,
   setLastHitButton,
   setTargetFirst,
@@ -22,12 +26,15 @@ import {
   type CastMode,
   type CursorSize,
   type TargetFirst,
+  type TouchSize,
   type TrackpadPref,
 } from '../input/presets';
 import type { QualityTier } from '../render/quality';
+import { APP_ENV } from '../app/platform';
 import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
 import { hideNames, setHideNames } from '../meta/partyPrefs';
 import { bindZoomRow, zoomRowHtml } from './zoomSlider';
+import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize, type MinimapSize } from './minimapPrefs';
 
 export interface SettingsState {
   muted: boolean;
@@ -52,7 +59,11 @@ export interface SettingsOpts {
 }
 
 /** Token Tails privacy policy (the same page as the site footer and the sign-in sheet). */
-export const PRIVACY_URL = 'https://docs.tokentails.com/community-and-social-impact/privacy-policy';
+export const WEB_PRIVACY_URL = 'https://docs.tokentails.com/community-and-social-impact/privacy-policy';
+/** The iOS app's own notice (client/pages/pawlegends/privacy.tsx; the App Store listing's privacy policy URL). */
+export const APP_PRIVACY_URL = 'https://tokentails.com/pawlegends/privacy';
+/** The Settings link: the app build links the app's notice, the web build the Token Tails policy. */
+export const PRIVACY_URL = APP_ENV ? APP_PRIVACY_URL : WEB_PRIVACY_URL;
 
 const linkAttr = (url: string): string => url.replace(/[&"<>]/g, (c) => ({ '&': '&amp;', '"': '&quot;', '<': '&lt;', '>': '&gt;' })[c] ?? c);
 
@@ -64,6 +75,7 @@ const PAD_NAME: Record<TrackpadPref, string> = { auto: 'Auto', on: 'On', off: 'O
 const CURSOR_NAME: Record<CursorSize, string> = { normal: 'Normal', large: 'Large' };
 const TARGET_NAME: Record<TargetFirst, string> = { heroes: 'Heroes', lowest: 'Lowest HP %', closest: 'Closest' };
 const SHAKE_NAME: Record<ShakePref, string> = { full: 'Full', low: 'Low', off: 'Off' };
+const TSIZE_NAME: Record<TouchSize, string> = { normal: 'Normal', large: 'Large' };
 
 /** Phones and tablets have no keys or cursor: the controls rows hide. */
 const keyboardDevice = (): boolean => {
@@ -78,7 +90,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   const root = document.createElement('div');
   root.className = 'pl-screen pl-menu pl-settings';
   const s = { ...o.state };
-  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), shake: shakePref(), hide: hideNames() };
+  const ctl = { cast: castMode(), pad: trackpadPref(), cursor: cursorSize(), target: targetFirst(), lastHit: lastHitButton(), tower: towerButton(), lefty: leftHanded(), tsize: touchSize(), shake: shakePref(), hide: hideNames(), cvd: colourBlind(), mm: minimapSize() };
   const showControls = keyboardDevice();
   const row = (label: string, a: string, on: boolean): string =>
     `<div class="set-row"><span>${label}</span><button class="chip ${on ? 'on' : ''}" data-a="${a}" aria-pressed="${on}">${on ? 'On' : 'Off'}</button></div>`;
@@ -105,10 +117,16 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
         .map((m) => `<button class="chip ${ctl.target === m ? 'on' : ''}" data-target="${m}">${TARGET_NAME[m]}</button>`)
         .join('')}</span></div>
       ${row('Last-hit button', 'lasthit', ctl.lastHit)}
-      ${row('Tower button', 'tower', ctl.tower)}`}
+      ${row('Tower button', 'tower', ctl.tower)}
+      ${row('Left-handed (buttons left, stick right)', 'lefty', ctl.lefty)}
+      <div class="set-row"><span>Button size</span><span class="chips">${(['normal', 'large'] as const)
+        .map((m) => `<button class="chip ${ctl.tsize === m ? 'on' : ''}" data-tsize="${m}">${TSIZE_NAME[m]}</button>`)
+        .join('')}</span></div>`}
       ${o.onSkinFx ? `<div class="set-row"><span>Skin effects</span><span class="chips">${(['all', 'mine', 'off'] as const)
         .map((m) => `<button class="chip ${(s.skinFx ?? 'all') === m ? 'on' : ''}" data-skinfx="${m}">${SKIN_FX_NAME[m]}</button>`)
         .join('')}</span></div>` : ''}
+      <div class="set-row"><span>Minimap size</span><span class="chips">${MINIMAP_SIZES.map((m) => `<button class="chip ${ctl.mm === m ? 'on' : ''}" data-mm="${m}">${m.toUpperCase()}</button>`).join('')}</span></div>
+      ${row('Colour-blind map colours', 'cvd', ctl.cvd)}
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
@@ -127,8 +145,13 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     const cur = t.closest<HTMLElement>('[data-cursor]')?.dataset.cursor as CursorSize | undefined;
     const sfx = t.closest<HTMLElement>('[data-skinfx]')?.dataset.skinfx as 'all' | 'mine' | 'off' | undefined;
     const tgt = t.closest<HTMLElement>('[data-target]')?.dataset.target as TargetFirst | undefined;
+    const tsize = t.closest<HTMLElement>('[data-tsize]')?.dataset.tsize as TouchSize | undefined;
     const shake = t.closest<HTMLElement>('[data-shake]')?.dataset.shake as ShakePref | undefined;
-    if (shake) {
+    const mm = t.closest<HTMLElement>('[data-mm]')?.dataset.mm as MinimapSize | undefined;
+    if (mm) {
+      ctl.mm = mm;
+      setMinimapSize(mm);
+    } else if (shake) {
       ctl.shake = shake;
       setShakePref(shake);
     } else if (tgt) {
@@ -137,12 +160,21 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     } else if (a === 'lasthit') {
       ctl.lastHit = !ctl.lastHit;
       setLastHitButton(ctl.lastHit);
+    } else if (a === 'cvd') {
+      ctl.cvd = !ctl.cvd;
+      setColourBlind(ctl.cvd);
     } else if (a === 'hidenames') {
       ctl.hide = !ctl.hide;
       setHideNames(ctl.hide);
     } else if (a === 'tower') {
       ctl.tower = !ctl.tower;
       setTowerButton(ctl.tower);
+    } else if (a === 'lefty') {
+      ctl.lefty = !ctl.lefty;
+      setLeftHanded(ctl.lefty);
+    } else if (tsize) {
+      ctl.tsize = tsize;
+      setTouchSize(tsize);
     } else if (sfx) {
       s.skinFx = sfx;
       o.onSkinFx?.(sfx);

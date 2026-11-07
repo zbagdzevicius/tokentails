@@ -5,7 +5,8 @@
  *
  * Envelope: `{ ns: 'tt-pawlegends', v: 1, type, ...payload }`. Every change is additive; each side ignores unknown
  * types and unknown fields.
- * - Host to game: `hello` (until `ready`), `session {signedIn, progress}`, `roster {cats[]}` (each cat may carry
+ * - Host to game: `hello` (until `ready`), `session {signedIn, progress, name?}` (`name`: the signed-in player's
+ *   profile name, for their own hero's plate only), `roster {cats[]}` (each cat may carry
  *   `art`, `catalogId` and `sprite`, its sprite sheet for the game's card skins), `featured {cats[]}` (at most 2
  *   unowned direct-purchase cats, each with optional `art`, `sprite` and `tier`), `offer {offer}` (one
  *   `meet` card or null), `save-result {matchId, status, catnipPaid, catnipTotal, fastestWin, code?}`,
@@ -21,6 +22,7 @@
  *   still decide), `client-error {source, msg, screen, tier, sim}` (launch finding R1: a game or worker crash; the
  *   host reports it as a scrubbed `app_error`), `analytics {event, props}` (launch finding PUB-02: one of the game's
  *   own events; the host sends it with `analytics.track`, at most `PAWLEGENDS_GAME_EVENT_BUDGET` a page), and the
+ *   `exit {}` (the lobby's "Games" button: the host leaves for its games page), and the
  *   deprecated `purchase-intent {sku}`
  *   (answered with a legacy refusal).
  *
@@ -243,7 +245,7 @@ type Envelope = { ns: typeof PAWLEGENDS_NS; v: 1 };
 export type HostToPawlegendsMessage = Envelope &
   (
     | { type: "hello" | "pause" | "resume" }
-    | { type: "session"; signedIn: boolean; progress: PawlegendsProgress | null }
+    | { type: "session"; signedIn: boolean; progress: PawlegendsProgress | null; name?: string }
     | { type: "roster"; cats: PawlegendsRosterCat[] }
     | { type: "featured"; cats: PawlegendsFeaturedCat[] }
     | { type: "offer"; offer: PawlegendsMeetOffer | null }
@@ -271,7 +273,8 @@ export type PawlegendsToHostMessage =
   | ({ type: "client-error" } & PawlegendsClientError)
   | { type: "analytics"; event: PawlegendsGameEventName; props: PawlegendsGameProps }
   | { type: "party-ticket-request"; id: string }
-  | { type: "party-result"; matchId: string; result: PawlegendsPartyResult };
+  | { type: "party-result"; matchId: string; result: PawlegendsPartyResult }
+  | { type: "exit" };
 
 /** Relayed game events a page sends at most (PUB-02): a runaway loop must not flood PostHog. About 15 per match. */
 export const PAWLEGENDS_GAME_EVENT_BUDGET = 1000;
@@ -340,6 +343,27 @@ export function catNameOf(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const clean = value.replace(/[\u0000-\u001f\u007f<>]/g, "").replace(/\s+/g, " ").trim();
   return clean ? clean.slice(0, PAWLEGENDS_CAT_NAME_MAX) : null;
+}
+
+/** A Unicode letter or digit (built at runtime: the client's TypeScript target predates the `u` regex flag). */
+const LETTER_OR_DIGIT = new RegExp("[\\p{L}\\p{N}]", "u");
+
+/** Most characters of `session.name` (the game cuts it to 14 with an ellipsis on screen). */
+export const PAWLEGENDS_PLAYER_NAME_MAX = 24;
+
+/**
+ * UX pass 2: the signed-in player's Token Tails profile name, shown over their own hero (and in their own scoreboard,
+ * kill feed and results; never sent to other players). One clean line, no markup or control characters, at least
+ * one letter or digit, cut to `PAWLEGENDS_PLAYER_NAME_MAX` code points; else null (the game keeps "You").
+ */
+export function playerNameOf(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const clean = value
+    .replace(/[\u0000-\u001f\u007f-\u009f<>&"'`\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!LETTER_OR_DIGIT.test(clean)) return null;
+  return Array.from(clean).slice(0, PAWLEGENDS_PLAYER_NAME_MAX).join("").trim() || null;
 }
 
 /** A replay with the backend DTO's shape (`pawlegends-replay.dto.ts`), as a clean copy; else null. */
@@ -436,9 +460,11 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
     case "pause":
     case "resume":
       return { ...base, type: data.type };
-    case "session":
+    case "session": {
       if (typeof data.signedIn !== "boolean") return null;
-      return { ...base, type: "session", signedIn: data.signedIn, progress: progressOf(data.progress) };
+      const name = data.signedIn ? playerNameOf(data.name) : null;
+      return { ...base, type: "session", signedIn: data.signedIn, progress: progressOf(data.progress), ...(name ? { name } : {}) };
+    }
     case "roster": {
       if (!Array.isArray(data.cats)) return null;
       const seen = new Set<string>();
@@ -542,7 +568,7 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
 export function hostMessage(type: "hello" | "pause" | "resume"): HostToPawlegendsMessage;
 export function hostMessage(
   type: "session",
-  payload: { signedIn: boolean; progress?: PawlegendsProgress | null }
+  payload: { signedIn: boolean; progress?: PawlegendsProgress | null; name?: string | null }
 ): HostToPawlegendsMessage;
 export function hostMessage(type: "roster", payload: { cats: PawlegendsRosterCat[] }): HostToPawlegendsMessage;
 export function hostMessage(type: "featured", payload: { cats: PawlegendsFeaturedCat[] }): HostToPawlegendsMessage;
@@ -672,6 +698,8 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
       // the save chip follows the room id: a result for another id is refused
       return result && data.matchId === result.room ? { type: "party-result", matchId: result.room, result } : null;
     }
+    case "exit":
+      return { type: "exit" };
     case "analytics": {
       if (!oneOf(PAWLEGENDS_GAME_EVENTS, data.event)) return null;
       const props = gamePropsOf(data.props);
@@ -736,12 +764,15 @@ export interface PawlegendsBridgeHandlers {
   onPartyTicketRequest?(id: string): void;
   /** Party play (§6): a party match ended; the host posts the v:2 result to `/live` and answers with `saveResult`. */
   onPartyResult?(result: PawlegendsPartyResult, matchId: string): void;
+  /** The player tapped the game lobby's "Games" button: leave for the games page (the host draws no close button). */
+  onExit?(): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
 export interface PawlegendsBridge {
   readonly ready: boolean;
-  setSession(signedIn: boolean, progress: PawlegendsProgress | null): void;
+  /** `name`: the profile name (signed in only; UX pass 2: shown over the player's own hero). */
+  setSession(signedIn: boolean, progress: PawlegendsProgress | null, name?: string | null): void;
   setRoster(cats: PawlegendsRosterCat[]): void;
   setFeatured(cats: PawlegendsFeaturedCat[]): void;
   /** Sim v9: the shelter champions' cards (an app build hears none for sale). */
@@ -895,6 +926,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
       case "paused":
         handlers.onPaused?.(message.paused);
         break;
+      case "exit":
+        handlers.onExit?.();
+        break;
       case "champion-offer":
         if (isApp || !championIds.has(message.catalogId)) break;
         handlers.onChampionOffer?.(message.catalogId);
@@ -931,7 +965,7 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
     get ready() {
       return ready;
     },
-    setSession: (signedIn, progress) => keep("session", hostMessage("session", { signedIn, progress })),
+    setSession: (signedIn, progress, name) => keep("session", hostMessage("session", { signedIn, progress, name })),
     setRoster(cats) {
       const message = hostMessage("roster", { cats });
       rosterIds = new Set(

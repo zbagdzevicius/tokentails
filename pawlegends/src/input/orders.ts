@@ -11,9 +11,8 @@ import { NO_TARGET, Op, type CastSlot, type Command, type HeroId, type SimEvent,
 import { aimFor, trickAim, ULT_LEVEL, type AimSpec } from './abilities';
 import { BODY_MM, type Unit } from './targeting';
 import { edgeGoal } from './touch/assist';
-import { cellOf, centreX, centreY, createGrid, snapCell, walkable, type NavGrid } from '../sim/map/grid';
-
-let walls: NavGrid | null = null;
+import { cellOf, centreX, centreY, snapCell, walkable } from '../sim/map/grid';
+import { clientGrid } from './navMirror';
 
 /**
  * A move goal the sim can reach (input side, static walls only): the sim snaps a blocked goal to walkable ground
@@ -22,8 +21,15 @@ let walls: NavGrid | null = null;
  * reachable point". Pure apart from the cached wall grid; floats are fine (the command carries integers).
  */
 export function reachableGoal(fromX: number, fromY: number, x: number, y: number): { x: number; y: number } {
-  walls ??= createGrid();
-  if (snapCell(walls, cellOf(x, y)) >= 0) return { x, y };
+  const walls = clientGrid();
+  const c0 = cellOf(x, y);
+  // MAP-GAPS A14: a goal inside a standing tower or core snaps to the nearest walkable cell at its edge (the hero
+  // walks up to the structure and the move ends, instead of chasing a point it can never reach)
+  if (walls.cover[c0] > 0) {
+    const s = snapCell(walls, c0);
+    if (s >= 0) return { x: centreX(s), y: centreY(s) };
+  }
+  if (snapCell(walls, c0) >= 0) return { x, y };
   const d = Math.hypot(x - fromX, y - fromY);
   const steps = Math.max(1, Math.ceil(d / 500));
   for (let k = 1; k <= steps; k++) {
@@ -38,7 +44,7 @@ export function reachableGoal(fromX: number, fromY: number, x: number, y: number
 
 /** Is the ground clear (static walls) for `probe` mm from (x, y) along angle `a`? Sampled every 400 mm. */
 function clearAlong(x: number, y: number, a: number, probe: number): boolean {
-  walls ??= createGrid();
+  const walls = clientGrid();
   const cx = Math.cos(a);
   const cy = Math.sin(a);
   for (let d = 400; d <= probe; d += 400) {
@@ -86,6 +92,12 @@ export interface OrderEnv {
   branch?(): boolean;
   /** C2: a buffered cast ran out of time without going (the deny sound and flash belong here). */
   onDeny?(slot: CastIndex): void;
+  /**
+   * UX pass 2: the own hero in the NEWEST snapshot (the drawn frame trails it by the render lag, ~2 ticks): its
+   * cooldowns and state. The flash reads readiness and busy from here, so a press is never held back by a stale
+   * cooldown display or a windup the sim has already finished. Absent: the drawn frame (units, cooldowns).
+   */
+  simOwn?(): { cooldowns: readonly number[] | null; state: Unit['state'] } | null;
 }
 
 /**
@@ -181,8 +193,26 @@ export class Orders {
     return slot === 4 ? trickAim(this.env.trick) : aimFor(this.env.hero, slot, this.env.branch?.() ?? false);
   }
 
-  /** Ready = off cooldown, unlocked (R from level 4), hero alive. */
+  /**
+   * UX pass 2 (founder: "flash should be cast right after clicking instead of trying to force it"): is `slot` the
+   * flash (Pounce)? It goes on the press whenever the newest snapshot says it is ready: never held for an earlier cast
+   * the sim has not shown yet (the flash wins its tick, as the sim's newest non-move command does), never for the drawn
+   * frame's cooldown or windup that trail the sim, never a walk-in (heading.ts: a point past the range is the full
+   * blink). A press the sim still refuses (a windup or dash it really is in) is sent again as soon as it can go.
+   */
+  isFlash(slot: CastIndex): boolean {
+    return slot === 4 && this.aimSpec(4).flash === true;
+  }
+
+  /** The own hero in the newest snapshot, else null (OrderEnv.simOwn). */
+  private simOwn(): { cooldowns: readonly number[] | null; state: Unit['state'] } | null {
+    return this.env.simOwn?.() ?? null;
+  }
+
+  /** Ready = off cooldown, unlocked (R from level 4), hero alive. The flash reads the newest snapshot (isFlash). */
   ready(slot: CastIndex): boolean {
+    const own = this.isFlash(slot) ? this.simOwn() : null;
+    if (own) return own.state !== 'dead' && (own.cooldowns?.[slot] ?? 0) === 0;
     const me = this.me();
     if (!me || me.state === 'dead') return false;
     if (slot === 3 && this.env.level() < ULT_LEVEL) return false;
@@ -196,7 +226,8 @@ export class Orders {
     const me = this.me();
     if (!me || me.state === 'dead') return false;
     if (slot === 3 && this.env.level() < ULT_LEVEL) return false;
-    const cd = this.env.cooldowns()?.[slot] ?? 0;
+    const own = this.isFlash(slot) ? this.simOwn() : null;
+    const cd = (own ? own.cooldowns : this.env.cooldowns())?.[slot] ?? 0;
     return cd > 0 && cd <= CAST_BUFFER.nearReadyTicks;
   }
 
@@ -209,6 +240,15 @@ export class Orders {
   busy(): boolean {
     return this.busyWhy() !== '';
   }
+
+  /** UX pass 2: is the hero in a windup in the newest snapshot (the one thing the flash waits for)? */
+  private flashBusy(): boolean {
+    const own = this.simOwn();
+    return (own ? own.state : this.me()?.state) === 'casting';
+  }
+
+  /** Press-to-command telemetry for the flash (tests, e2e): presses, sent on the press, kept for a windup. */
+  flash = { presses: 0, atOnce: 0, kept: 0 };
 
   /** Why the hero is busy ('casting', 'dash', 'unseen': a cast sent and not seen yet), or '' (tests, e2e telemetry). */
   busyWhy(): '' | 'casting' | 'dash' | 'unseen' {
@@ -325,7 +365,11 @@ export class Orders {
     this.order({ op: Op.AttackMove, x: clampX(x), y: clampY(y) });
   }
 
+  /** The target id of the newest Attack order (tests, e2e telemetry), or -1. */
+  lastAttackId = -1;
+
   attack(id: number): void {
+    this.lastAttackId = id;
     this.order({ op: Op.Attack, id });
   }
 
@@ -381,7 +425,24 @@ export class Orders {
     if (!this.canQueue(slot)) return false;
     // Audit CF-07: a unit-target cast with no living target is refused here (it was buffered, then dropped silently)
     if (this.aimSpec(slot).kind === 'unit' && !this.env.units().some((u) => u.id === id && u.state !== 'dead')) return false;
-    if (!this.ready(slot) || this.busy()) {
+    if (this.isFlash(slot)) {
+      this.flash.presses++;
+      if (this.ready(slot) && !this.flashBusy()) {
+        this.flash.atOnce++;
+        // a skill sent just before and not shown by the sim yet may share the flash's tick, where the newer command
+        // wins and the skill is lost: it is kept and sent again once the flash is seen (the buffer's retry), so a
+        // Q-then-flash in one breath does both, or ends in the usual deny when it cannot go
+        const prev = this.inflight;
+        const ok = this.castNow(slot, x, y, id);
+        if (ok && prev && !prev.seen && prev.slot !== slot && !this.buffered) {
+          this.buffered = { slot: prev.slot, x: prev.x, y: prev.y, id: prev.id, until: Math.max(prev.until, this.env.nowMs() + CAST_BUFFER.ms), retry: true };
+          this.buffers.retried++;
+        }
+        return ok;
+      }
+      this.flash.kept++;
+    }
+    if (!this.ready(slot) || (this.isFlash(slot) ? this.flashBusy() : this.busy())) {
       // C2: keep the newest press and send it the moment the hero is free (never two buffered casts)
       this.buffered = { slot, x, y, id, until: this.env.nowMs() + CAST_BUFFER.ms };
       this.buffers.kept++;
@@ -520,7 +581,7 @@ export class Orders {
       this.env.onDeny?.(b.slot);
       return;
     }
-    if (this.busy() || !this.ready(b.slot)) return;
+    if ((this.isFlash(b.slot) ? this.flashBusy() : this.busy()) || !this.ready(b.slot)) return;
     this.buffered = null;
     this.buffers.sent++;
     this.castNow(b.slot, b.x, b.y, b.id, b.until);

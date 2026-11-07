@@ -49,6 +49,18 @@ describe('lobby screen', () => {
     expect(root.querySelectorAll('.pl-btn.big')).toHaveLength(1);
   });
 
+  it('embedded: a "Games" button top-left leaves for the host (bridge exit); standalone has none', () => {
+    expect(mount(base()).querySelector('[data-a="exit"]')).toBeNull();
+    document.body.innerHTML = '';
+    const onExit = vi.fn();
+    const root = mount(base({ onExit }));
+    const b = root.querySelector<HTMLElement>('[data-testid="lobby-exit"]');
+    expect(b?.textContent).toContain('Games');
+    expect(b?.getAttribute('aria-label')).toBe('Back to Token Tails games');
+    b!.click();
+    expect(onExit).toHaveBeenCalledTimes(1);
+  });
+
   it('escapes host names', () => {
     const root = mount(base({ identity: { ...base().identity, name: '<img src=x onerror=alert(1)>' }, wearing: { name: '<b>x</b>' } }));
     expect(root.querySelector('img[src="x"]')).toBeNull();
@@ -189,7 +201,7 @@ describe('lobby screen', () => {
     expect(b.getAttribute('aria-label')).toBeNull();
     expect(b.textContent).toContain('Collect cards on Token Tails');
     const app = mount(base({ cardCount: 0, peek: [], wearing: null, isApp: true }));
-    expect(app.querySelector('.lb-peek.empty')?.textContent).not.toMatch(/collect/i);
+    expect(app.querySelector('.lb-peek.empty')?.textContent).not.toMatch(/collect|token tails/i);
     // a card's element reads as part of its look, not a gameplay type
     expect(web.querySelector('.lb-chip.el')?.textContent).toBe('Fire look');
     expect(mount(base({ identity: heroIdentity('clem', 'FAIRY') })).querySelector('.lb-chip.el')?.textContent).toBe('Fairy');

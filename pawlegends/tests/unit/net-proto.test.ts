@@ -111,6 +111,7 @@ describe('net-proto', () => {
     expect(displayCode('K7QX2M')).toBe('K7Q X2M');
   });
 
+  // 100k cases: well under a second locally, several on a busy 2-core runner (the 5 s default timed out there)
   it('fuzz: 100k random byte strings only ever throw ProtoError and stay bounded', () => {
     const r = new Rng(0xc0de);
     const types = [Frame.CMD, Frame.BEAT, Frame.HASH, Frame.TURN, Frame.CATCHUP, Frame.ECHO, 0, 0x55];
@@ -138,5 +139,5 @@ describe('net-proto', () => {
       }
     }
     expect(ok).toBeGreaterThan(0);
-  });
+  }, 60_000);
 });

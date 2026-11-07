@@ -126,17 +126,51 @@ export function attackPriority(
 export const LAST_HIT_REACH = 1000;
 
 /**
- * GAPS A5 last-hit button (MLBB Advanced Aim): the lowest-HP enemy minion or camp monster in range, never a hero or a
- * structure; null when none is in range (the button never walks the hero anywhere).
+ * GAPS A5 last-hit button (Wild Rift's minion button, MLBB Advanced Aim): in range, a minion or camp monster the next
+ * basic kills (`killDmg`, nearest first; UX pass 2), else the lowest-HP one; never a hero or a structure; null when
+ * none is in range (the button never walks the hero anywhere).
  */
-export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number): number | null {
+export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number, killDmg?: (u: Unit) => number): number | null {
   let best: Unit | null = null;
+  let kill: Unit | null = null;
+  let killD = Infinity;
   for (const u of units) {
     if (u.id === me.id || !isEnemy(u, myTeam) || (u.kind !== 'minion' && u.kind !== 'camp')) continue;
-    if (dist(u, me) - BODY_MM[u.kind] > range + 300) continue;
+    const d = dist(u, me) - BODY_MM[u.kind];
+    if (d > range + 300) continue;
+    if (killDmg && u.hp <= killDmg(u) && d < killD) {
+      kill = u;
+      killD = d;
+    }
     if (!best || u.hp < best.hp) best = u;
   }
-  return best?.id ?? null;
+  return (kill ?? best)?.id ?? null;
+}
+
+/** UX pass 2: is `u` within the Attack button's own reach (edge to edge, its 300 mm slack)? */
+export function inAttackReach(u: Unit | undefined, me: { x: number; y: number }, range: number): boolean {
+  return !!u && u.state !== 'dead' && dist(u, me) - BODY_MM[u.kind] <= range + 300;
+}
+
+/**
+ * UX pass 2 (Wild Rift: the auto-target reticle): exactly what an Attack tap hits right now, or walks to: the locked
+ * hero while the lock holds, else `attackPriority`'s pick (its 7 m walk-in fallback included); null when the tap would
+ * find nothing. The tap itself calls this, so the ring the touch HUD draws and the tap never disagree; the HUD dims the
+ * ring when the unit is out of reach (`inAttackReach`: the tap walks first), and the idle auto-attack only takes the
+ * ringed unit when it is in reach (it never walks, and never hits a different unit than the ring).
+ */
+export function attackPreview(
+  units: readonly Unit[],
+  me: Unit,
+  myTeam: number,
+  range: number,
+  first: TargetFirst = 'heroes',
+  killDmg?: (u: Unit) => number,
+  locked: number | null = null,
+  seek = 7000,
+): number | null {
+  if (locked !== null && units.some((u) => u.id === locked && u.state !== 'dead')) return locked;
+  return attackPriority(units, me, myTeam, range, seek, first, killDmg);
 }
 
 /**

@@ -8,8 +8,10 @@ import { fishSources, medals, progressRows } from '../ui/progressSummary';
 import { HumanFilter } from '../analytics/human';
 import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
 import { sfx } from '../audio/sfx';
+import { nameLine } from '../audio/voiceLines';
 import { crashSender, reportCrash, setCrashHook } from './crash';
 import { SIM_VERSION } from '../sim/version';
+import { inAppShell, shareBase } from './platform';
 import type { Bridge, HostMessage } from '../embed/bridge';
 import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type CatTier, type RosterCat, type RosterCosmetics } from '../meta/roster';
 import { coatGlow } from '../render/skins/cardFx';
@@ -218,8 +220,8 @@ export class App {
     });
     rotatePrompt(root);
     addEventListener('resize', () => this.gr.resize());
-    addEventListener('pointerdown', () => sfx.unlock(), { capture: true });
-    addEventListener('keydown', () => sfx.unlock(), { capture: true });
+    // iOS Safari only lets a touch's end (touchend, pointerup, click) start or resume audio, not its pointerdown
+    for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => sfx.unlock(), { capture: true });
     this.integration = installIntegration(bridge, {
       ent: this.ent,
       profile: loadProfile,
@@ -610,6 +612,12 @@ export class App {
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
         onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
+        onExit: this.bridge.active
+          ? () => {
+              sfx.play('click');
+              this.bridge.post('exit');
+            }
+          : undefined,
         // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
         // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
         quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
@@ -739,6 +747,8 @@ export class App {
         },
         onHero: (h) => {
           sfx.play('click');
+          // champion select: the announcer says the hero's name (a newer pick cuts the last name off)
+          sfx.voice(nameLine(h), { sting: false });
           this.choice = { ...this.choice, hero: h };
           this.setLobbyHero(h);
           // sim v14: the picked hero, its side and the last hero per side (the CATS / DOGS switch restores it) are
@@ -859,6 +869,8 @@ export class App {
     const owned = this.owned();
     const look = this.lookFor(hero);
     const setup: MatchSetup = {
+      // UX pass 2: the account's profile name, else the party display name the friends see for this seat
+      playerName: this.integration.state().playerName ?? match.names[slot] ?? null,
       hero,
       trick,
       difficulty,
@@ -939,6 +951,8 @@ export class App {
     // no probe here: the match uses the palette cached at its start (a probe landing mid-match would rebuild the rig)
     const setup: MatchSetup = {
       ...c,
+      // UX pass 2: the signed-in player's profile name over their own hero (guests: "You")
+      playerName: this.integration.state().playerName,
       seed,
       speed: this.speed,
       firstMatch: tips,
@@ -1047,6 +1061,8 @@ export class App {
   private showResults(e: MatchEnd): void {
     // QA: the name the match used (a roster update during the match must not turn "Ficus" back into "Clem")
     const myCard = this.session?.card ?? null;
+    // UX pass 2: the username the match showed names the player's row (and the MVP / best lines)
+    const userName = this.session?.playerName ?? null;
     const won = e.result.outcome === 'won';
     const seconds = Math.floor(e.result.ticks / 30);
     const setup = this.lastSetup;
@@ -1138,8 +1154,8 @@ export class App {
     let link: string | null = null;
     // a party match has no dare link (its seed belongs to the party)
     if (won && !partyEnd) {
-      const base = this.bridge.active && document.referrer ? `${new URL(document.referrer).origin}/pawlegends` : location.href;
       try {
+        const base = shareBase({ appShell: inAppShell(), embedded: this.bridge.active, referrer: document.referrer, href: location.href });
         link = dareUrl({ seed: e.replay.seed, hero: e.replay.hero, trick: e.replay.trick, difficulty: e.replay.difficulty, seconds: seconds < suddenDeathS(e.replay.difficulty) ? seconds : 0 }, base);
       } catch {
         link = null;
@@ -1158,7 +1174,7 @@ export class App {
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
     // lobby spec §3b: a worn owned card names the player's row and MVP after the cat (records stay per hero)
-    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, myCard);
+    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, userName ? { name: userName } : myCard);
     // party play: every human row (yours too), the MVP and "Best on your team" use the party names the friends saw
     const partyNames = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
     if (partyNames) partyNames.forEach((n, slot) => n && (names[slot] = n));

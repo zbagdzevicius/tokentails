@@ -5,7 +5,6 @@ import { USER_API } from "@/api/user-api";
 import { getAudioSettings, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
 import { isAppBuild } from "@/components/claims/build";
 import { registerHeistSuspension } from "@/components/heist/suspension";
-import { CloseButton } from "@/components/shared/CloseButton";
 import { PixelIcon } from "@/components/shared/PixelIcon";
 import { GameModal } from "@/components/ui/GameModal";
 import { ActionRow, ModalButton } from "@/components/ui/modal";
@@ -54,6 +53,7 @@ import { PartySaves, PartyTickets } from "./partySaves";
 import { PawlegendsSaver } from "./saves";
 import { openedFrom, profileAfterSave, progressFromProfile, type PawlegendsProfileFields } from "./session";
 import { PAWLEGENDS_TITLE } from "./title";
+import { LANDING_VARIANT_PARAM, landingVariantOf } from "./landingVariant";
 
 // The Token Tails checkout (Stripe Elements, the crypto checkout) is browser only and loads on first use.
 const PawlegendsCatSheet = dynamic(() => import("./PawlegendsCatSheet").then((m) => m.PawlegendsCatSheet), {
@@ -169,6 +169,9 @@ export const PawlegendsHost = ({
   const authStatus = auth ? auth.authStatus : "signed-out";
   const signedIn = !!auth?.user && !auth.user.isAnonymous && authStatus === "ready";
   const go = useCallback((url: string) => (navigate ?? ((u: string) => window.location.assign(u)))(url), [navigate]);
+  // The game's lobby "Games" button (bridge `exit`): the one way out once the game is up (no host close button).
+  const goRef = useRef(go);
+  goRef.current = go;
 
   // Refs follow the latest render (synced in an effect, never written during render).
   const latest = useRef({ uid, anonymous: !!auth?.user?.isAnonymous, signedIn, authStatus, profile, setProfileUpdate, auth });
@@ -342,17 +345,20 @@ export const PawlegendsHost = ({
   }, [api, isApp]);
 
   // A `pl_*` Checkout return, a restore link or a notify confirmation: handled once, then dropped from the address
-  // bar. `from` (the picker link) only feeds `pawlegends_open`.
+  // bar. `from` (the picker link) and `lv` (the landing arm) only feed `pawlegends_open`.
   const handledReturn = useRef(false);
   useEffect(() => {
     if (!router?.isReady || handledReturn.current) return;
     handledReturn.current = true;
     const query = router.query ?? {};
-    track(buildPawlegendsEvent("pawlegends_open", { from: openedFrom(typeof window === "undefined" ? "" : window.location.search) }));
+    const search = typeof window === "undefined" ? "" : window.location.search;
+    // `lv`: the landing A/B arm the play link came from (landingVariant.ts), so a landing's conversions can be counted.
+    const variant = landingVariantOf(search);
+    track(buildPawlegendsEvent("pawlegends_open", variant ? { from: openedFrom(search), landing_variant: variant } : { from: openedFrom(search) }));
     const action = returnActionOf(query);
-    if (!action && query.from === undefined) return;
+    if (!action && query.from === undefined && query[LANDING_VARIANT_PARAM] === undefined) return;
     const rest = { ...query };
-    for (const key of [...RETURN_QUERY_KEYS, "from"]) delete rest[key];
+    for (const key of [...RETURN_QUERY_KEYS, "from", LANDING_VARIANT_PARAM]) delete rest[key];
     void router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true, scroll: false });
     if (isApp || !action) return;
     try {
@@ -595,6 +601,7 @@ export const PawlegendsHost = ({
         onNotify: (where) => handlers.current.onNotify(where),
         onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
         onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
+        onExit: () => goRef.current(PAWLEGENDS_EXIT_PATH),
         onShare: (kind, url, text) => {
           // a party invite is always the tokentails.com embed URL (D12), also from a preview or local host
           const safe = kind === "party" && PAWLEGENDS_PARTY_LINK.test(url) ? url : shareUrlOf(url, window.location.origin);
@@ -625,9 +632,11 @@ export const PawlegendsHost = ({
     return uid && p && !p.transient ? progressFromProfile(p) : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, progressKey]);
+  // UX pass 2: the profile name rides along (signed in only), so the player's own hero shows it instead of "You"
+  const playerName = signedIn && profile && !(profile as { transient?: boolean }).transient ? (profile.name ?? null) : null;
   useEffect(() => {
-    bridgeRef.current?.setSession(signedIn, progress);
-  }, [signedIn, progress, bridgeState]);
+    bridgeRef.current?.setSession(signedIn, progress, playerName);
+  }, [signedIn, progress, playerName, bridgeState]);
   useEffect(() => {
     bridgeRef.current?.setEntitlements(isApp ? null : token);
   }, [isApp, token]);
@@ -752,13 +761,6 @@ export const PawlegendsHost = ({
         onLoad={onFrameLoad}
         inert={suspended}
       />
-      <div
-        className="fixed z-10"
-        data-testid="pawlegends-exit"
-        style={{ top: "calc(env(safe-area-inset-top) + 6px)", left: "calc(env(safe-area-inset-left) + 6px)" }}
-      >
-        <CloseButton label="Back to games" onClick={() => go(PAWLEGENDS_EXIT_PATH)} className="!static lg:!h-[44px] lg:!w-[44px]" />
-      </div>
       {note && (
         <div
           role="status"
@@ -779,6 +781,10 @@ export const PawlegendsHost = ({
           <button type="button" onClick={reload} className={reloadClass}>
             Reload
           </button>
+          {/* No host close button any more: until the game's own "Games" button is up, this is the way out. */}
+          <a href={PAWLEGENDS_EXIT_PATH} data-testid="pawlegends-slow-exit" className="px-2 font-sans text-p6 font-bold text-tt-gold-400 underline underline-offset-4">
+            Back
+          </a>
         </div>
       )}
       {bridgeState === "timeout" && (

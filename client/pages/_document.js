@@ -24,15 +24,16 @@ export const warmBrandFonts = (afterPaint) =>
 const FIRST_PAINT = `html,body{background-color:${THEME_COLOR}}html[data-sky]{color-scheme:dark}`;
 
 // Pages that never draw the brand display faces (Passion One, Bebas Neue) before load: preloading them there only takes
-// bandwidth from the page's own font and scripts. The Pawlegends landing uses Fredoka (its own preload) and Nunito.
+// bandwidth from the page's own font and scripts. The Pawlegends landings (`/pawlegends`, its A/B arm `/legends`) use
+// Fredoka (their own preload) and Nunito.
 // warmBrandFonts still fetches them after load (after the first paint here), so /game's first canvas text is unchanged.
-const BODY_FONT_ONLY_PATHS = new Set(["/pawlegends"]);
+const BODY_FONT_ONLY_PATHS = new Set(["/pawlegends", "/legends"]);
 export const preloadFontsFor = (path) =>
   BODY_FONT_ONLY_PATHS.has(path) ? PRELOAD_FONT_FILES.filter((href) => href.includes("/nunito-")) : PRELOAD_FONT_FILES;
 
 // Pages whose hydration waits for a server-rendered next/dynamic chunk (the Pawlegends landing's motion): an inline
 // watcher records failed chunk scripts so the page can give up on them at once (landing/motionChunk.ts).
-const CHUNK_WATCH_PATHS = new Set(["/pawlegends"]);
+const CHUNK_WATCH_PATHS = new Set(["/pawlegends", "/legends"]);
 export const watchesChunksFor = (path) => CHUNK_WATCH_PATHS.has(path);
 
 /** Favicon (16, 32 and 48 frames), PNG icons for browsers that prefer them, and the iOS home icon. */

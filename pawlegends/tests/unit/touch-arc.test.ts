@@ -35,6 +35,6 @@ describe('CF-04 touch arc', () => {
   it('a short phone gets a smaller arc than a tall one', () => {
     expect(arcScale(667, 375)).toBeLessThan(arcScale(932, 430));
     expect(arcScale(844, 390)).toBe(1);
-    expect(arcStyle({ rx: 48, by: 48, d: 96 })).toEqual({ right: '0px', bottom: '0px', width: '96px', height: '96px' });
+    expect(arcStyle({ rx: 48, by: 48, d: 96 })).toEqual({ left: '', right: '0px', bottom: '0px', width: '96px', height: '96px' });
   });
 });

@@ -5,6 +5,7 @@
  */
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
+import { matchVoiceKeys } from '../audio/voiceLines';
 import { haptic } from '../ui/haptics';
 import { intensityOf, Music } from '../audio/music';
 import { LocalHost } from '../host/local-host';
@@ -25,7 +26,7 @@ import { isFun, type AnyEvent } from '../render/feelEvents';
 import type { GuideMode } from './firstSession';
 import { cardLook, ELEMENT_COLOR, lookKey, type FrameId, type Look } from '../render/cosmetics';
 import { setProbeBlocked } from '../render/skins/spriteProbe';
-import { cardIdentity, selfNames, type CardIdentity } from '../meta/cardName';
+import { cardIdentity, cutName, heroSub, selfNames, tidyName, type CardIdentity } from '../meta/cardName';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
 import { eyesOf } from '../render/skins/registry';
 import type { SkinFxMode } from '../render/skins/tierFx';
@@ -42,7 +43,7 @@ import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
-import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
+import { BuffFlag, Op, type Difficulty, type EntitySnap, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
 import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { headingPoint } from '../input/heading';
 import { ProgressRail } from '../ui/progressRail';
@@ -52,7 +53,9 @@ import { ultHint } from '../render/effects';
 import { levelWhat } from '../ui/toyText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
-import { Minimap } from '../ui/minimap';
+import { pingKindOfColor } from '../ui/pingGlyph';
+import { resetStructures, syncStructures } from '../input/navMirror';
+import { Minimap, laneNamed } from '../ui/minimap';
 import { PingWheel } from '../ui/pingWheel';
 import { chipPing } from '../ui/pingText';
 import { Overhead } from '../ui/overhead';
@@ -94,6 +97,13 @@ const LANE_HELP_FROM_S = 40;
 const LOL_CREST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.4l-5.3 2.7 1-5.8L3.5 8.2l5.9-.9z"/></svg>';
 
 export interface MatchSetup {
+  /**
+   * UX pass 2: the player's in-game username (the Token Tails profile name, or the party display name), shown over
+   * their own hero and in their scoreboard row, kill feed, death recap and results instead of "You" or the champion
+   * title; the champion stays visible as the small line under it and in the portraits. Absent: "You". Bots keep
+   * their persona names ("Biscuit the Clem").
+   */
+  playerName?: string | null;
   hero: HeroId;
   trick: TrickId;
   difficulty: Difficulty;
@@ -340,9 +350,15 @@ export class MatchSession {
   private catNames: string[] = [];
   /** Lobby spec §3b: the owned card the player's champion wears (its name replaces the hero title), or null. */
   private myCard: CardIdentity | null = null;
+  /** UX pass 2: the player's username, cleaned and cut to 14 characters (setup.playerName), or null. */
+  private selfName: string | null = null;
   /** pawlegends: the card worn this match, as the match named it (the results screen keeps that name, QA). */
   get card(): CardIdentity | null {
     return this.myCard;
+  }
+  /** UX pass 2: the username this match showed for the player (results name their row after it), or null. */
+  get playerName(): string | null {
+    return this.selfName;
   }
   /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (one window global: `__plJuice`, the rail). */
   private readonly e2e = (() => {
@@ -439,8 +455,9 @@ export class MatchSession {
           if (this.announcer) this.present(this.announcer.feed(ev));
         },
       });
+    resetStructures();
     this.minimap = new Minimap(this.ui, {
-      lookAt: (x, z) => this.view.lookAt(x, z),
+      lookAt: (x, z, hold) => this.view.lookAt(x, z, hold),
       moveTo: (x, y) => this.orders?.move(x, y),
       viewQuad: () => this.viewQuad(),
       mySlot: () => this.view.mySlot,
@@ -523,8 +540,13 @@ export class MatchSession {
     // instead of "You" over a small cat line (the self chevron and colour still mark it as yours)
     const myCard = cardIdentity(w.picks[w.slot], this.setup.look);
     this.myCard = myCard;
-    if (myCard) this.overhead.selfName = true;
-    this.overhead.catName = myCard ? null : (mine?.name ?? null);
+    // UX pass 2: a username names the own plate (over the champion: "Clem", or the worn cat and the champion)
+    const user = this.setup.playerName ? cutName(tidyName(this.setup.playerName), 14) || null : null;
+    this.selfName = user;
+    const heroTitle = HERO_TEXT[w.picks[w.slot]]?.title ?? '';
+    if (myCard || user) this.overhead.selfName = true;
+    this.overhead.catName = user ? (myCard ? `${myCard.name} · ${heroTitle}` : mine?.name ? `${mine.name} · ${heroTitle}` : heroTitle) : myCard ? null : (mine?.name ?? null);
+    if (this.e2e) document.documentElement.dataset.selfName = user ?? '';
     this.overhead.plateGem = mine?.rung === 'LEGENDARY' ? `#${ELEMENT_COLOR[mine.element].toString(16).padStart(6, '0')}` : null;
     this.catNames = w.picks.map((_, slot) => (slot === w.slot ? (mine?.name ?? '') : (shown.get(slot) ?? '')));
     this.overhead.mySlot = w.slot;
@@ -541,6 +563,8 @@ export class MatchSession {
       level: () => this.frameNow?.byId.get(w.slot)?.level ?? 1,
       branch: () => this.frameNow?.byId.get(w.slot)?.branch === true,
       nowMs: () => performance.now(),
+      // UX pass 2: the flash reads readiness and windups from the newest snapshot (the drawn frame trails it)
+      simOwn: () => this.ownNewest,
       // C2: a buffered cast that never found a free moment: the deny sound and the button's red flash only now
       onDeny: (slot: 0 | 1 | 2 | 3 | 4) => {
         if (this.touch?.isEnabled) this.touch.deny(slot);
@@ -593,7 +617,8 @@ export class MatchSession {
     this.goals.touch = coarse;
     this.goals.names = { q: ht.abilities[0].name, r: ht.abilities[3].name };
     // sim v5 species teams: a hero twice in one team, the second one is "Sage 2" (one table for every label)
-    this.names = selfNames(slotNames(w.picks, w.seed, w.slot), w.slot, myCard);
+    this.names = selfNames(slotNames(w.picks, w.seed, w.slot), w.slot, user ? { name: user } : myCard);
+    if (this.e2e) document.documentElement.dataset.plateNames = this.names.join('|');
     this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero', (s) => w.picks[s]);
     // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
     this.announcer.down = (slot) => {
@@ -607,6 +632,8 @@ export class MatchSession {
       return Math.max(this.announcer?.bounty(slot) ?? 0, snap >= 3 ? snap : 0);
     };
     this.music.start();
+    // the announcer's lines for this match (its six heroes' lines too), fetched and decoded before they are needed
+    sfx.preloadVoice(matchVoiceKeys(w.picks));
     if (this.setup.look) bakePortrait(this.gr, hero, this.setup.look);
     this.hud = new Hud(this.ui, hero, trick, {
       onSlot: (i) => {
@@ -641,7 +668,7 @@ export class MatchSession {
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
     // lobby spec §3b: the worn card's name rides on the HUD portrait too ("Ficus · Clem")
-    this.hud.setSelfName(myCard?.name ?? null);
+    this.hud.setSelfName(this.selfName ?? myCard?.name ?? null);
     // LoL pass (lane B): e2e reaches the HUD (the crest, the kill feed) the way it reaches the rail
     if (this.e2e) e2eHook('Hud', this.hud);
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
@@ -658,7 +685,7 @@ export class MatchSession {
       d.matchSeed = String(w.seed);
     }
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
-    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && this.myCard ? this.myCard.heroTitle : c)));
+    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
     // cards: the VS intro (both teams as Token Tails cards flipping up over the held countdown); its own lazy chunk,
     // skipped in e2e unless ?vs=1 and at test speeds
     if ((!this.e2e || /[?&]vs=1/.test(location.search)) && Math.max(1, this.buffer.speed) === 1) {
@@ -666,7 +693,7 @@ export class MatchSession {
       void import('../ui/cards/vs')
         .then((m) => {
           // a chunk that lands after the count reached "1" would cover the match start: skip it then
-          if (!this.disposed && !this.vsDone) m.showVsIntro(this.ui, { picks: w.picks, mySlot: w.slot, names: this.names, cats: this.catNames, myPortrait: vsPortrait, myTier: mine?.rung ?? null, meName: this.myCard?.name ?? null, meSub: this.myCard?.sub ?? null, teamNames: [teamLabel(w.picks, 0), teamLabel(w.picks, 1)] });
+          if (!this.disposed && !this.vsDone) m.showVsIntro(this.ui, { picks: w.picks, mySlot: w.slot, names: this.names, cats: this.catNames, myPortrait: vsPortrait, myTier: mine?.rung ?? null, meName: this.selfName ?? this.myCard?.name ?? null, meSub: this.myCard?.sub ?? (this.selfName ? heroSub(hero) : null), teamNames: [teamLabel(w.picks, 0), teamLabel(w.picks, 1)] });
         })
         .catch(() => undefined);
     }
@@ -790,7 +817,7 @@ export class MatchSession {
     const good = victim.team !== this.view.myTeam;
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>
       id === this.view.mySlot ? 'self' : team === 2 || team === undefined ? 'neutral' : team === this.view.myTeam ? 'ally' : 'enemy';
-    const self = this.myCard?.name ?? 'You';
+    const self = this.selfName ?? this.myCard?.name ?? 'You';
     const victimName = e.id === this.view.mySlot ? self : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A hero'));
     const killerLabel = e.killer === this.view.mySlot ? self : killer?.kind === 'hero' && this.names[e.killer] ? this.names[e.killer] : killerName(killer);
     // cards: heroes carry their face (an element-ringed portrait) into the kill feed
@@ -977,6 +1004,7 @@ export class MatchSession {
       this.coreLow[core.team] = true;
       this.coreCall[core.team] = now;
       this.view.juice.banner({ title: ours ? 'Our core is falling!' : 'Their core is falling!', sub: ours ? 'Everyone home: defend it.' : 'Finish it!', tone: ours ? 'bad' : 'gold', urgent: true });
+      sfx.voice(ours ? 'coreFalling' : 'theirCoreFalling');
       this.minimap.ping(core.fx, core.fy, color, 4000);
       return;
     }
@@ -989,10 +1017,12 @@ export class MatchSession {
     if (ours && far) {
       // Round 2: "Defend!" with a ping when the player is far from its own core under attack.
       this.view.juice.banner({ title: 'Defend!', sub: this.touch ? 'Our core is under attack: tap Nap to go home.' : 'Our core is under attack: press B to Nap home.', tone: 'bad', urgent: true });
+      sfx.voice('coreAttacked');
       this.minimap.ping(core.fx, core.fy, color, 4000);
       return;
     }
     this.view.juice.banner({ title: ours ? 'Our core is under attack!' : 'Their core is under attack!', tone: ours ? 'bad' : 'good', urgent: true });
+    sfx.voice(ours ? 'coreAttacked' : 'theirCoreAttacked');
     this.minimap.ping(core.fx, core.fy, color);
   }
 
@@ -1097,6 +1127,48 @@ export class MatchSession {
     sfx.play('click', { vol: 0.5, rate: 0.6 });
   }
 
+  /**
+   * MAP-GAPS A10: a ping at (x, y) mm: a minimap ring with the kind's glyph, its own ground marker (never the mint
+   * move-order marker) and, when the spot is off screen, an arrow at the screen edge for 1 s.
+   */
+  private pingMark(xMm: number, yMm: number, color: string): void {
+    const kind = pingKindOfColor(color);
+    this.minimap.ping(xMm, yMm, color, 3000, kind);
+    if (kind === 'pushSunny' || kind === 'pushPuddle') this.minimap.flashLane(kind === 'pushSunny' ? 'sunny' : 'puddle');
+    this.view.pingMarker(xMm / 1000, -yMm / 1000, color, kind);
+    this.pingEdge(xMm / 1000, -yMm / 1000, color);
+    sfx.play('click', { vol: 0.35, rate: 1.2 });
+    if (this.e2e) document.documentElement.dataset.pingMarks = String(this.view.pingMarks.placed);
+  }
+
+  /** MAP-GAPS A10: a 1 s arrow at the screen edge toward a ping at (x, z) m that is off screen. */
+  private pingEdge(x: number, z: number, color: string): void {
+    const c = this.gr.renderer.domElement;
+    const r = c.getBoundingClientRect();
+    const p = new THREE.Vector3(x, 0, z).project(this.gr.camera);
+    const sx = r.left + ((p.x + 1) / 2) * r.width;
+    const sy = r.top + ((1 - p.y) / 2) * r.height;
+    if (p.z < 1 && sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom) return;
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let dx = sx - cx;
+    let dy = sy - cy;
+    if (p.z >= 1) {
+      dx = -dx;
+      dy = -dy;
+    }
+    const m = 28;
+    const k = Math.min((r.width / 2 - m) / Math.max(1e-3, Math.abs(dx)), (r.height / 2 - m) / Math.max(1e-3, Math.abs(dy)));
+    const el = document.createElement('div');
+    el.className = 'pl-pingedge';
+    el.style.left = `${cx + dx * k}px`;
+    el.style.top = `${cy + dy * k}px`;
+    el.style.setProperty('--c', color);
+    el.style.setProperty('--a', `${Math.atan2(dy, dx)}rad`);
+    this.ui.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+
   private marker(x: number, z: number, attack: boolean): void {
     // the bold ring marker (GameView.orderMarker: over the VFX, red with crosshair ticks for attacks) and a few sparks
     this.view.orderMarker(x, z, attack);
@@ -1148,6 +1220,7 @@ export class MatchSession {
         return;
       }
       rail.rest('countdown', steps[i], 'gold');
+      if (i === 0) sfx.voice('welcome', { sting: false });
       // cards: the VS intro is gone by "1" whatever its own timers say (a late chunk under load would cover "Ready!")
       if (i === steps.length - 2) {
         this.vsDone = true;
@@ -1165,6 +1238,7 @@ export class MatchSession {
   private goFlash(): void {
     if (this.disposed) return;
     this.view.juice.push({ key: 'go', title: 'Go!', tone: 'gold', prio: 0, ttl: 700 });
+    sfx.voice('gatesOpen', { sting: false });
   }
 
   private openMenu(): void {
@@ -1262,8 +1336,7 @@ export class MatchSession {
               if (this.e2e) document.documentElement.dataset.mpNames = names.join('|');
             },
             pingAt: (x, y, color) => {
-              this.minimap.ping(x, y, color, 3000);
-              this.marker(x / 1000, -y / 1000, false);
+              this.pingMark(x, y, color);
               if (this.e2e) document.documentElement.dataset.mpPingAt = `${x},${y}`;
             },
             popOver: (slot, text, tone) => {
@@ -1523,6 +1596,9 @@ export class MatchSession {
     const j = this.view.juice;
     const me = this.view.me();
     for (const m of list) {
+      // MAP-GAPS A19: a line that names a lane flashes it on the minimap
+      const named = laneNamed(m.title);
+      if (named) this.minimap.flashLane(named);
       // Nine Lives read like "you survived" when it fired on the killing blow: only while alive
       if (m.key === 'nineLives' && (!me || me.state === 'dead' || me.hp <= 0)) continue;
       if (m.size === 'ping') {
@@ -1531,14 +1607,12 @@ export class MatchSession {
         if (m.key === 'ping' && m.at && this.setup.party && this.view.mySlot !== 0) {
           // party play: the leader's ping, as a friend sees it (muted: nothing)
           if (this.mp?.isMuted(0)) continue;
-          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
-          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          this.pingMark(m.at.x, m.at.y, m.at.color);
           this.mp?.leaderPing(m.title);
           continue;
         }
         if (m.key === 'ping' && m.at) {
-          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
-          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          this.pingMark(m.at.x, m.at.y, m.at.color);
           const at = this.heroScreen();
           if (at) j.pop(m.title, at.x, at.y - 34, 'info');
           sfx.play('click', { vol: 0.6 });
@@ -1815,6 +1889,8 @@ export class MatchSession {
     if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;
     if (frame) {
       this.turnToInput(frame);
+      // MAP-GAPS A14: the input grid mirrors the standing towers and cores
+      syncStructures(frame.latest.entities);
       this.units.length = 0;
       for (const e of frame.entities) this.units.push({ id: e.id, kind: e.kind, team: e.team, x: e.fx, y: e.fy, hp: e.hp, maxHp: e.maxHp, state: e.state });
       this.ccHaptic(frame);
@@ -1822,6 +1898,7 @@ export class MatchSession {
       for (const ev of this.buffer.takeEvents(this.events)) {
         this.view.effects.handle(ev);
         this.feelEvent(ev);
+        this.minimap.event(ev);
         const a = this.announcer;
         if (a) this.present(a.feed(ev));
         const fe = ev as AnyEvent;
@@ -1979,10 +2056,14 @@ export class MatchSession {
   /** The own hero in the newest snapshot (the input steers and casts from there, ahead of the drawn hero). */
   private ownSim: { x: number; y: number; tick: number } | null = null;
 
+  /** UX pass 2: the own hero's cooldowns and state in the newest snapshot (Orders: the flash goes by these). */
+  private ownNewest: { cooldowns: readonly number[] | null; state: EntitySnap['state'] } | null = null;
+
   private simOwn(s: Snapshot): void {
     if (!this.welcome) return;
     const me = s.entities.find((e) => e.id === this.view.mySlot);
     if (!me) return;
+    this.ownNewest = { cooldowns: me.cooldowns ?? null, state: me.state };
     if (me.state === 'dead') {
       this.ownSim = null;
       return;
@@ -2133,6 +2214,11 @@ export class MatchSession {
     // C2 / C5 / C6 telemetry: cast buffer counters, Attack presses with nothing in reach, the drawn own position
     if (this.orders) d.castBuf = `${this.orders.buffers.kept},${this.orders.buffers.sent},${this.orders.buffers.expired},${this.orders.buffers.retried},${this.orders.busyWhy()},${this.orders.queued ?? ''},${this.orders.busyLeftMs}`;
     d.atkNone = String(this.touch?.atkNone ?? 0);
+    // UX pass 2: the unit ATK rings now, the newest Attack order's target, last-hit / tower presses that found one
+    d.atkTarget = this.touch?.atkPreview != null ? String(this.touch.atkPreview) : '';
+    const sentId = this.orders?.lastAttackId ?? -1;
+    d.atkSent = sentId >= 0 ? `${sentId}:${frame?.byId.get(sentId)?.kind ?? ''}` : '';
+    d.extraHits = this.touch ? `${this.touch.extraHits.lasthit},${this.touch.extraHits.tower}` : '';
     // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
     d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
     d.lastHits = String(this.lastHitsSeen);
@@ -2428,6 +2514,7 @@ export class MatchSession {
     this.tips.dispose();
     this.goals.dispose();
     this.music.stop();
+    sfx.hushVoice();
     this.view.dispose();
     this.ui.remove();
     delete document.documentElement.dataset.match;

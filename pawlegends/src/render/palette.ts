@@ -58,8 +58,8 @@ export function sidesSwapped(): boolean {
 }
 
 /**
- * Cats vs dogs: the cats always wear rose, the dogs blue (cloth, bases, minions: dressTeam). The relation colours
- * (ally blue, enemy red: rings, bars, score, minimap) never swap. Render only.
+ * Cats vs dogs: the cats always wear rose, the dogs Woof ochre and brown (cloth, bases, minions: dressTeam). The
+ * relation colours (ally blue, enemy red: rings, bars, score, the minimap's marks and base tint) never swap. Render only.
  */
 export function setSideSwap(on: boolean): void {
   sideSwap = on;
@@ -99,7 +99,7 @@ export function setTeam0Dogs(on: boolean): void {
   team0Dogs = on;
 }
 
-/** The TEAM[] style a sim team wears: the cat rose for the cats, the Woof blue for the dogs, whichever slot they play. */
+/** The TEAM[] style a sim team wears: the cat rose for the cats, the Woof ochre for the dogs, whichever slot they play. */
 export function dressTeam(team: number): 0 | 1 {
   const t = (team === 1 ? 1 : 0) as 0 | 1;
   return (team0Dogs ? 1 - t : t) as 0 | 1;

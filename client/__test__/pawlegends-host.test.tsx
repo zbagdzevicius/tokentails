@@ -313,12 +313,16 @@ describe("/pawlegends/play page", () => {
 });
 
 describe("PawlegendsHost: shell", () => {
-  it("posts only to its own origin; the checkout is reachable on the web; the exit goes to /game", async () => {
+  it("posts only to its own origin; the checkout is reachable on the web; the game's exit goes to /game", async () => {
     const h = await mount();
     expect(h.origins.every((o) => o === window.location.origin)).toBe(true);
     expect(h.last("app")).toEqual({ ns: PAWLEGENDS_NS, v: 1, type: "app", isApp: false, store: true, notify: true });
     expect(h.last("session")).toMatchObject({ signedIn: false, progress: null });
-    fireEvent.click(screen.getByRole("button", { name: "Back to games" }));
+    // UX pass 2: no host close button over the game; the lobby's "Games" button posts `exit`
+    expect(screen.queryByRole("button", { name: "Back to games" })).toBeNull();
+    expect(screen.queryByTestId("pawlegends-exit")).toBeNull();
+    expect(h.navigate).not.toHaveBeenCalled();
+    h.fromGame({ type: "exit" });
     expect(h.navigate).toHaveBeenCalledWith("/game");
     expect(eventNames()).toContain("pawlegends_open");
   });
@@ -329,6 +333,32 @@ describe("PawlegendsHost: shell", () => {
     await mount();
     expect(window.localStorage.getItem(PAWLEGENDS_SESSIONS_KEY)).toBe("5");
     expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: {} }, undefined, { shallow: true, scroll: false });
+  });
+
+  it("reports the landing A/B arm (?lv=) on pawlegends_open and strips lv and from, keeping other keys", async () => {
+    mockRouter.query = { from: "legends_hero", lv: "B", utm_source: "ad" };
+    window.history.replaceState(null, "", "/pawlegends/play?from=legends_hero&lv=B&utm_source=ad");
+    try {
+      await mount();
+      const open = mockTrack.mock.calls.map(([e]) => e as { name: string; properties: Record<string, unknown> }).find((e) => e.name === "pawlegends_open");
+      expect(open?.properties).toEqual({ from: "legends_hero", landing_variant: "B" });
+      expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: { utm_source: "ad" } }, undefined, { shallow: true, scroll: false });
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
+  });
+
+  it("an unknown ?lv= is not reported as an arm", async () => {
+    mockRouter.query = { lv: "Z" };
+    window.history.replaceState(null, "", "/pawlegends/play?lv=Z");
+    try {
+      await mount();
+      const open = mockTrack.mock.calls.map(([e]) => e as { name: string; properties: Record<string, unknown> }).find((e) => e.name === "pawlegends_open");
+      expect(open?.properties).not.toHaveProperty("landing_variant");
+      expect(replace).toHaveBeenCalledWith({ pathname: "/pawlegends/play", query: {} }, undefined, { shallow: true, scroll: false });
+    } finally {
+      window.history.replaceState(null, "", "/");
+    }
   });
 
   it("sends the shell's mute and both volumes", async () => {
@@ -438,6 +468,19 @@ describe("PawlegendsHost: account and saves", () => {
         fastestWin: { easy: 8123, normal: 0, rookie: 0, hard: 0 },
       },
     });
+  });
+
+  it("UX pass 2: session carries the signed-in player's profile name, cleaned; never for a guest", async () => {
+    mockAuth.mockReturnValue(account());
+    mockProfile.mockReturnValue({ profile: { cats: [], name: "  Žygis <b>Paw</b>son\u0007  " } });
+    const h = await mount();
+    expect(h.last("session")).toMatchObject({ signedIn: true, name: "Žygis bPaw/bson" });
+  });
+
+  it("UX pass 2: a guest's session has no name", async () => {
+    mockProfile.mockReturnValue({ profile: { cats: [], name: "Someone" } });
+    const h = await mount();
+    expect(h.last("session")).not.toHaveProperty("name");
   });
 
   it("a match with a Firebase user posts once to /live; save-result goes saving then saved with +catnip; the profile follows", async () => {
