@@ -13,6 +13,7 @@ import { HERO_TEXT } from './heroText';
 import type { HeroId, SimEvent } from '../sim/api';
 import type { PingKind } from '../data/pings';
 import { pingGlyph } from './pingGlyph';
+import { clearedBushes } from '../render/bushClear';
 import { applyMinimapSize, colourBlind } from './minimapPrefs';
 
 export interface MinimapHost {
@@ -70,6 +71,9 @@ const heroPair = (h: HeroId): string => {
 /** The minimap's ground colours. */
 /** MAP-GAPS A7: bushes a light catnip green with an outline and dots, forest darker, the jungle rocks grey-brown. */
 export const MM_GROUND = Object.freeze({ grass: '#7fb86a', river: '#6fb7e0', lane: '#e6cf98', forest: '#2f4f2c', wall: '#6e6458', bush: '#5fae4a', bushEdge: '#2f5a26' });
+
+/** MAP-GAPS A20: a cleared bush (an ally in it), lighter than an unscouted one. */
+export const MM_BUSH_CLEARED = 'rgba(190,240,160,0.85)';
 
 /** MAP-GAPS A4: the dark outline every unit mark wears (towers, heroes, minions, Pudding). */
 export const MM_OUTLINE = '#2a1a22';
@@ -491,6 +495,10 @@ export class Minimap {
     this.flashes.push({ lane, until: performance.now() + LANE_FLASH_MS });
   }
 
+  private cleared: boolean[] = [];
+  /** Cleared bushes drawn last frame (tests). */
+  bushesCleared = 0;
+
   /** MAP-GAPS A18: every tower seen this match (sim mm), so a fallen one keeps its mark. */
   private towers = new Map<number, { x: number; y: number; team: number }>();
   /** Fallen tower marks drawn last frame (tests). */
@@ -607,6 +615,25 @@ export class Minimap {
     }
     const rel = minimapRelation(colourBlind());
     const col = (t: number, id: number): string => (id === me ? rel.self : t === 2 ? rel.neutral : t === team ? rel.ally : rel.enemy);
+    // MAP-GAPS A20: a bush an ally stands in is cleared: lighter, so the unscouted ones stand out
+    this.bushesCleared = 0;
+    clearedBushes(frame.entities, team, this.cleared);
+    for (let side = 0; side < 2; side++)
+      for (let k = 0; k < BUSHES.length; k++) {
+        if (!this.cleared[side * BUSHES.length + k]) continue;
+        const b = BUSHES[k];
+        const x = side === 0 ? b.x : mirrorX(b.x);
+        const ax = this.X(x - b.w / 2);
+        const bx = this.X(x + b.w / 2);
+        const ay = this.Y(b.y + b.h / 2);
+        const by = this.Y(b.y - b.h / 2);
+        const rw = Math.abs(bx - ax);
+        const rh = Math.abs(by - ay);
+        g.fillStyle = MM_BUSH_CLEARED;
+        roundRectPath(g, Math.min(ax, bx), Math.min(ay, by), rw, rh, Math.min(rw, rh) * 0.35);
+        g.fill();
+        this.bushesCleared++;
+      }
     // MAP-GAPS A18: a fallen tower stays as a greyed, crossed-out square where it stood
     for (const e of frame.entities) if (e.kind === 'tower' && !this.towers.has(e.id)) this.towers.set(e.id, { x: e.fx, y: e.fy, team: e.team });
     this.fallenDrawn = 0;

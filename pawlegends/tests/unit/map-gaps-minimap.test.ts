@@ -333,3 +333,23 @@ describe('MAP-GAPS A19 lane glyphs, landmarks and the lane flash', () => {
     delete document.documentElement.dataset.touch;
   });
 });
+
+describe('MAP-GAPS A20 cleared bushes', () => {
+  it('clears a bush an allied hero or minion stands in, from the snapshot only', async () => {
+    const { clearedBushes } = await import('../../src/render/bushClear');
+    const { BUSHES, mirrorX } = await import('../../src/data/map');
+    const b = BUSHES[0];
+    const ally = ent({ id: 1, kind: 'hero', team: 0, fx: b.x, fy: b.y });
+    const foe = ent({ id: 4, kind: 'hero', team: 1, fx: mirrorX(b.x), fy: b.y });
+    const c = clearedBushes([ally, foe], 0);
+    expect(c[0]).toBe(true);
+    expect(c.filter(Boolean)).toHaveLength(1);
+    expect(clearedBushes([{ ...ally, state: 'dead' }], 0).some(Boolean)).toBe(false);
+    expect(clearedBushes([ent({ id: 7, kind: 'minion', team: 0, fx: mirrorX(b.x), fy: b.y })], 0)[BUSHES.length]).toBe(true);
+    const m = new Minimap(document.body, host());
+    draw(m, frame([ally]));
+    expect(m.bushesCleared).toBe(1);
+    draw(m, frame([foe]));
+    expect(m.bushesCleared).toBe(0);
+  });
+});
