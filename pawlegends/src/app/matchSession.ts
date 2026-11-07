@@ -53,6 +53,7 @@ import { levelWhat } from '../ui/toyText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
 import { pingKindOfColor } from '../ui/pingGlyph';
+import { resetStructures, syncStructures } from '../input/navMirror';
 import { Minimap } from '../ui/minimap';
 import { PingWheel } from '../ui/pingWheel';
 import { chipPing } from '../ui/pingText';
@@ -440,6 +441,7 @@ export class MatchSession {
           if (this.announcer) this.present(this.announcer.feed(ev));
         },
       });
+    resetStructures();
     this.minimap = new Minimap(this.ui, {
       lookAt: (x, z, hold) => this.view.lookAt(x, z, hold),
       moveTo: (x, y) => this.orders?.move(x, y),
@@ -1854,6 +1856,8 @@ export class MatchSession {
     if (frame && frame.latest.clock.phase !== 'ended') this.lastPhase = frame.latest.clock.phase;
     if (frame) {
       this.turnToInput(frame);
+      // MAP-GAPS A14: the input grid mirrors the standing towers and cores
+      syncStructures(frame.latest.entities);
       this.units.length = 0;
       for (const e of frame.entities) this.units.push({ id: e.id, kind: e.kind, team: e.team, x: e.fx, y: e.fy, hp: e.hp, maxHp: e.maxHp, state: e.state });
       this.ccHaptic(frame);
