@@ -68,7 +68,7 @@ type TrackEventMap = {
 
 type EventName = keyof TrackEventMap;
 
-/** Fired by the Pawlegends landing (components/pawlegends/landing/motion.js) once its intro has played. */
+/** Fired by the Pawlegends landings (landing/motion.js on `/pawlegends`, legends/motion.js on `/legends`) once their intro has played. */
 export const LANDING_READY_EVENT = "pawlegends:landing-ready";
 /** The longest a landing waits before analytics starts anyway (ms after mount). */
 export const ANALYTICS_DEFER_MAX_MS = 4000;
@@ -76,7 +76,7 @@ export const ANALYTICS_DEFER_MAX_MS = 4000;
  * Pages whose first seconds belong to the page: the Pawlegends landing hides its hero until the GSAP intro runs, and
  * GTM's tags (about 470 KB of third-party script) would compete with it for the network and the main thread.
  */
-const DEFERRED_PATHS: ReadonlySet<string> = new Set(["/pawlegends"]);
+const DEFERRED_PATHS: ReadonlySet<string> = new Set(["/pawlegends", "/legends"]);
 
 /**
  * Calls `start` once, after the landing says it is ready, the visitor's first tap, key or scroll, or
