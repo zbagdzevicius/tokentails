@@ -28,8 +28,10 @@ locals {
     }
     "sa-deploy" = {
       display_name = "GitHub Actions deploy (deploy-gcp.yml)"
+      # Read-only on Cloud Run project-wide; deploy rights only on tt-api, tt-web, tt-cms and tt-migrate (below), so it
+      # cannot create another service or job that runs as sa-api and mounts the hot-wallet keys.
       project_roles = [
-        "roles/run.developer",
+        "roles/run.viewer",
         "projects/${var.project_id}/roles/ttRelayDeployer",
       ]
     }
@@ -60,7 +62,22 @@ locals {
   sa_id          = { for id, email in local.sa : id => "projects/${var.project_id}/serviceAccounts/${email}" }
   all_secret_ids = distinct(concat(var.do_secret_keys, var.extra_secret_keys))
 
-  api_secret_versions = coalesce(var.api_secret_versions, { for k in var.do_secret_keys : k => "1" })
+  # The party ticket secret is pinned once and mounted on both sides at the same version: tt-api mints tickets, the
+  # relay verifies them.
+  ticket_secret = var.party_ticket_secret_version == null ? {} : { PAWLEGENDS_PARTY_TICKET_SECRET = var.party_ticket_secret_version }
+  api_secret_versions = merge(
+    coalesce(var.api_secret_versions, { for k in var.do_secret_keys : k => "1" }),
+    local.ticket_secret,
+  )
+  # The relay follows tt-api's pins (MONGODB_URI, FRONT_END_URLS) unless relay_secret_versions overrides one, so a
+  # rotation or a new FRONT_END_URLS version reaches both. Only relay_secret_keys ever reach the relay.
+  relay_secret_versions = {
+    for k, v in merge(
+      { for k in var.relay_secret_keys : k => local.api_secret_versions[k] if contains(keys(local.api_secret_versions), k) },
+      coalesce(var.relay_secret_versions, {}),
+      local.ticket_secret,
+    ) : k => v if contains(var.relay_secret_keys, k)
+  }
 
   # Who reads which secret. sa-api reads everything it may mount; the relay and the migration job only theirs;
   # web, cms and CI read none. Hot-wallet keys: sa-api only (checked below and in tests).
@@ -122,7 +139,6 @@ resource "google_project_iam_custom_role" "relay_deployer" {
     "compute.instanceGroups.list",
     "compute.instances.get",
     "compute.instances.list",
-    "compute.instances.setMetadata",
     "compute.projects.get",
     "compute.regionOperations.get",
     "compute.zoneOperations.get",
@@ -157,6 +173,33 @@ resource "google_project_iam_member" "deploy_os_login" {
     description = "OS Login with sudo on the party relay VMs only."
     expression  = "resource.type == 'compute.googleapis.com/Instance' && resource.name.extract('/instances/{name}').startsWith('${var.relay_name}')"
   }
+}
+
+# sa-deploy's Cloud Run deploy rights, per resource: new revisions and traffic on the three services, image and runs
+# of the migration job. Nothing project-wide, so no new service or job can be created as sa-api.
+resource "google_cloud_run_v2_service_iam_member" "deploy" {
+  for_each = {
+    api = module.api.name
+    web = module.web.name
+    cms = module.cms.name
+  }
+  project  = var.project_id
+  location = var.region
+  name     = each.value
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.sa["sa-deploy"]}"
+
+  depends_on = [module.service_accounts]
+}
+
+resource "google_cloud_run_v2_job_iam_member" "deploy_migrate" {
+  project  = var.project_id
+  location = var.region
+  name     = module.migrate.name
+  role     = "roles/run.developer"
+  member   = "serviceAccount:${local.sa["sa-deploy"]}"
+
+  depends_on = [module.service_accounts]
 }
 
 # sa-deploy deploys revisions that run as these accounts and SSHes into the VM that runs as sa-relay.
@@ -316,7 +359,7 @@ module "relay_vm" {
   port            = local.relay_port
   initial_image   = local.backend_image
   plain_env       = { NO_COLOR = "1" }
-  secrets         = { for k, v in var.relay_secret_versions : k => v if contains(var.relay_secret_keys, k) }
+  secrets         = local.relay_secret_versions
   labels          = local.labels
 
   depends_on = [module.secrets, module.artifact_registry]
@@ -353,6 +396,7 @@ module "wif" {
   repository                = var.github_repository
   repository_id             = var.github_repository_id
   deploy_service_account_id = local.sa_id["sa-deploy"]
+  deploy_workflow_ref       = "${var.github_repository}/.github/workflows/deploy-gcp.yml@refs/heads/main"
   extra_bindings = merge(
     { plan = { service_account_id = local.sa_id["sa-tf-plan"], environment = "gcp-plan" } },
     var.ci_apply_enabled ? { apply = { service_account_id = google_service_account.tf_apply[0].id, environment = "gcp-prod" } } : {}
@@ -369,14 +413,35 @@ resource "google_service_account" "tf_apply" {
   display_name = "GitHub Actions terraform apply (environment gcp-prod, reviewers required)"
 }
 
+# Editor cannot set IAM policies or create custom roles, so the apply account also needs the admin role of every
+# resource type this config binds IAM on: service accounts (deploy_acts_as, WIF), the custom relay role, the registry
+# repository, buckets (state, media), Cloud Run services and jobs, secrets, WIF pools and Cloud Armor.
 resource "google_project_iam_member" "tf_apply" {
   for_each = var.ci_apply_enabled ? toset([
     "roles/editor", "roles/resourcemanager.projectIamAdmin", "roles/secretmanager.admin",
     "roles/iam.workloadIdentityPoolAdmin", "roles/run.admin", "roles/compute.securityAdmin",
+    "roles/iam.serviceAccountAdmin", "roles/iam.roleAdmin", "roles/artifactregistry.admin", "roles/storage.admin",
   ]) : toset([])
   project = var.project_id
   role    = each.value
   member  = "serviceAccount:${google_service_account.tf_apply[0].email}"
+}
+
+# The budget lives on the billing account, so reading it (plan refresh) and writing it (apply) need billing-account
+# roles. Granting them needs the founder to be a billing account administrator when applying.
+resource "google_billing_account_iam_member" "tf_plan_budget" {
+  billing_account_id = var.billing_account
+  role               = "roles/billing.viewer"
+  member             = "serviceAccount:${local.sa["sa-tf-plan"]}"
+
+  depends_on = [module.service_accounts]
+}
+
+resource "google_billing_account_iam_member" "tf_apply_budget" {
+  count              = var.ci_apply_enabled ? 1 : 0
+  billing_account_id = var.billing_account
+  role               = "roles/billing.costsManager"
+  member             = "serviceAccount:${google_service_account.tf_apply[0].email}"
 }
 
 resource "google_storage_bucket_iam_member" "state_reader" {

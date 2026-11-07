@@ -23,5 +23,8 @@ for needle in ["ExecStop=/usr/bin/docker stop -t 60 tt-relay", "Restart=always",
 run = next(f for f in doc["write_files"] if f["path"].endswith("run.sh"))["content"]
 assert "--network host" in run and "--env-file /run/tt-relay/env" in run, "run.sh must use host networking and the tmpfs env file"
 assert "gce-container-declaration" not in open(sys.argv[1]).read(), "no konlet"
+prep = next(f for f in doc["write_files"] if f["path"].endswith("prepare.sh"))["content"]
+assert "project/attributes/tt-relay-env" in prep and "project/attributes/tt-relay-secrets" in prep, "prepare.sh reads env and secret pins from project metadata"
+assert "/var/lib/tt-relay/image" in prep, "prepare.sh prefers the image deploy.sh verified"
 print("unit and run.sh checks ok:", ", ".join(paths))
 PY

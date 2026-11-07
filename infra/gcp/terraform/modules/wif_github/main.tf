@@ -1,5 +1,6 @@
 # GitHub Actions -> Google Cloud without JSON keys. Only workflows of one repository on refs/heads/main can get a
-# token at all (the provider's attribute condition); each binding below narrows it further.
+# token at all (the provider's attribute condition); each binding below narrows it further: the deploy account to one
+# workflow file (job_workflow_ref), the Terraform accounts to one GitHub environment each.
 variable "project_id" {
   type = string
 }
@@ -38,6 +39,16 @@ variable "ref" {
 variable "deploy_service_account_id" {
   description = "Full id (projects/.../serviceAccounts/...) of the account deploy workflows impersonate."
   type        = string
+}
+
+variable "deploy_workflow_ref" {
+  description = "job_workflow_ref allowed to impersonate the deploy account: owner/repo/.github/workflows/<file>@refs/heads/main. Other workflows on main (and third-party actions they run) get no deploy rights."
+  type        = string
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+/\\.github/workflows/[A-Za-z0-9_.-]+\\.ya?ml@refs/heads/[A-Za-z0-9_./-]+$", var.deploy_workflow_ref))
+    error_message = "deploy_workflow_ref is owner/repo/.github/workflows/<file>.yml@refs/heads/<branch>."
+  }
 }
 
 variable "extra_bindings" {
@@ -87,7 +98,7 @@ resource "google_iam_workload_identity_pool_provider" "github" {
 resource "google_service_account_iam_member" "deploy" {
   service_account_id = var.deploy_service_account_id
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.repository}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.workflow_ref/${var.deploy_workflow_ref}"
 }
 
 resource "google_service_account_iam_member" "environment" {
@@ -100,6 +111,11 @@ resource "google_service_account_iam_member" "environment" {
 output "provider_name" {
   description = "workload_identity_provider input of google-github-actions/auth."
   value       = google_iam_workload_identity_pool_provider.github.name
+}
+
+output "deploy_member" {
+  description = "Who may impersonate the deploy account (for tests and review)."
+  value       = google_service_account_iam_member.deploy.member
 }
 
 output "attribute_condition" {

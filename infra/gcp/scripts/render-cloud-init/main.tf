@@ -9,8 +9,8 @@ output "user_data" {
     port                 = 8080
     registry_host        = "europe-west3-docker.pkg.dev"
     image_metadata_key   = "tt-relay-image"
-    plain_env            = { NODE_ENV = "production", BACKEND_ROLE = "relay", PORT = "8080", NO_COLOR = "1" }
-    secrets              = { MONGODB_URI = "1", PAWLEGENDS_PARTY_TICKET_SECRET = "1", FRONT_END_URLS = "1" }
+    env_metadata_key     = "tt-relay-env"
+    secrets_metadata_key = "tt-relay-secrets"
     stop_timeout_seconds = 60
     drain_max_seconds    = 1800
   })

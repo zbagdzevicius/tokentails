@@ -60,6 +60,70 @@ run "relay_vm_is_always_on_and_private" {
     condition     = !strcontains(module.relay_vm.cloud_init, "gce-container-declaration") && strcontains(module.relay_vm.cloud_init, "docker stop -t 60")
     error_message = "cloud-init runs the container from systemd (no konlet) and stops it with a 60 s grace."
   }
+  assert {
+    condition     = module.relay_vm.settings.update_type == "OPPORTUNISTIC"
+    error_message = "A template change never replaces the relay by itself (scripts/replace-relay.sh does, in a quiet hour)."
+  }
+  assert {
+    condition     = !strcontains(module.relay_vm.cloud_init, "MONGODB_URI") && !strcontains(module.relay_vm.cloud_init, "FRONT_END_URLS") && !strcontains(module.relay_vm.cloud_init, "NODE_ENV=production")
+    error_message = "Secret pins and env live in project metadata, not in the instance template (they must reach the running VM)."
+  }
+  assert {
+    condition     = strcontains(module.relay_vm.cloud_init, "project/attributes/tt-relay-env") && strcontains(module.relay_vm.cloud_init, "project/attributes/tt-relay-secrets")
+    error_message = "prepare.sh reads the env and secret pins from project metadata at every start."
+  }
+  assert {
+    condition     = strcontains(module.relay_vm.runtime_config.env, "BACKEND_ROLE=relay") && strcontains(module.relay_vm.runtime_config.env, "NODE_ENV=production")
+    error_message = "The relay env (project metadata) sets BACKEND_ROLE=relay and NODE_ENV=production."
+  }
+  assert {
+    condition     = module.relay_vm.runtime_config.secrets == "FRONT_END_URLS=1\nMONGODB_URI=1"
+    error_message = "By default the relay follows tt-api's pins and has no ticket secret until party_ticket_secret_version is set."
+  }
+  assert {
+    condition     = strcontains(module.relay_vm.cloud_init, "/var/lib/tt-relay/image") && strcontains(module.relay_vm.cloud_init, "deploy.sh current")
+    error_message = "The VM runs the image deploy.sh verified (/var/lib/tt-relay/image), and CI reads the running one."
+  }
+}
+
+run "ticket_secret_same_version_on_api_and_relay" {
+  command = apply
+
+  variables {
+    party_ticket_secret_version = "3"
+    api_secret_versions = {
+      MONGODB_URI    = "1"
+      FRONT_END_URLS = "2"
+    }
+  }
+
+  assert {
+    condition     = contains(module.api.settings.secret_names, "PAWLEGENDS_PARTY_TICKET_SECRET")
+    error_message = "tt-api mounts the ticket secret (it mints tickets)."
+  }
+  assert {
+    condition     = module.relay_vm.runtime_config.secrets == "FRONT_END_URLS=2\nMONGODB_URI=1\nPAWLEGENDS_PARTY_TICKET_SECRET=3"
+    error_message = "The relay gets the same ticket version and follows tt-api's FRONT_END_URLS pin."
+  }
+}
+
+run "ticket_secret_only_through_its_own_variable" {
+  command = plan
+
+  variables {
+    api_secret_versions = { MONGODB_URI = "1", PAWLEGENDS_PARTY_TICKET_SECRET = "1" }
+  }
+
+  expect_failures = [var.api_secret_versions]
+}
+
+run "api_has_no_ticket_secret_until_set" {
+  command = apply
+
+  assert {
+    condition     = !contains(module.api.settings.secret_names, "PAWLEGENDS_PARTY_TICKET_SECRET")
+    error_message = "Without party_ticket_secret_version, no revision pins a version that does not exist yet."
+  }
 }
 
 run "api_cpu_always_allocated_lb_only" {
@@ -119,8 +183,8 @@ run "edge_websockets_and_armor" {
     error_message = "One relay VM owns every party: no session affinity."
   }
   assert {
-    condition     = module.edge.settings.relay_draining_sec >= 600
-    error_message = "Connection draining of at least 600 s on the relay."
+    condition     = module.edge.settings.relay_draining_sec <= 30
+    error_message = "No long connection draining on the relay: a VM recreate must fit the 120 s restore window."
   }
   assert {
     condition     = module.edge.settings.scheme == "EXTERNAL_MANAGED"
@@ -206,6 +270,22 @@ run "secrets_have_no_values_and_least_privilege" {
     error_message = "sa-deploy's IAP and OS Login rights are limited to SSH on the relay VMs."
   }
   assert {
+    condition     = !contains(module.service_accounts.project_roles["sa-deploy"], "roles/run.developer") && !contains(module.service_accounts.project_roles["sa-deploy"], "roles/run.admin")
+    error_message = "sa-deploy has no project-wide Cloud Run write role (it could create a job running as sa-api)."
+  }
+  assert {
+    condition     = toset([for k, m in google_cloud_run_v2_service_iam_member.deploy : m.name]) == toset(["tt-api", "tt-web", "tt-cms"]) && google_cloud_run_v2_job_iam_member.deploy_migrate.name == "tt-migrate"
+    error_message = "sa-deploy deploys only tt-api, tt-web, tt-cms and tt-migrate."
+  }
+  assert {
+    condition     = !contains(google_project_iam_custom_role.relay_deployer.permissions, "compute.instances.setMetadata")
+    error_message = "The relay deployer never writes instance metadata (deploy.sh switches the image on the VM)."
+  }
+  assert {
+    condition     = google_billing_account_iam_member.tf_plan_budget.role == "roles/billing.viewer"
+    error_message = "sa-tf-plan can read the budget (plan refreshes it on the billing account)."
+  }
+  assert {
     condition     = output.service_accounts["sa-api"] == "sa-api@tokentails-prod.iam.gserviceaccount.com"
     error_message = "Service account emails are derived from the project id."
   }
@@ -229,6 +309,10 @@ run "wif_pinned_to_repo_and_main" {
   assert {
     condition     = strcontains(module.wif.attribute_condition, "assertion.repository_id=='835381356'")
     error_message = "WIF is pinned to the numeric repository id."
+  }
+  assert {
+    condition     = endswith(module.wif.deploy_member, "/attribute.workflow_ref/zbagdzevicius/tokentails/.github/workflows/deploy-gcp.yml@refs/heads/main")
+    error_message = "Only deploy-gcp.yml on main may impersonate sa-deploy."
   }
 }
 

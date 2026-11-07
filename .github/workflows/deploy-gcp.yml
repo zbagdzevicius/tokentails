@@ -1,6 +1,8 @@
 # Deploy Token Tails to Google Cloud (infra/gcp/RUNBOOK.md). Manual only (workflow_dispatch) until the cutover is done;
 # DigitalOcean and Vercel keep deploying from their own integrations meanwhile. No JSON keys: Workload Identity
-# Federation, allowed only for this repository on refs/heads/main (infra/gcp/terraform/modules/wif_github).
+# Federation, and sa-deploy may be impersonated only by this workflow file on refs/heads/main (job_workflow_ref,
+# infra/gcp/terraform/modules/wif_github): renaming this file needs the Terraform binding changed too. Every action in a
+# job with id-token: write is pinned to a commit SHA.
 #
 # Order: test -> build backend image once (tag = commit SHA) -> tt-api -> relay (only if relay code changed, or
 # forced) -> web -> cms. Every Cloud Run deploy goes to a no-traffic revision tagged `canary`, is smoke-tested through
@@ -68,8 +70,8 @@ jobs:
       run:
         working-directory: backend
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
@@ -88,14 +90,14 @@ jobs:
     outputs:
       image: ${{ steps.img.outputs.image }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - id: auth
-        uses: google-github-actions/auth@v2
+        uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
           project_id: ${{ env.PROJECT_ID }}
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
         with:
           project_id: ${{ env.PROJECT_ID }}
       - name: gcloud targets the Token Tails project only
@@ -123,13 +125,13 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
           project_id: ${{ env.PROJECT_ID }}
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
         with:
           project_id: ${{ env.PROJECT_ID }}
       - name: Deploy tt-api (no traffic, tag canary), smoke through the LB, then move traffic
@@ -149,15 +151,15 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
           project_id: ${{ env.PROJECT_ID }}
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
         with:
           project_id: ${{ env.PROJECT_ID }}
       - name: Deploy the relay (drain if offered, hand off, restart, restore)
@@ -177,13 +179,13 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
           project_id: ${{ env.PROJECT_ID }}
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
         with:
           project_id: ${{ env.PROJECT_ID }}
       - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet
@@ -216,13 +218,13 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: google-github-actions/auth@v2
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_DEPLOY_SA }}
           project_id: ${{ env.PROJECT_ID }}
-      - uses: google-github-actions/setup-gcloud@v2
+      - uses: google-github-actions/setup-gcloud@e427ad8a34f8676edf47cf7d7925499adf3eb74f # v2
         with:
           project_id: ${{ env.PROJECT_ID }}
       - run: gcloud auth configure-docker "${REGION}-docker.pkg.dev" --quiet

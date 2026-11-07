@@ -34,8 +34,8 @@ jobs:
   check:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: hashicorp/setup-terraform@v3
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
@@ -70,7 +70,7 @@ jobs:
           scan-type: config
           scan-ref: infra/gcp/terraform
           exit-code: "1"
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
       - name: relay latency tool tests
@@ -85,7 +85,7 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - name: Refuse anything but a tokentails-* project
         run: |
           case "${{ vars.TF_PROJECT_ID }}" in
@@ -93,12 +93,12 @@ jobs:
             tokentails-*) ;;
             *) echo "::error::TF_PROJECT_ID must be tokentails-*"; exit 1 ;;
           esac
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_TF_PLAN_SA }}
           project_id: ${{ vars.TF_PROJECT_ID }}
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
@@ -117,7 +117,7 @@ jobs:
           terraform -chdir="$TF_DIR" init -input=false -no-color \
             -backend-config="bucket=${{ vars.TF_STATE_BUCKET }}" -backend-config="prefix=envs/prod"
           terraform -chdir="$TF_DIR" plan -lock=false -input=false -no-color -out=tfplan | tee plan.txt
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: terraform-plan
           path: |
@@ -134,16 +134,16 @@ jobs:
       contents: read
       id-token: write
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
         with:
           name: terraform-plan
-      - uses: google-github-actions/auth@v2
+      - uses: google-github-actions/auth@c200f3691d83b41bf9bbd8638997a462592937ed # v2
         with:
           workload_identity_provider: ${{ vars.GCP_WIF_PROVIDER }}
           service_account: ${{ vars.GCP_TF_APPLY_SA }}
           project_id: ${{ vars.TF_PROJECT_ID }}
-      - uses: hashicorp/setup-terraform@v3
+      - uses: hashicorp/setup-terraform@b9cd54a3c349d3f38e8881555d616ced269862dd # v3
         with:
           terraform_version: ${{ env.TF_VERSION }}
           terraform_wrapper: false
