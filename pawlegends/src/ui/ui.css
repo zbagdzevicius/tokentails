@@ -1453,3 +1453,16 @@ html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }
 .pl-results .pl-prog tr.grp.enemy th { color: #ffb3bd; }
 /* the "Your Fish" legend clears the results column's bottom fade */
 .pl-results .pl-prog .src { margin-bottom: 14px; }
+
+/* MAP-GAPS A10: an off-screen ping's arrow at the screen edge (1 s) */
+.pl-pingedge {
+  position: fixed; width: 0; height: 0; z-index: 6; pointer-events: none; transform: rotate(var(--a));
+  animation: pl-pingedge 1s ease-out forwards;
+}
+.pl-pingedge::before {
+  content: ''; position: absolute; left: -14px; top: -10px; width: 0; height: 0;
+  border-left: 22px solid var(--c); border-top: 10px solid transparent; border-bottom: 10px solid transparent;
+  filter: drop-shadow(0 0 2px #2a1a22) drop-shadow(0 0 1px #2a1a22);
+}
+@keyframes pl-pingedge { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pl-pingedge { animation: none; } }

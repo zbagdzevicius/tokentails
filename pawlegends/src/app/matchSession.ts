@@ -52,6 +52,7 @@ import { ultHint } from '../render/effects';
 import { levelWhat } from '../ui/toyText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
+import { pingKindOfColor } from '../ui/pingGlyph';
 import { Minimap } from '../ui/minimap';
 import { PingWheel } from '../ui/pingWheel';
 import { chipPing } from '../ui/pingText';
@@ -1097,6 +1098,47 @@ export class MatchSession {
     sfx.play('click', { vol: 0.5, rate: 0.6 });
   }
 
+  /**
+   * MAP-GAPS A10: a ping at (x, y) mm: a minimap ring with the kind's glyph, its own ground marker (never the mint
+   * move-order marker) and, when the spot is off screen, an arrow at the screen edge for 1 s.
+   */
+  private pingMark(xMm: number, yMm: number, color: string): void {
+    const kind = pingKindOfColor(color);
+    this.minimap.ping(xMm, yMm, color, 3000, kind);
+    this.view.pingMarker(xMm / 1000, -yMm / 1000, color, kind);
+    this.pingEdge(xMm / 1000, -yMm / 1000, color);
+    sfx.play('click', { vol: 0.35, rate: 1.2 });
+    if (this.e2e) document.documentElement.dataset.pingMarks = String(this.view.pingMarks.placed);
+  }
+
+  /** MAP-GAPS A10: a 1 s arrow at the screen edge toward a ping at (x, z) m that is off screen. */
+  private pingEdge(x: number, z: number, color: string): void {
+    const c = this.gr.renderer.domElement;
+    const r = c.getBoundingClientRect();
+    const p = new THREE.Vector3(x, 0, z).project(this.gr.camera);
+    const sx = r.left + ((p.x + 1) / 2) * r.width;
+    const sy = r.top + ((1 - p.y) / 2) * r.height;
+    if (p.z < 1 && sx >= r.left && sx <= r.right && sy >= r.top && sy <= r.bottom) return;
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    let dx = sx - cx;
+    let dy = sy - cy;
+    if (p.z >= 1) {
+      dx = -dx;
+      dy = -dy;
+    }
+    const m = 28;
+    const k = Math.min((r.width / 2 - m) / Math.max(1e-3, Math.abs(dx)), (r.height / 2 - m) / Math.max(1e-3, Math.abs(dy)));
+    const el = document.createElement('div');
+    el.className = 'pl-pingedge';
+    el.style.left = `${cx + dx * k}px`;
+    el.style.top = `${cy + dy * k}px`;
+    el.style.setProperty('--c', color);
+    el.style.setProperty('--a', `${Math.atan2(dy, dx)}rad`);
+    this.ui.appendChild(el);
+    setTimeout(() => el.remove(), 1000);
+  }
+
   private marker(x: number, z: number, attack: boolean): void {
     // the bold ring marker (GameView.orderMarker: over the VFX, red with crosshair ticks for attacks) and a few sparks
     this.view.orderMarker(x, z, attack);
@@ -1262,8 +1304,7 @@ export class MatchSession {
               if (this.e2e) document.documentElement.dataset.mpNames = names.join('|');
             },
             pingAt: (x, y, color) => {
-              this.minimap.ping(x, y, color, 3000);
-              this.marker(x / 1000, -y / 1000, false);
+              this.pingMark(x, y, color);
               if (this.e2e) document.documentElement.dataset.mpPingAt = `${x},${y}`;
             },
             popOver: (slot, text, tone) => {
@@ -1531,14 +1572,12 @@ export class MatchSession {
         if (m.key === 'ping' && m.at && this.setup.party && this.view.mySlot !== 0) {
           // party play: the leader's ping, as a friend sees it (muted: nothing)
           if (this.mp?.isMuted(0)) continue;
-          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
-          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          this.pingMark(m.at.x, m.at.y, m.at.color);
           this.mp?.leaderPing(m.title);
           continue;
         }
         if (m.key === 'ping' && m.at) {
-          this.minimap.ping(m.at.x, m.at.y, m.at.color, 3000);
-          this.marker(m.at.x / 1000, -m.at.y / 1000, false);
+          this.pingMark(m.at.x, m.at.y, m.at.color);
           const at = this.heroScreen();
           if (at) j.pop(m.title, at.x, at.y - 34, 'info');
           sfx.play('click', { vol: 0.6 });
@@ -1822,6 +1861,7 @@ export class MatchSession {
       for (const ev of this.buffer.takeEvents(this.events)) {
         this.view.effects.handle(ev);
         this.feelEvent(ev);
+        this.minimap.event(ev);
         const a = this.announcer;
         if (a) this.present(a.feed(ev));
         const fe = ev as AnyEvent;
