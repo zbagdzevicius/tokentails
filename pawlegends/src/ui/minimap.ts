@@ -78,6 +78,32 @@ export function minimapRelation(cvd: boolean): { self: string; ally: string; ene
   return { self: RELATION_CSS.self, ally: RELATION_CSS.ally, enemy: cvd ? MM_ENEMY_CVD : RELATION_CSS.enemy, neutral: RELATION_CSS.neutral };
 }
 
+/** MAP-GAPS A6: the minimap draws the map into a rectangle this far (CSS px) inside the canvas edge. */
+export const MM_PAD = 6;
+
+/**
+ * MAP-GAPS A6 (and A24's flip): the minimap mapping for a `w` × `h` px canvas: sim mm → canvas px, inset by `pad`,
+ * and canvas px → sim mm (clamped to the map). `flip` turns the map 180° (a team-1 seat sees its base bottom left).
+ */
+export function minimapMapping(w: number, h: number, pad = MM_PAD, flip = false) {
+  const iw = Math.max(1, w - 2 * pad);
+  const ih = Math.max(1, h - 2 * pad);
+  const fx = (x: number): number => (flip ? MAP.width - x : x);
+  const fy = (y: number): number => (flip ? MAP.height - y : y);
+  return {
+    X: (xMm: number): number => pad + (fx(xMm) / MAP.width) * iw,
+    Y: (yMm: number): number => pad + (1 - fy(yMm) / MAP.height) * ih,
+    /** Canvas px → sim mm, clamped to the map. */
+    inv: (px: number, py: number): { xMm: number; yMm: number } => {
+      const u = Math.max(0, Math.min(1, (px - pad) / iw));
+      const v = Math.max(0, Math.min(1, (py - pad) / ih));
+      return { xMm: fx(u * MAP.width), yMm: fy((1 - v) * MAP.height) };
+    },
+    /** Clamp a canvas point into the inset rectangle (the view quad stays closed at the map edge). */
+    clamp: (px: number, py: number): [number, number] => [Math.max(pad, Math.min(w - pad, px)), Math.max(pad, Math.min(h - pad, py))],
+  };
+}
+
 /** MAP-GAPS A3: below this drawn diameter (CSS px) a hero is its initial; at and above it, its portrait. */
 export const PORTRAIT_MIN_PX = 12;
 
@@ -127,9 +153,9 @@ export class Minimap {
 
   private toMap(e: { clientX: number; clientY: number }): { xMm: number; yMm: number } {
     const r = this.canvas.getBoundingClientRect();
-    const u = Math.max(0, Math.min(1, (e.clientX - r.left) / r.width));
-    const v = Math.max(0, Math.min(1, (e.clientY - r.top) / r.height));
-    return { xMm: u * MAP.width, yMm: (1 - v) * MAP.height };
+    const sx = r.width > 0 ? this.w / r.width : 1;
+    const sy = r.height > 0 ? this.h / r.height : 1;
+    return this.map.inv((e.clientX - r.left) * sx, (e.clientY - r.top) * sy);
   }
 
   private look(p: { xMm: number; yMm: number }, hold?: number): void {
@@ -207,13 +233,17 @@ export class Minimap {
     this.h = h;
     this.dpr = dpr;
     this.k = w / 196;
+    this.map = minimapMapping(w, h, MM_PAD, this.flip);
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
     this.bg = this.paintBg();
   }
 
-  private X = (xMm: number): number => (xMm / MAP.width) * this.w;
-  private Y = (yMm: number): number => (1 - yMm / MAP.height) * this.h;
+  /** MAP-GAPS A6 / A24: the current mapping (inset, flipped for a team-1 seat). */
+  private map = minimapMapping(this.w, this.h);
+  private flip = false;
+  readonly X = (xMm: number): number => this.map.X(xMm);
+  readonly Y = (yMm: number): number => this.map.Y(yMm);
 
   private paintBg(): HTMLCanvasElement {
     const c = document.createElement('canvas');
@@ -221,21 +251,38 @@ export class Minimap {
     c.height = this.h * this.dpr;
     const g = c.getContext('2d')!;
     g.scale(this.dpr, this.dpr);
-    g.fillStyle = MM_GROUND.grass;
+    // MAP-GAPS A6: the forest frames the inset map, so a unit at the edge is drawn whole
+    g.fillStyle = MM_GROUND.forest;
     g.fillRect(0, 0, this.w, this.h);
+    const x0 = this.X(0);
+    const x1 = this.X(MAP.width);
+    const y0 = this.Y(MAP.height);
+    const y1 = this.Y(0);
+    g.fillStyle = MM_GROUND.grass;
+    g.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
     g.fillStyle = MM_GROUND.river;
-    g.fillRect(this.X(MAP.riverX[0]), 0, this.X(MAP.riverX[1]) - this.X(MAP.riverX[0]), this.h);
+    const rx0 = this.X(MAP.riverX[0]);
+    const rx1 = this.X(MAP.riverX[1]);
+    g.fillRect(Math.min(rx0, rx1), Math.min(y0, y1), Math.abs(rx1 - rx0), Math.abs(y1 - y0));
     // sim v5: the forest outside the playfield (the nav grid's blocked cells), darker, so a right-click there reads as
     // "not walkable"
     const wall = createGrid().walls;
-    g.fillStyle = '#3d6e3a';
-    const cw = this.w / NX;
-    const ch = this.h / NY;
-    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) if (wall[j * NX + i]) g.fillRect(i * cw, this.h - (j + 1) * ch, cw + 0.5, ch + 0.5);
+    g.fillStyle = MM_GROUND.forest;
+    const cw = Math.abs(this.X(MAP.navCell) - this.X(0));
+    const ch = Math.abs(this.Y(MAP.navCell) - this.Y(0));
+    for (let j = 0; j < NY; j++)
+      for (let i = 0; i < NX; i++)
+        if (wall[j * NX + i]) {
+          const ax = this.X(i * MAP.navCell);
+          const bx = this.X((i + 1) * MAP.navCell);
+          const ay = this.Y((j + 1) * MAP.navCell);
+          const by = this.Y(j * MAP.navCell);
+          g.fillRect(Math.min(ax, bx), Math.min(ay, by), cw + 0.5, ch + 0.5);
+        }
     g.strokeStyle = MM_GROUND.lane;
     g.lineCap = 'round';
     g.lineJoin = 'round';
-    g.lineWidth = (MAP.laneWidth / MAP.width) * this.w * 0.7;
+    g.lineWidth = (MAP.laneWidth / MAP.width) * (this.w - 2 * MM_PAD) * 0.7;
     for (const lane of ['sunny', 'puddle'] as const) {
       const pts = LANE_WAYPOINTS[lane];
       g.beginPath();
@@ -245,12 +292,18 @@ export class Minimap {
     }
     g.fillStyle = '#3f8a46';
     for (const b of BUSHES)
-      for (const x of [b.x, mirrorX(b.x)]) g.fillRect(this.X(x - b.w / 2), this.Y(b.y + b.h / 2), (b.w / MAP.width) * this.w, (b.h / MAP.height) * this.h);
+      for (const x of [b.x, mirrorX(b.x)]) {
+        const ax = this.X(x - b.w / 2);
+        const bx = this.X(x + b.w / 2);
+        const ay = this.Y(b.y + b.h / 2);
+        const by = this.Y(b.y - b.h / 2);
+        g.fillRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay));
+      }
     for (const team of [0, 1]) {
       const cx = team === 0 ? CORE.x : mirrorX(CORE.x);
       g.fillStyle = team === 0 ? 'rgba(255,111,145,0.35)' : 'rgba(150,92,30,0.45)';
       g.beginPath();
-      g.arc(this.X(cx), this.Y(CORE.y), (10000 / MAP.width) * this.w, 0, Math.PI * 2);
+      g.arc(this.X(cx), this.Y(CORE.y), (10000 / MAP.width) * (this.w - 2 * MM_PAD), 0, Math.PI * 2);
       g.fill();
       const fx = team === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x);
       g.fillStyle = '#bfe8ff';
@@ -383,10 +436,15 @@ export class Minimap {
     }
     const q = this.host.viewQuad();
     if (q) {
+      // MAP-GAPS A6: clamped into the inset map, so the quad stays closed at the map edge
       g.strokeStyle = 'rgba(255,255,255,0.85)';
       g.lineWidth = 1.2;
       g.beginPath();
-      q.forEach((p, i) => (i ? g.lineTo(this.X(p.x * 1000), this.Y(-p.z * 1000)) : g.moveTo(this.X(p.x * 1000), this.Y(-p.z * 1000))));
+      q.forEach((p, i) => {
+        const [x, y] = this.map.clamp(this.X(p.x * 1000), this.Y(-p.z * 1000));
+        if (i) g.lineTo(x, y);
+        else g.moveTo(x, y);
+      });
       g.closePath();
       g.stroke();
     }

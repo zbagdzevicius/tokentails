@@ -105,3 +105,48 @@ describe('MAP-GAPS A4 colour-blind safety', () => {
     expect(m.minionsDrawn).toEqual({ square: 1, diamond: 2, dot: 0 });
   });
 });
+
+describe('MAP-GAPS A6 edge inset', () => {
+  it('draws the self mark at the fountain spawn whole inside the canvas, at every minimap size', async () => {
+    const { minimapMapping, MM_PAD } = await import('../../src/ui/minimap');
+    for (const [w, h, touch] of [
+      [160, 96, true],
+      [176, 106, true],
+      [131, 79, true],
+      [196, 118, false],
+      [235, 142, false],
+    ] as const) {
+      const m = minimapMapping(w, h);
+      const r = (touch ? w / 36 : (8 * w) / 196) * 1.15 + 1.4;
+      for (const [x, y] of [
+        [3000, 32000],
+        [3000, 28000],
+        [97000, 32000],
+      ]) {
+        expect(m.X(x) - r, `${w} ${x}`).toBeGreaterThanOrEqual(0);
+        expect(m.X(x) + r).toBeLessThanOrEqual(w);
+        expect(m.Y(y) - r).toBeGreaterThanOrEqual(0);
+      }
+      expect(m.X(0)).toBe(MM_PAD);
+      expect(m.Y(0)).toBe(h - MM_PAD);
+    }
+  });
+
+  it('round-trips toMap(X(x)) and clamps the view quad into the inset', async () => {
+    const { minimapMapping } = await import('../../src/ui/minimap');
+    for (const flip of [false, true]) {
+      const m = minimapMapping(176, 106, 6, flip);
+      for (const [x, y] of [
+        [0, 0],
+        [3000, 32000],
+        [50000, 30000],
+        [100000, 60000],
+      ]) {
+        const p = m.inv(m.X(x), m.Y(y));
+        expect(p.xMm).toBeCloseTo(x, 3);
+        expect(p.yMm).toBeCloseTo(y, 3);
+      }
+      expect(m.clamp(-20, 500)).toEqual([6, 100]);
+    }
+  });
+});
