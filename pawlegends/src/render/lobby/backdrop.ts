@@ -3,6 +3,11 @@
  * a soft glow behind the hero, a vignette and slow drifting bokeh from hashed cells. `uTint` is the worn card's
  * element colour, else the hero colour. Low tier or reduced motion freezes `uTime` (a still picture).
  *
+ * UX pass 2 ("the lobby looks dull"): a painted scene (public/assets/lobby/, Gemini art, see LICENSES.md) is laid
+ * over the gradient once it loads: cover-fitted to the screen (not the plane), dimmed so the UI column and the hero
+ * read, with a gentle parallax that follows the pointer and a slow drift (both off under reduced motion / Low tier).
+ * Until the image arrives (or if it fails) the gradient is the picture, so nothing waits on it.
+ *
  * Render only: nothing here reaches the sim.
  */
 import * as THREE from 'three';
@@ -23,6 +28,11 @@ uniform float uTime;
 uniform float uBokeh;
 uniform vec2 uGlow;
 uniform float uAspect;
+uniform sampler2D uImg;
+uniform float uImgMix;
+uniform float uImgAspect;
+uniform vec2 uRes;
+uniform vec2 uPar;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -57,6 +67,19 @@ void main() {
     float b = bokeh(uv, 7.0, 0.018, 0.0) * 0.55 + bokeh(uv + 0.37, 4.0, 0.010, 11.0) * 0.35;
     col += mix(vec3(1.0, 0.95, 0.88), uTint, 0.55) * b * uBokeh * (0.35 + 0.65 * uv.y);
   }
+  // the painted scene: screen-space cover fit (the camera moves; the picture must not), zoomed 5% so the parallax
+  // shift never shows an edge; dimmed and pulled toward the tint a touch so a card's element still colours the room
+  if (uImgMix > 0.001) {
+    vec2 s = gl_FragCoord.xy / uRes;
+    float a = uRes.x / uRes.y;
+    if (a > uImgAspect) s.y = (s.y - 0.5) * uImgAspect / a + 0.5;
+    else s.x = (s.x - 0.5) * a / uImgAspect + 0.5;
+    s = (s - 0.5) / 1.05 + 0.5 + uPar * 0.022;
+    vec3 img = texture2D(uImg, s).rgb * 0.86;
+    img = mix(img, img * (0.75 + uTint * 0.5), 0.18);
+    img += uTint * glow * 0.12;
+    col = mix(col, img, uImgMix);
+  }
   // vignette
   vec2 v = (uv - 0.5) * vec2(1.25, 1.0);
   col *= 1.0 - smoothstep(0.32, 0.85, length(v)) * 0.55;
@@ -72,6 +95,10 @@ export interface Backdrop {
   setBokeh(k: number): void;
   /** Advance; `frozen` keeps the picture still (Low tier or reduced motion). */
   update(dt: number, frozen: boolean): void;
+  /** Lay a painted scene over the gradient (loaded async; it fades in, at once when `instant`). */
+  setImage(url: string, instant?: boolean): void;
+  /** Parallax target in -1..1 (pointer position); eased. */
+  setParallax(x: number, y: number): void;
   dispose(): void;
 }
 
@@ -89,13 +116,29 @@ export function createBackdrop(): Backdrop {
     // the hero stands a little right of the plane's centre; the glow sits behind it
     uGlow: { value: new THREE.Vector2(0.5, 0.42) },
     uAspect: { value: W / H },
+    uImg: { value: null as THREE.Texture | null },
+    uImgMix: { value: 0 },
+    uImgAspect: { value: 16 / 9 },
+    uRes: { value: new THREE.Vector2(1, 1) },
+    uPar: { value: new THREE.Vector2(0, 0) },
   };
+  /** When the image arrived (performance.now ms; -1 = not yet): a 0.5 s wall-clock fade, so a slow first frame rate
+   *  (clamped dt) never leaves it half in. */
+  let imgAt = -1;
+  let imgInstant = false;
+  let imgUrl = '';
+  const par = new THREE.Vector2(0, 0);
+  let drift = 0;
   const mat = new THREE.ShaderMaterial({ vertexShader: VERT, fragmentShader: FRAG, uniforms, depthWrite: false, toneMapped: false, fog: false });
   const mesh = new THREE.Mesh(new THREE.PlaneGeometry(W, H), mat);
   mesh.name = 'lobby-backdrop';
   mesh.position.set(0, 6, -14);
   mesh.renderOrder = -10;
   mesh.frustumCulled = false;
+  // the drawing-buffer size for the screen-space cover fit (the lobby renders full screen)
+  mesh.onBeforeRender = (renderer) => {
+    renderer.getDrawingBufferSize(uniforms.uRes.value);
+  };
   return {
     mesh,
     setTint(hex) {
@@ -107,10 +150,54 @@ export function createBackdrop(): Backdrop {
     update(dt, frozen) {
       if (!frozen) uniforms.uTime.value += dt;
       uniforms.uTint.value.lerp(target, Math.min(1, dt * 3));
+      uniforms.uImgMix.value = imgAt < 0 ? 0 : imgInstant || frozen ? 1 : Math.min(1, (performance.now() - imgAt) / 500);
+      if (frozen) {
+        uniforms.uPar.value.set(0, 0);
+        return;
+      }
+      // a slow sway (about a 40 s loop) plus the pointer, eased so it glides
+      drift += dt;
+      const k = Math.min(1, dt * 2.5);
+      const p = uniforms.uPar.value;
+      p.x += (par.x + Math.sin(drift * 0.16) * 0.25 - p.x) * k;
+      p.y += (par.y + Math.cos(drift * 0.11) * 0.15 - p.y) * k;
+    },
+    setImage(url, instant = false) {
+      if (!url || url === imgUrl) return;
+      imgUrl = url;
+      new THREE.TextureLoader().load(
+        url,
+        (tex) => {
+          if (imgUrl !== url) {
+            tex.dispose();
+            return;
+          }
+          tex.colorSpace = THREE.SRGBColorSpace;
+          tex.generateMipmaps = false;
+          tex.minFilter = THREE.LinearFilter;
+          tex.wrapS = tex.wrapT = THREE.ClampToEdgeWrapping;
+          const img = tex.image as { width?: number; height?: number } | undefined;
+          if (img?.width && img.height) uniforms.uImgAspect.value = img.width / img.height;
+          uniforms.uImg.value?.dispose();
+          uniforms.uImg.value = tex;
+          imgInstant = instant;
+          imgAt = performance.now();
+        },
+        undefined,
+        () => {
+          // a failed load keeps the gradient (offline, blocked): nothing else depends on it
+          if (imgUrl === url) imgUrl = '';
+        },
+      );
+    },
+    setParallax(x, y) {
+      par.set(Math.max(-1, Math.min(1, x)), Math.max(-1, Math.min(1, y)));
     },
     dispose() {
       mesh.geometry.dispose();
       mat.dispose();
+      uniforms.uImg.value?.dispose();
+      uniforms.uImg.value = null;
     },
   };
 }

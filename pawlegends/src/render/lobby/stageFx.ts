@@ -65,6 +65,11 @@ export class StageFx {
     scene.add(this.ring);
   }
 
+  /** The mouse position the stage sways to, -1..1 each way (0, 0 off the lobby or on touch). */
+  aim(): { x: number; y: number } {
+    return { x: this.tx, y: this.ty };
+  }
+
   /** Start or stop listening to the pointer (the lobby is on screen). */
   listen(on: boolean): void {
     if (typeof window === 'undefined' || on === this.listening) return;
