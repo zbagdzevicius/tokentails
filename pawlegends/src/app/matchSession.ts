@@ -54,7 +54,7 @@ import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
 import { pingKindOfColor } from '../ui/pingGlyph';
 import { resetStructures, syncStructures } from '../input/navMirror';
-import { Minimap } from '../ui/minimap';
+import { Minimap, laneNamed } from '../ui/minimap';
 import { PingWheel } from '../ui/pingWheel';
 import { chipPing } from '../ui/pingText';
 import { Overhead } from '../ui/overhead';
@@ -1107,6 +1107,7 @@ export class MatchSession {
   private pingMark(xMm: number, yMm: number, color: string): void {
     const kind = pingKindOfColor(color);
     this.minimap.ping(xMm, yMm, color, 3000, kind);
+    if (kind === 'pushSunny' || kind === 'pushPuddle') this.minimap.flashLane(kind === 'pushSunny' ? 'sunny' : 'puddle');
     this.view.pingMarker(xMm / 1000, -yMm / 1000, color, kind);
     this.pingEdge(xMm / 1000, -yMm / 1000, color);
     sfx.play('click', { vol: 0.35, rate: 1.2 });
@@ -1566,6 +1567,9 @@ export class MatchSession {
     const j = this.view.juice;
     const me = this.view.me();
     for (const m of list) {
+      // MAP-GAPS A19: a line that names a lane flashes it on the minimap
+      const named = laneNamed(m.title);
+      if (named) this.minimap.flashLane(named);
       // Nine Lives read like "you survived" when it fired on the killing blow: only while alive
       if (m.key === 'nineLives' && (!me || me.state === 'dead' || me.hp <= 0)) continue;
       if (m.size === 'ping') {
