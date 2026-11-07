@@ -44,6 +44,9 @@ resource "google_project_service" "storage" {
   disable_on_destroy = false
 }
 
+# Waiver: Google-managed encryption. CMEK adds a KMS key ring, rotation and an outage mode for no gain at this
+# scale; nothing in this bucket is a secret value (state holds names and settings only, never secret versions).
+#trivy:ignore:GCP-0066
 resource "google_storage_bucket" "state" {
   project                     = var.project_id
   name                        = coalesce(var.bucket_name, "${var.project_id}-tfstate")

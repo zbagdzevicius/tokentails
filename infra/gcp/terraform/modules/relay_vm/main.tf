@@ -34,6 +34,7 @@ resource "google_compute_instance_template" "relay" {
 
   # No external IP: egress through Cloud NAT, ingress only from the load balancer and health checkers.
   network_interface {
+    network    = var.network
     subnetwork = var.subnetwork
   }
 

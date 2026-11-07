@@ -72,6 +72,10 @@ resource "google_project_iam_audit_config" "secret_manager" {
   }
 
   audit_log_config {
+    log_type = "DATA_WRITE"
+  }
+
+  audit_log_config {
     log_type = "ADMIN_READ"
   }
 }
