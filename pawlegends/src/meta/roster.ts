@@ -66,9 +66,24 @@ export interface RosterCat {
 export const APP_ORIGINS: readonly string[] = Object.freeze(['starter', 'redeem']);
 
 let appBuild = false;
-/** The host said this is an app build: `parseRoster` keeps starter and redeemed cats only from now on. */
+let appBuildLocked = false;
+/**
+ * The host said this is an app build: `parseRoster` keeps starter and redeemed cats only from now on. Ignored once
+ * the native app shell locked it (`lockAppBuild`): nothing a page receives can turn the app build off.
+ */
 export function setAppBuild(isApp: boolean): void {
+  if (appBuildLocked) return;
   appBuild = isApp;
+}
+/** The native app shell (app/platform.ts `inAppShell`): an app build for the whole page lifetime. */
+export function lockAppBuild(): void {
+  appBuild = true;
+  appBuildLocked = true;
+}
+/** Tests: back to a plain web page. */
+export function resetAppBuild(): void {
+  appBuild = false;
+  appBuildLocked = false;
 }
 export const isAppBuild = (): boolean => appBuild;
 

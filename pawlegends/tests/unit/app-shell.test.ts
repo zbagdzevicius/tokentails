@@ -1,0 +1,91 @@
+/**
+ * The App Store build (docs/plans/moba/APP-STORE.md "IAP, crypto and donations on iOS"): inside the native shell the
+ * game is an app build for good. No checkout, no notify sign-up, no purchased cosmetics, no link to tokentails.com
+ * on the empty deck, and dare links point at the public web game, never at `capacitor://localhost`.
+ */
+import { afterEach, describe, expect, it } from 'vitest';
+import { inAppShell, PUBLIC_GAME_URL, shareBase } from '../../src/app/platform';
+import { isAppBuild, lockAppBuild, parseRoster, resetAppBuild, setAppBuild } from '../../src/meta/roster';
+import { Entitlements } from '../../src/money/entitlements';
+import { pickMeet } from '../../src/money/offer';
+import { emptyAction, emptyCard, TT_URL } from '../../src/ui/deck/empty';
+
+afterEach(() => resetAppBuild());
+
+describe('inAppShell', () => {
+  it('is on with the build flag', () => {
+    expect(inAppShell(true, undefined)).toBe(true);
+  });
+  it('is on when a Capacitor native bridge is on the page', () => {
+    expect(inAppShell(false, { Capacitor: { isNativePlatform: () => true } })).toBe(true);
+  });
+  it('is off on the web (no bridge, a web Capacitor, or a throwing one)', () => {
+    expect(inAppShell(false, {})).toBe(false);
+    expect(inAppShell(false, { Capacitor: { isNativePlatform: () => false } })).toBe(false);
+    expect(
+      inAppShell(false, {
+        Capacitor: {
+          isNativePlatform: () => {
+            throw new Error('x');
+          },
+        },
+      }),
+    ).toBe(false);
+  });
+});
+
+describe('shareBase', () => {
+  it('the app shares the public game, never its own capacitor:// address', () => {
+    expect(shareBase({ appShell: true, embedded: false, referrer: '', href: 'capacitor://localhost/index.html' })).toBe(PUBLIC_GAME_URL);
+    expect(PUBLIC_GAME_URL).toBe('https://tokentails.com/pawlegends');
+  });
+  it('embedded: the host page; standalone web: this page', () => {
+    expect(shareBase({ appShell: false, embedded: true, referrer: 'https://tokentails.com/pawlegends/play?x=1', href: 'https://h/g' })).toBe('https://tokentails.com/pawlegends');
+    expect(shareBase({ appShell: false, embedded: false, referrer: '', href: 'https://h/g?a=1' })).toBe('https://h/g?a=1');
+    expect(shareBase({ appShell: false, embedded: true, referrer: 'not a url', href: 'https://h/g' })).toBe('https://h/g');
+  });
+});
+
+describe('lockAppBuild', () => {
+  it('a host message cannot turn the app build off once the shell locked it', () => {
+    lockAppBuild();
+    setAppBuild(false);
+    expect(isAppBuild()).toBe(true);
+  });
+  it('keeps starter and redeemed cats only', () => {
+    lockAppBuild();
+    const cats = parseRoster([
+      { id: 'a1', name: 'Bought', origin: 'purchase', sprite: 'assets/BLACK/a.png' },
+      { id: 'a2', name: 'Free', origin: 'starter', sprite: 'assets/BLACK/a.png' },
+    ]);
+    expect(cats.map((c) => c.id)).not.toContain('a1');
+  });
+});
+
+describe('Entitlements in the app shell', () => {
+  it('no checkout, no notify, no purchased cosmetics even when a host offers them', () => {
+    lockAppBuild();
+    const ent = new Entitlements();
+    ent.apply({ type: 'app', isApp: false, store: true, notify: true });
+    const s = ent.snapshot();
+    expect(s.isApp).toBe(true);
+    expect(s.catCheckout).toBe(false);
+    expect(s.notifyOpen).toBe(false);
+    expect(s.items.size).toBe(0);
+    expect(pickMeet({ store: s } as unknown as Parameters<typeof pickMeet>[0])).toBeNull();
+  });
+  it('the web build is unchanged', () => {
+    const ent = new Entitlements();
+    ent.apply({ type: 'app', isApp: false, store: true });
+    expect(ent.snapshot().catCheckout).toBe(true);
+  });
+});
+
+describe('the empty deck in the app', () => {
+  it('has no link to tokentails.com', () => {
+    const ctx = { signedIn: false, isApp: true, embed: false };
+    expect(emptyAction(ctx)).toBe('none');
+    expect(emptyCard(ctx)).not.toContain(TT_URL);
+    expect(emptyCard(ctx)).not.toContain('<a ');
+  });
+});
