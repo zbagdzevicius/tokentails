@@ -17,6 +17,8 @@ export interface HostConfig {
   /** `app{isApp, store, notify}` sent on every ready. Omit to send no `app` message. */
   app?: { isApp: boolean; store: boolean; notify?: boolean };
   signedIn?: boolean;
+  /** UX pass 2: `session.name` (the profile name) sent with a signed-in session. */
+  name?: string;
   token?: string | null;
   roster?: unknown[];
   /** Answer each purchase intent with `purchase-result{ok:true}` and this token (a Stripe test checkout return). */
@@ -62,7 +64,7 @@ function hostHtml(cfg: HostConfig): string {
     };
     var sticky = function () {
       if (cfg.app) send('app', cfg.app);
-      send('session', { signedIn: !!cfg.signedIn });
+      send('session', cfg.name ? { signedIn: !!cfg.signedIn, name: cfg.name } : { signedIn: !!cfg.signedIn });
       if (cfg.roster) send('roster', { cats: cfg.roster });
       if (token) send('entitlements', { token: token });
       if (cfg.featured) send('featured', { cats: cfg.featured });

@@ -628,9 +628,11 @@ export const PawlegendsHost = ({
     return uid && p && !p.transient ? progressFromProfile(p) : null;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [uid, progressKey]);
+  // UX pass 2: the profile name rides along (signed in only), so the player's own hero shows it instead of "You"
+  const playerName = signedIn && profile && !(profile as { transient?: boolean }).transient ? (profile.name ?? null) : null;
   useEffect(() => {
-    bridgeRef.current?.setSession(signedIn, progress);
-  }, [signedIn, progress, bridgeState]);
+    bridgeRef.current?.setSession(signedIn, progress, playerName);
+  }, [signedIn, progress, playerName, bridgeState]);
   useEffect(() => {
     bridgeRef.current?.setEntitlements(isApp ? null : token);
   }, [isApp, token]);

@@ -444,6 +444,19 @@ describe("PawlegendsHost: account and saves", () => {
     });
   });
 
+  it("UX pass 2: session carries the signed-in player's profile name, cleaned; never for a guest", async () => {
+    mockAuth.mockReturnValue(account());
+    mockProfile.mockReturnValue({ profile: { cats: [], name: "  Žygis <b>Paw</b>son\u0007  " } });
+    const h = await mount();
+    expect(h.last("session")).toMatchObject({ signedIn: true, name: "Žygis bPaw/bson" });
+  });
+
+  it("UX pass 2: a guest's session has no name", async () => {
+    mockProfile.mockReturnValue({ profile: { cats: [], name: "Someone" } });
+    const h = await mount();
+    expect(h.last("session")).not.toHaveProperty("name");
+  });
+
   it("a match with a Firebase user posts once to /live; save-result goes saving then saved with +catnip; the profile follows", async () => {
     const auth = account({ user: { uid: "uid-1", isAnonymous: true, email: null }, authStatus: "guest" });
     mockAuth.mockReturnValue(auth);

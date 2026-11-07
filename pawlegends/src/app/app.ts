@@ -865,6 +865,8 @@ export class App {
     const owned = this.owned();
     const look = this.lookFor(hero);
     const setup: MatchSetup = {
+      // UX pass 2: the account's profile name, else the party display name the friends see for this seat
+      playerName: this.integration.state().playerName ?? match.names[slot] ?? null,
       hero,
       trick,
       difficulty,
@@ -945,6 +947,8 @@ export class App {
     // no probe here: the match uses the palette cached at its start (a probe landing mid-match would rebuild the rig)
     const setup: MatchSetup = {
       ...c,
+      // UX pass 2: the signed-in player's profile name over their own hero (guests: "You")
+      playerName: this.integration.state().playerName,
       seed,
       speed: this.speed,
       firstMatch: tips,
@@ -1053,6 +1057,8 @@ export class App {
   private showResults(e: MatchEnd): void {
     // QA: the name the match used (a roster update during the match must not turn "Ficus" back into "Clem")
     const myCard = this.session?.card ?? null;
+    // UX pass 2: the username the match showed names the player's row (and the MVP / best lines)
+    const userName = this.session?.playerName ?? null;
     const won = e.result.outcome === 'won';
     const seconds = Math.floor(e.result.ticks / 30);
     const setup = this.lastSetup;
@@ -1164,7 +1170,7 @@ export class App {
     const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
     // lobby spec §3b: a worn owned card names the player's row and MVP after the cat (records stay per hero)
-    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, myCard);
+    const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, userName ? { name: userName } : myCard);
     // party play: every human row (yours too), the MVP and "Best on your team" use the party names the friends saw
     const partyNames = (partyEnd as { names?: (string | null)[] } | undefined)?.names;
     if (partyNames) partyNames.forEach((n, slot) => n && (names[slot] = n));

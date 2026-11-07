@@ -186,11 +186,31 @@ export function parseProgress(v: unknown): Progress | null {
 export interface SessionInfo {
   signedIn: boolean;
   progress: Progress | null;
+  /** UX pass 2: the signed-in player's Token Tails profile name (absent: none or not signed in). */
+  name?: string;
+}
+
+/** Most characters of `session.name` kept (the plate cuts it to 14 with an ellipsis). */
+export const PLAYER_NAME_MAX = 24;
+
+/**
+ * `session.name`: one clean line, no markup or control characters, at least one letter or digit, cut to
+ * PLAYER_NAME_MAX code points; else null. The host's `playerNameOf` is the same rule (shared fixture).
+ */
+export function parsePlayerName(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const clean = v
+    .replace(/[\u0000-\u001f\u007f-\u009f<>&"'`\u200b-\u200f\u2028-\u202e\u2066-\u2069\ufeff]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!/[\p{L}\p{N}]/u.test(clean)) return null;
+  return Array.from(clean).slice(0, PLAYER_NAME_MAX).join('').trim() || null;
 }
 
 export function parseSession(m: Record<string, unknown>): SessionInfo | null {
   if (typeof m.signedIn !== 'boolean') return null;
-  return { signedIn: m.signedIn, progress: m.signedIn ? parseProgress(m.progress) : null };
+  const name = m.signedIn ? parsePlayerName(m.name) : null;
+  return { signedIn: m.signedIn, progress: m.signedIn ? parseProgress(m.progress) : null, ...(name ? { name } : {}) };
 }
 
 export const SAVE_STATUSES = Object.freeze(['saving', 'saved', 'queued', 'failed', 'rejected'] as const);

@@ -25,7 +25,7 @@ import { isFun, type AnyEvent } from '../render/feelEvents';
 import type { GuideMode } from './firstSession';
 import { cardLook, ELEMENT_COLOR, lookKey, type FrameId, type Look } from '../render/cosmetics';
 import { setProbeBlocked } from '../render/skins/spriteProbe';
-import { cardIdentity, selfNames, type CardIdentity } from '../meta/cardName';
+import { cardIdentity, cutName, heroSub, selfNames, tidyName, type CardIdentity } from '../meta/cardName';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
 import { eyesOf } from '../render/skins/registry';
 import type { SkinFxMode } from '../render/skins/tierFx';
@@ -94,6 +94,13 @@ const LANE_HELP_FROM_S = 40;
 const LOL_CREST = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 2l2.6 5.3 5.9.9-4.2 4.1 1 5.8L12 15.4l-5.3 2.7 1-5.8L3.5 8.2l5.9-.9z"/></svg>';
 
 export interface MatchSetup {
+  /**
+   * UX pass 2: the player's in-game username (the Token Tails profile name, or the party display name), shown over
+   * their own hero and in their scoreboard row, kill feed, death recap and results instead of "You" or the champion
+   * title; the champion stays visible as the small line under it and in the portraits. Absent: "You". Bots keep
+   * their persona names ("Biscuit the Clem").
+   */
+  playerName?: string | null;
   hero: HeroId;
   trick: TrickId;
   difficulty: Difficulty;
@@ -340,9 +347,15 @@ export class MatchSession {
   private catNames: string[] = [];
   /** Lobby spec §3b: the owned card the player's champion wears (its name replaces the hero title), or null. */
   private myCard: CardIdentity | null = null;
+  /** UX pass 2: the player's username, cleaned and cut to 14 characters (setup.playerName), or null. */
+  private selfName: string | null = null;
   /** pawlegends: the card worn this match, as the match named it (the results screen keeps that name, QA). */
   get card(): CardIdentity | null {
     return this.myCard;
+  }
+  /** UX pass 2: the username this match showed for the player (results name their row after it), or null. */
+  get playerName(): string | null {
+    return this.selfName;
   }
   /** `?e2e=1`: mirror a few facts into html data attributes for Playwright (one window global: `__plJuice`, the rail). */
   private readonly e2e = (() => {
@@ -523,8 +536,13 @@ export class MatchSession {
     // instead of "You" over a small cat line (the self chevron and colour still mark it as yours)
     const myCard = cardIdentity(w.picks[w.slot], this.setup.look);
     this.myCard = myCard;
-    if (myCard) this.overhead.selfName = true;
-    this.overhead.catName = myCard ? null : (mine?.name ?? null);
+    // UX pass 2: a username names the own plate (over the champion: "Clem", or the worn cat and the champion)
+    const user = this.setup.playerName ? cutName(tidyName(this.setup.playerName), 14) || null : null;
+    this.selfName = user;
+    const heroTitle = HERO_TEXT[w.picks[w.slot]]?.title ?? '';
+    if (myCard || user) this.overhead.selfName = true;
+    this.overhead.catName = user ? (myCard ? `${myCard.name} · ${heroTitle}` : mine?.name ? `${mine.name} · ${heroTitle}` : heroTitle) : myCard ? null : (mine?.name ?? null);
+    if (this.e2e) document.documentElement.dataset.selfName = user ?? '';
     this.overhead.plateGem = mine?.rung === 'LEGENDARY' ? `#${ELEMENT_COLOR[mine.element].toString(16).padStart(6, '0')}` : null;
     this.catNames = w.picks.map((_, slot) => (slot === w.slot ? (mine?.name ?? '') : (shown.get(slot) ?? '')));
     this.overhead.mySlot = w.slot;
@@ -593,7 +611,8 @@ export class MatchSession {
     this.goals.touch = coarse;
     this.goals.names = { q: ht.abilities[0].name, r: ht.abilities[3].name };
     // sim v5 species teams: a hero twice in one team, the second one is "Sage 2" (one table for every label)
-    this.names = selfNames(slotNames(w.picks, w.seed, w.slot), w.slot, myCard);
+    this.names = selfNames(slotNames(w.picks, w.seed, w.slot), w.slot, user ? { name: user } : myCard);
+    if (this.e2e) document.documentElement.dataset.plateNames = this.names.join('|');
     this.announcer = new Announcer(w.slot, w.team, (s) => this.names[s] ?? 'A hero', (s) => w.picks[s]);
     // LoL pass (lane B): an Ace reads who is out from the latest snapshot (an enemy out of sight counts by its timer)
     this.announcer.down = (slot) => {
@@ -641,7 +660,7 @@ export class MatchSession {
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
     // lobby spec §3b: the worn card's name rides on the HUD portrait too ("Ficus · Clem")
-    this.hud.setSelfName(myCard?.name ?? null);
+    this.hud.setSelfName(this.selfName ?? myCard?.name ?? null);
     // LoL pass (lane B): e2e reaches the HUD (the crest, the kill feed) the way it reaches the rail
     if (this.e2e) e2eHook('Hud', this.hud);
     const portrait = this.ui.querySelector<HTMLElement>('.pl-portrait');
@@ -658,7 +677,7 @@ export class MatchSession {
       d.matchSeed = String(w.seed);
     }
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
-    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && this.myCard ? this.myCard.heroTitle : c)));
+    this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
     // cards: the VS intro (both teams as Token Tails cards flipping up over the held countdown); its own lazy chunk,
     // skipped in e2e unless ?vs=1 and at test speeds
     if ((!this.e2e || /[?&]vs=1/.test(location.search)) && Math.max(1, this.buffer.speed) === 1) {
@@ -666,7 +685,7 @@ export class MatchSession {
       void import('../ui/cards/vs')
         .then((m) => {
           // a chunk that lands after the count reached "1" would cover the match start: skip it then
-          if (!this.disposed && !this.vsDone) m.showVsIntro(this.ui, { picks: w.picks, mySlot: w.slot, names: this.names, cats: this.catNames, myPortrait: vsPortrait, myTier: mine?.rung ?? null, meName: this.myCard?.name ?? null, meSub: this.myCard?.sub ?? null, teamNames: [teamLabel(w.picks, 0), teamLabel(w.picks, 1)] });
+          if (!this.disposed && !this.vsDone) m.showVsIntro(this.ui, { picks: w.picks, mySlot: w.slot, names: this.names, cats: this.catNames, myPortrait: vsPortrait, myTier: mine?.rung ?? null, meName: this.selfName ?? this.myCard?.name ?? null, meSub: this.myCard?.sub ?? (this.selfName ? heroSub(hero) : null), teamNames: [teamLabel(w.picks, 0), teamLabel(w.picks, 1)] });
         })
         .catch(() => undefined);
     }
@@ -790,7 +809,7 @@ export class MatchSession {
     const good = victim.team !== this.view.myTeam;
     const rel = (team: number | undefined, id: number): FeedName['rel'] =>
       id === this.view.mySlot ? 'self' : team === 2 || team === undefined ? 'neutral' : team === this.view.myTeam ? 'ally' : 'enemy';
-    const self = this.myCard?.name ?? 'You';
+    const self = this.selfName ?? this.myCard?.name ?? 'You';
     const victimName = e.id === this.view.mySlot ? self : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A hero'));
     const killerLabel = e.killer === this.view.mySlot ? self : killer?.kind === 'hero' && this.names[e.killer] ? this.names[e.killer] : killerName(killer);
     // cards: heroes carry their face (an element-ringed portrait) into the kill feed
