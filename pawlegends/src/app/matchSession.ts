@@ -42,7 +42,7 @@ import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
-import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
+import { BuffFlag, Op, type Difficulty, type EntitySnap, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
 import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { headingPoint } from '../input/heading';
 import { ProgressRail } from '../ui/progressRail';
@@ -559,6 +559,8 @@ export class MatchSession {
       level: () => this.frameNow?.byId.get(w.slot)?.level ?? 1,
       branch: () => this.frameNow?.byId.get(w.slot)?.branch === true,
       nowMs: () => performance.now(),
+      // UX pass 2: the flash reads readiness and windups from the newest snapshot (the drawn frame trails it)
+      simOwn: () => this.ownNewest,
       // C2: a buffered cast that never found a free moment: the deny sound and the button's red flash only now
       onDeny: (slot: 0 | 1 | 2 | 3 | 4) => {
         if (this.touch?.isEnabled) this.touch.deny(slot);
@@ -1998,10 +2000,14 @@ export class MatchSession {
   /** The own hero in the newest snapshot (the input steers and casts from there, ahead of the drawn hero). */
   private ownSim: { x: number; y: number; tick: number } | null = null;
 
+  /** UX pass 2: the own hero's cooldowns and state in the newest snapshot (Orders: the flash goes by these). */
+  private ownNewest: { cooldowns: readonly number[] | null; state: EntitySnap['state'] } | null = null;
+
   private simOwn(s: Snapshot): void {
     if (!this.welcome) return;
     const me = s.entities.find((e) => e.id === this.view.mySlot);
     if (!me) return;
+    this.ownNewest = { cooldowns: me.cooldowns ?? null, state: me.state };
     if (me.state === 'dead') {
       this.ownSim = null;
       return;

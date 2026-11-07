@@ -1013,7 +1013,14 @@ export class TouchControls {
 
   /** Per frame: joystick commands, attack repeat, cooldown overlays, and (Wave C) the rank pips. */
   update(cooldowns: readonly number[] | null, max: readonly number[], level: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      // UX pass 2: the HUD's Paw Trick button (mouse click) flashes along the heading too, so the movement track is
+      // kept while the touch cluster is off; it used to fall back to the facing (often toward the enemy just hit)
+      const m = this.me();
+      if (m && m.state !== 'dead') this.motion.sample(m.x, m.y, performance.now());
+      else this.motion.clear();
+      return;
+    }
     if (level !== this.pipLevel) {
       this.pipLevel = level;
       (['q', 'w', 'e', 'r'] as const).forEach((b, i) => {
