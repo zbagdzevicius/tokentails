@@ -104,6 +104,34 @@ export function crashSender(sink: CrashSink): CrashHook {
   };
 }
 
+/**
+ * UX pass 2: embedded, the host has no close button any more (the lobby's Games button posts bridge `exit`), so the
+ * crash panel carries its own way out: "Back to games" next to Reload whenever an exit is set (main.ts sets it from
+ * the bridge, before the App boots). A crash that comes back on every reload no longer traps the player in the app.
+ */
+let exitFn: (() => boolean) | null = null;
+let shownBox: HTMLElement | null = null;
+
+/** Set (or clear) the crash panel's way out; an open panel gets (or loses) its button at once. */
+export function setCrashExit(fn: (() => boolean) | null): void {
+  exitFn = fn;
+  if (shownBox) addExit(shownBox);
+}
+
+function addExit(box: HTMLElement): void {
+  box.querySelector('.crash-exit')?.remove();
+  if (!exitFn) return;
+  const b = box.ownerDocument.createElement('button');
+  b.type = 'button';
+  b.className = 'crash-exit';
+  b.textContent = 'Back to games';
+  b.addEventListener('click', () => {
+    // no host answer yet (no hello): the host page shows its own Back link while it waits
+    if (!exitFn?.()) b.disabled = true;
+  });
+  box.querySelector('.crash-actions')?.appendChild(b);
+}
+
 export function showCrash(err: unknown, doc: Document = document): HTMLElement | null {
   if (shown) return null;
   shown = true;
@@ -111,10 +139,13 @@ export function showCrash(err: unknown, doc: Document = document): HTMLElement |
   box.id = 'crash';
   box.setAttribute('role', 'alertdialog');
   box.setAttribute('aria-label', 'The game stopped');
-  box.innerHTML = '<div class="crash-card"><h2>Oops, the game tripped over its tail.</h2><p class="crash-msg"></p><button type="button">Reload</button></div>';
+  box.innerHTML =
+    '<div class="crash-card"><h2>Oops, the game tripped over its tail.</h2><p class="crash-msg"></p><div class="crash-actions"><button type="button" class="crash-reload">Reload</button></div></div>';
   (box.querySelector('.crash-msg') as HTMLElement).textContent = crashMessage(err);
-  box.querySelector('button')!.addEventListener('click', () => location.reload());
+  box.querySelector('.crash-reload')!.addEventListener('click', () => location.reload());
+  addExit(box);
   doc.body.appendChild(box);
+  shownBox = box;
   return box;
 }
 
@@ -134,6 +165,8 @@ export function installCrashOverlay(win: Window = window, onError?: CrashHook): 
 /** Tests only. */
 export function resetCrashForTests(): void {
   shown = false;
+  shownBox = null;
+  exitFn = null;
   hook = null;
   reported = 0;
   waiting.length = 0;

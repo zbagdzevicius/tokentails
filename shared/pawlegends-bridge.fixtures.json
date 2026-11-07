@@ -90,7 +90,11 @@
               "fastestWin": { "easy": 0, "normal": 0, "rookie": 0, "hard": 0 }
             }
           }
-        }
+        },
+        { "$comment": "UX pass 2: the signed-in player's profile name: one clean line, no markup or control characters, cut to 24 code points.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "  Žygis\u0007   <b>Paw</b>son  " }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "name": "Žygis bPaw/bson" } },
+        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "Bartholomew the Magnificent Whiskers" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "name": "Bartholomew the Magnific" } },
+        { "$comment": "No name without an account, and none made only of symbols.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "name": "Guest" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "progress": null } },
+        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "<>!!" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null } }
       ]
     },
     "save-result": {
@@ -430,6 +434,11 @@
     "paused": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": true },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": "yes" }
+    },
+    "exit": {
+      "$comment": "UX pass 2: the lobby's \"Games\" button (no payload); the host leaves for its games page.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "exit" },
+      "invalid": { "ns": "tt-pawlegends", "v": 2, "type": "exit" }
     },
     "champion-offer": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "champion-offer", "catalogId": "6a30473c1d6649b19b03622b" },

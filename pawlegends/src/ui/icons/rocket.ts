@@ -1,0 +1,7 @@
+/** Rocket's ability icons (sim v15, first pass), spread into ../icons.ts: 48 × 48 drawings tinted by `currentColor`. */
+export const ICONS = {
+  lure: '<path d="M6 30 L36 18" stroke="currentColor" stroke-width="4" stroke-linecap="round"/><path d="M36 18 L42 14 L40 22 Z" fill="currentColor"/><circle cx="9" cy="29" r="5" fill="currentColor" opacity=".7"/><path d="M8 38 H24" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" opacity=".6"/>',
+  photofinish: '<path d="M30 6 V42" stroke="currentColor" stroke-width="3" stroke-dasharray="4 3"/><path d="M4 24 H24 M16 16 L26 24 L16 32" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><circle cx="38" cy="12" r="5" fill="currentColor"/>',
+  squirrel: '<circle cx="18" cy="30" r="9" fill="currentColor"/><circle cx="16" cy="18" r="6" fill="currentColor"/><path d="M27 34 Q42 30 36 12 Q30 20 28 26" fill="currentColor" opacity=".8"/><path d="M6 8 L10 12 M42 40 L38 36" stroke="currentColor" stroke-width="3" stroke-linecap="round"/>',
+  sprint: '<path d="M14 24 H40 M32 16 L42 24 L32 32" stroke="currentColor" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/><g stroke="currentColor" stroke-width="3" stroke-linecap="round" opacity=".7"><path d="M4 16 H14"/><path d="M2 24 H10"/><path d="M4 32 H14"/></g><text x="34" y="12" font-size="10" font-weight="700" fill="currentColor">z</text>',
+} as const;

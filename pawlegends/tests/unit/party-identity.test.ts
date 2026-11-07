@@ -4,6 +4,8 @@
  * drives applyPing and the bots' orders) give the same final hash and hash trail as the golden JSON produced on
  * 262c36a0 (the five dogs on the released sim v12, no party code; its v13 fixtures). Party play rode sim v13 (v12 with
  * party code, now frozen); the dogs ship as sim v14, and with no party v14 plays exactly like that dogs-only sim.
+ * Sim v15 (three more dogs, DOGS-V15.md) adds no party code: the golden was regenerated from the v15 sim itself (its
+ * own vendored fixtures), since the v14 identity above already proved the party hooks change nothing single-player.
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -19,7 +21,7 @@ import { runReplay } from '../../src/sim/replay';
 import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v14');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v15');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {
@@ -59,10 +61,10 @@ function rows(): Row[] {
 }
 
 describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 600_000 }, () => {
-  it('single-player output equals the 262c36a0 (dogs-only sim) golden', () => {
+  it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15)', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {
-      writeFileSync(GOLDEN, JSON.stringify({ base: '262c36a0', simVersion: 14, rows: got }, null, 2) + '\n');
+      writeFileSync(GOLDEN, JSON.stringify({ base: 'v15 (DOGS-V15 lane SIM, QA v15 fixes)', simVersion: 15, rows: got }, null, 2) + '\n');
       return;
     }
     expect(existsSync(GOLDEN)).toBe(true);

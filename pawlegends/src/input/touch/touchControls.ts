@@ -10,7 +10,9 @@
  *
  * GAPS A5: a tap on an enemy hero (on the field, or its portrait in the HUD strip) locks it for 5 s (assist.ts
  * TargetLock); while locked, Attack sends Attack{id} on it and smart casts aim at it when it is within their reach.
- * Settings "Target first" picks the Attack button's order; the optional last-hit and tower buttons are off by default.
+ * Settings "Target first" picks the Attack button's order; the last-hit and tower buttons are on by default (UX pass 2).
+ * UX pass 2 (Wild Rift): the field rings the unit an Attack tap hits right now (attackPreview, the tap's own pick; fainter
+ * when the tap would walk to it first), and the idle auto-attack hits only that unit, only while it is in reach.
  *
  * Heading casts (heading.ts: Pounce, Live Wire and the escape dashes): the PRESS fires, the full distance where the
  * player is heading (the held joystick, or along the wall it slides the hero on when that lands further than straight
@@ -35,9 +37,9 @@ import { RELATION_CSS } from '../../render/palette';
 import type { DesktopInput, InputHost } from '../desktop';
 import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abilities';
 import { slideAngle, type CastIndex } from '../orders';
-import { lastHitButton, targetFirst, towerButton, type TargetFirst } from '../presets';
+import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
-import { attackPriority, BODY_MM, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
+import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
@@ -269,17 +271,38 @@ export class TouchControls {
     const fit = (): void => this.layoutArc();
     window.addEventListener('resize', fit);
     this.off.push(() => window.removeEventListener('resize', fit));
+    // UX pass 2: Settings' left-handed mirror and button size apply at once, mid-match too
+    window.addEventListener(TOUCH_PREFS_EVENT, fit);
+    this.off.push(() => window.removeEventListener(TOUCH_PREFS_EVENT, fit));
     this.layoutArc();
   }
 
   /** CF-04: place every button from touchArc.ts for this viewport (no two touch at 667, 844 or 932 px wide). */
   private layoutArc(): void {
-    const l = arcLayout(window.innerWidth, window.innerHeight);
-    for (const [id, el] of this.buttons) Object.assign(el.style, arcStyle(l[id as ArcButton]));
+    const lefty = leftHanded();
+    this.lefty = lefty;
+    this.root.classList.toggle('lefty', lefty);
+    const l = arcLayout(window.innerWidth, window.innerHeight, touchSize() === 'large');
+    let reach = 0;
+    for (const [id, el] of this.buttons) {
+      const spot = l[id as ArcButton];
+      Object.assign(el.style, arcStyle(spot, lefty));
+      reach = Math.max(reach, spot.rx + spot.d / 2);
+    }
+    // how far the arc reaches in from its corner (px): the phone talent card docks just past it (ui.css), clear of the
+    // last-hit and tower buttons at every size, mirrored with the arc
+    const html = document.documentElement;
+    html.style.setProperty('--arc-reach', `${Math.ceil(reach)}px`);
+    html.dataset.lefty = lefty ? '1' : '';
+    this.h.view.mirrorLead = lefty && this.enabled;
   }
+
+  /** UX pass 2: the left-handed mirror is on (the joystick takes the right half of the screen). */
+  private lefty = false;
 
   enable(on: boolean): void {
     this.enabled = on;
+    this.h.view.mirrorLead = on && this.lefty;
     this.root.classList.toggle('on', on);
     document.documentElement.dataset.touch = on ? '1' : '';
   }
@@ -330,7 +353,9 @@ export class TouchControls {
     if (!this.h.enabled()) return;
     // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
-    if (e.clientX < window.innerWidth * 0.5 && !this.stick) {
+    // the joystick half: the left one, or the right one in the left-handed mirror
+    const stickSide = this.lefty ? e.clientX >= window.innerWidth * 0.5 : e.clientX < window.innerWidth * 0.5;
+    if (stickSide && !this.stick) {
       e.preventDefault();
       this.grabStick(e.pointerId, e.clientX, e.clientY, e.timeStamp);
     }
@@ -802,6 +827,8 @@ export class TouchControls {
     me: { x: number; y: number };
     seen: { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number }[];
     allyMinions: { x: number; y: number }[];
+    /** UX pass 2: the unit the field rings at the tap (attackPreview), or null. */
+    ring: number | null;
     /** C5: the minions and camp monsters the next basic would kill (by the client estimate). */
     killable: number[];
   } | null = null;
@@ -847,13 +874,24 @@ export class TouchControls {
     return hero ? basicRange(hero) : 0;
   }
 
-  /** The optional last-hit / tower button: attack that target, else a short deny flash (never a walk-in). */
+  /** C5: the next basic's damage to a minion or camp monster (the last-hit estimate), or undefined before the hero is known. */
+  private killFn(): ((u: Unit) => number) | undefined {
+    const v = this.h.view.me();
+    const hero = v?.hero;
+    if (!hero) return undefined;
+    const lv = v?.level ?? 1;
+    const toy = v?.toy ?? 0;
+    return (u: Unit): number => minionHitEstimate(hero, lv, toy, u);
+  }
+
+  /** The last-hit (minion) / tower button: attack that target, else a short deny flash (never a walk-in). */
   private extraButton(btn: 'lasthit' | 'tower', el: HTMLElement): void {
     const me = this.me();
     if (!me) return;
     const units = this.h.units();
-    const id = btn === 'lasthit' ? lastHitTarget(units, me, this.h.view.myTeam, this.range()) : towerTarget(units, me, this.h.view.myTeam, this.range());
+    const id = btn === 'lasthit' ? lastHitTarget(units, me, this.h.view.myTeam, this.range(), this.killFn()) : towerTarget(units, me, this.h.view.myTeam, this.range());
     if (id !== null) {
+      this.extraHits[btn]++;
       this.h.orders.attack(id);
       return;
     }
@@ -869,15 +907,15 @@ export class TouchControls {
     const range = this.range();
     const units = this.h.units();
     const locked = this.lockedId();
-    const hero = this.h.view.me()?.hero;
-    const lv = this.h.view.me()?.level ?? 1;
-    const toy = this.h.view.me()?.toy ?? 0;
     // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
-    const kill = hero ? (u: Unit): number => minionHitEstimate(hero, lv, toy, u) : undefined;
-    const id = locked ?? attackPriority(units, me, this.h.view.myTeam, range, 7000, this.first, kill);
-    // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play).
+    const kill = this.killFn();
+    // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
+    const id = attackPreview(units, me, this.h.view.myTeam, range, this.first, kill, locked);
+    // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
+    // field had ringed before this tap (the last preview drawn, at most 100 ms old)
     this.lastPick = {
       id,
+      ring: this.atkPreview,
       lock: locked,
       first: this.first,
       range,
@@ -922,6 +960,26 @@ export class TouchControls {
     }
   }
 
+  /** Last-hit and tower button presses that found a target (e2e telemetry). */
+  extraHits = { lasthit: 0, tower: 0 };
+  /** UX pass 2: what Attack would hit now without walking (ringed on the field), and when it was last worked out (ms). */
+  atkPreview: number | null = null;
+  private previewAt = 0;
+
+  /** UX pass 2 (Wild Rift's target reticle): ring the unit the Attack button would hit, every 100 ms. */
+  private updatePreview(me: Unit | null, now: number): void {
+    if (now - this.previewAt < 100) return;
+    this.previewAt = now;
+    const units = this.h.units();
+    const id = me && me.state !== 'dead' ? attackPreview(units, me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
+    // out of reach the tap walks first: the ring dims
+    const far = id !== null && !!me && !inAttackReach(units.find((u) => u.id === id), me, this.range());
+    this.h.view.atkPreviewFar = far;
+    if (id === this.atkPreview) return;
+    this.atkPreview = id;
+    this.h.view.atkPreview = id;
+  }
+
   /** Last touch input (ms) and the last auto-attack order. */
   private inputAt = 0;
   private autoAt = 0;
@@ -937,12 +995,10 @@ export class TouchControls {
     if (me.state !== 'idle') return;
     const range = this.range() + AUTO_SLACK;
     // GAPS A5: a locked hero in range is the idle target too
-    const locked = this.lockedId();
-    const lu = locked !== null ? this.h.units().find((u) => u.id === locked) : undefined;
-    const lockIn = lu && Math.hypot(lu.x - me.x, lu.y - me.y) - BODY_MM.hero <= range ? lu.id : null;
     // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
     // CF-02: the Attack button's order (Settings "Target first"), in range only
-    const id = lockIn ?? autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first);
+    // UX pass 2: only the very unit the Attack button rings (attackPreview, the lock first), and only in reach
+    const id = autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.lockedId());
     if (id === null) return;
     this.autoAt = now;
     this.autos++;
@@ -1018,7 +1074,14 @@ export class TouchControls {
 
   /** Per frame: joystick commands, attack repeat, cooldown overlays, and (Wave C) the rank pips. */
   update(cooldowns: readonly number[] | null, max: readonly number[], level: number): void {
-    if (!this.enabled) return;
+    if (!this.enabled) {
+      // UX pass 2: the HUD's Paw Trick button (mouse click) flashes along the heading too, so the movement track is
+      // kept while the touch cluster is off; it used to fall back to the facing (often toward the enemy just hit)
+      const m = this.me();
+      if (m && m.state !== 'dead') this.motion.sample(m.x, m.y, performance.now());
+      else this.motion.clear();
+      return;
+    }
     if (level !== this.pipLevel) {
       this.pipLevel = level;
       (['q', 'w', 'e', 'r'] as const).forEach((b, i) => {
@@ -1042,6 +1105,7 @@ export class TouchControls {
       this.wire.close();
       this.runOn = null;
     }
+    this.updatePreview(this.h.enabled() ? me : null, now);
     if (this.ghostUntil > 0 && now >= this.ghostUntil) {
       this.ghostUntil = 0;
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;

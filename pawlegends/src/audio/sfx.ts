@@ -79,6 +79,29 @@ export const PL_SFX = {
   howlerScream: [0.75, 0, 900, 0.02, 0.6, 0.28, 2, 1.5, -3, 0, 0, 0, 0, 1.4, 0, 0.05, 0, 0.8, 0.05, 0.15, -3600],
   /** Howler's Talk Back: three short "woo-woo-wooo" grumbles. */
   howlerArgue: [0.5, 0, 260, 0.02, 0.05, 0.08, 1, 1, 4, 0, -80, 0.06, 0.13, 0.3, 8, 0, 0, 0.75, 0.02, 0, -2000],
+  // Sim v15 dogs (DOGS-V15 §1 "Voice / emote"): synth voices, no recordings. Each joke is a generic behaviour.
+  /** Rocket's ZOOM… ZZZ sprint: a noisy rising whoosh. */
+  rocketWhoosh: [0.5, 0, 220, 0.02, 0.15, 0.22, 4, 1, 5, 0, 0, 0, 0, 2, 0, 0, 0, 0.6, 0.05, 0, 1500],
+  /** Rocket's nap: a falling two-note purr-snore. */
+  rocketSnore: [0.45, 0, 170, 0.08, 0.25, 0.2, 1, 1, -1.5, 0, -40, 0.22, 0, 0.4, 6, 0, 0, 0.7, 0.05, 0.3, -800],
+  /** SQUIRREL!: the squeaky toy. */
+  rocketSqueak: [0.5, 0, 1300, 0.01, 0.04, 0.07, 1, 1.4, 8, 0, 400, 0.03, 0, 0, 12, 0, 0, 0.85, 0.02, 0, 0],
+  /** Frankie's Weenie Roll: a short yip. */
+  frankieYip: [0.4, 0, 900, 0.003, 0.03, 0.06, 1, 1.5, -10, 0, 0, 0, 0, 0.2, 0, 0, 0, 0.8, 0.02, 0, -2500],
+  /** Dig's pop out of the ground: a cork pop. */
+  frankieDig: [0.6, 0, 600, 0.001, 0.01, 0.05, 0, 1, 12, 0, 0, 0, 0, 0.6, 0, 0, 0, 0.5, 0.01, 0, 0],
+  /** FOOTLONG!: a rising slide whistle. */
+  frankieStretch: [0.45, 0, 400, 0.02, 0.4, 0.15, 0, 1, 8, 0.3, 0, 0, 0, 0, 3, 0, 0, 0.85, 0.05, 0.1, 0],
+  /** FOOTLONG! grab: a rubbery snap. */
+  frankieSnap: [0.55, 0, 300, 0.002, 0.02, 0.1, 3, 1, -6, 0, 0, 0, 0, 0.8, 0, 0, 0, 0.6, 0.02, 0, -1500],
+  /** Domino's Spot Shot: a soft boop. */
+  dominoBoop: [0.4, 0, 520, 0.005, 0.03, 0.08, 0, 1, 3, 0, 0, 0, 0, 0, 0, 0, 0, 0.8, 0.02, 0, 0],
+  /** Splatter: a wet splat. */
+  dominoSplat: [0.5, 0, 220, 0.003, 0.04, 0.2, 4, 1, -2, 0, 0, 0, 0, 1.2, 0, 0, 0, 0.5, 0.04, 0, -1200],
+  /** Big Shake: a brr-rattle. */
+  dominoShake: [0.45, 0, 180, 0.02, 0.3, 0.15, 2, 1, 0, 0, 0, 0, 0.03, 0.6, 20, 0, 0, 0.6, 0.05, 0.5, -1000],
+  /** CONNECT THE DOTS!: a rising pencil scratch into a chime. */
+  dominoDraw: [0.45, 0, 700, 0.02, 0.25, 0.3, 4, 1, 3, 0, 600, 0.25, 0, 0.8, 0, 0, 0, 0.6, 0.05, 0, 2000],
 } satisfies Record<string, number[]>;
 
 export type SfxName = keyof typeof PL_SFX | 'shieldUp' | 'shieldChime' | 'squeak' | 'hyenaLaugh' | 'blip';

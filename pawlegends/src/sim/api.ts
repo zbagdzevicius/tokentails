@@ -223,6 +223,8 @@ export interface EntitySnap {
   channel?: boolean;
   /** Heroes only (sim v11), both teams: stacks on this hero (Duchess's Disdain, 1..3); absent = 0. */
   stacks?: number;
+  /** Heroes only (sim v15), both teams: Domino's Spots on this hero (1..4); absent = 0. */
+  dots?: number;
   /** Heroes only (sim v12), the viewer's own team: unspent Fish. */
   fish?: number;
   /** Heroes only (sim v12), both teams: Toy tiers owned (0..4). */
@@ -322,8 +324,8 @@ export type SimEvent =
   /** Hero `id`: 'flop' Bravo played dead, 'bigdog' Chili went BIG DOG, 'scream' Howler screamed, 'frozen' it was frozen by SNOW DAY!. */
   | { type: 'clip'; tick: number; id: number; what: ClipKind };
 
-/** Sim v14: what a `clip` event shows. */
-export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen';
+/** Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`). */
+export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots';
 
 export type SimEventType = SimEvent['type'];
 

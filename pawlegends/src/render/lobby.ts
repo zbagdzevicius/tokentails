@@ -16,6 +16,7 @@ import { ELEMENT_COLOR, lookKey, mixColor, type Look } from './cosmetics';
 import type { CatTier, Element } from '../meta/roster';
 import { HERO_COLOR_CSS } from './palette';
 import { createBackdrop, type Backdrop } from './lobby/backdrop';
+import { lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit } from './lobby/lobbyBg';
 import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
 import { reducedMotion, StageFx } from './lobby/stageFx';
 import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
@@ -103,6 +104,8 @@ export class Lobby {
     // backdrop, two-tier pedestal and rune ring (render/lobby/*)
     this.backdrop = createBackdrop();
     s.add(this.backdrop.mesh);
+    // UX pass 2: the painted scene starts loading with the lobby (the first screen), so it is in by the first look
+    this.loadScene();
     this.pedestal = createPedestal();
     s.add(this.pedestal.group);
     this.particles.attach(s);
@@ -318,6 +321,16 @@ export class Lobby {
     return r ? (r.classList.contains('won') ? 'cheer' : 'sad') : null;
   }
 
+  /** UX pass 2: the visit's painted scene behind the turntable (the gradient shows until it loads). */
+  private loadScene(): void {
+    if (typeof window === 'undefined') return;
+    const bg = lobbyBgOverride(window.location.search) ?? lobbyBgFor(lobbyBgVisit());
+    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const url = lobbyBgUrl(bg, { base: import.meta.env.BASE_URL ?? './', bufferWidth: (window.innerWidth || 1280) * dpr, low: this.gr.settings.tier === 'low' });
+    document.documentElement.dataset.lobbyBg = bg;
+    this.backdrop.setImage(url, reducedMotion());
+  }
+
   leave(): void {
     this.stage.listen(false);
     this.gr.place = null;
@@ -367,6 +380,8 @@ export class Lobby {
       }
     }
     const frozen = this.gr.settings.tier === 'low' || reducedMotion();
+    const aim = this.stage.aim();
+    this.backdrop.setParallax(-aim.x, aim.y);
     this.backdrop.update(dt, frozen);
     this.pedestal.update(dt, frozen);
     this.stage.update(dt);

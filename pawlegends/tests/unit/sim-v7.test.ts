@@ -19,8 +19,8 @@ import { SIM_VERSION } from '../../src/sim/version';
 import { coreId, putHero, quietMatch } from './sim-helpers';
 
 describe('sim v7 lead pressure', () => {
-  it('is on for Normal and Hard only; SIM_VERSION is 14 (sim v8 to v14 kept it)', () => {
-    expect(SIM_VERSION).toBe(14);
+  it('is on for Normal and Hard only; SIM_VERSION is 15 (sim v8 to v15 kept it)', () => {
+    expect(SIM_VERSION).toBe(15);
     expect(DIFFICULTY_RULES.normal.leadPressure && DIFFICULTY_RULES.hard.leadPressure).toBe(true);
     expect(DIFFICULTY_RULES.easy.leadPressure || DIFFICULTY_RULES.rookie.leadPressure).toBe(false);
   });
@@ -35,7 +35,9 @@ describe('sim v7 lead pressure', () => {
       resolveDeaths(m);
       const base = respawnTicks(w.level[4], 4000, w.globals[G.Sunset]);
       const gap = 11 - RESPAWN.gapFree;
-      const want = d === 'normal' ? applyBp(base, BP_ONE + Math.min(RESPAWN.gapCapBp, gap * RESPAWN.gapPerBp)) : base;
+      // Sim v15: Easy's enemies respawn × DIFFICULTY_RULES.easy.enemyRespawnBp (0.85); Normal's at 1.0.
+      const enemy = applyBp(base, DIFFICULTY_RULES[d].enemyRespawnBp);
+      const want = d === 'normal' ? applyBp(enemy, BP_ONE + Math.min(RESPAWN.gapCapBp, gap * RESPAWN.gapPerBp)) : enemy;
       expect(w.timer[4]).toBe(want);
     }
   });

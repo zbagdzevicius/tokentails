@@ -1,7 +1,8 @@
 /**
  * The landing must not advertise heroes the game does not have (DOGS-V13 art gate: a dog can be cut before release).
  * Reads the game's own source as text: every landing hero whose `since` sim version is out must be in `HERO_IDS`, and
- * every game hero must be on the landing. The five dogs ship in sim v14; a cut dog fails here.
+ * every game hero must be on the landing. The five dogs ship in sim v14, Rocket, Frankie and Domino in v15; a cut dog
+ * fails here.
  *
  * GAME_SIM_VERSION is the sim of the committed game build (`public/pawlegends-game/build-releases.json`, stamped by
  * `npm run build:client`), never the source: the landing shows the dogs only once a build that has them is committed.
@@ -87,7 +88,7 @@ describe("Pawlegends landing roster", () => {
   });
 
   it("keeps blurbs word for word with the game where the game has them", () => {
-    const own = ["meatball", "pixel", "duchess", "stilts", "nugget", "marshmallow", "bravo", "chili", "howler"];
+    const own = ["meatball", "pixel", "duchess", "stilts", "nugget", "marshmallow", "bravo", "chili", "howler", "rocket", "frankie", "domino"];
     const text = read("ui/heroText.ts") + own.map((h) => read(`ui/heroText/${h}.ts`)).join("\n");
     for (const h of LANDING_ROSTER.filter((x) => x.since <= simVersion)) expect(text).toContain(h.blurb);
   });
@@ -99,15 +100,33 @@ describe("Pawlegends landing roster", () => {
       const fresh = justReleased();
       if (GAME_SIM_VERSION === 14) expect(fresh.map((h) => h.id)).toEqual(dogs);
       if (GAME_SIM_VERSION === 14) expect(html).toContain("New: five dogs join the pack");
-      expect(html).not.toContain("Coming next:");
+      // sim v15's three dogs stay in the Coming next strip until a v15 build is committed
+      if (GAME_SIM_VERSION >= 15) expect(html).not.toContain("Coming next:");
       expect(html.match(/<span class="new" aria-hidden="true">New<\/span>/g) ?? []).toHaveLength(fresh.length);
-      expect(liveRoster()).toHaveLength(17);
-      expect(gridHeroes()).toHaveLength(17);
+      if (GAME_SIM_VERSION === 14) expect(liveRoster()).toHaveLength(17);
+      if (GAME_SIM_VERSION === 14) expect(gridHeroes()).toHaveLength(17);
     } else {
       expect(newcomers().map((h) => h.id)).toEqual(dogs);
       expect(html).toContain("Coming next: five new dogs");
       expect(html).not.toContain('<span class="new"');
       expect(liveRoster()).toHaveLength(12);
+      for (const id of dogs) expect(html).not.toContain(`data-id="${id}"`);
+    }
+  });
+
+  it("shows Rocket, Frankie and Domino only once a v15 game build is committed: 10 v 10 then, Coming next before", () => {
+    const html = landingMarkup();
+    const dogs = ["rocket", "frankie", "domino"];
+    if (GAME_SIM_VERSION >= 15) {
+      if (GAME_SIM_VERSION === 15) expect(justReleased().map((h) => h.id)).toEqual(dogs);
+      if (GAME_SIM_VERSION === 15) expect(html).toContain("New: three dogs join the pack");
+      expect(html).toContain("Ten cats, ten dogs.");
+      expect(liveRoster()).toHaveLength(20);
+      expect(gridHeroes()).toHaveLength(20);
+    } else {
+      expect(newcomers().map((h) => h.id)).toEqual(dogs);
+      expect(html).toContain("Coming next: three new dogs");
+      expect(html).toContain("They join the dogs' side: ten cats, ten dogs.");
       for (const id of dogs) expect(html).not.toContain(`data-id="${id}"`);
     }
   });

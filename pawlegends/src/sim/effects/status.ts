@@ -85,7 +85,12 @@ export function clearStatus(w: World, id: number): void {
   w.fmKind[id] = FM.None;
   w.fmTarget[id] = -1;
   w.tether[id] = -1;
-  if (id < RANGE.minions) clearStacks(w, id);
+  if (id < RANGE.minions) {
+    clearStacks(w, id);
+    // Sim v15: Domino's Spots fall off a hero that dies (a respawned hero never carries old Spots).
+    w.dotN[id] = 0;
+    w.dotT[id] = 0;
+  }
 }
 
 const dec = (a: Int32Array, i: number): void => {
@@ -113,6 +118,10 @@ export function tickStatus(w: World): void {
     dec(w.ccImmT, id);
     dec(w.revealT, id);
     if (w.shieldT[id] > 0 && --w.shieldT[id] === 0) w.shield[id] = 0;
-    if (id < RANGE.minions) tickStacks(w, id);
+    if (id < RANGE.minions) {
+      tickStacks(w, id);
+      // Sim v15: Domino's Spots expire.
+      if (w.dotT[id] > 0 && --w.dotT[id] === 0) w.dotN[id] = 0;
+    }
   }
 }

@@ -388,6 +388,8 @@ export function snapshot(match: Match, team: Team): Snapshot {
       if ((fx & SNAP_FX.Form) !== 0) e.form = true;
       if ((fx & SNAP_FX.Channel) !== 0) e.channel = true;
       if (w.mkStack[id] > 0) e.stacks = w.mkStack[id];
+      // Sim v15: Domino's Spots on this hero (both teams).
+      if (w.dotN[id] > 0) e.dots = w.dotN[id];
       if (w.alive[id] === 0) e.respawnIn = w.timer[id];
       e.bountyStreak = w.killStreak[id];
       // Sim v12: Toy tiers (both teams: enemy spikes show), unspent Fish (own team only).

@@ -61,4 +61,11 @@ export const HERO_BUILD: Readonly<Record<HeroId, HeroBuild>> = Object.freeze({
   chili: { h: 0.95, w: 0.9, ring: 1.75 },
   // the tall broad-chested husky (Stilts is the stick)
   howler: { h: 1.05, w: 1.04, ring: 2.15 },
+  // sim v15 dogs
+  // the tallest, thinnest dog: the greyhound in the racing jacket
+  rocket: { h: 1.08, w: 0.85, ring: 1.9 },
+  // the lowest and longest: the dachshund in the hot-dog bun
+  frankie: { h: 0.93, w: 1.2, ring: 2.15 },
+  // the round spotty puppy in the beret
+  domino: { h: 1.0, w: 1.0, ring: 2.05 },
 });

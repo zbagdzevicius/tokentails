@@ -107,6 +107,7 @@ html[data-quality='low'] .pl-lobby .lb-play .pl-btn.big { animation: none; }
 .lb-corner {
   position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); display: flex; gap: 8px; align-items: center;
 }
+.lb-exit { padding: 0 14px 0 10px; }
 .lb-icon {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px; min-width: 44px; height: 44px; padding: 0 12px;
   border-radius: 999px; border: 0; cursor: pointer; color: var(--cream); background: var(--lb-panel);
@@ -196,6 +197,8 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-lobby .sub, .pl-lobby .lb-badge { display: none; }
   .lb-icon { height: 38px; min-width: 38px; }
   .lb-icon:not(.wide) { width: 38px; }
+  /* UX pass 2: Games is the only way out on touch (no host close button): it keeps the 44 px touch minimum */
+  .lb-icon.lb-exit { height: 44px; min-height: 44px; }
   .lb-peek { right: calc(10px + var(--safe-r)); bottom: calc(6px + var(--safe-b)); gap: 6px; }
   .lb-fan { width: 112px; height: 96px; }
   .lb-mini.tt-card { width: 64px; height: 88px; left: 24px; }

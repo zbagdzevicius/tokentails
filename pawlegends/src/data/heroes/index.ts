@@ -6,7 +6,9 @@ import { BRUTUS } from './brutus';
 import { CACKLEJAW } from './cacklejaw';
 import { CHILI } from './chili';
 import { CLEM } from './clem';
+import { DOMINO } from './domino';
 import { DUCHESS } from './duchess';
+import { FRANKIE } from './frankie';
 import { GABE } from './gabe';
 import { HOWLER } from './howler';
 import { LAMBO } from './lambo';
@@ -14,6 +16,7 @@ import { MARSHMALLOW } from './marshmallow';
 import { MEATBALL } from './meatball';
 import { NUGGET } from './nugget';
 import { PIXEL } from './pixel';
+import { ROCKET } from './rocket';
 import { SAGE } from './sage';
 import { STILTS } from './stilts';
 import type { HeroData, HeroId } from './types';
@@ -26,6 +29,8 @@ export type { AbilityData, AbilitySlot, Element, HeroBase, HeroData, HeroId, Her
  * Sim v11: the four original cats follow (Meatball 8, Pixel 9, Duchess 10, Stilts 11).
  * Sim v14: the five original dogs follow (Nugget 12, Marshmallow 13, Bravo 14, Chili 15, Howler 16;
  * docs/plans/moba/DOGS-V13.md).
+ * Sim v15: three more dogs make the sides 10 v 10 with the same roles (Rocket 17, Frankie 18, Domino 19;
+ * docs/plans/moba/DOGS-V15.md).
  */
 export const HERO_IDS: readonly HeroId[] = Object.freeze([
   'clem',
@@ -45,6 +50,9 @@ export const HERO_IDS: readonly HeroId[] = Object.freeze([
   'bravo',
   'chili',
   'howler',
+  'rocket',
+  'frankie',
+  'domino',
 ] as HeroId[]);
 
 export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
@@ -65,6 +73,9 @@ export const HEROES: Readonly<Record<HeroId, HeroData>> = Object.freeze({
   bravo: BRAVO,
   chili: CHILI,
   howler: HOWLER,
+  rocket: ROCKET,
+  frankie: FRANKIE,
+  domino: DOMINO,
 });
 
 /**
@@ -89,6 +100,9 @@ export const BRANCH_TALENT: Readonly<Record<HeroId, string | null>> = Object.fre
   bravo: null,
   chili: null,
   howler: null,
+  rocket: null,
+  frankie: null,
+  domino: null,
 });
 
 /** Heroes with a level-6 shape branch, HERO_IDS order. */

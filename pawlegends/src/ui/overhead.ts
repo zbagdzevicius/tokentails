@@ -205,6 +205,15 @@ export function disdainPips(e: Pick<ViewEntity, 'kind' | 'stacks' | 'state'>): {
 }
 
 /**
+ * Pure: Domino's Spots on a hero plate (sim v15, Spot On): how many black spots to draw, from the snapshot's `dots`
+ * (sent for both teams). 0 for a dead hero or one with no Spots; capped at 4 (Polka Dots raises his max to 4).
+ */
+export function spotPips(e: Pick<ViewEntity, 'kind' | 'dots' | 'state'>): number {
+  if (e.kind !== 'hero' || e.state === 'dead') return 0;
+  return Math.min(4, Math.max(0, e.dots ?? 0));
+}
+
+/**
  * Pure: Stilts's Stride meter (sim v11, Long Stride) as a share of full, from the snapshot's `resource` (sent to her own
  * team only); -1 when there is no meter to draw (another hero, an enemy Stilts, or dead).
  */
@@ -769,6 +778,27 @@ export class Overhead {
     g.restore();
   }
 
+  /**
+   * Domino's Spots (sim v15): a row of round black spots with a white rim under the bar (below Duchess's crowns when both show), one per Spot. Nothing without Spots.
+   */
+  private spots(g: CanvasRenderingContext2D, e: ViewEntity, cx: number, y: number): void {
+    const n = spotPips(e);
+    if (n <= 0) return;
+    const r = 3.4 * this.scale;
+    const gap = 2.6 * r;
+    g.save();
+    g.lineWidth = 1.5;
+    g.strokeStyle = 'rgba(255,255,255,0.95)';
+    g.fillStyle = '#16141a';
+    for (let i = 0; i < n; i++) {
+      g.beginPath();
+      g.arc(cx + (i - (n - 1) / 2) * gap, y, r, 0, Math.PI * 2);
+      g.fill();
+      g.stroke();
+    }
+    g.restore();
+  }
+
   private drawLocks(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
     if (!this.locks.length) return;
     const dt = 1 / 60;
@@ -1070,6 +1100,7 @@ export class Overhead {
     const bcx = bx + (bs - 1) / 2;
     this.chargeRing(g, e, bcx, sy, r);
     this.disdain(g, e, sx, y + bh + 8 * this.scale);
+    this.spots(g, e, sx, y + bh + (disdainPips(e).lit > 0 ? 17 : 8) * this.scale);
     const stride = strideMeter(e);
     if (stride >= 0) {
       // Stilts's Stride under her bar (own team): sand while it builds, a hot terracotta when full (the pounce is ready)
