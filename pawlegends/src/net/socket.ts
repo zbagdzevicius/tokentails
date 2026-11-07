@@ -320,6 +320,11 @@ export class PartySocket {
   }
 
   /** One command (sim `encodeCommand` bytes): numbered, kept until acked, sent at once when open. */
+  /** The open socket still holds bytes it has not handed to the network (an uplink stall). */
+  get backlogged(): boolean {
+    return this.open && (this.ws!.bufferedAmount ?? 0) > 0;
+  }
+
   sendCmd(bytes: Uint8Array): number {
     const seq = ++this.seq;
     this.unacked.push({ seq, bytes, atMs: this.env.now() });

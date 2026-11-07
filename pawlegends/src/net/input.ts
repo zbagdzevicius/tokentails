@@ -9,8 +9,13 @@ import { Op, type Command } from '../sim/api';
 /** One turn: the relay keeps the newest Move per open turn anyway, so a faster drag only adds delay (was 2 turns). */
 export const MOVE_EVERY_MS = 200 / 3;
 
+/** A Move held back while the socket still has unsent bytes waits at most this long (ms), then goes anyway. */
+export const BUSY_HOLD_MS = 400;
+
 export interface CoalescerEnv {
   now(): number;
+  /** The socket has bytes it has not sent yet (after an uplink stall): a coalesced Move waits, the newest wins. */
+  busy?(): boolean;
   setTimer(fn: () => void, ms: number): unknown;
   clearTimer(h: unknown): void;
 }
@@ -19,6 +24,7 @@ export class MoveCoalescer {
   private lastMoveMs = -Infinity;
   private pending: Command | null = null;
   private timer: unknown = null;
+  private pendingSince = 0;
 
   constructor(private readonly sendNow: (cmd: Command) => void, private readonly env: CoalescerEnv) {}
 
@@ -30,14 +36,25 @@ export class MoveCoalescer {
     }
     const now = this.env.now();
     const wait = this.lastMoveMs + MOVE_EVERY_MS - now;
-    if (wait <= 0 && this.timer === null) {
+    if (wait <= 0 && this.timer === null && !this.env.busy?.()) {
       this.lastMoveMs = now;
       this.sendNow(cmd);
       return;
     }
+    if (this.pending === null) this.pendingSince = now;
     this.pending = cmd;
-    if (this.timer === null) this.timer = this.env.setTimer(() => this.flush(), Math.max(1, wait));
+    if (this.timer === null) this.timer = this.env.setTimer(this.due, Math.max(1, wait));
   }
+
+  /** The pending Move's turn came: send it, unless the socket is still backed up (then wait one more turn, capped). */
+  private readonly due = (): void => {
+    this.timer = null;
+    if (this.pending && this.env.busy?.() && this.env.now() - this.pendingSince < BUSY_HOLD_MS) {
+      this.timer = this.env.setTimer(this.due, MOVE_EVERY_MS);
+      return;
+    }
+    this.flush();
+  };
 
   /** Send the pending Move now (a drag ended). */
   flush(): void {

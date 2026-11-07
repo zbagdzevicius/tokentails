@@ -1,5 +1,4 @@
 import { expect, test } from '@playwright/test';
-import { attr } from '../helpers';
 import { closeAll, createParty, player, shot } from './party.helpers';
 
 test.afterEach(closeAll);
@@ -22,7 +21,8 @@ test('Open seats: the leader starts alone, a friend joins by link mid-match and 
   const b = await player(browser, 'phone');
   await b.page.goto(`/?e2e=1&party=${code}`, { waitUntil: 'commit' });
   await b.page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
-  expect(await attr(b.page, 'mpTurn')).not.toBe('');
+  // the rejoin path marks the match live before the first `turn` status: wait for it rather than read it at once
+  await b.page.waitForFunction(() => (document.documentElement.dataset.mpTurn ?? '') !== '', null, { timeout: 30_000 });
   await a.page.waitForFunction(() => (Number(document.documentElement.dataset.mpMask ?? 0) & 2) === 0, null, { timeout: 60_000 });
   await shot(b, 'lane-P', '51-joined-mid-match');
 });
