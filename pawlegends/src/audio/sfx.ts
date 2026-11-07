@@ -111,7 +111,8 @@ export class Sfx {
   /** Call from a user gesture. Safe to call many times. */
   unlock(): void {
     if (this.ac) {
-      if (this.ac.state === 'suspended') void this.ac.resume().catch(() => undefined);
+      // 'suspended' before a gesture, 'interrupted' on iOS after a call or the app going to the background
+      if (this.ac.state !== 'running') void this.ac.resume().catch(() => undefined);
       return;
     }
     const Ctor = (globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ??
