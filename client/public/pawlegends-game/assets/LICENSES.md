@@ -24,3 +24,12 @@ client assets, copied from `client/public/cards/` and resized with `cwebp` (back
 | `cards/fx/golden-burst.webp`, `white-burst.webp`, `reveal-sparkle.webp`, `legendary-bg.webp`, `rare-swirl.webp` | `client/public/cards/backgrounds/golden-opening-sparkle`, `white-opening-sparkle`, `opening-reveal-sparkle1`, `legendary-bg`, `rare-swirl2` (384 px) | Token Tails, all rights reserved |
 | `cards/back.webp` | `client/public/cards/backgrounds/card-placeholder.webp` (340 px) | Token Tails, all rights reserved |
 | `cards/icons/<element>.webp` | `client/public/cards/icons/<element>.webp` (64 px) | Token Tails, all rights reserved |
+
+Lobby backgrounds (`lobby/`, UX pass 2, about 126 KB, loaded by the lobby only): painted scenes generated for
+Token Tails with Google Gemini (`gemini-3-pro-image-preview`, 2752 x 1536 masters, SynthID watermarked), edited
+in follow-up turns and encoded with `cwebp` (quality 78).
+
+| File | Source | Licence |
+|---|---|---|
+| `lobby/meadow-{1280,1920}.webp` | Gemini, "meadow bridge at dusk" (cat castle, paw bridge, dog fort) | Token Tails, all rights reserved |
+| `lobby/arena-{1280,1920}.webp` | Gemini, "tournament arena at sunset" (paw and bone pennants) | Token Tails, all rights reserved |
