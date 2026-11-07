@@ -4,7 +4,7 @@
  * Pudding's spot and the rat camps (onboarding/objectives.ts ObjectiveClock.timers). GAPS B1: a long press (touch)
  * or an Alt-click (desktop) pings "Go here" at that spot.
  */
-import { NX, NY, createGrid } from '../sim/map/grid';
+import { NX, NY, createGrid, onPlayfield } from '../sim/map/grid';
 import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../data/map';
 import type { ViewFrame } from '../render/interp';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
@@ -66,7 +66,8 @@ const heroPair = (h: HeroId): string => {
 };
 
 /** The minimap's ground colours. */
-export const MM_GROUND = Object.freeze({ grass: '#7fb86a', river: '#6fb7e0', lane: '#e6cf98', forest: '#3d6e3a', wall: '#3d6e3a', bush: '#3f8a46' });
+/** MAP-GAPS A7: bushes a light catnip green with an outline and dots, forest darker, the jungle rocks grey-brown. */
+export const MM_GROUND = Object.freeze({ grass: '#7fb86a', river: '#6fb7e0', lane: '#e6cf98', forest: '#2f4f2c', wall: '#6e6458', bush: '#5fae4a', bushEdge: '#2f5a26' });
 
 /** MAP-GAPS A4: the dark outline every unit mark wears (towers, heroes, minions, Pudding). */
 export const MM_OUTLINE = '#2a1a22';
@@ -106,6 +107,17 @@ export function minimapMapping(w: number, h: number, pad = MM_PAD, flip = false)
 
 /** MAP-GAPS A3: below this drawn diameter (CSS px) a hero is its initial; at and above it, its portrait. */
 export const PORTRAIT_MIN_PX = 12;
+
+/** A rounded rectangle path (no CanvasRenderingContext2D.roundRect needed). */
+function roundRectPath(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
+  g.beginPath();
+  g.moveTo(x + r, y);
+  g.arcTo(x + w, y, x + w, y + h, r);
+  g.arcTo(x + w, y + h, x, y + h, r);
+  g.arcTo(x, y + h, x, y, r);
+  g.arcTo(x, y, x + w, y, r);
+  g.closePath();
+}
 
 export class Minimap {
   readonly root: HTMLElement;
@@ -267,12 +279,13 @@ export class Minimap {
     // sim v5: the forest outside the playfield (the nav grid's blocked cells), darker, so a right-click there reads as
     // "not walkable"
     const wall = createGrid().walls;
-    g.fillStyle = MM_GROUND.forest;
     const cw = Math.abs(this.X(MAP.navCell) - this.X(0));
     const ch = Math.abs(this.Y(MAP.navCell) - this.Y(0));
     for (let j = 0; j < NY; j++)
       for (let i = 0; i < NX; i++)
         if (wall[j * NX + i]) {
+          // the jungle rocks (blocked cells on the playfield) grey-brown, the forest dark green
+          g.fillStyle = onPlayfield(i * MAP.navCell + MAP.navCell / 2, j * MAP.navCell + MAP.navCell / 2) ? MM_GROUND.wall : MM_GROUND.forest;
           const ax = this.X(i * MAP.navCell);
           const bx = this.X((i + 1) * MAP.navCell);
           const ay = this.Y((j + 1) * MAP.navCell);
@@ -290,14 +303,25 @@ export class Minimap {
       for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
       g.stroke();
     }
-    g.fillStyle = '#3f8a46';
     for (const b of BUSHES)
       for (const x of [b.x, mirrorX(b.x)]) {
         const ax = this.X(x - b.w / 2);
         const bx = this.X(x + b.w / 2);
         const ay = this.Y(b.y + b.h / 2);
         const by = this.Y(b.y - b.h / 2);
-        g.fillRect(Math.min(ax, bx), Math.min(ay, by), Math.abs(bx - ax), Math.abs(by - ay));
+        const rx = Math.min(ax, bx);
+        const ry = Math.min(ay, by);
+        const rw = Math.abs(bx - ax);
+        const rh = Math.abs(by - ay);
+        g.fillStyle = MM_GROUND.bush;
+        g.strokeStyle = MM_GROUND.bushEdge;
+        g.lineWidth = 1;
+        roundRectPath(g, rx, ry, rw, rh, Math.min(rw, rh) * 0.35);
+        g.fill();
+        g.stroke();
+        // a dot texture: leaves, not a flat block of forest
+        g.fillStyle = 'rgba(30,70,25,0.55)';
+        for (let a = 0; a < 3; a++) for (let c = 0; c < 2; c++) g.fillRect(rx + rw * (0.3 + c * 0.4) - 0.5, ry + rh * (0.2 + a * 0.3) - 0.5, 1.2, 1.2);
       }
     for (const team of [0, 1]) {
       const cx = team === 0 ? CORE.x : mirrorX(CORE.x);
