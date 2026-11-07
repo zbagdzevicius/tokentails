@@ -2,12 +2,13 @@ import { INestApplication } from '@nestjs/common';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
 import * as dotenv from 'dotenv';
-import { AppModule } from './app.module';
 import { corsOrigins } from './shared/cors-origins';
 import { loadDevShelterKey } from './shelter/onchain/shelter-dev-key';
 import { applyTrustProxy } from './shared/trust-proxy';
 import { AppValidationPipe } from './user/dto/live-game.dto';
 import { applyBodyParsers } from './user/heist/live-body-limit';
+import { backendRole, checkProductionEnv } from './shared/runtime/backend-role';
+import { rootModuleFor } from './shared/runtime/root-module';
 dotenv.config();
 
 function initializeCors(app: INestApplication): void {
@@ -39,7 +40,10 @@ async function bootstrap() {
     // Dev only (never NODE_ENV=production): the hot wallet key from the local Foundry keystore when
     // SHELTER_DONATE_PRIVATE_KEY is unset, before any service reads the shelter config.
     await loadDevShelterKey();
-    const app = await NestFactory.create(AppModule, { rawBody: true });
+    // BACKEND_ROLE (all | api | relay, src/shared/runtime/backend-role.ts) picks the root module.
+    const role = backendRole();
+    checkProductionEnv(role);
+    const app = await NestFactory.create(await rootModuleFor(role), { rawBody: true });
     initializeCors(app);
     applyTrustProxy(app);
 
