@@ -50,7 +50,8 @@ const argv = process.argv.slice(2);
 const check = argv.includes('--check');
 const dry = argv.includes('--dry');
 const remoteFlag = argv.indexOf('--check-remote');
-const remote = remoteFlag >= 0 ? argv[remoteFlag + 1] || process.env.PAWLEGENDS_BACKEND_URL : undefined;
+const remoteArg = remoteFlag >= 0 ? argv[remoteFlag + 1] : undefined;
+const remote = remoteFlag >= 0 ? (remoteArg && !remoteArg.startsWith('--') ? remoteArg : process.env.PAWLEGENDS_BACKEND_URL) : undefined;
 
 const sha256 = (text) => createHash('sha256').update(text).digest('hex');
 
@@ -605,6 +606,9 @@ const versionsOf = (files) =>
     .join(', ');
 
 async function main() {
+  // --check-remote is read-only: without a URL it fails instead of falling through to write mode
+  if (remoteFlag >= 0 && !remote)
+    throw new Error('vendor-sim: --check-remote needs a backend URL (npm run vendor-sim:check-remote -- <url>, or PAWLEGENDS_BACKEND_URL)');
   const { files, net, stamp, bundleSha, modules, size } = await buildFiles();
   if (remote) {
     const url = `${remote.replace(/\/+$/, '')}/pawlegends/sim`;

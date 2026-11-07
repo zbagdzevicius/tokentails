@@ -1,5 +1,9 @@
 {
   "keep": 3,
+  "sim": {
+    "simVersion": 13,
+    "simHash": "f8af5010334a6535"
+  },
   "releases": [
     [
       "api-DkR2-ZNr.js",

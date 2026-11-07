@@ -45,4 +45,15 @@ describe('keep-releases', () => {
     fs.rmSync(dir, { recursive: true, force: true });
     fs.rmSync(pub, { recursive: true, force: true });
   });
+
+  it('stamps the shipped sim into the manifest, for the landing roster', () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'pl-keep-'));
+    fs.mkdirSync(path.join(dir, 'build'));
+    fs.writeFileSync(path.join(dir, 'build/w-a.js'), 'x');
+    recordRelease(dir, ['build/w-a.js'], null, 3, { simVersion: 14, simHash: 'abc', extra: 1 });
+    const m = JSON.parse(fs.readFileSync(path.join(dir, MANIFEST), 'utf8'));
+    expect(m.sim).toEqual({ simVersion: 14, simHash: 'abc' });
+    expect(m.releases).toEqual([['w-a.js']]);
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
 });

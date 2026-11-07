@@ -41,6 +41,14 @@ const base = normalizeBase(process.env.PAWLEGENDS_BASE);
  */
 const keepReleases = Number(process.env.PAWLEGENDS_KEEP_RELEASES ?? 0);
 
+/** The sim this build runs, written into build-releases.json for the landing roster (GAME_SIM_VERSION). */
+function shippedSim(): { simVersion: number; simHash: string } {
+  const src = readFileSync(path.resolve(__dirname, 'src/sim/version.ts'), 'utf8');
+  const simVersion = Number(/SIM_VERSION\s*=\s*(\d+)/.exec(src)?.[1]);
+  if (!Number.isInteger(simVersion)) throw new Error('vite: SIM_VERSION not found in src/sim/version.ts');
+  return { simVersion, simHash: simSourceHash() };
+}
+
 function keepReleasesPlugin(count: number): Plugin {
   let outDir = '';
   let publicDir = '';
@@ -52,7 +60,7 @@ function keepReleasesPlugin(count: number): Plugin {
       publicDir = c.publicDir;
     },
     writeBundle(_opts, bundle) {
-      const { releases, removed } = recordRelease(outDir, Object.keys(bundle), publicDir, count);
+      const { releases, removed } = recordRelease(outDir, Object.keys(bundle), publicDir, count, shippedSim());
       this.info(`kept ${releases.length} release(s) in build/, removed ${removed.length} stale file(s)`);
     },
   };
