@@ -178,8 +178,8 @@ function peekHtml(o: LobbyScreenOpts, live: boolean): string {
   }
   if (!cards.length) {
     // no cards: never invent one; a plain card back that opens the drawer's empty state (its name is its visible
-    // text, WCAG 2.5.3); an app build never points to the web
-    const how = o.isApp ? 'Your Token Tails cats show up here' : 'Collect cards on Token Tails';
+    // text, WCAG 2.5.3); an app build never points to the web or names another store (App Review 3.1.3)
+    const how = o.isApp ? 'No cat cards yet' : 'Collect cards on Token Tails';
     return `<button type="button" class="lb-peek empty" data-a="cards" aria-haspopup="dialog">
       <span class="lb-back" aria-hidden="true">${icon('paw')}</span>
       <span class="lb-peek-cap"><b>Your cats become skins</b> <small>${how}</small></span></button>`;
