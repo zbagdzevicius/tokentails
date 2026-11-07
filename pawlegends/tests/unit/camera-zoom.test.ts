@@ -13,7 +13,7 @@ import { MOBA_DIST, MOBA_PITCH_DROP, SHADOW_BOX, SHORT_LANDSCAPE_ZOOM, shadowHal
 import { CAMERA_FRAME } from '../../src/render/gameView';
 import { actionFor, keyLabel } from '../../src/input/presets';
 import { bindZoomRow, zoomRowHtml } from '../../src/ui/zoomSlider';
-import { PINCH_PX, pinchCommitted, TAP } from '../../src/input/touch/touchControls';
+import { PINCH_PX, pinchCommitted, stickSteersAlone, TAP } from '../../src/input/touch/touchControls';
 
 /** The old default zoom (before this pass). */
 const OLD_DEFAULT = 0.88;
@@ -210,5 +210,19 @@ describe('pinch next to the joystick (QA 2026-11-07)', () => {
     expect(pinchCommitted(pt(300, 210, 315, 210), pt(500, 210, 485, 210))).toBe(true);
     // both moved, the same way (a two-finger drag): the gap barely changes
     expect(pinchCommitted(pt(300, 210, 320, 230), pt(500, 210, 520, 230 + PINCH_PX / 2))).toBe(false);
+  });
+});
+
+describe('a still joystick that starts steering alone leaves the pinch (QA 2026-11-07)', () => {
+  const pt = (x0: number, y0: number, x = x0, y = y0) => ({ x0, y0, x, y });
+  it('the thumb pushed 50 px while the other finger rests: steering alone', () => {
+    expect(stickSteersAlone(pt(150, 250, 200, 250), pt(520, 160))).toBe(true);
+    expect(stickSteersAlone(pt(150, 250, 200, 250), pt(520, 160, 520 + TAP.px, 160))).toBe(true);
+  });
+  it('both fingers moving (a pinch on its way), or a thumb still inside 2 × TAP.px: not yet', () => {
+    expect(stickSteersAlone(pt(360, 210, 330, 210), pt(440, 210, 470, 210))).toBe(false);
+    expect(stickSteersAlone(pt(360, 210, 360 - TAP.px * 2, 210), pt(440, 210))).toBe(false);
+    // the symmetric pinch of the e2e spec: whichever finger's move lands first, the other is past TAP.px by then
+    expect(stickSteersAlone(pt(360, 210, 360 - 30, 210), pt(440, 210, 440 + 25, 210))).toBe(false);
   });
 });

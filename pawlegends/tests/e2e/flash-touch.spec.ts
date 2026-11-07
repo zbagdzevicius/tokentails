@@ -287,4 +287,49 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
     const k = checkBlink(shot, a, 'no stick');
     expect(shot.track[k][0], 'the blink waited for the finger to lift').toBeLessThan(liftTick);
   });
+  test('the stick pushed into a wall slides the hero along it: the flash goes along the wall, at least 3 m (QA 2026-11-07)', async ({ page }) => {
+    test.setTimeout(150_000);
+    const { touch, base, trick } = await setup(page);
+    // south at a light tilt (18 px: no lane magnet) until the hero meets the wall corner ~4.5 m south of the spot and
+    // slides on it south-west (x falls from 25 m to 23.5 m; straight south from there a blink lands 0.5 to 2.8 m)
+    const south = { ...base, y: base.y + 18 };
+    await touch('touchStart', [base]);
+    await touch('touchMove', [south]);
+    // watched every frame in the page (a poll from here can miss the slide on a loaded machine)
+    const slid = await page.waitForFunction(
+      (spotY) => {
+        const t = (window as unknown as { __plTrack: number[][] }).__plTrack.slice(-4);
+        if (t.length < 4) return null;
+        const dx = t[3][1] - t[0][1];
+        const dy = t[3][2] - t[0][2];
+        if (t[3][2] < spotY - 6000) return 'went past';
+        return t[3][2] < spotY - 1000 && dx < -250 && Math.abs(dx) > 0.5 * Math.abs(dy) ? 'sliding' : null;
+      },
+      SPOT.y,
+      { polling: 'raf', timeout: 20000 },
+    );
+    expect(await slid.jsonValue(), 'the hero walked south without meeting the wall').toBe('sliding');
+    const heads0 = await heads(page);
+    const tapAt = await traceLen(page);
+    const t0 = await tickNow(page);
+    await touch('touchStart', [south, trick]);
+    const pressTick = await tickNow(page);
+    await touch('touchEnd', [trick]);
+    const liftTick = await tickNow(page);
+    await waitTicks(page, 50);
+    const shot = await collect(page, { tapAt, t0, heads0, pressTick, liftTick });
+    await touch('touchEnd', [south]);
+    expect(shot.heads1[0]).toBe(heads0[0] + 1);
+    const k = blinkIndex(shot.track, pressTick);
+    const why = `press tick ${pressTick}; track ${JSON.stringify(shot.track.filter((t) => t[0] >= pressTick - 8 && t[0] <= pressTick + 40))}`;
+    expect(k, `no blink: ${why}`).toBeGreaterThan(0);
+    const dx = shot.track[k][1] - shot.track[k - 1][1];
+    const dy = shot.track[k][2] - shot.track[k - 1][2];
+    const ticks = Math.max(1, shot.track[k][0] - shot.track[k - 1][0]);
+    // a long blink along the wall the hero slides on, not 0.5 to 2.8 m straight into it (the slide is probed 2.4 m
+    // ahead, so a 4 m blink along it may be cut a little where the wall ends)
+    expect(Math.hypot(dx, dy), why).toBeGreaterThan(3000);
+    expect(Math.hypot(dx, dy), why).toBeLessThan(BLINK_MM + RUN_MM_PER_TICK * ticks + 150);
+  });
 });
+

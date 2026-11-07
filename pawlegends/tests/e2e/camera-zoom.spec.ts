@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { startFirstMatch } from './helpers';
+import { me, startFirstMatch } from './helpers';
 
 // Camera polish 2026-11-06 (founder: "zoomed in a little too much"): the default match camera is ~17% further out
 // (desktop 27 × 1.03 m, short landscape phones × 0.75), and the player zoom (wheel, +/−, pinch, the pause-menu and
@@ -114,6 +114,65 @@ test('phones: a second-finger tap while the joystick steers is a tap, not a pinc
   await expect(page.locator('.pl-stick.on')).toHaveCount(1);
   expect((await cam(page)).target).toBeCloseTo(z0, 3);
   expect(await saved(page)).toBeNull();
+  await send('touchEnd', []);
+  await expect(page.locator('.pl-stick.on')).toHaveCount(0);
+});
+
+test('phones: a still joystick that starts steering stays a joystick when a resting finger drifts (QA 2026-11-07)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'landscape', 'touch');
+  test.setTimeout(120_000);
+  await startFirstMatch(page);
+  const z0 = (await cam(page)).target;
+  const vw = page.viewportSize()!;
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', touchPoints: { x: number; y: number; id: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+  const stick = (dx: number) => ({ x: 150 + dx, y: 250, id: 1 });
+  const rest = (dx: number) => ({ x: Math.round(vw.width * 0.62) + dx, y: Math.round(vw.height * 0.4), id: 2 });
+  // thumb on the stick (still), a second finger rests on the field, then the thumb pushes 50 px east: the hero runs
+  await send('touchStart', [stick(0)]);
+  await send('touchStart', [stick(0), rest(0)]);
+  for (let i = 1; i <= 5; i++) await send('touchMove', [stick(i * 10), rest(0)]);
+  await expect.poll(async () => (await me(page)).state, { timeout: 10000 }).toBe('moving');
+  // the resting finger drifts 30 px: no pinch, the stick keeps steering
+  for (let i = 1; i <= 6; i++) await send('touchMove', [stick(50), rest(i * 5)]);
+  await expect(page.locator('.pl-stick.on')).toHaveCount(1);
+  const p0 = await me(page);
+  await page.waitForTimeout(700);
+  const p1 = await me(page);
+  expect(p1.state).toBe('moving');
+  expect(Math.hypot(p1.x - p0.x, p1.y - p0.y)).toBeGreaterThan(500);
+  expect((await cam(page)).target).toBeCloseTo(z0, 3);
+  expect(await saved(page)).toBeNull();
+  await send('touchEnd', []);
+});
+
+test('phones: after a joystick pinch, the thumb that stays down steers again (QA 2026-11-07)', async ({ page }, info) => {
+  test.skip(info.project.name !== 'landscape', 'touch');
+  test.setTimeout(120_000);
+  await startFirstMatch(page);
+  const z0 = (await cam(page)).target;
+  const cdp = await page.context().newCDPSession(page);
+  const send = (type: 'touchStart' | 'touchMove' | 'touchEnd', touchPoints: { x: number; y: number; id: number }[]) => cdp.send('Input.dispatchTouchEvent', { type, touchPoints });
+  const pts = (gap: number) => [
+    { x: 400 - gap, y: 210, id: 1 },
+    { x: 400 + gap, y: 210, id: 2 },
+  ];
+  await send('touchStart', [pts(40)[0]]);
+  await send('touchStart', pts(40));
+  for (let i = 1; i <= 8; i++) await send('touchMove', pts(40 + i * 5));
+  await expect.poll(async () => (await cam(page)).target).toBeLessThan(z0 * 0.8);
+  await expect(page.locator('.pl-stick.on')).toHaveCount(0);
+  // the other finger lifts (touchEnd lists the points that lift): the thumb still down is a joystick again
+  const thumb = pts(80)[0];
+  await send('touchEnd', [pts(80)[1]]);
+  await expect(page.locator('.pl-stick.on')).toHaveCount(1);
+  const p0 = await me(page);
+  for (let i = 1; i <= 5; i++) await send('touchMove', [{ ...thumb, y: thumb.y - i * 10 }]);
+  await expect.poll(async () => (await me(page)).state, { timeout: 10000 }).toBe('moving');
+  await page.waitForTimeout(500);
+  const p1 = await me(page);
+  // the screen's up is north-ish: the hero went somewhere, steered by the thumb
+  expect(Math.hypot(p1.x - p0.x, p1.y - p0.y)).toBeGreaterThan(300);
   await send('touchEnd', []);
   await expect(page.locator('.pl-stick.on')).toHaveCount(0);
 });
