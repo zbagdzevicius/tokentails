@@ -5,7 +5,7 @@
 card, spectate.
 **Branch:** `feat/pawlegends-matchmaking` from `origin/main` (sim v14 live with five dogs, party play live, heading
 flash, walker prediction and camera zoom live).
-**Status:** plan only. This commit adds no code.
+**Status:** backend and game client done on `feat/pawlegends-matchmaking` (not released: the game build ships with the main session's `build:client`).
 **Paths** are relative to the repo root.
 
 ## 0. Hard rules (checked at every step)

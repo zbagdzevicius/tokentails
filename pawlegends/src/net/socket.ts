@@ -10,6 +10,7 @@
 import {
   Frame,
   PROTO,
+  PROTO_MIN,
   SUBPROTOCOL,
   decodeServerBinary,
   encodeBeat,
@@ -145,6 +146,14 @@ export class PartySocket {
   inMatch = false;
   reconnects = 0;
   private queued: string[] = [];
+  /**
+   * The `hello.proto` this socket sends (M1A-IMPL.md §5.5). An older relay answers a newer proto with `update_required`
+   * before `welcome`: the socket retries once with PROTO_MIN (party play works, Quick Play hides).
+   */
+  proto: number = PROTO;
+  /** The relay speaks Quick Play (`welcome.proto` ≥ 2). */
+  mm = false;
+  private welcomedOnce = false;
 
   constructor(private readonly url: string, private readonly hello: HelloInfo, private readonly env: SocketEnv = browserSocketEnv()) {
     this.token = env.store?.get(TOKEN_KEY) ?? null;
@@ -172,7 +181,7 @@ export class PartySocket {
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
     ws.onopen = () => {
-      const h: ClientJson = { t: 'hello', proto: PROTO, sim: this.hello.sim, simHash: this.hello.simHash, build: this.hello.build };
+      const h: ClientJson = { t: 'hello', proto: this.proto, sim: this.hello.sim, simHash: this.hello.simHash, build: this.hello.build };
       if (this.hello.ticket) h.ticket = this.hello.ticket;
       if (this.hello.guestKey) h.guestKey = this.hello.guestKey;
       if (this.hello.hint) h.hint = this.hello.hint;
@@ -192,7 +201,16 @@ export class PartySocket {
       } catch {
         return;
       }
+      // a relay older than this build refuses PROTO 2 before `welcome`: retry once as PROTO 1 (no Quick Play)
+      if (m.t === 'error' && m.code === 'update_required' && !this.welcomedOnce && this.proto > PROTO_MIN) {
+        this.proto = PROTO_MIN;
+        this.attempt = 0;
+        this.ws?.close(4000, 'proto');
+        return;
+      }
       if (m.t === 'welcome') {
+        this.welcomedOnce = true;
+        this.mm = typeof m.proto === 'number' && m.proto >= 2;
         this.attempt = 0;
         this.member = m.member;
         if (typeof m.serverMs === 'number' && Number.isFinite(m.serverMs)) this.serverOffsetMs = m.serverMs - Date.now();

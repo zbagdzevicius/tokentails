@@ -566,7 +566,8 @@ export interface ResultsOpts {
    * Party play (MULTIPLAYER.md §7 M6): the party's rows (src/party/ui/partyResults.ts markup, escaped there), and the
    * party actions: "Play again together (1/2)" (onAgain), "Change hero" (onChange), "Leave party".
    */
-  party?: { rowsHtml: string; again: string; onLeave(): void };
+  /** Party results; Quick Play strangers: `leave` "Back", no Change hero (`change: false`). */
+  party?: { rowsHtml: string; again: string; onLeave(): void; leave?: string; change?: boolean; coop?: boolean };
   /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
   progress?: ProgressSummary | null;
   /** GDD §7.2: the card skin worn this match ("<name> fought as <Hero>") and its Bond after it. */
@@ -761,7 +762,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     ${o.party ? '' : rewardStrip(o)}
     ${
       o.party
-        ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">Leave party</button><button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button><button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
+        ? `<div class="actions pinned party"><button class="pl-btn ghost small" data-a="leave-party" data-testid="party-leave-results">${esc(o.party.leave ?? 'Leave party')}</button>${o.party.change === false ? '' : '<button class="pl-btn solid" data-a="change" data-testid="party-change">Change hero</button>'}<button class="pl-btn big" data-a="again" data-testid="party-again">${esc(o.party.again)}</button></div>`
         : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
     }`;
   root.addEventListener('click', (e) => {
@@ -835,7 +836,7 @@ export interface MenuOpts {
    * Party play (MULTIPLAYER.md §4.6, §7 M5): the menu is a local overlay over a running match: "Menu" and "Back to
    * match"; Pause becomes "Vote pause" and Forfeit "Vote surrender" (no confirm step: friends answer the vote).
    */
-  party?: { onVotePause(): void };
+  party?: { onVotePause(): void; coop?: boolean };
   /** The camera zoom slider moved (it already saved the zoom): the match view follows at once. */
   onZoom?(z: number): void;
 }
@@ -873,7 +874,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
   // Audit UX-03: Leave was one free tap (nothing recorded); now a confirm step that says what it costs
   const leaveAsk = (): void => {
     root.innerHTML = `<div class="card pl-leave"><h2>Leave this match?</h2>
-    <p class="sub">${party ? 'You go back to your party. Bots take your place.' : o.leaveCounts ? 'It counts as a loss on your record, like a forfeit.' : 'This match is not saved.'}</p>
+    <p class="sub">${party?.coop ? 'Leaving early adds a short wait before your next online match. Another player or a bot takes your place.' : party ? 'You go back to your party. Bots take your place.' : o.leaveCounts ? 'It counts as a loss on your record, like a forfeit.' : 'This match is not saved.'}</p>
     <button class="pl-btn big" data-a="leave-no">Keep playing</button>
     <button class="pl-btn ghost danger" data-a="leave-yes">Leave match</button></div>`;
   };

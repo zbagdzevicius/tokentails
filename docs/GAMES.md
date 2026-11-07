@@ -251,6 +251,14 @@ retired).
   `VITE_EMBED_ORIGINS` (default tokentails.com and www.tokentails.com, `http://localhost:3000` in its dev
   server) plus its own origin when the parent is same-origin. Both sides post to the exact origin, never
   `'*'`, and no `accesstoken` or Firebase token crosses.
+- **Play online** (Quick Play co-op, M1a, `docs/plans/moba/M1A-IMPL.md`): from match 1 on, the title's friends row
+  starts with **Play online** (one tap, no sign-in, guests too). The queue card shows a timer, an estimate, the humans
+  found, a Cats · Dogs · Either chip and **Cancel**; bots fill the empty seats after 8 to 30 s. Strangers join one team
+  against bots with the side fixed; a leaver's seat may be offered to a queued player (backfill) or stays with a bot. A
+  friend party of 1 or 2 queues from its lobby (leader). Results: strangers get **Play again** (search again) and
+  **Back**. A match saves through the same party `/live` path; the hidden co-op rating is written only there. Events
+  `mm_join`, `mm_cancel`, `mm_found`, `mm_backfill_offer`, `mm_backfill_join`, `mm_penalty` (relayed by the host like
+  the `mp_*` events).
 - **Saves** (`components/pawlegends/saves.ts`): every finished match, won or lost, is posted as `{type:
   'PAWLEGENDS', pawlegends: <replay>}` to `POST /user/catbassadors/live`, the only write path. Without a
   Firebase user it waits in `tt.pawlegends.queue.v1` (12 at most) as a device match; after sign-in the host

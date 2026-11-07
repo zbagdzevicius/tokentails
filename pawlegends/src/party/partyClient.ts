@@ -12,13 +12,14 @@
 import { SIM_VERSION } from '../sim/version';
 import { NetHost, type NetNote } from '../net/net-host';
 import { PartySocket, browserSocketEnv, type SocketEnv } from '../net/socket';
-import { WS_PATH, normalizeCode, type ClientJson, type MatchMsg, type PartyView, type ServerJson } from '../net/proto';
+import { WS_PATH, normalizeCode, type ClientJson, type MatchMsg, type MmSide, type PartyView, type ServerJson } from '../net/proto';
 import { TRICK_IDS } from '../data/tricks';
 import { HERO_IDS } from '../data/heroes';
-import { COPY, errorText, esc } from './ui/copy';
+import { COPY, clockText, errorText, esc } from './ui/copy';
+import { queueCardHtml, type QueueStop } from './ui/queueCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
-import { decoratePick, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
+import { decoratePick, firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
 import { HERO_TEXT } from '../ui/heroText';
 import { loadingHtml } from './ui/partyLoading';
 import { qrSvg } from './qr';
@@ -30,8 +31,54 @@ import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
 
 // ------------------------------------------------------------------------------------------------ the reducer
 
-/** How the party chunk was opened: the title's first tap, a link, "Join with code", or a reload with a seat. */
-export type OpenMode = 'create' | 'join' | 'code' | 'resume';
+/**
+ * How the party chunk was opened: the title's first tap, a link, "Join with code", a reload with a seat, or "Play
+ * online" (Quick Play co-op, M1A-IMPL.md §6: `mm.join` goes out by itself after `welcome`).
+ */
+export type OpenMode = 'create' | 'join' | 'code' | 'resume' | 'queue';
+
+/** What the queue found (`mm.found`: counts only, never names). */
+export interface MmFound {
+  side: 'cat' | 'dog';
+  humans: number;
+  bots: number;
+  difficulty: string;
+}
+
+/** The last `mm.status`. */
+export interface QueueStatus {
+  waitedMs: number;
+  estimateMs: number;
+  found: number;
+  lowPriorityMs?: number;
+  warn?: 'leaver';
+}
+
+/** Quick Play: this player (or its friend party) searching, matched, or stopped. */
+export interface QueueState {
+  side: MmSide;
+  status: QueueStatus | null;
+  /** The search stopped (the card offers Search again), or null while searching. */
+  stopped: QueueStop | null;
+  retryMs?: number;
+  /** `mm.found` arrived: the card shows "Match found" until `found-shown` (1.2 s). */
+  found: MmFound | null;
+  /** A friend party queued together (its leader sent `mm.join`). */
+  party: boolean;
+  /** The party view said it is queued (a later view without `queue` means the search ended). */
+  seen: boolean;
+  /** Play again after a Quick Play match (analytics). */
+  requeue: boolean;
+}
+
+/** A backfill offer (`mm.backfill.offer`) waiting for Join or Keep searching. */
+export interface OfferState {
+  id: string;
+  side: 'cat' | 'dog';
+  clockS: number;
+  score: [number, number];
+  expiresMs: number;
+}
 
 export interface PartyState {
   mode: OpenMode;
@@ -45,6 +92,13 @@ export interface PartyState {
   asked: boolean;
   welcomed: boolean;
   error: { code: string; retryMs?: number } | null;
+  /** Quick Play (PROTO 2). */
+  queue: QueueState | null;
+  /** The last match the queue found (the pick's "2 players + 1 bot" line). */
+  found: MmFound | null;
+  offer: OfferState | null;
+  /** The relay speaks Quick Play (`welcome.proto` ≥ 2). */
+  mmOk: boolean;
 }
 
 export type PartyEffect =
@@ -55,11 +109,38 @@ export type PartyEffect =
   | { t: 'note'; note: NetNote }
   | { t: 'vibrate' }
   | { t: 'close' }
-  | { t: 'retry-start'; ms: number };
+  | { t: 'retry-start'; ms: number }
+  /** Quick Play: hold "Match found" for 1.2 s, then the pick. */
+  | { t: 'found-hold' }
+  /** A backfill took this player's seat: end the running match, if any. */
+  | { t: 'seat-taken' }
+  | { t: 'track'; event: string; props: Record<string, string | number | boolean> };
 
-export type PartyEvent = { e: 'server'; m: ServerJson } | { e: 'decide' } | { e: 'join'; code: string } | { e: 'create' };
+export type PartyEvent =
+  | { e: 'server'; m: ServerJson }
+  | { e: 'decide' }
+  | { e: 'join'; code: string }
+  | { e: 'create' }
+  /** Quick Play: search (the title's "Play online", the lobby's leader button, Search again, Play again). */
+  | { e: 'queue'; side: MmSide; requeue?: boolean }
+  /** Cancel the search. */
+  | { e: 'unqueue' }
+  | { e: 'side'; side: MmSide }
+  | { e: 'found-shown' }
+  | { e: 'offer'; yes: boolean | null };
 
-export const initialParty = (mode: OpenMode, code: string | null = null): PartyState => ({
+/** A fresh search. */
+export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean } = {}): QueueState => ({
+  side,
+  status: null,
+  stopped: null,
+  found: null,
+  party: !!o.party,
+  seen: false,
+  requeue: !!o.requeue,
+});
+
+export const initialParty = (mode: OpenMode, code: string | null = null, side: MmSide = 'any'): PartyState => ({
   mode,
   code,
   view: null,
@@ -68,17 +149,27 @@ export const initialParty = (mode: OpenMode, code: string | null = null): PartyS
   asked: false,
   welcomed: false,
   error: null,
+  queue: mode === 'queue' ? searching(side) : null,
+  found: null,
+  offer: null,
+  mmOk: false,
 });
 
-/** The screen a state shows. */
-export type PartyScreen = 'connecting' | 'joincode' | 'ended' | 'error' | 'lobby' | 'pick' | 'loading' | 'match';
+/** This player is a stranger in a Quick Play party (a stranger's view never carries the code). */
+export const isStranger = (v: PartyView | null): boolean => !!v?.mm && v.code === '';
 
-const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_locked', 'party_busy', 'kicked', 'code_changed', 'already_in_party']);
+/** The screen a state shows. */
+export type PartyScreen = 'connecting' | 'joincode' | 'ended' | 'error' | 'lobby' | 'pick' | 'loading' | 'match' | 'queue';
+
+const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_locked', 'party_busy', 'kicked', 'code_changed', 'already_in_party', 'seat_taken']);
 const FATAL = new Set(['update_required', 'seat_elsewhere']);
 
 export function screenOf(s: PartyState): PartyScreen {
   if (s.inMatch || s.solo) return 'match';
   if (s.error && FATAL.has(s.error.code)) return 'error';
+  if (s.error?.code === 'seat_taken' && !s.view) return 'ended';
+  // Quick Play: the queue card (searching, "Match found", stopped) over the title, a party lobby or results
+  if (s.queue && (!s.view || s.queue.found || s.view.phase === 'lobby' || s.view.phase === 'results')) return 'queue';
   if (!s.view) {
     if (s.error && ENDED.has(s.error.code)) return s.mode === 'code' && s.error.code !== 'kicked' ? 'joincode' : 'ended';
     if (s.mode === 'code' && !s.asked) return 'joincode';
@@ -137,22 +228,101 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       }
       return { state: s, effects: [] };
     }
+    case 'queue': {
+      const party = !!s.view && !isStranger(s.view);
+      const queue = searching(ev.side, { party, requeue: ev.requeue });
+      if (!s.welcomed) return { state: { ...s, queue, error: null, offer: null }, effects: [] };
+      if (!s.mmOk) return { state: { ...s, queue: { ...queue, stopped: 'update' } }, effects: [] };
+      send({ t: 'mm.join', queue: 'coop', side: ev.side });
+      return { state: { ...s, queue, error: null, offer: null, asked: true }, effects: fx };
+    }
+    case 'unqueue':
+      if (s.queue && !s.queue.stopped && s.welcomed) send({ t: 'mm.leave' });
+      return { state: { ...s, queue: null, offer: null }, effects: fx };
+    case 'side':
+      if (!s.queue) return { state: s, effects: [] };
+      return { state: { ...s, queue: { ...s.queue, side: ev.side } }, effects: [] };
+    case 'found-shown':
+      if (!s.queue?.found) return { state: s, effects: [] };
+      return { state: { ...s, queue: null }, effects: [] };
+    case 'offer': {
+      const o = s.offer;
+      if (!o) return { state: s, effects: [] };
+      if (ev.yes !== null) send({ t: 'mm.backfill', offer: o.id, yes: ev.yes });
+      fx.push({ t: 'track', event: 'mm_backfill_join', props: { answer: ev.yes === null ? 'timeout' : ev.yes ? 'yes' : 'no', clock_s: o.clockS } });
+      return { state: { ...s, offer: null }, effects: fx };
+    }
     case 'server':
       break;
   }
   const m = ev.m;
   switch (m.t) {
-    case 'welcome':
+    case 'welcome': {
+      const mmOk = typeof m.proto === 'number' && m.proto >= 2;
+      const q = s.queue;
+      // Quick Play: the first welcome, a reconnect, or a relay restart (`mm.cancel{server}`): (re)send `mm.join`, so
+      // the player sees one continuous search. A friend party's search is the leader's to re-send.
+      if (q && !q.stopped && !q.found && (!s.view || isStranger(s.view) || s.view.leader === s.view.you)) {
+        if (!mmOk) return { state: { ...s, welcomed: true, mmOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
+        return { state: { ...s, welcomed: true, mmOk, asked: true }, effects: [{ t: 'send', msg: { t: 'mm.join', queue: 'coop', side: q.side } }] };
+      }
+      if (q && !s.view) return { state: { ...s, welcomed: true, mmOk, asked: true }, effects: [] };
       // a reconnect keeps the view (the relay re-sends the party right after welcome)
-      return { state: { ...s, welcomed: true, asked: s.view ? s.asked : false }, effects: s.view ? [] : [{ t: 'decide-later' }] };
+      return { state: { ...s, welcomed: true, mmOk, asked: s.view ? s.asked : false }, effects: s.view ? [] : [{ t: 'decide-later' }] };
+    }
     case 'party': {
-      if ((m as PartyView & { left?: boolean }).left || !m.code) return { state: { ...s, view: null }, effects: [{ t: 'close' }] };
+      const left = !!(m as PartyView & { left?: boolean }).left || (!m.code && !m.mm);
+      // Quick Play: a stranger's Play again leaves the matched party and searches alone (the card stays up)
+      if (left && s.error?.code === 'seat_taken') return { state: s, effects: [] };
+      if (left && s.queue && !s.inMatch) return { state: { ...s, view: null, code: null, queue: { ...s.queue, party: false } }, effects: [] };
+      if (left) return { state: { ...s, view: null }, effects: [{ t: 'close' }] };
       const notes = s.inMatch || s.solo ? [] : diffNotes(s.view, m);
       for (const n of notes) fx.push({ t: 'note', note: n });
       // the error of a refused action clears with the next good view, except a fatal one
       const error = s.error && FATAL.has(s.error.code) ? s.error : null;
+      let queue = s.queue;
+      if (m.queue && (!queue || queue.stopped)) queue = { ...searching(m.queue.side, { party: true }), seen: true };
+      else if (m.queue && queue) queue = { ...queue, seen: true, party: true };
+      else if (queue && queue.party && queue.seen && !queue.found) queue = null; // the party's search ended
+      // matched: the shared pick takes over (after the 1.2 s "Match found" strip, when there was one)
+      if (queue && !queue.found && m.mm && (m.phase === 'pick' || m.phase === 'loading' || m.phase === 'match')) queue = null;
       // the app ends a match (`matchOver`) once its results are done; the view keeps updating meanwhile
-      return { state: { ...s, view: m, error, asked: true, code: m.code }, effects: fx };
+      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue }, effects: fx };
+    }
+    case 'mm.status': {
+      const status: QueueStatus = {
+        waitedMs: m.waitedMs,
+        estimateMs: m.estimateMs,
+        found: m.found,
+        ...(m.lowPriorityMs ? { lowPriorityMs: m.lowPriorityMs } : {}),
+        ...(m.warn ? { warn: m.warn } : {}),
+      };
+      const base = s.queue && !s.queue.found ? s.queue : searching(m.side, { party: !!s.view && !isStranger(s.view) });
+      return { state: { ...s, queue: { ...base, side: m.side, status, stopped: null } }, effects: [] };
+    }
+    case 'mm.found': {
+      const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty };
+      const q = s.queue ?? searching(m.side);
+      fx.push({ t: 'found-hold' }, { t: 'vibrate' });
+      return { state: { ...s, queue: { ...q, found }, found, offer: null }, effects: fx };
+    }
+    case 'mm.cancel': {
+      if (!s.queue) return { state: s, effects: [] };
+      // a restart: keep searching; the reconnect's welcome re-sends `mm.join` (one continuous timer)
+      if (m.reason === 'server') return { state: { ...s, queue: { ...s.queue, status: null } }, effects: [] };
+      // a friend party's search ended for everyone: back to its lobby
+      if (s.view && !isStranger(s.view) && s.queue.party) {
+        const title = m.reason === 'away' ? COPY.stoppedAway : COPY.stoppedParty;
+        return { state: { ...s, queue: null, offer: null }, effects: [{ t: 'note', note: { key: 'mm-cancel', title, tone: 'info', ttl: 4000 } }] };
+      }
+      const stopped: QueueStop = m.reason === 'away' ? 'away' : m.reason === 'update' ? 'update' : m.reason === 'left' ? 'left' : 'party';
+      return { state: { ...s, queue: { ...s.queue, stopped, status: null }, offer: null }, effects: [] };
+    }
+    case 'mm.backfill.offer': {
+      if (!s.queue || s.queue.stopped || s.queue.found) return { state: s, effects: [] };
+      const offer: OfferState = { id: m.offer, side: m.side, clockS: m.clockS, score: m.score, expiresMs: m.expiresMs };
+      fx.push({ t: 'track', event: 'mm_backfill_offer', props: { clock_s: m.clockS, ahead: m.score[0] > m.score[1] } }, { t: 'vibrate' });
+      return { state: { ...s, offer }, effects: fx };
     }
     case 'match':
       if (s.inMatch) return { state: s, effects: [] };
@@ -168,7 +338,12 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       if (m.kind === 'rematch' && m.result === 'pass') return { state: s, effects: [{ t: 'note', note: { key: 'mp-rematch', title: COPY.rematchNote, tone: 'info', ttl: 3000 } }] };
       return { state: s, effects: [] };
     case 'error': {
+      // a backfill took this player's seat (a resume, or still connected while a bot flew it): no seat to go back to
+      if (m.code === 'seat_taken')
+        return { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'seat_taken' }, asked: false }, effects: [{ t: 'seat-taken' }] };
       if (s.inMatch) return { state: s, effects: [] }; // NetHost shows in-match errors on the rail
+      if (s.queue && !s.queue.found && (m.code === 'mm_locked' || m.code === 'server_busy'))
+        return { state: { ...s, queue: { ...s.queue, stopped: m.code === 'mm_locked' ? 'locked' : 'busy', retryMs: m.retryMs ?? 15_000, status: null }, offer: null }, effects: [] };
       const error = { code: m.code, ...(m.retryMs !== undefined ? { retryMs: m.retryMs } : {}) };
       if (m.code === 'kicked') return { state: { ...s, view: null, error, asked: false }, effects: [] };
       if (m.code === 'bad_ticket') return { state: s, effects: [{ t: 'note', note: { key: 'pp-ticket', title: COPY.badTicket, tone: 'info', ttl: 5000 } }] };
@@ -217,8 +392,18 @@ export interface PartyHooks {
   cardId?(): string | null;
   /** Start loading the match chunk and assets (during the lobby and the pick). */
   preload?(): Promise<unknown>;
-  /** Start the party match in the app (a MatchSession on this NetHost). */
-  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView): void;
+  /** Start the party match in the app (a MatchSession on this NetHost). `backfill`: this player took a leaver's seat. */
+  startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean }): void;
+  /** Quick Play: the side of the first search ("Play online"; the last one this viewer used). */
+  queueSide?: MmSide;
+  /** Quick Play: the player changed the side (remembered for the next search). */
+  saveQueueSide?(side: MmSide): void;
+  /** Quick Play analytics context (no ids). */
+  mmInfo?(): { surface: 'web' | 'embed' | 'app'; matches: number; guest: boolean };
+  /** The hero this player last played on a side (the Quick Play pick's default), or ''. */
+  heroForSide?(side: 'cat' | 'dog'): string;
+  /** A backfill took this player's seat while the match ran: end it in the app (the party screen says why). */
+  endMatch?(): void;
   /** D10: a party of one with Open seats off plays a normal local match (the party stays open). */
   startSolo(difficulty: string): void;
   /** The rail of the running match (in-match notes). */
@@ -246,6 +431,11 @@ function rememberParty(code: string | null): void {
 }
 
 const heroName = (h: string): string => (h in HERO_TEXT ? HERO_TEXT[h as keyof typeof HERO_TEXT].title : h);
+
+/** "Match found" stays on the card this long before the pick (M1A-IMPL.md §1.4). */
+export const FOUND_HOLD_MS = 1200;
+/** The relay takes one `mm.side` per 2 s; the client waits a little longer. */
+const SIDE_EVERY_MS = 2100;
 
 const simHash = (): string => (typeof __SIM_HASH__ !== 'undefined' ? __SIM_HASH__ : '0000000000000000');
 const DIFFS = ['easy', 'normal', 'hard'] as const;
@@ -281,7 +471,8 @@ export class PartyClient {
     this.openedAt = this.now();
     this.hover = h.hero;
     this.trick = h.trick;
-    this.state = initialParty(opts.mode, opts.code ?? null);
+    this.state = initialParty(opts.mode, opts.code ?? null, h.queueSide ?? 'any');
+    if (opts.mode === 'queue') this.queueSince = this.now();
     const url = `${h.api.replace(/^http/, 'ws').replace(/\/+$/, '')}${WS_PATH}`;
     this.el = document.createElement('div');
     this.el.className = 'pl-party';
@@ -292,6 +483,7 @@ export class PartyClient {
     h.root.appendChild(this.el);
     this.el.addEventListener('click', (e) => this.onClick(e));
     this.el.addEventListener('change', (e) => this.onChange(e));
+    this.el.addEventListener('keydown', (e) => this.onKey(e));
     this.socket = new PartySocket(
       url,
       { sim: SIM_VERSION, simHash: simHash(), build: h.build, guestKey: h.guestKey(), hint: { maxDifficulty: h.maxDifficulty, newbie: h.newbie } },
@@ -305,7 +497,8 @@ export class PartyClient {
     });
     // the lobby's own presence: a hidden tab is "away" (the waiting chip, §5.1); in a match NetHost does it
     const onVis = (): void => {
-      if (this.state.inMatch || this.state.solo || !this.state.view) return;
+      // a queued solo has no party view: its presence still matters (an away entry is skipped, then cancelled)
+      if (this.state.inMatch || this.state.solo || (!this.state.view && !this.state.queue)) return;
       this.socket.sendJson({ t: document.hidden ? 'away' : 'back' });
     };
     document.addEventListener('visibilitychange', onVis);
@@ -331,6 +524,7 @@ export class PartyClient {
     const prev = this.state;
     const { state, effects } = reduceParty(prev, ev);
     this.state = state;
+    this.queueBook(prev, ev);
     if (state.view?.deadlineMs !== undefined && ev.e === 'server' && ev.m.t === 'party') this.deadlineAt = this.now() + state.view.deadlineMs;
     if (state.view?.waiting?.length && !prev.view?.waiting?.length) this.waitingAt = this.now();
     if (!state.view?.waiting?.length) this.waitingAt = 0;
@@ -372,7 +566,10 @@ export class PartyClient {
         if (f.msg.t === 'party.create') {
           this.socket.sendJson({ t: 'party.create', difficulty: this.h.difficulty });
           this.h.analytics?.('party_create', { difficulty: this.h.difficulty });
-        } else this.socket.sendJson(f.msg);
+        } else {
+          if (f.msg.t === 'mm.join') this.trackJoin(f.msg.side);
+          this.socket.sendJson(f.msg);
+        }
         return;
       case 'decide-later':
         if (this.decideTimer) clearTimeout(this.decideTimer);
@@ -392,6 +589,7 @@ export class PartyClient {
           },
           f.match,
           this.state.view!,
+          { backfill: this.backfilled },
         );
         return;
       case 'note':
@@ -411,8 +609,159 @@ export class PartyClient {
         if (this.retryTimer) clearTimeout(this.retryTimer);
         this.retryTimer = setTimeout(() => this.socket.sendJson({ t: 'party.start' }), f.ms);
         return;
+      case 'found-hold':
+        if (this.foundTimer) clearTimeout(this.foundTimer);
+        this.foundTimer = setTimeout(() => this.dispatch({ e: 'found-shown' }), FOUND_HOLD_MS);
+        return;
+      case 'seat-taken':
+        this.backfilled = false;
+        if (this.host) {
+          this.host = null;
+          this.resultsEl = null;
+          this.resultsDone = null;
+          this.h.endMatch?.();
+        }
+        this.el.hidden = false;
+        this.drawn = '';
+        return;
+      case 'track':
+        this.h.analytics?.(f.event, f.props);
+        return;
     }
   }
+
+  // -------------------------------------------------------------------------------------------- Quick Play (M1a)
+
+  /** When this search started (local clock; synced to the relay's `waitedMs`, never moved later). */
+  private queueSince = 0;
+  private statusAt = 0;
+  private offerAt = 0;
+  private foundTimer: ReturnType<typeof setTimeout> | null = null;
+  private sideTimer: ReturnType<typeof setTimeout> | null = null;
+  private sideSentAt = -Infinity;
+  private joinTracked = false;
+  private penaltyTracked = false;
+  /** This player took a leaver's seat (analytics: mp_match_* `backfill`). */
+  private backfilled = false;
+
+  /** Clocks and analytics of the queue, after each reduce. */
+  private queueBook(prev: PartyState, ev: PartyEvent): void {
+    const s = this.state;
+    const now = this.now();
+    const m = ev.e === 'server' ? ev.m : null;
+    if (ev.e === 'queue') {
+      this.queueSince = now;
+      this.joinTracked = false;
+      this.penaltyTracked = false;
+      this.h.saveQueueSide?.(ev.side);
+    }
+    // a party member's search started by its leader: the party view says since when
+    if (s.queue && !prev.queue && ev.e !== 'queue') this.queueSince = now - (s.view?.queue?.sinceMs ?? 0);
+    if (s.queue?.stopped && !prev.queue?.stopped) this.stoppedAt = now;
+    if (m?.t === 'mm.status') {
+      this.statusAt = now;
+      this.queueSince = Math.min(this.queueSince || now, now - m.waitedMs);
+      if (m.lowPriorityMs && !this.penaltyTracked) {
+        this.penaltyTracked = true;
+        this.h.analytics?.('mm_penalty', { level: m.lowPriorityMs <= 60_000 ? 1 : m.lowPriorityMs <= 180_000 ? 2 : 3, wait_s: Math.round(m.lowPriorityMs / 1000) });
+      }
+    }
+    if (m?.t === 'mm.backfill.offer') this.offerAt = now;
+    const waited = Math.max(0, Math.round((now - this.queueSince) / 1000));
+    if (m?.t === 'mm.found') this.h.analytics?.('mm_found', { waited_s: waited, humans: m.humans, bots: m.bots, difficulty: m.difficulty, side: m.side });
+    if (m?.t === 'mm.cancel' && prev.queue && m.reason !== 'left') this.h.analytics?.('mm_cancel', { by: m.reason === 'update' ? 'server' : m.reason, waited_s: waited });
+    if (ev.e === 'unqueue' && prev.queue && !prev.queue.stopped) this.h.analytics?.('mm_cancel', { by: 'user', waited_s: waited });
+    if (ev.e === 'offer' && ev.yes === true) this.backfilled = true;
+    if (m?.t === 'match') this.backfilled = this.backfilled && m.startInMs === 0;
+  }
+
+  /** `mm.join` went out: mm_join once per search (a reconnect's re-send is the same search). */
+  private trackJoin(side: MmSide): void {
+    if (this.joinTracked) return;
+    this.joinTracked = true;
+    const info = this.h.mmInfo?.() ?? { surface: 'web' as const, matches: 0, guest: true };
+    const v = this.state.view;
+    this.h.analytics?.('mm_join', {
+      queue: 'coop',
+      side,
+      party_size: v && !isStranger(v) ? v.members.length : 1,
+      surface: info.surface,
+      matches_bucket: info.matches >= 20 ? '20+' : info.matches >= 5 ? '5-19' : '1-4',
+      guest: info.guest,
+      requeue: !!this.state.queue?.requeue,
+    });
+  }
+
+  /** The side chip: at most one `mm.side` per 2 s (the relay's rule); the last choice always goes out. */
+  private sendSide(): void {
+    const wait = this.sideSentAt + SIDE_EVERY_MS - this.now();
+    if (this.sideTimer) return;
+    const go = (): void => {
+      this.sideTimer = null;
+      const q = this.state.queue;
+      if (!q || q.stopped || q.found || this.closed) return;
+      this.sideSentAt = this.now();
+      this.socket.sendJson({ t: 'mm.side', side: q.side });
+    };
+    if (wait <= 0) go();
+    else this.sideTimer = setTimeout(go, wait);
+  }
+
+  /** Search (again) with the remembered side. */
+  queueNow(requeue = false): void {
+    this.dispatch({ e: 'queue', side: this.state.queue?.side ?? this.h.queueSide ?? 'any', requeue });
+  }
+
+  /** Seconds searched now. */
+  private waitedS(): number {
+    return Math.max(0, Math.floor((this.now() - this.queueSince) / 1000));
+  }
+
+  private offerLeftS(): number {
+    const o = this.state.offer;
+    return o ? Math.max(0, (o.expiresMs - (this.now() - this.offerAt)) / 1000) : 0;
+  }
+
+  /** The queue card's live texts (timer, countdowns), updated in place. */
+  private liveQueue(): void {
+    const q = this.state.queue;
+    if (!q) return;
+    const set = (k: string, text: string): void => {
+      const el = this.card.querySelector<HTMLElement>(`[data-live="${k}"]`);
+      if (el && el.textContent !== text) el.textContent = text;
+    };
+    set('waited', clockText(this.waitedS()));
+    const low = Math.max(0, (q.status?.lowPriorityMs ?? 0) - (this.now() - this.statusAt));
+    if (low > 0) set('low', COPY.lowPriority(clockText(low / 1000)));
+    if (this.state.offer) {
+      const left = this.offerLeftS();
+      set('offer', String(Math.ceil(left)));
+      set('clock', COPY.backfillAt(clockText(this.state.offer.clockS + (this.now() - this.offerAt) / 1000)));
+      const ring = this.card.querySelector<HTMLElement>('.pp-ring');
+      ring?.style.setProperty('--pp-ring', `${Math.round((left / Math.max(1, this.state.offer.expiresMs / 1000)) * 100)}%`);
+      if (left <= 0) this.dispatch({ e: 'offer', yes: null });
+    }
+  }
+
+  private queueModel() {
+    const s = this.state;
+    const q = s.queue!;
+    const retryS = q.retryMs ? Math.max(0, Math.ceil((q.retryMs - (this.now() - this.stoppedAt)) / 1000)) : 0;
+    return {
+      side: q.side,
+      waitedS: this.waitedS(),
+      estimateS: q.status ? Math.round(q.status.estimateMs / 1000) : null,
+      found: q.status?.found ?? (s.view && !isStranger(s.view) ? s.view.members.length : 1),
+      lowPriorityS: Math.max(0, ((q.status?.lowPriorityMs ?? 0) - (this.now() - this.statusAt)) / 1000),
+      warn: q.status?.warn === 'leaver',
+      party: q.party,
+      stopped: q.stopped,
+      retryS,
+      match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty } : null,
+      offer: s.offer ? { clockS: s.offer.clockS + Math.floor((this.now() - this.offerAt) / 1000), score: s.offer.score, leftS: this.offerLeftS(), totalS: s.offer.expiresMs / 1000 } : null,
+    };
+  }
+  private stoppedAt = 0;
 
   private enteredParty(): void {
     const via = this.state.mode === 'create' ? 'create' : this.state.mode === 'resume' ? 'resume' : this.state.mode === 'code' ? 'code' : 'link';
@@ -433,7 +782,9 @@ export class PartyClient {
     // rematch prefills the last pick; otherwise the title's hero, when free
     if (me?.hero) this.hover = me.hero;
     if (me?.trick) this.trick = me.trick;
-    if (!heroBlock(v, this.hover)) this.socket.sendJson({ t: 'pick.hover', hero: this.hover });
+    // Quick Play: the side is fixed; a hover on the other side moves to this player's hero of that side
+    if (v.mm && heroBlock(v, this.hover)) this.hover = firstFree(v, v.mm.side, this.h.heroForSide?.(v.mm.side));
+    if (this.hover && !heroBlock(v, this.hover)) this.socket.sendJson({ t: 'pick.hover', hero: this.hover });
     // M6 "Play again together": the same hero, locked at once ("Change hero" leaves the pick open)
     if (this.keepHero && me?.hero && !heroBlock(v, me.hero)) this.socket.sendJson({ t: 'pick.lock', hero: me.hero, trick: me.trick ?? this.trick });
     this.keepHero = false;
@@ -475,9 +826,19 @@ export class PartyClient {
     );
   }
 
-  /** "Play again together (0/2)" now. */
+  /** "Play again together (0/2)" now; Quick Play: "Play again" (a stranger searches again) or "Back to party". */
   againText(): string {
-    return againLabel(this.state.view, this.againPressed);
+    const v = this.state.view;
+    if (isStranger(v)) return COPY.playAgainOnline;
+    if (v?.mm) return COPY.backToParty;
+    return againLabel(v, this.againPressed);
+  }
+
+  /** The results actions for this player (Quick Play strangers get Play again and Back, no Change hero). */
+  resultsActions(): { again: string; leave: string; change: boolean; coop: boolean } {
+    const v = this.state.view;
+    const stranger = isStranger(v);
+    return { again: this.againText(), leave: stranger ? COPY.back : COPY.leave, change: !v?.mm, coop: !!v?.mm };
   }
 
   /** The app's results screen is up: keep its Play again label current; `done` hands the screen back for the pick. */
@@ -489,6 +850,18 @@ export class PartyClient {
 
   /** "Play again together" (keep the hero) or "Change hero" (the pick stays open). */
   again(keepHero: boolean): void {
+    const v = this.state.view;
+    // Quick Play: a stranger searches again with the same side (the relay moves it out of the matched party); a
+    // friend party goes back to its own lobby, where the leader has Play online
+    if (v?.mm) {
+      const done = this.resultsDone;
+      this.resultsEl = null;
+      this.resultsDone = null;
+      if (done) done();
+      else this.matchOver();
+      if (isStranger(v)) this.queueNow(true);
+      return;
+    }
     this.keepHero = keepHero;
     this.againPressed = true;
     this.socket.sendJson({ t: 'vote', kind: 'rematch', yes: true });
@@ -497,13 +870,18 @@ export class PartyClient {
     this.resultsEl?.querySelectorAll<HTMLButtonElement>('[data-a="again"], [data-a="change"]').forEach((x) => x.classList.add('pressed'));
   }
 
-  /** "Leave party" from the results screen (the app then goes back to the title). */
-  leaveParty(): void {
+  /** "Leave party" from the results screen, or Leave match in a Quick Play match (the app then shows the title). */
+  leaveParty(phase: 'results' | 'match' = 'results'): void {
     this.resultsEl = null;
     this.resultsDone = null;
     if (this.state.view) this.socket.sendJson({ t: 'party.leave' });
-    this.h.analytics?.('party_leave', { phase: 'results', reason: 'button' });
+    this.h.analytics?.('party_leave', { phase, reason: 'button', coop: !!this.state.view?.mm });
     this.close();
+  }
+
+  /** A Quick Play match (strangers, a fixed side): Leave match leaves the party (a backfill or a bot takes the seat). */
+  get coop(): boolean {
+    return !!this.state.view?.mm;
   }
 
   private async enteredLoading(): Promise<void> {
@@ -518,6 +896,7 @@ export class PartyClient {
 
   /** The app finished the match (or the solo match) and the results: show the party again. */
   matchOver(): void {
+    this.backfilled = false;
     this.state = { ...this.state, inMatch: false, solo: false };
     this.host = null;
     this.resultsEl = null;
@@ -671,7 +1050,49 @@ export class PartyClient {
       case 'reload':
         location.reload();
         return;
+      // Quick Play
+      case 'queue':
+        this.queueNow(false);
+        return;
+      case 'mm-again':
+        this.queueNow(false);
+        return;
+      case 'mm-cancel': {
+        const solo = !this.state.view || isStranger(this.state.view);
+        this.dispatch({ e: 'unqueue' });
+        if (solo) this.close();
+        return;
+      }
+      case 'mm-side': {
+        const side = t.dataset.v as MmSide;
+        if (!['cat', 'dog', 'any'].includes(side) || this.state.queue?.side === side) return;
+        this.dispatch({ e: 'side', side });
+        this.h.saveQueueSide?.(side);
+        this.sendSide();
+        return;
+      }
+      case 'bf-yes':
+        this.dispatch({ e: 'offer', yes: true });
+        return;
+      case 'bf-no':
+        this.dispatch({ e: 'offer', yes: false });
+        return;
     }
+  }
+
+  /** The side chip is a radio group: the arrow keys move the choice (and the focus). */
+  private onKey(e: KeyboardEvent): void {
+    const t = e.target as HTMLElement;
+    if (t?.dataset?.p !== 'mm-side') return;
+    const step = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0;
+    if (!step) return;
+    e.preventDefault();
+    const order: MmSide[] = ['cat', 'dog', 'any'];
+    const next = order[(order.indexOf(t.dataset.v as MmSide) + step + order.length) % order.length];
+    this.dispatch({ e: 'side', side: next });
+    this.h.saveQueueSide?.(next);
+    this.sendSide();
+    this.card.querySelector<HTMLElement>(`[data-p="mm-side"][data-v="${next}"]`)?.focus();
   }
 
   /** A two-tap confirm: the first tap marks the button (`data-sure`, "Tap again…") for 3 s; true on the second. */
@@ -762,6 +1183,11 @@ export class PartyClient {
   private everySecond(): void {
     if (this.closed || this.state.inMatch || this.state.solo) return;
     if (screenOf(this.state) === 'connecting') this.render();
+    if (screenOf(this.state) === 'queue') {
+      this.liveQueue();
+      // a locked or busy stop: Search again turns on when the wait is over
+      if (this.state.queue?.stopped && this.state.queue.retryMs) this.render();
+    }
     const v = this.state.view;
     if (v?.phase === 'pick') {
       const t = this.card.querySelector('[data-timer]');
@@ -804,8 +1230,15 @@ export class PartyClient {
       case 'joincode':
         html = joinCodeHtml(err, s.code ?? '');
         break;
+      case 'queue':
+        html = queueCardHtml(this.queueModel());
+        break;
       case 'ended': {
         const title = errorText(s.error?.code ?? 'party_ended');
+        if (s.error?.code === 'seat_taken') {
+          html = `<div class="pp-card pp-narrow pp-ended" data-testid="party-ended" data-reason="seat_taken"><h2>${esc(title)}</h2><p class="pp-dim">${COPY.seatTakenNote}</p><div class="pp-col"><button type="button" class="pl-btn big" data-p="mm-again" data-testid="mm-again">${COPY.online}</button><button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div></div>`;
+          break;
+        }
         html = `<div class="pp-card pp-narrow pp-ended" data-testid="party-ended"><h2>${esc(title)}</h2><div class="pp-col"><button type="button" class="pl-btn big" data-p="solo" data-testid="party-play-now">${COPY.playNow}</button><button type="button" class="pl-btn ghost" data-p="own" data-testid="party-own">${COPY.ownParty}</button><button type="button" class="pl-btn ghost small" data-p="back">${COPY.back}</button></div></div>`;
         break;
       }
@@ -821,17 +1254,23 @@ export class PartyClient {
           nudged: new Set(this.nudged.keys()),
           difficulties: this.h.difficulties ?? DIFFS,
           hideNames: hideNames(),
+          online: s.mmOk,
         });
         break;
       case 'pick':
-        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames() });
+        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames(), found: s.found });
         break;
       case 'loading':
         html = loadingHtml(s.view!);
         break;
     }
     // the timer text changes every second; skip identical redraws (keeps focus and the code boxes)
-    const key = screen === 'pick' ? html.replace(/data-timer[^>]*>\d+s/, '') : html;
+    const key =
+      screen === 'pick'
+        ? html.replace(/data-timer[^>]*>\d+s/, '')
+        : screen === 'queue'
+          ? html.replace(/(data-live="[a-z]+"[^>]*>)[^<]*/g, '$1').replace(/--pp-ring:\d+%/, '')
+          : html;
     if (key === this.drawn) return;
     const keepSheet = this.card.querySelector('.pp-sheet');
     this.drawn = key;
@@ -853,6 +1292,8 @@ export class PartyClient {
     if (this.timer) clearInterval(this.timer);
     if (this.decideTimer) clearTimeout(this.decideTimer);
     if (this.retryTimer) clearTimeout(this.retryTimer);
+    if (this.foundTimer) clearTimeout(this.foundTimer);
+    if (this.sideTimer) clearTimeout(this.sideTimer);
     this.unwatch();
     this.socket.close(true);
     this.el.remove();

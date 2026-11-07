@@ -21,3 +21,28 @@ export function setHideNames(on: boolean): void {
     /* blocked storage: this session only */
   }
 }
+
+/**
+ * Quick Play (M1A-IMPL.md §6): the side this viewer last queued for (cats, dogs or either), the default of the next
+ * "Play online". A per-viewer convenience only: blocked storage falls back to "either".
+ */
+export type QueueSide = 'cat' | 'dog' | 'any';
+const SIDE_KEY = 'pl.party.queueSide';
+
+export function lastQueueSide(): QueueSide {
+  try {
+    const v = localStorage.getItem(SIDE_KEY);
+    return v === 'cat' || v === 'dog' ? v : 'any';
+  } catch {
+    return 'any';
+  }
+}
+
+export function setLastQueueSide(side: QueueSide): void {
+  try {
+    if (side === 'any') localStorage.removeItem(SIDE_KEY);
+    else localStorage.setItem(SIDE_KEY, side);
+  } catch {
+    /* blocked storage: this session only */
+  }
+}

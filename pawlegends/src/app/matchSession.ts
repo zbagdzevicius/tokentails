@@ -136,6 +136,10 @@ export interface MatchSetup {
     newbie?: boolean;
     /** Settings' Hide names (friends read "Teammate 2"). */
     hideNames?: boolean;
+    /** Quick Play co-op (M1A-IMPL.md): teammates are strangers; Leave match leaves the matched party. */
+    coop?: boolean;
+    /** This player took a leaver's seat mid-match (analytics). */
+    backfill?: boolean;
   };
 }
 
@@ -1207,6 +1211,7 @@ export class MatchSession {
       ...(this.setup.party
         ? {
             party: {
+              coop: this.setup.party.coop === true,
               onVotePause: () => {
                 this.mp?.vote('pause', true);
                 this.resume();

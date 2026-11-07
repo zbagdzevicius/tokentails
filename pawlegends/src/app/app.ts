@@ -35,7 +35,7 @@ import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl } from '../share/partyLink';
 import type { PartyClient } from '../party';
-import { hideNames } from '../meta/partyPrefs';
+import { hideNames, lastQueueSide, setLastQueueSide } from '../meta/partyPrefs';
 import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
@@ -606,6 +606,14 @@ export class App {
               this.openParty('code');
             }
           : undefined,
+        // Quick Play co-op (M1A-IMPL.md §1): one tap, from match 1 on (the guided first match stays solo)
+        onOnline:
+          this.partyApi && p.matches >= 1
+            ? () => {
+                sfx.play('click');
+                this.openParty('queue');
+              }
+            : undefined,
         onMute: (m) => this.setMuted(m),
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
@@ -795,7 +803,7 @@ export class App {
   // ------------------------------------------------------------------------------------------- party play
 
   /** Open the party chunk: create a party at once (the first tap), join a link's code, type a code, or resume a seat. */
-  private openParty(mode: 'create' | 'join' | 'code' | 'resume', code: string | null = null): void {
+  private openParty(mode: 'create' | 'join' | 'code' | 'resume' | 'queue', code: string | null = null): void {
     if (!this.partyApi) return;
     // the party survived a solo match (D10): the title's button shows it again
     if (this.party) {
@@ -827,7 +835,18 @@ export class App {
             guestKey: () => partyGuestKey(),
             cardId: () => cardIdentity(this.choice.hero, this.lookFor(this.choice.hero))?.catId ?? null,
             preload: () => loadMatch(),
-            startMatch: (host, match) => this.startPartyMatch(host, match),
+            startMatch: (host, match, _view, info) => this.startPartyMatch(host, match, info?.backfill === true),
+            // Quick Play: the remembered side, the analytics context and the pick's default hero per side
+            queueSide: lastQueueSide(),
+            saveQueueSide: (side) => setLastQueueSide(side),
+            mmInfo: () => ({ surface: this.isApp() ? 'app' : this.bridge.active ? 'embed' : 'web', matches: loadProfile().matches, guest: !accountState().signedIn }),
+            heroForSide: (side) => heroForSide(loadProfile(), side),
+            // a backfill took the seat while this player was away: the match ends here, the party screen says why
+            endMatch: () => {
+              this.session?.dispose();
+              this.session = null;
+              this.showTitle(false);
+            },
             startSolo: (difficulty) => this.startMatch({ ...this.choice, difficulty: difficulty as Choice['difficulty'] }),
             notify: (n) => this.session?.rail(n),
             close: () => {
@@ -850,7 +869,7 @@ export class App {
   private partyOpening = false;
 
   /** A party match: the MatchSession runs on the party's NetHost (no first-session rules, no speed). */
-  private startPartyMatch(host: () => import('../net/net-host').NetHost, match: MatchMsg): void {
+  private startPartyMatch(host: () => import('../net/net-host').NetHost, match: MatchMsg, backfill = false): void {
     const p = loadProfile();
     const slot = match.you.slot;
     const hero = match.config.picks[slot] as Choice['hero'];
@@ -882,11 +901,18 @@ export class App {
       showcase: [],
       host: host as unknown as MatchSetup['host'],
       // a resume or a reload joins a running match (the relay sends startInMs 0): no countdown, no VS intro
-      party: { slot, names: match.names, rejoin: match.startInMs === 0, newbie: p.matches === 0, hideNames: hideNames() },
+      party: {
+        slot,
+        names: match.names,
+        rejoin: match.startInMs === 0,
+        newbie: p.matches === 0,
+        hideNames: hideNames(),
+        ...(match.mode === 'coop' ? { coop: true, backfill } : {}),
+      },
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false });
-    const veil = loadingVeil(this.root, 'Into the Crossing...', 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
+    const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();
@@ -1004,6 +1030,13 @@ export class App {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
       onLeave: (counted) => {
+        // Quick Play: leaving leaves the matched party (a backfill or a bot takes the seat), back to the title
+        if (setup.party?.coop && this.party) {
+          this.party.leaveParty('match');
+          this.session?.dispose();
+          this.session = null;
+          return this.showTitle();
+        }
         if (setup.party) return this.backToParty();
         if (counted) this.recordLeave(c, counted);
         this.session?.dispose();
@@ -1023,7 +1056,10 @@ export class App {
       onTalent: (tier, choice) => this.analytics.track('talent_pick', { hero: c.hero, tier, choice }),
       // party play analytics (MULTIPLAYER.md §10): mp_* names only, flat props
       track: (event, props) => {
-        if (isMpEvent(event)) this.analytics.track(event, props);
+        if (!isMpEvent(event)) return;
+        // M1A-IMPL.md §7.1: the match events say whether this was a friend party or Quick Play co-op
+        const mode = event === 'mp_match_start' || event === 'mp_match_end' ? { mode: setup.party?.coop ? 'coop' : 'party', backfill: setup.party?.backfill === true } : {};
+        this.analytics.track(event, { ...props, ...mode });
       },
     });
     if (this.pendingPause || document.hidden) this.session.setPaused(true);
@@ -1243,6 +1279,11 @@ export class App {
         onAgain: () => {
           sfx.play('click');
           if (party) return party.again(true);
+          // Quick Play: the matched party already let this stranger go (idle in results): search again
+          if (partyEnd && setup?.party?.coop) {
+            this.backToParty();
+            return this.openParty('queue');
+          }
           if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'again', hero: e.replay.hero, difficulty: e.replay.difficulty });
           this.startMatch(setup ? { hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty } : this.choice);
@@ -1279,7 +1320,7 @@ export class App {
           ? {
               party: {
                 rowsHtml: party.resultsRows(e.result.stats, mySlot, names, partyEnd as { names?: (string | null)[]; pilotPct?: number[] }),
-                again: party.againText(),
+                ...party.resultsActions(),
                 // leave the party and the results: back to the title (never a stranded results screen)
                 onLeave: () => {
                   party.leaveParty();

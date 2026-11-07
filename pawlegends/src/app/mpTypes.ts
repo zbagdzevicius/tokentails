@@ -28,6 +28,13 @@ export const MP_EVENTS: readonly MpEvent[] = Object.freeze([
   'mp_social',
   'mp_match_end',
   'mp_rematch',
+  // Quick Play co-op (M1A-IMPL.md §7.1)
+  'mm_join',
+  'mm_cancel',
+  'mm_found',
+  'mm_backfill_offer',
+  'mm_backfill_join',
+  'mm_penalty',
 ] as MpEvent[]);
 
 /**
