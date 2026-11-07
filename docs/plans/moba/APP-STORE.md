@@ -1,8 +1,18 @@
 # Pawlegends on the App Store
 
-Status: built on `feat/pawlegends-ios` (2026-11-07): `pawlegends-app/` builds for the simulator, OTA, fastlane and
-both workflows are in place. Waiting for the founder steps under "Only you can do this". How to run it:
+Status (2026-11-07, `feat/pawlegends-ios`, not merged, 59 commits behind `main`): `pawlegends-app/` builds for the
+simulator (Debug and Release, no signing) and reaches the title in landscape. The OTA path is tested end to end in the
+simulator against a local server: download, verified checksum, swap on the title at the next launch, and automatic
+rollback of a bundle that never reaches the title. Updates go to TestFlight (beta) first and to App Store installs
+(stable) 24 h later. fastlane, both workflows, listing, icon and screenshots are in place. Waiting for the founder
+steps under "Only you can do this", starting with the trademark search. How to run it:
 [`pawlegends-app/README.md`](../../../pawlegends-app/README.md).
+
+Checked 2026-11-07: shell typecheck and 33 tests; game typecheck and the publish gate's unit run (1,823 passed, 5
+skipped); Debug and Release simulator builds; the live backend accepts `capacitor://localhost` (CORS and party
+WebSocket) and sims 10 to 14 (the build ships 14). Not checked: a real iPhone (load time, haptics), a bot match with
+the network off, `actionlint` on the workflows. The `/pawlegends/privacy` and `/pawlegends/support` pages 404 until
+this branch is merged and Vercel deploys.
 
 ## Implementation notes (2026-11-07)
 
@@ -15,8 +25,16 @@ Where the build differs from the plan below, the build wins:
   too, so adding iPad later is one build setting plus iPad screenshots.
 - OTA: our own encryption and signing code (`pawlegends-app/scripts/lib/capgo-crypto.mjs`) in the format the
   updater checks natively, instead of the Capgo CLI. Secret name `OTA_PRIVATE_KEY` (not `CAPGO_PRIVATE_KEY`). Files
-  at `client/public/pawlegends-app/updates/ios/<compat>/` (`manifest.json`, `bundles/<version>.zip`). The manifest is
-  also signed. `appReadyTimeout` is 15 s. The update applies on the title screen at the next launch or resume.
+  at `client/public/pawlegends-app/updates/ios/<compat>/` (`manifest.json`, `manifest-beta.json`,
+  `bundles/<version>.zip`). Both manifests are signed. `appReadyTimeout` is 30 s (raised from 15 s: a slow first
+  start on an old iPhone would otherwise roll a good update back for good on that phone). The update applies on the
+  title screen at the next launch or resume.
+- OTA channels: the native shell tells the page its channel (`window.__PL_CHANNEL__`, set in
+  `GameViewController.webView(with:configuration:)`). App Store installs read `manifest.json` (stable), TestFlight
+  installs (sandbox receipt) read `manifest-beta.json` (beta), and Debug builds read the beta manifest from
+  `http://localhost:8787` (`scripts/ota-local.mjs`), so updates can be tried on the Mac with the real key. A push to
+  `main` publishes to beta only; an hourly job promotes it to stable when it is 24 h old (`promote_now` skips the
+  wait). A rollback points both channels at the kept version.
 - Haptics: the shell gives WKWebView a `navigator.vibrate` backed by `@capacitor/haptics`, so the game needed no
   change for it.
 - Workflows: `.github/workflows/ios-testflight.yml` (lanes beta, metadata, submit) and
@@ -110,7 +128,9 @@ Rules:
 | 5.1.1 privacy, 5.1.1(v) account deletion, 4.8 Sign in with Apple | Missing policy or account rules | No login, so deletion and Sign in with Apple do not apply; privacy link in Settings and listing. If sign-in is added later, both become mandatory |
 | 5.1.2 / ATT | Tracking | No IDFA, no SDKs, no cookies; PostHog only with consent; no ATT prompt needed |
 | 2.1 completeness | Reviewer cannot test multiplayer | Bots work offline; review notes explain party play with a code |
-| 2.3 metadata | Screenshots not from the app | Screenshots captured from the app build in the simulator |
+| 2.3 metadata | Screenshots not from the app | Real gameplay, captured from the app's web bundle (the same files the app ships) in a headless browser at the device sizes (`scripts/screenshots.mjs`, Playwright), not from the simulator. Retake them from TestFlight on a real iPhone before submitting if you want zero doubt |
+| 3.1.3 steering in app copy | Empty card slot named Token Tails with no way to sign in | App build says "No cat cards yet" and never names Token Tails or links out (`ui/deck/empty.ts`, `lobbyScreen.ts`) |
+| 5.2.1 / trademark | "Pawlegends" not cleared; the listing makes the name public and reserves it | The web landing stays `noindex` until the trademark search passes (POC.md §11.4, LAUNCH-READY.md U8). Do not create the app record or upload metadata before that search passes |
 | Privacy manifest | Upload warning or rejection | `PrivacyInfo.xcprivacy` in the target; check pods ship their own |
 | Age rating | Missing answers block submit | Pre-filled answers file (`docs/plans/moba/APP-STORE-ANSWERS.md`) |
 | iPadOS orientation | Landscape-only warnings | iPhone only in v1 |
@@ -162,9 +182,10 @@ Plus `CAPGO_PRIVATE_KEY`, which we create ourselves.
 
 - `.github/workflows/pawlegends-ios.yml` (macOS runner, manual and on tags `pawlegends-ios-v*`):
   build the game with app env → `npx cap sync ios` → `pod install` → privacy-manifest check → `bundle exec fastlane beta`. Build number = run number. Skips with a clear message if the secrets are missing.
-- `.github/workflows/pawlegends-ota.yml` (on pawlegends changes in `main`, and manual):
-  game tests → `vendor-sim:check-remote` → build app bundle → zip and encrypt → write `client/public/pawlegends-app/ios/<compat>/` → commit to `main`. Vercel deploys it.
-  The bundle version is `<game version>+<short sha>`.
+- `.github/workflows/pawlegends-ota.yml` (on pawlegends changes in `main`, hourly, and manual):
+  game typecheck and unit tests (with `tools/copy-lint` installed; wall-clock perf budgets skipped on shared runners) → shell tests → `vendor-sim:check-remote` → build app bundle → zip and encrypt → write `manifest-beta.json` and the bundle in `client/public/pawlegends-app/updates/ios/<compat>/` → commit to `main`. Vercel deploys it. The hourly `promote` job copies beta to stable once it is 24 h old.
+  The bundle version is `<UTC yyyymmddHHMMSS>-<short sha>` (seconds, so two pushes in one minute do not collide).
+- Build numbers: the larger of the latest TestFlight build + 1 and the CI run number, so local and CI uploads can mix.
 - `ci.yml` gets a cheap job: build the app bundle and check the Capacitor config (no signing).
 
 ## Store listing
@@ -200,14 +221,29 @@ Files in `pawlegends-app/fastlane/metadata/en-US/`, uploaded by `deliver`:
 
 ## Only you can do this
 
-Everything else is automated by us.
+Everything else is automated by us. In order:
 
-1. Check the Apple Developer Program membership is active as an Organization (Token Tails MB). If it is not, enroll; a D-U-N-S number is needed for an Organization.
-2. In App Store Connect, accept the latest agreements, and fill tax and banking (needed even for a free app's agreement status).
-3. Create an App Store Connect API key (Users and Access → Integrations, role Admin, so CI can sign). Download the `.p8` once.
-4. Add the GitHub secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8`, `APPLE_TEAM_ID`, and `OTA_PRIVATE_KEY`
-   (`gh secret set OTA_PRIVATE_KEY < pawlegends-app/ota/.keys/private-key.pem`; keep a copy in the password manager).
-5. Create the app record "Pawlegends" with bundle id `com.tokentails.pawlegends` (or let `fastlane bootstrap` register the id, then create the record).
-6. Answer the age rating and App Privacy questionnaires, copying from `docs/plans/moba/APP-STORE-ANSWERS.md`. Confirm the export compliance answer.
-7. Install the TestFlight build on your iPhone and play one match.
-8. Press Submit for Review, and later Release.
+1. **Trademark search for "Pawlegends" (LAUNCH-READY.md U8, LAUNCH.md §a.1).** The App Store listing makes the name
+   public and reserves it, so do this first. If the name is not clear, stop and pick a new name before step 6; the
+   name lives in `capacitor.config.ts` (`appName`), `fastlane/metadata/en-US/name.txt` and the web pages.
+2. Check the Apple Developer Program membership is active as an Organization (Token Tails MB). If it is not, enroll;
+   an Organization needs a D-U-N-S number.
+3. In App Store Connect, accept the latest agreements, and fill tax and banking (needed even for a free app's
+   agreement status).
+4. Create an App Store Connect API key (Users and Access → Integrations, role **Admin**, so CI can sign). Download
+   the `.p8` once. With an App Manager key instead, also run `bundle exec fastlane ios certs` once and add
+   `DIST_CERT_P12` and `DIST_CERT_PASSWORD`.
+5. Add the GitHub Actions secrets: `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` (the `.p8` content, base64),
+   `APPLE_TEAM_ID` (`BVLDTU9V83`), and `OTA_PRIVATE_KEY`
+   (`gh secret set OTA_PRIVATE_KEY < pawlegends-app/ota/.keys/private-key.pem`; keep a copy in the password manager:
+   losing it means a native release to ship a new key). For local runs, the same names go in
+   `pawlegends-app/fastlane/.secrets.local` (gitignored, see `.secrets.local.example`).
+6. Merge `feat/pawlegends-ios` into `main` (or tell us to): Vercel then serves `/pawlegends/privacy`,
+   `/pawlegends/support` and the update folder. Then run Actions → *Pawlegends iOS TestFlight* (lane `beta`). It
+   registers `com.tokentails.pawlegends`; create the app record "Pawlegends" with that bundle id if the run asks.
+7. Install the TestFlight build on your iPhone. Play one bot match with flight mode on, and one party match. A push to
+   `main` that changes the game reaches this TestFlight install within the hour (beta channel) and App Store players
+   a day later; if a beta update looks wrong, run *Pawlegends OTA* with `rollback_to` before the day is up.
+8. Answer the age rating and App Privacy questionnaires, copying from `docs/plans/moba/APP-STORE-ANSWERS.md`.
+   Confirm the export compliance answer.
+9. Run the `metadata` lane (listing and screenshots), then press Submit for Review, and later Release.
