@@ -41,9 +41,12 @@ variable "deploy_service_account_id" {
 }
 
 variable "extra_bindings" {
-  description = "service account id => GitHub environment name whose jobs may impersonate it (e.g. terraform plan)."
-  type        = map(string)
-  default     = {}
+  description = "Static key => { service_account_id, environment }: jobs of that GitHub environment may impersonate it."
+  type = map(object({
+    service_account_id = string
+    environment        = string
+  }))
+  default = {}
 }
 
 locals {
@@ -88,9 +91,9 @@ resource "google_service_account_iam_member" "deploy" {
 
 resource "google_service_account_iam_member" "environment" {
   for_each           = var.extra_bindings
-  service_account_id = each.key
+  service_account_id = each.value.service_account_id
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.environment/${each.value}"
+  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.environment/${each.value.environment}"
 }
 
 output "provider_name" {
