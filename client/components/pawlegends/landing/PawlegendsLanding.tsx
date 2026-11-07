@@ -4,6 +4,7 @@ import { LANDING_CSS } from "./landingCss";
 import { landingMarkup } from "./markup";
 import { revealLanding } from "./reveal";
 import { guardMotionChunk } from "./motionChunk";
+import { useLandingVariant } from "../landingVariant";
 
 /** Built once: React compares this string on every render, so it never rewrites the animated DOM. */
 const MARKUP = { __html: landingMarkup() };
@@ -33,6 +34,8 @@ const LandingMotion = dynamic(() => guardMotionChunk(import("./LandingMotion")),
  */
 export function PawlegendsLanding() {
   const ref = useRef<HTMLDivElement>(null);
+  // Landing A/B arm A (`/legends` is B): reported on view and on every play click.
+  useLandingVariant(ref, "A");
   return (
     <>
       <style dangerouslySetInnerHTML={CSS} />

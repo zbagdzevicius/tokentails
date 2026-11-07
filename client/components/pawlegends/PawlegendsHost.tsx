@@ -54,6 +54,7 @@ import { PartySaves, PartyTickets } from "./partySaves";
 import { PawlegendsSaver } from "./saves";
 import { openedFrom, profileAfterSave, progressFromProfile, type PawlegendsProfileFields } from "./session";
 import { PAWLEGENDS_TITLE } from "./title";
+import { LANDING_VARIANT_PARAM, landingVariantOf } from "./landingVariant";
 
 // The Token Tails checkout (Stripe Elements, the crypto checkout) is browser only and loads on first use.
 const PawlegendsCatSheet = dynamic(() => import("./PawlegendsCatSheet").then((m) => m.PawlegendsCatSheet), {
@@ -342,17 +343,20 @@ export const PawlegendsHost = ({
   }, [api, isApp]);
 
   // A `pl_*` Checkout return, a restore link or a notify confirmation: handled once, then dropped from the address
-  // bar. `from` (the picker link) only feeds `pawlegends_open`.
+  // bar. `from` (the picker link) and `lv` (the landing arm) only feed `pawlegends_open`.
   const handledReturn = useRef(false);
   useEffect(() => {
     if (!router?.isReady || handledReturn.current) return;
     handledReturn.current = true;
     const query = router.query ?? {};
-    track(buildPawlegendsEvent("pawlegends_open", { from: openedFrom(typeof window === "undefined" ? "" : window.location.search) }));
+    const search = typeof window === "undefined" ? "" : window.location.search;
+    // `lv`: the landing A/B arm the play link came from (landingVariant.ts), so a landing's conversions can be counted.
+    const variant = landingVariantOf(search);
+    track(buildPawlegendsEvent("pawlegends_open", variant ? { from: openedFrom(search), landing_variant: variant } : { from: openedFrom(search) }));
     const action = returnActionOf(query);
-    if (!action && query.from === undefined) return;
+    if (!action && query.from === undefined && query[LANDING_VARIANT_PARAM] === undefined) return;
     const rest = { ...query };
-    for (const key of [...RETURN_QUERY_KEYS, "from"]) delete rest[key];
+    for (const key of [...RETURN_QUERY_KEYS, "from", LANDING_VARIANT_PARAM]) delete rest[key];
     void router.replace({ pathname: router.pathname, query: rest }, undefined, { shallow: true, scroll: false });
     if (isApp || !action) return;
     try {

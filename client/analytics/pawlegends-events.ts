@@ -8,6 +8,9 @@
  * No property carries personal data: no cat name, user id or email. `catalogId` is a public catalog cat (the
  * storefront's `GET /cat/sale` id), never an owned copy or a person.
  */
+/** The landing A/B arms: `A` the vs-screen landing at `/pawlegends`, `B` the scroll-lane-map landing at `/legends`. */
+export type LandingVariant = "A" | "B";
+
 export const PAWLEGENDS_EVENTS = {
   OPEN: "pawlegends_open",
   SAVE: "pawlegends_save",
@@ -16,12 +19,19 @@ export const PAWLEGENDS_EVENTS = {
   MEET_OPEN: "pawlegends_meet_open",
   CAT_PURCHASE: "pawlegends_cat_purchase",
   BRIDGE_TIMEOUT: "pawlegends_bridge_timeout",
+  LANDING_VIEW: "pawlegends_landing_view",
+  LANDING_CTA: "pawlegends_landing_cta",
 } as const;
 
 export type PawlegendsEventName = (typeof PAWLEGENDS_EVENTS)[keyof typeof PAWLEGENDS_EVENTS];
 
 export interface PawlegendsEventProperties {
-  pawlegends_open: { from: string };
+  /** `landing_variant`: the landing A/B arm the player came from (`?lv=` on the play link), when there was one. */
+  pawlegends_open: { from: string; landing_variant?: LandingVariant };
+  /** A landing page was seen (after its intro): `A` is `/pawlegends`, `B` is `/legends` (components/pawlegends/landingVariant.ts). */
+  pawlegends_landing_view: { landing_variant: LandingVariant };
+  /** A landing play button was pressed; `cta` is the button's `from` tag. */
+  pawlegends_landing_cta: { landing_variant: LandingVariant; cta: string };
   /**
    * `code` is the backend's error code (`PAWLEGENDS_OUTCOME_MISMATCH` or `PAWLEGENDS_SIM_VERSION` mean the game and
    * backend sims drifted apart), null on a save that worked or got no answer; `httpStatus` is 0 without an answer.
