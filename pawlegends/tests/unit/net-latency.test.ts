@@ -20,6 +20,7 @@ function setup() {
   const h = new NetHost(socket as never, match, {
     visibility: false,
     now: () => now,
+    planner: (_sx, _sy, tx, ty) => [{ x: tx, y: ty }],
     makeWorker: (onMsg) => {
       fromCore = onMsg as (m: CoreOut) => void;
       return { post: () => undefined, close: () => undefined };
@@ -32,7 +33,7 @@ function setup() {
 
 const frame = (x: number, y: number, speed = 0): ViewFrame => {
   const me = { id: 1, kind: 'hero', team: 0, slot: 1, hero: 'sage', x, y, fx: x, fy: y, yaw: 0, speed, hp: 1, maxHp: 1, shield: 0, state: 'idle', facing: 0, buffs: 0 } as unknown as ViewEntity;
-  return { tick: 0, latest: {} as never, entities: [me], byId: new Map([[1, me]]), projectiles: [], zones: [] };
+  return { tick: 1000, latest: {} as never, entities: [me], byId: new Map([[1, me]]), projectiles: [], zones: [] };
 };
 
 describe('NetHost latency (§4.2, §4.3)', () => {
@@ -95,24 +96,52 @@ describe('NetHost latency (§4.2, §4.3)', () => {
     t.h.dispose();
   });
 
-  it('once the authoritative hero walks, its interpolated yaw (the A* path) is drawn, not the click direction', () => {
+  it('the drawn hero faces the way its walker goes; once it stands for the latency, the interpolated yaw passes through', () => {
     const t = setup();
-    t.h.send({ op: Op.Move, x: 30_000, y: 20_000 });
-    for (let i = 0; i < 30; i++) {
+    t.h.send({ op: Op.Move, x: 20_500, y: 20_000 });
+    for (let i = 0; i < 20; i++) {
       t.tick(16);
-      const f = frame(20_000 + i * 50, 20_000, 160);
-      f.byId.get(1)!.yaw = 1.2; // walking around an obstacle
+      const f = frame(20_000 + i * 20, 20_000, 160);
+      f.byId.get(1)!.yaw = 1.2;
+      t.h.present(f);
+      if (i === 12) expect(f.byId.get(1)!.yaw).toBeCloseTo(0, 1);
+    }
+    // the walker arrived and held; the authoritative hero stands at the goal for the latency
+    let f = frame(20_500, 20_000);
+    for (let i = 0; i < 40; i++) {
+      t.tick(16);
+      f = frame(20_500, 20_000);
+      f.byId.get(1)!.yaw = 1.2;
       t.h.present(f);
     }
-    const f = frame(21_500, 20_000, 160);
-    f.byId.get(1)!.yaw = 1.2;
-    t.tick(16);
-    t.h.present(f);
     expect(f.byId.get(1)!.yaw).toBeCloseTo(1.2, 3);
+    expect(f.byId.get(1)!.fx).toBeCloseTo(20_500, 0);
+    t.h.dispose();
+  });
+
+  it('releasing the stick (Stop) holds the drawn hero instead of pulling it back', () => {
+    const t = setup();
+    t.h.send({ op: Op.Move, x: 40_000, y: 20_000 });
+    let ax = 20_000;
+    let drawn = 0;
+    const frames: number[] = [];
+    for (let i = 0; i < 90; i++) {
+      t.tick(16);
+      if (i === 40) t.h.send({ op: Op.Stop });
+      // the authoritative hero starts ~200 ms after the click and stops ~200 ms after the release
+      if (i >= 12 && i < 52) ax += 80;
+      const f = frame(ax, 20_000, i >= 12 && i < 52 ? 160 : 0);
+      t.h.present(f);
+      drawn = f.byId.get(1)!.fx;
+      frames.push(drawn);
+    }
+    let back = 0;
+    for (let i = 1; i < frames.length; i++) back = Math.max(back, frames[i - 1] - frames[i]);
+    expect(back).toBeLessThan(20);
+    expect(Math.abs(drawn - ax)).toBeLessThan(5);
     t.h.dispose();
   });
 });
-
 
 describe('mergeAcks (§4.3)', () => {
   it('keeps the newest ack per slot across the turns of one pace call', () => {
