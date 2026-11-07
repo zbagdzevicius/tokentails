@@ -21,6 +21,7 @@ import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule
 import { saveZoom, stepZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
+import { landing } from './heading';
 
 export interface InputHost {
   canvas: HTMLElement;
@@ -41,6 +42,8 @@ export interface InputHost {
   /** GAPS B1: the ping wheel (desktop: hold G), and a ping to send (PING_KIND, point in mm, target id or 255). */
   pingWheel?: { openAt(x: number, y: number): void; aim(x: number, y: number): void; commit(): void; close(): void; readonly open: boolean };
   ping?(kind: number, x: number, y: number, id: number): void;
+  /** The own hero in the newest snapshot (mm) and its tick, ahead of the drawn one; null before the first. */
+  simMe?(): { x: number; y: number; tick: number } | null;
 }
 
 const CAST_ACTIONS: Partial<Record<Action, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -315,7 +318,8 @@ export class DesktopInput {
         this.deny(slot);
         return;
       }
-      if (this.mode === 'quick') {
+      // the flash (Pounce) is always a quick cast on the key press: no aim step, no wait for the key to come up
+      if (this.mode === 'quick' || this.h.orders.aimSpec(slot).flash) {
         this.quickCast(slot);
         return;
       }
@@ -414,6 +418,12 @@ export class DesktopInput {
     if (!me || me.state === 'dead') return;
     const spec = this.h.orders.aimSpec(slot);
     const yaw = this.h.view.me?.()?.yaw ?? 0;
+    if (spec.heading) {
+      // a heading blink or dash goes its full distance: show where it lands along the facing (not 0.6 × range)
+      const l = landing(spec, me, yaw);
+      this.h.view.aim = { spec, x: l.x / 1000, z: -l.y / 1000, target: -1, valid: true };
+      return;
+    }
     const d = spec.kind === 'point' || spec.kind === 'unit' ? spec.range * 0.6 : spec.range;
     this.h.view.aim = { spec, x: (me.x + Math.cos(yaw) * d) / 1000, z: -(me.y + Math.sin(yaw) * d) / 1000, target: -1, valid: true };
   }
@@ -435,7 +445,11 @@ export class DesktopInput {
   private quickCast(slot: CastIndex): void {
     const c = this.castAtCursor(slot, true);
     if (!c) return;
-    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true, pointer: true };
+    const spec = this.h.orders.aimSpec(slot);
+    // the flash (Pounce): the indicator marks where it lands (its command point is past the range, heading.ts)
+    const me = spec.flash ? this.h.units().find((u) => u.id === this.h.view.mySlot) : undefined;
+    const p = me ? landing(spec, me, Math.atan2(c.y - me.y, c.x - me.x)) : c;
+    this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true, pointer: true };
     this.flashUntil = performance.now() + FLASH_MS;
   }
 
@@ -452,7 +466,7 @@ export class DesktopInput {
     const spec = this.h.orders.aimSpec(slot);
     const g = this.groundUnderCursor();
     const cursor = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
-    const c = cursorCast(spec, me, cursor, spec.kind === 'unit' ? this.unitUnderCursor(true) : null, this.h.units(), this.h.view.myTeam, clamp);
+    const c = cursorCast(spec, me, cursor, spec.kind === 'unit' ? this.unitUnderCursor(true) : null, this.h.units(), this.h.view.myTeam, clamp, this.h.view.me?.()?.yaw ?? 0);
     if (!c) {
       this.deny(slot);
       return null;
@@ -489,8 +503,14 @@ export class DesktopInput {
     const g = this.groundUnderCursor();
     const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
     if (!me) return;
-    const gx = g ? g.x : me.x / 1000 + 1;
-    const gz = g ? g.z : -me.y / 1000;
+    let gx = g ? g.x : me.x / 1000 + 1;
+    let gz = g ? g.z : -me.y / 1000;
+    if (spec.flash) {
+      // the flash always goes its full distance toward the cursor: show where it lands
+      const p = landing(spec, me, Math.atan2(toSimY(gz) - me.y, toSimX(gx) - me.x));
+      gx = p.x / 1000;
+      gz = -p.y / 1000;
+    }
     let valid = true;
     let target = -1;
     if (spec.kind === 'unit') {

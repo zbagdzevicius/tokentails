@@ -62,7 +62,7 @@ export interface AimPreview {
   /**
    * The point is the ground under the desktop cursor: the CF-05 look-ahead must not lean toward it, or the camera
    * slides the ground under a still cursor and the aim drifts (QA 2026-11-07). Touch drag aims are measured from the
-   * button, so they keep the lean.
+   * button, so they keep the lean. A press-fired heading cast's ghost landing marker sets it too (it is not an aim).
    */
   pointer?: boolean;
 }

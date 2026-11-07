@@ -42,8 +42,9 @@ import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
-import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type TrickId } from '../sim/api';
+import { BuffFlag, Op, type Difficulty, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
 import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
+import { headingPoint } from '../input/heading';
 import { ProgressRail } from '../ui/progressRail';
 import { DIFFICULTY_RULES } from '../data/bots';
 import { FISH } from '../data/fish';
@@ -463,8 +464,15 @@ export class MatchSession {
     this.buffer.speed = matchSpeedFor(!!setup.party, setup.speed);
     this.host.listen({
       welcome: (w) => this.onWelcome(w),
-      snap: (s) => this.buffer.push(s),
-      events: (_t, list) => this.buffer.pushEvents(list),
+      snap: (s) => {
+        this.buffer.push(s);
+        this.simOwn(s);
+        if (this.e2e) this.trackOwn(s);
+      },
+      events: (_t, list) => {
+        this.buffer.pushEvents(list);
+        this.rawOwnEvents(list);
+      },
       end: (result, replay) => this.onEnd(result, replay),
       error: (m) => hooks.onError(m),
     });
@@ -562,6 +570,7 @@ export class MatchSession {
       marker: (x, z, attack) => this.marker(x, z, attack),
       pingWheel: this.pingWheel,
       ping: (kind, x, y, id) => this.sendPing(kind, x, y, id),
+      simMe: () => this.ownSim,
       // Audit CF-12: a refused desktop cast flashes its HUD slot red
       onDeny: (slot) => this.hud?.deny(slot),
     };
@@ -596,8 +605,16 @@ export class MatchSession {
       onSlot: (i) => {
         const me = this.units.find((u) => u.id === w.slot);
         if (!me || !this.orders) return;
-        if (i === 5) this.orders.nap();
-        else this.orders.cast(i as 0 | 1 | 2 | 3 | 4, me.x + Math.cos(this.view.me()?.yaw ?? 0) * 2000, me.y + Math.sin(this.view.me()?.yaw ?? 0) * 2000);
+        if (i === 5) {
+          this.orders.nap();
+          return;
+        }
+        const slot = i as 0 | 1 | 2 | 3 | 4;
+        const spec = this.orders.aimSpec(slot);
+        // a heading blink or dash (Pounce, the escape dashes): its full distance where the hero is heading, not 2 m
+        const a = spec.heading && this.touch ? this.touch.heading(me, spec) : (this.view.me()?.yaw ?? 0);
+        const p = spec.heading ? headingPoint(spec, me, a) : { x: me.x + Math.cos(a) * 2000, y: me.y + Math.sin(a) * 2000 };
+        this.orders.cast(slot, p.x, p.y);
       },
       onPortrait: (slot) => {
         this.touch?.lockOn(slot);
@@ -1948,6 +1965,51 @@ export class MatchSession {
 
   private respawnShown = '';
 
+  /** The own hero in the newest snapshot (the input steers and casts from there, ahead of the drawn hero). */
+  private ownSim: { x: number; y: number; tick: number } | null = null;
+
+  private simOwn(s: Snapshot): void {
+    if (!this.welcome) return;
+    const me = s.entities.find((e) => e.id === this.view.mySlot);
+    if (!me) return;
+    if (me.state === 'dead') {
+      this.ownSim = null;
+      return;
+    }
+    if (this.ownSim) {
+      this.ownSim.x = me.x;
+      this.ownSim.y = me.y;
+      this.ownSim.tick = s.clock.tick;
+    } else this.ownSim = { x: me.x, y: me.y, tick: s.clock.tick };
+  }
+
+  /**
+   * The own hero's casts as the host hands the events over (the render clock plays them later): the cast buffer
+   * lets an order held behind a cast go, and the touch input learns the tick its run-on lands (orders.ts, touchControls.ts).
+   */
+  private rawOwnEvents(list: readonly SimEvent[]): void {
+    const me = this.view.mySlot;
+    for (const ev of list) {
+      if ((ev.type !== 'cast' && ev.type !== 'windup') || ev.src !== me) continue;
+      this.orders?.applied(ev);
+      this.touch?.onSimEvent(ev);
+    }
+  }
+
+  /** `?e2e=1` only (flash-touch.spec.ts): the own hero's sim position per snapshot, [tick, x, y], the last 900. */
+  private ownTrack: number[][] | null = null;
+
+  private trackOwn(s: Snapshot): void {
+    if (!this.ownTrack) {
+      this.ownTrack = [];
+      e2eHook('Track', this.ownTrack);
+    }
+    const me = s.entities.find((e) => e.id === this.view.mySlot);
+    if (!me) return;
+    this.ownTrack.push([s.clock.tick, me.x, me.y]);
+    if (this.ownTrack.length > 900) this.ownTrack.splice(0, this.ownTrack.length - 900);
+  }
+
   /**
    * Lane F (F6): once a match, a low-priority rail line when the player's team is 2+ Toy tiers behind after the
    * difficulty's catch-up start (the sim then pays the team behind on Fish comeback Fish, +1 a second to its
@@ -2060,6 +2122,8 @@ export class MatchSession {
     // C2 / C5 / C6 telemetry: cast buffer counters, Attack presses with nothing in reach, the drawn own position
     if (this.orders) d.castBuf = `${this.orders.buffers.kept},${this.orders.buffers.sent},${this.orders.buffers.expired},${this.orders.buffers.retried},${this.orders.busyWhy()},${this.orders.queued ?? ''},${this.orders.busyLeftMs}`;
     d.atkNone = String(this.touch?.atkNone ?? 0);
+    // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
+    d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
     d.lastHits = String(this.lastHitsSeen);
     if (me) d.meF = `${Math.round(me.fx)},${Math.round(me.fy)}`;
     d.hits = String(this.hitsLanded);
