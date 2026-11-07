@@ -5,7 +5,7 @@
  * About 12 draw calls in all. Render only.
  */
 import * as THREE from 'three';
-import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
+import { BUSHES, CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, PUDDING_SPOT, RAT_CAMP, mirrorX } from '../../data/map';
 import type { ViewFrame } from '../interp';
 import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
@@ -361,6 +361,8 @@ varying vec3 vW;
 void main(){ vUv = uv; vec4 w = modelMatrix * vec4(position, 1.0); vW = w.xyz; gl_Position = projectionMatrix * viewMatrix * w; }`;
 const RIVER_FRAG = /* glsl */ `
 uniform float uTime;
+uniform float uH;
+uniform float uFade;
 varying vec2 vUv;
 varying vec3 vW;
 void main(){
@@ -374,7 +376,10 @@ void main(){
   col += sparkle * 0.35;
   float foam = smoothstep(0.09, 0.0, edge);
   col = mix(col, vec3(0.97, 0.99, 1.0), foam * 0.85);
-  gl_FragColor = vec4(col, smoothstep(0.0, 0.03, edge));
+  // MAP-GAPS A15: past the map's north and south edges the river fades out under the closing forest
+  float out_ = max(-vW.z - uH, vW.z);
+  float fade = 1.0 - smoothstep(uFade * 0.35, uFade, out_);
+  gl_FragColor = vec4(col, smoothstep(0.0, 0.03, edge) * fade);
 }`;
 
 /** True when a rock of radius r at (x, y) m stands only on ground nobody can walk (render only). */
@@ -446,12 +451,23 @@ export function outerTrees(): { x: number; y: number; s: number; low: boolean }[
       // south of the map the trees stand between the camera and the units: they start further out
       if (d < (py < 0 ? OUTER_DRESS.nearSouth : OUTER_DRESS.near)) continue;
       // the river runs on under the canopy only near the map (MAP-GAPS A15 closes the forest over it further out)
-      if (px > r0 - 2 && px < r1 + 2 && d < OUTER_DRESS.near + 4) continue;
+      if (px > r0 - 2 && px < r1 + 2 && d < RIVER_RUN * 0.75) continue;
       if (keep > Math.max(0.35, 1 - (d - OUTER_DRESS.near) / 70)) continue;
       out.push({ x: px, y: py, s, low: lowPick });
     }
   }
   return out;
+}
+
+/** MAP-GAPS A15: how far (m) the river runs on past the map edge before it has faded out under the forest. */
+export const RIVER_RUN = 16;
+
+/** MAP-GAPS A15: the boundary markers across the river: where the playfield rim stops units (m), and `out` (±1). */
+export function riverMarkers(): { y: number; out: 1 | -1 }[] {
+  return [
+    { y: PLAYFIELD.rim / 1000, out: -1 },
+    { y: H - PLAYFIELD.rim / 1000, out: 1 },
+  ];
 }
 
 /** MAP-GAPS A13: the fountain basin's outer rim (m, the rim torus of models.ts fountainGeometry) plus a gap. */
@@ -574,10 +590,10 @@ export function createMapView(): MapView {
   }
 
   // river
-  const riverU = { uTime: { value: 0 } };
+  const riverU = { uTime: { value: 0 }, uH: { value: H }, uFade: { value: RIVER_RUN } };
   const r0 = MAP.riverX[0] / 1000;
   const r1 = MAP.riverX[1] / 1000;
-  const riverGeo = keep(new THREE.PlaneGeometry(r1 - r0, H + 140, 1, 1));
+  const riverGeo = keep(new THREE.PlaneGeometry(r1 - r0, H + 2 * RIVER_RUN, 1, 1));
   riverGeo.rotateX(-Math.PI / 2);
   const river = new THREE.Mesh(
     riverGeo,
@@ -586,6 +602,20 @@ export function createMapView(): MapView {
   river.position.set((r0 + r1) / 2, 0.02, -H / 2);
   river.renderOrder = 1;
   group.add(river);
+  // MAP-GAPS A15: the sand banks run on with the river past the map edge (strips under the painted ground inside it)
+  const bankMat = keep(new THREE.MeshLambertMaterial({ color: 0xe8d6a0 }));
+  for (const [x0, x1] of [
+    [r0 - 1.1, r0 + 0.05],
+    [r1 - 0.05, r1 + 1.1],
+  ] as const) {
+    const geo = keep(new THREE.PlaneGeometry(x1 - x0, H + 2 * RIVER_RUN));
+    geo.rotateX(-Math.PI / 2);
+    const bank = new THREE.Mesh(geo, bankMat);
+    bank.position.set((x0 + x1) / 2, -0.008, -H / 2);
+    bank.receiveShadow = true;
+    bank.name = 'river-bank';
+    group.add(bank);
+  }
 
   // scenery built into a few merged meshes (vertex colours, toon lit)
   const sceneryMat = keep(new THREE.MeshLambertMaterial({ vertexColors: true }));
@@ -614,6 +644,20 @@ export function createMapView(): MapView {
     for (const s of [-1, 1]) {
       props.box(r1 - r0 + 2.6, 0.18, 0.22, 0x8a5a3a, { at: [bx, 0.75, -(by + s * 3.5)] });
       for (let i = 0; i < 6; i++) props.cyl(0.13, 0.13, 0.9, 0x8a5a3a, { at: [r0 - 1.2 + i * ((r1 - r0 + 2.4) / 5), 0.45, -(by + s * 3.5)] }, 6);
+    }
+  }
+  // MAP-GAPS A15: where the playfield rim stops units in the river (y = 2 m and y = 58 m), a log jam with rocks and
+  // reeds marks the boundary across the water
+  const jr = lcg(47);
+  for (const m of riverMarkers()) {
+    for (let i = 0; i < 3; i++) {
+      const y = m.y + (i - 1) * 0.45 * m.out;
+      props.cyl(0.2, 0.24, r1 - r0 + 1.6 - i * 0.6, i % 2 ? 0x7a5133 : 0x8a5a3a, { at: [(r0 + r1) / 2 + (jr() - 0.5) * 0.8, 0.18 + (i === 1 ? 0.14 : 0), -y], rot: [0, (jr() - 0.5) * 0.25, Math.PI / 2] }, 7);
+    }
+    for (const bx of [r0 - 0.4, r1 + 0.4, (r0 + r1) / 2 - 2.2, (r0 + r1) / 2 + 2.4]) props.add(new THREE.DodecahedronGeometry(0.45 + jr() * 0.3, 0), 0xa9a194, { at: [bx, 0.2, -(m.y + m.out * 0.9)], rot: [jr() * 3, jr() * 3, 0], scale: [1, 0.7, 1] });
+    for (let k = 0; k < 9; k++) {
+      const rx = r0 + 0.3 + jr() * (r1 - r0 - 0.6);
+      props.cyl(0.03, 0.05, 0.9 + jr() * 0.5, 0x6a9a4a, { at: [rx, 0.5, -(m.y - m.out * (0.5 + jr() * 0.6))], rot: [(jr() - 0.5) * 0.3, 0, (jr() - 0.5) * 0.3] }, 4);
     }
   }
   addMerged(props, 'props');
