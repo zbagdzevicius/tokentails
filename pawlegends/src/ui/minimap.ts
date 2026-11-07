@@ -11,6 +11,7 @@ import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import { HERO_TEXT } from './heroText';
 import type { HeroId } from '../sim/api';
+import { colourBlind } from './minimapPrefs';
 
 export interface MinimapHost {
   /** Look at (x, z) m; `hold` s before the camera drifts back (Infinity: until the next look). */
@@ -63,6 +64,19 @@ const heroPair = (h: HeroId): string => {
   const n = HERO_TEXT[h]?.title ?? h;
   return n[0].toUpperCase() + n[1].toLowerCase();
 };
+
+/** The minimap's ground colours. */
+export const MM_GROUND = Object.freeze({ grass: '#7fb86a', river: '#6fb7e0', lane: '#e6cf98', forest: '#3d6e3a', wall: '#3d6e3a', bush: '#3f8a46' });
+
+/** MAP-GAPS A4: the dark outline every unit mark wears (towers, heroes, minions, Pudding). */
+export const MM_OUTLINE = '#2a1a22';
+/** MAP-GAPS A4: the enemy hue with colour-blind colours on (orange: apart from ally blue under every CVD). */
+export const MM_ENEMY_CVD = '#ff8a00';
+
+/** The relation colours the minimap draws with (colour-blind colours swap the enemy hue). */
+export function minimapRelation(cvd: boolean): { self: string; ally: string; enemy: string; neutral: string } {
+  return { self: RELATION_CSS.self, ally: RELATION_CSS.ally, enemy: cvd ? MM_ENEMY_CVD : RELATION_CSS.enemy, neutral: RELATION_CSS.neutral };
+}
 
 /** MAP-GAPS A3: below this drawn diameter (CSS px) a hero is its initial; at and above it, its portrait. */
 export const PORTRAIT_MIN_PX = 12;
@@ -198,9 +212,9 @@ export class Minimap {
     c.height = this.h * this.dpr;
     const g = c.getContext('2d')!;
     g.scale(this.dpr, this.dpr);
-    g.fillStyle = '#7fb86a';
+    g.fillStyle = MM_GROUND.grass;
     g.fillRect(0, 0, this.w, this.h);
-    g.fillStyle = '#6fb7e0';
+    g.fillStyle = MM_GROUND.river;
     g.fillRect(this.X(MAP.riverX[0]), 0, this.X(MAP.riverX[1]) - this.X(MAP.riverX[0]), this.h);
     // sim v5: the forest outside the playfield (the nav grid's blocked cells), darker, so a right-click there reads as
     // "not walkable"
@@ -209,7 +223,7 @@ export class Minimap {
     const cw = this.w / NX;
     const ch = this.h / NY;
     for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) if (wall[j * NX + i]) g.fillRect(i * cw, this.h - (j + 1) * ch, cw + 0.5, ch + 0.5);
-    g.strokeStyle = '#e6cf98';
+    g.strokeStyle = MM_GROUND.lane;
     g.lineCap = 'round';
     g.lineJoin = 'round';
     g.lineWidth = (MAP.laneWidth / MAP.width) * this.w * 0.7;
@@ -300,25 +314,31 @@ export class Minimap {
     g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     if (!frame) return;
     this.heroesDrawn = [];
+    this.minionsDrawn = { square: 0, diamond: 0, dot: 0 };
     const me = this.host.mySlot();
     const team = this.host.myTeam();
-    const col = (t: number, id: number): string => (id === me ? RELATION_CSS.self : t === 2 ? RELATION_CSS.neutral : t === team ? RELATION_CSS.ally : RELATION_CSS.enemy);
+    const rel = minimapRelation(colourBlind());
+    const col = (t: number, id: number): string => (id === me ? rel.self : t === 2 ? rel.neutral : t === team ? rel.ally : rel.enemy);
     for (const e of frame.entities) {
       if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero' || (e.kind as string) === 'pickup') continue;
       const x = this.X(e.fx);
       const y = this.Y(e.fy);
-      g.fillStyle = col(e.team, e.id);
       if (e.kind === 'tower' || e.kind === 'core') {
         const s = e.kind === 'core' ? 9 : 6;
-        g.fillStyle = 'rgba(42,26,34,0.9)';
+        g.fillStyle = MM_OUTLINE;
         g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
         g.fillStyle = col(e.team, e.id);
         g.fillRect(x - s / 2, y - s / 2, s, s);
       } else if (e.kind === 'pudding') {
+        g.fillStyle = MM_OUTLINE;
+        g.beginPath();
+        g.arc(x, y, 5.5, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = col(e.team, e.id);
         g.beginPath();
         g.arc(x, y, 4.5, 0, Math.PI * 2);
         g.fill();
-      } else g.fillRect(x - 1.5, y - 1.5, 3, 3);
+      } else this.drawMinion(g, x, y, col(e.team, e.id), e.team === 2 ? 'neutral' : e.team === team ? 'ally' : 'enemy');
     }
     const glow = 0.6 + 0.4 * Math.sin(performance.now() / 180);
     for (const p of this.pickups()) {
@@ -363,6 +383,47 @@ export class Minimap {
     }
   }
 
+  /** Minion marks drawn last frame by shape (tests): squares (allies), diamonds (enemies), dots (camp). */
+  minionsDrawn = { square: 0, diamond: 0, dot: 0 };
+
+  /** MAP-GAPS A4: an outlined minion mark: an ally square, an enemy diamond (shape, not only hue), a camp dot. */
+  private drawMinion(g: CanvasRenderingContext2D, x: number, y: number, color: string, rel: 'ally' | 'enemy' | 'neutral'): void {
+    const h = 1.8;
+    if (rel === 'enemy') {
+      const d = h * 1.45;
+      for (const [c, k] of [
+        [MM_OUTLINE, d + 1.1],
+        [color, d],
+      ] as const) {
+        g.fillStyle = c;
+        g.beginPath();
+        g.moveTo(x, y - k);
+        g.lineTo(x + k, y);
+        g.lineTo(x, y + k);
+        g.lineTo(x - k, y);
+        g.closePath();
+        g.fill();
+      }
+      this.minionsDrawn.diamond++;
+    } else if (rel === 'ally') {
+      g.fillStyle = MM_OUTLINE;
+      g.fillRect(x - h - 0.9, y - h - 0.9, 2 * h + 1.8, 2 * h + 1.8);
+      g.fillStyle = color;
+      g.fillRect(x - h, y - h, 2 * h, 2 * h);
+      this.minionsDrawn.square++;
+    } else {
+      g.fillStyle = MM_OUTLINE;
+      g.beginPath();
+      g.arc(x, y, h + 1, 0, Math.PI * 2);
+      g.fill();
+      g.fillStyle = color;
+      g.beginPath();
+      g.arc(x, y, h, 0, Math.PI * 2);
+      g.fill();
+      this.minionsDrawn.dot++;
+    }
+  }
+
   /** Hero marks drawn last frame, in order (tests and e2e): `id:kind` with kind `p` portrait or `i` initial. */
   heroesDrawn: string[] = [];
   private portraits = new Map<string, HTMLCanvasElement | null>();
@@ -396,7 +457,7 @@ export class Minimap {
   /** MAP-GAPS A3: a hero's mark: its portrait (or its initial on a coat-coloured disc) in a relation-colour ring. */
   private drawHero(g: CanvasRenderingContext2D, x: number, y: number, hero: HeroId | undefined, color: string, self: boolean, ring: string | null, team: readonly HeroId[]): void {
     const r = self ? 6 : 5;
-    g.fillStyle = 'rgba(42,26,34,0.95)';
+    g.fillStyle = MM_OUTLINE;
     g.beginPath();
     g.arc(x, y, r + 1.4, 0, Math.PI * 2);
     g.fill();

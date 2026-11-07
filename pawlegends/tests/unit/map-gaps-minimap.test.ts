@@ -79,3 +79,29 @@ describe('MAP-GAPS A3 hero marks', () => {
     expect(m.heroesDrawn.at(-1)).toMatch(/^sage:/);
   });
 });
+
+describe('MAP-GAPS A4 colour-blind safety', () => {
+  it('outlines every unit mark with ΔE ≥ 30 against grass, lane, river and the neutral hue under deuteranopia and protanopia', async () => {
+    const { deltaE } = await import('./cvd');
+    const { MM_OUTLINE, MM_GROUND } = await import('../../src/ui/minimap');
+    for (const v of ['deut', 'prot'] as const) {
+      for (const bg of [MM_GROUND.grass, MM_GROUND.lane, MM_GROUND.river, '#f0c27a']) expect(deltaE(MM_OUTLINE, bg, v), `${v} ${bg}`).toBeGreaterThanOrEqual(30);
+    }
+  });
+
+  it('keeps ally and enemy apart under deuteranopia and protanopia (colour-blind colours too)', async () => {
+    const { deltaE } = await import('./cvd');
+    const { minimapRelation } = await import('../../src/ui/minimap');
+    for (const cvd of [false, true]) {
+      const r = minimapRelation(cvd);
+      for (const v of ['deut', 'prot'] as const) expect(deltaE(r.ally, r.enemy, v), `${cvd} ${v}`).toBeGreaterThanOrEqual(30);
+    }
+    expect(minimapRelation(true).enemy).toBe('#ff8a00');
+  });
+
+  it('draws enemy minions as diamonds and ally minions as squares', () => {
+    const m = new Minimap(document.body, host());
+    draw(m, frame([ent({ id: 6, kind: 'minion', team: 0, fx: 20000, fy: 30000 }), ent({ id: 7, kind: 'minion', team: 1, fx: 70000, fy: 30000 }), ent({ id: 8, kind: 'minion', team: 1, fx: 72000, fy: 30000 })]));
+    expect(m.minionsDrawn).toEqual({ square: 1, diamond: 2, dot: 0 });
+  });
+});
