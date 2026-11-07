@@ -81,6 +81,8 @@ export interface MatchInfo {
 
 export interface IntegrationState {
   signedIn: boolean;
+  /** UX pass 2: the signed-in player's profile name (`session.name`), shown over their own hero; null = "You". */
+  playerName: string | null;
   progress: Progress | null;
   app: AppInfo | null;
   audio: AudioInfo | null;
@@ -223,6 +225,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   const checkout = new CheckoutBridge(bridge, deps.ent, now);
   const s: IntegrationState = {
     signedIn: false,
+    playerName: null,
     progress: null,
     app: null,
     audio: null,
@@ -526,6 +529,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         const v = parseSession(m);
         if (!v) return;
         s.signedIn = v.signedIn;
+        s.playerName = v.name ?? null;
         s.progress = v.progress;
         setAccountState(v);
         const before = deps.profile();
