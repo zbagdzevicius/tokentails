@@ -53,6 +53,13 @@ export const MM_LIMITS = Object.freeze({
     queued: Object.freeze({ perIdentity: 1, perIp: 12, perNet: 40 }),
     sideEveryMs: 2000,
     statusEveryMs: 2000,
+    /**
+     * Play online while a live-room cap still binds (this identity in a live room from a tab that is still open, or the
+     * address already in 4 live rooms): `mm_locked` with this retry (the card says when to search again).
+     */
+    liveRoomRetryMs: 30_000,
+    /** A formed match whose room has not started after this long is forgotten (the pick lasts 30 s). */
+    pendingMaxMs: 5 * 60_000,
     /** A stranger idle this long in results leaves the matched party. */
     resultsIdleMs: 60_000,
     /** §4.4 leaver ladder. */

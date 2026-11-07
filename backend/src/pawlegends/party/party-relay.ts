@@ -12,8 +12,8 @@ import type { IncomingMessage, Server } from 'http';
 import type { Duplex } from 'stream';
 import { WebSocket, WebSocketServer, type RawData } from 'ws';
 import { isRelayOriginAllowed } from '../../shared/cors-origins';
-import { isCloudflareIp } from '../../shared/cloudflare-ips';
-import { isTrustedProxyHop } from '../../shared/trust-proxy';
+import { clientIpKey } from '../../shared/client-ip';
+import { relayClientIp } from '../../shared/relay-client-ip';
 import {
     partySimFor,
     simFor,
@@ -306,16 +306,12 @@ export class PartyRelay {
     // Upgrade and sockets
 
     /**
-     * The visitor's IP (S1): the Cloudflare header from one of our own hops (a Cloudflare edge, or the private, CGNAT or
-     * loopback hop of the DigitalOcean ingress in front of the app, the same hops `trust proxy` trusts), else the peer.
-     * Before, only a Cloudflare peer was trusted: behind the DigitalOcean hop every player shared that hop's address,
-     * and the per-IP caps (sockets, rooms, parties, failed joins) would have grouped everyone.
+     * The visitor's IP (S1), see shared/relay-client-ip.ts: the Cloudflare header only when the request came through
+     * Cloudflare (a Cloudflare peer, or the DigitalOcean ingress whose X-Forwarded-For names a Cloudflare edge) and
+     * only when it is an IP; a direct caller through the ingress is keyed by the address the ingress saw.
      */
     static clientIp(req: IncomingMessage): string {
-        const peer = req.socket.remoteAddress ?? '';
-        const cf = req.headers['cf-connecting-ip'];
-        if (typeof cf === 'string' && cf.trim() && (isCloudflareIp(peer) || isTrustedProxyHop(peer))) return cf.trim();
-        return peer;
+        return relayClientIp(req.socket.remoteAddress ?? '', req.headers);
     }
 
     private refuseUpgrade(socket: Duplex, status: number): void {
@@ -344,7 +340,8 @@ export class PartyRelay {
         for (const s of this.socks) if (!s.helloed) pre++;
         if (pre >= PARTY_LIMITS.preHelloSockets) return this.refuseUpgrade(socket, 503);
         const ip = (this.opts.clientIp ?? PartyRelay.clientIp)(req);
-        const ipKey = hashKey(`ip:${ip}`);
+        // an IPv6 host rotates through its /64: key it like the Quick Play caps (clientIpKey), not per address
+        const ipKey = hashKey(`ip:${clientIpKey(ip)}`);
         let perIp = 0;
         for (const s of this.socks) if (s.ipKey === ipKey) perIp++;
         if (perIp >= PARTY_LIMITS.socketsPerIp) return this.refuseUpgrade(socket, 429);
@@ -828,6 +825,7 @@ export class PartyRelay {
             case 'mm.leave':
             case 'mm.side':
             case 'mm.backfill':
+            case 'mm.back':
                 // PROTO 2 only: a PROTO 1 socket sending one is a malformed frame
                 if (s.proto < 2) {
                     this.error(s, 'bad_message');
@@ -1239,9 +1237,24 @@ export class PartyRelay {
             live.seats.delete(s.memberId!);
             live.names[s.seatSlot] = null;
             live.room.vacate(s.seatSlot, this.now(), !!this.parties.byId(live.party)?.openSeats);
+            this.releaseKeys(live, s.identity);
         } else live.room.disconnect(s.seatSlot, this.now());
         s.seatRoom = null;
         s.seatSlot = -1;
+    }
+
+    /**
+     * A seat given up for good (left, evicted): its identity and IP stop counting toward the live-room caps, unless
+     * another seat of the room still has them. Without this a leaver could not queue again until the room ended.
+     */
+    private releaseKeys(live: LiveRoom, identity: MemberIdentity | null | undefined): void {
+        if (!identity) return;
+        const party = this.parties.byId(live.party);
+        const seated = [...live.seats.keys()]
+            .map(id => party?.members.find(m => m.id === id)?.identity ?? this.byMember.get(id)?.identity)
+            .filter((x): x is MemberIdentity => !!x);
+        if (!seated.some(i => i.key === identity.key)) live.keys.delete(identity.key);
+        if (identity.ipKey && !seated.some(i => i.ipKey === identity.ipKey)) live.ips.delete(identity.ipKey);
     }
 
     /** The ended room this socket sat in (kept 2 minutes for the tail catch-up), or null. */
@@ -1764,8 +1777,10 @@ export class PartyRelay {
                 ) && !(identity.ipKey && this.liveRoomsOf('', identity.ipKey).ip >= PARTY_LIMITS.roomsLivePerIp),
             room: roomId => this.mmRoomView(roomId),
             leaveParty: member => this.leaveParty(member),
-            backfill: (member, roomId, slot) => this.backfillSeat(member, roomId, slot),
+            backfill: (member, roomId, slot, holder) => this.backfillSeat(member, roomId, slot, holder),
             evict: (member, roomId) => this.evictSeat(member, roomId),
+            release: (identity, except) => this.releaseStale(identity, except),
+            rejoin: member => this.rejoinMm(member),
         };
     }
 
@@ -1797,14 +1812,17 @@ export class PartyRelay {
      * A Quick Play backfill (§3): the member joins the room's party as a stranger, the piloted slot reopens (the
      * earlier holder's AFK ticks no longer count) and the open-seat claim seats them; the client catches up as in P10.
      */
-    private backfillSeat(member: string, roomId: string, slot: number): boolean {
+    private backfillSeat(member: string, roomId: string, slot: number, holder?: string): boolean {
         const s = this.byMember.get(member);
         const live = this.rooms.get(roomId);
         const party = live ? this.parties.byId(live.party) : null;
         if (!s || !s.identity || !live || !party?.mm || live.ending || !live.room.live) return false;
         const key = s.identity.key;
         if (!key.startsWith('ip:') && this.liveRoomsOf(key).key >= PARTY_LIMITS.roomsLivePerIdentity) return false;
-        if (live.room.slots[slot]?.mode !== 'pilot') return false;
+        if (s.ipKey && this.liveRoomsOf('', s.ipKey).ip >= PARTY_LIMITS.roomsLivePerIp) return false;
+        if (live.room.slots[slot]?.mode !== 'pilot' || party.members.some(m => m.id === member)) return false;
+        // every check that can refuse runs before the holder loses the seat (a refused backfill evicts no one)
+        if (holder && holder !== member) this.evictSeat(holder, roomId);
         if (!this.parties.joinMatched(party, member, s.identity, s.hint)) return false;
         if (!live.room.reopen(slot, this.now())) {
             this.parties.leave(member);
@@ -1821,7 +1839,11 @@ export class PartyRelay {
     /** The holder of a backfilled seat: out of the seat and the party; a resume answers `seat_taken` (PROTO 2). */
     private evictSeat(member: string, roomId: string): void {
         const live = this.rooms.get(roomId);
+        const identity =
+            this.parties.partyOf(member)?.members.find(m => m.id === member)?.identity ??
+            this.byMember.get(member)?.identity;
         live?.seats.delete(member);
+        if (live) this.releaseKeys(live, identity);
         const h = this.resumeOf.get(member);
         if (h) this.seatTaken.set(h, this.now() + MM_SEAT_TAKEN_MS);
         const s = this.byMember.get(member);
@@ -1832,6 +1854,65 @@ export class PartyRelay {
         }
         this.parties.leave(member);
         this.dropResume(member);
+    }
+
+    /**
+     * Quick Play: give up the seats this identity still holds in live Quick Play rooms from a socket that is gone (a
+     * closed tab, a dead phone socket), so a new Play online is not blocked by the live-room cap. A bot keeps flying
+     * the seat (and it can be backfilled); the old member leaves the party as `party.leave` would.
+     */
+    private releaseStale(identity: MemberIdentity, except: string): void {
+        if (identity.key.startsWith('ip:')) return;
+        for (const live of [...this.rooms.values()]) {
+            if (!live.coop || !live.room.live || !live.keys.has(identity.key)) continue;
+            const party = this.parties.byId(live.party);
+            for (const m of [...(party?.members ?? [])]) {
+                if (m.id === except || m.identity.key !== identity.key) continue;
+                const ms = this.byMember.get(m.id);
+                if (ms && !ms.closed) continue; // a live tab keeps its seat
+                this.giveUpSeat(live, m.id);
+            }
+        }
+    }
+
+    /** A member without a socket gives up its seat and party (as `party.leave`, without the `left` frame). */
+    private giveUpSeat(live: LiveRoom, member: string): void {
+        const party = this.parties.byId(live.party);
+        const identity = party?.members.find(m => m.id === member)?.identity;
+        const slot = live.seats.get(member);
+        if (slot !== undefined) {
+            live.seats.delete(member);
+            live.names[slot] = null;
+            live.room.vacate(slot, this.now(), !!party?.openSeats);
+            this.releaseKeys(live, identity);
+        }
+        const s = this.byMember.get(member);
+        if (s) {
+            s.seatRoom = null;
+            s.seatSlot = -1;
+        }
+        this.parties.leave(member);
+        this.dropResume(member);
+    }
+
+    /**
+     * Quick Play `mm.back`: a stranger's closed tab has no party code to rejoin by, so the same identity takes its own
+     * live Quick Play seat back (as a `party.join` twin does). False when there is none.
+     */
+    private rejoinMm(member: string): boolean {
+        const s = this.byMember.get(member);
+        if (!s?.identity || s.identity.key.startsWith('ip:')) return false;
+        for (const live of this.rooms.values()) {
+            if (!live.coop || !live.room.live || live.ending || !live.keys.has(s.identity.key)) continue;
+            const party = this.parties.byId(live.party);
+            const twin = party?.members.find(
+                m => m.id !== member && m.identity.key === s.identity!.key && live.seats.has(m.id)
+            );
+            if (!twin) continue;
+            this.adopt(s, twin.id);
+            return true;
+        }
+        return false;
     }
 
     /** Counters for logs and the load test. */

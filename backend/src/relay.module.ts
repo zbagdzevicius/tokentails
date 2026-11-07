@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CatRepository } from './cat/cat.repository';
 import { Cat, CatSchema } from './cat/cat.schema';
+import { MmService, PAWLEGENDS_MM_SCHEMAS } from './pawlegends/mm/mm.service';
 import { PartyRelayService } from './pawlegends/party/party-relay.service';
 import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { MongoRoomStore, PAWLEGENDS_PARTY_SCHEMAS } from './pawlegends/party/room-store';
@@ -12,7 +13,8 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
 
 /*
  * BACKEND_ROLE=relay (src/shared/runtime/backend-role.ts): the Pawlegends party relay alone, for its own VM.
- * - Only what PartyRelayService needs: its room store, the ticket verifier and the cat collection for party cards.
+ * - Only what PartyRelayService needs: its room store, the ticket verifier, the cat collection for party cards and
+ *   MmService (Quick Play mm room records and the rating reader; it writes no rating, /live on the API does).
  * - No ScheduleModule, so no cron runs here; no Stripe, hot-wallet, Firebase or AI provider is built, so the relay VM
  *   holds none of those secrets.
  * - HTTP surface: `/healthz`, `/readyz`, `/pawlegends/ws/healthz` (routing probe) and the `/pawlegends/ws` upgrade.
@@ -26,7 +28,11 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
             useNewUrlParser: true,
             useUnifiedTopology: true,
         }),
-        MongooseModule.forFeature([{ name: Cat.name, schema: CatSchema }, ...PAWLEGENDS_PARTY_SCHEMAS]),
+        MongooseModule.forFeature([
+            { name: Cat.name, schema: CatSchema },
+            ...PAWLEGENDS_PARTY_SCHEMAS,
+            ...PAWLEGENDS_MM_SCHEMAS,
+        ]),
     ],
     controllers: [HealthController, RelayProbeController],
     providers: [
@@ -34,6 +40,7 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
         CatRepository,
         PartyTicketService,
         MongoRoomStore,
+        MmService,
         PartyRelayService,
         RelayStatsReporter,
     ],

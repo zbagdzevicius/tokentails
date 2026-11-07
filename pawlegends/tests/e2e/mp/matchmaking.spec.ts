@@ -206,3 +206,45 @@ test('co-op: two strangers on one team vs bots; a leaver is backfilled by a thir
     await b.page.waitForSelector('html[data-screen="title"]', { timeout: 15_000 });
   }
 });
+
+test('a brand-new guest sees Play online on the first visit, as a solid button', async ({ browser }) => {
+  test.setTimeout(240_000);
+  const n = await player(browser, 'phone', { profile: null });
+  await title(n);
+  expect(await onTop(n.page, '[data-testid="play-online"]')).toBe(true);
+  await expect(n.page.locator('[data-testid="play-online"]')).not.toHaveClass(/\bghost\b/);
+});
+
+test('after a match: Leave then Play online fills with bots; the pick has Leave; a closed tab returns to its match', async ({ browser }) => {
+  test.setTimeout(900_000);
+  const a = await player(browser, 'phone', { profile: ONE_MATCH });
+  await title(a);
+  await warm(a);
+  await tap(a, a.page.locator('[data-testid="play-online"]'));
+  await expect(a.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 40_000 });
+  // the pick has a way out; the assigned side is a plain badge, visible on a phone
+  await expect(a.page.locator('[data-testid="party-leave"]')).toBeVisible();
+  await expect(a.page.locator('[data-testid="mm-your-team"]')).toBeVisible();
+  await lockFree(a, 0);
+  await a.page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
+
+  // Leave (Esc menu, confirm), then Play online at once: a fresh search that fills with bots (no endless card)
+  await a.page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 60, null, { timeout: 120_000, polling: 500 });
+  await a.page.keyboard.press('Escape');
+  await a.page.locator('.pl-menu [data-a="leave"]').click();
+  await a.page.locator('.pl-menu [data-a="leave-yes"]').click();
+  await a.page.waitForSelector('html[data-screen="title"] .pl-lobby', { timeout: 20_000 });
+  await tap(a, a.page.locator('[data-testid="play-online"]'));
+  await expect(a.page.locator('[data-testid="mm-found"], [data-testid="mm-found-line"]').first()).toContainText('1 player + 2 bots', { timeout: 40_000 });
+  await expect(a.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 15_000 });
+  await lockFree(a, 0);
+  await a.page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
+  await a.page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 100, null, { timeout: 120_000, polling: 500 });
+
+  // the phone kills the tab mid-match; the game opened again in the same browser goes back to the match
+  await a.page.close();
+  a.page = await a.ctx.newPage();
+  await a.page.goto('/?e2e=1', { waitUntil: 'commit' });
+  await a.page.waitForSelector('html[data-match="live"]', { timeout: 150_000 });
+  await a.page.waitForFunction(() => Number(document.documentElement.dataset.tick ?? 0) >= 100, null, { timeout: 120_000, polling: 500 });
+});

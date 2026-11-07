@@ -36,6 +36,8 @@ export const COPY = Object.freeze({
   nudge: 'Nudge',
   nudged: 'Nudged',
   leave: 'Leave party',
+  /** Quick Play pick: leave the matched team (a bot takes the seat). */
+  leaveMatch: 'Leave',
   back: 'Back',
   playAgain: 'Play again together',
   joinWithCode: 'Join with code',
@@ -113,7 +115,7 @@ export const COPY = Object.freeze({
   stoppedElsewhere: 'Searching in another tab',
   stoppedParty: 'Search stopped',
   stoppedUpdate: 'Update to play online',
-  stoppedLocked: (s: number) => `Too many searches. Try again in ${s}s`,
+  stoppedLocked: (s: number) => `Too many games or searches from here. Try again in ${s}s`,
   stoppedBusy: (s: number) => `Servers busy. Try again in ${s}s`,
   yourTeam: (side: string) => `Your team: ${side}`,
   teamSide: (side: string) => `Your team plays ${side}`,

@@ -55,7 +55,7 @@ function make() {
 
 const matches = (ticks: ReturnType<Matchmaker['tick']>[]) => ticks.flatMap(t => t.matches);
 
-/** Fill the pool's arrival history so λ lands in a band (distinct identities in the last 5 minutes). */
+/** Fill the pool's arrival history so λ lands in a band (distinct addresses in the last 5 minutes). */
 function warm(mm: Matchmaker, clock: { now: number }, perMin: number) {
     const total = Math.round(perMin * 5);
     for (let i = 0; i < total; i++) {
@@ -66,6 +66,30 @@ function warm(mm: Matchmaker, clock: { now: number }, perMin: number) {
 }
 
 describe('Matchmaker (M1a co-op)', () => {
+    it('the arrival rate counts addresses, not identities: one IP cycling guest keys stays one arrival', () => {
+        const { clock, mm } = make();
+        for (let i = 0; i < 40; i++) {
+            const e = entry(clock, [member(`g${i}`, { identityKey: `guest:g${i}`, ipKey: 'ip-one' })]);
+            mm.join(e);
+            mm.leave(e.id);
+        }
+        expect(mm.arrivalsPerMin('eu|coop|14:abc')).toBeLessThanOrEqual(1);
+        const probe = entry(clock, ['probe']);
+        expect(mm.poolRate(probe)).toBeLessThan(MM_LIMITS.fill.quietPerMin);
+    });
+
+    it('prunes offer logs and arrival lists that aged out', () => {
+        const { clock, mm } = make();
+        const e = entry(clock, ['old']);
+        mm.join(e);
+        mm.leave(e.id);
+        const arrivals = (mm as unknown as { arrivals: Map<string, unknown[]> }).arrivals;
+        expect(arrivals.size).toBe(1);
+        clock.now += MM_LIMITS.fill.arrivalWindowMs + 61_000;
+        mm.tick();
+        expect(arrivals.size).toBe(0);
+    });
+
     it('three compatible solos match on the next tick: one side, slot 0 is the oldest entry', () => {
         const { clock, mm, advance } = make();
         const a = entry(clock, ['a'], { side: 'dog' });

@@ -519,7 +519,9 @@ export type ClientJson =
   | { t: 'mm.join'; queue: MmQueue; side: MmSide; region?: string }
   | { t: 'mm.leave' }
   | { t: 'mm.side'; side: MmSide }
-  | { t: 'mm.backfill'; offer: string; yes: boolean };
+  | { t: 'mm.backfill'; offer: string; yes: boolean }
+  /** A stranger's closed tab: take this identity's own live Quick Play seat back (a stranger has no code to rejoin by). */
+  | { t: 'mm.back' };
 
 export type ClientJsonType = ClientJson['t'];
 
@@ -591,6 +593,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
   'mm.leave': {},
   'mm.side': { side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false] },
   'mm.backfill': { offer: [isStr(/^[a-z0-9]{12}$/), false], yes: [isBool, false] },
+  'mm.back': {},
 };
 
 /** JSON frame types that only a PROTO 2 socket may send or receive. */

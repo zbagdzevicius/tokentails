@@ -264,18 +264,17 @@
 .pl-party .pp-ring { --pp-ring: 100%; flex: none; width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center;
   background: conic-gradient(var(--pp-gold) var(--pp-ring), rgba(255, 243, 220, 0.12) 0); }
 .pl-party .pp-ring b { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #24142e; font-size: 14px; }
-.pl-party .pp-sideswitch { flex: none; }
-.pl-party .pp-sideswitch button { min-height: 30px; padding: 0 10px; font-size: 12px; font-weight: 800; letter-spacing: 0.06em; cursor: default; }
-.pl-party .pp-sideswitch button:not([aria-checked='true']) { opacity: 0.45; }
+.pl-party .pp-team { flex: none; background: rgba(255, 211, 77, 0.18); box-shadow: inset 0 0 0 1px rgba(255, 211, 77, 0.55); }
+.pl-party .pp-pick-leave { flex: none; }
 .pl-party .pp-pick[data-mm] .pp-head { flex-wrap: wrap; row-gap: 4px; }
 .pl-party .pp-pick[data-mm] .pp-heroes { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
 .pl-party .pp-online { min-height: 36px; }
 @media (max-height: 430px) {
   .pl-party .pp-queue h2 { font-size: 18px; }
   .pl-party .pp-qtime b { font-size: 26px; }
-  .pl-party .pp-queue .pp-note { display: none; }
+  .pl-party .pp-queue .pp-note { font-size: 11px; }
   .pl-party .pp-mm-side button { min-height: 40px; }
-  .pl-party .pp-found-line, .pl-party .pp-pick[data-mm] [data-testid='mm-your-team'] { display: none; }
+  .pl-party .pp-found-line { display: none; }
 }
 @media (prefers-reduced-motion: reduce) {
   .pl-party .pp-found, .pl-party .pp-offer { animation: none; }

@@ -284,6 +284,8 @@ export class App {
     // a closed tab (no resume token left) still in a party: rejoin it by its code (the relay gives this player their
     // own seat back; a party that ended meanwhile closes quietly)
     else if (this.partyApi && lastPartyCode()) this.openParty('resume', lastPartyCode());
+    // a closed tab that was a stranger in a live Quick Play match (no code): ask the relay for that seat back
+    else if (this.partyApi && lastMmMatch()) this.openParty('back');
     if (this.partyCode) stripPartyParam();
     // the party chunk is fetched while idle once the title is up (never part of the first load, §11)
     if (this.partyApi) idle(() => void import('../party').catch(() => undefined));
@@ -608,9 +610,10 @@ export class App {
               this.openParty('code');
             }
           : undefined,
-        // Quick Play co-op (M1A-IMPL.md §1): one tap, from match 1 on (the guided first match stays solo)
+        // Quick Play co-op (M1A-IMPL.md §1): one tap for everyone, a brand-new guest included (zero friction: no
+        // sign-in, no unlock). The big button stays the guided solo match; a new player queues with the newbie hint.
         onOnline:
-          this.partyApi && p.matches >= 1
+          this.partyApi
             ? () => {
                 sfx.play('click');
                 this.openParty('queue');
@@ -807,7 +810,7 @@ export class App {
   // ------------------------------------------------------------------------------------------- party play
 
   /** Open the party chunk: create a party at once (the first tap), join a link's code, type a code, or resume a seat. */
-  private openParty(mode: 'create' | 'join' | 'code' | 'resume' | 'queue', code: string | null = null): void {
+  private openParty(mode: 'create' | 'join' | 'code' | 'resume' | 'queue' | 'back', code: string | null = null): void {
     if (!this.partyApi) return;
     // the party survived a solo match (D10): the title's button shows it again
     if (this.party) {
@@ -841,7 +844,8 @@ export class App {
             preload: () => loadMatch(),
             startMatch: (host, match, _view, info) => this.startPartyMatch(host, match, info?.backfill === true),
             // Quick Play: the remembered side, the analytics context and the pick's default hero per side
-            queueSide: lastQueueSide(),
+            // a brand-new player searches as Cats by default (DOGS is the solo title's unlock after match 1)
+            queueSide: p.matches === 0 ? 'cat' : lastQueueSide(),
             saveQueueSide: (side) => setLastQueueSide(side),
             mmInfo: () => ({ surface: this.isApp() ? 'app' : this.bridge.active ? 'embed' : 'web', matches: loadProfile().matches, guest: !accountState().signedIn }),
             heroForSide: (side) => heroForSide(loadProfile(), side),
@@ -1569,6 +1573,16 @@ function lastPartyCode(): string | null {
     return Date.now() - v.at < 3 * 3600_000 ? v.code : null;
   } catch {
     return null;
+  }
+}
+
+/** A stranger's live Quick Play match this browser was in (src/party/partyClient.ts marks it), within 1 hour. */
+function lastMmMatch(): boolean {
+  try {
+    const v = JSON.parse(localStorage.getItem('pl.party.last') ?? 'null') as { mm?: unknown; at?: unknown } | null;
+    return !!v && v.mm === true && typeof v.at === 'number' && Date.now() - v.at < 3600_000;
+  } catch {
+    return false;
   }
 }
 

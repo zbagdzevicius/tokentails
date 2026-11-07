@@ -70,10 +70,16 @@ describe('queue card (M1a)', () => {
     expect(d.querySelector('[data-testid="mm-cancel"]')).not.toBeNull();
   });
 
-  it('match found: the strip, no Cancel', () => {
+  it('match found: the strip and, for a solo, Cancel (leaves before the room starts); a friend party has none', () => {
     const d = dom(queueCardHtml(model({ match: { humans: 2, bots: 1, side: 'dog', difficulty: 'normal' } })));
     expect(d.querySelector('[data-testid="mm-found"]')?.textContent).toContain('2 players + 1 bot · Dogs · Normal');
-    expect(d.querySelector('[data-testid="mm-cancel"]')).toBeNull();
+    expect(d.querySelector('[data-testid="mm-cancel"]')?.getAttribute('data-p')).toBe('mm-found-cancel');
+    const party = dom(queueCardHtml(model({ party: true, match: { humans: 3, bots: 0, side: 'cat', difficulty: 'easy' } })));
+    expect(party.querySelector('[data-testid="mm-cancel"]')).toBeNull();
+  });
+
+  it('the bots-fill note is in the searching card (shown on phones too)', () => {
+    expect(dom(queueCardHtml(model())).querySelector('.pp-note')?.textContent).toBe('Bots fill any empty seat');
   });
 
   it('stopped states offer Search again (disabled while a lock runs) and Back', () => {

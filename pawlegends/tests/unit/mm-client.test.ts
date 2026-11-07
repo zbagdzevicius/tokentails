@@ -118,6 +118,30 @@ describe('Quick Play client (M1a)', () => {
     expect(sent(back.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'dog' }]);
   });
 
+  it('mm.cancel{server} asks for the watchdog: with no restart welcome the client searches again by itself', () => {
+    const r = run(initialParty('queue', null, 'cat'), welcome(), status({ side: 'cat' }), { t: 'mm.cancel', reason: 'server' });
+    expect(r.fx.some((f) => f.t === 'server-wait')).toBe(true);
+    // the watchdog dispatches `queue` again on the same socket: mm.join goes out
+    const again = run(r.s, { e: 'queue', side: 'cat' });
+    expect(sent(again.fx)).toEqual([{ t: 'mm.join', queue: 'coop', side: 'cat' }]);
+  });
+
+  it('a search the relay refuses for the party (party_busy) stops with Search again, never spins', () => {
+    const r = run(initialParty('queue'), welcome(), { t: 'error', code: 'party_busy' });
+    expect(r.s.queue?.stopped).toBe('party');
+    expect(screenOf(r.s)).toBe('queue');
+  });
+
+  it('back mode (a stranger\'s closed tab): decide sends mm.back; party_not_found closes quietly', () => {
+    const w = run(initialParty('back'), welcome(), { e: 'decide' });
+    expect(sent(w.fx)).toEqual([{ t: 'mm.back' }]);
+    const gone = run(w.s, { t: 'error', code: 'party_not_found' });
+    expect(gone.fx.some((f) => f.t === 'close')).toBe(true);
+    // a PROTO 1 relay has no mm.back: close
+    const old = run(initialParty('back'), welcome(1), { e: 'decide' });
+    expect(old.fx.some((f) => f.t === 'close')).toBe(true);
+  });
+
   it('mm_locked and server_busy stop the search with a wait (never the party retry-start)', () => {
     const locked = run(initialParty('queue'), welcome(), { t: 'error', code: 'mm_locked', retryMs: 45_000 });
     expect(locked.s.queue).toMatchObject({ stopped: 'locked', retryMs: 45_000 });
