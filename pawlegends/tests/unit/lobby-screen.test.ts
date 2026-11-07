@@ -189,7 +189,7 @@ describe('lobby screen', () => {
     expect(b.getAttribute('aria-label')).toBeNull();
     expect(b.textContent).toContain('Collect cards on Token Tails');
     const app = mount(base({ cardCount: 0, peek: [], wearing: null, isApp: true }));
-    expect(app.querySelector('.lb-peek.empty')?.textContent).not.toMatch(/collect/i);
+    expect(app.querySelector('.lb-peek.empty')?.textContent).not.toMatch(/collect|token tails/i);
     // a card's element reads as part of its look, not a gameplay type
     expect(web.querySelector('.lb-chip.el')?.textContent).toBe('Fire look');
     expect(mount(base({ identity: heroIdentity('clem', 'FAIRY') })).querySelector('.lb-chip.el')?.textContent).toBe('Fairy');
