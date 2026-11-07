@@ -457,7 +457,7 @@ Phases: `lobby → pick → loading → match → results → (lobby | pick)`. T
 ### 5.2 Identity, tickets and names
 
 **Ticket:** `POST /pawlegends/party/ticket` in `pawlegends.controller.ts`, `AppAuthGuard` + `@AllowGuest()`, throttled via `ClientIpThrottlerGuard.consume('PawlegendsController.partyTicket', …)` at 30 per 10 min.
-- Returns `{ticket, expiresIn: 60}`: an HMAC-SHA256 token keyed by `PAWLEGENDS_PARTY_TICKET_SECRET` over `{aud:'pl-party', v:1, kid, boot, accountId, guest, exp, nonce}`. `boot` is the instance boot id, so a ticket captured before a restart is dead after it. The nonce is kept in memory until expiry (single use). Verification uses `timingSafeEqual`. `kid` allows key rotation.
+- Returns `{ticket, expiresIn: 60}`: an HMAC-SHA256 token keyed by `PAWLEGENDS_PARTY_TICKET_SECRET` over `{aud:'pl-party', v:1, kid, boot, accountId, guest, iat, exp, nonce}`. The minting process (the API) and the verifying one (the relay) differ when they run apart, so a ticket is not bound to the verifier's boot id (`boot` is informational); instead a ticket issued (`iat`) before the verifying process started, minus 2 s of clock skew, is refused, so a ticket captured before a restart is dead after it. The nonce is kept in memory until expiry (single use). Verification uses `timingSafeEqual`. `kid` allows key rotation.
 - **Without the secret** the endpoint answers 503 `PAWLEGENDS_PARTY_TICKET_UNAVAILABLE`, and the relay treats every ticket as absent (never trusted unsigned). Players still play together; rooms are unscored.
 - **No ticket** (standalone build or Capacitor without a host session): anonymous guest, not scored. Because every invite URL is the embed URL (D12), a friend who taps a link normally lands where a guest ticket exists.
 

@@ -1,5 +1,5 @@
 import * as crypto from 'crypto';
-import { PARTY_TICKET_TTL_S, PartyTicketService } from './party-ticket.service';
+import { PARTY_TICKET_CLOCK_SKEW_S, PARTY_TICKET_TTL_S, PartyTicketService } from './party-ticket.service';
 import { PawlegendsController } from '../pawlegends.controller';
 
 /* Party play P2 (MULTIPLAYER.md §5.2, §12 P2): party tickets. */
@@ -23,7 +23,7 @@ describe('PartyTicketService (P2)', () => {
 
     it('issues guest and signed-in tickets that verify to their identity', () => {
         const s = new PartyTicketService();
-        const now = 1_700_000_000_000;
+        const now = Date.now();
         const signed = s.issue({ accountId: 'u1', guest: false }, now);
         const guest = s.issue({ accountId: 'g1', guest: true }, now);
         expect(signed.expiresIn).toBe(60);
@@ -41,14 +41,14 @@ describe('PartyTicketService (P2)', () => {
 
     it('expires after 60 s', () => {
         const s = new PartyTicketService();
-        const now = 1_700_000_000_000;
+        const now = Date.now();
         const { ticket } = s.issue({ accountId: 'u1', guest: false }, now);
         expect(s.verify(ticket, now + (PARTY_TICKET_TTL_S + 1) * 1000)).toBeNull();
         const t2 = s.issue({ accountId: 'u1', guest: false }, now).ticket;
         expect(s.verify(t2, now + (PARTY_TICKET_TTL_S - 1) * 1000)).not.toBeNull();
     });
 
-    it('refuses a tampered payload, a wrong aud, another boot, another kid and a foreign key', () => {
+    it('refuses a tampered payload, a wrong aud, an issue time before this start, another kid and a foreign key', () => {
         const s = new PartyTicketService();
         const { ticket } = s.issue({ accountId: 'u1', guest: false });
         const p = payloadOf(ticket);
@@ -63,7 +63,9 @@ describe('PartyTicketService (P2)', () => {
         expect(s.verify(forge({}))).not.toBeNull();
         expect(s.verify(forge({ aud: 'other' }))).toBeNull();
         expect(s.verify(forge({ v: 2 }))).toBeNull();
-        expect(s.verify(forge({ boot: 'a-previous-boot' }))).toBeNull();
+        expect(s.verify(forge({ boot: 'another-process' }))).not.toBeNull();
+        expect(s.verify(forge({ iat: Math.floor(s.startedAtMs / 1000) - PARTY_TICKET_CLOCK_SKEW_S - 2 }))).toBeNull();
+        expect(s.verify(forge({ iat: undefined }))).toBeNull();
         expect(s.verify(forge({ kid: 'k2' }))).toBeNull();
         expect(s.verify(forge({}, 'another-secret-0123456789'))).toBeNull();
         expect(s.verify(forge({ accountId: '' }))).toBeNull();
@@ -73,10 +75,20 @@ describe('PartyTicketService (P2)', () => {
             expect(s.verify(bad)).toBeNull();
     });
 
-    it('a restart (a new boot) kills old tickets', () => {
-        const a = new PartyTicketService();
-        const b = new PartyTicketService();
-        expect(b.verify(a.issue({ accountId: 'u1', guest: false }).ticket)).toBeNull();
+    it('a ticket minted by another process (the API) verifies on the relay once', () => {
+        const api = new PartyTicketService();
+        const relay = new PartyTicketService();
+        const { ticket } = api.issue({ accountId: 'u1', guest: false });
+        expect(relay.verify(ticket)).toEqual({ accountId: 'u1', guest: false });
+        expect(relay.verify(ticket)).toBeNull();
+    });
+
+    it('a restart kills tickets issued before it (the spent-nonce memory is per process)', () => {
+        const before = new PartyTicketService();
+        const issuedAt = Date.now() - 10_000;
+        const { ticket } = before.issue({ accountId: 'u1', guest: false }, issuedAt);
+        const restarted = new PartyTicketService();
+        expect(restarted.verify(ticket)).toBeNull();
     });
 
     it('compares macs with timingSafeEqual', () => {
