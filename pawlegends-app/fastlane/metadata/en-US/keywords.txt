@@ -1,1 +1,1 @@
-moba,cats,dogs,arena,3v3,battle,heroes,strategy,offline,bots,party,friends,lanes,towers,action
+moba,3v3,heroes,strategy,offline,bots,co-op,party,friends,lanes,towers,brawl,kitten,puppy,team

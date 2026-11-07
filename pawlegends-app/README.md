@@ -18,7 +18,7 @@ inside, landscape only, that updates its web game over the air from tokentails.c
 | `scripts/build-sim.mjs` | Unsigned simulator build (`--run` installs and launches it) |
 | `ios/App/` | The Xcode project: `GameViewController.swift` (landscape, no status bar, home indicator auto-hidden), `AppDelegate.swift` (audio session, screen kept on), `Info.plist`, `PrivacyInfo.xcprivacy` |
 | `fastlane/` | Lanes `check`, `bootstrap`, `build`, `beta`, `metadata`, `release`, `certs`; listing text in `metadata/`, screenshots in `screenshots/` |
-| `store/` | Answers to copy into App Store Connect: `age-rating.md`, `privacy-label.md` |
+| `store/` | `app-icon-1024.png`; iPad 13" screenshots (`screenshots-ipad/`, not uploaded while iPhone only). Answers to copy into App Store Connect: `docs/plans/moba/APP-STORE-ANSWERS.md` |
 
 ## Run and check
 
