@@ -94,3 +94,15 @@ export const PARTY_LIMITS = Object.freeze({
 /** Turn length (D3): 2 ticks at 30 Hz. */
 export const TURN_TICKS = 2;
 export const TURN_MS = 200 / 3;
+
+/**
+ * The live-room cap for this relay process: PARTY_MAX_LIVE_ROOMS (an integer 1..1000, set from Terraform
+ * `max_live_rooms` so the cap and its 80 % alert move together), else PARTY_LIMITS.maxLiveRooms. A capacity knob, not
+ * a feature flag: the relay works the same at any value; the load run (`mp/load.mjs`) sets it per machine type.
+ */
+export function maxLiveRoomsFrom(env: NodeJS.ProcessEnv = process.env): number {
+    const raw = env.PARTY_MAX_LIVE_ROOMS?.trim();
+    if (!raw || !/^\d+$/.test(raw)) return PARTY_LIMITS.maxLiveRooms;
+    const n = Number(raw);
+    return n >= 1 && n <= 1000 ? n : PARTY_LIMITS.maxLiveRooms;
+}

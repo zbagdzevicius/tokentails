@@ -83,6 +83,12 @@ variable "relay_machine_type" {
   default = "e2-standard-2"
 }
 
+variable "max_live_rooms" {
+  description = "PARTY_MAX_LIVE_ROOMS on the relay (and the 80 % alert). Raise it for a load run past the default cap."
+  type        = number
+  default     = 60
+}
+
 variable "mongo_machine_type" {
   type    = string
   default = "e2-small"

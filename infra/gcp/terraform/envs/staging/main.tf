@@ -351,7 +351,7 @@ module "relay_vm" {
   service_account = local.sa["sa-relay"]
   port            = local.relay_port
   initial_image   = local.backend_image
-  plain_env       = { NO_COLOR = "1" }
+  plain_env       = { NO_COLOR = "1", PARTY_MAX_LIVE_ROOMS = tostring(var.max_live_rooms) }
   secrets         = local.relay_secret_versions
   labels          = local.labels
 
@@ -415,7 +415,7 @@ module "monitoring" {
   api_service           = module.api.name
   api_max_instances     = var.api.max_instances
   relay_instance_prefix = "tt-relay"
-  max_live_rooms        = 20
+  max_live_rooms        = var.max_live_rooms
   api_host              = local.api_hosts[0]
   web_host              = local.web_hosts[0]
 
