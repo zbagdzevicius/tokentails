@@ -88,6 +88,13 @@ export const PAWLEGENDS_GAME_EVENTS = [
   "mp_social",
   "mp_match_end",
   "mp_rematch",
+  // Quick Play co-op (docs/plans/moba/M1A-IMPL.md §7.1)
+  "mm_join",
+  "mm_cancel",
+  "mm_found",
+  "mm_backfill_offer",
+  "mm_backfill_join",
+  "mm_penalty",
 ] as const;
 
 export type PawlegendsGameEventName = (typeof PAWLEGENDS_GAME_EVENTS)[number];

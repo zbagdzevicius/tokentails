@@ -14,7 +14,7 @@ import { portraitUrl } from '../../render/portraits';
 import { HERO_TEXT, TRICK_TEXT } from '../../ui/heroText';
 import { icon } from '../../ui/icons';
 import { heroTile } from '../../ui/screens';
-import { COPY, esc } from './copy';
+import { COPY, DIFF_LABEL, esc, sideText } from './copy';
 import { shownName } from './partyLobby';
 
 /** The "New? Try this" hero (the relay's newbie auto-lock uses the same one). */
@@ -29,6 +29,21 @@ export interface PickModel {
   secondsLeft: number;
   error: string | null;
   hideNames?: boolean;
+  /** Quick Play: the match the queue found ("2 players + 1 bot · Dogs · Normal"), shown under the title. */
+  found?: { humans: number; bots: number; side: string; difficulty: string } | null;
+}
+
+/** The first hero of `side` this player can lock now ('' when none): the default hover of a Quick Play pick. */
+export function firstFree(v: PartyView, side: 'cat' | 'dog', prefer?: string): string {
+  if (prefer && sideOf(prefer) === side && !heroBlock(v, prefer)) return prefer;
+  return HERO_IDS.find((h) => HEROES[h].side === side && !heroBlock(v, h)) ?? '';
+}
+
+/** Quick Play: the CATS/DOGS switch, shown locked on the side the queue assigned. */
+function sideSwitchHtml(side: 'cat' | 'dog'): string {
+  return `<div class="pp-seg pp-sideswitch" role="radiogroup" aria-label="${esc(COPY.yourTeam(sideText(side)))}" aria-disabled="true" data-testid="mm-side-switch" data-side="${side}">${(['cat', 'dog'] as const)
+    .map((s) => `<button type="button" role="radio" aria-checked="${s === side}" disabled>${s === 'cat' ? 'CATS' : 'DOGS'}</button>`)
+    .join('')}</div>`;
 }
 
 const sideOf = (h: string | undefined): 'cat' | 'dog' | null => (h && h in HEROES ? HEROES[h as HeroId].side : null);
@@ -42,6 +57,8 @@ export function lockedByOthers(v: PartyView, hide = false): Map<string, string> 
 export function heroBlock(v: PartyView, hero: string, hide = false): string {
   const other = lockedByOthers(v, hide).get(hero);
   if (other) return other;
+  // Quick Play: the side is fixed for the whole team (M1A-IMPL.md §1.5)
+  if (v.mm) return sideOf(hero) === v.mm.side ? '' : COPY.teamSide(sideText(v.mm.side));
   if (v.leader === v.you) return '';
   const side = sideOf(v.members.find((m) => m.id === v.leader)?.hero);
   if (side && sideOf(hero) !== side) return COPY.leaderChose(side);
@@ -66,8 +83,17 @@ export function pickHtml(o: PickModel): string {
   const strip = [0, 1, 2].map((i) => stripSeat(v, humans[i], hide)).join('');
   const leaderSide = sideOf(v.members.find((m) => m.id === v.leader)?.hero);
   // one grid (cats then dogs): two rows of six fit a 375 px tall phone
-  const order = [...HERO_IDS.filter((h) => HEROES[h].side === 'cat'), ...HERO_IDS.filter((h) => HEROES[h].side === 'dog')];
-  const sideNote = v.leader !== v.you && leaderSide ? `<p class="pp-side-note" data-testid="party-side-note">${esc(COPY.leaderChose(leaderSide))}</p>` : '';
+  // Quick Play: only the assigned side's heroes (the other side is never pickable)
+  const mm = v.mm?.side ?? null;
+  const order = mm
+    ? HERO_IDS.filter((h) => HEROES[h].side === mm)
+    : [...HERO_IDS.filter((h) => HEROES[h].side === 'cat'), ...HERO_IDS.filter((h) => HEROES[h].side === 'dog')];
+  const found = mm && o.found ? `<p class="pp-side-note pp-found-line" data-testid="mm-found-line">${esc(COPY.foundLine(o.found.humans, o.found.bots, sideText(o.found.side), DIFF_LABEL[o.found.difficulty] ?? o.found.difficulty))}</p>` : '';
+  const sideNote = mm
+    ? `<p class="pp-side-note" data-testid="mm-your-team">${esc(COPY.yourTeam(sideText(mm)))}</p>${sideSwitchHtml(mm)}${found}`
+    : v.leader !== v.you && leaderSide
+      ? `<p class="pp-side-note" data-testid="party-side-note">${esc(COPY.leaderChose(leaderSide))}</p>`
+      : '';
   const rows = `<div class="pp-heroes">${order.map((h) => heroTile(h, h === o.hover, portraitUrl(h), undefined)).join('')}</div>`;
   const tricks = TRICK_IDS.map(
     (t) =>
@@ -79,7 +105,7 @@ export function pickHtml(o: PickModel): string {
   const lockBtn = locked
     ? `<button type="button" class="pl-btn ghost" data-p="unlock" data-testid="party-unlock">${COPY.changeHero}</button><button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" disabled>${COPY.lockedIn}</button>`
     : `<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${canLock ? '' : 'disabled'}>${COPY.lockIn}</button>`;
-  return `<div class="pp-card pp-pick" data-locked="${locked}">
+  return `<div class="pp-card pp-pick" data-locked="${locked}"${mm ? ` data-mm="${mm}"` : ''}>
     <div class="pp-head"><h2>${COPY.pickTitle}</h2>${sideNote}<ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
     <div class="pp-roster">${rows}</div>
     <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${lockBtn}</div>

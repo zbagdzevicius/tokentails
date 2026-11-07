@@ -86,7 +86,7 @@ describe('PartySocket', () => {
     const t = setup();
     t.s.connect();
     t.sockets[0].open();
-    expect(JSON.parse(t.sockets[0].sent[0] as string)).toMatchObject({ t: 'hello', proto: 1, sim: 11 });
+    expect(JSON.parse(t.sockets[0].sent[0] as string)).toMatchObject({ t: 'hello', proto: 2, sim: 11 });
     welcome(t.sockets[0]);
     const first = t.store.get('pl.party.resume');
     expect(first).toBeTruthy();
@@ -184,5 +184,35 @@ describe('PartySocket', () => {
     t.tick(10_000);
     expect(t.sockets.length).toBe(1);
     expect(t.s.elsewhere).toBe(true);
+  });
+
+  it('M1a: a relay older than PROTO 2 refuses before welcome; the socket retries once as PROTO 1 (no Quick Play)', () => {
+    const t = setup();
+    const seen: string[] = [];
+    t.s.tap({ json: (m) => seen.push(m.t === 'error' ? `error:${m.code}` : m.t) });
+    t.s.connect();
+    t.sockets[0].open();
+    t.sockets[0].json({ t: 'error', code: 'update_required' });
+    // swallowed: the party client never shows "Update to play together" for the first refusal
+    expect(seen).toEqual([]);
+    t.tick(10_000);
+    t.sockets[1].open();
+    expect(JSON.parse(t.sockets[1].sent[0] as string).proto).toBe(1);
+    welcome(t.sockets[1], { proto: 1 });
+    expect(t.s.mm).toBe(false);
+    // a second refusal is real
+    t.sockets[1].close();
+    t.tick(10_000);
+    t.sockets[2].open();
+    t.sockets[2].json({ t: 'error', code: 'update_required' });
+    expect(seen).toContain('error:update_required');
+  });
+
+  it('M1a: welcome.proto 2 turns Quick Play on', () => {
+    const t = setup();
+    t.s.connect();
+    t.sockets[0].open();
+    welcome(t.sockets[0], { proto: 2 });
+    expect(t.s.mm).toBe(true);
   });
 });

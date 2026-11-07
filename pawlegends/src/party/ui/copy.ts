@@ -92,6 +92,41 @@ export const COPY = Object.freeze({
   badCode: 'A code has 6 letters and digits',
   generic: 'Something went wrong',
   offline: 'Reconnecting…',
+  // Quick Play co-op (docs/plans/moba/M1A-IMPL.md §1, §6)
+  online: 'Play online',
+  finding: 'Finding teammates…',
+  usually: (t: string) => `usually ${t}`,
+  cancel: 'Cancel',
+  searchAgain: 'Search again',
+  sideLabel: 'Play as',
+  sideCat: 'Cats',
+  sideDog: 'Dogs',
+  sideAny: 'Either',
+  playersFound: (n: number) => `${n} of 3 players found`,
+  botsFill: 'Bots fill any empty seat',
+  lowPriority: (t: string) => `Short wait after leaving matches: ${t}`,
+  leaverWarn: 'Leaving matches early adds a short wait',
+  matchFound: 'Match found',
+  foundLine: (humans: number, bots: number, side: string, diff: string) =>
+    `${humans} ${humans === 1 ? 'player' : 'players'}${bots ? ` + ${bots} ${bots === 1 ? 'bot' : 'bots'}` : ''} · ${side} · ${diff}`,
+  stoppedAway: 'Search stopped while you were away',
+  stoppedElsewhere: 'Searching in another tab',
+  stoppedParty: 'Search stopped',
+  stoppedUpdate: 'Update to play online',
+  stoppedLocked: (s: number) => `Too many searches. Try again in ${s}s`,
+  stoppedBusy: (s: number) => `Servers busy. Try again in ${s}s`,
+  yourTeam: (side: string) => `Your team: ${side}`,
+  teamSide: (side: string) => `Your team plays ${side}`,
+  partyQueued: 'Your party is searching',
+  backfillTitle: 'Join a match in progress',
+  backfillAt: (t: string) => `Match clock ${t}`,
+  backfillJoin: 'Join',
+  backfillKeep: 'Keep searching',
+  seatTaken: 'Your seat was taken',
+  seatTakenNote: 'Another player took your seat after you left',
+  playAgainOnline: 'Play again',
+  backToParty: 'Back to party',
+  coopLeave: 'Leaving early adds a short wait before your next online match. Another player or a bot takes your place.',
 });
 
 /** The text of a relay error code on a pre-match screen. */
@@ -126,10 +161,23 @@ export function errorText(code: string, retryS = 0): string {
       return COPY.badTicket;
     case 'bad_code':
       return COPY.badCode;
+    case 'seat_taken':
+      return COPY.seatTaken;
+    case 'mm_locked':
+      return COPY.stoppedLocked(Math.max(1, retryS));
     default:
       return COPY.generic;
   }
 }
+
+/** "Cats", "Dogs" or "Either" for a queue side. */
+export const sideText = (side: string): string => (side === 'cat' ? COPY.sideCat : side === 'dog' ? COPY.sideDog : COPY.sideAny);
+
+/** m:ss for a wait or a match clock. */
+export const clockText = (s: number): string => {
+  const t = Math.max(0, Math.floor(s));
+  return `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+};
 
 export const DIFF_LABEL: Readonly<Record<string, string>> = Object.freeze({ rookie: 'Rookie', easy: 'Easy', normal: 'Normal', hard: 'Hard' });
 

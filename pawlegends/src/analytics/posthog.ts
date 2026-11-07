@@ -65,8 +65,15 @@ export type MpEvent =
   | 'mp_vote'
   | 'mp_social'
   | 'mp_match_end'
-  | 'mp_rematch';
-export const isMpEvent = (e: string): e is MpEvent => /^(mp|party)_[a-z_]{2,24}$/.test(e);
+  | 'mp_rematch'
+  // Quick Play co-op (docs/plans/moba/M1A-IMPL.md §7.1)
+  | 'mm_join'
+  | 'mm_cancel'
+  | 'mm_found'
+  | 'mm_backfill_offer'
+  | 'mm_backfill_join'
+  | 'mm_penalty';
+export const isMpEvent = (e: string): e is MpEvent => /^(mp|party|mm)_[a-z_]{2,24}$/.test(e);
 
 /** A party event's props, scrubbed: id-like keys dropped, and any string that looks like a party code or a random id. */
 export function cleanMpProps(props: Record<string, unknown>): Record<string, unknown> {

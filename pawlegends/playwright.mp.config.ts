@@ -37,7 +37,8 @@ export default defineConfig({
       timeout: 180_000,
     },
     {
-      command: `cd ../backend && PORT=${RELAY} FRONT_END_URLS=${GAME} ./node_modules/.bin/ts-node --transpile-only test/party-relay.harness.ts`,
+      // tsconfig-paths: the relay's Quick Play glue reaches shared/client-ip.ts, which imports by the `src/` base path
+      command: `cd ../backend && PORT=${RELAY} FRONT_END_URLS=${GAME} ./node_modules/.bin/ts-node --transpile-only -r tsconfig-paths/register test/party-relay.harness.ts`,
       url: `${RELAY_URL}/health`,
       reuseExistingServer: false,
       timeout: 120_000,
