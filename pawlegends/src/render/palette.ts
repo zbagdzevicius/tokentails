@@ -3,12 +3,21 @@ import { COLOR_CSS as MEATBALL_CSS } from './chars/heroes/meatball';
 import { COLOR_CSS as PIXEL_CSS } from './chars/heroes/pixel';
 import { COLOR_CSS as DUCHESS_CSS } from './chars/heroes/duchess';
 import { COLOR_CSS as STILTS_CSS } from './chars/heroes/stilts';
+import { COLOR_CSS as NUGGET_CSS } from './chars/heroes/nugget';
+import { COLOR_CSS as MARSHMALLOW_CSS } from './chars/heroes/marshmallow';
+import { COLOR_CSS as BRAVO_CSS } from './chars/heroes/bravo';
+import { COLOR_CSS as CHILI_CSS } from './chars/heroes/chili';
+import { COLOR_CSS as HOWLER_CSS } from './chars/heroes/howler';
 
 export const TEAM = Object.freeze({
   /** Purrhaven: cream and rose. */
   0: Object.freeze({ main: 0xff6f91, second: 0xfff3dc, deep: 0xc94a72, name: 'Purrhaven' }),
-  /** Woof: navy and brass. */
-  1: Object.freeze({ main: 0x3d5a9e, second: 0xd9a441, deep: 0x26396b, name: 'Woof' }),
+  /**
+   * Woof: ochre mustard and brown (audit GFX-01: the old navy 0x3d5a9e sat next to RELATION.ally blue, so enemy dog
+   * towers read as ours; blue and red stay the relation colours only). The main stays just under the gold "you" hue
+   * family (skins/registry.ts isGoldFamily, 35-62°).
+   */
+  1: Object.freeze({ main: 0xb5762b, second: 0x5b3a1e, deep: 0x6e4520, name: 'Woof' }),
   /** Neutral (rats, Pudding). */
   2: Object.freeze({ main: 0xb8a27a, second: 0xf0e2c0, deep: 0x7d6b4c, name: 'Wild' }),
 });
@@ -68,6 +77,12 @@ export const HERO_COLOR_CSS = Object.freeze({
   pixel: PIXEL_CSS,
   duchess: DUCHESS_CSS,
   stilts: STILTS_CSS,
+  // sim v14 original dogs (their render modules own the colour)
+  nugget: NUGGET_CSS,
+  marshmallow: MARSHMALLOW_CSS,
+  bravo: BRAVO_CSS,
+  chili: CHILI_CSS,
+  howler: HOWLER_CSS,
 });
 
 let team0Dogs = false;

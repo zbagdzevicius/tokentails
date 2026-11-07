@@ -1,7 +1,7 @@
 import { expect, test, type Frame } from '@playwright/test';
 import { art, mockHost, openHost, received } from './host';
 
-// Sim v9 shelter champions: 8 pick tiles (a cats row of 6, a dogs row of 2), the card art and the web-only owner
+// Sim v9 shelter champions (sim v14: 17 pick tiles, 10 cats and 7 dogs behind the CATS / DOGS switch), the card art and the web-only owner
 // badge on a champion tile, no Meet link on hero pick or in the lobby (title) champion info panel (information only:
 // the champion-offer Meet card is the one purchase surface), none of the badges in an app build, and the Avietė /
 // Gabė diacritics drawn in the UI font.
@@ -21,7 +21,7 @@ async function toPick(game: Frame): Promise<void> {
   await game.waitForSelector('.pl-pick');
 }
 
-test('8 pick tiles, card art and the owner badge on the web; no buy link on pick or in the lobby panel', async ({ context, page, baseURL }) => {
+test('17 pick tiles (10 cats, 7 dogs), card art and the owner badge on the web; no buy link on pick or in the lobby panel', async ({ context, page, baseURL }) => {
   await mockHost(context, baseURL!, { app: { isApp: false, store: true }, signedIn: true, roster: OWNS_GABE, champions: CHAMPIONS, profile: PLAYED });
   const game = await openHost(page);
   // Lobby (title): Lambo on the turntable, his info panel (information only, no buy link).
@@ -35,7 +35,10 @@ test('8 pick tiles, card art and the owner badge on the web; no buy link on pick
 
   await toPick(game);
   await expect(game.locator('.heroes.cats .hero-card')).toHaveCount(10);
-  await expect(game.locator('.heroes.dogs .hero-card')).toHaveCount(2);
+  await expect(game.locator('.heroes.dogs .hero-card')).toHaveCount(7);
+  // sim v14: the cat side shows; the dogs wait behind the switch, and no dog is a champion
+  await expect(game.locator('.heroes.dogs')).toBeHidden();
+  await expect(game.locator('.heroes.dogs .champ-art, .heroes.dogs .champ-owned, .heroes.dogs .hero-card.champion')).toHaveCount(0);
   await expect(game.locator('.hero-card[data-h="lambo"] .champ-art')).toHaveCount(1);
   await expect(game.locator('.hero-card[data-h="gabe"] .champ-owned')).toHaveCount(1);
   await expect(game.locator('.hero-card[data-h="lambo"] .champ-owned')).toHaveCount(0);
@@ -55,7 +58,7 @@ test('app build: champions play, no owner badge, no Meet link anywhere', async (
   await info.locator('[data-a="champion-info"]').click();
   await expect(info.locator('[data-a="champion-meet"]')).toHaveCount(0);
   await toPick(game);
-  await expect(game.locator('.hero-card')).toHaveCount(12);
+  await expect(game.locator('.hero-card')).toHaveCount(17);
   await expect(game.locator('.champ-owned')).toHaveCount(0);
   await expect(game.locator('[data-a="champion-meet"]')).toHaveCount(0);
   expect((await received(page)).some((m) => m.type === 'open-cat')).toBe(false);

@@ -34,6 +34,28 @@ interface Plate {
   stacked: number;
   /** Another hero's plate was lifted off this one (draw the ×2 chip). */
   chip: boolean;
+  /** Audit GFX-04: a phone, an allied bot in a fight: its bar only (no name pill, crowns or chips). */
+  bare?: boolean;
+}
+
+/**
+ * Audit GFX-04 (phones): the allied bots whose plate goes bar-only: an ally that is not the player or a friend, with
+ * an enemy hero's plate within FIGHT_PX of it on screen (a fight). Pure.
+ */
+export const FIGHT_PX = Object.freeze({ x: 150, y: 110 });
+export function bareAllies(
+  heroes: readonly { id: number; team: number; sx: number; sy: number }[],
+  mySlot: number,
+  myTeam: number,
+  friends: ReadonlySet<number> = new Set(),
+): Set<number> {
+  const out = new Set<number>();
+  const foes = heroes.filter((h) => h.team !== myTeam && h.team <= 1);
+  for (const h of heroes) {
+    if (h.id === mySlot || h.team !== myTeam || friends.has(h.id)) continue;
+    if (foes.some((f) => Math.abs(f.sx - h.sx) <= FIGHT_PX.x && Math.abs(f.sy - h.sy) <= FIGHT_PX.y)) out.add(h.id);
+  }
+  return out;
 }
 
 /** Hero plate box (px, relative to the bar centre) used by the declutter pass: name above, level badge left. */
@@ -428,6 +450,16 @@ export class Overhead {
       p.dy = lay[i].dy;
       p.stacked = lay[i].depth;
     });
+    // GFX-04: on a phone, allied bots in a fight show their bar only (the plates, pills and chips buried the heroes)
+    if (this.phone) {
+      const bare = bareAllies(
+        heroes.map((p) => ({ id: p.e.id, team: p.e.team, sx: p.sx, sy: p.sy })),
+        this.mySlot,
+        this.myTeam,
+        new Set(this.seats?.keys() ?? []),
+      );
+      for (const p of heroes) p.bare = bare.has(p.e.id);
+    }
     // ×2 chips: a plate that had to move marks the plate it sits over
     for (let i = 0; i < heroes.length; i++) {
       if (heroes[i].stacked === 0) continue;
@@ -1051,6 +1083,10 @@ export class Overhead {
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.fillText(lv, bcx, sy + 0.5);
+    if (p.bare) {
+      this.statusMark(g, e, x, bw, sy);
+      return;
+    }
     const name = this.nameOf(e);
     const nf = nameFont(this.phone);
     g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
@@ -1139,20 +1175,46 @@ export class Overhead {
       g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
       g.fillText('×2', cx, sy + 0.5);
     }
-    const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
-    if (status) {
-      g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
-      const tw = g.measureText(status).width + 8 * this.scale;
-      const cx = x + bw + 6 * this.scale;
-      g.fillStyle = 'rgba(255,224,102,0.95)';
-      roundRect(g, cx, sy - 7 * this.scale, tw, 14 * this.scale, 6);
-      g.fill();
-      g.fillStyle = '#2a1a22';
-      g.textAlign = 'left';
-      g.fillText(status, cx + 4 * this.scale, sy + 0.5);
-      g.textAlign = 'center';
-    }
+    this.statusMark(g, e, x, bw, sy);
   }
+
+  /**
+   * The status right of a hero bar: a word chip ("Rooted") on desktop; on a phone (audit GFX-04) a 14 px icon disc
+   * with the status's letter, so a stacked fight is not a wall of words.
+   */
+  private statusMark(g: CanvasRenderingContext2D, e: ViewEntity, x: number, bw: number, sy: number): void {
+    const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
+    if (!status) return;
+    const cx = x + bw + 6 * this.scale;
+    g.fillStyle = 'rgba(255,224,102,0.95)';
+    if (this.phone) {
+      const r = 7 * this.scale;
+      g.beginPath();
+      g.arc(cx + r, sy, r, 0, Math.PI * 2);
+      g.fill();
+      g.strokeStyle = 'rgba(42,26,34,0.9)';
+      g.lineWidth = 1.5;
+      g.stroke();
+      g.fillStyle = '#2a1a22';
+      g.font = `800 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
+      g.textAlign = 'center';
+      g.fillText(statusGlyph(status), cx + r, sy + 0.5);
+      return;
+    }
+    g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
+    const tw = g.measureText(status).width + 8 * this.scale;
+    roundRect(g, cx, sy - 7 * this.scale, tw, 14 * this.scale, 6);
+    g.fill();
+    g.fillStyle = '#2a1a22';
+    g.textAlign = 'left';
+    g.fillText(status, cx + 4 * this.scale, sy + 0.5);
+    g.textAlign = 'center';
+  }
+}
+
+/** Audit GFX-04: the phone status icon's glyph (one letter or sign per status). Pure. */
+export function statusGlyph(status: string): string {
+  return ({ Stunned: '*', Rooted: 'R', Scared: '!', Napping: 'z', Challenged: 'C', Slowed: '~', 'Purr-ified': 'P', Charmed: '♥' } as Record<string, string>)[status] ?? status.slice(0, 1);
 }
 
 /** The label over a hero: "You" for the player, a team prefix on the enemy copy of a mirrored hero. Pure. */

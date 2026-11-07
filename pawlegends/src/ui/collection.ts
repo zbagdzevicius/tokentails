@@ -74,7 +74,8 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
             .map((id) => `<button class="chip ${on === id ? 'on' : ''}" data-wear="${kind}" data-id="${esc(id)}">${esc(name(id))}</button>`)
             .join('')}</span></div>`
         : '';
-    root.innerHTML = `<div class="card"><h2>Treat Track</h2>
+    // Audit UX-10: a corner ✕ (sticky) and a sticky Done (the exit sat below the fold at 667x375)
+    root.innerHTML = `<div class="card"><button class="pl-x" data-a="x" aria-label="Close the Treat Track">✕</button><h2>Treat Track</h2>
       <p class="next-chest" data-next="${esc(next.id)}">Next chest: <b>${esc(next.name)}</b> <small data-togo="${n}">${esc(toGoText(n))}</small></p>
       <div class="targets"><span class="lbl">Pick your next target</span><span class="chips"><button class="chip target ${s.target === null ? 'on' : ''}" data-target="" aria-pressed="${s.target === null}"><b>Track order</b><small>Any hero</small></button>${heroes.map(chip).join('')}</span></div>
       <h3>Meet the real cat</h3>
@@ -98,13 +99,30 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       if (kind === 'title') s.title = id;
       else s.frame = id;
       o.onWear(kind, id);
-    } else if (t.closest('[data-a="close"]') || t === root) {
-      root.remove();
-      o.onClose();
+    } else if (t.closest('[data-a="close"], [data-a="x"]') || t === root) {
+      close();
       return;
     } else return;
     render();
   });
+  // Audit UX-10: Esc closes the Treat Track too (Settings already did)
+  const close = (): void => {
+    if (!root.isConnected) return;
+    document.removeEventListener('keydown', onKey, true);
+    root.remove();
+    o.onClose();
+  };
+  const onKey = (e: KeyboardEvent): void => {
+    if (!root.isConnected) {
+      document.removeEventListener('keydown', onKey, true);
+      return;
+    }
+    if (e.key !== 'Escape') return;
+    e.preventDefault();
+    e.stopPropagation();
+    close();
+  };
+  document.addEventListener('keydown', onKey, true);
   parent.appendChild(root);
   return root;
 }

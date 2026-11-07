@@ -8,6 +8,7 @@ import type { EntitySnap } from '../sim/api';
 import { TOWERS } from '../data/towers';
 import type { AimSpec } from './abilities';
 import type { TargetFirst } from './presets';
+import { headingPoint } from './heading';
 
 export interface Unit {
   id: number;
@@ -199,6 +200,9 @@ export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam:
     if (l && dist(l, me) <= reach) return { x: l.x, y: l.y, id: aim.kind === 'unit' ? l.id : 0xff };
   }
   let t = aim.smart !== 'none' ? nearestEnemy(units, me, myTeam, reach, true) : null;
+  // Audit CF-08: a smart cast that would walk in (a ground or unit aim past its range) never walks the hero under an
+  // untanked enemy tower for it, the same rule as the Attack button
+  if (t && (aim.kind === 'point' || aim.kind === 'unit') && dist(t, me) > aim.range + (aim.kind === 'unit' ? BODY_MM[t.kind] : 0) && guardedByTower(units, t, myTeam)) t = null;
   if (!t && aim.smart === 'any') t = nearestEnemy(units, me, myTeam, aim.range, false);
   if (aim.away) {
     // Hop Back: away from the nearest threat, else backwards.
@@ -207,7 +211,8 @@ export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam:
     return ahead(1);
   }
   if (t) return { x: t.x, y: t.y, id: aim.kind === 'unit' ? t.id : 0xff };
-  return aim.kind === 'point' ? ahead(0.6) : ahead(1);
+  // CF-03: a blink with nothing to aim at goes its full range (a tap went 0.6 of it: Pounce 2.4 of 4 m)
+  return aim.kind === 'point' && !aim.blink ? ahead(0.6) : ahead(1);
 }
 
 /** Screen-space pick: the unit whose projected point is nearest (x, y) px within `maxPx`; heroes win ties. */
@@ -239,10 +244,19 @@ export const QUICK_UNIT_AIM: AimSpec = Object.freeze({ kind: 'unit', shape: 'non
  * refused, not wasted). Self casts go at the hero; directions toward the cursor; ground points at the cursor,
  * pulled in to the range when `clamp` (quick cast fires at once instead of walking in); unit aims at the enemy hero
  * under the cursor, else the one nearest the cursor within QUICK_UNIT_SEEK. No cursor on the ground: straight ahead
- * (+x), like the touch smart-cast fallback.
+ * (+x), like the touch smart-cast fallback. The flash (Pounce, AimSpec.flash) goes its full distance toward the
+ * cursor, quick cast or not, and along `facing` with no cursor or the cursor on the hero (heading.ts). Live Wire keeps
+ * its cursor-placed blink (a heading point never walks in: past the range the sim blinks the full distance).
  */
-export function cursorCast(aim: AimSpec, me: Unit, cursor: { x: number; y: number } | null, under: Unit | null, units: readonly Unit[], myTeam: number, clamp: boolean): { x: number; y: number; id: number } | null {
+export function cursorCast(aim: AimSpec, me: Unit, cursor: { x: number; y: number } | null, under: Unit | null, units: readonly Unit[], myTeam: number, clamp: boolean, facing = 0): { x: number; y: number; id: number } | null {
   if (aim.kind === 'self') return { x: me.x, y: me.y, id: 0xff };
+  if (aim.flash) {
+    // the flash (heading.ts): the full distance toward the cursor, never a shortened point
+    const dx = cursor ? cursor.x - me.x : 0;
+    const dy = cursor ? cursor.y - me.y : 0;
+    const p = headingPoint(aim, me, Math.hypot(dx, dy) < 1 ? facing : Math.atan2(dy, dx));
+    return { x: p.x, y: p.y, id: 0xff };
+  }
   if (aim.kind === 'unit') {
     let t = under && under.kind === 'hero' && isEnemy(under, myTeam) ? under : null;
     if (!t && cursor) {

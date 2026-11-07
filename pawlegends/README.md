@@ -76,6 +76,21 @@ like in Pink Paw Knight"):
 Team colour sits on the shoulder mantle, the helmet / hood / cap, the pauldrons and the cape (21% to 34% of the
 up-facing area, `tests/unit/team-read.test.ts`). `bake:heroes` and `bake:map` stay unwritten.
 
+## Cats or dogs (sim v14, DOGS-V13 §2)
+
+The pick screen opens with a **CATS / DOGS** switch over the hero grid (`src/ui/screens.ts` `sideSwitch`,
+`src/ui/champions.css`). The grid shows one side at a time (cats 10, dogs 7) in the same two-row space, so the Paw
+Trick chips and Play never move. Choosing a side selects that side's last hero (else Clem / Sir Brutus); the human's
+team then plays that species and `fillPicks` gives the bots theirs (client only: no sim or replay change).
+
+- Remembered in the local profile (`side`, `lastBySide`, `meta/profile.ts`); a new player starts on Cats, and DOGS
+  stays locked ("after your first match") until match 1, the guided Clem match, is complete. A dog dare opens on DOGS.
+- `role="radiogroup"`: arrow keys move it; `html[data-pick-side]` is `cat` or `dog`. The active side is cat rose or
+  bone amber, never the ally blue / enemy red (`tests/unit/side-colors.test.ts`).
+- After a dog match the results button reads "Switch dog" and teases another dog; `match_start` carries `side`.
+- e2e: `tests/e2e/side-switch.spec.ts` (667×375 and 844×390 fit, reload memory, keyboard, a dog team with no
+  duplicate); `startFirstMatch(page, query, 'dog')` starts a match as Sir Brutus.
+
 ## Card skins (GDD §7.2)
 
 Every owned Token Tails cat is a skin every champion can wear (`src/render/skins/`, render only):

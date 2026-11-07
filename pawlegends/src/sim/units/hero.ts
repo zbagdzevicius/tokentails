@@ -15,7 +15,7 @@ import { inAttackRange, startAttack } from '../combat/attack';
 import { clearStatus, disabled, interrupt } from '../effects/status';
 import { fleeStep } from '../effects/fear';
 import { stepForced } from '../effects/dash';
-import { aimHunt, kitOf, orderCast, walkInDone, walkInX, walkInY, TRICK_SLOT } from '../heroes/kit';
+import { aimHunt, kitBusy, kitOf, orderCast, walkInDone, walkInX, walkInY, TRICK_SLOT } from '../heroes/kit';
 import { planted } from '../heroes/brutus';
 import { chooseTalent } from '../heroes/talents';
 import { attackRange, moveSpeed, radiusOf, targetable } from './kinds';
@@ -274,6 +274,11 @@ export function stepHeroes(m: MatchHandle): void {
     if (w.fearT[id] > 0) {
       fleeStep(w, m.grid, id);
       w.state[id] = UnitState.Moving;
+      continue;
+    }
+    // Sim v14: Bravo playing dead and Chili in his purse stay put and start nothing (orders wait).
+    if (kitBusy(w, id)) {
+      w.state[id] = UnitState.Idle;
       continue;
     }
     if (w.napT[id] > 0) {

@@ -6,6 +6,7 @@
  * adapters onto the top notification rail (ui/notify.ts), which orders every message by priority, dedupes it and
  * rate-limits the spammy ones; callers did not change.
  */
+import { claimScreen } from './fx/screenLayer';
 import { CameraShake } from './camera/CameraShake.js';
 import type { Stage } from '../ui/stage';
 import { Notify, TOWER_GLYPH, type Note, type NotePrio } from '../ui/notify';
@@ -285,6 +286,8 @@ export class Juice {
   flash(kind: 'white' | 'gold' | 'red'): void {
     const el = this.flashEl;
     if (!el) return;
+    // GFX-10: one full-screen layer at a time (the red one runs 1.1 s, the others 0.7 s)
+    if (!claimScreen(kind === 'red' ? 1100 : 700)) return;
     el.className = 'pl-flash';
     void el.offsetWidth;
     el.className = `pl-flash on ${kind}`;

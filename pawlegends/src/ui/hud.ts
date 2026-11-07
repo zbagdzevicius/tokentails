@@ -13,7 +13,7 @@ import { keyLabel, type Action } from '../input/presets';
 import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import type { Look } from '../render/cosmetics';
-import { HERO_TEXT, TRICK_TEXT, rankPips, rankUpSlots } from './heroText';
+import { HERO_TEXT, rankPips, rankUpSlots, trickText } from './heroText';
 import { abilityRank, maxRank } from '../sim/heroes/talents';
 import { icon as iconSvg } from './icons';
 import { icon } from './icons';
@@ -235,6 +235,9 @@ export class Hud {
   private resFill: HTMLElement;
   private napEl: HTMLElement;
   private dsec: HTMLElement;
+  /** Audit GFX-12: the big "Back in N" countdown in the middle of the screen while the hero is out. */
+  private backIn: HTMLElement;
+  private backNum: HTMLElement;
   private trail: Trail | null = null;
   private napStart = -1;
   private crestEl: HTMLElement | null = null;
@@ -264,7 +267,7 @@ export class Hud {
     const t = HERO_TEXT[hero];
     // the portrait shows the equipped look (a bought skin shows in the HUD too)
     const pic = portraitUrl(hero, look);
-    const tt = TRICK_TEXT[trick];
+    const tt = trickText(trick, hero);
     const root = document.createElement('div');
     root.className = 'pl-hud';
     const slotHtml = SLOT_ACTIONS.map((a, i) => {
@@ -323,6 +326,12 @@ export class Hud {
     this.resFill = q('.pl-res > i');
     this.napEl = q('.lol-nap');
     this.dsec = q('.pl-portrait .dsec');
+    this.backIn = document.createElement('div');
+    this.backIn.className = 'pl-backin';
+    this.backIn.setAttribute('aria-hidden', 'true');
+    this.backIn.innerHTML = '<small>Back in</small><b></b>';
+    this.root.appendChild(this.backIn);
+    this.backNum = this.backIn.querySelector('b') as HTMLElement;
     this.hpShield = q('.pl-hp .shield');
     this.hpText = q('.pl-hp .txt');
     this.level = q('.pl-portrait .lvl');
@@ -683,6 +692,9 @@ export class Hud {
     // LoL pass (lane B): the death wash (the world greys, the HUD keeps its colour) and the seconds over the portrait
     this.deathWash(dead);
     this.set('dsec', this.dsec, dead ? String(back) : '');
+    // GFX-12: the central countdown (the portrait seconds and the rail line were small and off to the side)
+    this.backIn.classList.toggle('on', dead);
+    this.set('backin', this.backNum, dead ? String(back) : '');
     // cards: face down while out, flipped up the moment the hero is back
     if (dead) {
       this.cardSecs = back;
@@ -976,6 +988,16 @@ export class Hud {
     const shown = t;
     setTimeout(() => shown.classList.remove('on'), 2600);
     return lines;
+  }
+
+  /** Audit CF-12: a refused cast flashes its slot red (desktop had the deny sound only). */
+  deny(index: number): void {
+    const s = this.slots[index];
+    if (!s) return;
+    s.root.classList.remove('deny');
+    void s.root.offsetWidth;
+    s.root.classList.add('deny');
+    setTimeout(() => s.root.classList.remove('deny'), 320);
   }
 
   /** Flash a slot (cast feedback). */

@@ -20,8 +20,8 @@ import { squadPrefs } from '../meta/squad';
 import { DEMO_ROSTER, skinDemoOn } from './skinDemo';
 import { recordLadder } from '../meta/ladder';
 import { GRADE_TREAT_XP, gradeMatch } from '../meta/grade';
-import { HERO_IDS } from '../data/heroes';
-import { accountState, loadProfile, noteBond, noteChampionMatch, noteHeroMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
+import { HERO_IDS, HEROES } from '../data/heroes';
+import { accountState, heroForSide, loadProfile, noteBond, noteChampionMatch, noteHeroMatch, notePreview, playSession, previewAllowed, recordMatch, saveProfile, startSession, tipsDue } from '../meta/profile';
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
@@ -96,14 +96,11 @@ function installFont(): void {
   try {
     if (typeof FontFace === 'undefined' || !document.fonts) return;
     const base = import.meta.env.BASE_URL ?? './';
-    const face = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Latin.woff2") format("woff2")`, { weight: '300 700', display: 'swap' });
-    face
-      .load()
-      .then((f) => document.fonts.add(f))
-      .catch(() => undefined);
     // Sim v9: the champion names Avietė and Gabė. Fredoka has no precomposed ė, but it has e and the combining dot
     // (U+0307), so the UI writes those names decomposed (data/heroes/shelter.ts `uiName`). A cluster e + dot must come
-    // from one face, so this one (the whole font) covers Basic Latin too, not only the marks.
+    // from one face, so this one (the whole font) covers Basic Latin too.
+    // Audit GFX-14: it is the only face now. The separate Latin file (65 KB) only duplicated its Basic Latin, so the
+    // game loaded 152 KB of fonts for one family; index.html preloads this file.
     const ext = new FontFace('Fredoka', `url("${base}assets/fonts/Fredoka-Ext.woff2") format("woff2")`, {
       weight: '300 700',
       display: 'swap',
@@ -119,9 +116,13 @@ function installFont(): void {
 }
 
 /** p95 of a list of frame times (ms). */
-/** Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own. */
+/**
+ * Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own.
+ * Sim v14: only heroes of the current hero's side (the player chose cats or dogs on the switch).
+ */
 export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknown>>): HeroId {
-  const order: readonly HeroId[] = HERO_IDS;
+  const side = HEROES[current]?.side ?? 'cat';
+  const order: readonly HeroId[] = HERO_IDS.filter((h) => HEROES[h].side === side);
   const start = order.indexOf(current);
   const rest = order.map((_, k) => order[(start + k + 1) % order.length]).slice(0, order.length - 1);
   return rest.find((h) => !bests[h]) ?? rest[0];
@@ -192,7 +193,8 @@ export class App {
     this.sessionNo = p.sessions;
     migrateTreatTrack();
     sfx.setMuted(p.muted);
-    this.choice = { hero: p.hero, trick: p.trick, difficulty: p.difficulty };
+    // sim v14: the hero follows the side the switch was left on (the last hero picked there)
+    this.choice = { hero: HEROES[p.hero].side === p.side ? p.hero : heroForSide(p, p.side), trick: p.trick, difficulty: p.difficulty };
     this.human.install(window);
     // PUB-02: embedded, events go to the host's analytics (the site's policy and id); standalone, to PostHog after consent
     this.analytics = createAnalytics(
@@ -739,12 +741,34 @@ export class App {
           sfx.play('click');
           this.choice = { ...this.choice, hero: h };
           this.setLobbyHero(h);
+          // sim v14: the picked hero, its side and the last hero per side (the CATS / DOGS switch restores it) are
+          // remembered, so a reload opens on the same side and hero
+          const q = loadProfile();
+          q.hero = h;
+          q.side = HEROES[h].side;
+          q.lastBySide[q.side] = h;
+          saveProfile(q);
+        },
+        // sim v14 (DOGS-V13 §2): the CATS / DOGS switch; DOGS waits for the guided first match (a dog dare skips it)
+        lastBySide: p.lastBySide,
+        dogsLocked: p.matches === 0 && !(this.dare && HEROES[this.dare.hero]?.side === 'dog'),
+        onSide: (side, _hero, left) => {
+          // the hero the player switched away from is the one that side restores
+          const q = loadProfile();
+          q.side = side;
+          q.lastBySide[HEROES[left].side] = left;
+          saveProfile(q);
         },
         onStart: (c) => {
           sfx.play('click');
           this.startMatch(c);
         },
-        onBack: () => this.showTitle(),
+        onBack: () => {
+          // Audit UX-08: Back from a "Try <hero>" pick goes home on the hero the player had, not the teased one
+          if (this.beforeTry) this.choice = { ...this.choice, hero: this.beforeTry.hero, trick: this.beforeTry.trick };
+          this.beforeTry = null;
+          this.showTitle();
+        },
         difficulties: pickable(),
         difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `Easy bots. More bots after ${PICK_DIFFICULTY_FROM} matches.`,
         numbers: p.numbers,
@@ -889,12 +913,15 @@ export class App {
   }
 
   private startMatch(pick: Choice, seed?: number): void {
+    this.beforeTry = null;
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
     // a dare keeps its own bots (the seed and the difficulty make the dare)
     const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty, undefined, undefined, p.veteran) };
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
     p.hero = c.hero;
+    p.side = HEROES[c.hero]?.side ?? p.side;
+    p.lastBySide[p.side] = c.hero;
     p.trick = c.trick;
     if (!isRookie(c.difficulty)) p.difficulty = c.difficulty;
     const tips = tipsDue(p);
@@ -933,7 +960,7 @@ export class App {
       showcase: this.skinShowcaseOpen(p.matches === 0 || tips).bots ? this.integration.state().featured.map((f) => `${FEATURED_SKIN_PREFIX}${f.catalogId}`) : [],
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero: c.hero, difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
+    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     const mates = companions.map((k) => k.name);
@@ -964,6 +991,9 @@ export class App {
       });
   }
 
+  /** Audit UX-08: the hero and trick before the results' "Try <hero>" swapped them in (Back on the pick restores them). */
+  private beforeTry: { hero: HeroId; trick: Choice['trick'] } | null = null;
+
   /** A newer startMatch call wins over a match chunk still loading. */
   private matchToken = 0;
   /** A host pause (or a hidden tab) that arrived while the match chunk loaded: applied when the session starts. */
@@ -973,13 +1003,16 @@ export class App {
   private beginSession(Session: typeof MatchSession, setup: MatchSetup, c: Choice, veil: HTMLElement): void {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
-      onLeave: () => {
+      onLeave: (counted) => {
         if (setup.party) return this.backToParty();
+        if (counted) this.recordLeave(c, counted);
         this.session?.dispose();
         this.session = null;
         this.showTitle();
       },
       onMute: (m) => this.setMuted(m),
+      // Audit UX-09: Settings from the pause menu (the menu comes back when it closes)
+      onSettings: (done) => this.openSettings(done),
       onError: (msg) => {
         // Reported as a worker crash; the window listener then only shows the overlay for it.
         const err = new Error(`sim: ${msg}`);
@@ -997,6 +1030,18 @@ export class App {
     this.pendingPause = false;
     setTimeout(() => veil.classList.add('out'), 250);
     setTimeout(() => veil.remove(), 900);
+  }
+
+  /**
+   * Audit UX-03: from match 4 (solo, off Rookie) a Leave is recorded as a forfeit (client meta only, no sim op): a
+   * match and a loss on the profile, the full ladder loss, and match_end with reason 'leave' (the forfeit-rate
+   * measure saw nothing before). No Treat XP, quests or grade.
+   */
+  private recordLeave(c: Choice, at: { ticks: number; takedowns: number }): void {
+    const seconds = Math.floor(at.ticks / 30);
+    recordMatch(false, seconds, c.difficulty);
+    recordLadder({ won: false, difficulty: c.difficulty, hero: c.hero, heroName: HERO_TEXT[c.hero].title, seconds, takedowns: at.takedowns, grade: 'C', forfeit: true });
+    this.analytics.track('match_end', { result: 'lost', reason: 'leave', length: seconds, hero: c.hero, difficulty: c.difficulty, takedowns: at.takedowns, pl_match_len_s: seconds, pl_rookie: isRookie(c.difficulty) });
   }
 
   private showResults(e: MatchEnd): void {
@@ -1138,7 +1183,7 @@ export class App {
     // Lane F (F5): the progression summary from the sim's own stats (sim v12) and the player's Fish events
     const medalOf = medals(e.result.stats, grades.slots, grades.mvp);
     const progress = e.result.stats.some((st) => typeof st.fish === 'number')
-      ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
+      ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf, (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null))), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
       : null;
     const resultsEl = resultsScreen(this.root, {
         won,
@@ -1209,8 +1254,15 @@ export class App {
           if (partyEnd) return this.backToParty();
           this.analytics.track('rematch_click', { kind: 'switch', hero: e.replay.hero, difficulty: e.replay.difficulty });
           const keep = setup && !isRookie(setup.difficulty) ? setup.difficulty : this.choice.difficulty;
+          this.beforeTry = tease ? { hero: this.choice.hero, trick: this.choice.trick } : null;
           this.choice = { ...this.choice, difficulty: keep, ...(tease ? { hero: tease } : {}) };
           this.showPick();
+        },
+        // Audit UX-08: Home from the results (the lobby, on the hero just played)
+        onHome: () => {
+          sfx.play('click');
+          if (partyEnd) return this.backToParty();
+          this.showTitle();
         },
         onShare: (url, text) => {
           try {
@@ -1361,8 +1413,11 @@ export class App {
     this.overlay = { close: () => el.remove() };
   }
 
-  private openSettings(): void {
-    if (this.overlay) return;
+  private openSettings(after?: () => void): void {
+    if (this.overlay) {
+      after?.();
+      return;
+    }
     const p = loadProfile();
     const el = settingsPanel(this.root, {
       state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.live : null, skinFx: p.skinFx },
@@ -1384,6 +1439,7 @@ export class App {
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();
+        after?.();
       },
     });
     this.overlay = { close: () => el.remove() };

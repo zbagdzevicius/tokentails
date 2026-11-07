@@ -4,19 +4,21 @@ import { createMatch, fillPicks, snapshot } from '../../src/sim/index';
 describe('fillPicks and createMatch (§6.8)', () => {
   it('keeps the human pick, species teams (sim v5: cats vs dogs), stable per seed', () => {
     const cats = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
-    const dogs = ['brutus', 'cacklejaw'];
-    for (const human of ['cacklejaw', 'clem', 'gabe'] as const) {
-      const humanCat = human !== 'cacklejaw';
+    const dogs = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler'];
+    for (const human of ['cacklejaw', 'clem', 'gabe', 'chili'] as const) {
+      const humanCat = human !== 'cacklejaw' && human !== 'chili';
       for (let seed = 0; seed < 300; seed++) {
         const { picks, tricks } = fillPicks(seed, human, 'hiss');
         expect(picks[0]).toBe(human);
         expect(tricks[0]).toBe('hiss');
         const catTeam = humanCat ? picks.slice(0, 3) : picks.slice(3);
         const dogTeam = humanCat ? picks.slice(3) : picks.slice(0, 3);
-        // Sim v11: 10 cats, so a cat team never repeats a hero; 2 dogs, so a dog team always fields both and one twice.
+        // Sim v11: 10 cats, so a cat team never repeats a hero. Sim v14: 7 dogs, so a dog team never repeats one either
+        // (GAPS N4; before v14 the 2 dogs meant one always played twice).
         for (const h of catTeam) expect(cats).toContain(h);
+        for (const h of dogTeam) expect(dogs).toContain(h);
         expect(new Set(catTeam).size).toBe(3);
-        expect(new Set(dogTeam)).toEqual(new Set(dogs));
+        expect(new Set(dogTeam).size).toBe(3);
         expect(fillPicks(seed, human, 'hiss')).toEqual({ picks, tricks });
       }
     }
@@ -26,6 +28,18 @@ describe('fillPicks and createMatch (§6.8)', () => {
     const seen = new Set<string>();
     for (let seed = 0; seed < 200; seed++) for (const h of fillPicks(seed, 'brutus', 'pounce').picks.slice(3)) seen.add(h);
     expect([...seen].sort()).toEqual(['aviete', 'bengas', 'clem', 'duchess', 'gabe', 'lambo', 'meatball', 'pixel', 'sage', 'stilts']);
+  });
+
+  it('sim v14: every dog shows up as a bot pick, as an ally of a dog human and as an enemy of a cat human', () => {
+    const allies = new Set<string>();
+    const enemies = new Set<string>();
+    for (let seed = 0; seed < 200; seed++) {
+      for (const h of fillPicks(seed, 'chili', 'pounce').picks.slice(1, 3)) allies.add(h);
+      for (const h of fillPicks(seed, 'clem', 'pounce').picks.slice(3)) enemies.add(h);
+    }
+    const dogs = ['bravo', 'brutus', 'cacklejaw', 'chili', 'howler', 'marshmallow', 'nugget'];
+    expect([...enemies].sort()).toEqual(dogs);
+    expect([...allies].sort()).toEqual(dogs.filter((h) => h !== 'chili'));
   });
   it('validates configs', () => {
     const { picks, tricks } = fillPicks(1, 'clem', 'pounce');

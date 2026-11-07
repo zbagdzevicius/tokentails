@@ -4,8 +4,8 @@
  * allows on the event loop. One message in, one out: `{ id, record }` → `{ id, result, threadId }` or
  * `{ id, error, threadId }`. Relative imports only: it is loaded by path, without the `src/` alias.
  *
- * Sim v10 (GAPS B0 dual verifier): the record is re-simmed by the vendored sim of its own `simVersion` (v10, v11 and
- * v12 frozen, v13 live); any other version is refused with PAWLEGENDS_SIM_VERSION and nothing is simulated.
+ * Sim v10 (GAPS B0 dual verifier): the record is re-simmed by the vendored sim of its own `simVersion` (v10 to v13
+ * frozen, v14 live); any other version is refused with PAWLEGENDS_SIM_VERSION and nothing is simulated.
  */
 import { parentPort, threadId } from 'worker_threads';
 import { SIM_VERSIONS, simFor, type PawlegendsVerifyResult } from '../vendor/pawlegends-sim';

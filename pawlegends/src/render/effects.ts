@@ -22,6 +22,11 @@ import * as MEATBALL from './chars/heroes/meatball';
 import * as PIXEL from './chars/heroes/pixel';
 import * as DUCHESS from './chars/heroes/duchess';
 import * as STILTS from './chars/heroes/stilts';
+import * as NUGGET from './chars/heroes/nugget';
+import * as MARSHMALLOW from './chars/heroes/marshmallow';
+import * as BRAVO from './chars/heroes/bravo';
+import * as CHILI from './chars/heroes/chili';
+import * as HOWLER from './chars/heroes/howler';
 import { isFun, isNineLives, type AnyEvent, type FunEvent, type PickupKind } from './feelEvents';
 import { auraColor, elementColor, impactScale, isBigHit, maxedRank, rankScale, type CombatVfx } from './fx/combatVfx';
 import { mixHex } from './skins/classify';
@@ -142,6 +147,8 @@ export interface AnimFxHooks {
   deathFired(e: Extract<SimEvent, { type: 'death' }>): void;
   /** A hero levelled up (seen now): its own level-up flourish. Optional. */
   levelFired?(id: number): void;
+  /** Sim v14 `clip` event (a viral moment: flop, BIG DOG, scream, frozen): the hero's clip and the skill FX. Optional. */
+  clipFired?(e: Extract<SimEvent, { type: 'clip' }>): void;
   /** The own / enemy / ally ult moment (§8). True when it showed (the callout is skipped). */
   ult(src: Who, mine: boolean, name: string, color: number, aimedAtMe: boolean): boolean;
 }
@@ -219,6 +226,11 @@ export class Effects {
       case 'sunset':
         sfx.play('horn');
         this.juice.banner({ title: 'Sunset', sub: 'Towers and cores take more damage. Respawns get longer.', tone: 'gold' });
+        return;
+      case 'clip':
+        // sim v14 viral moments: hidden heroes (brush, fog) draw nothing, like level-ups
+        if (this.hooks.visible?.(e.id) === false) return;
+        this.anim?.clipFired?.(e);
         return;
       case 'suddenDeath':
         sfx.play('horn', { rate: 0.8 });
@@ -781,6 +793,17 @@ function heroAccentRaw(h: HeroId): number {
       return DUCHESS.ACCENT ?? elementColor(h);
     case 'stilts':
       return STILTS.ACCENT ?? elementColor(h);
+    // sim v14 original dogs: their render module's accent
+    case 'nugget':
+      return NUGGET.ACCENT ?? elementColor(h);
+    case 'marshmallow':
+      return MARSHMALLOW.ACCENT ?? elementColor(h);
+    case 'bravo':
+      return BRAVO.ACCENT ?? elementColor(h);
+    case 'chili':
+      return CHILI.ACCENT ?? elementColor(h);
+    case 'howler':
+      return HOWLER.ACCENT ?? elementColor(h);
     // Wave C (C3): the champions cast in their own element colour (they all fell back to Cacklejaw's purple)
     default:
       return elementColor(h);
@@ -811,6 +834,16 @@ function ultName(h: HeroId): string {
       return DUCHESS.ULT_NAME;
     case 'stilts':
       return STILTS.ULT_NAME;
+    case 'nugget':
+      return NUGGET.ULT_NAME;
+    case 'marshmallow':
+      return MARSHMALLOW.ULT_NAME;
+    case 'bravo':
+      return BRAVO.ULT_NAME;
+    case 'chili':
+      return CHILI.ULT_NAME;
+    case 'howler':
+      return HOWLER.ULT_NAME;
     default:
       return 'Pack Hunt!';
   }

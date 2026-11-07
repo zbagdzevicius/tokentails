@@ -12,6 +12,11 @@ import { TEAM } from '../palette';
 import { ModelBuilder } from './rig';
 import { RING as MEATBALL_RING } from '../chars/heroes/meatball';
 import { RING as PIXEL_RING } from '../chars/heroes/pixel';
+import { RING as NUGGET_RING } from '../chars/heroes/nugget';
+import { RING as MARSHMALLOW_RING } from '../chars/heroes/marshmallow';
+import { RING as BRAVO_RING } from '../chars/heroes/bravo';
+import { RING as CHILI_RING } from '../chars/heroes/chili';
+import { RING as HOWLER_RING } from '../chars/heroes/howler';
 import { RING as DUCHESS_RING } from '../chars/heroes/duchess';
 import { PLATE_HEADROOM as STILTS_PLATE_HEADROOM, RING as STILTS_RING } from '../chars/heroes/stilts';
 
@@ -38,6 +43,11 @@ export const HERO_SCALE: Readonly<Record<HeroId, number>> = Object.freeze({
   pixel: (HERO_TOP.pixel + 0.15) / 1.62,
   duchess: (HERO_TOP.duchess + 0.15) / 1.62,
   stilts: (HERO_TOP.stilts + STILTS_PLATE_HEADROOM) / 1.62,
+  nugget: (HERO_TOP.nugget + 0.15) / 1.62,
+  marshmallow: (HERO_TOP.marshmallow + 0.15) / 1.62,
+  bravo: (HERO_TOP.bravo + 0.15) / 1.62,
+  chili: (HERO_TOP.chili + 0.15) / 1.62,
+  howler: (HERO_TOP.howler + 0.15) / 1.62,
 });
 
 /**
@@ -48,6 +58,7 @@ export const HERO_RING: Readonly<Record<HeroId, number>> = Object.freeze({
   clem: HERO_BUILD.clem.ring, sage: HERO_BUILD.sage.ring, brutus: HERO_BUILD.brutus.ring, cacklejaw: HERO_BUILD.cacklejaw.ring,
   lambo: HERO_BUILD.lambo.ring, aviete: HERO_BUILD.aviete.ring, bengas: HERO_BUILD.bengas.ring, gabe: HERO_BUILD.gabe.ring,
   meatball: MEATBALL_RING, pixel: PIXEL_RING, duchess: DUCHESS_RING, stilts: STILTS_RING,
+  nugget: NUGGET_RING, marshmallow: MARSHMALLOW_RING, bravo: BRAVO_RING, chili: CHILI_RING, howler: HOWLER_RING,
 });
 
 // ------------------------------------------------------------------------------------------------ minions
@@ -122,8 +133,8 @@ export function towerGeometry(team: 0 | 1, tier: 'outer' | 'inner'): THREE.Buffe
   const b = new ModelBuilder();
   const t = TEAM[team];
   const tall = tier === 'inner' ? 0.9 : 0;
-  const stone = team === 0 ? 0xf3ead8 : 0x6f84b5;
-  const stone2 = team === 0 ? 0xe6d6b8 : 0x52679a;
+  const stone = team === 0 ? 0xf3ead8 : 0x9a8366;
+  const stone2 = team === 0 ? 0xe6d6b8 : 0x7a6448;
   b.cyl(1.6, 1.8, 0.6, stone2, { at: [0, 0.3, 0] }, 12);
   b.cyl(1.05, 1.3, 3.0 + tall, stone, { at: [0, 2.1 + tall / 2, 0] }, 12);
   for (const y of [1.2, 2.6 + tall]) b.cyl(1.18, 1.18, 0.18, t.main, { at: [0, y, 0] }, 12);
@@ -150,8 +161,10 @@ export function towerGeometry(team: 0 | 1, tier: 'outer' | 'inner'): THREE.Buffe
 export function coreGeometry(team: 0 | 1): THREE.BufferGeometry {
   const b = new ModelBuilder();
   const t = TEAM[team];
-  b.cyl(3.2, 3.6, 0.8, team === 0 ? 0xf3ead8 : 0x6f84b5, { at: [0, 0.4, 0] }, 20);
-  b.cyl(3.25, 3.25, 0.16, t.main, { at: [0, 0.85, 0] }, 20);
+  // QA 2026-11-07: the Woof base is dark walnut with a brass rim, so the ochre doghouse stands off its ochre plaza
+  // (a mid-tone base on the sandstone plaza read as one blob)
+  b.cyl(3.2, 3.6, 0.8, team === 0 ? 0xf3ead8 : 0x4e3524, { at: [0, 0.4, 0] }, 20);
+  b.cyl(3.25, 3.25, 0.16, team === 0 ? t.main : 0xd9a441, { at: [0, 0.85, 0] }, 20);
   if (team === 0) {
     // the Great Yarn Ball
     b.sphere(2.2, 0xff6f91, { at: [0, 3.1, 0] }, 20);
@@ -159,9 +172,10 @@ export function coreGeometry(team: 0 | 1): THREE.BufferGeometry {
     b.cyl(0.12, 0.12, 2.2, 0xc94a72, { at: [1.8, 1.6, 1.2], rot: [0.6, 0, 1.1] }, 6);
   } else {
     // the Grand Doghouse with a golden bone
-    b.box(3.6, 2.6, 3.2, 0x3d5a9e, { at: [0, 2.15, 0] });
-    b.cone(2.9, 1.9, 0x26396b, { at: [0, 4.4, 0], rot: [0, Math.PI / 4, 0], scale: [1.05, 1, 0.95] }, 4);
-    b.box(1.2, 1.6, 0.1, 0x1a2340, { at: [1.81, 1.65, 0], rot: [0, HALF_PI, 0] });
+    // audit GFX-01: the Woof cloth is ochre and brown (TEAM[1]), never the ally blue
+    b.box(3.6, 2.6, 3.2, t.main, { at: [0, 2.15, 0] });
+    b.cone(2.9, 1.9, t.deep, { at: [0, 4.4, 0], rot: [0, Math.PI / 4, 0], scale: [1.05, 1, 0.95] }, 4);
+    b.box(1.2, 1.6, 0.1, 0x3a2414, { at: [1.81, 1.65, 0], rot: [0, HALF_PI, 0] });
     b.box(2.4, 0.4, 0.4, 0xd9a441, { at: [0, 5.7, 0] });
     for (const x of [-1.25, 1.25]) for (const z of [-0.25, 0.25]) b.sphere(0.36, 0xd9a441, { at: [x, 5.7, z] }, 10);
   }
@@ -173,7 +187,7 @@ export function coreGeometry(team: 0 | 1): THREE.BufferGeometry {
 export function fountainGeometry(team: 0 | 1): THREE.BufferGeometry {
   const b = new ModelBuilder();
   const t = TEAM[team];
-  b.torus(4.0, 0.28, team === 0 ? 0xf3ead8 : 0x8ea0c8, { at: [0, 0.12, 0], rot: [Math.PI / 2, 0, 0] });
+  b.torus(4.0, 0.28, team === 0 ? 0xf3ead8 : 0xc4ae8a, { at: [0, 0.12, 0], rot: [Math.PI / 2, 0, 0] });
   b.cyl(3.85, 3.85, 0.04, 0x8fd6ff, { at: [0, 0.03, 0] }, 28);
   b.cyl(0.22, 0.32, 0.9, t.second, { at: [-1.2, 0.45, 0] }, 8);
   b.sphere(0.34, t.main, { at: [-1.2, 1.05, 0] }, 10);

@@ -3,7 +3,9 @@
  * `build/`. A tab opened before a redeploy still asks for the previous release's hashed chunks (the sim Worker on its
  * next match, lazy chunks), so the previous KEEP_RELEASES - 1 releases stay on disk next to the new one and only older
  * files are pruned. `build-releases.json` (outside `build/`, so it is not served as immutable) lists each kept
- * release's `build/` files, newest first. Outside `build/`, files that are neither in the bundle nor in the public dir
+ * release's `build/` files, newest first, and `sim` ({simVersion, simHash}) of the newest one: the landing
+ * (`client/components/pawlegends/landing/roster.ts`) reads it, so it never advertises heroes from a sim version the
+ * shipped game does not run yet. Outside `build/`, files that are neither in the bundle nor in the public dir
  * are removed, which is what `--emptyOutDir` did before.
  */
 import fs from 'node:fs';
@@ -44,9 +46,15 @@ const walk = (dir, rel = '') =>
 
 /**
  * After the bundle is written: update the manifest and prune. `bundleFiles` are the outDir-relative names Vite wrote;
- * `publicDir` is the copied public folder (its files are kept outside `build/`).
+ * `publicDir` is the copied public folder (its files are kept outside `build/`). `sim` is the bundled sim, stamped
+ * into the manifest for the landing.
+ * @param {string} outDir
+ * @param {string[]} bundleFiles
+ * @param {string | null} publicDir
+ * @param {number} [keep]
+ * @param {{ simVersion: number, simHash: string } | null} [sim]
  */
-export function recordRelease(outDir, bundleFiles, publicDir, keep = KEEP_RELEASES) {
+export function recordRelease(outDir, bundleFiles, publicDir, keep = KEEP_RELEASES, sim = null) {
   const prefix = `${BUILD_DIR}/`;
   const current = bundleFiles.filter((f) => f.startsWith(prefix)).map((f) => f.slice(prefix.length));
   const manifestPath = path.join(outDir, MANIFEST);
@@ -64,6 +72,7 @@ export function recordRelease(outDir, bundleFiles, publicDir, keep = KEEP_RELEAS
   const staleOutside = walk(outDir).filter((f) => !f.startsWith(prefix) && !keepOutside.has(f));
   for (const f of staleOutside) fs.rmSync(path.join(outDir, f), { force: true });
 
-  fs.writeFileSync(manifestPath, `${JSON.stringify({ keep, releases }, null, 2)}\n`);
+  const manifest = sim ? { keep, sim: { simVersion: sim.simVersion, simHash: sim.simHash }, releases } : { keep, releases };
+  fs.writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`);
   return { releases, removed: [...remove.map((f) => prefix + f), ...staleOutside] };
 }

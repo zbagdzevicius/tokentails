@@ -31,8 +31,11 @@ export const TREAT_STEP = 300;
 /** A typical match's Treat XP (a loss with a few takedowns): the "N matches to go" estimate. */
 export const TREAT_MATCH_XP = 120;
 
-/** The original heroes (coats; sim v11 adds the four original cats) and the four shelter champions (title, frame, postcard). */
-export const TRACK_ORIGINALS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw', 'meatball', 'pixel', 'duchess', 'stilts'] as HeroId[]);
+/**
+ * The original heroes (coats; sim v11 adds the four original cats, sim v14 the five original dogs) and the four
+ * shelter champions (title, frame, postcard).
+ */
+export const TRACK_ORIGINALS: readonly HeroId[] = Object.freeze(['clem', 'sage', 'brutus', 'cacklejaw', 'meatball', 'pixel', 'duchess', 'stilts', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler'] as HeroId[]);
 export const TRACK_CHAMPIONS: readonly HeroId[] = Object.freeze(['lambo', 'aviete', 'bengas', 'gabe'] as HeroId[]);
 
 const NAME: Readonly<Record<HeroId, string>> = Object.freeze({
@@ -49,6 +52,12 @@ const NAME: Readonly<Record<HeroId, string>> = Object.freeze({
   pixel: 'Pixel',
   duchess: 'Duchess',
   stilts: 'Stilts',
+  // sim v14 original dogs
+  nugget: 'Nugget',
+  marshmallow: 'Marshmallow',
+  bravo: 'Bravo',
+  chili: 'Chili',
+  howler: 'Howler',
 });
 
 /** Champion titles from the track (shown on the title badge and the match plate when worn). */
@@ -65,9 +74,10 @@ const frame = (hero: HeroId): TreatReward => ({ id: `frame.champ.${hero}`, name:
 const postcard = (hero: HeroId): TreatReward => ({ id: `postcard.${hero}`, name: `${NAME[hero]} postcard`, kind: 'postcard', hero });
 
 /**
- * Fixed order, 42 chests. A reward the player already owns is skipped (the next one opens instead). The first nine
+ * Fixed order, 57 chests. A reward the player already owns is skipped (the next one opens instead). The first nine
  * are the original track (ids unchanged, so a stored profile keeps what it has); sim v11 appends three coats for each
- * original cat after chest 30, so the first 30 keep their place.
+ * original cat after chest 30, so the first 30 keep their place; sim v14 appends three coats for each original dog
+ * after chest 42.
  */
 export const TREAT_REWARDS: readonly TreatReward[] = Object.freeze([
   { id: 'emote.wave', name: 'Wave emote', kind: 'emote' },
@@ -116,6 +126,22 @@ export const TREAT_REWARDS: readonly TreatReward[] = Object.freeze([
   coat('pixel', 'moonbeam', 'Moonbeam'),
   coat('duchess', 'smoke', 'Smoke'),
   coat('stilts', 'cinder', 'Cinder'),
+  // sim v14: three coats for each original dog, round by round
+  coat('nugget', 'tricolour', 'Tricolour'),
+  coat('marshmallow', 'cream', 'Biscuit Cream'),
+  coat('bravo', 'fawn', 'Fawn'),
+  coat('chili', 'black-tan', 'Black and Tan'),
+  coat('howler', 'red', 'Copper'),
+  coat('nugget', 'fluffy', 'Fluffy'),
+  coat('marshmallow', 'cocoa', 'Hot Cocoa'),
+  coat('bravo', 'opera', 'Opera'),
+  coat('chili', 'long-hair', 'Long-Hair'),
+  coat('howler', 'agouti', 'Agouti'),
+  coat('nugget', 'bread', 'Bread Loaf'),
+  coat('marshmallow', 'snowcone', 'Snowcone'),
+  coat('bravo', 'understudy', 'Understudy'),
+  coat('chili', 'hot-sauce', 'Hot Sauce'),
+  coat('howler', 'pied', 'Pied'),
 ] as TreatReward[]);
 
 /** The palettes of the loop after the fixed chests (render/cosmetics.ts gives each its colours), each on every original. */

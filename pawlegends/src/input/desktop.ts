@@ -4,7 +4,7 @@
  * shape at the cursor and the basic attack range ring; release casts at the cursor, LMB while holding casts too, RMB
  * or Esc cancels, another skill key switches the aim, out of range walks in, then casts. Settings "Quick cast" casts at
  * the cursor on the press instead (a brief indicator flash). An armed A shows the attack range ring too. B Nap, 1/2
- * talent pick, Space centres the camera, wheel zooms, Tab scoreboard, Esc menu; edge pan and arrow keys move the
+ * talent pick, Space centres the camera, wheel and +/− zoom, Tab scoreboard, Esc menu; edge pan and arrow keys move the
  * camera. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
  * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
  * moves and attacks too. GAPS B1: hold G for the ping wheel at the cursor (point at a slice, release G to send it);
@@ -18,9 +18,10 @@ import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
 import { cursorCss, cursorKind, type CursorKind } from './cursor';
 import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
-import { saveZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
+import { saveZoom, stepZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
+import { landing } from './heading';
 
 export interface InputHost {
   canvas: HTMLElement;
@@ -36,9 +37,13 @@ export interface InputHost {
   onActivity(kind: 'pointer' | 'key' | 'touch'): void;
   /** Ground order marker (m). */
   marker(x: number, z: number, attack: boolean): void;
+  /** Audit CF-12: a refused cast: its HUD slot flashes red (the deny sound plays here). */
+  onDeny?(slot: CastIndex): void;
   /** GAPS B1: the ping wheel (desktop: hold G), and a ping to send (PING_KIND, point in mm, target id or 255). */
   pingWheel?: { openAt(x: number, y: number): void; aim(x: number, y: number): void; commit(): void; close(): void; readonly open: boolean };
   ping?(kind: number, x: number, y: number, id: number): void;
+  /** The own hero in the newest snapshot (mm) and its tick, ahead of the drawn one; null before the first. */
+  simMe?(): { x: number; y: number; tick: number } | null;
 }
 
 const CAST_ACTIONS: Partial<Record<Action, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -268,9 +273,16 @@ export class DesktopInput {
       return;
     }
     if (!a) return;
-    if (a === 'scoreboard' || a === 'centre' || a === 'menu') e.preventDefault();
+    if (a === 'scoreboard' || a === 'centre' || a === 'menu' || a === 'zoomIn' || a === 'zoomOut') e.preventDefault();
     this.h.onActivity('key');
     sfx.unlock();
+    // +/− zoom like a wheel notch; a held key repeats
+    if (a === 'zoomIn' || a === 'zoomOut') {
+      const v = this.h.view;
+      v.zoomTarget = stepZoom(v.zoomTarget, a === 'zoomOut' ? 1 : -1, zoomMax(window.innerWidth));
+      saveZoom(v.zoomTarget);
+      return;
+    }
     if (e.repeat) return;
     if (a === 'menu') {
       if (this.aiming || this.attackArmed) {
@@ -303,10 +315,11 @@ export class DesktopInput {
     if (slot !== undefined) {
       // C2: the same cast buffer as touch: a key within a few ticks of the cooldown (or mid-dash) is kept, not denied
       if (!this.h.orders.canQueue(slot)) {
-        sfx.play('deny', { vol: 0.6 });
+        this.deny(slot);
         return;
       }
-      if (this.mode === 'quick') {
+      // the flash (Pounce) is always a quick cast on the key press: no aim step, no wait for the key to come up
+      if (this.mode === 'quick' || this.h.orders.aimSpec(slot).flash) {
         this.quickCast(slot);
         return;
       }
@@ -405,6 +418,12 @@ export class DesktopInput {
     if (!me || me.state === 'dead') return;
     const spec = this.h.orders.aimSpec(slot);
     const yaw = this.h.view.me?.()?.yaw ?? 0;
+    if (spec.heading) {
+      // a heading blink or dash goes its full distance: show where it lands along the facing (not 0.6 × range)
+      const l = landing(spec, me, yaw);
+      this.h.view.aim = { spec, x: l.x / 1000, z: -l.y / 1000, target: -1, valid: true };
+      return;
+    }
     const d = spec.kind === 'point' || spec.kind === 'unit' ? spec.range * 0.6 : spec.range;
     this.h.view.aim = { spec, x: (me.x + Math.cos(yaw) * d) / 1000, z: -(me.y + Math.sin(yaw) * d) / 1000, target: -1, valid: true };
   }
@@ -426,8 +445,18 @@ export class DesktopInput {
   private quickCast(slot: CastIndex): void {
     const c = this.castAtCursor(slot, true);
     if (!c) return;
-    this.h.view.aim = { spec: this.h.orders.aimSpec(slot), x: c.x / 1000, z: -c.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true };
+    const spec = this.h.orders.aimSpec(slot);
+    // the flash (Pounce): the indicator marks where it lands (its command point is past the range, heading.ts)
+    const me = spec.flash ? this.h.units().find((u) => u.id === this.h.view.mySlot) : undefined;
+    const p = me ? landing(spec, me, Math.atan2(c.y - me.y, c.x - me.x)) : c;
+    this.h.view.aim = { spec, x: p.x / 1000, z: -p.y / 1000, target: c.id === NO_TARGET ? -1 : c.id, valid: true, pointer: true };
     this.flashUntil = performance.now() + FLASH_MS;
+  }
+
+  /** A refused cast: the deny sound and (CF-12) the HUD slot's red flash. */
+  private deny(slot: CastIndex): void {
+    sfx.play('deny', { vol: 0.6 });
+    this.h.onDeny?.(slot);
   }
 
   /** Cast `slot` at the cursor (cursorCast); a unit aim with no enemy hero there is refused with the deny sound. */
@@ -437,12 +466,15 @@ export class DesktopInput {
     const spec = this.h.orders.aimSpec(slot);
     const g = this.groundUnderCursor();
     const cursor = g ? { x: toSimX(g.x), y: toSimY(g.z) } : null;
-    const c = cursorCast(spec, me, cursor, spec.kind === 'unit' ? this.unitUnderCursor(true) : null, this.h.units(), this.h.view.myTeam, clamp);
+    const c = cursorCast(spec, me, cursor, spec.kind === 'unit' ? this.unitUnderCursor(true) : null, this.h.units(), this.h.view.myTeam, clamp, this.h.view.me?.()?.yaw ?? 0);
     if (!c) {
-      sfx.play('deny', { vol: 0.6 });
+      this.deny(slot);
       return null;
     }
-    if (!this.h.orders.cast(slot, c.x, c.y, c.id)) return null;
+    if (!this.h.orders.cast(slot, c.x, c.y, c.id)) {
+      this.deny(slot);
+      return null;
+    }
     this.casts++;
     return c;
   }
@@ -471,8 +503,14 @@ export class DesktopInput {
     const g = this.groundUnderCursor();
     const me = this.h.units().find((u) => u.id === this.h.view.mySlot);
     if (!me) return;
-    const gx = g ? g.x : me.x / 1000 + 1;
-    const gz = g ? g.z : -me.y / 1000;
+    let gx = g ? g.x : me.x / 1000 + 1;
+    let gz = g ? g.z : -me.y / 1000;
+    if (spec.flash) {
+      // the flash always goes its full distance toward the cursor: show where it lands
+      const p = landing(spec, me, Math.atan2(toSimY(gz) - me.y, toSimX(gx) - me.x));
+      gx = p.x / 1000;
+      gz = -p.y / 1000;
+    }
     let valid = true;
     let target = -1;
     if (spec.kind === 'unit') {
@@ -481,7 +519,7 @@ export class DesktopInput {
       valid = !!u;
       target = u?.id ?? -1;
     }
-    this.h.view.aim = { spec, x: gx, z: gz, target, valid };
+    this.h.view.aim = { spec, x: gx, z: gz, target, valid, pointer: true };
   }
 
   /**

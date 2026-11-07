@@ -96,6 +96,15 @@ export interface OrderEnv {
  */
 export const CAST_BUFFER = Object.freeze({ ms: 400, nearReadyTicks: 3, confirmMs: 140, dashPadMs: 40 });
 
+/**
+ * The sim applies one non-move command a tick and the later one wins (sim/input.ts gateCommand; only a move gives way
+ * to a cast). So a Stop (letting go of the joystick), an Attack or Nap sent close behind a cast could land in its
+ * tick and eat it: the flash would never go. Such an order is held until the cast shows up in the sim's own events
+ * (raw, not on the render clock) or is given up, and at most this long (ms). A newer order replaces it; a move drops
+ * it (the move is the newer intent).
+ */
+export const HOLD_BEHIND_CAST_MS = 500;
+
 export type CastIndex = CastSlot | 4;
 
 interface Buffered {
@@ -105,6 +114,8 @@ interface Buffered {
   id: number;
   /** Wall-clock ms the buffer gives up. */
   until: number;
+  /** A sent cast the sim did not take, kept to send again (orders behind it keep waiting). */
+  retry?: boolean;
 }
 
 interface Pending {
@@ -136,7 +147,14 @@ export class Orders {
 
   /** C2: the cast waiting for the hero to be free, the last cast sent and not yet confirmed, and the busy end. */
   private buffered: Buffered | null = null;
-  private inflight: { slot: CastIndex; at: number; until: number; x: number; y: number; id: number } | null = null;
+  /** `seen`: the sim's raw events already show it applied (the render clock has not reached it yet). */
+  private inflight: { slot: CastIndex; at: number; until: number; x: number; y: number; id: number; seen: boolean } | null = null;
+  /** A stop, attack or Nap held behind a cast the sim has not shown yet (HOLD_BEHIND_CAST_MS). */
+  private held: { cmd: Command; at: number } | null = null;
+  /** Orders held behind a cast, and sent once it showed up or was given up (tests, e2e telemetry). */
+  holds = 0;
+  /** Called whenever a cast or trick command goes out (on the press, from the buffer, or a retry): slot, point (mm). */
+  onFire: ((slot: CastIndex, x: number, y: number) => void) | null = null;
   private busyUntil = 0;
   /** Casts kept by the buffer, sent from it, and dropped when it ran out (tests, e2e telemetry). */
   buffers = { kept: 0, sent: 0, expired: 0, retried: 0 };
@@ -219,6 +237,54 @@ export class Orders {
     return Math.max(0, Math.round(this.busyUntil - this.env.nowMs()));
   }
 
+  /**
+   * Where a cast of `slot` stands: 'unseen' sent and not shown by the sim yet, 'seen' shown by the sim's raw events,
+   * 'buffered' waiting to be sent (or sent again), or null (nothing of that slot in flight).
+   */
+  castState(slot: CastIndex): 'unseen' | 'seen' | 'buffered' | null {
+    const f = this.inflight;
+    if (f && f.slot === slot) return f.seen ? 'seen' : 'unseen';
+    return this.buffered?.slot === slot ? 'buffered' : null;
+  }
+
+  /** Is a cast sent and not shown by the sim yet (or waiting to be sent again)? Orders behind it are held. */
+  private castUnseen(): boolean {
+    const f = this.inflight;
+    return (f !== null && !f.seen) || this.buffered?.retry === true;
+  }
+
+  /**
+   * The sim's own events as they arrive from the host (before the render clock plays them): a windup or cast of the
+   * slot in flight shows the sim took it, so an order held behind it may go, and it is never sent again.
+   */
+  applied(ev: SimEvent): void {
+    if (ev.type !== 'windup' && ev.type !== 'cast') return;
+    if (ev.src !== this.env.meId) return;
+    const f = this.inflight;
+    if (f && f.slot === ev.slot) f.seen = true;
+    if (this.buffered?.retry && this.buffered.slot === ev.slot) this.buffered = null;
+    this.releaseHeld();
+  }
+
+  private releaseHeld(force = false): void {
+    const h = this.held;
+    if (!h || (!force && this.castUnseen() && this.env.nowMs() - h.at < HOLD_BEHIND_CAST_MS)) return;
+    this.held = null;
+    this.emit(h.cmd);
+  }
+
+  /** A stop, attack, attack-move or Nap: sent now, or held behind a cast the sim has not shown yet. */
+  private order(cmd: Command): void {
+    this.pending = null;
+    if (this.castUnseen()) {
+      this.held = { cmd, at: this.held?.at ?? this.env.nowMs() };
+      this.holds++;
+      return;
+    }
+    this.held = null;
+    this.emit(cmd);
+  }
+
   /** Is a cast waiting in the buffer (its slot), else null. */
   get queued(): CastIndex | null {
     return this.buffered?.slot ?? null;
@@ -243,6 +309,8 @@ export class Orders {
 
   move(x: number, y: number): void {
     this.pending = null;
+    // a move is newer than an order held behind a cast: it replaces it (the cast still wins its tick over the move)
+    this.held = null;
     const me = this.env.units().find((u) => u.id === this.env.meId);
     // the map edge and the enemy fountain stop a move (fun plan F3): no walking into a corner
     const team = me ? (me.team === 1 ? 1 : 0) : 0;
@@ -254,23 +322,19 @@ export class Orders {
   }
 
   attackMove(x: number, y: number): void {
-    this.pending = null;
-    this.emit({ op: Op.AttackMove, x: clampX(x), y: clampY(y) });
+    this.order({ op: Op.AttackMove, x: clampX(x), y: clampY(y) });
   }
 
   attack(id: number): void {
-    this.pending = null;
-    this.emit({ op: Op.Attack, id });
+    this.order({ op: Op.Attack, id });
   }
 
   stop(): void {
-    this.pending = null;
-    this.emit({ op: Op.Stop });
+    this.order({ op: Op.Stop });
   }
 
   nap(): void {
-    this.pending = null;
-    this.emit({ op: Op.Nap });
+    this.order({ op: Op.Nap });
   }
 
   talent(tier: TalentTier, choice: 0 | 1): void {
@@ -315,6 +379,8 @@ export class Orders {
    */
   cast(slot: CastIndex, x: number, y: number, id: number = NO_TARGET): boolean {
     if (!this.canQueue(slot)) return false;
+    // Audit CF-07: a unit-target cast with no living target is refused here (it was buffered, then dropped silently)
+    if (this.aimSpec(slot).kind === 'unit' && !this.env.units().some((u) => u.id === id && u.state !== 'dead')) return false;
     if (!this.ready(slot) || this.busy()) {
       // C2: keep the newest press and send it the moment the hero is free (never two buffered casts)
       this.buffered = { slot, x, y, id, until: this.env.nowMs() + CAST_BUFFER.ms };
@@ -350,8 +416,9 @@ export class Orders {
       else this.walkIn(slot, t.x, t.y, t.id);
       return true;
     }
-    // point
-    if (this.inReach(me, x, y, aim.range)) this.fire(slot, x, y, NO_TARGET, until);
+    // point; a heading blink (Pounce, Live Wire) never walks in: the sim casts it where the hero stands and clamps the
+    // point to the blink distance, so a point past the range is the full blink (heading.ts)
+    if (aim.heading || this.inReach(me, x, y, aim.range)) this.fire(slot, x, y, NO_TARGET, until);
     else this.walkIn(slot, x, y, NO_TARGET);
     return true;
   }
@@ -363,9 +430,10 @@ export class Orders {
   private fire(slot: CastIndex, x: number, y: number, id: number, until = 0): void {
     this.pending = null;
     if (this.buffered && this.buffered.slot === slot) this.buffered = null;
-    this.inflight = until > 0 ? { slot, at: this.env.nowMs(), until, x, y, id } : null;
+    this.inflight = until > 0 ? { slot, at: this.env.nowMs(), until, x, y, id, seen: false } : null;
     if (slot === 4) this.emit({ op: Op.Trick, x: clampX(x), y: clampY(y) });
     else this.emit({ op: Op.Cast, slot, x: clampX(x), y: clampY(y), id });
+    this.onFire?.(slot, x, y);
   }
 
   private walkIn(slot: CastIndex, x: number, y: number, id: number): void {
@@ -374,9 +442,10 @@ export class Orders {
     this.emit({ op: Op.Move, x: clampX(x), y: clampY(y) });
   }
 
-  /** Per frame: the cast buffer (C2), then a walk-in cast. */
+  /** Per frame: the cast buffer (C2), an order held behind a cast, then a walk-in cast. */
   update(): void {
     this.flushBuffer();
+    this.releaseHeld();
     const p = this.pending;
     if (!p) return;
     const now = this.env.nowMs();
@@ -430,10 +499,11 @@ export class Orders {
     }
     const f = this.inflight;
     if (f && !this.buffered && now - f.at >= this.confirmMs()) {
-      // no windup or cast event for it: the sim refused it (a dash, a windup it could not see); try again in its window
+      // no windup or cast event for it: the sim refused it (a dash, a windup it could not see); try again in its window.
+      // One the raw events already showed was taken is done (a slow render clock must not cast it twice).
       this.inflight = null;
-      if (now < f.until && this.ready(f.slot)) {
-        this.buffered = { slot: f.slot, x: f.x, y: f.y, id: f.id, until: f.until };
+      if (!f.seen && now < f.until && this.ready(f.slot)) {
+        this.buffered = { slot: f.slot, x: f.x, y: f.y, id: f.id, until: f.until, retry: true };
         this.buffers.retried++;
       }
     }

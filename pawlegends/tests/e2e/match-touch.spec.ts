@@ -48,6 +48,9 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
   for (let i = 1; i <= 8; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: sx + ((cx - sx) * i) / 8, y: sy + ((cy - sy) * i) / 8, id: 2 }] });
   await expect.poll(() => attr(page, 'aim')).toBe('1');
   await expect.poll(() => attr(page, 'cancel')).toBe('1');
+  // audit CF-01: the ✕ cancels after a 120 ms rest on it (CANCEL_DWELL_MS)
+  await page.waitForTimeout(250);
+  await expect(page.locator('.pl-cancel.hot')).toBeVisible();
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   await expect.poll(() => attr(page, 'aim')).toBe('');
   await page.waitForTimeout(150);
@@ -103,12 +106,16 @@ test('Attack picks by priority: hero in range, then the lowest-HP minion, then a
   const reasons = new Map<string, number>();
   let checked = 0;
   let lastN = '';
+  // under machine load the sim runs slower than the wall clock: a round that saw nothing in reach walks longer
+  // (QA 2026-11-07: one loaded run checked 82 picks, 80 of them nothing, and never reached a fight)
+  let walkMs = 1400;
   const deadline = Date.now() + 120_000;
   while (Date.now() < deadline && (reasons.size < 3 || checked < 25)) {
     if ((await attr(page, 'screen')) === 'results') break;
     // Walk toward the enemy side, then press Attack a few times. C5: Attack no longer walks the hero when nothing is
     // in reach (the old attack-move did half the walking here), so the stick walks further.
-    await touchDrag(page, 150, 250, 230, 250, 1400);
+    await touchDrag(page, 150, 250, 230, 250, walkMs);
+    let sawTarget = false;
     for (let i = 0; i < 3; i++) {
       await page.touchscreen.tap(atk.x + atk.width / 2, atk.y + atk.height / 2);
       await page.waitForTimeout(120);
@@ -121,7 +128,9 @@ test('Attack picks by priority: hero in range, then the lowest-HP minion, then a
       // C5: a press with nothing in reach is a checked pick too (null: the button sends nothing)
       checked++;
       reasons.set(want.why, (reasons.get(want.why) ?? 0) + 1);
+      if (want.id !== null) sawTarget = true;
     }
+    walkMs = sawTarget ? 1400 : Math.min(4000, walkMs + 600);
   }
   console.log(`attack priority: ${checked} picks checked, ${[...reasons].map(([k, v]) => `${k} ${v}`).join(', ')}`);
   expect(checked).toBeGreaterThan(5);
@@ -194,4 +203,65 @@ test('a drag slid back to its button aims and casts like a tap', async ({ page }
   const before = Number(await attr(page, 'casts'));
   await touch('touchEnd');
   await expect.poll(async () => Number(await attr(page, 'casts'))).toBe(before + 1);
+});
+
+type Disc = { x: number; y: number; width: number; height: number };
+const discGap = (a: Disc, b: Disc): number =>
+  Math.hypot(a.x + a.width / 2 - (b.x + b.width / 2), a.y + a.height / 2 - (b.y + b.height / 2)) - a.width / 2 - b.width / 2;
+
+// Audit CF-01: a full-range aim up or up-left from W and E used to land on the ✕ and cancel (8 of 8 drags). The ✕
+// now sits top centre, out of every drag's reach, so all four casts go out.
+test('up and up-left drags from W and E cast; the ✕ stays out of their reach', async ({ page }) => {
+  test.setTimeout(240_000);
+  await startFirstMatch(page);
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
+  const cdp = await page.context().newCDPSession(page);
+  const vw = page.viewportSize()!.width;
+  let id = 10;
+  for (const b of ['w', 'e'] as const) {
+    for (const [dx, dy] of [[0, -1], [-Math.SQRT1_2, -Math.SQRT1_2]]) {
+      const btn = page.locator(`.pl-tbtn.${b}`);
+      let cast = false;
+      // a press the cast buffer refuses (the hero still busy from the last cast on a loaded machine) is tried again
+      for (let attempt = 0; attempt < 3 && !cast; attempt++) {
+        await expect(btn).not.toHaveClass(/cooling|locked/, { timeout: 30_000 });
+        const box = (await btn.boundingBox())!;
+        const x0 = box.x + box.width / 2;
+        const y0 = box.y + box.height / 2;
+        // the ✕ sits top centre (ui.css .pl-cancel: 50% across, 72 px down, 56 px wide): far past any 140 px drag
+        expect(Math.hypot(vw / 2 - x0, 100 - y0), `${b}: ✕ distance`).toBeGreaterThan(200);
+        const before = Number(await attr(page, 'casts'));
+        id++;
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id }] });
+        // 140 px: past the 90 px full-range aim, the way a thumb overshoots
+        for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + dx * 14 * i, y: y0 + dy * 14 * i, id }] });
+        await page.waitForTimeout(200);
+        expect(await page.locator('.pl-cancel.hot, .pl-cancel.arming').count(), `${b} ${dx},${dy}: on the ✕`).toBe(0);
+        await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+        cast = await expect
+          .poll(async () => Number(await attr(page, 'casts')), { timeout: 4000 })
+          .toBeGreaterThan(before)
+          .then(() => true, () => false);
+      }
+      expect(cast, `${b} ${dx},${dy} cast`).toBe(true);
+    }
+  }
+});
+
+// Audit CF-04: no two touch buttons touch (E and the trick overlapped by 5 px) at 667, 844 and 932 px wide.
+test('the touch arc keeps a gap between every pair of buttons at 667, 844 and 932', async ({ page }) => {
+  await startFirstMatch(page);
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
+  for (const [width, height] of [[667, 375], [844, 390], [932, 430]]) {
+    await page.setViewportSize({ width, height });
+    await page.waitForTimeout(150);
+    const boxes: Disc[] = [];
+    for (const l of await page.locator('.pl-tbtn').all()) boxes.push((await l.boundingBox())!);
+    expect(boxes.length).toBeGreaterThanOrEqual(7);
+    for (let i = 0; i < boxes.length; i++) {
+      const a = boxes[i];
+      expect(a.x >= 0 && a.y >= 0 && a.x + a.width <= width && a.y + a.height <= height, `${width}: on screen`).toBe(true);
+      for (let j = i + 1; j < boxes.length; j++) expect(discGap(a, boxes[j]), `${width}x${height}: ${i} vs ${j}`).toBeGreaterThanOrEqual(12);
+    }
+  }
 });
