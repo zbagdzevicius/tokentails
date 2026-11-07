@@ -11,7 +11,7 @@ import { HERO_COLOR_CSS, RELATION_CSS } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import { HERO_TEXT } from './heroText';
 import type { HeroId } from '../sim/api';
-import { colourBlind } from './minimapPrefs';
+import { applyMinimapSize, colourBlind } from './minimapPrefs';
 
 export interface MinimapHost {
   /** Look at (x, z) m; `hold` s before the camera drifts back (Infinity: until the next look). */
@@ -90,6 +90,13 @@ export class Minimap {
   private h = 132;
   private dpr = 1;
   private n = 0;
+  /** MAP-GAPS A5: unit marks scale with the canvas width (196 px, the desktop M size, is 1). */
+  private k = 1;
+  /** MAP-GAPS A5: a hero mark's radius (px): 8 on desktop (a portrait 16 px across), w / 36 on touch (an initial). */
+  heroR(self: boolean): number {
+    const touch = typeof document !== 'undefined' && document.documentElement?.dataset.touch === '1';
+    return (touch ? this.w / 36 : 8 * this.k) * (self ? 1.15 : 1);
+  }
 
   constructor(
     parent: HTMLElement,
@@ -101,6 +108,7 @@ export class Minimap {
     this.root.appendChild(this.canvas);
     parent.appendChild(this.root);
     this.g = this.canvas.getContext('2d');
+    applyMinimapSize();
     this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
     this.canvas.addEventListener('pointerdown', (e) => this.down(e));
     this.canvas.addEventListener('pointermove', (e) => this.move(e));
@@ -198,6 +206,7 @@ export class Minimap {
     this.w = w;
     this.h = h;
     this.dpr = dpr;
+    this.k = w / 196;
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
     this.bg = this.paintBg();
@@ -276,7 +285,7 @@ export class Minimap {
       const x = this.X(t.x);
       const y = this.Y(t.y);
       const done = Math.max(0, Math.min(1, 1 - t.left / t.total));
-      const r = 6;
+      const r = 6 * this.k;
       const color = t.key === 'pudding' ? '#ffd34d' : t.key === 'rats' ? RELATION_CSS.ally : RELATION_CSS.enemy;
       g.fillStyle = 'rgba(42,26,34,0.75)';
       g.beginPath();
@@ -324,7 +333,7 @@ export class Minimap {
       const x = this.X(e.fx);
       const y = this.Y(e.fy);
       if (e.kind === 'tower' || e.kind === 'core') {
-        const s = e.kind === 'core' ? 9 : 6;
+        const s = (e.kind === 'core' ? 9 : 6) * this.k;
         g.fillStyle = MM_OUTLINE;
         g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
         g.fillStyle = col(e.team, e.id);
@@ -332,11 +341,11 @@ export class Minimap {
       } else if (e.kind === 'pudding') {
         g.fillStyle = MM_OUTLINE;
         g.beginPath();
-        g.arc(x, y, 5.5, 0, Math.PI * 2);
+        g.arc(x, y, 5.5 * this.k, 0, Math.PI * 2);
         g.fill();
         g.fillStyle = col(e.team, e.id);
         g.beginPath();
-        g.arc(x, y, 4.5, 0, Math.PI * 2);
+        g.arc(x, y, 4.5 * this.k, 0, Math.PI * 2);
         g.fill();
       } else this.drawMinion(g, x, y, col(e.team, e.id), e.team === 2 ? 'neutral' : e.team === team ? 'ally' : 'enemy');
     }
@@ -346,11 +355,11 @@ export class Minimap {
       const y = this.Y(p.y);
       g.fillStyle = p.kind === 'frenzy' ? `rgba(125,255,138,${(0.35 * glow).toFixed(3)})` : `rgba(255,166,77,${(0.3 * glow).toFixed(3)})`;
       g.beginPath();
-      g.arc(x, y, 7, 0, Math.PI * 2);
+      g.arc(x, y, 7 * this.k, 0, Math.PI * 2);
       g.fill();
       g.fillStyle = p.kind === 'frenzy' ? '#7dff8a' : '#ffa64d';
       g.beginPath();
-      g.arc(x, y, 3, 0, Math.PI * 2);
+      g.arc(x, y, 3 * this.k, 0, Math.PI * 2);
       g.fill();
     }
     this.drawTimers(g);
@@ -368,7 +377,7 @@ export class Minimap {
       g.globalAlpha = 1 - k;
       g.lineWidth = 2;
       g.beginPath();
-      g.arc(this.X(p.x), this.Y(p.y), 5 + k * 12, 0, Math.PI * 2);
+      g.arc(this.X(p.x), this.Y(p.y), (5 + k * 12) * this.k, 0, Math.PI * 2);
       g.stroke();
       g.globalAlpha = 1;
     }
@@ -388,7 +397,7 @@ export class Minimap {
 
   /** MAP-GAPS A4: an outlined minion mark: an ally square, an enemy diamond (shape, not only hue), a camp dot. */
   private drawMinion(g: CanvasRenderingContext2D, x: number, y: number, color: string, rel: 'ally' | 'enemy' | 'neutral'): void {
-    const h = 1.8;
+    const h = 1.8 * this.k;
     if (rel === 'enemy') {
       const d = h * 1.45;
       for (const [c, k] of [
@@ -456,12 +465,12 @@ export class Minimap {
 
   /** MAP-GAPS A3: a hero's mark: its portrait (or its initial on a coat-coloured disc) in a relation-colour ring. */
   private drawHero(g: CanvasRenderingContext2D, x: number, y: number, hero: HeroId | undefined, color: string, self: boolean, ring: string | null, team: readonly HeroId[]): void {
-    const r = self ? 6 : 5;
+    const r = this.heroR(self);
     g.fillStyle = MM_OUTLINE;
     g.beginPath();
     g.arc(x, y, r + 1.4, 0, Math.PI * 2);
     g.fill();
-    const inner = r - (self ? 1.8 : 1.3);
+    const inner = r - (self ? 1.8 : 1.3) * Math.min(1, this.k);
     const pic = hero && inner * 2 >= PORTRAIT_MIN_PX ? this.portrait(hero, Math.round(inner * 2 * this.dpr)) : null;
     g.fillStyle = color;
     g.beginPath();
