@@ -164,3 +164,19 @@ describe('MAP-GAPS A7 bush, forest and rock', () => {
     }
   });
 });
+
+describe('MAP-GAPS A8 Pudding leaves the self gold', () => {
+  it('draws Pudding and its countdown in the objective hue, gold only for the player', async () => {
+    const fs = await import('node:fs');
+    const src = fs.readFileSync('src/ui/minimap.ts', 'utf8');
+    expect(src).not.toMatch(/#ffd34d/i);
+    expect(src.match(/RELATION_CSS\.self/g)).toHaveLength(1);
+    const { MM_OBJECTIVE } = await import('../../src/ui/minimap');
+    const m = new Minimap(document.body, host());
+    m.timers = () => [{ key: 'pudding', x: 50000, y: 30000, left: 300, total: 900 }];
+    draw(m, frame([ent({ id: 30, kind: 'pudding', team: 2, fx: 50000, fy: 30000 })]));
+    const fills = calls.filter((c) => c[0] === 'set:fillStyle' || c[0] === 'set:strokeStyle').map((c) => c[1]);
+    expect(fills).toContain(MM_OBJECTIVE);
+    expect(fills).not.toContain('#ffd34d');
+  });
+});

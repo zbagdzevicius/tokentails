@@ -79,6 +79,9 @@ export function minimapRelation(cvd: boolean): { self: string; ally: string; ene
   return { self: RELATION_CSS.self, ally: RELATION_CSS.ally, enemy: cvd ? MM_ENEMY_CVD : RELATION_CSS.enemy, neutral: RELATION_CSS.neutral };
 }
 
+/** MAP-GAPS A8: Pudding and its countdown wear their own objective hue (gold is the player's own mark only). */
+export const MM_OBJECTIVE = '#b07cff';
+
 /** MAP-GAPS A6: the minimap draws the map into a rectangle this far (CSS px) inside the canvas edge. */
 export const MM_PAD = 6;
 
@@ -363,7 +366,8 @@ export class Minimap {
       const y = this.Y(t.y);
       const done = Math.max(0, Math.min(1, 1 - t.left / t.total));
       const r = 6 * this.k;
-      const color = t.key === 'pudding' ? '#ffd34d' : t.key === 'rats' ? RELATION_CSS.ally : RELATION_CSS.enemy;
+      const rel = minimapRelation(colourBlind());
+      const color = t.key === 'pudding' ? MM_OBJECTIVE : t.key === 'rats' ? rel.ally : rel.enemy;
       g.fillStyle = 'rgba(42,26,34,0.75)';
       g.beginPath();
       g.arc(x, y, r + 2, 0, Math.PI * 2);
@@ -416,13 +420,25 @@ export class Minimap {
         g.fillStyle = col(e.team, e.id);
         g.fillRect(x - s / 2, y - s / 2, s, s);
       } else if (e.kind === 'pudding') {
+        // MAP-GAPS A8: an objective-violet rounded square with a dark outline and a heart glyph
+        const s = 6 * this.k;
         g.fillStyle = MM_OUTLINE;
-        g.beginPath();
-        g.arc(x, y, 5.5 * this.k, 0, Math.PI * 2);
+        roundRectPath(g, x - s / 2 - 1.2, y - s / 2 - 1.2, s + 2.4, s + 2.4, 2.4);
         g.fill();
-        g.fillStyle = col(e.team, e.id);
+        g.fillStyle = MM_OBJECTIVE;
+        roundRectPath(g, x - s / 2, y - s / 2, s, s, 1.8);
+        g.fill();
+        g.fillStyle = '#fff3dc';
         g.beginPath();
-        g.arc(x, y, 4.5 * this.k, 0, Math.PI * 2);
+        const r = s * 0.17;
+        g.arc(x - r, y - r * 0.4, r, 0, Math.PI * 2);
+        g.arc(x + r, y - r * 0.4, r, 0, Math.PI * 2);
+        g.fill();
+        g.beginPath();
+        g.moveTo(x - 2 * r, y - r * 0.2);
+        g.lineTo(x + 2 * r, y - r * 0.2);
+        g.lineTo(x, y + 1.8 * r);
+        g.closePath();
         g.fill();
       } else this.drawMinion(g, x, y, col(e.team, e.id), e.team === 2 ? 'neutral' : e.team === team ? 'ally' : 'enemy');
     }
