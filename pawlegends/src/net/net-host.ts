@@ -17,7 +17,10 @@ import type { PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../
 import { socialLine } from '../data/social';
 import type { PartySocket } from './socket';
 import { MoveCoalescer } from './input';
-import { DEFAULT_SPEED, Predictor } from './predict';
+import { DEFAULT_SPEED, Predictor, type Planner } from './predict';
+import { gridPlanner } from './predict-path';
+import { MAP, mirrorX } from '../data/map';
+import { TICK_HZ, TIMELINE } from '../data/timeline';
 import { NetCore, type CoreIn, type CoreOut } from './net-core';
 import { TURN_MS } from './lockstep';
 import { Pacer } from './pacer';
@@ -42,6 +45,8 @@ export interface NetHostOptions {
   /** Watch tab visibility (off in node tests). */
   visibility?: boolean;
   now?: () => number;
+  /** The prediction walker's path planner (tests); default: the sim's A* on the client's wall grid. */
+  planner?: Planner;
 }
 
 /** The party result a NetHost hands to MatchSession's `end` (display only: the score posts as v:2, §6). */
@@ -101,7 +106,7 @@ export class NetHost implements PartyLink {
   private listener: HostListener = {};
   private transport: { post(m: CoreIn, transfer?: Transferable[]): void; close(): void };
   private readonly coalescer: MoveCoalescer;
-  readonly predictor = new Predictor();
+  readonly predictor: Predictor;
   welcome: WelcomeMsg | null = null;
   restarts = 0;
   kind: 'worker' | 'inline' = 'inline';
@@ -204,6 +209,7 @@ export class NetHost implements PartyLink {
 
   constructor(readonly socket: PartySocket, readonly match: MatchMsg, private readonly opts: NetHostOptions = {}) {
     this.now = opts.now ?? (() => performance.now());
+    this.predictor = new Predictor(opts.planner ?? gridPlanner);
     this.names = [...match.names];
     this.mySlot = match.you.slot;
     this.bornAt = this.now();
@@ -694,7 +700,7 @@ export class NetHost implements PartyLink {
   present(f: ViewFrame): void {
     const v = f.byId.get(this.mySlot);
     if (!v || v.state === 'dead') {
-      this.predictor.stop();
+      this.predictor.reset();
       this.yawShown = null;
       return;
     }
@@ -703,36 +709,31 @@ export class NetHost implements PartyLink {
     const base = v.hero ? HEROES[v.hero as HeroId]?.base.speed : undefined;
     const speed = moving ? v.speed : base ? base / 30 : DEFAULT_SPEED;
     const now = this.now();
-    const off = this.predictor.offset({ x: v.fx, y: v.fy, locked, speed, moving }, this.inputLatencyMs(), now);
-    // facing: before the authoritative hero moves, turn to the target; once it walks, its interpolated yaw follows the
-    // A* path. Eased (about 50 ms), so the switch never snaps the turn-lean springs.
-    const h = this.predictor.heading;
-    let yaw = v.yaw;
-    let turning = false;
-    if (h && !locked && !moving) {
-      const dx = h.x - v.fx;
-      const dy = h.y - v.fy;
-      if (Math.hypot(dx, dy) > 50) {
-        yaw = Math.atan2(dy, dx);
-        turning = true;
-      }
-    }
+    const latency = this.inputLatencyMs();
+    // the sim's gate barrier holds the hero at its line until it drops; the walker stops there too
+    const gated = f.tick + latency / (1000 / TICK_HZ) < TIMELINE.barrierDrop;
+    const xLimit: readonly [number, number] | undefined = gated ? (v.team === 0 ? [0, MAP.barrierX] : [mirrorX(MAP.barrierX), MAP.width]) : undefined;
+    const off = this.predictor.offset({ x: v.fx, y: v.fy, locked, speed, moving, xLimit }, latency, now);
+    // facing: while a predicted walk is in flight, the way the walker goes (its path turns its corners first);
+    // otherwise the interpolated yaw. Eased (about 50 ms), so the switch never snaps the turn-lean springs.
+    const dir = this.predictor.direction;
+    const yaw = dir ?? v.yaw;
     if (this.yawShown === null) {
       this.yawShown = v.yaw;
       this.yawAt = now;
     }
     const dt = Math.max(0, Math.min(100, now - this.yawAt));
     this.yawAt = now;
-    if (turning) this.yawEaseUntil = now + 4 * YAW_EASE_MS;
-    // outside a turn and its settle window, the interpolated yaw passes through untouched
+    if (dir !== null) this.yawEaseUntil = now + 4 * YAW_EASE_MS;
+    // outside a walk and its settle window, the interpolated yaw passes through untouched
     if (now > this.yawEaseUntil) this.yawShown = yaw;
     else this.yawShown += wrapAngle(yaw - this.yawShown) * Math.min(1, dt / YAW_EASE_MS);
     v.yaw = this.yawShown;
+    // the walk cycle reads the speed: the walker's feet move while it walks, and stand while it holds
+    if (this.predictor.predicting) v.speed = this.predictor.drawnSpeed;
     if (off.dx === 0 && off.dy === 0) return;
     v.fx += off.dx;
     v.fy += off.dy;
-    // the walk cycle reads the speed: a hero sliding ahead of a still snapshot must still move its feet
-    if (this.predictor.leading && v.speed < speed) v.speed = speed;
   }
 
   private yawShown: number | null = null;

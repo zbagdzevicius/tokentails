@@ -1,6 +1,6 @@
 /** Party play N5 (MULTIPLAYER.md §4.2): the lockstep runner's playout clock on a fake clock. */
 import { describe, expect, it } from 'vitest';
-import { LockstepRunner, MAX_B, MAX_MARGIN_MS, TURN_MS } from '../../src/net/lockstep';
+import { FIRST_TURN_GRACE_MS, LockstepRunner, MAX_B, MAX_MARGIN_MS, TURN_MS } from '../../src/net/lockstep';
 import { Pacer } from '../../src/net/pacer';
 
 /** A fake event loop: timers fire in time order; `run(until)` advances the clock. */
@@ -161,15 +161,18 @@ describe('LockstepRunner (playout clock)', () => {
 
   it('waiting after 500 ms of holding, never while paused by vote; a hold needs 1.5 turns without an arrival', () => {
     const r = new LockstepRunner<number>(0);
+    r.push(0, 0);
     r.due(0);
-    expect(r.waiting(400)).toBe(false);
-    r.due(600);
-    expect(r.waiting(600)).toBe(true);
+    r.due(200);
+    expect(r.waiting(600)).toBe(false);
+    expect(r.waiting(700)).toBe(true);
     const p = new LockstepRunner<number>(0);
     p.paused = true;
+    p.push(0, 0);
     p.due(0);
-    p.due(800);
-    expect(p.waiting(800)).toBe(false);
+    p.due(200);
+    p.due(1400);
+    expect(p.waiting(1400)).toBe(false);
     const h = new LockstepRunner<number>(0);
     h.push(0, 1000);
     h.due(1000);
@@ -177,6 +180,23 @@ describe('LockstepRunner (playout clock)', () => {
     expect(h.holds).toBe(0);
     h.due(1000 + 2 * TURN_MS);
     expect(h.holds).toBe(1);
+  });
+
+  it('before the first turn of a stream, a hold counts only after the start grace (no "Waiting for server" at go-live)', () => {
+    const r = new LockstepRunner<number>(0);
+    r.due(0);
+    r.due(1000);
+    r.due(FIRST_TURN_GRACE_MS - 1);
+    expect(r.holds).toBe(0);
+    expect(r.waiting(FIRST_TURN_GRACE_MS)).toBe(false);
+    r.due(FIRST_TURN_GRACE_MS);
+    expect(r.holds).toBe(1);
+    expect(r.waiting(FIRST_TURN_GRACE_MS + 500)).toBe(true);
+    // a rebuild starts the grace again
+    r.clear();
+    r.due(10_000);
+    r.due(11_000);
+    expect(r.waiting(11_000)).toBe(false);
   });
 
   it('resetClock after a vote pause: jitter smoothing works again at once (no 3 s of every turn reading late)', () => {

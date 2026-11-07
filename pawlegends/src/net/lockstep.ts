@@ -19,10 +19,13 @@
  *   the pacer calls again half a turn later while a backlog is left.
  * - `drain()` (the relay ended the match): every queued turn is due.
  * - A hold episode: nothing queued and no turn arrived for 1.5 turns plus M. `waiting` is true after 500 ms of
- *   holding, never while the room is paused by vote.
+ *   holding, never while the room is paused by vote. Before the first turn of a stream, the relay has not started it
+ *   yet (the match goes live a moment before the turns flow): a hold counts only after FIRST_TURN_GRACE_MS.
  * - `B` (analytics `buffer`, the fast-forward floor) is the margin in turns: 1 + round(M / TURN_MS), 1..5.
  */
 export const TURN_MS = 200 / 3;
+/** Before a stream's first turn, a hold counts only after this long (ms): the relay starts the turns a moment late. */
+export const FIRST_TURN_GRACE_MS = 5000;
 export const MIN_B = 1;
 export const MAX_B = 5;
 /** Offset samples kept (3 s of turns). */
@@ -54,6 +57,8 @@ export class LockstepRunner<T> {
   private spaced: boolean[] = [];
   private minOffset = 0;
   private lastArrivalMs = -Infinity;
+  /** The first `due` call of this stream (−∞: none yet): the grace before the first turn runs from it. */
+  private firstDueMs = -Infinity;
   private lastStepMs = -Infinity;
   private lastNowMs: number;
   private draining = false;
@@ -134,6 +139,7 @@ export class LockstepRunner<T> {
   /** The turns to step now (taken off the queue). */
   due(nowMs: number): T[] {
     this.lastNowMs = nowMs;
+    if (this.firstDueMs === -Infinity) this.firstDueMs = nowMs;
     const ready = this.ready(nowMs);
     if (ready === 0) {
       if (this.queue.length === 0) this.markHold(nowMs);
@@ -164,8 +170,8 @@ export class LockstepRunner<T> {
       return;
     }
     if (this.holdingSince !== null) return;
-    // starved: nothing arrived for 1.5 turns plus the margin (before the first turn: at once)
-    if (this.lastArrivalMs > -Infinity && nowMs - this.lastArrivalMs < TURN_MS * 1.5 + this.marginMs) return;
+    // starved: nothing arrived for 1.5 turns plus the margin (before the first turn: after the start grace)
+    if (this.lastArrivalMs === -Infinity ? nowMs - this.firstDueMs < FIRST_TURN_GRACE_MS : nowMs - this.lastArrivalMs < TURN_MS * 1.5 + this.marginMs) return;
     this.holdingSince = nowMs;
     this.holds++;
   }
@@ -191,6 +197,7 @@ export class LockstepRunner<T> {
     this.marginMs = 0;
     this.B = MIN_B;
     this.lastArrivalMs = -Infinity;
+    this.firstDueMs = -Infinity;
     this.holdingSince = null;
     this.draining = false;
   }
