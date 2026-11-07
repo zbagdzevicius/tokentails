@@ -127,8 +127,12 @@ run "edge_websockets_and_armor" {
     error_message = "Regional external Application Load Balancer (EXTERNAL_MANAGED)."
   }
   assert {
-    condition     = length(module.edge.settings.backends_with_armor) == 4
-    error_message = "Cloud Armor is attached to api, web, cms and relay backends."
+    condition     = length(module.edge.settings.backends_with_armor) == module.edge.settings.backend_count && module.edge.settings.backend_count == 7
+    error_message = "Cloud Armor is attached to every backend (api, web, cms, their canaries and the relay)."
+  }
+  assert {
+    condition     = module.edge.settings.relay_route_service && toset(module.edge.settings.relay_route) == toset(["/pawlegends/ws", "/pawlegends/ws/"])
+    error_message = "The first api route sends /pawlegends/ws (exact) and /pawlegends/ws/ (prefix) to the relay."
   }
   assert {
     condition = alltrue([

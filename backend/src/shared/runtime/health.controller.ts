@@ -31,6 +31,8 @@ export class HealthController implements BeforeApplicationShutdown {
     @Get('healthz')
     healthz() {
         const body: Record<string, unknown> = { ok: true, role: this.role, uptimeS: Math.round(process.uptime()) };
+        // Cloud Run sets K_REVISION: deploy-gcp.yml checks that its canary request reached the new revision.
+        if (process.env.K_REVISION) body.revision = process.env.K_REVISION;
         if (this.role === 'relay') body.relay = this.relay?.counters ?? null;
         return body;
     }

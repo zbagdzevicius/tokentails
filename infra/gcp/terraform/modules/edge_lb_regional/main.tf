@@ -116,15 +116,27 @@ resource "google_compute_region_security_policy" "edge" {
 # ---------------------------------------------------------------------------------------------------------------------
 # Backends
 
+# Live traffic goes to each service; `<key>-canary` goes to the revision tagged `canary` (deploy-gcp.yml deploys a new
+# revision with --no-traffic --tag canary, smoke-tests it through this load balancer with the canary header, then moves
+# traffic). The services have no run.app URL, so this is the only way to reach a revision before it is live.
+locals {
+  run_services = { api = var.api_service, web = var.web_service, cms = var.cms_service }
+  run_negs = merge(
+    { for k, svc in local.run_services : k => { service = svc, tag = null } },
+    { for k, svc in local.run_services : "${k}-canary" => { service = svc, tag = var.canary_tag } },
+  )
+}
+
 resource "google_compute_region_network_endpoint_group" "run" {
-  for_each              = { api = var.api_service, web = var.web_service, cms = var.cms_service }
+  for_each              = local.run_negs
   project               = var.project_id
   name                  = "${var.name}-${each.key}-neg"
   region                = var.region
   network_endpoint_type = "SERVERLESS"
 
   cloud_run {
-    service = each.value
+    service = each.value.service
+    tag     = each.value.tag
   }
 }
 
@@ -200,24 +212,57 @@ resource "google_compute_region_url_map" "edge" {
     path_matcher = "cms"
   }
 
+  # api: the relay paths first (WebSocket to the VM), then the canary header, then tt-api.
   path_matcher {
     name            = "api"
     default_service = google_compute_region_backend_service.run["api"].id
 
-    path_rule {
-      paths   = var.relay_paths
-      service = google_compute_region_backend_service.relay.id
+    route_rules {
+      priority = 1
+      service  = google_compute_region_backend_service.relay.id
+
+      dynamic "match_rules" {
+        for_each = var.relay_paths
+        content {
+          full_path_match = endswith(match_rules.value, "/*") ? null : match_rules.value
+          prefix_match    = endswith(match_rules.value, "/*") ? trimsuffix(match_rules.value, "*") : null
+        }
+      }
+    }
+
+    route_rules {
+      priority = 2
+      service  = google_compute_region_backend_service.run["api-canary"].id
+
+      match_rules {
+        prefix_match = "/"
+        header_matches {
+          header_name = var.canary_header
+          exact_match = "1"
+        }
+      }
     }
   }
 
-  path_matcher {
-    name            = "web"
-    default_service = google_compute_region_backend_service.run["web"].id
-  }
+  dynamic "path_matcher" {
+    for_each = ["web", "cms"]
+    content {
+      name            = path_matcher.value
+      default_service = google_compute_region_backend_service.run[path_matcher.value].id
 
-  path_matcher {
-    name            = "cms"
-    default_service = google_compute_region_backend_service.run["cms"].id
+      route_rules {
+        priority = 1
+        service  = google_compute_region_backend_service.run["${path_matcher.value}-canary"].id
+
+        match_rules {
+          prefix_match = "/"
+          header_matches {
+            header_name = var.canary_header
+            exact_match = "1"
+          }
+        }
+      }
+    }
   }
 }
 

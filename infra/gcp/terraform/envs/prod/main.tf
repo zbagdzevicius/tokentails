@@ -47,7 +47,7 @@ locals {
 
   api_hosts = coalesce(var.api_hosts, ["api.${var.domain}", "gcp-api.${var.domain}"])
   web_hosts = coalesce(var.web_hosts, [var.domain, "www.${var.domain}", "gcp.${var.domain}"])
-  cms_hosts = coalesce(var.cms_hosts, ["cats.${var.domain}"])
+  cms_hosts = coalesce(var.cms_hosts, ["cats.${var.domain}", "gcp-cats.${var.domain}"])
 
   registry      = module.artifact_registry.repository_url
   backend_image = "${local.registry}/backend:${var.backend_tag}"

@@ -148,6 +148,20 @@ describe('HealthController', () => {
         });
     });
 
+    it('healthz names the Cloud Run revision when there is one', () => {
+        const prev = process.env.K_REVISION;
+        process.env.K_REVISION = 'tt-api-00042-abc';
+        try {
+            expect(new HealthController('api', { readyState: 1 } as any).healthz()).toMatchObject({
+                revision: 'tt-api-00042-abc',
+            });
+        } finally {
+            if (prev === undefined) delete process.env.K_REVISION;
+            else process.env.K_REVISION = prev;
+        }
+        expect(new HealthController('api', { readyState: 1 } as any).healthz()).not.toHaveProperty('revision');
+    });
+
     it('readyz needs Mongo, a started relay where one is served, and no shutdown in progress', () => {
         const check = (c: HealthController) => {
             const r = res();
