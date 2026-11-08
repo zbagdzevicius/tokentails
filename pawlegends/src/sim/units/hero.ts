@@ -68,6 +68,8 @@ function planPath(m: MatchHandle, id: number, tx: number, ty: number): void {
   w.pathLen[id] = r.count;
   w.pathIdx[id] = 0;
   w.timer[id] = NAV.repathEvery;
+  // Sim v16 (MAP-GAPS B4): this path cannot reach the goal (an overflowed search may still, so it is re-planned).
+  w.pathDone[id] = !r.complete && r.expansions <= NAV.maxExpand ? 1 : 0;
 }
 
 /** A new order cancels a walk-in cast and Nap (not a cast already winding up). */
@@ -189,6 +191,8 @@ function walk(m: MatchHandle, id: number): boolean {
   const base = id * NAV.maxPathPoints;
   if (w.pathIdx[id] >= w.pathLen[id]) {
     if (dist2(w.x[id], w.y[id], w.moveX[id], w.moveY[id]) <= NAV.reach * NAV.reach) return true;
+    // Sim v16 (MAP-GAPS B4): at the end of a path that cannot reach the goal (a structure, a wall): as close as it gets.
+    if (w.pathLen[id] > 0 && w.pathDone[id] === 1) return true;
     if (w.timer[id] > 0) return false;
     planPath(m, id, w.moveX[id], w.moveY[id]);
     if (w.pathLen[id] === 0) return true; // nowhere to go

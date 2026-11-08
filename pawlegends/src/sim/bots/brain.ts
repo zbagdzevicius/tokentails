@@ -527,7 +527,8 @@ function defend(w: World, id: number, mem: BotMem, s: number, p: BotParams, rng:
     mem.op[id] = Op.Nap;
     return { op: Op.Nap };
   }
-  return moveTo(w, id, mem, w.x[s], w.y[s]);
+  // Sim v16 (MAP-GAPS B4): stand behind the defended structure, outside its footprint (its centre is never reached).
+  return moveTo(w, id, mem, w.x[s] - sign(w.team[id]) * (radiusOf(w, s) + BOT_AI.holdMelee), w.y[s]);
 }
 
 /** Sim v7 Hard: is bot `id` far ahead of its own wave front in `lane` with no allied hero near? */

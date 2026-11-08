@@ -189,6 +189,11 @@ export interface World {
   pathY: Int32Array;
   pathLen: Uint8Array;
   pathIdx: Uint8Array;
+  /**
+   * Sim v16 (MAP-GAPS B4): 1 when the hero's last planned path cannot reach its goal (a blocked goal snapped, or no
+   * route; not an expansion overflow), so a used-up path ends the order instead of re-planning forever. Hashed.
+   */
+  pathDone: Int8Array;
   // Status effects (POC.md §4.4), ticks left per entity (0 = none)
   stunT: Int32Array;
   rootT: Int32Array;
@@ -468,6 +473,7 @@ export function createWorld(seed: number): World {
     pathY: new Int32Array(CAPS.heroes * NAV.maxPathPoints),
     pathLen: new Uint8Array(CAPS.heroes),
     pathIdx: new Uint8Array(CAPS.heroes),
+    pathDone: new Int8Array(CAPS.heroes),
     stunT: new Int32Array(n),
     rootT: new Int32Array(n),
     fearT: new Int32Array(n),
@@ -619,7 +625,7 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.kind, w.team, w.alive, w.sub, w.lane, w.waypoint, w.level, w.state, w.facing, w.buffs,
     w.x, w.y, w.hp, w.maxHp, w.shield, w.armour, w.xp, w.moveCarry, w.moveX, w.moveY, w.target,
     w.attackTimer, w.timer, w.cooldowns,
-    w.windup, w.order, w.streak, w.shotAt, w.forced, w.lastHitBy, w.hurtTick, w.pathX, w.pathY, w.pathLen, w.pathIdx,
+    w.windup, w.order, w.streak, w.shotAt, w.forced, w.lastHitBy, w.hurtTick, w.pathX, w.pathY, w.pathLen, w.pathIdx, w.pathDone,
     w.stunT, w.rootT, w.fearT, w.fearX, w.fearY, w.fearSrc, w.slowT, w.slowBp, w.hasteT, w.hasteBp, w.asT, w.asBp, w.cdrT, w.cdrBp,
     w.stealthT, w.untargT, w.ccImmT, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
     w.tether, w.bush, w.seen,
