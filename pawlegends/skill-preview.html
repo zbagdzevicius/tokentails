@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Pawlegends skill preview lab</title>
+    <style>
+      :root { --bg: #2b1d2e; --cream: #fff3dc; }
+      html, body { margin: 0; background: var(--bg); color: var(--cream); font-family: system-ui, sans-serif; }
+      #box { position: relative; width: 480px; height: 300px; border-radius: 14px; overflow: hidden; background: #1d1420; }
+      #bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px 0; max-width: 960px; }
+      #bar button { font: 12px system-ui; }
+      #stats { font: 12px ui-monospace, monospace; white-space: pre; }
+    </style>
+    <!-- dev only (npm run dev → /skill-preview.html?hero=clem&slot=q): never part of build or build:client -->
+  </head>
+  <body>
+    <div id="box"></div>
+    <div id="bar"></div>
+    <div id="stats"></div>
+    <script type="module" src="./src/gallery/skillPreviewLab.ts"></script>
+  </body>
+</html>
