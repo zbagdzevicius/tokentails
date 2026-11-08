@@ -19,8 +19,8 @@ export const GABE: HeroData = Object.freeze<HeroData>({
     w: { cooldown: 360, range: 6000, pickRadius: 2500, shield: 70, shieldPerLevel: 14, duration: 90, hasteBp: 2000, haste: 45 },
     /** Chase the Wind: dash 4 m; allied heroes within 1.5 m of her path get +25% speed for 2 s. */
     e: { cooldown: 420, dash: 4000, touch: 1500, hasteBp: 2500, haste: 60 },
-    /** Under Her Spell: 0.5 s wind-up, cone 6 m, 90°; enemy heroes in it are charmed 1 s (walk to her at half speed). */
-    r: { cooldown: 2100, windup: 15, range: 6000, arc: 1024, charm: 30, slowBp: 5000 },
+    /** Under Her Spell: 0.67 s wind-up (sim v17, V17.md §3.4: was 0.5 s), cone 6 m, 90°; enemy heroes in it are charmed 1 s (walk to her at half speed). */
+    r: { cooldown: 2100, windup: 20, range: 6000, arc: 1024, charm: 30, slowBp: 5000 },
   },
   /** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
   ranks: { q: { dmg: 15, heal: 6 }, w: { cooldown: -15 }, e: { cooldown: -15 }, r: { cooldown: -100 } },

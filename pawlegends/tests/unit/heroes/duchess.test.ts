@@ -137,7 +137,7 @@ describe('Duchess, original cat mage (sim v11)', () => {
     expect(stacksOf(w, FOE)).toBe(0);
   });
 
-  it('Royal Decree: after 0.6 s, enemy heroes within 6 m are hit, slowed and gain 2 Disdain; she gains a shield', () => {
+  it('Royal Decree: after 0.7 s, enemy heroes within 6 m are hit, slowed and gain 1 Disdain (sim v17); she gains a shield', () => {
     const m = arena();
     const w = m.world;
     setLevel(m, DU, 4);
@@ -148,18 +148,18 @@ describe('Duchess, original cat mage (sim v11)', () => {
     steps(m, A.r.windup);
     const lv = w.level[DU] - 1;
     expect(hp - w.hp[FOE]).toBe(heroHit(A.r.dmg + A.r.dmgPerLevel * lv, 25));
-    expect([stacksOf(w, FOE), stacksOf(w, FOE2)]).toEqual([2, 2]);
+    expect([stacksOf(w, FOE), stacksOf(w, FOE2)]).toEqual([1, 1]);
     expect(w.slowBp[FOE]).toBe(A.r.slowBp);
     expect(w.shield[DU]).toBe(A.r.shield + A.r.shieldPerLevel * lv);
     // the cooldown starts on the cast tick (the step after resolution ticks it once)
     expect(cd(m, DU, 3)).toBeGreaterThanOrEqual(A.r.cooldown - 1);
   });
 
-  it('Royal Decree on a hero already on 1 Disdain Snubs it at once', () => {
+  it('Royal Decree on a hero already on 2 Disdain Snubs it at once (sim v17: R gives 1)', () => {
     const m = arena();
     const w = m.world;
     setLevel(m, DU, 4);
-    addStack(w, FOE, 1, P.stacks, P.window);
+    addStack(w, FOE, 2, P.stacks, P.window);
     cast(m, DU, 3, MID.x, MID.y);
     steps(m, A.r.windup);
     expect(stacksOf(w, FOE)).toBe(0);

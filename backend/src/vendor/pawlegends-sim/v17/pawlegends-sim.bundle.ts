@@ -964,10 +964,10 @@ var BRAVO = Object.freeze({
 			slowBp: 2500,
 			slow: 30
 		},
-		/** ENCORE!: 0.6 s bow; enemy heroes within 4.5 m are charmed to him for 1 s and take 60 (+6/lvl, +30 a rank); he gains a shield of 12% max HP for 3 s. */
+		/** ENCORE!: 0.7 s bow (sim v17, V17.md §3.4: was 0.6 s); enemy heroes within 4.5 m are charmed to him for 1 s and take 60 (+6/lvl, +30 a rank); he gains a shield of 12% max HP for 3 s. */
 		r: {
 			cooldown: 2250,
-			windup: 18,
+			windup: 21,
 			radius: 4500,
 			charm: 30,
 			slowBp: 5e3,
@@ -1520,11 +1520,11 @@ var DOMINO = Object.freeze({
 			dmg: 40,
 			dmgPerLevel: 4
 		},
-		/** CONNECT THE DOTS!: 0.5 s; links every Spotted enemy hero within 11 m, nearest first, with starry lines. Each Spotted hero takes 100 (+10/lvl, +45 a rank) + 35 a Spot and is rooted 0.5 s + 0.17 s a Spot (rootPerDot 8 in the spec, cut to 5 on the balance gate; Tight Knot 12 → 8); other enemy heroes on a line take 50% and are slowed 30% 1.5 s. Spots are used up. */
+		/** CONNECT THE DOTS!: 0.6 s; links every Spotted enemy hero within 9.5 m (sim v17, V17.md §3.4: was 0.5 s and 11 m), nearest first, with starry lines. Each Spotted hero takes 100 (+10/lvl, +45 a rank) + 35 a Spot and is rooted 0.5 s + 0.17 s a Spot (rootPerDot 8 in the spec, cut to 5 on the balance gate; Tight Knot 12 → 8); other enemy heroes on a line take 50% and are slowed 30% 1.5 s. Spots are used up. */
 		r: {
 			cooldown: 2e3,
-			windup: 15,
-			range: 11e3,
+			windup: 18,
+			range: 9500,
 			width: 1e3,
 			dmg: 100,
 			dmgPerLevel: 10,
@@ -1642,16 +1642,16 @@ var DUCHESS = Object.freeze({
 			slowBp: 3e3,
 			slow: 18
 		},
-		/** Royal Decree: 0.6 s wind-up; enemy heroes within 6 m take 110 (+11/lvl, +45 a rank), are slowed 40% 1.5 s and gain 2 Disdain; she gains a 120 (+12/lvl) shield for 3 s. */
+		/** Royal Decree: 0.7 s wind-up; enemy heroes within 6 m take 110 (+11/lvl, +45 a rank), are slowed 40% 1.5 s and gain 1 Disdain; she gains a 120 (+12/lvl) shield for 3 s. Sim v17 (V17.md §3.4): windup 18 → 21, stacks 2 → 1 (the Snub needs one more landed hit). */
 		r: {
 			cooldown: 1950,
-			windup: 18,
+			windup: 21,
 			radius: 6e3,
 			dmg: 110,
 			dmgPerLevel: 11,
 			slowBp: 4e3,
 			slow: 45,
-			stacks: 2,
+			stacks: 1,
 			shield: 120,
 			shieldPerLevel: 12,
 			duration: 90
@@ -1872,10 +1872,10 @@ var GABE = Object.freeze({
 			hasteBp: 2500,
 			haste: 60
 		},
-		/** Under Her Spell: 0.5 s wind-up, cone 6 m, 90°; enemy heroes in it are charmed 1 s (walk to her at half speed). */
+		/** Under Her Spell: 0.67 s wind-up (sim v17, V17.md §3.4: was 0.5 s), cone 6 m, 90°; enemy heroes in it are charmed 1 s (walk to her at half speed). */
 		r: {
 			cooldown: 2100,
-			windup: 15,
+			windup: 20,
 			range: 6e3,
 			arc: 1024,
 			charm: 30,
@@ -2097,10 +2097,10 @@ var LAMBO = Object.freeze({
 			dmgPerLevel: 4,
 			stun: 15
 		},
-		/** Tangled Lights: 0.5 s wind-up; enemy heroes within 4.5 m pulled up to 2 m toward him, 100 (+10/lvl, +45 a rank), root 1 s. */
+		/** Tangled Lights: 0.67 s wind-up (sim v17, V17.md §3.4: was 0.5 s); enemy heroes within 4.5 m pulled up to 2 m toward him, 100 (+10/lvl, +45 a rank), root 1 s. */
 		r: {
 			cooldown: 2100,
-			windup: 15,
+			windup: 20,
 			radius: 4500,
 			pull: 2e3,
 			root: 30,

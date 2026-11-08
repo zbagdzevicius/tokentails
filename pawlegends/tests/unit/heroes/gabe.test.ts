@@ -37,7 +37,7 @@ describe('Gabė, shelter champion support (sim v9)', () => {
   it('data: a WIND cat support; the charm is 1 s', () => {
     expect([GABE.side, GABE.role, GABE.element, GABE.name]).toEqual(['cat', 'support', 'WIND', 'Gabė']);
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([210, 360, 420, 2100]);
-    expect([A.r.charm, A.r.windup]).toEqual([30, 15]);
+    expect([A.r.charm, A.r.windup]).toEqual([30, 20]);
   });
 
   it('Heart Breeze: a basic hit on a hero heals the allied hero with the lowest HP share within 6 m (her included)', () => {

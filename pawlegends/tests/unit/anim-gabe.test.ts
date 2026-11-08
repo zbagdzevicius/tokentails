@@ -48,8 +48,8 @@ describe('gabe moves', () => {
     // R: the twirl starts on windupStart, the kiss lands on the cast 15 t later
     const r = MOVES.slots.r.cast;
     expect(r.warp).toEqual([['coil', 'windupStart'], ['contact', 'cast']]);
-    expect(T.slots.r.windup).toBe(15);
-    expect(m(r, 'contact') - m(r, 'coil')).toBeCloseTo(15 * TICK_S, 9);
+    expect(T.slots.r.windup).toBe(20);
+    expect(m(r, 'contact') - m(r, 'coil')).toBeCloseTo(20 * TICK_S, 9);
   });
 
   it('every clip compiles on her rig with finite values, keeps the root caps and the spin rule', () => {
