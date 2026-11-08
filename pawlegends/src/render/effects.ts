@@ -3,6 +3,7 @@
  * particles, shockwaves, damage numbers, hitstop, shake, banners, sounds and animation cues on the views. Events
  * reach it when the render clock passes their tick, so a hit spark lands with the swing you see. Render only.
  */
+import { CC_CUE, ccKindOf } from './ccCue';
 import * as THREE from 'three';
 import { HEROES } from '../data/heroes';
 import { MAP } from '../data/map';
@@ -14,7 +15,9 @@ import { CONFETTI_COLORS } from './ppk/fx/palette.js';
 import { DamageNumbers } from './fx/DamageNumbers.js';
 import { FADE, GROW, SHAPE, type Particles } from './fx/Particles.js';
 import type { Shockwaves } from './fx/Shockwaves.js';
-import { FREEZE_CAP_MS, type Juice } from './juice';
+import { HITSTOP_MS, type Juice } from './juice';
+/** Feel pass B5: at most one own-hit hitstop this often (s), so a combo does not stutter. */
+const HITSTOP_GAP_S = 0.3;
 import { RELATION, TEAM, dressTeam } from './palette';
 import { HERO_TOP } from './chars/specs';
 import { heroY } from './chars/visualSize';
@@ -347,7 +350,12 @@ export class Effects {
         // global clock stops only for the player's ultimate landing (once per cast, ≤ 3 frames) and for kills
         if (e.kind === 'ability' && this.time - this.myUltAt < 1.5 && !this.ultFrozen) {
           this.ultFrozen = true;
-          this.juice.hitstop(FREEZE_CAP_MS);
+          this.juice.hitstop(HITSTOP_MS);
+          this.stopAt = this.time;
+        } else if ((heavy || big) && this.time - this.stopAt >= HITSTOP_GAP_S) {
+          // feel pass B5: a short hitstop on the player's own heavy hits on a hero (at most one per HITSTOP_GAP_S)
+          this.stopAt = this.time;
+          this.juice.hitstop(HITSTOP_MS);
         }
         // C11d: the screen shakes for big hits only
         if (big) this.juice.kick(0.2);
@@ -417,7 +425,10 @@ export class Effects {
     // 4 m). Only Moonshot has a wind-up in the POC kits, so instant casts count too, or the tip would almost never come.
     if (src.team !== this.hooks.myTeam && src.kind === 'hero' && e.slot !== 4) {
       const me = this.hooks.who(this.hooks.mySlot);
-      if (me && (e.target === this.hooks.mySlot || Math.hypot(me.x - tx, me.z - tz) < 4)) this.hooks.onWindupAtMe?.();
+      if (me && (e.target === this.hooks.mySlot || Math.hypot(me.x - tx, me.z - tz) < 4)) {
+        this.hooks.onWindupAtMe?.();
+        this.ccCue(src.hero, e.slot, e.src);
+      }
     }
     // Wave C (C3): casts grow with the ability's rank; a maxed ability adds a sparkle ring
     const rk = e.slot <= 3 && src.kind === 'hero' ? rankScale(src.level ?? 1, e.slot) : 1;
@@ -589,8 +600,31 @@ export class Effects {
       // winds up within 7 m of them (a cone or a dash points at whoever is that close).
       const lands = me ? Math.hypot(me.x - e.x / 1000, me.z + e.y / 1000) : Infinity;
       const near = me ? Math.hypot(me.x - src.x, me.z - src.z) : Infinity;
-      if (me && (lands < 5 || (src.kind === 'hero' && near < 7))) this.hooks.onWindupAtMe?.();
+      if (me && (lands < 5 || (src.kind === 'hero' && near < 7))) {
+        this.hooks.onWindupAtMe?.();
+        if (src.kind === 'hero') this.ccCue(src.hero, e.slot, e.src);
+      }
     }
+  }
+
+  /** Feel pass B5: when the last own-hit hitstop ran (render s). */
+  private stopAt = -9;
+
+  /** Feel pass B5: the last CC cue per enemy (render s), so a windup and its cast do not both sound. */
+  private readonly ccAt = new Map<number, number>();
+  /** Cues played (tests). */
+  ccCues: string[] = [];
+  /** Feel pass B5: an enemy hard-CC aimed at the player: its own short sound (stun, charm, fear, root, sleep). */
+  private ccCue(hero: HeroId | undefined, slot: number, src: number): void {
+    const k = ccKindOf(hero, slot);
+    if (!k) return;
+    const last = this.ccAt.get(src) ?? -9;
+    if (this.time - last < 0.6) return;
+    this.ccAt.set(src, this.time);
+    const c = CC_CUE[k];
+    this.ccCues.push(k);
+    if (this.ccCues.length > 16) this.ccCues.shift();
+    sfx.play(c.name, { vol: c.vol, rate: c.rate });
   }
 
   /** Lane F (F1): where the player's last minion kill fell this tick (its "+N" Fish pops there, not over the hero). */
@@ -646,8 +680,9 @@ export class Effects {
       sfx.play('death', { at: v });
       // the words ("Takedown!", First Blood, multikills) come from the announcer (render/announcer.ts)
       if (e.killer === this.hooks.mySlot) {
-        // the killing blow: the killer freezes locally (140 ms); the global hitstop stays short (≤ 70 ms, §6)
-        this.juice.hitstop(FREEZE_CAP_MS);
+        // the killing blow: the killer freezes locally (140 ms); the global hitstop stays short (feel pass B5: 50 ms)
+        this.juice.hitstop(HITSTOP_MS);
+        this.stopAt = this.time;
         this.juice.kick(0.3);
       }
       if (e.id === this.hooks.mySlot) this.juice.kick(0.35);

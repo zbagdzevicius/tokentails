@@ -286,6 +286,8 @@ export function behindBanner(kOurs: number, kTheirs: number, tOurs: number, tThe
   return { title: `They lead ${kTheirs} to ${kOurs} on takedowns`, sub: 'Group up with your team and fight together.', tone: 'info' };
 }
 
+/** Feel pass B5: how long (ms, match time) the own plate reads "You" after the start. */
+export const YOU_LABEL_MS = 10_000;
 /** Feel pass B3: the touch target-lock row: enemies within this × the attack range, at most NEAR_ROW_MAX. */
 export const NEAR_ROW_K = 1.5;
 export const NEAR_ROW_MAX = 3;
@@ -790,6 +792,10 @@ export class MatchSession {
         this.mpLive = true;
         this.mp?.start();
         this.baseToast();
+        // feel pass B5: the own "You" label and arrow go after the first 10 s (the gold ring marks the hero)
+        setTimeout(() => {
+          if (this.overhead) this.overhead.youLabel = false;
+        }, YOU_LABEL_MS / Math.max(1, this.buffer.speed));
         setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
       });
   }
@@ -1103,8 +1109,13 @@ export class MatchSession {
   /** Is the player fighting: hurt by an enemy in the last 3 s? (talent offers wait then) */
   private inFight(): boolean {
     const last = this.hurtBy[this.hurtBy.length - 1];
-    return !!last && performance.now() - last.at < 3000 / Math.max(1, this.buffer.speed);
+    const span = 3000 / Math.max(1, this.buffer.speed);
+    const now = performance.now();
+    // feel pass B5: damage dealt to an enemy hero counts too (the talent card never opens over a fight)
+    return (!!last && now - last.at < span) || now - this.dealtAt < span;
   }
+  /** Feel pass B5: when the player last hit an enemy hero (ms). */
+  private dealtAt = -1e9;
 
   /** Hide the tower alert and the "Tower aiming at you!" lock-on (on death, on respawn, when no tower shoots). */
   private clearTowerWarnings(): void {
@@ -1545,7 +1556,8 @@ export class MatchSession {
     }
     this.overhead.hudRects = rects;
     const side: typeof rects = [];
-    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-minimap, .pl-strip, .pl-feed')) {
+    // feel pass B5: off-screen pointers and plates also keep clear of the button arc, the top strip, the ping corner
+    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-minimap, .pl-strip, .pl-feed, .pl-tbtn, .pl-score, .pl-pingbtn, .pl-emote, .pl-chatbtn')) {
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) side.push({ left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 });
     }
@@ -1967,6 +1979,10 @@ export class MatchSession {
             this.coreHit(dst, ev.src >= 0, frame);
             this.coreHitAt = performance.now();
           }
+        }
+        if (ev.type === 'hit' && ev.src === this.view.mySlot) {
+          const dst = frame.byId.get(ev.dst);
+          if (dst && dst.kind === 'hero' && dst.team !== this.view.myTeam) this.dealtAt = performance.now();
         }
         if (ev.type === 'hit' && ev.dst === this.view.mySlot) {
           const src = frame.byId.get(ev.src);
