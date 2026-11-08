@@ -33,7 +33,7 @@ describe('Avietė, shelter champion assassin (sim v9)', () => {
   it('data: an ELECTRIC cat assassin; no stealth in the kit', () => {
     expect([AVIETE.side, AVIETE.role, AVIETE.element, AVIETE.name]).toEqual(['cat', 'assassin', 'ELECTRIC', 'Avietė']);
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([180, 420, 420, 1950]);
-    expect(P).toEqual({ brushTime: 30, hold: 120, bonus: 60, bonusPerLevel: 10, stun: 15, lockout: 240 });
+    expect(P).toEqual({ brushTime: 30, hold: 120, bonus: 40, bonusPerLevel: 4, stun: 15, lockout: 240 });
   });
 
   it('Shy, Then Shiny: 1 s in brush charges her; the next hit on a hero deals bonus damage and stuns; 8 s lockout', () => {

@@ -10,9 +10,9 @@
     },
     {
       "key": "fixture:champion-replay.fixture.json",
-      "finalHash": "dbaee93b",
-      "trail": "ab997cec",
-      "ticks": 11979
+      "finalHash": "b5ecf83b",
+      "trail": "809861fa",
+      "ticks": 11158
     },
     {
       "key": "fixture:forfeit-replay.fixture.json",
@@ -40,9 +40,9 @@
     },
     {
       "key": "fuzz:3",
-      "finalHash": "8738111e",
-      "trail": "739d91d4",
-      "ticks": 8000
+      "finalHash": "87dc34d6",
+      "trail": "c6c2cd3b",
+      "ticks": 7422
     },
     {
       "key": "fuzz:4",
@@ -124,9 +124,9 @@
     },
     {
       "key": "fuzz:17",
-      "finalHash": "a016bf5d",
-      "trail": "0588aacf",
-      "ticks": 10423
+      "finalHash": "209fe3de",
+      "trail": "618b8a72",
+      "ticks": 11096
     },
     {
       "key": "fuzz:18",
@@ -155,7 +155,7 @@
     {
       "key": "bot:normal:13",
       "finalHash": "1c7ebf0b",
-      "trail": "6b8c5b35",
+      "trail": "b381e10b",
       "ticks": 10916
     },
     {
