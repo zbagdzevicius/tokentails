@@ -16,7 +16,8 @@ import { ELEMENT_COLOR, lookKey, mixColor, type Look } from './cosmetics';
 import type { CatTier, Element } from '../meta/roster';
 import { HERO_COLOR_CSS } from './palette';
 import { createBackdrop, type Backdrop } from './lobby/backdrop';
-import { lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit } from './lobby/lobbyBg';
+import { lobbyBgFor, lobbyBgOverride, lobbyBgUrl, lobbyBgVisit, screenBg, type LobbyBg } from './lobby/lobbyBg';
+import { HEROES } from '../data/heroes';
 import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
 import { reducedMotion, StageFx } from './lobby/stageFx';
 import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
@@ -73,6 +74,9 @@ export class Lobby {
   /** Half the drawn hero's widest horizontal extent (m), at least the pedestal's radius. */
   private halfWide = 1.85;
   private moodAt = -1;
+  /** Feel pass: the visit's scene, and the scene now shown (the pick / results screens swap in their own). */
+  private visitBg: LobbyBg = 'castles';
+  private shownBg: LobbyBg | null = null;
   private readonly backdrop: Backdrop;
   private readonly pedestal: Pedestal;
   private readonly stage: StageFx;
@@ -324,7 +328,18 @@ export class Lobby {
   /** UX pass 2: the visit's painted scene behind the turntable (the gradient shows until it loads). */
   private loadScene(): void {
     if (typeof window === 'undefined') return;
-    const bg = lobbyBgOverride(window.location.search) ?? lobbyBgFor(lobbyBgVisit());
+    this.visitBg = lobbyBgOverride(window.location.search) ?? lobbyBgFor(lobbyBgVisit());
+    this.syncScene();
+  }
+
+  /** Shows the current screen's scene (pick: the stage; results: the species' victory / defeat), else the visit's. */
+  private syncScene(): void {
+    if (typeof window === 'undefined' || typeof document === 'undefined') return;
+    const side = this.heroId ? HEROES[this.heroId].side : 'cat';
+    const won = !!document.querySelector('.pl-results.won');
+    const bg = screenBg(document.documentElement.dataset.screen, { won, side }) ?? this.visitBg;
+    if (bg === this.shownBg) return;
+    this.shownBg = bg;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
     const url = lobbyBgUrl(bg, { base: import.meta.env.BASE_URL ?? './', bufferWidth: (window.innerWidth || 1280) * dpr, low: this.gr.settings.tier === 'low' });
     document.documentElement.dataset.lobbyBg = bg;
@@ -341,6 +356,7 @@ export class Lobby {
     this.t += dt;
     setCharTime(this.t);
     const h = this.hero;
+    if (this.t - this.moodAt > 0.3) this.syncScene();
     if (h) {
       this.spin += dt * 0.55;
       this.hop = Math.min(1, this.hop + dt * 2.5);
