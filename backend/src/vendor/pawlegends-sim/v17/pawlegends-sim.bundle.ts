@@ -4267,7 +4267,13 @@ var HERO_RULES = Object.freeze({
 	meleeMaxRange: 3e3,
 	projectile: 18e3,
 	/** Attack-move and idle heroes acquire enemies within this distance (edge to edge). */
-	acquireRange: 6e3
+	acquireRange: 6e3,
+	/**
+	* Founder bug 2026-11-08 ("close to impossible to basic attack a champ while chasing"): a hero with an attack order
+	* starts its swing within its attack range + this many mm (about two ticks of a walk), so a chase that holds the gap
+	* at the edge of range still swings. Keep it under the windup's landing slack (the target's radius).
+	*/
+	chaseLeeway: 300
 });
 //#endregion
 //#region src/data/minions.ts
@@ -12815,6 +12821,28 @@ function chase(m, id, tx, ty) {
 	if (w.timer[id] === 0 || w.pathIdx[id] >= w.pathLen[id]) planPath(m, id, tx, ty);
 	walk(m, id);
 }
+/**
+* An attack order on target `t` (founder bug 2026-11-08, chasing). The swing starts within attack range +
+* HERO_RULES.chaseLeeway. While the attack timer runs, the hero stands only while `t` is in attack range and follows it
+* otherwise, so a target walking away at the same speed is still in reach when the next swing is ready (it used to gain
+* the whole attack interval). A faster or dashing target still opens the gap and gets away.
+*/
+function engage(m, id, t) {
+	const w = m.world;
+	if (inAttackRange(w, id, t, HERO_RULES.chaseLeeway) && (w.attackTimer[id] === 0 || inAttackRange(w, id, t))) {
+		swingAt(w, id, t);
+		if (w.windup[id] > 0) followSwing(m, id);
+	} else chase(m, id, w.x[t], w.y[t]);
+}
+/** Mid-swing with an attack order: step after a target that left attack range, still facing it and swinging. */
+function followSwing(m, id) {
+	const w = m.world;
+	const t = w.target[id];
+	if (t < 0 || !targetable(w, t, w.team[id]) || inAttackRange(w, id, t)) return;
+	chase(m, id, w.x[t], w.y[t]);
+	w.facing[id] = iatan2(w.y[t] - w.y[id], w.x[t] - w.x[id]);
+	w.state[id] = UnitState.Attacking;
+}
 function swingAt(w, id, t) {
 	w.facing[id] = iatan2(w.y[t] - w.y[id], w.x[t] - w.x[id]);
 	if (!startAttack(w, id, t)) w.state[id] = UnitState.Attacking;
@@ -12912,8 +12940,11 @@ function stepHero(m, id) {
 		if (!walkInDone(m, id)) chase(m, id, walkInX(w, id), walkInY(w, id));
 		return;
 	}
-	if (w.windup[id] > 0) return;
 	const order = w.order[id];
+	if (w.windup[id] > 0) {
+		if (order === Order.Attack || order === Order.AttackMove) followSwing(m, id);
+		return;
+	}
 	if (order === Order.Attack) {
 		const t = w.target[id];
 		if (t < 0 || !targetable(w, t, w.team[id])) {
@@ -12922,8 +12953,7 @@ function stepHero(m, id) {
 			w.state[id] = UnitState.Idle;
 			return;
 		}
-		if (inAttackRange(w, id, t)) swingAt(w, id, t);
-		else chase(m, id, w.x[t], w.y[t]);
+		engage(m, id, t);
 		return;
 	}
 	if (order === Order.AttackMove) {
@@ -12931,8 +12961,7 @@ function stepHero(m, id) {
 		if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, HERO_RULES.acquireRange, false);
 		w.target[id] = t;
 		if (t >= 0) {
-			if (inAttackRange(w, id, t)) swingAt(w, id, t);
-			else chase(m, id, w.x[t], w.y[t]);
+			engage(m, id, t);
 			return;
 		}
 		if (walk(m, id)) {

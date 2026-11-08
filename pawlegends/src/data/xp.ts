@@ -111,4 +111,10 @@ export const HERO_RULES = Object.freeze({
   projectile: 18000,
   /** Attack-move and idle heroes acquire enemies within this distance (edge to edge). */
   acquireRange: 6000,
+  /**
+   * Founder bug 2026-11-08 ("close to impossible to basic attack a champ while chasing"): a hero with an attack order
+   * starts its swing within its attack range + this many mm (about two ticks of a walk), so a chase that holds the gap
+   * at the edge of range still swings. Keep it under the windup's landing slack (the target's radius).
+   */
+  chaseLeeway: 300,
 });

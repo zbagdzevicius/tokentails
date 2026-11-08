@@ -241,6 +241,31 @@ function chase(m: MatchHandle, id: number, tx: number, ty: number): void {
   walk(m, id);
 }
 
+/**
+ * An attack order on target `t` (founder bug 2026-11-08, chasing). The swing starts within attack range +
+ * HERO_RULES.chaseLeeway. While the attack timer runs, the hero stands only while `t` is in attack range and follows it
+ * otherwise, so a target walking away at the same speed is still in reach when the next swing is ready (it used to gain
+ * the whole attack interval). A faster or dashing target still opens the gap and gets away.
+ */
+function engage(m: MatchHandle, id: number, t: number): void {
+  const w = m.world;
+  if (inAttackRange(w, id, t, HERO_RULES.chaseLeeway) && (w.attackTimer[id] === 0 || inAttackRange(w, id, t))) {
+    swingAt(w, id, t);
+    // a swing started in the leeway steps on with the target from its first tick (no stand-still tick lost per swing)
+    if (w.windup[id] > 0) followSwing(m, id);
+  } else chase(m, id, w.x[t], w.y[t]);
+}
+
+/** Mid-swing with an attack order: step after a target that left attack range, still facing it and swinging. */
+function followSwing(m: MatchHandle, id: number): void {
+  const w = m.world;
+  const t = w.target[id];
+  if (t < 0 || !targetable(w, t, w.team[id]) || inAttackRange(w, id, t)) return;
+  chase(m, id, w.x[t], w.y[t]);
+  w.facing[id] = iatan2(w.y[t] - w.y[id], w.x[t] - w.x[id]);
+  w.state[id] = UnitState.Attacking;
+}
+
 function swingAt(w: World, id: number, t: number): void {
   w.facing[id] = iatan2(w.y[t] - w.y[id], w.x[t] - w.x[id]);
   if (!startAttack(w, id, t)) w.state[id] = UnitState.Attacking;
@@ -338,8 +363,13 @@ function stepHero(m: MatchHandle, id: number): void {
     if (!walkInDone(m, id)) chase(m, id, walkInX(w, id), walkInY(w, id));
     return;
   }
-  if (w.windup[id] > 0) return; // mid-swing
   const order = w.order[id];
+  if (w.windup[id] > 0) {
+    // mid-swing. Founder bug 2026-11-08: with an attack order the hero keeps pace with a target walking out of range
+    // during the windup (MLBB's follow), so the swing lands instead of the target gaining a windup's walk each swing.
+    if (order === Order.Attack || order === Order.AttackMove) followSwing(m, id);
+    return;
+  }
   if (order === Order.Attack) {
     const t = w.target[id];
     if (t < 0 || !targetable(w, t, w.team[id])) {
@@ -348,8 +378,7 @@ function stepHero(m: MatchHandle, id: number): void {
       w.state[id] = UnitState.Idle;
       return;
     }
-    if (inAttackRange(w, id, t)) swingAt(w, id, t);
-    else chase(m, id, w.x[t], w.y[t]);
+    engage(m, id, t);
     return;
   }
   if (order === Order.AttackMove) {
@@ -357,8 +386,7 @@ function stepHero(m: MatchHandle, id: number): void {
     if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, HERO_RULES.acquireRange, false);
     w.target[id] = t;
     if (t >= 0) {
-      if (inAttackRange(w, id, t)) swingAt(w, id, t);
-      else chase(m, id, w.x[t], w.y[t]);
+      engage(m, id, t);
       return;
     }
     if (walk(m, id)) {
