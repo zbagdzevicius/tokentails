@@ -3547,6 +3547,8 @@ var PUDDING_SPOT = Object.freeze({
 });
 /** Brush reveal: a unit in a bush is visible to an enemy within 2 m or in the same bush (§7.3). */
 var BRUSH_REVEAL_MM = 2e3;
+/** Sim v17 (MAP-GAPS B12, V17.md §4): an enemy minion sees into a bush from 3 m (the bush-scouting part). */
+var MINION_BRUSH_REVEAL_MM = 3e3;
 /**
 * Impassable rocks and roots (Purrhaven side, mirrored for Woof), axis-aligned rectangles in mm: [x0, y0, x1, y1].
 * They shape the jungle between the lanes and the rat camp; no lane (8 m wide) crosses one. The nav grid
@@ -12038,7 +12040,8 @@ function structureShot(w, id, dst) {
 /**
 * Catnip Bushes and what each team sees (POC.md §7.3, §15 item 9). No fog in the POC: everything is visible except
 *
-* - a unit in a bush, unless an enemy unit is within BRUSH_REVEAL_MM or in the same bush;
+* - a unit in a bush, unless an enemy unit is within BRUSH_REVEAL_MM (an enemy minion: MINION_BRUSH_REVEAL_MM, sim v17
+*   MAP-GAPS B12) or in the same bush;
 * - a stealthed unit, unless an enemy unit is within EFFECTS.stealthReveal;
 *
 * and a revealed (`mark`) unit is visible regardless. `refreshVision` writes the result into `w.seen` (bit t = team t
@@ -12076,13 +12079,14 @@ function hiddenFrom(w, id, team) {
 	const stealthed = w.stealthT[id] > 0;
 	if (bush < 0 && !stealthed) return false;
 	const rb = BRUSH_REVEAL_MM * BRUSH_REVEAL_MM;
+	const rm = MINION_BRUSH_REVEAL_MM * MINION_BRUSH_REVEAL_MM;
 	const rs = EFFECTS.stealthReveal * EFFECTS.stealthReveal;
 	let brushSeen = bush < 0;
 	let stealthSeen = !stealthed;
 	for (let e = 0; e < RANGE.end && !(brushSeen && stealthSeen); e++) {
 		if (w.alive[e] === 0 || w.team[e] !== team || w.kind[e] === Kind.Fountain) continue;
 		const d2 = dist2(w.x[e], w.y[e], w.x[id], w.y[id]);
-		if (!brushSeen && (d2 <= rb || w.bush[e] === bush)) brushSeen = true;
+		if (!brushSeen && (d2 <= (w.kind[e] === Kind.Minion ? rm : rb) || w.bush[e] === bush)) brushSeen = true;
 		if (!stealthSeen && d2 <= rs) stealthSeen = true;
 	}
 	return !(brushSeen && stealthSeen);

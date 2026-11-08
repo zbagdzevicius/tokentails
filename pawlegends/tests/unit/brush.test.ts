@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BRUSH_ATTACK_REVEAL_TICKS, BRUSH_REVEAL_MM, BUSHES, mirrorX } from '../../src/data/map';
+import { BRUSH_ATTACK_REVEAL_TICKS, BRUSH_REVEAL_MM, BUSHES, MINION_BRUSH_REVEAL_MM, mirrorX } from '../../src/data/map';
 import { Op } from '../../src/sim/api';
 import { dealDamage } from '../../src/sim/combat/damage';
 import { reveal } from '../../src/sim/effects';
@@ -60,6 +60,19 @@ describe('brush (§7.3, §15 item 9)', () => {
     // A different bush does not count.
     place(m, SEER, BUSHES[1].x, BUSHES[1].y, 0);
     expect(visibleTo(m.world, HIDER, 0)).toBe(false);
+  });
+
+  it('sim v17 B12: an enemy minion reveals a bush unit from 2.9 m, not from 3.1 m (a hero still needs 2 m)', () => {
+    const m = bushMatch();
+    expect(MINION_BRUSH_REVEAL_MM).toBe(3000);
+    // The hider sits at the bush's west edge, so the minion stands outside the bush.
+    place(m, HIDER, BUSH.x - (BUSH.w >> 1) + 100, BUSH.y, 0);
+    const minion = putMinion(m, 0, BUSH.x - (BUSH.w >> 1) + 100 - 3100, BUSH.y);
+    refreshVision(m.world);
+    expect(visibleTo(m.world, HIDER, 0)).toBe(false);
+    m.world.x[minion] += 200;
+    refreshVision(m.world);
+    expect(visibleTo(m.world, HIDER, 0)).toBe(true);
   });
 
   it('a minion in a bush is hidden too; a revealed (marked) unit shows through the bush', () => {

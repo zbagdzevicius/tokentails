@@ -97,6 +97,8 @@ export const PUDDING_SPOT = Object.freeze({ x: 50000, y: 30000 });
 
 /** Brush reveal: a unit in a bush is visible to an enemy within 2 m or in the same bush (§7.3). */
 export const BRUSH_REVEAL_MM = 2000;
+/** Sim v17 (MAP-GAPS B12, V17.md §4): an enemy minion sees into a bush from 3 m (the bush-scouting part). */
+export const MINION_BRUSH_REVEAL_MM = 3000;
 /**
  * Sim v16 (MAP-GAPS B11): a hero that hits or starts a cast from a bush is revealed for this many ticks (1.5 s), so a
  * bush hides an ambush, not a fight (PARITY.md §3.10 map-hack mitigation 2).
