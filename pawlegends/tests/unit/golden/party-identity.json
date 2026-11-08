@@ -22,15 +22,15 @@
     },
     {
       "key": "fuzz:0",
-      "finalHash": "bb7d4c42",
-      "trail": "ece73225",
-      "ticks": 7291
+      "finalHash": "00c56166",
+      "trail": "74a671c7",
+      "ticks": 9142
     },
     {
       "key": "fuzz:1",
-      "finalHash": "60a518be",
-      "trail": "b5eba4ff",
-      "ticks": 10133
+      "finalHash": "910b117d",
+      "trail": "78814ffd",
+      "ticks": 7394
     },
     {
       "key": "fuzz:2",
@@ -118,9 +118,9 @@
     },
     {
       "key": "fuzz:16",
-      "finalHash": "a3f3c325",
-      "trail": "feee88df",
-      "ticks": 10901
+      "finalHash": "b950410f",
+      "trail": "b41280f2",
+      "ticks": 10893
     },
     {
       "key": "fuzz:17",
@@ -136,9 +136,9 @@
     },
     {
       "key": "fuzz:19",
-      "finalHash": "b435c12b",
-      "trail": "6f0f53d5",
-      "ticks": 14493
+      "finalHash": "4f5a6edd",
+      "trail": "ab331570",
+      "ticks": 12219
     },
     {
       "key": "bot:pinger:11",
