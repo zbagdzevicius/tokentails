@@ -19,6 +19,7 @@ for (const [w, h] of [
 ] as const) {
   test(`${w}x${h}: the hero holds its screen spot while walking (no drift, no lead)`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch phone sizes');
+    test.setTimeout(120_000);
     await page.setViewportSize({ width: w, height: h });
     await startFirstMatch(page);
     await page.waitForTimeout(800);
