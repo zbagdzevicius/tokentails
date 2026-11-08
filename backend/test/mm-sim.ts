@@ -7,6 +7,7 @@
  *   npx ts-node --transpile-only test/mm-sim.ts
  */
 import { Matchmaker, type MmEntry, type MmSideChoice } from '../src/pawlegends/mm/matchmaker';
+import { BOT_RATING } from '../src/pawlegends/mm/casual';
 import { MM_CASUAL, MM_LIMITS } from '../src/pawlegends/mm/mm-limits';
 
 /** Deterministic PRNG (mulberry32). */
@@ -130,6 +131,10 @@ export interface CasualSimResult {
     fourPlus: number;
     humanOnly: number;
     fair: number;
+    /** Every casual match (bots counted at their level) predicted inside `MM_CASUAL.fairAfter`. */
+    boundedAll: number;
+    /** Casual matches whose two teams got different bot levels (must stay 0). */
+    botSplit: number;
     /** Units seated in co-op after the switch. */
     toCoop: number;
 }
@@ -151,6 +156,8 @@ export function simulateCasual(perMin: number, hours = 2, seed = 11): CasualSimR
     let fourPlus = 0;
     let humanOnly = 0;
     let fair = 0;
+    let boundedAll = 0;
+    let botSplit = 0;
     let toCoop = 0;
     const rating = new Map<string, number>();
     while (now < endMs) {
@@ -198,6 +205,11 @@ export function simulateCasual(perMin: number, hours = 2, seed = 11): CasualSimR
             }
             matches++;
             if (m.humans >= 4) fourPlus++;
+            const [t0, t1] = m.teams!;
+            if (t0.difficulty !== t1.difficulty) botSplit++;
+            const eff = (t: typeof t0) => (t.rating * t.humans + t.bots * BOT_RATING[t.difficulty]) / 3;
+            const pAll = 1 / (1 + Math.pow(10, (eff(t1) - eff(t0)) / 400));
+            if (pAll >= MM_CASUAL.fairAfter[0] - 1e-9 && pAll <= MM_CASUAL.fairAfter[1] + 1e-9) boundedAll++;
             if (m.humans === 6) {
                 humanOnly++;
                 const p = 1 / (1 + Math.pow(10, (m.teams![1].rating - m.teams![0].rating) / 400));
@@ -216,6 +228,8 @@ export function simulateCasual(perMin: number, hours = 2, seed = 11): CasualSimR
         fourPlus,
         humanOnly,
         fair,
+        boundedAll,
+        botSplit,
         toCoop,
     };
 }
@@ -241,6 +255,13 @@ export function casualVerdict(results: CasualSimResult[]): string[] {
                 `casual ${r.rate}/min: ${((r.fourPlus / r.matches) * 100).toFixed(0)} % with >= 4 humans < 70 %`
             );
         if (r.rate >= 60 && r.p50 >= 20_000) fails.push(`casual ${r.rate}/min: p50 ${r.p50} ms >= 20000`);
+        if (r.boundedAll !== r.matches)
+            fails.push(
+                `casual ${r.rate}/min: ${r.matches - r.boundedAll} matches predicted outside ${MM_CASUAL.fairAfter.join(
+                    '..'
+                )}`
+            );
+        if (r.botSplit) fails.push(`casual ${r.rate}/min: ${r.botSplit} matches with different bot levels per team`);
         if (r.rate >= 20 && r.humanOnly >= 20 && r.fair / r.humanOnly < 0.8)
             fails.push(`casual ${r.rate}/min: ${((r.fair / r.humanOnly) * 100).toFixed(0)} % fair < 80 %`);
     }
@@ -258,7 +279,7 @@ if (require.main === module && process.argv.includes('--casual')) {
             )}  ` +
                 `>=4 humans ${r.matches ? ((r.fourPlus / r.matches) * 100).toFixed(0) : 0} %  fair ${
                     r.humanOnly ? ((r.fair / r.humanOnly) * 100).toFixed(0) : '-'
-                } % of ${r.humanOnly}  to co-op ${r.toCoop}`
+                } % of ${r.humanOnly}  bounded ${r.boundedAll}/${r.matches}  to co-op ${r.toCoop}`
         );
     const fails = casualVerdict(results);
     for (const f of fails) console.error(`FAIL ${f}`);

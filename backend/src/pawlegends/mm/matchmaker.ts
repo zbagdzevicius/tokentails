@@ -11,7 +11,7 @@
  * 1 or 2 queues as one entry. Empty teammate seats are plain sim bots (§2.5).
  */
 import { randomBytes } from 'crypto';
-import { bestCasual, fillDifficultyFor, team0SpeciesNext, teamRating, type CasualPlan, type Species } from './casual';
+import { bestCasual, matchFillDifficulty, team0SpeciesNext, teamRating, type CasualPlan, type Species } from './casual';
 import { difficultyAllowed, matchDifficulty, matchSide, partyRating, sidesCompatible } from './fill';
 import { fillAtMs, MM_CASUAL, MM_LIMITS, pairFillMs } from './mm-limits';
 
@@ -81,7 +81,7 @@ export interface MmTeam {
     members: string[];
     humans: number;
     bots: number;
-    /** The bot profile of this team's fill seats (from its human mean). */
+    /** The bot profile of this team's fill seats (casual: the same for both teams, from the mean of every human). */
     difficulty: 'easy' | 'normal' | 'hard';
     rating: number;
 }
@@ -534,6 +534,8 @@ export class Matchmaker {
         recent.push(left);
         if (recent.length > MM_CASUAL.sideBalanceN) recent.shift();
         this.recentLeft.set(key, recent);
+        // one bot level for both teams (from every human), so the fill never tilts the match
+        const difficulty = matchFillDifficulty(plan.teams);
         const teams = order.map(i => {
             const group = plan.teams[i];
             const members = group.flatMap(e => e.members);
@@ -544,7 +546,7 @@ export class Matchmaker {
                 members: members.map(m => m.member),
                 humans: members.length,
                 bots: 3 - members.length,
-                difficulty: fillDifficultyFor(rating),
+                difficulty,
                 rating,
             };
         }) as [MmTeam, MmTeam];

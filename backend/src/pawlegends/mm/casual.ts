@@ -33,6 +33,32 @@ export function teamRating(group: readonly MmEntry[]): number {
     return n ? sum / n : 1500;
 }
 
+/** Fill-bot difficulty for a match (§4.1 step 5), from the mean of ALL its humans so both teams get the same bots. */
+export function matchFillDifficulty(teams: readonly (readonly MmEntry[])[]): 'easy' | 'normal' | 'hard' {
+    return fillDifficultyFor(teamRating(teams.flat()));
+}
+
+/** The rating a fill bot of each difficulty plays at, for the win prediction (the middle of its band). */
+export const BOT_RATING: Readonly<Record<'easy' | 'normal' | 'hard', number>> = Object.freeze({
+    easy: 1200,
+    normal: 1475,
+    hard: 1800,
+});
+
+/**
+ * A team's strength with its bots (three seats): humans at their ratings, each empty seat at the bot rating. This is
+ * what the fairness rule and the cost use, so a 1v1 with two bots each side is judged on the whole team, not the human.
+ */
+export function effectiveRating(group: readonly MmEntry[], botRating: number): number {
+    let sum = 0;
+    let n = 0;
+    for (const e of group) {
+        sum += entryRating(e).r * e.members.length;
+        n += e.members.length;
+    }
+    return (sum + Math.max(0, 3 - n) * botRating) / 3;
+}
+
 /** The predicted win chance of team A (Elo curve on the team means). */
 export const winChance = (ra: number, rb: number): number => 1 / (1 + Math.pow(10, (rb - ra) / 400));
 
@@ -155,15 +181,18 @@ export function bestCasual(
             const rb = teamRating(teamB);
             const window = casualWindow([...teamA, ...teamB], waited);
             if (Math.abs(ra - rb) > window) continue;
-            // a human-only match stays fair (predicted 40..60 %) while the anchor waited less than `fairUntilMs`
-            const p0 = winChance(ra, rb);
-            if (rank === 0 && waited < c.fairUntilMs && (p0 < 0.4 || p0 > 0.6)) continue;
+            // predicted on the whole team: both sides' bots play at one level, from the mean of every human
+            const bot = BOT_RATING[matchFillDifficulty([teamA, teamB])];
+            const p = winChance(effectiveRating(teamA, bot), effectiveRating(teamB, bot));
+            // every shape stays fair: predicted 40..60 % while the anchor waited less than `fairUntilMs`, then
+            // within `fairAfter` (filled 1v1 and 3v1 included, so the widened window never seats a lopsided match)
+            const fair = waited < c.fairUntilMs ? c.fairBand : c.fairAfter;
+            if (p < fair[0] || p > fair[1]) continue;
             // species: A takes one the sides allow, B the other
             for (const sa of speciesFor(teamA, relaxed)) {
                 const sb: Species = sa === 'cat' ? 'dog' : 'cat';
                 if (!speciesFor(teamB, relaxed).includes(sb)) continue;
                 const mismatch = sideMismatch(teamA, sa) + sideMismatch(teamB, sb);
-                const p = winChance(ra, rb);
                 let orderCost = 0;
                 for (const e of [...mates, ...teamB]) orderCost += order.get(e.id) ?? 0;
                 const cost =
@@ -194,7 +223,7 @@ export function team0SpeciesNext(recent: readonly Species[]): Species {
     return dogs < cats ? 'dog' : 'cat';
 }
 
-/** Fill-bot difficulty from a team's human mean (§4.1 step 5): < 1300 easy, < 1650 normal, else hard. */
+/** Fill-bot difficulty from a human mean (§4.1 step 5): < 1300 easy, < 1650 normal, else hard. */
 export function fillDifficultyFor(r: number): 'easy' | 'normal' | 'hard' {
     if (r < 1300) return 'easy';
     if (r < 1650) return 'normal';

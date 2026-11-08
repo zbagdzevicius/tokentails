@@ -1,4 +1,4 @@
-import { casualWindow, shapeRank, team0SpeciesNext } from './casual';
+import { BOT_RATING, casualWindow, effectiveRating, shapeRank, team0SpeciesNext, winChance } from './casual';
 import { Matchmaker, type MmEntry, type MmMember, type MmMatch } from './matchmaker';
 import { MM_CASUAL, MM_LIMITS } from './mm-limits';
 
@@ -198,16 +198,22 @@ describe('casual PvP matchmaker', () => {
         expect(matchesOf(advance(MM_CASUAL.fillMs - 1000))).toHaveLength(0);
     });
 
-    it("sets each team's fill bots from its own rating", () => {
+    it('both teams get the same fill bots, from the mean of every human (1295 v 1305 is not easy v normal)', () => {
         const { clock, mm, advance } = make();
-        mm.join(entry(clock, [member('lo', { rating: { r: 1250, rd: 60 } })]));
-        mm.join(entry(clock, [member('hi', { rating: { r: 1550, rd: 60 } })]));
+        mm.join(entry(clock, [member('lo', { rating: { r: 1295, rd: 60 } })]));
+        mm.join(entry(clock, [member('hi', { rating: { r: 1305, rd: 60 } })]));
         const [m] = matchesOf(advance(MM_CASUAL.fillMs + 1000));
         expect(m.teams!.map(t => t.humans)).toEqual([1, 1]);
-        const lo = m.teams![teamOf(m, 'm-lo')];
-        const hi = m.teams![teamOf(m, 'm-hi')];
-        expect(lo.difficulty).toBe('easy');
-        expect(hi.difficulty).toBe('normal');
+        expect(m.teams!.map(t => t.difficulty)).toEqual(['normal', 'normal']);
+    });
+
+    it('a filled match is judged with its bots: a 1v1 the 400-point window allows but predicted outside 35..65 % waits', () => {
+        expect(winChance(effectiveRating([], BOT_RATING.normal), BOT_RATING.normal)).toBeCloseTo(0.5);
+        const { clock, mm, advance } = make();
+        mm.join(entry(clock, [member('lo', { rating: { r: 1200, rd: 60 } })]));
+        mm.join(entry(clock, [member('hi', { rating: { r: 1600, rd: 60 } })]));
+        const out = matchesOf(advance(MM_CASUAL.switchMs - 1000));
+        expect(out.filter(m => m.mode === 'casual')).toHaveLength(0);
     });
 
     it('a co-op entry never joins a casual match and the other way round', () => {
