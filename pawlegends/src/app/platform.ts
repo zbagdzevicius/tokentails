@@ -30,6 +30,29 @@ export function inAppShell(env: boolean = APP_ENV, w: unknown = typeof window !=
 }
 
 /**
+ * Which native shell runs the page: `mac` in the Mac App Store app (Mac Catalyst), `ios` on iPhone, null on the web.
+ * The shell sets `window.__PL_PLATFORM__` before any page script (GameViewController.swift); an older iPhone binary
+ * that predates it is still `ios`. Never throws.
+ */
+export function shellPlatform(env: boolean = APP_ENV, w: unknown = typeof window !== 'undefined' ? window : undefined): 'mac' | 'ios' | null {
+  if (!inAppShell(env, w)) return null;
+  try {
+    return (w as { __PL_PLATFORM__?: unknown } | undefined)?.__PL_PLATFORM__ === 'mac' ? 'mac' : 'ios';
+  } catch {
+    return 'ios';
+  }
+}
+
+/**
+ * Touch controls from the start of a match: a coarse pointer, except in the Mac app, which always plays with keyboard
+ * and mouse and the desktop HUD (a first real touch still turns touch controls on, as on the web).
+ */
+export function coarsePointer(platform: 'mac' | 'ios' | null = shellPlatform(), mm: ((q: string) => { matches: boolean }) | undefined = typeof matchMedia === 'function' ? matchMedia : undefined): boolean {
+  if (platform === 'mac') return false;
+  return !!mm && mm('(pointer: coarse)').matches;
+}
+
+/**
  * The base URL a dare link is built on: the public game in the app (its own address is `capacitor://localhost`,
  * which no friend can open), the host page's `/pawlegends` when embedded, else this page.
  */

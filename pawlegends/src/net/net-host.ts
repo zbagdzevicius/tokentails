@@ -192,8 +192,9 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'vote', kind, yes });
   }
 
-  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs: number } {
-    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups, inputMs: Math.round(this.inputLatencyMs()) };
+  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs: number; inputP50?: number; inputP95?: number; inputN: number } {
+    const q = this.inputStats();
+    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups, inputMs: Math.round(this.inputLatencyMs()), ...(q.n ? { inputP50: q.p50, inputP95: q.p95 } : {}), inputN: q.n };
   }
   private buffer = 1;
 
@@ -670,6 +671,18 @@ export class NetHost implements PartyLink {
    */
   private readonly inflight: { seq: number; at: number }[] = [];
   private inputEwma = 0;
+  /**
+   * The newest raw send-to-applied samples (ms; BENCHMARKS.md, `mp_net.input_p50` / `input_p95`, and the RTT harness
+   * tests/perf/net-rtt.test.ts read them). Never cleared mid-match: a minute's window at most.
+   */
+  readonly inputSamples: number[] = [];
+
+  /** p50 / p95 of the raw input samples (0 when none yet). */
+  inputStats(): { n: number; p50: number; p95: number } {
+    const s = [...this.inputSamples].sort((a, b) => a - b);
+    const at = (p: number) => (s.length ? Math.round(s[Math.min(s.length - 1, Math.floor(s.length * p))]) : 0);
+    return { n: s.length, p50: at(0.5), p95: at(0.95) };
+  }
   private sent(seq: number | undefined): void {
     if (typeof seq !== 'number') return;
     if (this.inflight.length >= 32) this.inflight.shift();
@@ -683,6 +696,8 @@ export class NetHost implements PartyLink {
       const ms = now - this.inflight.shift()!.at;
       // a stale one (a reload, a resume) says nothing about the link
       if (ms > 2000) continue;
+      if (this.inputSamples.length >= INPUT_SAMPLES_MAX) this.inputSamples.shift();
+      this.inputSamples.push(ms);
       this.inputEwma = this.inputEwma === 0 ? ms : this.inputEwma * 0.8 + ms * 0.2;
     }
   }
@@ -763,6 +778,8 @@ export class NetHost implements PartyLink {
   }
 }
 
+/** Raw input-latency samples kept (about a minute of taps). */
+export const INPUT_SAMPLES_MAX = 240;
 /** The cosmetic lead never covers more than this (ms of movement). */
 export const PREDICT_MAX_MS = 600;
 /** The own hero is drawn this far behind the newest snapshot (SELF_LAG ticks plus the render clock's smoothing). */
