@@ -24,7 +24,7 @@
  */
 import type { BoneName } from '../chars/skeleton';
 import { BASIC_CONTACT, DEFAULT_GAIT, HERO_SPRINGS } from '../anim/common';
-import { DASH_SPEED, FLOP_RING_DELAY, KNOCK_TICKS, SIM_TIMING, TICK_S, travelTicks } from '../anim/timing';
+import { FLOP_RING_DELAY, KNOCK_TICKS, SIM_TIMING, TICK_S, travelTicks } from '../anim/timing';
 import { Prio, type BoneDelta, type ClipDef, type GaitProfile, type MoveCtx, type MoveSet, type ScalarKey } from '../anim/types';
 
 const T = SIM_TIMING.lambo;

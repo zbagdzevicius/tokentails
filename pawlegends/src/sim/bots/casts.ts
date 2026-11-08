@@ -509,7 +509,9 @@ export function purrifyCast(w: World, id: number, p: BotParams): Command | null 
   if (p.trick === 'never' || TRICK_IDS[w.trick[id]] !== 'purrify' || !canCast(w, id, TRICK_SLOT)) return null;
   const min = BOT_AI.purrifyMinTicks;
   const hard = w.stunT[id] >= min || w.fearT[id] >= min;
-  if (!hard && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0) && windupThreat(w, id) < 0) return null;
+  // Sim v17 (V17.md §3.5): a cleanse also breaks Sir Brutus's arena around a tethered foe.
+  const caged = w.tether[id] >= 0 && w.zOwner[w.tether[id]] !== id;
+  if (!hard && !caged && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0) && windupThreat(w, id) < 0) return null;
   return cast(TRICK_SLOT, w.x[id], w.y[id], NO_TARGET);
 }
 

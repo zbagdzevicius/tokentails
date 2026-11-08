@@ -136,6 +136,11 @@ export const BRUTUS_KIT: HeroKit = {
     if (w.globals[G.Tick] - w.kHurt[id] < p.decayAfter) w.kHonour[id] = Math.min(cap, w.kHonour[id] + rate);
     else w.kHonour[id] = Math.max(0, w.kHonour[id] - rate);
     if (w.kWT[id] > 0 && --w.kWT[id] === 0) w.kWAge[id] = 0;
+    // Sim v17 (V17.md §3.5): the arena broke early (the foe's Pounce or a cleanse): the challenge and its cut end.
+    if (w.kRT[id] > 0 && w.tether[id] < 0) {
+      w.kRT[id] = 0;
+      w.kFoe[id] = -1;
+    }
     if (w.kRT[id] > 0) {
       const bp = abil(w, id).r.allySpeedBp ?? 0;
       const z = w.tether[id];
@@ -171,7 +176,7 @@ export const BRUTUS_KIT: HeroKit = {
     const a = abil(w, id);
     // Guard Post (sim v10): planted, he braces and takes `postReduceBp` less from everything.
     const d = planted(w, id) ? applyBp(dmg, BP_ONE - (a.w.postReduceBp ?? 0)) : dmg;
-    if (w.kRT[id] > 0 && src >= 0 && src === w.kFoe[id]) return applyBp(d, BP_ONE - a.r.reduceBp);
+    if (w.kRT[id] > 0 && w.tether[id] >= 0 && src >= 0 && src === w.kFoe[id]) return applyBp(d, BP_ONE - a.r.reduceBp);
     return d;
   },
   absorb(m, id, dmg) {

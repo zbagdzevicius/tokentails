@@ -35,7 +35,7 @@ describe('Sir Brutus (§6.5)', () => {
     expect([a.q.radius, a.q.dmg, a.q.dmgPerLevel, a.q.slowBp, a.q.slow]).toEqual([3000, 60, 5, 3000, 45]);
     expect([a.w.duration, a.w.arc]).toEqual([75, 1365]);
     expect([a.e.dash, a.e.knockback, a.e.stun]).toEqual([5000, 2000, 15]);
-    expect([a.r.range, a.r.ringRadius, a.r.duration, a.r.reduceBp]).toEqual([5000, 6000, 90, 3000]);
+    expect([a.r.range, a.r.ringRadius, a.r.duration, a.r.reduceBp]).toEqual([5000, 6000, 75, 3000]);
     expect(BRUTUS.passive).toEqual({ shieldCapBp: 1200, buildWindow: 120, decayAfter: 90 });
   });
 
@@ -208,7 +208,7 @@ describe('Sir Brutus (§6.5)', () => {
     expect(domes).toBe(0);
   });
 
-  it("Champion's Challenge: tether a hero within 5 m in a 6 m ring for 3 s; 30% less damage from that hero", () => {
+  it("Champion's Challenge: tether a hero within 5 m in a 6 m ring for 2.5 s (sim v17); 30% less damage from that hero", () => {
     const m = arena();
     const w = m.world;
     setLevel(m, BRUTUS_ID, 4);
@@ -229,7 +229,7 @@ describe('Sir Brutus (§6.5)', () => {
     w.kHonour[BRUTUS_ID] = 0;
     dealDamage(m, FOE, 1, Kind.Hero, BRUTUS_ID, 100, 'basic');
     expect(hp - w.hp[BRUTUS_ID]).toBe(Math.trunc((heroHit(100, 40 + 3 * 3) * 7000) / 10000));
-    steps(m, 31);
+    steps(m, 16);
     expect(w.tether[FOE]).toBe(-1);
     steps(m, 60);
     expect(w.x[FOE] - MID.x).toBeGreaterThan(6000); // free again
@@ -244,7 +244,7 @@ describe('Sir Brutus (§6.5)', () => {
     expect(m2.world.tether[FOE]).toBeGreaterThanOrEqual(0);
   });
 
-  it('talents: Bulwark 3.5 s, Arena of Honour 4 s, Rally Howl +20% ally speed in the ring', () => {
+  it('talents: Bulwark 3.5 s, Arena of Honour 3.5 s (sim v17), Rally Howl +20% ally speed in the ring', () => {
     const m = arena();
     const w = m.world;
     setLevel(m, BRUTUS_ID, 9);
@@ -253,7 +253,7 @@ describe('Sir Brutus (§6.5)', () => {
     cast(m, BRUTUS_ID, 1, MID.x + 2000, MID.y);
     expect(w.kWT[BRUTUS_ID]).toBe(105);
     cast(m, BRUTUS_ID, 3, w.x[FOE], w.y[FOE], FOE);
-    expect(w.zTtl[w.tether[FOE]]).toBe(120);
+    expect(w.zTtl[w.tether[FOE]]).toBe(105);
 
     const m2 = arena();
     setLevel(m2, BRUTUS_ID, 9);

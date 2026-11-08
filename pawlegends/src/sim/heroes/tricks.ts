@@ -6,7 +6,7 @@ import { TRICKS } from '../../data/tricks';
 import { applyBp } from '../fixed';
 import type { MatchHandle } from '../state';
 import { ENTITY_CAP, type World } from '../world';
-import { blink, cleanse, collect, fear, healOverTime, inRing } from '../effects';
+import { blink, breakTether, cleanse, collect, fear, healOverTime, inRing } from '../effects';
 import { Aim, type SlotAim } from './kit';
 import { TRICK_IDS } from '../../data/tricks';
 
@@ -30,6 +30,8 @@ export function castTrick(m: MatchHandle, id: number, x: number, y: number): num
   const w = m.world;
   switch (TRICK_IDS[w.trick[id]]) {
     case 'pounce':
+      // Sim v17 (V17.md §3.5): a tethered foe's Pounce breaks the arena first, so the blink is not clamped inside it.
+      breakTether(w, id);
       blink(m, id, x, y, TRICKS.pounce.blink);
       return TRICKS.pounce.cooldown;
     case 'snack':

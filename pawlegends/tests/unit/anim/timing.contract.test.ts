@@ -71,7 +71,7 @@ describe('SIM_TIMING (§15)', () => {
     expect(SIM_TIMING.clem.slots.r.duration).toBe(180);
     expect(SIM_TIMING.brutus.slots.w.duration).toBe(75);
     expect(slotTimingFrom('brutus', 'w', abilNumbers('brutus', 'w', null, true)).duration).toBe(60);
-    expect(SIM_TIMING.brutus.slots.r.duration).toBe(90);
+    expect(SIM_TIMING.brutus.slots.r.duration).toBe(75); // sim v17
     expect(SIM_TIMING.cacklejaw.slots.e.duration).toBe(90);
     expect(SIM_TIMING.clem.slots.q.recasts).toBe(2);
     expect(SIM_TIMING.clem.slots.q.recastWindow).toBe(90);

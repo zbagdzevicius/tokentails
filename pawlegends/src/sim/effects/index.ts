@@ -9,7 +9,7 @@ export { inCone } from './cone';
 export { inRing } from './ring';
 export { fireSkillshot, reflectSkillshot, markHit, PFLAG, ON_HIT, type SkillshotSpec } from './projectile';
 export { ageZones, spawnBurst, spawnZone, stepZones, oldestZone } from './zone';
-export { startArena, clampTethers, clampToArena, endArena } from './tether';
+export { startArena, breakTether, clampTethers, clampToArena, endArena } from './tether';
 export { addShield, inFront } from './shield';
 export { heal, healOverTime, stepHeals } from './heal';
 export { slow } from './slow';
