@@ -13,8 +13,8 @@ export const BRAVO: HeroData = Object.freeze<HeroData>({
   /** Dramatic Flop: a hit that would drop him below 25% HP (any hit, true damage too) makes him play dead: the hit stops at 1 HP, 1 s untargetable and still, healing 15% max HP. 90 s lockout, shared with Nine Lives. */
   passive: { thresholdBp: 2500, duration: 30, healBp: 1500, cooldown: 2700 },
   abilities: {
-    /** Crocodile Tears: 6.5 m tear that stops at the first unit, 60 (+5/lvl, +15 a rank); a hero hit is slowed 50%, fading to 25%, for 1.5 s, and W's cooldown drops 1 s. */
-    q: { cooldown: 270, range: 6500, width: 900, speed: 15000, dmg: 60, dmgPerLevel: 5, slowBp: 5000, slow: 15, slowTailBp: 2500, slowTail: 30, refundW: 30 },
+    /** Crocodile Tears: 6.5 m tear that stops at the first unit, 60 (+5/lvl, +15 a rank); a hero hit is slowed 50%, fading to 25%, for 1.5 s, and W's cooldown drops 1 s. Sim v17 (V17.md §3.8): slower shot, 15000 → 12000 mm/s, so it can be dodged on reaction. */
+    q: { cooldown: 270, range: 6500, width: 900, speed: 12000, dmg: 60, dmgPerLevel: 5, slowBp: 5000, slow: 15, slowTailBp: 2500, slowTail: 30, refundW: 30 },
     /** Center Stage: a 3 m spotlight at his feet for 3 s; while he stands in it he takes 35% less; enemies in it are slowed 25%. */
     w: { cooldown: 420, radius: 3000, duration: 90, reduceBp: 3500, every: 10, slowBp: 2500, slow: 12 },
     /** Stage Dive: hop up to 5 m; landing ring 2.2 m, 50 (+4/lvl), slows 25% for 1 s. */

@@ -812,12 +812,12 @@ var BENGAS = Object.freeze({
 	/** Hot Toast: +15% damage to enemy heroes that are stunned, rooted, charmed, feared or slowed. */
 	passive: { bonusBp: 11500 },
 	abilities: {
-		/** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+7/lvl, +18 a rank). */
+		/** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+7/lvl, +18 a rank). Sim v17 (V17.md §3.8): slower shot, 18000 → 14000 mm/s, so it can be dodged on reaction. */
 		q: {
 			cooldown: 180,
 			range: 7e3,
 			width: 800,
-			speed: 18e3,
+			speed: 14e3,
 			dmg: 70,
 			dmgPerLevel: 7
 		},
@@ -931,12 +931,12 @@ var BRAVO = Object.freeze({
 		cooldown: 2700
 	},
 	abilities: {
-		/** Crocodile Tears: 6.5 m tear that stops at the first unit, 60 (+5/lvl, +15 a rank); a hero hit is slowed 50%, fading to 25%, for 1.5 s, and W's cooldown drops 1 s. */
+		/** Crocodile Tears: 6.5 m tear that stops at the first unit, 60 (+5/lvl, +15 a rank); a hero hit is slowed 50%, fading to 25%, for 1.5 s, and W's cooldown drops 1 s. Sim v17 (V17.md §3.8): slower shot, 15000 → 12000 mm/s, so it can be dodged on reaction. */
 		q: {
 			cooldown: 270,
 			range: 6500,
 			width: 900,
-			speed: 15e3,
+			speed: 12e3,
 			dmg: 60,
 			dmgPerLevel: 5,
 			slowBp: 5e3,
@@ -1499,12 +1499,12 @@ var DOMINO = Object.freeze({
 		perDotBp: 600
 	},
 	abilities: {
-		/** Spot Shot: 8 m shot, stops at the first unit, 65 (+6/lvl, +16 a rank). */
+		/** Spot Shot: 8 m shot, stops at the first unit, 65 (+6/lvl, +16 a rank). Sim v17 (V17.md §3.8): slower shot, 17000 → 13000 mm/s, so it can be dodged on reaction. */
 		q: {
 			cooldown: 180,
 			range: 8e3,
 			width: 900,
-			speed: 17e3,
+			speed: 13e3,
 			dmg: 65,
 			dmgPerLevel: 6
 		},
@@ -2074,12 +2074,12 @@ var LAMBO = Object.freeze({
 		allyRange: 4e3
 	},
 	abilities: {
-		/** Tuna Toss: skillshot 6 m that stops at the first unit, 60 (+5/lvl, +15 a rank), slow 25% for 1.5 s. */
+		/** Tuna Toss: skillshot 6 m that stops at the first unit, 60 (+5/lvl, +15 a rank), slow 25% for 1.5 s. Sim v17 (V17.md §3.8): slower shot, 16000 → 12000 mm/s, so it can be dodged on reaction. */
 		q: {
 			cooldown: 240,
 			range: 6e3,
 			width: 900,
-			speed: 16e3,
+			speed: 12e3,
 			dmg: 60,
 			dmgPerLevel: 5,
 			slowBp: 2500,
@@ -2548,12 +2548,12 @@ var PIXEL = Object.freeze({
 		haste: 45
 	},
 	abilities: {
-		/** Cap Cannon: 8.5 m shot, stops at the first hero, 75 (+7/lvl, +18 a rank), minions 50%, reveals the hero 2 s. */
+		/** Cap Cannon: 8.5 m shot, stops at the first hero, 75 (+7/lvl, +18 a rank), minions 50%, reveals the hero 2 s. Sim v17 (V17.md §3.8): slower shot, 18000 → 15000 mm/s, so it can be dodged on reaction. */
 		q: {
 			cooldown: 240,
 			range: 8500,
 			width: 900,
-			speed: 18e3,
+			speed: 15e3,
 			dmg: 75,
 			dmgPerLevel: 7,
 			minionBp: 5e3,
@@ -2664,12 +2664,12 @@ var ROCKET = Object.freeze({
 		bonusBp: 12e3
 	},
 	abilities: {
-		/** Lure Shot: 9 m dart that passes minions (60% to them) and stops at the first hero: 70 (+7/lvl, +18 a rank), reveals it 2 s; on a hero hit he gets +25% speed for 1.5 s. */
+		/** Lure Shot: 9 m dart that passes minions (60% to them) and stops at the first hero: 70 (+7/lvl, +18 a rank), reveals it 2 s; on a hero hit he gets +25% speed for 1.5 s. Sim v17 (V17.md §3.8): slower shot, 21000 → 17000 mm/s, so it can be dodged on reaction. */
 		q: {
 			cooldown: 210,
 			range: 9e3,
 			width: 800,
-			speed: 21e3,
+			speed: 17e3,
 			dmg: 70,
 			dmgPerLevel: 7,
 			minionBp: 6e3,

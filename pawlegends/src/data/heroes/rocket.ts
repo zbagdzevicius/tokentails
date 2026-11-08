@@ -13,8 +13,8 @@ export const ROCKET: HeroData = Object.freeze<HeroData>({
   /** Sighthound: his basics on an enemy hero 4.5 m or more away deal +20%. */
   passive: { range: 4500, bonusBp: 12000 },
   abilities: {
-    /** Lure Shot: 9 m dart that passes minions (60% to them) and stops at the first hero: 70 (+7/lvl, +18 a rank), reveals it 2 s; on a hero hit he gets +25% speed for 1.5 s. */
-    q: { cooldown: 210, range: 9000, width: 800, speed: 21000, dmg: 70, dmgPerLevel: 7, minionBp: 6000, reveal: 60, hasteBp: 2500, haste: 45 },
+    /** Lure Shot: 9 m dart that passes minions (60% to them) and stops at the first hero: 70 (+7/lvl, +18 a rank), reveals it 2 s; on a hero hit he gets +25% speed for 1.5 s. Sim v17 (V17.md §3.8): slower shot, 21000 → 17000 mm/s, so it can be dodged on reaction. */
+    q: { cooldown: 210, range: 9000, width: 800, speed: 17000, dmg: 70, dmgPerLevel: 7, minionBp: 6000, reveal: 60, hasteBp: 2500, haste: 45 },
     /** Photo Finish: dash 3.5 m; his next basic within 3 s deals +40% and slows 25% for 1 s. */
     w: { cooldown: 300, dash: 3500, speed: 16000, window: 90, bonusBp: 14000, slowBp: 2500, slow: 30 },
     /** SQUIRREL!: throw a squeaky squirrel up to 7 m; after 0.5 s enemy heroes within 2.4 m take 40 (+4/lvl) and run at it for 0.7 s. */

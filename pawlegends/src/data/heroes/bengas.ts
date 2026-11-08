@@ -13,8 +13,8 @@ export const BENGAS: HeroData = Object.freeze<HeroData>({
   /** Hot Toast: +15% damage to enemy heroes that are stunned, rooted, charmed, feared or slowed. */
   passive: { bonusBp: 11500 },
   abilities: {
-    /** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+7/lvl, +18 a rank). */
-    q: { cooldown: 180, range: 7000, width: 800, speed: 18000, dmg: 70, dmgPerLevel: 7 },
+    /** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+7/lvl, +18 a rank). Sim v17 (V17.md §3.8): slower shot, 18000 → 14000 mm/s, so it can be dodged on reaction. */
+    q: { cooldown: 180, range: 7000, width: 800, speed: 14000, dmg: 70, dmgPerLevel: 7 },
     /**
      * Striking Pose: 0.3 s wind-up, cone 4 m, 70°; enemy heroes in it facing Bengas (±90°) are stunned 0.75 s;
      * the others in it are slowed 25% for 1 s.

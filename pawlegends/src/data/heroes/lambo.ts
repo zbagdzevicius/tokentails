@@ -13,8 +13,8 @@ export const LAMBO: HeroData = Object.freeze<HeroData>({
   /** Brave With Friends: takes 10% less damage while an allied hero is within 4 m. */
   passive: { reduceBp: 1000, allyRange: 4000 },
   abilities: {
-    /** Tuna Toss: skillshot 6 m that stops at the first unit, 60 (+5/lvl, +15 a rank), slow 25% for 1.5 s. */
-    q: { cooldown: 240, range: 6000, width: 900, speed: 16000, dmg: 60, dmgPerLevel: 5, slowBp: 2500, slow: 45 },
+    /** Tuna Toss: skillshot 6 m that stops at the first unit, 60 (+5/lvl, +15 a rank), slow 25% for 1.5 s. Sim v17 (V17.md §3.8): slower shot, 16000 → 12000 mm/s, so it can be dodged on reaction. */
+    q: { cooldown: 240, range: 6000, width: 900, speed: 12000, dmg: 60, dmgPerLevel: 5, slowBp: 2500, slow: 45 },
     /** Big Hug: shield 7% of his max HP on himself and 4.5% on the nearest allied hero within 4 m, for 2.5 s. */
     w: { cooldown: 420, range: 4000, selfBp: 700, allyBp: 450, duration: 75 },
     /** Belly Flop: hop up to 5 m; on landing a 1.8 m ring, 50 (+4/lvl, +12 a rank), stun 0.5 s. Sim v17 (V17.md §3.2): a 0.4 s wind-up, 12 m/s hop (was instant at 20 m/s), ring 2.2 → 1.8 m. */

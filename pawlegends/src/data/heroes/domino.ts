@@ -13,8 +13,8 @@ export const DOMINO: HeroData = Object.freeze<HeroData>({
   /** Spot On: each of his ability hits on an enemy hero sticks a Spot (max 3, 6 s, refreshed). He deals +6% to a hero per Spot on it. */
   passive: { max: 3, ttl: 180, perDotBp: 600 },
   abilities: {
-    /** Spot Shot: 8 m shot, stops at the first unit, 65 (+6/lvl, +16 a rank). */
-    q: { cooldown: 180, range: 8000, width: 900, speed: 17000, dmg: 65, dmgPerLevel: 6 },
+    /** Spot Shot: 8 m shot, stops at the first unit, 65 (+6/lvl, +16 a rank). Sim v17 (V17.md §3.8): slower shot, 17000 → 13000 mm/s, so it can be dodged on reaction. */
+    q: { cooldown: 180, range: 8000, width: 900, speed: 13000, dmg: 65, dmgPerLevel: 6 },
     /** Splatter: within 7.5 m, after 0.4 s a 2.4 m splash: 60 (+6/lvl, +15 a rank), slow 25% for 1 s. */
     w: { cooldown: 330, range: 7500, windup: 12, radius: 2400, dmg: 60, dmgPerLevel: 6, slowBp: 2500, slow: 30 },
     /** Big Shake: a full-body shake: enemies within 2.6 m take 40 (+4/lvl) and are knocked back 2 m; he shakes off slows. */

@@ -13,8 +13,8 @@ export const PIXEL: HeroData = Object.freeze<HeroData>({
   /** Cardboard Plating: an 8%-max-HP plate that refills after 4 s without hero damage; when it breaks she pops out, +25% speed for 1.5 s. */
   passive: { plateBp: 800, refill: 120, hasteBp: 2500, haste: 45 },
   abilities: {
-    /** Cap Cannon: 8.5 m shot, stops at the first hero, 75 (+7/lvl, +18 a rank), minions 50%, reveals the hero 2 s. */
-    q: { cooldown: 240, range: 8500, width: 900, speed: 18000, dmg: 75, dmgPerLevel: 7, minionBp: 5000, reveal: 60 },
+    /** Cap Cannon: 8.5 m shot, stops at the first hero, 75 (+7/lvl, +18 a rank), minions 50%, reveals the hero 2 s. Sim v17 (V17.md §3.8): slower shot, 18000 → 15000 mm/s, so it can be dodged on reaction. */
+    q: { cooldown: 240, range: 8500, width: 900, speed: 15000, dmg: 75, dmgPerLevel: 7, minionBp: 5000, reveal: 60 },
     /** Laser Pointer: 1.5 s channelled 9 m beam that turns with her; every 8 ticks 18 (+2/lvl, +6 a rank) to all enemies on it, slow grows 10% a pulse to 40%; she is slowed 60%. */
     w: { cooldown: 360, range: 9000, width: 600, duration: 45, every: 8, dmg: 18, dmgPerLevel: 2, slowStepBp: 1000, slowMaxBp: 4000, selfSlowBp: 6000, turn: 16 },
     /** Duck and Cover: 1 s in the box, rooted, 75% less damage, plate refilled; melee attackers slowed 30% for 1 s. */
