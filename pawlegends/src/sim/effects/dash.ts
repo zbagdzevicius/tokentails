@@ -9,7 +9,7 @@ import { TICK_HZ } from '../../data/timeline';
 import { clamp, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import { cellOf, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
-import { FM, type World } from '../world';
+import { FM, Kind, Order, type World } from '../world';
 import { clampToArena } from './tether';
 
 const pos = new Int32Array(2);
@@ -104,8 +104,19 @@ export function stepForced(w: World, id: number): boolean {
   if (n === 1) {
     w.x[id] = w.fmX[id];
     w.y[id] = w.fmY[id];
-    w.moveX[id] = w.x[id];
-    w.moveY[id] = w.y[id];
+    // Sim v16 (MAP-GAPS B3): a Move or AttackMove survives the dash or knockback (its goal is kept); the stale path is
+    // dropped and re-planned from the landing point at once.
+    const hero = w.kind[id] === Kind.Hero;
+    const o = w.order[id];
+    if (!hero || (o !== Order.Move && o !== Order.AttackMove)) {
+      w.moveX[id] = w.x[id];
+      w.moveY[id] = w.y[id];
+    }
+    if (hero) {
+      w.pathLen[id] = 0;
+      w.pathIdx[id] = 0;
+      w.timer[id] = 0;
+    }
     if (w.fmKind[id] !== FM.Hunt) {
       w.fmKind[id] = FM.None;
       w.moveCarry[id] = 0;

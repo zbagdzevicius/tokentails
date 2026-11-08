@@ -6660,8 +6660,17 @@ function stepForced(w, id) {
 	if (n === 1) {
 		w.x[id] = w.fmX[id];
 		w.y[id] = w.fmY[id];
-		w.moveX[id] = w.x[id];
-		w.moveY[id] = w.y[id];
+		const hero = w.kind[id] === Kind.Hero;
+		const o = w.order[id];
+		if (!hero || o !== Order.Move && o !== Order.AttackMove) {
+			w.moveX[id] = w.x[id];
+			w.moveY[id] = w.y[id];
+		}
+		if (hero) {
+			w.pathLen[id] = 0;
+			w.pathIdx[id] = 0;
+			w.timer[id] = 0;
+		}
 		if (w.fmKind[id] !== FM.Hunt) {
 			w.fmKind[id] = FM.None;
 			w.moveCarry[id] = 0;
@@ -12369,7 +12378,11 @@ function applyOrder(m, id, cmd) {
 			w.order[id] = cmd.op === Op.Move ? Order.Move : Order.AttackMove;
 			w.target[id] = -1;
 			w.windup[id] = 0;
-			planPath(m, id, w.moveX[id], w.moveY[id]);
+			if (w.fmKind[id] === FM.None) planPath(m, id, w.moveX[id], w.moveY[id]);
+			else {
+				w.pathLen[id] = 0;
+				w.pathIdx[id] = 0;
+			}
 			if (w.castPhase[id] === 0) w.state[id] = UnitState.Moving;
 			break;
 		case Op.Attack:

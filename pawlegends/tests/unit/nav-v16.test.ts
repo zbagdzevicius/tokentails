@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { Op } from '../../src/sim/api';
 import { step } from '../../src/sim/index';
-import { clipTravel } from '../../src/sim/effects/dash';
+import { clipTravel, startForced } from '../../src/sim/effects/dash';
+import { FM, Order } from '../../src/sim/world';
 import { cellOf, createGrid, escapeCell, NX, NY, walkable } from '../../src/sim/map/grid';
 import { Rng } from '../../src/sim/rng';
 import { applyOrder } from '../../src/sim/units/hero';
@@ -62,5 +63,36 @@ describe('B1 forest soft-lock', { timeout: 120_000 }, () => {
       if (!(out[0] === x && out[1] === y)) expect(walkable(g, cellOf(out[0], out[1]))).toBe(true);
       n++;
     }
+  });
+});
+
+describe('B3 order kept after a dash or knockback', { timeout: 120_000 }, () => {
+  it('a Move given during a knockback keeps its goal after landing and walks on walkable cells home', () => {
+    const m = heroMatch(['clem', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
+    const w = m.world;
+    place(m, 1, 37100, 38900);
+    startForced(w, 1, 35100, 38900, 6, FM.Knock);
+    step(m);
+    applyOrder(m, 1, { op: Op.Move, x: 3000, y: 30000 });
+    for (let t = 0; t < 8; t++) step(m);
+    expect(w.fmKind[1]).toBe(FM.None);
+    expect([w.moveX[1], w.moveY[1]]).toEqual([3000, 30000]);
+    expect(w.order[1]).toBe(Order.Move);
+    let blocked = 0;
+    for (let t = 0; t < 1500 && w.order[1] === Order.Move; t++) {
+      step(m);
+      if (!walkable(m.grid, cellOf(w.x[1], w.y[1]))) blocked++;
+    }
+    expect(blocked).toBe(0);
+    expect(Math.abs(w.x[1] - 3000) + Math.abs(w.y[1] - 30000)).toBeLessThan(3000);
+  });
+
+  it('a Stop (no walk order) still lands with the goal at the landing point', () => {
+    const m = heroMatch(['clem', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
+    const w = m.world;
+    place(m, 1, 50000, 30000);
+    startForced(w, 1, 48000, 30000, 4, FM.Knock);
+    for (let t = 0; t < 5; t++) step(m);
+    expect([w.moveX[1], w.moveY[1]]).toEqual([w.x[1], w.y[1]]);
   });
 });
