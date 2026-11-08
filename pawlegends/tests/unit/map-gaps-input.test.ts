@@ -14,7 +14,8 @@ import { blink } from '../../src/sim/effects';
 import { quantize } from '../../src/sim/commands';
 import { createMatch, fillPicks } from '../../src/sim/index';
 import type { MatchHandle } from '../../src/sim/state';
-import { Kind, RANGE } from '../../src/sim/world';
+import { G, Kind, RANGE } from '../../src/sim/world';
+import { TIMELINE } from '../../src/data/timeline';
 import { cellOf, walkable } from '../../src/sim/map/grid';
 import { CORE, RADIUS, TOWER_SPOTS } from '../../src/data/map';
 
@@ -23,7 +24,10 @@ afterEach(() => resetStructures());
 
 function match(): MatchHandle {
   const { picks, tricks } = fillPicks(7, 'clem', 'pounce');
-  return createMatch({ seed: 7, picks, tricks, difficulty: 'easy' }) as MatchHandle;
+  const m = createMatch({ seed: 7, picks, tricks, difficulty: 'easy' }) as MatchHandle;
+  // Sim v16 (MAP-GAPS B2): before the barrier drops a blink is clamped at the gate; these cases are about structures.
+  m.world.globals[G.Tick] = TIMELINE.barrierDrop;
+  return m;
 }
 
 function structuresOf(m: MatchHandle): { id: number; kind: string; x: number; y: number; state: string }[] {

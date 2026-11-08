@@ -58,11 +58,15 @@ describe('heading aim point (pure)', () => {
     expect(p.x).toBeGreaterThanOrEqual(-1e-6);
     expect(turn(ang(p, near), a)).toBeLessThan(1e-6);
     // 1 m from the bottom edge at 45° down-left: the landing would be off the map. Like a drag, the command's clamp
-    // bends the point and the hero slides along the edge almost the full distance (it used to stop after 1.4 m)
+    // bends the point (it used to stop after 1.4 m). Sim v16 (MAP-GAPS B1): (50000, 1000) lies in the outer rim, and a
+    // move that starts in a wall stops at the first walkable sample or stays, so along the rim it does not move.
     const low = { x: 50000, y: 1000 };
     const l = landing(POUNCE, low, (-3 * Math.PI) / 4);
-    expect(Math.hypot(l.x - low.x, l.y - low.y)).toBeGreaterThan(R - 300);
-    expect(l.x).toBeLessThan(low.x - 3000);
+    expect(l).toEqual(low);
+    // From the edge of the playfield the hero slides along the bent point: up and to the left, inside the field.
+    const edge = { x: 50000, y: 4500 };
+    const e = landing(POUNCE, edge, (-3 * Math.PI) / 4);
+    expect(e.x).toBeLessThan(edge.x);
   });
   it('the joystick, else the movement, else the way the hero last walked (not a facing turned by an attack)', () => {
     const me = { x: 24000, y: 29000 };
