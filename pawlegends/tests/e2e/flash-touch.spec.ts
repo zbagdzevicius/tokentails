@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 import { trickAim } from '../../src/input/abilities';
 import { landing } from '../../src/input/heading';
-import { attr, me, ops, startFirstMatch } from './helpers';
+import { attr, me, minimapPoint, ops, startFirstMatch } from './helpers';
 import { Op } from '../../src/sim/api';
+import { CAMERA_YAW } from '../../src/render/coords';
 
 /**
  * Founder: "fix flash, it must be initiated into a place automatically on touch in which we are heading to" and "there
@@ -39,11 +40,8 @@ async function frames(page: Page, n: number): Promise<void> {
 }
 
 async function walkToSpot(page: Page): Promise<void> {
-  const map = (await page.locator('.pl-minimap canvas').boundingBox())!;
-  // MAP-GAPS A6: the minimap draws the map inset 6 px (ui/minimap.ts MM_PAD)
-  const pad = 6;
-  const mx = map.x + pad + (SPOT.x / 100000) * (map.width - 2 * pad);
-  const my = map.y + pad + (1 - SPOT.y / 60000) * (map.height - 2 * pad);
+  // feel pass B2: the minimap is turned with the diagonal camera
+  const { x: mx, y: my } = await minimapPoint(page, SPOT.x, SPOT.y);
   // a right-click on the minimap is a move order (the sim paths around the base walls)
   await page.mouse.click(mx, my, { button: 'right' });
   await expect
@@ -84,8 +82,9 @@ async function setup(page: Page): Promise<{ touch: Touch; stickAt: (dir: number)
   const sy = Math.round(vp.height * 0.62);
   const cdp = await page.context().newCDPSession(page);
   const touch: Touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type: type as 'touchStart', touchPoints: pts });
+  // feel pass B2: the view is diagonal, so the stick is pushed where the MAP direction `dir` shows on screen
   const stickAt = (dir: number) => {
-    const a = (dir * Math.PI) / 4;
+    const a = (dir * Math.PI) / 4 - CAMERA_YAW;
     return { x: Math.round(sx + Math.cos(a) * 50), y: Math.round(sy - Math.sin(a) * 50), id: 1 };
   };
   // the frame sampler
@@ -293,8 +292,10 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
     test.setTimeout(150_000);
     const { touch, base, trick } = await setup(page);
     // south at a light tilt (18 px: no lane magnet) until the hero meets the wall corner ~4.5 m south of the spot and
-    // slides on it south-west (x falls from 25 m to 23.5 m; straight south from there a blink lands 0.5 to 2.8 m)
-    const south = { ...base, y: base.y + 18 };
+    // slides on it south-west (x falls from 25 m to 23.5 m; straight south from there a blink lands 0.5 to 2.8 m);
+    // feel pass B2: map south as it shows on the diagonal screen
+    const sa = -Math.PI / 2 - CAMERA_YAW;
+    const south = { ...base, x: Math.round(base.x + Math.cos(sa) * 18), y: Math.round(base.y - Math.sin(sa) * 18) };
     await touch('touchStart', [base]);
     await touch('touchMove', [south]);
     // watched every frame in the page (a poll from here can miss the slide on a loaded machine)
