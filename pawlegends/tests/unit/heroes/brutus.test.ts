@@ -178,7 +178,7 @@ describe('Sir Brutus (§6.5)', () => {
     expect(w.x[BRUTUS_ID]).toBeGreaterThan(MID.x);
   });
 
-  it('Guard Post: planted, Sir Brutus takes 25% less damage; the dome ends with him', () => {
+  it('Guard Post: planted, Sir Brutus takes 30% less damage (sim v17); the dome ends with him', () => {
     const hit = (branch: boolean): number => {
       const m = arena();
       const w = m.world;
@@ -192,7 +192,7 @@ describe('Sir Brutus (§6.5)', () => {
     };
     const plain = hit(false);
     expect(plain).toBeGreaterThan(0);
-    expect(hit(true)).toBe(Math.trunc((plain * 7500) / 10000));
+    expect(hit(true)).toBe(Math.trunc((plain * 7000) / 10000));
 
     const m = arena();
     const w = m.world;

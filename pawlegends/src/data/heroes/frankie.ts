@@ -6,8 +6,8 @@ export const FRANKIE: HeroData = Object.freeze<HeroData>({
   name: 'Frankie',
   side: 'dog',
   role: 'assassin',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9950 / takes 8825 (50.0% of the 2,000-seed gate). */
-  pvp: { dmgBp: 9950, takenBp: 8825 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9950 / takes 8825 (50.0% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 8900. */
+  pvp: { dmgBp: 9950, takenBp: 8900 },
   element: 'FIRE',
   base: { hp: 510, hpPerLevel: 54, attack: 57, attackPerLevel: 6, attackEvery: 28, range: 1600, speed: 5150, armour: 18, armourPerLevel: 2 },
   /** Ketchup and Mustard: an ability hit and a basic on the same enemy hero within 3 s (either order) add a Combo: +45 (+9/lvl). Then 4 s before the next Combo. */

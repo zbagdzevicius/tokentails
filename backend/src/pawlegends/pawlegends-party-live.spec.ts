@@ -241,9 +241,10 @@ describe('pawlegends party live (N8)', () => {
             { slot: 0, hero: 'clem', trick: 'pounce' },
             { slot: 1, hero: 'sage', trick: 'snack' },
         ];
-        const { picks, tricks } = sim.fillPicksParty(5, seats as never);
+        // Sim v17: seed 6 (seed 5's match now ends on a core kill before the injected forfeit turn).
+        const { picks, tricks } = sim.fillPicksParty(6, seats as never);
         const config = {
-            seed: 5,
+            seed: 6,
             picks: picks as string[],
             tricks: tricks as string[],
             difficulty: 'normal',
