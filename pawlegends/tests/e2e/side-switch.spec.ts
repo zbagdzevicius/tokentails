@@ -39,9 +39,9 @@ test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the tea
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
   await expect(visibleTiles(page)).toHaveCount(10);
-  // the three v15 dogs carry the New tag (and no one else)
+  // the New tag marks heroes added in the current SIM_VERSION (isNewHero); sim v16 adds none, so the v15 dogs lost it
   const fresh = await page.locator('.heroes:not([hidden]) .hero-card[data-new="1"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
-  expect(fresh.sort()).toEqual(['domino', 'frankie', 'rocket']);
+  expect(fresh.sort()).toEqual([]);
   // QA v15: the tag stays clear of the element icon (it sat under it and read "EW")
   const overlaps = await page.locator('.heroes:not([hidden]) .hero-card[data-new="1"]').evaluateAll((els) =>
     els.map((e) => {
@@ -51,7 +51,7 @@ test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the tea
       return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
     }),
   );
-  expect(overlaps).toEqual([false, false, false]);
+  expect(overlaps.every((o) => !o)).toBe(true);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...DOGS].sort());
   expect(await page.locator('.heroes:not([hidden])').getAttribute('data-side')).toBe('dog');
