@@ -128,6 +128,9 @@ class Client {
   /** When the relay welcomed this client back without its seat, and when its match ended. */
   lostAt = 0;
   endAt = 0;
+  /** A drop in progress: when it began and the turn applied then (rejoin = until the hero is played again, caught up). */
+  private dropAt = 0;
+  private dropTurn = 0;
   private hostAt = 0;
 
   constructor(
@@ -287,9 +290,6 @@ class Client {
       worker: false,
       visibility: false,
       notify: (n) => this.notes.set(n.key, (this.notes.get(n.key) ?? 0) + 1),
-      track: (e, p) => {
-        if (e === 'mp_rejoin' && typeof p.ms === 'number') this.rejoinMs.push(p.ms);
-      },
     });
     this.host = host;
     // the measured send-to-applied samples (the same ones as mp_net.input_p50 / p95)
@@ -350,6 +350,13 @@ class Client {
       this.holds = Math.max(this.holds, n.holds);
       this.catchups = Math.max(this.catchups, n.catchups);
     }
+    if (this.dropAt && this.host && !this.offline && this.socket.open) {
+      const s = this.socket;
+      if (s.lastTurn > this.dropTurn + 1 && s.receivedTurn - s.lastTurn <= 2 && !this.host.piloted(this.slot)) {
+        this.rejoinMs.push(now - this.dropAt);
+        this.dropAt = 0;
+      }
+    }
     if (this.plan && !this.dropDone && this.liveAt && now - this.liveAt >= this.plan.atMs) {
       this.dropDone = true;
       void this.runDrop(this.plan);
@@ -400,6 +407,8 @@ class Client {
   /** A drop: the network (the socket resumes by itself), a reload (a new socket with the resume token and a fresh ticket), or a long absence. */
   private async runDrop(p: DropPlan): Promise<void> {
     log(`client ${this.idx} slot ${this.slot} ${p.kind} (${p.gapMs} ms)`);
+    this.dropAt = Date.now();
+    this.dropTurn = this.socket.lastTurn;
     if (p.kind === 'drop') {
       this.socket.drop();
       return;
@@ -417,6 +426,8 @@ class Client {
     const t = await post<{ ticket: string }>('/soak/ticket', { accountId: this.accountId });
     this.ticket = t.ticket;
     this.offline = false;
+    // rejoin time of a reload or absence counts from the reopened tab, not across the planned gap
+    this.dropAt = Date.now();
     this.connect();
   }
 
