@@ -23,13 +23,15 @@ opt_out_usage
 default_platform(:ios)
 
 APP_ID = "com.tokentails.pawlegends"
-APP_DIR = File.expand_path("..", __dir__)
+# Absolute at load time: fastlane runs actions from the project root, so "./metadata" would miss
+FASTLANE_DIR = File.expand_path(__dir__)
+APP_DIR = File.expand_path("..", FASTLANE_DIR)
 IOS_DIR = File.join(APP_DIR, "ios/App")
 WORKSPACE = File.join(IOS_DIR, "App.xcworkspace")
 OUTPUT_DIR = File.join(APP_DIR, "build/release")
 
 def load_local_secrets
-  path = File.join(__dir__, ".secrets.local")
+  path = File.join(FASTLANE_DIR, ".secrets.local")
   return unless File.exist?(path)
 
   File.readlines(path).each do |line|
@@ -109,6 +111,19 @@ def import_dist_cert
   true
 end
 
+def review_information
+  dir = File.join(FASTLANE_DIR, "metadata", "review_information")
+  %w[first_name last_name phone_number email_address demo_user demo_password notes].each_with_object({}) do |key, info|
+    path = File.join(dir, "#{key}.txt")
+    value = File.exist?(path) ? File.read(path).strip : ""
+    info[key.to_sym] = value unless value.empty?
+  end.tap do |info|
+    # Apple requires a review contact phone (+country code); kept out of the public repo when set as an env var
+    phone = ENV["REVIEW_CONTACT_PHONE"].to_s.strip
+    info[:phone_number] = phone unless phone.empty?
+  end
+end
+
 platform :ios do
   desc "Validate the secrets and the App Store Connect API key (changes nothing)"
   lane :check do
@@ -177,7 +192,7 @@ platform :ios do
       export_team_id: team_id,
       export_options: { signingStyle: "automatic", teamID: team_id, uploadSymbols: true, manageAppVersionAndBuildNumber: false },
       xcargs: xcargs,
-      export_xcargs: auth,
+      # gym appends xcargs (which already carry the API key auth) to the export command as well, so no export_xcargs
       output_directory: OUTPUT_DIR,
       output_name: "Pawlegends-#{marketing_version}-#{build_number}.ipa",
       clean: true,
@@ -193,25 +208,31 @@ platform :ios do
     upload_to_testflight(
       api_key: api_key,
       app_identifier: APP_ID,
-      skip_waiting_for_build_processing: true,
+      skip_waiting_for_build_processing: false,
       changelog: ENV["TESTFLIGHT_CHANGELOG"].to_s.empty? ? "Pawlegends #{marketing_version}: bundled game, offline bots, party play." : ENV["TESTFLIGHT_CHANGELOG"],
-      distribute_external: false
+      # new builds go straight to the external "Friends" TestFlight group (Beta App Review runs automatically)
+      distribute_external: true,
+      groups: ["Friends"],
+      notify_external_testers: true
     )
   end
 
   desc "Upload the listing: text, screenshots and icon (no binary, no submission)"
   lane :metadata do
     api_key = asc_api_key
-    screenshots = File.join(__dir__, "screenshots")
+    screenshots = File.join(FASTLANE_DIR, "screenshots")
     deliver(
       api_key: api_key,
+      # deliver does not load metadata/review_information on its own for a new app, and without a review detail it
+      # crashes with "No data" while checking review attachments; pass it explicitly so the detail gets created first
+      app_review_information: review_information,
       app_identifier: APP_ID,
       app_version: marketing_version,
       skip_binary_upload: true,
       skip_screenshots: !Dir.exist?(screenshots) || Dir.glob(File.join(screenshots, "**/*.png")).empty?,
       screenshots_path: screenshots,
       overwrite_screenshots: true,
-      metadata_path: File.join(__dir__, "metadata"),
+      metadata_path: File.join(FASTLANE_DIR, "metadata"),
       submit_for_review: false,
       force: true,
       precheck_include_in_app_purchases: false,
