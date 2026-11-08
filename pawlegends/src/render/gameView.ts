@@ -228,7 +228,7 @@ export class GameView {
     this.projectiles = new ProjectileView(this.particles);
     this.heroes.tierFx = new TierFx(this.particles);
     this.vfx = new CombatVfx(this.particles, this.shock);
-    this.vfx.setTier(gr.settings.tier, reducedMotion());
+    this.vfx.setTier(gr.settings.vfxTier, reducedMotion());
     this.projectiles.vfx = this.vfx;
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.add(this.vfx.auras.mesh);
@@ -921,8 +921,8 @@ export class GameView {
       this.remember(frame);
       const me = frame.byId.get(this.mySlot) ?? null;
       this.lastMe = me;
-      this.heroes.setQuality(this.gr.settings.tier === 'low', this.gr.settings.outlines);
-      if (this.vfx.tierName !== this.gr.settings.tier) this.vfx.setTier(this.gr.settings.tier);
+      this.heroes.setQuality(this.gr.settings.tier === 'low', this.gr.settings.outlineScope);
+      if (this.vfx.tierName !== this.gr.settings.vfxTier) this.vfx.setTier(this.gr.settings.vfxTier);
       if (this.heroes.tierFx) this.heroes.tierFx.low = this.gr.settings.tier === 'low';
       this.heroes.focus.x = this.gr.focus.x;
       this.heroes.focus.z = this.gr.focus.z;
@@ -969,7 +969,7 @@ export class GameView {
     }
     this.animPost(frame, dt);
     this.drawMarks(this.frame, dt);
-    this.map.setDetail?.(this.gr.settings.tier === 'low');
+    this.map.setDetail?.(this.gr.settings.forestHalf);
     this.map.setTeam?.(this.myTeam);
     this.map.update(frame, dt, this.gr.camera.position);
     this.pickups.update(dt);
@@ -1056,11 +1056,14 @@ export class GameView {
   /** Screen pixels per world metre at ground point (x, z) (C10's minimum aim width). */
   pxPerMetre(x: number, z: number): number {
     const cam = this.gr.camera;
-    const h = this.gr.renderer.domElement.clientHeight || 1;
+    // PERF-IOS P1-5: the CSS size cached on resize (clientWidth/Height every frame forced a layout)
+    const h = this.gr.cssH || 1;
     this._pa.set(x, 0, z).project(cam);
     this._pb.set(x + 1, 0, z).project(cam);
-    const w = this.gr.renderer.domElement.clientWidth || 1;
-    return Math.hypot(((this._pb.x - this._pa.x) * w) / 2, ((this._pb.y - this._pa.y) * h) / 2);
+    const w = this.gr.cssW || 1;
+    const dx = ((this._pb.x - this._pa.x) * w) / 2;
+    const dy = ((this._pb.y - this._pa.y) * h) / 2;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   dispose(): void {

@@ -32,7 +32,12 @@ import type { SkuId } from '../money/skus';
 import { ELEMENT_COLOR, bestFrame, cardLook, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
-import { FpsProbe, QualityGovernor, qualityOverride, rememberTier, startTier, type QualityTier } from '../render/quality';
+import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
+import { isPhone } from '../render/perf/device';
+import { FramePacer, MATCH_FPS, paceTarget } from '../render/perf/pacer';
+import { GOV_NAMES, ThermalGovernor } from '../render/perf/governor';
+import { autoBatterySaver, batterySaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
+import { thermal } from '../render/perf/thermal';
 import { createRenderer, type GameRenderer } from '../render/renderer';
 import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
@@ -154,7 +159,15 @@ export class App {
   private session: MatchSession | null = null;
   private tier: QualityTier;
   private probe: FpsProbe | null;
-  private governor = new QualityGovernor();
+  /** PERF-IOS P1-3: the thermal governor (a phone that ended its last visit hot starts one step cooler). */
+  private readonly governor = new ThermalGovernor(Math.max(0, savedPerfStep() - 1));
+  /** PERF-IOS P1-1: draws at 60 in the match, 30 in menus, 15 paused or behind a full-screen panel. */
+  private readonly pacer = new FramePacer();
+  private readonly phone = isPhone();
+  /** PERF-IOS P1-6: the loop is stopped while the page is hidden or the app is in the background. */
+  private suspended = false;
+  private raf = 0;
+  private readonly frameCb = (t: number): void => this.frame(t);
   /** `?quality=` forces a tier for the whole visit: the governor does not step it down (perf.spec.ts measures it). */
   private readonly forcedTier = qualityOverride() !== null;
   private last = performance.now();
@@ -189,10 +202,12 @@ export class App {
     this.tier = start.tier;
     this.probe = start.probe;
     this.gr = createRenderer(root, this.tier);
+    if (this.governor.step > 0) this.gr.apply(tierSettings(this.tier, { phone: this.phone, step: this.governor.step }));
+    document.documentElement.dataset.phone = this.phone ? '1' : '0';
     this.perf = perfFromUrl() ? new PerfReadout(root) : null;
     // Hero portraits for the pick cards and the HUD, rendered once by this renderer (render/portraits.ts).
     bakePortraits(this.gr);
-    document.documentElement.dataset.quality = this.tier;
+    document.documentElement.dataset.quality = this.gr.settings.tier;
     this.lobby = new Lobby(this.gr);
     const p = startSession();
     this.sessionNo = p.sessions;
@@ -270,6 +285,17 @@ export class App {
       }, 120);
     });
     this.ent.onChange(() => this.refreshMeta());
+    document.addEventListener('visibilitychange', () => this.setSuspended(document.hidden));
+    // PERF-IOS P1-6: the Capacitor app going to the background (the App plugin's pause / resume; no import, so the web
+    // build is unchanged). Older shells without the plugin fall back to visibilitychange above.
+    try {
+      const capApp = (window as unknown as { Capacitor?: { Plugins?: { App?: { addListener?: (e: string, f: () => void) => unknown } } } }).Capacitor?.Plugins?.App;
+      capApp?.addListener?.('pause', () => this.setSuspended(true));
+      capApp?.addListener?.('resume', () => this.setSuspended(document.hidden));
+    } catch {
+      /* no bridge */
+    }
+    addEventListener('pl-thermal', () => this.onThermal());
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         // party play (§4.5): a hidden tab is "away" (NetHost; a bot flies the hero) and comes back to the match, not
@@ -294,7 +320,8 @@ export class App {
     if (this.partyCode) stripPartyParam();
     // the party chunk is fetched while idle once the title is up (never part of the first load, §11)
     if (this.partyApi) idle(() => void import('../party').catch(() => undefined));
-    requestAnimationFrame((t) => this.frame(t));
+    this.onThermal();
+    this.raf = requestAnimationFrame(this.frameCb);
     document.documentElement.dataset.ready = '1';
   }
 
@@ -1511,7 +1538,20 @@ export class App {
     }
     const p = loadProfile();
     const el = settingsPanel(this.root, {
-      state: { muted: sfx.isMuted, tier: this.tier, tipsOn: tipsDue(p), stats: this.analytics.configured ? this.analytics.live : null, skinFx: p.skinFx },
+      state: {
+        muted: sfx.isMuted,
+        tier: this.tier,
+        tipsOn: tipsDue(p),
+        stats: this.analytics.configured ? this.analytics.live : null,
+        skinFx: p.skinFx,
+        saver: batterySaver().on,
+        saverAuto: batterySaver().by === 'auto',
+        warm: this.governor.step > 0,
+      },
+      onSaver: (on) => {
+        setBatterySaver(on);
+        this.analytics.track('quality_tier', { tier: this.tier, saver: on, by: 'user' });
+      },
       onSkinFx: (m) => {
         const q = loadProfile();
         q.skinFx = m;
@@ -1549,32 +1589,71 @@ export class App {
 
   // ------------------------------------------------------------------------------------------ frame loop
 
-  private setTier(t: QualityTier): void {
+  /** A tier change: the player's Settings choice (`by: 'user'`, remembered per device) or the first match's probe. */
+  private setTier(t: QualityTier, by: 'user' | 'probe' = 'user'): void {
+    rememberTier(t, by);
     if (t === this.tier) return;
     this.tier = t;
-    rememberTier(t);
-    this.gr.setTier(t);
-    this.session?.view.setShadows(this.gr.settings.shadows);
-    document.documentElement.dataset.quality = t;
+    this.applyProfile();
     this.analytics.track('quality_tier', { tier: t });
   }
 
+  /** PERF-IOS: the tier with this device's profile and the governor's step, to the renderer, the view and the HUD. */
+  private applyProfile(): void {
+    this.gr.apply(tierSettings(this.tier, { phone: this.phone, step: this.governor.step }));
+    this.session?.view.setShadows(this.gr.settings.shadows);
+    this.session?.applyPerf(this.gr.settings);
+    document.documentElement.dataset.quality = this.gr.settings.tier;
+    document.documentElement.dataset.perfStep = String(this.governor.step);
+    this.pacer.reset();
+  }
+
+  /** PERF-IOS P2-7: the shell's thermal state changed (or the first read): Low Power Mode turns Battery saver on. */
+  private onThermal(): void {
+    if (thermal().lowPower && autoBatterySaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: true, by: 'low_power' });
+  }
+
+  /** PERF-IOS P1-6: hidden page or backgrounded app: no frames, no audio, no music scheduling. */
+  private setSuspended(on: boolean): void {
+    if (on === this.suspended) return;
+    this.suspended = on;
+    if (on) {
+      if (this.raf) cancelAnimationFrame(this.raf);
+      this.raf = 0;
+      sfx.suspend();
+      this.session?.setHidden(true);
+      savePerfStep(this.governor.step);
+    } else {
+      sfx.resumeContext();
+      this.session?.setHidden(false);
+      this.pacer.reset();
+      this.last = performance.now();
+      if (!this.raf) this.raf = requestAnimationFrame(this.frameCb);
+    }
+  }
+
   private frame(now: number): void {
+    this.raf = 0;
+    if (this.suspended) return;
+    this.raf = requestAnimationFrame(this.frameCb);
+    const inMatch = this.screen === 'match' && !!this.session;
+    const paused = this.session?.isPaused ?? false;
+    const saver = batterySaver().on || this.gr.settings.fpsCap < MATCH_FPS;
+    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay, saver });
+    if (!this.pacer.due(now, fps)) return;
+    const t0 = performance.now();
     const raw = Math.max(0, now - this.last);
     const dt = Math.min(0.1, raw / 1000);
     this.last = now;
-    if (this.probe) {
+    // P1-2: the probe measures the first seconds of a running match at the full 60 fps target (never the title)
+    if (this.probe && inMatch && !paused && fps === MATCH_FPS) {
       const r = this.probe.sample(dt);
       if (r) {
-        if (r === 'low') this.setTier('low');
-        rememberTier(this.tier);
         this.probe = null;
+        this.setTier(r === 'low' ? 'low' : this.tier, 'probe');
       }
-    } else if (this.screen === 'match' && !this.forcedTier) {
-      const next = this.governor.sample(dt, this.tier);
-      if (next) this.setTier(next);
     }
-    if (this.screen === 'match' && this.frameMs.length < 20000) this.frameMs.push(raw);
+    if (inMatch && this.frameMs.length < 20000) this.frameMs.push(raw);
     // Draw calls for the perf check (POC.md §10): a plain data attribute, sampled once a second, no debug global.
     if ((this.frames = (this.frames + 1) % 60) === 0) document.documentElement.dataset.draws = String(this.gr.renderer.info.render.calls);
     if (this.session) this.session.frame(dt);
@@ -1582,8 +1661,19 @@ export class App {
       this.lobby.update(dt);
       this.gr.render();
     }
-    this.perf?.sample({ frameMs: raw, draws: this.gr.renderer.info.render.calls, tier: this.tier, inMatch: this.screen === 'match' });
-    requestAnimationFrame((t) => this.frame(t));
+    const work = performance.now() - t0;
+    if (inMatch && !paused && !this.forcedTier) {
+      const th = thermal().state;
+      const next = this.governor.sample({ frameMs: raw, workMs: work, targetMs: 1000 / fps, now, thermal: th });
+      if (next !== null) {
+        this.applyProfile();
+        savePerfStep(next);
+        this.analytics.track('quality_tier', { tier: this.gr.settings.tier, step: next, reason: this.governor.lastReason });
+        // sustained throttling: Battery saver (30 fps) turns on by itself, unless the player chose it in Settings
+        if (this.governor.throttled(th) && autoBatterySaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: true, by: 'thermal' });
+      }
+    }
+    this.perf?.sample({ frameMs: raw, draws: this.gr.renderer.info.render.calls, tier: this.gr.settings.tier, inMatch, fps, step: this.governor.step, reason: GOV_NAMES[this.governor.step] + (this.governor.lastReason ? ` (${this.governor.lastReason})` : ''), workMs: work });
   }
 }
 

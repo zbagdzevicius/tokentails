@@ -383,6 +383,8 @@ export class HeroView {
   /** Mesh detail and the outline hull (quality tier: Low is lighter and has no hull, POC.md §10). */
   detail: number = DETAIL.med;
   outlines = true;
+  /** PERF-IOS: which heroes get the hull: all, the own hero and enemies ('key', phones), the own hero, none. */
+  outlineScope: 'all' | 'key' | 'own' | 'none' = 'all';
   /** Render-only looks per hero slot (the player's cosmetics; bots wear the default). */
   looks = new Map<number, Look>();
   /** Card skin rarity effects (render/skins/tierFx.ts); null = none (the lobby). GameView sets it with its particles. */
@@ -410,9 +412,16 @@ export class HeroView {
   }
 
   /** Quality tier: rebuilds the heroes at the new detail on their next frame. */
-  setQuality(low: boolean, outlines: boolean): void {
+  setQuality(low: boolean, outlines: boolean | 'all' | 'key' | 'own' | 'none'): void {
     this.detail = low ? DETAIL.low : DETAIL.med;
-    this.outlines = outlines;
+    this.outlineScope = outlines === true ? 'all' : outlines === false ? 'none' : outlines;
+    this.outlines = this.outlineScope !== 'none';
+  }
+
+  /** The hull for this hero under the scope: allies and companions read by their rings on a phone. */
+  private outlineFor(team: number, self: boolean): boolean {
+    const sc = this.outlineScope;
+    return sc === 'all' || (sc === 'own' && self) || (sc === 'key' && (self || team !== this.myTeam));
   }
 
   private drop(r: HeroRig): void {
@@ -429,15 +438,16 @@ export class HeroView {
     // round 2: the cloth follows the species (a dog-picking human's team wears the Woof blue)
     const dress = (this.styleSwap ? 1 - team : team) as 0 | 1;
     const self = e.id === this.mySlot;
-    const key = `${hero}:${dress}:${lookKey(look)}:${this.detail}:${this.outlines ? 1 : 0}:${self ? 1 : 0}`;
+    const outline = this.outlineFor(e.team, self);
+    const key = `${hero}:${dress}:${lookKey(look)}:${this.detail}:${outline ? 1 : 0}:${self ? 1 : 0}`;
     if (r && r.key !== key) {
       this.drop(r);
       r = undefined;
     }
     if (!r) {
-      const ch = makeHero(hero, dress, look, { detail: this.detail, outline: this.outlines, shadows: this.shadows, match: true, self });
+      const ch = makeHero(hero, dress, look, { detail: this.detail, outline, shadows: this.shadows, match: true, self });
       // no outline hull (Low): a darker ink rim keeps the silhouette off the sand (ivory Clem faded into the lane)
-      if (!this.outlines) ch.material.userData.u.uRim.value = 0.78;
+      if (!outline) ch.material.userData.u.uRim.value = 0.78;
       ch.object.name = `hero-${e.id}`;
       this.group.add(ch.object);
       let xray: THREE.SkinnedMesh | null = null;

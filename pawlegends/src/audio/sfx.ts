@@ -172,6 +172,16 @@ export class Sfx {
     }
   }
 
+  /** PERF-IOS P1-6: hidden page or backgrounded app: the audio graph stops rendering (no CPU, no heat). */
+  suspend(): void {
+    if (this.ac && this.ac.state === 'running') void this.ac.suspend().catch(() => undefined);
+  }
+
+  /** Back in front: resume (iOS may still want a gesture; unlock() on the next touch then resumes it). */
+  resumeContext(): void {
+    if (this.ac && this.ac.state !== 'running') void this.ac.resume().catch(() => undefined);
+  }
+
   setMuted(m: boolean): void {
     this.muted = m;
     if (this.master) this.master.gain.value = m ? 0 : this.volume;
