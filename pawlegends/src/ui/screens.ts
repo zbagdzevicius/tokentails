@@ -39,6 +39,7 @@ import { cardIdentity } from '../meta/cardName';
 // Token Tails card art (ui/cards/): pick tiles as collectible cards, skin mini cards, the title badge, the MVP card
 import { cardAttrs, heroElement, heroPic } from './cards/el';
 import { cardFrame } from './cards/frame';
+import { infoDot, openChampInfo } from './champBrowser/open';
 
 function el(cls: string, html = ''): HTMLElement {
   const d = document.createElement('div');
@@ -272,7 +273,8 @@ export function heroTile(h: HeroId, on: boolean, pic: string | null, champ: { ar
     foil: on ? 'sweep' : 'hover',
     sparkles: on,
     icon: true,
-    inner: `${heroPic(h, pic)}${card}${badge}${label}`,
+    // champion browser: the "i" opens the hero's skills and lore (the card itself still picks in one tap)
+    inner: `${heroPic(h, pic)}${card}${badge}${label}${infoDot(h)}`,
   });
 }
 
@@ -381,7 +383,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         <div class="row tricks"><span class="lbl">Paw Trick</span>${TRICK_IDS.map((tr) => trickText(tr, c.hero)).map((tt, i) => `<button class="chip ${TRICK_IDS[i] === c.trick ? 'on' : ''}" data-t="${TRICK_IDS[i]}" title="${esc(`${tt.text} (${trickNumbers(TRICK_IDS[i])})`)}">${icon(tt.icon)}${esc(tt.name)}</button>`).join('')}</div>
         ${trickHint(t.role, HEROES[c.hero].side) ? `<p class="trick-hint">${esc(trickHint(t.role, HEROES[c.hero].side))}</p>` : ''}
         <div class="detail">
-          <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
+          <h3>${esc(t.title)} <small>${t.side}</small><span class="role-label" data-role="${esc(t.role)}">${esc(t.role)}</span><button type="button" class="chip codex" data-a="codex" aria-haspopup="dialog">${icon('spell')}Skills &amp; lore</button>${o.onNumbers ? `<button class="chip numbers ${numbers ? 'on' : ''}" data-a="numbers" aria-pressed="${numbers}">Numbers</button>` : ''}</h3>
           <p class="blurb">${esc(t.blurb)}</p>
           <p class="lane-hint">${esc(laneHint(t.role))}</p>
           ${championOf(c.hero) ? `<p class="champ-from">${esc(`Inspired by ${championOf(c.hero)?.cardName}'s Token Tails card.`)}${o.champions?.[c.hero]?.owned ? ` <span class="champ-owned">${esc(`From ${championOf(c.hero)?.cardName}'s card`)}</span>` : ''}</p>${t.flavour ? `<p class="champ-flavour">${esc(t.flavour)}</p>` : ''}` : ''}
@@ -431,8 +433,31 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         .join('');
     }
   });
+  // champion browser: Select picks the browsed hero as a tap on its card would (switching the side when the hero is on
+  // the other one; the dogs stay locked before the first match)
+  const selectHero = (h: HeroId): void => {
+    const sd = HEROES[h].side;
+    if (sd !== side && !setSide(sd)) return;
+    c.hero = h;
+    lastBySide[sd] = h;
+    o.onHero(h);
+    renderAll();
+  };
+  const browse = (h: HeroId, slot?: 'passive' | 'q'): void => {
+    void openChampInfo({
+      hero: h,
+      slot,
+      within: root,
+      pick: { label: 'Select', can: (x) => (HEROES[x].side === 'dog' && dogsLocked && side !== 'dog' ? 'Dogs unlock after your first match' : ''), on: selectHero },
+    });
+  };
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    const info = t.closest<HTMLElement>('[data-info]')?.dataset.info as HeroId | undefined;
+    if (info && HEROES[info]) {
+      e.stopPropagation();
+      return browse(info);
+    }
     const h = t.closest<HTMLElement>('[data-h]')?.dataset.h as HeroId | undefined;
     const tr = t.closest<HTMLElement>('[data-t]')?.dataset.t as TrickId | undefined;
     const d = t.closest<HTMLElement>('[data-d]')?.dataset.d as Difficulty | undefined;
@@ -488,6 +513,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       return renderAll();
     }
     if (a === 'veteran') return o.onVeteran?.();
+    if (a === 'codex') return browse(c.hero);
     if (a === 'deck') return o.onDeck?.(c.hero);
     if (a === 'start') return o.onStart({ ...c });
     if (a === 'back') return o.onBack();
