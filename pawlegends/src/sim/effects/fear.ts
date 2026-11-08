@@ -7,7 +7,8 @@ import { MAP } from '../../data/map';
 import { EFFECTS } from '../../data/effects';
 import { TICK_HZ } from '../../data/timeline';
 import { applyBp, clamp, dist2, idiv, isqrt, moveToward } from '../fixed';
-import { cellOf, walkable, type NavGrid } from '../map/grid';
+import { type NavGrid } from '../map/grid';
+import { slideStep } from '../nav/slide';
 import { Kind, type World } from '../world';
 import { ccImmune, drGrant, interrupt } from './status';
 import { moveSpeed } from '../units/kinds';
@@ -32,8 +33,13 @@ export function charm(w: World, id: number, ticks: number, src: number): void {
 }
 
 const out = new Int32Array(3);
+const slid = new Int32Array(2);
 
-/** One tick of running away (or, charmed, walking toward the charmer). Heroes stop at walls; rooted units only cower. */
+/**
+ * One tick of running away (or, charmed, walking toward the charmer). Rooted units only cower. Sim v17 (MAP-GAPS B5a):
+ * a hero that meets a wall slides along it (x only, then y only) and stops only when both are blocked; minions and
+ * rats are unchanged.
+ */
 export function fleeStep(w: World, grid: NavGrid, id: number): void {
   const src = w.fearSrc[id];
   if (src >= 0) {
@@ -64,7 +70,12 @@ export function fleeStep(w: World, grid: NavGrid, id: number): void {
   const tx = clamp(w.x[id] + idiv(dx * far, d), 0, MAP.width);
   const ty = clamp(w.y[id] + idiv(dy * far, d), 0, MAP.height);
   moveToward(w.x[id], w.y[id], tx, ty, applyBp(moveSpeed(w, id), EFFECTS.fearSpeedBp), w.moveCarry[id], TICK_HZ, out);
-  if (w.kind[id] === Kind.Hero && !walkable(grid, cellOf(out[0], out[1]))) return;
+  if (w.kind[id] === Kind.Hero) {
+    slideStep(grid, w.x[id], w.y[id], out[0], out[1], slid);
+    if (slid[0] === w.x[id] && slid[1] === w.y[id]) return;
+    out[0] = slid[0];
+    out[1] = slid[1];
+  }
   w.x[id] = out[0];
   w.y[id] = out[1];
   w.moveCarry[id] = out[2];

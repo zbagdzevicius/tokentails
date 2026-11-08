@@ -6996,6 +6996,28 @@ function knockback(m, id, fromX, fromY, dist, fallbackAngle) {
 	startForced(w, id, end[0], end[1], EFFECTS.knockbackTicks, FM.Knock);
 }
 //#endregion
+//#region src/sim/nav/slide.ts
+/**
+* Sim v17 (MAP-GAPS B5a, docs/plans/moba/V17.md §4): a forced walk that meets a wall slides along it instead of
+* stopping dead. Used for feared and charmed heroes (effects/fear.ts `fleeStep`); minions and rats are unchanged.
+*/
+/** Step from (x, y) to (nx, ny); if that cell is blocked try x only, then y only, else stay. Writes [x, y] to `out`. */
+function slideStep(grid, x, y, nx, ny, out) {
+	if (walkable(grid, cellOf(nx, ny))) {
+		out[0] = nx;
+		out[1] = ny;
+	} else if (nx !== x && walkable(grid, cellOf(nx, y))) {
+		out[0] = nx;
+		out[1] = y;
+	} else if (ny !== y && walkable(grid, cellOf(x, ny))) {
+		out[0] = x;
+		out[1] = ny;
+	} else {
+		out[0] = x;
+		out[1] = y;
+	}
+}
+//#endregion
 //#region src/sim/effects/fear.ts
 /**
 * `fear` (POC.md §4.4): the unit runs straight away from (fromX, fromY) and cannot act. `charm` (sim v9, Gabė's
@@ -7020,7 +7042,12 @@ function charm(w, id, ticks, src) {
 	interrupt(w, id, true);
 }
 var out$4 = /* @__PURE__ */ new Int32Array(3);
-/** One tick of running away (or, charmed, walking toward the charmer). Heroes stop at walls; rooted units only cower. */
+var slid = /* @__PURE__ */ new Int32Array(2);
+/**
+* One tick of running away (or, charmed, walking toward the charmer). Rooted units only cower. Sim v17 (MAP-GAPS B5a):
+* a hero that meets a wall slides along it (x only, then y only) and stops only when both are blocked; minions and
+* rats are unchanged.
+*/
 function fleeStep(w, grid, id) {
 	const src = w.fearSrc[id];
 	if (src >= 0) {
@@ -7050,7 +7077,12 @@ function fleeStep(w, grid, id) {
 	const tx = clamp(w.x[id] + idiv(dx * far, d), 0, MAP.width);
 	const ty = clamp(w.y[id] + idiv(dy * far, d), 0, MAP.height);
 	moveToward(w.x[id], w.y[id], tx, ty, applyBp(moveSpeed(w, id), EFFECTS.fearSpeedBp), w.moveCarry[id], 30, out$4);
-	if (w.kind[id] === Kind.Hero && !walkable(grid, cellOf(out$4[0], out$4[1]))) return;
+	if (w.kind[id] === Kind.Hero) {
+		slideStep(grid, w.x[id], w.y[id], out$4[0], out$4[1], slid);
+		if (slid[0] === w.x[id] && slid[1] === w.y[id]) return;
+		out$4[0] = slid[0];
+		out$4[1] = slid[1];
+	}
 	w.x[id] = out$4[0];
 	w.y[id] = out$4[1];
 	w.moveCarry[id] = out$4[2];

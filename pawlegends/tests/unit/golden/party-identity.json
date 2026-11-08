@@ -35,7 +35,7 @@
     {
       "key": "fuzz:2",
       "finalHash": "e697fb8d",
-      "trail": "e2666358",
+      "trail": "7dcc2276",
       "ticks": 12747
     },
     {
@@ -46,9 +46,9 @@
     },
     {
       "key": "fuzz:4",
-      "finalHash": "1360bc0a",
-      "trail": "16f0ff91",
-      "ticks": 11953
+      "finalHash": "f0950768",
+      "trail": "66e5afc0",
+      "ticks": 12098
     },
     {
       "key": "fuzz:5",
@@ -76,33 +76,33 @@
     },
     {
       "key": "fuzz:9",
-      "finalHash": "c119909f",
-      "trail": "d873db7f",
-      "ticks": 12383
+      "finalHash": "d5ba836c",
+      "trail": "0e773402",
+      "ticks": 12587
     },
     {
       "key": "fuzz:10",
-      "finalHash": "7e9aab5e",
-      "trail": "03c150d5",
-      "ticks": 8640
+      "finalHash": "f8582de3",
+      "trail": "d0fb2778",
+      "ticks": 8529
     },
     {
       "key": "fuzz:11",
-      "finalHash": "f227f414",
-      "trail": "dc29aefe",
-      "ticks": 13982
+      "finalHash": "5d6a4b6a",
+      "trail": "d69c6fe7",
+      "ticks": 12974
     },
     {
       "key": "fuzz:12",
-      "finalHash": "3dfe81d4",
-      "trail": "c70119d5",
-      "ticks": 12598
+      "finalHash": "922cb337",
+      "trail": "9b1435ee",
+      "ticks": 12778
     },
     {
       "key": "fuzz:13",
-      "finalHash": "3802f063",
-      "trail": "d0b74ffb",
-      "ticks": 8853
+      "finalHash": "95a35b4a",
+      "trail": "0d1d882a",
+      "ticks": 8614
     },
     {
       "key": "fuzz:14",
@@ -112,9 +112,9 @@
     },
     {
       "key": "fuzz:15",
-      "finalHash": "efcadd01",
-      "trail": "50c18633",
-      "ticks": 8386
+      "finalHash": "9ac735ac",
+      "trail": "a814fdf1",
+      "ticks": 8445
     },
     {
       "key": "fuzz:16",
@@ -148,14 +148,14 @@
     },
     {
       "key": "bot:pinger:12",
-      "finalHash": "c109261a",
-      "trail": "dde5169a",
-      "ticks": 13467
+      "finalHash": "c5508b92",
+      "trail": "da018da2",
+      "ticks": 12422
     },
     {
       "key": "bot:normal:13",
-      "finalHash": "4f39b834",
-      "trail": "2c557fff",
+      "finalHash": "1c7ebf0b",
+      "trail": "6b8c5b35",
       "ticks": 10916
     },
     {
