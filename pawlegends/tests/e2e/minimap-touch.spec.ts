@@ -66,3 +66,39 @@ test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, 
   await touch('touchEnd');
   await expect.poll(async () => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1)).toBe(1);
 });
+
+test('touch minimap (turned with the camera): holding a tower pixel peeks at that tower, for both seats', async ({ page }, info) => {
+  test.skip(info.project.name !== 'landscape', 'touch controls');
+  await startFirstMatch(page);
+  await page.waitForTimeout(1000);
+  const cdp = await page.context().newCDPSession(page);
+  for (const team of [0, 1] as const) {
+    await page.evaluate((t) => {
+      const v = (window as unknown as { __plWorld: { view: { mySlot: number; tricks: unknown[]; setTeam(s: number, t: number, k: unknown[]): void } } }).__plWorld.view;
+      v.setTeam(v.mySlot, t, v.tricks ?? []);
+    }, team);
+    await page.waitForTimeout(400);
+    // the first enemy outer tower: its sim point and its pixel on the (turned) minimap canvas
+    const t = await page.evaluate((myTeam) => {
+      const w = window as unknown as {
+        __plWorld: { view: { frame: { entities: { kind: string; team: number; fx: number; fy: number }[] } } };
+        __plMinimap: { P(x: number, y: number): [number, number] };
+      };
+      const tw = w.__plWorld.view.frame.entities.find((e) => e.kind === 'tower' && e.team !== myTeam)!;
+      const [px, py] = w.__plMinimap.P(tw.fx, tw.fy);
+      const c = document.querySelector<HTMLCanvasElement>('.pl-minimap canvas')!;
+      const r = c.getBoundingClientRect();
+      // the canvas is drawn at the box size and shown inside the border: scale its px to the shown rect
+      const dpr = Math.min(2, devicePixelRatio || 1);
+      const k = r.width / (c.width / dpr);
+      return { x: tw.fx / 1000, z: -tw.fy / 1000, sx: r.left + px * k, sy: r.top + py * k };
+    }, team);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: t.sx, y: t.sy, id: 1 }] });
+    await page.waitForTimeout(150);
+    const f = await focus(page);
+    await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    // within a minimap pixel's worth of ground (~1 m per px on a 112 px box)
+    expect(Math.hypot(f.x - t.x, f.z - t.z), `team ${team}`).toBeLessThan(2.5);
+    await page.waitForTimeout(300);
+  }
+});

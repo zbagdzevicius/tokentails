@@ -27,6 +27,7 @@
  * an enemy windup. Lingering glyphs are never red and never rings. Pooled: module-level scratch objects and typed
  * arrays, nothing allocated per event or per frame.
  */
+import { screenRightXZ, towardCameraXZ } from '../coords';
 import { stubFx } from '../anim/common';
 import { DASH_SPEED, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
@@ -91,21 +92,27 @@ function shock(fx: FxCtx, x: number, z: number, r1: number, dur: number, color: 
 }
 
 const SL = { x: 0, y: 0, z: 0 };
+const SR = { x: 0, z: 0 };
+const ST = { x: 0, z: 0 };
 /**
- * One standing claw stroke in the camera-facing x–y plane, centred on (cx, cy, cz): from upper-left to lower-right
+ * One standing claw stroke in the camera-facing plane (screen-right × up for the current view, feel pass B2), centred
+ * on (cx, cy, cz): from upper-left to lower-right
  * (`slant` −1 mirrors it), bowed by `bow`. A ribbon fed in one frame (the head bright, the tail tapered). Returns false
  * when the tier has no ribbon slot (Low), so the caller can fall back.
  */
 function stroke(fx: FxCtx, cx: number, cy: number, cz: number, half: number, drop: number, slant: number, bow: number, color: number, width: number, life: number): boolean {
-  SL.x = cx - half * slant;
+  const r = screenRightXZ(SR);
+  const t = towardCameraXZ(ST);
+  SL.x = cx - half * slant * r.x;
   SL.y = cy + drop;
-  SL.z = cz;
+  SL.z = cz - half * slant * r.z;
   const rib = fx.ribbons.point(SL, color, width, life);
   if (rib < 0) return false;
   for (let i = 1; i <= 6; i++) {
     const u = i / 6;
     const b = Math.sin(u * Math.PI) * bow;
-    fx.ribbons.feed(rib, cx - half * slant + 2 * half * slant * u, cy + drop - 2 * drop * u + b, cz + b * 0.4);
+    const along = -half * slant + 2 * half * slant * u;
+    fx.ribbons.feed(rib, cx + along * r.x + b * 0.4 * t.x, cy + drop - 2 * drop * u + b, cz + along * r.z + b * 0.4 * t.z);
   }
   fx.ribbons.end(rib);
   return true;

@@ -1,24 +1,33 @@
 import { expect, test, type Page } from '@playwright/test';
 import { me, startFirstMatch } from './helpers';
 
-// MAP-GAPS A24: a team-1 seat sees the map turned 180° (its base bottom left, the enemy's top right): the enemy core
-// (team 0's, at x = 10 m) projects right of its own (x = 90 m), the stick pushed right walks toward −x, and the
-// minimap turns too. Solo play has no team-1 human yet (PvP M1b), so the view is put on team 1 through the e2e hook.
+// MAP-GAPS A24 + feel pass B2: the map is diagonal and each seat sees its own base bottom left, the enemy's top right
+// (team 1: turned another 180°): the enemy core projects right of and above its own, the stick pushed right walks
+// toward the enemy side (−x for team 1), and the minimap turns too. Solo play has no team-1 human yet (PvP M1b), so
+// the view is put on team 1 through the e2e hook.
 test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
 
-type View = { mySlot: number; tricks: unknown[]; setTeam(slot: number, team: 0 | 1, tricks: unknown[]): void; gr: { camera: { position: unknown } } };
+type View = { mySlot: number; tricks: unknown[]; setTeam(slot: number, team: 0 | 1, tricks: unknown[]): void; lookAt(x: number, z: number, h: number): void; recentre(): void; gr: { camera: { position: unknown } } };
 const seat = (page: Page, team: 0 | 1) =>
   page.evaluate((t) => {
     const v = (window as unknown as { __plWorld: { view: View } }).__plWorld.view;
     v.setTeam(v.mySlot, t as 0 | 1, v.tricks ?? []);
   }, team);
-type Vec = { set(a: number, b: number, c: number): Vec; project(c: unknown): Vec; x: number };
+/** Look at mid-map (both cores in front of the camera), or back at the hero. */
+const midMap = (page: Page, on: boolean) =>
+  page.evaluate((o) => {
+    const v = (window as unknown as { __plWorld: { view: View } }).__plWorld.view;
+    if (o) v.lookAt(50, -30, 1e9);
+    else v.recentre();
+  }, on);
+type Vec = { set(a: number, b: number, c: number): Vec; project(c: unknown): Vec; x: number; y: number };
 const screenX = (page: Page, x: number, z: number) =>
   page.evaluate(
     ([px, pz]) => {
       const cam = (window as unknown as { __plWorld: { view: { gr: { camera: { position: Vec } } } } }).__plWorld.view.gr.camera;
       const V = cam.position.constructor as unknown as new () => Vec;
-      return new V().set(px, 0, pz).project(cam).x;
+      const p = new V().set(px, 0, pz).project(cam);
+      return [p.x, p.y] as [number, number];
     },
     [x, z] as const,
   );
@@ -33,19 +42,34 @@ async function stickRight(page: Page, ms: number): Promise<void> {
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
 }
 
-test('team-1 seat: camera turned 180°, the enemy core to the right, the stick pushes toward it', async ({ page }, info) => {
+test('team-1 seat: diagonal view turned 180°, the enemy core top right, the stick pushes toward it', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch controls');
   await startFirstMatch(page);
   await page.waitForTimeout(800);
-  // team 0: our core (10 m) left of theirs (90 m)
-  expect(await screenX(page, 10, -30)).toBeLessThan(await screenX(page, 90, -30));
+  // team 0: our core (10 m) left of and below theirs (90 m) (NDC y is up), seen from mid-map
+  await midMap(page, true);
+  await page.waitForTimeout(300);
+  const [o0, e0] = [await screenX(page, 10, -30), await screenX(page, 90, -30)];
+  expect(o0[0]).toBeLessThan(e0[0]);
+  expect(o0[1]).toBeLessThan(e0[1]);
   await seat(page, 1);
   await page.waitForTimeout(800);
-  // team 1: the enemy core (team 0's, 10 m) projects right of our own (90 m)
-  expect(await screenX(page, 10, -30)).toBeGreaterThan(await screenX(page, 90, -30));
+  // team 1: the enemy core (team 0's, 10 m) projects right of and above our own (90 m)
+  const [o1, e1] = [await screenX(page, 90, -30), await screenX(page, 10, -30)];
+  expect(o1[0]).toBeLessThan(e1[0]);
+  expect(o1[1]).toBeLessThan(e1[1]);
+  await midMap(page, false);
+  await page.waitForTimeout(300);
   // the stick pushed screen-right walks the hero toward −x (toward that enemy core's side of the map)
   const a = await me(page);
   await stickRight(page, 900);
   await expect.poll(async () => (await me(page)).x, { timeout: 3000 }).toBeLessThan(a.x - 300);
   await page.screenshot({ path: 'test-results/team1-view/844x390.png' });
+});
+
+test('the start shows "Your base: bottom left" for 1.2 s', async ({ page }, info) => {
+  test.skip(info.project.name !== 'landscape', 'touch phone');
+  await startFirstMatch(page);
+  await expect.poll(() => page.evaluate(() => document.documentElement.dataset.baseToast ?? ''), { timeout: 15_000 }).toBe('base');
+  await expect(page.locator('.pl-basetoast')).toHaveCount(0, { timeout: 5000 });
 });

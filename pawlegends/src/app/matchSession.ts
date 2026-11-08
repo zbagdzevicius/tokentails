@@ -286,6 +286,9 @@ export function behindBanner(kOurs: number, kTheirs: number, tOurs: number, tThe
   return { title: `They lead ${kTheirs} to ${kOurs} on takedowns`, sub: 'Group up with your team and fight together.', tone: 'info' };
 }
 
+/** Feel pass B2: how long (ms) the "Your base: bottom left" toast shows at the start. */
+export const BASE_TOAST_MS = 1200;
+
 export class MatchSession {
   readonly host: MatchHost;
   readonly buffer = new SnapBuffer();
@@ -468,6 +471,8 @@ export class MatchSession {
       myTeam: () => this.view.myTeam,
       goHere: (x, y) => this.sendPing(PING_KIND.GoHere, x, y),
     });
+    // feel pass B2 (e2e): the minimap, to find a tower's pixel on the turned map
+    if (this.e2e) e2eHook('Minimap', this.minimap);
     this.tips = new Tips(this.view.juice.notify, setup.firstMatch);
     this.goals = new Objectives(this.view.juice.notify, setup.guide ?? 'off');
     this.minimap.pickups = () => this.view.pickups.list();
@@ -776,8 +781,24 @@ export class MatchSession {
         document.documentElement.dataset.match = 'live';
         this.mpLive = true;
         this.mp?.start();
+        this.baseToast();
         setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
       });
+  }
+
+  /**
+   * Feel pass B2: the map is diagonal and each seat sees its own base bottom left, so the start says so for 1.2 s
+   * (a team-1 seat is told the map is turned, as Wild Rift does for the red side).
+   */
+  private baseToast(): void {
+    const el = document.createElement('div');
+    el.className = 'pl-basetoast';
+    el.setAttribute('role', 'status');
+    const turned = this.view.myTeam === 1;
+    el.innerHTML = `<i class="stk" aria-hidden="true"></i><span><b>Your base: bottom left</b>${turned ? '<small>(map turned)</small>' : ''}</span>`;
+    this.ui.appendChild(el);
+    if (this.e2e) document.documentElement.dataset.baseToast = turned ? 'turned' : 'base';
+    setTimeout(() => el.remove(), BASE_TOAST_MS);
   }
 
   private gateNoteAt = -1e9;

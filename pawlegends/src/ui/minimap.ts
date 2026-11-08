@@ -11,6 +11,7 @@ import { HERO_COLOR_CSS, RELATION_CSS, sidesSwapped } from '../render/palette';
 import { portraitUrl } from '../render/portraits';
 import { HERO_TEXT } from './heroText';
 import type { HeroId, SimEvent } from '../sim/api';
+import { cameraYaw } from '../render/coords';
 import type { PingKind } from '../data/pings';
 import { pingGlyph } from './pingGlyph';
 import { clearedBushes } from '../render/bushClear';
@@ -96,24 +97,48 @@ export const GHOST_S = 6;
 export const MM_PAD = 6;
 
 /**
- * MAP-GAPS A6 (and A24's flip): the minimap mapping for a `w` × `h` px canvas: sim mm → canvas px, inset by `pad`,
- * and canvas px → sim mm (clamped to the map). `flip` turns the map 180° (a team-1 seat sees its base bottom left).
+ * MAP-GAPS A6 + feel pass B2: the minimap mapping for a `w` × `h` px canvas, turned by the camera's ground yaw `yaw`
+ * (render/coords.ts cameraYaw: −38° for team 0, + 180° for a team-1 seat), so the minimap reads like the screen: our
+ * base bottom left, theirs top right. The turned map is scaled to fit inside the canvas, inset by `pad`.
+ * `P` maps sim mm → canvas px; `LX` / `LY` are the unturned layout (px from the canvas centre) for shapes drawn under
+ * a `rotate(rot)` about (cx, cy); `inv` is the exact inverse of `P` (clamped to the map).
  */
-export function minimapMapping(w: number, h: number, pad = MM_PAD, flip = false) {
-  const iw = Math.max(1, w - 2 * pad);
-  const ih = Math.max(1, h - 2 * pad);
-  const fx = (x: number): number => (flip ? MAP.width - x : x);
-  const fy = (y: number): number => (flip ? MAP.height - y : y);
+export function minimapMapping(w: number, h: number, pad = MM_PAD, yaw = 0) {
+  const c = Math.cos(yaw);
+  const s = Math.sin(yaw);
+  const W = MAP.width;
+  const H = MAP.height;
+  const bbW = W * Math.abs(c) + H * Math.abs(s);
+  const bbH = W * Math.abs(s) + H * Math.abs(c);
+  const k = Math.max(1e-6, Math.min(Math.max(1, w - 2 * pad) / bbW, Math.max(1, h - 2 * pad) / bbH));
+  const cx = w / 2;
+  const cy = h / 2;
+  const LX = (xMm: number): number => (xMm - W / 2) * k;
+  const LY = (yMm: number): number => -(yMm - H / 2) * k;
   return {
-    X: (xMm: number): number => pad + (fx(xMm) / MAP.width) * iw,
-    Y: (yMm: number): number => pad + (1 - fy(yMm) / MAP.height) * ih,
+    /** px per mm. */
+    k,
+    cx,
+    cy,
+    /** The canvas rotation (rad) that turns the layout (LX, LY) into canvas px about (cx, cy). */
+    rot: yaw,
+    LX,
+    LY,
+    /** Sim mm → canvas px. */
+    P: (xMm: number, yMm: number): [number, number] => {
+      const lx = LX(xMm);
+      const ly = LY(yMm);
+      return [cx + lx * c - ly * s, cy + lx * s + ly * c];
+    },
     /** Canvas px → sim mm, clamped to the map. */
     inv: (px: number, py: number): { xMm: number; yMm: number } => {
-      const u = Math.max(0, Math.min(1, (px - pad) / iw));
-      const v = Math.max(0, Math.min(1, (py - pad) / ih));
-      return { xMm: fx(u * MAP.width), yMm: fy((1 - v) * MAP.height) };
+      const dx = px - cx;
+      const dy = py - cy;
+      const lx = dx * c + dy * s;
+      const ly = -dx * s + dy * c;
+      return { xMm: Math.max(0, Math.min(W, lx / k + W / 2)), yMm: Math.max(0, Math.min(H, -ly / k + H / 2)) };
     },
-    /** Clamp a canvas point into the inset rectangle (the view quad stays closed at the map edge). */
+    /** Clamp a canvas point into the inset rectangle (the view quad stays closed at the edge). */
     clamp: (px: number, py: number): [number, number] => [Math.max(pad, Math.min(w - pad, px)), Math.max(pad, Math.min(h - pad, py))],
   };
 }
@@ -261,8 +286,8 @@ export class Minimap {
     const w = Math.round(r.width) || 220;
     const h = Math.round(r.height) || 132;
     const dpr = Math.min(2, window.devicePixelRatio || 1);
-    // MAP-GAPS A24: a team-1 seat's minimap is turned 180° like its camera
-    this.flip = this.host.myTeam() === 1;
+    // feel pass B2: the minimap turns with the camera (diagonal; another 180° for a team-1 seat)
+    this.yaw = cameraYaw();
     const key = this.bgKey();
     if (w === this.w && h === this.h && dpr === this.dpr && this.bg && key === this.bgKeyNow) return;
     this.bgKeyNow = key;
@@ -270,7 +295,7 @@ export class Minimap {
     this.h = h;
     this.dpr = dpr;
     this.k = w / 196;
-    this.map = minimapMapping(w, h, MM_PAD, this.flip);
+    this.map = minimapMapping(w, h, MM_PAD, this.yaw);
     this.canvas.width = w * dpr;
     this.canvas.height = h * dpr;
     this.bg = this.paintBg();
@@ -279,7 +304,7 @@ export class Minimap {
   /** MAP-GAPS A9: what the cached background depends on besides its size: our team, the flip, colours, species. */
   private bgKeyNow = '';
   private bgKey(): string {
-    return `${this.host.myTeam()}|${this.flip ? 1 : 0}|${colourBlind() ? 1 : 0}|${sidesSwapped() ? 1 : 0}`;
+    return `${this.host.myTeam()}|${this.yaw.toFixed(4)}|${colourBlind() ? 1 : 0}|${sidesSwapped() ? 1 : 0}`;
   }
   /** Repaint the background on the next draw (species or side swap, a setting change). */
   invalidate(): void {
@@ -288,11 +313,22 @@ export class Minimap {
   /** Background repaints so far (tests). */
   bgPaints = 0;
 
-  /** MAP-GAPS A6 / A24: the current mapping (inset, flipped for a team-1 seat). */
+  /** MAP-GAPS A6 / feel pass B2: the current mapping (inset, turned with the camera). */
   private map = minimapMapping(this.w, this.h);
-  private flip = false;
-  readonly X = (xMm: number): number => this.map.X(xMm);
-  readonly Y = (yMm: number): number => this.map.Y(yMm);
+  private yaw = 0;
+  /** Sim mm → canvas px (turned). */
+  readonly P = (xMm: number, yMm: number): [number, number] => this.map.P(xMm, yMm);
+  /** The unturned layout (px from the centre), for shapes drawn inside `turned()`. */
+  private readonly X = (xMm: number): number => this.map.LX(xMm);
+  private readonly Y = (yMm: number): number => this.map.LY(yMm);
+  /** Draw `fn` with the canvas turned like the map (layout coordinates X / Y). */
+  private turned(g: CanvasRenderingContext2D, fn: () => void): void {
+    g.save();
+    g.translate(this.map.cx, this.map.cy);
+    g.rotate(this.map.rot);
+    fn();
+    g.restore();
+  }
 
   private paintBg(): HTMLCanvasElement {
     this.bgPaints++;
@@ -304,107 +340,108 @@ export class Minimap {
     // MAP-GAPS A6: the forest frames the inset map, so a unit at the edge is drawn whole
     g.fillStyle = MM_GROUND.forest;
     g.fillRect(0, 0, this.w, this.h);
-    const x0 = this.X(0);
-    const x1 = this.X(MAP.width);
-    const y0 = this.Y(MAP.height);
-    const y1 = this.Y(0);
-    g.fillStyle = MM_GROUND.grass;
-    g.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
-    g.fillStyle = MM_GROUND.river;
-    const rx0 = this.X(MAP.riverX[0]);
-    const rx1 = this.X(MAP.riverX[1]);
-    g.fillRect(Math.min(rx0, rx1), Math.min(y0, y1), Math.abs(rx1 - rx0), Math.abs(y1 - y0));
-    // sim v5: the forest outside the playfield (the nav grid's blocked cells), darker, so a right-click there reads as
-    // "not walkable"
-    const wall = createGrid().walls;
-    const cw = Math.abs(this.X(MAP.navCell) - this.X(0));
-    const ch = Math.abs(this.Y(MAP.navCell) - this.Y(0));
-    for (let j = 0; j < NY; j++)
-      for (let i = 0; i < NX; i++)
-        if (wall[j * NX + i]) {
-          // the jungle rocks (blocked cells on the playfield) grey-brown, the forest dark green
-          g.fillStyle = onPlayfield(i * MAP.navCell + MAP.navCell / 2, j * MAP.navCell + MAP.navCell / 2) ? MM_GROUND.wall : MM_GROUND.forest;
-          const ax = this.X(i * MAP.navCell);
-          const bx = this.X((i + 1) * MAP.navCell);
-          const ay = this.Y((j + 1) * MAP.navCell);
-          const by = this.Y(j * MAP.navCell);
-          g.fillRect(Math.min(ax, bx), Math.min(ay, by), cw + 0.5, ch + 0.5);
-        }
-    g.strokeStyle = MM_GROUND.lane;
-    g.lineCap = 'round';
-    g.lineJoin = 'round';
-    g.lineWidth = (MAP.laneWidth / MAP.width) * (this.w - 2 * MM_PAD) * 0.7;
-    for (const lane of ['sunny', 'puddle'] as const) {
-      const pts = LANE_WAYPOINTS[lane];
-      g.beginPath();
-      pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
-      for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
-      g.stroke();
-    }
-    for (const b of BUSHES)
-      for (const x of [b.x, mirrorX(b.x)]) {
-        const ax = this.X(x - b.w / 2);
-        const bx = this.X(x + b.w / 2);
-        const ay = this.Y(b.y + b.h / 2);
-        const by = this.Y(b.y - b.h / 2);
-        const rx = Math.min(ax, bx);
-        const ry = Math.min(ay, by);
-        const rw = Math.abs(bx - ax);
-        const rh = Math.abs(by - ay);
-        g.fillStyle = MM_GROUND.bush;
-        g.strokeStyle = MM_GROUND.bushEdge;
-        g.lineWidth = 1;
-        roundRectPath(g, rx, ry, rw, rh, Math.min(rw, rh) * 0.35);
-        g.fill();
+    this.turned(g, () => {
+      const x0 = this.X(0);
+      const x1 = this.X(MAP.width);
+      const y0 = this.Y(MAP.height);
+      const y1 = this.Y(0);
+      g.fillStyle = MM_GROUND.grass;
+      g.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
+      g.fillStyle = MM_GROUND.river;
+      const rx0 = this.X(MAP.riverX[0]);
+      const rx1 = this.X(MAP.riverX[1]);
+      g.fillRect(Math.min(rx0, rx1), Math.min(y0, y1), Math.abs(rx1 - rx0), Math.abs(y1 - y0));
+      // sim v5: the forest outside the playfield (the nav grid's blocked cells), darker, so a right-click there reads as
+      // "not walkable"
+      const wall = createGrid().walls;
+      const cw = Math.abs(this.X(MAP.navCell) - this.X(0));
+      const ch = Math.abs(this.Y(MAP.navCell) - this.Y(0));
+      for (let j = 0; j < NY; j++)
+        for (let i = 0; i < NX; i++)
+          if (wall[j * NX + i]) {
+            // the jungle rocks (blocked cells on the playfield) grey-brown, the forest dark green
+            g.fillStyle = onPlayfield(i * MAP.navCell + MAP.navCell / 2, j * MAP.navCell + MAP.navCell / 2) ? MM_GROUND.wall : MM_GROUND.forest;
+            const ax = this.X(i * MAP.navCell);
+            const bx = this.X((i + 1) * MAP.navCell);
+            const ay = this.Y((j + 1) * MAP.navCell);
+            const by = this.Y(j * MAP.navCell);
+            g.fillRect(Math.min(ax, bx), Math.min(ay, by), cw + 0.5, ch + 0.5);
+          }
+      g.strokeStyle = MM_GROUND.lane;
+      g.lineCap = 'round';
+      g.lineJoin = 'round';
+      g.lineWidth = MAP.laneWidth * this.map.k * 0.7;
+      for (const lane of ['sunny', 'puddle'] as const) {
+        const pts = LANE_WAYPOINTS[lane];
+        g.beginPath();
+        pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
+        for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
         g.stroke();
-        // a dot texture: leaves, not a flat block of forest
-        g.fillStyle = 'rgba(30,70,25,0.55)';
-        for (let a = 0; a < 3; a++) for (let c = 0; c < 2; c++) g.fillRect(rx + rw * (0.3 + c * 0.4) - 0.5, ry + rh * (0.2 + a * 0.3) - 0.5, 1.2, 1.2);
       }
-    // MAP-GAPS A9: each base tinted by relation (ours ally blue, theirs enemy), whichever species or side we play
-    const rel = minimapRelation(colourBlind());
-    const myTeam = this.host.myTeam();
-    for (const team of [0, 1]) {
-      const cx = team === 0 ? CORE.x : mirrorX(CORE.x);
-      g.fillStyle = team === myTeam ? rel.ally : rel.enemy;
-      g.globalAlpha = 0.3;
+      for (const b of BUSHES)
+        for (const x of [b.x, mirrorX(b.x)]) {
+          const ax = this.X(x - b.w / 2);
+          const bx = this.X(x + b.w / 2);
+          const ay = this.Y(b.y + b.h / 2);
+          const by = this.Y(b.y - b.h / 2);
+          const rx = Math.min(ax, bx);
+          const ry = Math.min(ay, by);
+          const rw = Math.abs(bx - ax);
+          const rh = Math.abs(by - ay);
+          g.fillStyle = MM_GROUND.bush;
+          g.strokeStyle = MM_GROUND.bushEdge;
+          g.lineWidth = 1;
+          roundRectPath(g, rx, ry, rw, rh, Math.min(rw, rh) * 0.35);
+          g.fill();
+          g.stroke();
+          // a dot texture: leaves, not a flat block of forest
+          g.fillStyle = 'rgba(30,70,25,0.55)';
+          for (let a = 0; a < 3; a++) for (let c = 0; c < 2; c++) g.fillRect(rx + rw * (0.3 + c * 0.4) - 0.5, ry + rh * (0.2 + a * 0.3) - 0.5, 1.2, 1.2);
+        }
+      // MAP-GAPS A9: each base tinted by relation (ours ally blue, theirs enemy), whichever species or side we play
+      const rel = minimapRelation(colourBlind());
+      const myTeam = this.host.myTeam();
+      for (const team of [0, 1]) {
+        const cx = team === 0 ? CORE.x : mirrorX(CORE.x);
+        g.fillStyle = team === myTeam ? rel.ally : rel.enemy;
+        g.globalAlpha = 0.3;
+        g.beginPath();
+        g.arc(this.X(cx), this.Y(CORE.y), 10000 * this.map.k, 0, Math.PI * 2);
+        g.fill();
+        g.globalAlpha = 1;
+        const fx = team === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x);
+        g.fillStyle = '#bfe8ff';
+        g.beginPath();
+        g.arc(this.X(fx), this.Y(FOUNTAIN.y), 3, 0, Math.PI * 2);
+        g.fill();
+      }
+      // MAP-GAPS A19: static landmarks, dimmed: the rat camps (a ring and a dot), Pudding's pit (a violet ring), and
+      // each lane's glyph (a sun, a puddle) with its name on desktop
+      g.globalAlpha = 0.7;
+      for (const x of [RAT_CAMP.x, mirrorX(RAT_CAMP.x)]) {
+        g.strokeStyle = MM_OUTLINE;
+        g.lineWidth = 1;
+        g.beginPath();
+        g.arc(this.X(x), this.Y(RAT_CAMP.y), 3.2 * this.k, 0, Math.PI * 2);
+        g.stroke();
+        g.fillStyle = '#cdb784';
+        g.beginPath();
+        g.arc(this.X(x), this.Y(RAT_CAMP.y), 1.4 * this.k, 0, Math.PI * 2);
+        g.fill();
+      }
+      g.strokeStyle = MM_OBJECTIVE;
+      g.lineWidth = 1.4;
+      g.setLineDash([2, 2]);
       g.beginPath();
-      g.arc(this.X(cx), this.Y(CORE.y), (10000 / MAP.width) * (this.w - 2 * MM_PAD), 0, Math.PI * 2);
-      g.fill();
-      g.globalAlpha = 1;
-      const fx = team === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x);
-      g.fillStyle = '#bfe8ff';
-      g.beginPath();
-      g.arc(this.X(fx), this.Y(FOUNTAIN.y), 3, 0, Math.PI * 2);
-      g.fill();
-    }
-    // MAP-GAPS A19: static landmarks, dimmed: the rat camps (a ring and a dot), Pudding's pit (a violet ring), and
-    // each lane's glyph (a sun, a puddle) with its name on desktop
-    g.globalAlpha = 0.7;
-    for (const x of [RAT_CAMP.x, mirrorX(RAT_CAMP.x)]) {
-      g.strokeStyle = MM_OUTLINE;
-      g.lineWidth = 1;
-      g.beginPath();
-      g.arc(this.X(x), this.Y(RAT_CAMP.y), 3.2 * this.k, 0, Math.PI * 2);
+      g.arc(this.X(PUDDING_SPOT.x), this.Y(PUDDING_SPOT.y), 6.5 * this.k, 0, Math.PI * 2);
       g.stroke();
-      g.fillStyle = '#cdb784';
-      g.beginPath();
-      g.arc(this.X(x), this.Y(RAT_CAMP.y), 1.4 * this.k, 0, Math.PI * 2);
-      g.fill();
-    }
-    g.strokeStyle = MM_OBJECTIVE;
-    g.lineWidth = 1.4;
-    g.setLineDash([2, 2]);
-    g.beginPath();
-    g.arc(this.X(PUDDING_SPOT.x), this.Y(PUDDING_SPOT.y), 6.5 * this.k, 0, Math.PI * 2);
-    g.stroke();
-    g.setLineDash([]);
-    g.globalAlpha = 1;
+      g.setLineDash([]);
+      g.globalAlpha = 1;
+    });
     const desktop = typeof document === 'undefined' || document.documentElement?.dataset.touch !== '1';
     for (const lane of ['sunny', 'puddle'] as const) {
       const at = LANE_GLYPH_AT[lane];
-      const x = this.X(at.x);
-      const y = this.Y(at.y);
+      const [x, y] = this.P(at.x, at.y);
       const r = 2.6 * Math.max(0.85, this.k);
       g.fillStyle = MM_OUTLINE;
       g.beginPath();
@@ -524,10 +561,12 @@ export class Minimap {
     g.lineWidth = width;
     g.lineCap = 'round';
     g.lineJoin = 'round';
-    g.beginPath();
-    pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
-    for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
-    g.stroke();
+    this.turned(g, () => {
+      g.beginPath();
+      pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
+      for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
+      g.stroke();
+    });
   }
 
   /** Pickups on the ground (sim mm): a glowing dot each (fun plan F2 item 8). Set by the match session. */
@@ -545,8 +584,7 @@ export class Minimap {
     let n = 0;
     for (const t of this.timers()) {
       if (t.left <= 0 || t.total <= 0) continue;
-      const x = this.X(t.x);
-      const y = this.Y(t.y);
+      const [x, y] = this.P(t.x, t.y);
       const done = Math.max(0, Math.min(1, 1 - t.left / t.total));
       const r = 6 * this.k;
       const rel = minimapRelation(colourBlind());
@@ -629,8 +667,10 @@ export class Minimap {
         const rw = Math.abs(bx - ax);
         const rh = Math.abs(by - ay);
         g.fillStyle = MM_BUSH_CLEARED;
-        roundRectPath(g, Math.min(ax, bx), Math.min(ay, by), rw, rh, Math.min(rw, rh) * 0.35);
-        g.fill();
+        this.turned(g, () => {
+          roundRectPath(g, Math.min(ax, bx), Math.min(ay, by), rw, rh, Math.min(rw, rh) * 0.35);
+          g.fill();
+        });
         this.bushesCleared++;
       }
     // MAP-GAPS A18: a fallen tower stays as a greyed, crossed-out square where it stood
@@ -639,8 +679,7 @@ export class Minimap {
     for (const [id, t] of this.towers) {
       const e = frame.byId.get(id);
       if (e && e.state !== 'dead' && e.hp > 0) continue;
-      const x = this.X(t.x);
-      const y = this.Y(t.y);
+      const [x, y] = this.P(t.x, t.y);
       const s = 6 * this.k;
       g.globalAlpha = 0.35;
       g.fillStyle = MM_OUTLINE;
@@ -660,8 +699,7 @@ export class Minimap {
     }
     for (const e of frame.entities) {
       if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero' || (e.kind as string) === 'pickup') continue;
-      const x = this.X(e.fx);
-      const y = this.Y(e.fy);
+      const [x, y] = this.P(e.fx, e.fy);
       if (e.kind === 'tower' || e.kind === 'core') {
         const s = (e.kind === 'core' ? 9 : 6) * this.k;
         g.fillStyle = MM_OUTLINE;
@@ -693,8 +731,7 @@ export class Minimap {
     }
     const glow = 0.6 + 0.4 * Math.sin(performance.now() / 180);
     for (const p of this.pickups()) {
-      const x = this.X(p.x);
-      const y = this.Y(p.y);
+      const [x, y] = this.P(p.x, p.y);
       g.fillStyle = p.kind === 'frenzy' ? `rgba(125,255,138,${(0.35 * glow).toFixed(3)})` : `rgba(255,166,77,${(0.3 * glow).toFixed(3)})`;
       g.beginPath();
       g.arc(x, y, 7 * this.k, 0, Math.PI * 2);
@@ -708,8 +745,7 @@ export class Minimap {
     this.ghostsDrawn = [];
     for (const gh of this.updateGhosts(frame, team)) {
       // faded and desaturated, a shrinking ring and a "?"
-      const x = this.X(gh.x);
-      const y = this.Y(gh.y);
+      const [x, y] = this.P(gh.x, gh.y);
       const r = this.heroR(false);
       const left = 1 - gh.age / GHOST_S;
       g.globalAlpha = 0.35 + 0.3 * left;
@@ -734,15 +770,14 @@ export class Minimap {
     const ids = heroes.map((e) => e.hero).filter((h): h is HeroId => !!h);
     for (const e of heroDrawOrder(heroes, me)) {
       const self = e.id === me;
-      this.drawHero(g, this.X(e.fx), this.Y(e.fy), e.hero, col(e.team, e.id), self, self ? null : this.ringOf(e.id), ids.filter((_, i) => heroes[i].team === e.team));
+      this.drawHero(g, ...this.P(e.fx, e.fy), e.hero, col(e.team, e.id), self, self ? null : this.ringOf(e.id), ids.filter((_, i) => heroes[i].team === e.team));
     }
     const now = performance.now();
     this.pings = this.pings.filter((p) => p.until > now);
     this.glyphsDrawn = 0;
     for (const p of this.pings) {
       const k = (now / 700) % 1;
-      const x = this.X(p.x);
-      const y = this.Y(p.y);
+      const [x, y] = this.P(p.x, p.y);
       g.strokeStyle = p.color;
       g.globalAlpha = 1 - k;
       g.lineWidth = 2;
@@ -775,13 +810,13 @@ export class Minimap {
         g.setLineDash([3, 2]);
         if (meE) {
           g.beginPath();
-          g.moveTo(this.X(meE.fx), this.Y(meE.fy));
-          g.lineTo(this.X(mg.x), this.Y(mg.y));
+          g.moveTo(...this.P(meE.fx, meE.fy));
+          g.lineTo(...this.P(mg.x, mg.y));
           g.stroke();
         }
         g.setLineDash([]);
         g.beginPath();
-        g.arc(this.X(mg.x), this.Y(mg.y), 3.5 * Math.max(0.85, this.k), 0, Math.PI * 2);
+        g.arc(...this.P(mg.x, mg.y), 3.5 * Math.max(0.85, this.k), 0, Math.PI * 2);
         g.stroke();
       }
     }
@@ -792,7 +827,7 @@ export class Minimap {
       g.lineWidth = 1.2;
       g.beginPath();
       q.forEach((p, i) => {
-        const [x, y] = this.map.clamp(this.X(p.x * 1000), this.Y(-p.z * 1000));
+        const [x, y] = this.map.clamp(...this.P(p.x * 1000, -p.z * 1000));
         if (i) g.lineTo(x, y);
         else g.moveTo(x, y);
       });

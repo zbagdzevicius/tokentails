@@ -24,7 +24,7 @@
  * Feel pass B1: the camera is fixed (no pinch zoom): a second finger on the bare canvas is a tap (it locks the hero
  * under it) and the stick keeps steering.
  */
-import { viewSign } from '../../render/coords';
+import { screenToSim } from '../../render/coords';
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { rankPips } from '../../ui/heroText';
@@ -529,11 +529,12 @@ export class TouchControls {
   stickAngle(): number | null {
     const s = this.stick;
     if (!s) return null;
-    // MAP-GAPS A24: a team-1 seat's screen is turned 180° from the map
-    const k = viewSign();
-    const dx = (s.x - s.bx) * k;
-    const dy = -(s.y - s.by) * k;
-    return Math.hypot(dx, dy) > STICK.dead ? Math.atan2(dy, dx) : null;
+    // feel pass B2: the screen is turned by the view yaw (diagonal, plus 180° for a team-1 seat)
+    const sx = s.x - s.bx;
+    const sy = -(s.y - s.by);
+    if (Math.hypot(sx, sy) <= STICK.dead) return null;
+    const v = screenToSim(sx, sy);
+    return Math.atan2(v.y, v.x);
   }
 
   /**
@@ -689,9 +690,10 @@ export class TouchControls {
   /** World aim point (mm) of a drag from its button. */
   private dragTarget(g: Drag, slot: CastIndex, me: Unit): { x: number; y: number; id: number } | null {
     const aim = this.h.orders.aimSpec(slot);
-    const sg = viewSign();
-    const dx = (g.x - g.x0) * sg;
-    const dy = -(g.y - g.y0) * sg;
+    // feel pass B2: a drag up-right on screen aims up-right on screen, for both seats
+    const v = screenToSim(g.x - g.x0, -(g.y - g.y0));
+    const dx = v.x;
+    const dy = v.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
     const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
@@ -921,8 +923,8 @@ export class TouchControls {
    * the lane magnet, and turned to slide along a wall it pushes into (steer() walks this; a heading cast flies it).
    */
   private walkAngle(me: Unit, o: { x: number; y: number }, dx: number, dy: number): number {
-    const k = viewSign();
-    const raw = Math.atan2(dy * k, dx * k);
+    const v = screenToSim(dx, dy);
+    const raw = Math.atan2(v.y, v.x);
     const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
     return slideAngle(o.x, o.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(o.x, o.y, raw) : raw);
   }

@@ -10,46 +10,53 @@ test('camera High on every map corner: the screen corners land on dressed ground
   test.skip(info.project.name !== 'desktop', 'desktop zoom');
   await page.setViewportSize({ width: 1440, height: 900 });
   await startFirstMatch(page);
-  for (const [x, z] of [
-    [0, -62],
-    [100, -62],
-    [0, 2],
-    [100, 2],
-  ] as const) {
-    const pts = await page.evaluate(
-      async ([fx, fz]) => {
-        type V = { x: number; y: number; z: number; set(x: number, y: number, z: number): V; unproject(c: unknown): V; sub(v: V): V };
-        const v = (window as unknown as { __plWorld: { view: { setCameraHeight(h: string): void; gr: { zoom: number; focus: V; camera: { position: V } }; lookAt(x: number, z: number, h: number): void } } }).__plWorld.view;
-        v.setCameraHeight('high');
-        v.lookAt(fx, fz, 1e9);
-        await new Promise((r) => setTimeout(r, 900));
-        const cam = v.gr.camera as unknown as { position: V };
-        const Ctor = cam.position.constructor as unknown as new () => V;
-        const out: [number, number][] = [];
-        for (const [nx, ny] of [
-          [-1, 1],
-          [1, 1],
-          [-1, -1],
-          [1, -1],
-        ]) {
-          const p = new Ctor().set(nx, ny, 0.5).unproject(cam).sub(cam.position);
-          if (p.y >= -1e-4) {
-            out.push([NaN, NaN]);
-            continue;
+  // feel pass B2: both seats (the diagonal view, turned another 180° for team 1)
+  for (const team of [0, 1] as const) {
+    await page.evaluate((t) => {
+      const v = (window as unknown as { __plWorld: { view: { mySlot: number; tricks: unknown[]; setTeam(s: number, t: number, k: unknown[]): void } } }).__plWorld.view;
+      v.setTeam(v.mySlot, t, v.tricks ?? []);
+    }, team);
+    for (const [x, z] of [
+      [0, -62],
+      [100, -62],
+      [0, 2],
+      [100, 2],
+    ] as const) {
+      const pts = await page.evaluate(
+        async ([fx, fz]) => {
+          type V = { x: number; y: number; z: number; set(x: number, y: number, z: number): V; unproject(c: unknown): V; sub(v: V): V };
+          const v = (window as unknown as { __plWorld: { view: { setCameraHeight(h: string): void; gr: { zoom: number; focus: V; camera: { position: V } }; lookAt(x: number, z: number, h: number): void } } }).__plWorld.view;
+          v.setCameraHeight('high');
+          v.lookAt(fx, fz, 1e9);
+          await new Promise((r) => setTimeout(r, 900));
+          const cam = v.gr.camera as unknown as { position: V };
+          const Ctor = cam.position.constructor as unknown as new () => V;
+          const out: [number, number][] = [];
+          for (const [nx, ny] of [
+            [-1, 1],
+            [1, 1],
+            [-1, -1],
+            [1, -1],
+          ]) {
+            const p = new Ctor().set(nx, ny, 0.5).unproject(cam).sub(cam.position);
+            if (p.y >= -1e-4) {
+              out.push([NaN, NaN]);
+              continue;
+            }
+            const t = -cam.position.y / p.y;
+            out.push([cam.position.x + p.x * t, -(cam.position.z + p.z * t)]);
           }
-          const t = -cam.position.y / p.y;
-          out.push([cam.position.x + p.x * t, -(cam.position.z + p.z * t)]);
-        }
-        return out;
-      },
-      [x, z] as const,
-    );
-    for (const [gx, gy] of pts) {
-      expect(Number.isFinite(gx), `sky at ${x},${z}`).toBe(true);
-      expect(gx).toBeGreaterThanOrEqual(-DRESS.west);
-      expect(gx).toBeLessThanOrEqual(100 + DRESS.east);
-      expect(gy).toBeGreaterThanOrEqual(-DRESS.south);
-      expect(gy).toBeLessThanOrEqual(60 + DRESS.north);
+          return out;
+        },
+        [x, z] as const,
+      );
+      for (const [gx, gy] of pts) {
+        expect(Number.isFinite(gx), `sky at ${x},${z}`).toBe(true);
+        expect(gx).toBeGreaterThanOrEqual(-DRESS.west);
+        expect(gx).toBeLessThanOrEqual(100 + DRESS.east);
+        expect(gy).toBeGreaterThanOrEqual(-DRESS.south);
+        expect(gy).toBeLessThanOrEqual(60 + DRESS.north);
+      }
     }
   }
 });
