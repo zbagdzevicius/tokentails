@@ -308,7 +308,7 @@ private_lane :mac_build do |options|
   build_number = next_build_number(api_key, platform: "osx")
   manual_cert = import_dist_cert([%w[DIST_CERT_P12 DIST_CERT_PASSWORD], %w[MAC_INSTALLER_P12 MAC_INSTALLER_PASSWORD]])
 
-  build_mac_app(
+  build_app(
     workspace: WORKSPACE,
     scheme: "App",
     configuration: "Release",
