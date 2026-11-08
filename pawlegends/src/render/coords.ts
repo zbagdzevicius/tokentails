@@ -4,6 +4,8 @@
  * sin pitch, cos yaw · cos pitch) · d; screen-right on the ground is (cos yaw, 0, −sin yaw) and screen-up is
  * (−sin yaw, 0, −cos yaw).
  */
+import { PITCH } from './camera/frame';
+
 export const MM = 1000;
 export const toX = (xMm: number): number => xMm / MM;
 export const toZ = (yMm: number): number => -yMm / MM;
@@ -36,14 +38,23 @@ export interface Vec2 {
 }
 
 /**
+ * The tilted camera squashes the ground's depth axis on screen by sin(pitch): 1 m of ground straight up the screen
+ * shows as sin(52°) ≈ 0.79 of 1 m across it. screenToSim undoes it, so a thumb angle lands on the same screen angle.
+ */
+const GROUND_SQUASH = Math.sin(PITCH);
+
+/**
  * A screen vector (dx right, dy UP, any unit) → the sim direction (x east, y north) it points along on the ground:
- * a rotation by the view yaw (feel pass B2; this replaces the old ±1 team flip). Writes `out`.
+ * the up part is stretched by 1/sin(pitch) (the tilt's ground projection), then rotated by the view yaw (feel pass
+ * B2; this replaces the old ±1 team flip). Only the direction is meant: the length is in ground units of `dx`. Writes
+ * `out`.
  */
 export function screenToSim(dx: number, dy: number, out: Vec2 = { x: 0, y: 0 }): Vec2 {
   const c = Math.cos(viewYaw);
   const s = Math.sin(viewYaw);
-  out.x = dx * c - dy * s;
-  out.y = dx * s + dy * c;
+  const gy = dy / GROUND_SQUASH;
+  out.x = dx * c - gy * s;
+  out.y = dx * s + gy * c;
   return out;
 }
 
@@ -52,7 +63,7 @@ export function simToScreen(x: number, y: number, out: Vec2 = { x: 0, y: 0 }): V
   const c = Math.cos(viewYaw);
   const s = Math.sin(viewYaw);
   out.x = x * c + y * s;
-  out.y = -x * s + y * c;
+  out.y = (-x * s + y * c) * GROUND_SQUASH;
   return out;
 }
 

@@ -109,10 +109,21 @@ const CANCEL_SLACK = 0;
  * (thumb travel past the full-range ring), clamped `inset` px inside the screen.
  */
 export const CANCEL_BUBBLE = Object.freeze({ d: 72, above: 150, inset: 12 });
-/** Where the cancel bubble sits for a button centred at (bx, by) on a `w` × `h` screen (its centre, px). Pure. */
+/** The bubble's centre stays at least this far (px) from the button: its edge clears the full-range ring by 8 px. */
+export const CANCEL_CLEAR_PX = DRAG_FULL_PX + CANCEL_BUBBLE.d / 2 + 8;
+/**
+ * Where the cancel bubble sits for a button centred at (bx, by) on a `w` × `h` screen (its centre, px). Pure. When the
+ * top edge pushes it down (a high button, "Button size: Large"), it slides sideways toward the screen centre until it
+ * is CANCEL_CLEAR_PX from the button again, so an aim at full range never rests on it.
+ */
 export function cancelBubbleAt(bx: number, by: number, w: number, h: number): { x: number; y: number } {
   const r = CANCEL_BUBBLE.d / 2 + CANCEL_BUBBLE.inset;
-  return { x: Math.max(r, Math.min(w - r, bx)), y: Math.max(r, Math.min(h - r, by - CANCEL_BUBBLE.above)) };
+  const clampX = (x: number): number => Math.max(r, Math.min(w - r, x));
+  const y = Math.max(r, Math.min(h - r, by - CANCEL_BUBBLE.above));
+  const dy = Math.abs(by - y);
+  if (dy >= CANCEL_CLEAR_PX) return { x: clampX(bx), y };
+  const side = bx > w / 2 ? -1 : 1;
+  return { x: clampX(bx + side * Math.sqrt(CANCEL_CLEAR_PX * CANCEL_CLEAR_PX - dy * dy)), y };
 }
 const ATTACK_REPEAT_MS = 350;
 /** C9: Nap goes after the button is held this long (ms), so a stray thumb never sends the hero home. */
@@ -763,7 +774,9 @@ export class TouchControls {
     const dy = v.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
-    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
+    // the reach follows the thumb's screen distance (screenToSim stretches the up part into ground units)
+    const screenLen = Math.hypot(g.x - g.x0, g.y - g.y0);
+    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, screenLen / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
     const x = me.x + (dx / len) * aim.range * k;
     const y = me.y + (dy / len) * aim.range * k;
     if (aim.kind === 'unit') {

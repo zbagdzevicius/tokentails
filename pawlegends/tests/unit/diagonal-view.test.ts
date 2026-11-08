@@ -64,6 +64,29 @@ describe('diagonal map', () => {
       expect(p1[1]).toBeLessThan(p0[1] - 10);
     });
 
+  for (const team of [0, 1] as const)
+    for (const [w, h] of [
+      [667, 375],
+      [844, 390],
+    ] as const)
+      it(`team ${team} at ${w}x${h}: a thumb angle lands on the same screen angle (the tilt's ground squash undone)`, () => {
+        setViewTeam(team);
+        const cam = new THREE.PerspectiveCamera();
+        const hero = { x: 40, z: -25 };
+        placeMatchCamera(cam, new THREE.Vector3(hero.x, 0, hero.z), cameraYaw(), w, h);
+        const p0 = px(cam, hero.x, hero.z, w, h);
+        for (const deg of [0, 20, 32, 45, 48, 60, 90, 135, 200, 300]) {
+          const r = (deg * Math.PI) / 180;
+          const d = screenToSim(Math.cos(r), Math.sin(r));
+          const l = Math.hypot(d.x, d.y);
+          // a short step (2 m) so the perspective barely bends it
+          const p1 = px(cam, hero.x + (d.x / l) * 2, hero.z - (d.y / l) * 2, w, h);
+          const got = (Math.atan2(p0[1] - p1[1], p1[0] - p0[0]) * 180) / Math.PI;
+          const err = Math.abs(((got - deg + 540) % 360) - 180);
+          expect(err).toBeLessThanOrEqual(2);
+        }
+      });
+
   it('simToScreen undoes screenToSim for both seats', () => {
     for (const team of [0, 1]) {
       setViewTeam(team);

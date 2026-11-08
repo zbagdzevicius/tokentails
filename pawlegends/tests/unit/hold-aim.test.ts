@@ -59,7 +59,17 @@ describe('feel pass B4: hold to aim', () => {
     expect(CANCEL_BUBBLE).toEqual({ d: 72, above: 150, inset: 12 });
     // clamped 12 px inside the screen
     expect(cancelBubbleAt(700, 330, 844, 390)).toEqual({ x: 700, y: 180 });
-    expect(cancelBubbleAt(820, 100, 844, 390)).toEqual({ x: 844 - 48, y: 48 });
+    // pushed down by the top edge, it slides toward the centre: never inside the full-range ring (+ 8 px)
+    for (const [bx, by, w, h] of [
+      [820, 100, 844, 390],
+      [560, 181, 667, 375],
+      [120, 150, 667, 375],
+    ] as const) {
+      const b = cancelBubbleAt(bx, by, w, h);
+      expect(b.y).toBe(48);
+      expect(Math.hypot(b.x - bx, b.y - by) - CANCEL_BUBBLE.d / 2).toBeGreaterThanOrEqual(DRAG_FULL_PX + 7.9);
+      expect(b.x >= 48 && b.x <= w - 48).toBe(true);
+    }
   });
 
   it('a quick tap quick-casts at the auto-target (a nearby enemy hero)', () => {
@@ -172,6 +182,25 @@ describe('feel pass B4: the Attack button', () => {
     // past that, the minion in range wins
     const far = unit(3, 'hero', 1, 20000 + 500 + range + HERO_REACH_MM + 400, 10000);
     expect(attackPriority([me, far, minion], me, 0, range)).toBe(20);
+  });
+
+  it('the hero reach never walks into an untanked enemy tower, and never beats a last hit in reach', () => {
+    const me = unit(0, 'hero', 0, 20000, 10000);
+    const range = 1700;
+    const hx = 20000 + 500 + range + HERO_REACH_MM - 100;
+    const hero = unit(3, 'hero', 1, hx, 10000);
+    const minion = unit(20, 'minion', 1, 21500, 10000, 30);
+    // an enemy tower 6 m behind the hero, no allied minion tanking it: the minion in range wins
+    const tower = unit(40, 'tower', 1, hx + 6000, 10000);
+    expect(attackPriority([me, hero, minion, tower], me, 0, range)).toBe(20);
+    // an allied minion tanks the tower: the walk-in is fine again
+    const tank = unit(21, 'minion', 0, hx + 5000, 10000);
+    expect(attackPriority([me, hero, minion, tower, tank], me, 0, range)).toBe(3);
+    // a minion the next basic kills is the pick over a hero just out of range
+    expect(attackPriority([me, hero, minion], me, 0, range, 7000, 'heroes', () => 50)).toBe(20);
+    // a hero in range still beats the last hit
+    const near = unit(3, 'hero', 1, 20000 + 500 + range - 200, 10000);
+    expect(attackPriority([me, near, minion], me, 0, range, 7000, 'heroes', () => 50)).toBe(3);
   });
 
   it('skips an enemy Howler while his Talk Back (E) is up, as the bots do', () => {
