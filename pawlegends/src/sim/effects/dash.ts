@@ -4,7 +4,7 @@
  * edge and its arena. Kits hook every dash tick (hits along the path) through `fmKind = FM.Dash`.
  */
 import { EFFECTS } from '../../data/effects';
-import { MAP } from '../../data/map';
+import { MAP, NAV } from '../../data/map';
 import { TICK_HZ } from '../../data/timeline';
 import { clamp, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import { cellOf, walkable } from '../map/grid';
@@ -16,7 +16,9 @@ const pos = new Int32Array(2);
 
 /**
  * The furthest point toward (bx, by) that `id` can reach in a straight line: clamped to the map and its arena, cut
- * at the first blocked nav cell (sampled every EFFECTS.wallStep). A unit already on a blocked cell is not cut.
+ * at the first blocked nav cell (sampled every EFFECTS.wallStep). Sim v16 (MAP-GAPS B1): a unit already on a blocked
+ * cell samples the segment every NAV.losStep and stops at the first walkable sample (it leaves the wall); with none
+ * it stays where it is, so it never travels deeper into a wall.
  */
 export function clipTravel(m: MatchHandle, id: number, bx: number, by: number, out: Int32Array): void {
   const w = m.world;
@@ -27,10 +29,24 @@ export function clipTravel(m: MatchHandle, id: number, bx: number, by: number, o
   const ty = pos[1];
   out[0] = tx;
   out[1] = ty;
-  if (!walkable(m.grid, cellOf(ax, ay))) return;
   const dx = tx - ax;
   const dy = ty - ay;
   const len = isqrt(dx * dx + dy * dy);
+  if (!walkable(m.grid, cellOf(ax, ay))) {
+    const ne = idiv(len, NAV.losStep) + 1;
+    for (let k = 1; k <= ne; k++) {
+      const sx = ax + idiv(dx * k, ne);
+      const sy = ay + idiv(dy * k, ne);
+      if (walkable(m.grid, cellOf(sx, sy))) {
+        out[0] = sx;
+        out[1] = sy;
+        return;
+      }
+    }
+    out[0] = ax;
+    out[1] = ay;
+    return;
+  }
   const n = idiv(len, EFFECTS.wallStep) + 1;
   for (let k = 1; k <= n; k++) {
     const sx = ax + idiv(dx * k, n);

@@ -178,3 +178,42 @@ export function snapCell(g: NavGrid, c: number): number {
   }
   return -1;
 }
+
+/** BFS scratch (escapeCell): reset by a stamp per query, so nothing survives a query. */
+const bfsQueue = new Int32Array(NX * NY);
+const bfsSeen = new Uint32Array(NX * NY);
+let bfsStamp = 0;
+
+/**
+ * Sim v16 (MAP-GAPS B1): the nearest walkable cell to `c` by grid steps (BFS, neighbour order N, E, S, W, so ties are
+ * fixed), over the whole grid; −1 when the grid has none. Used when `snapCell` finds nothing within NAV.snapCells, so
+ * a unit deep in the forest still gets a way out.
+ */
+export function escapeCell(g: NavGrid, c: number): number {
+  if (walkable(g, c)) return c;
+  bfsStamp = (bfsStamp + 1) >>> 0;
+  if (bfsStamp === 0) {
+    bfsSeen.fill(0);
+    bfsStamp = 1;
+  }
+  let head = 0;
+  let tail = 0;
+  bfsQueue[tail++] = c;
+  bfsSeen[c] = bfsStamp;
+  while (head < tail) {
+    const k = bfsQueue[head++];
+    const i = k % NX;
+    const j = idiv(k, NX);
+    for (let d = 0; d < 4; d++) {
+      const ni = d === 1 ? i + 1 : d === 3 ? i - 1 : i;
+      const nj = d === 0 ? j + 1 : d === 2 ? j - 1 : j;
+      if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+      const n = nj * NX + ni;
+      if (bfsSeen[n] === bfsStamp) continue;
+      if (walkable(g, n)) return n;
+      bfsSeen[n] = bfsStamp;
+      bfsQueue[tail++] = n;
+    }
+  }
+  return -1;
+}

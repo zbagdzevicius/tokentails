@@ -11,7 +11,7 @@
  * depends only on the grid and the endpoints.
  */
 import { NAV } from '../../data/map';
-import { NX, NY, cellOf, centreX, centreY, lineClear, snapCell, walkable, type NavGrid } from '../map/grid';
+import { NX, NY, cellOf, centreX, centreY, escapeCell, lineClear, snapCell, walkable, type NavGrid } from '../map/grid';
 import { idiv } from '../fixed';
 
 const SIZE = NX * NY;
@@ -94,7 +94,8 @@ const chain = new Int32Array(SIZE);
 
 /**
  * Path from (sx, sy) to (tx, ty). Writes up to NAV.maxPathPoints points into outX/outY at `offset`. A start on a
- * blocked cell snaps to the nearest walkable one; a blocked goal snaps too (the path is then not `complete`).
+ * blocked cell snaps to the nearest walkable one (sim v16: by BFS over the whole grid when none is within
+ * NAV.snapCells); a blocked goal snaps too (the path is then not `complete`).
  */
 export function findPath(
   grid: NavGrid,
@@ -107,7 +108,9 @@ export function findPath(
   offset: number,
 ): PathResult {
   const maxPoints = NAV.maxPathPoints;
-  const start = snapCell(grid, cellOf(sx, sy));
+  // Sim v16 (MAP-GAPS B1): a start deeper in a wall than NAV.snapCells escapes by BFS to the nearest walkable cell.
+  const startRaw = snapCell(grid, cellOf(sx, sy));
+  const start = startRaw >= 0 ? startRaw : escapeCell(grid, cellOf(sx, sy));
   const goalRaw = cellOf(tx, ty);
   const goal = snapCell(grid, goalRaw);
   if (start < 0 || goal < 0) return { count: 0, complete: false, expansions: 0 };
