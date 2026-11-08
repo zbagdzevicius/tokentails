@@ -608,6 +608,9 @@ async function main(): Promise<void> {
 
     result.ok = problems.length === 0;
   } catch (e) {
+    // the relay refused the room for capacity (its loop or referee gate on a loaded host): not a defect, the
+    // orchestrator counts it and starts another room
+    if (!result.room && cs.some((c) => c.errors.includes('server_busy'))) result.refused = true;
     problems.push(String((e as Error)?.message ?? e));
   }
   const cpu = process.cpuUsage(cpu0);

@@ -170,10 +170,12 @@ describe('Cacklejaw (§6.6)', () => {
     w.hurtTick[FOE] = w.globals[G.Tick];
     w.kHurt[FOE] = w.globals[G.Tick]; // in combat (hit by an enemy hero, sim v4): no regen while the dash flies
     cast(m, CJ, 3, MID.x, MID.y);
-    expect(cd(m, CJ, 3)).toBe(1800);
+    // Sim v17 (V17.md §3.6): the mark is shown from the windup's start; the cooldown starts when the 9-tick windup ends.
     expect(w.revealT[FOE]).toBeGreaterThan(0);
+    steps(m, 8);
+    expect(cd(m, CJ, 3)).toBe(1800);
     const missing = w.maxHp[FOE] - 3000;
-    const lost = hpLoss(m, FOE, () => steps(m, 20));
+    const lost = hpLoss(m, FOE, () => steps(m, 22));
     expect(lost).toBe(heroHit(150 + 15 * 3 + Math.trunc((missing * 1000) / 10000), 15));
     expect(w.hp[FOE2]).toBe(w.maxHp[FOE2]);
     // Nobody in 12 m: nothing happens, no cooldown.
@@ -181,6 +183,7 @@ describe('Cacklejaw (§6.6)', () => {
     setLevel(m2, CJ, 4);
     place(m2, FOE, MID.x + 30000, MID.y, 0);
     cast(m2, CJ, 3, MID.x, MID.y);
+    steps(m2, 9);
     expect(cd(m2, CJ, 3)).toBe(0);
   });
 
@@ -197,7 +200,7 @@ describe('Cacklejaw (§6.6)', () => {
         w.hp[FOE] = 600;
         w.timer[FOE] = 0;
         cast(m, CJ, 3, w.x[CJ], w.y[CJ]);
-        steps(m, 10);
+        steps(m, 9 + 10);
         w.hp[FOE] = 1;
         dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic');
         resolveDeaths(m);

@@ -139,7 +139,7 @@ function startRoom() {
       if (i >= 0) lockQueue.splice(i, 1);
       const r = result ?? { index, mode, seed, ok: false, problems: [`room process exited (${code}) without a result`] };
       results.push(r);
-      const tag = r.ok ? 'ok' : `FAIL ${r.problems.join('; ')}`;
+      const tag = r.ok ? 'ok' : `${r.refused ? 'REFUSED' : 'FAIL'} ${r.problems.join('; ')}`;
       say(`room ${index} ${mode} ${r.room ?? '-'} ${r.ticks ?? 0} ticks ${r.outcome ?? ''} in ${Math.round((r.wallMs ?? 0) / 1000)} s: ${tag} (${results.length}/${MATCHES})`);
       done();
     });
@@ -164,7 +164,9 @@ const sampler = setInterval(async () => {
 const h0 = await health();
 const deadline = MINUTES > 0 ? t0 + MINUTES * 60_000 : Infinity;
 const pending = [];
-while (started < MATCHES && Date.now() < deadline) {
+// a room the relay refused as busy (server_busy, the capacity gate) is reported, not counted: another one starts
+const played = () => results.filter((r) => !r.refused).length + running.size;
+while (played() < MATCHES && Date.now() < deadline) {
   while (running.size >= CONCURRENCY) await new Promise((r) => setTimeout(r, 250));
   pending.push(startRoom());
   // stagger the starts (the relay's upgrade rate, and the rooms' phases spread out)
@@ -182,7 +184,8 @@ const pct = (xs, p) => {
   return Math.round(s[Math.min(s.length - 1, Math.floor(s.length * p))]);
 };
 const sum = (xs) => xs.reduce((a, b) => a + b, 0);
-const by = (mode) => results.filter((r) => mode === 'all' || r.mode === mode);
+const by = (mode) => results.filter((r) => !r.refused && (mode === 'all' || r.mode === mode));
+const refused = results.filter((r) => r.refused).length;
 const row = (mode) => {
   const rs = by(mode);
   const done = rs.filter((r) => r.verdict);
@@ -245,7 +248,7 @@ const relay = {
   refusedBusy: h1.refused_busy - h0.refused_busy,
   roomsStored: h1.roomsStored,
 };
-const report = { seed: SEED, startedAt: new Date(t0).toISOString(), minutes: Math.round((Date.now() - t0) / 60_000), sim: stamp.simVersion, concurrency: CONCURRENCY, rows: [row('pvp'), row('coop'), row('all')], relay, events: ev.events, problems: ev.problems.slice(-50), failures: results.filter((r) => !r.ok).map((r) => ({ index: r.index, mode: r.mode, seed: r.seed, room: r.room, problems: r.problems, drops: r.drops, errors: r.errors })), results, samples };
+const report = { seed: SEED, startedAt: new Date(t0).toISOString(), minutes: Math.round((Date.now() - t0) / 60_000), sim: stamp.simVersion, concurrency: CONCURRENCY, rows: [row('pvp'), row('coop'), row('all')], relay, events: ev.events, problems: ev.problems.slice(-50), refusedRooms: refused, failures: results.filter((r) => !r.ok && !r.refused).map((r) => ({ index: r.index, mode: r.mode, seed: r.seed, room: r.room, problems: r.problems, drops: r.drops, errors: r.errors })), results, samples };
 mkdirSync(OUT, { recursive: true });
 const file = join(OUT, `soak-${new Date(t0).toISOString().replace(/[:.]/g, '-')}.json`);
 writeFileSync(file, JSON.stringify(report, null, 1));
@@ -255,6 +258,7 @@ console.log(`\n| ${cols.join(' | ')} |\n|${cols.map(() => '---').join('|')}|`);
 for (const r of report.rows) console.log(`| ${cols.map((c) => r[c]).join(' | ')} |`);
 console.log(`\n/live saves: ${JSON.stringify(report.rows[2].saves)}`);
 console.log(`relay: ${JSON.stringify(relay)}`);
+if (refused) console.log(`rooms refused as busy by the relay's capacity gate (not counted): ${refused}`);
 for (const f of report.failures) console.log(`FAIL room ${f.index} ${f.mode} seed ${f.seed} ${f.room ?? ''}: ${f.problems.join('; ')}`);
 console.log(`\nreport: ${file}`);
 stopping = true;

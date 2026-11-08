@@ -19,8 +19,12 @@ export const CACKLEJAW: HeroData = Object.freeze<HeroData>({
     w: { cooldown: 390, windup: 9, range: 3000, arc: 796, fear: 21 },
     /** Bush Slink: stealth 3 s, +20% speed; in brush, while inside and 1.5 s after leaving; attacking breaks it. */
     e: { cooldown: 480, duration: 90, speedBp: 2000, brushLinger: 45 },
-    /** Pack Hunt: mark the lowest-HP enemy hero within 12 m and dash to it: 150 (+15/lvl, +68 a rank) + 10% missing HP. */
-    r: { cooldown: 1800, range: 12000, dmg: 150, dmgPerLevel: 15, missingHpBp: 1000, resetWindow: 90, resets: 1, speed: 24000 },
+    /**
+     * Pack Hunt: mark the lowest-HP enemy hero within 12 m and dash to it: 150 (+15/lvl, +68 a rank) + 10% missing HP.
+     * Sim v17 (V17.md §3.6): a 0.3 s windup that marks the victim at its start (12 m now takes 0.9 s), 24 → 20 m/s; the
+     * hunt fizzles (no cooldown) when the victim turns untargetable or is beyond range + `slip` at the windup's end.
+     */
+    r: { cooldown: 1800, windup: 9, range: 12000, slip: 2000, dmg: 150, dmgPerLevel: 15, missingHpBp: 1000, resetWindow: 90, resets: 1, speed: 20000 },
   },
   /** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
   ranks: { q: { dmg: 18 }, w: { cooldown: -15 }, e: { cooldown: -20 }, r: { dmg: 68, cooldown: -100 } },

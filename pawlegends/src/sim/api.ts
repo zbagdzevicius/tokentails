@@ -298,7 +298,11 @@ export interface MatchScore {
 export type SimEvent =
   | { type: 'hit'; tick: number; src: number; dst: number; amount: number; shielded: number; kind: 'basic' | 'ability' | 'tower' | 'zone' | 'chip' }
   | { type: 'cast'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; target: number }
-  | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; ticks: number }
+  /**
+   * A cast (or a tower lock-on) winds up for `ticks`. Sim v17: `dst` (when set) is the unit it is aimed at, decided at
+   * the windup's start (Cacklejaw's Pack Hunt victim), so the client can mark it.
+   */
+  | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; ticks: number; dst?: number }
   | { type: 'death'; tick: number; id: number; killer: number }
   | { type: 'levelup'; tick: number; id: number; level: number }
   | { type: 'talentOffer'; tick: number; slot: number; tier: TalentTier }

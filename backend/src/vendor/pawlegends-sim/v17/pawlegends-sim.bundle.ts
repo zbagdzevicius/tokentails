@@ -1186,16 +1186,22 @@ var CACKLEJAW = Object.freeze({
 			speedBp: 2e3,
 			brushLinger: 45
 		},
-		/** Pack Hunt: mark the lowest-HP enemy hero within 12 m and dash to it: 150 (+15/lvl, +68 a rank) + 10% missing HP. */
+		/**
+		* Pack Hunt: mark the lowest-HP enemy hero within 12 m and dash to it: 150 (+15/lvl, +68 a rank) + 10% missing HP.
+		* Sim v17 (V17.md §3.6): a 0.3 s windup that marks the victim at its start (12 m now takes 0.9 s), 24 → 20 m/s; the
+		* hunt fizzles (no cooldown) when the victim turns untargetable or is beyond range + `slip` at the windup's end.
+		*/
 		r: {
 			cooldown: 1800,
+			windup: 9,
 			range: 12e3,
+			slip: 2e3,
 			dmg: 150,
 			dmgPerLevel: 15,
 			missingHpBp: 1e3,
 			resetWindow: 90,
 			resets: 1,
-			speed: 24e3
+			speed: 2e4
 		}
 	},
 	/** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
@@ -7610,7 +7616,7 @@ function aim$16(a, slot) {
 		default: return {
 			aim: Aim.Self,
 			reach: 0,
-			windup: 0,
+			windup: a.r.windup ?? 0,
 			mobility: true
 		};
 	}
@@ -7652,8 +7658,17 @@ function endHunt(w, id) {
 }
 var CACKLEJAW_KIT = {
 	aim: aim$16,
+	onWindup(m, id, slot, ev) {
+		if (slot !== R) return;
+		const w = m.world;
+		const r = abil(w, id).r;
+		const victim = lowestHpEnemyHero(w, w.team[id], w.x[id], w.y[id], r.range);
+		w.castId[id] = victim;
+		ev.dst = victim;
+		if (victim >= 0) reveal(w, victim, ev.ticks);
+	},
 	recastReady: (w, id, slot) => slot === Q$1 && w.kStage[id] === 2 && w.kWindow[id] > 0,
-	cast(m, id, slot, x, y) {
+	cast(m, id, slot, x, y, target) {
 		const w = m.world;
 		const a = abil(w, id);
 		switch (slot) {
@@ -7679,8 +7694,10 @@ var CACKLEJAW_KIT = {
 				return a.e.cooldown;
 			default: {
 				const r = a.r;
-				const victim = lowestHpEnemyHero(w, w.team[id], w.x[id], w.y[id], r.range);
+				const victim = target;
 				if (victim < 0) return -1;
+				const far = r.range + (r.slip ?? 0) + radiusOf(w, victim);
+				if (dist2(w.x[id], w.y[id], w.x[victim], w.y[victim]) > far * far) return -1;
 				if (w.kEmpower[id] === 0) w.kChain[id] = 0;
 				w.kEmpower[id] = 0;
 				reveal(w, victim, r.resetWindow);
