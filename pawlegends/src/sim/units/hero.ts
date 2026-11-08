@@ -96,7 +96,12 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
       w.order[id] = cmd.op === Op.Move ? Order.Move : Order.AttackMove;
       w.target[id] = -1;
       w.windup[id] = 0;
-      planPath(m, id, w.moveX[id], w.moveY[id]);
+      // Sim v16 (MAP-GAPS B3): during forced movement the hero re-plans on landing (dash.ts stepForced), not from here.
+      if (w.fmKind[id] === FM.None) planPath(m, id, w.moveX[id], w.moveY[id]);
+      else {
+        w.pathLen[id] = 0;
+        w.pathIdx[id] = 0;
+      }
       if (w.castPhase[id] === 0) w.state[id] = UnitState.Moving;
       break;
     }
