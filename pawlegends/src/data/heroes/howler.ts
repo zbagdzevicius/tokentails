@@ -17,8 +17,8 @@ export const HOWLER: HeroData = Object.freeze<HeroData>({
     q: { cooldown: 210, range: 4000, arc: 853, dmg: 70, dmgPerLevel: 6, slowBp: 2500, slow: 30 },
     /** Derp Dash: dash 4.5 m through enemies, 50 (+5/lvl, +12 a rank) each; then +20% speed for 1 s. */
     w: { cooldown: 330, dash: 4500, width: 1100, dmg: 50, dmgPerLevel: 5, hasteBp: 2000, haste: 30, slowBp: 0, slow: 0 },
-    /** Talk Back: 1 s of arguing: 40% less damage; each enemy hero that hits him in it is feared 0.6 s (once each). */
-    e: { cooldown: 420, duration: 30, reduceBp: 4000, fear: 18 },
+    /** Talk Back: 1 s of arguing: 40% less damage; each enemy hero within 4.5 m that hits him in it is feared 0.6 s (once each). Sim v17 (V17.md §3.10): the 4.5 m limit (`fearRange`) is new. */
+    e: { cooldown: 420, duration: 30, reduceBp: 4000, fear: 18, fearRange: 4500 },
     /** THE SCREAM: 0.7 s inhale, then a cone 6 m, 75°: 150 (+15/lvl, +65 a rank), knocked back 2 m and feared 0.75 s. */
     r: { cooldown: 2100, windup: 21, range: 6000, arc: 853, dmg: 150, dmgPerLevel: 15, push: 2000, fear: 23 },
   },

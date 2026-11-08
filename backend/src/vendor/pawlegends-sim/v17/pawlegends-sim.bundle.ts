@@ -1983,12 +1983,13 @@ var HOWLER = Object.freeze({
 			slowBp: 0,
 			slow: 0
 		},
-		/** Talk Back: 1 s of arguing: 40% less damage; each enemy hero that hits him in it is feared 0.6 s (once each). */
+		/** Talk Back: 1 s of arguing: 40% less damage; each enemy hero within 4.5 m that hits him in it is feared 0.6 s (once each). Sim v17 (V17.md §3.10): the 4.5 m limit (`fearRange`) is new. */
 		e: {
 			cooldown: 420,
 			duration: 30,
 			reduceBp: 4e3,
-			fear: 18
+			fear: 18,
+			fearRange: 4500
 		},
 		/** THE SCREAM: 0.7 s inhale, then a cone 6 m, 75°: 150 (+15/lvl, +65 a rank), knocked back 2 m and feared 0.75 s. */
 		r: {
@@ -9805,6 +9806,8 @@ function aim$3(a, slot) {
 		};
 	}
 }
+/** Sim v17: is attacker `src` within `range` of Howler (0 = any range)? */
+var inFearRange = (w, id, src, range) => range <= 0 || dist2(w.x[src], w.y[src], w.x[id], w.y[id]) <= range * range;
 var HOWLER_KIT = {
 	aim: aim$3,
 	cast(m, id, slot, x, y) {
@@ -9891,13 +9894,13 @@ var HOWLER_KIT = {
 		const w = m.world;
 		if (w.kRT[id] === 0) return dmg;
 		const e = abil(w, id).e;
-		if (src >= 0 && src < RANGE.minions && w.kind[src] === Kind.Hero && w.team[src] !== w.team[id] && (w.kCount[id] & 1 << src) === 0) {
+		if (src >= 0 && src < RANGE.minions && w.kind[src] === Kind.Hero && w.team[src] !== w.team[id] && (w.kCount[id] & 1 << src) === 0 && inFearRange(w, id, src, e.fearRange ?? 0)) {
 			w.kCount[id] |= 1 << src;
 			fear(w, src, e.fear, w.x[id], w.y[id]);
 		}
 		return applyBp(dmg, BP_ONE - e.reduceBp);
 	},
-	deterBasics: (w, id) => w.kRT[id] > 0,
+	deterBasics: (w, id, src) => w.kRT[id] > 0 && inFearRange(w, id, src, abil(w, id).e.fearRange ?? 0),
 	reset(w, id) {
 		w.kEmpower[id] = 0;
 		w.kRT[id] = 0;
@@ -14779,7 +14782,7 @@ function moveTo(w, id, mem, x, y) {
 	};
 }
 function attack(w, id, mem, t) {
-	if (t < RANGE.minions && w.kind[t] === Kind.Hero && kitOf(w, t).deterBasics?.(w, t) === true) {
+	if (t < RANGE.minions && w.kind[t] === Kind.Hero && kitOf(w, t).deterBasics?.(w, t, id) === true) {
 		awayFrom(w, id, w.x[t], w.y[t], BOT_AI.deterStep);
 		return moveTo(w, id, mem, pt[0], pt[1]);
 	}

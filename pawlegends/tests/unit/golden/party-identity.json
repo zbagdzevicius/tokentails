@@ -4,9 +4,9 @@
   "rows": [
     {
       "key": "fixture:rookie-replay.fixture.json",
-      "finalHash": "65f0d2db",
-      "trail": "a7ccaeee",
-      "ticks": 11506
+      "finalHash": "e43e494d",
+      "trail": "293943a5",
+      "ticks": 9833
     },
     {
       "key": "fixture:champion-replay.fixture.json",
@@ -16,8 +16,8 @@
     },
     {
       "key": "fixture:forfeit-replay.fixture.json",
-      "finalHash": "aa605556",
-      "trail": "4fcbabcf",
+      "finalHash": "24b55cef",
+      "trail": "71253fb1",
       "ticks": 7201
     },
     {
@@ -40,8 +40,8 @@
     },
     {
       "key": "fuzz:3",
-      "finalHash": "d662c3cc",
-      "trail": "305ad992",
+      "finalHash": "8738111e",
+      "trail": "739d91d4",
       "ticks": 8000
     },
     {
@@ -106,15 +106,15 @@
     },
     {
       "key": "fuzz:14",
-      "finalHash": "83dfcdfb",
-      "trail": "e0e1ccd9",
-      "ticks": 15391
+      "finalHash": "32dddafb",
+      "trail": "3b7161a5",
+      "ticks": 7605
     },
     {
       "key": "fuzz:15",
-      "finalHash": "512d6945",
-      "trail": "7b5a66be",
-      "ticks": 8631
+      "finalHash": "efcadd01",
+      "trail": "50c18633",
+      "ticks": 8386
     },
     {
       "key": "fuzz:16",

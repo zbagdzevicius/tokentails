@@ -82,8 +82,9 @@ function moveTo(w: World, id: number, mem: BotMem, x: number, y: number): Comman
 }
 
 function attack(w: World, id: number, mem: BotMem, t: number): Command | null {
-  // Sim v14: a hero whose kit deters basics (Howler's Talk Back) is not swung at; the bot steps back instead.
-  if (t < RANGE.minions && w.kind[t] === Kind.Hero && kitOf(w, t).deterBasics?.(w, t) === true) {
+  // Sim v14: a hero whose kit deters basics (Howler's Talk Back) is not swung at; the bot steps back instead. Sim v17:
+  // only from inside the deterrent's reach (Talk Back's 4.5 m): a ranged bot further out keeps shooting.
+  if (t < RANGE.minions && w.kind[t] === Kind.Hero && kitOf(w, t).deterBasics?.(w, t, id) === true) {
     awayFrom(w, id, w.x[t], w.y[t], BOT_AI.deterStep);
     return moveTo(w, id, mem, pt[0], pt[1]);
   }
