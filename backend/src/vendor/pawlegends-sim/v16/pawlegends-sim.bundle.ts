@@ -10474,6 +10474,7 @@ function unitNear(w, id, x, y, reach) {
 }
 function beginWindup(m, id, s) {
 	const w = m.world;
+	if (w.bush[id] >= 0) w.revealT[id] = Math.max(w.revealT[id], 45);
 	w.castPhase[id] = 2;
 	w.castT[id] = s.windup;
 	w.pathLen[id] = 0;
@@ -11326,6 +11327,7 @@ function dealDamage(m, src, srcTeam, srcKind, dst, raw, kind, opts = {}) {
 		kind
 	});
 	if (heroSrc) {
+		if (w.bush[src] >= 0) w.revealT[src] = Math.max(w.revealT[src], 45);
 		if (heroDst && kind === "basic" && dmg > 0 && w.alive[src] === 1 && w.team[src] !== w.team[dst]) {
 			const steal = toyLifesteal(w, src, dmg);
 			if (steal > 0) creditHealShield(m, src, heal(w, src, steal));

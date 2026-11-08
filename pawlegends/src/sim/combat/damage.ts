@@ -6,7 +6,7 @@
  */
 import { HERO_RULES, RESPAWN } from '../../data/xp';
 import { HERO_IDS, HERO_VS_HERO_BP, HEROES } from '../../data/heroes';
-import { RADIUS } from '../../data/map';
+import { BRUSH_ATTACK_REVEAL_TICKS, RADIUS } from '../../data/map';
 import { SUDDEN_DEATH, SUNSET } from '../../data/timeline';
 import { TOWERS } from '../../data/towers';
 import type { SimEvent } from '../api';
@@ -134,6 +134,8 @@ export function dealDamage(
   if (heroDst && dst < RANGE.minions) m.stats[dst].damageTaken += dmg + shielded;
   m.events.push({ type: 'hit', tick, src, dst, amount: dmg, shielded, kind });
   if (heroSrc) {
+    // Sim v16 (MAP-GAPS B11): a hit from a bush reveals the attacker for BRUSH_ATTACK_REVEAL_TICKS.
+    if (w.bush[src] >= 0) w.revealT[src] = Math.max(w.revealT[src], BRUSH_ATTACK_REVEAL_TICKS);
     // Sim v12: a fighter's tier-3 Toy passive heals it for part of its basic-attack damage to enemy heroes.
     if (heroDst && kind === 'basic' && dmg > 0 && w.alive[src] === 1 && w.team[src] !== w.team[dst]) {
       const steal = toyLifesteal(w, src, dmg);

@@ -1,23 +1,23 @@
 {
-  "base": "v15 (DOGS-V15 lane SIM, QA v15 fixes)",
-  "simVersion": 15,
+  "base": "v16 B11 (bush attack reveal)",
+  "simVersion": 16,
   "rows": [
     {
       "key": "fixture:rookie-replay.fixture.json",
-      "finalHash": "6b6929e1",
-      "trail": "9b83e35e",
-      "ticks": 7857
+      "finalHash": "b35f3ef7",
+      "trail": "ab6de487",
+      "ticks": 7440
     },
     {
       "key": "fixture:champion-replay.fixture.json",
-      "finalHash": "77c86ade",
-      "trail": "bba29608",
-      "ticks": 11075
+      "finalHash": "0c58484f",
+      "trail": "f1ac1dc6",
+      "ticks": 11019
     },
     {
       "key": "fixture:forfeit-replay.fixture.json",
-      "finalHash": "8b36ba2b",
-      "trail": "ae829d55",
+      "finalHash": "a2ecac9f",
+      "trail": "6c79c356",
       "ticks": 7201
     },
     {
@@ -28,33 +28,33 @@
     },
     {
       "key": "fuzz:1",
-      "finalHash": "3f4c34a5",
-      "trail": "065d9786",
-      "ticks": 13955
+      "finalHash": "4a2b5b9e",
+      "trail": "d55ca950",
+      "ticks": 6801
     },
     {
       "key": "fuzz:2",
-      "finalHash": "157587c8",
-      "trail": "0694e590",
-      "ticks": 10188
+      "finalHash": "2af4ab3c",
+      "trail": "37a8973e",
+      "ticks": 13991
     },
     {
       "key": "fuzz:3",
       "finalHash": "e43d2a9d",
-      "trail": "ecf7f2d9",
+      "trail": "68245a34",
       "ticks": 8000
     },
     {
       "key": "fuzz:4",
       "finalHash": "f5d583bf",
-      "trail": "aa9624be",
+      "trail": "4c3f71d1",
       "ticks": 12149
     },
     {
       "key": "fuzz:5",
-      "finalHash": "bde6c2fd",
-      "trail": "0b17efb0",
-      "ticks": 12135
+      "finalHash": "4189c33b",
+      "trail": "8bbdd331",
+      "ticks": 11025
     },
     {
       "key": "fuzz:6",
@@ -64,20 +64,20 @@
     },
     {
       "key": "fuzz:7",
-      "finalHash": "bfeff484",
-      "trail": "f2400f71",
-      "ticks": 13282
+      "finalHash": "904e320b",
+      "trail": "b6ff6682",
+      "ticks": 13797
     },
     {
       "key": "fuzz:8",
-      "finalHash": "7ec71901",
-      "trail": "4bcdae42",
-      "ticks": 10740
+      "finalHash": "0d46cad6",
+      "trail": "afcb4f2e",
+      "ticks": 11568
     },
     {
       "key": "fuzz:9",
       "finalHash": "b94f52e1",
-      "trail": "f2f22563",
+      "trail": "c703d52d",
       "ticks": 8740
     },
     {
@@ -88,9 +88,9 @@
     },
     {
       "key": "fuzz:11",
-      "finalHash": "35868004",
-      "trail": "cbdb6029",
-      "ticks": 7355
+      "finalHash": "661a576d",
+      "trail": "6a46d847",
+      "ticks": 7378
     },
     {
       "key": "fuzz:12",
@@ -112,9 +112,9 @@
     },
     {
       "key": "fuzz:15",
-      "finalHash": "744e6fed",
-      "trail": "3f5ab3ee",
-      "ticks": 13092
+      "finalHash": "b4238899",
+      "trail": "d8ad8b83",
+      "ticks": 9580
     },
     {
       "key": "fuzz:16",
@@ -124,51 +124,51 @@
     },
     {
       "key": "fuzz:17",
-      "finalHash": "0203f0d1",
-      "trail": "3010261a",
-      "ticks": 9190
+      "finalHash": "98660f20",
+      "trail": "9319ccd0",
+      "ticks": 8518
     },
     {
       "key": "fuzz:18",
-      "finalHash": "6e693d3b",
-      "trail": "c7dab4f3",
-      "ticks": 12621
+      "finalHash": "a926106c",
+      "trail": "a69ba520",
+      "ticks": 10350
     },
     {
       "key": "fuzz:19",
-      "finalHash": "74f6d0cc",
-      "trail": "5cf37aa9",
-      "ticks": 8988
+      "finalHash": "8c9d1f98",
+      "trail": "de05b493",
+      "ticks": 9002
     },
     {
       "key": "bot:pinger:11",
-      "finalHash": "4ad7d422",
-      "trail": "f788e93b",
-      "ticks": 12907
+      "finalHash": "7a22c4b7",
+      "trail": "b059f000",
+      "ticks": 10699
     },
     {
       "key": "bot:pinger:12",
-      "finalHash": "b29e7395",
-      "trail": "a0367dcc",
-      "ticks": 15129
+      "finalHash": "e1c9ca0a",
+      "trail": "8bd31306",
+      "ticks": 13284
     },
     {
       "key": "bot:normal:13",
-      "finalHash": "56fe2b28",
-      "trail": "5e513192",
-      "ticks": 12161
+      "finalHash": "63468663",
+      "trail": "4e53a679",
+      "ticks": 11940
     },
     {
       "key": "bot:novice:14",
-      "finalHash": "ecf7a2b9",
-      "trail": "2dd114e1",
-      "ticks": 10193
+      "finalHash": "f7dc38ff",
+      "trail": "662b473f",
+      "ticks": 9219
     },
     {
       "key": "bot:easy:15",
-      "finalHash": "deec360e",
-      "trail": "1be20dd8",
-      "ticks": 14226
+      "finalHash": "59191e7f",
+      "trail": "98b1670d",
+      "ticks": 13503
     }
   ]
 }

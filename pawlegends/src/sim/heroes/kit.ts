@@ -11,6 +11,7 @@
  * fizzled (no cooldown spent).
  */
 import { XP } from '../../data/xp';
+import { BRUSH_ATTACK_REVEAL_TICKS } from '../../data/map';
 import { NO_TARGET, type CastSlot } from '../api';
 import { ANGLE_STEPS, BP_ONE, dist2, iatan2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
@@ -207,6 +208,8 @@ function unitNear(w: World, id: number, x: number, y: number, reach: number): nu
 
 function beginWindup(m: MatchHandle, id: number, s: SlotAim): void {
   const w = m.world;
+  // Sim v16 (MAP-GAPS B11): starting a cast from a bush reveals the caster, like a hit from one (combat/damage.ts).
+  if (w.bush[id] >= 0) w.revealT[id] = Math.max(w.revealT[id], BRUSH_ATTACK_REVEAL_TICKS);
   w.castPhase[id] = 2;
   w.castT[id] = s.windup;
   w.pathLen[id] = 0;
