@@ -329,7 +329,7 @@ SHOTS = {
         (2, "fast-battles", "Fast 7-minute battles", "ipad/02_ult_curtains-up.jpg", 2, ("bengas", "right")),
         (3, "20-heroes", "20 heroes, big plays", ("ipad/03_pick_cats.jpg", "ipad/04_pick_dogs.jpg"), 3, "vs"),
         (4, "squad-up", "Squad up with friends", "ipad/06_party-lobby.jpg", 4, "trio"),
-        (5, "cute-and-fierce", "Cute heroes, fierce fights", "ipad/08_hero_duchess.jpg", 5, ("duchess", "left")),
+        (5, "cute-and-fierce", "Cute heroes, fierce fights", "ipad/09_lobby-v101_duchess.jpg", 5, ("duchess", "left")),
         (6, "victory", "Victory tastes like treats", "ipad/05_victory.jpg", 6, "victory"),
     ],
     "mac": [
@@ -337,7 +337,7 @@ SHOTS = {
         (2, "mouse-and-keys", "Built for mouse & keys", "mac/01_lane-fight_pudding.jpg", 2, "keys"),
         (3, "20-heroes", "20 heroes, big plays", ("mac/03_pick_cats.jpg", "mac/04_pick_dogs.jpg"), 3, "vs"),
         (4, "squad-up", "Squad up with friends", "mac/06_party-lobby.jpg", 4, "trio"),
-        (5, "fast-battles", "Fast 7-minute battles", "mac/07_hero_sir-brutus.jpg", 2, ("clem", "right")),
+        (5, "cute-and-fierce", "Cute heroes, fierce fights", "mac/09_lobby-v101_sir-brutus.jpg", 5, ("clem", "right")),
         (6, "victory", "Victory tastes like treats", "mac/05_victory.jpg", 6, "victory"),
     ],
 }
