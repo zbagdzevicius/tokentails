@@ -3,7 +3,13 @@ import { trickAim } from '../../src/input/abilities';
 import { landing } from '../../src/input/heading';
 import { attr, me, minimapPoint, ops, startFirstMatch } from './helpers';
 import { Op } from '../../src/sim/api';
-import { CAMERA_YAW } from '../../src/render/coords';
+import { simToScreen } from '../../src/render/coords';
+
+/** The screen angle (rad, y UP) a map direction `a` shows at on the team-0 diagonal, tilted view (feel pass B2). */
+const screenAngle = (a: number): number => {
+  const v = simToScreen(Math.cos(a), Math.sin(a));
+  return Math.atan2(v.y, v.x);
+};
 
 /**
  * Founder: "fix flash, it must be initiated into a place automatically on touch in which we are heading to" and "there
@@ -84,7 +90,7 @@ async function setup(page: Page): Promise<{ touch: Touch; stickAt: (dir: number)
   const touch: Touch = (type, pts) => cdp.send('Input.dispatchTouchEvent', { type: type as 'touchStart', touchPoints: pts });
   // feel pass B2: the view is diagonal, so the stick is pushed where the MAP direction `dir` shows on screen
   const stickAt = (dir: number) => {
-    const a = (dir * Math.PI) / 4 - CAMERA_YAW;
+    const a = screenAngle((dir * Math.PI) / 4);
     return { x: Math.round(sx + Math.cos(a) * 50), y: Math.round(sy - Math.sin(a) * 50), id: 1 };
   };
   // the frame sampler
@@ -294,7 +300,7 @@ test.describe('flash on touch at 844x390: the other thumb', () => {
     // south at a light tilt (18 px: no lane magnet) until the hero meets the wall corner ~4.5 m south of the spot and
     // slides on it south-west (x falls from 25 m to 23.5 m; straight south from there a blink lands 0.5 to 2.8 m);
     // feel pass B2: map south as it shows on the diagonal screen
-    const sa = -Math.PI / 2 - CAMERA_YAW;
+    const sa = screenAngle(-Math.PI / 2);
     const south = { ...base, x: Math.round(base.x + Math.cos(sa) * 18), y: Math.round(base.y - Math.sin(sa) * 18) };
     await touch('touchStart', [base]);
     await touch('touchMove', [south]);

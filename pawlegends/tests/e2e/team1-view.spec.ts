@@ -20,14 +20,14 @@ const midMap = (page: Page, on: boolean) =>
     if (o) v.lookAt(50, -30, 1e9);
     else v.recentre();
   }, on);
-type Vec = { set(a: number, b: number, c: number): Vec; project(c: unknown): Vec; x: number; y: number };
+type Vec = { set(a: number, b: number, c: number): Vec; project(c: unknown): Vec; x: number; y: number; z: number };
 const screenX = (page: Page, x: number, z: number) =>
   page.evaluate(
     ([px, pz]) => {
       const cam = (window as unknown as { __plWorld: { view: { gr: { camera: { position: Vec } } } } }).__plWorld.view.gr.camera;
       const V = cam.position.constructor as unknown as new () => Vec;
       const p = new V().set(px, 0, pz).project(cam);
-      return [p.x, p.y] as [number, number];
+      return [p.x, p.y, p.z] as [number, number, number];
     },
     [x, z] as const,
   );
@@ -46,18 +46,25 @@ test('team-1 seat: diagonal view turned 180°, the enemy core top right, the sti
   test.skip(info.project.name !== 'landscape', 'touch controls');
   await startFirstMatch(page);
   await page.waitForTimeout(800);
+  /**
+   * Own core `own` and enemy core `foe` (x m, z −30) projected from mid-map. The peek is re-applied and read after two
+   * drawn frames on every poll: under load something (a recentre, a seat change) can end it before the projection,
+   * which put a core behind the camera (NDC y 1.86).
+   */
+  const fromMid = async (own: number, foe: number): Promise<string> => {
+    await midMap(page, true);
+    await page.evaluate(() => new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
+    const [o, e] = [await screenX(page, own, -30), await screenX(page, foe, -30)];
+    // in front of the camera (NDC z inside the clip range)
+    const inView = [o, e].every((p) => Math.abs(p[2]) < 1);
+    return `${inView ? 'in view' : 'off view'} ${o[0] < e[0] ? 'left' : 'right'} ${o[1] < e[1] ? 'below' : 'above'}`;
+  };
   // team 0: our core (10 m) left of and below theirs (90 m) (NDC y is up), seen from mid-map
-  await midMap(page, true);
-  await page.waitForTimeout(300);
-  const [o0, e0] = [await screenX(page, 10, -30), await screenX(page, 90, -30)];
-  expect(o0[0]).toBeLessThan(e0[0]);
-  expect(o0[1]).toBeLessThan(e0[1]);
+  await expect.poll(() => fromMid(10, 90), { timeout: 10_000 }).toBe('in view left below');
   await seat(page, 1);
   await page.waitForTimeout(800);
   // team 1: the enemy core (team 0's, 10 m) projects right of and above our own (90 m)
-  const [o1, e1] = [await screenX(page, 90, -30), await screenX(page, 10, -30)];
-  expect(o1[0]).toBeLessThan(e1[0]);
-  expect(o1[1]).toBeLessThan(e1[1]);
+  await expect.poll(() => fromMid(90, 10), { timeout: 10_000 }).toBe('in view left below');
   await midMap(page, false);
   await page.waitForTimeout(300);
   // the stick pushed screen-right walks the hero toward −x (toward that enemy core's side of the map)
