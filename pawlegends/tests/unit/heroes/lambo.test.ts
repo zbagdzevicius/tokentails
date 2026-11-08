@@ -82,15 +82,18 @@ describe('Lambo, shelter champion tank (sim v9)', () => {
     expect(cd(m, LAMBO_ID, 1)).toBe(A.w.cooldown);
   });
 
-  it('Belly Flop: lands a 2.2 m ring that damages and stuns; a hop stopped by a stun lands nothing', () => {
+  it('Belly Flop: a 0.4 s windup, then lands a 1.8 m ring that damages and stuns; a hop stopped by a stun lands nothing', () => {
     const m = arena();
     const w = m.world;
     place(m, FOE, MID.x + 4500, MID.y, 2048);
     const hp = w.hp[FOE];
     cast(m, LAMBO_ID, 2, MID.x + 4000, MID.y);
+    // Sim v17 (V17.md §3.2): 12 ticks of windup, then a 12 m/s hop.
+    expect(w.fmKind[LAMBO_ID]).toBe(FM.None);
+    steps(m, 11);
     expect(w.fmKind[LAMBO_ID]).toBe(FM.Dash);
     let stunned = false;
-    for (let t = 0; t < 12; t++) {
+    for (let t = 0; t < 16; t++) {
       steps(m, 1);
       if (w.stunT[FOE] > 0) stunned = true;
     }
@@ -102,8 +105,9 @@ describe('Lambo, shelter champion tank (sim v9)', () => {
     place(m2, FOE, MID.x + 4500, MID.y, 2048);
     const hp2 = w2.hp[FOE];
     cast(m2, LAMBO_ID, 2, MID.x + 4000, MID.y);
+    steps(m2, 11);
     stun(w2, LAMBO_ID, 20);
-    steps(m2, 12);
+    steps(m2, 16);
     expect(w2.hp[FOE]).toBe(hp2);
     expect(w2.stunT[FOE]).toBe(0);
     expect(w2.kStage[LAMBO_ID]).toBe(0);

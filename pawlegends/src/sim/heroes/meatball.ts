@@ -21,12 +21,13 @@ const hits = new Int32Array(ENTITY_CAP);
 /** A quarter turn (angle steps): Bowling Roll knocks units off to the side of his heading. */
 const QUARTER = ANGLE_STEPS >> 2;
 
-function aim(_a: KitNumbers, slot: number): SlotAim {
+function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {
     case 0:
       return { aim: Aim.Dir, reach: 0, windup: 0, mobility: true };
     case 1:
-      return { aim: Aim.Self, reach: 0, windup: 0, mobility: false };
+      // Sim v17 (V17.md §3.2): the Loaf winds up 0.3 s before the charm ring lands.
+      return { aim: Aim.Self, reach: 0, windup: a.w.windup ?? 0, mobility: false };
     case 2:
       // Reach 0: cast where he stands; cast() clamps the point to the range and picks the ally (Gabė's Wing Wrap).
       return { aim: Aim.Point, reach: 0, windup: 0, mobility: true };

@@ -24,7 +24,8 @@ function aim(a: KitNumbers, slot: number): SlotAim {
     case 1:
       return { aim: Aim.Self, reach: 0, windup: 0, mobility: false };
     case 2:
-      return { aim: Aim.Dir, reach: 0, windup: 0, mobility: true };
+      // Sim v17 (V17.md §3.2): Pug Charge winds up 0.3 s.
+      return { aim: Aim.Dir, reach: 0, windup: a.e.windup ?? 0, mobility: true };
     default:
       return { aim: Aim.Unit, reach: a.r.range, windup: 0, mobility: false };
   }
@@ -114,7 +115,7 @@ export const BRUTUS_KIT: HeroKit = {
       }
       case 2:
         w.kStage[id] = 0;
-        dash(m, id, aimAngle(w, id, x, y), a.e.dash);
+        dash(m, id, aimAngle(w, id, x, y), a.e.dash, a.e.speed);
         return a.e.cooldown;
       default: {
         const r = a.r;

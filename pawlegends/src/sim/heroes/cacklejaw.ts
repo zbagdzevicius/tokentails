@@ -27,7 +27,7 @@ function aim(a: KitNumbers, slot: number): SlotAim {
     case 0:
       return { aim: Aim.Dir, reach: 0, windup: 0, mobility: true };
     case 1:
-      return { aim: Aim.Dir, reach: a.w.range, windup: 0, mobility: false };
+      return { aim: Aim.Dir, reach: a.w.range, windup: a.w.windup ?? 0, mobility: false };
     case 2:
       return { aim: Aim.Self, reach: 0, windup: 0, mobility: false };
     default:

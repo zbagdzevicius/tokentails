@@ -31,8 +31,10 @@ describe('lambo moves', () => {
     for (const s of ['q', 'w'] as Slot[]) expect(MOVES.slots[s].cast.warp).toEqual([['contact', 'cast']]);
     // Belly Flop: take-off on the cast, land on travelEnd, the splat one tick later
     const e = MOVES.slots.e.cast;
-    expect(e.warp).toEqual([['takeoff', 'cast'], ['land', 'travelEnd']]);
-    expect(SIM_TIMING.lambo.slots.e.dashTicks).toBe(8);
+    // sim v17: a 12 t windup (coil → windupStart) and a 12 m/s hop (5 m = 13 t)
+    expect(e.warp).toEqual([['coil', 'windupStart'], ['takeoff', 'cast'], ['land', 'travelEnd']]);
+    expect(SIM_TIMING.lambo.slots.e.windup).toBe(12);
+    expect(SIM_TIMING.lambo.slots.e.dashTicks).toBe(13);
     expect(e.markers.land - e.markers.takeoff).toBeCloseTo(FLOP_AIR, 9);
     expect(FLOP_SPLAT_DELAY).toBeCloseTo(FLOP_RING_DELAY * TICK_S, 9);
     expect(e.markers.splat - e.markers.land).toBeCloseTo(FLOP_SPLAT_DELAY, 9);
@@ -205,14 +207,14 @@ describe('lambo moves', () => {
     expect(pickBellyFlop({ aimDist: NaN } as MoveCtx).id).toBe('lambo.e');
     expect(pickBellyFlop({ aimDist: 9 } as MoveCtx).id).toBe('lambo.e');
     expect(apex(full)).toBeCloseTo(1.6, 9);
-    // 1 m: 1.5 travel ticks of 8 → k clamps to 0.25
+    // 1 m: 3 travel ticks of 13 → k clamps to 0.25
     const short = pickBellyFlop({ aimDist: 1 } as MoveCtx);
     expect(apex(short)).toBeCloseTo(0.4, 9);
     const mid = pickBellyFlop({ aimDist: 2.5 } as MoveCtx);
     expect(apex(mid)).toBeGreaterThan(apex(short));
     expect(apex(mid)).toBeLessThan(1.6);
     for (const c of [full, short, mid]) {
-      expect(c.warp).toEqual([['takeoff', 'cast'], ['land', 'travelEnd']]);
+      expect(c.warp).toEqual([['coil', 'windupStart'], ['takeoff', 'cast'], ['land', 'travelEnd']]);
       expect(c.cancel).toBe('afterContact');
       // the ring's shake / dust ring are skillfx's (confirmed landings only), not blind clip cues
       expect(c.cues?.some(([m, k]) => m === 'splat' && (k === 'shake' || k === 'dustRing' || k === 'punch'))).toBe(false);
@@ -397,14 +399,14 @@ describe('lambo skill FX', () => {
   it('E: with nobody in the ring the ring still lands on the predicted ring tick (+1 t of grace), not before', () => {
     const f = fakeFx();
     const R = abilNumbers('lambo', 'e').radius / 1000;
-    // aimed 2.5 m: 4 travel ticks, ring on tick 5
+    // aimed 2.5 m: 7 travel ticks at 12 m/s (sim v17), ring on tick 8
     SKILL_FX.onCast!(cast(2, 2500, 0), f.fx, ctx);
     const rings = () => f.spawned.filter((s) => s.kind === 'ring' && Math.abs(s.o.sx - R) < 1e-9);
-    f.step(5 * TICK_S);
+    f.step(8 * TICK_S);
     expect(rings().length).toBe(0);
     f.step(1.5 * TICK_S);
     expect(rings().length).toBe(2);
-    expect(rings()[0].at).toBeLessThanOrEqual(6 * TICK_S + 2 * FRAME);
+    expect(rings()[0].at).toBeLessThanOrEqual(9 * TICK_S + 2 * FRAME);
   });
 
   it('R: the windup spiral reaches the radius on the cast tick (Wide Tangle 5.5 m), strands for the 6 t pull, enemy rim red', () => {

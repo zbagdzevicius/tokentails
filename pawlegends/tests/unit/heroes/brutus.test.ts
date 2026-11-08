@@ -110,9 +110,11 @@ describe('Sir Brutus (§6.5)', () => {
     const w = m.world;
     place(m, FOE, MID.x + 3000, MID.y, 2048);
     cast(m, BRUTUS_ID, 2, MID.x + 9000, MID.y);
+    // Sim v17 (V17.md §3.2): a 9-tick windup first (the cooldown starts when it resolves), then 14 m/s.
+    steps(m, 8);
     expect(cd(m, BRUTUS_ID, 2)).toBe(360);
     let stunned = false;
-    for (let t = 0; t < 10; t++) {
+    for (let t = 0; t < 14; t++) {
       steps(m, 1);
       if (w.stunT[FOE] > 0) stunned = true;
     }
@@ -124,14 +126,14 @@ describe('Sir Brutus (§6.5)', () => {
     const m2 = arena();
     place(m2, FOE, MID.x, MID.y + 20000, 0);
     cast(m2, BRUTUS_ID, 2, MID.x + 9000, MID.y);
-    steps(m2, 12);
+    steps(m2, 8 + 12);
     expect(m2.world.x[BRUTUS_ID]).toBe(MID.x + 5000);
     const m3 = arena();
     setLevel(m3, BRUTUS_ID, 6);
     chooseTalent(m3, BRUTUS_ID, 1, 1);
     place(m3, FOE, MID.x, MID.y + 20000, 0);
     cast(m3, BRUTUS_ID, 2, MID.x + 9000, MID.y);
-    steps(m3, 12);
+    steps(m3, 8 + 12);
     expect(m3.world.x[BRUTUS_ID]).toBe(MID.x + 5000);
   });
 

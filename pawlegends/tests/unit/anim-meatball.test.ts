@@ -33,10 +33,10 @@ describe('meatball moves', () => {
     expect(q.warp).toEqual([['takeoff', 'cast'], ['land', 'travelEnd']]);
     expect(T.slots.q.dashTicks).toBe(travelTicks(6000, DASH_SPEED));
     expect(m(q, 'land') - m(q, 'takeoff')).toBeCloseTo(T.slots.q.dashTicks * TICK_S, 9);
-    // W and R: instant, with a hold for the state and an end clip on stateEnd
+    // W (sim v17: a 9 t windup, coil → windupStart) and R (instant), each with a hold for the state and an end clip on stateEnd
     for (const s of ['w', 'r'] as const) {
       const sm = MOVES.slots[s];
-      expect(sm.cast.warp).toEqual([['contact', 'cast']]);
+      expect(sm.cast.warp).toEqual(s === 'w' ? [['coil', 'windupStart'], ['contact', 'cast']] : [['contact', 'cast']]);
       expect(sm.hold?.id).toBe(`meatball.${s}Hold`);
       expect(sm.end?.warp).toEqual([['contact', 'stateEnd']]);
     }

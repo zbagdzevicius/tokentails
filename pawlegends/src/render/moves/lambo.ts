@@ -305,7 +305,8 @@ function bellyFlop(k: number, id: string): ClipDef {
       sx: [[0, 1], [E1 - E_AIR * 0.06, 1.0], [E1, 1.26, 'expoIn'], [SPLAT, 1.32, 'out'], [SPLAT + 0.09, 1.28], [SPLAT + 0.24, 0.92, 'out'], [SPLAT + 0.38, 1.12, 'inOut'], [SPLAT + 0.48, 0.96, 'inOut'], [SPLAT + 0.56, 1.03, 'inOut'], [SPLAT + 0.62, 1, 'out']],
     },
     markers: { coil: 0.02, takeoff: E0, contact: E0, land: E1, splat: SPLAT, rebound: SPLAT + 0.4, end: SPLAT + 0.62 },
-    warp: [['takeoff', 'cast'], ['land', 'travelEnd']],
+    // sim v17: Belly Flop winds up 0.4 s (the crouch stretches over it)
+    warp: [['coil', 'windupStart'], ['takeoff', 'cast'], ['land', 'travelEnd']],
     // the ring, crater, shake and punch are skillfx's, bound to the sim's landing (its slot-2 hit, or the landing tick
     // when nobody is in the ring), never to this clip's time: a hop ended by a stun or fear lands nothing (a skid).
     // No freeze cue: the ring's own hit-stop holds the pancake.
@@ -331,7 +332,7 @@ const E_DASH_TICKS = T.slots.e.dashTicks;
 function pickE(ctx: MoveCtx): ClipDef {
   const d = ctx.aimDist;
   if (d === undefined || !(d > 0.001)) return eCast;
-  const ticks = travelTicks(Math.min(d * 1000, T.slots.e.dashMm), DASH_SPEED);
+  const ticks = travelTicks(Math.min(d * 1000, T.slots.e.dashMm), T.slots.e.dashSpeed);
   const k = Math.max(0.25, Math.min(1, ticks / E_DASH_TICKS));
   const i = Math.round(k * 8) - 2;
   return i >= E_SHORT.length ? eCast : E_SHORT[i];

@@ -318,7 +318,8 @@ function castE(e: { src: number; x: number; y: number; tick?: number }, fx: FxCt
   ePop[id] = 1;
   eVar[id] = funRand(e.tick ?? 0, id, 2) < 0.5 ? 1 : 0;
   flopPending[id] = 1;
-  flopRingAt[id] = now + (travelTicks(Math.max(1, hop), DASH_SPEED) + FLOP_RING_DELAY) * TICK_S;
+  // sim v17: the hop flies at its own speed (12 m/s)
+  flopRingAt[id] = now + (travelTicks(Math.max(1, hop), a.speed ?? DASH_SPEED) + FLOP_RING_DELAY) * TICK_S;
   flopRib[id] = fx.bonePos(id, 'chest', _c) ? fx.ribbons.point(_c, ribbonColor(fx, id, STAR), 0.75, 0.3) : -1;
 }
 

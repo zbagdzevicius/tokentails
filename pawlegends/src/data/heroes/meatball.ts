@@ -16,7 +16,7 @@ export const MEATBALL: HeroData = Object.freeze<HeroData>({
     /** Bowling Roll: roll 6 m; enemies within 1.2 m of his path are knocked 1.5 m sideways, 55 (+5/lvl, +15 a rank); heroes slowed 25% for 1 s. */
     q: { cooldown: 270, dash: 6000, touch: 1200, push: 1500, dmg: 55, dmgPerLevel: 5, slowBp: 2500, slow: 30 },
     /** Loaf Mode: rooted loaf for 2 s, 40% less damage; enemy heroes within 3 m are charmed to him for 0.75 s. */
-    w: { cooldown: 420, duration: 60, reduceBp: 4000, radius: 3000, charm: 23, slowBp: 5000 },
+    w: { cooldown: 420, windup: 9, duration: 60, reduceBp: 4000, radius: 3000, charm: 23, slowBp: 5000 },
     /**
      * Big Brother: dash to the allied hero nearest the aim (6 m), stopping `gap` short of touching them; shield them 8% of
      * his max HP for 2.5 s and knock enemy heroes within 2.2 m of them 2 m away. No ally: dash 4 m, half the shield on himself.

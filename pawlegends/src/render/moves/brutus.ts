@@ -423,8 +423,9 @@ function charge(k: number, id: string): ClipDef {
       sx: [[0, 1], [E0, 1.15, 'expoOut'], [E1, 1.1], [E1 + 0.05, 0.88, 'out'], [E1 + 0.2, 1, 'back']],
       sy: [[0, 1], [E0, 0.9], [E1, 0.92], [E1 + 0.05, 1.08, 'out'], [E1 + 0.2, 1, 'back']],
     },
-    markers: { takeoff: E0, contact: E0, mid: E0 + CHARGE_AIR * 0.5, land: E0 + CHARGE_AIR * k, skid: E1, end: eLen },
-    warp: [['takeoff', 'cast'], ['land', 'travelEnd']],
+    markers: { coil: 0, takeoff: E0, contact: E0, mid: E0 + CHARGE_AIR * 0.5, land: E0 + CHARGE_AIR * k, skid: E1, end: eLen },
+    // sim v17: Pug Charge winds up 0.3 s (the crouch before the takeoff stretches over it)
+    warp: [['coil', 'windupStart'], ['takeoff', 'cast'], ['land', 'travelEnd']],
     cues: [['takeoff', 'earsBack'], ['takeoff', 'ghost'], ['takeoff', 'whoosh', 'L'], ['takeoff', 'dust'], ['takeoff', 'fx', 'eGo'], ['mid', 'ghost'], ['skid', 'dust'], ['skid', 'land'], ['skid', 'fx', 'eSkid']],
     cancel: 'afterContact',
   };

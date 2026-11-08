@@ -11,6 +11,8 @@
  * (run `npm run vendor-sim` first, then write the golden).
  * The v16 release-gate fix (every hero steps against start-of-tick positions, plus the B3 hero retune) changes every
  * match too and regenerated it the same way.
+ * Sim v17 (the counter-play batch, V17.md): VENDOR points at the live v17 fixtures; every v17 commit that changes play
+ * regenerates the golden the same way.
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -26,7 +28,7 @@ import { runReplay } from '../../src/sim/replay';
 import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v16');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v17');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {

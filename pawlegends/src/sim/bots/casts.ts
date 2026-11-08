@@ -19,10 +19,10 @@ import { TRIG_ONE, dist2, iatan2, icos, idiv, isin, isqrt } from '../fixed';
 import type { Rng } from '../rng';
 import { ENTITY_CAP, Kind, RANGE, type World } from '../world';
 import { collect, inCone, inFront, inLine, inRing } from '../effects';
-import { canCast, TRICK_SLOT } from '../heroes/kit';
+import { canCast, heroSlotAim, TRICK_SLOT } from '../heroes/kit';
 import { nearestAlly } from '../heroes/lambo';
 import { attackRange } from '../units/kinds';
-import { abil } from '../heroes/talents';
+import { abil, type Nums } from '../heroes/talents';
 import { fountainX, fountainY, hpBp, seenEnemy } from './sense';
 import * as duchessBot from './heroes/duchess';
 import * as meatballBot from './heroes/meatball';
@@ -121,8 +121,28 @@ export function offenseTrick(w: World, id: number, foe: number, p: BotParams): C
   }
 }
 
-/** Fight casts at enemy hero `foe` (visible, aware). Ultimates first, then the rest. */
+const SLOT_KEYS = ['q', 'w', 'e', 'r'] as const;
+
+/** Sim v17: does ability `a` apply hard CC (stun, fear, charm, root, freeze or lure)? Pushes alone are not counted. */
+const hardCc = (a: Nums): boolean =>
+  (a.stun ?? 0) > 0 || (a.fear ?? 0) > 0 || (a.charm ?? 0) > 0 || (a.root ?? 0) > 0 || (a.freeze ?? 0) > 0 || (a.lure ?? 0) > 0;
+
+/** Sim v17: is slot `slot` (0..3) of hero `id` a hard-CC ability? */
+export const hardCcSlot = (w: World, id: number, slot: number): boolean => slot >= 0 && slot < TRICK_SLOT && hardCc(abil(w, id)[SLOT_KEYS[slot]]);
+
+/**
+ * Fight casts at enemy hero `foe` (visible, aware). Ultimates first, then the rest. Sim v17 (V17.md §3.1, §3.3): on
+ * Normal and Hard (trick use not 'never') a bot holds a hard-CC ability while the foe is CC-immune (Purr-ify or
+ * Steadfast) for longer than that ability's windup: it would land on nothing.
+ */
 export function fightCast(w: World, id: number, foe: number, p: BotParams, rng: Rng): Command | null {
+  const c = heroFightCast(w, id, foe, p, rng);
+  if (!c || c.op !== Op.Cast || p.trick === 'never' || w.ccImmT[foe] === 0) return c;
+  if (!hardCcSlot(w, id, c.slot)) return c;
+  return w.ccImmT[foe] > heroSlotAim(w.sub[id], abil(w, id), c.slot).windup ? null : c;
+}
+
+function heroFightCast(w: World, id: number, foe: number, p: BotParams, rng: Rng): Command | null {
   const trick = offenseTrick(w, id, foe, p);
   if (trick) return trick;
   const a = abil(w, id);
@@ -489,8 +509,28 @@ export function purrifyCast(w: World, id: number, p: BotParams): Command | null 
   if (p.trick === 'never' || TRICK_IDS[w.trick[id]] !== 'purrify' || !canCast(w, id, TRICK_SLOT)) return null;
   const min = BOT_AI.purrifyMinTicks;
   const hard = w.stunT[id] >= min || w.fearT[id] >= min;
-  if (!hard && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0)) return null;
+  if (!hard && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0) && windupThreat(w, id) < 0) return null;
   return cast(TRICK_SLOT, w.x[id], w.y[id], NO_TARGET);
+}
+
+/**
+ * Sim v17 (V17.md §3.3): an enemy hero winding up a hard-CC ability that `id` stands in reach of, read for at least
+ * BOT_AI.purrifyReadTicks and landing within Purr-ify's immunity; −1 when none. Reach: the ability's range, else its
+ * radius, else its dash, plus `id`'s body.
+ */
+export function windupThreat(w: World, id: number): number {
+  for (let e = RANGE.heroes; e < RANGE.minions; e++) {
+    if (w.alive[e] === 0 || w.team[e] === w.team[id] || w.castPhase[e] !== 2) continue;
+    const slot = w.castSlot[e];
+    if (!hardCcSlot(w, e, slot)) continue;
+    const a = abil(w, e);
+    const n = a[SLOT_KEYS[slot]];
+    const windup = heroSlotAim(w.sub[e], a, slot).windup;
+    if (windup - w.castT[e] < BOT_AI.purrifyReadTicks || w.castT[e] > TRICKS.purrify.immune) continue;
+    const reach = (n.range ?? n.radius ?? n.dash ?? 0) + RADIUS.hero;
+    if (dist2(w.x[e], w.y[e], w.x[id], w.y[id]) <= reach * reach) return e;
+  }
+  return -1;
 }
 
 /** Snack Break when hurt and nobody is near (defensive only). */

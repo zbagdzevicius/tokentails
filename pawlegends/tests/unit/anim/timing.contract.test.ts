@@ -24,11 +24,11 @@ describe('SIM_TIMING (§15)', () => {
     const d = (h: (typeof HERO_IDS)[number], s: 'q' | 'e', ids: string[] = []) => slotTimingFrom(h, s, abilNumbers(h, s, ids)).dashTicks;
     expect(d('clem', 'e')).toBe(6);
     expect(d('sage', 'e')).toBe(5);
-    expect(d('brutus', 'e')).toBe(8);
+    expect(d('brutus', 'e')).toBe(11); // sim v17: 14 m/s
     expect(d('cacklejaw', 'q')).toBe(6);
     expect(d('cacklejaw', 'q', ['long-jeer'])).toBe(9);
-    expect(d('lambo', 'e')).toBe(8);
-    expect(d('lambo', 'e', ['flop-further'])).toBe(10);
+    expect(d('lambo', 'e')).toBe(13); // sim v17: 12 m/s
+    expect(d('lambo', 'e', ['flop-further'])).toBe(17);
     expect(d('bengas', 'e')).toBe(6);
     expect(d('bengas', 'e', ['long-hop'])).toBe(7);
     expect(d('gabe', 'e')).toBe(6);

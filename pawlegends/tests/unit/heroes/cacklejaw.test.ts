@@ -37,7 +37,7 @@ describe('Cacklejaw (§6.6)', () => {
     const a = CACKLEJAW.abilities;
     expect([a.q.cooldown, a.w.cooldown, a.e.cooldown, a.r.cooldown]).toEqual([240, 390, 480, 1800]);
     expect([a.q.dash, a.q.dmg, a.q.dmgPerLevel, a.q.recasts, a.q.recastWindow]).toEqual([4000, 75, 6, 1, 90]);
-    expect([a.w.range, a.w.arc, a.w.fear]).toEqual([3000, 796, 24]);
+    expect([a.w.windup, a.w.range, a.w.arc, a.w.fear]).toEqual([9, 3000, 796, 21]);
     expect([a.e.duration, a.e.speedBp, a.e.brushLinger]).toEqual([90, 2000, 45]);
     expect([a.r.range, a.r.dmg, a.r.dmgPerLevel, a.r.missingHpBp, a.r.resetWindow, a.r.resets]).toEqual([12000, 150, 15, 1000, 90, 1]);
     expect(CACKLEJAW.passive).toEqual({ bonusBp: 12000, behindArc: 1365, allyRange: 4000 });
@@ -82,11 +82,13 @@ describe('Cacklejaw (§6.6)', () => {
     expect(cd(m3, CJ, 0)).toBeGreaterThan(230);
   });
 
-  it('Gloat: cone 3 m, 70°, fear 0.8 s (Smug: 9 s; sim v10 Wide Gloat: 105°, same 3 m)', () => {
+  it('Gloat: cone 3 m, 70°, fear 0.7 s after a 0.3 s windup (sim v17; Smug: 9 s; sim v10 Wide Gloat: 105°, same 3 m)', () => {
     const m = hunt();
     const w = m.world;
     cast(m, CJ, 1, MID.x + 1500, MID.y);
-    expect(w.fearT[FOE]).toBe(24);
+    expect(w.fearT[FOE]).toBe(0);
+    steps(m, 8);
+    expect(w.fearT[FOE]).toBe(21);
     expect(cd(m, CJ, 1)).toBe(390);
     const x0 = w.x[FOE];
     steps(m, 10);
@@ -98,21 +100,25 @@ describe('Cacklejaw (§6.6)', () => {
     const base = hunt();
     place(base, FOE, MID.x + 1414, MID.y + 1414, 0);
     cast(base, CJ, 1, MID.x + 2000, MID.y);
+    steps(base, 8);
     expect(base.world.fearT[FOE]).toBe(0);
     chooseTalent(m2, CJ, 1, 1);
     cast(m2, CJ, 1, MID.x + 2000, MID.y);
-    expect(m2.world.fearT[FOE]).toBe(24);
+    steps(m2, 8);
+    expect(m2.world.fearT[FOE]).toBe(21);
     // Sim v10: no longer 4 m (a 4 m fear opener pushed foes out of reach: fewer cores fell before Sudden Death).
     const far = hunt();
     setLevel(far, CJ, 6);
     chooseTalent(far, CJ, 1, 1);
     place(far, FOE, MID.x + 3800, MID.y, 0);
     cast(far, CJ, 1, MID.x + 3800, MID.y);
+    steps(far, 8);
     expect(far.world.fearT[FOE]).toBe(0);
     const m3 = hunt();
     setLevel(m3, CJ, 6);
     chooseTalent(m3, CJ, 1, 0);
     cast(m3, CJ, 1, MID.x + 1500, MID.y);
+    steps(m3, 8);
     expect(cd(m3, CJ, 1)).toBe(270);
   });
 

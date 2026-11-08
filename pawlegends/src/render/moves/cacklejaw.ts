@@ -347,7 +347,8 @@ const w: ClipDef = {
     pitch: [[0, 0], [W_C, 0.02, 'out'], [W_C + 0.22, -0.055, 'out'], [W_LEN - 0.14, -0.04, 'inOut'], [W_LEN, 0, 'inOut']],
   },
   markers: { coil: W_C * 0.7, contact: W_C, end: W_LEN },
-  warp: [['contact', 'cast']],
+  // sim v17: Gloat winds up 0.3 s; the wind-back holds over it
+  warp: [['coil', 'windupStart'], ['contact', 'cast']],
   cues: [
     ['contact', 'whoosh', 'S'],
     ['contact', 'mouthOpen', 520],

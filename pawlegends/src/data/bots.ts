@@ -454,6 +454,11 @@ export const BOT_AI = Object.freeze({
    * does with an enemy hero within trickThreat.
    */
   purrifyMinTicks: 15,
+  /**
+   * Sim v17 (V17.md §3.3): on Normal and Hard a bot with Purr-ify ready also casts it on an enemy hard-CC windup it
+   * stands in, once the windup has run this many ticks (a 250 ms read, like a player's reaction).
+   */
+  purrifyReadTicks: 8,
   /** Ultimates on a foe below this HP share (Moonshot, Pack Hunt). */
   executeHpBp: 5500,
   /** Dive: a healthy bot (HP share ≥ diveHpBp) hits a core, or a tower at or below diveTowerHp, with no minion tank. */

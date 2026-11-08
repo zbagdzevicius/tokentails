@@ -17,8 +17,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
     q: { cooldown: 210, radius: 3000, dmg: 60, dmgPerLevel: 5, slowBp: 3000, slow: 45 },
     /** Front Guard: 2.5 s frontal shield (120°) blocking projectiles for Brutus and allies behind him; `radius`: shield reach (tuning). */
     w: { cooldown: 420, duration: 75, arc: 1365, radius: 1800 },
-    /** Pug Charge: dash 5 m; first hero hit knocked back 2 m and stunned 0.5 s. */
-    e: { cooldown: 360, dash: 5000, knockback: 2000, stun: 15 },
+    /** Pug Charge: dash 5 m; first hero hit knocked back 2 m and stunned 0.5 s. Sim v17 (V17.md §3.2): a 0.3 s wind-up and 14 m/s (was instant at 20 m/s). */
+    e: { cooldown: 360, windup: 9, dash: 5000, speed: 14000, knockback: 2000, stun: 15 },
     /** Champion's Challenge: tether a hero within 5 m; 6 m ring for 3 s; Brutus takes 30% less from that hero. */
     r: { cooldown: 2250, range: 5000, ringRadius: 6000, duration: 90, reduceBp: 3000 },
   },

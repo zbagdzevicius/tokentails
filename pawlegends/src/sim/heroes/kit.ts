@@ -12,7 +12,7 @@
  */
 import { XP } from '../../data/xp';
 import { BRUSH_ATTACK_REVEAL_TICKS } from '../../data/map';
-import { NO_TARGET, type CastSlot } from '../api';
+import { NO_TARGET, type CastSlot, type SimEvent } from '../api';
 import { ANGLE_STEPS, BP_ONE, dist2, iatan2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
 import { COOLDOWN_SLOTS, FM, G, Kind, RANGE, UnitState, type World } from '../world';
@@ -114,7 +114,15 @@ export interface HeroKit {
   busy?(w: World, id: number): boolean;
   /** Sim v14: true while bots should not start basic attacks on this hero (Howler's Talk Back). They still cast at it. */
   deterBasics?(w: World, id: number): boolean;
+  /**
+   * Sim v17 (V17.md §3.2, §3.6): a cast of `slot` just began its windup; `ev` is the windup event already pushed (the
+   * kit may move its point, e.g. Lambo's landing, or name a victim in `dst`). Runs only for windups > 0.
+   */
+  onWindup?(m: MatchHandle, id: number, slot: number, ev: WindupEvent): void;
 }
+
+/** The `windup` event a cast pushes (sim/api.ts SimEvent). */
+export type WindupEvent = Extract<SimEvent, { type: 'windup' }>;
 
 /**
  * HERO_IDS order: clem, sage, brutus, cacklejaw, lambo, aviete, bengas, gabe, meatball, pixel, duchess, stilts, nugget,
@@ -144,6 +152,9 @@ const KITS: readonly HeroKit[] = [
 ];
 
 export const kitOf = (w: World, id: number): HeroKit => KITS[w.sub[id]];
+
+/** How slot `slot` (0..3) of hero `heroIndex` (HERO_IDS order) is aimed with numbers `a` (pure: tests, tools, render). */
+export const heroSlotAim = (heroIndex: number, a: KitNumbers, slot: number): SlotAim => KITS[heroIndex].aim(a, slot);
 
 /** Sim v14: is hero `id` held by its own kit (no move, basic or cast)? */
 export const kitBusy = (w: World, id: number): boolean => kitOf(w, id).busy?.(w, id) === true;
@@ -217,7 +228,9 @@ function beginWindup(m: MatchHandle, id: number, s: SlotAim): void {
   w.timer[id] = 0;
   if (s.windup > 0) {
     w.state[id] = UnitState.Casting;
-    m.events.push({ type: 'windup', tick: w.globals[G.Tick], src: id, slot: w.castSlot[id] as CastSlot | 4, x: w.castX[id], y: w.castY[id], ticks: s.windup });
+    const ev: WindupEvent = { type: 'windup', tick: w.globals[G.Tick], src: id, slot: w.castSlot[id] as CastSlot | 4, x: w.castX[id], y: w.castY[id], ticks: s.windup };
+    m.events.push(ev);
+    if (w.castSlot[id] < TRICK_SLOT) kitOf(w, id).onWindup?.(m, id, w.castSlot[id], ev);
   }
 }
 

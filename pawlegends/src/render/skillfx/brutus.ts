@@ -378,7 +378,8 @@ function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   r.t0 = clock;
   r.cx = _p.x;
   r.cz = _p.z;
-  r.end = clock + travelTicks(dist, DASH_SPEED) * TICK_S + 0.12;
+  // sim v17: Pug Charge flies at its own speed (14 m/s)
+  r.end = clock + travelTicks(dist, a.speed ?? DASH_SPEED) * TICK_S + 0.12;
   r.next = clock;
   r.zone = -1;
   // bull-horn ribbons from both shoulders (none on Low: no ribbon slots)
