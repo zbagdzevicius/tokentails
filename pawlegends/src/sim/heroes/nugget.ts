@@ -13,7 +13,7 @@ import { toySupport } from '../progression/fish';
 import type { MatchHandle } from '../state';
 import { ENTITY_CAP, FM, Kind, RANGE, type World } from '../world';
 import { dealDamage } from '../combat/damage';
-import { addShield, collect, dash, fireSkillshot, haste, heal, healOverTime, inRing, knockback, root, slow, ON_HIT, PFLAG } from '../effects';
+import { addShield, collect, dash, fireSkillshot, haste, heal, healOverTime, inRing, knockback, selfRoot, slow, ON_HIT, PFLAG } from '../effects';
 import { creditHealShield } from '../effects/heal';
 import { attackRange, radiusOf } from '../units/kinds';
 import { weakestAlly, wrapTarget } from './gabe';
@@ -89,7 +89,7 @@ function friendLand(m: MatchHandle, id: number): void {
 function sploot(m: MatchHandle, id: number): number {
   const w = m.world;
   const e = abil(w, id).e;
-  root(w, id, e.duration);
+  selfRoot(w, id, e.duration);
   w.kRT[id] = e.duration;
   const total = toySupport(w, id, lvl(w, id, e.heal, e.healPerLevel));
   for (let a = RANGE.heroes; a < RANGE.minions; a++) {

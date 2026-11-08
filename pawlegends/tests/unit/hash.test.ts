@@ -29,6 +29,13 @@ describe('hashWorld', () => {
     const c = createWorld(1);
     c.zTtl[23] = 5;
     expect(hashWorld(c)).not.toBe(hashWorld(a));
+    // Sim v17 Steadfast: the CC window and its count are hashed.
+    const e = createWorld(1);
+    e.ccSum[0] = 30;
+    expect(hashWorld(e)).not.toBe(hashWorld(a));
+    const f = createWorld(1);
+    f.ccWinT[0] = 90;
+    expect(hashWorld(f)).not.toBe(hashWorld(a));
     const d = createWorld(1);
     d.rng.next();
     expect(hashWorld(d)).not.toBe(hashWorld(a));

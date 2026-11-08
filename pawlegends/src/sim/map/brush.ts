@@ -8,7 +8,7 @@
  * sees it); `snapshot(team)` and every targeting check read only that, so bots and auto-attacks can never act on a
  * unit the team's snapshot leaves out. Adding the MVP fog grid changes `hiddenFrom` only.
  */
-import { EFFECTS } from '../../data/effects';
+import { CC_DR, EFFECTS } from '../../data/effects';
 import { BRUSH_REVEAL_MM, BUSHES, mirrorX } from '../../data/map';
 import { dist2 } from '../fixed';
 import { Buff, FM, Kind, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
@@ -89,6 +89,7 @@ export function refreshFlags(w: World): void {
       if (w.stealthT[id] > 0) b |= Buff.Stealth;
       if (w.untargT[id] > 0) b |= Buff.Untargetable;
       if (w.ccImmT[id] > 0) b |= Buff.Purrified;
+      if (w.ccImmT[id] > 0 && w.ccSum[id] >= CC_DR.cap) b |= Buff.Steadfast;
       if (w.stunT[id] > 0) b |= Buff.Stunned;
       if (w.rootT[id] > 0) b |= Buff.Rooted;
       if (w.fearT[id] > 0) b |= Buff.Feared;

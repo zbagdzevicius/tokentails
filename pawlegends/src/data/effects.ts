@@ -23,6 +23,14 @@ export const EFFECTS = Object.freeze({
   pullGap: 200,
 });
 
+/**
+ * Sim v17 Steadfast (docs/plans/moba/V17.md §3.1, RESEARCH §C6 "2 s of CC in 4 s → 1 s immunity"): hard CC on a hero
+ * (stun, fear, charm, root, knockback and pull) counts toward `cap` ticks of lock inside a `window`-tick window that
+ * opens at the first counted CC; reaching the cap truncates that CC and grants CC immunity for the rest of the lock
+ * plus `immune` ticks. Heroes only.
+ */
+export const CC_DR = Object.freeze({ window: 120, cap: 60, immune: 30 });
+
 /** Zone kinds in ZoneSnap.kind (render picks the look). */
 export const ZONE_KIND = Object.freeze({
   /** Sage's Sun Snare. Hidden from the enemy team's snapshot. */

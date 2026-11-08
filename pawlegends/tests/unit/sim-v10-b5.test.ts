@@ -44,7 +44,8 @@ describe('sim v10 (GAPS B5): Purr-ify', () => {
   it('clears a charm, then ignores CC for 15 ticks', () => {
     const m = match();
     const w = m.world;
-    charm(w, 0, 60, 3);
+    // Sim v17: 40 ticks, below the Steadfast cap (a 60-tick charm would grant its own immunity, V17.md §3.1).
+    charm(w, 0, 40, 3);
     expect(w.fearSrc[0]).toBe(3);
     cast(m, 0, 4, w.x[0], w.y[0]);
     expect(w.fearT[0]).toBe(0);
@@ -58,7 +59,8 @@ describe('sim v10 (GAPS B5): Purr-ify', () => {
     steps(m, TRICKS.purrify.immune);
     expect(w.ccImmT[0]).toBe(0);
     stun(w, 0, 30);
-    expect(w.stunT[0]).toBe(30);
+    // Sim v17 Steadfast: the cleanse keeps the window's count (40), so this stun is cut at the 60-tick cap.
+    expect(w.stunT[0]).toBe(20);
   });
 
   it('other tricks stay blocked by a stun', () => {

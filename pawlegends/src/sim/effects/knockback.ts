@@ -4,7 +4,7 @@ import { icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import type { MatchHandle } from '../state';
 import { FM } from '../world';
 import { clipTravel, startForced } from './dash';
-import { ccImmune, interrupt } from './status';
+import { ccImmune, drGrant, interrupt } from './status';
 
 const end = new Int32Array(2);
 
@@ -20,6 +20,8 @@ export function knockback(m: MatchHandle, id: number, fromX: number, fromY: numb
     dy = idiv(isin(fallbackAngle) * dist, TRIG_ONE);
     d = Math.max(1, isqrt(dx * dx + dy * dy));
   }
+  // Sim v17 Steadfast: the flight counts toward the CC cap (the push distance is never shortened).
+  drGrant(w, id, EFFECTS.knockbackTicks);
   interrupt(w, id, true);
   clipTravel(m, id, w.x[id] + idiv(dx * dist, d), w.y[id] + idiv(dy * dist, d), end);
   startForced(w, id, end[0], end[1], EFFECTS.knockbackTicks, FM.Knock);
