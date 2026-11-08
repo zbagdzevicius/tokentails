@@ -1,0 +1,18 @@
+/*
+ * Feel pass (docs/plans/moba/FEEL-PASS.md): fixed camera chrome, the HUD diet on phones, the cancel bubble, the
+ * spawn toast. Loaded after ui.css and lol-hud.css (ui/hud.ts), so these rules win at equal specificity.
+ */
+
+/* B1: the own punch is a short darkening vignette over the view (the camera never zooms) */
+.pl-punch {
+  position: absolute; inset: 0; pointer-events: none; z-index: 3; opacity: 0;
+  background: radial-gradient(ellipse at 50% 54%, transparent 45%, rgba(0, 0, 0, calc(var(--punch-dark, 0.1) * 2.4)) 100%);
+}
+.pl-punch.on { animation: pl-punch var(--punch-ms, 150ms) ease-out both; }
+@keyframes pl-punch { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pl-punch.on { animation: none; } }
+
+/* B1: the Camera height row (Settings and the pause menu) */
+.set-camh { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+.set-camh .chips { display: flex; gap: 6px; }
+.pl-menu .set-camh { font-size: 14px; }

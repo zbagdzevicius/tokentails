@@ -12,9 +12,8 @@
  */
 import '../../src/ui/ui.css';
 import * as THREE from 'three';
-import { createRenderer, isShortLandscape, MOBA_DIST, MOBA_PITCH_DROP, SHORT_LANDSCAPE_ZOOM, type GameRenderer } from '../../src/render/renderer';
+import { createRenderer, isShortLandscape, type GameRenderer } from '../../src/render/renderer';
 import { isoPitch } from '../../src/render/camera/IsoRig.js';
-import { ZOOM_DEFAULT } from '../../src/render/camera/zoom';
 import { bakePortraits } from '../../src/render/portraits';
 import { Lobby } from '../../src/render/lobby';
 import { pickScreen } from '../../src/ui/screens';
@@ -325,6 +324,14 @@ export interface FrameQc {
   why?: string[];
 }
 
+/**
+ * The pre-feel-pass game camera (renderer.ts before the fixed framing of FEEL-PASS.md B1): the trailers were cut
+ * against it, so the harness keeps it to render them unchanged.
+ */
+const MOBA_DIST = 27;
+const MOBA_PITCH_DROP = 0.16;
+const SHORT_LANDSCAPE_ZOOM = 0.75;
+const ZOOM_DEFAULT = 1.03;
 const D0 = MOBA_DIST * ZOOM_DEFAULT;
 const vclock = (): VClock => window.__vclock;
 

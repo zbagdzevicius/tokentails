@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { endsText } from '../../src/money/offer';
 import { dareText } from '../../src/share/dare';
 import { resultLine, resultTip } from '../../src/ui/screens';
-import { clampZoom, wheelZoom, ZOOM_MAX, ZOOM_MIN } from '../../src/render/camera/zoom';
+import { wheelHeight } from '../../src/render/camera/height';
 import { plateName } from '../../src/ui/overhead';
 import { reachableGoal } from '../../src/input/orders';
 import { attackPriority, guardedByTower, type Unit } from '../../src/input/targeting';
@@ -59,15 +59,11 @@ describe('honest lines', () => {
   });
 });
 
-describe('camera zoom', () => {
-  it('a wheel step scales with the delta, so one big delta moves the whole range', () => {
-    expect(wheelZoom(1, 800)).toBe(ZOOM_MAX);
-    expect(wheelZoom(1, -1600)).toBe(ZOOM_MIN);
-    const notch = wheelZoom(1, 100);
-    expect(notch).toBeGreaterThan(1.07);
-    expect(notch).toBeLessThan(1.12);
-    expect(wheelZoom(1, 3, 1)).toBeCloseTo(wheelZoom(1, 99), 5);
-    expect(clampZoom(Number.NaN)).toBeGreaterThan(0);
+describe('camera height (feel pass B1: the wheel picks one of two steps)', () => {
+  it('away is High, toward is Normal, no delta keeps the step', () => {
+    expect(wheelHeight('normal', 800)).toBe('high');
+    expect(wheelHeight('high', -3)).toBe('normal');
+    expect(wheelHeight('high', 0)).toBe('high');
   });
 });
 

@@ -255,7 +255,7 @@ export interface ShockwavesLike {
 export interface FightCamLike {
   /** Shake tier T0..T4 (§8): only the strongest tier per 100 ms counts. */
   tier(t: 0 | 1 | 2 | 3 | 4): void;
-  /** Own camera punch (zoom −k over 100 ms, back over 400 ms). */
+  /** Own punch (feel pass B1: a 150 ms darkening vignette, never a zoom). */
   punch(k: number): void;
 }
 export interface JuiceLike {

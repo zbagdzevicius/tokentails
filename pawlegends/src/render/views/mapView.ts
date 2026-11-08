@@ -472,10 +472,11 @@ export function gateSpans(x: number): [number, number][] {
 }
 
 /**
- * MAP-GAPS A12: how far (m) past each map edge the ground is dressed with trees: past the camera's real reach at the
- * widest zoom (desktop zoomMax 1.9, any focus inside CAMERA_FRAME) plus 5 m.
+ * MAP-GAPS A12: how far (m) past each map edge the ground is dressed with trees: past the camera's real reach plus a
+ * margin. Feel pass B1/B2: the fixed camera never clamps at the map edge and turns diagonally (either seat looks
+ * across any edge), so every side reaches at least 40 m and the first trees stand 8 m out on every side.
  */
-export const OUTER_DRESS = Object.freeze({ west: 46, east: 46, north: 40, south: 25, near: 6, nearSouth: 10 });
+export const OUTER_DRESS = Object.freeze({ west: 46, east: 46, north: 40, south: 40, near: 8, nearSouth: 10 });
 
 /** Distance (m) of (x, y) outside the map rectangle (0 inside). */
 export const outsideBy = (x: number, y: number): number => Math.hypot(Math.max(0 - x, x - W, 0), Math.max(0 - y, y - H, 0));

@@ -32,6 +32,8 @@ import { FISH_GLYPH } from './progressRail';
 import { TOY_COST, TOY_TIERS } from '../data/toys';
 // LoL pass (lane B): the hextech HUD chrome (ability frame, XP ring, score plate, kill feed, death wash, nap bar, crest)
 import './lol-hud.css';
+// feel pass: the fixed-camera chrome and the phone HUD diet (after lol-hud.css, so it wins)
+import './feel.css';
 
 /** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
 const TOWER_SVG = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 15V6h2V3h2v2h2V3h2v3h2v9z" fill="currentColor"/></svg>';
