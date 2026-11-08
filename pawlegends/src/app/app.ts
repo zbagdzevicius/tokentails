@@ -7,6 +7,7 @@
 import { fishSources, medals, progressRows } from '../ui/progressSummary';
 import { HumanFilter } from '../analytics/human';
 import { askConsent, createAnalytics, type Analytics } from '../analytics/posthog';
+import { retentionDay, sinceLoadMs } from '../analytics/kpi';
 import { sfx } from '../audio/sfx';
 import { nameLine } from '../audio/voiceLines';
 import { crashSender, reportCrash, setCrashHook } from './crash';
@@ -176,6 +177,7 @@ export class App {
   /** `?perf=1` on-screen readout for the device gate (§15 item 27); null otherwise. */
   private readonly perf: PerfReadout | null;
   private readonly sessionNo: number;
+  private readonly dayN: number;
 
   constructor(
     private readonly root: HTMLElement,
@@ -193,6 +195,7 @@ export class App {
     this.lobby = new Lobby(this.gr);
     const p = startSession();
     this.sessionNo = p.sessions;
+    this.dayN = retentionDay();
     migrateTreatTrack();
     sfx.setMuted(p.muted);
     // sim v14: the hero follows the side the switch was left on (the last hero picked there)
@@ -200,7 +203,8 @@ export class App {
     this.human.install(window);
     // PUB-02: embedded, events go to the host's analytics (the site's policy and id); standalone, to PostHog after consent
     this.analytics = createAnalytics(
-      () => ({ human: this.human.human, embed: bridge.active, session: this.sessionNo, quality: this.tier }),
+      // day_n: whole days since this browser first played (D1 / D7 retention, analytics/kpi.ts)
+      () => ({ human: this.human.human, embed: bridge.active, session: this.sessionNo, quality: this.tier, day_n: this.dayN }),
       bridge.active ? (event, props) => bridge.post('analytics', { event, props: { ...props } }) : null,
     );
     // Launch finding R1: crashes go to the host (embedded) or this page's consent-gated analytics (app/crash.ts).
@@ -927,7 +931,7 @@ export class App {
       },
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero, difficulty, trick, dare: false });
+    this.analytics.track('match_start', { hero, difficulty, trick, dare: false, party: true, load_ms: sinceLoadMs(), first_match: p.matches === 0 });
     const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
     this.setScreen('match', null);
     this.lobby.leave();
@@ -1004,7 +1008,7 @@ export class App {
       showcase: this.skinShowcaseOpen(p.matches === 0 || tips).bots ? this.integration.state().featured.map((f) => `${FEATURED_SKIN_PREFIX}${f.catalogId}`) : [],
     };
     this.lastSetup = setup;
-    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined });
+    this.analytics.track('match_start', { hero: c.hero, side: HEROES[c.hero]?.side ?? 'cat', difficulty: c.difficulty, trick: c.trick, dare: seed !== undefined, load_ms: sinceLoadMs(), first_match: p.matches === 0 });
     for (const item of lookItems(look)) this.analytics.track('item_seen_in_match', { item, sku: skuOfItem(item) });
     this.frameMs = [];
     const mates = companions.map((k) => k.name);
