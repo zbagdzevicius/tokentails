@@ -92,3 +92,25 @@
   /* 667x375 and 844x390: the explainer line goes; "CATS vs DOGS" inside the switch says it */
   .pl-pick .side-line { display: none; }
 }
+
+/* Champion browser (ui/champBrowser/): the "i" on every pick card opens the hero's skills and lore; a tap elsewhere on
+   the card still picks it in one tap. Top right of the card's inset (the Card / New badge moves left of it); 18 px dot
+   with a larger hit area. */
+.hero-card .hero-info {
+  position: absolute; top: 3%; right: 3%; z-index: 3; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center;
+  font: italic 800 12px/1 Georgia, 'Times New Roman', serif; color: #2a1a22; background: rgba(255, 243, 220, 0.92);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.45); cursor: help; touch-action: manipulation; pointer-events: auto;
+}
+.hero-card .hero-info::before { content: ''; position: absolute; inset: -9px; border-radius: 50%; }
+.hero-card .hero-info:hover { background: #ffd34d; }
+.pl-pick .heroes .hero-card.tt-card .champ-owned, .pl-pick .heroes .hero-card.tt-card .new-tag { right: calc(3% + 22px); }
+.pl-pick .detail .chip.codex { margin-left: 8px; padding: 3px 10px; min-height: 28px; font-size: 12px; vertical-align: 2px; display: inline-flex; align-items: center; gap: 4px; }
+.pl-pick .detail .chip.codex .pl-icon { width: 15px; height: 15px; color: var(--butter, #ffd34d); }
+@media (max-height: 520px) {
+  .hero-card .hero-info { width: 16px; height: 16px; font-size: 11px; }
+  .pl-pick .detail .chip.codex { min-height: 24px; font-size: 11px; padding: 2px 8px; }
+}
+.pl-collection .champs-row { margin: 0 0 8px; text-align: center; }
+.pl-collection .champs-row .pl-btn { display: inline-flex; align-items: center; gap: 6px; }
+.pl-collection .champs-row .pl-icon { width: 16px; height: 16px; color: var(--butter, #ffd34d); }
+.pl-collection .postcard:not(.locked) { cursor: pointer; }

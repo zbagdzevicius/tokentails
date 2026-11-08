@@ -481,6 +481,11 @@ export class Hud {
     return this.strip.find((s) => s.slot === slot)?.el.classList.contains('dead') ?? false;
   }
 
+  /** Champion browser (the in-match skill peek): the own hero's level, talent picks and whether the branch is taken. */
+  codexState(): { level: number; choices: readonly number[]; branch: boolean } {
+    return { level: this.lv, choices: this.choices, branch: this.branchOn };
+  }
+
   /** GAPS B6: swap the branched slot's icon and label to the level-6 shape branch's ability. */
   private showBranch(): void {
     this.branchOn = true;

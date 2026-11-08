@@ -12,6 +12,7 @@ import { TRACK_CHAMPIONS, TRACK_ORIGINALS, TRACK_TITLES, heroTrack, matchesToGo,
 import { HERO_TEXT } from './heroText';
 import { icon } from './icons';
 import { cardFxPreview, type CardFxTile } from './cardFxView';
+import { openChampInfo } from './champBrowser/open';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
@@ -76,6 +77,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
         : '';
     // Audit UX-10: a corner ✕ (sticky) and a sticky Done (the exit sat below the fold at 667x375)
     root.innerHTML = `<div class="card"><button class="pl-x" data-a="x" aria-label="Close the Treat Track">✕</button><h2>Treat Track</h2>
+      <p class="champs-row"><button type="button" class="pl-btn ghost small" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button></p>
       <p class="next-chest" data-next="${esc(next.id)}">Next chest: <b>${esc(next.name)}</b> <small data-togo="${n}">${esc(toGoText(n))}</small></p>
       <div class="targets"><span class="lbl">Pick your next target</span><span class="chips"><button class="chip target ${s.target === null ? 'on' : ''}" data-target="" aria-pressed="${s.target === null}"><b>Track order</b><small>Any hero</small></button>${heroes.map(chip).join('')}</span></div>
       <h3>Meet the real cat</h3>
@@ -88,6 +90,16 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
   render();
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    // champion browser: every champion's skills and lore; a postcard opens its champion on Lore
+    if (t.closest('[data-a="champions"]')) {
+      void openChampInfo({ hero: s.target ?? 'clem', within: root });
+      return;
+    }
+    const pc = t.closest<HTMLElement>('.postcard:not(.locked)')?.dataset.postcard as HeroId | undefined;
+    if (pc) {
+      void openChampInfo({ hero: pc, tab: 'lore', within: root });
+      return;
+    }
     const tg = t.closest<HTMLElement>('[data-target]');
     const wear = t.closest<HTMLElement>('[data-wear]');
     if (tg) {
@@ -118,6 +130,8 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       return;
     }
     if (e.key !== 'Escape') return;
+    // the champion browser over the Treat Track closes first (its own Esc)
+    if (document.querySelector('.pl-champ')) return;
     e.preventDefault();
     e.stopPropagation();
     close();

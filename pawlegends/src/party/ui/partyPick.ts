@@ -113,11 +113,14 @@ export function pickHtml(o: PickModel): string {
     ? `<button type="button" class="pl-btn ghost" data-p="unlock" data-testid="party-unlock">${COPY.changeHero}</button><button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" disabled>${COPY.lockedIn}</button>`
     : `<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${canLock ? '' : 'disabled'}>${COPY.lockIn}</button>`;
   // Quick Play: a way out of the pick (two taps, as in the friend lobby); a bot takes the seat
+  // champion browser: the hovered hero's skills and lore (the "i" on each card opens any hero; locked cards cannot take
+  // a tap, so this button is the way in once locked)
+  const info = o.hover && o.hover in HEROES ? `<button type="button" class="pl-btn ghost small pp-info" data-p="info" data-v="${esc(o.hover)}" data-testid="party-info" aria-haspopup="dialog">${icon('spell')}${esc(COPY.skillsLore)}</button>` : '';
   const leave = mm ? `<button type="button" class="pl-btn ghost small pp-pick-leave" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>` : '';
   return `<div class="pp-card pp-pick" data-locked="${locked}"${mm ? ` data-mm="${mm}"` : ''}${casual ? ` data-pvp="${team}"` : ''}>
     <div class="pp-head"><h2>${COPY.pickTitle}</h2>${sideNote}<ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
     <div class="pp-roster">${rows}</div>
-    <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${leave}${lockBtn}</div>
+    <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${info}${leave}${lockBtn}</div>
   </div>`;
 }
 
@@ -132,6 +135,11 @@ export function decoratePick(root: HTMLElement, v: PartyView, hide = false): voi
     el.dataset.p = 'hero';
     el.dataset.v = h;
     el.dataset.testid = `party-hero-${h}`;
+    const dot = el.querySelector<HTMLElement>('.hero-info');
+    if (dot) {
+      dot.dataset.p = 'info';
+      dot.dataset.v = h;
+    }
     const why = heroBlock(v, h, hide);
     const taken = lockedByOthers(v, hide).get(h);
     if (why && !taken) el.dataset.side = 'off';

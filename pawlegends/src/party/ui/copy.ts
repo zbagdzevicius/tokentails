@@ -50,6 +50,7 @@ export const COPY = Object.freeze({
   // pick
   pickTitle: 'Pick your hero',
   lockIn: 'Lock in',
+  skillsLore: 'Skills & lore',
   lockedIn: 'Locked in',
   trick: 'Paw Trick',
   tryThis: 'New? Try this',

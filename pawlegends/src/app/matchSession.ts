@@ -315,6 +315,8 @@ export class MatchSession {
   private pingBtn: HTMLButtonElement | null = null;
   private pingTipShown = false;
   private hud: Hud | null = null;
+  /** Champion browser: the long-press skill peek on the own skill buttons (its detach), loaded after the HUD. */
+  private peekOff: (() => void) | null = null;
   private overhead: Overhead;
   /** LoL pass (lane C): the persistent low-health vignette (made on the first body tick). */
   private lowHp: LowHp | null = null;
@@ -713,7 +715,17 @@ export class MatchSession {
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
+=======
+    // champion browser: hold an own skill button to read its card (no pause, the input is untouched); own chunk
+    void import('../ui/champBrowser/skillPeek')
+      .then((m) => {
+        if (this.disposed) return;
+        this.peekOff = m.attachSkillPeek(this.ui, hero, () => this.hud?.codexState() ?? { level: 1, choices: [], branch: false });
+      })
+      .catch(() => undefined);
+>>>>>>> 4295b4b56 (feat(pawlegends): champion browser with skill previews and lore)
     // lobby spec §3b: the worn card's name rides on the HUD portrait too ("Ficus · Clem")
     this.hud.setSelfName(this.selfName ?? myCard?.name ?? null);
 >>>>>>> 7663889ab (feat(pawlegends): the player's username over their own hero, not the champion)
@@ -2665,6 +2677,8 @@ export class MatchSession {
   }
 
   dispose(): void {
+    this.peekOff?.();
+    this.peekOff = null;
     if (this.disposed) return;
     this.disposed = true;
     if (this.youTimer !== undefined) clearTimeout(this.youTimer);
