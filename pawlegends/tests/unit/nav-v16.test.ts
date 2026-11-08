@@ -1,9 +1,12 @@
 /** Sim v16 MAP-GAPS B nav fixes (docs/plans/moba/MAP-GAPS.md B, V16.md §3.2). */
 import { describe, expect, it } from 'vitest';
 import { Op } from '../../src/sim/api';
-import { step } from '../../src/sim/index';
+import { createMatch, createPlayerBot, fillPicks, playerBotCommands, step, tickOf } from '../../src/sim/index';
+import { MAP, RADIUS } from '../../src/data/map';
+import { dist2 } from '../../src/sim/fixed';
+import { TIMELINE } from '../../src/data/timeline';
 import { clipTravel, startForced } from '../../src/sim/effects/dash';
-import { FM, Order } from '../../src/sim/world';
+import { FM, Order, RANGE } from '../../src/sim/world';
 import { cellOf, createGrid, escapeCell, NX, NY, walkable } from '../../src/sim/map/grid';
 import { Rng } from '../../src/sim/rng';
 import { applyOrder } from '../../src/sim/units/hero';
@@ -94,5 +97,49 @@ describe('B3 order kept after a dash or knockback', { timeout: 120_000 }, () => 
     startForced(w, 1, 48000, 30000, 4, FM.Knock);
     for (let t = 0; t < 5; t++) step(m);
     expect([w.moveX[1], w.moveY[1]]).toEqual([w.x[1], w.y[1]]);
+  });
+});
+
+describe('B2 gate clamp', { timeout: 300_000 }, () => {
+  const fresh = (seed = 3) => {
+    const { picks, tricks } = fillPicks(seed, 'clem', 'pounce');
+    return createMatch({ seed, picks, tricks, difficulty: 'normal' });
+  };
+
+  it('Move (37000, 51000) at t0: the hero is never on a blocked cell during ticks 0 to 200', () => {
+    const m = fresh();
+    step(m, [{ op: Op.Move, x: 37000, y: 51000 }]);
+    for (let t = 1; t <= 200; t++) {
+      expect(walkable(m.grid, cellOf(m.world.x[0], m.world.y[0]))).toBe(true);
+      step(m);
+    }
+  });
+
+  it('a pounce at t30 does not cross MAP.barrierX', () => {
+    const m = fresh();
+    for (let t = 0; t < 30; t++) step(m);
+    step(m, [{ op: Op.Trick, x: 20000, y: 30000 }]);
+    for (let t = 0; t < 40; t++) {
+      if (tickOf(m) < TIMELINE.barrierDrop) expect(m.world.x[0]).toBeLessThanOrEqual(MAP.barrierX);
+      step(m);
+    }
+  });
+
+  it('24 bot seeds: no hero in the forest (a static wall cell) or inside a tower before t200', () => {
+    // A path corner grazing a structure's footprint cell is MAP-GAPS B7 (v17), so only walls and tower bodies count.
+    let bad = 0;
+    for (let seed = 1; seed <= 24; seed++) {
+      const m = fresh(seed);
+      const w = m.world;
+      const bot = createPlayerBot(m, 'normal');
+      for (let t = 0; t < 200; t++) {
+        step(m, playerBotCommands(m, bot));
+        for (let id = 0; id < 6; id++) {
+          if (m.grid.walls[cellOf(w.x[id], w.y[id])] !== 0) bad++;
+          for (let k = RANGE.towers; k < RANGE.cores; k++) if (dist2(w.x[id], w.y[id], w.x[k], w.y[k]) < RADIUS.tower * RADIUS.tower) bad++;
+        }
+      }
+    }
+    expect(bad).toBe(0);
   });
 });

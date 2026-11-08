@@ -6623,8 +6623,17 @@ function clipTravel(m, id, bx, by, out) {
 }
 /** Ticks to cover `dist` at `speed` mm/s (at least 1). */
 var travelTicks = (dist, speed) => Math.max(1, idiv(dist * 30 + speed - 1, speed));
-/** Start forced movement of `id` to (tx, ty) over `ticks`. */
+/**
+* Sim v16 (MAP-GAPS B2): before TIMELINE.barrierDrop a hero's own movement (dash, Trick, blink) never crosses its
+* team's gate line; returns `x` clamped to it (unchanged after the drop, and for any other unit).
+*/
+function gateClampX(w, id, x) {
+	if (w.globals[G.Tick] >= TIMELINE.barrierDrop || w.kind[id] !== Kind.Hero) return x;
+	return w.team[id] === 0 ? Math.min(x, MAP.barrierX) : Math.max(x, mirrorX(MAP.barrierX));
+}
+/** Start forced movement of `id` to (tx, ty) over `ticks`. A knockback is not clamped at the gate. */
 function startForced(w, id, tx, ty, ticks, kind) {
+	if (kind !== FM.Knock) tx = gateClampX(w, id, tx);
 	w.fmX[id] = tx;
 	w.fmY[id] = ty;
 	w.fmT[id] = Math.max(1, ticks);
@@ -6692,7 +6701,7 @@ function blink(m, id, tx, ty, maxDist) {
 		dx = idiv(dx * maxDist, d);
 		dy = idiv(dy * maxDist, d);
 	}
-	const bx = w.x[id] + dx;
+	const bx = gateClampX(w, id, w.x[id] + dx);
 	const by = w.y[id] + dy;
 	clampToArena(w, id, bx, by, end$1);
 	if (end$1[0] !== bx || end$1[1] !== by || !walkable(m.grid, cellOf(bx, by))) clipTravel(m, id, bx, by, end$1);
@@ -12465,17 +12474,20 @@ function walk(m, id) {
 		planPath(m, id, w.moveX[id], w.moveY[id]);
 		if (w.pathLen[id] === 0) return true;
 	}
-	let tx = w.pathX[base + w.pathIdx[id]];
+	const tx = w.pathX[base + w.pathIdx[id]];
 	const ty = w.pathY[base + w.pathIdx[id]];
+	if (tx !== w.x[id] || ty !== w.y[id]) w.facing[id] = iatan2(ty - w.y[id], tx - w.x[id]);
+	const arrived = moveToward(w.x[id], w.y[id], tx, ty, moveSpeed(w, id), w.moveCarry[id], 30, out$1);
 	let gated = false;
 	if (w.globals[G.Tick] < TIMELINE.barrierDrop) {
 		const gate = w.team[id] === 0 ? MAP.barrierX : mirrorX(MAP.barrierX);
-		const c = w.team[id] === 0 ? Math.min(tx, gate) : Math.max(tx, gate);
-		gated = c !== tx;
-		tx = c;
+		const c = w.team[id] === 0 ? Math.min(out$1[0], gate) : Math.max(out$1[0], gate);
+		if (c !== out$1[0]) {
+			gated = true;
+			out$1[0] = c;
+			out$1[1] = w.y[id];
+		}
 	}
-	if (tx !== w.x[id] || ty !== w.y[id]) w.facing[id] = iatan2(ty - w.y[id], tx - w.x[id]);
-	const arrived = moveToward(w.x[id], w.y[id], tx, ty, moveSpeed(w, id), w.moveCarry[id], 30, out$1);
 	if (inEnemyFountain(w, id, out$1[0], out$1[1]) && !inEnemyFountain(w, id, w.x[id], w.y[id])) {
 		w.state[id] = UnitState.Idle;
 		return false;
