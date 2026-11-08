@@ -303,7 +303,7 @@ Source: `nav-move-to-structure-never-ends`.
 - Bot runs: 0 heroes "standing Moving" for more than 90 ticks.
 
 ### B5. Minions, rats and feared units ignore the nav grid (medium)
-**Status:** moved to v17 (failed the v16 PvE gate: Purrhaven 47.6%, −2.6 pp).
+**Status:** B5a (heroes only) shipped in sim v17: feared and charmed heroes slide along walls (`nav/slide.ts` `slideStep` in `fleeStep`, `docs/plans/moba/V17.md` §4). The minion, rat and camp part is still later (it moved last hits and gold and failed the v16 PvE gate: Purrhaven 47.6%, −2.6 pp). A v17 bot sweep also found walking heroes grazing wall cells at path corners; that is B7.
 Source: `nav-units-ignore-walls`.
 
 **Change:**
@@ -408,7 +408,7 @@ Source: `design-brush-attack-no-reveal`.
 - PARITY.md:323 is ticked.
 
 ### B12. Bush scouting (low, design)
-**Status:** moved to v17 (failed the v16 PvE gate: Purrhaven 47.6%, −2.6 pp).
+**Status:** shipped in sim v17 (`MINION_BRUSH_REVEAL_MM = 3000`, `docs/plans/moba/V17.md` §4). On the v17 sim it held the PvE gate: human side 49.5% with it against 50.1% without (two pooled 2,000-seed windows). The Whisker Ward trick is still later.
 Source: the sim part of `design-bush-scouting`.
 
 **Change:** raise the reveal range for allied minions from 2 m to 3 m in `hiddenFrom`. A separate later item is a "Whisker Ward" Paw Trick that reveals one bush for 4 s (`data/tricks.ts`, per GAPS.md:27).
