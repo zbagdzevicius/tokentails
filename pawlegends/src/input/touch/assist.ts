@@ -102,6 +102,24 @@ export function edgeGoal(meX: number, meY: number, tx: number, ty: number, myTea
 }
 
 /**
+ * Founder bug 2026-11-08 ("close to impossible to basic attack a champ while chasing"): with the joystick held toward
+ * the target and ATK pressed, every stick move replaced the Attack order and cancelled its windup in the sim, so the
+ * swing never landed. While ATK is held (or for `tapMs` after a tap) a stick within `turn` of the bearing to the
+ * attack target sends no move: the Attack order chases and swings (MLBB follows the target while Attack is held). A
+ * stick pointing away (retreat, kite) still moves at once.
+ */
+export const STICK_YIELD = Object.freeze({ turn: Math.PI / 2, tapMs: 700 });
+
+/** Does a stick at angle `a` (rad, sim convention) from (x, y) point toward `target` (within STICK_YIELD.turn)? */
+export function stickTowardTarget(x: number, y: number, a: number, target: { x: number; y: number }): boolean {
+  const dx = target.x - x;
+  const dy = target.y - y;
+  if (dx === 0 && dy === 0) return true;
+  const d = Math.abs(Math.atan2(dy, dx) - a) % (Math.PI * 2);
+  return (d > Math.PI ? Math.PI * 2 - d : d) <= STICK_YIELD.turn;
+}
+
+/**
  * Auto-attack target, in range only (it never walks the hero). Audit CF-02: the same order as the Attack button and
  * its Settings "Target first" (it was minion first while Attack was hero first, so the two disagreed): 'heroes' takes
  * the enemy hero in range with the lowest HP share, else the lowest-HP minion; 'lowest' the lowest HP share of
