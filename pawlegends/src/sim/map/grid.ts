@@ -4,7 +4,7 @@
  * standing towers and cores (a destroyed structure frees its cells). Derived state: rebuilt the same way in a live
  * match and its replay, so it is not part of the world hash.
  */
-import { LANE_WAYPOINTS, MAP, NAV, PLAYFIELD, WALLS, mirrorX } from '../../data/map';
+import { FOUNTAIN, LANE_WAYPOINTS, MAP, NAV, PLAYFIELD, RADIUS, WALLS, mirrorX } from '../../data/map';
 import { idiv } from '../fixed';
 
 export const NX = idiv(MAP.width, MAP.navCell);
@@ -18,6 +18,11 @@ export interface NavGrid {
   readonly blocked: Uint8Array;
   /** Per cell: how many structures cover it. */
   readonly cover: Uint8Array;
+  /**
+   * Sim v16 (MAP-GAPS B15): per team, the cells of the ENEMY fountain disc (FOUNTAIN.radius + RADIUS.hero), which a
+   * hero's A* routes round (`findPath` with a team). Static, built once; knockbacks and dashes ignore it.
+   */
+  readonly foe?: readonly Uint8Array[];
 }
 
 export const cellX = (x: number): number => Math.min(NX - 1, Math.max(0, idiv(x, MAP.navCell)));
@@ -116,7 +121,19 @@ export function createGrid(): NavGrid {
     markRect(walls, x0, y0, x1, y1);
     markRect(walls, mirrorX(x1), y0, mirrorX(x0), y1);
   }
-  return { walls, blocked: walls.slice(), cover: new Uint8Array(NX * NY) };
+  const foe = [new Uint8Array(NX * NY), new Uint8Array(NX * NY)];
+  const r = FOUNTAIN.radius + RADIUS.hero;
+  for (let team = 0; team < 2; team++) {
+    const fx = team === 0 ? mirrorX(FOUNTAIN.x) : FOUNTAIN.x;
+    for (let j = 0; j < NY; j++) {
+      for (let i = 0; i < NX; i++) {
+        const dx = i * MAP.navCell + HALF - fx;
+        const dy = j * MAP.navCell + HALF - FOUNTAIN.y;
+        if (dx * dx + dy * dy <= r * r) foe[team][j * NX + i] = 1;
+      }
+    }
+  }
+  return { walls, blocked: walls.slice(), cover: new Uint8Array(NX * NY), foe };
 }
 
 /** Add (+1) or remove (−1) a round structure footprint. */
