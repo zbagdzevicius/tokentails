@@ -228,7 +228,7 @@ export const isPartyTicket = (value: unknown): value is string => typeof value =
 export function partyResultOf(value: unknown): PawlegendsPartyResult | null {
   if (!isRecord(value) || value.v !== 2) return null;
   const { room, slot, simVersion, ticks, outcome, finalHash } = value;
-  if (!isMatchId(room) || !intIn(slot, 0, 2) || !intIn(simVersion, 1, 1_000_000) || !intIn(ticks, 1, PAWLEGENDS_MAX_TICKS)) return null;
+  if (!isMatchId(room) || !intIn(slot, 0, 5) || !intIn(simVersion, 1, 1_000_000) || !intIn(ticks, 1, PAWLEGENDS_MAX_TICKS)) return null;
   if (outcome !== "won" && outcome !== "lost") return null;
   if (typeof finalHash !== "string" || !/^[0-9a-f]{8}$/.test(finalHash)) return null;
   return { v: 2, room, slot, simVersion, ticks, outcome, finalHash };

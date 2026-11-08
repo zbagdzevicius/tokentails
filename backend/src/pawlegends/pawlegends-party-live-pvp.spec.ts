@@ -1,3 +1,6 @@
+import { HttpException } from '@nestjs/common';
+import { GameType } from 'src/game/game.schema';
+import { liveGamePipe, LiveGameDto } from 'src/user/dto/live-game.dto';
 import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS } from 'src/shared-contracts/caps';
 import { FakeGames, FakeUsers } from 'src/user/heist/fake-live-store.helper-spec';
 import { SIM_VERSION } from '../vendor/pawlegends-sim';
@@ -215,5 +218,36 @@ describe('pawlegends party live: casual PvP', () => {
         // against 1 human + 2 bots the gain is weighted by 1/3; against 2 humans + 1 bot by 2/3
         expect(win1.r - 1500).toBeGreaterThan(0);
         expect(win2.r - 1500).toBeGreaterThan(win1.r - 1500);
+    });
+});
+
+describe('the /live pipe takes a team-1 PvP slot', () => {
+    const validate = (slot: number) =>
+        liveGamePipe
+            .transform(
+                {
+                    type: GameType.PAWLEGENDS,
+                    pawlegends: {
+                        v: 2,
+                        room: 'pvp1',
+                        slot,
+                        simVersion: SIM_VERSION,
+                        ticks: 9000,
+                        outcome: 'won',
+                        finalHash: 'abcdef12',
+                    },
+                },
+                { type: 'body', metatype: LiveGameDto }
+            )
+            .then(
+                () => 'ok',
+                (error: HttpException) =>
+                    `${error.getStatus()} ${(error.getResponse() as { code?: string }).code ?? ''}`
+            );
+
+    it('slots 0-5 pass the DTO (the room occupant check decides ownership); 6 and -1 do not', async () => {
+        for (const slot of [0, 2, 3, 5]) expect(await validate(slot)).toBe('ok');
+        expect(await validate(6)).toBe('400 PAWLEGENDS_REPLAY_INVALID');
+        expect(await validate(-1)).toBe('400 PAWLEGENDS_REPLAY_INVALID');
     });
 });

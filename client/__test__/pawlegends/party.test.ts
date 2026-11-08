@@ -109,7 +109,11 @@ describe("the bridge's party messages (P9)", () => {
     h.fromGame(env("party-result", { matchId: "other", result: RESULT }));
     h.fromGame(env("party-result", { matchId: "r0om12abc", result: { ...RESULT, finalHash: "XYZ" } }));
     expect(got).toEqual([["r0om12abc", RESULT]]);
-    expect(partyResultOf({ ...RESULT, slot: 3 })).toBeNull();
+    // PvP team 1 holds slots 3-5 (V16 §4.5): their results must reach /live
+    expect(partyResultOf({ ...RESULT, slot: 3 })).toEqual({ ...RESULT, slot: 3 });
+    expect(partyResultOf({ ...RESULT, slot: 5 })).toEqual({ ...RESULT, slot: 5 });
+    expect(partyResultOf({ ...RESULT, slot: 6 })).toBeNull();
+    expect(partyResultOf({ ...RESULT, slot: -1 })).toBeNull();
     expect(partyResultOf({ ...RESULT, outcome: "quit" })).toBeNull();
     expect(partyResultOf({ ...RESULT, extra: 1 })).toEqual(RESULT);
   });
