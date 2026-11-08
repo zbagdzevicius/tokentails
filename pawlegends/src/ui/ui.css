@@ -183,6 +183,12 @@ kbd {
   background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 22px 26px; display: flex; flex-direction: column;
   gap: 12px; min-width: 300px; max-width: 520px; text-align: center;
 }
+/* Feel pass A8: a soft cushion-fort backdrop under the pause / settings menus, faint enough that the match still
+   shows through (a party match keeps running behind the menu). */
+.pl-menu::before {
+  content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; opacity: 0.3;
+  background: url('/assets/screens/pause-1280.webp') center / cover no-repeat;
+}
 .pl-menu h2 { margin: 0 0 6px; }
 .pl-menu .keys { font-size: 12px; opacity: 0.75; line-height: 2; margin: 6px 0 0; }
 /* GAPS B2: Forfeit is disabled until its time (Easy 3:00, Normal and Hard 4:00); the confirm step's line */
@@ -207,6 +213,15 @@ kbd {
   color: var(--cream); font-size: 20px; transition: opacity 0.5s;
 }
 .pl-loading.out { opacity: 0; pointer-events: none; }
+/* Feel pass A3: the matchup splash (cats bottom-left, dogs top-right, the same diagonal as the match camera), darkened
+   so the line and the spinner read. 1920 px only on wide screens. */
+.pl-loading {
+  background: linear-gradient(rgba(43, 29, 46, 0.5), rgba(43, 29, 46, 0.62)), url('/assets/screens/matchup-1280.webp') center / cover no-repeat, var(--bg);
+}
+@media (min-width: 1400px) {
+  .pl-loading { background: linear-gradient(rgba(43, 29, 46, 0.5), rgba(43, 29, 46, 0.62)), url('/assets/screens/matchup-1920.webp') center / cover no-repeat, var(--bg); }
+}
+.pl-loading > * { text-shadow: 0 2px 6px rgba(0, 0, 0, 0.55); }
 .pl-loading .spin { width: 56px; height: 56px; color: var(--rose); animation: pl-spin 1s linear infinite; }
 @keyframes pl-spin { to { transform: rotate(360deg); } }
 
