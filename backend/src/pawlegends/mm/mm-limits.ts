@@ -130,8 +130,13 @@ export const MM_CASUAL = Object.freeze({
     /** Dodges (decline or no answer): this many free per UTC day, then +penaltyStepMs low-priority wait each. */
     dodgeFreePerDay: 2,
     dodgePenaltyStepMs: 60_000,
-    /** A human-only (3v3) match must be predicted inside 40..60 % until the oldest waited this long. */
+    /**
+     * Every casual match (bots counted at their level, both teams' bots at one level) must be predicted inside
+     * `fairBand` until the anchor waited `fairUntilMs`, then inside `fairAfter`.
+     */
     fairUntilMs: 25_000,
+    fairBand: Object.freeze([0.4, 0.6]) as readonly [number, number],
+    fairAfter: Object.freeze([0.35, 0.65]) as readonly [number, number],
     /** Fit cost weights. */
     shapeWeight: 1000,
     sideMismatch: 5,
