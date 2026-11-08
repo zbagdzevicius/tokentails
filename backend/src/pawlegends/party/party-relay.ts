@@ -1139,6 +1139,7 @@ export class PartyRelay {
                 startMs,
                 phaseMs: phaseOf(id),
                 pvp: !!plan.pvp,
+                premade: plan.pvp?.premade,
             },
             this.roomIO(id)
         );

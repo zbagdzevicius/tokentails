@@ -113,6 +113,8 @@ export interface RoomInit {
      * remake votes per team, no pause, a remake voids the room.
      */
     pvp?: boolean;
+    /** PvP: slots that queued together (pre-made parties); a restored room has none (the remake rule then ignores it). */
+    premade?: readonly (readonly number[])[];
     /** A restored room: its log so far. */
     restoredLog?: Uint8Array[];
     restoredSeq?: number[];
@@ -154,8 +156,11 @@ interface TeamVote {
     endsMs: number;
 }
 
-/** PvP remake (V16.md §4.2): offered from 1:00 to 3:00 for a team that lost a human seat. */
-export const REMAKE = Object.freeze({ fromTick: 1800, untilTick: 5400, voteMs: 20_000 });
+/**
+ * PvP remake (V16.md §4.2): offered from 1:00 to 3:00 for a team that lost a human seat: left, never loaded, or
+ * offline for `offlineMs` (a lost connection counts like a leave, so leaving on purpose is no better than dropping).
+ */
+export const REMAKE = Object.freeze({ fromTick: 1800, untilTick: 5400, voteMs: 20_000, offlineMs: 60_000 });
 
 export class Room {
     readonly id: string;
@@ -200,6 +205,10 @@ export class Room {
     /** Ticks each slot already reported a hash for (one per 30-tick mark; a repeat is ignored). */
     private readonly hashTicks: Set<number>[] = Array.from({ length: MAX_HUMANS }, () => new Set<number>());
     private readonly createdMs: number;
+    /** PvP: when each seat's holder went offline (disconnect or leave), null while connected. */
+    private readonly offSinceMs: (number | null)[] = Array.from({ length: MAX_HUMANS }, () => null);
+    /** PvP: the pre-made group of each slot (slots that queued together), or null for a solo. */
+    private readonly premadeOf: (readonly number[] | null)[] = Array.from({ length: MAX_HUMANS }, () => null);
 
     constructor(init: RoomInit, private readonly io: RoomIO) {
         this.id = init.id;
@@ -208,6 +217,8 @@ export class Room {
         this.difficulty = init.difficulty;
         this.forfeitFrom = init.forfeitFrom;
         this.pvp = !!init.pvp;
+        for (const g of init.premade ?? [])
+            for (const slot of g) if (slot >= 0 && slot < MAX_HUMANS) this.premadeOf[slot] = g;
         this.startMs = init.startMs + (init.phaseMs ?? 0);
         for (let s = 0; s < MAX_HUMANS; s++) {
             const human = init.humans.includes(s);
@@ -280,6 +291,7 @@ export class Room {
         s.connected = true;
         s.conn = 'on';
         s.lastBeatMs = nowMs;
+        this.offSinceMs[slot] = null;
         if (!s.occupied) {
             // P10: a friend claims an open seat; it stays piloted until the client caught up and sent `back`.
             s.occupied = true;
@@ -292,6 +304,7 @@ export class Room {
         if (!s || !s.connected) return;
         s.connected = false;
         s.conn = 'off';
+        this.offSinceMs[slot] = nowMs;
         if (s.mode === 'human') this.pilot(slot, 'drop');
         this.touchEmpty(nowMs);
     }
@@ -328,6 +341,7 @@ export class Room {
         if (!s || !this.isHumanSlot(slot)) return;
         s.connected = false;
         s.conn = 'off';
+        if (this.offSinceMs[slot] === null) this.offSinceMs[slot] = nowMs;
         s.occupied = false;
         s.mode = 'pilot';
         // with Open seats the seat is claimable again; without, a bot just flies it (never an "unclaimed open seat"
@@ -632,19 +646,24 @@ export class Room {
     }
 
     /**
-     * PvP remake (V16.md §4.2): a team may vote it from 1:00 to 3:00 when one of its human seats was left, or never
-     * loaded and is not connected (and nobody backfilled it).
+     * PvP remake (V16.md §4.2): a team may vote it from 1:00 to 3:00 when one of its human seats is gone and flown by a
+     * pilot (nobody backfilled it): left, never loaded, or offline for `REMAKE.offlineMs` (`nowMs` given; a lost
+     * connection counts like a leave). A seat whose holder queued with every connected human of the team (a pre-made
+     * party) never opens it: a duo cannot erase a bad start by one leaving and the other voting.
      */
-    remakeOpen(team: 0 | 1): boolean {
+    remakeOpen(team: 0 | 1, nowMs?: number): boolean {
         if (!this.pvp || this.tick < REMAKE.fromTick || this.tick >= REMAKE.untilTick) return false;
-        return this.slots.some(
-            s =>
-                this.isHumanSlot(s.slot) &&
-                teamOfSlot(s.slot) === team &&
-                !s.connected &&
-                (!s.occupied || !s.loaded) &&
-                s.mode === 'pilot'
-        );
+        const voters = this.connectedHumans(team);
+        return this.slots.some(s => {
+            if (!this.isHumanSlot(s.slot) || teamOfSlot(s.slot) !== team || s.connected || s.mode !== 'pilot')
+                return false;
+            const off = this.offSinceMs[s.slot];
+            const gone =
+                !s.occupied || !s.loaded || (nowMs !== undefined && off !== null && nowMs - off >= REMAKE.offlineMs);
+            if (!gone) return false;
+            const group = this.premadeOf[s.slot];
+            return !group || voters.some(v => !group.includes(v.slot));
+        });
     }
 
     castVote(slot: number, kind: VoteKind, yes: boolean, nowMs: number): boolean {
@@ -658,7 +677,7 @@ export class Room {
         if (kind === 'rematch') return false;
         // PvP never pauses (one team cannot stop the other's match); a remake exists only in PvP
         if (this.pvp && kind === 'pause') return false;
-        if (kind === 'remake' && !this.remakeOpen(team)) return false;
+        if (kind === 'remake' && !this.remakeOpen(team, nowMs)) return false;
         if (this.status !== 'live' && !(kind === 'surrender' && this.status === 'paused')) return false;
         if (kind === 'surrender' && (this.forfeitFrom <= 0 || this.tick < this.forfeitFrom || this.forfeitQueued[team]))
             return false;

@@ -61,8 +61,11 @@ export interface MpHudHost {
 
 const VOTE_WORD: Record<'surrender' | 'pause' | 'remake', string> = { surrender: 'Surrender', pause: 'Pause', remake: 'Remake' };
 export const REMAKE_OFFER_KEY = 'mp-remake-offer';
-/** Casual PvP remake window (V16.md §4.2): 1:00 to 3:00. */
-export const REMAKE_TICKS = Object.freeze({ from: 1800, until: 5400 });
+/**
+ * Casual PvP remake window (V16.md §4.2): 1:00 to 3:00. A dropped teammate opens it on the relay after 60 s offline;
+ * the offer waits 75 s (2,250 ticks) from the first drop seen, since the socket closes some seconds after it goes quiet.
+ */
+export const REMAKE_TICKS = Object.freeze({ from: 1800, until: 5400, offline: 2250 });
 export const VOTE_KEY = (kind: VoteKind): string => `mp-vote-${kind}`;
 export const PAUSED_KEY = 'mp-paused';
 
@@ -200,6 +203,8 @@ export class MpHud {
 
   /** Teammate seats this player saw `left` (the remake offer reads them). */
   private readonly leftSeats = new Set<number>();
+  /** Teammate seats that dropped (lost connection), by the tick seen; the relay opens a remake after 60 s offline. */
+  private readonly droppedAt = new Map<number, number>();
   private remakeOffered = false;
 
   // -------------------------------------------------------------------------------------------- identity (M1, M4)
@@ -252,6 +257,9 @@ export class MpHud {
     if (joined) this.applyNames();
     if (reason === 'left') this.leftSeats.add(slot);
     else if (reason === 'back' || joined) this.leftSeats.delete(slot);
+    if (reason === 'drop') {
+      if (!this.droppedAt.has(slot)) this.droppedAt.set(slot, this.h.tick());
+    } else if (reason === 'back' || joined) this.droppedAt.delete(slot);
     if (slot === this.link.mySlot && reason !== 'back') this.h.track('mp_takeover', { reason });
     if (slot === this.link.mySlot && reason === 'desync') this.h.track('mp_desync', { tick: this.h.tick(), n: 1 });
     this.refreshSeats();
@@ -399,12 +407,14 @@ export class MpHud {
     const t = this.h.tick();
     if (t < REMAKE_TICKS.from || t >= REMAKE_TICKS.until) return;
     const base = this.teamBase;
-    const gone = [...this.leftSeats].some((s) => s >= base && s < base + 3 && s !== this.link.mySlot && this.link.piloted(s));
-    if (!gone) return;
+    const mate = (s: number) => s >= base && s < base + 3 && s !== this.link.mySlot && this.link.piloted(s);
+    const left = [...this.leftSeats].some(mate);
+    const dropped = [...this.droppedAt].some(([s, at]) => mate(s) && t - at >= REMAKE_TICKS.offline);
+    if (!left && !dropped) return;
     this.remakeOffered = true;
     this.h.rail.push({
       key: REMAKE_OFFER_KEY,
-      title: 'A teammate left · Remake?',
+      title: left ? 'A teammate left · Remake?' : 'A teammate dropped · Remake?',
       tone: 'gold',
       prio: 0,
       ttl: Math.max(3000, ((REMAKE_TICKS.until - t) / 30) * 1000),
