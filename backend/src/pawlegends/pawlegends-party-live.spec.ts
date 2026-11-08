@@ -201,7 +201,7 @@ describe('pawlegends party live (N8)', () => {
             pawlegends: {
                 v: 2,
                 room: 'ROOM!',
-                slot: 5,
+                slot: 6,
                 simVersion: SIM_VERSION,
                 ticks: 10,
                 outcome: 'won',

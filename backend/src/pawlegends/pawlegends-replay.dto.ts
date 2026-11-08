@@ -74,9 +74,10 @@ export class PawlegendsPartyResultDto {
     @Matches(/^[a-z0-9]{1,16}$/)
     room: string;
 
+    /** 0-2 team 0, 3-5 team 1 (PvP); the backend checks the slot against the room's occupants. */
     @IsInt()
     @Min(0)
-    @Max(2)
+    @Max(5)
     slot: number;
 
     @IsInt()
