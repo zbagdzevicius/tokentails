@@ -45,7 +45,7 @@ Every room is checked: the clients' hash trails agree at every common 30-tick ma
 tick count, the referee's verdict is `verified` and equal to the clients, each seat's `/live` save succeeds (a second
 post is a 409 duplicate), and the replay record re-sims locally. The report (`.soak-dist/soak-<time>.json`, plus a table
 on stdout) has desyncs, stalls (no TURN for 3 s), turn inter-arrival p50/p95, input latency (send to applied) p50/p95,
-rejoin time, relay CPU per room-minute, relay memory growth and client CPU per room. Exit 1 when any room failed.
+rejoin time (from the drop or the reopened tab until the hero is played again, caught up), relay CPU per room-minute, relay memory growth and client CPU per room. Exit 1 when any room failed.
 
 ```sh
 npm run soak                               # 200 matches, 8 rooms at a time, 75% PvP
