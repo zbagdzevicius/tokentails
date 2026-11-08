@@ -20,6 +20,7 @@ import type { Scoreboard } from '../ui/scoreboard';
 import type { Hud } from '../ui/hud';
 import type { SocialKind, VoteKind } from '../net/proto';
 import { PING_KINDS } from '../data/pings';
+import { sinceLoadMs } from '../analytics/kpi';
 import { PING_TEXT } from '../ui/pingText';
 import { EMOTES, socialLine, socialText } from '../data/social';
 import { SLOT_RING, partySlotNames, type PartyLink, type PausedMsg, type SocialMsg, type VoteMsg } from './mpTypes';
@@ -176,7 +177,7 @@ export class MpHud {
     this.started = true;
     const n = this.link.net();
     this.netAt = this.now();
-    this.h.track('mp_match_start', { humans: this.link.humans.length, difficulty: this.h.difficulty, rtt_p50: n.rttMs, buffer: n.buffer });
+    this.h.track('mp_match_start', { humans: this.link.humans.length, difficulty: this.h.difficulty, rtt_p50: n.rttMs, buffer: n.buffer, load_ms: sinceLoadMs() });
   }
 
   /** The first slot of this seat's team (PvP team 1: 3; else 0). */
@@ -436,13 +437,34 @@ export class MpHud {
     // mp_net every 60 s
     if (this.started && this.now() - this.netAt >= 60_000) {
       this.netAt = this.now();
-      const n = this.link.net();
-      this.h.track('mp_net', { pacer: 2, rtt_p50: n.rttMs, rtt_p95: n.rttMs, jitter_p95: 0, buffer: n.buffer, holds: n.holds, catchups: n.catchups, ...(n.inputMs !== undefined ? { input_ms: n.inputMs } : {}) });
+      this.trackNet(false);
     }
+  }
+
+  /**
+   * `mp_net` (every 60 s and once at the end, `final`): RTT, buffer, holds and the own-input latency, both the EWMA
+   * (`input_ms`) and the raw samples' p50 / p95 / count (BENCHMARKS.md §live KPIs). Sampled by time, flat numbers only.
+   */
+  private trackNet(final: boolean): void {
+    const n = this.link.net();
+    this.h.track('mp_net', {
+      pacer: 2,
+      rtt_p50: n.rttMs,
+      rtt_p95: n.rttMs,
+      jitter_p95: 0,
+      buffer: n.buffer,
+      holds: n.holds,
+      catchups: n.catchups,
+      ...(n.inputMs !== undefined ? { input_ms: n.inputMs } : {}),
+      ...(n.inputP50 !== undefined && n.inputP95 !== undefined ? { input_p50: n.inputP50, input_p95: n.inputP95 } : {}),
+      ...(n.inputN !== undefined ? { input_n: n.inputN } : {}),
+      ...(final ? { final: true } : {}),
+    });
   }
 
   /** The match ended: the end event (the session's result) with the share of turns bots flew this player. */
   ended(outcome: string, reason: string, scored: boolean | null): void {
+    if (this.started) this.trackNet(true);
     const piloted = this.link.pilotPct(this.link.mySlot);
     this.h.track('mp_match_end', { outcome, humans: this.link.humans.length, piloted_pct: piloted, reason, scored: scored !== false });
     this.chat?.close();
