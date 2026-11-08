@@ -16,8 +16,8 @@
     },
     {
       "key": "fixture:forfeit-replay.fixture.json",
-      "finalHash": "550eeba1",
-      "trail": "c3c5c0c8",
+      "finalHash": "aa605556",
+      "trail": "4fcbabcf",
       "ticks": 7201
     },
     {
@@ -34,9 +34,9 @@
     },
     {
       "key": "fuzz:2",
-      "finalHash": "d958f8ff",
-      "trail": "5c1a1f1b",
-      "ticks": 14981
+      "finalHash": "e697fb8d",
+      "trail": "e2666358",
+      "ticks": 12747
     },
     {
       "key": "fuzz:3",
@@ -46,9 +46,9 @@
     },
     {
       "key": "fuzz:4",
-      "finalHash": "cb18aac4",
-      "trail": "a95e3800",
-      "ticks": 11766
+      "finalHash": "1360bc0a",
+      "trail": "16f0ff91",
+      "ticks": 11953
     },
     {
       "key": "fuzz:5",
@@ -58,8 +58,8 @@
     },
     {
       "key": "fuzz:6",
-      "finalHash": "de2e1ae0",
-      "trail": "7eb73b84",
+      "finalHash": "85a193a0",
+      "trail": "9497951b",
       "ticks": 8522
     },
     {
@@ -106,9 +106,9 @@
     },
     {
       "key": "fuzz:14",
-      "finalHash": "ca527b5e",
-      "trail": "c685b25a",
-      "ticks": 12846
+      "finalHash": "83dfcdfb",
+      "trail": "e0e1ccd9",
+      "ticks": 15391
     },
     {
       "key": "fuzz:15",

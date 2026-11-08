@@ -36,7 +36,7 @@ describe('Bengas, shelter champion mage (sim v9)', () => {
     expect([BENGAS.side, BENGAS.role, BENGAS.element]).toEqual(['cat', 'mage', 'FIRE']);
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([180, 420, 390, 1950]);
     expect(BENGAS.passive).toEqual({ bonusBp: 11500 });
-    expect([A.w.windup, A.w.stun, A.w.slowBp, A.w.slow]).toEqual([9, 23, 2500, 30]);
+    expect([A.w.windup, A.w.stun, A.w.slowBp, A.w.slow]).toEqual([15, 23, 2500, 30]);
     expect(BENGAS.pvp).toEqual({ dmgBp: 9950, takenBp: 8725 }); // sim v10: deals 11000 before; sim v11: takes 9100 before; sim v15 balance pass; sim v16: deals 9700 before
   });
 

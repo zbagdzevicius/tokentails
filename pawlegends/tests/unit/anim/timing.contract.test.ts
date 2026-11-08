@@ -45,7 +45,7 @@ describe('SIM_TIMING (§15)', () => {
     expect(SIM_TIMING.sage.slots.r.windup).toBe(30);
     expect(SIM_TIMING.lambo.slots.r.windup).toBe(20);
     expect(SIM_TIMING.gabe.slots.r.windup).toBe(20);
-    expect(SIM_TIMING.bengas.slots.w.windup).toBe(9);
+    expect(SIM_TIMING.bengas.slots.w.windup).toBe(15); // sim v17
     expect(SIM_TIMING.sage.slots.w.arm).toBe(15);
     expect(SIM_TIMING.gabe.slots.q.arm).toBe(15);
     expect(SIM_TIMING.bengas.slots.r.arm).toBe(18);

@@ -822,12 +822,12 @@ var BENGAS = Object.freeze({
 			dmgPerLevel: 7
 		},
 		/**
-		* Striking Pose: 0.3 s wind-up, cone 4 m, 70°; enemy heroes in it facing Bengas (±90°) are stunned 0.75 s;
-		* the others in it are slowed 25% for 1 s.
+		* Striking Pose: 0.5 s wind-up, cone 4 m, 70°; enemy heroes in it facing Bengas (±90°) are stunned 0.75 s;
+		* the others in it are slowed 25% for 1 s. Sim v17 (V17.md §3.9): windup 9 → 15, so "turn away" can be done in time.
 		*/
 		w: {
 			cooldown: 420,
-			windup: 9,
+			windup: 15,
 			range: 4e3,
 			arc: 796,
 			facingArc: 2048,
