@@ -44,8 +44,8 @@ describe('duchess moves', () => {
     // R: the rise from windupStart, the stamp on the cast 18 t later
     const r = MOVES.slots.r.cast;
     expect(r.warp).toEqual([['coil', 'windupStart'], ['contact', 'cast']]);
-    expect(T.slots.r.windup).toBe(18);
-    expect(m(r, 'contact') - m(r, 'coil')).toBeCloseTo(18 * TICK_S, 9);
+    expect(T.slots.r.windup).toBe(21);
+    expect(m(r, 'contact') - m(r, 'coil')).toBeCloseTo(21 * TICK_S, 9);
   });
 
   it('every clip compiles on her rig with finite values, keeps the root caps and the spin rule', () => {

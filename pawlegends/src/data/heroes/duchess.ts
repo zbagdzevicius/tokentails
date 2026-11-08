@@ -19,8 +19,8 @@ export const DUCHESS: HeroData = Object.freeze<HeroData>({
     w: { cooldown: 300, windup: 11, range: 5000, arc: 910, dmg: 50, dmgPerLevel: 5, slowBp: 3500, slow: 45 },
     /** Cushion Glide: glide 4 m at 12 m/s, leaving a 2.2 m fluff cloud for 2.5 s that slows enemies 30%. */
     e: { cooldown: 390, dash: 4000, speed: 12000, radius: 2200, ttl: 75, every: 15, slowBp: 3000, slow: 18 },
-    /** Royal Decree: 0.6 s wind-up; enemy heroes within 6 m take 110 (+11/lvl, +45 a rank), are slowed 40% 1.5 s and gain 2 Disdain; she gains a 120 (+12/lvl) shield for 3 s. */
-    r: { cooldown: 1950, windup: 18, radius: 6000, dmg: 110, dmgPerLevel: 11, slowBp: 4000, slow: 45, stacks: 2, shield: 120, shieldPerLevel: 12, duration: 90 },
+    /** Royal Decree: 0.7 s wind-up; enemy heroes within 6 m take 110 (+11/lvl, +45 a rank), are slowed 40% 1.5 s and gain 1 Disdain; she gains a 120 (+12/lvl) shield for 3 s. Sim v17 (V17.md §3.4): windup 18 → 21, stacks 2 → 1 (the Snub needs one more landed hit). */
+    r: { cooldown: 1950, windup: 21, radius: 6000, dmg: 110, dmgPerLevel: 11, slowBp: 4000, slow: 45, stacks: 1, shield: 120, shieldPerLevel: 12, duration: 90 },
   },
   ranks: { q: { dmg: 15 }, w: { dmg: 12 }, e: { cooldown: -15 }, r: { dmg: 45, cooldown: -100 } },
   talents: [

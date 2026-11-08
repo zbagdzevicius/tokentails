@@ -43,15 +43,15 @@ describe('SIM_TIMING (§15)', () => {
 
   it('windups, zones and projectiles', () => {
     expect(SIM_TIMING.sage.slots.r.windup).toBe(30);
-    expect(SIM_TIMING.lambo.slots.r.windup).toBe(15);
-    expect(SIM_TIMING.gabe.slots.r.windup).toBe(15);
+    expect(SIM_TIMING.lambo.slots.r.windup).toBe(20);
+    expect(SIM_TIMING.gabe.slots.r.windup).toBe(20);
     expect(SIM_TIMING.bengas.slots.w.windup).toBe(9);
     expect(SIM_TIMING.sage.slots.w.arm).toBe(15);
     expect(SIM_TIMING.gabe.slots.q.arm).toBe(15);
     expect(SIM_TIMING.bengas.slots.r.arm).toBe(18);
     expect(SIM_TIMING.bengas.slots.r.every).toBe(15);
     expect(SIM_TIMING.duchess.slots.w.windup).toBe(11);
-    expect(SIM_TIMING.duchess.slots.r.windup).toBe(18);
+    expect(SIM_TIMING.duchess.slots.r.windup).toBe(21);
     expect(SIM_TIMING.duchess.slots.q.projSpeed).toBe(9000);
     expect(SIM_TIMING.pixel.slots.q.projSpeed).toBe(18000);
     expect(SIM_TIMING.pixel.slots.w.every).toBe(8);

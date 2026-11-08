@@ -41,11 +41,11 @@ describe('lambo moves', () => {
     // the ring is skillfx's, bound to the sim landing: no clip-time ring cue, no extra freeze on the splat
     expect(e.cues?.some(([, k, a]) => k === 'fx' && a === 'splat')).toBe(false);
     expect(e.cues?.some(([, k]) => k === 'freeze')).toBe(false);
-    // Tangled Lights: the windup spin spans windupStart → cast (15 t), the haul the 6 t pull
+    // Tangled Lights: the windup spin spans windupStart → cast (20 t, sim v17), the haul the 6 t pull
     const r = MOVES.slots.r.cast;
     expect(r.warp).toEqual([['coil', 'windupStart'], ['contact', 'cast']]);
-    expect(SIM_TIMING.lambo.slots.r.windup).toBe(15);
-    expect((r.markers.contact ?? 0) - (r.markers.coil ?? 0)).toBeCloseTo(15 * TICK_S, 9);
+    expect(SIM_TIMING.lambo.slots.r.windup).toBe(20);
+    expect((r.markers.contact ?? 0) - (r.markers.coil ?? 0)).toBeCloseTo(20 * TICK_S, 9);
     const yaw = r.root?.yaw ?? [];
     // one whole turn, 'inOut' (peak ≈ 1.5 × 1 turn / 0.44 s ≈ 3.4 turns/s, 0.11 turn a 30 fps frame), 10–15° past
     // square on the cast, settled back on the whole turn within 3 frames
