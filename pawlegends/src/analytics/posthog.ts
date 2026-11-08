@@ -72,7 +72,10 @@ export type MpEvent =
   | 'mm_found'
   | 'mm_backfill_offer'
   | 'mm_backfill_join'
-  | 'mm_penalty';
+  | 'mm_penalty'
+  // casual PvP (docs/plans/moba/V16.md §5, §6)
+  | 'mm_keep_waiting'
+  | 'mp_void';
 export const isMpEvent = (e: string): e is MpEvent => /^(mp|party|mm)_[a-z_]{2,24}$/.test(e);
 
 /** A party event's props, scrubbed: id-like keys dropped, and any string that looks like a party code or a random id. */

@@ -46,3 +46,28 @@ export function setLastQueueSide(side: QueueSide): void {
     /* blocked storage: this session only */
   }
 }
+
+/**
+ * Casual PvP (docs/plans/moba/V16.md §5): the online mode this viewer last used (Co-op vs bots or PvP). The default is
+ * Co-op until 5 completed matches, then the last one used. Blocked storage falls back to Co-op.
+ */
+export type OnlineMode = 'coop' | 'pvp';
+const MODE_KEY = 'pl.party.onlineMode';
+
+export function onlineMode(matches: number): OnlineMode {
+  if (matches < 5) return 'coop';
+  try {
+    return localStorage.getItem(MODE_KEY) === 'pvp' ? 'pvp' : 'coop';
+  } catch {
+    return 'coop';
+  }
+}
+
+export function setOnlineMode(mode: OnlineMode): void {
+  try {
+    if (mode === 'pvp') localStorage.setItem(MODE_KEY, 'pvp');
+    else localStorage.removeItem(MODE_KEY);
+  } catch {
+    /* blocked storage: this session only */
+  }
+}

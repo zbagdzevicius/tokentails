@@ -92,6 +92,11 @@ export interface LobbyScreenOpts {
    * absent = no relay. Shown from the very first visit (zero friction; a new guest queues with the newbie hint).
    */
   onOnline?(): void;
+  /**
+   * Casual PvP (docs/plans/moba/V16.md §5): the "Co-op vs bots · PvP" chip above Play online. Absent = the backend
+   * has no PvP sim yet (`GET /pawlegends/sim`), so no chip. `locked`: fewer than 5 matches ("PvP unlocks after 5").
+   */
+  onlineMode?: { mode: 'coop' | 'pvp'; locked: boolean; onMode(mode: 'coop' | 'pvp'): void };
   onPlay(c: Choice, seed?: number): void;
   onChoose(): void;
   onMute(m: boolean): void;
@@ -287,7 +292,8 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
         <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter">${esc(playLabel(o))}</button>
         <p class="lb-line${dare ? ' dare-line' : ''}">${esc(playLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>
         ${segmentHtml(o, diff)}
-        ${(o.onParty || o.onOnline) && !dare ? `<div class="lb-friends-row">${o.onOnline ? `<button type="button" class="pl-btn small lb-friends lb-online" data-a="online" data-testid="play-online">Play online</button>` : ''}${o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>` : ''}${o.onJoinCode ? `<button type="button" class="lb-joincode" data-a="joincode" data-testid="join-code">Join with code</button>` : ''}</div>` : ''}
+        ${o.onOnline && o.onlineMode && !dare ? modeChipHtml(o.onlineMode) : ''}
+        ${(o.onParty || o.onOnline) && !dare ? `<div class="lb-friends-row">${o.onOnline ? `<button type="button" class="pl-btn small lb-friends lb-online" data-a="online" data-testid="play-online">${o.onlineMode?.mode === 'pvp' ? 'Play PvP' : 'Play online'}</button>` : ''}${o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>` : ''}${o.onJoinCode ? `<button type="button" class="lb-joincode" data-a="joincode" data-testid="join-code">Join with code</button>` : ''}</div>` : ''}
       </div>
       ${secondary}
       <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
@@ -341,6 +347,16 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     else if (a === 'dare' && dare) play({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);
     else if (a === 'choose') o.onChoose();
     else if (a === 'online') o.onOnline?.();
+    else if (a === 'mode' && o.onlineMode) {
+      const v = t.closest<HTMLElement>('[data-a="mode"]')!.dataset.v as 'coop' | 'pvp';
+      if (v === 'pvp' && o.onlineMode.locked) return;
+      o.sound?.('click');
+      o.onlineMode.mode = v;
+      o.onlineMode.onMode(v);
+      for (const b of root.querySelectorAll<HTMLElement>('[data-a="mode"]')) b.setAttribute('aria-checked', String(b.dataset.v === v));
+      const play = root.querySelector<HTMLElement>('[data-a="online"]');
+      if (play) play.textContent = v === 'pvp' ? 'Play PvP' : 'Play online';
+    }
     else if (a === 'party') o.onParty?.();
     else if (a === 'joincode') o.onJoinCode?.();
     else if (a === 'cards') {
@@ -429,4 +445,12 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
 export function heroIdentity(hero: HeroId, element: Element): LobbyIdentity {
   const t = HERO_TEXT[hero];
   return { name: t.title, sub: `${t.title} the ${t.role}`, element, role: t.role, card: false, rung: null };
+}
+
+/** Casual PvP: the online mode chip (Co-op vs bots · PvP), a radio group; PvP locked for newbies (V16.md §5). */
+function modeChipHtml(m: { mode: 'coop' | 'pvp'; locked: boolean }): string {
+  const btn = (v: 'coop' | 'pvp', label: string) =>
+    `<button type="button" role="radio" aria-checked="${m.mode === v}" data-a="mode" data-v="${v}" data-testid="mode-${v}"${v === 'pvp' && m.locked ? ' aria-disabled="true" title="PvP unlocks after 5 matches"' : ''}>${label}${v === 'pvp' && m.locked ? ' <span class="lb-lock" aria-hidden="true">🔒</span>' : ''}</button>`;
+  const lockLine = m.locked ? `<small class="lb-mode-lock" data-testid="mode-pvp-locked">PvP unlocks after 5 matches</small>` : '';
+  return `<div class="lb-mode" role="radiogroup" aria-label="Online mode" data-testid="online-mode">${btn('coop', 'Co-op vs bots')}${btn('pvp', 'PvP')}</div>${lockLine}`;
 }

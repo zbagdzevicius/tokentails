@@ -262,3 +262,14 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 .pl-lobby .lb-joincode { min-height: 40px; padding: 0 4px; border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
   text-decoration: underline; text-underline-offset: 3px; opacity: 0.85; cursor: pointer; }
 .pl-lobby .lb-joincode:hover, .pl-lobby .lb-joincode:focus-visible { opacity: 1; }
+
+/* Casual PvP (V16.md §5): the online mode chip above Play online; 44 px targets, never wider than the column */
+.pl-lobby .lb-mode { display: inline-flex; max-width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(10, 14, 30, 0.45); margin-top: 6px; }
+.pl-lobby .lb-mode button { min-height: 44px; min-width: 44px; padding: 0 14px; border: 0; background: none; color: inherit; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.pl-lobby .lb-mode button[aria-checked='true'] { background: rgba(255, 211, 77, 0.28); color: #ffd34d; font-weight: 700; }
+.pl-lobby .lb-mode button[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
+.pl-lobby .lb-mode-lock { display: block; font-size: 11px; opacity: 0.75; margin-top: 2px; }
+@media (max-height: 420px) {
+  .pl-lobby .lb-mode { margin-top: 2px; }
+  .pl-lobby .lb-mode button { min-height: 44px; padding: 0 10px; font-size: 12px; }
+}

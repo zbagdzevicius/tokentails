@@ -13,7 +13,7 @@ import type { MmSide } from '../../net/proto';
 import { COPY, DIFF_LABEL, clockText, esc, sideText } from './copy';
 import { backfillHtml, type BackfillModel } from './backfillCard';
 
-export type QueueStop = 'away' | 'left' | 'party' | 'update' | 'locked' | 'busy';
+export type QueueStop = 'away' | 'left' | 'party' | 'update' | 'locked' | 'busy' | 'declined' | 'timeout' | 'newbie';
 
 export interface QueueModel {
   side: MmSide;
@@ -33,6 +33,8 @@ export interface QueueModel {
   retryS: number;
   match: { humans: number; bots: number; side: string; difficulty: string } | null;
   offer: BackfillModel | null;
+  /** Casual PvP (V16.md §5): the queue, the humans found on the other team, the 45 s move to co-op, a requeue. */
+  pvp?: { theirs: number; toCoop: boolean; requeued: boolean };
 }
 
 const SIDES: readonly MmSide[] = ['cat', 'dog', 'any'];
@@ -49,6 +51,12 @@ const stopText = (m: QueueModel): string => {
       return COPY.stoppedLocked(Math.max(1, m.retryS));
     case 'busy':
       return COPY.stoppedBusy(Math.max(1, m.retryS));
+    case 'declined':
+      return COPY.declinedYou;
+    case 'timeout':
+      return COPY.timeoutYou;
+    case 'newbie':
+      return COPY.pvpLocked;
     default:
       return COPY.stoppedParty;
   }
@@ -58,6 +66,14 @@ const stopText = (m: QueueModel): string => {
 export function pipsHtml(found: number): string {
   const n = Math.max(1, Math.min(3, Math.round(found)));
   return `<span class="pp-pips" role="img" aria-label="${esc(COPY.playersFound(n))}" data-testid="mm-pips" data-found="${n}">${[0, 1, 2].map((i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('')}</span>`;
+}
+
+/** Casual PvP: both teams' pips (●●○ vs ●○○). */
+export function pvpPipsHtml(mine: number, theirs: number): string {
+  const pip = (n: number) => [0, 1, 2].map((i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('');
+  const a = Math.max(1, Math.min(3, Math.round(mine)));
+  const b = Math.max(0, Math.min(3, Math.round(theirs)));
+  return `<span class="pp-pips pp-pvp-pips" role="img" aria-label="${esc(COPY.pvpTeams(a, b))}" data-testid="mm-pips" data-found="${a}" data-theirs="${b}"><span>${pip(a)}</span><small>vs</small><span class="their">${pip(b)}</span></span>`;
 }
 
 /** The side radio group (Cats · Dogs · Either). */
@@ -78,7 +94,7 @@ export function queueCardHtml(m: QueueModel): string {
   if (m.stopped) {
     const wait = m.retryS > 0;
     const again =
-      m.stopped === 'update'
+      m.stopped === 'update' && !m.pvp
         ? `<button type="button" class="pl-btn big" data-p="reload">${COPY.reload}</button>`
         : `<button type="button" class="pl-btn big" data-p="mm-again" data-testid="mm-again"${wait ? ' disabled' : ''}>${COPY.searchAgain}</button>`;
     return `<div class="pp-card pp-narrow pp-queue" data-state="stopped" data-testid="mm-queue"><h2>${COPY.online}</h2><p class="pp-dim" role="status" data-testid="mm-stopped" data-reason="${m.stopped}"><span data-live="stop">${esc(stopText(m))}</span></p><div class="pp-col">${again}<button type="button" class="pl-btn ghost small" data-p="mm-cancel" data-testid="mm-cancel">${COPY.back}</button></div></div>`;
@@ -87,6 +103,23 @@ export function queueCardHtml(m: QueueModel): string {
   const low = m.lowPriorityS > 0 ? `<p class="pp-hint pp-low" data-testid="mm-low"><span data-live="low">${esc(COPY.lowPriority(clockText(m.lowPriorityS)))}</span></p>` : '';
   const warn = m.warn && m.lowPriorityS <= 0 ? `<p class="pp-hint" data-testid="mm-warn">${COPY.leaverWarn}</p>` : '';
   const offer = m.offer ? backfillHtml(m.offer) : '';
+  if (m.pvp) {
+    // casual PvP: both teams' pips; at the switch "playing Co-op vs bots" with Keep waiting
+    const note = m.pvp.toCoop
+      ? `<p class="pp-hint pp-tocoop" role="status" data-testid="mm-to-coop">${COPY.toCoop}</p><button type="button" class="pl-btn" data-p="mm-keep" data-testid="mm-keep">${COPY.keepWaiting}</button>`
+      : `<p class="pp-note">${COPY.pvpFill}</p>`;
+    const requeued = m.pvp.requeued && !m.pvp.toCoop ? `<p class="pp-hint" data-testid="mm-requeued">${COPY.requeued}</p>` : '';
+    return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-mode="pvp" data-testid="mm-queue">
+    <h2>${m.party ? COPY.partyQueued : COPY.findingPvp}</h2>
+    ${low}${requeued}
+    <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
+    ${pvpPipsHtml(m.found, m.pvp.theirs)}
+    ${note}
+    ${sideChipHtml(m.side)}
+    ${warn}${offer}
+    <button type="button" class="pl-btn ghost" data-p="mm-cancel" data-testid="mm-cancel">${COPY.cancel}</button>
+  </div>`;
+  }
   return `<div class="pp-card pp-narrow pp-queue" data-state="searching" data-testid="mm-queue">
     <h2>${m.party ? COPY.partyQueued : COPY.finding}</h2>
     ${low}

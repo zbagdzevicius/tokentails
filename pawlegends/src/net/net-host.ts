@@ -8,7 +8,7 @@
  * top notification rail through `notify` (never mid-screen on phones).
  */
 import { encodeCommand } from '../sim/commands';
-import { Op, type Command, type HeroId, type MatchResult, type PartyReplayRecord, type ReplayRecord, type SimEvent } from '../sim/api';
+import { Op, type Command, type HeroId, type MatchResult, type PartyReplayRecord, type PvpReplayRecord, type ReplayRecord, type SimEvent } from '../sim/api';
 import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
@@ -53,7 +53,7 @@ export interface NetHostOptions {
 export interface PartyEnd {
   room: string;
   slot: number;
-  record: PartyReplayRecord | null;
+  record: PartyReplayRecord | PvpReplayRecord | null;
   scored: boolean | null;
   why?: string;
   /** Lane M6: the relay's display names per slot (null = a bot) and the share of turns a bot flew each slot. */
@@ -118,7 +118,10 @@ export class NetHost implements PartyLink {
   private waitingShown = false;
   private lastSyncMs = -Infinity;
   private endInfo: PartyEnd;
-  private result: { r: MatchResult; record: PartyReplayRecord | null } | null = null;
+  private result: { r: MatchResult; record: PartyReplayRecord | PvpReplayRecord | null } | null = null;
+  /** Casual PvP (V16.md §5): this seat's team (slots 3..5 are team 1), and the room is PvP. */
+  readonly team: 0 | 1;
+  readonly pvp: boolean;
   private serverEnd: Extract<ServerJson, { t: 'end' }> | null = null;
   private unwatch: (() => void) | null = null;
   private readonly now: () => number;
@@ -212,6 +215,8 @@ export class NetHost implements PartyLink {
     this.predictor = new Predictor(opts.planner ?? gridPlanner);
     this.names = [...match.names];
     this.mySlot = match.you.slot;
+    this.pvp = match.config.mode === 'pvp';
+    this.team = this.pvp && match.you.slot >= 3 ? 1 : 0;
     this.bornAt = this.now();
     this.humans = [...match.config.humans];
     // ?e2e=1: a new match starts its own hash trail (a rematch never shows the last match's ticks)
@@ -342,7 +347,8 @@ export class NetHost implements PartyLink {
       seed: m.config.seed,
       simVersion: m.simVersion ?? SIM_VERSION,
       slot: m.you.slot as WelcomeMsg['slot'],
-      team: 0,
+      // casual PvP: a team-1 seat sees the match as team 1 (A24: the map turned for it)
+      team: this.team,
       picks: m.config.picks as WelcomeMsg['picks'],
       tricks: m.config.tricks as WelcomeMsg['tricks'],
     };
@@ -360,7 +366,8 @@ export class NetHost implements PartyLink {
       this.socket.sendJson({ t: 'vote', kind: 'surrender', yes: true });
       return;
     }
-    if (cmd.op === Op.Ping && this.match.you.slot !== 0) {
+    // a lead seat's ping is a sim command (slot 0; in PvP also slot 3, team 1's lead)
+    if (cmd.op === Op.Ping && this.match.you.slot !== 0 && !(this.pvp && this.match.you.slot === 3)) {
       // v1: pings from slots 1 and 2 are social markers only (§7 M2)
       this.socket.sendJson({ t: 'social', kind: 'ping', id: cmd.kind, x: Math.round(cmd.x), y: Math.round(cmd.y) });
       return;
@@ -446,8 +453,9 @@ export class NetHost implements PartyLink {
         const yes = (m.yes ?? []).map(Number).filter((n) => Number.isInteger(n));
         const v = { kind: m.kind, yes, need: m.need ?? 0, leftMs: m.endsMs ? Math.max(0, m.endsMs - this.serverNow()) : 0, ...(m.result ? { result: m.result } : {}) };
         if (this.emit('vote', v)) return;
-        if (m.result) this.note({ key: `mp-vote-${m.kind}`, title: `${m.kind === 'surrender' ? 'Surrender' : 'Pause'} vote ${m.result === 'pass' ? 'passed' : 'failed'}`, tone: m.result === 'pass' ? 'gold' : 'info' });
-        else if (m.need) this.note({ key: `mp-vote-${m.kind}`, title: `${m.kind === 'surrender' ? 'Surrender' : 'Pause'}? ${yes.length}/${m.need}`, tone: 'info', ttl: 5000 });
+        const word = m.kind === 'surrender' ? 'Surrender' : m.kind === 'remake' ? 'Remake' : 'Pause';
+        if (m.result) this.note({ key: `mp-vote-${m.kind}`, title: `${word} vote ${m.result === 'pass' ? 'passed' : 'failed'}`, tone: m.result === 'pass' ? 'gold' : 'info' });
+        else if (m.need) this.note({ key: `mp-vote-${m.kind}`, title: `${word}? ${yes.length}/${m.need}`, tone: 'info', ttl: 5000 });
         return;
       }
       case 'social': {
@@ -638,8 +646,10 @@ export class NetHost implements PartyLink {
     if (!this.result) return;
     const go = () => {
       if (!this.result || this.disposed) return;
-      const res = this.result;
+      const raw = this.result;
       this.result = null;
+      // casual PvP: the sim's outcome is team 0's view; a team-1 seat wins when its team is the winner
+      const res = this.pvp ? { ...raw, r: { ...raw.r, outcome: (raw.r.winner === this.team ? 'won' : 'lost') as MatchResult['outcome'] } } : raw;
       this.endInfo.names = [...this.names];
       this.endInfo.pilotPct = [0, 1, 2, 3, 4, 5].map((slot) => this.pilotPct(slot));
       const me = res.record?.humans.find((h) => h.slot === this.match.you.slot);
