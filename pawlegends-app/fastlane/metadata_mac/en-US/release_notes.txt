@@ -1,1 +1,8 @@
-Pawlegends is on the Mac! Play with keyboard and mouse or a trackpad, in a window or full screen.
+A brand new look! PawLegends has a new logo and a new app icon: say hi to the crowned cat.
+
+Also new since 1.0.0:
+- Play online: jump into Quick Play with other players, or try casual PvP after your first few matches.
+- A new fixed camera with a clear diagonal view of the map, for both teams.
+- Map fixes: heroes no longer get stuck in the forest, they path around the enemy fountain, and attacking from a bush now reveals you.
+
+Cats or dogs: pick your side!

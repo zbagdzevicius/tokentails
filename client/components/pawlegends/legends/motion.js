@@ -68,7 +68,7 @@ export function startLegendsMotion(rootEl, libs) {
       if (cls==='ch' && el.closest('.wordmark')){ var c=D.createElement('span'); c.className='chi'; c.textContent=txt[i]; s.appendChild(c); } else s.textContent=txt[i]===' '?'\u00a0':txt[i];
       s.style.setProperty('--i', (base||0)+i); if(rot) s.dataset.r = r; el.appendChild(s);}
   }
-  splitChars($('.wordmark .l1'),'ch',1,0); splitChars($('.wordmark .l2'),'ch',1,3);
+  // the wordmark is the PawLegends logo image now (one .ch with its data-r in the markup), so only the victory line splits
   splitChars($('.victory .vl'),'ch',1,0);
   var wmChars=$$('.wordmark .ch');
 

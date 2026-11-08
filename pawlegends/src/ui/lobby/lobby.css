@@ -21,6 +21,7 @@
 }
 .pl-lobby .logo .paw { width: 44px; height: 44px; }
 .pl-lobby h1 { font-size: 52px; }
+.pl-lobby .brand-logo img { width: 340px; }
 .pl-lobby .tag { font-size: 16px; margin: 8px 0 18px; opacity: 0.8; }
 
 /* name block */
@@ -223,6 +224,7 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   /* ui.css `.pl-title h1` (48 px on short screens) loads later at the same specificity */
   .pl-title.pl-lobby .logo .paw { width: 24px; height: 24px; }
   .pl-title.pl-lobby h1 { font-size: 30px; text-shadow: 0 3px 0 #7d4fa8; }
+  .pl-title.pl-lobby .brand-logo img { width: 200px; }
   .lb-name { margin: 4px 0 6px; }
   .lb-eyebrow { font-size: 10px; }
   .lb-hero { font-size: 26px; }

@@ -127,6 +127,7 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .logo{font-family:var(--disp);font-weight:700;font-size:clamp(48px,7.6vw,118px);line-height:.85;letter-spacing:.005em;text-transform:uppercase;
   color:var(--white);-webkit-text-stroke:.09em var(--ink);paint-order:stroke fill;filter:drop-shadow(.05em .06em 0 var(--ink))}
 .pll .logo .ch{display:inline-block;transform-origin:50% 100%}
+.pll .logo img{display:block;width:min(640px,86vw,86vh);height:auto;margin:0 auto -.08em;-webkit-user-drag:none;filter:drop-shadow(0 10px 22px rgba(18,9,31,.55))}
 .pll .logo .paw-c{color:var(--pink-l)}
 .pll .logo .leg-c{color:var(--ice)}
 .pll .sub{margin:clamp(10px,1.6vh,18px) auto clamp(14px,2.4vh,26px);max-width:40ch;width:fit-content;padding:.45em 1em;border-radius:14px;background:rgba(18,9,31,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-weight:800;font-size:clamp(16px,1.5vw,21px);line-height:1.35;color:var(--white);

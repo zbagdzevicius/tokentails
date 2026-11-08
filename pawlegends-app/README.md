@@ -25,7 +25,7 @@ no purchases) are the same as on iPhone.
 | `scripts/ota-publish.mjs` | Zips, encrypts and signs `www/` into `client/public/pawlegends-app/updates/ios/<compat>/` |
 | `scripts/ota-local.mjs` | Publishes into a scratch folder and serves it on `localhost:8787` for a Debug build (try an update before it ships) |
 | `scripts/ota-keygen.mjs` | Makes the OTA RSA key pair (done once; public key committed in `ota/public-key.pem`) |
-| `scripts/make-icons.mjs`, `scripts/screenshots.mjs` | App icon and launch paw; App Store screenshots (6.9" landscape) |
+| `scripts/make-icons.mjs`, `scripts/screenshots.mjs` | App icon and launch logo (from `brand/pawlegends`); App Store screenshots (6.9" landscape) |
 | `scripts/build-sim.mjs` | Unsigned simulator build (`--run` installs and launches it) |
 | `scripts/build-mac.mjs` | Unsigned Mac Catalyst build (`--run` opens it; `--run --probe <dir>` writes a snapshot and what the page sees, then quits) |
 | `ios/App/` | The Xcode project: `GameViewController.swift` (landscape, no status bar, home indicator auto-hidden), `AppDelegate.swift` (audio session, screen kept on), `Info.plist`, `PrivacyInfo.xcprivacy` |

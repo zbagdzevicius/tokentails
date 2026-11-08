@@ -86,6 +86,12 @@ kbd {
   text-shadow: 0 5px 0 #7d4fa8, 0 12px 30px rgba(0, 0, 0, 0.45);
 }
 .pl-title h1 b { color: var(--butter); }
+/* the PawLegends logo (ui/brandLogo.ts): an image, not text; the compact wordmark on short screens (<picture>) */
+.pl-title .brand-logo { margin: 0 0 0 -12px; line-height: 0; text-shadow: none; }
+.pl-title .brand-logo img { display: block; width: 380px; max-width: 100%; height: auto; filter: drop-shadow(0 10px 18px rgba(0, 0, 0, 0.4)); animation: pl-logo-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both; }
+@keyframes pl-logo-in { from { opacity: 0; transform: translateY(-10px) scale(0.92); } }
+@media (max-height: 720px) { .pl-title .brand-logo img { width: 280px; } }
+@media (prefers-reduced-motion: reduce) { .pl-title .brand-logo img { animation: none; } }
 .pl-title .tag { font-size: 22px; margin: 14px 0 28px; opacity: 0.92; }
 .pl-title .actions { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; }
 .pl-title .sub { opacity: 0.6; font-size: 14px; margin-top: 18px; }
@@ -534,6 +540,8 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 @media (max-height: 480px) {
   .pl-title h1 { font-size: 48px; }
   .pl-title .logo .paw { width: 44px; height: 44px; }
+  .pl-title .brand-logo { margin-left: -6px; }
+  .pl-title .brand-logo img { width: 220px; }
   .pl-title .tag { font-size: 16px; margin: 8px 0 16px; }
   .pl-title-col, .pl-results-col { left: calc(24px + var(--safe-l)); }
   .pl-btn.big { font-size: 19px; padding: 13px 28px; }

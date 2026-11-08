@@ -35,6 +35,10 @@ const A = {
   phone: LANDING_ASSET("shot-phone.24bce0a7.webp"),
   mascot: LANDING_ASSET("mascot2.ff449081.webp"),
   logo: LANDING_ASSET("tt-logo.19b6c796.webp"),
+  /** The PawLegends logo (brand/pawlegends, founder pick #48: wordmark, lightning, paw fist-bump), 1200x757. */
+  brandLogo: LANDING_ASSET("logo.7d6a0f0e.webp"),
+  /** The same wordmark without the paws, for the small top-left brand link, 1200x334. */
+  wordmark: LANDING_ASSET("logo-compact.ec9e56ee.webp"),
 };
 /** Fredoka, the game's UI face: the same subset file as the `/pawlegends` landing (its LANDING_FONT). */
 export const LEGENDS_FONT = LANDING_ASSET("fredoka-latin.ec85d7eb.woff2");
@@ -43,6 +47,8 @@ const SMALLER: Readonly<Record<string, number>> = Object.freeze({
   [A.teamfight]: 720,
   [A.desktop]: 720,
   [A.logo]: 244,
+  [A.brandLogo]: 640,
+  [A.wordmark]: 640,
 });
 /** Portrait tile copies are 280 px wide (`../landing/markup.ts` TILE_PORTRAIT_WIDTH). */
 const TILE_W = 280;
@@ -160,7 +166,7 @@ export function legendsMarkup(): string {
   return `<a class="skip" href="#play">Skip to Play</a>
 
 <header class="hud">
-  <a class="brand" href="#top" aria-label="Pawlegends, back to top">Paw<b>legends</b></a>
+  <a class="brand" href="#top" aria-label="Pawlegends, back to top"><img src="${sized(A.wordmark, 640)}" alt="" width="640" height="178" decoding="async"></a>
   <div class="score" role="status" aria-live="polite">
     <span class="t">Cats</span>
     <span class="twi" aria-hidden="true">${"<i></i>".repeat(towers)}</span>
@@ -201,7 +207,7 @@ export function legendsMarkup(): string {
     </div>
     <div class="content">
       <p class="maplabel ani"><span class="pinw"><span class="pin cat"><b>&#9733;</b></span></span>Our base · cat side</p>
-      <h1 class="wordmark" id="lgb-h1" aria-label="Pawlegends"><span class="l1" aria-hidden="true">Paw</span><span class="l2" aria-hidden="true">legends</span></h1>
+      <h1 class="wordmark" id="lgb-h1" aria-label="Pawlegends"><span class="ch" data-r="-6"><span class="chi"><img src="${A.brandLogo}" srcset="${srcset(A.brandLogo, 640, 1200)}" sizes="(max-width:760px) 82vw, 460px" alt="" width="1200" height="757" fetchpriority="high" decoding="async"></span></span></h1>
       <p class="tag ani">A free ${F.teamSize}v${F.teamSize} cats vs dogs MOBA you play in your browser.</p>
       <div class="card ani">
         <p class="lede">The game&#8217;s map has ${countWord(F.lanes).toLowerCase()} lanes and ${countWord(towers).toLowerCase()} dog towers between you and their core. Scroll to push one lane here, then play the full match free on desktop or phone.</p>

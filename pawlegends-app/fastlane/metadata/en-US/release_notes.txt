@@ -1,1 +1,10 @@
-Welcome to Pawlegends! Pick a cat hero, team up with bots or friends, and push the dogs out of the lanes.
+A brand new look! PawLegends has a new logo and a new app icon: say hi to the crowned cat.
+
+Also new since 1.0.0:
+- Play online: jump into Quick Play with other players, or try casual PvP after your first few matches.
+- A new fixed camera with a clear diagonal view of the map, for both teams.
+- Hold to aim, and drag to the cancel bubble if you change your mind.
+- A cleaner phone HUD, so fights are easier to read.
+- Map fixes: heroes no longer get stuck in the forest, they path around the enemy fountain, and attacking from a bush now reveals you.
+
+Cats or dogs: pick your side!
