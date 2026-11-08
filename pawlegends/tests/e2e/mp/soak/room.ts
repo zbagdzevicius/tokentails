@@ -12,6 +12,7 @@
  */
 import { PartySocket, type SocketEnv, type SocketLike } from '../../../../src/net/socket';
 import { NetHost, type PartyEnd } from '../../../../src/net/net-host';
+import type { HostListener } from '../../../../src/host/local-host';
 import { Frame, type MatchMsg, type ServerJson } from '../../../../src/net/proto';
 import { Op, NO_TARGET, type Command, type EntitySnap, type PartyReplayRecord, type PvpReplayRecord, type Snapshot } from '../../../../src/sim/api';
 import { SIM_VERSION } from '../../../../src/sim/version';
@@ -123,6 +124,7 @@ class Client {
   dropDone = false;
   lostSeat = false;
   private awaitMatchSince = 0;
+  private outage = false;
   private hostAt = 0;
 
   constructor(
@@ -215,7 +217,11 @@ class Client {
     s.tap({
       json: (m) => this.onJson(m),
       state: (st) => {
-        if (st === 'reconnecting') this.reconnects++;
+        // one outage emits `reconnecting` on the close and again on each retry: count the outage once
+        if (st === 'reconnecting' && !this.outage) {
+          this.outage = true;
+          this.reconnects++;
+        } else if (st === 'open') this.outage = false;
       },
     });
     s.connect();
@@ -290,7 +296,7 @@ class Client {
       this.inputMs.push(...v);
       return push(...v);
     };
-    host.listen({
+    const listener: HostListener = {
       welcome: () => undefined,
       snap: (s) => {
         this.snap = s;
@@ -301,8 +307,9 @@ class Client {
         this.end = { outcome: replay.outcome, ticks: r.ticks, finalHash: r.finalHash, record: party?.record ?? null, party };
         log(`client ${this.idx} slot ${this.slot} end ${replay.outcome} ${r.ticks} ${r.finalHash}`);
       },
-      error: (msg) => this.errors.push(`host:${msg}`),
-    } as never);
+      error: (msg) => void this.errors.push(`host:${msg}`),
+    };
+    host.listen(listener);
     host.join();
     if (!this.liveAt) this.liveAt = Date.now();
     this.hostAt = Date.now();

@@ -59,7 +59,9 @@ say(`bundled room client (sim v${stamp.simVersion}, hash ${simSourceHash()})`);
 let relayProc = null;
 const RELAY = env.RELAY ?? `http://127.0.0.1:${PORT}`;
 if (!env.RELAY) {
-  relayProc = spawn(join(BACKEND, 'node_modules/.bin/ts-node'), ['--transpile-only', '-r', 'tsconfig-paths/register', 'test/pawlegends-soak.harness.ts'], {
+  // type-checked ts-node (not --transpile-only): the `/live` path loads Mongoose schemas whose decorators need the
+  // emitted type metadata. The compiler stays in the relay's heap, so memory is reported as growth over the start.
+  relayProc = spawn(join(BACKEND, 'node_modules/.bin/ts-node'), ['-r', 'tsconfig-paths/register', 'test/pawlegends-soak.harness.ts'], {
     cwd: BACKEND,
     env: { ...env, PORT: String(PORT), SOAK_QUIET: env.SOAK_VERBOSE === '1' ? '0' : '1' },
     stdio: ['ignore', 'inherit', 'inherit'],
@@ -219,11 +221,11 @@ const row = (mode) => {
     logKbP50: Math.round(pct(rs.map((r) => r.logBytes ?? 0), 0.5) / 1024),
   };
 };
-const relayCpuMs = (h1.cpuUserUs + h1.cpuSystemUs - h0.cpuUserUs - h0.cpuSystemUs) / 1000;
-const roomMinutes = sum(results.map((r) => (r.wallMs ?? 0) / 60_000));
-const busy = samples.filter((s) => s.rooms > 0);
+// relay CPU per live room-minute from the 10 s samples, after a 2-minute warm-up (the referee workers compile the
+// TypeScript sim bundle under ts-node when the first rooms arrive)
+const busy = samples.filter((s) => s.rooms > 0 && s.at - t0 > 120_000);
 const relay = {
-  cpuMsPerRoomMinute: roomMinutes ? Math.round(relayCpuMs / roomMinutes) : 0,
+  cpuMsPerRoomMinute: Math.round((sum(busy.map((s) => s.cpuPct * 100)) / Math.max(1, sum(busy.map((s) => (s.rooms * 10) / 60)))) || 0),
   cpuPctAvg: Math.round(sum(busy.map((s) => s.cpuPct)) / Math.max(1, busy.length)),
   cpuPctMax: Math.round(Math.max(0, ...samples.map((s) => s.cpuPct))),
   roomsAvg: Math.round((sum(busy.map((s) => s.rooms)) / Math.max(1, busy.length)) * 10) / 10,
@@ -231,6 +233,8 @@ const relay = {
   rssMbStart: Math.round(h0.rss / 1e6),
   rssMbMax: Math.round(Math.max(h0.rss / 1e6, ...samples.map((s) => s.rssMb))),
   rssMbEnd: Math.round(h1.rss / 1e6),
+  rssMbGrowth: Math.round((h1.rss - h0.rss) / 1e6),
+  heapMbGrowth: Math.round((h1.heapUsed - h0.heapUsed) / 1e6),
   heapMbEnd: Math.round(h1.heapUsed / 1e6),
   loopP99Max: Math.max(0, ...samples.map((s) => s.loopP99)),
   overrunP99Max: Math.max(0, ...samples.map((s) => s.overrunP99)),
