@@ -13,7 +13,7 @@
  */
 import { EFFECTS } from '../../data/effects';
 import { applyBp, BP_ONE, dist2 } from '../fixed';
-import { ENTITY_CAP, FM, G, Kind, RANGE, maskHas } from '../world';
+import { ENTITY_CAP, FM, G, Kind, RANGE, maskHas, type World } from '../world';
 import { dealDamage } from '../combat/damage';
 import { collect, dash, fear, haste, inCone, knockback, slow } from '../effects';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
@@ -33,6 +33,10 @@ function aim(a: KitNumbers, slot: number): SlotAim {
       return { aim: Aim.Dir, reach: 0, windup: a.r.windup, mobility: false };
   }
 }
+
+/** Sim v17: is attacker `src` within `range` of Howler (0 = any range)? */
+const inFearRange = (w: World, id: number, src: number, range: number): boolean =>
+  range <= 0 || dist2(w.x[src], w.y[src], w.x[id], w.y[id]) <= range * range;
 
 export const HOWLER_KIT: HeroKit = {
   aim,
@@ -116,13 +120,14 @@ export const HOWLER_KIT: HeroKit = {
     const w = m.world;
     if (w.kRT[id] === 0) return dmg;
     const e = abil(w, id).e;
-    if (src >= 0 && src < RANGE.minions && w.kind[src] === Kind.Hero && w.team[src] !== w.team[id] && (w.kCount[id] & (1 << src)) === 0) {
+    // Sim v17 (V17.md §3.10): only attackers within e.fearRange are feared (a far skill shot or zone tick is not).
+    if (src >= 0 && src < RANGE.minions && w.kind[src] === Kind.Hero && w.team[src] !== w.team[id] && (w.kCount[id] & (1 << src)) === 0 && inFearRange(w, id, src, e.fearRange ?? 0)) {
       w.kCount[id] |= 1 << src;
       fear(w, src, e.fear, w.x[id], w.y[id]);
     }
     return applyBp(dmg, BP_ONE - e.reduceBp);
   },
-  deterBasics: (w, id) => w.kRT[id] > 0,
+  deterBasics: (w, id, src) => w.kRT[id] > 0 && inFearRange(w, id, src, abil(w, id).e.fearRange ?? 0),
   reset(w, id) {
     w.kEmpower[id] = 0;
     w.kRT[id] = 0;

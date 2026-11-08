@@ -112,8 +112,11 @@ export interface HeroKit {
    * purse). Independent of stun, so CC immunity does not lift it.
    */
   busy?(w: World, id: number): boolean;
-  /** Sim v14: true while bots should not start basic attacks on this hero (Howler's Talk Back). They still cast at it. */
-  deterBasics?(w: World, id: number): boolean;
+  /**
+   * Sim v14: true while bots should not start basic attacks on this hero (Howler's Talk Back). They still cast at it.
+   * Sim v17: `src` is the would-be attacker (Talk Back only deters attackers within its fear range).
+   */
+  deterBasics?(w: World, id: number, src: number): boolean;
   /**
    * Sim v17 (V17.md §3.2, §3.6): a cast of `slot` just began its windup; `ev` is the windup event already pushed (the
    * kit may move its point, e.g. Lambo's landing, or name a victim in `dst`). Runs only for windups > 0.

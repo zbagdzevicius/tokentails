@@ -63,9 +63,11 @@ describe('Howler, original dog fighter (sim v14)', () => {
     expect(w.slowBp[FOE]).toBe(A.q.slowBp);
   });
 
-  it('Talk Back: less damage, and each enemy hero that hits him is feared once', () => {
+  it('Talk Back: less damage, and each enemy hero within 4.5 m that hits him is feared once (sim v17: the range)', () => {
     const m = arena();
     const w = m.world;
+    place(m, FOE, MID.x + 1600, MID.y, 2048);
+    place(m, FOE2, MID.x - 4000, MID.y, 0);
     cast(m, HW, 2, MID.x, MID.y);
     const kit = kitOf(w, HW);
     expect(kit.incoming!(m, HW, FOE, 1000)).toBe(1000 - (1000 * A.e.reduceBp) / 10000);
@@ -75,6 +77,23 @@ describe('Howler, original dog fighter (sim v14)', () => {
     expect(w.fearT[FOE]).toBe(0);
     kit.incoming!(m, HW, FOE2, 1000);
     expect(w.fearT[FOE2]).toBe(A.e.fear);
+  });
+
+  it('Talk Back (sim v17, V17.md §3.10): a hit from 9 m (a Rocket Q) or a zone whose caster stands 7 m off fears nobody', () => {
+    const m = arena();
+    const w = m.world;
+    expect(A.e.fearRange).toBe(4500);
+    place(m, FOE, MID.x + 9000, MID.y, 2048);
+    place(m, FOE2, MID.x, MID.y + 7000, 2048);
+    cast(m, HW, 2, MID.x, MID.y);
+    const kit = kitOf(w, HW);
+    expect(kit.incoming!(m, HW, FOE, 1000)).toBe(1000 - (1000 * A.e.reduceBp) / 10000);
+    kit.incoming!(m, HW, FOE2, 1000);
+    expect([w.fearT[FOE], w.fearT[FOE2]]).toEqual([0, 0]);
+    // Walking in to 1.6 m and hitting again: feared (the first far hit did not use up the once).
+    place(m, FOE, MID.x + 1600, MID.y, 2048);
+    kit.incoming!(m, HW, FOE, 1000);
+    expect(w.fearT[FOE]).toBe(A.e.fear);
   });
 
   it('Talk Back: bots stop starting basics on him (they step back), and swing again once it ends', () => {
