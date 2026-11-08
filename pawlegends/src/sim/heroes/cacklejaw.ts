@@ -31,7 +31,8 @@ function aim(a: KitNumbers, slot: number): SlotAim {
     case 2:
       return { aim: Aim.Self, reach: 0, windup: 0, mobility: false };
     default:
-      return { aim: Aim.Self, reach: 0, windup: 0, mobility: true };
+      // Sim v17 (V17.md §3.6): Pack Hunt winds up; the victim is picked at the windup's start (onWindup).
+      return { aim: Aim.Self, reach: 0, windup: a.r.windup ?? 0, mobility: true };
   }
 }
 
@@ -77,8 +78,18 @@ function endHunt(w: World, id: number): void {
 
 export const CACKLEJAW_KIT: HeroKit = {
   aim,
+  onWindup(m, id, slot, ev) {
+    if (slot !== R) return;
+    // Sim v17 (V17.md §3.6): mark the lowest-HP enemy hero in range now; the windup event names it for the client.
+    const w = m.world;
+    const r = abil(w, id).r;
+    const victim = lowestHpEnemyHero(w, w.team[id], w.x[id], w.y[id], r.range);
+    w.castId[id] = victim;
+    ev.dst = victim;
+    if (victim >= 0) reveal(w, victim, ev.ticks);
+  },
   recastReady: (w, id, slot) => slot === Q && w.kStage[id] === 2 && w.kWindow[id] > 0,
-  cast(m, id, slot, x, y) {
+  cast(m, id, slot, x, y, target) {
     const w = m.world;
     const a = abil(w, id);
     switch (slot) {
@@ -104,8 +115,12 @@ export const CACKLEJAW_KIT: HeroKit = {
         return a.e.cooldown;
       default: {
         const r = a.r;
-        const victim = lowestHpEnemyHero(w, w.team[id], w.x[id], w.y[id], r.range);
+        // Sim v17: the victim marked at the windup's start (`target`, −1 once it turned untargetable); no re-pick, so the
+        // mark never lies. Out of range + slip at the end of the windup: the hunt fizzles (no cooldown spent).
+        const victim = target;
         if (victim < 0) return -1;
+        const far = r.range + (r.slip ?? 0) + radiusOf(w, victim);
+        if (dist2(w.x[id], w.y[id], w.x[victim], w.y[victim]) > far * far) return -1;
         if (w.kEmpower[id] === 0) w.kChain[id] = 0;
         w.kEmpower[id] = 0;
         reveal(w, victim, r.resetWindow);

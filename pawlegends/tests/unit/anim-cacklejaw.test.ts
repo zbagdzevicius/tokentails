@@ -74,13 +74,13 @@ describe('cacklejaw moves', () => {
     expect(MOVES.slots.e.endOnBuff).toBe(1);
     expect(EXTRA.eHold).toBeDefined();
     expect(EXTRA.eEnd?.warp).toEqual([['contact', 'stateEnd']]);
-    // R: the howl snap on the cast, the body pitched forward from the first key (the root moves at 24 m/s from the
-    // cast tick), bounds for the hunt's whole sim life (30 t), no predicted landing; the maul starts on the hit
+    // R: the howl snap on the cast, the body pitched forward from the first key (the root moves at 20 m/s from the
+    // cast tick), bounds for the hunt's whole sim life (36 t), no predicted landing; the maul starts on the hit
     const r = MOVES.slots.r.cast;
-    expect(r.warp).toEqual([['contact', 'cast']]);
+    expect(r.warp).toEqual([['coil', 'windupStart'], ['contact', 'cast']]); // sim v17: a 9 t windup
     const ra = abilNumbers('cacklejaw', 'r');
     const life = travelTicks(ra.range * 2, ra.speed);
-    expect(life).toBe(30);
+    expect(life).toBe(36); // sim v17: 20 m/s
     expect(r.markers.contact).toBeLessThanOrEqual(0.05);
     expect(r.markers.leap).toBeUndefined();
     const lastBound = r.keys[r.keys.length - 2][0];
@@ -287,9 +287,9 @@ describe('cacklejaw skill FX', () => {
     n = f.spawned.length;
     SKILL_FX.onHit!(hit, f.fx, ctx);
     expect(f.spawned.length).toBe(n);
-    // a new cast, no hit within its 30 t life: a late ability hit draws no maul
+    // a new cast, no hit within its 36 t life (sim v17: 20 m/s): a late ability hit draws no maul
     SKILL_FX.onCast!(cast(3, 0, 0), f.fx, ctx);
-    f.step(34 * TICK_S);
+    f.step(40 * TICK_S);
     n = f.spawned.length;
     SKILL_FX.onHit!(hit, f.fx, ctx);
     expect(f.spawned.slice(n).some((s) => s.kind === 'ring')).toBe(false);

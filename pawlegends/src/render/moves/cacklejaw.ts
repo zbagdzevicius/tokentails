@@ -523,9 +523,10 @@ const r: ClipDef = {
     up: [[0, 0], [B0, 0], ...boundUp(B0, B_END, BOUNDS, 0.35), [R_LEN, 0]],
     sy: [[0, 1], [R_C, 0.88, 'out'], [B0, 0.9], ...boundSy(B0, B_END, BOUNDS), [R_LEN, 1, 'back']],
   },
-  markers: { contact: R_C, howl: R_C, bound: B0, end: R_LEN },
+  markers: { coil: 0, contact: R_C, howl: R_C, bound: B0, end: R_LEN },
   // the mark resolves on the cast tick; everything after is time-driven at the hunt's own pace
-  warp: [['contact', 'cast']],
+  // sim v17: Pack Hunt winds up 0.3 s (the crouch before the howl stretches over it)
+  warp: [['coil', 'windupStart'], ['contact', 'cast']],
   cues: [
     ['howl', 'mouthOpen', 260],
     ['howl', 'sfx', 'gong'],
