@@ -16,10 +16,10 @@ export const BENGAS: HeroData = Object.freeze<HeroData>({
     /** Burnt Toast: skillshot 7 m that stops at the first unit, 70 (+7/lvl, +18 a rank). Sim v17 (V17.md §3.8): slower shot, 18000 → 14000 mm/s, so it can be dodged on reaction. */
     q: { cooldown: 180, range: 7000, width: 800, speed: 14000, dmg: 70, dmgPerLevel: 7 },
     /**
-     * Striking Pose: 0.3 s wind-up, cone 4 m, 70°; enemy heroes in it facing Bengas (±90°) are stunned 0.75 s;
-     * the others in it are slowed 25% for 1 s.
+     * Striking Pose: 0.5 s wind-up, cone 4 m, 70°; enemy heroes in it facing Bengas (±90°) are stunned 0.75 s;
+     * the others in it are slowed 25% for 1 s. Sim v17 (V17.md §3.9): windup 9 → 15, so "turn away" can be done in time.
      */
-    w: { cooldown: 420, windup: 9, range: 4000, arc: 796, facingArc: 2048, stun: 23, slowBp: 2500, slow: 30 },
+    w: { cooldown: 420, windup: 15, range: 4000, arc: 796, facingArc: 2048, stun: 23, slowBp: 2500, slow: 30 },
     /** Camellia Hop: dash 3.5 m, then +20% speed for 1 s. */
     e: { cooldown: 390, dash: 3500, hasteBp: 2000, haste: 30 },
     /** Curtains Up!: a 3.5 m fire disc within 9 m; 0.6 s arm, then 8 pulses every 0.5 s of 25 (+3/lvl, +9 a rank) and a 25% slow. */

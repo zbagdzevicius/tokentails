@@ -31,7 +31,7 @@ describe('bengas moves', () => {
     expect(MOVES.slots.q.cast.warp).toEqual([['contact', 'cast']]);
     // W: the spin-in fills exactly the 9 t windup
     const w = MOVES.slots.w.cast;
-    expect(T.slots.w.windup).toBe(9);
+    expect(T.slots.w.windup).toBe(15); // sim v17
     expect(w.warp).toEqual([['coil', 'windupStart'], ['contact', 'cast']]);
     expect(w.markers.contact! - w.markers.coil).toBeCloseTo(W_WINDUP_S, 9);
     const wy = w.root!.yaw!;
