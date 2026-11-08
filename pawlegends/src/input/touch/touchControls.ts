@@ -37,7 +37,7 @@ import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
 import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
-import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, TargetLock } from './assist';
+import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, STICK_YIELD, stickTowardTarget, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
 import { HEROES } from '../../data/heroes';
@@ -202,6 +202,10 @@ export class TouchControls {
   private lastStick = { a: NaN, at: 0, tx: 0, ty: 0 };
   private attackHeld: number | null = null;
   private lastAttack = 0;
+  /** The unit the newest ATK press ordered an attack on, or null (the stick yields to it: STICK_YIELD). */
+  private atkTarget: number | null = null;
+  /** Stick moves held back because they pointed at the attack target (e2e telemetry). */
+  stickYields = 0;
   /** The attack range ring this input asked for last (written to the view only on change, so desktop can share it). */
   private ringOn = false;
   private enabled = false;
@@ -937,6 +941,7 @@ export class TouchControls {
       killable: kill ? units.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && u.team !== this.h.view.myTeam && u.state !== 'dead' && u.hp <= kill(u)).map((u) => u.id) : [],
     };
     this.picks++;
+    this.atkTarget = id;
     if (id !== null) {
       this.h.orders.attack(id);
       return;
@@ -1067,6 +1072,18 @@ export class TouchControls {
   }
 
   /**
+   * Founder bug 2026-11-08: ATK held (or tapped within STICK_YIELD.tapMs) on a living unit and the stick at angle `a`
+   * pointing toward it: the stick sends no move, so it never replaces the Attack order mid-chase or mid-windup.
+   */
+  private yieldsToAttack(o: { x: number; y: number }, a: number, now: number): boolean {
+    const id = this.atkTarget;
+    if (id === null || (this.attackHeld === null && now - this.lastAttack >= STICK_YIELD.tapMs)) return false;
+    const t = this.h.units().find((u) => u.id === id);
+    if (!t || t.state === 'dead') return false;
+    return stickTowardTarget(o.x, o.y, a, t);
+  }
+
+  /**
    * The joystick's move order: sent from the frame loop and (C6) straight from the pointer event, so a fresh push does
    * not wait for the next frame. Throttled by STICK.turn / STICK.everyMs as before.
    */
@@ -1083,6 +1100,12 @@ export class TouchControls {
       // round 2: a push into a wall slides along it (orders.ts slideAngle)
       // C8: only at full tilt (90%+) and with no enemy hero within 8 m, and only within 8° of the lane
       const a = this.walkAngle(me, o, dx, dy);
+      if (this.yieldsToAttack(o, a, now)) {
+        // the Attack order chases; the next stick move goes at once when ATK lets go or the stick turns away
+        this.lastStick.a = NaN;
+        this.stickYields++;
+        return;
+      }
       const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
       const near = Math.hypot(o.x - this.lastStick.tx, o.y - this.lastStick.ty) < STICK.refreshMm;
       // the hero stands although the stick is held (its move was dropped or ran out): send it again
