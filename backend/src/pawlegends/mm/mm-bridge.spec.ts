@@ -1,4 +1,6 @@
+import { SIM_VERSION, simFor } from '../../vendor/pawlegends-sim';
 import { PartyService } from '../party/party.service';
+import type { MmEntry } from './matchmaker';
 import { MmBridge, type MmRelayApi, type MmSock } from './mm-bridge';
 import { MM_LIMITS } from './mm-limits';
 import { identityHash, MemoryMmRoomStore } from './mm-room.schema';
@@ -243,5 +245,44 @@ describe('MmBridge', () => {
         t.clock.now += 9000;
         t.bridge.onTick();
         expect(t.last(g.member, 'mm.found')).toMatchObject({ difficulty: 'rookie' });
+    });
+
+    it('casual newbie lock and seed read server records, never the hint (V16 §4.1)', async () => {
+        const t = make();
+        const v16 = { version: SIM_VERSION, hash: simFor(SIM_VERSION)!.SIM_SOURCE_HASH! };
+        const casual = async (s: MmSock) => {
+            t.bridge.onJson(s.member, { t: 'mm.join', queue: 'casual', side: 'any' });
+            for (let i = 0; i < 5; i++) await Promise.resolve();
+            await new Promise(r => setImmediate(r));
+        };
+        const entryOf = (s: MmSock): MmEntry | undefined =>
+            [...((t.bridge as any).entries as Map<string, MmEntry>).values()].find(e =>
+                e.members.some(m => m.member === s.member)
+            );
+        // claims 50 matches and hard, has no saved match and no row: locked
+        const liar = t.sock({ proto: 3, sim: v16, hint: { maxDifficulty: 'hard', newbie: false, matches: 50 } });
+        await casual(liar);
+        expect(t.last(liar.member, 'error')).toMatchObject({ code: 'mm_locked', reason: 'pvp_newbie' });
+        expect(t.bridge.queued(liar.member)).toBe(false);
+        // 7 saved matches, top easy: queued, seeded at easy (the 'hard' hint is ignored)
+        const vet = t.sock({ proto: 3, sim: v16, hint: { maxDifficulty: 'hard', newbie: false, matches: 50 } });
+        t.ratings.saved.set(vet.identity.accountId!, { matches: 7, top: 'easy' });
+        await casual(vet);
+        expect(t.last(vet.member, 'error')).toBeUndefined();
+        expect(entryOf(vet)!.members[0].rating).toEqual({ r: 1350, rd: 300 });
+        // 4 saved matches is still a newbie
+        const four = t.sock({ proto: 3, sim: v16, hint: { maxDifficulty: 'normal', newbie: false, matches: 50 } });
+        t.ratings.saved.set(four.identity.accountId!, { matches: 4, top: 'normal' });
+        await casual(four);
+        expect(t.last(four.member, 'error')).toMatchObject({ code: 'mm_locked', reason: 'pvp_newbie' });
+        // an IP-only identity has no record: locked whatever it claims
+        const anon = t.sock({
+            proto: 3,
+            sim: v16,
+            identity: { accountId: null, guestKeyHash: null, key: 'ip:x', ticketed: false, guest: true },
+            hint: { maxDifficulty: 'normal', newbie: false, matches: 50 },
+        });
+        await casual(anon);
+        expect(t.last(anon.member, 'error')).toMatchObject({ code: 'mm_locked', reason: 'pvp_newbie' });
     });
 });

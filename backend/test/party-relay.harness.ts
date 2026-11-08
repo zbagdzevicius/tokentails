@@ -7,6 +7,8 @@
  */
 import { randomBytes } from 'crypto';
 import { createServer } from 'http';
+import { memoryMm } from '../src/pawlegends/mm/mm-bridge';
+import { MemoryMmRoomStore } from '../src/pawlegends/mm/mm-room.schema';
 import { PartyRelay } from '../src/pawlegends/party/party-relay';
 import { PartyTicketService } from '../src/pawlegends/party/party-ticket.service';
 import { RefereePool } from '../src/pawlegends/party/referee-pool';
@@ -48,6 +50,8 @@ const relay = new PartyRelay({
     tickets: new PartyTicketService(),
     referee: new RefereePool({ inline: process.env.REFEREE_INLINE === '1' }),
     allowNoOrigin: true,
+    // the e2e browsers have no server history: the casual newbie lock reads their hint here (never in production)
+    mm: memoryMm({ rooms: new MemoryMmRoomStore(), ratings: null, trustHintMatches: true }),
     originAllowed: o => origins.includes(o),
     log: (event, props) => {
         if (/desync|divergence|error|lag|verify|refused|match_/.test(event))

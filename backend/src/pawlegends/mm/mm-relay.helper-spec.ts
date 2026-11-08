@@ -1,3 +1,4 @@
+import { createHash } from 'crypto';
 import { createServer, type IncomingMessage, type Server } from 'http';
 import type { AddressInfo } from 'net';
 import { LoopGate } from '../party/loop-gate';
@@ -7,7 +8,7 @@ import { RefereePool } from '../party/referee-pool';
 import { MemoryRoomStore } from '../party/room-store';
 import { LIVE, TestClient } from '../party/relay-test-client.helper-spec';
 import { memoryMm } from './mm-bridge';
-import { MemoryMmRoomStore } from './mm-room.schema';
+import { identityHash, MemoryMmRoomStore } from './mm-room.schema';
 import { MemoryRatingSource } from './rating.schema';
 
 /* Quick Play relay specs: an in-process relay with the memory mm stores and a skewable clock. */
@@ -59,12 +60,52 @@ export async function bootMm(opts: { ip?: (req: IncomingMessage) => string } = {
         await c.until(() => c.last('welcome'));
         return c;
     };
+    /**
+     * A helloed guest with `played` completed Quick Play rooms on the server (the casual newbie lock reads server
+     * records, never `hint.matches`).
+     */
+    let rooms = 0;
+    const veteran = async (extra: Record<string, unknown> = {}, played = 5, headers: Record<string, string> = {}) => {
+        const guestKey = `vet-key-${process.pid}-${++guests}`;
+        const hash = identityHash(
+            `guest:${createHash('sha256').update(`guest:${guestKey}`).digest('hex').slice(0, 24)}`
+        );
+        const at = new Date(Date.now() + skew.ms - 3_600_000);
+        for (let i = 0; i < played; i++)
+            await mmRooms.create({
+                _id: `vetroom${++rooms}`,
+                queue: 'coop',
+                region: 'eu',
+                side: 'cat',
+                difficulty: 'normal',
+                sim: 'x',
+                fill: [],
+                queueMs: {},
+                members: [
+                    {
+                        slot: 0,
+                        identityHash: hash,
+                        accountId: null,
+                        joinedTick: 0,
+                        backfill: false,
+                        ratingAtStart: null,
+                    },
+                ],
+                outcome: 'won',
+                endedAt: at,
+                createdAt: at,
+            });
+        const c = await client(headers);
+        c.hello({ guestKey, ...extra });
+        await c.until(() => c.last('welcome'));
+        return c;
+    };
     const stop = async () => {
         clients.forEach(c => c.close());
         await relay.shutdown();
         await new Promise(r => server.close(r));
     };
-    return { relay, store, mmRooms, ratings, tickets, skew, events, client, guest, stop, port };
+    return { relay, store, mmRooms, ratings, tickets, skew, events, client, guest, veteran, stop, port };
 }
 
 /** Free heroes of a side, in sim order. */
