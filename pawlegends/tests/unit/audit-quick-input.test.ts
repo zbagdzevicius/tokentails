@@ -65,10 +65,10 @@ describe('CF-03 blink taps go the full range', () => {
   it('a drag toward a near screen edge reaches full range before the edge', () => {
     // 60 px from the right edge: dragging right means full range at 50 px, not 90
     expect(dragFullPx(784, 200, 1, 0, 844, 390)).toBe(50);
-    // open space: the usual 90 px
-    expect(dragFullPx(400, 200, -1, 0, 844, 390)).toBe(90);
-    // never shorter than 36 px
-    expect(dragFullPx(840, 200, 1, 0, 844, 390)).toBe(36);
+    // open space: the usual 100 px (feel pass B4, was 90)
+    expect(dragFullPx(400, 200, -1, 0, 844, 390)).toBe(100);
+    // never shorter than 40 px (was 36)
+    expect(dragFullPx(840, 200, 1, 0, 844, 390)).toBe(40);
     // a casting drag sends the full blink when the thumb is stopped by the edge
     const r = rig('clem');
     const btn = r.t.root.querySelector('[data-b="trick"]') as HTMLElement;

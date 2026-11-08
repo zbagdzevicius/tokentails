@@ -2123,6 +2123,11 @@ export class MatchSession {
   private rawOwnEvents(list: readonly SimEvent[]): void {
     const me = this.view.mySlot;
     for (const ev of list) {
+      // feel pass B4: an enemy's E cast too (the touch auto-target skips a Howler arguing back)
+      if (ev.type === 'cast' && ev.src !== me && ev.slot === 2) {
+        this.touch?.onSimEvent(ev);
+        continue;
+      }
       if ((ev.type !== 'cast' && ev.type !== 'windup') || ev.src !== me) continue;
       this.orders?.applied(ev);
       this.touch?.onSimEvent(ev);

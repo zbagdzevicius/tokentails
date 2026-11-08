@@ -106,7 +106,8 @@ export function attackPriority(
       }
     }
     if (u.kind === 'hero') {
-      if (inRange && (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp)) hero = u;
+      // feel pass B4: an enemy hero within the attack range + HERO_REACH_MM wins the default pick over farm in range
+      if (d <= range + HERO_REACH_MM && (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp)) hero = u;
       if (d <= seek && (!nearHero || d < dist(nearHero, me) - BODY_MM.hero) && !guardedByTower(units, u, myTeam)) nearHero = u;
     } else if (u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding') {
       if (inRange && !farm && (!minion || u.hp < minion.hp)) minion = u;
@@ -121,6 +122,9 @@ export function attackPriority(
   }
   return (hero ?? kill ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
 }
+
+/** Feel pass B4: the Attack button's default order takes an enemy hero this far (mm) past the attack range first. */
+export const HERO_REACH_MM = 1500;
 
 /** C5: the Attack button looks this far (mm) past the attack range for a minion to last-hit. */
 export const LAST_HIT_REACH = 1000;

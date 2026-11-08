@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr, startFirstMatch } from './helpers';
+import { attr, startFirstMatch, minimapPoint } from './helpers';
 
 /**
  * UX pass 2 (Wild Rift basic-attack targeting), touch at 844x390 and 667x375: the field rings the unit ATK would hit
@@ -24,9 +24,9 @@ for (const size of [
     await page.setViewportSize({ width: size.w, height: size.h });
     // a played profile (match 2, not the guided first match): the minimap is up for the walk
     await startFirstMatch(page, '&speed=3', 'cat');
-    // both extra buttons are there by default
-    await expect(page.locator('.pl-tbtn.lasthit')).toBeVisible();
-    await expect(page.locator('.pl-tbtn.tower')).toBeVisible();
+    // both extra buttons are on by default (feel pass B3: mounted, shown only while they have a target)
+    await expect(page.locator('.pl-tbtn.lasthit')).toHaveCount(1);
+    await expect(page.locator('.pl-tbtn.tower')).toHaveCount(1);
 
     // scenario 1: at the base nothing is in reach: no ring, and ATK sends no attack (the "nothing in reach" flash)
     expect(await attr(page, 'atkTarget')).toBe('');
@@ -41,18 +41,18 @@ for (const size of [
       )
       .toBeGreaterThan(none0);
     expect(await attr(page, 'atkSent')).toBe('');
-    // the last-hit and tower buttons with nothing in reach: refused on the spot (red flash), never a walk-in
-    for (const b of ['lasthit', 'tower']) {
-      await tapEl(page, `.pl-tbtn.${b}`);
-      await expect(page.locator(`.pl-tbtn.${b}.deny`)).toHaveCount(1, { timeout: 2000 });
-    }
+    // feel pass B3: the last-hit and tower buttons with nothing in reach are not shown at all (never a walk-in)
+    for (const b of ['lasthit', 'tower']) await expect(page.locator(`.pl-tbtn.${b}`)).toBeHidden();
     expect(await attr(page, 'extraHits')).toBe('0,0');
     expect(await attr(page, 'walkin')).toBe('');
     expect(await attr(page, 'atkSent')).toBe('');
 
     // scenarios 2 and 3: up Sunny Lane, every ATK press that finds the field ringing a unit hits exactly that unit
-    const map = (await page.locator('.pl-minimap canvas').boundingBox())!;
-    const goTo = async (x: number, y: number) => page.mouse.click(map.x + (x / 100000) * map.width, map.y + (1 - y / 60000) * map.height, { button: 'right' });
+    // feel pass B2: the minimap is turned with the diagonal camera
+    const goTo = async (x: number, y: number) => {
+      const p = await minimapPoint(page, x, y);
+      await page.mouse.click(p.x, p.y, { button: 'right' });
+    };
     const deadline = Date.now() + Math.max(60_000, test.info().timeout - 150_000);
     const ringed: string[] = [];
     const missed: string[] = [];
@@ -82,7 +82,7 @@ for (const size of [
           ringed.push(pick.seen.find((u) => u.id === pick.ring)?.kind ?? '?');
         }
       }
-      if (!lh) {
+      if (!lh && (await page.locator('.pl-tbtn.lasthit').isVisible())) {
         const a = Number((await attr(page, 'extraHits')).split(',')[0]);
         await tapEl(page, '.pl-tbtn.lasthit');
         await page.waitForTimeout(150);

@@ -25,6 +25,7 @@
  * under it) and the stick keeps steering.
  */
 import { screenToSim } from '../../render/coords';
+import { haptic } from '../../ui/haptics';
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { rankPips } from '../../ui/heroText';
@@ -36,9 +37,10 @@ import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
 import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
-import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
+import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
+import { HEROES } from '../../data/heroes';
 import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
@@ -54,12 +56,14 @@ export function turnBetween(a: number, b: number): number {
  * again after this long, so the hero never freezes with the thumb on the stick.
  */
 export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: (Math.PI * 2) / 32, everyMs: 100, refreshMm: 1000, stallMs: 300 });
-const DRAG_PX = 16;
-const DRAG_FULL_PX = 90;
+/** Feel pass B4: a skill press becomes a drag aim past this many px (a release inside it is a quick cast). */
+export const DRAG_PX = 18;
+/** Feel pass B4: full range at this much thumb travel (px), shortened toward a near screen edge. */
+export const DRAG_FULL_PX = 100;
 /** CF-03: a ground or unit aim dragged toward a near screen edge reaches full range this many px short of it. */
 const EDGE_PAD_PX = 10;
 /** CF-03: the shortest drag that still means full range, however near the edge. */
-const DRAG_FULL_MIN_PX = 36;
+const DRAG_FULL_MIN_PX = 40;
 
 /**
  * Audit CF-03: the drag length (px) that means full range for a ground or unit aim from (x0, y0) along screen
@@ -95,8 +99,18 @@ export const AIM_BACK_PX = 24;
  * across it still casts.
  */
 export const CANCEL_DWELL_MS = 120;
-/** Hit slack around the ✕ (px). */
+/** Hit slack around the cancel bubble (px). */
 const CANCEL_SLACK = 12;
+/**
+ * Feel pass B4 (MLBB / Wild Rift): the cancel bubble: CANCEL_BUBBLE.d px across, `above` px above the pressed button
+ * (thumb travel past the full-range ring), clamped `inset` px inside the screen.
+ */
+export const CANCEL_BUBBLE = Object.freeze({ d: 72, above: 150, inset: 12 });
+/** Where the cancel bubble sits for a button centred at (bx, by) on a `w` × `h` screen (its centre, px). Pure. */
+export function cancelBubbleAt(bx: number, by: number, w: number, h: number): { x: number; y: number } {
+  const r = CANCEL_BUBBLE.d / 2 + CANCEL_BUBBLE.inset;
+  return { x: Math.max(r, Math.min(w - r, bx)), y: Math.max(r, Math.min(h - r, by - CANCEL_BUBBLE.above)) };
+}
 const ATTACK_REPEAT_MS = 350;
 /** C9: Nap goes after the button is held this long (ms), so a stray thumb never sends the hero home. */
 export const NAP_HOLD_MS = 300;
@@ -104,7 +118,7 @@ export const NAP_HOLD_MS = 300;
 const ATK_TIP_MAX = 2;
 const ATK_TIP_KEY = 'pawlegends.atkNoneTips';
 /** A skill button held this long (ms) without a drag shows its range and smart aim (CAST.hold; a tap stays a tap). */
-const HOLD_PREVIEW_MS = 200;
+export const HOLD_PREVIEW_MS = 180;
 /** The idle auto-attack measures edge to edge with this slack (mm), like the Attack button (C13). */
 const AUTO_SLACK = 300;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
@@ -145,6 +159,8 @@ interface Drag {
   at: number;
   /** A heading cast: the press sent it, the release only lets the button go. */
   fired?: boolean;
+  /** Feel pass B4: the cancel bubble's centre (px) for this press, once shown. */
+  bubble?: { x: number; y: number } | null;
 }
 
 export class TouchControls {
@@ -216,7 +232,7 @@ export class TouchControls {
     root.innerHTML = `
       <div class="pl-stick"><div class="pl-knob"></div></div>
       <div class="pl-aimring" aria-hidden="true"><i class="full"></i><i class="smart"></i></div>
-      <div class="pl-cancel" aria-label="Cancel">✕</div>
+      <div class="pl-cancel" aria-label="Cancel"><i aria-hidden="true"></i></div>
       <div class="pl-tcluster">
         <button class="pl-tbtn attack" data-b="attack" aria-label="Attack"><span>ATK</span></button>
         <button class="pl-tbtn q" data-b="q" aria-label="Q"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
@@ -431,7 +447,7 @@ export class TouchControls {
     if (g.fired) return;
     if (!g.dragging && Math.hypot(g.x - g.x0, g.y - g.y0) > DRAG_PX) {
       g.dragging = true;
-      this.cancelEl.classList.add('on');
+      this.showBubble(g);
       this.showAimRing(g);
     }
     if (g.dragging) this.aimRingEl.classList.toggle('back', this.aimBack(g));
@@ -458,16 +474,34 @@ export class TouchControls {
     el.classList.add('on');
   }
 
-  /** CF-01: is the thumb on the ✕, and has it rested there for CANCEL_DWELL_MS? ('arming' while it waits, 'hot' once armed). */
+  /**
+   * Feel pass B4: the cancel bubble fades in above the pressed button (when the drag or the hold starts), not at the
+   * top centre 300 px away: a thumb pushed past the full-range ring and rested there cancels.
+   */
+  private showBubble(g: Drag): void {
+    if (g.bubble) return;
+    const el = this.buttons.get(g.btn);
+    const r = el?.getBoundingClientRect();
+    const bx = r && r.width > 0 ? r.left + r.width / 2 : g.x0;
+    const by = r && r.height > 0 ? r.top + r.height / 2 : g.y0;
+    g.bubble = cancelBubbleAt(bx, by, window.innerWidth, window.innerHeight);
+    this.cancelEl.style.transform = `translate(${g.bubble.x}px, ${g.bubble.y}px)`;
+    this.cancelEl.classList.remove('hot', 'arming');
+    this.cancelEl.classList.add('on');
+  }
+
+  /** CF-01: is the thumb on the cancel bubble, and has it rested there for CANCEL_DWELL_MS? ('arming' while it waits, 'hot' once armed). */
   private checkCancel(g: Drag, now: number): void {
-    const r = this.cancelEl.getBoundingClientRect();
-    const inside = r.width > 0 && g.x >= r.left - CANCEL_SLACK && g.x <= r.right + CANCEL_SLACK && g.y >= r.top - CANCEL_SLACK && g.y <= r.bottom + CANCEL_SLACK;
+    const b = g.bubble;
+    const inside = !!b && Math.hypot(g.x - b.x, g.y - b.y) <= CANCEL_BUBBLE.d / 2 + CANCEL_SLACK;
     if (!inside) g.cancelIn = null;
     else if (g.cancelIn === null) g.cancelIn = now;
     const was = g.overCancel;
     g.overCancel = inside && g.cancelIn !== null && now - g.cancelIn >= CANCEL_DWELL_MS;
     this.cancelEl.classList.toggle('arming', inside && !g.overCancel);
     this.cancelEl.classList.toggle('hot', g.overCancel);
+    // armed: a haptic tick (the bubble turns red)
+    if (g.overCancel && !was) haptic('cast');
     if (g.overCancel !== was) this.preview(g);
   }
 
@@ -568,7 +602,7 @@ export class TouchControls {
   tapAim(slot: CastIndex, me: Unit): { x: number; y: number; id: number } {
     const aim = this.h.orders.aimSpec(slot);
     if (aim.heading) return { ...headingPoint(aim, me, this.heading(me, aim)), id: 0xff };
-    const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
+    const p = smartAim(aim, this.targets(), me, this.h.view.myTeam, this.facing(), this.lockedId());
     // CF-03: a blink (Pounce, Avietė E) follows the held stick too, at full range (smartAim's fallback is the facing)
     const a = aim.blink ? this.stickCastAngle(me, aim, performance.now()) : aim.kind === 'dir' ? this.stickAngle() : null;
     if (a === null) return p;
@@ -650,6 +684,13 @@ export class TouchControls {
    * the Live Wire return window, from where the sim had her before the blink (the snapshot of the tick before).
    */
   onSimEvent(ev: SimEvent): void {
+    if (ev.type === 'cast' && ev.slot === 2 && ev.src !== this.h.view.mySlot) {
+      const v = this.h.view.frame?.byId.get(ev.src);
+      if (v?.hero === 'howler' && v.team !== this.h.view.myTeam) {
+        const tickMs = 1000 / TICK_HZ / Math.max(1, this.h.orders.speed);
+        this.deter.set(ev.src, performance.now() + (HEROES.howler.abilities.e.duration ?? 30) * tickMs);
+      }
+    }
     if (ev.type !== 'cast' || ev.src !== this.h.view.mySlot) return;
     const r = this.runOn;
     if (r && r.slot === ev.slot && r.tick === null) r.tick = ev.tick;
@@ -772,7 +813,23 @@ export class TouchControls {
 
   /** The locked enemy hero while the lock holds (GAPS A5), else null. */
   lockedId(): number | null {
-    return this.lock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now());
+    return this.lock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now(), lockBreakMm(this.range()));
+  }
+
+  /**
+   * Feel pass B4: enemy Howlers arguing back (Talk Back, his E: each hero that hits him is feared) until (ms). The
+   * Attack ring, the Attack button and the quick-cast auto-target skip them, as the bots do (`deterBasics`); a lock
+   * still wins (the player chose it). Client only, from the cast events.
+   */
+  private readonly deter = new Map<number, number>();
+  /** The units the auto-targeting may pick (an arguing Howler left out). */
+  private targets(): readonly Unit[] {
+    const all = this.h.units();
+    if (this.deter.size === 0) return all;
+    const now = performance.now();
+    for (const [id, until] of this.deter) if (now >= until) this.deter.delete(id);
+    const lock = this.lock.id;
+    return all.filter((u) => !this.deter.has(u.id) || u.id === lock);
   }
 
   /**
@@ -846,7 +903,7 @@ export class TouchControls {
     // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
     const kill = this.killFn();
     // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
-    const id = attackPreview(units, me, this.h.view.myTeam, range, this.first, kill, locked);
+    const id = attackPreview(this.targets(), me, this.h.view.myTeam, range, this.first, kill, locked);
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
     // field had ringed before this tap (the last preview drawn, at most 100 ms old)
     this.lastPick = {
@@ -925,7 +982,7 @@ export class TouchControls {
     if (now - this.previewAt < 100) return;
     this.previewAt = now;
     const units = this.h.units();
-    const id = me && me.state !== 'dead' ? attackPreview(units, me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
+    const id = me && me.state !== 'dead' ? attackPreview(this.targets(), me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
     // out of reach the tap walks first: the ring dims
     const far = id !== null && !!me && !inAttackReach(units.find((u) => u.id === id), me, this.range());
     this.h.view.atkPreviewFar = far;
@@ -952,7 +1009,7 @@ export class TouchControls {
     // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
     // CF-02: the Attack button's order (Settings "Target first"), in range only
     // UX pass 2: only the very unit the Attack button rings (attackPreview, the lock first), and only in reach
-    const id = autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.lockedId());
+    const id = autoAttackTarget(this.targets(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.lockedId());
     if (id === null) return;
     this.autoAt = now;
     this.autos++;
@@ -1070,7 +1127,10 @@ export class TouchControls {
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;
     }
     for (const g of this.drags.values()) {
-      if (!g.fired && !g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
+      if (!g.fired && !g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) {
+        this.previewHold(g);
+        this.showBubble(g);
+      }
       // CF-01: a thumb resting still on the ✕ sends no pointermove, so the dwell is checked per frame too
       if (g.dragging && g.cancelIn !== null && !g.overCancel) this.checkCancel(g, now);
     }
