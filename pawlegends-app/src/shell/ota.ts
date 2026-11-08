@@ -13,6 +13,16 @@
  */
 import { decide, parseManifest, safeToApply, verifyManifest, type BundleStamp, type OtaManifest } from './manifest';
 
+/**
+ * Whether this platform takes over-the-air updates. The iPhone app does (guidelines 2.5.2 and 4.7). The Mac app
+ * (`__PL_PLATFORM__ === 'mac'`, set by GameViewController.swift) does not: Mac App Store guideline 2.4.5 (v) and
+ * (viii) rule out downloading resources and updating outside the Mac App Store, so the Mac only ever runs the game
+ * bundled in its build and gets new content as a new build through App Review.
+ */
+export function takesOtaUpdates(platform: unknown): boolean {
+  return platform !== 'mac';
+}
+
 export interface BundleRef {
   id: string;
   version: string;

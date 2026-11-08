@@ -16,8 +16,8 @@ PARTY PLAY (optional, needs the internet)
 NO PURCHASES
 The app has no in-app purchases, no ads, no external purchase links, no crypto or wallet features and no donations. The card collection only shows the free starter cats. The title screen line "Your cats become skins / No cat cards yet" is information only: the app has no sign-in, and nothing in it links to a store or website to get more.
 
-GAME CONTENT UPDATES (guideline 2.5.2, 4.7)
-The app checks tokentails.com on launch for a newer version of its own game files (HTML, JavaScript, images, sounds), signed and encrypted with our key, and applies it only on the title screen, never during a match. These updates run inside the system WKWebView and only change game content within the app's existing purpose (balance, bug fixes, new heroes). They never download or execute native code, and they never add purchases or change the app's main purpose. Any change that needs new permissions or native features goes through App Review as a new build. If an update does not start correctly, the app returns to the previous version automatically.
+NO DOWNLOADED CONTENT ON THE MAC
+The Mac app runs only the game files included in this build. It does not download code, game files or other resources, and it does not update itself: new versions of the Mac app come only through the Mac App Store (guideline 2.4.5).
 
 SANDBOX AND PRIVACY
 The Mac app uses the App Sandbox with outgoing network connections only (com.apple.security.network.client); it reads and writes no user files and uses no camera, microphone or location. No analytics, no tracking, no advertising identifier. Party play sends a random party key, a generated player name and match inputs to our game server only to run the match (details: https://tokentails.com/pawlegends/privacy).
