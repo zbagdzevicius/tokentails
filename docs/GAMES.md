@@ -208,11 +208,31 @@ dogs (10): Sir Brutus, Cacklejaw, the five original dogs (sim v14, `docs/plans/m
 (support), Marshmallow (mage), Bravo (tank), Chili (marksman) and Howler (fighter), and three more (sim v15,
 `docs/plans/moba/DOGS-V15.md`) Rocket (marksman), Frankie (assassin) and Domino (mage), so both sides have the same roles. A match ends on a core kill, at the latest at 11:00 (safety end); most end
 between 5 and 8 minutes. The whole match runs in a deterministic integer sim (`pawlegends/src/sim/`, 30 ticks a
-second, `SIM_VERSION` 15) in a Web Worker, and the backend replays it (v10 to v15 replays all verify, by
-`simVersion`; v13 is party play without the dogs and v14 party play with seven dogs, both frozen at their release
-and still served to party clients on those versions; v12 and v13 for 30 days after the v14 deploy, v14 for 30 days after
-the v15 deploy; v10 retires in the first sim change after about Dec 1; v9 is
-retired).
+second, `SIM_VERSION` 17) in a Web Worker, and the backend replays it (v10 to v17 replays all verify, by
+`simVersion`; v13 is party play without the dogs and v14 party play with seven dogs, v16 casual PvP before the
+counter-play batch, each frozen at its release and still served to party clients on that version; v12 and v13 for 30
+days after the v14 deploy, v14 for 30 days after the v15 deploy; v10 retires in the first sim change after about
+Dec 1; v9 is retired).
+
+- **Counter-play rules (sim v17, `docs/plans/moba/V17.md`)**:
+  - **Steadfast:** a hero under 2 s of hard CC (stun, fear, charm, root, knockback, pull) within 4 s gets 1 s of CC immunity. One chain never locks longer than 2 s. The hero shows a white outline and a "Steadfast!" word.
+  - **Windups on every instant hard CC:**
+    - Cacklejaw W, Meatball W and Sir Brutus E: 0.3 s.
+    - Lambo E: 0.4 s, with the ring drawn at the landing point.
+    - Frankie W: pops no sooner than 0.3 s.
+    - Bengas W: 0.5 s.
+  - **Big ults wind up longer:**
+    - Lambo R and Gabė R: 0.67 s.
+    - Bravo R and Duchess R: 0.7 s (Duchess R now gives one Disdain).
+    - Domino R: 0.6 s at 9.5 m.
+    - Purr-ify (1 s of immunity) cast on the telegraph blocks any of them.
+  - **Pack Hunt** marks its victim at the start of a 0.3 s windup and fizzles if the victim escapes.
+  - **Sir Brutus's ring** lasts 2.5 s; the challenged hero breaks it with Pounce or any cleanse.
+  - **Avietė's** Shiny Coat charges after 0.5 s, and her R no longer stuns.
+  - **Six skill shots fly slower.**
+  - **Howler's Talk Back** scares only attackers within 4.5 m.
+  - **Feared heroes** slide along walls.
+  - **Minions** see into bushes from 3 m.
 
 - **Difficulties**: Rookie (match 1 only, Clem pre-selected, "Play as Clem"), Easy (matches 2 and 3), then
   the Easy, Normal and Hard chips from match 4. The level sets the three enemy bots; the player's allies play
