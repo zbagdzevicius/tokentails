@@ -116,7 +116,7 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
       'wide-slam': 'Shield Slam is wider.',
       bulwark: 'Front Guard lasts longer.',
       'guard-post': 'Front Guard becomes a dome around you that blocks enemy shots for every friend inside. You stand still while it lasts and take less damage.',
-      'arena-of-honour': 'The challenge ring lasts 4 s.',
+      'arena-of-honour': 'The challenge ring lasts 3.5 s.',
       'rally-howl': 'Friends in the ring run faster.',
     },
     branch: { slot: 1, name: 'Guard Post', text: 'Plant a dome that blocks enemy shots for friends inside. You stand still and take less damage while it lasts.', icon: 'dome' },
@@ -249,8 +249,8 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
 export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze({
   pounce: { name: 'Pounce', text: 'Blink 4 m.', icon: 'blink' },
   snack: { name: 'Snack Break', text: 'Heal a quarter of your health over 2 s.', icon: 'heart' },
-  hiss: { name: 'Hiss', text: 'Scare enemies around you for 1 s.', icon: 'hiss' },
-  purrify: { name: 'Purr-ify', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 0.5 s.', icon: 'purr' },
+  hiss: { name: 'Hiss', text: 'Scare enemies around you for 0.7 s.', icon: 'hiss' },
+  purrify: { name: 'Purr-ify', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 1 s.', icon: 'purr' },
 });
 
 /**
@@ -258,8 +258,8 @@ export const TRICK_TEXT: Readonly<Record<TrickId, AbilityText>> = Object.freeze(
  * Same numbers, same icons; only the words change.
  */
 const DOG_TRICK_TEXT: Readonly<Partial<Record<TrickId, AbilityText>>> = Object.freeze({
-  hiss: { name: 'Growl', text: 'Scare enemies around you for 1 s.', icon: 'hiss' },
-  purrify: { name: 'Shake Off', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 0.5 s.', icon: 'purr' },
+  hiss: { name: 'Growl', text: 'Scare enemies around you for 0.7 s.', icon: 'hiss' },
+  purrify: { name: 'Shake Off', text: 'Shake off stuns, roots, slows, scares and charms, even mid-stun, then ignore them for 1 s.', icon: 'purr' },
 });
 
 /** A Paw Trick's words for `hero`'s side (a dog growls and shakes off; a cat hisses and purrs). */
@@ -513,7 +513,7 @@ export const TALENT_SHORT: Readonly<Record<string, string>> = Object.freeze({
   'wide-slam': 'Wider Slam',
   bulwark: 'Longer Front Guard',
   'guard-post': 'Shot-blocking dome',
-  'arena-of-honour': 'Ring lasts 4 s',
+  'arena-of-honour': 'Ring lasts 3.5 s',
   'rally-howl': 'Friends run faster',
   'long-jeer': 'Longer Jeer dash',
   'cruel-jeer': 'Second Jeer slows',

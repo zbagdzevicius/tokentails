@@ -49,7 +49,7 @@ describe('B6: branch data', () => {
 
   it('numbers in words for the hover card', () => {
     expect(branchNumbers('sage')).toBe('7 s cooldown · 95 (+14/lvl) dmg · 9 m');
-    expect(branchNumbers('brutus')).toBe('10 s cooldown · 3 m dome · lasts 2 s · 25% less damage');
+    expect(branchNumbers('brutus')).toBe('10 s cooldown · 3 m dome · lasts 2 s · 30% less damage');
     expect(branchNumbers('clem')).toBe('');
   });
 });
