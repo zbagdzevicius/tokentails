@@ -19,10 +19,12 @@ this branch is merged and Vercel deploys.
 Mac Catalyst of the same iOS target, same bundle id and app record (universal purchase), "Optimize for Mac" idiom
 (`TARGETED_DEVICE_FAMILY[sdk=macosx*] = 6`; iOS stays iPhone only). App Sandbox + network client, hardened runtime,
 `LSApplicationCategoryType` strategy games, Mac icon sizes, PrivacyInfo bundled, `ITSAppUsesNonExemptEncryption` false.
-All pods build for Catalyst unchanged. OTA reuses the `ios/<compat>` manifests. The page sees `__PL_PLATFORM__ = 'mac'`
+All pods build for Catalyst unchanged. No OTA on the Mac (guideline 2.4.5 (v) and (viii)): the shell skips the check
+and apply when `__PL_PLATFORM__ === 'mac'`, so Mac content updates ship as new builds. `UIRequiresFullScreen` removed
+(it locks a Catalyst window's size; iPhone ignores it). The page sees `__PL_PLATFORM__ = 'mac'`
 and keeps the desktop controls and HUD. Lanes `mac_beta`, `mac_metadata`, `mac_submit` (README "Releases"). Checked:
 unsigned Debug and Release Catalyst builds; the app opens at 1440×810 and renders the title (pointer fine, no touch
-controls, no haptics bridge). Not checked: a signed sandboxed build, OTA on the Mac, a full match with real mouse input.
+controls, no haptics bridge). Not checked: a signed sandboxed build, drag-resizing the window, a full match with real mouse input.
 
 ### Mac listing
 
@@ -56,8 +58,9 @@ Where the build differs from the plan below, the build wins:
 - No storyboards. The window and `GameViewController` are made in `AppDelegate`; the launch screen is the
   Info.plist `UILaunchScreen` (game background colour and the boot paw from the asset catalog). This avoids `ibtool`
   in CI and matches the web boot splash.
-- iPhone only (`TARGETED_DEVICE_FAMILY = 1`) as planned; the iPad landscape keys and `UIRequiresFullScreen` are set
-  too, so adding iPad later is one build setting plus iPad screenshots.
+- iPhone only (`TARGETED_DEVICE_FAMILY = 1`) as planned; the iPad landscape keys are set too, so adding iPad later is
+  one build setting plus iPad screenshots (and `UIRequiresFullScreen` in an iPad-only plist key, since on the Mac
+  it stops the window from resizing).
 - OTA: our own encryption and signing code (`pawlegends-app/scripts/lib/capgo-crypto.mjs`) in the format the
   updater checks natively, instead of the Capgo CLI. Secret name `OTA_PRIVATE_KEY` (not `CAPGO_PRIVATE_KEY`). Files
   at `client/public/pawlegends-app/updates/ios/<compat>/` (`manifest.json`, `manifest-beta.json`,

@@ -3,7 +3,8 @@
  * scripts/build-web.mjs). Native only: on any other page it does nothing.
  *
  * - haptics: a `navigator.vibrate` backed by the Taptic Engine (haptics.ts), iPhone only (not in the Mac app);
- * - OTA: notifyAppReady once the title is up, update checks on launch and resume, apply on the title (ota.ts).
+ * - OTA: notifyAppReady once the title is up, update checks on launch and resume, apply on the title (ota.ts);
+ *   iPhone only: the Mac app runs only the game bundled in its build (takesOtaUpdates in ota.ts, guideline 2.4.5).
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -11,7 +12,7 @@ import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
 import { channelOf, manifestUrl, type BundleStamp } from './manifest';
 import { installVibrate } from './haptics';
-import { Ota, type KV } from './ota';
+import { Ota, takesOtaUpdates, type KV } from './ota';
 
 declare const __PL_STAMP__: BundleStamp;
 declare const __PL_SPKI__: string;
@@ -60,7 +61,8 @@ function partySeat(): boolean {
 function start(): void {
   if (!Capacitor.isNativePlatform()) return;
   // the Mac app (Mac Catalyst) has no Taptic Engine: no vibrate bridge there, the game's haptics stay silent
-  const mac = (window as unknown as { __PL_PLATFORM__?: unknown }).__PL_PLATFORM__ === 'mac';
+  const platform = (window as unknown as { __PL_PLATFORM__?: unknown }).__PL_PLATFORM__;
+  const mac = platform === 'mac';
   if (!mac) {
     const styles = { LIGHT: ImpactStyle.Light, MEDIUM: ImpactStyle.Medium, HEAVY: ImpactStyle.Heavy } as const;
     installVibrate(navigator, { impact: (o) => Haptics.impact({ style: styles[o.style] }) });
@@ -85,6 +87,13 @@ function start(): void {
     now: () => Date.now(),
     log: (m) => console.info(`${m} (channel ${channel})`),
   });
+
+  // the Mac app never downloads game files (Mac App Store guideline 2.4.5): it only settles the boot watchdog
+  if (!takesOtaUpdates(platform)) {
+    void whenReady().then(() => ota.booted());
+    console.info(`[ota] ${__PL_STAMP__.version}: no over-the-air updates on this platform (${String(platform)})`);
+    return;
+  }
 
   void whenReady().then(async () => {
     await ota.booted();
