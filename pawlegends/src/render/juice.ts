@@ -18,8 +18,10 @@ export const XP_MERGE_MS = 900;
 
 /** Global slow motion never runs longer than this (ms) unless asked for the match end (ANIM-SPEC §6). */
 export const SLOWMO_CAP_MS = 110;
-/** C11a: a full freeze of the global clock lasts at most this long (3 frames at 60 Hz). */
-export const FREEZE_CAP_MS = 48;
+/** C11a + feel pass B5: a full freeze of the global clock lasts at most this long (ms). */
+export const FREEZE_CAP_MS = 90;
+/** Feel pass B5: the hitstop on the player's own heavy hits on a hero and own kills (never on minion hits). */
+export const HITSTOP_MS = 50;
 /** C11d: kicks under this trauma are dropped: the screen shakes for the player's kills and big hits only. */
 export const KICK_MIN = 0.2;
 

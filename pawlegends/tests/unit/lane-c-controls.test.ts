@@ -186,7 +186,7 @@ describe('C11 feel', () => {
     const throws = { vibrate: () => { throw new Error('no'); } };
     expect(haptic('cc', throws, true, 6000)).toBe(false);
   });
-  it('global freezes are capped at 3 frames and small shakes are dropped', () => {
+  it('global freezes are capped at FREEZE_CAP_MS (feel pass B5: 90 ms) and small shakes are dropped', () => {
     const j = new Juice(null as unknown as HTMLElement);
     j.hitstop(120);
     let frozen = 0;
