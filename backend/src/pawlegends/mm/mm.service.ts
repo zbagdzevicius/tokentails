@@ -3,6 +3,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import type { Model } from 'mongoose';
 import { MmBridge, type MmHookFactory, type MmHooks, type MmRelayApi } from './mm-bridge';
 import { MongoMmRoomStore, PawlegendsMmRoom, PawlegendsMmRoomSchema } from './mm-room.schema';
+import { User } from '../../user/user.schema';
 import { MmRatingReader, PawlegendsRating, PawlegendsRatingSchema } from './rating.schema';
 
 /*
@@ -22,10 +23,12 @@ export class MmService implements MmHookFactory {
 
     constructor(
         @Optional() @InjectModel(PawlegendsRating.name) private readonly ratingModel?: Model<PawlegendsRating>,
-        @Optional() @InjectModel(PawlegendsMmRoom.name) mmRoomModel?: Model<PawlegendsMmRoom>
+        @Optional() @InjectModel(PawlegendsMmRoom.name) mmRoomModel?: Model<PawlegendsMmRoom>,
+        // the casual newbie lock and seed read the account's saved matches (server records, never the client hint)
+        @Optional() @InjectModel(User.name) userModel?: Model<User>
     ) {
         this.rooms = new MongoMmRoomStore(mmRoomModel);
-        this.reader = new MmRatingReader(ratingModel ?? null);
+        this.reader = new MmRatingReader(ratingModel ?? null, Date.now, userModel ?? null);
     }
 
     hooks(api: MmRelayApi): MmHooks {

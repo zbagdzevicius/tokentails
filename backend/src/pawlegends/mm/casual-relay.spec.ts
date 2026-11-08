@@ -11,7 +11,7 @@ const VET = { hint: { maxDifficulty: 'normal', newbie: false, matches: 12 } };
 
 async function vets(b: Awaited<ReturnType<typeof bootMm>>, n: number): Promise<TestClient[]> {
     const out: TestClient[] = [];
-    for (let i = 0; i < n; i++) out.push(await b.guest(VET));
+    for (let i = 0; i < n; i++) out.push(await b.veteran(VET));
     return out;
 }
 
@@ -100,7 +100,7 @@ describe('casual PvP relay (M1b)', () => {
                 expect(m.species).toEqual(views[0].mm.species);
             }
             expect(new Set(matches.map(m => m.you.slot))).toEqual(new Set([0, 1, 2, 3, 4, 5]));
-            const rec = [...b.mmRooms.rooms.values()][0];
+            const rec = [...b.mmRooms.rooms.values()].find(r => !r._id.startsWith('vetroom'))!;
             expect(rec).toMatchObject({ queue: 'casual', mode: 'casual', fill: [] });
             expect(rec.teams!.map(t => t.slots)).toEqual([
                 [0, 1, 2],
@@ -152,7 +152,7 @@ describe('casual PvP relay (M1b)', () => {
     it('casual needs PROTO 3 and 5 matches; PROTO 2 gets pvp_update_required, a newbie mm_locked{pvp_newbie}', async () => {
         const b = await bootMm();
         try {
-            const old = await b.guest({ proto: 2, ...VET });
+            const old = await b.veteran({ proto: 2, ...VET });
             old.send({ t: 'mm.join', queue: 'casual', side: 'any' });
             // PROTO 2 never receives the PROTO 3 error code: nothing comes back, and nothing is queued
             await nextTick();
@@ -164,7 +164,31 @@ describe('casual PvP relay (M1b)', () => {
                 code: 'mm_locked',
                 reason: 'pvp_newbie',
             });
-            const late = await b.guest(VET);
+            // the hint is never trusted: 12 claimed matches with no server record (a fresh guest key) stay locked
+            const liar = await b.guest(VET);
+            liar.send({ t: 'mm.join', queue: 'casual', side: 'any' });
+            expect(await liar.until(() => liar.last('error'))).toMatchObject({
+                code: 'mm_locked',
+                reason: 'pvp_newbie',
+            });
+            // four completed rooms are not five
+            const four = await b.veteran(VET, 4);
+            four.send({ t: 'mm.join', queue: 'casual', side: 'any' });
+            expect(await four.until(() => four.last('error'))).toMatchObject({
+                code: 'mm_locked',
+                reason: 'pvp_newbie',
+            });
+            // an IP-only identity (no ticket, no guest key) has no record and never queues PvP
+            const anon = await b.client();
+            anon.hello({ ...VET });
+            await anon.until(() => anon.last('welcome'));
+            anon.send({ t: 'mm.join', queue: 'casual', side: 'any' });
+            expect(await anon.until(() => anon.last('error'))).toMatchObject({
+                code: 'mm_locked',
+                reason: 'pvp_newbie',
+            });
+            expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(0);
+            const late = await b.veteran(VET);
             late.send({ t: 'mm.accept', match: 'abcdefghijkl', yes: true });
             await nextTick();
             expect(late.last('error')).toBeUndefined();

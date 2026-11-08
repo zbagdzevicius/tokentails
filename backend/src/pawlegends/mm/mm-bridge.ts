@@ -113,7 +113,15 @@ export interface MmDeps {
     rooms: MmRoomStore;
     ratings: MmRatingSource | null;
     newId?: () => string;
+    /**
+     * The e2e relay harness only (test/party-relay.harness.ts, browsers with no server history): the casual newbie lock
+     * reads the client's `hint.matches`. Production (MmService) never sets it: the lock counts server records only.
+     */
+    trustHintMatches?: boolean;
 }
+
+/** How far back the completed Quick Play rooms of a guest-key identity count for the PvP newbie lock. */
+const PLAYED_ROOMS_MS = 90 * 86_400_000;
 
 /** The factory the relay takes (MmService in production; the default builds a memory-backed bridge). */
 export interface MmHookFactory {
@@ -394,10 +402,12 @@ export class MmBridge implements MmHooks {
         }
         let ratings: Glicko[];
         let ladders: LeaverStatus[];
+        let played: number[];
         try {
-            [ratings, ladders] = await Promise.all([
+            [ratings, ladders, played] = await Promise.all([
                 Promise.all(socks.map(s => this.ratingFor(s, queue))),
                 Promise.all(socks.map(s => this.leaverFor(s.identity))),
+                queue === 'casual' ? Promise.all(socks.map(s => this.playedFor(s))) : Promise.resolve([]),
             ]);
         } finally {
             for (const id of memberIds) this.joining.delete(id);
@@ -422,8 +432,12 @@ export class MmBridge implements MmHooks {
             newbie: !!s.hint?.newbie || ratings[i].rd > MM_LIMITS.newbieRd,
             maxDifficulty: s.hint?.maxDifficulty ?? null,
         }));
-        // casual: a member whose rating is still wide open (rd > 300) is a newbie for PvP too
-        if (queue === 'casual' && members.some(m => m.rating.rd > MM_CASUAL.newbieRd))
+        // casual: the lock on server records (never the client's hint): fewer than 5 completed matches, or a rating
+        // still wide open (rd > 300); an IP-only identity (no ticket, no guest key) has no record and never queues PvP
+        if (
+            queue === 'casual' &&
+            (played.some(n => n < MM_CASUAL.newbieMatches) || members.some(m => m.rating.rd > MM_CASUAL.newbieRd))
+        )
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
         const wait = Math.max(
             ...ladders.map(l => l.waitMs),
@@ -462,22 +476,76 @@ export class MmBridge implements MmHooks {
     }
 
     private async ratingFor(s: MmSock, queue: 'coop' | 'casual' = 'coop'): Promise<Glicko> {
-        const seed = seedRating(s.hint?.maxDifficulty);
-        if (!s.identity.accountId || !this.deps.ratings) return seed;
+        // casual never seeds from the client's hint (it would pick its own start and, through it, its fill bots): no
+        // row starts at the middle with rd at the newbie line, or at the top difficulty the server saw it play
+        const casualSeed = async (): Promise<Glicko> => {
+            const top = s.identity.accountId
+                ? await this.deps.ratings?.played?.(s.identity.accountId).catch(() => null)
+                : null;
+            return top?.top
+                ? seedRating(top.top)
+                : { r: DEFAULT_GLICKO.r, rd: MM_CASUAL.newbieRd, sigma: DEFAULT_GLICKO.sigma };
+        };
+        const seed = queue === 'casual' ? null : seedRating(s.hint?.maxDifficulty);
+        if (!s.identity.accountId || !this.deps.ratings) return seed ?? (await casualSeed());
         try {
             // casual: its own row; before the first PvP match, the co-op row seeds it
             const row =
                 (queue === 'casual' ? await this.deps.ratings.get(s.identity.accountId, 'casual') : null) ??
                 (await this.deps.ratings.get(s.identity.accountId));
-            if (!row) return seed;
+            if (!row) return seed ?? (await casualSeed());
             return growRd(
                 { r: row.r, rd: row.rd, sigma: row.sigma },
                 row.lastAt ? new Date(row.lastAt).getTime() : null,
                 this.api.now()
             );
         } catch {
-            return seed;
+            return seed ?? { r: DEFAULT_GLICKO.r, rd: MM_CASUAL.newbieRd, sigma: DEFAULT_GLICKO.sigma };
         }
+    }
+
+    /**
+     * Completed matches for the casual newbie lock, from server records only: an account's saved (replay-verified)
+     * matches and rated games, and every identity's completed Quick Play rooms (not left, not voided). An IP-only
+     * identity has none (its rooms are keyed per socket). A failed read counts as none (the lock holds).
+     */
+    private async playedFor(s: MmSock): Promise<number> {
+        if (this.deps.trustHintMatches) return s.hint?.matches ?? 0;
+        if (s.identity.key.startsWith('ip:')) return 0;
+        const hash = identityHash(s.identity.key);
+        const acct = s.identity.accountId;
+        const r = this.deps.ratings;
+        const [saved, coop, casual, rooms] = await Promise.all([
+            acct && r?.played
+                ? r.played(acct).then(
+                      p => p?.matches ?? 0,
+                      () => 0
+                  )
+                : 0,
+            acct && r
+                ? r.get(acct).then(
+                      row => row?.games ?? 0,
+                      () => 0
+                  )
+                : 0,
+            acct && r
+                ? r.get(acct, 'casual').then(
+                      row => row?.games ?? 0,
+                      () => 0
+                  )
+                : 0,
+            this.deps.rooms.recentFor(hash, new Date(this.api.now() - PLAYED_ROOMS_MS)).then(
+                list =>
+                    list.filter(
+                        room =>
+                            room.endedAt &&
+                            !room.void &&
+                            room.members.some(m => m.identityHash === hash && m.event !== 'left')
+                    ).length,
+                () => 0
+            ),
+        ]);
+        return Math.max(saved, coop + casual, rooms);
     }
 
     private async leaverFor(identity: MemberIdentity): Promise<LeaverStatus> {
@@ -745,6 +813,10 @@ export class MmBridge implements MmHooks {
                       species: [match.teams[0].species, match.teams[1].species] as ['cat' | 'dog', 'cat' | 'dog'],
                       fillDifficulty: [match.teams[0].difficulty, match.teams[1].difficulty] as [string, string],
                       humans: Object.values(slots).sort((a, b) => a - b),
+                      // pre-made parties by slot (V16 §4.2: a party mate's leave never opens a remake for the rest)
+                      premade: group
+                          .filter(e => e.members.length > 1)
+                          .map(e => e.members.map(m => slots[m.member]).sort((a, b) => a - b)),
                   };
               })()
             : undefined;

@@ -68,19 +68,60 @@ export class PawlegendsRating {
 }
 export const PawlegendsRatingSchema = SchemaFactory.createForClass(PawlegendsRating);
 
+/** An account's replay-verified saved matches (`User.pawlegendsMatches`): how many, and the top difficulty played. */
+export interface MmPlayed {
+    matches: number;
+    top: string | null;
+}
+
 /** What the relay may read: one row per account, cached 60 s. */
 export interface MmRatingSource {
     get(accountId: string, queue?: MmRatingQueue): Promise<MmRatingRow | null>;
+    /** The account's saved matches (server records, never the client's hint), for the casual newbie lock and seed. */
+    played?(accountId: string): Promise<MmPlayed | null>;
+}
+
+/** The top difficulty with a saved match and the total, from `pawlegendsMatches` (junk keys and values ignored). */
+export function playedOf(counts: Record<string, unknown> | null | undefined): MmPlayed {
+    const order = ['rookie', 'easy', 'normal', 'hard'];
+    let matches = 0;
+    let top: string | null = null;
+    for (const d of order) {
+        const n = counts?.[d];
+        if (typeof n !== 'number' || !Number.isFinite(n) || n <= 0) continue;
+        matches += Math.floor(n);
+        top = d;
+    }
+    return { matches, top };
 }
 
 /** Built by MmService with the model (find only). */
 export class MmRatingReader implements MmRatingSource {
     private readonly cache = new Map<string, { row: MmRatingRow | null; atMs: number }>();
 
+    private readonly playedCache = new Map<string, { played: MmPlayed | null; atMs: number }>();
+
     constructor(
         private readonly model: Pick<Model<PawlegendsRating>, 'findById'> | null,
-        private readonly now: () => number = Date.now
+        private readonly now: () => number = Date.now,
+        /** The users collection (find only, `pawlegendsMatches`). */
+        private readonly users: { findById(id: string): any } | null = null
     ) {}
+
+    async played(accountId: string): Promise<MmPlayed | null> {
+        if (!this.users) return null;
+        const now = this.now();
+        const hit = this.playedCache.get(accountId);
+        if (hit && now - hit.atMs < MM_LIMITS.readCacheMs) return hit.played;
+        const doc = (await this.users.findById(accountId).select({ pawlegendsMatches: 1 }).lean()) as {
+            pawlegendsMatches?: Record<string, unknown>;
+        } | null;
+        const played = doc ? playedOf(doc.pawlegendsMatches) : null;
+        this.playedCache.set(accountId, { played, atMs: now });
+        if (this.playedCache.size > 5000)
+            for (const k of [...this.playedCache.keys()].slice(0, 1000)) this.playedCache.delete(k);
+        return played;
+    }
 
     async get(accountId: string, queue: MmRatingQueue = 'coop'): Promise<MmRatingRow | null> {
         if (!this.model) return null;
@@ -98,6 +139,11 @@ export class MmRatingReader implements MmRatingSource {
 /** In memory (specs, harness). */
 export class MemoryRatingSource implements MmRatingSource {
     readonly rows = new Map<string, MmRatingRow>();
+    /** Saved matches by account (specs). */
+    readonly saved = new Map<string, MmPlayed>();
+    async played(accountId: string): Promise<MmPlayed | null> {
+        return this.saved.get(accountId) ?? null;
+    }
     async get(accountId: string, queue: MmRatingQueue = 'coop'): Promise<MmRatingRow | null> {
         return this.rows.get(queue === 'coop' ? accountId : ratingId(accountId, queue)) ?? null;
     }
