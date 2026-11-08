@@ -11,7 +11,8 @@ export const TRICKS = Object.freeze({
   hiss: Object.freeze({ cooldown: 3000, fear: 30, radius: 3000 }),
   /**
    * Sim v10: cleanse stun, root, slow, fear and charm, then `immune` ticks of crowd-control immunity. Castable while
-   * crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels).
+   * crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels). Sim v16: 2400 (46.7% after MAP-GAPS B3 kept
+   * chargers on their target).
    */
-  purrify: Object.freeze({ cooldown: 2700, immune: 15 }),
+  purrify: Object.freeze({ cooldown: 2400, immune: 15 }),
 });

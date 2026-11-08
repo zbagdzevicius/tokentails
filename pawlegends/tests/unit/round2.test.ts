@@ -131,7 +131,7 @@ describe('sim v8: bots', () => {
     // sim v9 balance pass: the cat heroes carry their own small numbers too (Clem 8100/9625 since the sim v15 balance pass)
     expect(HEROES.clem.pvp).toEqual({ dmgBp: 8100, takenBp: 9625 });
     expect(pvpNumbers('clem')).toBe('Hero fights (Normal, Hard): deals 19% less · takes 3.8% less');
-    expect(pvpNumbers('brutus')).toMatch(/^Hero fights \(Normal, Hard\): deals 13\.8% less · takes 2\.8% less$/);
+    expect(pvpNumbers('brutus')).toMatch(/^Hero fights \(Normal, Hard\): deals 13\.8% less · takes 1\.3% less$/);
     // the bots chips no longer print a species handicap
     for (const h of Object.values(DIFFICULTY_HINT)) expect(h).not.toMatch(/species|Woof pack/);
   });

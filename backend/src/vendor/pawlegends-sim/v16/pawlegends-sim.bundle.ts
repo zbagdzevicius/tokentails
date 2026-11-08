@@ -786,9 +786,9 @@ var BENGAS = Object.freeze({
 	name: "Bengas",
 	side: "cat",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 8700 (48.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9700 / takes 8725 (52.1% of the 2,000-seed gate). */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 8700 (48.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9700 / takes 8725 (52.1% of the 2,000-seed gate). Sim v16 (MAP-GAPS B11, a hit from a bush reveals the attacker): 9950 (47.9% / 45.8% before). */
 	pvp: {
-		dmgBp: 9700,
+		dmgBp: 9950,
 		takenBp: 8725
 	},
 	element: "FIRE",
@@ -1018,10 +1018,10 @@ var BRUTUS = Object.freeze({
 	name: "Sir Brutus",
 	side: "dog",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8625 / takes 9725 (49.6% of the 2,000-seed gate). */
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8625 / takes 9725 (49.6% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 keeps a Move order after a dash, so chargers gained): takes 9875 (56.1% before; about 3 pp per +75 takenBp). */
 	pvp: {
 		dmgBp: 8625,
-		takenBp: 9725
+		takenBp: 9875
 	},
 	element: "SAND",
 	base: {
@@ -1460,9 +1460,9 @@ var DOMINO = Object.freeze({
 	name: "Domino",
 	side: "dog",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9775 (51.2% of the 2,000-seed gate). */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9775 (51.2% of the 2,000-seed gate). Sim v16: 9050 (the Brutus nerf alone dropped him to about 45%). */
 	pvp: {
-		dmgBp: 8825,
+		dmgBp: 9050,
 		takenBp: 9775
 	},
 	element: "STELLAR",
@@ -1574,9 +1574,9 @@ var DUCHESS = Object.freeze({
 	name: "Duchess",
 	side: "cat",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10175 / takes 8525 (51.9% of the 2,000-seed gate). */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10175 / takes 8525 (51.9% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 helps divers catch kiting mages): 10550 (45.6% before). */
 	pvp: {
-		dmgBp: 10175,
+		dmgBp: 10550,
 		takenBp: 8525
 	},
 	element: "DARK",
@@ -3260,10 +3260,11 @@ var TRICKS = Object.freeze({
 	}),
 	/**
 	* Sim v10: cleanse stun, root, slow, fear and charm, then `immune` ticks of crowd-control immunity. Castable while
-	* crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels).
+	* crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels). Sim v16: 2400 (46.7% after MAP-GAPS B3 kept
+	* chargers on their target).
 	*/
 	purrify: Object.freeze({
-		cooldown: 2700,
+		cooldown: 2400,
 		immune: 15
 	})
 });
@@ -12635,96 +12636,123 @@ function napStep(w, id) {
 	if (--w.napT[id] > 0) return;
 	toSpawn(w, id);
 }
-/** Step 4 for heroes: respawn timers, CC, forced movement, casts walking in, orders, movement, swing starts. */
+/** Start-of-tick hero positions and each hero's staged step (scratch, never carried between ticks). */
+var tickX = new Int32Array(CAPS.heroes);
+var tickY = new Int32Array(CAPS.heroes);
+var nextX = new Int32Array(CAPS.heroes);
+var nextY = new Int32Array(CAPS.heroes);
+/**
+* Step 4 for heroes: respawn timers, CC, forced movement, casts walking in, orders, movement, swing starts.
+* Sim v16 (PvP side bias): every hero reads the others where the tick started. Each hero steps with the others at their
+* start-of-tick positions, its own step is staged, and all steps land together, so team 1 (higher ids) no longer sees
+* team 0's step first and starts its swing a tick earlier. During this step a hero writes only its own position.
+*/
 function stepHeroes(m) {
 	const w = m.world;
 	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-		if (w.kind[id] !== Kind.Hero) continue;
-		if (w.alive[id] === 0) {
-			if (w.timer[id] > 0) w.timer[id]--;
-			if (w.timer[id] === 0) {
-				placeAtFountain(w, id);
-				m.events.push({
-					type: "buff",
-					tick: w.globals[G.Tick],
-					id,
-					kind: "zoomies",
-					ticks: ZOOMIES.ticks
-				});
-			}
-			continue;
-		}
+		tickX[id - RANGE.heroes] = w.x[id];
+		tickY[id - RANGE.heroes] = w.y[id];
+	}
+	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+		const k = id - RANGE.heroes;
+		stepHero(m, id);
+		nextX[k] = w.x[id];
+		nextY[k] = w.y[id];
+		w.x[id] = tickX[k];
+		w.y[id] = tickY[k];
+	}
+	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+		w.x[id] = nextX[id - RANGE.heroes];
+		w.y[id] = nextY[id - RANGE.heroes];
+	}
+}
+function stepHero(m, id) {
+	const w = m.world;
+	if (w.kind[id] !== Kind.Hero) return;
+	if (w.alive[id] === 0) {
 		if (w.timer[id] > 0) w.timer[id]--;
-		if (w.fmKind[id] !== FM.None) {
-			forcedStep(m, id);
-			continue;
+		if (w.timer[id] === 0) {
+			placeAtFountain(w, id);
+			m.events.push({
+				type: "buff",
+				tick: w.globals[G.Tick],
+				id,
+				kind: "zoomies",
+				ticks: ZOOMIES.ticks
+			});
 		}
-		if (w.stunT[id] > 0) {
+		return;
+	}
+	if (w.timer[id] > 0) w.timer[id]--;
+	if (w.fmKind[id] !== FM.None) {
+		forcedStep(m, id);
+		return;
+	}
+	if (w.stunT[id] > 0) {
+		w.state[id] = UnitState.Idle;
+		return;
+	}
+	if (w.fearT[id] > 0) {
+		fleeStep(w, m.grid, id);
+		w.state[id] = UnitState.Moving;
+		return;
+	}
+	if (kitBusy(w, id)) {
+		w.state[id] = UnitState.Idle;
+		return;
+	}
+	if (w.napT[id] > 0) {
+		napStep(w, id);
+		return;
+	}
+	if (w.castPhase[id] === 2) {
+		if (w.castT[id] > 0) w.state[id] = UnitState.Casting;
+		return;
+	}
+	if (w.castPhase[id] === 1) {
+		if (!walkInDone(m, id)) chase(m, id, walkInX(w, id), walkInY(w, id));
+		return;
+	}
+	if (w.windup[id] > 0) return;
+	const order = w.order[id];
+	if (order === Order.Attack) {
+		const t = w.target[id];
+		if (t < 0 || !targetable(w, t, w.team[id])) {
+			w.order[id] = Order.None;
+			w.target[id] = -1;
 			w.state[id] = UnitState.Idle;
-			continue;
+			return;
 		}
-		if (w.fearT[id] > 0) {
-			fleeStep(w, m.grid, id);
-			w.state[id] = UnitState.Moving;
-			continue;
-		}
-		if (kitBusy(w, id)) {
-			w.state[id] = UnitState.Idle;
-			continue;
-		}
-		if (w.napT[id] > 0) {
-			napStep(w, id);
-			continue;
-		}
-		if (w.castPhase[id] === 2) {
-			if (w.castT[id] > 0) w.state[id] = UnitState.Casting;
-			continue;
-		}
-		if (w.castPhase[id] === 1) {
-			if (!walkInDone(m, id)) chase(m, id, walkInX(w, id), walkInY(w, id));
-			continue;
-		}
-		if (w.windup[id] > 0) continue;
-		const order = w.order[id];
-		if (order === Order.Attack) {
-			const t = w.target[id];
-			if (t < 0 || !targetable(w, t, w.team[id])) {
-				w.order[id] = Order.None;
-				w.target[id] = -1;
-				w.state[id] = UnitState.Idle;
-				continue;
-			}
+		if (inAttackRange(w, id, t)) swingAt(w, id, t);
+		else chase(m, id, w.x[t], w.y[t]);
+		return;
+	}
+	if (order === Order.AttackMove) {
+		let t = w.target[id];
+		if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, HERO_RULES.acquireRange, false);
+		w.target[id] = t;
+		if (t >= 0) {
 			if (inAttackRange(w, id, t)) swingAt(w, id, t);
 			else chase(m, id, w.x[t], w.y[t]);
-			continue;
+			return;
 		}
-		if (order === Order.AttackMove) {
-			let t = w.target[id];
-			if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, HERO_RULES.acquireRange, false);
-			w.target[id] = t;
-			if (t >= 0) {
-				if (inAttackRange(w, id, t)) swingAt(w, id, t);
-				else chase(m, id, w.x[t], w.y[t]);
-				continue;
-			}
-			if (walk(m, id)) {
-				w.order[id] = Order.None;
-				w.state[id] = UnitState.Idle;
-			}
-			continue;
+		if (walk(m, id)) {
+			w.order[id] = Order.None;
+			w.state[id] = UnitState.Idle;
 		}
-		if (order === Order.Move) {
-			if (walk(m, id)) {
-				w.order[id] = Order.None;
-				w.state[id] = UnitState.Idle;
-			}
-			continue;
-		}
-		const t = nearestEnemy(w, id, 0, true);
-		w.target[id] = t;
-		if (t >= 0) swingAt(w, id, t);
-		else w.state[id] = UnitState.Idle;
+		return;
 	}
+	if (order === Order.Move) {
+		if (walk(m, id)) {
+			w.order[id] = Order.None;
+			w.state[id] = UnitState.Idle;
+		}
+		return;
+	}
+	const t = nearestEnemy(w, id, 0, true);
+	w.target[id] = t;
+	if (t >= 0) swingAt(w, id, t);
+	else w.state[id] = UnitState.Idle;
 }
 //#endregion
 //#region src/sim/units/minion.ts
