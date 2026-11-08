@@ -73,17 +73,20 @@ describe('Avietė, shelter champion assassin (sim v9)', () => {
     expect(w.kRT[AV]).toBe(0);
   });
 
-  it('Shiny Coat: charged at once and +20% speed, unless locked out', () => {
+  it('Shiny Coat: charged after a 0.5 s fill (sim v17) and +20% speed at once, unless locked out', () => {
     const m = arena();
     const w = m.world;
     cast(m, AV, 1, MID.x, MID.y);
-    expect(w.kRT[AV]).toBeGreaterThan(0);
+    expect(w.kRT[AV]).toBe(0);
     expect(w.hasteBp[AV]).toBe(A.w.speedBp);
     expect(cd(m, AV, 1)).toBe(A.w.cooldown);
+    steps(m, A.w.chargeDelay);
+    expect(w.kRT[AV]).toBeGreaterThan(0);
     w.kRT[AV] = 0;
     w.kHuntT[AV] = 100;
     w.cooldowns[1] = 0;
     cast(m, AV, 1, MID.x, MID.y);
+    steps(m, A.w.chargeDelay);
     expect(w.kRT[AV]).toBe(0);
   });
 

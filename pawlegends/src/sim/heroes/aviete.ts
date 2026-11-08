@@ -5,7 +5,9 @@
  *
  * Kit arrays: `kWAge` ticks in brush (0 outside); `kRT` charge ticks left (held while in brush); `kHuntT` lockout
  * ticks left; `kStage` the open return (0 none, 1 from Live Wire, 2 from Short Circuit); `kWindow` return ticks
- * left; `kChain`/`kEmpower` the return point x/y; `kCount` the tick Live Wire was cast (its cooldown counts from it).
+ * left; `kChain`/`kEmpower` the return point x/y; `kCount` the tick Live Wire was cast (its cooldown counts from it);
+ * `kWT` (sim v17, V17.md §3.7) Shiny Coat's fill ticks left: the charge lands when it runs out (brush.ts keeps her
+ * out of the Blocking flag that kWT means for Clem and Sir Brutus).
  */
 import { dist2, iatan2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
@@ -95,7 +97,13 @@ function shortCircuit(m: MatchHandle, id: number, target: number): number {
   }
   w.facing[id] = iatan2(w.y[target] - w.y[id], w.x[target] - w.x[id]);
   const hit = attackRange(w, id) + gap;
-  if (dist2(w.x[id], w.y[id], w.x[target], w.y[target]) <= hit * hit) dealDamage(m, id, w.team[id], Kind.Hero, target, lvl(w, id, r.dmg, r.dmgPerLevel), 'ability');
+  if (dist2(w.x[id], w.y[id], w.x[target], w.y[target]) <= hit * hit) {
+    // Sim v17 (V17.md §3.7): Short Circuit's hit neither uses nor sets off her charge (no point-and-click stun).
+    const held = w.kRT[id];
+    w.kRT[id] = 0;
+    dealDamage(m, id, w.team[id], Kind.Hero, target, lvl(w, id, r.dmg, r.dmgPerLevel), 'ability');
+    w.kRT[id] = held;
+  }
   const lx = w.x[id];
   const ly = w.y[id];
   const n = collect(w, w.team[id], hits, (e, er) => inRing(lx, ly, r.dazzleRadius, w.x[e], w.y[e], er), true);
@@ -125,7 +133,9 @@ export const AVIETE_KIT: HeroKit = {
         return q.cooldown;
       }
       case 1:
-        charge(w, id);
+        // Sim v17: the charge fills over w.chargeDelay ticks (0: at once, as before).
+        if ((a.w.chargeDelay ?? 0) > 0) w.kWT[id] = a.w.chargeDelay;
+        else charge(w, id);
         haste(w, id, a.w.speedBp, a.w.haste);
         return a.w.cooldown;
       case 2:
@@ -142,6 +152,7 @@ export const AVIETE_KIT: HeroKit = {
     if (w.kHuntT[id] === 0 && w.kWAge[id] >= p.brushTime) w.kRT[id] = p.hold;
     else if (w.kRT[id] > 0 && !inBrush) w.kRT[id]--;
     if (w.kHuntT[id] > 0) w.kHuntT[id]--;
+    if (w.kWT[id] > 0 && --w.kWT[id] === 0) charge(w, id);
     if (w.kWindow[id] > 0 && --w.kWindow[id] === 0) closeWireWindow(w, id);
   },
   outgoing(m, id, dst, raw) {
@@ -162,6 +173,7 @@ export const AVIETE_KIT: HeroKit = {
     w.kChain[id] = 0;
     w.kEmpower[id] = 0;
     w.kCount[id] = 0;
+    w.kWT[id] = 0;
   },
 };
 
