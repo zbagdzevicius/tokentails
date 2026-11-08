@@ -18,10 +18,16 @@ export function parseThermal(v: unknown): ThermalInfo {
   return { state, lowPower: o.lowPower === true };
 }
 
+let cached: ThermalInfo | null = null;
+
+/** The current value, re-read only when the shell fires `pl-thermal` (no per-frame parse or allocation). */
 export function thermal(): ThermalInfo {
+  if (cached) return cached;
   try {
-    return parseThermal((globalThis as { __PL_THERMAL__?: unknown }).__PL_THERMAL__);
+    cached = parseThermal((globalThis as { __PL_THERMAL__?: unknown }).__PL_THERMAL__);
+    if (typeof addEventListener === 'function') addEventListener('pl-thermal', () => (cached = null), { once: true });
   } catch {
-    return { state: null, lowPower: false };
+    cached = { state: null, lowPower: false };
   }
+  return cached;
 }

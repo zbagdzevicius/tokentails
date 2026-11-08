@@ -295,7 +295,8 @@ export class App {
     } catch {
       /* no bridge */
     }
-    addEventListener('pl-thermal', () => this.onThermal());
+    // after render/perf/thermal.ts drops its cached value (its listener may be added later than this one)
+    addEventListener('pl-thermal', () => queueMicrotask(() => this.onThermal()));
     document.addEventListener('visibilitychange', () => {
       if (document.hidden) {
         // party play (§4.5): a hidden tab is "away" (NetHost; a bot flies the hero) and comes back to the match, not
@@ -1139,6 +1140,12 @@ export class App {
     });
     if (this.pendingPause || document.hidden) this.session.setPaused(true);
     this.pendingPause = false;
+    // PERF-IOS P2-6: compile the match's programs behind the loading veil (WebKit stalled 942 ms at the first fight)
+    try {
+      void this.gr.renderer.compileAsync(this.gr.scene, this.gr.camera).catch(() => undefined);
+    } catch {
+      /* best effort */
+    }
     setTimeout(() => veil.classList.add('out'), 250);
     setTimeout(() => veil.remove(), 900);
   }

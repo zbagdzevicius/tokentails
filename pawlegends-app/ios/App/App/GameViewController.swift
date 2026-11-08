@@ -40,6 +40,32 @@ class GameViewController: CAPBridgeViewController {
         }
         setNeedsUpdateOfHomeIndicatorAutoHidden()
         setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
+        // PERF-IOS P2-7: the game's thermal governor steps the graphics down before iOS throttles the chip
+        let center = NotificationCenter.default
+        center.addObserver(self, selector: #selector(thermalChanged), name: ProcessInfo.thermalStateDidChangeNotification, object: nil)
+        center.addObserver(self, selector: #selector(thermalChanged), name: Notification.Name.NSProcessInfoPowerStateDidChange, object: nil)
+    }
+
+    /// `window.__PL_THERMAL__` as a JS literal: the thermal state (nominal / fair / serious / critical) and Low Power Mode.
+    static var thermalLiteral: String {
+        let state: String
+        switch ProcessInfo.processInfo.thermalState {
+        case .nominal: state = "nominal"
+        case .fair: state = "fair"
+        case .serious: state = "serious"
+        case .critical: state = "critical"
+        @unknown default: state = "fair"
+        }
+        let lowPower = ProcessInfo.processInfo.isLowPowerModeEnabled ? "true" : "false"
+        return "{ state: '\(state)', lowPower: \(lowPower) }"
+    }
+
+    /// Thermal or power state changed: tell the page (pawlegends/src/render/perf/thermal.ts listens for `pl-thermal`).
+    @objc private func thermalChanged() {
+        DispatchQueue.main.async { [weak self] in
+            let js = "window.__PL_THERMAL__ = \(GameViewController.thermalLiteral); window.dispatchEvent(new Event('pl-thermal'));"
+            self?.webView?.evaluateJavaScript(js, completionHandler: nil)
+        }
     }
 
     override func viewDidAppear(_ animated: Bool) {
@@ -70,7 +96,7 @@ class GameViewController: CAPBridgeViewController {
     /// or updated) reads the values of the binary it runs in. Added here, not in webViewConfiguration: Capacitor swaps
     /// in its own userContentController between the two calls.
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
-        let source = "window.__PL_CHANNEL__ = '\(GameViewController.otaChannel)'; window.__PL_PLATFORM__ = '\(GameViewController.platform)';"
+        let source = "window.__PL_CHANNEL__ = '\(GameViewController.otaChannel)'; window.__PL_PLATFORM__ = '\(GameViewController.platform)'; window.__PL_THERMAL__ = \(GameViewController.thermalLiteral);"
         let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         configuration.userContentController.addUserScript(script)
         return super.webView(with: frame, configuration: configuration)

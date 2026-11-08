@@ -30,8 +30,8 @@ const touchUi = (): boolean => {
 };
 
 const CSS = `
-.pl-ult-vig{position:absolute;inset:0;pointer-events:none;z-index:5;box-shadow:inset 0 0 80px 20px #ff3040;opacity:0}
-.pl-ult-vig.on{animation:pl-ult-vig .3s ease-out}
+.pl-ult-vig{position:absolute;inset:0;pointer-events:none;z-index:5;background:radial-gradient(ellipse at center,transparent 55%,rgba(255,48,64,.9) 100%);opacity:0;visibility:hidden}
+.pl-ult-vig.on{animation:pl-ult-vig .3s ease-out;visibility:visible}
 @keyframes pl-ult-vig{0%{opacity:.85}100%{opacity:0}}
 `;
 
