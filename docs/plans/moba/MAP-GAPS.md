@@ -244,6 +244,7 @@ Not done in A, on purpose:
 The items are listed by severity. Batch 1 (nav fixes, B1 to B7) can ship together as v16. Batch 2 (layout and objectives, B8 to B14) is a design batch that can be v16 or v17. It needs the PARITY §6.3 gates and an A1-style render pass for every new wall and bush.
 
 ### B1. Forest soft-lock (critical)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `nav-softlock-forest`.
 
 **Change:**
@@ -258,6 +259,7 @@ Source: `nav-softlock-forest`.
 - A dash that starts inside a rock never ends deeper (`depth(end) ≤ depth(start)`).
 
 ### B2. Gate barrier clamp walks heroes into the forest and through their own tower (high)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `nav-gate-clamp-forest`.
 
 **Change:**
@@ -272,6 +274,7 @@ Source: `nav-gate-clamp-forest`.
 - Bot runs (24 seeds): 0 hero-ticks inside the forest or their own tower before t200.
 
 ### B3. Order lost after a dash or knockback, and the stale path walks through rocks (high)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `nav-order-lost-after-forced-move`.
 
 **Change:**
@@ -285,6 +288,7 @@ Source: `nav-order-lost-after-forced-move`.
 - Bot runs: 0 "hero rock via walk" entries.
 
 ### B4. A Move onto a structure never completes (medium)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `nav-move-to-structure-never-ends`.
 
 **Change:**
@@ -299,6 +303,7 @@ Source: `nav-move-to-structure-never-ends`.
 - Bot runs: 0 heroes "standing Moving" for more than 90 ticks.
 
 ### B5. Minions, rats and feared units ignore the nav grid (medium)
+**Status:** moved to v17 (failed the v16 PvE gate: Purrhaven 47.6%, −2.6 pp).
 Source: `nav-units-ignore-walls`.
 
 **Change:**
@@ -313,6 +318,7 @@ Source: `nav-units-ignore-walls`.
 - A feared minion next to a wall slides along it.
 
 ### B6. Pack Hunt hops and tether clamps skip the wall check (low)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `nav-hunt-tether-unclipped`.
 
 **Change:**
@@ -386,6 +392,7 @@ Source: `design-bush-layout`, corrected.
 - The minimap (A7) draws the new bushes automatically.
 
 ### B11. Attacking or casting from a bush reveals the attacker (high)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `design-brush-attack-no-reveal`.
 
 **Change:**
@@ -401,6 +408,7 @@ Source: `design-brush-attack-no-reveal`.
 - PARITY.md:323 is ticked.
 
 ### B12. Bush scouting (low, design)
+**Status:** moved to v17 (failed the v16 PvE gate: Purrhaven 47.6%, −2.6 pp).
 Source: the sim part of `design-bush-scouting`.
 
 **Change:** raise the reveal range for allied minions from 2 m to 3 m in `hiddenFrom`. A separate later item is a "Whisker Ward" Paw Trick that reveals one bush for 4 s (`data/tricks.ts`, per GAPS.md:27).
@@ -410,6 +418,7 @@ Source: the sim part of `design-bush-scouting`.
 **Tests:** `brush.test.ts` reveals at 2.9 m for a minion and not at 3.1 m.
 
 ### B13. Pudding escort lane tie-break is always Sunny (low)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `design-pudding-lane-tiebreak`.
 
 **Change:**
@@ -440,6 +449,7 @@ Source: `design-single-objective` and `design-pudding-no-pit`.
 - The pit has exactly 4 entrances, each at least 3 cells wide.
 
 ### B15. Enemy fountain is missing from the nav grid (low)
+**Status:** shipped in sim v16 (feat/pawlegends-v16).
 Source: `nav-enemy-fountain-not-in-grid`.
 
 **Change:**
