@@ -1,0 +1,292 @@
+{
+  "measuredAt": "2026-11-08T06:33:40.196Z",
+  "git": "a2dc4063",
+  "node": "v24.13.0",
+  "host": "darwin arm64 12 cores",
+  "matchLength": {
+    "normalVsNormal": {
+      "matches": 2000,
+      "p10s": 322,
+      "p50s": 434,
+      "p90s": 495,
+      "p95s": 511,
+      "maxS": 526,
+      "meanS": 426,
+      "coreEnds": 2000,
+      "histogramByMinute": {
+        "3": 2,
+        "4": 101,
+        "5": 184,
+        "6": 402,
+        "7": 999,
+        "8": 312
+      }
+    },
+    "naiveVsEasy": {
+      "matches": 400,
+      "p10s": 366,
+      "p50s": 385,
+      "p90s": 441,
+      "p95s": 453,
+      "maxS": 488,
+      "meanS": 395,
+      "coreEnds": 400,
+      "histogramByMinute": {
+        "6": 319,
+        "7": 77,
+        "8": 4
+      }
+    }
+  },
+  "latency": {
+    "seconds": 90,
+    "results": [
+      {
+        "rttMs": 0,
+        "jitterMs": 0,
+        "authP95Target": 170,
+        "taps": 193,
+        "visible": {
+          "p50": 8,
+          "p95": 15,
+          "max": 16
+        },
+        "auth": {
+          "p50": 40,
+          "p95": 65,
+          "max": 69
+        },
+        "hostStats": {
+          "n": 193,
+          "p50": 40,
+          "p95": 65
+        },
+        "buffer": 1,
+        "bytesDownPerMin": 7561,
+        "bytesUpPerMin": 2231
+      },
+      {
+        "rttMs": 50,
+        "jitterMs": 4,
+        "authP95Target": 200,
+        "taps": 186,
+        "visible": {
+          "p50": 7,
+          "p95": 16,
+          "max": 16
+        },
+        "auth": {
+          "p50": 94,
+          "p95": 127,
+          "max": 141
+        },
+        "hostStats": {
+          "n": 186,
+          "p50": 94,
+          "p95": 127
+        },
+        "buffer": 1,
+        "bytesDownPerMin": 7524,
+        "bytesUpPerMin": 2194
+      },
+      {
+        "rttMs": 150,
+        "jitterMs": 10,
+        "authP95Target": 325,
+        "taps": 195,
+        "visible": {
+          "p50": 8,
+          "p95": 15,
+          "max": 16
+        },
+        "auth": {
+          "p50": 216,
+          "p95": 250,
+          "max": 268
+        },
+        "hostStats": {
+          "n": 195,
+          "p50": 216,
+          "p95": 250
+        },
+        "buffer": 1,
+        "bytesDownPerMin": 7572,
+        "bytesUpPerMin": 2242
+      },
+      {
+        "rttMs": 150,
+        "jitterMs": 30,
+        "authP95Target": 400,
+        "taps": 195,
+        "visible": {
+          "p50": 8,
+          "p95": 15,
+          "max": 16
+        },
+        "auth": {
+          "p50": 284,
+          "p95": 376,
+          "max": 423
+        },
+        "hostStats": {
+          "n": 195,
+          "p50": 284,
+          "p95": 376
+        },
+        "buffer": 2,
+        "bytesDownPerMin": 7572,
+        "bytesUpPerMin": 2242
+      }
+    ],
+    "targetsMet": true
+  },
+  "queue": {
+    "model": "Quick Play co-op, Poisson arrivals of solo or duo units, 30% duos, 2 h per rate; bots fill the empty seats",
+    "fails": [],
+    "rates": [
+      {
+        "joinsPerMin": 0.25,
+        "p10s": 8.1,
+        "p50s": 8.2,
+        "p90s": 8.4,
+        "p95s": 8.5,
+        "maxS": 8.5,
+        "matches": 23,
+        "shareWith2PlusHumans": 0.35
+      },
+      {
+        "joinsPerMin": 0.5,
+        "p10s": 8,
+        "p50s": 8.2,
+        "p90s": 8.5,
+        "p95s": 8.5,
+        "maxS": 8.5,
+        "matches": 66,
+        "shareWith2PlusHumans": 0.23
+      },
+      {
+        "joinsPerMin": 1,
+        "p10s": 7.8,
+        "p50s": 8.2,
+        "p90s": 8.5,
+        "p95s": 12.4,
+        "maxS": 20.5,
+        "matches": 101,
+        "shareWith2PlusHumans": 0.38
+      },
+      {
+        "joinsPerMin": 2,
+        "p10s": 1,
+        "p50s": 9.7,
+        "p90s": 20.1,
+        "p95s": 20.4,
+        "maxS": 20.5,
+        "matches": 181,
+        "shareWith2PlusHumans": 0.56
+      },
+      {
+        "joinsPerMin": 4,
+        "p10s": 0.7,
+        "p50s": 11.3,
+        "p90s": 20.3,
+        "p95s": 20.5,
+        "maxS": 30.5,
+        "matches": 303,
+        "shareWith2PlusHumans": 0.76
+      },
+      {
+        "joinsPerMin": 6,
+        "p10s": 0.7,
+        "p50s": 8.3,
+        "p90s": 20.3,
+        "p95s": 26.1,
+        "maxS": 30.5,
+        "matches": 406,
+        "shareWith2PlusHumans": 0.88
+      },
+      {
+        "joinsPerMin": 10,
+        "p10s": 0.7,
+        "p50s": 6.5,
+        "p90s": 14.2,
+        "p95s": 19.2,
+        "maxS": 30.5,
+        "matches": 649,
+        "shareWith2PlusHumans": 0.98
+      },
+      {
+        "joinsPerMin": 20,
+        "p10s": 0.7,
+        "p50s": 3.2,
+        "p90s": 12.3,
+        "p95s": 13.6,
+        "maxS": 30.5,
+        "matches": 1180,
+        "shareWith2PlusHumans": 0.99
+      },
+      {
+        "joinsPerMin": 60,
+        "p10s": 0.6,
+        "p50s": 1.5,
+        "p90s": 7.9,
+        "p95s": 10.7,
+        "maxS": 30.2,
+        "matches": 3210,
+        "shareWith2PlusHumans": 1
+      }
+    ]
+  },
+  "size": {
+    "web": {
+      "dir": "client/public/pawlegends-game",
+      "firstLoadFiles": 13,
+      "firstLoadGzipKB": 380,
+      "wholeDirMB": 9.71
+    },
+    "ios": {
+      "compat": 1,
+      "version": "20261108060319-a0f3129",
+      "simVersion": 15,
+      "webPayloadZipMB": 2.86
+    },
+    "iosNote": "The App Store download adds the Capacitor shell (Swift runtime, WebView glue, plugins); no archived .ipa in the repo to measure it."
+  },
+  "coldLoad": [
+    {
+      "setup": "desktop/none",
+      "cpuSlowdown": 1,
+      "runs": 3,
+      "titleMsP50": 423,
+      "firstMatchMsP50": 3211,
+      "firstMatchMsMax": 3352,
+      "transferredKB": 1296
+    },
+    {
+      "setup": "desktop/4g",
+      "cpuSlowdown": 1,
+      "runs": 3,
+      "titleMsP50": 1465,
+      "firstMatchMsP50": 4406,
+      "firstMatchMsMax": 4407,
+      "transferredKB": 1167
+    },
+    {
+      "setup": "landscape/none",
+      "cpuSlowdown": 4,
+      "runs": 3,
+      "titleMsP50": 1315,
+      "firstMatchMsP50": 4679,
+      "firstMatchMsMax": 4741,
+      "transferredKB": 1298
+    },
+    {
+      "setup": "landscape/4g",
+      "cpuSlowdown": 4,
+      "runs": 3,
+      "titleMsP50": 2289,
+      "firstMatchMsP50": 5747,
+      "firstMatchMsMax": 5800,
+      "transferredKB": 1256
+    }
+  ]
+}
