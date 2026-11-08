@@ -13,9 +13,9 @@ describe('vendor-sim', () => {
     expect(/^\s*import\s/m.test(bundle)).toBe(false);
     expect(modules.every((m) => m.startsWith('src/sim/') || m.startsWith('src/data/'))).toBe(true);
     expect(JSON.parse(files[`v${SIM_VERSION}/pawlegends-sim.sha256.json`]).simVersion).toBe(SIM_VERSION);
-    // GAPS B0 dual verifier: v10 to v15 (v15: ten dogs) stay frozen beside the live sim v16 (S-PvP, docs/plans/moba/V16.md;
-    // v9 retired), and the root index dispatches by simVersion.
-    expect(SIM_VERSION).toBe(16);
+    // GAPS B0 dual verifier: v10 to v16 (v16: casual PvP) stay frozen beside the live sim v17 (counter-play batch,
+    // docs/plans/moba/V17.md; v9 retired), and the root index dispatches by simVersion.
+    expect(SIM_VERSION).toBe(17);
     expect(JSON.parse(files['v10/pawlegends-sim.sha256.json']).simVersion).toBe(10);
     expect(JSON.parse(files['v11/pawlegends-sim.sha256.json']).simVersion).toBe(11);
     expect(JSON.parse(files['v12/pawlegends-sim.sha256.json']).simVersion).toBe(12);
@@ -23,6 +23,8 @@ describe('vendor-sim', () => {
     expect(JSON.parse(files['v14/pawlegends-sim.sha256.json']).simVersion).toBe(14);
     expect(JSON.parse(files['v15/pawlegends-sim.sha256.json']).simVersion).toBe(15);
     expect(files['v15/new-dog-replay.fixture.json']).toBeDefined();
+    expect(JSON.parse(files['v16/pawlegends-sim.sha256.json']).simVersion).toBe(16);
+    expect(files['v16/pvp-replay.fixture.json']).toBeDefined();
     expect(files['v10/forfeit-replay.fixture.json']).toBeDefined();
     expect(files['v11/forfeit-replay.fixture.json']).toBeDefined();
     expect(files['v12/forfeit-replay.fixture.json']).toBeDefined();
@@ -38,6 +40,7 @@ describe('vendor-sim', () => {
     expect(files['index.ts']).toContain("import * as v13 from './v13';");
     expect(files['index.ts']).toContain("import * as v14 from './v14';");
     expect(files['index.ts']).toContain("import * as v15 from './v15';");
+    expect(files['index.ts']).toContain("import * as v16 from './v16';");
     expect(files['index.ts']).toContain(`import * as v${SIM_VERSION} from './v${SIM_VERSION}';`);
 
     const server = await importSim('src/sim/server.ts');
