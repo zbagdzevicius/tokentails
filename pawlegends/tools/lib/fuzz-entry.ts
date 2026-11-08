@@ -5,7 +5,7 @@
  */
 import { Op, type Command, type Difficulty, type HeroId, type TrickId } from '../../src/sim/api';
 import { createMatch, createPlayerBotFor, fillPicks, hashTrail, playerBotCommands, replayRecord, result, step, tickOf } from '../../src/sim/index';
-import { fillPicksParty, partyReplayRecord, runPartyReplay } from '../../src/sim/party';
+import { fillPicksParty, partyReplayRecord, pvpReplayRecord, runPartyReplay, runPvpReplay } from '../../src/sim/party';
 import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
 import { randomCommand } from '../../tests/unit/helpers';
@@ -152,4 +152,87 @@ export function fuzzPartyMatch(seed: number): { seed: number; ok: boolean; final
   const run = runPartyReplay(rec);
   const ok = run.result !== null && run.result.finalHash === p.result.finalHash && foldTrail(run.trail) === p.trail;
   return { seed, ok, finalHash: p.result.finalHash, flips: p.flips };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Sim v16 S-PvP fuzz (docs/plans/moba/V16.md §1.4, §3.3): humans [0, 1, 3, 4] on both teams with bot fill, each seat
+// flipping between a pilot and a random stream; both leads send pings and forfeits (some before 4:00, dropped).
+// Recorded as a PvpReplayRecord and replayed from it; trails must match.
+
+const CAT_IDS: readonly HeroId[] = ['clem', 'sage', 'gabe', 'meatball', 'duchess', 'aviete', 'bengas', 'lambo', 'pixel', 'stilts'];
+const DOG_IDS: readonly HeroId[] = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
+const PVP_HUMANS: readonly number[] = [0, 1, 3, 4];
+
+export function fuzzPvpPlay(seed: number) {
+  const r = new Rng(seed ^ 0x9f9f);
+  const side0 = r.int(2) === 0 ? CAT_IDS : DOG_IDS;
+  const side1 = side0 === CAT_IDS ? DOG_IDS : CAT_IDS;
+  const seats = PVP_HUMANS.map((slot) => ({ slot, hero: (slot < 3 ? side0 : side1)[(fuzzIndex(seed) + (slot % 3) * 3) % 10], trick: TRICKS[r.int(TRICKS.length)] }));
+  const fill: [Difficulty, Difficulty] = [LEVELS[r.int(LEVELS.length)], LEVELS[r.int(LEVELS.length)]];
+  const { picks, tricks } = fillPicksParty(seed, seats);
+  const m = createMatch({ seed, picks, tricks, difficulty: 'hard', humans: PVP_HUMANS, mode: 'pvp', fillDifficulty: fill });
+  const pilots = PVP_HUMANS.map((s) => createPlayerBotFor(m, s === 0 || s === 3 ? 'pinger' : 'normal', s));
+  const piloted = PVP_HUMANS.map(() => r.int(2) === 0);
+  const ff = r.int(3) === 0 ? 3000 + r.int(9000) : -1;
+  const ffSlot = r.int(2) === 0 ? 0 : 3;
+  let flips = 0;
+  while (!result(m)) {
+    const t = tickOf(m);
+    if (t % 2 === 0 && r.int(300) === 0) {
+      const k = r.int(PVP_HUMANS.length);
+      piloted[k] = !piloted[k];
+      flips++;
+    }
+    const out: Command[][] = [[], [], [], [], [], []];
+    for (let k = 0; k < PVP_HUMANS.length; k++) {
+      const s = PVP_HUMANS[k];
+      const cmds = playerBotCommands(m, pilots[k]);
+      if (piloted[k]) out[s] = cmds;
+      else {
+        const c = randomCommand(r, 900);
+        if (c) out[s].push(c);
+        if (r.int(600) === 0) out[s].push({ op: Op.Ping, kind: r.int(8), x: r.range(0, 100000), y: r.range(0, 60000), id: r.int(3) ? r.int(6) : 255 });
+      }
+    }
+    if (ff >= 0 && (t === ff || t === ff - 1500)) out[ffSlot].push({ op: Op.Forfeit });
+    step(m, out[0], out);
+  }
+  return { match: m, flips, result: result(m)!, trail: foldTrail(hashTrail(m)) };
+}
+
+export function fuzzPvpFinal(seed: number): { seed: number; finalHash: string; trail: string; ticks: number; flips: number } {
+  const p = fuzzPvpPlay(seed);
+  return { seed, finalHash: p.result.finalHash, trail: p.trail, ticks: p.result.ticks, flips: p.flips };
+}
+
+/** Play, record (v3), replay: true when the trails and results match. */
+export function fuzzPvpMatch(seed: number): { seed: number; ok: boolean; finalHash: string; flips: number; winner: number } {
+  const p = fuzzPvpPlay(seed);
+  const rec = pvpReplayRecord(p.match)!;
+  const run = runPvpReplay(rec);
+  const ok = run.result !== null && run.result.finalHash === p.result.finalHash && foldTrail(run.trail) === p.trail;
+  return { seed, ok, finalHash: p.result.finalHash, flips: p.flips, winner: p.result.winner };
+}
+
+// ---------------------------------------------------------------------------------------------------------------
+// Sim v16 pvp-symmetry (V16.md §3.1.9): seed `seed` played twice, team 0 cats then team 0 dogs (the same line-up
+// with the sides swapped), six `normal` pilots. Tools: tools/pvp-symmetry.mjs; test: tests/unit/pvp-symmetry.test.ts.
+
+export function pvpSymmetryPair(seed: number): { seed: number; catsLeftWinner: number; dogsLeftWinner: number; ticks: [number, number] } {
+  const play = (catsLeft: boolean) => {
+    const a = catsLeft ? CAT_IDS : DOG_IDS;
+    const b = catsLeft ? DOG_IDS : CAT_IDS;
+    const seats = [0, 1, 2, 3, 4, 5].map((slot) => ({ slot, hero: (slot < 3 ? a : b)[(seed + (slot % 3) * 3) % 10], trick: TRICKS[(seed + (slot % 3)) % TRICKS.length] }));
+    const { picks, tricks } = fillPicksParty(seed, seats);
+    const m = createMatch({ seed, picks, tricks, difficulty: 'hard', humans: [0, 1, 2, 3, 4, 5], mode: 'pvp' });
+    const pilots = [0, 1, 2, 3, 4, 5].map((s) => createPlayerBotFor(m, 'normal', s));
+    while (!result(m)) {
+      const out = pilots.map((p) => playerBotCommands(m, p));
+      step(m, out[0], out);
+    }
+    return result(m)!;
+  };
+  const x = play(true);
+  const y = play(false);
+  return { seed, catsLeftWinner: x.winner, dogsLeftWinner: y.winner, ticks: [x.ticks, y.ticks] };
 }

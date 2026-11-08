@@ -48,7 +48,8 @@ var DIFFICULTY_RULES = Object.freeze({
 		campBehindBp: 15e3,
 		forfeitFrom: 0,
 		catchUpFrom: 0,
-		enemyFishBp: 8500
+		enemyFishBp: 8500,
+		humanStreakRespawn: true
 	}),
 	easy: Object.freeze({
 		coreOpenAt: 10800,
@@ -88,7 +89,8 @@ var DIFFICULTY_RULES = Object.freeze({
 		campBehindBp: 15e3,
 		forfeitFrom: 5400,
 		catchUpFrom: 0,
-		enemyFishBp: 1e4
+		enemyFishBp: 1e4,
+		humanStreakRespawn: true
 	}),
 	/**
 	* Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
@@ -151,7 +153,8 @@ var DIFFICULTY_RULES = Object.freeze({
 		campBehindBp: 15e3,
 		forfeitFrom: 7200,
 		catchUpFrom: 5400,
-		enemyFishBp: 1e4
+		enemyFishBp: 1e4,
+		humanStreakRespawn: true
 	}),
 	normal: Object.freeze({
 		coreOpenAt: 0,
@@ -191,8 +194,46 @@ var DIFFICULTY_RULES = Object.freeze({
 		campBehindBp: 15e3,
 		forfeitFrom: 7200,
 		catchUpFrom: 5400,
-		enemyFishBp: 1e4
+		enemyFishBp: 1e4,
+		humanStreakRespawn: true
 	})
+});
+/**
+* Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.2, PARITY.md §3.12): the rules of a PvP match (`MatchConfig.mode 'pvp'`,
+* humans on both teams). Hard's row with every human-only or one-sided field set to neutral, so no buff can favour
+* one team: no human damage, taken, regen, respawn or panic edge, no spared or hunted human, the same respawn, Fish,
+* XP, comeback and backdoor rules for both teams, no core floor, no scripted fight or truce, no carry allies and no
+* rally. tests/unit/pvp-rules.test.ts classifies every field, so a new one cannot leak in unclassified.
+*/
+var PVP_RULES = Object.freeze({
+	...DIFFICULTY_RULES.hard,
+	humanDamageBp: 1e4,
+	humanTakenBp: 1e4,
+	humanRegenBp: 1e4,
+	humanRespawnBp: 1e4,
+	humanPanicBp: 0,
+	spareHuman: 0,
+	enemyRespawnBp: 1e4,
+	enemyFishBp: 1e4,
+	enemyAheadXpBp: 1e4,
+	enemyComeback: true,
+	enemyBackdoor: true,
+	humanCoreOpenAt: 0,
+	humanCoreFloorBp: 0,
+	coreOpenAt: 0,
+	pushNeedsHuman: false,
+	towerKnockback: false,
+	carryAllies: 0,
+	enemiesToHuman: false,
+	rallyBp: 0,
+	rallyCap: 0,
+	scriptFrom: 0,
+	scriptUntil: 0,
+	truceUntil: 0,
+	humanDeathCore: true,
+	forfeitFrom: 7200,
+	catchUpFrom: 5400,
+	humanStreakRespawn: false
 });
 var BOTS = Object.freeze({
 	/** Match 1 (sim v4): slow, inaccurate, takes bad fights, rarely casts. */
@@ -3296,6 +3337,9 @@ var BOT_TALENT_MODES = Object.freeze([
 	"branch"
 ]);
 var MUTATORS = Object.freeze(["none"]);
+var MATCH_MODES = Object.freeze(["pve", "pvp"]);
+/** Sim v16 S-PvP: team 1's lead human slot (team 0's is HUMAN_SLOT). */
+var PVP_LEAD1 = 3;
 var Op = Object.freeze({
 	Move: 1,
 	AttackMove: 2,
@@ -4743,7 +4787,8 @@ function createWorld(seed) {
 		pkY: new Int32Array(CAPS.pickups),
 		globals: new Int32Array(G.Count),
 		rng: new Rng(seed),
-		humans: 1
+		humans: 1,
+		pvp: 0
 	};
 	w.globals[G.Winner] = -1;
 	w.globals[G.InputHash] = FNV_OFFSET | 0;
@@ -5201,8 +5246,8 @@ var FRENZY_SPOTS = Object.freeze([Object.freeze([
 var SNACK_BEHIND = 4e3;
 //#endregion
 //#region src/sim/rules.ts
-/** The match's difficulty rules (data/bots.ts DIFFICULTY_RULES), for sim modules. */
-var rulesOf = (m) => DIFFICULTY_RULES[m.config.difficulty];
+/** Sim v16: cached on the match at createMatch (`m.rules`), so PvP can swap the row without touching PvE. */
+var rulesOf = (m) => m.rules;
 //#endregion
 //#region src/sim/humans.ts
 /**
@@ -5213,9 +5258,16 @@ var rulesOf = (m) => DIFFICULTY_RULES[m.config.difficulty];
 */
 /**
 * True when entity `slot` is a human's hero (its commands come from a stream, never from the in-sim bots). Any id
-* outside 0..2 (bots of the other team, minions, structures, −1) is false; the bound also keeps `>>>` from wrapping.
+* outside 0..5 (minions, structures, −1) is false; the bound also keeps `>>>` from wrapping. Sim v16 (S-PvP): the
+* bound is both teams' slots; a PvE mask only ever sets bits 0..2, so PvE reads exactly as before.
 */
-var isHumanSlot = (w, slot) => slot >= 0 && slot < 3 && (w.humans >>> slot & 1) === 1;
+var isHumanSlot = (w, slot) => slot >= 0 && slot < 6 && (w.humans >>> slot & 1) === 1;
+/**
+* Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.3): the lead human of `team`, the hero the team's bots follow, whose pings
+* they obey and whose leash they read. PvE: HUMAN_SLOT for both teams (the v15 rule). PvP: slot 0 for team 0, slot 3
+* for team 1.
+*/
+var leadOf = (w, team) => w.pvp === 1 && team === 1 ? 3 : 0;
 /** The human mask of a `humans` slot list (bit s = slot s). */
 function humanMask(humans) {
 	if (!humans) return 1;
@@ -11364,7 +11416,7 @@ function resolveDeaths(m) {
 			m.stats[id].deaths++;
 			const enemy = 1 - w.team[id];
 			w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
-			const struggling = isHumanSlot(w, id) && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= 1e4;
+			const struggling = isHumanSlot(w, id) && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= 1e4 && rulesOf(m).humanStreakRespawn;
 			if (struggling) w.timer[id] = Math.max(1, applyBp(w.timer[id], RESPAWN.humanStreakBp));
 			if (rulesOf(m).leadPressure && !struggling) {
 				const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;
@@ -11911,7 +11963,14 @@ function checkWin(m) {
 	if (dead0 && dead1) endMatch(m, tieBreakWinner(w, m.config.seed), "core");
 	else if (dead0) endMatch(m, 1, "core");
 	else if (dead1) endMatch(m, 0, "core");
-	else if (m.gate.forfeit) endMatch(m, teamOfSlot(0) === 0 ? 1 : 0, "forfeit");
+	else if (m.pvp) {
+		const ff0 = m.gate.forfeit;
+		const ff1 = m.party?.gates[3]?.forfeit === true;
+		if (ff0 && ff1) endMatch(m, tieBreakWinner(w, m.config.seed), "forfeit");
+		else if (ff0) endMatch(m, 1, "forfeit");
+		else if (ff1) endMatch(m, 0, "forfeit");
+		else if (w.globals[G.Tick] >= TIMELINE.safetyEnd) endMatch(m, tieBreakWinner(w, m.config.seed), "safetyEnd");
+	} else if (m.gate.forfeit) endMatch(m, teamOfSlot(0) === 0 ? 1 : 0, "forfeit");
 	else if (w.globals[G.Tick] >= TIMELINE.safetyEnd) endMatch(m, tieBreakWinner(w, m.config.seed), "safetyEnd");
 }
 //#endregion
@@ -12500,7 +12559,7 @@ function spawnWave(m, withSiege) {
 	for (let k2 = 0; k2 < 2; k2++) {
 		const team = k2 ^ first;
 		const boost = w.globals[team === 0 ? G.Comeback0 : G.Comeback1] > 0;
-		const rallyBp = (team === teamOfSlot(0) ? w.globals[G.Rally] : 0) * DIFFICULTY_RULES[m.config.difficulty].rallyBp;
+		const rallyBp = (team === teamOfSlot(0) ? w.globals[G.Rally] : 0) * rulesOf(m).rallyBp;
 		const order = [];
 		for (let i = 0; i < WAVE.melee; i++) order.push("melee");
 		for (let i = 0; i < WAVE.ranged; i++) order.push("ranged");
@@ -12559,7 +12618,7 @@ function spawnWave(m, withSiege) {
 function checkComeback(m) {
 	const w = m.world;
 	const tick = w.globals[G.Tick];
-	const enemyToo = DIFFICULTY_RULES[m.config.difficulty].enemyComeback;
+	const enemyToo = rulesOf(m).enemyComeback;
 	for (let team = 0; team < 2; team++) {
 		if (team !== teamOfSlot(0) && !enemyToo) continue;
 		const left = team === 0 ? G.Comeback0 : G.Comeback1;
@@ -12567,7 +12626,7 @@ function checkComeback(m) {
 		if (w.globals[left] > 0 || tick - w.globals[at] < COMEBACK.cooldown) continue;
 		const towersBehind = w.globals[team === 0 ? G.Towers1 : G.Towers0] - w.globals[team === 0 ? G.Towers0 : G.Towers1];
 		const killsBehind = w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1];
-		const byKills = !DIFFICULTY_RULES[m.config.difficulty].leadPressure && killsBehind >= COMEBACK.takedownsBehind;
+		const byKills = !rulesOf(m).leadPressure && killsBehind >= COMEBACK.takedownsBehind;
 		if (towersBehind < COMEBACK.structuresBehind && !byKills) continue;
 		w.globals[left] = COMEBACK.waves;
 		w.globals[at] = tick;
@@ -14155,16 +14214,20 @@ function snackCast(w, id, p) {
 * napping refuses and barks 'heal' ("Healing first!"); Fall back is never refused. A new ping replaces the order.
 */
 var ttlOf = (kind) => kind === PING_KIND.Focus ? PING.focusTicks : kind === PING_KIND.FallBack ? PING.fallBackTicks : PING.orderTicks;
-/** Apply slot 0's ping (already gated and quantised): orders, then the `ping` event and one `bark` per answering bot. */
-function applyPing(m, cmd) {
+/**
+* Apply a lead human's ping (already gated and quantised): orders, then the `ping` event and one `bark` per answering
+* bot. Slot 0's in every match; sim v16 PvP: slot 3's too, ordering team 1's bots (`from`).
+*/
+function applyPing(m, cmd, from = 0) {
 	const w = m.world;
 	const tick = w.globals[G.Tick];
-	const team = w.team[0];
+	const team = w.team[from];
+	const first = team * 3;
 	const kind = cmd.kind;
 	const target = kind === PING_KIND.Focus && cmd.id !== 255 && cmd.id < RANGE.minions && seenEnemy(w, team, cmd.id) ? cmd.id : -1;
 	const barks = [];
 	let took = 0;
-	if (kind !== PING_KIND.Focus || target >= 0) for (let id = RANGE.heroes; id < 3; id++) {
+	if (kind !== PING_KIND.Focus || target >= 0) for (let id = first; id < first + 3; id++) {
 		if (isHumanSlot(w, id) || w.team[id] !== team || w.alive[id] === 0) continue;
 		let what = "ok";
 		if (kind !== PING_KIND.FallBack && (hpBp(w, id) < PING.refuseHpBp || w.napT[id] > 0)) what = "heal";
@@ -14184,7 +14247,17 @@ function applyPing(m, cmd) {
 			what
 		});
 	}
-	m.events.push({
+	if (w.pvp === 1) m.events.push({
+		type: "ping",
+		tick,
+		kind: PING_KINDS[kind],
+		x: cmd.x,
+		y: cmd.y,
+		target,
+		took,
+		team
+	});
+	else m.events.push({
 		type: "ping",
 		tick,
 		kind: PING_KINDS[kind],
@@ -14200,7 +14273,7 @@ function orderOf(w, id) {
 	if (isHumanSlot(w, id) || w.botOrd[id] === 0) return -1;
 	const kind = w.botOrd[id] - 1;
 	const t = w.botOrdId[id];
-	if (w.globals[G.Tick] > w.botOrdT[id] || kind === PING_KIND.Focus && (t < 0 || w.alive[t] === 0) || kind === PING_KIND.Group && w.alive[0] === 0) {
+	if (w.globals[G.Tick] > w.botOrdT[id] || kind === PING_KIND.Focus && (t < 0 || w.alive[t] === 0) || kind === PING_KIND.Group && w.alive[leadOf(w, w.team[id])] === 0) {
 		w.botOrd[id] = 0;
 		w.botOrdId[id] = -1;
 		return -1;
@@ -14226,6 +14299,7 @@ function humanLaneNow(w) {
 * LANE_SWAP.from on), ally slot 1 takes Sunny Lane; the same hold in Sunny swaps it back.
 */
 function stepLaneSwap(w) {
+	if (w.pvp === 1) return;
 	const lane = humanLaneNow(w);
 	const cur = w.globals[G.LaneSwap];
 	const wants = lane < 0 ? cur : lane;
@@ -14361,13 +14435,14 @@ function pickFoe(w, id, mem, p, tick, slip, out, carry, brave, spare, focus = -1
 	out[0] = -1;
 	const team = w.team[id];
 	const truce = team !== w.team[0] && !brave && tick < truceUntil;
+	const lead = leadOf(w, team);
 	let best = -1;
 	let bestKey = 0;
 	for (let e = RANGE.heroes; e < RANGE.minions; e++) {
 		if (!seenEnemy(w, team, e) || !aware(mem, id, e, tick, p) || !targetable(w, e, team)) continue;
 		if (truce && e === 0) continue;
 		const focused = e === focus;
-		const committed = focused && w.alive[0] === 1 && dist2(w.x[0], w.y[0], w.x[e], w.y[e]) <= BOT_AI.powerRange * BOT_AI.powerRange;
+		const committed = focused && w.alive[lead] === 1 && dist2(w.x[lead], w.y[lead], w.x[e], w.y[e]) <= BOT_AI.powerRange * BOT_AI.powerRange;
 		const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
 		const peel = carry && w.target[e] === 0 && w.alive[0] === 1;
 		if (d > BOT_AI.engageRange + (e === mem.foe[id] || peel || brave || committed ? BOT_AI.chaseSlack : 0) + (slip ? BOT_AI.chaseSlack : 0)) continue;
@@ -14690,9 +14765,9 @@ function threatened(w, id, mem, p, tick) {
 	for (let s = RANGE.towers; s < RANGE.fountains; s++) if (w.alive[s] === 1 && w.team[s] !== w.team[id] && w.target[s] === id) return true;
 	return false;
 }
-/** Is the human alive within PING.groupRange of bot `id` (slot 0 itself: never)? */
+/** Is its team's lead human alive within PING.groupRange of bot `id` (the lead itself: never)? Sim v16: per team. */
 function beside(w, id) {
-	const h = 0;
+	const h = leadOf(w, w.team[id]);
 	return id !== h && w.alive[h] === 1 && dist2(w.x[id], w.y[id], w.x[h], w.y[h]) <= PING.groupRange * PING.groupRange;
 }
 /** Allied heroes of bot `id` (mine included) alive and above BOT_AI.objectiveHpBp. */
@@ -14704,10 +14779,12 @@ function healthyAllies(w, id) {
 /** Where ping order `ord` sends bot `id` (writes [x, y] into `goal`), and how close counts as there. */
 function orderGoal(w, id, ord, p) {
 	switch (ord) {
-		case PING_KIND.Group:
-			goal[0] = w.x[0];
-			goal[1] = w.y[0];
+		case PING_KIND.Group: {
+			const h = leadOf(w, w.team[id]);
+			goal[0] = w.x[h];
+			goal[1] = w.y[h];
 			return PING.groupRange;
+		}
 		case PING_KIND.Pudding: {
 			const pud = RANGE.pudding;
 			const up = w.alive[pud] === 1;
@@ -14762,7 +14839,7 @@ function orderAct(m, id, mem, ord, p, slipLastHit) {
 	mem.mode[id] = BOT_MODE.Push;
 	switch (ord) {
 		case PING_KIND.Group: {
-			const t = w.target[0];
+			const t = w.target[leadOf(w, team)];
 			if (dist2(w.x[id], w.y[id], goal[0], goal[1]) <= r * r && t >= 0 && w.alive[t] === 1 && w.team[t] !== team && targetable(w, t, team) && untankedThreat(w, team, w.x[t], w.y[t], 0) < 0) return attack(w, id, mem, t);
 			return holdAt(w, id, mem, goal[0], goal[1], r, p);
 		}
@@ -15146,10 +15223,9 @@ function enemiesNear(w, team, x, y, r) {
 	return n;
 }
 /** The ping slot 0 sends this think, or null. */
-function pingerPing(m, pm) {
+function pingerPing(m, pm, h = 0) {
 	const w = m.world;
 	const tick = w.globals[G.Tick];
-	const h = 0;
 	if (w.alive[h] === 0 || pm.sent >= PING.maxPerMatch || tick - pm.last < PING.minGap) return null;
 	const team = w.team[h];
 	const send = (kind, x, y, id, cd) => {
@@ -15176,24 +15252,24 @@ function pingerPing(m, pm) {
 		const x = w.x[h];
 		const y = w.y[h];
 		const foes = enemiesNear(w, team, x, y, PINGER.fightRange);
-		if (foes > 0 && allyNear(w, team, x, y, PINGER.fightRange) && foes > alliesNear(w, team, x, y, PINGER.fightRange)) return send(PING_KIND.FallBack, x, y, 255, PING.fallBackTicks);
+		if (foes > 0 && allyNear(w, team, x, y, PINGER.fightRange, h) && foes > alliesNear(w, team, x, y, PINGER.fightRange)) return send(PING_KIND.FallBack, x, y, 255, PING.fallBackTicks);
 	}
 	const raided = ready(PING_KIND.Defend) ? raidedBase(w, team) : -1;
-	if (raided >= 0 && !allyNear(w, team, w.x[raided], w.y[raided], PINGER.farRange)) return send(PING_KIND.Defend, w.x[raided], w.y[raided], 255, PING.orderTicks);
+	if (raided >= 0 && !allyNear(w, team, w.x[raided], w.y[raided], PINGER.farRange, h)) return send(PING_KIND.Defend, w.x[raided], w.y[raided], 255, PING.orderTicks);
 	const pud = RANGE.pudding;
 	const spawns = w.globals[G.PudSpawns];
-	if (ready(PING_KIND.Pudding) && w.globals[G.PudState] === PUD_STATE.Wild && w.alive[pud] === 1 && pm.pudSpawn !== spawns && hpBp(w, h) >= PINGER.groupHpBp && healthy(w, team) && enemiesNear(w, team, w.x[pud], w.y[pud], PINGER.farRange) <= 1) {
+	if (ready(PING_KIND.Pudding) && w.globals[G.PudState] === PUD_STATE.Wild && w.alive[pud] === 1 && pm.pudSpawn !== spawns && hpBp(w, h) >= PINGER.groupHpBp && healthy(w, team, h) && enemiesNear(w, team, w.x[pud], w.y[pud], PINGER.farRange) <= 1) {
 		pm.pudSpawn = spawns;
 		return send(PING_KIND.Pudding, w.x[pud], w.y[pud], 255, PING.orderTicks);
 	}
 	const t = w.target[h];
-	if (ready(PING_KIND.Focus) && t >= 0 && t < CAPS.heroes && seenEnemy(w, team, t) && hpBp(w, t) < PINGER.focusHpBp && allyNear(w, team, w.x[t], w.y[t], PINGER.focusRange)) return send(PING_KIND.Focus, w.x[t], w.y[t], t, PING.focusTicks);
+	if (ready(PING_KIND.Focus) && t >= 0 && t < CAPS.heroes && seenEnemy(w, team, t) && hpBp(w, t) < PINGER.focusHpBp && allyNear(w, team, w.x[t], w.y[t], PINGER.focusRange, h)) return send(PING_KIND.Focus, w.x[t], w.y[t], t, PING.focusTicks);
 	const lane = w.y[h] >= MAP.height >> 1 ? PING_KIND.PushSunny : PING_KIND.PushPuddle;
 	if (ready(lane) && enemiesDown(w, team) >= PINGER.pushDown && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane)) {
 		pm.next[PING_KIND.PushSunny + PING_KIND.PushPuddle - lane] = tick + PING.orderTicks;
 		return send(lane, w.x[h], w.y[h], 255, PING.orderTicks);
 	}
-	if (ready(PING_KIND.Group) && enemiesDown(w, team) > 0 && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane) && allyFar(w, team)) return send(PING_KIND.Group, w.x[h], w.y[h], 255, PING.orderTicks);
+	if (ready(PING_KIND.Group) && enemiesDown(w, team) > 0 && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane) && allyFar(w, team, h)) return send(PING_KIND.Group, w.x[h], w.y[h], 255, PING.orderTicks);
 	return null;
 }
 /** Enemy heroes of `team` dead now (the scoreboard shows it). */
@@ -15209,27 +15285,27 @@ function alliesNear(w, team, x, y, r) {
 	return n;
 }
 /** An allied bot alive within `r` of (x, y). */
-function allyNear(w, team, x, y, r) {
+function allyNear(w, team, x, y, r, h) {
 	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-		if (id === 0 || w.team[id] !== team || w.alive[id] === 0) continue;
+		if (id === h || w.team[id] !== team || w.alive[id] === 0) continue;
 		if (dist2(w.x[id], w.y[id], x, y) <= r * r) return true;
 	}
 	return false;
 }
 /** Both allied bots alive above PINGER.groupHpBp. */
-function healthy(w, team) {
+function healthy(w, team, h) {
 	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-		if (id === 0 || w.team[id] !== team) continue;
+		if (id === h || w.team[id] !== team) continue;
 		if (w.alive[id] === 0 || hpBp(w, id) < PINGER.groupHpBp) return false;
 	}
 	return true;
 }
 /** An allied bot alive further than PINGER.farRange from slot 0. */
-function allyFar(w, team) {
+function allyFar(w, team, h) {
 	const r2 = PINGER.farRange * PINGER.farRange;
 	for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-		if (id === 0 || w.team[id] !== team || w.alive[id] === 0) continue;
-		if (dist2(w.x[id], w.y[id], w.x[0], w.y[0]) > r2) return true;
+		if (id === h || w.team[id] !== team || w.alive[id] === 0) continue;
+		if (dist2(w.x[id], w.y[id], w.x[h], w.y[h]) > r2) return true;
 	}
 	return false;
 }
@@ -15450,8 +15526,14 @@ var ALLIES = Object.freeze({
 	}),
 	hard: BOTS.hard
 });
-/** Difficulty parameters of the bot in `slot`. */
+/** Default fill-bot profile of each PvP team (MatchConfig.fillDifficulty omitted). */
+var PVP_FILL_DEFAULT = Object.freeze(["hard", "hard"]);
+/**
+* Difficulty parameters of the bot in `slot`. Sim v16 PvP: both teams' bots are a human's allies, so each plays the
+* ALLIES profile of its own team's `fillDifficulty` (they obey their lead's pings like co-op allies).
+*/
 function botParams(m, slot) {
+	if (m.pvp) return ALLIES[(m.config.fillDifficulty ?? PVP_FILL_DEFAULT)[teamOfSlot(slot)]];
 	return teamOfSlot(slot) === teamOfSlot(0) ? ALLIES[m.config.difficulty] : BOTS[m.config.difficulty];
 }
 var thinksNow = (tick, slot) => (tick + slot) % TIMELINE.botThinkEvery === 0;
@@ -15476,8 +15558,9 @@ function stepBots(m) {
 * state (B1). The `pinger` profile is slot 0's only (pings come from slot 0).
 */
 function createPlayerBotFor(m, profile, slot) {
-	if (!Number.isInteger(slot) || slot < 0 || slot > 2) throw new RangeError(`player-bot slot ${String(slot)} is not 0, 1 or 2`);
-	if (profile === "pinger" && slot !== 0) throw new RangeError("the pinger profile drives slot 0 only");
+	const max = m.pvp ? 6 : 3;
+	if (!Number.isInteger(slot) || slot < 0 || slot >= max) throw new RangeError(`player-bot slot ${String(slot)} is not 0 to ${max - 1}`);
+	if (profile === "pinger" && slot !== 0 && !(m.pvp && slot === 3)) throw new RangeError("the pinger profile drives a lead slot only");
 	const name = profile === "pinger" ? "normal" : profile;
 	const fork = slot === 0 ? `player-bot:${name}` : `player-bot:${name}:s${slot}`;
 	return {
@@ -15511,7 +15594,7 @@ function playerBotCommands(m, bot) {
 		}] : [];
 	}
 	const cmd = bot.profile === "novice" ? noviceThink(m, bot.slot, bot.mem, bot.rng) : bot.profile === "naive" || bot.profile === "feeder" ? naiveThink(m, bot.slot, bot.mem, bot.rng, bot.profile === "feeder" ? FEEDER : void 0) : think(m, bot.slot, BOTS[bot.profile === "pinger" ? "normal" : bot.profile], bot.mem, bot.rng, bot.pings.mine);
-	const ping = bot.profile === "pinger" ? pingerPing(m, bot.pings) : null;
+	const ping = bot.profile === "pinger" ? pingerPing(m, bot.pings, bot.slot) : null;
 	const out = [];
 	if (ping) out.push(ping);
 	if (cmd) out.push(cmd);
@@ -15525,28 +15608,44 @@ function playerBotCommands(m, bot) {
 *
 * Same-tick order (B2, pinned by tests/unit/party-order.test.ts): slot 0's ping, slot 0's command, the forfeit block,
 * then `applyPartyInputs` (slot 1, then slot 2), then the in-sim bots.
+*
+* Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.4, pinned by tests/unit/pvp-order.test.ts): slot 0's ping, command and
+* forfeit; then slot 3's ping and forfeit (`applyLeadInputs`); then the commands of slots 1..5 in slot order (slot 3's
+* at its own position); then the in-sim bots.
 */
-/** Throws RangeError unless `humans` is ascending, unique, contains 0 and lies within {0, 1, 2}. */
-function validateHumans(humans) {
-	if (!Array.isArray(humans) || humans.length < 1 || humans.length > 3) throw new RangeError("humans must list 1 to 3 slots");
+/**
+* Throws RangeError unless `humans` is a valid seat list. PvE: ascending, unique, contains 0 and lies within {0, 1, 2}.
+* PvP (sim v16): ascending, unique, within 0..5, 2 to 6 entries, containing 0 and 3 (each team's lead).
+*/
+function validateHumans(humans, mode = "pve") {
+	const pvp = mode === "pvp";
+	const max = pvp ? 6 : 3;
+	if (!Array.isArray(humans) || humans.length < (pvp ? 2 : 1) || humans.length > max) throw new RangeError(pvp ? "pvp humans must list 2 to 6 slots" : "humans must list 1 to 3 slots");
 	if (humans[0] !== 0) throw new RangeError("humans must start with slot 0");
 	for (let i = 0; i < humans.length; i++) {
 		const s = humans[i];
-		if (!Number.isInteger(s) || s < 0 || s >= 3) throw new RangeError(`human slot ${String(s)} is not 0, 1 or 2`);
+		if (!Number.isInteger(s) || s < 0 || s >= max) throw new RangeError(pvp ? `human slot ${String(s)} is not 0 to 5` : `human slot ${String(s)} is not 0, 1 or 2`);
 		if (i > 0 && s <= humans[i - 1]) throw new RangeError("humans must be ascending and unique");
 	}
+	if (pvp && !humans.includes(3)) throw new RangeError("pvp humans must contain slot 3 (team 1 lead)");
 }
-/** One gate and one log per human slot >= 1 (slot 0 keeps the match's own gate and log). */
+/** One gate and one log per human slot >= 1 (slot 0 keeps the match's own gate and log). Indexed 0..5. */
 function createPartyState(config) {
 	const humans = config.humans ?? [0];
-	validateHumans(humans);
+	validateHumans(humans, config.mode);
 	const slots = [];
 	const gates = [
+		null,
+		null,
+		null,
 		null,
 		null,
 		null
 	];
 	const logs = [
+		null,
+		null,
+		null,
 		null,
 		null,
 		null
@@ -15563,9 +15662,13 @@ function createPartyState(config) {
 		logs
 	};
 }
-/** The commands slot `s` may send: everything but pings and forfeits (those are slot 0's; v1 drops them unlogged). */
-function ownCommands(list) {
+/**
+* The commands slot `s` may send: everything but pings and forfeits (those are slot 0's; v1 drops them unlogged).
+* Sim v16 PvP: team 1's lead (slot 3) keeps its pings and forfeits (`lead`).
+*/
+function ownCommands(list, lead = false) {
 	if (!list || list.length === 0) return void 0;
+	if (lead) return list;
 	let clean = true;
 	for (let i = 0; i < list.length && clean; i++) clean = list[i].op !== Op.Ping && list[i].op !== Op.Forfeit;
 	if (clean) return list;
@@ -15573,23 +15676,73 @@ function ownCommands(list) {
 	for (let i = 0; i < list.length; i++) if (list[i].op !== Op.Ping && list[i].op !== Op.Forfeit) out.push(list[i]);
 	return out;
 }
+var fold = (m, tick, slot, cmd) => {
+	const w = m.world;
+	w.globals[G.InputHash] = fnvBytes(fnvInt(fnvInt(w.globals[G.InputHash], tick), slot), encodeCommand(cmd)) | 0;
+};
+/**
+* Sim v16 S-PvP step 1a: team 1's lead (slot 3) gates its commands; its ping applies (orders team 1's bots) and its
+* forfeit is decided now, right after slot 0's block; its other command waits in `m.pvp.leadCmd` for its slot position
+* in `applyPartyInputs`. The log keeps slot 0's order: ping, command, forfeit.
+*/
+function applyLeadInputs(m, tick, bySlot) {
+	const party = m.party;
+	const pvp = m.pvp;
+	if (!party || !pvp) return;
+	const gate = party.gates[3];
+	const log = party.logs[3];
+	const list = ownCommands(bySlot ? bySlot[3] : void 0, true);
+	const cmd = gateCommand(gate, tick, list);
+	const ping = gate.ping;
+	if (ping && ping.op === Op.Ping) {
+		log.push({
+			tick,
+			cmd: ping
+		});
+		fold(m, tick, 3, ping);
+		applyPing(m, ping, 3);
+		pvp.actAt1 = tick;
+	}
+	if (cmd) log.push({
+		tick,
+		cmd
+	});
+	pvp.leadCmd = cmd;
+	if (gateForfeit(gate, tick, list, rulesOf(m).forfeitFrom)) {
+		const ff = { op: Op.Forfeit };
+		log.push({
+			tick,
+			cmd: ff
+		});
+		fold(m, tick, 3, ff);
+	}
+}
 /**
 * Step 1b (party only): the human slots >= 1 apply their commands through their own gate, in slot order. Each applied
-* command is logged in its slot's log and folded into G.InputHash with the slot (slot 0's fold is unchanged).
+* command is logged in its slot's log and folded into G.InputHash with the slot (slot 0's fold is unchanged). Sim v16
+* PvP: slot 3's command was gated (and logged) by `applyLeadInputs`; it is folded and applied here, at its position.
 */
 function applyPartyInputs(m, tick, bySlot) {
 	const party = m.party;
 	if (!party) return;
-	const w = m.world;
+	const pvp = m.pvp;
 	for (let i = 0; i < party.slots.length; i++) {
 		const slot = party.slots[i];
-		const cmd = gateCommand(party.gates[slot], tick, ownCommands(bySlot ? bySlot[slot] : void 0));
-		if (!cmd) continue;
-		party.logs[slot].push({
-			tick,
-			cmd
-		});
-		w.globals[G.InputHash] = fnvBytes(fnvInt(fnvInt(w.globals[G.InputHash], tick), slot), encodeCommand(cmd)) | 0;
+		let cmd;
+		if (pvp && slot === 3) {
+			cmd = pvp.leadCmd;
+			pvp.leadCmd = null;
+			if (!cmd) continue;
+			pvp.actAt1 = tick;
+		} else {
+			cmd = gateCommand(party.gates[slot], tick, ownCommands(bySlot ? bySlot[slot] : void 0));
+			if (!cmd) continue;
+			party.logs[slot].push({
+				tick,
+				cmd
+			});
+		}
+		fold(m, tick, slot, cmd);
 		applyOrder(m, slot, cmd);
 	}
 }
@@ -15641,7 +15794,14 @@ function validate(config) {
 	for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
 	if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
 	if (config.botTalents !== void 0 && !BOT_TALENT_MODES.includes(config.botTalents)) throw new RangeError(`unknown botTalents ${config.botTalents}`);
-	if (config.humans !== void 0) validateHumans(config.humans);
+	if (config.mode !== void 0 && !MATCH_MODES.includes(config.mode)) throw new RangeError(`unknown mode ${String(config.mode)}`);
+	if (config.mode === "pvp") {
+		if (config.difficulty !== "hard") throw new RangeError("a pvp match is played at difficulty hard");
+		if (config.humans === void 0) throw new RangeError("a pvp match needs humans");
+		const fill = config.fillDifficulty;
+		if (fill !== void 0 && (!Array.isArray(fill) || fill.length !== 2 || !fill.every((d) => DIFFICULTIES.includes(d)))) throw new RangeError("fillDifficulty needs two difficulties");
+	} else if (config.fillDifficulty !== void 0) throw new RangeError("fillDifficulty is for pvp matches only");
+	if (config.humans !== void 0) validateHumans(config.humans, config.mode);
 }
 var sideX = (team, x) => team === 0 ? x : mirrorX(x);
 /**
@@ -15685,7 +15845,8 @@ function createMatch(config) {
 		});
 	}
 	const perTeam = TOWER_SPOTS.length;
-	const rules = DIFFICULTY_RULES[config.difficulty];
+	const pvp = config.mode === "pvp";
+	const rules = pvp ? PVP_RULES : DIFFICULTY_RULES[config.difficulty];
 	const phases = TIMELINE_BY[config.difficulty];
 	w.globals[G.Sunset] = phases.sunset;
 	w.globals[G.SuddenDeath] = phases.suddenDeath;
@@ -15737,11 +15898,21 @@ function createMatch(config) {
 		trail: [],
 		events: [],
 		ended: null,
-		stats
+		stats,
+		rules
 	};
 	if (config.humans !== void 0 && config.humans.length > 1) {
 		w.humans = humanMask(config.humans);
 		m.party = createPartyState(config);
+	}
+	if (pvp) {
+		w.pvp = 1;
+		m.pvp = {
+			leadCmd: null,
+			actAt1: 0,
+			px1: w.x[3],
+			py1: w.y[3]
+		};
 	}
 	coverStructures(m);
 	refreshVision(w);
@@ -15791,6 +15962,7 @@ function step(match, commands, others) {
 		});
 		w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ff)) | 0;
 	}
+	if (m.pvp) applyLeadInputs(m, tick, others);
 	if (m.party) applyPartyInputs(m, tick, others);
 	stepBots(m);
 	const wave = waveAt(tick, w.globals[G.SiegeWaves]);
@@ -15818,6 +15990,12 @@ function step(match, commands, others) {
 		w.globals[G.HumanPX] = w.x[0];
 		w.globals[G.HumanPY] = w.y[0];
 		w.globals[G.HumanActAt] = tick;
+	}
+	const pv = m.pvp;
+	if (pv && (w.x[3] !== pv.px1 || w.y[3] !== pv.py1)) {
+		pv.px1 = w.x[3];
+		pv.py1 = w.y[3];
+		pv.actAt1 = tick;
 	}
 	stepMinions(m);
 	stepCamps(m);
@@ -15906,11 +16084,18 @@ function runReplay(record) {
 */
 /** The first SIM_VERSION with party code (see the merge warning above). The backend refuses older party results. */
 var PARTY_SINCE = 13;
+/**
+* Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.7): the first SIM_VERSION with PvP (humans on both teams). The backend
+* offers the casual queue only when it verifies a version >= PVP_SINCE, and refuses an older PvP record.
+*/
+var PVP_SINCE = 16;
 /** Is hero slot `slot` a human's in match `m`? Slot 0 always; slots 1 and 2 only in a party. */
 var isHuman = (m, slot) => isHumanSlot(m.world, slot);
 /**
 * Picks for a party: the bots exactly as `fillPicks(seed, humans[0].hero, humans[0].trick)` draws them, then each
 * human seat overwrites its slot. Invariant: `fillPicksParty(s, [h0])` deep-equals `fillPicks(s, h0.hero, h0.trick)`.
+* Sim v16 PvP uses the same rule: team 0 is slot 0's species, team 1 the other (`fillPicks`); every seat on team 1
+* must be of that other species (checkPvpShape refuses a mixed team), so a pick list never mixes species in a team.
 */
 function fillPicksParty(seed, humans) {
 	const lead = humans[0];
@@ -15926,9 +16111,9 @@ function partyLog(m, slot) {
 	if (slot === 0) return m.log;
 	return m.party?.logs[slot] ?? [];
 }
-/** Party replay of an ended party match, or null while it runs. */
+/** Party replay of an ended party match, or null while it runs (and for a PvP match: see pvpReplayRecord). */
 function partyReplayRecord(m) {
-	if (!m.ended) return null;
+	if (!m.ended || m.pvp) return null;
 	const slots = m.config.humans ?? [0];
 	const humans = [];
 	const inputs = [];
@@ -15956,15 +16141,63 @@ function partyReplayRecord(m) {
 		mutator: "none"
 	};
 }
+/** Sim v16 S-PvP: the replay of an ended PvP match, or null (still running, or not a PvP match). */
+function pvpReplayRecord(m) {
+	if (!m.ended || !m.pvp) return null;
+	const slots = m.config.humans ?? [0];
+	const humans = [];
+	const inputs = [];
+	for (let i = 0; i < slots.length; i++) {
+		const s = slots[i];
+		humans.push({
+			slot: s,
+			hero: m.config.picks[s],
+			trick: m.config.tricks[s]
+		});
+		inputs.push(toBase64(encodeStream(partyLog(m, s))));
+	}
+	const fill = m.config.fillDifficulty ?? PVP_FILL_DEFAULT;
+	return {
+		v: 3,
+		mode: "pvp",
+		simVersion: 16,
+		seed: m.config.seed >>> 0,
+		difficulty: m.config.difficulty,
+		fillDifficulty: [fill[0], fill[1]],
+		humans,
+		picks: m.config.picks.slice(),
+		tricks: m.config.tricks.slice(),
+		ticks: m.ended.ticks,
+		inputs,
+		outcome: m.ended.outcome,
+		finalHash: m.ended.finalHash,
+		mutator: "none"
+	};
+}
 /** Re-simulate a party replay (shape already checked). Throws DecodeError on a malformed stream. */
 function runPartyReplay(r) {
+	return runSeats(r, void 0);
+}
+/** Sim v16 S-PvP: re-simulate a PvP replay (shape already checked). Throws DecodeError on a malformed stream. */
+function runPvpReplay(r) {
+	return runSeats(r, [r.fillDifficulty[0], r.fillDifficulty[1]]);
+}
+function runSeats(r, fill) {
 	const limit = Math.min(r.ticks, MAX_TICKS);
 	const streams = [];
 	for (let i = 0; i < r.inputs.length; i++) streams.push(decodeStream(fromBase64(r.inputs[i]), limit - 1));
 	const { picks, tricks } = fillPicksParty(r.seed, r.humans);
 	const humans = [];
 	for (let i = 0; i < r.humans.length; i++) humans.push(r.humans[i].slot);
-	const m = createMatch({
+	const m = fill ? createMatch({
+		seed: r.seed,
+		picks,
+		tricks,
+		difficulty: r.difficulty,
+		humans,
+		mode: "pvp",
+		fillDifficulty: fill
+	}) : createMatch({
 		seed: r.seed,
 		picks,
 		tricks,
@@ -15974,15 +16207,11 @@ function runPartyReplay(r) {
 	const at = [];
 	for (let i = 0; i < streams.length; i++) at.push(0);
 	const slot0 = [];
-	const others = [
-		[],
-		[],
-		[]
-	];
+	const others = [];
+	for (let s = 0; s < 6; s++) others.push([]);
 	for (let t = 0; t < limit && result(m) === null; t++) {
 		slot0.length = 0;
-		others[1].length = 0;
-		others[2].length = 0;
+		for (let s = 1; s < 6; s++) others[s].length = 0;
 		for (let i = 0; i < streams.length; i++) {
 			const s = r.humans[i].slot;
 			const list = s === 0 ? slot0 : others[s];
@@ -16066,6 +16295,85 @@ function verifyPartyReplay(record) {
 		reason: res.reason
 	};
 }
+/** The species ('cat' | 'dog') of a hero id. */
+var sideOf = (hero) => HEROES[hero].side;
+/** Structural check of a PvpReplayRecord (no simulation). Null when well-formed. */
+function checkPvpShape(r) {
+	if (!r || typeof r !== "object") return fail$1("PAWLEGENDS_REPLAY_INVALID", "not an object");
+	const x = r;
+	if (x.v !== 3 || x.mode !== "pvp") return fail$1("PAWLEGENDS_REPLAY_INVALID", "a pvp record has v 3 and mode 'pvp'");
+	if (typeof x.simVersion !== "number" || x.simVersion !== 16) return fail$1("PAWLEGENDS_SIM_VERSION", `simVersion ${String(x.simVersion)} is not 16`);
+	if (x.simVersion < 16) return fail$1("PAWLEGENDS_SIM_VERSION", `pvp needs simVersion 16`);
+	if (typeof x.seed !== "number" || !Number.isInteger(x.seed) || x.seed < 0 || x.seed > 4294967295) return fail$1("PAWLEGENDS_REPLAY_INVALID", "seed must be a uint32");
+	if (x.difficulty !== "hard") return fail$1("PAWLEGENDS_REPLAY_INVALID", "a pvp match is played at difficulty hard");
+	const fill = x.fillDifficulty;
+	if (!Array.isArray(fill) || fill.length !== 2 || !fill.every((d) => typeof d === "string" && DIFFICULTIES.includes(d))) return fail$1("PAWLEGENDS_REPLAY_INVALID", "fillDifficulty needs two difficulties");
+	if (!Array.isArray(x.humans) || x.humans.length < 2 || x.humans.length > 6) return fail$1("PAWLEGENDS_REPLAY_INVALID", "pvp humans must list 2 to 6 seats");
+	let last = -1;
+	let lead1 = false;
+	for (let i = 0; i < x.humans.length; i++) {
+		const h = x.humans[i];
+		if (!h || typeof h !== "object") return fail$1("PAWLEGENDS_REPLAY_INVALID", "bad seat");
+		const s = h.slot;
+		if (typeof s !== "number" || !Number.isInteger(s) || s < 0 || s >= 6) return fail$1("PAWLEGENDS_REPLAY_INVALID", "seat slot must be 0 to 5");
+		if (i === 0 && s !== 0) return fail$1("PAWLEGENDS_REPLAY_INVALID", "the first seat must be slot 0");
+		if (s <= last) return fail$1("PAWLEGENDS_REPLAY_INVALID", "seat slots must be ascending and unique");
+		last = s;
+		if (s === 3) lead1 = true;
+		if (typeof h.hero !== "string" || !HERO_IDS.includes(h.hero)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "unknown hero");
+		if (typeof h.trick !== "string" || !TRICK_IDS.includes(h.trick)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "unknown trick");
+	}
+	if (!lead1) return fail$1("PAWLEGENDS_REPLAY_INVALID", "slot 3 (team 1 lead) must be a seat");
+	const seats = x.humans;
+	const side0 = sideOf(seats[0].hero);
+	for (let i = 1; i < seats.length; i++) {
+		const own = sideOf(seats[i].hero) === side0;
+		if (seats[i].slot < 3 !== own) return fail$1("PAWLEGENDS_REPLAY_INVALID", "a team mixes species");
+	}
+	if (!Array.isArray(x.picks) || x.picks.length !== 6 || !Array.isArray(x.tricks) || x.tricks.length !== 6) return fail$1("PAWLEGENDS_REPLAY_INVALID", "picks and tricks need 6 slots");
+	if (typeof x.ticks !== "number" || !Number.isInteger(x.ticks) || x.ticks < 1) return fail$1("PAWLEGENDS_REPLAY_INVALID", "ticks must be a positive integer");
+	if (x.ticks > MAX_TICKS) return fail$1("PAWLEGENDS_TOO_LONG", `ticks over ${MAX_TICKS}`);
+	if (!Array.isArray(x.inputs) || x.inputs.length !== x.humans.length) return fail$1("PAWLEGENDS_REPLAY_INVALID", "one input stream per seat");
+	for (let i = 0; i < x.inputs.length; i++) {
+		if (typeof x.inputs[i] !== "string") return fail$1("PAWLEGENDS_REPLAY_INVALID", "inputs must be strings");
+		if (x.inputs[i].length > 40800) return fail$1("PAWLEGENDS_TOO_LONG", `inputs over ${MAX_INPUT_CHARS} characters`);
+	}
+	if (x.outcome !== "won" && x.outcome !== "lost") return fail$1("PAWLEGENDS_REPLAY_INVALID", "outcome must be won or lost");
+	if (!isHex8$1(x.finalHash)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "finalHash must be 8 hex digits");
+	if (x.mutator !== void 0 && !MUTATORS.includes(x.mutator)) return fail$1("PAWLEGENDS_REPLAY_INVALID", "mutator must be 'none'");
+	const want = fillPicksParty(x.seed, seats);
+	for (let s = 0; s < 6; s++) if (x.picks[s] !== want.picks[s] || x.tricks[s] !== want.tricks[s]) return fail$1("PAWLEGENDS_REPLAY_INVALID", "picks do not match the seed and seats");
+	return null;
+}
+/**
+* Verify a PvP replay: shape, then a full re-sim; accepted only when it ends on `ticks` with the outcome (team 0's
+* view) and hash. The verdict carries `winner`, from which the backend derives each slot's own result.
+*/
+function verifyPvpReplay(record) {
+	const bad = checkPvpShape(record);
+	if (bad) return bad;
+	const r = record;
+	let run;
+	try {
+		run = runPvpReplay(r);
+	} catch (e) {
+		if (e instanceof DecodeError) return fail$1("PAWLEGENDS_REPLAY_INVALID", `inputs: ${e.message}`);
+		throw e;
+	}
+	const res = run.result;
+	if (!res || res.ticks !== r.ticks) return fail$1("PAWLEGENDS_NOT_ENDED", "the match does not end on the reported tick");
+	if (res.outcome !== r.outcome) return fail$1("PAWLEGENDS_OUTCOME_MISMATCH", `re-sim outcome is ${res.outcome}`);
+	if (res.finalHash !== r.finalHash) return fail$1("PAWLEGENDS_HASH_MISMATCH", "final hash differs");
+	return {
+		ok: true,
+		outcome: res.outcome,
+		finalHash: res.finalHash,
+		ticks: res.ticks,
+		stats: res.stats,
+		reason: res.reason,
+		winner: res.winner
+	};
+}
 //#endregion
 //#region src/sim/server.ts
 /**
@@ -16127,15 +16435,20 @@ function verifyReplay(record) {
 		reason: res.reason
 	};
 }
-/** Party play: the tick from which a surrender (Op.Forfeit) applies on difficulty `d` (0 = never). */
+/** Party play: the tick from which a surrender (Op.Forfeit) applies on difficulty `d` (0 = never). Sim v16: 'pvp' = PvP. */
 function forfeitFromOf(d) {
+	if (d === "pvp") return PVP_RULES.forfeitFrom;
 	const r = DIFFICULTY_RULES[d];
 	return r ? r.forfeitFrom : 0;
 }
-/** Party play: bit s set = hero slot s (0..2) is alive (the relay's AFK timer pauses while a hero is dead). */
+/**
+* Party play: bit s set = hero slot s (0..2) is alive (the relay's AFK timer pauses while a hero is dead). Sim v16
+* PvP: slots 0..5.
+*/
 function humanAliveMask(m) {
 	let mask = 0;
-	for (let s = RANGE.heroes; s < 3; s++) if (m.world.alive[s] === 1) mask |= 1 << s;
+	const end = m.pvp ? RANGE.heroes + 6 : 3;
+	for (let s = RANGE.heroes; s < end; s++) if (m.world.alive[s] === 1) mask |= 1 << s;
 	return mask;
 }
 /** Party play: the side ('cat' | 'dog') of a hero (all humans pick from the leader's side), or null. */
@@ -16144,4 +16457,4 @@ function heroSideOf(hero) {
 	return h ? h.side : null;
 }
 //#endregion
-export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, SIM_VERSION, TRICK_IDS, checkPartyShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, forfeitFromOf, fromBase64, hash, hashTrail, heroSideOf, humanAliveMask, isHuman, partyLog, partyReplayRecord, playerBotCommands, quantize, result, runPartyReplay, step, tickOf, toBase64, verifyPartyReplay, verifyReplay };
+export { DIFFICULTIES, DecodeError, HERO_IDS, MAX_INPUT_CHARS, MAX_TICKS, NO_TARGET, Op, PARTY_SINCE, PLAYER_PROFILES, PVP_LEAD1, PVP_SINCE, SIM_VERSION, TRICK_IDS, checkPartyShape, checkPvpShape, checkReplayShape, createMatch, createPlayerBotFor, decodeCommand, decodeStream, encodeCommand, encodeStream, fillPicks, fillPicksParty, forfeitFromOf, fromBase64, hash, hashTrail, heroSideOf, humanAliveMask, isHuman, partyLog, partyReplayRecord, playerBotCommands, pvpReplayRecord, quantize, result, runPartyReplay, runPvpReplay, step, tickOf, toBase64, verifyPartyReplay, verifyPvpReplay, verifyReplay };

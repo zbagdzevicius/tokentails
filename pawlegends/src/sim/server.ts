@@ -70,6 +70,11 @@ export function verifyReplay(record: unknown): VerifyResult {
 // referee worker steps rooms with (createMatch / step / hash / pilots). Additive: verifyReplay above is unchanged.
 export {
   PARTY_SINCE,
+  PVP_SINCE,
+  checkPvpShape,
+  pvpReplayRecord,
+  runPvpReplay,
+  verifyPvpReplay,
   checkPartyShape,
   fillPicksParty,
   isHuman,
@@ -81,21 +86,26 @@ export {
 } from './party';
 export { createMatch, step, hash, hashTrail, result, tickOf, fillPicks, playerBotCommands, PLAYER_PROFILES, DIFFICULTIES } from './index';
 export { decodeCommand, encodeCommand, quantize, encodeStream, decodeStream, toBase64, fromBase64, DecodeError } from './commands';
-export { Op, NO_TARGET, type PartyReplayRecord, type PartySeat, type Command, type TimedCommand } from './api';
+export { Op, NO_TARGET, PVP_LEAD1, type PartyReplayRecord, type PartySeat, type PvpReplayRecord, type Command, type TimedCommand } from './api';
 export { HERO_IDS } from '../data/heroes';
 export { TRICK_IDS } from '../data/tricks';
-import { DIFFICULTY_RULES } from '../data/bots';
-/** Party play: the tick from which a surrender (Op.Forfeit) applies on difficulty `d` (0 = never). */
+import { DIFFICULTY_RULES, PVP_RULES } from '../data/bots';
+/** Party play: the tick from which a surrender (Op.Forfeit) applies on difficulty `d` (0 = never). Sim v16: 'pvp' = PvP. */
 export function forfeitFromOf(d: string): number {
+  if (d === 'pvp') return PVP_RULES.forfeitFrom;
   const r = (DIFFICULTY_RULES as Readonly<Record<string, { forfeitFrom: number } | undefined>>)[d];
   return r ? r.forfeitFrom : 0;
 }
 import { RANGE } from './world';
 import type { MatchHandle } from './state';
-/** Party play: bit s set = hero slot s (0..2) is alive (the relay's AFK timer pauses while a hero is dead). */
+/**
+ * Party play: bit s set = hero slot s (0..2) is alive (the relay's AFK timer pauses while a hero is dead). Sim v16
+ * PvP: slots 0..5.
+ */
 export function humanAliveMask(m: MatchHandle): number {
   let mask = 0;
-  for (let s = RANGE.heroes; s < 3; s++) if (m.world.alive[s] === 1) mask |= 1 << s;
+  const end = m.pvp ? RANGE.heroes + 6 : 3;
+  for (let s = RANGE.heroes; s < end; s++) if (m.world.alive[s] === 1) mask |= 1 << s;
   return mask;
 }
 import { HEROES } from '../data/heroes';

@@ -5,7 +5,7 @@
  * the same tick (that result stands).
  */
 import { TIMELINE } from '../data/timeline';
-import { HUMAN_SLOT, teamOfSlot, type MatchResult, type Team } from './api';
+import { HUMAN_SLOT, PVP_LEAD1, teamOfSlot, type MatchResult, type Team } from './api';
 import { hashHex } from './hash';
 import { Rng } from './rng';
 import type { MatchHandle } from './state';
@@ -46,6 +46,14 @@ export function checkWin(m: MatchHandle): void {
   if (dead0 && dead1) endMatch(m, tieBreakWinner(w, m.config.seed), 'core');
   else if (dead0) endMatch(m, TEAM_WOOF, 'core');
   else if (dead1) endMatch(m, TEAM_PURRHAVEN, 'core');
-  else if (m.gate.forfeit) endMatch(m, teamOfSlot(HUMAN_SLOT) === TEAM_PURRHAVEN ? TEAM_WOOF : TEAM_PURRHAVEN, 'forfeit');
+  else if (m.pvp) {
+    // Sim v16 S-PvP (V16.md §3.1.5): each team's lead carries its team's surrender. Both on one tick: the tie-break.
+    const ff0 = m.gate.forfeit;
+    const ff1 = m.party?.gates[PVP_LEAD1]?.forfeit === true;
+    if (ff0 && ff1) endMatch(m, tieBreakWinner(w, m.config.seed), 'forfeit');
+    else if (ff0) endMatch(m, TEAM_WOOF, 'forfeit');
+    else if (ff1) endMatch(m, TEAM_PURRHAVEN, 'forfeit');
+    else if (w.globals[G.Tick] >= TIMELINE.safetyEnd) endMatch(m, tieBreakWinner(w, m.config.seed), 'safetyEnd');
+  } else if (m.gate.forfeit) endMatch(m, teamOfSlot(HUMAN_SLOT) === TEAM_PURRHAVEN ? TEAM_WOOF : TEAM_PURRHAVEN, 'forfeit');
   else if (w.globals[G.Tick] >= TIMELINE.safetyEnd) endMatch(m, tieBreakWinner(w, m.config.seed), 'safetyEnd');
 }

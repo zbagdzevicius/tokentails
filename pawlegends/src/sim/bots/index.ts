@@ -9,7 +9,7 @@
  */
 import { BOTS, BOT_TEAMS, FEEDER, PARKED, ROOKIE_ALLIES, type BotParams, type Difficulty, type PlayerProfile } from '../../data/bots';
 import { TIMELINE } from '../../data/timeline';
-import { HUMAN_SLOT, Op, teamOfSlot, type Command } from '../api';
+import { HUMAN_SLOT, Op, PVP_LEAD1, SLOT_COUNT, teamOfSlot, type Command } from '../api';
 import { quantize } from '../commands';
 import { Rng } from '../rng';
 import type { MatchHandle } from '../state';
@@ -41,8 +41,15 @@ const ALLIES: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze(
   hard: BOTS.hard,
 });
 
-/** Difficulty parameters of the bot in `slot`. */
+/** Default fill-bot profile of each PvP team (MatchConfig.fillDifficulty omitted). */
+export const PVP_FILL_DEFAULT: readonly [Difficulty, Difficulty] = Object.freeze(['hard', 'hard'] as [Difficulty, Difficulty]);
+
+/**
+ * Difficulty parameters of the bot in `slot`. Sim v16 PvP: both teams' bots are a human's allies, so each plays the
+ * ALLIES profile of its own team's `fillDifficulty` (they obey their lead's pings like co-op allies).
+ */
 export function botParams(m: MatchHandle, slot: number): BotParams {
+  if (m.pvp) return ALLIES[(m.config.fillDifficulty ?? PVP_FILL_DEFAULT)[teamOfSlot(slot)]];
   return teamOfSlot(slot) === teamOfSlot(HUMAN_SLOT) ? ALLIES[m.config.difficulty] : BOTS[m.config.difficulty];
 }
 
@@ -86,8 +93,10 @@ export function createPlayerBot(m: MatchHandle, profile: PlayerProfile): PlayerB
  * state (B1). The `pinger` profile is slot 0's only (pings come from slot 0).
  */
 export function createPlayerBotFor(m: MatchHandle, profile: PlayerProfile, slot: number): PlayerBot {
-  if (!Number.isInteger(slot) || slot < 0 || slot > 2) throw new RangeError(`player-bot slot ${String(slot)} is not 0, 1 or 2`);
-  if (profile === 'pinger' && slot !== HUMAN_SLOT) throw new RangeError('the pinger profile drives slot 0 only');
+  // Sim v16 PvP: a pilot may drive any of the six slots, and the pinger drives either lead (0 or 3).
+  const max = m.pvp ? SLOT_COUNT : 3;
+  if (!Number.isInteger(slot) || slot < 0 || slot >= max) throw new RangeError(`player-bot slot ${String(slot)} is not 0 to ${max - 1}`);
+  if (profile === 'pinger' && slot !== HUMAN_SLOT && !(m.pvp && slot === PVP_LEAD1)) throw new RangeError('the pinger profile drives a lead slot only');
   const name = profile === 'pinger' ? 'normal' : profile;
   const fork = slot === HUMAN_SLOT ? `player-bot:${name}` : `player-bot:${name}:s${slot}`;
   return { profile, slot, mem: createMem(), rng: new Rng(m.config.seed >>> 0).fork(fork), pings: createPingerMem() };
@@ -120,7 +129,7 @@ export function playerBotCommands(m: MatchHandle, bot: PlayerBot): Command[] {
         ? naiveThink(m, bot.slot, bot.mem, bot.rng, bot.profile === 'feeder' ? FEEDER : undefined)
         : think(m, bot.slot, BOTS[bot.profile === 'pinger' ? 'normal' : bot.profile], bot.mem, bot.rng, bot.pings.mine);
   // The pinger plays like `normal` and may ping in the same tick (a ping shares its tick with one other command).
-  const ping = bot.profile === 'pinger' ? pingerPing(m, bot.pings) : null;
+  const ping = bot.profile === 'pinger' ? pingerPing(m, bot.pings, bot.slot) : null;
   const out: Command[] = [];
   if (ping) out.push(ping);
   if (cmd) out.push(cmd);

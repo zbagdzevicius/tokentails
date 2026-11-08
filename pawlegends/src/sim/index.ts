@@ -6,7 +6,7 @@
  * and stealth, the rat camps, Pudding, the §7.3 timeline (Sunset, Sudden Death, the 11:00 safety end) and the
  * in-sim bots for slots 1..5, all in the §4.3 step order marked below.
  */
-import { BOTS } from '../data/bots';
+import { BOTS, DIFFICULTIES as DIFFICULTY_LIST, PVP_RULES } from '../data/bots';
 import { BRANCH_TALENT, HERO_IDS, HEROES } from '../data/heroes';
 import { CAPS, CORE, FOUNTAIN, LANES, TOWER_SPOTS, mirrorX } from '../data/map';
 import { CORE_STATS, TOWERS } from '../data/towers';
@@ -14,7 +14,9 @@ import { TIMELINE, TIMELINE_BY } from '../data/timeline';
 import { TRICK_IDS } from '../data/tricks';
 import {
   HUMAN_SLOT,
+  MATCH_MODES,
   Op,
+  PVP_LEAD1,
   SLOTS_PER_TEAM,
   SLOT_COUNT,
   teamOfSlot,
@@ -68,13 +70,14 @@ import { DIFFICULTY_RULES } from '../data/bots';
 import { PICKUP_KINDS } from '../data/pickups';
 import { BOT_TALENT_MODES, PICKUP_ID_BASE } from './api';
 import { humanMask } from './humans';
-import { applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
+import { applyLeadInputs, applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
 
 export * from './api';
 export { SIM_VERSION } from './version';
 // Party play (MULTIPLAYER.md §1.1): the in-step hooks; the replay side is in party.ts (it imports this file).
-export { isHumanSlot, humanMask } from './humans';
-export { applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
+export { isHumanSlot, humanMask, leadOf } from './humans';
+export { applyLeadInputs, applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
+export { PVP_RULES } from '../data/bots';
 export { createPlayerBotFor } from './bots';
 export { TICK_HZ } from '../data/timeline';
 
@@ -132,7 +135,15 @@ function validate(config: MatchConfig): void {
   for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
   if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
   if (config.botTalents !== undefined && !BOT_TALENT_MODES.includes(config.botTalents)) throw new RangeError(`unknown botTalents ${config.botTalents}`);
-  if (config.humans !== undefined) validateHumans(config.humans);
+  // Sim v16 S-PvP: a PvP match names its mode, plays on Hard's timeline and needs both leads among the humans.
+  if (config.mode !== undefined && !MATCH_MODES.includes(config.mode)) throw new RangeError(`unknown mode ${String(config.mode)}`);
+  if (config.mode === 'pvp') {
+    if (config.difficulty !== 'hard') throw new RangeError('a pvp match is played at difficulty hard');
+    if (config.humans === undefined) throw new RangeError('a pvp match needs humans');
+    const fill = config.fillDifficulty;
+    if (fill !== undefined && (!Array.isArray(fill) || fill.length !== 2 || !fill.every((d) => DIFFICULTY_LIST.includes(d)))) throw new RangeError('fillDifficulty needs two difficulties');
+  } else if (config.fillDifficulty !== undefined) throw new RangeError('fillDifficulty is for pvp matches only');
+  if (config.humans !== undefined) validateHumans(config.humans, config.mode);
   // Sim v5: a team may field a hero twice (species teams: 2 heroes a side for 3 slots).
 }
 
@@ -160,7 +171,9 @@ export function createMatch(config: MatchConfig): MatchHandle {
     stats.push({ slot, hero: hero.id, kills: 0, deaths: 0, assists: 0, heroDamage: 0, towerDamage: 0, level: 1, damageTaken: 0, healShield: 0, objective: 0, fish: 0, toys: 0, lastHits: 0, toy1At: -1, toy2At: -1, toy3At: -1, toy4At: -1 });
   }
   const perTeam = TOWER_SPOTS.length;
-  const rules = DIFFICULTY_RULES[config.difficulty];
+  const pvp = config.mode === 'pvp';
+  // Sim v16: the rules are cached on the match (rules.ts rulesOf); PvP swaps in PVP_RULES, PvE keeps its row.
+  const rules = pvp ? PVP_RULES : DIFFICULTY_RULES[config.difficulty];
   const phases = TIMELINE_BY[config.difficulty];
   w.globals[G.Sunset] = phases.sunset;
   w.globals[G.SuddenDeath] = phases.suddenDeath;
@@ -203,11 +216,16 @@ export function createMatch(config: MatchConfig): MatchHandle {
   initCamps(w, TIMELINE.campsUp);
   initPudding(w);
   initPickups(w);
-  const m: MatchHandle = { config, world: w, grid: createGrid(), log: [], gate: createGate(), trail: [], events: [], ended: null, stats };
+  const m: MatchHandle = { config, world: w, grid: createGrid(), log: [], gate: createGate(), trail: [], events: [], ended: null, stats, rules };
   // Party play (MULTIPLAYER.md §1.1): human slots >= 1 get their own gate and log; the mask is not hashed.
   if (config.humans !== undefined && config.humans.length > 1) {
     w.humans = humanMask(config.humans);
     (m as { party?: MatchHandle['party'] }).party = createPartyState(config);
+  }
+  // Sim v16 S-PvP: team 1's lead state (not hashed) and the world flag the bots read through `leadOf`.
+  if (pvp) {
+    w.pvp = 1;
+    (m as { pvp?: MatchHandle['pvp'] }).pvp = { leadCmd: null, actAt1: 0, px1: w.x[PVP_LEAD1], py1: w.y[PVP_LEAD1] };
   }
   coverStructures(m);
   refreshVision(w);
@@ -254,7 +272,9 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
     m.log.push({ tick, cmd: ff });
     w.globals[G.InputHash] = fnvBytes(fnvInt(w.globals[G.InputHash], tick), encodeCommand(ff)) | 0;
   }
-  // 1b. Party play: human slots 1 and 2, in slot order (after the forfeit block, MULTIPLAYER.md §1.2).
+  // 1a. Sim v16 PvP: team 1's lead (slot 3) ping and forfeit block (V16.md §3.1.4).
+  if (m.pvp) applyLeadInputs(m, tick, others);
+  // 1b. Party play: human slots 1 and 2 (PvP: 1 to 5), in slot order (after the forfeit block, MULTIPLAYER.md §1.2).
   if (m.party) applyPartyInputs(m, tick, others);
   // 2. Bots think (every 6 ticks, staggered by slot).
   stepBots(m);
@@ -280,6 +300,13 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
     w.globals[G.HumanPX] = w.x[HUMAN_SLOT];
     w.globals[G.HumanPY] = w.y[HUMAN_SLOT];
     w.globals[G.HumanActAt] = tick;
+  }
+  // Sim v16 PvP: team 1's lead leash (not hashed).
+  const pv = m.pvp;
+  if (pv && (w.x[PVP_LEAD1] !== pv.px1 || w.y[PVP_LEAD1] !== pv.py1)) {
+    pv.px1 = w.x[PVP_LEAD1];
+    pv.py1 = w.y[PVP_LEAD1];
+    pv.actAt1 = tick;
   }
   stepMinions(m);
   stepCamps(m);
@@ -331,9 +358,11 @@ function eventFor(w: World, e: SimEvent, team: Team): SimEvent | null {
     case 'clip':
       return visibleTo(w, e.id, team) ? e : null;
     // Sim v10: pings and barks are the human's team's own (enemy bots and their snapshot never see them).
+    // Sim v16 PvP: each team sees only its own (the ping names its team, a bark its bot).
     case 'ping':
+      return team === (e.team ?? teamOfSlot(HUMAN_SLOT)) ? e : null;
     case 'bark':
-      return team === teamOfSlot(HUMAN_SLOT) ? e : null;
+      return team === (w.pvp === 1 ? w.team[e.id] : teamOfSlot(HUMAN_SLOT)) ? e : null;
     default:
       return e;
   }

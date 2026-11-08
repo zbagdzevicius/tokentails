@@ -229,8 +229,9 @@ export function resolveDeaths(m: MatchHandle): void {
       w.globals[enemy === 0 ? G.Kills0 : G.Kills1]++;
       // Sim v7: a team that keeps losing fights stays down longer (DifficultyRules.leadPressure).
       // Fun pass (playtest #10): a struggling human (RESPAWN.humanStreakFrom+ deaths in a row) waits RESPAWN.humanStreakBp
-      // of the wait and no lead pressure. Not on Rookie, whose human respawn has its own rule (humanRespawnBp).
-      const struggling = isHumanSlot(w, id) && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= BP_ONE;
+      // of the wait and no lead pressure. Not on Rookie, whose human respawn has its own rule (humanRespawnBp), nor in
+      // PvP (sim v16, DifficultyRules.humanStreakRespawn: a human-only wait would favour one team).
+      const struggling = isHumanSlot(w, id) && w.deathStreak[id] >= RESPAWN.humanStreakFrom && rulesOf(m).humanRespawnBp >= BP_ONE && rulesOf(m).humanStreakRespawn;
       if (struggling) w.timer[id] = Math.max(1, applyBp(w.timer[id], RESPAWN.humanStreakBp));
       if (rulesOf(m).leadPressure && !struggling) {
         const gap = w.globals[enemy === 0 ? G.Kills0 : G.Kills1] - w.globals[enemy === 0 ? G.Kills1 : G.Kills0] - RESPAWN.gapFree;

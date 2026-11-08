@@ -2,6 +2,7 @@
  * The concrete match behind the opaque `Match` handle, shared by every sim module (kept out of index.ts so the
  * unit modules can import it without a cycle).
  */
+import type { DifficultyRules } from '../data/bots';
 import type { Command, MatchConfig, MatchResult, SimEvent, SlotStats, TimedCommand } from './api';
 import type { NavGrid } from './map/grid';
 import type { World } from './world';
@@ -30,11 +31,24 @@ export interface InputGate {
  * `log`). Outside the world hash, like the gate.
  */
 export interface PartyState {
-  /** Human slots >= 1, ascending (1, 2 or both). */
+  /** Human slots >= 1, ascending (1, 2 or both; sim v16 PvP: any of 1..5, always 3). */
   readonly slots: readonly number[];
-  /** Indexed by hero slot (0 unused). */
+  /** Indexed by hero slot (0 unused), 6 entries. */
   readonly gates: (InputGate | null)[];
   readonly logs: (TimedCommand[] | null)[];
+}
+
+/**
+ * Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.3, §3.1.4): team 1's lead (slot 3) state. NOT hashed, like `w.humans`:
+ * it is derived from logged inputs and positions, which the hash already covers.
+ */
+export interface PvpState {
+  /** Slot 3's command gated this tick (applied at its slot position after the ping and forfeit block), or null. */
+  leadCmd: Command | null;
+  /** Last tick slot 3 gave a command or moved (team 1's G.HumanActAt), and its last position. */
+  actAt1: number;
+  px1: number;
+  py1: number;
 }
 
 export interface MatchHandle {
@@ -53,4 +67,8 @@ export interface MatchHandle {
   readonly stats: SlotStats[];
   /** Party play: present only when `config.humans` names more than slot 0. */
   readonly party?: PartyState;
+  /** Sim v16: the match rules, cached at createMatch (DIFFICULTY_RULES[difficulty], or PVP_RULES in PvP). */
+  readonly rules: DifficultyRules;
+  /** Sim v16 S-PvP: present only in a PvP match. */
+  readonly pvp?: PvpState;
 }
