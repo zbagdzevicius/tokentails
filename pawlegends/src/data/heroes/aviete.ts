@@ -12,9 +12,11 @@ export const AVIETE: HeroData = Object.freeze<HeroData>({
   base: { hp: 500, hpPerLevel: 54, attack: 58, attackPerLevel: 6, attackEvery: 28, range: 1600, speed: 5200, armour: 18, armourPerLevel: 2 },
   /**
    * Shy, Then Shiny: after 1 s in brush she is Charged (it holds 4 s after she leaves brush); her next damage of
-   * any kind to an enemy hero deals +60 (+10/lvl) and stuns 0.5 s, then she cannot charge again for 8 s.
+   * any kind to an enemy hero deals +40 (+4/lvl) and stuns 0.5 s, then she cannot charge again for 8 s. Sim v17
+   * (V17.md §3.11 burst cap): bonus 60 (+10/lvl) → 40 (+4/lvl); her R then a charged basic took 78% of a level-10 Chili
+   * in 1.5 s (Nine Lives already caps the first second, so the hit after it is what the 70% rule trims).
    */
-  passive: { brushTime: 30, hold: 120, bonus: 60, bonusPerLevel: 10, stun: 15, lockout: 240 },
+  passive: { brushTime: 30, hold: 120, bonus: 40, bonusPerLevel: 4, stun: 15, lockout: 240 },
   abilities: {
     /** Spark Swipe: cone 2.2 m, 100°, 75 (+6/lvl, +18 a rank). */
     q: { cooldown: 180, range: 2200, arc: 1138, dmg: 75, dmgPerLevel: 6 },

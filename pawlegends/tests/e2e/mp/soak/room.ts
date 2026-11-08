@@ -125,6 +125,9 @@ class Client {
   lostSeat = false;
   private awaitMatchSince = 0;
   private outage = false;
+  /** When the relay welcomed this client back without its seat, and when its match ended. */
+  lostAt = 0;
+  endAt = 0;
   private hostAt = 0;
 
   constructor(
@@ -304,6 +307,7 @@ class Client {
       events: () => undefined,
       end: (r, replay) => {
         const party = (replay as { party?: PartyEnd }).party;
+        this.endAt = Date.now();
         this.end = { outcome: replay.outcome, ticks: r.ticks, finalHash: r.finalHash, record: party?.record ?? null, party };
         log(`client ${this.idx} slot ${this.slot} end ${replay.outcome} ${r.ticks} ${r.finalHash}`);
       },
@@ -324,6 +328,7 @@ class Client {
     if (this.closed || this.end) return;
     const now = Date.now();
     if (this.awaitMatchSince && now - this.awaitMatchSince > 8000) {
+      this.lostAt = this.awaitMatchSince;
       this.awaitMatchSince = 0;
       this.lostSeat = true;
       log(`client ${this.idx} slot ${this.slot}: welcomed back without its seat (${this.errors.join(',')})`);
@@ -518,7 +523,10 @@ async function main(): Promise<void> {
 
     // play until every client's NetHost reports the end (the sim's end plus the relay's `end`)
     await Promise.all(cs.map((c) => c.until(() => c.end || c.lostSeat, cfg.maxMs, 'end')));
-    const lost = cs.filter((c) => c.lostSeat && !c.end);
+    // a client that came back after its room ended (a surrender passed while it was away) has no seat to get back
+    const done0 = cs.filter((c) => c.end);
+    const roomEndAt = done0.length ? Math.min(...done0.map((c) => c.endAt)) : Infinity;
+    const lost = cs.filter((c) => c.lostSeat && !c.end && c.lostAt < roomEndAt - 3000);
     if (lost.length) problems.push(`seat lost after a drop: ${lost.map((c) => `slot ${c.slot} (${c.plan?.kind}; errors ${c.errors.join(',') || 'none'})`).join(', ')}`);
     const done = cs.filter((c) => c.end);
     if (!done.length) throw new Error('no client reached the end');
