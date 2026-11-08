@@ -3,7 +3,9 @@
 #
 # Runs on a tag `pawlegends-ios-v*` (TestFlight build) or by hand (Actions → Pawlegends iOS → Run workflow) with a
 # lane: bootstrap (register the bundle id once, before creating the app record), beta (TestFlight), metadata (listing
-# text, screenshots, icon), submit (submit the latest build for review; type SUBMIT to confirm). Releasing an approved build stays a manual button in App Store Connect.
+# text, screenshots, icon), submit (submit the latest build for review; type SUBMIT to confirm). The Mac App Store
+# version (Mac Catalyst of the same target, same app record): mac_beta (TestFlight macOS .pkg), mac_metadata (macOS
+# listing, screenshots from fastlane/screenshots_mac), mac_submit (type SUBMIT). Releasing an approved build stays a manual button in App Store Connect.
 #
 # Secrets (Settings → Secrets and variables → Actions): ASC_KEY_P8 (base64 of the .p8). ASC_KEY_ID, ASC_ISSUER_ID and
 # APPLE_TEAM_ID are public ids hardcoded below (a secret overrides them). Optional: DIST_CERT_P12 + DIST_CERT_PASSWORD (only when the API key cannot use cloud signing).
@@ -16,13 +18,13 @@ on:
   workflow_dispatch:
     inputs:
       lane:
-        description: 'bootstrap = register the bundle id (once), beta = TestFlight build, metadata = listing only, submit = submit the latest build for review'
+        description: 'bootstrap = register the bundle id (once), beta = TestFlight build, metadata = listing only, submit = submit the latest build for review; mac_* = the same for the Mac App Store'
         required: true
         default: beta
         type: choice
-        options: [bootstrap, beta, metadata, submit]
+        options: [bootstrap, beta, metadata, submit, mac_beta, mac_metadata, mac_submit]
       confirm:
-        description: 'For submit: type SUBMIT'
+        description: 'For submit and mac_submit: type SUBMIT'
         required: false
         default: ''
       changelog:
@@ -53,6 +55,8 @@ jobs:
       APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID || 'BVLDTU9V83' }}
       DIST_CERT_P12: ${{ secrets.DIST_CERT_P12 }}
       DIST_CERT_PASSWORD: ${{ secrets.DIST_CERT_PASSWORD }}
+      MAC_INSTALLER_P12: ${{ secrets.MAC_INSTALLER_P12 }}
+      MAC_INSTALLER_PASSWORD: ${{ secrets.MAC_INSTALLER_PASSWORD }}
       LANE: ${{ github.event.inputs.lane || 'beta' }}
       BUILD_NUMBER: ${{ github.run_number }}
       TESTFLIGHT_CHANGELOG: ${{ github.event.inputs.changelog }}
@@ -70,7 +74,7 @@ jobs:
           if [ -n "$missing" ]; then
             echo "::notice::Missing App Store Connect secrets:$missing. Nothing was built. See pawlegends-app/README.md."
             echo "ok=false" >> "$GITHUB_OUTPUT"
-          elif [ "$LANE" = "submit" ] && [ "$CONFIRM" != "SUBMIT" ]; then
+          elif { [ "$LANE" = "submit" ] || [ "$LANE" = "mac_submit" ]; } && [ "$CONFIRM" != "SUBMIT" ]; then
             echo "::error::Type SUBMIT in the confirm field to submit for review."
             exit 1
           else
@@ -93,12 +97,12 @@ jobs:
           bundler-cache: true
           working-directory: pawlegends-app
       - name: Install
-        if: steps.secrets.outputs.ok == 'true' && env.LANE == 'beta'
+        if: steps.secrets.outputs.ok == 'true' && (env.LANE == 'beta' || env.LANE == 'mac_beta')
         run: |
           (cd pawlegends && npm ci)
           (cd pawlegends-app && npm ci)
       - name: Build the bundled game and sync the iOS project
-        if: steps.secrets.outputs.ok == 'true' && env.LANE == 'beta'
+        if: steps.secrets.outputs.ok == 'true' && (env.LANE == 'beta' || env.LANE == 'mac_beta')
         working-directory: pawlegends-app
         run: |
           # same seq format as the OTA bundles (UTC to the second): the built-in bundle must compare by build time
@@ -114,12 +118,17 @@ jobs:
             beta) bundle exec fastlane ios beta ;;
             metadata) bundle exec fastlane ios metadata ;;
             submit) SUBMIT=yes bundle exec fastlane ios release ;;
+            mac_beta) bundle exec fastlane mac_beta ;;
+            mac_metadata) bundle exec fastlane mac_metadata ;;
+            mac_submit) SUBMIT=yes bundle exec fastlane mac_submit ;;
           esac
-      - name: Keep the .ipa (7 days)
-        if: steps.secrets.outputs.ok == 'true' && env.LANE == 'beta'
+      - name: Keep the .ipa / .pkg (7 days)
+        if: steps.secrets.outputs.ok == 'true' && (env.LANE == 'beta' || env.LANE == 'mac_beta')
         uses: actions/upload-artifact@v4
         with:
-          name: pawlegends-ios-${{ github.run_number }}
-          path: pawlegends-app/build/release/*.ipa
+          name: pawlegends-${{ env.LANE }}-${{ github.run_number }}
+          path: |
+            pawlegends-app/build/release/*.ipa
+            pawlegends-app/build/release/*.pkg
           retention-days: 7
           if-no-files-found: ignore

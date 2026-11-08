@@ -2,7 +2,7 @@
  * The app shell script (`www/shell.js`, a classic script loaded before the game in index.html by
  * scripts/build-web.mjs). Native only: on any other page it does nothing.
  *
- * - haptics: a `navigator.vibrate` backed by the Taptic Engine (haptics.ts);
+ * - haptics: a `navigator.vibrate` backed by the Taptic Engine (haptics.ts), iPhone only (not in the Mac app);
  * - OTA: notifyAppReady once the title is up, update checks on launch and resume, apply on the title (ota.ts).
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
@@ -59,8 +59,12 @@ function partySeat(): boolean {
 
 function start(): void {
   if (!Capacitor.isNativePlatform()) return;
-  const styles = { LIGHT: ImpactStyle.Light, MEDIUM: ImpactStyle.Medium, HEAVY: ImpactStyle.Heavy } as const;
-  installVibrate(navigator, { impact: (o) => Haptics.impact({ style: styles[o.style] }) });
+  // the Mac app (Mac Catalyst) has no Taptic Engine: no vibrate bridge there, the game's haptics stay silent
+  const mac = (window as unknown as { __PL_PLATFORM__?: unknown }).__PL_PLATFORM__ === 'mac';
+  if (!mac) {
+    const styles = { LIGHT: ImpactStyle.Light, MEDIUM: ImpactStyle.Medium, HEAVY: ImpactStyle.Heavy } as const;
+    installVibrate(navigator, { impact: (o) => Haptics.impact({ style: styles[o.style] }) });
+  }
 
   // set by the native shell before any page script (GameViewController.swift): stable, beta (TestFlight) or dev (Debug)
   const channel = channelOf((window as unknown as { __PL_CHANNEL__?: unknown }).__PL_CHANNEL__);

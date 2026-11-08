@@ -5,12 +5,25 @@ import Capacitor
 /// The Pawlegends game screen (docs/plans/moba/APP-STORE.md "Native shell"): the Capacitor bridge view controller
 /// in landscape only, full screen, with no status bar, an auto-hidden home indicator and system edge gestures
 /// deferred so a swipe from a screen edge mid-match does not leave the game.
+///
+/// The same controller runs the Mac app (Mac Catalyst, "Optimize for Mac"): there the status bar, home indicator and
+/// orientation overrides do nothing, the page is told it runs on a Mac (`window.__PL_PLATFORM__`) and the WebView
+/// asks for desktop content, so the game uses its keyboard and mouse controls and desktop HUD.
 class GameViewController: CAPBridgeViewController {
     override var supportedInterfaceOrientations: UIInterfaceOrientationMask { .landscape }
     override var preferredInterfaceOrientationForPresentation: UIInterfaceOrientation { .landscapeRight }
     override var prefersStatusBarHidden: Bool { true }
     override var prefersHomeIndicatorAutoHidden: Bool { true }
     override var preferredScreenEdgesDeferringSystemGestures: UIRectEdge { .all }
+
+    /// `mac` in the Mac app, `ios` on iPhone (src/shell/main.ts and pawlegends/src/app/platform.ts read it).
+    static var platform: String {
+        #if targetEnvironment(macCatalyst)
+        return "mac"
+        #else
+        return "ios"
+        #endif
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -29,21 +42,37 @@ class GameViewController: CAPBridgeViewController {
         setNeedsUpdateOfScreenEdgesDeferringSystemGestures()
     }
 
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        #if targetEnvironment(macCatalyst)
+        // keys reach the game without a first click into the window
+        webView?.becomeFirstResponder()
+        #endif
+        #if DEBUG
+        DebugProbe.scheduleIfAsked(self)
+        #endif
+    }
+
     /// Audio plays inline and WebGL keeps running: the game's own settings, set before the WebView is created.
     override func webViewConfiguration(for instanceConfiguration: InstanceConfiguration) -> WKWebViewConfiguration {
         let config = super.webViewConfiguration(for: instanceConfiguration)
         config.allowsInlineMediaPlayback = true
         config.mediaTypesRequiringUserActionForPlayback = []
         config.suppressesIncrementalRendering = false
+        #if targetEnvironment(macCatalyst)
+        // capacitor.config.ts asks for mobile content for the iPhone; the Mac gets the desktop page
+        config.defaultWebpagePreferences.preferredContentMode = .desktop
+        #endif
         return config
     }
 
-    /// The OTA channel (src/shell/manifest.ts), set before any page script so every bundle (built in or updated)
-    /// reads the channel of the binary it runs in. Added here, not in webViewConfiguration: Capacitor swaps in its
-    /// own userContentController between the two calls.
+    /// The OTA channel (src/shell/manifest.ts) and the platform, set before any page script so every bundle (built in
+    /// or updated) reads the values of the binary it runs in. Added here, not in webViewConfiguration: Capacitor swaps
+    /// in its own userContentController between the two calls.
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
-        let channel = WKUserScript(source: "window.__PL_CHANNEL__ = '\(GameViewController.otaChannel)';", injectionTime: .atDocumentStart, forMainFrameOnly: true)
-        configuration.userContentController.addUserScript(channel)
+        let source = "window.__PL_CHANNEL__ = '\(GameViewController.otaChannel)'; window.__PL_PLATFORM__ = '\(GameViewController.platform)';"
+        let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
+        configuration.userContentController.addUserScript(script)
         return super.webView(with: frame, configuration: configuration)
     }
 
@@ -57,3 +86,37 @@ class GameViewController: CAPBridgeViewController {
         #endif
     }
 }
+
+#if DEBUG
+/// Debug builds only, to check a local build without Screen Recording permission (scripts/build-mac.mjs --run): with
+/// `PL_PROBE=<dir>` in the environment, after `PL_PROBE_DELAY` seconds (default 15) the app writes `<dir>/probe.png`
+/// (a WebView snapshot) and `<dir>/probe.json` (what the page sees), then quits (unless `PL_PROBE_STAY` is set).
+enum DebugProbe {
+    static func scheduleIfAsked(_ vc: GameViewController) {
+        let env = ProcessInfo.processInfo.environment
+        guard let dir = env["PL_PROBE"], !dir.isEmpty else { return }
+        let delay = Double(env["PL_PROBE_DELAY"] ?? "") ?? 15
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { run(vc, dir: URL(fileURLWithPath: dir)) }
+    }
+
+    private static func run(_ vc: GameViewController, dir: URL) {
+        guard let webView = vc.webView else { return }
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        let js = """
+        JSON.stringify({ platform: window.__PL_PLATFORM__, channel: window.__PL_CHANNEL__, coarse: matchMedia('(pointer: coarse)').matches,
+          fine: matchMedia('(pointer: fine)').matches, hover: matchMedia('(hover: hover)').matches, touch: document.documentElement.dataset.touch || '',
+          ready: document.documentElement.dataset.ready || '', screen: document.documentElement.dataset.screen || '', shell: document.documentElement.dataset.shell || '',
+          ua: navigator.userAgent, maxTouchPoints: navigator.maxTouchPoints, size: [innerWidth, innerHeight], dpr: devicePixelRatio,
+          vibrate: typeof navigator.vibrate, window: [\(Int(webView.window?.bounds.width ?? 0)), \(Int(webView.window?.bounds.height ?? 0))] })
+        """
+        webView.evaluateJavaScript(js) { result, error in
+            let text = (result as? String) ?? "{\"error\": \"\(String(describing: error))\"}"
+            try? text.write(to: dir.appendingPathComponent("probe.json"), atomically: true, encoding: .utf8)
+            webView.takeSnapshot(with: nil) { image, _ in
+                if let data = image?.pngData() { try? data.write(to: dir.appendingPathComponent("probe.png")) }
+                if ProcessInfo.processInfo.environment["PL_PROBE_STAY"] == nil { exit(0) }
+            }
+        }
+    }
+}
+#endif
