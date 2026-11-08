@@ -122,6 +122,9 @@ jobs:
           fi
       - uses: actions/checkout@v4
         if: steps.secret.outputs.ok == 'true'
+        with:
+          # vendor-sim reads the frozen sim bundles from git history
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         if: steps.secret.outputs.ok == 'true'
         with:
@@ -195,6 +198,9 @@ jobs:
           fi
       - uses: actions/checkout@v4
         if: steps.secret.outputs.ok == 'true'
+        with:
+          # vendor-sim reads the frozen sim bundles from git history
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         if: steps.secret.outputs.ok == 'true'
         with:
