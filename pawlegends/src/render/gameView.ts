@@ -4,12 +4,12 @@
  * player's hero (render/camera/frame.ts): it moves only for a minimap peek, the aim pan of the longest skills, a
  * scripted look (the core falling) and a capped shake. Render only: no sim imports beyond types.
  */
-import { setViewTeam } from './coords';
+import { screenRightXZ, setViewTeam, towardCameraXZ } from './coords';
 import { PingMarkers } from './views/pingMarkers';
 import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
 import { heightFactor, loadCameraHeight, type CameraHeight } from './camera/height';
-import { aimPan, groundWidthAt, returnShare, SHAKE_MAX_M } from './camera/frame';
+import { aimPan, groundReach, reachAlong, returnShare, SHAKE_MAX_M } from './camera/frame';
 import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
@@ -133,6 +133,9 @@ export class GameView {
    * else 0. The focus is always follow + camOff (no smoothing of the follow itself).
    */
   readonly camOff = { x: 0, z: 0 };
+  /** Scratch for the aim pan's screen axes. */
+  private readonly panR = { x: 0, z: 0 };
+  private readonly panT = { x: 0, z: 0 };
   /** A peek point (m) and until when (view s; Infinity while a finger or mouse button holds the minimap), or null. */
   private peekPt: { x: number; z: number; until: number } | null = null;
   /** The return to the hero after a peek or an aim pan: where it started (m) and its clock (s), Infinity = none. */
@@ -733,12 +736,16 @@ export class GameView {
       const me = this.lastMe;
       if (a && !a.pointer && me && me.state !== 'dead') {
         const c = this.gr.renderer.domElement;
-        const half = groundWidthAt(this.gr.dist, c.clientWidth || 1, c.clientHeight || 1) / 2;
         const range = a.spec.range / 1000;
-        const pan = aimPan(range, half);
         const dx = a.x - this.follow.x;
         const dz = a.z - this.follow.z;
         const l = Math.hypot(dx, dz);
+        // the visible ground toward the aim: the near (down-screen) side shows about half the far side's ground
+        const sr = screenRightXZ(this.panR);
+        const tc = towardCameraXZ(this.panT);
+        const reach = groundReach(this.gr.dist, c.clientWidth || 1, c.clientHeight || 1);
+        const half = l > 1e-6 ? reachAlong((dx * sr.x + dz * sr.z) / l, -(dx * tc.x + dz * tc.z) / l, reach) : reach.side;
+        const pan = aimPan(range, half);
         if (pan > 0 && l > 0.5) {
           const k = pan * Math.min(1, l / Math.max(0.1, range));
           this.aimPanM = k;

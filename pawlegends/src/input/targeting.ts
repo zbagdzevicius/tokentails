@@ -75,6 +75,8 @@ export function attackPriority(
   killDmg?: (u: Unit) => number,
 ): number | null {
   let hero: Unit | null = null;
+  /** Feel pass B4: an enemy hero just past the range (HERO_REACH_MM) and not under an untanked enemy tower. */
+  let reachHero: Unit | null = null;
   let minion: Unit | null = null;
   let tower: Unit | null = null;
   let nearHero: Unit | null = null;
@@ -106,8 +108,11 @@ export function attackPriority(
       }
     }
     if (u.kind === 'hero') {
-      // feel pass B4: an enemy hero within the attack range + HERO_REACH_MM wins the default pick over farm in range
-      if (d <= range + HERO_REACH_MM && (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp)) hero = u;
+      // feel pass B4: an enemy hero within the attack range + HERO_REACH_MM wins the default pick over farm in range;
+      // one past the range (a walk-in) never under an untanked enemy tower, and never over a last hit in reach
+      if (inRange) {
+        if (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp) hero = u;
+      } else if (d <= range + HERO_REACH_MM && (!reachHero || u.hp / u.maxHp < reachHero.hp / reachHero.maxHp) && !guardedByTower(units, u, myTeam)) reachHero = u;
       if (d <= seek && (!nearHero || d < dist(nearHero, me) - BODY_MM.hero) && !guardedByTower(units, u, myTeam)) nearHero = u;
     } else if (u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding') {
       if (inRange && !farm && (!minion || u.hp < minion.hp)) minion = u;
@@ -120,7 +125,7 @@ export function attackPriority(
     const fallback = edge(nearMinion) < edge(nearHero) ? nearMinion : nearHero;
     return (closest ?? tower ?? fallback)?.id ?? null;
   }
-  return (hero ?? kill ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
+  return (hero ?? kill ?? reachHero ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
 }
 
 /** Feel pass B4: the Attack button's default order takes an enemy hero this far (mm) past the attack range first. */

@@ -69,12 +69,38 @@ export const viewOffsetY = (h: number): number => -(HERO_AT.y - 0.5) * h;
 export const viewOffsetX = (w: number): number => -(HERO_AT.x - 0.5) * w;
 
 /**
- * Aim pan (m) for a skill of `range` m when `halfWidth` m of ground shows on each side of the hero: 0 unless the
- * skill reaches past AIM_PAN.share of it, then the overshoot, at most AIM_PAN.max.
+ * Aim pan (m) for a skill of `range` m when `halfWidth` m of ground shows from the hero toward the aim (reachAlong):
+ * 0 unless the skill reaches past AIM_PAN.share of it, then the overshoot, at most AIM_PAN.max.
  */
 export function aimPan(range: number, halfWidth: number): number {
   if (!(range > 0) || !(halfWidth > 0)) return 0;
   return Math.max(0, Math.min(AIM_PAN.max, range - AIM_PAN.share * halfWidth));
+}
+
+/**
+ * The ground (m) the camera shows from its focus (the hero's spot, HERO_AT) up the screen (`up`, the far side) and
+ * down it (`down`, the near side) at distance `d` on a `w` × `h` viewport: the tilt makes them unequal (about 13 m up
+ * and 7 m down on a landscape phone). Pure.
+ */
+export function groundReach(d: number, w: number, h: number): { up: number; down: number; side: number } {
+  const tv = Math.tan((FOV * DEG) / 2);
+  const height = d * Math.sin(PITCH);
+  const flat = d * Math.cos(PITCH);
+  const below = Math.atan(2 * (1 - HERO_AT.y) * tv);
+  const above = Math.atan(2 * HERO_AT.y * tv);
+  const down = flat - height / Math.tan(PITCH + below);
+  const up = PITCH - above > 0.01 ? height / Math.tan(PITCH - above) - flat : 1e3;
+  return { up, down, side: groundWidthAt(d, w, h) / 2 };
+}
+
+/**
+ * The visible ground (m) from the focus along a ground direction whose screen components are (`r` right, `u` up the
+ * screen), unit length: an ellipse through the side, up and down reaches (groundReach). Pure.
+ */
+export function reachAlong(r: number, u: number, reach: { up: number; down: number; side: number }): number {
+  const fwd = u >= 0 ? reach.up : reach.down;
+  const k = Math.hypot(r / Math.max(0.01, reach.side), u / Math.max(0.01, fwd));
+  return k > 0 ? 1 / k : reach.side;
 }
 
 /** Ease-out share (1 → 0) of a peek or pan still applied `t` s after its release. */

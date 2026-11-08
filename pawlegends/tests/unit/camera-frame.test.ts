@@ -7,7 +7,7 @@
  */
 import * as THREE from 'three';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { AIM_PAN, FOV, frameDist, groundWidthAt, HERO_AT, PEEK_RETURN_S, PITCH, aimPan, returnShare } from '../../src/render/camera/frame';
+import { AIM_PAN, FOV, frameDist, groundReach, groundWidthAt, HERO_AT, PEEK_RETURN_S, PITCH, aimPan, reachAlong, returnShare } from '../../src/render/camera/frame';
 import { CAMERA_HEIGHT_KEY, heightFactor, loadCameraHeight, saveCameraHeight, wheelHeight } from '../../src/render/camera/height';
 import { placeMatchCamera } from '../../src/render/renderer';
 import { FightCam, PUNCH_VIGNETTE } from '../../src/render/anim/cam';
@@ -82,6 +82,29 @@ describe('aim pan and peek return', () => {
     expect(aimPan(80, half)).toBe(AIM_PAN.max);
     expect(aimPan(0, half)).toBe(0);
   });
+
+  for (const [w, h] of [
+    [667, 375],
+    [844, 390],
+  ] as const)
+    it(`${w}x${h}: the visible reach up and down the screen matches the camera, and a down-screen 9 m skill pans`, () => {
+      const cam = new THREE.PerspectiveCamera();
+      const d = frameDist(w, h);
+      // yaw 0: screen-up on the ground is −Z
+      placeMatchCamera(cam, new THREE.Vector3(0, 0, 0), 0, w, h);
+      const r = groundReach(d, w, h);
+      expect(screenOf(cam, new THREE.Vector3(0, 0, r.down), w, h).y).toBeCloseTo(h, 0);
+      expect(screenOf(cam, new THREE.Vector3(0, 0, -r.up), w, h).y).toBeCloseTo(0, 0);
+      expect(r.down).toBeGreaterThan(6);
+      expect(r.down).toBeLessThan(8);
+      expect(r.up).toBeGreaterThan(r.down * 1.6);
+      expect(reachAlong(1, 0, r)).toBeCloseTo(r.side, 6);
+      expect(reachAlong(0, -1, r)).toBeCloseTo(r.down, 6);
+      // a 9 m skill: no pan aimed sideways or up, a pan aimed down-screen (it would end under the thumbs)
+      expect(aimPan(9, reachAlong(1, 0, r))).toBe(0);
+      expect(aimPan(9, reachAlong(0, 1, r))).toBe(0);
+      expect(aimPan(9, reachAlong(0, -1, r))).toBeGreaterThan(2);
+    });
 
   it('the return to the hero eases out and is done in 150 ms', () => {
     expect(PEEK_RETURN_S).toBeCloseTo(0.15, 5);

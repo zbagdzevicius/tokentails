@@ -169,11 +169,14 @@ html[data-touch='1'] .pl-match .pl-talents.on {
   top: calc(44px + var(--safe-t, 0px)); bottom: auto; right: auto; left: 50%; transform: translateX(-50%); gap: 6px; padding-top: 0;
 }
 html[data-touch='1'] .pl-match .pl-talents .head { top: -16px; left: 50%; right: auto; transform: translateX(-50%); font-size: 11px; }
-html[data-touch='1'] .pl-match .pl-talents button { width: 132px; height: 44px; padding: 2px 8px; }
-html[data-touch='1'] .pl-match .pl-talents button span.s { font-size: 9.5px; }
+html[data-touch='1'] .pl-match .pl-talents button { width: 150px; height: 50px; padding: 2px 8px; }
+/* the short line wraps to two lines instead of being cut ("Wing Wrap shields m…") */
+html[data-touch='1'] .pl-match .pl-talents button span.s { font-size: 9.5px; line-height: 1.15; white-space: normal; -webkit-line-clamp: 2; }
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
-  html[data-touch='1'] .pl-match .pl-talents button { width: 118px; }
+  html[data-touch='1'] .pl-match .pl-talents button { width: 140px; }
 }
+/* the announcement rail sits under an open talent card (card: top 44 px + 50 px tall), never on top of it */
+html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rail { --rail-top: 100px; }
 
 /* B4: the cancel bubble: 72 px, 150 px above the pressed button (touchControls places it), fades in when a hold or a
    drag starts, red once the thumb has rested on it for 120 ms (armed) */
@@ -195,6 +198,8 @@ html[data-touch='1'] .pl-match .pl-talents button span.s { font-size: 9.5px; }
 .pl-backin::before {
   content: ''; display: block; width: 64px; height: 64px; margin: 0 auto 2px; background: url('/assets/stickers/respawn-dog-256.webp') center / contain no-repeat;
 }
+/* a cat hero's counter gets the napping cat instead (the stopwatch dog is the dog side's) */
+.pl-match[data-side='cat'] .pl-backin::before { background-image: url('/assets/stickers/nap-cat-256.webp'); }
 @media (max-height: 480px) { .pl-backin::before { width: 48px; height: 48px; } }
 html[data-touch='1'] .pl-match .pl-tbtn.nap { background: rgba(58, 39, 66, 0.66) url('/assets/stickers/nap-cat-256.webp') center 40% / 82% no-repeat; }
 html[data-touch='1'] .pl-match .pl-tbtn.nap span { inset: auto 0 1px 0; font-size: 9px; }

@@ -730,6 +730,8 @@ export class MatchSession {
       d.matchPick = `${this.setup.hero},${this.setup.trick},${this.setup.difficulty}`;
       d.matchSeed = String(w.seed);
     }
+    // feel pass art: the match's stickers ("Back in N") follow the player's side
+    this.ui.dataset.side = HEROES[w.picks[w.slot]]?.side === 'dog' ? 'dog' : 'cat';
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
     // cards: the VS intro (both teams as Token Tails cards flipping up over the held countdown); its own lazy chunk,
@@ -820,8 +822,9 @@ export class MatchSession {
         this.mp?.start();
         this.baseToast();
         // feel pass B5: the own "You" label and arrow go after the first 10 s (the gold ring marks the hero)
-        setTimeout(() => {
-          if (this.overhead) this.overhead.youLabel = false;
+        this.youTimer = setTimeout(() => {
+          this.youTimer = undefined;
+          if (this.overhead && !this.disposed) this.overhead.youLabel = false;
         }, YOU_LABEL_MS / Math.max(1, this.buffer.speed));
         setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
       });
@@ -845,6 +848,8 @@ export class MatchSession {
   }
 
   private gateNoteAt = -1e9;
+  /** Feel pass B5: the timer that hides the own "You" label after YOU_LABEL_MS (cleared on dispose). */
+  private youTimer: ReturnType<typeof setTimeout> | undefined;
 
   /**
    * Round 1 ("a move order in the first seconds is dropped"): it is not dropped, the gate barrier holds every hero at
@@ -2654,6 +2659,8 @@ export class MatchSession {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    if (this.youTimer !== undefined) clearTimeout(this.youTimer);
+    this.youTimer = undefined;
     setProbeBlocked(false);
     setPvpEqualView(false);
     this.host.leave();
