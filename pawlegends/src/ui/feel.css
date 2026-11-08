@@ -120,7 +120,7 @@ html[data-touch='1'] .pl-match .pl-emote::after, html[data-touch='1'] .pl-match 
 html[data-touch='1'] .pl-match .pl-feed {
   left: calc(16px + var(--safe-l, 0px) + var(--mm-w)); right: auto; top: calc(8px + var(--safe-t, 0px)); align-items: flex-start; gap: 3px;
 }
-html[data-touch='1'] .pl-match .pl-feed-row { font-size: 12px; padding: 2px 7px; max-width: 150px; border-radius: 8px; }
+html[data-touch='1'] .pl-match .pl-feed-row { font-size: 12px; padding: 2px 7px; max-width: min(150px, calc(50vw - 110px - 30px - var(--mm-w) - var(--safe-l, 0px))); border-radius: 8px; white-space: nowrap; overflow: hidden; box-sizing: border-box; }
 html[data-touch='1'] .pl-match .pl-feed-row:nth-child(-n + 2) { display: flex; }
 html[data-touch='1'] .pl-match .pl-feed-row:nth-child(n + 3) { display: none; }
 html[data-touch='1'] .pl-match .pl-feed-row span { width: 12px; height: 12px; }

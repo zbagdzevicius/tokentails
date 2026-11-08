@@ -20,9 +20,10 @@ type HudHandle = { kill(a: unknown, b: unknown, good: boolean): void; note(t: st
 const hud = (page: Page, fn: string, ...args: unknown[]) =>
   page.evaluate(([f, a]) => ((window as unknown as { __plHud: Record<string, (...x: unknown[]) => void> }).__plHud[f as keyof HudHandle] as (...x: unknown[]) => void)(...(a as unknown[])), [fn, args] as const);
 
+// feel pass B3: the score is one 24 px strip, at most 220 px wide, centred at the top
 for (const s of [
-  { w: 844, h: 390, x: 275, width: 294, maxH: 45 },
-  { w: 667, h: 375, x: 232, width: 204, maxH: 39 },
+  { w: 844, h: 390, maxW: 220, maxH: 24.5 },
+  { w: 667, h: 375, maxW: 220, maxH: 24.5 },
 ] as const) {
   test(`${s.w}x${s.h}: the score plate keeps its footprint, a tap opens the scoreboard, the feed stays in its corner`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'touch sizes');
@@ -30,8 +31,8 @@ for (const s of [
     await page.setViewportSize({ width: s.w, height: s.h });
     await startFirstMatch(page, '&speed=3');
     const score = (await box(page, '.pl-score'))!;
-    expect(Math.abs(score.x - s.x)).toBeLessThanOrEqual(2);
-    expect(Math.abs(score.width - s.width)).toBeLessThanOrEqual(2);
+    expect(Math.abs(score.x + score.width / 2 - s.w / 2)).toBeLessThanOrEqual(2);
+    expect(score.width).toBeLessThanOrEqual(s.maxW);
     expect(score.height).toBeLessThanOrEqual(s.maxH);
     // tap the score: the scoreboard (with the talents column), tap it: closed
     await page.touchscreen.tap(score.x + score.width / 2, score.y + score.height / 2);
@@ -51,15 +52,15 @@ for (const s of [
         return { x: r.x, y: r.y, r: r.right, b: r.bottom, names: [...e.querySelectorAll('b')].some((b) => getComputedStyle(b).display !== 'none') };
       }),
     );
-    // MAP-GAPS A5: one row on small phones under the bigger minimap and the portraits, two at 844
-    expect(rows.length).toBe(s.w === 667 ? 1 : 2);
+    // feel pass B3: two rows, right of the top-left minimap, in the top band, left of the strip
+    expect(rows.length).toBe(2);
+    const mm = (await box(page, '.pl-minimap'))!;
     for (const r of rows) {
       expect(r.names, 'no names on touch').toBe(false);
       expect(r.r - r.x).toBeLessThanOrEqual(120);
-      if (s.w === 667) {
-        expect(r.x).toBeGreaterThanOrEqual(525);
-        expect(r.b).toBeLessThanOrEqual(170);
-      }
+      expect(r.x).toBeGreaterThanOrEqual(mm.x + mm.width);
+      expect(r.b).toBeLessThanOrEqual(70);
+      expect(r.r).toBeLessThanOrEqual(score.x);
     }
     await page.screenshot({ path: `${SHOTS}/${s.w}x${s.h}-feed.png` });
   });

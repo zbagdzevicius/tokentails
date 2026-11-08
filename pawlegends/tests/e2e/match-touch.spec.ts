@@ -82,7 +82,8 @@ function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]
   const d = (u: Seen) => Math.hypot(u.x - p.me.x, u.y - p.me.y) - BODY[u.kind];
   const inRange = p.seen.filter((u) => d(u) <= p.range + 300);
   const by = <T,>(xs: T[], key: (x: T) => number) => xs.reduce<T | null>((b, x) => (b === null || key(x) < key(b) ? x : b), null);
-  const hero = by(inRange.filter((u) => u.kind === 'hero'), (u) => u.hp / u.maxHp);
+  // feel pass B4: an enemy hero within the attack range + 1.5 m comes first
+  const hero = by(p.seen.filter((u) => u.kind === 'hero' && d(u) <= p.range + 1500), (u) => u.hp / u.maxHp);
   if (hero) return { id: hero.id, why: 'hero in range' };
   // C5: minions and camp monsters within attack range + 1 m; the one the next basic kills (nearest) first
   const farm = p.seen.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && d(u) <= p.range + 1000);
@@ -209,9 +210,9 @@ type Disc = { x: number; y: number; width: number; height: number };
 const discGap = (a: Disc, b: Disc): number =>
   Math.hypot(a.x + a.width / 2 - (b.x + b.width / 2), a.y + a.height / 2 - (b.y + b.height / 2)) - a.width / 2 - b.width / 2;
 
-// Audit CF-01: a full-range aim up or up-left from W and E used to land on the ✕ and cancel (8 of 8 drags). The ✕
-// now sits top centre, out of every drag's reach, so all four casts go out.
-test('up and up-left drags from W and E cast; the ✕ stays out of their reach', async ({ page }) => {
+// Audit CF-01 + feel pass B4: a full-range aim up or up-left from W and E (110 px, past the 100 px full range, the
+// way a thumb overshoots) casts; the cancel bubble sits 150 px above the pressed button, past that reach.
+test('up and up-left drags from W and E cast; the cancel bubble stays past their reach', async ({ page }) => {
   test.setTimeout(240_000);
   await startFirstMatch(page);
   await expect(page.locator('.pl-touch.on')).toBeVisible();
@@ -228,13 +229,12 @@ test('up and up-left drags from W and E cast; the ✕ stays out of their reach',
         const box = (await btn.boundingBox())!;
         const x0 = box.x + box.width / 2;
         const y0 = box.y + box.height / 2;
-        // the ✕ sits top centre (ui.css .pl-cancel: 50% across, 72 px down, 56 px wide): far past any 140 px drag
-        expect(Math.hypot(vw / 2 - x0, 100 - y0), `${b}: ✕ distance`).toBeGreaterThan(200);
+        void vw;
         const before = Number(await attr(page, 'casts'));
         id++;
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id }] });
-        // 140 px: past the 90 px full-range aim, the way a thumb overshoots
-        for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + dx * 14 * i, y: y0 + dy * 14 * i, id }] });
+        // 110 px: past the 100 px full-range aim, the way a thumb overshoots
+        for (let i = 1; i <= 10; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + dx * 11 * i, y: y0 + dy * 11 * i, id }] });
         await page.waitForTimeout(200);
         expect(await page.locator('.pl-cancel.hot, .pl-cancel.arming').count(), `${b} ${dx},${dy}: on the ✕`).toBe(0);
         await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
@@ -256,7 +256,8 @@ test('the touch arc keeps a gap between every pair of buttons at 667, 844 and 93
     await page.setViewportSize({ width, height });
     await page.waitForTimeout(150);
     const boxes: Disc[] = [];
-    for (const l of await page.locator('.pl-tbtn').all()) boxes.push((await l.boundingBox())!);
+    // (feel pass B3: last-hit and tower show only with a target)
+    for (const l of await page.locator('.pl-tbtn:visible').all()) boxes.push((await l.boundingBox())!);
     expect(boxes.length).toBeGreaterThanOrEqual(7);
     for (let i = 0; i < boxes.length; i++) {
       const a = boxes[i];
