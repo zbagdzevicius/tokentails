@@ -18,6 +18,7 @@ import type { ViewEntity, ViewFrame } from '../render/interp';
 import { MINION_BAR_CSS, RELATION_CSS, TEAM } from '../render/palette';
 import { HERO_TEXT } from './heroText';
 import { HEROES } from '../data/heroes';
+import { XP } from '../data/xp';
 import { cutName } from '../meta/cardName';
 
 const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0 };
@@ -1094,6 +1095,12 @@ export class Overhead {
       g.strokeStyle = RELATION_CSS.self;
       g.lineWidth = 1.5;
       g.strokeRect(bx - 3.25, y - 4.25, bw + bs + 7.5, bh + 8.5);
+      // feel pass B3: the touch HUD has no hero box any more: the own XP is a 3 px line under this bar
+      const xf = ownXpFrac(e.level ?? 1, e.xp ?? 0);
+      g.fillStyle = 'rgba(5,7,11,0.85)';
+      g.fillRect(x, y + bh + 2, bw, 3);
+      g.fillStyle = '#b48cff';
+      g.fillRect(x, y + bh + 2, bw * xf, 3);
     }
     const lv = String(e.level ?? 1);
     const r = bs / 2;
@@ -1246,6 +1253,13 @@ export class Overhead {
 /** Audit GFX-04: the phone status icon's glyph (one letter or sign per status). Pure. */
 export function statusGlyph(status: string): string {
   return ({ Stunned: '*', Rooted: 'R', Scared: '!', Napping: 'z', Challenged: 'C', Slowed: '~', 'Purr-ified': 'P', Charmed: '♥' } as Record<string, string>)[status] ?? status.slice(0, 1);
+}
+
+/** Feel pass B3: the own hero's share (0..1) of the way to its next level (1 at max level). Pure. */
+export function ownXpFrac(lv: number, xp: number): number {
+  const lo = XP.toLevel[lv - 1] ?? 0;
+  const hi = XP.toLevel[lv] ?? lo;
+  return lv >= XP.maxLevel || hi <= lo ? 1 : Math.max(0, Math.min(1, (xp - lo) / (hi - lo)));
 }
 
 /** The label over a hero: "You" for the player, a team prefix on the enemy copy of a mirrored hero. Pure. */

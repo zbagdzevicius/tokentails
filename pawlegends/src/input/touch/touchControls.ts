@@ -118,6 +118,15 @@ const CAST_SLIDE_GAIN_MM = 300;
 
 export type TouchPt = { x: number; y: number; x0: number; y0: number };
 
+/** Feel pass B3: a released joystick rests faintly where it was for this long (ms), then is not drawn at all. */
+export const STICK_IDLE_MS = 3000;
+/** Feel pass B3: the joystick zone: the left 40% × bottom 70% of the screen (mirrored for the left-handed layout). */
+export const STICK_ZONE = Object.freeze({ w: 0.4, h: 0.7 });
+export function inStickZone(x: number, y: number, w: number, h: number, lefty = false): boolean {
+  const side = lefty ? x >= w * (1 - STICK_ZONE.w) : x < w * STICK_ZONE.w;
+  return side && y >= h * (1 - STICK_ZONE.h);
+}
+
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
 
@@ -213,11 +222,11 @@ export class TouchControls {
         <button class="pl-tbtn q" data-b="q" aria-label="Q"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn w" data-b="w" aria-label="W"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn e" data-b="e" aria-label="E"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
-        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i><i class="lv">Lv ${ULT_LEVEL}</i></button>
+        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i><i class="lv" aria-label="Unlocks at level ${ULT_LEVEL}"><b class="lock" aria-hidden="true"></b>${ULT_LEVEL}</i></button>
         <button class="pl-tbtn trick" data-b="trick" aria-label="Paw Trick"><b class="ico"></b><i class="cd"></i><span></span></button>
         <button class="pl-tbtn nap" data-b="nap" aria-label="Nap"><span>Nap</span></button>
-        ${lastHitButton() ? '<button class="pl-tbtn lasthit" data-b="lasthit" aria-label="Last hit a minion"><span>LH</span></button>' : ''}
-        ${towerButton() ? '<button class="pl-tbtn tower" data-b="tower" aria-label="Attack a tower"><span>TWR</span></button>' : ''}
+        ${lastHitButton() ? '<button class="pl-tbtn lasthit gone" data-b="lasthit" aria-label="Last hit a minion"><span>LH</span></button>' : ''}
+        ${towerButton() ? '<button class="pl-tbtn tower gone" data-b="tower" aria-label="Attack a tower"><span>TWR</span></button>' : ''}
       </div>`;
     parent.appendChild(root);
     this.root = root;
@@ -262,11 +271,20 @@ export class TouchControls {
     // last-hit and tower buttons at every size, mirrored with the arc
     const html = document.documentElement;
     html.style.setProperty('--arc-reach', `${Math.ceil(reach)}px`);
+    // feel pass B3: the arc's scale, for the pieces placed beside it (the target-lock row)
+    html.style.setProperty('--arc-k', (l.attack.d / 92).toFixed(3));
+    // the locked R is a 44 px ghost chip in its slot
+    html.style.setProperty('--r-ghost', (44 / l.r.d).toFixed(4));
     html.dataset.lefty = lefty ? '1' : '';
   }
 
-  /** UX pass 2: the left-handed mirror is on (the joystick takes the right half of the screen). */
+  /** UX pass 2: the left-handed mirror is on (the joystick takes the right side of the screen). */
   private lefty = false;
+  /** Feel pass B3: when the stick was let go (ms; it hides STICK_IDLE_MS later), 0 = hidden. */
+  private stickIdleAt = 0;
+  /** Feel pass B3: the last-hit and tower buttons show only while they have a target; R pops when it unlocks. */
+  private extraAt = 0;
+  private rLocked = true;
 
   enable(on: boolean): void {
     this.enabled = on;
@@ -309,9 +327,9 @@ export class TouchControls {
     if (!this.h.enabled()) return;
     // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
-    // the joystick half: the left one, or the right one in the left-handed mirror
-    const stickSide = this.lefty ? e.clientX >= window.innerWidth * 0.5 : e.clientX < window.innerWidth * 0.5;
-    if (stickSide && !this.stick) {
+    // feel pass B3: the floating joystick lands where the thumb does, in the left 40% × bottom 70% of the screen (the
+    // right 40% in the left-handed mirror)
+    if (inStickZone(e.clientX, e.clientY, window.innerWidth, window.innerHeight, this.lefty) && !this.stick) {
       e.preventDefault();
       this.grabStick(e.pointerId, e.clientX, e.clientY, e.timeStamp);
     }
@@ -323,6 +341,7 @@ export class TouchControls {
     const b = stickBase(x, y, window.innerWidth, window.innerHeight);
     this.stick = { id, bx: b.x, by: b.y, x, y, moved: false, at };
     this.stickEl.style.transform = `translate(${b.x}px, ${b.y}px)`;
+    this.stickEl.classList.remove('idle');
     this.stickEl.classList.add('on');
     this.knobEl.style.transform = `translate(calc(-50% + ${x - b.x}px), calc(-50% + ${y - b.y}px))`;
     this.lastStick.a = NaN;
@@ -463,6 +482,10 @@ export class TouchControls {
       const s = this.stick;
       this.stick = null;
       this.stickEl.classList.remove('on');
+      // feel pass B3: the released stick rests faintly where it was (30%) and is gone after STICK_IDLE_MS
+      this.stickEl.classList.add('idle');
+      this.knobEl.style.transform = 'translate(-50%, -50%)';
+      this.stickIdleAt = performance.now();
       // C4: only a real stick release stops the hero; a still tap (locking a hero, a stray touch) keeps its attack going
       if (!cancelled && this.h.enabled() && (s.moved || e.timeStamp - s.at > TAP.ms)) this.h.orders.stop();
       return;
@@ -873,6 +896,24 @@ export class TouchControls {
     }
   }
 
+  /**
+   * Feel pass B3: the last-hit button shows only while a minion one hit kills is in reach, the tower button only while
+   * an enemy structure is (hidden, not faded), checked every 100 ms. `extraShown` is e2e telemetry.
+   */
+  extraShown = { lasthit: false, tower: false };
+  private updateExtras(me: Unit | null, now: number): void {
+    if (now - this.extraAt < 100) return;
+    this.extraAt = now;
+    const alive = !!me && me.state !== 'dead' && this.h.enabled();
+    const units = alive ? this.h.units() : [];
+    const team = this.h.view.myTeam;
+    const lh = alive && lastHitTarget(units, me!, team, this.range(), this.killFn()) !== null;
+    const tw = alive && towerTarget(units, me!, team, this.range()) !== null;
+    if (lh !== this.extraShown.lasthit) this.buttons.get('lasthit')?.classList.toggle('gone', !lh);
+    if (tw !== this.extraShown.tower) this.buttons.get('tower')?.classList.toggle('gone', !tw);
+    this.extraShown = { lasthit: lh, tower: tw };
+  }
+
   /** Last-hit and tower button presses that found a target (e2e telemetry). */
   extraHits = { lasthit: 0, tower: 0 };
   /** UX pass 2: what Attack would hit now without walking (ringed on the field), and when it was last worked out (ms). */
@@ -1019,6 +1060,11 @@ export class TouchControls {
       this.runOn = null;
     }
     this.updatePreview(this.h.enabled() ? me : null, now);
+    if (this.stickIdleAt > 0 && !this.stick && now - this.stickIdleAt >= STICK_IDLE_MS) {
+      this.stickIdleAt = 0;
+      this.stickEl.classList.remove('idle');
+    }
+    this.updateExtras(me, now);
     if (this.ghostUntil > 0 && now >= this.ghostUntil) {
       this.ghostUntil = 0;
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;
@@ -1047,6 +1093,14 @@ export class TouchControls {
         setTimeout(() => el.classList.remove('cdflash'), 320);
       }
       el.classList.toggle('locked', locked);
+      if (b === 'r' && this.rLocked && !locked) {
+        // feel pass B3: the 44 px ghost chip grows to the full R button with a pop
+        el.classList.remove('unlock-pop');
+        void el.offsetWidth;
+        el.classList.add('unlock-pop');
+        setTimeout(() => el.classList.remove('unlock-pop'), 420);
+      }
+      if (b === 'r') this.rLocked = locked;
       el.classList.toggle('cooling', cd > 0);
       const f = max[i] > 0 ? Math.min(1, cd / max[i]) : 0;
       el.style.setProperty('--cd', String(f));

@@ -12,7 +12,7 @@ import { LocalHost } from '../host/local-host';
 import type { MatchHost } from '../host/protocol';
 import type { WelcomeMsg } from '../host/protocol';
 import { matchSpeedFor } from './mpTypes';
-import { maxCooldown } from '../input/abilities';
+import { basicRange, maxCooldown } from '../input/abilities';
 import { DesktopInput, type InputHost } from '../input/desktop';
 import { Orders } from '../input/orders';
 import { groundAt, project } from '../input/screen';
@@ -35,7 +35,7 @@ import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
 import { LowHp } from '../render/fx/lowHp';
 import { GameView } from '../render/gameView';
-import { SnapBuffer, type ViewFrame } from '../render/interp';
+import { SnapBuffer, type ViewEntity, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
 import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
@@ -286,6 +286,11 @@ export function behindBanner(kOurs: number, kTheirs: number, tOurs: number, tThe
   return { title: `They lead ${kTheirs} to ${kOurs} on takedowns`, sub: 'Group up with your team and fight together.', tone: 'info' };
 }
 
+/** Feel pass B3: the touch target-lock row: enemies within this × the attack range, at most NEAR_ROW_MAX. */
+export const NEAR_ROW_K = 1.5;
+export const NEAR_ROW_MAX = 3;
+/** Feel pass B3: the top strip's objective timer shows from `before` s ahead of the spawn to `after` s past it. */
+export const OBJ_STRIP = Object.freeze({ before: 10, after: 3 });
 /** Feel pass B2: how long (ms) the "Your base: bottom left" toast shows at the start. */
 export const BASE_TOAST_MS = 1200;
 
@@ -413,6 +418,9 @@ export class MatchSession {
         // Fun pass (playtest #5): a tip or goal chip that guides the ult already says "Level 4!": no second line
         if (lv === 4 && guided) return true;
         const touch = document.documentElement.dataset.touch === '1';
+        // feel pass B3: on desktop the HUD's "Rank up!" card already shows a level-up: no second line (level 4 keeps it:
+        // it says how to cast the ultimate)
+        if (!touch && lv !== 4) return true;
         const what = levelWhat(lv, touch);
         const ranks = touch ? [] : rankUpLines(this.welcome?.picks[this.view.mySlot] ?? 'clem', lv, this.lastTalents);
         const sub = lv === 4 && !guided ? ultHint() : ranks.join(' · ') || undefined;
@@ -933,8 +941,9 @@ export class MatchSession {
       if (this.menu) this.resume();
       else this.openMenu();
     });
-    this.ui.appendChild(b);
     const score = this.ui.querySelector<HTMLElement>('.pl-score');
+    // feel pass B3: pause is an icon at the right end of the top strip (desktop never shows it)
+    (score ?? this.ui).appendChild(b);
     const onScore = (e: PointerEvent): void => {
       if (document.documentElement.dataset.touch !== '1') return;
       e.stopPropagation();
@@ -1627,6 +1636,11 @@ export class MatchSession {
       if (named) this.minimap.flashLane(named);
       // Nine Lives read like "you survived" when it fired on the killing blow: only while alive
       if (m.key === 'nineLives' && (!me || me.state === 'dead' || me.hp <= 0)) continue;
+      // feel pass B3: the grey-out and the one centred "Back in N" already say it: "You have been slain" is voice only
+      if (m.key === 'slain') {
+        if (m.voice) sfx.voice(m.voice);
+        continue;
+      }
       if (m.size === 'ping') {
         if (m.key === 'frenzySpawn') for (const p of this.view.pickups.list()) if (p.kind === 'frenzy') this.minimap.ping(p.x, p.y, '#7dff8a', 3000);
         // GAPS B1: the player's ping: a minimap ring and a ground marker where it points, and its name over the hero
@@ -2064,7 +2078,8 @@ export class MatchSession {
       this.hud.lowQuality = this.gr.settings.tier === 'low';
       this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle ?? this.lcGateTitle());
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
-      this.hud.stripUpdate(frame.byId, frame.tick, lock);
+      this.hud.stripUpdate(frame.byId, frame.tick, lock, this.nearEnemies(frame, me, lock));
+      this.objStrip(frame);
       this.overhead.myToy = me?.toy ?? 0;
       this.underdogLine(frame);
       this.overhead.targetLock = lock !== null && this.touch ? { id: lock, left: this.touch.lock.left(performance.now()) } : null;
@@ -2218,6 +2233,41 @@ export class MatchSession {
     me.yaw = Math.atan2(dy, dx);
   }
 
+  /**
+   * Feel pass B3: the touch target-lock row shows only the enemy heroes within 1.5 × the attack range (and the locked
+   * one), at most 3, nearest first.
+   */
+  private readonly near = new Set<number>();
+  private nearEnemies(frame: ViewFrame, me: ViewEntity | undefined | null, lock: number | null): ReadonlySet<number> {
+    this.near.clear();
+    if (!me || me.state === 'dead' || !me.hero || !this.welcome) return this.near;
+    const reach = basicRange(me.hero) * NEAR_ROW_K;
+    const list: { id: number; d: number }[] = [];
+    for (const e of frame.entities) {
+      if (e.kind !== 'hero' || e.team === this.welcome.team || e.team > 1 || e.state === 'dead') continue;
+      const d = Math.hypot(e.fx - me.fx, e.fy - me.fy);
+      if (d <= reach || e.id === lock) list.push({ id: e.id, d });
+    }
+    list.sort((a, b) => a.d - b.d);
+    for (const n of list.slice(0, NEAR_ROW_MAX)) this.near.add(n.id);
+    return this.near;
+  }
+
+  /**
+   * Feel pass B3: the objective timer in the top strip (it replaces the standing objective chip on the rail): the next
+   * objective's icon and countdown from 10 s before it is up to 3 s after.
+   */
+  private objUpAt = -1;
+  private objStrip(frame: ViewFrame): void {
+    const timers = this.objClock?.timers() ?? [];
+    let best: { key: string; left: number } | null = null;
+    for (const t of timers) if (t.left > 0 && t.left <= OBJ_STRIP.before * TICK_HZ && (!best || t.left < best.left)) best = { key: t.key, left: t.left };
+    const tick = frame.tick;
+    if (best && best.left <= TICK_HZ) this.objUpAt = tick + best.left;
+    const up = this.objUpAt >= 0 && tick >= this.objUpAt && tick - this.objUpAt <= OBJ_STRIP.after * TICK_HZ;
+    this.hud?.objective(best ? { key: best.key, secs: Math.ceil(best.left / TICK_HZ) } : up ? { key: 'up', secs: 0 } : null);
+  }
+
   /** "Back in 7 · 8 of 9 lives" on the rail's resting line while the player is out (cleared on respawn). */
   private respawnLine(me: { state: string; respawnIn?: number } | undefined): void {
     const dead = !!me && me.state === 'dead' && !this.ended;
@@ -2225,7 +2275,9 @@ export class MatchSession {
     const text = dead ? `Back in ${Math.max(1, Math.ceil((me!.respawnIn ?? 0) / TICK_HZ))}${lives ? ` · ${lives}` : ''}` : '';
     if (text === this.respawnShown) return;
     this.respawnShown = text;
-    this.view.juice.notify.rest('respawn', text || null, 'bad');
+    // feel pass B3: the centred "Back in N" says it; the rail line stays only on desktop (its lives count is there)
+    const touch = document.documentElement.dataset.touch === '1';
+    this.view.juice.notify.rest('respawn', touch ? null : text || null, 'bad');
   }
 
   private telemetry(frame: ViewFrame | null): void {

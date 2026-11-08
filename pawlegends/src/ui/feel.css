@@ -36,3 +36,130 @@ html[data-touch='1'] { --mm-w: calc(112px * var(--mm-k, 1)); --mm-h: calc(112px 
 .pl-basetoast small { font-size: 10px; opacity: 0.8; }
 @keyframes pl-basetoast { 0% { opacity: 0; transform: translate(-50%, -6px); } 12% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pl-basetoast { animation: none; } }
+
+/* ======================================================================================================= B3: HUD diet
+   Phones (html[data-touch='1']): the play area around the hero (18–60% across, 12–78% down) carries no persistent HUD.
+   Kept: one 24 px top strip (≤ 220 px: kills, clock, tower counts, the objective timer when due, pause), a 112 px
+   minimap top left (104 px on short phones) with the ping corner, a 2-line kill feed beside it, the button arc and
+   the right-edge column, and the target-lock row of near enemies by the cluster. `.pl-match` lifts these rules over
+   ui.css and lol-hud.css. */
+
+/* removed: the hero box (the bar over the hero shows HP, level and XP), the ally portraits, the standing objective chip
+   (now the strip's timer), the duplicate "Back in" line (the centred one stays) */
+html[data-touch='1'] .pl-match .pl-hud .pl-bar,
+html[data-touch='1'] .pl-match .pl-strip.ally,
+html[data-touch='1'] .pl-match .pl-respawn > div { display: none !important; }
+
+/* the top strip: 24 px, 220 px, centred at the very top */
+html[data-touch='1'] .pl-match .pl-top { top: var(--safe-t, 0px); }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol {
+  display: flex; align-items: center; justify-content: flex-start; gap: 5px; width: auto; max-width: 220px; min-width: 0; height: 24px;
+  padding: 0 4px 0 10px; column-gap: 5px; border-radius: 0 0 10px 10px; overflow: visible; white-space: nowrap; box-sizing: border-box;
+  background: url('/assets/feel/strip-plate.webp') center / 100% 100% no-repeat, linear-gradient(180deg, rgba(17, 26, 44, 0.92), rgba(7, 11, 20, 0.92));
+}
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team { font-size: 15px; line-height: 24px; gap: 3px; flex: none; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team i { font-size: 9px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team i svg { width: 9px; height: 9px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .sw { flex: none; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .sw svg { width: 11px; height: 11px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .mid { padding: 0 2px; margin: 0 0 0 auto; border: 0; background: none; flex: none; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .clock { font-size: 11px; line-height: 24px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .phase { display: none; }
+.pl-hud .pl-score .obj { display: none; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj:not([hidden]) {
+  display: inline-flex; align-items: center; gap: 2px; flex: none; font: 700 10px/24px var(--font); color: #e9d6ff;
+}
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj .ic { width: 12px; height: 12px; border-radius: 50%; background: #b07cff; box-shadow: 0 0 0 1px #3b2417; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='rats'] .ic { background: #3d8bff; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='theirRats'] .ic { background: #e8414b; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='up'] { color: #ffd34d; }
+
+/* pause: an icon at the right end of the strip (matchSession moves it in; 24 px drawn, a 44 px hit area) */
+html[data-touch='1'] .pl-match .pl-score .pl-pause {
+  position: relative; top: auto; left: auto; flex: none; width: 24px; height: 24px; border-radius: 6px; gap: 3px; z-index: 6;
+  background: transparent; border: 0; box-shadow: none; padding: 0;
+}
+html[data-touch='1'] .pl-match .pl-score .pl-pause::after { content: ''; position: absolute; inset: -10px; }
+html[data-touch='1'] .pl-match .pl-score .pl-pause i { width: 3px; height: 11px; background: #fff3dc; }
+
+/* the minimap: top left, 112 px (104 px on short phones), 80% opacity, a paw-stitched rim */
+html[data-touch='1'] .pl-match .pl-minimap {
+  left: calc(8px + var(--safe-l, 0px)); right: auto; top: calc(8px + var(--safe-t, 0px)); bottom: auto; width: var(--mm-w); height: var(--mm-h); box-sizing: border-box;
+  opacity: 0.8; border: 2px solid #3b2417; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255, 243, 220, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
+}
+html[data-touch='1'] .pl-match .pl-minimap:active { opacity: 1; }
+/* ping: a 44 px hit area on the minimap's bottom-right corner (36 px drawn, inside the rim) */
+html[data-touch='1'] .pl-match .pl-pingbtn {
+  right: auto; left: calc(8px + var(--safe-l, 0px) + var(--mm-w) - 38px); top: calc(8px + var(--safe-t, 0px) + var(--mm-h) - 38px);
+  width: 36px; height: 36px; display: grid; place-items: center; z-index: 6;
+}
+html[data-touch='1'] .pl-match .pl-pingbtn::after { content: ''; position: absolute; inset: -6px; }
+html[data-touch='1'] .pl-match .pl-pingbtn svg { width: 20px; height: 20px; }
+/* emote and party chat: a small column under the minimap, at the very left edge */
+html[data-touch='1'] .pl-match .pl-emote,
+html[data-touch='1'] .pl-match .pl-chatbtn {
+  left: calc(8px + var(--safe-l, 0px)); right: auto; top: calc(8px + var(--safe-t, 0px) + var(--mm-h) + 18px); bottom: auto; width: 36px; height: 36px;
+  min-height: 36px; padding: 0; justify-content: center; border-radius: 50%;
+}
+html[data-touch='1'] .pl-match .pl-chatbtn { top: calc(8px + var(--safe-t, 0px) + var(--mm-h) + 62px); }
+html[data-touch='1'] .pl-match .pl-emote span, html[data-touch='1'] .pl-match .pl-emote b { display: none; }
+html[data-touch='1'] .pl-match .pl-emote::after, html[data-touch='1'] .pl-match .pl-chatbtn::after { content: ''; position: absolute; inset: -6px; }
+
+/* the kill feed: 2 lines of 12 px, right of the minimap */
+html[data-touch='1'] .pl-match .pl-feed {
+  left: calc(16px + var(--safe-l, 0px) + var(--mm-w)); right: auto; top: calc(8px + var(--safe-t, 0px)); align-items: flex-start; gap: 3px;
+}
+html[data-touch='1'] .pl-match .pl-feed-row { font-size: 12px; padding: 2px 7px; max-width: 150px; border-radius: 8px; }
+html[data-touch='1'] .pl-match .pl-feed-row:nth-child(-n + 2) { display: flex; }
+html[data-touch='1'] .pl-match .pl-feed-row:nth-child(n + 3) { display: none; }
+html[data-touch='1'] .pl-match .pl-feed-row span { width: 12px; height: 12px; }
+
+/* the target-lock row: only the near enemies (1.5 × attack range, ≤ 3), 40 px, low, just left of the cluster */
+/* (the row lives inside .pl-top, a box centred at the top with translateX(−50%): its centre line is the screen's, so
+   the row is placed from there: `left: 50%` of the box is its centre, then a viewport offset) */
+html[data-touch='1'] .pl-match .pl-top .pl-strip.enemy {
+  position: absolute; right: auto; bottom: auto; flex-direction: row; gap: 8px; left: 50%;
+  transform: translateX(calc(50vw - 100% - 38px - var(--safe-r, 0px) - var(--arc-reach, 268px)));
+  top: calc(100dvh - 10px - 40px * var(--arc-k, 1) - var(--safe-b, 0px) - var(--safe-t, 0px));
+}
+html[data-touch='1'][data-lefty='1'] .pl-match .pl-top .pl-strip.enemy { transform: translateX(calc(-50vw + 38px + var(--safe-l, 0px) + var(--arc-reach, 268px))); }
+html[data-touch='1'] .pl-match .pl-top .pl-strip.enemy .pp { width: calc(40px * var(--arc-k, 1)); height: calc(40px * var(--arc-k, 1)); }
+html[data-touch='1'] .pl-match .pl-top .pl-strip.enemy .pp:not(.near) { display: none; }
+html[data-touch='1'] .pl-match .pl-top .pl-strip.enemy .pp::after { content: ''; position: absolute; inset: -4px; border-radius: 0; }
+
+/* the button arc: the locked R is a 44 px ghost chip (35%, a padlock and the level); it pops to full size on unlock */
+html[data-touch='1'] .pl-match .pl-tbtn.r.locked {
+  opacity: 0.35; filter: none; transform: scale(var(--r-ghost, 0.61)); background: rgba(58, 39, 66, 0.5); border-color: rgba(255, 243, 220, 0.5);
+}
+html[data-touch='1'] .pl-match .pl-tbtn.r.locked > :not(.lv) { opacity: 0; }
+html[data-touch='1'] .pl-match .pl-tbtn.r.locked .lv {
+  display: grid; inset: 0; left: 0; bottom: 0; transform: none; place-items: center; gap: 0; background: none; border: 0; box-shadow: none;
+  font: 800 22px/1 var(--font); color: #fff3dc; padding: 0; grid-template-rows: auto auto;
+}
+.pl-tbtn .lv .lock {
+  display: block; width: 22px; height: 22px; margin: 0 auto -2px;
+  background: url('/assets/feel/lock-chip.webp') center / contain no-repeat;
+}
+.pl-tbtn.r.unlock-pop { animation: pl-rpop 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
+@keyframes pl-rpop { 0% { transform: scale(var(--r-ghost, 0.61)); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
+@media (prefers-reduced-motion: reduce) { .pl-tbtn.r.unlock-pop { animation: none; } }
+/* last-hit and tower: shown only while they have a target (hidden, not faded) */
+html[data-touch='1'] .pl-match .pl-tbtn.gone { display: none; }
+
+/* the floating joystick: 120 px ring, 52 px knob, 70% while held, 30% resting for 3 s after the lift, then gone */
+html[data-touch='1'] .pl-match .pl-stick { opacity: 0.7; }
+html[data-touch='1'] .pl-match .pl-stick.idle { display: block; opacity: 0.3; transition: opacity 0.2s; }
+html[data-touch='1'] .pl-match .pl-knob { width: 52px; height: 52px; }
+
+/* B5: the talent card on phones: a compact card at the top centre under the strip (≤ 64 px tall with its head), never
+   over the ground a fight is on; the session holds it back while the hero is fighting (ui/talents.ts) */
+html[data-touch='1'] .pl-match .pl-talents,
+html[data-touch='1'] .pl-match .pl-talents.on {
+  top: calc(44px + var(--safe-t, 0px)); bottom: auto; right: auto; left: 50%; transform: translateX(-50%); gap: 6px; padding-top: 0;
+}
+html[data-touch='1'] .pl-match .pl-talents .head { top: -16px; left: 50%; right: auto; transform: translateX(-50%); font-size: 11px; }
+html[data-touch='1'] .pl-match .pl-talents button { width: 132px; height: 44px; padding: 2px 8px; }
+html[data-touch='1'] .pl-match .pl-talents button span.s { font-size: 9.5px; }
+@media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
+  html[data-touch='1'] .pl-match .pl-talents button { width: 118px; }
+}

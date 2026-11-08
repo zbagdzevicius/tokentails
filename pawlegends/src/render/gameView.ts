@@ -83,6 +83,8 @@ export interface GameViewHooks {
 }
 
 const WHO_TTL = 3;
+/** Feel pass B3: how long (s) the quiet "nothing in reach" ring shows after an Attack press with no target. */
+export const DENY_RING_S = 0.4;
 
 /** Hover ring size (m) by unit kind: just outside the unit's own relation ring. Heroes use HERO_RING × 1.3. */
 export const HOVER_RING: Readonly<Record<EntityKind, number>> = Object.freeze({ hero: 0, minion: 1.55, tower: 3.8, core: 7, fountain: 0, camp: 1.8, pudding: 4.8, pickup: 0 });
@@ -1020,10 +1022,12 @@ export class GameView {
     const mz = toZ(me.fy);
     // the basic attack range ring: thin, dashed, cream with an ink outline per dash (reads on the cream plaza and sand
     // lanes), under the VFX, so it never reads as a skill's solid range ring
-    const deny = this.time - this.ringDenyAt < 0.35;
+    // feel pass B3: "nothing in reach" is a quiet white dashed ring at 30% for 0.4 s (was a big saturated red circle)
+    const deny = this.time - this.ringDenyAt < DENY_RING_S;
     if ((this.attackRange || deny) && me.hero) {
       this.attackRingM = attackRingMm(me.hero) / 1000;
-      this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: deny ? RELATION.danger : ATTACK_RING_COLOR, alpha: 0.9, dashed: !deny });
+      if (deny && !this.attackRange) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: 0xffffff, alpha: 0.3, dashed: true });
+      else this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: ATTACK_RING_COLOR, alpha: 0.9, dashed: true });
     }
     if (!a) return;
     const color = a.valid ? RELATION.self : 0xff9f7a;
