@@ -219,10 +219,24 @@ export function fuzzPvpMatch(seed: number): { seed: number; ok: boolean; finalHa
 // with the sides swapped), six `normal` pilots. Tools: tools/pvp-symmetry.mjs; test: tests/unit/pvp-symmetry.test.ts.
 
 export function pvpSymmetryPair(seed: number): { seed: number; catsLeftWinner: number; dogsLeftWinner: number; ticks: [number, number] } {
+  // Line-ups from the seed (like the balance gate's random picks): three distinct cats, three distinct dogs, and a
+  // trick per seat; the swapped match keeps every hero, trick and team slot and only changes the side.
+  const r = new Rng(seed).fork('pvp-symmetry');
+  const draw = (pool: readonly HeroId[]): HeroId[] => {
+    const left = pool.slice();
+    const out: HeroId[] = [];
+    for (let k = 0; k < 3; k++) out.push(left.splice(r.int(left.length), 1)[0]);
+    return out;
+  };
+  const cats = draw(CAT_IDS);
+  const dogs = draw(DOG_IDS);
+  const catTricks = [0, 1, 2].map(() => TRICKS[r.int(TRICKS.length)]);
+  const dogTricks = [0, 1, 2].map(() => TRICKS[r.int(TRICKS.length)]);
   const play = (catsLeft: boolean) => {
-    const a = catsLeft ? CAT_IDS : DOG_IDS;
-    const b = catsLeft ? DOG_IDS : CAT_IDS;
-    const seats = [0, 1, 2, 3, 4, 5].map((slot) => ({ slot, hero: (slot < 3 ? a : b)[(seed + (slot % 3) * 3) % 10], trick: TRICKS[(seed + (slot % 3)) % TRICKS.length] }));
+    const seats = [0, 1, 2, 3, 4, 5].map((slot) => {
+      const cat = slot < 3 === catsLeft;
+      return { slot, hero: (cat ? cats : dogs)[slot % 3], trick: (cat ? catTricks : dogTricks)[slot % 3] };
+    });
     const { picks, tricks } = fillPicksParty(seed, seats);
     const m = createMatch({ seed, picks, tricks, difficulty: 'hard', humans: [0, 1, 2, 3, 4, 5], mode: 'pvp' });
     const pilots = [0, 1, 2, 3, 4, 5].map((s) => createPlayerBotFor(m, 'normal', s));
