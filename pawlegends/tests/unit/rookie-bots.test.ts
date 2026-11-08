@@ -20,6 +20,7 @@ const PUDDLE_OUTER = { x: 34000, y: 9000 };
 function arena(difficulty: 'rookie' | 'easy' | 'normal' = 'rookie') {
   const m = heroMatch(['clem', 'sage', 'brutus', 'sage', 'brutus', 'cacklejaw']);
   (m.config as { difficulty: string }).difficulty = difficulty;
+  (m as { rules: unknown }).rules = DIFFICULTY_RULES[difficulty]; // sim v16: the rules are cached at createMatch
   m.world.globals[G.BotsOff] = 0;
   return m;
 }

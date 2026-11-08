@@ -16,7 +16,7 @@
  * mid-match; the sim decides, and the touch input re-reads the sim's position once the cast shows up.
  */
 import { EFFECTS } from '../data/effects';
-import { MAP } from '../data/map';
+import { MAP, NAV } from '../data/map';
 import { iatan2, icos, idiv, isin, isqrt, TRIG_ONE } from '../sim/fixed';
 import { cellOf, walkable, type NavGrid } from '../sim/map/grid';
 import { clientGrid } from './navMirror';
@@ -205,14 +205,25 @@ export class ReturnWindow {
   }
 }
 
-/** effects/dash.ts clipTravel without the arena: clamp to the map, cut at the first blocked cell (EFFECTS.wallStep). */
+/**
+ * effects/dash.ts clipTravel without the arena: clamp to the map, cut at the first blocked cell (EFFECTS.wallStep).
+ * Sim v16 (MAP-GAPS B1): from a blocked start, stop at the first walkable sample every NAV.losStep, else stay.
+ */
 function clip(g: NavGrid, ax: number, ay: number, bx: number, by: number): { x: number; y: number } {
   const tx = Math.max(0, Math.min(MAP.width, bx));
   const ty = Math.max(0, Math.min(MAP.height, by));
-  if (!walkable(g, cellOf(ax, ay))) return { x: tx, y: ty };
   const dx = tx - ax;
   const dy = ty - ay;
   const len = isqrt(dx * dx + dy * dy);
+  if (!walkable(g, cellOf(ax, ay))) {
+    const ne = idiv(len, NAV.losStep) + 1;
+    for (let k = 1; k <= ne; k++) {
+      const sx = ax + idiv(dx * k, ne);
+      const sy = ay + idiv(dy * k, ne);
+      if (walkable(g, cellOf(sx, sy))) return { x: sx, y: sy };
+    }
+    return { x: ax, y: ay };
+  }
   const n = idiv(len, EFFECTS.wallStep) + 1;
   for (let k = 1; k <= n; k++) {
     const sx = ax + idiv(dx * k, n);

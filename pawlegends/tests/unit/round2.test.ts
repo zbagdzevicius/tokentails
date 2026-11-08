@@ -96,6 +96,7 @@ describe('sim v8: bots', () => {
     const foeAt = (tick: number): number => {
       const m = heroMatch(['clem', 'sage', 'brutus', 'cacklejaw', 'sage', 'clem']);
       (m.config as { difficulty: string }).difficulty = 'easy';
+      (m as { rules: unknown }).rules = DIFFICULTY_RULES['easy']; // sim v16: the rules are cached at createMatch
       const w = m.world;
       w.globals[G.BotsOff] = 0;
       for (let id = 0; id < 6; id++) place(m, id, id < 3 ? 20000 : 80000, 10000 + id * 7000);
