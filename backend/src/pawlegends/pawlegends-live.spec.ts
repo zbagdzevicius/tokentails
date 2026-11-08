@@ -93,7 +93,7 @@ function setup(...accepted: PawlegendsReplayRecord[]) {
 /** A fixture `npm run vendor-sim` recorded into backend/src/vendor/pawlegends-sim/v<version>/. */
 const fixture = (
     version: number,
-    name: 'rookie' | 'champion' | 'forfeit' | 'dog' | 'new-dog'
+    name: 'rookie' | 'champion' | 'forfeit' | 'dog' | 'new-dog' | 'pvp'
 ): PawlegendsReplayRecord =>
     JSON.parse(
         readFileSync(
@@ -620,10 +620,37 @@ describe('PAWLEGENDS /live branch', () => {
             }
             const dog15 = fixture(15, 'new-dog');
             expect(dog15).toMatchObject({ hero: 'frankie', simVersion: 15 });
-            expect(verifyBySimVersion(dog15)).toMatchObject({ ok: true, finalHash: dog15.finalHash, ticks: dog15.ticks });
+            expect(verifyBySimVersion(dog15)).toMatchObject({
+                ok: true,
+                finalHash: dog15.finalHash,
+                ticks: dog15.ticks,
+            });
             const dog16 = fixture(16, 'new-dog');
             expect(dog16).toMatchObject({ hero: 'frankie', simVersion: 16 });
-            expect(verifyBySimVersion(dog16)).toMatchObject({ ok: true, finalHash: dog16.finalHash, ticks: dog16.ticks });
+            expect(verifyBySimVersion(dog16)).toMatchObject({
+                ok: true,
+                finalHash: dog16.finalHash,
+                ticks: dog16.ticks,
+            });
+        }, 60_000);
+
+        it('sim v16 S-PvP: the vendored PvP record (v3) verifies with the v16 party facade; older bundles have no PvP', () => {
+            const pvp = fixture(16, 'pvp') as any;
+            expect(pvp).toMatchObject({ v: 3, mode: 'pvp', simVersion: 16, difficulty: 'hard' });
+            const party = simFor(16)?.party;
+            expect(party?.PVP_SINCE).toBe(16);
+            expect(party?.checkPvpShape?.(pvp)).toBeNull();
+            const verdict = party?.verifyPvpReplay?.(pvp) as any;
+            expect(verdict).toMatchObject({ ok: true, finalHash: pvp.finalHash, ticks: pvp.ticks });
+            expect([0, 1]).toContain(verdict.winner);
+            // A v3 record is not a v1 or v2 replay, and the frozen v15 bundle has no PvP verifier.
+            expect(verifyBySimVersion(pvp).ok).toBe(false);
+            expect(party?.verifyPartyReplay({ ...pvp, v: 2 }).ok).toBe(false);
+            expect(party?.verifyPvpReplay?.({ ...pvp, simVersion: 15 })).toMatchObject({
+                ok: false,
+                code: 'PAWLEGENDS_SIM_VERSION',
+            });
+            expect(simFor(15)?.party?.verifyPvpReplay).toBeUndefined();
         }, 60_000);
 
         it('sim v13 (party play, frozen) still verifies; v13 and v14 both carry party code (v12 shipped without it)', () => {
