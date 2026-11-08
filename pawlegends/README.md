@@ -23,8 +23,39 @@ Install and run inside this package (`npm install` here; it has its own `node_mo
 | Nightly gates | `PAWLEGENDS_NIGHTLY=1 npx vitest run --project unit tests/unit/balance.test.ts tests/unit/bots.test.ts tests/unit/determinism.test.ts` (2,000 balance seeds, 400 novice seeds per difficulty, 1,000 fuzz seeds) |
 | Card skin palettes | `npm run gen:skins` (writes `src/render/skins/families.gen.ts` from `../client/public/heist-game/assets/cats/*.png`; `-- --sheet <png>` writes a contact sheet), `npm run gen:skins:check` fails when the table is stale |
 | Backend sim copy | `npm run vendor-sim` → `../backend/src/vendor/pawlegends-sim/` (live v12, frozen v10 and v11 from `FROZEN` in `tools/vendor-sim.mjs`); `vendor-sim:check` fails when it is stale (run both from this folder: the bundle depends on the working directory); `vendor-sim:check-remote -- <backend url>` compares `GET /pawlegends/sim` |
+| Multiplayer soak | `npm run soak` (see "Multiplayer soak" below) |
 
 Not built yet (scripts reserved by POC.md §2.1): `bake:heroes`, `bake:map` (see "Hero art" below).
+
+## Multiplayer soak
+
+`npm run soak` plays full matches against a local relay with headless clients built from the game's own net code
+(`PartySocket`, `NetHost` with the inline `NetCore`, `LockstepRunner`, `Pacer`), bundled for Node by
+`tests/e2e/mp/soak.mjs` from `tests/e2e/mp/soak/room.ts`. Each room is a child process: 6 casual PvP clients through
+the casual queue (Accept, team picks) or 3 co-op clients through a friend party, ticketed accounts, scripted inputs
+(lane pushes, casts and attacks on visible enemy heroes, talents, tricks, some surrender votes after 5:00) and random
+drops (a network drop the socket resumes, a reload with the resume token and a fresh ticket, a 18–38 s absence a bot
+covers).
+
+The relay is `../backend/test/pawlegends-soak.harness.ts`, started by the script: the production `PartyRelay` with the
+worker referee pool, memory room and matchmaker stores, a ticket secret generated at start, and the `/live` party save
+(`liveGamePipe`, `savePawlegendsPartyMatch`) over in-memory users, games and ratings. Never point `RELAY` at production.
+
+Every room is checked: the clients' hash trails agree at every common 30-tick mark, no `resync`, one final hash and
+tick count, the referee's verdict is `verified` and equal to the clients, each seat's `/live` save succeeds (a second
+post is a 409 duplicate), and the replay record re-sims locally. The report (`.soak-dist/soak-<time>.json`, plus a table
+on stdout) has desyncs, stalls (no TURN for 3 s), turn inter-arrival p50/p95, input latency (send to applied) p50/p95,
+rejoin time, relay CPU per room-minute, relay memory growth and client CPU per room. Exit 1 when any room failed.
+
+```sh
+npm run soak                               # 200 matches, 8 rooms at a time, 75% PvP
+MATCHES=20 CONCURRENCY=4 npm run soak      # a short run
+MINUTES=120 MATCHES=100000 npm run soak    # as many as fit in two hours
+```
+
+Env: `MATCHES`, `CONCURRENCY`, `PVP_SHARE`, `DROP_RATE`, `SURRENDER_RATE`, `MINUTES`, `SEED`, `PORT` (3121), `RELAY`,
+`OUT`, `REFEREE_INLINE=1`, `SOAK_VERBOSE=1`. A room runs in real time (a match is 5–11 minutes); each client runs the
+full sim, so a PvP room costs about six sims of CPU on the driver machine.
 
 ## Layout
 
