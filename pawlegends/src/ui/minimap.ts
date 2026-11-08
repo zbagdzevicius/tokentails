@@ -17,8 +17,10 @@ import { clearedBushes } from '../render/bushClear';
 import { applyMinimapSize, colourBlind } from './minimapPrefs';
 
 export interface MinimapHost {
-  /** Look at (x, z) m; `hold` s before the camera drifts back (Infinity: until the next look). */
-  lookAt(xM: number, zM: number, hold?: number): void;
+  /** Feel pass B1: hold the view on (x, z) m while the minimap is held (peekEnd lets it go). */
+  peekHold(xM: number, zM: number): void;
+  /** The minimap let go: the view returns to the hero (over 150 ms). */
+  peekEnd(): void;
   moveTo(xMm: number, yMm: number): void;
   /** Ground corners (m, three.js X/Z) of the camera view, or null. */
   viewQuad(): { x: number; z: number }[] | null;
@@ -28,14 +30,11 @@ export interface MinimapHost {
   goHere?(xMm: number, yMm: number): void;
 }
 
-/** GAPS B1: a touch held this long on the minimap pings "Go here". */
-export const MINIMAP_HOLD_MS = 450;
 /**
- * MAP-GAPS A2: touch scrub. A finger that moves more than `slopPx` from where it went down drags the camera over the
- * map (held while the finger is down) and lets it go `releaseS` s after the lift; a finger that stays inside the slop
- * for MINIMAP_HOLD_MS pings Go here and never moves the camera; a short tap peeks for `peekS` s.
+ * Feel pass B1 (hold to peek, Wild Rift and MLBB): a finger or the mouse button on the minimap centres the camera
+ * there at once and drags it along; the lift returns it to the hero (camera/frame.ts PEEK_RETURN_S). Pings go
+ * through the ping button and wheel (Alt-click still pings Go here on desktop).
  */
-export const MINIMAP_TOUCH = Object.freeze({ slopPx: 6, releaseS: 0.6, peekS: 2.5 });
 /** MAP-GAPS A21: a second tap within `ms` and `px` of the first is a double tap: a move order there. */
 export const MINIMAP_DOUBLE_TAP = Object.freeze({ ms: 320, px: 24 });
 
@@ -180,18 +179,14 @@ export class Minimap {
     this.canvas.addEventListener('pointercancel', (e) => this.up(e, true));
   }
 
-  private hold: ReturnType<typeof setTimeout> | null = null;
-  /** The finger or mouse button on the minimap (MAP-GAPS A2): where it went down, and whether it scrubs or pinged. */
-  private press: { id: number; touch: boolean; x0: number; y0: number; scrub: boolean; pinged: boolean; last: { xMm: number; yMm: number } } | null = null;
+  /** The finger or mouse button holding the minimap (feel pass B1: it peeks while held). */
+  private press: { id: number; last: { xMm: number; yMm: number } } | null = null;
+  /** Peeks started (e2e telemetry). */
+  peeks = 0;
 
   private lastTap: { t: number; x: number; y: number } | null = null;
   /** MAP-GAPS A21: the minimap move order's goal (sim mm), shown until the hero gets there (or 10 s). */
   moveGoal: { x: number; y: number; until: number } | null = null;
-
-  private clearHold(): void {
-    if (this.hold) clearTimeout(this.hold);
-    this.hold = null;
-  }
 
   private toMap(e: { clientX: number; clientY: number }): { xMm: number; yMm: number } {
     const r = this.canvas.getBoundingClientRect();
@@ -200,8 +195,8 @@ export class Minimap {
     return this.map.inv((e.clientX - r.left) * sx, (e.clientY - r.top) * sy);
   }
 
-  private look(p: { xMm: number; yMm: number }, hold?: number): void {
-    this.host.lookAt(p.xMm / 1000, -p.yMm / 1000, hold);
+  private look(p: { xMm: number; yMm: number }): void {
+    this.host.peekHold(p.xMm / 1000, -p.yMm / 1000);
   }
 
   private down(e: PointerEvent): void {
@@ -228,24 +223,16 @@ export class Minimap {
     this.lastTap = touch ? { t: now, x: e.clientX, y: e.clientY } : null;
     if (touch && last && now - last.t <= MINIMAP_DOUBLE_TAP.ms && Math.hypot(e.clientX - last.x, e.clientY - last.y) <= MINIMAP_DOUBLE_TAP.px) {
       this.lastTap = null;
-      this.clearHold();
       this.press = null;
+      this.host.peekEnd();
       this.host.moveTo(p.xMm, p.yMm);
       this.moveGoal = { x: p.xMm, y: p.yMm, until: performance.now() + 10000 };
       return;
     }
-    this.press = { id: e.pointerId, touch, x0: e.clientX, y0: e.clientY, scrub: !touch, pinged: false, last: p };
-    // desktop: a click looks there at once and a drag keeps scrubbing; touch waits to see a tap, a drag or a hold
-    if (!touch) this.look(p, Infinity);
-    else if (this.host.goHere) {
-      this.clearHold();
-      this.hold = setTimeout(() => {
-        this.hold = null;
-        if (!this.press || this.press.scrub) return;
-        this.press.pinged = true;
-        this.host.goHere?.(p.xMm, p.yMm);
-      }, MINIMAP_HOLD_MS);
-    }
+    // feel pass B1: hold to peek, at once, for touch and mouse alike
+    this.press = { id: e.pointerId, last: p };
+    this.peeks++;
+    this.look(p);
   }
 
   private move(e: PointerEvent): void {
@@ -254,27 +241,19 @@ export class Minimap {
     e.preventDefault();
     const p = this.toMap(e);
     pr.last = p;
-    if (!pr.scrub) {
-      if (pr.pinged || Math.hypot(e.clientX - pr.x0, e.clientY - pr.y0) <= MINIMAP_TOUCH.slopPx) return;
-      pr.scrub = true;
-      this.clearHold();
-    }
-    this.look(p, Infinity);
+    this.look(p);
   }
 
-  private up(e: PointerEvent, cancel: boolean): void {
+  private up(e: PointerEvent, _cancel: boolean): void {
     const pr = this.press;
     if (!pr || e.pointerId !== pr.id) return;
     this.press = null;
-    this.clearHold();
     try {
       this.canvas.releasePointerCapture(e.pointerId);
     } catch {
       /* not captured */
     }
-    if (pr.pinged) return;
-    if (pr.scrub) this.look(pr.last, pr.touch ? MINIMAP_TOUCH.releaseS : MINIMAP_TOUCH.peekS);
-    else if (!cancel) this.look(pr.last, MINIMAP_TOUCH.peekS);
+    this.host.peekEnd();
   }
 
   private size(): void {

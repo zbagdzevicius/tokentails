@@ -21,12 +21,8 @@
  * landing for GHOST_MS. With the joystick held, the run goes on from the landing at once and
  * the stick keeps steering from there (never from the drawn hero still short of it) until the sim shows the cast.
  *
- * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
- * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
- * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
- * fingers have moved past TAP.px and their gap changed by PINCH_PX; then the stick lets go and both fingers zoom.
- * Once that thumb steers on its own (stickSteersAlone) the pair can no longer become a pinch. When the other finger
- * lifts after a pinch, the joystick thumb still down is a joystick again (a fresh base under it).
+ * Feel pass B1: the camera is fixed (no pinch zoom): a second finger on the bare canvas is a tap (it locks the hero
+ * under it) and the stick keeps steering.
  */
 import { viewSign } from '../../render/coords';
 import { sfx } from '../../audio/sfx';
@@ -46,7 +42,6 @@ import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, Retu
 import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
-import { pinchZoom, saveZoom, zoomMax } from '../../render/camera/zoom';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -118,31 +113,10 @@ export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 export const GHOST_MS = 150;
 /** After a heading cast with the joystick held, the stick steers from the landing at most this long (ms) before the sim shows it. */
 export const BLINK_GUARD_MS = 600;
-/** A joystick finger plus a second finger turn into a pinch only after their gap changes by this many CSS px. */
-export const PINCH_PX = 24;
 /** A held stick's heading cast takes the wall-slide direction over the raw stick only when it lands this much further (mm). */
 const CAST_SLIDE_GAIN_MM = 300;
 
-/**
- * Two canvas touches, one of them a still joystick: has the pair become a pinch? Both fingers moved past TAP.px from
- * where they landed and their gap changed by PINCH_PX (a tap or a steering thumb alone never zooms).
- */
-export function pinchCommitted(a: TouchPt, b: TouchPt): boolean {
-  const moved = (p: TouchPt) => Math.hypot(p.x - p.x0, p.y - p.y0) > TAP.px;
-  const gap0 = Math.hypot(a.x0 - b.x0, a.y0 - b.y0);
-  const gap = Math.hypot(a.x - b.x, a.y - b.y);
-  return moved(a) && moved(b) && Math.abs(gap - gap0) >= PINCH_PX;
-}
 export type TouchPt = { x: number; y: number; x0: number; y0: number };
-/**
- * A still joystick plus a resting second finger: has the thumb started steering on its own? It travelled past 2 × TAP.px
- * while the other finger stayed within TAP.px. From then on the stick is in use and the pair never becomes a pinch,
- * however the resting finger drifts later (a real pinch moves both fingers together, so it commits first).
- */
-export function stickSteersAlone(stick: TouchPt, other: TouchPt): boolean {
-  const travel = (p: TouchPt) => Math.hypot(p.x - p.x0, p.y - p.y0);
-  return travel(stick) > TAP.px * 2 && travel(other) <= TAP.px;
-}
 
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -213,13 +187,8 @@ export class TouchControls {
   private readonly wire = new ReturnWindow();
   /** Heading presses that sent (or buffered) a cast, and heading casts that went out (e2e telemetry). */
   heads = { press: 0, fired: 0 };
-  /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
+  /** Touches down on the bare canvas (pointer id → position). */
   private readonly canvasTouches = new Map<number, TouchPt>();
-  private pinch: { a: number; b: number; d0: number; z0: number; stickId: number | null } | null = null;
-  /** A still joystick plus a second finger: a pinch only if both fingers then move apart or together (pinchCommitted). */
-  private pinchMaybe = false;
-  /** Pinches started (e2e telemetry). */
-  pinches = 0;
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
   setIcons(icons: Record<'q' | 'w' | 'e' | 'r' | 'trick', string>): void {
     for (const [k, svg] of Object.entries(icons)) {
@@ -294,7 +263,6 @@ export class TouchControls {
     const html = document.documentElement;
     html.style.setProperty('--arc-reach', `${Math.ceil(reach)}px`);
     html.dataset.lefty = lefty ? '1' : '';
-    this.h.view.mirrorLead = lefty && this.enabled;
   }
 
   /** UX pass 2: the left-handed mirror is on (the joystick takes the right half of the screen). */
@@ -302,7 +270,6 @@ export class TouchControls {
 
   enable(on: boolean): void {
     this.enabled = on;
-    this.h.view.mirrorLead = on && this.lefty;
     this.root.classList.toggle('on', on);
     document.documentElement.dataset.touch = on ? '1' : '';
   }
@@ -338,18 +305,7 @@ export class TouchControls {
     this.h.onActivity('touch');
     sfx.unlock();
     this.canvasTouches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
-    this.pinchMaybe = false;
-    if (this.canvasTouches.size === 2 && !this.pinch) {
-      e.preventDefault();
-      const stickIn = this.stick !== null && this.canvasTouches.has(this.stick.id);
-      if (!stickIn) {
-        this.startPinch();
-        return;
-      }
-      // the joystick is one of the two: a steering stick keeps steering and this finger is a tap; a still one may
-      // still turn into a pinch once both fingers move (move())
-      this.pinchMaybe = !this.stick!.moved;
-    }
+    if (this.canvasTouches.size >= 2) e.preventDefault();
     if (!this.h.enabled()) return;
     // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
@@ -422,43 +378,11 @@ export class TouchControls {
     this.syncRing();
   }
 
-  /** Two canvas touches: a pinch. The joystick (if one of them) lets go; no tap fires. */
-  private startPinch(): void {
-    const [a, b] = [...this.canvasTouches.keys()];
-    const pa = this.canvasTouches.get(a)!;
-    const pb = this.canvasTouches.get(b)!;
-    const stickId = this.stick && (this.stick.id === a || this.stick.id === b) ? this.stick.id : null;
-    this.pinch = { a, b, d0: Math.max(1, Math.hypot(pa.x - pb.x, pa.y - pb.y)), z0: this.h.view.zoomTarget, stickId };
-    this.pinches++;
-    this.tap = null;
-    if (stickId !== null) {
-      this.stick = null;
-      this.stickEl.classList.remove('on');
-    }
-  }
-
   private move(e: PointerEvent): void {
     const ct = this.canvasTouches.get(e.pointerId);
     if (ct) {
       ct.x = e.clientX;
       ct.y = e.clientY;
-      if (this.pinchMaybe && this.canvasTouches.size === 2) {
-        const [a, b] = [...this.canvasTouches.values()];
-        if (pinchCommitted(a, b)) {
-          this.pinchMaybe = false;
-          this.startPinch();
-          return;
-        }
-        const st = this.stick ? this.canvasTouches.get(this.stick.id) : undefined;
-        if (st && stickSteersAlone(st, st === a ? b : a)) this.pinchMaybe = false;
-      }
-      const p = this.pinch;
-      if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
-        const pa = this.canvasTouches.get(p.a);
-        const pb = this.canvasTouches.get(p.b);
-        if (pa && pb) this.h.view.zoomTarget = pinchZoom(p.z0, p.d0, Math.hypot(pa.x - pb.x, pa.y - pb.y), zoomMax(window.innerWidth));
-        return;
-      }
     }
     if (this.stick && e.pointerId === this.stick.id) {
       this.stick.x = e.clientX;
@@ -529,20 +453,7 @@ export class TouchControls {
   }
 
   private up(e: PointerEvent, cancelled = false): void {
-    if (this.canvasTouches.delete(e.pointerId)) {
-      this.pinchMaybe = false;
-      const p = this.pinch;
-      if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
-        this.pinch = null;
-        saveZoom(this.h.view.zoomTarget);
-        if (this.tap?.id === e.pointerId) this.tap = null;
-        // the joystick thumb that stays down steers again (a fresh base where it rests), no lift and press needed
-        const rest = p.stickId !== null && p.stickId !== e.pointerId ? this.canvasTouches.get(p.stickId) : undefined;
-        // (at: Infinity, so lifting it still stops the hero only if it steered: a zoom alone never stops a walk)
-        if (rest && !this.stick && this.h.enabled()) this.grabStick(p.stickId!, rest.x, rest.y, Infinity);
-        return;
-      }
-    }
+    this.canvasTouches.delete(e.pointerId);
     const tp = this.tap;
     if (tp && tp.id === e.pointerId) {
       this.tap = null;

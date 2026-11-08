@@ -1,14 +1,15 @@
 /**
  * The match view: owns every render-side piece of a match (map, structures, minions, heroes, projectiles, FX,
- * telegraphs, juice) and draws one interpolated frame per animation frame. The camera follows the player's hero
- * unless the player pans it (edge pan, arrows, minimap); Space re-centres. Render only: no sim imports beyond types.
+ * telegraphs, juice) and draws one interpolated frame per animation frame. Feel pass B1: the camera is FIXED on the
+ * player's hero (render/camera/frame.ts): it moves only for a minimap peek, the aim pan of the longest skills, a
+ * scripted look (the core falling) and a capped shake. Render only: no sim imports beyond types.
  */
-import { setViewTeam, viewSign } from './coords';
+import { setViewTeam } from './coords';
 import { PingMarkers } from './views/pingMarkers';
 import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
-import { loadZoom, ZOOM_DEFAULT, zoomMax } from './camera/zoom';
-import { easeLookAhead, lookAheadTarget } from './camera/lookAhead';
+import { heightFactor, loadCameraHeight, type CameraHeight } from './camera/height';
+import { aimPan, groundWidthAt, returnShare, SHAKE_MAX_M } from './camera/frame';
 import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
@@ -21,7 +22,6 @@ import type { ViewEntity, ViewFrame } from './interp';
 import { Juice } from './juice';
 import { RELATION, setSideSwap, setTeam0Dogs } from './palette';
 import type { GameRenderer } from './renderer';
-import { isShortLandscape, MOBA_DIST } from './renderer';
 import { poseWatchers, TelegraphPool, type TelegraphSpec } from './telegraph';
 import { toX, toZ } from './coords';
 import type { Companion } from '../meta/roster';
@@ -63,9 +63,9 @@ export interface AimPreview {
   target: number;
   valid: boolean;
   /**
-   * The point is the ground under the desktop cursor: the CF-05 look-ahead must not lean toward it, or the camera
-   * slides the ground under a still cursor and the aim drifts (QA 2026-11-07). Touch drag aims are measured from the
-   * button, so they keep the lean. A press-fired heading cast's ghost landing marker sets it too (it is not an aim).
+   * The point is the ground under the desktop cursor: the aim pan (feel pass B1) must not move toward it, or the
+   * camera slides the ground under a still cursor and the aim drifts (QA 2026-11-07). Touch drag aims are measured
+   * from the button, so they keep the pan. A press-fired heading cast's ghost landing marker sets it too (not an aim).
    */
   pointer?: boolean;
 }
@@ -82,18 +82,6 @@ export interface GameViewHooks {
   onCoreDown?(who: Who): void;
 }
 
-/**
- * Camera framing (m). The focus may run a few metres past the playable edge (the outer ground plane fills it), so a
- * hero at its fountain or in a lane corner stays near the middle of the screen instead of in a corner under the
- * minimap. `lead` is the look-ahead toward the enemy base, `below` shifts the focus south a little (the hero sits
- * slightly above centre, clear of the bottom bar). `shortBelow` (short landscape phones) lifts the focus north of the
- * hero; CF-05 (audit 2026-11-06) lowered it from −1.5 to −0.8: with the camera further out the top HUD no longer
- * hides much, and the 4.8 m of ground below the hero at 667x375 was too little. The intent look-ahead
- * (camera/lookAhead.ts) adds a few metres toward the aim or the walking direction on top of `lead`.
- */
-export const CAMERA_FRAME = Object.freeze({ minX: 0, maxX: 100, minZ: -62, maxZ: 2, lead: 4, below: 0.8, shortBelow: -0.8 });
-export const clampFocusX = (x: number): number => Math.min(CAMERA_FRAME.maxX, Math.max(CAMERA_FRAME.minX, x));
-export const clampFocusZ = (z: number): number => Math.min(CAMERA_FRAME.maxZ, Math.max(CAMERA_FRAME.minZ, z));
 const WHO_TTL = 3;
 
 /** Hover ring size (m) by unit kind: just outside the unit's own relation ring. Heroes use HERO_RING × 1.3. */
@@ -136,11 +124,21 @@ export class GameView {
   readonly vfx: CombatVfx;
   /** Companion Kittens (render only; set by `dress`). */
   companions: CompanionView | null = null;
-  /** Ground point (m) the camera follows, and the player's pan offset from it. */
+  /** Ground point (m) the camera follows: the player's hero (its interpolated render position). */
   readonly follow = new THREE.Vector3(5, 0, -30);
-  readonly pan = new THREE.Vector3();
-  /** True while the camera is panned away from the hero (Space or a new order clears it). */
-  panned = false;
+  /**
+   * Feel pass B1: the camera's offset (m) from the hero this frame: a minimap peek, a scripted look or the aim pan,
+   * else 0. The focus is always follow + camOff (no smoothing of the follow itself).
+   */
+  readonly camOff = { x: 0, z: 0 };
+  /** A peek point (m) and until when (view s; Infinity while a finger or mouse button holds the minimap), or null. */
+  private peekPt: { x: number; z: number; until: number } | null = null;
+  /** The return to the hero after a peek or an aim pan: where it started (m) and its clock (s), Infinity = none. */
+  private readonly retFrom = { x: 0, z: 0 };
+  private retT = Infinity;
+  private offActive = false;
+  /** The aim pan this frame (m; e2e and tests). */
+  aimPanM = 0;
   mySlot = 0;
   myTeam: 0 | 1 = 0;
   tricks: TrickId[] = [];
@@ -155,13 +153,6 @@ export class GameView {
   denyRing(): void {
     this.ringDenyAt = this.time;
   }
-  /** C6: the camera follow point last frame (m), for the damped snap after a long jump. */
-  private lastFollow = { x: NaN, z: NaN };
-  /** CF-05: the eased intent look-ahead (m), its target, and the hero's smoothed ground velocity (m/s). */
-  readonly ahead = { x: 0, z: 0 };
-  private readonly aheadWant = { x: 0, z: 0 };
-  private readonly heroVel = { x: 0, z: 0 };
-  private readonly aheadIn = { vx: 0, vz: 0, aimDx: null as number | null, aimDz: null as number | null, scale: 1 };
   /** Radius (m) of the attack range ring drawn this frame, 0 when none (e2e telemetry). */
   attackRingM = 0;
   /** The unit under the desktop cursor (DesktopInput.hover): a bright ring shows what a click or cast hits. */
@@ -253,7 +244,7 @@ export class GameView {
       cam: {
         isIso: true,
         get distance() {
-          return MOBA_DIST * gr.zoom;
+          return gr.dist;
         },
         get focus() {
           return gr.focus;
@@ -333,6 +324,20 @@ export class GameView {
     // ANIM-SPEC §2: the director, the skill FX kit (one material, compiled at load), ribbons, ghosts, fight camera
     this.linger = new Linger(this.meshFx.uniforms);
     this.fightCam = new FightCam(this.juice);
+    // feel pass B1: the own punch is a short darkening vignette over the view (CSS), never a zoom
+    if (typeof document !== 'undefined') {
+      const vig = document.createElement('div');
+      vig.className = 'pl-punch';
+      vig.setAttribute('aria-hidden', 'true');
+      uiRoot.appendChild(vig);
+      this.fightCam.onPunch = (ms, dark) => {
+        vig.style.setProperty('--punch-ms', `${ms}ms`);
+        vig.style.setProperty('--punch-dark', String(dark));
+        vig.classList.remove('on');
+        void vig.offsetWidth;
+        vig.classList.add('on');
+      };
+    }
     this.ultMoment = new UltMoment(uiRoot, this.juice, this.fightCam);
     this.scene.add(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);
     const lookup: HeroLookup = {
@@ -463,9 +468,15 @@ export class GameView {
     this.effects.cards = new CardVfx(this.particles, this.shock as never);
     this.projectiles.card = (id) => this.heroes.cardOf(id);
     const shake = this.juice.shake as unknown as { apply(cam: THREE.Camera, dt: number, scale: number, mix: object): void };
-    gr.preRender = (cam) => shake.apply(cam, this.lastDt, 1, { rotMul: 0.5, rotMaxDeg: 1.2, transMul: 2, transMax: 0.35 });
+    // feel pass B1: the shake is the only camera motion besides the follow, capped at SHAKE_MAX_M on the ground (the
+    // turn's share at the camera distance plus the screen-plane jolt)
+    gr.preRender = (cam) => {
+      const transMax = SHAKE_MAX_M * 0.5;
+      const rotMaxDeg = (Math.atan(transMax / Math.max(1, gr.dist)) * 180) / Math.PI;
+      shake.apply(cam, this.lastDt, 1, { rotMul: 0.5, rotMaxDeg, transMul: 1, transMax });
+    };
     this.setShadows(gr.settings.shadows);
-    gr.zoom = this.zoomTarget;
+    gr.zoom = heightFactor(loadCameraHeight());
     // lifecycle: built last (it reads particles, shock, meshFx, juice, heroes), from its own chunk
     void import('./fx/lifecycle')
       .then((m) => {
@@ -527,7 +538,7 @@ export class GameView {
     this.linger.update(dt);
     // readability: enemy windups dim any mesh FX over them; own / ally FX fade past the coverage budget
     packTele(this.effects.windups, (id) => this.who.get(id) ?? null, this.myTeam, this.meshFx.uniforms.uTele.value);
-    const d = MOBA_DIST * this.gr.zoom;
+    const d = this.gr.dist;
     const want = coverageFade(this.meshFx.area(false), d * d * 0.9, this.gr.settings.tier);
     this.coverK += (want - this.coverK) * Math.min(1, dt * 6);
     this.meshFx.uniforms.uFadeOwn.value = this.coverK;
@@ -660,31 +671,9 @@ export class GameView {
 
   private swipeSide = 1;
 
-  /** Wheel zoom target (render/camera/zoom.ts); `gr.zoom` eases toward it. */
-  zoomTarget = loadZoom();
-
-  /**
-   * The camera looks a few metres ahead of the hero toward the enemy base (MOBA lead), so the fight in front of the
-   * hero sits in the middle of the screen, not under the ability cluster on the right. Scales with the zoom.
-   */
-  lead(): number {
-    return (this.myTeam === 0 ? 1 : -1) * (this.mirrorLead ? -1 : 1) * CAMERA_FRAME.lead * this.gr.zoom;
-  }
-
-  /**
-   * UX pass 2: the touch left-handed mirror is on (TouchControls): the button arc sits bottom-left, so the lead flips
-   * and the hero sits right of centre, clear of R and E (with the usual lead it walked under them).
-   */
-  mirrorLead = false;
-
-  /**
-   * Ground offset (m, +z = screen down) from the hero to the camera focus. Round 2: on short landscape screens the
-   * hero sat at ~43% of the height and units north of it hid under the top HUD; there the focus moves north of the
-   * hero (CAMERA_FRAME.shortBelow) so the hero sits at ~57%, with more room above it.
-   */
-  below(): number {
-    const c = this.gr.renderer.domElement;
-    return viewSign() * (isShortLandscape(c.clientWidth, c.clientHeight) ? CAMERA_FRAME.shortBelow * (this.gr.zoom / ZOOM_DEFAULT) : CAMERA_FRAME.below);
+  /** Feel pass B1: the Camera height step (Normal / High, render/camera/height.ts), applied at once. */
+  setCameraHeight(h: CameraHeight): void {
+    this.gr.zoom = heightFactor(h);
   }
 
   /** The player's hero in the current frame. */
@@ -693,61 +682,94 @@ export class GameView {
   }
 
   /**
-   * CF-05 intent look-ahead (render only): the hero's smoothed velocity from the followed point (a blink or a respawn
-   * jump is not a velocity), the aimed point while a skill is aimed, eased into `ahead`. 0 while dead or panned.
+   * Back on the hero (Space, a joystick push): a scripted look returns over PEEK_RETURN_S. A minimap held by another
+   * finger keeps its peek until it lifts (steering while peeking, as in Wild Rift).
    */
-  private lookAhead(jump: boolean, dt: number): void {
-    const lf = this.lastFollow;
-    const me = this.lastMe;
-    const alive = !!me && me.state !== 'dead';
-    if (dt > 0 && dt < 0.25 && Number.isFinite(lf.x) && !jump) {
-      const k = Math.min(1, dt * 8);
-      this.heroVel.x += ((this.follow.x - lf.x) / dt - this.heroVel.x) * k;
-      this.heroVel.z += ((this.follow.z - lf.z) / dt - this.heroVel.z) * k;
-    } else if (jump) this.heroVel.x = this.heroVel.z = 0;
-    const i = this.aheadIn;
-    i.vx = alive ? this.heroVel.x : 0;
-    i.vz = alive ? this.heroVel.z : 0;
-    // a cursor aim keeps the walking lean only (see AimPreview.pointer)
-    const a = alive && !this.aim?.pointer ? this.aim : null;
-    i.aimDx = a ? a.x - this.follow.x : null;
-    i.aimDz = a ? a.z - this.follow.z : null;
-    i.scale = this.gr.zoom / ZOOM_DEFAULT;
-    lookAheadTarget(i, this.aheadWant);
-    if (this.panned) this.aheadWant.x = this.aheadWant.z = 0;
-    easeLookAhead(this.ahead, this.aheadWant, dt);
-  }
-
-  /** Re-centre on the hero (Space). */
   recentre(): void {
-    this.pan.set(0, 0, 0);
-    this.panned = false;
-    this.panHold = 3;
+    if (this.peekPt && this.peekPt.until !== Infinity) this.peekPt = null;
   }
 
-  /** Pan the camera by (dx, dz) metres. */
-  panBy(dx: number, dz: number): void {
-    // MAP-GAPS A24: screen directions (edge pan, arrow keys) turn with a team-1 seat's camera
-    dx *= viewSign();
-    dz *= viewSign();
-    this.pan.x += dx;
-    this.pan.z += dz;
-    this.pan.x = Math.max(-40, Math.min(40, this.pan.x));
-    this.pan.z = Math.max(-30, Math.min(30, this.pan.z));
-    this.panned = true;
-    this.panAt = this.time;
+  /** Feel pass B1: hold the view on (x, z) m until peekEnd (the minimap held by a finger or the mouse). */
+  peekHold(x: number, z: number): void {
+    this.peekPt = { x, z, until: Infinity };
   }
 
-  private panAt = -99;
-  /** Seconds after the last pan before the camera drifts back to the hero. */
-  panHold = 3;
+  /** The minimap let go: the view returns to the hero over PEEK_RETURN_S. */
+  peekEnd(): void {
+    this.peekPt = null;
+  }
 
-  /** Look at a map point (m) for a moment (minimap). */
+  /** Look at a map point (m) for `hold` s (the core falling, the respawn pan), then return to the hero. */
   lookAt(x: number, z: number, hold = 2.5): void {
-    this.pan.set(x - this.follow.x, 0, z - this.follow.z);
-    this.panned = true;
-    this.panAt = this.time;
-    this.panHold = hold;
+    this.peekPt = { x, z, until: this.time + hold };
+  }
+
+  /** Is the view off the hero (a peek or a scripted look)? */
+  get peeking(): boolean {
+    return this.peekPt !== null;
+  }
+
+  /**
+   * Feel pass B1: the camera offset (m) from the hero for this frame: the peek point, else the aim pan of a skill
+   * that reaches past most of the visible half-width, else 0; when either ends, the offset returns over
+   * PEEK_RETURN_S (ease out). A peek snaps (it follows a scrubbing finger); the aim pan eases in.
+   */
+  private cameraOffset(dt: number): void {
+    const p = this.peekPt;
+    if (p && this.time > p.until) this.peekPt = null;
+    let wx = 0;
+    let wz = 0;
+    let active = false;
+    let snap = false;
+    this.aimPanM = 0;
+    if (this.peekPt) {
+      wx = this.peekPt.x - this.follow.x;
+      wz = this.peekPt.z - this.follow.z;
+      active = snap = true;
+    } else {
+      const a = this.aim;
+      const me = this.lastMe;
+      if (a && !a.pointer && me && me.state !== 'dead') {
+        const c = this.gr.renderer.domElement;
+        const half = groundWidthAt(this.gr.dist, c.clientWidth || 1, c.clientHeight || 1) / 2;
+        const range = a.spec.range / 1000;
+        const pan = aimPan(range, half);
+        const dx = a.x - this.follow.x;
+        const dz = a.z - this.follow.z;
+        const l = Math.hypot(dx, dz);
+        if (pan > 0 && l > 0.5) {
+          const k = pan * Math.min(1, l / Math.max(0.1, range));
+          this.aimPanM = k;
+          wx = (dx / l) * k;
+          wz = (dz / l) * k;
+          active = true;
+        }
+      }
+    }
+    const o = this.camOff;
+    if (active) {
+      const k = snap ? 1 : Math.min(1, dt * 25);
+      o.x += (wx - o.x) * k;
+      o.z += (wz - o.z) * k;
+      this.offActive = true;
+      this.retT = Infinity;
+      return;
+    }
+    if (this.offActive) {
+      this.offActive = false;
+      this.retFrom.x = o.x;
+      this.retFrom.z = o.z;
+      this.retT = 0;
+    }
+    if (this.retT === Infinity) {
+      o.x = o.z = 0;
+      return;
+    }
+    this.retT += dt;
+    const s = returnShare(this.retT);
+    o.x = this.retFrom.x * s;
+    o.z = this.retFrom.z * s;
+    if (s === 0) this.retT = Infinity;
   }
 
   /** MAP-GAPS A10: the ground ping markers (a ring, a pillar and the ping's glyph in its colour). */
@@ -924,13 +946,13 @@ export class GameView {
       this.drawWindups(frame);
       this.drawAim();
       if (me) this.follow.set(toX(me.fx), 0, toZ(me.fy));
-      // respawn: snap the camera onto the fountain at once, so the pop-then-cheer plays on screen (a smoothed pan
-      // across the map arrived after it)
+      // respawn: back on the hero at once (the follow is rigid, so this only ends a look at the fountain)
       const meDead = me?.state === 'dead';
       if (me && this.wasDead && !meDead) {
-        this.recentre();
-        this.gr.focus.x = clampFocusX(this.follow.x + this.lead());
-        this.gr.focus.z = clampFocusZ(this.follow.z + this.below());
+        this.peekPt = null;
+        this.offActive = false;
+        this.retT = Infinity;
+        this.camOff.x = this.camOff.z = 0;
       }
       this.wasDead = meDead;
       // lifecycle: after the respawn snap, before the camera eases (its iris moves the focus to the fountain early)
@@ -947,27 +969,11 @@ export class GameView {
     this.shock.render(dt, this.time);
     this.effects.render(dt);
     this.juice.update(dt);
-    // camera: follow + pan, smoothed; a pan drifts back to the hero after a few quiet seconds
-    if (this.panned && this.time - this.panAt > this.panHold) {
-      this.pan.multiplyScalar(Math.max(0, 1 - dt * 3));
-      if (this.pan.lengthSq() < 0.01) this.recentre();
-    }
-    // ease the zoom toward the wheel's target, plus the fight camera's pull-back and the own ult punch (§8)
-    const cw = this.gr.renderer.domElement.clientWidth;
-    const fight = this.fightCam.extra > 0 ? Math.min(zoomMax(cw || 1000), this.zoomTarget * (1 + this.fightCam.extra / MOBA_DIST)) : this.zoomTarget;
-    this.gr.zoom += (fight * this.fightCam.punchScale() - this.gr.zoom) * Math.min(1, dt * 10);
-    const tx = clampFocusX(this.follow.x + this.pan.x + (this.panned ? 0 : this.lead() + this.fightCam.leanX + this.ahead.x));
-    const tz = clampFocusZ(this.follow.z + this.pan.z + this.below() + (this.panned ? 0 : this.fightCam.leanZ + this.ahead.z));
-    // C6: a tighter follow (dt × 14, was 7); a jump of more than 2 m in one frame (a blink, a dash) closes most of the
-    // gap at once instead of a long slide behind the hero
-    const lf = this.lastFollow;
-    const jump = Number.isFinite(lf.x) && Math.hypot(this.follow.x - lf.x, this.follow.z - lf.z) > 2;
-    this.lookAhead(jump, dt);
-    lf.x = this.follow.x;
-    lf.z = this.follow.z;
-    const k = jump && !this.panned ? 0.6 : Math.min(1, dt * (this.panned ? 12 : 14));
-    this.gr.focus.x += (tx - this.gr.focus.x) * k;
-    this.gr.focus.z += (tz - this.gr.focus.z) * k;
+    // feel pass B1: the camera is fixed on the hero (its interpolated render position, no smoothing, no lead, no
+    // look-ahead, no fight lean or zoom, no map-edge clamp); only a peek or the long-skill aim pan moves it
+    this.cameraOffset(dt);
+    this.gr.focus.x = this.follow.x + this.camOff.x;
+    this.gr.focus.z = this.follow.z + this.camOff.z;
     sfx.ear.x = this.gr.focus.x;
     sfx.ear.z = this.gr.focus.z;
     this.gr.render();

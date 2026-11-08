@@ -27,7 +27,8 @@ import { wearingCard } from './cards';
 import * as TL from '../data/timeline';
 import { rookieAvailable } from '../app/firstSession';
 import { castMode, trackpadOn } from '../input/presets';
-import { bindZoomRow, zoomRowHtml } from './zoomSlider';
+import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
+import type { CameraHeight } from '../render/camera/height';
 import type { QuestView } from '../meta/quests';
 import { TREAT_XP, type TreatGain } from '../meta/treats';
 import type { Grade } from '../meta/grade';
@@ -845,8 +846,8 @@ export interface MenuOpts {
    * match"; Pause becomes "Vote pause" and Forfeit "Vote surrender" (no confirm step: friends answer the vote).
    */
   party?: { onVotePause(): void; coop?: boolean };
-  /** The camera zoom slider moved (it already saved the zoom): the match view follows at once. */
-  onZoom?(z: number): void;
+  /** Feel pass B1: the Camera height row picked a step (already saved): the match view follows at once. */
+  onCameraHeight?(h: CameraHeight): void;
 }
 
 const clockText = (ticks: number): string => {
@@ -867,10 +868,10 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     ${o.onScores ? `<button class="pl-btn ghost" data-a="scores">Scores</button>` : ''}
     <button class="pl-btn ghost" data-a="mute">${muted ? 'Sound: off' : 'Sound: on'}</button>
     ${o.onSettings ? '<button class="pl-btn ghost" data-a="settings">Settings</button>' : ''}
-    ${o.onZoom ? zoomRowHtml() : ''}
+    ${o.onCameraHeight ? cameraHeightRowHtml() : ''}
     ${ff ? `<button class="pl-btn ghost danger" data-a="forfeit"${ffReady ? '' : ' disabled'}>${party ? (ffReady ? 'Vote surrender' : `Vote surrender from ${clockText(ff.from)}`) : ffReady ? 'Forfeit' : `Forfeit from ${clockText(ff.from)}`}</button>` : ''}
     <button class="pl-btn ghost danger" data-a="leave">Leave match</button>
-    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Wheel</kbd> or <kbd>+</kbd><kbd>−</kbd> zoom · <kbd>Tab</kbd> scores</p>`}</div>`;
+    ${o.touch ? '' : `<p class="keys">${trackpadOn() ? '<kbd>Click</kbd>' : '<kbd>RMB</kbd>'} move / attack · <kbd>A</kbd>+<kbd>LMB</kbd> attack-move · <kbd>Q</kbd><kbd>W</kbd><kbd>E</kbd><kbd>R</kbd> ${castMode() === 'hold' ? 'hold to aim, release to cast' : 'cast at the cursor'} · <kbd>D</kbd> Paw Trick · <kbd>B</kbd> Nap · <kbd>S</kbd> stop · <kbd>Space</kbd> centre · <kbd>Wheel</kbd> camera height · <kbd>Tab</kbd> scores</p>`}</div>`;
   };
   // GAPS B2: the confirm step names what a forfeit costs before anything is sent
   const confirm = (): void => {
@@ -887,7 +888,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     <button class="pl-btn ghost danger" data-a="leave-yes">Leave match</button></div>`;
   };
   main();
-  if (o.onZoom) bindZoomRow(root, o.onZoom);
+  if (o.onCameraHeight) bindCameraHeightRow(root, o.onCameraHeight);
   root.addEventListener('click', (e) => {
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'resume') o.onResume();
@@ -895,7 +896,7 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
     else if (a === 'settings') o.onSettings?.();
     else if (a === 'leave') leaveAsk();
     else if (a === 'leave-yes') o.onLeave();
-    // the zoom slider's listeners sit on `root` (bound once above), so a redrawn card keeps them
+    // the camera height row's listeners sit on `root` (bound once above), so a redrawn card keeps them
     else if (a === 'leave-no') main();
     else if (a === 'forfeit' && ffReady) {
       if (party) o.onForfeit?.();

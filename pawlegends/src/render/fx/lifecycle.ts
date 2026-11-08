@@ -487,8 +487,9 @@ export class Lifecycle {
     if (!this.camMoved && r > 0 && r <= (iris ? RESPAWN_TICKS.shut : PAN_AT)) {
       this.camMoved = true;
       const p = spawnPoint(this.view.mySlot, team, this.sp);
-      const fx = p.x + this.view.lead();
-      const fz = p.z + this.view.below();
+      // feel pass B1: the fixed framing puts the hero itself at the focus (no lead, no lift)
+      const fx = p.x;
+      const fz = p.z;
       this.view.lookAt(fx, fz, 6);
       // with the iris shut, cut the camera at once, so the respawn plays on screen from its first frame
       if (iris) {

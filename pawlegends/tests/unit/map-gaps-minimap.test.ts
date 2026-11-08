@@ -29,7 +29,7 @@ beforeEach(() => {
 afterEach(() => vi.restoreAllMocks());
 
 export function host(over: Partial<MinimapHost> = {}): MinimapHost {
-  return { lookAt: () => {}, moveTo: () => {}, viewQuad: () => null, mySlot: () => 0, myTeam: () => 0, ...over };
+  return { peekHold: () => {}, peekEnd: () => {}, moveTo: () => {}, viewQuad: () => null, mySlot: () => 0, myTeam: () => 0, ...over };
 }
 
 export function ent(p: Partial<ViewEntity> & { id: number; kind: ViewEntity['kind'] }): ViewEntity {

@@ -663,12 +663,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .pl-settings .set-row { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .pl-settings .chips { display: flex; gap: 6px; }
 .pl-settings .pl-btn.big { align-self: center; }
-/* camera zoom slider (ui/zoomSlider.ts): Settings and the pause menu */
-.set-zoom { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.set-zoom .zoom-ctl { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.set-zoom input[type='range'] { width: min(200px, 40vw); accent-color: var(--butter); touch-action: pan-x; }
-.set-zoom output { min-width: 3.5em; text-align: right; font-variant-numeric: tabular-nums; font-size: 14px; }
-.pl-menu .set-zoom { font-size: 14px; }
 
 .pl-consent {
   position: absolute; left: 50%; bottom: calc(14px + var(--safe-b)); transform: translateX(-50%); z-index: 25; display: flex; gap: 10px; align-items: center;

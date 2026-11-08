@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
 import { startFirstMatch } from './helpers';
 
-// MAP-GAPS A12: at the widest zoom with the camera on each map corner, every screen corner's ground point lies inside
-// the dressed band (mapView OUTER_DRESS: 46 m west and east, 40 m north, 25 m south), so no bare grass shows.
-const DRESS = { west: 46, east: 46, north: 40, south: 25 };
+// MAP-GAPS A12 + feel pass B1: with the camera High (the widest framing; there is no free zoom any more) on each map
+// corner (the fixed camera never clamps at the edge), every screen corner's ground point lies inside the dressed band
+// (mapView OUTER_DRESS: 46 m west and east, 40 m north and south), so no bare grass shows.
+const DRESS = { west: 46, east: 46, north: 40, south: 40 };
 
-test('max zoom on every map corner: the screen corners land on dressed ground', async ({ page }, info) => {
+test('camera High on every map corner: the screen corners land on dressed ground', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'desktop zoom');
   await page.setViewportSize({ width: 1440, height: 900 });
   await startFirstMatch(page);
@@ -18,9 +19,8 @@ test('max zoom on every map corner: the screen corners land on dressed ground', 
     const pts = await page.evaluate(
       async ([fx, fz]) => {
         type V = { x: number; y: number; z: number; set(x: number, y: number, z: number): V; unproject(c: unknown): V; sub(v: V): V };
-        const v = (window as unknown as { __plWorld: { view: { zoomTarget: number; gr: { zoom: number; focus: V; camera: { position: V } }; lookAt(x: number, z: number, h: number): void } } }).__plWorld.view;
-        v.zoomTarget = 1.9;
-        v.gr.zoom = 1.9;
+        const v = (window as unknown as { __plWorld: { view: { setCameraHeight(h: string): void; gr: { zoom: number; focus: V; camera: { position: V } }; lookAt(x: number, z: number, h: number): void } } }).__plWorld.view;
+        v.setCameraHeight('high');
         v.lookAt(fx, fz, 1e9);
         await new Promise((r) => setTimeout(r, 900));
         const cam = v.gr.camera as unknown as { position: V };

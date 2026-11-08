@@ -428,9 +428,8 @@ export class MatchSession {
         }
       },
       onCoreDown: (who) => {
-        // push the camera in on the falling core (the slow-mo comes from effects)
+        // look at the falling core (the slow-mo comes from effects); feel pass B1: no zoom, the framing stays fixed
         this.view.lookAt(who.x, who.z, 10);
-        this.view.zoomTarget = Math.max(0.6, this.view.zoomTarget * 0.75);
       },
     });
     this.view.juice.stage = this.stage;
@@ -461,7 +460,8 @@ export class MatchSession {
       });
     resetStructures();
     this.minimap = new Minimap(this.ui, {
-      lookAt: (x, z, hold) => this.view.lookAt(x, z, hold),
+      peekHold: (x, z) => this.view.peekHold(x, z),
+      peekEnd: () => this.view.peekEnd(),
       moveTo: (x, y) => this.orders?.move(x, y),
       viewQuad: () => this.viewQuad(),
       mySlot: () => this.view.mySlot,
@@ -1265,9 +1265,9 @@ export class MatchSession {
           }
         : {}),
       onResume: () => this.resume(),
-      // the camera zoom slider: the view eases to it behind the menu
-      onZoom: (z) => {
-        this.view.zoomTarget = z;
+      // feel pass B1: the Camera height row: the view follows at once behind the menu
+      onCameraHeight: (h) => {
+        this.view.setCameraHeight(h);
       },
       onMute: (m) => {
         this.muted = m;
