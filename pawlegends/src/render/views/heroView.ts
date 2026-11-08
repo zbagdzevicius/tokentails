@@ -19,6 +19,7 @@ import { getSkin, isCardSkinId } from '../skins/skinStore';
 import { TierFx, type FxHero } from '../skins/tierFx';
 import { cardFxFor, type CardFx } from '../skins/cardFx';
 import { mixColor } from '../cosmetics';
+import { STEADFAST_ALPHA, STEADFAST_OUTLINE, STEADFAST_RING_SCALE, isSteadfast } from '../steadfast';
 
 export type Relation = 'self' | 'ally' | 'enemy' | 'neutral';
 
@@ -681,6 +682,10 @@ export class HeroView {
         if (chroma && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, ELEMENT_COLOR[chroma], 0.55 + Math.sin(this.time * 3 + e.id) * 0.12);
         // Sim v9: Avietė's charge (a fast spark flicker both teams see: the counterplay) and a charmed hero's pink glow.
         if (e.charged && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.7, CHARGE_GLOW, 0.75 + Math.sin(this.time * 14 + e.id) * 0.25);
+        // Sim v17: Shiny Coat's 0.5 s fill: a fainter, faster flicker both teams see (the counterplay: back off now).
+        else if (e.charging && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, CHARGE_GLOW, 0.4 + Math.sin(this.time * 24 + e.id) * 0.2);
+        // Sim v17 Steadfast: the white outline while the CC-cap immunity runs.
+        if (isSteadfast(e.buffs) && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * STEADFAST_RING_SCALE, STEADFAST_OUTLINE, STEADFAST_ALPHA);
         if (e.charmed) this.auras.add(x, z, HERO_RING[r.hero] * 1.5, CHARM_GLOW, 0.7 + Math.sin(this.time * 6) * 0.2);
       }
     }

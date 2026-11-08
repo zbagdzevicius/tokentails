@@ -369,3 +369,14 @@ export function hoverTarget(
   if (q && q.id !== h.id) h.castId = q.id;
   return h;
 }
+
+/**
+ * Sim v17 (V17.md §3.10): does an arguing Howler (Talk Back) deter a basic from `me`? Only within its fear range
+ * (4.5 m, centre to centre, as the sim measures it): from further out the hit is safe, so the auto-target keeps him.
+ */
+export function talkBackDeters(me: Pick<Unit, 'x' | 'y'> | null | undefined, howler: Pick<Unit, 'x' | 'y'>, fearRange: number): boolean {
+  if (!me || fearRange <= 0) return true;
+  const dx = me.x - howler.x;
+  const dy = me.y - howler.y;
+  return dx * dx + dy * dy <= fearRange * fearRange;
+}

@@ -105,3 +105,17 @@ describe('the last-hit (minion) button', () => {
     expect(lastHitTarget([me, u(3, 'hero', 1, 51000, 10, 600), u(30, 'tower', 1, 52000)], me, 0, RANGE, kill60)).toBeNull();
   });
 });
+
+describe('sim v17 Talk Back range (V17.md §3.10)', async () => {
+  const { talkBackDeters } = await import('../../src/input/targeting');
+  const { HEROES } = await import('../../src/data/heroes');
+  it('an arguing Howler deters basics only within his 4.5 m fear range', () => {
+    const range = HEROES.howler.abilities.e.fearRange ?? 0;
+    expect(range).toBe(4500);
+    const howler = { x: 50000, y: 30000 };
+    expect(talkBackDeters({ x: 51600, y: 30000 }, howler, range)).toBe(true);
+    expect(talkBackDeters({ x: 56000, y: 30000 }, howler, range)).toBe(false);
+    // No player position known: stay careful.
+    expect(talkBackDeters(null, howler, range)).toBe(true);
+  });
+});

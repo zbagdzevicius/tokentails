@@ -1291,13 +1291,15 @@ export function plateName(e: Pick<ViewEntity, 'id' | 'team' | 'hero'>, mySlot: n
   return title;
 }
 
-function statusWord(b: number): string {
+export function statusWord(b: number): string {
   if (b & BuffFlag.Stunned) return 'Stunned';
   if (b & BuffFlag.Rooted) return 'Rooted';
   if (b & BuffFlag.Feared) return 'Scared';
   if (b & BuffFlag.Channeling) return 'Napping';
   if (b & BuffFlag.Tethered) return 'Challenged';
   if (b & BuffFlag.Slowed) return 'Slowed';
+  // Sim v17: the CC cap's immunity reads as its own word (it is not a Purr-ify).
+  if (b & BuffFlag.Steadfast) return 'Steadfast';
   if (b & BuffFlag.Purrified) return 'Purr-ified';
   return '';
 }

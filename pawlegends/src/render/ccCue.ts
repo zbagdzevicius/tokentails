@@ -19,6 +19,9 @@ export function ccKindOf(hero: HeroId | undefined | null, slot: number): CcKind 
   return null;
 }
 
+/** Sim v17 (V17.md §3.6): "you are Pack Hunt's mark", its own short cue (Cacklejaw's R carries no CC number). */
+export const MARKED_CUE: Readonly<{ name: 'blip' | 'squeak' | 'hyenaLaugh' | 'shieldChime'; rate: number; vol: number }> = Object.freeze({ name: 'hyenaLaugh', rate: 1.05, vol: 0.85 });
+
 /** The cue per CC kind: a sound and a playback rate (each one distinct), about 120 ms long. */
 export const CC_CUE: Readonly<Record<CcKind, { name: 'blip' | 'squeak' | 'hyenaLaugh' | 'shieldChime'; rate: number; vol: number }>> = Object.freeze({
   stun: { name: 'blip', rate: 0.55, vol: 0.9 },

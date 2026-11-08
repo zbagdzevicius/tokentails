@@ -3,7 +3,8 @@
  * particles, shockwaves, damage numbers, hitstop, shake, banners, sounds and animation cues on the views. Events
  * reach it when the render clock passes their tick, so a hit spark lands with the swing you see. Render only.
  */
-import { CC_CUE, ccKindOf } from './ccCue';
+import { CC_CUE, MARKED_CUE, ccKindOf } from './ccCue';
+import { STEADFAST_WORD } from './steadfast';
 import * as THREE from 'three';
 import { HEROES } from '../data/heroes';
 import { MAP } from '../data/map';
@@ -72,6 +73,8 @@ export interface ActiveWindup {
   y: number;
   start: number;
   ticks: number;
+  /** Sim v17: the unit the windup is aimed at (Cacklejaw's Pack Hunt victim), −1 none. */
+  dst: number;
 }
 
 /** Map middle (sim mm, north–south). */
@@ -572,7 +575,7 @@ export class Effects {
 
   private windup(e: Extract<SimEvent, { type: 'windup' }>): void {
     if (e.ticks <= 0) return;
-    this.windups.push({ src: e.src, slot: e.slot, x: e.x, y: e.y, start: e.tick, ticks: e.ticks });
+    this.windups.push({ src: e.src, slot: e.slot, x: e.x, y: e.y, start: e.tick, ticks: e.ticks, dst: e.dst ?? -1 });
     this.anim?.windupFired(e);
     const src = this.hooks.who(e.src);
     if (!src) return;
@@ -594,6 +597,11 @@ export class Effects {
       return;
     }
     sfx.play('windup', { at: src, vol: 0.6 });
+    // Sim v17 (V17.md §3.6, §7): a windup that names its victim (Pack Hunt) warns that hero's player by ear at once.
+    if (src.team !== this.hooks.myTeam && e.dst !== undefined && e.dst === this.hooks.mySlot) {
+      this.hooks.onWindupAtMe?.();
+      this.markedCue(e.src);
+    }
     if (src.team !== this.hooks.myTeam) {
       const me = this.hooks.who(this.hooks.mySlot);
       // "Aimed at you" (first-match dodge tip, POC.md §12): it lands within 5 m of the player, or an enemy hero
@@ -606,6 +614,26 @@ export class Effects {
       }
     }
   }
+
+  /** Sim v17: the short (~120 ms) cue for "you are marked" (Pack Hunt), throttled like the CC cues. */
+  private markedCue(src: number): void {
+    const last = this.ccAt.get(src) ?? -9;
+    if (this.time - last < 0.6) return;
+    this.ccAt.set(src, this.time);
+    this.ccCues.push('marked');
+    if (this.ccCues.length > 16) this.ccCues.shift();
+    sfx.play(MARKED_CUE.name, { vol: MARKED_CUE.vol, rate: MARKED_CUE.rate });
+  }
+
+  /** Sim v17 Steadfast: the one-off word over a hero whose CC-cap immunity just started. */
+  steadfast(id: number): void {
+    const w = this.hooks.who(id);
+    if (!w) return;
+    this.numbers.show(this.at(w, 2.2), STEADFAST_WORD, 'word');
+    this.steadfastWords++;
+  }
+  /** Steadfast words shown (tests). */
+  steadfastWords = 0;
 
   /** Feel pass B5: when the last own-hit hitstop ran (render s). */
   private stopAt = -9;

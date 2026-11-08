@@ -226,6 +226,8 @@ export interface EntitySnap {
   branch?: boolean;
   /** Heroes only (sim v9), both teams: Avietė is Charged (her next hit on a hero stuns); the enemy sees the glow too. */
   charged?: boolean;
+  /** Heroes only (sim v17, V17.md §3.7), both teams: Avietė's Shiny Coat is filling (Charged when it ends). View only. */
+  charging?: boolean;
   /** Heroes only (sim v9), the viewer's own team: Avietė's charge lockout, ticks left (0 = none). View only. */
   lockout?: number;
   /** Heroes only (sim v9): charmed (Gabė's Under Her Spell), not feared: the render shows hearts. */
