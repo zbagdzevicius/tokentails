@@ -19,6 +19,7 @@
     "bake:map": "node tools/bake-map.mjs",
     "match": "node tools/headless-match.mjs",
     "determinism": "node tools/determinism.mjs",
+    "measure": "node tools/measure.mjs",
     "vendor-sim": "node tools/vendor-sim.mjs",
     "vendor-sim:check": "node tools/vendor-sim.mjs --check",
     "vendor-sim:check-remote": "node tools/vendor-sim.mjs --check-remote",
