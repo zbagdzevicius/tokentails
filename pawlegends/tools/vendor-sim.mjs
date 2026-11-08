@@ -32,7 +32,7 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v15/: those files, frozen (FROZEN below; sim v16 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v16/: those files, frozen (FROZEN below; sim v17 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -76,6 +76,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * bb18ae2a and keeps v10 to v13 (it landed before Dec 1, so v10 stays), so the backend verifies 10 to 15.
  * Sim v16 (S-PvP and the MAP-GAPS B nav fixes, docs/plans/moba/V16.md) froze the released v15 (ten dogs) at 02ef4d27
  * and keeps v10 to v14, so the backend verifies 10 to 16.
+ * Sim v17 (the counter-play batch: Steadfast CC cap, telegraphs, docs/plans/moba/V17.md) froze the released v16 (casual
+ * PvP M1b) at 9eadae28 and keeps v10 to v15, so the backend verifies 10 to 17.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -119,6 +121,13 @@ export const FROZEN = Object.freeze([
     from: 'backend/src/vendor/pawlegends-sim/v15',
     bundle: 'fe02ce39a1709cba756f26883188410aa9972c9ffdfd9c6554dc23960d76638a',
     extra: Object.freeze(['forfeit-replay.fixture.json', 'dog-replay.fixture.json', 'new-dog-replay.fixture.json']),
+  }),
+  Object.freeze({
+    simVersion: 16,
+    commit: '9eadae2862e1b3eaa6aa8d63edc654415965b8d8',
+    from: 'backend/src/vendor/pawlegends-sim/v16',
+    bundle: '2b4e17840e8b740f45b005ff9811f551e6fc47ce9758d19b26e83a662ddd2a84',
+    extra: Object.freeze(['forfeit-replay.fixture.json', 'dog-replay.fixture.json', 'new-dog-replay.fixture.json', 'pvp-replay.fixture.json']),
   }),
 ]);
 
