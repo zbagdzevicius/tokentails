@@ -1305,14 +1305,14 @@ var CHILI = Object.freeze({
 			slowBp: 3e3,
 			slow: 30
 		},
-		/** BIG DOG ENERGY: 6 s, he grows: Rage locked full, basics splash 1.6 m for 60% onto up to 2 heroes or minions, 0.5 s CC immune at cast, +10% damage. */
+		/** BIG DOG ENERGY: 6 s, he grows: Rage locked full, basics splash 1.6 m for 60% onto up to 2 heroes or minions, 0.7 s CC immune at cast (sim v17, V17.md §3.3: was 0.5 s), +10% damage. */
 		r: {
 			cooldown: 1950,
 			duration: 180,
 			splash: 1600,
 			splashBp: 6e3,
 			splashMax: 2,
-			immune: 15,
+			immune: 21,
 			bonusBp: 11e3
 		}
 	},
@@ -2575,14 +2575,14 @@ var PIXEL = Object.freeze({
 			slow: 30,
 			meleeRange: 2e3
 		},
-		/** BOXBOT MK II: 7 s, shield 220 (+20/lvl, +60 a rank), +15% speed, CC-immune 0.5 s, basics splash 1.6 m for 70%, cooldowns 30% faster. */
+		/** BOXBOT MK II: 7 s, shield 220 (+20/lvl, +60 a rank), +15% speed, CC-immune 0.7 s (sim v17, V17.md §3.3: was 0.5 s), basics splash 1.6 m for 70%, cooldowns 30% faster. */
 		r: {
 			cooldown: 1950,
 			duration: 210,
 			shield: 220,
 			shieldPerLevel: 20,
 			hasteBp: 1500,
-			immune: 15,
+			immune: 21,
 			splash: 1600,
 			splashBp: 7e3,
 			cdrBp: 3e3
@@ -3273,11 +3273,12 @@ var TRICKS = Object.freeze({
 	/**
 	* Sim v10: cleanse stun, root, slow, fear and charm, then `immune` ticks of crowd-control immunity. Castable while
 	* crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels). Sim v16: 2400 (46.7% after MAP-GAPS B3 kept
-	* chargers on their target).
+	* chargers on their target). Sim v17 (V17.md §3.3): immune 15 → 30, so a Purr-ify on a big ult's telegraph (a 250 ms
+	* read) outlasts its 20-tick windup.
 	*/
 	purrify: Object.freeze({
 		cooldown: 2400,
-		immune: 15
+		immune: 30
 	})
 });
 //#endregion

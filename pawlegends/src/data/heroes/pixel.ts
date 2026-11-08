@@ -19,8 +19,8 @@ export const PIXEL: HeroData = Object.freeze<HeroData>({
     w: { cooldown: 360, range: 9000, width: 600, duration: 45, every: 8, dmg: 18, dmgPerLevel: 2, slowStepBp: 1000, slowMaxBp: 4000, selfSlowBp: 6000, turn: 16 },
     /** Duck and Cover: 1 s in the box, rooted, 75% less damage, plate refilled; melee attackers slowed 30% for 1 s. */
     e: { cooldown: 480, duration: 30, reduceBp: 7500, slowBp: 3000, slow: 30, meleeRange: 2000 },
-    /** BOXBOT MK II: 7 s, shield 220 (+20/lvl, +60 a rank), +15% speed, CC-immune 0.5 s, basics splash 1.6 m for 70%, cooldowns 30% faster. */
-    r: { cooldown: 1950, duration: 210, shield: 220, shieldPerLevel: 20, hasteBp: 1500, immune: 15, splash: 1600, splashBp: 7000, cdrBp: 3000 },
+    /** BOXBOT MK II: 7 s, shield 220 (+20/lvl, +60 a rank), +15% speed, CC-immune 0.7 s (sim v17, V17.md §3.3: was 0.5 s), basics splash 1.6 m for 70%, cooldowns 30% faster. */
+    r: { cooldown: 1950, duration: 210, shield: 220, shieldPerLevel: 20, hasteBp: 1500, immune: 21, splash: 1600, splashBp: 7000, cdrBp: 3000 },
   },
   ranks: { q: { dmg: 18 }, w: { dmg: 6 }, e: { cooldown: -15 }, r: { shield: 60, cooldown: -100 } },
   talents: [
