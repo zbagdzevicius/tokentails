@@ -46,5 +46,9 @@ describe('vendor-sim party (N1)', () => {
     expect(v15).toContain('v13 as PawlegendsSim');
     expect(v15).toContain('v14 as PawlegendsSim');
     expect(v15).toContain('v15 as PawlegendsSim');
+    // Sim v16: the frozen v15 (ten dogs) keeps serving v15 party clients.
+    const v16 = dispatcher([10, 11, 12, 13, 14, 15, 16], false);
+    expect(v16).toContain('v15 as PawlegendsSim');
+    expect(v16).toContain('v16 as PawlegendsSim');
   });
 });

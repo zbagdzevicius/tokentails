@@ -201,18 +201,18 @@ describe('PAWLEGENDS /live branch', () => {
             expect(error).toBeInstanceOf(BadRequestException);
             expect(error.getResponse()).toMatchObject({
                 code: ErrorCode.PAWLEGENDS_SIM_VERSION,
-                sim: { simVersion: SIM_VERSION, simVersions: [10, 11, 12, 13, 14, 15] },
+                sim: { simVersion: SIM_VERSION, simVersions: [10, 11, 12, 13, 14, 15, 16] },
             });
             expect(verify).not.toHaveBeenCalled();
             expect(games.rows).toHaveLength(0);
         }
     );
 
-    it('sim v15 verifier: accepts v10 to v15 (GAPS B0; v9 retired), names all six in GET /pawlegends/sim', async () => {
-        expect(SIM_VERSION).toBe(15);
-        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15]);
-        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 15, simVersions: [10, 11, 12, 13, 14, 15] });
-        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11', '12', '13', '14', '15']);
+    it('sim v16 verifier: accepts v10 to v16 (GAPS B0; v9 retired), names all seven in GET /pawlegends/sim', async () => {
+        expect(SIM_VERSION).toBe(16);
+        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16]);
+        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 16, simVersions: [10, 11, 12, 13, 14, 15, 16] });
+        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11', '12', '13', '14', '15', '16']);
         const fakeHash: Record<number, string> = {
             10: '10100000',
             11: '11110000',
@@ -220,8 +220,9 @@ describe('PAWLEGENDS /live branch', () => {
             13: '13130000',
             14: '14140000',
             15: '15150000',
+            16: '16160000',
         };
-        for (const simVersion of [10, 11, 12, 13, 14, 15]) {
+        for (const simVersion of [10, 11, 12, 13, 14, 15, 16]) {
             const record = genuine({ simVersion, finalHash: fakeHash[simVersion] });
             const { save, games } = setup(record);
             expect(await save(record)).toMatchObject({ outcome: 'won' });
@@ -502,7 +503,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(users.updates).toHaveLength(0);
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16]])(
             'sim v%s: re-sims a genuine shelter champion match in the worker; its v9 twin is refused before any re-sim',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (CHAMPION_FIXTURE_HERO, the naive player-bot on Easy); v10 is frozen.
@@ -608,6 +609,23 @@ describe('PAWLEGENDS /live branch', () => {
             });
         }, 60_000);
 
+        it('sim v16: a v16 replay labelled v15 (or v15 labelled v16) does not verify; the frozen v15 new-dog replay still does', () => {
+            const v15 = fixture(15, 'rookie');
+            const v16 = fixture(16, 'rookie');
+            expect(verifyBySimVersion(v15)).toMatchObject({ ok: true, finalHash: v15.finalHash, ticks: v15.ticks });
+            expect(verifyBySimVersion(v16)).toMatchObject({ ok: true, finalHash: v16.finalHash, ticks: v16.ticks });
+            if (v16.finalHash !== v15.finalHash) {
+                expect(verifyBySimVersion({ ...v16, simVersion: 15 }).ok).toBe(false);
+                expect(verifyBySimVersion({ ...v15, simVersion: 16 }).ok).toBe(false);
+            }
+            const dog15 = fixture(15, 'new-dog');
+            expect(dog15).toMatchObject({ hero: 'frankie', simVersion: 15 });
+            expect(verifyBySimVersion(dog15)).toMatchObject({ ok: true, finalHash: dog15.finalHash, ticks: dog15.ticks });
+            const dog16 = fixture(16, 'new-dog');
+            expect(dog16).toMatchObject({ hero: 'frankie', simVersion: 16 });
+            expect(verifyBySimVersion(dog16)).toMatchObject({ ok: true, finalHash: dog16.finalHash, ticks: dog16.ticks });
+        }, 60_000);
+
         it('sim v13 (party play, frozen) still verifies; v13 and v14 both carry party code (v12 shipped without it)', () => {
             const v13 = fixture(13, 'rookie');
             expect(verifyBySimVersion(v13)).toMatchObject({ ok: true, finalHash: v13.finalHash, ticks: v13.ticks });
@@ -621,6 +639,9 @@ describe('PAWLEGENDS /live branch', () => {
             expect(simFor(14)?.party?.HERO_IDS).not.toContain('frankie');
             expect(simFor(15)?.party?.HERO_IDS).toContain('frankie');
             expect(simFor(15)?.party?.HERO_IDS).toHaveLength(20);
+            // Sim v16 (S-PvP): the party format is unchanged, so PARTY_SINCE stays 13.
+            expect(simFor(16)?.party?.PARTY_SINCE).toBe(13);
+            expect(simFor(16)?.party?.HERO_IDS).toHaveLength(20);
         }, 60_000);
 
         it('sim v12: the verified stats carry Fish, Toys, last hits and Toy timings (older versions leave them out)', () => {
@@ -639,7 +660,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(v11.stats[0].fish).toBeUndefined();
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16]])(
             'sim v%s forfeit (GAPS B2): a genuine forfeited Normal match verifies, is a loss stored as quit, pays nothing',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (FORFEIT_FIXTURE_SEED: the normal player-bot to 4:00, then Op.Forfeit).
@@ -674,7 +695,7 @@ describe('PAWLEGENDS /live branch', () => {
             60_000
         );
 
-        it.each([[10], [11], [12], [13], [14], [15]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16]])(
             'sim v%s: re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` with the vendored sim (the naive player-bot), so it is always current.
