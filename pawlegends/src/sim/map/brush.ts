@@ -1,7 +1,8 @@
 /**
  * Catnip Bushes and what each team sees (POC.md §7.3, §15 item 9). No fog in the POC: everything is visible except
  *
- * - a unit in a bush, unless an enemy unit is within BRUSH_REVEAL_MM or in the same bush;
+ * - a unit in a bush, unless an enemy unit is within BRUSH_REVEAL_MM (an enemy minion: MINION_BRUSH_REVEAL_MM, sim v17
+ *   MAP-GAPS B12) or in the same bush;
  * - a stealthed unit, unless an enemy unit is within EFFECTS.stealthReveal;
  *
  * and a revealed (`mark`) unit is visible regardless. `refreshVision` writes the result into `w.seen` (bit t = team t
@@ -9,7 +10,7 @@
  * unit the team's snapshot leaves out. Adding the MVP fog grid changes `hiddenFrom` only.
  */
 import { CC_DR, EFFECTS } from '../../data/effects';
-import { BRUSH_REVEAL_MM, BUSHES, mirrorX } from '../../data/map';
+import { BRUSH_REVEAL_MM, BUSHES, MINION_BRUSH_REVEAL_MM, mirrorX } from '../../data/map';
 import { dist2 } from '../fixed';
 import { Buff, FM, Kind, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
 
@@ -49,13 +50,14 @@ function hiddenFrom(w: World, id: number, team: number): boolean {
   const stealthed = w.stealthT[id] > 0;
   if (bush < 0 && !stealthed) return false;
   const rb = BRUSH_REVEAL_MM * BRUSH_REVEAL_MM;
+  const rm = MINION_BRUSH_REVEAL_MM * MINION_BRUSH_REVEAL_MM;
   const rs = EFFECTS.stealthReveal * EFFECTS.stealthReveal;
   let brushSeen = bush < 0;
   let stealthSeen = !stealthed;
   for (let e = 0; e < RANGE.end && !(brushSeen && stealthSeen); e++) {
     if (w.alive[e] === 0 || w.team[e] !== team || w.kind[e] === Kind.Fountain) continue;
     const d2 = dist2(w.x[e], w.y[e], w.x[id], w.y[id]);
-    if (!brushSeen && (d2 <= rb || w.bush[e] === bush)) brushSeen = true;
+    if (!brushSeen && (d2 <= (w.kind[e] === Kind.Minion ? rm : rb) || w.bush[e] === bush)) brushSeen = true;
     if (!stealthSeen && d2 <= rs) stealthSeen = true;
   }
   return !(brushSeen && stealthSeen);
