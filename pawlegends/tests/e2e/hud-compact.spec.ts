@@ -141,6 +141,9 @@ for (const [width, height] of [
     expect(talents.length).toBe(2);
     noOverlap('talents', talents, [...buttons, ...fixed, ...paw]);
     for (const b of talents) expect(b.x >= 0 && b.y >= 0 && b.x + b.width <= width && b.y + b.height <= height, `on screen ${JSON.stringify(b)}`).toBe(true);
+    // the announcement rail moves under the open card: its top is at or below every talent button's bottom
+    const railTop = await page.evaluate(() => document.querySelector('.pl-rail')!.getBoundingClientRect().top);
+    for (const b of talents) expect(railTop, `rail top vs ${JSON.stringify(b)}`).toBeGreaterThanOrEqual(b.y + b.height - 0.5);
     await page.screenshot({ path: `${SHOTS}/${size}-veteran.png` });
     await page.evaluate(() => {
       const t = document.querySelector<HTMLElement>('.pl-talents')!;

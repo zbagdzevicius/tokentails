@@ -24,7 +24,9 @@ async function rig(page: Page) {
    * (a loaded machine can be slow to show it), then wait for it to end.
    */
   const ready = async (b: string, after = false): Promise<void> => {
-    if (after) await page.waitForTimeout(600);
+    // after a cast, first see the cooldown arrive (a loaded machine can take well over 600 ms to show it: pressing in
+    // that gap was denied and the hold preview never came), then wait for it to end
+    if (after) await expect(page.locator(`.pl-tbtn.${b}`)).toHaveClass(/cooling/, { timeout: 5000 }).catch(() => undefined);
     await expect(page.locator(`.pl-tbtn.${b}`)).not.toHaveClass(/cooling/, { timeout: 30_000 });
     await page.waitForTimeout(100);
   };
@@ -63,8 +65,11 @@ for (const [w, h] of [
     await expect(page.locator('.pl-cancel.on')).toBeVisible();
     const bub = (await page.locator('.pl-cancel').boundingBox())!;
     expect(Math.round(bub.width)).toBe(72);
-    expect(Math.abs(bub.x + bub.width / 2 - q.x)).toBeLessThan(2);
-    expect(Math.abs(q.y - (bub.y + bub.height / 2) - Math.min(150, q.y - 48))).toBeLessThan(2);
+    // 150 px up, clamped 48 px from the top; pushed down, it slides sideways to stay 144 px from the button
+    const by = Math.max(48, q.y - 150);
+    const bx = q.y - by >= 144 ? q.x : q.x + (q.x > w / 2 ? -1 : 1) * Math.sqrt(144 * 144 - (q.y - by) ** 2);
+    expect(Math.abs(bub.x + bub.width / 2 - Math.max(48, Math.min(w - 48, bx)))).toBeLessThan(2);
+    expect(Math.abs(bub.y + bub.height / 2 - by)).toBeLessThan(2);
     await page.screenshot({ path: `test-results/hold-aim/${w}x${h}-hold.png` });
     await send('touchEnd', []);
     await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);

@@ -24,6 +24,7 @@ const off = async (page: Page): Promise<number> => {
 
 test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, double tap moves', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch controls');
+  test.setTimeout(150_000);
   await startFirstMatch(page);
   // a touch on the field makes the touch HUD live (the minimap moves to its phone spot, top left)
   await page.touchscreen.tap(667 * 0.25, 375 * 0.85);
@@ -66,12 +67,37 @@ test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, 
   // MAP-GAPS A21: a double tap is a move order there (Op.Move = 1)
   await page.waitForTimeout(400);
   expect((await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1)).not.toBe(1);
-  await touch('touchStart', ...at(0.3, 0.6));
-  await touch('touchEnd');
-  await page.waitForTimeout(120);
-  await touch('touchStart', ...at(0.3, 0.6));
-  await touch('touchEnd');
-  await expect.poll(async () => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1)).toBe(1);
+  // On an own tower's pixel: the minimap is turned (diagonal), so a fixed share of its box can be off the map, where
+  // the move is dropped (the map edge stops a move). The two taps are dispatched in the page in one go: on a loaded
+  // machine each CDP touch call returned 2-3 s apart, far past the 320 ms double-tap window.
+  const own = await page.evaluate(() => {
+    const w = window as unknown as {
+      __plWorld: { view: { myTeam: number; frame: { entities: { kind: string; team: number; fx: number; fy: number }[] } } };
+      __plMinimap: { P(x: number, y: number): [number, number] };
+    };
+    const c = document.querySelector<HTMLCanvasElement>('.pl-minimap canvas')!;
+    const r = c.getBoundingClientRect();
+    const k = r.width / (c.width / Math.min(2, devicePixelRatio || 1));
+    const paw = document.querySelector('.pl-pingbtn')!.getBoundingClientRect();
+    for (const e of w.__plWorld.view.frame.entities) {
+      if (e.kind !== 'tower' || e.team !== w.__plWorld.view.myTeam) continue;
+      const [px, py] = w.__plMinimap.P(e.fx, e.fy);
+      const sx = r.left + px * k;
+      const sy = r.top + py * k;
+      if (!(sx > paw.left - 8 && sx < paw.right + 8 && sy > paw.top - 8 && sy < paw.bottom + 8)) return [sx, sy] as [number, number];
+    }
+    return null;
+  });
+  expect(own).not.toBeNull();
+  await page.evaluate(([x, y]) => {
+    const c = document.querySelector<HTMLCanvasElement>('.pl-minimap canvas')!;
+    const ev = (type: string) => new PointerEvent(type, { pointerId: 7, pointerType: 'touch', isPrimary: true, clientX: x, clientY: y, bubbles: true, cancelable: true });
+    c.dispatchEvent(ev('pointerdown'));
+    c.dispatchEvent(ev('pointerup'));
+    c.dispatchEvent(ev('pointerdown'));
+    c.dispatchEvent(ev('pointerup'));
+  }, own!);
+  await expect.poll(async () => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number).at(-1), { timeout: 10_000 }).toBe(1);
 });
 
 test('touch minimap (turned with the camera): holding a tower pixel peeks at that tower, for both seats', async ({ page }, info) => {
