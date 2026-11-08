@@ -14,8 +14,15 @@ const GOLDEN_INPUT_HASH = 0x617b3754;
 
 describe('pvp-order (S-PvP golden)', () => {
   it('pings, commands and forfeits of both leads plus four seats on one tick give the golden InputHash', () => {
-    const m = pvpMatch(2026, [0, 1, 2, 3, 4, 5]);
-    while (tickOf(m) < 7300 && !result(m)) step(m, tickOf(m) === 120 ? [{ op: Op.Move, x: 30000, y: 30000 }] : undefined);
+    // The first seed from 2026 still going at 7,300 (InputHash folds only the commands, so the golden holds on any).
+    const play = (seed: number) => {
+      const m = pvpMatch(seed, [0, 1, 2, 3, 4, 5]);
+      while (tickOf(m) < 7300 && !result(m)) step(m, tickOf(m) === 120 ? [{ op: Op.Move, x: 30000, y: 30000 }] : undefined);
+      return m;
+    };
+    let seed = 2026;
+    let m = play(seed);
+    while (result(m) && seed < 2100) m = play(++seed);
     expect(result(m)).toBeNull();
     const ping = (x: number) => ({ op: Op.Ping, kind: 1, x, y: 30000, id: 255 }) as const;
     step(

@@ -16,8 +16,16 @@ describe('party-order (B2 golden)', () => {
   it('forfeit and a slot-1 command on the same tick give the golden InputHash', () => {
     // Sim v14: with the dogs in the pool seed 2024's idle party loses at 6425 (before Normal's forfeit window), and
     // the old loop never left a match that had ended. InputHash folds only the commands, so the golden holds on 2025.
-    const m = partyMatch(2025, [0, 1, 2], 'normal');
-    while (tickOf(m) < 7300 && !result(m)) step(m, tickOf(m) === 120 ? [{ op: Op.Move, x: 30000, y: 30000 }] : undefined);
+    // Sim v16 (B nav fixes): 2025's idle party falls before 7,300 too, so the seed is the first from 2025 still going
+    // (InputHash folds only the commands, so the golden does not depend on it).
+    const play = (seed: number) => {
+      const m = partyMatch(seed, [0, 1, 2], 'normal');
+      while (tickOf(m) < 7300 && !result(m)) step(m, tickOf(m) === 120 ? [{ op: Op.Move, x: 30000, y: 30000 }] : undefined);
+      return m;
+    };
+    let seed = 2025;
+    let m = play(seed);
+    while (result(m) && seed < 2100) m = play(++seed);
     expect(result(m)).toBeNull();
     step(
       m,

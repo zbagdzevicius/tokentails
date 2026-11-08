@@ -7,7 +7,9 @@ import { findPath } from '../../src/sim/nav/astar';
 import { dist2 } from '../../src/sim/fixed';
 import { TIMELINE } from '../../src/data/timeline';
 import { clipTravel, startForced } from '../../src/sim/effects/dash';
-import { FM, Order, RANGE } from '../../src/sim/world';
+import { FM, G, Order, RANGE } from '../../src/sim/world';
+import { onPuddingDown } from '../../src/sim/units/pudding';
+import { PUD_STATE } from '../../src/data/pudding';
 import { cellOf, createGrid, escapeCell, NX, NY, walkable } from '../../src/sim/map/grid';
 import { Rng } from '../../src/sim/rng';
 import { applyOrder } from '../../src/sim/units/hero';
@@ -225,5 +227,39 @@ describe('B15 the enemy fountain is in each team’s nav layer', { timeout: 120_
     const ys = new Int32Array(16);
     expect(findPath(g, 90500, 24500, 96500, 35500, xs, ys, 0).count).toBe(1);
     expect(findPath(g, 90500, 24500, 96500, 35500, xs, ys, 0, 0).count).toBeGreaterThan(1);
+  });
+});
+
+describe('B13 Pudding escort lane', () => {
+  const calmed = (seed: number, hurt?: (m: ReturnType<typeof createMatch>) => void) => {
+    const { picks, tricks } = fillPicks(seed, 'clem', 'pounce');
+    const m = createMatch({ seed, picks, tricks, difficulty: 'normal' });
+    const w = m.world;
+    w.globals[G.PudState] = PUD_STATE.Wild;
+    w.globals[G.PudLane] = 7;
+    w.alive[RANGE.pudding] = 1;
+    w.lastHitBy[RANGE.pudding] = 0;
+    hurt?.(m);
+    onPuddingDown(m);
+    return w.globals;
+  };
+
+  it('is chosen on the calm tick', () => {
+    const g = calmed(1);
+    expect(g[G.PudState]).toBe(PUD_STATE.Waiting);
+    expect([0, 1]).toContain(g[G.PudLane]);
+  });
+
+  it('with equal towers it varies across seeds (a fork of the seed, not always Sunny)', () => {
+    const lanes = new Set<number>();
+    for (let seed = 1; seed <= 20; seed++) lanes.add(calmed(seed)[G.PudLane]);
+    expect([...lanes].sort()).toEqual([0, 1]);
+  });
+
+  it('with an HP difference the lane whose outermost enemy tower has less HP is chosen', () => {
+    for (let seed = 1; seed <= 8; seed++) {
+      expect(calmed(seed, (m) => (m.world.hp[RANGE.towers + 4 + 2] -= 100))[G.PudLane]).toBe(1);
+      expect(calmed(seed, (m) => (m.world.hp[RANGE.towers + 4 + 0] -= 100))[G.PudLane]).toBe(0);
+    }
   });
 });
