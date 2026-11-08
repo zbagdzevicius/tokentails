@@ -27,6 +27,7 @@ import type { GuideMode } from './firstSession';
 import { cardLook, ELEMENT_COLOR, lookKey, type FrameId, type Look } from '../render/cosmetics';
 import { setProbeBlocked } from '../render/skins/spriteProbe';
 import { cardIdentity, cutName, heroSub, selfNames, tidyName, type CardIdentity } from '../meta/cardName';
+import { coarsePointer } from './platform';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
 import { eyesOf } from '../render/skins/registry';
 import type { SkinFxMode } from '../render/skins/tierFx';
@@ -611,7 +612,8 @@ export class MatchSession {
     };
     this.desktop = new DesktopInput(inputHost);
     this.touch = new TouchControls(inputHost, this.ui, this.desktop);
-    const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    // the Mac app plays with keyboard and mouse even if WebKit ever reports a coarse pointer (app/platform.ts)
+    const coarse = coarsePointer();
     this.touch.enable(coarse);
     const ht = HERO_TEXT[hero];
     this.touch.setIcons({ q: icon(ht.abilities[0].icon), w: icon(ht.abilities[1].icon), e: icon(ht.abilities[2].icon), r: icon(ht.abilities[3].icon), trick: icon(TRICK_TEXT[trick].icon) });

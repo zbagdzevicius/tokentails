@@ -13,6 +13,15 @@
 #   release    submit the latest build for review; only with SUBMIT=yes (never automatic)
 #   certs      make a distribution certificate + App Store profile once and print them as secrets
 #   check      validate secrets and the API key without changing anything
+#
+# Mac App Store (the same app record and bundle id, universal purchase; Mac Catalyst of the iOS target):
+#   mac_beta      archive for Mac Catalyst, export the signed .pkg, upload it to TestFlight (macOS)
+#   mac_metadata  upload the macOS listing: metadata/ with metadata_mac/ on top, Mac screenshots from screenshots_mac (no binary)
+#   mac_submit    submit the latest macOS build for review; only with SUBMIT=yes (never automatic)
+#   mac_certs     make the Mac Installer Distribution certificate once and print the secret steps (MAC_INSTALLER_P12)
+# Run them as `bundle exec fastlane mac_beta` (not under `ios`). The macOS platform must be added to the app record
+# in App Store Connect first (App Information → Add platform → macOS). Optional, only if cloud signing cannot make
+# the Mac installer certificate: MAC_INSTALLER_P12 (base64) and MAC_INSTALLER_PASSWORD, made once by `fastlane mac_certs`.
 
 require "base64"
 require "json"
@@ -88,31 +97,62 @@ end
 
 # The next build number: one above the latest TestFlight build of this version, and never below BUILD_NUMBER (CI
 # passes its run number). Taking the larger of the two lets local and CI builds mix without a duplicate number.
-def next_build_number(api_key)
+def next_build_number(api_key, platform: "ios")
   floor = ENV["BUILD_NUMBER"].to_s =~ /\A\d+\z/ ? ENV["BUILD_NUMBER"].to_i : 0
-  latest = latest_testflight_build_number(api_key: api_key, app_identifier: APP_ID, version: marketing_version, initial_build_number: 0)
+  latest = latest_testflight_build_number(api_key: api_key, app_identifier: APP_ID, version: marketing_version, platform: platform, initial_build_number: 0)
   [latest.to_i + 1, floor].max
 rescue StandardError => e
   UI.important("Could not read the latest TestFlight build (#{e.message}); using a timestamp build number")
   [Time.now.utc.strftime("%y%m%d%H%M").to_i, floor || 0].max
 end
 
-# A distribution certificate from DIST_CERT_P12 into a temporary keychain (only when the secret is set).
-def import_dist_cert
-  return false if ENV["DIST_CERT_P12"].to_s.empty?
+# Certificates from secrets into a temporary keychain (only those whose secret is set): DIST_CERT_P12 (distribution)
+# and, for the Mac, MAC_INSTALLER_P12 (Mac Installer Distribution, signs the .pkg).
+def import_dist_cert(names = [%w[DIST_CERT_P12 DIST_CERT_PASSWORD]])
+  present = names.reject { |p12_key, _| ENV[p12_key].to_s.empty? }
+  return false if present.empty?
 
   keychain = "pawlegends-ci.keychain"
   password = SecureRandom.hex(16)
   create_keychain(name: keychain, password: password, default_keychain: false, unlock: true, timeout: 3600, lock_when_sleeps: false)
-  p12 = File.join(Dir.mktmpdir("p12"), "dist.p12")
-  File.binwrite(p12, Base64.decode64(ENV["DIST_CERT_P12"]))
-  import_certificate(certificate_path: p12, certificate_password: ENV["DIST_CERT_PASSWORD"].to_s, keychain_name: keychain, keychain_password: password)
+  present.each do |p12_key, password_key|
+    p12 = File.join(Dir.mktmpdir("p12"), "#{p12_key.downcase}.p12")
+    File.binwrite(p12, Base64.decode64(ENV[p12_key]))
+    import_certificate(certificate_path: p12, certificate_password: ENV[password_key].to_s, keychain_name: keychain, keychain_password: password)
+  end
   at_exit { delete_keychain(name: keychain) rescue nil }
   true
 end
 
-def review_information
-  dir = File.join(FASTLANE_DIR, "metadata", "review_information")
+# xcodebuild arguments shared by the iOS and Mac builds: Xcode signs with the API key (cloud-managed certificates
+# and profiles) for the archive and the export; version and build number as build settings, so the project files
+# stay unchanged.
+def signing_xcargs(build_number)
+  [
+    "-allowProvisioningUpdates",
+    "-authenticationKeyPath #{p8_file}",
+    "-authenticationKeyID #{ENV['ASC_KEY_ID']}",
+    "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']}",
+    "DEVELOPMENT_TEAM=#{team_id}",
+    "CODE_SIGN_STYLE=Automatic",
+    "MARKETING_VERSION=#{marketing_version}",
+    "CURRENT_PROJECT_VERSION=#{build_number}"
+  ].join(" ")
+end
+
+def require_web_bundle!
+  UI.user_error!("No web bundle in ios/App/App/public: run `npm run build` in pawlegends-app first") unless File.exist?(File.join(IOS_DIR, "App/public/index.html"))
+end
+
+SUBMISSION_INFORMATION = {
+  add_id_info_uses_idfa: false,
+  export_compliance_uses_encryption: false,
+  export_compliance_encryption_updated: false,
+  content_rights_contains_third_party_content: false
+}.freeze
+
+def review_information(metadata_dir = File.join(FASTLANE_DIR, "metadata"))
+  dir = File.join(metadata_dir, "review_information")
   %w[first_name last_name phone_number email_address demo_user demo_password notes].each_with_object({}) do |key, info|
     path = File.join(dir, "#{key}.txt")
     value = File.exist?(path) ? File.read(path).strip : ""
@@ -163,26 +203,12 @@ platform :ios do
   desc "Archive and export the App Store .ipa (run `npm run build` in pawlegends-app first)"
   lane :build do |options|
     api_key = options[:api_key] || asc_api_key
-    UI.user_error!("No web bundle in ios/App/App/public: run `npm run build` in pawlegends-app first") unless File.exist?(File.join(IOS_DIR, "App/public/index.html"))
+    require_web_bundle!
 
     build_number = next_build_number(api_key)
 
     manual_cert = import_dist_cert
-    # Xcode signs with the API key (cloud-managed distribution certificate), for the archive and the export
-    auth = [
-      "-allowProvisioningUpdates",
-      "-authenticationKeyPath #{p8_file}",
-      "-authenticationKeyID #{ENV['ASC_KEY_ID']}",
-      "-authenticationKeyIssuerID #{ENV['ASC_ISSUER_ID']}"
-    ].join(" ")
-    xcargs = [
-      auth,
-      "DEVELOPMENT_TEAM=#{team_id}",
-      "CODE_SIGN_STYLE=Automatic",
-      # version and build number as build settings: the project files stay unchanged
-      "MARKETING_VERSION=#{marketing_version}",
-      "CURRENT_PROJECT_VERSION=#{build_number}"
-    ].join(" ")
+    xcargs = signing_xcargs(build_number)
 
     build_app(
       workspace: WORKSPACE,
@@ -256,12 +282,120 @@ platform :ios do
       automatic_release: false,
       force: true,
       precheck_include_in_app_purchases: false,
-      submission_information: {
-        add_id_info_uses_idfa: false,
-        export_compliance_uses_encryption: false,
-        export_compliance_encryption_updated: false,
-        content_rights_contains_third_party_content: false
-      }
+      submission_information: SUBMISSION_INFORMATION
     )
   end
+end
+
+# ---- Mac App Store (Mac Catalyst; same app record, universal purchase) ----
+
+# The macOS listing: metadata/ with metadata_mac/ copied on top. metadata_mac holds only what differs on the Mac (the
+# version fields description, promotional text and release notes, plus the review notes); the app-level fields (name,
+# subtitle, privacy URL, categories) stay single-sourced in metadata/, since they are shared with the iOS listing.
+def mac_metadata_dir
+  dir = Dir.mktmpdir("pawlegends-mac-metadata")
+  at_exit { FileUtils.rm_rf(dir) }
+  FileUtils.cp_r(File.join(FASTLANE_DIR, "metadata", "."), dir)
+  FileUtils.cp_r(File.join(FASTLANE_DIR, "metadata_mac", "."), dir)
+  dir
+end
+
+desc "Mac: archive for Mac Catalyst and export the signed App Store .pkg (run `npm run build` first)"
+private_lane :mac_build do |options|
+  api_key = options[:api_key] || asc_api_key
+  require_web_bundle!
+
+  build_number = next_build_number(api_key, platform: "osx")
+  manual_cert = import_dist_cert([%w[DIST_CERT_P12 DIST_CERT_PASSWORD], %w[MAC_INSTALLER_P12 MAC_INSTALLER_PASSWORD]])
+
+  build_app(
+    workspace: WORKSPACE,
+    scheme: "App",
+    configuration: "Release",
+    catalyst_platform: "macos",
+    export_method: "app-store",
+    export_team_id: team_id,
+    export_options: { signingStyle: "automatic", teamID: team_id, uploadSymbols: true, manageAppVersionAndBuildNumber: false },
+    # the same xcargs as iOS (API key auth included); gym appends them to the export command too
+    xcargs: signing_xcargs(build_number),
+    output_directory: OUTPUT_DIR,
+    output_name: "Pawlegends-mac-#{marketing_version}-#{build_number}",
+    clean: true,
+    skip_profile_detection: true
+  )
+  pkg = lane_context[SharedValues::PKG_OUTPUT_PATH]
+  UI.user_error!("The Mac export made no .pkg (an App Store Mac export needs a Mac Installer Distribution certificate)") if pkg.to_s.empty? || !File.exist?(pkg)
+  UI.success("Built #{pkg} (#{marketing_version} build #{build_number}#{manual_cert ? ', imported certificates' : ', cloud signing'})")
+  pkg
+end
+
+desc "Mac: build the Mac Catalyst app and upload it to TestFlight (macOS)"
+lane :mac_beta do
+  api_key = asc_api_key
+  pkg = mac_build(api_key: api_key)
+  upload_to_testflight(
+    api_key: api_key,
+    app_identifier: APP_ID,
+    pkg: pkg,
+    app_platform: "osx",
+    skip_waiting_for_build_processing: false,
+    changelog: ENV["TESTFLIGHT_CHANGELOG"].to_s.empty? ? "Pawlegends #{marketing_version} for Mac: keyboard and mouse, bundled game, offline bots, party play." : ENV["TESTFLIGHT_CHANGELOG"],
+    distribute_external: true,
+    groups: ["Friends"],
+    notify_external_testers: true
+  )
+end
+
+desc "Mac: upload the macOS listing (metadata/ + metadata_mac/ text, Mac screenshots; no binary, no submission)"
+lane :mac_metadata do
+  api_key = asc_api_key
+  screenshots = File.join(FASTLANE_DIR, "screenshots_mac")
+  metadata = mac_metadata_dir
+  deliver(
+    api_key: api_key,
+    platform: "osx",
+    app_review_information: review_information(metadata),
+    app_identifier: APP_ID,
+    app_version: marketing_version,
+    skip_binary_upload: true,
+    skip_screenshots: !Dir.exist?(screenshots) || Dir.glob(File.join(screenshots, "**/*.png")).empty?,
+    screenshots_path: screenshots,
+    overwrite_screenshots: true,
+    metadata_path: metadata,
+    submit_for_review: false,
+    force: true,
+    precheck_include_in_app_purchases: false,
+    run_precheck_before_submit: false
+  )
+end
+
+desc "Mac: make the Mac Installer Distribution certificate once (signs the .pkg; only when cloud signing cannot)"
+lane :mac_certs do
+  api_key = asc_api_key
+  out = Dir.mktmpdir("mac-certs")
+  # the private key goes into the login keychain; the .cer lands in `out`
+  get_certificates(api_key: api_key, type: "mac_installer_distribution", platform: "macos", output_path: out, keychain_password: nil)
+  UI.important("Certificate in #{out}. In Keychain Access export \"3rd Party Mac Developer Installer\" (or \"Mac Installer Distribution\") with its key as .p12, then:")
+  UI.important("  gh secret set MAC_INSTALLER_P12 --body \"$(base64 -i installer.p12)\" && gh secret set MAC_INSTALLER_PASSWORD")
+end
+
+desc "Mac: submit the latest macOS build for review (needs SUBMIT=yes; the release itself stays manual)"
+lane :mac_submit do
+  UI.user_error!("Refusing to submit without SUBMIT=yes") unless ENV["SUBMIT"] == "yes"
+
+  api_key = asc_api_key
+  deliver(
+    api_key: api_key,
+    platform: "osx",
+    app_identifier: APP_ID,
+    app_version: marketing_version,
+    skip_binary_upload: true,
+    skip_screenshots: true,
+    skip_metadata: true,
+    submit_for_review: true,
+    automatic_release: false,
+    force: true,
+    precheck_include_in_app_purchases: false,
+    submission_information: SUBMISSION_INFORMATION
+  )
 end

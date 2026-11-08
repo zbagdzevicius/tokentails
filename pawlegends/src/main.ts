@@ -8,13 +8,17 @@ import { createAnalytics } from './analytics/posthog';
 import { SIM_VERSION } from './sim/version';
 import { installNoZoom } from './app/noZoom';
 import { installBridge } from './embed/bridge';
-import { inAppShell } from './app/platform';
+import { inAppShell, shellPlatform } from './app/platform';
 import { lockAppBuild } from './meta/roster';
 import './ui/ui.css';
 
 function boot(): void {
   // the App Store build (docs/plans/moba/APP-STORE.md): no purchase links, starter and redeemed cats only
-  if (inAppShell()) lockAppBuild();
+  if (inAppShell()) {
+    lockAppBuild();
+    // html[data-shell] = mac | ios: the native app the page runs in (the Mac app keeps the desktop HUD)
+    document.documentElement.dataset.shell = shellPlatform() ?? '';
+  }
   installCrashOverlay();
   installNoZoom();
   const bridge = installBridge();
