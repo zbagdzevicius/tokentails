@@ -146,3 +146,31 @@ describe('nap rune (C6)', () => {
     r.dispose();
   });
 });
+
+describe('sim v17 Steadfast in the world (V17.md §7)', async () => {
+  const { steadfastEdges, isSteadfast, STEADFAST_OUTLINE, STEADFAST_WORD } = await import('../../src/render/steadfast');
+  const { statusWord } = await import('../../src/ui/overhead');
+  const { BuffFlag } = await import('../../src/sim/api');
+
+  it('the outline is white and shows only while the Steadfast bit is set', () => {
+    expect(STEADFAST_OUTLINE).toBe(0xffffff);
+    expect(isSteadfast(BuffFlag.Steadfast)).toBe(true);
+    expect(isSteadfast(BuffFlag.Purrified)).toBe(false);
+  });
+
+  it('the "Steadfast!" word fires once per start, again after it ended; a plain Purr-ify never fires it', () => {
+    expect(STEADFAST_WORD).toBe('Steadfast!');
+    const was = new Set<number>();
+    const ent = (buffs: number) => [{ id: 3, kind: 'hero', buffs }];
+    expect(steadfastEdges(was, ent(BuffFlag.Purrified))).toEqual([]);
+    expect(steadfastEdges(was, ent(BuffFlag.Purrified | BuffFlag.Steadfast))).toEqual([3]);
+    expect(steadfastEdges(was, ent(BuffFlag.Purrified | BuffFlag.Steadfast))).toEqual([]);
+    expect(steadfastEdges(was, ent(0))).toEqual([]);
+    expect(steadfastEdges(was, ent(BuffFlag.Steadfast))).toEqual([3]);
+  });
+
+  it('the status chip reads Steadfast, not Purr-ified, while the cap immunity runs', () => {
+    expect(statusWord(BuffFlag.Purrified | BuffFlag.Steadfast)).toBe('Steadfast');
+    expect(statusWord(BuffFlag.Purrified)).toBe('Purr-ified');
+  });
+});

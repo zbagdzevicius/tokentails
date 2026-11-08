@@ -36,7 +36,7 @@ import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abili
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
-import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
+import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
 import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
@@ -845,7 +845,10 @@ export class TouchControls {
     const now = performance.now();
     for (const [id, until] of this.deter) if (now >= until) this.deter.delete(id);
     const lock = this.lock.id;
-    return all.filter((u) => !this.deter.has(u.id) || u.id === lock);
+    // Sim v17: Talk Back fears only attackers within 4.5 m, so from further out he stays a target.
+    const me = this.me();
+    const range = HEROES.howler.abilities.e.fearRange ?? 0;
+    return all.filter((u) => !this.deter.has(u.id) || u.id === lock || !talkBackDeters(me, u, range));
   }
 
   /**

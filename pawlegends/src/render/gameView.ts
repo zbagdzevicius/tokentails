@@ -23,6 +23,8 @@ import { Juice } from './juice';
 import { RELATION, setSideSwap, setTeam0Dogs } from './palette';
 import type { GameRenderer } from './renderer';
 import { poseWatchers, TelegraphPool, type TelegraphSpec } from './telegraph';
+import { HEROES } from '../data/heroes';
+import { steadfastEdges } from './steadfast';
 import { toX, toZ } from './coords';
 import type { Companion } from '../meta/roster';
 import { BOT_COATS, FREE_BISCUIT, FREE_COATS, cardLook, type Look } from './cosmetics';
@@ -953,6 +955,8 @@ export class GameView {
       this.pickups.sync(frame.entities);
       this.companions?.update(frame, dt);
       this.drawWindups(frame);
+      // Sim v17 Steadfast: the one-off word when a hero's CC-cap immunity starts (the outline is heroView's)
+      for (const id of steadfastEdges(this.steadfastWas, frame.entities, this.steadfastNew)) this.effects.steadfast(id);
       this.drawAim();
       if (me) this.follow.set(toX(me.fx), 0, toZ(me.fy));
       // respawn: back on the hero at once (the follow is rigid, so this only ends a look at the fountain)
@@ -988,6 +992,10 @@ export class GameView {
     this.gr.render();
   }
 
+  /** Sim v17: hero ids Steadfast last frame, and this frame's new ones (scratch). */
+  private readonly steadfastWas = new Set<number>();
+  private readonly steadfastNew: number[] = [];
+
   private drawWindups(frame: ViewFrame): void {
     const fx = this.effects;
     fx.pruneWindups(frame.tick);
@@ -1006,7 +1014,7 @@ export class GameView {
       const tx = w.x / 1000;
       const tz = -w.y / 1000;
       const yaw = Math.atan2(-(tz - who.z), tx - who.x);
-      const spec = toSpec(aim, who.x, who.z, tx, tz, Number.isFinite(yaw) ? yaw : who.yaw, color);
+      const spec = windupSpec(who.hero, w.slot, w.dst, frame, aim, who.x, who.z, tx, tz, Number.isFinite(yaw) ? yaw : who.yaw, color);
       // Wave C (C3): an enemy wind-up draws after every VFX layer, so no spark, slash or debris ever hides it
       if (!spec) continue;
       const over = who.team !== this.myTeam;
@@ -1115,6 +1123,35 @@ const AIM_MIN_PX = 18;
 const RANGE_RING_MAX_M = 15;
 /** A wind-up ring wider than this (m) draws hollow with a growing front instead of a filled disc (QA v15). */
 const BIG_RING_M = 7;
+
+/** Sim v17 (V17.md §7): the Pack Hunt mark's radius over its victim (m). */
+export const HUNT_MARK_M = 1.2;
+
+/**
+ * Sim v17 (V17.md §7): a windup's telegraph. Most read the slot's aim shape (toSpec); Lambo's Belly Flop draws its
+ * stun ring at the landing point the event carries, and Cacklejaw's Pack Hunt marks its victim (`dst`) instead of a
+ * 12 m ring. Pure apart from reading `frame`.
+ */
+export function windupSpec(
+  hero: HeroId | undefined,
+  slot: number,
+  dst: number,
+  frame: Pick<ViewFrame, 'byId'>,
+  aim: AimSpec,
+  x: number,
+  z: number,
+  ax: number,
+  az: number,
+  yaw: number,
+  color: number,
+): TelegraphSpec | null {
+  if (hero === 'lambo' && slot === 2) return { shape: 'circle', x: ax, z: az, yaw: 0, length: (HEROES.lambo.abilities.e.radius ?? 1800) / 1000, color };
+  if (hero === 'cacklejaw' && slot === 3) {
+    const v = dst >= 0 ? frame.byId.get(dst) : undefined;
+    return v ? { shape: 'circle', x: toX(v.fx), z: toZ(v.fy), yaw: 0, length: HUNT_MARK_M, color } : null;
+  }
+  return toSpec(aim, x, z, ax, az, yaw, color);
+}
 
 /** Aim spec + caster + aim point (m) → a telegraph shape. */
 export function toSpec(aim: AimSpec, x: number, z: number, ax: number, az: number, yaw: number, color: number): TelegraphSpec | null {

@@ -411,6 +411,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
       // Sim v10 (GAPS B6): both teams see who took the level-6 shape branch (the enemy portrait shows it).
       if (BRANCH_TALENT[e.hero] !== null && w.talents[id * TALENT_TIERS + 1] === 1) e.branch = true;
       if (w.sub[id] === AVIETE_INDEX && w.kRT[id] > 0 && w.alive[id] === 1) e.charged = true;
+      if (w.sub[id] === AVIETE_INDEX && w.kWT[id] > 0 && w.alive[id] === 1) e.charging = true;
       if (w.fearT[id] > 0 && w.fearSrc[id] >= 0) e.charmed = true;
       // Sim v11: the kit's alternate state (both teams) and the stacks the hero carries (Duchess's Disdain).
       const fx = w.alive[id] === 1 ? (kitOf(w, id).snapFx?.(w, id) ?? 0) : 0;

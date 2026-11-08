@@ -274,3 +274,33 @@ describe('C3 readability: yellow means you, and no spike from the fog', () => {
     expect(heroAccent('aviete', true)).toBe(elementColor('aviete')); // the player's own hero keeps its colour
   });
 });
+
+describe('sim v17 windup telegraphs (V17.md §7)', async () => {
+  const { windupSpec, HUNT_MARK_M } = await import('../../src/render/gameView');
+  const { aimFor } = await import('../../src/input/abilities');
+  const { ccKindOf, CC_CUE, MARKED_CUE } = await import('../../src/render/ccCue');
+  const frame = { byId: new Map<number, ViewEntity>([[3, { id: 3, kind: 'hero', fx: 10000, fy: 20000 } as ViewEntity]]) };
+
+  it('each new windup maps to a shape: Cacklejaw W cone, Meatball W ring, Brutus E lane, Lambo E landing ring, Frankie W pop ring', () => {
+    const at = (hero: 'cacklejaw' | 'meatball' | 'brutus' | 'lambo' | 'frankie', slot: number, ax = 5, az = 0) =>
+      windupSpec(hero, slot, -1, frame, aimFor(hero, slot as 0 | 1 | 2 | 3, false), 0, 0, ax, az, 0, 0xff0000);
+    expect(at('cacklejaw', 1)).toMatchObject({ shape: 'cone', length: 3 });
+    expect(at('meatball', 1)).toMatchObject({ shape: 'ring', length: 3 });
+    expect(at('brutus', 2)).toMatchObject({ shape: 'dash', length: 5 });
+    // Lambo E: the ring sits on the event's landing point, at the 1.8 m stun radius.
+    expect(at('lambo', 2, 4, -1)).toMatchObject({ shape: 'circle', x: 4, z: -1, length: 1.8 });
+    expect(at('frankie', 1, 3, 0)).toMatchObject({ shape: 'circle', x: 3, z: 0, length: 1.6 });
+  });
+
+  it('Cacklejaw R marks its victim (dst) instead of drawing a 12 m ring; no victim, no mark', () => {
+    const aim = aimFor('cacklejaw', 3, false);
+    expect(windupSpec('cacklejaw', 3, 3, frame, aim, 0, 0, 0, 0, 0, 0xff0000)).toMatchObject({ shape: 'circle', x: 10, z: -20, length: HUNT_MARK_M });
+    expect(windupSpec('cacklejaw', 3, -1, frame, aim, 0, 0, 0, 0, 0, 0xff0000)).toBeNull();
+  });
+
+  it('audio tells: every new hard-CC windup has a CC cue; the Pack Hunt mark has its own', () => {
+    expect([ccKindOf('cacklejaw', 1), ccKindOf('meatball', 1), ccKindOf('brutus', 2), ccKindOf('lambo', 2), ccKindOf('frankie', 1), ccKindOf('bengas', 1)]).toEqual(['fear', 'charm', 'stun', 'stun', 'stun', 'stun']);
+    expect(ccKindOf('cacklejaw', 3)).toBeNull();
+    expect(Object.values(CC_CUE).some((c) => c.name === MARKED_CUE.name && c.rate === MARKED_CUE.rate)).toBe(false);
+  });
+});
