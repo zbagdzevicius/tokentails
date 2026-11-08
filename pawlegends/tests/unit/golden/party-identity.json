@@ -1,5 +1,5 @@
 {
-  "base": "v16 B11 (bush attack reveal)",
+  "base": "v16 B1 (forest soft-lock)",
   "simVersion": 16,
   "rows": [
     {
@@ -118,15 +118,15 @@
     },
     {
       "key": "fuzz:16",
-      "finalHash": "d09e683b",
-      "trail": "bb1bb4d5",
-      "ticks": 12133
+      "finalHash": "9837af39",
+      "trail": "a4f4da4f",
+      "ticks": 10884
     },
     {
       "key": "fuzz:17",
-      "finalHash": "98660f20",
-      "trail": "9319ccd0",
-      "ticks": 8518
+      "finalHash": "351b050e",
+      "trail": "27073fa9",
+      "ticks": 8526
     },
     {
       "key": "fuzz:18",
@@ -148,8 +148,8 @@
     },
     {
       "key": "bot:pinger:12",
-      "finalHash": "e1c9ca0a",
-      "trail": "8bd31306",
+      "finalHash": "885a13de",
+      "trail": "f560beb3",
       "ticks": 13284
     },
     {

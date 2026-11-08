@@ -5614,6 +5614,43 @@ function snapCell(g, c) {
 	}
 	return -1;
 }
+/** BFS scratch (escapeCell): reset by a stamp per query, so nothing survives a query. */
+var bfsQueue = new Int32Array(NX * NY);
+var bfsSeen = new Uint32Array(NX * NY);
+var bfsStamp = 0;
+/**
+* Sim v16 (MAP-GAPS B1): the nearest walkable cell to `c` by grid steps (BFS, neighbour order N, E, S, W, so ties are
+* fixed), over the whole grid; −1 when the grid has none. Used when `snapCell` finds nothing within NAV.snapCells, so
+* a unit deep in the forest still gets a way out.
+*/
+function escapeCell(g, c) {
+	if (walkable(g, c)) return c;
+	bfsStamp = bfsStamp + 1 >>> 0;
+	if (bfsStamp === 0) {
+		bfsSeen.fill(0);
+		bfsStamp = 1;
+	}
+	let head = 0;
+	let tail = 0;
+	bfsQueue[tail++] = c;
+	bfsSeen[c] = bfsStamp;
+	while (head < tail) {
+		const k = bfsQueue[head++];
+		const i = k % NX;
+		const j = idiv(k, NX);
+		for (let d = 0; d < 4; d++) {
+			const ni = d === 1 ? i + 1 : d === 3 ? i - 1 : i;
+			const nj = d === 0 ? j + 1 : d === 2 ? j - 1 : j;
+			if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
+			const n = nj * NX + ni;
+			if (bfsSeen[n] === bfsStamp) continue;
+			if (walkable(g, n)) return n;
+			bfsSeen[n] = bfsStamp;
+			bfsQueue[tail++] = n;
+		}
+	}
+	return -1;
+}
 //#endregion
 //#region src/sim/heroes/talents.ts
 /**
@@ -6542,7 +6579,9 @@ function endArena(w, z) {
 var pos = /* @__PURE__ */ new Int32Array(2);
 /**
 * The furthest point toward (bx, by) that `id` can reach in a straight line: clamped to the map and its arena, cut
-* at the first blocked nav cell (sampled every EFFECTS.wallStep). A unit already on a blocked cell is not cut.
+* at the first blocked nav cell (sampled every EFFECTS.wallStep). Sim v16 (MAP-GAPS B1): a unit already on a blocked
+* cell samples the segment every NAV.losStep and stops at the first walkable sample (it leaves the wall); with none
+* it stays where it is, so it never travels deeper into a wall.
 */
 function clipTravel(m, id, bx, by, out) {
 	const w = m.world;
@@ -6553,10 +6592,25 @@ function clipTravel(m, id, bx, by, out) {
 	const ty = pos[1];
 	out[0] = tx;
 	out[1] = ty;
-	if (!walkable(m.grid, cellOf(ax, ay))) return;
 	const dx = tx - ax;
 	const dy = ty - ay;
-	const n = idiv(isqrt(dx * dx + dy * dy), EFFECTS.wallStep) + 1;
+	const len = isqrt(dx * dx + dy * dy);
+	if (!walkable(m.grid, cellOf(ax, ay))) {
+		const ne = idiv(len, NAV.losStep) + 1;
+		for (let k = 1; k <= ne; k++) {
+			const sx = ax + idiv(dx * k, ne);
+			const sy = ay + idiv(dy * k, ne);
+			if (walkable(m.grid, cellOf(sx, sy))) {
+				out[0] = sx;
+				out[1] = sy;
+				return;
+			}
+		}
+		out[0] = ax;
+		out[1] = ay;
+		return;
+	}
+	const n = idiv(len, EFFECTS.wallStep) + 1;
 	for (let k = 1; k <= n; k++) {
 		const sx = ax + idiv(dx * k, n);
 		const sy = ay + idiv(dy * k, n);
@@ -12127,11 +12181,13 @@ function octile(a, b) {
 var chain = new Int32Array(SIZE);
 /**
 * Path from (sx, sy) to (tx, ty). Writes up to NAV.maxPathPoints points into outX/outY at `offset`. A start on a
-* blocked cell snaps to the nearest walkable one; a blocked goal snaps too (the path is then not `complete`).
+* blocked cell snaps to the nearest walkable one (sim v16: by BFS over the whole grid when none is within
+* NAV.snapCells); a blocked goal snaps too (the path is then not `complete`).
 */
 function findPath(grid, sx, sy, tx, ty, outX, outY, offset) {
 	const maxPoints = NAV.maxPathPoints;
-	const start = snapCell(grid, cellOf(sx, sy));
+	const startRaw = snapCell(grid, cellOf(sx, sy));
+	const start = startRaw >= 0 ? startRaw : escapeCell(grid, cellOf(sx, sy));
 	const goalRaw = cellOf(tx, ty);
 	const goal = snapCell(grid, goalRaw);
 	if (start < 0 || goal < 0) return {
