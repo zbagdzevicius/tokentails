@@ -67,6 +67,9 @@ jobs:
     if: ${{ github.event_name != 'schedule' && !github.event.inputs.rollback_to && github.event.inputs.promote_now != 'true' }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          # the vendor-sim tests read the frozen sim bundles from git history
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
