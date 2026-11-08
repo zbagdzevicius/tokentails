@@ -698,7 +698,10 @@ export class CombatVfx {
    */
   lightning(ax: number, ay: number, az: number, bx: number, by: number, bz: number, color: number): void {
     const segs = this.tier.lightning;
-    const len = Math.hypot(bx - ax, by - ay, bz - az);
+    const ddx = bx - ax;
+    const ddy = by - ay;
+    const ddz = bz - az;
+    const len = Math.sqrt(ddx * ddx + ddy * ddy + ddz * ddz);
     if (!(len > 0.1)) return;
     // a sideways axis for the kinks (perpendicular to the bolt, roughly screen-facing)
     _d.set(bz - az, 0, -(bx - ax));

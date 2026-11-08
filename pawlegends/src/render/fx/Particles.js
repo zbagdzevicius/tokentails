@@ -200,7 +200,7 @@ export class ParticlePool {
       aC[i4] = C[i4]; aC[i4 + 1] = C[i4 + 1]; aC[i4 + 2] = C[i4 + 2]; aC[i4 + 3] = C[i4 + 3] * (fa < 0 ? 0 : fa);
       let st = this.stretch[i];
       if (this.shape[i] === SHAPE.CONFETTI) st = this.flat ? 1 : Math.abs(Math.cos(age * 9 + this.seed[i] * 6.2831853));
-      else if (st > 1) { const sp = Math.hypot(V[i3], V[i3 + 1], V[i3 + 2]); st = 1 + (st - 1) * Math.min(1, sp / 6); if (st < 1.01) st = 1.01; }
+      else if (st > 1) { const v0 = V[i3], v1 = V[i3 + 1], v2 = V[i3 + 2]; const sp = Math.sqrt(v0 * v0 + v1 * v1 + v2 * v2); st = 1 + (st - 1) * Math.min(1, sp / 6); if (st < 1.01) st = 1.01; }
       aR[i4] = size > 0 ? size : 0; aR[i4 + 1] = st; aR[i4 + 2] = this.rot[i]; aR[i4 + 3] = this.shape[i];
       i++;
     }
@@ -282,7 +282,7 @@ export class Particles {
     const dx = dir.x, dy = dir.y, dz = dir.z;
     let ux, uy, uz;
     if (Math.abs(dy) < 0.9) { ux = dz; uy = 0; uz = -dx; } else { ux = 0; uy = -dz; uz = dy; }
-    const ul = Math.hypot(ux, uy, uz) || 1; ux /= ul; uy /= ul; uz /= ul;
+    const ul = Math.sqrt(ux * ux + uy * uy + uz * uz) || 1; ux /= ul; uy /= ul; uz /= ul;
     const vx = dy * uz - dz * uy, vy = dz * ux - dx * uz, vz = dx * uy - dy * ux;
     const cx = Math.cos(a) * s, cy = Math.sin(a) * s;
     return out.set(ux * cx + vx * cy + dx * z, uy * cx + vy * cy + dy * z, uz * cx + vz * cy + dz * z).normalize();

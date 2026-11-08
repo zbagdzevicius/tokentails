@@ -395,13 +395,11 @@ export class MinionInstances {
       } else drawnAt.set(e.id, { x: px, z: pz });
       this.rings.add(a.x + px - px0, a.z + pz - pz0, 0.95 * s, team === this.myTeam ? RELATION.ally : RELATION.enemy, 0.7);
     }
-    for (const [id, p] of drawnAt) if (Number.isNaN(p.x)) drawnAt.delete(id);
+    // PERF-IOS P2-4: forEach with bound callbacks (a `for (const [id, x] of map)` built an entry array per minion per frame)
+    drawnAt.forEach(this.pruneDrawn);
     // gone this frame: the death tumble starts where it stood
-    for (const [id, a] of this.anim) {
-      if (a.stamp === stamp) continue;
-      this.die(a);
-      this.anim.delete(id);
-    }
+    this.stampNow = stamp;
+    this.anim.forEach(this.pruneAnim);
     this.drawDying(dt);
     this.rings.end();
     for (let k = 0; k < this.meshes.length; k++) {
@@ -410,6 +408,16 @@ export class MinionInstances {
       this.animAttr[k].needsUpdate = true;
     }
   }
+
+  private stampNow = 0;
+  private readonly pruneDrawn = (p: { x: number; z: number }, id: number): void => {
+    if (Number.isNaN(p.x)) this.drawnAt.delete(id);
+  };
+  private readonly pruneAnim = (a: Anim, id: number): void => {
+    if (a.stamp === this.stampNow) return;
+    this.die(a);
+    this.anim.delete(id);
+  };
 
   private die(a: Anim): void {
     let d: Dying | null = null;

@@ -100,7 +100,7 @@ function nudge(x: number, y: number, z: number): void {
   const dx = c.x - x;
   const dy = c.y - y;
   const dz = c.z - z;
-  const l = Math.hypot(dx, dy, dz);
+  const l = Math.sqrt(dx * dx + dy * dy + dz * dz);
   if (l < 1e-3) return;
   const k = Math.min(NUDGE, l * 0.5) / l;
   NV.x += dx * k;

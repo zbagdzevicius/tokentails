@@ -1,8 +1,9 @@
 /* Match lifecycle overlays (render/fx/lifecycleHud.ts). Plain layers only: no backdrop-filter, no post pass. */
 
 /* ---------------------------------------------------------------- dead veil */
-.pl-lc-dead { position: absolute; inset: 0; pointer-events: none; z-index: 1; opacity: 0; transition: opacity 0.25s ease; }
-.pl-lc-dead.on { opacity: 1; transition: opacity 0.6s ease 0.7s; }
+/* PERF-IOS P2-5: hidden (no full-screen layer to blend) once faded out */
+.pl-lc-dead { position: absolute; inset: 0; pointer-events: none; z-index: 1; opacity: 0; visibility: hidden; transition: opacity 0.25s ease, visibility 0s linear 0.25s; }
+.pl-lc-dead.on { opacity: 1; visibility: visible; transition: opacity 0.6s ease 0.7s, visibility 0s; }
 .pl-lc-dead .veil {
   position: absolute; inset: 0;
   background: radial-gradient(ellipse at 50% 50%, rgba(70, 64, 92, 0.18) 30%, rgba(40, 32, 58, 0.62) 100%);

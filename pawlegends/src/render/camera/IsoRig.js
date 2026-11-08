@@ -440,7 +440,7 @@ function fpHit(nx, ny, k, offX, offY, tanH, tanV, s, c, ux, uz, rx, rz, Lx, Ly, 
   const dy = b * c - s;
   if (dy > -1e-4) return false;
   const dx = rx * a + ux * (b * s + c), dz = rz * a + uz * (b * s + c), t = (gy - Ly) / dy;
-  _fq[k] = Lx + dx * t; _fq[k + 1] = Lz + dz * t; _fq[k + 2] = t * Math.hypot(dx, dy, dz);
+  _fq[k] = Lx + dx * t; _fq[k + 1] = Lz + dz * t; _fq[k + 2] = t * Math.sqrt(dx * dx + dy * dy + dz * dz);
   return true;
 }
 

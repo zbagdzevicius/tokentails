@@ -886,7 +886,7 @@ export class GroundDecals {
       const c = this.ctx.camera?.position, pp = this.ctx.player?.pos;
       if (c && pp) {
         const ox = c.x - pp.x, oy = c.y - pp.y, oz = c.z - pp.z;
-        V.settled = Math.hypot(ox - V.ox, oy - V.oy, oz - V.oz) < 0.004 ? V.settled + 1 : 0;   // NaN start: not still
+        V.settled = (ox - V.ox) * (ox - V.ox) + (oy - V.oy) * (oy - V.oy) + (oz - V.oz) * (oz - V.oz) < 0.004 * 0.004 ? V.settled + 1 : 0;   // NaN start: not still
         V.ox = ox; V.oy = oy; V.oz = oz;
         settled = V.settled >= 3;
       }

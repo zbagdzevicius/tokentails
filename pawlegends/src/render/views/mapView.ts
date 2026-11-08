@@ -998,22 +998,42 @@ export function createMapView(): MapView {
   farB.add(new THREE.IcosahedronGeometry(1.5, 0), 0x55a055, { at: [0, 2.3, 0] });
   farB.add(new THREE.IcosahedronGeometry(1.05, 0), 0x7cc46e, { at: [0.2, 3.2, -0.1] });
   const farGeo = keep(farB.build());
-  const far = outerTrees().sort((a, b) => Number(b.low) - Number(a.low));
-  const farLow = far.filter((t) => t.low).length;
-  const farMesh = new THREE.InstancedMesh(farGeo, sceneryMat, far.length);
-  farMesh.name = 'far-forest';
+  // PERF-IOS P2-1: the 1,231 trees in FAR_CHUNK m square chunks, one InstancedMesh each with its own bounding sphere,
+  // so three.js frustum-culls the chunks the fixed camera cannot see (one mesh over the whole map was never culled:
+  // 78.8k triangles, a quarter of the frame). Each chunk lists its Low trees first, so `setDetail` keeps half.
+  const FAR_CHUNK = 24;
+  const far = outerTrees().map((t, i) => ({ ...t, i }));
+  const chunks = new Map<string, typeof far>();
+  for (const t of far) {
+    const k = `${Math.floor(t.x / FAR_CHUNK)},${Math.floor(t.y / FAR_CHUNK)}`;
+    let c = chunks.get(k);
+    if (!c) chunks.set(k, (c = []));
+    c.push(t);
+  }
   const fm = new THREE.Matrix4();
   const fq = new THREE.Quaternion();
   const fv = new THREE.Vector3();
-  far.forEach((t, i) => {
-    fq.setFromAxisAngle(new THREE.Vector3(0, 1, 0), (t.x * 7.1 + t.y * 3.3) % (Math.PI * 2));
-    fm.compose(fv.set(t.x, 0, -t.y), fq, new THREE.Vector3(t.s, t.s * (0.9 + ((i * 37) % 10) / 40), t.s));
-    farMesh.setMatrixAt(i, fm);
-    const tint = 0.82 + ((i * 53) % 17) / 90;
-    farMesh.setColorAt(i, new THREE.Color(tint, tint, tint));
-  });
-  farMesh.receiveShadow = true;
-  group.add(farMesh);
+  const fs = new THREE.Vector3();
+  const up = new THREE.Vector3(0, 1, 0);
+  const tc = new THREE.Color();
+  const farMeshes: { mesh: THREE.InstancedMesh; all: number; low: number }[] = [];
+  for (const list of chunks.values()) {
+    list.sort((a, b) => Number(b.low) - Number(a.low) || a.i - b.i);
+    const mesh = new THREE.InstancedMesh(farGeo, sceneryMat, list.length);
+    mesh.name = 'far-forest';
+    list.forEach((t, j) => {
+      const i = t.i;
+      fq.setFromAxisAngle(up, (t.x * 7.1 + t.y * 3.3) % (Math.PI * 2));
+      fm.compose(fv.set(t.x, 0, -t.y), fq, fs.set(t.s, t.s * (0.9 + ((i * 37) % 10) / 40), t.s));
+      mesh.setMatrixAt(j, fm);
+      const tint = 0.82 + ((i * 53) % 17) / 90;
+      mesh.setColorAt(j, tc.setRGB(tint, tint, tint));
+    });
+    mesh.computeBoundingSphere();
+    mesh.receiveShadow = true;
+    group.add(mesh);
+    farMeshes.push({ mesh, all: list.length, low: list.filter((t) => t.low).length });
+  }
 
   const hedge = new ModelBuilder();
   for (const h of hedgeSpots()) {
@@ -1083,7 +1103,7 @@ export function createMapView(): MapView {
       return bushU.uBushOn.value.slice();
     },
     setDetail(low) {
-      farMesh.count = low ? farLow : far.length;
+      for (const f of farMeshes) f.mesh.count = low ? f.low : f.all;
     },
     setStyleSwap(on) {
       plazaStyle(on);

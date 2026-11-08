@@ -141,7 +141,7 @@ const RANK = { normal: 0, heavy: 1, crit: 2 };
 
 const CSS = `
 .fx-dmg-layer{position:fixed;inset:0;pointer-events:none;overflow:hidden;z-index:8;contain:strict}
-.fx-dmg{position:absolute;left:0;top:0;will-change:transform,opacity;white-space:nowrap;
+.fx-dmg{position:absolute;left:0;top:0;white-space:nowrap;
   font-family:'Fredoka','SwordcatFredoka',system-ui,sans-serif;font-weight:700;line-height:1;letter-spacing:.01em;
   color:#fff;-webkit-text-stroke:5px #4A2A1F;paint-order:stroke fill;text-shadow:0 3px 0 #4A2A1F;opacity:0}
 .fx-dmg.crit::after{content:'!';margin-left:.04em;color:#FFD34D}
@@ -234,6 +234,8 @@ export class DamageNumbers {
     el.className = (style === 'crit' || style === 'word' || style === 'pop' || style === 'shielded' || style === 'fish' ? `fx-dmg ${style}` : 'fx-dmg') + (ph ? ' ph' : ''); // pawlegends: fish
     el.style.color = st.color;
     el.style.fontSize = (ph ? st.phone : st.size) + 'px';
+    // PERF-IOS P2-5: a layer only while shown (20 idle pooled nodes each kept a composited layer)
+    el.style.willChange = 'transform,opacity';
   }
 
   /**
@@ -322,7 +324,7 @@ export class DamageNumbers {
     if (!text) return false;
     if (fun) {
       if (this._gameTexts() >= this._wordCap()) return false;
-      for (const o of this.pool) if (o.active && o.fun) { o.active = false; o.fun = false; if (o.el) o.el.style.opacity = '0'; }
+      for (const o of this.pool) if (o.active && o.fun) { o.active = false; o.fun = false; if (o.el) { o.el.style.opacity = '0'; o.el.style.willChange = 'auto'; } }
     } else this._capTexts();
     this.shown++; this.pops++;
     const n = this._take();
@@ -361,7 +363,7 @@ export class DamageNumbers {
       for (const n of this.pool) if (n.active && n.fun) { old = n; break; }
       if (!old) for (const n of this.pool) if (n.active && (n.kind === 'word' || n.kind === 'pop') && (!old || n.t > old.t)) old = n;
       if (!old) break;
-      old.active = false; old.fun = false; if (old.el) old.el.style.opacity = '0';
+      old.active = false; old.fun = false; if (old.el) { old.el.style.opacity = '0'; old.el.style.willChange = 'auto'; }
     }
   }
 
@@ -388,7 +390,7 @@ export class DamageNumbers {
       if (!n.active) continue;
       n.t += dt;
       n.age = (n.age ?? 0) + dt;                         // pawlegends: drawn time since shown (merges never reset it)
-      if (n.t >= n.life) { n.active = false; if (n.el) n.el.style.opacity = '0'; continue; }
+      if (n.t >= n.life) { n.active = false; if (n.el) { n.el.style.opacity = '0'; n.el.style.willChange = 'auto'; } continue; }
       // count up toward a merged sum (0.12 s)
       if (n.kind === 'num' && Number.isFinite(n.value) && n.shownValue !== n.value) {
         const prev = Math.round(n.shownValue);
@@ -428,7 +430,7 @@ export class DamageNumbers {
     }
   }
 
-  clear() { for (const n of this.pool) { n.active = false; if (n.el) n.el.style.opacity = '0'; } }
+  clear() { for (const n of this.pool) { n.active = false; if (n.el) { n.el.style.opacity = '0'; n.el.style.willChange = 'auto'; } } }
 
   dispose() {
     this.layer?.remove(); this._style?.remove();
