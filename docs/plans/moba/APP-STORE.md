@@ -14,6 +14,16 @@ WebSocket) and sims 10 to 14 (the build ships 14). Not checked: a real iPhone (l
 the network off, `actionlint` on the workflows. The `/pawlegends/privacy` and `/pawlegends/support` pages 404 until
 this branch is merged and Vercel deploys.
 
+## Mac App Store (2026-11-08, `feat/pawlegends-macos`)
+
+Mac Catalyst of the same iOS target, same bundle id and app record (universal purchase), "Optimize for Mac" idiom
+(`TARGETED_DEVICE_FAMILY[sdk=macosx*] = 6`; iOS stays iPhone only). App Sandbox + network client, hardened runtime,
+`LSApplicationCategoryType` strategy games, Mac icon sizes, PrivacyInfo bundled, `ITSAppUsesNonExemptEncryption` false.
+All pods build for Catalyst unchanged. OTA reuses the `ios/<compat>` manifests. The page sees `__PL_PLATFORM__ = 'mac'`
+and keeps the desktop controls and HUD. Lanes `mac_beta`, `mac_metadata`, `mac_submit` (README "Releases"). Checked:
+unsigned Debug and Release Catalyst builds; the app opens at 1440×810 and renders the title (pointer fine, no touch
+controls, no haptics bridge). Not checked: a signed sandboxed build, OTA on the Mac, a full match with real mouse input.
+
 ## Implementation notes (2026-11-07)
 
 Where the build differs from the plan below, the build wins:

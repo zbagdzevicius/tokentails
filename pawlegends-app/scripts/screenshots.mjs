@@ -9,6 +9,8 @@
  *                                                 store/screenshots-ipad/en-US/ (NOT uploaded: the app is iPhone only,
  *                                                 TARGETED_DEVICE_FAMILY = 1; move them into fastlane/screenshots/en-US
  *                                                 when iPad is turned on)
+ *   node scripts/screenshots.mjs --device mac     Mac: 2880 x 1800 (1440 x 900 pt at 2x), mouse and keyboard, desktop HUD,
+ *                                                 into fastlane/screenshots_mac/en-US (fastlane mac_metadata uploads them)
  *
  * Driving a real match in the iOS Simulator is not scriptable (simctl has no touch input), so this renders the same
  * bundle in Chromium at the exact device size instead.
@@ -32,9 +34,10 @@ const device = di >= 0 ? process.argv[di + 1] : 'iphone';
 const DEVICES = {
   iphone: { width: 956, height: 440, scale: 3, out: 'fastlane/screenshots/en-US' },
   ipad: { width: 1376, height: 1032, scale: 2, out: 'store/screenshots-ipad/en-US' },
+  mac: { width: 1440, height: 900, scale: 2, out: 'fastlane/screenshots_mac/en-US', desktop: true },
 };
 const dev = DEVICES[device];
-if (!dev) throw new Error(`screenshots: unknown --device ${device} (iphone | ipad)`);
+if (!dev) throw new Error(`screenshots: unknown --device ${device} (iphone | ipad | mac)`);
 const out = join(APP_DIR, dev.out);
 mkdirSync(out, { recursive: true });
 
@@ -52,7 +55,7 @@ const base = `http://127.0.0.1:${server.address().port}`;
 const browser = await chromium.launch({ args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const shots = [];
 async function page(profile) {
-  const ctx = await browser.newContext({ viewport: { width: dev.width, height: dev.height }, deviceScaleFactor: dev.scale, hasTouch: true, isMobile: true });
+  const ctx = await browser.newContext({ viewport: { width: dev.width, height: dev.height }, deviceScaleFactor: dev.scale, hasTouch: !dev.desktop, isMobile: !dev.desktop });
   if (profile) {
     await ctx.addInitScript(([k, v]) => localStorage.setItem(k, v), ['tt.pawlegends.profile.v1', JSON.stringify(profile)]);
   }
@@ -68,11 +71,21 @@ async function shoot(p, name) {
   shots.push(file);
 }
 async function drag(p, x0, y0, x1, y1, ms) {
+  if (dev.desktop) return walk(p, ms);
   const cdp = await p.context().newCDPSession(p);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: x0, y: y0, id: 1 }] });
   for (let i = 1; i <= 8; i++) await cdp.send('Input.dispatchTouchEvent', { type: 'touchMove', touchPoints: [{ x: x0 + ((x1 - x0) * i) / 8, y: y0 + ((y1 - y0) * i) / 8, id: 1 }] });
   await p.waitForTimeout(ms);
   await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+}
+
+/** Desktop (the Mac app): right-click up the lane, ahead of the hero (the camera follows it), every 1.5 s. */
+async function walk(p, ms) {
+  const end = Date.now() + ms;
+  while (Date.now() < end) {
+    await p.mouse.click(dev.width / 2 + 260, dev.height / 2 - 170, { button: 'right' });
+    await p.waitForTimeout(1500);
+  }
 }
 
 try {
@@ -95,8 +108,16 @@ try {
   await drag(match, 150, 300, 230, 250, 12000);
   await match.waitForTimeout(8000);
   await shoot(match, 'lane-fight');
-  await drag(match, 150, 300, 230, 260, 10000);
-  await match.waitForTimeout(6000);
+  if (dev.desktop) {
+    // the mouse hero is already in the fight: cast into it (Q, W, E) instead of walking on and dying
+    for (const k of ['q', 'w', 'e']) {
+      await match.keyboard.press(k);
+      await match.waitForTimeout(700);
+    }
+  } else {
+    await drag(match, 150, 300, 230, 260, 10000);
+    await match.waitForTimeout(6000);
+  }
   await shoot(match, 'teamfight');
 } finally {
   await browser.close();
