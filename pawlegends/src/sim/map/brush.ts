@@ -17,6 +17,8 @@ import { Buff, FM, Kind, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../wo
 const PIXEL_SUB = 9;
 const BRAVO_SUB = 14;
 const CHILI_SUB = 15;
+/** Sim v17: Avietė's Shiny Coat fill uses kWT too. */
+const AVIETE_SUB = 5;
 const BRUTUS_SUB = 2;
 
 /**
@@ -104,7 +106,7 @@ export function refreshFlags(w: World): void {
         shield += kitShield(w, id);
         if (w.napT[id] > 0 || (w.castPhase[id] === 2 && w.castT[id] > 0)) b |= Buff.Channeling;
         // Clem's The Stand, Sir Brutus's Front Guard. Sim v14: Bravo's spotlight and Chili's BIG DOG use kWT too.
-        if (w.kWT[id] > 0 && w.sub[id] !== BRAVO_SUB && w.sub[id] !== CHILI_SUB) b |= Buff.Blocking;
+        if (w.kWT[id] > 0 && w.sub[id] !== BRAVO_SUB && w.sub[id] !== CHILI_SUB && w.sub[id] !== AVIETE_SUB) b |= Buff.Blocking;
         if (w.zoomT[id] > 0) b |= Buff.Zoomies;
         if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
         if (w.nineT[id] > 0) b |= Buff.NineLives;

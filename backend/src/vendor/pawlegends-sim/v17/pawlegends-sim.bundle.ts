@@ -721,11 +721,12 @@ var AVIETE = Object.freeze({
 			dmg: 75,
 			dmgPerLevel: 6
 		},
-		/** Shiny Coat: Charged at once and +20% speed for 2 s; during the lockout only the speed. */
+		/** Shiny Coat: Charged after a 0.5 s fill (sim v17, V17.md §3.7: was at once) and +20% speed for 2 s; during the lockout only the speed. */
 		w: {
 			cooldown: 420,
 			speedBp: 2e3,
-			haste: 60
+			haste: 60,
+			chargeDelay: 15
 		},
 		/** Live Wire: blink up to 4.5 m; a recast within 2 s blinks her back to where she started. */
 		e: {
@@ -733,7 +734,7 @@ var AVIETE = Object.freeze({
 			blink: 4500,
 			recastWindow: 60
 		},
-		/** Short Circuit: blink beside an enemy hero within 6 m, 150 (+15/lvl, +68 a rank), slow enemy heroes within 3 m 40% for 1.5 s. */
+		/** Short Circuit: blink beside an enemy hero within 6 m, 150 (+15/lvl, +68 a rank), slow enemy heroes within 3 m 40% for 1.5 s. Sim v17 (V17.md §3.7): its hit neither uses nor sets off her charge. */
 		r: {
 			cooldown: 1950,
 			range: 6e3,
@@ -7962,7 +7963,9 @@ var LAMBO_KIT = {
 *
 * Kit arrays: `kWAge` ticks in brush (0 outside); `kRT` charge ticks left (held while in brush); `kHuntT` lockout
 * ticks left; `kStage` the open return (0 none, 1 from Live Wire, 2 from Short Circuit); `kWindow` return ticks
-* left; `kChain`/`kEmpower` the return point x/y; `kCount` the tick Live Wire was cast (its cooldown counts from it).
+* left; `kChain`/`kEmpower` the return point x/y; `kCount` the tick Live Wire was cast (its cooldown counts from it);
+* `kWT` (sim v17, V17.md §3.7) Shiny Coat's fill ticks left: the charge lands when it runs out (brush.ts keeps her
+* out of the Blocking flag that kWT means for Clem and Sir Brutus).
 */
 var E = 2;
 var hits$15 = new Int32Array(ENTITY_CAP);
@@ -8043,7 +8046,12 @@ function shortCircuit(m, id, target) {
 	if (d > gap) blink(m, id, w.x[target] + idiv((sx - w.x[target]) * gap, d), w.y[target] + idiv((sy - w.y[target]) * gap, d), d);
 	w.facing[id] = iatan2(w.y[target] - w.y[id], w.x[target] - w.x[id]);
 	const hit = attackRange(w, id) + gap;
-	if (dist2(w.x[id], w.y[id], w.x[target], w.y[target]) <= hit * hit) dealDamage(m, id, w.team[id], Kind.Hero, target, lvl(w, id, r.dmg, r.dmgPerLevel), "ability");
+	if (dist2(w.x[id], w.y[id], w.x[target], w.y[target]) <= hit * hit) {
+		const held = w.kRT[id];
+		w.kRT[id] = 0;
+		dealDamage(m, id, w.team[id], Kind.Hero, target, lvl(w, id, r.dmg, r.dmgPerLevel), "ability");
+		w.kRT[id] = held;
+	}
 	const lx = w.x[id];
 	const ly = w.y[id];
 	const n = collect(w, w.team[id], hits$15, (e, er) => inRing(lx, ly, r.dazzleRadius, w.x[e], w.y[e], er), true);
@@ -8072,7 +8080,8 @@ var AVIETE_KIT = {
 				return q.cooldown;
 			}
 			case 1:
-				charge(w, id);
+				if ((a.w.chargeDelay ?? 0) > 0) w.kWT[id] = a.w.chargeDelay;
+				else charge(w, id);
 				haste(w, id, a.w.speedBp, a.w.haste);
 				return a.w.cooldown;
 			case 2: return liveWire(m, id, x, y);
@@ -8087,6 +8096,7 @@ var AVIETE_KIT = {
 		if (w.kHuntT[id] === 0 && w.kWAge[id] >= p.brushTime) w.kRT[id] = p.hold;
 		else if (w.kRT[id] > 0 && !inBrush) w.kRT[id]--;
 		if (w.kHuntT[id] > 0) w.kHuntT[id]--;
+		if (w.kWT[id] > 0 && --w.kWT[id] === 0) charge(w, id);
 		if (w.kWindow[id] > 0 && --w.kWindow[id] === 0) closeWireWindow(w, id);
 	},
 	outgoing(m, id, dst, raw) {
@@ -8107,6 +8117,7 @@ var AVIETE_KIT = {
 		w.kChain[id] = 0;
 		w.kEmpower[id] = 0;
 		w.kCount[id] = 0;
+		w.kWT[id] = 0;
 	}
 };
 //#endregion
@@ -12003,6 +12014,8 @@ function structureShot(w, id, dst) {
 var PIXEL_SUB = 9;
 var BRAVO_SUB = 14;
 var CHILI_SUB = 15;
+/** Sim v17: Avietė's Shiny Coat fill uses kWT too. */
+var AVIETE_SUB = 5;
 var BRUTUS_SUB = 2;
 /**
 * The extra shield a hero's kit holds in `kHonour`: Sir Brutus's Honour and Pixel's plate. Sim v14: Bravo and
@@ -12081,7 +12094,7 @@ function refreshFlags(w) {
 			if (id < RANGE.minions) {
 				shield += kitShield(w, id);
 				if (w.napT[id] > 0 || w.castPhase[id] === 2 && w.castT[id] > 0) b |= Buff.Channeling;
-				if (w.kWT[id] > 0 && w.sub[id] !== BRAVO_SUB && w.sub[id] !== CHILI_SUB) b |= Buff.Blocking;
+				if (w.kWT[id] > 0 && w.sub[id] !== BRAVO_SUB && w.sub[id] !== CHILI_SUB && w.sub[id] !== AVIETE_SUB) b |= Buff.Blocking;
 				if (w.zoomT[id] > 0) b |= Buff.Zoomies;
 				if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
 				if (w.nineT[id] > 0) b |= Buff.NineLives;
