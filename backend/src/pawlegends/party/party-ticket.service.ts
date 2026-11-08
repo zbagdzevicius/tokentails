@@ -107,6 +107,31 @@ export class PartyTicketService {
         return { accountId: p.accountId, guest: p.guest };
     }
 
+    /**
+     * The identity a ticket was genuinely minted for (MAC, audience, key id and shape only: expiry, the nonce and the
+     * restart rule are not checked). Never an identity on its own: the relay uses it only to keep a resumed member's
+     * account when a reconnect re-sends its first, already spent, hello ticket (party-relay.ts `hello`).
+     */
+    mintedFor(ticket: unknown): PartyIdentity | null {
+        const s = this.secret();
+        if (!s || typeof ticket !== 'string' || ticket.length > 512) return null;
+        const dot = ticket.indexOf('.');
+        if (dot <= 0) return null;
+        const body = ticket.slice(0, dot);
+        const mac = Buffer.from(ticket.slice(dot + 1), 'base64url');
+        const want = createHmac('sha256', s.key).update(body).digest();
+        if (mac.length !== want.length || !timingSafeEqual(mac, want)) return null;
+        let p: Payload;
+        try {
+            p = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Payload;
+        } catch {
+            return null;
+        }
+        if (p.aud !== PARTY_TICKET_AUD || p.v !== 1 || p.kid !== s.kid) return null;
+        if (typeof p.accountId !== 'string' || !p.accountId || typeof p.guest !== 'boolean') return null;
+        return { accountId: p.accountId, guest: p.guest };
+    }
+
     private sweep(nowMs: number): void {
         if (this.used.size < 1000) return;
         for (const [n, exp] of this.used) if (exp < nowMs) this.used.delete(n);
