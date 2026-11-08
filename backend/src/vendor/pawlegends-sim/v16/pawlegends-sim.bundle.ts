@@ -4653,6 +4653,7 @@ function createWorld(seed) {
 		pathY: new Int32Array(CAPS.heroes * NAV.maxPathPoints),
 		pathLen: new Uint8Array(CAPS.heroes),
 		pathIdx: new Uint8Array(CAPS.heroes),
+		pathDone: new Int8Array(CAPS.heroes),
 		stunT: new Int32Array(n),
 		rootT: new Int32Array(n),
 		fearT: new Int32Array(n),
@@ -4835,6 +4836,7 @@ function hashedArrays(w) {
 		w.pathY,
 		w.pathLen,
 		w.pathIdx,
+		w.pathDone,
 		w.stunT,
 		w.rootT,
 		w.fearT,
@@ -12361,6 +12363,7 @@ function planPath(m, id, tx, ty) {
 	w.pathLen[id] = r.count;
 	w.pathIdx[id] = 0;
 	w.timer[id] = NAV.repathEvery;
+	w.pathDone[id] = !r.complete && r.expansions <= NAV.maxExpand ? 1 : 0;
 }
 /** A new order cancels a walk-in cast and Nap (not a cast already winding up). */
 function cancelSoft(w, id) {
@@ -12470,6 +12473,7 @@ function walk(m, id) {
 	const base = id * NAV.maxPathPoints;
 	if (w.pathIdx[id] >= w.pathLen[id]) {
 		if (dist2(w.x[id], w.y[id], w.moveX[id], w.moveY[id]) <= NAV.reach * NAV.reach) return true;
+		if (w.pathLen[id] > 0 && w.pathDone[id] === 1) return true;
 		if (w.timer[id] > 0) return false;
 		planPath(m, id, w.moveX[id], w.moveY[id]);
 		if (w.pathLen[id] === 0) return true;
@@ -14814,7 +14818,7 @@ function defend(w, id, mem, s, p, rng) {
 		mem.op[id] = Op.Nap;
 		return { op: Op.Nap };
 	}
-	return moveTo(w, id, mem, w.x[s], w.y[s]);
+	return moveTo(w, id, mem, w.x[s] - sign(w.team[id]) * (radiusOf(w, s) + BOT_AI.holdMelee), w.y[s]);
 }
 /** Sim v7 Hard: is bot `id` far ahead of its own wave front in `lane` with no allied hero near? */
 function overextended(w, id, lane) {

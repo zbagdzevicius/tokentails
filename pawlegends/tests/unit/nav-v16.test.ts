@@ -1,7 +1,7 @@
 /** Sim v16 MAP-GAPS B nav fixes (docs/plans/moba/MAP-GAPS.md B, V16.md §3.2). */
 import { describe, expect, it } from 'vitest';
 import { Op } from '../../src/sim/api';
-import { createMatch, createPlayerBot, fillPicks, playerBotCommands, step, tickOf } from '../../src/sim/index';
+import { createMatch, createPlayerBot, fillPicks, hash, playerBotCommands, result, step, tickOf } from '../../src/sim/index';
 import { MAP, RADIUS } from '../../src/data/map';
 import { dist2 } from '../../src/sim/fixed';
 import { TIMELINE } from '../../src/data/timeline';
@@ -141,5 +141,54 @@ describe('B2 gate clamp', { timeout: 300_000 }, () => {
       }
     }
     expect(bad).toBe(0);
+  });
+});
+
+describe('B4 a Move onto a structure completes', { timeout: 300_000 }, () => {
+  for (const [name, x, y] of [
+    ['own core', 10000, 30000],
+    ['own inner tower', 20000, 48000],
+  ] as const) {
+    it(`Move to the ${name} (${x}, ${y}) clears within 2 s of arriving next to it`, () => {
+      const m = heroMatch(['clem', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
+      const w = m.world;
+      place(m, 1, 30000, 30000);
+      applyOrder(m, 1, { op: Op.Move, x, y });
+      let t = 0;
+      for (; t < 900 && w.order[1] === Order.Move; t++) step(m);
+      expect(w.order[1]).toBe(Order.None);
+      expect(Math.abs(w.x[1] - x) + Math.abs(w.y[1] - y)).toBeLessThan(5000);
+      expect(w.pathDone[1]).toBe(1);
+    });
+  }
+
+  it('pathDone is hashed', () => {
+    const m = heroMatch(['clem', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
+    const before = hash(m);
+    m.world.pathDone[2] = 1;
+    expect(hash(m)).not.toBe(before);
+  });
+
+  it('bot matches: no hero stands Moving (not walking) for more than 90 ticks', () => {
+    let worst = 0;
+    for (let seed = 1; seed <= 6; seed++) {
+      const { picks, tricks } = fillPicks(seed, 'clem', 'pounce');
+      const m = createMatch({ seed, picks, tricks, difficulty: 'normal' });
+      const bot = createPlayerBot(m, 'normal');
+      const still = new Int32Array(6);
+      const px = new Int32Array(6);
+      const py = new Int32Array(6);
+      while (!result(m) && tickOf(m) < 9000) {
+        step(m, playerBotCommands(m, bot));
+        for (let id = 0; id < 6; id++) {
+          const moving = m.world.order[id] === Order.Move && m.world.alive[id] === 1 && m.world.fmKind[id] === FM.None && m.world.rootT[id] === 0 && m.world.stunT[id] === 0;
+          still[id] = moving && m.world.x[id] === px[id] && m.world.y[id] === py[id] ? still[id] + 1 : 0;
+          worst = Math.max(worst, still[id]);
+          px[id] = m.world.x[id];
+          py[id] = m.world.y[id];
+        }
+      }
+    }
+    expect(worst).toBeLessThanOrEqual(90);
   });
 });
