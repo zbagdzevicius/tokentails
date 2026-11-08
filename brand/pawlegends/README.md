@@ -2,7 +2,7 @@
 
 Founder decision (Nov 2026): primary logo = candidate #48, app icon = candidate #143.
 These are the final masters, regenerated with Gemini (`gemini-3-pro-image`) from the chosen candidates
-and refined, not redesigned. They are not wired into the code yet.
+and refined, not redesigned. Wired in: the game (lobby, boot splash, favicons), the `/pawlegends` and `/legends` landings, the share card `client/public/pawlegends/og.jpg` and the app (`pawlegends-app/scripts/make-icons.mjs`).
 
 `contact-sheet.png` shows everything on dark and light, and at small sizes.
 

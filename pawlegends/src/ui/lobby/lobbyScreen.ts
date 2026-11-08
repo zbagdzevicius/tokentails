@@ -18,6 +18,7 @@
  *
  * Names are host data: always escaped here. Cosmetic only.
  */
+import { logoHtml } from '../brandLogo';
 import './lobby.css';
 import type { Difficulty, HeroId } from '../../sim/api';
 import { ELEMENT_COLOR, FRAME_NAME, type FrameId } from '../../render/cosmetics';
@@ -280,7 +281,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   const live = document.documentElement.dataset.quality !== 'low';
   root.innerHTML = `
     <div class="pl-title-col lb-col">
-      <div class="logo"><span class="paw">${icon('paw')}</span><h1>Paw<b>legends</b></h1></div>
+      ${logoHtml()}
       <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
       <div class="lb-name" data-card="${id.card ? '1' : '0'}">
         <small class="lb-eyebrow">${id.card ? 'Your Token Tails cat' : 'Your champion'}</small>

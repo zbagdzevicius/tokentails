@@ -3,6 +3,7 @@
  * a dogs row; Paw Trick, difficulty) → match → results, plus the Esc menu and the portrait rotate prompt. DOM
  * overlays over the lobby turntable. English only.
  */
+import { logoHtml } from './brandLogo';
 import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
 import './deck/deckRow.css';
@@ -105,7 +106,7 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
       : `<button class="pl-btn big" data-a="quick">Play as ${esc(HERO_TEXT[o.last.hero].title)}</button><button class="pl-btn ghost" data-a="choose">Choose hero</button>`;
   root.innerHTML = `
     <div class="pl-title-col">
-      <div class="logo"><span class="paw">${icon('paw')}</span><h1>Paw<b>legends</b></h1></div>
+      ${logoHtml()}
       <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
       <div class="actions">${primary}</div>
       <p class="sub"><span class="acct">${accountState().signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span> ${o.firstTime ? (rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.') : ''}</p>
