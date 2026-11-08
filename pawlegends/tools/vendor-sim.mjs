@@ -30,7 +30,7 @@
  *    dog-human replay verifies (a frozen version that has it lists it in `extra`).
  * 9. new-dog-replay.fixture.json (sim v15): one genuine Easy match played as a sim v15 dog (Frankie), so the spec shows
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
- * backend/src/vendor/pawlegends-sim/v10/ to v14/: those files, frozen (FROZEN below; sim v15 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v15/: those files, frozen (FROZEN below; sim v16 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -72,6 +72,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * window runs to about Dec 1; retire it in the first sim change after that), so the backend verifies 10 to 14.
  * Sim v15 (three more dogs, 10 v 10, docs/plans/moba/DOGS-V15.md) froze the released v14 (seven dogs, party play) at
  * bb18ae2a and keeps v10 to v13 (it landed before Dec 1, so v10 stays), so the backend verifies 10 to 15.
+ * Sim v16 (S-PvP and the MAP-GAPS B nav fixes, docs/plans/moba/V16.md) froze the released v15 (ten dogs) at 02ef4d27
+ * and keeps v10 to v14, so the backend verifies 10 to 16.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -108,6 +110,13 @@ export const FROZEN = Object.freeze([
     from: 'backend/src/vendor/pawlegends-sim/v14',
     bundle: 'dba1ec165fdb7734339016dfccd55b08d370ee65e98fd900cb36c42f98997c59',
     extra: Object.freeze(['forfeit-replay.fixture.json', 'dog-replay.fixture.json']),
+  }),
+  Object.freeze({
+    simVersion: 15,
+    commit: '02ef4d27e6e549e8324cef03217a9124062dca8f',
+    from: 'backend/src/vendor/pawlegends-sim/v15',
+    bundle: 'fe02ce39a1709cba756f26883188410aa9972c9ffdfd9c6554dc23960d76638a',
+    extra: Object.freeze(['forfeit-replay.fixture.json', 'dog-replay.fixture.json', 'new-dog-replay.fixture.json']),
   }),
 ]);
 
