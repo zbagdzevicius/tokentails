@@ -245,6 +245,21 @@ export class Music {
     }
   }
 
+  /**
+   * PERF-IOS P1-6: hidden page or backgrounded app: stop the 60 ms scheduler (it built 5–18 nodes a second); on
+   * return it picks up a beat later instead of catching up on every missed step.
+   */
+  setHidden(hidden: boolean): void {
+    if (hidden) {
+      if (this.timer) clearInterval(this.timer);
+      this.timer = null;
+      return;
+    }
+    if (!this.running || !this.ac || this.timer) return;
+    this.nextAt = this.ac.currentTime + 0.1;
+    this.timer = setInterval(() => this.schedule(), 60);
+  }
+
   /** Fade out and stop scheduling. */
   stop(): void {
     this.running = false;

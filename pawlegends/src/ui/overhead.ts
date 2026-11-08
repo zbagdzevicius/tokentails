@@ -12,6 +12,7 @@
  * Names: the player's plate reads "You"; when the same hero plays on both sides (bots may mirror a pick, POC.md
  * §6.8), the enemy copy carries its team name ("Woof Sage"), so two Sages never share one label.
  */
+import { viewport } from '../render/perf/viewport';
 import * as THREE from 'three';
 import { BuffFlag } from '../sim/api';
 import type { ViewEntity, ViewFrame } from '../render/interp';
@@ -380,10 +381,17 @@ export class Overhead {
     this.g = this.canvas.getContext('2d');
   }
 
+  /**
+   * PERF-IOS P1-4: the backing store's DPR cap: 2 on a desktop, 1.5 on a phone (it was 2: 1704×786, 2.6× the 3D
+   * canvas, cleared and redrawn every frame on the CPU), 1.25 when the thermal governor asks.
+   */
+  maxDpr = 2;
+
   private resize(): void {
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
-    const w = window.innerWidth;
-    const h = window.innerHeight;
+    const v = viewport();
+    const dpr = Math.min(this.maxDpr, v.dpr);
+    const w = v.w;
+    const h = v.h;
     if (w === this.w && h === this.h && dpr === this.dpr) return;
     this.w = w;
     this.h = h;

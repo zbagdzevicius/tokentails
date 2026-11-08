@@ -696,7 +696,8 @@ export class Hud {
     if (!el) return;
     const c = chargeRing(me);
     if ((el.dataset.state ?? '') !== c.state) el.dataset.state = c.state;
-    el.style.setProperty('--left', c.frac.toFixed(3));
+    const left = c.frac.toFixed(3);
+    if (el.style.getPropertyValue('--left') !== left) el.style.setProperty('--left', left);
     const t = this.root.querySelector<HTMLElement>('.pl-portrait .charge-t');
     if (t) this.set('charge', t, c.state === 'lockout' ? String(c.secs) : '');
   }
@@ -704,7 +705,8 @@ export class Hud {
   update(me: EntitySnap | null, clock: MatchClock, score: MatchScore, myTeam: number, enemyAvg = 0, chipTitle: string | null = null): void {
     this.set('clock', this.clock, fmtClock(clock.seconds));
     this.set('phase', this.phase, phaseLineShown(phaseLine(clock), chipTitle));
-    this.root.dataset.phase = clock.phase;
+    // PERF-IOS P1-5: written only on a change (the same value every frame was a style recalc every frame)
+    if (this.root.dataset.phase !== clock.phase) this.root.dataset.phase = clock.phase;
     // own team on the left
     const a = myTeam === 0 ? 0 : 1;
     this.set('k0', this.kills[0], String(score.kills[a]));
@@ -790,7 +792,8 @@ export class Hud {
       // LoL pass (lane B): a white-gold ring flash the moment a cooldown ends (once per cooldown)
       if (s.cooling && cd === 0 && !locked) this.cdFlash(s.root);
       s.cooling = cd > 0;
-      s.sweep.style.setProperty('--cd', f.toFixed(3));
+      const cdv = f.toFixed(3);
+      if (s.sweep.style.getPropertyValue('--cd') !== cdv) s.sweep.style.setProperty('--cd', cdv);
       this.set(`n${i}`, s.num, cd > 0 ? cdLabel(cd) : locked ? String(ULT_LEVEL) : '');
     }
     if (this.tipOn) this.tipRender();

@@ -1,28 +1,59 @@
 /**
- * Quality tiers (POC.md §10): PPK `QUALITY` (low / med / high) merged with the Heist FPS-probe governor
- * (pattern: catnip-heist/src/render/quality.ts). `?quality=low|med|high` forces a tier. Otherwise the renderer starts
- * on med; an FpsProbe measures ~2 s after a warm-up and drops to low under LOW_FPS, and the governor keeps watching
- * and steps down on a sustained drop. Render side only: never feeds the sim.
+ * Quality tiers (POC.md §10): PPK `QUALITY` (low / med / high) merged with the Heist FPS-probe pattern
+ * (catnip-heist/src/render/quality.ts). `?quality=low|med|high` forces a tier. Otherwise the renderer starts on med
+ * and an FpsProbe measures the first seconds **of the first match** (not the title screen, which every phone passed)
+ * and drops to low under LOW_FPS. Render side only: never feeds the sim.
  *
- * Low: DPR 1.25, no shadows, no bloom, no outlines.
+ * PERF-IOS (docs/plans/moba/PERF-IOS.md): `tierSettings(tier, { phone, step })` also applies
+ * - the phone profile (render/perf/device.ts): Medium's look with a 512² sun shadow map drawn every second frame, the
+ *   outline hull on the own hero and enemies only, the far forest at half, the Low particle budget, the overhead canvas
+ *   at DPR 1.5 and the minimap at 15 Hz;
+ * - the thermal governor's step (render/perf/governor.ts): shadows → lighter overlay → Low → 30 fps → resolution.
+ * The tier is remembered per device in localStorage (a player's Settings choice, or the probe's result).
+ *
+ * Low: DPR 1.25, no shadows, no bloom, no outlines (on a phone, the own hero and enemies keep theirs).
  */
 import { QUALITY } from './ppk/core/config.js';
+import { GOV_STEP } from './perf/governor';
 
 export type QualityTier = 'low' | 'med' | 'high';
 export const TIERS: readonly QualityTier[] = ['low', 'med', 'high'];
 
-/** Average fps under which the probe and the governor drop a tier. */
+/** Average fps under which the probe drops a tier. */
 export const LOW_FPS = 42;
 
+/** Which heroes draw the outline hull: everyone, the own hero and enemies ("key"), the own hero, or none. */
+export type OutlineScope = 'all' | 'key' | 'own' | 'none';
+
 export interface TierSettings {
+  /** The effective tier (the governor's Low step makes it 'low'). */
   tier: QualityTier;
   maxDpr: number;
   shadows: boolean;
   bloom: boolean;
+  /** Any outline hull at all (outlineScope !== 'none'). */
   outlines: boolean;
+  outlineScope: OutlineScope;
   antialias: boolean;
-  /** MAP-GAPS A23: the sun's shadow map size (px square): 2048 on High, 1024 below. */
+  /** MAP-GAPS A23: the sun's shadow map size (px square): 2048 on High, 1024 below, 512 on a phone. */
   shadowMap: number;
+  /** The shadow map is redrawn every Nth frame (2 on a phone: 30 Hz shadows are not visible at this camera). */
+  shadowEvery: number;
+  /** Far forest at half (Low, phones, the governor's first step). */
+  forestHalf: boolean;
+  /** The particle budget tier (combat VFX). */
+  vfxTier: QualityTier;
+  /** The overhead bars-and-names canvas's backing-store DPR cap. */
+  overheadDpr: number;
+  /** Minimap redraws a second. */
+  minimapHz: number;
+  /** The match frame cap (the governor's 30 fps step). */
+  fpsCap: number;
+  /** Drawing-buffer scale on top of maxDpr (dynamic resolution, the governor's last steps). */
+  resScale: number;
+  phone: boolean;
+  /** The governor step applied (0 = none). */
+  step: number;
 }
 
 interface PpkQuality {
@@ -32,19 +63,57 @@ interface PpkQuality {
   outline?: string;
 }
 
-/** Settings for a tier: PPK values where they exist, the §10 Low rules always. */
-export function tierSettings(tier: QualityTier): TierSettings {
+export interface ProfileOpts {
+  phone?: boolean;
+  step?: number;
+}
+
+function baseTier(tier: QualityTier, phone: boolean): TierSettings {
   const q = ((QUALITY as Record<string, PpkQuality | undefined>)[tier] ?? {}) as PpkQuality;
-  if (tier === 'low') return { tier, maxDpr: 1.25, shadows: false, bloom: false, outlines: false, antialias: false, shadowMap: 1024 };
+  const common = { fpsCap: 60, resScale: 1, phone, step: 0, minimapHz: phone ? 15 : 30, overheadDpr: phone ? 1.5 : 2 };
+  if (tier === 'low') {
+    const outlineScope: OutlineScope = phone ? 'own' : 'none';
+    return { ...common, tier, maxDpr: 1.25, shadows: false, bloom: false, outlines: outlineScope !== 'none', outlineScope, antialias: false, shadowMap: 1024, shadowEvery: 1, forestHalf: true, vfxTier: 'low' };
+  }
+  const outlines = (q.outline ?? 'none') !== 'none';
+  const phoneMed = phone && tier === 'med';
+  const outlineScope: OutlineScope = !outlines ? 'none' : phoneMed ? 'key' : 'all';
   return {
+    ...common,
     tier,
     maxDpr: Math.max(1.25, q.maxDpr ?? 1.5),
     shadows: (q.shadows ?? 'none') !== 'none',
-    bloom: tier === 'high' && q.cinematic !== false,
-    outlines: (q.outline ?? 'none') !== 'none',
+    bloom: tier === 'high' && q.cinematic !== false && !phone,
+    outlines: outlineScope !== 'none',
+    outlineScope,
     antialias: true,
-    shadowMap: tier === 'high' ? 2048 : 1024,
+    shadowMap: tier === 'high' ? (phone ? 1024 : 2048) : phone ? 512 : 1024,
+    shadowEvery: phone ? 2 : 1,
+    forestHalf: phoneMed,
+    vfxTier: phoneMed ? 'low' : tier,
   };
+}
+
+/** Settings for a tier: PPK values where they exist, the §10 Low rules always, then the phone profile and the step. */
+export function tierSettings(tier: QualityTier, o: ProfileOpts = {}): TierSettings {
+  const phone = o.phone === true;
+  const step = Math.max(0, Math.min(6, (o.step ?? 0) | 0));
+  let s = baseTier(step >= GOV_STEP.lowTier ? 'low' : tier, phone);
+  if (step >= GOV_STEP.lowTier && s.outlineScope === 'none') s = { ...s, outlineScope: 'own', outlines: true };
+  s.step = step;
+  if (step >= GOV_STEP.noShadows) {
+    s.shadows = false;
+    s.forestHalf = true;
+  }
+  if (step >= GOV_STEP.lightOverlay) {
+    s.overheadDpr = Math.min(s.overheadDpr, 1.25);
+    s.minimapHz = Math.min(s.minimapHz, 10);
+    s.vfxTier = 'low';
+  }
+  if (step >= GOV_STEP.fps30) s.fpsCap = 30;
+  if (step >= GOV_STEP.res70) s.resScale = 0.7;
+  else if (step >= GOV_STEP.res85) s.resScale = 0.85;
+  return s;
 }
 
 /** Forced tier from the URL, or null for auto. */
@@ -59,30 +128,37 @@ export function qualityOverride(search: string = typeof location !== 'undefined'
 
 const KEY = 'pawlegends.quality';
 
-export function rememberedTier(): QualityTier | null {
-  try {
-    const v = sessionStorage.getItem(KEY);
-    return v === 'low' || v === 'med' || v === 'high' ? v : null;
-  } catch {
-    return null;
-  }
+export interface RememberedTier {
+  tier: QualityTier;
+  /** 'user': chosen in Settings (never raised by the game); 'probe': the first match's measurement. */
+  by: 'user' | 'probe';
 }
 
-export function rememberTier(t: QualityTier): void {
+export function rememberedTier(): RememberedTier | null {
   try {
-    sessionStorage.setItem(KEY, t);
+    const v = JSON.parse(localStorage.getItem(KEY) ?? 'null') as Partial<RememberedTier> | null;
+    if (v && (v.tier === 'low' || v.tier === 'med' || v.tier === 'high') && (v.by === 'user' || v.by === 'probe')) return { tier: v.tier, by: v.by };
+  } catch {
+    /* blocked or the old plain value */
+  }
+  return null;
+}
+
+export function rememberTier(t: QualityTier, by: RememberedTier['by']): void {
+  try {
+    localStorage.setItem(KEY, JSON.stringify({ tier: t, by }));
   } catch {
     /* storage blocked */
   }
 }
 
-/** Starting tier: URL override, else this session's probe result, else med with a probe. */
+/** Starting tier: URL override, else this device's remembered tier, else med with a probe (run in the first match). */
 export function startTier(search?: string): { tier: QualityTier; probe: FpsProbe | null } {
   const forced = qualityOverride(search);
   if (forced) return { tier: forced, probe: null };
   const r = rememberedTier();
-  if (r) return { tier: r, probe: null };
-  return { tier: 'med', probe: new FpsProbe() };
+  if (r) return { tier: r.tier, probe: null };
+  return { tier: 'med', probe: new FpsProbe(4, 2) };
 }
 
 /**
@@ -122,29 +198,5 @@ export class FpsProbe {
     if (this.slowRun >= 4) this.result = 'low';
     else if (this.measured >= this.seconds) this.result = this.fps < this.lowFps ? 'low' : 'ok';
     return this.result;
-  }
-}
-
-/** After the probe: a sustained drop (window average under LOW_FPS for `window` s) steps one tier down. */
-export class QualityGovernor {
-  private acc = 0;
-  private frames = 0;
-
-  constructor(
-    private readonly window = 4,
-    private readonly lowFps = LOW_FPS,
-  ) {}
-
-  /** Returns the tier to switch to, or null to stay. */
-  sample(dt: number, tier: QualityTier): QualityTier | null {
-    if (!(dt > 0) || dt > 1) return null;
-    this.acc += dt;
-    this.frames++;
-    if (this.acc < this.window) return null;
-    const fps = this.frames / this.acc;
-    this.acc = 0;
-    this.frames = 0;
-    if (fps >= this.lowFps || tier === 'low') return null;
-    return TIERS[TIERS.indexOf(tier) - 1];
   }
 }

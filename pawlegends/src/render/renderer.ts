@@ -10,6 +10,8 @@ import { RENDER } from './ppk/core/config.js';
 import { installToon } from './toon.js';
 import { setOutlineViewport } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
+import { isPhone } from './perf/device';
+import { shellPlatform } from '../app/platform';
 
 /**
  * Feel pass B1: the match camera's distance, pitch, FOV and the hero's screen spot come from camera/frame.ts (a fixed,
@@ -74,7 +76,13 @@ export interface GameRenderer {
   active: THREE.Scene;
   /** When set, places the camera itself instead of the iso rig (lobby turntable). */
   place: ((camera: THREE.PerspectiveCamera) => void) | null;
+  /** The tier with this device's profile (phone or not) and governor step 0. */
   setTier(tier: QualityTier): void;
+  /** PERF-IOS: apply full settings (tier + phone profile + governor step, render/quality.ts tierSettings). */
+  apply(settings: TierSettings): void;
+  /** The canvas's CSS size, cached on resize (reading clientWidth/Height every frame forced layout). */
+  readonly cssW: number;
+  readonly cssH: number;
   resize(): void;
   render(): void;
   dispose(): void;
@@ -82,8 +90,9 @@ export interface GameRenderer {
 
 export function createRenderer(container: HTMLElement, tier: QualityTier): GameRenderer {
   installToon();
-  const settings0 = tierSettings(tier);
-  const renderer = new THREE.WebGLRenderer({ antialias: settings0.antialias, powerPreference: 'high-performance' });
+  const settings0 = tierSettings(tier, { phone: isPhone() });
+  // PERF-IOS P3-4: the Mac app stays on the integrated GPU of a dual-GPU Mac (no effect on an iPhone)
+  const renderer = new THREE.WebGLRenderer({ antialias: settings0.antialias, powerPreference: shellPlatform() === 'mac' ? 'default' : 'high-performance' });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.NeutralToneMapping;
   renderer.shadowMap.type = THREE.PCFShadowMap;
@@ -140,6 +149,8 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   const focus = new THREE.Vector3(10, 0, -30);
   let vw = 1;
   let vh = 1;
+  // PERF-IOS P2-2: on a phone the shadow map is redrawn every `shadowEvery` frames (renderer.shadowMap.autoUpdate off)
+  let shadowFrame = 0;
 
   const gr: GameRenderer = {
     renderer,
@@ -153,16 +164,29 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
     preRender: null,
     active: scene,
     place: null,
+    get cssW() {
+      return vw;
+    },
+    get cssH() {
+      return vh;
+    },
     setTier(t) {
-      gr.settings = tierSettings(t);
+      gr.apply(tierSettings(t, { phone: isPhone() }));
+    },
+    apply(next) {
+      gr.settings = next;
       // MAP-GAPS A23: the shadow map size per tier (a new size reallocates the map)
       if (sun.shadow.mapSize.x !== gr.settings.shadowMap) {
         sun.shadow.mapSize.set(gr.settings.shadowMap, gr.settings.shadowMap);
         sun.shadow.map?.dispose();
         sun.shadow.map = null;
       }
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, gr.settings.maxDpr));
+      // PERF-IOS: the tier's DPR cap × the governor's resolution scale (dynamic resolution), never under 0.75
+      renderer.setPixelRatio(Math.max(0.75, Math.min(window.devicePixelRatio || 1, gr.settings.maxDpr) * gr.settings.resScale));
       renderer.shadowMap.enabled = gr.settings.shadows;
+      renderer.shadowMap.autoUpdate = gr.settings.shadowEvery <= 1;
+      renderer.shadowMap.needsUpdate = true;
+      shadowFrame = 0;
       sun.castShadow = gr.settings.shadows;
       gr.resize();
     },
@@ -180,6 +204,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
         camera.clearViewOffset();
         gr.place(camera);
         camera.updateProjectionMatrix();
+        if (!renderer.shadowMap.autoUpdate) renderer.shadowMap.needsUpdate = true;
         renderer.render(gr.active, camera);
         return;
       }
@@ -192,6 +217,9 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
         sun.position.set(focus.x - 20, 40, focus.z + 25);
       }
       gr.preRender?.(camera);
+      if (gr.settings.shadows && !renderer.shadowMap.autoUpdate) {
+        if (shadowFrame++ % gr.settings.shadowEvery === 0) renderer.shadowMap.needsUpdate = true;
+      }
       renderer.render(gr.active, camera);
     },
     dispose() {
