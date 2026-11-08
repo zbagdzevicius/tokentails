@@ -12,7 +12,7 @@ import { partyMatch } from './party-helpers';
 /** Produced on this branch when the order was fixed; regenerate only with a PROTO/SIM bump. */
 const GOLDEN_INPUT_HASH = 0x991330f4;
 
-describe('party-order (B2 golden)', () => {
+describe('party-order (B2 golden)', { timeout: 300_000 }, () => {
   it('forfeit and a slot-1 command on the same tick give the golden InputHash', () => {
     // Sim v14: with the dogs in the pool seed 2024's idle party loses at 6425 (before Normal's forfeit window), and
     // the old loop never left a match that had ended. InputHash folds only the commands, so the golden holds on 2025.

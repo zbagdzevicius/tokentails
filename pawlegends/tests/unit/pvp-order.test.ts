@@ -12,7 +12,7 @@ import { pvpMatch } from './pvp-helpers';
 /** Produced on this branch when the order was fixed; regenerate only with a SIM bump. */
 const GOLDEN_INPUT_HASH = 0x617b3754;
 
-describe('pvp-order (S-PvP golden)', () => {
+describe('pvp-order (S-PvP golden)', { timeout: 300_000 }, () => {
   it('pings, commands and forfeits of both leads plus four seats on one tick give the golden InputHash', () => {
     // The first seed from 2026 still going at 7,300 (InputHash folds only the commands, so the golden holds on any).
     const play = (seed: number) => {

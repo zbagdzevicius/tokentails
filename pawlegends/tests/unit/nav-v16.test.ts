@@ -297,3 +297,4 @@ describe('B6 Pack Hunt hops and tether clamps respect walls', { timeout: 120_000
     expect(dist2(w.x[3], w.y[3], 13000, 30000)).toBeLessThanOrEqual(4000 * 4000);
   });
 });
+
