@@ -2,7 +2,8 @@
  * Pudding, the shared objective (POC.md §5). Wild at the river from 5:00: he does not attack, every 4 s he does a
  * scared hop (0.8 s telegraph, then a 4 m knockback ring), and damage fills his calm meter (his HP while wild).
  * The team that lands the calming hit gets Pudding's Courage: he joins that team's next wave in the lane with the
- * most enemy structures left (tie: Sunny), walks with it, and breathes on the nearest enemy tower or core within 7 m
+ * most enemy structures left (sim v16, MAP-GAPS B13: tie, the lane whose outermost enemy structure has less HP; tie, a
+ * seeded draw; chosen on the calm tick), walks with it, and breathes on the nearest enemy tower or core within 7 m
  * for 200 every 2 s. He leaves when that wave is gone or the enemy dealt him 3,000 damage (his escort HP), and comes
  * back wild 2:30 after he left.
  *
@@ -23,6 +24,7 @@ import { clearStatus } from '../effects/status';
 import { knockback } from '../effects/knockback';
 import { dealDamage } from '../combat/damage';
 import { radiusOf } from './kinds';
+import { Rng } from '../rng';
 
 const out = new Int32Array(3);
 const P = RANGE.pudding;
@@ -67,6 +69,34 @@ function enemyStructuresIn(w: World, team: number, lane: number): number {
   return n;
 }
 
+/** HP of `team`'s enemy's outermost standing structure in `lane` (the core once both towers fell). */
+function outermostEnemyHp(w: World, team: number, lane: number): number {
+  const base = RANGE.towers + (1 - team) * TOWER_SPOTS.length;
+  for (let pass = 0; pass < 2; pass++) {
+    const tier = pass === 0 ? 'outer' : 'inner';
+    for (let k = 0; k < TOWER_SPOTS.length; k++) {
+      if (LANES.indexOf(TOWER_SPOTS[k].lane) === lane && TOWER_SPOTS[k].tier === tier && w.alive[base + k] === 1) return w.hp[base + k];
+    }
+  }
+  return w.hp[RANGE.cores + 1 - team];
+}
+
+/**
+ * Sim v16 (MAP-GAPS B13): the escort lane, chosen on the calm tick: the lane with the most enemy structures left;
+ * tie, the one whose outermost enemy structure has less HP; tie, a draw from its own fork of the seed (one per
+ * spawn), so the match stream never shifts and no side always gets Sunny.
+ */
+function escortLane(m: MatchHandle, team: number): number {
+  const w = m.world;
+  const a = enemyStructuresIn(w, team, 0);
+  const b = enemyStructuresIn(w, team, 1);
+  if (a !== b) return a > b ? 0 : 1;
+  const ha = outermostEnemyHp(w, team, 0);
+  const hb = outermostEnemyHp(w, team, 1);
+  if (ha !== hb) return ha < hb ? 0 : 1;
+  return new Rng(m.config.seed >>> 0).fork(`pudlane:${w.globals[G.PudSpawns]}`).int(LANES.length);
+}
+
 /** Step 3. Spawns, the hop, and the escort's wave check. `waveSpawned` = a wave spawned this tick. */
 export function stepPuddingTimeline(m: MatchHandle, waveSpawned: boolean): void {
   const w = m.world;
@@ -94,8 +124,7 @@ export function stepPuddingTimeline(m: MatchHandle, waveSpawned: boolean): void 
   if (state === PUD_STATE.Waiting) {
     if (!waveSpawned) return;
     const team = w.globals[G.PudTeam];
-    let lane = 0;
-    for (let l = 1; l < LANES.length; l++) if (enemyStructuresIn(w, team, l) > enemyStructuresIn(w, team, lane)) lane = l;
+    const lane = w.globals[G.PudLane];
     const path = LANE_PATHS[team][lane];
     const dx = path.x[1] - path.x[0];
     const dy = path.y[1] - path.y[0];
@@ -105,7 +134,6 @@ export function stepPuddingTimeline(m: MatchHandle, waveSpawned: boolean): void 
     w.waypoint[P] = 1;
     w.lane[P] = lane;
     w.facing[P] = iatan2(dy, dx);
-    w.globals[G.PudLane] = lane;
     w.globals[G.PudWave] = w.globals[G.Wave];
     w.globals[G.PudState] = PUD_STATE.Escort;
     w.globals[G.PudBreath] = PUDDING.escortBreathEvery;
@@ -164,6 +192,7 @@ export function onPuddingDown(m: MatchHandle): void {
   }
   w.globals[G.PudState] = PUD_STATE.Waiting;
   w.globals[G.PudTeam] = team;
+  w.globals[G.PudLane] = escortLane(m, team);
   m.events.push({ type: 'pudding', tick: w.globals[G.Tick], what: 'calmed', team: team as Team });
   // Sim v12: every hero of the calming team gets FISH.pudding.
   for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.kind[h] === Kind.Hero && w.team[h] === team) grantFish(m, h, FISH.pudding, 'pudding');
