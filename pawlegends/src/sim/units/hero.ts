@@ -3,7 +3,7 @@
  * movement and CC, Nap (recall), death and respawn. Abilities resolve through heroes/kit.ts. Bots (slots 1..5) are
  * M3 and idle until then, but they still auto-attack what walks into their attack range.
  */
-import { FOUNTAIN, HERO_SPAWNS, MAP, NAV, RADIUS, mirrorX } from '../../data/map';
+import { CAPS, FOUNTAIN, HERO_SPAWNS, MAP, NAV, RADIUS, mirrorX } from '../../data/map';
 import { HERO_RULES, ZOOMIES } from '../../data/xp';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { NO_TARGET, Op, type Command } from '../api';
@@ -264,90 +264,119 @@ function napStep(w: World, id: number): void {
   toSpawn(w, id);
 }
 
-/** Step 4 for heroes: respawn timers, CC, forced movement, casts walking in, orders, movement, swing starts. */
+/** Start-of-tick hero positions and each hero's staged step (scratch, never carried between ticks). */
+const tickX = new Int32Array(CAPS.heroes);
+const tickY = new Int32Array(CAPS.heroes);
+const nextX = new Int32Array(CAPS.heroes);
+const nextY = new Int32Array(CAPS.heroes);
+
+/**
+ * Step 4 for heroes: respawn timers, CC, forced movement, casts walking in, orders, movement, swing starts.
+ * Sim v16 (PvP side bias): every hero reads the others where the tick started. Each hero steps with the others at their
+ * start-of-tick positions, its own step is staged, and all steps land together, so team 1 (higher ids) no longer sees
+ * team 0's step first and starts its swing a tick earlier. During this step a hero writes only its own position.
+ */
 export function stepHeroes(m: MatchHandle): void {
   const w = m.world;
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-    if (w.kind[id] !== Kind.Hero) continue;
-    if (w.alive[id] === 0) {
-      if (w.timer[id] > 0) w.timer[id]--;
-      if (w.timer[id] === 0) {
-        placeAtFountain(w, id);
-        m.events.push({ type: 'buff', tick: w.globals[G.Tick], id, kind: 'zoomies', ticks: ZOOMIES.ticks });
-      }
-      continue;
-    }
+    tickX[id - RANGE.heroes] = w.x[id];
+    tickY[id - RANGE.heroes] = w.y[id];
+  }
+  for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+    const k = id - RANGE.heroes;
+    stepHero(m, id);
+    nextX[k] = w.x[id];
+    nextY[k] = w.y[id];
+    w.x[id] = tickX[k];
+    w.y[id] = tickY[k];
+  }
+  for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+    w.x[id] = nextX[id - RANGE.heroes];
+    w.y[id] = nextY[id - RANGE.heroes];
+  }
+}
+
+function stepHero(m: MatchHandle, id: number): void {
+  const w = m.world;
+  if (w.kind[id] !== Kind.Hero) return;
+  if (w.alive[id] === 0) {
     if (w.timer[id] > 0) w.timer[id]--;
-    if (w.fmKind[id] !== FM.None) {
-      forcedStep(m, id);
-      continue;
+    if (w.timer[id] === 0) {
+      placeAtFountain(w, id);
+      m.events.push({ type: 'buff', tick: w.globals[G.Tick], id, kind: 'zoomies', ticks: ZOOMIES.ticks });
     }
-    if (w.stunT[id] > 0) {
+    return;
+  }
+  if (w.timer[id] > 0) w.timer[id]--;
+  if (w.fmKind[id] !== FM.None) {
+    forcedStep(m, id);
+    return;
+  }
+  if (w.stunT[id] > 0) {
+    w.state[id] = UnitState.Idle;
+    return;
+  }
+  if (w.fearT[id] > 0) {
+    fleeStep(w, m.grid, id);
+    w.state[id] = UnitState.Moving;
+    return;
+  }
+  // Sim v14: Bravo playing dead and Chili in his purse stay put and start nothing (orders wait).
+  if (kitBusy(w, id)) {
+    w.state[id] = UnitState.Idle;
+    return;
+  }
+  if (w.napT[id] > 0) {
+    napStep(w, id);
+    return;
+  }
+  if (w.castPhase[id] === 2) {
+    if (w.castT[id] > 0) w.state[id] = UnitState.Casting;
+    return;
+  }
+  if (w.castPhase[id] === 1) {
+    if (!walkInDone(m, id)) chase(m, id, walkInX(w, id), walkInY(w, id));
+    return;
+  }
+  if (w.windup[id] > 0) return; // mid-swing
+  const order = w.order[id];
+  if (order === Order.Attack) {
+    const t = w.target[id];
+    if (t < 0 || !targetable(w, t, w.team[id])) {
+      w.order[id] = Order.None;
+      w.target[id] = -1;
       w.state[id] = UnitState.Idle;
-      continue;
+      return;
     }
-    if (w.fearT[id] > 0) {
-      fleeStep(w, m.grid, id);
-      w.state[id] = UnitState.Moving;
-      continue;
-    }
-    // Sim v14: Bravo playing dead and Chili in his purse stay put and start nothing (orders wait).
-    if (kitBusy(w, id)) {
-      w.state[id] = UnitState.Idle;
-      continue;
-    }
-    if (w.napT[id] > 0) {
-      napStep(w, id);
-      continue;
-    }
-    if (w.castPhase[id] === 2) {
-      if (w.castT[id] > 0) w.state[id] = UnitState.Casting;
-      continue;
-    }
-    if (w.castPhase[id] === 1) {
-      if (!walkInDone(m, id)) chase(m, id, walkInX(w, id), walkInY(w, id));
-      continue;
-    }
-    if (w.windup[id] > 0) continue; // mid-swing
-    const order = w.order[id];
-    if (order === Order.Attack) {
-      const t = w.target[id];
-      if (t < 0 || !targetable(w, t, w.team[id])) {
-        w.order[id] = Order.None;
-        w.target[id] = -1;
-        w.state[id] = UnitState.Idle;
-        continue;
-      }
+    if (inAttackRange(w, id, t)) swingAt(w, id, t);
+    else chase(m, id, w.x[t], w.y[t]);
+    return;
+  }
+  if (order === Order.AttackMove) {
+    let t = w.target[id];
+    if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, HERO_RULES.acquireRange, false);
+    w.target[id] = t;
+    if (t >= 0) {
       if (inAttackRange(w, id, t)) swingAt(w, id, t);
       else chase(m, id, w.x[t], w.y[t]);
-      continue;
+      return;
     }
-    if (order === Order.AttackMove) {
-      let t = w.target[id];
-      if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, HERO_RULES.acquireRange, false);
-      w.target[id] = t;
-      if (t >= 0) {
-        if (inAttackRange(w, id, t)) swingAt(w, id, t);
-        else chase(m, id, w.x[t], w.y[t]);
-        continue;
-      }
-      if (walk(m, id)) {
-        w.order[id] = Order.None;
-        w.state[id] = UnitState.Idle;
-      }
-      continue;
+    if (walk(m, id)) {
+      w.order[id] = Order.None;
+      w.state[id] = UnitState.Idle;
     }
-    if (order === Order.Move) {
-      if (walk(m, id)) {
-        w.order[id] = Order.None;
-        w.state[id] = UnitState.Idle;
-      }
-      continue;
-    }
-    // Idle: hit whatever is already in attack range (no chasing).
-    const t = nearestEnemy(w, id, 0, true);
-    w.target[id] = t;
-    if (t >= 0) swingAt(w, id, t);
-    else w.state[id] = UnitState.Idle;
+    return;
   }
+  if (order === Order.Move) {
+    if (walk(m, id)) {
+      w.order[id] = Order.None;
+      w.state[id] = UnitState.Idle;
+    }
+    return;
+  }
+  // Idle: hit whatever is already in attack range (no chasing).
+  const t = nearestEnemy(w, id, 0, true);
+  w.target[id] = t;
+  if (t >= 0) swingAt(w, id, t);
+  else w.state[id] = UnitState.Idle;
 }

@@ -9,6 +9,8 @@
  * Sim v16: the S-PvP commit kept this v15 golden byte for byte (tests/unit/pvp-identity.test.ts, now retired); each
  * MAP-GAPS B commit changes single-player play and regenerates it from that commit's sim and its live v16 fixtures
  * (run `npm run vendor-sim` first, then write the golden).
+ * The v16 release-gate fix (every hero steps against start-of-tick positions, plus the B3 hero retune) changes every
+ * match too and regenerated it the same way.
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
