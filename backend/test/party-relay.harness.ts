@@ -11,6 +11,7 @@ import { PartyRelay } from '../src/pawlegends/party/party-relay';
 import { PartyTicketService } from '../src/pawlegends/party/party-ticket.service';
 import { RefereePool } from '../src/pawlegends/party/referee-pool';
 import { MemoryRoomStore } from '../src/pawlegends/party/room-store';
+import { PAWLEGENDS_SIM_INFO } from '../src/pawlegends/pawlegends-sim-info';
 
 process.env.PAWLEGENDS_PARTY_TICKET_SECRET = randomBytes(24).toString('hex');
 const port = Number(process.env.PORT || 3105);
@@ -21,6 +22,13 @@ const server = createServer((req, res) => {
         res.setHeader('content-type', 'application/json');
         res.setHeader('access-control-allow-origin', '*');
         res.end(JSON.stringify({ ok: true, ...relay.counters() }));
+        return;
+    }
+    // the game's PvP capability check (pawlegends/src/meta/pvpCapability.ts)
+    if (req.url === '/pawlegends/sim') {
+        res.setHeader('content-type', 'application/json');
+        res.setHeader('access-control-allow-origin', '*');
+        res.end(JSON.stringify(PAWLEGENDS_SIM_INFO));
         return;
     }
     res.statusCode = 404;

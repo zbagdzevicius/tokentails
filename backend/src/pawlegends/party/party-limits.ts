@@ -45,7 +45,8 @@ export const PARTY_LIMITS = Object.freeze({
     partyBroadcastHz: 10,
     resyncsPerSlot: 3,
     resyncsPerRoom: 6,
-    roomLogBytes: 160 * 1024,
+    /** V16.md §4.2: a 6-human PvP room logs more per turn (160 KB was the 3-human party budget). */
+    roomLogBytes: 256 * 1024,
     partyIdleMs: 30 * 60_000,
     partyHardMaxMs: 3 * 3600_000,
     lobbyResumeMs: 10 * 60_000,

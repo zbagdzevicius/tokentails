@@ -41,8 +41,8 @@ const turn: TurnFrame = {
 };
 
 describe('net-proto', () => {
-  it('PROTO is 2 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
-    expect(PROTO).toBe(2);
+  it('PROTO is 3 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
+    expect(PROTO).toBe(3);
     for (let op = 1; op < CMD_SIZE.length; op++) expect(CMD_SIZE[op]).toBe(OP_SIZE[op]);
     expect(Object.keys(OP_SIZE)).toHaveLength(CMD_SIZE.length - 1);
   });
@@ -54,6 +54,41 @@ describe('net-proto', () => {
     expect(hex(encodeEcho({ clientMs: 1, serverMs: 2 }))).toBe('830100000002000000');
     expect(hex(encodeTurn(turn))).toBe('81ac0204050c07020001780050001a0402c800280004');
     expect(hex(encodeCatchup(10, 11, true, encodeTurnBody({ turn: 10, modeMask: 0, acks: [], entries: [] })))).toBe('820a0b010a000000');
+  });
+
+  it('PROTO 3 PvP (V16.md §4.3): six slots on the wire; a co-op turn keeps its PROTO 2 bytes', () => {
+    // the PROTO 2 golden above is unchanged; a PvP turn sets mode and ack bits up to slot 5
+    const pvp: TurnFrame = {
+      turn: 7,
+      modeMask: 0b100100,
+      acks: [1, undefined, undefined, 3, undefined, 9],
+      entries: [
+        { slot: 3, sub: 0, pilot: false, cmd: move },
+        { slot: 5, sub: 1, pilot: true, cmd: cast },
+      ],
+    };
+    expect(hex(encodeTurnBody(pvp))).toBe('072429010309020301780050001d0402c800280004');
+    const back = decodeTurnBody(encodeTurnBody(pvp));
+    expect(back.modeMask).toBe(0b100100);
+    expect(back.acks[3]).toBe(3);
+    expect(back.acks[5]).toBe(9);
+    expect(back.entries.map((e) => e.slot)).toEqual([3, 5]);
+    // bits past slot 5 are refused
+    expect(() => decodeTurnBody(new Uint8Array([1, 0x40, 0, 0]))).toThrow(ProtoError);
+    expect(() => decodeTurnBody(new Uint8Array([1, 0, 0x40, 0]))).toThrow(ProtoError);
+    expect(() => decodeTurnBody(new Uint8Array([1, 0, 0, 1, 6, 6]))).toThrow(ProtoError);
+    expect(MAX_FRAME[Frame.TURN]).toBe(256);
+    // the casual frames
+    expect(parseClientJson('{"t":"mm.join","queue":"casual","side":"any"}')).toEqual({ t: 'mm.join', queue: 'casual', side: 'any' });
+    expect(parseClientJson('{"t":"mm.accept","match":"abcdefghijkl","yes":true}')).toEqual({ t: 'mm.accept', match: 'abcdefghijkl', yes: true });
+    expect(() => parseClientJson('{"t":"mm.accept","match":"ABC","yes":true}')).toThrow(ProtoError);
+    expect(parseClientJson('{"t":"vote","kind":"remake","yes":true}')).toEqual({ t: 'vote', kind: 'remake', yes: true });
+    expect(() => parseClientJson('{"t":"mm.join","queue":"ranked","side":"any"}')).toThrow(ProtoError);
+    const hello = { t: 'hello', proto: 3, sim: 16, simHash: '0123456789abcdef', build: 'web.1', hint: { maxDifficulty: 'hard', newbie: false, matches: 12 } };
+    expect(parseClientJson(JSON.stringify(hello))).toEqual(hello);
+    expect(() => parseClientJson(JSON.stringify({ ...hello, hint: { ...hello.hint, matches: -1 } }))).toThrow(ProtoError);
+    expect(parseServerJson('{"t":"void","reason":"remake"}')).toEqual({ t: 'void', reason: 'remake' });
+    expect(parseServerJson('{"t":"mm.accepted","match":"abcdefghijkl","yes":2,"need":4}').t).toBe('mm.accepted');
   });
 
   it('round-trips', () => {

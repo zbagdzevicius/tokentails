@@ -23,9 +23,24 @@ export interface MmRoomMember {
     eventTick?: number;
 }
 
+/** Casual PvP: one team of a room record (V16.md §4.4). */
+export interface MmRoomTeam {
+    species: 'cat' | 'dog';
+    /** Human slots at the start. */
+    slots: number[];
+    /** The bot profile of the team's fill seats. */
+    difficulty: string;
+    /** The team's human mean rating at the start. */
+    rating: number;
+}
+
 export interface MmRoomRecord {
     _id: string;
-    queue: 'coop';
+    queue: 'coop' | 'casual';
+    /** Casual PvP: both teams (team 0 on the left), and why the room was voided (a remake: no rating, no catnip). */
+    mode?: 'casual';
+    teams?: MmRoomTeam[];
+    void?: 'remake' | null;
     region: string;
     side: 'cat' | 'dog';
     difficulty: string;
@@ -45,8 +60,14 @@ export interface MmRoomStore {
     get(id: string): Promise<MmRoomRecord | null>;
     /** A backfiller took a seat. */
     addMember(id: string, member: MmRoomMember): Promise<void>;
-    /** The room ended: its events and outcome. */
-    finish(id: string, members: MmRoomMember[], outcome: 'won' | 'lost' | null, endedAt: Date): Promise<void>;
+    /** The room ended: its events and outcome (team 0's view), or voided by a remake. */
+    finish(
+        id: string,
+        members: MmRoomMember[],
+        outcome: 'won' | 'lost' | null,
+        endedAt: Date,
+        voided?: 'remake' | null
+    ): Promise<void>;
     /** The mm rooms of an identity since `since`, oldest first (the leaver ladder). */
     recentFor(identityHash: string, since: Date): Promise<MmRoomRecord[]>;
 }
@@ -76,12 +97,19 @@ export class MemoryMmRoomStore implements MmRoomStore {
         this.rooms.get(id)?.members.push(clone(member));
     }
 
-    async finish(id: string, members: MmRoomMember[], outcome: 'won' | 'lost' | null, endedAt: Date): Promise<void> {
+    async finish(
+        id: string,
+        members: MmRoomMember[],
+        outcome: 'won' | 'lost' | null,
+        endedAt: Date,
+        voided?: 'remake' | null
+    ): Promise<void> {
         const r = this.rooms.get(id);
         if (!r) return;
         r.members = clone(members);
         r.outcome = outcome;
         r.endedAt = endedAt;
+        if (voided) r.void = voided;
     }
 
     async recentFor(hash: string, since: Date): Promise<MmRoomRecord[]> {
@@ -99,6 +127,17 @@ export class PawlegendsMmRoom {
 
     @Prop({ required: true, default: 'coop' })
     queue: string;
+
+    /** Casual PvP: 'casual' (absent for co-op). */
+    @Prop({ type: String, default: null })
+    mode: string | null;
+
+    @Prop({ type: [Object], default: undefined })
+    teams?: MmRoomTeam[];
+
+    /** A remake voided the room (V16.md §4.2). */
+    @Prop({ type: String, default: null })
+    void: string | null;
 
     @Prop({ required: true })
     region: string;
@@ -133,6 +172,8 @@ export class PawlegendsMmRoom {
 export const PawlegendsMmRoomSchema = SchemaFactory.createForClass(PawlegendsMmRoom);
 PawlegendsMmRoomSchema.index({ 'members.identityHash': 1, createdAt: -1 });
 PawlegendsMmRoomSchema.index({ 'members.accountId': 1 });
+// the leaver ladder and the PvP dodge reads by occupant (V16.md §4.4)
+PawlegendsMmRoomSchema.index({ 'members.accountId': 1, createdAt: -1 });
 PawlegendsMmRoomSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 86400 });
 
 @Injectable()
@@ -156,8 +197,17 @@ export class MongoMmRoomStore implements MmRoomStore {
         await this.m.updateOne({ _id: id }, { $push: { members: member } });
     }
 
-    async finish(id: string, members: MmRoomMember[], outcome: 'won' | 'lost' | null, endedAt: Date): Promise<void> {
-        await this.m.updateOne({ _id: id }, { $set: { members, outcome, endedAt } });
+    async finish(
+        id: string,
+        members: MmRoomMember[],
+        outcome: 'won' | 'lost' | null,
+        endedAt: Date,
+        voided?: 'remake' | null
+    ): Promise<void> {
+        await this.m.updateOne(
+            { _id: id },
+            { $set: { members, outcome, endedAt, ...(voided ? { void: voided } : {}) } }
+        );
     }
 
     async recentFor(hash: string, since: Date): Promise<MmRoomRecord[]> {

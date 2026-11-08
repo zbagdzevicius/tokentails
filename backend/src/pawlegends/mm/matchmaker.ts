@@ -3,13 +3,17 @@
  * room.ts. No I/O, no timers; time comes in through `now`, ids through `newId`, JSON in and out. The relay glue
  * (mm-bridge.ts) owns the sockets, calls `tick()` every 500 ms and turns its matches into parties.
  *
+ * M1b casual (docs/plans/moba/V16.md §4.1, casual.ts): two teams of up to three humans (slots 0..2 and 3..5), bots in
+ * the empty seats after 30 s, the left-side species alternating per pool, a move to co-op at 45 s without an opponent.
+ *
  * M1a co-op: up to three humans on one team (slots 0..2), the enemy is bots. Entries match only with the same region,
  * queue and sim (rooms are pinned to one sim). Cats and dogs never share a team; `any` joins either. A friend party of
  * 1 or 2 queues as one entry. Empty teammate seats are plain sim bots (§2.5).
  */
 import { randomBytes } from 'crypto';
+import { bestCasual, fillDifficultyFor, team0SpeciesNext, teamRating, type CasualPlan, type Species } from './casual';
 import { difficultyAllowed, matchDifficulty, matchSide, partyRating, sidesCompatible } from './fill';
-import { fillAtMs, MM_LIMITS, pairFillMs } from './mm-limits';
+import { fillAtMs, MM_CASUAL, MM_LIMITS, pairFillMs } from './mm-limits';
 
 export type MmSideChoice = 'cat' | 'dog' | 'any';
 
@@ -33,7 +37,12 @@ export interface MmEntry {
     /** A friend party queued as one entry (its leader's party), else null. */
     partyId: string | null;
     members: MmMember[];
-    queue: 'coop';
+    /** 'casual': PvP (solo, duo or trio). A casual entry moves to 'coop' at 45 s without an opponent. */
+    queue: 'coop' | 'casual';
+    /** Keep waiting: a casual entry that never moves to co-op by itself. */
+    keepCasual?: boolean;
+    /** The low-priority wait before the co-op switch's grace (restored by Keep waiting). */
+    penaltyUntilMs?: number;
     side: MmSideChoice;
     region: string;
     /** `${simVersion}:${simHash}`. */
@@ -60,6 +69,21 @@ export interface MmMatch {
     waitedMs: Record<string, number>;
     /** The pool's fill band when the match formed by a bot fill (null: three humans). */
     fill: 'quiet' | 'normal' | 'busy' | null;
+    /** Casual PvP: two teams (team 0 plays on the left, slots 0..2; team 1 slots 3..5). Absent for co-op. */
+    mode?: 'casual';
+    teams?: [MmTeam, MmTeam];
+}
+
+export interface MmTeam {
+    species: Species;
+    entries: string[];
+    /** Member ids, oldest entry first (they take the team's slots in this order). */
+    members: string[];
+    humans: number;
+    bots: number;
+    /** The bot profile of this team's fill seats (from its human mean). */
+    difficulty: 'easy' | 'normal' | 'hard';
+    rating: number;
 }
 
 export interface MmBackfillSeat {
@@ -75,6 +99,10 @@ export interface MmBackfillSeat {
     /** Identity keys already in the room. */
     inRoomKeys: string[];
     sinceMs: number;
+    /** Casual PvP: only a casual solo takes it, never from the same address as the other team. */
+    queue?: 'coop' | 'casual';
+    /** Casual PvP: address keys seated on the other team. */
+    otherTeamIps?: string[];
 }
 
 export interface MmOffer {
@@ -90,6 +118,8 @@ export interface MmTick {
     /** Offers that timed out unanswered (the seat goes to the next candidate). */
     expired: MmOffer[];
     cancelled: { entry: MmEntry; reason: 'away' }[];
+    /** Casual entries that waited 45 s without an opponent and moved to the co-op pool. */
+    switched: MmEntry[];
 }
 
 export interface MmStatus {
@@ -131,6 +161,8 @@ export class Matchmaker {
     private readonly arrivals = new Map<string, { ms: number; key: string }[]>();
     /** Sides of the recent matches per region (side balance when everyone asked for either). */
     private readonly recentSides = new Map<string, ('cat' | 'dog')[]>();
+    /** Casual: the species that played on the left (team 0) in the recent matches, per pool. */
+    private readonly recentLeft = new Map<string, Species[]>();
     /** The human count of each waiting entry's best combination at the last tick (the status pips). */
     private readonly found = new Map<string, number>();
 
@@ -159,7 +191,9 @@ export class Matchmaker {
     }
 
     join(e: MmEntry): 'ok' | 'already_queued' | 'queue_full' | 'bad_entry' {
-        if (e.members.length < 1 || e.members.length > 2 || e.queue !== 'coop') return 'bad_entry';
+        const max = e.queue === 'casual' ? 3 : 2;
+        if (e.members.length < 1 || e.members.length > max || (e.queue !== 'coop' && e.queue !== 'casual'))
+            return 'bad_entry';
         if (this.entries.has(e.id)) return 'already_queued';
         for (const o of this.entries.values())
             for (const m of e.members)
@@ -193,6 +227,16 @@ export class Matchmaker {
     setSide(entryId: string, side: MmSideChoice): void {
         const e = this.entries.get(entryId);
         if (e) e.side = side;
+    }
+
+    /** Keep waiting (casual): back to the casual pool, never moved to co-op by itself again. */
+    keepCasual(entryId: string): boolean {
+        const e = this.entries.get(entryId);
+        if (!e || e.members.length > 3) return false;
+        e.queue = 'casual';
+        e.keepCasual = true;
+        if (e.penaltyUntilMs !== undefined) e.notBeforeMs = e.penaltyUntilMs;
+        return true;
     }
 
     setAway(entryId: string, away: boolean): void {
@@ -290,7 +334,7 @@ export class Matchmaker {
         const waitedMs = Math.max(0, now - e.enqueuedMs);
         const lowPriorityMs = Math.max(0, e.notBeforeMs - now);
         const lambda = this.poolRate(e);
-        const toFill = Math.max(0, fillAtMs(lambda) - waitedMs);
+        const toFill = Math.max(0, (e.queue === 'casual' ? MM_CASUAL.fillMs : fillAtMs(lambda)) - waitedMs);
         const toArrival = lambda > 0 ? 60_000 / lambda : Infinity;
         const raw = Math.max(lowPriorityMs, Math.min(toFill, toArrival));
         const estimateMs = Math.max(3000, Math.ceil(raw / 5000) * 5000);
@@ -366,7 +410,7 @@ export class Matchmaker {
 
     tick(): MmTick {
         const now = this.now();
-        const out: MmTick = { matches: [], offers: [], expired: [], cancelled: [] };
+        const out: MmTick = { matches: [], offers: [], expired: [], cancelled: [], switched: [] };
         this.prune(now);
         for (const e of [...this.entries.values()]) {
             if (e.awaySinceMs !== null && now - e.awaySinceMs >= this.limits.awayCancelMs) {
@@ -403,10 +447,31 @@ export class Matchmaker {
             this.offerLog.set(key, log);
             out.offers.push(offer);
         }
-        // 2-4. full teams, then pair fill, then solo fill, oldest first
+        // casual: no opponent by 45 s moves a solo or duo to co-op (its wait is credited; Keep waiting undoes it)
+        for (const e of sorted) {
+            // a trio switches too: co-op seats three humans against bots
+            if (e.queue !== 'casual' || e.keepCasual) continue;
+            if (now - e.enqueuedMs < MM_CASUAL.switchMs) continue;
+            e.queue = 'coop';
+            // a few seconds to tap Keep waiting before the co-op fill seats it (a penalty wait is kept)
+            e.penaltyUntilMs = e.notBeforeMs;
+            e.notBeforeMs = Math.max(e.notBeforeMs, now + MM_CASUAL.switchGraceMs);
+            out.switched.push(e);
+        }
         const used = new Set<string>();
+        // casual PvP first: two teams, oldest anchor first
         for (const a of sorted) {
-            if (used.has(a.id) || !this.eligible(a, now)) continue;
+            if (a.queue !== 'casual' || used.has(a.id) || !this.eligible(a, now)) continue;
+            const pool = sorted.filter(o => o.queue === 'casual' && !used.has(o.id) && this.eligible(o, now));
+            const plan = bestCasual(a, pool, now, order);
+            this.found.set(a.id, a.members.length + (plan ? plan.humans[0] - a.members.length : 0));
+            if (!plan) continue;
+            for (const t of plan.teams) for (const e of t) used.add(e.id);
+            out.matches.push(this.makeCasual(plan, now));
+        }
+        // 2-4. co-op: full teams, then pair fill, then solo fill, oldest first
+        for (const a of sorted) {
+            if (a.queue !== 'coop' || used.has(a.id) || !this.eligible(a, now)) continue;
             const pool = sorted.filter(o => !used.has(o.id) && this.eligible(o, now));
             const group = this.best(a, pool, order, now);
             const humans = group.reduce((n, e) => n + e.members.length, 0);
@@ -439,11 +504,13 @@ export class Matchmaker {
         let bestGap = Infinity;
         for (const e of sorted) {
             if (e.members.length !== 1 || !this.eligible(e, now)) continue;
+            if (e.queue !== (seat.queue ?? 'coop')) continue;
             if (e.region !== seat.region || e.sim !== seat.sim || !sidesCompatible(e.side, seat.side)) continue;
             if (now - e.enqueuedMs < b.minWaitMs || declined?.has(e.id)) continue;
             const m = e.members[0];
             if (m.identityKey === seat.leaverKey || seat.inRoomKeys.includes(m.identityKey)) continue;
-            if (!difficultyAllowed(seat.difficulty, m.maxDifficulty)) continue;
+            if (seat.otherTeamIps?.includes(m.ipKey)) continue;
+            if (seat.queue !== 'casual' && !difficultyAllowed(seat.difficulty, m.maxDifficulty)) continue;
             const gap = Math.abs(m.rating.r - seat.teamRating);
             if (gap > b.ratingWithin) continue;
             const log = (this.offerLog.get(m.identityKey) ?? []).filter(t => now - t < b.offerWindowMs);
@@ -454,6 +521,52 @@ export class Matchmaker {
             }
         }
         return best;
+    }
+
+    /** A casual match: the left side (team 0) goes to the species that played there less in this pool lately. */
+    private makeCasual(plan: CasualPlan, now: number): MmMatch {
+        const a = plan.teams[0][0];
+        const key = poolKey(a);
+        const recent = this.recentLeft.get(key) ?? [];
+        const left = team0SpeciesNext(recent);
+        const flip = plan.species[0] !== left;
+        const order: [0 | 1, 0 | 1] = flip ? [1, 0] : [0, 1];
+        recent.push(left);
+        if (recent.length > MM_CASUAL.sideBalanceN) recent.shift();
+        this.recentLeft.set(key, recent);
+        const teams = order.map(i => {
+            const group = plan.teams[i];
+            const members = group.flatMap(e => e.members);
+            const rating = teamRating(group);
+            return {
+                species: plan.species[i],
+                entries: group.map(e => e.id),
+                members: members.map(m => m.member),
+                humans: members.length,
+                bots: 3 - members.length,
+                difficulty: fillDifficultyFor(rating),
+                rating,
+            };
+        }) as [MmTeam, MmTeam];
+        const all = [...plan.teams[order[0]], ...plan.teams[order[1]]];
+        const waitedMs: Record<string, number> = {};
+        for (const e of all) waitedMs[e.id] = now - e.enqueuedMs;
+        const humans = teams[0].humans + teams[1].humans;
+        return {
+            id: this.newId(),
+            region: a.region,
+            sim: a.sim,
+            side: teams[0].species,
+            difficulty: 'hard',
+            entries: all.map(e => e.id),
+            members: [...teams[0].members, ...teams[1].members],
+            humans,
+            bots: 6 - humans,
+            waitedMs,
+            fill: plan.fill ? 'normal' : null,
+            mode: 'casual',
+            teams,
+        };
     }
 
     private makeMatch(group: MmEntry[], now: number, fill: MmMatch['fill']): MmMatch {

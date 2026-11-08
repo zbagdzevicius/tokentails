@@ -28,6 +28,21 @@ export const PARTY_TIMING = Object.freeze({
 });
 
 export const MAX_MEMBERS = 3;
+/** Casual PvP (V16.md §4.2): one matched party holds both teams (up to three humans each). */
+export const MAX_CASUAL_MEMBERS = 6;
+
+export type Species = 'cat' | 'dog';
+const teamOf = (slot: number): 0 | 1 => (slot >= 3 ? 1 : 0);
+
+/** The casual PvP part of a matched party: each member's planned slot, both teams' species and fill profiles. */
+export interface PartyCasual {
+    /** member id → slot (team 0: 0..2, team 1: 3..5), fixed by the matchmaker. */
+    slots: Record<string, number>;
+    species: [Species, Species];
+    fillDifficulty: [string, string];
+    /** The human slots of the match (a member who leaves in the pick keeps the seat for a pilot). */
+    humans: number[];
+}
 
 export interface MemberIdentity {
     accountId: string | null;
@@ -95,8 +110,10 @@ export interface Party {
 
 export interface PartyMm {
     match: string;
-    queue: 'coop';
+    queue: 'coop' | 'casual';
+    /** Co-op: the side of everyone. Casual: team 0's species (each member's own is `casual.species[team]`). */
     side: 'cat' | 'dog';
+    casual?: PartyCasual;
     strangers: Set<string>;
     host: boolean;
     resultsSinceMs?: number;
@@ -109,6 +126,8 @@ export interface StartPlan {
     occupied: number[];
     seats: { slot: number; hero: string; trick: string }[];
     difficulty: string;
+    /** Casual PvP: the sim runs `mode: 'pvp'` with these fill profiles; `species` per team. */
+    pvp?: { fillDifficulty: [string, string]; species: [Species, Species] };
 }
 
 export interface PartyEvents {
@@ -486,10 +505,11 @@ export class PartyService {
         p.rematchYes.clear();
         if (!p.openSeats) p.locked = true;
         p.side = null;
-        // slots: the leader 0, the others 1 and 2 in join order
+        // slots: the leader 0, the others 1 and 2 in join order (casual PvP: the matchmaker's slots, both teams)
         const ordered = [p.members.find(m => m.id === p.leader)!, ...p.members.filter(m => m.id !== p.leader)];
+        const casual = p.mm?.casual;
         ordered.forEach((m, i) => {
-            m.slot = i;
+            m.slot = casual ? casual.slots[m.id] ?? i : i;
             m.locked = false;
             m.loaded = false;
             m.loadPct = 0;
@@ -532,10 +552,25 @@ export class PartyService {
         return this.rules.heroesOf?.(p) ?? this.rules.heroes;
     }
 
+    /** Casual PvP: the team of a member (from its slot), else 0. */
+    teamOfMember(p: Party, m: Member): 0 | 1 {
+        return p.mm?.casual && m.slot !== undefined ? teamOf(m.slot) : 0;
+    }
+
+    /** The species a member must pick: its team's in casual PvP, the match's in co-op, else null. */
+    private speciesOf(p: Party, m: Member): string | null {
+        if (p.mm?.casual) return p.mm.casual.species[this.teamOfMember(p, m)];
+        return p.mm ? p.mm.side : null;
+    }
+
     private heroAllowed(p: Party, m: Member, hero: string): boolean {
-        if (p.members.some(o => o.id !== m.id && o.locked && o.hero === hero)) return false;
-        if (p.mm && this.rules.sideOf(hero) !== p.mm.side) return false;
-        if (m.id !== p.leader && p.side && this.rules.sideOf(hero) !== p.side) return false;
+        // heroes are unique within a team (casual PvP: the other team may pick the same hero... of its own species)
+        const team = this.teamOfMember(p, m);
+        if (p.members.some(o => o.id !== m.id && o.locked && o.hero === hero && this.teamOfMember(p, o) === team))
+            return false;
+        const species = this.speciesOf(p, m);
+        if (species && this.rules.sideOf(hero) !== species) return false;
+        if (!p.mm && m.id !== p.leader && p.side && this.rules.sideOf(hero) !== p.side) return false;
         return true;
     }
 
@@ -618,6 +653,8 @@ export class PartyService {
     private launch(p: Party): void {
         const seed = randomInt(0, 2 ** 32 - 1) >>> 0;
         const occupied = p.members.map(m => m.slot!).sort((a, b) => a - b);
+        const casual = p.mm?.casual;
+        if (casual) return this.launchCasual(p, casual, seed, occupied);
         const humans = p.openSeats ? [0, 1, 2] : occupied;
         const seats = p.members
             .map(m => ({ slot: m.slot!, hero: m.hero!, trick: m.trick! }))
@@ -642,6 +679,46 @@ export class PartyService {
         p.deadlineMs = undefined;
         this.touch(p);
         this.events.startMatch({ party: p, seed, humans, occupied, seats, difficulty: p.difficulty });
+    }
+
+    /**
+     * Casual PvP: every planned human slot plays (a member who left in the pick leaves a piloted seat with a free hero of
+     * its team's species), slots 0 and 3 always among them; the sim runs `mode: 'pvp'`.
+     */
+    private launchCasual(p: Party, casual: PartyCasual, seed: number, occupied: number[]): void {
+        const humans = [...new Set([...casual.humans, 0, 3])].sort((a, b) => a - b);
+        const seats = p.members
+            .map(m => ({ slot: m.slot!, hero: m.hero!, trick: m.trick! }))
+            .sort((a, b) => a.slot - b.slot);
+        const heroes = this.heroesOf(p);
+        for (const s of humans) {
+            if (seats.some(x => x.slot === s)) continue;
+            const team = teamOf(s);
+            const used = seats.filter(x => teamOf(x.slot) === team).map(x => x.hero);
+            const hero =
+                heroes.find(h => !used.includes(h) && this.rules.sideOf(h) === casual.species[team]) ?? heroes[0];
+            seats.push({ slot: s, hero, trick: this.rules.tricks[s % this.rules.tricks.length] });
+        }
+        seats.sort((a, b) => a.slot - b.slot);
+        for (const m of p.members) {
+            m.lastHero = m.hero;
+            m.lastTrick = m.trick;
+        }
+        p.phase = 'match';
+        p.deadlineMs = undefined;
+        this.touch(p);
+        this.events.startMatch({
+            party: p,
+            seed,
+            humans,
+            occupied,
+            seats,
+            difficulty: 'hard',
+            pvp: {
+                fillDifficulty: [...casual.fillDifficulty] as [string, string],
+                species: [...casual.species] as [Species, Species],
+            },
+        });
     }
 
     /** The room ended: show results. */
@@ -760,8 +837,14 @@ export class PartyService {
 
     /** The `party` frame for one member: its own copy adds its card's catId and custom cat name. */
     view(p: Party, forMember: string): PartyView {
+        const me = p.members.find(m => m.id === forMember);
+        const casual = p.mm?.casual;
+        const myTeam = casual && me ? this.teamOfMember(p, me) : 0;
+        // casual PvP: the other team's heroes stay hidden until loading (a counter-pick needs their lock)
+        const hideOther = !!casual && p.phase === 'pick';
         const members: MemberView[] = p.members.map(m => {
             const own = m.id === forMember;
+            const hidden = hideOther && this.teamOfMember(p, m) !== myTeam;
             const v: MemberView = {
                 id: m.id,
                 name: m.name,
@@ -771,8 +854,9 @@ export class PartyService {
             };
             if (m.newbie) v.newbie = true;
             if (m.slot !== undefined) v.slot = m.slot;
-            if (m.hero) v.hero = m.hero;
-            if (m.trick && (own || m.locked)) v.trick = m.trick;
+            if (m.hero && !hidden) v.hero = m.hero;
+            if (m.trick && (own || m.locked) && !hidden) v.trick = m.trick;
+            if (hidden) v.locked = false;
             if (p.phase === 'loading' || p.phase === 'match') v.loadPct = m.loadPct;
             // lane M6: "Play again together (2/3)" counts who pressed it
             if (p.phase === 'results' && p.rematchYes.has(m.id)) v.again = true;
@@ -800,7 +884,15 @@ export class PartyService {
         };
         if (p.deadlineMs !== undefined) view.deadlineMs = Math.max(0, p.deadlineMs - this.now());
         if (p.waitingSinceMs !== undefined) view.waiting = p.members.filter(m => m.conn !== 'on').map(m => m.id);
-        if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
+        if (p.mm && casual)
+            view.mm = {
+                side: casual.species[myTeam],
+                strangers: p.mm.strangers.size > 0,
+                mode: 'casual',
+                team: myTeam,
+                species: [...casual.species] as [Species, Species],
+            };
+        else if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
         if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };
         return view;
     }
@@ -821,7 +913,7 @@ export class PartyService {
      */
     createMatched(
         members: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[],
-        opts: { match: string; side: 'cat' | 'dog'; difficulty: string }
+        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual }
     ): Party {
         for (const m of members) this.leave(m.id);
         const id = randomBytes(12).toString('base64url');
@@ -845,10 +937,11 @@ export class PartyService {
             ended: false,
             mm: {
                 match: opts.match,
-                queue: 'coop',
+                queue: opts.casual ? 'casual' : 'coop',
                 side: opts.side,
                 strangers: new Set(members.map(m => m.id)),
                 host: false,
+                ...(opts.casual ? { casual: opts.casual } : {}),
             },
         };
         this.rename(p);
@@ -869,7 +962,8 @@ export class PartyService {
         identity: MemberIdentity,
         hint?: { maxDifficulty: string; newbie: boolean }
     ): Member | null {
-        if (p.ended || p.members.length >= MAX_MEMBERS || p.members.some(m => m.id === memberId)) return null;
+        const max = p.mm?.casual ? MAX_CASUAL_MEMBERS : MAX_MEMBERS;
+        if (p.ended || p.members.length >= max || p.members.some(m => m.id === memberId)) return null;
         this.leave(memberId);
         const m = this.makeMember(memberId, identity, hint);
         p.members.push(m);
@@ -886,11 +980,18 @@ export class PartyService {
      */
     startMatched(
         p: Party,
-        opts: { match: string; side: 'cat' | 'dog'; difficulty: string },
+        opts: { match: string; side: 'cat' | 'dog'; difficulty: string; casual?: PartyCasual },
         strangers: { id: string; identity: MemberIdentity; hint?: { maxDifficulty: string; newbie: boolean } }[]
     ): void {
         delete p.queued;
-        p.mm = { match: opts.match, queue: 'coop', side: opts.side, strangers: new Set(), host: true };
+        p.mm = {
+            match: opts.match,
+            queue: opts.casual ? 'casual' : 'coop',
+            side: opts.side,
+            strangers: new Set(),
+            host: true,
+            ...(opts.casual ? { casual: opts.casual } : {}),
+        };
         p.difficulty = this.rules.difficulties.includes(opts.difficulty) ? opts.difficulty : p.difficulty;
         p.openSeats = false;
         p.locked = true;
@@ -901,10 +1002,17 @@ export class PartyService {
     /** Restore helper (N9): the Quick Play state of a stored party. */
     restoreMm(
         p: Party,
-        mm: { match: string; side: 'cat' | 'dog'; strangers: string[]; host: boolean } | undefined
+        mm: { match: string; side: 'cat' | 'dog'; strangers: string[]; host: boolean; casual?: PartyCasual } | undefined
     ): void {
         if (!mm) return;
-        p.mm = { match: mm.match, queue: 'coop', side: mm.side, strangers: new Set(mm.strangers), host: mm.host };
+        p.mm = {
+            match: mm.match,
+            queue: mm.casual ? 'casual' : 'coop',
+            side: mm.side,
+            strangers: new Set(mm.strangers),
+            host: mm.host,
+            ...(mm.casual ? { casual: mm.casual } : {}),
+        };
         p.side = mm.side;
     }
 }

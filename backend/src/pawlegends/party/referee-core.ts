@@ -12,6 +12,7 @@ import type {
     PawlegendsPartyReplayRecord,
     PawlegendsPartySim,
     PawlegendsPilot,
+    PawlegendsPvpReplayRecord,
     PawlegendsSlotStats,
 } from '../../vendor/pawlegends-sim';
 import { MAX_HUMANS, TURN_TICKS, decodeTurnBody, encodeTurnBody, splitTurnBodies } from './net';
@@ -22,6 +23,9 @@ export interface RefereeConfig {
     tricks: string[];
     difficulty: string;
     humans: number[];
+    /** Casual PvP (sim v16+): humans on both teams; the record is a PvpReplayRecord (v: 3). */
+    mode?: 'pvp';
+    fillDifficulty?: [string, string];
 }
 
 export interface RefereeEnd {
@@ -31,7 +35,7 @@ export interface RefereeEnd {
     ticks: number;
     finalHash: string;
     stats: PawlegendsSlotStats[];
-    record: PawlegendsPartyReplayRecord | null;
+    record: PawlegendsPartyReplayRecord | PawlegendsPvpReplayRecord | null;
 }
 
 export interface TurnOutcome {
@@ -63,7 +67,7 @@ export function liveSim(): PawlegendsPartySim {
 
 export class RefereeRoom {
     readonly m: PawlegendsMatchHandle;
-    private readonly pilots: (PawlegendsPilot | null)[] = [null, null, null];
+    private readonly pilots: (PawlegendsPilot | null)[] = new Array(MAX_HUMANS).fill(null);
     nextTurn = 0;
     ended: RefereeEnd | null = null;
     private trailSeen = 0;
@@ -83,9 +87,9 @@ export class RefereeRoom {
         this.nextTurn++;
         const out: TurnOutcome = { hashes: [], pilot: [], aliveMask: 0 };
         if (this.ended) return out;
-        const pilotOut: Uint8Array[][] = [[], [], []];
+        const pilotOut: Uint8Array[][] = Array.from({ length: MAX_HUMANS }, () => []);
         for (let sub = 0; sub < TURN_TICKS; sub++) {
-            const per: PawlegendsCommand[][] = [[], [], []];
+            const per: PawlegendsCommand[][] = Array.from({ length: MAX_HUMANS }, () => []);
             for (const e of f.entries) {
                 if (e.sub !== sub) continue;
                 // defence in depth: the relay decodes every command before a TURN; an entry that still does not
@@ -117,7 +121,10 @@ export class RefereeRoom {
                     ticks: r.ticks,
                     finalHash: r.finalHash,
                     stats: r.stats,
-                    record: this.sim.partyReplayRecord(this.m),
+                    record:
+                        this.config.mode === 'pvp'
+                            ? this.sim.pvpReplayRecord?.(this.m) ?? null
+                            : this.sim.partyReplayRecord(this.m),
                 };
                 out.end = this.ended;
                 break;
@@ -163,7 +170,10 @@ export function checkRoomLog(
     if (end.finalHash !== verdict.finalHash || end.ticks !== verdict.ticks || end.outcome !== verdict.outcome)
         return { ok: false, why: 'log re-sim differs from the verdict' };
     if (!end.record) return { ok: false, why: 'no record' };
-    const v = sim.verifyPartyReplay(end.record);
+    const v =
+        config.mode === 'pvp'
+            ? sim.verifyPvpReplay?.(end.record) ?? { ok: false as const, code: 'PAWLEGENDS_SIM_VERSION' }
+            : sim.verifyPartyReplay(end.record);
     if (!v.ok) return { ok: false, why: `record: ${v.code}` };
     if (v.finalHash !== verdict.finalHash || v.ticks !== verdict.ticks || v.outcome !== verdict.outcome)
         return { ok: false, why: 'record verify differs from the verdict' };

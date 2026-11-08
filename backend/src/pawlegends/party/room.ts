@@ -11,6 +11,8 @@ import {
     CMD_OP,
     MAX_HUMANS,
     cmdSize,
+    leadSlotOf,
+    teamOfSlot,
     encodeTurnBody,
     turnFromBody,
     type SlotReason,
@@ -106,6 +108,11 @@ export interface RoomInit {
     startMs: number;
     /** Stagger offset of this room's turn boundaries (ms, 0..66). */
     phaseMs?: number;
+    /**
+     * Casual PvP (docs/plans/moba/V16.md §4.2): humans on both teams. Pings from both leads (0 and 3), surrender and
+     * remake votes per team, no pause, a remake voids the room.
+     */
+    pvp?: boolean;
     /** A restored room: its log so far. */
     restoredLog?: Uint8Array[];
     restoredSeq?: number[];
@@ -139,12 +146,26 @@ const CLIENT_OPS: readonly number[] = [
 
 export type IntakeResult = 'ok' | 'dup' | 'not_human' | 'bad_op' | 'dropped' | 'closed' | 'log_full';
 
+/** A running vote of one team (PvE: team 0 holds every vote). */
+interface TeamVote {
+    kind: VoteKind;
+    yes: Set<number>;
+    need: number;
+    endsMs: number;
+}
+
+/** PvP remake (V16.md §4.2): offered from 1:00 to 3:00 for a team that lost a human seat. */
+export const REMAKE = Object.freeze({ fromTick: 1800, untilTick: 5400, voteMs: 20_000 });
+
 export class Room {
     readonly id: string;
     readonly humans: readonly number[];
     readonly difficulty: string;
     readonly forfeitFrom: number;
+    readonly pvp: boolean;
     readonly slots: SlotState[] = [];
+    /** PvP: the room was voided by a passed remake vote (no verdict, no rewards, no rating). */
+    voided: 'remake' | null = null;
     status: RoomStatus = 'waiting';
     /** The next turn to close (= the open turn). */
     nextTurn = 0;
@@ -163,20 +184,21 @@ export class Room {
     /** Turn overruns seen by advance (ms late when a turn closed), for turn_overrun_ms. */
     overrunsMs: number[] = [];
     private emptySinceMs: number | null = null;
-    private forfeitQueued = false;
-    private forfeitSent = false;
+    /** Surrender passed, per team (PvE: team 0 only). */
+    private readonly forfeitQueued = [false, false];
+    private readonly forfeitSent = [false, false];
     private pausedAtMs = 0;
     private pauseUntilMs = 0;
     private resumeAtMs = 0;
     private pausesUsed = 0;
-    private vote: { kind: VoteKind; yes: Set<number>; need: number; endsMs: number } | null = null;
+    private readonly votes: (TeamVote | null)[] = [null, null];
     /** Desync bookkeeping by tick. */
     private hashes = new Map<number, { referee?: number; clients: Map<number, number>; flagged: Set<number> }>();
     private refereeTick = 0;
     private resyncsTotal = 0;
     private refereeSuspect = false;
     /** Ticks each slot already reported a hash for (one per 30-tick mark; a repeat is ignored). */
-    private readonly hashTicks: Set<number>[] = [new Set(), new Set(), new Set()];
+    private readonly hashTicks: Set<number>[] = Array.from({ length: MAX_HUMANS }, () => new Set<number>());
     private readonly createdMs: number;
 
     constructor(init: RoomInit, private readonly io: RoomIO) {
@@ -185,6 +207,7 @@ export class Room {
         this.humans = init.humans.slice();
         this.difficulty = init.difficulty;
         this.forfeitFrom = init.forfeitFrom;
+        this.pvp = !!init.pvp;
         this.startMs = init.startMs + (init.phaseMs ?? 0);
         for (let s = 0; s < MAX_HUMANS; s++) {
             const human = init.humans.includes(s);
@@ -404,7 +427,12 @@ export class Room {
         if (this.status === 'ended' || this.status === 'abandoned') return 'closed';
         if (seq <= s.lastSeq) return 'dup';
         const op = cmd[0];
-        if (!CLIENT_OPS.includes(op) || cmdSize(op) !== cmd.length || (op === CMD_OP.Ping && slot !== 0))
+        // Ping from a lead seat only: slot 0, and in PvP slot 3 (team 1's lead)
+        if (
+            !CLIENT_OPS.includes(op) ||
+            cmdSize(op) !== cmd.length ||
+            (op === CMD_OP.Ping && slot !== 0 && !(this.pvp && slot === leadSlotOf(1)))
+        )
             return 'bad_op';
         if (s.mode === 'pilot') {
             // An AFK player reclaims with any command; any other pilot reason needs a caught-up `back`.
@@ -493,10 +521,12 @@ export class Room {
     private closeTurn(): void {
         const turn = this.nextTurn;
         const entries: TurnEntry[] = [];
-        let forfeitHere = false;
-        if (this.forfeitQueued && !this.forfeitSent) {
-            forfeitHere = true;
-            this.forfeitSent = true;
+        const forfeitHere = [false, false];
+        for (const t of [0, 1]) {
+            if (this.forfeitQueued[t] && !this.forfeitSent[t]) {
+                forfeitHere[t] = true;
+                this.forfeitSent[t] = true;
+            }
         }
         for (let sub = 0 as 0 | 1; sub < 2; sub = (sub + 1) as 0 | 1) {
             for (const s of this.slots) {
@@ -511,10 +541,12 @@ export class Room {
                     if (c) entries.push({ slot: s.slot, sub, pilot: true, cmd: c });
                 }
             }
-            if (sub === 1 && forfeitHere)
-                entries.push({ slot: 0, sub: 1, pilot: false, cmd: new Uint8Array([CMD_OP.Forfeit]) });
+            // a passed surrender: Op.Forfeit in the team's lead stream (slot 0, or slot 3 in PvP), after its commands
+            for (const t of [0, 1] as const)
+                if (sub === 1 && forfeitHere[t])
+                    entries.push({ slot: leadSlotOf(t), sub: 1, pilot: false, cmd: new Uint8Array([CMD_OP.Forfeit]) });
         }
-        const acks: (number | undefined)[] = [undefined, undefined, undefined];
+        const acks: (number | undefined)[] = [];
         for (const s of this.slots) {
             if (s.lastSeq !== s.ackedSeq) {
                 acks[s.slot] = s.lastSeq;
@@ -556,9 +588,12 @@ export class Room {
                 }
             } else if (!s.alive) s.lastCmdMs = nowMs;
         }
-        if (this.vote && nowMs >= this.vote.endsMs) {
-            this.io.json(null, { t: 'vote', kind: this.vote.kind, result: 'fail' });
-            this.vote = null;
+        for (const t of [0, 1] as const) {
+            const v = this.votes[t];
+            if (v && nowMs >= v.endsMs) {
+                this.toTeam(t, { t: 'vote', kind: v.kind, result: 'fail' });
+                this.votes[t] = null;
+            }
         }
         this.touchEmpty(nowMs);
         if (this.emptySinceMs !== null && this.live) {
@@ -579,49 +614,98 @@ export class Room {
     // -----------------------------------------------------------------------------------------------------------
     // Votes
 
-    private connectedHumans(): SlotState[] {
-        return this.slots.filter(s => this.isHumanSlot(s.slot) && s.connected);
+    /** The team a slot votes with (PvE: everyone is team 0). */
+    private teamOf(slot: number): 0 | 1 {
+        return this.pvp ? teamOfSlot(slot) : 0;
+    }
+
+    private connectedHumans(team: 0 | 1): SlotState[] {
+        return this.slots.filter(s => this.isHumanSlot(s.slot) && s.connected && this.teamOf(s.slot) === team);
+    }
+
+    /** A vote frame to one team (PvP; with `team`), or to every socket (PvE, unchanged). */
+    private toTeam(team: 0 | 1, msg: Record<string, unknown>): void {
+        if (!this.pvp) return this.io.json(null, msg);
+        const out = { ...msg, team };
+        for (const s of this.slots)
+            if (this.isHumanSlot(s.slot) && teamOfSlot(s.slot) === team) this.io.json(s.slot, out);
+    }
+
+    /**
+     * PvP remake (V16.md §4.2): a team may vote it from 1:00 to 3:00 when one of its human seats was left, or never
+     * loaded and is not connected (and nobody backfilled it).
+     */
+    remakeOpen(team: 0 | 1): boolean {
+        if (!this.pvp || this.tick < REMAKE.fromTick || this.tick >= REMAKE.untilTick) return false;
+        return this.slots.some(
+            s =>
+                this.isHumanSlot(s.slot) &&
+                teamOfSlot(s.slot) === team &&
+                !s.connected &&
+                (!s.occupied || !s.loaded) &&
+                s.mode === 'pilot'
+        );
     }
 
     castVote(slot: number, kind: VoteKind, yes: boolean, nowMs: number): boolean {
         const s = this.slots[slot];
         if (!s || !s.connected || !this.isHumanSlot(slot)) return false;
+        const team = this.teamOf(slot);
         if (kind === 'resume') {
             if (this.status === 'paused' && yes) this.requestResume(nowMs);
             return true;
         }
         if (kind === 'rematch') return false;
+        // PvP never pauses (one team cannot stop the other's match); a remake exists only in PvP
+        if (this.pvp && kind === 'pause') return false;
+        if (kind === 'remake' && !this.remakeOpen(team)) return false;
         if (this.status !== 'live' && !(kind === 'surrender' && this.status === 'paused')) return false;
-        if (kind === 'surrender' && (this.forfeitFrom <= 0 || this.tick < this.forfeitFrom || this.forfeitQueued))
+        if (kind === 'surrender' && (this.forfeitFrom <= 0 || this.tick < this.forfeitFrom || this.forfeitQueued[team]))
             return false;
         if (kind === 'pause' && this.pausesUsed >= PARTY_LIMITS.pausesPerMatch) return false;
-        if (!this.vote) {
+        let v = this.votes[team];
+        if (!v) {
             if (!yes) return false;
             const last = s.voteAt[kind];
             if (last !== undefined && nowMs - last < PARTY_LIMITS.voteCooldownMs) return false;
             s.voteAt[kind] = nowMs;
-            const connected = this.connectedHumans().length;
-            const need = kind === 'pause' ? connected : connected <= 2 ? connected : 2;
-            const ms = kind === 'pause' ? PARTY_LIMITS.pauseVoteMs : PARTY_LIMITS.surrenderVoteMs;
-            this.vote = { kind, yes: new Set([slot]), need, endsMs: nowMs + ms };
+            const connected = this.connectedHumans(team).length;
+            // pause: everyone; remake: every remaining human of the team; surrender: 2 of 3 (all when fewer)
+            const need = kind === 'pause' || kind === 'remake' ? connected : connected <= 2 ? connected : 2;
+            const ms =
+                kind === 'pause'
+                    ? PARTY_LIMITS.pauseVoteMs
+                    : kind === 'remake'
+                    ? REMAKE.voteMs
+                    : PARTY_LIMITS.surrenderVoteMs;
+            v = { kind, yes: new Set([slot]), need, endsMs: nowMs + ms };
+            this.votes[team] = v;
         } else {
-            if (this.vote.kind !== kind) return false;
-            if (yes) this.vote.yes.add(slot);
+            if (v.kind !== kind) return false;
+            if (yes) v.yes.add(slot);
             else {
-                this.io.json(null, { t: 'vote', kind, result: 'fail' });
-                this.vote = null;
+                this.toTeam(team, { t: 'vote', kind, result: 'fail' });
+                this.votes[team] = null;
                 return true;
             }
         }
-        const v = this.vote;
-        this.io.json(null, { t: 'vote', kind, yes: [...v.yes].sort(), need: v.need, endsMs: v.endsMs });
+        this.toTeam(team, { t: 'vote', kind, yes: [...v.yes].sort(), need: v.need, endsMs: v.endsMs });
         if (v.yes.size >= v.need) {
-            this.vote = null;
-            this.io.json(null, { t: 'vote', kind, result: 'pass' });
-            if (kind === 'surrender') this.forfeitQueued = true;
+            this.votes[team] = null;
+            this.toTeam(team, { t: 'vote', kind, result: 'pass' });
+            if (kind === 'surrender') this.forfeitQueued[team] = true;
+            else if (kind === 'remake') this.void(nowMs);
             else this.pause(nowMs);
         }
         return true;
+    }
+
+    /** A passed remake: the clock stops, every socket gets `void`, the relay closes the room without a verdict. */
+    private void(nowMs: number): void {
+        this.voided = 'remake';
+        this.status = 'abandoned';
+        this.io.json(null, { t: 'void', reason: 'remake' });
+        this.io.log?.('pvp_remake', { tick: this.tick, at_ms: nowMs - this.startMs });
     }
 
     private pause(nowMs: number): void {

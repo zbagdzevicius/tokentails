@@ -10,7 +10,8 @@ import { MM_LIMITS } from './mm-limits';
  * `MmRatingReader` (find only).
  */
 
-export type MmRatingQueue = 'coop';
+/** 'casual' (M1b PvP, V16.md §4.4): its own row per account, guests included (rated on their guest account). */
+export type MmRatingQueue = 'coop' | 'casual';
 
 export interface MmRatingRow {
     _id: string;
@@ -69,7 +70,7 @@ export const PawlegendsRatingSchema = SchemaFactory.createForClass(PawlegendsRat
 
 /** What the relay may read: one row per account, cached 60 s. */
 export interface MmRatingSource {
-    get(accountId: string): Promise<MmRatingRow | null>;
+    get(accountId: string, queue?: MmRatingQueue): Promise<MmRatingRow | null>;
 }
 
 /** Built by MmService with the model (find only). */
@@ -81,13 +82,14 @@ export class MmRatingReader implements MmRatingSource {
         private readonly now: () => number = Date.now
     ) {}
 
-    async get(accountId: string): Promise<MmRatingRow | null> {
+    async get(accountId: string, queue: MmRatingQueue = 'coop'): Promise<MmRatingRow | null> {
         if (!this.model) return null;
-        const hit = this.cache.get(accountId);
+        const key = ratingId(accountId, queue);
+        const hit = this.cache.get(key);
         const now = this.now();
         if (hit && now - hit.atMs < MM_LIMITS.readCacheMs) return hit.row;
-        const row = (await this.model.findById(ratingId(accountId)).lean()) as unknown as MmRatingRow | null;
-        this.cache.set(accountId, { row, atMs: now });
+        const row = (await this.model.findById(key).lean()) as unknown as MmRatingRow | null;
+        this.cache.set(key, { row, atMs: now });
         if (this.cache.size > 5000) for (const k of [...this.cache.keys()].slice(0, 1000)) this.cache.delete(k);
         return row;
     }
@@ -96,7 +98,7 @@ export class MmRatingReader implements MmRatingSource {
 /** In memory (specs, harness). */
 export class MemoryRatingSource implements MmRatingSource {
     readonly rows = new Map<string, MmRatingRow>();
-    async get(accountId: string): Promise<MmRatingRow | null> {
-        return this.rows.get(accountId) ?? null;
+    async get(accountId: string, queue: MmRatingQueue = 'coop'): Promise<MmRatingRow | null> {
+        return this.rows.get(queue === 'coop' ? accountId : ratingId(accountId, queue)) ?? null;
     }
 }
