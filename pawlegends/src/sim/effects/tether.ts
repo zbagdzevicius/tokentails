@@ -3,7 +3,9 @@
  * Brutus's Champion's Challenge). Positions are clamped back inside after movement and dashes end inside.
  */
 import { ZONE_KIND } from '../../data/effects';
+import { NAV } from '../../data/map';
 import { idiv, isqrt } from '../fixed';
+import { cellOf, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
 import { RANGE, type World } from '../world';
 import { radiusOf } from '../units/kinds';
@@ -46,7 +48,24 @@ export function clampTethers(m: MatchHandle): void {
       w.tether[id] = -1;
       continue;
     }
-    clampToArena(w, id, w.x[id], w.y[id], pos);
+    const x = w.x[id];
+    const y = w.y[id];
+    clampToArena(w, id, x, y, pos);
+    // Sim v16 (MAP-GAPS B6): a clamped point on a blocked cell (a wall or a structure at the arena edge) steps toward
+    // the arena centre in NAV.losStep increments until it is walkable (at most to the centre).
+    if ((pos[0] !== x || pos[1] !== y) && !walkable(m.grid, cellOf(pos[0], pos[1]))) {
+      const cx = w.zX[z];
+      const cy = w.zY[z];
+      const dx = cx - pos[0];
+      const dy = cy - pos[1];
+      const n = idiv(isqrt(dx * dx + dy * dy), NAV.losStep) + 1;
+      const px = pos[0];
+      const py = pos[1];
+      for (let k = 1; k <= n && !walkable(m.grid, cellOf(pos[0], pos[1])); k++) {
+        pos[0] = px + idiv(dx * k, n);
+        pos[1] = py + idiv(dy * k, n);
+      }
+    }
     w.x[id] = pos[0];
     w.y[id] = pos[1];
   }
