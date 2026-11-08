@@ -19,8 +19,8 @@ export const CHILI: HeroData = Object.freeze<HeroData>({
     w: { cooldown: 330, dash: 3000, hasteBp: 3000, haste: 45, rage: 1 },
     /** Purse Mode: hide in a handbag for 1 s: untargetable, cannot move, attack or cast, heal 8% max HP; on the way out, enemy heroes within 2.2 m are slowed 30% for 1 s. */
     e: { cooldown: 600, duration: 30, healBp: 800, radius: 2200, slowBp: 3000, slow: 30 },
-    /** BIG DOG ENERGY: 6 s, he grows: Rage locked full, basics splash 1.6 m for 60% onto up to 2 heroes or minions, 0.5 s CC immune at cast, +10% damage. */
-    r: { cooldown: 1950, duration: 180, splash: 1600, splashBp: 6000, splashMax: 2, immune: 15, bonusBp: 11000 },
+    /** BIG DOG ENERGY: 6 s, he grows: Rage locked full, basics splash 1.6 m for 60% onto up to 2 heroes or minions, 0.7 s CC immune at cast (sim v17, V17.md §3.3: was 0.5 s), +10% damage. */
+    r: { cooldown: 1950, duration: 180, splash: 1600, splashBp: 6000, splashMax: 2, immune: 21, bonusBp: 11000 },
   },
   ranks: { q: { dmg: 8 }, w: { cooldown: -15 }, e: { cooldown: -30 }, r: { cooldown: -100 } },
   talents: [

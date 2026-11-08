@@ -12,7 +12,8 @@ export const TRICKS = Object.freeze({
   /**
    * Sim v10: cleanse stun, root, slow, fear and charm, then `immune` ticks of crowd-control immunity. Castable while
    * crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels). Sim v16: 2400 (46.7% after MAP-GAPS B3 kept
-   * chargers on their target).
+   * chargers on their target). Sim v17 (V17.md §3.3): immune 15 → 30, so a Purr-ify on a big ult's telegraph (a 250 ms
+   * read) outlasts its 20-tick windup.
    */
-  purrify: Object.freeze({ cooldown: 2400, immune: 15 }),
+  purrify: Object.freeze({ cooldown: 2400, immune: 30 }),
 });
