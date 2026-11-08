@@ -1519,11 +1519,11 @@ var DOMINO = Object.freeze({
 			slowBp: 2500,
 			slow: 30
 		},
-		/** Big Shake: a full-body shake: enemies within 2.6 m take 40 (+4/lvl) and are knocked back 2 m; he shakes off slows. */
+		/** Big Shake: a full-body shake: enemies within 2.6 m take 40 (+4/lvl) and are knocked back 2.5 m (sim v17, V17.md §3.12: was 2 m, so a melee at 1.5 m ends 4 m away); he shakes off slows. */
 		e: {
 			cooldown: 420,
 			radius: 2600,
-			push: 2e3,
+			push: 2500,
 			dmg: 40,
 			dmgPerLevel: 4
 		},

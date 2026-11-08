@@ -149,3 +149,14 @@ describe('sim v17 Bengas W (§3.9)', () => {
     }
   });
 });
+
+describe('sim v17 Domino E self-peel (§3.12)', () => {
+  it('Big Shake on a melee at 1.5 m moves it to at least 4.0 m from Domino (no wall)', () => {
+    const m = duel('domino');
+    const w = m.world;
+    place(m, FOE, MID.x + 1500, MID.y, 2048);
+    cast(m, ME, 2, MID.x, MID.y);
+    steps(m, 8);
+    expect(isqrt((w.x[FOE] - w.x[ME]) ** 2 + (w.y[FOE] - w.y[ME]) ** 2)).toBeGreaterThanOrEqual(4000);
+  });
+});
