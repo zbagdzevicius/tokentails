@@ -1,0 +1,24 @@
+Pawlegends is a fast 3v3 arena battler: a team of cat heroes against a pack of dogs, in seven-minute matches that never run past eleven.
+
+Pick a hero, push your lane, and knock down the dog towers before they reach yours. Every hero has a passive, three skills and an ultimate that unlocks mid-match, plus a talent to choose as they level up. Learn when to strike, when to fall back, and when to ping your team for a push.
+
+MADE FOR MAC
+- Keyboard and mouse: right-click to move and attack, Q, W, E and R to cast, Tab for the scoreboard.
+- Plays on a trackpad too: click to move and attack.
+- A resizable window, or full screen from the green button or the View menu.
+
+PLAY ANYWHERE
+- Plays offline against bots from the first launch. No account, no sign-up, no ads.
+- Easy, Normal and Hard bots, with tips in your first matches.
+- The same app on iPhone and Mac.
+
+PLAY WITH FRIENDS
+- Make a party, share the 6-letter code, and take on the dogs together: up to three players on one team.
+- Bots fill any empty seat.
+- Quick-chat phrases and pings to plan the next push.
+
+HEROES WITH CHARACTER
+- Ten cat heroes, each with their own look, role and way to win a lane.
+- Get a grade from C to S after every match and chase your best.
+
+Pawlegends is made by Token Tails, a small game studio from Vilnius, Lithuania.
