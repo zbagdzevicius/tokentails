@@ -24,6 +24,31 @@ and keeps the desktop controls and HUD. Lanes `mac_beta`, `mac_metadata`, `mac_s
 unsigned Debug and Release Catalyst builds; the app opens at 1440×810 and renders the title (pointer fine, no touch
 controls, no haptics bridge). Not checked: a signed sandboxed build, OTA on the Mac, a full match with real mouse input.
 
+### Mac listing
+
+- **Where:** `pawlegends-app/fastlane/metadata_mac/` holds only what differs on the Mac; `mac_metadata` copies
+  `metadata/` to a temp folder, copies `metadata_mac/` on top and uploads that with `platform: "osx"`. App-level fields
+  (name "Pawlegends", subtitle, privacy URL, categories Games → Strategy, Action, copyright) are shared by the iOS and
+  macOS listings in App Store Connect, so they stay single-sourced in `metadata/`.
+- **Mac text:** `description.txt` (a "MADE FOR MAC" block: right-click to move and attack, Q/W/E/R, Tab scoreboard,
+  trackpad click, resizable window and full screen; the touch line is gone; "The same app on iPhone and Mac"),
+  `promotional_text.txt` (keyboard and mouse), `release_notes.txt` (deliver skips it on the first macOS version, as on
+  iOS 1.0.0). Keywords, support and marketing URLs are the iOS ones.
+- **Review notes:** `metadata_mac/review_information/notes.txt`: mouse and keyboard steps instead of touch, the window
+  and full screen, the App Sandbox (network client only), and the same OTA, purchases and privacy statements.
+- **Screenshots:** 5 PNGs at 2880 × 1800 in `fastlane/screenshots_mac/en-US/` (title, heroes, match start, lane
+  fight, teamfight). deliver maps 2880 × 1800 to the Mac display type (`APP_DESKTOP`; it also accepts 1280 × 800,
+  1440 × 900, 2560 × 1600). Captured with `npm run screenshots -- --device mac`: the app's own web bundle in Playwright
+  at 1440 × 900 pt, scale 2, desktop HUD, right-click movement. Not from the Catalyst window: `screencapture` needs the
+  Screen Recording permission, which the agent terminal does not have. The pixels are the same web bundle the Mac app
+  ships, so guideline 2.3 holds; retake from the TestFlight Mac build if you want the window chrome in them.
+- **Minimum macOS:** 12 Monterey (Catalyst of the iOS 15 deployment target). Apple silicon and Intel (Xcode default
+  archs for Catalyst).
+- **Shared with iOS (nothing to redo):** App Privacy, age rating, price and availability, content rights. These are
+  per app, not per platform. Export compliance: the same `ITSAppUsesNonExemptEncryption = false` in Info.plist.
+- **Run order (main session):** add the macOS platform in App Store Connect → `mac_beta` → `mac_metadata` → install
+  from TestFlight on a Mac and play one bot match with the mouse → `mac_submit` with `SUBMIT`. Release stays manual.
+
 ## Implementation notes (2026-11-07)
 
 Where the build differs from the plan below, the build wins:

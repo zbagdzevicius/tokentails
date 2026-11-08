@@ -112,3 +112,21 @@ encryption declaration is needed.
 | Screenshots | iPhone 6.9" landscape 2868 × 1320, 5 shots in `fastlane/screenshots/en-US`. iPad 13" (2752 × 2064) are in `pawlegends-app/store/screenshots-ipad/en-US` and are not uploaded while the app is iPhone only |
 | App icon | Comes from the build (`AppIcon` 1024 px, no alpha) |
 | DSA trader status (EU) | Trader: Token Tails MB, with the address, phone and email the founder chooses to publish. Apple shows them on the EU listing |
+
+## Mac App Store (macOS platform on the same app record)
+
+The Mac version is the same app record (`com.tokentails.pawlegends`, universal purchase), so App Privacy, the age
+rating, price and availability, content rights and the DSA trader status are shared: the answers above apply as they
+are, with nothing to enter again. The privacy manifest ships in the Mac build too. Only these differ:
+
+| Field | Mac value |
+|---|---|
+| Platform | App Store Connect → the app → Add platform → macOS (creates macOS 1.0.0) |
+| Description / promo text / What's New | `pawlegends-app/fastlane/metadata_mac/en-US/` on top of `metadata/en-US/` (`mac_metadata` lane) |
+| Name / subtitle / categories / privacy URL | Shared with iOS, from `metadata/` |
+| Review notes | `pawlegends-app/fastlane/metadata_mac/review_information/notes.txt` (mouse and keyboard steps, sandbox) |
+| Screenshots | Mac 2880 × 1800 (16:10), 5 shots in `fastlane/screenshots_mac/en-US` |
+| Export compliance | Same as iOS: exempt only, `ITSAppUsesNonExemptEncryption = false` in the shared Info.plist |
+| App Sandbox | On, `com.apple.security.network.client` only (Mac build only). No file, camera, microphone or location access |
+| Minimum OS | macOS 12 |
+| Version release | Manual (`mac_submit` uses `automatic_release: false`) |

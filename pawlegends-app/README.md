@@ -78,7 +78,8 @@ Manager key, run `bundle exec fastlane ios certs` once on a Mac, export the cert
   Connect.
 - **Mac App Store:** first add the macOS platform to the app record in App Store Connect (App Information → Add
   platform → macOS). Then Actions → *Pawlegends iOS* → lane `mac_beta` (signed .pkg to TestFlight macOS),
-  `mac_metadata` (the same text, Mac screenshots from `npm run screenshots -- --device mac` in
+  `mac_metadata` (`fastlane/metadata` with `fastlane/metadata_mac` copied on top: Mac description, promotional text,
+  release notes and review notes; Mac screenshots from `npm run screenshots -- --device mac` in
   `fastlane/screenshots_mac`), `mac_submit` (type `SUBMIT`). Locally: `bundle exec fastlane mac_beta`. If cloud
   signing cannot make the Mac Installer Distribution certificate that signs the .pkg, add `MAC_INSTALLER_P12` and
   `MAC_INSTALLER_PASSWORD`.
