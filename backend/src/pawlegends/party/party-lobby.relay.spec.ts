@@ -177,6 +177,52 @@ describe('party relay lane P', () => {
         }
     });
 
+    it('a reconnect re-sending its spent (or expired) hello ticket keeps the account and the seat', async () => {
+        const b = await boot();
+        try {
+            // the game's PartySocket re-sends its first hello on every reconnect: the single-use ticket is spent
+            const first = b.tickets.issue({ accountId: 'acct-a', guest: false }).ticket;
+            const a = await b.client();
+            a.hello({ ticket: first });
+            const wa = await a.until(() => a.last('welcome'));
+            a.send({ t: 'party.create', difficulty: 'normal' });
+            await a.until(() => a.last('party'));
+            a.close();
+            const again = await b.client();
+            again.hello({ ticket: first, resume: { token: wa.resumeToken } });
+            const w2 = await again.until(() => again.last('welcome'));
+            expect(w2.member).toBe(wa.member);
+            expect((await again.until(() => again.last('party'))).leader).toBe(wa.member);
+            expect(again.json.some(j => j.t === 'error' && j.code === 'bad_ticket')).toBe(false);
+            // an expired ticket of the same account (a drop after the 60 s ticket lifetime) resumes too
+            const old = b.tickets.issue({ accountId: 'acct-a', guest: false }, Date.now() - 120_000).ticket;
+            again.close();
+            const late = await b.client();
+            late.hello({ ticket: old, resume: { token: w2.resumeToken } });
+            expect((await late.until(() => late.last('welcome'))).member).toBe(wa.member);
+            // another account's spent ticket with this token gets neither the seat nor the account
+            const xt = b.tickets.issue({ accountId: 'acct-x', guest: false }).ticket;
+            const x = await b.client();
+            x.hello({ ticket: xt });
+            const wx = await x.until(() => x.last('welcome'));
+            const w3 = (await late.until(() => late.last('welcome')))!;
+            const thief = await b.client();
+            thief.hello({ ticket: xt, resume: { token: w3.resumeToken } });
+            const wt = await thief.until(() => thief.last('welcome'));
+            expect(wt.member).not.toBe(wa.member);
+            expect(wt.member).not.toBe(wx.member);
+            expect(thief.json.some(j => j.t === 'error' && j.code === 'bad_ticket')).toBe(true);
+            expect(thief.last('party')).toBeUndefined();
+            // a forged ticket (bad MAC) never resumes either
+            const forged = `${first.split('.')[0]}.${Buffer.alloc(32).toString('base64url')}`;
+            const f = await b.client();
+            f.hello({ ticket: forged, resume: { token: w3.resumeToken } });
+            expect((await f.until(() => f.last('welcome'))).member).not.toBe(wa.member);
+        } finally {
+            await b.stop();
+        }
+    });
+
     it('nudge reaches the away member; Start waits, then starts anyway', async () => {
         const b = await boot();
         try {

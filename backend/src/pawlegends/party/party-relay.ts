@@ -505,7 +505,11 @@ export class PartyRelay {
     private hello(s: Sock, msg: Extract<ClientJson, { t: 'hello' }>): void {
         if (msg.proto < PROTO_MIN || msg.proto > PROTO) return this.error(s, 'update_required');
         if (!partySimFor(msg.sim, msg.simHash)) return this.error(s, 'update_required');
-        const ticket = msg.ticket ? this.opts.tickets.verify(msg.ticket, this.now()) : null;
+        let ticket = msg.ticket ? this.opts.tickets.verify(msg.ticket, this.now()) : null;
+        // a reconnect re-sends its first hello, whose single-use ticket is spent (or expired) by then: a ticket minted
+        // for the account the resume token belongs to keeps that account (the soak found ticketed players losing their
+        // seat on every network drop). The token alone never names an account.
+        if (msg.ticket && !ticket && msg.resume) ticket = this.resumedTicket(msg.ticket, msg.resume.token);
         if (msg.ticket && !ticket && this.opts.tickets.available) this.error(s, 'bad_ticket');
         const guestKeyHash = msg.guestKey ? hashKey(`guest:${msg.guestKey}`) : null;
         const key = ticket ? `acct:${ticket.accountId}` : guestKeyHash ? `guest:${guestKeyHash}` : `ip:${s.ipKey}`;
@@ -572,6 +576,14 @@ export class PartyRelay {
             const live = party.room ? this.rooms.get(party.room) : undefined;
             if (live && live.seats.has(memberId)) this.bindSeat(s, live, memberId);
         }
+    }
+
+    /** A spent or expired ticket re-sent with a resume token issued to that ticket's account: the account, else null. */
+    private resumedTicket(ticket: string, token: unknown): { accountId: string; guest: boolean } | null {
+        if (typeof token !== 'string') return null;
+        const minted = this.opts.tickets.mintedFor(ticket);
+        const r = minted ? this.resume.get(hashKey(token)) : undefined;
+        return minted && r && r.identityKey === `acct:${minted.accountId}` ? minted : null;
     }
 
     /** One live resume token per member: the old one is forgotten when a new one is issued. */
