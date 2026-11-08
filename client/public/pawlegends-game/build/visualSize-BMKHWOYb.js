@@ -1,0 +1,1 @@
+import{i as e,o as t}from"./rig-DTaI2172.js";import{un as n}from"./domino-BBlh7tTj.js";var r=2.6,i=t=>t?e[t]:r,a=e=>e?t[e]:r,o=e=>i(e)/r,s=(e,t)=>t*o(e),c=e=>e?n[e].w:1,l=e=>(o(e)+c(e))/2,u=e=>.35*i(e),d=e=>.72*i(e);export{s as a,a as i,u as n,d as r,l as t};
