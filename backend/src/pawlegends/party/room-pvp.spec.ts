@@ -7,7 +7,7 @@ import { REMAKE, Room, type RoomIO } from './room';
 const move = (x: number) => new Uint8Array([CMD_OP.Move, x & 0xff, 0, 40, 0]);
 const ping = () => new Uint8Array([CMD_OP.Ping, 0, 10, 0, 10, 0, 255]);
 
-function setup(opts: { humans?: number[]; occupied?: number[]; pvp?: boolean } = {}) {
+function setup(opts: { humans?: number[]; occupied?: number[]; pvp?: boolean; premade?: number[][] } = {}) {
     const turns: TurnFrame[] = [];
     const json: { slot: number | null; msg: Record<string, unknown> }[] = [];
     const io: RoomIO = {
@@ -26,6 +26,7 @@ function setup(opts: { humans?: number[]; occupied?: number[]; pvp?: boolean } =
             nowMs: 0,
             startMs: 1000,
             pvp: opts.pvp ?? true,
+            premade: opts.premade,
         },
         io
     );
@@ -122,6 +123,42 @@ describe('casual PvP room', () => {
         expect(room.voided).toBe('remake');
         expect(room.status).toBe('abandoned');
         expect(json.find(j => j.msg.t === 'void')).toEqual({ slot: null, msg: { t: 'void', reason: 'remake' } });
+    });
+
+    it('remake: a teammate who loaded and lost the connection counts after 60 s offline, like one who left', () => {
+        const { room } = setup({ humans: [0, 1, 3, 4] });
+        run(room, 0, 1000);
+        room.disconnect(4, 1000);
+        run(room, 1000, msAt(REMAKE.fromTick));
+        const at = msAt(REMAKE.fromTick) + 1;
+        expect(at - 1000).toBeGreaterThanOrEqual(REMAKE.offlineMs);
+        expect(room.remakeOpen(1, at)).toBe(true);
+        // a fresh drop does not (yet)
+        const fresh = setup({ humans: [0, 1, 3, 4] });
+        run(fresh.room, 0, msAt(REMAKE.fromTick) - 30_000);
+        fresh.room.disconnect(4, msAt(REMAKE.fromTick) - 30_000);
+        run(fresh.room, msAt(REMAKE.fromTick) - 30_000, msAt(REMAKE.fromTick));
+        expect(fresh.room.remakeOpen(1, msAt(REMAKE.fromTick) + 1)).toBe(false);
+        expect(fresh.room.castVote(3, 'remake', true, msAt(REMAKE.fromTick) + 1)).toBe(false);
+        // the reconnect closes it again
+        room.connect(4, at);
+        expect(room.remakeOpen(1, at + 1)).toBe(false);
+    });
+
+    it('remake: a pre-made duo cannot erase its own match (one leaves, the other votes)', () => {
+        const { room } = setup({ humans: [0, 1, 3, 4], premade: [[3, 4]] });
+        run(room, 0, 2000);
+        room.vacate(4, 2000, false);
+        run(room, 2000, msAt(REMAKE.fromTick));
+        expect(room.remakeOpen(1, msAt(REMAKE.fromTick) + 1)).toBe(false);
+        expect(room.castVote(3, 'remake', true, msAt(REMAKE.fromTick) + 1)).toBe(false);
+        expect(room.voided).toBeNull();
+        // a solo teammate (3) of a duo leaver (4 of 4+5) still may: 3 was not in that party
+        const solo = setup({ humans: [0, 1, 3, 4, 5], premade: [[4, 5]] });
+        run(solo.room, 0, 2000);
+        solo.room.vacate(4, 2000, false);
+        run(solo.room, 2000, msAt(REMAKE.fromTick));
+        expect(solo.room.remakeOpen(1, msAt(REMAKE.fromTick) + 1)).toBe(true);
     });
 
     it('no remake after 3:00', () => {

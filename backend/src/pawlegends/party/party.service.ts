@@ -42,6 +42,8 @@ export interface PartyCasual {
     fillDifficulty: [string, string];
     /** The human slots of the match (a member who leaves in the pick keeps the seat for a pilot). */
     humans: number[];
+    /** Slots that queued together (pre-made parties of 2 or 3): a member's leave never opens a remake for its mates. */
+    premade?: number[][];
 }
 
 export interface MemberIdentity {
@@ -127,7 +129,7 @@ export interface StartPlan {
     seats: { slot: number; hero: string; trick: string }[];
     difficulty: string;
     /** Casual PvP: the sim runs `mode: 'pvp'` with these fill profiles; `species` per team. */
-    pvp?: { fillDifficulty: [string, string]; species: [Species, Species] };
+    pvp?: { fillDifficulty: [string, string]; species: [Species, Species]; premade?: number[][] };
 }
 
 export interface PartyEvents {
@@ -717,6 +719,7 @@ export class PartyService {
             pvp: {
                 fillDifficulty: [...casual.fillDifficulty] as [string, string],
                 species: [...casual.species] as [Species, Species],
+                ...(casual.premade?.length ? { premade: casual.premade.map(g => g.slice()) } : {}),
             },
         });
     }
