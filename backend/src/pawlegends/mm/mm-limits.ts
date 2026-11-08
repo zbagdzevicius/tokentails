@@ -96,3 +96,48 @@ export const fillAtMs = (perMin: number): number =>
 /** When two humans are matched with one bot. */
 export const pairFillMs = (perMin: number): number =>
     Math.min(MM_LIMITS.fill.pair[fillBand(perMin)], MM_LIMITS.maxFillMs);
+
+/**
+ * Casual PvP (M1b, docs/plans/moba/V16.md §4.1): the casual pool's numbers. A pool exists only for sims >= PVP_SINCE
+ * and PROTO 3 sockets.
+ */
+export const MM_CASUAL = Object.freeze({
+    /** Bot fill (symmetric shapes first) once the oldest entry waited this long; fixed for casual. */
+    fillMs: 30_000,
+    /**
+     * No opponent human by then: the entry moves to the co-op pool (Keep waiting puts it back). The card then shows
+     * Keep waiting for `switchGraceMs` before the co-op fill seats it, so a lone search is seated by 45 s (V16.md §4.1
+     * step 4: "no PvP opponent by 45 s").
+     */
+    switchMs: 40_000,
+    switchGraceMs: 5000,
+    /** A lone human never faces three humans while a 2-human team can still form within this long after the fill. */
+    loneVsThreeMs: 15_000,
+    /** A side request is honoured inside the window, relaxed after this long. */
+    sideRelaxMs: 25_000,
+    /** Parties face parties of the same size (or larger) until this long. */
+    partiesUntilMs: 40_000,
+    /** Members above this rating deviation play in a protected pool until it widens. */
+    protectedRd: 250,
+    protectWidenMs: 45_000,
+    /** Newbie lock: fewer completed matches than this, or a rating deviation above `newbieRd`. */
+    newbieMatches: 5,
+    newbieRd: 300,
+    /** |Δ team mean| <= min(base + perSecond·w, max) + (rd − rdFree) of the widest member. */
+    window: Object.freeze({ base: 75, perSecond: 12, max: 400, rdFree: 200 }),
+    /** Accept card: every human answers within this long. */
+    acceptMs: 10_000,
+    /** Dodges (decline or no answer): this many free per UTC day, then +penaltyStepMs low-priority wait each. */
+    dodgeFreePerDay: 2,
+    dodgePenaltyStepMs: 60_000,
+    /** A human-only (3v3) match must be predicted inside 40..60 % until the oldest waited this long. */
+    fairUntilMs: 25_000,
+    /** Fit cost weights. */
+    shapeWeight: 1000,
+    sideMismatch: 5,
+    orderWeight: 0.001,
+    /** Candidates looked at per anchor (bounds the subset search). */
+    candidates: 10,
+    /** Recent matches per pool remembered for the left-side species alternation. */
+    sideBalanceN: 50,
+});

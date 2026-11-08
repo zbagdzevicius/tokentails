@@ -26,6 +26,7 @@ import {
     MAX_JSON,
     PROTO,
     PROTO_MIN,
+    PROTO_PVP,
     ProtoError,
     SUBPROTOCOL,
     TURN_TICKS,
@@ -34,6 +35,7 @@ import {
     clampSocialPoint,
     decodeClientBinary,
     socialIdOk,
+    teamOfSlot,
     encodeCatchup,
     encodeTurnBody,
     splitTurnBodies,
@@ -112,7 +114,7 @@ interface Sock {
     helloTimer: NodeJS.Timeout | null;
     identity: MemberIdentity | null;
     /** `hello.hint`: UI defaults only (the lowest member tier, the newbie hero); never trusted for anything else. */
-    hint: { maxDifficulty: string; newbie: boolean } | undefined;
+    hint: { maxDifficulty: string; newbie: boolean; matches?: number } | undefined;
     memberId: string | null;
     sim: { version: number; hash: string } | null;
     /** The `hello.proto` of this socket (PROTO_MIN..PROTO): no `mm.*` frame or new error code ever reaches a PROTO 1. */
@@ -158,6 +160,8 @@ interface LiveRoom {
     ips: Set<string>;
     /** A Quick Play room (`match.mode: 'coop'`). */
     coop?: boolean;
+    /** A casual PvP room (`match.mode: 'casual'`): humans on both teams, team-scoped social and votes. */
+    casual?: { species: ['cat' | 'dog', 'cat' | 'dog'] };
 }
 
 const hashKey = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
@@ -170,6 +174,9 @@ export const netKey = (ip: string): string => {
 const token128 = () => randomBytes(16).toString('base64url');
 /** Error codes only a PROTO 2 socket understands. */
 const PROTO2_ERRORS: ReadonlySet<string> = new Set(['mm_locked', 'seat_taken']);
+/** Error codes and frames only a PROTO 3 socket understands (casual PvP). */
+const PROTO3_ERRORS: ReadonlySet<string> = new Set(['pvp_update_required']);
+const PROTO3_FRAMES: ReadonlySet<string> = new Set(['void', 'mm.accepted']);
 /** How long the resume token of a backfilled leaver answers `seat_taken`. */
 const MM_SEAT_TAKEN_MS = 30 * 60_000;
 const roomId = () => {
@@ -421,6 +428,11 @@ export class PartyRelay {
         if (
             s.proto < 2 &&
             (String(msg.t).startsWith('mm.') || (msg.t === 'error' && PROTO2_ERRORS.has(String(msg.code))))
+        )
+            return;
+        if (
+            s.proto < PROTO_PVP &&
+            (PROTO3_FRAMES.has(String(msg.t)) || (msg.t === 'error' && PROTO3_ERRORS.has(String(msg.code))))
         )
             return;
         if (s.ws.readyState === WebSocket.OPEN) s.ws.send(JSON.stringify(msg));
@@ -826,6 +838,12 @@ export class PartyRelay {
             case 'mm.side':
             case 'mm.backfill':
             case 'mm.back':
+            case 'mm.accept':
+                // PROTO 3 only (casual PvP)
+                if (msg.t === 'mm.accept' && s.proto < PROTO_PVP) {
+                    this.error(s, 'bad_message');
+                    return this.strike(s);
+                }
                 // PROTO 2 only: a PROTO 1 socket sending one is a malformed frame
                 if (s.proto < 2) {
                     this.error(s, 'bad_message');
@@ -940,7 +958,13 @@ export class PartyRelay {
             out.y = p.y;
         }
         if (msg.target !== undefined && msg.target < 6) out.target = msg.target;
-        for (const o of this.socketsOf(live)) this.sendJson(o, out);
+        // casual PvP (V16.md §4.2): pings and quick chat reach the own team only; emotes reach everyone (the client
+        // has an opponent mute-all)
+        const team = teamOfSlot(s.seatSlot);
+        for (const o of this.socketsOf(live)) {
+            if (live.casual && msg.kind !== 'emote' && teamOfSlot(o.seatSlot) !== team) continue;
+            this.sendJson(o, out);
+        }
     }
 
     private queueParty(partyId: string): void {
@@ -980,6 +1004,7 @@ export class PartyRelay {
                                   side: party.mm.side,
                                   strangers: [...party.mm.strangers],
                                   host: party.mm.host,
+                                  ...(party.mm.casual ? { casual: party.mm.casual } : {}),
                               },
                           }
                         : {}),
@@ -1068,13 +1093,27 @@ export class PartyRelay {
             this.log('refused_old_sim', { simVersion: sim.version });
             return;
         }
+        // casual PvP: the pinned sim must run PvP, and each team must be one species (V16.md §3.1.6, §4.2)
+        if (plan.pvp) {
+            const teamsOk = plan.seats.every(
+                seat => ps.heroSideOf(seat.hero) === plan.pvp!.species[teamOfSlot(seat.slot)]
+            );
+            if (!ps.PVP_SINCE || sim.version < ps.PVP_SINCE || !teamsOk) {
+                for (const m of party.members)
+                    this.sendJsonTo(m.id, { t: 'error', code: teamsOk ? 'pvp_update_required' : 'bad_message' });
+                this.parties.matchEnded(party.id);
+                this.log('refused_pvp', { simVersion: sim.version, teams: teamsOk });
+                return;
+            }
+        }
         const { picks, tricks } = ps.fillPicksParty(plan.seed, plan.seats as never);
-        const config = {
+        const config: StoredRoom['config'] = {
             seed: plan.seed,
             picks: picks as string[],
             tricks: tricks as string[],
             difficulty: plan.difficulty,
             humans: plan.humans,
+            ...(plan.pvp ? { mode: 'pvp' as const, fillDifficulty: plan.pvp.fillDifficulty } : {}),
         };
         const id = roomId();
         const now = this.now();
@@ -1095,10 +1134,11 @@ export class PartyRelay {
                 humans: plan.humans,
                 occupied: plan.occupied,
                 difficulty: plan.difficulty,
-                forfeitFrom: ps.forfeitFromOf(plan.difficulty),
+                forfeitFrom: ps.forfeitFromOf(plan.pvp ? 'pvp' : plan.difficulty),
                 nowMs: now,
                 startMs,
                 phaseMs: phaseOf(id),
+                pvp: !!plan.pvp,
             },
             this.roomIO(id)
         );
@@ -1119,7 +1159,8 @@ export class PartyRelay {
             heroSkins: [0, 1, 2, 3, 4, 5].map(slot => party.members.find(m => m.slot === slot)?.card?.image ?? null),
             keys: new Set(party.members.map(m => m.identity.key)),
             ips: ipsHere,
-            ...(party.mm ? { coop: true } : {}),
+            ...(party.mm && !plan.pvp ? { coop: true } : {}),
+            ...(plan.pvp ? { casual: { species: plan.pvp.species } } : {}),
         };
         this.rooms.set(id, live);
         party.room = id;
@@ -1133,7 +1174,7 @@ export class PartyRelay {
                 occupants,
                 chunks: [],
                 lastTurn: 0,
-                lastSeq: [0, 0, 0],
+                lastSeq: room.slots.map(() => 0),
                 pilotTicks: {},
                 openUnclaimedAt1800: false,
                 unscored: this.opts.tickets.available ? null : 'no_secret',
@@ -1161,7 +1202,7 @@ export class PartyRelay {
         this.log('mp_match_start', {
             humans: plan.humans.length,
             difficulty: plan.difficulty,
-            ...(party.mm ? { mode: 'coop' } : {}),
+            ...(party.mm ? { mode: plan.pvp ? 'casual' : 'coop' } : {}),
         });
     }
 
@@ -1179,6 +1220,7 @@ export class PartyRelay {
             lastSeq: live.room.slots[slot]?.lastSeq ?? 0,
             simVersion: live.sim.version,
             ...(live.coop ? { mode: 'coop' as const } : {}),
+            ...(live.casual ? { mode: 'casual' as const, species: live.casual.species } : {}),
         };
     }
 
@@ -1440,16 +1482,23 @@ export class PartyRelay {
     private abandon(live: LiveRoom, why: string): void {
         const room = live.room;
         if (live.ending || !this.rooms.has(room.id)) return;
-        void this.mm.onRoomEnded(room.id, null, room.tick).catch(() => undefined);
+        // a casual PvP remake (V16.md §4.2): the room is voided, every socket already got `void` from the room
+        const voided = room.voided;
+        void this.mm.onRoomEnded(room.id, null, room.tick, voided).catch(() => undefined);
         live.ending = true;
         if (room.status !== 'abandoned') room.status = 'abandoned';
         this.scheduler.remove(room);
         this.referee.close(room.id);
         void this.opts.store
-            .finish(room.id, live.epoch, { status: 'abandoned' }, new Date(this.now()))
+            .finish(
+                room.id,
+                live.epoch,
+                { status: 'abandoned', ...(voided ? { void: voided } : {}) },
+                new Date(this.now())
+            )
             .catch(() => undefined);
         for (const s of this.socketsOf(live)) {
-            this.sendJson(s, { t: 'error', code: 'room_gone' });
+            if (!voided) this.sendJson(s, { t: 'error', code: 'room_gone' });
             s.seatRoom = null;
             s.seatSlot = -1;
         }
@@ -1473,7 +1522,7 @@ export class PartyRelay {
             live.checkpointing = true;
             void this.checkpoint(live, false).finally(() => (live.checkpointing = false));
         }
-        if (room.status === 'abandoned') this.abandon(live, 'timer');
+        if (room.status === 'abandoned') this.abandon(live, room.voided ? 'remake' : 'timer');
     }
 
     private concatLog(live: LiveRoom): Uint8Array {
@@ -1644,10 +1693,13 @@ export class PartyRelay {
                     humans: claimed.config.humans,
                     occupied: claimed.occupants.map(o => o.slot),
                     difficulty: claimed.config.difficulty,
-                    forfeitFrom: entry.party.forfeitFromOf(claimed.config.difficulty),
+                    forfeitFrom: entry.party.forfeitFromOf(
+                        claimed.config.mode === 'pvp' ? 'pvp' : claimed.config.difficulty
+                    ),
                     nowMs: this.now(),
                     startMs: this.now(),
                     phaseMs: phaseOf(claimed._id),
+                    pvp: claimed.config.mode === 'pvp',
                     restoredLog: bodies,
                     restoredSeq: claimed.lastSeq,
                     restoredPilotTicks: claimed.pilotTicks as never,
@@ -1710,7 +1762,13 @@ export class PartyRelay {
                 resume?: string;
                 ipKey?: string;
             }[];
-            mm?: { match: string; side: 'cat' | 'dog'; strangers: string[]; host: boolean };
+            mm?: {
+                match: string;
+                side: 'cat' | 'dog';
+                strangers: string[];
+                host: boolean;
+                casual?: import('./party.service').PartyCasual;
+            };
         };
         const leaderDoc = doc.members.find(m => m.id === doc.leader) ?? doc.members[0];
         if (!leaderDoc) return;
@@ -1738,7 +1796,8 @@ export class PartyRelay {
             room._id
         );
         this.parties.restoreMm(party, doc.mm);
-        if (doc.mm) live.coop = true;
+        if (doc.mm?.casual) live.casual = { species: doc.mm.casual.species };
+        else if (doc.mm) live.coop = true;
         for (const m of doc.members) {
             if (m.resume) this.setResume(m.id, m.resume, m.key, m.ipKey ?? '');
             if (m.slot !== undefined) live.seats.set(m.id, m.slot);

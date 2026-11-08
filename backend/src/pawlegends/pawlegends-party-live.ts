@@ -5,7 +5,7 @@ import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_TICK_HZ } from 'sr
 import { ErrorCode } from 'src/shared-contracts/errors';
 import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { simFor } from 'src/vendor/pawlegends-sim';
-import { coopRatingStep } from './mm/rating-update';
+import { casualRatingStep, coopRatingStep } from './mm/rating-update';
 import type { MmRoomRecord } from './mm/mm-room.schema';
 import type { MmRatingRow } from './mm/rating.schema';
 import { AFK_REASONS } from './party/room';
@@ -31,6 +31,11 @@ import {
  * index), and one per account per room (an account seated twice saves once). Catnip follows the solo first-win rule of the difficulty, one tier lower when an open seat stayed empty past
  * tick 1,800 (S5); never a fastest win from a party (v1); at most 30 scored party matches per account per UTC day
  * (over it the match counts, no catnip).
+ *
+ * Casual PvP (V16.md §4.5, a room whose config has `mode: 'pvp'`): the same DTO. The sim must be >= PVP_SINCE; the
+ * verdict's `outcome` is team 0's view, so the posted `outcome` must equal the slot's own view (`winner` against the
+ * slot's team). Catnip is the hard-tier party amount within the same caps (no lower tier for open seats); a voided
+ * (remade) room was never `ended`, so it pays and rates nothing; the hidden rating is the `casual` row.
  */
 
 export const PARTY_DAILY_CAP = 30;
@@ -106,7 +111,15 @@ export async function savePawlegendsPartyMatch(
     if (room.simVersion !== r.simVersion)
         throw reject(ErrorCode.PAWLEGENDS_SIM_VERSION, 'simVersion differs from the room');
     const v = room.verdict;
-    if (v.ticks !== r.ticks || v.outcome !== r.outcome || v.finalHash !== r.finalHash) {
+    const pvp = room.config.mode === 'pvp';
+    if (pvp) {
+        const pvpSince = simFor(r.simVersion)?.party?.PVP_SINCE;
+        if (!pvpSince || r.simVersion < pvpSince)
+            throw reject(ErrorCode.PAWLEGENDS_SIM_VERSION, `PvP needs simVersion ${pvpSince ?? 'with PvP'}`);
+    }
+    // PvP: the slot's own view (team 1 won when the verdict, team 0's view, says lost)
+    const slotOutcome = pvp ? (v.winner === (r.slot >= 3 ? 1 : 0) ? 'won' : 'lost') : v.outcome;
+    if (v.ticks !== r.ticks || slotOutcome !== r.outcome || v.finalHash !== r.finalHash) {
         throw reject(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'the result differs from the verified match');
     }
     const occ = room.occupants.find(o => o.slot === r.slot);
@@ -141,10 +154,10 @@ export async function savePawlegendsPartyMatch(
     const now = (deps.now || (() => new Date()))();
     const difficulty = PAWLEGENDS_LEVELS[index];
     // S5: an open seat nobody claimed by tick 1,800 pays one tier lower (the lowest tier stays)
-    const catnipIndex = room.openUnclaimedAt1800 ? Math.max(0, index - 1) : index;
+    const catnipIndex = room.openUnclaimedAt1800 && !pvp ? Math.max(0, index - 1) : index;
     const catnipDifficulty = PAWLEGENDS_LEVELS[catnipIndex];
     const daily = (await deps.rooms.countEnded(String(userId), utcDayStart(now))) > PARTY_DAILY_CAP;
-    const won = v.outcome === 'won';
+    const won = slotOutcome === 'won';
     const cap = PAWLEGENDS_LEVEL_CAPS[catnipIndex] ?? 0;
     for (const field of [PAWLEGENDS_CATNIP_FIELD, PAWLEGENDS_MATCHES_FIELD]) {
         const val = user[field];
@@ -179,13 +192,14 @@ export async function savePawlegendsPartyMatch(
         $set: { lastPlayedAt: now },
     });
     const catnipCount = await recomputeCatnipCount(deps.users, userId);
-    if (deps.mm)
+    if (deps.mm && pvp) await applyCasualRating(deps.mm, String(userId), r.room, won, now, log);
+    else if (deps.mm)
         await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
     return {
         party: true,
         difficulty,
         catnipDifficulty,
-        outcome: v.outcome as 'won' | 'lost',
+        outcome: slotOutcome as 'won' | 'lost',
         ticks: v.ticks,
         finalHash: v.finalHash,
         catnipPaid,
@@ -208,12 +222,40 @@ async function applyCoopRating(
     now: Date,
     log: Pick<Logger, 'warn'>
 ): Promise<void> {
+    await writeRating(mm, roomId, `${accountId}:coop`, 'coop', log, (room, row) =>
+        coopRatingStep({ room, accountId, outcome, difficulty, row, nowMs: now.getTime() })
+    );
+}
+
+/** The casual PvP rating (V16.md §4.5): as the co-op one, on the `casual` row, from the slot's own result. */
+async function applyCasualRating(
+    mm: NonNullable<IPartyLiveDeps['mm']>,
+    accountId: string,
+    roomId: string,
+    won: boolean,
+    now: Date,
+    log: Pick<Logger, 'warn'>
+): Promise<void> {
+    await writeRating(mm, roomId, `${accountId}:casual`, 'casual', log, (room, row) =>
+        casualRatingStep({ room, accountId, won, row, nowMs: now.getTime() })
+    );
+}
+
+/** The one rating write site (mm-no-write.spec.ts): read the row, step it, insert or update by version, retry once. */
+async function writeRating(
+    mm: NonNullable<IPartyLiveDeps['mm']>,
+    roomId: string,
+    rowId: string,
+    queue: string,
+    log: Pick<Logger, 'warn'>,
+    stepOf: (room: MmRoomRecord, row: MmRatingRow | null) => { row?: MmRatingRow }
+): Promise<void> {
     try {
         const room = await mm.rooms.get(roomId);
         if (!room) return;
         for (let attempt = 0; attempt < 2; attempt++) {
-            const row = ((await mm.ratings.findById(`${accountId}:coop`).lean()) as MmRatingRow | null) ?? null;
-            const step = coopRatingStep({ room, accountId, outcome, difficulty, row, nowMs: now.getTime() });
+            const row = ((await mm.ratings.findById(rowId).lean()) as MmRatingRow | null) ?? null;
+            const step = stepOf(room, row);
             if (!step.row) return;
             const { _id, v, ...fields } = step.row;
             try {
@@ -227,9 +269,11 @@ async function applyCoopRating(
                 if ((error as { code?: unknown })?.code !== 11000) throw error;
             }
         }
-        log.warn('pawlegends coop rating: version conflict twice, skipped');
+        log.warn(`pawlegends ${queue} rating: version conflict twice, skipped`);
     } catch (error) {
-        log.warn(`pawlegends coop rating write failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
+        log.warn(
+            `pawlegends ${queue} rating write failed: ${String((error as Error)?.message || error).slice(0, 200)}`
+        );
     }
 }
 

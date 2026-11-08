@@ -5,6 +5,7 @@ import {
     PLACEHOLDER,
     SIM_VERSION,
     SIM_VERSIONS,
+    simFor,
 } from 'src/vendor/pawlegends-sim';
 
 /**
@@ -22,6 +23,11 @@ export const PAWLEGENDS_SIM_INFO = Object.freeze({
     /** True while only the placeholder bundle is vendored (every replay is refused). */
     placeholder: PLACEHOLDER,
     levels: PAWLEGENDS_LEVELS,
+    /**
+     * Casual PvP (docs/plans/moba/V16.md §1 item 7): the first sim with PvP, or null. The game shows its PvP chip only
+     * when its own sim is in `simVersions` and >= this (a capability check, no flag).
+     */
+    pvpSince: simFor(SIM_VERSION)?.party?.PVP_SINCE ?? null,
 });
 
 /** The part of `PAWLEGENDS_SIM_INFO` a 400 body carries. */

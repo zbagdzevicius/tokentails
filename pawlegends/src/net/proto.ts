@@ -13,7 +13,7 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 2;
+export const PROTO = 3;
 /**
  * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
  * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
@@ -21,9 +21,16 @@ export const PROTO = 2;
  * socket.
  */
 export const PROTO_MIN = 1;
+/**
+ * PROTO 3 (M1b casual PvP, docs/plans/moba/V16.md §4.3): the `casual` queue, `mm.accept`, `mm.found.mode`, `void`,
+ * team-scoped votes (`remake`), and six human slots on the wire. A co-op or party room never seats slots 3..5, so its
+ * TURN bytes are the same as PROTO 2's: only a PvP room (never sent to a PROTO 2 socket) sets a mode or ack bit above
+ * 0x07. The subprotocol stays `pl.1`.
+ */
+export const PROTO_PVP = 3;
 export const SUBPROTOCOL = 'pl.1';
-/** Quick Play queues: only co-op in M1a ('casual' and 'ranked' are reserved for M1b and M2). */
-export const MM_QUEUES = Object.freeze(['coop'] as const);
+/** Quick Play queues: co-op (M1a) and casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE). 'ranked' is M2. */
+export const MM_QUEUES = Object.freeze(['coop', 'casual'] as const);
 export type MmQueue = (typeof MM_QUEUES)[number];
 /** The side a queued player asks for: cats, dogs, or either. A team is never mixed. */
 export const MM_SIDES = Object.freeze(['cat', 'dog', 'any'] as const);
@@ -31,8 +38,20 @@ export type MmSide = (typeof MM_SIDES)[number];
 /** Ticks per lockstep turn (D3: 2 ticks, 66.7 ms, 15 Hz). */
 export const TURN_TICKS = 2;
 export const TURN_MS = 200 / 3;
-/** Human slots (all on slot 0's team in v1, D1). */
-export const MAX_HUMANS = 3;
+/**
+ * Human slots on the wire: 0..2 are team 0, 3..5 team 1 (PvP only, PROTO 3). Party and co-op rooms seat 0..2 only
+ * (`COOP_HUMANS`), so their frames never carry a bit above 0x07.
+ */
+export const MAX_HUMANS = 6;
+/** Human slots of a party or co-op room (all on team 0, D1). */
+export const COOP_HUMANS = 3;
+/** Slots per team (slot s is on team `teamOfSlot(s)`). */
+export const SLOTS_PER_TEAM = 3;
+export const teamOfSlot = (slot: number): 0 | 1 => (slot >= SLOTS_PER_TEAM ? 1 : 0);
+/** Each team's lead seat in PvP (its pings and its surrender go into this slot's stream). */
+export const leadSlotOf = (team: 0 | 1): number => team * SLOTS_PER_TEAM;
+/** Bits of a mode or ack mask: 6 slots. */
+const SLOT_MASK = (1 << MAX_HUMANS) - 1;
 export const WS_PATH = '/pawlegends/ws';
 
 export class ProtoError extends Error {
@@ -157,7 +176,8 @@ export const MAX_FRAME: Readonly<Record<number, number>> = Object.freeze({
   [Frame.CMD]: 10,
   [Frame.BEAT]: 8,
   [Frame.HASH]: 8,
-  [Frame.TURN]: 128,
+  // PROTO 3: a PvP turn carries up to 6 slots × 2 ticks × (ping + command); a co-op turn stays far under 128 bytes
+  [Frame.TURN]: 256,
   [Frame.CATCHUP]: 16 * 1024,
   [Frame.ECHO]: 9,
 });
@@ -241,7 +261,7 @@ export const encodeEcho = (f: EchoFrame): Uint8Array => {
 
 function writeTurnBody(w: Writer, f: TurnFrame): void {
   w.varint(f.turn);
-  w.u8(f.modeMask & 0x07);
+  w.u8(f.modeMask & SLOT_MASK);
   let ackMask = 0;
   for (let s = 0; s < MAX_HUMANS; s++) if (f.acks[s] !== undefined) ackMask |= 1 << s;
   w.u8(ackMask);
@@ -259,10 +279,10 @@ function writeTurnBody(w: Writer, f: TurnFrame): void {
 function readTurnBody(r: Reader): TurnFrame {
   const turn = r.varint();
   const modeMask = r.u8();
-  if (modeMask > 0x07) throw new ProtoError('bad mode mask');
+  if (modeMask > SLOT_MASK) throw new ProtoError('bad mode mask');
   const ackMask = r.u8();
-  if (ackMask > 0x07) throw new ProtoError('bad ack mask');
-  const acks: (number | undefined)[] = [undefined, undefined, undefined];
+  if (ackMask > SLOT_MASK) throw new ProtoError('bad ack mask');
+  const acks: (number | undefined)[] = [];
   for (let s = 0; s < MAX_HUMANS; s++) if (ackMask & (1 << s)) acks[s] = r.varint();
   const n = r.u8();
   const entries: TurnEntry[] = [];
@@ -438,10 +458,12 @@ export const ERROR_CODES = [
   'mm_locked',
   /** PROTO 2: the seat this member left was given to another player (backfill); there is no seat to come back to. */
   'seat_taken',
+  /** PROTO 3: casual PvP needs a newer game (the socket's PROTO or sim is older than PvP). */
+  'pvp_update_required',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 
-export type VoteKind = 'surrender' | 'pause' | 'resume' | 'rematch';
+export type VoteKind = 'surrender' | 'pause' | 'resume' | 'rematch' | 'remake';
 export type SocialKind = 'ping' | 'chat' | 'emote';
 
 /**
@@ -486,7 +508,8 @@ export interface HelloMsg {
   ticket?: string;
   guestKey?: string;
   resume?: { token: string };
-  hint?: { maxDifficulty: string; newbie: boolean };
+  /** `matches` (PROTO 3): completed matches, the casual PvP newbie lock (a hint: matching only, never trusted). */
+  hint?: { maxDifficulty: string; newbie: boolean; matches?: number };
 }
 
 export type ClientJson =
@@ -517,6 +540,8 @@ export type ClientJson =
   | { t: 'mm.leave' }
   | { t: 'mm.side'; side: MmSide }
   | { t: 'mm.backfill'; offer: string; yes: boolean }
+  /** PROTO 3: the answer to a casual `mm.found` (10 s; a decline or no answer is a dodge). */
+  | { t: 'mm.accept'; match: string; yes: boolean }
   /** A stranger's closed tab: take this identity's own live Quick Play seat back (a stranger has no code to rejoin by). */
   | { t: 'mm.back' };
 
@@ -549,9 +574,10 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
     hint: [
       (v) =>
         isPlain(v) &&
-        keysOnly(v as object, ['maxDifficulty', 'newbie']) &&
+        keysOnly(v as object, ['maxDifficulty', 'newbie', 'matches']) &&
         isStr(ID)((v as { maxDifficulty: unknown }).maxDifficulty) &&
-        isBool((v as { newbie: unknown }).newbie),
+        isBool((v as { newbie: unknown }).newbie) &&
+        ((v as { matches?: unknown }).matches === undefined || isInt(0, 1_000_000)((v as { matches: unknown }).matches)),
       true,
     ],
   },
@@ -570,7 +596,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
   'pick.unlock': {},
   load: { pct: [isInt(0, 100), false] },
   loaded: {},
-  vote: { kind: [(v) => v === 'surrender' || v === 'pause' || v === 'resume' || v === 'rematch', false], yes: [isBool, false] },
+  vote: { kind: [(v) => v === 'surrender' || v === 'pause' || v === 'resume' || v === 'rematch' || v === 'remake', false], yes: [isBool, false] },
   social: {
     kind: [(v) => v === 'ping' || v === 'chat' || v === 'emote', false],
     id: [isInt(0, 63), false],
@@ -590,6 +616,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
   'mm.leave': {},
   'mm.side': { side: [(v) => typeof v === 'string' && (MM_SIDES as readonly string[]).includes(v), false] },
   'mm.backfill': { offer: [isStr(/^[a-z0-9]{12}$/), false], yes: [isBool, false] },
+  'mm.accept': { match: [isStr(/^[a-z0-9]{12}$/), false], yes: [isBool, false] },
   'mm.back': {},
 };
 
@@ -667,8 +694,12 @@ export interface PartyView {
   members: MemberView[];
   /** The recipient's own member id. */
   you: string;
-  /** PROTO 2: a Quick Play party (strangers matched by the queue). The side is fixed for the whole party. */
-  mm?: { side: 'cat' | 'dog'; strangers: boolean };
+  /**
+   * PROTO 2: a Quick Play party (strangers matched by the queue). The side is fixed for the whole party. PROTO 3
+   * casual: `side` is the recipient's own team's species, `mode: 'casual'`, `team` the recipient's team and `species`
+   * both teams' (the other team's heroes stay hidden until loading).
+   */
+  mm?: { side: 'cat' | 'dog'; strangers: boolean; mode?: 'casual'; team?: 0 | 1; species?: ['cat' | 'dog', 'cat' | 'dog'] };
   /** PROTO 2: the friend party is queued for Quick Play (every member shows the queue card). */
   queue?: { sinceMs: number; side: MmSide };
 }
@@ -679,6 +710,10 @@ export interface MatchConfigView {
   tricks: string[];
   difficulty: string;
   humans: number[];
+  /** PROTO 3 casual: 'pvp' seats humans on both teams (slots 0..5 with 0 and 3), sim v16+. */
+  mode?: 'pvp';
+  /** PvP: the bot profile of each team's fill seats. */
+  fillDifficulty?: [string, string];
 }
 
 export interface MatchMsg {
@@ -694,18 +729,23 @@ export interface MatchMsg {
   startInMs: number;
   lastSeq: number;
   simVersion: number;
-  /** PROTO 2: 'coop' for a Quick Play room (absent for a friend party). */
-  mode?: 'coop';
+  /** PROTO 2: 'coop' for a Quick Play room (absent for a friend party); PROTO 3: 'casual' for a PvP room. */
+  mode?: 'coop' | 'casual';
+  /** PROTO 3 casual: the species of each team ([team 0, team 1]). */
+  species?: ['cat' | 'dog', 'cat' | 'dog'];
 }
 
 export type ServerJson =
   | { t: 'welcome'; proto: number; member: string; resumeToken: string; serverMs: number; lastSeq?: number }
-  | { t: 'error'; code: ErrorCode; retryMs?: number }
+  /** `reason` (PROTO 3): why `mm_locked` refused a casual search ('pvp_newbie': fewer than 5 matches). */
+  | { t: 'error'; code: ErrorCode; retryMs?: number; reason?: 'pvp_newbie' }
   | PartyView
   | MatchMsg
   | { t: 'slot'; slot: number; reason: SlotReason; joined?: boolean; name?: string; laggy?: boolean }
   /** `yes` lists the slots that voted yes (match votes) or member ids. */
-  | { t: 'vote'; kind: VoteKind; yes?: (string | number)[]; need?: number; endsMs?: number; result?: 'pass' | 'fail' }
+  | { t: 'vote'; kind: VoteKind; yes?: (string | number)[]; need?: number; endsMs?: number; result?: 'pass' | 'fail'; team?: 0 | 1 }
+  /** PROTO 3: the match was voided (a remake): nobody gains or loses anything. */
+  | { t: 'void'; reason: 'remake' }
   | { t: 'social'; kind: SocialKind; id: number; x?: number; y?: number; target?: number; from: string; slot: number }
   | { t: 'nudge'; from: string }
   | { t: 'resync'; reason: 'desync' | 'gap' }
@@ -714,9 +754,37 @@ export type ServerJson =
   | { t: 'afk'; inMs: number }
   | { t: 'paused'; paused: boolean; leftMs?: number; resuming?: boolean }
   // PROTO 2 (Quick Play co-op): only ever sent to a PROTO 2 socket
-  | { t: 'mm.status'; queue: MmQueue; side: MmSide; waitedMs: number; estimateMs: number; found: number; lowPriorityMs?: number; warn?: 'leaver' }
-  | { t: 'mm.found'; side: 'cat' | 'dog'; humans: number; bots: number; difficulty: string }
-  | { t: 'mm.cancel'; reason: 'left' | 'away' | 'party' | 'server' | 'update' }
+  | {
+      t: 'mm.status';
+      queue: MmQueue;
+      side: MmSide;
+      waitedMs: number;
+      estimateMs: number;
+      found: number;
+      lowPriorityMs?: number;
+      warn?: 'leaver';
+      /** PROTO 3 casual: humans found per team ([yours, theirs]). */
+      teams?: [number, number];
+      /** PROTO 3: no PvP opponent by 45 s, so the search moved to co-op (Keep waiting re-sends casual). */
+      from?: 'casual';
+      /** PROTO 3: back at the front after someone declined a found match. */
+      requeued?: boolean;
+    }
+  | {
+      t: 'mm.found';
+      side: 'cat' | 'dog';
+      humans: number;
+      bots: number;
+      difficulty: string;
+      /** PROTO 3 casual: the match to accept, counts per team ([humans, bots] for [your team, theirs]) and the timer. */
+      mode?: 'casual';
+      match?: string;
+      teams?: [[number, number], [number, number]];
+      acceptByMs?: number;
+    }
+  /** PROTO 3 casual: who accepted so far (counts only). */
+  | { t: 'mm.accepted'; match: string; yes: number; need: number }
+  | { t: 'mm.cancel'; reason: 'left' | 'away' | 'party' | 'server' | 'update' | 'declined' | 'timeout' }
   | { t: 'mm.backfill.offer'; offer: string; side: 'cat' | 'dog'; clockS: number; score: [number, number]; expiresMs: number };
 
 export type ServerJsonType = ServerJson['t'];
@@ -738,6 +806,8 @@ const SERVER_TYPES: readonly ServerJsonType[] = [
   'mm.found',
   'mm.cancel',
   'mm.backfill.offer',
+  'mm.accepted',
+  'void',
 ];
 
 /** Parse a server JSON frame (the client trusts the relay's fields but still refuses unknown types). */

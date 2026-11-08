@@ -27,7 +27,16 @@ export interface StoredRoom {
     party: string;
     simVersion: number;
     simHash: string;
-    config: { seed: number; picks: string[]; tricks: string[]; difficulty: string; humans: number[] };
+    config: {
+        seed: number;
+        picks: string[];
+        tricks: string[];
+        difficulty: string;
+        humans: number[];
+        /** Casual PvP (V16.md §4.2): humans on both teams, PvpReplayRecord v: 3. */
+        mode?: 'pvp';
+        fillDifficulty?: [string, string];
+    };
     occupants: Occupant[];
     chunks: Buffer[];
     lastTurn: number;
@@ -36,6 +45,8 @@ export interface StoredRoom {
     openUnclaimedAt1800: boolean;
     unscored: string | null;
     status: StoredRoomStatus;
+    /** PvP: a passed remake voided the room (status abandoned; no verdict, no rewards, no rating). */
+    void?: 'remake' | null;
     verdict?: {
         finalHash: string;
         outcome: string;
@@ -84,7 +95,7 @@ export interface RoomStore {
     finish(
         id: string,
         epoch: number,
-        patch: Partial<Pick<StoredRoom, 'status' | 'verdict' | 'unscored' | 'handoff'>>,
+        patch: Partial<Pick<StoredRoom, 'status' | 'verdict' | 'unscored' | 'handoff' | 'void'>>,
         now: Date
     ): Promise<boolean>;
     get(id: string): Promise<StoredRoom | null>;
@@ -139,7 +150,7 @@ export class MemoryRoomStore implements RoomStore {
     async finish(
         id: string,
         epoch: number,
-        patch: Partial<Pick<StoredRoom, 'status' | 'verdict' | 'unscored' | 'handoff'>>,
+        patch: Partial<Pick<StoredRoom, 'status' | 'verdict' | 'unscored' | 'handoff' | 'void'>>,
         now: Date
     ): Promise<boolean> {
         const r = this.rooms.get(id);
@@ -257,6 +268,9 @@ export class PawlegendsRoom {
     @Prop({ type: Object, default: null })
     verdict: StoredRoom['verdict'];
 
+    @Prop({ type: String, default: null })
+    void: 'remake' | null;
+
     @Prop({ required: true })
     owner: string;
 
@@ -349,7 +363,7 @@ export class MongoRoomStore implements RoomStore {
     async finish(
         id: string,
         epoch: number,
-        patch: Partial<Pick<StoredRoom, 'status' | 'verdict' | 'unscored' | 'handoff'>>,
+        patch: Partial<Pick<StoredRoom, 'status' | 'verdict' | 'unscored' | 'handoff' | 'void'>>,
         now: Date
     ): Promise<boolean> {
         const res = await this.r.updateOne({ _id: id, epoch }, { $set: { ...patch, updatedAt: now } });
