@@ -4,6 +4,9 @@
  * Each seed (tools/lib/fuzz-entry.ts `fuzzSeed`) plays a full match with a random command stream, records it and
  * replays it from the record; the hash trails (every 30 ticks) and results must match. Seeds run in parallel
  * processes (`--procs`, default cores − 2); `--json` prints the rows. Exits 1 on any mismatch.
+ * Sim v16 (S-PvP, docs/plans/moba/V16.md §1.4): every seed also plays a PvP fuzz match (humans [0, 1, 3, 4], pilots
+ * flipping with random streams, both leads pinging and forfeiting), recorded as a v3 record and replayed from it.
+ * `--no-pvp` skips it.
  */
 import { spawn } from 'node:child_process';
 import { cpus } from 'node:os';
@@ -15,11 +18,20 @@ const seeds = Number(argValue('--seeds') ?? 100);
 const from = Number(argValue('--from') ?? 0);
 const procs = Math.max(1, Math.min(Number(argValue('--procs') ?? Math.max(1, cpus().length - 2)), seeds));
 const json = hasFlag('--json');
+const pvp = !hasFlag('--no-pvp');
 
 async function worker() {
   const fz = await importSim('tools/lib/fuzz-entry.ts');
   const rows = [];
-  for (let i = from; i < from + seeds; i++) rows.push(fz.fuzzMatch(fz.fuzzSeed(i)));
+  for (let i = from; i < from + seeds; i++) {
+    const row = fz.fuzzMatch(fz.fuzzSeed(i));
+    if (pvp) {
+      const p = fz.fuzzPvpMatch(fz.fuzzSeed(i));
+      row.pvpOk = p.ok;
+      row.ok = row.ok && p.ok;
+    }
+    rows.push(row);
+  }
   process.stdout.write(JSON.stringify(rows));
 }
 
@@ -35,7 +47,7 @@ export async function runFuzz(fromIdx, n, p) {
       new Promise((resolve, reject) => {
         let out = '';
         let err = '';
-        const ch = spawn(process.execPath, [fileURLToPath(import.meta.url), '--seeds', String(c), '--from', String(f), '--procs', '1', '--worker']);
+        const ch = spawn(process.execPath, [fileURLToPath(import.meta.url), '--seeds', String(c), '--from', String(f), '--procs', '1', '--worker', ...(pvp ? [] : ['--no-pvp'])]);
         ch.stdout.on('data', (d) => (out += d));
         ch.stderr.on('data', (d) => (err += d));
         ch.on('close', () => {
@@ -59,10 +71,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     const bad = rows.filter((r) => !r.ok);
     if (json) console.log(JSON.stringify({ rows, failures: bad.length }, null, 2));
     else {
-      for (const b of bad) console.error(`seed ${b.seed} (${b.hero}, ${b.difficulty}): first differing hash at tick ${b.firstDiff * 30}`);
+      for (const b of bad) console.error(`seed ${b.seed} (${b.hero}, ${b.difficulty}): ${b.pvpOk === false ? 'PvP record → replay differs' : `first differing hash at tick ${b.firstDiff * 30}`}`);
       const cmds = rows.reduce((s, r) => s + r.commands, 0);
       console.log(
-        `determinism: ${rows.length} seeds, ${cmds} commands, record → replay hash trails every 30 ticks: ` +
+        `determinism: ${rows.length} seeds${pvp ? ' (+ as many PvP matches)' : ''}, ${cmds} commands, record → replay hash trails every 30 ticks: ` +
           `${bad.length === 0 ? 'all identical' : `${bad.length} MISMATCH`} (${procs} processes, ${((Date.now() - t0) / 1000).toFixed(0)} s)`,
       );
     }

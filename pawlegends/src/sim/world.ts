@@ -390,6 +390,8 @@ export interface World {
    * match config, fixed at createMatch. 1 (slot 0 only) in every single-player match. Read it through `isHuman`.
    */
   humans: number;
+  /** Sim v16 S-PvP: 1 in a PvP match (MatchConfig.mode), else 0. NOT hashed: part of the match config. */
+  pvp: number;
 }
 
 export const COOLDOWN_SLOTS = 5;
@@ -601,6 +603,7 @@ export function createWorld(seed: number): World {
     globals: new Int32Array(G.Count),
     rng: new Rng(seed),
     humans: 1,
+    pvp: 0,
   };
   w.globals[G.Winner] = -1;
   w.globals[G.InputHash] = FNV_OFFSET | 0;

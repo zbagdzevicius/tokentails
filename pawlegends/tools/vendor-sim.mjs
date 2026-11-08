@@ -30,6 +30,8 @@
  *    dog-human replay verifies (a frozen version that has it lists it in `extra`).
  * 9. new-dog-replay.fixture.json (sim v15): one genuine Easy match played as a sim v15 dog (Frankie), so the spec shows
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
+ * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
+ *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
  * backend/src/vendor/pawlegends-sim/v10/ to v15/: those files, frozen (FROZEN below; sim v16 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
@@ -149,6 +151,7 @@ ${sorted.map((v) => `import * as v${v} from './v${v}';`).join('\n')}${hasPrev ? 
 export type {
     PawlegendsPartySim,
     PawlegendsPartyReplayRecord,
+    PawlegendsPvpReplayRecord,
     PawlegendsPartySeat,
     PawlegendsCommand,
     PawlegendsMatchHandle,
@@ -323,7 +326,7 @@ export type PawlegendsVerifyCode =
 
 export type PawlegendsVerifyResult =
     /** Sim v10 and later (GAPS B2): how the match ended; 'forfeit' = the player forfeited. */
-    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit' }
+    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit'; winner?: 0 | 1 }
     | { ok: false; code: PawlegendsVerifyCode; message: string };
 
 export const SIM_VERSION: number = sim.SIM_VERSION;
@@ -371,6 +374,25 @@ export interface PawlegendsPartyReplayRecord {
     mutator?: PawlegendsMutator;
 }
 
+/** Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.7): the replay of a PvP match (humans on both teams). */
+export interface PawlegendsPvpReplayRecord {
+    v: 3;
+    mode: 'pvp';
+    simVersion: number;
+    seed: number;
+    difficulty: PawlegendsDifficulty;
+    fillDifficulty: [PawlegendsDifficulty, PawlegendsDifficulty];
+    humans: PawlegendsPartySeat[];
+    picks: PawlegendsHeroId[];
+    tricks: PawlegendsTrickId[];
+    ticks: number;
+    inputs: string[];
+    /** Team 0's view (slot 0); each slot's own result is \`winner === teamOfSlot(slot)\`. */
+    outcome: PawlegendsOutcome;
+    finalHash: string;
+    mutator?: PawlegendsMutator;
+}
+
 export type PawlegendsCommand = { op: number; [k: string]: number };
 export type PawlegendsMatchHandle = { readonly __pawlegendsMatch: true };
 export type PawlegendsPilot = { readonly __pawlegendsPilot: true };
@@ -393,7 +415,16 @@ export interface PawlegendsPartySim {
     checkPartyShape(record: unknown): PawlegendsVerifyResult | null;
     verifyPartyReplay(record: unknown): PawlegendsVerifyResult;
     fillPicksParty(seed: number, humans: readonly PawlegendsPartySeat[]): { picks: PawlegendsHeroId[]; tricks: PawlegendsTrickId[] };
-    createMatch(config: { seed: number; picks: readonly string[]; tricks: readonly string[]; difficulty: string; humans?: readonly number[] }): PawlegendsMatchHandle;
+    createMatch(config: {
+        seed: number;
+        picks: readonly string[];
+        tricks: readonly string[];
+        difficulty: string;
+        humans?: readonly number[];
+        /** Sim v16 and later: 'pvp' seats humans on both teams (slots 0..5 with 0 and 3), difficulty 'hard'. */
+        mode?: 'pve' | 'pvp';
+        fillDifficulty?: readonly [string, string];
+    }): PawlegendsMatchHandle;
     step(m: PawlegendsMatchHandle, commands?: readonly PawlegendsCommand[], others?: readonly (readonly PawlegendsCommand[] | undefined)[]): void;
     hash(m: PawlegendsMatchHandle): number;
     hashTrail(m: PawlegendsMatchHandle): readonly number[];
@@ -410,6 +441,12 @@ export interface PawlegendsPartySim {
     humanAliveMask(m: PawlegendsMatchHandle): number;
     /** 'cat' | 'dog' for a hero id, else null. */
     heroSideOf(hero: string): string | null;
+    /** Sim v16 and later (S-PvP): the first SIM_VERSION with PvP; absent on older bundles. */
+    PVP_SINCE?: number;
+    checkPvpShape?(record: unknown): PawlegendsVerifyResult | null;
+    /** Re-sim a PvpReplayRecord; the verdict carries \`winner\`. */
+    verifyPvpReplay?(record: unknown): PawlegendsVerifyResult;
+    pvpReplayRecord?(m: PawlegendsMatchHandle): PawlegendsPvpReplayRecord | null;
 }
 
 /** The party API of this bundle. */
@@ -436,6 +473,10 @@ export const party: PawlegendsPartySim = {
     forfeitFromOf: sim.forfeitFromOf,
     humanAliveMask: sim.humanAliveMask,
     heroSideOf: sim.heroSideOf,
+    PVP_SINCE: sim.PVP_SINCE,
+    checkPvpShape: sim.checkPvpShape,
+    verifyPvpReplay: sim.verifyPvpReplay,
+    pvpReplayRecord: sim.pvpReplayRecord,
 };
 `;
 
@@ -510,6 +551,30 @@ export async function forfeitFixture(seed = FORFEIT_FIXTURE_SEED) {
   const r = sim.result(m);
   if (!r || r.reason !== 'forfeit') throw new Error('vendor-sim: the forfeit fixture did not end by forfeit');
   return sim.replayRecord(m);
+}
+
+/** Seed, seats and fill of the recorded PvP fixture (sim v16, S-PvP). */
+export const PVP_FIXTURE_SEED = 1616;
+export const PVP_FIXTURE_SEATS = Object.freeze([
+  Object.freeze({ slot: 0, hero: 'clem', trick: 'pounce' }),
+  Object.freeze({ slot: 1, hero: 'sage', trick: 'snack' }),
+  Object.freeze({ slot: 3, hero: 'brutus', trick: 'pounce' }),
+  Object.freeze({ slot: 4, hero: 'chili', trick: 'hiss' }),
+]);
+
+/** Play one PvP match (Hard rules, normal player-bots on slots 0, 1, 3 and 4, one Hard bot a side); its v3 record. */
+export async function pvpFixture(seed = PVP_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/server.ts');
+  const humans = PVP_FIXTURE_SEATS.map((s) => s.slot);
+  const { picks, tricks } = sim.fillPicksParty(seed, PVP_FIXTURE_SEATS);
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'hard', humans, mode: 'pvp', fillDifficulty: ['hard', 'hard'] });
+  const bots = humans.map((s) => sim.createPlayerBotFor(m, 'normal', s));
+  while (!sim.result(m)) {
+    const out = [[], [], [], [], [], []];
+    for (let i = 0; i < humans.length; i++) out[humans[i]] = sim.playerBotCommands(m, bots[i]);
+    sim.step(m, out[0], out);
+  }
+  return sim.pvpReplayRecord(m);
 }
 
 /** goldenHash (src/net/golden.ts) of a bundle's text, 8 hex: imported from a temp module like importSim does. */
@@ -599,6 +664,7 @@ export async function buildFiles() {
   const forfeit = JSON.stringify(await forfeitFixture(), null, 2) + '\n';
   const dog = JSON.stringify(await dogFixture(), null, 2) + '\n';
   const newDog = JSON.stringify(await newDogFixture(), null, 2) + '\n';
+  const pvp = JSON.stringify(await pvpFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -611,6 +677,8 @@ export async function buildFiles() {
     'dog-replay.fixture.json': dog,
     // Sim v15: a new-dog human (Frankie); a later freeze lists it in `extra`
     'new-dog-replay.fixture.json': newDog,
+    // Sim v16 (S-PvP): a PvP record (v3); a later freeze lists it in `extra`
+    'pvp-replay.fixture.json': pvp,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

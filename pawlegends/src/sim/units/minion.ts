@@ -4,7 +4,8 @@
  * in range, otherwise walks its lane path. Same-team minions push apart so a wave spreads out instead of stacking.
  */
 import { LANES, MAP } from '../../data/map';
-import { DIFFICULTY_RULES, RALLY_LEVEL_BP } from '../../data/bots';
+import { RALLY_LEVEL_BP } from '../../data/bots';
+import { rulesOf } from '../rules';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
 import { COMEBACK, MINIONS, MINION_AI, MINION_KINDS, WAVE, type MinionKind } from '../../data/minions';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
@@ -35,7 +36,7 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
     const boost = w.globals[team === 0 ? G.Comeback0 : G.Comeback1] > 0;
     // Rally (DifficultyRules.rallyBp): the human's team's minions carry their bonus (whole %) in `level`.
     const rally = team === teamOfSlot(HUMAN_SLOT) ? w.globals[G.Rally] : 0;
-    const rallyBp = rally * DIFFICULTY_RULES[m.config.difficulty].rallyBp;
+    const rallyBp = rally * rulesOf(m).rallyBp;
     const order: MinionKind[] = [];
     for (let i = 0; i < WAVE.melee; i++) order.push('melee');
     for (let i = 0; i < WAVE.ranged; i++) order.push('ranged');
@@ -95,7 +96,7 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
 export function checkComeback(m: MatchHandle): void {
   const w = m.world;
   const tick = w.globals[G.Tick];
-  const enemyToo = DIFFICULTY_RULES[m.config.difficulty].enemyComeback;
+  const enemyToo = rulesOf(m).enemyComeback;
   for (let team = 0; team < 2; team++) {
     if (team !== teamOfSlot(HUMAN_SLOT) && !enemyToo) continue;
     const left = team === 0 ? G.Comeback0 : G.Comeback1;
@@ -104,7 +105,7 @@ export function checkComeback(m: MatchHandle): void {
     const towersBehind = w.globals[team === 0 ? G.Towers1 : G.Towers0] - w.globals[team === 0 ? G.Towers0 : G.Towers1];
     const killsBehind = w.globals[team === 0 ? G.Kills1 : G.Kills0] - w.globals[team === 0 ? G.Kills0 : G.Kills1];
     // Sim v7: where a lead in fights is meant to win (DifficultyRules.leadPressure), only towers start a comeback.
-    const byKills = !DIFFICULTY_RULES[m.config.difficulty].leadPressure && killsBehind >= COMEBACK.takedownsBehind;
+    const byKills = !rulesOf(m).leadPressure && killsBehind >= COMEBACK.takedownsBehind;
     if (towersBehind < COMEBACK.structuresBehind && !byKills) continue;
     w.globals[left] = COMEBACK.waves;
     w.globals[at] = tick;

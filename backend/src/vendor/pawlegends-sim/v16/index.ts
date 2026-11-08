@@ -84,14 +84,14 @@ export type PawlegendsVerifyCode =
 
 export type PawlegendsVerifyResult =
     /** Sim v10 and later (GAPS B2): how the match ended; 'forfeit' = the player forfeited. */
-    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit' }
+    | { ok: true; outcome: PawlegendsOutcome; finalHash: string; ticks: number; stats: PawlegendsSlotStats[]; reason?: 'core' | 'safetyEnd' | 'forfeit'; winner?: 0 | 1 }
     | { ok: false; code: PawlegendsVerifyCode; message: string };
 
 export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-export const BUNDLE_SHA256 = '53cb6b297e4a272819e1ec583ba540207a1de37238349f05ca2598f273479556';
+export const BUNDLE_SHA256 = '939f6136581096ee783e9a230c649a473f15138d0fb2ee0a0f82ec1bfdf148d0';
 /** The SIM_VERSION this bundle was built with (16). */
 export const BUNDLE_SIM_VERSION = 16;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
@@ -107,7 +107,7 @@ export const verifyReplay: (record: unknown) => PawlegendsVerifyResult = sim.ver
 // steps rooms with. Matches and bots are opaque handles; commands are the sim's `Command` objects.
 
 /** SIM_HASH of the sim source closure this bundle was built from (the game's __SIM_HASH__). */
-export const SIM_SOURCE_HASH = 'c0ef49a1dd41dc03';
+export const SIM_SOURCE_HASH = '88ddb9730d8d0197';
 /** goldenHash (pawlegends/src/net/golden.ts) of this bundle, 8 hex (the game's __SIM_GOLDEN__). */
 export const SIM_GOLDEN = '0280a6f0';
 
@@ -127,6 +127,25 @@ export interface PawlegendsPartyReplayRecord {
     tricks: PawlegendsTrickId[];
     ticks: number;
     inputs: string[];
+    outcome: PawlegendsOutcome;
+    finalHash: string;
+    mutator?: PawlegendsMutator;
+}
+
+/** Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.7): the replay of a PvP match (humans on both teams). */
+export interface PawlegendsPvpReplayRecord {
+    v: 3;
+    mode: 'pvp';
+    simVersion: number;
+    seed: number;
+    difficulty: PawlegendsDifficulty;
+    fillDifficulty: [PawlegendsDifficulty, PawlegendsDifficulty];
+    humans: PawlegendsPartySeat[];
+    picks: PawlegendsHeroId[];
+    tricks: PawlegendsTrickId[];
+    ticks: number;
+    inputs: string[];
+    /** Team 0's view (slot 0); each slot's own result is `winner === teamOfSlot(slot)`. */
     outcome: PawlegendsOutcome;
     finalHash: string;
     mutator?: PawlegendsMutator;
@@ -154,7 +173,16 @@ export interface PawlegendsPartySim {
     checkPartyShape(record: unknown): PawlegendsVerifyResult | null;
     verifyPartyReplay(record: unknown): PawlegendsVerifyResult;
     fillPicksParty(seed: number, humans: readonly PawlegendsPartySeat[]): { picks: PawlegendsHeroId[]; tricks: PawlegendsTrickId[] };
-    createMatch(config: { seed: number; picks: readonly string[]; tricks: readonly string[]; difficulty: string; humans?: readonly number[] }): PawlegendsMatchHandle;
+    createMatch(config: {
+        seed: number;
+        picks: readonly string[];
+        tricks: readonly string[];
+        difficulty: string;
+        humans?: readonly number[];
+        /** Sim v16 and later: 'pvp' seats humans on both teams (slots 0..5 with 0 and 3), difficulty 'hard'. */
+        mode?: 'pve' | 'pvp';
+        fillDifficulty?: readonly [string, string];
+    }): PawlegendsMatchHandle;
     step(m: PawlegendsMatchHandle, commands?: readonly PawlegendsCommand[], others?: readonly (readonly PawlegendsCommand[] | undefined)[]): void;
     hash(m: PawlegendsMatchHandle): number;
     hashTrail(m: PawlegendsMatchHandle): readonly number[];
@@ -171,6 +199,12 @@ export interface PawlegendsPartySim {
     humanAliveMask(m: PawlegendsMatchHandle): number;
     /** 'cat' | 'dog' for a hero id, else null. */
     heroSideOf(hero: string): string | null;
+    /** Sim v16 and later (S-PvP): the first SIM_VERSION with PvP; absent on older bundles. */
+    PVP_SINCE?: number;
+    checkPvpShape?(record: unknown): PawlegendsVerifyResult | null;
+    /** Re-sim a PvpReplayRecord; the verdict carries `winner`. */
+    verifyPvpReplay?(record: unknown): PawlegendsVerifyResult;
+    pvpReplayRecord?(m: PawlegendsMatchHandle): PawlegendsPvpReplayRecord | null;
 }
 
 /** The party API of this bundle. */
@@ -197,4 +231,8 @@ export const party: PawlegendsPartySim = {
     forfeitFromOf: sim.forfeitFromOf,
     humanAliveMask: sim.humanAliveMask,
     heroSideOf: sim.heroSideOf,
+    PVP_SINCE: sim.PVP_SINCE,
+    checkPvpShape: sim.checkPvpShape,
+    verifyPvpReplay: sim.verifyPvpReplay,
+    pvpReplayRecord: sim.pvpReplayRecord,
 };

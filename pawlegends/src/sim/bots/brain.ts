@@ -43,7 +43,7 @@ import type { BotMem } from './mem';
 import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast, underFire } from './casts';
 import { kitOf } from '../heroes/kit';
 import { laneRole, orderOf } from './orders';
-import { isHumanSlot } from '../humans';
+import { isHumanSlot, leadOf } from '../humans';
 import {
   fountainX,
   fountainY,
@@ -170,6 +170,8 @@ function pickFoe(
   const team = w.team[id];
   // Sim v8: before DifficultyRules.truceUntil an enemy bot never picks the human (the Rookie scripted fight excepted).
   const truce = team !== w.team[HUMAN_SLOT] && !brave && tick < truceUntil;
+  // Sim v10 Focus ping: the ordering human is the team's lead (sim v16: slot 3 for team 1 in PvP).
+  const lead = leadOf(w, team);
   let best = -1;
   let bestKey = 0;
   for (let e = RANGE.heroes; e < RANGE.minions; e++) {
@@ -177,7 +179,7 @@ function pickFoe(
     if (truce && e === HUMAN_SLOT) continue;
     const focused = e === focus;
     // Sim v10 Focus ping: with the human on the focused hero, the bot chases it like its own foe and skips the power check.
-    const committed = focused && w.alive[HUMAN_SLOT] === 1 && dist2(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT], w.x[e], w.y[e]) <= BOT_AI.powerRange * BOT_AI.powerRange;
+    const committed = focused && w.alive[lead] === 1 && dist2(w.x[lead], w.y[lead], w.x[e], w.y[e]) <= BOT_AI.powerRange * BOT_AI.powerRange;
     const d = isqrt(dist2(w.x[id], w.y[id], w.x[e], w.y[e]));
     // Carry allies peel: an enemy hero on the human is fought first, from further away, whatever the odds.
     const peel = carry && w.target[e] === HUMAN_SLOT && w.alive[HUMAN_SLOT] === 1;
@@ -560,9 +562,9 @@ function threatened(w: World, id: number, mem: BotMem, p: BotParams, tick: numbe
   return false;
 }
 
-/** Is the human alive within PING.groupRange of bot `id` (slot 0 itself: never)? */
+/** Is its team's lead human alive within PING.groupRange of bot `id` (the lead itself: never)? Sim v16: per team. */
 function beside(w: World, id: number): boolean {
-  const h = HUMAN_SLOT;
+  const h = leadOf(w, w.team[id]);
   return id !== h && w.alive[h] === 1 && dist2(w.x[id], w.y[id], w.x[h], w.y[h]) <= PING.groupRange * PING.groupRange;
 }
 
@@ -576,10 +578,12 @@ function healthyAllies(w: World, id: number): number {
 /** Where ping order `ord` sends bot `id` (writes [x, y] into `goal`), and how close counts as there. */
 function orderGoal(w: World, id: number, ord: number, p: BotParams): number {
   switch (ord) {
-    case PING_KIND.Group:
-      goal[0] = w.x[HUMAN_SLOT];
-      goal[1] = w.y[HUMAN_SLOT];
+    case PING_KIND.Group: {
+      const h = leadOf(w, w.team[id]);
+      goal[0] = w.x[h];
+      goal[1] = w.y[h];
       return PING.groupRange;
+    }
     case PING_KIND.Pudding: {
       const pud = RANGE.pudding;
       const up = w.alive[pud] === 1;
@@ -638,8 +642,8 @@ function orderAct(m: MatchHandle, id: number, mem: BotMem, ord: number, p: BotPa
   mem.mode[id] = BOT_MODE.Push;
   switch (ord) {
     case PING_KIND.Group: {
-      // Hit what the human hits, once beside it.
-      const t = w.target[HUMAN_SLOT];
+      // Hit what the human (its team's lead, sim v16) hits, once beside it.
+      const t = w.target[leadOf(w, team)];
       const near = dist2(w.x[id], w.y[id], goal[0], goal[1]) <= r * r;
       if (near && t >= 0 && w.alive[t] === 1 && w.team[t] !== team && targetable(w, t, team) && untankedThreat(w, team, w.x[t], w.y[t], 0) < 0) return attack(w, id, mem, t);
       return holdAt(w, id, mem, goal[0], goal[1], r, p);

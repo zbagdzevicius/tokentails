@@ -170,6 +170,12 @@ export interface DifficultyRules {
   /** Sim v12 (S4): the human's enemies earn this share of their Fish (10000 = the same), so a new player's farm is not
    *  outpaced by bots that last-hit perfectly. */
   enemyFishBp: number;
+  /**
+   * Sim v16 (docs/plans/moba/V16.md §3.1.2): the struggling-human respawn (RESPAWN.humanStreakFrom deaths in a row wait
+   * RESPAWN.humanStreakBp of the time, combat/damage.ts). True on every PvE row (the v15 rule); false in PvP, where a
+   * human-only shorter wait would be a one-sided buff.
+   */
+  humanStreakRespawn: boolean;
 }
 
 export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRules>>> = Object.freeze({
@@ -198,8 +204,8 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
   // 0.85 (fun2 79.0%, novice 88.8%); Rookie's enemies respawn × 1.5 (1.75 before) and its rally is +11.5% a takedown
   // (13% before): fun1 median 5:01, win 97.0%; idle 23.0% (v14 25.0%), feeder 84.0% (v14 84.0%). Tried: Rookie cores
   // closed to 5:00 (fun1 5:03, but idle 38.0%), human damage × 1.15 to 1.25 (fun1 4:56 to 5:04, burst 6.0 to 6.2 s).
-  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 12000, coreHpBp: 13500, humanRespawnBp: 5000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 13000, humanTakenBp: 8500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 15000, enemyComeback: false, rallyBp: 1150, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500 }),
-  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 8500, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000 }),
+  rookie: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 11700, humanCoreFloorBp: 1500, pushNeedsHuman: true, sideEdge: false, nineLivesLossBp: 2800, enemyBackdoor: false, structureHpBp: 12000, coreHpBp: 13500, humanRespawnBp: 5000, nearAssists: false, towerKnockback: true, carryAllies: 2, enemiesToHuman: true, humanDamageBp: 13000, humanTakenBp: 8500, humanRegenBp: 40000, humanPanicBp: 7000, spareHuman: 500, enemyRespawnBp: 15000, enemyComeback: false, rallyBp: 1150, rallyCap: 8, scriptFrom: 450, scriptUntil: 1800, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 5000, humanDeathCore: false, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 0, catchUpFrom: 0, enemyFishBp: 8500, humanStreakRespawn: true }),
+  easy: Object.freeze({ coreOpenAt: 10800, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: false, nineLivesLossBp: 3500, enemyBackdoor: true, structureHpBp: 10000, coreHpBp: 10000, humanRespawnBp: 10000, nearAssists: true, towerKnockback: false, carryAllies: 2, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 8500, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: false, takedownChipBp: 0, takedownChipCapBp: 0, takedownTowerChipBp: 0, truceUntil: 1200, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 5400, catchUpFrom: 0, enemyFishBp: 10000, humanStreakRespawn: true }),
   /**
    * Sim v10 (GAPS B0, Normal and Hard): cores start at 120% (130% before). With seeded bot talents only 67.6% to
    * 69.5% of the 2,000-seed balance gate ended in a core kill before Sudden Death (70% floor); 125% gave 70.5%,
@@ -223,8 +229,46 @@ export const DIFFICULTY_RULES: Readonly<Record<Difficulty, Readonly<DifficultyRu
    * player won 54.5%, then 42% of 200 seeds with fightPowerBp 7000 and retreat at 20%), so Hard also gets these
    * two edges: the `hard` gate (Normal player-bot vs Hard) is 36.0% and 29.5% on seeds 1..200 and 1,001..1,200.
    */
-  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000 }),
-  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000 }),
+  hard: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4500, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 1500, truceUntil: 0, enemyAheadXpBp: 10000, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000, humanStreakRespawn: true }),
+  normal: Object.freeze({ coreOpenAt: 0, humanCoreOpenAt: 0, humanCoreFloorBp: 0, pushNeedsHuman: false, sideEdge: true, nineLivesLossBp: 4000, enemyBackdoor: true, structureHpBp: 13500, coreHpBp: 12000, humanRespawnBp: 10000, nearAssists: false, towerKnockback: false, carryAllies: 0, enemiesToHuman: false, humanDamageBp: 10000, humanTakenBp: 10000, humanRegenBp: 10000, humanPanicBp: 0, spareHuman: 0, enemyRespawnBp: 10000, enemyComeback: true, rallyBp: 0, rallyCap: 0, scriptFrom: 0, scriptUntil: 0, leadPressure: true, takedownChipBp: 500, takedownChipCapBp: 2000, takedownTowerChipBp: 2000, truceUntil: 900, enemyAheadXpBp: 8500, humanDeathCore: true, catchUpPerLevelBp: 3500, catchUpMaxBp: 7500, campBehindBp: 15000, forfeitFrom: 7200, catchUpFrom: 5400, enemyFishBp: 10000, humanStreakRespawn: true }),
+});
+
+/**
+ * Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.2, PARITY.md §3.12): the rules of a PvP match (`MatchConfig.mode 'pvp'`,
+ * humans on both teams). Hard's row with every human-only or one-sided field set to neutral, so no buff can favour
+ * one team: no human damage, taken, regen, respawn or panic edge, no spared or hunted human, the same respawn, Fish,
+ * XP, comeback and backdoor rules for both teams, no core floor, no scripted fight or truce, no carry allies and no
+ * rally. tests/unit/pvp-rules.test.ts classifies every field, so a new one cannot leak in unclassified.
+ */
+export const PVP_RULES: Readonly<DifficultyRules> = Object.freeze({
+  ...DIFFICULTY_RULES.hard,
+  humanDamageBp: 10000,
+  humanTakenBp: 10000,
+  humanRegenBp: 10000,
+  humanRespawnBp: 10000,
+  humanPanicBp: 0,
+  spareHuman: 0,
+  enemyRespawnBp: 10000,
+  enemyFishBp: 10000,
+  enemyAheadXpBp: 10000,
+  enemyComeback: true,
+  enemyBackdoor: true,
+  humanCoreOpenAt: 0,
+  humanCoreFloorBp: 0,
+  coreOpenAt: 0,
+  pushNeedsHuman: false,
+  towerKnockback: false,
+  carryAllies: 0,
+  enemiesToHuman: false,
+  rallyBp: 0,
+  rallyCap: 0,
+  scriptFrom: 0,
+  scriptUntil: 0,
+  truceUntil: 0,
+  humanDeathCore: true,
+  forfeitFrom: 7200,
+  catchUpFrom: 5400,
+  humanStreakRespawn: false,
 });
 
 export const BOTS: Readonly<Record<Difficulty, Readonly<BotParams>>> = Object.freeze({

@@ -1,5 +1,6 @@
-/** The match's difficulty rules (data/bots.ts DIFFICULTY_RULES), for sim modules. */
-import { DIFFICULTY_RULES, type DifficultyRules } from '../data/bots';
+/** The match's rules (data/bots.ts DIFFICULTY_RULES, or PVP_RULES in a PvP match), for sim modules. */
+import type { DifficultyRules } from '../data/bots';
 import type { MatchHandle } from './state';
 
-export const rulesOf = (m: MatchHandle): DifficultyRules => DIFFICULTY_RULES[m.config.difficulty];
+/** Sim v16: cached on the match at createMatch (`m.rules`), so PvP can swap the row without touching PvE. */
+export const rulesOf = (m: MatchHandle): DifficultyRules => m.rules;

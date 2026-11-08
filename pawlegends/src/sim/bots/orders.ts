@@ -8,30 +8,34 @@
 import { BOT_AI } from '../../data/bots';
 import { CORE, MAP, mirrorX } from '../../data/map';
 import { LANE_SWAP, PING, PING_KIND, PING_KINDS, type BarkKind } from '../../data/pings';
-import { HUMAN_SLOT, NO_TARGET, SLOTS_PER_TEAM, type Command, type SimEvent } from '../api';
+import { HUMAN_SLOT, NO_TARGET, SLOTS_PER_TEAM, type Command, type SimEvent, type Team } from '../api';
 import { dist2 } from '../fixed';
 import { nearLane } from '../map/grid';
 import type { MatchHandle } from '../state';
 import { G, RANGE, type World } from '../world';
 import { hpBp, seenEnemy } from './sense';
-import { isHumanSlot } from '../humans';
+import { isHumanSlot, leadOf } from '../humans';
 
 type PingCommand = Extract<Command, { op: 9 }>;
 
 const ttlOf = (kind: number): number => (kind === PING_KIND.Focus ? PING.focusTicks : kind === PING_KIND.FallBack ? PING.fallBackTicks : PING.orderTicks);
 
-/** Apply slot 0's ping (already gated and quantised): orders, then the `ping` event and one `bark` per answering bot. */
-export function applyPing(m: MatchHandle, cmd: PingCommand): void {
+/**
+ * Apply a lead human's ping (already gated and quantised): orders, then the `ping` event and one `bark` per answering
+ * bot. Slot 0's in every match; sim v16 PvP: slot 3's too, ordering team 1's bots (`from`).
+ */
+export function applyPing(m: MatchHandle, cmd: PingCommand, from = HUMAN_SLOT): void {
   const w = m.world;
   const tick = w.globals[G.Tick];
-  const team = w.team[HUMAN_SLOT];
+  const team = w.team[from];
+  const first = team * SLOTS_PER_TEAM;
   const kind = cmd.kind;
   // Focus needs an enemy hero the team can see now.
   const target = kind === PING_KIND.Focus && cmd.id !== NO_TARGET && cmd.id < RANGE.minions && seenEnemy(w, team, cmd.id) ? cmd.id : -1;
   const barks: SimEvent[] = [];
   let took = 0;
   if (kind !== PING_KIND.Focus || target >= 0) {
-    for (let id = RANGE.heroes; id < SLOTS_PER_TEAM; id++) {
+    for (let id = first; id < first + SLOTS_PER_TEAM; id++) {
       // Party play (B1): a ping never orders a human's hero (slots 1 and 2 in a party), even while a pilot plays it.
       if (isHumanSlot(w, id) || w.team[id] !== team || w.alive[id] === 0) continue;
       let what: BarkKind = 'ok';
@@ -49,7 +53,9 @@ export function applyPing(m: MatchHandle, cmd: PingCommand): void {
       barks.push({ type: 'bark', tick, id, what });
     }
   }
-  m.events.push({ type: 'ping', tick, kind: PING_KINDS[kind], x: cmd.x, y: cmd.y, target, took });
+  // Sim v16 PvP: the event names its team (snapshots show it to that team only); PvE events are unchanged.
+  if (w.pvp === 1) m.events.push({ type: 'ping', tick, kind: PING_KINDS[kind], x: cmd.x, y: cmd.y, target, took, team: team as Team });
+  else m.events.push({ type: 'ping', tick, kind: PING_KINDS[kind], x: cmd.x, y: cmd.y, target, took });
   for (let i = 0; i < barks.length; i++) m.events.push(barks[i]);
 }
 
@@ -62,7 +68,7 @@ export function orderOf(w: World, id: number): number {
   const over =
     w.globals[G.Tick] > w.botOrdT[id] ||
     (kind === PING_KIND.Focus && (t < 0 || w.alive[t] === 0)) ||
-    (kind === PING_KIND.Group && w.alive[HUMAN_SLOT] === 0);
+    (kind === PING_KIND.Group && w.alive[leadOf(w, w.team[id])] === 0);
   if (over) {
     w.botOrd[id] = 0;
     w.botOrdId[id] = -1;
@@ -94,6 +100,8 @@ function humanLaneNow(w: World): number {
  * LANE_SWAP.from on), ally slot 1 takes Sunny Lane; the same hold in Sunny swaps it back.
  */
 export function stepLaneSwap(w: World): void {
+  // Sim v16 PvP: no lane swap (it follows team 0's human only, so it would favour one side).
+  if (w.pvp === 1) return;
   const lane = humanLaneNow(w);
   const cur = w.globals[G.LaneSwap];
   const wants = lane < 0 ? cur : lane;

@@ -71,10 +71,9 @@ function enemiesNear(w: World, team: number, x: number, y: number, r: number): n
 }
 
 /** The ping slot 0 sends this think, or null. */
-export function pingerPing(m: MatchHandle, pm: PingerMem): Command | null {
+export function pingerPing(m: MatchHandle, pm: PingerMem, h = HUMAN_SLOT): Command | null {
   const w = m.world;
   const tick = w.globals[G.Tick];
-  const h = HUMAN_SLOT;
   if (w.alive[h] === 0 || pm.sent >= PING.maxPerMatch || tick - pm.last < PING.minGap) return null;
   const team = w.team[h];
   const send = (kind: number, x: number, y: number, id: number, cd: number): Command => {
@@ -96,13 +95,13 @@ export function pingerPing(m: MatchHandle, pm: PingerMem): Command | null {
     const x = w.x[h];
     const y = w.y[h];
     const foes = enemiesNear(w, team, x, y, PINGER.fightRange);
-    if (foes > 0 && allyNear(w, team, x, y, PINGER.fightRange) && foes > alliesNear(w, team, x, y, PINGER.fightRange)) {
+    if (foes > 0 && allyNear(w, team, x, y, PINGER.fightRange, h) && foes > alliesNear(w, team, x, y, PINGER.fightRange)) {
       return send(PING_KIND.FallBack, x, y, NO_TARGET, PING.fallBackTicks);
     }
   }
   // Defend base: raiders at an own inner tower or the core, and no ally near it yet.
   const raided = ready(PING_KIND.Defend) ? raidedBase(w, team) : -1;
-  if (raided >= 0 && !allyNear(w, team, w.x[raided], w.y[raided], PINGER.farRange)) {
+  if (raided >= 0 && !allyNear(w, team, w.x[raided], w.y[raided], PINGER.farRange, h)) {
     return send(PING_KIND.Defend, w.x[raided], w.y[raided], NO_TARGET, PING.orderTicks);
   }
   // Take Pudding: once per spawn, the whole team healthy and at most one enemy hero in view at it.
@@ -114,7 +113,7 @@ export function pingerPing(m: MatchHandle, pm: PingerMem): Command | null {
     w.alive[pud] === 1 &&
     pm.pudSpawn !== spawns &&
     hpBp(w, h) >= PINGER.groupHpBp &&
-    healthy(w, team) &&
+    healthy(w, team, h) &&
     enemiesNear(w, team, w.x[pud], w.y[pud], PINGER.farRange) <= 1
   ) {
     pm.pudSpawn = spawns;
@@ -122,7 +121,7 @@ export function pingerPing(m: MatchHandle, pm: PingerMem): Command | null {
   }
   // Focus hero: slot 0 hits a hurt enemy hero with an ally close to it.
   const t = w.target[h];
-  if (ready(PING_KIND.Focus) && t >= 0 && t < CAPS.heroes && seenEnemy(w, team, t) && hpBp(w, t) < PINGER.focusHpBp && allyNear(w, team, w.x[t], w.y[t], PINGER.focusRange)) {
+  if (ready(PING_KIND.Focus) && t >= 0 && t < CAPS.heroes && seenEnemy(w, team, t) && hpBp(w, t) < PINGER.focusHpBp && allyNear(w, team, w.x[t], w.y[t], PINGER.focusRange, h)) {
     return send(PING_KIND.Focus, w.x[t], w.y[t], t, PING.focusTicks);
   }
   // Push: two enemy heroes down, slot 0 healthy in a lane: the whole team pushes that lane.
@@ -132,7 +131,7 @@ export function pingerPing(m: MatchHandle, pm: PingerMem): Command | null {
     return send(lane, w.x[h], w.y[h], NO_TARGET, PING.orderTicks);
   }
   // Group on me: an enemy hero is down, slot 0 is healthy in a lane and an ally is far away (push the numbers).
-  if (ready(PING_KIND.Group) && enemiesDown(w, team) > 0 && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane) && allyFar(w, team)) {
+  if (ready(PING_KIND.Group) && enemiesDown(w, team) > 0 && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane) && allyFar(w, team, h)) {
     return send(PING_KIND.Group, w.x[h], w.y[h], NO_TARGET, PING.orderTicks);
   }
   return null;
@@ -153,29 +152,29 @@ function alliesNear(w: World, team: number, x: number, y: number, r: number): nu
 }
 
 /** An allied bot alive within `r` of (x, y). */
-function allyNear(w: World, team: number, x: number, y: number, r: number): boolean {
+function allyNear(w: World, team: number, x: number, y: number, r: number, h: number): boolean {
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-    if (id === HUMAN_SLOT || w.team[id] !== team || w.alive[id] === 0) continue;
+    if (id === h || w.team[id] !== team || w.alive[id] === 0) continue;
     if (dist2(w.x[id], w.y[id], x, y) <= r * r) return true;
   }
   return false;
 }
 
 /** Both allied bots alive above PINGER.groupHpBp. */
-function healthy(w: World, team: number): boolean {
+function healthy(w: World, team: number, h: number): boolean {
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-    if (id === HUMAN_SLOT || w.team[id] !== team) continue;
+    if (id === h || w.team[id] !== team) continue;
     if (w.alive[id] === 0 || hpBp(w, id) < PINGER.groupHpBp) return false;
   }
   return true;
 }
 
 /** An allied bot alive further than PINGER.farRange from slot 0. */
-function allyFar(w: World, team: number): boolean {
+function allyFar(w: World, team: number, h: number): boolean {
   const r2 = PINGER.farRange * PINGER.farRange;
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
-    if (id === HUMAN_SLOT || w.team[id] !== team || w.alive[id] === 0) continue;
-    if (dist2(w.x[id], w.y[id], w.x[HUMAN_SLOT], w.y[HUMAN_SLOT]) > r2) return true;
+    if (id === h || w.team[id] !== team || w.alive[id] === 0) continue;
+    if (dist2(w.x[id], w.y[id], w.x[h], w.y[h]) > r2) return true;
   }
   return false;
 }

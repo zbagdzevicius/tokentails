@@ -74,7 +74,21 @@ export interface MatchConfig {
    * `others` argument of `step` (slots >= 1). Not part of the v:1 replay; a party match records a PartyReplayRecord.
    */
   humans?: readonly number[];
+  /**
+   * Sim v16 S-PvP (docs/plans/moba/V16.md §3.1): 'pvp' seats humans on both teams (`humans` lists slots 0..5 with 0
+   * and 3, each team's lead), plays by PVP_RULES (data/bots.ts) and needs difficulty 'hard'. Omitted means 'pve'
+   * (every match before v16), which is byte-identical to v15.
+   */
+  mode?: MatchMode;
+  /** PvP only: the bot profile (bots/index.ts ALLIES) of team 0's and team 1's fill seats. Default ['hard', 'hard']. */
+  fillDifficulty?: readonly [Difficulty, Difficulty];
 }
+
+/** Sim v16: 'pve' (co-op and solo against bots) or 'pvp' (humans on both teams). */
+export type MatchMode = 'pve' | 'pvp';
+export const MATCH_MODES: readonly MatchMode[] = Object.freeze(['pve', 'pvp'] as MatchMode[]);
+/** Sim v16 S-PvP: team 1's lead human slot (team 0's is HUMAN_SLOT). */
+export const PVP_LEAD1 = 3;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Commands (§11.3). Coordinates in mm; the binary stream quantises them to 250 mm.
@@ -317,7 +331,7 @@ export type SimEvent =
   | { type: 'buff'; tick: number; id: number; kind: BuffKind; ticks: number }
   // Sim v10 (GAPS B1), the human's team only:
   /** Slot 0 pinged: `target` the focused hero or −1; `took` = allied bots that took it as an order. */
-  | { type: 'ping'; tick: number; kind: PingKind; x: number; y: number; target: number; took: number }
+  | { type: 'ping'; tick: number; kind: PingKind; x: number; y: number; target: number; took: number; team?: Team }
   /** Ally bot `id` answers a ping: 'ok' (on it) or 'heal' (refused: "Healing first!"). The render picks the text. */
   | { type: 'bark'; tick: number; id: number; what: BarkKind }
   // Sim v14 (docs/plans/moba/DOGS-V13.md): a viral moment for the render and the share tools (not hashed).
@@ -440,6 +454,28 @@ export interface PartyReplayRecord {
   mutator?: Mutator;
 }
 
+/**
+ * Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.7): the replay of a PvP match. Like PartyReplayRecord v2, with seats
+ * on both teams (slots 0..5, containing 0 and 3), `mode: 'pvp'` and each team's fill-bot profile. `outcome` is team
+ * 0's view (slot 0); the backend derives each slot's result from the verified `winner`.
+ */
+export interface PvpReplayRecord {
+  v: 3;
+  mode: 'pvp';
+  simVersion: number;
+  seed: number;
+  difficulty: Difficulty;
+  fillDifficulty: [Difficulty, Difficulty];
+  humans: PartySeat[];
+  picks: HeroId[];
+  tricks: TrickId[];
+  ticks: number;
+  inputs: string[];
+  outcome: Outcome;
+  finalHash: string;
+  mutator?: Mutator;
+}
+
 /** Alias with the spec's name. */
 export type PawlegendsReplay = ReplayRecord;
 
@@ -455,7 +491,7 @@ export type VerifyCode =
 
 export type VerifyResult =
   /** Sim v10 (GAPS B2): `reason` says how the match ended ('forfeit': the human forfeited; the backend stores 'quit'). */
-  | { ok: true; outcome: Outcome; finalHash: string; ticks: number; stats: SlotStats[]; reason: MatchResult['reason'] }
+  | { ok: true; outcome: Outcome; finalHash: string; ticks: number; stats: SlotStats[]; reason: MatchResult['reason']; winner?: Team }
   | { ok: false; code: VerifyCode; message: string };
 
 // ---------------------------------------------------------------------------------------------------------------

@@ -15,6 +15,7 @@ import * as v16 from './v16';
 export type {
     PawlegendsPartySim,
     PawlegendsPartyReplayRecord,
+    PawlegendsPvpReplayRecord,
     PawlegendsPartySeat,
     PawlegendsCommand,
     PawlegendsMatchHandle,
