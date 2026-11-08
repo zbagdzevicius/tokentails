@@ -2,11 +2,13 @@
 /**
  * Audit 2026-11-06 quick wins, input layer (no sim change): CF-03 full-range blink taps and edge-scaled drags.
  */
+import { screenToSim } from '../../src/render/coords';
 import { afterEach, describe, expect, it } from 'vitest';
 import { aimFor, trickAim } from '../../src/input/abilities';
 import type { InputHost } from '../../src/input/desktop';
 import { Orders, type OrderEnv } from '../../src/input/orders';
 import { smartAim, type Unit } from '../../src/input/targeting';
+import { landing } from '../../src/input/heading';
 import { dragFullPx, stickBase, STICK_EDGE_PX, TouchControls } from '../../src/input/touch/touchControls';
 import { Op, type Command, type HeroId } from '../../src/sim/api';
 import { TRICKS } from '../../src/data/tricks';
@@ -48,11 +50,16 @@ describe('CF-03 blink taps go the full range', () => {
 
   it('a tapped Pounce follows the held joystick at full range', () => {
     const r = rig('clem');
-    // hold the stick straight up (screen) = +y in the sim
+    // hold the stick straight up (screen); feel pass B2: screen up is the diagonal view's up on the ground
     (r.t as unknown as { stick: unknown }).stick = { id: 9, bx: 100, by: 300, x: 100, y: 200, moved: true, at: 0 };
+    const up = screenToSim(0, 1);
+    // a heading cast (heading.ts): the command point lies past the range along the stick; the sim lands it at the full range
     const p = r.t.tapAim(4, r.units[0]);
-    expect(p.x).toBeCloseTo(20000, 0);
-    expect(p.y - 10000).toBeCloseTo(TRICKS.pounce.blink, 0);
+    const a = Math.atan2(p.y - 10000, p.x - 20000);
+    expect(a).toBeCloseTo(Math.atan2(up.y, up.x), 3);
+    expect(Math.hypot(p.x - 20000, p.y - 10000)).toBeGreaterThanOrEqual(TRICKS.pounce.blink);
+    const l = landing(trickAim('pounce'), r.units[0], a);
+    expect(Math.hypot(l.x - 20000, l.y - 10000)).toBeCloseTo(TRICKS.pounce.blink, -2);
   });
 
   it('a drag toward a near screen edge reaches full range before the edge', () => {
@@ -119,17 +126,20 @@ describe('CF-14, CF-09, CF-06 touch details', () => {
     expect(stickBase(200, 200, 844, 390)).toEqual({ x: 200, y: 200 });
   });
 
-  it('CF-09: the locked R carries a "Lv 4" badge', () => {
+  it('CF-09 + feel pass B3: the locked R is a ghost chip with a padlock and its level (4)', () => {
     const r = rig('clem');
     r.t.update([0, 0, 0, 0, 0], [1, 1, 1, 1, 1], 2);
     const btn = r.t.root.querySelector('[data-b="r"]') as HTMLElement;
     expect(btn.classList.contains('locked')).toBe(true);
-    expect(btn.querySelector('.lv')?.textContent).toBe('Lv 4');
+    expect(btn.querySelector('.lv .lock')).not.toBeNull();
+    expect(btn.querySelector('.lv')?.textContent).toBe('4');
+    expect(btn.querySelector('.lv')?.getAttribute('aria-label')).toBe('Unlocks at level 4');
   });
 
   it('CF-06: a skill drag shows the aim ring at the thumb; release hides it', () => {
-    const r = rig('clem');
-    const btn = r.t.root.querySelector('[data-b="trick"]') as HTMLElement;
+    // a ground aim that is no heading cast (Pounce fires on the press now, heading.ts): Gabė's Q
+    const r = rig('gabe');
+    const btn = r.t.root.querySelector('[data-b="q"]') as HTMLElement;
     const ring = r.t.root.querySelector('.pl-aimring') as HTMLElement;
     btn.dispatchEvent(new PointerEvent('pointerdown', { pointerId: 5, clientX: 300, clientY: 200, pointerType: 'touch', bubbles: true }));
     window.dispatchEvent(new PointerEvent('pointermove', { pointerId: 5, clientX: 340, clientY: 200, pointerType: 'touch' }));

@@ -47,10 +47,11 @@ describe('left-handed mirror and button size', () => {
       expect(l.attack.d).toBeGreaterThan(n.attack.d);
       expect(l.q.d / n.q.d).toBeCloseTo(ARC_LARGE, 1);
       expect(minGap(l).gap).toBeGreaterThan(minGap(n).gap);
-      for (const s of Object.values(l)) {
+      for (const [id, s] of Object.entries(l)) {
         // Large reaches a little past the middle on a 667 px phone (the joystick still has the left 45%)
         expect(s.rx + s.d / 2 + 28).toBeLessThan(w * 0.56);
-        expect(s.by + s.d / 2 + 24).toBeLessThan(h - 60);
+        // feel pass B3: the right-edge column reaches up to just under the 24 px top strip, the arc stays low
+        expect(s.by + s.d / 2 + 24, id).toBeLessThanOrEqual((['lasthit', 'tower', 'nap'].includes(id) ? h - 30 : h - 60) + 0.5);
       }
     }
   });

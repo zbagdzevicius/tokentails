@@ -155,7 +155,8 @@ export class Objectives {
   }
 
   private drawStanding(): void {
-    const t = this.standingText;
+    // feel pass B3: on touch the standing objective chip is gone (the top strip's objective timer replaces it)
+    const t = this.touch ? null : this.standingText;
     this.notify?.rest('goal', t ? t.title : null, undefined, t?.key);
   }
 
