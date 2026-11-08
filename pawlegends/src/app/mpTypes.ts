@@ -35,6 +35,9 @@ export const MP_EVENTS: readonly MpEvent[] = Object.freeze([
   'mm_backfill_offer',
   'mm_backfill_join',
   'mm_penalty',
+  // casual PvP (V16.md §5, §6)
+  'mm_keep_waiting',
+  'mp_void',
 ] as MpEvent[]);
 
 /**
@@ -130,6 +133,9 @@ export interface PartyLinkListener {
 /** The party side of a match host (NetHost). */
 export interface PartyLink {
   readonly mySlot: number;
+  /** Casual PvP (V16.md §5): this seat's team and whether the room is PvP (absent: a party or co-op match, team 0). */
+  readonly team?: 0 | 1;
+  readonly pvp?: boolean;
   /** Human slots of this match (slot 0 always; 1 and 2 when friends or open seats). */
   readonly humans: readonly number[];
   /** Display names per slot (null = a bot slot); updated when a friend joins mid-match. */

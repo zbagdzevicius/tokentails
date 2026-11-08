@@ -844,7 +844,15 @@ export interface MenuOpts {
    * Party play (MULTIPLAYER.md §4.6, §7 M5): the menu is a local overlay over a running match: "Menu" and "Back to
    * match"; Pause becomes "Vote pause" and Forfeit "Vote surrender" (no confirm step: friends answer the vote).
    */
-  party?: { onVotePause(): void; coop?: boolean };
+  party?: {
+    onVotePause(): void;
+    coop?: boolean;
+    /** Casual PvP (V16.md §5): no Vote pause; Vote remake while `remake` (1:00 to 3:00); Mute opponents. */
+    pvp?: boolean;
+    remake?: boolean;
+    onVoteRemake?(): void;
+    onMuteOpponents?(): void;
+  };
   /** The camera zoom slider moved (it already saved the zoom): the match view follows at once. */
   onZoom?(z: number): void;
 }
@@ -863,7 +871,9 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
   const main = (): void => {
     root.innerHTML = `<div class="card"><h2>${party ? 'Menu' : 'Paused'}</h2>
     <button class="pl-btn big" data-a="resume">${party ? 'Back to match' : 'Resume'}</button>
-    ${party ? '<button class="pl-btn ghost" data-a="vote-pause" data-testid="vote-pause">Vote pause</button>' : ''}
+    ${party && !party.pvp ? '<button class="pl-btn ghost" data-a="vote-pause" data-testid="vote-pause">Vote pause</button>' : ''}
+    ${party?.pvp && party.remake ? '<button class="pl-btn ghost" data-a="vote-remake" data-testid="vote-remake">Vote remake</button>' : ''}
+    ${party?.pvp ? '<button class="pl-btn ghost" data-a="mute-opp" data-testid="mute-opponents">Mute opponents</button>' : ''}
     ${o.onScores ? `<button class="pl-btn ghost" data-a="scores">Scores</button>` : ''}
     <button class="pl-btn ghost" data-a="mute">${muted ? 'Sound: off' : 'Sound: on'}</button>
     ${o.onSettings ? '<button class="pl-btn ghost" data-a="settings">Settings</button>' : ''}
@@ -901,6 +911,8 @@ export function menuScreen(parent: HTMLElement, o: MenuOpts): HTMLElement {
       if (party) o.onForfeit?.();
       else confirm();
     } else if (a === 'vote-pause') party?.onVotePause();
+    else if (a === 'vote-remake') party?.onVoteRemake?.();
+    else if (a === 'mute-opp') party?.onMuteOpponents?.();
     else if (a === 'forfeit-no') main();
     else if (a === 'forfeit-yes') o.onForfeit?.();
     else if (a === 'mute') {

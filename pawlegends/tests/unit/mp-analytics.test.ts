@@ -11,7 +11,7 @@ import { MP_EVENTS } from '../../src/app/mpTypes';
 import { MpHud } from '../../src/app/mpHud';
 import { FakeLink, fakeHost } from './mp-helpers';
 
-const SPEC = ['party_create', 'party_join', 'party_share', 'party_leave', 'party_kick', 'party_start', 'party_pick', 'mp_match_start', 'mp_net', 'mp_disconnect', 'mp_rejoin', 'mp_takeover', 'mp_reclaim', 'mp_desync', 'mp_referee_divergence', 'mp_vote', 'mp_social', 'mp_match_end', 'mp_rematch', 'mm_join', 'mm_cancel', 'mm_found', 'mm_backfill_offer', 'mm_backfill_join', 'mm_penalty'];
+const SPEC = ['party_create', 'party_join', 'party_share', 'party_leave', 'party_kick', 'party_start', 'party_pick', 'mp_match_start', 'mp_net', 'mp_disconnect', 'mp_rejoin', 'mp_takeover', 'mp_reclaim', 'mp_desync', 'mp_referee_divergence', 'mp_vote', 'mp_social', 'mp_match_end', 'mp_rematch', 'mm_join', 'mm_cancel', 'mm_found', 'mm_backfill_offer', 'mm_backfill_join', 'mm_penalty', 'mm_keep_waiting', 'mp_void'];
 
 const flat = (p: Record<string, unknown>): boolean => Object.values(p).every((v) => ['string', 'number', 'boolean'].includes(typeof v));
 const leaks = (p: Record<string, unknown>): boolean =>

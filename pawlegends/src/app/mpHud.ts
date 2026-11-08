@@ -59,25 +59,28 @@ export interface MpHudHost {
 
 // ------------------------------------------------------------------------------------------------ pure helpers
 
-const VOTE_WORD: Record<'surrender' | 'pause', string> = { surrender: 'Surrender', pause: 'Pause' };
+const VOTE_WORD: Record<'surrender' | 'pause' | 'remake', string> = { surrender: 'Surrender', pause: 'Pause', remake: 'Remake' };
+export const REMAKE_OFFER_KEY = 'mp-remake-offer';
+/** Casual PvP remake window (V16.md §4.2): 1:00 to 3:00. */
+export const REMAKE_TICKS = Object.freeze({ from: 1800, until: 5400 });
 export const VOTE_KEY = (kind: VoteKind): string => `mp-vote-${kind}`;
 export const PAUSED_KEY = 'mp-paused';
 
 /** The rail note of a running vote (§7 M5): "Surrender? 1/2" with Yes/No chips until this player voted. Pure. */
 export function voteNote(v: VoteMsg, mySlot: number): Note | null {
-  if (v.kind !== 'surrender' && v.kind !== 'pause') return null;
+  if (v.kind !== 'surrender' && v.kind !== 'pause' && v.kind !== 'remake') return null;
   const word = VOTE_WORD[v.kind];
   if (v.result) {
     const pass = v.result === 'pass';
-    return { key: VOTE_KEY(v.kind), title: pass ? (v.kind === 'surrender' ? 'Surrender passed' : 'Pausing…') : `${word} vote failed`, tone: pass ? 'gold' : 'info', prio: 1, ttl: 2200 };
+    return { key: VOTE_KEY(v.kind), title: pass ? (v.kind === 'surrender' ? 'Surrender passed' : v.kind === 'remake' ? 'Remaking…' : 'Pausing…') : `${word} vote failed`, tone: pass ? 'gold' : 'info', prio: 1, ttl: 2200 };
   }
   const voted = v.yes.includes(mySlot);
   const actions = voted
     ? undefined
-    : v.kind === 'surrender'
+    : v.kind === 'surrender' || v.kind === 'remake'
       ? [
-          { id: 'vote-surrender-yes', label: 'Yes' },
-          { id: 'vote-surrender-no', label: 'No' },
+          { id: `vote-${v.kind}-yes`, label: 'Yes' },
+          { id: `vote-${v.kind}-no`, label: 'No' },
         ]
       : [{ id: 'vote-pause-yes', label: 'Yes' }];
   return {
@@ -173,9 +176,31 @@ export class MpHud {
     this.h.track('mp_match_start', { humans: this.link.humans.length, difficulty: this.h.difficulty, rtt_p50: n.rttMs, buffer: n.buffer });
   }
 
-  private isFriend(slot: number): boolean {
-    return slot !== this.link.mySlot && slot >= 0 && slot < 3 && this.link.names[slot] !== null && this.link.names[slot] !== undefined;
+  /** The first slot of this seat's team (PvP team 1: 3; else 0). */
+  private get teamBase(): number {
+    return (this.link.team ?? 0) * 3;
   }
+
+  private isFriend(slot: number): boolean {
+    const base = this.teamBase;
+    return slot !== this.link.mySlot && slot >= base && slot < base + 3 && this.link.names[slot] !== null && this.link.names[slot] !== undefined;
+  }
+
+  /** Casual PvP: a human on the other team (emotes only reach us; Mute opponents silences them). */
+  private isOpponent(slot: number): boolean {
+    return !!this.link.pvp && (slot >= 3 ? 1 : 0) !== (this.link.team ?? 0);
+  }
+
+  /** Casual PvP: every opponent's emotes muted (quick chat sheet, V16.md §5). */
+  mutedOpponents = false;
+  toggleOpponents(): void {
+    this.mutedOpponents = !this.mutedOpponents;
+    this.h.rail.push({ key: 'mp-mute-opp', title: this.mutedOpponents ? 'Opponents muted' : 'Opponents unmuted', tone: 'info', prio: 3, ttl: 1500 });
+  }
+
+  /** Teammate seats this player saw `left` (the remake offer reads them). */
+  private readonly leftSeats = new Set<number>();
+  private remakeOffered = false;
 
   // -------------------------------------------------------------------------------------------- identity (M1, M4)
 
@@ -189,7 +214,7 @@ export class MpHud {
     const plates = new Map<number, { ring: string; bot: boolean }>();
     const rows = new Map<number, { ring: string; bot: boolean; conn: 'on' | 'away' | 'off'; muted: boolean }>();
     const hud = this.h.hud();
-    for (let slot = 0; slot < 3; slot++) {
+    for (let slot = this.teamBase; slot < this.teamBase + 3; slot++) {
       if (!this.isFriend(slot)) {
         if (slot !== this.link.mySlot) hud?.setStripSeat(slot, null);
         continue;
@@ -225,6 +250,8 @@ export class MpHud {
 
   private onSlot(slot: number, reason: string, joined: boolean): void {
     if (joined) this.applyNames();
+    if (reason === 'left') this.leftSeats.add(slot);
+    else if (reason === 'back' || joined) this.leftSeats.delete(slot);
     if (slot === this.link.mySlot && reason !== 'back') this.h.track('mp_takeover', { reason });
     if (slot === this.link.mySlot && reason === 'desync') this.h.track('mp_desync', { tick: this.h.tick(), n: 1 });
     this.refreshSeats();
@@ -268,6 +295,7 @@ export class MpHud {
   private onSocial(m: SocialMsg): void {
     if (m.mine) return; // drawn when sent
     if (this.muted.has(m.slot)) return;
+    if (this.mutedOpponents && this.isOpponent(m.slot)) return;
     this.drawSocial(m);
   }
 
@@ -319,8 +347,12 @@ export class MpHud {
   }
 
   private onAction(id: string): void {
+    if (id === 'mute-opponents') return this.toggleOpponents();
+    if (id === 'vote-remake-yes') this.h.rail.drop(REMAKE_OFFER_KEY);
     if (id === 'vote-surrender-yes') this.vote('surrender', true);
     else if (id === 'vote-surrender-no') this.vote('surrender', false);
+    else if (id === 'vote-remake-yes') this.vote('remake', true);
+    else if (id === 'vote-remake-no') this.vote('remake', false);
     else if (id === 'vote-pause-yes') this.vote('pause', true);
     else if (id === 'vote-resume') this.vote('resume', true);
     else return;
@@ -358,8 +390,31 @@ export class MpHud {
 
   // -------------------------------------------------------------------------------------------- the clock
 
+  /**
+   * Casual PvP (V16.md §4.2): from 1:00 to 3:00, a teammate's seat that was left (a bot flies it, nobody backfilled
+   * it) offers a one-tap Remake on the rail (never over the stick or the skills). Pure of the relay: it re-checks.
+   */
+  private remakeCheck(): void {
+    if (!this.link.pvp || this.remakeOffered) return;
+    const t = this.h.tick();
+    if (t < REMAKE_TICKS.from || t >= REMAKE_TICKS.until) return;
+    const base = this.teamBase;
+    const gone = [...this.leftSeats].some((s) => s >= base && s < base + 3 && s !== this.link.mySlot && this.link.piloted(s));
+    if (!gone) return;
+    this.remakeOffered = true;
+    this.h.rail.push({
+      key: REMAKE_OFFER_KEY,
+      title: 'A teammate left · Remake?',
+      tone: 'gold',
+      prio: 0,
+      ttl: Math.max(3000, ((REMAKE_TICKS.until - t) / 30) * 1000),
+      actions: [{ id: 'vote-remake-yes', label: 'Remake' }],
+    });
+  }
+
   private everySecond(): void {
     if (this.disposed) return;
+    this.remakeCheck();
     if (this.paused) this.drawPaused();
     if (this.chat) this.chat.cool = false;
     const s = Math.floor(this.h.tick() / 30);

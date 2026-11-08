@@ -349,6 +349,9 @@ Other targets:
 
 ### 3.12 Sim batch S-PvP (the one sim change M1b needs)
 
+**Status (2026-11-08):** shipped in sim v16 on `feat/pawlegends-v16` with the M1b backend and client (casual queue,
+Accept, PROTO 3, per-team votes, remake, `/live` casual branch); see `V16.md` §9 and §10. Not released yet.
+
 S-PvP rides the first `SIM_VERSION` after the dogs batch. It follows the `PARTY_SINCE` rule: `PVP_SINCE` is the first version that **shipped** with PvP code. The code is additive, and single-player and party outputs stay byte-identical. A golden test proves this, as `party-identity.test.ts` does.
 
 | Change | Files |

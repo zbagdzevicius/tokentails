@@ -13,7 +13,15 @@ export const ZOOM_MAX = 1.35;
 export const ZOOM_MAX_WIDE = 1.9;
 export const ZOOM_WIDE_FROM = 1100;
 /** The zoom-out limit for a viewport `width` CSS px wide. */
-export const zoomMax = (width: number): number => (width >= ZOOM_WIDE_FROM ? ZOOM_MAX_WIDE : ZOOM_MAX);
+/**
+ * Casual PvP (docs/plans/moba/V16.md §5 Camera): every seat gets the same zoom limits, so a wide desktop never sees
+ * more of the map than a phone opponent. Set by the match session for a PvP match, cleared when it ends.
+ */
+let pvpEqualView = false;
+export function setPvpEqualView(on: boolean): void {
+  pvpEqualView = on;
+}
+export const zoomMax = (width: number): number => (!pvpEqualView && width >= ZOOM_WIDE_FROM ? ZOOM_MAX_WIDE : ZOOM_MAX);
 /**
  * Default zoom, desktop and phones alike (phones multiply the distance by renderer.ts SHORT_LANDSCAPE_ZOOM).
  * Polish 2026-11-06 (founder: "zoomed in a little too much"): 0.88 → 1.03, the camera ~17% further out. Ground

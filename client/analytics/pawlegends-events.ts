@@ -105,6 +105,9 @@ export const PAWLEGENDS_GAME_EVENTS = [
   "mm_backfill_offer",
   "mm_backfill_join",
   "mm_penalty",
+  // casual PvP (docs/plans/moba/V16.md §5, §6)
+  "mm_keep_waiting",
+  "mp_void",
 ] as const;
 
 export type PawlegendsGameEventName = (typeof PAWLEGENDS_GAME_EVENTS)[number];

@@ -261,6 +261,17 @@ retired).
   **Back**. A match saves through the same party `/live` path; the hidden co-op rating is written only there. Events
   `mm_join`, `mm_cancel`, `mm_found`, `mm_backfill_offer`, `mm_backfill_join`, `mm_penalty` (relayed by the host like
   the `mp_*` events).
+- **PvP** (casual 3v3, M1b, `docs/plans/moba/V16.md` §4, §5, sim v16): when `GET /pawlegends/sim` lists the game's sim
+  and it is at least `pvpSince`, a **Co-op vs bots · PvP** chip sits above Play online (remembered per device; Co-op
+  until 5 matches, PvP locked with "PvP unlocks after 5 matches"). PvP queues solos, duos and trios; the card shows
+  both teams' pips and fills empty seats with bots after 0:30; with no PvP opponent by 0:40 it says "No PvP players
+  right now: playing Co-op vs bots" with **Keep waiting**. A found match shows the Accept card (10 s, a big Accept,
+  a small Decline: a decline is a dodge). Each team picks its own species and sees only its own picks until loading;
+  team 1 plays from the other base (the map turns, A24). In the match: pings and quick chat to the own team, emotes to
+  all with **Mute opponents**, no pause, surrender from 4:00 (2 of 3), and **Remake** from 1:00 to 3:00 when a
+  teammate left (all remaining teammates; the match is voided: "Match remade: nobody gained or lost anything"). Every
+  seat has the same zoom limits. The result saves through the same party `/live` path from the seat's own view; events
+  `mm_keep_waiting` and `mp_void` join the relayed list.
 - **Saves** (`components/pawlegends/saves.ts`): every finished match, won or lost, is posted as `{type:
   'PAWLEGENDS', pawlegends: <replay>}` to `POST /user/catbassadors/live`, the only write path. Without a
   Firebase user it waits in `tt.pawlegends.queue.v1` (12 at most) as a device match; after sign-in the host

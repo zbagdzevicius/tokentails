@@ -9,17 +9,21 @@
  */
 import { decodeCommand } from '../sim/commands';
 import { createMatch, hash, hashTrail, playerBotCommands, createPlayerBotFor, result, snapshot, step, tickOf, type MatchHandle } from '../sim/index';
-import { fillPicksParty, partyReplayRecord } from '../sim/party';
-import type { Command, MatchResult, PartyReplayRecord, SimEvent } from '../sim/api';
+import { fillPicksParty, partyReplayRecord, pvpReplayRecord } from '../sim/party';
+import type { Command, MatchResult, PartyReplayRecord, PvpReplayRecord, SimEvent } from '../sim/api';
 import { encodeSnap } from '../host/protocol';
 import { decodeTurnBody, splitTurnBodies, type TurnFrame } from './proto';
 import { LockstepRunner, TURN_MS } from './lockstep';
 import { goldenHash, type GoldenSim } from './golden';
 
 export interface NetStart {
-  config: { seed: number; picks: string[]; tricks: string[]; difficulty: string; humans: number[] };
+  /** `mode: 'pvp'` (casual, sim v16+): humans on both teams; `fillDifficulty` per team. */
+  config: { seed: number; picks: string[]; tricks: string[]; difficulty: string; humans: number[]; mode?: 'pvp'; fillDifficulty?: [string, string] };
   slot: number;
 }
+
+/** The team a seat sees the match as (PvP: slots 3..5 are team 1; party and co-op: team 0). */
+export const viewTeamOf = (s: NetStart): 0 | 1 => (s.config.mode === 'pvp' && s.slot >= 3 ? 1 : 0);
 
 export type CoreOut =
   | { t: 'selftest'; ok: boolean; hash: string }
@@ -44,7 +48,7 @@ export type CoreOut =
     }
   | { t: 'progress'; pct: number; done: boolean }
   | { t: 'gap'; expected: number }
-  | { t: 'end'; result: MatchResult; record: PartyReplayRecord | null };
+  | { t: 'end'; result: MatchResult; record: PartyReplayRecord | PvpReplayRecord | null };
 
 export type CoreIn =
   | { t: 'selftest'; golden: string }
@@ -121,7 +125,14 @@ export class NetCore {
   rebuild(): void {
     const s = this.start_;
     if (!s) return;
-    this.m = createMatch({ seed: s.config.seed, picks: s.config.picks as never, tricks: s.config.tricks as never, difficulty: s.config.difficulty as never, humans: s.config.humans });
+    this.m = createMatch({
+      seed: s.config.seed,
+      picks: s.config.picks as never,
+      tricks: s.config.tricks as never,
+      difficulty: s.config.difficulty as never,
+      humans: s.config.humans,
+      ...(s.config.mode === 'pvp' ? { mode: 'pvp' as const, fillDifficulty: s.config.fillDifficulty as never } : {}),
+    });
     this.applied = -1;
     this.queued = -1;
     this.pilotTurns.fill(0);
@@ -129,7 +140,12 @@ export class NetCore {
     this.trailSent = 0;
     this.endSent = false;
     this.runner.clear();
-    this.post({ t: 'snap', buf: encodeSnap(snapshot(this.m, 0)) });
+    this.post({ t: 'snap', buf: encodeSnap(snapshot(this.m, this.team)) });
+  }
+
+  /** The team this seat sees (fog, events): team 1 for a PvP seat 3..5. */
+  private get team(): 0 | 1 {
+    return this.start_ ? viewTeamOf(this.start_) : 0;
   }
 
   get tick(): number {
@@ -232,7 +248,7 @@ export class NetCore {
     if (mine && this.pilotFrom < 0) this.pilotFrom = f.turn;
     else if (!mine) this.pilotFrom = -1;
     for (let sub = 0; sub < 2 && !result(m); sub++) {
-      const per: Command[][] = [[], [], []];
+      const per: Command[][] = [[], [], [], [], [], []];
       for (const e of f.entries) {
         if (e.sub !== sub) continue;
         // defence in depth: the relay decodes every command before a TURN, and the referee skips the same way
@@ -242,7 +258,7 @@ export class NetCore {
       step(m, per[0], per);
       if (live) {
         // the team-filtered events of this tick (as the LocalHost's HostCore reads them)
-        for (const e of snapshot(m, 0).events) events.push(e);
+        for (const e of snapshot(m, this.team).events) events.push(e);
         const trail = hashTrail(m);
         while (this.trailSent < trail.length) {
           this.post({ t: 'hash', tick: (this.trailSent + 1) * 30, hash: trail[this.trailSent] >>> 0 });
@@ -255,7 +271,7 @@ export class NetCore {
   /** `acks`: merged over every turn stepped since the last publish (an ack rides only the turn where it changed). */
   private publish(events: SimEvent[], last: TurnFrame | null, acks: (number | undefined)[] = last?.acks ?? []): void {
     const m = this.m!;
-    const s = snapshot(m, 0);
+    const s = snapshot(m, this.team);
     if (events.length) this.post({ t: 'events', tick: s.clock.tick, list: events });
     const buf = encodeSnap(s);
     this.post({ t: 'snap', buf }, [buf]);
@@ -263,7 +279,7 @@ export class NetCore {
     const r = result(m);
     if (r && !this.endSent) {
       this.endSent = true;
-      this.post({ t: 'end', result: r, record: partyReplayRecord(m) });
+      this.post({ t: 'end', result: r, record: this.start_?.config.mode === 'pvp' ? pvpReplayRecord(m) : partyReplayRecord(m) });
     }
   }
 

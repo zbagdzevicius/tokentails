@@ -3,6 +3,7 @@
  * touch), HUD, minimap, scoreboard, talents, first-match tips and the Esc menu. The app's frame loop calls
  * `frame(dt)`; the session calls back once with the result and the replay.
  */
+import { setPvpEqualView } from '../render/camera/zoom';
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
@@ -150,6 +151,8 @@ export interface MatchSetup {
     coop?: boolean;
     /** This player took a leaver's seat mid-match (analytics). */
     backfill?: boolean;
+    /** Casual PvP (V16.md §5): humans on both teams; slot 3 leads team 1 (its pings are sim commands). */
+    pvp?: boolean;
   };
 }
 
@@ -435,6 +438,8 @@ export class MatchSession {
     });
     this.view.juice.stage = this.stage;
     this.view.juice.speed = matchSpeedFor(!!setup.party, setup.speed);
+    // casual PvP: the same zoom limits on every seat (V16.md §5 Camera)
+    setPvpEqualView(setup.party?.pvp === true);
     // e2e (rail.spec.ts): the juice instance, to push one note of each priority
     if (this.e2e) e2eHook('Juice', this.view.juice);
     // ANIM-SPEC §4.1: the animation director binds clips to events a few frames before they fire (read-only peek)
@@ -846,7 +851,7 @@ export class MatchSession {
   private sendPing(kind: number, x: number, y: number, id?: number): boolean {
     if (!this.orders || this.ended || this.paused) return false;
     // party play (§7 M2): slots 1 and 2 ping socially (markers only; the leader's pings command the bots in the sim)
-    if (this.setup.party && this.view.mySlot !== 0) {
+    if (this.setup.party && !this.isLead()) {
       const ok = this.mp?.ping(kind, x, y, id) ?? false;
       if (!ok) sfx.play('deny', { vol: 0.5 });
       else sfx.play('click', { vol: 0.6 });
@@ -1286,6 +1291,24 @@ export class MatchSession {
         ? {
             party: {
               coop: this.setup.party.coop === true,
+              // casual PvP: no pause (one team cannot stop the other's match); Remake from 1:00 to 3:00 instead
+              ...(this.setup.party.pvp
+                ? {
+                    pvp: true,
+                    remake: (() => {
+                      const t = this.buffer.latest?.clock.tick ?? 0;
+                      return t >= 1800 && t < 5400;
+                    })(),
+                    onVoteRemake: () => {
+                      this.mp?.vote('remake', true);
+                      this.resume();
+                    },
+                    onMuteOpponents: () => {
+                      this.mp?.toggleOpponents();
+                      this.resume();
+                    },
+                  }
+                : {}),
               onVotePause: () => {
                 this.mp?.vote('pause', true);
                 this.resume();
@@ -1294,6 +1317,16 @@ export class MatchSession {
           }
         : {}),
     });
+  }
+
+  /** The lead seat of this player's team: slot 0, or slot 3 for a PvP team-1 seat. */
+  private leadSlot(): number {
+    return this.setup.party?.pvp && this.view.mySlot >= 3 ? 3 : 0;
+  }
+
+  /** This seat leads its team (its pings are sim commands). */
+  private isLead(): boolean {
+    return this.view.mySlot === this.leadSlot();
   }
 
   /** Audit UX-03: a solo match that offers Forfeit (match 4 on, never Rookie) records a Leave as a forfeit loss. */
@@ -1609,9 +1642,9 @@ export class MatchSession {
       if (m.size === 'ping') {
         if (m.key === 'frenzySpawn') for (const p of this.view.pickups.list()) if (p.kind === 'frenzy') this.minimap.ping(p.x, p.y, '#7dff8a', 3000);
         // GAPS B1: the player's ping: a minimap ring and a ground marker where it points, and its name over the hero
-        if (m.key === 'ping' && m.at && this.setup.party && this.view.mySlot !== 0) {
-          // party play: the leader's ping, as a friend sees it (muted: nothing)
-          if (this.mp?.isMuted(0)) continue;
+        if (m.key === 'ping' && m.at && this.setup.party && !this.isLead()) {
+          // party play: the leader's ping, as a friend sees it (muted: nothing); PvP: the own team's lead
+          if (this.mp?.isMuted(this.leadSlot())) continue;
           this.pingMark(m.at.x, m.at.y, m.at.color);
           this.mp?.leaderPing(m.title);
           continue;
@@ -2504,6 +2537,7 @@ export class MatchSession {
     if (this.disposed) return;
     this.disposed = true;
     setProbeBlocked(false);
+    setPvpEqualView(false);
     this.host.leave();
     this.host.dispose();
     this.desktop?.dispose();

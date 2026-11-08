@@ -752,11 +752,40 @@ identity / address / network; 12 / 40 queued per address / network) and `seat_ta
 on the resume). `match` gains `mode: 'coop'`; the `party` frame gains `mm {side, strangers}` and `queue {sinceMs,
 side}`, and a stranger's copy has `code: ''`. A full queue (600) is `server_busy` with `retryMs` 15000.
 
+**Casual PvP (PROTO 3, M1b; docs/plans/moba/V16.md §4).** `hello.proto` may be 1, 2 or 3; the subprotocol stays
+`pl.1`. `hello.hint` gains `matches?` (0..1,000,000, completed matches: the PvP newbie lock, a hint only). A PROTO 3
+TURN carries up to six human slots (mode and ack masks up to `0x3f`, frame limit 256 bytes); a party or co-op room seats
+slots 0..2 only, so its bytes are the same as PROTO 2's. A PROTO 1 or 2 socket never receives a PvP frame (`void`,
+`mm.accepted`) or the code `pvp_update_required`, and `mm.accept` from it is `bad_message` (a strike).
+
+| Client frame | Fields | Rules |
+|---|---|---|
+| `mm.join` | `queue: 'casual'`, `side`, `region?` | PROTO 3 on a sim >= `PVP_SINCE` (16), else `pvp_update_required`; fewer than 5 matches (hint) or a rating RD above 300 is `mm_locked {reason: 'pvp_newbie'}`. Solo, duo or trio (a trio is casual only). A repeat `mm.join` with `queue: 'casual'` after the move to co-op is **Keep waiting** |
+| `mm.accept` | `match` (`^[a-z0-9]{12}$`), `yes` | Within 10 s of a casual `mm.found`. No, or no answer, is a dodge: 2 free per UTC day, then +1 min low priority each |
+| `vote` | `kind: 'remake'` | PvP only, from 1:00 to 3:00, when the voter's team lost a human seat (left, or never loaded and offline); all remaining humans of the team. `pause` is refused in PvP |
+
+Server frames: `mm.status` gains `teams: [yours, theirs]` (humans found), `from: 'casual'` (no PvP opponent by 40 s:
+the entry moved to co-op, and the co-op fill seats it 5 s later unless the player taps Keep waiting) and `requeued:
+true` (someone declined: back at the front, wait kept). A casual `mm.found` adds `mode: 'casual'`, `match`, `teams:
+[[humans, bots] yours, [humans, bots] theirs]`, `acceptByMs: 10000`; `side` is the own team's species. `mm.accepted
+{match, yes, need}` counts the accepts; `mm.cancel` gains `declined` and `timeout` (sent to the dodger only). The
+`party` frame's `mm` gains `mode: 'casual'`, `team` and `species: [team 0, team 1]`; during the pick the other team's
+heroes and locks are hidden. `match` gains `mode: 'casual'`, `species`, and `config.mode: 'pvp'`,
+`config.fillDifficulty: [team 0, team 1]`, `config.difficulty: 'hard'`; team-1 humans sit in slots 3..5. `vote`
+frames carry `team` and reach that team only; a passed `remake` sends `void {reason: 'remake'}` to everyone and closes
+the room unscored. Pings and quick chat reach the own team only; emotes reach everyone. `GET /pawlegends/sim` gains
+`pvpSince` (the game shows its PvP chip only when its sim is listed and >= it).
+
 `POST /user/catbassadors/live` with `type: 'PAWLEGENDS'` also accepts a party result in `pawlegends`:
 `{v: 2, room, slot, simVersion, ticks, outcome, finalHash}`. It is checked against the room log the relay stored
 and the referee's three-way verified verdict; errors `PAWLEGENDS_PARTY_ROOM` (no verified match), `PAWLEGENDS_PARTY_SLOT`
 (not the caller's slot), `PAWLEGENDS_PARTY_AFK` (409: a bot played most of the match), `PAWLEGENDS_DUPLICATE`,
-`PAWLEGENDS_SIM_VERSION`, `PAWLEGENDS_REPLAY_INVALID`.
+`PAWLEGENDS_SIM_VERSION`, `PAWLEGENDS_REPLAY_INVALID`. For a PvP room (`config.mode: 'pvp'`) the posted `outcome` is the slot's own
+view (`verdict.winner` against the slot's team; a team-1 slot posts `won` when team 1 won), the catnip is the hard-tier
+party amount with the same caps (never lowered for empty seats), the hidden rating is the `casual` row (`${accountId}:casual`,
+Glicko-2 against the other team's start ratings and fill-bot pseudo-ratings, weighted by its human share; loss
+forgiveness for a teammate who left before 5:00), and a remade room (`status: 'abandoned'`, `void: 'remake'`) pays and
+rates nothing (`PAWLEGENDS_PARTY_ROOM`).
 
 ## Web3 and payments
 

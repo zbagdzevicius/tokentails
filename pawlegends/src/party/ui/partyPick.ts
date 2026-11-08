@@ -81,7 +81,13 @@ export function pickHtml(o: PickModel): string {
   const me = v.members.find((m) => m.id === v.you);
   const locked = !!me?.locked;
   const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
-  const strip = [0, 1, 2].map((i) => stripSeat(v, humans[i], hide)).join('');
+  // casual PvP (V16.md §5): the own team only, by seat (the other team's picks show at loading)
+  const casual = v.mm?.mode === 'casual';
+  const team = v.mm?.team ?? 0;
+  const strip = casual
+    ? [0, 1, 2].map((i) => stripSeat(v, v.members.find((m) => m.slot === team * 3 + i), hide)).join('')
+    : [0, 1, 2].map((i) => stripSeat(v, humans[i], hide)).join('');
+  const hidden = casual ? `<p class="pp-side-note pp-their" data-testid="pvp-their-hidden">${COPY.opponentsHidden}</p>` : '';
   const leaderSide = sideOf(v.members.find((m) => m.id === v.leader)?.hero);
   // one grid (cats then dogs): two rows of six fit a 375 px tall phone
   // Quick Play: only the assigned side's heroes (the other side is never pickable)
@@ -91,7 +97,7 @@ export function pickHtml(o: PickModel): string {
     : [...HERO_IDS.filter((h) => HEROES[h].side === 'cat'), ...HERO_IDS.filter((h) => HEROES[h].side === 'dog')];
   const found = mm && o.found ? `<p class="pp-side-note pp-found-line" data-testid="mm-found-line">${esc(COPY.foundLine(o.found.humans, o.found.bots, sideText(o.found.side), DIFF_LABEL[o.found.difficulty] ?? o.found.difficulty))}</p>` : '';
   const sideNote = mm
-    ? `${sideBadgeHtml(mm)}${found}`
+    ? `${sideBadgeHtml(mm)}${found}${hidden}`
     : v.leader !== v.you && leaderSide
       ? `<p class="pp-side-note" data-testid="party-side-note">${esc(COPY.leaderChose(leaderSide))}</p>`
       : '';
@@ -108,7 +114,7 @@ export function pickHtml(o: PickModel): string {
     : `<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${canLock ? '' : 'disabled'}>${COPY.lockIn}</button>`;
   // Quick Play: a way out of the pick (two taps, as in the friend lobby); a bot takes the seat
   const leave = mm ? `<button type="button" class="pl-btn ghost small pp-pick-leave" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>` : '';
-  return `<div class="pp-card pp-pick" data-locked="${locked}"${mm ? ` data-mm="${mm}"` : ''}>
+  return `<div class="pp-card pp-pick" data-locked="${locked}"${mm ? ` data-mm="${mm}"` : ''}${casual ? ` data-pvp="${team}"` : ''}>
     <div class="pp-head"><h2>${COPY.pickTitle}</h2>${sideNote}<ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
     <div class="pp-roster">${rows}</div>
     <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${leave}${lockBtn}</div>

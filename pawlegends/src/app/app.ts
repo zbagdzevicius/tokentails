@@ -37,7 +37,8 @@ import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl } from '../share/partyLink';
 import type { PartyClient } from '../party';
-import { hideNames, lastQueueSide, setLastQueueSide } from '../meta/partyPrefs';
+import { hideNames, lastQueueSide, onlineMode, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
+import { pvpAvailable, pvpKnown } from '../meta/pvpCapability';
 import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
@@ -520,8 +521,16 @@ export class App {
     saveProfile(p);
   }
 
+  /** Casual PvP: the mode chosen on the title this page (null: the remembered one). */
+  private onlineMode: OnlineMode | null = null;
+
   /** `offer` false: a redraw after a lobby panel closed (the Treat Track panel never leads to an offer). */
   showTitle(offer = true): void {
+    // casual PvP: ask the backend once; the title redraws with the mode chip when it answers yes
+    if (this.partyApi && pvpKnown() === null)
+      void pvpAvailable(this.partyApi).then((yes) => {
+        if (yes && this.screen === 'title' && !this.party) this.showTitle(false);
+      });
     const first = this.screen !== 'title' || !this.screenEl;
     // the match chunk loads in the background once the title is up (a match then starts without a fetch)
     if (!this.matchPrefetched) {
@@ -610,6 +619,18 @@ export class App {
               this.openParty('code');
             }
           : undefined,
+        // casual PvP (V16.md §5): the mode chip, only when the backend verifies PvP for this build's sim
+        onlineMode:
+          this.partyApi && pvpKnown() === true
+            ? {
+                mode: this.onlineMode ?? onlineMode(p.matches),
+                locked: p.matches < 5,
+                onMode: (m) => {
+                  this.onlineMode = m;
+                  setOnlineMode(m);
+                },
+              }
+            : undefined,
         // Quick Play co-op (M1A-IMPL.md §1): one tap for everyone, a brand-new guest included (zero friction: no
         // sign-in, no unlock). The big button stays the guided solo match; a new player queues with the newbie hint.
         onOnline:
@@ -842,6 +863,9 @@ export class App {
             difficulties: picks ? ['easy', 'normal', 'hard'] : ['easy'],
             maxDifficulty: picks ? 'hard' : 'easy',
             newbie: p.matches === 0,
+            matches: p.matches,
+            // casual PvP from the title's chip (a newbie always queues co-op; the relay refuses PvP before 5 matches)
+            queueMode: pvpKnown() === true && p.matches >= 5 && (this.onlineMode ?? onlineMode(p.matches)) === 'pvp' ? 'casual' : 'coop',
             build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
             // P9: the embed host mints a single-use ticket with its own session; standalone players are unscored guests
             ticket: () => this.integration.partyTicket(),
@@ -912,7 +936,8 @@ export class App {
       knowsUlt: p.knowsUlt,
       pingTip: false,
       // the Esc menu's Forfeit is a surrender vote in party play (NetHost), open from the difficulty's forfeit time
-      forfeitFrom: forfeitTick(99, difficulty),
+      // (casual PvP: 4:00, V16.md §3.1.2)
+      forfeitFrom: match.mode === 'casual' ? 7200 : forfeitTick(99, difficulty),
       skinFx: p.skinFx,
       showcase: [],
       host: host as unknown as MatchSetup['host'],
@@ -924,11 +949,12 @@ export class App {
         newbie: p.matches === 0,
         hideNames: hideNames(),
         ...(match.mode === 'coop' ? { coop: true, backfill } : {}),
+        ...(match.mode === 'casual' ? { coop: true, backfill, pvp: true } : {}),
       },
     };
     this.lastSetup = setup;
     this.analytics.track('match_start', { hero, difficulty, trick, dare: false });
-    const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
+    const veil = loadingVeil(this.root, 'Into the Crossing...', match.mode === 'casual' ? 'PvP' : match.mode === 'coop' ? (backfill ? 'Joining your new team' : 'With your team') : 'With friends', this.wearing(look), { name: veilName(hero, look), matches: p.heroMatches[hero] ?? 0, bond: null });
     this.setScreen('match', null);
     this.lobby.leave();
     this.session?.dispose();

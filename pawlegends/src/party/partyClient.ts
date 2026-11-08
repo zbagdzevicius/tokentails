@@ -17,6 +17,7 @@ import { TRICK_IDS } from '../data/tricks';
 import { HERO_IDS } from '../data/heroes';
 import { COPY, clockText, errorText, esc } from './ui/copy';
 import { queueCardHtml, type QueueStop } from './ui/queueCard';
+import { acceptCardHtml } from './ui/acceptCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
 import { decoratePick, firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
@@ -58,6 +59,14 @@ export interface QueueStatus {
 /** Quick Play: this player (or its friend party) searching, matched, or stopped. */
 export interface QueueState {
   side: MmSide;
+  /** 'casual': PvP (PROTO 3, V16.md §4.1). */
+  mode: 'coop' | 'casual';
+  /** Casual: no opponent by 45 s, the search moved to co-op (the card offers Keep waiting). */
+  toCoop?: boolean;
+  /** Casual: back at the front after someone declined a found match. */
+  requeued?: boolean;
+  /** Casual: humans found on the other team. */
+  theirs?: number;
   status: QueueStatus | null;
   /** The search stopped (the card offers Search again), or null while searching. */
   stopped: QueueStop | null;
@@ -81,8 +90,26 @@ export interface OfferState {
   expiresMs: number;
 }
 
+/** Casual PvP: a found match waiting for Accept (10 s). */
+export interface AcceptState {
+  match: string;
+  side: 'cat' | 'dog';
+  mine: [number, number];
+  theirs: [number, number];
+  totalMs: number;
+  accepted: boolean;
+  yes: number;
+  need: number;
+}
+
 export interface PartyState {
   mode: OpenMode;
+  /** Casual PvP: the Accept card, or null. */
+  accept: AcceptState | null;
+  /** Casual PvP: the last match was voided by a remake (the void screen). */
+  voided: boolean;
+  /** The relay speaks casual PvP (`welcome.proto` >= 3). */
+  pvpOk: boolean;
   /** The code to join (`join` mode, or typed in `code` mode). */
   code: string | null;
   view: PartyView | null;
@@ -117,7 +144,11 @@ export type PartyEffect =
   | { t: 'seat-taken' }
   /** `mm.cancel{server}`: wait for the restarted relay's welcome, and search again by ourselves if none comes. */
   | { t: 'server-wait' }
-  | { t: 'track'; event: string; props: Record<string, string | number | boolean> };
+  | { t: 'track'; event: string; props: Record<string, string | number | boolean> }
+  /** Casual PvP: the Accept card's 10 s clock starts. */
+  | { t: 'accept-clock' }
+  /** Casual PvP: a remake voided the running match (end it, show the void screen). */
+  | { t: 'voided' };
 
 export type PartyEvent =
   | { e: 'server'; m: ServerJson }
@@ -125,7 +156,11 @@ export type PartyEvent =
   | { e: 'join'; code: string }
   | { e: 'create' }
   /** Quick Play: search (the title's "Play online", the lobby's leader button, Search again, Play again). */
-  | { e: 'queue'; side: MmSide; requeue?: boolean }
+  | { e: 'queue'; side: MmSide; requeue?: boolean; mode?: 'coop' | 'casual' }
+  /** Casual PvP: Accept or Decline the found match (null: the 10 s ran out locally). */
+  | { e: 'accept'; yes: boolean | null }
+  /** Casual PvP: Keep waiting after the move to co-op. */
+  | { e: 'keep' }
   /** Cancel the search. */
   | { e: 'unqueue' }
   | { e: 'side'; side: MmSide }
@@ -133,8 +168,9 @@ export type PartyEvent =
   | { e: 'offer'; yes: boolean | null };
 
 /** A fresh search. */
-export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean } = {}): QueueState => ({
+export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean; mode?: 'coop' | 'casual' } = {}): QueueState => ({
   side,
+  mode: o.mode ?? 'coop',
   status: null,
   stopped: null,
   found: null,
@@ -143,8 +179,11 @@ export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean 
   requeue: !!o.requeue,
 });
 
-export const initialParty = (mode: OpenMode, code: string | null = null, side: MmSide = 'any'): PartyState => ({
+export const initialParty = (mode: OpenMode, code: string | null = null, side: MmSide = 'any', queueMode: 'coop' | 'casual' = 'coop'): PartyState => ({
   mode,
+  accept: null,
+  voided: false,
+  pvpOk: false,
   code,
   view: null,
   inMatch: false,
@@ -152,7 +191,7 @@ export const initialParty = (mode: OpenMode, code: string | null = null, side: M
   asked: false,
   welcomed: false,
   error: null,
-  queue: mode === 'queue' ? searching(side) : null,
+  queue: mode === 'queue' ? searching(side, { mode: queueMode }) : null,
   found: null,
   offer: null,
   mmOk: false,
@@ -162,7 +201,7 @@ export const initialParty = (mode: OpenMode, code: string | null = null, side: M
 export const isStranger = (v: PartyView | null): boolean => !!v?.mm && v.code === '';
 
 /** The screen a state shows. */
-export type PartyScreen = 'connecting' | 'joincode' | 'ended' | 'error' | 'lobby' | 'pick' | 'loading' | 'match' | 'queue';
+export type PartyScreen = 'connecting' | 'joincode' | 'ended' | 'error' | 'lobby' | 'pick' | 'loading' | 'match' | 'queue' | 'accept' | 'void';
 
 const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_locked', 'party_busy', 'kicked', 'code_changed', 'already_in_party', 'seat_taken']);
 const FATAL = new Set(['update_required', 'seat_elsewhere']);
@@ -170,6 +209,8 @@ const FATAL = new Set(['update_required', 'seat_elsewhere']);
 export function screenOf(s: PartyState): PartyScreen {
   if (s.inMatch || s.solo) return 'match';
   if (s.error && FATAL.has(s.error.code)) return 'error';
+  if (s.voided && !s.queue) return 'void';
+  if (s.accept) return 'accept';
   if (s.error?.code === 'seat_taken' && !s.view) return 'ended';
   // Quick Play: the queue card (searching, "Match found", stopped) over the title, a party lobby or results
   if (s.queue && (!s.view || s.queue.found || s.view.phase === 'lobby' || s.view.phase === 'results')) return 'queue';
@@ -239,11 +280,30 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     }
     case 'queue': {
       const party = !!s.view && !isStranger(s.view);
-      const queue = searching(ev.side, { party, requeue: ev.requeue });
-      if (!s.welcomed) return { state: { ...s, queue, error: null, offer: null }, effects: [] };
-      if (!s.mmOk) return { state: { ...s, queue: { ...queue, stopped: 'update' } }, effects: [] };
-      send({ t: 'mm.join', queue: 'coop', side: ev.side });
-      return { state: { ...s, queue, error: null, offer: null, asked: true }, effects: fx };
+      const mode = ev.mode ?? s.queue?.mode ?? 'coop';
+      const queue = searching(ev.side, { party, requeue: ev.requeue, mode });
+      const base = { ...s, voided: false, accept: null };
+      if (!s.welcomed) return { state: { ...base, queue, error: null, offer: null }, effects: [] };
+      if (!s.mmOk || (mode === 'casual' && !s.pvpOk)) return { state: { ...base, queue: { ...queue, stopped: 'update' } }, effects: [] };
+      send({ t: 'mm.join', queue: mode, side: ev.side });
+      return { state: { ...base, queue, error: null, offer: null, asked: true }, effects: fx };
+    }
+    case 'accept': {
+      const a = s.accept;
+      if (!a) return { state: s, effects: [] };
+      if (ev.yes === true) {
+        send({ t: 'mm.accept', match: a.match, yes: true });
+        return { state: { ...s, accept: { ...a, accepted: true, yes: Math.max(a.yes, 1) } }, effects: fx };
+      }
+      // a decline, or the clock ran out here: the relay answers mm.cancel{declined|timeout}
+      if (ev.yes === false) send({ t: 'mm.accept', match: a.match, yes: false });
+      return { state: { ...s, accept: ev.yes === false ? null : a }, effects: fx };
+    }
+    case 'keep': {
+      const q = s.queue;
+      if (!q || !q.toCoop) return { state: s, effects: [] };
+      send({ t: 'mm.join', queue: 'casual', side: q.side });
+      return { state: { ...s, queue: { ...q, mode: 'casual', toCoop: false } }, effects: fx };
     }
     case 'unqueue':
       if (s.queue && !s.queue.stopped && s.welcomed) send({ t: 'mm.leave' });
@@ -268,16 +328,17 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
   switch (m.t) {
     case 'welcome': {
       const mmOk = typeof m.proto === 'number' && m.proto >= 2;
+      const pvpOk = typeof m.proto === 'number' && m.proto >= 3;
       const q = s.queue;
       // Quick Play: the first welcome, a reconnect, or a relay restart (`mm.cancel{server}`): (re)send `mm.join`, so
       // the player sees one continuous search. A friend party's search is the leader's to re-send.
-      if (q && !q.stopped && !q.found && (!s.view || isStranger(s.view) || s.view.leader === s.view.you)) {
-        if (!mmOk) return { state: { ...s, welcomed: true, mmOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
-        return { state: { ...s, welcomed: true, mmOk, asked: true }, effects: [{ t: 'send', msg: { t: 'mm.join', queue: 'coop', side: q.side } }] };
+      if (q && !q.stopped && !q.found && !s.accept && (!s.view || isStranger(s.view) || s.view.leader === s.view.you)) {
+        if (!mmOk || (q.mode === 'casual' && !pvpOk)) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
+        return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [{ t: 'send', msg: { t: 'mm.join', queue: q.toCoop ? 'coop' : q.mode, side: q.side } }] };
       }
-      if (q && !s.view) return { state: { ...s, welcomed: true, mmOk, asked: true }, effects: [] };
+      if (q && !s.view) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [] };
       // a reconnect keeps the view (the relay re-sends the party right after welcome)
-      return { state: { ...s, welcomed: true, mmOk, asked: s.view ? s.asked : false }, effects: s.view ? [] : [{ t: 'decide-later' }] };
+      return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: s.view ? s.asked : false }, effects: s.view ? [] : [{ t: 'decide-later' }] };
     }
     case 'party': {
       const left = !!(m as PartyView & { left?: boolean }).left || (!m.code && !m.mm);
@@ -294,9 +355,10 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       else if (m.queue && queue) queue = { ...queue, seen: true, party: true };
       else if (queue && queue.party && queue.seen && !queue.found) queue = null; // the party's search ended
       // matched: the shared pick takes over (after the 1.2 s "Match found" strip, when there was one)
-      if (queue && !queue.found && m.mm && (m.phase === 'pick' || m.phase === 'loading' || m.phase === 'match')) queue = null;
+      const matched = !!m.mm && (m.phase === 'pick' || m.phase === 'loading' || m.phase === 'match');
+      if (queue && !queue.found && matched) queue = null;
       // the app ends a match (`matchOver`) once its results are done; the view keeps updating meanwhile
-      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue }, effects: fx };
+      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue, accept: matched ? null : s.accept }, effects: fx };
     }
     case 'mm.status': {
       const status: QueueStatus = {
@@ -306,17 +368,65 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         ...(m.lowPriorityMs ? { lowPriorityMs: m.lowPriorityMs } : {}),
         ...(m.warn ? { warn: m.warn } : {}),
       };
-      const base = s.queue && !s.queue.found ? s.queue : searching(m.side, { party: !!s.view && !isStranger(s.view) });
-      return { state: { ...s, queue: { ...base, side: m.side, status, stopped: null } }, effects: [] };
+      const base = s.queue && !s.queue.found ? s.queue : searching(m.side, { party: !!s.view && !isStranger(s.view), mode: m.queue });
+      // casual: the 45 s move to co-op (`from: 'casual'`), a requeue after a decline, the other team's humans
+      const toCoop = m.from === 'casual' && m.queue === 'coop';
+      const pvp = m.queue === 'casual' || toCoop;
+      return {
+        state: {
+          ...s,
+          accept: null,
+          queue: {
+            ...base,
+            mode: pvp ? 'casual' : 'coop',
+            side: m.side,
+            status,
+            stopped: null,
+            toCoop,
+            requeued: m.requeued === true || (!!base.requeued && !toCoop),
+            theirs: m.teams?.[1] ?? 0,
+          },
+        },
+        effects: [],
+      };
     }
     case 'mm.found': {
+      // casual PvP: the Accept card (10 s); the pick comes once everyone accepted
+      if (m.mode === 'casual' && m.match && m.teams) {
+        const accept: AcceptState = {
+          match: m.match,
+          side: m.side,
+          mine: [m.teams[0][0], m.teams[0][1]],
+          theirs: [m.teams[1][0], m.teams[1][1]],
+          totalMs: m.acceptByMs ?? 10_000,
+          accepted: false,
+          yes: 0,
+          need: m.teams[0][0] + m.teams[1][0],
+        };
+        const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty };
+        fx.push({ t: 'accept-clock' }, { t: 'vibrate' });
+        return { state: { ...s, accept, found, offer: null }, effects: fx };
+      }
       const found: MmFound = { side: m.side, humans: m.humans, bots: m.bots, difficulty: m.difficulty };
       const q = s.queue ?? searching(m.side);
       fx.push({ t: 'found-hold' }, { t: 'vibrate' });
       return { state: { ...s, queue: { ...q, found }, found, offer: null }, effects: fx };
     }
+    case 'mm.accepted': {
+      if (!s.accept || s.accept.match !== m.match) return { state: s, effects: [] };
+      return { state: { ...s, accept: { ...s.accept, yes: m.yes, need: m.need } }, effects: [] };
+    }
+    case 'void':
+      // a remake: the running match ends for everyone; nobody gained or lost anything
+      return { state: { ...s, voided: true, inMatch: false, accept: null }, effects: [{ t: 'voided' }] };
     case 'mm.cancel': {
-      if (!s.queue) return { state: s, effects: [] };
+      if (!s.queue && !s.accept) return { state: s, effects: [] };
+      // casual: this player declined or let the Accept run out (a dodge)
+      if (m.reason === 'declined' || m.reason === 'timeout') {
+        const q = s.queue ?? searching('any', { mode: 'casual' });
+        return { state: { ...s, accept: null, queue: { ...q, stopped: m.reason, status: null }, offer: null }, effects: [] };
+      }
+      if (!s.queue) return { state: { ...s, accept: null }, effects: [] };
       // a restart: keep searching; the reconnect's welcome re-sends `mm.join` (one continuous timer). If no welcome
       // comes (the socket stayed up), the client searches again by itself: never a card that spins forever
       if (m.reason === 'server') return { state: { ...s, queue: { ...s.queue, status: null } }, effects: [{ t: 'server-wait' }] };
@@ -352,6 +462,10 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       if (m.code === 'seat_taken')
         return { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'seat_taken' }, asked: false }, effects: [{ t: 'seat-taken' }] };
       if (s.inMatch) return { state: s, effects: [] }; // NetHost shows in-match errors on the rail
+      // casual PvP refused: fewer than 5 matches, or a game without PvP
+      if (s.queue && m.code === 'mm_locked' && m.reason === 'pvp_newbie')
+        return { state: { ...s, queue: { ...s.queue, stopped: 'newbie', status: null }, offer: null }, effects: [] };
+      if (s.queue && m.code === 'pvp_update_required') return { state: { ...s, queue: { ...s.queue, stopped: 'update', status: null }, offer: null }, effects: [] };
       if (s.queue && !s.queue.found && (m.code === 'mm_locked' || m.code === 'server_busy'))
         return { state: { ...s, queue: { ...s.queue, stopped: m.code === 'mm_locked' ? 'locked' : 'busy', retryMs: m.retryMs ?? 15_000, status: null }, offer: null }, effects: [] };
       // the relay refused this search for the party (not the leader, a member offline or still in a match): stop the
@@ -377,10 +491,10 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
   }
 }
 
-/** The in-match seats of a party view (lane M1): name, connection and card art per human slot. Pure. */
+/** The in-match seats of a party view (lane M1): name, connection and card art per human slot (0..5 in PvP). Pure. */
 export function seatsOf(v: PartyView): SeatInfo[] {
   return v.members
-    .filter((m) => typeof m.slot === 'number' && m.slot >= 0 && m.slot < 3)
+    .filter((m) => typeof m.slot === 'number' && m.slot >= 0 && m.slot < 6)
     .map((m) => ({ slot: m.slot!, name: m.id === v.you ? (m.ownName ?? m.name) : m.name, conn: m.conn, art: cleanArt(m.card?.image) ?? null }));
 }
 
@@ -410,6 +524,10 @@ export interface PartyHooks {
   startMatch(host: () => NetHost, match: MatchMsg, view: PartyView, info?: { backfill: boolean }): void;
   /** Quick Play: the side of the first search ("Play online"; the last one this viewer used). */
   queueSide?: MmSide;
+  /** Casual PvP: the first search's queue (the title's mode chip). */
+  queueMode?: 'coop' | 'casual';
+  /** Completed matches (the casual PvP newbie lock hint). */
+  matches?: number;
   /** Quick Play: the player changed the side (remembered for the next search). */
   saveQueueSide?(side: MmSide): void;
   /** Quick Play analytics context (no ids). */
@@ -492,7 +610,7 @@ export class PartyClient {
     this.openedAt = this.now();
     this.hover = h.hero;
     this.trick = h.trick;
-    this.state = initialParty(opts.mode, opts.code ?? null, h.queueSide ?? 'any');
+    this.state = initialParty(opts.mode, opts.code ?? null, h.queueSide ?? 'any', h.queueMode ?? 'coop');
     if (opts.mode === 'queue') this.queueSince = this.now();
     const url = `${h.api.replace(/^http/, 'ws').replace(/\/+$/, '')}${WS_PATH}`;
     this.el = document.createElement('div');
@@ -507,7 +625,13 @@ export class PartyClient {
     this.el.addEventListener('keydown', (e) => this.onKey(e));
     this.socket = new PartySocket(
       url,
-      { sim: SIM_VERSION, simHash: simHash(), build: h.build, guestKey: h.guestKey(), hint: { maxDifficulty: h.maxDifficulty, newbie: h.newbie } },
+      {
+        sim: SIM_VERSION,
+        simHash: simHash(),
+        build: h.build,
+        guestKey: h.guestKey(),
+        hint: { maxDifficulty: h.maxDifficulty, newbie: h.newbie, ...(h.matches !== undefined ? { matches: Math.max(0, Math.min(1_000_000, Math.floor(h.matches))) } : {}) },
+      },
       h.env ?? browserSocketEnv(),
     );
     this.socket.tap({
@@ -662,7 +786,29 @@ export class PartyClient {
       case 'track':
         this.h.analytics?.(f.event, f.props);
         return;
+      case 'accept-clock':
+        this.acceptAt = this.now();
+        this.h.analytics?.('mm_found', { waited_s: this.waitedS(), mode: 'casual', humans: (this.state.accept?.mine[0] ?? 0) + (this.state.accept?.theirs[0] ?? 0) });
+        return;
+      case 'voided':
+        this.h.analytics?.('mp_void', { reason: 'remake' });
+        if (this.host) {
+          this.host = null;
+          this.resultsEl = null;
+          this.resultsDone = null;
+          this.h.endMatch?.();
+        }
+        this.el.hidden = false;
+        this.drawn = '';
+        return;
     }
+  }
+
+  /** Casual PvP: when the Accept card's clock started (local). */
+  private acceptAt = 0;
+  private acceptLeftS(): number {
+    const a = this.state.accept;
+    return a ? Math.max(0, (a.totalMs - (this.now() - this.acceptAt)) / 1000) : 0;
   }
 
   // -------------------------------------------------------------------------------------------- Quick Play (M1a)
@@ -743,9 +889,10 @@ export class PartyClient {
     else this.sideTimer = setTimeout(go, wait);
   }
 
-  /** Search (again) with the remembered side. */
-  queueNow(requeue = false): void {
-    this.dispatch({ e: 'queue', side: this.state.queue?.side ?? this.h.queueSide ?? 'any', requeue });
+  /** Search (again) with the remembered side (and queue: casual after a PvP match). */
+  queueNow(requeue = false, mode?: 'coop' | 'casual'): void {
+    const m = mode ?? (this.state.view?.mm?.mode === 'casual' || this.state.voided ? 'casual' : this.state.queue?.mode ?? this.h.queueMode ?? 'coop');
+    this.dispatch({ e: 'queue', side: this.state.queue?.side ?? this.h.queueSide ?? 'any', requeue, mode: m });
   }
 
   /** Seconds searched now. */
@@ -767,6 +914,13 @@ export class PartyClient {
       if (el && el.textContent !== text) el.textContent = text;
     };
     set('waited', clockText(this.waitedS()));
+    if (this.state.accept) {
+      const left = this.acceptLeftS();
+      set('accept', String(Math.ceil(left)));
+      const ring = this.card.querySelector<HTMLElement>('.pp-acceptcard .pp-ring');
+      ring?.style.setProperty('--pp-ring', `${Math.round((left / Math.max(1, this.state.accept.totalMs / 1000)) * 100)}%`);
+      if (left <= 0 && !this.state.accept.accepted) this.dispatch({ e: 'accept', yes: null });
+    }
     const low = Math.max(0, (q.status?.lowPriorityMs ?? 0) - (this.now() - this.statusAt));
     if (low > 0) set('low', COPY.lowPriority(clockText(low / 1000)));
     if (this.state.offer) {
@@ -794,6 +948,7 @@ export class PartyClient {
       stopped: q.stopped,
       retryS,
       match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty } : null,
+      ...(q.mode === 'casual' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
       offer: s.offer ? { clockS: s.offer.clockS + Math.floor((this.now() - this.offerAt) / 1000), score: s.offer.score, leftS: this.offerLeftS(), totalS: s.offer.expiresMs / 1000 } : null,
     };
   }
@@ -1118,6 +1273,19 @@ export class PartyClient {
       case 'bf-yes':
         this.dispatch({ e: 'offer', yes: true });
         return;
+      case 'mm-accept':
+        this.dispatch({ e: 'accept', yes: true });
+        return;
+      case 'mm-decline':
+        this.dispatch({ e: 'accept', yes: false });
+        return;
+      case 'mm-keep':
+        this.dispatch({ e: 'keep' });
+        this.h.analytics?.('mm_keep_waiting', { waited_s: this.waitedS() });
+        return;
+      case 'void-again':
+        this.queueNow(true, 'casual');
+        return;
       case 'bf-no':
         this.dispatch({ e: 'offer', yes: false });
         return;
@@ -1227,7 +1395,7 @@ export class PartyClient {
   private everySecond(): void {
     if (this.closed || this.state.inMatch || this.state.solo) return;
     if (screenOf(this.state) === 'connecting') this.render();
-    if (screenOf(this.state) === 'queue') {
+    if (screenOf(this.state) === 'queue' || screenOf(this.state) === 'accept') {
       this.liveQueue();
       // a locked or busy stop: Search again turns on when the wait is over
       if (this.state.queue?.stopped && this.state.queue.retryMs) this.render();
@@ -1277,6 +1445,14 @@ export class PartyClient {
       case 'queue':
         html = queueCardHtml(this.queueModel());
         break;
+      case 'accept': {
+        const a = s.accept!;
+        html = acceptCardHtml({ side: a.side, mine: a.mine, theirs: a.theirs, leftS: this.acceptLeftS(), totalS: a.totalMs / 1000, accepted: a.accepted, yes: a.yes, need: a.need });
+        break;
+      }
+      case 'void':
+        html = `<div class="pp-card pp-narrow pp-void" data-testid="pvp-void" role="status"><h2>${COPY.voided}</h2><div class="pp-col"><button type="button" class="pl-btn big" data-p="void-again" data-testid="pvp-void-again">${COPY.playAgainOnline}</button><button type="button" class="pl-btn ghost small" data-p="mm-cancel" data-testid="pvp-void-back">${COPY.back}</button></div></div>`;
+        break;
       case 'ended': {
         const title = errorText(s.error?.code ?? 'party_ended');
         if (s.error?.code === 'seat_taken') {
@@ -1312,7 +1488,7 @@ export class PartyClient {
     const key =
       screen === 'pick'
         ? html.replace(/data-timer[^>]*>\d+s/, '')
-        : screen === 'queue'
+        : screen === 'queue' || screen === 'accept'
           ? html.replace(/(data-live="[a-z]+"[^>]*>)[^<]*/g, '$1').replace(/--pp-ring:\d+%/, '')
           : html;
     if (key === this.drawn) return;

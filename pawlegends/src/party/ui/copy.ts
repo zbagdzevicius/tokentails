@@ -129,6 +129,29 @@ export const COPY = Object.freeze({
   playAgainOnline: 'Play again',
   backToParty: 'Back to party',
   coopLeave: 'Leaving early adds a short wait before your next online match. Another player or a bot takes your place.',
+  // Casual PvP (docs/plans/moba/V16.md §5)
+  modeLabel: 'Online mode',
+  modeCoop: 'Co-op vs bots',
+  modePvp: 'PvP',
+  pvpLocked: 'PvP unlocks after 5 matches',
+  findingPvp: 'Finding a PvP match…',
+  pvpTeams: (mine: number, theirs: number) => `Your team ${mine} of 3 · Their team ${theirs} of 3`,
+  pvpFill: 'Bots fill empty seats after 0:30',
+  toCoop: 'No PvP players right now: playing Co-op vs bots',
+  keepWaiting: 'Keep waiting',
+  requeued: 'A player declined. You are back at the front of the queue',
+  pvpFound: 'PvP match found',
+  pvpFoundLine: (mine: [number, number], theirs: [number, number], side: string) =>
+    `You: ${side} · ${mine[0]} ${mine[0] === 1 ? 'player' : 'players'}${mine[1] ? ` + ${mine[1]} ${mine[1] === 1 ? 'bot' : 'bots'}` : ''} vs ${theirs[0]}${theirs[1] ? ` + ${theirs[1]} ${theirs[1] === 1 ? 'bot' : 'bots'}` : ''}`,
+  accept: 'Accept',
+  decline: 'Decline',
+  accepted: (yes: number, need: number) => `${yes} of ${need} accepted`,
+  declinedYou: 'You declined the match',
+  timeoutYou: 'You did not accept in time',
+  pvpUpdate: 'Update the game to play PvP',
+  opponentsHidden: 'Their picks show at loading',
+  theirTeam: 'Their team',
+  voided: 'Match remade: nobody gained or lost anything',
 });
 
 /** The text of a relay error code on a pre-match screen. */
@@ -167,6 +190,8 @@ export function errorText(code: string, retryS = 0): string {
       return COPY.seatTaken;
     case 'mm_locked':
       return COPY.stoppedLocked(Math.max(1, retryS));
+    case 'pvp_update_required':
+      return COPY.pvpUpdate;
     default:
       return COPY.generic;
   }
