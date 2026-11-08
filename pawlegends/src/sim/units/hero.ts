@@ -64,7 +64,8 @@ export function placeAtFountain(w: World, id: number): void {
 
 function planPath(m: MatchHandle, id: number, tx: number, ty: number): void {
   const w = m.world;
-  const r = findPath(m.grid, w.x[id], w.y[id], tx, ty, w.pathX, w.pathY, id * NAV.maxPathPoints);
+  // Sim v16 (MAP-GAPS B15): with its team, so the path routes round the enemy fountain.
+  const r = findPath(m.grid, w.x[id], w.y[id], tx, ty, w.pathX, w.pathY, id * NAV.maxPathPoints, w.team[id]);
   w.pathLen[id] = r.count;
   w.pathIdx[id] = 0;
   w.timer[id] = NAV.repathEvery;

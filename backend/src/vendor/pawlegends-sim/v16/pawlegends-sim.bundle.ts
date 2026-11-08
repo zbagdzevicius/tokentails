@@ -5559,10 +5559,21 @@ function createGrid() {
 		markRect(walls, x0, y0, x1, y1);
 		markRect(walls, mirrorX(x1), y0, mirrorX(x0), y1);
 	}
+	const foe = [new Uint8Array(NX * NY), new Uint8Array(NX * NY)];
+	const r = FOUNTAIN.radius + RADIUS.hero;
+	for (let team = 0; team < 2; team++) {
+		const fx = team === 0 ? mirrorX(FOUNTAIN.x) : FOUNTAIN.x;
+		for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) {
+			const dx = i * MAP.navCell + HALF - fx;
+			const dy = j * MAP.navCell + HALF - FOUNTAIN.y;
+			if (dx * dx + dy * dy <= r * r) foe[team][j * NX + i] = 1;
+		}
+	}
 	return {
 		walls,
 		blocked: walls.slice(),
-		cover: new Uint8Array(NX * NY)
+		cover: new Uint8Array(NX * NY),
+		foe
 	};
 }
 /** Add (+1) or remove (−1) a round structure footprint. */
@@ -12197,6 +12208,43 @@ function octile(a, b) {
 	const dy = Math.abs(idiv(a, NX) - idiv(b, NX));
 	return STRAIGHT * Math.max(dx, dy) + 4 * Math.min(dx, dy);
 }
+/** The team layer of the running query (findPath), or null. */
+var foe = null;
+var pass = (grid, c) => walkable(grid, c) && (foe === null || foe[c] === 0);
+/** lineClear, also refusing the query's team layer. */
+function clear$12(grid, ax, ay, bx, by) {
+	if (!lineClear(grid, ax, ay, bx, by)) return false;
+	if (foe === null) return true;
+	const dx = bx - ax;
+	const dy = by - ay;
+	const n = idiv(Math.max(Math.abs(dx), Math.abs(dy)), NAV.losStep) + 1;
+	for (let k = 0; k <= n; k++) if (foe[cellOf(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
+	return true;
+}
+/** snapCell with the team layer: the nearest passable cell within NAV.snapCells rings (ties: lowest index), or −1. */
+function snapPass(grid, c) {
+	const ci = c % NX;
+	const cj = idiv(c, NX);
+	for (let r = 1; r <= NAV.snapCells; r++) {
+		let best = -1;
+		let bestD = 0;
+		for (let j = cj - r; j <= cj + r; j++) {
+			if (j < 0 || j >= NY) continue;
+			for (let i = ci - r; i <= ci + r; i++) {
+				if (i < 0 || i >= NX || Math.max(Math.abs(i - ci), Math.abs(j - cj)) !== r) continue;
+				const k = j * NX + i;
+				if (!pass(grid, k)) continue;
+				const d = (i - ci) * (i - ci) + (j - cj) * (j - cj);
+				if (best < 0 || d < bestD) {
+					best = k;
+					bestD = d;
+				}
+			}
+		}
+		if (best >= 0) return best;
+	}
+	return -1;
+}
 /** Cell chain of the last search, goal first. */
 var chain = new Int32Array(SIZE);
 /**
@@ -12204,18 +12252,20 @@ var chain = new Int32Array(SIZE);
 * blocked cell snaps to the nearest walkable one (sim v16: by BFS over the whole grid when none is within
 * NAV.snapCells); a blocked goal snaps too (the path is then not `complete`).
 */
-function findPath(grid, sx, sy, tx, ty, outX, outY, offset) {
+function findPath(grid, sx, sy, tx, ty, outX, outY, offset, team = -1) {
 	const maxPoints = NAV.maxPathPoints;
+	const layer = team >= 0 && grid.foe ? grid.foe[team] : null;
+	foe = layer !== null && layer[cellOf(sx, sy)] === 0 ? layer : null;
 	const startRaw = snapCell(grid, cellOf(sx, sy));
 	const start = startRaw >= 0 ? startRaw : escapeCell(grid, cellOf(sx, sy));
 	const goalRaw = cellOf(tx, ty);
-	const goal = snapCell(grid, goalRaw);
+	const goal = foe !== null && foe[goalRaw] !== 0 ? snapPass(grid, goalRaw) : snapCell(grid, goalRaw);
 	if (start < 0 || goal < 0) return {
 		count: 0,
 		complete: false,
 		expansions: 0
 	};
-	if (goal === goalRaw && lineClear(grid, sx, sy, tx, ty)) {
+	if (goal === goalRaw && clear$12(grid, sx, sy, tx, ty)) {
 		outX[offset] = tx;
 		outY[offset] = ty;
 		return {
@@ -12261,9 +12311,9 @@ function findPath(grid, sx, sy, tx, ty, outX, outY, offset) {
 			const nj = cj + DJ[d];
 			if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
 			const n = nj * NX + ni;
-			if (!walkable(grid, n) || closed[n] === stamp) continue;
+			if (!pass(grid, n) || closed[n] === stamp) continue;
 			const diag = d >= 4;
-			if (diag && (!walkable(grid, cj * NX + ni) || !walkable(grid, nj * NX + ci))) continue;
+			if (diag && (!pass(grid, cj * NX + ni) || !pass(grid, nj * NX + ci))) continue;
 			const ng = g[c] + (diag ? DIAG : STRAIGHT);
 			if (seen[n] === stamp && ng >= g[n]) continue;
 			seen[n] = stamp;
@@ -12289,14 +12339,14 @@ function findPath(grid, sx, sy, tx, ty, outX, outY, offset) {
 		count++;
 	}
 	while (count < maxPoints) {
-		if (lineClear(grid, px, py, endX, endY)) {
+		if (clear$12(grid, px, py, endX, endY)) {
 			outX[offset + count] = endX;
 			outY[offset + count] = endY;
 			count++;
 			break;
 		}
 		let k = 0;
-		while (k < i - 1 && lineClear(grid, px, py, centreX(chain[k]), centreY(chain[k])) === false) k++;
+		while (k < i - 1 && clear$12(grid, px, py, centreX(chain[k]), centreY(chain[k])) === false) k++;
 		if (k >= i) k = i - 1;
 		if (k < 0) break;
 		px = centreX(chain[k]);
@@ -12359,7 +12409,7 @@ function placeAtFountain(w, id) {
 }
 function planPath(m, id, tx, ty) {
 	const w = m.world;
-	const r = findPath(m.grid, w.x[id], w.y[id], tx, ty, w.pathX, w.pathY, id * NAV.maxPathPoints);
+	const r = findPath(m.grid, w.x[id], w.y[id], tx, ty, w.pathX, w.pathY, id * NAV.maxPathPoints, w.team[id]);
 	w.pathLen[id] = r.count;
 	w.pathIdx[id] = 0;
 	w.timer[id] = NAV.repathEvery;

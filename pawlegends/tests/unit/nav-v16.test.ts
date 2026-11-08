@@ -2,7 +2,8 @@
 import { describe, expect, it } from 'vitest';
 import { Op } from '../../src/sim/api';
 import { createMatch, createPlayerBot, fillPicks, hash, playerBotCommands, result, step, tickOf } from '../../src/sim/index';
-import { MAP, RADIUS } from '../../src/data/map';
+import { FOUNTAIN, MAP, RADIUS, mirrorX } from '../../src/data/map';
+import { findPath } from '../../src/sim/nav/astar';
 import { dist2 } from '../../src/sim/fixed';
 import { TIMELINE } from '../../src/data/timeline';
 import { clipTravel, startForced } from '../../src/sim/effects/dash';
@@ -190,5 +191,39 @@ describe('B4 a Move onto a structure completes', { timeout: 300_000 }, () => {
       }
     }
     expect(worst).toBeLessThanOrEqual(90);
+  });
+});
+
+describe('B15 the enemy fountain is in each team’s nav layer', { timeout: 120_000 }, () => {
+  const inFountain = (x: number, y: number, fx: number): boolean => dist2(x, y, fx, FOUNTAIN.y) <= (FOUNTAIN.radius + RADIUS.hero) ** 2;
+  for (const [team, id, sx, ex] of [
+    [0, 1, 90500, 96500],
+    [1, 4, 9500, 3500],
+  ] as const) {
+    it(`team ${team}: a Move across the enemy fountain (${sx}, 24500) → (${ex}, 35500) routes round it and arrives`, () => {
+      const m = heroMatch(['clem', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
+      const w = m.world;
+      const fx = team === 0 ? mirrorX(FOUNTAIN.x) : FOUNTAIN.x;
+      place(m, id, sx, 24500);
+      applyOrder(m, id, { op: Op.Move, x: ex, y: 35500 });
+      let inside = 0;
+      let t = 0;
+      for (; t < 600 && w.order[id] === Order.Move; t++) {
+        step(m);
+        if (inFountain(w.x[id], w.y[id], fx)) inside++;
+      }
+      expect(inside).toBe(0);
+      expect(w.order[id]).toBe(Order.None);
+      expect(Math.abs(w.x[id] - ex) + Math.abs(w.y[id] - 35500)).toBeLessThan(1000);
+    });
+  }
+
+  it('the layers mirror each other and a path without a team ignores them', () => {
+    const g = createGrid();
+    for (let j = 0; j < NY; j++) for (let i = 0; i < NX; i++) expect(g.foe![0][j * NX + i]).toBe(g.foe![1][j * NX + (NX - 1 - i)]);
+    const xs = new Int32Array(16);
+    const ys = new Int32Array(16);
+    expect(findPath(g, 90500, 24500, 96500, 35500, xs, ys, 0).count).toBe(1);
+    expect(findPath(g, 90500, 24500, 96500, 35500, xs, ys, 0, 0).count).toBeGreaterThan(1);
   });
 });

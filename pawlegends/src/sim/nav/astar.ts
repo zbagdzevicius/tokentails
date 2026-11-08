@@ -81,6 +81,45 @@ function octile(a: number, b: number): number {
   return STRAIGHT * Math.max(dx, dy) + (DIAG - STRAIGHT) * Math.min(dx, dy);
 }
 
+/** The team layer of the running query (findPath), or null. */
+let foe: Uint8Array | null = null;
+const pass = (grid: NavGrid, c: number): boolean => walkable(grid, c) && (foe === null || foe[c] === 0);
+/** lineClear, also refusing the query's team layer. */
+function clear(grid: NavGrid, ax: number, ay: number, bx: number, by: number): boolean {
+  if (!lineClear(grid, ax, ay, bx, by)) return false;
+  if (foe === null) return true;
+  const dx = bx - ax;
+  const dy = by - ay;
+  const len = Math.max(Math.abs(dx), Math.abs(dy));
+  const n = idiv(len, NAV.losStep) + 1;
+  for (let k = 0; k <= n; k++) if (foe[cellOf(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
+  return true;
+}
+/** snapCell with the team layer: the nearest passable cell within NAV.snapCells rings (ties: lowest index), or −1. */
+function snapPass(grid: NavGrid, c: number): number {
+  const ci = c % NX;
+  const cj = idiv(c, NX);
+  for (let r = 1; r <= NAV.snapCells; r++) {
+    let best = -1;
+    let bestD = 0;
+    for (let j = cj - r; j <= cj + r; j++) {
+      if (j < 0 || j >= NY) continue;
+      for (let i = ci - r; i <= ci + r; i++) {
+        if (i < 0 || i >= NX || Math.max(Math.abs(i - ci), Math.abs(j - cj)) !== r) continue;
+        const k = j * NX + i;
+        if (!pass(grid, k)) continue;
+        const d = (i - ci) * (i - ci) + (j - cj) * (j - cj);
+        if (best < 0 || d < bestD) {
+          best = k;
+          bestD = d;
+        }
+      }
+    }
+    if (best >= 0) return best;
+  }
+  return -1;
+}
+
 export interface PathResult {
   /** Path points in mm after string pulling (the first point is the first one to walk to; the start is not in it). */
   count: number;
@@ -106,16 +145,20 @@ export function findPath(
   outX: Int32Array,
   outY: Int32Array,
   offset: number,
+  team = -1,
 ): PathResult {
   const maxPoints = NAV.maxPathPoints;
+  // Sim v16 (MAP-GAPS B15): a team's search also avoids the enemy fountain (grid.foe[team]), unless it starts inside it.
+  const layer = team >= 0 && grid.foe ? grid.foe[team] : null;
+  foe = layer !== null && layer[cellOf(sx, sy)] === 0 ? layer : null;
   // Sim v16 (MAP-GAPS B1): a start deeper in a wall than NAV.snapCells escapes by BFS to the nearest walkable cell.
   const startRaw = snapCell(grid, cellOf(sx, sy));
   const start = startRaw >= 0 ? startRaw : escapeCell(grid, cellOf(sx, sy));
   const goalRaw = cellOf(tx, ty);
-  const goal = snapCell(grid, goalRaw);
+  const goal = foe !== null && foe[goalRaw] !== 0 ? snapPass(grid, goalRaw) : snapCell(grid, goalRaw);
   if (start < 0 || goal < 0) return { count: 0, complete: false, expansions: 0 };
   // Direct line: no search.
-  if (goal === goalRaw && lineClear(grid, sx, sy, tx, ty)) {
+  if (goal === goalRaw && clear(grid, sx, sy, tx, ty)) {
     outX[offset] = tx;
     outY[offset] = ty;
     return { count: 1, complete: true, expansions: 0 };
@@ -158,9 +201,9 @@ export function findPath(
       const nj = cj + DJ[d];
       if (ni < 0 || nj < 0 || ni >= NX || nj >= NY) continue;
       const n = nj * NX + ni;
-      if (!walkable(grid, n) || closed[n] === stamp) continue;
+      if (!pass(grid, n) || closed[n] === stamp) continue;
       const diag = d >= 4;
-      if (diag && (!walkable(grid, cj * NX + ni) || !walkable(grid, nj * NX + ci))) continue;
+      if (diag && (!pass(grid, cj * NX + ni) || !pass(grid, nj * NX + ci))) continue;
       const ng = g[c] + (diag ? DIAG : STRAIGHT);
       if (seen[n] === stamp && ng >= g[n]) continue;
       seen[n] = stamp;
@@ -189,14 +232,14 @@ export function findPath(
     count++;
   }
   while (count < maxPoints) {
-    if (lineClear(grid, px, py, endX, endY)) {
+    if (clear(grid, px, py, endX, endY)) {
       outX[offset + count] = endX;
       outY[offset + count] = endY;
       count++;
       break;
     }
     let k = 0;
-    while (k < i - 1 && lineClear(grid, px, py, centreX(chain[k]), centreY(chain[k])) === false) k++;
+    while (k < i - 1 && clear(grid, px, py, centreX(chain[k]), centreY(chain[k])) === false) k++;
     // chain[k] is the furthest-along visible cell (the chain runs goal → start, so a smaller k is further along).
     if (k >= i) k = i - 1;
     if (k < 0) break;
