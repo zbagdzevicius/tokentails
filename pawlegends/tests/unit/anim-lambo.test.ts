@@ -331,15 +331,15 @@ describe('lambo skill FX', () => {
     expect(SKILL_FX.owns).toEqual({ q: true, w: true, e: true, r: true, basic: false, passive: true });
   });
 
-  it('Q: the tuna ribbon flies at 16 m/s and ends at the 6 m range (7.5 m with Long Toss), or on the hit', () => {
+  it('Q: the tuna ribbon flies at 12 m/s (sim v17) and ends at the 6 m range (7.5 m with Long Toss), or on the hit', () => {
     for (const [talents, range] of [[[], 6], [['long-toss'], 7.5]] as const) {
       resetLamboFx();
       const f = fakeFx('own', [...talents]);
       SKILL_FX.onCast!(cast(0), f.fx, ctx);
       expect(f.ribbons.started).toBe(1);
-      f.step((range / 16) * 0.9);
+      f.step((range / 12) * 0.9);
       expect(f.ribbons.ended).toBe(0);
-      f.step((range / 16) * 0.2 + FRAME);
+      f.step((range / 12) * 0.2 + FRAME);
       expect(f.ribbons.ended).toBe(1);
     }
     resetLamboFx();

@@ -53,15 +53,15 @@ describe('SIM_TIMING (§15)', () => {
     expect(SIM_TIMING.duchess.slots.w.windup).toBe(11);
     expect(SIM_TIMING.duchess.slots.r.windup).toBe(21);
     expect(SIM_TIMING.duchess.slots.q.projSpeed).toBe(9000);
-    expect(SIM_TIMING.pixel.slots.q.projSpeed).toBe(18000);
+    expect(SIM_TIMING.pixel.slots.q.projSpeed).toBe(15000); // sim v17
     expect(SIM_TIMING.pixel.slots.w.every).toBe(8);
     expect(SIM_TIMING.duchess.slots.e.every).toBe(15);
     expect(SIM_TIMING.sage.slots.q.projTicks).toBeCloseTo(10.5, 6);
     expect(SIM_TIMING.sage.slots.r.projTicks).toBeCloseTo(20, 6);
     expect(SIM_TIMING.clem.slots.r.projTicks).toBeCloseTo(6, 6);
     expect(slotTimingFrom('sage', 'q', abilNumbers('sage', 'q', null, true)).projTicks).toBeCloseTo(11.25, 6);
-    expect(SIM_TIMING.lambo.slots.q.projTicks).toBeCloseTo(11.25, 6);
-    expect(SIM_TIMING.bengas.slots.q.projTicks).toBeCloseTo(11.67, 2);
+    expect(SIM_TIMING.lambo.slots.q.projTicks).toBeCloseTo(15, 6); // sim v17: 12 m/s
+    expect(SIM_TIMING.bengas.slots.q.projTicks).toBeCloseTo(15, 2); // sim v17: 14 m/s
     expect(travelTicks(12000, 24000)).toBe(15);
   });
 
