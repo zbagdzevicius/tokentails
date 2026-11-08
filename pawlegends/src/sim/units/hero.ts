@@ -193,18 +193,23 @@ function walk(m: MatchHandle, id: number): boolean {
     planPath(m, id, w.moveX[id], w.moveY[id]);
     if (w.pathLen[id] === 0) return true; // nowhere to go
   }
-  let tx = w.pathX[base + w.pathIdx[id]];
+  const tx = w.pathX[base + w.pathIdx[id]];
   const ty = w.pathY[base + w.pathIdx[id]];
-  // Gate barrier (§5): no hero crosses its team's x = 8 m line toward the enemy before it drops.
+  if (tx !== w.x[id] || ty !== w.y[id]) w.facing[id] = iatan2(ty - w.y[id], tx - w.x[id]);
+  const arrived = moveToward(w.x[id], w.y[id], tx, ty, moveSpeed(w, id), w.moveCarry[id], TICK_HZ, out);
+  // Gate barrier (§5): no hero crosses its team's x = 8 m line toward the enemy before it drops. Sim v16 (MAP-GAPS
+  // B2): the hero steps toward the real path point and the stepped position is clamped; when the clamp bites it keeps
+  // its old y too, so it waits at the barrier instead of sliding along it into the forest or its own tower.
   let gated = false;
   if (w.globals[G.Tick] < TIMELINE.barrierDrop) {
     const gate = w.team[id] === 0 ? MAP.barrierX : mirrorX(MAP.barrierX);
-    const c = w.team[id] === 0 ? Math.min(tx, gate) : Math.max(tx, gate);
-    gated = c !== tx;
-    tx = c;
+    const c = w.team[id] === 0 ? Math.min(out[0], gate) : Math.max(out[0], gate);
+    if (c !== out[0]) {
+      gated = true;
+      out[0] = c;
+      out[1] = w.y[id];
+    }
   }
-  if (tx !== w.x[id] || ty !== w.y[id]) w.facing[id] = iatan2(ty - w.y[id], tx - w.x[id]);
-  const arrived = moveToward(w.x[id], w.y[id], tx, ty, moveSpeed(w, id), w.moveCarry[id], TICK_HZ, out);
   // The enemy fountain is a wall (v4): a hero stops at its edge instead of walking into its fire.
   if (inEnemyFountain(w, id, out[0], out[1]) && !inEnemyFountain(w, id, w.x[id], w.y[id])) {
     w.state[id] = UnitState.Idle;

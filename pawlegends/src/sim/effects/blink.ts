@@ -2,7 +2,7 @@
 import { idiv, isqrt } from '../fixed';
 import { cellOf, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
-import { clipTravel } from './dash';
+import { clipTravel, gateClampX } from './dash';
 import { clampToArena } from './tether';
 
 const end = new Int32Array(2);
@@ -16,7 +16,8 @@ export function blink(m: MatchHandle, id: number, tx: number, ty: number, maxDis
     dx = idiv(dx * maxDist, d);
     dy = idiv(dy * maxDist, d);
   }
-  const bx = w.x[id] + dx;
+  // Sim v16 (MAP-GAPS B2): no blink across the own gate before the barrier drops.
+  const bx = gateClampX(w, id, w.x[id] + dx);
   const by = w.y[id] + dy;
   clampToArena(w, id, bx, by, end);
   // A free destination is reached even across a wall; a blocked one stops at the last free point on the way.

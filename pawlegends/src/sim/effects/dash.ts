@@ -4,12 +4,12 @@
  * edge and its arena. Kits hook every dash tick (hits along the path) through `fmKind = FM.Dash`.
  */
 import { EFFECTS } from '../../data/effects';
-import { MAP, NAV } from '../../data/map';
-import { TICK_HZ } from '../../data/timeline';
+import { MAP, NAV, mirrorX } from '../../data/map';
+import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { clamp, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import { cellOf, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
-import { FM, Kind, Order, type World } from '../world';
+import { FM, G, Kind, Order, type World } from '../world';
 import { clampToArena } from './tether';
 
 const pos = new Int32Array(2);
@@ -62,8 +62,18 @@ export function clipTravel(m: MatchHandle, id: number, bx: number, by: number, o
 /** Ticks to cover `dist` at `speed` mm/s (at least 1). */
 export const travelTicks = (dist: number, speed: number): number => Math.max(1, idiv(dist * TICK_HZ + speed - 1, speed));
 
-/** Start forced movement of `id` to (tx, ty) over `ticks`. */
+/**
+ * Sim v16 (MAP-GAPS B2): before TIMELINE.barrierDrop a hero's own movement (dash, Trick, blink) never crosses its
+ * team's gate line; returns `x` clamped to it (unchanged after the drop, and for any other unit).
+ */
+export function gateClampX(w: World, id: number, x: number): number {
+  if (w.globals[G.Tick] >= TIMELINE.barrierDrop || w.kind[id] !== Kind.Hero) return x;
+  return w.team[id] === 0 ? Math.min(x, MAP.barrierX) : Math.max(x, mirrorX(MAP.barrierX));
+}
+
+/** Start forced movement of `id` to (tx, ty) over `ticks`. A knockback is not clamped at the gate. */
 export function startForced(w: World, id: number, tx: number, ty: number, ticks: number, kind: number): void {
+  if (kind !== FM.Knock) tx = gateClampX(w, id, tx);
   w.fmX[id] = tx;
   w.fmY[id] = ty;
   w.fmT[id] = Math.max(1, ticks);
