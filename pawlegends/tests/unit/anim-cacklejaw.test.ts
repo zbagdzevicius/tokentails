@@ -65,9 +65,9 @@ describe('cacklejaw moves', () => {
       expect(q.markers.land! - q.markers.takeoff!).toBeCloseTo(6 * TICK_S, 9);
     }
     expect(MOVES.slots.q.recasts?.length).toBe(T.slots.q.recasts);
-    // W / E: instant casts on the cast tick; E's hold / end last until the Stealth bit falls (brush extends it, an
-    // attack breaks it), not cast + 90 t
-    expect(MOVES.slots.w.cast.warp[0]).toEqual(['contact', 'cast']);
+    // W: sim v17 winds up 9 t (coil → windupStart), the point on the cast tick. E: instant; its hold / end last until
+    // the Stealth bit falls (brush extends it, an attack breaks it), not cast + 90 t
+    expect(MOVES.slots.w.cast.warp).toEqual([['coil', 'windupStart'], ['contact', 'cast']]);
     expect(MOVES.slots.e.cast.warp[0]).toEqual(['contact', 'cast']);
     expect(MOVES.slots.e.hold).toBe(EXTRA.eHold);
     expect(MOVES.slots.e.end).toBe(EXTRA.eEnd);

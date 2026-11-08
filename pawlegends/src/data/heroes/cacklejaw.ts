@@ -15,8 +15,8 @@ export const CACKLEJAW: HeroData = Object.freeze<HeroData>({
   abilities: {
     /** Jeer Slash: dash 4 m through a line, 75 (+6/lvl, +18 a rank); on a hero hit, recast once within 3 s. */
     q: { cooldown: 240, dash: 4000, width: 1000, dmg: 75, dmgPerLevel: 6, recasts: 1, recastWindow: 90 },
-    /** Gloat: cone 3 m, 70°, fear 0.8 s. */
-    w: { cooldown: 390, range: 3000, arc: 796, fear: 24 },
+    /** Gloat: cone 3 m, 70°, fear 0.7 s. Sim v17 (V17.md §3.2): a 0.3 s wind-up (was instant), fear 24 → 21. */
+    w: { cooldown: 390, windup: 9, range: 3000, arc: 796, fear: 21 },
     /** Bush Slink: stealth 3 s, +20% speed; in brush, while inside and 1.5 s after leaving; attacking breaks it. */
     e: { cooldown: 480, duration: 90, speedBp: 2000, brushLinger: 45 },
     /** Pack Hunt: mark the lowest-HP enemy hero within 12 m and dash to it: 150 (+15/lvl, +68 a rank) + 10% missing HP. */

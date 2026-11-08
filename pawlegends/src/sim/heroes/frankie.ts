@@ -12,7 +12,8 @@
  *
  * Kit arrays: kFoe the last Combo victim; kValor what landed on it (1 ability, 2 basic); kWindow the Combo window;
  * kHuntT the Combo lockout; kStage 1 = rolling, 2 = digging, 4 = snapping to the grabbed hero; kWT FOOTLONG flight
- * ticks left; kHuntVictim the grabbed hero; kEmpower the in-kit guard.
+ * ticks left; kHuntVictim the grabbed hero; kEmpower the in-kit guard; kCount (sim v17) the ticks the Dig pop still
+ * waits underground after the travel (`w.minPop`, V17.md §3.2: the pop never lands sooner than 0.3 s after the cast).
  */
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp, dist2, iatan2, idiv, isqrt } from '../fixed';
@@ -119,8 +120,12 @@ export const FRANKIE_KIT: HeroKit = {
         const p = a.w;
         const d = Math.min(p.range, isqrt(dist2(w.x[id], w.y[id], x, y)));
         const ticks = dash(m, id, aimAngle(w, id, x, y), Math.max(d, 1), p.speed);
-        w.untargT[id] = Math.max(w.untargT[id], ticks);
+        // Sim v17: the pop waits until at least w.minPop ticks after the cast; enemies see its ring the whole time.
+        const hold = Math.max(ticks, p.minPop ?? 0);
+        w.untargT[id] = Math.max(w.untargT[id], hold);
         w.kStage[id] = DIG;
+        w.kCount[id] = hold - ticks;
+        m.events.push({ type: 'windup', tick: w.globals[G.Tick], src: id, slot: 1, x: w.fmX[id], y: w.fmY[id], ticks: hold });
         return p.cooldown;
       }
       case 2: {
@@ -160,11 +165,13 @@ export const FRANKIE_KIT: HeroKit = {
     // Nap's trip home has no kit reset (CATS-V11 known gap): no landing, no grab.
     if (w.napT[id] > 0) {
       w.kStage[id] = 0;
+      w.kCount[id] = 0;
       w.kWT[id] = 0;
       w.kHuntVictim[id] = -1;
     }
     if (w.fmKind[id] === FM.None) {
-      if (w.kStage[id] === DIG) pop(m, id);
+      if (w.kStage[id] === DIG && w.kCount[id] > 0) w.kCount[id]--;
+      else if (w.kStage[id] === DIG) pop(m, id);
       else if (w.kStage[id] !== 0) {
         w.kStage[id] = 0;
         w.kHuntVictim[id] = -1;
@@ -228,7 +235,10 @@ export const FRANKIE_KIT: HeroKit = {
     w.kWT[id] = 0;
     w.kHuntVictim[id] = -1;
     w.kEmpower[id] = 0;
+    w.kCount[id] = 0;
   },
+  /** Sim v17: underground, waiting for the Dig pop (w.minPop), he can neither walk, attack nor cast. */
+  busy: (w, id) => w.kStage[id] === DIG && w.fmKind[id] === FM.None,
   snapFx: (w, id) => (w.kStage[id] === DIG || w.kWT[id] > 0 ? SNAP_FX.Form : 0),
   resource: (w, id) => (w.kWindow[id] > 0 ? 0xff : 0),
 };

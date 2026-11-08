@@ -84,6 +84,9 @@ describe('Meatball, original cat tank (sim v11)', () => {
     tanky(m, MB);
     const plain = dealDamage(m, FOE2, 1, Kind.Hero, MB, 200, 'basic');
     cast(m, MB, 1, MID.x, MID.y);
+    // Sim v17 (V17.md §3.2): the Loaf winds up 9 ticks first.
+    expect(w.fearSrc[FOE]).toBe(-1);
+    steps(m, 8);
     expect(w.rootT[MB]).toBeGreaterThan(0);
     expect(w.kRT[MB]).toBeGreaterThan(0);
     expect(w.fearSrc[FOE]).toBe(MB);

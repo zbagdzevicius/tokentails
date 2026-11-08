@@ -7,8 +7,8 @@ export const TRICKS = Object.freeze({
   pounce: Object.freeze({ cooldown: 3600, blink: 4000 }),
   /** Heal 25% max HP over 2 s; broken by hard CC. */
   snack: Object.freeze({ cooldown: 2700, healBp: 2500, duration: 60 }),
-  /** Fear 1 s in a 3 m radius. */
-  hiss: Object.freeze({ cooldown: 3000, fear: 30, radius: 3000 }),
+  /** Fear 0.7 s in a 3 m radius. Sim v17 (V17.md §3.2): fear 30 → 21 (stays instant: a peel; Steadfast caps it). */
+  hiss: Object.freeze({ cooldown: 3000, fear: 21, radius: 3000 }),
   /**
    * Sim v10: cleanse stun, root, slow, fear and charm, then `immune` ticks of crowd-control immunity. Castable while
    * crowd-controlled. Wave C: cooldown 3000 to 2700 (46.1% of the 2,000-seed gate once heroes grew with levels). Sim v16: 2400 (46.7% after MAP-GAPS B3 kept

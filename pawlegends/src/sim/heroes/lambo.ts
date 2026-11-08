@@ -7,11 +7,11 @@
  */
 import { EFFECTS } from '../../data/effects';
 import { PROJECTILE_KIND } from '../../data/towers';
-import { BP_ONE, applyBp, dist2, isqrt } from '../fixed';
+import { BP_ONE, TRIG_ONE, applyBp, dist2, icos, idiv, isin, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
 import { ENTITY_CAP, FM, Kind, RANGE, type World } from '../world';
 import { dealDamage } from '../combat/damage';
-import { addShield, collect, dash, fireSkillshot, inRing, knockback, root, stun, ON_HIT } from '../effects';
+import { addShield, clipTravel, collect, dash, fireSkillshot, inRing, knockback, root, stun, ON_HIT } from '../effects';
 import { creditHealShield } from '../effects/heal';
 import { disabled } from '../effects/status';
 import { radiusOf } from '../units/kinds';
@@ -27,7 +27,8 @@ function aim(a: KitNumbers, slot: number): SlotAim {
     case 1:
       return { aim: Aim.Self, reach: 0, windup: 0, mobility: false };
     case 2:
-      return { aim: Aim.Dir, reach: 0, windup: 0, mobility: true };
+      // Sim v17 (V17.md §3.2): Belly Flop winds up 0.4 s; the windup event carries the landing point (onWindup).
+      return { aim: Aim.Dir, reach: 0, windup: a.e.windup ?? 0, mobility: true };
     default:
       return { aim: Aim.Self, reach: 0, windup: a.r.windup, mobility: false };
   }
@@ -49,8 +50,16 @@ export function nearestAlly(w: World, id: number, range: number): number {
   return best;
 }
 
+/** Belly Flop's hop length toward (x, y): up to e.dash; an aimed point closer than that is where he lands. */
+function hopLength(w: World, id: number, x: number, y: number): number {
+  const d = abil(w, id).e.dash;
+  return Math.max(1, x === w.x[id] && y === w.y[id] ? d : Math.min(d, isqrt(dist2(w.x[id], w.y[id], x, y))));
+}
+
+const land = new Int32Array(2);
+
 /** Belly Flop lands: a ring of damage and a stun around Lambo. */
-function land(m: MatchHandle, id: number): void {
+function flopLands(m: MatchHandle, id: number): void {
   const w = m.world;
   const e = abil(w, id).e;
   const hx = w.x[id];
@@ -118,8 +127,7 @@ export const LAMBO_KIT: HeroKit = {
       }
       case 2: {
         // A hop up to e.dash: an aimed point closer than that is where he lands.
-        const to = x === w.x[id] && y === w.y[id] ? a.e.dash : Math.min(a.e.dash, isqrt(dist2(w.x[id], w.y[id], x, y)));
-        dash(m, id, aimAngle(w, id, x, y), Math.max(1, to));
+        dash(m, id, aimAngle(w, id, x, y), hopLength(w, id, x, y), a.e.speed);
         w.kStage[id] = 1;
         return a.e.cooldown;
       }
@@ -127,11 +135,21 @@ export const LAMBO_KIT: HeroKit = {
         return tangle(m, id);
     }
   },
+  onWindup(m, id, slot, ev) {
+    if (slot !== 2) return;
+    // Sim v17: the ring is drawn where he will land (the hop clipped at walls and the map edge, as `dash` does).
+    const w = m.world;
+    const len = hopLength(w, id, ev.x, ev.y);
+    const ang = aimAngle(w, id, ev.x, ev.y);
+    clipTravel(m, id, w.x[id] + idiv(icos(ang) * len, TRIG_ONE), w.y[id] + idiv(isin(ang) * len, TRIG_ONE), land);
+    ev.x = land[0];
+    ev.y = land[1];
+  },
   stepKit(m, id) {
     const w = m.world;
     if (w.kStage[id] === 1 && w.fmKind[id] === FM.None) {
       w.kStage[id] = 0;
-      if (!disabled(w, id)) land(m, id);
+      if (!disabled(w, id)) flopLands(m, id);
     }
   },
   incoming(m, id, _src, dmg) {

@@ -408,6 +408,11 @@ var BOT_AI = Object.freeze({
 	* does with an enemy hero within trickThreat.
 	*/
 	purrifyMinTicks: 15,
+	/**
+	* Sim v17 (V17.md §3.3): on Normal and Hard a bot with Purr-ify ready also casts it on an enemy hard-CC windup it
+	* stands in, once the windup has run this many ticks (a 250 ms read, like a player's reaction).
+	*/
+	purrifyReadTicks: 8,
 	/** Ultimates on a foe below this HP share (Moonshot, Pack Hunt). */
 	executeHpBp: 5500,
 	/** Dive: a healthy bot (HP share ≥ diveHpBp) hits a core, or a tower at or below diveTowerHp, with no minion tank. */
@@ -1058,10 +1063,12 @@ var BRUTUS = Object.freeze({
 			arc: 1365,
 			radius: 1800
 		},
-		/** Pug Charge: dash 5 m; first hero hit knocked back 2 m and stunned 0.5 s. */
+		/** Pug Charge: dash 5 m; first hero hit knocked back 2 m and stunned 0.5 s. Sim v17 (V17.md §3.2): a 0.3 s wind-up and 14 m/s (was instant at 20 m/s). */
 		e: {
 			cooldown: 360,
+			windup: 9,
 			dash: 5e3,
+			speed: 14e3,
 			knockback: 2e3,
 			stun: 15
 		},
@@ -1164,12 +1171,13 @@ var CACKLEJAW = Object.freeze({
 			recasts: 1,
 			recastWindow: 90
 		},
-		/** Gloat: cone 3 m, 70°, fear 0.8 s. */
+		/** Gloat: cone 3 m, 70°, fear 0.7 s. Sim v17 (V17.md §3.2): a 0.3 s wind-up (was instant), fear 24 → 21. */
 		w: {
 			cooldown: 390,
+			windup: 9,
 			range: 3e3,
 			arc: 796,
-			fear: 24
+			fear: 21
 		},
 		/** Bush Slink: stealth 3 s, +20% speed; in brush, while inside and 1.5 s after leaving; attacking breaks it. */
 		e: {
@@ -1736,10 +1744,11 @@ var FRANKIE = Object.freeze({
 			cooldown: 420,
 			range: 6500,
 			speed: 9e3,
-			radius: 1800,
+			radius: 1600,
 			dmg: 60,
 			dmgPerLevel: 6,
-			stun: 15
+			stun: 15,
+			minPop: 9
 		},
 		/** Bun Hop: hop 3.5 m, shrug off slows, +20% speed for 1 s. */
 		e: {
@@ -1748,10 +1757,10 @@ var FRANKIE = Object.freeze({
 			hasteBp: 2e3,
 			haste: 30
 		},
-		/** FOOTLONG!: 0.27 s wind-up; he stretches up to 9 m at 20 m/s, 1 m wide (spec: 30 m/s, 1.2 m; slowed so a cat can dodge it) (minions passed take 50%); the first enemy hero takes 150 (+15/lvl, +68 a rank), is stunned 0.75 s and he snaps to it. A miss refunds 40% of the cooldown. */
+		/** FOOTLONG!: 0.4 s wind-up (sim v17, V17.md §3.8: 9 m reach needs ≥ 12 ticks; was 8); he stretches up to 9 m at 20 m/s, 1 m wide (spec: 30 m/s, 1.2 m; slowed so a cat can dodge it) (minions passed take 50%); the first enemy hero takes 150 (+15/lvl, +68 a rank), is stunned 0.75 s and he snaps to it. A miss refunds 40% of the cooldown. */
 		r: {
 			cooldown: 1950,
-			windup: 8,
+			windup: 12,
 			range: 9e3,
 			width: 1e3,
 			speed: 2e4,
@@ -2077,11 +2086,13 @@ var LAMBO = Object.freeze({
 			allyBp: 450,
 			duration: 75
 		},
-		/** Belly Flop: hop up to 5 m; on landing a 2.2 m ring, 50 (+4/lvl, +12 a rank), stun 0.5 s. */
+		/** Belly Flop: hop up to 5 m; on landing a 1.8 m ring, 50 (+4/lvl, +12 a rank), stun 0.5 s. Sim v17 (V17.md §3.2): a 0.4 s wind-up, 12 m/s hop (was instant at 20 m/s), ring 2.2 → 1.8 m. */
 		e: {
 			cooldown: 420,
+			windup: 12,
 			dash: 5e3,
-			radius: 2200,
+			speed: 12e3,
+			radius: 1800,
 			dmg: 50,
 			dmgPerLevel: 4,
 			stun: 15
@@ -2303,6 +2314,7 @@ var MEATBALL = Object.freeze({
 		/** Loaf Mode: rooted loaf for 2 s, 40% less damage; enemy heroes within 3 m are charmed to him for 0.75 s. */
 		w: {
 			cooldown: 420,
+			windup: 9,
 			duration: 60,
 			reduceBp: 4e3,
 			radius: 3e3,
@@ -3252,10 +3264,10 @@ var TRICKS = Object.freeze({
 		healBp: 2500,
 		duration: 60
 	}),
-	/** Fear 1 s in a 3 m radius. */
+	/** Fear 0.7 s in a 3 m radius. Sim v17 (V17.md §3.2): fear 30 → 21 (stays instant: a peel; Steadfast caps it). */
 	hiss: Object.freeze({
 		cooldown: 3e3,
-		fear: 30,
+		fear: 21,
 		radius: 3e3
 	}),
 	/**
@@ -7384,7 +7396,7 @@ function aim$17(a, slot) {
 		case 2: return {
 			aim: Aim.Dir,
 			reach: 0,
-			windup: 0,
+			windup: a.e.windup ?? 0,
 			mobility: true
 		};
 		default: return {
@@ -7476,7 +7488,7 @@ var BRUTUS_KIT = {
 			}
 			case 2:
 				w.kStage[id] = 0;
-				dash(m, id, aimAngle(w, id, x, y), a.e.dash);
+				dash(m, id, aimAngle(w, id, x, y), a.e.dash, a.e.speed);
 				return a.e.cooldown;
 			default: {
 				const r = a.r;
@@ -7572,7 +7584,7 @@ function aim$16(a, slot) {
 		case 1: return {
 			aim: Aim.Dir,
 			reach: a.w.range,
-			windup: 0,
+			windup: a.w.windup ?? 0,
 			mobility: false
 		};
 		case 2: return {
@@ -7784,7 +7796,7 @@ function aim$15(a, slot) {
 		case 2: return {
 			aim: Aim.Dir,
 			reach: 0,
-			windup: 0,
+			windup: a.e.windup ?? 0,
 			mobility: true
 		};
 		default: return {
@@ -7810,8 +7822,14 @@ function nearestAlly(w, id, range) {
 	}
 	return best;
 }
+/** Belly Flop's hop length toward (x, y): up to e.dash; an aimed point closer than that is where he lands. */
+function hopLength(w, id, x, y) {
+	const d = abil(w, id).e.dash;
+	return Math.max(1, x === w.x[id] && y === w.y[id] ? d : Math.min(d, isqrt(dist2(w.x[id], w.y[id], x, y))));
+}
+var land$1 = /* @__PURE__ */ new Int32Array(2);
 /** Belly Flop lands: a ring of damage and a stun around Lambo. */
-function land$1(m, id) {
+function flopLands(m, id) {
 	const w = m.world;
 	const e = abil(w, id).e;
 	const hx = w.x[id];
@@ -7872,20 +7890,27 @@ var LAMBO_KIT = {
 				if (ally >= 0) creditHealShield(m, id, addShield(w, ally, applyBp(w.maxHp[id], h.allyBp), h.duration));
 				return h.cooldown;
 			}
-			case 2: {
-				const to = x === w.x[id] && y === w.y[id] ? a.e.dash : Math.min(a.e.dash, isqrt(dist2(w.x[id], w.y[id], x, y)));
-				dash(m, id, aimAngle(w, id, x, y), Math.max(1, to));
+			case 2:
+				dash(m, id, aimAngle(w, id, x, y), hopLength(w, id, x, y), a.e.speed);
 				w.kStage[id] = 1;
 				return a.e.cooldown;
-			}
 			default: return tangle(m, id);
 		}
+	},
+	onWindup(m, id, slot, ev) {
+		if (slot !== 2) return;
+		const w = m.world;
+		const len = hopLength(w, id, ev.x, ev.y);
+		const ang = aimAngle(w, id, ev.x, ev.y);
+		clipTravel(m, id, w.x[id] + idiv(icos(ang) * len, TRIG_ONE), w.y[id] + idiv(isin(ang) * len, TRIG_ONE), land$1);
+		ev.x = land$1[0];
+		ev.y = land$1[1];
 	},
 	stepKit(m, id) {
 		const w = m.world;
 		if (w.kStage[id] === 1 && w.fmKind[id] === FM.None) {
 			w.kStage[id] = 0;
-			if (!disabled(w, id)) land$1(m, id);
+			if (!disabled(w, id)) flopLands(m, id);
 		}
 	},
 	incoming(m, id, _src, dmg) {
@@ -8294,7 +8319,7 @@ var GABE_KIT = {
 var hits$12 = new Int32Array(ENTITY_CAP);
 /** A quarter turn (angle steps): Bowling Roll knocks units off to the side of his heading. */
 var QUARTER = ANGLE_STEPS >> 2;
-function aim$11(_a, slot) {
+function aim$11(a, slot) {
 	switch (slot) {
 		case 0: return {
 			aim: Aim.Dir,
@@ -8305,7 +8330,7 @@ function aim$11(_a, slot) {
 		case 1: return {
 			aim: Aim.Self,
 			reach: 0,
-			windup: 0,
+			windup: a.w.windup ?? 0,
 			mobility: false
 		};
 		case 2: return {
@@ -10060,7 +10085,8 @@ var ROCKET_KIT = {
 *
 * Kit arrays: kFoe the last Combo victim; kValor what landed on it (1 ability, 2 basic); kWindow the Combo window;
 * kHuntT the Combo lockout; kStage 1 = rolling, 2 = digging, 4 = snapping to the grabbed hero; kWT FOOTLONG flight
-* ticks left; kHuntVictim the grabbed hero; kEmpower the in-kit guard.
+* ticks left; kHuntVictim the grabbed hero; kEmpower the in-kit guard; kCount (sim v17) the ticks the Dig pop still
+* waits underground after the travel (`w.minPop`, V17.md §3.2: the pop never lands sooner than 0.3 s after the cast).
 */
 /** kEmpower values: the Combo hit (no new Combo from it), the Dig pop and the Weenie Roll hit (never a FOOTLONG grab). */
 var COMBO = 1;
@@ -10170,8 +10196,19 @@ var FRANKIE_KIT = {
 				const p = a.w;
 				const d = Math.min(p.range, isqrt(dist2(w.x[id], w.y[id], x, y)));
 				const ticks = dash(m, id, aimAngle(w, id, x, y), Math.max(d, 1), p.speed);
-				w.untargT[id] = Math.max(w.untargT[id], ticks);
+				const hold = Math.max(ticks, p.minPop ?? 0);
+				w.untargT[id] = Math.max(w.untargT[id], hold);
 				w.kStage[id] = DIG;
+				w.kCount[id] = hold - ticks;
+				m.events.push({
+					type: "windup",
+					tick: w.globals[G.Tick],
+					src: id,
+					slot: 1,
+					x: w.fmX[id],
+					y: w.fmY[id],
+					ticks: hold
+				});
 				return p.cooldown;
 			}
 			case 2: {
@@ -10208,11 +10245,13 @@ var FRANKIE_KIT = {
 		if (w.kHuntT[id] > 0) w.kHuntT[id]--;
 		if (w.napT[id] > 0) {
 			w.kStage[id] = 0;
+			w.kCount[id] = 0;
 			w.kWT[id] = 0;
 			w.kHuntVictim[id] = -1;
 		}
 		if (w.fmKind[id] === FM.None) {
-			if (w.kStage[id] === DIG) pop$1(m, id);
+			if (w.kStage[id] === DIG && w.kCount[id] > 0) w.kCount[id]--;
+			else if (w.kStage[id] === DIG) pop$1(m, id);
 			else if (w.kStage[id] !== 0) {
 				w.kStage[id] = 0;
 				w.kHuntVictim[id] = -1;
@@ -10273,7 +10312,10 @@ var FRANKIE_KIT = {
 		w.kWT[id] = 0;
 		w.kHuntVictim[id] = -1;
 		w.kEmpower[id] = 0;
+		w.kCount[id] = 0;
 	},
+	/** Sim v17: underground, waiting for the Dig pop (w.minPop), he can neither walk, attack nor cast. */
+	busy: (w, id) => w.kStage[id] === DIG && w.fmKind[id] === FM.None,
 	snapFx: (w, id) => w.kStage[id] === DIG || w.kWT[id] > 0 ? SNAP_FX.Form : 0,
 	resource: (w, id) => w.kWindow[id] > 0 ? 255 : 0
 };
@@ -10599,6 +10641,8 @@ var KITS = [
 	DOMINO_KIT
 ];
 var kitOf = (w, id) => KITS[w.sub[id]];
+/** How slot `slot` (0..3) of hero `heroIndex` (HERO_IDS order) is aimed with numbers `a` (pure: tests, tools, render). */
+var heroSlotAim = (heroIndex, a, slot) => KITS[heroIndex].aim(a, slot);
 /** Sim v14: is hero `id` held by its own kit (no move, basic or cast)? */
 var kitBusy = (w, id) => kitOf(w, id).busy?.(w, id) === true;
 /** Ability damage at the hero's level: base + perLevel × (level − 1). */
@@ -10659,7 +10703,7 @@ function beginWindup(m, id, s) {
 	w.timer[id] = 0;
 	if (s.windup > 0) {
 		w.state[id] = UnitState.Casting;
-		m.events.push({
+		const ev = {
 			type: "windup",
 			tick: w.globals[G.Tick],
 			src: id,
@@ -10667,7 +10711,9 @@ function beginWindup(m, id, s) {
 			x: w.castX[id],
 			y: w.castY[id],
 			ticks: s.windup
-		});
+		};
+		m.events.push(ev);
+		if (w.castSlot[id] < 4) kitOf(w, id).onWindup?.(m, id, w.castSlot[id], ev);
 	}
 }
 /** Step 1: a `cast` (slot 0..3) or `trick` (slot 4) command. Refused silently when not ready. */
@@ -14168,8 +14214,28 @@ function offenseTrick(w, id, foe, p) {
 		default: return null;
 	}
 }
-/** Fight casts at enemy hero `foe` (visible, aware). Ultimates first, then the rest. */
+var SLOT_KEYS = [
+	"q",
+	"w",
+	"e",
+	"r"
+];
+/** Sim v17: does ability `a` apply hard CC (stun, fear, charm, root, freeze or lure)? Pushes alone are not counted. */
+var hardCc = (a) => (a.stun ?? 0) > 0 || (a.fear ?? 0) > 0 || (a.charm ?? 0) > 0 || (a.root ?? 0) > 0 || (a.freeze ?? 0) > 0 || (a.lure ?? 0) > 0;
+/** Sim v17: is slot `slot` (0..3) of hero `id` a hard-CC ability? */
+var hardCcSlot = (w, id, slot) => slot >= 0 && slot < 4 && hardCc(abil(w, id)[SLOT_KEYS[slot]]);
+/**
+* Fight casts at enemy hero `foe` (visible, aware). Ultimates first, then the rest. Sim v17 (V17.md §3.1, §3.3): on
+* Normal and Hard (trick use not 'never') a bot holds a hard-CC ability while the foe is CC-immune (Purr-ify or
+* Steadfast) for longer than that ability's windup: it would land on nothing.
+*/
 function fightCast(w, id, foe, p, rng) {
+	const c = heroFightCast(w, id, foe, p, rng);
+	if (!c || c.op !== Op.Cast || p.trick === "never" || w.ccImmT[foe] === 0) return c;
+	if (!hardCcSlot(w, id, c.slot)) return c;
+	return w.ccImmT[foe] > heroSlotAim(w.sub[id], abil(w, id), c.slot).windup ? null : c;
+}
+function heroFightCast(w, id, foe, p, rng) {
 	const trick = offenseTrick(w, id, foe, p);
 	if (trick) return trick;
 	const a = abil(w, id);
@@ -14477,8 +14543,26 @@ function escapeCast(w, id, foe, p) {
 function purrifyCast(w, id, p) {
 	if (p.trick === "never" || TRICK_IDS[w.trick[id]] !== "purrify" || !canCast(w, id, 4)) return null;
 	const min = BOT_AI.purrifyMinTicks;
-	if (!(w.stunT[id] >= min || w.fearT[id] >= min) && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0)) return null;
+	if (!(w.stunT[id] >= min || w.fearT[id] >= min) && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0) && windupThreat(w, id) < 0) return null;
 	return cast(4, w.x[id], w.y[id], 255);
+}
+/**
+* Sim v17 (V17.md §3.3): an enemy hero winding up a hard-CC ability that `id` stands in reach of, read for at least
+* BOT_AI.purrifyReadTicks and landing within Purr-ify's immunity; −1 when none. Reach: the ability's range, else its
+* radius, else its dash, plus `id`'s body.
+*/
+function windupThreat(w, id) {
+	for (let e = RANGE.heroes; e < RANGE.minions; e++) {
+		if (w.alive[e] === 0 || w.team[e] === w.team[id] || w.castPhase[e] !== 2) continue;
+		const slot = w.castSlot[e];
+		if (!hardCcSlot(w, e, slot)) continue;
+		const a = abil(w, e);
+		const n = a[SLOT_KEYS[slot]];
+		if (heroSlotAim(w.sub[e], a, slot).windup - w.castT[e] < BOT_AI.purrifyReadTicks || w.castT[e] > TRICKS.purrify.immune) continue;
+		const reach = (n.range ?? n.radius ?? n.dash ?? 0) + RADIUS.hero;
+		if (dist2(w.x[e], w.y[e], w.x[id], w.y[id]) <= reach * reach) return e;
+	}
+	return -1;
 }
 /** Snack Break when hurt and nobody is near (defensive only). */
 function snackCast(w, id, p) {

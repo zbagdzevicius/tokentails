@@ -23,10 +23,12 @@ describe('brutus moves', () => {
       expect(c.warp).toContainEqual(['contact', 'contact']);
       expect(c.len).toBeLessThan(SIM_TIMING.brutus.period * TICK_S);
     }
-    // Pug Charge: take-off on the cast, landing on travelEnd, nominal air = 8 t; the skid on the landing
+    // Pug Charge: sim v17 winds up 9 t (coil → windupStart), take-off on the cast, landing on travelEnd, nominal air =
+    // 11 t (5 m at 14 m/s); the skid on the landing
     const e = MOVES.slots.e.cast;
-    expect(e.warp).toEqual([['takeoff', 'cast'], ['land', 'travelEnd']]);
-    expect(SIM_TIMING.brutus.slots.e.dashTicks).toBe(8);
+    expect(e.warp).toEqual([['coil', 'windupStart'], ['takeoff', 'cast'], ['land', 'travelEnd']]);
+    expect(SIM_TIMING.brutus.slots.e.windup).toBe(9);
+    expect(SIM_TIMING.brutus.slots.e.dashTicks).toBe(11);
     expect(Math.abs(e.markers.land - e.markers.takeoff - CHARGE_AIR)).toBeLessThan(1e-9);
     expect(e.markers.skid).toBe(e.markers.land);
     // the sim always dashes the full 5 m (director: travelEnd from the full length), so there is no short-aim pick
@@ -327,19 +329,19 @@ describe('brutus skill FX', () => {
     }
   });
 
-  it('E: a 2 m aim still charges the full 5 m: the wake runs the whole 8 t travel', () => {
+  it('E: a 2 m aim still charges the full 5 m: the wake runs the whole 11 t travel (sim v17: 14 m/s)', () => {
     const f = fakeFx();
     SKILL_FX.onCast!(cast(2, 2000, 0), f.fx, ctx);
     f.step(0.6);
     const lastWake = Math.max(...f.debris);
-    expect(lastWake).toBeGreaterThan(travelTicks(5000, DASH_SPEED) * TICK_S);
-    expect(lastWake).toBeLessThanOrEqual(travelTicks(5000, DASH_SPEED) * TICK_S + 0.12 + 1e-9);
+    expect(lastWake).toBeGreaterThan(travelTicks(5000, 14000) * TICK_S);
+    expect(lastWake).toBeLessThanOrEqual(travelTicks(5000, 14000) * TICK_S + 0.12 + 1e-9);
   });
 
   it('E: the dust streak follows the travelled path; the update allocates no records past the pool', () => {
     const f = fakeFx();
     SKILL_FX.onCast!(cast(2, 5000, 0), f.fx, ctx);
-    expect(travelTicks(5000, DASH_SPEED)).toBe(8);
+    expect(travelTicks(5000, 14000)).toBe(11);
     f.step(1);
     SKILL_FX.onMarker!(0, 'brutus.e', 'eSkid', f.fx);
     // he did not move in the fake: no streak drawn along the aim

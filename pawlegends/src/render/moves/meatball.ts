@@ -225,7 +225,8 @@ const w: ClipDef = {
     sx: [[0, 1], [W_C, 1.18, 'in'], [W_C + 0.1, 1.1, 'back'], [W_C + 0.2, 1.1]],
   },
   markers: { coil: W_C * 0.5, contact: W_C, end: W_C + 0.2 },
-  warp: [['contact', 'cast']],
+  // sim v17: the Loaf winds up 0.3 s (the hop's rise holds over it)
+  warp: [['coil', 'windupStart'], ['contact', 'cast']],
   cues: [['contact', 'land'], ['contact', 'dustRing'], ['contact', 'sfx', 'bodyThud'], ['contact', 'fx', 'loafZzz']],
   cancel: 'none',
 };
