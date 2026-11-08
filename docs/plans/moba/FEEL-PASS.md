@@ -227,6 +227,32 @@ are covered by D1. Changes:
 
 ---
 
+## Results (BUILD done 2026-11-08, branch `feat/pawlegends-feel`, not pushed)
+
+| Measure | Before | After |
+|---|---|---|
+| HUD area, persistent elements all shown (`tests/e2e/hud-area.spec.ts`, 1 px raster) | 667x375 29.7%, 844x390 27.8% | **19.4%**, **15.9%** |
+| HUD in the centre band (20–80% across, 15–85% down) | 19.3%, 15.9% | 8.5%, 5.1% |
+| Persistent HUD in the play area around the hero (18–60%, 12–78%) | – | **0%** at both sizes |
+| Hero screen spot while walking (844x390) | x 221–375, y 157–242 | x 422, y 211 (50%, 54%), spread 0 px |
+| Base-to-base line on screen (both seats, `tests/unit/diagonal-view.test.ts`) | horizontal | 31° ± 3°, own base bottom left |
+| Button cluster width (scale 1) | 312 px | 267 px, smallest gap 14.2 px (R–W) |
+
+Notes and deviations:
+- **HUD targets.** With the plan's exact sizes the 667x375 total is 19.4%, 0.4 point over the ≤ 19% estimate; 844x390
+  meets ≤ 16%. The centre-band estimates (≤ 4% / 3%) cannot be met while W, R and half of Q and the trick sit inside
+  that band; the play area, which the plan protects instead, is empty. `hud-area.spec.ts` holds today's numbers
+  (19.5% / 16%, centre 9% / 5.5%) so the HUD cannot creep back. Shrinking the 667x375 minimap to 96 px would reach 19%.
+- **Cancel by sliding back.** The plan says dragging back onto the pressed button cancels. It never did: since
+  playtest #1 it casts like a tap (the smart-cast centre, `AIM_BACK_PX`). Kept as is; the only cancel is the bubble.
+- **Minimap long press.** Holding the minimap now peeks (B1), so the old touch long-press "Go here" ping is gone;
+  pings go through the paw corner and the wheel (desktop Alt-click still pings Go here).
+- **Lock break.** A lock set from afar (tap, 9 m) still holds while the player closes in; it breaks only once its
+  hero, having been within range + 1 m (melee) / + 2 m (ranged), leaves that distance.
+- **Art.** A9 (off-map ground tile) is not wired: the procedural outer grass (MAP-GAPS A22) matches the playfield
+  and the painted tile would bring back the edge seam. The talent-card and pause-panel frames have a cream fill that
+  needs the cards' text recoloured; left for a follow-up.
+
 ## ART checklist (generated with Gemini via `/gemini-imagegen`)
 
 **Style for every image.** Chunky cartoon, soft cel shading and thick warm-brown ink outlines (#3b2417), in the same

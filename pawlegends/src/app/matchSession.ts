@@ -422,7 +422,11 @@ export class MatchSession {
         const touch = document.documentElement.dataset.touch === '1';
         // feel pass B3: on desktop the HUD's "Rank up!" card already shows a level-up: no second line (level 4 keeps it:
         // it says how to cast the ultimate)
-        if (!touch && lv !== 4) return true;
+        if (!touch && lv !== 4) {
+          // (recorded as said: the card shows it)
+          this.view.juice.note(`Level ${lv}`);
+          return true;
+        }
         const what = levelWhat(lv, touch);
         const ranks = touch ? [] : rankUpLines(this.welcome?.picks[this.view.mySlot] ?? 'clem', lv, this.lastTalents);
         const sub = lv === 4 && !guided ? ultHint() : ranks.join(' · ') || undefined;

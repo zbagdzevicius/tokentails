@@ -99,8 +99,11 @@ export const AIM_BACK_PX = 24;
  * across it still casts.
  */
 export const CANCEL_DWELL_MS = 120;
-/** Hit slack around the cancel bubble (px). */
-const CANCEL_SLACK = 12;
+/**
+ * Hit slack around the cancel bubble (px). Feel pass B4: none: the bubble's 72 px disc 150 px up starts 114 px from the
+ * button, past the 100 px full-range ring, so a thumb that overshoots a full-range aim a little still casts.
+ */
+const CANCEL_SLACK = 0;
 /**
  * Feel pass B4 (MLBB / Wild Rift): the cancel bubble: CANCEL_BUBBLE.d px across, `above` px above the pressed button
  * (thumb travel past the full-range ring), clamped `inset` px inside the screen.

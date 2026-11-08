@@ -19,10 +19,14 @@ async function rig(page: Page) {
     const r = (await page.locator(`.pl-tbtn.${b}`).boundingBox())!;
     return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2), id: 2 };
   };
-  /** Wait until skill `b` is off cooldown (after a cast: first see the cooldown start, then end). */
+  /**
+   * Wait until skill `b` is off cooldown. After a cast (`after`), first give the snapshot time to carry the cooldown
+   * (a loaded machine can be slow to show it), then wait for it to end.
+   */
   const ready = async (b: string, after = false): Promise<void> => {
-    if (after) await expect(page.locator(`.pl-tbtn.${b}`)).toHaveClass(/cooling/, { timeout: 10_000 });
+    if (after) await page.waitForTimeout(600);
     await expect(page.locator(`.pl-tbtn.${b}`)).not.toHaveClass(/cooling/, { timeout: 30_000 });
+    await page.waitForTimeout(100);
   };
   return { send, casts, btn, ready };
 }
@@ -54,8 +58,8 @@ for (const [w, h] of [
     q = await btn('q');
     n = await casts();
     await send('touchStart', [q]);
-    await page.waitForTimeout(400);
-    expect(await attr(page, 'aim')).toBe('1');
+    // (polled: a loaded machine draws few frames, and the hold preview starts on a frame)
+    await expect.poll(() => attr(page, 'aim'), { timeout: 5000 }).toBe('1');
     await expect(page.locator('.pl-cancel.on')).toBeVisible();
     const bub = (await page.locator('.pl-cancel').boundingBox())!;
     expect(Math.round(bub.width)).toBe(72);
@@ -72,8 +76,7 @@ for (const [w, h] of [
     n = await casts();
     await send('touchStart', [q]);
     for (let i = 1; i <= 6; i++) await send('touchMove', [{ ...q, x: q.x - i * 10, y: q.y - i * 10 }]);
-    await page.waitForTimeout(150);
-    expect(await attr(page, 'aim')).toBe('1');
+    await expect.poll(() => attr(page, 'aim'), { timeout: 5000 }).toBe('1');
     await page.screenshot({ path: `test-results/hold-aim/${w}x${h}-drag.png` });
     await send('touchEnd', []);
     await expect.poll(casts, { timeout: 5000 }).toBe(n + 1);

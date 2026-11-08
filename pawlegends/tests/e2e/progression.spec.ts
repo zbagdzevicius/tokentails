@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Lane F (docs/FUN-PROGRESSION-V12.md F1–F5): the Fish chip sits clear of the rest of the HUD at every phone size and
-// on desktop; a last-hit "+N" Fish pop shows within 300 ms of its event; a Toy bought is a rail item (and the chip's
+// Lane F (docs/FUN-PROGRESSION-V12.md F1–F5): the Fish chip sits clear of the rest of the HUD on desktop (feel pass
+// B3: phones have no hero box, so no chip); a last-hit "+N" Fish pop shows within 300 ms of its event; a Toy bought is a rail item (and the chip's
 // ring bursts); the level-up line says "Ultimate unlocked!"; no rail text says "Treat"; and the results screen shows
 // the progression summary (per-hero Toy timings, Fish, last hits, medals, Fish by source) at all four sizes.
 // Screenshots: test-results/progression/*.png.
@@ -47,7 +47,9 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   await start(page, 8);
   // F1: the chip counts the passive Fish
   await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: 60_000 }).toBeGreaterThan(0);
-  for (const s of sizes) {
+  // feel pass B3: phones have no hero box, so no Fish chip (the Fish pops and the Toy line on the rail say it): the
+  // chip is checked on desktop only
+  for (const s of touch ? [] : sizes) {
     await page.setViewportSize({ width: s.w, height: s.h });
     await page.waitForTimeout(400);
     const [chip] = await boxes(page, '.pl-fish');

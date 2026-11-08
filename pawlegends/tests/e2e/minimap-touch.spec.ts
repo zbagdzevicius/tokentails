@@ -25,6 +25,9 @@ const off = async (page: Page): Promise<number> => {
 test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, double tap moves', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch controls');
   await startFirstMatch(page);
+  // a touch on the field makes the touch HUD live (the minimap moves to its phone spot, top left)
+  await page.touchscreen.tap(667 * 0.25, 375 * 0.85);
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
   await page.waitForTimeout(1500);
   expect(await off(page)).toBeLessThan(0.05);
   const mm = (await page.locator('.pl-minimap canvas').boundingBox())!;
@@ -70,6 +73,8 @@ test('touch minimap: hold peeks at once and drags, the lift returns in ~150 ms, 
 test('touch minimap (turned with the camera): holding a tower pixel peeks at that tower, for both seats', async ({ page }, info) => {
   test.skip(info.project.name !== 'landscape', 'touch controls');
   await startFirstMatch(page);
+  await page.touchscreen.tap(667 * 0.25, 375 * 0.85);
+  await expect(page.locator('.pl-touch.on')).toBeVisible();
   await page.waitForTimeout(1000);
   const cdp = await page.context().newCDPSession(page);
   for (const team of [0, 1] as const) {
@@ -84,14 +89,23 @@ test('touch minimap (turned with the camera): holding a tower pixel peeks at tha
         __plWorld: { view: { frame: { entities: { kind: string; team: number; fx: number; fy: number }[] } } };
         __plMinimap: { P(x: number, y: number): [number, number] };
       };
-      const tw = w.__plWorld.view.frame.entities.find((e) => e.kind === 'tower' && e.team !== myTeam)!;
-      const [px, py] = w.__plMinimap.P(tw.fx, tw.fy);
       const c = document.querySelector<HTMLCanvasElement>('.pl-minimap canvas')!;
       const r = c.getBoundingClientRect();
       // the canvas is drawn at the box size and shown inside the border: scale its px to the shown rect
       const dpr = Math.min(2, devicePixelRatio || 1);
       const k = r.width / (c.width / dpr);
-      return { x: tw.fx / 1000, z: -tw.fy / 1000, sx: r.left + px * k, sy: r.top + py * k };
+      // an enemy tower whose pixel is clear of the paw button on the minimap's corner
+      const paw = document.querySelector('.pl-pingbtn')!.getBoundingClientRect();
+      const at = (e: { fx: number; fy: number }) => {
+        const [px, py] = w.__plMinimap.P(e.fx, e.fy);
+        return { sx: r.left + px * k, sy: r.top + py * k };
+      };
+      const tw = w.__plWorld.view.frame.entities.find((e) => {
+        if (e.kind !== 'tower' || e.team === myTeam) return false;
+        const p = at(e);
+        return !(p.sx > paw.left - 8 && p.sx < paw.right + 8 && p.sy > paw.top - 8 && p.sy < paw.bottom + 8);
+      })!;
+      return { x: tw.fx / 1000, z: -tw.fy / 1000, ...at(tw) };
     }, team);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x: t.sx, y: t.sy, id: 1 }] });
     await page.waitForTimeout(150);
