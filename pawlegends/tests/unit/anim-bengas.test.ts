@@ -4,6 +4,7 @@
  * the spin rule, compile on his rig, the Hot Toast pick is allocation-free, and the skill FX draw at the sim numbers:
  * the exact W cone, the R stage at the sim radius with one pulse per sim pulse, the toast ribbon ending at its range.
  */
+import { towardCameraXZ } from '../../src/render/coords';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeHero } from '../../src/render/chars';
 import { compileClip } from '../../src/render/anim/compile';
@@ -412,7 +413,9 @@ describe('bengas skill FX', () => {
         expect(c.o.p3!).toBe(0);
       }
       // the half facing the camera (+z) is the lower one, so the units inside stay visible
-      const facing = (c: Spawned) => -Math.sin(c.o.yaw!);
+      // feel pass B2: toward the camera of the current (diagonal) view; mesh forward = (cos, −sin)
+      const tc = towardCameraXZ();
+      const facing = (c: Spawned) => Math.cos(c.o.yaw!) * tc.x - Math.sin(c.o.yaw!) * tc.z;
       const [nearC, farC] = facing(curtains[0]) > facing(curtains[1]) ? [curtains[0], curtains[1]] : [curtains[1], curtains[0]];
       expect(facing(nearC)).toBeCloseTo(1, 6);
       expect(nearC.o.sy!).toBeLessThan(farC.o.sy!);
