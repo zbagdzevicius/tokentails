@@ -4,7 +4,8 @@
  * p50, p95 and max wait and the humans-per-match histogram per rate; exits non-zero unless p50 <= 15 s and
  * p95 <= 30.5 s at every rate and >= 60 % of matches seat >= 2 humans at >= 20 joins per minute.
  *
- *   npx ts-node --transpile-only test/mm-sim.ts
+ *   npx ts-node --transpile-only test/mm-sim.ts           (table, exit code)
+ *   npx ts-node --transpile-only test/mm-sim.ts --json    (JSON for pawlegends/tools/measure.mjs, BENCHMARKS.md)
  */
 import { Matchmaker, type MmEntry, type MmSideChoice } from '../src/pawlegends/mm/matchmaker';
 import { BOT_RATING } from '../src/pawlegends/mm/casual';
@@ -24,8 +25,11 @@ function rng(seed: number) {
 
 export interface SimResult {
     rate: number;
+    p10: number;
     p50: number;
+    p90: number;
     p95: number;
+    mean: number;
     max: number;
     matches: number;
     humans: [number, number, number];
@@ -92,8 +96,11 @@ export function simulate(perMin: number, hours = 2, seed = 7): SimResult {
     const q = (p: number) => (waits.length ? waits[Math.min(waits.length - 1, Math.floor(waits.length * p))] : 0);
     return {
         rate: perMin,
+        p10: q(0.1),
         p50: q(0.5),
+        p90: q(0.9),
         p95: q(0.95),
+        mean: waits.length ? Math.round(waits.reduce((a, b) => a + b, 0) / waits.length) : 0,
         max: waits[waits.length - 1] ?? 0,
         matches: humans[0] + humans[1] + humans[2],
         humans,
@@ -286,6 +293,10 @@ if (require.main === module && process.argv.includes('--casual')) {
     process.exit(fails.length ? 1 : 0);
 } else if (require.main === module) {
     const results = RATES.map(r => simulate(r));
+    if (process.argv.includes('--json')) {
+        console.log(JSON.stringify({ hours: 2, results, fails: verdict(results) }));
+        process.exit(0);
+    }
     for (const r of results) {
         const share = r.matches ? ((r.humans[1] + r.humans[2]) / r.matches) * 100 : 0;
         console.log(

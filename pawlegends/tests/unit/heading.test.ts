@@ -6,6 +6,7 @@
  * The sim is not changed: these tests run the real sim to check that the client's command lands the full blink and
  * that the client's landing estimate (the ghost marker) matches the sim's wall clip.
  */
+import { simToScreen } from '../../src/render/coords';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TRICKS } from '../../src/data/tricks';
 import { aimFor, trickAim } from '../../src/input/abilities';
@@ -239,13 +240,23 @@ function rig(hero: HeroId = 'clem', o: RigOpts = {}) {
   const down = (b: string, id: number, x = 900, y = 600) => btn(b).dispatchEvent(ev('pointerdown', id, x, y));
   const move = (id: number, x: number, y: number) => window.dispatchEvent(ev('pointermove', id, x, y));
   const up = (id: number, x = 900, y = 600) => window.dispatchEvent(ev('pointerup', id, x, y));
-  /** Hold the joystick (pointer 1) at `a` rad (sim convention: screen up is +y). */
-  const stick = (a: number) => {
+  /**
+   * Hold the joystick (pointer 1) so the hero heads `a` rad in the sim. Feel pass B2: the view is diagonal and tilted,
+   * so the thumb goes where that map direction shows on screen (simToScreen: the yaw and the tilt's ground squash).
+   */
+  const thumb = (a0: number): [number, number] => {
+    const v = simToScreen(Math.cos(a0), Math.sin(a0));
+    const l = Math.hypot(v.x, v.y);
+    return [150 + (v.x / l) * STICK.radius, 400 - (v.y / l) * STICK.radius];
+  };
+  const stick = (a0: number) => {
     canvas.dispatchEvent(ev('pointerdown', 1, 150, 400));
-    move(1, 150 + Math.cos(a) * STICK.radius, 400 - Math.sin(a) * STICK.radius);
+    move(1, ...thumb(a0));
   };
   /** Swing the held joystick to `a`. */
-  const steer = (a: number) => move(1, 150 + Math.cos(a) * STICK.radius, 400 - Math.sin(a) * STICK.radius);
+  const steer = (a0: number) => {
+    move(1, ...thumb(a0));
+  };
   const tick = (ms = 16) => {
     vi.advanceTimersByTime(ms);
     orders.update();

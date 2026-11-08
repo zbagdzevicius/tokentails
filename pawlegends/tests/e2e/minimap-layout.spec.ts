@@ -1,8 +1,9 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// MAP-GAPS A5: the touch minimap is about 160x96 at 667 wide and 176x106 at 844 wide (M), opaque, and S / M / L
-// scale it. At every size the minimap, the paw, the emote chip, the enemy portraits, the kill feed and the ability
-// buttons never overlap.
+// MAP-GAPS A5 + feel pass B2/B3: the touch minimap is square (it turns with the diagonal camera), 104 px on a
+// 667x375 phone and 112 px at 844x390 (M), top left at 80% opacity, and S / M / L scale it. At every size the
+// minimap, the emote chip, the enemy portraits, the kill feed, the strip and the ability buttons never overlap (the
+// paw sits on the minimap's corner by design).
 
 type Box = { x: number; y: number; width: number; height: number };
 const overlaps = (a: Box, b: Box): boolean => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
@@ -20,8 +21,8 @@ async function boxes(page: Page, sel: string): Promise<Box[]> {
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'landscape', 'touch layout'));
 
 for (const [width, height, mw, mh] of [
-  [667, 375, 160, 96],
-  [844, 390, 176, 106],
+  [667, 375, 104, 104],
+  [844, 390, 112, 112],
 ] as const) {
   for (const size of ['s', 'm', 'l'] as const) {
     test(`${width}x${height} minimap ${size.toUpperCase()}: sized, opaque, nothing overlaps`, async ({ page }) => {
@@ -49,7 +50,11 @@ for (const [width, height, mw, mh] of [
       const k = { s: 0.82, m: 1, l: 1.2 }[size];
       expect(Math.abs(mm.width - mw * k)).toBeLessThan(5);
       expect(Math.abs(mm.height - mh * k)).toBeLessThan(5);
-      expect(await page.evaluate(() => getComputedStyle(document.querySelector('.pl-minimap')!).opacity)).toBe('1');
+      expect(await page.evaluate(() => getComputedStyle(document.querySelector('.pl-minimap')!).opacity)).toBe('0.8');
+      expect(mm.x).toBeLessThan(20);
+      expect(mm.y).toBeLessThan(20);
+      // every conditional piece up (the match toggles them per frame)
+      await page.addStyleTag({ content: "html[data-touch='1'] .pl-match .pl-top .pl-strip.enemy .pp { display: block !important; } html[data-touch='1'] .pl-match .pl-tbtn.gone { display: grid !important; }" });
       const paw = await boxes(page, '.pl-pingbtn');
       const emote = await boxes(page, '.pl-emote');
       const enemy = await boxes(page, '.pl-top .pl-strip.enemy .pp');
@@ -67,7 +72,11 @@ for (const [width, height, mw, mh] of [
       ];
       for (let i = 0; i < all.length; i++)
         for (let j = i + 1; j < all.length; j++)
-          for (const a of all[i][1]) for (const b of all[j][1]) expect(overlaps(a, b), `${all[i][0]} ${JSON.stringify(a)} vs ${all[j][0]} ${JSON.stringify(b)}`).toBe(false);
+          for (const a of all[i][1])
+            for (const b of all[j][1]) {
+              if (all[i][0] === 'minimap' && all[j][0] === 'paw') continue;
+              expect(overlaps(a, b), `${all[i][0]} ${JSON.stringify(a)} vs ${all[j][0]} ${JSON.stringify(b)}`).toBe(false);
+            }
       await page.screenshot({ path: `test-results/minimap-layout/${width}x${height}-${size}.png` });
     });
   }

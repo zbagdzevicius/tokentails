@@ -18,6 +18,7 @@ import type { ViewEntity, ViewFrame } from '../render/interp';
 import { MINION_BAR_CSS, RELATION_CSS, TEAM } from '../render/palette';
 import { HERO_TEXT } from './heroText';
 import { HEROES } from '../data/heroes';
+import { XP } from '../data/xp';
 import { cutName } from '../meta/cardName';
 
 const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0 };
@@ -149,12 +150,16 @@ type Rect = { left: number; top: number; right: number; bottom: number };
  * QA v2 #11: move an edge arrow of radius `r` px off the HUD boxes it lands on (the minimap, the portrait strips, the
  * kill feed): straight down under a box in the top half, up over one in the bottom half, at most 4 steps.
  */
-export function clearOfRects(p: { x: number; y: number }, r: number, rects: readonly Rect[], h: number): { x: number; y: number } {
+export function clearOfRects(p: { x: number; y: number }, r: number, rects: readonly Rect[], h: number, w = Infinity): { x: number; y: number } {
   let { x, y } = p;
-  for (let step = 0; step < 4; step++) {
+  // feel pass B5: an arrow on the top or bottom edge slides along it (sideways, toward the middle); one on a side edge
+  // slides up or down, as before. More steps: the button arc is many small boxes.
+  const onSide = !Number.isFinite(w) || x <= r * 3 || x >= w - r * 3;
+  for (let step = 0; step < 10; step++) {
     const hit = rects.find((b) => x + r > b.left && x - r < b.right && y + r > b.top && y - r < b.bottom);
     if (!hit) break;
-    y = (hit.top + hit.bottom) / 2 < h / 2 ? hit.bottom + r + 2 : hit.top - r - 2;
+    if (onSide) y = (hit.top + hit.bottom) / 2 < h / 2 ? hit.bottom + r + 2 : hit.top - r - 2;
+    else x = (hit.left + hit.right) / 2 < w / 2 ? hit.right + r + 2 : hit.left - r - 2;
   }
   return { x, y };
 }
@@ -513,7 +518,7 @@ export class Overhead {
     const s = 14 * this.scale;
     const e0 = edgeArrow(this.selfSx, this.selfSy, this.w, this.h, 34 * this.scale, this.safeTop);
     if (!e0) return;
-    const p = { ...e0, ...clearOfRects(e0, 18 * this.scale, this.sideRects, this.h) };
+    const p = { ...e0, ...clearOfRects(e0, 18 * this.scale, this.sideRects, this.h, this.w) };
     const pulse = 1 + Math.sin(performance.now() / 160) * 0.06;
     g.save();
     g.translate(p.x, p.y);
@@ -635,7 +640,7 @@ export class Overhead {
       const p0 = edgeArrow(sx, sy, this.w, this.h, m, this.safeTop);
       if (!p0) continue;
       const s = 11 * this.scale;
-      const { x, y } = clearOfRects(p0, s * 1.9, this.sideRects, this.h);
+      const { x, y } = clearOfRects(p0, s * 1.9, this.sideRects, this.h, this.w);
       const a = p0.a;
       g.save();
       g.translate(x, y);
@@ -964,7 +969,14 @@ export class Overhead {
     return { kind: 'hero', id: e.id, name, x0: Math.min(p.sx + b.left, p.sx - tw / 2 - 4), y0: sy + b.top, x1: Math.max(p.sx + b.right + sw, p.sx + tw / 2 + 4), y1: sy + Math.max(b.bottom, 9 * this.scale), dy: p.dy };
   }
 
+  /**
+   * Feel pass B5: the own plate's "You" and its arrow show for the first seconds of a match only (the session turns
+   * this off after 10 s); the gold ring under the hero marks it from then on.
+   */
+  youLabel = true;
+
   private nameOf(e: ViewEntity): string {
+    if (e.id === this.mySlot && !this.youLabel) return '';
     // lobby spec §3b: a worn card names the own plate after the cat, cut at 14 characters ("Bartholomew T…")
     if (this.selfName && e.id === this.mySlot && e.hero) return cutName(this.names[e.id] ?? HERO_TEXT[e.hero].title, 14);
     return plateName(e, this.mySlot, this.myTeam, this.mirrored, this.names);
@@ -1094,6 +1106,12 @@ export class Overhead {
       g.strokeStyle = RELATION_CSS.self;
       g.lineWidth = 1.5;
       g.strokeRect(bx - 3.25, y - 4.25, bw + bs + 7.5, bh + 8.5);
+      // feel pass B3: the touch HUD has no hero box any more: the own XP is a 3 px line under this bar
+      const xf = ownXpFrac(e.level ?? 1, e.xp ?? 0);
+      g.fillStyle = 'rgba(5,7,11,0.85)';
+      g.fillRect(x, y + bh + 2, bw, 3);
+      g.fillStyle = '#b48cff';
+      g.fillRect(x, y + bh + 2, bw * xf, 3);
     }
     const lv = String(e.level ?? 1);
     const r = bs / 2;
@@ -1139,6 +1157,8 @@ export class Overhead {
       }
       g.fillStyle = '#2a1a22';
       g.fillText(name, sx, ny + 0.5);
+    } else if (!name) {
+      // feel pass B5: no own name after the first seconds (the gold ring marks the hero)
     } else if (this.goldPlate) {
       const grad = g.createLinearGradient(0, ny - nf / 2 - 3, 0, ny + nf / 2 + 3);
       grad.addColorStop(0, '#fff1a8');
@@ -1160,7 +1180,7 @@ export class Overhead {
     }
     if (this.watchers.has(e.id)) this.eyeGlyph(g, sx + tw / 2 + 14 * this.scale, ny);
     let chevronY = ny - nf / 2 - 5;
-    if (e.id === this.mySlot && this.catName) {
+    if (e.id === this.mySlot && this.catName && name) {
       // the worn cat, small, above the own name (canvas text: never HTML)
       g.font = `600 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
       const cy = ny - 13 * this.scale;
@@ -1187,7 +1207,7 @@ export class Overhead {
       g.fill();
       g.stroke();
     }
-    if (e.id === this.mySlot) this.selfChevron(g, sx, chevronY);
+    if (e.id === this.mySlot && name) this.selfChevron(g, sx, chevronY);
     // the bounty crown sits left of the name (round 1: it was drawn over it: "Sir▲tus")
     // fun pass (playtest #13): a phone plate pushed up by the declutter (a 3v1) drops its crowns: three stacked crowned
     // plates over the fight were unreadable; the bottom plate keeps them
@@ -1248,11 +1268,25 @@ export function statusGlyph(status: string): string {
   return ({ Stunned: '*', Rooted: 'R', Scared: '!', Napping: 'z', Challenged: 'C', Slowed: '~', 'Purr-ified': 'P', Charmed: '♥' } as Record<string, string>)[status] ?? status.slice(0, 1);
 }
 
+/** Feel pass B3: the own hero's share (0..1) of the way to its next level (1 at max level). Pure. */
+export function ownXpFrac(lv: number, xp: number): number {
+  const lo = XP.toLevel[lv - 1] ?? 0;
+  const hi = XP.toLevel[lv] ?? lo;
+  return lv >= XP.maxLevel || hi <= lo ? 1 : Math.max(0, Math.min(1, (xp - lo) / (hi - lo)));
+}
+
+/** Feel pass B5: a bot persona's first name ("Biscuit the Clem" → "Biscuit"); any other name as it is. Pure. */
+export function shortPlateName(name: string): string {
+  const m = /^(.+?) the \S/.exec(name);
+  return m ? m[1] : name;
+}
+
 /** The label over a hero: "You" for the player, a team prefix on the enemy copy of a mirrored hero. Pure. */
 export function plateName(e: Pick<ViewEntity, 'id' | 'team' | 'hero'>, mySlot: number, myTeam: number, mirrored: ReadonlySet<string>, names: readonly string[] = []): string {
   if (e.id === mySlot) return 'You';
   if (!e.hero) return '';
-  const title = names[e.id] ?? HERO_TEXT[e.hero].title;
+  // feel pass B5: the short name only ("Biscuit", not "Biscuit the Clem")
+  const title = shortPlateName(names[e.id] ?? HERO_TEXT[e.hero].title);
   if (e.team !== myTeam && mirrored.has(e.hero) && (e.team === 0 || e.team === 1)) return `${TEAM[e.team].name} ${title}`;
   return title;
 }

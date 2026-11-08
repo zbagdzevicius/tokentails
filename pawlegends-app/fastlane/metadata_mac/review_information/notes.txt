@@ -1,0 +1,25 @@
+MAC APP (Mac Catalyst build of the iPhone app, same app record)
+This is the Mac version of Pawlegends, built from the same project as the iPhone app. It runs in a resizable window (full screen from the green button or View > Enter Full Screen). Closing the window quits the app.
+
+NO LOGIN NEEDED
+Pawlegends has no account and no sign-in, so there is no demo account. All game files are inside the app, and it plays offline against computer-controlled bots from the first launch.
+
+HOW TO PLAY (about 7 minutes, never more than 11)
+1. On the title screen click "Play as <hero>" (Easy is the quickest).
+2. Right-click the ground to move and right-click an enemy to attack (on a trackpad, a normal click also moves and attacks). Press Q, W and E to cast skills and R for the ultimate. Space centres the camera, Tab shows the scoreboard, Esc opens the menu.
+3. Walk up a lane with your bots, knock down the dog towers, then the dogs' core to win.
+"Change hero" opens the hero list (10 cat heroes). Settings is the gear icon.
+
+PARTY PLAY (optional, needs the internet)
+"Play with friends" creates a party and shows a 6-letter code; a second device (Mac or iPhone) joins with "Join with code". Friends play together on one team against bots; bots also fill empty seats. Chat is fixed quick-chat phrases and pings only: there is no free-text chat and no user-generated content.
+
+NO PURCHASES
+The app has no in-app purchases, no ads, no external purchase links, no crypto or wallet features and no donations. The card collection only shows the free starter cats. The title screen line "Your cats become skins / No cat cards yet" is information only: the app has no sign-in, and nothing in it links to a store or website to get more.
+
+NO DOWNLOADED CONTENT ON THE MAC
+The Mac app runs only the game files included in this build. It does not download code, game files or other resources, and it does not update itself: new versions of the Mac app come only through the Mac App Store (guideline 2.4.5).
+
+SANDBOX AND PRIVACY
+The Mac app uses the App Sandbox with outgoing network connections only (com.apple.security.network.client); it reads and writes no user files and uses no camera, microphone or location. No analytics, no tracking, no advertising identifier. Party play sends a random party key, a generated player name and match inputs to our game server only to run the match (details: https://tokentails.com/pawlegends/privacy).
+
+Contact: info@tokentails.com

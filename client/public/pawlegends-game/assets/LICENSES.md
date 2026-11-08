@@ -33,3 +33,15 @@ in follow-up turns and encoded with `cwebp` (quality 78).
 |---|---|---|
 | `lobby/meadow-{1280,1920}.webp` | Gemini, "meadow bridge at dusk" (cat castle, paw bridge, dog fort) | Token Tails, all rights reserved |
 | `lobby/arena-{1280,1920}.webp` | Gemini, "tournament arena at sunset" (paw and bone pennants) | Token Tails, all rights reserved |
+
+Feel pass art (2026-11, about 1.3 MB in all, each file loaded only by the screen or HUD piece that uses it): generated
+for Token Tails with Google Gemini (`gemini-3-pro-image`, SynthID watermarked), keyed and encoded by
+`art-src/feel-pass/build.py`. Prompts and usage: `art-src/feel-pass/ART.md`; sizes: `feel-art.json`.
+
+| File | Source | Licence |
+|---|---|---|
+| `lobby/castles-{1280,1920}.webp` | generated, Gemini, 2026-11 (A1 daylight cat castle and dog fort) | Token Tails, all rights reserved |
+| `screens/{pick-stage,matchup,win-cat,win-dog,lose-cat,lose-dog}-{1280,1920}.webp`, `screens/pause-1280.webp` | generated, Gemini, 2026-11 (A2, A3, A4, A8) | Token Tails, all rights reserved |
+| `world/offmap-ground-1024.webp` | generated, Gemini, 2026-11 (A9, made seamless by an edge crossfade) | Token Tails, all rights reserved |
+| `ui-frames/*.webp` | generated, Gemini, 2026-11 (A5, 9-sliced) | Token Tails, all rights reserved |
+| `stickers/*.webp`, `pings/*.webp`, `icons/*.webp` | generated, Gemini, 2026-11 (A6, A7, A10, chroma-keyed) | Token Tails, all rights reserved |

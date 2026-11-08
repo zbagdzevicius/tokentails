@@ -18,8 +18,10 @@ export const XP_MERGE_MS = 900;
 
 /** Global slow motion never runs longer than this (ms) unless asked for the match end (ANIM-SPEC §6). */
 export const SLOWMO_CAP_MS = 110;
-/** C11a: a full freeze of the global clock lasts at most this long (3 frames at 60 Hz). */
-export const FREEZE_CAP_MS = 48;
+/** C11a + feel pass B5: a full freeze of the global clock lasts at most this long (ms). */
+export const FREEZE_CAP_MS = 90;
+/** Feel pass B5: the hitstop on the player's own heavy hits on a hero and own kills (never on minion hits). */
+export const HITSTOP_MS = 50;
 /** C11d: kicks under this trauma are dropped: the screen shakes for the player's kills and big hits only. */
 export const KICK_MIN = 0.2;
 
@@ -101,7 +103,8 @@ export function popFloor(x: number, phone: boolean, w = typeof window !== 'undef
 }
 
 export class Juice {
-  readonly shake = new CameraShake({ decay: 1.8, pitch: 0.035, yaw: 0.03, roll: 0.025, pos: 0.25, kick: 0.22 });
+  /** Feel pass B1: a short shake (a 0.45 kick is gone in ~120 ms); its reach is capped in gameView (SHAKE_MAX_M). */
+  readonly shake = new CameraShake({ decay: 3.8, pitch: 0.035, yaw: 0.03, roll: 0.025, pos: 0.25, kick: 0.22 });
   private stopLeft = 0;
   private stopScale = 0;
   /** Settings: 0..1. */

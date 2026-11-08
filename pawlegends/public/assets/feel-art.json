@@ -1,0 +1,342 @@
+[
+ {
+  "asset": "A1",
+  "file": "lobby/castles-1920.webp",
+  "w": 1920,
+  "h": 1080,
+  "kb": 124.4,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the title screen (src/render/lobby/lobbyBg.ts scene \"castles\", first visit)"
+ },
+ {
+  "asset": "A1",
+  "file": "lobby/castles-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 75.5,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the title screen (src/render/lobby/lobbyBg.ts scene \"castles\", first visit)"
+ },
+ {
+  "asset": "A2",
+  "file": "screens/pick-stage-1920.webp",
+  "w": 1920,
+  "h": 1080,
+  "kb": 58.5,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop while the hero pick screen is open (scene \"stage\")"
+ },
+ {
+  "asset": "A2",
+  "file": "screens/pick-stage-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 36.1,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop while the hero pick screen is open (scene \"stage\")"
+ },
+ {
+  "asset": "A3",
+  "file": "screens/matchup-1920.webp",
+  "w": 1920,
+  "h": 1080,
+  "kb": 132.5,
+  "alpha": false,
+  "quality": 78,
+  "use": "loading / matchup veil .pl-loading (ui.css)"
+ },
+ {
+  "asset": "A3",
+  "file": "screens/matchup-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 81.7,
+  "alpha": false,
+  "quality": 78,
+  "use": "loading / matchup veil .pl-loading (ui.css)"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/win-cat-1920.webp",
+  "w": 1920,
+  "h": 1080,
+  "kb": 120.6,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: cat-side victory"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/win-cat-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 74.3,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: cat-side victory"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/win-dog-1920.webp",
+  "w": 1920,
+  "h": 1080,
+  "kb": 81.7,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: dog-side victory"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/win-dog-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 51.5,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: dog-side victory"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/lose-cat-1920.webp",
+  "w": 1920,
+  "h": 1080,
+  "kb": 64.5,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: cat-side defeat"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/lose-cat-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 39.5,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: cat-side defeat"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/lose-dog-1920.webp",
+  "w": 1920,
+  "h": 1080,
+  "kb": 76.5,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: dog-side defeat"
+ },
+ {
+  "asset": "A4",
+  "file": "screens/lose-dog-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 47.7,
+  "alpha": false,
+  "quality": 78,
+  "use": "lobby backdrop on the results screen: dog-side defeat"
+ },
+ {
+  "asset": "A8",
+  "file": "screens/pause-1280.webp",
+  "w": 1280,
+  "h": 720,
+  "kb": 38.1,
+  "alpha": false,
+  "quality": 78,
+  "use": "pause / menu overlay .pl-menu backdrop (ui.css)"
+ },
+ {
+  "asset": "A9",
+  "file": "world/offmap-ground-1024.webp",
+  "w": 1024,
+  "h": 1024,
+  "kb": 37.6,
+  "alpha": false,
+  "quality": 74,
+  "use": "outer ground plane beyond the map edge (BUILD B1.9; repeat-wrapped texture)"
+ },
+ {
+  "asset": "A5",
+  "file": "ui-frames/top-strip-440x48.webp",
+  "w": 440,
+  "h": 48,
+  "kb": 3.0,
+  "alpha": true,
+  "quality": 78,
+  "use": "in-match top strip plate, border-image slice 24 fill (220x24 CSS) - for the BUILD agent"
+ },
+ {
+  "asset": "A5",
+  "file": "ui-frames/pause-panel-192.webp",
+  "w": 192,
+  "h": 192,
+  "kb": 6.7,
+  "alpha": true,
+  "quality": 78,
+  "use": "pause / menu card .pl-menu > .card border-image slice 64 fill (96 CSS, corners 32)"
+ },
+ {
+  "asset": "A5",
+  "file": "ui-frames/talent-card-720x128.webp",
+  "w": 720,
+  "h": 128,
+  "kb": 6.3,
+  "alpha": true,
+  "quality": 78,
+  "use": "talent card frame, border-image slice 52 fill (360x64 CSS) - for the BUILD agent"
+ },
+ {
+  "asset": "A5",
+  "file": "ui-frames/minimap-rim-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 14.0,
+  "alpha": true,
+  "quality": 78,
+  "use": "minimap rim overlay (128 CSS, transparent centre) - for the BUILD agent"
+ },
+ {
+  "asset": "A6",
+  "file": "stickers/base-cat-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 12.6,
+  "alpha": true,
+  "quality": 82,
+  "use": "spawn toast \"Your base: bottom left\" (cats)"
+ },
+ {
+  "asset": "A6",
+  "file": "stickers/base-dog-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 13.0,
+  "alpha": true,
+  "quality": 82,
+  "use": "spawn toast \"Your base: bottom left\" (dogs; arrow art points top-right = enemy base)"
+ },
+ {
+  "asset": "A6",
+  "file": "stickers/help-cat-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 11.4,
+  "alpha": true,
+  "quality": 82,
+  "use": "help / tips sticker"
+ },
+ {
+  "asset": "A6",
+  "file": "stickers/nap-cat-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 14.3,
+  "alpha": true,
+  "quality": 82,
+  "use": "Nap (recall) channel"
+ },
+ {
+  "asset": "A6",
+  "file": "stickers/respawn-dog-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 13.9,
+  "alpha": true,
+  "quality": 82,
+  "use": "respawn \"Back in N\" counter"
+ },
+ {
+  "asset": "A6",
+  "file": "stickers/cheer-cat-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 14.8,
+  "alpha": true,
+  "quality": 82,
+  "use": "first blood / multi-kill banner (cats)"
+ },
+ {
+  "asset": "A6",
+  "file": "stickers/cheer-dog-256.webp",
+  "w": 256,
+  "h": 256,
+  "kb": 13.6,
+  "alpha": true,
+  "quality": 82,
+  "use": "first blood / multi-kill banner (dogs)"
+ },
+ {
+  "asset": "A7",
+  "file": "pings/on-my-way-128.webp",
+  "w": 128,
+  "h": 128,
+  "kb": 5.3,
+  "alpha": true,
+  "quality": 82,
+  "use": "ping wheel \"On my way\""
+ },
+ {
+  "asset": "A7",
+  "file": "pings/danger-128.webp",
+  "w": 128,
+  "h": 128,
+  "kb": 6.4,
+  "alpha": true,
+  "quality": 82,
+  "use": "ping wheel \"Danger\""
+ },
+ {
+  "asset": "A7",
+  "file": "pings/group-up-128.webp",
+  "w": 128,
+  "h": 128,
+  "kb": 9.1,
+  "alpha": true,
+  "quality": 82,
+  "use": "ping wheel \"Group up\""
+ },
+ {
+  "asset": "A7",
+  "file": "pings/nice-128.webp",
+  "w": 128,
+  "h": 128,
+  "kb": 5.0,
+  "alpha": true,
+  "quality": 82,
+  "use": "ping wheel \"Nice!\""
+ },
+ {
+  "asset": "A7",
+  "file": "pings/oops-128.webp",
+  "w": 128,
+  "h": 128,
+  "kb": 5.3,
+  "alpha": true,
+  "quality": 82,
+  "use": "ping wheel \"Oops\""
+ },
+ {
+  "asset": "A10",
+  "file": "icons/cancel-bubble-144.webp",
+  "w": 144,
+  "h": 144,
+  "kb": 6.9,
+  "alpha": true,
+  "quality": 82,
+  "use": "hold-to-aim cancel bubble (72 CSS) - for the BUILD agent"
+ },
+ {
+  "asset": "A10",
+  "file": "icons/lock-r-88.webp",
+  "w": 88,
+  "h": 88,
+  "kb": 3.3,
+  "alpha": true,
+  "quality": 82,
+  "use": "locked R ghost chip (44 CSS) - for the BUILD agent"
+ }
+]

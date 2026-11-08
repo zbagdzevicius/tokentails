@@ -4,7 +4,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { encryptBundle, generateKeys, signManifest, spkiPem } from '../scripts/lib/capgo-crypto.mjs';
-import { CHECK_EVERY_MS, KEYS, Ota, type BundleRef, type KV, type OtaDeps, type UpdaterLike } from '../src/shell/ota';
+import { CHECK_EVERY_MS, KEYS, Ota, takesOtaUpdates, type BundleRef, type KV, type OtaDeps, type UpdaterLike } from '../src/shell/ota';
 import type { BundleStamp } from '../src/shell/manifest';
 
 const keys = generateKeys() as { privatePem: string; publicPem: string };
@@ -186,5 +186,13 @@ describe('Ota.booted (the watchdog bookkeeping)', () => {
     expect(ota.failedVersions()).toEqual(['202611071530-abc1234']);
     expect(await ota.check(true)).toBe('failed-before');
     expect(updater.downloads).toEqual([]);
+  });
+});
+
+describe('takesOtaUpdates', () => {
+  it('the iPhone app takes updates; the Mac app never does (guideline 2.4.5)', () => {
+    expect(takesOtaUpdates('ios')).toBe(true);
+    expect(takesOtaUpdates(undefined)).toBe(true);
+    expect(takesOtaUpdates('mac')).toBe(false);
   });
 });

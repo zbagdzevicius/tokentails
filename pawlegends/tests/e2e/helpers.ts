@@ -44,3 +44,21 @@ export async function startFirstMatch(page: Page, query = '', side?: 'cat' | 'do
 }
 
 export const ops = async (page: Page): Promise<number[]> => (await attr(page, 'ops')).split(',').filter(Boolean).map(Number);
+
+/**
+ * Feel pass B2: the client px of sim point (xMm, yMm) on the minimap, which is turned with the diagonal camera (the
+ * e2e hook `__plMinimap.P`, scaled from the canvas's drawn size to the box it shows in).
+ */
+export async function minimapPoint(page: Page, xMm: number, yMm: number): Promise<{ x: number; y: number }> {
+  return page.evaluate(
+    ([x, y]) => {
+      const m = (window as unknown as { __plMinimap: { P(x: number, y: number): [number, number] } }).__plMinimap;
+      const c = document.querySelector<HTMLCanvasElement>('.pl-minimap canvas')!;
+      const r = c.getBoundingClientRect();
+      const k = r.width / (c.width / Math.min(2, devicePixelRatio || 1));
+      const [px, py] = m.P(x, y);
+      return { x: r.left + px * k, y: r.top + py * k };
+    },
+    [xMm, yMm] as const,
+  );
+}

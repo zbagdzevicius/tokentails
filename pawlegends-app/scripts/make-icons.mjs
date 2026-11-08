@@ -6,9 +6,12 @@
  *   ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-1024.png   single-size icon (Xcode makes every
  *                                                                      smaller size at build time), no alpha
  *   ios/App/App/Assets.xcassets/LaunchPaw.imageset/paw@{1,2,3}x.png    the launch-screen paw (64 pt)
+ *   ios/App/App/Assets.xcassets/AppIcon.appiconset/mac-*.png           the Mac app's icon (Mac Catalyst): the same art
+ *                                                                      in the macOS rounded-rectangle shape, 16 to 1024 px
  *   store/app-icon-1024.png                                            the same icon, for the listing and press
  *
- * Usage: node scripts/make-icons.mjs   (outputs are committed; re-run only when the art changes)
+ * Usage: node scripts/make-icons.mjs         (outputs are committed; re-run only when the art changes)
+ *        node scripts/make-icons.mjs --mac   only the Mac sizes, from the committed AppIcon-1024.png
  */
 import { mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -79,6 +82,46 @@ async function launchPaw() {
   rmSync(join(assets, 'Splash.imageset'), { recursive: true, force: true });
 }
 
-await appIcon();
-await launchPaw();
-console.log('make-icons: AppIcon (1024, no alpha), LaunchPaw, store/app-icon-1024.png');
+/**
+ * The Mac icon sizes. macOS does not mask app icons the way iOS does, so the art goes into Apple's macOS icon grid
+ * itself: an 824 px rounded rectangle (radius 185) centred on a transparent 1024 canvas, with a soft drop shadow.
+ */
+async function macIcons() {
+  const dir = join(assets, 'AppIcon.appiconset');
+  const S = 1024;
+  const BODY = 824;
+  const R = 185;
+  const art = await sharp(join(dir, 'AppIcon-1024.png')).resize(BODY, BODY, { kernel: 'lanczos3' }).png().toBuffer();
+  const mask = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${BODY}" height="${BODY}"><rect width="${BODY}" height="${BODY}" rx="${R}" ry="${R}" fill="#fff"/></svg>`);
+  const body = await sharp(art).composite([{ input: mask, blend: 'dest-in' }]).png().toBuffer();
+  const off = (S - BODY) / 2;
+  const shadow = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${S}" height="${S}">
+    <defs><filter id="s" x="-20%" y="-20%" width="140%" height="140%"><feGaussianBlur stdDeviation="14"/></filter></defs>
+    <rect x="${off}" y="${off + 12}" width="${BODY}" height="${BODY}" rx="${R}" ry="${R}" fill="#000" fill-opacity="0.35" filter="url(#s)"/>
+  </svg>`);
+  const master = await sharp({ create: { width: S, height: S, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+    .composite([{ input: shadow }, { input: body, left: off, top: off }])
+    .png()
+    .toBuffer();
+  for (const f of readdirSync(dir)) if (f.startsWith('mac-')) rmSync(join(dir, f));
+  const images = [{ filename: 'AppIcon-1024.png', idiom: 'universal', platform: 'ios', size: '1024x1024' }];
+  for (const pt of [16, 32, 128, 256, 512]) {
+    for (const scale of [1, 2]) {
+      const px = pt * scale;
+      const name = `mac-${px}.png`;
+      if (!images.some((i) => i.filename === name)) writeFileSync(join(dir, name), await sharp(master).resize(px, px, { kernel: 'lanczos3' }).png({ compressionLevel: 9 }).toBuffer());
+      images.push({ filename: name, idiom: 'mac', scale: `${scale}x`, size: `${pt}x${pt}` });
+    }
+  }
+  writeFileSync(join(dir, 'Contents.json'), `${JSON.stringify({ images, info: { author: 'xcode', version: 1 } }, null, 2)}\n`);
+}
+
+if (process.argv.includes('--mac')) {
+  await macIcons();
+  console.log('make-icons: Mac AppIcon sizes from AppIcon-1024.png');
+} else {
+  await appIcon();
+  await macIcons();
+  await launchPaw();
+  console.log('make-icons: AppIcon (1024, no alpha; Mac sizes), LaunchPaw, store/app-icon-1024.png');
+}

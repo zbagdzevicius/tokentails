@@ -1,11 +1,10 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, me, startFirstMatch } from './helpers';
 
-// LAUNCH-READY U2 (decision G22, compact HUD): on small landscape phones (below 700 px wide, or ≤ 380 px tall under
-// 844 px) the self panel is smaller; since the LoL pass (lane A) the top rail sits under the score and the enemy
-// portraits at the right edge under the minimap. Nothing in the top band overlaps,
-// the minimap, the ability buttons, the joystick and the ping wheel stay usable, and every tap target is ≥ 44 px.
-// 844×390 keeps the layout it had. Screenshots: test-results/hud-compact/*.png (read them after a layout change).
+// Feel pass B3 (docs/plans/moba/FEEL-PASS.md, the phone HUD diet): one 24 px top strip (kills, clock, towers, the
+// objective timer, pause), a 112 px minimap top left (104 px on short phones) with the ping corner and the emote under
+// it, a 2-line kill feed beside it, the target-lock row by the cluster. Nothing persistent overlaps, every tap target
+// answers 44 px, the joystick and the ping wheel stay usable. Screenshots: test-results/hud-compact/*.png.
 
 const VETERAN = { v: 1, sessions: 3, matches: 5, wins: 2, firstWinDone: true, hero: 'sage', trick: 'hiss', difficulty: 'normal', veteran: true };
 const SHOTS = 'test-results/hud-compact';
@@ -49,51 +48,38 @@ async function touchDrag(page: Page, x0: number, y0: number, x1: number, y1: num
 
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'landscape', 'touch layout'));
 
+/** Does a tap `d` px from `b`'s centre in each direction land on `sel`? (its 44 px hit area) */
+async function answers(page: Page, sel: string, b: Box, d = 20): Promise<string> {
+  return page.evaluate(
+    ([s, cx, cy, r]) =>
+      [[0, 0], [-r, 0], [r, 0], [0, -r], [0, r]]
+        .map(([dx, dy]) => {
+          // a point off the screen (the strip touches the top edge) cannot be tapped: skip it
+          if (cy + dy < 0 || cx + dx < 0 || cy + dy > innerHeight || cx + dx > innerWidth) return 'ok';
+          const h = document.elementFromPoint(cx + dx, cy + dy);
+          return h?.closest(s) ? 'ok' : `${dx},${dy}:${h?.tagName}.${h?.className}`;
+        })
+        .join(' '),
+    [sel, b.x + b.width / 2, b.y + b.height / 2, d] as const,
+  );
+}
+
 for (const [width, height] of [
   [667, 375],
   [640, 360],
+  [844, 390],
 ] as const) {
   const size = `${width}x${height}`;
 
-  test(`${size} first match: compact top band, the rail under the score, the enemy portraits under the minimap`, async ({ page }) => {
-    await page.setViewportSize({ width, height });
-    await startFirstMatch(page);
-    await expect(page.locator('.pl-touch.on')).toBeVisible();
-    // LoL pass (lane A): the goal is the top rail's resting line (no chip of its own)
-    await expect(page.locator('.pl-rail-line.on')).toBeVisible({ timeout: 10_000 });
-    await page.waitForTimeout(700);
-    await page.screenshot({ path: `${SHOTS}/${size}-first-match.png` });
-    const bar = (await boxes(page, '.pl-bar'))[0];
-    const pause = (await boxes(page, '.pl-pause'))[0];
-    const score = (await boxes(page, '.pl-score'))[0];
-    const minimap = (await boxes(page, '.pl-minimap'))[0];
-    const enemy = await boxes(page, '.pl-top .pl-strip.enemy .pp');
-    const rail = await boxes(page, '.pl-rail-line.on');
-    // the compact panel, under the 222 × 58 one of 844×390
-    expect(bar.width).toBeLessThanOrEqual(160);
-    expect(bar.height).toBeLessThanOrEqual(46);
-    expect(enemy.length).toBe(3);
-    // the enemy portraits sit at the right edge under the minimap
-    for (const p of enemy) {
-      expect(p.y).toBeGreaterThanOrEqual(minimap.y + minimap.height - 2);
-      expect(p.x + p.width).toBeLessThanOrEqual(width);
-      expect(p.x).toBeGreaterThan(width / 2);
-    }
-    // one rail line, under the score, ending by y 70
-    expect(rail.length).toBe(1);
-    for (const r of rail) expect(r.y + r.height).toBeLessThanOrEqual(70);
-    const top = [bar, pause, score, ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), minimap, ...(await boxes(page, '.pl-pingbtn'))];
-    noOverlap('top band', top, top);
-    noOverlap('rail', rail, [bar, pause, ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), minimap, ...(await boxes(page, '.pl-pingbtn')), ...(await boxes(page, '.pl-tbtn'))]);
-    for (const b of [...top, ...rail]) expect(b.x >= 0 && b.y >= 0 && b.x + b.width <= width && b.y + b.height <= height, `on screen ${JSON.stringify(b)}`).toBe(true);
-  });
-
-  test(`${size} veteran: emote, kill feed, talent card, ping wheel and joystick keep clear; taps are ≥ 44 px`, async ({ page }) => {
+  test(`${size} veteran: strip, minimap, feed, lock row, talent card, ping wheel and joystick keep clear; taps answer 44 px`, async ({ page }) => {
     test.setTimeout(90_000);
     await page.setViewportSize({ width, height });
     await startVeteran(page);
+    await page.touchscreen.tap(width * 0.25, height * 0.85);
     await expect(page.locator('.pl-touch.on')).toBeVisible();
     await expect(page.locator('.pl-emote')).toBeVisible();
+    // every conditional piece up: the lock row full, the last-hit and tower buttons (the match toggles them per frame)
+    await page.addStyleTag({ content: "html[data-touch='1'] .pl-match .pl-top .pl-strip.enemy .pp { display: block !important; } html[data-touch='1'] .pl-match .pl-tbtn.gone { display: grid !important; }" });
     // a full kill feed (four lines, the most the HUD keeps), the same markup as ui/hud.ts kill() and note()
     await page.evaluate(() => {
       const feed = document.querySelector('.pl-feed')!;
@@ -105,37 +91,44 @@ for (const [width, height] of [
       ];
       feed.innerHTML = rows.join('');
     });
+    await page.waitForTimeout(150);
     const buttons = await boxes(page, '.pl-tbtn');
     const minimap = await boxes(page, '.pl-minimap');
     const paw = await boxes(page, '.pl-pingbtn');
     const emote = await boxes(page, '.pl-emote');
     const pause = await boxes(page, '.pl-pause');
+    const strip = await boxes(page, '.pl-score');
     const feed = await boxes(page, '.pl-feed-row');
     const enemy = await boxes(page, '.pl-top .pl-strip.enemy .pp');
-    const fixed = [...(await boxes(page, '.pl-bar')), ...pause, ...(await boxes(page, '.pl-score')), ...enemy, ...(await boxes(page, '.pl-strip.ally .pp')), ...minimap, ...paw, ...emote];
-    // MAP-GAPS A5: one line on small phones (the bigger minimap and the portraits under it leave room for one)
-    expect(feed.length, 'feed lines on a small phone').toBe(1);
+    // the strip: 24 px tall, at most 220 px wide, centred at the top; pause inside it
+    expect(strip[0].height).toBeLessThanOrEqual(24.5);
+    expect(strip[0].width).toBeLessThanOrEqual(220);
+    expect(Math.abs(strip[0].x + strip[0].width / 2 - width / 2)).toBeLessThan(2);
+    expect(overlaps(pause[0], strip[0])).toBe(true);
+    // the minimap: top left, square, 112 px (104 on short phones)
+    expect(minimap[0].x).toBeLessThan(20);
+    expect(minimap[0].y).toBeLessThan(20);
+    expect(Math.round(minimap[0].width)).toBe(height <= 380 ? 104 : 112);
+    expect(Math.round(minimap[0].height)).toBe(Math.round(minimap[0].width));
+    // the kill feed: 2 lines, right of the minimap
+    expect(feed.length, 'feed lines').toBe(2);
+    for (const f of feed) expect(f.x).toBeGreaterThanOrEqual(minimap[0].x + minimap[0].width);
+    // nothing overlaps (the paw sits on the minimap's corner by design)
+    const fixed = [...strip, ...minimap, ...emote, ...enemy];
     noOverlap('top band', fixed, fixed);
-    noOverlap('feed', feed, [...fixed, ...buttons]);
-    noOverlap('buttons', buttons, fixed);
+    noOverlap('paw', paw, [...strip, ...emote, ...enemy, ...buttons]);
+    noOverlap('feed', feed, [...fixed, ...paw, ...buttons]);
+    noOverlap('buttons', buttons, [...fixed, ...paw]);
     for (const p of enemy) for (const b of buttons) expect(discsTouch(p, b)).toBe(false);
-    // tap targets: pause, paw, emote and every ability button are ≥ 44 px; each enemy portrait answers a tap 21 px
-    // from its centre in every direction (its 44 px area)
-    for (const b of [...pause, ...paw, ...emote, ...buttons]) expect(Math.min(b.width, b.height), JSON.stringify(b)).toBeGreaterThanOrEqual(44);
-    const hits = await page.evaluate(() =>
-      [...document.querySelectorAll<HTMLElement>('.pl-top .pl-strip.enemy .pp')].map((el) => {
-        const r = el.getBoundingClientRect();
-        const cx = r.x + r.width / 2;
-        const cy = r.y + r.height / 2;
-        return [[0, 0], [-21, 0], [21, 0], [0, -21], [0, 21]].map(([dx, dy]) => { const h = document.elementFromPoint(cx + dx, cy + dy); return h?.closest('.pp') === el ? 'ok' : `${dx},${dy}:${h?.tagName}`; }).join(' ');
-      }),
-    );
-    expect(hits).toEqual(Array(3).fill('ok ok ok ok ok'));
-    // the paw and the emote are on top of whatever is under them
-    for (const [sel, b] of [['.pl-pingbtn', paw[0]], ['.pl-emote', emote[0]], ['.pl-pause', pause[0]]] as const) {
-      expect(await page.evaluate(([s, x, y]) => !!document.elementFromPoint(x, y)?.closest(s), [sel, b.x + b.width / 2, b.y + b.height / 2] as const), sel).toBe(true);
-    }
-    // a level-up: the open talent card (the markup of ui/talents.ts) keeps clear of the buttons and the portraits
+    // the lock row sits low (below 80% of the height), 3 portraits
+    expect(enemy.length).toBe(3);
+    for (const p of enemy) expect(p.y).toBeGreaterThanOrEqual(height * 0.8);
+    // tap targets: every ability button is ≥ 44 px; pause, paw, emote and each portrait answer a tap 20 px from their
+    // centre in every direction (their 44 px area)
+    for (const b of buttons) expect(Math.min(b.width, b.height), JSON.stringify(b)).toBeGreaterThanOrEqual(43.9);
+    for (const [sel, b] of [['.pl-pause', pause[0]], ['.pl-pingbtn', paw[0]], ['.pl-emote', emote[0]]] as const) expect(await answers(page, sel, b), sel).toBe('ok ok ok ok ok');
+    for (const p of enemy) expect(await answers(page, '.pp', p, 19)).toBe('ok ok ok ok ok');
+    // a level-up: the open talent card (the markup of ui/talents.ts) keeps clear of the buttons and the top pieces
     await page.evaluate(() => {
       const t = document.querySelector<HTMLElement>('.pl-talents')!;
       t.innerHTML = `<div class="head">Level 3 talent: pick one</div><i class="time"></i>${[0, 1]
@@ -144,10 +137,13 @@ for (const [width, height] of [
       t.classList.add('on');
     });
     await page.waitForTimeout(300);
-    const talents = await boxes(page, '.pl-talents.on .head, .pl-talents.on button');
-    expect(talents.length).toBe(3);
-    noOverlap('talents', talents, [...buttons, ...fixed, ...feed]);
+    const talents = await boxes(page, '.pl-talents.on button');
+    expect(talents.length).toBe(2);
+    noOverlap('talents', talents, [...buttons, ...fixed, ...paw]);
     for (const b of talents) expect(b.x >= 0 && b.y >= 0 && b.x + b.width <= width && b.y + b.height <= height, `on screen ${JSON.stringify(b)}`).toBe(true);
+    // the announcement rail moves under the open card: its top is at or below every talent button's bottom
+    const railTop = await page.evaluate(() => document.querySelector('.pl-rail')!.getBoundingClientRect().top);
+    for (const b of talents) expect(railTop, `rail top vs ${JSON.stringify(b)}`).toBeGreaterThanOrEqual(b.y + b.height - 0.5);
     await page.screenshot({ path: `${SHOTS}/${size}-veteran.png` });
     await page.evaluate(() => {
       const t = document.querySelector<HTMLElement>('.pl-talents')!;
@@ -180,25 +176,19 @@ for (const [width, height] of [
   });
 }
 
-// Larger phones keep the layout they had before the compact HUD (the numbers of 844×390 at 323ab118).
-test('844x390 keeps the full touch HUD', async ({ page }) => {
+test('the removed pieces stay removed on phones: no hero box, no ally portraits, no standing objective chip', async ({ page }) => {
   await page.setViewportSize({ width: 844, height: 390 });
-  await startVeteran(page);
+  await startFirstMatch(page);
+  await page.touchscreen.tap(844 * 0.25, 390 * 0.85);
   await expect(page.locator('.pl-touch.on')).toBeVisible();
-  const r = (b: Box): number[] => [b.x, b.y, b.width, b.height].map(Math.round);
-  expect(r((await boxes(page, '.pl-bar'))[0])).toEqual([16, 10, 222, 58]);
-  expect(r((await boxes(page, '.pl-portrait'))[0])).toEqual([23, 17, 44, 44]);
-  expect(r((await boxes(page, '.pl-pause'))[0])).toEqual([254, 10, 40, 40]);
-  // the phase line under the timer hides while the objective chip counts to the same phase, so the height is 45 or 54
-  const score = r((await boxes(page, '.pl-score'))[0]);
-  expect(score.slice(0, 3)).toEqual([275, 8, 294]);
-  expect([45, 54]).toContain(score[3]);
-  // MAP-GAPS A5: the bigger minimap reaches where the enemy portraits sat right of the score: they stand in a column
-  // just left of it
-  const mm = (await boxes(page, '.pl-minimap'))[0];
-  const enemy = (await boxes(page, '.pl-top .pl-strip.enemy'))[0];
-  expect(enemy.x + enemy.width).toBeLessThanOrEqual(mm.x);
-  expect(enemy.height).toBeGreaterThan(enemy.width);
-  expect(r((await boxes(page, '.pl-strip.ally'))[0])).toEqual([80, 70, 72, 34]);
-  await page.screenshot({ path: `${SHOTS}/844x390-unchanged.png` });
+  await page.waitForTimeout(1000);
+  await expect(page.locator('.pl-bar')).toBeHidden();
+  await expect(page.locator('.pl-strip.ally')).toBeHidden();
+  // the R slot is a 44 px ghost chip before level 4
+  const r = (await boxes(page, '.pl-tbtn.r.locked'))[0];
+  expect(Math.round(r.width)).toBeLessThanOrEqual(45);
+  // last-hit and tower show only with a target (none at the fountain)
+  await expect(page.locator('.pl-tbtn.lasthit')).toBeHidden();
+  await expect(page.locator('.pl-tbtn.tower')).toBeHidden();
+  await page.screenshot({ path: `${SHOTS}/844x390-diet.png` });
 });

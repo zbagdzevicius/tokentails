@@ -158,6 +158,10 @@ export function lockable(u: Unit | null | undefined, me: Unit, myTeam: number): 
   return !!u && u.kind === 'hero' && isEnemy(u, myTeam) && Math.hypot(u.x - me.x, u.y - me.y) <= LOCK.rangeMm;
 }
 
+/** Feel pass B4: how far (mm) past the attack range a lock holds once reached: melee 1 m, ranged 2 m. */
+export const LOCK_BREAK = Object.freeze({ melee: 1000, ranged: 2000, meleeRange: 2500 });
+export const lockBreakMm = (range: number): number => range + (range <= LOCK_BREAK.meleeRange ? LOCK_BREAK.melee : LOCK_BREAK.ranged);
+
 /**
  * The touch target lock (GAPS A5). `set` locks a hero (a second tap on the locked hero lets go); `check` returns the
  * locked id while the lock holds and drops it once LOCK.ms passed, the hero died or left the snapshot (a bush), or
@@ -166,6 +170,8 @@ export function lockable(u: Unit | null | undefined, me: Unit, myTeam: number): 
 export class TargetLock {
   id: number | null = null;
   private since = 0;
+  /** Feel pass B4: the locked hero has been within the break distance since the lock (so leaving it breaks the lock). */
+  private reached = false;
 
   /** Lock `id` at `now` (ms); a tap on the hero already locked releases it. Returns whether a lock is on. */
   set(id: number, now: number): boolean {
@@ -175,6 +181,7 @@ export class TargetLock {
     }
     this.id = id;
     this.since = now;
+    this.reached = false;
     return true;
   }
 
@@ -182,11 +189,20 @@ export class TargetLock {
     this.id = null;
   }
 
-  /** The locked id, or null (and the lock is dropped) when it no longer holds. */
-  check(units: readonly Unit[], me: Unit | null, myTeam: number, now: number): number | null {
+  /**
+   * The locked id, or null (and the lock is dropped) when it no longer holds. Feel pass B4 `breakMm` (the attack range
+   * + 1 m melee, + 2 m ranged): once the locked hero has been that close, it breaking away past it ends the lock.
+   */
+  check(units: readonly Unit[], me: Unit | null, myTeam: number, now: number, breakMm = Infinity): number | null {
     if (this.id === null) return null;
     const u = units.find((q) => q.id === this.id);
     if (!me || me.state === 'dead' || now - this.since >= LOCK.ms || !lockable(u, me, myTeam)) {
+      this.clear();
+      return null;
+    }
+    const d = Math.hypot(u!.x - me.x, u!.y - me.y);
+    if (d <= breakMm) this.reached = true;
+    else if (this.reached) {
       this.clear();
       return null;
     }

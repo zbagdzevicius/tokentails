@@ -14,35 +14,40 @@ export interface ArcSpot {
   d: number;
 }
 
-/** The smallest edge-to-edge gap (px at scale 1) between any two of the main buttons. */
-export const ARC_GAP = 16;
+/** The smallest edge-to-edge gap (px at scale 1) between any two of the main buttons (feel pass B3: R–W). */
+export const ARC_GAP = 14;
 
 /**
- * The highest point (px above the cluster's bottom, at scale 1) any main button may reach: the phone kill feed and
- * the enemy portraits under the minimap end there (hud-compact.spec.ts), as the old E button did.
+ * The highest point (px above the cluster's bottom, at scale 1) any main button may reach. Feel pass B3: the right-edge
+ * column (last-hit, tower, Nap) is exempt: it runs up the screen edge, under the top strip.
  */
-export const ARC_TOP = 176;
+export const ARC_TOP = 192;
 
-const ATK = 96;
+/** The right-edge column stays this far (px) below the viewport top, measured from the cluster's bottom edge. */
+export const ARC_COLUMN_CLEAR = 54;
+
+/** The main buttons (ARC_TOP applies); the rest are the right-edge column. */
+export const ARC_MAIN: readonly ArcButton[] = Object.freeze(['attack', 'q', 'w', 'e', 'r', 'trick'] as ArcButton[]);
+
+const ATK = 92;
 const ATK_R = ATK / 2;
 
 /**
- * The familiar places (Q left of Attack, W up-left, E above, R further up-left, the trick up-right, Nap bottom-left),
- * each moved at most 20 px from the old CSS spot to the layout with the widest smallest gap (17 px at scale 1) under
- * ARC_TOP; the optional last-hit and tower buttons sit above, as before.
+ * Feel pass B3 (docs/plans/moba/FEEL-PASS.md, MLBB-style): Q, W and E on a 116 px arc and R and the trick on a 196 px
+ * arc around Attack's centre; the trick (flash, the panic button) bottom-left beside Q, bigger; the cluster is ~268 px
+ * wide (was 312). The last-hit and tower buttons (shown only while they have a target) and Nap (a 300 ms hold) stand
+ * in a column up the right edge, out of the arc. Any slot may move by up to 12 px after a thumb test.
  */
 const BASE: Readonly<Record<ArcButton, ArcSpot>> = Object.freeze({
   attack: { rx: ATK_R, by: ATK_R, d: ATK },
-  q: { rx: 160, by: 30, d: 60 },
-  w: { rx: 140, by: 105, d: 60 },
-  e: { rx: 75, by: 146, d: 60 },
-  r: { rx: 214, by: 140, d: 70 },
-  trick: { rx: 6, by: 127, d: 48 },
-  nap: { rx: 229, by: 47, d: 46 },
-  // the last-hit (minion) and tower buttons (Settings; on by default since UX pass 2, Wild Rift shows both): left of R
-  // and Nap, under ARC_TOP like the rest (above it they sat on the phone kill feed, hud-compact.spec.ts)
-  lasthit: { rx: 275, by: 95, d: 44 },
-  tower: { rx: 290, by: 30, d: 44 },
+  q: { rx: 161, by: 34, d: 64 },
+  w: { rx: 141, by: 112, d: 64 },
+  e: { rx: 74, by: 158, d: 64 },
+  r: { rx: 219, by: 138, d: 72 },
+  trick: { rx: 241, by: 32, d: 52 },
+  lasthit: { rx: 26, by: 214, d: 44 },
+  tower: { rx: 84, by: 250, d: 44 },
+  nap: { rx: 26, by: 312, d: 44 },
 });
 
 /** UX pass 2: Settings "Button size: Large" scales the whole arc up by this much (gaps and all). */
@@ -57,7 +62,13 @@ export function arcScale(_vw: number, vh: number): number {
 export function arcLayout(vw: number, vh: number, large = false): Record<ArcButton, ArcSpot> {
   const k = arcScale(vw, vh) * (large ? ARC_LARGE : 1);
   const out = {} as Record<ArcButton, ArcSpot>;
-  for (const [id, s] of Object.entries(BASE) as [ArcButton, ArcSpot][]) out[id] = { rx: s.rx * k, by: s.by * k, d: Math.max(44, Math.round(s.d * k)) };
+  // the right-edge column never runs into the top strip (24 px plus a margin, above the cluster's 24 px bottom offset)
+  const top = vh - ARC_COLUMN_CLEAR;
+  for (const [id, s] of Object.entries(BASE) as [ArcButton, ArcSpot][]) {
+    const d = Math.max(44, Math.round(s.d * k));
+    const by = ARC_MAIN.includes(id) ? s.by * k : Math.min(s.by * k, top - d / 2);
+    out[id] = { rx: s.rx * k, by, d };
+  }
   return out;
 }
 

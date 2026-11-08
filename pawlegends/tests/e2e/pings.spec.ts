@@ -69,23 +69,21 @@ test('touch: the paw button opens the wheel, a slice sends it; long presses on t
   await expect(page.locator('.pl-pingwheel.on')).toHaveCount(0);
   await expect.poll(() => attr(page, 'pingsSent')).toBe('1');
   await expect.poll(async () => (await barks(page)).length).toBe(2);
-  // a long press on the minimap: Go here
-  await page.waitForTimeout(1600);
-  const mm = (await page.locator('.pl-minimap canvas').boundingBox())!;
+  // feel pass B1: a finger held on the minimap peeks (Wild Rift / MLBB); pings go through the paw and the wheel
   const cdp = await page.context().newCDPSession(page);
   const press = async (x: number, y: number, ms: number): Promise<void> => {
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: [{ x, y, id: 1 }] });
     await page.waitForTimeout(ms);
     await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
   };
-  await press(mm.x + mm.width * 0.4, mm.y + mm.height * 0.5, 700);
-  await expect.poll(() => attr(page, 'pingsSent')).toBe('2');
   // a long press on an enemy portrait: Focus hero (the tap's lock comes with it)
+  // (feel pass B3: the portrait row shows only near enemies; held up here for the test)
   await page.waitForTimeout(1600);
+  await page.addStyleTag({ content: "html[data-touch='1'] .pl-match .pl-top .pl-strip.enemy .pp { display: block !important; }" });
   const pp = (await page.locator('.pl-top .pl-strip.enemy .pp').first().boundingBox())!;
   await press(pp.x + pp.width / 2, pp.y + pp.height / 2, 700);
-  await expect.poll(() => attr(page, 'pingsSent')).toBe('3');
-  await expect.poll(async () => (await ops(page)).filter((o) => o === 9).length).toBe(3);
+  await expect.poll(() => attr(page, 'pingsSent')).toBe('2');
+  await expect.poll(async () => (await ops(page)).filter((o) => o === 9).length).toBe(2);
 });
 
 test('match 2 shows the ping tip once', async ({ page }) => {

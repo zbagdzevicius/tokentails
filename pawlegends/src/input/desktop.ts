@@ -4,8 +4,9 @@
  * shape at the cursor and the basic attack range ring; release casts at the cursor, LMB while holding casts too, RMB
  * or Esc cancels, another skill key switches the aim, out of range walks in, then casts. Settings "Quick cast" casts at
  * the cursor on the press instead (a brief indicator flash). An armed A shows the attack range ring too. B Nap, 1/2
- * talent pick, Space centres the camera, wheel and +/− zoom, Tab scoreboard, Esc menu; edge pan and arrow keys move the
- * camera. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
+ * talent pick, Space centres the camera, the wheel and +/− pick the Camera height (Normal / High), Tab scoreboard, Esc
+ * menu. Feel pass B1 (founder decision D2): the camera is locked on the hero like on mobile (no edge pan, no arrow-key
+ * pan); holding the minimap peeks. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
  * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
  * moves and attacks too. GAPS B1: hold G for the ping wheel at the cursor (point at a slice, release G to send it);
  * Alt-click pings Focus on an enemy hero, or Go here on the ground.
@@ -18,7 +19,7 @@ import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
 import { cursorCss, cursorKind, type CursorKind } from './cursor';
 import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
-import { saveZoom, stepZoom, wheelZoom, zoomMax } from '../render/camera/zoom';
+import { loadCameraHeight, saveCameraHeight, wheelHeight } from '../render/camera/height';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
 import { landing } from './heading';
@@ -47,8 +48,6 @@ export interface InputHost {
 }
 
 const CAST_ACTIONS: Partial<Record<Action, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
-const EDGE_PX = 10;
-const EDGE_SPEED = 28;
 const STEER_MS = 140;
 /** Quick cast: the indicator flashes this long at the cast point. */
 const FLASH_MS = 220;
@@ -278,9 +277,10 @@ export class DesktopInput {
     sfx.unlock();
     // +/− zoom like a wheel notch; a held key repeats
     if (a === 'zoomIn' || a === 'zoomOut') {
-      const v = this.h.view;
-      v.zoomTarget = stepZoom(v.zoomTarget, a === 'zoomOut' ? 1 : -1, zoomMax(window.innerWidth));
-      saveZoom(v.zoomTarget);
+      // feel pass B1: + and − pick the Camera height step (Normal / High), like the wheel
+      const h = wheelHeight(loadCameraHeight(), a === 'zoomOut' ? 1 : -1);
+      saveCameraHeight(h);
+      this.h.view.setCameraHeight(h);
       return;
     }
     if (e.repeat) return;
@@ -362,9 +362,12 @@ export class DesktopInput {
 
   private wheel(e: WheelEvent): void {
     e.preventDefault();
-    const v = this.h.view;
-    v.zoomTarget = wheelZoom(v.zoomTarget, e.deltaY, e.deltaMode, zoomMax(window.innerWidth));
-    saveZoom(v.zoomTarget);
+    // feel pass B1: the wheel switches between the two Camera height steps (Normal / High), nothing in between
+    const cur = loadCameraHeight();
+    const h = wheelHeight(cur, e.deltaY);
+    if (h === cur) return;
+    saveCameraHeight(h);
+    this.h.view.setCameraHeight(h);
   }
 
   private cancelAim(): void {
@@ -584,22 +587,7 @@ export class DesktopInput {
       const g = this.groundUnderCursor();
       if (g) this.h.orders.move(toSimX(g.x), toSimY(g.z));
     }
-    let px = 0;
-    let pz = 0;
-    if (this.keys.has('ArrowLeft')) px -= 1;
-    if (this.keys.has('ArrowRight')) px += 1;
-    if (this.keys.has('ArrowUp')) pz -= 1;
-    if (this.keys.has('ArrowDown')) pz += 1;
-    if (this.cursor.inside && this.cursor.x >= 0 && document.hasFocus()) {
-      const w = window.innerWidth;
-      const hh = window.innerHeight;
-      if (this.cursor.x <= EDGE_PX) px -= 1;
-      if (this.cursor.x >= w - EDGE_PX) px += 1;
-      if (this.cursor.y <= EDGE_PX) pz -= 1;
-      if (this.cursor.y >= hh - EDGE_PX) pz += 1;
-    }
     if (this.keys.has('Space')) this.h.view.recentre();
-    else if (px !== 0 || pz !== 0) this.h.view.panBy(px * EDGE_SPEED * dt, pz * EDGE_SPEED * dt);
   }
 
   /** Talent picks also come from the HUD buttons; exposed for tests. */

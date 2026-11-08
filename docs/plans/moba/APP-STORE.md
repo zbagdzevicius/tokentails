@@ -14,6 +14,43 @@ WebSocket) and sims 10 to 14 (the build ships 14). Not checked: a real iPhone (l
 the network off, `actionlint` on the workflows. The `/pawlegends/privacy` and `/pawlegends/support` pages 404 until
 this branch is merged and Vercel deploys.
 
+## Mac App Store (2026-11-08, `feat/pawlegends-macos`)
+
+Mac Catalyst of the same iOS target, same bundle id and app record (universal purchase), "Optimize for Mac" idiom
+(`TARGETED_DEVICE_FAMILY[sdk=macosx*] = 6`; iOS stays iPhone only). App Sandbox + network client, hardened runtime,
+`LSApplicationCategoryType` strategy games, Mac icon sizes, PrivacyInfo bundled, `ITSAppUsesNonExemptEncryption` false.
+All pods build for Catalyst unchanged. No OTA on the Mac (guideline 2.4.5 (v) and (viii)): the shell skips the check
+and apply when `__PL_PLATFORM__ === 'mac'`, so Mac content updates ship as new builds. `UIRequiresFullScreen` removed
+(it locks a Catalyst window's size; iPhone ignores it). The page sees `__PL_PLATFORM__ = 'mac'`
+and keeps the desktop controls and HUD. Lanes `mac_beta`, `mac_metadata`, `mac_submit` (README "Releases"). Checked:
+unsigned Debug and Release Catalyst builds; the app opens at 1440×810 and renders the title (pointer fine, no touch
+controls, no haptics bridge). Not checked: a signed sandboxed build, drag-resizing the window, a full match with real mouse input.
+
+### Mac listing
+
+- **Where:** `pawlegends-app/fastlane/metadata_mac/` holds only what differs on the Mac; `mac_metadata` copies
+  `metadata/` to a temp folder, copies `metadata_mac/` on top and uploads that with `platform: "osx"`. App-level fields
+  (name "Pawlegends", subtitle, privacy URL, categories Games → Strategy, Action, copyright) are shared by the iOS and
+  macOS listings in App Store Connect, so they stay single-sourced in `metadata/`.
+- **Mac text:** `description.txt` (a "MADE FOR MAC" block: right-click to move and attack, Q/W/E/R, Tab scoreboard,
+  trackpad click, resizable window and full screen; the touch line is gone; "The same app on iPhone and Mac"),
+  `promotional_text.txt` (keyboard and mouse), `release_notes.txt` (deliver skips it on the first macOS version, as on
+  iOS 1.0.0). Keywords, support and marketing URLs are the iOS ones.
+- **Review notes:** `metadata_mac/review_information/notes.txt`: mouse and keyboard steps instead of touch, the window
+  and full screen, the App Sandbox (network client only), and the same OTA, purchases and privacy statements.
+- **Screenshots:** 5 PNGs at 2880 × 1800 in `fastlane/screenshots_mac/en-US/` (title, heroes, match start, lane
+  fight, teamfight). deliver maps 2880 × 1800 to the Mac display type (`APP_DESKTOP`; it also accepts 1280 × 800,
+  1440 × 900, 2560 × 1600). Captured with `npm run screenshots -- --device mac`: the app's own web bundle in Playwright
+  at 1440 × 900 pt, scale 2, desktop HUD, right-click movement. Not from the Catalyst window: `screencapture` needs the
+  Screen Recording permission, which the agent terminal does not have. The pixels are the same web bundle the Mac app
+  ships, so guideline 2.3 holds; retake from the TestFlight Mac build if you want the window chrome in them.
+- **Minimum macOS:** 12 Monterey (Catalyst of the iOS 15 deployment target). Apple silicon and Intel (Xcode default
+  archs for Catalyst).
+- **Shared with iOS (nothing to redo):** App Privacy, age rating, price and availability, content rights. These are
+  per app, not per platform. Export compliance: the same `ITSAppUsesNonExemptEncryption = false` in Info.plist.
+- **Run order (main session):** add the macOS platform in App Store Connect → `mac_beta` → `mac_metadata` → install
+  from TestFlight on a Mac and play one bot match with the mouse → `mac_submit` with `SUBMIT`. Release stays manual.
+
 ## Implementation notes (2026-11-07)
 
 Where the build differs from the plan below, the build wins:
@@ -21,8 +58,9 @@ Where the build differs from the plan below, the build wins:
 - No storyboards. The window and `GameViewController` are made in `AppDelegate`; the launch screen is the
   Info.plist `UILaunchScreen` (game background colour and the boot paw from the asset catalog). This avoids `ibtool`
   in CI and matches the web boot splash.
-- iPhone only (`TARGETED_DEVICE_FAMILY = 1`) as planned; the iPad landscape keys and `UIRequiresFullScreen` are set
-  too, so adding iPad later is one build setting plus iPad screenshots.
+- iPhone only (`TARGETED_DEVICE_FAMILY = 1`) as planned; the iPad landscape keys are set too, so adding iPad later is
+  one build setting plus iPad screenshots (and `UIRequiresFullScreen` in an iPad-only plist key, since on the Mac
+  it stops the window from resizing).
 - OTA: our own encryption and signing code (`pawlegends-app/scripts/lib/capgo-crypto.mjs`) in the format the
   updater checks natively, instead of the Capgo CLI. Secret name `OTA_PRIVATE_KEY` (not `CAPGO_PRIVATE_KEY`). Files
   at `client/public/pawlegends-app/updates/ios/<compat>/` (`manifest.json`, `manifest-beta.json`,

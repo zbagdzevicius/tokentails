@@ -24,7 +24,7 @@ import { slideAngle } from '../../src/input/orders';
 import { cellOf, createGrid, walkable } from '../../src/sim/map/grid';
 import { rosterCosmetics, type RosterCat } from '../../src/meta/roster';
 import { companionCoat, kittenCoat } from '../../src/render/cosmetics';
-import { zoomMax, ZOOM_MAX, ZOOM_MAX_WIDE } from '../../src/render/camera/zoom';
+import { CAMERA_HEIGHTS } from '../../src/render/camera/height';
 import { TalentPicker, TALENT_AUTO_S } from '../../src/ui/talents';
 import { coreId, quietMatch } from './sim-helpers';
 import { heroMatch, hold, place } from './heroes/kit-helpers';
@@ -234,10 +234,9 @@ describe('round 2 client: names, cats and controls', () => {
     expect(slideAngle(50000, 30000, 0)).toBe(0);
   });
 
-  it('desktop windows 1100 px and wider zoom out further', () => {
-    expect(zoomMax(1280)).toBe(ZOOM_MAX_WIDE);
-    expect(zoomMax(844)).toBe(ZOOM_MAX);
-    expect(ZOOM_MAX_WIDE / ZOOM_MAX).toBeGreaterThan(1.35);
+  it('feel pass B1: the only camera choice is Normal or High (no free zoom)', () => {
+    expect(Object.keys(CAMERA_HEIGHTS)).toEqual(['normal', 'high']);
+    expect(CAMERA_HEIGHTS.high / CAMERA_HEIGHTS.normal).toBeCloseTo(1.12, 5);
   });
 
   it('the talent auto-pick runs on wall-clock time (a slow phone no longer stretches it)', () => {

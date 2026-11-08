@@ -3,24 +3,38 @@
  * render/quality.ts. Render side only.
  */
 import * as THREE from 'three';
-import { isoPitch, isoPosition } from './camera/IsoRig.js';
+import { isoPosition } from './camera/IsoRig.js';
+import { FOV, PITCH, frameDist, isPhoneLandscape, viewOffsetX, viewOffsetY } from './camera/frame';
 import { cameraYaw } from './coords';
 import { RENDER } from './ppk/core/config.js';
 import { installToon } from './toon.js';
 import { setOutlineViewport } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
 
-/** Camera distance (m) at zoom 1. */
-export const MOBA_DIST = 27;
 /**
- * Camera distance factor on short landscape screens (phones, ≤ 480 CSS px tall): 0.87 in round 0 (~15% closer);
- * round 1 ("units are small, I couldn't tell Cacklejaw from my own Clem") moved it to 0.75, ~16% closer again.
+ * Feel pass B1: the match camera's distance, pitch, FOV and the hero's screen spot come from camera/frame.ts (a fixed,
+ * MLBB-style framing). `gr.zoom` is only the Camera height setting (1 Normal, 1.12 High, camera/height.ts).
  */
-export const SHORT_LANDSCAPE_ZOOM = 0.75;
-export const isShortLandscape = (w: number, h: number): boolean => h <= 480 && w / Math.max(1, h) >= 1.6;
+export const isShortLandscape = isPhoneLandscape;
 
-/** Radians below IsoRig's pitch: a MOBA reads better a little more side-on (heroes, not hats). */
-export const MOBA_PITCH_DROP = 0.16;
+/**
+ * Feel pass B1: place `camera` for the match view: the fixed framing for a `w` × `h` CSS px viewport (frameDist ×
+ * `zoom`, the Camera height step), the fixed pitch and FOV, the camera `yaw`, and the view offset that puts `focus`
+ * at HERO_AT on screen. Returns the distance. Pure (no renderer), so tests project with it.
+ */
+export function placeMatchCamera(camera: THREE.PerspectiveCamera, focus: { x: number; y: number; z: number }, yaw: number, w: number, h: number, zoom = 1): number {
+  const d = frameDist(w, h) * zoom;
+  const pos = { x: 0, y: 0, z: 0 };
+  isoPosition(focus, yaw, PITCH, d, pos);
+  camera.position.set(pos.x, pos.y, pos.z);
+  camera.lookAt(focus.x, focus.y, focus.z);
+  camera.fov = FOV;
+  camera.aspect = w / Math.max(1, h);
+  camera.setViewOffset(w, h, viewOffsetX(w), viewOffsetY(h), w, h);
+  camera.updateProjectionMatrix();
+  camera.updateMatrixWorld();
+  return d;
+}
 
 /**
  * Sun shadow box (m): the half-size follows the ground the camera sees (the farthest view corner from the box centre
@@ -47,7 +61,7 @@ export interface GameRenderer {
   camera: THREE.PerspectiveCamera;
   /** Ground point the camera looks at (metres, three.js coordinates). */
   focus: THREE.Vector3;
-  /** Zoom factor (render/camera/zoom.ts): the camera distance is MOBA_DIST × zoom (× SHORT_LANDSCAPE_ZOOM on phones). */
+  /** Camera height factor (render/camera/height.ts): the distance is frameDist(viewport) × zoom. */
   zoom: number;
   /** The camera's distance to the focus (m) at the last draw. */
   dist: number;
@@ -122,10 +136,10 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
     sun.position.set(boxAt.x - 20, 40, boxAt.z + 25);
   };
 
-  const camera = new THREE.PerspectiveCamera(38, 1, 0.5, 300);
+  const camera = new THREE.PerspectiveCamera(FOV, 1, 0.5, 300);
   const focus = new THREE.Vector3(10, 0, -30);
-  const pos = { x: 0, y: 0, z: 0 };
-  let near = 1;
+  let vw = 1;
+  let vh = 1;
 
   const gr: GameRenderer = {
     renderer,
@@ -133,7 +147,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
     camera,
     focus,
     zoom: 1,
-    dist: MOBA_DIST,
+    dist: 21,
     shadowHalf: 30,
     settings: settings0,
     preRender: null,
@@ -157,25 +171,21 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       const h = Math.max(1, container.clientHeight);
       renderer.setSize(w, h, false);
       camera.aspect = w / h;
-      near = isShortLandscape(w, h) ? SHORT_LANDSCAPE_ZOOM : 1;
+      vw = w;
+      vh = h;
     },
     render() {
       setOutlineViewport(renderer.domElement.width, renderer.domElement.height);
-      // PPK frames one knight at 9–18 m; a MOBA needs the lane in view, so the distance is MOBA_DIST × zoom and the
-      // pitch follows IsoRig's distance curve (58° at the far end).
       if (gr.place) {
+        camera.clearViewOffset();
         gr.place(camera);
         camera.updateProjectionMatrix();
         renderer.render(gr.active, camera);
         return;
       }
-      const d = MOBA_DIST * gr.zoom * near;
-      gr.dist = d;
-      isoPosition(focus, cameraYaw(), Math.max(0.8, isoPitch(d) - MOBA_PITCH_DROP), d, pos);
-      camera.position.set(pos.x, pos.y, pos.z);
-      camera.lookAt(focus);
-      camera.updateProjectionMatrix();
-      camera.updateMatrixWorld();
+      // feel pass B1: a fixed framing: the distance fits the viewport (frameDist × the Camera height step), the pitch
+      // and FOV never change, and the view offset puts the focus (the hero) at HERO_AT on screen
+      gr.dist = placeMatchCamera(camera, focus, cameraYaw(), vw, vh, gr.zoom);
       if (gr.settings.shadows) fitShadow();
       else {
         sun.target.position.copy(focus);

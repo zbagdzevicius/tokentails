@@ -21,14 +21,11 @@
  * landing for GHOST_MS. With the joystick held, the run goes on from the landing at once and
  * the stick keeps steering from there (never from the drawn hero still short of it) until the sim shows the cast.
  *
- * Two fingers on the bare canvas pinch the camera zoom (render/camera/zoom.ts; remembered like the desktop wheel).
- * A joystick already in use is never part of a pinch: a second finger is then a tap (it locks the hero under it) and
- * the stick keeps steering. When the joystick finger has not moved yet, the pair becomes a pinch only once both
- * fingers have moved past TAP.px and their gap changed by PINCH_PX; then the stick lets go and both fingers zoom.
- * Once that thumb steers on its own (stickSteersAlone) the pair can no longer become a pinch. When the other finger
- * lifts after a pinch, the joystick thumb still down is a joystick again (a fresh base under it).
+ * Feel pass B1: the camera is fixed (no pinch zoom): a second finger on the bare canvas is a tap (it locks the hero
+ * under it) and the stick keeps steering.
  */
-import { viewSign } from '../../render/coords';
+import { screenToSim } from '../../render/coords';
+import { haptic } from '../../ui/haptics';
 import { sfx } from '../../audio/sfx';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { rankPips } from '../../ui/heroText';
@@ -40,13 +37,13 @@ import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
 import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, towerTarget, type Unit } from '../targeting';
-import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, magnetOn, TargetLock } from './assist';
+import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
+import { HEROES } from '../../data/heroes';
 import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
-import { pinchZoom, saveZoom, zoomMax } from '../../render/camera/zoom';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -59,12 +56,14 @@ export function turnBetween(a: number, b: number): number {
  * again after this long, so the hero never freezes with the thumb on the stick.
  */
 export const STICK = Object.freeze({ radius: 60, dead: 12, aheadMm: 2000, turn: (Math.PI * 2) / 32, everyMs: 100, refreshMm: 1000, stallMs: 300 });
-const DRAG_PX = 16;
-const DRAG_FULL_PX = 90;
+/** Feel pass B4: a skill press becomes a drag aim past this many px (a release inside it is a quick cast). */
+export const DRAG_PX = 18;
+/** Feel pass B4: full range at this much thumb travel (px), shortened toward a near screen edge. */
+export const DRAG_FULL_PX = 100;
 /** CF-03: a ground or unit aim dragged toward a near screen edge reaches full range this many px short of it. */
 const EDGE_PAD_PX = 10;
 /** CF-03: the shortest drag that still means full range, however near the edge. */
-const DRAG_FULL_MIN_PX = 36;
+const DRAG_FULL_MIN_PX = 40;
 
 /**
  * Audit CF-03: the drag length (px) that means full range for a ground or unit aim from (x0, y0) along screen
@@ -100,8 +99,32 @@ export const AIM_BACK_PX = 24;
  * across it still casts.
  */
 export const CANCEL_DWELL_MS = 120;
-/** Hit slack around the ✕ (px). */
-const CANCEL_SLACK = 12;
+/**
+ * Hit slack around the cancel bubble (px). Feel pass B4: none: the bubble's 72 px disc 150 px up starts 114 px from the
+ * button, past the 100 px full-range ring, so a thumb that overshoots a full-range aim a little still casts.
+ */
+const CANCEL_SLACK = 0;
+/**
+ * Feel pass B4 (MLBB / Wild Rift): the cancel bubble: CANCEL_BUBBLE.d px across, `above` px above the pressed button
+ * (thumb travel past the full-range ring), clamped `inset` px inside the screen.
+ */
+export const CANCEL_BUBBLE = Object.freeze({ d: 72, above: 150, inset: 12 });
+/** The bubble's centre stays at least this far (px) from the button: its edge clears the full-range ring by 8 px. */
+export const CANCEL_CLEAR_PX = DRAG_FULL_PX + CANCEL_BUBBLE.d / 2 + 8;
+/**
+ * Where the cancel bubble sits for a button centred at (bx, by) on a `w` × `h` screen (its centre, px). Pure. When the
+ * top edge pushes it down (a high button, "Button size: Large"), it slides sideways toward the screen centre until it
+ * is CANCEL_CLEAR_PX from the button again, so an aim at full range never rests on it.
+ */
+export function cancelBubbleAt(bx: number, by: number, w: number, h: number): { x: number; y: number } {
+  const r = CANCEL_BUBBLE.d / 2 + CANCEL_BUBBLE.inset;
+  const clampX = (x: number): number => Math.max(r, Math.min(w - r, x));
+  const y = Math.max(r, Math.min(h - r, by - CANCEL_BUBBLE.above));
+  const dy = Math.abs(by - y);
+  if (dy >= CANCEL_CLEAR_PX) return { x: clampX(bx), y };
+  const side = bx > w / 2 ? -1 : 1;
+  return { x: clampX(bx + side * Math.sqrt(CANCEL_CLEAR_PX * CANCEL_CLEAR_PX - dy * dy)), y };
+}
 const ATTACK_REPEAT_MS = 350;
 /** C9: Nap goes after the button is held this long (ms), so a stray thumb never sends the hero home. */
 export const NAP_HOLD_MS = 300;
@@ -109,7 +132,7 @@ export const NAP_HOLD_MS = 300;
 const ATK_TIP_MAX = 2;
 const ATK_TIP_KEY = 'pawlegends.atkNoneTips';
 /** A skill button held this long (ms) without a drag shows its range and smart aim (CAST.hold; a tap stays a tap). */
-const HOLD_PREVIEW_MS = 200;
+export const HOLD_PREVIEW_MS = 180;
 /** The idle auto-attack measures edge to edge with this slack (mm), like the Attack button (C13). */
 const AUTO_SLACK = 300;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
@@ -118,30 +141,18 @@ export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 export const GHOST_MS = 150;
 /** After a heading cast with the joystick held, the stick steers from the landing at most this long (ms) before the sim shows it. */
 export const BLINK_GUARD_MS = 600;
-/** A joystick finger plus a second finger turn into a pinch only after their gap changes by this many CSS px. */
-export const PINCH_PX = 24;
 /** A held stick's heading cast takes the wall-slide direction over the raw stick only when it lands this much further (mm). */
 const CAST_SLIDE_GAIN_MM = 300;
 
-/**
- * Two canvas touches, one of them a still joystick: has the pair become a pinch? Both fingers moved past TAP.px from
- * where they landed and their gap changed by PINCH_PX (a tap or a steering thumb alone never zooms).
- */
-export function pinchCommitted(a: TouchPt, b: TouchPt): boolean {
-  const moved = (p: TouchPt) => Math.hypot(p.x - p.x0, p.y - p.y0) > TAP.px;
-  const gap0 = Math.hypot(a.x0 - b.x0, a.y0 - b.y0);
-  const gap = Math.hypot(a.x - b.x, a.y - b.y);
-  return moved(a) && moved(b) && Math.abs(gap - gap0) >= PINCH_PX;
-}
 export type TouchPt = { x: number; y: number; x0: number; y0: number };
-/**
- * A still joystick plus a resting second finger: has the thumb started steering on its own? It travelled past 2 × TAP.px
- * while the other finger stayed within TAP.px. From then on the stick is in use and the pair never becomes a pinch,
- * however the resting finger drifts later (a real pinch moves both fingers together, so it commits first).
- */
-export function stickSteersAlone(stick: TouchPt, other: TouchPt): boolean {
-  const travel = (p: TouchPt) => Math.hypot(p.x - p.x0, p.y - p.y0);
-  return travel(stick) > TAP.px * 2 && travel(other) <= TAP.px;
+
+/** Feel pass B3: a released joystick rests faintly where it was for this long (ms), then is not drawn at all. */
+export const STICK_IDLE_MS = 3000;
+/** Feel pass B3: the joystick zone: the left 40% × bottom 70% of the screen (mirrored for the left-handed layout). */
+export const STICK_ZONE = Object.freeze({ w: 0.4, h: 0.7 });
+export function inStickZone(x: number, y: number, w: number, h: number, lefty = false): boolean {
+  const side = lefty ? x >= w * (1 - STICK_ZONE.w) : x < w * STICK_ZONE.w;
+  return side && y >= h * (1 - STICK_ZONE.h);
 }
 
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
@@ -162,6 +173,8 @@ interface Drag {
   at: number;
   /** A heading cast: the press sent it, the release only lets the button go. */
   fired?: boolean;
+  /** Feel pass B4: the cancel bubble's centre (px) for this press, once shown. */
+  bubble?: { x: number; y: number } | null;
 }
 
 export class TouchControls {
@@ -213,13 +226,8 @@ export class TouchControls {
   private readonly wire = new ReturnWindow();
   /** Heading presses that sent (or buffered) a cast, and heading casts that went out (e2e telemetry). */
   heads = { press: 0, fired: 0 };
-  /** Touches down on the bare canvas (pointer id → position), and the pinch two of them make. */
+  /** Touches down on the bare canvas (pointer id → position). */
   private readonly canvasTouches = new Map<number, TouchPt>();
-  private pinch: { a: number; b: number; d0: number; z0: number; stickId: number | null } | null = null;
-  /** A still joystick plus a second finger: a pinch only if both fingers then move apart or together (pinchCommitted). */
-  private pinchMaybe = false;
-  /** Pinches started (e2e telemetry). */
-  pinches = 0;
   /** Put an icon (inline SVG markup) on each ability button: q, w, e, r, trick. */
   setIcons(icons: Record<'q' | 'w' | 'e' | 'r' | 'trick', string>): void {
     for (const [k, svg] of Object.entries(icons)) {
@@ -238,17 +246,17 @@ export class TouchControls {
     root.innerHTML = `
       <div class="pl-stick"><div class="pl-knob"></div></div>
       <div class="pl-aimring" aria-hidden="true"><i class="full"></i><i class="smart"></i></div>
-      <div class="pl-cancel" aria-label="Cancel">✕</div>
+      <div class="pl-cancel" aria-label="Cancel"><i aria-hidden="true"></i></div>
       <div class="pl-tcluster">
         <button class="pl-tbtn attack" data-b="attack" aria-label="Attack"><span>ATK</span></button>
         <button class="pl-tbtn q" data-b="q" aria-label="Q"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn w" data-b="w" aria-label="W"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
         <button class="pl-tbtn e" data-b="e" aria-label="E"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i></button>
-        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i><i class="lv">Lv ${ULT_LEVEL}</i></button>
+        <button class="pl-tbtn r" data-b="r" aria-label="R"><b class="ico"></b><i class="cd"></i><span></span><i class="rk"></i><i class="lv" aria-label="Unlocks at level ${ULT_LEVEL}"><b class="lock" aria-hidden="true"></b>${ULT_LEVEL}</i></button>
         <button class="pl-tbtn trick" data-b="trick" aria-label="Paw Trick"><b class="ico"></b><i class="cd"></i><span></span></button>
         <button class="pl-tbtn nap" data-b="nap" aria-label="Nap"><span>Nap</span></button>
-        ${lastHitButton() ? '<button class="pl-tbtn lasthit" data-b="lasthit" aria-label="Last hit a minion"><span>LH</span></button>' : ''}
-        ${towerButton() ? '<button class="pl-tbtn tower" data-b="tower" aria-label="Attack a tower"><span>TWR</span></button>' : ''}
+        ${lastHitButton() ? '<button class="pl-tbtn lasthit gone" data-b="lasthit" aria-label="Last hit a minion"><span>LH</span></button>' : ''}
+        ${towerButton() ? '<button class="pl-tbtn tower gone" data-b="tower" aria-label="Attack a tower"><span>TWR</span></button>' : ''}
       </div>`;
     parent.appendChild(root);
     this.root = root;
@@ -293,16 +301,23 @@ export class TouchControls {
     // last-hit and tower buttons at every size, mirrored with the arc
     const html = document.documentElement;
     html.style.setProperty('--arc-reach', `${Math.ceil(reach)}px`);
+    // feel pass B3: the arc's scale, for the pieces placed beside it (the target-lock row)
+    html.style.setProperty('--arc-k', (l.attack.d / 92).toFixed(3));
+    // the locked R is a 44 px ghost chip in its slot
+    html.style.setProperty('--r-ghost', (44 / l.r.d).toFixed(4));
     html.dataset.lefty = lefty ? '1' : '';
-    this.h.view.mirrorLead = lefty && this.enabled;
   }
 
-  /** UX pass 2: the left-handed mirror is on (the joystick takes the right half of the screen). */
+  /** UX pass 2: the left-handed mirror is on (the joystick takes the right side of the screen). */
   private lefty = false;
+  /** Feel pass B3: when the stick was let go (ms; it hides STICK_IDLE_MS later), 0 = hidden. */
+  private stickIdleAt = 0;
+  /** Feel pass B3: the last-hit and tower buttons show only while they have a target; R pops when it unlocks. */
+  private extraAt = 0;
+  private rLocked = true;
 
   enable(on: boolean): void {
     this.enabled = on;
-    this.h.view.mirrorLead = on && this.lefty;
     this.root.classList.toggle('on', on);
     document.documentElement.dataset.touch = on ? '1' : '';
   }
@@ -338,24 +353,13 @@ export class TouchControls {
     this.h.onActivity('touch');
     sfx.unlock();
     this.canvasTouches.set(e.pointerId, { x: e.clientX, y: e.clientY, x0: e.clientX, y0: e.clientY });
-    this.pinchMaybe = false;
-    if (this.canvasTouches.size === 2 && !this.pinch) {
-      e.preventDefault();
-      const stickIn = this.stick !== null && this.canvasTouches.has(this.stick.id);
-      if (!stickIn) {
-        this.startPinch();
-        return;
-      }
-      // the joystick is one of the two: a steering stick keeps steering and this finger is a tap; a still one may
-      // still turn into a pinch once both fingers move (move())
-      this.pinchMaybe = !this.stick!.moved;
-    }
+    if (this.canvasTouches.size >= 2) e.preventDefault();
     if (!this.h.enabled()) return;
     // event time stamps, not handler time: a slow frame between the two handlers must not turn a tap into a hold
     this.tap = { id: e.pointerId, x: e.clientX, y: e.clientY, at: e.timeStamp };
-    // the joystick half: the left one, or the right one in the left-handed mirror
-    const stickSide = this.lefty ? e.clientX >= window.innerWidth * 0.5 : e.clientX < window.innerWidth * 0.5;
-    if (stickSide && !this.stick) {
+    // feel pass B3: the floating joystick lands where the thumb does, in the left 40% × bottom 70% of the screen (the
+    // right 40% in the left-handed mirror)
+    if (inStickZone(e.clientX, e.clientY, window.innerWidth, window.innerHeight, this.lefty) && !this.stick) {
       e.preventDefault();
       this.grabStick(e.pointerId, e.clientX, e.clientY, e.timeStamp);
     }
@@ -367,6 +371,7 @@ export class TouchControls {
     const b = stickBase(x, y, window.innerWidth, window.innerHeight);
     this.stick = { id, bx: b.x, by: b.y, x, y, moved: false, at };
     this.stickEl.style.transform = `translate(${b.x}px, ${b.y}px)`;
+    this.stickEl.classList.remove('idle');
     this.stickEl.classList.add('on');
     this.knobEl.style.transform = `translate(calc(-50% + ${x - b.x}px), calc(-50% + ${y - b.y}px))`;
     this.lastStick.a = NaN;
@@ -422,43 +427,11 @@ export class TouchControls {
     this.syncRing();
   }
 
-  /** Two canvas touches: a pinch. The joystick (if one of them) lets go; no tap fires. */
-  private startPinch(): void {
-    const [a, b] = [...this.canvasTouches.keys()];
-    const pa = this.canvasTouches.get(a)!;
-    const pb = this.canvasTouches.get(b)!;
-    const stickId = this.stick && (this.stick.id === a || this.stick.id === b) ? this.stick.id : null;
-    this.pinch = { a, b, d0: Math.max(1, Math.hypot(pa.x - pb.x, pa.y - pb.y)), z0: this.h.view.zoomTarget, stickId };
-    this.pinches++;
-    this.tap = null;
-    if (stickId !== null) {
-      this.stick = null;
-      this.stickEl.classList.remove('on');
-    }
-  }
-
   private move(e: PointerEvent): void {
     const ct = this.canvasTouches.get(e.pointerId);
     if (ct) {
       ct.x = e.clientX;
       ct.y = e.clientY;
-      if (this.pinchMaybe && this.canvasTouches.size === 2) {
-        const [a, b] = [...this.canvasTouches.values()];
-        if (pinchCommitted(a, b)) {
-          this.pinchMaybe = false;
-          this.startPinch();
-          return;
-        }
-        const st = this.stick ? this.canvasTouches.get(this.stick.id) : undefined;
-        if (st && stickSteersAlone(st, st === a ? b : a)) this.pinchMaybe = false;
-      }
-      const p = this.pinch;
-      if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
-        const pa = this.canvasTouches.get(p.a);
-        const pb = this.canvasTouches.get(p.b);
-        if (pa && pb) this.h.view.zoomTarget = pinchZoom(p.z0, p.d0, Math.hypot(pa.x - pb.x, pa.y - pb.y), zoomMax(window.innerWidth));
-        return;
-      }
     }
     if (this.stick && e.pointerId === this.stick.id) {
       this.stick.x = e.clientX;
@@ -488,7 +461,7 @@ export class TouchControls {
     if (g.fired) return;
     if (!g.dragging && Math.hypot(g.x - g.x0, g.y - g.y0) > DRAG_PX) {
       g.dragging = true;
-      this.cancelEl.classList.add('on');
+      this.showBubble(g);
       this.showAimRing(g);
     }
     if (g.dragging) this.aimRingEl.classList.toggle('back', this.aimBack(g));
@@ -515,34 +488,39 @@ export class TouchControls {
     el.classList.add('on');
   }
 
-  /** CF-01: is the thumb on the ✕, and has it rested there for CANCEL_DWELL_MS? ('arming' while it waits, 'hot' once armed). */
+  /**
+   * Feel pass B4: the cancel bubble fades in above the pressed button (when the drag or the hold starts), not at the
+   * top centre 300 px away: a thumb pushed past the full-range ring and rested there cancels.
+   */
+  private showBubble(g: Drag): void {
+    if (g.bubble) return;
+    const el = this.buttons.get(g.btn);
+    const r = el?.getBoundingClientRect();
+    const bx = r && r.width > 0 ? r.left + r.width / 2 : g.x0;
+    const by = r && r.height > 0 ? r.top + r.height / 2 : g.y0;
+    g.bubble = cancelBubbleAt(bx, by, window.innerWidth, window.innerHeight);
+    this.cancelEl.style.transform = `translate(${g.bubble.x}px, ${g.bubble.y}px)`;
+    this.cancelEl.classList.remove('hot', 'arming');
+    this.cancelEl.classList.add('on');
+  }
+
+  /** CF-01: is the thumb on the cancel bubble, and has it rested there for CANCEL_DWELL_MS? ('arming' while it waits, 'hot' once armed). */
   private checkCancel(g: Drag, now: number): void {
-    const r = this.cancelEl.getBoundingClientRect();
-    const inside = r.width > 0 && g.x >= r.left - CANCEL_SLACK && g.x <= r.right + CANCEL_SLACK && g.y >= r.top - CANCEL_SLACK && g.y <= r.bottom + CANCEL_SLACK;
+    const b = g.bubble;
+    const inside = !!b && Math.hypot(g.x - b.x, g.y - b.y) <= CANCEL_BUBBLE.d / 2 + CANCEL_SLACK;
     if (!inside) g.cancelIn = null;
     else if (g.cancelIn === null) g.cancelIn = now;
     const was = g.overCancel;
     g.overCancel = inside && g.cancelIn !== null && now - g.cancelIn >= CANCEL_DWELL_MS;
     this.cancelEl.classList.toggle('arming', inside && !g.overCancel);
     this.cancelEl.classList.toggle('hot', g.overCancel);
+    // armed: a haptic tick (the bubble turns red)
+    if (g.overCancel && !was) haptic('cast');
     if (g.overCancel !== was) this.preview(g);
   }
 
   private up(e: PointerEvent, cancelled = false): void {
-    if (this.canvasTouches.delete(e.pointerId)) {
-      this.pinchMaybe = false;
-      const p = this.pinch;
-      if (p && (e.pointerId === p.a || e.pointerId === p.b)) {
-        this.pinch = null;
-        saveZoom(this.h.view.zoomTarget);
-        if (this.tap?.id === e.pointerId) this.tap = null;
-        // the joystick thumb that stays down steers again (a fresh base where it rests), no lift and press needed
-        const rest = p.stickId !== null && p.stickId !== e.pointerId ? this.canvasTouches.get(p.stickId) : undefined;
-        // (at: Infinity, so lifting it still stops the hero only if it steered: a zoom alone never stops a walk)
-        if (rest && !this.stick && this.h.enabled()) this.grabStick(p.stickId!, rest.x, rest.y, Infinity);
-        return;
-      }
-    }
+    this.canvasTouches.delete(e.pointerId);
     const tp = this.tap;
     if (tp && tp.id === e.pointerId) {
       this.tap = null;
@@ -552,6 +530,10 @@ export class TouchControls {
       const s = this.stick;
       this.stick = null;
       this.stickEl.classList.remove('on');
+      // feel pass B3: the released stick rests faintly where it was (30%) and is gone after STICK_IDLE_MS
+      this.stickEl.classList.add('idle');
+      this.knobEl.style.transform = 'translate(-50%, -50%)';
+      this.stickIdleAt = performance.now();
       // C4: only a real stick release stops the hero; a still tap (locking a hero, a stray touch) keeps its attack going
       if (!cancelled && this.h.enabled() && (s.moved || e.timeStamp - s.at > TAP.ms)) this.h.orders.stop();
       return;
@@ -618,11 +600,12 @@ export class TouchControls {
   stickAngle(): number | null {
     const s = this.stick;
     if (!s) return null;
-    // MAP-GAPS A24: a team-1 seat's screen is turned 180° from the map
-    const k = viewSign();
-    const dx = (s.x - s.bx) * k;
-    const dy = -(s.y - s.by) * k;
-    return Math.hypot(dx, dy) > STICK.dead ? Math.atan2(dy, dx) : null;
+    // feel pass B2: the screen is turned by the view yaw (diagonal, plus 180° for a team-1 seat)
+    const sx = s.x - s.bx;
+    const sy = -(s.y - s.by);
+    if (Math.hypot(sx, sy) <= STICK.dead) return null;
+    const v = screenToSim(sx, sy);
+    return Math.atan2(v.y, v.x);
   }
 
   /**
@@ -633,7 +616,7 @@ export class TouchControls {
   tapAim(slot: CastIndex, me: Unit): { x: number; y: number; id: number } {
     const aim = this.h.orders.aimSpec(slot);
     if (aim.heading) return { ...headingPoint(aim, me, this.heading(me, aim)), id: 0xff };
-    const p = smartAim(aim, this.h.units(), me, this.h.view.myTeam, this.facing(), this.lockedId());
+    const p = smartAim(aim, this.targets(), me, this.h.view.myTeam, this.facing(), this.lockedId());
     // CF-03: a blink (Pounce, Avietė E) follows the held stick too, at full range (smartAim's fallback is the facing)
     const a = aim.blink ? this.stickCastAngle(me, aim, performance.now()) : aim.kind === 'dir' ? this.stickAngle() : null;
     if (a === null) return p;
@@ -715,6 +698,13 @@ export class TouchControls {
    * the Live Wire return window, from where the sim had her before the blink (the snapshot of the tick before).
    */
   onSimEvent(ev: SimEvent): void {
+    if (ev.type === 'cast' && ev.slot === 2 && ev.src !== this.h.view.mySlot) {
+      const v = this.h.view.frame?.byId.get(ev.src);
+      if (v?.hero === 'howler' && v.team !== this.h.view.myTeam) {
+        const tickMs = 1000 / TICK_HZ / Math.max(1, this.h.orders.speed);
+        this.deter.set(ev.src, performance.now() + (HEROES.howler.abilities.e.duration ?? 30) * tickMs);
+      }
+    }
     if (ev.type !== 'cast' || ev.src !== this.h.view.mySlot) return;
     const r = this.runOn;
     if (r && r.slot === ev.slot && r.tick === null) r.tick = ev.tick;
@@ -778,12 +768,15 @@ export class TouchControls {
   /** World aim point (mm) of a drag from its button. */
   private dragTarget(g: Drag, slot: CastIndex, me: Unit): { x: number; y: number; id: number } | null {
     const aim = this.h.orders.aimSpec(slot);
-    const sg = viewSign();
-    const dx = (g.x - g.x0) * sg;
-    const dy = -(g.y - g.y0) * sg;
+    // feel pass B2: a drag up-right on screen aims up-right on screen, for both seats
+    const v = screenToSim(g.x - g.x0, -(g.y - g.y0));
+    const dx = v.x;
+    const dy = v.y;
     const len = Math.hypot(dx, dy);
     if (len < 1) return null;
-    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, len / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
+    // the reach follows the thumb's screen distance (screenToSim stretches the up part into ground units)
+    const screenLen = Math.hypot(g.x - g.x0, g.y - g.y0);
+    const k = aim.kind === 'point' || aim.kind === 'unit' ? Math.min(1, screenLen / dragFullPx(g.x0, g.y0, g.x - g.x0, g.y - g.y0, window.innerWidth, window.innerHeight)) : 1;
     const x = me.x + (dx / len) * aim.range * k;
     const y = me.y + (dy / len) * aim.range * k;
     if (aim.kind === 'unit') {
@@ -836,7 +829,23 @@ export class TouchControls {
 
   /** The locked enemy hero while the lock holds (GAPS A5), else null. */
   lockedId(): number | null {
-    return this.lock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now());
+    return this.lock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now(), lockBreakMm(this.range()));
+  }
+
+  /**
+   * Feel pass B4: enemy Howlers arguing back (Talk Back, his E: each hero that hits him is feared) until (ms). The
+   * Attack ring, the Attack button and the quick-cast auto-target skip them, as the bots do (`deterBasics`); a lock
+   * still wins (the player chose it). Client only, from the cast events.
+   */
+  private readonly deter = new Map<number, number>();
+  /** The units the auto-targeting may pick (an arguing Howler left out). */
+  private targets(): readonly Unit[] {
+    const all = this.h.units();
+    if (this.deter.size === 0) return all;
+    const now = performance.now();
+    for (const [id, until] of this.deter) if (now >= until) this.deter.delete(id);
+    const lock = this.lock.id;
+    return all.filter((u) => !this.deter.has(u.id) || u.id === lock);
   }
 
   /**
@@ -910,7 +919,7 @@ export class TouchControls {
     // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
     const kill = this.killFn();
     // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
-    const id = attackPreview(units, me, this.h.view.myTeam, range, this.first, kill, locked);
+    const id = attackPreview(this.targets(), me, this.h.view.myTeam, range, this.first, kill, locked);
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
     // field had ringed before this tap (the last preview drawn, at most 100 ms old)
     this.lastPick = {
@@ -960,6 +969,24 @@ export class TouchControls {
     }
   }
 
+  /**
+   * Feel pass B3: the last-hit button shows only while a minion one hit kills is in reach, the tower button only while
+   * an enemy structure is (hidden, not faded), checked every 100 ms. `extraShown` is e2e telemetry.
+   */
+  extraShown = { lasthit: false, tower: false };
+  private updateExtras(me: Unit | null, now: number): void {
+    if (now - this.extraAt < 100) return;
+    this.extraAt = now;
+    const alive = !!me && me.state !== 'dead' && this.h.enabled();
+    const units = alive ? this.h.units() : [];
+    const team = this.h.view.myTeam;
+    const lh = alive && lastHitTarget(units, me!, team, this.range(), this.killFn()) !== null;
+    const tw = alive && towerTarget(units, me!, team, this.range()) !== null;
+    if (lh !== this.extraShown.lasthit) this.buttons.get('lasthit')?.classList.toggle('gone', !lh);
+    if (tw !== this.extraShown.tower) this.buttons.get('tower')?.classList.toggle('gone', !tw);
+    this.extraShown = { lasthit: lh, tower: tw };
+  }
+
   /** Last-hit and tower button presses that found a target (e2e telemetry). */
   extraHits = { lasthit: 0, tower: 0 };
   /** UX pass 2: what Attack would hit now without walking (ringed on the field), and when it was last worked out (ms). */
@@ -971,7 +998,7 @@ export class TouchControls {
     if (now - this.previewAt < 100) return;
     this.previewAt = now;
     const units = this.h.units();
-    const id = me && me.state !== 'dead' ? attackPreview(units, me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
+    const id = me && me.state !== 'dead' ? attackPreview(this.targets(), me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
     // out of reach the tap walks first: the ring dims
     const far = id !== null && !!me && !inAttackReach(units.find((u) => u.id === id), me, this.range());
     this.h.view.atkPreviewFar = far;
@@ -998,7 +1025,7 @@ export class TouchControls {
     // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
     // CF-02: the Attack button's order (Settings "Target first"), in range only
     // UX pass 2: only the very unit the Attack button rings (attackPreview, the lock first), and only in reach
-    const id = autoAttackTarget(this.h.units(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.lockedId());
+    const id = autoAttackTarget(this.targets(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.lockedId());
     if (id === null) return;
     this.autoAt = now;
     this.autos++;
@@ -1010,8 +1037,8 @@ export class TouchControls {
    * the lane magnet, and turned to slide along a wall it pushes into (steer() walks this; a heading cast flies it).
    */
   private walkAngle(me: Unit, o: { x: number; y: number }, dx: number, dy: number): number {
-    const k = viewSign();
-    const raw = Math.atan2(dy * k, dx * k);
+    const v = screenToSim(dx, dy);
+    const raw = Math.atan2(v.y, v.x);
     const tilt = Math.min(1, Math.hypot(dx, dy) / STICK.radius);
     return slideAngle(o.x, o.y, magnetOn(tilt, me, this.h.units(), this.h.view.myTeam) ? laneMagnet(o.x, o.y, raw) : raw);
   }
@@ -1106,12 +1133,20 @@ export class TouchControls {
       this.runOn = null;
     }
     this.updatePreview(this.h.enabled() ? me : null, now);
+    if (this.stickIdleAt > 0 && !this.stick && now - this.stickIdleAt >= STICK_IDLE_MS) {
+      this.stickIdleAt = 0;
+      this.stickEl.classList.remove('idle');
+    }
+    this.updateExtras(me, now);
     if (this.ghostUntil > 0 && now >= this.ghostUntil) {
       this.ghostUntil = 0;
       if (![...this.drags.values()].some((g) => !g.fired && g.dragging)) this.h.view.aim = null;
     }
     for (const g of this.drags.values()) {
-      if (!g.fired && !g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) this.previewHold(g);
+      if (!g.fired && !g.dragging && now - g.at >= HOLD_PREVIEW_MS && this.h.enabled()) {
+        this.previewHold(g);
+        this.showBubble(g);
+      }
       // CF-01: a thumb resting still on the ✕ sends no pointermove, so the dwell is checked per frame too
       if (g.dragging && g.cancelIn !== null && !g.overCancel) this.checkCancel(g, now);
     }
@@ -1134,6 +1169,14 @@ export class TouchControls {
         setTimeout(() => el.classList.remove('cdflash'), 320);
       }
       el.classList.toggle('locked', locked);
+      if (b === 'r' && this.rLocked && !locked) {
+        // feel pass B3: the 44 px ghost chip grows to the full R button with a pop
+        el.classList.remove('unlock-pop');
+        void el.offsetWidth;
+        el.classList.add('unlock-pop');
+        setTimeout(() => el.classList.remove('unlock-pop'), 420);
+      }
+      if (b === 'r') this.rLocked = locked;
       el.classList.toggle('cooling', cd > 0);
       const f = max[i] > 0 ? Math.min(1, cd / max[i]) : 0;
       el.style.setProperty('--cd', String(f));

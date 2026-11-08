@@ -1,9 +1,19 @@
-# Pawlegends iOS app
+# Pawlegends iOS and Mac app
 
 The App Store build of Pawlegends: a standalone Capacitor 7 app (`com.tokentails.pawlegends`) with the game bundled
 inside, landscape only, that updates its web game over the air from tokentails.com. Plan and review-risk register:
 [`docs/plans/moba/APP-STORE.md`](../docs/plans/moba/APP-STORE.md). The Token Tails app in `client/`
 (`com.tokentails.app`) is a separate project and is not touched by anything here.
+
+The Mac App Store version is the same target built with Mac Catalyst ("Optimize for Mac"), under the same bundle id
+and app record (universal purchase). It runs the same bundled game but takes no over-the-air updates (Mac App Store
+guideline 2.4.5; `takesOtaUpdates` in `src/shell/ota.ts`): a Mac build plays the game it shipped with. Differences, all in `#if
+targetEnvironment(macCatalyst)`: App Sandbox with outgoing network only (`App.entitlements`, Mac SDK only), hardened
+runtime, a resizable 1440×810 window (minimum 1280×720, full screen from the green button or View menu), no title text,
+no Format or Help menu, closing the window quits, the WebView asks for desktop content, and the page gets
+`window.__PL_PLATFORM__ = 'mac'`: the game then keeps the keyboard and mouse controls and desktop HUD
+(`pawlegends/src/app/platform.ts`), and the shell installs no haptics bridge. The app-build guards (no store links,
+no purchases) are the same as on iPhone.
 
 ## Layout
 
@@ -17,6 +27,7 @@ inside, landscape only, that updates its web game over the air from tokentails.c
 | `scripts/ota-keygen.mjs` | Makes the OTA RSA key pair (done once; public key committed in `ota/public-key.pem`) |
 | `scripts/make-icons.mjs`, `scripts/screenshots.mjs` | App icon and launch paw; App Store screenshots (6.9" landscape) |
 | `scripts/build-sim.mjs` | Unsigned simulator build (`--run` installs and launches it) |
+| `scripts/build-mac.mjs` | Unsigned Mac Catalyst build (`--run` opens it; `--run --probe <dir>` writes a snapshot and what the page sees, then quits) |
 | `ios/App/` | The Xcode project: `GameViewController.swift` (landscape, no status bar, home indicator auto-hidden), `AppDelegate.swift` (audio session, screen kept on), `Info.plist`, `PrivacyInfo.xcprivacy` |
 | `fastlane/` | Lanes `check`, `bootstrap`, `build`, `beta`, `metadata`, `release`, `certs`; listing text in `metadata/`, screenshots in `screenshots/` |
 | `store/` | `app-icon-1024.png`; iPad 13" screenshots (`screenshots-ipad/`, not uploaded while iPhone only). Answers to copy into App Store Connect: `docs/plans/moba/APP-STORE-ANSWERS.md` |
@@ -27,6 +38,7 @@ inside, landscape only, that updates its web game over the air from tokentails.c
 npm ci                         # this folder (and npm ci in ../pawlegends)
 npm run build                  # game for the app + shell.js → www/, cap sync ios (pod install), privacy-manifest check
 npm run ios:sim -- --run       # unsigned simulator build, installed and launched
+npm run mac -- --run           # unsigned Mac Catalyst build, opened on this Mac
 npm run typecheck && npm test  # shell types and tests (manifest, OTA flow, zip, crypto, haptics)
 npm run ios:open               # Xcode, for a run on a cabled iPhone (needs a signing team)
 ```
@@ -64,6 +76,15 @@ Manager key, run `bundle exec fastlane ios certs` once on a Mac, export the cert
   `npm run screenshots`, review notes in `fastlane/metadata/review_information`).
 - **Submit for review:** lane `submit` and type `SUBMIT`. Releasing the approved build is a button in App Store
   Connect.
+- **Mac App Store:** first add the macOS platform to the app record in App Store Connect (App Information → Add
+  platform → macOS). Then Actions → *Pawlegends iOS* → lane `mac_beta` (signed .pkg to TestFlight macOS),
+  `mac_metadata` (`fastlane/metadata` with `fastlane/metadata_mac` copied on top: Mac description, promotional text,
+  release notes and review notes; Mac screenshots from `npm run screenshots -- --device mac` in
+  `fastlane/screenshots_mac`), `mac_submit` (type `SUBMIT`). Locally: `bundle exec fastlane mac_beta`. If cloud
+  signing cannot make the Mac Installer Distribution certificate that signs the .pkg, run
+  `bundle exec fastlane mac_certs` once, export the certificate with its key as .p12 and add `MAC_INSTALLER_P12` and
+  `MAC_INSTALLER_PASSWORD`. The Mac app takes no over-the-air updates (Mac App Store guideline 2.4.5): it runs the game
+  bundled in its build, so Mac players get new content only through a new `mac_beta` build.
 - **Over the air:** every push to `main` that changes `pawlegends/` publishes a new bundle (workflow
   *Pawlegends OTA*). It refuses when `api.tokentails.com` does not serve the game's sim: deploy the backend first.
 

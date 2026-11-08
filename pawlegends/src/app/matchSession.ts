@@ -3,7 +3,7 @@
  * touch), HUD, minimap, scoreboard, talents, first-match tips and the Esc menu. The app's frame loop calls
  * `frame(dt)`; the session calls back once with the result and the replay.
  */
-import { setPvpEqualView } from '../render/camera/zoom';
+import { setPvpEqualView } from '../render/camera/height';
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
@@ -13,7 +13,7 @@ import { LocalHost } from '../host/local-host';
 import type { MatchHost } from '../host/protocol';
 import type { WelcomeMsg } from '../host/protocol';
 import { matchSpeedFor } from './mpTypes';
-import { maxCooldown } from '../input/abilities';
+import { basicRange, maxCooldown } from '../input/abilities';
 import { DesktopInput, type InputHost } from '../input/desktop';
 import { Orders } from '../input/orders';
 import { groundAt, project } from '../input/screen';
@@ -28,6 +28,7 @@ import type { GuideMode } from './firstSession';
 import { cardLook, ELEMENT_COLOR, lookKey, type FrameId, type Look } from '../render/cosmetics';
 import { setProbeBlocked } from '../render/skins/spriteProbe';
 import { cardIdentity, cutName, heroSub, selfNames, tidyName, type CardIdentity } from '../meta/cardName';
+import { coarsePointer } from './platform';
 import { getSkin, isCardSkinId, putSkin, type CatSkin } from '../render/skins/skinStore';
 import { eyesOf } from '../render/skins/registry';
 import type { SkinFxMode } from '../render/skins/tierFx';
@@ -36,7 +37,7 @@ import { toX, toZ } from '../render/coords';
 import { FADE, SHAPE } from '../render/fx/Particles.js';
 import { LowHp } from '../render/fx/lowHp';
 import { GameView } from '../render/gameView';
-import { SnapBuffer, type ViewFrame } from '../render/interp';
+import { SnapBuffer, type ViewEntity, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
 import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
@@ -289,6 +290,16 @@ export function behindBanner(kOurs: number, kTheirs: number, tOurs: number, tThe
   return { title: `They lead ${kTheirs} to ${kOurs} on takedowns`, sub: 'Group up with your team and fight together.', tone: 'info' };
 }
 
+/** Feel pass B5: how long (ms, match time) the own plate reads "You" after the start. */
+export const YOU_LABEL_MS = 10_000;
+/** Feel pass B3: the touch target-lock row: enemies within this × the attack range, at most NEAR_ROW_MAX. */
+export const NEAR_ROW_K = 1.5;
+export const NEAR_ROW_MAX = 3;
+/** Feel pass B3: the top strip's objective timer shows from `before` s ahead of the spawn to `after` s past it. */
+export const OBJ_STRIP = Object.freeze({ before: 10, after: 3 });
+/** Feel pass B2: how long (ms) the "Your base: bottom left" toast shows at the start. */
+export const BASE_TOAST_MS = 1200;
+
 export class MatchSession {
   readonly host: MatchHost;
   readonly buffer = new SnapBuffer();
@@ -413,6 +424,13 @@ export class MatchSession {
         // Fun pass (playtest #5): a tip or goal chip that guides the ult already says "Level 4!": no second line
         if (lv === 4 && guided) return true;
         const touch = document.documentElement.dataset.touch === '1';
+        // feel pass B3: on desktop the HUD's "Rank up!" card already shows a level-up: no second line (level 4 keeps it:
+        // it says how to cast the ultimate)
+        if (!touch && lv !== 4) {
+          // (recorded as said: the card shows it)
+          this.view.juice.note(`Level ${lv}`);
+          return true;
+        }
         const what = levelWhat(lv, touch);
         const ranks = touch ? [] : rankUpLines(this.welcome?.picks[this.view.mySlot] ?? 'clem', lv, this.lastTalents);
         const sub = lv === 4 && !guided ? ultHint() : ranks.join(' · ') || undefined;
@@ -431,9 +449,8 @@ export class MatchSession {
         }
       },
       onCoreDown: (who) => {
-        // push the camera in on the falling core (the slow-mo comes from effects)
+        // look at the falling core (the slow-mo comes from effects); feel pass B1: no zoom, the framing stays fixed
         this.view.lookAt(who.x, who.z, 10);
-        this.view.zoomTarget = Math.max(0.6, this.view.zoomTarget * 0.75);
       },
     });
     this.view.juice.stage = this.stage;
@@ -466,13 +483,16 @@ export class MatchSession {
       });
     resetStructures();
     this.minimap = new Minimap(this.ui, {
-      lookAt: (x, z, hold) => this.view.lookAt(x, z, hold),
+      peekHold: (x, z) => this.view.peekHold(x, z),
+      peekEnd: () => this.view.peekEnd(),
       moveTo: (x, y) => this.orders?.move(x, y),
       viewQuad: () => this.viewQuad(),
       mySlot: () => this.view.mySlot,
       myTeam: () => this.view.myTeam,
       goHere: (x, y) => this.sendPing(PING_KIND.GoHere, x, y),
     });
+    // feel pass B2 (e2e): the minimap, to find a tower's pixel on the turned map
+    if (this.e2e) e2eHook('Minimap', this.minimap);
     this.tips = new Tips(this.view.juice.notify, setup.firstMatch);
     this.goals = new Objectives(this.view.juice.notify, setup.guide ?? 'off');
     this.minimap.pickups = () => this.view.pickups.list();
@@ -616,7 +636,8 @@ export class MatchSession {
     };
     this.desktop = new DesktopInput(inputHost);
     this.touch = new TouchControls(inputHost, this.ui, this.desktop);
-    const coarse = typeof matchMedia === 'function' && matchMedia('(pointer: coarse)').matches;
+    // the Mac app plays with keyboard and mouse even if WebKit ever reports a coarse pointer (app/platform.ts)
+    const coarse = coarsePointer();
     this.touch.enable(coarse);
     const ht = HERO_TEXT[hero];
     this.touch.setIcons({ q: icon(ht.abilities[0].icon), w: icon(ht.abilities[1].icon), e: icon(ht.abilities[2].icon), r: icon(ht.abilities[3].icon), trick: icon(TRICK_TEXT[trick].icon) });
@@ -693,6 +714,8 @@ export class MatchSession {
       d.matchPick = `${this.setup.hero},${this.setup.trick},${this.setup.difficulty}`;
       d.matchSeed = String(w.seed);
     }
+    // feel pass art: the match's stickers ("Back in N") follow the player's side
+    this.ui.dataset.side = HEROES[w.picks[w.slot]]?.side === 'dog' ? 'dog' : 'cat';
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
     // cards: the VS intro (both teams as Token Tails cards flipping up over the held countdown); its own lazy chunk,
@@ -781,11 +804,36 @@ export class MatchSession {
         document.documentElement.dataset.match = 'live';
         this.mpLive = true;
         this.mp?.start();
+        this.baseToast();
+        // feel pass B5: the own "You" label and arrow go after the first 10 s (the gold ring marks the hero)
+        this.youTimer = setTimeout(() => {
+          this.youTimer = undefined;
+          if (this.overhead && !this.disposed) this.overhead.youLabel = false;
+        }, YOU_LABEL_MS / Math.max(1, this.buffer.speed));
         setTimeout(() => this.tips.trigger('move'), 5000 / Math.max(1, this.buffer.speed));
       });
   }
 
+  /**
+   * Feel pass B2: the map is diagonal and each seat sees its own base bottom left, so the start says so for 1.2 s
+   * (a team-1 seat is told the map is turned, as Wild Rift does for the red side).
+   */
+  private baseToast(): void {
+    const el = document.createElement('div');
+    el.className = 'pl-basetoast';
+    const hero = this.welcome?.picks[this.view.mySlot];
+    el.dataset.side = hero && HEROES[hero]?.side === 'dog' ? 'dog' : 'cat';
+    el.setAttribute('role', 'status');
+    const turned = this.view.myTeam === 1;
+    el.innerHTML = `<i class="stk" aria-hidden="true"></i><span><b>Your base: bottom left</b>${turned ? '<small>(map turned)</small>' : ''}</span>`;
+    this.ui.appendChild(el);
+    if (this.e2e) document.documentElement.dataset.baseToast = turned ? 'turned' : 'base';
+    setTimeout(() => el.remove(), BASE_TOAST_MS);
+  }
+
   private gateNoteAt = -1e9;
+  /** Feel pass B5: the timer that hides the own "You" label after YOU_LABEL_MS (cleared on dispose). */
+  private youTimer: ReturnType<typeof setTimeout> | undefined;
 
   /**
    * Round 1 ("a move order in the first seconds is dropped"): it is not dropped, the gate barrier holds every hero at
@@ -917,8 +965,9 @@ export class MatchSession {
       if (this.menu) this.resume();
       else this.openMenu();
     });
-    this.ui.appendChild(b);
     const score = this.ui.querySelector<HTMLElement>('.pl-score');
+    // feel pass B3: pause is an icon at the right end of the top strip (desktop never shows it)
+    (score ?? this.ui).appendChild(b);
     const onScore = (e: PointerEvent): void => {
       if (document.documentElement.dataset.touch !== '1') return;
       e.stopPropagation();
@@ -1078,8 +1127,13 @@ export class MatchSession {
   /** Is the player fighting: hurt by an enemy in the last 3 s? (talent offers wait then) */
   private inFight(): boolean {
     const last = this.hurtBy[this.hurtBy.length - 1];
-    return !!last && performance.now() - last.at < 3000 / Math.max(1, this.buffer.speed);
+    const span = 3000 / Math.max(1, this.buffer.speed);
+    const now = performance.now();
+    // feel pass B5: damage dealt to an enemy hero counts too (the talent card never opens over a fight)
+    return (!!last && now - last.at < span) || now - this.dealtAt < span;
   }
+  /** Feel pass B5: when the player last hit an enemy hero (ms). */
+  private dealtAt = -1e9;
 
   /** Hide the tower alert and the "Tower aiming at you!" lock-on (on death, on respawn, when no tower shoots). */
   private clearTowerWarnings(): void {
@@ -1270,9 +1324,9 @@ export class MatchSession {
           }
         : {}),
       onResume: () => this.resume(),
-      // the camera zoom slider: the view eases to it behind the menu
-      onZoom: (z) => {
-        this.view.zoomTarget = z;
+      // feel pass B1: the Camera height row: the view follows at once behind the menu
+      onCameraHeight: (h) => {
+        this.view.setCameraHeight(h);
       },
       onMute: (m) => {
         this.muted = m;
@@ -1548,7 +1602,8 @@ export class MatchSession {
     }
     this.overhead.hudRects = rects;
     const side: typeof rects = [];
-    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-minimap, .pl-strip, .pl-feed')) {
+    // feel pass B5: off-screen pointers and plates also keep clear of the button arc, the top strip, the ping corner
+    for (const el of this.ui.querySelectorAll<HTMLElement>('.pl-minimap, .pl-strip, .pl-feed, .pl-tbtn, .pl-score, .pl-pingbtn, .pl-emote, .pl-chatbtn')) {
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) side.push({ left: r.left - 4, top: r.top - 4, right: r.right + 4, bottom: r.bottom + 4 });
     }
@@ -1639,6 +1694,11 @@ export class MatchSession {
       if (named) this.minimap.flashLane(named);
       // Nine Lives read like "you survived" when it fired on the killing blow: only while alive
       if (m.key === 'nineLives' && (!me || me.state === 'dead' || me.hp <= 0)) continue;
+      // feel pass B3: the grey-out and the one centred "Back in N" already say it: "You have been slain" is voice only
+      if (m.key === 'slain') {
+        if (m.voice) sfx.voice(m.voice);
+        continue;
+      }
       if (m.size === 'ping') {
         if (m.key === 'frenzySpawn') for (const p of this.view.pickups.list()) if (p.kind === 'frenzy') this.minimap.ping(p.x, p.y, '#7dff8a', 3000);
         // GAPS B1: the player's ping: a minimap ring and a ground marker where it points, and its name over the hero
@@ -1966,6 +2026,10 @@ export class MatchSession {
             this.coreHitAt = performance.now();
           }
         }
+        if (ev.type === 'hit' && ev.src === this.view.mySlot) {
+          const dst = frame.byId.get(ev.dst);
+          if (dst && dst.kind === 'hero' && dst.team !== this.view.myTeam) this.dealtAt = performance.now();
+        }
         if (ev.type === 'hit' && ev.dst === this.view.mySlot) {
           const src = frame.byId.get(ev.src);
           if (src && (src.kind === 'tower' || src.kind === 'core') && src.team !== this.view.myTeam) this.towerHit(ev.src);
@@ -2076,7 +2140,8 @@ export class MatchSession {
       this.hud.lowQuality = this.gr.settings.tier === 'low';
       this.hud.update(me, frame.latest.clock, frame.latest.score, this.welcome.team, lvN ? lvSum / lvN : 0, this.goals.standingTitle ?? this.lcGateTitle());
       const lock = this.touch?.isEnabled ? this.touch.lockedId() : null;
-      this.hud.stripUpdate(frame.byId, frame.tick, lock);
+      this.hud.stripUpdate(frame.byId, frame.tick, lock, this.nearEnemies(frame, me, lock));
+      this.objStrip(frame);
       this.overhead.myToy = me?.toy ?? 0;
       this.underdogLine(frame);
       this.overhead.targetLock = lock !== null && this.touch ? { id: lock, left: this.touch.lock.left(performance.now()) } : null;
@@ -2120,6 +2185,11 @@ export class MatchSession {
   private rawOwnEvents(list: readonly SimEvent[]): void {
     const me = this.view.mySlot;
     for (const ev of list) {
+      // feel pass B4: an enemy's E cast too (the touch auto-target skips a Howler arguing back)
+      if (ev.type === 'cast' && ev.src !== me && ev.slot === 2) {
+        this.touch?.onSimEvent(ev);
+        continue;
+      }
       if ((ev.type !== 'cast' && ev.type !== 'windup') || ev.src !== me) continue;
       this.orders?.applied(ev);
       this.touch?.onSimEvent(ev);
@@ -2230,6 +2300,41 @@ export class MatchSession {
     me.yaw = Math.atan2(dy, dx);
   }
 
+  /**
+   * Feel pass B3: the touch target-lock row shows only the enemy heroes within 1.5 × the attack range (and the locked
+   * one), at most 3, nearest first.
+   */
+  private readonly near = new Set<number>();
+  private nearEnemies(frame: ViewFrame, me: ViewEntity | undefined | null, lock: number | null): ReadonlySet<number> {
+    this.near.clear();
+    if (!me || me.state === 'dead' || !me.hero || !this.welcome) return this.near;
+    const reach = basicRange(me.hero) * NEAR_ROW_K;
+    const list: { id: number; d: number }[] = [];
+    for (const e of frame.entities) {
+      if (e.kind !== 'hero' || e.team === this.welcome.team || e.team > 1 || e.state === 'dead') continue;
+      const d = Math.hypot(e.fx - me.fx, e.fy - me.fy);
+      if (d <= reach || e.id === lock) list.push({ id: e.id, d });
+    }
+    list.sort((a, b) => a.d - b.d);
+    for (const n of list.slice(0, NEAR_ROW_MAX)) this.near.add(n.id);
+    return this.near;
+  }
+
+  /**
+   * Feel pass B3: the objective timer in the top strip (it replaces the standing objective chip on the rail): the next
+   * objective's icon and countdown from 10 s before it is up to 3 s after.
+   */
+  private objUpAt = -1;
+  private objStrip(frame: ViewFrame): void {
+    const timers = this.objClock?.timers() ?? [];
+    let best: { key: string; left: number } | null = null;
+    for (const t of timers) if (t.left > 0 && t.left <= OBJ_STRIP.before * TICK_HZ && (!best || t.left < best.left)) best = { key: t.key, left: t.left };
+    const tick = frame.tick;
+    if (best && best.left <= TICK_HZ) this.objUpAt = tick + best.left;
+    const up = this.objUpAt >= 0 && tick >= this.objUpAt && tick - this.objUpAt <= OBJ_STRIP.after * TICK_HZ;
+    this.hud?.objective(best ? { key: best.key, secs: Math.ceil(best.left / TICK_HZ) } : up ? { key: 'up', secs: 0 } : null);
+  }
+
   /** "Back in 7 · 8 of 9 lives" on the rail's resting line while the player is out (cleared on respawn). */
   private respawnLine(me: { state: string; respawnIn?: number } | undefined): void {
     const dead = !!me && me.state === 'dead' && !this.ended;
@@ -2237,7 +2342,9 @@ export class MatchSession {
     const text = dead ? `Back in ${Math.max(1, Math.ceil((me!.respawnIn ?? 0) / TICK_HZ))}${lives ? ` · ${lives}` : ''}` : '';
     if (text === this.respawnShown) return;
     this.respawnShown = text;
-    this.view.juice.notify.rest('respawn', text || null, 'bad');
+    // feel pass B3: the centred "Back in N" says it; the rail line stays only on desktop (its lives count is there)
+    const touch = document.documentElement.dataset.touch === '1';
+    this.view.juice.notify.rest('respawn', touch ? null : text || null, 'bad');
   }
 
   private telemetry(frame: ViewFrame | null): void {
@@ -2536,6 +2643,8 @@ export class MatchSession {
   dispose(): void {
     if (this.disposed) return;
     this.disposed = true;
+    if (this.youTimer !== undefined) clearTimeout(this.youTimer);
+    this.youTimer = undefined;
     setProbeBlocked(false);
     setPvpEqualView(false);
     this.host.leave();

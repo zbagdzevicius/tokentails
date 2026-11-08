@@ -32,6 +32,8 @@ import { FISH_GLYPH } from './progressRail';
 import { TOY_COST, TOY_TIERS } from '../data/toys';
 // LoL pass (lane B): the hextech HUD chrome (ability frame, XP ring, score plate, kill feed, death wash, nap bar, crest)
 import './lol-hud.css';
+// feel pass: the fixed-camera chrome and the phone HUD diet (after lol-hud.css, so it wins)
+import './feel.css';
 
 /** A tiny tower glyph on the "towers taken" boxes (the bare numbers next to the score read as nothing). */
 const TOWER_SVG = '<svg viewBox="0 0 16 16" width="11" height="11" aria-hidden="true"><path d="M3 15V6h2V3h2v2h2V3h2v3h2v9z" fill="currentColor"/></svg>';
@@ -283,6 +285,7 @@ export class Hud {
           <span class="sw" aria-hidden="true">${SWORDS_SVG}</span>
           <span class="team t1"><b class="k1">0</b><i class="tw" title="Towers taken">${TOWER_SVG}<em class="tw1">0</em></i></span>
           <span class="mid"><span class="clock">0:00</span><span class="phase"></span></span>
+          <span class="obj" hidden><i class="ic" aria-hidden="true"></i><b></b></span>
         </div>
       </div>
       <div class="pl-feed"></div>
@@ -446,8 +449,11 @@ export class Hud {
   }
 
   /** GAPS A4: death timers and who is out of sight; `lock` is the touch-locked enemy (A5), or null. */
-  stripUpdate(byId: ReadonlyMap<number, EntitySnap>, tick: number, lock: number | null): void {
+  stripUpdate(byId: ReadonlyMap<number, EntitySnap>, tick: number, lock: number | null, near: ReadonlySet<number> | null = null): void {
     for (const s of this.strip) {
+      // feel pass B3: on touch the enemy row is a target-lock row: only the enemies near the hero show (ui/feel.css)
+      const isNear = near?.has(s.slot) === true;
+      if (s.el.classList.contains('near') !== isNear) s.el.classList.toggle('near', isNear);
       const r = portraitTimer(byId.get(s.slot), tick, s.until);
       s.until = r.until;
       const state = `${r.secs !== null ? 'D' : ''}${r.seen ? '' : 'U'}${lock === s.slot ? 'L' : ''}`;
@@ -485,6 +491,25 @@ export class Hud {
     el.classList.add('branch');
     el.querySelector('svg.pl-icon')?.remove();
     el.insertAdjacentHTML('afterbegin', iconSvg(b.icon));
+  }
+
+  /**
+   * Feel pass B3: the top strip's objective timer (icon and seconds), or null to hide it. `key` picks the icon
+   * ('pudding', 'rats', 'theirRats', 'up' when it just spawned).
+   */
+  private objKey = '';
+  objective(o: { key: string; secs: number } | null): void {
+    const el = this.root.querySelector<HTMLElement>('.pl-score .obj');
+    if (!el) return;
+    const k = o ? `${o.key}:${o.secs}` : '';
+    if (k === this.objKey) return;
+    this.objKey = k;
+    el.hidden = !o;
+    if (!o) return;
+    el.dataset.key = o.key;
+    const b = el.querySelector('b');
+    if (b) b.textContent = o.key === 'up' ? 'Up!' : `${o.secs}`;
+    el.setAttribute('aria-label', o.key === 'up' ? 'Objective up' : `Objective in ${o.secs} seconds`);
   }
 
   /** The death recap under "Back in N" ("Knocked out by Cacklejaw + a tower: wait for your minions"). */

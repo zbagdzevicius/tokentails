@@ -23,13 +23,24 @@ async function startVeteran(page: Page, query = '', prefs: Record<string, string
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
 }
 
-type Box = { x: number; y: number; width: number; height: number };
-const overlaps = (a: Box, b: Box): boolean => a.x < b.x + b.width && a.x + a.width > b.x && a.y < b.y + b.height && a.y + a.height > b.y;
-/** Round controls: their discs touch (bounding boxes of neighbours on an arc overlap at the corners by design). */
-const discsTouch = (a: Box, b: Box): boolean => Math.hypot(a.x + a.width / 2 - (b.x + b.width / 2), a.y + a.height / 2 - (b.y + b.height / 2)) < (a.width + b.width) / 2;
 
 test('every match: the objective chip names the next timer, a tap sends its ping (no other order, no offer); strip and rings show', async ({ page }, info) => {
   await startVeteran(page);
+  if (info.project.name === 'landscape') {
+    // feel pass B3: phones have no standing chip and no ally portraits: the top strip shows the next objective's
+    // timer from 10 s before it is up (the own camp at 0:30), and the enemy row shows only near enemies
+    await page.touchscreen.tap(844 * 0.25, 390 * 0.85);
+    await expect(page.locator('.pl-touch.on')).toBeVisible();
+    await expect(page.locator('.pl-rail-rest.on[data-ping]')).toHaveCount(0);
+    await expect(page.locator('.pl-strip.ally')).toBeHidden();
+    await expect(page.locator('.pl-top .pl-strip.enemy .pp')).toHaveCount(3);
+    await expect.poll(async () => Number(await attr(page, 'rings'))).toBeGreaterThanOrEqual(1);
+    const obj = page.locator('.pl-score .obj:not([hidden])');
+    await expect(obj).toBeVisible({ timeout: 45_000 });
+    await expect(obj).toHaveAttribute('data-key', /rats|pudding|up/);
+    await expect(obj.locator('b')).toHaveText(/^(\d{1,2}|Up!)$/);
+    return;
+  }
   // LoL pass (lane A): the standing goal is the top rail's resting line; a tap on it still sends the ping
   const chip = page.locator('.pl-rail-rest.on[data-ping]');
   await expect(chip).toBeVisible({ timeout: 10_000 });
@@ -59,55 +70,8 @@ test('every match: the objective chip names the next timer, a tap sends its ping
   }
 });
 
-test('844x390: chip, strip and the optional last-hit and tower buttons stay clear of the controls and each other', async ({ page }, info) => {
-  test.skip(info.project.name !== 'landscape', 'touch layout');
-  await startVeteran(page, '', { 'pawlegends.lastHitButton': '1', 'pawlegends.towerButton': '1' });
-  await expect(page.locator('.pl-touch.on')).toBeVisible();
-  await expect(page.locator('.pl-tbtn.lasthit')).toBeVisible();
-  await expect(page.locator('.pl-tbtn.tower')).toBeVisible();
-  await expect(page.locator('.pl-rail-rest.on')).toBeVisible({ timeout: 10_000 });
-  const vp = page.viewportSize()!;
-  const boxes = async (sel: string): Promise<Box[]> => {
-    const out: Box[] = [];
-    for (const l of await page.locator(sel).all()) {
-      const b = await l.boundingBox();
-      if (b) out.push(b);
-    }
-    return out;
-  };
-  const buttons = await boxes('.pl-tbtn');
-  const extra = await boxes('.pl-tbtn.lasthit, .pl-tbtn.tower');
-  const fixed = [...(await boxes('.pl-pause')), ...(await boxes('.pl-minimap')), ...(await boxes('.pl-bar')), ...(await boxes('.pl-pingbtn'))];
-  expect((await boxes('.pl-pingbtn')).length, 'GAPS B1 paw button on touch').toBe(1);
-  const score = await boxes('.pl-score');
-  const strip = await boxes('.pl-strip .pp');
-  // the rail line sits just under the score bar, so only the strip is held off it
-  for (const p of strip) for (const c of buttons) expect(discsTouch(p, c)).toBe(false);
-  const added = [...strip.map((b) => ({ b, against: [...fixed, ...score] })), ...(await boxes('.pl-rail-rest.on')).map((b) => ({ b, against: [...buttons, ...fixed, ...strip] }))];
-  for (const { b: a, against } of added) {
-    for (const c of against) expect(overlaps(a, c), `${JSON.stringify(a)} vs ${JSON.stringify(c)}`).toBe(false);
-    expect(a.x >= 0 && a.y >= 0 && a.x + a.width <= vp.width && a.y + a.height <= vp.height).toBe(true);
-  }
-  // the two new buttons keep clear of every other button, the minimap, the hero box and the screen edges
-  expect(extra.length).toBe(2);
-  for (const a of extra) {
-    expect(a.x >= 0 && a.y >= 0 && a.x + a.width <= vp.width && a.y + a.height <= vp.height, 'on screen').toBe(true);
-    for (const c of fixed) expect(overlaps(a, c)).toBe(false);
-    for (const c of buttons) if (c.x !== a.x || c.y !== a.y) expect(discsTouch(a, c), `${JSON.stringify(a)} vs ${JSON.stringify(c)}`).toBe(false);
-  }
-  // a level-up: the open talent card (its head and buttons, the same markup as src/ui/talents.ts) keeps clear of the strip
-  await page.evaluate(() => {
-    const t = document.querySelector<HTMLElement>('.pl-talents')!;
-    t.innerHTML = `<div class="head">Level 2 talent: pick one</div><i class="time"></i>${[0, 1]
-      .map((i) => `<button data-c="${i}"><kbd>${i + 1}</kbd><b>Talent ${i}</b><span class="d">A long talent line</span><span class="s">Short line</span></button>`)
-      .join('')}`;
-    t.classList.add('on');
-  });
-  await expect(page.locator('.pl-talents.on button')).toHaveCount(2);
-  const talents = await boxes('.pl-talents.on .head, .pl-talents.on button');
-  expect(talents.length).toBe(3);
-  for (const p of await boxes('.pl-strip .pp')) for (const c of talents) expect(overlaps(p, c), `strip ${JSON.stringify(p)} vs talents ${JSON.stringify(c)}`).toBe(false);
-});
+// (feel pass B3: the 844x390 phone layout, the lock row and the conditional last-hit and tower buttons are checked by
+// hud-compact.spec.ts and hud-area.spec.ts)
 
 async function touchDrag(page: Page, x0: number, y0: number, x1: number, y1: number, hold = 0): Promise<void> {
   const cdp = await page.context().newCDPSession(page);

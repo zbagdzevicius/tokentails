@@ -1,9 +1,9 @@
 import { defineConfig } from 'vitest/config';
 
 /**
- * Two projects. `unit` runs every test in parallel. `perf` (tests/unit/perf-sim.test.ts, POC.md §15 item 6) runs
- * after it (a later sequence group), alone in one fork, so the other test files do not compete for the cores it
- * times.
+ * Two projects. `unit` runs every test in parallel. `perf` (tests/unit/perf-sim.test.ts, POC.md §15 item 6, and the
+ * measurement harness in tests/perf/, BENCHMARKS.md) runs after it (a later sequence group), alone in one fork, so the
+ * other test files do not compete for the cores it times.
  */
 export default defineConfig({
   test: {
@@ -21,7 +21,7 @@ export default defineConfig({
       {
         test: {
           name: 'perf',
-          include: ['tests/unit/perf-sim.test.ts'],
+          include: ['tests/unit/perf-sim.test.ts', 'tests/perf/**/*.test.ts'],
           environment: 'node',
           pool: 'forks',
           maxWorkers: 1,

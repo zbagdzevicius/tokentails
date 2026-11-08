@@ -6,7 +6,7 @@ import { acceptCardHtml } from '../../src/party/ui/acceptCard';
 import { loadingHtml } from '../../src/party/ui/partyLoading';
 import { pickHtml } from '../../src/party/ui/partyPick';
 import { onlineMode, setOnlineMode } from '../../src/meta/partyPrefs';
-import { setPvpEqualView, zoomMax, ZOOM_MAX } from '../../src/render/camera/zoom';
+import { setPvpEqualView, heightFactor, CAMERA_HEIGHTS } from '../../src/render/camera/height';
 import { voteNote } from '../../src/app/mpHud';
 
 /*
@@ -156,10 +156,10 @@ describe('casual PvP client', () => {
     g.localStorage = had;
   });
 
-  it('PvP equal view: the wide-screen zoom limit is off in a PvP match', () => {
-    expect(zoomMax(1600)).toBeGreaterThan(ZOOM_MAX);
+  it('PvP equal view: the High camera step is ignored in a PvP match', () => {
+    expect(heightFactor('high')).toBe(CAMERA_HEIGHTS.high);
     setPvpEqualView(true);
-    expect(zoomMax(1600)).toBe(ZOOM_MAX);
+    expect(heightFactor('high')).toBe(CAMERA_HEIGHTS.normal);
     setPvpEqualView(false);
   });
 
