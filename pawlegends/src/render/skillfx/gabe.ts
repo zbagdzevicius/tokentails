@@ -33,6 +33,7 @@
  *
  * All state is in fixed pools allocated once at load; nothing allocates per frame or per event.
  */
+import { screenRightXZ, towardCameraXZ } from '../coords';
 import { CAPS, RADIUS } from '../../data/map';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BuffFlag } from '../../sim/api';
@@ -529,6 +530,10 @@ function boltHit(k: number, dst: number, fx: FxCtx): void {
 
 // ------------------------------------------------------------------------------------------------ the set
 
+/** Heart eyes: screen-right and toward-camera scratch vectors (feel pass B2). */
+const EYE_R = { x: 0, z: 0 };
+const EYE_T = { x: 0, z: 0 };
+
 export const SKILL_FX: SkillFxSet = {
   ...stubFx('gabe'),
   stub: false,
@@ -837,8 +842,11 @@ export const SKILL_FX: SkillFxSet = {
         const ey = fx.bonePos(lDst[i], 'head', _d) ? _d.y + 0.15 : funOverY(fx, lDst[i], -0.7);
         const life = Math.min(0.42, lDur[i] - lT[i]);
         if (life > 0.05) {
-          sticker(fx, _c.x - 0.17, ey, _c.z + 0.45, 'HEART', HEART, 0.26, life);
-          sticker(fx, _c.x + 0.17, ey, _c.z + 0.45, 'HEART', HEART, 0.26, life);
+          // feel pass B2: side by side along screen-right, pulled toward the camera, for the diagonal view
+          const r = screenRightXZ(EYE_R);
+          const t = towardCameraXZ(EYE_T);
+          sticker(fx, _c.x - 0.17 * r.x + 0.45 * t.x, ey, _c.z - 0.17 * r.z + 0.45 * t.z, 'HEART', HEART, 0.26, life);
+          sticker(fx, _c.x + 0.17 * r.x + 0.45 * t.x, ey, _c.z + 0.17 * r.z + 0.45 * t.z, 'HEART', HEART, 0.26, life);
         }
         // the first confirmed charm of the cast: "MLEM!" (once)
         const src = lSrc[i];

@@ -108,41 +108,54 @@ describe('MAP-GAPS A4 colour-blind safety', () => {
 
 describe('MAP-GAPS A6 edge inset', () => {
   it('draws the self mark at the fountain spawn whole inside the canvas, at every minimap size', async () => {
-    const { minimapMapping, MM_PAD } = await import('../../src/ui/minimap');
-    for (const [w, h, touch] of [
-      [160, 96, true],
-      [176, 106, true],
-      [131, 79, true],
-      [196, 118, false],
-      [235, 142, false],
-    ] as const) {
-      const m = minimapMapping(w, h);
-      const r = (touch ? w / 36 : (8 * w) / 196) * 1.15 + 1.4;
-      for (const [x, y] of [
-        [3000, 32000],
-        [3000, 28000],
-        [97000, 32000],
-      ]) {
-        expect(m.X(x) - r, `${w} ${x}`).toBeGreaterThanOrEqual(0);
-        expect(m.X(x) + r).toBeLessThanOrEqual(w);
-        expect(m.Y(y) - r).toBeGreaterThanOrEqual(0);
+    const { minimapMapping } = await import('../../src/ui/minimap');
+    const { CAMERA_YAW } = await import('../../src/render/coords');
+    for (const yaw of [CAMERA_YAW, CAMERA_YAW + Math.PI])
+      for (const [w, h, touch] of [
+        [104, 104, true],
+        [112, 112, true],
+        [134, 134, true],
+        [180, 180, false],
+        [216, 216, false],
+      ] as const) {
+        const m = minimapMapping(w, h, 6, yaw);
+        const r = (touch ? w / 36 : (8 * w) / 196) * 1.15 + 1.4;
+        for (const [x, y] of [
+          [3000, 32000],
+          [3000, 28000],
+          [97000, 32000],
+        ]) {
+          const [px, py] = m.P(x, y);
+          expect(px - r, `${w} ${x}`).toBeGreaterThanOrEqual(0);
+          expect(px + r).toBeLessThanOrEqual(w);
+          expect(py - r).toBeGreaterThanOrEqual(0);
+          expect(py + r).toBeLessThanOrEqual(h);
+        }
+        // the turned 100x60 m map fills a square box almost exactly (feel pass B2)
+        const corners = [
+          [0, 0],
+          [100000, 0],
+          [0, 60000],
+          [100000, 60000],
+        ].map(([x, y]) => m.P(x, y));
+        const xs = corners.map((c) => c[0]);
+        const ys = corners.map((c) => c[1]);
+        expect(Math.max(...xs) - Math.min(...xs)).toBeGreaterThan((w - 12) * 0.93);
+        expect(Math.max(...ys) - Math.min(...ys)).toBeGreaterThan((h - 12) * 0.93);
       }
-      expect(m.X(0)).toBe(MM_PAD);
-      expect(m.Y(0)).toBe(h - MM_PAD);
-    }
   });
 
   it('round-trips toMap(X(x)) and clamps the view quad into the inset', async () => {
     const { minimapMapping } = await import('../../src/ui/minimap');
-    for (const flip of [false, true]) {
-      const m = minimapMapping(176, 106, 6, flip);
+    for (const yaw of [0, Math.PI, -0.6632, -0.6632 + Math.PI]) {
+      const m = minimapMapping(176, 106, 6, yaw);
       for (const [x, y] of [
         [0, 0],
         [3000, 32000],
         [50000, 30000],
         [100000, 60000],
       ]) {
-        const p = m.inv(m.X(x), m.Y(y));
+        const p = m.inv(...m.P(x, y));
         expect(p.xMm).toBeCloseTo(x, 3);
         expect(p.yMm).toBeCloseTo(y, 3);
       }
@@ -354,19 +367,24 @@ describe('MAP-GAPS A20 cleared bushes', () => {
   });
 });
 
-describe('MAP-GAPS A24 team-1 view', () => {
-  it('turns the camera yaw 180° and the screen-to-map sign for a team-1 seat, and flips the minimap', async () => {
-    const { CAMERA_YAW, cameraYaw, setViewTeam, viewSign } = await import('../../src/render/coords');
+describe('MAP-GAPS A24 + feel pass B2: each seat sees its own base bottom left', () => {
+  it('turns the camera yaw another 180° for a team-1 seat, and the minimap with it', async () => {
+    const { CAMERA_YAW, cameraYaw, setViewTeam, screenToSim } = await import('../../src/render/coords');
     setViewTeam(1);
     expect(cameraYaw()).toBeCloseTo(CAMERA_YAW + Math.PI);
-    expect(viewSign()).toBe(-1);
+    // screen up-right points toward the team-1 seat's enemy base (−x)
+    expect(screenToSim(1, 1).x).toBeLessThan(0);
+    const m1 = new Minimap(document.body, host({ myTeam: () => 1 }));
+    draw(m1, frame([]));
+    // the team-1 fountain (x 97 m) is drawn bottom left of the team-0 fountain (x 3 m)
+    expect(m1.P(97000, 30000)[0]).toBeLessThan(m1.P(3000, 30000)[0]);
+    expect(m1.P(97000, 30000)[1]).toBeGreaterThan(m1.P(3000, 30000)[1]);
     setViewTeam(0);
     expect(cameraYaw()).toBe(CAMERA_YAW);
-    expect(viewSign()).toBe(1);
-    const m = new Minimap(document.body, host({ myTeam: () => 1 }));
-    draw(m, frame([]));
-    // the team-1 fountain (x 97 m) is drawn at the left of the minimap
-    expect(m.X(97000)).toBeLessThan(m.X(3000));
-    expect(m.Y(57000)).toBeGreaterThan(m.Y(3000));
+    expect(screenToSim(1, 1).x).toBeGreaterThan(0);
+    const m0 = new Minimap(document.body, host({ myTeam: () => 0 }));
+    draw(m0, frame([]));
+    expect(m0.P(3000, 30000)[0]).toBeLessThan(m0.P(97000, 30000)[0]);
+    expect(m0.P(3000, 30000)[1]).toBeGreaterThan(m0.P(97000, 30000)[1]);
   });
 });

@@ -16,3 +16,23 @@
 .set-camh { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
 .set-camh .chips { display: flex; gap: 6px; }
 .pl-menu .set-camh { font-size: 14px; }
+
+/* B2: the minimap is turned with the camera (diagonal), so its box is square (the 100x60 m map turned 38° is ~116x109 m) */
+.pl-minimap { width: calc(180px * var(--mm-k, 1)); height: calc(180px * var(--mm-k, 1)); }
+html[data-touch='1'] { --mm-w: calc(112px * var(--mm-k, 1)); --mm-h: calc(112px * var(--mm-k, 1)); }
+@media (max-height: 380px) {
+  html[data-touch='1'] { --mm-w: calc(104px * var(--mm-k, 1)); --mm-h: calc(104px * var(--mm-k, 1)); }
+}
+
+/* B2: "Your base: bottom left" at the start (1.2 s), in the top band under the score strip */
+.pl-basetoast {
+  position: absolute; left: 50%; top: calc(34px + var(--safe-t, 0px)); transform: translateX(-50%); z-index: 12; pointer-events: none;
+  display: flex; align-items: center; gap: 8px; padding: 4px 14px 4px 6px; border-radius: 999px;
+  background: rgba(42, 26, 34, 0.86); border: 2px solid #3b2417; color: #fff3dc; font-size: 13px; white-space: nowrap;
+  animation: pl-basetoast 1.2s ease-out both;
+}
+.pl-basetoast .stk { width: 34px; height: 34px; flex: none; background: url('/assets/feel/sticker-base.webp') center / contain no-repeat; }
+.pl-basetoast span { display: flex; flex-direction: column; line-height: 1.1; }
+.pl-basetoast small { font-size: 10px; opacity: 0.8; }
+@keyframes pl-basetoast { 0% { opacity: 0; transform: translate(-50%, -6px); } 12% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .pl-basetoast { animation: none; } }
