@@ -19,8 +19,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
     w: { cooldown: 420, duration: 75, arc: 1365, radius: 1800 },
     /** Pug Charge: dash 5 m; first hero hit knocked back 2 m and stunned 0.5 s. Sim v17 (V17.md §3.2): a 0.3 s wind-up and 14 m/s (was instant at 20 m/s). */
     e: { cooldown: 360, windup: 9, dash: 5000, speed: 14000, knockback: 2000, stun: 15 },
-    /** Champion's Challenge: tether a hero within 5 m; 6 m ring for 3 s; Brutus takes 30% less from that hero. */
-    r: { cooldown: 2250, range: 5000, ringRadius: 6000, duration: 90, reduceBp: 3000 },
+    /** Champion's Challenge: tether a hero within 5 m; 6 m ring for 2.5 s (sim v17, V17.md §3.5: was 3 s; the foe's Pounce or any cleanse breaks it); Brutus takes 30% less from that hero. */
+    r: { cooldown: 2250, range: 5000, ringRadius: 6000, duration: 75, reduceBp: 3000 },
   },
   /** Wave C (C2): each rank above 1 adds these (Q/W/E rank up at levels 2, 5, 8; R at 7, 10). Half the old per-level damage moved into the ranks, so level-10 damage is unchanged. */
   ranks: { q: { dmg: 15 }, w: { cooldown: -15 }, e: { cooldown: -15 }, r: { cooldown: -100 } },
@@ -39,7 +39,7 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
       { id: 'guard-post', name: 'Guard Post', mods: { w: { post: 1, postRadius: 3000, postDuration: 60, postReduceBp: 2500, cooldown: 300 } } },
     ],
     [
-      { id: 'arena-of-honour', name: 'Arena of Honour', mods: { r: { duration: 120 } } },
+      { id: 'arena-of-honour', name: 'Arena of Honour', mods: { r: { duration: 105 } } },
       { id: 'rally-howl', name: 'Rally Howl', mods: { r: { allySpeedBp: 2000 } } },
     ],
   ],

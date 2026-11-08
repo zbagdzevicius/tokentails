@@ -6,7 +6,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 import { makeHero } from '../../src/render/chars';
 import { compileClip } from '../../src/render/anim/compile';
-import { BASIC_WINDUP, DASH_SPEED, SIM_TIMING, TICK_S, abilNumbers, travelTicks } from '../../src/render/anim/timing';
+import { BASIC_WINDUP, SIM_TIMING, TICK_S, abilNumbers, travelTicks } from '../../src/render/anim/timing';
 import { ROOT_CAPS } from '../../src/render/anim/root';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Slot } from '../../src/render/anim/types';
 import { BRUTUS_CLIPS, CHARGE_AIR, MOVES, POST_S, brutusBasicPick } from '../../src/render/moves/brutus';
@@ -306,7 +306,7 @@ describe('brutus skill FX', () => {
       expect(d).toBeGreaterThan(5);
       expect(p.o.rim).toBe(0xff3040);
       expect(p.o.rel).toBe('enemy');
-      if (p.at > 0.01) expect(p.at + p.o.life).toBeLessThanOrEqual(90 * TICK_S + 0.05);
+      if (p.at > 0.01) expect(p.at + p.o.life).toBeLessThanOrEqual(75 * TICK_S + 0.05);
       expect(p.o.sy).toBeLessThanOrEqual(1.4);
       // others' obelisks stay faint (the telegraphs inside read)
       expect(p.o.p3 ?? 1).toBeLessThanOrEqual(0.6);
@@ -316,7 +316,7 @@ describe('brutus skill FX', () => {
     expect(bands[0].at).toBe(0);
     for (const b of bands) expect(b.o.sx).toBeCloseTo(6, 9);
     for (let i = 1; i < bands.length; i++) expect(bands[i].at).toBeLessThanOrEqual(bands[i - 1].at + bands[i - 1].o.life);
-    expect(bands[bands.length - 1].at + bands[bands.length - 1].o.life).toBeGreaterThan(90 * TICK_S - 0.05);
+    expect(bands[bands.length - 1].at + bands[bands.length - 1].o.life).toBeGreaterThan(75 * TICK_S - 0.05);
     // the slam is his own impact, not a 6 m damage ring
     const before = f.spawned.length;
     SKILL_FX.onMarker!(0, 'brutus.r', 'rSlam', f.fx);
@@ -325,7 +325,7 @@ describe('brutus skill FX', () => {
     expect(chains.length).toBeGreaterThan(20);
     for (const c of chains) {
       expect(c.o.sx).toBeCloseTo(4, 6);
-      expect(c.at + c.o.life).toBeLessThanOrEqual(90 * TICK_S + 0.05);
+      expect(c.at + c.o.life).toBeLessThanOrEqual(75 * TICK_S + 0.05);
     }
   });
 

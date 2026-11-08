@@ -1072,12 +1072,12 @@ var BRUTUS = Object.freeze({
 			knockback: 2e3,
 			stun: 15
 		},
-		/** Champion's Challenge: tether a hero within 5 m; 6 m ring for 3 s; Brutus takes 30% less from that hero. */
+		/** Champion's Challenge: tether a hero within 5 m; 6 m ring for 2.5 s (sim v17, V17.md §3.5: was 3 s; the foe's Pounce or any cleanse breaks it); Brutus takes 30% less from that hero. */
 		r: {
 			cooldown: 2250,
 			range: 5e3,
 			ringRadius: 6e3,
-			duration: 90,
+			duration: 75,
 			reduceBp: 3e3
 		}
 	},
@@ -1122,7 +1122,7 @@ var BRUTUS = Object.freeze({
 		[{
 			id: "arena-of-honour",
 			name: "Arena of Honour",
-			mods: { r: { duration: 120 } }
+			mods: { r: { duration: 105 } }
 		}, {
 			id: "rally-howl",
 			name: "Rally Howl",
@@ -6237,160 +6237,6 @@ function clearStacks(w, id) {
 	w.mkLock[id] = 0;
 }
 //#endregion
-//#region src/sim/effects/status.ts
-/**
-* Shared status plumbing for the effect primitives: CC immunity, interrupts, per-tick timers and the snapshot buff
-* flags. Timers count ticks left; an effect applied with N ticks is active for the next N movement steps (timers tick
-* down right after movement, §4.3 step 4).
-*/
-/**
-* Structures, fountains, Pudding and dead units ignore CC and displacement. Sim v10 (GAPS B5): so does a unit with
-* Purr-ify's immunity (`ccImmT`).
-*/
-function ccImmune(w, id) {
-	if (w.alive[id] === 0 || w.ccImmT[id] > 0) return true;
-	const k = w.kind[id];
-	return k !== Kind.Hero && k !== Kind.Minion && k !== Kind.Camp;
-}
-/** Ticks of lock `id` is already under: the longest of stun, fear or charm, root and a knockback in flight. */
-var lockLeft = (w, id) => Math.max(w.stunT[id], w.fearT[id], w.rootT[id], w.fmKind[id] === FM.Knock ? w.fmT[id] : 0);
-/**
-* Sim v17 Steadfast (CC_DR, docs/plans/moba/V17.md §3.1): the ticks a new hard CC of `ticks` on `id` may last. Only the
-* lock it adds beyond the lock already running counts toward the window's cap; the CC that reaches the cap is cut
-* short and grants CC immunity for the rest of the lock plus CC_DR.immune. Heroes only (minions and camps unchanged).
-* Call after the `ccImmune` check.
-*/
-function drGrant(w, id, ticks) {
-	if (id < RANGE.heroes || id >= RANGE.minions) return ticks;
-	if (w.ccWinT[id] === 0) {
-		w.ccWinT[id] = CC_DR.window;
-		w.ccSum[id] = 0;
-	}
-	const cur = lockLeft(w, id);
-	const add = ticks - cur;
-	if (add <= 0) return ticks;
-	const grant = Math.min(add, CC_DR.cap - w.ccSum[id]);
-	w.ccSum[id] += grant;
-	if (w.ccSum[id] >= CC_DR.cap) w.ccImmT[id] = Math.max(w.ccImmT[id], cur + grant + CC_DR.immune);
-	return cur + grant;
-}
-/**
-* Sim v17 Steadfast, once a tick after the status timers: the window runs down but never closes while a lock is still
-* running (so one unbroken lock is always counted in one window and never exceeds CC_DR.cap), and once the cap's
-* immunity has run out the window closes at once (the next CC opens a fresh one).
-*/
-function tickSteadfast(w, id) {
-	if (w.ccWinT[id] > 1 || lockLeft(w, id) === 0) dec(w.ccWinT, id);
-	if (w.ccImmT[id] === 0 && (w.ccWinT[id] === 0 || w.ccSum[id] >= CC_DR.cap)) {
-		w.ccWinT[id] = 0;
-		w.ccSum[id] = 0;
-	}
-}
-/**
-* Sim v10 (GAPS B5) `cleanse`: remove stun, root, slow, fear and charm from `id`, then `immuneTicks` of CC immunity.
-* A knockback in flight finishes (it is displacement, not a status).
-*/
-function cleanse(w, id, immuneTicks) {
-	w.stunT[id] = 0;
-	w.rootT[id] = 0;
-	w.fearT[id] = 0;
-	w.fearSrc[id] = -1;
-	w.slowT[id] = 0;
-	w.slowBp[id] = 0;
-	w.ccImmT[id] = Math.max(w.ccImmT[id], immuneTicks);
-}
-/**
-* Cancel what `id` is doing: the basic-attack windup, a cast in progress, Nap, an ability dash. `hard` CC (stun,
-* fear, knockback) also breaks Snack Break.
-*/
-function interrupt(w, id, hard) {
-	w.windup[id] = 0;
-	if (id < RANGE.minions) {
-		w.castPhase[id] = 0;
-		w.castT[id] = 0;
-		if (w.napT[id] > 0) {
-			w.napT[id] = 0;
-			w.state[id] = UnitState.Idle;
-		}
-	}
-	if (w.fmKind[id] !== FM.None && w.fmKind[id] !== FM.Knock) {
-		w.fmT[id] = 0;
-		w.fmKind[id] = FM.None;
-		w.fmTarget[id] = -1;
-	}
-	if (hard) {
-		w.healT[id] = 0;
-		w.healLeft[id] = 0;
-	}
-}
-/** Is `id` unable to act (stunned, feared or charmed, knocked back)? */
-var disabled = (w, id) => w.stunT[id] > 0 || w.fearT[id] > 0 || w.fmKind[id] === FM.Knock;
-/** Clear every status of `id` (death, respawn). */
-function clearStatus(w, id) {
-	w.stunT[id] = 0;
-	w.rootT[id] = 0;
-	w.fearT[id] = 0;
-	w.fearSrc[id] = -1;
-	w.slowT[id] = 0;
-	w.slowBp[id] = 0;
-	w.hasteT[id] = 0;
-	w.hasteBp[id] = 0;
-	w.asT[id] = 0;
-	w.asBp[id] = 0;
-	w.cdrT[id] = 0;
-	w.cdrBp[id] = 0;
-	w.stealthT[id] = 0;
-	w.untargT[id] = 0;
-	w.ccImmT[id] = 0;
-	w.ccWinT[id] = 0;
-	w.ccSum[id] = 0;
-	w.revealT[id] = 0;
-	w.shield[id] = 0;
-	w.shieldT[id] = 0;
-	w.healT[id] = 0;
-	w.healLeft[id] = 0;
-	w.fmT[id] = 0;
-	w.fmKind[id] = FM.None;
-	w.fmTarget[id] = -1;
-	w.tether[id] = -1;
-	if (id < RANGE.minions) {
-		clearStacks(w, id);
-		w.dotN[id] = 0;
-		w.dotT[id] = 0;
-	}
-}
-var dec = (a, i) => {
-	if (a[i] > 0) a[i]--;
-};
-/** Step 4 (after movement): every status timer ticks down; expired buffs lose their strength. */
-function tickStatus(w) {
-	for (let id = 0; id < RANGE.end; id++) {
-		if (w.alive[id] === 0) continue;
-		dec(w.stunT, id);
-		dec(w.rootT, id);
-		dec(w.fearT, id);
-		if (w.fearT[id] === 0) w.fearSrc[id] = -1;
-		dec(w.slowT, id);
-		if (w.slowT[id] === 0) w.slowBp[id] = 0;
-		dec(w.hasteT, id);
-		if (w.hasteT[id] === 0) w.hasteBp[id] = 0;
-		dec(w.asT, id);
-		if (w.asT[id] === 0) w.asBp[id] = 0;
-		dec(w.cdrT, id);
-		if (w.cdrT[id] === 0) w.cdrBp[id] = 0;
-		dec(w.stealthT, id);
-		dec(w.untargT, id);
-		dec(w.ccImmT, id);
-		if (id < RANGE.minions && (w.ccWinT[id] > 0 || w.ccSum[id] > 0)) tickSteadfast(w, id);
-		dec(w.revealT, id);
-		if (w.shieldT[id] > 0 && --w.shieldT[id] === 0) w.shield[id] = 0;
-		if (id < RANGE.minions) {
-			tickStacks(w, id);
-			if (w.dotT[id] > 0 && --w.dotT[id] === 0) w.dotN[id] = 0;
-		}
-	}
-}
-//#endregion
 //#region src/sim/effects/heal.ts
 /** `heal` (POC.md §4.4): instant, or over time (Snack Break; broken by hard CC, see status.ts `interrupt`). */
 /** Sim v10: credit hero `src` with `amount` healed or shielded (`SlotStats.healShield`; stats only, not hashed). */
@@ -6671,10 +6517,173 @@ function clampTethers(m) {
 		w.y[id] = pos$1[1];
 	}
 }
+/**
+* Sim v17 (V17.md §3.5): the tethered foe `id` breaks out (Pounce, any cleanse). The arena ends for both, so its owner
+* also loses the damage cut that reads `tether`. The owner's own Pounce or cleanse keeps it.
+*/
+function breakTether(w, id) {
+	const z = w.tether[id];
+	if (z >= 0 && w.zAlive[z] !== 0 && w.zKind[z] === ZONE_KIND.arena && w.zOwner[z] !== id) endArena(w, z);
+}
 /** End arena `z` and free everyone tethered to it. */
 function endArena(w, z) {
 	w.zAlive[z] = 0;
 	for (let id = 0; id < RANGE.end; id++) if (w.tether[id] === z) w.tether[id] = -1;
+}
+//#endregion
+//#region src/sim/effects/status.ts
+/**
+* Shared status plumbing for the effect primitives: CC immunity, interrupts, per-tick timers and the snapshot buff
+* flags. Timers count ticks left; an effect applied with N ticks is active for the next N movement steps (timers tick
+* down right after movement, §4.3 step 4).
+*/
+/**
+* Structures, fountains, Pudding and dead units ignore CC and displacement. Sim v10 (GAPS B5): so does a unit with
+* Purr-ify's immunity (`ccImmT`).
+*/
+function ccImmune(w, id) {
+	if (w.alive[id] === 0 || w.ccImmT[id] > 0) return true;
+	const k = w.kind[id];
+	return k !== Kind.Hero && k !== Kind.Minion && k !== Kind.Camp;
+}
+/** Ticks of lock `id` is already under: the longest of stun, fear or charm, root and a knockback in flight. */
+var lockLeft = (w, id) => Math.max(w.stunT[id], w.fearT[id], w.rootT[id], w.fmKind[id] === FM.Knock ? w.fmT[id] : 0);
+/**
+* Sim v17 Steadfast (CC_DR, docs/plans/moba/V17.md §3.1): the ticks a new hard CC of `ticks` on `id` may last. Only the
+* lock it adds beyond the lock already running counts toward the window's cap; the CC that reaches the cap is cut
+* short and grants CC immunity for the rest of the lock plus CC_DR.immune. Heroes only (minions and camps unchanged).
+* Call after the `ccImmune` check.
+*/
+function drGrant(w, id, ticks) {
+	if (id < RANGE.heroes || id >= RANGE.minions) return ticks;
+	if (w.ccWinT[id] === 0) {
+		w.ccWinT[id] = CC_DR.window;
+		w.ccSum[id] = 0;
+	}
+	const cur = lockLeft(w, id);
+	const add = ticks - cur;
+	if (add <= 0) return ticks;
+	const grant = Math.min(add, CC_DR.cap - w.ccSum[id]);
+	w.ccSum[id] += grant;
+	if (w.ccSum[id] >= CC_DR.cap) w.ccImmT[id] = Math.max(w.ccImmT[id], cur + grant + CC_DR.immune);
+	return cur + grant;
+}
+/**
+* Sim v17 Steadfast, once a tick after the status timers: the window runs down but never closes while a lock is still
+* running (so one unbroken lock is always counted in one window and never exceeds CC_DR.cap), and once the cap's
+* immunity has run out the window closes at once (the next CC opens a fresh one).
+*/
+function tickSteadfast(w, id) {
+	if (w.ccWinT[id] > 1 || lockLeft(w, id) === 0) dec(w.ccWinT, id);
+	if (w.ccImmT[id] === 0 && (w.ccWinT[id] === 0 || w.ccSum[id] >= CC_DR.cap)) {
+		w.ccWinT[id] = 0;
+		w.ccSum[id] = 0;
+	}
+}
+/**
+* Sim v10 (GAPS B5) `cleanse`: remove stun, root, slow, fear and charm from `id`, then `immuneTicks` of CC immunity.
+* A knockback in flight finishes (it is displacement, not a status).
+*/
+function cleanse(w, id, immuneTicks) {
+	breakTether(w, id);
+	w.stunT[id] = 0;
+	w.rootT[id] = 0;
+	w.fearT[id] = 0;
+	w.fearSrc[id] = -1;
+	w.slowT[id] = 0;
+	w.slowBp[id] = 0;
+	w.ccImmT[id] = Math.max(w.ccImmT[id], immuneTicks);
+}
+/**
+* Cancel what `id` is doing: the basic-attack windup, a cast in progress, Nap, an ability dash. `hard` CC (stun,
+* fear, knockback) also breaks Snack Break.
+*/
+function interrupt(w, id, hard) {
+	w.windup[id] = 0;
+	if (id < RANGE.minions) {
+		w.castPhase[id] = 0;
+		w.castT[id] = 0;
+		if (w.napT[id] > 0) {
+			w.napT[id] = 0;
+			w.state[id] = UnitState.Idle;
+		}
+	}
+	if (w.fmKind[id] !== FM.None && w.fmKind[id] !== FM.Knock) {
+		w.fmT[id] = 0;
+		w.fmKind[id] = FM.None;
+		w.fmTarget[id] = -1;
+	}
+	if (hard) {
+		w.healT[id] = 0;
+		w.healLeft[id] = 0;
+	}
+}
+/** Is `id` unable to act (stunned, feared or charmed, knocked back)? */
+var disabled = (w, id) => w.stunT[id] > 0 || w.fearT[id] > 0 || w.fmKind[id] === FM.Knock;
+/** Clear every status of `id` (death, respawn). */
+function clearStatus(w, id) {
+	w.stunT[id] = 0;
+	w.rootT[id] = 0;
+	w.fearT[id] = 0;
+	w.fearSrc[id] = -1;
+	w.slowT[id] = 0;
+	w.slowBp[id] = 0;
+	w.hasteT[id] = 0;
+	w.hasteBp[id] = 0;
+	w.asT[id] = 0;
+	w.asBp[id] = 0;
+	w.cdrT[id] = 0;
+	w.cdrBp[id] = 0;
+	w.stealthT[id] = 0;
+	w.untargT[id] = 0;
+	w.ccImmT[id] = 0;
+	w.ccWinT[id] = 0;
+	w.ccSum[id] = 0;
+	w.revealT[id] = 0;
+	w.shield[id] = 0;
+	w.shieldT[id] = 0;
+	w.healT[id] = 0;
+	w.healLeft[id] = 0;
+	w.fmT[id] = 0;
+	w.fmKind[id] = FM.None;
+	w.fmTarget[id] = -1;
+	w.tether[id] = -1;
+	if (id < RANGE.minions) {
+		clearStacks(w, id);
+		w.dotN[id] = 0;
+		w.dotT[id] = 0;
+	}
+}
+var dec = (a, i) => {
+	if (a[i] > 0) a[i]--;
+};
+/** Step 4 (after movement): every status timer ticks down; expired buffs lose their strength. */
+function tickStatus(w) {
+	for (let id = 0; id < RANGE.end; id++) {
+		if (w.alive[id] === 0) continue;
+		dec(w.stunT, id);
+		dec(w.rootT, id);
+		dec(w.fearT, id);
+		if (w.fearT[id] === 0) w.fearSrc[id] = -1;
+		dec(w.slowT, id);
+		if (w.slowT[id] === 0) w.slowBp[id] = 0;
+		dec(w.hasteT, id);
+		if (w.hasteT[id] === 0) w.hasteBp[id] = 0;
+		dec(w.asT, id);
+		if (w.asT[id] === 0) w.asBp[id] = 0;
+		dec(w.cdrT, id);
+		if (w.cdrT[id] === 0) w.cdrBp[id] = 0;
+		dec(w.stealthT, id);
+		dec(w.untargT, id);
+		dec(w.ccImmT, id);
+		if (id < RANGE.minions && (w.ccWinT[id] > 0 || w.ccSum[id] > 0)) tickSteadfast(w, id);
+		dec(w.revealT, id);
+		if (w.shieldT[id] > 0 && --w.shieldT[id] === 0) w.shield[id] = 0;
+		if (id < RANGE.minions) {
+			tickStacks(w, id);
+			if (w.dotT[id] > 0 && --w.dotT[id] === 0) w.dotN[id] = 0;
+		}
+	}
 }
 //#endregion
 //#region src/sim/effects/dash.ts
@@ -7510,6 +7519,10 @@ var BRUTUS_KIT = {
 		if (w.globals[G.Tick] - w.kHurt[id] < p.decayAfter) w.kHonour[id] = Math.min(cap, w.kHonour[id] + rate);
 		else w.kHonour[id] = Math.max(0, w.kHonour[id] - rate);
 		if (w.kWT[id] > 0 && --w.kWT[id] === 0) w.kWAge[id] = 0;
+		if (w.kRT[id] > 0 && w.tether[id] < 0) {
+			w.kRT[id] = 0;
+			w.kFoe[id] = -1;
+		}
 		if (w.kRT[id] > 0) {
 			const bp = abil(w, id).r.allySpeedBp ?? 0;
 			const z = w.tether[id];
@@ -7542,7 +7555,7 @@ var BRUTUS_KIT = {
 		const w = m.world;
 		const a = abil(w, id);
 		const d = planted(w, id) ? applyBp(dmg, BP_ONE - (a.w.postReduceBp ?? 0)) : dmg;
-		if (w.kRT[id] > 0 && src >= 0 && src === w.kFoe[id]) return applyBp(d, BP_ONE - a.r.reduceBp);
+		if (w.kRT[id] > 0 && w.tether[id] >= 0 && src >= 0 && src === w.kFoe[id]) return applyBp(d, BP_ONE - a.r.reduceBp);
 		return d;
 	},
 	absorb(m, id, dmg) {
@@ -10564,6 +10577,7 @@ function castTrick(m, id, x, y) {
 	const w = m.world;
 	switch (TRICK_IDS[w.trick[id]]) {
 		case "pounce":
+			breakTether(w, id);
 			blink(m, id, x, y, TRICKS.pounce.blink);
 			return TRICKS.pounce.cooldown;
 		case "snack":
@@ -14544,7 +14558,9 @@ function escapeCast(w, id, foe, p) {
 function purrifyCast(w, id, p) {
 	if (p.trick === "never" || TRICK_IDS[w.trick[id]] !== "purrify" || !canCast(w, id, 4)) return null;
 	const min = BOT_AI.purrifyMinTicks;
-	if (!(w.stunT[id] >= min || w.fearT[id] >= min) && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0) && windupThreat(w, id) < 0) return null;
+	const hard = w.stunT[id] >= min || w.fearT[id] >= min;
+	const caged = w.tether[id] >= 0 && w.zOwner[w.tether[id]] !== id;
+	if (!hard && !caged && !((w.rootT[id] >= min || w.slowT[id] >= min) && nearestFoe(w, id, BOT_AI.trickThreat) >= 0) && windupThreat(w, id) < 0) return null;
 	return cast(4, w.x[id], w.y[id], 255);
 }
 /**

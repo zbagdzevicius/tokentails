@@ -6,6 +6,7 @@
 import { CC_DR } from '../../data/effects';
 import { FM, Kind, RANGE, UnitState, type World } from '../world';
 import { clearStacks, tickStacks } from './stack';
+import { breakTether } from './tether';
 
 /**
  * Structures, fountains, Pudding and dead units ignore CC and displacement. Sim v10 (GAPS B5): so does a unit with
@@ -60,6 +61,8 @@ function tickSteadfast(w: World, id: number): void {
  * A knockback in flight finishes (it is displacement, not a status).
  */
 export function cleanse(w: World, id: number, immuneTicks: number): void {
+  // Sim v17 (V17.md §3.5): a cleanse also frees a tethered foe from Sir Brutus's arena.
+  breakTether(w, id);
   w.stunT[id] = 0;
   w.rootT[id] = 0;
   w.fearT[id] = 0;

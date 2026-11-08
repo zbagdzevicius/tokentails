@@ -71,6 +71,15 @@ export function clampTethers(m: MatchHandle): void {
   }
 }
 
+/**
+ * Sim v17 (V17.md §3.5): the tethered foe `id` breaks out (Pounce, any cleanse). The arena ends for both, so its owner
+ * also loses the damage cut that reads `tether`. The owner's own Pounce or cleanse keeps it.
+ */
+export function breakTether(w: World, id: number): void {
+  const z = w.tether[id];
+  if (z >= 0 && w.zAlive[z] !== 0 && w.zKind[z] === ZONE_KIND.arena && w.zOwner[z] !== id) endArena(w, z);
+}
+
 /** End arena `z` and free everyone tethered to it. */
 export function endArena(w: World, z: number): void {
   w.zAlive[z] = 0;
