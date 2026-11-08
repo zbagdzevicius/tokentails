@@ -4,7 +4,7 @@
  * on the empty deck, and dare links point at the public web game, never at `capacitor://localhost`.
  */
 import { afterEach, describe, expect, it } from 'vitest';
-import { inAppShell, PUBLIC_GAME_URL, shareBase } from '../../src/app/platform';
+import { coarsePointer, inAppShell, PUBLIC_GAME_URL, shareBase, shellPlatform } from '../../src/app/platform';
 import { isAppBuild, lockAppBuild, parseRoster, resetAppBuild, setAppBuild } from '../../src/meta/roster';
 import { Entitlements } from '../../src/money/entitlements';
 import { pickMeet } from '../../src/money/offer';
@@ -87,5 +87,24 @@ describe('the empty deck in the app', () => {
     expect(emptyAction(ctx)).toBe('none');
     expect(emptyCard(ctx)).not.toContain(TT_URL);
     expect(emptyCard(ctx)).not.toContain('<a ');
+  });
+});
+
+describe('shellPlatform and coarsePointer (the Mac app)', () => {
+  const mac = { Capacitor: { isNativePlatform: () => true }, __PL_PLATFORM__: 'mac' };
+  it('names the native shell from window.__PL_PLATFORM__', () => {
+    expect(shellPlatform(false, mac)).toBe('mac');
+    expect(shellPlatform(false, { Capacitor: { isNativePlatform: () => true }, __PL_PLATFORM__: 'ios' })).toBe('ios');
+    // an iPhone binary from before the platform key
+    expect(shellPlatform(true, {})).toBe('ios');
+    expect(shellPlatform(false, { __PL_PLATFORM__: 'mac' })).toBe(null);
+  });
+  it('never starts touch controls in the Mac app', () => {
+    const coarse = () => ({ matches: true });
+    expect(coarsePointer('mac', coarse)).toBe(false);
+    expect(coarsePointer('ios', coarse)).toBe(true);
+    expect(coarsePointer(null, coarse)).toBe(true);
+    expect(coarsePointer(null, () => ({ matches: false }))).toBe(false);
+    expect(coarsePointer(null, undefined)).toBe(false);
   });
 });
