@@ -6,6 +6,9 @@
  * party code, now frozen); the dogs ship as sim v14, and with no party v14 plays exactly like that dogs-only sim.
  * Sim v15 (three more dogs, DOGS-V15.md) adds no party code: the golden was regenerated from the v15 sim itself (its
  * own vendored fixtures), since the v14 identity above already proved the party hooks change nothing single-player.
+ * Sim v16: the S-PvP commit kept this v15 golden byte for byte (tests/unit/pvp-identity.test.ts, now retired); each
+ * MAP-GAPS B commit changes single-player play and regenerates it from that commit's sim and its live v16 fixtures
+ * (run `npm run vendor-sim` first, then write the golden).
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -21,7 +24,7 @@ import { runReplay } from '../../src/sim/replay';
 import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v15');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v16');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {
@@ -61,10 +64,10 @@ function rows(): Row[] {
 }
 
 describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 600_000 }, () => {
-  it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15)', () => {
+  it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15 and per v16 B item)', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {
-      writeFileSync(GOLDEN, JSON.stringify({ base: 'v15 (DOGS-V15 lane SIM, QA v15 fixes)', simVersion: 15, rows: got }, null, 2) + '\n');
+      writeFileSync(GOLDEN, JSON.stringify({ base: process.env.PARTY_GOLDEN_BASE ?? 'v16', simVersion: 16, rows: got }, null, 2) + '\n');
       return;
     }
     expect(existsSync(GOLDEN)).toBe(true);

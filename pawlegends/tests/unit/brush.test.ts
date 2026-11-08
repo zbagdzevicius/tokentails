@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BRUSH_REVEAL_MM, BUSHES, mirrorX } from '../../src/data/map';
+import { BRUSH_ATTACK_REVEAL_TICKS, BRUSH_REVEAL_MM, BUSHES, mirrorX } from '../../src/data/map';
 import { Op } from '../../src/sim/api';
 import { dealDamage } from '../../src/sim/combat/damage';
 import { reveal } from '../../src/sim/effects';
@@ -116,5 +116,41 @@ describe('brush (§7.3, §15 item 9)', () => {
     expect(hit && hit.type === 'hit' ? hit.src : 0).toBe(-1);
     expect(theirs.some((e) => e.type === 'cast')).toBe(false);
     expect(snapshot(m, 1).events.some((e) => e.type === 'cast')).toBe(true);
+  });
+
+  it('sim v16 B11: a hero hitting from a bush is revealed for 45 ticks (1.5 s); a minion source is not', () => {
+    expect(BRUSH_ATTACK_REVEAL_TICKS).toBe(45);
+    const m = bushMatch();
+    place(m, SEER, BUSH.x - 5500, BUSH.y, 0);
+    step(m);
+    expect(inSnap(m, 0, HIDER)).toBe(false);
+    dealDamage(m, HIDER, 1, Kind.Hero, SEER, 10, 'basic');
+    expect(m.world.revealT[HIDER]).toBe(45);
+    refreshVision(m.world);
+    expect(inSnap(m, 0, HIDER)).toBe(true);
+    // Not from a minion (or any non-hero source).
+    const n = bushMatch();
+    const mid = putMinion(n, 1, BUSH.x, BUSH.y);
+    n.world.bush[mid] = 0;
+    dealDamage(n, mid, 1, Kind.Minion, SEER, 10, 'basic');
+    expect(n.world.revealT[mid]).toBe(0);
+    expect(n.world.revealT[HIDER]).toBe(0);
+  });
+
+  it('sim v16 B11: starting a cast from a bush reveals the caster; the reveal wears off after 45 ticks', () => {
+    const m = bushMatch();
+    place(m, SEER, BUSH.x - 5500, BUSH.y, 0);
+    step(m);
+    expect(inSnap(m, 0, HIDER)).toBe(false);
+    applyOrder(m, HIDER, { op: Op.Cast, slot: 0, x: BUSH.x - 3000, y: BUSH.y, id: 255 });
+    expect(m.world.revealT[HIDER]).toBeGreaterThan(0);
+    refreshVision(m.world);
+    expect(inSnap(m, 0, HIDER)).toBe(true);
+    hold(m, HIDER);
+    steps(m, 60);
+    place(m, HIDER, BUSH.x, BUSH.y, 0);
+    place(m, SEER, BUSH.x - 5500, BUSH.y, 0);
+    expect(m.world.revealT[HIDER]).toBe(0);
+    expect(inSnap(m, 0, HIDER)).toBe(false);
   });
 });
