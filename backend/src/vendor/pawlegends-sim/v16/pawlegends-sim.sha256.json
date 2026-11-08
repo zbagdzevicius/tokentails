@@ -1,9 +1,9 @@
 {
-  "bundle": "4e6a74819036ec738c00da32021736bc5c2df6c9f950123be880abeb30afccf3",
-  "facade": "108f075df4326034066a4867a0fbf16cbe7c1819f9acad926cdeab972fc84fc2",
+  "bundle": "c6b790626c05bbd88f8ca25865c40cd71472231e91441e517197f97295a88581",
+  "facade": "cd701cfdd0ed1ee6e0f367c2d5d8a24055e35eeabe519d6e48c0e08f79296417",
   "simVersion": 16,
   "vite": "8.3.4",
   "modules": 139,
-  "simSourceHash": "fc4a74a15f9d852d",
+  "simSourceHash": "b5216c3a5fe2c7f9",
   "simGolden": "a74fd456"
 }

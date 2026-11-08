@@ -11,6 +11,8 @@ import { TICK_HZ } from '../../data/timeline';
 import { angleDiff, applyBp, dist2, iatan2, moveToward } from '../fixed';
 import { COOLDOWN_SLOTS, ENTITY_CAP, FM, Kind, RANGE, maskHas, type World } from '../world';
 import { dealDamage } from '../combat/damage';
+import { clipTravel } from '../effects/dash';
+import type { MatchHandle } from '../state';
 import { collect, dash, fear, inCone, lowestHpEnemyHero, reveal, slow, startForced, stealth, travelTicks } from '../effects';
 import { attackRange, radiusOf, targetable } from '../units/kinds';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
@@ -35,13 +37,22 @@ function aim(a: KitNumbers, slot: number): SlotAim {
 
 const step = new Int32Array(3);
 
-/** Aim the next one-tick hop of a homing dash toward `v` at `speed` (the carry keeps the speed exact). */
-function hopToward(w: World, id: number, v: number, speed: number): void {
+const clip = new Int32Array(2);
+
+/**
+ * Aim the next one-tick hop of a homing dash toward `v` at `speed` (the carry keeps the speed exact). Sim v16
+ * (MAP-GAPS B6): the hop is clipped at walls like a dash (clipTravel); a hop cut to nothing ends the hunt (false).
+ */
+function hopToward(m: MatchHandle, id: number, v: number, speed: number): boolean {
+  const w = m.world;
   moveToward(w.x[id], w.y[id], w.x[v], w.y[v], speed, w.moveCarry[id], TICK_HZ, step);
-  w.fmX[id] = step[0];
-  w.fmY[id] = step[1];
+  clipTravel(m, id, step[0], step[1], clip);
+  if (clip[0] === w.x[id] && clip[1] === w.y[id]) return false;
+  w.fmX[id] = clip[0];
+  w.fmY[id] = clip[1];
   w.moveCarry[id] = step[2];
   w.fmT[id] = 1;
+  return true;
 }
 
 /** A Jeer Slash dash ended (landed, or was stopped by CC): open the recast window or start the cooldown. */
@@ -159,7 +170,10 @@ export const CACKLEJAW_KIT: HeroKit = {
       w.kHuntVictim[id] = v;
       return;
     }
-    hopToward(w, id, v, r.speed);
+    if (!hopToward(m, id, v, r.speed)) {
+      endHunt(w, id);
+      w.kHuntT[id] = 0;
+    }
   },
   outgoing(m, id, dst, raw) {
     const w = m.world;

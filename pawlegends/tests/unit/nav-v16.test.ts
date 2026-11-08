@@ -7,6 +7,7 @@ import { findPath } from '../../src/sim/nav/astar';
 import { dist2 } from '../../src/sim/fixed';
 import { TIMELINE } from '../../src/data/timeline';
 import { clipTravel, startForced } from '../../src/sim/effects/dash';
+import { clampTethers, startArena } from '../../src/sim/effects/tether';
 import { FM, G, Order, RANGE } from '../../src/sim/world';
 import { onPuddingDown } from '../../src/sim/units/pudding';
 import { PUD_STATE } from '../../src/data/pudding';
@@ -261,5 +262,38 @@ describe('B13 Pudding escort lane', () => {
       expect(calmed(seed, (m) => (m.world.hp[RANGE.towers + 4 + 2] -= 100))[G.PudLane]).toBe(1);
       expect(calmed(seed, (m) => (m.world.hp[RANGE.towers + 4 + 0] -= 100))[G.PudLane]).toBe(0);
     }
+  });
+});
+
+describe('B6 Pack Hunt hops and tether clamps respect walls', { timeout: 120_000 }, () => {
+  it('a hunt toward a victim behind the rock [24-30 x 37-41] stops at the rock face', () => {
+    const m = heroMatch(['cacklejaw', 'sage', 'gabe', 'brutus', 'chili', 'rocket']);
+    const w = m.world;
+    place(m, 0, 27000, 35500);
+    place(m, 3, 27000, 43500);
+    startForced(w, 0, w.x[3], w.y[3], 90, FM.Hunt);
+    w.fmTarget[0] = 3;
+    w.kHuntT[0] = 90;
+    w.revealT[3] = 200;
+    for (let t = 0; t < 60 && w.fmKind[0] === FM.Hunt; t++) {
+      step(m);
+      expect(walkable(m.grid, cellOf(w.x[0], w.y[0]))).toBe(true);
+    }
+    expect(w.fmKind[0]).toBe(FM.None);
+    expect(w.y[0]).toBeLessThan(37000);
+  });
+
+  it('a tether clamp next to a core never lands on a blocked cell', () => {
+    const m = heroMatch(['brutus', 'sage', 'gabe', 'clem', 'chili', 'rocket']);
+    const w = m.world;
+    place(m, 0, 13000, 30000);
+    place(m, 3, 13500, 30000);
+    const z = startArena(w, 0, 3, 4000, 300);
+    expect(z).toBeGreaterThanOrEqual(0);
+    w.x[3] = 6000;
+    w.y[3] = 30000;
+    clampTethers(m);
+    expect(walkable(m.grid, cellOf(w.x[3], w.y[3]))).toBe(true);
+    expect(dist2(w.x[3], w.y[3], 13000, 30000)).toBeLessThanOrEqual(4000 * 4000);
   });
 });

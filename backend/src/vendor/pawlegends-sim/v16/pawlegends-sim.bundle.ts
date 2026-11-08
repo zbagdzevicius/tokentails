@@ -6572,7 +6572,22 @@ function clampTethers(m) {
 			w.tether[id] = -1;
 			continue;
 		}
-		clampToArena(w, id, w.x[id], w.y[id], pos$1);
+		const x = w.x[id];
+		const y = w.y[id];
+		clampToArena(w, id, x, y, pos$1);
+		if ((pos$1[0] !== x || pos$1[1] !== y) && !walkable(m.grid, cellOf(pos$1[0], pos$1[1]))) {
+			const cx = w.zX[z];
+			const cy = w.zY[z];
+			const dx = cx - pos$1[0];
+			const dy = cy - pos$1[1];
+			const n = idiv(isqrt(dx * dx + dy * dy), NAV.losStep) + 1;
+			const px = pos$1[0];
+			const py = pos$1[1];
+			for (let k = 1; k <= n && !walkable(m.grid, cellOf(pos$1[0], pos$1[1])); k++) {
+				pos$1[0] = px + idiv(dx * k, n);
+				pos$1[1] = py + idiv(dy * k, n);
+			}
+		}
 		w.x[id] = pos$1[0];
 		w.y[id] = pos$1[1];
 	}
@@ -7508,13 +7523,21 @@ function aim$16(a, slot) {
 	}
 }
 var step$1 = /* @__PURE__ */ new Int32Array(3);
-/** Aim the next one-tick hop of a homing dash toward `v` at `speed` (the carry keeps the speed exact). */
-function hopToward(w, id, v, speed) {
+var clip = /* @__PURE__ */ new Int32Array(2);
+/**
+* Aim the next one-tick hop of a homing dash toward `v` at `speed` (the carry keeps the speed exact). Sim v16
+* (MAP-GAPS B6): the hop is clipped at walls like a dash (clipTravel); a hop cut to nothing ends the hunt (false).
+*/
+function hopToward(m, id, v, speed) {
+	const w = m.world;
 	moveToward(w.x[id], w.y[id], w.x[v], w.y[v], speed, w.moveCarry[id], 30, step$1);
-	w.fmX[id] = step$1[0];
-	w.fmY[id] = step$1[1];
+	clipTravel(m, id, step$1[0], step$1[1], clip);
+	if (clip[0] === w.x[id] && clip[1] === w.y[id]) return false;
+	w.fmX[id] = clip[0];
+	w.fmY[id] = clip[1];
 	w.moveCarry[id] = step$1[2];
 	w.fmT[id] = 1;
+	return true;
 }
 /** A Jeer Slash dash ended (landed, or was stopped by CC): open the recast window or start the cooldown. */
 function jeerEnded(w, id) {
@@ -7629,7 +7652,10 @@ var CACKLEJAW_KIT = {
 			w.kHuntVictim[id] = v;
 			return;
 		}
-		hopToward(w, id, v, r.speed);
+		if (!hopToward(m, id, v, r.speed)) {
+			endHunt(w, id);
+			w.kHuntT[id] = 0;
+		}
 	},
 	outgoing(m, id, dst, raw) {
 		const w = m.world;
