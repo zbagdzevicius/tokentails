@@ -9,12 +9,12 @@ import { TICK_HZ } from '../../data/timeline';
 import { applyBp, clamp, dist2, idiv, isqrt, moveToward } from '../fixed';
 import { cellOf, walkable, type NavGrid } from '../map/grid';
 import { Kind, type World } from '../world';
-import { ccImmune, interrupt } from './status';
+import { ccImmune, drGrant, interrupt } from './status';
 import { moveSpeed } from '../units/kinds';
 
 export function fear(w: World, id: number, ticks: number, fromX: number, fromY: number): void {
   if (ticks <= 0 || ccImmune(w, id)) return;
-  w.fearT[id] = Math.max(w.fearT[id], ticks);
+  w.fearT[id] = Math.max(w.fearT[id], drGrant(w, id, ticks));
   w.fearX[id] = fromX;
   w.fearY[id] = fromY;
   w.fearSrc[id] = -1;
@@ -24,7 +24,7 @@ export function fear(w: World, id: number, ticks: number, fromX: number, fromY: 
 /** Charm `id` for `ticks`: it walks toward unit `src` (at its own, slowed, move speed) and cannot act. */
 export function charm(w: World, id: number, ticks: number, src: number): void {
   if (ticks <= 0 || ccImmune(w, id) || src < 0) return;
-  w.fearT[id] = Math.max(w.fearT[id], ticks);
+  w.fearT[id] = Math.max(w.fearT[id], drGrant(w, id, ticks));
   w.fearX[id] = w.x[src];
   w.fearY[id] = w.y[src];
   w.fearSrc[id] = src;

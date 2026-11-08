@@ -23,7 +23,7 @@ import {
   inRing,
   ON_HIT,
   PFLAG,
-  root,
+  selfRoot,
   slow,
 } from '../effects';
 import { attackRange } from '../units/kinds';
@@ -99,7 +99,7 @@ export const PIXEL_KIT: HeroKit = {
       }
       case 2: {
         const e = a.e;
-        root(w, id, e.duration);
+        selfRoot(w, id, e.duration);
         w.kRT[id] = e.duration;
         w.kHonour[id] = plate(w, id);
         return e.cooldown;

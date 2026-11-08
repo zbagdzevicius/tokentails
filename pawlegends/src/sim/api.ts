@@ -182,6 +182,8 @@ export const BuffFlag = Object.freeze({
   Pack: 1 << 17, // lint-sim: allow (a bit index)
   /** Sim v10 (GAPS B5): Purr-ify's crowd-control immunity. */
   Purrified: 1 << 18, // lint-sim: allow (a bit index)
+  /** Sim v17 (V17.md §3.1): Steadfast, the CC-cap immunity after 2 s of hard CC in 4 s. */
+  Steadfast: 1 << 19, // lint-sim: allow (a bit index)
 } as const);
 
 export interface EntitySnap {

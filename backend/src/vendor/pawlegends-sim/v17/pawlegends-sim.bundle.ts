@@ -3380,7 +3380,9 @@ Object.freeze({
 	NineLives: 65536,
 	Pack: 1 << 17,
 	/** Sim v10 (GAPS B5): Purr-ify's crowd-control immunity. */
-	Purrified: 1 << 18
+	Purrified: 1 << 18,
+	/** Sim v17 (V17.md §3.1): Steadfast, the CC-cap immunity after 2 s of hard CC in 4 s. */
+	Steadfast: 1 << 19
 });
 Object.freeze([
 	"kill",
@@ -4513,7 +4515,9 @@ var Buff = Object.freeze({
 	NineLives: 65536,
 	Pack: 1 << 17,
 	/** Sim v10: Purr-ify's crowd-control immunity. */
-	Purrified: 1 << 18
+	Purrified: 1 << 18,
+	/** Sim v17: Steadfast, the CC-cap immunity (CC_DR) is running. */
+	Steadfast: 1 << 19
 });
 /** Coarse unit state (snapshot `state`, drives the render animation). */
 var UnitState = Object.freeze({
@@ -4672,6 +4676,8 @@ function createWorld(seed) {
 		stealthT: new Int32Array(n),
 		untargT: new Int32Array(n),
 		ccImmT: new Int32Array(n),
+		ccWinT: new Int32Array(n),
+		ccSum: new Int32Array(n),
 		revealT: new Int32Array(n),
 		shieldT: new Int32Array(n),
 		healT: new Int32Array(n),
@@ -4855,6 +4861,8 @@ function hashedArrays(w) {
 		w.stealthT,
 		w.untargT,
 		w.ccImmT,
+		w.ccWinT,
+		w.ccSum,
 		w.revealT,
 		w.shieldT,
 		w.healT,
@@ -5020,6 +5028,17 @@ var EFFECTS = Object.freeze({
 	charmStop: 1e3,
 	/** A pull (Lambo's Tangled Lights) stops this far (mm) short of the puller's footprint, so nobody ends past him. */
 	pullGap: 200
+});
+/**
+* Sim v17 Steadfast (docs/plans/moba/V17.md §3.1, RESEARCH §C6 "2 s of CC in 4 s → 1 s immunity"): hard CC on a hero
+* (stun, fear, charm, root, knockback and pull) counts toward `cap` ticks of lock inside a `window`-tick window that
+* opens at the first counted CC; reaching the cap truncates that CC and grants CC immunity for the rest of the lock
+* plus `immune` ticks. Heroes only.
+*/
+var CC_DR = Object.freeze({
+	window: 120,
+	cap: 60,
+	immune: 30
 });
 /** Zone kinds in ZoneSnap.kind (render picks the look). */
 var ZONE_KIND = Object.freeze({
@@ -6220,6 +6239,40 @@ function ccImmune(w, id) {
 	const k = w.kind[id];
 	return k !== Kind.Hero && k !== Kind.Minion && k !== Kind.Camp;
 }
+/** Ticks of lock `id` is already under: the longest of stun, fear or charm, root and a knockback in flight. */
+var lockLeft = (w, id) => Math.max(w.stunT[id], w.fearT[id], w.rootT[id], w.fmKind[id] === FM.Knock ? w.fmT[id] : 0);
+/**
+* Sim v17 Steadfast (CC_DR, docs/plans/moba/V17.md §3.1): the ticks a new hard CC of `ticks` on `id` may last. Only the
+* lock it adds beyond the lock already running counts toward the window's cap; the CC that reaches the cap is cut
+* short and grants CC immunity for the rest of the lock plus CC_DR.immune. Heroes only (minions and camps unchanged).
+* Call after the `ccImmune` check.
+*/
+function drGrant(w, id, ticks) {
+	if (id < RANGE.heroes || id >= RANGE.minions) return ticks;
+	if (w.ccWinT[id] === 0) {
+		w.ccWinT[id] = CC_DR.window;
+		w.ccSum[id] = 0;
+	}
+	const cur = lockLeft(w, id);
+	const add = ticks - cur;
+	if (add <= 0) return ticks;
+	const grant = Math.min(add, CC_DR.cap - w.ccSum[id]);
+	w.ccSum[id] += grant;
+	if (w.ccSum[id] >= CC_DR.cap) w.ccImmT[id] = Math.max(w.ccImmT[id], cur + grant + CC_DR.immune);
+	return cur + grant;
+}
+/**
+* Sim v17 Steadfast, once a tick after the status timers: the window runs down but never closes while a lock is still
+* running (so one unbroken lock is always counted in one window and never exceeds CC_DR.cap), and once the cap's
+* immunity has run out the window closes at once (the next CC opens a fresh one).
+*/
+function tickSteadfast(w, id) {
+	if (w.ccWinT[id] > 1 || lockLeft(w, id) === 0) dec(w.ccWinT, id);
+	if (w.ccImmT[id] === 0 && (w.ccWinT[id] === 0 || w.ccSum[id] >= CC_DR.cap)) {
+		w.ccWinT[id] = 0;
+		w.ccSum[id] = 0;
+	}
+}
 /**
 * Sim v10 (GAPS B5) `cleanse`: remove stun, root, slow, fear and charm from `id`, then `immuneTicks` of CC immunity.
 * A knockback in flight finishes (it is displacement, not a status).
@@ -6276,6 +6329,8 @@ function clearStatus(w, id) {
 	w.stealthT[id] = 0;
 	w.untargT[id] = 0;
 	w.ccImmT[id] = 0;
+	w.ccWinT[id] = 0;
+	w.ccSum[id] = 0;
 	w.revealT[id] = 0;
 	w.shield[id] = 0;
 	w.shieldT[id] = 0;
@@ -6313,6 +6368,7 @@ function tickStatus(w) {
 		dec(w.stealthT, id);
 		dec(w.untargT, id);
 		dec(w.ccImmT, id);
+		if (id < RANGE.minions && (w.ccWinT[id] > 0 || w.ccSum[id] > 0)) tickSteadfast(w, id);
 		dec(w.revealT, id);
 		if (w.shieldT[id] > 0 && --w.shieldT[id] === 0) w.shield[id] = 0;
 		if (id < RANGE.minions) {
@@ -6360,8 +6416,17 @@ function inRing(x, y, r, px, py, pr) {
 //#endregion
 //#region src/sim/effects/root.ts
 /** `root` (POC.md §4.4): no walking and no mobility casts; attacks and other casts still work. Stops a dash. */
+/** Root an enemy (hard CC: sim v17 counts it toward the Steadfast cap). */
 function root(w, id, ticks) {
 	if (ticks <= 0 || ccImmune(w, id)) return;
+	setRoot(w, id, drGrant(w, id, ticks));
+}
+/** Sim v17: a hero rooting itself (Pixel's E, Nugget's Sploot, Meatball's Loaf) is not CC and never counts. */
+function selfRoot(w, id, ticks) {
+	if (ticks <= 0 || ccImmune(w, id)) return;
+	setRoot(w, id, ticks);
+}
+function setRoot(w, id, ticks) {
 	w.rootT[id] = Math.max(w.rootT[id], ticks);
 	if (w.fmKind[id] !== FM.None && w.fmKind[id] !== FM.Knock) {
 		w.fmT[id] = 0;
@@ -6876,7 +6941,7 @@ function inFront(w, id, x, y, arc) {
 /** `stun` (POC.md §4.4): no moving, attacking or casting; cancels windups, casts, Nap, dashes and Snack Break. */
 function stun(w, id, ticks) {
 	if (ticks <= 0 || ccImmune(w, id)) return;
-	w.stunT[id] = Math.max(w.stunT[id], ticks);
+	w.stunT[id] = Math.max(w.stunT[id], drGrant(w, id, ticks));
 	interrupt(w, id, true);
 }
 //#endregion
@@ -6895,6 +6960,7 @@ function knockback(m, id, fromX, fromY, dist, fallbackAngle) {
 		dy = idiv(isin(fallbackAngle) * dist, TRIG_ONE);
 		d = Math.max(1, isqrt(dx * dx + dy * dy));
 	}
+	drGrant(w, id, EFFECTS.knockbackTicks);
 	interrupt(w, id, true);
 	clipTravel(m, id, w.x[id] + idiv(dx * dist, d), w.y[id] + idiv(dy * dist, d), end);
 	startForced(w, id, end[0], end[1], EFFECTS.knockbackTicks, FM.Knock);
@@ -6908,7 +6974,7 @@ function knockback(m, id, fromX, fromY, dist, fallbackAngle) {
 */
 function fear(w, id, ticks, fromX, fromY) {
 	if (ticks <= 0 || ccImmune(w, id)) return;
-	w.fearT[id] = Math.max(w.fearT[id], ticks);
+	w.fearT[id] = Math.max(w.fearT[id], drGrant(w, id, ticks));
 	w.fearX[id] = fromX;
 	w.fearY[id] = fromY;
 	w.fearSrc[id] = -1;
@@ -6917,7 +6983,7 @@ function fear(w, id, ticks, fromX, fromY) {
 /** Charm `id` for `ticks`: it walks toward unit `src` (at its own, slowed, move speed) and cannot act. */
 function charm(w, id, ticks, src) {
 	if (ticks <= 0 || ccImmune(w, id) || src < 0) return;
-	w.fearT[id] = Math.max(w.fearT[id], ticks);
+	w.fearT[id] = Math.max(w.fearT[id], drGrant(w, id, ticks));
 	w.fearX[id] = w.x[src];
 	w.fearY[id] = w.y[src];
 	w.fearSrc[id] = src;
@@ -8340,7 +8406,7 @@ var MEATBALL_KIT = {
 				return a.q.cooldown;
 			case 1: {
 				const g = a.w;
-				root(w, id, g.duration);
+				selfRoot(w, id, g.duration);
 				w.kRT[id] = g.duration;
 				const hx = w.x[id];
 				const hy = w.y[id];
@@ -8499,7 +8565,7 @@ var PIXEL_KIT = {
 			}
 			case 2: {
 				const e = a.e;
-				root(w, id, e.duration);
+				selfRoot(w, id, e.duration);
 				w.kRT[id] = e.duration;
 				w.kHonour[id] = plate(w, id);
 				return e.cooldown;
@@ -8978,7 +9044,7 @@ function friendLand(m, id) {
 function sploot(m, id) {
 	const w = m.world;
 	const e = abil(w, id).e;
-	root(w, id, e.duration);
+	selfRoot(w, id, e.duration);
 	w.kRT[id] = e.duration;
 	const total = toySupport(w, id, lvl(w, id, e.heal, e.healPerLevel));
 	for (let a = RANGE.heroes; a < RANGE.minions; a++) {
@@ -11923,6 +11989,7 @@ function refreshFlags(w) {
 			if (w.stealthT[id] > 0) b |= Buff.Stealth;
 			if (w.untargT[id] > 0) b |= Buff.Untargetable;
 			if (w.ccImmT[id] > 0) b |= Buff.Purrified;
+			if (w.ccImmT[id] > 0 && w.ccSum[id] >= CC_DR.cap) b |= Buff.Steadfast;
 			if (w.stunT[id] > 0) b |= Buff.Stunned;
 			if (w.rootT[id] > 0) b |= Buff.Rooted;
 			if (w.fearT[id] > 0) b |= Buff.Feared;

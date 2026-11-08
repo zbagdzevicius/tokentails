@@ -10,7 +10,7 @@ import { ANGLE_STEPS, BP_ONE, applyBp, dist2, icos, idiv, isin, isqrt } from '..
 import type { MatchHandle } from '../state';
 import { ENTITY_CAP, FM, Kind, maskHas, type World } from '../world';
 import { dealDamage } from '../combat/damage';
-import { addShield, charm, cleanse, collect, dash, haste, inRing, knockback, root, slow } from '../effects';
+import { addShield, charm, cleanse, collect, dash, haste, inRing, knockback, selfRoot, slow } from '../effects';
 import { creditHealShield } from '../effects/heal';
 import { radiusOf } from '../units/kinds';
 import { wrapTarget } from './gabe';
@@ -125,7 +125,7 @@ export const MEATBALL_KIT: HeroKit = {
         return a.q.cooldown;
       case 1: {
         const g = a.w;
-        root(w, id, g.duration);
+        selfRoot(w, id, g.duration);
         w.kRT[id] = g.duration;
         const hx = w.x[id];
         const hy = w.y[id];

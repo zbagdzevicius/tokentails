@@ -3,6 +3,7 @@
  * flags. Timers count ticks left; an effect applied with N ticks is active for the next N movement steps (timers tick
  * down right after movement, §4.3 step 4).
  */
+import { CC_DR } from '../../data/effects';
 import { FM, Kind, RANGE, UnitState, type World } from '../world';
 import { clearStacks, tickStacks } from './stack';
 
@@ -14,6 +15,44 @@ export function ccImmune(w: World, id: number): boolean {
   if (w.alive[id] === 0 || w.ccImmT[id] > 0) return true;
   const k = w.kind[id];
   return k !== Kind.Hero && k !== Kind.Minion && k !== Kind.Camp;
+}
+
+/** Ticks of lock `id` is already under: the longest of stun, fear or charm, root and a knockback in flight. */
+const lockLeft = (w: World, id: number): number =>
+  Math.max(w.stunT[id], w.fearT[id], w.rootT[id], w.fmKind[id] === FM.Knock ? w.fmT[id] : 0);
+
+/**
+ * Sim v17 Steadfast (CC_DR, docs/plans/moba/V17.md §3.1): the ticks a new hard CC of `ticks` on `id` may last. Only the
+ * lock it adds beyond the lock already running counts toward the window's cap; the CC that reaches the cap is cut
+ * short and grants CC immunity for the rest of the lock plus CC_DR.immune. Heroes only (minions and camps unchanged).
+ * Call after the `ccImmune` check.
+ */
+export function drGrant(w: World, id: number, ticks: number): number {
+  if (id < RANGE.heroes || id >= RANGE.minions) return ticks;
+  if (w.ccWinT[id] === 0) {
+    w.ccWinT[id] = CC_DR.window;
+    w.ccSum[id] = 0;
+  }
+  const cur = lockLeft(w, id);
+  const add = ticks - cur;
+  if (add <= 0) return ticks;
+  const grant = Math.min(add, CC_DR.cap - w.ccSum[id]);
+  w.ccSum[id] += grant;
+  if (w.ccSum[id] >= CC_DR.cap) w.ccImmT[id] = Math.max(w.ccImmT[id], cur + grant + CC_DR.immune);
+  return cur + grant;
+}
+
+/**
+ * Sim v17 Steadfast, once a tick after the status timers: the window runs down but never closes while a lock is still
+ * running (so one unbroken lock is always counted in one window and never exceeds CC_DR.cap), and once the cap's
+ * immunity has run out the window closes at once (the next CC opens a fresh one).
+ */
+function tickSteadfast(w: World, id: number): void {
+  if (w.ccWinT[id] > 1 || lockLeft(w, id) === 0) dec(w.ccWinT, id);
+  if (w.ccImmT[id] === 0 && (w.ccWinT[id] === 0 || w.ccSum[id] >= CC_DR.cap)) {
+    w.ccWinT[id] = 0;
+    w.ccSum[id] = 0;
+  }
 }
 
 /**
@@ -76,6 +115,8 @@ export function clearStatus(w: World, id: number): void {
   w.stealthT[id] = 0;
   w.untargT[id] = 0;
   w.ccImmT[id] = 0;
+  w.ccWinT[id] = 0;
+  w.ccSum[id] = 0;
   w.revealT[id] = 0;
   w.shield[id] = 0;
   w.shieldT[id] = 0;
@@ -116,6 +157,7 @@ export function tickStatus(w: World): void {
     dec(w.stealthT, id);
     dec(w.untargT, id);
     dec(w.ccImmT, id);
+    if (id < RANGE.minions && (w.ccWinT[id] > 0 || w.ccSum[id] > 0)) tickSteadfast(w, id);
     dec(w.revealT, id);
     if (w.shieldT[id] > 0 && --w.shieldT[id] === 0) w.shield[id] = 0;
     if (id < RANGE.minions) {

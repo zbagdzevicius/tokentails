@@ -62,6 +62,8 @@ export const Buff = Object.freeze({
   Pack: 1 << 17, // lint-sim: allow (a bit index)
   /** Sim v10: Purr-ify's crowd-control immunity. */
   Purrified: 1 << 18, // lint-sim: allow (a bit index)
+  /** Sim v17: Steadfast, the CC-cap immunity (CC_DR) is running. */
+  Steadfast: 1 << 19, // lint-sim: allow (a bit index)
 } as const);
 export type Buff = (typeof Buff)[keyof typeof Buff];
 
@@ -217,6 +219,9 @@ export interface World {
   untargT: Int32Array;
   /** Sim v10 (GAPS B5): crowd-control immunity after Purr-ify; stun, root, slow, fear, charm and knockback miss. */
   ccImmT: Int32Array;
+  /** Sim v17 Steadfast (CC_DR): ticks left in the hero's CC window (0 = none) and hard-CC ticks counted in it. */
+  ccWinT: Int32Array;
+  ccSum: Int32Array;
   /** Revealed (mark): visible to the enemy team through brush and stealth. */
   revealT: Int32Array;
   /** Flat shield (w.shield) expiry; 0 = no expiry. */
@@ -491,6 +496,8 @@ export function createWorld(seed: number): World {
     stealthT: new Int32Array(n),
     untargT: new Int32Array(n),
     ccImmT: new Int32Array(n),
+    ccWinT: new Int32Array(n),
+    ccSum: new Int32Array(n),
     revealT: new Int32Array(n),
     shieldT: new Int32Array(n),
     healT: new Int32Array(n),
@@ -627,7 +634,7 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.attackTimer, w.timer, w.cooldowns,
     w.windup, w.order, w.streak, w.shotAt, w.forced, w.lastHitBy, w.hurtTick, w.pathX, w.pathY, w.pathLen, w.pathIdx, w.pathDone,
     w.stunT, w.rootT, w.fearT, w.fearX, w.fearY, w.fearSrc, w.slowT, w.slowBp, w.hasteT, w.hasteBp, w.asT, w.asBp, w.cdrT, w.cdrBp,
-    w.stealthT, w.untargT, w.ccImmT, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
+    w.stealthT, w.untargT, w.ccImmT, w.ccWinT, w.ccSum, w.revealT, w.shieldT, w.healT, w.healLeft, w.fmT, w.fmX, w.fmY, w.fmKind, w.fmTarget, w.fmHitLo, w.fmHitHi,
     w.tether, w.bush, w.seen,
     w.castPhase, w.castSlot, w.castT, w.castX, w.castY, w.castId, w.napT, w.trick, w.talents, w.killStreak,
     w.fish, w.fishTotal, w.fishRaw, w.toy, w.deathStreak, w.assistTick,
