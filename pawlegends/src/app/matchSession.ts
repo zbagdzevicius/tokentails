@@ -807,6 +807,8 @@ export class MatchSession {
   private baseToast(): void {
     const el = document.createElement('div');
     el.className = 'pl-basetoast';
+    const hero = this.welcome?.picks[this.view.mySlot];
+    el.dataset.side = hero && HEROES[hero]?.side === 'dog' ? 'dog' : 'cat';
     el.setAttribute('role', 'status');
     const turned = this.view.myTeam === 1;
     el.innerHTML = `<i class="stk" aria-hidden="true"></i><span><b>Your base: bottom left</b>${turned ? '<small>(map turned)</small>' : ''}</span>`;
