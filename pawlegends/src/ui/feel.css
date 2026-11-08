@@ -31,7 +31,8 @@ html[data-touch='1'] { --mm-w: calc(112px * var(--mm-k, 1)); --mm-h: calc(112px 
   background: rgba(42, 26, 34, 0.86); border: 2px solid #3b2417; color: #fff3dc; font-size: 13px; white-space: nowrap;
   animation: pl-basetoast 1.2s ease-out both;
 }
-.pl-basetoast .stk { width: 34px; height: 34px; flex: none; background: url('/assets/feel/sticker-base.webp') center / contain no-repeat; }
+.pl-basetoast .stk { width: 48px; height: 48px; margin: -10px 0 -10px -6px; flex: none; background: url('/assets/stickers/base-cat-256.webp') center / contain no-repeat; }
+.pl-basetoast[data-side='dog'] .stk { background-image: url('/assets/stickers/base-dog-256.webp'); }
 .pl-basetoast span { display: flex; flex-direction: column; line-height: 1.1; }
 .pl-basetoast small { font-size: 10px; opacity: 0.8; }
 @keyframes pl-basetoast { 0% { opacity: 0; transform: translate(-50%, -6px); } 12% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; } }
@@ -55,8 +56,14 @@ html[data-touch='1'] .pl-match .pl-top { top: var(--safe-t, 0px); }
 html[data-touch='1'] .pl-match .pl-hud .pl-score.lol {
   display: flex; align-items: center; justify-content: flex-start; gap: 5px; width: auto; max-width: 220px; min-width: 0; height: 24px;
   padding: 0 4px 0 10px; column-gap: 5px; border-radius: 0 0 10px 10px; overflow: visible; white-space: nowrap; box-sizing: border-box;
-  background: url('/assets/feel/strip-plate.webp') center / 100% 100% no-repeat, linear-gradient(180deg, rgba(17, 26, 44, 0.92), rgba(7, 11, 20, 0.92));
+  /* art A5: the cream plate with a stitched brown rim (9-sliced), dark text on it */
+  background: none; border: 0 solid transparent; border-radius: 0; box-shadow: none; filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.35));
+  border-image: url('/assets/ui-frames/top-strip-440x48.webp') 24 fill / 12px / 0 stretch;
 }
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .sw,
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team i,
+html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .clock { color: #3b2417; }
+html[data-touch='1'] .pl-match .pl-score .pl-pause i { background: #3b2417 !important; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team { font-size: 15px; line-height: 24px; gap: 3px; flex: none; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team i { font-size: 9px; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .team i svg { width: 9px; height: 9px; }
@@ -67,12 +74,12 @@ html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .clock { font-size: 11px; l
 html[data-touch='1'] .pl-match .pl-hud .pl-score.lol .phase { display: none; }
 .pl-hud .pl-score .obj { display: none; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .obj:not([hidden]) {
-  display: inline-flex; align-items: center; gap: 2px; flex: none; font: 700 10px/24px var(--font); color: #e9d6ff;
+  display: inline-flex; align-items: center; gap: 2px; flex: none; font: 700 10px/24px var(--font); color: #5b2f8a;
 }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .obj .ic { width: 12px; height: 12px; border-radius: 50%; background: #b07cff; box-shadow: 0 0 0 1px #3b2417; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='rats'] .ic { background: #3d8bff; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='theirRats'] .ic { background: #e8414b; }
-html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='up'] { color: #ffd34d; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='up'] { color: #b5762b; }
 
 /* pause: an icon at the right end of the strip (matchSession moves it in; 24 px drawn, a 44 px hit area) */
 html[data-touch='1'] .pl-match .pl-score .pl-pause {
@@ -88,6 +95,10 @@ html[data-touch='1'] .pl-match .pl-minimap {
   opacity: 0.8; border: 2px solid #3b2417; border-radius: 14px; box-shadow: 0 0 0 1px rgba(255, 243, 220, 0.45), 0 4px 10px rgba(0, 0, 0, 0.3);
 }
 html[data-touch='1'] .pl-match .pl-minimap:active { opacity: 1; }
+/* art A5: the paw-stitched rim over the minimap (transparent centre) */
+html[data-touch='1'] .pl-match .pl-minimap::after {
+  content: ''; position: absolute; inset: -2px; pointer-events: none; background: url('/assets/ui-frames/minimap-rim-256.webp') center / 100% 100% no-repeat;
+}
 /* ping: a 44 px hit area on the minimap's bottom-right corner (36 px drawn, inside the rim) */
 html[data-touch='1'] .pl-match .pl-pingbtn {
   right: auto; left: calc(8px + var(--safe-l, 0px) + var(--mm-w) - 38px); top: calc(8px + var(--safe-t, 0px) + var(--mm-h) - 38px);
@@ -138,7 +149,7 @@ html[data-touch='1'] .pl-match .pl-tbtn.r.locked .lv {
 }
 .pl-tbtn .lv .lock {
   display: block; width: 22px; height: 22px; margin: 0 auto -2px;
-  background: url('/assets/feel/lock-chip.webp') center / contain no-repeat;
+  background: url('/assets/icons/lock-r-88.webp') center / contain no-repeat;
 }
 .pl-tbtn.r.unlock-pop { animation: pl-rpop 0.42s cubic-bezier(0.2, 1.6, 0.4, 1) both; }
 @keyframes pl-rpop { 0% { transform: scale(var(--r-ghost, 0.61)); } 60% { transform: scale(1.12); } 100% { transform: scale(1); } }
@@ -173,12 +184,17 @@ html[data-touch='1'] .pl-match .pl-talents button span.s { font-size: 9.5px; }
 }
 .pl-touch .pl-cancel.on { display: grid; opacity: 1; animation: pl-bubble-in 0.12s ease-out both; }
 .pl-touch .pl-cancel i {
-  width: 44px; height: 44px; background: url('/assets/feel/cancel-bubble.webp') center / contain no-repeat;
+  /* art A10: the fish-bone cross under a peeking cat */
+  width: 56px; height: 56px; background: url('/assets/icons/cancel-bubble-144.webp') center / contain no-repeat;
 }
-.pl-touch .pl-cancel i::before {
-  content: '✕'; display: grid; place-items: center; width: 100%; height: 100%; font: 800 26px/1 var(--font); color: #fff3dc; font-style: normal;
-}
-html[data-feel-art='1'] .pl-touch .pl-cancel i::before { content: none; }
 .pl-touch .pl-cancel.arming { border-color: #fff; scale: 1.06; transform-origin: center; }
 .pl-touch .pl-cancel.hot { background: #e8414b; border-color: #fff; scale: 1.15; }
 @keyframes pl-bubble-in { from { opacity: 0; } }
+
+/* art A6: the "Back in N" counter gets the stopwatch dog; Nap the sleeping cat */
+.pl-backin::before {
+  content: ''; display: block; width: 64px; height: 64px; margin: 0 auto 2px; background: url('/assets/stickers/respawn-dog-256.webp') center / contain no-repeat;
+}
+@media (max-height: 480px) { .pl-backin::before { width: 48px; height: 48px; } }
+html[data-touch='1'] .pl-match .pl-tbtn.nap { background: rgba(58, 39, 66, 0.66) url('/assets/stickers/nap-cat-256.webp') center 40% / 82% no-repeat; }
+html[data-touch='1'] .pl-match .pl-tbtn.nap span { inset: auto 0 1px 0; font-size: 9px; }
