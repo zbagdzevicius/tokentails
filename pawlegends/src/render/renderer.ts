@@ -57,6 +57,14 @@ export function shadowMaxFor(zoom: number, tier: QualityTier): number {
   return zoom > SHADOW_BOX.wideZoom && tier !== 'low' ? SHADOW_BOX.maxWide : SHADOW_BOX.max;
 }
 
+/**
+ * PERF-IOS §8 Track A: the live WebGLRenderer (the one the match draws with), so the overhead plates
+ * (ui/overhead.ts, render/overlay/) draw over the scene in the same frame without a second canvas. Null before the
+ * first renderer and after dispose.
+ */
+let live: THREE.WebGLRenderer | null = null;
+export const liveRenderer = (): THREE.WebGLRenderer | null => live;
+
 export interface GameRenderer {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -98,6 +106,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.domElement.id = 'game-canvas';
   container.appendChild(renderer.domElement);
+  live = renderer;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(RENDER.background ?? '#F6E4C0');
@@ -223,6 +232,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       renderer.render(gr.active, camera);
     },
     dispose() {
+      if (live === renderer) live = null;
       renderer.dispose();
       renderer.domElement.remove();
     },
