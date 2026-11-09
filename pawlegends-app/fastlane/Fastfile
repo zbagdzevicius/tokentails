@@ -411,6 +411,7 @@ lane :auto_release do
   [Spaceship::ConnectAPI::Platform::IOS, Spaceship::ConnectAPI::Platform::MAC_OS].each do |platform|
     app.get_app_store_versions(filter: { platform: platform }).each do |v|
       state = v.app_store_state.to_s
+      UI.message("#{platform} #{v.version_string}: #{state}, #{v.release_type}")
       next if live.include?(state)
       label = "#{platform} #{v.version_string} (#{state})"
       if v.release_type == "AFTER_APPROVAL"
