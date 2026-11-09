@@ -6,8 +6,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
   name: 'Sir Brutus',
   side: 'dog',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8625 / takes 9725 (49.6% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 keeps a Move order after a dash, so chargers gained): takes 9875 (56.1% before; about 3 pp per +75 takenBp). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 9700. */
-  pvp: { dmgBp: 8625, takenBp: 9700 },
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8625 / takes 9725 (49.6% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 keeps a Move order after a dash, so chargers gained): takes 9875 (56.1% before; about 3 pp per +75 takenBp). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9575. */
+  pvp: { dmgBp: 8625, takenBp: 9575 },
   element: 'SAND',
   base: { hp: 760, hpPerLevel: 80, attack: 46, attackPerLevel: 4, attackEvery: 36, range: 1600, speed: 4800, armour: 40, armourPerLevel: 3 },
   /** Honour: damage from heroes builds a shield up to 12% max HP over 4 s; decays after 3 s out of combat. */
@@ -36,8 +36,9 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
        * planted 3 m dome for 60 ticks that blocks enemy projectiles for everyone inside; Sir Brutus cannot walk or dash
        * while it stands (`post` switches the shape).
        */
-      // Sim v17 (V17.md §5.3): postReduceBp 2500 → 3000 (the branch sat at 44–46% after the v17 batch).
-      { id: 'guard-post', name: 'Guard Post', mods: { w: { post: 1, postRadius: 3000, postDuration: 60, postReduceBp: 3000, cooldown: 300 } } },
+      // Sim v17 (V17.md §5.3): postReduceBp 2500 → 3000 (the branch sat at 44–46% after the v17 batch); cooldown 300 → 210
+      // (§6.5: still 42–47% in each 2,000-seed window; a 35% cut or a 1.5 s plant did not lift it, more plants did).
+      { id: 'guard-post', name: 'Guard Post', mods: { w: { post: 1, postRadius: 3000, postDuration: 60, postReduceBp: 3000, cooldown: 210 } } },
     ],
     [
       { id: 'arena-of-honour', name: 'Arena of Honour', mods: { r: { duration: 105 } } },

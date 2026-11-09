@@ -226,7 +226,7 @@ describe('Sage: Piercing Shot (sim v10, GAPS B6 level-6 branch)', () => {
     expect(alive(m, PROJECTILE_KIND.arrow)).toBe(0);
     expect(cd(m, SAGE_ID, 0)).toBe(210);
     steps(m, 15);
-    const dmg = 95 + 14 * 5;
+    const dmg = 85 + 14 * 5; // sim v17 (V17.md §6.5): 95 before
     expect(hp - w.hp[FOE]).toBe(heroHit(dmg, 40));
     expect(hp2 - w.hp[FOE2]).toBe(heroHit(dmg, 25)); // through the first hero and the minion
     expect(w.maxHp[minion] - w.hp[minion]).toBeGreaterThan(0);

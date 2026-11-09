@@ -6,8 +6,8 @@ export const STILTS: HeroData = Object.freeze<HeroData>({
   name: 'Stilts',
   side: 'cat',
   role: 'assassin',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 10300 / 9000 (11800 / 9000 before: 57.1% of the 2,000-seed gate; now 49.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10900 / takes 8500 (50.2% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9975 / takes 8375 (49.5% of the 2,000-seed gate). */
-  pvp: { dmgBp: 9975, takenBp: 8375 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 10300 / 9000 (11800 / 9000 before: 57.1% of the 2,000-seed gate; now 49.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10900 / takes 8500 (50.2% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9975 / takes 8375 (49.5% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8450. */
+  pvp: { dmgBp: 9975, takenBp: 8450 },
   element: 'SAND',
   base: { hp: 500, hpPerLevel: 52, attack: 56, attackPerLevel: 6, attackEvery: 28, range: 1600, speed: 5300, armour: 18, armourPerLevel: 2 },
   /**

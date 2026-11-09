@@ -6,8 +6,8 @@ export const CHILI: HeroData = Object.freeze<HeroData>({
   name: 'Chili',
   side: 'dog',
   role: 'marksman',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9500 / takes 9425 (52.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8850 / takes 9250 (51.2% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 9300. */
-  pvp: { dmgBp: 8850, takenBp: 9300 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9500 / takes 9425 (52.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8850 / takes 9250 (51.2% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9175. */
+  pvp: { dmgBp: 8850, takenBp: 9175 },
   element: 'ELECTRIC',
   base: { hp: 450, hpPerLevel: 47, attack: 50, attackPerLevel: 5, attackEvery: 27, range: 5500, speed: 5000, armour: 15, armourPerLevel: 2 },
   /** Small Dog Syndrome: each tick he takes damage from an enemy hero, and each Yap that hits a hero, adds 1 Rage (max 5; all lost 4 s after the last gain). Each Rage: +8% attack speed. */

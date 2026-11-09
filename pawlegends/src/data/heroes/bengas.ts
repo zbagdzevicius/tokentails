@@ -6,8 +6,8 @@ export const BENGAS: HeroData = Object.freeze<HeroData>({
   name: 'Bengas',
   side: 'cat',
   role: 'mage',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 8700 (48.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9700 / takes 8725 (52.1% of the 2,000-seed gate). Sim v16 (MAP-GAPS B11, a hit from a bush reveals the attacker): 9950 (47.9% / 45.8% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 8600. */
-  pvp: { dmgBp: 9950, takenBp: 8600 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 8700 (48.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9700 / takes 8725 (52.1% of the 2,000-seed gate). Sim v16 (MAP-GAPS B11, a hit from a bush reveals the attacker): 9950 (47.9% / 45.8% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8625. */
+  pvp: { dmgBp: 9950, takenBp: 8625 },
   element: 'FIRE',
   base: { hp: 470, hpPerLevel: 48, attack: 56, attackPerLevel: 5, attackEvery: 30, range: 5500, speed: 4900, armour: 14, armourPerLevel: 2 },
   /** Hot Toast: +15% damage to enemy heroes that are stunned, rooted, charmed, feared or slowed. */

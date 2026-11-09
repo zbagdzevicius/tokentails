@@ -58,7 +58,7 @@ describe('C2: rank levels', () => {
     const sage = HERO_IDS.indexOf('sage');
     expect(kitNumbers(sage, 10, [-1, -1, 0]).r.cooldown).toBe(1500); // Full Moon over rank 3's 1900
     // Piercing Shot keeps its own damage and growth, not Volley's ranks
-    expect(kitNumbers(sage, 8, [-1, 1, -1]).q).toMatchObject({ lance: 1, dmg: 95, dmgPerLevel: 14 });
+    expect(kitNumbers(sage, 8, [-1, 1, -1]).q).toMatchObject({ lance: 1, dmg: 85, dmgPerLevel: 14 });
     const cj = HERO_IDS.indexOf('cacklejaw');
     expect(kitNumbers(cj, 8, [-1, 0, -1]).w.cooldown).toBe(270); // Smug
   });
@@ -135,7 +135,7 @@ describe('C2: client reads', () => {
     expect(maxCooldown('sage', 1, 'pounce')).toBe(420);
     expect(maxCooldown('sage', 1, 'pounce', false, 8)).toBe(375);
     expect(maxCooldown('cacklejaw', 1, 'pounce', false, 6, [-1, 0, -1])).toBe(270);
-    expect(maxCooldown('brutus', 1, 'pounce', true, 6)).toBe(300);
+    expect(maxCooldown('brutus', 1, 'pounce', true, 6)).toBe(210);
   });
 
   it('rank-up lines only where a rank goes up (not at talent levels or the ultimate unlock)', () => {
@@ -160,7 +160,7 @@ describe('C2: client reads', () => {
   it('talent card numbers at the current level', () => {
     expect(talentNumbers('sage', 0, 0, 3)).toBe('Volley arrows 5 → 7');
     expect(talentNumbers('cacklejaw', 1, 0, 6)).toBe('Gloat cooldown 12 s → 9 s');
-    expect(talentNumbers('sage', 1, 1, 6)).toBe('Volley range 7 m → 9 m · Volley width 0.3 m → 0.6 m · Volley dmg 110 → 165 · Volley speed 20 m/s → 24 m/s');
+    expect(talentNumbers('sage', 1, 1, 6)).toBe('Volley range 7 m → 9 m · Volley width 0.3 m → 0.6 m · Volley dmg 110 → 155 · Volley speed 20 m/s → 24 m/s');
     const p = new TalentPicker(document.body, 'sage', () => {}, () => ({ level: 3, talents: [-1, -1, -1] }));
     p.offer(0);
     expect(p.root.querySelector('button[data-c="0"] .n')?.textContent).toBe('Volley arrows 5 → 7');
