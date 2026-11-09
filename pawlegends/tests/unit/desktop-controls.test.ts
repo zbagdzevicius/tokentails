@@ -4,7 +4,7 @@
  * A armed), quick cast as an option (cursor targeting), and trackpad mode (Auto / On / Off).
  */
 import * as THREE from 'three';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { aimFor, attackRingMm, basicRange, isRangedHero } from '../../src/input/abilities';
 import { HERO_IDS, HEROES } from '../../src/data/heroes';
 import { RADIUS } from '../../src/data/map';
@@ -16,6 +16,7 @@ import { project } from '../../src/input/screen';
 import { QUICK_UNIT_SEEK, cursorCast, type Unit } from '../../src/input/targeting';
 import { tipText } from '../../src/onboarding/tips';
 import { Op, type Command, type HeroId } from '../../src/sim/api';
+import { loadCameraHeight, WHEEL_STEP_MS } from '../../src/render/camera/height';
 
 const unit = (id: number, kind: Unit['kind'], team: number, x: number, y: number): Unit => ({ id, kind, team, x, y, hp: 100, maxHp: 100, state: 'idle' });
 
@@ -115,7 +116,7 @@ function rig(hero: HeroId = 'clem', units: Unit[] = [unit(0, 'hero', 0, 20000, 1
   const env: OrderEnv = { send: (c) => sent.push(c), units: () => units, meId: 0, hero, trick: 'pounce', cooldowns: () => o.cooldowns ?? [0, 0, 0, 0, 0], level: () => o.level ?? 5, nowMs: () => 0 };
   const orders = new Orders(env);
   const banners: string[] = [];
-  const view = { gr: { camera: cam }, myTeam: 0, mySlot: 0, aim: null as unknown, attackRange: false, me: () => ({ yaw: 0 }), juice: { banner: (b: { title: string }) => banners.push(b.title) }, recentre() {}, panBy() {}, zoomTarget: 1 };
+  const view = { gr: { camera: cam }, myTeam: 0, mySlot: 0, aim: null as unknown, attackRange: false, me: () => ({ yaw: 0 }), juice: { banner: (b: { title: string }) => banners.push(b.title) }, recentre() {}, panBy() {}, zoomTarget: 1, heights: [] as string[], setCameraHeight(h: string) { this.heights.push(h); } };
   const host: InputHost = { canvas, view: view as unknown as InputHost['view'], orders, enabled: () => true, units: () => units, onScoreboard() {}, onMenu() {}, onTalent: () => false, onActivity() {}, marker() {} };
   const d = new DesktopInput(host);
   /** Client px of a sim point. */
@@ -352,5 +353,71 @@ describe('basic attack range from hero data', () => {
     }
     for (const h of ['sage', 'pixel', 'duchess', 'bengas', 'gabe'] as const) expect(isRangedHero(h)).toBe(true);
     for (const h of ['clem', 'brutus', 'meatball'] as const) expect(isRangedHero(h)).toBe(false);
+  });
+});
+
+describe('Camera height on desktop (feel pass B1: one step per notch)', () => {
+  const wheel = (canvas: HTMLCanvasElement, deltaY: number) => canvas.dispatchEvent(new WheelEvent('wheel', { deltaY, bubbles: true, cancelable: true }));
+  it('a trackpad swipe with its momentum tail (events every 16 ms for 1.5 s) is one step, not a run to Max', () => {
+    const now = vi.spyOn(performance, 'now');
+    try {
+      const r = rig();
+      let t = 1000;
+      for (let i = 0; i < 95; i++, t += 16) {
+        now.mockReturnValue(t);
+        wheel(r.canvas, 4);
+      }
+      expect(loadCameraHeight()).toBe('high');
+      expect(r.view.heights).toEqual(['high']);
+      // after a quiet gap the next swipe moves one more step; one swipe back moves one step closer
+      t += WHEEL_STEP_MS;
+      for (let i = 0; i < 40; i++, t += 16) {
+        now.mockReturnValue(t);
+        wheel(r.canvas, 4);
+      }
+      expect(loadCameraHeight()).toBe('higher');
+      t += WHEEL_STEP_MS;
+      for (let i = 0; i < 40; i++, t += 16) {
+        now.mockReturnValue(t);
+        wheel(r.canvas, -4);
+      }
+      expect(loadCameraHeight()).toBe('high');
+      r.d.dispose();
+    } finally {
+      now.mockRestore();
+    }
+  });
+  it('mouse wheel notches 250 ms apart move one step each and stop at Max and Close', () => {
+    const now = vi.spyOn(performance, 'now');
+    try {
+      const r = rig();
+      let t = 1000;
+      for (let i = 0; i < 6; i++, t += 250) {
+        now.mockReturnValue(t);
+        wheel(r.canvas, 120);
+      }
+      expect(r.view.heights).toEqual(['high', 'higher', 'max']);
+      for (let i = 0; i < 6; i++, t += 250) {
+        now.mockReturnValue(t);
+        wheel(r.canvas, -120);
+      }
+      expect(r.view.heights).toEqual(['high', 'higher', 'max', 'higher', 'high', 'normal', 'close']);
+      r.d.dispose();
+    } finally {
+      now.mockRestore();
+    }
+  });
+  it('+/− move one step per press; a held key\'s auto-repeat does not run through the steps', () => {
+    const r = rig();
+    r.key('keydown', 'Minus');
+    for (let i = 0; i < 10; i++) r.key('keydown', 'Minus', true);
+    r.key('keyup', 'Minus');
+    expect(loadCameraHeight()).toBe('high');
+    r.key('keydown', 'Equal');
+    r.key('keyup', 'Equal');
+    r.key('keydown', 'Equal');
+    for (let i = 0; i < 10; i++) r.key('keydown', 'Equal', true);
+    expect(loadCameraHeight()).toBe('close');
+    r.d.dispose();
   });
 });

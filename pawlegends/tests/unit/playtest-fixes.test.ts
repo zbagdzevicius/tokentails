@@ -71,7 +71,7 @@ describe('camera height (feel pass B1: one step per wheel notch)', () => {
     expect(wheelHeight('high', 0)).toBe('high');
   });
 
-  it('a trackpad burst within WHEEL_STEP_MS is one notch', () => {
+  it('a wheel event steps only after a quiet gap of WHEEL_STEP_MS since the previous wheel event', () => {
     expect(wheelReady(1000, -Infinity)).toBe(true);
     expect(wheelReady(1000 + WHEEL_STEP_MS - 1, 1000)).toBe(false);
     expect(wheelReady(1000 + WHEEL_STEP_MS, 1000)).toBe(true);
