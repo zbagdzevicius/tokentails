@@ -57,3 +57,51 @@ export class FramePacer {
     this.next = -Infinity;
   }
 }
+
+/**
+ * PERF-IOS §8 Track C: how long the loading veil waits for the match's programs. `rosterMs`: the most it waits for
+ * the welcome (the roster) before giving up on the warm-up; `totalMs`: the most the veil stays up in all (the VS card
+ * and the countdown run under it, and the sim starts only on "Ready!"); `minMs`: the veil's old minimum; `settleMs`:
+ * frames drawn after the warm-up, still under the veil (anything first drawn there links there).
+ */
+export const WARM = Object.freeze({ rosterMs: 1500, totalMs: 2400, minMs: 250, pollMs: 30, settleMs: 120 });
+
+export interface WarmResult {
+  /** Time from the session start to the veil drop (ms); -1 when the session ended first. */
+  ms: number;
+  /** The warm-up finished inside the cap. */
+  warmed: boolean;
+}
+
+/**
+ * Keep the veil up until the warm-up resolves, with time caps (pure orchestration, unit-tested with fake clocks).
+ * `ready()`: true once the roster is known, false while waiting, null when the session is gone.
+ */
+export async function warmMatch(
+  ready: () => boolean | null,
+  warm: () => Promise<unknown>,
+  wait: (ms: number) => Promise<void>,
+  elapsed: () => number,
+  W: { rosterMs: number; totalMs: number; minMs: number; pollMs: number; settleMs: number } = WARM,
+): Promise<WarmResult> {
+  for (;;) {
+    const r = ready();
+    if (r === null) return { ms: -1, warmed: false };
+    if (r) break;
+    if (elapsed() >= W.rosterMs) return { ms: elapsed(), warmed: false };
+    await wait(W.pollMs);
+  }
+  let warmed = false;
+  const job = Promise.resolve()
+    .then(warm)
+    .then(
+      () => {
+        warmed = true;
+      },
+      () => undefined,
+    );
+  await Promise.race([job, wait(Math.max(0, W.totalMs - elapsed()))]);
+  if (warmed && W.settleMs > 0) await wait(Math.min(W.settleMs, Math.max(0, W.totalMs - elapsed())));
+  if (elapsed() < W.minMs) await wait(W.minMs - elapsed());
+  return { ms: elapsed(), warmed };
+}

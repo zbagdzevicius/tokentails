@@ -10,7 +10,8 @@ import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
 import { heightFactor, loadCameraHeight, type CameraHeight } from './camera/height';
 import { aimPan, groundReach, reachAlong, returnShare, SHAKE_MAX_M } from './camera/frame';
-import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
+import { teamOfSlot, type EntityKind, type HeroId, type SimEvent, type TrickId } from '../sim/api';
+import { makeHero, type Character } from './chars';
 import { sfx } from '../audio/sfx';
 import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
@@ -85,6 +86,8 @@ export interface GameViewHooks {
 }
 
 const WHO_TTL = 3;
+/** Warm-up heroes stand this high (m): out of every view, see `warmup()`. */
+const WARM_LIFT_M = 5000;
 /** Feel pass B3: how long (s) the quiet "nothing in reach" ring shows after an Attack press with no target. */
 export const DENY_RING_S = 0.4;
 
@@ -505,7 +508,123 @@ export class GameView {
 
   /** Load the move sets and skill FX of the heroes in this match (their own chunks; stubs until then). */
   loadAnim(picks: readonly HeroId[]): Promise<void> {
-    return this.director.preload(picks);
+    this.roster = picks.slice();
+    this.animLoad = this.director.preload(picks);
+    return this.animLoad;
+  }
+
+  /** The match's picks (from the welcome), for the warm-up; empty until then. */
+  private roster: HeroId[] = [];
+  private animLoad: Promise<void> | null = null;
+  /** Warm-up heroes: off the scene, kept (not disposed) so their programs stay linked until the match ends. */
+  private warmKeep: Character[] = [];
+  private gone = false;
+
+  /** True once the warm-up finished inside its deadline (e2e and the perf readout). */
+  warmed = false;
+  /** True once the roster is known (the welcome arrived): `warmup()` can build both teams. */
+  get hasRoster(): boolean {
+    return this.roster.length > 0;
+  }
+
+  /**
+   * PERF-IOS §8 Track C: link every program the match will draw while the loading veil is still up. Builds a hero for
+   * each slot that has no rig yet (the enemies stay hidden by the fog until first contact, and their skinned, outline
+   * and shadow-depth programs linked there: 75–186 ms WebKit frame gaps), shows every hidden object for one frame
+   * (FX pools, rings, minion variants), compiles, then draws one frame with a fresh shadow map so the depth variants
+   * link too. Everything hidden is hidden again; the extra heroes leave the scene but keep their materials until
+   * `dispose()`, so three.js keeps their programs (the real rigs built later reuse them and the cached geometry).
+   * `deadline` (performance.now() ms): the veil's cap. Past it the veil is going, so the frame with everything shown
+   * is not drawn (block 2 below). Returns the warm-up heroes built (tests).
+   */
+  async warmup(deadline = Infinity): Promise<number> {
+    await this.animLoad?.catch(() => undefined);
+    // the first snapshot drawn first: the rigs, minions and structures it brings are then in the scene too
+    for (let k = 0; k < 40 && !this.frame && !this.gone; k++) await new Promise((r) => setTimeout(r, 25));
+    if (this.gone) return 0;
+    const gr = this.gr;
+    this.heroes.setQuality(gr.settings.tier === 'low', gr.settings.outlineScope);
+    const group = new THREE.Group();
+    group.name = 'warmup';
+    const plan = warmPlan(this.roster, this.mySlot, this.myTeam, this.heroes.outlineScope, (slot) => this.heroes.drawnAt(slot) !== null);
+    const focus = this.heroes.focus;
+    for (const w of plan) {
+      const dress = (this.heroes.styleSwap ? 1 - w.team : w.team) as 0 | 1;
+      const ch = makeHero(w.hero, dress, this.heroes.looks.get(w.slot) ?? null, { detail: this.heroes.detail, outline: w.outline, shadows: this.heroes.shadows, match: true, self: false });
+      if (!w.outline) ch.material.userData.u.uRim.value = 0.78;
+      // far above the camera: never frustum-culled (skinned), so drawn, but every vertex is clipped (no pixel, here
+      // or in the shadow map) should a frame run while they are in the scene
+      ch.object.position.set(focus.x, WARM_LIFT_M, focus.z);
+      group.add(ch.object);
+      this.warmKeep.push(ch);
+    }
+    this.scene.add(group);
+    // a dash afterimage (skinned, additive; its program linked at the first dash, 11–13 s in): one spawned now lives
+    // 0.18 s, gone under the veil. Spawned whatever the tier caps (Low has none; the governor can move the tier)
+    const anyHero = this.warmKeep[0]?.mesh ?? this.heroes.rigOf(this.mySlot)?.ch.mesh ?? null;
+    if (anyHero) {
+      group.updateMatrixWorld(true);
+      anyHero.updateMatrixWorld(true);
+      this.ghosts.setTier('med', false);
+      this.ghosts.spawn(anyHero, 0xffffff);
+      this.animTier = '';
+      this.applyAnimTier();
+    }
+    // everything hidden is shown for each synchronous block only: no frame runs in between (pools that read their
+    // own `visible` as "in use" never see it). Block 1 queues every program (compiled in parallel where the browser
+    // can); block 2, once they are ready, draws one frame with a fresh shadow map so the shadow-depth variants link
+    const reveal = (): THREE.Object3D[] => {
+      const hidden: THREE.Object3D[] = [];
+      this.scene.traverse((o) => {
+        if (!o.visible) {
+          hidden.push(o);
+          o.visible = true;
+        }
+      });
+      return hidden;
+    };
+    let done: Promise<unknown> = Promise.resolve();
+    let hidden = reveal();
+    try {
+      done = gr.renderer.compileAsync(this.scene, gr.camera).catch(() => undefined);
+      // towers and cores turn see-through while a hero stands behind them (towerView's x-ray fade flips
+      // `transparent`, a new program): their see-through variants are queued too
+      const flipped = new Set<THREE.Material>();
+      this.structures.group.traverse((o) => {
+        const m = (o as THREE.Mesh).isMesh ? (o as THREE.Mesh).material : null;
+        if (m && !Array.isArray(m) && !m.transparent) flipped.add(m);
+      });
+      if (flipped.size) {
+        for (const m of flipped) m.transparent = true;
+        const both = gr.renderer.compileAsync(this.scene, gr.camera).catch(() => undefined);
+        for (const m of flipped) {
+          m.transparent = false;
+          m.needsUpdate = true;
+        }
+        done = Promise.all([done, both]);
+      }
+    } catch {
+      /* best effort: the match draws anyway */
+    } finally {
+      for (const o of hidden) o.visible = false;
+    }
+    await done;
+    if (this.gone || performance.now() > deadline) {
+      this.scene.remove(group);
+      return 0;
+    }
+    hidden = reveal();
+    try {
+      if (gr.renderer.shadowMap.enabled) gr.renderer.shadowMap.needsUpdate = true;
+      gr.render();
+    } catch {
+      /* best effort */
+    } finally {
+      for (const o of hidden) o.visible = false;
+      this.scene.remove(group);
+    }
+    this.warmed = true;
+    return plan.length;
   }
 
   /** Talent ids of hero `id` (own team only; enemies' are unknown → base numbers), cached per talent triple. */
@@ -911,7 +1030,9 @@ export class GameView {
   }
 
   private remember(frame: ViewFrame): void {
-    for (const e of frame.entities) {
+    const ents = frame.entities;
+    for (let i = 0; i < ents.length; i++) {
+      const e = ents[i];
       let w = this.who.get(e.id);
       if (!w) {
         w = { id: e.id, kind: e.kind, team: e.team, hero: e.hero, x: 0, z: 0, yaw: 0, t: 0 };
@@ -928,7 +1049,8 @@ export class GameView {
       w.yaw = e.yaw;
       w.t = this.time;
     }
-    for (const [id, w] of this.who) if (this.time - w.t > WHO_TTL) this.who.delete(id);
+    // PERF-IOS §8 Track C: values() and the record's own id (the [id, w] entries cost an array per unit per frame)
+    for (const w of this.who.values()) if (this.time - w.t > WHO_TTL) this.who.delete(w.id);
   }
 
   /** Draw one frame. `frame` may be null before the first snapshot. */
@@ -1093,6 +1215,9 @@ export class GameView {
   }
 
   dispose(): void {
+    this.gone = true;
+    for (const ch of this.warmKeep) ch.dispose();
+    this.warmKeep.length = 0;
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.candRings.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh);
@@ -1200,4 +1325,28 @@ export function toSpec(aim: AimSpec, x: number, z: number, ax: number, az: numbe
 /** Convenience for HUD and input: the aim spec of slot 0..3 or the trick (4). */
 export function aimOfSlot(hero: HeroId, trick: TrickId, slot: 0 | 1 | 2 | 3 | 4, branch = false): AimSpec {
   return slot === 4 ? trickAim(trick) : aimFor(hero, slot, branch);
+}
+
+/** One hero the warm-up builds (PERF-IOS §8 Track C). */
+export interface WarmHero {
+  slot: number;
+  hero: HeroId;
+  team: 0 | 1;
+  outline: boolean;
+}
+
+/**
+ * The heroes `GameView.warmup()` builds: every slot without a rig yet (`has`; each slot, so its look's cached geometry
+ * is built too, not only its programs), with the outline hull HeroView gives it under `scope` (all, own hero and
+ * enemies on phones, own hero, none). The own hero is skipped: its rig is up from the first frame. Pure, unit-tested.
+ */
+export function warmPlan(roster: readonly HeroId[], mySlot: number, myTeam: number, scope: 'all' | 'key' | 'own' | 'none', has: (slot: number) => boolean): WarmHero[] {
+  const out: WarmHero[] = [];
+  for (let slot = 0; slot < roster.length; slot++) {
+    if (slot === mySlot || has(slot)) continue;
+    const team = teamOfSlot(slot) as 0 | 1;
+    const outline = scope === 'all' || (scope === 'key' && team !== myTeam);
+    out.push({ slot, hero: roster[slot], team, outline });
+  }
+  return out;
 }
