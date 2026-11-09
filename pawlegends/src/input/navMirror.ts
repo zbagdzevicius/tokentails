@@ -32,8 +32,11 @@ export const coveredStructures = (): number[] => [...covered.keys()].sort((a, b)
  */
 export function syncStructures(entities: readonly { id: number; kind: string; x: number; y: number; state?: string; hp?: number }[]): void {
   const g = clientGrid();
-  const live = new Set<number>();
-  for (const e of entities) {
+  // PERF-IOS §8 Track B: runs every frame; one reused set and no entry arrays
+  const live = liveScratch;
+  if (live.size) live.clear();
+  for (let i = 0; i < entities.length; i++) {
+    const e = entities[i];
     if (e.kind !== 'tower' && e.kind !== 'core') continue;
     if (e.state === 'dead' || (e.hp !== undefined && e.hp <= 0)) continue;
     live.add(e.id);
@@ -44,9 +47,16 @@ export function syncStructures(entities: readonly { id: number; kind: string; x:
     coverDisc(g, x, y, r, 1);
     covered.set(e.id, { x, y, r });
   }
-  for (const [id, c] of covered) {
-    if (live.has(id)) continue;
-    coverDisc(g, c.x, c.y, c.r, -1);
-    covered.delete(id);
+  if (covered.size > live.size) {
+    syncGrid = g;
+    covered.forEach(freeGone);
+    syncGrid = null;
   }
 }
+const liveScratch = new Set<number>();
+let syncGrid: NavGrid | null = null;
+const freeGone = (c: { x: number; y: number; r: number }, id: number): void => {
+  if (liveScratch.has(id) || !syncGrid) return;
+  coverDisc(syncGrid, c.x, c.y, c.r, -1);
+  covered.delete(id);
+};

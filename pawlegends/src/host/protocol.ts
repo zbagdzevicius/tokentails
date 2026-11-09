@@ -299,8 +299,8 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
     if (lane !== NONE) e.lane = LANES[lane];
     if (flags & HAS_RESPAWN) e.respawnIn = v.getUint16(o + 34, true);
     if (flags & HAS_COOLDOWNS) {
-      const c = (k: number): number => v.getUint16(o + 36 + k * 2, true);
-      e.cooldowns = [c(0), c(1), c(2), c(3), c(4)];
+      // inline reads: no closure per hero per snapshot
+      e.cooldowns = [v.getUint16(o + 36, true), v.getUint16(o + 38, true), v.getUint16(o + 40, true), v.getUint16(o + 42, true), v.getUint16(o + 44, true)];
     }
     if (flags & HAS_EXTRA) {
       e.xp = v.getUint16(o + 48, true);

@@ -19,7 +19,7 @@ import { toX, toZ } from '../coords';
 import { minionGeometry, type MinionVariant } from './models';
 import { RELATION } from '../palette';
 import { DecalLayer, ringTexture } from './decals';
-import { uprightMaterial } from './rig';
+import { casterDepthMaterial, uprightMaterial } from './rig';
 
 const VARIANTS: readonly MinionVariant[] = ['melee', 'ranged', 'siege'];
 /**
@@ -130,7 +130,10 @@ export function clearOf(px: number, pz: number, hx: number, hz: number, clear: n
   const dx = px - hx;
   const dz = pz - hz;
   const rz = clear * DEPTH_CLEAR_K;
-  const e = Math.hypot(dx / clear, dz / rz);
+  const ex = dx / clear;
+  const ez = dz / rz;
+  // PERF-IOS §8 Track B: Math.sqrt, not Math.hypot (the builtin boxes its arguments: ~0.7 MB/s of garbage here)
+  const e = Math.sqrt(ex * ex + ez * ez);
   out.x = px;
   out.z = pz;
   if (e >= 1) return out;
@@ -139,7 +142,7 @@ export function clearOf(px: number, pz: number, hx: number, hz: number, clear: n
   const uz = e > 1e-4 ? dz / e : 0;
   const tx = hx + ux - px;
   const tz = hz + uz - pz;
-  const len = Math.hypot(tx, tz);
+  const len = Math.sqrt(tx * tx + tz * tz);
   const k = len > MINION_PUSH ? MINION_PUSH / len : 1;
   out.x = px + tx * k;
   out.z = pz + tz * k;
@@ -156,23 +159,30 @@ const _clr = { x: 0, z: 0 };
 export const PUSH_BIAS = 0.6;
 const MID_X = 50;
 const MID_Z = -30;
-export function pushOutDir(px: number, pz: number, bx: number, bz: number, r: number): { x: number; z: number } {
+export function pushOutDir(px: number, pz: number, bx: number, bz: number, r: number, out: { x: number; z: number } = { x: 0, z: 0 }): { x: number; z: number } {
   const dx = px - bx;
   const dz = pz - bz;
-  const d = Math.hypot(dx, dz);
-  if (d >= r * PUSH_BIAS && d > 1e-4) return { x: dx / d, z: dz / d };
+  const d = Math.sqrt(dx * dx + dz * dz);
+  if (d >= r * PUSH_BIAS && d > 1e-4) {
+    out.x = dx / d;
+    out.z = dz / d;
+    return out;
+  }
   let ox = bx - MID_X;
   let oz = bz - MID_Z;
-  const ol = Math.hypot(ox, oz) || 1;
+  const ol = Math.sqrt(ox * ox + oz * oz) || 1;
   ox /= ol;
   oz /= ol;
   // blend toward the outside the closer the minion is to the centre (continuous at the bias radius)
   const k = d > 1e-4 ? d / (r * PUSH_BIAS) : 0;
   const ux = (d > 1e-4 ? dx / d : 0) * k + ox * (1 - k) * 2;
   const uz = (d > 1e-4 ? dz / d : 0) * k + oz * (1 - k) * 2;
-  const ul = Math.hypot(ux, uz) || 1;
-  return { x: ux / ul, z: uz / ul };
+  const ul = Math.sqrt(ux * ux + uz * uz) || 1;
+  out.x = ux / ul;
+  out.z = uz / ul;
+  return out;
 }
+const _dir = { x: 0, z: 0 };
 
 export function inClearZone(zones: readonly { x: number; z: number; r: number }[], x: number, z: number): boolean {
   for (const c of zones) if ((x - c.x) * (x - c.x) + (z - c.z) * (z - c.z) < c.r * c.r) return true;
@@ -185,6 +195,9 @@ export class MinionInstances {
   private anim = new Map<number, Anim>();
   private material = uprightMaterial();
   private animAttr: THREE.InstancedBufferAttribute[] = [];
+  /** The arrays behind animAttr and each mesh's instanceMatrix (the loop writes them directly). */
+  private animArr: Float32Array[] = [];
+  private matArr: Float32Array[] = [];
   /** A team-coloured ring under every minion (one draw call), so a wave reads as ours or theirs at a glance. */
   private rings = new DecalLayer(ringTexture(), CAPS.minions, { additive: false, y: 0.04, name: 'minion-rings' });
   private readonly counts = new Int32Array(6);
@@ -223,7 +236,10 @@ export class MinionInstances {
         mesh.count = 0;
         mesh.frustumCulled = false;
         mesh.castShadow = true;
+        mesh.customDepthMaterial = casterDepthMaterial('instanced');
         this.meshes.push(mesh);
+        this.animArr.push(aa.array as Float32Array);
+        this.matArr.push(mesh.instanceMatrix.array as Float32Array);
         this.group.add(mesh);
       }
     }
@@ -242,7 +258,7 @@ export class MinionInstances {
     if (fromX === fromX) {
       const dx = a.x - fromX;
       const dz = a.z - fromZ;
-      const l = Math.hypot(dx, dz);
+      const l = Math.sqrt(dx * dx + dz * dz);
       if (l > 1e-3) {
         a.hx = dx / l;
         a.hz = dz / l;
@@ -305,7 +321,6 @@ export class MinionInstances {
       const team = e.team === 1 ? 1 : 0;
       // round 2: a dog-picking human's own wave are pups (styleSwap: the species, not the slot, picks the look)
       const k = (this.styleSwap ? 1 - team : team) * 3 + VARIANTS.indexOf(v);
-      const mesh = this.meshes[k];
       const i = counts[k]++;
       if (i >= CAPS.minions) continue;
       let a = this.anim.get(e.id);
@@ -359,10 +374,10 @@ export class MinionInstances {
         for (const b of this.blocks) {
           const dx = px - b.x;
           const dz = pz - b.z;
-          const d = Math.hypot(dx, dz);
+          const d = Math.sqrt(dx * dx + dz * dz);
           const min = b.r + 0.35;
           if (d >= min) continue;
-          const u = pushOutDir(px, pz, b.x, b.z, b.r);
+          const u = pushOutDir(px, pz, b.x, b.z, b.r, _dir);
           // the push reaches the footprint's edge along that direction
           const along = (px - b.x) * u.x + (pz - b.z) * u.z;
           const perp2 = Math.max(0, d * d - along * along);
@@ -375,19 +390,73 @@ export class MinionInstances {
       const sq = 1 - a.hit * 0.18;
       const s = SCALE[v];
       // aAnim.w packs the hit (0..1) and C11b's flash in 8 steps above it (rig.ts UPRIGHT_PARS unpacks it)
-      this.animAttr[k].setXYZW(i, a.phase, a.walk, upright ? arm : Math.max(0, arm), Math.min(1, a.hit) + 2 * Math.round(a.flash * 8));
+      // PERF-IOS §8 Track B: written straight into the attribute and instance arrays (no setXYZW / Euler / compose
+      // calls: in this long loop they were not inlined, and every double passed to them was boxed, ~0.5 MB/s)
+      const aa = this.animArr[k];
+      const o4 = i * 4;
+      aa[o4] = a.phase;
+      aa[o4 + 1] = a.walk;
+      aa[o4 + 2] = upright ? arm : Math.max(0, arm);
+      aa[o4 + 3] = Math.min(1, a.hit) + 2 * Math.round(a.flash * 8);
       // body: lean into the strike, back on the cock (siege: the cart bucks on its shot)
       const lean = upright ? -a.walk * 0.08 + a.hit * 0.15 - Math.max(0, arm) * 0.16 - Math.min(0, arm) * 0.22 : -Math.max(0, arm) * 0.3 + Math.sin(time * 2 + e.id) * 0.02;
-      _e.set(0, a.yaw, lean);
-      _q.setFromEuler(_e);
+      // the Euler (0, yaw, lean) in XYZ order as a quaternion
+      const s2 = Math.sin(a.yaw / 2);
+      const c2 = Math.cos(a.yaw / 2);
+      const s3 = Math.sin(lean / 2);
+      const c3 = Math.cos(lean / 2);
+      let qx = s2 * s3;
+      let qy = s2 * c3;
+      let qz = c2 * s3;
+      let qw = c2 * c3;
       if (a.hit > 0.01 && !this.reduced) {
-        // tilt away from the hit: about the ground axis perpendicular to the hit direction
-        _ax.set(-a.hz, 0, a.hx);
-        _q2.setFromAxisAngle(_ax, -a.hit * 0.28);
-        _q.premultiply(_q2);
+        // tilt away from the hit: about the ground axis perpendicular to the hit direction (premultiplied)
+        const t = (-a.hit * 0.28) / 2;
+        const st = Math.sin(t);
+        const bx = -a.hz * st;
+        const bz = a.hx * st;
+        const bw = Math.cos(t);
+        const nx = bx * qw + bw * qx - bz * qy;
+        const ny = bw * qy + bz * qx - bx * qz;
+        const nz = bz * qw + bw * qz + bx * qy;
+        const nw = bw * qw - bx * qx - bz * qz;
+        qx = nx;
+        qy = ny;
+        qz = nz;
+        qw = nw;
       }
-      _m.compose(_p.set(px, hop, pz), _q, _s.set(s * (1 + a.hit * 0.15), s * sq, s * (1 + a.hit * 0.15)));
-      mesh.setMatrixAt(i, _m);
+      const sw = s * (1 + a.hit * 0.15);
+      const sh2 = s * sq;
+      const te = this.matArr[k];
+      const o16 = i * 16;
+      const x2 = qx + qx;
+      const y2 = qy + qy;
+      const z2 = qz + qz;
+      const xx = qx * x2;
+      const xy = qx * y2;
+      const xz = qx * z2;
+      const yy = qy * y2;
+      const yz = qy * z2;
+      const zz = qz * z2;
+      const wx = qw * x2;
+      const wy = qw * y2;
+      const wz = qw * z2;
+      te[o16] = (1 - (yy + zz)) * sw;
+      te[o16 + 1] = (xy + wz) * sw;
+      te[o16 + 2] = (xz - wy) * sw;
+      te[o16 + 3] = 0;
+      te[o16 + 4] = (xy - wz) * sh2;
+      te[o16 + 5] = (1 - (xx + zz)) * sh2;
+      te[o16 + 6] = (yz + wx) * sh2;
+      te[o16 + 7] = 0;
+      te[o16 + 8] = (xz + wy) * sw;
+      te[o16 + 9] = (yz - wx) * sw;
+      te[o16 + 10] = (1 - (xx + yy)) * sw;
+      te[o16 + 11] = 0;
+      te[o16 + 12] = px;
+      te[o16 + 13] = hop;
+      te[o16 + 14] = pz;
+      te[o16 + 15] = 1;
       const at = drawnAt.get(e.id);
       if (at) {
         at.x = px;

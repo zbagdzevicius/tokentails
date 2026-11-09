@@ -812,3 +812,62 @@ Files owned by C: `app/app.ts`, `render/gameView.ts`, `render/effects.ts`, `rend
 ### 8.13 Results
 
 To be filled by the tracks: the §8.2 table again (current build vs the build before the track), with the targets above.
+
+#### Track B: CPU and garbage (2026-11-09)
+
+Measured with `perf-ios-probe2.mjs` (Chromium on the GPU, CPU ×4, iPhone 15 Pro landscape, `SKIP_BROWSER=1`), the
+base (`origin/main` `9b0fa506`) and the Track B build served side by side and run **in pairs at the same time**, 3
+pairs, medians. The host was loaded by other agents' runs, so JS milliseconds are noise-level; garbage is not.
+
+| Window | Heap alloc MB/s (base → B) | GCs/s | Sampled alloc MB/s | Audio nodes/s | JS ms per drawn frame | GL calls/frame |
+|---|---|---|---|---|---|---|
+| Match 0:00–0:15 (incl. load tail) | 10.8 → **7.7** | 0.5 → 0.4 | – | 7.7 → **5.9** | 6.24 / 6.46 | 489 / 483 |
+| Match 1:00 | 8.9 → **4.5** | 0.5 → 0.3 | – | 7.4 → **5.2** | 6.22 / 5.95 | 523 / 538 |
+| Match 2:00 | 9.6 → **4.4** | 0.5 → 0.2 | 9.8 → **4.4** | 8.6 → **5.0** | 6.29 / 6.06 | 533 / 541 |
+| Match 2:15 | 9.3 → **3.9** | 0.5 → 0.2 | – | 7.8 → **5.1** | 6.20 / 6.14 | 537 / 537 |
+| Pause | 2.6 → **1.1** | 0.1 → 0 | – | 4 / 4 | 6.07 / 6.02 | 498 / 519 |
+| Lobby | 0.46 / 0.45 | 0 | – | 0 | 1.38 / 1.41 | 92 / 92 |
+
+A Node harness (vitest, the real sim at 1:15–1:55, `SnapBuffer` + `MinionInstances` + `HeroView` per frame, sampling
+heap profile incl. collected objects) gives **3.45 → 0.38 MB/s** for those three paths (−89%), and the old and new views
+produce bit-identical instance matrices and anim attributes over 1,800 frames with hits.
+
+Program-key rebuilds (a counting build of three.js, steady 15 s fight window): base **4 `getProgram` a frame**; Track B
+**2**: the shadow pass's shared `MeshDepthMaterial` no longer flips between skinned, instanced, instanced-with-colour
+and plain casters. The other 2 are Track A's (below); with that one-line change as well the count is **0.01 a frame**
+(measured with both applied locally).
+
+What changed (render and audio only; no sim change, no flag):
+- `render/interp.ts`: `SnapBuffer.sample` reuses one `ViewEntity` record per id (a class with every `EntitySnap`
+  field, absent optional fields `undefined`) and it is also the frame's `byId`; projectiles reuse records; the previous
+  snapshot is looked up through stamped index tables instead of a Map rebuilt each frame (`Map.clear()` allocates a new
+  table even when empty). Readers only ever keep the latest frame (gameView, director, `matchSession.frameNow`).
+- `render/views/minionInstances.ts`: no `Math.hypot` (the builtin boxes its arguments), `pushOutDir` fills a passed
+  record, and the per-minion instance matrix and `aAnim` values are written straight into the typed arrays (the same
+  maths three.js runs; the calls were not inlined in this long loop and boxed every double argument).
+- `render/views/heroView.ts`: `layoutBodiesInto` with scratch arrays (`layoutBodies` stays as the pure wrapper),
+  pooled push-apart points, wall-cell records and `MotionInput`; the rig key string is built only when an input changes.
+- `render/views/{heroView,minionInstances,towerView}.ts` + `rig.ts` `casterDepthMaterial`: skinned heroes, instanced
+  minions and the instanced-with-colour tower debris cast through their own shared depth material.
+- `render/views/towerView.ts`: reused footprint records, no entry arrays or closures per structure per frame.
+- `app/matchSession.ts`: input `Unit` records pooled by id; `input/navMirror.ts`: `syncStructures` without a new Set and
+  entry arrays per frame; `host/protocol.ts`: no closure per hero in `decodeSnap` (no wire change).
+- `audio/sfx.ts`: a play builds only its `BufferSource`; the Gain (and StereoPanner when panned) come from a pool wired
+  into the sfx bus (centred sounds still bypass the panner, so no −3 dB change). `audio/music.ts`: notes up to 1 s are
+  rendered once through the identical graph in an `OfflineAudioContext` and replayed as one `BufferSource` (live
+  synthesis until the bake is ready; pads stay live; hats alternate two baked takes).
+- Tests: `tests/unit/perf-alloc.test.ts` (record reuse and field clearing, scratch layout equals the pure layout, depth
+  materials, sfx chain pool, a baked note is one node).
+
+Not done / for other tracks:
+- **Track A (`render/views/mapView.ts`)**: `sceneryMat` is shared by the instanced `far-forest` and the merged plain
+  meshes (`banners`, …), so it re-derives its program twice a frame. Give the far forest its own material:
+  `const farMat = sceneryMat.clone();` before the chunk loop and `new THREE.InstancedMesh(farGeo, farMat, list.length)`.
+  Measured locally with Track B: 4 → 0.01 `getProgram` a frame. Static map meshes are also the main candidates for
+  `matrixAutoUpdate = false` (§8.12 B4); the views Track B owns move every frame.
+- Skinned bounds: no per-frame `computeBoundingSphere` was seen on heroes in a match (only the rare `ghost` mesh); the
+  191 KB/s in §8.5 is not reproduced (sampling noise or the preview).
+- Left in the browser profile: `minionInstances.update` still samples ~0.55 MB/s in Chrome against 0.04 MB/s in the Node
+  harness (the same V8), so the function probably runs in Maglev or deopts there: next step `--js-flags=--trace-deopt`
+  with source positions. three.js `setValueM4`/`setValueV3f` (~0.5 MB/s), the remaining three.js render internals, the
+  overlay canvases (Track A) and `gameView.update` (Track C).

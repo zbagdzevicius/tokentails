@@ -301,6 +301,19 @@ export const OBJ_STRIP = Object.freeze({ before: 10, after: 3 });
 /** Feel pass B2: how long (ms) the "Your base: bottom left" toast shows at the start. */
 export const BASE_TOAST_MS = 1200;
 
+
+/** A pooled input Unit (a class, so every record keeps one shape and doubles store unboxed). */
+class UnitRec implements Unit {
+  id = 0;
+  kind: Unit['kind'] = 'minion';
+  team = 0;
+  x = 0.5;
+  y = 0.5;
+  hp = 0;
+  maxHp = 0;
+  state: Unit['state'] = 'idle';
+}
+
 export class MatchSession {
   readonly host: MatchHost;
   readonly buffer = new SnapBuffer();
@@ -348,6 +361,16 @@ export class MatchSession {
   private menu: HTMLElement | null = null;
   private welcome: WelcomeMsg | null = null;
   private units: Unit[] = [];
+  /** PERF-IOS §8 Track B: one Unit record per entity id, refilled each frame (was a new object per entity per frame). */
+  private readonly unitPool = new Map<number, Unit>();
+  private unitStamp = 0;
+  private readonly unitSeen = new Map<number, number>();
+  private readonly pruneUnit = (_u: Unit, id: number): void => {
+    if (this.unitSeen.get(id) !== this.unitStamp) {
+      this.unitPool.delete(id);
+      this.unitSeen.delete(id);
+    }
+  };
   private frameNow: ViewFrame | null = null;
   private events: SimEvent[] = [];
   private ended = false;
@@ -2017,7 +2040,27 @@ export class MatchSession {
       // MAP-GAPS A14: the input grid mirrors the standing towers and cores
       syncStructures(frame.latest.entities);
       this.units.length = 0;
-      for (const e of frame.entities) this.units.push({ id: e.id, kind: e.kind, team: e.team, x: e.fx, y: e.fy, hp: e.hp, maxHp: e.maxHp, state: e.state });
+      const stamp = ++this.unitStamp;
+      const ents = frame.entities;
+      for (let i = 0; i < ents.length; i++) {
+        const e = ents[i];
+        let u = this.unitPool.get(e.id);
+        if (!u) {
+          u = new UnitRec();
+          this.unitPool.set(e.id, u);
+        }
+        u.id = e.id;
+        u.kind = e.kind;
+        u.team = e.team;
+        u.x = e.fx;
+        u.y = e.fy;
+        u.hp = e.hp;
+        u.maxHp = e.maxHp;
+        u.state = e.state;
+        this.unitSeen.set(e.id, stamp);
+        this.units.push(u);
+      }
+      if (this.unitPool.size > ents.length) this.unitPool.forEach(this.pruneUnit);
       this.ccHaptic(frame);
       this.events.length = 0;
       for (const ev of this.buffer.takeEvents(this.events)) {
