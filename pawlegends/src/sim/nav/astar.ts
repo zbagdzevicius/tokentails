@@ -11,7 +11,7 @@
  * depends only on the grid and the endpoints.
  */
 import { MAP, MAX_CELLS, NAV } from '../../data/map';
-import { NX, NY, cellOf, centreX, centreY, escapeCell, lineClear, snapCell, walkable, type NavGrid } from '../map/grid';
+import { NX, NY, cellOf, cellOfMirrored, centreX, centreY, escapeCell, lineClear, snapCell, walkable, type NavGrid } from '../map/grid';
 import { idiv } from '../fixed';
 
 /** Sim v19: sized for the largest map (heap keys order by f, then cell, on any span above the cell count). */
@@ -98,18 +98,21 @@ function cellOfTie(k: number): number {
   return j * NX + i;
 }
 
+/** The cell of a point for the running query: team 1 on a point map quantizes as the river mirror of team 0. */
+const cellAt = (x: number, y: number): number => (mir ? cellOfMirrored(x, y) : cellOf(x, y));
+
 /** The team layer of the running query (findPath), or null. */
 let foe: Uint8Array | null = null;
 const pass = (grid: NavGrid, c: number): boolean => walkable(grid, c) && (foe === null || foe[c] === 0);
 /** lineClear, also refusing the query's team layer. */
 function clear(grid: NavGrid, ax: number, ay: number, bx: number, by: number): boolean {
-  if (!lineClear(grid, ax, ay, bx, by)) return false;
+  if (!lineClear(grid, ax, ay, bx, by, mir)) return false;
   if (foe === null) return true;
   const dx = bx - ax;
   const dy = by - ay;
   const len = Math.max(Math.abs(dx), Math.abs(dy));
   const n = idiv(len, NAV.losStep) + 1;
-  for (let k = 0; k <= n; k++) if (foe[cellOf(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
+  for (let k = 0; k <= n; k++) if (foe[cellAt(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
   return true;
 }
 /** snapCell with the team layer: the nearest passable cell within NAV.snapCells rings (ties: lowest index; mirrored
@@ -168,13 +171,14 @@ export function findPath(
   const maxPoints = NAV.maxPathPoints;
   // Sim v16 (MAP-GAPS B15): a team's search also avoids the enemy fountain (grid.foe[team]), unless it starts inside it.
   const layer = team >= 0 && grid.foe ? grid.foe[team] : null;
-  foe = layer !== null && layer[cellOf(sx, sy)] === 0 ? layer : null;
-  // Sim v19 (point maps): team 1's search is the river mirror of team 0's (ties below).
+  // Sim v19 (point maps): team 1's search is the river mirror of team 0's (ties below; cells quantized mirrored too).
   mir = MAP.point === 1 && team === 1 && NX === NY;
+  const startCell = cellAt(sx, sy);
+  foe = layer !== null && layer[startCell] === 0 ? layer : null;
   // Sim v16 (MAP-GAPS B1): a start deeper in a wall than NAV.snapCells escapes by BFS to the nearest walkable cell.
-  const startRaw = snapCell(grid, cellOf(sx, sy), mir);
-  const start = startRaw >= 0 ? startRaw : escapeCell(grid, cellOf(sx, sy));
-  const goalRaw = cellOf(tx, ty);
+  const startRaw = snapCell(grid, startCell, mir);
+  const start = startRaw >= 0 ? startRaw : escapeCell(grid, startCell);
+  const goalRaw = cellAt(tx, ty);
   const goal = foe !== null && foe[goalRaw] !== 0 ? snapPass(grid, goalRaw) : snapCell(grid, goalRaw, mir);
   if (start < 0 || goal < 0) return { count: 0, complete: false, expansions: 0 };
   // Direct line: no search.
@@ -246,7 +250,7 @@ export function findPath(
   let px = sx;
   let py = sy;
   let i = len - 1; // chain[len − 1] is the start cell
-  if (start !== cellOf(sx, sy)) {
+  if (start !== startCell) {
     // Off-grid start: step to the snapped cell first.
     px = centreX(start);
     py = centreY(start);

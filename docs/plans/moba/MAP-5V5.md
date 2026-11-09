@@ -840,6 +840,22 @@ probe (a throwaway script: the same five heroes on both sides, mirrored pilot RN
 minion contact (sequential minion updates), so the next step is a probe that compares hero-only skirmishes on mirrored
 positions to find the first systematic difference. No side handicap was added: it would hide the cause from players.
 
+### 12.8 Side bias: the nav quantization fix (verify pass, 2026-11-09)
+
+Root cause found for most of G6: `cellOf` floors, so a point on a cell border (every whole metre: the pit, the camps,
+the towers, and a quarter of all quantized move targets per axis) went to the corner's north-east cell for both
+teams, which is team 1's side. Team 0's A* goals, snaps and line tests were up to a cell off the mirror of team 1's:
+on 4,000 sampled paths team 0 walked further to every corner-aligned goal (tower goals 1.5 m on average). Fix:
+`grid.ts cellOfMirrored` / `cellOfTeam`; team 1's `findPath` (start, goal, line tests, foe layer), dash, blink,
+tether and the fear slide (which also tries y before x for team 1) quantize river-mirrored. Mirrored path probe
+after the fix: 0 of 4,000 differ. Grizzlechop's nearest-hero tie now follows `heroAt` order. Crossing unchanged
+(map-identity 1500/1500).
+
+Side rate (team 0, 600 matches each): 42.5% before; 46.2% and 46.8% on two seed blocks after; 44.7% on the gate run
+(seeds 1–300, same seeds as the 46.2% block, after the boss-tie change, which is within noise). Ablation: with
+Grizzlechop never spawning, team 0 wins 50.3% (49.3% before the fix), so what remains is tied to him. Same-tick
+thinking (42.8%) and swapped think phases (43.7%) do not fix it, so it is not the think schedule. G6 still FAILS.
+
 ## 13. SERVER lane: what is built (PROTO 4, 2026-11-09)
 
 Sim v19 was already vendored by the SIM lane (v10 to v18 frozen, §12); this lane added the wire, the rooms, the queue

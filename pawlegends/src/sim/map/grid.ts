@@ -241,15 +241,33 @@ export function coverDisc(g: NavGrid, x: number, y: number, r: number, delta: 1 
 export const walkable = (g: NavGrid, c: number): boolean => g.blocked[c] === 0;
 
 /** Is the straight segment free of blocked cells? Sampled every NAV.losStep mm, both ends included. */
-export function lineClear(g: NavGrid, ax: number, ay: number, bx: number, by: number): boolean {
+export function lineClear(g: NavGrid, ax: number, ay: number, bx: number, by: number, mirror = false): boolean {
   const dx = bx - ax;
   const dy = by - ay;
   const len = Math.max(Math.abs(dx), Math.abs(dy));
   const n = idiv(len, NAV.losStep) + 1;
   for (let k = 0; k <= n; k++) {
-    if (g.blocked[cellOf(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
+    const x = ax + idiv(dx * k, n);
+    const y = ay + idiv(dy * k, n);
+    if (g.blocked[mirror ? cellOfMirrored(x, y) : cellOf(x, y)] !== 0) return false;
   }
   return true;
+}
+
+/** Sim v19: the cell of (x, y) for a unit of `team`: team 1 on a point map quantizes river-mirrored (`cellOfMirrored`). */
+export const cellOfTeam = (x: number, y: number, team: number): number => (MAP.point === 1 && team === 1 && NX === NY ? cellOfMirrored(x, y) : cellOf(x, y));
+
+/**
+ * Sim v19: the cell of (x, y) under the river-mirrored quantization (team 1's searches on a point map, nav/astar.ts):
+ * the river mirror of team 0's `cellOf` of the mirrored point. It differs from `cellOf` only for a point on a cell
+ * border (x or y a multiple of the cell size), which goes to the lower cell instead of the upper one. Without it a
+ * goal on a cell corner (the pit, the camps, the towers: all on whole metres) snapped to the corner's north-east
+ * cell for both teams, team 1's side of every such point, and team 0 walked further to every one of them.
+ */
+export function cellOfMirrored(x: number, y: number): number {
+  const i = NX - 1 - Math.min(NX - 1, Math.max(0, idiv(MAP.width - x, MAP.navCell)));
+  const j = NY - 1 - Math.min(NY - 1, Math.max(0, idiv(MAP.height - y, MAP.navCell)));
+  return j * NX + i;
 }
 
 /**

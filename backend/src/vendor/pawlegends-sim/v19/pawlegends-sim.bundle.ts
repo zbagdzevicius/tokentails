@@ -5714,12 +5714,29 @@ function coverDisc(g, x, y, r, delta) {
 }
 var walkable = (g, c) => g.blocked[c] === 0;
 /** Is the straight segment free of blocked cells? Sampled every NAV.losStep mm, both ends included. */
-function lineClear(g, ax, ay, bx, by) {
+function lineClear(g, ax, ay, bx, by, mirror = false) {
 	const dx = bx - ax;
 	const dy = by - ay;
 	const n = idiv(Math.max(Math.abs(dx), Math.abs(dy)), NAV.losStep) + 1;
-	for (let k = 0; k <= n; k++) if (g.blocked[cellOf(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
+	for (let k = 0; k <= n; k++) {
+		const x = ax + idiv(dx * k, n);
+		const y = ay + idiv(dy * k, n);
+		if (g.blocked[mirror ? cellOfMirrored(x, y) : cellOf(x, y)] !== 0) return false;
+	}
 	return true;
+}
+/** Sim v19: the cell of (x, y) for a unit of `team`: team 1 on a point map quantizes river-mirrored (`cellOfMirrored`). */
+var cellOfTeam = (x, y, team) => MAP.point === 1 && team === 1 && NX === NY ? cellOfMirrored(x, y) : cellOf(x, y);
+/**
+* Sim v19: the cell of (x, y) under the river-mirrored quantization (team 1's searches on a point map, nav/astar.ts):
+* the river mirror of team 0's `cellOf` of the mirrored point. It differs from `cellOf` only for a point on a cell
+* border (x or y a multiple of the cell size), which goes to the lower cell instead of the upper one. Without it a
+* goal on a cell corner (the pit, the camps, the towers: all on whole metres) snapped to the corner's north-east
+* cell for both teams, team 1's side of every such point, and team 0 walked further to every one of them.
+*/
+function cellOfMirrored(x, y) {
+	const i = NX - 1 - Math.min(NX - 1, Math.max(0, idiv(MAP.width - x, MAP.navCell)));
+	return (NY - 1 - Math.min(NY - 1, Math.max(0, idiv(MAP.height - y, MAP.navCell)))) * NX + i;
 }
 /**
 * The nearest walkable cell to `c` within NAV.snapCells rings (ties: lowest index), or −1. Sim v19: `mirror` breaks
@@ -6976,12 +6993,12 @@ function clipTravel(m, id, bx, by, out) {
 	const dx = tx - ax;
 	const dy = ty - ay;
 	const len = isqrt(dx * dx + dy * dy);
-	if (!walkable(m.grid, cellOf(ax, ay))) {
+	if (!walkable(m.grid, cellOfTeam(ax, ay, w.team[id]))) {
 		const ne = idiv(len, NAV.losStep) + 1;
 		for (let k = 1; k <= ne; k++) {
 			const sx = ax + idiv(dx * k, ne);
 			const sy = ay + idiv(dy * k, ne);
-			if (walkable(m.grid, cellOf(sx, sy))) {
+			if (walkable(m.grid, cellOfTeam(sx, sy, w.team[id]))) {
 				out[0] = sx;
 				out[1] = sy;
 				return;
@@ -6995,7 +7012,7 @@ function clipTravel(m, id, bx, by, out) {
 	for (let k = 1; k <= n; k++) {
 		const sx = ax + idiv(dx * k, n);
 		const sy = ay + idiv(dy * k, n);
-		if (!walkable(m.grid, cellOf(sx, sy))) {
+		if (!walkable(m.grid, cellOfTeam(sx, sy, w.team[id]))) {
 			out[0] = ax + idiv(dx * (k - 1), n);
 			out[1] = ay + idiv(dy * (k - 1), n);
 			return;
@@ -7110,7 +7127,7 @@ function blink(m, id, tx, ty, maxDist) {
 		by = gateOut[1];
 	}
 	clampToArena(w, id, bx, by, end$1);
-	if (end$1[0] !== bx || end$1[1] !== by || !walkable(m.grid, cellOf(bx, by))) clipTravel(m, id, bx, by, end$1);
+	if (end$1[0] !== bx || end$1[1] !== by || !walkable(m.grid, cellOfTeam(bx, by, w.team[id]))) clipTravel(m, id, bx, by, end$1);
 	w.x[id] = end$1[0];
 	w.y[id] = end$1[1];
 	w.moveX[id] = end$1[0];
@@ -7337,17 +7354,25 @@ function knockback(m, id, fromX, fromY, dist, fallbackAngle) {
 * Sim v17 (MAP-GAPS B5a, docs/plans/moba/V17.md §4): a forced walk that meets a wall slides along it instead of
 * stopping dead. Used for feared and charmed heroes (effects/fear.ts `fleeStep`); minions and rats are unchanged.
 */
-/** Step from (x, y) to (nx, ny); if that cell is blocked try x only, then y only, else stay. Writes [x, y] to `out`. */
-function slideStep(grid, x, y, nx, ny, out) {
-	if (walkable(grid, cellOf(nx, ny))) {
+/**
+* Step from (x, y) to (nx, ny); if that cell is blocked try x only, then y only, else stay. Writes [x, y] to `out`.
+* Sim v19: a team 1 hero on a point map is the river mirror of team 0's, which swaps the axes: it tries y only first,
+* and its cells quantize mirrored (grid.ts `cellOfTeam`). Crossing and team 0: unchanged.
+*/
+function slideStep(grid, x, y, nx, ny, out, team = 0) {
+	const yFirst = MAP.point === 1 && team === 1;
+	if (walkable(grid, cellOfTeam(nx, ny, team))) {
 		out[0] = nx;
 		out[1] = ny;
-	} else if (nx !== x && walkable(grid, cellOf(nx, y))) {
+	} else if (!yFirst && nx !== x && walkable(grid, cellOfTeam(nx, y, team))) {
 		out[0] = nx;
 		out[1] = y;
-	} else if (ny !== y && walkable(grid, cellOf(x, ny))) {
+	} else if (ny !== y && walkable(grid, cellOfTeam(x, ny, team))) {
 		out[0] = x;
 		out[1] = ny;
+	} else if (yFirst && nx !== x && walkable(grid, cellOfTeam(nx, y, team))) {
+		out[0] = nx;
+		out[1] = y;
 	} else {
 		out[0] = x;
 		out[1] = y;
@@ -7414,7 +7439,7 @@ function fleeStep(w, grid, id) {
 	const ty = clamp(w.y[id] + idiv(dy * far, d), 0, MAP.height);
 	moveToward(w.x[id], w.y[id], tx, ty, applyBp(moveSpeed(w, id), EFFECTS.fearSpeedBp), w.moveCarry[id], 30, out$4);
 	if (w.kind[id] === Kind.Hero) {
-		slideStep(grid, w.x[id], w.y[id], out$4[0], out$4[1], slid);
+		slideStep(grid, w.x[id], w.y[id], out$4[0], out$4[1], slid, w.team[id]);
 		if (slid[0] === w.x[id] && slid[1] === w.y[id]) return;
 		out$4[0] = slid[0];
 		out$4[1] = slid[1];
@@ -12502,7 +12527,7 @@ function clampTethers(m) {
 		const x = w.x[id];
 		const y = w.y[id];
 		clampToArena(w, id, x, y, pos);
-		if ((pos[0] !== x || pos[1] !== y) && !walkable(m.grid, cellOf(pos[0], pos[1]))) {
+		if ((pos[0] !== x || pos[1] !== y) && !walkable(m.grid, cellOfTeam(pos[0], pos[1], w.team[id]))) {
 			const cx = w.zX[z];
 			const cy = w.zY[z];
 			const dx = cx - pos[0];
@@ -12510,7 +12535,7 @@ function clampTethers(m) {
 			const n = idiv(isqrt(dx * dx + dy * dy), NAV.losStep) + 1;
 			const px = pos[0];
 			const py = pos[1];
-			for (let k = 1; k <= n && !walkable(m.grid, cellOf(pos[0], pos[1])); k++) {
+			for (let k = 1; k <= n && !walkable(m.grid, cellOfTeam(pos[0], pos[1], w.team[id])); k++) {
 				pos[0] = px + idiv(dx * k, n);
 				pos[1] = py + idiv(dy * k, n);
 			}
@@ -13054,7 +13079,8 @@ function stepBoss(m, id) {
 	let near = false;
 	let best = -1;
 	let bestD = 0;
-	for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+	for (let k = RANGE.heroes; k < RANGE.minions; k++) {
+		const h = heroAt(w, k);
 		if (w.alive[h] === 0 || !targetable(w, h, 2)) continue;
 		const d = dist2(w.x[h], w.y[h], w.x[id], w.y[id]);
 		if (d <= leash * leash) near = true;
@@ -13871,17 +13897,19 @@ function cellOfTie(k) {
 	const i = NX - 1 - idiv(k, NX);
 	return (NY - 1 - k % NX) * NX + i;
 }
+/** The cell of a point for the running query: team 1 on a point map quantizes as the river mirror of team 0. */
+var cellAt = (x, y) => mir ? cellOfMirrored(x, y) : cellOf(x, y);
 /** The team layer of the running query (findPath), or null. */
 var foe = null;
 var pass = (grid, c) => walkable(grid, c) && (foe === null || foe[c] === 0);
 /** lineClear, also refusing the query's team layer. */
 function clear$12(grid, ax, ay, bx, by) {
-	if (!lineClear(grid, ax, ay, bx, by)) return false;
+	if (!lineClear(grid, ax, ay, bx, by, mir)) return false;
 	if (foe === null) return true;
 	const dx = bx - ax;
 	const dy = by - ay;
 	const n = idiv(Math.max(Math.abs(dx), Math.abs(dy)), NAV.losStep) + 1;
-	for (let k = 0; k <= n; k++) if (foe[cellOf(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
+	for (let k = 0; k <= n; k++) if (foe[cellAt(ax + idiv(dx * k, n), ay + idiv(dy * k, n))] !== 0) return false;
 	return true;
 }
 /** snapCell with the team layer: the nearest passable cell within NAV.snapCells rings (ties: lowest index; mirrored
@@ -13919,11 +13947,12 @@ var chain = new Int32Array(SIZE);
 function findPath(grid, sx, sy, tx, ty, outX, outY, offset, team = -1) {
 	const maxPoints = NAV.maxPathPoints;
 	const layer = team >= 0 && grid.foe ? grid.foe[team] : null;
-	foe = layer !== null && layer[cellOf(sx, sy)] === 0 ? layer : null;
 	mir = MAP.point === 1 && team === 1 && NX === NY;
-	const startRaw = snapCell(grid, cellOf(sx, sy), mir);
-	const start = startRaw >= 0 ? startRaw : escapeCell(grid, cellOf(sx, sy));
-	const goalRaw = cellOf(tx, ty);
+	const startCell = cellAt(sx, sy);
+	foe = layer !== null && layer[startCell] === 0 ? layer : null;
+	const startRaw = snapCell(grid, startCell, mir);
+	const start = startRaw >= 0 ? startRaw : escapeCell(grid, startCell);
+	const goalRaw = cellAt(tx, ty);
 	const goal = foe !== null && foe[goalRaw] !== 0 ? snapPass(grid, goalRaw) : snapCell(grid, goalRaw, mir);
 	if (start < 0 || goal < 0) return {
 		count: 0,
@@ -13996,7 +14025,7 @@ function findPath(grid, sx, sy, tx, ty, outX, outY, offset, team = -1) {
 	let px = sx;
 	let py = sy;
 	let i = len - 1;
-	if (start !== cellOf(sx, sy)) {
+	if (start !== startCell) {
 		px = centreX(start);
 		py = centreY(start);
 		outX[offset + count] = px;
