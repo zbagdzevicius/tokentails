@@ -970,6 +970,26 @@ fights, not human skill. The largest rows (clem +16.6%, brutus +14.6%, gabe −1
 are the first to revisit with real 5v5 match data. Marshmallow (53%) and rocket (52.5%) sit closest to an edge. The
 cats sit at 48.5%, 1.5 points inside the band.
 
+### 12.11 Release check after merging origin/main (2026-11-09)
+
+origin/main (perf iteration 2, c7d0f6f7) merged in; it touched no sim file, and the vendored v10 to v18 are
+byte-identical to main. Conflicts were render and UI only: the minimap keeps main's cached structures layer and sprites
+and draws Hearthwood's bush list and Grizzlechop (as a cached sprite) through them; StructureView's pooled footprints
+keep the boss scale. Every gate was rerun on the merged tree:
+
+| Gate | Result |
+|---|---|
+| 5v5 `hearth-gates --seeds 2000`, seeds 1–2000 | side 49.4%, cats 48.4%, heroes 47.1–53.3%, p50 13:06, safety 0%: **PASS** |
+| 5v5 `hearth-gates --seeds 2000`, seeds 2001–4000 | side 50.7%, cats 48.7%, heroes 47.2–53.0%, p50 13:06, safety 0%: **PASS** |
+| 5v5 determinism (40 seeds × solo, party, PvP) | 120/120 **PASS** |
+| 3v3 = v18 (`map-identity`, baseline rewritten on origin/main) | 1500/1500 **PASS** |
+| 3v3 balance gate (`--gate balance`, 2,000 seeds) | 35/35 checks **PASS** (side 49.1%, cats 50.6%) |
+| 3v3 PvP symmetry (2,000 seeds) | side 48.4%, cats 50.5%: **PASS** |
+| tsc, lint:sim, vendor-sim:check, budget (375.8 KB gzip first load) | **PASS** |
+| Headless browser, 844×390 touch, one full bot match each | 5v5: loads, HUD and minimap inside the viewport, Grizzlechop and Pudding timers, results at 13:04; 3v3: same, results screen. No console errors |
+
+Still open (design, not a gate): about 89% of 5v5 bot matches end in Sudden Death (13:00 to 13:15); see 12.6.
+
 ## 13. SERVER lane: what is built (PROTO 4, 2026-11-09)
 
 Sim v19 was already vendored by the SIM lane (v10 to v18 frozen, §12); this lane added the wire, the rooms, the queue
