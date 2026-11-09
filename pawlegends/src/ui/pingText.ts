@@ -46,6 +46,26 @@ export const WHEEL_KINDS: readonly number[] = Object.freeze([
 ]);
 
 /**
+ * Sim v19 (MAP-5V5.md §8.4): the 5v5 Classic wheel on Hearthwood Divide: the three lane pushes and Take Grizzlechop
+ * replace Sunny and Puddle (which the map refuses). Eight slices, clockwise from the top.
+ */
+export const CLASSIC_WHEEL_KINDS: readonly number[] = Object.freeze([
+  PING_KIND.Group,
+  PING_KIND.PushFence,
+  PING_KIND.PushYarn,
+  PING_KIND.PushGutter,
+  PING_KIND.Defend,
+  PING_KIND.FallBack,
+  PING_KIND.Grizzlechop,
+  PING_KIND.Pudding,
+]);
+
+/** The wheel's slices: Crossing's six, or the 5v5 Classic eight. */
+export function wheelKinds(classic: boolean): readonly number[] {
+  return classic ? CLASSIC_WHEEL_KINDS : WHEEL_KINDS;
+}
+
+/**
  * GAPS A4 chip → ping: a tap on the objective chip sends the matching ping (one tap, no wheel), or nothing.
  * Pudding coming or wild → Take Pudding; an escort, Sunset or Sudden Death → Group on me; a rat camp → Go here.
  */
@@ -61,17 +81,21 @@ export function chipPing(key: string): number | null {
     case 'rats':
     case 'theirRats':
       return PING_KIND.GoHere;
+    // sim v19 (Hearthwood)
+    case 'grizzlechop':
+    case 'sinkGrizzlechop':
+      return PING_KIND.Grizzlechop;
     default:
       return null;
   }
 }
 
 /** The wheel slice under a pointer offset (px from the wheel's centre), or −1 inside the dead zone. */
-export function wheelSlice(dx: number, dy: number, deadPx = 26): number {
+export function wheelSlice(dx: number, dy: number, deadPx = 26, n = WHEEL_KINDS.length): number {
   if (Math.hypot(dx, dy) < deadPx) return -1;
   // 0 = straight up, clockwise (screen y grows downward)
-  const a = (Math.atan2(dx, -dy) + Math.PI * 2 + Math.PI / WHEEL_KINDS.length) % (Math.PI * 2);
-  return Math.floor(a / ((Math.PI * 2) / WHEEL_KINDS.length)) % WHEEL_KINDS.length;
+  const a = (Math.atan2(dx, -dy) + Math.PI * 2 + Math.PI / n) % (Math.PI * 2);
+  return Math.floor(a / ((Math.PI * 2) / n)) % n;
 }
 
 /**

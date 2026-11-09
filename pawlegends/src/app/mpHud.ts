@@ -13,6 +13,7 @@
  * Every message is a rail note (src/ui/notify.ts): nothing is drawn mid-screen on phones. Pure helpers (`voteNote`,
  * `pausedNote`, `hintsFor`) are unit-tested; the class wires them to the session.
  */
+import { SLOTS_PER_TEAM } from '../sim/api';
 import type { Notify, Note } from '../ui/notify';
 import type { Overhead } from '../ui/overhead';
 import type { Minimap } from '../ui/minimap';
@@ -180,19 +181,19 @@ export class MpHud {
     this.h.track('mp_match_start', { humans: this.link.humans.length, difficulty: this.h.difficulty, rtt_p50: n.rttMs, buffer: n.buffer, load_ms: sinceLoadMs() });
   }
 
-  /** The first slot of this seat's team (PvP team 1: 3; else 0). */
+  /** The first slot of this seat's team (PvP team 1: 3, or 5 on Hearthwood; else 0). */
   private get teamBase(): number {
-    return (this.link.team ?? 0) * 3;
+    return (this.link.team ?? 0) * SLOTS_PER_TEAM;
   }
 
   private isFriend(slot: number): boolean {
     const base = this.teamBase;
-    return slot !== this.link.mySlot && slot >= base && slot < base + 3 && this.link.names[slot] !== null && this.link.names[slot] !== undefined;
+    return slot !== this.link.mySlot && slot >= base && slot < base + SLOTS_PER_TEAM && this.link.names[slot] !== null && this.link.names[slot] !== undefined;
   }
 
   /** Casual PvP: a human on the other team (emotes only reach us; Mute opponents silences them). */
   private isOpponent(slot: number): boolean {
-    return !!this.link.pvp && (slot >= 3 ? 1 : 0) !== (this.link.team ?? 0);
+    return !!this.link.pvp && (slot >= SLOTS_PER_TEAM ? 1 : 0) !== (this.link.team ?? 0);
   }
 
   /** Casual PvP: every opponent's emotes muted (quick chat sheet, V16.md §5). */

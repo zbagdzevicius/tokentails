@@ -17,6 +17,8 @@ export type QueueStop = 'away' | 'left' | 'party' | 'update' | 'locked' | 'busy'
 
 export interface QueueModel {
   side: MmSide;
+  /** Sim v19: seats per team (5 in the 5v5 Classic queue; absent = 3). */
+  teamSize?: number;
   /** Seconds searched (the local clock, synced to `waitedMs`). */
   waitedS: number;
   /** The relay's estimate, or null before the first status. */
@@ -63,16 +65,16 @@ const stopText = (m: QueueModel): string => {
 };
 
 /** The found pips: ●●○ (1..3 of 3). */
-export function pipsHtml(found: number): string {
-  const n = Math.max(1, Math.min(3, Math.round(found)));
-  return `<span class="pp-pips" role="img" aria-label="${esc(COPY.playersFound(n))}" data-testid="mm-pips" data-found="${n}">${[0, 1, 2].map((i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('')}</span>`;
+export function pipsHtml(found: number, per = 3): string {
+  const n = Math.max(1, Math.min(per, Math.round(found)));
+  return `<span class="pp-pips" role="img" aria-label="${esc(COPY.playersFound(n))}" data-testid="mm-pips" data-found="${n}">${Array.from({ length: per }, (_, i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('')}</span>`;
 }
 
 /** Casual PvP: both teams' pips (●●○ vs ●○○). */
-export function pvpPipsHtml(mine: number, theirs: number): string {
-  const pip = (n: number) => [0, 1, 2].map((i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('');
-  const a = Math.max(1, Math.min(3, Math.round(mine)));
-  const b = Math.max(0, Math.min(3, Math.round(theirs)));
+export function pvpPipsHtml(mine: number, theirs: number, per = 3): string {
+  const pip = (n: number) => Array.from({ length: per }, (_, i) => `<i class="pp-pip${i < n ? ' on' : ''}"></i>`).join('');
+  const a = Math.max(1, Math.min(per, Math.round(mine)));
+  const b = Math.max(0, Math.min(per, Math.round(theirs)));
   return `<span class="pp-pips pp-pvp-pips" role="img" aria-label="${esc(COPY.pvpTeams(a, b))}" data-testid="mm-pips" data-found="${a}" data-theirs="${b}"><span>${pip(a)}</span><small>vs</small><span class="their">${pip(b)}</span></span>`;
 }
 
@@ -113,7 +115,7 @@ export function queueCardHtml(m: QueueModel): string {
     <h2>${m.party ? COPY.partyQueued : COPY.findingPvp}</h2>
     ${low}${requeued}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
-    ${pvpPipsHtml(m.found, m.pvp.theirs)}
+    ${pvpPipsHtml(m.found, m.pvp.theirs, m.teamSize === 5 ? 5 : 3)}
     ${note}
     ${sideChipHtml(m.side)}
     ${warn}${offer}
@@ -124,7 +126,7 @@ export function queueCardHtml(m: QueueModel): string {
     <h2>${m.party ? COPY.partyQueued : COPY.finding}</h2>
     ${low}
     <p class="pp-qtime" role="timer" aria-live="off"><b data-live="waited" data-testid="mm-timer">${clockText(m.waitedS)}</b>${est}</p>
-    ${pipsHtml(m.found)}
+    ${pipsHtml(m.found, m.teamSize === 5 ? 5 : 3)}
     <p class="pp-note">${COPY.botsFill}</p>
     ${sideChipHtml(m.side)}
     ${warn}${offer}

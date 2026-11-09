@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { HEROES } from '../data/heroes';
 import { MAP } from '../data/map';
 import { PUDDING } from '../data/pudding';
-import type { CastSlot, HeroId, SimEvent, TrickId } from '../sim/api';
+import { SLOTS_PER_TEAM, type CastSlot, type HeroId, type SimEvent, type TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { playSkillSfx, skillKey } from '../audio/skillSfx';
 import { CHAMP_AUDIO } from '../audio/champ';
@@ -81,8 +81,46 @@ export interface ActiveWindup {
   dst: number;
 }
 
-/** Map middle (sim mm, north–south). */
-const MAP_MID_Y = MAP.height / 2;
+/** Sim v19 (Hearthwood): the buff names the steal line uses. */
+export const BUFF_NAME: Readonly<Record<string, string>> = Object.freeze({ prickle: 'Prickle Coat', feather: 'Crow Feather' });
+
+/**
+ * Sim v19 (MAP-5V5.md §8.4): the announcer copy for Grizzlechop up and taken, the Great Pudding taken (its spawn and
+ * calm already have the 3v3 'pudding' lines), and a stolen buff. Original copy; text only (no voice line fits), with a
+ * horn or a cheer. Null: nothing to say. Pure.
+ */
+export function objectiveLine(
+  e: Extract<SimEvent, { type: 'objectiveSpawn' | 'objective' | 'buffSteal' }>,
+  myTeam: number,
+  mySlot: number,
+): { title: string; sub?: string; tone: 'good' | 'bad' | 'gold'; sound: 'horn' | 'cheer' | 'boom' } | null {
+  if (e.type === 'objectiveSpawn') {
+    if (e.kind !== 'grizzlechop') return null;
+    return { title: 'Captain Grizzlechop surfaced!', sub: 'Sink him in his wreck: Fish and a Hoard shield for the whole team.', tone: 'gold', sound: 'horn' };
+  }
+  if (e.type === 'objective') {
+    if (e.kind !== 'grizzlechop') return null;
+    const ours = e.team === myTeam;
+    return ours
+      ? { title: e.slot === mySlot ? 'You sank Grizzlechop!' : 'We sank Grizzlechop!', sub: 'Fish for everyone and a Hoard shield: push now.', tone: 'good', sound: 'cheer' }
+      : { title: 'They sank Grizzlechop', sub: 'They have the Hoard shield: group up and defend.', tone: 'bad', sound: 'boom' };
+  }
+  const name = BUFF_NAME[e.kind] ?? 'buff';
+  const thief = e.id < SLOTS_PER_TEAM ? 0 : 1;
+  if (thief === myTeam) return { title: e.id === mySlot ? `You stole the ${name}!` : `${name} stolen!`, sub: 'Their jungle buff is ours now.', tone: 'good', sound: 'cheer' };
+  return { title: `They stole our ${name}`, sub: e.from === mySlot ? 'Take it back on their next fight.' : undefined, tone: 'bad', sound: 'boom' };
+}
+
+/**
+ * The lane a structure at (x, y) mm stands on, for the tower banner. Crossing: Sunny Lane on top. Sim v19 Hearthwood:
+ * Fenceline (top-left), Yarn Road (the diagonal), Gutterway (bottom-right); the Hearth Guards are "Base".
+ */
+export function laneLabel(x: number, y: number): string {
+  if (MAP.point !== 1) return y > MAP.height / 2 ? 'Sunny Lane' : 'Puddle Lane';
+  const d = y - x;
+  if (Math.abs(d) < 14000) return Math.min(Math.hypot(x - 16000, y - 16000), Math.hypot(MAP.width - x - 16000, MAP.height - y - 16000)) < 9000 ? 'Base' : 'Yarn Road';
+  return d > 0 ? 'Fenceline' : 'Gutterway';
+}
 
 export interface EffectsHooks {
   /** Entity lookup by id (last drawn place, also for units that just vanished). */
@@ -268,6 +306,16 @@ export class Effects {
         return this.tower(e);
       case 'pudding':
         return this.pudding(e);
+      // sim v19 (Hearthwood): the river objectives and the stolen jungle buffs
+      case 'objectiveSpawn':
+      case 'objective':
+      case 'buffSteal': {
+        const line = objectiveLine(e, this.hooks.myTeam, this.hooks.mySlot);
+        if (!line) return;
+        sfx.play(line.sound, line.sound === 'horn' ? { rate: 1.15 } : undefined);
+        this.juice.banner({ title: line.title, sub: line.sub, tone: line.tone });
+        return;
+      }
       case 'fish':
         return this.fish(e);
       case 'buy':
@@ -811,7 +859,7 @@ export class Effects {
     const good = e.destroyedBy === this.hooks.myTeam;
     this.hooks.onTowerDown?.(good);
     // Which lane, so two towers falling at once read as two events (sim +y is north: Sunny Lane is on top).
-    const lane = v ? (-v.z * 1000 > MAP_MID_Y ? 'Sunny Lane' : 'Puddle Lane') : undefined;
+    const lane = v ? laneLabel(v.x * 1000, -v.z * 1000) : undefined;
     const what = v?.kind === 'core' ? 'core' : 'tower';
     this.juice.banner({ title: good ? `Enemy ${what} down!` : `We lost a ${what}`, sub: what === 'core' ? undefined : lane, tone: good ? 'good' : 'bad' });
     sfx.play('roar', { vol: good ? 1 : 0.6 });

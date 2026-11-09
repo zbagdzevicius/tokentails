@@ -284,3 +284,20 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-lobby .lb-mode { margin-top: 2px; }
   .pl-lobby .lb-mode button { min-height: 44px; padding: 0 10px; font-size: 12px; }
 }
+
+/* Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic above Play (one tap, remembered) */
+.pl-lobby .lb-map {
+  display: inline-flex; align-self: flex-start; padding: 3px; gap: 2px; border-radius: 12px; background: var(--lb-panel);
+  box-shadow: inset 0 0 0 1px var(--lb-line); margin-bottom: 4px;
+}
+.pl-lobby .lb-map button {
+  font: 600 13px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 9px; padding: 8px 14px;
+  min-height: 36px; cursor: pointer; position: relative; white-space: nowrap;
+}
+.pl-lobby .lb-map button b { font-weight: 800; letter-spacing: 0.02em; }
+.pl-lobby .lb-map button::after { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
+.pl-lobby .lb-map button.on { background: var(--butter, #ffd34d); color: #3a2440; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25); }
+@media (max-height: 480px) {
+  .pl-lobby .lb-map { margin-bottom: 2px; }
+  .pl-lobby .lb-map button { padding: 6px 11px; font-size: 12px; min-height: 30px; }
+}

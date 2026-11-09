@@ -47,10 +47,12 @@ export interface PartyRowsInput {
 
 /** The team's rows (the player's team, slot order). Pure. */
 export function partyRows(o: PartyRowsInput): PartyResultRow[] {
-  const team = o.mySlot < 3 ? 0 : 1;
+  // sim v19: 5 a side on Hearthwood (the stats list both teams)
+  const per = o.stats.length > 6 || o.stats.some((s) => s.slot > 5) ? 5 : 3;
+  const team = o.mySlot < per ? 0 : 1;
   const out: PartyResultRow[] = [];
-  for (let k = 0; k < 3; k++) {
-    const slot = team * 3 + k;
+  for (let k = 0; k < per; k++) {
+    const slot = team * per + k;
     const st = o.stats.find((s) => s.slot === slot);
     if (!st) continue;
     const me = slot === o.mySlot;

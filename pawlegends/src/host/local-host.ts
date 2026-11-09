@@ -9,7 +9,7 @@
  * fatal. Errors the sim posts itself (`{t:'error'}`) are deterministic and are never retried.
  */
 import { encodeCommand } from '../sim/commands';
-import type { Command, Difficulty, HeroId, MatchResult, ReplayRecord, SimEvent, Snapshot, TrickId } from '../sim/api';
+import type { Command, Difficulty, HeroId, MapId, MatchResult, ReplayRecord, SimEvent, Snapshot, TrickId } from '../sim/api';
 import { decodeSnap, isHostMsg, type ClientMsg, type HostMsg, type WelcomeMsg } from './protocol';
 import { TickLoop } from './tick-loop';
 
@@ -19,6 +19,8 @@ export interface JoinOptions {
   difficulty: Difficulty;
   seed?: number;
   speed?: number;
+  /** Sim v19: the map (omitted = 'crossing'). */
+  map?: MapId;
 }
 
 export interface HostListener {
@@ -147,7 +149,7 @@ export class LocalHost {
     this.welcome = null;
     this.lastTick = 0;
     this.pending = [];
-    this.post({ t: 'join', slot: 0, hero: o.hero, trick: o.trick, difficulty: o.difficulty, seed: o.seed, speed: o.speed });
+    this.post({ t: 'join', slot: 0, hero: o.hero, trick: o.trick, difficulty: o.difficulty, seed: o.seed, speed: o.speed, ...(o.map && o.map !== 'crossing' ? { map: o.map } : {}) });
   }
 
   /** One command for the host's next tick. */

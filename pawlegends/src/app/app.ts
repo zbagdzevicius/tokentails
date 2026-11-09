@@ -59,6 +59,8 @@ import { notePurchase, storePanel } from '../ui/store';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { cardIdentity, selfNames, veilName } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
+import { MODE_MAP, loadMatchMode, saveMatchMode } from '../ui/lobby/matchMode';
+import type { MapId } from '../sim/api';
 
 /**
  * The match (session, game view, effects, HUD) is its own chunk: the title and menus load without it (first-load JS
@@ -621,6 +623,8 @@ export class App {
         onDifficulty: (d) => {
           this.choice = { ...this.choice, difficulty: d };
         },
+        // Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic above Play, remembered; the first match is 3v3
+        matchMode: { mode: loadMatchMode(), onMode: (m) => saveMatchMode(m) },
         cardCount: skins.length,
         peek,
         wearing: card ? { name: card.name } : null,
@@ -955,6 +959,8 @@ export class App {
       difficulty,
       seed: match.config.seed,
       speed: 1,
+      // sim v19: a 5v5 Classic room plays Hearthwood Divide (PROTO 4 carries the map on the match frame and config)
+      ...(((match as { map?: string }).map ?? (match.config as { map?: string }).map) === 'hearthwood' ? { map: 'hearthwood' as const } : {}),
       firstMatch: false,
       newPlayer: p.matches < 5,
       // party play: quick chat and its 4 emotes replace the solo Wave chip (T opens the chat wheel)
@@ -1018,6 +1024,9 @@ export class App {
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
     // a dare keeps its own bots (the seed and the difficulty make the dare)
     const c: Choice = { ...pick, difficulty: seed !== undefined ? pick.difficulty : difficultyFor(p.matches, pick.difficulty, undefined, undefined, p.veteran) };
+    // Sim v19: 5v5 Classic is the toggle's choice (a rematch keeps it); the first match and a dare stay 3v3
+    const map: MapId | undefined = seed === undefined && p.matches > 0 && (pick.map ?? MODE_MAP[loadMatchMode()]) === 'hearthwood' ? 'hearthwood' : undefined;
+    delete c.map;
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
     p.hero = c.hero;
     p.side = HEROES[c.hero]?.side ?? p.side;
@@ -1043,6 +1052,7 @@ export class App {
       playerName: this.integration.state().playerName,
       seed,
       speed: this.speed,
+      ...(map ? { map } : {}),
       firstMatch: tips,
       newPlayer: p.matches < 5,
       emote: owned.items.has('emote.starter') || owned.unlocks.has('emote.wave'),
@@ -1070,7 +1080,7 @@ export class App {
     const worn = isCardSkinId(look.coat) ? getSkin(look.coat) : null;
     const veil = loadingVeil(
       this.root,
-      'Into the Crossing...',
+      map ? 'Into Hearthwood Divide...' : 'Into the Crossing...',
       mates.length ? `${mates.join(' and ')} ${mates.length > 1 ? 'walk' : 'walks'} with you this match` : undefined,
       this.wearing(look),
       { name: veilName(c.hero, look), matches: p.heroMatches[c.hero] ?? 0, bond: worn && !worn.featured ? worn.bond : null },

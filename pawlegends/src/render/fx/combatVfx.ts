@@ -18,7 +18,7 @@
  */
 import * as THREE from 'three';
 import { HEROES } from '../../data/heroes';
-import { LANE_WAYPOINTS, MAP, PLAYFIELD, RAT_CAMP } from '../../data/map';
+import { CORE, FOUNTAIN, LANE_WAYPOINTS, MAP, PLAYFIELD, RAT_CAMP } from '../../data/map';
 import { BuffFlag, type HeroId } from '../../sim/api';
 import { abilityRank, maxRank } from '../../sim/heroes/talents';
 import { ELEMENT_COLOR } from '../cosmetics';
@@ -127,9 +127,11 @@ export const DEBRIS: Readonly<Record<Biome, Readonly<Debris>>> = Object.freeze({
   stone: Object.freeze({ chip: 0xb3aca2, shape: SHAPE.SHARD, dust: 0xe8e2d6, dustAlpha: 0.55 }),
 });
 
-const GW = Math.round(MAP.width / 1000);
-const GH = Math.round(MAP.height / 1000);
+let GW = Math.round(MAP.width / 1000);
+let GH = Math.round(MAP.height / 1000);
 let biomeGrid: Uint8Array | null = null;
+/** Sim v19: the map the biome grid was built for (rebuilt when another map is bound). */
+let biomeMap: object | null = null;
 
 function segDist(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
   const dx = bx - ax;
@@ -140,6 +142,9 @@ function segDist(px: number, py: number, ax: number, ay: number, bx: number, by:
 
 /** 1 m biome cells, built once from data/map.ts (the same shapes mapView paints). */
 function buildBiomes(): Uint8Array {
+  GW = Math.round(MAP.width / 1000);
+  GH = Math.round(MAP.height / 1000);
+  if (MAP.point === 1) return buildPointBiomes();
   const g = new Uint8Array(GW * GH);
   const W = MAP.width / 1000;
   const lanes: number[][] = [];
@@ -171,8 +176,47 @@ function buildBiomes(): Uint8Array {
   return g;
 }
 
+/** Sim v19 (Hearthwood): lanes from LANE_WAYPOINTS (point-reflected past the river), the diagonal river, stone plazas. */
+function buildPointBiomes(): Uint8Array {
+  const g = new Uint8Array(GW * GH);
+  const W = MAP.width / 1000;
+  const H = MAP.height / 1000;
+  const lanes: number[][] = [];
+  const keys = Object.keys(LANE_WAYPOINTS) as (keyof typeof LANE_WAYPOINTS)[];
+  for (const lane of keys) {
+    const pts = LANE_WAYPOINTS[lane].map(([x, y]) => [x / 1000, y / 1000]);
+    lanes.push([...pts, ...pts.map(([x, y]) => [W - x, H - y]).reverse().slice(1)].flat());
+  }
+  const half = MAP.laneWidth / 2000;
+  const plaza = [
+    [FOUNTAIN.x / 1000, FOUNTAIN.y / 1000, FOUNTAIN.radius / 1000 + 1.5],
+    [CORE.x / 1000, CORE.y / 1000, 6],
+  ];
+  for (let cy = 0; cy < GH; cy++) {
+    for (let cx = 0; cx < GW; cx++) {
+      const x = cx + 0.5;
+      const y = cy + 0.5;
+      let lane = false;
+      for (const pl of lanes) {
+        for (let i = 0; i + 3 < pl.length && !lane; i += 2) if (segDist(x, y, pl[i], pl[i + 1], pl[i + 2], pl[i + 3]) <= half) lane = true;
+        if (lane) break;
+      }
+      let b: Biome = 'grass';
+      if (Math.abs(x + y - W) <= 7.07) b = lane ? 'wood' : 'water';
+      else if (plaza.some(([px, py, r]) => Math.hypot(x - px, y - py) <= r || Math.hypot(W - x - px, H - y - py) <= r)) b = 'stone';
+      else if (lane) b = 'dirt';
+      g[cy * GW + cx] = BIOMES.indexOf(b);
+    }
+  }
+  return g;
+}
+
 /** The biome at a three.js ground point (m; z = −sim y). Off the map is grass (the forest ring). */
 export function biomeAt(x: number, z: number): Biome {
+  if (biomeMap !== MAP) {
+    biomeGrid = null;
+    biomeMap = MAP;
+  }
   biomeGrid ??= buildBiomes();
   const cx = Math.floor(x);
   const cy = Math.floor(-z);

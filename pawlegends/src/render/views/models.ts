@@ -136,10 +136,21 @@ export function puddingGeometry(): THREE.BufferGeometry {
 
 // --------------------------------------------------------------------------------------------- structures
 
-export function towerGeometry(team: 0 | 1, tier: 'outer' | 'inner'): THREE.BufferGeometry {
+export function towerGeometry(team: 0 | 1, tier: 'outer' | 'inner' | 'gate' | 'hearth'): THREE.BufferGeometry {
+  if (tier === 'hearth') return hearthGuardGeometry(team);
   const b = new ModelBuilder();
   const t = TEAM[team];
-  const tall = tier === 'inner' ? 0.9 : 0;
+  const tall = tier === 'inner' ? 0.9 : tier === 'gate' ? 1.6 : 0;
+  // Sim v19 (Hearthwood): the gate tower stands on a wider buttressed plinth with a second gold band
+  if (tier === 'gate') {
+    const st = team === 0 ? 0xe6d6b8 : 0x7a6448;
+    b.cyl(2.0, 2.2, 0.5, st, { at: [0, 0.25, 0] }, 12);
+    for (let i = 0; i < 4; i++) {
+      const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+      b.box(0.5, 1.5, 0.7, st, { at: [Math.cos(a) * 1.35, 0.75, Math.sin(a) * 1.35], rot: [0, -a, 0] });
+    }
+    b.cyl(1.25, 1.25, 0.12, 0xffd34d, { at: [0, 1.9, 0] }, 12);
+  }
   const stone = team === 0 ? 0xf3ead8 : 0x9a8366;
   const stone2 = team === 0 ? 0xe6d6b8 : 0x7a6448;
   b.cyl(1.6, 1.8, 0.6, stone2, { at: [0, 0.3, 0] }, 12);
@@ -161,7 +172,120 @@ export function towerGeometry(team: 0 | 1, tier: 'outer' | 'inner'): THREE.Buffe
     b.box(0.7, 0.14, 0.14, 0xfff3dc, { at: [0, 5.4 + tall, 0] });
     for (const x of [-0.35, 0.35]) for (const z of [-0.08, 0.08]) b.sphere(0.11, 0xfff3dc, { at: [x, 5.4 + tall, z] }, 8);
   }
-  if (tier === 'inner') b.cyl(1.22, 1.22, 0.12, 0xffd34d, { at: [0, 3.45 + tall, 0] }, 12);
+  if (tier === 'inner' || tier === 'gate') b.cyl(1.22, 1.22, 0.12, 0xffd34d, { at: [0, 3.45 + tall, 0] }, 12);
+  return b.build();
+}
+
+/**
+ * Sim v19 (Hearthwood): a Hearth Guard flanking the core. A squat round keep with a hearth lantern on top (a cat
+ * lantern of warm glass for Purrhaven, a bone-handled brazier for Woof). Original model.
+ */
+function hearthGuardGeometry(team: 0 | 1): THREE.BufferGeometry {
+  const b = new ModelBuilder();
+  const t = TEAM[team];
+  const stone = team === 0 ? 0xf3ead8 : 0x9a8366;
+  const stone2 = team === 0 ? 0xe6d6b8 : 0x7a6448;
+  b.cyl(1.9, 2.1, 0.6, stone2, { at: [0, 0.3, 0] }, 14);
+  b.cyl(1.45, 1.65, 2.4, stone, { at: [0, 1.8, 0] }, 14);
+  b.cyl(1.55, 1.55, 0.2, t.main, { at: [0, 1.4, 0] }, 14);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    b.box(0.4, 0.45, 0.4, stone, { at: [Math.cos(a) * 1.4, 3.2, Math.sin(a) * 1.4], rot: [0, -a, 0] });
+  }
+  b.cyl(1.5, 1.5, 0.14, 0xffd34d, { at: [0, 3.0, 0] }, 14);
+  if (team === 0) {
+    b.cyl(0.42, 0.5, 0.9, 0x6e4a2e, { at: [0, 3.5, 0] }, 8);
+    b.sphere(0.55, 0xffc76b, { at: [0, 4.25, 0] }, 12);
+    b.cone(0.6, 0.6, t.main, { at: [0, 4.95, 0] }, 8);
+    for (const s of [-1, 1]) b.cone(0.16, 0.32, t.main, { at: [0, 5.15, s * 0.32], rot: [s * 0.4, 0, 0] }, 6);
+  } else {
+    b.cyl(0.7, 0.45, 0.6, 0x4e3524, { at: [0, 3.4, 0] }, 10);
+    b.sphere(0.5, 0xff9a3d, { at: [0, 3.9, 0], scale: [1, 1.3, 1] }, 10);
+    b.box(1.5, 0.16, 0.16, 0xfff3dc, { at: [0, 4.65, 0] });
+    for (const x of [-0.75, 0.75]) for (const z of [-0.09, 0.09]) b.sphere(0.13, 0xfff3dc, { at: [x, 4.65, z] }, 8);
+  }
+  return b.build();
+}
+
+// ---------------------------------------------------------------------------------- Hearthwood jungle (sim v19)
+
+/** Prickle Hollow's buff monster: a round hedgehog with an autumn-leaf back. Faces +X. */
+export function hedgehogGeometry(): THREE.BufferGeometry {
+  const b = new ModelBuilder();
+  b.sphere(1, 0xc9a27a, { at: [0, 0.42, 0], scale: [0.55, 0.42, 0.45] }, 14);
+  for (let i = 0; i < 22; i++) {
+    const a = (i / 22) * Math.PI * 2 * 2.618;
+    const el = 0.25 + ((i * 7) % 11) / 11;
+    const x = -0.12 + Math.cos(el) * Math.cos(a) * 0.42;
+    const z = Math.cos(el) * Math.sin(a) * 0.38;
+    const y = 0.42 + Math.sin(el) * 0.36;
+    b.cone(0.07, 0.42, i % 3 ? 0x6e4a2e : 0xc8642a, { at: [x, y, z], rot: [Math.sin(a) * 0.9, 0, -Math.cos(a) * 0.9 - 0.4] }, 5);
+  }
+  b.sphere(0.22, 0xe7c9a4, { at: [0.5, 0.4, 0], scale: [1.4, 0.9, 0.9] }, 10);
+  b.sphere(0.06, EYE, { at: [0.8, 0.42, 0] }, 6);
+  for (const s of [-1, 1]) b.sphere(0.05, EYE, { at: [0.6, 0.52, s * 0.12] }, 6);
+  return b.build();
+}
+
+/** Crow Roost's buff monster: an old crow with a ragged collar and a brass monocle. Faces +X. */
+export function crowGeometry(): THREE.BufferGeometry {
+  const b = new ModelBuilder();
+  b.sphere(1, 0x2f2b3a, { at: [0, 0.7, 0], scale: [0.5, 0.45, 0.38] }, 14);
+  b.sphere(0.27, 0x3a3548, { at: [0.36, 1.15, 0] }, 12);
+  b.cone(0.1, 0.38, 0xe3b04b, { at: [0.66, 1.12, 0], rot: [0, 0, -HALF_PI] }, 6);
+  b.torus(0.08, 0.02, 0xd9a441, { at: [0.56, 1.22, 0.12], rot: [0, HALF_PI, 0] });
+  b.sphere(0.04, 0xffe9a8, { at: [0.6, 1.22, 0.12] }, 6);
+  b.sphere(0.04, EYE, { at: [0.56, 1.22, -0.12] }, 6);
+  for (const s of [-1, 1]) b.box(0.6, 0.08, 0.34, 0x24202e, { at: [-0.06, 0.8, s * 0.38], rot: [s * 0.35, 0, -0.2] });
+  b.box(0.4, 0.06, 0.26, 0x24202e, { at: [-0.5, 0.75, 0], rot: [0, 0, 0.25] });
+  b.cyl(0.03, 0.03, 0.4, 0xe3b04b, { at: [0.05, 0.2, 0.12] }, 4);
+  b.cyl(0.03, 0.03, 0.4, 0xe3b04b, { at: [0.05, 0.2, -0.12] }, 4);
+  b.torus(0.24, 0.05, 0x8a2a3a, { at: [0.25, 0.95, 0], rot: [0, HALF_PI, 0.4] });
+  return b.build();
+}
+
+/** The Frog Pond's small monster: a squat toad with a lily-pad hat. Faces +X. */
+export function toadGeometry(): THREE.BufferGeometry {
+  const b = new ModelBuilder();
+  b.sphere(1, 0x7aa65a, { at: [0, 0.3, 0], scale: [0.5, 0.3, 0.45] }, 12);
+  b.sphere(1, 0xe8e0a8, { at: [0.12, 0.22, 0], scale: [0.38, 0.18, 0.34] }, 10);
+  for (const s of [-1, 1]) {
+    b.sphere(0.12, 0x7aa65a, { at: [0.28, 0.55, s * 0.18] }, 8);
+    b.sphere(0.06, EYE, { at: [0.36, 0.58, s * 0.2] }, 6);
+    b.sphere(0.13, 0x6a9a4a, { at: [-0.2, 0.15, s * 0.42], scale: [1.4, 0.6, 0.8] }, 8);
+  }
+  b.cyl(0.3, 0.3, 0.03, 0x4f9a4a, { at: [0, 0.62, 0] }, 12);
+  return b.build();
+}
+
+/**
+ * Captain Grizzlechop (Hearthwood's river boss): a big rat pirate in a red coat, a tricorn hat, an eye patch and a
+ * cheese-wedge cutlass. Original model from our own primitives. Faces +X, about 1.8 m tall at scale 1.
+ */
+export function grizzlechopGeometry(): THREE.BufferGeometry {
+  const b = new ModelBuilder();
+  const fur = 0x7d7480;
+  b.sphere(1, 0xa8323a, { at: [0, 0.75, 0], scale: [0.62, 0.62, 0.55] }, 16);
+  b.sphere(1, 0xd9a441, { at: [0.02, 0.6, 0], scale: [0.64, 0.08, 0.57] }, 14);
+  b.sphere(1, fur, { at: [0.5, 1.25, 0], scale: [0.4, 0.34, 0.34] }, 14);
+  b.sphere(0.2, fur, { at: [0.88, 1.18, 0], scale: [1.4, 0.8, 0.8] }, 10);
+  b.sphere(0.07, PINK, { at: [1.13, 1.2, 0] }, 6);
+  for (const s of [-1, 1]) b.sphere(0.18, 0xffb3c8, { at: [0.36, 1.58, s * 0.26], scale: [0.4, 1, 1] }, 8);
+  b.sphere(0.06, EYE, { at: [0.84, 1.36, 0.14] }, 6);
+  b.box(0.04, 0.16, 0.18, 0x1a1418, { at: [0.84, 1.36, -0.14] });
+  b.box(0.02, 0.03, 0.5, 0x1a1418, { at: [0.72, 1.42, -0.05], rot: [0.5, 0, 0] });
+  // tricorn
+  b.cyl(0.5, 0.55, 0.1, 0x1f1a22, { at: [0.45, 1.62, 0] }, 3);
+  b.cyl(0.26, 0.32, 0.32, 0x1f1a22, { at: [0.45, 1.8, 0] }, 10);
+  b.cyl(0.33, 0.33, 0.05, 0xd9a441, { at: [0.45, 1.7, 0] }, 10);
+  b.sphere(0.07, 0xfff3dc, { at: [0.75, 1.82, 0] }, 6);
+  // cheese cutlass
+  b.box(0.08, 0.08, 0.3, 0x5a3a22, { at: [0.55, 0.85, 0.62], rot: [HALF_PI, 0, 0] });
+  b.box(0.95, 0.06, 0.18, 0xffd34d, { at: [1.05, 0.95, 0.62], rot: [0, 0, 0.35] });
+  for (let i = 0; i < 3; i++) b.sphere(0.04, 0xe0b030, { at: [0.85 + i * 0.22, 0.92 + i * 0.07, 0.72] }, 5);
+  // peg legs and a tail
+  for (const s of [-1, 1]) b.cyl(0.08, 0.06, 0.4, 0x6e4a2e, { at: [0.05, 0.18, s * 0.25] }, 6);
+  for (let i = 0; i < 8; i++) b.sphere(0.06, 0xffb3c8, { at: [-0.62 - i * 0.12, 0.45 + Math.sin(i * 0.8) * 0.08, Math.sin(i) * 0.08] }, 5);
   return b.build();
 }
 
