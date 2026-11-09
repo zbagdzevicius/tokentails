@@ -35,8 +35,8 @@ import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
 import { isPhone } from '../render/perf/device';
 import { FramePacer, MATCH_FPS, paceTarget } from '../render/perf/pacer';
-import { GOV, GOV_NAMES, ThermalGovernor } from '../render/perf/governor';
-import { autoBatterySaver, batterySaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
+import { GOV, GOV_NAMES, GOV_STEP, ThermalGovernor } from '../render/perf/governor';
+import { autoBatterySaver, batterySaver, releaseAutoSaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
 import { thermal } from '../render/perf/thermal';
 import { createRenderer, type GameRenderer } from '../render/renderer';
 import type { HeroId } from '../sim/api';
@@ -1620,6 +1620,18 @@ export class App {
   /** PERF-IOS P2-7: the shell's thermal state changed (or the first read): Low Power Mode turns Battery saver on. */
   private onThermal(): void {
     if (thermal().lowPower && autoBatterySaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: true, by: 'low_power' });
+    this.releaseSaverIfCool();
+  }
+
+  /**
+   * The game's own Battery saver ends when its cause has: no Low Power Mode, the OS not hot, and the governor above its
+   * 30 fps step (it stepped back up, or this launch started one step cooler). A player's choice is never touched.
+   */
+  private releaseSaverIfCool(): void {
+    const t = thermal();
+    const hot = t.state === 'serious' || t.state === 'critical';
+    if (t.lowPower || hot || this.governor.step >= GOV_STEP.fps30) return;
+    if (releaseAutoSaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: false, by: 'cool' });
   }
 
   /** PERF-IOS P1-6: hidden page or backgrounded app: no frames, no audio, no music scheduling. */
@@ -1678,10 +1690,11 @@ export class App {
         this.applyProfile();
         savePerfStep(next);
         this.analytics.track('quality_tier', { tier: this.gr.settings.tier, step: next, reason: this.governor.lastReason });
+        this.releaseSaverIfCool();
       }
       // sustained throttling (the OS says so, or 30 fps held a minute): Battery saver turns on by itself, unless the
-      // player chose it in Settings
-      if (!saver && this.governor.throttled(th, now) && autoBatterySaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: true, by: 'thermal' });
+      // player chose it in Settings (`saver` above is also true on the governor's own 30 fps step, so read the pref)
+      if (!batterySaver().on && this.governor.throttled(th, now) && autoBatterySaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: true, by: 'thermal' });
     }
     this.perf?.sample({ frameMs: raw, draws: this.gr.renderer.info.render.calls, tier: this.gr.settings.tier, inMatch, fps, step: this.governor.step, reason: GOV_NAMES[this.governor.step] + (this.governor.lastReason ? ` (${this.governor.lastReason})` : ''), workMs: work });
   }

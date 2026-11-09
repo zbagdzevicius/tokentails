@@ -425,7 +425,7 @@ phone-profile numbers. "Pause menu" is the window after Esc opened the pause men
 | P1-2 phone profile | `render/perf/device.ts`, `render/quality.ts` | Phone = iOS shell, iPhone/iPad (incl. iPadOS "Macintosh" + touch)/Android UA, or a coarse pointer with a short side ≤ 500 px; never the Mac app. `?phone=1|0` forces it. Phone Medium: 512² shadows every 2nd frame, outline hull on own hero + enemies, half far forest, Low particle budget, overhead DPR 1.5, minimap 15 Hz. Phone Low keeps the own-hero outline |
 | P1-2 tier memory | `render/quality.ts` | `localStorage` `{ tier, by: 'user' \| 'probe' }`; the FPS probe runs in the first match (after 8 s), never on the title |
 | P1-3 thermal governor | `render/perf/governor.ts` | Steps: shadows off + half forest → overlay DPR 1.25, minimap 10 Hz, Low particles → Low tier → 30 fps → resolution ×0.85 → ×0.7 (dynamic resolution). Down after two bad 3 s windows (>10% missed refreshes or JS > ½ the frame budget), at once on iOS `serious`/`critical` (and never back above that floor). Up one step after 45 s clean and ≥ 60 s since the last change. Ignores the first 8 s of a match and stalls over 250 ms. The step is saved; the next launch starts one step cooler |
-| P3-3 Battery saver | `render/perf/prefs.ts`, `ui/settings.ts` | "Battery saver (30 fps)" row in Settings, persisted. Turns on by itself when the 30 fps step has held a minute, iOS reports `serious`/`critical`, or Low Power Mode is on, unless the player chose it; Settings says when it was turned on for them |
+| P3-3 Battery saver | `render/perf/prefs.ts`, `ui/settings.ts` | "Battery saver (30 fps)" row in Settings, persisted. Turns on by itself when the 30 fps step has held a minute, iOS reports `serious`/`critical`, or Low Power Mode is on, unless the player chose it; Settings says when it was turned on for them. The game's own saver ends when its cause has (no Low Power Mode, OS not hot, governor above the 30 fps step, which includes the next launch starting one step cooler), so one hot session never locks 30 fps for good |
 | P1-4 overlay, minimap | `ui/overhead.ts`, `ui/minimap.ts` | Overhead backing store capped by the profile (2 desktop, 1.5 phone, 1.25 hot); minimap redraw rate by the profile plus dirty-on-event; size re-read on `ResizeObserver` or once a second |
 | P1-5 main thread | `ui/hud.ts`, `render/gameView.ts`, `render/renderer.ts`, `render/perf/viewport.ts` | `data-phase` and cooldown/charge CSS variables written on change only; `pxPerMetre` uses the renderer's cached CSS size; the overhead reads a cached viewport |
 | P1-6 suspend | `app/app.ts`, `audio/sfx.ts`, `audio/music.ts` | On `visibilitychange` hidden and the Capacitor App `pause` event: no rAF, `AudioContext.suspend()`, the music scheduler stops; all resume on return |
@@ -459,3 +459,30 @@ hysteresis, hold, thermal floor, phone profile per step, persisted prefs).
   base. Both failures were the same kind: the game skipped a hero the test's model expected. The game's pick uses
   the touch layer's `deter` set and the lock, and the test's model has neither. This branch does not change that
   code, so a different match path probably exposes the gap. Not confirmed; worth a look before merging.
+
+### 7.4 Independent re-check (2026-11-09)
+
+Re-measured with the same harness against a build of the base `d46c3510` (852×393, DPR 3, Chromium on the GPU with
+4× CPU throttle; WebKit unthrottled; lobby 60 s in Chromium, 30 s in WebKit). The numbers above hold:
+
+| | Base | Branch |
+|---|---|---|
+| Lobby frames/s (Chromium, WebKit) | 60, 60 | 30, 30 |
+| Match tris/frame, shadow pass (Chromium) | 293–308k (34–41k) | 173–184k (18–21k) |
+| Match tris/s (Chromium / WebKit) | 17.6–18.4M / 17.7–18.6M | 10.3–11.0M / 10.4–11.0M |
+| Pixels shaded/s, 3D buffer + 2D canvases (match) | 112 Mpx | 77 Mpx (−31%) |
+| JS ms per second, match (CDP ScriptDuration) | 340–358 | 257–276 (−23%) |
+| Style recalcs/s, DOM mutations/s (match) | 63–65, 73–80 | 8–17, 13–26 |
+| Overhead canvas | 1704×786 | 1278×590 |
+| Pause menu frames/s, JS ms/s | 60, ~300 | 15, 76 |
+| Hidden page (visibilitychange): rAF/s, GL draws/s, interval callbacks/s, audio | 60, 1,623, 16.6, running | 0, 0, 0, suspended; resumes on return |
+
+Desktop 1440×900 is unchanged (phone 0, med, same canvas sizes). Fixes from this pass: the auto Battery saver now
+ends when its cause has (above), and its 30-fps-for-a-minute trigger could never fire (the governor's own 30 fps step
+already set `saver`); the loading spinner keeps turning on phones; `match-touch.spec.ts` Attack-priority model now
+follows `attackPriority` (a hero in range, then a last hit, then a hero just past the range only when not under an
+untanked tower) and the lock and Talk Back `deter` set, which the pick telemetry now exports. The earlier failures were
+exactly the hero-past-range-behind-a-last-hit / under-a-tower case; with the new model that case passes. The iOS
+project sets no `CADisableMinimumFrameDurationOnPhone` (WKWebView stays at 60 Hz on ProMotion phones) and the audio
+session is `.ambient` with mix-with-others.
+

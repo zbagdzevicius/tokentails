@@ -51,6 +51,23 @@ export function autoBatterySaver(): boolean {
   return true;
 }
 
+/**
+ * The game's own Battery saver ends once its cause is gone (the governor above its 30 fps step, no Low Power Mode, the
+ * OS not hot), so one warm session never locks a phone to 30 fps for good. A player's choice is never touched.
+ * Returns true when it changed.
+ */
+export function releaseAutoSaver(): boolean {
+  const p = batterySaver();
+  if (p.by !== 'auto' || !p.on) return false;
+  mem = { on: false, by: 'default' };
+  try {
+    localStorage.removeItem(SAVER_KEY);
+  } catch {
+    /* storage blocked */
+  }
+  return true;
+}
+
 export function savedPerfStep(): number {
   try {
     const n = Number(localStorage.getItem(STEP_KEY));
