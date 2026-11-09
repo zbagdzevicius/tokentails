@@ -1,0 +1,686 @@
+# Pawlegends 5v5 Classic on Hearthwood Divide (sim v18 plan, 2026-11-09)
+
+**Status:** plan. Nothing is built yet.
+**Branch:** `feat/pawlegends-5v5`, cut from `feat/pawlegends-v17` (sim v17, not released yet).
+**Request (founder, verbatim):** "create another map, which will be based on mobile legends 5x5 map. let's have 5x5 mode for that one."
+**Reading of the request:** add a second map that follows the usual mobile 5v5 MOBA layout, with a new 5v5 mode on it:
+- a diagonal base-to-base map;
+- three lanes;
+- a diagonal river with an early objective and a late objective;
+- a four-part jungle with buff camps;
+- bushes;
+- minion waves on all three lanes.
+
+The genre conventions are fine to use. The geometry, names and art are our own: no Mobile Legends coordinates, assets or names. The 3v3 map (Purrhaven Crossing) and its modes stay exactly as they are.
+
+**Sources read for this plan:**
+- `pawlegends/src/data/{map,towers,minions,camps,pudding,timeline,limits,fish,pings}.ts`
+- `pawlegends/src/sim/{api,world,state,match,index}.ts`, `sim/map/{grid,brush,lanes}.ts`, `sim/bots/{index,orders}.ts`
+- `pawlegends/src/render/coords.ts`, `pawlegends/tools/{vendor-sim,headless-match}.mjs`
+- `backend/src/pawlegends/{mm,party}/`, `shared/caps.ts`
+- `GDD.md` §3.1 to §3.3 (Grand Clash 5v5, Grizzlechop, the crow roost), `V17.md` §1 (the release rules)
+
+**Units:** distances in mm, and 30 ticks = 1 s (`TICK_HZ = 30`). The network sends a turn every 2 ticks, so turns run at 15 Hz. "Team 0" is Purrhaven (cats by default) and "team 1" is Woof.
+
+**Founder rules that apply here:**
+- zero friction;
+- MLBB-style feel;
+- a fixed camera with a diagonal map view, with your own base bottom left;
+- the largest play area possible on a phone;
+- no feature flags: 5v5 is on by default once it is released;
+- original content only.
+
+## 0. Summary
+
+| | 3v3 Quick (today, unchanged) | 5v5 Classic (new) |
+|---|---|---|
+| Map | Purrhaven Crossing, 100 × 60 m, mirrored left to right | **Hearthwood Divide**, 128 × 128 m, **180° point reflection**, bases in the bottom-left and top-right corners |
+| Lanes | 2 (Sunny, Puddle) | 3: **Fenceline** (through the top-left corner), **Yarn Road** (mid, the diagonal), **Gutterway** (through the bottom-right corner) |
+| Structures per team | 4 towers and a core | 9 lane towers (outer, inner, gate), 2 Hearth Guards and a core |
+| Jungle | 1 rat camp per side | 4 quadrants, each with 1 buff camp and 2 small camps (16 monsters) |
+| River objectives | Pudding (centre) | **Captain Grizzlechop** (early, south-east river pit: team Fish and a shield) and **Great Pudding** (late, north-west river pit: escorts a push) |
+| Match length | p50 about 7 min, safety end 11:00 | target p50 12:00 to 14:30, safety end 16:00 |
+| Entities | 63 (2 hit-mask words) | 150 (5 hit-mask words) |
+| Sim | v17 | **v18**. v17 is frozen. On Crossing, v18 gives the same hash as v17 (gate G1) |
+
+The work splits into a **SIM lane** (§3 to §7) and a **CLIENT+SERVER lane** (§8 and §9). The two lanes meet at the interface in §2. Once phase S2 publishes `mapInfo('hearthwood')`, the client lane can build everything against it, before 5v5 gameplay works.
+
+## 1. Map spec: Hearthwood Divide
+
+### 1.1 Frame and symmetry
+
+- `width = height = 128000` and `navCell = 1000`, so the nav grid is 128 × 128 = 16,384 cells (2.7× the 6,000 cells of Crossing).
+- **Point reflection:** `reflect(x, y) = (128000 − x, 128000 − y)`. W is even and a whole number of cells, so cell `(i, j)` maps to `(127 − i, 127 − j)` exactly. No rounding.
+- **Authoring rule (fairness):** the geometry is also symmetric under the main-diagonal swap `swap(x, y) = (y, x)`, so the whole map has D2 symmetry. Because of this:
+  - team 0's two side lanes are copies of each other;
+  - every point on the river axis `x + y = 128000` is the same distance from both fountains.
+
+  So each river objective is equally far from both teams, and the Gutterway towers stand at the same distances from each team's base.
+- **What is authored:** only team 0's **south eighth**, the region `y ≤ x` and `x + y ≤ 128000`. That covers half of Gutterway and team 0's south jungle (the "bottom jungle"), plus the mid lane and the base.
+- **How the rest is derived:**
+  - `swap` gives team 0's west eighth (Fenceline and the top jungle);
+  - `reflect` gives team 1's two eighths;
+  - the content may differ where the swap lands: the buff camp *type* in the west quadrant is Feather, not Prickle (§1.6);
+  - the two objective pits straddle the river axis. Each is authored whole and must be self-symmetric under the river mirror `(x, y) → (128000 − y, 128000 − x)`. A unit test checks this.
+- **View:** each team sees its own base bottom left. Team 1's camera is turned 180° (this already happens: `setViewTeam`). With point reflection, the turned view shows team 1 exactly the map team 0 sees, with the objectives swapped: team 1 sees Grizzlechop top left and Great Pudding bottom right. This is inherent to a rotated view and normal in the genre. Lanes are named by their physical place (§1.3), so both teams' players read the same names.
+
+```
+ y=128 ┌───────────────── Fenceline (top segment) ─────────────────┐ [team 1 base]
+       │ Fenceline (left)       North jungle (t1 bottom)  ╲ Yarn Road │
+       │  ╲  Great Pudding pit                          ╲      Gutterway│
+       │      ~~~~ river (x+y = 128 m) ~~~~           ╲          (right)│
+       │ West jungle (t0 top)      ╲ centre ╲     East jungle (t1 top)  │
+       │                    Yarn Road ╲   ~~~~ river ~~~~               │
+       │                         ╲     Grizzlechop pit                  │
+       │ [team 0 base]  ╲       South jungle (t0 bottom)                │
+ y=0   └──────────────── Gutterway (bottom segment) ────────────────────┘
+      x=0                                                            x=128
+```
+
+### 1.2 Base (team 0; team 1 by `reflect`)
+
+| Item | Value (mm) | Notes |
+|---|---|---|
+| Fountain | (6500, 6500), radius 5000 | Heal and fountain-shot rules as in 3v3 (`FOUNTAIN` row, per map) |
+| Core | (16000, 16000), radius 2500 | `RADIUS.core` per map |
+| Hearth Guards (2) | (21500, 12500) and (12500, 21500) | They flank the core, one the swap of the other |
+| Hero spawns (5) | (4500, 9000), (9000, 4500), (6500, 6500), (3500, 5500), (5500, 3500) | Slot order 0 to 4 |
+| Base plaza | the square [1000, 31000]² cut by `x + y ≤ 50000` | Walkable; holds the fountain, the core and three lane mouths |
+| Gate barrier | the arc `x + y = 26000` until `barrierDrop` | Replaces the 3v3 `barrierX` line. It is a diagonal line test, still integer |
+
+### 1.3 Lanes and minion paths
+
+Lane width is 8000 and the walkable shoulder (`laneHalf`) is 5500, both as in 3v3. Each lane lists team 0's own points, from its core to the river point. The full path continues on the `reflect`ed points, in reverse, to the enemy core. Team 1's paths are the `reflect` of team 0's paths for the lane's swap partner.
+
+| Lane id (index) | Display name | Team 0 waypoints, core → river point | Length core to core |
+|---|---|---|---|
+| `fence` (0) | Fenceline | (16000,16000) → (8000,26000) → (8000,104000) → (12000,116000) | about 207 m |
+| `yarn` (1) | Yarn Road | (16000,16000) → (64000,64000) | about 136 m |
+| `gutter` (2) | Gutterway | (16000,16000) → (26000,8000) → (104000,8000) → (116000,12000) | about 207 m |
+
+- Gutterway's full path for team 0 is (16,16) → (26,8) → (104,8) → (116,12) → (120,24) → (120,102) → (112,112) in metres. The `reflect` of team 0's Fenceline path gives the same points. A unit test asserts this.
+- Minions move at 3.6 m/s. Side-lane waves meet at the river point about 29 s after they spawn; mid waves about 19 s after. Mid arriving first is usual for the genre and is what makes the mid lane the fastest one to rotate from.
+- **Lane roles are physical and the same for both teams:**
+  - Gutterway is the **Fish lane** (carry, next to Grizzlechop);
+  - Fenceline is the **Solo lane** (next to Great Pudding);
+  - Yarn Road is **Mid**.
+
+  So matching roles face each other, and each role has the same objective nearby. Team 1 sees its Fish lane at the top of its screen. This is a founder call (§11, D1; default: physical).
+
+### 1.4 Towers and cores
+
+Spots are for team 0. The other side lane is the `swap`, and team 1's spots are the `reflect`. Slot order within a team: Fenceline outer, inner, gate; Yarn Road outer, inner, gate; Gutterway outer, inner, gate; Hearth Guards (2). That is 11 per team and 22 in total.
+
+| Tier (sub) | Gutterway spot | Yarn Road spot | HP | Armour | Range | Opens when |
+|---|---|---|---|---|---|---|
+| outer (0) | (80000, 8000) | (46000, 46000) | 2400 | 40 | 7000 | always |
+| inner (1) | (54000, 8000) | (36000, 36000) | 2800 | 50 | 7000 | the same lane's outer has fallen |
+| gate (2) | (30000, 8000) | (26500, 26500) | 3200 | 55 | 7500 | the same lane's inner has fallen |
+| hearth (3) | see §1.2 | | 3000 | 55 | 7000 | any gate tower of that team has fallen |
+| core | (16000, 16000) | | 4500 | 60 | 7500 | both Hearth Guards have fallen, and from `coreOpenAt` |
+
+- A structure that is not open yet is invulnerable. It shows the existing invulnerable buff bit, and the client draws a lock (§8.4).
+- The tower rules are the 3v3 ones: lock-on, damage ramp, backdoor protection, and the team XP for a fallen tower.
+- Sunset's `closedCoreBp` applies "while all of the victim's **gate** towers stand" (3v3: inner towers).
+- All numbers are first-pass tuning and live in the map's data row.
+
+### 1.5 River
+
+- The river is the band `|x + y − 128000| ≤ 7071`, about 10 m wide. It is walkable and only changes the look. There is no river slow in v18.
+- The centre crossing (64000, 64000) sits on Yarn Road.
+- **Grizzlechop pit:** centre (92000, 36000). **Great Pudding pit:** centre (36000, 92000). Both lie on the river axis.
+- Each pit is a ring of rocks, radius 7 m, with three openings:
+  - one toward each team's nearest jungle, symmetric under the river mirror;
+  - one wider opening along the river, toward the map centre.
+- The pit walls are authored once as axis-aligned rectangles around the Grizzlechop pit. The Great Pudding pit is their `reflect`.
+- **Pickups:** two Fish Snack / Frenzy Catnip spots in the river at (80000, 48000) and its `reflect` (48000, 80000). They use the `data/pickups.ts` rules with per-map spots.
+
+### 1.6 Jungle (4 quadrants)
+
+The quadrants are cut by Yarn Road and the river:
+- **South** (team 0's bottom), **West** (team 0's top), **North** (team 1's bottom, the `reflect` of South), **East** (team 1's top, the `reflect` of West).
+- The jungle is walkable playfield, unlike the 3v3 forest. It is shaped by rock walls (§1.8).
+
+| Camp (per quadrant) | South spot | Monsters | First spawn | Respawn | Reward |
+|---|---|---|---|---|---|
+| Buff camp: **Prickle Hollow** (South and North) | (52000, 26000) | 1 Hedgehog: 1800 HP, 40 armour, 60 dmg / 1.0 s, leash 9 m | 0:30 | 90 s | **Prickle Coat**, 75 s: basic attacks slow 20% for 1 s and add 3% of the target's max HP over 2 s. Plus 120 XP and 90 Fish |
+| Buff camp: **Crow Roost** (West and East, at the `swap` spot (26000, 52000)) | – | 1 Old Crow: 1500 HP, 30 armour, ranged 4 m | 0:30 | 90 s | **Feather**, 75 s: abilities recover 20% faster (GDD §3.2), +5% move speed. Plus 120 XP and 90 Fish |
+| Small camp: **Rat Nest** | (38000, 20000) | 2 rats (`RAT_CAMP_STATS`) | 0:30 | 60 s | 110 XP, 60 + 20 Fish (3v3 values) |
+| Small camp: **Frog Pond** | (74000, 24000) | 1 Toad: 900 HP, 20 armour | 0:30 | 60 s | 80 XP, 70 Fish |
+
+- That is 4 monsters per quadrant and 16 camp monsters in all.
+- **Buff steal:** a hero who takes down a buff holder gets the buff's remaining time (genre convention).
+- In 5v5 the 3v3 Pack buff (rat camp: team +15% damage) does not exist. The Rat Nest is a plain camp there. The 3v3 rat camp keeps it.
+
+### 1.7 River objectives
+
+**Captain Grizzlechop (early, south-east pit).** Our rat boss from GDD §3.2, now with a pit of his own.
+- **Spawns:** at 2:00. He respawns 2:00 after he falls. No spawn after 8:30: from then on the pit stays empty, and the late game belongs to Great Pudding.
+- **Stats:** 4000 HP, +6% per whole minute at spawn, 30 armour.
+- **Attacks:**
+  - Bite: 140 damage every 1.2 s on his aggro target (the last hero that hit him, as for camps);
+  - Tail Sweep: 1.0 s ground telegraph, 4 m ring, 160 damage and a 0.5 s slow, every 6 s.
+- **Leash:** he resets to full HP if no enemy is inside the pit ring plus 3 m for 4 s.
+- **Reward (last hit, genre convention):**
+  - every hero on the team gets +150 Fish (+30 per earlier Grizzlechop the team took) and +100 XP;
+  - the last hitter gets +50 Fish on top;
+  - each living hero of the team gets **Grizzlechop's Hoard**: a shield of 250 + 25 × level, for 45 s;
+  - a team 2 or more towers behind gets +50% XP and Fish from him (GDD §3.3 rule).
+
+**Great Pudding (late, north-west pit).** This is the 3v3 Pudding loop (`units/pudding.ts`) with 5v5 numbers:
+- **Spawns:** first at 8:00, then 2:30 after the escort leaves.
+- **Calm meter:** 7000, filled by damage. The scared hop stays: a 4 m ring every 4 s.
+- **Reward:** the team that fills it gets Pudding's Courage. Great Pudding then walks with that team's next wave:
+  - escort HP 6000, breath 260 damage every 2 s within 7 m;
+  - allied minions within 10 m of him deal +30% damage to structures.
+- **Lane choice** (deterministic, no input needed): the lane where the enemy has the fewest standing towers. Ties go to Yarn Road, then Fenceline. A team's `push` ping (§2.6) within 5 s of the calm overrides it. Zero friction: the default is always a sensible push.
+
+### 1.8 Walls, playfield and bushes
+
+- **Playfield:**
+  - everything inside the rim (2000) is walkable, except rock walls and the two pit rings;
+  - lanes and the river never cross a wall;
+  - the 3v3 "forest outside the lane loop" rule becomes per map: on Hearthwood the area outside the side lanes is only the 2.5 m strip to the edge, and it is blocked as rim.
+- **Rock walls, first pass, South eighth** (`[x0, y0, x1, y1]`). Each is `swap`ped and `reflect`ed into 4 copies:
+  - `[44000, 14000, 50000, 18000]` behind the Gutterway inner tower;
+  - `[58000, 30000, 62000, 40000]` between the buff and Yarn Road;
+  - `[66000, 14000, 70000, 22000]` between the Frog Pond and the lane;
+  - `[80000, 28000, 84000, 32000]`, the jungle side of the Grizzlechop pit entrance;
+  - `[30000, 24000, 34000, 28000]` at the base jungle mouth.
+
+  `tools/bake-map.mjs` checks that the lanes stay clear, that each camp can be reached, and that both teams' path lengths are equal (gate G4). The final walls come from that pass.
+- **Bushes, South eighth.** Width × height in mm; each one becomes 4 copies, about 30 bushes in all:
+
+  | Name | Centre | Size |
+  |---|---|---|
+  | Gutterway lane bush near the outer tower | (88000, 13000) | 3000 × 6000 |
+  | Gutterway lane bush near the inner tower | (62000, 13000) | 3000 × 6000 |
+  | river entrance bush | (98000, 26000) | 4000 × 4000 |
+  | buff flank bush | (56000, 20000) | 3000 × 3000 |
+  | Yarn Road side bush | (52000, 42000) | 3000 × 5000 |
+  | Frog Pond back bush | (78000, 18000) | 3000 × 3000 |
+  | base jungle mouth bush | (36000, 14000) | 3000 × 3000 |
+
+  Plus 2 river bushes beside the centre crossing at (70000, 58000) and its `reflect`. These form one self-symmetric pair.
+
+  All the brush rules carry over: `BRUSH_REVEAL_MM`, minion reveal at 3 m, the 1.5 s attack reveal.
+
+### 1.9 Timeline (5v5 row)
+
+| Beat | Time | Ticks |
+|---|---|---|
+| Barrier drops | 0:05 | 150 |
+| First wave, then every 30 s | 0:20 | 600 (`waveEvery` 900) |
+| Jungle camps up | 0:30 | 900 |
+| Siege minions (every 3rd wave) | 3:00 | 5400 |
+| Grizzlechop (last spawn by 8:30) | 2:00 | 3600 |
+| Great Pudding | 8:00 | 14400 |
+| Sunset | 10:00 (Normal and Hard; Easy 10:30; Rookie 9:00) | 18000 |
+| Sudden Death | 13:00 (Easy 13:30; Rookie 12:00) | 23400 |
+| Safety end | 16:00 | 28800 |
+
+- **Wave:** 2 melee and 2 ranged per lane (3v3: 2 + 1). Minion HP grows 3% a minute, as in 3v3.
+- **Respawn:** the 3v3 curve × 1.3, capped at 25 s (3v3: 15 s).
+- **Level and Fish pace:**
+  - XP needed × 1.35 and Fish income × 0.9 (per-map `xpBp` and `fishBp`);
+  - so level 10 lands at about 10:00, and the 4th Toy tier at about 10:30 for the median hero;
+  - level cap 10 as in 3v3, so no kit or talent changes are needed.
+
+### 1.10 Entity caps (Hearthwood)
+
+| Kind | Cap | Why |
+|---|---|---|
+| heroes | 10 | 5 + 5 |
+| minions | 96 | 3 lanes × 2 teams × up to 3 live waves × 5 (2 + 2 + siege), plus one spare wave |
+| towers | 22 | 11 a team |
+| cores, fountains | 2, 2 | |
+| campMonsters | 16 | §1.6 |
+| boss | 1 | Grizzlechop (new `Kind.Boss = 8`) |
+| pudding | 1 | Great Pudding |
+| **entities** | **150** | Hit masks: 5 words (§3.3) |
+| projectiles, zones, pickups | 96, 40, 4 | Twice the heroes means about twice the in-flight effects |
+
+Ids stay below 255, so `NO_TARGET = 0xff` and the 1-byte target in commands still fit.
+
+## 2. The interface (SIM ↔ CLIENT+SERVER)
+
+Everything the client, the relay and the backend need comes through `src/sim/api.ts` and the vendored bundle. The SIM lane owns this section. A change to it after phase S2 needs a note in this file.
+
+### 2.1 Match setup
+
+```ts
+// api.ts (sim v18)
+export type MapId = 'crossing' | 'hearthwood';
+export const MAP_IDS: readonly MapId[];               // ['crossing', 'hearthwood']; append only
+
+export interface MatchConfig {
+  // ... every v17 field, unchanged
+  /** Sim v18. Omitted = 'crossing' (every v17 replay, byte-identical). */
+  map?: MapId;
+  /** Length 2 × teamSize(map): 6 on Crossing, 10 on Hearthwood. */
+  picks: readonly HeroId[];
+  tricks: readonly TrickId[];
+  /** Party: human slots of team 0 (0..teamSize−1). PvP: both teams, leads 0 and teamSize. */
+  humans?: readonly number[];
+}
+
+export const teamSizeOf = (map: MapId): 3 | 5;
+export const slotCountOf = (map: MapId): 6 | 10;
+export const teamOfSlot = (slot: number, map: MapId = 'crossing'): Team;   // slot < teamSize ? 0 : 1
+export const leadOf = (team: Team, map: MapId = 'crossing'): number;       // 0 or teamSize (PVP_LEAD1 stays 3 for Crossing)
+export function fillPicks(config, ...)                                     // fills 2 × teamSize, same species rule per team
+```
+
+`SLOTS_PER_TEAM`, `SLOT_COUNT` and `PVP_LEAD1` stay exported with their Crossing values for v17-era callers. Sim code must use the map-aware forms; `lint-sim` enforces it (§3.6).
+
+### 2.2 Map data for the client (read-only)
+
+```ts
+export function mapInfo(id: MapId): MapInfo;   // frozen, built once per map at module load; no sim state
+
+export interface MapInfo {
+  id: MapId;
+  name: string;                          // 'Purrhaven Crossing' | 'Hearthwood Divide'
+  width: number; height: number;         // mm
+  navCell: number;
+  teamSize: 3 | 5;
+  symmetry: 'mirrorX' | 'point';
+  reflect(x: number, y: number, out: { x: number; y: number }): void;   // team 0 ↔ team 1
+  lanes: readonly { id: LaneKey; name: string; role: LaneRole; path: readonly (readonly Int32Array[])[] }[]; // path[team] = [xs, ys] core→core
+  towers: readonly { team: Team; slot: number; lane: LaneKey | null; tier: TowerTierName; x: number; y: number; hp: number }[];
+  cores: readonly { team: Team; x: number; y: number }[];
+  fountains: readonly { team: Team; x: number; y: number; radius: number }[];
+  spawns: readonly { team: Team; slot: number; x: number; y: number }[];
+  walls: readonly (readonly [number, number, number, number])[];       // expanded, all sides
+  bushes: readonly { id: number; x: number; y: number; w: number; h: number }[]; // expanded; id = bushAt() result
+  river: { kind: 'band-x' | 'band-diag'; a: number; b: number };      // Crossing: x 46..54 m; Hearthwood: |x+y−128 m| ≤ 7.071 m
+  camps: readonly { id: number; kind: CampKind; quadrant: Quadrant | null; x: number; y: number }[];
+  objectives: readonly { kind: 'pudding' | 'grizzlechop'; x: number; y: number; radius: number }[];
+  pickups: readonly { x: number; y: number }[];
+  playable: Uint8Array;                  // nav cells, 1 = walkable static ground (render: trees go where 0)
+  timeline: MapTimeline;                 // per difficulty: firstWave, waveEvery, campsUp, grizzlechop, pudding, sunset, suddenDeath, safetyEnd
+  limits: { maxTicks: number; maxInputBytes: number; maxInputChars: number };
+  camera: { yawDeg: number };            // Crossing −38, Hearthwood 0 (§8.2)
+}
+export type LaneKey = 'sunny' | 'puddle' | 'fence' | 'yarn' | 'gutter';
+export type LaneRole = 'solo' | 'mid' | 'fish' | 'sunny' | 'puddle';
+export type TowerTierName = 'outer' | 'inner' | 'gate' | 'hearth';
+export type CampKind = 'rat' | 'prickle' | 'crow' | 'toad';
+export type Quadrant = 'south' | 'west' | 'north' | 'east';
+```
+
+The render reads `MapInfo` and never reads `data/map.ts` directly. Today 13 client files read `MAP`, and 9 read `mirrorX`; they move to `MapInfo` in C1.
+
+### 2.3 Snapshot and events (append only)
+
+- `EntitySnap.kind` gains `'boss'` (Grizzlechop).
+- `EntitySnap.variant`:
+  - towers: `'outer' | 'inner' | 'gate' | 'hearth'`;
+  - camps: `CampKind`.
+- `EntitySnap.lane` widens to `LaneKey`.
+- `EntitySnap.slot` for heroes is 0..9.
+- New fields:
+  - `Snapshot.map: MapId`;
+  - `Snapshot.objectives: { kind; state: 'away' | 'up' | 'escort'; nextIn: number; team?: Team }[]`, for the minimap timers and the HUD;
+  - `Snapshot.camps: { id; up: boolean; nextIn: number }[]`, for the timers of camps the team has seen.
+- `MatchScore` stays per team. `towers` counts all 11 on Hearthwood.
+- New events:
+  - `{ type: 'objective'; kind: 'grizzlechop' | 'pudding'; team; slot }` when one is taken;
+  - `{ type: 'objectiveSpawn'; kind }`;
+  - `{ type: 'buff'; kind: 'prickle' | 'feather' | 'hoard' | 'courage' }`. `BuffKind` is appended; `'pack'` stays.
+  - `'buffSteal'`.
+- `Buff` bits:
+  - `Prickle: 1 << 20`;
+  - `Feather: 1 << 21`;
+  - `Hoard: 1 << 22`. This one is shown with the existing Shielded bit; it is a separate bit for the icon only.
+
+### 2.4 Replays
+
+- The v:1 solo record, `PartyReplayRecord` and `PvpReplayRecord` gain an optional `map: MapId`. Omitted means `'crossing'`.
+- `humans` and the per-slot logs cover slots 0..9 on Hearthwood.
+- `simVersion: 18`.
+- A record with `map: 'hearthwood'` and `simVersion < 18` is refused (`PAWLEGENDS_SIM_VERSION`).
+
+### 2.5 Limits (three copies, changed in one commit)
+
+`data/limits.ts`, `shared/caps.ts` and `backend/src/shared-contracts/caps.ts` become per map:
+
+| | Crossing (unchanged) | Hearthwood |
+|---|---|---|
+| `MAX_TICKS` | 19800 (11:00) | 28800 (16:00) |
+| `MAX_INPUT_BYTES` | 30600 | 44700 (scaled by match length, then rounded to a multiple of 3) |
+| `MAX_INPUT_CHARS` | 40800 | 59600 |
+| `/live` body | 64 KB | 96 KB solo. A party or PvP record: `humans × MAX_INPUT_CHARS + 8 KB`, checked per record |
+
+`FORFEIT_RESERVE_BYTES` and `MOVE_MIN_GAP` stay the same.
+
+### 2.6 Commands and pings
+
+- No new ops.
+- New `PING_KINDS`, appended: `'pushFence' | 'pushYarn' | 'pushGutter' | 'grizzlechop'`. On Hearthwood these replace the Sunny and Puddle push pings in the wheel. The sim refuses a ping kind that does not belong to the match's map (gate refusal, not logged).
+- Coordinates stay quantised to 250 mm as uint16, so 128 m is 512 quanta and the binary stream format does not change.
+- `commands.ts` clamps to `MAX_QX` and `MAX_QY`, which come from the module-level `MAP` today. `quantize(cmd, map)` and the decoder take the match's map, so a Hearthwood move to y = 100 m is not clamped to 60 m. This is part of S1.
+
+### 2.7 Wire (PROTO 4, owned by CLIENT+SERVER, needs nothing new from the sim)
+
+- `TURN` slot mask goes from 6 bits to a u16; slots 0..9.
+- `mm.join` takes `queue: 'classic'`.
+- `party` and `match` frames carry `map` and `teamSize`.
+- A PROTO 3 socket never sees a Hearthwood room. The relay sends `update_required` when it asks for `classic`.
+
+## 3. SIM work: the map becomes per match
+
+### 3.1 MapDef and the runtime
+
+- **New files:**
+  - `src/data/maps/crossing.ts`: today's `data/map.ts` values, moved verbatim. `data/map.ts` re-exports them for v17-era imports.
+  - `src/data/maps/hearthwood.ts`: §1, authored eighth, plus objective, camp and timeline rows.
+  - `src/data/maps/index.ts`: `MAPS: Record<MapId, MapDef>`.
+- **`src/sim/map/runtime.ts`** builds a frozen `MapRuntime` per MapDef once, at module load:
+  - expanded towers, bushes, walls and camps;
+  - lane paths per team;
+  - the nav walls and the per-team foe-fountain masks;
+  - `range` (the entity id layout) and `entityCap`;
+  - `maskWords`;
+  - a per-cell bush index (`Int8Array`, so `bushAt` becomes one lookup instead of a scan over about 30 bushes);
+  - `nx` and `ny`.
+- **`World` gains `readonly map: MapRuntime`**, set by `createWorld(seed, mapId)`. It is not hashed itself; on Hearthwood, `mg[0]` (§3.4) holds the map id.
+- **Every module-level constant that depends on the map becomes `w.map.*`:**
+  - `RANGE.*` (about 400 uses), `ENTITY_CAP` (55), `CAPS.*`;
+  - `NX`, `NY`, `LANE_PATHS`, `TOWER_SPOTS`, `RAT_CAMP`, `PUDDING_SPOT`, `BUSHES`, `WALLS`, `FOUNTAIN`, `CORE`, `HERO_SPAWNS`, `MAP.barrierX`.
+
+  This is a mechanical codemod; a few helpers that have no `w` get it as a parameter. The A* buffers are sized for the larger map (16,384 cells).
+- **`mirrorX(x)` → `w.map.reflectX(x, y)` / `reflectY(x, y)`** (12 sim files). Crossing's reflect leaves `y` alone, so its results are unchanged.
+- **Timeline:** `TIMELINE.*` reads that change per map go through `w.map.timeline`. The per-difficulty Sunset and Sudden Death already sit in globals.
+
+### 3.2 Point reflection in lanes, bots and nav
+
+- `lanes.ts`: `build(lane, team)` reflects in 2-D. Team 1's path for lane `k` is the `reflect` of team 0's path for `swapLane(k)` (Hearthwood: fence ↔ gutter, yarn ↔ yarn; Crossing: identity).
+- `grid.ts`:
+  - `laneLine`, the base plaza test and the wall marking take the map;
+  - the diagonal barrier is `x + y ≤ 26000` for team 0 (`dash.ts` clamps against the same test);
+  - the river band is walkable;
+  - the pit rings are walls.
+- `bots/sense.ts`, `brain.ts`, `orders.ts`:
+  - `fountainX(team)` becomes `fountainOf(team)`, returning x and y;
+  - "my side of the river" becomes the sign of `x + y − W` on Hearthwood (Crossing: `x − W/2`);
+  - every per-lane loop runs over `w.map.lanes.length`.
+- `NAV.maxExpand` is per map: 3000 on Crossing, 8000 on Hearthwood. Bots plan long moves (base to the enemy jungle) through the lane graph: one A* per leg of at most 50 m, so a cross-map order never runs a single 30,000-node search. If the S6 bench still shows A* p99 above 0.4 ms, the fallback is a 4 m region graph (an HPA-lite step). It is not built unless the gate fails.
+
+### 3.3 Team size 5 and the world layout
+
+- **Slots:** `teamOfSlot(slot, map)` and `leadOf(team, map)` replace `slot < 3` and `PVP_LEAD1`. The touch points:
+  - `sim/party.ts` and `party-inputs.ts` (gates and logs per slot: the `PartyState.gates` length is `slotCount`);
+  - `humans.ts`, `match.ts` (`checkWin` reads each team's lead gate);
+  - `bots/index.ts` (`createPlayerBotFor`'s slot bound);
+  - `units/hero.ts` (spawns).
+- **Hit masks:**
+  - `pHitLo` / `pHitHi` and `fmHitLo` / `fmHitHi` become `pHit: Int32Array[maskWords]` and `fmHit: Int32Array[maskWords]`, each sized by its table;
+  - `maskHas(w, arr, row, id)` and `maskAdd`.
+  - For Crossing, `maskWords = 2`, hashed word 0 then word 1, the same order as `pHitLo` then `pHitHi`, so the Crossing hash does not move.
+  - Six hero files and two effect files change (rocket, meatball, frankie, cacklejaw, howler; projectile.ts, dash.ts).
+- **Kind ranges:** heroes, minions, towers, cores, fountains, camps, `boss` (new, cap 0 on Crossing), pudding. A cap of 0 adds no ids, so Crossing's ids stay where they are.
+
+### 3.4 Hash rule (keeps Crossing identical)
+
+- `hashWorld` hashes the arrays in the same order. Their lengths come from the map; on Crossing they are the v17 lengths.
+- 5v5-only state lives in a new `w.mg: Int32Array` ("map globals"):
+  - the Grizzlechop state, next spawn and take count;
+  - the camp timers;
+  - the buff holders and their ticks;
+  - `mg[0] = map id`.
+- `mg` is hashed after everything else, and only when its length is above 0. Crossing's `mg` is empty, so the `G.Count = 44` globals and the hash stay exactly as in v17.
+- New per-entity arrays used only on Hearthwood (`buffT` for Prickle and Feather) are also kept in `mg` slices, not as new hashed arrays.
+- **Gate G1:** 500 Crossing seeds give the same hash trail and final hash in v18 as in frozen v17. Every profile counts: co-op, party and PvP fixtures included.
+
+### 3.5 5v5 units and objectives
+
+- `units/minion.ts`:
+  - per-lane waves loop over the map's lanes;
+  - the wave row per map (2 + 2 + siege on Hearthwood);
+  - the underdog waves (`COMEBACK`) count structures out of 11.
+- `units/tower.ts`:
+  - the tiers gate and hearth;
+  - the "opens when" rule (§1.4), checked when targeting and taking damage, reusing the invulnerable path;
+  - the Sunset closed-core rule reads the gate tier on Hearthwood.
+- `units/camp.ts`:
+  - a camp table per map, with the kinds rat, prickle, crow and toad (`CampKind`, `w.sub`);
+  - the leash and reset rules shared with the rats;
+  - the buff reward on the last hit;
+  - the buff steal on a takedown (`progression` hook).
+- `units/boss.ts` (new): Grizzlechop. It shares the camp aggro and leash code, and its Tail Sweep uses the existing zone telegraph.
+- `units/pudding.ts`:
+  - numbers per map;
+  - the lane choice rule from §1.7;
+  - the push-ping override from the team lead's `push*` ping (the bots' ping obedience already exists).
+- `effects/bonus.ts`: the Prickle on-hit, the Feather cooldown rate (the same path as the cooldown-recovery talents) and the Hoard shield.
+- `progression/fish.ts` and `xp.ts`: the per-map `fishBp` and `xpBp`, the Grizzlechop rewards, and the trailing-team bonus.
+
+### 3.6 Lint and guard rails
+
+`tools/lint-sim.mjs` gets new rules for `src/sim/**`:
+- no `RANGE.`, `ENTITY_CAP`, `CAPS.`, `mirrorX(`, `SLOTS_PER_TEAM`, `PVP_LEAD1`;
+- no direct `data/map` import outside `sim/map/runtime.ts`.
+
+The existing rules stay: integers only, no `Math.random` or `Date`.
+
+## 4. Bots: five roles
+
+### 4.1 Role assignment (deterministic, zero input)
+
+| Role | Lane / area | Preferred hero roles, in order |
+|---|---|---|
+| `fish` | Gutterway | marksman, mage, assassin |
+| `solo` | Fenceline | fighter, tank, assassin |
+| `mid` | Yarn Road | mage, marksman, assassin |
+| `prowl` (jungle) | own two quadrants, then the objectives | assassin, fighter |
+| `guard` (roam) | follows `fish` to 3:00, then mid and the objectives | support, tank |
+
+- `assignRoles(picks, map)` runs at `createMatch`:
+  - each team solves the 5 × 5 preference matrix by a fixed cost (rank in the table, then slot order to break ties);
+  - the human slots get their hero's first choice first;
+  - the result goes in `mg` (hashed).
+- **Lane swap generalised:** the v10 `G.LaneSwap` 2-lane rule becomes "a human who stands in another role's lane for `LANE_SWAP.ticks` swaps roles with that bot". This is the same behaviour as today, over 5 roles.
+- On Crossing, roles are slot % 3, as today. `laneRole` keeps its v17 result there.
+
+### 4.2 Behaviour per role (brain.ts, by role)
+
+- **Laners (`fish`, `solo`, `mid`):**
+  - the existing lane brain (farm, trade, retreat, tower rules);
+  - `mid` rotates to a side lane's fight when its own wave is pushed and an ally there is low;
+  - `fish` joins Grizzlechop fights; `solo` joins Great Pudding fights.
+- **`prowl`:**
+  - a seeded clear route: buff, then small, then small, then the other buff, or the mirror of that;
+  - a gank check every 6 s at a lane with an enemy below 60% HP and pushed past the river;
+  - starts Grizzlechop at spawn when 2 or more allies are within 20 m and no enemy prowler was seen in the last 10 s;
+  - picks up camps again on respawn.
+- **`guard`:**
+  - stays within 6 m of `fish` until 3:00, then shadows the ally with the most enemies near;
+  - from 3:00, the first one to the river bushes before each objective spawns.
+- **Objective calls (shared):**
+  - the team groups (the existing `groupAt` machinery) 20 s before Grizzlechop or Great Pudding spawns, when it is not behind by 3 or more takedowns;
+  - otherwise it gives the objective up and pushes the opposite lane (the genre trade).
+- **Difficulty:** the existing `BotParams` rows apply unchanged. Hard bots react faster and group more; Rookie allies leave kills to the human.
+- **Think stagger:** 10 bots at `botThinkEvery = 6`. Slots 0..9 are staggered by `(tick + slot) % 6`, so at most 2 bots think in the same tick.
+
+## 5. Version plan (sim v18)
+
+| Step | What | Commit |
+|---|---|---|
+| S0 | **Freeze v17** in `FROZEN` (`vendor-sim.mjs`), using its release commit and the bundle sha from `v17/pawlegends-sim.sha256.json`, the same steps as `V17.md` §1.1. If v17 is not released when S0 starts, this branch rebases on `main` after the v17 release and S0 waits. Frozen v10 to v17 must stay byte-identical (`vendor-sim:check`) | own commit |
+| S0b | `SIM_VERSION = 18` | own commit |
+| S1 | MapDef and MapRuntime, the `w.map` codemod, hit-mask words, `mg`; Crossing only. **Gate G1** (same hash as v17) | |
+| S2 | Hearthwood data, point reflection, nav, brush index, lanes; `mapInfo()` published. **Gate G4** (symmetry and paths). The client lane can start against `mapInfo` | |
+| S3 | Team size 5: slots, party and PvP gates, spawns, picks; a 5v5 match runs with bots off | |
+| S4 | 5v5 units: waves, tower tiers, camps and buffs, Grizzlechop, Great Pudding | |
+| S5 | Bots, five roles | |
+| S6 | Tuning to the gates (§7); per-hero `pvp` rows on Hearthwood only, as a per-map `pvpBp` override, so the 3v3 rows do not move | |
+| S7 | `npm run vendor-sim`: `v18/` with new fixtures `hearthwood-replay.fixture.json` (solo 5v5), `hearthwood-party.fixture.json` (5 humans vs bots) and `hearthwood-pvp.fixture.json` (PvP 5v5). The frozen v17 keeps its fixtures | |
+
+- **Backend dual verifier:** `simFor(18)` verifies both maps. `simFor(10..17)` verify Crossing only, so a Hearthwood record with an older `simVersion` is refused.
+- `check-remote` compares `simHash` as today. The client's `net/sim-stamp.json` gets the v18 hash.
+- PvP keeps its rule that both sockets run the same `simHash`.
+
+## 6. Performance budget
+
+**Measured baseline (this machine, under load, 2026-11-09):** 3 headless Normal-vs-Normal Crossing matches with bots (about 39,000 ticks) took 2.4 s wall, including the esbuild bundle step. That is under about 0.05 ms per tick.
+
+| Budget | Crossing (today) | Hearthwood target | Gate |
+|---|---|---|---|
+| Sim tick, Node, desktop, mean | ≈ 0.05 ms | ≤ 0.25 ms | G7 |
+| Sim tick, Node, p99 (A* and bot think spikes) | n/a | ≤ 1.5 ms | G7 |
+| Sim tick, reference mid-range Android (Chrome), mean / p99 | n/a | ≤ 1.5 ms / ≤ 6 ms (under 5% / 18% of a 33 ms tick) | G8 `perf.spec.ts` 5v5 scene |
+| A* query p99 | n/a | ≤ 0.4 ms (16,384 cells, `maxExpand` 8000) | G7 |
+| Referee (backend) | 1 room | 50 concurrent Hearthwood rooms per referee worker at ≤ 50% of one core | G9 |
+| Turn at 15 Hz, 10 slots, worst case | ≤ 128 B | ≤ 220 B; ≤ 4 KB/s down per client | G9 |
+| Render, phone p95 frame | existing | ≤ 20 ms; ≤ 180 draw calls; ≤ 300k triangles in view | G8 |
+
+**Where the cost grows, and the fix built in from the start:**
+- Units go up 2.4× (150 vs 63) and bots go up 1.67×.
+- The bush test becomes a per-cell index (§3.1).
+- Target scans over `ENTITY_CAP` keep the ascending-id order and skip dead slots early.
+- Minion acquisition moves to a 8 m bucket grid, rebuilt each tick; it is integer and ascending, so it does not change order. This is S6 work, only if G7 fails.
+
+## 7. Test gates (all must pass before release)
+
+| Gate | What | Pass |
+|---|---|---|
+| G0 | `npx tsc --noEmit`, `npx vitest run`, `npm run lint:sim`, `vendor-sim:check` (frozen v10 to v17 byte-identical) | green |
+| G1 | Crossing identity: 500 seeds × {co-op normal, PvP fixture, party fixture}, v18 vs frozen v17 | identical hash trails and final hashes |
+| G2 | Determinism: `npm run determinism` on Hearthwood, 200 seeds played twice, and the three new fixtures re-verified by the backend vendored sim | identical |
+| G3 | Unit tests: `reflect` maps every authored item onto its counterpart; Gutterway = `reflect`(Fenceline) of the other team; each pit is self-symmetric under the river mirror; the nav grid is point-symmetric cell by cell; the bush index agrees with the scan | pass |
+| G4 | Fair paths: the A* length from each fountain to each camp, objective, tower and lane river point is equal for both teams (±1 cell); every camp can be reached; no wall crosses a lane | pass |
+| G5 | Balance, Hearthwood, normal vs normal, 2,000 seeds: every hero 46% to 54%; side 47% to 53%; cats vs dogs 47% to 53%; match length p50 12:00 to 14:30, p95 ≤ 15:45, safety end ≤ 2%; Grizzlechop taken in ≥ 80% of matches by 4:00; Great Pudding taken in ≥ 60% of matches that reach 9:00 | pass |
+| G6 | PvP symmetry, Hearthwood (`tools/pvp-symmetry.mjs --map hearthwood`): team 0 vs team 1 with equal bots, 47% to 53%. The existing fun, novice, idle and feeder gates also run on Hearthwood, with the same thresholds where they apply (§11, D4) | pass |
+| G7 | Sim perf (§6), with `tools/measure.mjs --map hearthwood` | within budget |
+| G8 | Phone perf: `perf.spec.ts` 5v5 scene, p95 frame and sim tick | within budget |
+| G9 | Backend: `npm run lint`, `npm run build`, `npm test`; a 5v5 room soak (`tests/e2e/mp/soak.mjs --map hearthwood`, 50 rooms); the PROTO 3 compatibility spec (an old socket never gets a 5v5 room) | green |
+| G10 | E2E: the mode picker leads to a 5v5 solo match, then the result screen; a 5v5 party of 2 humans plus bots; a 5v5 PvP with 2 humans per team over real sockets (relay helper) | pass |
+
+The machine is loaded by parallel work, so the long suites (G1, G5, G6) run once, in the background, with a monitor. Timing tests may flake; re-run only the failing file.
+
+## 8. CLIENT work
+
+### 8.1 Lobby: mode picker
+
+- On the PLAY screen, a segmented toggle sits above the Play button: **3v3 Quick | 5v5 Classic**.
+  - No new screen and no extra tap: the toggle remembers the last choice (localStorage, per viewer, wrapped in try/catch).
+  - The first session's onboarding match is always 3v3. After the first finished match the toggle shows, defaulting to the last choice.
+  - It is on by default, with no flag.
+- 5v5 Classic, solo, "vs bots" is the first thing it plays. It runs locally like 3v3 solo (`app/matchSession.ts` with `map: 'hearthwood'`), so it needs no server.
+- With friends (a party room) and in the queue, it uses `classic` (§9).
+- **Hero pick:** the 5-slot team strip (allies left, enemies right on landscape). The bots' picks fill as today (`fillPicks`). Each portrait shows a role icon from `assignRoles` (the sim exports `rolesOf(config)`, which is pure).
+
+### 8.2 Camera and coordinates
+
+- `CAMERA_YAW` comes from `mapInfo(map).camera.yawDeg`: −38° on Crossing, **0°** on Hearthwood.
+- Hearthwood's base-to-base line is the map diagonal. At yaw 0 and the 52° pitch it reads about 38° above the horizontal on screen, with your own base bottom left. Team 1 gets yaw + 180° as today (`setViewTeam`).
+- Camera height and framing stay as today: hero-centred, fixed, the largest play area on a phone.
+- The camera clamp uses the map's bounds.
+- `screenToSim` and the aims need no change. They already read `cameraYaw()`.
+
+### 8.3 Map render
+
+- `render/views/mapView.ts` builds from `MapInfo` instead of `data/map.ts`:
+  - ground, river band (`river.kind`), lanes from `lanes[].path`, walls as rocks;
+  - trees where `playable` is 0;
+  - bushes, camps and pits.
+- **Hearthwood biome (original art):** an autumn wood at dusk.
+  - copper and amber leaves;
+  - a milky-blue river with lily pads;
+  - lantern posts along Yarn Road;
+  - the Grizzlechop pit is a sunken rat-pirate wreck; the Great Pudding pit is a mossy jelly-mould hollow.
+
+  Trees and rocks are instanced. The ground is one merged mesh with baked lane decals.
+- `towerView.ts`: gate and hearth tower models (variants of the existing cat and dog tower kits); the lock shown on a tower that is not open yet.
+- New views:
+  - Grizzlechop: the rig from `lift-ppk` if the PPK rat boss art exists, otherwise a new model;
+  - Hedgehog, Old Crow, Toad: small rigs, one material each;
+  - the Prickle and Feather buff auras on heroes;
+  - the Hoard shield (the existing shield shader, tinted).
+
+### 8.4 HUD and minimap
+
+- **Minimap** (`ui/minimap.ts`):
+  - a square, not turned (yaw 0), drawn from `MapInfo`, with 3 lanes, the river, camps and 2 pits;
+  - objective timers on the pit icons (`Snapshot.objectives`);
+  - camp timers for camps the team has seen (`Snapshot.camps`);
+  - the same size slot as today; on phones the square fits the existing corner box. Tap to ping is unchanged.
+  - Team 1's minimap is turned 180°, as today.
+- **Top bar:** 5 + 5 portraits with level and respawn timers; the kill score; structures counted out of 11.
+- **Scoreboard:** 10 rows, with a role icon.
+- **Ping wheel:** on Hearthwood, Push Fenceline / Yarn Road / Gutterway plus "Grizzlechop". Sunny and Puddle are hidden there.
+- **Announcer lines:** Grizzlechop up / taken, Great Pudding up / calmed, buff stolen. They go through the existing announcer queue, and the copy is original.
+- **Buff icons** for Prickle, Feather and Hoard in the status row.
+
+### 8.5 Net client
+
+- `net/proto.ts`: PROTO 4. `TURN` gets a u16 slot mask, and the frames carry `map` and `teamSize`.
+- `predict.ts` and `lockstep.ts` need no change beyond the slot count.
+- `party/partyClient.ts`:
+  - 5 seats per team in a Hearthwood room;
+  - the mode toggle in the party card; the party lead chooses, and the others see it.
+
+## 9. SERVER work (backend and relay)
+
+### 9.1 Vendoring and verification
+
+- `npm run vendor-sim`: v18 live, v10 to v17 frozen.
+- `pawlegends-live.ts`:
+  - `map` is validated against `MAP_IDS` of that sim;
+  - picks and tricks length = `slotCountOf(map)`;
+  - `MAX_TICKS` and the input caps per map (§2.5);
+  - the body limit per record.
+- `pawlegends.schema.ts`: the match row stores `map` (default `'crossing'`, indexed for stats).
+- Rewards and progression from a 5v5 win use the existing reward table. The founder sets 5v5 multipliers, if any (D3).
+
+### 9.2 Rooms and relay
+
+- `party/room.ts` and `room-store.ts`:
+  - `teamSize` per room;
+  - seats 0..9;
+  - the per-slot input queues;
+  - the leaver backfill; the bot takeover is unchanged per seat.
+- `party/party-relay.ts`:
+  - PROTO 4 frames;
+  - a 10-bit `TURN` mask;
+  - `classic` refused to PROTO 3 sockets with `update_required`.
+- **Referee pool:** a Hearthwood room counts as 3 units of capacity, a 3v3 room as 1, until G9 measures the real ratio.
+
+### 9.3 Matchmaking (`mm/`)
+
+- **Queue `classic`:** `casual.ts` generalised to `teamSize`.
+  - Two teams of up to 5 humans.
+  - One species per team, so a team draws 5 different heroes from its species' 10.
+  - The `apartOk` and dodge rules are as in casual.
+- **Bot fill:** empty seats fill with bots once the oldest entry has waited `fillMsClassic = 45 s` (casual: 30 s).
+  - Fill difficulty comes from `matchFillDifficulty` as today.
+  - With 1 human, a "Classic vs bots" match can be played locally instead. The queue offers it after 45 s (one tap: "Play with bots now").
+- **Rating:** a separate Glicko-2 bucket `classic` (`rating.schema.ts` key by queue), so 3v3 casual ratings stay clean.
+- **Limits:** `mm-limits.ts` gets `MM_CLASSIC`: room cap, queue-join rate, and the same address and network rules.
+
+## 10. Work split and order
+
+| Phase | SIM lane | CLIENT+SERVER lane |
+|---|---|---|
+| 1 | S0 freeze v17, S0b, S1 (MapDef, G1) | C0: read this plan; stub `mapInfo('hearthwood')` from §1 numbers to start the render |
+| 2 | S2 (Hearthwood data, `mapInfo`, G3, G4): **interface handoff** | C1: `mapView` and minimap from `MapInfo` (Crossing first, no visual change), then the Hearthwood biome; camera per map |
+| 3 | S3 (team size 5) | C2: mode picker, 5-slot pick, local 5v5 solo against `map: 'hearthwood'` with bots off, then on |
+| 4 | S4 (units and objectives) | C3: HUD (top bar, scoreboard, timers, buffs, pings); PROTO 4 client |
+| 5 | S5 (bots) | C4: backend per-map caps (three copies, one commit with S-lane `limits.ts`), `/live` map validation, rooms and relay at 10 seats |
+| 6 | S6 tuning (G5 to G7) | C5: `classic` queue, bot fill, rating bucket, referee capacity (G9) |
+| 7 | S7 vendor v18 and fixtures | C6: E2E (G10), phone perf (G8) |
+
+**Handoff rules:**
+- The SIM lane commits `mapInfo` and the §2 types at the end of S2. After that, a change to §2 is a note in this file plus a message to the client lane.
+- The caps change (§2.5) is the one commit both lanes touch: `pawlegends/src/data/limits.ts`, `shared/caps.ts` and `backend/src/shared-contracts/caps.ts`.
+
+## 11. Open decisions (each has a default; work goes on with it)
+
+| # | Question | Default |
+|---|---|---|
+| D1 | Lane roles: physical (the Fish lane is Gutterway for both teams, so team 1's carry plays at the top of its screen) or by view (each team's bottom lane is its Fish lane, so roles do not face each other) | **Physical**: matching roles face each other and each role has the same objective nearby |
+| D2 | Hearth Guards (2 core towers per team) or none (MLBB-like, faster ends) | **Keep them**; drop them in S6 if match length p50 is over 14:30 |
+| D3 | Rewards for a 5v5 match (it is about 2× as long) | Same reward table × 1.5 per match |
+| D4 | First-timer gates (fun1, fun2, feeder) on 5v5, or 3v3 only | **3v3 only**: onboarding stays 3v3, and 5v5 runs the novice gate at Easy (≥ 70% win) |
+| D5 | The mode name: "5v5 Classic" (founder) or "Grand Clash" (GDD §3.1) | **5v5 Classic** in the UI; GDD updated to match |
