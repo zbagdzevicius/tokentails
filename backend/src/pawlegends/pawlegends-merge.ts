@@ -1,4 +1,4 @@
-import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_TICKS } from 'src/shared-contracts/caps';
+import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_TICKS_ANY_MAP } from 'src/shared-contracts/caps';
 
 /*
  * Pawlegends progress in the guest merge (decision D44, POC.md §11.5). The guest merge
@@ -10,7 +10,7 @@ import { PAWLEGENDS_LEVEL_CAPS, PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_TICKS } from '
  *   first-win claim (0 or the cap), so when both accounts already claimed a difficulty the max is still the cap:
  *   the catnip is paid once, never twice, and the account total stays within PAWLEGENDS_TOTAL_CAP (and so
  *   TOTAL_CATNIP_CAP), re-derived into `catnipCount` by `recomputeGameTotals` right after.
- * - `pawlegendsFastestWin.<difficulty>`: `$min` of a valid tick count (1..PAWLEGENDS_MAX_TICKS).
+ * - `pawlegendsFastestWin.<difficulty>`: `$min` of a valid tick count (1..PAWLEGENDS_MAX_TICKS_ANY_MAP).
  * - `pawlegendsMatches.<difficulty>`: `$inc`. Not idempotent, so it rides on the merge's exactly-once Tails credit
  *   (guarded by `mergedGuestIds`), never on the replayable bests step.
  *
@@ -41,7 +41,7 @@ export function pawlegendsBestsUpdate(
     }
     for (const [level, value] of entries(guest.pawlegendsFastestWin)) {
         const ticks = Math.floor(value);
-        if (ticks >= 1 && ticks <= PAWLEGENDS_MAX_TICKS) min[`pawlegendsFastestWin.${level}`] = ticks;
+        if (ticks >= 1 && ticks <= PAWLEGENDS_MAX_TICKS_ANY_MAP) min[`pawlegendsFastestWin.${level}`] = ticks;
     }
     const update: { $max?: Record<string, number>; $min?: Record<string, number> } = {};
     if (Object.keys(max).length) update.$max = max;

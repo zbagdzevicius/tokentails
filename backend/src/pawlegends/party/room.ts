@@ -115,6 +115,11 @@ export interface RoomInit {
     pvp?: boolean;
     /** PvP: slots that queued together (pre-made parties); a restored room has none (the remake rule then ignores it). */
     premade?: readonly (readonly number[])[];
+    /**
+     * Seats per team (MAP-5V5.md §9.2): 3 on Crossing (6 slots), 5 on Hearthwood (10 slots: team 1 is 5..9, its PvP
+     * lead slot 5). Default 3.
+     */
+    teamSize?: 3 | 5;
     /** A restored room: its log so far. */
     restoredLog?: Uint8Array[];
     restoredSeq?: number[];
@@ -168,6 +173,9 @@ export class Room {
     readonly difficulty: string;
     readonly forfeitFrom: number;
     readonly pvp: boolean;
+    /** Seats per team (3, or 5 on Hearthwood) and hero slots in all. */
+    readonly teamSize: 3 | 5;
+    readonly slotCount: number;
     readonly slots: SlotState[] = [];
     /** PvP: the room was voided by a passed remake vote (no verdict, no rewards, no rating). */
     voided: 'remake' | null = null;
@@ -217,10 +225,12 @@ export class Room {
         this.difficulty = init.difficulty;
         this.forfeitFrom = init.forfeitFrom;
         this.pvp = !!init.pvp;
+        this.teamSize = init.teamSize === 5 ? 5 : 3;
+        this.slotCount = Math.min(MAX_HUMANS, 2 * this.teamSize);
         for (const g of init.premade ?? [])
-            for (const slot of g) if (slot >= 0 && slot < MAX_HUMANS) this.premadeOf[slot] = g;
+            for (const slot of g) if (slot >= 0 && slot < this.slotCount) this.premadeOf[slot] = g;
         this.startMs = init.startMs + (init.phaseMs ?? 0);
-        for (let s = 0; s < MAX_HUMANS; s++) {
+        for (let s = 0; s < this.slotCount; s++) {
             const human = init.humans.includes(s);
             const occupied = human && init.occupied.includes(s);
             this.slots.push({
@@ -445,7 +455,7 @@ export class Room {
         if (
             !CLIENT_OPS.includes(op) ||
             cmdSize(op) !== cmd.length ||
-            (op === CMD_OP.Ping && slot !== 0 && !(this.pvp && slot === leadSlotOf(1)))
+            (op === CMD_OP.Ping && slot !== 0 && !(this.pvp && slot === leadSlotOf(1, this.teamSize)))
         )
             return 'bad_op';
         if (s.mode === 'pilot') {
@@ -558,7 +568,12 @@ export class Room {
             // a passed surrender: Op.Forfeit in the team's lead stream (slot 0, or slot 3 in PvP), after its commands
             for (const t of [0, 1] as const)
                 if (sub === 1 && forfeitHere[t])
-                    entries.push({ slot: leadSlotOf(t), sub: 1, pilot: false, cmd: new Uint8Array([CMD_OP.Forfeit]) });
+                    entries.push({
+                        slot: leadSlotOf(t, this.teamSize),
+                        sub: 1,
+                        pilot: false,
+                        cmd: new Uint8Array([CMD_OP.Forfeit]),
+                    });
         }
         const acks: (number | undefined)[] = [];
         for (const s of this.slots) {
@@ -630,7 +645,7 @@ export class Room {
 
     /** The team a slot votes with (PvE: everyone is team 0). */
     private teamOf(slot: number): 0 | 1 {
-        return this.pvp ? teamOfSlot(slot) : 0;
+        return this.pvp ? teamOfSlot(slot, this.teamSize) : 0;
     }
 
     private connectedHumans(team: 0 | 1): SlotState[] {
@@ -642,7 +657,7 @@ export class Room {
         if (!this.pvp) return this.io.json(null, msg);
         const out = { ...msg, team };
         for (const s of this.slots)
-            if (this.isHumanSlot(s.slot) && teamOfSlot(s.slot) === team) this.io.json(s.slot, out);
+            if (this.isHumanSlot(s.slot) && teamOfSlot(s.slot, this.teamSize) === team) this.io.json(s.slot, out);
     }
 
     /**
@@ -655,7 +670,12 @@ export class Room {
         if (!this.pvp || this.tick < REMAKE.fromTick || this.tick >= REMAKE.untilTick) return false;
         const voters = this.connectedHumans(team);
         return this.slots.some(s => {
-            if (!this.isHumanSlot(s.slot) || teamOfSlot(s.slot) !== team || s.connected || s.mode !== 'pilot')
+            if (
+                !this.isHumanSlot(s.slot) ||
+                teamOfSlot(s.slot, this.teamSize) !== team ||
+                s.connected ||
+                s.mode !== 'pilot'
+            )
                 return false;
             const off = this.offSinceMs[s.slot];
             const gone =
@@ -689,8 +709,10 @@ export class Room {
             if (last !== undefined && nowMs - last < PARTY_LIMITS.voteCooldownMs) return false;
             s.voteAt[kind] = nowMs;
             const connected = this.connectedHumans(team).length;
-            // pause: everyone; remake: every remaining human of the team; surrender: 2 of 3 (all when fewer)
-            const need = kind === 'pause' || kind === 'remake' ? connected : connected <= 2 ? connected : 2;
+            // pause: everyone; remake: every remaining human of the team; surrender: a majority of a full team (2 of 3,
+            // 3 of 5; all when fewer are connected)
+            const majority = (this.teamSize >> 1) + 1;
+            const need = kind === 'pause' || kind === 'remake' ? connected : Math.min(connected, majority);
             const ms =
                 kind === 'pause'
                     ? PARTY_LIMITS.pauseVoteMs

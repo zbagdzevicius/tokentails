@@ -12,6 +12,7 @@ import { clientIpKey } from '../../shared/client-ip';
 import { partySimFor } from '../../vendor/pawlegends-sim';
 import type { MemberIdentity, Party, PartyService } from '../party/party.service';
 import { AFK_REASONS } from '../party/room';
+import { PROTO_CLASSIC, teamOfSlot } from '../party/net';
 import { DEFAULT_GLICKO, growRd, seedRating, type Glicko } from './glicko2';
 import { CLEAN, leaverStatus, roomEvents, type LeaverStatus, type SeatEnd } from './leaver';
 import {
@@ -22,6 +23,8 @@ import {
     type MmMatch,
     type MmMember,
     type MmSideChoice,
+    isPvpQueue,
+    type MmPvpQueue,
 } from './matchmaker';
 import { MM_CASUAL, MM_HOME_REGION, MM_LIMITS } from './mm-limits';
 import { identityHash, type MmRoomMember, type MmRoomStore } from './mm-room.schema';
@@ -161,11 +164,22 @@ interface LiveMm {
     pilotSince: Map<number, number>;
     offSince: Map<number, number>;
     left: Map<number, number>;
-    /** Casual PvP: slot → species of its team, and the address keys per team (a backfill never crosses them). */
-    casual?: { species: ['cat' | 'dog', 'cat' | 'dog']; ips: [Set<string>, Set<string>] };
+    /**
+     * Casual PvP: slot → species of its team, and the address keys per team (a backfill never crosses them).
+     * `teamSize` 5 for a 5v5 Classic room (queue 'classic', Hearthwood).
+     */
+    casual?: {
+        species: ['cat' | 'dog', 'cat' | 'dog'];
+        ips: [Set<string>, Set<string>];
+        teamSize: 3 | 5;
+        queue: MmPvpQueue;
+    };
 }
 
-const teamOf = (slot: number): 0 | 1 => (slot >= 3 ? 1 : 0);
+/** The team of a slot in a room with `teamSize` seats a side (casual 3, classic 5). */
+const teamOf = (slot: number, teamSize = 3): 0 | 1 => teamOfSlot(slot, teamSize);
+/** Seats per team of a formed match (classic: Hearthwood 5v5). */
+const teamSizeOfMatch = (m: MmMatch): 3 | 5 => (m.map === 'hearthwood' ? 5 : 3);
 
 export class MmBridge implements MmHooks {
     readonly mm: Matchmaker;
@@ -231,7 +245,7 @@ export class MmBridge implements MmHooks {
                     member,
                     msg.side as MmSideChoice,
                     msg.region as string | undefined,
-                    msg.queue === 'casual' ? 'casual' : 'coop'
+                    msg.queue === 'casual' || msg.queue === 'classic' ? msg.queue : 'coop'
                 ).catch(e => this.api.log('mm_error', { message: String((e as Error)?.message || e).slice(0, 200) }));
             case 'mm.leave':
                 return this.leaveQueue(member, 'left');
@@ -261,10 +275,21 @@ export class MmBridge implements MmHooks {
         this.api.send(member, msg);
     }
 
-    /** Casual PvP needs PROTO 3 and a sim >= PVP_SINCE. */
-    private pvpCapable(sock: MmSock): boolean {
-        const since = partySimFor(sock.sim.version, sock.sim.hash)?.party?.PVP_SINCE;
-        return sock.proto >= 3 && !!since && sock.sim.version >= since;
+    /**
+     * Casual PvP needs PROTO 3 and a sim >= PVP_SINCE. 5v5 Classic (MAP-5V5.md §2.7) also needs PROTO 4 and a sim whose
+     * MAP_IDS has 'hearthwood' (sim v19+); an older socket is told `update_required`.
+     */
+    private pvpCapable(sock: MmSock, queue: MmPvpQueue = 'casual'): boolean {
+        const party = partySimFor(sock.sim.version, sock.sim.hash)?.party;
+        const since = party?.PVP_SINCE;
+        if (!(sock.proto >= 3 && !!since && sock.sim.version >= since)) return false;
+        if (queue !== 'classic') return true;
+        return sock.proto >= PROTO_CLASSIC && !!party?.MAP_IDS?.includes('hearthwood');
+    }
+
+    /** The refusal for a socket that cannot play `queue` (classic: `update_required`, PROTO 3 knows it). */
+    private pvpRefusal(queue: MmPvpQueue): 'pvp_update_required' | 'update_required' {
+        return queue === 'classic' ? 'update_required' : 'pvp_update_required';
     }
 
     /** The dodge wait of an identity now (2 free a UTC day, then +1 min per dodge). */
@@ -309,15 +334,21 @@ export class MmBridge implements MmHooks {
         member: string,
         side: MmSideChoice,
         region?: string,
-        queue: 'coop' | 'casual' = 'coop'
+        queue: 'coop' | MmPvpQueue = 'coop'
     ): Promise<void> {
         const api = this.api;
         const sock = api.sock(member);
         if (!sock || sock.proto < 2) return;
-        if (queue === 'casual' && !this.pvpCapable(sock))
-            return this.refuse(member, 'pvp_update_required', undefined, 'pvp_proto');
+        const pvp = isPvpQueue(queue);
+        if (pvp && !this.pvpCapable(sock, queue))
+            return this.refuse(
+                member,
+                this.pvpRefusal(queue),
+                undefined,
+                queue === 'classic' ? 'classic_proto' : 'pvp_proto'
+            );
         // casual PvP: a newbie (fewer than 5 completed matches, by the hint) plays co-op first
-        if (queue === 'casual' && (sock.hint?.matches ?? 0) < MM_CASUAL.newbieMatches)
+        if (pvp && (sock.hint?.matches ?? 0) < MM_CASUAL.newbieMatches)
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
         // already queued: a repeat join only changes the side (and Keep waiting puts a switched entry back in casual)
         if (this.byMember.has(member)) {
@@ -354,16 +385,19 @@ export class MmBridge implements MmHooks {
             // only the leader queues a friend party, and not from inside a Quick Play match: say so (never a silent
             // return: the card would spin forever)
             if (p.leader !== member || p.mm) return this.refuse(member, 'party_busy', undefined, 'party_role');
-            // a trio queues casual PvP only (co-op seats three humans: a trio plays its own friend party)
-            if (p.members.length > (queue === 'casual' ? 3 : 2)) return this.refuse(member, 'party_full');
+            // a trio queues PvP only (co-op seats three humans: a trio plays its own friend party)
+            if (p.members.length > (pvp ? 3 : 2)) return this.refuse(member, 'party_full');
             if (p.phase !== 'lobby' && p.phase !== 'results') return this.refuse(member, 'party_busy');
             let old = false;
             for (const m of p.members) {
                 const ms = api.sock(m.id);
-                if (!ms || ms.proto < 2 || (queue === 'casual' && !this.pvpCapable(ms))) {
+                if (!ms || ms.proto < 2 || (pvp && !this.pvpCapable(ms, queue))) {
                     old = true;
                     if (ms)
-                        api.send(m.id, { t: 'error', code: ms.proto >= 3 ? 'pvp_update_required' : 'update_required' });
+                        api.send(m.id, {
+                            t: 'error',
+                            code: ms.proto >= 3 && pvp ? this.pvpRefusal(queue) : 'update_required',
+                        });
                 }
             }
             if (old) return this.refuse(member, 'party_busy', undefined, 'party_proto');
@@ -407,7 +441,7 @@ export class MmBridge implements MmHooks {
             [ratings, ladders, played] = await Promise.all([
                 Promise.all(socks.map(s => this.ratingFor(s, queue))),
                 Promise.all(socks.map(s => this.leaverFor(s.identity))),
-                queue === 'casual' ? Promise.all(socks.map(s => this.playedFor(s))) : Promise.resolve([]),
+                pvp ? Promise.all(socks.map(s => this.playedFor(s))) : Promise.resolve([]),
             ]);
         } finally {
             for (const id of memberIds) this.joining.delete(id);
@@ -435,13 +469,13 @@ export class MmBridge implements MmHooks {
         // casual: the lock on server records (never the client's hint): fewer than 5 completed matches, or a rating
         // still wide open (rd > 300); an IP-only identity (no ticket, no guest key) has no record and never queues PvP
         if (
-            queue === 'casual' &&
+            pvp &&
             (played.some(n => n < MM_CASUAL.newbieMatches) || members.some(m => m.rating.rd > MM_CASUAL.newbieRd))
         )
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
         const wait = Math.max(
             ...ladders.map(l => l.waitMs),
-            ...(queue === 'casual' ? socks.map(s => this.dodgeWaitMs(s.identity.key, now)) : [0])
+            ...(pvp ? socks.map(s => this.dodgeWaitMs(s.identity.key, now)) : [0])
         );
         const entry: MmEntry = {
             id: randomId(),
@@ -475,7 +509,7 @@ export class MmBridge implements MmHooks {
         this.sendStatus(entry, true);
     }
 
-    private async ratingFor(s: MmSock, queue: 'coop' | 'casual' = 'coop'): Promise<Glicko> {
+    private async ratingFor(s: MmSock, queue: 'coop' | MmPvpQueue = 'coop'): Promise<Glicko> {
         // casual never seeds from the client's hint (it would pick its own start and, through it, its fill bots): no
         // row starts at the middle with rd at the newbie line, or at the top difficulty the server saw it play
         const casualSeed = async (): Promise<Glicko> => {
@@ -486,13 +520,17 @@ export class MmBridge implements MmHooks {
                 ? seedRating(top.top)
                 : { r: DEFAULT_GLICKO.r, rd: MM_CASUAL.newbieRd, sigma: DEFAULT_GLICKO.sigma };
         };
-        const seed = queue === 'casual' ? null : seedRating(s.hint?.maxDifficulty);
+        const seed = isPvpQueue(queue) ? null : seedRating(s.hint?.maxDifficulty);
         if (!s.identity.accountId || !this.deps.ratings) return seed ?? (await casualSeed());
         try {
-            // casual: its own row; before the first PvP match, the co-op row seeds it
+            // casual: its own row; before the first PvP match, the co-op row seeds it. Classic (5v5): its own row,
+            // seeded by the casual row, then the co-op one (MAP-5V5.md §9.3: 3v3 casual ratings stay clean)
+            const ratings = this.deps.ratings;
+            const acct = s.identity.accountId;
             const row =
-                (queue === 'casual' ? await this.deps.ratings.get(s.identity.accountId, 'casual') : null) ??
-                (await this.deps.ratings.get(s.identity.accountId));
+                (queue === 'classic' ? await ratings.get(acct, 'classic') : null) ??
+                (isPvpQueue(queue) ? await ratings.get(acct, 'casual') : null) ??
+                (await ratings.get(acct));
             if (!row) return seed ?? (await casualSeed());
             return growRd(
                 { r: row.r, rd: row.rd, sigma: row.sigma },
@@ -753,9 +791,9 @@ export class MmBridge implements MmHooks {
             side: e.side,
             waitedMs: st.waitedMs,
             estimateMs: st.estimateMs,
-            found: Math.min(3, Math.max(1, st.found)),
+            found: Math.min(e.queue === 'classic' ? 5 : 3, Math.max(1, st.found)),
         };
-        if (e.queue === 'casual') msg.teams = [Math.min(3, Math.max(1, st.found)), 0];
+        if (isPvpQueue(e.queue)) msg.teams = [msg.found as number, 0];
         if (this.switched.has(e.id)) msg.from = 'casual';
         if (st.lowPriorityMs > 0) msg.lowPriorityMs = st.lowPriorityMs;
         if (warn) msg.warn = 'leaver';
@@ -805,11 +843,13 @@ export class MmBridge implements MmHooks {
         for (const e of ordered) if (e !== host && e.partyId) for (const m of e.members) api.leaveParty(m.member);
         const casual = match.teams
             ? (() => {
+                  const n = teamSizeOfMatch(match);
                   const slots: Record<string, number> = {};
                   match.teams[0].members.forEach((m, i) => (slots[m] = i));
-                  match.teams[1].members.forEach((m, i) => (slots[m] = 3 + i));
+                  match.teams[1].members.forEach((m, i) => (slots[m] = n + i));
                   return {
                       slots,
+                      ...(match.map ? { map: match.map } : {}),
                       species: [match.teams[0].species, match.teams[1].species] as ['cat' | 'dog', 'cat' | 'dog'],
                       fillDifficulty: [match.teams[0].difficulty, match.teams[1].difficulty] as [string, string],
                       humans: Object.values(slots).sort((a, b) => a - b),
@@ -919,9 +959,15 @@ export class MmBridge implements MmHooks {
                     [theirs.humans, theirs.bots],
                 ],
                 acceptByMs: MM_CASUAL.acceptMs,
+                ...(match.map ? { map: match.map, teamSize: teamSizeOfMatch(match) } : {}),
             });
         }
-        api.log('mm_found', { mode: 'casual', humans: match.humans, bots: match.bots });
+        api.log('mm_found', {
+            mode: 'casual',
+            humans: match.humans,
+            bots: match.bots,
+            ...(match.map ? { map: match.map } : {}),
+        });
         if (pend.yes.size === pend.need.size) this.acceptDone(pend);
     }
 
@@ -1016,6 +1062,7 @@ export class MmBridge implements MmHooks {
             queueMs[String(slot)] = m.queueMs;
         }
         const humans = members.map(m => m.slot);
+        const n = teamSizeOfMatch(pend.match);
         const live: LiveMm = {
             party: party.id,
             side: pend.match.side,
@@ -1037,9 +1084,11 @@ export class MmBridge implements MmHooks {
                               'cat' | 'dog'
                           ],
                           ips: [
-                              new Set([...ips].filter(([s]) => teamOf(s) === 0).map(([, k]) => k)),
-                              new Set([...ips].filter(([s]) => teamOf(s) === 1).map(([, k]) => k)),
+                              new Set([...ips].filter(([s]) => teamOf(s, n) === 0).map(([, k]) => k)),
+                              new Set([...ips].filter(([s]) => teamOf(s, n) === 1).map(([, k]) => k)),
                           ] as [Set<string>, Set<string>],
+                          teamSize: n,
+                          queue: pend.match.map === 'hearthwood' ? ('classic' as const) : ('casual' as const),
                       },
                   }
                 : {}),
@@ -1049,23 +1098,24 @@ export class MmBridge implements MmHooks {
         void this.deps.rooms
             .create({
                 _id: roomId,
-                queue: casual ? 'casual' : 'coop',
+                queue: casual ? (pend.match.map === 'hearthwood' ? 'classic' : 'casual') : 'coop',
                 ...(casual
                     ? {
                           mode: 'casual' as const,
                           teams: casual.map((t, i) => ({
                               species: t.species,
-                              slots: humans.filter(s => teamOf(s) === i),
+                              slots: humans.filter(s => teamOf(s, n) === i),
                               difficulty: t.difficulty,
                               rating: Math.round(t.rating),
                           })),
+                          ...(pend.match.map ? { map: pend.match.map } : {}),
                       }
                     : {}),
                 region: pend.match.region,
                 side: pend.match.side,
                 difficulty: pend.match.difficulty,
                 sim: pend.match.sim,
-                fill: (casual ? [0, 1, 2, 3, 4, 5] : [0, 1, 2]).filter(s => !humans.includes(s)),
+                fill: Array.from({ length: casual ? 2 * n : 3 }, (_, s) => s).filter(s => !humans.includes(s)),
                 queueMs,
                 members,
                 createdAt: new Date(this.api.now()),
@@ -1119,9 +1169,10 @@ export class MmBridge implements MmHooks {
                     .sort((a, b) => b.joinedTick - a.joinedTick)[0];
                 const leaverKey = (holder && lm.keys.get(holder)) ?? holderRow?.identityHash ?? '';
                 // casual: the seat's own team (its species, its rating, never an address of the other team)
-                const team = teamOf(s.slot);
+                const n = lm.casual?.teamSize ?? 3;
+                const team = teamOf(s.slot, n);
                 const rs = lm.members
-                    .filter(m => !lm.casual || teamOf(m.slot) === team)
+                    .filter(m => !lm.casual || teamOf(m.slot, n) === team)
                     .map(m => m.ratingAtStart?.r ?? 1500);
                 const seat: MmBackfillSeat = {
                     room: roomId,
@@ -1134,7 +1185,7 @@ export class MmBridge implements MmHooks {
                     leaverKey,
                     inRoomKeys: [...new Set([...room.keys, ...lm.keys.values()])],
                     sinceMs: now,
-                    ...(lm.casual ? { queue: 'casual' as const, otherTeamIps: [...lm.casual.ips[1 - team]] } : {}),
+                    ...(lm.casual ? { queue: lm.casual.queue, otherTeamIps: [...lm.casual.ips[1 - team]] } : {}),
                 };
                 this.mm.addBackfillSeat(seat);
             }
@@ -1211,7 +1262,7 @@ export class MmBridge implements MmHooks {
         const lm = this.live.get(roomId);
         if (!lm) return;
         this.live.delete(roomId);
-        for (const slot of [0, 1, 2, 3, 4, 5]) this.mm.dropBackfillSeat(roomId, slot);
+        for (let slot = 0; slot < 2 * (lm.casual?.teamSize ?? 3); slot++) this.mm.dropBackfillSeat(roomId, slot);
         const room = this.api.room(roomId);
         const now = this.api.now();
         const seats: SeatEnd[] = (room?.slots ?? [])

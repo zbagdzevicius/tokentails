@@ -211,8 +211,22 @@ describe('PAWLEGENDS /live branch', () => {
     it('sim v19 verifier: accepts v10 to v19 (GAPS B0; v9 retired), names all ten in GET /pawlegends/sim', async () => {
         expect(SIM_VERSION).toBe(19);
         expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 19, simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19] });
-        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11', '12', '13', '14', '15', '16', '17', '18', '19']);
+        expect(PAWLEGENDS_SIM_INFO).toMatchObject({
+            simVersion: 19,
+            simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19],
+        });
+        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual([
+            '10',
+            '11',
+            '12',
+            '13',
+            '14',
+            '15',
+            '16',
+            '17',
+            '18',
+            '19',
+        ]);
         const fakeHash: Record<number, string> = {
             10: '10100000',
             11: '11110000',
@@ -667,7 +681,11 @@ describe('PAWLEGENDS /live branch', () => {
             }
             const dog17 = fixture(17, 'new-dog');
             expect(dog17).toMatchObject({ hero: 'frankie', simVersion: 17 });
-            expect(verifyBySimVersion(dog17)).toMatchObject({ ok: true, finalHash: dog17.finalHash, ticks: dog17.ticks });
+            expect(verifyBySimVersion(dog17)).toMatchObject({
+                ok: true,
+                finalHash: dog17.finalHash,
+                ticks: dog17.ticks,
+            });
             // The frozen v16 bundle still verifies its own PvP record; the live v17 verifies the v17 one.
             const pvp16 = fixture(16, 'pvp') as any;
             expect((simFor(16)?.party?.verifyPvpReplay?.(pvp16) as any)?.ok).toBe(true);
@@ -677,7 +695,11 @@ describe('PAWLEGENDS /live branch', () => {
             expect(party?.PARTY_SINCE).toBe(13);
             expect(party?.PVP_SINCE).toBe(16);
             expect(party?.HERO_IDS).toHaveLength(20);
-            expect(party?.verifyPvpReplay?.(pvp17)).toMatchObject({ ok: true, finalHash: pvp17.finalHash, ticks: pvp17.ticks });
+            expect(party?.verifyPvpReplay?.(pvp17)).toMatchObject({
+                ok: true,
+                finalHash: pvp17.finalHash,
+                ticks: pvp17.ticks,
+            });
             expect(party?.verifyPvpReplay?.({ ...pvp17, simVersion: 16 })).toMatchObject({ ok: false });
         }, 120_000);
 
@@ -692,7 +714,11 @@ describe('PAWLEGENDS /live branch', () => {
             }
             const dog18 = fixture(18, 'new-dog');
             expect(dog18).toMatchObject({ hero: 'frankie', simVersion: 18 });
-            expect(verifyBySimVersion(dog18)).toMatchObject({ ok: true, finalHash: dog18.finalHash, ticks: dog18.ticks });
+            expect(verifyBySimVersion(dog18)).toMatchObject({
+                ok: true,
+                finalHash: dog18.finalHash,
+                ticks: dog18.ticks,
+            });
             // The frozen v17 bundle still verifies its own PvP record; the live v18 verifies the v18 one.
             const pvp17 = fixture(17, 'pvp') as any;
             expect((simFor(17)?.party?.verifyPvpReplay?.(pvp17) as any)?.ok).toBe(true);
@@ -702,7 +728,11 @@ describe('PAWLEGENDS /live branch', () => {
             expect(party?.PARTY_SINCE).toBe(13);
             expect(party?.PVP_SINCE).toBe(16);
             expect(party?.HERO_IDS).toHaveLength(20);
-            expect(party?.verifyPvpReplay?.(pvp18)).toMatchObject({ ok: true, finalHash: pvp18.finalHash, ticks: pvp18.ticks });
+            expect(party?.verifyPvpReplay?.(pvp18)).toMatchObject({
+                ok: true,
+                finalHash: pvp18.finalHash,
+                ticks: pvp18.ticks,
+            });
             expect(party?.verifyPvpReplay?.({ ...pvp18, simVersion: 17 })).toMatchObject({ ok: false });
         }, 120_000);
 

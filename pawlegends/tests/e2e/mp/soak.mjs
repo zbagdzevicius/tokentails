@@ -14,7 +14,10 @@
  *   MATCHES=20 CONCURRENCY=4 npm run soak          # a short run
  *   MINUTES=120 MATCHES=100000 npm run soak        # as many as fit in two hours
  *
- * Env: MATCHES (200), CONCURRENCY (8), PVP_SHARE (0.75), DROP_RATE (0.5: rooms with drops), SURRENDER_RATE (0.1 of
+ * 5v5 Classic (docs/plans/moba/MAP-5V5.md §9): CLASSIC_SHARE of the rooms (default 0) are ten PROTO 4 clients through
+ * the `classic` queue on Hearthwood Divide; `CLASSIC_SHARE=1 MATCHES=4 CONCURRENCY=2 npm run soak` soaks 5v5 only.
+ *
+ * Env: MATCHES (200), CONCURRENCY (8), PVP_SHARE (0.75), CLASSIC_SHARE (0), DROP_RATE (0.5: rooms with drops), SURRENDER_RATE (0.1 of
  * PvP rooms), MINUTES (no new rooms after it), SEED (random), PORT (3121), RELAY (external relay URL), OUT (report
  * directory, default .soak-dist), REFEREE_INLINE=1, SOAK_VERBOSE=1. Exit 1 when any room failed a check.
  */
@@ -31,6 +34,7 @@ const env = process.env;
 const MATCHES = Number(env.MATCHES ?? 200);
 const CONCURRENCY = Number(env.CONCURRENCY ?? 8);
 const PVP_SHARE = Number(env.PVP_SHARE ?? 0.75);
+const CLASSIC_SHARE = Number(env.CLASSIC_SHARE ?? 0);
 const DROP_RATE = Number(env.DROP_RATE ?? 0.5);
 const SURRENDER_RATE = Number(env.SURRENDER_RATE ?? 0.1);
 const MINUTES = Number(env.MINUTES ?? 0);
@@ -38,6 +42,7 @@ const SEED = Number(env.SEED ?? Math.floor(Math.random() * 1e9));
 const PORT = Number(env.PORT ?? 3121);
 const OUT = resolve(env.OUT ?? DIST);
 const ROOM_MAX_MS = 14 * 60_000;
+const CLASSIC_ROOM_MAX_MS = 18 * 60_000;
 const t0 = Date.now();
 const say = (...a) => console.log(`[soak +${Math.round((Date.now() - t0) / 1000)}s]`, ...a);
 
@@ -111,13 +116,15 @@ const R = (() => {
 
 function startRoom() {
   const index = started++;
-  const mode = R() < PVP_SHARE ? 'pvp' : 'coop';
+  const mode = CLASSIC_SHARE > 0 && R() < CLASSIC_SHARE ? 'classic' : R() < PVP_SHARE ? 'pvp' : 'coop';
   const seed = Math.floor(R() * 2 ** 31);
-  const cfg = { relay: RELAY, mode, index, seed, dropRate: DROP_RATE, surrenderRate: SURRENDER_RATE, maxMs: ROOM_MAX_MS };
+  // a 5v5 match runs to 13:00-13:15 (Sudden Death) and at most 16:00 (safety end): a longer room cap
+  const maxMs = mode === 'classic' ? CLASSIC_ROOM_MAX_MS : ROOM_MAX_MS;
+  const cfg = { relay: RELAY, mode, index, seed, dropRate: DROP_RATE, surrenderRate: SURRENDER_RATE, maxMs };
   const child = fork(join(DIST, 'room.mjs'), [], { env: { ...env, SOAK_ROOM: JSON.stringify(cfg) }, stdio: ['ignore', 'inherit', 'inherit', 'ipc'] });
   running.add(child);
   let result = null;
-  const kill = setTimeout(() => child.kill('SIGKILL'), ROOM_MAX_MS + 3 * 60_000);
+  const kill = setTimeout(() => child.kill('SIGKILL'), maxMs + 3 * 60_000);
   child.on('message', (m) => {
     if (m?.t === 'lock') {
       lockQueue.push(child);
@@ -248,7 +255,7 @@ const relay = {
   refusedBusy: h1.refused_busy - h0.refused_busy,
   roomsStored: h1.roomsStored,
 };
-const report = { seed: SEED, startedAt: new Date(t0).toISOString(), minutes: Math.round((Date.now() - t0) / 60_000), sim: stamp.simVersion, concurrency: CONCURRENCY, rows: [row('pvp'), row('coop'), row('all')], relay, events: ev.events, problems: ev.problems.slice(-50), refusedRooms: refused, failures: results.filter((r) => !r.ok && !r.refused).map((r) => ({ index: r.index, mode: r.mode, seed: r.seed, room: r.room, problems: r.problems, drops: r.drops, errors: r.errors })), results, samples };
+const report = { seed: SEED, startedAt: new Date(t0).toISOString(), minutes: Math.round((Date.now() - t0) / 60_000), sim: stamp.simVersion, concurrency: CONCURRENCY, rows: [row('pvp'), row('classic'), row('coop'), row('all')].filter((r) => r.rooms || r.mode === 'all'), relay, events: ev.events, problems: ev.problems.slice(-50), refusedRooms: refused, failures: results.filter((r) => !r.ok && !r.refused).map((r) => ({ index: r.index, mode: r.mode, seed: r.seed, room: r.room, problems: r.problems, drops: r.drops, errors: r.errors })), results, samples };
 mkdirSync(OUT, { recursive: true });
 const file = join(OUT, `soak-${new Date(t0).toISOString().replace(/[:.]/g, '-')}.json`);
 writeFileSync(file, JSON.stringify(report, null, 1));
@@ -256,7 +263,7 @@ writeFileSync(file, JSON.stringify(report, null, 1));
 const cols = ['mode', 'rooms', 'ok', 'failed', 'trailMarks', 'trailDiffer', 'resyncs', 'verified', 'stalls', 'holds', 'drops', 'reconnects', 'reloads', 'rejoinP50', 'rejoinP95', 'inputP50', 'inputP95', 'turnGapP50', 'turnGapP95', 'turnGapP95Worst', 'matchSecP50', 'clientCpuSecPerRoom'];
 console.log(`\n| ${cols.join(' | ')} |\n|${cols.map(() => '---').join('|')}|`);
 for (const r of report.rows) console.log(`| ${cols.map((c) => r[c]).join(' | ')} |`);
-console.log(`\n/live saves: ${JSON.stringify(report.rows[2].saves)}`);
+console.log(`\n/live saves: ${JSON.stringify(report.rows[report.rows.length - 1].saves)}`);
 console.log(`relay: ${JSON.stringify(relay)}`);
 if (refused) console.log(`rooms refused as busy by the relay's capacity gate (not counted): ${refused}`);
 for (const f of report.failures) console.log(`FAIL room ${f.index} ${f.mode} seed ${f.seed} ${f.room ?? ''}: ${f.problems.join('; ')}`);

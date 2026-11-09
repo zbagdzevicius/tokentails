@@ -13,8 +13,11 @@ import {
     MATCH3_TOTAL_CAP,
     PAWLEGENDS_LEVEL_CAPS,
     PAWLEGENDS_LEVELS,
+    PAWLEGENDS_LIMITS_BY_MAP,
     PAWLEGENDS_MAX_INPUT_CHARS,
+    PAWLEGENDS_MAX_INPUT_CHARS_ANY_MAP,
     PAWLEGENDS_MAX_TICKS,
+    PAWLEGENDS_MAX_TICKS_ANY_MAP,
     PAWLEGENDS_TICK_HZ,
     PLEDGE_DAILY_CAP,
     REWARDS,
@@ -71,6 +74,15 @@ describe('shared caps', () => {
         expect(PAWLEGENDS_TICK_HZ).toBe(30);
         expect(PAWLEGENDS_MAX_TICKS).toBe(19800);
         expect(PAWLEGENDS_MAX_INPUT_CHARS).toBe(40800);
+    });
+
+    it('pins the Pawlegends limits per map (sim v19, MAP-5V5.md §2.5)', () => {
+        expect(PAWLEGENDS_LIMITS_BY_MAP.crossing).toEqual({ maxTicks: 19800, maxInputBytes: 30600, maxInputChars: 40800 });
+        expect(PAWLEGENDS_LIMITS_BY_MAP.hearthwood).toEqual({ maxTicks: 28800, maxInputBytes: 44700, maxInputChars: 59600 });
+        expect(PAWLEGENDS_LIMITS_BY_MAP.crossing.maxTicks).toBe(PAWLEGENDS_MAX_TICKS);
+        expect(PAWLEGENDS_MAX_TICKS_ANY_MAP).toBe(28800);
+        expect(PAWLEGENDS_MAX_INPUT_CHARS_ANY_MAP).toBe(59600);
+        expect(Object.isFrozen(PAWLEGENDS_LIMITS_BY_MAP.hearthwood)).toBe(true);
     });
 
     it('freezes every shared table so no consumer can change the enforced caps', () => {

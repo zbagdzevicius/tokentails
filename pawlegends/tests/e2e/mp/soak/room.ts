@@ -1,6 +1,7 @@
 /**
  * One soak room (tests/e2e/mp/soak.mjs bundles this file for Node and forks one process per room): 6 casual PvP
- * clients through the casual queue, or 3 co-op clients through a friend party, each built from the game's own net code
+ * clients through the casual queue, 10 5v5 Classic clients through the classic queue (Hearthwood Divide, PROTO 4,
+ * MAP-5V5.md §9), or 3 co-op clients through a friend party, each built from the game's own net code
  * (PartySocket, NetHost with the inline NetCore, LockstepRunner and Pacer), ticketed accounts, scripted inputs from the
  * snapshots, and random drops (a network drop with resume, a reload, a long absence a bot covers).
  *
@@ -21,12 +22,14 @@ import { TRICK_IDS } from '../../../../src/data/tricks';
 import { heroSideOf } from '../../../../src/sim/server';
 import { verifyPartyReplay, verifyPvpReplay } from '../../../../src/sim/party';
 import { CORE, LANE_WAYPOINTS, mirrorX } from '../../../../src/data/map';
+import { mapInfo } from '../../../../src/sim/server';
 
 declare const __SIM_HASH__: string;
 
 interface RoomConfig {
   relay: string;
-  mode: 'pvp' | 'coop';
+  /** 'classic': 5v5 on Hearthwood through the `classic` queue (ten clients). */
+  mode: 'pvp' | 'coop' | 'classic';
   index: number;
   seed: number;
   /** Chance this room has drops at all (each picks 1 or 2 clients). */
@@ -145,6 +148,7 @@ class Client {
     return this.match?.you.slot ?? -1;
   }
   get team(): 0 | 1 {
+    if (cfg.mode === 'classic') return this.slot >= 5 ? 1 : 0;
     return cfg.mode === 'pvp' && this.slot >= 3 ? 1 : 0;
   }
 
@@ -394,6 +398,7 @@ class Client {
     }
     if (roll < 0.72) return { op: Op.Talent, tier: this.r.int(3) as 0 | 1 | 2, choice: this.r.int(2) as 0 | 1 };
     if (roll < 0.75 && (me.cooldowns?.[4] ?? 0) === 0) return { op: Op.Trick, x: me.x + (this.team === 0 ? 3000 : -3000), y: me.y };
+    if (cfg.mode === 'classic') return this.pushHearthwood(me);
     if (this.r.next() < 0.05) this.lane = this.r.int(2);
     const wp = this.lane === 0 ? LANE_WAYPOINTS.sunny : LANE_WAYPOINTS.puddle;
     const flip = (x: number) => (this.team === 0 ? x : mirrorX(x));
@@ -402,6 +407,23 @@ class Client {
     const ownHalf = this.team === 0 ? me.x < 50000 : me.x > 50000;
     const target = ownHalf ? wp.map(([x, y]) => ({ x: flip(x), y })).find((p) => (this.team === 0 ? p.x > me.x + 2000 : p.x < me.x - 2000)) ?? enemyCore : enemyCore;
     return { op: Op.AttackMove, x: target.x, y: target.y };
+  }
+
+  /** 5v5 Classic: walk one of Hearthwood's three lanes (its path runs from the own core to the enemy core). */
+  private pushHearthwood(me: EntitySnap): Command {
+    if (this.lane === 0 || this.r.next() < 0.03) this.lane = 1 + this.r.int(3);
+    const [xs, ys] = HEARTH.lanes[this.lane - 1].path[this.team];
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < xs.length; i++) {
+      const d = (xs[i] - me.x) ** 2 + (ys[i] - me.y) ** 2;
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    const k = Math.min(xs.length - 1, best + 3);
+    return { op: Op.AttackMove, x: xs[k], y: ys[k] };
   }
 
   /** A drop: the network (the socket resumes by itself), a reload (a new socket with the resume token and a fresh ticket), or a long absence. */
@@ -454,14 +476,15 @@ const queueLock = () =>
   });
 
 const heroesOf = (side: string) => HERO_IDS.filter((h) => heroSideOf(h) === side);
+const HEARTH = mapInfo('hearthwood');
 
-async function lobbyPvp(cs: Client[]): Promise<void> {
+async function lobbyPvp(cs: Client[], queue: 'casual' | 'classic' = 'casual'): Promise<void> {
   await queueLock();
   try {
-    for (const c of cs) c.send({ t: 'mm.join', queue: 'casual', side: 'any' });
+    for (const c of cs) c.send({ t: 'mm.join', queue, side: 'any' });
     const found = await Promise.all(cs.map((c) => c.until(() => c.last('mm.found'), 60_000, 'mm.found')));
     const ids = new Set(found.map((f) => f.match));
-    if (ids.size !== 1) throw new Error(`queue: the 6 clients were split over ${ids.size} matches`);
+    if (ids.size !== 1) throw new Error(`queue: the ${cs.length} clients were split over ${ids.size} matches`);
     cs.forEach((c, i) => c.send({ t: 'mm.accept', match: found[i].match!, yes: true }));
     await Promise.all(cs.map((c) => c.until(() => (c.last('party') as { phase?: string } | undefined)?.phase === 'pick', 30_000, 'pick')));
   } finally {
@@ -494,7 +517,7 @@ async function lobbyCoop(cs: Client[]): Promise<void> {
 }
 
 async function main(): Promise<void> {
-  const n = cfg.mode === 'pvp' ? 6 : 3;
+  const n = cfg.mode === 'classic' ? 10 : cfg.mode === 'pvp' ? 6 : 3;
   const accts = await post<{ accountId: string; ticket: string }[]>('/soak/tickets', { n });
   const cs = accts.map((a, i) => new Client(i, a.accountId, a.ticket));
   const result: Record<string, unknown> = { index: cfg.index, mode: cfg.mode, seed: cfg.seed, ok: false, problems: [] as string[] };
@@ -503,6 +526,7 @@ async function main(): Promise<void> {
     for (const c of cs) c.connect();
     await Promise.all(cs.map((c) => c.until(() => c.last('welcome'), 20_000, 'welcome')));
     if (cfg.mode === 'pvp') await lobbyPvp(cs);
+    else if (cfg.mode === 'classic') await lobbyPvp(cs, 'classic');
     else await lobbyCoop(cs);
     // loading: the game reports progress, then `loaded` once its match module is in
     await Promise.all(cs.map((c) => c.until(() => ['loading', 'match'].includes(c.last('party')?.phase ?? ''), 60_000, 'loading')));
@@ -525,7 +549,7 @@ async function main(): Promise<void> {
       }
     }
     result.drops = cs.filter((c) => c.plan).map((c) => ({ slot: c.slot, ...c.plan }));
-    if (cfg.mode === 'pvp' && R.next() < cfg.surrenderRate) {
+    if (cfg.mode !== 'coop' && R.next() < cfg.surrenderRate) {
       const team = R.int(2);
       const at = 305_000 + R.int(60_000);
       for (const c of cs) if (c.team === team) c.surrenderAtMs = at;
@@ -567,7 +591,7 @@ async function main(): Promise<void> {
     if (differ) problems.push(`hash trail differs at ${differ} of ${common} marks`);
     const resyncs = cs.reduce((n, c) => n + c.resyncs, 0);
     if (resyncs) problems.push(`${resyncs} resync(s)`);
-    if (cfg.mode === 'pvp') {
+    if (cfg.mode !== 'coop') {
       const t0w = done.filter((c) => c.team === 0).map((c) => c.end!.outcome);
       const t1w = done.filter((c) => c.team === 1).map((c) => c.end!.outcome);
       if (t0w.length && t1w.length && (new Set(t0w).size !== 1 || new Set(t1w).size !== 1 || t0w[0] === t1w[0])) problems.push(`PvP outcomes inconsistent: team0 ${t0w} team1 ${t1w}`);
@@ -619,7 +643,7 @@ async function main(): Promise<void> {
     // 4. the client's replay record re-simmed (the record the game holds for the result screen)
     const rec = ends.find((e) => e.record)?.record ?? null;
     if (rec) {
-      const vr = cfg.mode === 'pvp' ? verifyPvpReplay(rec) : verifyPartyReplay(rec);
+      const vr = cfg.mode !== 'coop' ? verifyPvpReplay(rec) : verifyPartyReplay(rec);
       result.replay = { ok: vr.ok, ...(vr.ok ? {} : { why: (vr as { error?: string }).error }) };
       if (!vr.ok) problems.push(`local replay verify failed: ${JSON.stringify(vr)}`);
       else if ((vr as { finalHash?: string }).finalHash && (vr as { finalHash?: string }).finalHash !== ends[0].finalHash) problems.push('local replay hash differs');

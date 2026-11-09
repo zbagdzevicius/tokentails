@@ -57,7 +57,7 @@ import {
     type StartPlan,
 } from './party.service';
 import { PartyTicketService } from './party-ticket.service';
-import { RefereePool } from './referee-pool';
+import { RefereePool, roomUnits } from './referee-pool';
 import type { RefereeEnd } from './referee-core';
 import type { RefereeOut } from './referee-host';
 import { AFK_REASONS, Room, type PilotReason } from './room';
@@ -163,6 +163,9 @@ interface LiveRoom {
     /** A casual PvP room (`match.mode: 'casual'`): humans on both teams, team-scoped social and votes. */
     casual?: { species: ['cat' | 'dog', 'cat' | 'dog'] };
 }
+
+/** Seats per team of a live room (5v5 Classic on Hearthwood: 5). */
+const teamSizeOfLive = (live: { config: { map?: string } }): 3 | 5 => (live.config.map === 'hearthwood' ? 5 : 3);
 
 const hashKey = (s: string) => createHash('sha256').update(s).digest('hex').slice(0, 24);
 /** The /24 (IPv4) or /48 (IPv6) network of an IP, hashed: failed joins back off a whole network after its own limit. */
@@ -965,16 +968,17 @@ export class PartyRelay {
             slot: s.seatSlot,
         };
         if (msg.x !== undefined && msg.y !== undefined) {
-            const p = clampSocialPoint(msg.x, msg.y);
+            const p = clampSocialPoint(msg.x, msg.y, live.config.map);
             out.x = p.x;
             out.y = p.y;
         }
-        if (msg.target !== undefined && msg.target < 6) out.target = msg.target;
+        const n = teamSizeOfLive(live);
+        if (msg.target !== undefined && msg.target < 2 * n) out.target = msg.target;
         // casual PvP (V16.md §4.2): pings and quick chat reach the own team only; emotes reach everyone (the client
         // has an opponent mute-all)
-        const team = teamOfSlot(s.seatSlot);
+        const team = teamOfSlot(s.seatSlot, n);
         for (const o of this.socketsOf(live)) {
-            if (live.casual && msg.kind !== 'emote' && teamOfSlot(o.seatSlot) !== team) continue;
+            if (live.casual && msg.kind !== 'emote' && teamOfSlot(o.seatSlot, n) !== team) continue;
             this.sendJson(o, out);
         }
     }
@@ -1069,7 +1073,9 @@ export class PartyRelay {
             this.parties.matchEnded(party.id);
             this.log('refused_busy', {});
         };
-        if (!sim || this.stopped || this.gate.busy() || this.rooms.size >= maxRooms) return refuse();
+        // capacity in referee units (MAP-5V5.md §9.2): a 5v5 Hearthwood room is 3, a 3v3 room 1
+        const units = roomUnits(plan.pvp?.map ? { map: plan.pvp.map } : undefined);
+        if (!sim || this.stopped || this.gate.busy() || this.liveUnits() + units > maxRooms) return refuse();
         if (!ticketed && unticketedRooms >= maxRooms * PARTY_LIMITS.unticketedRoomShare) return refuse();
         // every member, guests included: one live room per identity, two per IP (a party from one home shares an IP,
         // so the IP rule counts rooms, not seats)
@@ -1105,12 +1111,16 @@ export class PartyRelay {
             this.log('refused_old_sim', { simVersion: sim.version });
             return;
         }
-        // casual PvP: the pinned sim must run PvP, and each team must be one species (V16.md §3.1.6, §4.2)
+        // casual PvP: the pinned sim must run PvP, and each team must be one species (V16.md §3.1.6, §4.2); 5v5
+        // Classic also needs a sim with the Hearthwood map (sim v19+, MAP-5V5.md §9.1)
+        const map = plan.pvp?.map;
+        const n = map === 'hearthwood' ? 5 : 3;
         if (plan.pvp) {
             const teamsOk = plan.seats.every(
-                seat => ps.heroSideOf(seat.hero) === plan.pvp!.species[teamOfSlot(seat.slot)]
+                seat => seat.slot < 2 * n && ps.heroSideOf(seat.hero) === plan.pvp!.species[teamOfSlot(seat.slot, n)]
             );
-            if (!ps.PVP_SINCE || sim.version < ps.PVP_SINCE || !teamsOk) {
+            const mapOk = !map || !!ps.MAP_IDS?.includes(map);
+            if (!ps.PVP_SINCE || sim.version < ps.PVP_SINCE || !mapOk || !teamsOk) {
                 for (const m of party.members)
                     this.sendJsonTo(m.id, { t: 'error', code: teamsOk ? 'pvp_update_required' : 'bad_message' });
                 this.parties.matchEnded(party.id);
@@ -1118,7 +1128,9 @@ export class PartyRelay {
                 return;
             }
         }
-        const { picks, tricks } = ps.fillPicksParty(plan.seed, plan.seats as never);
+        const { picks, tricks } = map
+            ? ps.fillPicksParty(plan.seed, plan.seats as never, map)
+            : ps.fillPicksParty(plan.seed, plan.seats as never);
         const config: StoredRoom['config'] = {
             seed: plan.seed,
             picks: picks as string[],
@@ -1126,6 +1138,7 @@ export class PartyRelay {
             difficulty: plan.difficulty,
             humans: plan.humans,
             ...(plan.pvp ? { mode: 'pvp' as const, fillDifficulty: plan.pvp.fillDifficulty } : {}),
+            ...(map ? { map } : {}),
         };
         const id = roomId();
         const now = this.now();
@@ -1137,7 +1150,7 @@ export class PartyRelay {
             ticketed: m.identity.ticketed,
         }));
         const seats = new Map<string, number>(party.members.map(m => [m.id, m.slot!]));
-        const names: (string | null)[] = [null, null, null, null, null, null];
+        const names: (string | null)[] = new Array(2 * n).fill(null);
         for (const m of party.members) names[m.slot!] = m.name;
         const startMs = now + PARTY_TIMING.startInMs;
         const room = new Room(
@@ -1152,6 +1165,7 @@ export class PartyRelay {
                 phaseMs: phaseOf(id),
                 pvp: !!plan.pvp,
                 premade: plan.pvp?.premade,
+                teamSize: n,
             },
             this.roomIO(id)
         );
@@ -1169,7 +1183,10 @@ export class PartyRelay {
             ticketed,
             referee: { lagTurns: 0, restored: true },
             ending: false,
-            heroSkins: [0, 1, 2, 3, 4, 5].map(slot => party.members.find(m => m.slot === slot)?.card?.image ?? null),
+            heroSkins: Array.from(
+                { length: 2 * n },
+                (_, slot) => party.members.find(m => m.slot === slot)?.card?.image ?? null
+            ),
             keys: new Set(party.members.map(m => m.identity.key)),
             ips: ipsHere,
             ...(party.mm && !plan.pvp ? { coop: true } : {}),
@@ -1216,6 +1233,33 @@ export class PartyRelay {
             humans: plan.humans.length,
             difficulty: plan.difficulty,
             ...(party.mm ? { mode: plan.pvp ? 'casual' : 'coop' } : {}),
+            ...(map ? { map, units } : {}),
+        });
+    }
+
+    /** Referee capacity units of the rooms held now (MAP-5V5.md §9.2: Hearthwood 3, Crossing 1). */
+    private liveUnits(): number {
+        let u = 0;
+        for (const r of this.rooms.values()) u += roomUnits(r.config);
+        return u;
+    }
+
+    /**
+     * Sim v19: point the shared sim module at this room's map before a decode on the main thread (`decodeCommand`
+     * reads the bound map's bounds and ping kinds; a Hearthwood move to y = 100 m is out of Crossing's 60 m).
+     * `checkPvpShape` of a stub record binds the map and stops at the seats; nothing else here runs a match.
+     */
+    private bindMapOf(live: LiveRoom): void {
+        if (!live.partySim.MAP_IDS || !live.partySim.checkPvpShape) return;
+        live.partySim.checkPvpShape({
+            v: 3,
+            mode: 'pvp',
+            simVersion: live.sim.version,
+            seed: 0,
+            difficulty: 'hard',
+            fillDifficulty: ['normal', 'normal'],
+            ...(live.config.map ? { map: live.config.map } : {}),
+            humans: [],
         });
     }
 
@@ -1234,6 +1278,7 @@ export class PartyRelay {
             simVersion: live.sim.version,
             ...(live.coop ? { mode: 'coop' as const } : {}),
             ...(live.casual ? { mode: 'casual' as const, species: live.casual.species } : {}),
+            ...(live.config.map ? { map: live.config.map, teamSize: teamSizeOfLive(live) } : {}),
         };
     }
 
@@ -1436,6 +1481,7 @@ export class PartyRelay {
             // the full sim decode runs BEFORE the command can enter a turn: bytes every client and the referee would
             // throw on (a cast slot 4, a bad talent, a ping kind out of range) never reach a TURN
             try {
+                this.bindMapOf(live);
                 live.partySim.decodeCommand(f.f.cmd);
             } catch {
                 return this.strike(s);
@@ -1713,6 +1759,7 @@ export class PartyRelay {
                     startMs: this.now(),
                     phaseMs: phaseOf(claimed._id),
                     pvp: claimed.config.mode === 'pvp',
+                    teamSize: claimed.config.map === 'hearthwood' ? 5 : 3,
                     restoredLog: bodies,
                     restoredSeq: claimed.lastSeq,
                     restoredPilotTicks: claimed.pilotTicks as never,
@@ -1722,7 +1769,7 @@ export class PartyRelay {
             room.unscored = claimed.unscored;
             room.openUnclaimedAt1800 = claimed.openUnclaimedAt1800;
             const seats = new Map<string, number>();
-            const names: (string | null)[] = [null, null, null, null, null, null];
+            const names: (string | null)[] = new Array(room.slotCount).fill(null);
             for (const o of claimed.occupants) names[o.slot] = o.name;
             const live: LiveRoom = {
                 room,
@@ -1738,7 +1785,7 @@ export class PartyRelay {
                 ticketed: claimed.occupants.some(o => o.ticketed),
                 referee: { lagTurns: room.nextTurn, restored: false },
                 ending: false,
-                heroSkins: [null, null, null, null, null, null],
+                heroSkins: new Array(room.slotCount).fill(null),
                 keys: new Set(),
                 ips: new Set(),
             };

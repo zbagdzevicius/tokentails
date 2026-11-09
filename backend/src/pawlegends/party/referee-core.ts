@@ -26,7 +26,12 @@ export interface RefereeConfig {
     /** Casual PvP (sim v16+): humans on both teams; the record is a PvpReplayRecord (v: 3). */
     mode?: 'pvp';
     fillDifficulty?: [string, string];
+    /** 5v5 Classic (sim v19+, MAP-5V5.md §9.1): 'hearthwood' plays 10 slots. Absent: Crossing (6). */
+    map?: 'crossing' | 'hearthwood';
 }
+
+/** Hero slots of a room on `map` (the wire carries up to MAX_HUMANS). */
+export const slotsOfConfig = (config: Pick<RefereeConfig, 'map'>): number => (config.map === 'hearthwood' ? 10 : 6);
 
 export interface RefereeEnd {
     winner: number;
@@ -71,9 +76,24 @@ export class RefereeRoom {
     nextTurn = 0;
     ended: RefereeEnd | null = null;
     private trailSeen = 0;
+    /** Hero slots of this room (6, or 10 on Hearthwood). */
+    private readonly slots: number;
+    /**
+     * Sim v19: an idle pilot whose `playerBotCommands` rebinds the sim's map to this match (an O(1) no-op when it is
+     * bound already). A worker steps rooms of both maps, and `decodeCommand` reads the bound map's bounds (a Hearthwood
+     * move to y = 100 m is out of Crossing's 60 m), so every decode runs with this room's map bound.
+     */
+    private readonly binder: PawlegendsPilot | null;
 
     constructor(readonly sim: PawlegendsPartySim, readonly config: RefereeConfig, private readonly flyPilots = true) {
         this.m = sim.createMatch(config);
+        this.slots = slotsOfConfig(config);
+        this.binder = sim.MAP_IDS ? sim.createPlayerBotFor(this.m, 'idle', 0) : null;
+    }
+
+    /** Bind this room's map before any decode outside `step` (sim v19+; older bundles have one map). */
+    private bindMap(): void {
+        if (this.binder) this.sim.playerBotCommands(this.m, this.binder);
     }
 
     get tick(): number {
@@ -87,9 +107,10 @@ export class RefereeRoom {
         this.nextTurn++;
         const out: TurnOutcome = { hashes: [], pilot: [], aliveMask: 0 };
         if (this.ended) return out;
-        const pilotOut: Uint8Array[][] = Array.from({ length: MAX_HUMANS }, () => []);
+        const pilotOut: Uint8Array[][] = Array.from({ length: this.slots }, () => []);
         for (let sub = 0; sub < TURN_TICKS; sub++) {
-            const per: PawlegendsCommand[][] = Array.from({ length: MAX_HUMANS }, () => []);
+            this.bindMap();
+            const per: PawlegendsCommand[][] = Array.from({ length: this.slots }, () => []);
             for (const e of f.entries) {
                 if (e.sub !== sub) continue;
                 // defence in depth: the relay decodes every command before a TURN; an entry that still does not
@@ -100,10 +121,10 @@ export class RefereeRoom {
                 } catch {
                     continue;
                 }
-                per[e.slot].push(c);
+                if (e.slot < this.slots) per[e.slot].push(c);
             }
             if (this.flyPilots) {
-                for (let s = 0; s < MAX_HUMANS; s++) {
+                for (let s = 0; s < this.slots; s++) {
                     if (!this.config.humans.includes(s) || ((f.modeMask >>> s) & 1) === 0) continue;
                     if (!this.pilots[s]) this.pilots[s] = this.sim.createPlayerBotFor(this.m, PILOT_PROFILE, s);
                     for (const c of this.sim.playerBotCommands(this.m, this.pilots[s]!))
@@ -130,7 +151,7 @@ export class RefereeRoom {
                 break;
             }
         }
-        for (let s = 0; s < MAX_HUMANS; s++) if (pilotOut[s].length) out.pilot.push({ slot: s, cmds: pilotOut[s] });
+        for (let s = 0; s < this.slots; s++) if (pilotOut[s].length) out.pilot.push({ slot: s, cmds: pilotOut[s] });
         out.aliveMask = this.sim.humanAliveMask(this.m);
         return out;
     }

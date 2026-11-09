@@ -5,7 +5,7 @@
 > on `main`, so 5v5 ships as **sim v19** with **v18 frozen** (at d904efbc), and "identical to the previous version" below
 > means identical to the released v18.
 
-**Status:** SIM lane built (sim v19, §12); the CLIENT+SERVER lane (§8, §9) is not started.
+**Status:** SIM lane built (sim v19, §12); SERVER lane built and soaked (§9, as built in §13); CLIENT lane (§8) in progress.
 **Branch:** `feat/pawlegends-5v5`, rebased on `main` after the sim v18 release (chase fix).
 **Request (founder, verbatim):** "create another map, which will be based on mobile legends 5x5 map. let's have 5x5 mode for that one."
 **Reading of the request:** add a second map that follows the usual mobile 5v5 MOBA layout, with a new 5v5 mode on it:
@@ -839,3 +839,81 @@ Fenceline towers (1.63 vs 1.20 a match) and dies more in every role, while first
 probe (a throwaway script: the same five heroes on both sides, mirrored pilot RNG) stays a perfect river mirror until the first
 minion contact (sequential minion updates), so the next step is a probe that compares hero-only skirmishes on mirrored
 positions to find the first systematic difference. No side handicap was added: it would hide the cause from players.
+
+## 13. SERVER lane: what is built (PROTO 4, 2026-11-09)
+
+Sim v19 was already vendored by the SIM lane (v10 to v18 frozen, §12); this lane added the wire, the rooms, the queue
+and the soak. Nothing here touches `src/sim`, `src/ui` or `src/render`.
+
+### 13.1 Wire (PROTO 4, `pawlegends/src/net/proto.ts`, vendored to `backend/src/vendor/pawlegends-net`)
+
+- `PROTO = 4`, `PROTO_CLASSIC = 4`; `MM_QUEUES` gains `'classic'`; `MAX_HUMANS = 10`.
+- TURN: the mode and ack masks are varints, and an entry's slot has a fourth bit at `0x20`. A mask below `0x80` is the
+  one byte PROTO 3 wrote, so every 3v3 TURN keeps its bytes (the PROTO 2 and 3 goldens in `net-proto.test.ts` are
+  unchanged); `MAX_FRAME[TURN]` 256 → 512.
+- `teamOfSlot(slot, teamSize = 3)`, `leadSlotOf(team, teamSize = 3)`, `teamSizeOfMap(map)`, `MAP_TEAM_SIZE`;
+  `clampSocialPoint(x, y, map?)` with Hearthwood's 128 m square.
+- `MatchConfigView.map`; `map` and `teamSize` on the `party.mm`, `match` and `mm.found` frames.
+- Client net code: `net-core.ts` passes `config.map` to `createMatch` and keeps ten slots; `net-host.ts` takes team 1's
+  lead ping from slot 5 on Hearthwood and clamps social points to the map.
+
+### 13.2 Backend
+
+- **Queue `classic`** (`mm/casual.ts`, `mm/matchmaker.ts`, `MM_CLASSIC` in `mm/mm-limits.ts`): `bestCasual` takes the
+  queue's rules (team size 5, up to five entries a team, 9 candidates per anchor). Bots fill at 45 s, a search never
+  moves to co-op, the pool is its own (`region|classic|sim`). `shapeRankN` is `shapeRank` exactly for team size 3.
+  A match carries `map: 'hearthwood'`; slots 0..4 and 5..9.
+- **Join** (`mm/mm-bridge.ts`): `classic` needs PROTO 4 and a sim whose `MAP_IDS` has `hearthwood`; anything older gets
+  `update_required` (a PROTO 3 code). The casual newbie lock, dodges and Accept card apply as in casual.
+- **Rating:** its own `classic` Glicko row (`rating.schema.ts`), seeded by the casual row, then co-op. The
+  `casualRatingStep` rates against the five foes of the other team; `/live` picks the row from `config.map`.
+- **Rooms** (`party/room.ts`): `RoomInit.teamSize` (3 or 5); a Hearthwood room has 10 slots, team 1 lead slot 5 (pings
+  and Forfeit), and a surrender needs a majority of a full team (2 of 3, 3 of 5; all when fewer are connected).
+- **Relay** (`party/party-relay.ts`): the room config carries `map`; picks come from `fillPicksParty(seed, seats, map)`;
+  ten names and skins; social targets and team scoping per team size; restored rooms keep their team size.
+- **Map binding (desync guard).** `decodeCommand` reads the bound map's bounds and ping kinds (a module-level binding in
+  the sim). The relay main thread binds the room's map before each command decode (`bindMapOf`), and the referee binds
+  its room's map before each turn's decode (an idle pilot's `playerBotCommands`). Without it a Hearthwood move to
+  y = 100 m decodes as out of map while a Crossing room was bound last (spec `classic-room.spec.ts` fails without it).
+- **Capacity:** `roomUnits(config)`: Hearthwood 3, Crossing 1. The relay's `maxLiveRooms` gate counts units, and the
+  referee pool puts a 3-unit room on its least-loaded worker.
+- **Caps (§2.5):** `PAWLEGENDS_LIMITS_BY_MAP`, `PAWLEGENDS_MAX_TICKS_ANY_MAP`, `PAWLEGENDS_MAX_INPUT_CHARS_ANY_MAP` in
+  `shared/caps.ts` (synced to the four copies); the replay DTO takes the longest map's bounds (the vendored sim checks
+  the record's own map); a party result slot goes to 9; the fastest-win merge accepts up to 16:00.
+- **Store:** `StoredRoom.config.map`, `MmRoomRecord.map` and queue `classic`.
+
+### 13.3 Soak (G9): 5v5 PvP, ten headless clients a room, local relay
+
+`CLASSIC_SHARE=1 MATCHES=4 CONCURRENCY=2 SEED=5105 node tests/e2e/mp/soak.mjs` (the production relay and worker
+referee pool in `backend/test/pawlegends-soak.harness.ts`, memory stores). Every client runs the game's own net code.
+
+| | Result |
+|---|---|
+| Rooms | 4 of 4 ok, 40 clients, 2 at a time |
+| Desyncs | **0**: 2,290 common 30-tick marks, 0 differ; 0 resyncs; relay `desyncs` 0, `divergences` 0 |
+| Verdicts | 4 of 4 verified (raw log re-sim, record, `verifyPvpReplay`); local replays re-sim to the same hash |
+| `/live` | 40 of 40 seats saved; the duplicate post refused (409) |
+| Drops | 5 planned (2 network drops, 2 reloads, 1 long absence a bot covered): every seat came back (rejoin p50 2.6 s, p95 3.5 s) |
+| Matches | 7:53 to 12:06 (scripted players push hard; every room ended by a core) |
+| Relay CPU | 831 ms per room-minute (1.4 % of one core per live 5v5 room, worker referee included) |
+| Relay memory | RSS +141 MB over 4 rooms (ts-node compiler in the heap; heap −160 MB at the end) |
+| Relay loop | loop delay p99 7.8 ms, turn overrun p99 7.3 ms, referee lag 0 turns, 0 refused |
+| Per room (clients) | 50 s CPU and 302 MB RSS for ten clients in one process; TURN gap p95 71 ms; log 95 KB |
+
+### 13.4 3v3 baseline and the capacity units
+
+The same harness right after, `PVP_SHARE=1 MATCHES=2 CONCURRENCY=2 SEED=5105` (casual 3v3, six clients a room): 2 of 2
+ok, 815 marks, 0 differ, 0 desyncs; relay 576 ms CPU per room-minute, RSS +84 MB, loop p99 2.8 ms; clients 18 s CPU and
+195 MB a room. A 5v5 room cost the relay **1.44×** a 3v3 room (831 / 576 ms per room-minute) and its ten clients
+2.8× the CPU of six. `roomUnits` stays at 3 (conservative: the samples are 4 and 2 rooms on a loaded machine); lower it
+to 2 after a longer run at production concurrency (`CLASSIC_SHARE=0.5 MATCHES=40 CONCURRENCY=8`).
+
+### 13.5 Open (server)
+
+- **Lone classic search.** A classic search with no second human never forms a match (both teams need a human, as in
+  casual); the client offers "Play with bots now" (local 5v5) after 45 s (§9.3). The relay sends nothing new for it.
+- **Subset search cost.** An anchor with nine solo candidates looks at up to ~100k team pairs; a duo + trio + five
+  solos spec takes about 0.35 s for the whole wait on this machine. Fine at today's queue sizes; cap `candidates` lower
+  if `mm.tick` shows in the relay loop delay.
+- **Backfill offers** to a classic seat carry no `map` field (the client shows the clock only).
+

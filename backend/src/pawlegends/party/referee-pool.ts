@@ -10,6 +10,12 @@ import { join } from 'path';
 import { Worker } from 'worker_threads';
 import { RefereeHost, type RefereeIn, type RefereeOut } from './referee-host';
 
+/**
+ * Referee capacity units of a room (MAP-5V5.md §9.2): a 5v5 Hearthwood room is 3 (about 4× the sim cost of a 3v3
+ * tick, with fewer human inputs), a 3v3 room 1, until G9 measures the real ratio.
+ */
+export const roomUnits = (config: { map?: string } | undefined): number => (config?.map === 'hearthwood' ? 3 : 1);
+
 interface Backend {
     post(m: RefereeIn): void;
     close(): Promise<void>;
@@ -69,6 +75,9 @@ function inlineBackend(onMsg: (m: RefereeOut) => void): Backend {
 export class RefereePool {
     private readonly backends: Backend[] = [];
     private readonly roomWorker = new Map<string, number>();
+    /** Capacity units per room and per worker (a heavy room goes to the least-loaded worker). */
+    private readonly roomUnits = new Map<string, number>();
+    private readonly workerUnits: number[] = [];
     private verifySeq = 0;
     private readonly verifies = new Map<number, (m: Extract<RefereeOut, { t: 'verified' }>) => void>();
     /** Messages for rooms (hash, pilot, progress, end, error). */
@@ -78,7 +87,10 @@ export class RefereePool {
 
     constructor(private readonly opts: RefereePoolOptions = {}) {
         const n = opts.inline ? 1 : opts.workers ?? defaultWorkers();
-        for (let i = 0; i < n; i++) this.backends.push(this.start(i));
+        for (let i = 0; i < n; i++) {
+            this.backends.push(this.start(i));
+            this.workerUnits.push(0);
+        }
     }
 
     private start(i: number): Backend {
@@ -92,7 +104,11 @@ export class RefereePool {
         if (this.opts.inline) return inlineBackend(onMsg);
         return spawnWorker(onMsg, () => {
             const lost = [...this.roomWorker].filter(([, w]) => w === i).map(([r]) => r);
-            for (const r of lost) this.roomWorker.delete(r);
+            for (const r of lost) {
+                this.roomWorker.delete(r);
+                this.roomUnits.delete(r);
+            }
+            this.workerUnits[i] = 0;
             this.backends[i] = this.start(i);
             if (lost.length) this.onWorkerLost?.(lost);
         });
@@ -102,17 +118,32 @@ export class RefereePool {
         return this.backends.length;
     }
 
-    private workerOf(room: string): number {
+    /** Capacity units of the open rooms (all workers). */
+    get units(): number {
+        return this.workerUnits.reduce((a, b) => a + b, 0);
+    }
+
+    /** Units per worker (stats, specs). */
+    get loadByWorker(): readonly number[] {
+        return this.workerUnits.slice();
+    }
+
+    private workerOf(room: string, units = 1): number {
         let w = this.roomWorker.get(room);
         if (w === undefined) {
+            // a 3v3 room keeps its hashed worker; a heavier room takes the least-loaded one (ties: the hashed one)
             w = createHash('sha256').update(room).digest().readUInt32BE(0) % this.backends.length;
+            if (units > 1)
+                for (let i = 0; i < this.workerUnits.length; i++) if (this.workerUnits[i] < this.workerUnits[w]) w = i;
             this.roomWorker.set(room, w);
+            this.roomUnits.set(room, units);
+            this.workerUnits[w] += units;
         }
         return w;
     }
 
     open(room: string, simVersion: number, simHash: string, config: Extract<RefereeIn, { t: 'open' }>['config']): void {
-        this.backends[this.workerOf(room)].post({ t: 'open', room, simVersion, simHash, config });
+        this.backends[this.workerOf(room, roomUnits(config))].post({ t: 'open', room, simVersion, simHash, config });
     }
 
     turn(room: string, body: Uint8Array): void {
@@ -122,8 +153,12 @@ export class RefereePool {
 
     close(room: string): void {
         const w = this.roomWorker.get(room);
-        if (w !== undefined) this.backends[w].post({ t: 'close', room });
+        if (w !== undefined) {
+            this.backends[w].post({ t: 'close', room });
+            this.workerUnits[w] = Math.max(0, this.workerUnits[w] - (this.roomUnits.get(room) ?? 1));
+        }
         this.roomWorker.delete(room);
+        this.roomUnits.delete(room);
     }
 
     /** §6 item 1: re-sim a stored room log and verify its record against the verdict (on a worker). */

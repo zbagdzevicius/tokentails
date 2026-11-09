@@ -5,7 +5,24 @@
  * teams, bots in the empty seats once the oldest entry waited `fillMs`.
  */
 import { entryRating, type MmEntry } from './matchmaker';
-import { MM_CASUAL } from './mm-limits';
+import { MM_CASUAL, MM_CLASSIC } from './mm-limits';
+
+/**
+ * The PvP queue a plan is built for: `casual` (3v3 on Purrhaven Crossing) or `classic` (5v5 on Hearthwood Divide,
+ * MAP-5V5.md §9.3). Same rules, different team size and limits.
+ */
+/** A queue's numbers, widened (casual and classic share the shape). */
+export type PvpLimits = {
+    readonly [K in keyof typeof MM_CASUAL]: typeof MM_CASUAL[K] extends number ? number : typeof MM_CASUAL[K];
+};
+export interface PvpQueueRules {
+    queue: 'casual' | 'classic';
+    teamSize: 3 | 5;
+    limits: PvpLimits;
+}
+export const CASUAL_RULES: PvpQueueRules = Object.freeze({ queue: 'casual', teamSize: 3, limits: MM_CASUAL });
+export const CLASSIC_RULES: PvpQueueRules = Object.freeze({ queue: 'classic', teamSize: 5, limits: MM_CLASSIC });
+export const pvpRulesOf = (queue: string): PvpQueueRules => (queue === 'classic' ? CLASSIC_RULES : CASUAL_RULES);
 
 export type Species = 'cat' | 'dog';
 
@@ -15,7 +32,7 @@ export interface CasualPlan {
     /** Species of each team. */
     species: [Species, Species];
     humans: [number, number];
-    /** Bots fill the empty seats (false: 3v3 humans). */
+    /** Bots fill the empty seats (false: every seat human). */
     fill: boolean;
     cost: number;
 }
@@ -49,22 +66,22 @@ export const BOT_RATING: Readonly<Record<'easy' | 'normal' | 'hard', number>> = 
  * A team's strength with its bots (three seats): humans at their ratings, each empty seat at the bot rating. This is
  * what the fairness rule and the cost use, so a 1v1 with two bots each side is judged on the whole team, not the human.
  */
-export function effectiveRating(group: readonly MmEntry[], botRating: number): number {
+export function effectiveRating(group: readonly MmEntry[], botRating: number, teamSize = 3): number {
     let sum = 0;
     let n = 0;
     for (const e of group) {
         sum += entryRating(e).r * e.members.length;
         n += e.members.length;
     }
-    return (sum + Math.max(0, 3 - n) * botRating) / 3;
+    return (sum + Math.max(0, teamSize - n) * botRating) / teamSize;
 }
 
 /** The predicted win chance of team A (Elo curve on the team means). */
 export const winChance = (ra: number, rb: number): number => 1 / (1 + Math.pow(10, (rb - ra) / 400));
 
 /** The rating window after `waitedMs` (§4.1): min(75 + 12·w, 400), widened by any member with rd above 200. */
-export function casualWindow(group: readonly MmEntry[], waitedMs: number): number {
-    const w = MM_CASUAL.window;
+export function casualWindow(group: readonly MmEntry[], waitedMs: number, limits: PvpLimits = MM_CASUAL): number {
+    const w = limits.window;
     const rd = Math.max(...group.flatMap(e => e.members.map(m => m.rating.rd)));
     return Math.min(w.base + w.perSecond * (waitedMs / 1000), w.max) + Math.max(0, rd - w.rdFree);
 }
@@ -82,6 +99,19 @@ export function shapeRank(a: number, b: number): number {
     return 99;
 }
 
+/**
+ * Shapes for any team size (5v5 Classic): full teams first, then the fuller smaller team, then the smaller gap
+ * (5v5, 4v4, 5v4, 3v3, 4v3, 5v3 ...). Team size 3 is `shapeRank` exactly.
+ */
+export function shapeRankN(a: number, b: number, teamSize: number): number {
+    if (teamSize === 3) return shapeRank(a, b);
+    const hi = Math.max(a, b);
+    const lo = Math.min(a, b);
+    if (lo < 1 || hi > teamSize) return 99;
+    if (hi === teamSize && lo === teamSize) return 0;
+    return 1 + (teamSize - lo) * teamSize + (hi - lo);
+}
+
 /** The species a group can play: those every entry's side allows (strict), or both once relaxed. */
 function speciesFor(group: readonly MmEntry[], relaxed: boolean): Species[] {
     if (relaxed) return ['cat', 'dog'];
@@ -94,9 +124,9 @@ function speciesFor(group: readonly MmEntry[], relaxed: boolean): Species[] {
 const sideMismatch = (group: readonly MmEntry[], species: Species): number =>
     group.filter(e => e.side !== 'any' && e.side !== species).length;
 
-/** Hard rules inside one team: one person once, at most three humans. */
-function teamOk(group: readonly MmEntry[]): boolean {
-    if (humansOf(group) > 3) return false;
+/** Hard rules inside one team: one person once, at most `teamSize` humans. */
+function teamOk(group: readonly MmEntry[], teamSize = 3): boolean {
+    if (humansOf(group) > teamSize) return false;
     const keys = new Set<string>();
     for (const e of group)
         for (const m of e.members) {
@@ -121,15 +151,21 @@ function apartOk(a: readonly MmEntry[], b: readonly MmEntry[]): boolean {
     return true;
 }
 
-/** Every subset of `cands` with up to `room` humans (and at most 3 entries), in candidate order. */
-function* subsets(cands: readonly MmEntry[], room: number, from = 0, acc: MmEntry[] = []): Generator<MmEntry[]> {
+/** Every subset of `cands` with up to `room` humans (and at most `maxEntries` entries), in candidate order. */
+function* subsets(
+    cands: readonly MmEntry[],
+    room: number,
+    maxEntries = 3,
+    from = 0,
+    acc: MmEntry[] = []
+): Generator<MmEntry[]> {
     yield acc;
-    if (acc.length >= 3) return;
+    if (acc.length >= maxEntries) return;
     for (let i = from; i < cands.length; i++) {
         const e = cands[i];
         if (e.members.length > room) continue;
         acc.push(e);
-        yield* subsets(cands, room - e.members.length, i + 1, acc);
+        yield* subsets(cands, room - e.members.length, maxEntries, i + 1, acc);
         acc.pop();
     }
 }
@@ -142,9 +178,11 @@ export function bestCasual(
     a: MmEntry,
     pool: readonly MmEntry[],
     nowMs: number,
-    order: Map<string, number>
+    order: Map<string, number>,
+    rules: PvpQueueRules = CASUAL_RULES
 ): CasualPlan | null {
-    const c = MM_CASUAL;
+    const c = rules.limits;
+    const n = rules.teamSize;
     const waited = nowMs - a.enqueuedMs;
     const relaxed = waited >= c.sideRelaxMs;
     const fillOk = waited >= c.fillMs;
@@ -152,25 +190,25 @@ export function bestCasual(
     const protect = waited < c.protectWidenMs;
     const protectedA = a.members.some(m => m.rating.rd > c.protectedRd);
     const cands = pool
-        .filter(o => o !== a && o.region === a.region && o.sim === a.sim && o.queue === 'casual')
+        .filter(o => o !== a && o.region === a.region && o.sim === a.sim && o.queue === rules.queue)
         .filter(o => !protect || o.members.some(m => m.rating.rd > c.protectedRd) === protectedA)
         .slice(0, c.candidates);
     let best: CasualPlan | null = null;
-    for (const mates of subsets(cands, 3 - a.members.length)) {
+    for (const mates of subsets(cands, n - a.members.length, n)) {
         const teamA = [a, ...mates];
-        if (!teamOk(teamA)) continue;
+        if (!teamOk(teamA, n)) continue;
         const ha = humansOf(teamA);
         const restA = cands.filter(o => !mates.includes(o));
-        for (const foes of subsets(restA, 3)) {
+        for (const foes of subsets(restA, n, n)) {
             if (!foes.length) continue;
             const teamB = [...foes];
-            if (!teamOk(teamB) || !apartOk(teamA, teamB)) continue;
+            if (!teamOk(teamB, n) || !apartOk(teamA, teamB)) continue;
             const hb = humansOf(teamB);
-            const rank = shapeRank(ha, hb);
+            const rank = shapeRankN(ha, hb, n);
             if (rank !== 0 && !fillOk) continue;
             if (rank >= 99) continue;
-            // a lone human never faces three while a 2-human team can still form (15 s after the fill)
-            if (rank === 5 && waited < c.fillMs + c.loneVsThreeMs) continue;
+            // a lone human never faces a full team while a 2-human team can still form (15 s after the fill)
+            if (Math.min(ha, hb) === 1 && Math.max(ha, hb) === n && waited < c.fillMs + c.loneVsThreeMs) continue;
             // parties face parties of the same size or larger until 40 s
             if (partyRule) {
                 const pa = Math.max(...teamA.map(e => e.members.length));
@@ -179,11 +217,11 @@ export function bestCasual(
             }
             const ra = teamRating(teamA);
             const rb = teamRating(teamB);
-            const window = casualWindow([...teamA, ...teamB], waited);
+            const window = casualWindow([...teamA, ...teamB], waited, c);
             if (Math.abs(ra - rb) > window) continue;
             // predicted on the whole team: both sides' bots play at one level, from the mean of every human
             const bot = BOT_RATING[matchFillDifficulty([teamA, teamB])];
-            const p = winChance(effectiveRating(teamA, bot), effectiveRating(teamB, bot));
+            const p = winChance(effectiveRating(teamA, bot, n), effectiveRating(teamB, bot, n));
             // every shape stays fair: predicted 40..60 % while the anchor waited less than `fairUntilMs`, then
             // within `fairAfter` (filled 1v1 and 3v1 included, so the widened window never seats a lopsided match)
             const fair = waited < c.fairUntilMs ? c.fairBand : c.fairAfter;
