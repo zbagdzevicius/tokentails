@@ -1,5 +1,5 @@
 /**
- * Sim v18 (docs/plans/moba/MAP-5V5.md §7): the 5v5 Hearthwood gates' match runners, bundled for Node by
+ * Sim v19 (docs/plans/moba/MAP-5V5.md §7): the 5v5 Hearthwood gates' match runners, bundled for Node by
  * tools/hearth-gates.mjs and used by tests/unit/hearthwood.test.ts.
  *
  * - hearthSoloPlay / hearthPartyPlay / hearthPvpPlay (G2 determinism): a full match with player-bot pilots and random

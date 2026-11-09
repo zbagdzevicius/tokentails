@@ -3,7 +3,7 @@ export const TOWERS = Object.freeze({
   /** Sim v4: outer 1,800 and inner 2,200 HP (2,500 and 3,000 before); Rookie × DIFFICULTY_RULES.structureHpBp. */
   outer: Object.freeze({ hp: 1800, armour: 40, range: 7000, attackEvery: 30 }),
   inner: Object.freeze({ hp: 2200, armour: 50, range: 7000, attackEvery: 30 }),
-  /** Sim v18 (Hearthwood): the gate towers and the Hearth Guards (their HP and armour come from the map's spots). */
+  /** Sim v19 (Hearthwood): the gate towers and the Hearth Guards (their HP and armour come from the map's spots). */
   gate: Object.freeze({ hp: 3200, armour: 55, range: 7000, attackEvery: 30 }),
   hearth: Object.freeze({ hp: 3000, armour: 55, range: 7000, attackEvery: 30 }),
   /** Damage to heroes, +20% per consecutive hit on the same hero, capped at +60% (v4: 90 / 20% / 60%, was 150 / 25% / 100%). */

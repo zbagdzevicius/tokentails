@@ -14,7 +14,7 @@ import { MAP, MAX_CELLS, NAV } from '../../data/map';
 import { NX, NY, cellOf, centreX, centreY, escapeCell, lineClear, snapCell, walkable, type NavGrid } from '../map/grid';
 import { idiv } from '../fixed';
 
-/** Sim v18: sized for the largest map (heap keys order by f, then cell, on any span above the cell count). */
+/** Sim v19: sized for the largest map (heap keys order by f, then cell, on any span above the cell count). */
 const SIZE = MAX_CELLS;
 /** Power of two above SIZE: heap keys are f × CELL_SPAN + cell. */
 const CELL_SPAN = (() => {
@@ -82,7 +82,7 @@ function octile(a: number, b: number): number {
   return STRAIGHT * Math.max(dx, dy) + (DIAG - STRAIGHT) * Math.min(dx, dy);
 }
 
-/** Sim v18: the running query mirrors its tie-breaks across the river (findPath, team 1 on a point map). */
+/** Sim v19: the running query mirrors its tie-breaks across the river (findPath, team 1 on a point map). */
 let mir = false;
 /** The tie-break index of cell `c` (its own index, or the river mirror's), and back. */
 function tieOf(c: number): number {
@@ -169,7 +169,7 @@ export function findPath(
   // Sim v16 (MAP-GAPS B15): a team's search also avoids the enemy fountain (grid.foe[team]), unless it starts inside it.
   const layer = team >= 0 && grid.foe ? grid.foe[team] : null;
   foe = layer !== null && layer[cellOf(sx, sy)] === 0 ? layer : null;
-  // Sim v18 (point maps): team 1's search is the river mirror of team 0's (ties below).
+  // Sim v19 (point maps): team 1's search is the river mirror of team 0's (ties below).
   mir = MAP.point === 1 && team === 1 && NX === NY;
   // Sim v16 (MAP-GAPS B1): a start deeper in a wall than NAV.snapCells escapes by BFS to the nearest walkable cell.
   const startRaw = snapCell(grid, cellOf(sx, sy), mir);
@@ -189,7 +189,7 @@ export function findPath(
     closed.fill(0);
     stamp = 1;
   }
-  // Sim v18 (point maps): team 1's search is the river mirror of team 0's, (i, j) → (N − 1 − j, N − 1 − i): its ties
+  // Sim v19 (point maps): team 1's search is the river mirror of team 0's, (i, j) → (N − 1 − j, N − 1 − i): its ties
   // break on the mirrored cell index and it tries the mirrored neighbours in the same order, so on the mirror-symmetric
   // map both teams walk mirror-image paths (Crossing and team 0: unchanged).
   heapN = 0;

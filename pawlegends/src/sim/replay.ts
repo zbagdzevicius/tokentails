@@ -17,7 +17,7 @@ export interface ReplayRun {
 
 /** Decode `record.inputs`; throws DecodeError on a malformed stream or a command at or after `ticks` (trailing input). */
 export function replayCommands(record: Pick<ReplayRecord, 'inputs' | 'ticks' | 'map'>): TimedCommand[] {
-  // Sim v18: decoded against the record's map (its bounds and limits).
+  // Sim v19: decoded against the record's map (its bounds and limits).
   bindMap(mapIndex(record.map));
   return decodeStream(fromBase64(record.inputs), Math.min(record.ticks, MAX_TICKS) - 1);
 }

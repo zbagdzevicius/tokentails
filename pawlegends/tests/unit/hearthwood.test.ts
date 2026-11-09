@@ -1,5 +1,5 @@
 /**
- * Sim v18: 5v5 Classic on Hearthwood Divide (docs/plans/moba/MAP-5V5.md §7 gates G2, G3, G4). The map is a 180° point
+ * Sim v19: 5v5 Classic on Hearthwood Divide (docs/plans/moba/MAP-5V5.md §7 gates G2, G3, G4). The map is a 180° point
  * reflection (and symmetric across its main diagonal), every lane and camp is fair to both teams, a 5v5 match runs to
  * its end and replays bit for bit, and a Crossing match beside it is untouched by the map switching.
  */
@@ -266,7 +266,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(grizz).toBeGreaterThan(0);
     const rec = replayRecord(m)!;
     expect(rec.map).toBe('hearthwood');
-    expect(rec.simVersion).toBe(18);
+    expect(rec.simVersion).toBe(19);
     expect(verifyReplay(rec)).toMatchObject({ ok: true, finalHash: rec.finalHash });
     expect(verifyReplay({ ...rec, map: undefined }).ok).toBe(false);
     expect(verifyReplay({ ...rec, map: 'atlantis' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });

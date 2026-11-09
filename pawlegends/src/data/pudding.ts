@@ -36,7 +36,7 @@ export const PUD_STATE = Object.freeze({
 
 export type PuddingStats = { readonly [K in keyof typeof C_PUDDING]: number };
 export const CROSSING_PUDDING: PuddingStats = C_PUDDING;
-/** Sim v18 (MAP-5V5.md §1.7): the Great Pudding of Hearthwood, a bigger calm meter and a stronger escort. */
+/** Sim v19 (MAP-5V5.md §1.7): the Great Pudding of Hearthwood, a bigger calm meter and a stronger escort. */
 export const HEARTHWOOD_PUDDING: PuddingStats = Object.freeze({
   ...C_PUDDING,
   calm: 7000,

@@ -39,7 +39,7 @@ const roles = (side: 'cat' | 'dog'): Record<HeroRole, number> => {
 
 describe('sim v15: ten dogs', { timeout: 300000 }, () => {
   it('SIM_VERSION 15, PARTY_SINCE 13; 20 heroes, 10 a side with the same roles; the three new dogs at 17..19', () => {
-    expect(SIM_VERSION).toBe(18);
+    expect(SIM_VERSION).toBe(19);
     expect(PARTY_SINCE).toBe(13);
     expect(HERO_IDS).toHaveLength(20);
     expect(HERO_IDS.slice(17)).toEqual([...NEW_DOGS]);
@@ -91,10 +91,12 @@ describe('sim v15: ten dogs', { timeout: 300000 }, () => {
     expect([...seen].sort()).toEqual(['dots', 'footlong', 'zzz']);
   });
 
-  it('the vendored v18 new-dog fixture is a Frankie replay at sim v18; the frozen v17, v16, v15 and v14 fixtures keep their versions', () => {
-    const live = JSON.parse(readFileSync(join(VENDOR, 'v18', 'new-dog-replay.fixture.json'), 'utf8')) as ReplayRecord;
-    expect(live.simVersion).toBe(18);
+  it('the vendored v19 new-dog fixture is a Frankie replay at sim v19; the frozen v18, v17, v16, v15 and v14 fixtures keep their versions', () => {
+    const live = JSON.parse(readFileSync(join(VENDOR, 'v19', 'new-dog-replay.fixture.json'), 'utf8')) as ReplayRecord;
+    expect(live.simVersion).toBe(19);
     expect(live.hero).toBe('frankie');
+    const v18 = JSON.parse(readFileSync(join(VENDOR, 'v18', 'new-dog-replay.fixture.json'), 'utf8')) as ReplayRecord;
+    expect(v18.simVersion).toBe(18);
     const v17 = JSON.parse(readFileSync(join(VENDOR, 'v17', 'new-dog-replay.fixture.json'), 'utf8')) as ReplayRecord;
     expect(v17.simVersion).toBe(17);
     const v16 = JSON.parse(readFileSync(join(VENDOR, 'v16', 'new-dog-replay.fixture.json'), 'utf8')) as ReplayRecord;

@@ -33,7 +33,7 @@ export function stepBonuses(w: World): void {
     if (w.nineT[id] > 0) w.nineT[id]--;
     if (w.packT[id] > 0) w.packT[id]--;
   }
-  // Sim v18 (Hearthwood): the jungle buffs and the Hoard shield tick down (dead heroes lost theirs at death).
+  // Sim v19 (Hearthwood): the jungle buffs and the Hoard shield tick down (dead heroes lost theirs at death).
   if (w.mg.length > 0) {
     for (let id = RANGE.heroes; id < RANGE.minions; id++) {
       if (w.mg[MG.Prickle + id] > 0) w.mg[MG.Prickle + id]--;

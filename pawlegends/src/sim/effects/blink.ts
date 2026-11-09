@@ -20,7 +20,7 @@ export function blink(m: MatchHandle, id: number, tx: number, ty: number, maxDis
   // Sim v16 (MAP-GAPS B2): no blink across the own gate before the barrier drops.
   let bx = gateClampX(w, id, w.x[id] + dx);
   let by = w.y[id] + dy;
-  // Sim v18: on a point map the gate is the diagonal.
+  // Sim v19: on a point map the gate is the diagonal.
   if (MAP.point === 1) {
     gateClampXY(w, id, w.x[id] + dx, w.y[id] + dy);
     bx = gateOut[0];

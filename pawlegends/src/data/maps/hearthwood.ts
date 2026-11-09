@@ -1,5 +1,5 @@
 /**
- * Hearthwood Divide (sim v18, docs/plans/moba/MAP-5V5.md §1): the 5v5 Classic map. 128 × 128 m, integer mm, origin
+ * Hearthwood Divide (sim v19, docs/plans/moba/MAP-5V5.md §1): the 5v5 Classic map. 128 × 128 m, integer mm, origin
  * bottom-left. Team 0's base is in the bottom-left corner, team 1's in the top-right: team 1's half is the 180° point
  * reflection of team 0's, (x, y) → (W − x, H − y). Team 0's half is itself symmetric under the main-diagonal swap
  * (x, y) → (y, x), so only its south eighth (y ≤ x, x + y ≤ W) is authored; `swap` gives its west eighth.
@@ -202,7 +202,7 @@ export const HEARTHWOOD: MapDef = Object.freeze({
 /** Grizzlechop's pit centre (the boss camp), for the bots and the tests. */
 export const GRIZZLECHOP_PIT = Object.freeze({ x: PIT.x, y: PIT.y });
 
-/** Sim v18: Hearthwood's own rules (MAP-5V5.md §1.9): respawn × 1.3 capped at 25 s; XP needed and Fish income scale. */
+/** Sim v19: Hearthwood's own rules (MAP-5V5.md §1.9): respawn × 1.3 capped at 25 s; XP needed and Fish income scale. */
 export const HEARTHWOOD_RULES = Object.freeze({
   respawnBp: 13000,
   respawnCap: 750,
@@ -217,21 +217,13 @@ export const CROSSING_CAMERA_YAW = -38;
 export const HEARTHWOOD_CAMERA_YAW = 0;
 
 /**
- * Sim v18 (MAP-5V5.md §5 S6): Hearthwood's hero-vs-hero tuning on top of each hero's `pvp` row (the 3v3 rows do not
- * move): per species, then per hero (missing = 10000). Five-a-side fights favoured the dogs (cats won 41% of 300
- * mirrored PvP matches before this row; 64% with cats × 1.08 dealt, × 0.93 taken), so the cats hit a little harder
- * and take a little less here.
+ * Sim v19 (MAP-5V5.md §5 S6): Hearthwood's hero-vs-hero tuning on top of each hero's `pvp` row (the 3v3 rows do not
+ * move): per species, then per hero (missing = 10000). On the sim v17 base the dogs won five-a-side fights (cats 41% of
+ * 300 mirrored PvP matches) and a cats row of × 1.03 dealt, × 0.97 taken evened it; the released v18 rebalance moved
+ * the 3v3 rows enough that the same row put the cats at 60% (neutral: 44%), so the cats row is × 1.012 / × 0.988.
  */
 export const HEARTHWOOD_PVP = Object.freeze({
-  cat: Object.freeze({ dmgBp: 10300, takenBp: 9700 }),
+  cat: Object.freeze({ dmgBp: 10120, takenBp: 9880 }),
   dog: Object.freeze({ dmgBp: 10000, takenBp: 10000 }),
-  // Heroes that stayed outside 46–54% over the 300-match runs after the species row (MAP-5V5.md §12.6).
-  hero: Object.freeze({
-    clem: Object.freeze({ dmgBp: 10900, takenBp: 9300 }),
-    stilts: Object.freeze({ dmgBp: 10500, takenBp: 9500 }),
-    rocket: Object.freeze({ dmgBp: 9500, takenBp: 10500 }),
-    gabe: Object.freeze({ dmgBp: 9600, takenBp: 10300 }),
-    pixel: Object.freeze({ dmgBp: 9600, takenBp: 10300 }),
-    marshmallow: Object.freeze({ dmgBp: 9500, takenBp: 10400 }),
-  }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
+  hero: Object.freeze({}) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

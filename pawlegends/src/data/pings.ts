@@ -7,7 +7,7 @@
 
 /** Ping kinds in stream order (the `kind` byte of Op.Ping is the index). */
 export const PING_KINDS = Object.freeze(['goHere', 'group', 'pudding', 'pushSunny', 'pushPuddle', 'defend', 'fallBack', 'focus', 'pushFence', 'pushYarn', 'pushGutter', 'grizzlechop'] as const);
-/** Sim v18: Crossing takes the first 8 kinds only (v17's); the Hearthwood kinds (push a lane, Grizzlechop) are refused there. */
+/** Sim v19: Crossing takes the first 8 kinds only (v18's); the Hearthwood kinds (push a lane, Grizzlechop) are refused there. */
 export const CROSSING_PING_KINDS = 8;
 export type PingKind = (typeof PING_KINDS)[number];
 
@@ -21,7 +21,7 @@ export const PING_KIND = Object.freeze({
   Defend: 5,
   FallBack: 6,
   Focus: 7,
-  /** Sim v18 (Hearthwood): push Fenceline, Yarn Road, Gutterway; take Grizzlechop. */
+  /** Sim v19 (Hearthwood): push Fenceline, Yarn Road, Gutterway; take Grizzlechop. */
   PushFence: 8,
   PushYarn: 9,
   PushGutter: 10,

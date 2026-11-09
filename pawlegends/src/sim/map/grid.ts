@@ -7,7 +7,7 @@
 import { ACTIVE_MAP, FOUNTAIN, LANES, LANE_PARTNER, LANE_WAYPOINTS, MAP, MAX_CELLS, NAV, PLAYFIELD, RADIUS, WALLS, mirrorX, mirrorY } from '../../data/map';
 import { idiv } from '../fixed';
 
-/** Grid size of the active map (sim v18: live, `rebindGrid`). */
+/** Grid size of the active map (sim v19: live, `rebindGrid`). */
 export let NX = idiv(MAP.width, MAP.navCell);
 export let NY = idiv(MAP.height, MAP.navCell);
 let HALF = idiv(MAP.navCell, 2);
@@ -45,7 +45,7 @@ function markRect(a: Uint8Array, x0: number, y0: number, x1: number, y1: number)
 }
 
 /**
- * A lane's centre line from team 0's core to team 1's core: its own waypoints, then (sim v18) its partner lane's
+ * A lane's centre line from team 0's core to team 1's core: its own waypoints, then (sim v19) its partner lane's
  * reflected back (Crossing: the same lane mirrored; Hearthwood: Fenceline continues on Gutterway's reflection).
  */
 function laneLine(lane: number): number[] {
@@ -90,7 +90,7 @@ function insideRing(px: number, py: number, ring: readonly number[]): boolean {
   return inside;
 }
 
-/** Is the point on the playfield (data/map.ts PLAYFIELD)? Sim v18: on an open map, everything inside the rim. */
+/** Is the point on the playfield (data/map.ts PLAYFIELD)? Sim v19: on an open map, everything inside the rim. */
 export function onPlayfield(x: number, y: number): boolean {
   const rim = PLAYFIELD.rim;
   if (x < rim || y < rim || x > MAP.width - rim || y > MAP.height - rim) return false;
@@ -110,7 +110,7 @@ export function nearLane(x: number, y: number, r: number): boolean {
   return false;
 }
 
-/** Sim v18: the index of the lane whose centre line is nearest (x, y) (squared distance; ties: the lower index). */
+/** Sim v19: the index of the lane whose centre line is nearest (x, y) (squared distance; ties: the lower index). */
 export function nearestLane(x: number, y: number): number {
   let best = 0;
   let bestD = -1;
@@ -156,7 +156,7 @@ function loopOf(): readonly number[] {
 /** Per map: the lane lines, the loop and the static walls, built once (src/sim/map/runtime.ts bindMap). */
 const BUILT: { id: string; lines: readonly (readonly number[])[]; loop: readonly number[]; walls: Uint8Array; foe: readonly Uint8Array[] }[] = [];
 
-/** Sim v18: point the grid at the active map (its size, lane lines, loop; the static walls are built on first use). */
+/** Sim v19: point the grid at the active map (its size, lane lines, loop; the static walls are built on first use). */
 export function rebindGrid(): void {
   NX = idiv(MAP.width, MAP.navCell);
   NY = idiv(MAP.height, MAP.navCell);
@@ -253,7 +253,7 @@ export function lineClear(g: NavGrid, ax: number, ay: number, bx: number, by: nu
 }
 
 /**
- * The nearest walkable cell to `c` within NAV.snapCells rings (ties: lowest index), or −1. Sim v18: `mirror` breaks
+ * The nearest walkable cell to `c` within NAV.snapCells rings (ties: lowest index), or −1. Sim v19: `mirror` breaks
  * ties on the river-mirrored index instead (team 1's searches on a point map, nav/astar.ts).
  */
 export function snapCell(g: NavGrid, c: number, mirror = false): number {
@@ -282,7 +282,7 @@ export function snapCell(g: NavGrid, c: number, mirror = false): number {
   return -1;
 }
 
-/** Sim v18: cell `c`'s index under the river mirror (i, j) → (N − 1 − j, N − 1 − i) (square grids). */
+/** Sim v19: cell `c`'s index under the river mirror (i, j) → (N − 1 − j, N − 1 − i) (square grids). */
 export const mirrorIndex = (c: number): number => (NX - 1 - (c % NX)) * NX + (NY - 1 - idiv(c, NX));
 
 /** BFS scratch (escapeCell): reset by a stamp per query, so nothing survives a query. */

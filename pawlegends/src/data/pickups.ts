@@ -41,7 +41,7 @@ const C_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = O
 export const SNACK_BEHIND = 4000;
 
 export const CROSSING_FRENZY_SPOTS = C_FRENZY_SPOTS;
-/** Sim v18: Hearthwood's Frenzy pairs, each spot the other's reflection, all on the river. */
+/** Sim v19: Hearthwood's Frenzy pairs, each spot the other's reflection, all on the river. */
 export const HEARTHWOOD_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = Object.freeze([
   Object.freeze([80000, 48000, 48000, 80000] as const),
   Object.freeze([108000, 20000, 20000, 108000] as const),

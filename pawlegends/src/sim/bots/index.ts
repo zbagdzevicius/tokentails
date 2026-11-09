@@ -55,7 +55,7 @@ export function botParams(m: MatchHandle, slot: number): BotParams {
 }
 
 /**
- * Bots think every TIMELINE.botThinkEvery ticks, staggered by slot. Sim v18 (5v5): team 1's slot k thinks half a period
+ * Bots think every TIMELINE.botThinkEvery ticks, staggered by slot. Sim v19 (5v5): team 1's slot k thinks half a period
  * after team 0's slot k, as on the 3v3 map (slots 3 apart); slot + 5 would let team 1 think one tick before its
  * counterpart every time, a reaction edge for one side.
  */
@@ -103,7 +103,7 @@ export function createPlayerBot(m: MatchHandle, profile: PlayerProfile): PlayerB
  */
 export function createPlayerBotFor(m: MatchHandle, profile: PlayerProfile, slot: number): PlayerBot {
   bindWorld(m.world);
-  // Sim v16 PvP: a pilot may drive any of the six slots, and the pinger drives either lead (0 or 3). Sim v18: per map.
+  // Sim v16 PvP: a pilot may drive any of the six slots, and the pinger drives either lead (0 or 3). Sim v19: per map.
   const max = m.pvp ? SLOT_COUNT : SLOTS_PER_TEAM;
   if (!Number.isInteger(slot) || slot < 0 || slot >= max) throw new RangeError(`player-bot slot ${String(slot)} is not 0 to ${max - 1}`);
   if (profile === 'pinger' && slot !== HUMAN_SLOT && !(m.pvp && slot === PVP_LEAD1)) throw new RangeError('the pinger profile drives a lead slot only');

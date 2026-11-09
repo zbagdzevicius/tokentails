@@ -114,7 +114,7 @@ export function refreshFlags(w: World): void {
         if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
         if (w.nineT[id] > 0) b |= Buff.NineLives;
         if (w.packT[id] > 0) b |= Buff.Pack;
-        // Sim v18 (Hearthwood).
+        // Sim v19 (Hearthwood).
         if (w.mg.length > 0) {
           if (w.mg[MG.Prickle + id] > 0) b |= Buff.Prickle;
           if (w.mg[MG.Feather + id] > 0) b |= Buff.Feather;

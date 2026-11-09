@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Sim v18 5v5 gates on Hearthwood Divide (docs/plans/moba/MAP-5V5.md §7):
+ * Sim v19 5v5 gates on Hearthwood Divide (docs/plans/moba/MAP-5V5.md §7):
  *
  *   node tools/hearth-gates.mjs [--seeds 300] [--from 1] [--procs N] [--det 40] [--json]
  *

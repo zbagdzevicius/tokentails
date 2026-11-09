@@ -2,7 +2,7 @@
  * Camps (POC.md §5). Crossing: one camp of two rats per side, the Purrhaven one at RAT_CAMP and the Woof one mirrored;
  * up at 0:30 (TIMELINE.campsUp) and 60 s after both rats of a camp fell; clearing one gives the Pack buff.
  *
- * Sim v18 Hearthwood (MAP-5V5.md §1.6, §1.7): twelve jungle camps (per quadrant a buff camp, the Rat Nest and the Frog
+ * Sim v19 Hearthwood (MAP-5V5.md §1.6, §1.7): twelve jungle camps (per quadrant a buff camp, the Rat Nest and the Frog
  * Pond) and Captain Grizzlechop's pit. The buff camps give their last hitter Prickle Coat or Feather; Grizzlechop
  * gives the team that takes him Fish, XP and the Hoard shield. Camp timers live in `mg` (MG.CampAt).
  *
@@ -38,7 +38,7 @@ export let BOSS_CAMP = -1;
 
 const BUILT: { key: object; camp: Int32Array; x: Int32Array; y: Int32Array; first: Int32Array; n: Int32Array; boss: number }[] = [];
 
-/** Sim v18: the active map's camp tables (src/sim/map/runtime.ts bindMap). */
+/** Sim v19: the active map's camp tables (src/sim/map/runtime.ts bindMap). */
 export function rebindCamps(): void {
   for (let i = 0; i < BUILT.length; i++) {
     if (BUILT[i].key === CAMPS) {
@@ -92,7 +92,7 @@ export const campX = (c: number): number => (c === 0 ? RAT_CAMP.x : mirrorX(RAT_
 const homeX = (id: number): number => MON_X[id - RANGE.camps];
 const homeY = (id: number): number => MON_Y[id - RANGE.camps];
 
-/** The camp timer: Crossing's two in `globals` (as in v17), Hearthwood's in `mg`. */
+/** The camp timer: Crossing's two in `globals` (as in v18), Hearthwood's in `mg`. */
 const campAt = (w: World, c: number): number => (w.mg.length === 0 ? w.globals[c === 0 ? G.CampAt0 : G.CampAt1] : w.mg[MG.CampAt + c]);
 function setCampAt(w: World, c: number, v: number): void {
   if (w.mg.length === 0) w.globals[c === 0 ? G.CampAt0 : G.CampAt1] = v;
@@ -131,7 +131,7 @@ function spawnRat(w: World, id: number): void {
   w.moveX[id] = w.x[id];
   w.moveY[id] = w.y[id];
   w.moveCarry[id] = 0;
-  // Crossing: facing as in v17. Hearthwood: toward the map centre.
+  // Crossing: facing as in v18. Hearthwood: toward the map centre.
   w.facing[id] = w.mg.length === 0 ? (c === 0 ? ANGLE_STEPS >> 1 : 0) : CAMPS[c].side === 1 ? (ANGLE_STEPS * 5) >> 3 : ANGLE_STEPS >> 3;
   w.state[id] = UnitState.Idle;
   w.target[id] = -1;
@@ -181,7 +181,7 @@ export function packBuff(m: MatchHandle, team: number): void {
 }
 
 /**
- * Step 7, sim v18 (Hearthwood): the rewards of camp monster `id` (killed by team `team`, −1 none): a buff camp's buff
+ * Step 7, sim v19 (Hearthwood): the rewards of camp monster `id` (killed by team `team`, −1 none): a buff camp's buff
  * to its last hitter, Grizzlechop's team reward. Crossing's rats keep the Pack buff (`packBuff`, by the caller).
  */
 export function campReward(m: MatchHandle, id: number, team: number): void {
@@ -204,7 +204,7 @@ export function giveJungleBuff(m: MatchHandle, h: number, kind: 'prickle' | 'fea
 }
 
 /**
- * Sim v18 (Hearthwood) buff steal: hero `victim` fell with a jungle buff; its takedown credit `killer` (a hero, or −1)
+ * Sim v19 (Hearthwood) buff steal: hero `victim` fell with a jungle buff; its takedown credit `killer` (a hero, or −1)
  * takes the time left (MAP-5V5.md §1.6). Without a hero killer the buff is lost.
  */
 export function stealJungleBuffs(m: MatchHandle, victim: number, killer: number): void {
@@ -318,7 +318,7 @@ export function stepCamps(m: MatchHandle): void {
       const by = w.lastHitBy[id];
       if (by >= 0 && tick - w.hurtTick[id] <= 1 && by < RANGE.towers && targetable(w, by, TEAM_NEUTRAL)) t = by;
       else {
-        // A camp mate's target (Crossing: the one other rat, as in v17).
+        // A camp mate's target (Crossing: the one other rat, as in v18).
         for (let k = 0; k < CAMP_N[c] && t < 0; k++) {
           const mate = firstRat(c) + k;
           if (mate !== id && w.alive[mate] === 1 && w.waypoint[mate] === 0 && w.target[mate] >= 0 && targetable(w, w.target[mate], TEAM_NEUTRAL)) t = w.target[mate];

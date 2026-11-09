@@ -1,7 +1,12 @@
-# Pawlegends 5v5 Classic on Hearthwood Divide (sim v18 plan, 2026-11-09)
+# Pawlegends 5v5 Classic on Hearthwood Divide (sim v19 plan, 2026-11-09)
 
-**Status:** SIM lane built (sim v18, §12); the CLIENT+SERVER lane (§8, §9) is not started.
-**Branch:** `feat/pawlegends-5v5`, cut from `feat/pawlegends-v17` (sim v17, not released yet).
+> **Version note (2026-11-09):** this plan was written as sim v18 on top of the unreleased v17. While it was built,
+> `main` released v17 (frozen at 451206ab) and v18 (the chase fix, docs/plans/moba/V18-CHASE.md). The branch was rebased
+> on `main`, so 5v5 ships as **sim v19** with **v18 frozen** (at d904efbc), and "identical to the previous version" below
+> means identical to the released v18.
+
+**Status:** SIM lane built (sim v19, §12); the CLIENT+SERVER lane (§8, §9) is not started.
+**Branch:** `feat/pawlegends-5v5`, rebased on `main` after the sim v18 release (chase fix).
 **Request (founder, verbatim):** "create another map, which will be based on mobile legends 5x5 map. let's have 5x5 mode for that one."
 **Reading of the request:** add a second map that follows the usual mobile 5v5 MOBA layout, with a new 5v5 mode on it:
 - a diagonal base-to-base map;
@@ -41,7 +46,7 @@ The genre conventions are fine to use. The geometry, names and art are our own: 
 | River objectives | Pudding (centre) | **Captain Grizzlechop** (early, south-east river pit: team Fish and a shield) and **Great Pudding** (late, north-west river pit: escorts a push) |
 | Match length | p50 about 7 min, safety end 11:00 | target p50 12:00 to 14:30, safety end 16:00 |
 | Entities | 63 (2 hit-mask words) | 150 (5 hit-mask words) |
-| Sim | v17 | **v18**. v17 is frozen. On Crossing, v18 gives the same hash as v17 (gate G1) |
+| Sim | v18 | **v19**. v18 is frozen. On Crossing, v19 gives the same hash as v18 (gate G1) |
 
 The work splits into a **SIM lane** (§3 to §7) and a **CLIENT+SERVER lane** (§8 and §9). The two lanes meet at the interface in §2. Once phase S2 publishes `mapInfo('hearthwood')`, the client lane can build everything against it, before 5v5 gameplay works.
 
@@ -126,7 +131,7 @@ Spots are for team 0. The other side lane is the `swap`, and team 1's spots are 
 
 ### 1.5 River
 
-- The river is the band `|x + y − 128000| ≤ 7071`, about 10 m wide. It is walkable and only changes the look. There is no river slow in v18.
+- The river is the band `|x + y − 128000| ≤ 7071`, about 10 m wide. It is walkable and only changes the look. There is no river slow in v19.
 - The centre crossing (64000, 64000) sits on Yarn Road.
 - **Grizzlechop pit:** centre (92000, 36000). **Great Pudding pit:** centre (36000, 92000). Both lie on the river axis.
 - Each pit is a ring of rocks, radius 7 m, with three openings:
@@ -249,13 +254,13 @@ Everything the client, the relay and the backend need comes through `src/sim/api
 ### 2.1 Match setup
 
 ```ts
-// api.ts (sim v18)
+// api.ts (sim v19)
 export type MapId = 'crossing' | 'hearthwood';
 export const MAP_IDS: readonly MapId[];               // ['crossing', 'hearthwood']; append only
 
 export interface MatchConfig {
-  // ... every v17 field, unchanged
-  /** Sim v18. Omitted = 'crossing' (every v17 replay, byte-identical). */
+  // ... every v18 field, unchanged
+  /** Sim v19. Omitted = 'crossing' (every v18 replay, byte-identical). */
   map?: MapId;
   /** Length 2 × teamSize(map): 6 on Crossing, 10 on Hearthwood. */
   picks: readonly HeroId[];
@@ -271,7 +276,7 @@ export const leadOf = (team: Team, map: MapId = 'crossing'): number;       // 0 
 export function fillPicks(config, ...)                                     // fills 2 × teamSize, same species rule per team
 ```
 
-`SLOTS_PER_TEAM`, `SLOT_COUNT` and `PVP_LEAD1` stay exported with their Crossing values for v17-era callers. Sim code must use the map-aware forms; `lint-sim` enforces it (§3.6).
+`SLOTS_PER_TEAM`, `SLOT_COUNT` and `PVP_LEAD1` stay exported with their Crossing values for v18-era callers. Sim code must use the map-aware forms; `lint-sim` enforces it (§3.6).
 
 ### 2.2 Map data for the client (read-only)
 
@@ -338,8 +343,8 @@ The render reads `MapInfo` and never reads `data/map.ts` directly. Today 13 clie
 
 - The v:1 solo record, `PartyReplayRecord` and `PvpReplayRecord` gain an optional `map: MapId`. Omitted means `'crossing'`.
 - `humans` and the per-slot logs cover slots 0..9 on Hearthwood.
-- `simVersion: 18`.
-- A record with `map: 'hearthwood'` and `simVersion < 18` is refused (`PAWLEGENDS_SIM_VERSION`).
+- `simVersion: 19`.
+- A record with `map: 'hearthwood'` and `simVersion < 19` is refused (`PAWLEGENDS_SIM_VERSION`).
 
 ### 2.5 Limits (three copies, changed in one commit)
 
@@ -373,7 +378,7 @@ The render reads `MapInfo` and never reads `data/map.ts` directly. Today 13 clie
 ### 3.1 MapDef and the runtime
 
 - **New files:**
-  - `src/data/maps/crossing.ts`: today's `data/map.ts` values, moved verbatim. `data/map.ts` re-exports them for v17-era imports.
+  - `src/data/maps/crossing.ts`: today's `data/map.ts` values, moved verbatim. `data/map.ts` re-exports them for v18-era imports.
   - `src/data/maps/hearthwood.ts`: §1, authored eighth, plus objective, camp and timeline rows.
   - `src/data/maps/index.ts`: `MAPS: Record<MapId, MapDef>`.
 - **`src/sim/map/runtime.ts`** builds a frozen `MapRuntime` per MapDef once, at module load:
@@ -423,15 +428,15 @@ The render reads `MapInfo` and never reads `data/map.ts` directly. Today 13 clie
 
 ### 3.4 Hash rule (keeps Crossing identical)
 
-- `hashWorld` hashes the arrays in the same order. Their lengths come from the map; on Crossing they are the v17 lengths.
+- `hashWorld` hashes the arrays in the same order. Their lengths come from the map; on Crossing they are the v18 lengths.
 - 5v5-only state lives in a new `w.mg: Int32Array` ("map globals"):
   - the Grizzlechop state, next spawn and take count;
   - the camp timers;
   - the buff holders and their ticks;
   - `mg[0] = map id`.
-- `mg` is hashed after everything else, and only when its length is above 0. Crossing's `mg` is empty, so the `G.Count = 44` globals and the hash stay exactly as in v17.
+- `mg` is hashed after everything else, and only when its length is above 0. Crossing's `mg` is empty, so the `G.Count = 44` globals and the hash stay exactly as in v18.
 - New per-entity arrays used only on Hearthwood (`buffT` for Prickle and Feather) are also kept in `mg` slices, not as new hashed arrays.
-- **Gate G1:** 500 Crossing seeds give the same hash trail and final hash in v18 as in frozen v17. Every profile counts: co-op, party and PvP fixtures included.
+- **Gate G1:** 500 Crossing seeds give the same hash trail and final hash in v19 as in frozen v18. Every profile counts: co-op, party and PvP fixtures included.
 
 ### 3.5 5v5 units and objectives
 
@@ -481,7 +486,7 @@ The existing rules stay: integers only, no `Math.random` or `Date`.
   - the human slots get their hero's first choice first;
   - the result goes in `mg` (hashed).
 - **Lane swap generalised:** the v10 `G.LaneSwap` 2-lane rule becomes "a human who stands in another role's lane for `LANE_SWAP.ticks` swaps roles with that bot". This is the same behaviour as today, over 5 roles.
-- On Crossing, roles are slot % 3, as today. `laneRole` keeps its v17 result there.
+- On Crossing, roles are slot % 3, as today. `laneRole` keeps its v18 result there.
 
 ### 4.2 Behaviour per role (brain.ts, by role)
 
@@ -503,22 +508,22 @@ The existing rules stay: integers only, no `Math.random` or `Date`.
 - **Difficulty:** the existing `BotParams` rows apply unchanged. Hard bots react faster and group more; Rookie allies leave kills to the human.
 - **Think stagger:** 10 bots at `botThinkEvery = 6`. Slots 0..9 are staggered by `(tick + slot) % 6`, so at most 2 bots think in the same tick.
 
-## 5. Version plan (sim v18)
+## 5. Version plan (sim v19)
 
 | Step | What | Commit |
 |---|---|---|
-| S0 | **Freeze v17** in `FROZEN` (`vendor-sim.mjs`), using its release commit and the bundle sha from `v17/pawlegends-sim.sha256.json`, the same steps as `V17.md` §1.1. If v17 is not released when S0 starts, this branch rebases on `main` after the v17 release and S0 waits. Frozen v10 to v17 must stay byte-identical (`vendor-sim:check`) | own commit |
-| S0b | `SIM_VERSION = 18` | own commit |
-| S1 | MapDef and MapRuntime, the `w.map` codemod, hit-mask words, `mg`; Crossing only. **Gate G1** (same hash as v17) | |
+| S0 | **Freeze v18** in `FROZEN` (`vendor-sim.mjs`), using its release commit and the bundle sha from `v18/pawlegends-sim.sha256.json`, the same steps as `V17.md` §1.1. If v18 is not released when S0 starts, this branch rebases on `main` after the v18 release and S0 waits. Frozen v10 to v18 must stay byte-identical (`vendor-sim:check`) | own commit |
+| S0b | `SIM_VERSION = 19` | own commit |
+| S1 | MapDef and MapRuntime, the `w.map` codemod, hit-mask words, `mg`; Crossing only. **Gate G1** (same hash as v18) | |
 | S2 | Hearthwood data, point reflection, nav, brush index, lanes; `mapInfo()` published. **Gate G4** (symmetry and paths). The client lane can start against `mapInfo` | |
 | S3 | Team size 5: slots, party and PvP gates, spawns, picks; a 5v5 match runs with bots off | |
 | S4 | 5v5 units: waves, tower tiers, camps and buffs, Grizzlechop, Great Pudding | |
 | S5 | Bots, five roles | |
 | S6 | Tuning to the gates (§7); per-hero `pvp` rows on Hearthwood only, as a per-map `pvpBp` override, so the 3v3 rows do not move | |
-| S7 | `npm run vendor-sim`: `v18/` with new fixtures `hearthwood-replay.fixture.json` (solo 5v5), `hearthwood-party.fixture.json` (5 humans vs bots) and `hearthwood-pvp.fixture.json` (PvP 5v5). The frozen v17 keeps its fixtures | |
+| S7 | `npm run vendor-sim`: `v19/` with new fixtures `hearthwood-replay.fixture.json` (solo 5v5), `hearthwood-party.fixture.json` (5 humans vs bots) and `hearthwood-pvp.fixture.json` (PvP 5v5). The frozen v18 keeps its fixtures | |
 
-- **Backend dual verifier:** `simFor(18)` verifies both maps. `simFor(10..17)` verify Crossing only, so a Hearthwood record with an older `simVersion` is refused.
-- `check-remote` compares `simHash` as today. The client's `net/sim-stamp.json` gets the v18 hash.
+- **Backend dual verifier:** `simFor(19)` verifies both maps. `simFor(10..18)` verify Crossing only, so a Hearthwood record with an older `simVersion` is refused.
+- `check-remote` compares `simHash` as today. The client's `net/sim-stamp.json` gets the v19 hash.
 - PvP keeps its rule that both sockets run the same `simHash`.
 
 ## 6. Performance budget
@@ -545,8 +550,8 @@ The existing rules stay: integers only, no `Math.random` or `Date`.
 
 | Gate | What | Pass |
 |---|---|---|
-| G0 | `npx tsc --noEmit`, `npx vitest run`, `npm run lint:sim`, `vendor-sim:check` (frozen v10 to v17 byte-identical) | green |
-| G1 | Crossing identity: 500 seeds × {co-op normal, PvP fixture, party fixture}, v18 vs frozen v17 | identical hash trails and final hashes |
+| G0 | `npx tsc --noEmit`, `npx vitest run`, `npm run lint:sim`, `vendor-sim:check` (frozen v10 to v18 byte-identical) | green |
+| G1 | Crossing identity: 500 seeds × {co-op normal, PvP fixture, party fixture}, v19 vs frozen v18 | identical hash trails and final hashes |
 | G2 | Determinism: `npm run determinism` on Hearthwood, 200 seeds played twice, and the three new fixtures re-verified by the backend vendored sim | identical |
 | G3 | Unit tests: `reflect` maps every authored item onto its counterpart; Gutterway = `reflect`(Fenceline) of the other team; each pit is self-symmetric under the river mirror; the nav grid is point-symmetric cell by cell; the bush index agrees with the scan | pass |
 | G4 | Fair paths: the A* length from each fountain to each camp, objective, tower and lane river point is equal for both teams (±1 cell); every camp can be reached; no wall crosses a lane | pass |
@@ -625,7 +630,7 @@ The machine is loaded by parallel work, so the long suites (G1, G5, G6) run once
 
 ### 9.1 Vendoring and verification
 
-- `npm run vendor-sim`: v18 live, v10 to v17 frozen.
+- `npm run vendor-sim`: v19 live, v10 to v18 frozen.
 - `pawlegends-live.ts`:
   - `map` is validated against `MAP_IDS` of that sim;
   - picks and tricks length = `slotCountOf(map)`;
@@ -663,13 +668,13 @@ The machine is loaded by parallel work, so the long suites (G1, G5, G6) run once
 
 | Phase | SIM lane | CLIENT+SERVER lane |
 |---|---|---|
-| 1 | S0 freeze v17, S0b, S1 (MapDef, G1) | C0: read this plan; stub `mapInfo('hearthwood')` from §1 numbers to start the render |
+| 1 | S0 freeze v18, S0b, S1 (MapDef, G1) | C0: read this plan; stub `mapInfo('hearthwood')` from §1 numbers to start the render |
 | 2 | S2 (Hearthwood data, `mapInfo`, G3, G4): **interface handoff** | C1: `mapView` and minimap from `MapInfo` (Crossing first, no visual change), then the Hearthwood biome; camera per map |
 | 3 | S3 (team size 5) | C2: mode picker, 5-slot pick, local 5v5 solo against `map: 'hearthwood'` with bots off, then on |
 | 4 | S4 (units and objectives) | C3: HUD (top bar, scoreboard, timers, buffs, pings); PROTO 4 client |
 | 5 | S5 (bots) | C4: backend per-map caps (three copies, one commit with S-lane `limits.ts`), `/live` map validation, rooms and relay at 10 seats |
 | 6 | S6 tuning (G5 to G7) | C5: `classic` queue, bot fill, rating bucket, referee capacity (G9) |
-| 7 | S7 vendor v18 and fixtures | C6: E2E (G10), phone perf (G8) |
+| 7 | S7 vendor v19 and fixtures | C6: E2E (G10), phone perf (G8) |
 
 **Handoff rules:**
 - The SIM lane commits `mapInfo` and the §2 types at the end of S2. After that, a change to §2 is a note in this file plus a message to the client lane.
@@ -685,7 +690,7 @@ The machine is loaded by parallel work, so the long suites (G1, G5, G6) run once
 | D4 | First-timer gates (fun1, fun2, feeder) on 5v5, or 3v3 only | **3v3 only**: onboarding stays 3v3, and 5v5 runs the novice gate at Easy (≥ 70% win) |
 | D5 | The mode name: "5v5 Classic" (founder) or "Grand Clash" (GDD §3.1) | **5v5 Classic** in the UI; GDD updated to match |
 
-## 12. SIM lane: what is built (sim v18)
+## 12. SIM lane: what is built (sim v19)
 
 Everything in this section is on `feat/pawlegends-5v5`. Numbers marked *(gate)* come from the runs listed in §12.6.
 
@@ -710,7 +715,7 @@ EntitySnap: kind 'boss' (Grizzlechop); tower variant 'gate' | 'hearth' (a Hearth
 SimEvent: + 'objectiveSpawn' {kind}, 'objective' {kind, team, slot}, 'buffSteal' {id, from, kind}
 BuffKind: + 'prickle' | 'feather' | 'hoard';  Buff bits Prickle 1<<20, Feather 1<<21, Hoard 1<<22
 PING_KINDS: + 'pushFence' | 'pushYarn' | 'pushGutter' | 'grizzlechop' (indices 8..11); Crossing refuses them
-            (decode error, quantize clamps to 7), so v17 streams are unchanged
+            (decode error, quantize clamps to 7), so v18 streams are unchanged
 limits: data/limits.ts LIMITS_BY_MAP (Crossing 19800 / 30600 / 40800; Hearthwood 28800 / 44700 / 59600)
 ```
 
@@ -744,8 +749,8 @@ Module scratch buffers are sized for the largest map (`MAX_ENTITIES` 150, `MAX_H
 
 - 5v5-only state lives in `w.mg` (MG layout in `world.ts`), plus `w.pHitX` / `w.fmHitX` (the hit-mask words for ids
   64..159). All three are empty on Crossing and hashed after `globals`, so an empty array adds no bytes.
-- `tools/map-identity.mjs --write` (run on the frozen v17 commit) and `--check` (run on v18): **500 seeds × {co-op
-  fuzz, party fuzz, PvP fuzz}: 1500/1500 identical final hashes, folded hash trails and lengths** *(gate)*.
+- `tools/map-identity.mjs --write` (run on the released v18, origin/main 93cfcc28) and `--check` (run on v19): **500
+  seeds × {co-op fuzz, party fuzz, PvP fuzz}: 1500/1500 identical final hashes, folded hash trails and lengths**.
 
 ### 12.4 Hearthwood as built (differences from §1)
 
@@ -775,7 +780,8 @@ Module scratch buffers are sized for the largest map (`MAX_ENTITIES` 150, `MAX_H
 - **Structures**: outer → inner → gate per lane; a Hearth Guard opens when any gate tower of its team fell; the core
   when both Hearth Guards fell (and from `coreOpenAt`). Sunset's closed-core rule reads the same test.
 - **Hero tuning on Hearthwood only** (`HEARTHWOOD_PVP`): per species and per hero, on top of each hero's `pvp` row.
-- **Fairness between the sides (5v5 only; Crossing keeps v17's order).** The point map exposed every place where
+  Today: cats × 1.012 dealt, × 0.988 taken; no per-hero rows.
+- **Fairness between the sides (5v5 only; Crossing keeps v18's order).** The point map exposed every place where
   "lower id first" or "lowest cell index first" quietly favours one team, because a tie toward the bottom-left helps
   the team walking up and hurts the team walking down:
   - A*: team 1's search is the river mirror of team 0's (mirrored tie-break index, mirrored neighbour order, mirrored
@@ -803,4 +809,33 @@ Module scratch buffers are sized for the largest map (`MAX_ENTITIES` 150, `MAX_H
 
 ### 12.6 Gates (runs on 2026-11-09, machine under load)
 
-GATES_PLACEHOLDER
+All on this machine under heavy parallel load (load average 30 to 90). Hearthwood runs: `node tools/hearth-gates.mjs
+--seeds 300 --det 20` (each seed plays the mirrored pair, so 600 matches; ten `normal` pilots in PvP).
+
+| Gate | Result |
+|---|---|
+| G0 | `tsc` clean, `lint:sim` ok (150 files), `vitest`: 2522 passed, 2 failed (`tools/trailer` copy gate: `typescript` missing for `tools/copy-lint`, fails on `main` too). Backend `pawlegends-live.spec.ts` v18 / v19 cases pass (`-t "sim v19\|sim v18: a v18"`); the full spec's worker re-sims hit their 10 s timeout for every version under this load |
+| G1 | **pass**: 500 seeds × {co-op, party, PvP fuzz} on v19 vs the released v18 (origin/main 93cfcc28): 1500/1500 identical final hashes, folded trails and lengths. All six Crossing fixtures re-recorded by v19 equal v18's |
+| G2 | **pass**: 60/60 (20 seeds × solo, party, PvP 5v5 records re-simmed from the record); `tests/unit/hearthwood.test.ts` verifies a solo record on the server entry; the backend verifies the three vendored Hearthwood fixtures on v19 and refuses them as v18 |
+| G3, G4 | **pass** (`tests/unit/hearthwood.test.ts`): point, diagonal and river symmetry cell by cell; towers, camps, spawns, lanes; exact grid distances equal for both teams from their fountains on every cell; A* paths within 3 m |
+| G5 | Cats vs dogs **49.8%**; p50 13:06, p95 13:13, safety end 0%; Grizzlechop taken by 4:00 in 79.7% (target 80%); Great Pudding calmed in 100% of matches past 9:00. Per hero: 16 of 20 inside 46–54% (bravo 45.0, stilts 45.5, nugget 54.7, rocket 57.2); at 300 matches a hero the noise is ±2.9 points, so this needs the 2000-seed run before any per-hero row |
+| G6 | **FAIL**: team 0 wins **42.5%** (600 matches; 43.8% and 41.3% in the two runs before on the same base). See 12.7 |
+| G7 | Mean 0.143 ms a tick, p99 0.81 ms, p99.9 7.1 ms (2 Normal matches with bots, 47,312 ticks, under load); Crossing 0.036 ms. Within §6's 0.25 / 1.5 ms |
+| G8–G10 | Client and server lane |
+
+Every match so far ends in Sudden Death (13:00 to 13:15): about 4.5 of 11 towers a team fall, and the core decay
+with the takedown gap decides. That passes G5's length band, but structures rarely end a match; D2 (Hearth Guards)
+and the tower HP rows are the levers.
+
+### 12.7 Open: the side bias (G6)
+
+Team 1 wins about 57% of mirrored 5v5 matches. Measured and fixed so far (each in this commit): A* and snap
+tie-breaks mirrored for team 1 (43% → about 46% on the v17 base), the bot think phase, swing / cast / kit order
+alternating by tick, neutral same-tick finishes split by tick parity, minion retarget staggered by wave place. None of
+the order changes moved it (forcing team 0 to resolve first every tick also gave 43.7%), so it is not resolution order.
+On the v18 base (chase fix and rebalance) it is about 42.5%. A breakdown of 240 matches: team 1 takes more kills (24.2
+vs 22.6), towers (4.6 vs 4.0), Grizzlechop (1.41 vs 1.15) and Great Pudding (0.79 vs 0.61); team 0 loses more of its
+Fenceline towers (1.63 vs 1.20 a match) and dies more in every role, while first blood is even. A mirrored self-play
+probe (a throwaway script: the same five heroes on both sides, mirrored pilot RNG) stays a perfect river mirror until the first
+minion contact (sequential minion updates), so the next step is a probe that compares hero-only skirmishes on mirrored
+positions to find the first systematic difference. No side handicap was added: it would hide the cause from players.

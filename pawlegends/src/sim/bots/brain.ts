@@ -66,14 +66,14 @@ import {
 
 const ROAM = 2;
 
-/** Lane role by team slot: 0 Sunny, 1 Puddle, 2 roams (rat camp, then the lane that needs help). Sim v18 Hearthwood:
+/** Lane role by team slot: 0 Sunny, 1 Puddle, 2 roams (rat camp, then the lane that needs help). Sim v19 Hearthwood:
  *  the slot's ROLE (bots/roles.ts; Prowl roams the jungle). */
-/** Sim v18: the lane of a push order (Crossing: Sunny 0, Puddle 1; Hearthwood: Fenceline, Yarn Road, Gutterway). */
+/** Sim v19: the lane of a push order (Crossing: Sunny 0, Puddle 1; Hearthwood: Fenceline, Yarn Road, Gutterway). */
 const pushOrderLane = (ord: number): number =>
   ord === PING_KIND.PushSunny || ord === PING_KIND.PushFence ? 0 : ord === PING_KIND.PushYarn ? 1 : ord === PING_KIND.PushGutter ? 2 : LANES.length > 2 ? 2 : 1;
 const isPush = (ord: number): boolean =>
   ord === PING_KIND.PushSunny || ord === PING_KIND.PushPuddle || ord === PING_KIND.PushFence || ord === PING_KIND.PushYarn || ord === PING_KIND.PushGutter;
-/** Sim v18: is bot `id` a roamer (Crossing: slot role 2; Hearthwood: Prowl)? */
+/** Sim v19: is bot `id` a roamer (Crossing: slot role 2; Hearthwood: Prowl)? */
 const roams = (w: World, id: number): boolean => (w.mg.length > 0 ? w.mg[MG.Role + id] === ROLE.Prowl : id % 3 === ROAM);
 
 const isRanged = (w: World, id: number): boolean => heroData(w, id).base.range > HERO_RULES.meleeMaxRange;
@@ -282,7 +282,7 @@ export function pushLane(w: World, team: number, id = -1, pressAhead = 0): numbe
   return pb > pa ? 1 : 0;
 }
 
-/** Sim v18: `pushLane` over three lanes (Hearthwood): the most raided lane; else fewest enemy towers; else the furthest wave; ties to the lower lane. */
+/** Sim v19: `pushLane` over three lanes (Hearthwood): the most raided lane; else fewest enemy towers; else the furthest wave; ties to the lower lane. */
 function pushLaneN(w: World, team: number, id: number, pressAhead: number): number {
   const need = pressAhead > 0 && -scoreBehind(w, team) >= pressAhead ? 1 : 0;
   let most = -1;
@@ -325,7 +325,7 @@ function humanEngaged(w: World): boolean {
   if (nearLane(x, y, BOT_AI.leashLane)) return true;
   const r2 = BOT_AI.leashObjective * BOT_AI.leashObjective;
   if (MAP.point === 1) {
-    // Sim v18 (Hearthwood): any camp, Grizzlechop's pit or the Great Pudding pit.
+    // Sim v19 (Hearthwood): any camp, Grizzlechop's pit or the Great Pudding pit.
     if (dist2(x, y, PUDDING_SPOT.x, PUDDING_SPOT.y) <= r2) return true;
     for (let c = 0; c < CAMPS.length; c++) if (dist2(x, y, CAMPS[c].x, CAMPS[c].y) <= r2) return true;
     return false;
@@ -358,7 +358,7 @@ function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: 
 }
 
 /**
- * Sim v18 (Hearthwood): the lane of a bot by role. Laners play their lane; Guard plays Gutterway beside the Fish
+ * Sim v19 (Hearthwood): the lane of a bot by role. Laners play their lane; Guard plays Gutterway beside the Fish
  * laner; Prowl helps the lane with the fewest own towers left (ties: the lower lane) between camps.
  */
 function hearthLane(w: World, id: number, role: number): number {
@@ -452,7 +452,7 @@ function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Ar
   out[1] = gy;
 }
 
-/** Sim v18 (point maps): `laneGoal` with every offset taken along the team's lane path instead of along x. */
+/** Sim v19 (point maps): `laneGoal` with every offset taken along the team's lane path instead of along x. */
 function laneGoalPoint(w: World, id: number, lane: number, p: BotParams, out: Int32Array, carry: boolean): void {
   const team = w.team[id];
   const front = laneFront(w, team, lane);
@@ -528,7 +528,7 @@ function retreat(w: World, id: number, mem: BotMem, p: BotParams): Command | nul
   return moveTo(w, id, mem, hx, hy);
 }
 
-/** Is the own camp of `team` up (a rat alive)? Returns a rat id or −1, nearest to `id`. Sim v18 (Hearthwood): any
+/** Is the own camp of `team` up (a rat alive)? Returns a rat id or −1, nearest to `id`. Sim v19 (Hearthwood): any
  *  monster of the team's own jungle camps. */
 function campRat(w: World, id: number): number {
   const c0 = w.team[id];
@@ -553,7 +553,7 @@ function campRat(w: World, id: number): number {
 }
 
 /**
- * Sim v18 (Hearthwood): Captain Grizzlechop, if up and bot `id` goes for him: Prowl, Guard and the Fish laner (the
+ * Sim v19 (Hearthwood): Captain Grizzlechop, if up and bot `id` goes for him: Prowl, Guard and the Fish laner (the
  * roles near his pit), or any bot already within BOT_AI.awareRange, decided once per spawn (contestPuddingBp), with
  * enough healthy allies. Returns his id or −1.
  */
@@ -589,7 +589,7 @@ function sieging(w: World, id: number): boolean {
 export function baseThreat(w: World, team: number): number {
   heroThreat = false;
   const core = RANGE.cores + team;
-  // Sim v18: Hearthwood checks the core, its two Hearth Guards, then each lane's gate tower.
+  // Sim v19: Hearthwood checks the core, its two Hearth Guards, then each lane's gate tower.
   const passes = MAP.point === 1 ? 1 + 2 + LANES.length : 3;
   for (let pass = 0; pass < passes; pass++) {
     // pass 0: the core (within BOT_AI.coreThreatRange: attackers gather just outside its reach); 1 and 2: the inner
@@ -614,7 +614,7 @@ export function baseThreat(w: World, team: number): number {
 /** Set by baseThreat: is an enemy hero part of the threat (else minions only)? */
 let heroThreat = false;
 
-/** Sim v18 (Hearthwood): Hearth Guard k (0, 1), then lane (k − 2)'s gate tower, while it stands, else −1. */
+/** Sim v19 (Hearthwood): Hearth Guard k (0, 1), then lane (k − 2)'s gate tower, while it stands, else −1. */
 function hearthOrGate(w: World, team: number, k: number): number {
   const base = RANGE.towers + team * TOWER_SPOTS.length;
   let n = 0;
@@ -746,7 +746,7 @@ function orderGoal(w: World, id: number, ord: number, p: BotParams): number {
       laneGoal(w, id, pushOrderLane(ord), p, goal);
       return PING.arriveRange;
     case PING_KIND.Grizzlechop: {
-      // Sim v18: Grizzlechop's pit (he stands there while up).
+      // Sim v19: Grizzlechop's pit (he stands there while up).
       const c = BOSS_CAMP >= 0 ? BOSS_CAMP : 0;
       goal[0] = CAMPS[c].x;
       goal[1] = CAMPS[c].y;
@@ -762,7 +762,7 @@ function orderGoal(w: World, id: number, ord: number, p: BotParams): number {
 /** Is order `ord` fulfilled before its TTL: Pudding no longer wild, or the base safe (no threat left)? */
 function orderDone(w: World, id: number, ord: number): boolean {
   if (ord === PING_KIND.Pudding) return w.globals[G.PudState] !== PUD_STATE.Wild || w.alive[RANGE.pudding] === 0;
-  // Sim v18: Grizzlechop's order ends once he is down (or never spawned again).
+  // Sim v19: Grizzlechop's order ends once he is down (or never spawned again).
   if (ord === PING_KIND.Grizzlechop) return BOSS_CAMP < 0 || w.alive[firstRat(BOSS_CAMP)] === 0;
   if (ord === PING_KIND.Defend) return baseThreat(w, w.team[id]) < 0;
   return false;
@@ -1011,7 +1011,7 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
       return (p.waveClear ? clearCast(w, id, pud) : null) ?? attack(w, id, mem, pud);
     }
   }
-  // Sim v18 (Hearthwood): Captain Grizzlechop.
+  // Sim v19 (Hearthwood): Captain Grizzlechop.
   const boss = carry ? -1 : bossFor(w, id, mem, p, rng, hp);
   if (boss >= 0) {
     mem.mode[id] = BOT_MODE.Pudding;

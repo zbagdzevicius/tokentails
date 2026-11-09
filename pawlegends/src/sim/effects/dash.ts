@@ -72,7 +72,7 @@ export function gateClampX(w: World, id: number, x: number): number {
 }
 
 /**
- * Sim v18 (point maps): before the barrier drops, a hero's own movement stays on its side of the diagonal gate
+ * Sim v19 (point maps): before the barrier drops, a hero's own movement stays on its side of the diagonal gate
  * (x + y = barrierSum, team 1 its reflection). Writes the clamped point into `gateOut` (moved straight back across
  * the line, perpendicular to it).
  */

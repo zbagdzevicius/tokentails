@@ -1,5 +1,5 @@
 /**
- * Sim v18 (docs/plans/moba/MAP-5V5.md §2.2): `mapInfo(id)`, the read-only map data the client and the server draw and
+ * Sim v19 (docs/plans/moba/MAP-5V5.md §2.2): `mapInfo(id)`, the read-only map data the client and the server draw and
  * check against (the render, the minimap, the camera, the input caps). Built once per map from the same tables the sim
  * binds, so the picture and the sim never disagree. No sim state.
  */

@@ -1,11 +1,11 @@
 /**
- * Sim v18 (docs/plans/moba/MAP-5V5.md §3.1): the map runtime. Every map-dependent table the sim reads (data/map.ts,
+ * Sim v19 (docs/plans/moba/MAP-5V5.md §3.1): the map runtime. Every map-dependent table the sim reads (data/map.ts,
  * the timeline, limits, Pudding's numbers, the Frenzy spots, the entity id ranges, the slot counts, the nav grid size,
  * lane paths, camp homes) is a live binding that `bindMap` points at one map. The sim is single-threaded and every
  * entry point binds its match's map first (`bindWorld`), so two matches on different maps can run side by side in one
  * process (the backend referee, a client with a replay open): each call re-points the bindings it needs.
  *
- * Crossing's tables are exactly the v17 ones, so a Crossing match hashes as in v17 (gate G1).
+ * Crossing's tables are exactly the v18 ones, so a Crossing match hashes as in v18 (gate G1).
  */
 import { CROSSING, setMapData, type MapDef } from '../../data/map';
 import { HEARTHWOOD } from '../../data/maps/hearthwood';

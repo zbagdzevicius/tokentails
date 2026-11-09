@@ -37,7 +37,7 @@ export function checkReplayShape(r: unknown): VerifyResult | null {
     return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown difficulty');
   if (typeof x.hero !== 'string' || !(HERO_IDS as readonly string[]).includes(x.hero)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown hero');
   if (typeof x.trick !== 'string' || !(TRICK_IDS as readonly string[]).includes(x.trick)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown trick');
-  // Sim v18: the map (omitted: Crossing); the limits below are that map's.
+  // Sim v19: the map (omitted: Crossing); the limits below are that map's.
   if (x.map !== undefined && !(MAP_IDS as readonly unknown[]).includes(x.map)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown map');
   bindMap(mapIndex(x.map as MapId | undefined));
   if (typeof x.ticks !== 'number' || !Number.isInteger(x.ticks) || x.ticks < 1) return fail('PAWLEGENDS_REPLAY_INVALID', 'ticks must be a positive integer');
@@ -111,7 +111,7 @@ import type { MatchHandle } from './state';
  */
 export function humanAliveMask(m: MatchHandle): number {
   let mask = 0;
-  // Sim v18: the match's map (Hearthwood: slots 0..4, or 0..9 in PvP).
+  // Sim v19: the match's map (Hearthwood: slots 0..4, or 0..9 in PvP).
   const per = m.world.map === 0 ? 3 : 5;
   const end = m.pvp ? RANGE.heroes + per * 2 : per;
   for (let s = RANGE.heroes; s < end; s++) if (m.world.alive[s] === 1) mask |= 1 << s;

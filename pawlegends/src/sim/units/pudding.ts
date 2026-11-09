@@ -87,7 +87,7 @@ function outermostEnemyHp(w: World, team: number, lane: number): number {
  */
 function escortLane(m: MatchHandle, team: number): number {
   const w = m.world;
-  // Sim v18 (Hearthwood, MAP-5V5.md §1.7): the lane where the enemy has the fewest towers standing (a push that
+  // Sim v19 (Hearthwood, MAP-5V5.md §1.7): the lane where the enemy has the fewest towers standing (a push that
   // finishes something); ties: Yarn Road, then Fenceline, then Gutterway.
   if (LANES.length > 2) {
     let best = 1;
