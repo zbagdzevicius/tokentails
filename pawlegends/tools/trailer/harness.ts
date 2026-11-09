@@ -1171,10 +1171,8 @@ async function load(s: ShotSpec): Promise<{ ok: true; tick: number }> {
       const pk = s.lobby.pick;
       lb.side = pk.side ?? 0.5;
       lb.setHero(pk.hero, 0, null);
-      const champs = Object.fromEntries((['lambo', 'aviete', 'bengas', 'gabe'] as HeroId[]).map((h) => [h, { owned: false }]));
       pickEl = pickScreen(root, {
         initial: { hero: pk.hero, trick: 'pounce' as TrickId, difficulty: 'normal' as Difficulty },
-        champions: champs,
         onHero: (h) => lb.setHero(h, 0, null),
         onStart: () => undefined,
         onBack: () => undefined,

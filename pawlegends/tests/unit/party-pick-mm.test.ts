@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { HEROES, HERO_IDS } from '../../src/data/heroes';
 import type { PartyView } from '../../src/net/proto';
-import { decoratePick, firstFree, heroBlock, pickHtml } from '../../src/party/ui/partyPick';
+import { firstFree, heroBlock, pickHtml } from '../../src/party/ui/partyPick';
 import { loadingHtml } from '../../src/party/ui/partyLoading';
 
 const view = (over: Partial<PartyView> = {}): PartyView => ({
@@ -33,7 +33,6 @@ const cats = HERO_IDS.filter((h) => HEROES[h].side === 'cat');
 const mount = (v: PartyView, hover = ''): HTMLElement => {
   const d = document.createElement('div');
   d.innerHTML = pickHtml({ view: v, hover, trick: 'pounce', secondsLeft: 30, error: null, found: { humans: 2, bots: 1, side: 'dog', difficulty: 'normal' } });
-  decoratePick(d, v);
   return d;
 };
 
@@ -69,7 +68,7 @@ describe('Quick Play pick (M1a)', () => {
 
   it('empty teammate seats read Bot in the pick strip and on the loading screen', () => {
     const d = mount(view());
-    expect([...d.querySelectorAll('.pp-ts.bot')].map((e) => e.textContent)).toEqual(['?Bot']);
+    expect([...d.querySelectorAll('.pp-ts.bot')].map((e) => e.querySelector('b')?.textContent)).toEqual(['Bot']);
     const l = document.createElement('div');
     l.innerHTML = loadingHtml(view({ phase: 'loading' }));
     expect(l.querySelectorAll('.pp-lc.bot')).toHaveLength(1);
@@ -80,6 +79,9 @@ describe('Quick Play pick (M1a)', () => {
     const d = mount(view({ mm: undefined, code: 'K7QX2M' }));
     expect(d.querySelector('[data-testid="mm-side-switch"]')).toBeNull();
     expect(d.querySelectorAll('.pp-heroes [data-h]')).toHaveLength(HERO_IDS.length);
+    // a friend party filters by side with All · Cats · Dogs; Quick Play has no side tabs (the side is fixed)
+    expect(d.querySelectorAll('.cs-sides [data-cs="side"]')).toHaveLength(3);
+    expect(mount(view()).querySelector('.cs-sides')).toBeNull();
     expect(d.querySelector('[data-testid="party-leave"]')).toBeNull();
   });
 });

@@ -33,6 +33,8 @@ test('pick at 1280×720: the first chroma chip is visible and on top (the Look r
   const game = await openHost(page);
   await game.locator('[data-a="choose"]').click();
   await game.waitForSelector('html[data-screen="pick"]');
+  // the colour tints live on the panel's Look sheet
+  await game.locator('.cs-look').click();
   const chip = game.locator('.pl-pick .chip.chroma[data-chroma]:not([data-chroma=""])').first();
   await expect(chip).toBeVisible();
   const box = await chip.boundingBox();

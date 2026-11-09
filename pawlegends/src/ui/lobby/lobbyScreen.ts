@@ -1,22 +1,23 @@
 /**
- * The lobby (title) screen, redesigned (lobby spec §3a). Replaces `titleScreen` in app.ts `showTitle`; the old
- * function stays in ui/screens.ts for its tests.
+ * The lobby (title) screen, no-scroll layout (docs/plans/moba/LANDING-PICK-UX.md Part A). Replaces `titleScreen` in
+ * app.ts `showTitle`; the old function stays in ui/screens.ts for its tests.
  *
- * Left column: the logo, the champion's name block (the worn Token Tails cat's name, else the hero title, with
- * "Clem the Fighter", an element chip and a role chip), a big Play with a "3v3 vs Easy bots" line, the bots segment
- * (locked with the existing "More bots after N matches" note), Change hero, Cards (with a count) and the day's quests
- * folded into a "Today 1/3" chip. Bottom right: a fanned peek of up to three owned cards that opens the cards drawer
- * (a "your cats become skins" card when there are none; cards are never invented). Top right: icon buttons.
+ * One left column that never scrolls, in three tiers:
+ * 1. the logo, the champion's name block (a button that opens the champion select for a returning player) and the one
+ *    filled Play button, with the bots segment and the "vs bots" line in the row under it;
+ * 2. the online row: Co-op and PvP (each one tap, no pre-selected mode), Friends and a "#" join-with-code button;
+ * 3. the rail at the bottom: Heroes, Cards, Today, Track, Store (items the player does not have yet are left out; no
+ *    rail before the first match or during a dare).
+ * When the height runs out, things are hidden in a fixed order (lobby.css, the hide ladder), never pushed below the
+ * fold. Top right: Games (embedded), the profile avatar (desktop), Settings, Sound. Desktop keeps the card peek bottom
+ * right; phones drop it (the Cards rail item opens the same drawer).
  *
- * Keyboard: Enter plays (when no button has focus); C opens the cards and H changes hero only while focus is inside
- * the lobby (WCAG 2.1.4: single-key shortcuts stay off for speech input elsewhere); Esc closes the quests popover.
- * Every document listener is removed by `disposeLobby(el)` (app setScreen), so redraws never pile them up.
- * Play runs the stage dolly (`playOut`, skipped with reduced motion) before the match loads.
+ * Keyboard: Enter plays (when no button has focus); C opens the cards and H the champion select only while focus is
+ * inside the lobby (WCAG 2.1.4); Esc closes the quests popover. Every document listener is removed by
+ * `disposeLobby(el)` (app setScreen), so redraws never pile them up. Play runs the stage dolly (`playOut`, skipped with
+ * reduced motion) before the match loads.
  *
- * First visit with cards: the peek shows them (not interactive; the first match never wears a card) with "Your 5 cats
- * are here. Wear one after your first match." App builds never point to the web to collect cards.
- *
- * Names are host data: always escaped here. Cosmetic only.
+ * Names are host data: always escaped here. Cosmetic only. App builds never point to the web to collect cards.
  */
 import { MODE_MAP, matchModeHtml, type MatchMode } from './matchMode';
 import { logoHtml } from '../brandLogo';
@@ -95,10 +96,11 @@ export interface LobbyScreenOpts {
    */
   onOnline?(): void;
   /**
-   * Casual PvP (docs/plans/moba/V16.md §5): the "Co-op vs bots · PvP" chip above Play online. Absent = the backend
-   * has no PvP sim yet (`GET /pawlegends/sim`), so no chip. `locked`: fewer than 5 matches ("PvP unlocks after 5").
+   * Casual PvP (docs/plans/moba/V16.md §5): the PvP button next to Co-op in the online row (each starts its own mode in
+   * one tap and remembers it with `onMode`). Absent = the backend has no PvP sim yet (`GET /pawlegends/sim`), so no PvP
+   * button. `locked`: fewer than `needed` (5) matches: "PvP 🔒 played/needed", and a tap explains it.
    */
-  onlineMode?: { mode: 'coop' | 'pvp'; locked: boolean; onMode(mode: 'coop' | 'pvp'): void };
+  onlineMode?: { mode: 'coop' | 'pvp'; locked: boolean; onMode(mode: 'coop' | 'pvp'): void; played?: number; needed?: number };
   /**
    * Sim v19 (MAP-5V5.md §8.1): the 3v3 Quick | 5v5 Classic toggle above Play (remembered by the caller). Absent on
    * the first match and on a dare (both are 3v3).
@@ -148,6 +150,16 @@ export function playLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstL
   if (o.dare) return dareText(o.dare);
   if (o.firstTime) return o.firstLine ?? 'Your first match is a guided match.';
   return `${o.last.map === 'hearthwood' ? '5v5 Classic' : '3v3'} vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
+}
+
+/**
+ * The line in the row under Play: the dare, the guided first match, "vs bots" after the bots segment, or the full
+ * "3v3 vs Easy bots" when there is no segment; '' when the locked-bots note fills the row. Pure.
+ */
+export function underLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstLine' | 'last' | 'difficulties' | 'difficultyNote'>): string {
+  if (o.dare || o.firstTime) return playLine(o);
+  if (o.difficultyNote) return '';
+  return o.difficulties.length >= 2 ? `${o.last.map === 'hearthwood' ? '5v5' : '3v3'} vs bots` : playLine(o);
 }
 
 /** The Play button's label. Pure. */
@@ -244,12 +256,59 @@ function segmentHtml(o: LobbyScreenOpts, cur: Difficulty): string {
     .join('')}</div>`;
 }
 
-function questsHtml(qs: readonly QuestView[] | undefined): string {
+const BAG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><path fill="currentColor" d="M6 8h12l1 13H5zM9 8V6a3 3 0 0 1 6 0v2h-2V6a1 1 0 0 0-2 0v2z"/></svg>';
+const GLOBE =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
+const SWORDS =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><path d="M4 4l10 10M20 4L10 14M6 16l-2 2 2 2 2-2M18 16l2 2-2 2-2-2M4 4h3v1M20 4h-3v1" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+const FRIENDS =
+  '<svg viewBox="0 0 24 24" aria-hidden="true" class="lb-ico"><circle cx="9" cy="8" r="3.2" fill="currentColor"/><circle cx="17" cy="9" r="2.6" fill="currentColor" opacity=".8"/><path d="M2.5 20c.6-4 3.3-6 6.5-6s5.9 2 6.5 6zM15 14.2c3 .1 5.6 1.8 6.5 5.8h-4.6" fill="currentColor"/></svg>';
+
+/** The quests popover as a rail item ("Today" with a ring of done/total); its list opens upward. */
+function questsRail(qs: readonly QuestView[] | undefined): string {
   if (!qs || !qs.length) return '';
   const t = questTally(qs);
-  return `<details class="lb-quests"><summary><span class="lb-dot${t.done === t.total ? ' all' : ''}" aria-hidden="true"></span>Today <b>${t.done}/${t.total}</b></summary><div class="lb-qlist" role="list">${qs
+  const pct = Math.round((100 * t.done) / Math.max(1, t.total));
+  return `<details class="lb-quests lb-ri"><summary aria-label="${esc(`Today's quests: ${t.done} of ${t.total} done`)}"><span class="lb-ring${t.done === t.total ? ' all' : ''}" style="--p:${pct}%" aria-hidden="true">${icon('sun')}</span><span class="lb-rl">Today <b>${t.done}/${t.total}</b></span></summary><div class="lb-qlist" role="list">${qs
     .map((q) => `<div role="listitem" class="q ${q.done ? 'done' : ''}"><span class="tick" aria-hidden="true">${q.done ? '✓' : ''}</span><span class="t">${esc(q.quest.text)}</span><span class="n">${q.done ? 'Done' : `${q.value}/${q.quest.goal}`}</span></div>`)
     .join('')}</div></details>`;
+}
+
+/**
+ * Tier 3: the rail (Heroes · Cards · Today · Track · Store); items the player has not got yet are left out. A first visit
+ * or a dare (`full` false) keeps only Track and Store, which main showed in the corner whenever they were open.
+ */
+function railHtml(o: LobbyScreenOpts, full = true): string {
+  const item = (a: string, ico: string, label: string, extra = '', badge = ''): string =>
+    `<button type="button" class="lb-ri" data-a="${a}"${extra}>${ico}${badge}<span class="lb-rl">${label}</span></button>`;
+  const items = [
+    full ? item('choose', icon('paw'), 'Heroes', ' aria-keyshortcuts="H"') : '',
+    full && o.onCards ? item('cards', CARDS, 'Cards', ` aria-keyshortcuts="C" aria-haspopup="dialog" aria-label="${o.cardCount ? `Cards, ${o.cardCount}` : 'Cards'}"`, o.cardCount ? `<span class="lb-count" aria-hidden="true">${o.cardCount}</span>` : '') : '',
+    full ? questsRail(o.quests) : '',
+    o.onCollection ? item('collection', icon('crown'), 'Track', ' aria-label="Treat Track"') : '',
+    o.storeOpen ? item('store', BAG, 'Store', ' aria-label="Store"') : '',
+  ].filter(Boolean);
+  if (!items.length) return '';
+  return `<nav class="lb-rail" aria-label="More" data-n="${items.length}">${items.join('')}</nav>`;
+}
+
+/** Tier 2: Co-op, PvP (when the backend has it), Friends and "#" (join with code). Each is one tap. */
+function onlineRowHtml(o: LobbyScreenOpts): string {
+  if (!o.onOnline && !o.onParty) return '';
+  const m = o.onlineMode;
+  const pvpLocked = !!m?.locked;
+  const need = m?.needed ?? 5;
+  const pvpLabel = pvpLocked ? `PvP <span class="lb-lock" aria-hidden="true">🔒</span><small>${Math.min(m?.played ?? 0, need)}/${need}</small>` : 'PvP';
+  const btns = [
+    o.onOnline ? `<button type="button" class="pl-btn small lb-friends lb-online" data-a="online" data-v="coop" data-testid="play-online" aria-label="Play online: co-op vs bots" title="Co-op vs bots with players online">${GLOBE}<span>Co-op</span></button>` : '',
+    o.onOnline && m
+      ? `<button type="button" class="pl-btn ghost small lb-friends lb-pvp" data-a="online" data-v="pvp" data-testid="play-pvp"${pvpLocked ? ` aria-disabled="true" title="PvP unlocks after ${need} matches" aria-label="PvP, unlocks after ${need} matches"` : ' title="Casual PvP" aria-label="Play PvP"'}>${SWORDS}<span>${pvpLabel}</span></button>`
+      : '',
+    o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends lb-party" data-a="party" data-testid="play-friends" aria-label="Play with friends">${FRIENDS}<span>Friends</span></button>` : '',
+    o.onJoinCode ? `<button type="button" class="pl-btn ghost small lb-joincode" data-a="joincode" data-testid="join-code" aria-label="Join with code" title="Join with code"><b aria-hidden="true">#</b><span>Code</span></button>` : '',
+  ].filter(Boolean);
+  return `<div class="lb-friends-row lb-online-row" role="group" aria-label="Play online">${btns.join('')}</div>`;
 }
 
 const overlayOpen = (): boolean => !!document.querySelector('.pl-menu, [aria-modal="true"], .pl-store, .plc-meet, .pl-offer');
@@ -278,45 +337,46 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     return mode === 'classic' ? { ...c, map: MODE_MAP.classic } : c;
   };
   const dare = o.dare;
-  const secondary =
-    o.firstTime || dare
-      ? ''
-      : `<div class="lb-row">
-          <button type="button" class="pl-btn ghost lb-btn" data-a="choose" aria-keyshortcuts="H">${icon('paw')}<span>Change hero</span></button>
-          ${o.onCards ? `<button type="button" class="pl-btn ghost lb-btn" data-a="cards" aria-keyshortcuts="C">${CARDS}<span>Cards</span>${o.cardCount ? `<span class="lb-count" aria-label="${o.cardCount} cards">${o.cardCount}</span>` : ''}</button>` : ''}
-          ${questsHtml(o.quests)}
-        </div>`;
+  const returning = !o.firstTime && !dare;
   // QA: a card's element is part of its look (no element exists in the sim): "Fire look", never a bare type chip
-  const chips = `<span class="lb-chip el" style="--c:${elColor}"${id.card ? ' title="Part of the card\'s look. Stats stay the same."' : ''}><i aria-hidden="true"></i>${esc(id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element])}</span><span class="lb-chip role">${esc(id.role)}</span>${id.card && id.rung ? `<span class="lb-chip rung" data-rung="${id.rung}">${RUNG_NAME[id.rung]} card</span>` : ''}`;
+  const elName = id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element];
+  const chips = `<span class="lb-chip el" style="--c:${elColor}"${id.card ? ' title="Part of the card\'s look. Stats stay the same."' : ''}><i aria-hidden="true"></i>${esc(elName)}</span><span class="lb-chip role">${esc(id.role)}</span>${id.card && id.rung ? `<span class="lb-chip rung" data-rung="${id.rung}">${RUNG_NAME[id.rung]} card</span>` : ''}`;
+  // phones: one sub-line instead of the chips ("Marksman · Wind", or "Clem the Fighter · Fire look" for a worn card)
+  const subLine = id.card ? `${id.sub} · ${elName}` : `${id.role} · ${elName}`;
+  const gem = id.card && id.rung ? `<i class="lb-gem" data-rung="${id.rung}" aria-hidden="true"></i>` : '';
+  const nameInner = `<small class="lb-eyebrow">${id.card ? 'Your Token Tails cat' : 'Your champion'}</small>
+        <span class="lb-hero-row">${gem}<span class="lb-hero">${esc(id.name)}</span>${returning ? `<span class="lb-swap" aria-hidden="true">⇄</span>` : ''}</span>
+        <span class="lb-sub">${esc(subLine)}</span>
+        <span class="lb-chips">${chips}</span>`;
+  // returning players: the whole name block opens the champion select (as Heroes and H do; `data-a="name"`, so the
+  // one `data-a="choose"` stays the Heroes rail item)
+  const nameBlock = returning
+    ? `<button type="button" class="lb-name" data-a="name" data-card="${id.card ? '1' : '0'}"${id.name.length > 10 ? ' data-long="1"' : ''} aria-keyshortcuts="H" aria-label="${esc(`${id.name}, ${subLine}. Change hero`)}">${nameInner}</button>`
+    : `<div class="lb-name" data-card="${id.card ? '1' : '0'}"${id.name.length > 10 ? ' data-long="1"' : ''}>${nameInner}</div>`;
   // QA: on Low quality the peek's front card stays still (its Nature layer repainted every frame)
   const live = document.documentElement.dataset.quality !== 'low';
+  const diffShort = (d: Difficulty): string => (DIFFICULTY_TEXT as Record<string, string>)[d]?.replace(' bots', '') ?? d;
   root.innerHTML = `
     <div class="pl-title-col lb-col">
-      ${logoHtml()}
-      <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
-      <div class="lb-name" data-card="${id.card ? '1' : '0'}">
-        <small class="lb-eyebrow">${id.card ? 'Your Token Tails cat' : 'Your champion'}</small>
-        <h2 class="lb-hero">${esc(id.name)}</h2>
-        <p class="lb-sub">${esc(id.sub)}</p>
-        <div class="lb-chips">${chips}</div>
+      <div class="lb-main">
+        ${logoHtml()}
+        <p class="tag">3v3 cats and dogs. Quick matches, big plays.</p>
+        ${nameBlock}
+        <div class="lb-play actions">
+          <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter"${returning ? ` data-diff="· ${esc(diffShort(diff))}"` : ''}>${esc(playLabel(o))}</button>
+          <div class="lb-under">${segmentHtml(o, diff)}${mode ? matchModeHtml(mode) : `<p class="lb-line${dare ? ' dare-line' : ''}">${esc(underLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>`}</div>
+        </div>
+        ${dare ? '' : onlineRowHtml(o)}
+        <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
+        <p class="lb-toast" role="status" aria-live="polite"></p>
       </div>
-      <div class="lb-play actions">
-        ${mode ? matchModeHtml(mode) : ''}
-        <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter">${esc(playLabel(o))}</button>
-        <p class="lb-line${dare ? ' dare-line' : ''}">${esc(playLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>
-        ${segmentHtml(o, diff)}
-        ${o.onOnline && o.onlineMode && !dare ? modeChipHtml(o.onlineMode) : ''}
-        ${(o.onParty || o.onOnline) && !dare ? `<div class="lb-friends-row">${o.onOnline ? `<button type="button" class="pl-btn small lb-friends lb-online" data-a="online" data-testid="play-online">${o.onlineMode?.mode === 'pvp' ? 'Play PvP' : 'Play online'}</button>` : ''}${o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends" data-a="party" data-testid="play-friends">Play with friends</button>` : ''}${o.onJoinCode ? `<button type="button" class="lb-joincode" data-a="joincode" data-testid="join-code">Join with code</button>` : ''}</div>` : ''}
-      </div>
-      ${secondary}
-      <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
-      ${firstHidesBadge(o) ? '' : badgeHtml(o.frame, o.title, o.portrait, id.element)}
+      <div class="lb-cards" data-slot="cards"></div>
+      ${railHtml(o, returning)}
     </div>
     ${peekHtml(o, live)}
     <div class="pl-corner lb-corner">
       ${o.onExit ? `<button type="button" class="lb-icon wide lb-exit" data-a="exit" data-testid="lobby-exit" aria-label="Back to Token Tails games" title="Back to Token Tails games">${EXIT}<span>Games</span></button>` : ''}
-      ${o.storeOpen ? `<button type="button" class="lb-icon" data-a="store" aria-label="Store">${icon('crown')}<span>Store</span></button>` : ''}
-      ${o.onCollection ? `<button type="button" class="lb-icon wide" data-a="collection" aria-label="Treat Track">${icon('crown')}<span>Treat Track</span></button>` : ''}
+      ${firstHidesBadge(o) ? '' : badgeHtml(o.frame, o.title, o.portrait, id.element)}
       ${o.onSettings ? `<button type="button" class="lb-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
       <button type="button" class="lb-icon" data-a="mute" aria-label="Sound" aria-pressed="${!o.muted}" title="Sound">${SPEAKER(!o.muted)}</button>
     </div>`;
@@ -342,8 +402,22 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
       if (on && focus) b.focus();
     }
     const line = root.querySelector('.lb-line');
-    if (line) line.textContent = playLine({ ...o, last: choice() });
+    if (line) line.textContent = underLine({ ...o, last: choice() });
+    const short = root.querySelector<HTMLElement>('.lb-play [data-diff]');
+    if (short) short.dataset.diff = `· ${(DIFFICULTY_TEXT as Record<string, string>)[d]?.replace(' bots', '') ?? d}`;
     o.onDifficulty?.(d);
+  };
+  let toastTimer: ReturnType<typeof setTimeout> | null = null;
+  const toast = (text: string): void => {
+    const el = root.querySelector<HTMLElement>('.lb-toast');
+    if (!el) return;
+    el.textContent = text;
+    el.classList.add('on');
+    if (toastTimer) clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      el.classList.remove('on');
+      el.textContent = '';
+    }, 3200);
   };
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
@@ -367,24 +441,28 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
         b.tabIndex = on ? 0 : -1;
       }
       const line = root.querySelector('.lb-line');
-      if (line) line.textContent = playLine({ ...o, last: choice() });
+      if (line) line.textContent = underLine({ ...o, last: choice() });
       o.matchMode?.onMode(v);
       return;
     }
     if (a === 'clem') play({ hero: 'clem', trick: 'pounce', difficulty: 'easy' });
     else if (a === 'quick') play(choice());
     else if (a === 'dare' && dare) play({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);
-    else if (a === 'choose') o.onChoose();
-    else if (a === 'online') o.onOnline?.();
-    else if (a === 'mode' && o.onlineMode) {
-      const v = t.closest<HTMLElement>('[data-a="mode"]')!.dataset.v as 'coop' | 'pvp';
-      if (v === 'pvp' && o.onlineMode.locked) return;
-      o.sound?.('click');
-      o.onlineMode.mode = v;
-      o.onlineMode.onMode(v);
-      for (const b of root.querySelectorAll<HTMLElement>('[data-a="mode"]')) b.setAttribute('aria-checked', String(b.dataset.v === v));
-      const play = root.querySelector<HTMLElement>('[data-a="online"]');
-      if (play) play.textContent = v === 'pvp' ? 'Play PvP' : 'Play online';
+    // the name block and the Heroes rail item both open the champion select (Heroes keeps data-a="choose")
+    else if (a === 'choose' || a === 'name') o.onChoose();
+    else if (a === 'online') {
+      // Co-op and PvP are each one tap: the button starts its own mode and remembers it (no pre-selected chip)
+      const v = (t.closest<HTMLElement>('[data-a="online"]')?.dataset.v ?? 'coop') as 'coop' | 'pvp';
+      if (v === 'pvp' && o.onlineMode?.locked) {
+        o.sound?.('click');
+        toast(`PvP unlocks after ${o.onlineMode.needed ?? 5} matches. Co-op is open now.`);
+        return;
+      }
+      if (o.onlineMode && o.onlineMode.mode !== v) {
+        o.onlineMode.mode = v;
+        o.onlineMode.onMode(v);
+      }
+      o.onOnline?.();
     }
     else if (a === 'party') o.onParty?.();
     else if (a === 'joincode') o.onJoinCode?.();
@@ -456,6 +534,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   if (ac) document.addEventListener('keydown', onKey, { signal: ac.signal });
   else document.addEventListener('keydown', onKey);
   teardown.set(root, () => {
+    if (toastTimer) clearTimeout(toastTimer);
     ac?.abort();
     document.removeEventListener('keydown', onKey);
   });
@@ -474,12 +553,4 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
 export function heroIdentity(hero: HeroId, element: Element): LobbyIdentity {
   const t = HERO_TEXT[hero];
   return { name: t.title, sub: `${t.title} the ${t.role}`, element, role: t.role, card: false, rung: null };
-}
-
-/** Casual PvP: the online mode chip (Co-op vs bots · PvP), a radio group; PvP locked for newbies (V16.md §5). */
-function modeChipHtml(m: { mode: 'coop' | 'pvp'; locked: boolean }): string {
-  const btn = (v: 'coop' | 'pvp', label: string) =>
-    `<button type="button" role="radio" aria-checked="${m.mode === v}" data-a="mode" data-v="${v}" data-testid="mode-${v}"${v === 'pvp' && m.locked ? ' aria-disabled="true" title="PvP unlocks after 5 matches"' : ''}>${label}${v === 'pvp' && m.locked ? ' <span class="lb-lock" aria-hidden="true">🔒</span>' : ''}</button>`;
-  const lockLine = m.locked ? `<small class="lb-mode-lock" data-testid="mode-pvp-locked">PvP unlocks after 5 matches</small>` : '';
-  return `<div class="lb-mode" role="radiogroup" aria-label="Online mode" data-testid="online-mode">${btn('coop', 'Co-op vs bots')}${btn('pvp', 'PvP')}</div>${lockLine}`;
 }

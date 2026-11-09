@@ -271,9 +271,10 @@ describe('A6: loading line, pick role, ally barks', () => {
     expect(f.querySelector('.bond')).toBeNull();
   });
 
-  it('the pick screen shows the role label and (GAPS B1, since the lane swap) one lane hint', () => {
+  it('the champion select panel shows the role label with its glyph and (GAPS B1) one lane hint', () => {
     const root = pickScreen(document.body, { initial: { hero: 'lambo', trick: 'pounce', difficulty: 'easy' }, onHero: () => undefined, onStart: () => undefined, onBack: () => undefined });
-    expect(root.querySelector('.role-label')?.textContent).toBe('Tank');
+    expect(root.querySelector('.cs-panel .cs-role')?.textContent).toContain('Tank');
+    expect(root.querySelector('.cs-panel .cs-ri .pl-icon')).not.toBeNull();
     expect(root.querySelectorAll('.lane-hint')).toHaveLength(1);
     expect(root.querySelector('.lane-hint')?.textContent).toBe(laneHint('Tank'));
   });

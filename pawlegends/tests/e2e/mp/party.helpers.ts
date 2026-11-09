@@ -114,6 +114,17 @@ export async function mpNames(p: Player): Promise<string[]> {
   return p.page.evaluate(() => (document.documentElement.dataset.mpNames ?? '').split('|'));
 }
 
+/**
+ * Champion select (LANDING-PICK-UX §B4): the grid opens on the hovered hero's side; show every hero (the All tab)
+ * when `hero` sits behind the other side's tab. Quick Play has no side tabs (its grid is the assigned side).
+ */
+export async function showHero(p: Player, hero: string): Promise<void> {
+  const tile = p.page.locator(`[data-testid="party-hero-${hero}"]`);
+  if (await tile.isVisible()) return;
+  const all = p.page.locator('[data-cs="side"][data-side="all"]');
+  if (await all.count()) await tap(p, all);
+}
+
 /** A party of the given players (first = leader), each locks a hero, and all reach the live match. */
 export async function partyMatch(players: Player[], heroes: string[]): Promise<string> {
   const [a, ...rest] = players;
@@ -125,6 +136,7 @@ export async function partyMatch(players: Player[], heroes: string[]): Promise<s
   for (let i = 0; i < players.length; i++) {
     const p = players[i];
     await expect(p.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 30_000 });
+    await showHero(p, heroes[i]);
     await tap(p, p.page.locator(`[data-testid="party-hero-${heroes[i]}"]`));
     await tap(p, p.page.locator('[data-testid="party-lock"]'));
   }

@@ -1,8 +1,8 @@
 import { expect, test, type Frame } from '@playwright/test';
 import { art, mockHost, openHost, received } from './host';
 
-// Sim v9 shelter champions (sim v15: 20 pick tiles, 10 a side behind the CATS / DOGS switch), the card art and the web-only owner
-// badge on a champion tile, no Meet link on hero pick or in the lobby (title) champion info panel (information only:
+// Sim v9 shelter champions (sim v15: 20 pick tiles, 10 a side behind the All · Cats · Dogs tabs), the web-only owner
+// badge on a champion tile (portraits only on the champion select; the card art lives in the lobby panel), no Meet link on hero pick or in the lobby (title) champion info panel (information only:
 // the champion-offer Meet card is the one purchase surface), none of the badges in an app build, and the Avietė /
 // Gabė diacritics drawn in the UI font.
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'pick and lobby panels are viewport independent'));
@@ -18,7 +18,7 @@ const PLAYED = { v: 1, sessions: 2, matches: 4, wins: 2, firstWinDone: true, her
 
 async function toPick(game: Frame): Promise<void> {
   await game.locator('[data-a="choose"]').click();
-  await game.waitForSelector('.pl-pick');
+  await game.waitForSelector('.pl-pick .cs');
 }
 
 test('20 pick tiles (10 cats, 10 dogs), card art and the owner badge on the web; no buy link on pick or in the lobby panel', async ({ context, page, baseURL }) => {
@@ -34,20 +34,22 @@ test('20 pick tiles (10 cats, 10 dogs), card art and the owner badge on the web;
   expect((await received(page)).some((m) => m.type === 'open-cat')).toBe(false);
 
   await toPick(game);
-  await expect(game.locator('.heroes.cats .hero-card')).toHaveCount(10);
-  await expect(game.locator('.heroes.dogs .hero-card')).toHaveCount(10);
-  // sim v14: the cat side shows; the dogs wait behind the switch, and no dog is a champion
-  await expect(game.locator('.heroes.dogs')).toBeHidden();
-  await expect(game.locator('.heroes.dogs .champ-art, .heroes.dogs .champ-owned, .heroes.dogs .hero-card.champion')).toHaveCount(0);
-  await expect(game.locator('.hero-card[data-h="lambo"] .champ-art')).toHaveCount(1);
-  await expect(game.locator('.hero-card[data-h="gabe"] .champ-owned')).toHaveCount(1);
-  await expect(game.locator('.hero-card[data-h="lambo"] .champ-owned')).toHaveCount(0);
-  // sim v11: the four original cats are not champions (no card art, no badge)
-  for (const h of ['meatball', 'pixel', 'duchess', 'stilts']) await expect(game.locator(`.hero-card[data-h="${h}"] .champ-art, .hero-card[data-h="${h}"] .champ-owned`)).toHaveCount(0);
+  const cats = game.locator('.cs-grid .cs-tile[data-side="cat"]');
+  const dogs = game.locator('.cs-grid .cs-tile[data-side="dog"]');
+  await expect(cats).toHaveCount(10);
+  await expect(dogs).toHaveCount(10);
+  // the cat side shows (the selected hero's side); the dogs wait behind the Dogs tab, and no dog is a champion
+  await expect(game.locator('.cs-grid .cs-tile[data-side="dog"]:not([hidden])')).toHaveCount(0);
+  await expect(game.locator('.cs-grid .cs-tile[data-side="dog"] .champ-owned')).toHaveCount(0);
+  await expect(game.locator('.cs-tile[data-h="gabe"] .champ-owned')).toHaveCount(1);
+  await expect(game.locator('.cs-tile[data-h="lambo"] .champ-owned')).toHaveCount(0);
+  // sim v11: the four original cats are not champions (no badge)
+  for (const h of ['meatball', 'pixel', 'duchess', 'stilts']) await expect(game.locator(`.cs-tile[data-h="${h}"] .champ-owned`)).toHaveCount(0);
   // GDD §8.1 #5: no offer on hero pick
   await game.locator('[data-h="aviete"]').click();
-  await expect(game.locator('.pl-pick .detail')).toContainText("Inspired by Avietė's Token Tails card.".normalize('NFD'));
+  await expect(game.locator('.cs-panel .cs-name')).toHaveText('Avietė'.normalize('NFD'));
   await expect(game.locator('.pl-pick [data-a="champion-meet"], .pl-pick .plc-meet, .pl-pick .plc-champ')).toHaveCount(0);
+  await expect(game.locator('.pl-pick')).not.toContainText(/\$|€|price|pack|donat|fund|adopt/i);
 });
 
 test('app build: champions play, no owner badge, no Meet link anywhere', async ({ context, page, baseURL }) => {
@@ -58,7 +60,7 @@ test('app build: champions play, no owner badge, no Meet link anywhere', async (
   await info.locator('[data-a="champion-info"]').click();
   await expect(info.locator('[data-a="champion-meet"]')).toHaveCount(0);
   await toPick(game);
-  await expect(game.locator('.hero-card')).toHaveCount(20);
+  await expect(game.locator('.cs-grid .cs-tile')).toHaveCount(20);
   await expect(game.locator('.champ-owned')).toHaveCount(0);
   await expect(game.locator('[data-a="champion-meet"]')).toHaveCount(0);
   expect((await received(page)).some((m) => m.type === 'open-cat')).toBe(false);
@@ -69,8 +71,8 @@ test('the Avietė and Gabė diacritics render in the UI font (Fredoka draws e + 
   const game = await openHost(page);
   await toPick(game);
   // the UI writes them decomposed (NFD: e + combining dot), which is what Fredoka can draw
-  await expect(game.locator('.hero-card[data-h="aviete"] b')).toHaveText('Avietė'.normalize('NFD'));
-  await expect(game.locator('.hero-card[data-h="gabe"] b')).toHaveText('Gabė'.normalize('NFD'));
+  await expect(game.locator('.cs-tile[data-h="aviete"] .cs-tn')).toHaveText('Avietė'.normalize('NFD'));
+  await expect(game.locator('.cs-tile[data-h="gabe"] .cs-tn')).toHaveText('Gabė'.normalize('NFD'));
   const widths = await game.evaluate(async () => {
     await document.fonts.load('600 40px Fredoka', 'ė');
     const g = document.createElement('canvas').getContext('2d')!;
@@ -78,7 +80,7 @@ test('the Avietė and Gabė diacritics render in the UI font (Fredoka draws e + 
       g.font = font;
       return g.measureText(t).width;
     };
-    const label = document.querySelector('.hero-card[data-h="aviete"] b')?.textContent ?? '';
+    const label = document.querySelector('.cs-tile[data-h="aviete"] .cs-tn')?.textContent ?? '';
     return { loaded: document.fonts.check('600 40px Fredoka', label), edot: w('600 40px Fredoka, monospace', 'e\u0307'), e: w('600 40px Fredoka, monospace', 'e'), mono: w('600 40px monospace', 'e\u0307') };
   });
   expect(widths.loaded).toBe(true);

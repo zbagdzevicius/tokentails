@@ -50,7 +50,10 @@ test('boot splash, champion browser and preview pacing', async ({ page }) => {
   await page.locator('[data-a="choose"]').click();
   await page.waitForSelector('html[data-screen="pick"]');
   const dmg0 = await page.locator('.fx-dmg-layer').count();
-  await page.locator('.hero-card[data-h="clem"] .hero-info').first().tap();
+  // the champion select itself draws no 3D (portraits only); Preview opens the browser's clip on demand
+  await expect(page.locator('.pl-pick canvas')).toHaveCount(0);
+  await page.locator('.cs-sk[data-slot="q"]').tap();
+  await page.locator('.cs-panel [data-a="codex"]').first().tap();
   const dlg = page.locator('.pl-champ[data-ready="1"]');
   await expect(dlg).toBeVisible({ timeout: 30_000 });
   await expect(page.locator('html[data-champ="1"]')).toHaveCount(1);

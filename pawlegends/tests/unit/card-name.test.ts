@@ -105,27 +105,26 @@ describe('pick screen with the cards drawer', () => {
     initial: { hero: 'clem' as const, trick: 'pounce' as const, difficulty: 'easy' as const },
     owned: { items: new Set<string>(), unlocks: new Set<string>(), roster: rosterCosmetics(ROSTER) },
     looks: { clem: { coat: 'cat.a', chroma: null } },
-    skins: { owned: [{ id: 'cat.a', name: 'Simas', element: 'FIRE' as const, rung: 'LEGENDARY' as const, bond: 3 }], locked: [] },
     onHero: () => undefined,
     onStart: () => undefined,
     onBack: () => undefined,
     onDeck,
   });
 
-  it('the worn card names the hero tile and the compact row; the strip is gone', () => {
+  it('the worn card names the hero tile; Look opens the drawer (no strip, no prices on the pick)', () => {
     setRosterSkins(ROSTER);
     const onDeck = vi.fn();
     const root = pickScreen(document.body, opts(onDeck));
-    const tile = root.querySelector('.hero-card[data-h="clem"]') as HTMLElement;
-    expect(tile.querySelector('b')?.textContent).toBe('Simas');
-    expect(tile.querySelector('.tt-in > small')?.textContent).toBe('Clem · Fighter');
+    const tile = root.querySelector('.cs-tile[data-h="clem"]') as HTMLElement;
+    expect(tile.querySelector('.cs-tn')?.textContent).toBe('Simas');
     expect(tile.getAttribute('aria-label')).toBe('Simas: Clem, Cat Fighter');
-    expect(root.querySelector('.hero-card[data-h="sage"] b')?.textContent).toBe('Sage');
+    expect(root.querySelector('.cs-tile[data-h="sage"] .cs-tn')?.textContent).toBe('Sage');
     expect(root.querySelector('.skin-strip')).toBeNull();
-    const pill = root.querySelector('.deck-pill') as HTMLElement;
-    expect(pill.textContent).toContain('Simas');
-    expect(pill.textContent).toContain('Change');
-    pill.click();
+    const look = root.querySelector('.cs-look[data-a="look"]') as HTMLElement;
+    expect(look.textContent).toBe('Look');
+    look.click();
+    // the player owns colour tints: the Look sheet opens, its Cards button opens the drawer
+    (root.querySelector('.cs-looksheet [data-a="deck"]') as HTMLElement).click();
     expect(onDeck).toHaveBeenCalledWith('clem');
   });
 
@@ -133,12 +132,14 @@ describe('pick screen with the cards drawer', () => {
     setRosterSkins(ROSTER);
     const root = pickScreen(document.body, opts());
     (root.querySelector('[data-t="hiss"]') as HTMLElement | null)?.click();
-    const trick = root.querySelector('.tricks .chip.on')?.getAttribute('data-t');
+    const trick = root.querySelector('.cs-trick.on')?.getAttribute('data-t');
     expect(trick).toBe('hiss');
+    const grid = root.querySelector('.cs-grid') as HTMLElement;
     setPickLook(root, 'clem', { coat: null, chroma: null });
-    expect(root.querySelector('.hero-card[data-h="clem"] b')?.textContent).toBe('Clem');
-    expect(root.querySelector('.deck-pill b')?.textContent).toBe('Classic');
-    expect(root.querySelector('.tricks .chip.on')?.getAttribute('data-t')).toBe(trick);
+    expect(root.querySelector('.cs-tile[data-h="clem"] .cs-tn')?.textContent).toBe('Clem');
+    expect(root.querySelector('.cs-trick.on')?.getAttribute('data-t')).toBe(trick);
+    // the grid element survives (its scroll position with it)
+    expect(root.querySelector('.cs-grid')).toBe(grid);
   });
 });
 

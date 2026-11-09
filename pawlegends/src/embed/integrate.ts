@@ -413,20 +413,22 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       const info = championPanel();
       if (info) slot.appendChild(info);
     } else if (kind === 'pick') {
-      slot.replaceChildren();
-      dock.replaceChildren(
-        pickCards(
-          { squad: squad(), bench: bench(), guest: isApp() ? null : (s.featured[0] ?? null), askSignIn: ask },
-          {
-            signIn: () => signIn('save-progress'),
-            choose: (id) => {
-              chooseSquadMate(id, squad().map((c) => c.id));
-              deps.onRosterChange();
-              redraw();
-            },
+      const cards = pickCards(
+        { squad: squad(), bench: bench(), guest: isApp() ? null : (s.featured[0] ?? null), askSignIn: ask },
+        {
+          signIn: () => signIn('save-progress'),
+          choose: (id) => {
+            chooseSquadMate(id, squad().map((c) => c.id));
+            deps.onRosterChange();
+            redraw();
           },
-        ),
+        },
       );
+      // the champion select declares its slot under the team seats (LANDING-PICK-UX §B5): the squad walks with the
+      // team there, never over the hero panel; a screen without one keeps the corner dock
+      const inline = !slot.dataset.auto;
+      slot.replaceChildren(...(inline ? [cards] : []));
+      dock.replaceChildren(...(inline ? [] : [cards]));
     } else {
       const won = scr.classList.contains('won');
       const cat = won ? meetFor('results') : null;

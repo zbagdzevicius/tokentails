@@ -48,14 +48,12 @@ const tappable = async (page: Page, sel: string, min = 44): Promise<boolean> => 
 
 const noSideScroll = (page: Page) => page.evaluate(() => (document.scrollingElement?.scrollWidth ?? 0) <= innerWidth + 1);
 
-/** Pick PvP on the title chip and Play. */
+/** PvP on the title: one tap on the PvP button in the online row (no mode chip). */
 async function playPvp(p: Player): Promise<void> {
-  const chip = p.page.locator('[data-testid="mode-pvp"]');
-  await expect(chip).toBeVisible({ timeout: 30_000 });
-  await tap(p, chip);
-  await expect(chip).toHaveAttribute('aria-checked', 'true');
-  await expect(p.page.locator('[data-testid="play-online"]')).toHaveText('Play PvP');
-  await tap(p, p.page.locator('[data-testid="play-online"]'));
+  const pvp = p.page.locator('[data-testid="play-pvp"]');
+  await expect(pvp).toBeVisible({ timeout: 30_000 });
+  await expect(pvp).not.toHaveAttribute('aria-disabled', 'true');
+  await tap(p, pvp);
   await expect(p.page.locator('[data-testid="mm-queue"][data-mode="pvp"], [data-testid="mm-accept-card"]').first()).toBeVisible({ timeout: 15_000 });
 }
 
@@ -74,9 +72,9 @@ test('two strangers on opposite teams: PvP chip, Accept, a hidden-team pick, a r
   const b = await player(browser, 'phone');
   for (const p of [a, b]) await title(p);
   await Promise.all([warm(a), warm(b)]);
-  // the mode chip sits above Play online, a 44 px target on the phone, no sideways scroll
-  await expect(b.page.locator('[data-testid="mode-pvp"]')).toBeVisible({ timeout: 30_000 });
-  expect(await tappable(b.page, '[data-testid="mode-pvp"]')).toBe(true);
+  // PvP sits next to Co-op in the online row, a tappable target on the phone, no sideways scroll
+  await expect(b.page.locator('[data-testid="play-pvp"]')).toBeVisible({ timeout: 30_000 });
+  expect(await tappable(b.page, '[data-testid="play-pvp"]', 36)).toBe(true);
   expect(await noSideScroll(b.page)).toBe(true);
   await shot(b, 'm1b', '00-title-mode-chip');
   await Promise.all([playPvp(a), playPvp(b)]);
@@ -140,8 +138,8 @@ test('667x375 phone: the mode chip and the Accept card fit; a decline is a dodge
   const b = await player(browser, 'desktop');
   for (const p of [a, b]) await title(p);
   await Promise.all([warm(a), warm(b)]);
-  await expect(a.page.locator('[data-testid="mode-pvp"]')).toBeVisible({ timeout: 30_000 });
-  expect(await tappable(a.page, '[data-testid="mode-pvp"]')).toBe(true);
+  await expect(a.page.locator('[data-testid="play-pvp"]')).toBeVisible({ timeout: 30_000 });
+  expect(await tappable(a.page, '[data-testid="play-pvp"]', 36)).toBe(true);
   expect(await tappable(a.page, '[data-testid="play-online"]', 36)).toBe(true);
   expect(await noSideScroll(a.page)).toBe(true);
   await shot(a, 'm1b', '10-title-small');

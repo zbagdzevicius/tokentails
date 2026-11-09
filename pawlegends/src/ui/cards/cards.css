@@ -224,65 +224,10 @@ html[data-touch='1'] .tt-respawn.on:not(.up) { opacity: 0; visibility: hidden; }
   .tt-mvp .tt-face-back { display: none; }
   .tt-mvp-burst, .tt-mvp-leg { animation: tt-fade-to 0.2s ease-out both; }
 }
-
 /* ------------------------------------------------------------------------- pick: champions as cards */
-.pl-pick .heroes .hero-card.tt-card {
-  display: block; padding: 0; gap: 0; background: none; border: 0; border-radius: 7% / 5.4%; cursor: pointer; aspect-ratio: 17 / 22;
-  box-shadow: 0 0 0 2px var(--tt-border), 0 3px 8px rgba(0, 0, 0, 0.3); filter: saturate(0.82) brightness(0.92);
-}
-.pl-pick .heroes .hero-card.tt-card:hover { filter: none; }
-.pl-pick .heroes .hero-card.tt-card.on {
-  filter: none; transform: translateY(-3px);
-  box-shadow: 0 0 0 2px var(--butter, #ffd27a), 0 0 0 4px rgba(43, 29, 46, 0.6), 0 8px 20px rgba(0, 0, 0, 0.4), var(--tt-glow, 0 0 0 transparent);
-}
-.pl-pick .heroes .hero-card.tt-card.on.tt-hover { transform: translateY(-3px) perspective(420px) rotateX(var(--rx)) rotateY(var(--ry)) scale(1.05); }
-.pl-pick .heroes .hero-card.tt-card .tt-in { padding-bottom: 4cqw; }
-.pl-pick .heroes .hero-card.tt-card .tt-pic { width: auto; height: 74%; border-radius: 0; box-shadow: none; }
-.pl-pick .heroes .hero-card.tt-card .tt-in > b { font-size: 14.5cqw; }
-.pl-pick .heroes .hero-card.tt-card .tt-in > small { font-size: 9.5cqw; }
-.pl-pick .heroes .hero-card.tt-card .champ-art { position: absolute; top: auto; bottom: 27%; right: 3%; width: 22%; height: auto; aspect-ratio: 1; z-index: 2; border-radius: 3cqw; }
-.pl-pick .heroes .hero-card.tt-card .champ-owned { position: absolute; top: 3%; left: auto; right: 3%; z-index: 2; font-size: 8.5cqw; padding: 1.5cqw 4cqw; }
 /* QA v15: the New tag takes the Card badge's corner (a new hero has no card art); top left is the element icon's. */
-.pl-pick .heroes .hero-card.tt-card .new-tag { top: 3%; left: auto; right: 3%; z-index: 2; font-size: 8.5cqw; padding: 1.5cqw 4cqw; }
-.pl-pick .heroes .hero-card.tt-card > .tt-ico { width: 19%; }
-@media (min-height: 481px) and (max-height: 820px) {
-  .pl-pick .heroes .hero-card.tt-card { aspect-ratio: 17 / 19; padding: 0; }
-  .pl-pick .heroes .hero-card.tt-card .tt-pic { height: 70%; }
-}
-@media (max-height: 520px) {
-  /* 844x390: tiles keep their old height (the Paw Trick chips stay above the fold): a landscape card, name only */
-  .pl-pick .heroes .hero-card.tt-card { aspect-ratio: 17 / 13; padding: 0; }
-  .pl-pick .heroes .hero-card.tt-card .tt-pic { height: 74%; background-size: auto 118%, cover; }
-  .pl-pick .heroes .hero-card.tt-card .tt-in > b { font-size: 15cqw; }
-  .pl-pick .heroes .hero-card.tt-card .tt-in > small { display: none; }
-  .pl-pick .heroes .hero-card.tt-card .tt-in { padding-bottom: 2cqw; }
-  .pl-pick .heroes .hero-card.tt-card > .tt-ico { width: 15%; left: 7%; top: 9%; }
-  .pl-pick .heroes .hero-card.tt-card > .tt-sp.t, .pl-pick .heroes .hero-card.tt-card > .tt-sp.b { width: 14%; }
-  .pl-pick .heroes .hero-card.tt-card .champ-art { width: 17%; bottom: 30%; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .pl-pick .heroes .hero-card.tt-card.on.tt-hover { transform: translateY(-3px); }
-}
-
 /* --------------------------------------------------------------- pick: card skin tiles as mini cards */
-.skin-tile.tt-skin { overflow: hidden; isolation: isolate; }
-.skin-tile.tt-skin > * { position: relative; z-index: 1; }
-.skin-tile.tt-skin > .el { position: absolute; }
-.skin-tile.tt-skin > .tt-skin-bg, .skin-tile.tt-skin > .tt-skin-foil, .skin-tile.tt-skin > .tt-skin-paws {
-  position: absolute; inset: 0; z-index: 0; pointer-events: none; border-radius: inherit;
-}
-.skin-tile.tt-skin > .tt-skin-bg { background: var(--tt-bg) center 30% / cover no-repeat; opacity: 0.3; }
-.skin-tile.tt-skin > .tt-skin-foil { background: var(--tt-pat) center / 160% auto repeat; mix-blend-mode: color-dodge; opacity: 0; }
-.skin-tile.tt-skin[data-rung='RARE'] > .tt-skin-foil { opacity: 0.18; }
-.skin-tile.tt-skin[data-rung='EPIC'] > .tt-skin-foil { opacity: 0.24; animation: tt-foil-pan 7s linear infinite; }
-.skin-tile.tt-skin[data-rung='LEGENDARY'] > .tt-skin-foil { opacity: 0.3; animation: tt-foil-pan 5s linear infinite; }
-.skin-tile.tt-skin.on > .tt-skin-foil { opacity: 0.38; }
-.skin-tile.tt-skin.on > .tt-skin-bg { opacity: 0.45; }
-.skin-tile.tt-skin > .tt-skin-paws { background: var(--tt-lp) 50% 110% / 90% auto no-repeat; opacity: 0.45; mix-blend-mode: screen; }
-.skin-tile.tt-skin.locked > .tt-skin-bg { filter: grayscale(1); opacity: 0.2; }
-.skin-tile.tt-skin.locked > .tt-skin-foil { display: none; }
 @keyframes tt-foil-pan { from { background-position: 0 0; } to { background-position: 160px 220px; } }
-@media (prefers-reduced-motion: reduce) { .skin-tile.tt-skin > .tt-skin-foil { animation: none !important; } }
 
 /* --------------------------------------------------------------------- title: the badge's card ring */
 .pl-badge .ring.tt-ring {

@@ -48,7 +48,7 @@ export const COPY = Object.freeze({
   joining: (code: string) => `Joining ${code}…`,
   connecting: 'Connecting…',
   // pick
-  pickTitle: 'Pick your hero',
+  pickTitle: 'Choose your legend',
   lockIn: 'Lock in',
   skillsLore: 'Skills & lore',
   lockedIn: 'Locked in',
