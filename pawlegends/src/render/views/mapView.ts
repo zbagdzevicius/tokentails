@@ -1085,10 +1085,13 @@ export function createMapView(): MapView {
   const fs = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   const tc = new THREE.Color();
+  // PERF-IOS §8 Track B: an own material for the instanced far forest, so it does not flip `sceneryMat`'s program
+  // variant (instancing on / off) against the merged meshes twice a frame.
+  const farMat = keep(sceneryMat.clone());
   const farMeshes: { mesh: THREE.InstancedMesh; all: number; low: number }[] = [];
   for (const list of chunks.values()) {
     list.sort((a, b) => Number(b.low) - Number(a.low) || a.i - b.i);
-    const mesh = new THREE.InstancedMesh(farGeo, sceneryMat, list.length);
+    const mesh = new THREE.InstancedMesh(farGeo, farMat, list.length);
     mesh.name = 'far-forest';
     list.forEach((t, j) => {
       const i = t.i;

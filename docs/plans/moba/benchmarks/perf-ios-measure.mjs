@@ -2,7 +2,8 @@
 // 1. cd pawlegends && npx vite build --outDir /tmp/pl-perf && npx vite preview --outDir /tmp/pl-perf --host 127.0.0.1 --port 4471 --strictPort
 // 2. node docs/plans/moba/benchmarks/perf-ios-measure.mjs <chromium|webkit> [query, e.g. quality=low] [label]
 //    env: GPU=1 (Chromium on the real GPU), THROTTLE=4 (Chromium CPU slowdown, default 4), UNCAP=1 (no vsync),
-//    MID_WAIT=60000 (ms between match windows). Writes $OUT_DIR/pl-perf-<label>.json (default /tmp).
+//    MID_WAIT=60000 (ms between match windows), LOBBY_MS (lobby window, default 10000), WIN_MS (each match window,
+//    default 15000), VIEWPORT=desktop (1440x900 DPR 1, mouse, no touch; default iPhone 15 Pro landscape). Writes $OUT_DIR/pl-perf-<label>.json (default /tmp).
 
 import { createRequire } from 'node:module';
 import fs from 'node:fs';
@@ -117,7 +118,10 @@ const INSTR = () => {
 
 const launchArgs = BROWSER === 'chromium' ? (GPU ? [...(process.env.UNCAP === '1' ? ['--disable-gpu-vsync', '--disable-frame-rate-limit'] : []), '--enable-precise-memory-info', '--enable-gpu', '--use-angle=metal', '--ignore-gpu-blocklist', '--enable-unsafe-webgpu'] : ['--enable-precise-memory-info', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']) : [];
 const browser = await pw[BROWSER].launch({ args: launchArgs, headless: true });
-const ctx = await browser.newContext({ viewport: { width: 852, height: 393 }, deviceScaleFactor: 3, isMobile: BROWSER === 'chromium', hasTouch: true });
+const DESKTOP = process.env.VIEWPORT === 'desktop';
+const ctx = await browser.newContext(DESKTOP ? { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1 } : { viewport: { width: 852, height: 393 }, deviceScaleFactor: 3, isMobile: BROWSER === 'chromium', hasTouch: true });
+const LOBBY_MS = Number(process.env.LOBBY_MS ?? 10000);
+const WIN_MS = Number(process.env.WIN_MS ?? 15000);
 const profile = { v: 1, sessions: 4, matches: 3, wins: 2, firstWinDone: true, hero: 'clem', side: 'cat' };
 await ctx.addInitScript(([k, j]) => { try { if (!localStorage.getItem(k)) localStorage.setItem(k, j); } catch {} }, ['tt.pawlegends.profile.v1', JSON.stringify(profile)]);
 await ctx.addInitScript(INSTR);
@@ -192,18 +196,18 @@ async function holdStick(ms) {
 await page.goto(`${BASE}?${QUERY}`);
 await page.waitForSelector('html[data-screen="title"]', { timeout: 60000 });
 await wait(4000); // the probe decides the tier in ~2.6 s
-await windowed('lobby-title', 10000);
+await windowed('lobby-title', LOBBY_MS);
 
 await page.locator('.pl-btn.big').first().click();
 await page.waitForSelector('html[data-match="live"]', { timeout: 90000 });
 await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'), null, { timeout: 30000 }).catch(() => {});
 const units = async () => page.evaluate(() => document.documentElement.dataset.draws);
-await windowed('match-early', 15000, holdStick);
+await windowed('match-early', WIN_MS, holdStick);
 const MID = Number(process.env.MID_WAIT ?? 30000);
 await holdStick(MID);
-await windowed('match-mid', 15000, holdStick);
+await windowed('match-mid', WIN_MS, holdStick);
 await holdStick(MID);
-await windowed('match-late', 15000, holdStick);
+await windowed('match-late', WIN_MS, holdStick);
 // paused (the touch pause button)
 await page.evaluate(() => document.querySelector('.pl-pause')?.click());
 await wait(800);
