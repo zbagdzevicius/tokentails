@@ -94,7 +94,7 @@ export interface Character {
 }
 
 /** A live character on shared geometry: its own bones, animator and material. */
-export function makeCharacter(built: Built, profile: MotionProfile, height: number, o: { outline?: boolean; shadows?: boolean; name?: string } = {}): Character {
+export function makeCharacter(built: Built, profile: MotionProfile, height: number, o: { outline?: boolean; shadows?: boolean; name?: string; match?: boolean } = {}): Character {
   const cached = owner.get(built.geometry);
   if (cached) cached.refs++;
   let released = false;
@@ -120,10 +120,10 @@ export function makeCharacter(built: Built, profile: MotionProfile, height: numb
   inner.rotation.y = Math.PI / 2;
   inner.scale.setScalar(height);
   inner.add(rig.root);
-  // PERF-IOS §8 Track A: on a phone the skinned body (~5k triangles, never culled) does not draw into the shadow map;
-  // a low-poly ellipsoid of the same size casts instead (~80 triangles). The views still toggle `mesh.castShadow`
+  // PERF-IOS §8 Track A: in a match on a phone the skinned body (~5k triangles, never culled) does not draw into the
+  // shadow map; a low-poly ellipsoid of the same size casts instead (~80 triangles). The lobby turntable keeps its own. The views still toggle `mesh.castShadow`
   // (Medium on, the governor's shadow step off): the flag now drives the stand-in.
-  if (isPhone() && (o.shadows ?? true)) {
+  if (o.match === true && isPhone() && (o.shadows ?? true)) {
     const proxy = shadowProxy(built.geometry);
     inner.add(proxy);
     proxy.castShadow = mesh.castShadow;
