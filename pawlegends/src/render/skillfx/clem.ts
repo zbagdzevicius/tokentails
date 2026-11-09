@@ -7,14 +7,28 @@
  * windup. Golden Hour's cast does no damage, so its slam stays body-centric (no ring or shockwave sized like an area
  * hit). Extras scale with the quality tier (`by`) and reduce motion. All state is preallocated per entity id; nothing
  * allocates per frame.
+ *
+ * Champion identity (CHAMP-IDENTITY.md §3, audio/champ/clem.ts): every skill also draws its nature accent (Q slash
+ * sparks, W guard shards, E mobility dust, R and Valor empower pillars) and her motif, a peach sunburst with sunlight
+ * rays: rays streaking down the Paw Combo cone (a full sunburst on the launcher), a sun on The Stand's wall and on a
+ * parried bolt, tiny-sun afterimages along Tumble, a sun-ray fan on each Golden Hour wave. On an enemy the sunlight
+ * is a pale glint. Sounds: the framework plays the nature layer with her kalimba arpeggio (R: her ult voice); the
+ * parry rings her W impact (guard clank + kalimba ting) instead of the generic ting, and Tumble no longer cues a pop.
  */
 import * as THREE from 'three';
 import { PROJECTILE_KIND } from '../../data/towers';
+import { CHAMP_AUDIO } from '../../audio/champ';
+import type { MotifPainter } from '../../audio/champ/types';
+import { playSkillSfx } from '../../audio/skillSfx';
+import { IDENTITY, type SkillKey } from '../../data/identity';
 import { stubFx } from '../anim/common';
 import { DASH_SPEED, TICK_S, travelTicks } from '../anim/timing';
 import type { SimEvent } from '../../sim/api';
 import type { CombatVfxLike, FxCtx, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
 import { CLEM_LIVE, noteValor } from '../moves/clem';
+import { NATURE_FX } from '../fx/natureFx';
+import { FADE, SHAPE } from '../fx/Particles.js';
+import { funCount, funPool } from '../fx/fun/funKit';
 import { funBigHit, funChestY, funHeadY, funHeroOf, funMaxed, funOverY, funPop, funRand, funRank, funSfx, orbit, pawTrail, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
 
 const GOLD = 0xffd34d;
@@ -134,6 +148,122 @@ const aimYaw = (x: number, y: number): number => Math.atan2(y / 1000 + P.z, x / 
 
 const now = (): number => CLEM_LIVE.now;
 
+// ------------------------------------------------------------------------------------------------ champion identity
+
+type Pool = Pick<MotifPainter, 'burst' | 'single' | 'ring'>;
+let pool: Pool | null = null;
+const SH = SHAPE as unknown as Readonly<Record<string, number>>;
+/** The fun sticker pool as the champion motif painter (audio/champ/clem.ts paintClem draws through it). */
+const PAINTER: MotifPainter = {
+  burst: (pos, o) => pool?.burst(pos, o),
+  single: (pos, o) => pool?.single(pos, o),
+  ring: (pos, o) => pool?.ring(pos, o),
+  shape: SH,
+  colors: { primary: IDENTITY.clem.colors.primary, secondary: IDENTITY.clem.colors.secondary },
+};
+/** The colour pair on an enemy: a gold-family colour mixed 70 percent toward white (never the gold "you" family). */
+const ENEMY_PRIMARY = IDENTITY.clem.colors.primary;
+const ENEMY_SECONDARY = 0xfff8e5;
+const IAT = { x: 0, y: 0, z: 0 };
+const IDIR = { x: 0, z: 0 };
+const IDIR3 = { x: 0, y: 0, z: 0 };
+const NB = { n: 1, exact: true, shape: 0, color: 0, additive: false, intensity: 1, size: [0.1, 0.2] as readonly number[], life: [0.3, 0.5] as readonly number[], speed: [1, 2] as readonly number[], gravity: 0, up: 0, dir: undefined as typeof IDIR3 | undefined, spread: Math.PI, stretch: 1, drag: 1, flat: false, fade: 0 as number, r0: 0.5, sizeEnd: 1 };
+const NS = { shape: 0, color: 0, size0: 0.4, size1: 1.6, life: 0.3, alpha: 0.7, intensity: 1.4, additive: true };
+
+/** The skill's nature accent at IAT (NATURE_FX: its shape, colour and motion), about half a cast's worth of particles. */
+function natureAccent(fx: FxCtx, skill: SkillKey, has: boolean): void {
+  const s = NATURE_FX[IDENTITY.clem.skills[skill].nature];
+  const p = pool!;
+  const o = NB;
+  o.n = funCount(fx, Math.max(2, Math.round(s.count.cast * 0.5)));
+  o.shape = SH[s.shape];
+  o.color = s.color;
+  o.additive = s.additive;
+  o.intensity = s.additive ? 1.4 : 1;
+  o.size = s.size;
+  o.life = s.life;
+  o.speed = s.speed;
+  o.gravity = s.gravity;
+  o.up = 0.6;
+  o.dir = undefined;
+  o.spread = Math.PI;
+  o.stretch = 1;
+  o.drag = 1;
+  o.flat = false;
+  o.fade = FADE.TWINKLE;
+  switch (s.motion) {
+    case 'slam':
+    case 'dome':
+    case 'implode':
+    case 'twinkle':
+      o.r0 = s.motion === 'implode' ? 1.4 : 0.6;
+      o.up = s.motion === 'dome' ? 1.6 : 0.4;
+      o.sizeEnd = s.motion === 'slam' ? 2 : 0.7;
+      p.ring(IAT, o);
+      return;
+    case 'ripple':
+      NS.shape = SH.RING;
+      NS.color = s.color;
+      for (let i = 0; i < 2; i++) {
+        NS.size0 = 0.4 + i * 0.5;
+        NS.size1 = 1.6 + i * 0.9;
+        NS.life = 0.3 + i * 0.06;
+        NS.alpha = 0.75 - i * 0.15;
+        p.single(IAT, NS);
+      }
+      return;
+    case 'sweep':
+    case 'bolt':
+    case 'streak':
+      if (has) {
+        o.dir = IDIR3;
+        o.spread = 0.6;
+      }
+      o.stretch = 2.5;
+      o.drag = 4;
+      break;
+    case 'rise':
+    case 'pillar':
+      o.up = 2.5;
+      break;
+    case 'arc':
+      o.up = 3;
+      break;
+    case 'trail':
+      o.flat = true;
+      o.up = 0.4;
+      break;
+    default:
+  }
+  p.burst(IAT, o);
+}
+
+/**
+ * Champion identity (CHAMP-IDENTITY.md §1–§3): the skill's nature accent and Clem's sunburst motif in the colour pair at
+ * (x, y, z) for caster `src`, `n` motif particles (the tier halves it), along (dx, dz) when given. `nature` false: the motif alone. A
+ * no-op without the fun pool (unit stubs).
+ */
+function identity(fx: FxCtx, src: number, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void {
+  const p = funPool(fx) as unknown as Partial<Pool> | null;
+  if (!p || typeof p.burst !== 'function') return;
+  pool = p as Pool;
+  // gold stays "you": on an enemy the gold-family half of the pair is drawn as a pale glint (skins trimForTeam)
+  const foe = fx.relation(src) === 'enemy';
+  PAINTER.colors.primary = foe ? ENEMY_PRIMARY : IDENTITY.clem.colors.primary;
+  PAINTER.colors.secondary = foe ? ENEMY_SECONDARY : IDENTITY.clem.colors.secondary;
+  const has = dx !== 0 || dz !== 0;
+  IAT.x = x;
+  IAT.y = y;
+  IAT.z = z;
+  IDIR.x = IDIR3.x = dx;
+  IDIR.z = IDIR3.z = dz;
+  if (nature) natureAccent(fx, skill, has);
+  CHAMP_AUDIO.clem.fx?.paint?.(PAINTER, IAT, funCount(fx, n), has ? IDIR : null, skill);
+}
+
+/** The identity mix relation of a Relation3. */
+const MIXREL = { own: 'mine', ally: 'ally', enemy: 'enemy' } as const;
+
 // ------------------------------------------------------------------------------------------------ casts
 
 function castQ(e: CastEv, fx: FxCtx, ctx: MoveCtx, id: number): void {
@@ -150,6 +280,8 @@ function castQ(e: CastEv, fx: FxCtx, ctx: MoveCtx, id: number): void {
   qVar[id] = v;
   qPow[id] = emp ? 1 : 0;
   clawGlyphs(fx, yaw, range, stage, v, funRank(fx, e.src, 0, ctx.talents), funMaxed(fx, e.src, 0, ctx.talents));
+  // identity: slash sparks and sun rays streaking down the cone; the launcher (3rd hit) throws a full sunburst
+  identity(fx, e.src, 'q', P.x + Math.cos(yaw) * range * 0.6, 0.3, P.z - Math.sin(yaw) * range * 0.6, stage === 2 ? 9 : 4, Math.cos(yaw), -Math.sin(yaw));
   const c = O.crescent;
   c.p0 = arc;
   c.p1 = stage === 2 ? 0.2 : 0.35;
@@ -195,6 +327,8 @@ function castQ(e: CastEv, fx: FxCtx, ctx: MoveCtx, id: number): void {
 }
 
 function valorBurst(fx: FxCtx, id: number): void {
+  // identity: Valor at 100: an empower pillar and a sun rising over her head
+  identity(fx, id, 'passive', P.x, 1.0, P.z, 5);
   if (fx.tier !== 'low') {
     O.ring.p1 = 0.1;
     mesh(fx, 'ring', id, P.x, P.z, 0, 1.4, 0.4, VALOR, O.ring);
@@ -244,6 +378,8 @@ function castW(fx: FxCtx, id: number, src: number): void {
   w.sy = 1.25;
   O.glow.p3 = 1;
   mesh(fx, 'glow', src, P.x + Math.cos(yaw) * 0.6, P.z - Math.sin(yaw) * 0.6, 0, 1.1, parry, SUN, O.glow);
+  // identity: guard shards round her and a sun disc on the wall
+  identity(fx, src, 'w', P.x + Math.cos(yaw) * 0.6, 0.4, P.z - Math.sin(yaw) * 0.6, 5, Math.cos(yaw), -Math.sin(yaw));
 }
 
 function castE(e: CastEv, fx: FxCtx, id: number): void {
@@ -259,7 +395,8 @@ function castE(e: CastEv, fx: FxCtx, id: number): void {
   eFromX[id] = P.x;
   eFromZ[id] = P.z;
   stickerBurst(fx, P.x, 0.35, P.z, 'HAIRBALL', 0xfff0dc, 0.42, 0.5, 6, 2.2, 1, -1.5, e.tick * 0.07);
-  funSfx(fx, 'pop', P, 0.6);
+  // identity: mobility dust and a sun drifting back off the take-off (the whoosh is the nature cast layer)
+  identity(fx, e.src, 'e', P.x, 0.2, P.z, 4, Number.isFinite(yaw) ? Math.cos(yaw) : 0, Number.isFinite(yaw) ? -Math.sin(yaw) : 0);
   fx.linger.add('petals', P.x, P.z, 0.8, Number.isFinite(yaw) ? yaw : 0, PETAL);
   O.glow.p3 = 0.8;
   mesh(fx, 'glow', e.src, P.x, P.z, 0, 0.9, 0.25, SUN, O.glow);
@@ -278,6 +415,8 @@ function castR(fx: FxCtx, id: number, src: number): void {
   rNote[id] = now() + 0.5;
   // fun: a burst of little suns and notes off the leap (more at a higher rank)
   stickerBurst(fx, P.x, 1.6, P.z, 'STAR', SUN, 0.3, 0.8, 7, 2.6, 3.4, -6, (src & 7) * 0.13);
+  // identity: the empower pillar and a big sunburst
+  identity(fx, src, 'r', P.x, 0.5, P.z, 10);
   // the sun column (6 m, 400 ms), a white core (Med / High), a body-sized ground glow and a petal spiral
   O.pillar.sy = 6;
   O.pillar.p3 = 1.3;
@@ -336,6 +475,8 @@ function sunCleave(fx: FxCtx, src: number, yaw: number): void {
   c.delay = 0;
   mesh(fx, 'crescent', src, P.x, P.z, yaw, 1.8, 0.3, GOLD, c);
   wave(fx, src, yaw);
+  // identity: each Golden Hour wave fans out sun rays from a little sun at the blade
+  identity(fx, src, 'r', P.x + Math.cos(yaw) * 1.2, 0.4, P.z - Math.sin(yaw) * 1.2, 5, Math.cos(yaw), -Math.sin(yaw), false);
   // fun: the first Golden Hour wave of each R gets a "MEOW!" and the meow
   const id = src & 15;
   if (!rMeow[id]) {
@@ -516,7 +657,9 @@ export const SKILL_FX: SkillFxSet = {
       c.delay = 0;
       mesh(fx, 'crescent', owner, P.x, P.z, yaw, 1.5, 0.2, WHITE_GOLD, c);
     }
-    fx.sfx.cue('tingParry', P);
+    // The Stand's parry: her W impact (guard clank + kalimba ting) and a sun with a reflected ray
+    playSkillSfx('clem', 'w', 'impact', { at: P, relation: MIXREL[fx.relation(owner)] });
+    if (Number.isFinite(yaw)) identity(fx, owner, 'w', P.x + Math.cos(yaw) * 0.8, 0.5, P.z - Math.sin(yaw) * 0.8, 3, Math.cos(yaw), -Math.sin(yaw), false);
     // fun: a PARRY pop and a spray of sparks at the shield
     const sx = P.x + (Number.isFinite(yaw) ? Math.cos(yaw) * 0.8 : 0);
     const sz = P.z - (Number.isFinite(yaw) ? Math.sin(yaw) * 0.8 : 0);
@@ -596,6 +739,8 @@ export const SKILL_FX: SkillFxSet = {
           if (t >= eNext[id]) {
             eNext[id] = t + (fx.tier === 'low' ? 0.12 : 0.07);
             sticker(fx, P.x, 0.25, P.z, 'HAIRBALL', 0xf6e6cc, 0.38, 0.4, 0.4, 2);
+            // identity: a tiny-sun afterimage along the roll
+            identity(fx, id, 'e', P.x, 0.1, P.z, 1, 0, 0, false);
             const y = eYaw[id];
             if (eVar[id] === 1 && y === y) speedLines(fx, P.x, 0.7, P.z, Math.cos(y), -Math.sin(y), 3, 0xfff6d8, 0.9);
           }
