@@ -54,5 +54,9 @@ describe('vendor-sim party (N1)', () => {
     const v17 = dispatcher([10, 11, 12, 13, 14, 15, 16, 17], false);
     expect(v17).toContain('v16 as PawlegendsSim');
     expect(v17).toContain('v17 as PawlegendsSim');
+    // Sim v18: the frozen v17 (counter-play batch) keeps serving v17 party and PvP clients.
+    const v18 = dispatcher([10, 11, 12, 13, 14, 15, 16, 17, 18], false);
+    expect(v18).toContain('v17 as PawlegendsSim');
+    expect(v18).toContain('v18 as PawlegendsSim');
   });
 });

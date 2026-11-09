@@ -28,7 +28,7 @@ import { runReplay } from '../../src/sim/replay';
 import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v17');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v18');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {
@@ -71,7 +71,7 @@ describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 60
   it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15 and per v16 B item)', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {
-      writeFileSync(GOLDEN, JSON.stringify({ base: process.env.PARTY_GOLDEN_BASE ?? 'v17', simVersion: 17, rows: got }, null, 2) + '\n');
+      writeFileSync(GOLDEN, JSON.stringify({ base: process.env.PARTY_GOLDEN_BASE ?? 'v18', simVersion: 18, rows: got }, null, 2) + '\n');
       return;
     }
     expect(existsSync(GOLDEN)).toBe(true);
