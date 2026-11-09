@@ -39,6 +39,7 @@ import { LowHp } from '../render/fx/lowHp';
 import { GameView } from '../render/gameView';
 import { SnapBuffer, type ViewEntity, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
+import type { TierSettings } from '../render/quality';
 import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
 import { PING_KIND } from '../data/pings';
@@ -495,6 +496,7 @@ export class MatchSession {
     });
     // feel pass B2 (e2e): the minimap, to find a tower's pixel on the turned map
     if (this.e2e) e2eHook('Minimap', this.minimap);
+    this.applyPerf(this.gr.settings);
     this.tips = new Tips(this.view.juice.notify, setup.firstMatch);
     this.goals = new Objectives(this.view.juice.notify, setup.guide ?? 'off');
     this.minimap.pickups = () => this.view.pickups.list();
@@ -1521,6 +1523,22 @@ export class MatchSession {
       this.host.pause(false);
       this.hooks.onPaused?.(false);
     }
+  }
+
+  /** PERF-IOS: the app's pacer draws a paused match at a low rate. */
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** PERF-IOS: the overhead canvas's DPR cap and the minimap's redraw rate follow the phone profile and the governor. */
+  applyPerf(s: TierSettings): void {
+    this.overhead.maxDpr = s.overheadDpr;
+    this.minimap.hz = s.minimapHz;
+  }
+
+  /** PERF-IOS P1-6: hidden page or backgrounded app: the music stops scheduling notes. */
+  setHidden(hidden: boolean): void {
+    this.music.setHidden(hidden);
   }
 
   /** Host page pause/resume (bridge). */

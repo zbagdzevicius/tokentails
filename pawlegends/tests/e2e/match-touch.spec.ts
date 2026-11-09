@@ -69,7 +69,10 @@ test('joystick moves, Attack picks a target, drag-aim onto the cancel casts noth
 const BODY: Record<string, number> = { hero: 500, minion: 400, tower: 1300, core: 3000, fountain: 0, camp: 500, pudding: 2000 };
 const TOWER_RANGE = 7000;
 type Seen = { id: number; kind: string; team: number; x: number; y: number; hp: number; maxHp: number };
-function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]; allyMinions: { x: number; y: number }[]; killable?: number[] }): { id: number | null; why: string } {
+function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]; allyMinions: { x: number; y: number }[]; killable?: number[]; lock?: number | null; deterred?: number[] }): { id: number | null; why: string } {
+  // GAPS A5: a held lock wins; feel pass B4: an arguing Howler (Talk Back) is skipped by the auto-targeting
+  if (p.lock != null) return { id: p.lock, why: 'locked hero' };
+  const seen = p.seen.filter((u) => !(p.deterred ?? []).includes(u.id));
   const dd = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
   const guarded = (u: Seen) =>
     p.seen.some(
@@ -80,20 +83,23 @@ function expected(p: { range: number; me: { x: number; y: number }; seen: Seen[]
         !p.allyMinions.some((m) => dd(m, t) <= TOWER_RANGE + BODY.tower),
     );
   const d = (u: Seen) => Math.hypot(u.x - p.me.x, u.y - p.me.y) - BODY[u.kind];
-  const inRange = p.seen.filter((u) => d(u) <= p.range + 300);
+  const inRange = seen.filter((u) => d(u) <= p.range + 300);
   const by = <T,>(xs: T[], key: (x: T) => number) => xs.reduce<T | null>((b, x) => (b === null || key(x) < key(b) ? x : b), null);
-  // feel pass B4: an enemy hero within the attack range + 1.5 m comes first
-  const hero = by(p.seen.filter((u) => u.kind === 'hero' && d(u) <= p.range + 1500), (u) => u.hp / u.maxHp);
+  // input/targeting.ts attackPriority: an enemy hero in range first (lowest HP share), then a last hit, then a hero just
+  // past the range (+1.5 m, feel pass B4), but never one under an untanked enemy tower and never over a last hit
+  const hero = by(inRange.filter((u) => u.kind === 'hero'), (u) => u.hp / u.maxHp);
   if (hero) return { id: hero.id, why: 'hero in range' };
   // C5: minions and camp monsters within attack range + 1 m; the one the next basic kills (nearest) first
-  const farm = p.seen.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && d(u) <= p.range + 1000);
+  const farm = seen.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && d(u) <= p.range + 1000);
   const kill = by(farm.filter((u) => (p.killable ?? []).includes(u.id)), d);
   if (kill) return { id: kill.id, why: 'last hit in range' };
+  const reach = by(seen.filter((u) => u.kind === 'hero' && d(u) > p.range + 300 && d(u) <= p.range + 1500 && !guarded(u)), (u) => u.hp / u.maxHp);
+  if (reach) return { id: reach.id, why: 'hero in reach' };
   const minion = by([...farm, ...inRange.filter((u) => u.kind === 'pudding')], (u) => u.hp);
   if (minion) return { id: minion.id, why: 'lowest-HP minion in range' };
   const tower = by(inRange.filter((u) => u.kind === 'tower' || u.kind === 'core'), (u) => u.hp);
   if (tower) return { id: tower.id, why: 'tower in range' };
-  const near = (k: (u: Seen) => boolean) => by(p.seen.filter((u) => k(u) && d(u) <= 7000 && !guarded(u)), d);
+  const near = (k: (u: Seen) => boolean) => by(seen.filter((u) => k(u) && d(u) <= 7000 && !guarded(u)), d);
   const nh = near((u) => u.kind === 'hero');
   if (nh) return { id: nh.id, why: 'nearest hero' };
   const nm = near((u) => u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding');

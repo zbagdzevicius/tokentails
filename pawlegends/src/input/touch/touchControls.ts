@@ -874,6 +874,8 @@ export class TouchControls {
     ring: number | null;
     /** C5: the minions and camp monsters the next basic would kill (by the client estimate). */
     killable: number[];
+    /** Feel pass B4: the arguing Howlers the auto-targeting skipped (Talk Back). */
+    deterred: number[];
   } | null = null;
   picks = 0;
 
@@ -1072,6 +1074,7 @@ export class TouchControls {
     const kill = this.killFn();
     // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
     const id = attackPreview(this.targets(), me, this.h.view.myTeam, range, this.first, kill, locked);
+    const lockId = this.lock.id;
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
     // field had ringed before this tap (the last preview drawn, at most 100 ms old)
     this.lastPick = {
@@ -1084,6 +1087,7 @@ export class TouchControls {
       seen: units.filter((u) => u.id !== me.id && u.team !== this.h.view.myTeam && u.state !== 'dead').map((u) => ({ id: u.id, kind: u.kind, team: u.team, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp })),
       allyMinions: units.filter((u) => u.kind === 'minion' && u.team === this.h.view.myTeam && u.state !== 'dead').map((u) => ({ x: u.x, y: u.y })),
       killable: kill ? units.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && u.team !== this.h.view.myTeam && u.state !== 'dead' && u.hp <= kill(u)).map((u) => u.id) : [],
+      deterred: [...this.deter.keys()].filter((d) => d !== lockId),
     };
     this.picks++;
     if (id !== null) {
