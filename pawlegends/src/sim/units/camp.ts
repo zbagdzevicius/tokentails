@@ -14,7 +14,7 @@ import { CAMPS, MAP, RADIUS, RAT_CAMP, mirrorX } from '../../data/map';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { ANGLE_STEPS, applyBp, dist2, iatan2, idiv, moveToward } from '../fixed';
 import type { MatchHandle } from '../state';
-import { FM, G, Kind, MG, NEVER, RANGE, TEAM_NEUTRAL, UnitState, type World } from '../world';
+import { FM, G, Kind, MG, NEVER, RANGE, TEAM_NEUTRAL, UnitState, heroAt, type World } from '../world';
 import { clearStatus } from '../effects/status';
 import { slow } from '../effects/slow';
 import { fleeStep } from '../effects/fear';
@@ -362,7 +362,10 @@ function stepBoss(m: MatchHandle, id: number): void {
   let near = false;
   let best = -1;
   let bestD = 0;
-  for (let h = RANGE.heroes; h < RANGE.minions; h++) {
+  // Ties on distance go to the first hero in `heroAt` order (the teams take turns going first): mirrored heroes stand
+  // at exactly equal distances from his pit, and ascending ids handed every such bite to team 0.
+  for (let k = RANGE.heroes; k < RANGE.minions; k++) {
+    const h = heroAt(w, k);
     if (w.alive[h] === 0 || !targetable(w, h, TEAM_NEUTRAL)) continue;
     const d = dist2(w.x[h], w.y[h], w.x[id], w.y[id]);
     if (d <= leash * leash) near = true;

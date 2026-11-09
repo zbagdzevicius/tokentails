@@ -7,7 +7,7 @@ import { EFFECTS } from '../../data/effects';
 import { MAP, NAV, mirrorX } from '../../data/map';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { clamp, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
-import { cellOf, walkable } from '../map/grid';
+import { cellOfTeam, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
 import { FM, G, Kind, Order, type World, fmClear } from '../world';
 import { clampToArena } from './tether';
@@ -32,12 +32,12 @@ export function clipTravel(m: MatchHandle, id: number, bx: number, by: number, o
   const dx = tx - ax;
   const dy = ty - ay;
   const len = isqrt(dx * dx + dy * dy);
-  if (!walkable(m.grid, cellOf(ax, ay))) {
+  if (!walkable(m.grid, cellOfTeam(ax, ay, w.team[id]))) {
     const ne = idiv(len, NAV.losStep) + 1;
     for (let k = 1; k <= ne; k++) {
       const sx = ax + idiv(dx * k, ne);
       const sy = ay + idiv(dy * k, ne);
-      if (walkable(m.grid, cellOf(sx, sy))) {
+      if (walkable(m.grid, cellOfTeam(sx, sy, w.team[id]))) {
         out[0] = sx;
         out[1] = sy;
         return;
@@ -51,7 +51,7 @@ export function clipTravel(m: MatchHandle, id: number, bx: number, by: number, o
   for (let k = 1; k <= n; k++) {
     const sx = ax + idiv(dx * k, n);
     const sy = ay + idiv(dy * k, n);
-    if (!walkable(m.grid, cellOf(sx, sy))) {
+    if (!walkable(m.grid, cellOfTeam(sx, sy, w.team[id]))) {
       out[0] = ax + idiv(dx * (k - 1), n);
       out[1] = ay + idiv(dy * (k - 1), n);
       return;

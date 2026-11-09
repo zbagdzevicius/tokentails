@@ -71,7 +71,7 @@ export function fleeStep(w: World, grid: NavGrid, id: number): void {
   const ty = clamp(w.y[id] + idiv(dy * far, d), 0, MAP.height);
   moveToward(w.x[id], w.y[id], tx, ty, applyBp(moveSpeed(w, id), EFFECTS.fearSpeedBp), w.moveCarry[id], TICK_HZ, out);
   if (w.kind[id] === Kind.Hero) {
-    slideStep(grid, w.x[id], w.y[id], out[0], out[1], slid);
+    slideStep(grid, w.x[id], w.y[id], out[0], out[1], slid, w.team[id]);
     if (slid[0] === w.x[id] && slid[1] === w.y[id]) return;
     out[0] = slid[0];
     out[1] = slid[1];
