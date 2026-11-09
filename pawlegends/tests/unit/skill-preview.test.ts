@@ -163,6 +163,12 @@ describe('skill preview player: create, switch, dispose', () => {
     const yaw0 = cameraYaw();
     const swap0 = sidesSwapped();
     const play0 = sfx.play;
+    // PERF-IOS §8 Track C: the identity layer is muted too (it starts its sound past play and voice)
+    let layered = 0;
+    const layer0 = (sfx.playLayer = (() => {
+      layered++;
+      return true;
+    }) as typeof sfx.playLayer);
     const el = document.createElement('div');
     document.body.appendChild(el);
     const add = vi.spyOn(document, 'addEventListener');
@@ -177,6 +183,10 @@ describe('skill preview player: create, switch, dispose', () => {
       expect(p.stats().casts).toBeGreaterThanOrEqual(1);
       // never sounds: the sfx bus is the shared one, restored after every frame
       expect(sfx.play).toBe(play0);
+      expect(sfx.playLayer).toBe(layer0);
+      expect(layered).toBe(0);
+      // no DOM damage numbers from the box (their pool sat under the browser panel)
+      expect(document.querySelector('.fx-dmg-layer')).toBeNull();
       await p.set('domino', 'r');
       p.advance(2.5);
       expect(p.stats().slot).toBe('r');

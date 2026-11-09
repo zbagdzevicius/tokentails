@@ -60,7 +60,9 @@ html[data-phone='1'] .pl-lobby .lb-play .pl-btn.big { animation: none; position:
 html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   box-shadow: 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); opacity: 0;
-  animation: lb-pulse-o 2.6s ease-in-out infinite;
+  /* PERF-IOS §8 Track C: three pulses when the lobby shows, then still (an infinite pulse on a pseudo-element kept the
+     title at ~59 style recalcs a second for as long as a player sat on it) */
+  animation: lb-pulse-o 2.6s ease-in-out 3;
 }
 @keyframes lb-pulse-o { 50% { opacity: 1; } }
 @keyframes lb-pulse { 50% { box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); } }

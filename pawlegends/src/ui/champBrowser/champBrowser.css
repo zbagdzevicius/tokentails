@@ -10,6 +10,11 @@
 .pl-champ:focus { outline: none; }
 @keyframes cb-in { from { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pl-champ { animation: none; } }
+/* PERF-IOS §8 Track C: no full-screen backdrop blur on phones (WebKit re-blurred the whole screen at native resolution
+   whenever the canvas under it changed): a deeper solid dim instead; the lobby behind stops drawing while open */
+html[data-phone='1'] .pl-champ, html[data-touch='1'] .pl-champ { -webkit-backdrop-filter: none; backdrop-filter: none; background: rgba(16, 9, 18, 0.86); }
+/* the pick cards' foil glints under the panel are covered: paused while the browser is open */
+html[data-champ] .tt-card > .tt-sp, html[data-champ] .tt-card > .tt-glare, html[data-champ] .tt-card > .tt-in::after { animation-play-state: paused; }
 
 .cb-panel {
   position: relative; box-sizing: border-box; display: grid; grid-template-columns: 188px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); gap: 10px;

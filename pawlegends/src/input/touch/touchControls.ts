@@ -94,11 +94,15 @@ import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
 <<<<<<< HEAD
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
 =======
 import { ATK_SELECT, dragZone, PickLock, selectCandidates, snapTarget } from './attackSelect';
 >>>>>>> 50f13c130 (feat(pawlegends): hold ATK to select and lock a target on touch (Wild Rift style))
 =======
+=======
+import { applySweep, newSweep, type SweepRec } from '../../ui/cdSweep';
+>>>>>>> c6eb8ec6f (perf(pawlegends): PERF-IOS iteration 2 Track C, hitches and DOM)
 import { ATK_SELECT, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
 >>>>>>> a8e09c75a (fix(pawlegends): hold-ATK select reaches the tap's 7 m, release keeps the shown target)
 
@@ -1424,6 +1428,14 @@ export class TouchControls {
   private pipLevel = 0;
 
   /** Per frame: joystick commands, attack repeat, cooldown overlays, and (Wave C) the rank pips. */
+  /** PERF-IOS §8 Track C: per skill button, the sweep's last written step (cooldown display only). */
+  private readonly sweeps = new Map<ButtonId, SweepRec>();
+  private cdSweep(b: ButtonId): SweepRec {
+    let sw = this.sweeps.get(b);
+    if (!sw) this.sweeps.set(b, (sw = newSweep()));
+    return sw;
+  }
+
   update(cooldowns: readonly number[] | null, max: readonly number[], level: number): void {
     if (!this.enabled) {
       // UX pass 2: the HUD's Paw Trick button (mouse click) flashes along the heading too, so the movement track is
@@ -1518,8 +1530,9 @@ export class TouchControls {
       }
       if (b === 'r') this.rLocked = locked;
       el.classList.toggle('cooling', cd > 0);
-      const f = max[i] > 0 ? Math.min(1, cd / max[i]) : 0;
-      el.style.setProperty('--cd', String(f));
+      // PERF-IOS §8 Track C: --cd is written only when the sweep moves a step (ui/cdSweep.ts), not every frame
+      const sw = this.cdSweep(b);
+      if (sw) applySweep(el, sw, cd, max[i]);
       const label = el.querySelector('span');
       // LoL pass (lane B): whole seconds, one decimal under 1 s
       const txt = cdLabel(cd);
