@@ -6,7 +6,7 @@ import { dealDamage, resolveDeaths } from '../../../src/sim/combat/damage';
 import { chooseTalent } from '../../../src/sim/heroes/talents';
 import { attackEvery, targetable } from '../../../src/sim/units/kinds';
 import { Kind } from '../../../src/sim/world';
-import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
+import { MID, cast, cd, basicHit, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Clem (slot 0) vs Sage (slot 3, armour 15) in the open.
 const CLEM_ID = 0;
@@ -90,16 +90,17 @@ describe('Clem (§6.3)', () => {
     expect(w.kWT[CLEM_ID]).toBe(23);
     let hp = w.hp[CLEM_ID];
     dealDamage(m, FOE, 1, Kind.Hero, CLEM_ID, 100, 'basic');
-    expect(hp - w.hp[CLEM_ID]).toBe(20); // 100 × 1.3 (hero vs hero) = 130 → 104 after armour 25 → 20
+    // 100 × 1.05 (hero vs hero) × 0.65 (a basic, sim v18) = 68 → 54 after armour 25 → 80% less = 10
+    expect(hp - w.hp[CLEM_ID]).toBe(Math.trunc((basicHit(100, 25) * 2000) / 10000));
     place(m, FOE, MID.x - 1500, MID.y, 0);
     hp = w.hp[CLEM_ID];
     dealDamage(m, FOE, 1, Kind.Hero, CLEM_ID, 100, 'basic');
-    expect(hp - w.hp[CLEM_ID]).toBe(104);
+    expect(hp - w.hp[CLEM_ID]).toBe(basicHit(100, 25));
     steps(m, 23);
     place(m, FOE, MID.x + 1500, MID.y, 2048);
     hp = w.hp[CLEM_ID];
     dealDamage(m, FOE, 1, Kind.Hero, CLEM_ID, 100, 'basic');
-    expect(hp - w.hp[CLEM_ID]).toBe(104);
+    expect(hp - w.hp[CLEM_ID]).toBe(basicHit(100, 25));
   });
 
   it('The Stand parries: a projectile in the first 0.3 s flies back at its shooter', () => {

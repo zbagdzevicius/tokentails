@@ -6,7 +6,7 @@ import { chooseTalent } from '../../../src/sim/heroes/talents';
 import { snapshot } from '../../../src/sim/index';
 import { targetable } from '../../../src/sim/units/kinds';
 import { G, Kind } from '../../../src/sim/world';
-import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
+import { MID, cast, cd, basicHit, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Cacklejaw (slot 0) with Clem (slot 1) vs Sage (slot 3, armour 15) and Sir Brutus (slot 4, armour 40).
 const CJ = 0;
@@ -45,13 +45,13 @@ describe('Cacklejaw (§6.6)', () => {
 
   it('Pack Flank: +20% from behind (over 120°) or with an allied hero within 4 m of the target', () => {
     const m = hunt();
-    const base = heroHit(100, 15);
-    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(120, 15));
+    const base = basicHit(100, 15);
+    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(basicHit(120, 15));
     m.world.facing[FOE] = 2048; // now facing Cacklejaw
     expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(base);
     place(m, ALLY, MID.x + 1500, MID.y + 3000, 0);
     m.world.facing[FOE] = 2048;
-    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(120, 15));
+    expect(hpLoss(m, FOE, () => dealDamage(m, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(basicHit(120, 15));
   });
 
   it('Jeer Slash: dash 4 m through a line, 75 (+12/lvl); a hero hit opens one recast within 3 s', () => {
@@ -240,7 +240,7 @@ describe('Cacklejaw (§6.6)', () => {
     chooseTalent(m3, CJ, 2, 1);
     w3.facing[FOE] = 2048;
     cast(m3, CJ, 2, MID.x, MID.y);
-    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(140, 15));
-    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(heroHit(100, 15));
+    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(basicHit(140, 15));
+    expect(hpLoss(m3, FOE, () => dealDamage(m3, CJ, 0, Kind.Hero, FOE, 100, 'basic'))).toBe(basicHit(100, 15));
   });
 });

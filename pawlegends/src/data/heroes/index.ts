@@ -115,7 +115,17 @@ export const BRANCH_HEROES: readonly HeroId[] = Object.freeze(HERO_IDS.filter((h
  */
 export const HERO_HP_BP = 10000;
 
-/** Hero damage to enemy heroes × this (sim v4): fights end in takedowns instead of everyone walking home. */
-export const HERO_VS_HERO_BP = 13000;
+/**
+ * Hero damage to enemy heroes × this (sim v4): fights end in takedowns instead of everyone walking home. Sim v18: 13000
+ * → 10500 with HERO_BASIC_VS_HERO_BP, since basic attacks now land while chasing (takedowns went 3.3 → 4.7 a minute).
+ */
+export const HERO_VS_HERO_BP = 10500;
+
+/**
+ * Sim v18 (founder bug 2026-11-08, chasing): basic attacks land on a target walking away now, so a hero's basic
+ * attacks on enemy heroes deal × this on top of HERO_VS_HERO_BP (docs/plans/moba/V18-CHASE.md: takedowns a minute back
+ * in 2.5–3.5).
+ */
+export const HERO_BASIC_VS_HERO_BP = 6500;
 
 // Sim v8: the species edge (SIDE_EDGE: dogs × 1.13 dealt, × 0.915 taken) is per hero now, HeroData.pvp.

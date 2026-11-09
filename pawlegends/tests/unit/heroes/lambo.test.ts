@@ -38,7 +38,7 @@ describe('Lambo, shelter champion tank (sim v9)', () => {
     expect(A.r.root).toBe(30); // 1.0 s (casual-friendly CC chain)
     // the final spec: the text matches the data (Big Hug 7% / 4.5% of his max HP), the hero-fight tuning nudged down
     expect([A.w.selfBp, A.w.allyBp]).toEqual([700, 450]);
-    expect(LAMBO.pvp).toEqual({ dmgBp: 9300, takenBp: 8050 }); // sim v17 refit (V17.md §5.3, per-window §6.5)
+    expect(LAMBO.pvp).toEqual({ dmgBp: 9450, takenBp: 7750 }); // sim v17 refit (V17.md §5.3, per-window §6.5)
     expect(LAMBO.talents.flat().map((t) => t.id)).toEqual(['long-toss', 'extra-crispy-tuna', 'bigger-hug', 'flop-further', 'fairy-light-finale', 'wide-tangle']);
   });
 

@@ -683,10 +683,10 @@ var AVIETE = Object.freeze({
 	name: "Avietė",
 	side: "cat",
 	role: "assassin",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). Sim v11 (four new cats): 12100 / takes 8400 (balance gate 50.6%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 12750 / takes 7800 (50.4% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 11650 / takes 7725 (49.7% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 7600. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). Sim v11 (four new cats): 12100 / takes 8400 (balance gate 50.6%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 12750 / takes 7800 (50.4% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 11650 / takes 7725 (49.7% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 7600. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 11475 / takes 7950. */
 	pvp: {
-		dmgBp: 11650,
-		takenBp: 7600
+		dmgBp: 11475,
+		takenBp: 7950
 	},
 	element: "ELECTRIC",
 	base: {
@@ -794,9 +794,9 @@ var BENGAS = Object.freeze({
 	name: "Bengas",
 	side: "cat",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 8700 (48.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9700 / takes 8725 (52.1% of the 2,000-seed gate). Sim v16 (MAP-GAPS B11, a hit from a bush reveals the attacker): 9950 (47.9% / 45.8% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8625. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v10: 11200 (11000 before; 46.3% to 47.9% with seeded bot talents). Sim v11: takes 8700 (51.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 8700 (48.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9700 / takes 8725 (52.1% of the 2,000-seed gate). Sim v16 (MAP-GAPS B11, a hit from a bush reveals the attacker): 9950 (47.9% / 45.8% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8625. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 10000 / takes 8625. */
 	pvp: {
-		dmgBp: 9950,
+		dmgBp: 1e4,
 		takenBp: 8625
 	},
 	element: "FIRE",
@@ -908,10 +908,10 @@ var BRAVO = Object.freeze({
 	name: "Bravo",
 	side: "dog",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11350 / takes 8250 (49.1% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10400 / takes 8225 (47.2% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8500. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11350 / takes 8250 (49.1% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10400 / takes 8225 (47.2% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8500. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 10775 / takes 7950. */
 	pvp: {
-		dmgBp: 10400,
-		takenBp: 8500
+		dmgBp: 10775,
+		takenBp: 7950
 	},
 	element: "STELLAR",
 	base: {
@@ -1026,10 +1026,10 @@ var BRUTUS = Object.freeze({
 	name: "Sir Brutus",
 	side: "dog",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8625 / takes 9725 (49.6% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 keeps a Move order after a dash, so chargers gained): takes 9875 (56.1% before; about 3 pp per +75 takenBp). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9575. */
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8625 / takes 9725 (49.6% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 keeps a Move order after a dash, so chargers gained): takes 9875 (56.1% before; about 3 pp per +75 takenBp). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9575. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8375 / takes 9925. */
 	pvp: {
-		dmgBp: 8625,
-		takenBp: 9575
+		dmgBp: 8375,
+		takenBp: 9925
 	},
 	element: "SAND",
 	base: {
@@ -1140,10 +1140,10 @@ var CACKLEJAW = Object.freeze({
 	name: "Cacklejaw",
 	side: "dog",
 	role: "assassin",
-	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11250 / takes 8825 (48.1% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10400 / takes 8825 (48.3% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8775. */
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11250 / takes 8825 (48.1% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10400 / takes 8825 (48.3% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8775. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9925 / takes 9475. */
 	pvp: {
-		dmgBp: 10400,
-		takenBp: 8775
+		dmgBp: 9925,
+		takenBp: 9475
 	},
 	element: "DARK",
 	base: {
@@ -1262,10 +1262,10 @@ var CHILI = Object.freeze({
 	name: "Chili",
 	side: "dog",
 	role: "marksman",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9500 / takes 9425 (52.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8850 / takes 9250 (51.2% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9175. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9500 / takes 9425 (52.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8850 / takes 9250 (51.2% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9175. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8800 / takes 9150. */
 	pvp: {
-		dmgBp: 8850,
-		takenBp: 9175
+		dmgBp: 8800,
+		takenBp: 9150
 	},
 	element: "ELECTRIC",
 	base: {
@@ -1368,10 +1368,10 @@ var CLEM = Object.freeze({
 	name: "Clem",
 	side: "cat",
 	role: "fighter",
-	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). Sim v11: 8200 / takes 10100 (57.1% of the gate with the four new cats; now 47.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 8850 / takes 9725 (51.2% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8100 / takes 9625 (50.5% of the 2,000-seed gate). */
+	/** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). Sim v11: 8200 / takes 10100 (57.1% of the gate with the four new cats; now 47.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 8850 / takes 9725 (51.2% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8100 / takes 9625 (50.5% of the 2,000-seed gate). Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 7825 / takes 10075. */
 	pvp: {
-		dmgBp: 8100,
-		takenBp: 9625
+		dmgBp: 7825,
+		takenBp: 10075
 	},
 	element: "FAIRY",
 	base: {
@@ -1477,10 +1477,10 @@ var DOMINO = Object.freeze({
 	name: "Domino",
 	side: "dog",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9775 (51.2% of the 2,000-seed gate). Sim v16: 9050 (the Brutus nerf alone dropped him to about 45%). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9850. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9775 (51.2% of the 2,000-seed gate). Sim v16: 9050 (the Brutus nerf alone dropped him to about 45%). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9850. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9500 / takes 9100. */
 	pvp: {
-		dmgBp: 9050,
-		takenBp: 9850
+		dmgBp: 9500,
+		takenBp: 9100
 	},
 	element: "STELLAR",
 	base: {
@@ -1591,10 +1591,10 @@ var DUCHESS = Object.freeze({
 	name: "Duchess",
 	side: "cat",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10175 / takes 8525 (51.9% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 helps divers catch kiting mages): 10550 (45.6% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8675. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10175 / takes 8525 (51.9% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 helps divers catch kiting mages): 10550 (45.6% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8675. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 10550 / takes 8725. */
 	pvp: {
 		dmgBp: 10550,
-		takenBp: 8675
+		takenBp: 8725
 	},
 	element: "DARK",
 	base: {
@@ -1712,10 +1712,10 @@ var FRANKIE = Object.freeze({
 	name: "Frankie",
 	side: "dog",
 	role: "assassin",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9950 / takes 8825 (50.0% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 8900. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9950 / takes 8825 (50.0% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 8900. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9725 / takes 9175. */
 	pvp: {
-		dmgBp: 9950,
-		takenBp: 8900
+		dmgBp: 9725,
+		takenBp: 9175
 	},
 	element: "FIRE",
 	base: {
@@ -1827,10 +1827,10 @@ var GABE = Object.freeze({
 	name: "Gabė",
 	side: "cat",
 	role: "support",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9050 / takes 9600 (49.7% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8075 / takes 9725 (48.4% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 10000. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9050 / takes 9600 (49.7% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8075 / takes 9725 (48.4% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 10000. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 7700 / takes 10650. */
 	pvp: {
-		dmgBp: 8075,
-		takenBp: 1e4
+		dmgBp: 7700,
+		takenBp: 10650
 	},
 	element: "WIND",
 	base: {
@@ -1844,10 +1844,10 @@ var GABE = Object.freeze({
 		armour: 18,
 		armourPerLevel: 2
 	},
-	/** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 10 (+2/lvl). */
+	/** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 8 (+1/lvl; sim v18, V18-CHASE.md §3: was 10 (+2/lvl), since chasing basics land more often). */
 	passive: {
-		heal: 10,
-		healPerLevel: 2,
+		heal: 8,
+		healPerLevel: 1,
 		range: 6e3
 	},
 	abilities: {
@@ -1938,9 +1938,9 @@ var HOWLER = Object.freeze({
 	name: "Howler",
 	side: "dog",
 	role: "fighter",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9100 / takes 9650 (51.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8350 / takes 9575 (51.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9750. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9100 / takes 9650 (51.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8350 / takes 9575 (51.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9750. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8275 / takes 9750. */
 	pvp: {
-		dmgBp: 8350,
+		dmgBp: 8275,
 		takenBp: 9750
 	},
 	element: "WIND",
@@ -2054,10 +2054,10 @@ var LAMBO = Object.freeze({
 	name: "Lambo",
 	side: "cat",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9150 / takes 9125 (53.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8425 / takes 8925 (52.4% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): deals 9300 / takes 8050. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9150 / takes 9125 (53.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8425 / takes 8925 (52.4% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): deals 9300 / takes 8050. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9450 / takes 7750. */
 	pvp: {
-		dmgBp: 9300,
-		takenBp: 8050
+		dmgBp: 9450,
+		takenBp: 7750
 	},
 	element: "STELLAR",
 	base: {
@@ -2165,10 +2165,10 @@ var MARSHMALLOW = Object.freeze({
 	name: "Marshmallow",
 	side: "dog",
 	role: "mage",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9000 / takes 9800 (50.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8475 / takes 9750 (48.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9850. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9000 / takes 9800 (50.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8475 / takes 9750 (48.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9850. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8475 / takes 9800. */
 	pvp: {
 		dmgBp: 8475,
-		takenBp: 9850
+		takenBp: 9800
 	},
 	element: "ICE",
 	base: {
@@ -2285,10 +2285,10 @@ var MEATBALL = Object.freeze({
 	name: "Meatball",
 	side: "cat",
 	role: "tank",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 7900 / takes 9925 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 7200 / takes 10000 (48.0% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9575. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 7900 / takes 9925 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 7200 / takes 10000 (48.0% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9575. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 7375 / takes 9400. */
 	pvp: {
-		dmgBp: 7200,
-		takenBp: 9575
+		dmgBp: 7375,
+		takenBp: 9400
 	},
 	element: "GRASS",
 	base: {
@@ -2404,10 +2404,10 @@ var NUGGET = Object.freeze({
 	name: "Nugget",
 	side: "dog",
 	role: "support",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9650 / takes 9425 (51.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9325 (49.8% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9550. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9650 / takes 9425 (51.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9325 (49.8% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9550. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8400 / takes 10125. */
 	pvp: {
-		dmgBp: 8825,
-		takenBp: 9550
+		dmgBp: 8400,
+		takenBp: 10125
 	},
 	element: "FAIRY",
 	base: {
@@ -2526,10 +2526,10 @@ var PIXEL = Object.freeze({
 	name: "Pixel",
 	side: "cat",
 	role: "marksman",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9400 / 9600 (10600 / 9600 before: 55.4% of the 2,000-seed gate; now 49.8%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 8750 / takes 9600 (48.8% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8000 / takes 9575 (50.9% of the 2,000-seed gate). */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9400 / 9600 (10600 / 9600 before: 55.4% of the 2,000-seed gate; now 49.8%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 8750 / takes 9600 (48.8% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8000 / takes 9575 (50.9% of the 2,000-seed gate). Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8450 / takes 8950. */
 	pvp: {
-		dmgBp: 8e3,
-		takenBp: 9575
+		dmgBp: 8450,
+		takenBp: 8950
 	},
 	element: "ICE",
 	base: {
@@ -2644,10 +2644,10 @@ var ROCKET = Object.freeze({
 	name: "Rocket",
 	side: "dog",
 	role: "marksman",
-	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8925 / takes 9775 (49.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9900. */
+	/** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8925 / takes 9775 (49.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9900. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9250 / takes 9400. */
 	pvp: {
-		dmgBp: 8925,
-		takenBp: 9900
+		dmgBp: 9250,
+		takenBp: 9400
 	},
 	element: "GRASS",
 	base: {
@@ -2770,10 +2770,10 @@ var SAGE = Object.freeze({
 	* Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 9325 (48.7% of the 2,000-seed gate).
 	* Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9650 / takes 9375 (48.7% of the 2,000-seed gate).
 	* Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9450.
-	*/
+	Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9875 / takes 9200. */
 	pvp: {
-		dmgBp: 9650,
-		takenBp: 9450
+		dmgBp: 9875,
+		takenBp: 9200
 	},
 	element: "WIND",
 	base: {
@@ -3159,8 +3159,17 @@ Object.freeze(HERO_IDS.filter((h) => BRANCH_TALENT[h] !== null));
 * stay as POC.md §6 states them.
 */
 var HERO_HP_BP = 1e4;
-/** Hero damage to enemy heroes × this (sim v4): fights end in takedowns instead of everyone walking home. */
-var HERO_VS_HERO_BP = 13e3;
+/**
+* Hero damage to enemy heroes × this (sim v4): fights end in takedowns instead of everyone walking home. Sim v18: 13000
+* → 10500 with HERO_BASIC_VS_HERO_BP, since basic attacks now land while chasing (takedowns went 3.3 → 4.7 a minute).
+*/
+var HERO_VS_HERO_BP = 10500;
+/**
+* Sim v18 (founder bug 2026-11-08, chasing): basic attacks land on a target walking away now, so a hero's basic
+* attacks on enemy heroes deal × this on top of HERO_VS_HERO_BP (docs/plans/moba/V18-CHASE.md: takedowns a minute back
+* in 2.5–3.5).
+*/
+var HERO_BASIC_VS_HERO_BP = 6500;
 //#endregion
 //#region src/data/timeline.ts
 var TIMELINE = Object.freeze({
@@ -11613,6 +11622,7 @@ function dealDamage(m, src, srcTeam, srcKind, dst, raw, kind, opts = {}) {
 		if (w.kind[dst] === Kind.Hero && w.team[src] !== w.team[dst]) raw = toyIncoming(w, dst, raw);
 		if (w.kind[dst] === Kind.Hero) {
 			raw = applyBp(raw, HERO_VS_HERO_BP);
+			if (kind === "basic") raw = applyBp(raw, HERO_BASIC_VS_HERO_BP);
 			if (w.globals[G.SideEdge] !== 0) {
 				raw = applyBp(raw, HEROES[HERO_IDS[w.sub[src]]].pvp.dmgBp);
 				raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);

@@ -6,8 +6,8 @@ export const CACKLEJAW: HeroData = Object.freeze<HeroData>({
   name: 'Cacklejaw',
   side: 'dog',
   role: 'assassin',
-  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11250 / takes 8825 (48.1% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10400 / takes 8825 (48.3% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8775. */
-  pvp: { dmgBp: 10400, takenBp: 8775 },
+  /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 48.2%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11250 / takes 8825 (48.1% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10400 / takes 8825 (48.3% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8775. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9925 / takes 9475. */
+  pvp: { dmgBp: 9925, takenBp: 9475 },
   element: 'DARK',
   base: { hp: 520, hpPerLevel: 55, attack: 60, attackPerLevel: 6, attackEvery: 29, range: 1600, speed: 5200, armour: 20, armourPerLevel: 2 },
   /** Pack Flank: +20% damage from behind (angle over 120°) or when an allied hero is within 4 m of the target. */

@@ -6,12 +6,12 @@ export const GABE: HeroData = Object.freeze<HeroData>({
   name: 'Gabė',
   side: 'cat',
   role: 'support',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9050 / takes 9600 (49.7% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8075 / takes 9725 (48.4% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 10000. */
-  pvp: { dmgBp: 8075, takenBp: 10000 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: 9500 / takes 9700 (51.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9050 / takes 9600 (49.7% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8075 / takes 9725 (48.4% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 10000. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 7700 / takes 10650. */
+  pvp: { dmgBp: 7700, takenBp: 10650 },
   element: 'WIND',
   base: { hp: 500, hpPerLevel: 52, attack: 52, attackPerLevel: 5, attackEvery: 28, range: 5000, speed: 5000, armour: 18, armourPerLevel: 2 },
-  /** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 10 (+2/lvl). */
-  passive: { heal: 10, healPerLevel: 2, range: 6000 },
+  /** Heart Breeze: her basic hits on heroes heal the allied hero with the lowest HP share within 6 m (her too) 8 (+1/lvl; sim v18, V18-CHASE.md §3: was 10 (+2/lvl), since chasing basics land more often). */
+  passive: { heal: 8, healPerLevel: 1, range: 6000 },
   abilities: {
     /** Heart Balloon: lob to a point within 7 m; after 0.5 s a 2.2 m pop, enemies 55 (+5/lvl, +15 a rank), allied heroes healed 25 (+3/lvl, +6 a rank). */
     q: { cooldown: 210, range: 7000, radius: 2200, arm: 15, dmg: 55, dmgPerLevel: 5, heal: 25, healPerLevel: 3 },

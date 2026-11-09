@@ -10,7 +10,7 @@ import { snapshot } from '../../../src/sim/index';
 import { Op } from '../../../src/sim/api';
 import { applyOrder } from '../../../src/sim/units/hero';
 import { Kind } from '../../../src/sim/world';
-import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
+import { MID, cast, cd, basicHit, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Bengas (slot 0) vs Clem (slot 3, armour 25) and Sage (slot 4, armour 15).
 const BG = 0;
@@ -37,7 +37,7 @@ describe('Bengas, shelter champion mage (sim v9)', () => {
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([180, 420, 390, 1950]);
     expect(BENGAS.passive).toEqual({ bonusBp: 11500 });
     expect([A.w.windup, A.w.stun, A.w.slowBp, A.w.slow]).toEqual([15, 23, 2500, 30]);
-    expect(BENGAS.pvp).toEqual({ dmgBp: 9950, takenBp: 8625 }); // sim v17 refit (8600 before the §6.5 per-window refit); // sim v10: deals 11000 before; sim v11: takes 9100 before; sim v15 balance pass; sim v16: deals 9700 before
+    expect(BENGAS.pvp).toEqual({ dmgBp: 10000, takenBp: 8625 }); // sim v17 refit (8600 before the §6.5 per-window refit); // sim v10: deals 11000 before; sim v11: takes 9100 before; sim v15 balance pass; sim v16: deals 9700 before
   });
 
   it('Hot Toast: +15% damage to a slowed (or otherwise crowd-controlled) enemy hero', () => {
@@ -49,8 +49,8 @@ describe('Bengas, shelter champion mage (sim v9)', () => {
     slow(w, FOE, 1000, 30);
     hp = w.hp[FOE];
     dealDamage(m, BG, 0, Kind.Hero, FOE, 100, 'basic');
-    expect(plain).toBe(heroHit(100, 25));
-    expect(hp - w.hp[FOE]).toBe(heroHit(115, 25));
+    expect(plain).toBe(basicHit(100, 25));
+    expect(hp - w.hp[FOE]).toBe(basicHit(115, 25));
   });
 
   it('Burnt Toast: a skillshot that stops at the first unit', () => {

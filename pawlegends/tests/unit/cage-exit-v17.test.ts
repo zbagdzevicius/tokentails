@@ -10,7 +10,7 @@ import { dealDamage } from '../../src/sim/combat/damage';
 import { isqrt } from '../../src/sim/fixed';
 import { applyOrder } from '../../src/sim/units/hero';
 import { Buff, Kind } from '../../src/sim/world';
-import { MID, cast, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './heroes/kit-helpers';
+import { MID, cast, basicHit, heroMatch, hold, place, setLevel, steps, tanky } from './heroes/kit-helpers';
 
 const BR = 0;
 const FOE = 3;
@@ -48,7 +48,7 @@ describe('sim v17 Brutus cage exit (§3.5)', () => {
     const hp = w.hp[BR];
     w.kHonour[BR] = 0;
     dealDamage(m, FOE, 1, Kind.Hero, BR, 100, 'basic');
-    expect(hp - w.hp[BR]).toBe(heroHit(100, 40 + 3 * 3));
+    expect(hp - w.hp[BR]).toBe(basicHit(100, 40 + 3 * 3));
   });
 
   it("Purr-ify inside the ring frees the foe; Brutus casting his own Purr-ify keeps the ring", () => {

@@ -8,7 +8,7 @@ import { dealDamage } from '../../../src/sim/combat/damage';
 import { chooseTalent } from '../../../src/sim/heroes/talents';
 import { applyOrder } from '../../../src/sim/units/hero';
 import { Kind } from '../../../src/sim/world';
-import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
+import { MID, cast, cd, basicHit, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Sir Brutus (slot 0) with Sage (slot 1) vs Clem (slot 3, armour 25) and Sage (slot 4).
 const BRUTUS_ID = 0;
@@ -228,7 +228,7 @@ describe('Sir Brutus (§6.5)', () => {
     const hp = w.hp[BRUTUS_ID];
     w.kHonour[BRUTUS_ID] = 0;
     dealDamage(m, FOE, 1, Kind.Hero, BRUTUS_ID, 100, 'basic');
-    expect(hp - w.hp[BRUTUS_ID]).toBe(Math.trunc((heroHit(100, 40 + 3 * 3) * 7000) / 10000));
+    expect(hp - w.hp[BRUTUS_ID]).toBe(Math.trunc((basicHit(100, 40 + 3 * 3) * 7000) / 10000));
     steps(m, 16);
     expect(w.tether[FOE]).toBe(-1);
     steps(m, 60);
