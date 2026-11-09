@@ -18,6 +18,7 @@
  *
  * Names are host data: always escaped here. Cosmetic only.
  */
+import { MODE_MAP, matchModeHtml, type MatchMode } from './matchMode';
 import { logoHtml } from '../brandLogo';
 import './lobby.css';
 import type { Difficulty, HeroId } from '../../sim/api';
@@ -98,6 +99,11 @@ export interface LobbyScreenOpts {
    * has no PvP sim yet (`GET /pawlegends/sim`), so no chip. `locked`: fewer than 5 matches ("PvP unlocks after 5").
    */
   onlineMode?: { mode: 'coop' | 'pvp'; locked: boolean; onMode(mode: 'coop' | 'pvp'): void };
+  /**
+   * Sim v19 (MAP-5V5.md §8.1): the 3v3 Quick | 5v5 Classic toggle above Play (remembered by the caller). Absent on
+   * the first match and on a dare (both are 3v3).
+   */
+  matchMode?: { mode: MatchMode; onMode(mode: MatchMode): void };
   onPlay(c: Choice, seed?: number): void;
   onChoose(): void;
   onMute(m: boolean): void;
@@ -141,7 +147,7 @@ export function questTally(qs: readonly QuestView[] | undefined): { done: number
 export function playLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstLine' | 'last'>): string {
   if (o.dare) return dareText(o.dare);
   if (o.firstTime) return o.firstLine ?? 'Your first match is a guided match.';
-  return `3v3 vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
+  return `${o.last.map === 'hearthwood' ? '5v5 Classic' : '3v3'} vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
 }
 
 /** The Play button's label. Pure. */
@@ -265,7 +271,12 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   const elColor = cssHex(ELEMENT_COLOR[id.element]);
   root.style.setProperty('--lb-el', elColor);
   let diff: Difficulty = o.last.difficulty;
-  const choice = (): Choice => ({ ...o.last, difficulty: diff });
+  let mode: MatchMode | null = o.matchMode && !o.firstTime && !o.dare ? o.matchMode.mode : null;
+  const choice = (): Choice => {
+    const c: Choice = { ...o.last, difficulty: diff };
+    delete c.map;
+    return mode === 'classic' ? { ...c, map: MODE_MAP.classic } : c;
+  };
   const dare = o.dare;
   const secondary =
     o.firstTime || dare
@@ -290,6 +301,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
         <div class="lb-chips">${chips}</div>
       </div>
       <div class="lb-play actions">
+        ${mode ? matchModeHtml(mode) : ''}
         <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter">${esc(playLabel(o))}</button>
         <p class="lb-line${dare ? ' dare-line' : ''}">${esc(playLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>
         ${segmentHtml(o, diff)}
@@ -343,6 +355,22 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     }
     const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;
     if (leaving && a !== 'mute') return;
+    if (a === 'map' && mode) {
+      const v = t.closest<HTMLElement>('[data-a="map"]')!.dataset.v === 'classic' ? 'classic' : 'quick';
+      if (v === mode) return;
+      o.sound?.('click');
+      mode = v;
+      for (const b of root.querySelectorAll<HTMLElement>('[data-a="map"]')) {
+        const on = b.dataset.v === v;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-checked', String(on));
+        b.tabIndex = on ? 0 : -1;
+      }
+      const line = root.querySelector('.lb-line');
+      if (line) line.textContent = playLine({ ...o, last: choice() });
+      o.matchMode?.onMode(v);
+      return;
+    }
     if (a === 'clem') play({ hero: 'clem', trick: 'pounce', difficulty: 'easy' });
     else if (a === 'quick') play(choice());
     else if (a === 'dare' && dare) play({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);

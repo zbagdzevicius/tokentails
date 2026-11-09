@@ -402,9 +402,15 @@ export class Hud {
     };
     const allies = mk('ally');
     const enemies = mk('enemy');
+    // sim v19: 5 a side on Hearthwood (the strip holds 4 allies and 5 enemies; ui/feel.css compacts it)
+    const per = Math.max(1, picks.length >> 1);
+    if (per > 3) {
+      allies.dataset.size = String(per);
+      enemies.dataset.size = String(per);
+    }
     picks.forEach((hero, slot) => {
       if (slot === mySlot || !hero) return;
-      const enemy = (slot < 3 ? 0 : 1) !== myTeam;
+      const enemy = (slot < per ? 0 : 1) !== myTeam;
       const el: HTMLElement = document.createElement(enemy ? 'button' : 'div');
       el.className = 'pp';
       if (enemy) (el as HTMLButtonElement).type = 'button';

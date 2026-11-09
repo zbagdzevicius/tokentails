@@ -50,9 +50,10 @@ export class HostCore {
   /** Start the match and answer with `welcome`. The human is always slot 0 in the POC (§6.8). */
   join(msg: JoinMsg): WelcomeMsg {
     const seed = typeof msg.seed === 'number' && Number.isInteger(msg.seed) && msg.seed >= 0 && msg.seed <= 0xffffffff ? msg.seed >>> 0 : drawSeed();
-    const { picks, tricks } = fillPicks(seed, msg.hero, msg.trick);
-    this.match = createMatch({ seed, picks, tricks, difficulty: msg.difficulty });
-    this.team = teamOfSlot(HUMAN_SLOT);
+    const map = msg.map === 'hearthwood' ? 'hearthwood' : undefined;
+    const { picks, tricks } = fillPicks(seed, msg.hero, msg.trick, map);
+    this.match = createMatch({ seed, picks, tricks, difficulty: msg.difficulty, ...(map ? { map } : {}) });
+    this.team = teamOfSlot(HUMAN_SLOT, map);
     this.pending = [];
     this.endSent = false;
     this.speed = clampSpeed(msg.speed);
@@ -66,6 +67,7 @@ export class HostCore {
       team: this.team,
       picks: picks.slice(),
       tricks: tricks.slice(),
+      ...(map ? { map } : {}),
     };
   }
 

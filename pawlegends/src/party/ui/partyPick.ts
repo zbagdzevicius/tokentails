@@ -15,7 +15,7 @@ import { HERO_TEXT, TRICK_TEXT } from '../../ui/heroText';
 import { icon } from '../../ui/icons';
 import { heroTile } from '../../ui/screens';
 import { COPY, DIFF_LABEL, esc, sideText } from './copy';
-import { shownName } from './partyLobby';
+import { seatsPerTeam, shownName } from './partyLobby';
 
 /** The "New? Try this" hero (the relay's newbie auto-lock uses the same one). */
 export const NEWBIE_HERO: HeroId = 'clem';
@@ -82,11 +82,12 @@ export function pickHtml(o: PickModel): string {
   const locked = !!me?.locked;
   const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
   // casual PvP (V16.md §5): the own team only, by seat (the other team's picks show at loading)
-  const casual = v.mm?.mode === 'casual';
+  const per = seatsPerTeam(v);
+  const casual = v.mm?.mode === 'casual' || (!!v.mm && per === 5);
   const team = v.mm?.team ?? 0;
   const strip = casual
-    ? [0, 1, 2].map((i) => stripSeat(v, v.members.find((m) => m.slot === team * 3 + i), hide)).join('')
-    : [0, 1, 2].map((i) => stripSeat(v, humans[i], hide)).join('');
+    ? Array.from({ length: per }, (_, i) => stripSeat(v, v.members.find((m) => m.slot === team * per + i), hide)).join('')
+    : Array.from({ length: per }, (_, i) => stripSeat(v, humans[i], hide)).join('');
   const hidden = casual ? `<p class="pp-side-note pp-their" data-testid="pvp-their-hidden">${COPY.opponentsHidden}</p>` : '';
   const leaderSide = sideOf(v.members.find((m) => m.id === v.leader)?.hero);
   // one grid (cats then dogs): two rows of six fit a 375 px tall phone

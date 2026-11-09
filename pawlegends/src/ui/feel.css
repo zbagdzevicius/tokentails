@@ -203,3 +203,8 @@ html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rail { --rail-top: 100px;
 @media (max-height: 480px) { .pl-backin::before { width: 48px; height: 48px; } }
 html[data-touch='1'] .pl-match .pl-tbtn.nap { background: rgba(58, 39, 66, 0.66) url('/assets/stickers/nap-cat-256.webp') center 40% / 82% no-repeat; }
 html[data-touch='1'] .pl-match .pl-tbtn.nap span { inset: auto 0 1px 0; font-size: 9px; }
+
+/* Sim v19 (MAP-5V5.md §8.4): the 5v5 Classic wheel has eight slices (three lane pushes and Take Grizzlechop) */
+.pl-pingwheel[data-slices='8']::before { width: 248px; height: 248px; }
+.pl-pingwheel[data-slices='8'] .slice { width: 70px; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-92px) rotate(calc(-1 * var(--a))); font-size: 10.5px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='grizzlechop'] .ic { background: #e0703a; }

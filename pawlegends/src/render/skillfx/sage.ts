@@ -59,7 +59,6 @@ const ARROW_Y = 1.05;
 /** The Moonshot charge moon's height (m): over her head line, so the kneel and the draw under it stay readable. */
 const MOON_Y = 1.75;
 /** Hero entity ids are 0 … CAPS.heroes − 1 (sim RANGE.heroes = 0): anything above is a minion, tower or monster. */
-const HERO_N = CAPS.heroes;
 /** BuffFlag bits (sim/api), kept local so this chunk carries no sim import. */
 const STUNNED = 1 << 3;
 const ROOTED = 1 << 4;
@@ -487,7 +486,7 @@ function hiddenTrapper(victim: number, fx: FxCtx): number {
   const vs = side(fx, victim);
   let sage = -1;
   lamboNear = false;
-  for (let id = 0; id < HERO_N; id++) {
+  for (let id = 0; id < CAPS.heroes; id++) {
     if (side(fx, id) === vs || side(fx, id) === 0) continue;
     if (isSage(fx, id)) sage = id;
     else if (heroOf(fx, id) === 'lambo') lamboNear = true;
@@ -619,7 +618,7 @@ export const SKILL_FX: SkillFxSet = {
     // which live shot is at the target: the Moonshot first (the bigger, longer one), then an arrow or the lance
     const moon = shotAt(id, qx, qz, 1 << K.Moon);
     if (moon >= 0) {
-      if (e.dst < 0 || e.dst >= HERO_N) {
+      if (e.dst < 0 || e.dst >= CAPS.heroes) {
         // it passes through minions (half damage): a small ring, the moonlight keeps flying
         spawn(fx, 'ring', id, qx, qz, 0.6, 0.2, MOON, { p1: 0.2 });
         return;
@@ -653,7 +652,7 @@ export const SKILL_FX: SkillFxSet = {
     if ((a.slowBp ?? 0) > 0) {
       spawn(fx, 'glow', id, qx, qz, 0.9, 0.5, GOO, { y: 0.3 });
       // fun: Sticky Arrows: one green "SPLAT!" per cast on the first hero, goo drops
-      if (qSplat[id] && e.dst < HERO_N) {
+      if (qSplat[id] && e.dst < CAPS.heroes) {
         qSplat[id] = 0;
         if (funPop(fx, id, 'SPLAT!', qx, funOverY(fx, e.dst, 0.4), qz)) funSfx(fx, 'splat', _q, 0.6);
         stickerBurst(fx, qx, 0.9, qz, 'DROPLET', GOO, 0.22, 0.5, 6, 2.2, 2.2, -8, 0.2);
@@ -856,7 +855,7 @@ export const SKILL_FX: SkillFxSet = {
     }
     // Sun Snare roots: the victim's rendered root edge draws the coil, for every viewer
     if (fx.status) {
-      for (let v = 0; v < HERO_N && v < ID_N; v++) {
+      for (let v = 0; v < CAPS.heroes && v < ID_N; v++) {
         const rooted = fx.status(v, ST) && (ST.buffs & ROOTED) !== 0 ? 1 : 0;
         const edge = rooted === 1 && rootPrev[v] === 0;
         rootPrev[v] = rooted;
@@ -881,7 +880,7 @@ export const SKILL_FX: SkillFxSet = {
           rootZ[v] = _r.z;
         }
       }
-      for (let v = 0; v < HERO_N && v < ID_N; v++) {
+      for (let v = 0; v < CAPS.heroes && v < ID_N; v++) {
         if (rootCheckAt[v] < 0 || clock < rootCheckAt[v]) continue;
         rootCheckAt[v] = -1;
         if (!fx.heroPos(v, _r) || Math.hypot(_r.x - rootX[v], _r.z - rootZ[v]) > 0.15) continue;
@@ -896,7 +895,7 @@ export const SKILL_FX: SkillFxSet = {
       const os = side(fx, trOwner[k]);
       let best = -1;
       let bd = trR[k] + 0.8;
-      for (let v = 0; v < HERO_N; v++) {
+      for (let v = 0; v < CAPS.heroes; v++) {
         if (side(fx, v) === os || !fx.heroPos(v, _r)) continue;
         const d = Math.hypot(_r.x - trX[k], _r.z - trZ[k]);
         if (d < bd) (bd = d), (best = v);

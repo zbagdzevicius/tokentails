@@ -25,11 +25,24 @@ export const CAMERA_YAW = (-38 * Math.PI) / 180;
  * the red side): the camera, the stick and drag aims, the yaw-baked effects and the minimap all read this.
  */
 let viewYaw = CAMERA_YAW;
-/** The camera yaw now: CAMERA_YAW, or + π for a team-1 seat. */
+/**
+ * Sim v19 (MAP-5V5.md §8.2): the map's base yaw. Crossing −38° (CAMERA_YAW); Hearthwood Divide 0°, since its
+ * base-to-base line already runs up the map diagonal (own base bottom left at yaw 0). `mapInfo(map).camera.yawDeg`.
+ */
+let baseYaw = CAMERA_YAW;
+/** The camera yaw now: the map's yaw, or + π for a team-1 seat. */
 export const cameraYaw = (): number => viewYaw;
+/** The map's base yaw (radians) the view turns from. */
+export const mapYaw = (): number => baseYaw;
+/** Set the map's base yaw in degrees (keeps the team turn). Crossing's −38° unless a match says otherwise. */
+export function setMapYaw(deg: number): void {
+  const team1 = Math.abs(viewYaw - baseYaw - Math.PI) < 1e-6;
+  baseYaw = (deg * Math.PI) / 180;
+  viewYaw = team1 ? baseYaw + Math.PI : baseYaw;
+}
 /** Turn the view for `team` (1: another 180°). */
 export function setViewTeam(team: number): void {
-  viewYaw = team === 1 ? CAMERA_YAW + Math.PI : CAMERA_YAW;
+  viewYaw = team === 1 ? baseYaw + Math.PI : baseYaw;
 }
 
 export interface Vec2 {

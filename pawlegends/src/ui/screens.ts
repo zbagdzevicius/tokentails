@@ -13,7 +13,7 @@ import { HERO_IDS, HEROES, type HeroSide } from '../data/heroes';
 import { SIM_VERSION } from '../sim/version';
 import { championOf } from '../data/heroes/shelter';
 import { TRICK_IDS } from '../data/tricks';
-import type { Difficulty, HeroId, TrickId } from '../sim/api';
+import type { Difficulty, HeroId, MapId, TrickId } from '../sim/api';
 import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, wearsCardSkin, type FrameId, type Look, type Owned } from '../render/cosmetics';
 import { ELEMENT_NAME, type CatTier, type Element } from '../meta/roster';
 
@@ -55,6 +55,8 @@ export interface Choice {
   hero: HeroId;
   trick: TrickId;
   difficulty: Difficulty;
+  /** Sim v19: the map (omitted = 'crossing', 3v3 Quick; 'hearthwood' = 5v5 Classic). */
+  map?: MapId;
 }
 
 // ------------------------------------------------------------------------------------------------- title

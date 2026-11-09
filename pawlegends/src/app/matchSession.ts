@@ -42,11 +42,14 @@ import type { GameRenderer } from '../render/renderer';
 import type { TierSettings } from '../render/quality';
 import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
+import { useMap } from './mapBinding';
+import { mapInfo } from '../sim/map/info';
+import { rolesOf } from '../sim/bots/roles';
 import { PING_KIND } from '../data/pings';
 import { TOWERS } from '../data/towers';
 import { HEROES } from '../data/heroes';
 import { TICK_HZ } from '../data/timeline';
-import { BuffFlag, Op, type Difficulty, type EntitySnap, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
+import { BuffFlag, Op, SLOT_COUNT, SLOTS_PER_TEAM, type Difficulty, type MapId, type EntitySnap, type HeroId, type MatchResult, type ReplayRecord, type SimEvent, type Snapshot, type TrickId } from '../sim/api';
 import { HERO_TEXT, rankUpLines, slotNames, TRICK_TEXT } from '../ui/heroText';
 import { headingPoint } from '../input/heading';
 import { ProgressRail } from '../ui/progressRail';
@@ -112,6 +115,8 @@ export interface MatchSetup {
   difficulty: Difficulty;
   seed?: number;
   speed?: number;
+  /** Sim v19: the map; omitted = 'crossing' (3v3 Quick), 'hearthwood' = 5v5 Classic. */
+  map?: MapId;
   firstMatch: boolean;
   muted: boolean;
   /** Fewer than five matches played: extra warnings (a tower is hitting you, lane arrow in the first match). */
@@ -397,6 +402,8 @@ export class MatchSession {
     private readonly hooks: SessionHooks,
   ) {
     this.muted = setup.muted;
+    // Sim v19: the map's tables and camera yaw for everything built below (5v5 Classic: Hearthwood Divide)
+    useMap(setup.map);
     this.ui = document.createElement('div');
     this.ui.className = 'pl-match';
     parent.appendChild(this.ui);
@@ -528,7 +535,7 @@ export class MatchSession {
       end: (result, replay) => this.onEnd(result, replay),
       error: (m) => hooks.onError(m),
     });
-    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed });
+    this.host.join({ hero: setup.hero, trick: setup.trick, difficulty: setup.difficulty, seed: setup.seed, speed: setup.speed, ...(setup.map === 'hearthwood' ? { map: setup.map } : {}) });
     // Hold the sim until the scene has drawn and the countdown ran (the clock read 0:25 on a slow first load).
     this.host.pause(true);
     document.documentElement.dataset.match = 'loading';
@@ -729,6 +736,8 @@ export class MatchSession {
     this.ui.dataset.side = HEROES[w.picks[w.slot]]?.side === 'dog' ? 'dog' : 'cat';
     // a renamed champion's row reads "Simas · Clem (you)": the hero title takes the cat column (the VS keeps the cat)
     this.scoreboard = new Scoreboard(this.ui, w.picks, w.slot, this.names, this.catNames.map((c, slot) => (slot === w.slot && (this.myCard || this.selfName) ? heroTitle : c)));
+    // sim v19 (Hearthwood): each slot's role (the bots' role solver, pure), as a chip on the scoreboard
+    if ((this.setup.map ?? w.map) === 'hearthwood') this.scoreboard.roles = rolesOf({ picks: w.picks, map: 'hearthwood' });
     // cards: the VS intro (both teams as Token Tails cards flipping up over the held countdown); its own lazy chunk,
     // skipped in e2e unless ?vs=1 and at test speeds
     if ((!this.e2e || /[?&]vs=1/.test(location.search)) && Math.max(1, this.buffer.speed) === 1) {
@@ -942,6 +951,29 @@ export class MatchSession {
     } else if (kind === PING_KIND.Defend) {
       x = side(CORE.x);
       y = CORE.y;
+    }
+    // sim v19 (Hearthwood): a lane push points at that lane's first standing enemy tower; Grizzlechop at his pit
+    if (MAP.point === 1) {
+      const info = mapInfo('hearthwood');
+      const lane = kind === PING_KIND.PushFence ? 'fence' : kind === PING_KIND.PushYarn ? 'yarn' : kind === PING_KIND.PushGutter ? 'gutter' : null;
+      if (lane) {
+        const order = ['outer', 'inner', 'gate'];
+        const theirs = info.towers.filter((t) => t.team !== team && t.lane === lane).sort((a, b) => order.indexOf(a.tier) - order.indexOf(b.tier));
+        const up = theirs.find((t) => this.units.some((u) => u.kind === 'tower' && u.state !== 'dead' && Math.hypot(u.x - t.x, u.y - t.y) < 1500)) ?? theirs[0];
+        if (up) {
+          x = up.x;
+          y = up.y;
+        }
+      } else if (kind === PING_KIND.Grizzlechop || kind === PING_KIND.Pudding) {
+        const o = info.objectives.find((k) => k.kind === (kind === PING_KIND.Grizzlechop ? 'grizzlechop' : 'pudding'));
+        const live = this.units.find((u) => u.kind === (kind === PING_KIND.Grizzlechop ? 'boss' : 'pudding'));
+        x = live?.x ?? o?.x ?? x;
+        y = live?.y ?? o?.y ?? y;
+      } else if (kind === PING_KIND.Defend) {
+        const c = info.cores[team];
+        x = c.x;
+        y = c.y;
+      }
     }
     this.sendPing(kind, x, y);
   }
@@ -1386,7 +1418,7 @@ export class MatchSession {
 
   /** The lead seat of this player's team: slot 0, or slot 3 for a PvP team-1 seat. */
   private leadSlot(): number {
-    return this.setup.party?.pvp && this.view.mySlot >= 3 ? 3 : 0;
+    return this.setup.party?.pvp && this.view.mySlot >= SLOTS_PER_TEAM ? SLOTS_PER_TEAM : 0;
   }
 
   /** This seat leads its team (its pings are sim commands). */
@@ -1697,11 +1729,12 @@ export class MatchSession {
     const w = this.welcome;
     const frame = this.view.frame;
     if (!w || !frame) return null;
-    const team = w.slot < 3 ? 0 : 1;
-    const order = only ? [slot] : [slot, ...[0, 1, 2].map((k) => team * 3 + k).filter((s) => s !== slot)];
+    const per = SLOTS_PER_TEAM;
+    const team = w.slot < per ? 0 : 1;
+    const order = only ? [slot] : [slot, ...Array.from({ length: per }, (_, k) => team * per + k).filter((s) => s !== slot)];
     const c = this.gr.renderer.domElement;
     for (const s of order) {
-      if (s === w.slot || s < team * 3 || s >= team * 3 + 3) continue;
+      if (s === w.slot || s < team * per || s >= team * per + per) continue;
       const e = frame.byId.get(s);
       const hero = w.picks[s];
       if (!e || !hero || e.state === 'dead' || e.hp <= 0) continue;
@@ -2032,7 +2065,7 @@ export class MatchSession {
         this.beatsFrom(ev, frame);
         // The attack tip is done once the player's hit lands on a minion (a right-click, A-move or the ATK button).
         this.objClock?.feed(ev);
-        if (ev.type === 'death' && ev.id >= 0 && ev.id < 6) this.heroDeathTick[ev.id < 3 ? 0 : 1] = ev.tick;
+        if (ev.type === 'death' && ev.id >= 0 && ev.id < SLOT_COUNT) this.heroDeathTick[ev.id < SLOTS_PER_TEAM ? 0 : 1] = ev.tick;
         if (ev.type === 'hit') {
           const dst = frame.byId.get(ev.dst);
           if (dst?.kind === 'core') {
@@ -2086,7 +2119,7 @@ export class MatchSession {
         }
       }
       this.tipTriggers(frame);
-      this.objClock?.frame(frame.latest.entities, frame.latest.clock);
+      this.objClock?.frame(frame.latest.entities, frame.latest.clock, frame.latest);
       this.goalTick(frame);
       this.helpTick(frame);
       this.hudRectsTick();
@@ -2533,8 +2566,10 @@ export class MatchSession {
     }
     const team = this.welcome.team;
     const fx = team === 0 ? MAP.width - FOUNTAIN.x : FOUNTAIN.x;
-    const nearFountain = Math.hypot(me.fx - fx, me.fy - FOUNTAIN.y) < FOUNTAIN.radius + 8000;
-    this.overhead.enemyFountain = nearFountain ? { x: fx, y: FOUNTAIN.y, r: FOUNTAIN.radius } : null;
+    // sim v19: Hearthwood's fountains sit in opposite corners (point reflection)
+    const fy = MAP.point === 1 && team === 0 ? MAP.height - FOUNTAIN.y : FOUNTAIN.y;
+    const nearFountain = Math.hypot(me.fx - fx, me.fy - fy) < FOUNTAIN.radius + 8000;
+    this.overhead.enemyFountain = nearFountain ? { x: fx, y: fy, r: FOUNTAIN.radius } : null;
     if (me.state !== 'moving' || Math.hypot(me.fx - this.stuckAt.x, me.fy - this.stuckAt.y) > 600) {
       this.stuckAt = { x: me.fx, y: me.fy };
       this.stuckFrom = now;
@@ -2579,9 +2614,16 @@ export class MatchSession {
    */
   private diveWarn(me: { fx: number; fy: number }, team: number, now: number, sp: number): void {
     // Round 2: also when the player crosses the river with none of its minions ahead (the 0:16 river brawl)
-    const across = team === 0 ? me.fx > MAP.riverX[1] : me.fx < MAP.riverX[0];
+    // sim v19: on Hearthwood the river is the diagonal band |x + y − W| ≤ b, and "ahead" is along x + y
+    const point = MAP.point === 1;
+    const rb = point ? mapInfo('hearthwood').river.b : 0;
+    const prog = (x: number, y: number): number => (point ? x + y : x);
+    const across = point ? (team === 0 ? me.fx + me.fy > MAP.width + rb : me.fx + me.fy < MAP.width - rb) : team === 0 ? me.fx > MAP.riverX[1] : me.fx < MAP.riverX[0];
     if (across && now - this.riverSaidAt > 20000 / sp && now - this.diveSaidAt > 4000 / sp) {
-      const ahead = this.units.some((u) => u.kind === 'minion' && u.team === team && u.state !== 'dead' && (team === 0 ? u.x > me.fx - 1500 : u.x < me.fx + 1500) && Math.abs(u.y - me.fy) < 12000);
+      const mp = prog(me.fx, me.fy);
+      const ahead = this.units.some(
+        (u) => u.kind === 'minion' && u.team === team && u.state !== 'dead' && (team === 0 ? prog(u.x, u.y) > mp - 1500 : prog(u.x, u.y) < mp + 1500) && (point ? Math.hypot(u.x - me.fx, u.y - me.fy) < 16000 : Math.abs(u.y - me.fy) < 12000),
+      );
       if (!ahead) {
         this.riverSaidAt = now;
         this.diveSaidAt = now;
@@ -2700,6 +2742,8 @@ export class MatchSession {
     sfx.hushVoice();
     this.view.dispose();
     this.ui.remove();
+    // Sim v19: the lobby, previews and the next match start from Purrhaven Crossing again
+    useMap('crossing');
     delete document.documentElement.dataset.match;
     delete document.documentElement.dataset.touch;
   }

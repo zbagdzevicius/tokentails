@@ -4,8 +4,11 @@
  * `encodeSnap`. Keep this file transport-agnostic: no DOM, no Worker globals.
  */
 import type {
+  CampSnap,
   Difficulty,
   EntityKind,
+  MapId,
+  ObjectiveSnap,
   EntitySnap,
   HeroId,
   MatchPhase,
@@ -39,6 +42,8 @@ export interface JoinMsg {
    * hash, so a sped-up match verifies like any other. Clamped to 1..64; the Phase 2 server ignores it.
    */
   speed?: number;
+  /** Sim v19: the map (omitted = 'crossing', 3v3 Quick; 'hearthwood' = 5v5 Classic). */
+  map?: MapId;
 }
 
 export interface CmdMsg {
@@ -73,6 +78,8 @@ export interface WelcomeMsg {
   team: Team;
   picks: HeroId[];
   tricks: TrickId[];
+  /** Sim v19: the match's map (omitted = 'crossing'). */
+  map?: MapId;
 }
 
 /** 30 Hz in the POC. `buf` is transferable; decode with `decodeSnap`. */
@@ -157,6 +164,18 @@ export const HEADER_BYTES = 24;
 export const ENTITY_BYTES = 60;
 export const PROJECTILE_BYTES = 24;
 export const ZONE_BYTES = 24;
+/**
+ * Sim v19 (Hearthwood only, after the zones): a map trailer. u8 0x4d ('M'), u8 map index, u8 objectives, u8 camps;
+ * then per objective (16 B) u8 kind, u8 state, u8 team (0xff none), u8 0, i32 nextIn, i32 x, i32 y; per camp (16 B)
+ * u8 id, u8 kind, u8 up, u8 0, i32 nextIn, i32 x, i32 y. A Crossing snapshot has no trailer (byte-identical to v18).
+ */
+export const MAP_TRAILER = 0x4d;
+export const TRAILER_HEAD = 4;
+export const TRAILER_REC = 16;
+const MAP_LIST: readonly MapId[] = ['crossing', 'hearthwood'];
+const OBJ_KINDS: readonly ObjectiveSnap['kind'][] = ['grizzlechop', 'pudding'];
+const OBJ_STATES: readonly ObjectiveSnap['state'][] = ['away', 'up', 'escort'];
+const CAMP_KINDS: readonly CampSnap['kind'][] = ['rat', 'prickle', 'crow', 'toad'];
 
 const HAS_COOLDOWNS = 1;
 const HAS_RESPAWN = 2;
@@ -168,7 +187,15 @@ const FX_CHANNEL = 8;
 
 /** Encode the snapshot (minus `events`, which travel in an `events` message) into a transferable buffer. */
 export function encodeSnap(s: Snapshot): ArrayBuffer {
-  const size = HEADER_BYTES + s.entities.length * ENTITY_BYTES + s.projectiles.length * PROJECTILE_BYTES + s.zones.length * ZONE_BYTES;
+  const trailer = s.map && s.map !== 'crossing';
+  const objs = trailer ? (s.objectives ?? []) : [];
+  const camps = trailer ? (s.camps ?? []) : [];
+  const size =
+    HEADER_BYTES +
+    s.entities.length * ENTITY_BYTES +
+    s.projectiles.length * PROJECTILE_BYTES +
+    s.zones.length * ZONE_BYTES +
+    (trailer ? TRAILER_HEAD + (objs.length + camps.length) * TRAILER_REC : 0);
   const buf = new ArrayBuffer(size);
   const v = new DataView(buf);
   v.setUint32(0, s.clock.tick, true);
@@ -243,6 +270,31 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     v.setInt32(o + 16, z.ttl, true);
     v.setUint16(o + 20, Math.min(0xffff, Math.max(0, z.arm ?? 0)), true);
     o += ZONE_BYTES;
+  }
+  if (trailer) {
+    v.setUint8(o, MAP_TRAILER);
+    v.setUint8(o + 1, Math.max(0, MAP_LIST.indexOf(s.map!)));
+    v.setUint8(o + 2, objs.length);
+    v.setUint8(o + 3, camps.length);
+    o += TRAILER_HEAD;
+    for (const ob of objs) {
+      v.setUint8(o, OBJ_KINDS.indexOf(ob.kind));
+      v.setUint8(o + 1, OBJ_STATES.indexOf(ob.state));
+      v.setUint8(o + 2, ob.team === undefined ? NONE : ob.team);
+      v.setInt32(o + 4, ob.nextIn, true);
+      v.setInt32(o + 8, ob.x, true);
+      v.setInt32(o + 12, ob.y, true);
+      o += TRAILER_REC;
+    }
+    for (const c of camps) {
+      v.setUint8(o, c.id);
+      v.setUint8(o + 1, CAMP_KINDS.indexOf(c.kind));
+      v.setUint8(o + 2, c.up ? 1 : 0);
+      v.setInt32(o + 4, c.nextIn, true);
+      v.setInt32(o + 8, c.x, true);
+      v.setInt32(o + 12, c.y, true);
+      o += TRAILER_REC;
+    }
   }
   return buf;
 }
@@ -347,7 +399,35 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
     });
     o += ZONE_BYTES;
   }
+  let map: MapId | undefined;
+  let objectives: ObjectiveSnap[] | undefined;
+  let camps: CampSnap[] | undefined;
+  if (o + TRAILER_HEAD <= buf.byteLength && v.getUint8(o) === MAP_TRAILER) {
+    map = MAP_LIST[v.getUint8(o + 1)] ?? 'crossing';
+    const no = v.getUint8(o + 2);
+    const nc = v.getUint8(o + 3);
+    o += TRAILER_HEAD;
+    objectives = [];
+    for (let i = 0; i < no; i++) {
+      const team = v.getUint8(o + 2);
+      objectives.push({
+        kind: OBJ_KINDS[v.getUint8(o)] ?? 'pudding',
+        state: OBJ_STATES[v.getUint8(o + 1)] ?? 'away',
+        ...(team !== NONE ? { team: team as Team } : {}),
+        nextIn: v.getInt32(o + 4, true),
+        x: v.getInt32(o + 8, true),
+        y: v.getInt32(o + 12, true),
+      });
+      o += TRAILER_REC;
+    }
+    camps = [];
+    for (let i = 0; i < nc; i++) {
+      camps.push({ id: v.getUint8(o), kind: CAMP_KINDS[v.getUint8(o + 1)] ?? 'rat', up: v.getUint8(o + 2) === 1, nextIn: v.getInt32(o + 4, true), x: v.getInt32(o + 8, true), y: v.getInt32(o + 12, true) });
+      o += TRAILER_REC;
+    }
+  }
   return {
+    ...(map ? { map, objectives, camps } : {}),
     team,
     clock: { tick, seconds: v.getUint16(18, true), phase, nextPhaseIn: v.getUint32(20, true) },
     score: { kills: [v.getUint16(12, true), v.getUint16(14, true)], towers: [v.getUint8(16), v.getUint8(17)] },

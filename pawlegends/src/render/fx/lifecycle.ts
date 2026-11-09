@@ -20,7 +20,7 @@
  * go through the shared Particles / Shockwaves / MeshFx pools, scaled down on Low and under reduce motion.
  */
 import * as THREE from 'three';
-import { HERO_SPAWNS, mirrorX } from '../../data/map';
+import { HERO_SPAWNS, MAP, mirrorX } from '../../data/map';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { HERO_RULES } from '../../data/xp';
 import { sfx } from '../../audio/sfx';
@@ -62,8 +62,10 @@ const MAX_ID = 128;
 /** A hero's fountain spawn point (m, three.js X/Z): the sim's HERO_SPAWNS by slot, mirrored for team 1. */
 export function spawnPoint(id: number, team: number, out: { x: number; z: number }): { x: number; z: number } {
   const s = HERO_SPAWNS[((id % HERO_SPAWNS.length) + HERO_SPAWNS.length) % HERO_SPAWNS.length];
-  out.x = toX(team === 1 ? mirrorX(s.x) : s.x);
-  out.z = toZ(s.y);
+  // sim v19 Hearthwood: team 1's slot k spawns at the river mirror of team 0's (MapInfo.spawns)
+  const point = MAP.point === 1;
+  out.x = toX(team === 1 ? (point ? MAP.width - s.y : mirrorX(s.x)) : s.x);
+  out.z = toZ(team === 1 ? (point ? MAP.height - s.x : s.y) : s.y);
   return out;
 }
 
@@ -274,8 +276,8 @@ export class Lifecycle {
       const col = mine ? 0xffd34d : 0xd8e2ff;
       const steps = Math.max(2, Math.round(g.len / 2));
       for (let i = 0; i < steps; i++) {
-        const z = g.z - g.len / 2 + (g.len * (i + 0.5)) / steps;
-        this.v.set(g.x, 0.8, z);
+        const t = -g.len / 2 + (g.len * (i + 0.5)) / steps;
+        this.v.set(g.cx + g.dx * t, 0.8, g.cz + g.dz * t);
         p.burst(this.v, { n: this.n(mine ? 6 : 3), shape: SHAPE.CONFETTI, color: i % 2 ? col : 0xff9ec0, size: [0.16, 0.26], life: [0.9, 1.4], speed: [2, 4.5], up: 4.5, gravity: 7, drag: 1.2, spin: 8 });
         p.burst(this.v, { additive: true, n: this.n(3), shape: SHAPE.STAR5, color: col, intensity: 1.8, size: [0.2, 0.34], life: [0.5, 0.8], speed: [1.5, 3.5], up: 2.5, drag: 2 });
       }

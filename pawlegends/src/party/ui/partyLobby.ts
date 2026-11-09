@@ -63,13 +63,25 @@ function seatHtml(v: PartyView, m: MemberView | undefined, i: number, leader: bo
   return `<li class="pp-seat" data-conn="${m.conn}" data-slot="${i}"${me ? ' data-me="1"' : ''} data-testid="party-seat">${av}<span class="pp-who"><b>${esc(name)}</b><span class="pp-badges">${badges}</span></span><i class="pp-dot" title="${m.conn === 'on' ? 'Here' : m.conn === 'away' ? 'Away' : 'Offline'}"></i>${tools}</li>`;
 }
 
+/**
+ * Sim v19 (MAP-5V5.md §8.5): seats per team of the party's room: 5 on a 5v5 Classic room (Hearthwood Divide, PROTO 4
+ * `teamSize` / `map` on the view), else 3. Read defensively: an older relay sends neither.
+ */
+export function seatsPerTeam(v: PartyView): number {
+  const mm = v.mm as { teamSize?: number; map?: string } | undefined;
+  const top = v as unknown as { teamSize?: number; map?: string };
+  const n = mm?.teamSize ?? top.teamSize ?? (mm?.map === 'hearthwood' || top.map === 'hearthwood' ? 5 : 3);
+  return n === 5 ? 5 : 3;
+}
+
 export function lobbyHtml(o: LobbyModel): string {
   const v = o.view;
   const leader = v.leader === v.you;
   const hide = o.hideNames === true;
   // seats: the leader first (slot 0), then join order
   const ordered = [...v.members.filter((m) => m.id === v.leader), ...v.members.filter((m) => m.id !== v.leader)];
-  const seats = [0, 1, 2].map((i) => seatHtml(v, ordered[i], i, leader, hide)).join('');
+  const per = seatsPerTeam(v);
+  const seats = Array.from({ length: per }, (_, i) => seatHtml(v, ordered[i], i, leader, hide)).join('');
   const label = (d: string) => DIFF_LABEL[d] ?? d;
   const newbie = v.members.some((m) => m.newbie) ? `<p class="pp-hint" data-testid="party-newbie">${COPY.newPlayer}</p>` : '';
   const diff = leader

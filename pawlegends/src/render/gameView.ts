@@ -10,7 +10,7 @@ import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
 import { heightFactor, loadCameraHeight, type CameraHeight } from './camera/height';
 import { aimPan, groundReach, reachAlong, returnShare, SHAKE_MAX_M } from './camera/frame';
-import type { EntityKind, HeroId, SimEvent, TrickId } from '../sim/api';
+import { SLOTS_PER_TEAM, type EntityKind, type HeroId, type SimEvent, type TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
 import { Effects, type Who } from './effects';
@@ -39,6 +39,9 @@ import { boldRingTexture, crosshairTexture, dashRingTexture, DecalLayer, ringTex
 import { HeroView } from './views/heroView';
 import { HERO_RING } from './views/models';
 import { createMapView, type MapView } from './views/mapView';
+import { createHearthwoodView } from './views/hearthwoodView';
+import { mapInfo } from '../sim/map/info';
+import { MAP } from '../data/map';
 import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
 import { ProjectileView } from './views/projectileView';
@@ -227,7 +230,8 @@ export class GameView {
     hooks: GameViewHooks = {},
   ) {
     this.scene = gr.scene;
-    this.map = createMapView();
+    // sim v19: the bound map (app/mapBinding.ts useMap runs before the view is built): Hearthwood Divide's own view
+    this.map = MAP.point === 1 ? createHearthwoodView(mapInfo('hearthwood')) : createMapView();
     this.scene.add(this.map.group);
     this.particles = new Particles({ rng: Math.random, groundY: () => 0 });
     this.particles.attach(this.scene);
@@ -633,7 +637,7 @@ export class GameView {
       let next = h(7) % showcase.length;
       for (const team of [0, 1] as const) {
         if (shown.size >= Math.min(2, showcase.length)) break;
-        const bots = [0, 1, 2].map((k) => team * 3 + k).filter((slot) => slot !== this.mySlot && slot < picks.length);
+        const bots = Array.from({ length: SLOTS_PER_TEAM }, (_, k) => team * SLOTS_PER_TEAM + k).filter((slot) => slot !== this.mySlot && slot < picks.length);
         if (!bots.length) continue;
         const slot = bots[h(team) % bots.length];
         const id = showcase[next % showcase.length];

@@ -6,12 +6,14 @@
 import { BUSHES } from '../data/map';
 import { bushAt } from '../sim/map/brush';
 
-/** Bush count, both sides (sim/map/brush.ts bushAt order: Purrhaven side, then the mirrored Woof side). */
+/** Bush count, both sides, on Purrhaven Crossing (sim/map/brush.ts bushAt order: Purrhaven side, then Woof's). */
 export const BUSH_COUNT = BUSHES.length * 2;
+/** Sim v19: the bound map's bush count (Hearthwood: 30). */
+export const bushCount = (): number => BUSHES.length * 2;
 
 /** Per bush (bushAt order): does an allied hero or minion stand in it? */
 export function clearedBushes(entities: readonly { kind: string; team: number; state: string; fx?: number; fy?: number; x: number; y: number }[], myTeam: number, out: boolean[] = []): boolean[] {
-  out.length = BUSH_COUNT;
+  out.length = bushCount();
   out.fill(false);
   for (const e of entities) {
     if (e.team !== myTeam || e.state === 'dead' || (e.kind !== 'hero' && e.kind !== 'minion')) continue;

@@ -8,7 +8,7 @@
  * Works with or without the fun-plan sim events: First Blood, streaks, shutdowns and the bounty crown are also
  * inferred from `death` events, and a sim `firstBlood` / `shutdown` / `bounty` for the same kill is not announced twice.
  */
-import type { HeroId, PingKind, SimEvent } from '../sim/api';
+import { SLOT_COUNT, SLOTS_PER_TEAM, type HeroId, type PingKind, type SimEvent } from '../sim/api';
 import { HEAL_BARK, PING_TEXT } from '../ui/pingText';
 import { FISH } from '../data/fish';
 import { TOY_TIERS } from '../data/toys';
@@ -82,8 +82,9 @@ export const STREAK_NAMES: Readonly<Record<number, string>> = Object.freeze({ 3:
 const STREAK_TOP = 6;
 export const MULTI_NAMES: Readonly<Record<number, string>> = Object.freeze({ 2: 'Double Pounce', 3: 'Triple Pounce', 4: 'Cat-astrophe' });
 
-const isHero = (id: number): boolean => id >= 0 && id < 6;
-const teamOf = (id: number): number => (id < 3 ? 0 : 1);
+// sim v19: the bound map's slot counts (app/mapBinding.ts useMap: 3 a side, or 5 on Hearthwood)
+const isHero = (id: number): boolean => id >= 0 && id < SLOT_COUNT;
+const teamOf = (id: number): number => (id < SLOTS_PER_TEAM ? 0 : 1);
 
 export interface AnnouncerNames {
   /** Display name of a hero slot ("Sage", "Sir Brutus"). */
@@ -96,8 +97,8 @@ export interface AnnouncerNames {
  */
 export function isAce(victim: number, down: (slot: number) => boolean): boolean {
   if (!isHero(victim)) return false;
-  const base = teamOf(victim) * 3;
-  for (let s = base; s < base + 3; s++) if (s !== victim && !down(s)) return false;
+  const base = teamOf(victim) * SLOTS_PER_TEAM;
+  for (let s = base; s < base + SLOTS_PER_TEAM; s++) if (s !== victim && !down(s)) return false;
   return true;
 }
 
@@ -338,10 +339,10 @@ export class Announcer {
       this.sweep.n++;
       this.sweep.last = this.tick;
       this.sweep.ids |= 1 << e.id;
-      const all = 7 << (teamOf(e.id) * 3);
+      const all = ((1 << SLOTS_PER_TEAM) - 1) << (teamOf(e.id) * SLOTS_PER_TEAM);
       if ((this.sweep.ids & all) === all) {
         this.sweep.ids = 0;
-        out.push(this.note({ key: 'cleanSweep', title: 'Clean Sweep!', sub: 'You took all three down in a row.', tone: 'gold', size: 'callout', crowd: 'roar', rank: 46, voice: 'cleanSweep' }));
+        out.push(this.note({ key: 'cleanSweep', title: 'Clean Sweep!', sub: SLOTS_PER_TEAM === 5 ? 'You took all five down in a row.' : 'You took all three down in a row.', tone: 'gold', size: 'callout', crowd: 'roar', rank: 46, voice: 'cleanSweep' }));
       }
     }
     const ace = this.aceCheck(e.id);
@@ -381,7 +382,7 @@ export class Announcer {
    */
   private bark(mine: boolean, killer: number): Moment | null {
     if (this.tick - this.barkAt < WINDOW.bark) return null;
-    const allies = [0, 1, 2].map((k) => this.myTeam * 3 + k).filter((s) => s !== this.mySlot);
+    const allies = Array.from({ length: SLOTS_PER_TEAM }, (_, k) => this.myTeam * SLOTS_PER_TEAM + k).filter((s) => s !== this.mySlot);
     if (!allies.length) return null;
     const ally = !mine && allies.includes(killer) ? killer : allies[this.barks % allies.length];
     const lines = mine ? BARKS.kill : BARKS.assist;
