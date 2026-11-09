@@ -11,6 +11,10 @@ import { MAP } from '../data/map';
 import { PUDDING } from '../data/pudding';
 import type { CastSlot, HeroId, SimEvent, TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
+import { playSkillSfx, skillKey } from '../audio/skillSfx';
+import { CHAMP_AUDIO } from '../audio/champ';
+import type { MixRelation } from '../audio/identityMix';
+import { NatureFx } from './fx/natureFx';
 import { aimFor, trickAim, type AimSpec } from '../input/abilities';
 import { CONFETTI_COLORS } from './ppk/fx/palette.js';
 import { DamageNumbers } from './fx/DamageNumbers.js';
@@ -142,6 +146,7 @@ const _fp = new THREE.Vector3();
 /** Lane F (F1): the player's Fish that pop a gold "+N" (not minion shares, snacks or the trickle). */
 const FISH_POP: ReadonlySet<string> = new Set(['lastHit', 'kill', 'assist', 'firstBlood', 'shutdown', 'tower', 'pudding', 'camp']);
 const _d = new THREE.Vector3();
+const _ip = new THREE.Vector3();
 
 /**
  * The animation director's side of the effects (render/anim/director.ts, ANIM-SPEC §2): per-hero skill FX, local
@@ -174,6 +179,10 @@ export class Effects {
   cards: CardVfx | null = null;
   /** ANIM-SPEC: authored animation and skill FX (render/anim/); null = the older looks (tests, the lobby). */
   anim: AnimFxHooks | null = null;
+  /** Champion identity VFX (CHAMP-IDENTITY.md): the skill's nature effect and the hero's motif. */
+  readonly natureFx: NatureFx;
+  /** The last ability slot each hero cast (its ability hits play that skill's nature impact). */
+  private readonly lastSlot = new Map<number, number>();
 
   constructor(
     private readonly particles: Particles,
@@ -184,6 +193,37 @@ export class Effects {
   ) {
     this.numbers = new DamageNumbers(numbersCtx);
     this.numbers.init();
+    this.natureFx = new NatureFx(particles, shock);
+  }
+
+  /** The identity mix relation of a unit to the player. */
+  private relOf(w: Who): MixRelation {
+    if (w.id === this.hooks.mySlot) return 'mine';
+    if (w.kind !== 'hero') return 'minion';
+    return w.team === this.hooks.myTeam ? 'ally' : 'enemy';
+  }
+
+  /**
+   * Champion identity on a hero's Q/W/E/R cast (CHAMP-IDENTITY.md §5.2–§5.3): the skill's nature sound plus the
+   * hero's motif ping (or ult voice), and the nature VFX plus the motif particles. A cast the hero's own skill FX
+   * script draws keeps its script and gets only a small motif burst.
+   */
+  private identityCast(src: Who, e: Extract<SimEvent, { type: 'cast' }>, tx: number, tz: number, yaw: number, owned: boolean, aim: AimSpec | null, rk: number): void {
+    const hero = src.hero as HeroId;
+    this.lastSlot.set(src.id, e.slot);
+    const relation = this.relOf(src);
+    const me = this.hooks.who(this.hooks.mySlot);
+    const ccAtMe = relation === 'enemy' && !!me && (e.target === this.hooks.mySlot || Math.hypot(me.x - tx, me.z - tz) < 4);
+    playSkillSfx(hero, e.slot, 'cast', { at: src, relation, ccAtMe, src: src.id });
+    const dir = { x: Math.cos(yaw), z: -Math.sin(yaw) };
+    if (owned) {
+      if (CHAMP_AUDIO[hero].fx?.ownedMotif !== false) this.natureFx.motifBurst(hero, this.at(src, 0.3), 3, dir, skillKey(e.slot), relation === 'enemy');
+      return;
+    }
+    const atAim = aim?.shape === 'circle';
+    _ip.set(atAim ? tx : src.x, 0.1, atAim ? tz : src.z);
+    const radius = aim?.radius ? aim.radius / 1000 : undefined;
+    this.natureFx.skillFx(hero, e.slot, 'cast', _ip, dir, { radius, length: Math.min(12, (aim?.range ?? 3000) / 1000), scale: rk, enemy: relation === 'enemy' });
   }
 
   private rel(team: number, id: number): number {
@@ -318,7 +358,16 @@ export class Effects {
     const big = !!src && src.kind === 'hero' && (e.kind === 'basic' || e.kind === 'ability') && isBigHit(e.amount, dst.maxHp ?? 0, heroDst);
     // local hit-stop and reactions (ANIM-SPEC §6) replace most of the global hitstop
     const anim = this.anim;
-    if (anim) anim.hitFired(e, src?.kind === 'hero', heroDst, big);
+    const drew = anim ? anim.hitFired(e, src?.kind === 'hero', heroDst, big) : false;
+    // champion identity: the attacker's skill nature impact (sound and VFX) and its motif
+    const idHero = src && src.kind === 'hero' && src.hero && (e.kind === 'basic' || e.kind === 'ability') ? src.hero : null;
+    if (src && idHero) {
+      const skill = e.kind === 'basic' ? 'basic' : skillKey(this.lastSlot.get(src.id) ?? 0);
+      const relation = this.relOf(src);
+      playSkillSfx(idHero, skill, 'impact', { at: dst, relation, src: src.id });
+      if (e.kind === 'ability' && !drew) this.natureFx.skillFx(idHero, skill, 'impact', pos, null, { enemy: relation === 'enemy' });
+      else this.natureFx.motifBurst(idHero, pos, 2, null, skill, relation === 'enemy');
+    }
     if (this.vfx) this.vfxHit(e, src, dst, pos, color, big);
     else this.particles.burst(pos, {
       additive: true,
@@ -370,7 +419,7 @@ export class Effects {
       sfx.play('hurt');
     } else {
       if (shows && heroDst && src?.kind === 'hero') this.numbers.show(npos, String(e.amount), 'info', e.dst, e.amount);
-      sfx.play(e.kind === 'tower' ? 'towerShot' : 'hit', { at: dst, vol: 0.45 });
+      if (!idHero) sfx.play(e.kind === 'tower' ? 'towerShot' : 'hit', { at: dst, vol: 0.45 });
     }
   }
 
@@ -461,6 +510,9 @@ export class Effects {
       }
     }
     if (e.slot === 4) return this.trick(src, e.x, e.y, mine);
+    // champion identity (CHAMP-IDENTITY.md §5): every hero's Q/W/E/R sounds by its nature and its champion
+    const heroCast = src.kind === 'hero' && !!src.hero;
+    if (heroCast) this.identityCast(src, e, tx, tz, yaw, owned, aim, rk);
     if (owned) return;
     if (src.branch && this.branchCast(src, e.slot, yaw, aim, mine)) return;
     const shape = aim?.shape ?? 'none';
@@ -474,14 +526,14 @@ export class Effects {
           _d.set(Math.cos(a), 0.15, -Math.sin(a));
           this.particles.burst(this.at(src, 0.8), { additive: true, n: 2, exact: true, dir: _d, spread: 0.08, shape: SHAPE.SPARK, color: accent, intensity: 1.6, size: [0.12, 0.2], life: [0.2, 0.3], speed: [range * 3.2, range * 4], stretch: 3, drag: 3 });
         }
-        sfx.play(src.hero === 'sage' ? 'arrow' : 'swipe', { at: src });
+        if (!heroCast) sfx.play('swipe', { at: src });
         break;
       }
       case 'ring':
         this.shock.start(this.at(src, 0), { r1: Math.min(8, ((aim?.radius ?? 3000) / 1000) * (0.9 + 0.1 * rk)), dur: 0.3, color: '#' + accent.toString(16).padStart(6, '0'), height: 0.4 * rk });
         this.shock.thud(this.at(src, 0), rk);
         vfx?.debris(src.x, src.z, 1.2 * rk);
-        sfx.play('slam', { at: src });
+        if (!heroCast) sfx.play('slam', { at: src });
         if (mine || src.kind === 'hero') this.juice.kick(mine ? 0.2 : 0.08);
         break;
       case 'dash': {
@@ -492,7 +544,7 @@ export class Effects {
           _p.set(src.x + Math.cos(yaw) * range * t * away, 0.3, src.z - Math.sin(yaw) * range * t * away);
           this.particles.burst(_p, { n: 2, exact: true, shape: SHAPE.PUFF, color: 0xfff4e0, alpha: 0.7, size: [0.3, 0.5], sizeEnd: 1.8, life: [0.35, 0.5], speed: [0.2, 0.8], up: 0.5, drag: 2 });
         }
-        sfx.play('dash', { at: src });
+        if (!heroCast) sfx.play('dash', { at: src });
         break;
       }
       case 'line': {
@@ -502,7 +554,7 @@ export class Effects {
           _p.set(src.x + Math.cos(yaw) * len * t, 1.0, src.z - Math.sin(yaw) * len * t);
           this.particles.single(_p, { shape: SHAPE.SOFT, color: accent, intensity: 2.2, size0: 1.3 * rk, size1: 0.2, life: 0.35 + t * 0.15 });
         }
-        sfx.play('ult', { at: src });
+        if (!heroCast) sfx.play('ult', { at: src });
         this.juice.kick(mine ? 0.25 : 0.12);
         break;
       }
@@ -514,12 +566,12 @@ export class Effects {
           // the Electric hero's area lands as a bolt from the sky
           if (src.hero && HEROES[src.hero].element === 'ELECTRIC') vfx.lightning(tx + 0.6, 7, tz - 0.4, tx, 0.2, tz, accent);
         }
-        sfx.play('magic', { at: { x: tx, z: tz } });
+        if (!heroCast) sfx.play('magic', { at: { x: tx, z: tz } });
         break;
       }
       default:
         this.particles.burst(this.at(src, 0.9), { additive: true, n: 14, shape: SHAPE.STAR4, color: accent, intensity: 1.5, size: [0.15, 0.28], life: [0.35, 0.6], speed: [1, 3], up: 1.5 });
-        sfx.play(e.slot === 1 && (src.hero === 'clem' || src.hero === 'brutus') ? 'shieldUp' : 'magic', { at: src });
+        if (!heroCast) sfx.play('magic', { at: src });
     }
   }
 
@@ -535,7 +587,6 @@ export class Effects {
         _p.set(src.x + Math.cos(yaw) * len * t, 0.95, src.z - Math.sin(yaw) * len * t);
         this.particles.single(_p, { shape: SHAPE.SPARK, color: 0xe8fff4, intensity: 2, size0: 0.5, size1: 0.1, life: 0.18 + t * 0.14 });
       }
-      sfx.play('arrow', { at: src, rate: 0.85 });
       if (mine) this.juice.kick(0.08);
       return true;
     }
@@ -543,7 +594,6 @@ export class Effects {
       const r = (aim?.radius ?? 3000) / 1000;
       this.shock.start(this.at(src, 0), { r1: r, dur: 0.35, color: '#ffd34d', height: 1.2 });
       this.particles.ring(this.at(src, 0.2), { n: 18, r0: r * 0.9, speed: [0.2, 0.5], up: 2.2, color: 0xffd34d, alpha: 0.8, additive: true, size: [0.2, 0.32], shape: SHAPE.STAR4, intensity: 1.4 });
-      sfx.play('shieldUp', { at: src, rate: 0.85 });
       if (mine) this.juice.callout('Guard Post!', 'gold');
       return true;
     }
@@ -823,6 +873,7 @@ export class Effects {
 
   render(dt: number): void {
     this.time += dt;
+    this.natureFx.tick(dt);
     this.cards?.tick(dt);
     this.numbers.render(dt);
   }

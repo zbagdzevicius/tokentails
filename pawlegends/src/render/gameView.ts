@@ -170,6 +170,10 @@ export class GameView {
   atkPreview: number | null = null;
   /** UX pass 2: the Attack target is out of reach (the tap walks to it first): its ring is drawn fainter. */
   atkPreviewFar = false;
+  /** Hold-to-select (touch): the enemies the held Attack button offers (a faint ring each), or null. */
+  atkCands: readonly number[] | null = null;
+  /** Hold-to-select: the one the release would lock (the bold ring), or null (none, or the drag is on cancel). */
+  atkSelect: number | null = null;
   frame: ViewFrame | null = null;
   /**
    * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
@@ -178,6 +182,8 @@ export class GameView {
   private hoverRing = new DecalLayer(boldRingTexture(), 1, { y: 0.07, renderOrder: 9, name: 'hover-ring' });
   /** The hero a unit-target quick cast would hit when it is not the hovered unit: a thinner red ring. */
   private castRing = new DecalLayer(ringTexture(), 1, { y: 0.07, renderOrder: 9, name: 'hover-cast-ring' });
+  /** Hold-to-select: a faint ring under every candidate the held Attack button offers (ATK_SELECT.max). */
+  private candRings = new DecalLayer(ringTexture(), 8, { y: 0.07, renderOrder: 9, name: 'atk-cand-rings' });
   private moveMarks = new DecalLayer(boldRingTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-move' });
   private attackMarks = new DecalLayer(crosshairTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-attack' });
   private marks = Array.from({ length: MARKERS }, () => ({ x: 0, z: 0, t: -1, attack: false }));
@@ -230,11 +236,11 @@ export class GameView {
     this.projectiles = new ProjectileView(this.particles);
     this.heroes.tierFx = new TierFx(this.particles);
     this.vfx = new CombatVfx(this.particles, this.shock);
-    this.vfx.setTier(gr.settings.tier, reducedMotion());
+    this.vfx.setTier(gr.settings.vfxTier, reducedMotion());
     this.projectiles.vfx = this.vfx;
     this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
     this.scene.add(this.vfx.auras.mesh);
-    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.pingMarks.group);
+    this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.candRings.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.pingMarks.group);
     this.juice = new Juice(uiRoot);
     // Settings → Screen shake, capped under the OS reduce-motion switch (render/fx/vfxPrefs.ts)
     this.juice.shakeScale = shakeScaleFor(shakePref(), this.vfx.reduced);
@@ -529,6 +535,7 @@ export class GameView {
     this.ghosts.setTier(t, red);
     this.director.runtime.tier = t;
     this.director.runtime.reduced = red;
+    this.effects.natureFx.setTier(t, red);
     this.fightCam.reduced = red;
     this.ultMoment.reduced = red;
     this.minions.reduced = red;
@@ -824,7 +831,7 @@ export class GameView {
     // touch lock (GAPS A5: one ring means "what you hit" on both inputs)
     const a = this.aim;
     const aimId = a && a.spec.kind === 'unit' && a.valid && a.target >= 0 && a.target !== 0xff ? a.target : -1;
-    const id = this.hover ? this.hover.id : aimId >= 0 ? aimId : (this.lock ?? -1);
+    const id = this.hover ? this.hover.id : this.atkCands ? (this.atkSelect ?? -1) : aimId >= 0 ? aimId : (this.lock ?? -1);
     const e = id >= 0 && frame ? frame.byId.get(id) : null;
     if (e && e.state !== 'dead') {
       const size = hoverRingSize(e.kind, e.hero);
@@ -834,13 +841,24 @@ export class GameView {
     this.castRing.begin();
     // a desktop unit-cast preview, else (touch, UX pass 2) the Attack button's target when no bold ring is on it
     const pid = this.atkPreview ?? -1;
-    const cid = this.hover?.castId ?? (pid >= 0 && pid !== id ? pid : -1);
+    const cid = this.hover?.castId ?? (pid >= 0 && pid !== id && !this.atkCands ? pid : -1);
     const ce = cid >= 0 && frame ? frame.byId.get(cid) : null;
     if (ce && ce.state !== 'dead') {
       const size = hoverRingSize(ce.kind, ce.hero);
       if (size > 0) this.castRing.add(toX(ce.fx), toZ(ce.fy), size, HOVER_COLOR.enemy, cid === pid && this.atkPreviewFar ? 0.45 : 0.85);
     }
     this.castRing.end();
+    this.candRings.begin();
+    if (this.atkCands && frame) {
+      for (const cid2 of this.atkCands) {
+        if (cid2 === id) continue;
+        const c = frame.byId.get(cid2);
+        if (!c || c.state === 'dead') continue;
+        const size = hoverRingSize(c.kind, c.hero);
+        if (size > 0) this.candRings.add(toX(c.fx), toZ(c.fy), size, HOVER_COLOR.enemy, 0.4);
+      }
+    }
+    this.candRings.end();
     this.pingMarks.update(dt);
     this.moveMarks.begin();
     this.chevrons.begin();
@@ -923,8 +941,8 @@ export class GameView {
       this.remember(frame);
       const me = frame.byId.get(this.mySlot) ?? null;
       this.lastMe = me;
-      this.heroes.setQuality(this.gr.settings.tier === 'low', this.gr.settings.outlines);
-      if (this.vfx.tierName !== this.gr.settings.tier) this.vfx.setTier(this.gr.settings.tier);
+      this.heroes.setQuality(this.gr.settings.tier === 'low', this.gr.settings.outlineScope);
+      if (this.vfx.tierName !== this.gr.settings.vfxTier) this.vfx.setTier(this.gr.settings.vfxTier);
       if (this.heroes.tierFx) this.heroes.tierFx.low = this.gr.settings.tier === 'low';
       this.heroes.focus.x = this.gr.focus.x;
       this.heroes.focus.z = this.gr.focus.z;
@@ -973,7 +991,7 @@ export class GameView {
     }
     this.animPost(frame, dt);
     this.drawMarks(this.frame, dt);
-    this.map.setDetail?.(this.gr.settings.tier === 'low');
+    this.map.setDetail?.(this.gr.settings.forestHalf);
     this.map.setTeam?.(this.myTeam);
     this.map.update(frame, dt, this.gr.camera.position);
     this.pickups.update(dt);
@@ -1064,17 +1082,20 @@ export class GameView {
   /** Screen pixels per world metre at ground point (x, z) (C10's minimum aim width). */
   pxPerMetre(x: number, z: number): number {
     const cam = this.gr.camera;
-    const h = this.gr.renderer.domElement.clientHeight || 1;
+    // PERF-IOS P1-5: the CSS size cached on resize (clientWidth/Height every frame forced a layout)
+    const h = this.gr.cssH || 1;
     this._pa.set(x, 0, z).project(cam);
     this._pb.set(x + 1, 0, z).project(cam);
-    const w = this.gr.renderer.domElement.clientWidth || 1;
-    return Math.hypot(((this._pb.x - this._pa.x) * w) / 2, ((this._pb.y - this._pa.y) * h) / 2);
+    const w = this.gr.cssW || 1;
+    const dx = ((this._pb.x - this._pa.x) * w) / 2;
+    const dy = ((this._pb.y - this._pa.y) * h) / 2;
+    return Math.sqrt(dx * dx + dy * dy);
   }
 
   dispose(): void {
     this.gr.preRender = null;
     this.scene.remove(this.map.group, this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
-    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh);
+    this.scene.remove(this.hoverRing.mesh, this.castRing.mesh, this.candRings.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.vfx.auras.mesh);
     this.pingMarks.dispose();
     this.vfx.dispose();
     this.scene.remove(this.meshFx.group, this.linger.mesh, this.ribbons.mesh, this.ghosts.group);
@@ -1086,6 +1107,7 @@ export class GameView {
     this.director.dispose();
     this.hoverRing.dispose();
     this.castRing.dispose();
+    this.candRings.dispose();
     this.moveMarks.dispose();
     this.attackMarks.dispose();
     this.chevrons.dispose();

@@ -44,6 +44,11 @@ export interface SettingsState {
   stats: boolean | null;
   /** Card skin effects (GDD §7.2): All, Mine only, Off. */
   skinFx?: 'all' | 'mine' | 'off';
+  /** PERF-IOS P3-3: Battery saver (30 fps); `saverAuto` when the game turned it on (heat or Low Power Mode). */
+  saver?: boolean;
+  saverAuto?: boolean;
+  /** The thermal governor has lightened the graphics for now. */
+  warm?: boolean;
 }
 
 export interface SettingsOpts {
@@ -53,6 +58,7 @@ export interface SettingsOpts {
   onTips(on: boolean): void;
   onStats(on: boolean): void;
   onSkinFx?(m: 'all' | 'mine' | 'off'): void;
+  onSaver?(on: boolean): void;
   onClose(): void;
   /** The host's terms page (null outside the Token Tails page: the link hides). */
   termsUrl?: string | null;
@@ -101,6 +107,8 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       <div class="set-row"><span>Graphics</span><span class="chips">${(['low', 'med', 'high'] as const)
         .map((t) => `<button class="chip ${s.tier === t ? 'on' : ''}" data-t="${t}">${TIER_NAME[t]}</button>`)
         .join('')}</span></div>
+      ${o.onSaver ? `${row('Battery saver (30 fps)', 'saver', !!s.saver)}${s.saver && s.saverAuto ? '<p class="fine" data-testid="saver-auto">Turned on because the device got warm. Turn it off for 60 fps.</p>' : ''}` : ''}
+      ${s.warm ? '<p class="fine" data-testid="perf-warm">The device is warm: graphics are lighter for now and come back once it cools.</p>' : ''}
       <div class="set-row"><span>Screen shake</span><span class="chips">${(['full', 'low', 'off'] as const)
         .map((m) => `<button class="chip ${ctl.shake === m ? 'on' : ''}" data-shake="${m}">${SHAKE_NAME[m]}</button>`)
         .join('')}</span></div>
@@ -190,6 +198,10 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
     } else if (tier) {
       s.tier = tier;
       o.onTier(tier);
+    } else if (a === 'saver' && o.onSaver) {
+      s.saver = !s.saver;
+      s.saverAuto = false;
+      o.onSaver(s.saver);
     } else if (a === 'sound') {
       s.muted = !s.muted;
       o.onMute(s.muted);

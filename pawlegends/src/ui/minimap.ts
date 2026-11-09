@@ -177,7 +177,17 @@ export class Minimap {
   private w = 220;
   private h = 132;
   private dpr = 1;
-  private n = 0;
+  /**
+   * PERF-IOS P1-4: redraws a second (30 on a desktop, 15 on a phone, 10 when the thermal governor asks; it drew 60 at
+   * ~85 Canvas 2D calls each). A ping, a death or a tap draws on the next frame whatever the rate.
+   */
+  hz = 30;
+  private nextDraw = 0;
+  private dirty = true;
+  /** The root's size is re-read only after a resize (ResizeObserver) or once a second (it was read every frame). */
+  private measuredAt = -1e9;
+  private resized = true;
+  private readonly ro: ResizeObserver | null = null;
   /** MAP-GAPS A5: unit marks scale with the canvas width (196 px, the desktop M size, is 1). */
   private k = 1;
   /** MAP-GAPS A5: a hero mark's radius (px): 8 on desktop (a portrait 16 px across), w / 36 on touch (an initial). */
@@ -202,6 +212,18 @@ export class Minimap {
     this.canvas.addEventListener('pointermove', (e) => this.move(e));
     this.canvas.addEventListener('pointerup', (e) => this.up(e, false));
     this.canvas.addEventListener('pointercancel', (e) => this.up(e, true));
+    this.canvas.addEventListener('pointerdown', () => (this.dirty = true));
+    try {
+      if (typeof ResizeObserver === 'function') {
+        this.ro = new ResizeObserver(() => {
+          this.resized = true;
+          this.dirty = true;
+        });
+        this.ro.observe(this.root);
+      }
+    } catch {
+      this.ro = null;
+    }
   }
 
   /** The finger or mouse button holding the minimap (feel pass B1: it peeks while held). */
@@ -282,6 +304,12 @@ export class Minimap {
   }
 
   private size(): void {
+    const now = performance.now();
+    if (this.bg && !this.resized && now - this.measuredAt < 1000) {
+      if (this.bgKey() === this.bgKeyNow) return;
+    }
+    this.resized = false;
+    this.measuredAt = now;
     const r = this.root.getBoundingClientRect();
     const w = Math.round(r.width) || 220;
     const h = Math.round(r.height) || 132;
@@ -309,6 +337,11 @@ export class Minimap {
   /** Repaint the background on the next draw (species or side swap, a setting change). */
   invalidate(): void {
     this.bg = null;
+    this.dirty = true;
+  }
+  /** The next draw() runs whatever the redraw rate (a state change outside the sim events; tests). */
+  markDirty(): void {
+    this.dirty = true;
   }
   /** Background repaints so far (tests). */
   bgPaints = 0;
@@ -489,6 +522,7 @@ export class Minimap {
   /** MAP-GAPS A10: `kind` draws its glyph in a dark bubble inside the ring. */
   ping(xMm: number, yMm: number, color: string, ms = 3000, kind: PingKind | null = null): void {
     this.pings.push({ x: xMm, y: yMm, color, until: performance.now() + ms, kind });
+    this.dirty = true;
   }
   /** Glyph bubbles drawn last frame (tests). */
   glyphsDrawn = 0;
@@ -545,7 +579,10 @@ export class Minimap {
   private escorting = false;
   /** Sim events the minimap reads (the Pudding escort's start and end, a hero's death for the ghosts). */
   event(ev: SimEvent): void {
-    if (ev.type === 'death') this.lastSeen.delete(ev.id);
+    if (ev.type === 'death') {
+      this.lastSeen.delete(ev.id);
+      this.dirty = true;
+    }
     if (ev.type !== 'pudding') return;
     if (ev.what === 'escort') this.escorting = true;
     else if (ev.what === 'leave' || ev.what === 'spawn' || ev.what === 'calmed') {
@@ -616,7 +653,10 @@ export class Minimap {
   }
 
   draw(frame: ViewFrame | null): void {
-    if ((this.n++ & 1) === 1) return;
+    const now0 = performance.now();
+    if (!this.dirty && now0 < this.nextDraw) return;
+    this.dirty = false;
+    this.nextDraw = now0 + 1000 / Math.max(1, this.hz) - 2;
     this.size();
     const g = this.g;
     if (!g || !this.bg) return;
@@ -949,6 +989,7 @@ export class Minimap {
   }
 
   dispose(): void {
+    this.ro?.disconnect();
     this.root.remove();
   }
 }

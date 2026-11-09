@@ -23,6 +23,13 @@
  *
  * Feel pass B1: the camera is fixed (no pinch zoom): a second finger on the bare canvas is a tap (it locks the hero
  * under it) and the stick keeps steering.
+ *
+ * Hold-to-select (founder ask, Wild Rift style; attackSelect.ts): a quick Attack tap keeps the smart auto-target. Held
+ * for ATK_SELECT.holdMs the enemies in the acquire reach get a faint ring (the bold ring on the one a release keeps
+ * attacking); a drag off the button points a direction and the bold ring snaps to the enemy closest to it (a hero over
+ * a minion unless the thumb points right at the minion); the release locks that unit (a hero: the GAPS A5 lock, so
+ * smart casts take it too; anything else: PickLock) and sends Attack{id}; dragging back to where the thumb landed (the inner ring) cancels.
+ * The joystick keeps steering meanwhile (another finger).
  */
 import { screenToSim } from '../../render/coords';
 import { haptic } from '../../ui/haptics';
@@ -44,6 +51,7 @@ import { HEROES } from '../../data/heroes';
 import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
+import { ATK_SELECT, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -158,6 +166,25 @@ export function inStickZone(x: number, y: number, w: number, h: number, lefty = 
 type ButtonId = 'attack' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'lasthit' | 'tower';
 const SLOT_OF: Partial<Record<ButtonId, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
 
+/** A held Attack button (hold-to-select): where the thumb landed (px; the cancel centre), the thumb, and what the selector shows. */
+interface AtkHold {
+  id: number;
+  x0: number;
+  y0: number;
+  x: number;
+  y: number;
+  at: number;
+  /** The thumb passed ATK_SELECT.dragPx: the direction picks the target (and the attack repeat stops). */
+  dragging: boolean;
+  /** Dragged back into the button centre: the release does nothing. */
+  cancel: boolean;
+  /** The candidates shown (ids) and the one selected, once the selector is up. */
+  cands: number[] | null;
+  sel: number | null;
+  /** The last unit the drag highlighted (reset by the cancel centre): the release falls back to it (releasePick). */
+  last: number | null;
+}
+
 interface Drag {
   id: number;
   btn: ButtonId;
@@ -206,6 +233,12 @@ export class TouchControls {
   private atkTarget: number | null = null;
   /** Stick moves held back because they pointed at the attack target (e2e telemetry). */
   stickYields = 0;
+  /** Hold-to-select: the held Attack button's state, while held. */
+  private atkHold: AtkHold | null = null;
+  /** Hold-to-select: a non-hero unit picked with the selector (heroes go to `lock`). */
+  readonly pick = new PickLock();
+  /** Hold-to-select telemetry (e2e): selector releases that locked a unit, and cancels. */
+  atkSel = { locked: 0, cancelled: 0, last: null as number | null, kind: '', why: '' };
   /** The attack range ring this input asked for last (written to the view only on change, so desktop can share it). */
   private ringOn = false;
   private enabled = false;
@@ -334,6 +367,8 @@ export class TouchControls {
     for (const f of this.off) f();
     this.root.remove();
     this.h.view.aim = null;
+    this.h.view.atkCands = null;
+    this.h.view.atkSelect = null;
     if (this.ringOn) this.h.view.attackRange = false;
   }
 
@@ -399,6 +434,8 @@ export class TouchControls {
     el.classList.add('down');
     if (btn === 'attack') {
       this.attackHeld = e.pointerId;
+      // the drag is measured from where the thumb landed (as the skill drags are), so an off-centre tap stays a tap
+      this.atkHold = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, at: performance.now(), dragging: false, cancel: false, cands: null, sel: null, last: null };
       this.attackNow();
       this.syncRing();
       return;
@@ -458,6 +495,13 @@ export class TouchControls {
       if (me) this.steer(me, performance.now());
       return;
     }
+    const ah = this.atkHold;
+    if (ah && ah.id === e.pointerId) {
+      ah.x = e.clientX;
+      ah.y = e.clientY;
+      this.selectStep(performance.now());
+      return;
+    }
     const g = this.drags.get(e.pointerId);
     if (!g) return;
     g.x = e.clientX;
@@ -489,6 +533,8 @@ export class TouchControls {
     el.style.setProperty('--full', `${DRAG_FULL_PX * 2}px`);
     el.style.setProperty('--smart', `${AIM_BACK_PX * 2}px`);
     el.classList.toggle('dir', kind !== 'point' && kind !== 'unit');
+    // (the ring is shared with the Attack selector: a skill aim never keeps its cancel styling)
+    el.classList.remove('atk');
     el.classList.add('on');
   }
 
@@ -551,6 +597,10 @@ export class TouchControls {
     if (this.attackHeld === e.pointerId) {
       this.attackHeld = null;
       this.buttons.get('attack')?.classList.remove('down');
+      const ah = this.atkHold;
+      this.atkHold = null;
+      // the selection the last move showed is what the release takes (the up event's own position is not re-read)
+      if (ah) this.selectRelease(ah, cancelled);
       this.syncRing();
       return;
     }
@@ -828,12 +878,115 @@ export class TouchControls {
     ring: number | null;
     /** C5: the minions and camp monsters the next basic would kill (by the client estimate). */
     killable: number[];
+    /** Feel pass B4: the arguing Howlers the auto-targeting skipped (Talk Back). */
+    deterred: number[];
   } | null = null;
   picks = 0;
 
   /** The locked enemy hero while the lock holds (GAPS A5), else null. */
   lockedId(): number | null {
     return this.lock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now(), lockBreakMm(this.range()));
+  }
+
+  /** Hold-to-select state for e2e: '' (not held), 'hold', 'drag' or 'cancel'. */
+  atkHoldState(): string {
+    const ah = this.atkHold;
+    return !ah ? '' : ah.cancel ? 'cancel' : ah.dragging ? 'drag' : 'hold';
+  }
+
+  /** The unit the Attack button and the idle auto-attack take first: the locked hero, else the selector's pick. */
+  attackLockId(): number | null {
+    const hero = this.lockedId();
+    if (hero !== null) {
+      this.pick.clear();
+      return hero;
+    }
+    return this.pick.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now(), lockBreakMm(this.range()));
+  }
+
+  /**
+   * Hold-to-select, per pointer move and per frame while Attack is held: after ATK_SELECT.holdMs (or at once on a
+   * drag) the candidates are ringed; a drag points the selection (snapTarget), the button centre cancels it, and a
+   * still hold shows what the repeat hits (the tap's own pick).
+   */
+  private selectStep(now: number): void {
+    const ah = this.atkHold;
+    if (!ah) return;
+    const zone = dragZone(ah.x - ah.x0, ah.y - ah.y0, ah.dragging);
+    const skillAim = [...this.drags.values()].some((g) => g.dragging && !g.fired);
+    if (zone !== 'press' && !ah.dragging) {
+      ah.dragging = true;
+    }
+    if (ah.dragging && !skillAim && !this.aimRingEl.classList.contains('atk')) {
+      const el = this.aimRingEl;
+      el.style.transform = `translate(${ah.x0}px, ${ah.y0}px)`;
+      el.style.setProperty('--smart', `${ATK_SELECT.backPx * 2}px`);
+      el.classList.add('on', 'dir', 'atk');
+    }
+    if (ah.dragging) {
+      ah.cancel = zone === 'cancel';
+      if (!skillAim) this.aimRingEl.classList.toggle('back', ah.cancel);
+    }
+    const me = this.me();
+    if (!me || me.state === 'dead' || !this.h.enabled()) {
+      // the hero fell mid-hold: nothing to select (the release does nothing)
+      ah.cands = null;
+      ah.sel = null;
+      this.h.view.atkCands = null;
+      this.h.view.atkSelect = null;
+      return;
+    }
+    if (!ah.dragging && now - ah.at < ATK_SELECT.holdMs) return;
+    const cands = selectCandidates(this.targets(), me, this.h.view.myTeam, this.range(), ah.sel);
+    ah.cands = cands.map((u) => u.id);
+    let sel: number | null;
+    if (!ah.dragging) sel = this.atkPreview !== null && ah.cands.includes(this.atkPreview) ? this.atkPreview : null;
+    else if (ah.cancel) sel = null;
+    else {
+      // the thumb's screen direction in sim space (the view is turned: diagonal, team 1 mirrored), as the stick reads it
+      const v = screenToSim(ah.x - ah.x0, -(ah.y - ah.y0));
+      sel = snapTarget(cands, me, Math.atan2(v.y, v.x));
+    }
+    if (sel !== ah.sel && sel !== null && ah.dragging) haptic('cast');
+    ah.sel = sel;
+    if (ah.dragging) ah.last = ah.cancel ? null : (sel ?? ah.last);
+    this.h.view.atkCands = ah.cands;
+    this.h.view.atkSelect = sel;
+  }
+
+  /** Hold-to-select release: a dragged selection locks its unit and attacks it; the centre (or a cancel) does nothing. */
+  private selectRelease(ah: AtkHold, cancelled: boolean): void {
+    this.h.view.atkCands = null;
+    this.h.view.atkSelect = null;
+    if (this.aimRingEl.classList.contains('atk')) this.aimRingEl.classList.remove('on', 'back', 'dir', 'atk');
+    if (!ah.dragging) return;
+    const me = this.me();
+    const id = cancelled || ah.cancel ? null : releasePick(ah.sel, ah.last, this.h.units(), this.h.view.myTeam);
+    if (cancelled || ah.cancel || id === null || !me || me.state === 'dead' || !this.h.enabled()) {
+      this.atkSel.cancelled++;
+      this.atkSel.why = cancelled ? 'pointercancel' : ah.cancel ? 'centre' : id === null ? 'none' : 'dead';
+      return;
+    }
+    const u = this.h.units().find((q) => q.id === id);
+    const now = performance.now();
+    if (u?.kind === 'hero') {
+      // the GAPS A5 lock (smart casts take it too); a second set on the same hero would let go, so renew it
+      if (this.lock.id === id) this.lock.clear();
+      this.lock.set(id, now);
+      this.pick.clear();
+    } else {
+      this.lock.clear();
+      this.pick.set(id, now);
+    }
+    this.locks++;
+    this.atkSel.locked++;
+    this.atkSel.last = id;
+    this.atkSel.kind = u?.kind ?? '';
+    sfx.play('click', { vol: 0.45, rate: 1.4 });
+    this.lastAttack = now;
+    // the stick yields to the selected unit now, not to the one the press ordered (STICK_YIELD)
+    this.atkTarget = id;
+    this.h.orders.attack(id);
   }
 
   /**
@@ -848,7 +1001,7 @@ export class TouchControls {
     if (this.deter.size === 0) return all;
     const now = performance.now();
     for (const [id, until] of this.deter) if (now >= until) this.deter.delete(id);
-    const lock = this.lock.id;
+    const lock = this.lock.id ?? this.pick.id;
     // Sim v17: Talk Back fears only attackers within 4.5 m, so from further out he stays a target.
     const me = this.me();
     const range = HEROES.howler.abilities.e.fearRange ?? 0;
@@ -922,11 +1075,12 @@ export class TouchControls {
     this.lastAttack = performance.now();
     const range = this.range();
     const units = this.h.units();
-    const locked = this.lockedId();
+    const locked = this.attackLockId();
     // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
     const kill = this.killFn();
     // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
     const id = attackPreview(this.targets(), me, this.h.view.myTeam, range, this.first, kill, locked);
+    const lockId = this.lock.id;
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
     // field had ringed before this tap (the last preview drawn, at most 100 ms old)
     this.lastPick = {
@@ -939,6 +1093,7 @@ export class TouchControls {
       seen: units.filter((u) => u.id !== me.id && u.team !== this.h.view.myTeam && u.state !== 'dead').map((u) => ({ id: u.id, kind: u.kind, team: u.team, x: u.x, y: u.y, hp: u.hp, maxHp: u.maxHp })),
       allyMinions: units.filter((u) => u.kind === 'minion' && u.team === this.h.view.myTeam && u.state !== 'dead').map((u) => ({ x: u.x, y: u.y })),
       killable: kill ? units.filter((u) => (u.kind === 'minion' || u.kind === 'camp') && u.team !== this.h.view.myTeam && u.state !== 'dead' && u.hp <= kill(u)).map((u) => u.id) : [],
+      deterred: [...this.deter.keys()].filter((d) => d !== lockId),
     };
     this.picks++;
     this.atkTarget = id;
@@ -1006,7 +1161,7 @@ export class TouchControls {
     if (now - this.previewAt < 100) return;
     this.previewAt = now;
     const units = this.h.units();
-    const id = me && me.state !== 'dead' ? attackPreview(this.targets(), me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.lockedId()) : null;
+    const id = me && me.state !== 'dead' ? attackPreview(this.targets(), me, this.h.view.myTeam, this.range(), this.first, this.killFn(), this.attackLockId()) : null;
     // out of reach the tap walks first: the ring dims
     const far = id !== null && !!me && !inAttackReach(units.find((u) => u.id === id), me, this.range());
     this.h.view.atkPreviewFar = far;
@@ -1033,7 +1188,7 @@ export class TouchControls {
     // C13: edge to edge, like the Attack button (autoAttackTarget subtracts the target's body)
     // CF-02: the Attack button's order (Settings "Target first"), in range only
     // UX pass 2: only the very unit the Attack button rings (attackPreview, the lock first), and only in reach
-    const id = autoAttackTarget(this.targets(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.lockedId());
+    const id = autoAttackTarget(this.targets(), me, this.h.view.myTeam, range, this.first, this.killFn(), this.attackLockId());
     if (id === null) return;
     this.autoAt = now;
     this.autos++;
@@ -1144,7 +1299,11 @@ export class TouchControls {
     }
     void this.desktop;
     const now = performance.now();
-    if (this.attackHeld !== null && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
+    // hold-to-select: a selection drag stops the repeat (the release attacks the pick); the held selector follows the units
+    // (back on the cancel centre the repeat goes on: the cancel drops the selection, not the attacking)
+    const aiming = !!this.atkHold?.dragging && !this.atkHold.cancel;
+    if (this.attackHeld !== null && !aiming && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
+    if (this.atkHold) this.selectStep(now);
     const nh = this.napHeld;
     if (nh && !nh.fired && now - nh.at >= NAP_HOLD_MS && this.h.enabled()) {
       nh.fired = true;
@@ -1214,11 +1373,11 @@ export class TouchControls {
     const atk = this.buttons.get('attack');
     if (atk) atk.style.setProperty('--ring', RELATION_CSS.enemy);
     // GAPS A5: the lock shows as the hover ring on the hero (GameView) and a draining ring on Attack
-    const locked = this.lockedId();
+    const locked = this.attackLockId();
     this.h.view.lock = locked;
     if (atk) {
       atk.classList.toggle('locked-on', locked !== null);
-      atk.style.setProperty('--lock', this.lock.left(now).toFixed(3));
+      atk.style.setProperty('--lock', (this.lock.id !== null ? this.lock.left(now) : this.pick.left(now)).toFixed(3));
     }
   }
 }

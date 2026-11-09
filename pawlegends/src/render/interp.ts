@@ -162,6 +162,9 @@ export class SnapBuffer {
     v.yaw = yaw;
   }
 
+  private readonly prevScratch = new Map<number, EntitySnap>();
+  private readonly projScratch = new Map<number, ProjectileSnap>();
+
   sample(t: number): ViewFrame | null {
     const n = this.snaps.length;
     if (n === 0) return null;
@@ -171,7 +174,9 @@ export class SnapBuffer {
     const A = b > 0 ? this.snaps[b - 1] : B;
     const span = B.clock.tick - A.clock.tick;
     const u = span > 0 ? Math.max(0, Math.min(1, (t - A.clock.tick) / span)) : 1;
-    const prev = new Map<number, EntitySnap>();
+    // PERF-IOS P2-4: scratch lookups reused between frames (the frame itself stays a fresh object: views keep it)
+    const prev = this.prevScratch;
+    prev.clear();
     for (const e of A.entities) prev.set(e.id, e);
     const entities: ViewEntity[] = [];
     const byId = new Map<number, ViewEntity>();
@@ -196,7 +201,8 @@ export class SnapBuffer {
       entities.push(v);
       byId.set(e.id, v);
     }
-    const pPrev = new Map<number, ProjectileSnap>();
+    const pPrev = this.projScratch;
+    pPrev.clear();
     for (const p of A.projectiles) pPrev.set(p.index, p);
     const projectiles = B.projectiles.map((p) => {
       const q = pPrev.get(p.index);

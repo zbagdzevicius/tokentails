@@ -39,6 +39,7 @@ import { LowHp } from '../render/fx/lowHp';
 import { GameView } from '../render/gameView';
 import { SnapBuffer, type ViewEntity, type ViewFrame } from '../render/interp';
 import type { GameRenderer } from '../render/renderer';
+import type { TierSettings } from '../render/quality';
 import { HERO_SCALE } from '../render/views/models';
 import { CORE, FOUNTAIN, MAP, PUDDING_SPOT, TOWER_SPOTS, mirrorX } from '../data/map';
 import { PING_KIND } from '../data/pings';
@@ -315,6 +316,8 @@ export class MatchSession {
   private pingBtn: HTMLButtonElement | null = null;
   private pingTipShown = false;
   private hud: Hud | null = null;
+  /** Champion browser: the long-press skill peek on the own skill buttons (its detach), loaded after the HUD. */
+  private peekOff: (() => void) | null = null;
   private overhead: Overhead;
   /** LoL pass (lane C): the persistent low-health vignette (made on the first body tick). */
   private lowHp: LowHp | null = null;
@@ -493,6 +496,7 @@ export class MatchSession {
     });
     // feel pass B2 (e2e): the minimap, to find a tower's pixel on the turned map
     if (this.e2e) e2eHook('Minimap', this.minimap);
+    this.applyPerf(this.gr.settings);
     this.tips = new Tips(this.view.juice.notify, setup.firstMatch);
     this.goals = new Objectives(this.view.juice.notify, setup.guide ?? 'off');
     this.minimap.pickups = () => this.view.pickups.list();
@@ -697,6 +701,13 @@ export class MatchSession {
     }, this.setup.look ?? null, this.setup.difficulty);
     // GAPS A4 / A5: the other heroes' portraits with death timers; a tap on an enemy one locks it on touch
     this.hud.mountStrip(w.picks, w.slot, w.team, this.names);
+    // champion browser: hold an own skill button to read its card (no pause, the input is untouched); own chunk
+    void import('../ui/champBrowser/skillPeek')
+      .then((m) => {
+        if (this.disposed) return;
+        this.peekOff = m.attachSkillPeek(this.ui, hero, () => this.hud?.codexState() ?? { level: 1, choices: [], branch: false });
+      })
+      .catch(() => undefined);
     // lobby spec §3b: the worn card's name rides on the HUD portrait too ("Ficus · Clem")
     this.hud.setSelfName(this.selfName ?? myCard?.name ?? null);
     // LoL pass (lane B): e2e reaches the HUD (the crest, the kill feed) the way it reaches the rail
@@ -1512,6 +1523,22 @@ export class MatchSession {
       this.host.pause(false);
       this.hooks.onPaused?.(false);
     }
+  }
+
+  /** PERF-IOS: the app's pacer draws a paused match at a low rate. */
+  get isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** PERF-IOS: the overhead canvas's DPR cap and the minimap's redraw rate follow the phone profile and the governor. */
+  applyPerf(s: TierSettings): void {
+    this.overhead.maxDpr = s.overheadDpr;
+    this.minimap.hz = s.minimapHz;
+  }
+
+  /** PERF-IOS P1-6: hidden page or backgrounded app: the music stops scheduling notes. */
+  setHidden(hidden: boolean): void {
+    this.music.setHidden(hidden);
   }
 
   /** Host page pause/resume (bridge). */
@@ -2364,6 +2391,12 @@ export class MatchSession {
     const sentId = this.orders?.lastAttackId ?? -1;
     d.atkSent = sentId >= 0 ? `${sentId}:${frame?.byId.get(sentId)?.kind ?? ''}` : '';
     d.extraHits = this.touch ? `${this.touch.extraHits.lasthit},${this.touch.extraHits.tower}` : '';
+    // hold-to-select on ATK: the candidates shown and the selection while held; selector locks, cancels, last pick
+    d.atkCands = this.view.atkCands ? this.view.atkCands.join(',') : '';
+    d.atkSel = this.view.atkSelect != null ? String(this.view.atkSelect) : '';
+    d.atkHold = this.touch?.atkHoldState() ?? '';
+    d.atkSelN = this.touch ? `${this.touch.atkSel.locked},${this.touch.atkSel.cancelled},${this.touch.atkSel.last ?? ''},${this.touch.atkSel.kind},${this.touch.atkSel.why}` : '';
+    d.atkLock = this.touch?.attackLockId() != null ? String(this.touch.attackLockId()) : '';
     // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
     d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
     d.lastHits = String(this.lastHitsSeen);
@@ -2641,6 +2674,8 @@ export class MatchSession {
   }
 
   dispose(): void {
+    this.peekOff?.();
+    this.peekOff = null;
     if (this.disposed) return;
     this.disposed = true;
     if (this.youTimer !== undefined) clearTimeout(this.youTimer);

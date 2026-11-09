@@ -35,6 +35,12 @@ import { CUE_SFX } from '../anim/fxctx';
 import { PL_SFX } from '../../audio/sfx';
 import { funCount, funPop, funRand, funRank, funSfx, orbit, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
 import { S3Once, s3HeadY, s3Medal } from '../fx/fun/skills3Kit';
+import { shower } from '../fx/fun/skills2Fun';
+import { SHAPE } from '../fx/Particles.js';
+import { champSound } from '../../audio/skillSfx';
+import { sfx } from '../../audio/sfx';
+import { mixPriority } from '../../audio/identityMix';
+import { MIX_REL } from './identityFx';
 
 const SAND = 0xffd9a0;
 const GOLD = 0xffd34d;
@@ -50,6 +56,9 @@ const NOTE = 0xfff1b0;
 /** Steam snort cadence while Front Guard holds (s). */
 const SNORT_EVERY = 0.7;
 const GOLD_HEX = '#ffd34d';
+/** Champion identity (CHAMP-IDENTITY.md §3, audio/champ/brutus.ts): the crest is a steel rim with a sandstone charge. */
+const CREST_SAND = 0xd6a36a;
+const CREST_STEEL = 0xc8ced6;
 const TAU = Math.PI * 2;
 
 /** Record kinds. */
@@ -141,6 +150,22 @@ const PL = PL_SFX as unknown as Record<string, unknown>;
 function woof(fx: FxCtx, at: { x: number; z: number }, vol = 1): void {
   if (CUE_SFX.woof || PL.woof) funSfx(fx, 'woof', at, vol);
   else fx.sfx.cue('drum', at, 0.7 * vol);
+}
+
+
+/** One of his own sounds (audio/champ/brutus.ts: anvil, crest) through the identity mix, on the motif layer. */
+function accent(fx: FxCtx, id: number, name: string, at: { x: number; z: number }, rate = 1): void {
+  const relation = MIX_REL[fx.relation(id)];
+  sfx.playLayer({ name: champSound('brutus', name), layer: 'motif', hero: 'brutus', nature: 'impact', priority: mixPriority({ relation }), relation, rate, at });
+}
+
+/**
+ * The heraldic crest stamp: a steel ring (glowing rim) round a sandstone star (normal blend: the chevron stand-in),
+ * standing still at (x, y, z) for `life` s. `size` is the ring's (m).
+ */
+function crest(fx: FxCtx, x: number, y: number, z: number, size: number, life: number): void {
+  sticker(fx, x, y, z, 'RING', CREST_STEEL, size, life);
+  shower(fx, x, y, z, 1, SHAPE.STAR5, CREST_SAND, size * 0.62, life, 0, 0, 0, 0);
 }
 
 function shock(fx: FxCtx, x: number, z: number, r1: number, dur: number, color: string, height: number): void {
@@ -307,8 +332,13 @@ function castQ(e: { src: number; tick: number }, fx: FxCtx): void {
   }
   shock(fx, x, z, R, 0.3, SAND_HEX, heavy ? 0.75 : 0.55);
   fx.particles.debris(x, z, heavy ? 1.5 : 1.15);
-  fx.sfx.cue('bodyThud', posOf(x, z));
-  fx.sfx.cue('clang', posOf(x, z), 0.7);
+  // identity: the ring is stamped with his crest round its edge (sound: the impact nature's cast and his anvil clang,
+  // audio/champ/brutus.ts, in place of the stand-in thud and clang cues)
+  const nc = fx.tier === 'low' ? 3 : fx.tier === 'med' ? 4 : 6;
+  for (let i = 0; i < nc; i++) {
+    const t = ((i + 0.5) / nc) * TAU + off;
+    crest(fx, x + Math.cos(t) * Rs, 0.55, z - Math.sin(t) * Rs, 0.5, 0.6);
+  }
 }
 
 function castW(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -337,7 +367,8 @@ function castW(e: { src: number; x: number; y: number }, fx: FxCtx): void {
     band(fx, r, r.cx, r.cz, r.r, 0.22, TAU, 0, life, GOLD, 2.2);
     band(fx, r, r.cx, r.cz, r.r, 0.22, TAU, 0, life, GOLD, 2.2);
     spawn(fx, 'dome', r.cx, r.cz, r.r, 0.55, GOLD, rim, rel, 0, 0, r.r * 0.8, r.r, 0, 0, 0, 1);
-    fx.sfx.cue('fwoomp', posOf(r.cx, r.cz), 0.7);
+    // identity: his crest over the dome (sound: the guard nature's cast and his crest clank)
+    crest(fx, r.cx, r.r * 0.8 + 0.4, r.cz, 0.9, 0.7);
     return;
   }
   // Front Guard: the wall band follows his facing for the duration
@@ -358,7 +389,8 @@ function castW(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   // the raise: a taller bright wall and a wide gold flash on the ground at the reach
   spawn(fx, 'wall', r.cx, r.cz, r.r, 0.35, SHINE, rim, rel, 0, r.yaw, 1.6, r.r, r.ax, 0, 0, 2.5);
   spawn(fx, 'arc', r.cx, r.cz, r.r, 0.4, GOLD, rim, rel, 0.06, r.yaw, 1, r.r, r.ax, 0.75, 1, 1.2);
-  fx.sfx.cue('clang', posOf(r.cx, r.cz));
+  // identity: the wall is a giant steel crest (sound: the guard nature's cast and his crest clank, audio/skillSfx)
+  crest(fx, r.cx + Math.cos(r.yaw) * r.r, 0.9, r.cz - Math.sin(r.yaw) * r.r, 1.1, 0.5);
   // the fun layer: a puffed-chest woof (a thin ring off his chest, never at the gameplay reach) and the first snort
   if (fx.bonePos(id, 'chest', _a)) sticker(fx, _a.x, _a.y, _a.z, 'RING', SHINE, 1.3, 0.3, 0);
   woof(fx, posOf(r.cx, r.cz));
@@ -430,8 +462,13 @@ function castR(e: { src: number; x: number; y: number; target: number }, fx: FxC
   spawn(fx, 'ring', r.cx, r.cz, r.r, 0.55, GOLD, rim, rel, 0.07, 0, 1, r.r, 0, 0.02);
   spawn(fx, 'glow', r.cx, r.cz, 2.4, 0.35, GOLD, rim, rel);
   shock(fx, r.cx, r.cz, r.r, 0.35, GOLD_HEX, 0.9);
-  fx.sfx.cue('gong', posOf(r.cx, r.cz));
+  // (sound: the sonic nature's cast and his ult voice, the horn call; the stand-in gong is gone. The chain is the tether.)
   fx.sfx.cue('chain', posOf(r.cx, r.cz));
+  // identity: a jousting circle of crests over the obelisks
+  for (let i = 0, nc = tier[0] >> 1; i < nc; i++) {
+    const t = ((i + 0.5) / nc) * TAU + r.ax;
+    crest(fx, r.cx + Math.cos(t) * (r.r - 0.34), 2.0, r.cz - Math.sin(t) * (r.r - 0.34), 0.6, 0.9);
+  }
   // the fun layer: the boxing-ring bell, a "WOOF!" over him, the medal over the challenged hero (arenaTick)
   funSfx(fx, 'chime', posOf(r.cx, r.cz), 0.8);
   funPop(fx, id, 'WOOF!', _p.x, s3HeadY(fx, id, 0.7), _p.z);
@@ -613,7 +650,10 @@ export const SKILL_FX: SkillFxSet = {
       fx.linger.add('crackStar', mx, mz, 1.3, 0, SAND);
       shock(fx, _q.x, _q.z, 2.4, 0.25, GOLD_HEX, 0.8);
       fx.particles.debris(_q.x, _q.z, 1.2);
-      fx.sfx.cue('clang', posOf(_q.x, _q.z));
+      // identity: a sand plume and his crest stamped where he hits, the anvil rung (the mobility impact is the nature's)
+      crest(fx, mx, 1.1, mz, 0.8, 0.55);
+      stickerBurst(fx, mx, 0.4, mz, 'PUFF', CREST_SAND, 0.42, 0.5, 6, 2.2, 1.6, -2, funRand(e.tick, id, 3));
+      accent(fx, id, 'anvil', posOf(_q.x, _q.z));
       if (fx.relation(e.dst) === 'own') fx.cam.tier(2);
       // the fun layer: "BONK!" and dizzy stars on the first hero he runs into
       if (e.dst < 16 && bonk.take(id, clock, 1.2)) {
@@ -643,7 +683,9 @@ export const SKILL_FX: SkillFxSet = {
         const rim = fx.rim(id);
         spawn(fx, 'crescent', _p.x, _p.z, 1.9, 0.3, SHINE, rim, rel, 0.1, yaw === yaw ? yaw : 0, 1, 1.9, TAU * 0.9, 0.5, 1, 1);
         spawn(fx, 'glow', _p.x, _p.z, 1.4, 0.22, GOLD, rim, rel);
-        fx.sfx.cue('tingParry', _p);
+        // identity: the Honour shield wears his crest; the clank is his
+        crest(fx, _p.x, 1.2, _p.z, 0.65, 0.4);
+        accent(fx, id, 'crest', _p, 1.3);
         return;
       }
       case 'postPlant': {

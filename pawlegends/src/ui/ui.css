@@ -445,6 +445,8 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 /* ---------------------------------------------------------------------------------------------- touch */
 .pl-touch { position: absolute; inset: 0; display: none; z-index: 4; }
 .pl-touch.on { display: block; }
+/* the touch buttons are drag surfaces (skill aim, ATK hold-to-select): the browser never takes a drag on them as a pan */
+.pl-touch .pl-tbtn { touch-action: none; }
 /* The stick reads over any VFX: a bright ring between two dark ink rings, and a cream knob with an ink rim and a gold
    centre (the size stays 120 px, STICK.radius 60). */
 .pl-stick {
@@ -502,6 +504,11 @@ html[data-touch='1'] .pl-emote kbd { display: none; }
 .pl-aimring .smart { width: var(--smart, 48px); height: var(--smart, 48px); border: 2px solid rgba(255, 243, 220, 0.7); background: rgba(20, 12, 22, 0.25); }
 .pl-aimring.dir .full { display: none; }
 .pl-aimring.back .smart { border-color: var(--butter); background: rgba(255, 211, 77, 0.28); box-shadow: 0 0 10px rgba(255, 211, 77, 0.6); }
+/* hold-to-select on Attack: the centre is the cancel zone (red with an x while the thumb is back in it) */
+.pl-aimring.atk .smart { border-color: rgba(255, 243, 220, 0.45); background: rgba(20, 12, 22, 0.2); }
+.pl-aimring.atk.back .smart { border-color: #ff6b6b; background: rgba(255, 80, 80, 0.32); box-shadow: 0 0 10px rgba(255, 80, 80, 0.6); }
+.pl-aimring.atk.back .smart::before, .pl-aimring.atk.back .smart::after { content: ''; position: absolute; left: 50%; top: 50%; width: 55%; height: 2px; background: #fff; border-radius: 1px; transform: translate(-50%, -50%) rotate(45deg); }
+.pl-aimring.atk.back .smart::after { transform: translate(-50%, -50%) rotate(-45deg); }
 /* Audit CF-09: the locked ult says when it opens */
 .pl-tbtn .lv { display: none; position: absolute; left: 50%; bottom: -9px; transform: translateX(-50%); z-index: 4; padding: 0 6px; border-radius: 999px; font: 800 10px/15px var(--font); font-style: normal; white-space: nowrap; background: var(--butter); color: #4a2a1f; box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45); }
 .pl-tbtn.r.locked .lv { display: block; }
@@ -711,11 +718,13 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 }
 
 /* Rim flash: Nine Lives (white), a level up or a big play (gold), low health (red). */
-.pl-flash { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0; }
-.pl-flash.on { animation: pl-flash 0.7s ease-out both; }
-.pl-flash.white { box-shadow: inset 0 0 90px 20px rgba(255, 255, 255, 0.85); }
-.pl-flash.gold { box-shadow: inset 0 0 110px 18px rgba(255, 211, 77, 0.6); }
-.pl-flash.red { box-shadow: inset 0 0 120px 26px rgba(255, 59, 77, 0.6); animation-duration: 1.1s; }
+/* PERF-IOS P2-5: the edge flashes are radial gradients faded by opacity only (an inset blurred box-shadow over the
+   whole screen was re-rasterised on the CPU hundreds of times a match), and hidden when idle (no layer) */
+.pl-flash { position: absolute; inset: 0; pointer-events: none; z-index: 5; opacity: 0; visibility: hidden; }
+.pl-flash.on { animation: pl-flash 0.7s ease-out both; visibility: visible; }
+.pl-flash.white { background: radial-gradient(ellipse at center, transparent 58%, rgba(255, 255, 255, 0.85) 100%); }
+.pl-flash.gold { background: radial-gradient(ellipse at center, transparent 55%, rgba(255, 211, 77, 0.6) 100%); }
+.pl-flash.red { background: radial-gradient(ellipse at center, transparent 52%, rgba(255, 59, 77, 0.6) 100%); animation-duration: 1.1s; }
 @keyframes pl-flash { 0% { opacity: 0; } 15% { opacity: 1; } 100% { opacity: 0; } }
 
 /* Level up: the bar pops and the health glows as it refills; at level 4 the ultimate pulses for 3 s. */
@@ -1496,3 +1505,16 @@ html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rankup { opacity: 0; }
 }
 @keyframes pl-pingedge { 0% { opacity: 0; } 15% { opacity: 1; } 75% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pl-pingedge { animation: none; } }
+
+/* PERF-IOS: on a phone in a match, no infinite animation repaints a box-shadow every frame: the ready cues (ult,
+   talent, the charge ring, a tip, Sudden Death) keep their glow, held still. */
+html[data-phone='1'][data-screen='match'] .pl-slot.ult-ready,
+html[data-phone='1'][data-screen='match'][data-ult-ready='1'] .pl-tbtn.r {
+  animation: none; box-shadow: 0 0 0 5px rgba(255, 211, 77, 0.75), 0 0 18px 6px rgba(255, 211, 77, 0.5);
+}
+html[data-phone='1'][data-screen='match'] .pl-portrait.talent-ready { animation: none; box-shadow: 0 0 0 5px var(--butter), 0 0 18px 5px rgba(255, 211, 77, 0.65); }
+html[data-phone='1'][data-screen='match'] .pl-portrait .charge[data-state='charged'] { animation: none; }
+html[data-phone='1'][data-screen='match'] .pl-hud[data-phase='suddenDeath'] .pl-score { animation: none; box-shadow: 0 0 0 4px var(--enemy), 0 6px 18px rgba(0, 0, 0, 0.25); }
+html[data-phone='1'][data-screen='match'] *, html[data-phone='1'][data-screen='match'] *::before, html[data-phone='1'][data-screen='match'] *::after { animation-iteration-count: 1 !important; }
+/* the loading veil's spinner keeps turning (transform only, gone once the match shows): a stopped one reads as a hang */
+html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteration-count: infinite !important; }

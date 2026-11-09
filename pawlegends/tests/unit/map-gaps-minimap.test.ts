@@ -47,9 +47,9 @@ export function frame(entities: ViewEntity[], tick = 100): ViewFrame {
   } as unknown as ViewFrame;
 }
 
-/** Draw twice (the minimap draws every other call). */
+/** Draw now (PERF-IOS: the minimap redraws at `hz`, so a test marks it dirty first). */
 export function draw(m: Minimap, f: ViewFrame | null): void {
-  m.draw(f);
+  m.markDirty();
   m.draw(f);
 }
 

@@ -20,6 +20,11 @@ import { SHAPE } from '../fx/Particles.js';
 import { funHeroOf, funOverY, funPop, funSound, orbit, sticker } from '../fx/fun/funKit';
 import { shower } from '../fx/fun/skills2Fun';
 import { P, Q, mesh, vary } from './dogFx';
+import { champSound, playSkillSfx } from '../../audio/skillSfx';
+import { sfx } from '../../audio/sfx';
+import { mixPriority } from '../../audio/identityMix';
+import type { Relation3 } from '../anim/types';
+import { MIX_REL } from './identityFx';
 
 const LIGHT = 0xfff4dc;
 const VELVET = 0xb07cff;
@@ -32,6 +37,17 @@ const PROJ = new Int16Array(16).fill(-1);
 /** Seconds left of dizzy stars over a flopped Bravo, and the next orbit. */
 const DIZZY = new Float32Array(16);
 const DIZZY_N = new Float32Array(16);
+/** Identity: the module clock and each Bravo's last ENCORE! (its hits put a small spotlight on the charmed heroes). */
+let clock = 0;
+const R_AT = new Float64Array(16).fill(-9);
+/** An ENCORE! hit this long after the cast is the charm landing. */
+const ENCORE_HIT_S = 1.2;
+
+/** His trumpet "ta-da" (audio/champ/bravo.ts) through the identity mix, on the motif layer. */
+function tada(rel: Relation3, at: { x: number; z: number }, rate = 1): void {
+  const relation = MIX_REL[rel];
+  sfx.playLayer({ name: champSound('bravo', 'tada'), layer: 'motif', hero: 'bravo', nature: 'impact', priority: mixPriority({ relation }), relation, rate, at });
+}
 
 export const SKILL_FX: SkillFxSet = {
   hero: 'bravo',
@@ -60,7 +76,7 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'pillar', P.x, P.z, rad * 0.45, life, LIGHT, rim, rel, { y: 0, sy: 6, p3: 0.3 });
         mesh(fx, 'glow', P.x, P.z, rad, life, LIGHT, rim, rel, { p3: 0.5 });
         mesh(fx, 'ring', P.x, P.z, rad, life, BOARDS, rim, rel, { p1: 0.82 });
-        funSound('bravoBow', P, 1.3, 0.35);
+        // (sound: the guard nature's cast and his bow flourish through the identity mix, audio/champ/bravo.ts)
         return;
       }
       case 2:
@@ -76,7 +92,9 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'pillar', P.x, P.z, 1.3, 0.9, LIGHT, rim, rel, { y: 0, sy: 6, p3: 0.8, delay: 0.25 });
         mesh(fx, 'ring', P.x, P.z, rad, 0.6, VELVET, rim, rel, { p1: 0.8 });
         shower(fx, P.x, 2.0, P.z, 14, SHAPE.CONFETTI, CONFETTI, 0.24, 1.0, 3.2, 3.0, 6, vary());
-        funSound('bravoBow', P, 1, 0.6);
+        // identity: cream confetti with the violet, and the bow (the fanfare is his ult voice, audio/skillSfx)
+        shower(fx, P.x, 2.2, P.z, 8, SHAPE.CONFETTI, LIGHT, 0.22, 1.0, 2.6, 3.2, 6, vary());
+        if (e.src >= 0 && e.src < 16) R_AT[e.src] = clock;
         funPop(fx, e.src, 'ENCORE!', P.x, funOverY(fx, e.src, 0.5), P.z);
         fx.cam.tier(2);
       }
@@ -98,9 +116,19 @@ export const SKILL_FX: SkillFxSet = {
     if (e.kind !== 'ability' || !fx.heroPos(e.dst, Q)) return;
     const rel = fx.relation(e.src);
     const rim = fx.rim(e.src);
+    // identity: ENCORE! charmed a hero: a small spotlight snaps on over them, confetti, a "ta-da"
+    if (e.src >= 0 && e.src < 16 && clock - R_AT[e.src] < ENCORE_HIT_S && funHeroOf(fx, e.dst)) {
+      mesh(fx, 'pillar', Q.x, Q.z, 0.55, 0.7, LIGHT, rim, rel, { y: 0, sy: 4, p3: 0.5 });
+      mesh(fx, 'glow', Q.x, Q.z, 1.0, 0.7, LIGHT, rim, rel, { p3: 0.5 });
+      shower(fx, Q.x, funOverY(fx, e.dst, 0.1), Q.z, 4, SHAPE.CONFETTI, CONFETTI, 0.2, 0.7, 1.4, 1.6, 6, vary());
+      tada(rel, Q, 1.25);
+      return;
+    }
     // a tear splash (Q) or the crowd's "wooo" (E, R): blue droplets or velvet confetti
     if (TRAIL[e.src & 15] >= 0 || vary() < 0.5) {
       mesh(fx, 'ring', Q.x, Q.z, 1.0, 0.3, TEAR, rim, rel, { p1: 0.7 });
+      // identity: the splash leaves a puddle of tears
+      mesh(fx, 'glow', Q.x, Q.z, 1.1, 0.8, TEAR, rim, rel, { p3: 0.45 });
       shower(fx, Q.x, 1.1, Q.z, 8, SHAPE.DROPLET, TEAR, 0.2, 0.6, 2.2, 1.8, 6, vary());
     } else shower(fx, Q.x, 1.0, Q.z, 4, SHAPE.CONFETTI, CONFETTI, 0.2, 0.6, 1.8, 1.6, 6, vary());
   },
@@ -114,6 +142,8 @@ export const SKILL_FX: SkillFxSet = {
       case 'bv:sob':
         funSound('bravoSob', P, 1, 0.5);
         shower(fx, P.x, head, P.z, 6, SHAPE.DROPLET, TEAR, 0.16, 0.7, 1.4, 1.2, 6, vary());
+        // identity: one big crocodile tear rolls off his face
+        sticker(fx, P.x + 0.25, head, P.z, 'DROPLET', TEAR, 0.42, 0.7, -0.8);
         return;
       case 'bv:tada':
         shower(fx, P.x, head + 0.4, P.z, 10, SHAPE.STAR4, LIGHT, 0.26, 0.7, 2.2, 2.0, 1, vary(), true);
@@ -122,9 +152,14 @@ export const SKILL_FX: SkillFxSet = {
       case 'bv:dive': {
         const rad = (fx.abil(id, 'e').radius ?? 2200) / 1000;
         mesh(fx, 'ring', P.x, P.z, rad, 0.4, VELVET, rim, rel, { p1: 0.75 });
+        // identity: he lands out of a spotlight onto the stage boards (a board ring inside the gameplay ring)
+        mesh(fx, 'pillar', P.x, P.z, 0.8, 0.35, LIGHT, rim, rel, { y: 0, sy: 5, p3: 0.5 });
+        mesh(fx, 'ring', P.x, P.z, rad * 0.6, 0.5, BOARDS, rim, rel, { p1: 0.7 });
         shower(fx, P.x, 1.4, P.z, 12, SHAPE.CONFETTI, CONFETTI, 0.22, 0.9, 3.0, 2.6, 6, vary());
         funPop(fx, id, 'WOOO!', P.x, funOverY(fx, id, 0.5), P.z);
-        fx.sfx.cue('pop', P, 0.6);
+        // the landing thud is the impact nature's (deduplicated against the hits' by the mix), the "ta-da" his
+        playSkillSfx('bravo', 'e', 'impact', { at: P, relation: MIX_REL[rel] });
+        tada(rel, P);
         return;
       }
       case 'bv:bow':
@@ -162,6 +197,7 @@ export const SKILL_FX: SkillFxSet = {
   },
 
   update(dt, fx) {
+    clock += dt;
     for (let id = 0; id < 16; id++) {
       if (TRAIL[id] >= 0) {
         if (fx.projPos?.(PROJ[id], P)) fx.ribbons.feed(TRAIL[id], P.x, 1.15, P.z);

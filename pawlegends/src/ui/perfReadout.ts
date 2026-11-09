@@ -33,6 +33,11 @@ export interface PerfSample {
   draws: number;
   tier: string;
   inMatch: boolean;
+  /** PERF-IOS: the pacer's target fps, the governor step and why, and the frame's JS time (ms). */
+  fps?: number;
+  step?: number;
+  reason?: string;
+  workMs?: number;
 }
 
 export class PerfReadout {
@@ -49,6 +54,8 @@ export class PerfReadout {
   private framesFps = 0;
   private fps = 0;
   private sincePaint = 0;
+  private workSum = 0;
+  private workN = 0;
 
   constructor(parent: HTMLElement) {
     this.el = document.createElement('div');
@@ -77,12 +84,18 @@ export class PerfReadout {
       this.sinceFps = 0;
     }
     this.sincePaint += s.frameMs;
+    this.workSum += s.workMs ?? 0;
+    this.workN++;
     if (this.sincePaint < PAINT_MS) return;
     this.sincePaint = 0;
+    const work = this.workN > 0 ? this.workSum / this.workN : 0;
+    this.workSum = 0;
+    this.workN = 0;
     const heap = heapMb();
     if (heap !== null && s.inMatch) this.peakHeap = Math.max(this.peakHeap, heap);
     const lines = [
-      `${this.fps} fps · ${s.tier}`,
+      `${this.fps} fps · ${s.tier}` + (s.fps ? ` · cap ${s.fps}` : '') + (s.step !== undefined ? ` · step ${s.step}` : ''),
+      s.reason !== undefined ? `gov ${s.reason} · js ${work.toFixed(1)} ms` : `js ${work.toFixed(1)} ms`,
       `p95 ${p95Of(this.recent, this.recentN).toFixed(1)} ms` + (this.matchN > 0 ? ` · match ${p95Of(this.match, this.matchN).toFixed(1)}` : ''),
       `draws ${s.draws}` + (this.peakDraws > 0 ? ` · max ${this.peakDraws}` : ''),
       heap === null ? 'heap n/a' : `heap ${heap.toFixed(0)} MB` + (this.peakHeap > 0 ? ` · max ${this.peakHeap.toFixed(0)}` : ''),

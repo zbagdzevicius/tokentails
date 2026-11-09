@@ -6,6 +6,7 @@
  */
 import { PCM_RATE, ZZFX_DEFS, zzfxSamples } from './sfxDefs.js';
 import { voicePriority, type VoiceKey } from './voiceLines';
+import { VoiceMixer, type MixRequest } from './identityMix';
 
 /** LoL pass (lane B): the announcer voice (audio/voice.ts), its own chunk, loaded on the first line said. */
 type VoiceMod = typeof import('./voice');
@@ -123,6 +124,11 @@ export class Sfx {
   private musicIn: GainNode | null = null;
   private buffers = new Map<string, AudioBuffer>();
   private lastAt = new Map<string, number>();
+  /** Champion identity sounds (audio/skillSfx.ts): extra defs baked after the built-in set, and aliases to built-ins. */
+  private extraDefs: Record<string, number[]> = {};
+  private aliases = new Map<string, string>();
+  /** The identity bus rules (CHAMP-IDENTITY.md §4): cooldowns, voice caps and stealing, relation gain, ducking. */
+  readonly mixer = new VoiceMixer();
   private muted = false;
   private volume = 0.7;
   /** Host volumes (`audio{music, sfx}`, 0..1); 1 = the built-in mix. */
@@ -153,23 +159,68 @@ export class Sfx {
       this.musicIn.connect(this.master);
       const defs: Record<string, number[]> = { ...PL_SFX };
       for (const k of PPK_USED) defs[k] = (ZZFX_DEFS as Record<string, number[]>)[k];
-      // Bake in small slices so the first gesture never stalls a frame.
-      const names = Object.keys(defs);
-      const bake = (): void => {
-        const t0 = performance.now();
-        while (names.length > 0 && performance.now() - t0 < 4) {
-          const n = names.shift()!;
-          const pcm = zzfxSamples(defs[n], PCM_RATE);
-          const buf = this.ac!.createBuffer(1, pcm.length, PCM_RATE);
-          buf.getChannelData(0).set(pcm);
-          this.buffers.set(n, buf);
-        }
-        if (names.length > 0) setTimeout(bake, 0);
-      };
-      bake();
+      Object.assign(defs, this.extraDefs);
+      this.bakeSlices(defs);
     } catch {
       this.ac = null;
     }
+  }
+
+  /** PERF-IOS P1-6: hidden page or backgrounded app: the audio graph stops rendering (no CPU, no heat). */
+  suspend(): void {
+    if (this.ac && this.ac.state === 'running') void this.ac.suspend().catch(() => undefined);
+  }
+
+  /** Back in front: resume (iOS may still want a gesture; unlock() on the next touch then resumes it). */
+  resumeContext(): void {
+    if (this.ac && this.ac.state !== 'running') void this.ac.resume().catch(() => undefined);
+  }
+
+  /** Bake zzfx defs in small slices so the first gesture never stalls a frame. */
+  private bakeSlices(defs: Record<string, number[]>): void {
+    const names = Object.keys(defs);
+    const bake = (): void => {
+      if (!this.ac) return;
+      const t0 = performance.now();
+      while (names.length > 0 && performance.now() - t0 < 4) {
+        const n = names.shift()!;
+        const pcm = zzfxSamples(defs[n], PCM_RATE);
+        const buf = this.ac.createBuffer(1, pcm.length, PCM_RATE);
+        buf.getChannelData(0).set(pcm);
+        this.buffers.set(n, buf);
+      }
+      if (names.length > 0) setTimeout(bake, 0);
+    };
+    bake();
+  }
+
+  /**
+   * Champion identity: extra sounds (baked on unlock, or now when already unlocked) and aliases (a name that plays an
+   * existing sound's buffer, e.g. `v:nugget:basic` → `nuggetBork`). Safe to call many times; later defs win.
+   */
+  registerDefs(defs: Readonly<Record<string, readonly number[]>>, aliases: Readonly<Record<string, string>> = {}): void {
+    const add: Record<string, number[]> = {};
+    for (const [k, v] of Object.entries(defs)) add[k] = [...v];
+    Object.assign(this.extraDefs, add);
+    for (const [k, v] of Object.entries(aliases)) this.aliases.set(k, v);
+    if (this.ac) this.bakeSlices(add);
+  }
+
+  /** A baked buffer by name (aliases resolve), or undefined before the bake. */
+  private bufferOf(name: string): AudioBuffer | undefined {
+    return this.buffers.get(name) ?? this.buffers.get(this.aliases.get(name) ?? '');
+  }
+
+  /** The zzfx volume baked into a sound (aliases resolve); 1 when unknown. */
+  bakedVol(name: string): number {
+    const n = this.aliases.get(name) ?? name;
+    const d = this.extraDefs[n] ?? (PL_SFX as Record<string, number[]>)[n] ?? (ZZFX_DEFS as Record<string, number[]>)[n];
+    return d?.[0] ?? 1;
+  }
+
+  /** Is this name known (built in, registered or aliased)? Pure lookup, no context needed. */
+  knows(name: string): boolean {
+    return name in PL_SFX || (PPK_USED as readonly string[]).includes(name) || name in this.extraDefs || this.aliases.has(name);
   }
 
   setMuted(m: boolean): void {
@@ -268,12 +319,44 @@ export class Sfx {
   }
 
   play(name: SfxName, o: PlayOpts = {}): void {
+    this.start(name, o);
+  }
+
+  /**
+   * Champion identity layer (CHAMP-IDENTITY.md §4): one sound through the mix rules (per-layer cooldown, voice caps
+   * with stealing, layer volume cap, relation gain, ducking), then the usual distance falloff and pan into the sfx bus.
+   * Returns true when it played.
+   */
+  playLayer(req: Omit<MixRequest, 'dur' | 'vol'> & { vol?: number; rate?: number; at?: { x: number; z: number } }): boolean {
     const ac = this.ac;
-    const buf = this.buffers.get(name);
-    if (!ac || !buf || !this.fx || this.muted) return;
+    const buf = this.bufferOf(req.name);
+    if (!ac || !buf || !this.fx || this.muted) return false;
+    const now = ac.currentTime;
+    const rate = req.rate ?? 1;
+    const baked = this.bakedVol(req.name);
+    const full: MixRequest = { ...req, vol: req.vol ?? baked, baked, dur: buf.duration / Math.max(0.1, rate) };
+    const d = this.mixer.admit(full, now);
+    if (!d) return false;
+    for (const v of d.steals) v.stop?.();
+    const src = this.start(req.name, { vol: d.gain, rate, at: req.at });
+    if (!src) return false;
+    this.mixer.add(full, now, () => {
+      try {
+        src.stop();
+      } catch {
+        /* already ended */
+      }
+    });
+    return true;
+  }
+
+  private start(name: string, o: PlayOpts): AudioBufferSourceNode | null {
+    const ac = this.ac;
+    const buf = this.bufferOf(name);
+    if (!ac || !buf || !this.fx || this.muted) return null;
     const now = ac.currentTime;
     // the same sound at most every 40 ms (a wave of minions should not machine-gun)
-    if (now - (this.lastAt.get(name) ?? -1) < 0.04) return;
+    if (now - (this.lastAt.get(name) ?? -1) < 0.04) return null;
     this.lastAt.set(name, now);
     let vol = o.vol ?? 1;
     let pan = 0;
@@ -284,7 +367,7 @@ export class Sfx {
       vol *= Math.max(0, 1 - Math.max(0, d - 8) / 26);
       pan = Math.max(-0.8, Math.min(0.8, dx / 18));
     }
-    if (vol <= 0.02) return;
+    if (vol <= 0.02) return null;
     try {
       const src = ac.createBufferSource();
       src.buffer = buf;
@@ -301,8 +384,10 @@ export class Sfx {
       src.connect(g);
       tail.connect(this.fx);
       src.start();
+      return src;
     } catch {
       /* audio is best effort */
+      return null;
     }
   }
 }

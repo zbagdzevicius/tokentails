@@ -15,7 +15,7 @@ import {
 } from '../../src/app/crash';
 import { cleanProps } from '../../src/analytics/posthog';
 import { EMBED_NS, acceptOrigin, allowedOrigins, parseHostMessage, parseOrigins, withSameOrigin } from '../../src/embed/bridge';
-import { FpsProbe, QualityGovernor, qualityOverride, tierSettings } from '../../src/render/quality';
+import { FpsProbe, qualityOverride, tierSettings } from '../../src/render/quality';
 
 describe('embed bridge (pure parts, §11.1)', () => {
   it('parses origin lists', () => {
@@ -58,7 +58,7 @@ describe('quality (§10)', () => {
     expect(qualityOverride('?quality=med')).toBe('med');
     expect(qualityOverride('?quality=ultra')).toBeNull();
   });
-  it('the probe drops to low under 42 fps and the governor steps down', () => {
+  it('the probe drops to low under 42 fps (the governor: perf-ios.test.ts)', () => {
     const slow = new FpsProbe();
     let r: string | null = null;
     for (let i = 0; i < 200 && !r; i++) r = slow.sample(1 / 30);
@@ -67,10 +67,6 @@ describe('quality (§10)', () => {
     r = null;
     for (let i = 0; i < 400 && !r; i++) r = fast.sample(1 / 60);
     expect(r).toBe('ok');
-    const g = new QualityGovernor(1);
-    let next: string | null = null;
-    for (let i = 0; i < 40 && !next; i++) next = g.sample(1 / 30, 'high');
-    expect(next).toBe('med');
   });
 });
 

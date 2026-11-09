@@ -54,6 +54,15 @@
 }
 /* Low quality: the Play glow pulse animates a box shadow (a repaint every frame); still on Low */
 html[data-quality='low'] .pl-lobby .lb-play .pl-btn.big { animation: none; }
+/* PERF-IOS P2-5: on a phone the glow ring is a pseudo-element whose opacity pulses (composited, no repaint, and the
+   button itself never moves) instead of the growing box-shadow */
+html[data-phone='1'] .pl-lobby .lb-play .pl-btn.big { animation: none; position: relative; }
+html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::after {
+  content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); opacity: 0;
+  animation: lb-pulse-o 2.6s ease-in-out infinite;
+}
+@keyframes lb-pulse-o { 50% { opacity: 1; } }
 @keyframes lb-pulse { 50% { box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); } }
 .lb-line { margin: 2px 0 0 4px; font-size: 14px; font-weight: 600; opacity: 0.85; }
 .lb-line.dare-line { color: var(--butter); opacity: 1; font-size: 15px; }

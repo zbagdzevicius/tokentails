@@ -14,7 +14,7 @@ import { NetHost, type NetNote } from '../net/net-host';
 import { PartySocket, browserSocketEnv, type SocketEnv } from '../net/socket';
 import { WS_PATH, normalizeCode, type ClientJson, type MatchMsg, type MmSide, type PartyView, type ServerJson } from '../net/proto';
 import { TRICK_IDS } from '../data/tricks';
-import { HERO_IDS } from '../data/heroes';
+import { HERO_IDS, HEROES } from '../data/heroes';
 import { COPY, clockText, errorText, esc } from './ui/copy';
 import { queueCardHtml, type QueueStop } from './ui/queueCard';
 import { acceptCardHtml } from './ui/acceptCard';
@@ -22,6 +22,8 @@ import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
 import { decoratePick, firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
 import { HERO_TEXT } from '../ui/heroText';
+import { closeChampInfo, openChampInfo } from '../ui/champBrowser/open';
+import type { HeroId } from '../sim/api';
 import { loadingHtml } from './ui/partyLoading';
 import { qrSvg } from './qr';
 import { cleanArt } from '../embed/bridge';
@@ -1193,6 +1195,31 @@ export class PartyClient {
         this.drawn = '';
         this.render();
         return;
+      case 'info': {
+        // champion browser: skills and lore; Select hovers the hero as a tap on its card does (the pick timer runs on)
+        if (!HERO_IDS.includes(t.dataset.v as never)) return;
+        void openChampInfo({
+          hero: t.dataset.v as HeroId,
+          within: this.card,
+          order: v?.mm ? HERO_IDS.filter((h) => HEROES[h].side === v.mm!.side) : undefined,
+          pick: {
+            label: 'Select',
+            can: (h) => {
+              const view = this.state.view;
+              if (!view) return 'The pick is over';
+              if (view.members.find((m) => m.id === view.you)?.locked) return COPY.lockedIn;
+              return heroBlock(view, h, hideNames());
+            },
+            on: (h) => {
+              this.hover = h;
+              this.socket.sendJson({ t: 'pick.hover', hero: h });
+              this.drawn = '';
+              this.render();
+            },
+          },
+        });
+        return;
+      }
       case 'trick':
         if (!TRICK_IDS.includes(t.dataset.v as never)) return;
         this.trick = t.dataset.v!;
@@ -1427,6 +1454,8 @@ export class PartyClient {
     if (this.closed) return;
     const s = this.state;
     const screen = screenOf(s);
+    // champion browser: it belongs to the pick; the match loading (or anything else) closes it
+    if (screen !== 'pick') closeChampInfo();
     const err = s.error ? errorText(s.error.code, Math.ceil((s.error.retryMs ?? 0) / 1000)) : null;
     this.el.dataset.screen = screen;
     let html = '';
@@ -1508,6 +1537,7 @@ export class PartyClient {
   close(): void {
     if (this.closed) return;
     this.closed = true;
+    closeChampInfo();
     rememberParty(null);
     if (this.timer) clearInterval(this.timer);
     if (this.decideTimer) clearTimeout(this.decideTimer);
