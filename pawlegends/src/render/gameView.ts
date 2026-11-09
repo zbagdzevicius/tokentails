@@ -804,7 +804,7 @@ export class GameView {
 
   private swipeSide = 1;
 
-  /** Feel pass B1: the Camera height step (Normal / High, render/camera/height.ts), applied at once. */
+  /** Feel pass B1: the Camera height step (Close … Max, render/camera/height.ts), applied at once. */
   setCameraHeight(h: CameraHeight): void {
     this.gr.zoom = heightFactor(h);
   }

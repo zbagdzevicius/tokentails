@@ -22,7 +22,7 @@ raised and Riot answered) and CHAMPS.md (a review of how the heroes counter each
 |---|---|---|
 | D1 | The five heading dashes and blinks (Clem E, Avietė E, Bengas E, Gabė E) and the Pounce trick fire on press, so they cannot be held to aim. Should they get hold-to-aim? | **Keep firing them on press, toward the heading.** The joystick sets the direction. Wild Rift's flash complaint (players swiping it the wrong way in a panic) supports this choice. Every other skill can already be held to aim. |
 | D2 | Desktop camera: locked like on mobile, or free with edge pan like LoL PC? | **Locked.** Holding the minimap shows that spot, and the view returns when the button is released. Edge pan and the arrow-key pan are removed. |
-| D3 | Should the camera-height setting be the same for everyone in PvP? | **No.** The only choices are Normal 1.0 and High 1.12, so the gap is small. |
+| D3 | Should the camera-height setting be the same for everyone in PvP? | **No.** Every step is open in PvP too (Nov 9: five steps, Close 0.88 to Max 1.4; every player has the same setting, as in Mobile Legends). Vision is decided in the sim (`sim/map/brush.ts` `visibleTo`: bushes and stealth, no distance fog) and each seat's snapshot leaves hidden units out, so a further camera reveals nothing hidden. |
 
 ---
 
@@ -38,8 +38,11 @@ raised and Riot answered) and CHAMPS.md (a review of how the heroes counter each
 4. Make the follow rigid: the focus equals the interpolated render position of the hero, with no `dt×14` lerp
    (L968). The 60% snap on jumps over 2 m is no longer needed, because the follow is always exact.
 5. Remove pinch and wheel zoom from matches: `src/app/noZoom.ts` keeps blocking the browser zoom, and the pinch
-   handlers in `touch.js` / `Input.js` go. Replace `zoomSlider.ts` with a Settings row, **Camera height:
-   Normal 1.0 / High 1.12**, stored per device. On desktop the wheel switches between these two steps only.
+   handlers in `touch.js` / `Input.js` go. Replace `zoomSlider.ts` with a Settings row, **Camera height**,
+   stored per device (`render/camera/height.ts`, `ui/cameraHeightRow.ts`). Nov 9: five fixed steps, a segmented
+   control **Close 0.88 / Normal 1.0 / High 1.12 / Higher 1.25 / Max 1.4** (was Normal / High); the camera stays
+   fixed at every step, there is still no pinch or free zoom. On desktop each wheel notch or +/− moves one step,
+   clamped at the ends. The shadow box, the outer forest (`OUTER_DRESS`) and the minimap view box all cover Max.
 6. Change panning:
    - **Minimap hold-to-peek** (touch and mouse). While a finger or the mouse button holds the minimap, the camera centres on
      that point. On release it returns to the hero in **150 ms** (ease-out). Remove the old "drift back after 3 s"

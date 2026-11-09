@@ -19,7 +19,7 @@ import { NO_TARGET, type TalentTier } from '../sim/api';
 import type { CastIndex, Orders } from './orders';
 import { cursorCss, cursorKind, type CursorKind } from './cursor';
 import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
-import { loadCameraHeight, saveCameraHeight, wheelHeight } from '../render/camera/height';
+import { loadCameraHeight, saveCameraHeight, wheelHeight, wheelReady } from '../render/camera/height';
 import { groundAt, project, toSimX, toSimY } from './screen';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
 import { landing } from './heading';
@@ -277,8 +277,10 @@ export class DesktopInput {
     sfx.unlock();
     // +/− zoom like a wheel notch; a held key repeats
     if (a === 'zoomIn' || a === 'zoomOut') {
-      // feel pass B1: + and − pick the Camera height step (Normal / High), like the wheel
-      const h = wheelHeight(loadCameraHeight(), a === 'zoomOut' ? 1 : -1);
+      // feel pass B1: + and − move one Camera height step (Close … Max, clamped at the ends), like a wheel notch
+      const cur = loadCameraHeight();
+      const h = wheelHeight(cur, a === 'zoomOut' ? 1 : -1);
+      if (h === cur) return;
       saveCameraHeight(h);
       this.h.view.setCameraHeight(h);
       return;
@@ -360,12 +362,20 @@ export class DesktopInput {
     if (this.aiming && this.aiming.code === e.code) this.release(e.code, false);
   }
 
+  /** performance.now() of the last wheel step (WHEEL_STEP_MS debounce). */
+  private wheelAt = -Infinity;
+
   private wheel(e: WheelEvent): void {
     e.preventDefault();
-    // feel pass B1: the wheel switches between the two Camera height steps (Normal / High), nothing in between
+    // feel pass B1: one Camera height step per notch (Close … Max, clamped at the ends, nothing in between); a
+    // trackpad's burst of small wheel events within WHEEL_STEP_MS counts as one notch
+    if (e.deltaY === 0) return;
+    const now = performance.now();
+    if (!wheelReady(now, this.wheelAt)) return;
     const cur = loadCameraHeight();
     const h = wheelHeight(cur, e.deltaY);
     if (h === cur) return;
+    this.wheelAt = now;
     saveCameraHeight(h);
     this.h.view.setCameraHeight(h);
   }

@@ -16,7 +16,7 @@ import { shellPlatform } from '../app/platform';
 
 /**
  * Feel pass B1: the match camera's distance, pitch, FOV and the hero's screen spot come from camera/frame.ts (a fixed,
- * MLBB-style framing). `gr.zoom` is only the Camera height setting (1 Normal, 1.12 High, camera/height.ts).
+ * MLBB-style framing). `gr.zoom` is only the Camera height setting (0.88 Close to 1.4 Max, camera/height.ts CAMERA_HEIGHTS).
  */
 export const isShortLandscape = isPhoneLandscape;
 

@@ -8,7 +8,7 @@ import { describe, expect, it } from 'vitest';
 import { endsText } from '../../src/money/offer';
 import { dareText } from '../../src/share/dare';
 import { resultLine, resultTip } from '../../src/ui/screens';
-import { wheelHeight } from '../../src/render/camera/height';
+import { WHEEL_STEP_MS, wheelHeight, wheelReady } from '../../src/render/camera/height';
 import { plateName } from '../../src/ui/overhead';
 import { reachableGoal } from '../../src/input/orders';
 import { attackPriority, guardedByTower, type Unit } from '../../src/input/targeting';
@@ -59,11 +59,22 @@ describe('honest lines', () => {
   });
 });
 
-describe('camera height (feel pass B1: the wheel picks one of two steps)', () => {
-  it('away is High, toward is Normal, no delta keeps the step', () => {
+describe('camera height (feel pass B1: one step per wheel notch)', () => {
+  it('away is one step further out, toward one step closer, clamped at the ends, no delta keeps the step', () => {
     expect(wheelHeight('normal', 800)).toBe('high');
+    expect(wheelHeight('high', 800)).toBe('higher');
+    expect(wheelHeight('higher', 1)).toBe('max');
+    expect(wheelHeight('max', 120)).toBe('max');
     expect(wheelHeight('high', -3)).toBe('normal');
+    expect(wheelHeight('normal', -120)).toBe('close');
+    expect(wheelHeight('close', -120)).toBe('close');
     expect(wheelHeight('high', 0)).toBe('high');
+  });
+
+  it('a trackpad burst within WHEEL_STEP_MS is one notch', () => {
+    expect(wheelReady(1000, -Infinity)).toBe(true);
+    expect(wheelReady(1000 + WHEEL_STEP_MS - 1, 1000)).toBe(false);
+    expect(wheelReady(1000 + WHEEL_STEP_MS, 1000)).toBe(true);
   });
 });
 
