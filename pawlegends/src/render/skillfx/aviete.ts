@@ -28,12 +28,17 @@ import type { FxCtx, MeshFxSpawn, MoveCtx, SkillFxSet, V3Out } from '../anim/typ
 import { RADIUS } from '../../data/map';
 import { AVI_HASTE_S, AVI_STATE, AVI_WIRE_S } from '../moves/aviete';
 import { funChestY, funHeroOf, funOverY, funPop, funRand, funSfx, sticker, stickerBurst } from '../fx/fun/funKit';
+import { champSound, playSkillSfx } from '../../audio/skillSfx';
+import { sfx } from '../../audio/sfx';
+import { mixPriority, type MixRelation } from '../../audio/identityMix';
 
 /** Pale-gold core, the volt yellow of her spark orbs, near-white arcs, and Blinding Shine's white. */
 const CORE = 0xfff3a6;
 const VOLT = 0xffe24d;
 const ARC = 0xfff8d8;
 const BLIND = 0xffffff;
+/** Champion identity (CHAMP-IDENTITY.md §3, audio/champ/aviete.ts): every skill ends its sparks in a raspberry. */
+const RASP = 0xc83a8c;
 const N = 16;
 const TAU = Math.PI * 2;
 /** Hero-to-hero gap (m) Short Circuit lands at (two hero radii, the kit's `gap`). */
@@ -118,6 +123,32 @@ function radial(fx: FxCtx, x: number, z: number, y0: number, r: number, n: numbe
   }
 }
 
+// ------------------------------------------------------------------------------------------------ identity
+
+const MIX_REL: Readonly<Record<'own' | 'ally' | 'enemy', MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
+const mixRel = (fx: FxCtx, id: number): MixRelation => MIX_REL[fx.relation(id)];
+
+/** Her raspberry pop (audio/champ/aviete.ts `drupe`) through the identity mix, on the motif layer. */
+function drupe(fx: FxCtx, id: number, at: { x: number; z: number }, rate = 1): void {
+  const relation = mixRel(fx, id);
+  sfx.playLayer({ name: champSound('aviete', 'drupe'), layer: 'motif', hero: 'aviete', nature: 'electric', priority: mixPriority({ relation }), relation, rate, at });
+}
+
+/**
+ * The raspberry: a drupelet cluster (a centre dot and a ring of dots in the camera plane, normal blend so the colour
+ * stays raspberry) with one pale-volt glint, at (x, y, z). Low and reduced effects: the centre and 2 dots.
+ */
+export function berry(fx: FxCtx, x: number, y: number, z: number, size: number, life: number): void {
+  const n = fx.tier === 'low' || fx.reduced ? 2 : 5;
+  const d = size * 0.42;
+  sticker(fx, x, y, z, 'SOFT', RASP, size * 0.75, life);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU + 0.4;
+    sticker(fx, x + Math.cos(a) * d, y + Math.sin(a) * d, z, 'SOFT', RASP, size * 0.6, life);
+  }
+  sticker(fx, x - d * 0.4, y + d * 0.6, z, 'STAR4', CORE, size * 0.55, life * 0.6);
+}
+
 // ------------------------------------------------------------------------------------------------ slots
 
 function castQ(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx): void {
@@ -163,11 +194,14 @@ function castQ(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx
   }
   if (fx.bonePos(id, 'pawR', Q)) fx.particles.lightning(Q.x, Q.y, Q.z, P.x + Math.cos(yaw) * R * 0.9, 0.4, P.z - Math.sin(yaw) * R * 0.9, CORE);
   fx.linger.add('scratches', P.x + Math.cos(yaw) * R * 0.55, P.z - Math.sin(yaw) * R * 0.55, R * 0.42, yaw, VOLT);
+  // identity: the zig-zag edge is raspberry-tipped (a berry on both far corners of the cone)
+  berry(fx, P.x + Math.cos(yaw + half) * R, 0.55, P.z - Math.sin(yaw + half) * R, 0.3, 0.45);
+  berry(fx, P.x + Math.cos(yaw - half) * R, 0.55, P.z - Math.sin(yaw - half) * R, 0.3, 0.45);
   // fun: a static-fluff variant (her fur puffs up with static after the swipe), else a spray of sparkles in the cone
   const cy = funChestY(fx, id);
   if (funRand(e.tick, id, 0) < 0.5) {
+    // (the crackle is the electric nature's cast sound now: audio/skillSfx plays it with her static stutter)
     stickerBurst(fx, P.x, cy + 0.2, P.z, 'HAIRBALL', FLUFF, 0.4, 0.3, 9, 2.4, 0.6, 0, 0.3);
-    funSfx(fx, 'crackle', P, 0.5);
   } else {
     for (let i = 0; i < 3; i++) {
       const a = yaw + (i - 1) * arc * 0.3;
@@ -185,7 +219,9 @@ function castW(id: number, fx: FxCtx, tick: number): void {
   radial(fx, P.x, P.z, 1.5, 1.5, by(fx, 3, 5, 7), ARC, funRand(tick, id, 1) * TAU);
   // fun: the wet-cat shake flings water drops (they turn into sparks on the shed marker)
   stickerBurst(fx, P.x, funChestY(fx, id) + 0.3, P.z, 'DROPLET', WATER, 0.2, 0.45, 10, 3.4, 2, -9, funRand(tick, id, 7));
-  funSfx(fx, 'pop', P, 0.4);
+  // identity: her coat fills with raspberry sparkle over the charge
+  stickerBurst(fx, P.x, funChestY(fx, id) + 0.1, P.z, 'STAR4', RASP, 0.22, 0.55, 6, 0.9, 0.9, 0, funRand(tick, id, 8));
+  // (sound: the empower nature's cast and her theremin swell, audio/champ/aviete.ts)
   hasteUntil[id] = AVI_STATE.clock + AVI_HASTE_S;
   sparkNext[id] = AVI_STATE.clock + 0.15;
 }
@@ -231,6 +267,9 @@ function castE(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx
     tx = P.x + ax * k;
     tz = P.z + az * k;
     openWire(id, P.x, P.z, tx, tz, VOLT);
+    // identity: a raspberry marks the return point
+    berry(fx, P.x, 1.15, P.z, 0.34, 0.9);
+    drupe(fx, id, P, 0.9);
   }
   strike(fx, P.x, P.z, 2.6, 0.1, ARC, rel, rim);
   strike(fx, tx, tz, 2.6, 0.1, ARC, rel, rim);
@@ -300,7 +339,9 @@ function zap(id: number, dst: number, fx: FxCtx): void {
   if (!rZap[id] || !fx.heroPos(dst, Q)) return;
   rZap[id] = 0;
   const y = funOverY(fx, dst, 0.5);
-  if (funPop(fx, id, 'ZAP!', Q.x, y, Q.z)) funSfx(fx, 'zap', Q, 0.7);
+  // the shock itself is the electric nature's impact (audio/skillSfx); the raspberry pop is hers
+  if (funPop(fx, id, 'ZAP!', Q.x, y, Q.z)) drupe(fx, id, Q, 0.8);
+  berry(fx, Q.x, funChestY(fx, dst) + 1.0, Q.z, 0.42, 0.6);
   stickerBurst(fx, Q.x, funChestY(fx, dst) + 0.4, Q.z, 'HAIRBALL', FLUFF, 0.34, 0.5, 8, 2.6, 1.6, -2, funRand(rTick[id], id, 5));
   stickerBurst(fx, Q.x, funChestY(fx, dst) + 0.8, Q.z, 'STAR4', ARC, 0.26, 0.4, 5, 3, 2, -4, funRand(rTick[id], id, 6));
 }
@@ -320,7 +361,9 @@ function proc(src: number, dst: number, fx: FxCtx, tick: number): void {
   fx.linger.add('crackStar', Q.x, Q.z, 0.8, funRand(tick, src, 8) * TAU, VOLT);
   // fun: a little lightning paw print stamped on the victim
   sticker(fx, Q.x, funChestY(fx, dst) + 0.3, Q.z, 'PAW', VOLT, 0.45, 0.55, 0.3, 0, (funRand(tick, src, 9) - 0.5) * 0.8);
-  fx.sfx.cue('zap', Q);
+  // identity: the proc ends in a raspberry, and pops (audio/champ/aviete.ts passive impact; the shock is the hit's)
+  berry(fx, Q.x, funChestY(fx, dst) + 0.85, Q.z, 0.38, 0.55);
+  playSkillSfx('aviete', 'passive', 'impact', { at: Q, relation: mixRel(fx, src) });
   if (rel === 'own') fx.cam.tier(1);
 }
 
@@ -526,6 +569,8 @@ function update(dt: number, fx: FxCtx): void {
     if (hasteUntil[id] > now && now >= sparkNext[id]) {
       const a = rnd(id, 18) * TAU;
       fx.particles.lightning(P.x + Math.cos(a) * 0.35, 1.0 + rnd(id, 19) * 0.9, P.z - Math.sin(a) * 0.35, P.x + Math.cos(a) * 0.95, 0.3, P.z - Math.sin(a) * 0.95, VOLT);
+      // identity: each shed spark ends in a raspberry dot
+      sticker(fx, P.x + Math.cos(a) * 0.95, 0.3, P.z - Math.sin(a) * 0.95, 'SOFT', RASP, 0.16, 0.35);
       sparkNext[id] = now + by(fx, 0.3, 0.14, 0.1);
     }
   }
