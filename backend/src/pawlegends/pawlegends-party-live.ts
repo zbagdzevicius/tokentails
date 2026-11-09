@@ -118,7 +118,9 @@ export async function savePawlegendsPartyMatch(
             throw reject(ErrorCode.PAWLEGENDS_SIM_VERSION, `PvP needs simVersion ${pvpSince ?? 'with PvP'}`);
     }
     // PvP: the slot's own view (team 1 won when the verdict, team 0's view, says lost)
-    const slotOutcome = pvp ? (v.winner === (r.slot >= 3 ? 1 : 0) ? 'won' : 'lost') : v.outcome;
+    // 5v5 Classic (sim v19, `config.map: 'hearthwood'`): team 1 is slots 5..9
+    const teamSize = room.config.map === 'hearthwood' ? 5 : 3;
+    const slotOutcome = pvp ? (v.winner === (r.slot >= teamSize ? 1 : 0) ? 'won' : 'lost') : v.outcome;
     if (v.ticks !== r.ticks || slotOutcome !== r.outcome || v.finalHash !== r.finalHash) {
         throw reject(ErrorCode.PAWLEGENDS_REPLAY_INVALID, 'the result differs from the verified match');
     }
@@ -192,7 +194,16 @@ export async function savePawlegendsPartyMatch(
         $set: { lastPlayedAt: now },
     });
     const catnipCount = await recomputeCatnipCount(deps.users, userId);
-    if (deps.mm && pvp) await applyCasualRating(deps.mm, String(userId), r.room, won, now, log);
+    if (deps.mm && pvp)
+        await applyCasualRating(
+            deps.mm,
+            String(userId),
+            r.room,
+            won,
+            now,
+            log,
+            room.config.map === 'hearthwood' ? 'classic' : 'casual'
+        );
     else if (deps.mm)
         await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
     return {
@@ -227,16 +238,20 @@ async function applyCoopRating(
     );
 }
 
-/** The casual PvP rating (V16.md §4.5): as the co-op one, on the `casual` row, from the slot's own result. */
+/**
+ * The casual PvP rating (V16.md §4.5): as the co-op one, on the `casual` row, from the slot's own result. A 5v5
+ * Classic room (Hearthwood) rates the `classic` row (MAP-5V5.md §9.3).
+ */
 async function applyCasualRating(
     mm: NonNullable<IPartyLiveDeps['mm']>,
     accountId: string,
     roomId: string,
     won: boolean,
     now: Date,
-    log: Pick<Logger, 'warn'>
+    log: Pick<Logger, 'warn'>,
+    queue: 'casual' | 'classic' = 'casual'
 ): Promise<void> {
-    await writeRating(mm, roomId, `${accountId}:casual`, 'casual', log, (room, row) =>
+    await writeRating(mm, roomId, `${accountId}:${queue}`, queue, log, (room, row) =>
         casualRatingStep({ room, accountId, won, row, nowMs: now.getTime() })
     );
 }

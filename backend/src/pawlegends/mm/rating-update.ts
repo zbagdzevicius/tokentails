@@ -75,7 +75,8 @@ export const CASUAL_BOT_RATING: Readonly<Record<string, { r: number; rd: number 
     hard: Object.freeze({ r: 1750, rd: 60 }),
 });
 
-const teamOfSlot = (slot: number): 0 | 1 => (slot >= 3 ? 1 : 0);
+/** The team of a slot (5v5 Classic rooms: five seats a team). */
+const teamOfSlot = (slot: number, teamSize = 3): 0 | 1 => (slot >= teamSize ? 1 : 0);
 
 /**
  * The casual PvP rating step (V16.md §4.5): pure. The poster against the opposing team's composite (its humans'
@@ -95,21 +96,24 @@ export function casualRatingStep(input: {
     if (row?.appliedRooms?.includes(room._id)) return { skip: 'applied' };
     const mine = room.members.filter(m => m.accountId === accountId).sort((a, b) => b.joinedTick - a.joinedTick)[0];
     if (!mine) return { skip: 'not_member' };
-    const team = teamOfSlot(mine.slot);
+    // 5v5 Classic (MAP-5V5.md §9.3): five seats a team, rated on its own `classic` row
+    const n = room.map === 'hearthwood' ? 5 : 3;
+    const queue = room.map === 'hearthwood' ? ('classic' as const) : ('casual' as const);
+    const team = teamOfSlot(mine.slot, n);
     if (!won) {
         if (mine.backfill) return { skip: 'backfill_loss' };
         const forgiven = room.members.some(
             m =>
                 m !== mine &&
                 m.accountId !== accountId &&
-                teamOfSlot(m.slot) === team &&
+                teamOfSlot(m.slot, n) === team &&
                 (m.event === 'left' || m.event === 'afk') &&
                 (m.eventTick ?? 0) < MM_LIMITS.forgiveBeforeTick
         );
         if (forgiven) return { skip: 'forgiven' };
     }
     // the opponents at the start: one human row per seat (the first holder), bots in the other seats
-    const foeSlots = [0, 1, 2].map(i => (1 - team) * 3 + i);
+    const foeSlots = Array.from({ length: n }, (_, i) => (1 - team) * n + i);
     const foeTeam = room.teams?.[1 - team];
     const bot = CASUAL_BOT_RATING[foeTeam?.difficulty ?? 'normal'] ?? CASUAL_BOT_RATING.normal;
     const foes: { r: number; rd: number }[] = [];
@@ -140,9 +144,9 @@ export function casualRatingStep(input: {
     };
     return {
         row: {
-            _id: ratingId(accountId, 'casual'),
+            _id: ratingId(accountId, queue),
             accountId,
-            queue: 'casual',
+            queue,
             r: next.r,
             rd: next.rd,
             sigma: next.sigma,

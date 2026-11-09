@@ -179,6 +179,21 @@ export const PAWLEGENDS_MAX_INPUT_CHARS = 40800;
 /** The binary stream behind `PAWLEGENDS_MAX_INPUT_CHARS` (`MAX_INPUT_BYTES`; 30,000 before sim v10). */
 export const PAWLEGENDS_MAX_INPUT_BYTES = 30600;
 
+/**
+ * Sim v19 (docs/plans/moba/MAP-5V5.md §2.5): the replay limits per map (`LIMITS_BY_MAP` in
+ * `pawlegends/src/data/limits.ts`). Crossing keeps the three constants above; Hearthwood Divide (5v5 Classic, 16:00
+ * safety end) scales the input budget by match length. The vendored sim checks a record against its own map's row.
+ */
+export const PAWLEGENDS_LIMITS_BY_MAP = Object.freeze({
+    crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30600, maxInputChars: 40800 }),
+    hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44700, maxInputChars: 59600 }),
+});
+
+/** The longest match of any map (request shape bounds; the sim applies the record's own map). */
+export const PAWLEGENDS_MAX_TICKS_ANY_MAP = PAWLEGENDS_LIMITS_BY_MAP.hearthwood.maxTicks;
+/** The longest base64 command stream of any map. */
+export const PAWLEGENDS_MAX_INPUT_CHARS_ANY_MAP = PAWLEGENDS_LIMITS_BY_MAP.hearthwood.maxInputChars;
+
 // ---------------------------------------------------------------------------------------------
 // Tails (rescue points)
 // ---------------------------------------------------------------------------------------------

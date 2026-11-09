@@ -2,7 +2,7 @@ import { Types } from 'mongoose';
 import { GameType } from 'src/game/game.schema';
 import {
     PAWLEGENDS_LEVEL_CAPS,
-    PAWLEGENDS_MAX_TICKS,
+    PAWLEGENDS_MAX_TICKS_ANY_MAP,
     PAWLEGENDS_TOTAL_CAP,
     TOTAL_CATNIP_CAP,
 } from 'src/shared-contracts/caps';
@@ -164,7 +164,7 @@ describe('Pawlegends progress in the guest merge (D44)', () => {
             { catnipChaos: [500] },
             {
                 pawlegendsCatnip: { easy: 999, normal: 'x', nightmare: 500, __proto__x: 7 },
-                pawlegendsFastestWin: { easy: -5, normal: PAWLEGENDS_MAX_TICKS + 1, nightmare: 10 },
+                pawlegendsFastestWin: { easy: -5, normal: PAWLEGENDS_MAX_TICKS_ANY_MAP + 1, nightmare: 10 },
                 pawlegendsMatches: { easy: 'many', normal: 2.9, nightmare: 50 },
             }
         );

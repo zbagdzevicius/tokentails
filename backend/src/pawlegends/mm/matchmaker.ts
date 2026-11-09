@@ -11,9 +11,22 @@
  * 1 or 2 queues as one entry. Empty teammate seats are plain sim bots (§2.5).
  */
 import { randomBytes } from 'crypto';
-import { bestCasual, matchFillDifficulty, team0SpeciesNext, teamRating, type CasualPlan, type Species } from './casual';
+import {
+    bestCasual,
+    matchFillDifficulty,
+    pvpRulesOf,
+    team0SpeciesNext,
+    teamRating,
+    type CasualPlan,
+    type PvpQueueRules,
+    type Species,
+} from './casual';
 import { difficultyAllowed, matchDifficulty, matchSide, partyRating, sidesCompatible } from './fill';
-import { fillAtMs, MM_CASUAL, MM_LIMITS, pairFillMs } from './mm-limits';
+import { fillAtMs, MM_CASUAL, MM_CLASSIC, MM_LIMITS, pairFillMs } from './mm-limits';
+
+/** The PvP queues (two teams of humans): casual 3v3 and classic 5v5 (MAP-5V5.md §9.3). */
+export type MmPvpQueue = 'casual' | 'classic';
+export const isPvpQueue = (q: string | undefined): q is MmPvpQueue => q === 'casual' || q === 'classic';
 
 export type MmSideChoice = 'cat' | 'dog' | 'any';
 
@@ -37,8 +50,11 @@ export interface MmEntry {
     /** A friend party queued as one entry (its leader's party), else null. */
     partyId: string | null;
     members: MmMember[];
-    /** 'casual': PvP (solo, duo or trio). A casual entry moves to 'coop' at 45 s without an opponent. */
-    queue: 'coop' | 'casual';
+    /**
+     * 'casual': PvP (solo, duo or trio). A casual entry moves to 'coop' at 45 s without an opponent. 'classic': 5v5 on
+     * Hearthwood (PROTO 4); it never moves to co-op, bots fill at 45 s.
+     */
+    queue: 'coop' | MmPvpQueue;
     /** Keep waiting: a casual entry that never moves to co-op by itself. */
     keepCasual?: boolean;
     /** The low-priority wait before the co-op switch's grace (restored by Keep waiting). */
@@ -72,6 +88,8 @@ export interface MmMatch {
     /** Casual PvP: two teams (team 0 plays on the left, slots 0..2; team 1 slots 3..5). Absent for co-op. */
     mode?: 'casual';
     teams?: [MmTeam, MmTeam];
+    /** 5v5 Classic (queue 'classic'): Hearthwood Divide, slots 0..4 and 5..9. Absent: Crossing, 3 a team. */
+    map?: 'hearthwood';
 }
 
 export interface MmTeam {
@@ -99,8 +117,8 @@ export interface MmBackfillSeat {
     /** Identity keys already in the room. */
     inRoomKeys: string[];
     sinceMs: number;
-    /** Casual PvP: only a casual solo takes it, never from the same address as the other team. */
-    queue?: 'coop' | 'casual';
+    /** Casual PvP: only a casual (classic) solo takes it, never from the same address as the other team. */
+    queue?: 'coop' | MmPvpQueue;
     /** Casual PvP: address keys seated on the other team. */
     otherTeamIps?: string[];
 }
@@ -191,8 +209,8 @@ export class Matchmaker {
     }
 
     join(e: MmEntry): 'ok' | 'already_queued' | 'queue_full' | 'bad_entry' {
-        const max = e.queue === 'casual' ? 3 : 2;
-        if (e.members.length < 1 || e.members.length > max || (e.queue !== 'coop' && e.queue !== 'casual'))
+        const max = isPvpQueue(e.queue) ? 3 : 2;
+        if (e.members.length < 1 || e.members.length > max || (e.queue !== 'coop' && !isPvpQueue(e.queue)))
             return 'bad_entry';
         if (this.entries.has(e.id)) return 'already_queued';
         for (const o of this.entries.values())
@@ -232,7 +250,7 @@ export class Matchmaker {
     /** Keep waiting (casual): back to the casual pool, never moved to co-op by itself again. */
     keepCasual(entryId: string): boolean {
         const e = this.entries.get(entryId);
-        if (!e || e.members.length > 3) return false;
+        if (!e || e.members.length > 3 || e.queue === 'classic') return false;
         e.queue = 'casual';
         e.keepCasual = true;
         if (e.penaltyUntilMs !== undefined) e.notBeforeMs = e.penaltyUntilMs;
@@ -334,7 +352,8 @@ export class Matchmaker {
         const waitedMs = Math.max(0, now - e.enqueuedMs);
         const lowPriorityMs = Math.max(0, e.notBeforeMs - now);
         const lambda = this.poolRate(e);
-        const toFill = Math.max(0, (e.queue === 'casual' ? MM_CASUAL.fillMs : fillAtMs(lambda)) - waitedMs);
+        const pvpFill = e.queue === 'classic' ? MM_CLASSIC.fillMs : MM_CASUAL.fillMs;
+        const toFill = Math.max(0, (isPvpQueue(e.queue) ? pvpFill : fillAtMs(lambda)) - waitedMs);
         const toArrival = lambda > 0 ? 60_000 / lambda : Infinity;
         const raw = Math.max(lowPriorityMs, Math.min(toFill, toArrival));
         const estimateMs = Math.max(3000, Math.ceil(raw / 5000) * 5000);
@@ -459,15 +478,16 @@ export class Matchmaker {
             out.switched.push(e);
         }
         const used = new Set<string>();
-        // casual PvP first: two teams, oldest anchor first
+        // PvP first (casual 3v3, classic 5v5): two teams, oldest anchor first
         for (const a of sorted) {
-            if (a.queue !== 'casual' || used.has(a.id) || !this.eligible(a, now)) continue;
-            const pool = sorted.filter(o => o.queue === 'casual' && !used.has(o.id) && this.eligible(o, now));
-            const plan = bestCasual(a, pool, now, order);
+            if (!isPvpQueue(a.queue) || used.has(a.id) || !this.eligible(a, now)) continue;
+            const rules = pvpRulesOf(a.queue);
+            const pool = sorted.filter(o => o.queue === a.queue && !used.has(o.id) && this.eligible(o, now));
+            const plan = bestCasual(a, pool, now, order, rules);
             this.found.set(a.id, a.members.length + (plan ? plan.humans[0] - a.members.length : 0));
             if (!plan) continue;
             for (const t of plan.teams) for (const e of t) used.add(e.id);
-            out.matches.push(this.makeCasual(plan, now));
+            out.matches.push(this.makeCasual(plan, now, rules));
         }
         // 2-4. co-op: full teams, then pair fill, then solo fill, oldest first
         for (const a of sorted) {
@@ -510,7 +530,7 @@ export class Matchmaker {
             const m = e.members[0];
             if (m.identityKey === seat.leaverKey || seat.inRoomKeys.includes(m.identityKey)) continue;
             if (seat.otherTeamIps?.includes(m.ipKey)) continue;
-            if (seat.queue !== 'casual' && !difficultyAllowed(seat.difficulty, m.maxDifficulty)) continue;
+            if (!isPvpQueue(seat.queue) && !difficultyAllowed(seat.difficulty, m.maxDifficulty)) continue;
             const gap = Math.abs(m.rating.r - seat.teamRating);
             if (gap > b.ratingWithin) continue;
             const log = (this.offerLog.get(m.identityKey) ?? []).filter(t => now - t < b.offerWindowMs);
@@ -524,7 +544,8 @@ export class Matchmaker {
     }
 
     /** A casual match: the left side (team 0) goes to the species that played there less in this pool lately. */
-    private makeCasual(plan: CasualPlan, now: number): MmMatch {
+    private makeCasual(plan: CasualPlan, now: number, rules: PvpQueueRules = pvpRulesOf('casual')): MmMatch {
+        const n = rules.teamSize;
         const a = plan.teams[0][0];
         const key = poolKey(a);
         const recent = this.recentLeft.get(key) ?? [];
@@ -532,7 +553,7 @@ export class Matchmaker {
         const flip = plan.species[0] !== left;
         const order: [0 | 1, 0 | 1] = flip ? [1, 0] : [0, 1];
         recent.push(left);
-        if (recent.length > MM_CASUAL.sideBalanceN) recent.shift();
+        if (recent.length > rules.limits.sideBalanceN) recent.shift();
         this.recentLeft.set(key, recent);
         // one bot level for both teams (from every human), so the fill never tilts the match
         const difficulty = matchFillDifficulty(plan.teams);
@@ -545,7 +566,7 @@ export class Matchmaker {
                 entries: group.map(e => e.id),
                 members: members.map(m => m.member),
                 humans: members.length,
-                bots: 3 - members.length,
+                bots: n - members.length,
                 difficulty,
                 rating,
             };
@@ -563,11 +584,12 @@ export class Matchmaker {
             entries: all.map(e => e.id),
             members: [...teams[0].members, ...teams[1].members],
             humans,
-            bots: 6 - humans,
+            bots: 2 * n - humans,
             waitedMs,
             fill: plan.fill ? 'normal' : null,
             mode: 'casual',
             teams,
+            ...(rules.queue === 'classic' ? { map: 'hearthwood' as const } : {}),
         };
     }
 

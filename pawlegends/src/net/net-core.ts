@@ -18,12 +18,15 @@ import { goldenHash, type GoldenSim } from './golden';
 
 export interface NetStart {
   /** `mode: 'pvp'` (casual, sim v16+): humans on both teams; `fillDifficulty` per team. */
-  config: { seed: number; picks: string[]; tricks: string[]; difficulty: string; humans: number[]; mode?: 'pvp'; fillDifficulty?: [string, string] };
+  /** `map` (PROTO 4, sim v19+): 'hearthwood' plays 5v5 Classic (slots 0..4 and 5..9). */
+  config: { seed: number; picks: string[]; tricks: string[]; difficulty: string; humans: number[]; mode?: 'pvp'; fillDifficulty?: [string, string]; map?: 'crossing' | 'hearthwood' };
   slot: number;
 }
 
-/** The team a seat sees the match as (PvP: slots 3..5 are team 1; party and co-op: team 0). */
-export const viewTeamOf = (s: NetStart): 0 | 1 => (s.config.mode === 'pvp' && s.slot >= 3 ? 1 : 0);
+/** The team a seat sees the match as (PvP: slots 3..5 are team 1, 5..9 on Hearthwood; party and co-op: team 0). */
+export const viewTeamOf = (s: NetStart): 0 | 1 => (s.config.mode === 'pvp' && s.slot >= (s.config.map === 'hearthwood' ? 5 : 3) ? 1 : 0);
+/** Hero slots on the wire (PROTO 4: ten). */
+const WIRE_SLOTS = 10;
 
 export type CoreOut =
   | { t: 'selftest'; ok: boolean; hash: string }
@@ -90,7 +93,7 @@ export class NetCore {
   private hidden = false;
   lastMask = 0;
   /** Per slot: turns a bot flew it (from the TURN mode bits of every applied turn). */
-  readonly pilotTurns = [0, 0, 0, 0, 0, 0];
+  readonly pilotTurns: number[] = new Array(WIRE_SLOTS).fill(0);
   /** The turn this player's current bot-flown stretch began, or -1. */
   pilotFrom = -1;
 
@@ -132,6 +135,7 @@ export class NetCore {
       difficulty: s.config.difficulty as never,
       humans: s.config.humans,
       ...(s.config.mode === 'pvp' ? { mode: 'pvp' as const, fillDifficulty: s.config.fillDifficulty as never } : {}),
+      ...(s.config.map ? { map: s.config.map } : {}),
     });
     this.applied = -1;
     this.queued = -1;
@@ -243,12 +247,12 @@ export class NetCore {
     const m = this.m!;
     this.applied = f.turn;
     this.lastMask = f.modeMask;
-    for (let s = 0; s < 6; s++) if ((f.modeMask >>> s) & 1) this.pilotTurns[s]++;
+    for (let s = 0; s < WIRE_SLOTS; s++) if ((f.modeMask >>> s) & 1) this.pilotTurns[s]++;
     const mine = this.start_ ? ((f.modeMask >>> this.start_.slot) & 1) === 1 : false;
     if (mine && this.pilotFrom < 0) this.pilotFrom = f.turn;
     else if (!mine) this.pilotFrom = -1;
     for (let sub = 0; sub < 2 && !result(m); sub++) {
-      const per: Command[][] = [[], [], [], [], [], []];
+      const per: Command[][] = [[], [], [], [], [], [], [], [], [], []];
       for (const e of f.entries) {
         if (e.sub !== sub) continue;
         // defence in depth: the relay decodes every command before a TURN, and the referee skips the same way

@@ -30,9 +30,13 @@ export const PARTY_TIMING = Object.freeze({
 export const MAX_MEMBERS = 3;
 /** Casual PvP (V16.md §4.2): one matched party holds both teams (up to three humans each). */
 export const MAX_CASUAL_MEMBERS = 6;
+/** 5v5 Classic (MAP-5V5.md §9.2): up to five humans a team on Hearthwood. */
+export const MAX_CLASSIC_MEMBERS = 10;
 
 export type Species = 'cat' | 'dog';
-const teamOf = (slot: number): 0 | 1 => (slot >= 3 ? 1 : 0);
+const teamOf = (slot: number, teamSize = 3): 0 | 1 => (slot >= teamSize ? 1 : 0);
+/** Seats per team of a matched PvP party (classic: 5 on Hearthwood). */
+export const casualTeamSize = (c: { map?: string } | undefined): 3 | 5 => (c?.map === 'hearthwood' ? 5 : 3);
 
 /** The casual PvP part of a matched party: each member's planned slot, both teams' species and fill profiles. */
 export interface PartyCasual {
@@ -44,6 +48,8 @@ export interface PartyCasual {
     humans: number[];
     /** Slots that queued together (pre-made parties of 2 or 3): a member's leave never opens a remake for its mates. */
     premade?: number[][];
+    /** 5v5 Classic: 'hearthwood' (slots 0..4 and 5..9, leads 0 and 5). Absent: Crossing 3v3. */
+    map?: 'hearthwood';
 }
 
 export interface MemberIdentity {
@@ -128,8 +134,8 @@ export interface StartPlan {
     occupied: number[];
     seats: { slot: number; hero: string; trick: string }[];
     difficulty: string;
-    /** Casual PvP: the sim runs `mode: 'pvp'` with these fill profiles; `species` per team. */
-    pvp?: { fillDifficulty: [string, string]; species: [Species, Species]; premade?: number[][] };
+    /** Casual PvP: the sim runs `mode: 'pvp'` with these fill profiles; `species` per team; `map` for 5v5 Classic. */
+    pvp?: { fillDifficulty: [string, string]; species: [Species, Species]; premade?: number[][]; map?: 'hearthwood' };
 }
 
 export interface PartyEvents {
@@ -556,7 +562,7 @@ export class PartyService {
 
     /** Casual PvP: the team of a member (from its slot), else 0. */
     teamOfMember(p: Party, m: Member): 0 | 1 {
-        return p.mm?.casual && m.slot !== undefined ? teamOf(m.slot) : 0;
+        return p.mm?.casual && m.slot !== undefined ? teamOf(m.slot, casualTeamSize(p.mm.casual)) : 0;
     }
 
     /** The species a member must pick: its team's in casual PvP, the match's in co-op, else null. */
@@ -685,18 +691,20 @@ export class PartyService {
 
     /**
      * Casual PvP: every planned human slot plays (a member who left in the pick leaves a piloted seat with a free hero of
-     * its team's species), slots 0 and 3 always among them; the sim runs `mode: 'pvp'`.
+     * its team's species), slots 0 and 3 always among them (0 and 5 on Hearthwood); the sim runs `mode: 'pvp'`.
      */
     private launchCasual(p: Party, casual: PartyCasual, seed: number, occupied: number[]): void {
-        const humans = [...new Set([...casual.humans, 0, 3])].sort((a, b) => a - b);
+        const n = casualTeamSize(casual);
+        const teamOfSeat = (slot: number) => teamOf(slot, n);
+        const humans = [...new Set([...casual.humans, 0, n])].sort((a, b) => a - b);
         const seats = p.members
             .map(m => ({ slot: m.slot!, hero: m.hero!, trick: m.trick! }))
             .sort((a, b) => a.slot - b.slot);
         const heroes = this.heroesOf(p);
         for (const s of humans) {
             if (seats.some(x => x.slot === s)) continue;
-            const team = teamOf(s);
-            const used = seats.filter(x => teamOf(x.slot) === team).map(x => x.hero);
+            const team = teamOfSeat(s);
+            const used = seats.filter(x => teamOfSeat(x.slot) === team).map(x => x.hero);
             const hero =
                 heroes.find(h => !used.includes(h) && this.rules.sideOf(h) === casual.species[team]) ?? heroes[0];
             seats.push({ slot: s, hero, trick: this.rules.tricks[s % this.rules.tricks.length] });
@@ -720,6 +728,7 @@ export class PartyService {
                 fillDifficulty: [...casual.fillDifficulty] as [string, string],
                 species: [...casual.species] as [Species, Species],
                 ...(casual.premade?.length ? { premade: casual.premade.map(g => g.slice()) } : {}),
+                ...(casual.map ? { map: casual.map } : {}),
             },
         });
     }
@@ -894,6 +903,7 @@ export class PartyService {
                 mode: 'casual',
                 team: myTeam,
                 species: [...casual.species] as [Species, Species],
+                ...(casual.map ? { map: casual.map, teamSize: casualTeamSize(casual) } : {}),
             };
         else if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
         if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };
@@ -965,7 +975,11 @@ export class PartyService {
         identity: MemberIdentity,
         hint?: { maxDifficulty: string; newbie: boolean }
     ): Member | null {
-        const max = p.mm?.casual ? MAX_CASUAL_MEMBERS : MAX_MEMBERS;
+        const max = p.mm?.casual
+            ? casualTeamSize(p.mm.casual) === 5
+                ? MAX_CLASSIC_MEMBERS
+                : MAX_CASUAL_MEMBERS
+            : MAX_MEMBERS;
         if (p.ended || p.members.length >= max || p.members.some(m => m.id === memberId)) return null;
         this.leave(memberId);
         const m = this.makeMember(memberId, identity, hint);

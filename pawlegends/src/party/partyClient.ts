@@ -12,7 +12,7 @@
 import { SIM_VERSION } from '../sim/version';
 import { NetHost, type NetNote } from '../net/net-host';
 import { PartySocket, browserSocketEnv, type SocketEnv } from '../net/socket';
-import { WS_PATH, normalizeCode, type ClientJson, type MatchMsg, type MmSide, type PartyView, type ServerJson } from '../net/proto';
+import { WS_PATH, normalizeCode, type ClientJson, type MatchMsg, type MmQueue, type MmSide, type PartyView, type ServerJson } from '../net/proto';
 import { TRICK_IDS } from '../data/tricks';
 import { HERO_IDS, HEROES } from '../data/heroes';
 import { COPY, clockText, errorText, esc } from './ui/copy';
@@ -62,7 +62,7 @@ export interface QueueStatus {
 export interface QueueState {
   side: MmSide;
   /** 'casual': PvP (PROTO 3, V16.md §4.1). */
-  mode: 'coop' | 'casual';
+  mode: MmQueue;
   /** Casual: no opponent by 45 s, the search moved to co-op (the card offers Keep waiting). */
   toCoop?: boolean;
   /** Casual: back at the front after someone declined a found match. */
@@ -158,7 +158,7 @@ export type PartyEvent =
   | { e: 'join'; code: string }
   | { e: 'create' }
   /** Quick Play: search (the title's "Play online", the lobby's leader button, Search again, Play again). */
-  | { e: 'queue'; side: MmSide; requeue?: boolean; mode?: 'coop' | 'casual' }
+  | { e: 'queue'; side: MmSide; requeue?: boolean; mode?: MmQueue }
   /** Casual PvP: Accept or Decline the found match (null: the 10 s ran out locally). */
   | { e: 'accept'; yes: boolean | null }
   /** Casual PvP: Keep waiting after the move to co-op. */
@@ -170,7 +170,7 @@ export type PartyEvent =
   | { e: 'offer'; yes: boolean | null };
 
 /** A fresh search. */
-export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean; mode?: 'coop' | 'casual' } = {}): QueueState => ({
+export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean; mode?: MmQueue } = {}): QueueState => ({
   side,
   mode: o.mode ?? 'coop',
   status: null,
@@ -181,7 +181,7 @@ export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean;
   requeue: !!o.requeue,
 });
 
-export const initialParty = (mode: OpenMode, code: string | null = null, side: MmSide = 'any', queueMode: 'coop' | 'casual' = 'coop'): PartyState => ({
+export const initialParty = (mode: OpenMode, code: string | null = null, side: MmSide = 'any', queueMode: MmQueue = 'coop'): PartyState => ({
   mode,
   accept: null,
   voided: false,
@@ -373,7 +373,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const base = s.queue && !s.queue.found ? s.queue : searching(m.side, { party: !!s.view && !isStranger(s.view), mode: m.queue });
       // casual: the 45 s move to co-op (`from: 'casual'`), a requeue after a decline, the other team's humans
       const toCoop = m.from === 'casual' && m.queue === 'coop';
-      const pvp = m.queue === 'casual' || toCoop;
+      const pvp = m.queue === 'casual' || m.queue === 'classic' || toCoop;
       return {
         state: {
           ...s,
@@ -527,7 +527,7 @@ export interface PartyHooks {
   /** Quick Play: the side of the first search ("Play online"; the last one this viewer used). */
   queueSide?: MmSide;
   /** Casual PvP: the first search's queue (the title's mode chip). */
-  queueMode?: 'coop' | 'casual';
+  queueMode?: MmQueue;
   /** Completed matches (the casual PvP newbie lock hint). */
   matches?: number;
   /** Quick Play: the player changed the side (remembered for the next search). */
@@ -892,7 +892,7 @@ export class PartyClient {
   }
 
   /** Search (again) with the remembered side (and queue: casual after a PvP match). */
-  queueNow(requeue = false, mode?: 'coop' | 'casual'): void {
+  queueNow(requeue = false, mode?: MmQueue): void {
     const m = mode ?? (this.state.view?.mm?.mode === 'casual' || this.state.voided ? 'casual' : this.state.queue?.mode ?? this.h.queueMode ?? 'coop');
     this.dispatch({ e: 'queue', side: this.state.queue?.side ?? this.h.queueSide ?? 'any', requeue, mode: m });
   }
