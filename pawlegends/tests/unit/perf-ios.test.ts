@@ -7,7 +7,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import { isIosWebKit, isPhoneDevice } from '../../src/render/perf/device';
 import { FramePacer, MATCH_FPS, MENU_FPS, PAUSED_FPS, SAVER_FPS, paceTarget } from '../../src/render/perf/pacer';
 import { GOV, GOV_MAX, GOV_STEP, ThermalGovernor, type ThermalState } from '../../src/render/perf/governor';
-import { autoBatterySaver, batterySaver, resetPerfPrefs, savePerfStep, savedPerfStep, setBatterySaver } from '../../src/render/perf/prefs';
+import { autoBatterySaver, batterySaver, releaseAutoSaver, resetPerfPrefs, savePerfStep, savedPerfStep, setBatterySaver } from '../../src/render/perf/prefs';
 import { parseThermal } from '../../src/render/perf/thermal';
 import { rememberTier, rememberedTier, startTier, tierSettings } from '../../src/render/quality';
 
@@ -245,6 +245,17 @@ describe('per-device preferences', () => {
     expect(batterySaver().on).toBe(false);
     resetPerfPrefs();
     expect(batterySaver()).toEqual({ on: false, by: 'user' });
+  });
+  it('the game releases only its own Battery saver (a warm session never locks 30 fps for good)', () => {
+    expect(releaseAutoSaver()).toBe(false);
+    autoBatterySaver();
+    expect(releaseAutoSaver()).toBe(true);
+    expect(batterySaver()).toEqual({ on: false, by: 'default' });
+    resetPerfPrefs();
+    expect(batterySaver()).toEqual({ on: false, by: 'default' });
+    setBatterySaver(true);
+    expect(releaseAutoSaver()).toBe(false);
+    expect(batterySaver()).toEqual({ on: true, by: 'user' });
   });
   it('the governor step is kept between launches', () => {
     expect(savedPerfStep()).toBe(0);

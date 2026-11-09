@@ -1501,3 +1501,5 @@ html[data-phone='1'][data-screen='match'] .pl-portrait.talent-ready { animation:
 html[data-phone='1'][data-screen='match'] .pl-portrait .charge[data-state='charged'] { animation: none; }
 html[data-phone='1'][data-screen='match'] .pl-hud[data-phase='suddenDeath'] .pl-score { animation: none; box-shadow: 0 0 0 4px var(--enemy), 0 6px 18px rgba(0, 0, 0, 0.25); }
 html[data-phone='1'][data-screen='match'] *, html[data-phone='1'][data-screen='match'] *::before, html[data-phone='1'][data-screen='match'] *::after { animation-iteration-count: 1 !important; }
+/* the loading veil's spinner keeps turning (transform only, gone once the match shows): a stopped one reads as a hang */
+html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteration-count: infinite !important; }
