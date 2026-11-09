@@ -4,7 +4,7 @@
  * stealing of the oldest lower-priority voice, volume caps by layer, relation gain and a soft duck once many voices
  * play. Pure bookkeeping (no AudioContext): audio/sfx.ts asks `admit`, starts the node, then `add`s it. Render only.
  */
-import { MIX } from '../data/identity';
+import { MIX } from '../render/identity';
 
 export type MixLayer = 'cast' | 'impact' | 'travel' | 'motif' | 'basicVoice' | 'ultVoice';
 export type MixRelation = 'mine' | 'enemy' | 'ally' | 'minion';

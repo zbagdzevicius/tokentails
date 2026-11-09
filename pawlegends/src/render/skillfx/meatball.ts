@@ -26,7 +26,7 @@
  */
 import { stubFx } from '../anim/common';
 import { playSkillSfx } from '../../audio/skillSfx';
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../identity';
 import { DASH_SPEED, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxSpawn, SkillFxSet, V3Out } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';

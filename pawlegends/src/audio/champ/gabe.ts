@@ -9,7 +9,7 @@
  * Look: pink hearts (normal blend, so they read on grass) with white feathers drifting down. Chase the Wind streams
  * mostly feathers along her path; Under Her Spell throws its hearts forward into the cone.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: audio/champ never imports three.js). */

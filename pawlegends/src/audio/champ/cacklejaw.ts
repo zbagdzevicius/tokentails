@@ -10,7 +10,7 @@
  * paints only the shadow puff here: the grin he leaves behind is drawn by the script for his own team only.
  * Colour pair #3A2A5A shadow plum / #B8F040 acid lime.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import { screenRightXZ } from '../../render/coords';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 

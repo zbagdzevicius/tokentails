@@ -14,7 +14,7 @@
  * Colours are 0xRRGGBB. Particle shapes are names of render/fx/Particles.js SHAPE; `sprite` is the intended art when
  * the shape is a stand-in.
  */
-import type { HeroId } from './heroes/types';
+import type { HeroId } from '../data/heroes/types';
 
 /** zzfx 1.4: [volume, randomness, frequency, attack, sustain, release, shape, shapeCurve, slide, deltaSlide, pitchJump,
  * pitchJumpTime, repeatTime, noise, modulation, bitCrush, delay, sustainVolume, decay, tremolo, filter]. */

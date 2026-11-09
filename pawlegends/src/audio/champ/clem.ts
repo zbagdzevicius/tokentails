@@ -8,7 +8,7 @@
  * Look: a sunburst: one peach 8-ray sun with sunlight rays streaking flat out of it (bigger on Paw Combo and Golden
  * Hour; on Tumble the sun drifts back along the dash like an afterimage).
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE / GROW ids (numbers here: this file stays free of render imports). */

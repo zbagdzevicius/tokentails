@@ -8,7 +8,7 @@
  * Look: white bowling pins (a fat drop) with a basil-green glint spin off his casts and hits; Loaf Mode and Food Coma
  * draw lilac "Z"s instead.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: audio/champ never imports three.js). */

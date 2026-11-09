@@ -9,7 +9,7 @@
  * Look: a short string of amber bulbs on a grey cord, the bulbs twinkling; around him on casts, out along the aim on
  * Tuna Toss.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: audio/champ never imports three.js). */

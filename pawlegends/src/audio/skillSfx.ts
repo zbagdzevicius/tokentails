@@ -9,7 +9,7 @@
  */
 import type { HeroId } from '../data/heroes/types';
 import { HERO_IDS } from '../data/heroes';
-import { IDENTITY, MIX, NATURE, NATURES, type Nature, type SkillKey, type Zzfx } from '../data/identity';
+import { IDENTITY, MIX, NATURE, NATURES, type Nature, type SkillKey, type Zzfx } from '../render/identity';
 import { CHAMP_AUDIO } from './champ';
 import type { SkillPhase, SkillSound } from './champ/types';
 import { mixPriority, type MixLayer, type MixRelation } from './identityMix';

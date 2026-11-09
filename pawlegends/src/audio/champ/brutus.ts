@@ -10,7 +10,7 @@
  * Look: a heraldic crest stamp: a steel ring with a sandstone star (the chevron stand-in) inside it that holds, with
  * a little sand kicked up. Colour pair #D6A36A sandstone / #C8CED6 steel.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: this data file carries no render import). */

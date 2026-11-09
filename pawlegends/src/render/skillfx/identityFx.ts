@@ -10,7 +10,7 @@ import { mixPriority, type MixLayer, type MixRelation } from '../../audio/identi
 import { sfx } from '../../audio/sfx';
 import { champSound } from '../../audio/skillSfx';
 import type { HeroId } from '../../data/heroes/types';
-import { IDENTITY, type SkillKey } from '../../data/identity';
+import { IDENTITY, type SkillKey } from '../identity';
 import type { FxCtx, Relation3 } from '../anim/types';
 import { NATURE_FX, motifColors } from '../fx/natureFx';
 import { FADE, SHAPE } from '../fx/Particles.js';

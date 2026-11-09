@@ -9,7 +9,7 @@
  * Look: zig-zag sparks in pale volt that end in a raspberry drupelet cluster (a tight clump of raspberry dots with
  * one yellow glint), in her colour pair (#C83A8C raspberry / #FFF3A6 pale volt).
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: this data file carries no render import). */

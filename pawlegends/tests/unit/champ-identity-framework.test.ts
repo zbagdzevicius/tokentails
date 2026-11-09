@@ -9,7 +9,7 @@ import { PL_SFX } from '../../src/audio/sfx';
 import { zzfxDuration } from '../../src/audio/sfxDefs.js';
 import { basicVoiceAllowed, identityDefs, planSkillSfx, skillKey } from '../../src/audio/skillSfx';
 import { HERO_IDS } from '../../src/data/heroes';
-import { MIX, NATURE, NATURES, SKILL_KEYS, natureOf } from '../../src/data/identity';
+import { MIX, NATURE, NATURES, SKILL_KEYS, natureOf } from '../../src/render/identity';
 import { NATURE_FX, NATURE_FX_BUDGET, NatureFx } from '../../src/render/fx/natureFx';
 import { SHAPE } from '../../src/render/fx/Particles.js';
 

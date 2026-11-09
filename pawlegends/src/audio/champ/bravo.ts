@@ -10,7 +10,7 @@
  * Look: a cream spotlight blink from above with violet stage sparkle; Crocodile Tears and the flop shed aqua tears;
  * ENCORE! throws violet and cream confetti. Colour pair #B07CFF stage violet / #FFF4DC spotlight.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: this data file carries no render import). */

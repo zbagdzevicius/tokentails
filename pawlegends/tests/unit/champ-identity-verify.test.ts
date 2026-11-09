@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 import { CHAMP_AUDIO } from '../../src/audio/champ';
 import { planSkillSfx } from '../../src/audio/skillSfx';
 import { HERO_IDS } from '../../src/data/heroes';
-import { IDENTITY, natureOf } from '../../src/data/identity';
+import { IDENTITY, natureOf } from '../../src/render/identity';
 import { NATURE_FX, NatureFx, motifColors, paleGold } from '../../src/render/fx/natureFx';
 import { MIX_REL } from '../../src/render/skillfx/identityFx';
 

@@ -8,7 +8,7 @@
  * Look: tiny gold crowns (three gold spikes and a plum jewel) floating up out of plum fluff wisps. On Fluff Puff a
  * crown sits on the rolling ball; on the Snub it drops onto the stunned head.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers here: this file stays free of render imports). */

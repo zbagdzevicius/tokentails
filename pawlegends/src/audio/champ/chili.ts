@@ -8,7 +8,7 @@
  * Look: little chili peppers (pepper-orange body, green stem) thrown out with an anger "!"; at 5 Rage the peppers sit
  * in a ring over his head (the pepper crown); Zoomies leaves them behind as afterimages.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers here: this file stays free of render imports). */

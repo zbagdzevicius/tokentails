@@ -9,7 +9,7 @@
  * Look: a ketchup-and-mustard zig-zag squiggle: two interleaved strands of dots (mustard and ketchup) along the skill's
  * direction; the Combo crosses the two strands into an X.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers here: this file stays free of render imports). */
