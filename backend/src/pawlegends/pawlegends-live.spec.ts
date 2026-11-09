@@ -201,18 +201,18 @@ describe('PAWLEGENDS /live branch', () => {
             expect(error).toBeInstanceOf(BadRequestException);
             expect(error.getResponse()).toMatchObject({
                 code: ErrorCode.PAWLEGENDS_SIM_VERSION,
-                sim: { simVersion: SIM_VERSION, simVersions: [10, 11, 12, 13, 14, 15, 16, 17] },
+                sim: { simVersion: SIM_VERSION, simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18] },
             });
             expect(verify).not.toHaveBeenCalled();
             expect(games.rows).toHaveLength(0);
         }
     );
 
-    it('sim v17 verifier: accepts v10 to v17 (GAPS B0; v9 retired), names all eight in GET /pawlegends/sim', async () => {
-        expect(SIM_VERSION).toBe(17);
-        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17]);
-        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 17, simVersions: [10, 11, 12, 13, 14, 15, 16, 17] });
-        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11', '12', '13', '14', '15', '16', '17']);
+    it('sim v18 verifier: accepts v10 to v18 (GAPS B0; v9 retired), names all nine in GET /pawlegends/sim', async () => {
+        expect(SIM_VERSION).toBe(18);
+        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18]);
+        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 18, simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18] });
+        expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11', '12', '13', '14', '15', '16', '17', '18']);
         const fakeHash: Record<number, string> = {
             10: '10100000',
             11: '11110000',
@@ -222,8 +222,9 @@ describe('PAWLEGENDS /live branch', () => {
             15: '15150000',
             16: '16160000',
             17: '17170000',
+            18: '18180000',
         };
-        for (const simVersion of [10, 11, 12, 13, 14, 15, 16, 17]) {
+        for (const simVersion of [10, 11, 12, 13, 14, 15, 16, 17, 18]) {
             const record = genuine({ simVersion, finalHash: fakeHash[simVersion] });
             const { save, games } = setup(record);
             expect(await save(record)).toMatchObject({ outcome: 'won' });
@@ -504,7 +505,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(users.updates).toHaveLength(0);
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18]])(
             'sim v%s: re-sims a genuine shelter champion match in the worker; its v9 twin is refused before any re-sim',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (CHAMPION_FIXTURE_HERO, the naive player-bot on Easy); v10 is frozen.
@@ -679,6 +680,31 @@ describe('PAWLEGENDS /live branch', () => {
             expect(party?.verifyPvpReplay?.({ ...pvp17, simVersion: 16 })).toMatchObject({ ok: false });
         }, 120_000);
 
+        it('sim v18: a v18 replay labelled v17 (or v17 labelled v18) does not verify; the frozen v17 PvP replay still does', () => {
+            const v17 = fixture(17, 'rookie');
+            const v18 = fixture(18, 'rookie');
+            expect(verifyBySimVersion(v17)).toMatchObject({ ok: true, finalHash: v17.finalHash, ticks: v17.ticks });
+            expect(verifyBySimVersion(v18)).toMatchObject({ ok: true, finalHash: v18.finalHash, ticks: v18.ticks });
+            if (v18.finalHash !== v17.finalHash) {
+                expect(verifyBySimVersion({ ...v18, simVersion: 17 }).ok).toBe(false);
+                expect(verifyBySimVersion({ ...v17, simVersion: 18 }).ok).toBe(false);
+            }
+            const dog18 = fixture(18, 'new-dog');
+            expect(dog18).toMatchObject({ hero: 'frankie', simVersion: 18 });
+            expect(verifyBySimVersion(dog18)).toMatchObject({ ok: true, finalHash: dog18.finalHash, ticks: dog18.ticks });
+            // The frozen v17 bundle still verifies its own PvP record; the live v18 verifies the v18 one.
+            const pvp17 = fixture(17, 'pvp') as any;
+            expect((simFor(17)?.party?.verifyPvpReplay?.(pvp17) as any)?.ok).toBe(true);
+            const pvp18 = fixture(18, 'pvp') as any;
+            expect(pvp18).toMatchObject({ v: 3, mode: 'pvp', simVersion: 18, difficulty: 'hard' });
+            const party = simFor(18)?.party;
+            expect(party?.PARTY_SINCE).toBe(13);
+            expect(party?.PVP_SINCE).toBe(16);
+            expect(party?.HERO_IDS).toHaveLength(20);
+            expect(party?.verifyPvpReplay?.(pvp18)).toMatchObject({ ok: true, finalHash: pvp18.finalHash, ticks: pvp18.ticks });
+            expect(party?.verifyPvpReplay?.({ ...pvp18, simVersion: 17 })).toMatchObject({ ok: false });
+        }, 120_000);
+
         it('sim v13 (party play, frozen) still verifies; v13 and v14 both carry party code (v12 shipped without it)', () => {
             const v13 = fixture(13, 'rookie');
             expect(verifyBySimVersion(v13)).toMatchObject({ ok: true, finalHash: v13.finalHash, ticks: v13.ticks });
@@ -713,7 +739,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(v11.stats[0].fish).toBeUndefined();
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18]])(
             'sim v%s forfeit (GAPS B2): a genuine forfeited Normal match verifies, is a loss stored as quit, pays nothing',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (FORFEIT_FIXTURE_SEED: the normal player-bot to 4:00, then Op.Forfeit).
@@ -748,7 +774,7 @@ describe('PAWLEGENDS /live branch', () => {
             60_000
         );
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18]])(
             'sim v%s: re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` with the vendored sim (the naive player-bot), so it is always current.
