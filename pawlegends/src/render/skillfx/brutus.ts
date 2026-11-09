@@ -39,7 +39,8 @@ import { shower } from '../fx/fun/skills2Fun';
 import { SHAPE } from '../fx/Particles.js';
 import { champSound } from '../../audio/skillSfx';
 import { sfx } from '../../audio/sfx';
-import { mixPriority, type MixRelation } from '../../audio/identityMix';
+import { mixPriority } from '../../audio/identityMix';
+import { MIX_REL } from './identityFx';
 
 const SAND = 0xffd9a0;
 const GOLD = 0xffd34d;
@@ -151,7 +152,6 @@ function woof(fx: FxCtx, at: { x: number; z: number }, vol = 1): void {
   else fx.sfx.cue('drum', at, 0.7 * vol);
 }
 
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
 
 /** One of his own sounds (audio/champ/brutus.ts: anvil, crest) through the identity mix, on the motif layer. */
 function accent(fx: FxCtx, id: number, name: string, at: { x: number; z: number }, rate = 1): void {

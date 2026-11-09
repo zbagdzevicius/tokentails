@@ -22,8 +22,9 @@ import { shower } from '../fx/fun/skills2Fun';
 import { P, Q, mesh, vary } from './dogFx';
 import { champSound, playSkillSfx } from '../../audio/skillSfx';
 import { sfx } from '../../audio/sfx';
-import { mixPriority, type MixRelation } from '../../audio/identityMix';
+import { mixPriority } from '../../audio/identityMix';
 import type { Relation3 } from '../anim/types';
+import { MIX_REL } from './identityFx';
 
 const LIGHT = 0xfff4dc;
 const VELVET = 0xb07cff;
@@ -41,7 +42,6 @@ let clock = 0;
 const R_AT = new Float64Array(16).fill(-9);
 /** An ENCORE! hit this long after the cast is the charm landing. */
 const ENCORE_HIT_S = 1.2;
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
 
 /** His trumpet "ta-da" (audio/champ/bravo.ts) through the identity mix, on the motif layer. */
 function tada(rel: Relation3, at: { x: number; z: number }, rate = 1): void {

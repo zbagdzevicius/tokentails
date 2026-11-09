@@ -35,13 +35,14 @@
  */
 import { stubFx } from '../anim/common';
 import { TICK_S, travelTicks } from '../anim/timing';
-import type { FxCtx, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
+import type { FxCtx, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
 import { STILTS_STATE, STRIDE_MAX } from '../moves/stilts';
 import { mixPriority, type MixRelation } from '../../audio/identityMix';
 import { sfx } from '../../audio/sfx';
 import { champSound, playSkillSfx, type SkillPhase } from '../../audio/skillSfx';
 import { flying, funCount, funPop, funRand, funRank, funSfx, pawTrail, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
 import { S3Once, s3HeadY } from '../fx/fun/skills3Kit';
+import { MIX_REL } from './identityFx';
 
 /** Terracotta (her accent), a pale dust, cream highlights and a rust for the prints. */
 const TERRA = 0xd9734a;
@@ -67,7 +68,6 @@ const RIBBON_LIFE = 0.55;
 /** Fun stickers: the prints' cream, the "!" butter yellow (never red). */
 const PRINT = 0xfff1de;
 const BANG = 0xffe36a;
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
 const relOf = (fx: FxCtx, id: number): MixRelation => MIX_REL[fx.relation(id)] ?? 'enemy';
 
 /** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */

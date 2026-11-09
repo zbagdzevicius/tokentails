@@ -35,7 +35,8 @@ import { funCount, funPop, funRand, funRank, orbit, sticker, stickerBurst } from
 import { S3Once, s3Eyes, s3HeadY } from '../fx/fun/skills3Kit';
 import { champSound } from '../../audio/skillSfx';
 import { sfx } from '../../audio/sfx';
-import { mixPriority, type MixRelation } from '../../audio/identityMix';
+import { mixPriority } from '../../audio/identityMix';
+import { MIX_REL } from './identityFx';
 
 const CORE = 0xb07cff;
 const PALE = 0xd9c4ff;
@@ -226,7 +227,6 @@ const sameSide = (fx: FxCtx, a: number, b: number): boolean => {
 
 // ------------------------------------------------------------------------------------------------ basics
 
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
 const GR = { x: 0, z: 0 };
 
 /** His kazoo "hee-hee-hee" (audio/champ/cacklejaw.ts) through the identity mix, on the motif layer. */

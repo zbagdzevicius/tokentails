@@ -19,14 +19,14 @@
  * Pooled, no allocation per event or per frame. Render only.
  */
 import { PROJECTILE_KIND } from '../../data/towers';
-import type { MixRelation } from '../../audio/identityMix';
 import { playSkillSfx } from '../../audio/skillSfx';
 import { TICK_S } from '../anim/timing';
-import type { FxCtx, Relation3, SkillFxSet } from '../anim/types';
+import type { FxCtx, SkillFxSet } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
 import { funOverY, funPop, funSound, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
 import { shower } from '../fx/fun/skills2Fun';
 import { F, P, Q, aimDir, mesh, vary } from './dogFx';
+import { MIX_REL } from './identityFx';
 
 const PINK = 0xff9fd6;
 const HEAL = 0x7dff8a;
@@ -34,7 +34,6 @@ const DUST = 0xf2dcc0;
 const DISC = 0xffb3e0;
 /** His identity colour pair's primary (data/identity.ts): the bone treats. */
 const TREAT = 0xe0782e;
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
 
 /** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */
 function skillSound(fx: FxCtx, id: number, skill: 'q' | 'w' | 'e' | 'r', phase: 'impact' | 'travel', at: { x: number; z: number }): void {
