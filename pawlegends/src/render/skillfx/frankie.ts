@@ -13,15 +13,25 @@
  *   he stands to the flying tip (his head look, projectileView), so no bone is ever scaled; the slide whistle and
  *   "FOOTLONG!"; on the grab (the `clip` event 'footlong') the snap and "SNAP!"; on a miss the stretch just fades back.
  *
+ * Champion identity (CHAMP-IDENTITY.md §3, audio/champ/frankie.ts): every skill also draws its nature accent (Q and W
+ * impact dust rings, E mobility puffs, R fire embers, the Combo's splash) and his motif, a ketchup-and-mustard zig-zag
+ * squiggle: along the roll, out of the ground on the pop-up, under the bun hop, as stripes down the FOOTLONG stretch,
+ * crossed into an X on a Combo. On an enemy the mustard is a pale glint. Sounds: the framework plays the nature layer
+ * with his slide-whistle motif (R: the stretch ult voice); the cork pop (Dig), the snap (FOOTLONG grab) and the Combo
+ * squirt are his champion impact sounds, so this script no longer plays the yip or the stretch on the cast.
+ *
  * Pooled, no allocation per event or per frame. Render only.
  */
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BuffFlag } from '../../sim/api';
-import type { SkillFxSet } from '../anim/types';
+import { playSkillSfx } from '../../audio/skillSfx';
+import { IDENTITY, type SkillKey } from '../../data/identity';
+import type { FxCtx, SkillFxSet } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
-import { funHeroOf, funOverY, funPop, funSound, sticker } from '../fx/fun/funKit';
+import { funHeroOf, funOverY, funPop, sticker } from '../fx/fun/funKit';
 import { shower, throwSticker } from '../fx/fun/skills2Fun';
 import { F, P, Q, aimDir, faceOf, mesh, vary, yawOf } from './dogFx';
+import { ENEMY_PAIR, MIX_REL, drawIdentity } from './identityFx';
 
 const KETCHUP = 0xe8302a;
 const BUN = 0xd99a4e;
@@ -46,12 +56,21 @@ const HIT_TICK = new Int32Array(16).fill(-1);
 const HIT_DST = new Int16Array(16).fill(-1);
 const ok = (id: number): boolean => id >= 0 && id < 16;
 
+// ------------------------------------------------------------------------------------------------ champion identity
+
+/** Champion identity (render/skillfx/identityFx.ts drawIdentity): the skill's nature accent and Frankie's motif. */
+const identity = (fx: FxCtx, src: number, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void =>
+  drawIdentity(fx, 'frankie', src, skill, x, y, z, n, dx, dz, nature);
+
+/** Stretch stripe colours: ketchup, and the mustard (a pale glint on an enemy). */
+const MUSTARD = IDENTITY.frankie.colors.primary;
+
 /**
  * One frame of the stretched body from (ax, az) to the tip (bx, bz): a row of opaque bun puffs with the sausage on top
  * each living two frames. Alpha stickers,
  * not ribbons: the ribbons are additive, and brown on grass vanished.
  */
-function stretch(fx: Parameters<NonNullable<SkillFxSet['update']>>[1], ax: number, az: number, bx: number, bz: number): void {
+function stretch(fx: Parameters<NonNullable<SkillFxSet['update']>>[1], ax: number, az: number, bx: number, bz: number, foe: boolean): void {
   const l = Math.hypot(bx - ax, bz - az);
   const n = Math.min(MAX_PUFFS, Math.max(1, Math.round(l / STEP)));
   for (let k = 0; k <= n; k++) {
@@ -60,7 +79,12 @@ function stretch(fx: Parameters<NonNullable<SkillFxSet['update']>>[1], ax: numbe
     const z = az + (bz - az) * t;
     sticker(fx, x, 0.5, z, 'PUFF', BUN, 0.95, 0.06);
     sticker(fx, x, 0.68, z, 'SOFT', SAUSAGE, 0.6, 0.06);
+    // identity: ketchup and mustard stripes down the sausage
+    if (k % 3 === 1) sticker(fx, x, 0.86, z, 'SOFT', (k / 3) & 1 ? KETCHUP : foe ? ENEMY_PAIR.frankie!.primary : MUSTARD, 0.24, 0.06);
   }
+  // the sizzle: one ember rising off the stretch each frame
+  const t = vary();
+  sticker(fx, ax + (bx - ax) * t, 0.9, az + (bz - az) * t, 'SPARK', 0xff8a3a, 0.16, 0.35, 1.4);
 }
 
 export const SKILL_FX: SkillFxSet = {
@@ -79,7 +103,8 @@ export const SKILL_FX: SkillFxSet = {
           ROLL_T[e.src] = 0.34;
           ROLL_N[e.src] = 0;
         }
-        funSound('frankieYip', P, 1, 0.45);
+        // identity: the impact dust ring and a squiggle off the roll
+        identity(fx, e.src, 'q', P.x, 0.2, P.z, 6, F.x, F.z);
         return;
       case 1:
         if (ok(e.src)) {
@@ -87,12 +112,17 @@ export const SKILL_FX: SkillFxSet = {
           DIG_N[e.src] = 0;
         }
         shower(fx, P.x, 0.2, P.z, 10, SHAPE.PUFF, DIRT, 0.32, 0.5, 2.4, 1.6, 6, vary());
+        // identity: the dive's dust ring and a mustard squiggle where he goes under
+        identity(fx, e.src, 'w', P.x, 0.1, P.z, 4, F.x, F.z);
         return;
       case 2:
         shower(fx, P.x, 0.5, P.z, 8, SHAPE.PUFF, CRUMB, 0.18, 0.5, 2.0, 1.8, 6, vary());
+        // identity: mobility puffs and the zig-zag under the hop
+        identity(fx, e.src, 'e', P.x, 0.3, P.z, 6, F.x, F.z);
         return;
       default:
-        funSound('frankieStretch', P, 1, 0.55);
+        // identity: fire embers and a squiggle off the stretch (the slide whistle is his ult voice)
+        identity(fx, e.src, 'r', P.x, 0.4, P.z, 6, F.x, F.z);
         funPop(fx, e.src, 'FOOTLONG!', P.x, funOverY(fx, e.src, 0.4), P.z);
         mesh(fx, 'beam', P.x, P.z, (fx.abil(e.src, 'r').range ?? 9000) / 1000, 0.3, SAUSAGE, rim, rel, { yaw: yawOf(F.x, F.z), sz: 0.6, p3: 0.35 });
     }
@@ -119,6 +149,9 @@ export const SKILL_FX: SkillFxSet = {
       sticker(fx, Q.x, y, Q.z, 'PUFF', KETCHUP, 0.7, 0.45);
       shower(fx, Q.x, y, Q.z, 8, SHAPE.DROPLET, KETCHUP, 0.18, 0.5, 2.4, 1.6, 6, vary());
       funPop(fx, e.src, 'COMBO!', Q.x, y + 0.7, Q.z);
+      // identity: the splash and the two squiggles crossed into an X, and the Combo squirt
+      identity(fx, e.src, 'passive', Q.x, y - 0.6, Q.z, 8);
+      playSkillSfx('frankie', 'passive', 'impact', { at: Q, relation: MIX_REL[fx.relation(e.src)] });
     }
   },
 
@@ -133,18 +166,25 @@ export const SKILL_FX: SkillFxSet = {
       const ang = (k / 8) * Math.PI * 2 + vary();
       throwSticker(fx, P.x, 0.3, P.z, Math.cos(ang) * 3, 4.5, Math.sin(ang) * 3, SHAPE.PUFF, DIRT, 0.3, 0.7, 12, 0, 0, false, 0.1);
     }
-    funSound('frankieDig', P, 1, 0.6);
+    // the pop: his W impact (thud + cork pop) and a squiggle of mustard he bursts out of
+    playSkillSfx('frankie', 'w', 'impact', { at: P, relation: MIX_REL[fx.relation(id)] });
+    identity(fx, id, 'w', P.x, 0.1, P.z, 8);
     funPop(fx, id, 'POP!', P.x, funOverY(fx, id, 0.3), P.z);
   },
 
   onMarker(id, _clip, marker, fx) {
     if (!marker.startsWith('fr:') || !fx.heroPos(id, P)) return;
-    if (marker === 'fr:hop') shower(fx, P.x, 0.4, P.z, 5, SHAPE.PUFF, CRUMB, 0.14, 0.4, 1.4, 1.2, 6, vary());
+    if (marker === 'fr:hop') {
+      shower(fx, P.x, 0.4, P.z, 5, SHAPE.PUFF, CRUMB, 0.14, 0.4, 1.4, 1.2, 6, vary());
+      faceOf(fx, id);
+      identity(fx, id, 'e', P.x, -0.2, P.z, 4, F.x, F.z, false);
+    }
   },
 
   onClip(id, what, fx) {
     if (what !== 'footlong' || !ok(id) || !fx.heroPos(id, P)) return;
-    funSound('frankieSnap', P, 1, 0.6);
+    // the grab: his R impact (fire + the snap)
+    playSkillSfx('frankie', 'r', 'impact', { at: P, relation: MIX_REL[fx.relation(id)] });
     funPop(fx, id, 'SNAP!', P.x, funOverY(fx, id, 0.4), P.z);
     if (fx.relation(id) === 'own' && !fx.reduced) fx.cam.punch(0.04);
   },
@@ -160,6 +200,8 @@ export const SKILL_FX: SkillFxSet = {
           faceOf(fx, id);
           fx.linger.add('scratches', P.x, P.z, 0.7, yawOf(F.x, F.z), 0x3a2418);
           shower(fx, P.x, 0.15, P.z, 2, SHAPE.PUFF, 0xe8dcc8, 0.25, 0.35, 1.2, 0.5, 2, vary());
+          // identity: the ketchup-mustard spiral trail behind the roll
+          identity(fx, id, 'q', P.x, -0.3, P.z, 2, F.x, F.z, false);
         }
       }
       if (DIG_T[id] > 0) {
@@ -177,7 +219,7 @@ export const SKILL_FX: SkillFxSet = {
         TIP_T[id] += dt;
         if (fx.projPos?.(TIP[id], Q) && fx.heroPos(id, P)) {
           TIP_SEEN[id] = 1;
-          stretch(fx, P.x, P.z, Q.x, Q.z);
+          stretch(fx, P.x, P.z, Q.x, Q.z, fx.relation(id) === 'enemy');
         } else if (TIP_SEEN[id] || TIP_T[id] > 0.3) TIP[id] = -1;
       }
     }

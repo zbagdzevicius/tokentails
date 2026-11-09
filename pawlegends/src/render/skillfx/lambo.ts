@@ -21,10 +21,16 @@
  * - passive Brave With Friends: faint twinkling constellation lines to allied heroes within 4 m (own / ally view
  *   only) and a star ring on Lambo when the first friend comes into range.
  *
+ * Champion identity (audio/champ/lambo.ts): his trait is twinkling string lights, his sound a music box. The generic
+ * move cues (whoosh, pop, chain, jingle, kiss) are gone: the casts' music-box tines and the impacts (tin-can clank on
+ * the tuna, a bulb "tink" on the hug and each lassoed hero, a cascade of tines on the flop landing) come from the
+ * identity layer. Amber bulbs ride behind the tuna and light up round the flop ring's edge.
+ *
  * Reduce motion: no strobing (the pull bolts slow to one steady colour every 0.15 s), no camera shake or punch, half
  * the star spikes. Pooled: per-hero state in typed arrays, scratch vectors reused; nothing allocates per frame.
  */
 import * as THREE from 'three';
+import { playSkillSfx } from '../../audio/skillSfx';
 import { BuffFlag } from '../../sim/api';
 import { stubFx } from '../anim/common';
 import { DASH_SPEED, FLOP_RING_DELAY, KNOCK_TICKS, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
@@ -121,6 +127,8 @@ const pullBulb = new Uint8Array(PULLS);
 // fun pass: once-per-cast pops, the tuna sticker clock, the hug hearts clock, landing variant
 const qSplat = new Uint8Array(N);
 const tunaFish = new Float64Array(N);
+/** Identity: the next string-light bulb dropped behind the tuna (s). */
+const tunaBulb = new Float64Array(N);
 const hugHeart = new Float64Array(N);
 const ePop = new Uint8Array(N);
 const eVar = new Uint8Array(N);
@@ -165,6 +173,16 @@ function spec(fx: FxCtx, id: number, x: number, z: number, sx: number, life: num
 const ribbonColor = (fx: FxCtx, id: number, c: number): number => (fx.relation(id) === 'enemy' ? mix(c, fx.rim(id), 0.45) : c);
 
 const own = (fx: FxCtx, id: number): boolean => fx.relation(id) === 'own';
+
+/** The identity impact sound (nature + his music-box layer, audio/champ/lambo.ts) for a moment only this script sees. */
+function idSfx(fx: FxCtx, id: number, skill: 'w' | 'e', at: { x: number; z: number }): void {
+  const r = fx.relation(id);
+  try {
+    playSkillSfx('lambo', skill, 'impact', { at, relation: r === 'own' ? 'mine' : r, src: id });
+  } catch {
+    /* audio not unlocked yet (tests, before the first gesture) */
+  }
+}
 const isHero = (fx: FxCtx, id: number): boolean => fx.abil(id, 'q').cooldown !== undefined;
 const sameTeam = (fx: FxCtx, a: number, b: number): boolean => (fx.relation(a) === 'enemy') === (fx.relation(b) === 'enemy');
 
@@ -244,6 +262,7 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   tunaT[id] = 0;
   tunaPuff[id] = 0;
   tunaFish[id] = 0;
+  tunaBulb[id] = 0.05;
   qSplat[id] = 1;
   const crispy = (a.slowBp ?? 0) > 2500;
   tunaCol[id] = ribbonColor(fx, id, crispy ? TOAST : WET);
@@ -251,7 +270,6 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   _c.y = 1.0;
   _c.z = _a.z;
   tunaRib[id] = fx.ribbons.point(_c, tunaCol[id], 0.42, 0.22);
-  fx.sfx.cue('whooshM', _a);
 }
 
 function castW(e: { src: number }, fx: FxCtx): void {
@@ -288,7 +306,8 @@ function castW(e: { src: number }, fx: FxCtx): void {
       sh.p3 = 0.55;
       fx.mesh.spawn('dome', sh);
       fx.mesh.spawn('heart', spec(fx, id, _b.x, _b.z, 1.6, 0.45, STAR));
-      fx.sfx.cue('kiss', _b, 0.6);
+      // the hug lands: guard shimmer + a bulb tink (the identity impact; the ally's shield has no hit event)
+      idSfx(fx, id, 'w', _b);
       // fun: a "PURRR" over the hugged friend (decoration; the pop's own rate limit keeps it rare)
       if (funPop(fx, id, 'PURRR', _b.x, funOverY(fx, ally, 0.5), _b.z)) funSfx(fx, 'purr', _b, 0.7);
       stickerBurst(fx, _b.x, 1.5, _b.z, 'HEART', HEARTS, 0.32, 0.8, 5, 1.4, 2.2, -2, 0.2);
@@ -339,8 +358,6 @@ function castR(e: { src: number }, fx: FxCtx): void {
   const g = spec(fx, id, _a.x, _a.z, 2.2, 0.35, WHITE);
   fx.mesh.spawn('glow', g);
   spikes(fx, id, _a.x, _a.z, r, (fx.tier === 'low' ? 6 : 12) >> (fx.reduced ? 1 : 0), STAR);
-  fx.sfx.cue('chain', _a);
-  fx.sfx.cue('lightsJingle', _a);
   rYoink[id] = 1;
   // fun: fairy bulbs pop out along the edge in three blinking colours
   const n = fx.tier === 'low' ? 6 : 10;
@@ -385,7 +402,6 @@ function hitQ(dst: number, id: number, fx: FxCtx): void {
     fx.mesh.spawn('ring', bsp);
   }
   fx.particles.debris(_b.x, _b.z, 0.4);
-  fx.sfx.cue('pop', _b);
   // fun: the tuna splats: fish-water drops and, on a hero, "SPLAT!" once per toss
   stickerBurst(fx, _b.x, 1.0, _b.z, 'DROPLET', WET, 0.2, 0.5, 6, 2.4, 2.6, -9, 0.4);
   if (qSplat[id] && funHeroOf(fx, dst)) {
@@ -467,6 +483,14 @@ function landRing(id: number, fx: FxCtx): void {
   // fun: the belly bounce throws stars (or, variant, hearts) off him; the stars of a pancake
   stickerBurst(fx, _a.x, 0.9, _a.z, eVar[id] ? 'HEART' : 'STAR', eVar[id] ? HEARTS : STAR, 0.3, 0.7, 8, 3.2, 3, -8, eVar[id] * 0.5);
   funSfx(fx, 'boing', _a, 0.6);
+  // his motif: a circle of string-light bulbs flashes on just inside the ring edge (inside, so the edge stays the
+  // telegraph), with the cascade of tines (mobility landing + bulbRing; the hits play the same, the mix drops repeats)
+  const nb = fx.tier === 'low' ? 6 : 10;
+  for (let i = 0; i < nb; i++) {
+    const t = (i / nb) * Math.PI * 2;
+    sticker(fx, _a.x + Math.cos(t) * r * 0.82, 0.45, _a.z + Math.sin(t) * r * 0.82, 'BULB', i & 1 ? AMBER : BLINK[i % 3], 0.3, 0.5, 0.4);
+  }
+  idSfx(fx, id, 'e', _a);
 }
 
 function endFlopRibbon(id: number, fx: FxCtx): void {
@@ -533,6 +557,12 @@ function updateTuna(fx: FxCtx, dt: number): void {
     if (tunaFish[id] <= 0) {
       tunaFish[id] = fx.tier === 'low' ? 0.08 : 0.045;
       sticker(fx, x, 1.05, z, 'FISH', tunaCol[id] === WET ? FISHY : TOAST, 0.42, 0.07, 0, 0, tunaT[id] * 14);
+    }
+    // his motif: tiny lit bulbs left hanging behind the can, a string of lights along the throw
+    tunaBulb[id] -= dt;
+    if (tunaBulb[id] <= 0) {
+      tunaBulb[id] = fx.tier === 'low' ? 0.14 : 0.09;
+      sticker(fx, x - tunaDx[id] * 0.5, 0.95, z - tunaDz[id] * 0.5, 'BULB', AMBER, 0.24, 0.4, -0.3);
     }
     // Low has no ribbons: wet puffs behind the tuna instead (paced, ≈ 30 Hz)
     tunaPuff[id] -= dt;
@@ -740,6 +770,7 @@ export function resetLamboFx(): void {
   pullDst.fill(-1);
   qSplat.fill(0);
   tunaFish.fill(0);
+  tunaBulb.fill(0);
   hugHeart.fill(0);
   ePop.fill(0);
   eVar.fill(0);

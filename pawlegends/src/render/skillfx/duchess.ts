@@ -26,15 +26,25 @@
  * Colours: the shared additive shader brightens toward white, so the purple and fur bases are dark (ROYAL, GLARE, FUR)
  * with intensity (p3) 0.5–0.7. No gold: gold is "you" (the rim already carries it on her own casts).
  *
+ * Champion identity (CHAMP-IDENTITY.md §3, audio/champ/duchess.ts): every skill also draws its nature accent (Q
+ * projectile sparkle, W shadow implode, E mobility trail, R sonic ripples) and her motif, tiny gold crowns over plum
+ * fluff: a crown riding the fluffball, crown points at the glare's two edges, crowns off the cushion and the decree,
+ * and a crown dropping onto a Snubbed head. On an enemy the crown gold is a pale glint. Sounds: the framework plays the
+ * nature layer with her harpsichord motif (Not Amused: the "hmph"; R: her ult voice), so the balloon, hiss and gong
+ * cues are gone; the fluffball carries the projectile travel whoosh and the Snub rings her crown ting.
+ *
  * Shapes use the talent-resolved numbers (fx.abil). Enemy effects take the danger rim (fx.rim). Everything is pooled:
  * no allocation per event or per frame. Render only.
  */
+import { playSkillSfx } from '../../audio/skillSfx';
+import { type SkillKey } from '../../data/identity';
 import { stubFx } from '../anim/common';
 import { TICK_S } from '../anim/timing';
 import { CAPS } from '../../data/map';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet } from '../anim/types';
 import { funBigHit, funCount, funPop, funRand, funRank, funSfx, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
 import { S3Once, s3Crown, s3HeadY } from '../fx/fun/skills3Kit';
+import { MIX_REL, drawIdentity } from './identityFx';
 
 const ROYAL = 0x4a1a8a;
 const GLARE = 0x7a28d0;
@@ -102,6 +112,17 @@ function furPuff(fx: FxCtx, x: number, z: number, k: number, rim: number, rel: R
   fx.particles.debris(x, z, 0.35 * k);
 }
 
+// ------------------------------------------------------------------------------------------------ champion identity
+
+/** Champion identity (render/skillfx/identityFx.ts drawIdentity): the skill's nature accent and Duchess's motif. */
+const identity = (fx: FxCtx, src: number, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void =>
+  drawIdentity(fx, 'duchess', src, skill, x, y, z, n, dx, dz, nature);
+
+/** Scratch position for the travel and Snub sounds. */
+const SAT = { x: 0, z: 0 };
+/** Seconds between the fluffball's travel whooshes. */
+const HUM_EVERY = 0.4;
+
 // ------------------------------------------------------------------------------------------------ Q fluffballs
 
 class Puff {
@@ -123,6 +144,9 @@ class Puff {
   age = 0;
   tuft = 0;
   k = 1;
+  /** Identity: the next travel whoosh (s of travel clock) and the crown re-lay parity. */
+  nextHum = 0;
+  crown = 0;
 }
 const PUFFS: Puff[] = [new Puff(), new Puff(), new Puff()];
 /** Metres between the fluffball's ground strip segments. */
@@ -153,6 +177,7 @@ const CLOUDS: Cloud[] = [new Cloud(), new Cloud(), new Cloud()];
 const hitAt = new Float32Array(CAPS.heroes).fill(-9);
 const hitRim = new Uint32Array(CAPS.heroes);
 const hitRel: Relation3[] = new Array<Relation3>(CAPS.heroes).fill('own');
+const hitSrc = new Int16Array(CAPS.heroes).fill(-1);
 let clock = 0;
 /** Her last cast slot and its clock per caster (an ability hit belongs to it), and the fun latches. */
 const lastSlot = new Int8Array(CAPS.heroes).fill(-1);
@@ -178,6 +203,11 @@ function snub(fx: FxCtx, id: number): void {
   const hy = s3HeadY(fx, id, 0.35);
   orbit(fx, V.x, hy, V.z, 'STAR', STAR, 3, 0.42, 0.26, 0.75, clock * 3);
   funPop(fx, id, 'HMPH!', V.x, hy + 0.4, V.z);
+  // identity: a tiny crown drops onto the snubbed head, and her crown ting over the shadow thud
+  identity(fx, hitSrc[id], 'passive', V.x, hy - 0.6, V.z, 4, 0, 0, false);
+  SAT.x = V.x;
+  SAT.z = V.z;
+  playSkillSfx('duchess', 'passive', 'impact', { at: SAT, relation: MIX_REL[rel] });
   snubs++;
 }
 
@@ -282,7 +312,10 @@ export const SKILL_FX: SkillFxSet = {
         b.age = 0;
         b.tuft = TUFT[(funRand(e.tick, e.src, 0) * TUFT.length) | 0];
         b.k = funRank(fx, e.src, 0);
-        fx.sfx.cue('balloon', P);
+        b.nextHum = 0;
+        b.crown = 0;
+        // identity: the projectile sparkle and a crowned puff of plum fluff off her paw
+        identity(fx, e.src, 'q', P.x + cx * 0.8, 0.3, P.z + cz * 0.8, 6, cx, cz);
         return;
       }
       case 1: {
@@ -296,8 +329,13 @@ export const SKILL_FX: SkillFxSet = {
         if (rel === 'own') fx.cam.tier(1);
         // the fun layer: a disdainful huff of fur off her nose, a hiss; "HMPH!" waits for the first hero it slows
         if (fx.bonePos(e.src, 'mouth', V)) stickerBurst(fx, V.x + cx * 0.2, V.y, V.z + cz * 0.2, 'HAIRBALL', TUFT[0], 0.16, 0.4, 3, 1.2, 0.8, -2, funRand(e.tick, e.src, 1));
-        funSfx(fx, 'hiss', P, 0.7);
         hmph.arm(e.src, clock);
+        // identity: the shadow implode mid-cone, and a crown point at each edge of the glare
+        identity(fx, e.src, 'w', P.x + cx * range * 0.55, 0.2, P.z + cz * range * 0.55, 2, cx, cz);
+        for (let s = -1; s <= 1; s += 2) {
+          const ea = yaw + s * arc * 0.5;
+          identity(fx, e.src, 'w', P.x + Math.cos(ea) * range * 0.9, 0.1, P.z - Math.sin(ea) * range * 0.9, 4, 0, 0, false);
+        }
         return;
       }
       case 2: {
@@ -325,6 +363,8 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'glow', c.x, c.z, c.rad * 1.2, c.life, FLUFF, c.rim, rel, 0, 0.07, 1, 0, 0, 0, 2.2);
         mesh(fx, 'arc', c.x, c.z, c.rad, c.life, FUR, c.rim, rel, yaw, 0.05, 1, TAU, Math.max(0.94, 1 - 0.08 / c.rad), 1, 0.25);
         furPuff(fx, c.x, c.z, 1.4, c.rim, rel, 0.5);
+        // identity: the velvet glide trail with a crown and gold-flecked fluff off the cushion
+        identity(fx, e.src, 'e', c.x, 0.2, c.z, 7, cx, cz);
         return;
       }
       default: {
@@ -332,8 +372,9 @@ export const SKILL_FX: SkillFxSet = {
         crownWave(fx, P.x, P.z, (a.radius ?? 6000) / 1000, yaw, rim, rel);
         mesh(fx, 'glow', P.x, P.z, 1.6, 0.3, GLARE, rim, rel, 0, 1.4, 1, 0, 0, 0, FI);
         if (rel === 'own') fx.cam.tier(2);
-        fx.sfx.cue('gong', P);
         decreeFun(fx, e.src, e.tick, yaw);
+        // identity: the decree's sonic ripples and two crowns ringing out over plum fluff
+        identity(fx, e.src, 'r', P.x, 0.5, P.z, 10);
         return;
       }
     }
@@ -352,6 +393,7 @@ export const SKILL_FX: SkillFxSet = {
       hitAt[e.dst] = clock;
       hitRim[e.dst] = rim;
       hitRel[e.dst] = rel;
+      hitSrc[e.dst] = e.src;
     }
     const src = e.src >= 0 && e.src < CAPS.heroes ? e.src : -1;
     const slot = src >= 0 && clock - lastCastAt[src] < 1.5 ? lastSlot[src] : -1;
@@ -418,6 +460,13 @@ export const SKILL_FX: SkillFxSet = {
       if (!b.on) continue;
       b.d += b.speed * dt;
       b.age += dt;
+      // the projectile travel whoosh under the ball (identity mix: travel layer, closest four)
+      if (b.age >= b.nextHum && b.d < b.max) {
+        b.nextHum = b.age + HUM_EVERY;
+        SAT.x = b.x0 + b.dx * b.d;
+        SAT.z = b.z0 + b.dz * b.d;
+        playSkillSfx('duchess', 'q', 'travel', { at: SAT, relation: MIX_REL[b.rel] });
+      }
       if (b.d >= b.max) {
         b.on = false;
         // the hairball lands with a soft poof
@@ -431,6 +480,8 @@ export const SKILL_FX: SkillFxSet = {
         const bx = b.x0 + b.dx * b.d;
         const bz = b.z0 + b.dz * b.d;
         sticker(fx, bx, 0.9, bz, 'HAIRBALL', b.tuft, (0.62 + 0.5 * g) * b.k, fx.tier === 'low' ? 0.16 : 0.1, 0, 5, b.d * 1.7);
+        // identity: the crown riding on top of the fluffball (every other re-lay; it lives two)
+        if ((b.crown ^= 1) === 1) identity(fx, b.owner, 'q', bx, 0.55 + 0.25 * g * b.k, bz, 4, 0, 0, false);
         if (((b.nextBall * 50) | 0) % 2 === 0) sticker(fx, bx - b.dx * 0.5, 0.75, bz - b.dz * 0.5, 'HAIRBALL', TUFT[0], 0.2, 0.45, -0.9, 3, b.d);
       }
       // the ground strip of the skillshot width under the ball (the dodge width from the iso camera)

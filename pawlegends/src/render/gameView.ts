@@ -535,6 +535,7 @@ export class GameView {
     this.ghosts.setTier(t, red);
     this.director.runtime.tier = t;
     this.director.runtime.reduced = red;
+    this.effects.natureFx.setTier(t, red);
     this.fightCam.reduced = red;
     this.ultMoment.reduced = red;
     this.minions.reduced = red;
