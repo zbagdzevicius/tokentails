@@ -42,9 +42,9 @@ afterEach(() => vi.restoreAllMocks());
 
 function fight(tick: number): ViewFrame {
   const es: ViewEntity[] = [];
-  for (let i = 0; i < 6; i++) es.push(ent({ id: i, kind: 'hero', hero: (['clem', 'lambo', 'sage', 'duchess', 'domino', 'aviete'] as const)[i], team: i < 3 ? 0 : 1, fx: 40000 + i * 3000 + tick, fy: 30000 }));
-  for (let i = 0; i < 32; i++) es.push(ent({ id: 100 + i, kind: 'minion', team: i % 2, fx: 30000 + i * 1000 + tick, fy: 20000 + (i % 5) * 900 }));
-  for (let i = 0; i < 18; i++) es.push(ent({ id: 200 + i, kind: 'tower', team: i % 2, fx: 10000 + i * 5000, fy: 50000 - i * 2000, hp: 4000, maxHp: 4000 }));
+  for (let i = 0; i < 6; i++) es.push(ent({ id: i, kind: 'hero', hero: (['clem', 'lambo', 'sage', 'duchess', 'domino', 'aviete'] as const)[i], team: (i < 3 ? 0 : 1) as 0 | 1, fx: 40000 + i * 3000 + tick, fy: 30000 }));
+  for (let i = 0; i < 32; i++) es.push(ent({ id: 100 + i, kind: 'minion', team: (i % 2) as 0 | 1, fx: 30000 + i * 1000 + tick, fy: 20000 + (i % 5) * 900 }));
+  for (let i = 0; i < 18; i++) es.push(ent({ id: 200 + i, kind: 'tower', team: (i % 2) as 0 | 1, fx: 10000 + i * 5000, fy: 50000 - i * 2000, hp: 4000, maxHp: 4000 }));
   es.push(ent({ id: 300, kind: 'core', team: 0, fx: 8000, fy: 8000 }), ent({ id: 301, kind: 'core', team: 1, fx: 92000, fy: 52000 }));
   return frame(es, tick);
 }
