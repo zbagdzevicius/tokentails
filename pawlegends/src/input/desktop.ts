@@ -4,8 +4,8 @@
  * shape at the cursor and the basic attack range ring; release casts at the cursor, LMB while holding casts too, RMB
  * or Esc cancels, another skill key switches the aim, out of range walks in, then casts. Settings "Quick cast" casts at
  * the cursor on the press instead (a brief indicator flash). An armed A shows the attack range ring too. B Nap, 1/2
- * talent pick, Space centres the camera, the wheel and +/− pick the Camera height (Normal / High), Tab scoreboard, Esc
- * menu. Feel pass B1 (founder decision D2): the camera is locked on the hero like on mobile (no edge pan, no arrow-key
+ * talent pick, Space centres the camera, each wheel notch (one per burst) or +/− press moves the Camera height one
+ * step (Close, Normal, High, Higher, Max, clamped at the ends), Tab scoreboard, Esc menu. Feel pass B1 (founder decision D2): the camera is locked on the hero like on mobile (no edge pan, no arrow-key
  * pan); holding the minimap peeks. Trackpad mode (On, or Auto once a player left-clicks the ground and never right-clicks): LMB moves and
  * attacks like RMB, hold to steer; an armed A still takes the next LMB. While Auto watches (no right-click yet), LMB
  * moves and attacks too. GAPS B1: hold G for the ping wheel at the cursor (point at a slice, release G to send it);
@@ -275,9 +275,10 @@ export class DesktopInput {
     if (a === 'scoreboard' || a === 'centre' || a === 'menu' || a === 'zoomIn' || a === 'zoomOut') e.preventDefault();
     this.h.onActivity('key');
     sfx.unlock();
-    // +/− zoom like a wheel notch; a held key repeats
     if (a === 'zoomIn' || a === 'zoomOut') {
-      // feel pass B1: + and − move one Camera height step (Close … Max, clamped at the ends), like a wheel notch
+      // feel pass B1: + and − move one Camera height step (Close … Max, clamped at the ends), like a wheel notch;
+      // a held key's auto-repeat is ignored (one step per press, not a run from Close to Max)
+      if (e.repeat) return;
       const cur = loadCameraHeight();
       const h = wheelHeight(cur, a === 'zoomOut' ? 1 : -1);
       if (h === cur) return;
@@ -362,20 +363,22 @@ export class DesktopInput {
     if (this.aiming && this.aiming.code === e.code) this.release(e.code, false);
   }
 
-  /** performance.now() of the last wheel step (WHEEL_STEP_MS debounce). */
+  /** performance.now() of the last wheel event (WHEEL_STEP_MS quiet-gap debounce). */
   private wheelAt = -Infinity;
 
   private wheel(e: WheelEvent): void {
     e.preventDefault();
-    // feel pass B1: one Camera height step per notch (Close … Max, clamped at the ends, nothing in between); a
-    // trackpad's burst of small wheel events within WHEEL_STEP_MS counts as one notch
+    // feel pass B1: one Camera height step per notch (Close … Max, clamped at the ends, nothing in between). Only
+    // the first event after a quiet gap of WHEEL_STEP_MS steps: a trackpad swipe and its momentum tail (events every
+    // ~16 ms for a second or more) or a free-spinning wheel is one burst, so one step
     if (e.deltaY === 0) return;
     const now = performance.now();
-    if (!wheelReady(now, this.wheelAt)) return;
+    const ready = wheelReady(now, this.wheelAt);
+    this.wheelAt = now;
+    if (!ready) return;
     const cur = loadCameraHeight();
     const h = wheelHeight(cur, e.deltaY);
     if (h === cur) return;
-    this.wheelAt = now;
     saveCameraHeight(h);
     this.h.view.setCameraHeight(h);
   }

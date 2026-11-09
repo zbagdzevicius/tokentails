@@ -26,10 +26,14 @@
 .camh-seg:hover { background: rgba(255, 210, 122, 0.08); }
 .camh-seg.on { background: var(--butter, #ffd27a); color: #2a1a2e; }
 .camh-seg:focus-visible { outline: 2px solid var(--butter, #ffd27a); outline-offset: 1px; }
-.pl-menu .set-camh { font-size: 14px; }
+/* the pause card's compact type; the full Settings screen keeps its rows' label size */
+.pl-menu:not(.pl-settings) .set-camh { font-size: 14px; }
 /* the pause card on a short phone is a two-column grid: the row takes the full width */
 .pl-menu:not(.pl-settings):not(.pl-collection) > .card > .set-camh { grid-column: 1 / -1; }
 .pl-menu:not(.pl-settings) .set-camh .camh-segs { flex: 1 1 280px; max-width: 360px; }
+/* the full Settings screen: room around the labels ("Normal" and "Higher" filled their pill at ~53 px a segment);
+   too narrow a card wraps the label above the control rather than squeezing it */
+.pl-settings .set-camh .camh-segs { flex: 0 1 330px; }
 
 /* B2: the minimap is turned with the camera (diagonal), so its box is square (the 100x60 m map turned 38° is ~116x109 m) */
 .pl-minimap { width: calc(180px * var(--mm-k, 1)); height: calc(180px * var(--mm-k, 1)); }

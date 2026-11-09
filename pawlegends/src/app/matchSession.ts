@@ -52,6 +52,7 @@ import { ProgressRail } from '../ui/progressRail';
 import { DIFFICULTY_RULES } from '../data/bots';
 import { FISH } from '../data/fish';
 import { ultHint } from '../render/effects';
+import { CAMERA_HEIGHT_EVENT, parseCameraHeight } from '../render/camera/height';
 import { levelWhat } from '../ui/toyText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
@@ -330,6 +331,8 @@ export class MatchSession {
   private hud: Hud | null = null;
   /** Champion browser: the long-press skill peek on the own skill buttons (its detach), loaded after the HUD. */
   private peekOff: (() => void) | null = null;
+  /** Feel pass B1: detaches the Camera height listener (CAMERA_HEIGHT_EVENT). */
+  private camHeightOff: (() => void) | null = null;
   private overhead: Overhead;
   /** LoL pass (lane C): the persistent low-health vignette (made on the first body tick). */
   private lowHp: LowHp | null = null;
@@ -478,6 +481,11 @@ export class MatchSession {
         this.view.lookAt(who.x, who.z, 10);
       },
     });
+    // feel pass B1: any saved Camera height step (the full Settings screen opened from the pause card, the pause row,
+    // the wheel, +/−) moves the live camera at once, so the view never disagrees with the highlighted step
+    const onCamHeight = (e: Event): void => this.view.setCameraHeight(parseCameraHeight((e as CustomEvent<unknown>).detail));
+    addEventListener(CAMERA_HEIGHT_EVENT, onCamHeight);
+    this.camHeightOff = () => removeEventListener(CAMERA_HEIGHT_EVENT, onCamHeight);
     this.view.juice.stage = this.stage;
     this.view.juice.speed = matchSpeedFor(!!setup.party, setup.speed);
     // e2e (rail.spec.ts): the juice instance, to push one note of each priority
@@ -2717,6 +2725,8 @@ export class MatchSession {
   dispose(): void {
     this.peekOff?.();
     this.peekOff = null;
+    this.camHeightOff?.();
+    this.camHeightOff = null;
     if (this.disposed) return;
     this.disposed = true;
     if (this.youTimer !== undefined) clearTimeout(this.youTimer);

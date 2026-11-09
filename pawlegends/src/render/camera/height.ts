@@ -19,7 +19,7 @@ export const CAMERA_HEIGHT_MAX = CAMERA_HEIGHTS.max;
 export const CAMERA_HEIGHT_KEY = 'pawlegends.camHeight.v1';
 /** Window event sent by saveCameraHeight (detail: the step), so an open Settings row follows the wheel. */
 export const CAMERA_HEIGHT_EVENT = 'pl:camheight';
-/** Desktop wheel: after a step, further wheel events within this long (ms) are ignored (one step per notch). */
+/** Desktop wheel: a wheel event steps only after this long (ms) without wheel events (one step per notch or burst). */
 export const WHEEL_STEP_MS = 140;
 
 /** A stored or passed value as a step: any step name, anything else Normal. */
@@ -59,5 +59,5 @@ export function wheelHeight(h: CameraHeight, deltaY: number): CameraHeight {
   return stepHeight(h, deltaY);
 }
 
-/** Whether a wheel event at `now` (ms) may move a step, `last` being the time of the previous step. */
+/** Whether a wheel event at `now` (ms) may move a step, `last` being the time of the previous wheel event (any, stepped or not). */
 export const wheelReady = (now: number, last: number): boolean => !(now - last < WHEEL_STEP_MS);
