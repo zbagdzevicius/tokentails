@@ -19,25 +19,26 @@ async function topmost(where: Page | Frame, sel: string): Promise<boolean> {
   }, sel);
 }
 
-test('Choose hero → Sir Brutus → Play starts the match (Play is never covered)', async ({ page }, info) => {
+test('Heroes → Sir Brutus → LOCK IN starts the match (LOCK IN is never covered)', async ({ page }, info) => {
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), VETERAN);
   await page.goto('/?e2e=1');
   await page.waitForSelector('html[data-screen="title"]');
   await page.locator('[data-a="choose"]').click();
   await page.waitForSelector('html[data-screen="pick"]');
-  // sim v14: Sir Brutus is on the DOGS side of the switch
+  // sim v14: Sir Brutus is behind the Dogs tab
   await page.locator('.side-tab.dog').click();
   await page.locator('[data-h="brutus"]').click();
-  await expect(page.locator('.pl-pick-foot [data-a="start"]')).toBeVisible();
-  expect(await topmost(page, '.pl-pick-foot [data-a="start"]')).toBe(true);
-  // the Paw Trick chips fit above the fold at 844×390 (they were cut off at y = 376 to 383); sim v10 (GAPS B5): the
-  // 4th chip, Purr-ify, too, and the Tank hint shows for Sir Brutus (sim v14: a dog's Purr-ify is called Shake Off)
+  await expect(page.locator('.cs-fc [data-a="start"]')).toBeVisible();
+  expect(await topmost(page, '.cs-fc [data-a="start"]')).toBe(true);
+  // the Paw Trick row fits above the fold at 844×390; sim v10 (GAPS B5): the 4th trick, Purr-ify, too, marked for
+  // Sir Brutus with the Tank hint (sim v14: a dog's Purr-ify is called Shake Off)
   await expect(page.locator('.pl-pick .trick-hint')).toContainText('Shake Off');
+  await expect(page.locator('[data-t="purrify"]')).toHaveAttribute('data-rec', '1');
   await expect(page.locator('[data-t="purrify"]')).toContainText('Shake Off');
   const trick = await page.locator('[data-t="purrify"]').boundingBox();
   expect(trick && trick.y + trick.height).toBeLessThanOrEqual((page.viewportSize()?.height ?? 720) + 1);
-  if (info.project.name === 'landscape') await page.locator('.pl-pick-foot [data-a="start"]').tap();
-  else await page.locator('.pl-pick-foot [data-a="start"]').click();
+  if (info.project.name === 'landscape') await page.locator('.cs-fc [data-a="start"]').tap();
+  else await page.locator('.cs-fc [data-a="start"]').click();
   await page.waitForSelector('html[data-screen="match"]');
   await expect.poll(() => attr(page, 'screen')).toBe('match');
 });
@@ -47,11 +48,13 @@ test('the pick screen shows ability numbers on request and the bots chip says wh
   await page.addInitScript((p) => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(p)), VETERAN);
   await page.goto('/?e2e=1');
   await page.locator('[data-a="choose"]').click();
-  await expect(page.locator('.pl-pick .kit .num')).toHaveCount(0);
-  await page.locator('[data-a="numbers"]').click();
-  await expect(page.locator('.pl-pick .kit .num').first()).toContainText(/cooldown/);
+  await page.locator('.cs-sk[data-slot="q"]').click();
+  await expect(page.locator('.cs-meta')).not.toContainText(/Cooldown/);
+  await page.locator('[data-cs="numbers"]').click();
+  await expect(page.locator('.cs-meta')).toContainText(/Cooldown \d/);
   await page.locator('[data-d="hard"]').click();
-  await expect(page.locator('.pl-pick-foot .bots-hint')).toContainText(/five Hard bots/);
+  await expect(page.locator('[data-d="hard"]')).toHaveAttribute('title', /five Hard bots/);
+  await expect(page.locator('.cs-lock')).toContainText('vs Hard bots');
 });
 
 test('results: Play again is the topmost element at its centre, also with a squad cat card', async ({ context, page, baseURL }, info) => {

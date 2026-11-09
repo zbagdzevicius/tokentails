@@ -20,7 +20,10 @@ import { queueCardHtml, type QueueStop } from './ui/queueCard';
 import { acceptCardHtml } from './ui/acceptCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
-import { decoratePick, firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
+import { firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
+import { openChampSelect, patchChampSelect, timerText, wireChampSelect } from '../ui/champSelect/champSelect';
+import { loadProfile, saveProfile } from '../meta/profile';
+import type { SkillSlot } from '../ui/skillCodex/facts';
 import { HERO_TEXT } from '../ui/heroText';
 import { closeChampInfo, openChampInfo } from '../ui/champBrowser/open';
 import type { HeroId } from '../sim/api';
@@ -1200,6 +1203,7 @@ export class PartyClient {
         if (!HERO_IDS.includes(t.dataset.v as never)) return;
         void openChampInfo({
           hero: t.dataset.v as HeroId,
+          slot: (t.dataset.slot as SkillSlot | undefined) ?? undefined,
           within: this.card,
           order: v?.mm ? HERO_IDS.filter((h) => HEROES[h].side === v.mm!.side) : undefined,
           pick: {
@@ -1429,8 +1433,13 @@ export class PartyClient {
     }
     const v = this.state.view;
     if (v?.phase === 'pick') {
-      const t = this.card.querySelector('[data-timer]');
-      if (t) t.textContent = `${this.secondsLeft()}s`;
+      const t = this.card.querySelector<HTMLElement>('[data-timer]');
+      if (t) {
+        const n = this.secondsLeft();
+        t.textContent = timerText(n);
+        if (n < 10) t.dataset.low = '1';
+        else delete t.dataset.low;
+      }
     }
     // the "Start anyway" label 10 s after someone went away, and the nudge cooldown
     const anyway = !!this.waitingAt && this.now() - this.waitingAt >= 10_000;
@@ -1507,7 +1516,9 @@ export class PartyClient {
         });
         break;
       case 'pick':
-        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames(), found: s.found });
+        // a new pick opens on the hovered hero's side, the role filter cleared (champion select §B2)
+        if (!this.card.querySelector(':scope > .cs')) openChampSelect(this.hover && this.hover in HEROES ? (this.hover as HeroId) : null);
+        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames(), found: s.found }, { numbers: profileNumbers() });
         break;
       case 'loading':
         html = loadingHtml(s.view!);
@@ -1516,16 +1527,24 @@ export class PartyClient {
     // the timer text changes every second; skip identical redraws (keeps focus and the code boxes)
     const key =
       screen === 'pick'
-        ? html.replace(/data-timer[^>]*>\d+s/, '')
+        ? html.replace(/(data-timer[^>]*>)[^<]*/, '$1').replace(/ data-low="1"/, '')
         : screen === 'queue' || screen === 'accept'
           ? html.replace(/(data-live="[a-z]+"[^>]*>)[^<]*/g, '$1').replace(/--pp-ring:\d+%/, '')
           : html;
     if (key === this.drawn) return;
     const keepSheet = this.card.querySelector('.pp-sheet');
     this.drawn = key;
-    this.card.innerHTML = html;
+    // the champion select redraws in place (the grid scroll, the focus, the tabs and the tapped skill stay)
+    if (screen !== 'pick' || !patchChampSelect(this.card, html)) this.card.innerHTML = html;
     if (keepSheet && screen === 'lobby') this.card.appendChild(keepSheet);
-    if (screen === 'pick') decoratePick(this.card, s.view!);
+    if (screen === 'pick')
+      wireChampSelect(this.card, {
+        onNumbers: (on) => {
+          const q = loadProfile();
+          q.numbers = on;
+          saveProfile(q);
+        },
+      });
     if (screen === 'joincode') {
       this.codeBoxes = wireCodeBoxes(this.card, (code) => {
         const c = normalizeCode(code);
@@ -1560,4 +1579,13 @@ export class PartyClient {
 /** Open the party flow: create a party at once (the first tap), join `code` (a link), type a code, or resume a seat. */
 export function openParty(h: PartyHooks, opts: { mode: OpenMode; code?: string | null }): PartyClient {
   return new PartyClient(h, opts);
+}
+
+/** The round-1 numbers pref (the pick's skill text shows the cooldown and facts when it is on). */
+function profileNumbers(): boolean {
+  try {
+    return loadProfile().numbers === true;
+  } catch {
+    return false;
+  }
 }
