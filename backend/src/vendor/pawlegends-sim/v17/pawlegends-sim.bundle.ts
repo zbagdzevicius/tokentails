@@ -12829,7 +12829,7 @@ function chase(m, id, tx, ty) {
 */
 function engage(m, id, t) {
 	const w = m.world;
-	if (inAttackRange(w, id, t, HERO_RULES.chaseLeeway) && (w.attackTimer[id] === 0 || inAttackRange(w, id, t))) {
+	if (inAttackRange(w, id, t, w.rootT[id] > 0 || planted(w, id) ? 0 : HERO_RULES.chaseLeeway) && (w.attackTimer[id] === 0 || inAttackRange(w, id, t))) {
 		swingAt(w, id, t);
 		if (w.windup[id] > 0) followSwing(m, id);
 	} else chase(m, id, w.x[t], w.y[t]);

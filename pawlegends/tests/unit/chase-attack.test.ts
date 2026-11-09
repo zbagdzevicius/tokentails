@@ -135,6 +135,25 @@ describe('basic attacks while chasing (founder bug 2026-11-08)', () => {
     expect(stickTowardTarget(0, 0, -Math.PI * 0.6, { x: 1000, y: 0 })).toBe(false);
   });
 
+  it('a rooted hero gets no extra reach from the leeway: a target standing just past its range is never hit', () => {
+    const m = heroMatch(['clem', 'clem', 'clem', 'clem', 'clem', 'clem']);
+    const w = m.world;
+    for (let id = 0; id < 6; id++) place(m, id, 10000 + id * 3000, 58000, 0);
+    hold(m, 1, 2, 4, 5, FOE);
+    tanky(m, FOE);
+    place(m, ME, X0, Y, 0);
+    place(m, FOE, X0 + reachOf(m) + 200, Y, 0);
+    w.rootT[ME] = TICKS * 2;
+    step(m, [{ op: Op.Attack, id: FOE }]);
+    let hits = 0;
+    for (let t = 1; t < TICKS; t++) {
+      step(m);
+      for (const e of m.events) if (e.type === 'hit' && e.src === ME && e.kind === 'basic') hits++;
+    }
+    expect(w.x[ME]).toBe(X0);
+    expect(hits).toBe(0);
+  });
+
   it('a target standing in range is fought standing still: no step during the attack timer', () => {
     const m = heroMatch(['clem', 'clem', 'clem', 'clem', 'clem', 'clem']);
     const w = m.world;
