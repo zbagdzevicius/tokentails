@@ -217,3 +217,19 @@ describe('dynamic resolution (governor)', () => {
     expect(r.scale).toBe(0.95);
   });
 });
+
+describe('overdraw view', () => {
+  it('reads counts back from red (×5 per layer): average, p95, max and the share over 3 and 6', async () => {
+    const { overdrawStats, overdrawOn } = await import('../../src/render/renderer');
+    const px = new Uint8Array(4 * 10);
+    const counts = [1, 1, 1, 1, 2, 2, 4, 4, 7, 10];
+    counts.forEach((c, i) => (px[i * 4] = c * 5));
+    const s = overdrawStats(px);
+    expect(s.avg).toBeCloseTo(3.3);
+    expect(s.max).toBe(10);
+    expect(s.over3).toBeCloseTo(0.4);
+    expect(s.over6).toBeCloseTo(0.2);
+    expect(overdrawOn('?overdraw=1')).toBe(true);
+    expect(overdrawOn('?x=1')).toBe(false);
+  });
+});
