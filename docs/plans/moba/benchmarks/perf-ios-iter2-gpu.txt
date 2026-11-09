@@ -1,0 +1,292 @@
+runs curnb: 2, basenb: 2
+
+## lobby
+drawnFps                                              29.95      29.95
+drawnJsMs                                              1.11       1.15
+jsMs.p95                                               1.45       1.55
+jsMs.max                                               2.15       2.05
+perDrawn.glCalls                                         92         92
+perDrawn.draws                                           10         10
+perDrawn.tris                                         31843      31843
+perDrawn.shadowDraws                                      1          1
+perDrawn.shadowTris                                 10020.5    10020.5
+perDrawn.blendDraws                                       2          2
+perDrawn.blendTris                                      112        112
+perDrawn.progSwitches                                    10         10
+perDrawn.uniforms                                        30         30
+programsBound                                             8          8
+gpuMs.p50                                               0.4        0.4
+gpuMs.p95                                              0.88       0.91
+heap.allocMBPerS                                       0.43       0.43
+heap.gcPerS                                               0          0
+cdp.scriptMsPerS                                         39      39.95
+cdp.taskMsPerS                                       100.25     109.75
+cdp.styleRecalcsPerS                                   60.1      60.15
+cdp.styleMsPerS                                       12.42      15.75
+cdp.layoutsPerS                                           0          0
+cdp.layoutMsPerS                                          0          0
+cdp.compositedLayers                                     12         12
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                               279        267
+audioNodesPerS                                            0          0
+audioStartsPerS                                           0          0
+audioLiveMax                                              0          0
+mutPerS                                                 0.5        0.5
+cssAnims                                                  3          4
+cssInfinite                                               3          4
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+dmgNodes                                                  0          0
+  mut curnb: html:attributes@data-draws=0.5
+  audio curnb: 
+  mut basenb: html:attributes@data-draws=0.5
+  audio basenb: 
+
+## match-early
+drawnFps                                              59.95       59.9
+drawnJsMs                                              5.25       5.08
+jsMs.p95                                               6.75       6.55
+jsMs.max                                              19.85      20.45
+perDrawn.glCalls                                      486.5      477.5
+perDrawn.draws                                         48.2         48
+perDrawn.tris                                      172795.5     175549
+perDrawn.shadowDraws                                    7.5        7.5
+perDrawn.shadowTris                                   38886      39235
+perDrawn.blendDraws                                    9.75        9.6
+perDrawn.blendTris                                   6921.5     6919.5
+perDrawn.progSwitches                                    37      36.85
+perDrawn.uniforms                                       104        104
+programsBound                                            33         33
+gpuMs.p50                                              1.27       1.24
+gpuMs.p95                                              1.93       1.96
+heap.allocMBPerS                                      10.91      10.91
+heap.gcPerS                                             0.4       0.45
+cdp.scriptMsPerS                                     324.05      314.4
+cdp.taskMsPerS                                        419.3     412.55
+cdp.styleRecalcsPerS                                  27.85      28.55
+cdp.styleMsPerS                                       18.66      19.05
+cdp.layoutsPerS                                         4.1        4.1
+cdp.layoutMsPerS                                       1.77       1.57
+cdp.compositedLayers                                     14         14
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                             852.5      828.5
+c2d.pl-overhead.callsPerS                           3546.65     3589.6
+c2d.pl-overhead.msPerS                                 8.75       8.84
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                             2289.7     2253.7
+c2d.pl-minimap.msPerS                                   3.1       3.06
+audioNodesPerS                                          7.9       7.15
+audioStartsPerS                                         2.4        2.4
+audioLiveMax                                              8          8
+mutPerS                                                60.7       60.9
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                0.3        0.3
+dmgNodes                                                 20         20
+  mut curnb: i.sweep:attributes@style=20.75; button.pl-tbtn:attributes@style=20.75; button.pl-tbtn:attributes@class=5.2; b.num:childList=1.5; span:childList=1.5; span.clock:childList=1
+  audio curnb: createBufferSource=1.5; createGain=3.8; createOscillator=2.4; createStereoPanner=0.2
+  mut basenb: i.sweep:attributes@style=20.8; button.pl-tbtn:attributes@style=20.8; button.pl-tbtn:attributes@class=5.25; b.num:childList=1.5; span:childList=1.5; span.clock:childList=1
+  audio basenb: createBufferSource=1.1; createGain=3.5; createOscillator=2.4; createStereoPanner=0.15
+
+## match-mid
+drawnFps                                              59.95      59.95
+drawnJsMs                                              5.06       4.95
+jsMs.p95                                               6.35       6.25
+jsMs.max                                                9.5      10.35
+perDrawn.glCalls                                        536      525.5
+perDrawn.draws                                        55.75      55.05
+perDrawn.tris                                        182343     185458
+perDrawn.shadowDraws                                    8.5        8.5
+perDrawn.shadowTris                                 41911.5      42411
+perDrawn.blendDraws                                    13.6       13.1
+perDrawn.blendTris                                     7218     7148.5
+perDrawn.progSwitches                                 38.65      38.25
+perDrawn.uniforms                                       110      109.5
+programsBound                                            30         30
+gpuMs.p50                                              1.16       1.17
+gpuMs.p95                                              1.91       1.89
+heap.allocMBPerS                                        8.7       8.93
+heap.gcPerS                                             0.5       0.45
+cdp.scriptMsPerS                                     313.15     304.45
+cdp.taskMsPerS                                       431.95      429.1
+cdp.styleRecalcsPerS                                   36.3       36.8
+cdp.styleMsPerS                                        28.8      30.27
+cdp.layoutsPerS                                           6        6.9
+cdp.layoutMsPerS                                       2.08       2.33
+cdp.compositedLayers                                     17         18
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                               687      663.5
+c2d.pl-overhead.callsPerS                           2978.65       2994
+c2d.pl-overhead.msPerS                                 7.75       8.38
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                            3499.45     3547.3
+c2d.pl-minimap.msPerS                                  3.67       4.13
+audioNodesPerS                                         7.45        6.8
+audioStartsPerS                                        2.35        2.4
+audioLiveMax                                              8          8
+mutPerS                                               117.9     119.35
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+dmgNodes                                                 20         20
+  mut curnb: i.sweep:attributes@style=43.75; button.pl-tbtn:attributes@style=43.75; button.pl-tbtn:attributes@class=6.5; b.num:childList=3.65; span:childList=3.65; div.fx-dmg:attributes@style=2.9
+  audio curnb: createBufferSource=1.2; createGain=3.55; createStereoPanner=0.3; createOscillator=2.35
+  mut basenb: i.sweep:attributes@style=43.85; button.pl-tbtn:attributes@style=43.85; button.pl-tbtn:attributes@class=6.5; b.num:childList=3.6; span:childList=3.6; div.fx-dmg:attributes@style=3.1
+  audio basenb: createBufferSource=0.9; createGain=3.3; createOscillator=2.4; createStereoPanner=0.2
+
+## match-late
+drawnFps                                              59.95      59.95
+drawnJsMs                                              5.03       4.94
+jsMs.p95                                                6.3        6.3
+jsMs.max                                               9.75      17.35
+perDrawn.glCalls                                        544        527
+perDrawn.draws                                        58.55      57.85
+perDrawn.tris                                      185017.5   185246.5
+perDrawn.shadowDraws                                    9.1       8.95
+perDrawn.shadowTris                                   42792    42569.5
+perDrawn.blendDraws                                    14.9       14.5
+perDrawn.blendTris                                   7279.5     7118.5
+perDrawn.progSwitches                                  38.9      38.05
+perDrawn.uniforms                                     110.5        109
+programsBound                                            30       30.5
+gpuMs.p50                                              1.23       1.13
+gpuMs.p95                                              1.79          2
+heap.allocMBPerS                                       9.16       9.07
+heap.gcPerS                                            0.55        0.5
+cdp.scriptMsPerS                                     309.95     303.25
+cdp.taskMsPerS                                       434.45     434.65
+cdp.styleRecalcsPerS                                   40.1       42.2
+cdp.styleMsPerS                                       30.91      32.81
+cdp.layoutsPerS                                        6.15        7.9
+cdp.layoutMsPerS                                       1.71        2.4
+cdp.compositedLayers                                     18       18.5
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                               680      655.5
+c2d.pl-overhead.callsPerS                           3112.25    3114.05
+c2d.pl-overhead.msPerS                                  7.5       7.82
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                             3712.8     3671.7
+c2d.pl-minimap.msPerS                                     4       4.22
+audioNodesPerS                                          8.6       7.15
+audioStartsPerS                                        2.35        2.4
+audioLiveMax                                              8          8
+mutPerS                                              122.85     127.95
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+dmgNodes                                                 20         20
+  mut curnb: i.sweep:attributes@style=43.9; button.pl-tbtn:attributes@style=43.9; button.pl-tbtn:attributes@class=6.5; i.time:attributes@style=5.95; b.num:childList=3.6; span:childList=3.6
+  audio curnb: createBufferSource=1.65; createGain=4; createStereoPanner=0.6; createOscillator=2.35
+  mut basenb: i.sweep:attributes@style=44.2; button.pl-tbtn:attributes@style=44.2; button.pl-tbtn:attributes@class=6.5; i.time:attributes@style=4.7; div.fx-dmg:attributes@style=3.75; b.num:childList=3.6
+  audio basenb: createBufferSource=1.05; createGain=3.4; createStereoPanner=0.3; createOscillator=2.4
+
+## match-late2
+drawnFps                                              59.95       59.9
+drawnJsMs                                              5.07       4.84
+jsMs.p95                                               6.35       6.15
+jsMs.max                                              15.85       13.6
+perDrawn.glCalls                                      534.5        514
+perDrawn.draws                                         59.1      57.95
+perDrawn.tris                                        182162     186403
+perDrawn.shadowDraws                                    9.3       9.35
+perDrawn.shadowTris                                 42131.5    42784.5
+perDrawn.blendDraws                                    14.7      13.45
+perDrawn.blendTris                                   6967.5     6758.5
+perDrawn.progSwitches                                  38.2       37.6
+perDrawn.uniforms                                       107      106.5
+programsBound                                          30.5       30.5
+gpuMs.p50                                              1.19       1.09
+gpuMs.p95                                              1.72          2
+heap.allocMBPerS                                        8.8       8.59
+heap.gcPerS                                            0.55        0.6
+cdp.scriptMsPerS                                     309.15     297.55
+cdp.taskMsPerS                                        442.3     422.85
+cdp.styleRecalcsPerS                                   47.6      41.05
+cdp.styleMsPerS                                       33.13      29.67
+cdp.layoutsPerS                                        8.05       6.55
+cdp.layoutMsPerS                                       2.63        2.4
+cdp.compositedLayers                                     19         21
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                             681.5      636.5
+c2d.pl-overhead.callsPerS                            3056.9     3091.2
+c2d.pl-overhead.msPerS                                 7.46       8.54
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                             3926.4    3950.75
+c2d.pl-minimap.msPerS                                  4.63       4.32
+audioNodesPerS                                          8.3        7.8
+audioStartsPerS                                         2.6        2.6
+audioLiveMax                                              8          8
+mutPerS                                              106.25      102.1
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+dmgNodes                                                 20         20
+  mut curnb: i.sweep:attributes@style=35.1; button.pl-tbtn:attributes@style=35.1; button.pl-tbtn:attributes@class=5.65; b.num:childList=2.8; span:childList=2.8; div.fx-dmg:attributes@style=2.7
+  audio curnb: createBufferSource=1.45; createGain=4.05; createOscillator=2.6; createStereoPanner=0.25
+  mut basenb: i.sweep:attributes@style=35.35; button.pl-tbtn:attributes@style=35.35; button.pl-tbtn:attributes@class=5.6; div.fx-dmg:childList=3; b.num:childList=2.8; span:childList=2.8
+  audio basenb: createBufferSource=1.1; createGain=3.7; createOscillator=2.6; createStereoPanner=0.4
+
+## match-paused
+drawnFps                                                 15      15.05
+drawnJsMs                                              5.04          5
+jsMs.p95                                               5.45       5.35
+jsMs.max                                                7.1        6.5
+perDrawn.glCalls                                        542      501.5
+perDrawn.draws                                        61.55      59.95
+perDrawn.tris                                        184121     192822
+perDrawn.shadowDraws                                   9.05       9.45
+perDrawn.shadowTris                                   42413      44812
+perDrawn.blendDraws                                    17.1       14.5
+perDrawn.blendTris                                   6747.5       6735
+perDrawn.progSwitches                                 40.85       38.5
+perDrawn.uniforms                                        92       96.5
+programsBound                                          28.5         27
+gpuMs.p50                                                 0          0
+gpuMs.p95                                              1.69        1.7
+heap.allocMBPerS                                       2.54       2.54
+heap.gcPerS                                            0.05       0.05
+cdp.scriptMsPerS                                      81.55      80.55
+cdp.taskMsPerS                                       101.15      101.2
+cdp.styleRecalcsPerS                                      0          0
+cdp.styleMsPerS                                           0          0
+cdp.layoutsPerS                                           0          0
+cdp.layoutMsPerS                                          0          0
+cdp.compositedLayers                                     16         18
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                               706      675.5
+c2d.pl-overhead.callsPerS                            773.85      769.6
+c2d.pl-overhead.msPerS                                 2.58       1.92
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                            4405.85    4298.05
+c2d.pl-minimap.msPerS                                  3.64       4.47
+audioNodesPerS                                            5          5
+audioStartsPerS                                         2.5        2.5
+audioLiveMax                                              8          8
+mutPerS                                                 0.2        0.2
+cssAnims                                                  0          0
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+dmgNodes                                                 20         20
+  mut curnb: html:attributes@data-draws=0.2
+  audio curnb: createOscillator=2.5; createGain=2.5
+  mut basenb: html:attributes@data-draws=0.2
+  audio basenb: createOscillator=2.5; createGain=2.5
+
+## hitches curnb
+  curnb-g1: programsTotal=71 progs after live=[124,12882] gaps>50=[] longtasks=[] shaderSlow=[] browserSkipped= errors=0
+  curnb-g2: programsTotal=71 progs after live=[525,13013] gaps>50=[] longtasks=[] shaderSlow=[] browserSkipped= errors=0
+
+## hitches basenb
+  basenb-g1: programsTotal=71 progs after live=[494,12801] gaps>50=[] longtasks=[] shaderSlow=[] browserSkipped= errors=0
+  basenb-g2: programsTotal=71 progs after live=[526,13036] gaps>50=[] longtasks=[] shaderSlow=[] browserSkipped= errors=0
