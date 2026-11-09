@@ -79,12 +79,16 @@ describe('Domino, original dog mage (sim v15)', () => {
     place(m, FOE, MID.x + 5000, MID.y, 2048);
     // Duchess keeps the team's sight on the cat once Domino is down (vision decides what a zone can hit).
     place(m, 1, MID.x + 2000, MID.y + 2000, 0);
-    const hp = w.hp[FOE];
     cast(m, DM, 1, MID.x + 5000, MID.y);
     w.hp[DM] = 0;
-    steps(m, A.w.windup + 1);
+    // The pulse's own hit (sim v18: smaller than the foe's regen over the windup, so the event, not the HP).
+    let pulse = false;
+    for (let t = 0; t <= A.w.windup; t++) {
+      steps(m, 1);
+      pulse ||= m.events.some((e) => e.type === 'hit' && e.src === DM && e.dst === FOE && e.kind === 'ability');
+    }
     expect(w.alive[DM]).toBe(0);
-    expect(w.hp[FOE]).toBeLessThan(hp);
+    expect(pulse).toBe(true);
     expect(w.dotN[FOE]).toBe(0);
   });
 

@@ -5,7 +5,7 @@ import { createMatch, step, type MatchHandle } from '../../../src/sim/index';
 import { applyOrder } from '../../../src/sim/units/hero';
 import { grantXp } from '../../../src/sim/progression/levels';
 import { XP } from '../../../src/data/xp';
-import { HERO_VS_HERO_BP } from '../../../src/data/heroes';
+import { HERO_BASIC_VS_HERO_BP, HERO_VS_HERO_BP } from '../../../src/data/heroes';
 import { COOLDOWN_SLOTS, G, RANGE } from '../../../src/sim/world';
 import { refreshVision } from '../../../src/sim/map/brush';
 
@@ -60,6 +60,10 @@ export const afterArmour = (dmg: number, armour: number): number => Math.trunc((
 
 /** A hero's hit on an enemy hero (sim v4): kit damage × HERO_VS_HERO_BP, then armour. */
 export const heroHit = (dmg: number, armour: number): number => afterArmour(Math.trunc((dmg * HERO_VS_HERO_BP) / 10000), armour);
+
+/** A hero's basic attack on an enemy hero (sim v18): heroHit with HERO_BASIC_VS_HERO_BP on top, then armour. */
+export const basicHit = (dmg: number, armour: number): number =>
+  afterArmour(Math.trunc((Math.trunc((dmg * HERO_VS_HERO_BP) / 10000) * HERO_BASIC_VS_HERO_BP) / 10000), armour);
 
 /**
  * Make heroes tanky (max HP × 10, full) so a kit test measures the kit, not Nine Lives (data/xp.ts NINE_LIVES cuts

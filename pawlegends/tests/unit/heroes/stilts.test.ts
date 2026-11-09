@@ -9,7 +9,7 @@ import { baseNumbers } from '../../../src/sim/heroes/talents';
 import { applyOrder } from '../../../src/sim/units/hero';
 import { attackDamage, targetable } from '../../../src/sim/units/kinds';
 import { FM, G } from '../../../src/sim/world';
-import { MID, cast, cd, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
+import { MID, cast, cd, basicHit, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
 // Stilts (slot 0) with Clem and Sage vs Sage (slot 3, armour 15), Clem (slot 4) and Sage (slot 5), all far apart.
 const STILTS_ID = 0;
@@ -82,7 +82,7 @@ describe('Stilts, original cat assassin (sim v11)', () => {
       if (w.fmKind[STILTS_ID] === FM.Dash) dashed = true;
     }
     expect(dashed).toBe(true);
-    expect(hp - w.hp[FOE]).toBe(heroHit(Math.trunc((raw * A.passive.bonusBp) / 10000), FOE_ARMOUR));
+    expect(hp - w.hp[FOE]).toBe(basicHit(Math.trunc((raw * A.passive.bonusBp) / 10000), FOE_ARMOUR));
     expect(w.slowBp[FOE]).toBe(A.passive.slowBp);
     expect(w.kValor[STILTS_ID]).toBe(0);
   });

@@ -5,7 +5,7 @@
  * that hit each other on the same tick both land their hits (no id-order advantage).
  */
 import { HERO_RULES, RESPAWN } from '../../data/xp';
-import { HERO_IDS, HERO_VS_HERO_BP, HEROES } from '../../data/heroes';
+import { HERO_BASIC_VS_HERO_BP, HERO_IDS, HERO_VS_HERO_BP, HEROES } from '../../data/heroes';
 import { BRUSH_ATTACK_REVEAL_TICKS, RADIUS } from '../../data/map';
 import { SUDDEN_DEATH, SUNSET } from '../../data/timeline';
 import { TOWERS } from '../../data/towers';
@@ -77,6 +77,7 @@ export function dealDamage(
     if (w.kind[dst] === Kind.Hero && w.team[src] !== w.team[dst]) raw = toyIncoming(w, dst, raw);
     if (w.kind[dst] === Kind.Hero) {
       raw = applyBp(raw, HERO_VS_HERO_BP);
+      if (kind === 'basic') raw = applyBp(raw, HERO_BASIC_VS_HERO_BP);
       if (w.globals[G.SideEdge] !== 0) {
         raw = applyBp(raw, HEROES[HERO_IDS[w.sub[src]]].pvp.dmgBp);
         raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
