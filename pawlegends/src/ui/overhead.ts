@@ -1,6 +1,6 @@
 /**
- * Overhead bars: one 2D canvas over the game draws every visible unit's health (and shield) bar, hero levels and
- * names. Zero WebGL draw calls; one clear + a few dozen rects per frame. Colours by relation, one encoding with the
+ * Overhead bars: every visible unit's health (and shield) bar, hero levels and names, drawn in WebGL over the scene
+ * in one draw call (PERF-IOS §8 Track A: render/overlay/; it was a full-screen 2D canvas redrawn every frame). Colours by relation, one encoding with the
  * rings and the minimap (self gold, allies rose, enemies blue, wild sand); minion bars are thinner, shorter and paler.
  *
  * Layering and declutter (teamfights): minion and structure bars draw first, then hero plates (enemies, allies, and
@@ -14,6 +14,10 @@
  */
 import { viewport } from '../render/perf/viewport';
 import * as THREE from 'three';
+import { liveRenderer } from '../render/renderer';
+import { StampAtlas } from '../render/overlay/atlas';
+import { QuadBatch } from '../render/overlay/quadBatch';
+import { GlOverlay } from '../render/overlay/glOverlay';
 import { BuffFlag } from '../sim/api';
 import type { ViewEntity, ViewFrame } from '../render/interp';
 import { MINION_BAR_CSS, RELATION_CSS, TEAM } from '../render/palette';
@@ -229,14 +233,32 @@ export function strideMeter(e: Pick<ViewEntity, 'hero' | 'resource' | 'state'>):
   return Math.min(1, Math.max(0, e.resource / Math.max(1, max)));
 }
 
+/**
+ * PERF-IOS §8 Track A: overhead plates are drawn in WebGL over the scene (render/overlay/): rects and lines straight
+ * into one quad batch, everything with text or curves as an atlas stamp painted once with the same Canvas 2D code.
+ * One draw call a frame and no full-screen 2D canvas (it was 0.75 Mpx rasterised on the CPU every frame on iOS).
+ */
+const FONT = (weight: number, px: number): string => `${weight} ${px}px Fredoka, system-ui, sans-serif`;
+const DANGER_RGB = '#ff3b4d';
+const FOUNTAIN_RGB = '#ff4d5e';
+const GUIDE_RGB = '#ffd34d';
+
 export class Overhead {
-  readonly canvas: HTMLCanvasElement;
-  private g: CanvasRenderingContext2D | null;
-  private dpr = 1;
+  private readonly atlas = new StampAtlas();
+  private readonly batch = new QuadBatch();
+  private readonly gl = new GlOverlay(this.batch, this.atlas);
+  /** The atlas's 2D context (stamps paint into it). Tests swap in a recording stand-in. */
+  protected get g(): CanvasRenderingContext2D | null {
+    return this.atlas.g;
+  }
+  protected set g(v: CanvasRenderingContext2D | null) {
+    this.atlas.g = v;
+  }
   private w = 0;
   private h = 0;
   private readonly v = new THREE.Vector3();
   private plates: Plate[] = [];
+  private readonly platePool: Plate[] = [];
   mySlot = 0;
   myTeam = 0;
   scale = 1;
@@ -279,6 +301,7 @@ export class Overhead {
   boxes: { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number }[] | null = null;
   /** Heroes picked on both teams this frame (their enemy copy gets a team prefix). */
   private mirrored = new Set<string>();
+  private readonly seen: [Set<string>, Set<string>] = [new Set(), new Set()];
   /** The older 2D dashed tower-to-hero beam (off: the 3D tower beam replaces it). */
   flatBeams = false;
   /** Tower-to-hero warning beams (a tower is hitting the player): src and dst ids, seconds left. */
@@ -374,34 +397,28 @@ export class Overhead {
     else this.beams.push({ src, dst, t: seconds });
   }
 
-  constructor(parent: HTMLElement) {
-    this.canvas = document.createElement('canvas');
-    this.canvas.className = 'pl-overhead';
-    parent.appendChild(this.canvas);
-    this.g = this.canvas.getContext('2d');
+  constructor(_parent?: HTMLElement) {
+    this.batch.white = this.atlas.white;
   }
 
   /**
-   * PERF-IOS P1-4: the backing store's DPR cap: 2 on a desktop, 1.5 on a phone (it was 2: 1704×786, 2.6× the 3D
-   * canvas, cleared and redrawn every frame on the CPU), 1.25 when the thermal governor asks.
+   * PERF-IOS P1-4: was the 2D canvas's DPR cap. The plates now draw into the game's drawing buffer at its own
+   * resolution (the tier DPR × the governor's resolution scale), so this only applies when no renderer is live (tests).
    */
   maxDpr = 2;
 
+  /** Overlay counters (perf readout, tests): quads this frame, stamps held, stamp paints and atlas uploads so far. */
+  get stats(): { quads: number; stamps: number; paints: number; uploads: number; draws: number } {
+    return { quads: this.batch.count, stamps: this.atlas.size, paints: this.atlas.paints, uploads: this.gl.uploads, draws: this.gl.draws };
+  }
+
   private resize(): void {
     const v = viewport();
-    const dpr = Math.min(this.maxDpr, v.dpr);
-    const w = v.w;
-    const h = v.h;
-    if (w === this.w && h === this.h && dpr === this.dpr) return;
-    this.w = w;
-    this.h = h;
-    this.dpr = dpr;
-    this.canvas.width = Math.round(w * dpr);
-    this.canvas.height = Math.round(h * dpr);
-    this.canvas.style.width = `${w}px`;
-    this.canvas.style.height = `${h}px`;
+    if (v.w === this.w && v.h === this.h) return;
+    this.w = v.w;
+    this.h = v.h;
     // round 1: on short landscape phones (≤ 480 px tall) the 8 px names were unreadable in teamfights: × 1.5 there
-    this.scale = h <= 480 ? 1.15 : Math.max(0.75, Math.min(1.1, Math.min(w, h) / 720));
+    this.scale = this.h <= 480 ? 1.15 : Math.max(0.75, Math.min(1.1, Math.min(this.w, this.h) / 720));
   }
 
   private color(e: ViewEntity): string {
@@ -418,17 +435,32 @@ export class Overhead {
     return e.team === this.myTeam ? 3 : 2;
   }
 
+  private platePush(e: ViewEntity, sx: number, sy: number): void {
+    const p = this.platePool[this.plates.length] ?? (this.platePool[this.plates.length] = { e, sx, sy, layer: 0, dy: 0, stacked: 0, chip: false });
+    p.e = e;
+    p.sx = sx;
+    p.sy = sy;
+    p.layer = this.layerOf(e);
+    p.dy = 0;
+    p.stacked = 0;
+    p.chip = false;
+    p.bare = false;
+    this.plates.push(p);
+  }
+
   draw(frame: ViewFrame | null, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
     this.resize();
-    const g = this.g;
-    if (!g) return;
-    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
-    g.clearRect(0, 0, this.w, this.h);
+    const r = liveRenderer();
+    const k = r ? r.domElement.width / Math.max(1, this.w) : Math.min(this.maxDpr, viewport().dpr);
+    this.atlas.beginFrame(k);
+    this.batch.begin(k);
     if (!frame) return;
     const v = this.v;
     const plates = this.plates;
     plates.length = 0;
-    const seen: [Set<string>, Set<string>] = [new Set(), new Set()];
+    const seen = this.seen;
+    seen[0].clear();
+    seen[1].clear();
     this.mirrored.clear();
     for (const e of frame.entities) if (e.kind === 'hero' && e.hero && (e.team === 0 || e.team === 1)) seen[e.team].add(e.hero);
     for (const h of seen[0]) if (seen[1].has(h)) this.mirrored.add(h);
@@ -458,7 +490,7 @@ export class Overhead {
         if (e.kind === 'hero' && e.team !== this.myTeam && e.team !== 2) edge.push({ e, sx, sy });
         continue;
       }
-      plates.push({ e, sx, sy, layer: this.layerOf(e), dy: 0, stacked: 0, chip: false });
+      this.platePush(e, sx, sy);
     }
     // heroes: the player's plate first (stays on its hero), then allies, then enemies; lower plates on screen first
     const heroes = plates.filter((p) => p.layer >= 2).sort((a, b) => b.layer - a.layer || b.sy - a.sy);
@@ -491,10 +523,10 @@ export class Overhead {
     plates.sort((a, b) => a.layer - b.layer);
     this.drawN++;
     if (this.drawN % 60 === 0) for (const [id, c] of this.chunks) if (this.drawN - c.seen > 60) this.chunks.delete(id);
-    this.drawBeams(g, frame, camera, heroScale);
-    this.drawLocks(g, frame, camera, heroScale);
-    this.drawGuide(g, frame, camera);
-    this.drawFountain(g, camera);
+    this.drawBeams(frame, camera, heroScale);
+    this.drawLocks(frame, camera, heroScale);
+    this.drawGuide(frame, camera);
+    this.drawFountain(camera);
     // QA v2 #14: a hero plate at the screen edge slides in (it showed half names, "Gravy the Bru"); a name is up to
     // ~7 px a letter wider than the bar
     const pb = plateBox(this.scale, this.phone);
@@ -504,159 +536,164 @@ export class Overhead {
       if (p.sx < -half || p.sx > this.w + half) continue; // off screen: the edge arrow says it
       p.sx = Math.min(Math.max(p.sx, Math.max(-pb.left, half) + 2), this.w - half - 2);
     }
+    const anyHud = this.hudRects.length > 0 || this.sideRects.length > 0;
     for (const p of plates) {
-      const fade = (this.hudRects.length > 0 || this.sideRects.length > 0) && p.e.id !== this.mySlot && this.underHud(p.sx, p.sy + p.dy);
-      if (fade) g.globalAlpha = 0.28;
-      this.plate(g, p);
-      if (fade) g.globalAlpha = 1;
+      const fade = anyHud && p.e.id !== this.mySlot && this.underHud(p.sx, p.sy + p.dy);
+      this.batch.alpha = fade ? 0.28 : 1;
+      this.plate(p);
     }
+    this.batch.alpha = 1;
     if (this.boxes) {
       this.boxes.length = 0;
-      for (const p of plates) this.boxes.push(this.boxOf(g, p));
+      for (const p of plates) this.boxes.push(this.boxOf(p));
     }
-    if (this.edgeArrows) this.drawEdge(g, frame, edge);
-    if (this.selfOff && this.selfEdge) this.drawSelfEdge(g);
+    if (this.edgeArrows) this.drawEdge(frame, edge);
+    if (this.selfOff && this.selfEdge) this.drawSelfEdge();
+    if (r) this.gl.draw(r);
   }
 
   /**
    * The player's hero is off screen (camera panned, minimap look): a gold arrow at the edge toward it, larger than the
    * enemy arrows and labelled "You" (Space re-centres).
    */
-  private drawSelfEdge(g: CanvasRenderingContext2D): void {
-    const s = 14 * this.scale;
-    const e0 = edgeArrow(this.selfSx, this.selfSy, this.w, this.h, 34 * this.scale, this.safeTop);
+  private drawSelfEdge(): void {
+    const sc = this.scale;
+    const s = 14 * sc;
+    const e0 = edgeArrow(this.selfSx, this.selfSy, this.w, this.h, 34 * sc, this.safeTop);
     if (!e0) return;
-    const p = { ...e0, ...clearOfRects(e0, 18 * this.scale, this.sideRects, this.h, this.w) };
+    const p = clearOfRects(e0, 18 * sc, this.sideRects, this.h, this.w);
     const pulse = 1 + Math.sin(performance.now() / 160) * 0.06;
-    g.save();
-    g.translate(p.x, p.y);
-    g.scale(pulse, pulse);
-    g.rotate(p.a);
-    g.beginPath();
-    g.moveTo(s * 2.1, 0);
-    g.lineTo(s * 0.85, -s * 0.95);
-    g.lineTo(s * 0.85, s * 0.95);
-    g.closePath();
-    g.lineJoin = 'round';
-    g.lineWidth = 3.5;
-    g.strokeStyle = '#1d1018';
-    g.stroke();
-    g.fillStyle = RELATION_CSS.self;
-    g.fill();
-    g.rotate(-p.a);
-    g.beginPath();
-    g.arc(0, 0, s * 1.2, 0, Math.PI * 2);
-    g.fillStyle = 'rgba(29,16,24,0.92)';
-    g.fill();
-    g.lineWidth = 2.5;
-    g.strokeStyle = RELATION_CSS.self;
-    g.stroke();
-    g.fillStyle = RELATION_CSS.self;
-    g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('You', 0, 0.5);
-    g.restore();
-    g.textAlign = 'start';
-    g.textBaseline = 'alphabetic';
+    const tri = this.atlas.get(`sarrow|${sc}`, 2 * (2.1 * s + 4), 2 * (0.95 * s + 4), (g) => {
+      g.beginPath();
+      g.moveTo(s * 2.1, 0);
+      g.lineTo(s * 0.85, -s * 0.95);
+      g.lineTo(s * 0.85, s * 0.95);
+      g.closePath();
+      g.lineJoin = 'round';
+      g.lineWidth = 3.5;
+      g.strokeStyle = '#1d1018';
+      g.stroke();
+      g.fillStyle = RELATION_CSS.self;
+      g.fill();
+    });
+    this.batch.stamp(tri, p.x, p.y, pulse, e0.a);
+    const fs = Math.round(10 * sc);
+    const disc = this.atlas.get(`sdisc|${sc}`, 2 * (1.2 * s + 3), 2 * (1.2 * s + 3), (g) => {
+      g.beginPath();
+      g.arc(0, 0, s * 1.2, 0, Math.PI * 2);
+      g.fillStyle = 'rgba(29,16,24,0.92)';
+      g.fill();
+      g.lineWidth = 2.5;
+      g.strokeStyle = RELATION_CSS.self;
+      g.stroke();
+      g.fillStyle = RELATION_CSS.self;
+      g.font = FONT(700, fs);
+      g.fillText('You', 0, 0.5);
+    });
+    this.batch.stamp(disc, p.x, p.y, pulse);
+  }
+
+  /** Arc points (CSS px) into the batch's scratch: centre, radius, from angle `a0` over `span` rad, `n` segments. */
+  private arcPts(cx: number, cy: number, r: number, a0: number, span: number, n: number): number {
+    const P = this.batch.pts;
+    for (let i = 0; i <= n; i++) {
+      const a = a0 + (span * i) / n;
+      P[2 * i] = cx + Math.cos(a) * r;
+      P[2 * i + 1] = cy + Math.sin(a) * r;
+    }
+    return n + 1;
   }
 
   /**
    * Avietė's charge around the level badge (sim v9): a flickering spark ring while Charged (both teams see it), a grey
    * ring that empties during her own lockout (Shiny Coat then gives speed only).
    */
-  private chargeRing(g: CanvasRenderingContext2D, e: ViewEntity, cx: number, cy: number, r: number): void {
+  private chargeRing(e: ViewEntity, cx: number, cy: number, r: number): void {
     const c = chargeRing(e);
     if (!c.state) return;
-    g.save();
-    g.lineCap = 'round';
+    const sc = this.scale;
+    const rr = r + 2.5 * sc;
     if (c.state === 'charged') {
-      g.lineWidth = 3 * this.scale;
-      g.strokeStyle = '#ffe14d';
-      g.shadowColor = '#fff6a8';
-      g.shadowBlur = (6 + Math.sin(performance.now() / 60) * 3) * this.scale;
-      g.beginPath();
-      g.arc(cx, cy, r + 2.5 * this.scale, 0, Math.PI * 2);
-      g.stroke();
-    } else {
-      g.lineWidth = 2.5 * this.scale;
-      g.strokeStyle = 'rgba(160,156,170,0.95)';
-      g.beginPath();
-      g.arc(cx, cy, r + 2.5 * this.scale, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * c.frac);
-      g.stroke();
+      // the flicker: four glow levels (the stamp per level is painted once)
+      const lvl = Math.round((Math.sin(performance.now() / 60) + 1) * 1.5);
+      const blur = (6 + (lvl / 1.5 - 1) * 3) * sc;
+      const box = 2 * (rr + 1.5 * sc + blur + 2);
+      const s = this.atlas.get(`chg|${rr.toFixed(2)}|${lvl}|${sc}`, box, box, (g) => {
+        g.lineCap = 'round';
+        g.lineWidth = 3 * sc;
+        g.strokeStyle = '#ffe14d';
+        g.shadowColor = '#fff6a8';
+        g.shadowBlur = blur;
+        g.beginPath();
+        g.arc(0, 0, rr, 0, Math.PI * 2);
+        g.stroke();
+      });
+      this.batch.stamp(s, cx, cy);
+      return;
     }
-    g.restore();
+    const n = Math.max(2, Math.ceil(32 * c.frac));
+    this.batch.polyline(this.batch.pts, this.arcPts(cx, cy, rr, -Math.PI / 2, Math.PI * 2 * c.frac, n), false, 2.5 * sc, 'rgba(160,156,170,0.95)');
   }
 
   /**
    * Sim v9: the Striking Pose "!" eye glyph right of a hero's name: this hero faces a Bengas winding up the pose and
    * will be stunned (turn away and it is only a slow).
    */
-  private eyeGlyph(g: CanvasRenderingContext2D, cx: number, cy: number): void {
-    const s = 9 * this.scale;
+  private eyeGlyph(cx: number, cy: number): void {
+    const sc = this.scale;
+    const s = 9 * sc;
     const pop = 1 + Math.sin(performance.now() / 70) * 0.08;
-    g.save();
-    g.translate(cx, cy);
-    g.scale(pop, pop);
-    g.beginPath();
-    g.moveTo(-s * 1.4, 0);
-    g.quadraticCurveTo(0, -s * 1.5, s * 1.4, 0);
-    g.quadraticCurveTo(0, s * 1.5, -s * 1.4, 0);
-    g.closePath();
-    g.fillStyle = '#fff3dc';
-    g.fill();
-    g.lineWidth = 2;
-    g.strokeStyle = '#2a1a22';
-    g.stroke();
-    g.beginPath();
-    g.arc(0, 0, s * 0.62, 0, Math.PI * 2);
-    g.fillStyle = '#ff6a3d';
-    g.fill();
-    g.fillStyle = '#2a1a22';
-    g.font = `800 ${Math.round(11 * this.scale)}px Fredoka, system-ui, sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText('!', 0, 0.5);
-    g.restore();
+    const st = this.atlas.get(`eye|${sc}`, 2.8 * s + 6, Math.max(1.6 * s, 12 * sc) + 6, (g) => {
+      g.beginPath();
+      g.moveTo(-s * 1.4, 0);
+      g.quadraticCurveTo(0, -s * 1.5, s * 1.4, 0);
+      g.quadraticCurveTo(0, s * 1.5, -s * 1.4, 0);
+      g.closePath();
+      g.fillStyle = '#fff3dc';
+      g.fill();
+      g.lineWidth = 2;
+      g.strokeStyle = '#2a1a22';
+      g.stroke();
+      g.beginPath();
+      g.arc(0, 0, s * 0.62, 0, Math.PI * 2);
+      g.fillStyle = '#ff6a3d';
+      g.fill();
+      g.fillStyle = '#2a1a22';
+      g.font = FONT(800, Math.round(11 * sc));
+      g.fillText('!', 0, 0.5);
+    });
+    this.batch.stamp(st, cx, cy, pop);
   }
 
   /** A bobbing gold chevron over the player's own plate, pointing down at the hero (found first in a pile). */
-  private selfChevron(g: CanvasRenderingContext2D, x: number, y: number): void {
-    const s = 8 * this.scale;
-    const bob = Math.sin(performance.now() / 180) * 2.5 * this.scale;
-    g.beginPath();
-    g.moveTo(x - s, y - s * 1.1 + bob);
-    g.lineTo(x + s, y - s * 1.1 + bob);
-    g.lineTo(x, y + bob);
-    g.closePath();
-    g.lineJoin = 'round';
-    g.lineWidth = 3;
-    g.strokeStyle = '#1d1018';
-    g.stroke();
-    g.fillStyle = RELATION_CSS.self;
-    g.fill();
+  private selfChevron(x: number, y: number): void {
+    const sc = this.scale;
+    const s = 8 * sc;
+    const bob = Math.sin(performance.now() / 180) * 2.5 * sc;
+    const st = this.atlas.get(`chev|${sc}`, 2 * s + 8, 1.1 * s + 8, (g) => {
+      g.beginPath();
+      g.moveTo(-s, -s * 0.55);
+      g.lineTo(s, -s * 0.55);
+      g.lineTo(0, s * 0.55);
+      g.closePath();
+      g.lineJoin = 'round';
+      g.lineWidth = 3;
+      g.strokeStyle = '#1d1018';
+      g.stroke();
+      g.fillStyle = RELATION_CSS.self;
+      g.fill();
+    });
+    this.batch.stamp(st, x, y - s * 0.55 + bob);
   }
 
   /** Round 2: a red arrow at the screen edge toward each enemy hero just off screen (assassins came from nowhere). */
-  private drawEdge(g: CanvasRenderingContext2D, frame: ViewFrame, edge: readonly { e: ViewEntity; sx: number; sy: number }[]): void {
+  private drawEdge(frame: ViewFrame, edge: readonly { e: ViewEntity; sx: number; sy: number }[]): void {
     const me = frame.byId.get(this.mySlot);
     if (!me || me.state === 'dead' || !edge.length) return;
-    const m = 26 * this.scale;
-    for (const { e, sx, sy } of edge) {
-      if (Math.hypot(e.fx - me.fx, e.fy - me.fy) > Overhead.EDGE_RANGE) continue;
-      // where the ray from the centre leaves the inset screen rectangle
-      const p0 = edgeArrow(sx, sy, this.w, this.h, m, this.safeTop);
-      if (!p0) continue;
-      const s = 11 * this.scale;
-      const { x, y } = clearOfRects(p0, s * 1.9, this.sideRects, this.h, this.w);
-      const a = p0.a;
-      g.save();
-      g.translate(x, y);
-      g.fillStyle = 'rgba(42,26,34,0.85)';
-      g.beginPath();
-      g.arc(0, 0, s * 1.15, 0, Math.PI * 2);
-      g.fill();
-      g.rotate(a);
+    const sc = this.scale;
+    const m = 26 * sc;
+    const s = 11 * sc;
+    const tri = this.atlas.get(`etri|${sc}`, 2 * (1.9 * s + 2), 2 * (0.75 * s + 2), (g) => {
       g.fillStyle = RELATION_CSS.enemy;
       g.beginPath();
       g.moveTo(s * 1.9, 0);
@@ -664,157 +701,145 @@ export class Overhead {
       g.lineTo(s * 0.9, s * 0.75);
       g.closePath();
       g.fill();
-      g.rotate(-a);
-      g.fillStyle = '#fff3dc';
-      g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      g.fillText((e.hero ? HERO_TEXT[e.hero].title.replace('Sir ', '') : '?').slice(0, 2), 0, 0.5);
-      g.restore();
+    });
+    for (const { e, sx, sy } of edge) {
+      if (Math.hypot(e.fx - me.fx, e.fy - me.fy) > Overhead.EDGE_RANGE) continue;
+      // where the ray from the centre leaves the inset screen rectangle
+      const p0 = edgeArrow(sx, sy, this.w, this.h, m, this.safeTop);
+      if (!p0) continue;
+      const { x, y } = clearOfRects(p0, s * 1.9, this.sideRects, this.h, this.w);
+      const label = (e.hero ? HERO_TEXT[e.hero].title.replace('Sir ', '') : '?').slice(0, 2);
+      const disc = this.atlas.get(`edisc|${label}|${sc}`, 2 * s * 1.15 + 4, 2 * s * 1.15 + 4, (g) => {
+        g.fillStyle = 'rgba(42,26,34,0.85)';
+        g.beginPath();
+        g.arc(0, 0, s * 1.15, 0, Math.PI * 2);
+        g.fill();
+        g.fillStyle = '#fff3dc';
+        g.font = FONT(700, Math.round(10 * sc));
+        g.fillText(label, 0, 0.5);
+      });
+      // the disc and its letters, then the arrow (it never reaches the letters, so the order is the 2D one)
+      this.batch.stamp(disc, x, y);
+      this.batch.stamp(tri, x, y, 1, p0.a);
     }
-    g.textAlign = 'start';
-    g.textBaseline = 'alphabetic';
   }
 
   /** GAPS A5: the lock's brackets round a plate, and a bar under it that drains over the lock's 5 s. */
-  private lockBrackets(g: CanvasRenderingContext2D, x: number, y: number, bw: number, bh: number, left: number): void {
+  private lockBrackets(x: number, y: number, bw: number, bh: number, left: number): void {
     const m = 5 * this.scale;
     const k = 6 * this.scale;
     const x0 = x - m;
     const y0 = y - m;
     const x1 = x + bw + m;
     const y1 = y + bh + m;
-    g.strokeStyle = RELATION_CSS.danger;
-    g.lineWidth = 2;
-    g.beginPath();
-    for (const [cx, cy, dx, dy] of [
-      [x0, y0, 1, 1],
-      [x1, y0, -1, 1],
-      [x0, y1, 1, -1],
-      [x1, y1, -1, -1],
-    ] as const) {
-      g.moveTo(cx + dx * k, cy);
-      g.lineTo(cx, cy);
-      g.lineTo(cx, cy + dy * k);
+    const P = this.batch.pts;
+    for (const [dx, dy] of BRACKETS) {
+      const bx = dx > 0 ? x0 : x1;
+      const by = dy > 0 ? y0 : y1;
+      P[0] = bx + dx * k;
+      P[1] = by;
+      P[2] = bx;
+      P[3] = by;
+      P[4] = bx;
+      P[5] = by + dy * k;
+      this.batch.polyline(P, 3, false, 2, RELATION_CSS.danger);
     }
-    g.stroke();
-    g.fillStyle = RELATION_CSS.danger;
-    g.fillRect(x, y1 + 2, bw * Math.max(0, Math.min(1, left)), 2);
+    this.batch.rect(x, y1 + 2, bw * Math.max(0, Math.min(1, left)), 2, RELATION_CSS.danger);
   }
 
   /** A small gold crown (bounty). */
-  private crown(g: CanvasRenderingContext2D, x: number, y: number): void {
+  private crown(x: number, y: number): void {
     const s = 9 * this.scale;
     const bob = Math.sin(performance.now() / 220) * 1.5;
-    g.save();
-    g.translate(x, y + bob);
-    g.fillStyle = '#ffd34d';
-    g.strokeStyle = '#4a2a1f';
-    g.lineWidth = 2;
-    g.beginPath();
-    g.moveTo(-s, s * 0.5);
-    g.lineTo(-s, -s * 0.4);
-    g.lineTo(-s * 0.5, s * 0.05);
-    g.lineTo(0, -s * 0.7);
-    g.lineTo(s * 0.5, s * 0.05);
-    g.lineTo(s, -s * 0.4);
-    g.lineTo(s, s * 0.5);
-    g.closePath();
-    g.stroke();
-    g.fill();
-    g.restore();
+    const st = this.atlas.get(`crown|${this.scale}`, 2 * s + 6, 1.4 * s + 6, (g) => {
+      g.fillStyle = '#ffd34d';
+      g.strokeStyle = '#4a2a1f';
+      g.lineWidth = 2;
+      crownPath(g, 0, 0, s);
+      g.stroke();
+      g.fill();
+    });
+    this.batch.stamp(st, x, y + bob);
   }
 
   /** Lane F (F6): a small crown in the danger colour with `pips` gold diamonds under it (Toys owned). */
-  private fedMark(g: CanvasRenderingContext2D, x: number, y: number, pips: number): void {
-    const s = 6 * this.scale;
-    g.save();
-    g.translate(x, y - 2 * this.scale);
-    g.fillStyle = '#ff7a59';
-    g.strokeStyle = '#2a1a22';
-    g.lineWidth = 1.5;
-    g.beginPath();
-    g.moveTo(-s, s * 0.5);
-    g.lineTo(-s, -s * 0.4);
-    g.lineTo(-s * 0.5, s * 0.05);
-    g.lineTo(0, -s * 0.7);
-    g.lineTo(s * 0.5, s * 0.05);
-    g.lineTo(s, -s * 0.4);
-    g.lineTo(s, s * 0.5);
-    g.closePath();
-    g.stroke();
-    g.fill();
-    const d = 1.8 * this.scale;
-    const gap = 4.4 * this.scale;
-    g.fillStyle = '#ffd34d';
-    for (let i = 0; i < pips; i++) {
-      const px = (i - (pips - 1) / 2) * gap;
-      const py = s * 0.5 + 4 * this.scale;
-      g.beginPath();
-      g.moveTo(px, py - d);
-      g.lineTo(px + d, py);
-      g.lineTo(px, py + d);
-      g.lineTo(px - d, py);
-      g.closePath();
+  private fedMark(x: number, y: number, pips: number): void {
+    const sc = this.scale;
+    const s = 6 * sc;
+    const d = 1.8 * sc;
+    const gap = 4.4 * sc;
+    const half = Math.max(0.7 * s, 0.5 * s + 4 * sc + d) + 2;
+    const st = this.atlas.get(`fed|${pips}|${sc}`, Math.max(2 * s, pips * gap) + 6, 2 * half + 2, (g) => {
+      g.fillStyle = '#ff7a59';
+      g.strokeStyle = '#2a1a22';
+      g.lineWidth = 1.5;
+      crownPath(g, 0, 0, s);
+      g.stroke();
       g.fill();
-    }
-    g.restore();
+      g.fillStyle = '#ffd34d';
+      for (let i = 0; i < pips; i++) {
+        const px = (i - (pips - 1) / 2) * gap;
+        const py = s * 0.5 + 4 * sc;
+        g.beginPath();
+        g.moveTo(px, py - d);
+        g.lineTo(px + d, py);
+        g.lineTo(px, py + d);
+        g.lineTo(px - d, py);
+        g.closePath();
+        g.fill();
+      }
+    });
+    this.batch.stamp(st, x, y - 2 * sc);
   }
 
   /**
    * Duchess's Disdain (sim v11): a row of small crowns under the bar, lit in her purple, one per stack; the unlit ones
    * show how far the hero is from a Snub. Nothing without stacks.
    */
-  private disdain(g: CanvasRenderingContext2D, e: ViewEntity, cx: number, y: number): void {
+  private disdain(e: ViewEntity, cx: number, y: number): void {
     const { lit, max } = disdainPips(e);
     if (lit <= 0) return;
     const s = 4.5 * this.scale;
     const gap = 3 * s;
-    g.save();
-    g.lineWidth = 1.5;
-    g.strokeStyle = 'rgba(42,26,34,0.9)';
-    for (let i = 0; i < max; i++) {
-      const x = cx + (i - (max - 1) / 2) * gap;
-      g.beginPath();
-      g.moveTo(x - s, y + s * 0.5);
-      g.lineTo(x - s, y - s * 0.4);
-      g.lineTo(x - s * 0.5, y + s * 0.05);
-      g.lineTo(x, y - s * 0.7);
-      g.lineTo(x + s * 0.5, y + s * 0.05);
-      g.lineTo(x + s, y - s * 0.4);
-      g.lineTo(x + s, y + s * 0.5);
-      g.closePath();
-      g.fillStyle = i < lit ? '#b98cff' : 'rgba(42,26,34,0.55)';
-      g.fill();
-      g.stroke();
-    }
-    g.restore();
+    const st = this.atlas.get(`dis|${lit}|${max}|${this.scale}`, (max - 1) * gap + 2 * s + 6, 1.4 * s + 6, (g) => {
+      g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(42,26,34,0.9)';
+      for (let i = 0; i < max; i++) {
+        crownPath(g, (i - (max - 1) / 2) * gap, 0, s);
+        g.fillStyle = i < lit ? '#b98cff' : 'rgba(42,26,34,0.55)';
+        g.fill();
+        g.stroke();
+      }
+    });
+    this.batch.stamp(st, cx, y);
   }
 
   /**
    * Domino's Spots (sim v15): a row of round black spots with a white rim under the bar (below Duchess's crowns when both show), one per Spot. Nothing without Spots.
    */
-  private spots(g: CanvasRenderingContext2D, e: ViewEntity, cx: number, y: number): void {
+  private spots(e: ViewEntity, cx: number, y: number): void {
     const n = spotPips(e);
     if (n <= 0) return;
     const r = 3.4 * this.scale;
     const gap = 2.6 * r;
-    g.save();
-    g.lineWidth = 1.5;
-    g.strokeStyle = 'rgba(255,255,255,0.95)';
-    g.fillStyle = '#16141a';
-    for (let i = 0; i < n; i++) {
-      g.beginPath();
-      g.arc(cx + (i - (n - 1) / 2) * gap, y, r, 0, Math.PI * 2);
-      g.fill();
-      g.stroke();
-    }
-    g.restore();
+    const st = this.atlas.get(`spots|${n}|${this.scale}`, (n - 1) * gap + 2 * r + 5, 2 * r + 5, (g) => {
+      g.lineWidth = 1.5;
+      g.strokeStyle = 'rgba(255,255,255,0.95)';
+      g.fillStyle = '#16141a';
+      for (let i = 0; i < n; i++) {
+        g.beginPath();
+        g.arc((i - (n - 1) / 2) * gap, 0, r, 0, Math.PI * 2);
+        g.fill();
+        g.stroke();
+      }
+    });
+    this.batch.stamp(st, cx, y);
   }
 
-  private drawLocks(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
+  private drawLocks(frame: ViewFrame, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
     if (!this.locks.length) return;
     const dt = 1 / 60;
+    const P = this.batch.pts;
     for (const l of this.locks) {
       l.t -= dt;
       const s = frame.byId.get(l.src);
@@ -839,25 +864,17 @@ export class Overhead {
       const y1 = (-p1.y * 0.5 + 0.5) * this.h;
       const k = 1 - Math.max(0, l.t) / l.total;
       const blink = 0.65 + 0.35 * Math.sin(performance.now() / (k > 0.7 ? 40 : 90));
-      g.strokeStyle = `rgba(255,59,77,${(0.55 + 0.4 * k) * blink})`;
-      g.lineWidth = (2 + 5 * k) * this.scale;
-      g.beginPath();
-      g.moveTo(x0, y0);
-      g.lineTo(x1, y1);
-      g.stroke();
+      const a = Math.max(0, Math.min(1, (0.55 + 0.4 * k) * blink));
+      this.batch.line(x0, y0, x1, y1, (2 + 5 * k) * this.scale, DANGER_RGB, a);
       // a ground ring under the hero that closes in as the shot comes
       const r = (1.8 - 0.9 * k) * 1000;
-      g.beginPath();
-      for (let i = 0; i <= 24; i++) {
-        const a = (i / 24) * Math.PI * 2;
-        const q = this.v.set((d.fx + Math.cos(a) * r) / 1000, 0.1, -(d.fy + Math.sin(a) * r) / 1000).project(camera);
-        const qx = (q.x * 0.5 + 0.5) * this.w;
-        const qy = (-q.y * 0.5 + 0.5) * this.h;
-        if (i) g.lineTo(qx, qy);
-        else g.moveTo(qx, qy);
+      for (let i = 0; i < 24; i++) {
+        const an = (i / 24) * Math.PI * 2;
+        const q = this.v.set((d.fx + Math.cos(an) * r) / 1000, 0.1, -(d.fy + Math.sin(an) * r) / 1000).project(camera);
+        P[2 * i] = (q.x * 0.5 + 0.5) * this.w;
+        P[2 * i + 1] = (-q.y * 0.5 + 0.5) * this.h;
       }
-      g.lineWidth = 3 * this.scale;
-      g.stroke();
+      this.batch.polyline(P, 24, true, 3 * this.scale, DANGER_RGB, a);
       // Round 2: no "Tower aiming at you!" world text any more (it sat on CLANK!, damage numbers and plates); the words
       // go to the red tower alert bar (matchSession towerHit), the beam and the closing ring stay here.
     }
@@ -865,30 +882,27 @@ export class Overhead {
   }
 
   /** A glowing red ring on the ground around the enemy fountain (it cannot be entered), rippling on contact. */
-  private drawFountain(g: CanvasRenderingContext2D, camera: THREE.Camera): void {
+  private drawFountain(camera: THREE.Camera): void {
     const f = this.enemyFountain;
     if (!f) return;
     const since = (performance.now() - this.fountainHit) / 1000;
     const ripple = since < 1.2 ? 1 - since / 1.2 : 0;
     const pulse = 0.55 + 0.25 * Math.sin(performance.now() / 260);
+    const P = this.batch.pts;
     for (let ring = 0; ring < (ripple > 0 ? 2 : 1); ring++) {
       const r = f.r + (ring ? (1 - ripple) * 2500 : 0);
-      g.beginPath();
-      for (let i = 0; i <= 40; i++) {
+      for (let i = 0; i < 40; i++) {
         const a = (i / 40) * Math.PI * 2;
         const q = this.v.set((f.x + Math.cos(a) * r) / 1000, 0.12, -(f.y + Math.sin(a) * r) / 1000).project(camera);
-        const qx = (q.x * 0.5 + 0.5) * this.w;
-        const qy = (-q.y * 0.5 + 0.5) * this.h;
-        if (i) g.lineTo(qx, qy);
-        else g.moveTo(qx, qy);
+        P[2 * i] = (q.x * 0.5 + 0.5) * this.w;
+        P[2 * i + 1] = (-q.y * 0.5 + 0.5) * this.h;
       }
-      g.strokeStyle = ring ? `rgba(255,77,94,${(0.8 * ripple).toFixed(3)})` : `rgba(255,77,94,${(pulse + 0.3 * ripple).toFixed(3)})`;
-      g.lineWidth = (ring ? 3 : 5 + 4 * ripple) * this.scale;
-      g.stroke();
+      const alpha = ring ? 0.8 * ripple : Math.min(1, pulse + 0.3 * ripple);
+      this.batch.polyline(P, 40, true, (ring ? 3 : 5 + 4 * ripple) * this.scale, FOUNTAIN_RGB, alpha);
     }
   }
 
-  private drawGuide(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera): void {
+  private drawGuide(frame: ViewFrame, camera: THREE.Camera): void {
     const me = frame.byId.get(this.mySlot);
     const to = this.guide;
     if (!to || !me || me.state === 'dead') return;
@@ -899,35 +913,27 @@ export class Overhead {
     const ux = dx / d;
     const uy = dy / d;
     const t = (performance.now() / 1000) % 1;
-    g.lineWidth = 5 * this.scale;
-    g.lineCap = 'round';
-    g.lineJoin = 'round';
+    const P = this.batch.pts;
     for (let k = 0; k < 4; k++) {
       const along = 1500 + (k + t) * 1500;
       if (along > d - 800) break;
       const cx = me.fx + ux * along;
       const cy = me.fy + uy * along;
-      const tip = this.v.set((cx + ux * 500) / 1000, 0.15, -(cy + uy * 500) / 1000).project(camera);
-      const tx = (tip.x * 0.5 + 0.5) * this.w;
-      const ty = (-tip.y * 0.5 + 0.5) * this.h;
       const l = this.v.set((cx - uy * 600) / 1000, 0.15, -(cy + ux * 600) / 1000).project(camera);
-      const lx = (l.x * 0.5 + 0.5) * this.w;
-      const ly = (-l.y * 0.5 + 0.5) * this.h;
+      P[0] = (l.x * 0.5 + 0.5) * this.w;
+      P[1] = (-l.y * 0.5 + 0.5) * this.h;
+      const tip = this.v.set((cx + ux * 500) / 1000, 0.15, -(cy + uy * 500) / 1000).project(camera);
+      P[2] = (tip.x * 0.5 + 0.5) * this.w;
+      P[3] = (-tip.y * 0.5 + 0.5) * this.h;
       const r = this.v.set((cx + uy * 600) / 1000, 0.15, -(cy - ux * 600) / 1000).project(camera);
-      const rx = (r.x * 0.5 + 0.5) * this.w;
-      const ry = (-r.y * 0.5 + 0.5) * this.h;
+      P[4] = (r.x * 0.5 + 0.5) * this.w;
+      P[5] = (-r.y * 0.5 + 0.5) * this.h;
       const a = Math.min(1, (k + 1 - t) / 1.5) * 0.85;
-      g.strokeStyle = `rgba(255,211,77,${a.toFixed(3)})`;
-      g.beginPath();
-      g.moveTo(lx, ly);
-      g.lineTo(tx, ty);
-      g.lineTo(rx, ry);
-      g.stroke();
+      this.batch.polyline(P, 3, false, 5 * this.scale, GUIDE_RGB, a);
     }
-    g.lineCap = 'butt';
   }
 
-  private drawBeams(g: CanvasRenderingContext2D, frame: ViewFrame, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
+  private drawBeams(frame: ViewFrame, camera: THREE.Camera, heroScale: (e: ViewEntity) => number): void {
     const now = performance.now();
     const dt = this.lastDraw ? Math.min(0.1, (now - this.lastDraw) / 1000) : 0;
     this.lastDraw = now;
@@ -945,21 +951,24 @@ export class Overhead {
       const p0 = at(s, s.kind === 'core' ? 4.5 : 5.6);
       const p1 = at(d, 0.9 * (d.hero ? heroScale(d) : 1));
       if (!p0 || !p1) continue;
-      const a = Math.max(0, Math.min(1, b.t / 0.35));
-      g.strokeStyle = `rgba(255,77,94,${(0.85 * a).toFixed(3)})`;
-      g.lineWidth = 4 * this.scale;
-      g.setLineDash([10 * this.scale, 6 * this.scale]);
-      g.beginPath();
-      g.moveTo(p0[0], p0[1]);
-      g.lineTo(p1[0], p1[1]);
-      g.stroke();
-      g.setLineDash([]);
+      const a = Math.max(0, Math.min(1, b.t / 0.35)) * 0.85;
+      // dashed: 10 on, 6 off (× scale)
+      const len = Math.hypot(p1[0] - p0[0], p1[1] - p0[1]);
+      if (len < 1) continue;
+      const ux = (p1[0] - p0[0]) / len;
+      const uy = (p1[1] - p0[1]) / len;
+      const on = 10 * this.scale;
+      const off = 6 * this.scale;
+      for (let u = 0; u < len; u += on + off) {
+        const e = Math.min(len, u + on);
+        this.batch.line(p0[0] + ux * u, p0[1] + uy * u, p0[0] + ux * e, p0[1] + uy * e, 4 * this.scale, FOUNTAIN_RGB, a);
+      }
     }
     this.beams = this.beams.filter((b) => b.t > 0);
   }
 
   /** The screen box (CSS px) a plate covers: bar, level badge, name and status chip. */
-  private boxOf(g: CanvasRenderingContext2D, p: Plate): { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number } {
+  private boxOf(p: Plate): { kind: string; id: number; name: string; x0: number; y0: number; x1: number; y1: number; dy: number } {
     const e = p.e;
     const [bw0, bh0] = SIZE[e.kind];
     const bw = bw0 * this.scale;
@@ -967,12 +976,9 @@ export class Overhead {
     const sy = p.sy + p.dy;
     if (e.kind !== 'hero') return { kind: e.kind, id: e.id, name: '', x0: p.sx - bw / 2 - 2, y0: sy - bh / 2 - 2, x1: p.sx + bw / 2 + 2, y1: sy + bh / 2 + 2, dy: p.dy };
     const name = this.nameOf(e);
-    const nf = nameFont(this.phone);
-    g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
-    const tw = g.measureText(name).width;
+    const tw = this.atlas.measure(name, FONT(700, nameFont(this.phone)));
     const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
-    g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
-    const sw = status ? g.measureText(status).width + 14 * this.scale : 0;
+    const sw = status ? this.atlas.measure(status, FONT(700, Math.round(9 * this.scale))) + 14 * this.scale : 0;
     const b = plateBox(this.scale, this.phone);
     return { kind: 'hero', id: e.id, name, x0: Math.min(p.sx + b.left, p.sx - tw / 2 - 4), y0: sy + b.top, x1: Math.max(p.sx + b.right + sw, p.sx + tw / 2 + 4), y1: sy + Math.max(b.bottom, 9 * this.scale), dy: p.dy };
   }
@@ -995,7 +1001,13 @@ export class Overhead {
     const now = performance.now();
     const prev = this.chunks.get(e.id) ?? null;
     const c = chunkStep(prev, Math.max(0, e.hp), e.maxHp, now);
-    this.chunks.set(e.id, { ...c, seen: this.drawN });
+    if (prev) {
+      prev.trail = c.trail;
+      prev.hp = c.hp;
+      prev.at = c.at;
+      prev.t = c.t;
+      prev.seen = this.drawN;
+    } else this.chunks.set(e.id, { ...c, seen: this.drawN });
     return Math.max(0, c.trail - Math.max(0, e.hp));
   }
 
@@ -1004,7 +1016,8 @@ export class Overhead {
    * left inside the frame, the HP in the relation colour, the shield as a white piece after it, then the pale trailing
    * damage chunk; thin ticks every 100 HP and thick ones every 1000.
    */
-  private heroBar(g: CanvasRenderingContext2D, e: ViewEntity, x: number, y: number, bw: number, bh: number): { bx: number; bs: number } {
+  private heroBar(e: ViewEntity, x: number, y: number, bw: number, bh: number): { bx: number; bs: number } {
+    const q = this.batch;
     const total = Math.max(e.maxHp, e.hp + e.shield);
     const hp = Math.max(0, e.hp);
     const hpW = (hp / total) * bw;
@@ -1013,49 +1026,35 @@ export class Overhead {
     const bs = bh + 6;
     const bx = x - bs - 1;
     // outline, then the dark gap
-    g.fillStyle = '#05070b';
-    g.fillRect(bx - 2, y - 3, bw + bs + 5, bh + 6);
-    g.fillStyle = '#1a1f2a';
-    g.fillRect(bx - 1, y - 2, bw + bs + 3, bh + 4);
+    q.rect(bx - 2, y - 3, bw + bs + 5, bh + 6, '#05070b');
+    q.rect(bx - 1, y - 2, bw + bs + 3, bh + 4, '#1a1f2a');
     // the level badge (square) and the empty bar
-    g.fillStyle = '#0d1018';
-    g.fillRect(bx, y - 1, bs - 1, bh + 2);
-    g.fillStyle = '#10131a';
-    g.fillRect(x, y, bw, bh);
-    g.fillStyle = this.color(e);
-    g.fillRect(x, y, hpW, bh);
+    q.rect(bx, y - 1, bs - 1, bh + 2, '#0d1018');
+    q.rect(x, y, bw, bh, '#10131a');
+    q.rect(x, y, hpW, bh, this.color(e));
     // a lighter top half reads as a lit bar
-    g.fillStyle = 'rgba(255,255,255,0.18)';
-    g.fillRect(x, y, hpW, Math.max(1, bh * 0.35));
-    if (shW > 0) {
-      g.fillStyle = '#f4f8ff';
-      g.fillRect(x + hpW, y, shW, bh);
-    }
-    if (chW > 0.5) {
-      g.fillStyle = 'rgba(255,246,206,0.92)';
-      g.fillRect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh);
-    }
-    g.fillStyle = 'rgba(5,7,11,0.6)';
+    q.rect(x, y, hpW, Math.max(1, bh * 0.35), 'rgba(255,255,255,0.18)');
+    if (shW > 0) q.rect(x + hpW, y, shW, bh, '#f4f8ff');
+    if (chW > 0.5) q.rect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh, 'rgba(255,246,206,0.92)');
     for (let k = 100; k < total; k += 100) {
       const tx = Math.round(x + (k / total) * bw);
-      if (k % 1000 === 0) {
-        g.fillStyle = 'rgba(5,7,11,0.95)';
-        g.fillRect(tx - 1, y, 2, bh);
-        g.fillStyle = 'rgba(5,7,11,0.6)';
-      } else g.fillRect(tx, y, 1, bh * 0.5);
+      if (k % 1000 === 0) q.rect(tx - 1, y, 2, bh, 'rgba(5,7,11,0.95)');
+      else q.rect(tx, y, 1, bh * 0.5, 'rgba(5,7,11,0.6)');
     }
     return { bx, bs };
   }
 
-  private plate(g: CanvasRenderingContext2D, p: Plate): void {
+  private plate(p: Plate): void {
+    const q = this.batch;
+    const sc = this.scale;
     const e = p.e;
     const sx = p.sx;
     const sy = p.sy + p.dy;
     const hero = e.kind === 'hero';
     const [bw0, bh0] = SIZE[e.kind];
-    const bw = bw0 * this.scale;
+    const bw = bw0 * sc;
     // LoL pass (lane C): hero bars 10 px (phone 8), minion bars a flat 4 px
-    const bh = hero ? heroBarH(this.phone) : e.kind === 'minion' ? 4 : bh0 * this.scale;
+    const bh = hero ? heroBarH(this.phone) : e.kind === 'minion' ? 4 : bh0 * sc;
     const x = sx - bw / 2;
     const y = sy - bh / 2;
     const total = Math.max(e.maxHp, e.hp + e.shield);
@@ -1063,212 +1062,250 @@ export class Overhead {
     const shW = (Math.max(0, e.shield) / total) * bw;
     if (p.dy < 0 && hero) {
       // a short leader line from a lifted plate down to its hero
-      g.strokeStyle = 'rgba(42,26,34,0.7)';
-      g.lineWidth = 1.5;
-      g.beginPath();
-      g.moveTo(sx, sy + bh / 2 + 3);
-      g.lineTo(sx, p.sy - bh / 2);
-      g.stroke();
+      q.line(sx, sy + bh / 2 + 3, sx, p.sy - bh / 2, 1.5, 'rgba(42,26,34,0.7)');
     }
     if (e.kind === 'minion') {
       // minions: no frame, no chunk (cheap): a dark track and the fill
-      g.fillStyle = 'rgba(10,12,18,0.85)';
-      g.fillRect(x - 1, y - 1, bw + 2, bh + 2);
-      g.fillStyle = this.color(e);
-      g.fillRect(x, y, hpW, bh);
+      q.rect(x - 1, y - 1, bw + 2, bh + 2, 'rgba(10,12,18,0.85)');
+      q.rect(x, y, hpW, bh, this.color(e));
       return;
     }
     if (!hero) {
-      g.fillStyle = 'rgba(42,26,34,0.82)';
-      roundRect(g, x - 2, y - 2, bw + 4, bh + 4, 3);
-      g.fill();
-      g.fillStyle = this.color(e);
-      g.fillRect(x, y, hpW, bh);
-      if (shW > 0) {
-        g.fillStyle = '#f4f8ff';
-        g.fillRect(x + hpW, y, shW, bh);
-      }
+      const tw = bw + 4;
+      const th = bh + 4;
+      const bg = this.atlas.get(`rr|${tw.toFixed(2)}|${th.toFixed(2)}`, tw + 2, th + 2, (g) => {
+        g.fillStyle = 'rgba(42,26,34,0.82)';
+        roundRect(g, -tw / 2, -th / 2, tw, th, 3);
+        g.fill();
+      });
+      q.stamp(bg, sx, sy);
+      q.rect(x, y, hpW, bh, this.color(e));
+      if (shW > 0) q.rect(x + hpW, y, shW, bh, '#f4f8ff');
       if (e.kind === 'tower' || e.kind === 'core' || e.kind === 'pudding') {
         // structures: the trailing chunk, and tick marks every 500 HP
         const chW = (Math.min(this.chunkOf(e), total - Math.max(0, e.hp)) / total) * bw;
-        if (chW > 0.5) {
-          g.fillStyle = 'rgba(255,246,206,0.92)';
-          g.fillRect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh);
-        }
+        if (chW > 0.5) q.rect(x + hpW + shW, y, Math.min(chW, bw - hpW - shW), bh, 'rgba(255,246,206,0.92)');
       }
       if (e.kind === 'tower' || e.kind === 'core') {
-        g.fillStyle = 'rgba(42,26,34,0.5)';
-        for (let k = 500; k < total; k += 500) g.fillRect(x + (k / total) * bw, y, 1, k % 2500 === 0 ? bh : bh * 0.55);
+        for (let k = 500; k < total; k += 500) q.rect(x + (k / total) * bw, y, 1, k % 2500 === 0 ? bh : bh * 0.55, 'rgba(42,26,34,0.5)');
       }
-      if ((e.buffs & BuffFlag.Invulnerable) !== 0) {
-        g.strokeStyle = '#9fd3ff';
-        g.lineWidth = 1.5;
-        g.strokeRect(x - 1, y - 1, bw + 2, bh + 2);
-      }
+      if ((e.buffs & BuffFlag.Invulnerable) !== 0) q.strokeRect(x - 1, y - 1, bw + 2, bh + 2, 1.5, '#9fd3ff');
       return;
     }
-    const { bx, bs } = this.heroBar(g, e, x, y, bw, bh);
-    if (this.targetLock && this.targetLock.id === e.id) this.lockBrackets(g, bx, y, bw + bs + 1, bh, this.targetLock.left);
+    const { bx, bs } = this.heroBar(e, x, y, bw, bh);
+    if (this.targetLock && this.targetLock.id === e.id) this.lockBrackets(bx, y, bw + bs + 1, bh, this.targetLock.left);
     if (e.id === this.mySlot) {
       // the player's own plate: a gold frame so it is found first in a pile
-      g.strokeStyle = RELATION_CSS.self;
-      g.lineWidth = 1.5;
-      g.strokeRect(bx - 3.25, y - 4.25, bw + bs + 7.5, bh + 8.5);
+      q.strokeRect(bx - 3.25, y - 4.25, bw + bs + 7.5, bh + 8.5, 1.5, RELATION_CSS.self);
       // feel pass B3: the touch HUD has no hero box any more: the own XP is a 3 px line under this bar
       const xf = ownXpFrac(e.level ?? 1, e.xp ?? 0);
-      g.fillStyle = 'rgba(5,7,11,0.85)';
-      g.fillRect(x, y + bh + 2, bw, 3);
-      g.fillStyle = '#b48cff';
-      g.fillRect(x, y + bh + 2, bw * xf, 3);
+      q.rect(x, y + bh + 2, bw, 3, 'rgba(5,7,11,0.85)');
+      q.rect(x, y + bh + 2, bw * xf, 3, '#b48cff');
     }
     const lv = String(e.level ?? 1);
     const r = bs / 2;
     const bcx = bx + (bs - 1) / 2;
-    this.chargeRing(g, e, bcx, sy, r);
-    this.disdain(g, e, sx, y + bh + 8 * this.scale);
-    this.spots(g, e, sx, y + bh + (disdainPips(e).lit > 0 ? 17 : 8) * this.scale);
+    this.chargeRing(e, bcx, sy, r);
+    this.disdain(e, sx, y + bh + 8 * sc);
+    this.spots(e, sx, y + bh + (disdainPips(e).lit > 0 ? 17 : 8) * sc);
     const stride = strideMeter(e);
     if (stride >= 0) {
       // Stilts's Stride under her bar (own team): sand while it builds, a hot terracotta when full (the pounce is ready)
-      g.fillStyle = 'rgba(5,7,11,0.9)';
-      g.fillRect(x - 1, y + bh + 3, bw + 2, 4 * this.scale);
-      g.fillStyle = stride >= 1 ? '#ff8a5c' : '#e8c27a';
-      g.fillRect(x, y + bh + 4, bw * stride, 2.5 * this.scale);
+      q.rect(x - 1, y + bh + 3, bw + 2, 4 * sc, 'rgba(5,7,11,0.9)');
+      q.rect(x, y + bh + 4, bw * stride, 2.5 * sc, stride >= 1 ? '#ff8a5c' : '#e8c27a');
     }
-    g.fillStyle = '#f0e6d2';
-    g.font = `800 ${Math.min(12, bh + 3)}px Fredoka, system-ui, sans-serif`;
-    g.textAlign = 'center';
-    g.textBaseline = 'middle';
-    g.fillText(lv, bcx, sy + 0.5);
+    const lvPx = Math.min(12, bh + 3);
+    const lvSt = this.atlas.get(`lv|${lv}|${lvPx}`, lvPx * 1.4 + 6, lvPx + 6, (g) => {
+      g.fillStyle = '#f0e6d2';
+      g.font = FONT(800, lvPx);
+      g.fillText(lv, 0, 0.5);
+    });
+    q.stamp(lvSt, bcx, sy);
     if (p.bare) {
-      this.statusMark(g, e, x, bw, sy);
+      this.statusMark(e, x, bw, sy);
       return;
     }
     const name = this.nameOf(e);
     const nf = nameFont(this.phone);
-    g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
+    const font = FONT(700, nf);
     const ny = y - 3 - nf / 2 - 3;
-    const tw = g.measureText(name).width;
+    const tw = this.atlas.measure(name, font);
     const seat = this.seats?.get(e.id);
     if (e.id !== this.mySlot) {
       // round 1: a solid side-coloured pill behind every other hero's name, so an enemy Clem never reads as yours
-      g.fillStyle = this.color(e);
-      roundRect(g, sx - tw / 2 - 4, ny - nf / 2 - 2, tw + 8, nf + 4, 4);
-      g.fill();
-      if (seat) {
-        // a friend: the slot ring around the pill (greyed while a bot flies it, with a robot glyph)
-        g.strokeStyle = seat.bot ? 'rgba(150,150,160,0.95)' : seat.ring;
-        g.lineWidth = 2.5;
-        roundRect(g, sx - tw / 2 - 6, ny - nf / 2 - 4, tw + 12, nf + 8, 6);
-        g.stroke();
-        if (seat.bot) robotGlyph(g, sx + tw / 2 + 15 * this.scale, ny, 7 * this.scale);
-      }
-      g.fillStyle = '#2a1a22';
-      g.fillText(name, sx, ny + 0.5);
+      const col = this.color(e);
+      const ring = seat ? (seat.bot ? 'rgba(150,150,160,0.95)' : seat.ring) : '';
+      const bot = !!seat?.bot;
+      const rg = 7 * sc;
+      const half = tw / 2 + 8 + (bot ? 15 * sc + rg + 3 : 0);
+      const pill = this.atlas.get(`pill|${name}|${col}|${nf}|${ring}|${bot ? 1 : 0}|${sc}`, 2 * half, Math.max(nf + 12, 2 * rg + 8), (g) => {
+        g.fillStyle = col;
+        roundRect(g, -tw / 2 - 4, -nf / 2 - 2, tw + 8, nf + 4, 4);
+        g.fill();
+        if (ring) {
+          // a friend: the slot ring around the pill (greyed while a bot flies it, with a robot glyph)
+          g.strokeStyle = ring;
+          g.lineWidth = 2.5;
+          roundRect(g, -tw / 2 - 6, -nf / 2 - 4, tw + 12, nf + 8, 6);
+          g.stroke();
+          if (bot) robotGlyph(g, tw / 2 + 15 * sc, 0, rg);
+        }
+        g.font = font;
+        g.fillStyle = '#2a1a22';
+        g.fillText(name, 0, 0.5);
+      });
+      q.stamp(pill, sx, ny);
     } else if (!name) {
       // feel pass B5: no own name after the first seconds (the gold ring marks the hero)
     } else if (this.goldPlate) {
-      const grad = g.createLinearGradient(0, ny - nf / 2 - 3, 0, ny + nf / 2 + 3);
-      grad.addColorStop(0, '#fff1a8');
-      grad.addColorStop(1, '#e0a92e');
-      g.fillStyle = grad;
-      roundRect(g, sx - tw / 2 - 6, ny - nf / 2 - 3, tw + 12, nf + 6, 5);
-      g.fill();
-      g.strokeStyle = '#7a4a12';
-      g.lineWidth = 1.5;
-      g.stroke();
-      g.fillStyle = '#4a2a1f';
-      g.fillText(name, sx, ny + 0.5);
+      const gold = this.atlas.get(`gold|${name}|${nf}`, tw + 16, nf + 10, (g) => {
+        const grad = g.createLinearGradient(0, -nf / 2 - 3, 0, nf / 2 + 3);
+        grad.addColorStop(0, '#fff1a8');
+        grad.addColorStop(1, '#e0a92e');
+        g.fillStyle = grad;
+        roundRect(g, -tw / 2 - 6, -nf / 2 - 3, tw + 12, nf + 6, 5);
+        g.fill();
+        g.strokeStyle = '#7a4a12';
+        g.lineWidth = 1.5;
+        g.stroke();
+        g.font = font;
+        g.fillStyle = '#4a2a1f';
+        g.fillText(name, 0, 0.5);
+      });
+      q.stamp(gold, sx, ny);
     } else {
-      g.lineWidth = 3;
-      g.strokeStyle = 'rgba(10,12,18,0.9)';
-      g.strokeText(name, sx, ny);
-      g.fillStyle = this.color(e);
-      g.fillText(name, sx, ny);
+      const col = this.color(e);
+      const own = this.atlas.get(`own|${name}|${col}|${nf}`, tw + 10, nf + 10, (g) => {
+        g.font = font;
+        g.lineWidth = 3;
+        g.strokeStyle = 'rgba(10,12,18,0.9)';
+        g.strokeText(name, 0, 0);
+        g.fillStyle = col;
+        g.fillText(name, 0, 0);
+      });
+      q.stamp(own, sx, ny);
     }
-    if (this.watchers.has(e.id)) this.eyeGlyph(g, sx + tw / 2 + 14 * this.scale, ny);
+    if (this.watchers.has(e.id)) this.eyeGlyph(sx + tw / 2 + 14 * sc, ny);
     let chevronY = ny - nf / 2 - 5;
     if (e.id === this.mySlot && this.catName && name) {
       // the worn cat, small, above the own name (canvas text: never HTML)
-      g.font = `600 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
-      const cy = ny - 13 * this.scale;
-      g.lineWidth = 3;
-      g.strokeStyle = 'rgba(42,26,34,0.85)';
-      g.strokeText(this.catName, sx, cy);
-      g.fillStyle = '#fff3dc';
-      g.fillText(this.catName, sx, cy);
-      chevronY = cy - 10 * this.scale;
-      g.font = `700 ${nf}px Fredoka, system-ui, sans-serif`;
+      const cat = this.catName;
+      const cf = FONT(600, Math.round(9 * sc));
+      const cw = this.atlas.measure(cat, cf);
+      const cy = ny - 13 * sc;
+      const st = this.atlas.get(`cat|${cat}|${sc}`, cw + 10, 9 * sc + 10, (g) => {
+        g.font = cf;
+        g.lineWidth = 3;
+        g.strokeStyle = 'rgba(42,26,34,0.85)';
+        g.strokeText(cat, 0, 0);
+        g.fillStyle = '#fff3dc';
+        g.fillText(cat, 0, 0);
+      });
+      q.stamp(st, sx, cy);
+      chevronY = cy - 10 * sc;
     }
     if (e.id === this.mySlot && this.plateGem) {
-      const gx = sx + tw / 2 + 10 * this.scale;
-      const r = 4 * this.scale;
-      g.fillStyle = this.plateGem;
-      g.strokeStyle = 'rgba(42,26,34,0.9)';
-      g.lineWidth = 1.5;
-      g.beginPath();
-      g.moveTo(gx, ny - r);
-      g.lineTo(gx + r * 0.75, ny);
-      g.lineTo(gx, ny + r);
-      g.lineTo(gx - r * 0.75, ny);
-      g.closePath();
-      g.fill();
-      g.stroke();
+      const gem = this.plateGem;
+      const gr = 4 * sc;
+      const st = this.atlas.get(`gem|${gem}|${sc}`, 1.5 * gr + 5, 2 * gr + 5, (g) => {
+        g.fillStyle = gem;
+        g.strokeStyle = 'rgba(42,26,34,0.9)';
+        g.lineWidth = 1.5;
+        g.beginPath();
+        g.moveTo(0, -gr);
+        g.lineTo(gr * 0.75, 0);
+        g.lineTo(0, gr);
+        g.lineTo(-gr * 0.75, 0);
+        g.closePath();
+        g.fill();
+        g.stroke();
+      });
+      q.stamp(st, sx + tw / 2 + 10 * sc, ny);
     }
-    if (e.id === this.mySlot && name) this.selfChevron(g, sx, chevronY);
+    if (e.id === this.mySlot && name) this.selfChevron(sx, chevronY);
     // the bounty crown sits left of the name (round 1: it was drawn over it: "Sir▲tus")
     // fun pass (playtest #13): a phone plate pushed up by the declutter (a 3v1) drops its crowns: three stacked crowned
     // plates over the fight were unreadable; the bottom plate keeps them
     const quiet = this.phone && p.stacked > 0;
-    if (!quiet && this.bounty(e.id) > 0) this.crown(g, sx - tw / 2 - 14 * this.scale, ny);
+    if (!quiet && this.bounty(e.id) > 0) this.crown(sx - tw / 2 - 14 * sc, ny);
     // Lane F (F6): an enemy ahead of you on Toys: a red-gold crown with its Toy pips right of the name
     const fed = quiet ? 0 : fedPips(e, this.myTeam, this.myToy);
-    if (fed > 0) this.fedMark(g, sx + tw / 2 + (this.watchers.has(e.id) ? 28 : 14) * this.scale, ny, fed);
+    if (fed > 0) this.fedMark(sx + tw / 2 + (this.watchers.has(e.id) ? 28 : 14) * sc, ny, fed);
     if (p.chip) {
       // another hero's plate sits right above this one: say so (left of the level badge; status takes the right)
-      const cx = bx - 16 * this.scale;
-      g.fillStyle = 'rgba(42,26,34,0.92)';
-      roundRect(g, cx - 11 * this.scale, sy - 7 * this.scale, 22 * this.scale, 14 * this.scale, 6);
-      g.fill();
-      g.fillStyle = '#fff3dc';
-      g.font = `700 ${Math.round(10 * this.scale)}px Fredoka, system-ui, sans-serif`;
-      g.fillText('×2', cx, sy + 0.5);
+      const st = this.atlas.get(`x2|${sc}`, 22 * sc + 4, 14 * sc + 4, (g) => {
+        g.fillStyle = 'rgba(42,26,34,0.92)';
+        roundRect(g, -11 * sc, -7 * sc, 22 * sc, 14 * sc, 6);
+        g.fill();
+        g.fillStyle = '#fff3dc';
+        g.font = FONT(700, Math.round(10 * sc));
+        g.fillText('×2', 0, 0.5);
+      });
+      q.stamp(st, bx - 16 * sc, sy);
     }
-    this.statusMark(g, e, x, bw, sy);
+    this.statusMark(e, x, bw, sy);
   }
 
   /**
    * The status right of a hero bar: a word chip ("Rooted") on desktop; on a phone (audit GFX-04) a 14 px icon disc
    * with the status's letter, so a stacked fight is not a wall of words.
    */
-  private statusMark(g: CanvasRenderingContext2D, e: ViewEntity, x: number, bw: number, sy: number): void {
+  private statusMark(e: ViewEntity, x: number, bw: number, sy: number): void {
     const status = this.statusChips ? (e.charmed ? 'Charmed' : statusWord(e.buffs)) : '';
     if (!status) return;
-    const cx = x + bw + 6 * this.scale;
-    g.fillStyle = 'rgba(255,224,102,0.95)';
+    const sc = this.scale;
+    const cx = x + bw + 6 * sc;
+    const font = FONT(this.phone ? 800 : 700, Math.round(9 * sc));
     if (this.phone) {
-      const r = 7 * this.scale;
-      g.beginPath();
-      g.arc(cx + r, sy, r, 0, Math.PI * 2);
-      g.fill();
-      g.strokeStyle = 'rgba(42,26,34,0.9)';
-      g.lineWidth = 1.5;
-      g.stroke();
-      g.fillStyle = '#2a1a22';
-      g.font = `800 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
-      g.textAlign = 'center';
-      g.fillText(statusGlyph(status), cx + r, sy + 0.5);
+      const r = 7 * sc;
+      const st = this.atlas.get(`stp|${status}|${sc}`, 2 * r + 5, 2 * r + 5, (g) => {
+        g.fillStyle = 'rgba(255,224,102,0.95)';
+        g.beginPath();
+        g.arc(0, 0, r, 0, Math.PI * 2);
+        g.fill();
+        g.strokeStyle = 'rgba(42,26,34,0.9)';
+        g.lineWidth = 1.5;
+        g.stroke();
+        g.fillStyle = '#2a1a22';
+        g.font = font;
+        g.fillText(statusGlyph(status), 0, 0.5);
+      });
+      this.batch.stamp(st, cx + r, sy);
       return;
     }
-    g.font = `700 ${Math.round(9 * this.scale)}px Fredoka, system-ui, sans-serif`;
-    const tw = g.measureText(status).width + 8 * this.scale;
-    roundRect(g, cx, sy - 7 * this.scale, tw, 14 * this.scale, 6);
-    g.fill();
-    g.fillStyle = '#2a1a22';
-    g.textAlign = 'left';
-    g.fillText(status, cx + 4 * this.scale, sy + 0.5);
-    g.textAlign = 'center';
+    const tw = this.atlas.measure(status, font) + 8 * sc;
+    const st = this.atlas.get(`std|${status}|${sc}`, tw + 4, 14 * sc + 4, (g) => {
+      g.fillStyle = 'rgba(255,224,102,0.95)';
+      roundRect(g, -tw / 2, -7 * sc, tw, 14 * sc, 6);
+      g.fill();
+      g.fillStyle = '#2a1a22';
+      g.font = font;
+      g.textAlign = 'left';
+      g.fillText(status, -tw / 2 + 4 * sc, 0.5);
+    });
+    this.batch.stamp(st, cx + tw / 2, sy);
   }
+}
+
+/** The lock brackets' corners: (x0, y0), (x1, y0), (x0, y1), (x1, y1), each opening inward. */
+const BRACKETS = [
+  [1, 1],
+  [-1, 1],
+  [1, -1],
+  [-1, -1],
+] as const;
+
+/** The crown outline (bounty, fed mark, Disdain) centred on (x, y), half-width s. */
+function crownPath(g: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  g.beginPath();
+  g.moveTo(x - s, y + s * 0.5);
+  g.lineTo(x - s, y - s * 0.4);
+  g.lineTo(x - s * 0.5, y + s * 0.05);
+  g.lineTo(x, y - s * 0.7);
+  g.lineTo(x + s * 0.5, y + s * 0.05);
+  g.lineTo(x + s, y - s * 0.4);
+  g.lineTo(x + s, y + s * 0.5);
+  g.closePath();
 }
 
 /** Audit GFX-04: the phone status icon's glyph (one letter or sign per status). Pure. */
