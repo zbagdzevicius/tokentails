@@ -14,15 +14,28 @@
  *   Render-only: the path follows the drawn positions at the cast tick, never sim state.
  * - The emote: every spot flies off and circles him, then drops back on.
  *
+ * Champion identity (CHAMP-IDENTITY.md §3, audio/champ/domino.ts): every skill also draws its nature accent (Q
+ * projectile sparkle, W splash droplets, E impact dust ring, R arcane twinkle) and his motif, ink spots joined by
+ * lilac stars: a spot with a sparkle off the Spot Shot, a splash of spots in the Splatter, spots flung off in a ring
+ * on Big Shake, a starred spot on every CONNECT THE DOTS! target, a star glint on each Spot On spot. Sounds: the
+ * framework plays the nature layer with his marimba motif (W: the splat, E: the shake, R: the pencil-draw ult voice
+ * and a marimba star on each hit), so this script no longer plays the boop, splat, shake or draw on the cast; the
+ * Spot Shot carries the projectile travel whoosh.
+ *
  * Pooled, no allocation per event or per frame. Render only.
  */
+import { CHAMP_AUDIO } from '../../audio/champ';
+import type { MotifPainter } from '../../audio/champ/types';
+import { playSkillSfx } from '../../audio/skillSfx';
+import { IDENTITY, type SkillKey } from '../../data/identity';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { TICK_S } from '../anim/timing';
 import type { FxCtx, SkillFxSet } from '../anim/types';
-import { SHAPE } from '../fx/Particles.js';
-import { flying, funHeroOf, funOverY, funPop, funSound, orbit, sticker } from '../fx/fun/funKit';
+import { NATURE_FX } from '../fx/natureFx';
+import { FADE, SHAPE } from '../fx/Particles.js';
+import { flying, funCount, funHeroOf, funOverY, funPool, funPop, funSound, orbit, sticker } from '../fx/fun/funKit';
 import { shower } from '../fx/fun/skills2Fun';
-import { P, Q, mesh, vary, yawOf } from './dogFx';
+import { F, P, Q, aimDir, faceOf, mesh, vary, yawOf } from './dogFx';
 
 const SPOT = 0x16141a;
 const STAR = 0xd8c8ff;
@@ -42,6 +55,122 @@ const QX = new Float32Array(6);
 const QZ = new Float32Array(6);
 const QID = new Int16Array(6);
 const ok = (id: number): boolean => id >= 0 && id < 16;
+
+// ------------------------------------------------------------------------------------------------ champion identity
+
+type Pool = Pick<MotifPainter, 'burst' | 'single' | 'ring'>;
+let pool: Pool | null = null;
+const SH = SHAPE as unknown as Readonly<Record<string, number>>;
+/** The fun sticker pool as the champion motif painter (audio/champ/domino.ts paintDomino draws through it). */
+const PAINTER: MotifPainter = {
+  burst: (pos, o) => pool?.burst(pos, o),
+  single: (pos, o) => pool?.single(pos, o),
+  ring: (pos, o) => pool?.ring(pos, o),
+  shape: SH,
+  colors: { primary: IDENTITY.domino.colors.primary, secondary: IDENTITY.domino.colors.secondary },
+};
+/** The colour pair on an enemy: a gold-family colour mixed 70 percent toward white (never the gold "you" family). */
+const ENEMY_PRIMARY = IDENTITY.domino.colors.primary;
+const ENEMY_SECONDARY = IDENTITY.domino.colors.secondary;
+const IAT = { x: 0, y: 0, z: 0 };
+const IDIR = { x: 0, z: 0 };
+const IDIR3 = { x: 0, y: 0, z: 0 };
+const NB = { n: 1, exact: true, shape: 0, color: 0, additive: false, intensity: 1, size: [0.1, 0.2] as readonly number[], life: [0.3, 0.5] as readonly number[], speed: [1, 2] as readonly number[], gravity: 0, up: 0, dir: undefined as typeof IDIR3 | undefined, spread: Math.PI, stretch: 1, drag: 1, flat: false, fade: 0 as number, r0: 0.5, sizeEnd: 1 };
+const NS = { shape: 0, color: 0, size0: 0.4, size1: 1.6, life: 0.3, alpha: 0.7, intensity: 1.4, additive: true };
+
+/** The skill's nature accent at IAT (NATURE_FX: its shape, colour and motion), about half a cast's worth of particles. */
+function natureAccent(fx: FxCtx, skill: SkillKey, has: boolean): void {
+  const s = NATURE_FX[IDENTITY.domino.skills[skill].nature];
+  const p = pool!;
+  const o = NB;
+  o.n = funCount(fx, Math.max(2, Math.round(s.count.cast * 0.5)));
+  o.shape = SH[s.shape];
+  o.color = s.color;
+  o.additive = s.additive;
+  o.intensity = s.additive ? 1.4 : 1;
+  o.size = s.size;
+  o.life = s.life;
+  o.speed = s.speed;
+  o.gravity = s.gravity;
+  o.up = 0.6;
+  o.dir = undefined;
+  o.spread = Math.PI;
+  o.stretch = 1;
+  o.drag = 1;
+  o.flat = false;
+  o.fade = FADE.TWINKLE;
+  switch (s.motion) {
+    case 'slam':
+    case 'dome':
+    case 'implode':
+    case 'twinkle':
+      o.r0 = s.motion === 'implode' ? 1.4 : 0.6;
+      o.up = s.motion === 'dome' ? 1.6 : 0.4;
+      o.sizeEnd = s.motion === 'slam' ? 2 : 0.7;
+      p.ring(IAT, o);
+      return;
+    case 'ripple':
+      NS.shape = SH.RING;
+      NS.color = s.color;
+      for (let i = 0; i < 2; i++) {
+        NS.size0 = 0.4 + i * 0.5;
+        NS.size1 = 1.6 + i * 0.9;
+        NS.life = 0.3 + i * 0.06;
+        NS.alpha = 0.75 - i * 0.15;
+        p.single(IAT, NS);
+      }
+      return;
+    case 'sweep':
+    case 'bolt':
+    case 'streak':
+      if (has) {
+        o.dir = IDIR3;
+        o.spread = 0.6;
+      }
+      o.stretch = 2.5;
+      o.drag = 4;
+      break;
+    case 'rise':
+    case 'pillar':
+      o.up = 2.5;
+      break;
+    case 'arc':
+      o.up = 3;
+      break;
+    case 'trail':
+      o.flat = true;
+      o.up = 0.4;
+      break;
+    default:
+  }
+  p.burst(IAT, o);
+}
+
+/**
+ * Champion identity (CHAMP-IDENTITY.md §1–§3): the skill's nature accent and Domino's spots-and-stars motif in the colour pair at
+ * (x, y, z) for caster `src`, `n` motif particles (the tier halves it), along (dx, dz) when given. `nature` false: the motif alone. A
+ * no-op without the fun pool (unit stubs).
+ */
+function identity(fx: FxCtx, src: number, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void {
+  const p = funPool(fx) as unknown as Partial<Pool> | null;
+  if (!p || typeof p.burst !== 'function') return;
+  pool = p as Pool;
+  // gold stays "you": on an enemy the gold-family half of the pair is drawn as a pale glint (skins trimForTeam)
+  const foe = fx.relation(src) === 'enemy';
+  PAINTER.colors.primary = foe ? ENEMY_PRIMARY : IDENTITY.domino.colors.primary;
+  PAINTER.colors.secondary = foe ? ENEMY_SECONDARY : IDENTITY.domino.colors.secondary;
+  const has = dx !== 0 || dz !== 0;
+  IAT.x = x;
+  IAT.y = y;
+  IAT.z = z;
+  IDIR.x = IDIR3.x = dx;
+  IDIR.z = IDIR3.z = dz;
+  if (nature) natureAccent(fx, skill, has);
+  CHAMP_AUDIO.domino.fx?.paint?.(PAINTER, IAT, funCount(fx, n), has ? IDIR : null, skill);
+}
+
+/** The identity mix relation of a Relation3. */
+const MIXREL = { own: 'mine', ally: 'ally', enemy: 'enemy' } as const;
 
 /** One spot flying from a to b (m), arriving in `t` s. */
 function spotFly(fx: FxCtx, ax: number, az: number, bx: number, bz: number, y0: number, y1: number, t: number): void {
@@ -101,8 +230,11 @@ function drawDots(id: number, fx: FxCtx): void {
     mesh(fx, 'ring', bx, bz, 0.9, 0.6, STAR, rim, rel, { p1: 0.7, delay });
     shower(fx, bx, 1.1, bz, 8, SHAPE.STAR4, STAR, 0.26, 0.6, 2.2, 1.2, 0, vary(), true);
     spotFly(fx, bx, bz, P.x, P.z, 1.2, 1.0, 0.45);
+    // identity: a starred spot on the dot (the marimba star is his R impact sound, on the hit)
+    identity(fx, id, 'r', bx, 0.4, bz, 3, 0, 0, false);
   }
-  funSound('dominoDraw', P, 1.2, 0.5);
+  // identity: the arcane twinkle round him as the lines draw (the pencil scratch is his ult voice, on the cast)
+  identity(fx, id, 'r', P.x, 0.4, P.z, 4);
   if (len >= 2) funPop(fx, id, 'CONNECT THE DOTS!', P.x, funOverY(fx, id, 0.5), P.z);
 }
 
@@ -135,7 +267,9 @@ export const SKILL_FX: SkillFxSet = {
     const rim = fx.rim(e.src);
     switch (e.slot) {
       case 0:
-        funSound('dominoBoop', P, 1, 0.45);
+        // identity: the projectile sparkle and a spot with a star off the throw (the boop is his motif ping)
+        if (!aimDir(e.x, e.y)) faceOf(fx, e.src);
+        identity(fx, e.src, 'q', P.x + F.x * 0.6, 0.3, P.z + F.z * 0.6, 5, F.x, F.z);
         return;
       case 1: {
         const a = fx.abil(e.src, 'w');
@@ -149,7 +283,8 @@ export const SKILL_FX: SkillFxSet = {
           const ang = (k / 8) * Math.PI * 2 + 0.3;
           sticker(fx, x + Math.cos(ang) * rad * 0.8, 0.12, z + Math.sin(ang) * rad * 0.8, 'SOFT', SPOT, 0.34, 1.0);
         }
-        funSound('dominoSplat', { x, z }, 1, 0.55);
+        // identity: splash droplets and a splash of spots (the splat is his W cast sound)
+        identity(fx, e.src, 'w', x, 0.1, z, 9);
         return;
       }
       case 2: {
@@ -159,7 +294,8 @@ export const SKILL_FX: SkillFxSet = {
           const ang = (k / 12) * Math.PI * 2;
           flying(fx, P.x, 1.0, P.z, Math.cos(ang) * rad * 2.4, 1.5, Math.sin(ang) * rad * 2.4, 'DROPLET', 0x9fd8ff, 0.24, 0.42);
         }
-        funSound('dominoShake', P, 1, 0.55);
+        // identity: the impact ring and spots flung off him (the rattle is his E cast sound)
+        identity(fx, e.src, 'e', P.x, 0.3, P.z, 8);
         funPop(fx, e.src, 'SHAKE!', P.x, funOverY(fx, e.src, 0.4), P.z);
         return;
       }
@@ -175,6 +311,8 @@ export const SKILL_FX: SkillFxSet = {
   onProjectile(owner, kind, slot, fx) {
     if (kind !== PROJECTILE_KIND.fluff || slot !== 0 || !ok(owner) || funHeroOf(fx, owner) !== 'domino' || !fx.heroPos(owner, P)) return;
     sticker(fx, P.x, 1.0, P.z, 'RING', WHITE, 0.4, 0.2);
+    // the projectile travel whoosh under the Spot Shot (identity mix: travel layer)
+    playSkillSfx('domino', 'q', 'travel', { at: P, relation: MIXREL[fx.relation(owner)] });
   },
 
   onHit(e, fx) {
@@ -187,6 +325,8 @@ export const SKILL_FX: SkillFxSet = {
     // Spot On: a spot flies off his coat onto the hero
     if (funHeroOf(fx, e.dst) !== null && fx.heroPos(e.src, P)) spotFly(fx, P.x, P.z, Q.x, Q.z, 1.2, 1.4, 0.25);
     shower(fx, Q.x, 1.0, Q.z, 3, SHAPE.SOFT, SPOT, 0.18, 0.3, 1.2, 0.6, 0, vary());
+    // identity: Spot On: the spot sticks with a star glint
+    identity(fx, e.src, 'passive', Q.x, 0.6, Q.z, 3, 0, 0, false);
   },
 
   onMarker(id, _clip, marker, fx) {
