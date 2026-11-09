@@ -51,6 +51,7 @@ import { HEROES } from '../../data/heroes';
 import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
+import { applySweep, newSweep, type SweepRec } from '../../ui/cdSweep';
 import { ATK_SELECT, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
 
 /** Absolute angle between two directions (rad), 0..π. */
@@ -1281,6 +1282,14 @@ export class TouchControls {
   private pipLevel = 0;
 
   /** Per frame: joystick commands, attack repeat, cooldown overlays, and (Wave C) the rank pips. */
+  /** PERF-IOS §8 Track C: per skill button, the sweep's last written step (cooldown display only). */
+  private readonly sweeps = new Map<ButtonId, SweepRec>();
+  private cdSweep(b: ButtonId): SweepRec {
+    let sw = this.sweeps.get(b);
+    if (!sw) this.sweeps.set(b, (sw = newSweep()));
+    return sw;
+  }
+
   update(cooldowns: readonly number[] | null, max: readonly number[], level: number): void {
     if (!this.enabled) {
       // UX pass 2: the HUD's Paw Trick button (mouse click) flashes along the heading too, so the movement track is
@@ -1363,8 +1372,9 @@ export class TouchControls {
       }
       if (b === 'r') this.rLocked = locked;
       el.classList.toggle('cooling', cd > 0);
-      const f = max[i] > 0 ? Math.min(1, cd / max[i]) : 0;
-      el.style.setProperty('--cd', String(f));
+      // PERF-IOS §8 Track C: --cd is written only when the sweep moves a step (ui/cdSweep.ts), not every frame
+      const sw = this.cdSweep(b);
+      if (sw) applySweep(el, sw, cd, max[i]);
       const label = el.querySelector('span');
       // LoL pass (lane B): whole seconds, one decimal under 1 s
       const txt = cdLabel(cd);

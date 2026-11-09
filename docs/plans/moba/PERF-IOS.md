@@ -812,3 +812,85 @@ Files owned by C: `app/app.ts`, `render/gameView.ts`, `render/effects.ts`, `rend
 ### 8.13 Results
 
 To be filled by the tracks: the §8.2 table again (current build vs the build before the track), with the targets above.
+
+#### Track C: hitches and DOM (2026-11-09)
+
+**Measured:** `perf-ios-probe2.mjs`, the current `origin/main` build (`9b0fa506`, the base) against Track C, served
+side by side and run in pairs at the same time: Chromium on the GPU, CPU ×4, 3 pairs; WebKit, 2 pairs. Table cells
+are medians, base → Track C. The host's load average was 30–42, so compare the columns with each other only.
+
+| Window (Chromium ×4) | CPU busy ms/s | Task ms/s | Style recalcs/s | Style ms/s | DOM mutations/s | Layers | Audio nodes/s | Heap MB/s |
+|---|---|---|---|---|---|---|---|---|
+| Lobby | 112 → **71** | 134 → 92 | 58.8 → **20.1** | 14.0 → 2.4 | 0.5 → 0.5 | 12 → 10 | 0 → 0 | 0.43 → 0.43 |
+| Champion browser + skill preview | 530 → **263** | 550 → 280 | 121 → **59** | 26.6 → 7.0 | 143 → **0** | 50 → **29** | 10.9 → **0** | 6.0 → 3.2 |
+| Match 0:00–0:15 | – | 423 → 403 | 27.7 → 21.1 | 19.5 → 10.3 | 62 → 35 | 14 → 14 | 7.8 → 7.8 | 10.4 → 10.0 |
+| Match 1:00 | 479 → **453** | 494 → 464 | 38.4 → 28.0 | 38.7 → **17.2** | 140 → **67** | 16 → 20 | 7.9 → 8.0 | 9.2 → 8.8 |
+| Match 2:00 | – | 523 → 457 | 46.3 → 32.3 | 40.2 → 19.8 | 155 → 73 | 21 → 16 | 11 → 14 | 10.3 → 9.6 |
+| Match 2:15 | 506 → **441** | 512 → 446 | 39.9 → 28.9 | 33.8 → 16.6 | 120 → 63 | 21 → 19 | 8.2 → 8.6 | 10.0 → 8.8 |
+| Pause | – | 113 → 109 | 0 → 0 | 0 → 0 | 0.2 → 0.2 | 18 → 16 | 5 → 4 | 2.7 → 2.6 |
+
+| Also | Base | Track C |
+|---|---|---|
+| Skill preview draw rate | ~60 fps: 3,695 draws/s, **10.7M triangles/s** | 29.4 fps: 1,760 draws/s, **5.1M triangles/s** |
+| Lobby frames while the browser is open | 29.4 a second | 1 (its last frame stays up) |
+| Preview HP bars canvas | 656×566 (DPR 2) | 492×425 (DPR 1.5) |
+| Running infinite CSS animations: title / browser | 3 / 7 | 1 (three pulses, then 0) / 1 |
+| Programs linked after the veil, whole run (Chromium / WebKit) | 2–4 / 2–3 | **0 / 0** in every run |
+| WebKit frame gaps over 50 ms | 0–2 a run (80–82 ms) | 0–1 a run (67 ms at 97 s, not a link) |
+| WebKit JS per drawn frame: browser / match | 2.49 / 1.48–1.69 ms | 1.71 / 1.56–1.63 ms |
+| Veil up after Play (dev build, M3 Pro) | 250 ms + fade | warm-up done in 0.4–0.9 s (Chromium), 0.5–1.2 s (WebKit); capped at 2.4 s |
+
+The Chromium frame gaps at 60 s and 136 s in both builds are the CPU profiler starting (§8.6).
+
+**What changed:**
+
+1. **Warm-up behind the veil** (`render/gameView.ts` `warmup()`, `render/perf/pacer.ts` `warmMatch()`, `app/app.ts`).
+   The veil now waits (capped at 2.4 s; the VS card and the countdown run under it, and the sim starts on "Ready!")
+   until, once the roster is known and the first snapshot is drawn: a hero is built for every slot that has no rig
+   yet (the enemies are hidden by the fog until first contact), every hidden object (FX pools, rings, pickups) is
+   shown for one synchronous block while `compileAsync` queues its programs, the towers' and cores' see-through
+   variant is queued too, one dash afterimage is spawned, and once the programs are ready one frame is drawn with a
+   fresh shadow map (the shadow-depth variants). Traced with a `linkProgram` hook, the programs that linked after the
+   veil were: the towers' x-ray fade (`towerView.ts` flips `material.transparent` when a hero stands behind one: the
+   two `MeshLambertMaterial [USE_SHADOWMAP, USE_COLOR]` 0.1–0.5 s after the drop) and the first dash afterimage
+   (`anim/ghosts.ts`, the skinned `ShaderMaterial` and its pair at 12–13 s, first lane contact). The warm-up heroes
+   stand 5 km up (never in a view), leave the scene, and keep their materials until the match ends, so three.js
+   keeps their programs. If the cap is reached (SwiftShader under load), the veil goes and the shown-everything frame
+   is skipped; programs then link in play as before. A tier change by the governor relinks programs by design.
+2. **Champion browser** (`ui/preview/skillPreview.ts`, `ui/champBrowser/{cover.ts,champBrowser.ts,champBrowser.css}`,
+   `app/app.ts`): the clip runs through a `FramePacer` at 30 fps; the three sandbox heroes outside the box are not
+   drawn (hero meshes are never frustum-culled); the mute also swaps `sfx.playLayer` (**the identity sounds bug of
+   §8.9 is fixed**: 0 audio nodes); its DOM damage numbers are gone (their pool sat in the page's full-screen layer
+   under the panel: never seen, 143 style writes a second); bars at DPR 1.5; the lobby behind is drawn once and then
+   not at all while the browser is open (redrawn on a resize); no backdrop blur on touch or phones (a deeper solid
+   dim); the pick cards' foil glints under the panel pause.
+3. **Cooldown sweeps** (`ui/cdSweep.ts`, `ui/hud.ts`, `input/touch/touchControls.ts`, cooldown display only):
+   `--cd` is written only when the sweep moves one of 90 steps (4°), rounded up so it never shows ready early.
+   **Not the CSS animation the brief asked for:** that was built and measured first (one registered `--cd`
+   animation per cooldown, as `abilityBar.js` does). It cut the DOM writes, but Chromium then ran a style recalc at
+   the display rate for each running sweep outside the JS frame: fight recalcs went from ~39 to ~69 a second and
+   style time up ~25%, and WebKit's JS per frame rose from ~1.5 to ~1.9 ms. Steps write 7–15 times a second for
+   a 6–12 s cooldown and stay in the JS frame.
+4. **Boot splash removed** after its fade (`app/app.ts`): hidden, its two infinite animations ran for the whole
+   session, in the lobby and in every match. The lobby's Play glow pulses three times on phones, then stops
+   (`ui/lobby/lobby.css`).
+5. `gameView.remember()` iterates `who.values()` (no entry arrays).
+
+**Targets not reached:** browser 263 ms/s at ×4 (target ≤ 150) and 5.1M preview triangles a second (≤ 2M). The rest
+is the clip itself: the preview draws the whole match map, whose forest, hedges, bushes and walls are single merged
+meshes (28k, 17k, 9k, 8k triangles) that frustum culling cannot split, and three.js walks the full match scene each
+frame (`projectObject`, `updateMatrixWorld`: ~40% of the clip's CPU). Hiding them changes the clip's look (checked
+with screenshots). Next step for Track A (`mapView.ts`): chunk those merged meshes so they cull, which helps the
+match too. Match style recalcs are 28–32 a second (target ≤ 10): the cooldown writes are now a small share; the rest
+is other HUD updates not in this track.
+
+**Not done:** damage-number text-stroke on phones (no measured cost, and the outline carries their readability);
+the ~430-node "residue" after a browser visit does not look like a leak: 3 s into a match after a visit the document
+holds 437 (base) and 440 (Track C) elements, while CDP's `Nodes` (which also counts detached nodes not yet collected)
+reads 1,100–1,575 and moves by ±300 between runs of either build. Not checked with a heap snapshot.
+
+**Tests:** `tests/unit/perf-dom.test.ts` (sweep steps, the veil's caps with a fake clock, the warm-up hero list, the
+cover flag), `tests/unit/skill-preview.test.ts` (the identity layer stays silent, no damage-number layer),
+`tests/e2e/perf-ios.spec.ts` (landscape: boot splash gone, ≤ 1 infinite animation on the title, browser without
+blur, a still lobby and a clip at ≤ 30 fps, no programs linked after the veil when the warm-up finished, sweep writes
+on steps only).
