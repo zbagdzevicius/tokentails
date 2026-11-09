@@ -2364,6 +2364,12 @@ export class MatchSession {
     const sentId = this.orders?.lastAttackId ?? -1;
     d.atkSent = sentId >= 0 ? `${sentId}:${frame?.byId.get(sentId)?.kind ?? ''}` : '';
     d.extraHits = this.touch ? `${this.touch.extraHits.lasthit},${this.touch.extraHits.tower}` : '';
+    // hold-to-select on ATK: the candidates shown and the selection while held; selector locks, cancels, last pick
+    d.atkCands = this.view.atkCands ? this.view.atkCands.join(',') : '';
+    d.atkSel = this.view.atkSelect != null ? String(this.view.atkSelect) : '';
+    d.atkHold = this.touch?.atkHoldState() ?? '';
+    d.atkSelN = this.touch ? `${this.touch.atkSel.locked},${this.touch.atkSel.cancelled},${this.touch.atkSel.last ?? ''},${this.touch.atkSel.kind},${this.touch.atkSel.why}` : '';
+    d.atkLock = this.touch?.attackLockId() != null ? String(this.touch.attackLockId()) : '';
     // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
     d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
     d.lastHits = String(this.lastHitsSeen);
