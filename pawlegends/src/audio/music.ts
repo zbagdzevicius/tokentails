@@ -18,6 +18,10 @@ const LOOKAHEAD_S = 0.25;
 const FADE_TAU = 0.5;
 const VOLUME = 0.2;
 const LAYER_GAIN = [0.9, 0.75, 0.85, 0.7];
+/** Notes up to this long (s) are baked once and replayed from a buffer (pads, a bar long, stay live). */
+const BAKE_MAX_S = 1;
+/** Offline renders in flight at once. */
+const BAKE_PARALLEL = 2;
 
 /** C – G – Am – F, one bar each (MIDI roots and triads). */
 const BARS: readonly { root: number; chord: readonly number[] }[] = [
@@ -175,30 +179,78 @@ export class Music {
     }
   }
 
+  /**
+   * PERF-IOS §8 Track B: short notes (≤ BAKE_MAX_S) are rendered once, offline, through the exact live graph, and then
+   * played as one BufferSource straight into the layer (one node a note instead of two to three). Until a note's
+   * buffer is ready (the first time it plays) it is synthesised live as before. Long pads stay live (one bar each).
+   */
+  private readonly baked = new Map<string, AudioBuffer | null>();
+  private baking = 0;
+  /** Notes played from a baked buffer, and live (tests). */
+  bakedPlays = 0;
+  livePlays = 0;
+
+  private playBaked(key: string, layer: number, t: number, len: number, build: (c: BaseAudioContext, dest: AudioNode) => void): boolean {
+    const ac = this.ac;
+    if (!ac) return false;
+    const b = this.baked.get(key);
+    if (b) {
+      const src = ac.createBufferSource();
+      src.buffer = b;
+      src.connect(this.layers[layer]);
+      src.start(t);
+      this.bakedPlays++;
+      return true;
+    }
+    if (b === undefined && this.baking < BAKE_PARALLEL && len <= BAKE_MAX_S + 0.1) {
+      const Off = (globalThis as unknown as { OfflineAudioContext?: typeof OfflineAudioContext }).OfflineAudioContext;
+      if (!Off) return false;
+      try {
+        const off = new Off(1, Math.ceil(len * ac.sampleRate), ac.sampleRate);
+        build(off, off.destination);
+        this.baked.set(key, null);
+        this.baking++;
+        void off
+          .startRendering()
+          .then((buf) => this.baked.set(key, buf))
+          .catch(() => this.baked.delete(key))
+          .finally(() => this.baking--);
+      } catch {
+        /* live only */
+      }
+    }
+    return false;
+  }
+
   private tone(layer: number, type: OscillatorType, f: number, t: number, dur: number, vol: number, attack: number, release: number, lowpass = 0): void {
     const ac = this.ac;
     if (!ac) return;
     try {
-      const o = ac.createOscillator();
-      o.type = type;
-      o.frequency.value = f;
-      const g = ac.createGain();
-      g.gain.setValueAtTime(0, t);
-      g.gain.linearRampToValueAtTime(vol, t + attack);
-      g.gain.setValueAtTime(vol, t + Math.max(attack, dur - release));
-      g.gain.linearRampToValueAtTime(0, t + dur);
-      let tail: AudioNode = g;
-      if (lowpass > 0) {
-        const lp = ac.createBiquadFilter();
-        lp.type = 'lowpass';
-        lp.frequency.value = lowpass;
-        g.connect(lp);
-        tail = lp;
-      }
-      o.connect(g);
-      tail.connect(this.layers[layer]);
-      o.start(t);
-      o.stop(t + dur + 0.05);
+      const build = (c: BaseAudioContext, dest: AudioNode, at: number): void => {
+        const o = c.createOscillator();
+        o.type = type;
+        o.frequency.value = f;
+        const g = c.createGain();
+        g.gain.setValueAtTime(0, at);
+        g.gain.linearRampToValueAtTime(vol, at + attack);
+        g.gain.setValueAtTime(vol, at + Math.max(attack, dur - release));
+        g.gain.linearRampToValueAtTime(0, at + dur);
+        let tail: AudioNode = g;
+        if (lowpass > 0) {
+          const lp = c.createBiquadFilter();
+          lp.type = 'lowpass';
+          lp.frequency.value = lowpass;
+          g.connect(lp);
+          tail = lp;
+        }
+        o.connect(g);
+        tail.connect(dest);
+        o.start(at);
+        o.stop(at + dur + 0.05);
+      };
+      if (dur <= BAKE_MAX_S && this.playBaked(`t|${type}|${f}|${dur}|${vol}|${attack}|${release}|${lowpass}`, layer, t, dur + 0.06, (c, d) => build(c, d, 0))) return;
+      this.livePlays++;
+      build(ac, this.layers[layer], t);
     } catch {
       /* best effort */
     }
@@ -206,40 +258,54 @@ export class Music {
 
   private hat(layer: number, t: number, dur: number, vol: number, band = 7000): void {
     const ac = this.ac;
-    if (!ac || !this.noise) return;
+    const noise = this.noise;
+    if (!ac || !noise) return;
     try {
-      const src = ac.createBufferSource();
-      src.buffer = this.noise;
-      const f = ac.createBiquadFilter();
-      f.type = band > 4000 ? 'highpass' : 'bandpass';
-      f.frequency.value = band;
-      const g = ac.createGain();
-      g.gain.setValueAtTime(vol, t);
-      g.gain.exponentialRampToValueAtTime(0.0005, t + dur);
-      src.connect(f);
-      f.connect(g);
-      g.connect(this.layers[layer]);
-      src.start(t, Math.random() * 0.3, dur + 0.02);
+      const build = (c: BaseAudioContext, dest: AudioNode, at: number, offset: number): void => {
+        const src = c.createBufferSource();
+        src.buffer = noise;
+        const f = c.createBiquadFilter();
+        f.type = band > 4000 ? 'highpass' : 'bandpass';
+        f.frequency.value = band;
+        const g = c.createGain();
+        g.gain.setValueAtTime(vol, at);
+        g.gain.exponentialRampToValueAtTime(0.0005, at + dur);
+        src.connect(f);
+        f.connect(g);
+        g.connect(dest);
+        src.start(at, offset, dur + 0.02);
+      };
+      // two baked takes per hat (different stretches of the noise), alternated, so repeated hats do not sound stamped
+      const take = this.hatTake++ & 1;
+      if (this.playBaked(`h|${dur}|${vol}|${band}|${take}`, layer, t, dur + 0.03, (c, d) => build(c, d, 0, 0.07 + take * 0.15))) return;
+      this.livePlays++;
+      build(ac, this.layers[layer], t, Math.random() * 0.3);
     } catch {
       /* best effort */
     }
   }
+  private hatTake = 0;
 
   private kick(layer: number, t: number): void {
     const ac = this.ac;
     if (!ac) return;
     try {
-      const o = ac.createOscillator();
-      o.type = 'sine';
-      o.frequency.setValueAtTime(140, t);
-      o.frequency.exponentialRampToValueAtTime(42, t + 0.12);
-      const g = ac.createGain();
-      g.gain.setValueAtTime(0.55, t);
-      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-      o.connect(g);
-      g.connect(this.layers[layer]);
-      o.start(t);
-      o.stop(t + 0.25);
+      const build = (c: BaseAudioContext, dest: AudioNode, at: number): void => {
+        const o = c.createOscillator();
+        o.type = 'sine';
+        o.frequency.setValueAtTime(140, at);
+        o.frequency.exponentialRampToValueAtTime(42, at + 0.12);
+        const g = c.createGain();
+        g.gain.setValueAtTime(0.55, at);
+        g.gain.exponentialRampToValueAtTime(0.001, at + 0.22);
+        o.connect(g);
+        g.connect(dest);
+        o.start(at);
+        o.stop(at + 0.25);
+      };
+      if (this.playBaked('k', layer, t, 0.26, (c, d) => build(c, d, 0))) return;
+      this.livePlays++;
+      build(ac, this.layers[layer], t);
     } catch {
       /* best effort */
     }
