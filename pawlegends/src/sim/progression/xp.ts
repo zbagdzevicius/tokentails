@@ -20,7 +20,7 @@ import { CAMP_KINDS } from '../../data/camps';
 import { TAKEDOWN_HEAL, XP } from '../../data/xp';
 import { applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
-import { G, Kind, NEVER, RANGE, type World } from '../world';
+import { G, Kind, MAX_HEROES, NEVER, RANGE, type World } from '../world';
 import { minionData } from '../units/kinds';
 import { kitOf } from '../heroes/kit';
 import { rulesOf } from '../rules';
@@ -29,8 +29,12 @@ import { grantXp } from './levels';
 import { grantFish } from './fish';
 import { FISH } from '../../data/fish';
 
-const share = new Int32Array(RANGE.minions);
-const helpedBy = new Uint8Array(RANGE.minions);
+// Sim v19: sized for the largest map (10 heroes). `RANGE` is bound to the active map, and at module load it is
+// Crossing's (6 heroes): on Hearthwood, team 1's slots 6 to 9 fell outside these tables, so `helpedBy[h] === 0` was
+// never true for them and every hero death (their own team's included) gave them the takedown heal, a streak and a
+// reset death streak. That was the 5v5 side bias (MAP-5V5.md §12.9).
+const share = new Int32Array(MAX_HEROES);
+const helpedBy = new Uint8Array(MAX_HEROES);
 
 /** Did hero `h` hit `victim` within the assist window? */
 export function assisted(w: World, victim: number, h: number): boolean {

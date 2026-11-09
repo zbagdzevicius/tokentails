@@ -11659,8 +11659,8 @@ function onStructureDestroyed(m, id) {
 *   dying), first blood and shutdown; the assisters split FISH.assistBp of the kill value; a lane minion pays its last
 *   hitter FISH.lastHitBp and every other hero of that team in range FISH.nearBp; a rat its last hitter and allies.
 */
-var share = new Int32Array(RANGE.minions);
-var helpedBy = new Uint8Array(RANGE.minions);
+var share = /* @__PURE__ */ new Int32Array(10);
+var helpedBy = /* @__PURE__ */ new Uint8Array(10);
 /** Did hero `h` hit `victim` within the assist window? */
 function assisted(w, victim, h) {
 	const t = w.assistTick[victim * RANGE.minions + h];
