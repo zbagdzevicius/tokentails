@@ -5,12 +5,12 @@
 import { TRICKS } from '../../data/tricks';
 import { applyBp } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, type World } from '../world';
+import { type World, MAX_ENTITIES } from '../world';
 import { blink, breakTether, cleanse, collect, fear, healOverTime, inRing } from '../effects';
 import { Aim, type SlotAim } from './kit';
 import { TRICK_IDS } from '../../data/tricks';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 /** The trick each hero slot carries is fixed for the match (config.tricks), kept in the world as `trickOf`. */
 export function trickAim(w: World, id: number): SlotAim {

@@ -3,7 +3,7 @@
  * movement and CC, Nap (recall), death and respawn. Abilities resolve through heroes/kit.ts. Bots (slots 1..5) are
  * M3 and idle until then, but they still auto-attack what walks into their attack range.
  */
-import { CAPS, FOUNTAIN, HERO_SPAWNS, MAP, NAV, RADIUS, mirrorX } from '../../data/map';
+import { FOUNTAIN, HERO_SPAWNS, MAP, MAX_HEROES, NAV, RADIUS, mirrorX, mirrorY } from '../../data/map';
 import { HERO_RULES, ZOOMIES } from '../../data/xp';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { NO_TARGET, Op, type Command } from '../api';
@@ -22,20 +22,25 @@ import { attackRange, moveSpeed, radiusOf, targetable } from './kinds';
 
 const out = new Int32Array(3);
 
+// Sim v18: on a point map team 1's spawn k mirrors team 0's across the river, (x, y) → (W − y, H − x).
 const spawnX = (w: World, id: number): number => {
-  const x = HERO_SPAWNS[id % HERO_SPAWNS.length].x;
-  return w.team[id] === 0 ? x : mirrorX(x);
+  const p = HERO_SPAWNS[id % HERO_SPAWNS.length];
+  return w.team[id] === 0 ? p.x : MAP.point === 1 ? MAP.width - p.y : mirrorX(p.x);
 };
-const spawnY = (id: number): number => HERO_SPAWNS[id % HERO_SPAWNS.length].y;
+const spawnY = (w: World, id: number): number => {
+  const p = HERO_SPAWNS[id % HERO_SPAWNS.length];
+  return w.team[id] === 0 ? p.y : MAP.point === 1 ? MAP.height - p.x : mirrorY(p.y);
+};
 
 /** Send hero `id` to its fountain spawn point (respawn, Nap). */
 function toSpawn(w: World, id: number): void {
   w.x[id] = spawnX(w, id);
-  w.y[id] = spawnY(id);
+  w.y[id] = spawnY(w, id);
   w.moveX[id] = w.x[id];
   w.moveY[id] = w.y[id];
   w.moveCarry[id] = 0;
-  w.facing[id] = w.team[id] === 0 ? 0 : ANGLE_STEPS >> 1;
+  // Sim v18: on a point map the heroes face up the diagonal (team 0 north-east, team 1 south-west).
+  w.facing[id] = (w.team[id] === 0 ? 0 : ANGLE_STEPS >> 1) + (MAP.point === 1 ? ANGLE_STEPS >> 3 : 0);
   w.state[id] = UnitState.Idle;
   w.order[id] = Order.None;
   w.target[id] = -1;
@@ -177,8 +182,9 @@ function nearestEnemy(w: World, id: number, reach: number, attackOnly: boolean):
 /** Is (x, y) inside the fountain of hero `id`'s enemy (its radius + a hero radius)? */
 function inEnemyFountain(w: World, id: number, x: number, y: number): boolean {
   const fx = w.team[id] === 0 ? mirrorX(FOUNTAIN.x) : FOUNTAIN.x;
+  const fy = w.team[id] === 0 ? mirrorY(FOUNTAIN.y) : FOUNTAIN.y;
   const r = FOUNTAIN.radius + RADIUS.hero;
-  return dist2(x, y, fx, FOUNTAIN.y) <= r * r;
+  return dist2(x, y, fx, fy) <= r * r;
 }
 
 /** One tick along the hero's path toward (moveX, moveY). Returns true on arrival at the goal. Rooted or planted: stays. */
@@ -206,7 +212,16 @@ function walk(m: MatchHandle, id: number): boolean {
   // B2): the hero steps toward the real path point and the stepped position is clamped; when the clamp bites it keeps
   // its old y too, so it waits at the barrier instead of sliding along it into the forest or its own tower.
   let gated = false;
-  if (w.globals[G.Tick] < TIMELINE.barrierDrop) {
+  if (w.globals[G.Tick] < TIMELINE.barrierDrop && MAP.point === 1) {
+    // Sim v18 (point map): the barrier is the diagonal x + y = barrierSum (team 1: its reflection); a step across it
+    // is refused (the hero waits at the line).
+    const sum = out[0] + out[1];
+    if (w.team[id] === 0 ? sum > MAP.barrierSum : sum < MAP.width + MAP.height - MAP.barrierSum) {
+      gated = true;
+      out[0] = w.x[id];
+      out[1] = w.y[id];
+    }
+  } else if (w.globals[G.Tick] < TIMELINE.barrierDrop) {
     const gate = w.team[id] === 0 ? MAP.barrierX : mirrorX(MAP.barrierX);
     const c = w.team[id] === 0 ? Math.min(out[0], gate) : Math.max(out[0], gate);
     if (c !== out[0]) {
@@ -292,10 +307,10 @@ function napStep(w: World, id: number): void {
 }
 
 /** Start-of-tick hero positions and each hero's staged step (scratch, never carried between ticks). */
-const tickX = new Int32Array(CAPS.heroes);
-const tickY = new Int32Array(CAPS.heroes);
-const nextX = new Int32Array(CAPS.heroes);
-const nextY = new Int32Array(CAPS.heroes);
+const tickX = new Int32Array(MAX_HEROES);
+const tickY = new Int32Array(MAX_HEROES);
+const nextX = new Int32Array(MAX_HEROES);
+const nextY = new Int32Array(MAX_HEROES);
 
 /**
  * Step 4 for heroes: respawn timers, CC, forced movement, casts walking in, orders, movement, swing starts.

@@ -7,7 +7,7 @@
  */
 import { ZONE_KIND } from '../../data/effects';
 import { BP_ONE, applyBp, dist2, idiv } from '../fixed';
-import { ENTITY_CAP, FM, G, Kind, RANGE, type World } from '../world';
+import { FM, G, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { collect, dash, haste, inFront, inRing, knockback, slow, spawnZone, startArena, stun } from '../effects';
 import { isStructure, radiusOf, targetable } from '../units/kinds';
@@ -16,7 +16,7 @@ import { abil, type KitNumbers } from './talents';
 
 /** HERO_IDS index of Sir Brutus. */
 export const BRUTUS_INDEX = 2;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {

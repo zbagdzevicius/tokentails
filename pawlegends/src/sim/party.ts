@@ -15,8 +15,10 @@ import { DIFFICULTIES, type Difficulty } from '../data/bots';
 import { MAX_INPUT_CHARS, MAX_TICKS } from '../data/limits';
 import { TRICK_IDS } from '../data/tricks';
 import {
+  MAP_IDS,
   MUTATORS,
   PVP_LEAD1,
+  type MapId,
   SLOTS_PER_TEAM,
   SLOT_COUNT,
   type Command,
@@ -34,6 +36,7 @@ import { PVP_FILL_DEFAULT } from './bots';
 import { DecodeError, decodeStream, encodeStream, fromBase64, toBase64 } from './commands';
 import { isHumanSlot } from './humans';
 import { createMatch, fillPicks, hashTrail, result, step, tickOf } from './index';
+import { bindMap, mapIndex } from './map/runtime';
 import type { MatchHandle } from './state';
 import { SIM_VERSION } from './version';
 
@@ -58,9 +61,9 @@ export const isHuman = (m: MatchHandle, slot: number): boolean => isHumanSlot(m.
  * Sim v16 PvP uses the same rule: team 0 is slot 0's species, team 1 the other (`fillPicks`); every seat on team 1
  * must be of that other species (checkPvpShape refuses a mixed team), so a pick list never mixes species in a team.
  */
-export function fillPicksParty(seed: number, humans: readonly PartySeat[]): { picks: HeroId[]; tricks: TrickId[] } {
+export function fillPicksParty(seed: number, humans: readonly PartySeat[], map: MapId = 'crossing'): { picks: HeroId[]; tricks: TrickId[] } {
   const lead = humans[0];
-  const out = fillPicks(seed, lead.hero, lead.trick);
+  const out = fillPicks(seed, lead.hero, lead.trick, map);
   for (let i = 1; i < humans.length; i++) {
     out.picks[humans[i].slot] = humans[i].hero;
     out.tricks[humans[i].slot] = humans[i].trick;
@@ -98,6 +101,7 @@ export function partyReplayRecord(m: MatchHandle): PartyReplayRecord | null {
     outcome: m.ended.outcome,
     finalHash: m.ended.finalHash,
     mutator: 'none',
+    ...(m.world.map !== 0 ? { map: MAP_IDS[m.world.map] } : {}),
   };
 }
 
@@ -128,6 +132,7 @@ export function pvpReplayRecord(m: MatchHandle): PvpReplayRecord | null {
     outcome: m.ended.outcome,
     finalHash: m.ended.finalHash,
     mutator: 'none',
+    ...(m.world.map !== 0 ? { map: MAP_IDS[m.world.map] } : {}),
   };
 }
 
@@ -138,25 +143,28 @@ export interface PartyReplayRun {
 }
 
 /** Re-simulate a party replay (shape already checked). Throws DecodeError on a malformed stream. */
-export function runPartyReplay(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs'>): PartyReplayRun {
+export function runPartyReplay(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'map'>): PartyReplayRun {
   return runSeats(r, undefined);
 }
 
 /** Sim v16 S-PvP: re-simulate a PvP replay (shape already checked). Throws DecodeError on a malformed stream. */
-export function runPvpReplay(r: Pick<PvpReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'fillDifficulty'>): PartyReplayRun {
+export function runPvpReplay(r: Pick<PvpReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'fillDifficulty' | 'map'>): PartyReplayRun {
   return runSeats(r, [r.fillDifficulty[0], r.fillDifficulty[1]]);
 }
 
-function runSeats(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs'>, fill: [Difficulty, Difficulty] | undefined): PartyReplayRun {
+function runSeats(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'map'>, fill: [Difficulty, Difficulty] | undefined): PartyReplayRun {
+  // Sim v18: the record's map first (the stream bounds and the limits are per map).
+  bindMap(mapIndex(r.map));
+  const map = r.map === undefined ? {} : { map: r.map };
   const limit = Math.min(r.ticks, MAX_TICKS);
   const streams: TimedCommand[][] = [];
   for (let i = 0; i < r.inputs.length; i++) streams.push(decodeStream(fromBase64(r.inputs[i]), limit - 1));
-  const { picks, tricks } = fillPicksParty(r.seed, r.humans);
+  const { picks, tricks } = fillPicksParty(r.seed, r.humans, r.map);
   const humans: number[] = [];
   for (let i = 0; i < r.humans.length; i++) humans.push(r.humans[i].slot);
   const m = fill
-    ? createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans, mode: 'pvp', fillDifficulty: fill })
-    : createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans });
+    ? createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans, mode: 'pvp', fillDifficulty: fill, ...map })
+    : createMatch({ seed: r.seed, picks, tricks, difficulty: r.difficulty, humans, ...map });
   const at: number[] = [];
   for (let i = 0; i < streams.length; i++) at.push(0);
   const slot0: Command[] = [];
@@ -189,20 +197,23 @@ export function checkPartyShape(r: unknown): VerifyResult | null {
   if (x.simVersion < PARTY_SINCE) return fail('PAWLEGENDS_SIM_VERSION', `party play needs simVersion ${PARTY_SINCE}`);
   if (typeof x.seed !== 'number' || !Number.isInteger(x.seed) || x.seed < 0 || x.seed > 0xffffffff) return fail('PAWLEGENDS_REPLAY_INVALID', 'seed must be a uint32');
   if (typeof x.difficulty !== 'string' || !(DIFFICULTIES as readonly string[]).includes(x.difficulty)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown difficulty');
-  if (!Array.isArray(x.humans) || x.humans.length < 1 || x.humans.length > 3) return fail('PAWLEGENDS_REPLAY_INVALID', 'humans must list 1 to 3 seats');
+  // Sim v18: the map (omitted: Crossing); every bound below is that map's.
+  if (x.map !== undefined && !(MAP_IDS as readonly unknown[]).includes(x.map)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown map');
+  bindMap(mapIndex(x.map as MapId | undefined));
+  if (!Array.isArray(x.humans) || x.humans.length < 1 || x.humans.length > SLOTS_PER_TEAM) return fail('PAWLEGENDS_REPLAY_INVALID', `humans must list 1 to ${SLOTS_PER_TEAM} seats`);
   let last = -1;
   for (let i = 0; i < x.humans.length; i++) {
     const h = x.humans[i] as Record<string, unknown> | null;
     if (!h || typeof h !== 'object') return fail('PAWLEGENDS_REPLAY_INVALID', 'bad seat');
     const s = h.slot;
-    if (typeof s !== 'number' || !Number.isInteger(s) || s < 0 || s > 2) return fail('PAWLEGENDS_REPLAY_INVALID', 'seat slot must be 0, 1 or 2');
+    if (typeof s !== 'number' || !Number.isInteger(s) || s < 0 || s >= SLOTS_PER_TEAM) return fail('PAWLEGENDS_REPLAY_INVALID', SLOTS_PER_TEAM === 3 ? 'seat slot must be 0, 1 or 2' : `seat slot must be 0 to ${SLOTS_PER_TEAM - 1}`);
     if (i === 0 && s !== 0) return fail('PAWLEGENDS_REPLAY_INVALID', 'the first seat must be slot 0');
     if (s <= last) return fail('PAWLEGENDS_REPLAY_INVALID', 'seat slots must be ascending and unique');
     last = s;
     if (typeof h.hero !== 'string' || !(HERO_IDS as readonly string[]).includes(h.hero)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown hero');
     if (typeof h.trick !== 'string' || !(TRICK_IDS as readonly string[]).includes(h.trick)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown trick');
   }
-  if (!Array.isArray(x.picks) || x.picks.length !== 6 || !Array.isArray(x.tricks) || x.tricks.length !== 6) return fail('PAWLEGENDS_REPLAY_INVALID', 'picks and tricks need 6 slots');
+  if (!Array.isArray(x.picks) || x.picks.length !== SLOT_COUNT || !Array.isArray(x.tricks) || x.tricks.length !== SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', `picks and tricks need ${SLOT_COUNT} slots`);
   if (typeof x.ticks !== 'number' || !Number.isInteger(x.ticks) || x.ticks < 1) return fail('PAWLEGENDS_REPLAY_INVALID', 'ticks must be a positive integer');
   if (x.ticks > MAX_TICKS) return fail('PAWLEGENDS_TOO_LONG', `ticks over ${MAX_TICKS}`);
   if (!Array.isArray(x.inputs) || x.inputs.length !== x.humans.length) return fail('PAWLEGENDS_REPLAY_INVALID', 'one input stream per seat');
@@ -213,8 +224,8 @@ export function checkPartyShape(r: unknown): VerifyResult | null {
   if (x.outcome !== 'won' && x.outcome !== 'lost') return fail('PAWLEGENDS_REPLAY_INVALID', 'outcome must be won or lost');
   if (!isHex8(x.finalHash)) return fail('PAWLEGENDS_REPLAY_INVALID', 'finalHash must be 8 hex digits');
   if (x.mutator !== undefined && !(MUTATORS as readonly unknown[]).includes(x.mutator)) return fail('PAWLEGENDS_REPLAY_INVALID', "mutator must be 'none'");
-  const want = fillPicksParty(x.seed, x.humans as PartySeat[]);
-  for (let s = 0; s < 6; s++) {
+  const want = fillPicksParty(x.seed, x.humans as PartySeat[], x.map as MapId | undefined);
+  for (let s = 0; s < SLOT_COUNT; s++) {
     if (x.picks[s] !== want.picks[s] || x.tricks[s] !== want.tricks[s]) return fail('PAWLEGENDS_REPLAY_INVALID', 'picks do not match the seed and seats');
   }
   return null;
@@ -258,14 +269,17 @@ export function checkPvpShape(r: unknown): VerifyResult | null {
   if (!Array.isArray(fill) || fill.length !== 2 || !fill.every((d) => typeof d === 'string' && (DIFFICULTIES as readonly string[]).includes(d))) {
     return fail('PAWLEGENDS_REPLAY_INVALID', 'fillDifficulty needs two difficulties');
   }
-  if (!Array.isArray(x.humans) || x.humans.length < 2 || x.humans.length > SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', 'pvp humans must list 2 to 6 seats');
+  // Sim v18: the map (omitted: Crossing); every bound below is that map's.
+  if (x.map !== undefined && !(MAP_IDS as readonly unknown[]).includes(x.map)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown map');
+  bindMap(mapIndex(x.map as MapId | undefined));
+  if (!Array.isArray(x.humans) || x.humans.length < 2 || x.humans.length > SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', `pvp humans must list 2 to ${SLOT_COUNT} seats`);
   let last = -1;
   let lead1 = false;
   for (let i = 0; i < x.humans.length; i++) {
     const h = x.humans[i] as Record<string, unknown> | null;
     if (!h || typeof h !== 'object') return fail('PAWLEGENDS_REPLAY_INVALID', 'bad seat');
     const s = h.slot;
-    if (typeof s !== 'number' || !Number.isInteger(s) || s < 0 || s >= SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', 'seat slot must be 0 to 5');
+    if (typeof s !== 'number' || !Number.isInteger(s) || s < 0 || s >= SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', `seat slot must be 0 to ${SLOT_COUNT - 1}`);
     if (i === 0 && s !== 0) return fail('PAWLEGENDS_REPLAY_INVALID', 'the first seat must be slot 0');
     if (s <= last) return fail('PAWLEGENDS_REPLAY_INVALID', 'seat slots must be ascending and unique');
     last = s;
@@ -273,7 +287,7 @@ export function checkPvpShape(r: unknown): VerifyResult | null {
     if (typeof h.hero !== 'string' || !(HERO_IDS as readonly string[]).includes(h.hero)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown hero');
     if (typeof h.trick !== 'string' || !(TRICK_IDS as readonly string[]).includes(h.trick)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown trick');
   }
-  if (!lead1) return fail('PAWLEGENDS_REPLAY_INVALID', 'slot 3 (team 1 lead) must be a seat');
+  if (!lead1) return fail('PAWLEGENDS_REPLAY_INVALID', `slot ${PVP_LEAD1} (team 1 lead) must be a seat`);
   // One species per team: team 0 is slot 0's, team 1 the other.
   const seats = x.humans as PartySeat[];
   const side0 = sideOf(seats[0].hero);
@@ -281,7 +295,7 @@ export function checkPvpShape(r: unknown): VerifyResult | null {
     const own = sideOf(seats[i].hero) === side0;
     if ((seats[i].slot < SLOTS_PER_TEAM) !== own) return fail('PAWLEGENDS_REPLAY_INVALID', 'a team mixes species');
   }
-  if (!Array.isArray(x.picks) || x.picks.length !== SLOT_COUNT || !Array.isArray(x.tricks) || x.tricks.length !== SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', 'picks and tricks need 6 slots');
+  if (!Array.isArray(x.picks) || x.picks.length !== SLOT_COUNT || !Array.isArray(x.tricks) || x.tricks.length !== SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', `picks and tricks need ${SLOT_COUNT} slots`);
   if (typeof x.ticks !== 'number' || !Number.isInteger(x.ticks) || x.ticks < 1) return fail('PAWLEGENDS_REPLAY_INVALID', 'ticks must be a positive integer');
   if (x.ticks > MAX_TICKS) return fail('PAWLEGENDS_TOO_LONG', `ticks over ${MAX_TICKS}`);
   if (!Array.isArray(x.inputs) || x.inputs.length !== x.humans.length) return fail('PAWLEGENDS_REPLAY_INVALID', 'one input stream per seat');
@@ -292,7 +306,7 @@ export function checkPvpShape(r: unknown): VerifyResult | null {
   if (x.outcome !== 'won' && x.outcome !== 'lost') return fail('PAWLEGENDS_REPLAY_INVALID', 'outcome must be won or lost');
   if (!isHex8(x.finalHash)) return fail('PAWLEGENDS_REPLAY_INVALID', 'finalHash must be 8 hex digits');
   if (x.mutator !== undefined && !(MUTATORS as readonly unknown[]).includes(x.mutator)) return fail('PAWLEGENDS_REPLAY_INVALID', "mutator must be 'none'");
-  const want = fillPicksParty(x.seed, seats);
+  const want = fillPicksParty(x.seed, seats, x.map as MapId | undefined);
   for (let s = 0; s < SLOT_COUNT; s++) {
     if (x.picks[s] !== want.picks[s] || x.tricks[s] !== want.tricks[s]) return fail('PAWLEGENDS_REPLAY_INVALID', 'picks do not match the seed and seats');
   }

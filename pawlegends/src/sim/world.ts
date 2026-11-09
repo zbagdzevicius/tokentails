@@ -4,6 +4,7 @@
  * typed array or in `globals`, so `hashWorld` covers the whole state.
  */
 import { CAPS, NAV } from '../data/map';
+export { MAX_ENTITIES, MAX_HEROES } from '../data/map';
 import { NINE_LIVES } from '../data/xp';
 import { FNV_OFFSET, fnvInt, fnvInts } from './hash';
 import { Rng } from './rng';
@@ -25,8 +26,8 @@ export const TEAM_PURRHAVEN = 0;
 export const TEAM_WOOF = 1;
 export const TEAM_NEUTRAL = 2;
 
-/** First id of each kind's range, in ascending order. */
-export const RANGE = (() => {
+/** First id of each kind's range, in ascending order (sim v18: the active map's caps, `rebindRange`). */
+function rangeOf() {
   const heroes = 0;
   const minions = heroes + CAPS.heroes;
   const towers = minions + CAPS.minions;
@@ -36,9 +37,17 @@ export const RANGE = (() => {
   const pudding = camps + CAPS.campMonsters;
   const end = pudding + CAPS.pudding;
   return Object.freeze({ heroes, minions, towers, cores, fountains, camps, pudding, end });
-})();
+}
 
-export const ENTITY_CAP = RANGE.end;
+export let RANGE = rangeOf();
+
+export let ENTITY_CAP = RANGE.end;
+
+/** Sim v18: point RANGE and ENTITY_CAP at the active map's caps (src/sim/map/runtime.ts bindMap). */
+export function rebindRange(): void {
+  RANGE = rangeOf();
+  ENTITY_CAP = RANGE.end;
+}
 
 /** Bits of `buffs` (shared with the snapshot, render reads them). */
 export const Buff = Object.freeze({
@@ -64,6 +73,10 @@ export const Buff = Object.freeze({
   Purrified: 1 << 18, // lint-sim: allow (a bit index)
   /** Sim v17: Steadfast, the CC-cap immunity (CC_DR) is running. */
   Steadfast: 1 << 19, // lint-sim: allow (a bit index)
+  /** Sim v18 (Hearthwood): Prickle Coat, Feather, Grizzlechop's Hoard shield. */
+  Prickle: 1 << 20, // lint-sim: allow (a bit index)
+  Feather: 1 << 21, // lint-sim: allow (a bit index)
+  Hoard: 1 << 22, // lint-sim: allow (a bit index)
 } as const);
 export type Buff = (typeof Buff)[keyof typeof Buff];
 
@@ -145,6 +158,28 @@ export const G = Object.freeze({
   Count: 44, // lint-sim: allow
 } as const);
 export type G = (typeof G)[keyof typeof G];
+
+/**
+ * Sim v18 (MAP-5V5.md §3.4): indices into `mg`, the map globals. Empty (length 0) on Crossing, so a Crossing world
+ * hashes exactly as in v17; Hearthwood keeps its 5v5-only state here (MG.Count values).
+ */
+export const MG = Object.freeze({
+  MapId: 0,
+  /** Tick each camp (13: 12 jungle camps and Grizzlechop's pit) spawns next; −1 while up; −2 never again. */
+  CampAt: 1,
+  /** Grizzlechop: takes per team, Tail Sweep telegraph ticks left and the next sweep tick. */
+  Takes0: 14, // lint-sim: allow
+  Takes1: 15, // lint-sim: allow
+  SweepT: 16, // lint-sim: allow
+  SweepAt: 17, // lint-sim: allow
+  /** Per hero (10 each): bot role (ROLE), Prickle Coat ticks, Feather ticks, Hoard shield ticks, objective decision. */
+  Role: 18, // lint-sim: allow
+  Prickle: 28, // lint-sim: allow
+  Feather: 38, // lint-sim: allow
+  Hoard: 48, // lint-sim: allow
+  BossDec: 58, // lint-sim: allow
+  Count: 68, // lint-sim: allow
+} as const);
 
 export interface World {
   // Entities
@@ -392,6 +427,14 @@ export interface World {
   pkTeam: Uint8Array;
   pkX: Int32Array;
   pkY: Int32Array;
+  /**
+   * Sim v18: the hit-mask words past the first two (ids 64 and up), 3 per projectile and per entity on Hearthwood
+   * (150 ids, 5 words), none on Crossing (63 ids fit `pHitLo` / `pHitHi`), so a Crossing world hashes as in v17.
+   */
+  pHitX: Int32Array;
+  fmHitX: Int32Array;
+  /** Sim v18: map globals (MG), empty on Crossing. Hashed after `globals`. */
+  mg: Int32Array;
   // Scalars
   globals: Int32Array;
   rng: Rng;
@@ -402,6 +445,8 @@ export interface World {
   humans: number;
   /** Sim v16 S-PvP: 1 in a PvP match (MatchConfig.mode), else 0. NOT hashed: part of the match config. */
   pvp: number;
+  /** Sim v18: the match's map (MAP_IDS index: 0 Crossing, 1 Hearthwood). NOT hashed itself (Hearthwood: mg[MG.MapId]). */
+  map: number;
 }
 
 export const COOLDOWN_SLOTS = 5;
@@ -424,6 +469,61 @@ export const FM = Object.freeze({
 /** Is `id` in the 63-bit hit mask (lo, hi)? Entity ids are below 64. */
 export const maskHas = (lo: number, hi: number, id: number): boolean => (id < 0x20 ? (lo >>> id) & 1 : (hi >>> (id - 0x20)) & 1) === 1;
 
+/** Extra hit-mask words per row past (lo, hi) (sim v18, Hearthwood: ids up to 159). */
+export const MASK_EXTRA = 3;
+const WORD = 0x20;
+const HI_END = 0x40;
+
+/** Sim v18: is `id` in projectile `p`'s hit mask (any map)? */
+export function pHas(w: World, p: number, id: number): boolean {
+  if (id < HI_END) return maskHas(w.pHitLo[p], w.pHitHi[p], id);
+  const k = id - HI_END;
+  return ((w.pHitX[p * MASK_EXTRA + (k >> 5)] >>> (k & (WORD - 1))) & 1) === 1;
+}
+export function pAdd(w: World, p: number, id: number): void {
+  if (id < WORD) w.pHitLo[p] |= 1 << id;
+  else if (id < HI_END) w.pHitHi[p] |= 1 << (id - WORD);
+  else {
+    const k = id - HI_END;
+    w.pHitX[p * MASK_EXTRA + (k >> 5)] |= 1 << (k & (WORD - 1));
+  }
+}
+export function pClear(w: World, p: number): void {
+  w.pHitLo[p] = 0;
+  w.pHitHi[p] = 0;
+  if (w.pHitX.length > 0) for (let k = 0; k < MASK_EXTRA; k++) w.pHitX[p * MASK_EXTRA + k] = 0;
+}
+/** Sim v18: the same over forced-movement hit masks (`fmHit*`, per entity). */
+export function fmHas(w: World, id: number, e: number): boolean {
+  if (e < HI_END) return maskHas(w.fmHitLo[id], w.fmHitHi[id], e);
+  const k = e - HI_END;
+  return ((w.fmHitX[id * MASK_EXTRA + (k >> 5)] >>> (k & (WORD - 1))) & 1) === 1;
+}
+export function fmAdd(w: World, id: number, e: number): void {
+  if (e < WORD) w.fmHitLo[id] |= 1 << e;
+  else if (e < HI_END) w.fmHitHi[id] |= 1 << (e - WORD);
+  else {
+    const k = e - HI_END;
+    w.fmHitX[id * MASK_EXTRA + (k >> 5)] |= 1 << (k & (WORD - 1));
+  }
+}
+export function fmClear(w: World, id: number): void {
+  w.fmHitLo[id] = 0;
+  w.fmHitHi[id] = 0;
+  if (w.fmHitX.length > 0) for (let k = 0; k < MASK_EXTRA; k++) w.fmHitX[id * MASK_EXTRA + k] = 0;
+}
+
+/**
+ * Sim v18 (Hearthwood): the hero to resolve `k`-th (swings, casts). Heroes resolve in id order, so team 0's hits and
+ * heals of a tick always land before team 1's; on odd ticks of a 5v5 match team 1 goes first instead, so neither side
+ * always gets the later word (a heal after the damage, the finishing hit). Crossing: id order, as in v17.
+ */
+export function heroAt(w: World, k: number): number {
+  if (w.mg.length === 0 || (w.globals[G.Tick] & 1) === 0) return k;
+  const half = (RANGE.minions - RANGE.heroes) >> 1;
+  return k < half ? k + half : k - half;
+}
+
 /** `hurtTick` before any damage. */
 export const NEVER = -0x100000;
 
@@ -437,8 +537,10 @@ export const Order = Object.freeze({
   AttackMove: 3,
 } as const);
 
-export function createWorld(seed: number): World {
+/** Sim v18: `map` is the MAP_IDS index of the map bound now (src/sim/map/runtime.ts bindMap ran first). */
+export function createWorld(seed: number, map = 0): World {
   const n = ENTITY_CAP;
+  const big = n > HI_END;
   const p = CAPS.projectiles;
   const z = CAPS.zones;
   const h = CAPS.heroes;
@@ -613,11 +715,16 @@ export function createWorld(seed: number): World {
     pkTeam: new Uint8Array(CAPS.pickups),
     pkX: new Int32Array(CAPS.pickups),
     pkY: new Int32Array(CAPS.pickups),
+    pHitX: new Int32Array(big ? p * MASK_EXTRA : 0),
+    fmHitX: new Int32Array(big ? n * MASK_EXTRA : 0),
+    mg: new Int32Array(map === 0 ? 0 : MG.Count),
     globals: new Int32Array(G.Count),
     rng: new Rng(seed),
     humans: 1,
     pvp: 0,
+    map,
   };
+  if (map !== 0) w.mg[MG.MapId] = map;
   w.globals[G.Winner] = -1;
   w.globals[G.InputHash] = FNV_OFFSET | 0;
   w.globals[G.PudTeam] = TEAM_NEUTRAL;
@@ -649,6 +756,8 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.zDmg, w.zHeal, w.zSlowBp, w.zEvery, w.zNext,
     w.pkAlive, w.pkKind, w.pkTeam, w.pkX, w.pkY,
     w.globals,
+    // Sim v18: empty on Crossing (no bytes hashed), so a Crossing world hashes as in v17.
+    w.pHitX, w.fmHitX, w.mg,
   ];
 }
 

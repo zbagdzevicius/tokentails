@@ -15,7 +15,8 @@ import { BRUSH_ATTACK_REVEAL_TICKS } from '../../data/map';
 import { NO_TARGET, type CastSlot, type SimEvent } from '../api';
 import { ANGLE_STEPS, BP_ONE, dist2, iatan2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
-import { COOLDOWN_SLOTS, FM, G, Kind, RANGE, UnitState, type World } from '../world';
+import { COOLDOWN_SLOTS, FM, G, Kind, MG, RANGE, UnitState, heroAt, type World } from '../world';
+import { JUNGLE_BUFF } from '../../data/camps';
 import { disabled, interrupt } from '../effects/status';
 import { radiusOf, targetable } from '../units/kinds';
 import { abil, type KitNumbers } from './talents';
@@ -296,7 +297,9 @@ export const walkInY = (w: World, id: number): number => (w.castId[id] >= 0 ? w.
 export function resolveCasts(m: MatchHandle): void {
   const w = m.world;
   const tick = w.globals[G.Tick];
-  for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+  for (let k = RANGE.heroes; k < RANGE.minions; k++) {
+    // Sim v18: `heroAt` order (5v5: the teams take turns resolving first).
+    const id = heroAt(w, k);
     if (w.castPhase[id] !== 2) continue;
     if (w.alive[id] === 0 || (disabled(w, id) && !(w.castSlot[id] === TRICK_SLOT && castsThroughCc(w, id)))) {
       w.castPhase[id] = 0;
@@ -323,7 +326,8 @@ export function resolveCasts(m: MatchHandle): void {
 export function tickCooldowns(w: World): void {
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
     if (w.kind[id] !== Kind.Hero) continue;
-    const extra = w.cdrT[id] > 0 ? w.cdrBp[id] : 0;
+    // Sim v18 (Hearthwood): Feather adds JUNGLE_BUFF.featherCdrBp.
+    const extra = (w.cdrT[id] > 0 ? w.cdrBp[id] : 0) + (w.mg.length > 0 && w.mg[MG.Feather + id] > 0 ? JUNGLE_BUFF.featherCdrBp : 0);
     for (let s = 0; s < COOLDOWN_SLOTS; s++) {
       const i = cdIndex(id, s);
       if (w.cooldowns[i] === 0) continue;
@@ -341,7 +345,9 @@ export function tickCooldowns(w: World): void {
 /** Step 4 (after the status timers): every hero's kit timers. */
 export function stepKits(m: MatchHandle): void {
   const w = m.world;
-  for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+  for (let k = RANGE.heroes; k < RANGE.minions; k++) {
+    // Sim v18: `heroAt` order (5v5: the teams take turns going first).
+    const id = heroAt(w, k);
     if (w.kind[id] !== Kind.Hero || w.alive[id] === 0) continue;
     kitOf(w, id).stepKit?.(m, id);
   }

@@ -17,7 +17,7 @@ import { TRICKS, TRICK_IDS } from '../../data/tricks';
 import { NO_TARGET, Op, type CastSlot, type Command } from '../api';
 import { TRIG_ONE, dist2, iatan2, icos, idiv, isin, isqrt } from '../fixed';
 import type { Rng } from '../rng';
-import { ENTITY_CAP, Kind, RANGE, type World } from '../world';
+import { Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { collect, inCone, inFront, inLine, inRing } from '../effects';
 import { canCast, heroSlotAim, TRICK_SLOT } from '../heroes/kit';
 import { nearestAlly } from '../heroes/lambo';
@@ -38,7 +38,7 @@ import * as frankieBot from './heroes/frankie';
 import * as dominoBot from './heroes/domino';
 
 /** Scratch hit list for `collect` (shared with ./heroes/*: read it right after the call that filled it). */
-export const hits = new Int32Array(ENTITY_CAP);
+export const hits = new Int32Array(MAX_ENTITIES);
 /** Extra slack (mm) on close-range ability checks: a hero radius. */
 export const RANGE_PAD = RADIUS.hero;
 /** The point `aimed` and `awayFrom` write (x, y). */
@@ -388,7 +388,7 @@ export function underFire(w: World, id: number, r: number): boolean {
 export function escapeCast(w: World, id: number, foe: number, p: BotParams): Command | null {
   const team = w.team[id];
   const hx = fountainX(team);
-  const hy = fountainY();
+  const hy = fountainY(team);
   const d = distTo(w, id, foe);
   switch (HERO_IDS[w.sub[id]]) {
     case 'clem':

@@ -4,6 +4,7 @@
  * in range, otherwise walks its lane path. Same-team minions push apart so a wave spreads out instead of stacking.
  */
 import { LANES, MAP } from '../../data/map';
+import { HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 import { RALLY_LEVEL_BP } from '../../data/bots';
 import { rulesOf } from '../rules';
 import { HUMAN_SLOT, teamOfSlot } from '../api';
@@ -39,7 +40,9 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
     const rallyBp = rally * rulesOf(m).rallyBp;
     const order: MinionKind[] = [];
     for (let i = 0; i < WAVE.melee; i++) order.push('melee');
-    for (let i = 0; i < WAVE.ranged; i++) order.push('ranged');
+    // Sim v18 (Hearthwood): 2 ranged a lane.
+    const ranged = w.mg.length > 0 ? HEARTHWOOD_RULES.waveRanged : WAVE.ranged;
+    for (let i = 0; i < ranged; i++) order.push('ranged');
     if (withSiege || (boost && COMEBACK.siege)) for (let i = 0; i < WAVE.siege; i++) order.push('siege');
     for (let lane = 0; lane < LANES.length; lane++) {
       const path = LANE_PATHS[team][lane];
@@ -79,7 +82,8 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
         w.target[id] = -1;
         w.attackTimer[id] = 0;
         w.windup[id] = 0;
-        w.timer[id] = 0;
+        // Sim v18 (point maps): the retarget stagger key (lane and place in the wave), the same for both teams' twins.
+        w.timer[id] = w.mg.length > 0 ? lane * MINION_AI.retargetEvery + k : 0;
         w.lastHitBy[id] = -1;
         w.hurtTick[id] = NEVER;
         clearStatus(w, id);
@@ -171,7 +175,7 @@ export function stepMinions(m: MatchHandle): void {
     if (w.alive[id] === 0) continue;
     // Retarget on a stagger (by id) or when the target is gone.
     const stale = !keepTarget(w, id);
-    if (stale || (tick + id) % MINION_AI.retargetEvery === 0) {
+    if (stale || (tick + (w.mg.length > 0 ? w.timer[id] : id)) % MINION_AI.retargetEvery === 0) {
       const next = acquire(w, id);
       const cur = stale ? -1 : w.target[id];
       // Keep swinging at the current target when it is in range and not a worse class than the best one.

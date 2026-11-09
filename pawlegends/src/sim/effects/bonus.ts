@@ -2,14 +2,14 @@
  * Sim v4 hero bonuses: Zoomies, Frenzy Catnip, the rat camp's Pack buff and Nine Lives (data/xp.ts ZOOMIES and
  * NINE_LIVES, data/pickups.ts, data/camps.ts). Timers are per hero, in ticks.
  */
-import { FOUNTAIN, mirrorX } from '../../data/map';
+import { FOUNTAIN, mirrorX, mirrorY } from '../../data/map';
 import { NINE_LIVES, PANIC, ZOOMIES } from '../../data/xp';
 import { PICKUPS } from '../../data/pickups';
-import { RAT_CAMP_STATS } from '../../data/camps';
+import { JUNGLE_BUFF, RAT_CAMP_STATS } from '../../data/camps';
 import { BP_ONE, applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { rulesOf } from '../rules';
-import { G, Kind, RANGE, type World } from '../world';
+import { G, Kind, MG, RANGE, type World } from '../world';
 import { isHumanSlot } from '../humans';
 
 const WIN = NINE_LIVES.window;
@@ -26,11 +26,20 @@ export function stepBonuses(w: World): void {
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
     if (w.kind[id] !== Kind.Hero || w.alive[id] === 0) continue;
     const fx = w.team[id] === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x);
-    if (dist2(w.x[id], w.y[id], fx, FOUNTAIN.y) <= r2) w.zoomT[id] = ZOOMIES.ticks;
+    const fy = w.team[id] === 0 ? FOUNTAIN.y : mirrorY(FOUNTAIN.y);
+    if (dist2(w.x[id], w.y[id], fx, fy) <= r2) w.zoomT[id] = ZOOMIES.ticks;
     else if (w.zoomT[id] > 0) w.zoomT[id]--;
     if (w.frenzyT[id] > 0) w.frenzyT[id]--;
     if (w.nineT[id] > 0) w.nineT[id]--;
     if (w.packT[id] > 0) w.packT[id]--;
+  }
+  // Sim v18 (Hearthwood): the jungle buffs and the Hoard shield tick down (dead heroes lost theirs at death).
+  if (w.mg.length > 0) {
+    for (let id = RANGE.heroes; id < RANGE.minions; id++) {
+      if (w.mg[MG.Prickle + id] > 0) w.mg[MG.Prickle + id]--;
+      if (w.mg[MG.Feather + id] > 0) w.mg[MG.Feather + id]--;
+      if (w.mg[MG.Hoard + id] > 0) w.mg[MG.Hoard + id]--;
+    }
   }
 }
 
@@ -38,7 +47,8 @@ export function stepBonuses(w: World): void {
 export function bonusSpeedBp(w: World, id: number): number {
   if (id >= RANGE.minions || w.kind[id] !== Kind.Hero) return 0;
   const panic = isHumanSlot(w, id) && w.globals[G.HumanPanic] > 0 && w.hp[id] * BP_ONE < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
-  return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic;
+  const feather = w.mg.length > 0 && w.mg[MG.Feather + id] > 0 ? JUNGLE_BUFF.featherSpeedBp : 0;
+  return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic + feather;
 }
 
 /** Outgoing damage of hero `id` with Frenzy Catnip and the Pack buff. */

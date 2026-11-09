@@ -154,7 +154,7 @@ export function laneNamed(text: string): LaneId | null {
 }
 
 /** MAP-GAPS A19: where each lane's glyph sits (sim mm): over its river crossing, at the map edge side. */
-export const LANE_GLYPH_AT: Readonly<Record<LaneId, { x: number; y: number }>> = Object.freeze({ sunny: { x: 50000, y: 57000 }, puddle: { x: 50000, y: 3200 } });
+export const LANE_GLYPH_AT: Readonly<Partial<Record<LaneId, { x: number; y: number }>>> = Object.freeze({ sunny: { x: 50000, y: 57000 }, puddle: { x: 50000, y: 3200 } });
 /** MAP-GAPS A19: how long (ms) a named lane flashes. */
 export const LANE_FLASH_MS = 1000;
 
@@ -473,7 +473,7 @@ export class Minimap {
     });
     const desktop = typeof document === 'undefined' || document.documentElement?.dataset.touch !== '1';
     for (const lane of ['sunny', 'puddle'] as const) {
-      const at = LANE_GLYPH_AT[lane];
+      const at = LANE_GLYPH_AT[lane]!;
       const [x, y] = this.P(at.x, at.y);
       const r = 2.6 * Math.max(0.85, this.k);
       g.fillStyle = MM_OUTLINE;

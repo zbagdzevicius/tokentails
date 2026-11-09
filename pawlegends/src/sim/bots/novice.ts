@@ -61,7 +61,7 @@ export function noviceThink(m: MatchHandle, id: number, mem: BotMem, rng: Rng): 
   if (hp < NOVICE.retreatAlwaysBp || (hp < NOVICE.retreatHpBp && noviceThreat(w, id))) mem.mode[id] = NOVICE_MODE_HOME;
   if (mem.mode[id] === NOVICE_MODE_HOME) {
     const hx = fountainX(team);
-    const hy = fountainY();
+    const hy = fountainY(team);
     if (w.order[id] === Order.Move && w.moveX[id] === hx) return null;
     return { op: Op.Move, x: hx, y: hy };
   }

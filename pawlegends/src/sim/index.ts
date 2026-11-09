@@ -8,18 +8,21 @@
  */
 import { BOTS, DIFFICULTIES as DIFFICULTY_LIST, PVP_RULES } from '../data/bots';
 import { BRANCH_TALENT, HERO_IDS, HEROES } from '../data/heroes';
-import { CAPS, CORE, FOUNTAIN, LANES, TOWER_SPOTS, mirrorX } from '../data/map';
+import { ACTIVE_MAP, CAMPS, CAPS, CORE, FOUNTAIN, LANES, PUDDING_SPOT, TOWER_PARTNER, TOWER_SPOTS, mirrorX, mirrorY } from '../data/map';
 import { CORE_STATS, TOWERS } from '../data/towers';
 import { TIMELINE, TIMELINE_BY } from '../data/timeline';
 import { TRICK_IDS } from '../data/tricks';
 import {
   HUMAN_SLOT,
   MATCH_MODES,
+  MAP_IDS,
   Op,
   PVP_LEAD1,
-  SLOTS_PER_TEAM,
   SLOT_COUNT,
+  slotCountOf,
   teamOfSlot,
+  teamSizeOf,
+  type MapId,
   type Command,
   type Difficulty,
   type EntityKind,
@@ -70,6 +73,12 @@ import { DIFFICULTY_RULES } from '../data/bots';
 import { PICKUP_KINDS } from '../data/pickups';
 import { BOT_TALENT_MODES, PICKUP_ID_BASE } from './api';
 import { humanMask } from './humans';
+import { bindMap, bindWorld, mapIndex } from './map/runtime';
+import { BOSS_CAMP, campCount, campDueAt, firstRat } from './units/camp';
+import { CAMP_KINDS } from '../data/camps';
+import { MG } from './world';
+import { PUD_STATE } from '../data/pudding';
+import { assignRoles } from './bots/roles';
 import { applyLeadInputs, applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
 
 export * from './api';
@@ -80,6 +89,9 @@ export { applyLeadInputs, applyPartyInputs, createPartyState, validateHumans } f
 export { PVP_RULES } from '../data/bots';
 export { createPlayerBotFor } from './bots';
 export { TICK_HZ } from '../data/timeline';
+export { mapInfo, type MapInfo } from './map/info';
+export { rolesOf, ROLE_NAMES, type RoleName } from './bots/roles';
+export { bindMap, mapIndex } from './map/runtime';
 
 
 export type { MatchHandle } from './state';
@@ -90,25 +102,32 @@ export { createPlayerBot, playerBotCommands, type PlayerBot } from './bots';
 export { PLAYER_PROFILES, DIFFICULTIES, type PlayerProfile } from '../data/bots';
 export { TIMELINE_BY } from '../data/timeline';
 export { BRANCH_HEROES, BRANCH_TALENT } from '../data/heroes';
-/** Sunset and Sudden Death ticks of a difficulty. */
-export const timelineFor = (d: Difficulty) => TIMELINE_BY[d as keyof typeof TIMELINE_BY] ?? TIMELINE_BY.normal;
+/** Sunset and Sudden Death ticks of a difficulty (sim v18: on `map`, default the map bound now). */
+export function timelineFor(d: Difficulty, map?: MapId) {
+  if (map !== undefined) bindMap(mapIndex(map));
+  return TIMELINE_BY[d as keyof typeof TIMELINE_BY] ?? TIMELINE_BY.normal;
+}
 
 const KIND_NAME: readonly EntityKind[] = ['hero', 'hero', 'minion', 'tower', 'core', 'fountain', 'camp', 'pudding'];
 const STATE_NAME: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'casting', 'dead', 'napping'];
 const MINION_VARIANT: readonly string[] = ['melee', 'ranged', 'siege'];
-const TOWER_VARIANT: readonly string[] = ['outer', 'inner'];
+/** Sim v18: 'gate' and 'hearth' (Hearthwood). */
+const TOWER_VARIANT: readonly string[] = ['outer', 'inner', 'gate', 'hearth'];
+const CAMP_VARIANT: readonly ('rat' | 'prickle' | 'crow' | 'toad' | 'boss')[] = ['rat', 'prickle', 'crow', 'toad', 'boss'];
 
 /**
  * Bot picks and tricks from the seed (§6.8): the human takes slot 0, no duplicate hero within a team, duplicates
  * across teams allowed. Sim v10 (GAPS B5): heroes come from `rng.fork('picks')` and tricks from their own
  * `rng.fork('tricks')`, so adding a Paw Trick no longer reshuffles the bots' heroes.
  */
-export function fillPicks(seed: number, hero: HeroId, trick: TrickId): { picks: HeroId[]; tricks: TrickId[] } {
+export function fillPicks(seed: number, hero: HeroId, trick: TrickId, map: MapId = 'crossing'): { picks: HeroId[]; tricks: TrickId[] } {
   const rng = new Rng(seed).fork('picks');
   const trickRng = new Rng(seed).fork('tricks');
   const picks: HeroId[] = [];
   const tricks: TrickId[] = [];
-  for (let slot = 0; slot < SLOT_COUNT; slot++) {
+  // Sim v18: 3 a side on Crossing, 5 on Hearthwood (each team draws its species' heroes without a repeat first).
+  const perTeam = teamSizeOf(map);
+  for (let slot = 0; slot < slotCountOf(map); slot++) {
     if (slot === HUMAN_SLOT) {
       picks.push(hero);
       tricks.push(trick);
@@ -116,8 +135,8 @@ export function fillPicks(seed: number, hero: HeroId, trick: TrickId): { picks: 
     }
     // Sim v5: species teams (cats vs dogs). The human's allies are of its hero's side, the enemies of the other
     // side; a team takes each hero of its side once before it repeats one (2 heroes a side for 3 slots).
-    const teamStart = slot < SLOTS_PER_TEAM ? 0 : SLOTS_PER_TEAM;
-    const side = slot < SLOTS_PER_TEAM ? HEROES[hero].side : HEROES[hero].side === 'cat' ? 'dog' : 'cat';
+    const teamStart = slot < perTeam ? 0 : perTeam;
+    const side = slot < perTeam ? HEROES[hero].side : HEROES[hero].side === 'cat' ? 'dog' : 'cat';
     const kin = HERO_IDS.filter((h) => HEROES[h].side === side);
     const taken = picks.slice(teamStart, slot);
     const fresh = kin.filter((h) => !taken.includes(h));
@@ -130,7 +149,8 @@ export function fillPicks(seed: number, hero: HeroId, trick: TrickId): { picks: 
 
 function validate(config: MatchConfig): void {
   if (!Number.isInteger(config.seed) || config.seed < 0 || config.seed > 0xffffffff) throw new RangeError('seed must be a uint32');
-  if (config.picks.length !== SLOT_COUNT || config.tricks.length !== SLOT_COUNT) throw new RangeError('picks and tricks need 6 slots');
+  if (config.map !== undefined && !MAP_IDS.includes(config.map)) throw new RangeError(`unknown map ${String(config.map)}`);
+  if (config.picks.length !== SLOT_COUNT || config.tricks.length !== SLOT_COUNT) throw new RangeError(`picks and tricks need ${SLOT_COUNT} slots`);
   for (const h of config.picks) if (!HERO_IDS.includes(h)) throw new RangeError(`unknown hero ${h}`);
   for (const t of config.tricks) if (!TRICK_IDS.includes(t)) throw new RangeError(`unknown trick ${t}`);
   if (!(config.difficulty in BOTS)) throw new RangeError(`unknown difficulty ${config.difficulty}`);
@@ -148,14 +168,18 @@ function validate(config: MatchConfig): void {
 }
 
 const sideX = (team: number, x: number): number => (team === 0 ? x : mirrorX(x));
+const sideY = (team: number, y: number): number => (team === 0 ? y : mirrorY(y));
 
 /**
  * Start a match. For a replay to verify, `picks` and `tricks` must come from `fillPicks(seed, hero, trick)`: the
  * replay stores only the human's hero and trick and re-derives the bot slots from the seed.
  */
 export function createMatch(config: MatchConfig): MatchHandle {
+  // Sim v18: bind the match's map first (validate reads the slot count of that map).
+  const mapIdx = config.map === undefined || !MAP_IDS.includes(config.map) ? 0 : mapIndex(config.map);
+  bindMap(mapIdx);
   validate(config);
-  const w = createWorld(config.seed >>> 0);
+  const w = createWorld(config.seed >>> 0, mapIdx);
   const stats: SlotStats[] = [];
   for (let slot = 0; slot < SLOT_COUNT; slot++) {
     const team = teamOfSlot(slot);
@@ -185,33 +209,41 @@ export function createMatch(config: MatchConfig): MatchHandle {
     for (let k = 0; k < perTeam; k++) {
       const id = RANGE.towers + team * perTeam + k;
       const spot = TOWER_SPOTS[k];
+      // Sim v18: team 1's slot k stands where team 0's partner spot reflects to (Crossing: the same spot mirrored).
+      const at = team === 0 ? spot : TOWER_SPOTS[TOWER_PARTNER[k]];
       const t = TOWERS[spot.tier];
       w.kind[id] = Kind.Tower;
       w.team[id] = team;
       w.alive[id] = 1;
       w.sub[id] = TOWER_VARIANT.indexOf(spot.tier);
-      w.lane[id] = LANES.indexOf(spot.lane);
-      w.hp[id] = applyBp(t.hp, rules.structureHpBp);
+      // Sim v18: a Hearth Guard has no lane (0, like Crossing's first lane, never read for it).
+      w.lane[id] = spot.lane === null ? 0 : LANES.indexOf(spot.lane);
+      w.hp[id] = applyBp(spot.hp ?? t.hp, rules.structureHpBp);
       w.maxHp[id] = w.hp[id];
-      w.armour[id] = t.armour;
-      w.x[id] = sideX(team, spot.x);
-      w.y[id] = spot.y;
+      w.armour[id] = spot.armour ?? t.armour;
+      w.x[id] = sideX(team, at.x);
+      w.y[id] = sideY(team, at.y);
     }
     const core = RANGE.cores + team;
     w.kind[core] = Kind.Core;
     w.team[core] = team;
     w.alive[core] = 1;
-    w.hp[core] = applyBp(CORE_STATS.hp, rules.coreHpBp);
+    w.hp[core] = applyBp(ACTIVE_MAP.coreHp > 0 ? ACTIVE_MAP.coreHp : CORE_STATS.hp, rules.coreHpBp);
     w.maxHp[core] = w.hp[core];
-    w.armour[core] = CORE_STATS.armour;
+    w.armour[core] = ACTIVE_MAP.coreArmour > 0 ? ACTIVE_MAP.coreArmour : CORE_STATS.armour;
     w.x[core] = sideX(team, CORE.x);
-    w.y[core] = CORE.y;
+    w.y[core] = sideY(team, CORE.y);
     const fountain = RANGE.fountains + team;
     w.kind[fountain] = Kind.Fountain;
     w.team[fountain] = team;
     w.alive[fountain] = 1;
     w.x[fountain] = sideX(team, FOUNTAIN.x);
-    w.y[fountain] = FOUNTAIN.y;
+    w.y[fountain] = sideY(team, FOUNTAIN.y);
+  }
+  // Sim v18 (Hearthwood): the bots' five roles, fixed at the start from the picks (bots/roles.ts).
+  if (w.mg.length > 0) {
+    const roles = assignRoles(config);
+    for (let slot = 0; slot < SLOT_COUNT; slot++) w.mg[MG.Role + slot] = roles[slot];
   }
   initCamps(w, TIMELINE.campsUp);
   initPudding(w);
@@ -244,6 +276,7 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   const m = match as MatchHandle;
   if (m.ended) return;
   const w = m.world;
+  bindWorld(w);
   const tick = w.globals[G.Tick];
   m.events = [];
 
@@ -371,6 +404,7 @@ function eventFor(w: World, e: SimEvent, team: Team): SimEvent | null {
 export function snapshot(match: Match, team: Team): Snapshot {
   const m = match as MatchHandle;
   const w = m.world;
+  bindWorld(w);
   const tick = w.globals[G.Tick];
   const entities: EntitySnap[] = [];
   for (let id = 0; id < RANGE.end; id++) {
@@ -379,7 +413,8 @@ export function snapshot(match: Match, team: Team): Snapshot {
     const isHero = k === Kind.Hero;
     if (!isHero && w.alive[id] === 0) continue;
     if (!visibleTo(w, id, team)) continue;
-    const kind = KIND_NAME[k];
+    // Sim v18: Captain Grizzlechop is a camp monster that snapshots as 'boss'.
+    const kind = k === Kind.Camp && w.sub[id] === 4 ? 'boss' : KIND_NAME[k];
     const e: EntitySnap = {
       id,
       kind,
@@ -430,7 +465,10 @@ export function snapshot(match: Match, team: Team): Snapshot {
       e.lane = LANES[w.lane[id]];
     } else if (k === Kind.Tower) {
       e.variant = TOWER_VARIANT[w.sub[id]];
-      e.lane = LANES[w.lane[id]];
+      // Sim v18: a Hearth Guard has no lane.
+      if (TOWER_SPOTS[(id - RANGE.towers) % TOWER_SPOTS.length].lane !== null) e.lane = LANES[w.lane[id]];
+    } else if (k === Kind.Camp && w.mg.length > 0) {
+      e.variant = CAMP_VARIANT[w.sub[id]];
     }
     entities.push(e);
   }
@@ -464,7 +502,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
     if (w.zKind[i] === ZONE_KIND.trap && w.zTeam[i] !== team) continue;
     zones.push({ index: i, team: w.zTeam[i] as 0 | 1 | 2, owner: w.zOwner[i], x: w.zX[i], y: w.zY[i], radius: w.zRadius[i], ttl: w.zTtl[i], kind: w.zKind[i], ...(w.zArm[i] > 0 ? { arm: w.zArm[i] } : {}) });
   }
-  return {
+  const snap: Snapshot = {
     team,
     clock: clockAt(tick, m.ended !== null, w.globals[G.Sunset], w.globals[G.SuddenDeath]),
     score: { kills: [w.globals[G.Kills0], w.globals[G.Kills1]], towers: [w.globals[G.Towers0], w.globals[G.Towers1]] },
@@ -473,6 +511,37 @@ export function snapshot(match: Match, team: Team): Snapshot {
     zones,
     events: teamEvents(w, m.events, team),
   };
+  if (w.mg.length > 0) mapSnapshot(w, snap);
+  return snap;
+}
+
+/** Sim v18 (Hearthwood): the map, the river objectives' state and timers, and every jungle camp's timer. */
+function mapSnapshot(w: World, snap: Snapshot): void {
+  const tick = w.globals[G.Tick];
+  snap.map = MAP_IDS[w.map];
+  const boss = firstRat(BOSS_CAMP);
+  const due = campDueAt(w, BOSS_CAMP);
+  const pud = w.globals[G.PudState];
+  snap.objectives = [
+    { kind: 'grizzlechop', state: w.alive[boss] === 1 ? 'up' : 'away', nextIn: w.alive[boss] === 1 ? 0 : due < 0 ? -1 : due - tick, x: CAMPS[BOSS_CAMP].x, y: CAMPS[BOSS_CAMP].y },
+    {
+      kind: 'pudding',
+      state: pud === PUD_STATE.Wild ? 'up' : pud === PUD_STATE.Escort || pud === PUD_STATE.Waiting ? 'escort' : 'away',
+      nextIn: pud === PUD_STATE.Away ? Math.max(0, w.globals[G.PudAt] - tick) : 0,
+      x: w.alive[RANGE.pudding] === 1 ? w.x[RANGE.pudding] : PUDDING_SPOT.x,
+      y: w.alive[RANGE.pudding] === 1 ? w.y[RANGE.pudding] : PUDDING_SPOT.y,
+      ...(pud === PUD_STATE.Escort || pud === PUD_STATE.Waiting ? { team: w.globals[G.PudTeam] as Team } : {}),
+    },
+  ];
+  const camps: NonNullable<Snapshot['camps']> = [];
+  for (let c = 0; c < campCount(); c++) {
+    if (c === BOSS_CAMP) continue;
+    let up = false;
+    for (let k = 0; k < CAMP_KINDS[w.sub[firstRat(c)]].rats; k++) if (w.alive[firstRat(c) + k] === 1) up = true;
+    const at = campDueAt(w, c);
+    camps.push({ id: c, kind: CAMP_VARIANT[w.sub[firstRat(c)]] as 'rat' | 'prickle' | 'crow' | 'toad', x: CAMPS[c].x, y: CAMPS[c].y, up, nextIn: up || at < 0 ? 0 : at - tick });
+  }
+  snap.camps = camps;
 }
 
 function teamEvents(w: World, all: readonly SimEvent[], team: Team): SimEvent[] {
@@ -508,6 +577,7 @@ function kindIndex(id: number, k: number): number {
 
 /** uint32 hash of the whole state. */
 export function hash(match: Match): number {
+  bindWorld((match as MatchHandle).world);
   return hashWorld((match as MatchHandle).world);
 }
 
@@ -540,5 +610,7 @@ export function replayRecord(match: Match): ReplayRecord | null {
     outcome: m.ended.outcome,
     finalHash: m.ended.finalHash,
     mutator: 'none',
+    // Sim v18: only a Hearthwood record names its map (a Crossing record stays as in v17).
+    ...(m.world.map !== 0 ? { map: MAP_IDS[m.world.map] } : {}),
   };
 }

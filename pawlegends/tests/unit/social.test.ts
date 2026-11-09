@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest';
 import { SOCIAL_BOUNDS, SOCIAL_COUNT, SocialLimiter, clampSocialPoint, socialIdOk, parseClientJson } from '../../src/net/proto';
 import { CHAT_LINES, EMOTES, socialLine, socialText } from '../../src/data/social';
-import { PING_KINDS } from '../../src/data/pings';
+import { CROSSING_PING_KINDS, PING_KINDS } from '../../src/data/pings';
 import { MAP } from '../../src/data/map';
 import { CHAT_RING, QuickChat, chatSlice } from '../../src/party/ui/quickChat';
 
@@ -15,7 +15,9 @@ describe('social ids and limits (M2, M3)', () => {
   it('the wire counts equal the client tables and the map bounds equal MAP', () => {
     expect(SOCIAL_COUNT.chat).toBe(CHAT_LINES.length);
     expect(SOCIAL_COUNT.emote).toBe(EMOTES.length);
-    expect(SOCIAL_COUNT.ping).toBe(PING_KINDS.length);
+    // Sim v18: the PROTO 3 wire carries Crossing's 8 kinds; the Hearthwood kinds come with PROTO 4 (MAP-5V5.md §2.7).
+    expect(SOCIAL_COUNT.ping).toBe(CROSSING_PING_KINDS);
+    expect(PING_KINDS.length).toBeGreaterThan(CROSSING_PING_KINDS);
     expect(CHAT_LINES).toEqual(['Nice!', 'On my way', 'Help me', 'Group up', 'Back off', 'Push', 'Thanks', 'GG']);
     expect(EMOTES).toHaveLength(4);
     expect(SOCIAL_BOUNDS).toEqual({ width: MAP.width, height: MAP.height });

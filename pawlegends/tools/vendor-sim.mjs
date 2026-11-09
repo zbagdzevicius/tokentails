@@ -32,7 +32,7 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v17/: those files, frozen (FROZEN below; sim v18 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v18/: those files, frozen (FROZEN below; sim v19 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -80,6 +80,8 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * PvP M1b) at 9eadae28 and keeps v10 to v15, so the backend verifies 10 to 17.
  * Sim v18 (basic attacks land while chasing, docs/plans/moba/V18-CHASE.md) froze the released v17 (counter-play batch)
  * at 451206ab and keeps v10 to v16, so the backend verifies 10 to 18.
+ * Sim v19 (5v5 Classic on Hearthwood Divide, docs/plans/moba/MAP-5V5.md) froze the released v18 (chase fix) at
+ * d904efbc and keeps v10 to v17, so the backend verifies 10 to 19; only v19 knows `map`.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -136,6 +138,13 @@ export const FROZEN = Object.freeze([
     commit: '451206ab1b3fa5377977807a22973fe69db9a15b',
     from: 'backend/src/vendor/pawlegends-sim/v17',
     bundle: '29cd64e4fd42e53957f193ad76803aa5ae4a851b817f0b9ea46e5a77f993da06',
+    extra: Object.freeze(['forfeit-replay.fixture.json', 'dog-replay.fixture.json', 'new-dog-replay.fixture.json', 'pvp-replay.fixture.json']),
+  }),
+  Object.freeze({
+    simVersion: 18,
+    commit: 'd904efbccfaf48a5fd04070bbacc3c70ba80df1f',
+    from: 'backend/src/vendor/pawlegends-sim/v18',
+    bundle: '95c60a18e1939da683b5c6a8537007e66184af9fafbb9b3e8eb661aa8171c76f',
     extra: Object.freeze(['forfeit-replay.fixture.json', 'dog-replay.fixture.json', 'new-dog-replay.fixture.json', 'pvp-replay.fixture.json']),
   }),
 ]);
@@ -292,6 +301,8 @@ export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
 /** Sim v10: only 'none' exists. */
 export type PawlegendsMutator = 'none';
+/** Sim v18: the maps ('crossing' 3v3, 'hearthwood' 5v5 Classic); a record without \`map\` is Crossing. */
+export type PawlegendsMapId = 'crossing' | 'hearthwood';
 
 export interface PawlegendsReplay {
     v: 1;
@@ -306,6 +317,8 @@ export interface PawlegendsReplay {
     finalHash: string;
     /** Sim v10 and later: 'none' (every record from v10 carries it). */
     mutator?: PawlegendsMutator;
+    /** Sim v18 and later: the map; omitted = 'crossing'. */
+    map?: PawlegendsMapId;
 }
 
 /** The replay record the backend stores and re-sims (same shape as PawlegendsReplay). */
@@ -390,6 +403,8 @@ export interface PawlegendsPartyReplayRecord {
     outcome: PawlegendsOutcome;
     finalHash: string;
     mutator?: PawlegendsMutator;
+    /** Sim v18 and later: the map; omitted = 'crossing'. */
+    map?: PawlegendsMapId;
 }
 
 /** Sim v16 S-PvP (docs/plans/moba/V16.md §3.1.7): the replay of a PvP match (humans on both teams). */
@@ -409,6 +424,8 @@ export interface PawlegendsPvpReplayRecord {
     outcome: PawlegendsOutcome;
     finalHash: string;
     mutator?: PawlegendsMutator;
+    /** Sim v18 and later: the map; omitted = 'crossing'. */
+    map?: PawlegendsMapId;
 }
 
 export type PawlegendsCommand = { op: number; [k: string]: number };
@@ -432,7 +449,7 @@ export interface PawlegendsPartySim {
     PLAYER_PROFILES: readonly string[];
     checkPartyShape(record: unknown): PawlegendsVerifyResult | null;
     verifyPartyReplay(record: unknown): PawlegendsVerifyResult;
-    fillPicksParty(seed: number, humans: readonly PawlegendsPartySeat[]): { picks: PawlegendsHeroId[]; tricks: PawlegendsTrickId[] };
+    fillPicksParty(seed: number, humans: readonly PawlegendsPartySeat[], map?: PawlegendsMapId): { picks: PawlegendsHeroId[]; tricks: PawlegendsTrickId[] };
     createMatch(config: {
         seed: number;
         picks: readonly string[];
@@ -442,6 +459,8 @@ export interface PawlegendsPartySim {
         /** Sim v16 and later: 'pvp' seats humans on both teams (slots 0..5 with 0 and 3), difficulty 'hard'. */
         mode?: 'pve' | 'pvp';
         fillDifficulty?: readonly [string, string];
+        /** Sim v18 and later: 'hearthwood' plays 5v5 (10 slots; PvP leads 0 and 5). */
+        map?: PawlegendsMapId;
     }): PawlegendsMatchHandle;
     step(m: PawlegendsMatchHandle, commands?: readonly PawlegendsCommand[], others?: readonly (readonly PawlegendsCommand[] | undefined)[]): void;
     hash(m: PawlegendsMatchHandle): number;
@@ -465,6 +484,10 @@ export interface PawlegendsPartySim {
     /** Re-sim a PvpReplayRecord; the verdict carries \`winner\`. */
     verifyPvpReplay?(record: unknown): PawlegendsVerifyResult;
     pvpReplayRecord?(m: PawlegendsMatchHandle): PawlegendsPvpReplayRecord | null;
+    /** Sim v18 and later: the maps and their team sizes; absent on older bundles (Crossing only). */
+    MAP_IDS?: readonly PawlegendsMapId[];
+    teamSizeOf?(map: PawlegendsMapId): 3 | 5;
+    slotCountOf?(map: PawlegendsMapId): 6 | 10;
 }
 
 /** The party API of this bundle. */
@@ -495,6 +518,9 @@ export const party: PawlegendsPartySim = {
     checkPvpShape: sim.checkPvpShape,
     verifyPvpReplay: sim.verifyPvpReplay,
     pvpReplayRecord: sim.pvpReplayRecord,
+    MAP_IDS: sim.MAP_IDS,
+    teamSizeOf: sim.teamSizeOf,
+    slotCountOf: sim.slotCountOf,
 };
 `;
 
@@ -569,6 +595,60 @@ export async function forfeitFixture(seed = FORFEIT_FIXTURE_SEED) {
   const r = sim.result(m);
   if (!r || r.reason !== 'forfeit') throw new Error('vendor-sim: the forfeit fixture did not end by forfeit');
   return sim.replayRecord(m);
+}
+
+/** Sim v18 (MAP-5V5.md §5 S7): the three Hearthwood fixtures (solo, a party of 3, a 2 + 2 PvP), seed 1818. */
+export const HEARTHWOOD_FIXTURE_SEED = 1818;
+
+/** A solo 5v5 match on Hearthwood (Easy, the normal player-bot as Clem); its v:1 record. */
+export async function hearthwoodFixture(seed = HEARTHWOOD_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/index.ts');
+  const { picks, tricks } = sim.fillPicks(seed, 'clem', 'pounce', 'hearthwood');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'easy', map: 'hearthwood' });
+  const bot = sim.createPlayerBot(m, 'normal');
+  while (!sim.result(m)) sim.step(m, sim.playerBotCommands(m, bot));
+  return sim.replayRecord(m);
+}
+
+/** A 5v5 party on Hearthwood (slots 0, 1, 2 human, Normal); its v:2 record. */
+export async function hearthwoodPartyFixture(seed = HEARTHWOOD_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/server.ts');
+  const seats = [
+    { slot: 0, hero: 'brutus', trick: 'pounce' },
+    { slot: 1, hero: 'nugget', trick: 'snack' },
+    { slot: 2, hero: 'howler', trick: 'hiss' },
+  ];
+  const humans = seats.map((s) => s.slot);
+  const { picks, tricks } = sim.fillPicksParty(seed, seats, 'hearthwood');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'normal', humans, map: 'hearthwood' });
+  const bots = humans.map((s) => sim.createPlayerBotFor(m, 'normal', s));
+  while (!sim.result(m)) {
+    const out = [[], [], [], [], [], [], [], [], [], []];
+    for (let i = 0; i < humans.length; i++) out[humans[i]] = sim.playerBotCommands(m, bots[i]);
+    sim.step(m, out[0], out);
+  }
+  return sim.partyReplayRecord(m);
+}
+
+/** A 5v5 PvP on Hearthwood (slots 0, 1 and 5, 6 human, Hard rules, Hard fill); its v3 record. */
+export async function hearthwoodPvpFixture(seed = HEARTHWOOD_FIXTURE_SEED) {
+  const sim = await importSim('src/sim/server.ts');
+  const seats = [
+    { slot: 0, hero: 'sage', trick: 'pounce' },
+    { slot: 1, hero: 'gabe', trick: 'snack' },
+    { slot: 5, hero: 'rocket', trick: 'pounce' },
+    { slot: 6, hero: 'domino', trick: 'purrify' },
+  ];
+  const humans = seats.map((s) => s.slot);
+  const { picks, tricks } = sim.fillPicksParty(seed, seats, 'hearthwood');
+  const m = sim.createMatch({ seed, picks, tricks, difficulty: 'hard', humans, mode: 'pvp', fillDifficulty: ['hard', 'hard'], map: 'hearthwood' });
+  const bots = humans.map((s) => sim.createPlayerBotFor(m, 'normal', s));
+  while (!sim.result(m)) {
+    const out = [[], [], [], [], [], [], [], [], [], []];
+    for (let i = 0; i < humans.length; i++) out[humans[i]] = sim.playerBotCommands(m, bots[i]);
+    sim.step(m, out[0], out);
+  }
+  return sim.pvpReplayRecord(m);
 }
 
 /** Seed, seats and fill of the recorded PvP fixture (sim v16, S-PvP). */
@@ -683,6 +763,9 @@ export async function buildFiles() {
   const dog = JSON.stringify(await dogFixture(), null, 2) + '\n';
   const newDog = JSON.stringify(await newDogFixture(), null, 2) + '\n';
   const pvp = JSON.stringify(await pvpFixture(), null, 2) + '\n';
+  const hearth = JSON.stringify(await hearthwoodFixture(), null, 2) + '\n';
+  const hearthParty = JSON.stringify(await hearthwoodPartyFixture(), null, 2) + '\n';
+  const hearthPvp = JSON.stringify(await hearthwoodPvpFixture(), null, 2) + '\n';
   const live = {
     'pawlegends-sim.bundle.ts': text,
     'index.ts': face,
@@ -697,6 +780,10 @@ export async function buildFiles() {
     'new-dog-replay.fixture.json': newDog,
     // Sim v16 (S-PvP): a PvP record (v3); a later freeze lists it in `extra`
     'pvp-replay.fixture.json': pvp,
+    // Sim v18 (5v5 Classic): Hearthwood records, solo, party and PvP; a later freeze lists them in `extra`
+    'hearthwood-replay.fixture.json': hearth,
+    'hearthwood-party.fixture.json': hearthParty,
+    'hearthwood-pvp.fixture.json': hearthPvp,
   };
   const files = {};
   for (const entry of FROZEN) for (const [name, body] of Object.entries(frozenFiles(entry))) files[`v${entry.simVersion}/${name}`] = body;

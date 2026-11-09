@@ -9,7 +9,7 @@
 import { PROJECTILE_KIND } from '../../data/towers';
 import { ANGLE_MASK, BP_ONE, angleDiff, applyBp, icos, idiv, isin, TRIG_ONE } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, FM, G, Kind, type World } from '../world';
+import { FM, G, Kind, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import {
   addShield,
@@ -30,7 +30,7 @@ import { attackRange } from '../units/kinds';
 import { Aim, SNAP_FX, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(_a: KitNumbers, slot: number): SlotAim {
   switch (slot) {

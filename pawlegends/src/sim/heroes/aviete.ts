@@ -11,7 +11,7 @@
  */
 import { dist2, iatan2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
-import { COOLDOWN_SLOTS, ENTITY_CAP, G, Kind, type World } from '../world';
+import { COOLDOWN_SLOTS, G, Kind, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { blink, collect, haste, inCone, inRing, slow, stun } from '../effects';
 import { attackRange, radiusOf } from '../units/kinds';
@@ -21,7 +21,7 @@ import { abil, type KitNumbers } from './talents';
 /** HERO_IDS index of Avietė. */
 export const AVIETE_INDEX = 5;
 const E = 2;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {

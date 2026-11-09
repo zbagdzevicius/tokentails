@@ -16,7 +16,7 @@
  *   hitter FISH.lastHitBp and every other hero of that team in range FISH.nearBp; a rat its last hitter and allies.
  */
 import { WAVE } from '../../data/minions';
-import { RAT_CAMP_STATS } from '../../data/camps';
+import { CAMP_KINDS } from '../../data/camps';
 import { TAKEDOWN_HEAL, XP } from '../../data/xp';
 import { applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
@@ -29,13 +29,12 @@ import { grantXp } from './levels';
 import { grantFish } from './fish';
 import { FISH } from '../../data/fish';
 
-const HEROES_N = RANGE.minions - RANGE.heroes;
-const share = new Int32Array(HEROES_N);
-const helpedBy = new Uint8Array(HEROES_N);
+const share = new Int32Array(RANGE.minions);
+const helpedBy = new Uint8Array(RANGE.minions);
 
 /** Did hero `h` hit `victim` within the assist window? */
 export function assisted(w: World, victim: number, h: number): boolean {
-  const t = w.assistTick[victim * HEROES_N + h];
+  const t = w.assistTick[victim * RANGE.minions + h];
   return t !== NEVER && w.globals[G.Tick] - t <= XP.assistWindow;
 }
 
@@ -66,7 +65,7 @@ export function heroKilled(m: MatchHandle, victim: number): void {
     let best = NEVER;
     for (let h = RANGE.heroes; h < RANGE.minions; h++) {
       if (w.team[h] !== enemy || !assisted(w, victim, h)) continue;
-      const t = w.assistTick[victim * HEROES_N + h];
+      const t = w.assistTick[victim * RANGE.minions + h];
       if (t > best) {
         best = t;
         killer = h;
@@ -138,7 +137,7 @@ export function heroKilled(m: MatchHandle, victim: number): void {
     }
     kitOf(w, h).onTakedown?.(m, h, victim);
   }
-  for (let h = 0; h < HEROES_N; h++) w.assistTick[victim * HEROES_N + h] = NEVER;
+  for (let h = 0; h < RANGE.minions; h++) w.assistTick[victim * RANGE.minions + h] = NEVER;
 }
 
 /**
@@ -190,10 +189,13 @@ export function campKilled(m: MatchHandle, id: number): number {
   }
   // Sim v12: the rat's Fish, to its last hitter (a hero, dead or alive) and the other heroes of its team in range.
   const hitter = by < RANGE.minions && w.kind[by] === Kind.Hero ? by : -1;
-  if (hitter >= 0) grantFish(m, hitter, FISH.ratLastHit, 'camp');
-  for (let i = 0; i < n; i++) if (share[i] !== hitter) grantFish(m, share[i], FISH.ratNear, 'camp');
-  if (n === 0) return team;
-  let each = idiv(idiv(RAT_CAMP_STATS.xpTotal, RAT_CAMP_STATS.rats), n);
+  // Sim v18: per camp kind (Hearthwood's buff camps, toad, Grizzlechop); rats keep their FISH values.
+  const kind = CAMP_KINDS[w.sub[id]];
+  const rat = w.sub[id] === 0;
+  if (hitter >= 0) grantFish(m, hitter, rat ? FISH.ratLastHit : kind.fishLast, 'camp');
+  for (let i = 0; i < n; i++) if (share[i] !== hitter) grantFish(m, share[i], rat ? FISH.ratNear : kind.fishNear, 'camp');
+  if (n === 0 || kind.xpTotal === 0) return team;
+  let each = idiv(idiv(kind.xpTotal, kind.rats), n);
   // Sim v8: the team behind on levels gets DifficultyRules.campBehindBp of the camp's XP (per difficulty since v10).
   let ours = 0;
   let theirs = 0;

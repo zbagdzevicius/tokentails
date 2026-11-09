@@ -1,5 +1,5 @@
 /** Pudding, the shared objective (POC.md §5). */
-export const PUDDING = Object.freeze({
+const C_PUDDING = Object.freeze({
   /** Calm meter, filled by damage (Pudding's HP while wild; armour 0). */
   calm: 2500,
   /** Every 4 s a scared-hop knockback ring of 4 m after a 0.8 s telegraph. */
@@ -33,3 +33,20 @@ export const PUD_STATE = Object.freeze({
   /** Walking with that wave. */
   Escort: 3,
 });
+
+export type PuddingStats = { readonly [K in keyof typeof C_PUDDING]: number };
+export const CROSSING_PUDDING: PuddingStats = C_PUDDING;
+/** Sim v18 (MAP-5V5.md §1.7): the Great Pudding of Hearthwood, a bigger calm meter and a stronger escort. */
+export const HEARTHWOOD_PUDDING: PuddingStats = Object.freeze({
+  ...C_PUDDING,
+  calm: 7000,
+  respawn: 4500,
+  escortHp: 6000,
+  escortLeaveDamage: 6000,
+  escortBreathDamage: 260,
+});
+/** Live binding (src/sim/map/runtime.ts bindMap). */
+export let PUDDING: PuddingStats = C_PUDDING;
+export function setPudding(p: PuddingStats): void {
+  PUDDING = p;
+}
