@@ -359,8 +359,8 @@ and from 10–14 MB/s to < 2 MB/s of garbage.
 
 ## 7. After the fix (2026-11-09)
 
-Commits on `perf/pawlegends-ios-thermal`: `a5884461` (phase 1), `aadfdf66` (phase 2), and the governor tuning
-commit with this section. Nothing in `src/sim` changed.
+Commits on `perf/pawlegends-ios-thermal`: `a5884461` (phase 1), `aadfdf66` (phase 2), `c9830355` (governor tuning,
+this section). Nothing in `src/sim` changed.
 
 ### 7.1 Before and after
 
@@ -452,3 +452,10 @@ hysteresis, hold, thermal floor, phone profile per step, persisted prefs).
 - The lobby still has 4 infinite CSS animations (transform/opacity only, composited) and 60 style recalcs a second in
   Chromium from them.
 - The perf e2e with pass limits (§6.2) is not written yet; the harness numbers above are the baseline for it.
+- **Checks run:** `tsc` clean; vitest 2,143 passed, 4 failed, all 4 also fail on the base (`net-rejoin` perf-ff timing,
+  `anim/root` timeout under parallel load, and the two trailer copy-gate tests). e2e subset (boot, lobby, perf,
+  match-touch, minimap-touch, hud-area, store, juice, first-match) on SwiftShader: `first-match.spec.ts:37` fails on
+  the base too. `match-touch.spec.ts:103` (Attack priority) failed 2 of 2 on this branch and passed 3 of 3 on the
+  base. Both failures were the same kind: the game skipped a hero the test's model expected. The game's pick uses
+  the touch layer's `deter` set and the lock, and the test's model has neither. This branch does not change that
+  code, so a different match path probably exposes the gap. Not confirmed; worth a look before merging.
