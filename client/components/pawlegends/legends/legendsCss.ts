@@ -34,6 +34,7 @@ export const LEGENDS_CSS = `@font-face{font-family:"Fredoka";src:url("${LEGENDS_
 .lgb .brand{font:700 26px/1 var(--disp);text-decoration:none;color:#fff6e6;letter-spacing:.01em;
   -webkit-text-stroke:6px #4a2b35;paint-order:stroke fill;filter:drop-shadow(0 3px 0 #4a2b3566)}
 .lgb .brand b{color:var(--pink);font-weight:700}
+.lgb .brand img{display:block;width:150px;height:auto;-webkit-text-stroke:0;filter:none}
 .lgb .score{display:flex;align-items:center;gap:10px;background:#2b1d2ae6;color:#fff;border-radius:16px;padding:7px 14px;
   font:700 13px/1 var(--body);letter-spacing:.12em;text-transform:uppercase;box-shadow:0 6px 0 #0000002e;backdrop-filter:blur(6px)}
 .lgb .score .t{display:flex;align-items:center;gap:6px}
@@ -138,6 +139,7 @@ export const LEGENDS_CSS = `@font-face{font-family:"Fredoka";src:url("${LEGENDS_
   -webkit-text-stroke:.12em #4a2b35;paint-order:stroke fill;filter:drop-shadow(0 .07em 0 #4a2b35);cursor:default}
 .lgb .wordmark .l2{color:var(--pink)}
 .lgb .wordmark .ch,.lgb .wordmark .chi{display:inline-block}
+.lgb .wordmark img{display:block;width:min(460px,82vw,70vh);height:auto;margin-left:-14px;-webkit-user-drag:none;filter:drop-shadow(0 12px 18px #1d4f2466)}
 .lgb .tag{font:700 clamp(20px,1.9vw,27px)/1.25 var(--disp);color:#fff;margin:22px 0 22px;text-shadow:0 2px 0 #1d4f24,0 0 10px #1d4f2499;max-width:32ch;text-wrap:balance}
 .lgb .hero .card{max-width:560px}
 .lgb .ctas{display:flex;flex-wrap:wrap;gap:14px 16px;align-items:center;margin-top:20px}

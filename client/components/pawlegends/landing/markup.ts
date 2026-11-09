@@ -19,6 +19,8 @@ const A = {
   teamfight: LANDING_ASSET("shot-teamfight.1be7757e.webp"),
   phone: LANDING_ASSET("shot-phone.24bce0a7.webp"),
   logo: LANDING_ASSET("tt-logo.19b6c796.webp"),
+  /** The PawLegends wordmark (brand/pawlegends logo-compact.png, founder pick #48, without the paws: the hero has no room for the full logo under the VS), 1200x334. */
+  wordmark: LANDING_ASSET("logo-compact.ec9e56ee.webp"),
   fredoka: LANDING_ASSET("fredoka-latin.ec85d7eb.woff2"),
   mascot: LANDING_ASSET("mascot.92c3f404.webp"),
   mascot2: LANDING_ASSET("mascot2.ff449081.webp"),
@@ -29,6 +31,7 @@ const A = {
  */
 export const SMALLER: Readonly<Record<string, number>> = Object.freeze({
   [A.logo]: 244,
+  [A.wordmark]: 640,
   [A.map]: 720,
   [A.aim]: 720,
   [A.teamfight]: 720,
@@ -293,7 +296,7 @@ export function landingMarkup(): string {
     <div class="vs" aria-hidden="true"><div class="vs-par"><span class="vs-ring"></span><span class="vs-ghost p">VS</span><span class="vs-ghost b">VS</span><span class="vs-word">VS</span></div></div>
     <div class="announcer" aria-hidden="true">Fight!</div>
     <div class="hero-copy">
-      <h1 class="logo" aria-label="Pawlegends"><span class="paw-c" aria-hidden="true"><span class="ch">P</span><span class="ch">a</span><span class="ch">w</span></span><span class="leg-c" aria-hidden="true"><span class="ch">l</span><span class="ch">e</span><span class="ch">g</span><span class="ch">e</span><span class="ch">n</span><span class="ch">d</span><span class="ch">s</span></span></h1>
+      <h1 class="logo" aria-label="Pawlegends"><span class="ch"><img src="${A.wordmark}" srcset="${srcset(A.wordmark, SMALLER[A.wordmark], 1200)}" sizes="(max-width:820px) 86vw, 640px" alt="" width="1200" height="334" fetchpriority="high" decoding="async"></span></h1>
       <p class="sub">Cats vs dogs, three on three. Play solo or bring up to two friends. Free, right in your browser on desktop or phone.</p>
       <div class="ctas">
         <span class="mag"><a class="btn big" href="${HERO_CTA_HREF}" data-cta="landing_hero"><span>Play free in your browser <span class="arrow" aria-hidden="true">&#9654;</span></span></a></span>
