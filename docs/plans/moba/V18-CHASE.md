@@ -89,31 +89,31 @@ Fitted on both windows (six two-window runs), moving `takenBp` and `dmgBp` toget
 
 | Hero | Seeds 1–2000 | Seeds 2001–4000 |
 |---|---|---|
-| Avietė | 52.8% | 53.5% |
-| Bengas | 48.2% | 50.3% |
-| Bravo | 46.0% | 48.3% |
-| Sir Brutus | 52.7% | 49.4% |
-| Cacklejaw | 52.8% | 51.7% |
-| Chili | 47.6% | 52.8% |
-| Clem | 52.0% | 49.0% |
-| Domino | 50.8% | 49.3% |
-| Duchess | 50.9% | 50.7% |
-| Frankie | 47.3% | 47.6% |
-| Gabė | 51.0% | 48.2% |
-| Howler | 48.6% | 50.8% |
-| Lambo | 48.5% | 50.7% |
-| Marshmallow | 50.8% | 49.7% |
-| Meatball | 51.1% | 50.2% |
-| Nugget | 49.2% | 47.5% |
-| Pixel | 50.2% | 50.1% |
-| Rocket | 47.9% | 50.0% |
-| Sage | 52.6% | 48.9% |
-| Stilts | 48.6% | 51.1% |
+| Avietė | 52.8% | 49.3% |
+| Bengas | 48.2% | 50.7% |
+| Bravo | 46.0% | 52.8% |
+| Sir Brutus | 52.7% | 48.2% |
+| Cacklejaw | 52.8% | 50.0% |
+| Chili | 47.6% | 49.0% |
+| Clem | 52.0% | 50.1% |
+| Domino | 50.8% | 50.7% |
+| Duchess | 50.9% | 47.5% |
+| Frankie | 47.3% | 53.5% |
+| Gabė | 51.0% | 50.2% |
+| Howler | 48.6% | 48.3% |
+| Lambo | 48.5% | 50.8% |
+| Marshmallow | 50.8% | 51.1% |
+| Meatball | 51.1% | 49.7% |
+| Nugget | 49.2% | 50.3% |
+| Pixel | 50.2% | 51.7% |
+| Rocket | 47.9% | 48.9% |
+| Sage | 52.6% | 47.6% |
+| Stilts | 48.6% | 49.4% |
 
 - Tricks 48.5–51.5% in both windows; cats 50.6% / 49.7%; sides Purrhaven 49.1% / 50.3%.
 - p95 8:30 / 8:32; core kill before Sudden Death 93.8% / 92.8%; no safety ends.
 - Comebacks: trailing at 3:30 won 29.2% / 27.7%; down 10+ at the end won 3.3% / 2.6%.
-- Bravo sits on the floor of seeds 1–2000 (46.0%) and Avietė near the ceiling of 2001–4000 (53.5%). One window holds
+- Bravo sits on the floor of seeds 1–2000 (46.0%) and Frankie near the ceiling of 2001–4000 (53.5%). One window holds
   about 600 slots per hero (±2 pp standard error), so the next data change may push either out of one window again.
 
 ### 3.5 Test changes
@@ -148,3 +148,12 @@ Fitted on both windows (six two-window runs), moving `takenBp` and `dmgBp` toget
 - The `round2.test.ts` Clem and Brutus pvp text lines carry the v18 rows.
 - `pawlegends-party-live.spec.ts` moved its forfeit seed back from 6 to 5 (seed 6's match now ends on a core kill
   before the injected forfeit).
+
+### Merge with hold-ATK-to-select (main, after v17)
+
+Main added hold-to-select on the touch Attack button. A selector release orders an attack on the selected unit, so
+it now also points the stick yield (`atkTarget`) at that unit; before, the stick toward the newly selected unit sent
+Moves that cancelled its Attack order. `tests/unit/stick-yield-touch.test.ts` covers the yield on the real
+TouchControls (held, pulled away, the 700 ms after release, and after a select release). Re-checked after the merge:
+both balance windows (table above), pvp-symmetry (map side 48.4%, cats 50.5%), determinism (100 seeds plus PvP),
+vendor-sim:check, budget (first load 370.2 KB gzip with main's champion identity work).
