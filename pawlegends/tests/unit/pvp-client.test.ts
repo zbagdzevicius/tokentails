@@ -6,7 +6,7 @@ import { acceptCardHtml } from '../../src/party/ui/acceptCard';
 import { loadingHtml } from '../../src/party/ui/partyLoading';
 import { pickHtml } from '../../src/party/ui/partyPick';
 import { onlineMode, setOnlineMode } from '../../src/meta/partyPrefs';
-import { setPvpEqualView, heightFactor, CAMERA_HEIGHTS } from '../../src/render/camera/height';
+import * as camHeight from '../../src/render/camera/height';
 import { voteNote } from '../../src/app/mpHud';
 
 /*
@@ -156,11 +156,10 @@ describe('casual PvP client', () => {
     g.localStorage = had;
   });
 
-  it('PvP equal view: the High camera step is ignored in a PvP match', () => {
-    expect(heightFactor('high')).toBe(CAMERA_HEIGHTS.high);
-    setPvpEqualView(true);
-    expect(heightFactor('high')).toBe(CAMERA_HEIGHTS.normal);
-    setPvpEqualView(false);
+  it('PvP: every Camera height step applies in PvP too (no equal-view override; vision is sim-side)', () => {
+    expect('setPvpEqualView' in camHeight).toBe(false);
+    for (const h of camHeight.CAMERA_STEPS) expect(camHeight.heightFactor(h)).toBe(camHeight.CAMERA_HEIGHTS[h]);
+    expect(camHeight.heightFactor('max')).toBe(1.4);
   });
 
   it('a remake vote is a Yes/No rail chip until this player voted', () => {

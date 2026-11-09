@@ -3,7 +3,6 @@
  * touch), HUD, minimap, scoreboard, talents, first-match tips and the Esc menu. The app's frame loop calls
  * `frame(dt)`; the session calls back once with the result and the replay.
  */
-import { setPvpEqualView } from '../render/camera/height';
 import * as THREE from 'three';
 import { sfx } from '../audio/sfx';
 import { matchVoiceKeys } from '../audio/voiceLines';
@@ -56,6 +55,7 @@ import { ProgressRail } from '../ui/progressRail';
 import { DIFFICULTY_RULES } from '../data/bots';
 import { FISH } from '../data/fish';
 import { ultHint } from '../render/effects';
+import { CAMERA_HEIGHT_EVENT, parseCameraHeight } from '../render/camera/height';
 import { levelWhat } from '../ui/toyText';
 import { icon } from '../ui/icons';
 import { Hud, type FeedName } from '../ui/hud';
@@ -336,6 +336,8 @@ export class MatchSession {
   private hud: Hud | null = null;
   /** Champion browser: the long-press skill peek on the own skill buttons (its detach), loaded after the HUD. */
   private peekOff: (() => void) | null = null;
+  /** Feel pass B1: detaches the Camera height listener (CAMERA_HEIGHT_EVENT). */
+  private camHeightOff: (() => void) | null = null;
   private overhead: Overhead;
   /** LoL pass (lane C): the persistent low-health vignette (made on the first body tick). */
   private lowHp: LowHp | null = null;
@@ -486,10 +488,13 @@ export class MatchSession {
         this.view.lookAt(who.x, who.z, 10);
       },
     });
+    // feel pass B1: any saved Camera height step (the full Settings screen opened from the pause card, the pause row,
+    // the wheel, +/−) moves the live camera at once, so the view never disagrees with the highlighted step
+    const onCamHeight = (e: Event): void => this.view.setCameraHeight(parseCameraHeight((e as CustomEvent<unknown>).detail));
+    addEventListener(CAMERA_HEIGHT_EVENT, onCamHeight);
+    this.camHeightOff = () => removeEventListener(CAMERA_HEIGHT_EVENT, onCamHeight);
     this.view.juice.stage = this.stage;
     this.view.juice.speed = matchSpeedFor(!!setup.party, setup.speed);
-    // casual PvP: the same zoom limits on every seat (V16.md §5 Camera)
-    setPvpEqualView(setup.party?.pvp === true);
     // e2e (rail.spec.ts): the juice instance, to push one note of each priority
     if (this.e2e) e2eHook('Juice', this.view.juice);
     // ANIM-SPEC §4.1: the animation director binds clips to events a few frames before they fire (read-only peek)
@@ -1390,7 +1395,8 @@ export class MatchSession {
           }
         : {}),
       onResume: () => this.resume(),
-      // feel pass B1: the Camera height row: the view follows at once behind the menu
+      // feel pass B1: the Camera height row: the view follows at once behind the menu (every step in PvP too: the
+      // same setting for every seat, and vision is decided in the sim, so a further camera reveals nothing hidden)
       onCameraHeight: (h) => {
         this.view.setCameraHeight(h);
       },
@@ -2761,12 +2767,13 @@ export class MatchSession {
   dispose(): void {
     this.peekOff?.();
     this.peekOff = null;
+    this.camHeightOff?.();
+    this.camHeightOff = null;
     if (this.disposed) return;
     this.disposed = true;
     if (this.youTimer !== undefined) clearTimeout(this.youTimer);
     this.youTimer = undefined;
     setProbeBlocked(false);
-    setPvpEqualView(false);
     this.host.leave();
     this.host.dispose();
     this.desktop?.dispose();

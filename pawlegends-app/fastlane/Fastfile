@@ -10,15 +10,16 @@
 #   build      archive and export the signed .ipa (web bundle must be built and synced first: npm run build)
 #   beta       build + upload to TestFlight
 #   metadata   upload the listing text, screenshots and icon (no binary, no submission)
-#   release    submit the latest build for review; only with SUBMIT=yes (never automatic)
+#   release    submit the latest build for review; only with SUBMIT=yes; Apple releases it as soon as it is approved
 #   certs      make a distribution certificate + App Store profile once and print them as secrets
 #   check      validate secrets and the API key without changing anything
 #
 # Mac App Store (the same app record and bundle id, universal purchase; Mac Catalyst of the iOS target):
 #   mac_beta      archive for Mac Catalyst, export the signed .pkg, upload it to TestFlight (macOS)
 #   mac_metadata  upload the macOS listing: metadata/ with metadata_mac/ on top, Mac screenshots from screenshots_mac (no binary)
-#   mac_submit    submit the latest macOS build for review; only with SUBMIT=yes (never automatic)
+#   mac_submit    submit the latest macOS build for review; only with SUBMIT=yes; Apple releases it as soon as it is approved
 #   mac_certs     make the Mac Installer Distribution certificate once and print the secret steps (MAC_INSTALLER_P12)
+#   auto_release  switch every version waiting for review (iOS and macOS) to release automatically on approval
 # Run them as `bundle exec fastlane mac_beta` (not under `ios`). The macOS platform must be added to the app record
 # in App Store Connect first (App Information → Add platform → macOS). Optional, only if cloud signing cannot make
 # the Mac installer certificate: MAC_INSTALLER_P12 (base64) and MAC_INSTALLER_PASSWORD, made once by `fastlane mac_certs`.
@@ -266,7 +267,7 @@ platform :ios do
     )
   end
 
-  desc "Submit the latest uploaded build for review (needs SUBMIT=yes; the release itself stays manual)"
+  desc "Submit the latest uploaded build for review (needs SUBMIT=yes; released automatically on approval)"
   lane :release do
     UI.user_error!("Refusing to submit without SUBMIT=yes") unless ENV["SUBMIT"] == "yes"
 
@@ -279,7 +280,7 @@ platform :ios do
       skip_screenshots: true,
       skip_metadata: true,
       submit_for_review: true,
-      automatic_release: false,
+      automatic_release: true,
       force: true,
       precheck_include_in_app_purchases: false,
       submission_information: SUBMISSION_INFORMATION
@@ -379,7 +380,7 @@ lane :mac_certs do
   UI.important("  gh secret set MAC_INSTALLER_P12 --body \"$(base64 -i installer.p12)\" && gh secret set MAC_INSTALLER_PASSWORD")
 end
 
-desc "Mac: submit the latest macOS build for review (needs SUBMIT=yes; the release itself stays manual)"
+desc "Mac: submit the latest macOS build for review (needs SUBMIT=yes; released automatically on approval)"
 lane :mac_submit do
   UI.user_error!("Refusing to submit without SUBMIT=yes") unless ENV["SUBMIT"] == "yes"
 
@@ -393,9 +394,38 @@ lane :mac_submit do
     skip_screenshots: true,
     skip_metadata: true,
     submit_for_review: true,
-    automatic_release: false,
+    automatic_release: true,
     force: true,
     precheck_include_in_app_purchases: false,
     submission_information: SUBMISSION_INFORMATION
   )
+end
+
+desc "Switch the iOS and macOS versions waiting for review to release automatically as soon as Apple approves them"
+lane :auto_release do
+  asc_api_key
+  app = Spaceship::ConnectAPI::App.find(APP_ID)
+  UI.user_error!("No App Store Connect app record for #{APP_ID}") unless app
+  live = %w[READY_FOR_SALE READY_FOR_DISTRIBUTION REMOVED_FROM_SALE DEVELOPER_REMOVED_FROM_SALE REPLACED_WITH_NEW_VERSION]
+  changed = 0
+  [Spaceship::ConnectAPI::Platform::IOS, Spaceship::ConnectAPI::Platform::MAC_OS].each do |platform|
+    app.get_app_store_versions(filter: { platform: platform }).each do |v|
+      state = v.app_store_state.to_s
+      UI.message("#{platform} #{v.version_string}: #{state}, #{v.release_type}")
+      next if live.include?(state)
+      label = "#{platform} #{v.version_string} (#{state})"
+      if v.release_type == "AFTER_APPROVAL"
+        UI.success("#{label}: already releases automatically")
+        next
+      end
+      begin
+        v.update(attributes: { release_type: "AFTER_APPROVAL", earliest_release_date: nil })
+        changed += 1
+        UI.success("#{label}: #{v.release_type} -> AFTER_APPROVAL")
+      rescue => e
+        UI.error("#{label}: could not change the release type: #{e.message}")
+      end
+    end
+  end
+  UI.important("No version was changed") if changed.zero?
 end
