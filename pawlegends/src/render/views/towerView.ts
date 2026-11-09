@@ -21,7 +21,7 @@ import { RELATION } from '../palette';
 import { DecalLayer, dashRingTexture } from './decals';
 import { aggroPulse, TowerBeams } from '../fx/towerBeams';
 import { coreGeometry, crowGeometry, fountainGeometry, grizzlechopGeometry, hedgehogGeometry, puddingGeometry, ratGeometry, toadGeometry, towerGeometry } from './models';
-import { rigMaterial, type RigUniforms } from './rig';
+import { rigMaterial, type RigUniforms, casterDepthMaterial } from './rig';
 
 interface Structure {
   id: number;
@@ -246,6 +246,7 @@ export class StructureView {
     this.debrisMesh.count = 0;
     this.debrisMesh.frustumCulled = false;
     this.debrisMesh.castShadow = true;
+    this.debrisMesh.customDepthMaterial = casterDepthMaterial('instanced-color');
     for (let i = 0; i < DEBRIS.pool; i++) this.debrisMesh.setColorAt(i, _col.setHex(0xffffff));
     this.group.add(this.debrisMesh);
   }
@@ -528,9 +529,11 @@ export class StructureView {
       }
       if (e.kind === 'tower' || e.kind === 'core') {
         const scale = e.kind === 'core' ? 1.6 : 1;
-        const hides = this.heroes.some(
-          (h) => Math.abs(h.x - s.x) < COVER.halfWidth * scale && s.z - h.z < COVER.north * scale && s.z - h.z > -COVER.south,
-        );
+        let hides = false;
+        for (let hi = 0; hi < this.heroes.length && !hides; hi++) {
+          const h = this.heroes[hi];
+          hides = Math.abs(h.x - s.x) < COVER.halfWidth * scale && s.z - h.z < COVER.north * scale && s.z - h.z > -COVER.south;
+        }
         const want = xrayOpacity(e.kind, hides, s.hpFrac, this.time - s.hitAt);
         const u = s.rig.uOpacity;
         u.value += (want - u.value) * Math.min(1, dt * 10);
@@ -553,7 +556,9 @@ export class StructureView {
         // LoL pass (lane C): the range ring turns red and pulses at 2 Hz while the tower is on the player (hit or aim
         // in the last 1.5 s); otherwise the faint pale ring when the player comes near
         const ag = aggroPulse(this.time - (this.aggroAt.get(e.id) ?? -99), this.time);
-        const d = Math.hypot(this.me.x - s.x, this.me.z - s.z);
+        const mdx = this.me.x - s.x;
+        const mdz = this.me.z - s.z;
+        const d = Math.sqrt(mdx * mdx + mdz * mdz);
         if (ag > 0) {
           this.aggroRings.add(s.x, s.z, TOWER_RANGE_M * 2, RELATION.danger, ag);
           this.aggroRings.add(s.x, s.z, TOWER_RANGE_M * 2 * 0.985, RELATION.danger, 0.8 * ag);
@@ -563,7 +568,9 @@ export class StructureView {
         }
       }
     }
-    for (const [id, s] of this.items) {
+    // PERF-IOS §8 Track B: values(), not entries (an entry array per structure per frame); the id is s.id
+    for (const s of this.items.values()) {
+      const id = s.id;
       if (s.dieT >= 0) {
         this.fall(s, dt);
         continue;
@@ -751,12 +758,25 @@ export class StructureView {
    */
   footprints(out: { x: number; z: number; r: number }[]): { x: number; z: number; r: number }[] {
     out.length = 0;
-    for (const s of this.items.values()) {
-      if (s.kind === 'fountain' || !s.alive || s.fallen || s.dieT >= 0 || !s.mesh.visible) continue;
-      out.push({ x: s.x, z: s.z, r: s.radius * (s.kind === 'pudding' || s.kind === 'camp' || s.kind === 'boss' ? s.mesh.scale.x : 1) });
-    }
+    // PERF-IOS §8 Track B: per frame; the records are reused (callers read them within the frame)
+    this.fpOut = out;
+    this.items.forEach(this.fpPush);
+    this.fpOut = null;
     return out;
   }
+  private fpOut: { x: number; z: number; r: number }[] | null = null;
+  private readonly fpPool: { x: number; z: number; r: number }[] = [];
+  private readonly fpPush = (s: Structure): void => {
+    const out = this.fpOut;
+    if (!out || s.kind === 'fountain' || !s.alive || s.fallen || s.dieT >= 0 || !s.mesh.visible) return;
+    const n = out.length;
+    if (this.fpPool.length <= n) this.fpPool.push({ x: 0.5, z: 0.5, r: 0.5 });
+    const f = this.fpPool[n];
+    f.x = s.x;
+    f.z = s.z;
+    f.r = s.radius * (s.kind === 'pudding' || s.kind === 'camp' || s.kind === 'boss' ? s.mesh.scale.x : 1);
+    out.push(f);
+  };
 
   /** Last drawn ground position of a structure. */
   positionOf(id: number): { x: number; z: number } | null {

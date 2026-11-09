@@ -231,3 +231,21 @@ export function uprightMaterial(): THREE.MeshLambertMaterial & { userData: { rig
 
 /** Programs compiled so far (tests, perf). */
 export const rigCompileCount = (): number => compiled;
+
+/**
+ * PERF-IOS §8 Track B: shadow-pass depth materials per mesh kind. three.js draws every caster without its own
+ * `customDepthMaterial` with ONE shared MeshDepthMaterial, and a skinned hero, an instanced minion and a plain tower
+ * each need a different program variant of it (an instanced mesh with per-instance colours another), so it re-derived its program key (getParameters + the key string) at
+ * every switch: ~4 times per shadow update. Skinned and instanced casters get their own depth material (same settings
+ * as three's default), so no material changes variant on a steady frame. Shared by every view, never disposed.
+ */
+const depthMats: Partial<Record<'skinned' | 'instanced' | 'instanced-color', THREE.MeshDepthMaterial>> = {};
+export function casterDepthMaterial(kind: 'skinned' | 'instanced' | 'instanced-color'): THREE.MeshDepthMaterial {
+  let m = depthMats[kind];
+  if (!m) {
+    m = new THREE.MeshDepthMaterial();
+    m.name = `shadow-depth-${kind}`;
+    depthMats[kind] = m;
+  }
+  return m;
+}

@@ -14,7 +14,9 @@ import { RELATION } from '../palette';
 import { ELEMENT_COLOR, lookKey, type Look } from '../cosmetics';
 import { boldRingTexture, dashRingTexture, DecalLayer, discTexture, ringTexture } from './decals';
 import { HERO_RING } from './models';
+import { casterDepthMaterial } from './rig';
 import { DETAIL, makeHero, type Character, type CharState } from '../chars';
+import type { MotionInput } from '../chars/motion';
 import { getSkin, isCardSkinId } from '../skins/skinStore';
 import { TierFx, type FxHero } from '../skins/tierFx';
 import { cardFxFor, type CardFx } from '../skins/cardFx';
@@ -52,6 +54,12 @@ interface HeroRig {
   xray: THREE.SkinnedMesh | null;
   /** Drawn body alpha (eased toward the stealth look; trailer v3.3 review). */
   alpha: number;
+  /** PERF-IOS §8 Track B: the inputs `key` was built from, so a steady frame skips building the key string. */
+  kLook: Look | null;
+  kDress: number;
+  kDetail: number;
+  kOutline: boolean;
+  kSelf: boolean;
 }
 
 /**
@@ -101,6 +109,27 @@ function xrayMaterial(): THREE.MeshBasicMaterial {
 }
 export const bodyRadius = (hero: HeroId): number => Math.min(BODY_R_MAX, HERO_RING[hero] * BODY_K);
 
+/** Scratch arrays for `layoutBodiesInto` (PERF-IOS §8 Track B: sized once, reused every frame). */
+export interface LayoutScratch {
+  out: { x: number; z: number }[];
+  cur: { x: number; z: number }[];
+  sq: { x: number; z: number }[];
+  sep: { x: number; z: number }[];
+  clr: { x: number; z: number };
+}
+export const layoutScratch = (): LayoutScratch => ({ out: [], cur: [], sq: [], sep: [], clr: new XZ() });
+/**
+ * A reused 2D point. A class, not an `{ x, z }` literal: literals share V8's map tree with every other `{ x, z }` in
+ * the bundle, and one non-number stored in one of those makes every double store into these allocate a box.
+ */
+export class XZ {
+  x = 0.5;
+  z = 0.5;
+}
+const grow = (a: { x: number; z: number }[], n: number): void => {
+  while (a.length < n) a.push(new XZ());
+};
+
 /**
  * Drawn offsets (m) for bodies at `pts` (pure): pairwise push-apart and push-out of the `obs` footprints, relaxed over
  * a few passes so a hero squeezed between a tower and an ally is not pushed back into either. Each offset is capped
@@ -114,30 +143,57 @@ export function layoutBodies(
   cap = SEPARATION.cap,
   radii: readonly number[] | null = null,
 ): { x: number; z: number }[] {
+  const ws = layoutScratch();
+  layoutBodiesInto(pts, obs, warm, min, cap, radii, ws);
+  return ws.out.slice(0, pts.length);
+}
+
+/** `layoutBodies` into `ws.out[0..pts.length)` with no allocation once the scratch arrays have grown (per frame). */
+export function layoutBodiesInto(
+  pts: readonly { x: number; z: number }[],
+  obs: readonly { x: number; z: number; r: number }[],
+  warm: readonly { x: number; z: number }[] | null,
+  min: number,
+  cap: number,
+  radii: readonly number[] | null,
+  ws: LayoutScratch,
+): void {
+  const n = pts.length;
+  grow(ws.out, n);
+  grow(ws.cur, n);
+  grow(ws.sq, n);
+  grow(ws.sep, n);
+  const { out, cur, sq, sep, clr } = ws;
   // warm start from last frame's offsets (decaying): a body deep inside a moving footprint keeps pushing out the same
   // way instead of flipping sides frame to frame (trailer review: Clem stood in Pudding while he walked through her)
-  const out = pts.map((_, i) => ({ x: (warm?.[i]?.x ?? 0) * SEPARATION.warm, z: (warm?.[i]?.z ?? 0) * SEPARATION.warm }));
-  const cur = pts.map((p, i) => ({ x: p.x + out[i].x, z: p.z + out[i].z }));
+  for (let i = 0; i < n; i++) {
+    const w = warm ? warm[i] : undefined;
+    out[i].x = (w?.x ?? 0) * SEPARATION.warm;
+    out[i].z = (w?.z ?? 0) * SEPARATION.warm;
+    cur[i].x = pts[i].x + out[i].x;
+    cur[i].z = pts[i].z + out[i].z;
+  }
   // the gameplay camera looks north from above: two bodies one behind the other (along z) overlap on screen sooner
   // than two side by side, so depth counts zK times less and the push goes mostly sideways (screen x)
   const k = SEPARATION.zK;
-  const sq = cur.map((p) => ({ x: p.x, z: p.z / k }));
   for (let it = 0; it < SEPARATION.iters; it++) {
-    for (let i = 0; i < cur.length; i++) {
+    for (let i = 0; i < n; i++) {
       sq[i].x = cur[i].x;
       sq[i].z = cur[i].z / k;
     }
-    const sep = spreadSideways(sq, min, cap, radii);
-    for (let i = 0; i < pts.length; i++) {
+    spreadSideways(sq, n, min, cap, radii, sep);
+    for (let i = 0; i < n; i++) {
       out[i].x += sep[i].x * 0.5;
       out[i].z += sep[i].z * 0.5;
       if (obs.length) {
         // a bigger body clears towers by more (OBSTACLE_CLEAR.bodyR is Clem's, radius 2.03 × BODY_K)
-        const c = clearOfObstacles(pts[i].x + out[i].x, pts[i].z + out[i].z, obs, radii ? OBSTACLE_CLEAR.bodyR * (radii[i] / (2.03 * BODY_K)) : OBSTACLE_CLEAR.bodyR);
+        const c = clearOfObstacles(pts[i].x + out[i].x, pts[i].z + out[i].z, obs, radii ? OBSTACLE_CLEAR.bodyR * (radii[i] / (2.03 * BODY_K)) : OBSTACLE_CLEAR.bodyR, OBSTACLE_CLEAR.cap, clr);
         out[i].x += c.x;
         out[i].z += c.z;
       }
-      const l = Math.hypot(out[i].x, out[i].z);
+      const ox = out[i].x;
+      const oz = out[i].z;
+      const l = Math.sqrt(ox * ox + oz * oz);
       const lim = OBSTACLE_CLEAR.cap;
       if (l > lim) {
         out[i].x *= lim / l;
@@ -147,20 +203,22 @@ export function layoutBodies(
       cur[i].z = pts[i].z + out[i].z;
     }
   }
-  return out;
 }
 
 /**
  * Pairwise push-apart in the depth-scaled space (z / zK: depth counts less), biased sideways: two bodies one behind the other are moved
- * apart across the screen (x), not further along the line of sight, where they would still overlap (pure).
+ * apart across the screen (x), not further along the line of sight, where they would still overlap (pure; writes `out[0..n)`).
  */
-function spreadSideways(pts: readonly { x: number; z: number }[], min: number, cap: number, radii: readonly number[] | null = null): { x: number; z: number }[] {
-  const out = pts.map(() => ({ x: 0, z: 0 }));
-  for (let i = 0; i < pts.length; i++) {
-    for (let j = i + 1; j < pts.length; j++) {
+function spreadSideways(pts: readonly { x: number; z: number }[], n: number, min: number, cap: number, radii: readonly number[] | null, out: { x: number; z: number }[]): void {
+  for (let i = 0; i < n; i++) {
+    out[i].x = 0;
+    out[i].z = 0;
+  }
+  for (let i = 0; i < n; i++) {
+    for (let j = i + 1; j < n; j++) {
       const dx = pts[j].x - pts[i].x;
       const dz = pts[j].z - pts[i].z;
-      const d = Math.hypot(dx, dz);
+      const d = Math.sqrt(dx * dx + dz * dz);
       const m = radii ? radii[i] + radii[j] : min;
       if (d >= m) continue;
       const push = (m - d) / 2;
@@ -169,7 +227,7 @@ function spreadSideways(pts: readonly { x: number; z: number }[], min: number, c
       let uz = d > 1e-4 ? dz / d : 0;
       if (Math.abs(ux) < 0.8) ux = side * 0.8;
       uz *= 0.6;
-      const l = Math.hypot(ux, uz) || 1;
+      const l = Math.sqrt(ux * ux + uz * uz) || 1;
       ux /= l;
       uz /= l;
       out[i].x -= ux * push;
@@ -178,24 +236,32 @@ function spreadSideways(pts: readonly { x: number; z: number }[], min: number, c
       out[j].z += uz * push;
     }
   }
-  for (const o of out) {
-    const l = Math.hypot(o.x, o.z);
+  for (let i = 0; i < n; i++) {
+    const o = out[i];
+    const l = Math.sqrt(o.x * o.x + o.z * o.z);
     if (l > cap) {
       o.x *= cap / l;
       o.z *= cap / l;
     }
   }
-  return out;
 }
 
-/** The offset (m) that moves a body at (x, z) out of every footprint circle (pure; 0 when clear). */
-export function clearOfObstacles(x: number, z: number, obs: readonly { x: number; z: number; r: number }[], bodyR: number = OBSTACLE_CLEAR.bodyR, cap: number = OBSTACLE_CLEAR.cap): { x: number; z: number } {
+/** The offset (m) that moves a body at (x, z) out of every footprint circle (pure; 0 when clear). Writes `out` when given. */
+export function clearOfObstacles(
+  x: number,
+  z: number,
+  obs: readonly { x: number; z: number; r: number }[],
+  bodyR: number = OBSTACLE_CLEAR.bodyR,
+  cap: number = OBSTACLE_CLEAR.cap,
+  out: { x: number; z: number } = { x: 0, z: 0 },
+): { x: number; z: number } {
   let ox = 0;
   let oz = 0;
-  for (const o of obs) {
+  for (let i = 0; i < obs.length; i++) {
+    const o = obs[i];
     const dx = x + ox - o.x;
     const dz = z + oz - o.z;
-    const d = Math.hypot(dx, dz);
+    const d = Math.sqrt(dx * dx + dz * dz);
     const min = o.r + bodyR;
     if (d >= min) continue;
     const ux = d > 1e-4 ? dx / d : 0;
@@ -203,12 +269,14 @@ export function clearOfObstacles(x: number, z: number, obs: readonly { x: number
     ox += ux * (min - d);
     oz += uz * (min - d);
   }
-  const l = Math.hypot(ox, oz);
+  const l = Math.sqrt(ox * ox + oz * oz);
   if (l > cap) {
     ox *= cap / l;
     oz *= cap / l;
   }
-  return { x: ox, z: oz };
+  out.x = ox;
+  out.z = oz;
+  return out;
 }
 
 /**
@@ -218,11 +286,15 @@ export function clearOfObstacles(x: number, z: number, obs: readonly { x: number
  */
 export const WALL_CELL_R = 0.5;
 let wallGrid: Uint8Array | null = null;
-export function wallObstacles(pts: readonly { x: number; z: number }[], out: { x: number; z: number; r: number }[] = []): { x: number; z: number; r: number }[] {
+const wallSeen = new Set<number>();
+/** Reused wall-cell records (wallObstacles' default output is fresh objects; the per-frame caller passes `pool`). */
+export function wallObstacles(pts: readonly { x: number; z: number }[], out: { x: number; z: number; r: number }[] = [], pool: { x: number; z: number; r: number }[] | null = null): { x: number; z: number; r: number }[] {
   wallGrid ??= createGrid().walls;
   out.length = 0;
-  const seen = new Set<number>();
-  for (const p of pts) {
+  const seen = wallSeen;
+  seen.clear();
+  for (let pi = 0; pi < pts.length; pi++) {
+    const p = pts[pi];
     const ci = Math.floor(p.x);
     const cj = Math.floor(-p.z);
     for (let j = cj - 1; j <= cj + 1; j++) {
@@ -231,7 +303,15 @@ export function wallObstacles(pts: readonly { x: number; z: number }[], out: { x
         const c = j * NX + i;
         if (!wallGrid[c] || seen.has(c)) continue;
         seen.add(c);
-        out.push({ x: i + 0.5, z: -(j + 0.5), r: WALL_CELL_R });
+        const k = out.length;
+        if (pool) {
+          if (pool.length <= k) pool.push({ x: 0, z: 0, r: 0 });
+          const o = pool[k];
+          o.x = i + 0.5;
+          o.z = -(j + 0.5);
+          o.r = WALL_CELL_R;
+          out.push(o);
+        } else out.push({ x: i + 0.5, z: -(j + 0.5), r: WALL_CELL_R });
       }
     }
   }
@@ -380,6 +460,12 @@ export class HeroView {
   private readonly sepIds: number[] = [];
   private readonly sepWarm: { x: number; z: number }[] = [];
   private readonly sepR: number[] = [];
+  private readonly sepPtPool: { x: number; z: number }[] = [];
+  private readonly sepWarmPool: { x: number; z: number }[] = [];
+  private readonly wallPool: { x: number; z: number; r: number }[] = [];
+  private readonly sepWs = layoutScratch();
+  /** The animator's input, reused for every hero every frame (Animator.update reads it and keeps nothing). */
+  private readonly motionIn: MotionInput = { state: 'idle', speed: 0, height: 1, yawRate: 0, now: undefined, vx: 0, vz: 0, ax: 0, az: 0 };
   shadows = true;
   /** Mesh detail and the outline hull (quality tier: Low is lighter and has no hull, POC.md §10). */
   detail: number = DETAIL.med;
@@ -440,7 +526,16 @@ export class HeroView {
     const dress = (this.styleSwap ? 1 - team : team) as 0 | 1;
     const self = e.id === this.mySlot;
     const outline = this.outlineFor(e.team, self);
+    // a steady frame: the same inputs as the rig's key (no key string built)
+    if (r && r.hero === hero && r.kLook === look && r.kDress === dress && r.kDetail === this.detail && r.kOutline === outline && r.kSelf === self) return r;
     const key = `${hero}:${dress}:${lookKey(look)}:${this.detail}:${outline ? 1 : 0}:${self ? 1 : 0}`;
+    if (r && r.key === key) {
+      r.kLook = look;
+      r.kDress = dress;
+      r.kDetail = this.detail;
+      r.kOutline = outline;
+      r.kSelf = self;
+    }
     if (r && r.key !== key) {
       this.drop(r);
       r = undefined;
@@ -450,6 +545,7 @@ export class HeroView {
       // no outline hull (Low): a darker ink rim keeps the silhouette off the sand (ivory Clem faded into the lane)
       if (!outline) ch.material.userData.u.uRim.value = 0.78;
       ch.object.name = `hero-${e.id}`;
+      ch.mesh.customDepthMaterial = casterDepthMaterial('skinned');
       this.group.add(ch.object);
       let xray: THREE.SkinnedMesh | null = null;
       if (self) {
@@ -463,7 +559,7 @@ export class HeroView {
         ch.mesh.parent?.add(xray);
         xray.bind(ch.mesh.skeleton, ch.mesh.bindMatrix);
       }
-      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, xray, alpha: 1 };
+      r = { id: e.id, hero, team, key, ch, yaw: e.yaw, deadT: 0, wasDead: e.state === 'dead', visible: true, flash: 0, pos: new THREE.Vector3(toX(e.fx), 0, toZ(e.fy)), seen: -1, vx: 0, vz: 0, ax: 0, az: 0, simX: toX(e.fx), simZ: toZ(e.fy), sepX: 0, sepZ: 0, xray, alpha: 1, kLook: look, kDress: dress, kDetail: this.detail, kOutline: outline, kSelf: self };
       this.rigs.set(e.id, r);
     }
     return r;
@@ -549,20 +645,37 @@ export class HeroView {
     this.sepIds.length = 0;
     this.sepWarm.length = 0;
     this.sepR.length = 0;
-    for (const e of frame.entities) {
+    const ents = frame.entities;
+    for (let i = 0; i < ents.length; i++) {
+      const e = ents[i];
       if (e.kind !== 'hero') continue;
-      this.sepPts.push({ x: toX(e.fx), z: toZ(e.fy) });
+      // PERF-IOS §8 Track B: the point records are reused (one per hero slot), not built every frame
+      const n = this.sepPts.length;
+      if (this.sepPtPool.length <= n) {
+        this.sepPtPool.push(new XZ());
+        this.sepWarmPool.push(new XZ());
+      }
+      const pt = this.sepPtPool[n];
+      pt.x = toX(e.fx);
+      pt.z = toZ(e.fy);
+      this.sepPts.push(pt);
       this.sepIds.push(e.id);
       const was = this.rigs.get(e.id);
-      this.sepWarm.push({ x: was?.sepX ?? 0, z: was?.sepZ ?? 0 });
+      const w = this.sepWarmPool[n];
+      w.x = was?.sepX ?? 0;
+      w.z = was?.sepZ ?? 0;
+      this.sepWarm.push(w);
       this.sepR.push(e.hero ? bodyRadius(e.hero) : SEPARATION.min / 2);
     }
     // MAP-GAPS A25: the structures plus the wall cells round the heroes
     this.sepObs.length = 0;
-    for (const o of this.obstacles) this.sepObs.push(o);
-    for (const o of wallObstacles(this.sepPts, this.wallObs)) this.sepObs.push(o);
-    const sep = this.reducedSep ? null : layoutBodies(this.sepPts, this.sepObs, this.sepWarm, SEPARATION.min, SEPARATION.cap, this.sepR);
-    for (const e of frame.entities) {
+    for (let i = 0; i < this.obstacles.length; i++) this.sepObs.push(this.obstacles[i]);
+    const walls = wallObstacles(this.sepPts, this.wallObs, this.wallPool);
+    for (let i = 0; i < walls.length; i++) this.sepObs.push(walls[i]);
+    if (!this.reducedSep) layoutBodiesInto(this.sepPts, this.sepObs, this.sepWarm, SEPARATION.min, SEPARATION.cap, this.sepR, this.sepWs);
+    const sep = this.reducedSep ? null : this.sepWs.out;
+    for (let ei = 0; ei < ents.length; ei++) {
+      const e = ents[ei];
       if (e.kind !== 'hero') continue;
       const r = this.ensure(e);
       r.seen = stamp;
@@ -611,17 +724,17 @@ export class HeroView {
       const cy = Math.cos(r.yaw);
       const sy = Math.sin(r.yaw);
       ch.anim.stack.yaw = r.yaw;
-      ch.anim.update(this.director ? aStep : dt, {
-        state: idleEnd && !dead ? 'idle' : charState(e),
-        speed: idleEnd ? 0 : (e.speed * 30) / 1000,
-        height: ch.height,
-        yawRate,
-        now: this.director ? now : undefined,
-        vx: r.vx * cy - r.vz * sy,
-        vz: r.vx * sy + r.vz * cy,
-        ax: r.ax * cy - r.az * sy,
-        az: r.ax * sy + r.az * cy,
-      });
+      const mi = this.motionIn;
+      mi.state = idleEnd && !dead ? 'idle' : charState(e);
+      mi.speed = idleEnd ? 0 : (e.speed * 30) / 1000;
+      mi.height = ch.height;
+      mi.yawRate = yawRate;
+      mi.now = this.director ? now : undefined;
+      mi.vx = r.vx * cy - r.vz * sy;
+      mi.vz = r.vx * sy + r.vz * cy;
+      mi.ax = r.ax * cy - r.az * sy;
+      mi.az = r.ax * sy + r.az * cy;
+      ch.anim.update(this.director ? aStep : dt, mi);
       const sink = dead ? Math.max(0, (r.deadT - 1.2) * 0.8) : 0;
       r.visible = !(dead && r.deadT > 2.6);
       ch.object.visible = r.visible;
@@ -699,12 +812,8 @@ export class HeroView {
         if (e.charmed) this.auras.add(x, z, HERO_RING[r.hero] * 1.5, CHARM_GLOW, 0.7 + Math.sin(this.time * 6) * 0.2);
       }
     }
-    for (const r of this.rigs.values()) {
-      if (r.seen !== stamp) {
-        r.ch.object.visible = false;
-        r.visible = false;
-      }
-    }
+    this.hideStamp = stamp;
+    this.rigs.forEach(this.hideUnseen);
     fx?.end();
     this.rings.end();
     this.toyRings.end();
@@ -729,6 +838,14 @@ export class HeroView {
     const extras = this.slotStealth[id] === 0 && (self || (!(fx?.low ?? false) && !(fx?.teamFight ?? false)));
     return cardFxFor(skin, self, this.slotTeam[id] === 1 ? 1 : 0, extras, this.cardOut[id]);
   }
+
+  private hideStamp = 0;
+  private readonly hideUnseen = (r: HeroRig): void => {
+    if (r.seen !== this.hideStamp) {
+      r.ch.object.visible = false;
+      r.visible = false;
+    }
+  };
 
   dispose(): void {
     for (const r of [...this.rigs.values()]) this.drop(r);

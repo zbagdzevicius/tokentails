@@ -115,6 +115,16 @@ export interface PlayOpts {
   at?: { x: number; z: number };
 }
 
+/** Most pooled output chains per kind (centre, panned): more sounds than this at once get one-off chains. */
+const CHAIN_CAP = 24;
+
+interface SfxChain {
+  g: GainNode;
+  p: StereoPannerNode | null;
+  busy: boolean;
+  pooled: boolean;
+}
+
 export class Sfx {
   private ac: AudioContext | null = null;
   private master: GainNode | null = null;
@@ -136,6 +146,14 @@ export class Sfx {
   private musicScale = 1;
   /** Listener (camera focus, m). */
   ear = { x: 0, z: 0 };
+  /**
+   * PERF-IOS §8 Track B: reused output chains (a Gain, plus a StereoPanner when panned) already wired into the sfx
+   * bus. A play needs a new BufferSource only; its chain returns to the pool when the source ends. Two pools, so a
+   * centred sound keeps going straight into the bus (a StereoPanner at pan 0 would make a mono sound 3 dB quieter).
+   */
+  private readonly chains: { centre: SfxChain[]; panned: SfxChain[] } = { centre: [], panned: [] };
+  /** Output nodes created so far (the pool's size; tests read it). */
+  chainNodes = 0;
 
   /** Call from a user gesture. Safe to call many times. */
   unlock(): void {
@@ -350,6 +368,24 @@ export class Sfx {
     return true;
   }
 
+  /** A free output chain (a Gain, and a StereoPanner when `panned`), wired into `bus`; a new one when all are playing. */
+  private chain(ac: AudioContext, bus: AudioNode, panned: boolean): SfxChain {
+    const list = panned ? this.chains.panned : this.chains.centre;
+    for (let i = 0; i < list.length; i++) if (!list[i].busy) return list[i];
+    const g = ac.createGain();
+    let p: StereoPannerNode | null = null;
+    if (panned) {
+      p = ac.createStereoPanner();
+      g.connect(p);
+      p.connect(bus);
+    } else g.connect(bus);
+    this.chainNodes += p ? 2 : 1;
+    // a suspended context never ends its sources: past the cap a chain is one-off (not kept), so the pool stays small
+    const c: SfxChain = { g, p, busy: false, pooled: list.length < CHAIN_CAP };
+    if (c.pooled) list.push(c);
+    return c;
+  }
+
   private start(name: string, o: PlayOpts): AudioBufferSourceNode | null {
     const ac = this.ac;
     const buf = this.bufferOf(name);
@@ -363,7 +399,7 @@ export class Sfx {
     if (o.at) {
       const dx = o.at.x - this.ear.x;
       const dz = o.at.z - this.ear.z;
-      const d = Math.hypot(dx, dz);
+      const d = Math.sqrt(dx * dx + dz * dz);
       vol *= Math.max(0, 1 - Math.max(0, d - 8) / 26);
       pan = Math.max(-0.8, Math.min(0.8, dx / 18));
     }
@@ -372,17 +408,28 @@ export class Sfx {
       const src = ac.createBufferSource();
       src.buffer = buf;
       src.playbackRate.value = (o.rate ?? 1) * (0.94 + Math.random() * 0.12);
-      const g = ac.createGain();
-      g.gain.value = vol;
-      let tail: AudioNode = g;
-      if (pan !== 0 && typeof ac.createStereoPanner === 'function') {
-        const p = ac.createStereoPanner();
-        p.pan.value = pan;
-        g.connect(p);
-        tail = p;
-      }
-      src.connect(g);
-      tail.connect(this.fx);
+      const panned = pan !== 0 && typeof ac.createStereoPanner === 'function';
+      const c = this.chain(ac, this.fx, panned);
+      c.g.gain.value = vol;
+      if (c.p) c.p.pan.value = pan;
+      src.connect(c.g);
+      c.busy = true;
+      src.onended = () => {
+        try {
+          src.disconnect();
+        } catch {
+          /* already gone */
+        }
+        c.busy = false;
+        if (!c.pooled) {
+          try {
+            c.g.disconnect();
+            c.p?.disconnect();
+          } catch {
+            /* already gone */
+          }
+        }
+      };
       src.start();
       return src;
     } catch {
