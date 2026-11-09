@@ -856,6 +856,59 @@ Side rate (team 0, 600 matches each): 42.5% before; 46.2% and 46.8% on two seed 
 Grizzlechop never spawning, team 0 wins 50.3% (49.3% before the fix), so what remains is tied to him. Same-tick
 thinking (42.8%) and swapped think phases (43.7%) do not fix it, so it is not the think schedule. G6 still FAILS.
 
+### 12.9 Side bias: the root cause (takedown credit tables, 2026-11-09)
+
+**Root cause.** `progression/xp.ts` kept two module scratch tables, `helpedBy` and `share`, sized
+`new Uint8Array(RANGE.minions)` at module load. `RANGE` is the live binding to the active map's caps, and at module
+load it is Crossing's: 6 heroes. On Hearthwood the hero ids run 0 to 9, so `helpedBy[6..9]` fell outside the table:
+writes were dropped and reads gave `undefined`. In `heroKilled`, the loop that skips heroes with `helpedBy[h] === 0`
+never skipped team 1's slots 6 to 9. On **every** hero death, including their own team's, those four heroes got the
+takedown heal (`TAKEDOWN_HEAL`), a kill streak (and its bounty), a reset death streak and their kit's `onTakedown`.
+Team 0 never got any of this. Proof (seed 1, mirrored match): Woof's mid laner (7) dies to Purrhaven's (2) at 0:54,
+and the takedown heal goes to 2, 6, 8 and 9. The fix sizes both tables `MAX_HEROES` (10). On Crossing only ids 0 to 5
+are ever touched, so the 3v3 map is unchanged (map-identity 1500/1500 against v18).
+
+**Why it looked like Grizzlechop.** The free heals let Woof's laners win the first skirmishes, from about 0:50.
+Lane fronts at 1:20 were 7 to 32 m in Woof's favour on all three lanes, and the Prowl and the Fish laner arrived at the
+pit healthier. So Woof took the first Grizzlechop in 57.8% of matches (1.46 takes a match against 1.09), and his
+reward turned the early edge into wins. With him removed, nothing converted the edge, which is why the earlier
+ablation showed 50.3%. In mirrored pit duels (both teams' heroes placed on river-mirrored spots, no waves), the boss
+went to team 0 in 48.5% of takes (n ≈ 340, within noise): his AI, leash, tie rules, reward and timers were not biased.
+
+**How it was found: `tools/hearth-mirror.mjs`** (bundles `tools/lib/mirror-entry.ts`; `--same-phase`,
+`--fixed-order`, `--rev-order`, `--no-waves`, `--boss-nearest`, `--idle` are experiment-only source patches):
+
+- `probe`: a mirror match (the same five heroes in the same slots on both teams, each pilot pair sharing one RNG
+  stream). It reports the first tick and field where a hero, structure or unit pair stops being the river mirror,
+  `(x, y) → (W − y, W − x)`. That is the team symmetry, because the lanes are physical (D1). The first divergence is at
+  0:37: the mid waves meet, and minions update in id order. That order effect flips with the seed (the wave's `first`
+  team), and it averages to exactly 0 with idle heroes.
+- `mirror`: whole mirror matches, with lane fronts at fixed times. Before the fix, team 0 won 41.5% (200 matches) with
+  identical line-ups. After the fix: 46.5%. The fronts no longer drift.
+- `bias`: per-tick means over seeds of team 0 − team 1 (minion HP per lane, hero HP, XP, Fish, deaths, HP per role).
+  Order effects cancel across seeds. The first significant drift was the Prowl's HP at 0:51.
+- `splits`: per role, the first tick a pair's HP stops mirroring, the events of that tick, and which side was worse
+  3 s later. Before the fix, the Prowl was split by "b: takedown" 90 times and by "a: takedown" never; team 0 was
+  worse 119 times against 12.
+- `duel`: the mirrored pit duel above. `grizz`: per-side Grizzlechop stats on the symmetry pairs (who takes him first,
+  takes per match, his damage to each team, bites by tick parity). `trace`: tick-by-tick events of one match.
+
+**Questions from the brief, answered.**
+- The pit is exactly equidistant by path: the river mirror fixes it, and the nav grid, camps, towers, lanes and spawns
+  are river-mirror symmetric (unit tests, plus the probe staying exact up to the first order effect).
+- The boss ties follow `heroAt` (alternating). Same-tick credit alternates by tick parity.
+- His bites by parity are balanced: team 0 13,018 even / 12,985 odd; team 1 17,408 / 17,304 (team 1 was bitten more
+  only because it fought him more).
+- Hero resolution order does not matter here: team 0 always first and team 1 always first give the same early-lane
+  bias.
+- The think phase (team 1 3 ticks after team 0) is symmetric. Same-phase thinking kept the bias, so it was not the
+  cause.
+
+**Numbers after the fix** (`hearth-gates --seeds 2000`, 4,000 matches): **G6 side 48.4% (PASS**; 44.7% to 46.8%
+before), cats 47.4% (PASS), p50 13:05, safety end 0%. Heroes still outside 46% to 54%: chili 54.6, clem 42.4, lambo
+44.5, marshmallow 54.1, nugget 56.7, rocket 55.2. That is tuning, not side: every hero plays both sides equally in
+the symmetry pairs.
+
 ## 13. SERVER lane: what is built (PROTO 4, 2026-11-09)
 
 Sim v19 was already vendored by the SIM lane (v10 to v18 frozen, §12); this lane added the wire, the rooms, the queue

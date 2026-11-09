@@ -320,3 +320,28 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(() => createMatch({ seed: 1, picks: h.picks as HeroId[], tricks: h.tricks, difficulty: 'easy' })).toThrow(/6 slots/);
   });
 });
+
+describe('Hearthwood Divide: takedown credit is per team (side bias, MAP-5V5.md §12.9)', () => {
+  it("a hero death heals only the killer's team, for every slot of both teams", () => {
+    const { picks, tricks } = fillPicks(11, 'clem', 'pounce', 'hearthwood');
+    for (const [victim, killer] of [
+      [7, 2],
+      [2, 7],
+      [9, 0],
+      [4, 5],
+    ]) {
+      const m = createMatch({ seed: 11, picks, tricks, difficulty: 'normal', map: 'hearthwood' });
+      for (let t = 0; t < 60; t++) step(m, []);
+      const w = (m as unknown as { world: { hp: Int32Array; lastHitBy: Int32Array; team: Uint8Array } }).world;
+      w.hp[victim] = -1000;
+      w.lastHitBy[victim] = killer;
+      step(m, []);
+      const healed = (m as unknown as { events: { type: string; kind?: string; id?: number }[] }).events
+        .filter((e) => e.type === 'buff' && e.kind === 'takedown')
+        .map((e) => e.id as number);
+      // Before the fix, team 1's slots 6 to 9 were healed on every death (the scratch tables had Crossing's 6 slots).
+      expect(healed).toEqual([killer]);
+      expect(healed.every((h) => w.team[h] !== w.team[victim])).toBe(true);
+    }
+  });
+});
