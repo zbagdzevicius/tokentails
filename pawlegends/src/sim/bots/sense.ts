@@ -15,7 +15,7 @@ import { BOT_AI } from '../../data/bots';
 /** +1 for Purrhaven (pushes toward +x), −1 for Woof. */
 export const sign = (team: number): number => (team === 0 ? 1 : -1);
 /**
- * How far toward the enemy core a point is, for `team`. Sim v18: on a point map, along the base-to-base diagonal
+ * How far toward the enemy core a point is, for `team`. Sim v19: on a point map, along the base-to-base diagonal
  * (x + y; every Hearthwood lane path climbs it monotonically).
  */
 export const progressOf = (team: number, x: number, y: number): number =>
@@ -27,7 +27,7 @@ export const fountainX = (team: number): number => (team === 0 ? FOUNTAIN.x : mi
 export const fountainY = (team: number): number => (team === 0 ? FOUNTAIN.y : mirrorY(FOUNTAIN.y));
 
 /**
- * Sim v18 (point maps): the point `d` mm along `team`'s path of `lane` from the path point nearest (x, y), toward the
+ * Sim v19 (point maps): the point `d` mm along `team`'s path of `lane` from the path point nearest (x, y), toward the
  * enemy core (d > 0) or back toward its own (d < 0). Writes [x, y] into `out`. Crossing callers keep their x offsets.
  */
 export function alongLane(team: number, lane: number, x: number, y: number, d: number, out: Int32Array): void {
@@ -96,7 +96,7 @@ export function alongLane(team: number, lane: number, x: number, y: number, d: n
   out[1] = cy;
 }
 
-/** Sim v18 (point maps): the point `d` mm from (x, y) straight toward `team`'s fountain. */
+/** Sim v19 (point maps): the point `d` mm from (x, y) straight toward `team`'s fountain. */
 export function towardBase(team: number, x: number, y: number, d: number, out: Int32Array): void {
   const fx = fountainX(team);
   const fy = fountainY(team);
@@ -170,7 +170,7 @@ const TIERS3: readonly string[] = ['outer', 'inner', 'gate'];
 export function laneStructure(w: World, team: number, lane: number, outerFirst: boolean): number {
   const name = LANES[lane];
   const base = RANGE.towers + team * TOWER_SPOTS.length;
-  // Sim v18: Hearthwood's lanes have three tiers.
+  // Sim v19: Hearthwood's lanes have three tiers.
   const tiers = MAP.point === 1 ? TIERS3 : TIERS2;
   for (let pass = 0; pass < tiers.length; pass++) {
     const tier = tiers[outerFirst ? pass : tiers.length - 1 - pass];

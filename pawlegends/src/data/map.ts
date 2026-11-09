@@ -14,9 +14,9 @@ const C_MAP = Object.freeze({
   /** Nav grid: 1 m cells, 100 × 60. */
   navCell: 1000,
   laneWidth: 8000,
-  /** Sim v18: 0 = mirrored left to right (x only); 1 = 180° point reflection (x and y). */
+  /** Sim v19: 0 = mirrored left to right (x only); 1 = 180° point reflection (x and y). */
   point: 0 as 0 | 1,
-  /** Sim v18, point maps: the gate barrier is the diagonal x + y = barrierSum (team 0's side). 0 on Crossing. */
+  /** Sim v19, point maps: the gate barrier is the diagonal x + y = barrierSum (team 0's side). 0 on Crossing. */
   barrierSum: 0,
 });
 
@@ -58,7 +58,7 @@ const C_HERO_SPAWNS = Object.freeze([
   Object.freeze({ x: 3000, y: 28000 }),
 ]);
 
-/** Lane keys of every map (sim v18: Hearthwood's fence, yarn, gutter). */
+/** Lane keys of every map (sim v19: Hearthwood's fence, yarn, gutter). */
 export type LaneId = 'sunny' | 'puddle' | 'fence' | 'yarn' | 'gutter';
 const C_LANES: readonly LaneId[] = Object.freeze(['sunny', 'puddle'] as LaneId[]);
 
@@ -78,7 +78,7 @@ const C_LANE_WAYPOINTS = Object.freeze({
   ] as const),
 });
 
-/** Tower tiers (sim v18: Hearthwood's gate towers and Hearth Guards). */
+/** Tower tiers (sim v19: Hearthwood's gate towers and Hearth Guards). */
 export type TowerTier = 'outer' | 'inner' | 'gate' | 'hearth';
 
 /** Tower positions, Purrhaven side. Order is the tower slot order within a team. */
@@ -133,7 +133,7 @@ const C_PLAYFIELD = Object.freeze({
   laneHalf: 5500,
   /** Base plaza, Purrhaven side (mirrored for Woof): [x0, y0, x1, y1]. Holds the fountain, the core and both lane mouths. */
   base: Object.freeze([1000, 20000, 15000, 40000]) as readonly [number, number, number, number],
-  /** Sim v18: 1 = every cell inside the rim is playfield (Hearthwood's open jungle); 0 = lanes, loop and plazas only. */
+  /** Sim v19: 1 = every cell inside the rim is playfield (Hearthwood's open jungle); 0 = lanes, loop and plazas only. */
   open: 0 as 0 | 1,
 });
 
@@ -177,7 +177,7 @@ export interface TowerSpot {
   readonly armour?: number;
 }
 
-/** A jungle camp (sim v18): kind (data/camps.ts CAMP_KINDS index), centre, and the team side it belongs to (2 = river). */
+/** A jungle camp (sim v19): kind (data/camps.ts CAMP_KINDS index), centre, and the team side it belongs to (2 = river). */
 export interface CampSpot {
   readonly kind: number;
   readonly x: number;
@@ -186,7 +186,7 @@ export interface CampSpot {
 }
 
 /**
- * Sim v18 (docs/plans/moba/MAP-5V5.md §3.1): everything that depends on the map, per map. Team 0's side is authored;
+ * Sim v19 (docs/plans/moba/MAP-5V5.md §3.1): everything that depends on the map, per map. Team 0's side is authored;
  * team 1's is the reflection (`MAP.point` 0: x mirrored; 1: x and y). The sim reads the live bindings below, which
  * `bindMap` (src/sim/map/runtime.ts) points at the match's map before any sim work.
  */
@@ -250,7 +250,7 @@ export const CROSSING: MapDef = Object.freeze({
   coreArmour: 0,
 });
 
-// The live bindings (sim v18): the active match's map. Crossing until `setMapData` says otherwise.
+// The live bindings (sim v19): the active match's map. Crossing until `setMapData` says otherwise.
 export let MAP: MapDef['MAP'] = C_MAP;
 export let CAPS: MapDef['CAPS'] = C_CAPS;
 export let FOUNTAIN: MapDef['FOUNTAIN'] = C_FOUNTAIN;

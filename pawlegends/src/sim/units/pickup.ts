@@ -72,7 +72,7 @@ function snackSpot(w: World, team: number, lane: number, out: Int32Array): void 
     }
   }
   if (MAP.point === 1) {
-    // Sim v18 (point map): SNACK_BEHIND from the tower toward its own core.
+    // Sim v19 (point map): SNACK_BEHIND from the tower toward its own core.
     const t = base + k;
     const c = RANGE.cores + team;
     const dx = w.x[c] - w.x[t];
@@ -102,7 +102,7 @@ export function spawnPickups(m: MatchHandle): void {
     w.globals[G.FrenzyAt] = tick + PICKUPS.frenzy.every;
   }
   if (tick === w.globals[G.SnackAt]) {
-    // Sim v18: the lanes in turn (Crossing: Sunny, Puddle; Hearthwood: all three).
+    // Sim v19: the lanes in turn (Crossing: Sunny, Puddle; Hearthwood: all three).
     const n = w.globals[G.SnackSpawns]++;
     const lane = LANES.length === 2 ? n & 1 : n % LANES.length;
     for (let team = 0; team < 2; team++) {

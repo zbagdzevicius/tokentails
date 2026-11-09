@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Sim v18 gate G1 (docs/plans/moba/MAP-5V5.md §3.4, §7): the 3v3 map (Purrhaven Crossing) plays exactly as in v17.
+ * Sim v19 gate G1 (docs/plans/moba/MAP-5V5.md §3.4, §7): the 3v3 map (Purrhaven Crossing) plays exactly as in v18.
  * `node tools/map-identity.mjs --write <file> [--seeds 500]` records, per seed, the final hash and the folded hash trail
  * of three profiles (co-op fuzz, party fuzz, PvP fuzz; tools/lib/fuzz-entry.ts); `--check <file>` replays the same seeds
  * with the current sim and exits 1 on the first difference. Write the baseline from the frozen version's commit.

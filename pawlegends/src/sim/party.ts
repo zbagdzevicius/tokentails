@@ -153,7 +153,7 @@ export function runPvpReplay(r: Pick<PvpReplayRecord, 'seed' | 'difficulty' | 'h
 }
 
 function runSeats(r: Pick<PartyReplayRecord, 'seed' | 'difficulty' | 'humans' | 'ticks' | 'inputs' | 'map'>, fill: [Difficulty, Difficulty] | undefined): PartyReplayRun {
-  // Sim v18: the record's map first (the stream bounds and the limits are per map).
+  // Sim v19: the record's map first (the stream bounds and the limits are per map).
   bindMap(mapIndex(r.map));
   const map = r.map === undefined ? {} : { map: r.map };
   const limit = Math.min(r.ticks, MAX_TICKS);
@@ -197,7 +197,7 @@ export function checkPartyShape(r: unknown): VerifyResult | null {
   if (x.simVersion < PARTY_SINCE) return fail('PAWLEGENDS_SIM_VERSION', `party play needs simVersion ${PARTY_SINCE}`);
   if (typeof x.seed !== 'number' || !Number.isInteger(x.seed) || x.seed < 0 || x.seed > 0xffffffff) return fail('PAWLEGENDS_REPLAY_INVALID', 'seed must be a uint32');
   if (typeof x.difficulty !== 'string' || !(DIFFICULTIES as readonly string[]).includes(x.difficulty)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown difficulty');
-  // Sim v18: the map (omitted: Crossing); every bound below is that map's.
+  // Sim v19: the map (omitted: Crossing); every bound below is that map's.
   if (x.map !== undefined && !(MAP_IDS as readonly unknown[]).includes(x.map)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown map');
   bindMap(mapIndex(x.map as MapId | undefined));
   if (!Array.isArray(x.humans) || x.humans.length < 1 || x.humans.length > SLOTS_PER_TEAM) return fail('PAWLEGENDS_REPLAY_INVALID', `humans must list 1 to ${SLOTS_PER_TEAM} seats`);
@@ -269,7 +269,7 @@ export function checkPvpShape(r: unknown): VerifyResult | null {
   if (!Array.isArray(fill) || fill.length !== 2 || !fill.every((d) => typeof d === 'string' && (DIFFICULTIES as readonly string[]).includes(d))) {
     return fail('PAWLEGENDS_REPLAY_INVALID', 'fillDifficulty needs two difficulties');
   }
-  // Sim v18: the map (omitted: Crossing); every bound below is that map's.
+  // Sim v19: the map (omitted: Crossing); every bound below is that map's.
   if (x.map !== undefined && !(MAP_IDS as readonly unknown[]).includes(x.map)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown map');
   bindMap(mapIndex(x.map as MapId | undefined));
   if (!Array.isArray(x.humans) || x.humans.length < 2 || x.humans.length > SLOT_COUNT) return fail('PAWLEGENDS_REPLAY_INVALID', `pvp humans must list 2 to ${SLOT_COUNT} seats`);

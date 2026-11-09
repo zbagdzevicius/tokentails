@@ -12,7 +12,7 @@ import { bonusSpeedBp } from '../effects/bonus';
 
 const RADIUS_BY_KIND: readonly number[] = [0, RADIUS.hero, RADIUS.minion, RADIUS.tower, RADIUS.core, RADIUS.fountain, RADIUS.camp, RADIUS.pudding];
 
-/** Sim v18: a camp monster's radius is its kind's (rats: RADIUS.camp, as before). */
+/** Sim v19: a camp monster's radius is its kind's (rats: RADIUS.camp, as before). */
 export const radiusOf = (w: World, id: number): number => (w.kind[id] === Kind.Camp ? CAMP_KINDS[w.sub[id]].radius : RADIUS_BY_KIND[w.kind[id]]);
 
 export const heroData = (w: World, id: number) => HEROES[HERO_IDS[w.sub[id]]];
@@ -102,12 +102,12 @@ export function moveSpeed(w: World, id: number): number {
   return applyBp(base, Math.max(bp, EFFECTS.minSpeedBp));
 }
 
-/** Tower tiers by `w.sub` (sim v18: gate and hearth on Hearthwood). */
+/** Tower tiers by `w.sub` (sim v19: gate and hearth on Hearthwood). */
 export const TOWER_TIERS = Object.freeze(['outer', 'inner', 'gate', 'hearth'] as const);
 const TIER_PREV: readonly string[] = ['', 'outer', 'inner', ''];
 
 /**
- * Structure invulnerability (§5): an inner tower until that lane's outer falls; a core until one inner falls. Sim v18
+ * Structure invulnerability (§5): an inner tower until that lane's outer falls; a core until one inner falls. Sim v19
  * (Hearthwood, MAP-5V5.md §1.4): a gate tower until its lane's inner falls; a Hearth Guard until one gate tower of its
  * team falls; the core until both Hearth Guards fell.
  */
@@ -138,7 +138,7 @@ export function isInvulnerable(w: World, id: number): boolean {
 }
 
 /**
- * Is `team`'s core open to hits by its towers alone: is one of its inner towers down? Sim v18 (Hearthwood): are both
+ * Is `team`'s core open to hits by its towers alone: is one of its inner towers down? Sim v19 (Hearthwood): are both
  * of its Hearth Guards down?
  */
 export function coreExposed(w: World, team: number): boolean {

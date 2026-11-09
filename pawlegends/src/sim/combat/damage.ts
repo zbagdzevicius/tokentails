@@ -83,7 +83,7 @@ export function dealDamage(
         raw = applyBp(raw, HEROES[HERO_IDS[w.sub[src]]].pvp.dmgBp);
         raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
       }
-      // Sim v18: Hearthwood's own hero-vs-hero row (per species, then per hero).
+      // Sim v19: Hearthwood's own hero-vs-hero row (per species, then per hero).
       if (w.mg.length > 0) {
         const s = HEROES[HERO_IDS[w.sub[src]]];
         const d = HEROES[HERO_IDS[w.sub[dst]]];
@@ -129,7 +129,7 @@ export function dealDamage(
     dmg = Math.max(0, Math.min(dmg, w.hp[dst] - applyBp(w.maxHp[dst], rulesOf(m).humanCoreFloorBp)));
   }
   w.hp[dst] -= dmg;
-  // Sim v18 (Hearthwood): both teams on one neutral objective in the same tick. Hits resolve in an order, so "the last
+  // Sim v19 (Hearthwood): both teams on one neutral objective in the same tick. Hits resolve in an order, so "the last
   // hit wins" would hand every same-tick finish to whichever team resolves later; the credit goes to team 0 on even
   // ticks and team 1 on odd ticks instead (the camp's aggro follows it).
   const keep =
@@ -265,7 +265,7 @@ export function resolveDeaths(m: MatchHandle): void {
       }
       // Sim v12 (docs/FUN-PROGRESSION-V12.md S3): no wait is longer than RESPAWN.hardCap.
       w.timer[id] = Math.min(w.timer[id], RESPAWN.hardCap);
-      // Sim v18 (Hearthwood, MAP-5V5.md §1.9): waits × 1.3, capped at 25 s; the victim's jungle buffs go to its killer.
+      // Sim v19 (Hearthwood, MAP-5V5.md §1.9): waits × 1.3, capped at 25 s; the victim's jungle buffs go to its killer.
       if (w.mg.length > 0) {
         w.timer[id] = Math.min(applyBp(w.timer[id], HEARTHWOOD_RULES.respawnBp), HEARTHWOOD_RULES.respawnCap);
         stealJungleBuffs(m, id, killer);
@@ -302,7 +302,7 @@ export function resolveDeaths(m: MatchHandle): void {
     } else if (k === Kind.Camp) {
       const by = campKilled(m, id);
       const cleared = onRatDied(w, id);
-      // Sim v18: Hearthwood's camps give their own rewards (no Pack buff there); Crossing's rats as in v17.
+      // Sim v19: Hearthwood's camps give their own rewards (no Pack buff there); Crossing's rats as in v18.
       if (w.mg.length > 0) campReward(m, id, by);
       else if (cleared && by >= 0) packBuff(m, by);
     } else if (k === Kind.Tower || k === Kind.Core) {

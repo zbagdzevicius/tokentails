@@ -301,7 +301,7 @@ export type PawlegendsDifficulty = 'easy' | 'normal' | 'rookie' | 'hard';
 export type PawlegendsOutcome = 'won' | 'lost';
 /** Sim v10: only 'none' exists. */
 export type PawlegendsMutator = 'none';
-/** Sim v18: the maps ('crossing' 3v3, 'hearthwood' 5v5 Classic); a record without \`map\` is Crossing. */
+/** Sim v19: the maps ('crossing' 3v3, 'hearthwood' 5v5 Classic); a record without \`map\` is Crossing. */
 export type PawlegendsMapId = 'crossing' | 'hearthwood';
 
 export interface PawlegendsReplay {
@@ -317,7 +317,7 @@ export interface PawlegendsReplay {
     finalHash: string;
     /** Sim v10 and later: 'none' (every record from v10 carries it). */
     mutator?: PawlegendsMutator;
-    /** Sim v18 and later: the map; omitted = 'crossing'. */
+    /** Sim v19 and later: the map; omitted = 'crossing'. */
     map?: PawlegendsMapId;
 }
 
@@ -403,7 +403,7 @@ export interface PawlegendsPartyReplayRecord {
     outcome: PawlegendsOutcome;
     finalHash: string;
     mutator?: PawlegendsMutator;
-    /** Sim v18 and later: the map; omitted = 'crossing'. */
+    /** Sim v19 and later: the map; omitted = 'crossing'. */
     map?: PawlegendsMapId;
 }
 
@@ -424,7 +424,7 @@ export interface PawlegendsPvpReplayRecord {
     outcome: PawlegendsOutcome;
     finalHash: string;
     mutator?: PawlegendsMutator;
-    /** Sim v18 and later: the map; omitted = 'crossing'. */
+    /** Sim v19 and later: the map; omitted = 'crossing'. */
     map?: PawlegendsMapId;
 }
 
@@ -459,7 +459,7 @@ export interface PawlegendsPartySim {
         /** Sim v16 and later: 'pvp' seats humans on both teams (slots 0..5 with 0 and 3), difficulty 'hard'. */
         mode?: 'pve' | 'pvp';
         fillDifficulty?: readonly [string, string];
-        /** Sim v18 and later: 'hearthwood' plays 5v5 (10 slots; PvP leads 0 and 5). */
+        /** Sim v19 and later: 'hearthwood' plays 5v5 (10 slots; PvP leads 0 and 5). */
         map?: PawlegendsMapId;
     }): PawlegendsMatchHandle;
     step(m: PawlegendsMatchHandle, commands?: readonly PawlegendsCommand[], others?: readonly (readonly PawlegendsCommand[] | undefined)[]): void;
@@ -484,7 +484,7 @@ export interface PawlegendsPartySim {
     /** Re-sim a PvpReplayRecord; the verdict carries \`winner\`. */
     verifyPvpReplay?(record: unknown): PawlegendsVerifyResult;
     pvpReplayRecord?(m: PawlegendsMatchHandle): PawlegendsPvpReplayRecord | null;
-    /** Sim v18 and later: the maps and their team sizes; absent on older bundles (Crossing only). */
+    /** Sim v19 and later: the maps and their team sizes; absent on older bundles (Crossing only). */
     MAP_IDS?: readonly PawlegendsMapId[];
     teamSizeOf?(map: PawlegendsMapId): 3 | 5;
     slotCountOf?(map: PawlegendsMapId): 6 | 10;
@@ -597,7 +597,7 @@ export async function forfeitFixture(seed = FORFEIT_FIXTURE_SEED) {
   return sim.replayRecord(m);
 }
 
-/** Sim v18 (MAP-5V5.md §5 S7): the three Hearthwood fixtures (solo, a party of 3, a 2 + 2 PvP), seed 1818. */
+/** Sim v19 (MAP-5V5.md §5 S7): the three Hearthwood fixtures (solo, a party of 3, a 2 + 2 PvP), seed 1818. */
 export const HEARTHWOOD_FIXTURE_SEED = 1818;
 
 /** A solo 5v5 match on Hearthwood (Easy, the normal player-bot as Clem); its v:1 record. */
@@ -780,7 +780,7 @@ export async function buildFiles() {
     'new-dog-replay.fixture.json': newDog,
     // Sim v16 (S-PvP): a PvP record (v3); a later freeze lists it in `extra`
     'pvp-replay.fixture.json': pvp,
-    // Sim v18 (5v5 Classic): Hearthwood records, solo, party and PvP; a later freeze lists them in `extra`
+    // Sim v19 (5v5 Classic): Hearthwood records, solo, party and PvP; a later freeze lists them in `extra`
     'hearthwood-replay.fixture.json': hearth,
     'hearthwood-party.fixture.json': hearthParty,
     'hearthwood-pvp.fixture.json': hearthPvp,

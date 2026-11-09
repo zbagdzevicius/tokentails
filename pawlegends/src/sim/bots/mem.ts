@@ -18,13 +18,13 @@ export interface BotMem {
   y: Int32Array;
   tid: Int32Array;
   slip: Int32Array;
-  /** Sim v18 (Hearthwood): the Grizzlechop decision, 1 + spawn × 2 + (1 contest, 0 not); 0 undecided. */
+  /** Sim v19 (Hearthwood): the Grizzlechop decision, 1 + spawn × 2 + (1 contest, 0 not); 0 undecided. */
   boss: Int32Array;
 }
 
 /** The in-sim bots' memory: views on the world's arrays. */
 export function worldMem(w: World): BotMem {
-  // Sim v18: the Grizzlechop decision is a view on `mg` (empty on Crossing, where it is never read).
+  // Sim v19: the Grizzlechop decision is a view on `mg` (empty on Crossing, where it is never read).
   const boss = w.mg.length > 0 ? w.mg.subarray(MG.BossDec, MG.BossDec + CAPS.heroes) : w.mg;
   return { mode: w.botMode, lane: w.botLane, foe: w.botFoe, pud: w.botPud, seen: w.botSeen, op: w.botOp, x: w.botX, y: w.botY, tid: w.botId, slip: w.botSlip, boss };
 }

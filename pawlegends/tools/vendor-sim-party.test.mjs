@@ -58,5 +58,9 @@ describe('vendor-sim party (N1)', () => {
     const v18 = dispatcher([10, 11, 12, 13, 14, 15, 16, 17, 18], false);
     expect(v18).toContain('v17 as PawlegendsSim');
     expect(v18).toContain('v18 as PawlegendsSim');
+    // Sim v19: the frozen v18 (chase fix) keeps serving v18 party and PvP clients.
+    const v19 = dispatcher([10, 11, 12, 13, 14, 15, 16, 17, 18, 19], false);
+    expect(v19).toContain('v18 as PawlegendsSim');
+    expect(v19).toContain('v19 as PawlegendsSim');
   });
 });

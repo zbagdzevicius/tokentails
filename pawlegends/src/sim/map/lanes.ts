@@ -1,7 +1,7 @@
 /**
  * Lane paths (POC.md §5). Team 0's minions walk their own core → river points, then the partner lane's points
  * reflected back to team 1's core; team 1's path for a lane is the reflection of team 0's path for its partner lane.
- * Crossing: the partner is the lane itself and the reflection mirrors x (the original rule). Sim v18 Hearthwood: the
+ * Crossing: the partner is the lane itself and the reflection mirrors x (the original rule). Sim v19 Hearthwood: the
  * reflection is the 180° point reflection and Fenceline / Gutterway are each other's partners. Built once per map.
  */
 import { ACTIVE_MAP, LANES, LANE_PARTNER, LANE_WAYPOINTS, mirrorX, mirrorY } from '../../data/map';
@@ -42,11 +42,11 @@ const buildAll = (): readonly (readonly LanePath[])[] => Object.freeze([0, 1].ma
 
 const BUILT: { id: string; paths: readonly (readonly LanePath[])[] }[] = [];
 
-/** LANE_PATHS[team][lane] of the active map (sim v18: live, `rebindLanes`). */
+/** LANE_PATHS[team][lane] of the active map (sim v19: live, `rebindLanes`). */
 export let LANE_PATHS: readonly (readonly LanePath[])[] = buildAll();
 BUILT.push({ id: ACTIVE_MAP.id, paths: LANE_PATHS });
 
-/** Sim v18: point LANE_PATHS at the active map's (src/sim/map/runtime.ts bindMap). */
+/** Sim v19: point LANE_PATHS at the active map's (src/sim/map/runtime.ts bindMap). */
 export function rebindLanes(): void {
   for (let i = 0; i < BUILT.length; i++) {
     if (BUILT[i].id === ACTIVE_MAP.id) {

@@ -189,7 +189,7 @@ export function campKilled(m: MatchHandle, id: number): number {
   }
   // Sim v12: the rat's Fish, to its last hitter (a hero, dead or alive) and the other heroes of its team in range.
   const hitter = by < RANGE.minions && w.kind[by] === Kind.Hero ? by : -1;
-  // Sim v18: per camp kind (Hearthwood's buff camps, toad, Grizzlechop); rats keep their FISH values.
+  // Sim v19: per camp kind (Hearthwood's buff camps, toad, Grizzlechop); rats keep their FISH values.
   const kind = CAMP_KINDS[w.sub[id]];
   const rat = w.sub[id] === 0;
   if (hitter >= 0) grantFish(m, hitter, rat ? FISH.ratLastHit : kind.fishLast, 'camp');

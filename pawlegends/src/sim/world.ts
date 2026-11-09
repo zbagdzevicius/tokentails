@@ -26,7 +26,7 @@ export const TEAM_PURRHAVEN = 0;
 export const TEAM_WOOF = 1;
 export const TEAM_NEUTRAL = 2;
 
-/** First id of each kind's range, in ascending order (sim v18: the active map's caps, `rebindRange`). */
+/** First id of each kind's range, in ascending order (sim v19: the active map's caps, `rebindRange`). */
 function rangeOf() {
   const heroes = 0;
   const minions = heroes + CAPS.heroes;
@@ -43,7 +43,7 @@ export let RANGE = rangeOf();
 
 export let ENTITY_CAP = RANGE.end;
 
-/** Sim v18: point RANGE and ENTITY_CAP at the active map's caps (src/sim/map/runtime.ts bindMap). */
+/** Sim v19: point RANGE and ENTITY_CAP at the active map's caps (src/sim/map/runtime.ts bindMap). */
 export function rebindRange(): void {
   RANGE = rangeOf();
   ENTITY_CAP = RANGE.end;
@@ -73,7 +73,7 @@ export const Buff = Object.freeze({
   Purrified: 1 << 18, // lint-sim: allow (a bit index)
   /** Sim v17: Steadfast, the CC-cap immunity (CC_DR) is running. */
   Steadfast: 1 << 19, // lint-sim: allow (a bit index)
-  /** Sim v18 (Hearthwood): Prickle Coat, Feather, Grizzlechop's Hoard shield. */
+  /** Sim v19 (Hearthwood): Prickle Coat, Feather, Grizzlechop's Hoard shield. */
   Prickle: 1 << 20, // lint-sim: allow (a bit index)
   Feather: 1 << 21, // lint-sim: allow (a bit index)
   Hoard: 1 << 22, // lint-sim: allow (a bit index)
@@ -160,8 +160,8 @@ export const G = Object.freeze({
 export type G = (typeof G)[keyof typeof G];
 
 /**
- * Sim v18 (MAP-5V5.md §3.4): indices into `mg`, the map globals. Empty (length 0) on Crossing, so a Crossing world
- * hashes exactly as in v17; Hearthwood keeps its 5v5-only state here (MG.Count values).
+ * Sim v19 (MAP-5V5.md §3.4): indices into `mg`, the map globals. Empty (length 0) on Crossing, so a Crossing world
+ * hashes exactly as in v18; Hearthwood keeps its 5v5-only state here (MG.Count values).
  */
 export const MG = Object.freeze({
   MapId: 0,
@@ -428,12 +428,12 @@ export interface World {
   pkX: Int32Array;
   pkY: Int32Array;
   /**
-   * Sim v18: the hit-mask words past the first two (ids 64 and up), 3 per projectile and per entity on Hearthwood
-   * (150 ids, 5 words), none on Crossing (63 ids fit `pHitLo` / `pHitHi`), so a Crossing world hashes as in v17.
+   * Sim v19: the hit-mask words past the first two (ids 64 and up), 3 per projectile and per entity on Hearthwood
+   * (150 ids, 5 words), none on Crossing (63 ids fit `pHitLo` / `pHitHi`), so a Crossing world hashes as in v18.
    */
   pHitX: Int32Array;
   fmHitX: Int32Array;
-  /** Sim v18: map globals (MG), empty on Crossing. Hashed after `globals`. */
+  /** Sim v19: map globals (MG), empty on Crossing. Hashed after `globals`. */
   mg: Int32Array;
   // Scalars
   globals: Int32Array;
@@ -445,7 +445,7 @@ export interface World {
   humans: number;
   /** Sim v16 S-PvP: 1 in a PvP match (MatchConfig.mode), else 0. NOT hashed: part of the match config. */
   pvp: number;
-  /** Sim v18: the match's map (MAP_IDS index: 0 Crossing, 1 Hearthwood). NOT hashed itself (Hearthwood: mg[MG.MapId]). */
+  /** Sim v19: the match's map (MAP_IDS index: 0 Crossing, 1 Hearthwood). NOT hashed itself (Hearthwood: mg[MG.MapId]). */
   map: number;
 }
 
@@ -469,12 +469,12 @@ export const FM = Object.freeze({
 /** Is `id` in the 63-bit hit mask (lo, hi)? Entity ids are below 64. */
 export const maskHas = (lo: number, hi: number, id: number): boolean => (id < 0x20 ? (lo >>> id) & 1 : (hi >>> (id - 0x20)) & 1) === 1;
 
-/** Extra hit-mask words per row past (lo, hi) (sim v18, Hearthwood: ids up to 159). */
+/** Extra hit-mask words per row past (lo, hi) (sim v19, Hearthwood: ids up to 159). */
 export const MASK_EXTRA = 3;
 const WORD = 0x20;
 const HI_END = 0x40;
 
-/** Sim v18: is `id` in projectile `p`'s hit mask (any map)? */
+/** Sim v19: is `id` in projectile `p`'s hit mask (any map)? */
 export function pHas(w: World, p: number, id: number): boolean {
   if (id < HI_END) return maskHas(w.pHitLo[p], w.pHitHi[p], id);
   const k = id - HI_END;
@@ -493,7 +493,7 @@ export function pClear(w: World, p: number): void {
   w.pHitHi[p] = 0;
   if (w.pHitX.length > 0) for (let k = 0; k < MASK_EXTRA; k++) w.pHitX[p * MASK_EXTRA + k] = 0;
 }
-/** Sim v18: the same over forced-movement hit masks (`fmHit*`, per entity). */
+/** Sim v19: the same over forced-movement hit masks (`fmHit*`, per entity). */
 export function fmHas(w: World, id: number, e: number): boolean {
   if (e < HI_END) return maskHas(w.fmHitLo[id], w.fmHitHi[id], e);
   const k = e - HI_END;
@@ -514,9 +514,9 @@ export function fmClear(w: World, id: number): void {
 }
 
 /**
- * Sim v18 (Hearthwood): the hero to resolve `k`-th (swings, casts). Heroes resolve in id order, so team 0's hits and
+ * Sim v19 (Hearthwood): the hero to resolve `k`-th (swings, casts). Heroes resolve in id order, so team 0's hits and
  * heals of a tick always land before team 1's; on odd ticks of a 5v5 match team 1 goes first instead, so neither side
- * always gets the later word (a heal after the damage, the finishing hit). Crossing: id order, as in v17.
+ * always gets the later word (a heal after the damage, the finishing hit). Crossing: id order, as in v18.
  */
 export function heroAt(w: World, k: number): number {
   if (w.mg.length === 0 || (w.globals[G.Tick] & 1) === 0) return k;
@@ -537,7 +537,7 @@ export const Order = Object.freeze({
   AttackMove: 3,
 } as const);
 
-/** Sim v18: `map` is the MAP_IDS index of the map bound now (src/sim/map/runtime.ts bindMap ran first). */
+/** Sim v19: `map` is the MAP_IDS index of the map bound now (src/sim/map/runtime.ts bindMap ran first). */
 export function createWorld(seed: number, map = 0): World {
   const n = ENTITY_CAP;
   const big = n > HI_END;
@@ -756,7 +756,7 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.zDmg, w.zHeal, w.zSlowBp, w.zEvery, w.zNext,
     w.pkAlive, w.pkKind, w.pkTeam, w.pkX, w.pkY,
     w.globals,
-    // Sim v18: empty on Crossing (no bytes hashed), so a Crossing world hashes as in v17.
+    // Sim v19: empty on Crossing (no bytes hashed), so a Crossing world hashes as in v18.
     w.pHitX, w.fmHitX, w.mg,
   ];
 }

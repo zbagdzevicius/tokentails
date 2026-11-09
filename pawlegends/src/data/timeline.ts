@@ -82,7 +82,7 @@ const C_TIMELINE_BY: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard', Read
 export type Timeline = { readonly [K in keyof typeof C_TIMELINE]: number };
 export type TimelineBy = typeof C_TIMELINE_BY;
 
-/** Sim v18 (MAP-5V5.md §1.9): Hearthwood's 5v5 timeline: 0:05 barrier, waves from 0:20 every 30 s, sieges from 3:00,
+/** Sim v19 (MAP-5V5.md §1.9): Hearthwood's 5v5 timeline: 0:05 barrier, waves from 0:20 every 30 s, sieges from 3:00,
  *  Great Pudding at 8:00, the 16:00 safety end (= its MAX_TICKS in data/limits.ts). */
 export const HEARTHWOOD_TIMELINE: Timeline = Object.freeze({
   ...C_TIMELINE,
@@ -107,7 +107,7 @@ export const HEARTHWOOD_TIMELINE_BY: TimelineBy = Object.freeze({
 export const CROSSING_TIMELINE: Timeline = C_TIMELINE;
 export const CROSSING_TIMELINE_BY: TimelineBy = C_TIMELINE_BY;
 
-/** Live bindings (sim v18): the active match's map's timeline (src/sim/map/runtime.ts bindMap). */
+/** Live bindings (sim v19): the active match's map's timeline (src/sim/map/runtime.ts bindMap). */
 export let TIMELINE: Timeline = C_TIMELINE;
 export let TIMELINE_BY: TimelineBy = C_TIMELINE_BY;
 

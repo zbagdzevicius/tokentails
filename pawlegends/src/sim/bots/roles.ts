@@ -1,5 +1,5 @@
 /**
- * Sim v18 (docs/plans/moba/MAP-5V5.md §4.1): the five 5v5 roles, assigned once at match start from the picks, with no
+ * Sim v19 (docs/plans/moba/MAP-5V5.md §4.1): the five 5v5 roles, assigned once at match start from the picks, with no
  * input and no randomness. Each team solves its 5 × 5 preference matrix (a hero's rank in the role's list, 3 when the
  * role does not list it) for the lowest total; ties go to the first assignment in slot order. Roles are physical and the
  * same for both teams (D1): Solo plays Fenceline, Mid Yarn Road, Fish Gutterway; Prowl clears its jungle and takes

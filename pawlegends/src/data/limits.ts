@@ -29,7 +29,7 @@ export const MOVE_MIN_GAP = 4;
  */
 export const FORFEIT_RESERVE_BYTES = 4;
 
-/** Sim v18 (MAP-5V5.md §2.5): the limits per map. Hearthwood: 16:00, the input budget scaled by match length. */
+/** Sim v19 (MAP-5V5.md §2.5): the limits per map. Hearthwood: 16:00, the input budget scaled by match length. */
 export const LIMITS_BY_MAP = Object.freeze({
   crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30600, maxInputChars: 40800 }),
   hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44700, maxInputChars: 59600 }),

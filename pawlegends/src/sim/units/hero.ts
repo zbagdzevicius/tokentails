@@ -22,7 +22,7 @@ import { attackRange, moveSpeed, radiusOf, targetable } from './kinds';
 
 const out = new Int32Array(3);
 
-// Sim v18: on a point map team 1's spawn k mirrors team 0's across the river, (x, y) → (W − y, H − x).
+// Sim v19: on a point map team 1's spawn k mirrors team 0's across the river, (x, y) → (W − y, H − x).
 const spawnX = (w: World, id: number): number => {
   const p = HERO_SPAWNS[id % HERO_SPAWNS.length];
   return w.team[id] === 0 ? p.x : MAP.point === 1 ? MAP.width - p.y : mirrorX(p.x);
@@ -39,7 +39,7 @@ function toSpawn(w: World, id: number): void {
   w.moveX[id] = w.x[id];
   w.moveY[id] = w.y[id];
   w.moveCarry[id] = 0;
-  // Sim v18: on a point map the heroes face up the diagonal (team 0 north-east, team 1 south-west).
+  // Sim v19: on a point map the heroes face up the diagonal (team 0 north-east, team 1 south-west).
   w.facing[id] = (w.team[id] === 0 ? 0 : ANGLE_STEPS >> 1) + (MAP.point === 1 ? ANGLE_STEPS >> 3 : 0);
   w.state[id] = UnitState.Idle;
   w.order[id] = Order.None;
@@ -213,7 +213,7 @@ function walk(m: MatchHandle, id: number): boolean {
   // its old y too, so it waits at the barrier instead of sliding along it into the forest or its own tower.
   let gated = false;
   if (w.globals[G.Tick] < TIMELINE.barrierDrop && MAP.point === 1) {
-    // Sim v18 (point map): the barrier is the diagonal x + y = barrierSum (team 1: its reflection); a step across it
+    // Sim v19 (point map): the barrier is the diagonal x + y = barrierSum (team 1: its reflection); a step across it
     // is refused (the hero waits at the line).
     const sum = out[0] + out[1];
     if (w.team[id] === 0 ? sum > MAP.barrierSum : sum < MAP.width + MAP.height - MAP.barrierSum) {

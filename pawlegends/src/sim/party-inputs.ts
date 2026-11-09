@@ -41,7 +41,7 @@ export function createPartyState(config: MatchConfig): PartyState {
   const humans = config.humans ?? [0];
   validateHumans(humans, config.mode);
   const slots: number[] = [];
-  // Sim v18: one entry per hero slot of the map (6, or 10 on Hearthwood).
+  // Sim v19: one entry per hero slot of the map (6, or 10 on Hearthwood).
   const gates: PartyState['gates'] = [];
   const logs: PartyState['logs'] = [];
   for (let s = 0; s < SLOT_COUNT; s++) {

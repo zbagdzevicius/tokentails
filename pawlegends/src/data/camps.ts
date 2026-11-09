@@ -23,7 +23,7 @@ export const RAT_CAMP_STATS = Object.freeze({
 });
 
 /**
- * Sim v18 (docs/plans/moba/MAP-5V5.md §1.6, §1.7): camp monster kinds by `w.sub` index. Crossing has rats only (0);
+ * Sim v19 (docs/plans/moba/MAP-5V5.md §1.6, §1.7): camp monster kinds by `w.sub` index. Crossing has rats only (0);
  * Hearthwood adds the buff camps (Prickle Hollow's hedgehog, Crow Roost's old crow), the Frog Pond toad, and Captain
  * Grizzlechop, the early river boss. `rats` is the monsters per camp of that kind; `xpTotal` the camp's XP; `fishLast`
  * and `fishNear` the Fish to the last hitter and to each other hero of its team in range (rats: data/fish.ts).
@@ -61,7 +61,7 @@ export const CAMP_KINDS: readonly CampKind[] = Object.freeze([
   Object.freeze({ name: 'boss', rats: 1, hp: 3400, dmg: 140, attackEvery: 36, windup: 12, range: 2500, speed: 3200, armour: 30, leash: 10000, xpTotal: 0, respawn: 3600, fishLast: 0, fishNear: 0, radius: 1500 }),
 ]);
 
-/** Sim v18: the jungle buffs (Hearthwood), in ticks and bp. */
+/** Sim v19: the jungle buffs (Hearthwood), in ticks and bp. */
 export const JUNGLE_BUFF = Object.freeze({
   /** Prickle Coat (75 s): basic attacks on units slow 20% for 1 s and deal 3% of the target's max HP more. */
   prickleTicks: 2250,
@@ -76,7 +76,7 @@ export const JUNGLE_BUFF = Object.freeze({
   featherSpeedBp: 500,
 });
 
-/** Sim v18: Captain Grizzlechop's schedule and reward (Hearthwood, MAP-5V5.md §1.7). */
+/** Sim v19: Captain Grizzlechop's schedule and reward (Hearthwood, MAP-5V5.md §1.7). */
 export const GRIZZLECHOP = Object.freeze({
   /** 2:00 first, 2:00 after he falls, no spawn after 8:30. */
   first: 3600,

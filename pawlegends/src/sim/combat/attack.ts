@@ -78,7 +78,7 @@ function swingDamage(w: World, id: number, dst: number): number {
 
 /** Step 5: timers tick down; swings whose windup ends now land (melee) or fire (ranged). Heroes, minions, rats. */
 export function resolveAttacks(m: MatchHandle): void {
-  // Sim v18: heroes in `heroAt` order (5v5: the teams take turns going first), then minions in id order.
+  // Sim v19: heroes in `heroAt` order (5v5: the teams take turns going first), then minions in id order.
   for (let k = RANGE.heroes; k < RANGE.minions; k++) resolveSwing(m, heroAt(m.world, k));
   for (let id = RANGE.minions; id < RANGE.towers; id++) resolveSwing(m, id);
   for (let id = RANGE.camps; id < RANGE.pudding; id++) resolveSwing(m, id);
@@ -98,7 +98,7 @@ function resolveSwing(m: MatchHandle, id: number): void {
   const dst = w.target[id];
   if (dst < 0 || !targetable(w, dst, w.team[id]) || !inAttackRange(w, id, dst, radiusOf(w, dst))) return;
   let dmg = swingDamage(w, id, dst);
-  // Sim v18 (Hearthwood): Prickle Coat adds a share of the target's max HP (capped) and a short slow.
+  // Sim v19 (Hearthwood): Prickle Coat adds a share of the target's max HP (capped) and a short slow.
   if (w.mg.length > 0 && id < RANGE.minions && w.mg[MG.Prickle + id] > 0 && w.kind[id] === Kind.Hero) {
     dmg += Math.min(JUNGLE_BUFF.prickleCap, applyBp(w.maxHp[dst], JUNGLE_BUFF.prickleMaxHpBp));
     if (w.kind[dst] === Kind.Hero || w.kind[dst] === Kind.Minion) slow(w, dst, JUNGLE_BUFF.prickleSlowBp, JUNGLE_BUFF.prickleSlowTicks);

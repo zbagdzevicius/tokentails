@@ -40,7 +40,7 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
     const rallyBp = rally * rulesOf(m).rallyBp;
     const order: MinionKind[] = [];
     for (let i = 0; i < WAVE.melee; i++) order.push('melee');
-    // Sim v18 (Hearthwood): 2 ranged a lane.
+    // Sim v19 (Hearthwood): 2 ranged a lane.
     const ranged = w.mg.length > 0 ? HEARTHWOOD_RULES.waveRanged : WAVE.ranged;
     for (let i = 0; i < ranged; i++) order.push('ranged');
     if (withSiege || (boost && COMEBACK.siege)) for (let i = 0; i < WAVE.siege; i++) order.push('siege');
@@ -82,7 +82,7 @@ export function spawnWave(m: MatchHandle, withSiege: boolean): void {
         w.target[id] = -1;
         w.attackTimer[id] = 0;
         w.windup[id] = 0;
-        // Sim v18 (point maps): the retarget stagger key (lane and place in the wave), the same for both teams' twins.
+        // Sim v19 (point maps): the retarget stagger key (lane and place in the wave), the same for both teams' twins.
         w.timer[id] = w.mg.length > 0 ? lane * MINION_AI.retargetEvery + k : 0;
         w.lastHitBy[id] = -1;
         w.hurtTick[id] = NEVER;

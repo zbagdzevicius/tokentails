@@ -92,7 +92,7 @@ function humanLaneNow(w: World): number {
   if (w.alive[h] === 0 || !nearLane(x, y, BOT_AI.leashLane)) return -1;
   const r2 = LANE_SWAP.baseRange * LANE_SWAP.baseRange;
   if (dist2(x, y, CORE.x, CORE.y) <= r2 || dist2(x, y, mirrorX(CORE.x), mirrorY(CORE.y)) <= r2) return -1;
-  // Sim v18: on a point map, the nearest of its lanes.
+  // Sim v19: on a point map, the nearest of its lanes.
   if (MAP.point === 1) return nearestLane(x, y);
   return y >= MAP.height >> 1 ? 0 : 1;
 }
@@ -123,7 +123,7 @@ export function stepLaneSwap(w: World): void {
 }
 
 /**
- * Sim v18 (Hearthwood, MAP-5V5.md §4.1): the lane swap over five roles. Once the human has stood LANE_SWAP.hold ticks
+ * Sim v19 (Hearthwood, MAP-5V5.md §4.1): the lane swap over five roles. Once the human has stood LANE_SWAP.hold ticks
  * in a row in another role's lane (from LANE_SWAP.from on), it takes that lane's role and the allied bot that had it
  * takes the human's old role. G.LaneSwap holds the lane being held (+1), G.LaneSwapT the ticks.
  */
@@ -150,7 +150,7 @@ function stepRoleSwap(w: World): void {
   }
 }
 
-/** The lane role of hero `id` (0 Sunny, 1 Puddle, 2 roams), after the lane swap of the human's team. Sim v18
+/** The lane role of hero `id` (0 Sunny, 1 Puddle, 2 roams), after the lane swap of the human's team. Sim v19
  *  (Hearthwood): its ROLE (bots/roles.ts; lane roles are the lane index). */
 export function laneRole(w: World, id: number): number {
   if (w.mg.length > 0) return w.mg[MG.Role + id];

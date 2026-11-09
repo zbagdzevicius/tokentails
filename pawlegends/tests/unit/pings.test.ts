@@ -42,7 +42,7 @@ describe('Op.Ping encoding (GAPS B1)', () => {
     expect(() => decodeCommand(bytes)).toThrow(DecodeError);
   });
 
-  it('eight kinds in the GAPS order; sim v18 appends the four Hearthwood kinds (Crossing refuses them)', () => {
+  it('eight kinds in the GAPS order; sim v19 appends the four Hearthwood kinds (Crossing refuses them)', () => {
     expect(PING_KINDS.slice(0, CROSSING_PING_KINDS)).toEqual(['goHere', 'group', 'pudding', 'pushSunny', 'pushPuddle', 'defend', 'fallBack', 'focus']);
     expect(PING_KINDS.slice(CROSSING_PING_KINDS)).toEqual(['pushFence', 'pushYarn', 'pushGutter', 'grizzlechop']);
   });

@@ -15,7 +15,7 @@ describe('social ids and limits (M2, M3)', () => {
   it('the wire counts equal the client tables and the map bounds equal MAP', () => {
     expect(SOCIAL_COUNT.chat).toBe(CHAT_LINES.length);
     expect(SOCIAL_COUNT.emote).toBe(EMOTES.length);
-    // Sim v18: the PROTO 3 wire carries Crossing's 8 kinds; the Hearthwood kinds come with PROTO 4 (MAP-5V5.md §2.7).
+    // Sim v19: the PROTO 3 wire carries Crossing's 8 kinds; the Hearthwood kinds come with PROTO 4 (MAP-5V5.md §2.7).
     expect(SOCIAL_COUNT.ping).toBe(CROSSING_PING_KINDS);
     expect(PING_KINDS.length).toBeGreaterThan(CROSSING_PING_KINDS);
     expect(CHAT_LINES).toEqual(['Nice!', 'On my way', 'Help me', 'Group up', 'Back off', 'Push', 'Thanks', 'GG']);

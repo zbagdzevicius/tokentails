@@ -27,7 +27,7 @@ export const BODY_MM: Readonly<Record<EntitySnap['kind'], number>> = Object.free
   minion: 400,
   tower: 1300,
   core: 3000,
-  // Sim v18: Captain Grizzlechop (Hearthwood).
+  // Sim v19: Captain Grizzlechop (Hearthwood).
   boss: 1500,
   fountain: 0,
   camp: 500,

@@ -13,10 +13,10 @@ import { clamp, idiv } from './fixed';
 
 /** mm per coordinate unit in the stream. */
 export const COORD_QUANTUM = 250;
-/** Sim v18: the active map's bounds in quanta (Crossing 400 × 240, Hearthwood 512 × 512). */
+/** Sim v19: the active map's bounds in quanta (Crossing 400 × 240, Hearthwood 512 × 512). */
 const maxQx = (): number => idiv(MAP.width, COORD_QUANTUM);
 const maxQy = (): number => idiv(MAP.height, COORD_QUANTUM);
-/** Sim v18: ping kinds of the active map (Crossing: v17's 8). */
+/** Sim v19: ping kinds of the active map (Crossing: v18's 8). */
 const pingKinds = (): number => (MAP.point === 1 ? PING_KINDS.length : CROSSING_PING_KINDS);
 
 const qx = (x: number): number => clamp(idiv(x + idiv(COORD_QUANTUM, 2), COORD_QUANTUM), 0, maxQx());

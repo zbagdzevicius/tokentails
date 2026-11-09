@@ -102,7 +102,7 @@ export { createPlayerBot, playerBotCommands, type PlayerBot } from './bots';
 export { PLAYER_PROFILES, DIFFICULTIES, type PlayerProfile } from '../data/bots';
 export { TIMELINE_BY } from '../data/timeline';
 export { BRANCH_HEROES, BRANCH_TALENT } from '../data/heroes';
-/** Sunset and Sudden Death ticks of a difficulty (sim v18: on `map`, default the map bound now). */
+/** Sunset and Sudden Death ticks of a difficulty (sim v19: on `map`, default the map bound now). */
 export function timelineFor(d: Difficulty, map?: MapId) {
   if (map !== undefined) bindMap(mapIndex(map));
   return TIMELINE_BY[d as keyof typeof TIMELINE_BY] ?? TIMELINE_BY.normal;
@@ -111,7 +111,7 @@ export function timelineFor(d: Difficulty, map?: MapId) {
 const KIND_NAME: readonly EntityKind[] = ['hero', 'hero', 'minion', 'tower', 'core', 'fountain', 'camp', 'pudding'];
 const STATE_NAME: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'casting', 'dead', 'napping'];
 const MINION_VARIANT: readonly string[] = ['melee', 'ranged', 'siege'];
-/** Sim v18: 'gate' and 'hearth' (Hearthwood). */
+/** Sim v19: 'gate' and 'hearth' (Hearthwood). */
 const TOWER_VARIANT: readonly string[] = ['outer', 'inner', 'gate', 'hearth'];
 const CAMP_VARIANT: readonly ('rat' | 'prickle' | 'crow' | 'toad' | 'boss')[] = ['rat', 'prickle', 'crow', 'toad', 'boss'];
 
@@ -125,7 +125,7 @@ export function fillPicks(seed: number, hero: HeroId, trick: TrickId, map: MapId
   const trickRng = new Rng(seed).fork('tricks');
   const picks: HeroId[] = [];
   const tricks: TrickId[] = [];
-  // Sim v18: 3 a side on Crossing, 5 on Hearthwood (each team draws its species' heroes without a repeat first).
+  // Sim v19: 3 a side on Crossing, 5 on Hearthwood (each team draws its species' heroes without a repeat first).
   const perTeam = teamSizeOf(map);
   for (let slot = 0; slot < slotCountOf(map); slot++) {
     if (slot === HUMAN_SLOT) {
@@ -175,7 +175,7 @@ const sideY = (team: number, y: number): number => (team === 0 ? y : mirrorY(y))
  * replay stores only the human's hero and trick and re-derives the bot slots from the seed.
  */
 export function createMatch(config: MatchConfig): MatchHandle {
-  // Sim v18: bind the match's map first (validate reads the slot count of that map).
+  // Sim v19: bind the match's map first (validate reads the slot count of that map).
   const mapIdx = config.map === undefined || !MAP_IDS.includes(config.map) ? 0 : mapIndex(config.map);
   bindMap(mapIdx);
   validate(config);
@@ -209,14 +209,14 @@ export function createMatch(config: MatchConfig): MatchHandle {
     for (let k = 0; k < perTeam; k++) {
       const id = RANGE.towers + team * perTeam + k;
       const spot = TOWER_SPOTS[k];
-      // Sim v18: team 1's slot k stands where team 0's partner spot reflects to (Crossing: the same spot mirrored).
+      // Sim v19: team 1's slot k stands where team 0's partner spot reflects to (Crossing: the same spot mirrored).
       const at = team === 0 ? spot : TOWER_SPOTS[TOWER_PARTNER[k]];
       const t = TOWERS[spot.tier];
       w.kind[id] = Kind.Tower;
       w.team[id] = team;
       w.alive[id] = 1;
       w.sub[id] = TOWER_VARIANT.indexOf(spot.tier);
-      // Sim v18: a Hearth Guard has no lane (0, like Crossing's first lane, never read for it).
+      // Sim v19: a Hearth Guard has no lane (0, like Crossing's first lane, never read for it).
       w.lane[id] = spot.lane === null ? 0 : LANES.indexOf(spot.lane);
       w.hp[id] = applyBp(spot.hp ?? t.hp, rules.structureHpBp);
       w.maxHp[id] = w.hp[id];
@@ -240,7 +240,7 @@ export function createMatch(config: MatchConfig): MatchHandle {
     w.x[fountain] = sideX(team, FOUNTAIN.x);
     w.y[fountain] = sideY(team, FOUNTAIN.y);
   }
-  // Sim v18 (Hearthwood): the bots' five roles, fixed at the start from the picks (bots/roles.ts).
+  // Sim v19 (Hearthwood): the bots' five roles, fixed at the start from the picks (bots/roles.ts).
   if (w.mg.length > 0) {
     const roles = assignRoles(config);
     for (let slot = 0; slot < SLOT_COUNT; slot++) w.mg[MG.Role + slot] = roles[slot];
@@ -413,7 +413,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
     const isHero = k === Kind.Hero;
     if (!isHero && w.alive[id] === 0) continue;
     if (!visibleTo(w, id, team)) continue;
-    // Sim v18: Captain Grizzlechop is a camp monster that snapshots as 'boss'.
+    // Sim v19: Captain Grizzlechop is a camp monster that snapshots as 'boss'.
     const kind = k === Kind.Camp && w.sub[id] === 4 ? 'boss' : KIND_NAME[k];
     const e: EntitySnap = {
       id,
@@ -465,7 +465,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
       e.lane = LANES[w.lane[id]];
     } else if (k === Kind.Tower) {
       e.variant = TOWER_VARIANT[w.sub[id]];
-      // Sim v18: a Hearth Guard has no lane.
+      // Sim v19: a Hearth Guard has no lane.
       if (TOWER_SPOTS[(id - RANGE.towers) % TOWER_SPOTS.length].lane !== null) e.lane = LANES[w.lane[id]];
     } else if (k === Kind.Camp && w.mg.length > 0) {
       e.variant = CAMP_VARIANT[w.sub[id]];
@@ -515,7 +515,7 @@ export function snapshot(match: Match, team: Team): Snapshot {
   return snap;
 }
 
-/** Sim v18 (Hearthwood): the map, the river objectives' state and timers, and every jungle camp's timer. */
+/** Sim v19 (Hearthwood): the map, the river objectives' state and timers, and every jungle camp's timer. */
 function mapSnapshot(w: World, snap: Snapshot): void {
   const tick = w.globals[G.Tick];
   snap.map = MAP_IDS[w.map];
@@ -610,7 +610,7 @@ export function replayRecord(match: Match): ReplayRecord | null {
     outcome: m.ended.outcome,
     finalHash: m.ended.finalHash,
     mutator: 'none',
-    // Sim v18: only a Hearthwood record names its map (a Crossing record stays as in v17).
+    // Sim v19: only a Hearthwood record names its map (a Crossing record stays as in v18).
     ...(m.world.map !== 0 ? { map: MAP_IDS[m.world.map] } : {}),
   };
 }

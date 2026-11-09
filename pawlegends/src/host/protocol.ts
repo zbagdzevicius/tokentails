@@ -147,7 +147,7 @@ const PICKUP_SUBS: readonly PickupKind[] = ['frenzy', 'snack'];
 const STATES: readonly UnitStateName[] = ['idle', 'moving', 'attacking', 'casting', 'dead', 'napping'];
 /** The wire index is the HERO_IDS index (append only: the sim v9 champions follow the first four). */
 const HEROES: readonly HeroId[] = HERO_IDS;
-// Sim v18: append only (Hearthwood's tower tiers and camp kinds).
+// Sim v19: append only (Hearthwood's tower tiers and camp kinds).
 const VARIANTS: readonly string[] = ['', 'melee', 'ranged', 'siege', 'outer', 'inner', 'gate', 'hearth', 'rat', 'prickle', 'crow', 'toad', 'boss'];
 const LANES: readonly ('sunny' | 'puddle' | 'fence' | 'yarn' | 'gutter')[] = ['sunny', 'puddle', 'fence', 'yarn', 'gutter'];
 const NONE = 0xff;

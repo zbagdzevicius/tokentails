@@ -125,7 +125,7 @@ export function pingerPing(m: MatchHandle, pm: PingerMem, h = HUMAN_SLOT): Comma
     return send(PING_KIND.Focus, w.x[t], w.y[t], t, PING.focusTicks);
   }
   // Push: two enemy heroes down, slot 0 healthy in a lane: the whole team pushes that lane.
-  // Sim v18: on a point map, a push ping for the nearest of its three lanes.
+  // Sim v19: on a point map, a push ping for the nearest of its three lanes.
   const lane = MAP.point === 1 ? PING_KIND.PushFence + nearestLane(w.x[h], w.y[h]) : w.y[h] >= MAP.height >> 1 ? PING_KIND.PushSunny : PING_KIND.PushPuddle;
   if (ready(lane) && enemiesDown(w, team) >= PINGER.pushDown && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane)) {
     if (MAP.point === 0) pm.next[PING_KIND.PushSunny + PING_KIND.PushPuddle - lane] = tick + PING.orderTicks;

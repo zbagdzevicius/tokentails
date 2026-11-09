@@ -211,7 +211,7 @@ describe('PAWLEGENDS /live branch', () => {
     it('sim v19 verifier: accepts v10 to v19 (GAPS B0; v9 retired), names all ten in GET /pawlegends/sim', async () => {
         expect(SIM_VERSION).toBe(19);
         expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19]);
-        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 18, simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19] });
+        expect(PAWLEGENDS_SIM_INFO).toMatchObject({ simVersion: 19, simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19] });
         expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual(['10', '11', '12', '13', '14', '15', '16', '17', '18', '19']);
         const fakeHash: Record<number, string> = {
             10: '10100000',

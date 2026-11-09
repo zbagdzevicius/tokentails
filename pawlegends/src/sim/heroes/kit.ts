@@ -298,7 +298,7 @@ export function resolveCasts(m: MatchHandle): void {
   const w = m.world;
   const tick = w.globals[G.Tick];
   for (let k = RANGE.heroes; k < RANGE.minions; k++) {
-    // Sim v18: `heroAt` order (5v5: the teams take turns resolving first).
+    // Sim v19: `heroAt` order (5v5: the teams take turns resolving first).
     const id = heroAt(w, k);
     if (w.castPhase[id] !== 2) continue;
     if (w.alive[id] === 0 || (disabled(w, id) && !(w.castSlot[id] === TRICK_SLOT && castsThroughCc(w, id)))) {
@@ -326,7 +326,7 @@ export function resolveCasts(m: MatchHandle): void {
 export function tickCooldowns(w: World): void {
   for (let id = RANGE.heroes; id < RANGE.minions; id++) {
     if (w.kind[id] !== Kind.Hero) continue;
-    // Sim v18 (Hearthwood): Feather adds JUNGLE_BUFF.featherCdrBp.
+    // Sim v19 (Hearthwood): Feather adds JUNGLE_BUFF.featherCdrBp.
     const extra = (w.cdrT[id] > 0 ? w.cdrBp[id] : 0) + (w.mg.length > 0 && w.mg[MG.Feather + id] > 0 ? JUNGLE_BUFF.featherCdrBp : 0);
     for (let s = 0; s < COOLDOWN_SLOTS; s++) {
       const i = cdIndex(id, s);
@@ -346,7 +346,7 @@ export function tickCooldowns(w: World): void {
 export function stepKits(m: MatchHandle): void {
   const w = m.world;
   for (let k = RANGE.heroes; k < RANGE.minions; k++) {
-    // Sim v18: `heroAt` order (5v5: the teams take turns going first).
+    // Sim v19: `heroAt` order (5v5: the teams take turns going first).
     const id = heroAt(w, k);
     if (w.kind[id] !== Kind.Hero || w.alive[id] === 0) continue;
     kitOf(w, id).stepKit?.(m, id);
