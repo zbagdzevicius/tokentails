@@ -21,14 +21,22 @@
  * blinking eyes over the flaps; BOXBOT bursts cardboard confetti with a "BEEP-BOOP!"; her own death (dizzy stars),
  * respawn (a cardboard thump, then confetti as she pops out) and level-up (sparkles) clips throw their beats here.
  *
+ * Champion identity (CHAMP-IDENTITY.md §3, audio/champ/pixel.ts): the nature and chiptune layers (cap "pew", laser
+ * "vwee", box "loading", BOXBOT arpeggio) play from render/effects.ts on every cast, so the stand-in cues (pop, zap,
+ * clang, fwoomp) are gone from here. This script adds what only it knows: the cap's travel whirr, cyan and kraft LED
+ * pixels shed by the cap and by the pixel-stepped laser, a cap hit breaking into 4 pixels, a pixel "loading" ring
+ * round the ducked box and pixels flying in to assemble BOXBOT.
+ *
  * Shapes use the talent-resolved numbers (fx.abil). Everything is pooled: no allocation per event or per frame.
  * Render only.
  */
 import { PROJECTILE_KIND } from '../../data/towers';
+import type { MixRelation } from '../../audio/identityMix';
+import { playSkillSfx } from '../../audio/skillSfx';
 import { TICK_S } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxKind, MeshFxSpawn, Relation3, SkillFxSet } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
-import { funOverY, funPop, funRand, funSfx, orbit, sticker } from '../fx/fun/funKit';
+import { flying, funOverY, funPop, funRand, funSfx, orbit, sticker } from '../fx/fun/funKit';
 import { cap, eyes, shower } from '../fx/fun/skills2Fun';
 
 /** Ice cyan (her element), the laser dot red, the kraft confetti and a frost white. */
@@ -55,6 +63,27 @@ const CHASE = 0xff4d8a;
 const CAP_FACE = 0x3fa8d8;
 const CARD = 0xc89a5e;
 const STARS = 0xffe066;
+/** Her identity colour pair's primary (data/identity.ts): the LED pixel cyan (the kraft is CARD). */
+const PIX = 0x3fd8e8;
+const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
+
+/** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */
+function skillSound(fx: FxCtx, id: number, skill: 'q' | 'w' | 'e' | 'r', phase: 'impact' | 'travel', at: { x: number; z: number }): void {
+  try {
+    playSkillSfx('pixel', skill, phase, { at, relation: MIX_REL[fx.relation(id)] ?? 'enemy', src: id });
+  } catch {
+    /* audio not unlocked yet */
+  }
+}
+
+/** `n` LED pixels (cyan, every other one kraft) breaking out of a square block at (x, y, z): never round, never spun. */
+function pixelBreak(fx: FxCtx, x: number, y: number, z: number, n: number, speed: number, life: number): void {
+  for (let i = 0; i < n; i++) {
+    const gx = (i & 1) - 0.5;
+    const gz = ((i >> 1) & 1) - 0.5;
+    flying(fx, x + gx * 0.2, y + (i >> 2) * 0.2, z + gz * 0.2, gx * speed, speed * 0.6, gz * speed, 'CONFETTI', i % 2 ? CARD : PIX, 0.2, life);
+  }
+}
 
 // ------------------------------------------------------------------------------------------------ pooled scratch
 
@@ -176,7 +205,8 @@ export const SKILL_FX: SkillFxSet = {
           // a puff of fizz from the muzzle (it's a soda cap)
           shower(fx, F.x, F.y, F.z, 5, SHAPE.SOFT, FROST, 0.14, 0.3, 1.4, 1.2, -1, funRand(e.tick, e.src, 0), true);
         }
-        fx.sfx.cue('pop', P);
+        // a muzzle of pixels (the chiptune "pew" is the champion layer, render/effects.ts)
+        pixelBreak(fx, P.x, 1.1, P.z, 4, 1.6, 0.3);
         return;
       }
       case 1: {
@@ -188,7 +218,6 @@ export const SKILL_FX: SkillFxSet = {
         c.beamTick = e.tick;
         c.beamT = 0;
         c.tagged = 0;
-        fx.sfx.cue('zap', P);
         return;
       }
       case 2: {
@@ -207,7 +236,8 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'crescent', P.x, P.z, 1.0, 0.25, FROST, c.rim, c.rel, 0, 0.08);
         c.duck = life;
         c.duckNext = 0.15;
-        fx.sfx.cue('clang', P);
+        // the pixel "loading" ring over the shut flaps
+        orbit(fx, P.x, 1.5, P.z, 'CONFETTI', PIX, 8, 0.55, 0.18, Math.min(1, life));
         return;
       }
       default: {
@@ -224,7 +254,13 @@ export const SKILL_FX: SkillFxSet = {
         funPop(fx, e.src, v < 0.5 ? 'BEEP-BOOP!' : 'BOOP-BEEP!', P.x, funOverY(fx, e.src, 1.1), P.z);
         funSfx(fx, 'blip', P, 0.8);
         fx.cam.tier(2);
-        fx.sfx.cue('fwoomp', P);
+        // pixels fly in from a ring and assemble the bot suit (the power-up is the empower nature + her ult voice)
+        for (let i = 0; i < 8; i++) {
+          const ang = (i / 8) * Math.PI * 2;
+          const cx = Math.cos(ang) * 1.6;
+          const cz = Math.sin(ang) * 1.6;
+          flying(fx, P.x + cx, 0.6 + (i & 3) * 0.3, P.z + cz, -cx / 0.35, 0.6, -cz / 0.35, 'CONFETTI', i & 1 ? CARD : PIX, 0.24, 0.35);
+        }
       }
     }
   },
@@ -272,6 +308,7 @@ export const SKILL_FX: SkillFxSet = {
     P.y = 1.0;
     c.proj = index;
     c.trail = fx.ribbons.point(P, ICE, 0.22, 0.25);
+    skillSound(fx, owner, 'q', 'travel', P);
   },
 
   onHit(e, fx, ctx) {
@@ -281,6 +318,8 @@ export const SKILL_FX: SkillFxSet = {
     if (!fx.heroPos(e.dst, P)) return;
     if (e.kind === 'basic') {
       mesh(fx, 'glow', P.x, P.z, 0.6, 0.14, DOT, rim, rel, 0, 0.7);
+      // her pellet breaks into 4 pixels on the target
+      pixelBreak(fx, P.x, 0.9, P.z, 4, 1.2, 0.3);
       if (ctx.form === true) {
         // BOXBOT: the splash at the sim radius, cardboard confetti and a frost rim
         const splash = (fx.abil(e.src, 'r').splash ?? 1600) / 1000;
@@ -293,6 +332,8 @@ export const SKILL_FX: SkillFxSet = {
     if (c && c.beam > 0) {
       // a Laser Pointer pulse: a frost spark where the dot burns; a hero it tags the first time gets a startled "!"
       mesh(fx, 'glow', P.x, P.z, 0.5, 0.12, FROST, rim, rel, 0, 0.6);
+      // each pulse drops pixels where it burns
+      pixelBreak(fx, P.x, 0.7, P.z, 2, 0.8, 0.35);
       const bit = e.dst >= 0 && e.dst < 30 ? 1 << e.dst : 0;
       if (bit && (c.tagged & bit) === 0 && fx.abil(e.dst, 'q').cooldown !== undefined) {
         c.tagged |= bit;
@@ -306,7 +347,8 @@ export const SKILL_FX: SkillFxSet = {
       mesh(fx, 'ring', P.x, P.z, 1.2, 0.3, ICE, rim, rel, 0, 0.06, 1.2, 0.15);
       mesh(fx, 'glow', P.x, P.z, 1.0, 0.22, FROST, rim, rel, 0, 0.8);
       mesh(fx, 'crescent', P.x, P.z, 1.1, 0.24, DOT, rim, rel, 0, 0.1);
-      // the cap pings off the hero: it bounces away spinning, "PLINK!" over them
+      // the cap pings off the hero (it breaks into pixels): it bounces away spinning, "PLINK!" over them
+      pixelBreak(fx, P.x, 1.0, P.z, 6, 2.2, 0.4);
       const v = funRand(e.tick, e.src, 1);
       cap(fx, P.x, 1.1, P.z, (v - 0.5) * 3, 3.2, 0.6, 0.34, CAP_FACE, 0.7, 14, 0, 9);
       if (fx.abil(e.dst, 'q').cooldown !== undefined && funPop(fx, e.src, 'PLINK!', P.x, funOverY(fx, e.dst, 0.5), P.z)) funSfx(fx, 'sparkle', P, 0.8);
@@ -329,6 +371,8 @@ export const SKILL_FX: SkillFxSet = {
           if (c.capNext <= 0) {
             c.capNext = 1 / 30;
             cap(fx, P.x, 1.0, P.z, 0, 0, 0, 0.36, CAP_FACE, 0.06, 0, now * 18, 0);
+            // a pixel square shed behind the cap every third drop (a stepped 8-bit trail)
+            if (((now * 30) | 0) % 3 === 0) sticker(fx, P.x, 1.0, P.z, 'CONFETTI', ((now * 10) | 0) & 1 ? CARD : PIX, 0.2, 0.3);
           }
         } else endTrail(fx, c);
       }
@@ -373,6 +417,9 @@ export const SKILL_FX: SkillFxSet = {
       const ez = P.z + F.z * c.len + Math.sin(ang) * jr;
       sticker(fx, ex, 0.25, ez, 'DOT', CHASE, 0.42, life + 0.02);
       sticker(fx, ex, 0.25, ez, 'DOT', 0xffffff, 0.16, life + 0.02);
+      // the pixel-stepped beam: one LED pixel snapped to a 0.5 m step along it per redraw, alternating cyan / kraft
+      const step = Math.floor(funRand(c.beamTick, c.id, k + 7) * c.len * 2) * 0.5;
+      sticker(fx, P.x + F.x * step, BEAM_Y, P.z + F.z * step, 'CONFETTI', k & 1 ? CARD : PIX, 0.2, life * 2);
     }
   },
 };

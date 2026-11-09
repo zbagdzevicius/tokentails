@@ -24,14 +24,23 @@
  * dust puff on every footfall with speed lines; every pounce picks one of three claw-mark variants from funRand on
  * the hit tick (replays match).
  *
+ * Champion identity (CHAMP-IDENTITY.md §3, audio/champ/stilts.ts): the nature and bongo layers play from
+ * render/effects.ts on every cast and hit; this script adds what only it knows: the deep bongo thump and the mobility
+ * landing on High Leap's touchdown with a big terracotta print stamped at the centre, a sonar ripple of paw prints
+ * running out to the reveal radius on Ear Swivel, the second swat's right-hand drum and a print at the end of each swat
+ * line, and a double bongo slap on a pounce (it replaces the stand-in slash / whooshS cue: the slash nature impact
+ * already plays on every basic).
+ *
  * Pooled: per-id state in typed arrays, scratch records reused; nothing allocates per frame.
  */
 import { stubFx } from '../anim/common';
 import { TICK_S, travelTicks } from '../anim/timing';
-import type { FxCtx, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
+import type { FxCtx, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
 import { STILTS_STATE, STRIDE_MAX } from '../moves/stilts';
-import { CUE_SFX } from '../anim/fxctx';
-import { funCount, funPop, funRand, funRank, funSfx, pawTrail, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
+import { mixPriority, type MixRelation } from '../../audio/identityMix';
+import { sfx } from '../../audio/sfx';
+import { champSound, playSkillSfx, type SkillPhase } from '../../audio/skillSfx';
+import { flying, funCount, funPop, funRand, funRank, funSfx, pawTrail, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
 import { S3Once, s3HeadY } from '../fx/fun/skills3Kit';
 
 /** Terracotta (her accent), a pale dust, cream highlights and a rust for the prints. */
@@ -58,6 +67,27 @@ const RIBBON_LIFE = 0.55;
 /** Fun stickers: the prints' cream, the "!" butter yellow (never red). */
 const PRINT = 0xfff1de;
 const BANG = 0xffe36a;
+const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
+const relOf = (fx: FxCtx, id: number): MixRelation => MIX_REL[fx.relation(id)] ?? 'enemy';
+
+/** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */
+function skillSound(fx: FxCtx, id: number, skill: 'q' | 'w' | 'e' | 'r', phase: SkillPhase, at: { x: number; z: number }, rate = 1): void {
+  try {
+    playSkillSfx('stilts', skill, phase, { at, relation: relOf(fx, id), src: id, rate });
+  } catch {
+    /* audio not unlocked yet */
+  }
+}
+
+/** One of her own sounds (audio/champ/stilts.ts `sounds`) through the identity mix. */
+function champCue(fx: FxCtx, id: number, name: string, at: { x: number; z: number }, rate = 1): void {
+  const relation = relOf(fx, id);
+  try {
+    sfx.playLayer({ name: champSound('stilts', name), layer: 'motif', hero: 'stilts', priority: mixPriority({ relation }), relation, rate, at });
+  } catch {
+    /* audio not unlocked yet */
+  }
+}
 
 let clock = 0;
 const zoomUntil = new Float64Array(N);
@@ -140,6 +170,10 @@ function leapLand(id: number, fx: FxCtx): void {
     sticker(fx, P.x + Math.cos(a) * touch * 0.7, 0.14, P.z - Math.sin(a) * touch * 0.7, 'PAW', PRINT, 0.4 * k, 0.9, 0, 0, a);
   }
   stickerBurst(fx, P.x, 0.35, P.z, 'PUFF', DUST, 0.42, 0.5, 6, 2.6, 1, -1, 0.7);
+  // her signature: one big terracotta paw print stamped on the landing spot, a deep bongo thump and the landing
+  sticker(fx, P.x, 0.1, P.z, 'PAW', TERRA, 0.9 * k, 1.0, 0, 0, funRand((clock * 30) | 0, id, 2) * TAU);
+  champCue(fx, id, 'land', P);
+  skillSound(fx, id, 'q', 'impact', P);
 }
 
 function castW(id: number, fx: FxCtx): void {
@@ -162,6 +196,14 @@ function castW(id: number, fx: FxCtx): void {
     if (!foe || Math.hypot(Q.x - P.x, Q.z - P.z) > R) continue;
     sticker(fx, Q.x, s3HeadY(fx, o, 0.6), Q.z, 'EXCLAIM', BANG, 0.8, 0.8, 0.5);
   }
+  // the sonar ripple of paw prints: prints running out from her to exactly the reveal radius in 0.6 s
+  const n = funCount(fx, 8);
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    const cx = Math.cos(a);
+    const sz = -Math.sin(a);
+    flying(fx, P.x + cx * 0.6, 0.15, P.z + sz * 0.6, (cx * (R - 0.6)) / 0.6, 0, (sz * (R - 0.6)) / 0.6, 'PAW', i & 1 ? CREAM : TERRA, 0.42, 0.6, a);
+  }
 }
 
 /** One Swat-Swat swipe from (x, z) along `yaw`: the exact line and a claw crescent along it. */
@@ -176,6 +218,8 @@ function swat(fx: FxCtx, id: number, x: number, z: number, yaw: number, side: nu
   // the fun layer: a cartoon paw flashes over the swat, high and short of the target (readability QA: at body height it
   // covered the victim)
   sticker(fx, x + Math.cos(yaw) * L * 0.4, 2.5, z - Math.sin(yaw) * L * 0.4, 'PAW', side > 0 ? CREAM : PRINT, 0.6, 0.24, 0, 0, side * 0.5);
+  // a paw print stamped at the end of the swat line, left paw terracotta then right paw cream
+  sticker(fx, x + Math.cos(yaw) * L * 0.85, 0.1, z - Math.sin(yaw) * L * 0.85, 'PAW', side > 0 ? TERRA : CREAM, 0.5, 0.6, 0, 0, yaw + side * 0.3);
 }
 
 function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -223,9 +267,8 @@ function pounceHit(src: number, dst: number, fx: FxCtx, tick = 0): void {
   // the paw stamp floats over the head, never on the body it hit (readability QA)
   if (v === 2) sticker(fx, Q.x, s3HeadY(fx, dst, 0.9), Q.z, 'PAW', CREAM, 0.6, 0.35, 0.4, 0, yaw);
   stickerBurst(fx, Q.x, cy, Q.z, 'STAR4', CREAM, 0.22, 0.3, 4, 2.4, 1.4, -4, funRand(tick, src, 8));
-  // the pounce hit sound: the 'slash' cue when the cue table has it, else a quick swipe
-  if (CUE_SFX.slash) fx.sfx.cue('slash', Q);
-  else fx.sfx.cue('whooshS', Q);
+  // the pounce: her double bongo slap over the slash impact render/effects.ts plays on every basic
+  champCue(fx, src, 'pounce', Q);
   if (rel === 'own') fx.cam.tier(1);
 }
 
@@ -266,7 +309,10 @@ function marker(id: number, _clipId: string, m: string, fx: FxCtx): void {
     case 'swat1':
       return;
     case 'swat2':
-      if (fx.heroPos(id, P)) swat(fx, id, P.x, P.z, facing[id], -1, 0);
+      if (!fx.heroPos(id, P)) return;
+      swat(fx, id, P.x, P.z, facing[id], -1, 0);
+      // the right paw: the slash and bongo again, a step higher (the left one played on the cast)
+      skillSound(fx, id, 'e', 'cast', P, 1.33);
       return;
     case 'pounce':
       if (fx.bonePos(id, 'pawR', P)) fx.mesh.spawn('glow', { x: P.x, z: P.z, sx: 0.8, life: 0.18, color: CREAM, rim, rel });
