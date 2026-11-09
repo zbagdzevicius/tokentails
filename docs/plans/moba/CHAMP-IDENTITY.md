@@ -184,3 +184,230 @@ A 10-hero teamfight must stay readable and must not tire the ear.
 ## 6. Not changed
 
 No sim code, no numbers, no balance. Heroes keep their existing PL_SFX voices; the identity reuses them.
+
+## 7. What you'll hear and see
+
+Built on `feat/pawlegends-champ-identity` (render and audio only). Every Q/W/E/R plays two sounds: the skill's
+**nature** sound (the same for every fire skill, every frost skill...) and the **champion** sound (the hero's motif
+ping in its own instrument on Q/W/E, the hero's ult voice on R). Every skill also draws two layers: the nature effect
+and the hero's motif in its colour pair. On an enemy, gold-family motif colours draw as a pale glint, because gold
+means "you". The tables below say what each one adds on top of that.
+
+Shared helpers: `render/skillfx/identityFx.ts` (`drawIdentity`, `champLayer`, `MIX_REL`, `mixRel`) and
+`render/fx/natureFx.ts` (`paleGold`, `motifColors`, and an `enemy` flag on `skillFx` / `motifBurst`). No hero script
+keeps its own copy.
+
+Known limits: the sim's `hit` event names no slot, so an ability hit sounds like the hero's last cast skill (a Q
+projectile that lands after an R cast sounds like R). Every Clem Q hit adds the fifth pluck; only the visual knows the
+third hit. Howler's echo ring pops on every ability hit, not only on fears. `render/moves/sage.ts` and `stilts.ts`
+animation cues still play the generic whooshes.
+
+### Clem: sunrise knight, golden-hour sunbursts (peach / sunlight), kalimba
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Paw swipe (slash) | slash impact, kalimba voice | slash sparks and a sunburst at the claw tip |
+| Valor (empower) | – | a sun rises over her head at 100 |
+| Q Paw Combo (slash) | slash + kalimba C; each hit adds a soft fifth | sun rays down the cone; the 3rd hit is a full sunburst |
+| W The Stand (guard) | guard + kalimba E; a parry is a clank and a high ting | guard shards, a sun on the wall, a sun with a reflected ray on a parried bolt |
+| E Tumble (mobility) | dash + kalimba G | tiny suns along the dash |
+| R Golden Hour (empower) | empower + rising arpeggio ult voice | a pillar and a big sunburst; each wave fans sun rays |
+
+### Sage: moon archer, feathers and crescent moons (mint / moon white), flute
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Arrow (projectile) | projectile impact, fluttered flute voice | a feather spins off each arrow |
+| Q Volley / Piercing Shot (projectile) | projectile + flute note | feather tails; every arrow hit puffs feathers |
+| W Sun Snare (arcane) | arcane + flute a minor third up; arming: low "moonSet" (own team only); springing: falling "moonClose" | a crescent on each armed trap (own team); two crescents close on the victim |
+| E Hop Back (mobility) | dash + flute a fifth up | feathers drift down where she stood |
+| R Moonshot (arcane) | arcane + rising flute ult voice | a full moon in the wind-up, crescents on alternate sides of the beam |
+
+### Sir Brutus: crest stamps (sandstone / steel), anvil and armour
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Shield bash (impact) | impact, anvil-ping voice | a crest stamp on the target |
+| Honour (guard) | a clank on the bash | a crest on the bashed hero |
+| Q Shield Slam (impact) | impact + anvil clang | crests ring the edge of the slam |
+| W Front Guard (guard) | guard + armour clank | a giant steel crest on the wall (over the dome on Guard Post) |
+| E Pug Charge (mobility) | dash + anvil ring on the hit | a sand puff and a crest stamp |
+| R Champion's Challenge (sonic) | sonic + two-note horn ult voice | a circle of crests above the obelisks |
+
+### Cacklejaw: lime grins and "hee hee" (shadow plum / acid lime), kazoo
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Claw (slash) | slash, kazoo blat | a lime grin with a plum puff |
+| Pack Flank (shadow) | shadow impact | a grin just behind the flanked victim |
+| Q Jeer Slash (slash) | slash + kazoo "hee" | a row of grins along the dash |
+| W Gloat (sonic) | sonic + kazoo "hee-hee-hee" | lime laugh notes |
+| E Bush Slink (shadow) | shadow + kazoo "hee" | a faint grin where he vanished (own team only) |
+| R Pack Hunt (shadow) | shadow + kazoo cackle ult voice; the maul cackles | a big grin over the hunted hero |
+
+### Lambo: cuddly tank, string lights and tuna (silver / amber), music box
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Paw bop (impact) | impact, music-box tink | a bulb blinks |
+| Q Tuna Toss (splash) | splash + two music-box notes; the splat adds a tin-can clank | bulbs on a cord along the aim and behind the flying tuna |
+| W Big Hug (guard) | guard + music box; on an ally a bulb "tink" | bulbs in an arc around the hug |
+| E Belly Flop (impact) | impact + music box; the landing a falling run of notes | a circle of lit bulbs just inside the flop ring |
+| R Tangled Lights (electric) | electric + twinkling-lights ult voice; each lassoed hero a high tink | string lights lasso the pulled heroes |
+
+### Avietė: raspberry static (raspberry / pale volt), theremin and static
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Static claw (electric) | electric, crushed-zap voice | sparks ending in raspberry dots |
+| Shy, Then Shiny (electric) | Charged proc: a small "pop" | a raspberry on the victim |
+| Q Spark Swipe (electric) | electric + crackly static buzz | both far corners of the zig-zag end in a raspberry |
+| W Shiny Coat (empower) | empower + theremin swell | raspberry sparkle through her coat; shed sparks end in raspberry dots |
+| E Live Wire (mobility) | dash + static buzz; a pop on the return point | a raspberry marks the return point |
+| R Short Circuit (electric) | electric + rising zap ult voice; the ZAP! pops | the bolt lands with a big raspberry |
+
+### Bengas: toast crumbs and camellia petals (crimson / toast gold), castanets and sizzle
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Ember flick (fire) | fire, castanet clack | each shot lands as gold crumbs |
+| Hot Toast (fire) | fire impact | a buttery glint and a burst of crumbs |
+| Q Burnt Toast (fire) | fire + castanet double clack; sizzles while it flies; a crunch on hit | a spinning smoking slice, crumbs on hit |
+| W Striking Pose (arcane) | arcane + camera shutter | camellia petals with the flash; a camellia over each stunned head |
+| E Camellia Hop (mobility) | dash + castanets | a petal swirl in the trail |
+| R Curtains Up! (fire) | fire + curtain-whoosh ult voice; each pulse a castanet roll | crimson curtains; each pulse pops crumbs |
+
+### Gabė: wind angel, heart balloons and white feathers (pink / white), wind chimes
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Heart puff (projectile) | projectile, glass chime | a heart rides each shot |
+| Q Heart Balloon (heal) | heal + rising chime cluster; a glassy balloon pop on impact | hearts for allies, feathers for enemies |
+| W Wing Wrap (guard) | guard + chimes; a feather flutter on impact | feather wings |
+| E Chase the Wind (mobility) | dash + highest chimes | mostly feathers along her path |
+| R Under Her Spell (arcane) | arcane + falling chime ult voice; a two-note chime per charm | hearts thrown forward into the cone |
+
+### Meatball: sleepy bowler, bowling pins and Zzz (basil / indigo), tuba
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Belly bump (impact) | impact, tuba "oom" | a pin wobbles over the target |
+| Food Coma (guard) | – | lilac Zs |
+| Q Bowling Roll (impact) | impact + tuba oom-pah; a pin clatter on hit | a 5-pin strike burst on the first hero, 2 pins on later ones |
+| W Loaf Mode (guard) | guard + sleepy tuba yawn | lilac Zs |
+| E Big Brother (mobility) | dash + oom-pah; landing plus a pin scatter | pins scatter on landing |
+| R Unstoppable Chonk (empower) | empower + octave-down ult voice; a pin clatter on each bump | a ring of pins on cast, pins orbit him (not on Low), pins fly on every bump |
+
+### Pixel: cardboard robot, 8-bit pixels (LED cyan / kraft), chiptune
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Pellet (projectile) | projectile, square blip | the pellet breaks into 4 pixels |
+| Q Cap Cannon (projectile) | projectile + bit-crushed "pew"; a travel whirr | pixels at the muzzle and behind the cap; the hit breaks into 6 pixels |
+| W Laser Pointer (electric) | electric + rising "vwee" | a pixel-stepped beam; each pulse hit drops pixels |
+| E Duck and Cover (guard) | guard + three-step "loading" bloop | a ring of pixels orbits the shut box |
+| R BOXBOT MK II (empower) | empower + power-on arpeggio ult voice | eight pixels fly in to assemble the suit |
+
+### Duchess: royal Persian, tiny gold crowns and fluff (plum / crown gold), harpsichord
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Disdainful glare (shadow) | shadow, plucked flick | a plum bolt with a crown glint |
+| Utter Disdain / Snub (shadow) | shadow hit + crown "ting" | a crown drops onto the stunned head |
+| Q Fluff Puff (projectile) | projectile + harpsichord; the ball whooshes as it rolls | a crown rides the rolling ball |
+| W Not Amused (shadow) | shadow + falling two-note "hmph" | a shadow implode in the cone, a crown at each edge |
+| E Cushion Glide (mobility) | dash + harpsichord | a trail with a crown and gold-flecked fluff |
+| R Royal Decree (sonic) | sonic + royal-flourish ult voice | ripples and two crowns |
+
+### Stilts: savannah sprinter, long paw-print tracks (terracotta / cream), bongo
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Swat / Pounce (slash) | slash + double bongo slap | a paw print on the target |
+| Q High Leap (mobility) | dash + low bongo; landing: a deep bongo thump | one big terracotta print stamped in the centre |
+| W Ear Swivel (sonic) | sonic + high bongo | a ring of paw prints out to the reveal radius |
+| E Swat-Swat (slash) | slash + bongo, again a step higher on the second swat | a terracotta print, then a cream one |
+| R Zoomies (empower) | empower + drum-roll ult voice | a glowing running track of prints |
+
+### Nugget: good-boy corgi, frisbees and bone treats (orange / frisbee pink), rubber squeak
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Treat toss (projectile) | projectile, squeak voice | bone treats |
+| Q Frisbee (projectile) | projectile + wobbling disc whirr; a travel whirr | a pink ring rides the disc |
+| W Best Friend (guard) | guard + double "pal!" squeak | three frisbee rings orbit him when he lands |
+| E Sploot (heal) | heal + squeak a step higher | a fountain of bone treats; every third heal sparkle is a hopping bone |
+| R Herding Time (sonic) | sonic + bork ult voice | bone glyphs ride the bark ring |
+
+### Marshmallow: snow puppy, snow puffs and flakes (snow / ice blue), sleigh bells
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Snow puff (frost) | frost, bell shimmer | snow puffs and flakes |
+| Q Snowball (frost) | frost + sleigh bells; a frost travel sound while it rolls; a crunch and a poof on hit | ice-blue trail flakes; a puff on the ball that grows |
+| W Snow Patch (frost) | frost + bells | puffs fall |
+| E Belly Slide (mobility) | dash + bells | a sled track and puffs |
+| R SNOW DAY! (frost) | frost + `marshAwoo` ult voice; a frozen cat gets a long sleigh-bell chord | puffs and flakes fall from above |
+
+### Bravo: spotlights, tears and bows (stage violet / cream), brass trumpet
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Head bonk (impact) | impact, trumpet blip | a spotlight blink |
+| Q Crocodile Tears (splash) | splash + trumpet C | one big tear rolls off; the splash leaves a puddle of tears |
+| W Center Stage (guard) | guard + trumpet E; the bow flourish through the mixer | a spotlight cone from above |
+| E Stage Dive (impact) | impact + trumpet G (Q, W, E = a fanfare); a landing "ta-da" | out of a spotlight onto a ring of stage boards |
+| R ENCORE! (sonic) | sonic + `bravoBow` fanfare ult voice; a "ta-da" per charmed hero | cream and violet confetti; a small spotlight on each charmed hero |
+
+### Chili: tiny rage, chili peppers and an anger "!" (pepper orange / stem green), square yap
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Static nip (electric) | electric, `chiliYap` | hit sparks and a small pepper burst |
+| Small Dog Syndrome (empower) | – | a pepper crown over his head at 5 Rage |
+| Q Yap Yap Yap (sonic) | sonic + two-note yip | sound ripples; every second crescent carries a pepper |
+| W Tiny Zoomies (mobility) | dash + higher yip | pepper afterimages |
+| E Purse Mode (guard) | guard + handbag-clasp snap | guard shards; peppers puff out of the bag |
+| R BIG DOG ENERGY (empower) | empower + `chiliBigBark` | a pillar, a pepper burst and an "!" as he grows |
+
+### Howler: loud husky, echo rings and "AWOO" (slate / mint), synth howl
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Bite (slash) | slash, short "wo" | an echo ring on the target |
+| Q AWOO (sonic) | sonic + `howlerAwoo` howl; each hit an echo ping | echo rings pushed forward and the word "AWOO!" |
+| W Derp Dash (mobility) | dash + high "woo" | three fading echo rings left behind |
+| E Talk Back (guard) | guard + `howlerArgue` grumble | echo rings |
+| R THE SCREAM (sonic) | sonic + `howlerScream` (once) | rings drawn in on the inhale, then blasted out |
+
+### Rocket: race greyhound, checkered flags (race green / white), start beeps and race whistle
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Dart (projectile) | projectile, start beep | white streaks with a checker spark |
+| Q Lure Shot (projectile) | projectile + start beep; a travel whirr | a small checker flag at the muzzle, checker squares off the lure |
+| W Photo Finish (mobility) | dash + camera shutter "ch-chk" | a checker finish line on landing |
+| E SQUIRREL! (sonic) | sonic + high beep and the squirrel squeak | the squirrel lands on a checker square |
+| R ZOOM… ZZZ (mobility) | a "get set" beep on the crouch, then dash + race-whistle ult voice | green and white squares along the sprint, a checker flag by the nap |
+
+### Frankie: hot dog, ketchup and mustard squiggles (mustard / ketchup), slide whistle and cork pop
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Weenie nip (slash) | slash, `frankieYip` | a mustard squiggle |
+| Ketchup and Mustard (splash) | splash + small cork pop | the two squiggles cross into an X |
+| Q Weenie Roll (impact) | impact + rising slide-whistle blip | a dust ring and a spiral squiggle trail |
+| W Dig (impact) | impact + lower blip; the pop-up a thud and a cork pop | a mustard squiggle where he dives and where he bursts out |
+| E Bun Hop (mobility) | dash + higher blip | a zig-zag under the hop |
+| R FOOTLONG! (fire) | fire + `frankieStretch`; the grab a fire snap | embers, ketchup and mustard stripes down the stretch |
+
+### Domino: starry dalmatian, ink spots joined by star lines (ink / lilac), marimba
+
+| Skill (nature) | You hear | You see |
+|---|---|---|
+| Basic Ink blot (splash) | splash, `dominoBoop` | an ink-spot splat |
+| Spot On (arcane) | arcane impact | a star glint as each spot sticks |
+| Q Spot Shot (projectile) | projectile + marimba boop; the shot whooshes | a sparkle and a spot with a star |
+| W Splatter (splash) | splash + ink splat | droplets and a splash of spots |
+| E Big Shake (impact) | impact + rattle | a dust ring and spots flung outward |
+| R CONNECT THE DOTS! (arcane) | arcane + `dominoDraw`; each hit a high marimba "star" | a twinkle around him and a starred spot on each target |

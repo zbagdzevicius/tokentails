@@ -28,18 +28,18 @@ import { sfx } from '../../audio/sfx';
 import { champSound, playSkillSfx } from '../../audio/skillSfx';
 import { BuffFlag } from '../../sim/api';
 import { TICK_S, abilNumbers } from '../anim/timing';
-import type { FxCtx, Relation3, SkillFxSet } from '../anim/types';
+import type { FxCtx, SkillFxSet } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
 import { funHeroOf, funOverY, funPop, funSound, speedLines, sticker } from '../fx/fun/funKit';
 import { shower, throwSticker, zed } from '../fx/fun/skills2Fun';
 import { F, P, Q, aimDir, faceOf, mesh, vary, yawOf } from './dogFx';
+import { MIX_REL } from './identityFx';
 
 const TURF = 0x9be07a;
 const WHITE = 0xffffff;
 const SQUIRREL = 0xa0663a;
 /** His identity colour pair's primary (data/identity.ts): the checker flag's green. */
 const FLAG = 0x1e8f4e;
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
 const relOf = (fx: FxCtx, id: number): MixRelation => MIX_REL[fx.relation(id)] ?? 'enemy';
 
 /** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */

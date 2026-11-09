@@ -41,8 +41,9 @@ import { CAPS } from '../../data/map';
 import { STEADY } from '../moves/sage';
 import { HEROES } from '../../data/heroes';
 import { DASH_SPEED, TICK_HZ, TICK_S, travelTicks } from '../anim/timing';
-import type { FxCtx, HeroStatus, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
+import type { FxCtx, HeroStatus, MeshFxSpawn, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
 import { flying, funHeadY, funOverY, funPop, funRand, funSfx, orbit, pawTrail, sticker, stickerBurst } from '../fx/fun/funKit';
+import { MIX_REL } from './identityFx';
 
 /** Wind core, wind edge, moonlight, sun (trap), goo. */
 const WIND = 0xbfffe8;
@@ -152,7 +153,6 @@ const AT = { x: 0, z: 0 };
 /** Fun pass (decoration only): fish-arrow tips, the once-per-cast SPLAT and POW, the hop's paw order, trap yarn bob. */
 const FISH = 0xfff1d6;
 const YARN = 0xffb36b;
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
 const relOf = (fx: FxCtx, id: number): MixRelation => MIX_REL[fx.relation(id)] ?? 'enemy';
 
 /** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */

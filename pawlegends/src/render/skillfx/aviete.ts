@@ -30,7 +30,8 @@ import { AVI_HASTE_S, AVI_STATE, AVI_WIRE_S } from '../moves/aviete';
 import { funChestY, funHeroOf, funOverY, funPop, funRand, funSfx, sticker, stickerBurst } from '../fx/fun/funKit';
 import { champSound, playSkillSfx } from '../../audio/skillSfx';
 import { sfx } from '../../audio/sfx';
-import { mixPriority, type MixRelation } from '../../audio/identityMix';
+import { mixPriority } from '../../audio/identityMix';
+import { mixRel } from './identityFx';
 
 /** Pale-gold core, the volt yellow of her spark orbs, near-white arcs, and Blinding Shine's white. */
 const CORE = 0xfff3a6;
@@ -125,8 +126,6 @@ function radial(fx: FxCtx, x: number, z: number, y0: number, r: number, n: numbe
 
 // ------------------------------------------------------------------------------------------------ identity
 
-const MIX_REL: Readonly<Record<'own' | 'ally' | 'enemy', MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
-const mixRel = (fx: FxCtx, id: number): MixRelation => MIX_REL[fx.relation(id)];
 
 /** Her raspberry pop (audio/champ/aviete.ts `drupe`) through the identity mix, on the motif layer. */
 function drupe(fx: FxCtx, id: number, at: { x: number; z: number }, rate = 1): void {

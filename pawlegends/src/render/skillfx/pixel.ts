@@ -31,13 +31,13 @@
  * Render only.
  */
 import { PROJECTILE_KIND } from '../../data/towers';
-import type { MixRelation } from '../../audio/identityMix';
 import { playSkillSfx } from '../../audio/skillSfx';
 import { TICK_S } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxKind, MeshFxSpawn, Relation3, SkillFxSet } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
 import { flying, funOverY, funPop, funRand, funSfx, orbit, sticker } from '../fx/fun/funKit';
 import { cap, eyes, shower } from '../fx/fun/skills2Fun';
+import { MIX_REL } from './identityFx';
 
 /** Ice cyan (her element), the laser dot red, the kraft confetti and a frost white. */
 const ICE = 0x3fa8d8;
@@ -65,7 +65,6 @@ const CARD = 0xc89a5e;
 const STARS = 0xffe066;
 /** Her identity colour pair's primary (data/identity.ts): the LED pixel cyan (the kraft is CARD). */
 const PIX = 0x3fd8e8;
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
 
 /** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */
 function skillSound(fx: FxCtx, id: number, skill: 'q' | 'w' | 'e' | 'r', phase: 'impact' | 'travel', at: { x: number; z: number }): void {

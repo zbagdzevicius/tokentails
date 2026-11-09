@@ -217,13 +217,13 @@ export class Effects {
     playSkillSfx(hero, e.slot, 'cast', { at: src, relation, ccAtMe, src: src.id });
     const dir = { x: Math.cos(yaw), z: -Math.sin(yaw) };
     if (owned) {
-      if (CHAMP_AUDIO[hero].fx?.ownedMotif !== false) this.natureFx.motifBurst(hero, this.at(src, 0.3), 3, dir, skillKey(e.slot));
+      if (CHAMP_AUDIO[hero].fx?.ownedMotif !== false) this.natureFx.motifBurst(hero, this.at(src, 0.3), 3, dir, skillKey(e.slot), relation === 'enemy');
       return;
     }
     const atAim = aim?.shape === 'circle';
     _ip.set(atAim ? tx : src.x, 0.1, atAim ? tz : src.z);
     const radius = aim?.radius ? aim.radius / 1000 : undefined;
-    this.natureFx.skillFx(hero, e.slot, 'cast', _ip, dir, { radius, length: Math.min(12, (aim?.range ?? 3000) / 1000), scale: rk });
+    this.natureFx.skillFx(hero, e.slot, 'cast', _ip, dir, { radius, length: Math.min(12, (aim?.range ?? 3000) / 1000), scale: rk, enemy: relation === 'enemy' });
   }
 
   private rel(team: number, id: number): number {
@@ -363,9 +363,10 @@ export class Effects {
     const idHero = src && src.kind === 'hero' && src.hero && (e.kind === 'basic' || e.kind === 'ability') ? src.hero : null;
     if (src && idHero) {
       const skill = e.kind === 'basic' ? 'basic' : skillKey(this.lastSlot.get(src.id) ?? 0);
-      playSkillSfx(idHero, skill, 'impact', { at: dst, relation: this.relOf(src), src: src.id });
-      if (e.kind === 'ability' && !drew) this.natureFx.skillFx(idHero, skill, 'impact', pos);
-      else this.natureFx.motifBurst(idHero, pos, 2, null, skill);
+      const relation = this.relOf(src);
+      playSkillSfx(idHero, skill, 'impact', { at: dst, relation, src: src.id });
+      if (e.kind === 'ability' && !drew) this.natureFx.skillFx(idHero, skill, 'impact', pos, null, { enemy: relation === 'enemy' });
+      else this.natureFx.motifBurst(idHero, pos, 2, null, skill, relation === 'enemy');
     }
     if (this.vfx) this.vfxHit(e, src, dst, pos, color, big);
     else this.particles.burst(pos, {

@@ -24,16 +24,14 @@
  */
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BuffFlag } from '../../sim/api';
-import { CHAMP_AUDIO } from '../../audio/champ';
-import type { MotifPainter } from '../../audio/champ/types';
 import { playSkillSfx } from '../../audio/skillSfx';
 import { IDENTITY, type SkillKey } from '../../data/identity';
-import { NATURE_FX } from '../fx/natureFx';
 import type { FxCtx, SkillFxSet } from '../anim/types';
-import { FADE, SHAPE } from '../fx/Particles.js';
-import { funCount, funHeroOf, funOverY, funPool, funPop, sticker } from '../fx/fun/funKit';
+import { SHAPE } from '../fx/Particles.js';
+import { funHeroOf, funOverY, funPop, sticker } from '../fx/fun/funKit';
 import { shower, throwSticker } from '../fx/fun/skills2Fun';
 import { F, P, Q, aimDir, faceOf, mesh, vary, yawOf } from './dogFx';
+import { ENEMY_PAIR, MIX_REL, drawIdentity } from './identityFx';
 
 const KETCHUP = 0xe8302a;
 const BUN = 0xd99a4e;
@@ -60,119 +58,10 @@ const ok = (id: number): boolean => id >= 0 && id < 16;
 
 // ------------------------------------------------------------------------------------------------ champion identity
 
-type Pool = Pick<MotifPainter, 'burst' | 'single' | 'ring'>;
-let pool: Pool | null = null;
-const SH = SHAPE as unknown as Readonly<Record<string, number>>;
-/** The fun sticker pool as the champion motif painter (audio/champ/frankie.ts paintFrankie draws through it). */
-const PAINTER: MotifPainter = {
-  burst: (pos, o) => pool?.burst(pos, o),
-  single: (pos, o) => pool?.single(pos, o),
-  ring: (pos, o) => pool?.ring(pos, o),
-  shape: SH,
-  colors: { primary: IDENTITY.frankie.colors.primary, secondary: IDENTITY.frankie.colors.secondary },
-};
-/** The colour pair on an enemy: a gold-family colour mixed 70 percent toward white (never the gold "you" family). */
-const ENEMY_PRIMARY = 0xf8e7bc;
-const ENEMY_SECONDARY = IDENTITY.frankie.colors.secondary;
-const IAT = { x: 0, y: 0, z: 0 };
-const IDIR = { x: 0, z: 0 };
-const IDIR3 = { x: 0, y: 0, z: 0 };
-const NB = { n: 1, exact: true, shape: 0, color: 0, additive: false, intensity: 1, size: [0.1, 0.2] as readonly number[], life: [0.3, 0.5] as readonly number[], speed: [1, 2] as readonly number[], gravity: 0, up: 0, dir: undefined as typeof IDIR3 | undefined, spread: Math.PI, stretch: 1, drag: 1, flat: false, fade: 0 as number, r0: 0.5, sizeEnd: 1 };
-const NS = { shape: 0, color: 0, size0: 0.4, size1: 1.6, life: 0.3, alpha: 0.7, intensity: 1.4, additive: true };
+/** Champion identity (render/skillfx/identityFx.ts drawIdentity): the skill's nature accent and Frankie's motif. */
+const identity = (fx: FxCtx, src: number, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void =>
+  drawIdentity(fx, 'frankie', src, skill, x, y, z, n, dx, dz, nature);
 
-/** The skill's nature accent at IAT (NATURE_FX: its shape, colour and motion), about half a cast's worth of particles. */
-function natureAccent(fx: FxCtx, skill: SkillKey, has: boolean): void {
-  const s = NATURE_FX[IDENTITY.frankie.skills[skill].nature];
-  const p = pool!;
-  const o = NB;
-  o.n = funCount(fx, Math.max(2, Math.round(s.count.cast * 0.5)));
-  o.shape = SH[s.shape];
-  o.color = s.color;
-  o.additive = s.additive;
-  o.intensity = s.additive ? 1.4 : 1;
-  o.size = s.size;
-  o.life = s.life;
-  o.speed = s.speed;
-  o.gravity = s.gravity;
-  o.up = 0.6;
-  o.dir = undefined;
-  o.spread = Math.PI;
-  o.stretch = 1;
-  o.drag = 1;
-  o.flat = false;
-  o.fade = FADE.TWINKLE;
-  switch (s.motion) {
-    case 'slam':
-    case 'dome':
-    case 'implode':
-    case 'twinkle':
-      o.r0 = s.motion === 'implode' ? 1.4 : 0.6;
-      o.up = s.motion === 'dome' ? 1.6 : 0.4;
-      o.sizeEnd = s.motion === 'slam' ? 2 : 0.7;
-      p.ring(IAT, o);
-      return;
-    case 'ripple':
-      NS.shape = SH.RING;
-      NS.color = s.color;
-      for (let i = 0; i < 2; i++) {
-        NS.size0 = 0.4 + i * 0.5;
-        NS.size1 = 1.6 + i * 0.9;
-        NS.life = 0.3 + i * 0.06;
-        NS.alpha = 0.75 - i * 0.15;
-        p.single(IAT, NS);
-      }
-      return;
-    case 'sweep':
-    case 'bolt':
-    case 'streak':
-      if (has) {
-        o.dir = IDIR3;
-        o.spread = 0.6;
-      }
-      o.stretch = 2.5;
-      o.drag = 4;
-      break;
-    case 'rise':
-    case 'pillar':
-      o.up = 2.5;
-      break;
-    case 'arc':
-      o.up = 3;
-      break;
-    case 'trail':
-      o.flat = true;
-      o.up = 0.4;
-      break;
-    default:
-  }
-  p.burst(IAT, o);
-}
-
-/**
- * Champion identity (CHAMP-IDENTITY.md §1–§3): the skill's nature accent and Frankie's squiggle motif in the colour pair at
- * (x, y, z) for caster `src`, `n` motif particles (the tier halves it), along (dx, dz) when given. `nature` false: the motif alone. A
- * no-op without the fun pool (unit stubs).
- */
-function identity(fx: FxCtx, src: number, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void {
-  const p = funPool(fx) as unknown as Partial<Pool> | null;
-  if (!p || typeof p.burst !== 'function') return;
-  pool = p as Pool;
-  // gold stays "you": on an enemy the gold-family half of the pair is drawn as a pale glint (skins trimForTeam)
-  const foe = fx.relation(src) === 'enemy';
-  PAINTER.colors.primary = foe ? ENEMY_PRIMARY : IDENTITY.frankie.colors.primary;
-  PAINTER.colors.secondary = foe ? ENEMY_SECONDARY : IDENTITY.frankie.colors.secondary;
-  const has = dx !== 0 || dz !== 0;
-  IAT.x = x;
-  IAT.y = y;
-  IAT.z = z;
-  IDIR.x = IDIR3.x = dx;
-  IDIR.z = IDIR3.z = dz;
-  if (nature) natureAccent(fx, skill, has);
-  CHAMP_AUDIO.frankie.fx?.paint?.(PAINTER, IAT, funCount(fx, n), has ? IDIR : null, skill);
-}
-
-/** The identity mix relation of a Relation3. */
-const MIXREL = { own: 'mine', ally: 'ally', enemy: 'enemy' } as const;
 /** Stretch stripe colours: ketchup, and the mustard (a pale glint on an enemy). */
 const MUSTARD = IDENTITY.frankie.colors.primary;
 
@@ -191,7 +80,7 @@ function stretch(fx: Parameters<NonNullable<SkillFxSet['update']>>[1], ax: numbe
     sticker(fx, x, 0.5, z, 'PUFF', BUN, 0.95, 0.06);
     sticker(fx, x, 0.68, z, 'SOFT', SAUSAGE, 0.6, 0.06);
     // identity: ketchup and mustard stripes down the sausage
-    if (k % 3 === 1) sticker(fx, x, 0.86, z, 'SOFT', (k / 3) & 1 ? KETCHUP : foe ? ENEMY_PRIMARY : MUSTARD, 0.24, 0.06);
+    if (k % 3 === 1) sticker(fx, x, 0.86, z, 'SOFT', (k / 3) & 1 ? KETCHUP : foe ? ENEMY_PAIR.frankie!.primary : MUSTARD, 0.24, 0.06);
   }
   // the sizzle: one ember rising off the stretch each frame
   const t = vary();
@@ -262,7 +151,7 @@ export const SKILL_FX: SkillFxSet = {
       funPop(fx, e.src, 'COMBO!', Q.x, y + 0.7, Q.z);
       // identity: the splash and the two squiggles crossed into an X, and the Combo squirt
       identity(fx, e.src, 'passive', Q.x, y - 0.6, Q.z, 8);
-      playSkillSfx('frankie', 'passive', 'impact', { at: Q, relation: MIXREL[fx.relation(e.src)] });
+      playSkillSfx('frankie', 'passive', 'impact', { at: Q, relation: MIX_REL[fx.relation(e.src)] });
     }
   },
 
@@ -278,7 +167,7 @@ export const SKILL_FX: SkillFxSet = {
       throwSticker(fx, P.x, 0.3, P.z, Math.cos(ang) * 3, 4.5, Math.sin(ang) * 3, SHAPE.PUFF, DIRT, 0.3, 0.7, 12, 0, 0, false, 0.1);
     }
     // the pop: his W impact (thud + cork pop) and a squiggle of mustard he bursts out of
-    playSkillSfx('frankie', 'w', 'impact', { at: P, relation: MIXREL[fx.relation(id)] });
+    playSkillSfx('frankie', 'w', 'impact', { at: P, relation: MIX_REL[fx.relation(id)] });
     identity(fx, id, 'w', P.x, 0.1, P.z, 8);
     funPop(fx, id, 'POP!', P.x, funOverY(fx, id, 0.3), P.z);
   },
@@ -295,7 +184,7 @@ export const SKILL_FX: SkillFxSet = {
   onClip(id, what, fx) {
     if (what !== 'footlong' || !ok(id) || !fx.heroPos(id, P)) return;
     // the grab: his R impact (fire + the snap)
-    playSkillSfx('frankie', 'r', 'impact', { at: P, relation: MIXREL[fx.relation(id)] });
+    playSkillSfx('frankie', 'r', 'impact', { at: P, relation: MIX_REL[fx.relation(id)] });
     funPop(fx, id, 'SNAP!', P.x, funOverY(fx, id, 0.4), P.z);
     if (fx.relation(id) === 'own' && !fx.reduced) fx.cam.punch(0.04);
   },

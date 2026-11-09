@@ -46,7 +46,8 @@ import { funOverY, funPop, funRand, funSfx, orbit, sticker } from '../fx/fun/fun
 import { shower, throwSticker, toast } from '../fx/fun/skills2Fun';
 import { champSound, playSkillSfx } from '../../audio/skillSfx';
 import { sfx } from '../../audio/sfx';
-import { mixPriority, type MixRelation } from '../../audio/identityMix';
+import { mixPriority } from '../../audio/identityMix';
+import { MIX_REL } from './identityFx';
 
 const FIRE = 0xd02800;
 const EMBER = 0xe05010;
@@ -73,7 +74,6 @@ const towardCam = (): number => Math.atan2(-Math.cos(cameraYaw()), Math.sin(came
 
 /** Champion identity (CHAMP-IDENTITY.md §3, audio/champ/bengas.ts): the toast-gold crumb and the camellia petal. */
 const TOAST_GOLD = 0xe0a050;
-const MIX_REL: Readonly<Record<Relation3, MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
 /** Seconds between the toast's sizzle (the fire nature's travel layer) while it flies. */
 const TOAST_SIZZLE_S = 0.3;
 

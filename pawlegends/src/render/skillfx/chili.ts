@@ -20,17 +20,15 @@
  *
  * Pooled, no allocation per event or per frame. Render only.
  */
-import { CHAMP_AUDIO } from '../../audio/champ';
-import type { MotifPainter } from '../../audio/champ/types';
-import { IDENTITY, type SkillKey } from '../../data/identity';
+import { type SkillKey } from '../../data/identity';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { TICK_S } from '../anim/timing';
 import type { FxCtx, SkillFxSet } from '../anim/types';
-import { NATURE_FX } from '../fx/natureFx';
-import { FADE, SHAPE } from '../fx/Particles.js';
-import { funCount, funOverY, funPool, funPop, funSound, speedLines, sticker } from '../fx/fun/funKit';
+import { SHAPE } from '../fx/Particles.js';
+import { funOverY, funPop, funSound, speedLines, sticker } from '../fx/fun/funKit';
 import { shower } from '../fx/fun/skills2Fun';
 import { F, P, Q, faceOf, mesh, vary, yawOf } from './dogFx';
+import { drawIdentity } from './identityFx';
 
 const HOT = 0xff5a3c;
 const WAVE = 0xfff6e8;
@@ -55,109 +53,9 @@ const YODD = new Uint8Array(YAP_N);
 
 // ------------------------------------------------------------------------------------------------ champion identity
 
-type Pool = Pick<MotifPainter, 'burst' | 'single' | 'ring'>;
-let pool: Pool | null = null;
-const SH = SHAPE as unknown as Readonly<Record<string, number>>;
-/** The fun sticker pool as the champion motif painter (audio/champ/chili.ts paintChili draws through it). */
-const PAINTER: MotifPainter = {
-  burst: (pos, o) => pool?.burst(pos, o),
-  single: (pos, o) => pool?.single(pos, o),
-  ring: (pos, o) => pool?.ring(pos, o),
-  shape: SH,
-  colors: { primary: IDENTITY.chili.colors.primary, secondary: IDENTITY.chili.colors.secondary },
-};
-const IAT = { x: 0, y: 0, z: 0 };
-const IDIR = { x: 0, z: 0 };
-const IDIR3 = { x: 0, y: 0, z: 0 };
-const NB = { n: 1, exact: true, shape: 0, color: 0, additive: false, intensity: 1, size: [0.1, 0.2] as readonly number[], life: [0.3, 0.5] as readonly number[], speed: [1, 2] as readonly number[], gravity: 0, up: 0, dir: undefined as typeof IDIR3 | undefined, spread: Math.PI, stretch: 1, drag: 1, flat: false, fade: 0 as number, r0: 0.5, sizeEnd: 1 };
-const NS = { shape: 0, color: 0, size0: 0.4, size1: 1.6, life: 0.3, alpha: 0.7, intensity: 1.4, additive: true };
-
-/** The skill's nature accent at IAT (NATURE_FX: its shape, colour and motion), about half a cast's worth of particles. */
-function natureAccent(fx: FxCtx, skill: SkillKey, has: boolean): void {
-  const s = NATURE_FX[IDENTITY.chili.skills[skill].nature];
-  const p = pool!;
-  const o = NB;
-  o.n = funCount(fx, Math.max(2, Math.round(s.count.cast * 0.5)));
-  o.shape = SH[s.shape];
-  o.color = s.color;
-  o.additive = s.additive;
-  o.intensity = s.additive ? 1.4 : 1;
-  o.size = s.size;
-  o.life = s.life;
-  o.speed = s.speed;
-  o.gravity = s.gravity;
-  o.up = 0.6;
-  o.dir = undefined;
-  o.spread = Math.PI;
-  o.stretch = 1;
-  o.drag = 1;
-  o.flat = false;
-  o.fade = FADE.TWINKLE;
-  switch (s.motion) {
-    case 'slam':
-    case 'dome':
-    case 'implode':
-    case 'twinkle':
-      o.r0 = s.motion === 'implode' ? 1.4 : 0.6;
-      o.up = s.motion === 'dome' ? 1.6 : 0.4;
-      o.sizeEnd = s.motion === 'slam' ? 2 : 0.7;
-      p.ring(IAT, o);
-      return;
-    case 'ripple':
-      NS.shape = SH.RING;
-      NS.color = s.color;
-      for (let i = 0; i < 2; i++) {
-        NS.size0 = 0.4 + i * 0.5;
-        NS.size1 = 1.6 + i * 0.9;
-        NS.life = 0.3 + i * 0.06;
-        NS.alpha = 0.75 - i * 0.15;
-        p.single(IAT, NS);
-      }
-      return;
-    case 'sweep':
-    case 'bolt':
-    case 'streak':
-      if (has) {
-        o.dir = IDIR3;
-        o.spread = 0.6;
-      }
-      o.stretch = 2.5;
-      o.drag = 4;
-      break;
-    case 'rise':
-    case 'pillar':
-      o.up = 2.5;
-      break;
-    case 'arc':
-      o.up = 3;
-      break;
-    case 'trail':
-      o.flat = true;
-      o.up = 0.4;
-      break;
-    default:
-  }
-  p.burst(IAT, o);
-}
-
-/**
- * Champion identity (CHAMP-IDENTITY.md §1–§3): the skill's nature accent and Chili's pepper motif in his colour pair at
- * (x, y, z), `n` motif particles (the tier halves it), along (dx, dz) when given. `nature` false: the motif alone. A
- * no-op without the fun pool (unit stubs).
- */
-function identity(fx: FxCtx, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void {
-  const p = funPool(fx) as unknown as Partial<Pool> | null;
-  if (!p || typeof p.burst !== 'function') return;
-  pool = p as Pool;
-  const has = dx !== 0 || dz !== 0;
-  IAT.x = x;
-  IAT.y = y;
-  IAT.z = z;
-  IDIR.x = IDIR3.x = dx;
-  IDIR.z = IDIR3.z = dz;
-  if (nature) natureAccent(fx, skill, has);
-  CHAMP_AUDIO.chili.fx?.paint?.(PAINTER, IAT, funCount(fx, n), has ? IDIR : null, skill);
-}
+/** Champion identity (render/skillfx/identityFx.ts drawIdentity): the skill's nature accent and Chili's motif. */
+const identity = (fx: FxCtx, skill: SkillKey, x: number, y: number, z: number, n: number, dx = 0, dz = 0, nature = true): void =>
+  drawIdentity(fx, 'chili', null, skill, x, y, z, n, dx, dz, nature);
 
 export const SKILL_FX: SkillFxSet = {
   hero: 'chili',

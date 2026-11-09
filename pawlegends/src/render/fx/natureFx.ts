@@ -55,6 +55,41 @@ export const NATURE_FX: Readonly<Record<Nature, Readonly<NatureFxSpec>>> = Objec
 /** Identity particles allowed per 0.1 s window, by tier (reduce motion × REDUCED_COUNT). */
 export const NATURE_FX_BUDGET: Readonly<Record<QualityTier, number>> = Object.freeze({ low: 36, med: 72, high: 110 });
 
+/**
+ * Gold means "you" (relation rims, skins trimForTeam): on an enemy a saturated gold-family colour (hue 38°–58°) is
+ * drawn mixed 70 percent toward white, a pale glint. Every other colour passes through. Pure.
+ */
+export function paleGold(c: number): number {
+  const r = (c >> 16) & 255;
+  const g = (c >> 8) & 255;
+  const b = c & 255;
+  const mx = Math.max(r, g, b);
+  const mn = Math.min(r, g, b);
+  const l = (mx + mn) / 510;
+  if (mx === mn || l < 0.35 || l > 0.8) return c;
+  const s = (mx - mn) / 255 / (1 - Math.abs(2 * l - 1));
+  if (s < 0.55 || mx !== r) return c;
+  const h = (60 * (g - b)) / (mx - mn);
+  if (h < 38 || h > 58) return c;
+  const w = (v: number): number => Math.round(v + (255 - v) * 0.7);
+  return (w(r) << 16) | (w(g) << 8) | w(b);
+}
+
+/** Hand-picked enemy colour pairs (where the pale glint was tuned by eye); every other hero uses paleGold(). */
+export const ENEMY_PAIR: Partial<Record<HeroId, { primary: number; secondary: number }>> = {
+  clem: { primary: IDENTITY.clem.colors.primary, secondary: 0xfff8e5 },
+  duchess: { primary: IDENTITY.duchess.colors.primary, secondary: 0xfff1c9 },
+  frankie: { primary: 0xf8e7bc, secondary: IDENTITY.frankie.colors.secondary },
+};
+
+/** A hero's motif colour pair as the viewer sees it (gold-family colours pale on enemies). Writes into `out`. */
+export function motifColors(hero: HeroId, enemy: boolean, out: { primary: number; secondary: number }): void {
+  const c = IDENTITY[hero].colors;
+  const e = enemy ? ENEMY_PAIR[hero] : undefined;
+  out.primary = e ? e.primary : enemy ? paleGold(c.primary) : c.primary;
+  out.secondary = e ? e.secondary : enemy ? paleGold(c.secondary) : c.secondary;
+}
+
 /** Default motif particles per cast. */
 export const MOTIF_COUNT = 6;
 
@@ -66,6 +101,8 @@ export interface SkillFxOpts {
   scale?: number;
   /** Skip the motif (the hero's own script draws its signature). */
   noMotif?: boolean;
+  /** The caster is an enemy of the viewer: gold-family motif colours draw as a pale glint (gold means "you"). */
+  enemy?: boolean;
 }
 
 const _a = { x: 0, y: 0, z: 0 };
@@ -124,16 +161,19 @@ export class NatureFx {
     const S = o.scale ?? 1;
     const n = this.take(Math.round((phase === 'cast' ? spec.count.cast : spec.count.impact) * S));
     if (n > 0) this.paintNature(spec, phase, pos, dir, n, o.radius ?? spec.ring * S, o.length ?? 3 * S, S);
-    if (!o.noMotif) this.motifBurst(hero, pos, Math.round((CHAMP_AUDIO[hero].fx?.motifCount ?? MOTIF_COUNT) * (phase === 'cast' ? 1 : 0.5)), dir, key);
+    if (!o.noMotif) this.motifBurst(hero, pos, Math.round((CHAMP_AUDIO[hero].fx?.motifCount ?? MOTIF_COUNT) * (phase === 'cast' ? 1 : 0.5)), dir, key, o.enemy);
   }
 
-  /** The hero's motif (IDENTITY motif shape, or the champion's own painter) in its colour pair. */
-  motifBurst(hero: HeroId, pos: P3, n: number, dir: { x: number; z: number } | null = null, skill: SkillKey = 'basic'): void {
+  /**
+   * The hero's motif (IDENTITY motif shape, or the champion's own painter) in its colour pair; `enemy`: the caster is
+   * the viewer's enemy, so gold-family colours draw pale (motifColors).
+   */
+  motifBurst(hero: HeroId, pos: P3, n: number, dir: { x: number; z: number } | null = null, skill: SkillKey = 'basic', enemy = false): void {
     const k = this.take(n);
     if (k <= 0) return;
     const id = IDENTITY[hero];
-    this.painter.colors.primary = id.colors.primary;
-    this.painter.colors.secondary = id.colors.secondary;
+    const c = this.painter.colors;
+    motifColors(hero, enemy, c);
     if (CHAMP_AUDIO[hero].fx?.paint?.(this.painter, pos, k, dir, skill)) return;
     const shape = SHAPE[id.motif.shape];
     const half = Math.max(1, k >> 1);
@@ -141,9 +181,9 @@ export class NatureFx {
     _a.y = pos.y + 0.6;
     _a.z = pos.z;
     // normal blending: dark colour pairs (Domino's ink, Cacklejaw's dusk) stay visible
-    this.particles.burst(_a, { n: half, exact: true, shape, color: id.colors.primary, size: [0.22, 0.32], life: [0.5, 0.75], speed: [1.2, 2.4], up: 1.4, gravity: 2.5, spin: 3, fade: FADE.HOLD });
+    this.particles.burst(_a, { n: half, exact: true, shape, color: c.primary, size: [0.22, 0.32], life: [0.5, 0.75], speed: [1.2, 2.4], up: 1.4, gravity: 2.5, spin: 3, fade: FADE.HOLD });
     if (k - half > 0)
-      this.particles.burst(_a, { n: k - half, exact: true, additive: true, shape, color: id.colors.secondary, intensity: 1.3, size: [0.14, 0.22], life: [0.4, 0.6], speed: [1.6, 2.8], up: 1.2, gravity: 2, spin: 4, fade: FADE.TWINKLE });
+      this.particles.burst(_a, { n: k - half, exact: true, additive: true, shape, color: c.secondary, intensity: 1.3, size: [0.14, 0.22], life: [0.4, 0.6], speed: [1.6, 2.8], up: 1.2, gravity: 2, spin: 4, fade: FADE.TWINKLE });
   }
 
   private paintNature(s: NatureFxSpec, phase: SkillPhase, pos: P3, dir: { x: number; z: number } | null, n: number, radius: number, length: number, S: number): void {
