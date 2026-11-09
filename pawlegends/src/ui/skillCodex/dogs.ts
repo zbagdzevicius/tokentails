@@ -196,7 +196,8 @@ export const DOG_WORDS: Readonly<Partial<Record<HeroId, HeroWords>>> = Object.fr
     },
     q: {
       what: 'A tear so sad the hero it hits can barely move. A hit also brings Center Stage back sooner.',
-      tags: ['skillshot'],
+      // the slow is written as its own fading fact below, so `skip` also drops the tag the data would add: say it here
+      tags: ['slow', 'skillshot'],
       skip: ['slowBp', 'slow'],
       facts: [
         F.fmt('Slow', 'q', 'slowBp', (v, c) => `${v / 100}%, fading to ${c.n('q', 'slowTailBp') / 100}% over ${sec(c.n('q', 'slow') + c.n('q', 'slowTail'))}`, ['slow', 'slowTailBp', 'slowTail']),

@@ -156,3 +156,18 @@ describe('skill codex', () => {
     expect(rules[0].text).toContain(sec(CC_DR.immune));
   });
 });
+
+describe('skill codex: a crowd-control or sustain fact always has its tag', () => {
+  // a word file's `skip` drops a data key's fact and its tag; a custom fact that still shows the effect must keep the chip
+  const TAG_OF: Readonly<Record<string, string>> = { Slow: 'slow', Stun: 'stun', Root: 'root', Fear: 'fear', Charm: 'charm', Knockback: 'knockback', Pull: 'pull', Heal: 'heal', Shield: 'shield' };
+  for (const h of HERO_IDS) {
+    it(h, () => {
+      for (const c of heroCodex(h).cards) {
+        for (const f of c.facts) {
+          const t = TAG_OF[f.label];
+          if (t) expect(c.tags, `${h} ${c.slot} "${f.label}"`).toContain(t);
+        }
+      }
+    });
+  }
+});
