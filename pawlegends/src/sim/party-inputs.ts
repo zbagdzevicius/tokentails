@@ -26,14 +26,14 @@ import { G } from './world';
 export function validateHumans(humans: readonly number[], mode: MatchConfig['mode'] = 'pve'): void {
   const pvp = mode === 'pvp';
   const max = pvp ? SLOT_COUNT : SLOTS_PER_TEAM;
-  if (!Array.isArray(humans) || humans.length < (pvp ? 2 : 1) || humans.length > max) throw new RangeError(pvp ? 'pvp humans must list 2 to 6 slots' : 'humans must list 1 to 3 slots');
+  if (!Array.isArray(humans) || humans.length < (pvp ? 2 : 1) || humans.length > max) throw new RangeError(pvp ? `pvp humans must list 2 to ${SLOT_COUNT} slots` : `humans must list 1 to ${SLOTS_PER_TEAM} slots`);
   if (humans[0] !== 0) throw new RangeError('humans must start with slot 0');
   for (let i = 0; i < humans.length; i++) {
     const s = humans[i];
-    if (!Number.isInteger(s) || s < 0 || s >= max) throw new RangeError(pvp ? `human slot ${String(s)} is not 0 to 5` : `human slot ${String(s)} is not 0, 1 or 2`);
+    if (!Number.isInteger(s) || s < 0 || s >= max) throw new RangeError(pvp ? `human slot ${String(s)} is not 0 to ${SLOT_COUNT - 1}` : SLOTS_PER_TEAM === 3 ? `human slot ${String(s)} is not 0, 1 or 2` : `human slot ${String(s)} is not 0 to ${SLOTS_PER_TEAM - 1}`);
     if (i > 0 && s <= humans[i - 1]) throw new RangeError('humans must be ascending and unique');
   }
-  if (pvp && !humans.includes(PVP_LEAD1)) throw new RangeError('pvp humans must contain slot 3 (team 1 lead)');
+  if (pvp && !humans.includes(PVP_LEAD1)) throw new RangeError(`pvp humans must contain slot ${PVP_LEAD1} (team 1 lead)`);
 }
 
 /** One gate and one log per human slot >= 1 (slot 0 keeps the match's own gate and log). Indexed 0..5. */
@@ -41,8 +41,13 @@ export function createPartyState(config: MatchConfig): PartyState {
   const humans = config.humans ?? [0];
   validateHumans(humans, config.mode);
   const slots: number[] = [];
-  const gates: PartyState['gates'] = [null, null, null, null, null, null];
-  const logs: PartyState['logs'] = [null, null, null, null, null, null];
+  // Sim v19: one entry per hero slot of the map (6, or 10 on Hearthwood).
+  const gates: PartyState['gates'] = [];
+  const logs: PartyState['logs'] = [];
+  for (let s = 0; s < SLOT_COUNT; s++) {
+    gates.push(null);
+    logs.push(null);
+  }
   for (let i = 1; i < humans.length; i++) {
     const s = humans[i];
     slots.push(s);

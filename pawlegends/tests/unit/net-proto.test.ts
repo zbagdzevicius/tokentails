@@ -41,8 +41,8 @@ const turn: TurnFrame = {
 };
 
 describe('net-proto', () => {
-  it('PROTO is 3 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
-    expect(PROTO).toBe(3);
+  it('PROTO is 4 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
+    expect(PROTO).toBe(4);
     for (let op = 1; op < CMD_SIZE.length; op++) expect(CMD_SIZE[op]).toBe(OP_SIZE[op]);
     expect(Object.keys(OP_SIZE)).toHaveLength(CMD_SIZE.length - 1);
   });
@@ -54,6 +54,33 @@ describe('net-proto', () => {
     expect(hex(encodeEcho({ clientMs: 1, serverMs: 2 }))).toBe('830100000002000000');
     expect(hex(encodeTurn(turn))).toBe('81ac0204050c07020001780050001a0402c800280004');
     expect(hex(encodeCatchup(10, 11, true, encodeTurnBody({ turn: 10, modeMask: 0, acks: [], entries: [] })))).toBe('820a0b010a000000');
+  });
+
+  it('PROTO 4 classic (MAP-5V5.md §2.7): ten slots; a 3v3 turn keeps its PROTO 3 bytes', () => {
+    const classic: TurnFrame = {
+      turn: 7,
+      modeMask: 0b1100100000,
+      acks: [1, undefined, undefined, undefined, undefined, 3, undefined, undefined, 8, 9],
+      entries: [
+        { slot: 5, sub: 0, pilot: false, cmd: move },
+        { slot: 8, sub: 1, pilot: true, cmd: cast },
+        { slot: 9, sub: 0, pilot: false, cmd: move },
+      ],
+    };
+    const bytes = encodeTurnBody(classic);
+    // varint masks: 0x320 = a0 06, acks 0x321 = a1 06; slot 8 = 0x20 | sub 0x08 | pilot 0x10 = 0x38; slot 9 = 0x21
+    expect(hex(bytes)).toBe('07a006a1060103080903050178005000380402c800280004210178005000');
+    const back = decodeTurnBody(bytes);
+    expect(back.modeMask).toBe(0b1100100000);
+    expect(back.acks[5]).toBe(3);
+    expect(back.acks[8]).toBe(8);
+    expect(back.acks[9]).toBe(9);
+    expect(back.entries.map((e) => [e.slot, e.sub, e.pilot])).toEqual([
+      [5, 0, false],
+      [8, 1, true],
+      [9, 0, false],
+    ]);
+    expect(parseClientJson('{"t":"mm.join","queue":"classic","side":"any"}')).toEqual({ t: 'mm.join', queue: 'classic', side: 'any' });
   });
 
   it('PROTO 3 PvP (V16.md §4.3): six slots on the wire; a co-op turn keeps its PROTO 2 bytes', () => {
@@ -73,11 +100,13 @@ describe('net-proto', () => {
     expect(back.acks[3]).toBe(3);
     expect(back.acks[5]).toBe(9);
     expect(back.entries.map((e) => e.slot)).toEqual([3, 5]);
-    // bits past slot 5 are refused
-    expect(() => decodeTurnBody(new Uint8Array([1, 0x40, 0, 0]))).toThrow(ProtoError);
-    expect(() => decodeTurnBody(new Uint8Array([1, 0, 0x40, 0]))).toThrow(ProtoError);
-    expect(() => decodeTurnBody(new Uint8Array([1, 0, 0, 1, 6, 6]))).toThrow(ProtoError);
-    expect(MAX_FRAME[Frame.TURN]).toBe(256);
+    // PROTO 4: bits past slot 9 are refused (a varint mask of 1024), and entry flags 0x40 / 0x80
+    expect(() => decodeTurnBody(new Uint8Array([1, 0x80, 0x08, 0, 0]))).toThrow(ProtoError);
+    expect(() => decodeTurnBody(new Uint8Array([1, 0, 0x80, 0x08, 0]))).toThrow(ProtoError);
+    expect(() => decodeTurnBody(new Uint8Array([1, 0, 0, 1, 0x46, 6]))).toThrow(ProtoError);
+    // slots 10..15 (bit 3 set with low bits 2..7) are refused
+    expect(() => decodeTurnBody(new Uint8Array([1, 0, 0, 1, 0x22, 6]))).toThrow(ProtoError);
+    expect(MAX_FRAME[Frame.TURN]).toBe(512);
     // the casual frames
     expect(parseClientJson('{"t":"mm.join","queue":"casual","side":"any"}')).toEqual({ t: 'mm.join', queue: 'casual', side: 'any' });
     expect(parseClientJson('{"t":"mm.accept","match":"abcdefghijkl","yes":true}')).toEqual({ t: 'mm.accept', match: 'abcdefghijkl', yes: true });

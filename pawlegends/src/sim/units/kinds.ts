@@ -1,18 +1,19 @@
 /** Per-kind lookups shared by the unit modules: radius, attack numbers, invulnerability. */
 import { GROWTH_FLOOR, HERO_IDS, HEROES, ROLE_GROWTH } from '../../data/heroes';
 import { TOY_SUM } from '../../data/toys';
-import { RADIUS, TOWER_SPOTS } from '../../data/map';
+import { MAP, RADIUS, TOWER_SPOTS } from '../../data/map';
 import { MINIONS, MINION_KINDS } from '../../data/minions';
 import { CORE_STATS, TOWERS } from '../../data/towers';
 import { EFFECTS } from '../../data/effects';
-import { RAT_CAMP_STATS } from '../../data/camps';
+import { CAMP_KINDS } from '../../data/camps';
 import { BP_ONE, applyBp, idiv } from '../fixed';
 import { Buff, G, Kind, RANGE, type World } from '../world';
 import { bonusSpeedBp } from '../effects/bonus';
 
 const RADIUS_BY_KIND: readonly number[] = [0, RADIUS.hero, RADIUS.minion, RADIUS.tower, RADIUS.core, RADIUS.fountain, RADIUS.camp, RADIUS.pudding];
 
-export const radiusOf = (w: World, id: number): number => RADIUS_BY_KIND[w.kind[id]];
+/** Sim v19: a camp monster's radius is its kind's (rats: RADIUS.camp, as before). */
+export const radiusOf = (w: World, id: number): number => (w.kind[id] === Kind.Camp ? CAMP_KINDS[w.sub[id]].radius : RADIUS_BY_KIND[w.kind[id]]);
 
 export const heroData = (w: World, id: number) => HEROES[HERO_IDS[w.sub[id]]];
 export const minionData = (w: World, id: number) => MINIONS[MINION_KINDS[w.sub[id]]];
@@ -29,7 +30,7 @@ export function attackRange(w: World, id: number): number {
     case Kind.Core:
       return CORE_STATS.range;
     case Kind.Camp:
-      return RAT_CAMP_STATS.range;
+      return CAMP_KINDS[w.sub[id]].range;
     default:
       return 0;
   }
@@ -63,11 +64,11 @@ export function attackEvery(w: World, id: number): number {
     case Kind.Minion:
       return minionData(w, id).attackEvery;
     case Kind.Tower:
-      return TOWERS[w.sub[id] === 0 ? 'outer' : 'inner'].attackEvery;
+      return TOWERS[TOWER_TIERS[w.sub[id]]].attackEvery;
     case Kind.Core:
       return CORE_STATS.attackEvery;
     case Kind.Camp:
-      return RAT_CAMP_STATS.attackEvery;
+      return CAMP_KINDS[w.sub[id]].attackEvery;
     default:
       return 0;
   }
@@ -80,7 +81,7 @@ export function attackDamage(w: World, id: number): number {
     return b.attack + b.attackPerLevel * (w.level[id] - 1);
   }
   if (w.kind[id] === Kind.Minion) return minionData(w, id).dmg;
-  if (w.kind[id] === Kind.Camp) return RAT_CAMP_STATS.dmg;
+  if (w.kind[id] === Kind.Camp) return CAMP_KINDS[w.sub[id]].dmg;
   return 0;
 }
 
@@ -88,7 +89,7 @@ function baseSpeed(w: World, id: number): number {
   // Wave C (C1): plus the level's move speed; slows and hastes scale the sum
   if (w.kind[id] === Kind.Hero) return heroData(w, id).base.speed + levelSpeed(w, id);
   if (w.kind[id] === Kind.Minion) return minionData(w, id).speed;
-  if (w.kind[id] === Kind.Camp) return RAT_CAMP_STATS.speed;
+  if (w.kind[id] === Kind.Camp) return CAMP_KINDS[w.sub[id]].speed;
   return 0;
 }
 
@@ -101,8 +102,14 @@ export function moveSpeed(w: World, id: number): number {
   return applyBp(base, Math.max(bp, EFFECTS.minSpeedBp));
 }
 
+/** Tower tiers by `w.sub` (sim v19: gate and hearth on Hearthwood). */
+export const TOWER_TIERS = Object.freeze(['outer', 'inner', 'gate', 'hearth'] as const);
+const TIER_PREV: readonly string[] = ['', 'outer', 'inner', ''];
+
 /**
- * Structure invulnerability (§5): an inner tower until that lane's outer falls; a core until one inner falls.
+ * Structure invulnerability (§5): an inner tower until that lane's outer falls; a core until one inner falls. Sim v19
+ * (Hearthwood, MAP-5V5.md §1.4): a gate tower until its lane's inner falls; a Hearth Guard until one gate tower of its
+ * team falls; the core until both Hearth Guards fell.
  */
 export function isInvulnerable(w: World, id: number): boolean {
   const k = w.kind[id];
@@ -111,10 +118,15 @@ export function isInvulnerable(w: World, id: number): boolean {
     const perTeam = TOWER_SPOTS.length;
     const base = RANGE.towers + (local >= perTeam ? perTeam : 0);
     const spot = TOWER_SPOTS[local % perTeam];
-    if (spot.tier !== 'inner') return false;
+    if (spot.tier === 'outer') return false;
+    if (spot.tier === 'hearth') {
+      for (let k2 = 0; k2 < perTeam; k2++) if (TOWER_SPOTS[k2].tier === 'gate' && w.alive[base + k2] === 0) return false;
+      return true;
+    }
+    const prev = TIER_PREV[TOWER_TIERS.indexOf(spot.tier)];
     for (let k2 = 0; k2 < perTeam; k2++) {
       const s = TOWER_SPOTS[k2];
-      if (s.lane === spot.lane && s.tier === 'outer' && w.alive[base + k2] === 1) return true;
+      if (s.lane === spot.lane && s.tier === prev && w.alive[base + k2] === 1) return true;
     }
     return false;
   }
@@ -125,10 +137,17 @@ export function isInvulnerable(w: World, id: number): boolean {
   return (w.buffs[id] & Buff.Invulnerable) !== 0;
 }
 
-/** Is `team`'s core open to hits by its towers alone: is one of its inner towers down? */
+/**
+ * Is `team`'s core open to hits by its towers alone: is one of its inner towers down? Sim v19 (Hearthwood): are both
+ * of its Hearth Guards down?
+ */
 export function coreExposed(w: World, team: number): boolean {
   const perTeam = TOWER_SPOTS.length;
   const base = RANGE.towers + team * perTeam;
+  if (MAP.point === 1) {
+    for (let k2 = 0; k2 < perTeam; k2++) if (TOWER_SPOTS[k2].tier === 'hearth' && w.alive[base + k2] === 1) return false;
+    return true;
+  }
   for (let k2 = 0; k2 < perTeam; k2++) {
     if (TOWER_SPOTS[k2].tier === 'inner' && w.alive[base + k2] === 0) return true;
   }

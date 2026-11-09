@@ -126,7 +126,12 @@ html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::a
 }
 .pl-lobby .lb-online-row .lb-ico { width: 20px; height: 20px; flex: none; }
 .pl-lobby .lb-online-row small { font-size: 0.8em; opacity: 0.85; margin-left: 2px; }
-.pl-lobby .lb-online-row .lb-lock { width: auto; height: auto; font-size: 0.8em; }
+.pl-lobby .lb-online-row .lb-lock { width: auto; height: auto; font-size: 11px; }
+.pl-lobby .lb-online-row small { font-size: max(11px, 0.8em); }
+/* Co-op stays a solid button (a new guest must see it as one: matchmaking e2e) but in butter, not pink: Play is the only
+   filled pink button */
+.pl-lobby .lb-online-row .pl-btn.lb-online { background: rgba(255, 211, 77, 0.22); color: var(--cream); box-shadow: inset 0 0 0 2px rgba(255, 211, 77, 0.7); }
+.pl-lobby .lb-online-row .pl-btn.lb-online .lb-ico { color: var(--butter, #ffd34d); }
 .pl-lobby .lb-pvp[aria-disabled='true'] { opacity: 0.6; filter: saturate(0.5); }
 .pl-lobby .lb-joincode { flex: 0 0 auto; }
 .pl-lobby .lb-joincode b { font-size: 20px; line-height: 1; }
@@ -259,14 +264,16 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 }
 .lb-back .pl-icon { width: 28px; height: 28px; }
 
-/* the host's cards slot (embed integration: badges, sign-in, squad strip): over the scene on the right, never in the
-   column, so the column keeps its no-scroll budget */
+/* the host's cards slot (embed integration: the champion's "About" chip, level badges, sign-in, squad strip): in the
+   column, between the online row and the rail, in the space the column has left (never over the 3D hero, never
+   scrolling). It shrinks first: what does not fit is clipped at the column's edge, Play and the rail never move. */
 .lb-cards {
-  position: absolute; right: max(28px, var(--safe-r)); bottom: calc(160px + var(--safe-b)); width: min(300px, 30vw);
-  max-height: calc(100% - 260px); overflow: hidden; display: flex; flex-direction: column; align-items: flex-end; gap: 6px;
+  flex: 0 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  margin-top: var(--lb-gap);
 }
 .lb-cards:empty { display: none; }
-.lb-cards .plc { margin: 0; align-items: flex-end; }
+.lb-cards .plc { margin: 0; align-items: flex-start; }
+.lb-cards .plc-champ-chip { min-height: 40px; }
 
 /* focus: a clear ring on every control (keyboard) */
 .pl-lobby button:focus-visible, .pl-lobby summary:focus-visible {
@@ -280,14 +287,14 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-lobby {
     --lb-pad-t: max(8px, var(--safe-t)); --lb-pad-b: max(8px, var(--safe-b)); --lb-left: max(16px, var(--safe-l));
     --lb-w: clamp(296px, 46vw, 360px); --lb-gap: clamp(4px, 2dvh, 8px);
-    --lb-play-h: clamp(44px, 14dvh, 52px); --lb-seg-h: 34px; --lb-online-h: 40px; --lb-ri-w: 52px; --lb-ri-h: 56px;
+    --lb-play-h: clamp(44px, 14dvh, 52px); --lb-seg-h: 40px; --lb-online-h: 40px; --lb-ri-w: 52px; --lb-ri-h: 56px;
   }
   .pl-title.pl-lobby .lb-col { justify-content: flex-start; }
   .lb-rail { margin-top: auto; padding-top: 8px; gap: 4px; }
   .pl-title.pl-lobby .brand-logo { margin: 0 0 0 -4px; }
   .pl-title.pl-lobby .brand-logo img { width: auto; height: 36px; }
   .pl-title.pl-lobby .tag, .lb-eyebrow, .lb-chips, .pl-lobby .sub, .pl-lobby .lb-corner .lb-badge { display: none; }
-  .lb-name { padding: 2px 8px 2px 12px; gap: 0; }
+  .lb-name { padding: 2px 8px 2px 12px; gap: 0; margin-left: 0; }
   .lb-hero { font-size: 26px; }
   .lb-hero-row { gap: 6px; }
   .lb-swap { width: 22px; height: 22px; font-size: 13px; }
@@ -302,14 +309,14 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-lobby .lb-online-row { gap: 4px; }
   .pl-lobby .lb-online-row .pl-btn { font-size: 13px; padding: 0 8px; gap: 4px; }
   .pl-lobby .lb-online-row .lb-ico { width: 18px; height: 18px; }
-  .lb-ri { font-size: 10px; border-radius: 14px; gap: 3px; }
+  .lb-ri { font-size: 11px; border-radius: 14px; gap: 3px; }
   .lb-quests > summary { border-radius: 14px; gap: 3px; }
   .lb-ri > .pl-icon, .lb-ri > .lb-ico { width: 22px; height: 22px; }
   .lb-ring { width: 26px; height: 26px; }
   .lb-ring .pl-icon { width: 15px; height: 15px; }
   /* GFX: phones drop the card peek; the Cards rail item opens the same drawer */
   .lb-peek { display: none; }
-  .lb-cards { top: calc(60px + var(--safe-t)); bottom: auto; right: max(10px, var(--safe-r)); width: min(220px, 30vw); max-height: calc(100% - 76px); }
+  .lb-cards { margin-top: 4px; }
   .lb-icon { height: 40px; min-width: 40px; }
   .lb-icon:not(.wide) { width: 40px; }
   /* UX pass 2: Games is the only way out on touch (no host close button): it keeps the 44 px touch minimum */
@@ -349,4 +356,23 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-title.pl-lobby .logo .paw { animation: none; }
   .lb-mini.tt-card { transition: none; }
   .pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner { transition: none; transform: none; }
+}
+
+/* Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic, one tap, remembered. It sits in the row under Play, next to the
+   bots (it replaces the "3v3 vs bots" line, which it says itself), so it costs no height in the no-scroll budget. */
+.pl-lobby .lb-map {
+  flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--lb-panel);
+  box-shadow: inset 0 0 0 1px var(--lb-line); height: var(--lb-seg-h); box-sizing: border-box;
+}
+.pl-lobby .lb-map button {
+  font: 600 14px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 999px; padding: 0 14px;
+  cursor: pointer; position: relative; white-space: nowrap;
+}
+.pl-lobby .lb-map button b { font-weight: 800; letter-spacing: 0.02em; }
+.pl-lobby .lb-map button::after { content: ''; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+.pl-lobby .lb-map button.on { background: var(--butter, #ffd34d); color: #3a2440; }
+@media (max-height: 480px) {
+  /* phones: "3v3 | 5v5" (the full names stay in the aria-labels) */
+  .pl-lobby .lb-map button { font-size: 13px; padding: 0 12px; }
+  .pl-lobby .lb-map .lb-mw { display: none; }
 }

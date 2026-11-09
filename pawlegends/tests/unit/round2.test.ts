@@ -31,7 +31,7 @@ import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v8: the takedown chip', () => {
   it('SIM_VERSION is 15 (sim v9 to v15 kept the chip)', () => {
-    expect(SIM_VERSION).toBe(18);
+    expect(SIM_VERSION).toBe(19);
   });
 
   it('stops at the cap before Sunset, then chips the weakest tower that can be hit', () => {
@@ -234,9 +234,9 @@ describe('round 2 client: names, cats and controls', () => {
     expect(slideAngle(50000, 30000, 0)).toBe(0);
   });
 
-  it('feel pass B1: the only camera choice is Normal or High (no free zoom)', () => {
-    expect(Object.keys(CAMERA_HEIGHTS)).toEqual(['normal', 'high']);
-    expect(CAMERA_HEIGHTS.high / CAMERA_HEIGHTS.normal).toBeCloseTo(1.12, 5);
+  it('feel pass B1: the only camera choice is one of five fixed steps (no free zoom)', () => {
+    expect(Object.keys(CAMERA_HEIGHTS)).toEqual(['close', 'normal', 'high', 'higher', 'max']);
+    expect(Object.values(CAMERA_HEIGHTS)).toEqual([0.88, 1, 1.12, 1.25, 1.4]);
   });
 
   it('the talent auto-pick runs on wall-clock time (a slow phone no longer stretches it)', () => {

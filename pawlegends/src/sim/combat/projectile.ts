@@ -12,7 +12,7 @@ import { rulesOf } from '../rules';
 import { TICK_HZ } from '../../data/timeline';
 import { applyBp, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, Kind, RANGE, maskHas, type World } from '../world';
+import { ENTITY_CAP, Kind, RANGE, type World, MAX_ENTITIES, pHas } from '../world';
 import { dealDamage } from './damage';
 import { ON_HIT, PFLAG, markHit, reflectSkillshot } from '../effects/projectile';
 import { alongLine } from '../effects/line';
@@ -108,9 +108,9 @@ function stepBolt(m: MatchHandle, p: number): void {
   if (guardBlocks(w, w.pTeam[p], w.pX[p], w.pY[p], dst)) w.pAlive[p] = 0;
 }
 
-const cand = new Int32Array(ENTITY_CAP);
+const cand = new Int32Array(MAX_ENTITIES);
 /** Along-segment keys: at most one tick's travel squared (well inside int32). */
-const key = new Int32Array(ENTITY_CAP);
+const key = new Int32Array(MAX_ENTITIES);
 
 function applyOnHit(w: World, p: number, e: number): void {
   const fx = w.pEffect[p];
@@ -136,7 +136,7 @@ function stepSkillshot(m: MatchHandle, p: number): void {
   // Candidates the swept segment touches this tick, nearest first (ties: lowest id).
   let n = 0;
   for (let e = 0; e < RANGE.end; e++) {
-    if (maskHas(w.pHitLo[p], w.pHitHi[p], e) || !isAbilityTarget(w, e, w.pTeam[p]) || domeShields(w, w.pTeam[p], e)) continue;
+    if (pHas(w, p, e) || !isAbilityTarget(w, e, w.pTeam[p]) || domeShields(w, w.pTeam[p], e)) continue;
     const along = alongLine(ax, ay, bx, by, w.pRadius[p], w.x[e], w.y[e], radiusOf(w, e));
     if (along < 0) continue;
     let i = n++;

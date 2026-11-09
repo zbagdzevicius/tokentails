@@ -286,6 +286,42 @@ describe('LOCK IN says why', () => {
     expect(card.querySelector('[data-slot="e"]')?.getAttribute('aria-selected')).toBe('true');
     expect(visible(card)).toEqual(HERO_IDS.filter((h) => HEROES[h].side === 'dog' && HEROES[h].role === 'tank'));
   });
+
+  it("a redraw shows the new hero's own skill icons (the skill tabs and Preview carry data-slot, but are not host slots)", () => {
+    const v = partyView();
+    const card = document.createElement('div');
+    document.body.appendChild(card);
+    const html = (hover: string): string => pickHtml({ view: v, hover, trick: 'pounce', secondsLeft: 20, error: null });
+    card.innerHTML = html('nugget');
+    // the integration's squad slot: what the host drew in it survives every redraw
+    const squad = document.createElement('div');
+    squad.className = 'cs-squad';
+    squad.dataset.slot = 'cards';
+    squad.innerHTML = '<b class="host">squad</b>';
+    card.querySelector('.cs-team')!.appendChild(squad);
+    for (const h of ['nugget', 'marshmallow', 'howler']) {
+      expect(patchChampSelect(card, html(h))).toBe(true);
+      const fresh = document.createElement('div');
+      fresh.innerHTML = html(h);
+      expect(card.querySelector('.cs-skills')!.innerHTML).toBe(fresh.querySelector('.cs-skills')!.innerHTML);
+      expect(card.querySelector('.cs-sk[data-slot="passive"]')!.textContent).not.toContain('Preview');
+      expect(card.querySelector('.cs-preview')!.textContent).toContain('Preview');
+    }
+  });
+
+  it('arrow keys skip a tile that cannot take focus (focus never sticks on a disabled tile)', () => {
+    const root = document.createElement('div');
+    document.body.appendChild(root);
+    const heroes = HERO_IDS.filter((h) => HEROES[h].side === 'cat').slice(0, 4);
+    const m = { ...baseModel(), heroes, selected: heroes[0], tile: (h: string) => ({ disabled: h === heroes[1] }) } as CsModel;
+    root.innerHTML = champSelectHtml(m);
+    wireChampSelect(root);
+    const first = root.querySelector<HTMLElement>(`[data-h="${heroes[0]}"]`)!;
+    first.focus();
+    first.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }));
+    expect(document.activeElement?.getAttribute('data-h')).toBe(heroes[2]);
+    expect(root.querySelector<HTMLElement>(`[data-h="${heroes[1]}"]`)!.tabIndex).toBe(-1);
+  });
 });
 
 function baseModel(): Partial<CsModel> {

@@ -6,6 +6,7 @@ import { MAX_TICKS } from '../data/limits';
 import type { MatchResult, ReplayRecord, TimedCommand } from './api';
 import { decodeStream, fromBase64 } from './commands';
 import { createMatch, fillPicks, hashTrail, result, step, tickOf, type MatchHandle } from './index';
+import { bindMap, mapIndex } from './map/runtime';
 
 export interface ReplayRun {
   result: MatchResult | null;
@@ -15,15 +16,17 @@ export interface ReplayRun {
 }
 
 /** Decode `record.inputs`; throws DecodeError on a malformed stream or a command at or after `ticks` (trailing input). */
-export function replayCommands(record: Pick<ReplayRecord, 'inputs' | 'ticks'>): TimedCommand[] {
+export function replayCommands(record: Pick<ReplayRecord, 'inputs' | 'ticks' | 'map'>): TimedCommand[] {
+  // Sim v19: decoded against the record's map (its bounds and limits).
+  bindMap(mapIndex(record.map));
   return decodeStream(fromBase64(record.inputs), Math.min(record.ticks, MAX_TICKS) - 1);
 }
 
 /** Re-simulate a replay. Stops at the match end or at `record.ticks` (never beyond MAX_TICKS). */
-export function runReplay(record: Pick<ReplayRecord, 'seed' | 'difficulty' | 'hero' | 'trick' | 'inputs' | 'ticks'>): ReplayRun {
+export function runReplay(record: Pick<ReplayRecord, 'seed' | 'difficulty' | 'hero' | 'trick' | 'inputs' | 'ticks' | 'map'>): ReplayRun {
   const commands = replayCommands(record);
-  const { picks, tricks } = fillPicks(record.seed, record.hero, record.trick);
-  const match: MatchHandle = createMatch({ seed: record.seed, picks, tricks, difficulty: record.difficulty });
+  const { picks, tricks } = fillPicks(record.seed, record.hero, record.trick, record.map);
+  const match: MatchHandle = createMatch({ seed: record.seed, picks, tricks, difficulty: record.difficulty, ...(record.map === undefined ? {} : { map: record.map }) });
   const limit = Math.min(record.ticks, MAX_TICKS);
   let ci = 0;
   const batch: TimedCommand['cmd'][] = [];

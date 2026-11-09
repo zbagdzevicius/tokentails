@@ -9,18 +9,19 @@ import type { PartyView } from '../../net/proto';
 import { portraitUrl } from '../../render/portraits';
 import { HERO_TEXT } from '../../ui/heroText';
 import { COPY, esc, sideText } from './copy';
-import { shownName } from './partyLobby';
+import { seatsPerTeam, shownName } from './partyLobby';
 
 export function loadingHtml(v: PartyView, hideNames = false): string {
   const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
   // casual PvP (V16.md §5): both teams, every bot seat labelled Bot, the own team first
-  if (v.mm?.mode === 'casual') {
+  const per = seatsPerTeam(v);
+  if (v.mm?.mode === 'casual' || (v.mm && per === 5)) {
     const mine = v.mm.team ?? 0;
-    const team = (t: number) => [0, 1, 2].map((i) => card(v.members.find((m) => m.slot === t * 3 + i))).join('');
+    const team = (t: number) => Array.from({ length: per }, (_, i) => card(v.members.find((m) => m.slot === t * per + i))).join('');
     const species = v.mm.species ?? ['cat', 'dog'];
     return `<div class="pp-card pp-narrow pp-loading" data-testid="party-loading" data-pvp="1"><h2>${COPY.loadingTitle}</h2><p class="pp-dim">${esc(COPY.yourTeam(sideText(species[mine])))}</p><ul class="pp-lcs" data-testid="pvp-load-mine">${team(mine)}</ul><p class="pp-dim">${esc(`${COPY.theirTeam}: ${sideText(species[1 - mine])}`)}</p><ul class="pp-lcs their" data-testid="pvp-load-theirs">${team(1 - mine)}</ul></div>`;
   }
-  const cards = [0, 1, 2]
+  const cards = Array.from({ length: per }, (_, i) => i)
     .map((i) => card(humans[i]))
     .join('');
   const late = (v.deadlineMs ?? 1) <= 0 ? humans.find((m) => (m.loadPct ?? 0) < 100 && m.id !== v.you) : undefined;

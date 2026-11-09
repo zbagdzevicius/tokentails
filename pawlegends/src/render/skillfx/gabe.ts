@@ -39,7 +39,7 @@
  */
 import { playSkillSfx } from '../../audio/skillSfx';
 import { screenRightXZ, towardCameraXZ } from '../coords';
-import { CAPS, RADIUS } from '../../data/map';
+import { CAPS, MAX_HEROES, RADIUS } from '../../data/map';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BuffFlag } from '../../sim/api';
 import { stubFx } from '../anim/common';
@@ -104,7 +104,6 @@ const BOLT_SPEED = 18;
 const BOLT_REACH = 5.5;
 /** A bolt whose hit never arrives (a miss, a lost event) ends here. */
 const BOLT_MAX_S = 0.5;
-const HEROES = CAPS.heroes;
 const TAU = Math.PI * 2;
 
 // ------------------------------------------------------------------------------------------------ scratch (no allocation per call)
@@ -251,7 +250,7 @@ const lHead = new Float32Array(NL);
 const lOk = new Uint8Array(NL);
 /** Feel pass: the heart-eyes clock per leash, and per caster the R cast whose "MLEM!" already showed. */
 const lEyes = new Float32Array(NL);
-const mlemDone = new Uint8Array(HEROES);
+const mlemDone = new Uint8Array(MAX_HEROES);
 
 /** Basic heart bolts: launched along her facing; bent onto the hero the sim's hit names, when it arrives. */
 const NK = 4;
@@ -269,7 +268,7 @@ const kNext = new Float32Array(NK);
 /** Travelled distance (m) along the facing; the head holds at BOLT_REACH until the hit (or BOLT_MAX_S). */
 const kDist = new Float32Array(NK);
 /** Her own basic count per hero id (A → B → C look of the bolt). */
-const kCount = new Uint8Array(HEROES);
+const kCount = new Uint8Array(MAX_HEROES);
 
 const free = (on: Uint8Array): number => {
   for (let i = 0; i < on.length; i++) if (on[i] === 0) return i;
@@ -353,7 +352,7 @@ function wrapTarget(fx: FxCtx, src: number, ax: number, az: number, range: numbe
   }
   let best = src;
   let bestD = 0;
-  for (let h = 0; h < HEROES; h++) {
+  for (let h = 0; h < CAPS.heroes; h++) {
     if (h === src || !sameTeam(fx, h, src) || !fx.heroPos(h, _c)) continue;
     if (Math.hypot(_c.x - _a.x, _c.z - _a.z) > range) continue;
     const dd = Math.hypot(_c.x - px, _c.z - pz);
@@ -458,8 +457,8 @@ function castR(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   // charmed first (the per-target markers are gameplay information, they get the pool slots before any dressing):
   // enemy heroes inside the sim's own cone (range + body radius, inside the body always), Purrified ones skipped
   const dur = (a.charm ?? 30) * TICK_S;
-  if (e.src >= 0 && e.src < HEROES) mlemDone[e.src] = 0;
-  for (let h = 0; h < HEROES; h++) {
+  if (e.src >= 0 && e.src < CAPS.heroes) mlemDone[e.src] = 0;
+  for (let h = 0; h < CAPS.heroes; h++) {
     if (sameTeam(fx, h, e.src) || !fx.heroPos(h, _c)) continue;
     if (fx.status && fx.status(h, _st) && (_st.buffs & BuffFlag.Purrified) !== 0) continue;
     const dx = _c.x - _a.x;
@@ -532,7 +531,7 @@ function boltHit(k: number, dst: number, fx: FxCtx): void {
   const src = kSrc[k];
   const big = kVar[k] === 2;
   const col = kVar[k] === 1 ? WIND : HEART;
-  if (dst >= 0 && dst < HEROES && fx.heroPos(dst, _c)) {
+  if (dst >= 0 && dst < CAPS.heroes && fx.heroPos(dst, _c)) {
     kX[k] = _c.x;
     kY[k] = 1.0;
     kZ[k] = _c.z;
@@ -587,7 +586,7 @@ export const SKILL_FX: SkillFxSet = {
     for (let j = 0; j < NK; j++) if (kOn[j] === 1 && kSrc[j] === e.src && (k < 0 || kT[j] > kT[k])) k = j;
     if (k >= 0) boltHit(k, e.dst, fx);
     // Heart Breeze: a basic hit on a hero sends a heal; the streak flies from the victim back to her heart float
-    if (e.dst < 0 || e.dst >= HEROES || !fx.heroPos(e.dst, _c)) return;
+    if (e.dst < 0 || e.dst >= CAPS.heroes || !fx.heroPos(e.dst, _c)) return;
     const i = free(hOn);
     if (i < 0) return;
     hOn[i] = 1;
@@ -605,7 +604,7 @@ export const SKILL_FX: SkillFxSet = {
 
   onProjectile(owner, kind, _slot, fx) {
     // her basic heart bolt (the sim's homing hero bolt): launched along her facing; the hit event bends it onto its target
-    if (kind !== PROJECTILE_KIND.hero || owner < 0 || owner >= HEROES || !fx.heroPos(owner, _a)) return;
+    if (kind !== PROJECTILE_KIND.hero || owner < 0 || owner >= CAPS.heroes || !fx.heroPos(owner, _a)) return;
     const v = kCount[owner] % 3;
     kCount[owner] = (v + 1) % 3;
     const i = free(kOn);
@@ -825,7 +824,7 @@ export const SKILL_FX: SkillFxSet = {
         }
       }
       if (eRibHi[i] >= 0) fx.ribbons.feed(eRibHi[i], _a.x, 1.3, _a.z);
-      for (let h = 0; h < HEROES; h++) {
+      for (let h = 0; h < CAPS.heroes; h++) {
         if (h === src || (eMask[i] & (1 << h)) !== 0 || !sameTeam(fx, h, src) || !fx.heroPos(h, _c)) continue;
         if (Math.hypot(_c.x - _a.x, _c.z - _a.z) > eTouch[i]) continue;
         eMask[i] |= 1 << h;
@@ -867,7 +866,7 @@ export const SKILL_FX: SkillFxSet = {
         }
         // the first confirmed charm of the cast: "MLEM!" (once)
         const src = lSrc[i];
-        if (src >= 0 && src < HEROES && mlemDone[src] === 0) {
+        if (src >= 0 && src < CAPS.heroes && mlemDone[src] === 0) {
           mlemDone[src] = 1;
           if (funPop(fx, src, 'MLEM!', _c.x, funOverY(fx, lDst[i], 0.9), _c.z)) funSfx(fx, 'kiss', _c, 0.8);
         }

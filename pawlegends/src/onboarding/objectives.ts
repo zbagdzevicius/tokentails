@@ -19,7 +19,7 @@ import { icon } from '../ui/icons';
 import type { NotifyLike } from '../ui/notify';
 import { savedPadMode, type PadMode } from './tips';
 import type { GuideMode } from '../app/firstSession';
-import type { EntitySnap, MatchClock, SimEvent } from '../sim/api';
+import type { CampSnap, EntitySnap, MatchClock, ObjectiveSnap, SimEvent } from '../sim/api';
 import { RAT_CAMP_STATS } from '../data/camps';
 import { MAP, mirrorX, PUDDING_SPOT, RAT_CAMP } from '../data/map';
 import { PUDDING } from '../data/pudding';
@@ -264,7 +264,7 @@ function setGoalAttr(id: string): void {
 // GAPS A4: the next objective and its timers, from snapshots and events (no sim change)
 
 /** What the chip is about: the key B1's ping will carry. */
-export type ObjectiveKey = 'calm' | 'escort' | 'pudding' | 'rats' | 'theirRats' | 'gates' | 'sunset' | 'suddenDeath';
+export type ObjectiveKey = 'calm' | 'escort' | 'pudding' | 'rats' | 'theirRats' | 'gates' | 'sunset' | 'suddenDeath' | 'grizzlechop' | 'sinkGrizzlechop';
 
 export interface ObjectiveChip extends StandingText {
   key: ObjectiveKey;
@@ -277,7 +277,7 @@ export interface ObjectiveChip extends StandingText {
 
 /** A countdown ring on the minimap: ticks left of `total`, at (x, y) mm. */
 export interface ObjectiveTimer {
-  key: 'pudding' | 'rats' | 'theirRats';
+  key: 'pudding' | 'rats' | 'theirRats' | 'grizzlechop';
   x: number;
   y: number;
   left: number;
@@ -375,7 +375,13 @@ export class ObjectiveClock {
     }
   }
 
-  frame(entities: readonly EntitySnap[], clock: MatchClock): void {
+  /** Sim v19 (Hearthwood): the snapshot's river objectives and camps (its timers come from the sim, not from events). */
+  private hw: { objectives: readonly ObjectiveSnap[]; camps: readonly CampSnap[] } | null = null;
+  /** Sim v19: the longest wait seen per timer key (a countdown ring's full length). */
+  private hwTotal = new Map<string, number>();
+
+  frame(entities: readonly EntitySnap[], clock: MatchClock, map?: { objectives?: readonly ObjectiveSnap[]; camps?: readonly CampSnap[] }): void {
+    if (map?.objectives) this.hw = { objectives: map.objectives, camps: map.camps ?? [] };
     this.tick = clock.tick;
     this.phase = clock.phase;
     this.nextPhaseIn = clock.nextPhaseIn;
@@ -410,6 +416,7 @@ export class ObjectiveClock {
 
   /** The minimap's countdown rings: Pudding's spawn, the own camp, and the enemy camp once a clear was seen. */
   timers(): ObjectiveTimer[] {
+    if (MAP.point === 1) return this.hearthTimers();
     const out: ObjectiveTimer[] = [];
     const p = this.pud;
     if (p.state === 'away' && p.at > this.tick) out.push({ key: 'pudding', x: PUDDING_SPOT.x, y: PUDDING_SPOT.y, left: p.at - this.tick, total: p.total });
@@ -422,9 +429,35 @@ export class ObjectiveClock {
     return out;
   }
 
+  /**
+   * Sim v19 (Hearthwood): the river objectives waiting to spawn, and the buff camps (Prickle Hollow, Crow Roost) down,
+   * on our side or on theirs once seen (the snapshot lists every camp; `nextIn` is 0 while one is up).
+   */
+  private hearthTimers(): ObjectiveTimer[] {
+    const out: ObjectiveTimer[] = [];
+    const hw = this.hw;
+    if (!hw) return out;
+    const total = (key: string, left: number): number => {
+      const t = Math.max(left, this.hwTotal.get(key) ?? 0);
+      this.hwTotal.set(key, t);
+      return t;
+    };
+    for (const o of hw.objectives) if (o.state === 'away' && o.nextIn > 0) out.push({ key: o.kind, x: o.x, y: o.y, left: o.nextIn, total: total(o.kind, o.nextIn) });
+    for (const c of hw.camps) {
+      if (c.up || c.nextIn <= 0 || (c.kind !== 'prickle' && c.kind !== 'crow')) continue;
+      // team 0's camps are listed first (6 a side); the river mirror holds team 1's
+      const ours = (c.id < 6 ? 0 : 1) === this.myTeam;
+      out.push({ key: ours ? 'rats' : 'theirRats', x: c.x, y: c.y, left: c.nextIn, total: total(`c${c.id}`, c.nextIn) });
+    }
+    return out;
+  }
+
   /** The chip: a live Pudding first, then a phase change within a minute, then the soonest timer, then the phase. */
   chip(): ObjectiveChip {
     const p = this.pud;
+    // sim v19 (Hearthwood): Captain Grizzlechop up in his wreck comes first; his countdown joins the candidates below
+    const grizz = MAP.point === 1 ? this.hw?.objectives.find((o) => o.kind === 'grizzlechop') : undefined;
+    if (grizz?.state === 'up') return { key: 'sinkGrizzlechop', title: 'Sink Grizzlechop!', sub: 'Fish for the team and a Hoard shield', icon: 'crown', secs: null, x: grizz.x, y: grizz.y };
     const ours = p.team === this.myTeam;
     if (p.state === 'wild') return { key: 'calm', title: 'Calm Pudding!', sub: 'Hit him in the river: he marches with the team that calms him', icon: 'heart', secs: null, x: p.x, y: p.y };
     if (p.state === 'escort') {
@@ -441,7 +474,7 @@ export class ObjectiveClock {
     if (phase && this.nextPhaseIn <= PHASE_FIRST) return phase;
     const cands: ObjectiveChip[] = [];
     if (p.at > this.tick) cands.push({ key: 'pudding', title: `Pudding in ${fmtSecs(secsOf(p.at - this.tick))}`, sub: 'Calm him and he marches with your wave', icon: 'heart', secs: secsOf(p.at - this.tick), x: PUDDING_SPOT.x, y: PUDDING_SPOT.y });
-    for (const c of [0, 1]) {
+    for (const c of MAP.point === 1 ? [] : [0, 1]) {
       const t = this.camps[c];
       if (!t.known || t.upAt === null || t.upAt <= this.tick) continue;
       const s = secsOf(t.upAt - this.tick);
@@ -451,6 +484,10 @@ export class ObjectiveClock {
           ? { key: 'rats', title: `Your rats ${fmtSecs(s)}`, sub: `Clear your camp: ${PACK_LINE}`, icon: 'paw', secs: s, x: at.x, y: at.y }
           : { key: 'theirRats', title: `Their rats ${fmtSecs(s)}`, sub: `Take their camp: ${PACK_LINE}`, icon: 'paw', secs: s, x: at.x, y: at.y },
       );
+    }
+    if (grizz && grizz.state === 'away' && grizz.nextIn > 0) {
+      const gs = secsOf(grizz.nextIn);
+      cands.push({ key: 'grizzlechop', title: `Grizzlechop in ${fmtSecs(gs)}`, sub: 'Sink him for Fish and a Hoard shield', icon: 'crown', secs: gs, x: grizz.x, y: grizz.y });
     }
     if (phase) cands.push(phase);
     let best: ObjectiveChip | null = null;

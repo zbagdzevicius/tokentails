@@ -122,6 +122,8 @@ export class NetHost implements PartyLink {
   /** Casual PvP (V16.md §5): this seat's team (slots 3..5 are team 1), and the room is PvP. */
   readonly team: 0 | 1;
   readonly pvp: boolean;
+  /** Team 1's lead seat in PvP: 3, or 5 on Hearthwood (PROTO 4). */
+  private readonly lead1: number;
   private serverEnd: Extract<ServerJson, { t: 'end' }> | null = null;
   private unwatch: (() => void) | null = null;
   private readonly now: () => number;
@@ -137,7 +139,7 @@ export class NetHost implements PartyLink {
   private rejoinSent = false;
   private readonly limiter = new SocialLimiter();
   /** Turns each slot was flown by a bot (M6 "bot X%"), and the turns applied. */
-  private readonly pilotTurns = [0, 0, 0, 0, 0, 0];
+  private readonly pilotTurns: number[] = new Array(10).fill(0);
   private countedTurn = -1;
   /** The turn this player's own hero went to a bot (−1: flown by the player). */
   private myPilotFrom = -1;
@@ -185,7 +187,7 @@ export class NetHost implements PartyLink {
   social(kind: SocialKind, id: number, x?: number, y?: number, target?: number): boolean {
     if (!socialIdOk(kind, id) || !this.limiter.allow(this.now())) return false;
     const msg: { t: 'social'; kind: SocialKind; id: number; x?: number; y?: number; target?: number } = { t: 'social', kind, id };
-    if (x !== undefined && y !== undefined) Object.assign(msg, clampSocialPoint(x, y));
+    if (x !== undefined && y !== undefined) Object.assign(msg, clampSocialPoint(x, y, this.match.config.map));
     if (target !== undefined && Number.isInteger(target) && target >= 0 && target < 6) msg.target = target;
     this.socket.sendJson(msg);
     return true;
@@ -217,7 +219,9 @@ export class NetHost implements PartyLink {
     this.names = [...match.names];
     this.mySlot = match.you.slot;
     this.pvp = match.config.mode === 'pvp';
-    this.team = this.pvp && match.you.slot >= 3 ? 1 : 0;
+    // PROTO 4: team 1 is slots 5..9 on Hearthwood (5v5 Classic)
+    this.lead1 = match.config.map === 'hearthwood' ? 5 : 3;
+    this.team = this.pvp && match.you.slot >= this.lead1 ? 1 : 0;
     this.bornAt = this.now();
     this.humans = [...match.config.humans];
     // ?e2e=1: a new match starts its own hash trail (a rematch never shows the last match's ticks)
@@ -367,8 +371,8 @@ export class NetHost implements PartyLink {
       this.socket.sendJson({ t: 'vote', kind: 'surrender', yes: true });
       return;
     }
-    // a lead seat's ping is a sim command (slot 0; in PvP also slot 3, team 1's lead)
-    if (cmd.op === Op.Ping && this.match.you.slot !== 0 && !(this.pvp && this.match.you.slot === 3)) {
+    // a lead seat's ping is a sim command (slot 0; in PvP also team 1's lead: slot 3, or 5 on Hearthwood)
+    if (cmd.op === Op.Ping && this.match.you.slot !== 0 && !(this.pvp && this.match.you.slot === this.lead1)) {
       // v1: pings from slots 1 and 2 are social markers only (§7 M2)
       this.socket.sendJson({ t: 'social', kind: 'ping', id: cmd.kind, x: Math.round(cmd.x), y: Math.round(cmd.y) });
       return;
@@ -461,7 +465,7 @@ export class NetHost implements PartyLink {
       }
       case 'social': {
         if (!socialIdOk(m.kind, m.id) || m.slot < 0 || m.slot > 5) return;
-        const msg = { slot: m.slot, kind: m.kind, id: m.id, mine: m.slot === this.mySlot, ...(m.x !== undefined && m.y !== undefined ? clampSocialPoint(m.x, m.y) : {}), ...(m.target !== undefined ? { target: m.target } : {}) };
+        const msg = { slot: m.slot, kind: m.kind, id: m.id, mine: m.slot === this.mySlot, ...(m.x !== undefined && m.y !== undefined ? clampSocialPoint(m.x, m.y, this.match.config.map) : {}), ...(m.target !== undefined ? { target: m.target } : {}) };
         if (this.emit('social', msg) || msg.mine) return;
         const line = socialLine(this.nameOf(m.slot), m.kind, m.id);
         if (line) this.note({ key: `mp-social-${m.slot}`, title: line, tone: 'info' });
@@ -524,7 +528,7 @@ export class NetHost implements PartyLink {
         }
         // the core counts every applied turn (a reload's fast-forward too): the bot share and "Bot covered for you"
         // cover the whole stretch, from the drop, not only from the end of the catch-up
-        if (m.pilotTurns) for (let s = 0; s < 6; s++) this.pilotTurns[s] = m.pilotTurns[s] ?? this.pilotTurns[s];
+        if (m.pilotTurns) for (let s = 0; s < 10; s++) this.pilotTurns[s] = m.pilotTurns[s] ?? this.pilotTurns[s];
         if (typeof m.pilotFrom === 'number' && m.pilotFrom >= 0 && (this.myPilotFrom < 0 || m.pilotFrom < this.myPilotFrom)) this.myPilotFrom = m.pilotFrom;
         this.countPilots(m.lastTurn, m.modeMask, !!m.pilotTurns);
         this.acked(m.acks[this.mySlot]);
@@ -582,7 +586,7 @@ export class NetHost implements PartyLink {
   private countPilots(lastTurn: number, mask: number, counted = false): void {
     if (lastTurn <= this.countedTurn) return;
     const n = lastTurn - this.countedTurn;
-    if (!counted) for (let s = 0; s < 6; s++) if ((mask >>> s) & 1) this.pilotTurns[s] += n;
+    if (!counted) for (let s = 0; s < 10; s++) if ((mask >>> s) & 1) this.pilotTurns[s] += n;
     this.countedTurn = lastTurn;
     const mine = ((mask >>> this.mySlot) & 1) === 1;
     if (mine && this.myPilotFrom < 0) this.myPilotFrom = lastTurn;

@@ -12,10 +12,28 @@
 @keyframes pl-punch { 0% { opacity: 0; } 30% { opacity: 1; } 100% { opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .pl-punch.on { animation: none; } }
 
-/* B1: the Camera height row (Settings and the pause menu) */
-.set-camh { display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.set-camh .chips { display: flex; gap: 6px; }
-.pl-menu .set-camh { font-size: 14px; }
+/* B1: the Camera height row (Settings and the pause menu): a five-way segmented control, Close … Max. The label
+   sits left of it while both fit and moves above it otherwise (never a ragged wrap inside the control). */
+.set-camh { display: flex; justify-content: space-between; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
+.camh-segs {
+  display: flex; flex: 0 1 auto; margin-left: auto; min-width: 0; padding: 2px; gap: 2px;
+  background: var(--panel); border: 2px solid var(--line); border-radius: 999px;
+}
+.camh-seg {
+  flex: 1 1 0; min-width: 48px; min-height: 44px; padding: 0 9px; border: 0; border-radius: 999px; cursor: pointer;
+  background: transparent; color: var(--cream); font: 600 13px var(--font); white-space: nowrap; touch-action: manipulation;
+}
+.camh-seg:hover { background: rgba(255, 210, 122, 0.08); }
+.camh-seg.on { background: var(--butter, #ffd27a); color: #2a1a2e; }
+.camh-seg:focus-visible { outline: 2px solid var(--butter, #ffd27a); outline-offset: 1px; }
+/* the pause card's compact type; the full Settings screen keeps its rows' label size */
+.pl-menu:not(.pl-settings) .set-camh { font-size: 14px; }
+/* the pause card on a short phone is a two-column grid: the row takes the full width */
+.pl-menu:not(.pl-settings):not(.pl-collection) > .card > .set-camh { grid-column: 1 / -1; }
+.pl-menu:not(.pl-settings) .set-camh .camh-segs { flex: 1 1 280px; max-width: 360px; }
+/* the full Settings screen: room around the labels ("Normal" and "Higher" filled their pill at ~53 px a segment);
+   too narrow a card wraps the label above the control rather than squeezing it */
+.pl-settings .set-camh .camh-segs { flex: 0 1 330px; }
 
 /* B2: the minimap is turned with the camera (diagonal), so its box is square (the 100x60 m map turned 38° is ~116x109 m) */
 .pl-minimap { width: calc(180px * var(--mm-k, 1)); height: calc(180px * var(--mm-k, 1)); }
@@ -203,3 +221,8 @@ html[data-touch='1'] .pl-match:has(.pl-talents.on) .pl-rail { --rail-top: 100px;
 @media (max-height: 480px) { .pl-backin::before { width: 48px; height: 48px; } }
 html[data-touch='1'] .pl-match .pl-tbtn.nap { background: rgba(58, 39, 66, 0.66) url('/assets/stickers/nap-cat-256.webp') center 40% / 82% no-repeat; }
 html[data-touch='1'] .pl-match .pl-tbtn.nap span { inset: auto 0 1px 0; font-size: 9px; }
+
+/* Sim v19 (MAP-5V5.md §8.4): the 5v5 Classic wheel has eight slices (three lane pushes and Take Grizzlechop) */
+.pl-pingwheel[data-slices='8']::before { width: 248px; height: 248px; }
+.pl-pingwheel[data-slices='8'] .slice { width: 70px; transform: translate(-50%, -50%) rotate(var(--a)) translateY(-92px) rotate(calc(-1 * var(--a))); font-size: 10.5px; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .obj[data-key='grizzlechop'] .ic { background: #e0703a; }

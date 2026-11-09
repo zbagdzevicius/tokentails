@@ -33,7 +33,7 @@ import { cardAttrs, heroElement, heroPic } from '../cards/el';
 import { DIFFICULTY_NAME, HERO_DIFFICULTY } from '../champBrowser/meta';
 import type { SkillSlot } from '../skillCodex/facts';
 import type { CatTier } from '../../meta/roster';
-import { ROLE_ICON, ROLE_NAME, ROLE_ORDER, isNewHero } from './roles';
+import { ROLE_ICON, ROLE_NAME, ROLE_ORDER, SIDE_TAB_CSS, isNewHero } from './roles';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 
@@ -63,6 +63,9 @@ export interface TileState {
   locked?: string;
   /** A party tile that cannot take a tap. */
   disabled?: boolean;
+  /** Viewable but not lockable by this player now (taken, the other side, or this player already locked): the tile
+   * still takes a tap to show its skills, and is marked aria-disabled. */
+  blocked?: boolean;
   /** "New? Try this" (a new player's easy hero). */
   tryThis?: boolean;
   /** The worn card's cat name (lobby spec §3b): the tile says it, the hero underneath in the label. */
@@ -84,6 +87,9 @@ export interface CsModel {
   selected: HeroId | null;
   /** All · Cats · Dogs (hidden when the side is fixed). */
   sideTabs: boolean;
+  /** The only side this player can lock (a friend party's member once the leader chose a side): the side tab moves to
+   * it when it changes (not on every redraw, so the player can still look at the other side or All). */
+  lockSide?: HeroSide | null;
   /** Dogs locked before match 1 (solo): the Dogs tab shows a lock; the tiles stay viewable. */
   dogsLocked?: boolean;
   tile?(h: HeroId): TileState;
@@ -112,6 +118,8 @@ export interface CsModel {
   /** Solo: the open Look sheet (free and store coats, colour tints, the cards drawer), drawn over the panel. */
   lookSheet?: string;
   error?: string | null;
+  /** A short-lived line over LOCK IN (the bots' hint after a tap on a phone, where the hint has no room). */
+  note?: string | null;
   /** Root attributes (party: data-locked, data-mm, data-pvp). */
   rootAttrs?: string;
   rootClass?: string;
@@ -121,12 +129,15 @@ export interface CsModel {
 
 /** What the player chose on the screen this session: the side and role tabs and the tapped skill (§B3). */
 const ui: { side: SideFilter | null; role: HeroRole | null; slot: PanelSlot } = { side: null, role: null, slot: 'passive' };
+/** The last `lockSide` the side tab followed. */
+let followed: HeroSide | null = null;
 
 /** A new champion select opens: the role filter clears, and the side tab keeps the player's last choice only when it
  * shows `selected` (else the selected hero's side, so ten tiles fit with no scroll). The tapped skill is kept. */
-export function openChampSelect(selected: HeroId | null): void {
+export function openChampSelect(selected: HeroId | null, lockSide: HeroSide | null = null): void {
   ui.role = null;
-  const side = selected ? HEROES[selected].side : null;
+  followed = lockSide;
+  const side = lockSide ?? (selected ? HEROES[selected].side : null);
   if (ui.side && ui.side !== 'all' && side && ui.side !== side) ui.side = null;
   if (!ui.side) ui.side = side ?? 'all';
 }
@@ -138,6 +149,7 @@ export function resetChampSelect(): void {
   ui.side = null;
   ui.role = null;
   ui.slot = 'passive';
+  followed = null;
 }
 
 /** True when `h` passes the side and role filters. Pure. */
@@ -262,7 +274,7 @@ function tabsHtml(m: CsModel): string {
           const n = sd === 'all' ? m.heroes.length : m.heroes.filter((h) => HEROES[h].side === sd).length;
           const lock = sd === 'dog' && m.dogsLocked;
           const label = `${SIDE_NAME[sd]}, ${n} heroes${lock ? ', unlock after your first match' : ''}`;
-          return `<button type="button" class="cs-tab side-tab ${sd}${on ? ' on' : ''}" role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-cs="side" data-side="${sd}" aria-label="${esc(label)}" title="${esc(label)}">${sd === 'all' ? GRID : icon(SIDE_ICON[sd])}<b>${SIDE_NAME[sd]}</b>${lock ? '<span class="cs-tlock" aria-hidden="true">🔒</span>' : ''}</button>`;
+          return `<button type="button" class="cs-tab side-tab ${sd}${on ? ' on' : ''}"${sd === 'all' ? '' : ` style="--side:${SIDE_TAB_CSS[sd]}"`} role="radio" aria-checked="${on}" tabindex="${on ? 0 : -1}" data-cs="side" data-side="${sd}" aria-label="${esc(label)}" title="${esc(label)}">${sd === 'all' ? GRID : icon(SIDE_ICON[sd])}<b>${SIDE_NAME[sd]}</b>${lock ? '<span class="cs-tlock" aria-hidden="true">🔒</span>' : ''}</button>`;
         })
         .join('')}</div><i class="cs-div" aria-hidden="true"></i>`
     : '';
@@ -282,10 +294,10 @@ function tileHtml(m: CsModel, h: HeroId, focusH: HeroId | null): string {
   const label = st.cardName ? `${st.cardName}: ${t.title}, ${t.side} ${t.role}` : `${t.title}, ${t.side} ${t.role}`;
   const why = st.taken ? `Taken: ${st.taken}` : (st.locked ?? '');
   const party = m.kind === 'party' ? ` data-p="hero" data-v="${h}" data-testid="party-hero-${h}"` : '';
-  const dis = st.disabled ? ' disabled aria-disabled="true"' : '';
+  const dis = st.disabled ? ' disabled aria-disabled="true"' : st.blocked ? ' aria-disabled="true" data-blocked="1"' : '';
   const cls = `cs-tile${on ? ' on' : ''}${st.taken ? ' taken' : ''}${st.locked ? ' locked' : ''}`;
   const badges = [
-    `<i class="cs-sb ${HEROES[h].side}" aria-hidden="true">${icon(SIDE_ICON[HEROES[h].side])}</i>`,
+    `<i class="cs-sb ${HEROES[h].side}" style="--side:${SIDE_TAB_CSS[HEROES[h].side]}" aria-hidden="true">${icon(SIDE_ICON[HEROES[h].side])}</i>`,
     isNewHero(h) ? '<span class="cs-new new-tag">New</span>' : st.owned ? `<span class="cs-new champ-owned" title="${esc(`From ${st.owned}'s card`)}">Card</span>` : '',
     st.locked && !st.taken ? '<span class="cs-lk" aria-hidden="true">🔒</span>' : '',
     st.taken ? `<span class="cs-taken pp-taken">${esc(`Taken: ${st.taken}`)}</span>` : '',
@@ -325,7 +337,7 @@ export function panelHtml(h: HeroId | null, o: { numbers: boolean; kind: 'solo' 
     return `<button type="button" class="cs-sk${sl === 'passive' ? ' passive' : ''}${sl === 'r' ? ' ult' : ''}${on ? ' on' : ''}" role="tab" aria-selected="${on}" aria-controls="cs-skill-text" tabindex="${on ? 0 : -1}" data-cs="slot" data-slot="${sl}" aria-label="${esc(`${info.key === 'P' ? 'Passive' : info.key}: ${info.name}`)}" title="${esc(info.name)}">${icon(info.icon)}<kbd>${info.key}</kbd></button>`;
   }).join('');
   return `<section class="cs-panel" aria-label="${esc(t.title)}" data-hero="${h}" data-kind="${o.kind}" data-numbers="${o.numbers ? 1 : 0}"${o.look ? ' data-look="1"' : ''}${o.toggle ? ' data-toggle="1"' : ''}>
-      <div class="cs-ph"><span class="cs-ri" aria-hidden="true">${icon(ROLE_ICON[role])}</span><div class="cs-pn"><b class="cs-name">${esc(t.title)}</b><span class="cs-role" title="${esc(laneHint(t.role))}">${esc(t.role)} ${dots(h)}</span></div>${o.look ? `<button type="button" class="cs-look pl-btn ghost small" data-a="look" aria-haspopup="dialog" aria-expanded="${!!o.sheet}">Look</button>` : ''}</div>
+      <div class="cs-ph"><span class="cs-ri" aria-hidden="true">${icon(ROLE_ICON[role])}</span><div class="cs-pn"><b class="cs-name">${esc(t.title)}</b><span class="cs-rl"><span class="cs-role" title="${esc(laneHint(t.role))}">${esc(t.role)} ${dots(h)}</span>${o.look ? `<button type="button" class="cs-look pl-btn ghost small" data-a="look" aria-haspopup="dialog" aria-expanded="${!!o.sheet}">Look</button>` : ''}</span></div></div>
       <div class="cs-skills" role="tablist" aria-label="Skills">${tabs}</div>
       <div class="cs-skill" role="tabpanel" id="cs-skill-text">${skillTextHtml(h, ui.slot, o.numbers, o.kind, !!o.toggle)}</div><p class="cs-lane lane-hint">${esc(laneHint(t.role))}</p>${o.sheet ?? ''}
     </section>`;
@@ -367,15 +379,20 @@ function lockHtml(m: CsModel): string {
 
 /** The whole screen. Pure (reads the session tab and skill choice). */
 export function champSelectHtml(m: CsModel): string {
-  if (ui.side === null) openChampSelect(m.selected);
+  if (ui.side === null) openChampSelect(m.selected, m.lockSide ?? null);
+  else if (m.sideTabs && m.lockSide && m.lockSide !== followed) {
+    followed = m.lockSide;
+    ui.side = m.lockSide;
+  } else if (!m.lockSide) followed = null;
   const portrait = (h: HeroId): string | null => (m.portrait ? m.portrait(h) : null);
-  const focusH = m.selected && m.heroes.includes(m.selected) && passesFilter(m.selected, m.sideTabs ? ui.side : 'all', ui.role) ? m.selected : (m.heroes.find((h) => passesFilter(h, m.sideTabs ? ui.side : 'all', ui.role)) ?? null);
+  const shown = (h: HeroId): boolean => passesFilter(h, m.sideTabs ? ui.side : 'all', ui.role) && !m.tile?.(h).disabled;
+  const focusH = m.selected && m.heroes.includes(m.selected) && shown(m.selected) ? m.selected : (m.heroes.find(shown) ?? null);
   const timer =
     m.timer !== undefined && m.timer !== null
       ? `<span class="cs-timer pp-timer" data-timer data-testid="party-timer"${m.timer < 10 ? ' data-low="1"' : ''}>${timerText(m.timer)}</span>`
       : '';
   const seats = m.seats.map((s, i) => seatHtml(s, i, portrait, m.kind === 'party')).join('');
-  const why = m.error ? `<p class="cs-err pp-err" role="alert">${esc(m.error)}</p>` : '';
+  const why = m.error ? `<p class="cs-err pp-err" role="alert">${esc(m.error)}</p>` : m.note ? `<p class="cs-err cs-note bots-hint" role="status">${esc(m.note)}</p>` : '';
   return `<div class="cs ${m.rootClass ?? ''}" data-kind="${m.kind}" data-seats="${m.seats.length}"${m.rootAttrs ? ` ${m.rootAttrs}` : ''}>
     <header class="cs-head"><div class="cs-hl">${m.headLeft ?? ''}</div><div class="cs-title"><h2>${esc(m.title ?? 'Choose your legend')}</h2>${timer}${m.headNote ?? ''}</div><div class="cs-hr">${m.headRight ?? ''}</div></header>
     <aside class="cs-team" aria-label="Your team"><ol class="cs-seats pp-strip" style="--n:${Math.max(1, m.seats.length)}">${seats}</ol>${m.teamNote ?? ''}</aside>
@@ -420,7 +437,7 @@ export function patchChampSelect(container: HTMLElement, html: string): boolean 
       a.scrollTop = top;
     } else {
       // a host slot (the integration's squad under the seats) keeps what the host drew in it
-      for (const slot of a.querySelectorAll<HTMLElement>('[data-slot]')) b.querySelector<HTMLElement>(`[data-slot="${slot.dataset.slot}"]`)?.replaceChildren(...slot.childNodes);
+      for (const slot of a.querySelectorAll<HTMLElement>(HOST_SLOT)) b.querySelector<HTMLElement>(`${HOST_SLOT}[data-slot="${slot.dataset.slot}"]`)?.replaceChildren(...slot.childNodes);
       a.replaceWith(b);
     }
   }
@@ -430,11 +447,17 @@ export function patchChampSelect(container: HTMLElement, html: string): boolean 
   return true;
 }
 
+/**
+ * A host slot: a `<div data-slot>` the embed integration draws into (ui/cards.ts). Only divs: the skill tabs and the
+ * Preview button carry `data-slot` too (the skill they name), and their contents are ours, never kept across a redraw.
+ */
+const HOST_SLOT = 'div[data-slot]';
+
 /** A region's markup without what a host drew into its slots (compared with fresh markup). */
 function bare(el: HTMLElement): string {
-  if (!el.querySelector('[data-slot]')) return el.outerHTML;
+  if (!el.querySelector(HOST_SLOT)) return el.outerHTML;
   const c = el.cloneNode(true) as HTMLElement;
-  for (const s of c.querySelectorAll('[data-slot]')) s.replaceChildren();
+  for (const s of c.querySelectorAll(HOST_SLOT)) s.replaceChildren();
   return c.outerHTML;
 }
 
@@ -468,8 +491,9 @@ function applyFilter(root: HTMLElement): void {
   for (const t of root.querySelectorAll<HTMLElement>('.cs-grid [data-h]')) {
     const show = passesFilter(t.dataset.h as HeroId, fixed ? 'all' : ui.side, ui.role);
     t.hidden = !show;
-    if (show && !first) first = t;
-    if (show && t.classList.contains('on')) focusable = t;
+    const off = (t as HTMLButtonElement).disabled;
+    if (show && !off && !first) first = t;
+    if (show && !off && t.classList.contains('on')) focusable = t;
     t.tabIndex = -1;
   }
   const f = focusable ?? first;
@@ -617,12 +641,18 @@ export function wireChampSelect(container: HTMLElement, h: ChampSelectHandlers =
     // the grid: a roving tabindex through the visible tiles
     const tile = t.closest<HTMLElement>('.cs-grid [data-h]');
     if (tile) {
-      const list = [...root.querySelectorAll<HTMLElement>('.cs-grid [data-h]:not([hidden])')];
-      const i = list.indexOf(tile);
-      const cols = Math.max(1, list.filter((x) => x.offsetTop === list[0]?.offsetTop).length);
+      // columns from every visible tile (the layout), the steps through the ones that can take focus
+      const all = [...root.querySelectorAll<HTMLElement>('.cs-grid [data-h]:not([hidden])')];
+      const cols = Math.max(1, all.filter((x) => x.offsetTop === all[0]?.offsetTop).length);
+      const ok = (x: HTMLElement | undefined): boolean => !!x && !(x as HTMLButtonElement).disabled;
+      const from = all.indexOf(tile);
+      if (from < 0) return;
       const step = e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowRight' ? 1 : e.key === 'ArrowUp' ? -cols : e.key === 'ArrowDown' ? cols : 0;
-      const j = e.key === 'Home' ? 0 : e.key === 'End' ? list.length - 1 : Math.max(0, Math.min(list.length - 1, i + step));
-      const to = list[j];
+      let k = e.key === 'Home' ? 0 : e.key === 'End' ? all.length - 1 : from + step;
+      const dir = e.key === 'Home' ? 1 : e.key === 'End' ? -1 : Math.sign(step);
+      // a disabled tile is skipped (it cannot take focus): keep going the same way, one tile at a time
+      while (k >= 0 && k < all.length && !ok(all[k])) k += Math.abs(step) === cols && step !== 0 ? step : dir;
+      const to = k >= 0 && k < all.length ? all[k] : undefined;
       if (!to || to === tile) return;
       e.preventDefault();
       tile.tabIndex = -1;

@@ -16,7 +16,7 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 3;
+export const PROTO = 4;
 /**
  * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
  * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
@@ -31,9 +31,19 @@ export const PROTO_MIN = 1;
  * 0x07. The subprotocol stays `pl.1`.
  */
 export const PROTO_PVP = 3;
+/**
+ * PROTO 4 (5v5 Classic, docs/plans/moba/MAP-5V5.md §2.7): the `classic` queue (Hearthwood Divide, sim v19+), ten human
+ * slots on the wire, `map` and `teamSize` on the party, match and found frames. Masks are varints and an entry's slot
+ * has a fourth bit (0x20), so every TURN of a 3v3 room keeps its PROTO 3 bytes; only a Hearthwood room (never sent to
+ * a PROTO 3 socket: the relay answers `update_required`) sets a mask bit above 0x3f or a slot above 7.
+ */
+export const PROTO_CLASSIC = 4;
 export const SUBPROTOCOL = 'pl.1';
-/** Quick Play queues: co-op (M1a) and casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE). 'ranked' is M2. */
-export const MM_QUEUES = Object.freeze(['coop', 'casual'] as const);
+/**
+ * Quick Play queues: co-op (M1a), casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE) and 5v5 Classic (PROTO 4 on a sim
+ * whose MAP_IDS has 'hearthwood'). 'ranked' is M2.
+ */
+export const MM_QUEUES = Object.freeze(['coop', 'casual', 'classic'] as const);
 export type MmQueue = (typeof MM_QUEUES)[number];
 /** The side a queued player asks for: cats, dogs, or either. A team is never mixed. */
 export const MM_SIDES = Object.freeze(['cat', 'dog', 'any'] as const);
@@ -42,18 +52,23 @@ export type MmSide = (typeof MM_SIDES)[number];
 export const TURN_TICKS = 2;
 export const TURN_MS = 200 / 3;
 /**
- * Human slots on the wire: 0..2 are team 0, 3..5 team 1 (PvP only, PROTO 3). Party and co-op rooms seat 0..2 only
- * (`COOP_HUMANS`), so their frames never carry a bit above 0x07.
+ * Human slots on the wire: 0..2 are team 0, 3..5 team 1 (PvP only, PROTO 3); on Hearthwood (PROTO 4) 0..4 and 5..9.
+ * Party and co-op rooms seat 0..2 only (`COOP_HUMANS`), so their frames never carry a bit above 0x07.
  */
-export const MAX_HUMANS = 6;
+export const MAX_HUMANS = 10;
 /** Human slots of a party or co-op room (all on team 0, D1). */
 export const COOP_HUMANS = 3;
-/** Slots per team (slot s is on team `teamOfSlot(s)`). */
+/** Slots per team on Purrhaven Crossing (slot s is on team `teamOfSlot(s)`); Hearthwood passes 5. */
 export const SLOTS_PER_TEAM = 3;
-export const teamOfSlot = (slot: number): 0 | 1 => (slot >= SLOTS_PER_TEAM ? 1 : 0);
+/** The maps a room can be on (the sim's MAP_IDS, append only) and their team sizes. */
+export type MapId = 'crossing' | 'hearthwood';
+export const MAP_TEAM_SIZE: Readonly<Record<MapId, 3 | 5>> = Object.freeze({ crossing: 3, hearthwood: 5 });
+/** Seats per team of a room on `map` (omitted: Crossing). */
+export const teamSizeOfMap = (map?: MapId | string | null): 3 | 5 => (map === 'hearthwood' ? 5 : 3);
+export const teamOfSlot = (slot: number, teamSize: number = SLOTS_PER_TEAM): 0 | 1 => (slot >= teamSize ? 1 : 0);
 /** Each team's lead seat in PvP (its pings and its surrender go into this slot's stream). */
-export const leadSlotOf = (team: 0 | 1): number => team * SLOTS_PER_TEAM;
-/** Bits of a mode or ack mask: 6 slots. */
+export const leadSlotOf = (team: 0 | 1, teamSize: number = SLOTS_PER_TEAM): number => team * teamSize;
+/** Bits of a mode or ack mask: 10 slots (a 3v3 room only ever sets the low 6, which encode as one varint byte). */
 const SLOT_MASK = (1 << MAX_HUMANS) - 1;
 export const WS_PATH = '/pawlegends/ws';
 
@@ -179,8 +194,8 @@ export const MAX_FRAME: Readonly<Record<number, number>> = Object.freeze({
   [Frame.CMD]: 10,
   [Frame.BEAT]: 8,
   [Frame.HASH]: 8,
-  // PROTO 3: a PvP turn carries up to 6 slots × 2 ticks × (ping + command); a co-op turn stays far under 128 bytes
-  [Frame.TURN]: 256,
+  // PROTO 4: a 5v5 turn carries up to 10 slots × 2 ticks × (ping + command); a co-op turn stays far under 128 bytes
+  [Frame.TURN]: 512,
   [Frame.CATCHUP]: 16 * 1024,
   [Frame.ECHO]: 9,
 });
@@ -264,26 +279,28 @@ export const encodeEcho = (f: EchoFrame): Uint8Array => {
 
 function writeTurnBody(w: Writer, f: TurnFrame): void {
   w.varint(f.turn);
-  w.u8(f.modeMask & SLOT_MASK);
+  // PROTO 4: varint masks (a mask below 0x80 is the same single byte PROTO 3 wrote)
+  w.varint(f.modeMask & SLOT_MASK);
   let ackMask = 0;
   for (let s = 0; s < MAX_HUMANS; s++) if (f.acks[s] !== undefined) ackMask |= 1 << s;
-  w.u8(ackMask);
+  w.varint(ackMask);
   for (let s = 0; s < MAX_HUMANS; s++) if (f.acks[s] !== undefined) w.varint(f.acks[s]!);
   if (f.entries.length > 0xff) throw new ProtoError('too many entries');
   w.u8(f.entries.length);
   for (const e of f.entries) {
     if (e.slot < 0 || e.slot >= MAX_HUMANS) throw new ProtoError('bad entry slot');
     if (cmdSize(e.cmd[0] ?? 0) !== e.cmd.length) throw new ProtoError('bad entry command');
-    w.u8((e.slot & 0x07) | ((e.sub & 1) << 3) | (e.pilot ? 0x10 : 0));
+    // slot bits 0..2 low, bit 3 at 0x20 (PROTO 4: slots 8 and 9), sub at 0x08, pilot at 0x10
+    w.u8((e.slot & 0x07) | ((e.slot & 0x08) << 2) | ((e.sub & 1) << 3) | (e.pilot ? 0x10 : 0));
     w.bytes(e.cmd);
   }
 }
 
 function readTurnBody(r: Reader): TurnFrame {
   const turn = r.varint();
-  const modeMask = r.u8();
+  const modeMask = r.varint();
   if (modeMask > SLOT_MASK) throw new ProtoError('bad mode mask');
-  const ackMask = r.u8();
+  const ackMask = r.varint();
   if (ackMask > SLOT_MASK) throw new ProtoError('bad ack mask');
   const acks: (number | undefined)[] = [];
   for (let s = 0; s < MAX_HUMANS; s++) if (ackMask & (1 << s)) acks[s] = r.varint();
@@ -291,8 +308,8 @@ function readTurnBody(r: Reader): TurnFrame {
   const entries: TurnEntry[] = [];
   for (let i = 0; i < n; i++) {
     const p = r.u8();
-    if (p & 0xe0) throw new ProtoError('bad entry flags');
-    const slot = p & 0x07;
+    if (p & 0xc0) throw new ProtoError('bad entry flags');
+    const slot = (p & 0x07) | ((p & 0x20) >> 2);
     if (slot >= MAX_HUMANS) throw new ProtoError('bad entry slot');
     entries.push({ slot, sub: ((p >> 3) & 1) as 0 | 1, pilot: (p & 0x10) !== 0, cmd: readCmd(r) });
   }
@@ -478,14 +495,20 @@ export const SOCIAL_COUNT = Object.freeze({ ping: 8, chat: 8, emote: 4 } as cons
 export const SOCIAL_RATE = Object.freeze({ gapMs: 2000, windowMs: 30_000, perWindow: 10 });
 /** Map bounds social coordinates are clamped to (sim units, data/map.ts MAP). */
 export const SOCIAL_BOUNDS = Object.freeze({ width: 100_000, height: 60_000 });
+/** PROTO 4: the bounds per map (Hearthwood Divide is 128 m square). */
+export const SOCIAL_BOUNDS_BY_MAP: Readonly<Record<MapId, { width: number; height: number }>> = Object.freeze({
+  crossing: SOCIAL_BOUNDS,
+  hearthwood: Object.freeze({ width: 128_000, height: 128_000 }),
+});
 
 export const socialIdOk = (kind: SocialKind, id: number): boolean =>
   Number.isInteger(id) && id >= 0 && id < (SOCIAL_COUNT[kind] ?? 0);
 
 /** Clamp a social point to the map as integers (never reaches the sim). */
-export function clampSocialPoint(x: number, y: number): { x: number; y: number } {
+export function clampSocialPoint(x: number, y: number, map?: MapId): { x: number; y: number } {
   const c = (v: number, max: number): number => (Number.isFinite(v) ? Math.max(0, Math.min(max, Math.round(v))) : 0);
-  return { x: c(x, SOCIAL_BOUNDS.width), y: c(y, SOCIAL_BOUNDS.height) };
+  const b = map === 'hearthwood' ? SOCIAL_BOUNDS_BY_MAP.hearthwood : SOCIAL_BOUNDS;
+  return { x: c(x, b.width), y: c(y, b.height) };
 }
 
 /** A member's social rate limit (the relay's and the client's mirror). Times in ms. */
@@ -702,7 +725,16 @@ export interface PartyView {
    * casual: `side` is the recipient's own team's species, `mode: 'casual'`, `team` the recipient's team and `species`
    * both teams' (the other team's heroes stay hidden until loading).
    */
-  mm?: { side: 'cat' | 'dog'; strangers: boolean; mode?: 'casual'; team?: 0 | 1; species?: ['cat' | 'dog', 'cat' | 'dog'] };
+  mm?: {
+    side: 'cat' | 'dog';
+    strangers: boolean;
+    mode?: 'casual';
+    team?: 0 | 1;
+    species?: ['cat' | 'dog', 'cat' | 'dog'];
+    /** PROTO 4 classic: the map and seats per team (absent: Crossing, 3). */
+    map?: MapId;
+    teamSize?: 3 | 5;
+  };
   /** PROTO 2: the friend party is queued for Quick Play (every member shows the queue card). */
   queue?: { sinceMs: number; side: MmSide };
 }
@@ -717,6 +749,8 @@ export interface MatchConfigView {
   mode?: 'pvp';
   /** PvP: the bot profile of each team's fill seats. */
   fillDifficulty?: [string, string];
+  /** PROTO 4 classic (sim v19+): 'hearthwood' plays 5v5 (10 slots; PvP leads 0 and 5). Absent: Crossing. */
+  map?: MapId;
 }
 
 export interface MatchMsg {
@@ -736,6 +770,9 @@ export interface MatchMsg {
   mode?: 'coop' | 'casual';
   /** PROTO 3 casual: the species of each team ([team 0, team 1]). */
   species?: ['cat' | 'dog', 'cat' | 'dog'];
+  /** PROTO 4 classic: the map and seats per team (absent: Crossing, 3). */
+  map?: MapId;
+  teamSize?: 3 | 5;
 }
 
 export type ServerJson =
@@ -784,6 +821,9 @@ export type ServerJson =
       match?: string;
       teams?: [[number, number], [number, number]];
       acceptByMs?: number;
+      /** PROTO 4 classic: the map and seats per team. */
+      map?: MapId;
+      teamSize?: 3 | 5;
     }
   /** PROTO 3 casual: who accepted so far (counts only). */
   | { t: 'mm.accepted'; match: string; yes: number; need: number }

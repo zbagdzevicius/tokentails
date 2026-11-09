@@ -36,9 +36,11 @@ export interface MmRoomTeam {
 
 export interface MmRoomRecord {
     _id: string;
-    queue: 'coop' | 'casual';
+    queue: 'coop' | 'casual' | 'classic';
     /** Casual PvP: both teams (team 0 on the left), and why the room was voided (a remake: no rating, no catnip). */
     mode?: 'casual';
+    /** 5v5 Classic (queue 'classic'): Hearthwood Divide, five seats a team. Absent: Crossing. */
+    map?: 'hearthwood';
     teams?: MmRoomTeam[];
     void?: 'remake' | null;
     region: string;
@@ -134,6 +136,10 @@ export class PawlegendsMmRoom {
 
     @Prop({ type: [Object], default: undefined })
     teams?: MmRoomTeam[];
+
+    /** 5v5 Classic: 'hearthwood' (absent for Crossing rooms). */
+    @Prop({ type: String, default: undefined })
+    map?: string;
 
     /** A remake voided the room (V16.md §4.2). */
     @Prop({ type: String, default: null })

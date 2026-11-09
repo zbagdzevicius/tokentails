@@ -9,7 +9,7 @@
  */
 import { TICK_HZ } from '../../data/timeline';
 import { angleDiff, applyBp, dist2, iatan2, moveToward } from '../fixed';
-import { COOLDOWN_SLOTS, ENTITY_CAP, FM, Kind, RANGE, maskHas, type World } from '../world';
+import { COOLDOWN_SLOTS, FM, Kind, RANGE, type World, MAX_ENTITIES, fmHas, fmAdd } from '../world';
 import { dealDamage } from '../combat/damage';
 import { clipTravel } from '../effects/dash';
 import type { MatchHandle } from '../state';
@@ -20,7 +20,7 @@ import { abil, type KitNumbers } from './talents';
 
 const Q = 0;
 const R = 3;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {
@@ -155,12 +155,11 @@ export const CACKLEJAW_KIT: HeroKit = {
     if (w.fmKind[id] === FM.Hunt || (w.kStage[id] !== 1 && w.kStage[id] !== 3)) return;
     const q = abil(w, id).q;
     const half = q.width >> 1;
-    const n = collect(w, w.team[id], hits, (e, r) => !maskHas(w.fmHitLo[id], w.fmHitHi[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + r) * (half + r));
+    const n = collect(w, w.team[id], hits, (e, r) => !fmHas(w, id, e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + r) * (half + r));
     const dmg = lvl(w, id, q.dmg, q.dmgPerLevel);
     for (let i = 0; i < n; i++) {
       const e = hits[i];
-      if (e < 0x20) w.fmHitLo[id] |= 1 << e;
-      else w.fmHitHi[id] |= 1 << (e - 0x20);
+      fmAdd(w, id, e);
       dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, 'ability');
       if (w.kind[e] === Kind.Hero) w.kCount[id] = 1;
       if (w.kStage[id] === 3 && (q.slowBp ?? 0) > 0) slow(w, e, q.slowBp, q.slow);

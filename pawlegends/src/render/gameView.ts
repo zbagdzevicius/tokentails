@@ -10,7 +10,7 @@ import type { PingKind } from '../data/pings';
 import * as THREE from 'three';
 import { heightFactor, loadCameraHeight, type CameraHeight } from './camera/height';
 import { aimPan, groundReach, reachAlong, returnShare, SHAKE_MAX_M } from './camera/frame';
-import { teamOfSlot, type EntityKind, type HeroId, type SimEvent, type TrickId } from '../sim/api';
+import { SLOTS_PER_TEAM, teamOfSlot, type EntityKind, type HeroId, type SimEvent, type TrickId } from '../sim/api';
 import { makeHero, type Character } from './chars';
 import { sfx } from '../audio/sfx';
 import { aimFor, attackRingMm, trickAim, type AimSpec } from '../input/abilities';
@@ -40,6 +40,9 @@ import { boldRingTexture, crosshairTexture, dashRingTexture, DecalLayer, ringTex
 import { HeroView } from './views/heroView';
 import { HERO_RING } from './views/models';
 import { createMapView, type MapView } from './views/mapView';
+import { createHearthwoodView } from './views/hearthwoodView';
+import { mapInfo } from '../sim/map/info';
+import { MAP } from '../data/map';
 import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
 import { ProjectileView } from './views/projectileView';
@@ -92,7 +95,7 @@ const WARM_LIFT_M = 5000;
 export const DENY_RING_S = 0.4;
 
 /** Hover ring size (m) by unit kind: just outside the unit's own relation ring. Heroes use HERO_RING × 1.3. */
-export const HOVER_RING: Readonly<Record<EntityKind, number>> = Object.freeze({ hero: 0, minion: 1.55, tower: 3.8, core: 7, fountain: 0, camp: 1.8, pudding: 4.8, pickup: 0 });
+export const HOVER_RING: Readonly<Record<EntityKind, number>> = Object.freeze({ hero: 0, minion: 1.55, tower: 3.8, core: 7, fountain: 0, camp: 1.8, pudding: 4.8, pickup: 0, boss: 3 });
 export const hoverRingSize = (kind: EntityKind, hero: HeroId | undefined | null): number => (kind === 'hero' ? HERO_RING[hero ?? 'clem'] * 1.3 : HOVER_RING[kind]);
 /** Hover ring colours: red = a click attacks it (the enemy cursor is red too), mint = an ally. */
 export const HOVER_COLOR = Object.freeze({ enemy: RELATION.danger, ally: 0x5ff0a8 });
@@ -230,7 +233,8 @@ export class GameView {
     hooks: GameViewHooks = {},
   ) {
     this.scene = gr.scene;
-    this.map = createMapView();
+    // sim v19: the bound map (app/mapBinding.ts useMap runs before the view is built): Hearthwood Divide's own view
+    this.map = MAP.point === 1 ? createHearthwoodView(mapInfo('hearthwood')) : createMapView();
     this.scene.add(this.map.group);
     this.particles = new Particles({ rng: Math.random, groundY: () => 0 });
     this.particles.attach(this.scene);
@@ -752,7 +756,7 @@ export class GameView {
       let next = h(7) % showcase.length;
       for (const team of [0, 1] as const) {
         if (shown.size >= Math.min(2, showcase.length)) break;
-        const bots = [0, 1, 2].map((k) => team * 3 + k).filter((slot) => slot !== this.mySlot && slot < picks.length);
+        const bots = Array.from({ length: SLOTS_PER_TEAM }, (_, k) => team * SLOTS_PER_TEAM + k).filter((slot) => slot !== this.mySlot && slot < picks.length);
         if (!bots.length) continue;
         const slot = bots[h(team) % bots.length];
         const id = showcase[next % showcase.length];
@@ -804,7 +808,7 @@ export class GameView {
 
   private swipeSide = 1;
 
-  /** Feel pass B1: the Camera height step (Normal / High, render/camera/height.ts), applied at once. */
+  /** Feel pass B1: the Camera height step (Close … Max, render/camera/height.ts), applied at once. */
   setCameraHeight(h: CameraHeight): void {
     this.gr.zoom = heightFactor(h);
   }

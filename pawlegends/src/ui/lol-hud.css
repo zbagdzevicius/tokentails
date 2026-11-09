@@ -414,3 +414,30 @@ html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-grad
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
   html[data-touch='1'] .pl-chatbtn { right: calc(16px + var(--mm-w, 132px) + var(--safe-r)); top: calc(104px + var(--safe-t)); }
 }
+
+/* Sim v19 (MAP-5V5.md §8.4): 5v5 Classic, 10 rows. Both teams side by side, a role chip per hero; on short phones the
+   talents, Toys and damage columns fold away so the board fits 667x375 without a scroll. */
+.pl-scoreboard .sb-role { display: inline-grid; place-items: center; width: 16px; height: 16px; border-radius: 5px; background: rgba(240, 213, 138, 0.18); vertical-align: -3px; }
+.pl-scoreboard .sb-role .pl-icon { width: 12px; height: 12px; }
+.pl-scoreboard[data-size='5'] .card {
+  display: grid; grid-template-rows: auto auto auto; grid-auto-flow: column; column-gap: 18px; align-items: start;
+  max-width: calc(100vw - 24px); max-height: calc(100dvh - 16px); overflow: auto;
+}
+.pl-scoreboard[data-size='5'] .card > .hint { grid-row: 3; grid-column: 1 / -1; }
+.pl-scoreboard[data-size='5'] td { padding: 4px 6px; }
+@media (max-width: 1100px) {
+  .pl-scoreboard[data-size='5'] table th:nth-child(5), .pl-scoreboard[data-size='5'] table td:nth-child(5),
+  .pl-scoreboard[data-size='5'] table th:nth-child(6), .pl-scoreboard[data-size='5'] table td:nth-child(6) { display: none; }
+}
+@media (max-height: 480px) {
+  .pl-scoreboard[data-size='5'] .card { padding: 6px 10px; column-gap: 10px; }
+  .pl-scoreboard[data-size='5'] h3 { margin: 2px 0; font-size: 13px; }
+  .pl-scoreboard[data-size='5'] table { font-size: 11px; }
+  .pl-scoreboard[data-size='5'] th { padding: 1px 4px; font-size: 10px; }
+  .pl-scoreboard[data-size='5'] td { padding: 2px 4px; }
+  .pl-scoreboard[data-size='5'] table th:nth-child(7), .pl-scoreboard[data-size='5'] table td:nth-child(7) { display: none; }
+  .pl-scoreboard[data-size='5'] td .cat { display: none; }
+  .pl-scoreboard[data-size='5'] td:first-child { max-width: 132px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .pl-scoreboard[data-size='5'] td:nth-child(2) { white-space: nowrap; }
+  .pl-scoreboard[data-size='5'] .hint { margin-top: 2px; }
+}

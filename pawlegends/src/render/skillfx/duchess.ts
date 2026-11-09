@@ -40,7 +40,7 @@ import { playSkillSfx } from '../../audio/skillSfx';
 import { type SkillKey } from '../identity';
 import { stubFx } from '../anim/common';
 import { TICK_S } from '../anim/timing';
-import { CAPS } from '../../data/map';
+import { CAPS, MAX_HEROES } from '../../data/map';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet } from '../anim/types';
 import { funBigHit, funCount, funPop, funRand, funRank, funSfx, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
 import { S3Once, s3Crown, s3HeadY } from '../fx/fun/skills3Kit';
@@ -174,20 +174,20 @@ const CLOUDS: Cloud[] = [new Cloud(), new Cloud(), new Cloud()];
 // ------------------------------------------------------------------------------------------------ Snub
 
 /** Her recent ability hits on heroes: victim id and the module clock at the hit (−9 = none). */
-const hitAt = new Float32Array(CAPS.heroes).fill(-9);
-const hitRim = new Uint32Array(CAPS.heroes);
-const hitRel: Relation3[] = new Array<Relation3>(CAPS.heroes).fill('own');
-const hitSrc = new Int16Array(CAPS.heroes).fill(-1);
+const hitAt = new Float32Array(MAX_HEROES).fill(-9);
+const hitRim = new Uint32Array(MAX_HEROES);
+const hitRel: Relation3[] = new Array<Relation3>(MAX_HEROES).fill('own');
+const hitSrc = new Int16Array(MAX_HEROES).fill(-1);
 let clock = 0;
 /** Her last cast slot and its clock per caster (an ability hit belongs to it), and the fun latches. */
-const lastSlot = new Int8Array(CAPS.heroes).fill(-1);
-const lastCastAt = new Float64Array(CAPS.heroes).fill(-9);
-const hmph = new S3Once(CAPS.heroes);
-const begone = new S3Once(CAPS.heroes);
+const lastSlot = new Int8Array(MAX_HEROES).fill(-1);
+const lastCastAt = new Float64Array(MAX_HEROES).fill(-9);
+const hmph = new S3Once(MAX_HEROES);
+const begone = new S3Once(MAX_HEROES);
 /** Royal Decree's crown over her head: until (module clock), the next refresh, its size. */
-const crownUntil = new Float64Array(CAPS.heroes);
-const crownNext = new Float64Array(CAPS.heroes);
-const crownK = new Float32Array(CAPS.heroes).fill(1);
+const crownUntil = new Float64Array(MAX_HEROES);
+const crownNext = new Float64Array(MAX_HEROES);
+const crownK = new Float32Array(MAX_HEROES).fill(1);
 /** Snubs drawn (tests). */
 let snubs = 0;
 

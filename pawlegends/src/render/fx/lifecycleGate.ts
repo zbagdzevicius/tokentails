@@ -11,6 +11,7 @@ import * as THREE from 'three';
 import { CORE, MAP, mirrorX } from '../../data/map';
 import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { gateSpans } from '../views/mapView';
+import { onPlayfield } from '../../sim/map/grid';
 
 /** Ticks the open animation takes after the barrier drops (0.9 s). */
 export const GATE_OPEN_TICKS = 27;
@@ -64,6 +65,54 @@ export function gateSegments(xM: number): [number, number][] {
 
 /** Both barrier lines (m): team 0's and team 1's. */
 export const GATE_X: readonly [number, number] = [MAP.barrierX / 1000, mirrorX(MAP.barrierX) / 1000];
+
+/** One fence line (m): centre on the map, length, turn about Y (0 = along the map's y), side, sign offset along it. */
+export interface GateLine {
+  side: 0 | 1;
+  cx: number;
+  cy: number;
+  len: number;
+  angle: number;
+  signOff: number;
+}
+
+/**
+ * Every fence of the bound map. Crossing: the walkable spans of x = barrierX (and its mirror) minus the core gap.
+ * Sim v19 Hearthwood: the walkable span of x + y = barrierSum across team 0's corner and its point reflection.
+ */
+export function gateLines(): GateLine[] {
+  const out: GateLine[] = [];
+  if (MAP.point === 1) {
+    const S = MAP.barrierSum / 1000;
+    const W = MAP.width / 1000;
+    const H = MAP.height / 1000;
+    let a = -1;
+    let b = -1;
+    for (let x = 0; x <= S + 1e-6; x += 0.25) {
+      if (!onPlayfield(Math.round(x * 1000), Math.round((S - x) * 1000))) continue;
+      if (a < 0) a = x;
+      b = x;
+    }
+    if (a < 0) return out;
+    const cx = (a + b) / 2;
+    const len = (b - a) * Math.SQRT2;
+    out.push({ side: 0, cx, cy: S - cx, len, angle: Math.PI / 4, signOff: 0 });
+    out.push({ side: 1, cx: W - cx, cy: H - (S - cx), len, angle: Math.PI / 4, signOff: 0 });
+    return out;
+  }
+  const cy = CORE.y / 1000;
+  // the bound map's lines (this chunk can load mid-match, so GATE_X may hold another map's)
+  [MAP.barrierX / 1000, mirrorX(MAP.barrierX) / 1000].forEach((x, side) => {
+    for (const [y0, y1] of gateSegments(x)) {
+      const len = y1 - y0;
+      const mid = (y0 + y1) / 2;
+      const inset = Math.min(2.5, len * 0.3);
+      const signY = mid < cy ? y1 - inset : y0 + inset;
+      out.push({ side: side as 0 | 1, cx: x, cy: mid, len, angle: 0, signOff: -(signY - mid) });
+    }
+  });
+  return out;
+}
 
 const FIELD_VERT = /* glsl */ `
 varying vec2 vUv;
@@ -206,6 +255,11 @@ export interface GateSign {
    * hidden under the bottom HUD (feel QA: the bottom gate's padlock sat behind the desktop ability bar).
    */
   sz: number;
+  /** Sim v19: the line's direction on the ground (three.js X / Z, unit) and its centre; Crossing's run along z. */
+  dx: number;
+  dz: number;
+  cx: number;
+  cz: number;
 }
 
 export class StartGate {
@@ -222,43 +276,41 @@ export class StartGate {
     this.group.name = 'start-gate';
     const fields: { geo: THREE.BufferGeometry; tag: number }[] = [];
     const posts: { geo: THREE.BufferGeometry; tag: number }[] = [];
-    GATE_X.forEach((x, side) => {
-      for (const [y0, y1] of gateSegments(x)) {
-        const len = y1 - y0;
-        const mid = (y0 + y1) / 2;
-        const cy = CORE.y / 1000;
-        const inset = Math.min(2.5, len * 0.3);
-        const signY = mid < cy ? y1 - inset : y0 + inset;
-        this.signs.push({ x, z: -mid, side: side as 0 | 1, len, sz: -signY });
-        // the forcefield: an upper half-tube lying along the line (reads as a solid glowing wall from the steep camera,
-        // where an upright plane was seen edge-on)
-        const tube = new THREE.CylinderGeometry(TUBE_R, TUBE_R, len, 14, 1, true, Math.PI / 2, Math.PI);
-        tube.rotateX(Math.PI / 2);
-        tube.scale(1, 1.75, 1);
-        tube.translate(x, 0, -mid);
-        fields.push({ geo: tube, tag: 0 });
-        // posts with yarn-ball caps, and two rails
-        const n = Math.max(2, Math.round(len / POST_STEP) + 1);
-        for (let i = 0; i < n; i++) {
-          const z = -(y0 + (len * i) / (n - 1));
-          const post = new THREE.CylinderGeometry(0.09, 0.12, POST_H, 6, 1);
-          post.translate(x, POST_H / 2, z);
-          posts.push({ geo: post, tag: 0 });
-          const cap = new THREE.IcosahedronGeometry(i === 0 || i === n - 1 ? 0.3 : 0.2, 0);
-          cap.translate(x, POST_H + 0.12, z);
-          posts.push({ geo: cap, tag: 1 });
-        }
-        for (const [h, r] of [
-          [0.55, 0.05],
-          [1.2, 0.06],
-        ] as const) {
-          const rail = new THREE.CylinderGeometry(r, r, len, 5, 1);
-          rail.rotateX(Math.PI / 2);
-          rail.translate(x, h, -mid);
-          posts.push({ geo: rail, tag: 1 });
-        }
+    for (const ln of gateLines()) {
+      const { len, side } = ln;
+      // each fence is built along local z (centred on 0) and placed on its line: the Crossing lines run along the
+      // map's y (angle 0, the v18 placement); Hearthwood's (sim v19) cross each base corner on x + y = barrierSum
+      const place = new THREE.Matrix4().makeRotationY(ln.angle).setPosition(ln.cx, 0, -ln.cy);
+      const put = (g: THREE.BufferGeometry): THREE.BufferGeometry => g.applyMatrix4(place);
+      const signAt = ln.signOff;
+      this.signs.push({ x: ln.cx + Math.sin(ln.angle) * signAt, z: -ln.cy, side, len, sz: -ln.cy + Math.cos(ln.angle) * signAt, dx: Math.sin(ln.angle), dz: Math.cos(ln.angle), cz: -ln.cy, cx: ln.cx });
+      // the forcefield: an upper half-tube lying along the line (reads as a solid glowing wall from the steep camera,
+      // where an upright plane was seen edge-on)
+      const tube = new THREE.CylinderGeometry(TUBE_R, TUBE_R, len, 14, 1, true, Math.PI / 2, Math.PI);
+      tube.rotateX(Math.PI / 2);
+      tube.scale(1, 1.75, 1);
+      fields.push({ geo: put(tube), tag: 0 });
+      // posts with yarn-ball caps, and two rails
+      const n = Math.max(2, Math.round(len / POST_STEP) + 1);
+      for (let i = 0; i < n; i++) {
+        const z = len / 2 - (len * i) / (n - 1);
+        const post = new THREE.CylinderGeometry(0.09, 0.12, POST_H, 6, 1);
+        post.translate(0, POST_H / 2, z);
+        posts.push({ geo: put(post), tag: 0 });
+        const cap = new THREE.IcosahedronGeometry(i === 0 || i === n - 1 ? 0.3 : 0.2, 0);
+        cap.translate(0, POST_H + 0.12, z);
+        posts.push({ geo: put(cap), tag: 1 });
       }
-    });
+      for (const [h, r] of [
+        [0.55, 0.05],
+        [1.2, 0.06],
+      ] as const) {
+        const rail = new THREE.CylinderGeometry(r, r, len, 5, 1);
+        rail.rotateX(Math.PI / 2);
+        rail.translate(0, h, 0);
+        posts.push({ geo: put(rail), tag: 1 });
+      }
+    }
     const mid = { value: MAP.width / 2000 };
     this.fieldMat = new THREE.ShaderMaterial({
       vertexShader: FIELD_VERT,

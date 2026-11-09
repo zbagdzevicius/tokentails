@@ -9,7 +9,8 @@
  */
 import { BOTS, BOT_TEAMS, FEEDER, PARKED, ROOKIE_ALLIES, type BotParams, type Difficulty, type PlayerProfile } from '../../data/bots';
 import { TIMELINE } from '../../data/timeline';
-import { HUMAN_SLOT, Op, PVP_LEAD1, SLOT_COUNT, teamOfSlot, type Command } from '../api';
+import { HUMAN_SLOT, Op, PVP_LEAD1, SLOTS_PER_TEAM, SLOT_COUNT, teamOfSlot, type Command } from '../api';
+import { bindWorld } from '../map/runtime';
 import { quantize } from '../commands';
 import { Rng } from '../rng';
 import type { MatchHandle } from '../state';
@@ -53,7 +54,15 @@ export function botParams(m: MatchHandle, slot: number): BotParams {
   return teamOfSlot(slot) === teamOfSlot(HUMAN_SLOT) ? ALLIES[m.config.difficulty] : BOTS[m.config.difficulty];
 }
 
-const thinksNow = (tick: number, slot: number): boolean => (tick + slot) % TIMELINE.botThinkEvery === 0;
+/**
+ * Bots think every TIMELINE.botThinkEvery ticks, staggered by slot. Sim v19 (5v5): team 1's slot k thinks half a period
+ * after team 0's slot k, as on the 3v3 map (slots 3 apart); slot + 5 would let team 1 think one tick before its
+ * counterpart every time, a reaction edge for one side.
+ */
+const thinksNow = (tick: number, slot: number): boolean => {
+  const phase = SLOTS_PER_TEAM === 3 || slot < SLOTS_PER_TEAM ? slot : slot - SLOTS_PER_TEAM + (TIMELINE.botThinkEvery >> 1);
+  return (tick + phase) % TIMELINE.botThinkEvery === 0;
+};
 
 /** Step 2: the in-sim bots think and act. */
 export function stepBots(m: MatchHandle): void {
@@ -93,8 +102,9 @@ export function createPlayerBot(m: MatchHandle, profile: PlayerProfile): PlayerB
  * state (B1). The `pinger` profile is slot 0's only (pings come from slot 0).
  */
 export function createPlayerBotFor(m: MatchHandle, profile: PlayerProfile, slot: number): PlayerBot {
-  // Sim v16 PvP: a pilot may drive any of the six slots, and the pinger drives either lead (0 or 3).
-  const max = m.pvp ? SLOT_COUNT : 3;
+  bindWorld(m.world);
+  // Sim v16 PvP: a pilot may drive any of the six slots, and the pinger drives either lead (0 or 3). Sim v19: per map.
+  const max = m.pvp ? SLOT_COUNT : SLOTS_PER_TEAM;
   if (!Number.isInteger(slot) || slot < 0 || slot >= max) throw new RangeError(`player-bot slot ${String(slot)} is not 0 to ${max - 1}`);
   if (profile === 'pinger' && slot !== HUMAN_SLOT && !(m.pvp && slot === PVP_LEAD1)) throw new RangeError('the pinger profile drives a lead slot only');
   const name = profile === 'pinger' ? 'normal' : profile;
@@ -108,6 +118,7 @@ export function createPlayerBotFor(m: MatchHandle, profile: PlayerProfile, slot:
  */
 export function playerBotCommands(m: MatchHandle, bot: PlayerBot): Command[] {
   const w = m.world;
+  bindWorld(w);
   if (bot.profile === 'idle' || m.ended || !thinksNow(w.globals[G.Tick], bot.slot)) return [];
   // Slot 0 gets no automatic talent: choose like the in-sim bots (sim v10: the seeded rule, or the headless mode).
   if (w.alive[bot.slot] === 1) {

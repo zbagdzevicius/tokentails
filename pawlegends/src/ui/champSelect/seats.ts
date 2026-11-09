@@ -33,12 +33,12 @@ function memberSeat(v: PartyView, m: MemberView, name: string, hover: string): S
 }
 
 /**
- * The party's seats: members by slot (three seats; an empty seat is a bot). Casual PvP: the own team's three slots only.
- * `shown(m)` names a member (its own name for you, "Teammate 2" with hidden names).
+ * The party's seats: members by slot (`teamSize` seats, 3 or 5; an empty seat is a bot). PvP (casual, or a 5v5 Classic
+ * queue): the own team's slots only. `shown(m)` names a member (its own name for you, "Teammate 2" with hidden names).
  */
-export function partySeats(v: PartyView, hover: string, shown: (m: MemberView) => string, teamSize = 3): SeatModel[] {
+export function partySeats(v: PartyView, hover: string, shown: (m: MemberView) => string, teamSize = 3, pvp = v.mm?.mode === 'casual'): SeatModel[] {
   const bot: SeatModel = { name: 'Bot', hero: null, state: 'bot', sub: 'Fills the seat' };
-  if (v.mm?.mode === 'casual') {
+  if (v.mm && pvp) {
     const team = v.mm.team ?? 0;
     return Array.from({ length: teamSize }, (_, i) => {
       const m = v.members.find((x) => x.slot === team * teamSize + i);

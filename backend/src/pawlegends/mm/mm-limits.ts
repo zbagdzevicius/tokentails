@@ -146,3 +146,25 @@ export const MM_CASUAL = Object.freeze({
     /** Recent matches per pool remembered for the left-side species alternation. */
     sideBalanceN: 50,
 });
+
+/**
+ * 5v5 Classic (docs/plans/moba/MAP-5V5.md §9.3): the `classic` pool on Hearthwood Divide (sim v19+, PROTO 4). The
+ * casual rules with five seats a team: bots fill the empty seats at 45 s (`fillMsClassic`), a search never moves to
+ * co-op (there is no 5v5 co-op), and the subset search looks at fewer candidates (a team holds up to five entries).
+ */
+export const MM_CLASSIC = Object.freeze({
+    ...MM_CASUAL,
+    fillMs: 45_000,
+    /** Never: a classic search stays classic (Infinity keeps the casual switch code a no-op). */
+    switchMs: Number.POSITIVE_INFINITY,
+    /** Parties face parties of the same size until the fill. */
+    partiesUntilMs: 45_000,
+    /** A lone human never faces five humans while a fuller team can still form within this long after the fill. */
+    loneVsThreeMs: 15_000,
+    /** Bounds the subset search: anchor + 9 candidates is one full 10-human match. */
+    candidates: 9,
+    /** Seats per team. */
+    teamSize: 5 as const,
+    /** A Hearthwood room is this many referee units (a 3v3 room is 1) until G9 measures the real ratio (§9.2). */
+    refereeUnits: 3,
+});

@@ -30,15 +30,16 @@ import { TIMELINE } from '../../data/timeline';
 import { HERO_RULES } from '../../data/xp';
 import { HUMAN_SLOT, Op, type Command } from '../api';
 import { BP_ONE, applyBp, dist2, idiv, isqrt } from '../fixed';
-import { LANES, MAP, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS, mirrorX } from '../../data/map';
-import { nearLane } from '../map/grid';
+import { CAMPS, LANES, MAP, PUDDING_SPOT, RAT_CAMP, TOWER_SPOTS, mirrorX } from '../../data/map';
+import { ROLE } from './roles';
+import { nearLane, nearestLane } from '../map/grid';
 import type { Rng } from '../rng';
 import type { MatchHandle } from '../state';
-import { G, Kind, NEVER, Order, RANGE, type World } from '../world';
+import { G, Kind, MG, NEVER, Order, RANGE, type World } from '../world';
 import { rulesOf } from '../rules';
 import { PICKUP_FRENZY, PICKUP_SNACK, nearestPickup } from '../units/pickup';
 import { heroData, attackDamage, attackRange, radiusOf, targetable } from '../units/kinds';
-import { firstRat } from '../units/camp';
+import { BOSS_CAMP, campCount, campSize, firstRat } from '../units/camp';
 import type { BotMem } from './mem';
 import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast, underFire } from './casts';
 import { kitOf } from '../heroes/kit';
@@ -50,6 +51,7 @@ import {
   hpBp,
   laneFront,
   laneStructure,
+  alongLane,
   laneTowers,
   ownCover,
   powerOf,
@@ -58,14 +60,21 @@ import {
   sign,
   structReach,
   tanked,
+  towardBase,
   untankedThreat,
 } from './sense';
 
-const HEROES_N = RANGE.minions - RANGE.heroes;
 const ROAM = 2;
 
-/** Lane role by team slot: 0 Sunny, 1 Puddle, 2 roams (rat camp, then the lane that needs help). */
-const roleOf = (id: number): number => id % 3;
+/** Lane role by team slot: 0 Sunny, 1 Puddle, 2 roams (rat camp, then the lane that needs help). Sim v19 Hearthwood:
+ *  the slot's ROLE (bots/roles.ts; Prowl roams the jungle). */
+/** Sim v19: the lane of a push order (Crossing: Sunny 0, Puddle 1; Hearthwood: Fenceline, Yarn Road, Gutterway). */
+const pushOrderLane = (ord: number): number =>
+  ord === PING_KIND.PushSunny || ord === PING_KIND.PushFence ? 0 : ord === PING_KIND.PushYarn ? 1 : ord === PING_KIND.PushGutter ? 2 : LANES.length > 2 ? 2 : 1;
+const isPush = (ord: number): boolean =>
+  ord === PING_KIND.PushSunny || ord === PING_KIND.PushPuddle || ord === PING_KIND.PushFence || ord === PING_KIND.PushYarn || ord === PING_KIND.PushGutter;
+/** Sim v19: is bot `id` a roamer (Crossing: slot role 2; Hearthwood: Prowl)? */
+const roams = (w: World, id: number): boolean => (w.mg.length > 0 ? w.mg[MG.Role + id] === ROLE.Prowl : id % 3 === ROAM);
 
 const isRanged = (w: World, id: number): boolean => heroData(w, id).base.range > HERO_RULES.meleeMaxRange;
 
@@ -98,7 +107,7 @@ function attack(w: World, id: number, mem: BotMem, t: number): Command | null {
 function updateAwareness(w: World, id: number, mem: BotMem, tick: number, slip: boolean): void {
   const r2 = BOT_AI.awareRange * BOT_AI.awareRange;
   for (let e = RANGE.heroes; e < RANGE.minions; e++) {
-    const k = id * HEROES_N + e;
+    const k = id * RANGE.minions + e;
     const inView = seenEnemy(w, w.team[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= r2;
     if (!inView) mem.seen[k] = -1;
     else if (mem.seen[k] < 0 && !slip) mem.seen[k] = tick;
@@ -106,7 +115,7 @@ function updateAwareness(w: World, id: number, mem: BotMem, tick: number, slip: 
 }
 
 const aware = (mem: BotMem, id: number, e: number, tick: number, p: BotParams): boolean => {
-  const t = mem.seen[id * HEROES_N + e];
+  const t = mem.seen[id * RANGE.minions + e];
   return t >= 0 && tick - t >= p.reactionTicks;
 };
 
@@ -149,7 +158,7 @@ function leaveToHuman(w: World, e: number): boolean {
   const h = HUMAN_SLOT;
   if (w.alive[h] === 0 || hpBp(w, e) >= BOT_AI.stealHpBp) return false;
   if (dist2(w.x[h], w.y[h], w.x[e], w.y[e]) > BOT_AI.stealRange * BOT_AI.stealRange) return false;
-  const t = w.assistTick[e * HEROES_N + h];
+  const t = w.assistTick[e * RANGE.minions + h];
   return w.target[h] === e || (t !== NEVER && w.globals[G.Tick] - t <= BOT_AI.stealTicks);
 }
 
@@ -258,6 +267,7 @@ export function pushLane(w: World, team: number, id = -1, pressAhead = 0): numbe
   // Defend only with the numbers to hold: allied heroes alive within BOT_AI.powerRange of bot `id` (itself
   // included; −1: every allied hero alive). A hero farming far away does not count. A team pressAhead or more
   // ahead (BotParams.pressAhead) turns back only with strictly more heroes near than raiders: it keeps pushing.
+  if (LANES.length > 2) return pushLaneN(w, team, id, pressAhead);
   const ra = raiders(w, team, 0);
   const rb = raiders(w, team, 1);
   const need = pressAhead > 0 && -scoreBehind(w, team) >= pressAhead ? 1 : 0;
@@ -267,9 +277,40 @@ export function pushLane(w: World, team: number, id = -1, pressAhead = 0): numbe
   if (a !== b) return a < b ? 0 : 1;
   const fa = laneFront(w, team, 0);
   const fb = laneFront(w, team, 1);
-  const pa = fa >= 0 ? progressOf(team, w.x[fa]) : 0;
-  const pb = fb >= 0 ? progressOf(team, w.x[fb]) : 0;
+  const pa = fa >= 0 ? progressOf(team, w.x[fa], w.y[fa]) : 0;
+  const pb = fb >= 0 ? progressOf(team, w.x[fb], w.y[fb]) : 0;
   return pb > pa ? 1 : 0;
+}
+
+/** Sim v19: `pushLane` over three lanes (Hearthwood): the most raided lane; else fewest enemy towers; else the furthest wave; ties to the lower lane. */
+function pushLaneN(w: World, team: number, id: number, pressAhead: number): number {
+  const need = pressAhead > 0 && -scoreBehind(w, team) >= pressAhead ? 1 : 0;
+  let most = -1;
+  let mostN = -1;
+  let tie = false;
+  for (let l = 0; l < LANES.length; l++) {
+    const r = raiders(w, team, l);
+    if (r > mostN) {
+      mostN = r;
+      most = l;
+      tie = false;
+    } else if (r === mostN) tie = true;
+  }
+  if (!tie && mostN > 0 && mostN + need <= alliesNear(w, team, id)) return most;
+  let best = 0;
+  let bestT = TOWER_SPOTS.length + 1;
+  let bestP = -1;
+  for (let l = 0; l < LANES.length; l++) {
+    const t = laneTowers(w, 1 - team, l);
+    const f = laneFront(w, team, l);
+    const p = f >= 0 ? progressOf(team, w.x[f], w.y[f]) : 0;
+    if (t < bestT || (t === bestT && p > bestP)) {
+      best = l;
+      bestT = t;
+      bestP = p;
+    }
+  }
+  return best;
 }
 
 /**
@@ -283,13 +324,19 @@ function humanEngaged(w: World): boolean {
   const y = w.y[h];
   if (nearLane(x, y, BOT_AI.leashLane)) return true;
   const r2 = BOT_AI.leashObjective * BOT_AI.leashObjective;
+  if (MAP.point === 1) {
+    // Sim v19 (Hearthwood): any camp, Grizzlechop's pit or the Great Pudding pit.
+    if (dist2(x, y, PUDDING_SPOT.x, PUDDING_SPOT.y) <= r2) return true;
+    for (let c = 0; c < CAMPS.length; c++) if (dist2(x, y, CAMPS[c].x, CAMPS[c].y) <= r2) return true;
+    return false;
+  }
   return (
     dist2(x, y, RAT_CAMP.x, RAT_CAMP.y) <= r2 || dist2(x, y, mirrorX(RAT_CAMP.x), RAT_CAMP.y) <= r2 || dist2(x, y, PUDDING_SPOT.x, PUDDING_SPOT.y) <= r2
   );
 }
 
 /** The human's lane by where it stands (Sunny above the middle). */
-const humanLane = (w: World): number => (w.y[HUMAN_SLOT] >= MAP.height >> 1 ? 0 : 1);
+const humanLane = (w: World): number => (MAP.point === 1 ? nearestLane(w.x[HUMAN_SLOT], w.y[HUMAN_SLOT]) : w.y[HUMAN_SLOT] >= MAP.height >> 1 ? 0 : 1);
 
 /** The lane bot `id` plays now. */
 function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: boolean, hunt: boolean): number {
@@ -298,6 +345,7 @@ function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: 
   if (carry || hunt) return humanLane(w);
   if (groupedNow(m, team, tick, p)) return pushLane(w, team, id, p.pressAhead);
   const role = laneRole(w, id);
+  if (w.mg.length > 0) return hearthLane(w, id, role);
   if (role !== ROAM) return role;
   // The roamer helps the lane with fewer own towers; tie: the one whose laner is hurt more.
   const a = laneTowers(w, team, 0);
@@ -307,6 +355,26 @@ function laneFor(m: MatchHandle, id: number, tick: number, p: BotParams, carry: 
   const secondHurt = hpBp(w, base + 1) < hpBp(w, base);
   // Sim v10 lane swap: then slot 0 plays Puddle and slot 1 Sunny.
   return secondHurt !== (laneRole(w, base) === 1) ? 1 : 0;
+}
+
+/**
+ * Sim v19 (Hearthwood): the lane of a bot by role. Laners play their lane; Guard plays Gutterway beside the Fish
+ * laner; Prowl helps the lane with the fewest own towers left (ties: the lower lane) between camps.
+ */
+function hearthLane(w: World, id: number, role: number): number {
+  if (role < LANES.length) return role;
+  if (role === ROLE.Guard) return ROLE.Fish;
+  const team = w.team[id];
+  let best = 1;
+  let bestT = laneTowers(w, team, 1);
+  for (let l = 0; l < LANES.length; l++) {
+    const t = laneTowers(w, team, l);
+    if (t < bestT) {
+      best = l;
+      bestT = t;
+    }
+  }
+  return best;
 }
 
 /** May bot `id` hit enemy structure `s` (vulnerable) with no minion tanking it? Only bots that dive. */
@@ -336,7 +404,7 @@ function humanOut(w: World): boolean {
   if (w.alive[h] === 0) return false;
   const team = w.team[h];
   const own = laneStructure(w, team, humanLane(w), true);
-  return progressOf(team, w.x[h]) >= progressOf(team, w.x[own]) - BOT_AI.holdAhead;
+  return progressOf(team, w.x[h], w.y[h]) >= progressOf(team, w.x[own], w.y[own]) - BOT_AI.holdAhead;
 }
 
 /** Heroes of `team` alive (the scoreboard shows who is down, so bots may read it). */
@@ -348,6 +416,10 @@ function heroesAlive(w: World, team: number): number {
 
 /** Stand-point in `lane`: behind the lane front, outside any untanked enemy tower. Writes [x, y]. */
 function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Array, carry = false): void {
+  if (MAP.point === 1) {
+    laneGoalPoint(w, id, lane, p, out, carry);
+    return;
+  }
   const team = w.team[id];
   const s = sign(team);
   const front = laneFront(w, team, lane);
@@ -356,7 +428,7 @@ function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Ar
   let gx: number;
   let gy: number;
   // v4: a wave still behind the own outer structure (just spawned) is waited for in front of it, not walked back to.
-  if (front >= 0 && progressOf(team, w.x[front]) - hold > progressOf(team, w.x[outer]) + BOT_AI.holdAhead) {
+  if (front >= 0 && progressOf(team, w.x[front], w.y[front]) - hold > progressOf(team, w.x[outer], w.y[outer]) + BOT_AI.holdAhead) {
     gx = w.x[front] - s * hold;
     gy = w.y[front];
   } else {
@@ -373,11 +445,35 @@ function laneGoal(w: World, id: number, lane: number, p: BotParams, out: Int32Ar
   if (carry) {
     const h = HUMAN_SLOT;
     const anchor = humanOut(w) ? w.x[h] : w.x[laneStructure(w, team, lane, true)];
-    const maxP = progressOf(team, anchor) + BOT_AI.leadMax;
-    if (progressOf(team, gx) > maxP) gx = team === 0 ? maxP : MAP.width - maxP;
+    const maxP = progressOf(team, anchor, 0) + BOT_AI.leadMax;
+    if (progressOf(team, gx, 0) > maxP) gx = team === 0 ? maxP : MAP.width - maxP;
   }
   out[0] = gx;
   out[1] = gy;
+}
+
+/** Sim v19 (point maps): `laneGoal` with every offset taken along the team's lane path instead of along x. */
+function laneGoalPoint(w: World, id: number, lane: number, p: BotParams, out: Int32Array, carry: boolean): void {
+  const team = w.team[id];
+  const front = laneFront(w, team, lane);
+  const hold = isRanged(w, id) ? BOT_AI.holdRanged : BOT_AI.holdMelee;
+  const outer = laneStructure(w, team, lane, true);
+  if (front >= 0 && progressOf(team, w.x[front], w.y[front]) - hold > progressOf(team, w.x[outer], w.y[outer]) + BOT_AI.holdAhead) {
+    alongLane(team, lane, w.x[front], w.y[front], -hold, out);
+  } else alongLane(team, lane, w.x[outer], w.y[outer], BOT_AI.holdAhead, out);
+  const t = untankedThreat(w, team, out[0], out[1], BOT_AI.towerMargin);
+  if (t >= 0 && targetable(w, t, team) && mayDive(w, id, t, p)) {
+    out[0] = w.x[t];
+    out[1] = w.y[t];
+  } else if (t >= 0) alongLane(team, lane, w.x[t], w.y[t], -(structReach(w, t) + BOT_AI.towerMargin), out);
+  if (carry) {
+    const h = HUMAN_SLOT;
+    const own = laneStructure(w, team, lane, true);
+    const ax = humanOut(w) ? w.x[h] : w.x[own];
+    const ay = humanOut(w) ? w.y[h] : w.y[own];
+    const over = progressOf(team, out[0], out[1]) - progressOf(team, ax, ay) - BOT_AI.leadMax;
+    if (over > 0) alongLane(team, lane, out[0], out[1], -over, out);
+  }
 }
 
 const goal = new Int32Array(2);
@@ -423,7 +519,7 @@ function retreat(w: World, id: number, mem: BotMem, p: BotParams): Command | nul
   if (w.napT[id] > 0) return null;
   const team = w.team[id];
   const hx = fountainX(team);
-  const hy = fountainY();
+  const hy = fountainY(team);
   const far = dist2(w.x[id], w.y[id], hx, hy) > BOT_AI.napMinDist * BOT_AI.napMinDist;
   if (far && nearestFoe(w, id, BOT_AI.napSafeRange) < 0 && !underFire(w, id, BOT_AI.napSafeRange)) {
     mem.op[id] = Op.Nap;
@@ -432,21 +528,49 @@ function retreat(w: World, id: number, mem: BotMem, p: BotParams): Command | nul
   return moveTo(w, id, mem, hx, hy);
 }
 
-/** Is the own camp of `team` up (a rat alive)? Returns a rat id or −1, nearest to `id`. */
+/** Is the own camp of `team` up (a rat alive)? Returns a rat id or −1, nearest to `id`. Sim v19 (Hearthwood): any
+ *  monster of the team's own jungle camps. */
 function campRat(w: World, id: number): number {
-  const c = w.team[id];
+  const c0 = w.team[id];
   let best = -1;
   let bestD = 0;
-  for (let k = 0; k < RAT_CAMP_STATS.rats; k++) {
-    const r = firstRat(c) + k;
-    if (w.alive[r] === 0) continue;
-    const d = dist2(w.x[id], w.y[id], w.x[r], w.y[r]);
-    if (best < 0 || d < bestD) {
-      best = r;
-      bestD = d;
+  const camps = w.mg.length > 0 ? campCount() : 1;
+  for (let ci = 0; ci < camps; ci++) {
+    const c = w.mg.length > 0 ? ci : c0;
+    if (w.mg.length > 0 && (c === BOSS_CAMP || CAMPS[c].side !== w.team[id])) continue;
+    const n = w.mg.length > 0 ? campSize(c) : RAT_CAMP_STATS.rats;
+    for (let k = 0; k < n; k++) {
+      const r = firstRat(c) + k;
+      if (w.alive[r] === 0) continue;
+      const d = dist2(w.x[id], w.y[id], w.x[r], w.y[r]);
+      if (best < 0 || d < bestD) {
+        best = r;
+        bestD = d;
+      }
     }
   }
   return best;
+}
+
+/**
+ * Sim v19 (Hearthwood): Captain Grizzlechop, if up and bot `id` goes for him: Prowl, Guard and the Fish laner (the
+ * roles near his pit), or any bot already within BOT_AI.awareRange, decided once per spawn (contestPuddingBp), with
+ * enough healthy allies. Returns his id or −1.
+ */
+function bossFor(w: World, id: number, mem: BotMem, p: BotParams, rng: Rng, hp: number): number {
+  if (w.mg.length === 0 || BOSS_CAMP < 0) return -1;
+  const b = firstRat(BOSS_CAMP);
+  if (w.alive[b] === 0 || hp < BOT_AI.objectiveHpBp) return -1;
+  const role = w.mg[MG.Role + id];
+  const near = dist2(w.x[id], w.y[id], w.x[b], w.y[b]) <= BOT_AI.awareRange * BOT_AI.awareRange;
+  if (!near && role !== ROLE.Prowl && role !== ROLE.Guard && role !== ROLE.Fish) return -1;
+  const spawn = w.mg[MG.Takes0] + w.mg[MG.Takes1];
+  // Decided once per spawn, in the bot's own memory (an outside pilot's never touches the world).
+  const dec = mem.boss[id];
+  if (dec <= 0 || (dec - 1) >> 1 !== spawn) mem.boss[id] = 1 + spawn * 2 + (rng.chanceBp(p.contestPuddingBp) ? 1 : 0);
+  if (((mem.boss[id] - 1) & 1) === 0) return -1;
+  if (healthyAllies(w, id) < BOT_AI.pudAllies) return -1;
+  return targetable(w, b, w.team[id]) ? b : -1;
 }
 
 /** Is an enemy structure within BOT_AI.siegeRange of bot `id` (a push is on)? */
@@ -465,10 +589,12 @@ function sieging(w: World, id: number): boolean {
 export function baseThreat(w: World, team: number): number {
   heroThreat = false;
   const core = RANGE.cores + team;
-  for (let pass = 0; pass < 3; pass++) {
+  // Sim v19: Hearthwood checks the core, its two Hearth Guards, then each lane's gate tower.
+  const passes = MAP.point === 1 ? 1 + 2 + LANES.length : 3;
+  for (let pass = 0; pass < passes; pass++) {
     // pass 0: the core (within BOT_AI.coreThreatRange: attackers gather just outside its reach); 1 and 2: the inner
     // tower of Sunny, then Puddle.
-    const s = pass === 0 ? core : innerTower(w, team, pass - 1);
+    const s = pass === 0 ? core : MAP.point === 1 ? hearthOrGate(w, team, pass - 1) : innerTower(w, team, pass - 1);
     if (s < 0 || w.alive[s] === 0) continue;
     const range = pass === 0 ? BOT_AI.coreThreatRange : BOT_AI.baseThreatRange;
     const r2 = range * range;
@@ -487,6 +613,21 @@ export function baseThreat(w: World, team: number): number {
 
 /** Set by baseThreat: is an enemy hero part of the threat (else minions only)? */
 let heroThreat = false;
+
+/** Sim v19 (Hearthwood): Hearth Guard k (0, 1), then lane (k − 2)'s gate tower, while it stands, else −1. */
+function hearthOrGate(w: World, team: number, k: number): number {
+  const base = RANGE.towers + team * TOWER_SPOTS.length;
+  let n = 0;
+  for (let j = 0; j < TOWER_SPOTS.length; j++) {
+    if (TOWER_SPOTS[j].tier !== 'hearth') continue;
+    if (n++ === k) return w.alive[base + j] === 1 ? base + j : -1;
+  }
+  const lane = LANES[k - 2];
+  for (let j = 0; j < TOWER_SPOTS.length; j++) {
+    if (TOWER_SPOTS[j].lane === lane && TOWER_SPOTS[j].tier === 'gate') return w.alive[base + j] === 1 ? base + j : -1;
+  }
+  return -1;
+}
 
 /** `team`'s inner tower in `lane` while it stands, else −1. */
 function innerTower(w: World, team: number, lane: number): number {
@@ -529,6 +670,10 @@ function defend(w: World, id: number, mem: BotMem, s: number, p: BotParams, rng:
     return { op: Op.Nap };
   }
   // Sim v16 (MAP-GAPS B4): stand behind the defended structure, outside its footprint (its centre is never reached).
+  if (MAP.point === 1) {
+    towardBase(w.team[id], w.x[s], w.y[s], radiusOf(w, s) + BOT_AI.holdMelee, goal);
+    return moveTo(w, id, mem, goal[0], goal[1]);
+  }
   return moveTo(w, id, mem, w.x[s] - sign(w.team[id]) * (radiusOf(w, s) + BOT_AI.holdMelee), w.y[s]);
 }
 
@@ -536,8 +681,8 @@ function defend(w: World, id: number, mem: BotMem, s: number, p: BotParams, rng:
 function overextended(w: World, id: number, lane: number): boolean {
   const team = w.team[id];
   const front = laneFront(w, team, lane);
-  const fp = front >= 0 ? progressOf(team, w.x[front]) : progressOf(team, w.x[laneStructure(w, team, lane, true)]);
-  if (progressOf(team, w.x[id]) - fp <= BOT_AI.overextend) return false;
+  const fp = front >= 0 ? progressOf(team, w.x[front], w.y[front]) : progressOf(team, w.x[laneStructure(w, team, lane, true)], w.y[laneStructure(w, team, lane, true)]);
+  if (progressOf(team, w.x[id], w.y[id]) - fp <= BOT_AI.overextend) return false;
   return alliesNear(w, team, id) <= 1;
 }
 
@@ -595,8 +740,18 @@ function orderGoal(w: World, id: number, ord: number, p: BotParams): number {
     }
     case PING_KIND.PushSunny:
     case PING_KIND.PushPuddle:
-      laneGoal(w, id, ord === PING_KIND.PushSunny ? 0 : 1, p, goal);
+    case PING_KIND.PushFence:
+    case PING_KIND.PushYarn:
+    case PING_KIND.PushGutter:
+      laneGoal(w, id, pushOrderLane(ord), p, goal);
       return PING.arriveRange;
+    case PING_KIND.Grizzlechop: {
+      // Sim v19: Grizzlechop's pit (he stands there while up).
+      const c = BOSS_CAMP >= 0 ? BOSS_CAMP : 0;
+      goal[0] = CAMPS[c].x;
+      goal[1] = CAMPS[c].y;
+      return PING.arriveRange;
+    }
     default:
       goal[0] = orderPt[0];
       goal[1] = orderPt[1];
@@ -607,6 +762,8 @@ function orderGoal(w: World, id: number, ord: number, p: BotParams): number {
 /** Is order `ord` fulfilled before its TTL: Pudding no longer wild, or the base safe (no threat left)? */
 function orderDone(w: World, id: number, ord: number): boolean {
   if (ord === PING_KIND.Pudding) return w.globals[G.PudState] !== PUD_STATE.Wild || w.alive[RANGE.pudding] === 0;
+  // Sim v19: Grizzlechop's order ends once he is down (or never spawned again).
+  if (ord === PING_KIND.Grizzlechop) return BOSS_CAMP < 0 || w.alive[firstRat(BOSS_CAMP)] === 0;
   if (ord === PING_KIND.Defend) return baseThreat(w, w.team[id]) < 0;
   return false;
 }
@@ -658,9 +815,18 @@ function orderAct(m: MatchHandle, id: number, mem: BotMem, ord: number, p: BotPa
       }
       return holdAt(w, id, mem, goal[0], goal[1], r, p);
     }
+    case PING_KIND.Grizzlechop: {
+      mem.mode[id] = BOT_MODE.Pudding;
+      const b = BOSS_CAMP >= 0 ? firstRat(BOSS_CAMP) : -1;
+      if (b >= 0 && w.alive[b] === 1 && targetable(w, b, team)) return (p.waveClear ? clearCast(w, id, b) : null) ?? attack(w, id, mem, b);
+      return holdAt(w, id, mem, goal[0], goal[1], r, p);
+    }
     case PING_KIND.PushSunny:
-    case PING_KIND.PushPuddle: {
-      const lane = ord === PING_KIND.PushSunny ? 0 : 1;
+    case PING_KIND.PushPuddle:
+    case PING_KIND.PushFence:
+    case PING_KIND.PushYarn:
+    case PING_KIND.PushGutter: {
+      const lane = pushOrderLane(ord);
       mem.lane[id] = lane;
       // A push order is a grouped push: a diving bot hits an untanked tower while its team has more heroes up.
       thinkingGrouped = true;
@@ -711,7 +877,7 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     mem.mode[id] = BOT_MODE.Lane;
   }
   // The scripted first fight is fought to the end (DifficultyRules.scriptFrom).
-  const scripted = id === 3 && rulesOf(m).scriptFrom > 0 && tick >= rulesOf(m).scriptFrom && tick < rulesOf(m).scriptUntil;
+  const scripted = id === 3 && MAP.point === 0 && rulesOf(m).scriptFrom > 0 && tick >= rulesOf(m).scriptFrom && tick < rulesOf(m).scriptUntil;
   const low = hp < p.retreatHpBp && !scripted;
   if (low && (hp < applyBp(p.retreatHpBp, BOT_AI.retreatAlwaysBp) || threatened(w, id, mem, p, tick))) return retreat(w, id, mem, p);
   if (w.napT[id] > 0) return null;
@@ -753,10 +919,10 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // The roamer (team slot 2) carries first, then the Puddle laner (DifficultyRules.carryAllies).
   // Sim v5: only while the human plays (humanEngaged): a human parked off the lanes, or idle, is not followed.
   // Sim v10: an ordered bot follows its order instead.
-  const carry = !ordered && id !== HUMAN_SLOT && w.team[id] === w.team[HUMAN_SLOT] && rules.carryAllies >= (roleOf(id) === ROAM ? 1 : 2) && humanEngaged(w);
+  const carry = !ordered && id !== HUMAN_SLOT && w.team[id] === w.team[HUMAN_SLOT] && rules.carryAllies >= (roams(w, id) ? 1 : 2) && humanEngaged(w);
   thinkingCarry = carry;
   // Rookie: slot 3 walks into Sunny Lane early and picks the first fight (DifficultyRules.scriptFrom).
-  const script = id === 3 && rules.scriptFrom > 0 && tick >= rules.scriptFrom && tick < rules.scriptUntil;
+  const script = id === 3 && MAP.point === 0 && rules.scriptFrom > 0 && tick >= rules.scriptFrom && tick < rules.scriptUntil;
   // Sim v7: enemy heroes at the own core come before any fight elsewhere (a base race is not a lead).
   if (p.defendBase && !low && !carry && !script && !ordered) {
     const s = baseThreat(w, w.team[id]);
@@ -821,10 +987,14 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   const shot = shotBy >= 0 && !tanked(w, shotBy, team) && !(targetable(w, shotBy, team) && mayDive(w, id, shotBy, p));
   const exposed = p.hunts && !grouped && overextended(w, id, lane);
   // Sim v10: a bot on a Group or Push order beside the human holds through a bad fight (tower fire still counts).
-  const backed = ordered && (ord === PING_KIND.Group || ord === PING_KIND.PushSunny || ord === PING_KIND.PushPuddle) && beside(w, id);
+  const backed = ordered && (ord === PING_KIND.Group || isPush(ord)) && beside(w, id);
   if ((!backed && ((bad >= 0 && dist2(w.x[id], w.y[id], w.x[bad], w.y[bad]) <= BOT_AI.engageRange * BOT_AI.engageRange) || exposed)) || shot) {
     const own = laneStructure(w, team, lane, true);
     mem.mode[id] = BOT_MODE.Lane;
+    if (MAP.point === 1) {
+      alongLane(team, lane, w.x[own], w.y[own], BOT_AI.holdAhead, goal);
+      return moveTo(w, id, mem, goal[0], goal[1]);
+    }
     return moveTo(w, id, mem, w.x[own] + sign(team) * BOT_AI.holdAhead, w.y[own]);
   }
   // Sim v10: a ping order comes after the fights and the back-off, before Pudding, the camp and the lane.
@@ -841,8 +1011,14 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
       return (p.waveClear ? clearCast(w, id, pud) : null) ?? attack(w, id, mem, pud);
     }
   }
+  // Sim v19 (Hearthwood): Captain Grizzlechop.
+  const boss = carry ? -1 : bossFor(w, id, mem, p, rng, hp);
+  if (boss >= 0) {
+    mem.mode[id] = BOT_MODE.Pudding;
+    return (p.waveClear ? clearCast(w, id, boss) : null) ?? attack(w, id, mem, boss);
+  }
   // The roamer clears the own rat camp until the team groups.
-  if (!carry && !hunt && roleOf(id) === ROAM && tick >= TIMELINE.campsUp && !grouped && hp >= BOT_AI.objectiveHpBp) {
+  if (!carry && !hunt && roams(w, id) && tick >= TIMELINE.campsUp && !grouped && hp >= BOT_AI.objectiveHpBp) {
     const rat = campRat(w, id);
     if (rat >= 0) {
       mem.mode[id] = BOT_MODE.Camp;

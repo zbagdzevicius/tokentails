@@ -5,7 +5,8 @@
  */
 import { PING_KINDS } from '../data/pings';
 import { icon } from './icons';
-import { PING_TEXT, WHEEL_KINDS, wheelSlice } from './pingText';
+import { PING_TEXT, wheelKinds, wheelSlice } from './pingText';
+import { MAP } from '../data/map';
 
 export class PingWheel {
   readonly root: HTMLElement;
@@ -13,6 +14,8 @@ export class PingWheel {
   private cy = 0;
   private hot = -1;
   private readonly slices: HTMLButtonElement[] = [];
+  /** Sim v19: the bound map's slices (built with the session, after app/mapBinding.ts useMap). */
+  private readonly kinds = wheelKinds(MAP.point === 1);
   /** A slice was chosen: the PING_KIND. */
   onPick: ((kind: number) => void) | null = null;
 
@@ -21,8 +24,9 @@ export class PingWheel {
     this.root.className = 'pl-pingwheel';
     this.root.setAttribute('role', 'menu');
     this.root.setAttribute('aria-label', 'Tell your team');
-    const n = WHEEL_KINDS.length;
-    WHEEL_KINDS.forEach((kind, i) => {
+    const n = this.kinds.length;
+    if (n !== 6) this.root.dataset.slices = String(n);
+    this.kinds.forEach((kind, i) => {
       const t = PING_TEXT[PING_KINDS[kind]];
       const b = document.createElement('button');
       b.type = 'button';
@@ -56,7 +60,7 @@ export class PingWheel {
 
   /** Open centred on (x, y) in px (clamped so every slice stays on screen). */
   openAt(x: number, y: number): void {
-    const pad = 110;
+    const pad = this.kinds.length > 6 ? 132 : 110;
     const w = window.innerWidth;
     const h = window.innerHeight;
     this.cx = Math.max(pad, Math.min(w - pad, x));
@@ -71,12 +75,12 @@ export class PingWheel {
   /** Desktop: the cursor moved while G is held; highlight the slice it points at. */
   aim(x: number, y: number): void {
     if (!this.open) return;
-    this.setHot(wheelSlice(x - this.cx, y - this.cy));
+    this.setHot(wheelSlice(x - this.cx, y - this.cy, 26, this.kinds.length));
   }
 
   /** Desktop: G released; send the highlighted slice (none in the dead zone) and close. */
   commit(): void {
-    const k = this.hot >= 0 ? WHEEL_KINDS[this.hot] : -1;
+    const k = this.hot >= 0 ? this.kinds[this.hot] : -1;
     this.close();
     if (k >= 0) this.onPick?.(k);
   }

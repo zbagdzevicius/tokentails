@@ -4,7 +4,7 @@
  */
 export const TICK_HZ = 30;
 
-export const TIMELINE = Object.freeze({
+const C_TIMELINE = Object.freeze({
   /** 0:03 gate barrier drops (sim v4; 0:10 before). */
   barrierDrop: 90,
   /** 0:08 first minion wave (v4; 0:30 before). */
@@ -68,7 +68,7 @@ export interface PhaseTimes {
   sunset: number;
   suddenDeath: number;
 }
-export const TIMELINE_BY: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard', Readonly<PhaseTimes>>> = Object.freeze({
+const C_TIMELINE_BY: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard', Readonly<PhaseTimes>>> = Object.freeze({
   /** Match 1: 4:00 Sunset, 6:15 Sudden Death (the plan said 5:30; at 5:30 a third of the fun1 matches reached it). */
   rookie: Object.freeze({ sunset: 7200, suddenDeath: 11700 }),
   /** Sim v12 (docs/FUN-PROGRESSION-V12.md S3): 5:45 Sunset, 7:45 Sudden Death (the TIMELINE defaults, 5:00 and
@@ -78,3 +78,40 @@ export const TIMELINE_BY: Readonly<Record<'rookie' | 'easy' | 'normal' | 'hard',
   normal: Object.freeze({ sunset: 12150, suddenDeath: 15300 }),
   hard: Object.freeze({ sunset: 12150, suddenDeath: 15300 }),
 });
+
+export type Timeline = { readonly [K in keyof typeof C_TIMELINE]: number };
+export type TimelineBy = typeof C_TIMELINE_BY;
+
+/** Sim v19 (MAP-5V5.md §1.9): Hearthwood's 5v5 timeline: 0:05 barrier, waves from 0:20 every 30 s, sieges from 3:00,
+ *  Great Pudding at 8:00, the 16:00 safety end (= its MAX_TICKS in data/limits.ts). */
+export const HEARTHWOOD_TIMELINE: Timeline = Object.freeze({
+  ...C_TIMELINE,
+  barrierDrop: 150,
+  firstWave: 600,
+  waveEvery: 900,
+  campsUp: 900,
+  siegeFrom: 5400,
+  pudding: 14400,
+  sunset: 18000,
+  suddenDeath: 23400,
+  safetyEnd: 28800,
+});
+/** Hearthwood's Sunset and Sudden Death per difficulty (Normal and Hard 10:00 and 13:00). */
+export const HEARTHWOOD_TIMELINE_BY: TimelineBy = Object.freeze({
+  rookie: Object.freeze({ sunset: 16200, suddenDeath: 21600 }),
+  easy: Object.freeze({ sunset: 18900, suddenDeath: 24300 }),
+  normal: Object.freeze({ sunset: 18000, suddenDeath: 23400 }),
+  hard: Object.freeze({ sunset: 18000, suddenDeath: 23400 }),
+});
+
+export const CROSSING_TIMELINE: Timeline = C_TIMELINE;
+export const CROSSING_TIMELINE_BY: TimelineBy = C_TIMELINE_BY;
+
+/** Live bindings (sim v19): the active match's map's timeline (src/sim/map/runtime.ts bindMap). */
+export let TIMELINE: Timeline = C_TIMELINE;
+export let TIMELINE_BY: TimelineBy = C_TIMELINE_BY;
+
+export function setTimeline(t: Timeline, by: TimelineBy): void {
+  TIMELINE = t;
+  TIMELINE_BY = by;
+}

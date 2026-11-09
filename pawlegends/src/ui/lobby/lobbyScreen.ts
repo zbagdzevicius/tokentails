@@ -19,6 +19,7 @@
  *
  * Names are host data: always escaped here. Cosmetic only. App builds never point to the web to collect cards.
  */
+import { MODE_MAP, matchModeHtml, type MatchMode } from './matchMode';
 import { logoHtml } from '../brandLogo';
 import './lobby.css';
 import type { Difficulty, HeroId } from '../../sim/api';
@@ -100,6 +101,11 @@ export interface LobbyScreenOpts {
    * button. `locked`: fewer than `needed` (5) matches: "PvP 🔒 played/needed", and a tap explains it.
    */
   onlineMode?: { mode: 'coop' | 'pvp'; locked: boolean; onMode(mode: 'coop' | 'pvp'): void; played?: number; needed?: number };
+  /**
+   * Sim v19 (MAP-5V5.md §8.1): the 3v3 Quick | 5v5 Classic toggle above Play (remembered by the caller). Absent on
+   * the first match and on a dare (both are 3v3).
+   */
+  matchMode?: { mode: MatchMode; onMode(mode: MatchMode): void };
   onPlay(c: Choice, seed?: number): void;
   onChoose(): void;
   onMute(m: boolean): void;
@@ -143,7 +149,7 @@ export function questTally(qs: readonly QuestView[] | undefined): { done: number
 export function playLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstLine' | 'last'>): string {
   if (o.dare) return dareText(o.dare);
   if (o.firstTime) return o.firstLine ?? 'Your first match is a guided match.';
-  return `3v3 vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
+  return `${o.last.map === 'hearthwood' ? '5v5 Classic' : '3v3'} vs ${DIFFICULTY_TEXT[o.last.difficulty as keyof typeof DIFFICULTY_TEXT] ?? 'bots'}`;
 }
 
 /**
@@ -153,7 +159,7 @@ export function playLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstL
 export function underLine(o: Pick<LobbyScreenOpts, 'firstTime' | 'dare' | 'firstLine' | 'last' | 'difficulties' | 'difficultyNote'>): string {
   if (o.dare || o.firstTime) return playLine(o);
   if (o.difficultyNote) return '';
-  return o.difficulties.length >= 2 ? '3v3 vs bots' : playLine(o);
+  return o.difficulties.length >= 2 ? `${o.last.map === 'hearthwood' ? '5v5' : '3v3'} vs bots` : playLine(o);
 }
 
 /** The Play button's label. Pure. */
@@ -269,17 +275,21 @@ function questsRail(qs: readonly QuestView[] | undefined): string {
     .join('')}</div></details>`;
 }
 
-/** Tier 3: the rail (Heroes · Cards · Today · Track · Store); items the player has not got yet are left out. */
-function railHtml(o: LobbyScreenOpts): string {
+/**
+ * Tier 3: the rail (Heroes · Cards · Today · Track · Store); items the player has not got yet are left out. A first visit
+ * or a dare (`full` false) keeps only Track and Store, which main showed in the corner whenever they were open.
+ */
+function railHtml(o: LobbyScreenOpts, full = true): string {
   const item = (a: string, ico: string, label: string, extra = '', badge = ''): string =>
     `<button type="button" class="lb-ri" data-a="${a}"${extra}>${ico}${badge}<span class="lb-rl">${label}</span></button>`;
   const items = [
-    item('choose', icon('paw'), 'Heroes', ' aria-keyshortcuts="H"'),
-    o.onCards ? item('cards', CARDS, 'Cards', ` aria-keyshortcuts="C" aria-haspopup="dialog" aria-label="${o.cardCount ? `Cards, ${o.cardCount}` : 'Cards'}"`, o.cardCount ? `<span class="lb-count" aria-hidden="true">${o.cardCount}</span>` : '') : '',
-    questsRail(o.quests),
+    full ? item('choose', icon('paw'), 'Heroes', ' aria-keyshortcuts="H"') : '',
+    full && o.onCards ? item('cards', CARDS, 'Cards', ` aria-keyshortcuts="C" aria-haspopup="dialog" aria-label="${o.cardCount ? `Cards, ${o.cardCount}` : 'Cards'}"`, o.cardCount ? `<span class="lb-count" aria-hidden="true">${o.cardCount}</span>` : '') : '',
+    full ? questsRail(o.quests) : '',
     o.onCollection ? item('collection', icon('crown'), 'Track', ' aria-label="Treat Track"') : '',
     o.storeOpen ? item('store', BAG, 'Store', ' aria-label="Store"') : '',
   ].filter(Boolean);
+  if (!items.length) return '';
   return `<nav class="lb-rail" aria-label="More" data-n="${items.length}">${items.join('')}</nav>`;
 }
 
@@ -293,7 +303,7 @@ function onlineRowHtml(o: LobbyScreenOpts): string {
   const btns = [
     o.onOnline ? `<button type="button" class="pl-btn small lb-friends lb-online" data-a="online" data-v="coop" data-testid="play-online" aria-label="Play online: co-op vs bots" title="Co-op vs bots with players online">${GLOBE}<span>Co-op</span></button>` : '',
     o.onOnline && m
-      ? `<button type="button" class="pl-btn small lb-friends lb-pvp" data-a="online" data-v="pvp" data-testid="play-pvp"${pvpLocked ? ` aria-disabled="true" title="PvP unlocks after ${need} matches" aria-label="PvP, unlocks after ${need} matches"` : ' title="Casual PvP" aria-label="Play PvP"'}>${SWORDS}<span>${pvpLabel}</span></button>`
+      ? `<button type="button" class="pl-btn ghost small lb-friends lb-pvp" data-a="online" data-v="pvp" data-testid="play-pvp"${pvpLocked ? ` aria-disabled="true" title="PvP unlocks after ${need} matches" aria-label="PvP, unlocks after ${need} matches"` : ' title="Casual PvP" aria-label="Play PvP"'}>${SWORDS}<span>${pvpLabel}</span></button>`
       : '',
     o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends lb-party" data-a="party" data-testid="play-friends" aria-label="Play with friends">${FRIENDS}<span>Friends</span></button>` : '',
     o.onJoinCode ? `<button type="button" class="pl-btn ghost small lb-joincode" data-a="joincode" data-testid="join-code" aria-label="Join with code" title="Join with code"><b aria-hidden="true">#</b><span>Code</span></button>` : '',
@@ -320,7 +330,12 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
   const elColor = cssHex(ELEMENT_COLOR[id.element]);
   root.style.setProperty('--lb-el', elColor);
   let diff: Difficulty = o.last.difficulty;
-  const choice = (): Choice => ({ ...o.last, difficulty: diff });
+  let mode: MatchMode | null = o.matchMode && !o.firstTime && !o.dare ? o.matchMode.mode : null;
+  const choice = (): Choice => {
+    const c: Choice = { ...o.last, difficulty: diff };
+    delete c.map;
+    return mode === 'classic' ? { ...c, map: MODE_MAP.classic } : c;
+  };
   const dare = o.dare;
   const returning = !o.firstTime && !dare;
   // QA: a card's element is part of its look (no element exists in the sim): "Fire look", never a bare type chip
@@ -349,16 +364,16 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
         ${nameBlock}
         <div class="lb-play actions">
           <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter"${returning ? ` data-diff="· ${esc(diffShort(diff))}"` : ''}>${esc(playLabel(o))}</button>
-          <div class="lb-under">${segmentHtml(o, diff)}<p class="lb-line${dare ? ' dare-line' : ''}">${esc(underLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p></div>
+          <div class="lb-under">${segmentHtml(o, diff)}${mode ? matchModeHtml(mode) : `<p class="lb-line${dare ? ' dare-line' : ''}">${esc(underLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>`}</div>
         </div>
         ${dare ? '' : onlineRowHtml(o)}
         <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
         <p class="lb-toast" role="status" aria-live="polite"></p>
       </div>
-      ${returning ? railHtml(o) : ''}
+      <div class="lb-cards" data-slot="cards"></div>
+      ${railHtml(o, returning)}
     </div>
     ${peekHtml(o, live)}
-    <div class="lb-cards" data-slot="cards"></div>
     <div class="pl-corner lb-corner">
       ${o.onExit ? `<button type="button" class="lb-icon wide lb-exit" data-a="exit" data-testid="lobby-exit" aria-label="Back to Token Tails games" title="Back to Token Tails games">${EXIT}<span>Games</span></button>` : ''}
       ${firstHidesBadge(o) ? '' : badgeHtml(o.frame, o.title, o.portrait, id.element)}
@@ -414,6 +429,22 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     }
     const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;
     if (leaving && a !== 'mute') return;
+    if (a === 'map' && mode) {
+      const v = t.closest<HTMLElement>('[data-a="map"]')!.dataset.v === 'classic' ? 'classic' : 'quick';
+      if (v === mode) return;
+      o.sound?.('click');
+      mode = v;
+      for (const b of root.querySelectorAll<HTMLElement>('[data-a="map"]')) {
+        const on = b.dataset.v === v;
+        b.classList.toggle('on', on);
+        b.setAttribute('aria-checked', String(on));
+        b.tabIndex = on ? 0 : -1;
+      }
+      const line = root.querySelector('.lb-line');
+      if (line) line.textContent = underLine({ ...o, last: choice() });
+      o.matchMode?.onMode(v);
+      return;
+    }
     if (a === 'clem') play({ hero: 'clem', trick: 'pounce', difficulty: 'easy' });
     else if (a === 'quick') play(choice());
     else if (a === 'dare' && dare) play({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed);

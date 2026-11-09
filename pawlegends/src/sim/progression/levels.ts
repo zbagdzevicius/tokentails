@@ -5,6 +5,7 @@
  * Sim v4: every XP grant gets the per-hero catch-up (+25% per level below the enemy team's average level, at most
  * +75%) and sends an `xp` event to the hero's team; a level-up heals 15% of max HP.
  */
+import { HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 import { HERO_HP_BP, HERO_IDS, HEROES } from '../../data/heroes';
 import { XP } from '../../data/xp';
 import type { SimEvent } from '../api';
@@ -52,6 +53,8 @@ export function grantXp(m: MatchHandle, id: number, amount: number, reason: XpRe
   if (amount <= 0 || w.alive[id] === 0 || w.hp[id] <= 0) return;
   const bonus = exact ? 0 : catchUpBp(m, id);
   let total = bonus > 0 ? applyBp(amount, BP_ONE + bonus) : amount;
+  // Sim v19 (Hearthwood): the longer match levels slower (HEARTHWOOD_RULES.xpBp).
+  if (w.mg.length > 0) total = Math.max(1, applyBp(total, HEARTHWOOD_RULES.xpBp));
   // Sim v7 rubber band (DifficultyRules.enemyAheadXpBp, Rookie): an enemy hero XP.aheadLevels or more above the human
   // earns less XP, so a first-timer who feeds is not facing level 10s at 5:00 with level 7 allies.
   const rules = rulesOf(m);

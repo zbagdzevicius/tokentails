@@ -25,6 +25,11 @@ export const PING_TEXT: Readonly<Record<PingKind, PingText>> = Object.freeze({
   defend: { label: 'Defend base', ack: 'Heading home to defend!', icon: 'shield', color: '#9be59b' },
   fallBack: { label: 'Fall back', ack: 'Backing off!', icon: 'dash', color: '#ff9f6e' },
   focus: { label: 'Focus hero', ack: 'On it!', icon: 'sword', color: '#ff4d5e' },
+  // Sim v19 (5v5 Classic on Hearthwood Divide).
+  pushFence: { label: 'Push Fenceline', ack: 'Pushing Fenceline!', icon: 'arrows', color: '#ffe08a' },
+  pushYarn: { label: 'Push Yarn Road', ack: 'Pushing Yarn Road!', icon: 'lance', color: '#f6a5ff' },
+  pushGutter: { label: 'Push Gutterway', ack: 'Pushing Gutterway!', icon: 'charge', color: '#7ee0d6' },
+  grizzlechop: { label: 'Take Grizzlechop', ack: 'Going for Grizzlechop!', icon: 'crown', color: '#ffb36b' },
 });
 
 /** The refusal bark ('heal'): a bot under 35% HP or napping. */
@@ -39,6 +44,26 @@ export const WHEEL_KINDS: readonly number[] = Object.freeze([
   PING_KIND.PushPuddle,
   PING_KIND.Pudding,
 ]);
+
+/**
+ * Sim v19 (MAP-5V5.md §8.4): the 5v5 Classic wheel on Hearthwood Divide: the three lane pushes and Take Grizzlechop
+ * replace Sunny and Puddle (which the map refuses). Eight slices, clockwise from the top.
+ */
+export const CLASSIC_WHEEL_KINDS: readonly number[] = Object.freeze([
+  PING_KIND.Group,
+  PING_KIND.PushFence,
+  PING_KIND.PushYarn,
+  PING_KIND.PushGutter,
+  PING_KIND.Defend,
+  PING_KIND.FallBack,
+  PING_KIND.Grizzlechop,
+  PING_KIND.Pudding,
+]);
+
+/** The wheel's slices: Crossing's six, or the 5v5 Classic eight. */
+export function wheelKinds(classic: boolean): readonly number[] {
+  return classic ? CLASSIC_WHEEL_KINDS : WHEEL_KINDS;
+}
 
 /**
  * GAPS A4 chip → ping: a tap on the objective chip sends the matching ping (one tap, no wheel), or nothing.
@@ -56,17 +81,21 @@ export function chipPing(key: string): number | null {
     case 'rats':
     case 'theirRats':
       return PING_KIND.GoHere;
+    // sim v19 (Hearthwood)
+    case 'grizzlechop':
+    case 'sinkGrizzlechop':
+      return PING_KIND.Grizzlechop;
     default:
       return null;
   }
 }
 
 /** The wheel slice under a pointer offset (px from the wheel's centre), or −1 inside the dead zone. */
-export function wheelSlice(dx: number, dy: number, deadPx = 26): number {
+export function wheelSlice(dx: number, dy: number, deadPx = 26, n = WHEEL_KINDS.length): number {
   if (Math.hypot(dx, dy) < deadPx) return -1;
   // 0 = straight up, clockwise (screen y grows downward)
-  const a = (Math.atan2(dx, -dy) + Math.PI * 2 + Math.PI / WHEEL_KINDS.length) % (Math.PI * 2);
-  return Math.floor(a / ((Math.PI * 2) / WHEEL_KINDS.length)) % WHEEL_KINDS.length;
+  const a = (Math.atan2(dx, -dy) + Math.PI * 2 + Math.PI / n) % (Math.PI * 2);
+  return Math.floor(a / ((Math.PI * 2) / n)) % n;
 }
 
 /**

@@ -15,6 +15,7 @@ import { cameraYaw } from '../render/coords';
 import type { PingKind } from '../data/pings';
 import { pingGlyph } from './pingGlyph';
 import { clearedBushes } from '../render/bushClear';
+import { mapInfo } from '../sim/map/info';
 import { applyMinimapSize, colourBlind } from './minimapPrefs';
 
 export interface MinimapHost {
@@ -154,9 +155,42 @@ export function laneNamed(text: string): LaneId | null {
 }
 
 /** MAP-GAPS A19: where each lane's glyph sits (sim mm): over its river crossing, at the map edge side. */
-export const LANE_GLYPH_AT: Readonly<Record<LaneId, { x: number; y: number }>> = Object.freeze({ sunny: { x: 50000, y: 57000 }, puddle: { x: 50000, y: 3200 } });
+export const LANE_GLYPH_AT: Readonly<Partial<Record<LaneId, { x: number; y: number }>>> = Object.freeze({ sunny: { x: 50000, y: 57000 }, puddle: { x: 50000, y: 3200 } });
 /** MAP-GAPS A19: how long (ms) a named lane flashes. */
 export const LANE_FLASH_MS = 1000;
+
+/** Sim v19 (Hearthwood): Grizzlechop's minimap hue (rust red, apart from Pudding's violet). */
+export const MM_BOSS = '#e0703a';
+/** Sim v19: the buff camps' minimap hues (Prickle Hollow, Crow Roost). */
+export const MM_CAMP: Readonly<Record<string, string>> = Object.freeze({ rat: '#cdb784', toad: '#9cc77a', prickle: '#ff9a4d', crow: '#9aa8ff' });
+
+const isPoint = (): boolean => MAP.point === 1;
+
+/** A lane's whole centre line, core to core (sim mm), on the bound map. */
+export function lanePoints(lane: LaneId): (readonly [number, number])[] {
+  if (isPoint()) {
+    const l = mapInfo('hearthwood').lanes.find((k) => k.id === lane);
+    if (!l) return [];
+    const [xs, ys] = l.path[0];
+    return Array.from(xs, (x, i) => [x, ys[i]] as const);
+  }
+  const pts = LANE_WAYPOINTS[lane] ?? [];
+  const out: (readonly [number, number])[] = pts.map(([x, y]) => [x, y] as const);
+  for (let i = pts.length - 2; i >= 0; i--) out.push([mirrorX(pts[i][0]), pts[i][1]]);
+  return out;
+}
+
+/** Every bush on the bound map in sim/map/brush.ts bushAt order (sim mm: centre and size). */
+export function bushList(): { x: number; y: number; w: number; h: number }[] {
+  if (isPoint()) return mapInfo('hearthwood').bushes.map((b) => ({ x: b.x, y: b.y, w: b.w, h: b.h }));
+  const out: { x: number; y: number; w: number; h: number }[] = [];
+  for (let side = 0; side < 2; side++) for (const b of BUSHES) out.push({ x: side === 0 ? b.x : mirrorX(b.x), y: b.y, w: b.w, h: b.h });
+  return out;
+}
+
+/** A team's base point (core or fountain, team 0's spot given) on the bound map. */
+const basePt = (team: number, p: { x: number; y: number }): [number, number] => (team === 0 ? [p.x, p.y] : isPoint() ? [MAP.width - p.x, MAP.height - p.y] : [mirrorX(p.x), p.y]);
+
 
 /** MAP-GAPS A4: an outlined minion mark centred on (x, y): an ally square, an enemy diamond (shape, not only hue), a camp dot. */
 function drawMinionMark(g: CanvasRenderingContext2D, x: number, y: number, h: number, color: string, rel: 'ally' | 'enemy' | 'neutral'): void {
@@ -210,6 +244,25 @@ function drawPudding(g: CanvasRenderingContext2D, x: number, y: number, s: numbe
   g.moveTo(x - 2 * r, y - r * 0.2);
   g.lineTo(x + 2 * r, y - r * 0.2);
   g.lineTo(x, y + 1.8 * r);
+  g.closePath();
+  g.fill();
+}
+
+/** Sim v19: Grizzlechop's mark centred on (x, y), side s: a rust disc with a dark tricorn. */
+function drawBoss(g: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  g.fillStyle = MM_OUTLINE;
+  g.beginPath();
+  g.arc(x, y, s / 2 + 1.2, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = MM_BOSS;
+  g.beginPath();
+  g.arc(x, y, s / 2, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = MM_OUTLINE;
+  g.beginPath();
+  g.moveTo(x - s * 0.36, y);
+  g.lineTo(x, y - s * 0.34);
+  g.lineTo(x + s * 0.36, y);
   g.closePath();
   g.fill();
 }
@@ -437,9 +490,42 @@ export class Minimap {
       g.fillStyle = MM_GROUND.grass;
       g.fillRect(Math.min(x0, x1), Math.min(y0, y1), Math.abs(x1 - x0), Math.abs(y1 - y0));
       g.fillStyle = MM_GROUND.river;
-      const rx0 = this.X(MAP.riverX[0]);
-      const rx1 = this.X(MAP.riverX[1]);
-      g.fillRect(Math.min(rx0, rx1), Math.min(y0, y1), Math.abs(rx1 - rx0), Math.abs(y1 - y0));
+      if (isPoint()) {
+        // sim v19 Hearthwood: the river is the band |x + y − W| ≤ b across the diagonal
+        const W = MAP.width;
+        const b = mapInfo('hearthwood').river.b;
+        g.beginPath();
+        g.moveTo(this.X(0), this.Y(W - b));
+        g.lineTo(this.X(W - b), this.Y(0));
+        g.lineTo(this.X(W), this.Y(b));
+        g.lineTo(this.X(b), this.Y(W));
+        g.lineTo(this.X(0), this.Y(W));
+        g.lineTo(this.X(0), this.Y(W - b));
+        g.closePath();
+        g.save();
+        g.beginPath();
+        g.moveTo(this.X(0), this.Y(W - b));
+        g.lineTo(this.X(W - b), this.Y(0));
+        g.lineTo(this.X(W), this.Y(0));
+        g.lineTo(this.X(W), this.Y(b));
+        g.lineTo(this.X(b), this.Y(W));
+        g.lineTo(this.X(0), this.Y(W));
+        g.closePath();
+        g.fill();
+        g.restore();
+        // the far corner past the band is grass again
+        g.fillStyle = MM_GROUND.grass;
+        g.beginPath();
+        g.moveTo(this.X(W), this.Y(b));
+        g.lineTo(this.X(W), this.Y(W));
+        g.lineTo(this.X(b), this.Y(W));
+        g.closePath();
+        g.fill();
+      } else {
+        const rx0 = this.X(MAP.riverX[0]);
+        const rx1 = this.X(MAP.riverX[1]);
+        g.fillRect(Math.min(rx0, rx1), Math.min(y0, y1), Math.abs(rx1 - rx0), Math.abs(y1 - y0));
+      }
       // sim v5: the forest outside the playfield (the nav grid's blocked cells), darker, so a right-click there reads as
       // "not walkable"
       const wall = createGrid().walls;
@@ -460,15 +546,14 @@ export class Minimap {
       g.lineCap = 'round';
       g.lineJoin = 'round';
       g.lineWidth = MAP.laneWidth * this.map.k * 0.7;
-      for (const lane of ['sunny', 'puddle'] as const) {
-        const pts = LANE_WAYPOINTS[lane];
+      for (const lane of isPoint() ? (['fence', 'yarn', 'gutter'] as const) : (['sunny', 'puddle'] as const)) {
+        const pts = lanePoints(lane);
         g.beginPath();
         pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
-        for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
         g.stroke();
       }
-      for (const b of BUSHES)
-        for (const x of [b.x, mirrorX(b.x)]) {
+      for (const b of bushList()) {
+        const x = b.x;
           const ax = this.X(x - b.w / 2);
           const bx = this.X(x + b.w / 2);
           const ay = this.Y(b.y + b.h / 2);
@@ -491,45 +576,52 @@ export class Minimap {
       const rel = minimapRelation(colourBlind());
       const myTeam = this.host.myTeam();
       for (const team of [0, 1]) {
-        const cx = team === 0 ? CORE.x : mirrorX(CORE.x);
+        const [cx, cy] = basePt(team, CORE);
         g.fillStyle = team === myTeam ? rel.ally : rel.enemy;
         g.globalAlpha = 0.3;
         g.beginPath();
-        g.arc(this.X(cx), this.Y(CORE.y), 10000 * this.map.k, 0, Math.PI * 2);
+        g.arc(this.X(cx), this.Y(cy), (isPoint() ? 16000 : 10000) * this.map.k, 0, Math.PI * 2);
         g.fill();
         g.globalAlpha = 1;
-        const fx = team === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x);
+        const [fx, fy] = basePt(team, FOUNTAIN);
         g.fillStyle = '#bfe8ff';
         g.beginPath();
-        g.arc(this.X(fx), this.Y(FOUNTAIN.y), 3, 0, Math.PI * 2);
+        g.arc(this.X(fx), this.Y(fy), 3, 0, Math.PI * 2);
         g.fill();
       }
       // MAP-GAPS A19: static landmarks, dimmed: the rat camps (a ring and a dot), Pudding's pit (a violet ring), and
       // each lane's glyph (a sun, a puddle) with its name on desktop
       g.globalAlpha = 0.7;
-      for (const x of [RAT_CAMP.x, mirrorX(RAT_CAMP.x)]) {
+      const camps = isPoint()
+        ? mapInfo('hearthwood').camps.map((c) => ({ x: c.x, y: c.y, kind: c.kind }))
+        : [RAT_CAMP.x, mirrorX(RAT_CAMP.x)].map((x) => ({ x, y: RAT_CAMP.y, kind: 'rat' }));
+      for (const cp of camps) {
+        const buff = cp.kind === 'prickle' || cp.kind === 'crow';
         g.strokeStyle = MM_OUTLINE;
         g.lineWidth = 1;
         g.beginPath();
-        g.arc(this.X(x), this.Y(RAT_CAMP.y), 3.2 * this.k, 0, Math.PI * 2);
+        g.arc(this.X(cp.x), this.Y(cp.y), (buff ? 3.6 : 2.8) * this.k, 0, Math.PI * 2);
         g.stroke();
-        g.fillStyle = '#cdb784';
+        g.fillStyle = MM_CAMP[cp.kind] ?? '#cdb784';
         g.beginPath();
-        g.arc(this.X(x), this.Y(RAT_CAMP.y), 1.4 * this.k, 0, Math.PI * 2);
+        g.arc(this.X(cp.x), this.Y(cp.y), (buff ? 2 : 1.4) * this.k, 0, Math.PI * 2);
         g.fill();
       }
-      g.strokeStyle = MM_OBJECTIVE;
-      g.lineWidth = 1.4;
-      g.setLineDash([2, 2]);
-      g.beginPath();
-      g.arc(this.X(PUDDING_SPOT.x), this.Y(PUDDING_SPOT.y), 6.5 * this.k, 0, Math.PI * 2);
-      g.stroke();
-      g.setLineDash([]);
+      const pits = isPoint() ? mapInfo('hearthwood').objectives : [{ kind: 'pudding' as const, x: PUDDING_SPOT.x, y: PUDDING_SPOT.y }];
+      for (const o of pits) {
+        g.strokeStyle = o.kind === 'grizzlechop' ? MM_BOSS : MM_OBJECTIVE;
+        g.lineWidth = 1.4;
+        g.setLineDash([2, 2]);
+        g.beginPath();
+        g.arc(this.X(o.x), this.Y(o.y), 6.5 * this.k, 0, Math.PI * 2);
+        g.stroke();
+        g.setLineDash([]);
+      }
       g.globalAlpha = 1;
     });
     const desktop = typeof document === 'undefined' || document.documentElement?.dataset.touch !== '1';
-    for (const lane of ['sunny', 'puddle'] as const) {
-      const at = LANE_GLYPH_AT[lane];
+    for (const lane of isPoint() ? [] : (['sunny', 'puddle'] as const)) {
+      const at = LANE_GLYPH_AT[lane]!;
       const [x, y] = this.P(at.x, at.y);
       const r = 2.6 * Math.max(0.85, this.k);
       g.fillStyle = MM_OUTLINE;
@@ -649,7 +741,7 @@ export class Minimap {
 
   /** Stroke a lane's whole centre line (both halves). */
   private strokeLane(g: CanvasRenderingContext2D, lane: LaneId, color: string, width: number): void {
-    const pts = LANE_WAYPOINTS[lane];
+    const pts = lanePoints(lane);
     g.strokeStyle = color;
     g.lineWidth = width;
     g.lineCap = 'round';
@@ -657,7 +749,6 @@ export class Minimap {
     this.turned(g, () => {
       g.beginPath();
       pts.forEach(([x, y], i) => (i ? g.lineTo(this.X(x), this.Y(y)) : g.moveTo(this.X(x), this.Y(y))));
-      for (let i = pts.length - 2; i >= 0; i--) g.lineTo(this.X(mirrorX(pts[i][0])), this.Y(pts[i][1]));
       g.stroke();
     });
   }
@@ -682,7 +773,7 @@ export class Minimap {
       // PERF-IOS §8 Track A: the ring fills in 1/64 steps, one sprite per step and second shown
       const done = Math.round(Math.max(0, Math.min(1, 1 - t.left / t.total)) * 64) / 64;
       const r = 6 * this.k;
-      const color = t.key === 'pudding' ? MM_OBJECTIVE : t.key === 'rats' ? rel.ally : rel.enemy;
+      const color = t.key === 'pudding' ? MM_OBJECTIVE : t.key === 'grizzlechop' ? MM_BOSS : t.key === 'rats' ? rel.ally : rel.enemy;
       const secs = Math.ceil(t.left / 30);
       this.blit(
         this.sprite(`t|${color}|${done}|${secs <= 99 ? secs : ''}|${r}`, 2 * r + 6, 2 * r + 6, (g) => {
@@ -746,7 +837,7 @@ export class Minimap {
     const me = this.host.mySlot();
     const team = this.host.myTeam();
     // MAP-GAPS A10: the lane Pudding's escort walks, from the moment it leaves its spot
-    if (this.escorting && !this.escortLane) {
+    if (this.escorting && !this.escortLane && !isPoint()) {
       const pud = frame.entities.find((e) => e.kind === 'pudding' && e.state !== 'dead');
       if (pud && Math.abs(pud.fy - PUDDING_SPOT.y) > 2500) this.escortLane = pud.fy > PUDDING_SPOT.y ? 'sunny' : 'puddle';
     }
@@ -790,6 +881,12 @@ export class Minimap {
     for (const e of frame.entities) {
       if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero' || e.kind === 'tower' || e.kind === 'core' || (e.kind as string) === 'pickup') continue;
       const [x, y] = this.P(e.fx, e.fy);
+      if (e.kind === 'boss') {
+        // sim v19: Captain Grizzlechop, a rust disc with a dark tricorn
+        const s = 7 * this.k;
+        this.blit(this.sprite(`boss|${s}`, s + 4, s + 4, (c) => drawBoss(c, 0, 0, s)), x, y);
+        continue;
+      }
       if (e.kind === 'pudding') {
         // MAP-GAPS A8: an objective-violet rounded square with a dark outline and a heart glyph
         const s = 6 * this.k;
@@ -995,11 +1092,11 @@ export class Minimap {
     // MAP-GAPS A20: a bush an ally stands in is cleared: lighter, so the unscouted ones stand out
     this.bushesCleared = 0;
     g.fillStyle = MM_BUSH_CLEARED;
-    for (let side = 0; side < 2; side++)
-      for (let k = 0; k < BUSHES.length; k++) {
-        if (!this.cleared[side * BUSHES.length + k]) continue;
-        const b = BUSHES[k];
-        const x = side === 0 ? b.x : mirrorX(b.x);
+    const bl = bushList();
+    for (let i = 0; i < bl.length; i++) {
+        if (!this.cleared[i]) continue;
+        const b = bl[i];
+        const x = b.x;
         const ax = this.X(x - b.w / 2);
         const bx = this.X(x + b.w / 2);
         const ay = this.Y(b.y + b.h / 2);

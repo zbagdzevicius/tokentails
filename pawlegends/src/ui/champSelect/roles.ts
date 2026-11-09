@@ -4,7 +4,7 @@
  * the sim never reads this file.
  */
 import { HERO_IDS, HEROES } from '../../data/heroes';
-import type { HeroId, HeroRole } from '../../data/heroes/types';
+import type { HeroId, HeroRole, HeroSide } from '../../data/heroes/types';
 import { HERO_TEXT, type IconId } from '../heroText';
 import { SIM_VERSION } from '../../sim/version';
 
@@ -32,3 +32,7 @@ export const ROLE_NAME: Readonly<Record<HeroRole, string>> = Object.freeze(
  */
 const HERO_SINCE: Readonly<Partial<Record<HeroId, number>>> = { rocket: 15, frankie: 15, domino: 15 };
 export const isNewHero = (h: HeroId): boolean => HERO_SINCE[h] === SIM_VERSION;
+
+/** The side tabs' and side badges' species colours: neutral, never an ally / enemy relation hue (side-colors.test).
+ * The champion select draws them from here (`--side` on each tab and badge). */
+export const SIDE_TAB_CSS: Readonly<Record<HeroSide, string>> = Object.freeze({ cat: '#f28bb0', dog: '#e8c27a' });

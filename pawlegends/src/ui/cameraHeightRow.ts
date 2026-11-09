@@ -1,13 +1,14 @@
 /**
- * Feel pass B1: the "Camera height" row (Settings and the pause menu): two chips, Normal and High
- * (render/camera/height.ts). Picking one saves it and calls `onPick`, so a running match follows at once.
+ * Feel pass B1: the "Camera height" row (Settings and the pause menu): a five-way segmented control, Close, Normal,
+ * High, Higher, Max (render/camera/height.ts). Picking one saves it and calls `onPick`, so a running match follows
+ * at once.
  */
-import { CAMERA_HEIGHT_EVENT, loadCameraHeight, saveCameraHeight, type CameraHeight } from '../render/camera/height';
+import { CAMERA_HEIGHT_EVENT, CAMERA_HEIGHT_LABELS, CAMERA_STEPS, loadCameraHeight, parseCameraHeight, saveCameraHeight, type CameraHeight } from '../render/camera/height';
 
 /** The row's markup, at the saved step (or `value`). */
 export function cameraHeightRowHtml(value: CameraHeight = loadCameraHeight()): string {
-  const chip = (h: CameraHeight, label: string): string => `<button type="button" class="chip${h === value ? ' on' : ''}" data-camh="${h}" aria-pressed="${h === value}">${label}</button>`;
-  return `<div class="set-row set-camh"><span>Camera height</span><span class="chips">${chip('normal', 'Normal')}${chip('high', 'High')}</span></div>`;
+  const chip = (h: CameraHeight): string => `<button type="button" class="camh-seg${h === value ? ' on' : ''}" data-camh="${h}" aria-pressed="${h === value}">${CAMERA_HEIGHT_LABELS[h]}</button>`;
+  return `<div class="set-row set-camh"><span>Camera height</span><span class="camh-segs" role="group" aria-label="Camera height">${CAMERA_STEPS.map(chip).join('')}</span></div>`;
 }
 
 /**
@@ -25,7 +26,7 @@ export function bindCameraHeightRow(root: HTMLElement, onPick?: (h: CameraHeight
     const b = (e.target as HTMLElement).closest<HTMLElement>('[data-camh]');
     if (!b || !root.contains(b)) return;
     e.stopPropagation();
-    const h: CameraHeight = b.dataset.camh === 'high' ? 'high' : 'normal';
+    const h = parseCameraHeight(b.dataset.camh);
     saveCameraHeight(h);
     show(h);
     onPick?.(h);
@@ -35,7 +36,7 @@ export function bindCameraHeightRow(root: HTMLElement, onPick?: (h: CameraHeight
       window.removeEventListener(CAMERA_HEIGHT_EVENT, onSaved);
       return;
     }
-    show((e as CustomEvent<CameraHeight>).detail === 'high' ? 'high' : 'normal');
+    show(parseCameraHeight((e as CustomEvent<unknown>).detail));
   };
   root.addEventListener('click', onClick, true);
   window.addEventListener(CAMERA_HEIGHT_EVENT, onSaved);

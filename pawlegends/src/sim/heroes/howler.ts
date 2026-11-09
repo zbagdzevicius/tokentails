@@ -13,13 +13,13 @@
  */
 import { EFFECTS } from '../../data/effects';
 import { applyBp, BP_ONE, dist2 } from '../fixed';
-import { ENTITY_CAP, FM, G, Kind, RANGE, maskHas, type World } from '../world';
+import { FM, G, Kind, RANGE, type World, MAX_ENTITIES, fmHas, fmAdd } from '../world';
 import { dealDamage } from '../combat/damage';
 import { collect, dash, fear, haste, inCone, knockback, slow } from '../effects';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {
@@ -97,12 +97,11 @@ export const HOWLER_KIT: HeroKit = {
     if (w.kStage[id] !== 1) return;
     const p = abil(w, id).w;
     const half = p.width >> 1;
-    const n = collect(w, w.team[id], hits, (e, r) => !maskHas(w.fmHitLo[id], w.fmHitHi[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + r) * (half + r));
+    const n = collect(w, w.team[id], hits, (e, r) => !fmHas(w, id, e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + r) * (half + r));
     const dmg = lvl(w, id, p.dmg, p.dmgPerLevel);
     for (let i = 0; i < n; i++) {
       const e = hits[i];
-      if (e < 0x20) w.fmHitLo[id] |= 1 << e;
-      else w.fmHitHi[id] |= 1 << (e - 0x20);
+      fmAdd(w, id, e);
       dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, 'ability');
       if ((p.slowBp ?? 0) > 0) slow(w, e, p.slowBp, p.slow);
     }

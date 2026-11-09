@@ -435,3 +435,23 @@ Built as specified, with these choices:
   redraws its text with the codex line, the cooldown and the facts.
 - **Party redraws** go through `patchChampSelect`, region by region, so the grid scroll, the focus, the filter and the
   tapped skill survive the 1 s timer and every hover.
+
+## F. Review fixes (Nov 9 2026, after the visual and code reviews; merged with origin/main's 5v5 Classic)
+
+- **Skill icons after a redraw:** `patchChampSelect` keeps host content only in `div[data-slot]` (the embed's slots). The
+  skill tabs and Preview also carry `data-slot`; they were swapped into each other before.
+- **5v5 Classic:** solo and party seats follow the team size (5 seats, 48 px each at phone heights); `partySeats` takes
+  the size and a PvP flag (casual or a 5-per-team queue); teammate dots cover slots 0 to 4. The landing's 3v3 | 5v5
+  toggle sits in the bots row (it replaces the "3v3 vs bots" line), so it costs no height. Phones show "3v3 | 5v5".
+- **Notches and narrow centres:** the grid always has at least five columns (ten heroes of a side in two rows); when the
+  centre column is under 380 px (667 px phones, insets) the side tabs and the role tabs take a row each.
+- **Any hero can be inspected (party):** taken, other-side and post-lock tiles are `aria-disabled`, not `disabled`; a tap
+  shows the hero's skills (LOCK IN says why it cannot be locked). A hero a friend just took stays in the panel. A
+  member's grid opens on the leader's side and follows it when the leader changes side.
+- **Keyboard:** arrows skip disabled tiles; the roving tab stop is never on a disabled tile.
+- **Landing:** Co-op and PvP are ghosts (Play is the only filled pink button); the host's cards slot (About chip, badges)
+  lives in the column above the rail; a first visit or a dare keeps Store and Treat Track in a short rail.
+- **Pick:** Look always opens the small sheet (its Cards button is a ghost); the bots hint is visible text (under the
+  bots on a desktop, over LOCK IN for 3.5 s after a tap on a phone); the party's notes sit over LOCK IN, not the timer;
+  Quick Play's found line shows under the side badge; "▾ more" is in the flow under the grid; 11 px minimum text except
+  long tile names (10 px); the stage behind the pick screen runs at the covered rate (15 fps) on phones.

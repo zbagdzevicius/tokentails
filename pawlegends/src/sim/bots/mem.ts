@@ -5,7 +5,7 @@
  * sim through commands, exactly like a human.
  */
 import { CAPS } from '../../data/map';
-import type { World } from '../world';
+import { MG, type World } from '../world';
 
 export interface BotMem {
   mode: Uint8Array;
@@ -18,11 +18,15 @@ export interface BotMem {
   y: Int32Array;
   tid: Int32Array;
   slip: Int32Array;
+  /** Sim v19 (Hearthwood): the Grizzlechop decision, 1 + spawn × 2 + (1 contest, 0 not); 0 undecided. */
+  boss: Int32Array;
 }
 
 /** The in-sim bots' memory: views on the world's arrays. */
 export function worldMem(w: World): BotMem {
-  return { mode: w.botMode, lane: w.botLane, foe: w.botFoe, pud: w.botPud, seen: w.botSeen, op: w.botOp, x: w.botX, y: w.botY, tid: w.botId, slip: w.botSlip };
+  // Sim v19: the Grizzlechop decision is a view on `mg` (empty on Crossing, where it is never read).
+  const boss = w.mg.length > 0 ? w.mg.subarray(MG.BossDec, MG.BossDec + CAPS.heroes) : w.mg;
+  return { mode: w.botMode, lane: w.botLane, foe: w.botFoe, pud: w.botPud, seen: w.botSeen, op: w.botOp, x: w.botX, y: w.botY, tid: w.botId, slip: w.botSlip, boss };
 }
 
 /** A fresh memory for an outside player-bot. */
@@ -39,5 +43,6 @@ export function createMem(): BotMem {
     y: new Int32Array(h),
     tid: new Int32Array(h).fill(-1),
     slip: new Int32Array(h).fill(-1),
+    boss: new Int32Array(h),
   };
 }

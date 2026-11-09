@@ -10,13 +10,13 @@
  *
  * Events: `pickupSpawn` when one appears, `pickup` and `buff` when a hero takes it.
  */
-import { RADIUS, TOWER_SPOTS, mirrorX } from '../../data/map';
+import { LANES, MAP, RADIUS, TOWER_SPOTS, mirrorX } from '../../data/map';
 import { grantFish } from '../progression/fish';
 import { FISH } from '../../data/fish';
 import { FRENZY_SPOTS, PICKUPS, PICKUP_KINDS, SNACK_BEHIND } from '../../data/pickups';
 import { ZOOMIES } from '../../data/xp';
 import type { Team } from '../api';
-import { applyBp, dist2 } from '../fixed';
+import { applyBp, dist2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, RANGE, TEAM_NEUTRAL, type World } from '../world';
 
@@ -63,13 +63,24 @@ function place(m: MatchHandle, i: number, kind: number, team: number, x: number,
 /** Where `team`'s Fish Snack goes for lane `lane` (0 Sunny, 1 Puddle): behind its outer tower, else its inner one. */
 function snackSpot(w: World, team: number, lane: number, out: Int32Array): void {
   const base = RANGE.towers + team * TOWER_SPOTS.length;
-  const laneName = lane === 0 ? 'sunny' : 'puddle';
+  const laneName = LANES[lane];
   let k = -1;
   for (let pass = 0; pass < 2 && k < 0; pass++) {
     const tier = pass === 0 ? 'outer' : 'inner';
     for (let j = 0; j < TOWER_SPOTS.length; j++) {
       if (TOWER_SPOTS[j].lane === laneName && TOWER_SPOTS[j].tier === tier && (w.alive[base + j] === 1 || pass === 1)) k = j;
     }
+  }
+  if (MAP.point === 1) {
+    // Sim v19 (point map): SNACK_BEHIND from the tower toward its own core.
+    const t = base + k;
+    const c = RANGE.cores + team;
+    const dx = w.x[c] - w.x[t];
+    const dy = w.y[c] - w.y[t];
+    const d = Math.max(1, isqrt(dx * dx + dy * dy));
+    out[0] = w.x[t] + idiv(dx * SNACK_BEHIND, d);
+    out[1] = w.y[t] + idiv(dy * SNACK_BEHIND, d);
+    return;
   }
   const spot = TOWER_SPOTS[k];
   const x = spot.x - SNACK_BEHIND;
@@ -91,7 +102,9 @@ export function spawnPickups(m: MatchHandle): void {
     w.globals[G.FrenzyAt] = tick + PICKUPS.frenzy.every;
   }
   if (tick === w.globals[G.SnackAt]) {
-    const lane = w.globals[G.SnackSpawns]++ & 1;
+    // Sim v19: the lanes in turn (Crossing: Sunny, Puddle; Hearthwood: all three).
+    const n = w.globals[G.SnackSpawns]++;
+    const lane = LANES.length === 2 ? n & 1 : n % LANES.length;
     for (let team = 0; team < 2; team++) {
       snackSpot(w, team, lane, spot);
       place(m, SNACK_SLOT + team, SNACK, team, spot[0], spot[1]);

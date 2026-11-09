@@ -12,7 +12,7 @@
  */
 import { STILTS_RULES } from '../../data/heroes/stilts';
 import { TICK_HZ } from '../../data/timeline';
-import { COOLDOWN_SLOTS, ENTITY_CAP, FM, Kind, RANGE, type World } from '../world';
+import { COOLDOWN_SLOTS, FM, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { applyBp, dist2, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import type { MatchHandle } from '../state';
 import { dealDamage } from '../combat/damage';
@@ -29,7 +29,7 @@ const Q = 0;
 /** kStage values. */
 const POUNCE = 1;
 const LEAP = 2;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {

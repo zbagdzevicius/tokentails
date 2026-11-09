@@ -17,7 +17,7 @@
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp, dist2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
-import { COOLDOWN_SLOTS, ENTITY_CAP, FM, G, Kind, RANGE, type World } from '../world';
+import { COOLDOWN_SLOTS, FM, G, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { addShield, charm, collect, dash, fireSkillshot, healOverTime, inRing, slow, spawnBurst } from '../effects';
 import { creditHealShield } from '../effects/heal';
@@ -26,7 +26,7 @@ import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
 const W = 1;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 /** True while Stage Dive or ENCORE! deal their damage: afterDeal then knows an ability hit is not a tear. */
 let resolving = false;
 

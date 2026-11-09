@@ -8,7 +8,7 @@
  */
 import { ANGLE_STEPS, BP_ONE, applyBp, dist2, icos, idiv, isin, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, FM, Kind, maskHas, type World } from '../world';
+import { FM, Kind, type World, MAX_ENTITIES, fmHas, fmAdd } from '../world';
 import { dealDamage } from '../combat/damage';
 import { addShield, charm, cleanse, collect, dash, haste, inRing, knockback, selfRoot, slow } from '../effects';
 import { creditHealShield } from '../effects/heal';
@@ -17,7 +17,7 @@ import { wrapTarget } from './gabe';
 import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 /** A quarter turn (angle steps): Bowling Roll knocks units off to the side of his heading. */
 const QUARTER = ANGLE_STEPS >> 2;
 
@@ -170,14 +170,13 @@ export const MEATBALL_KIT: HeroKit = {
     const hx = w.x[id];
     const hy = w.y[id];
     const head = w.facing[id];
-    const n = collect(w, w.team[id], hits, (v, r) => !maskHas(w.fmHitLo[id], w.fmHitHi[id], v) && inRing(hx, hy, q.touch, w.x[v], w.y[v], r));
+    const n = collect(w, w.team[id], hits, (v, r) => !fmHas(w, id, v) && inRing(hx, hy, q.touch, w.x[v], w.y[v], r));
     const dmg = lvl(w, id, q.dmg, q.dmgPerLevel);
     const cx = icos(head);
     const cy = isin(head);
     for (let i = 0; i < n; i++) {
       const v = hits[i];
-      if (v < 0x20) w.fmHitLo[id] |= 1 << v;
-      else w.fmHitHi[id] |= 1 << (v - 0x20);
+      fmAdd(w, id, v);
       // Side of the path (cross product of heading × to-victim): left (+90°) when ≥ 0, so one dead on the line goes left.
       const side = cx * (w.y[v] - hy) - cy * (w.x[v] - hx) >= 0 ? head + QUARTER : head - QUARTER;
       // From its own spot: knockback falls back to the side angle, straight off the path.

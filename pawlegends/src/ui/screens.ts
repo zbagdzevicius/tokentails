@@ -8,9 +8,9 @@ import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
 import { accountState } from '../meta/profile';
 import { DIFFICULTIES } from '../data/bots';
-import { HEROES, type HeroSide } from '../data/heroes';
+import { HEROES } from '../data/heroes';
 import { championOf } from '../data/heroes/shelter';
-import type { Difficulty, HeroId, TrickId } from '../sim/api';
+import type { Difficulty, HeroId, MapId, TrickId } from '../sim/api';
 import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, wearsCardSkin, type FrameId, type Look, type Owned } from '../render/cosmetics';
 import { ELEMENT_NAME } from '../meta/roster';
 import type { CatTier, Element } from '../meta/roster';
@@ -52,6 +52,8 @@ export interface Choice {
   hero: HeroId;
   trick: TrickId;
   difficulty: Difficulty;
+  /** Sim v19: the map (omitted = 'crossing', 3v3 Quick; 'hearthwood' = 5v5 Classic). */
+  map?: MapId;
 }
 
 // ------------------------------------------------------------------------------------------------- title
@@ -142,6 +144,8 @@ export function titleScreen(parent: HTMLElement, o: TitleOpts): HTMLElement {
 
 export interface PickOpts {
   initial: Choice;
+  /** Sim v19: seats per team (5 when the next solo match is 5v5 Classic; default 3). */
+  teamSize?: number;
   /** What the player owns (coats, chromas, card skins): the tiles name a hero after its worn card. */
   owned?: Owned;
   looks?: Partial<Record<HeroId, Partial<Look>>>;
@@ -175,9 +179,7 @@ export interface PickOpts {
   champions?: Partial<Record<HeroId, { art?: string; owned: boolean }>>;
 }
 
-/** The side tabs' species colours: neutral, never an ally / enemy relation hue (side-colors.test). */
-export const SIDE_TAB_CSS: Readonly<Record<HeroSide, string>> = Object.freeze({ cat: '#f28bb0', dog: '#e8c27a' });
-export { isNewHero } from './champSelect/roles';
+export { isNewHero, SIDE_TAB_CSS } from './champSelect/roles';
 
 export interface SkinTile {
   id: string;
@@ -243,25 +245,37 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const tint = (k: { id: Element | null }): string => (k.id ? `${ELEMENT_NAME[k.id]} colour tint, looks only` : 'No colour tint');
     const coatChips = coats.length > 1 ? `<div class="cs-ls-row" role="group" aria-label="Coats">${coats.map((k) => `<button type="button" class="chip ${!card && k.id === (l?.coat ?? null) ? 'on' : ''}" data-coat="${esc(k.id ?? '')}" aria-pressed="${!card && k.id === (l?.coat ?? null)}">${esc(k.name)}</button>`).join('')}</div>` : '';
     const sw = chromas.length > 1 && !card ? `<div class="cs-ls-row swatches" role="group" aria-label="Colour tints">${chromas.map((k) => `<button type="button" class="chip chroma ${k.id === (l?.chroma ?? null) ? 'on' : ''}" data-chroma="${esc(k.id ?? '')}" title="${esc(tint(k))}" aria-label="${esc(tint(k))}" style="--el:${k.id ? hex(ELEMENT_COLOR[k.id]) : 'transparent'}"></button>`).join('')}</div>` : '';
-    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div><button type="button" class="pl-btn small cs-ls-cards" data-a="deck" aria-haspopup="dialog">${icon('paw')}Cards</button>${coatChips}${sw}</div>`;
+    return `<div class="cs-looksheet" role="dialog" aria-label="${esc(`Look: ${HERO_TEXT[h].title}`)}"><div class="cs-ls-head"><b>Look</b><button type="button" class="cs-ls-x" data-a="lookclose" aria-label="Close">✕</button></div><button type="button" class="pl-btn ghost small cs-ls-cards" data-a="deck" aria-haspopup="dialog">${icon('paw')}Cards</button>${coatChips}${sw}${hasLookChoices(h) ? '' : `<p class="cs-ls-none">${esc(`No other coats for ${HERO_TEXT[h].title} yet. Cards dress your heroes.`)}</p>`}</div>`;
   };
   const botsHtml = (): string => {
     if (o.difficultyNote)
       return `<div class="cs-bots locked"><span class="note">${esc(o.difficultyNote)}</span>${o.onVeteran ? `<button type="button" class="cs-vet" data-a="veteran">I've played MOBAs before</button>` : ''}</div>`;
+    const hint = DIFFICULTY_HINT[c.difficulty] ?? '';
     return `<div class="cs-bots" role="radiogroup" aria-label="Bots"><span class="cs-bl">Bots</span>${diffs
       .map((d) => {
         const on = d === c.difficulty;
         const name = (DIFFICULTY_TEXT as Record<string, string>)[d]?.replace(' bots', '') ?? d;
         return `<button type="button" role="radio" class="${on ? 'on' : ''}" data-d="${d}" aria-checked="${on}" tabindex="${on ? 0 : -1}" title="${esc(DIFFICULTY_HINT[d] ?? '')}">${esc(name)}</button>`;
       })
-      .join('')}</div>`;
+      .join('')}</div>${hint ? `<p class="cs-bots-hint bots-hint">${esc(hint)}</p>` : ''}`;
+  };
+  // phones: the hint has no room under the bots, so a tap on a difficulty shows it over LOCK IN for a few seconds
+  let note = '';
+  let noteTimer: ReturnType<typeof setTimeout> | null = null;
+  const showNote = (text: string): void => {
+    note = text;
+    if (noteTimer) clearTimeout(noteTimer);
+    noteTimer = setTimeout(() => {
+      note = '';
+      if (root.isConnected) render();
+    }, 3500);
   };
   const model = (): CsModel => {
     const no = why(viewing);
     const vs = (DIFFICULTY_TEXT as Record<string, string>)[c.difficulty] ?? 'bots';
     return {
       kind: 'solo',
-      seats: soloSeats({ name: o.playerName, hero: c.hero, trick: c.trick, difficulty: c.difficulty }),
+      seats: soloSeats({ name: o.playerName, hero: c.hero, trick: c.trick, difficulty: c.difficulty, teamSize: o.teamSize }),
       heroes: BROWSE_ORDER,
       selected: viewing,
       sideTabs: true,
@@ -278,6 +292,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       teamNote: '<div class="cs-squad" data-slot="cards"></div>',
       footLeft: botsHtml(),
       lock: { enabled: !no, label: 'LOCK IN', sub: no || `vs ${vs}` },
+      note,
       numbers,
       numbersToggle: !!o.onNumbers,
       look: !!o.onDeck,
@@ -321,6 +336,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     const d = t.closest<HTMLElement>('[data-d]')?.dataset.d as Difficulty | undefined;
     if (d) {
       c.difficulty = d;
+      showNote(DIFFICULTY_HINT[d] ?? '');
       return render();
     }
     const btn = t.closest<HTMLElement>('[data-a]');
@@ -332,7 +348,8 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
     if (a === 'back') return o.onBack();
     if (a === 'veteran') return o.onVeteran?.();
     if (a === 'look') {
-      if (!hasLookChoices(c.hero)) return o.onDeck?.(c.hero);
+      // always the small sheet (coats, colour tints, and Cards for the drawer): the pick screen never opens the
+      // drawer, with its offers, by itself
       lookOpen = !lookOpen;
       render();
       root.querySelector<HTMLElement>(lookOpen ? '.cs-ls-cards' : '.cs-look')?.focus();

@@ -245,9 +245,9 @@ describe('the /live pipe takes a team-1 PvP slot', () => {
                     `${error.getStatus()} ${(error.getResponse() as { code?: string }).code ?? ''}`
             );
 
-    it('slots 0-5 pass the DTO (the room occupant check decides ownership); 6 and -1 do not', async () => {
-        for (const slot of [0, 2, 3, 5]) expect(await validate(slot)).toBe('ok');
-        expect(await validate(6)).toBe('400 PAWLEGENDS_REPLAY_INVALID');
+    it('slots 0-9 pass the DTO (5v5 Classic; the room occupant check decides ownership); 10 and -1 do not', async () => {
+        for (const slot of [0, 2, 3, 5, 6, 9]) expect(await validate(slot)).toBe('ok');
+        expect(await validate(10)).toBe('400 PAWLEGENDS_REPLAY_INVALID');
         expect(await validate(-1)).toBe('400 PAWLEGENDS_REPLAY_INVALID');
     });
 });

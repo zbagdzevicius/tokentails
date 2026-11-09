@@ -9,12 +9,12 @@ import { TIMELINE } from './timeline';
  * command pings fit beside a joystick at the move gap for the whole 11:00 (shared/caps.ts and
  * backend/src/shared-contracts/caps.ts carry the same numbers; change all three in one commit).
  */
-export const MAX_INPUT_CHARS = 40800;
+export let MAX_INPUT_CHARS: number = 40800;
 /** 11:00 safety end. */
-export const MAX_TICKS = TIMELINE.safetyEnd;
+export let MAX_TICKS: number = TIMELINE.safetyEnd;
 
 /** The binary stream behind MAX_INPUT_CHARS (base64: 4 characters per 3 bytes). Sim v10: +600 B for pings (30,000 before). */
-export const MAX_INPUT_BYTES = 30600;
+export let MAX_INPUT_BYTES: number = 30600;
 
 /**
  * Input gate (POC.md §11.3): the sim applies at most one `move` every MOVE_MIN_GAP ticks (a newer one waits and the
@@ -28,3 +28,17 @@ export const MOVE_MIN_GAP = 4;
  * MAX_TICKS, plus its 1-byte opcode), so a player at the input budget can still forfeit and the replay still fits.
  */
 export const FORFEIT_RESERVE_BYTES = 4;
+
+/** Sim v19 (MAP-5V5.md §2.5): the limits per map. Hearthwood: 16:00, the input budget scaled by match length. */
+export const LIMITS_BY_MAP = Object.freeze({
+  crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30600, maxInputChars: 40800 }),
+  hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44700, maxInputChars: 59600 }),
+});
+
+/** Live bindings: the active match's map's limits (src/sim/map/runtime.ts bindMap). */
+export function setLimits(id: keyof typeof LIMITS_BY_MAP): void {
+  const l = LIMITS_BY_MAP[id];
+  MAX_TICKS = l.maxTicks;
+  MAX_INPUT_BYTES = l.maxInputBytes;
+  MAX_INPUT_CHARS = l.maxInputChars;
+}

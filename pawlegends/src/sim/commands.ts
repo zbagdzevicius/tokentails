@@ -7,17 +7,20 @@
  * The sim only ever sees quantised commands (`quantize`), so a live match and its replay apply identical inputs.
  */
 import { MAP } from '../data/map';
-import { PING_KINDS } from '../data/pings';
+import { CROSSING_PING_KINDS, PING_KINDS } from '../data/pings';
 import { Op, type CastSlot, type Command, type TalentTier, type TimedCommand } from './api';
 import { clamp, idiv } from './fixed';
 
 /** mm per coordinate unit in the stream. */
 export const COORD_QUANTUM = 250;
-const MAX_QX = idiv(MAP.width, COORD_QUANTUM);
-const MAX_QY = idiv(MAP.height, COORD_QUANTUM);
+/** Sim v19: the active map's bounds in quanta (Crossing 400 × 240, Hearthwood 512 × 512). */
+const maxQx = (): number => idiv(MAP.width, COORD_QUANTUM);
+const maxQy = (): number => idiv(MAP.height, COORD_QUANTUM);
+/** Sim v19: ping kinds of the active map (Crossing: v18's 8). */
+const pingKinds = (): number => (MAP.point === 1 ? PING_KINDS.length : CROSSING_PING_KINDS);
 
-const qx = (x: number): number => clamp(idiv(x + idiv(COORD_QUANTUM, 2), COORD_QUANTUM), 0, MAX_QX);
-const qy = (y: number): number => clamp(idiv(y + idiv(COORD_QUANTUM, 2), COORD_QUANTUM), 0, MAX_QY);
+const qx = (x: number): number => clamp(idiv(x + idiv(COORD_QUANTUM, 2), COORD_QUANTUM), 0, maxQx());
+const qy = (y: number): number => clamp(idiv(y + idiv(COORD_QUANTUM, 2), COORD_QUANTUM), 0, maxQy());
 
 /** Payload size in bytes, opcode included. */
 export const OP_SIZE: Readonly<Record<number, number>> = Object.freeze({
@@ -47,7 +50,7 @@ export function quantize(cmd: Command): Command {
     case Op.Talent:
       return { op: cmd.op, tier: clamp(cmd.tier, 0, 2) as TalentTier, choice: (cmd.choice & 1) as 0 | 1 };
     case Op.Ping:
-      return { op: cmd.op, kind: clamp(cmd.kind, 0, PING_KINDS.length - 1), x: qx(cmd.x) * COORD_QUANTUM, y: qy(cmd.y) * COORD_QUANTUM, id: cmd.id & 0xff };
+      return { op: cmd.op, kind: clamp(cmd.kind, 0, pingKinds() - 1), x: qx(cmd.x) * COORD_QUANTUM, y: qy(cmd.y) * COORD_QUANTUM, id: cmd.id & 0xff };
     default:
       return { op: cmd.op };
   }
@@ -115,7 +118,7 @@ function writeCommand(w: ByteWriter, cmd: Command): void {
       w.u8((clamp(cmd.tier, 0, 2) << 4) | (cmd.choice & 1));
       break;
     case Op.Ping:
-      w.u8(clamp(cmd.kind, 0, PING_KINDS.length - 1));
+      w.u8(clamp(cmd.kind, 0, pingKinds() - 1));
       w.u16(qx(cmd.x));
       w.u16(qy(cmd.y));
       w.u8(cmd.id);
@@ -137,7 +140,7 @@ export function readCommand(bytes: Uint8Array, at: number): { cmd: Command; next
   const coord = (o: number): { x: number; y: number } => {
     const x = u16(o);
     const y = u16(o + 2);
-    if (x > MAX_QX || y > MAX_QY) throw new DecodeError(`coordinate out of map at ${at}`);
+    if (x > maxQx() || y > maxQy()) throw new DecodeError(`coordinate out of map at ${at}`);
     return { x: x * COORD_QUANTUM, y: y * COORD_QUANTUM };
   };
   let cmd: Command;
@@ -169,7 +172,7 @@ export function readCommand(bytes: Uint8Array, at: number): { cmd: Command; next
     }
     case Op.Ping: {
       const kind = bytes[at + 1];
-      if (kind >= PING_KINDS.length) throw new DecodeError(`bad ping kind at ${at}`);
+      if (kind >= pingKinds()) throw new DecodeError(`bad ping kind at ${at}`);
       const c = coord(2);
       cmd = { op, kind, x: c.x, y: c.y, id: bytes[at + 6] };
       break;

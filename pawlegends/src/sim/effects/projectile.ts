@@ -6,7 +6,7 @@
  */
 import { TICK_HZ } from '../../data/timeline';
 import { BP_ONE, icos, idiv, isin, TRIG_ONE } from '../fixed';
-import { allocProjectile, type World } from '../world';
+import { allocProjectile, type World, pAdd, pClear } from '../world';
 
 export const PFLAG = Object.freeze({
   Pierce: 1,
@@ -63,8 +63,7 @@ export function fireSkillshot(w: World, owner: number, s: SkillshotSpec): number
   w.pRange[p] = s.range;
   w.pDmg[p] = s.dmg;
   w.pFlags[p] = s.flags;
-  w.pHitLo[p] = 0;
-  w.pHitHi[p] = 0;
+  pClear(w, p);
   w.pRadius[p] = s.radius;
   w.pEffect[p] = s.effect ?? ON_HIT.None;
   w.pEffA[p] = s.effA ?? 0;
@@ -75,8 +74,7 @@ export function fireSkillshot(w: World, owner: number, s: SkillshotSpec): number
 
 /** Add `id` to projectile `p`'s hit mask. */
 export function markHit(w: World, p: number, id: number): void {
-  if (id < 0x20) w.pHitLo[p] |= 1 << id;
-  else w.pHitHi[p] |= 1 << (id - 0x20);
+  pAdd(w, p, id);
 }
 
 /** Reverse a skillshot toward where it came from, now owned by `by` (a parry). */
@@ -87,7 +85,6 @@ export function reflectSkillshot(w: World, p: number, by: number): void {
   w.pOwner[p] = by;
   w.pFlags[p] |= PFLAG.Reflected;
   w.pTtl[p] = Math.max(w.pRange[p] - w.pTtl[p], idiv(w.pSpeed[p], TICK_HZ));
-  w.pHitLo[p] = 0;
-  w.pHitHi[p] = 0;
+  pClear(w, p);
   markHit(w, p, by);
 }

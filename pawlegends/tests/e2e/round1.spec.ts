@@ -53,7 +53,8 @@ test('the pick screen shows ability numbers on request and the bots chip says wh
   await page.locator('[data-cs="numbers"]').click();
   await expect(page.locator('.cs-meta')).toContainText(/Cooldown \d/);
   await page.locator('[data-d="hard"]').click();
-  await expect(page.locator('[data-d="hard"]')).toHaveAttribute('title', /five Hard bots/);
+  // the hint is visible text, not a hover title: under the bots on a desktop, over LOCK IN for a few seconds on a phone
+  await expect(page.locator('.bots-hint:visible')).toContainText(/five Hard bots/);
   await expect(page.locator('.cs-lock')).toContainText('vs Hard bots');
 });
 

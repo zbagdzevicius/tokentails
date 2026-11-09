@@ -8,7 +8,7 @@ import { BOT_AI, type BotParams } from '../../../data/bots';
 import { NO_TARGET, type Command } from '../../api';
 import { TRIG_ONE, dist2, iatan2, icos, idiv, isin, isqrt } from '../../fixed';
 import type { Rng } from '../../rng';
-import { ENTITY_CAP, RANGE, type World } from '../../world';
+import { RANGE, type World, MAX_ENTITIES } from '../../world';
 import { collect, inCone, inLine, stacksOf } from '../../effects';
 import { canCast } from '../../heroes/kit';
 import { abil } from '../../heroes/talents';
@@ -17,7 +17,7 @@ import { hpBp, seenEnemy } from '../sense';
 import { RANGE_PAD, aimed, awayFrom, cast, distTo, foesNear, hits, pt } from '../casts';
 
 /** Candidate aim points for the densest Fluff Puff line (`hits` is reused by the count). */
-const cands = new Int32Array(ENTITY_CAP);
+const cands = new Int32Array(MAX_ENTITIES);
 
 /** The seen enemy hero within `r` with the most Disdain; ties: nearest, then lowest id. −1 when none. */
 export function disdainTarget(w: World, id: number, r: number): number {

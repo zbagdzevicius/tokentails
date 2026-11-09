@@ -20,7 +20,7 @@ import { HERO_RULES } from '../../data/xp';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, FM, G, Kind, RANGE, maskHas, type World } from '../world';
+import { FM, G, Kind, RANGE, type World, MAX_ENTITIES, fmHas, fmAdd } from '../world';
 import { dealDamage } from '../combat/damage';
 import { fireBolt } from '../combat/attack';
 import { collect, dash, fear, fireSkillshot, haste, healOverTime, inRing, slow, spawnBurst, ON_HIT, PFLAG } from '../effects';
@@ -30,7 +30,7 @@ import { abil, type KitNumbers } from './talents';
 /** kEmpower while his own E or R deals damage (afterDeal ignores it). */
 const RESOLVING = 1;
 const SPRINT = 1;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {
@@ -153,15 +153,14 @@ export const ROCKET_KIT: HeroKit = {
       w,
       w.team[id],
       hits,
-      (e, er) => !maskHas(w.fmHitLo[id], w.fmHitHi[id], e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + er) * (half + er),
+      (e, er) => !fmHas(w, id, e) && dist2(w.x[id], w.y[id], w.x[e], w.y[e]) <= (half + er) * (half + er),
       true,
     );
     const dmg = lvl(w, id, r.dmg, r.dmgPerLevel);
     w.kEmpower[id] = RESOLVING;
     for (let i = 0; i < n; i++) {
       const e = hits[i];
-      if (e < 0x20) w.fmHitLo[id] |= 1 << e;
-      else w.fmHitHi[id] |= 1 << (e - 0x20);
+      fmAdd(w, id, e);
       dealDamage(m, id, w.team[id], Kind.Hero, e, dmg, 'ability');
       if (e < 0x20) w.kCount[id] |= 1 << e;
       w.kWAge[id] = r.clocked;

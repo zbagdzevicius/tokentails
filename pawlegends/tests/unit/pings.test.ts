@@ -5,7 +5,7 @@
  */
 import { describe, expect, it } from 'vitest';
 import { MAX_INPUT_BYTES, MAX_INPUT_CHARS, MOVE_MIN_GAP } from '../../src/data/limits';
-import { LANE_SWAP, PING, PING_KIND, PING_KINDS } from '../../src/data/pings';
+import { CROSSING_PING_KINDS, LANE_SWAP, PING, PING_KIND, PING_KINDS } from '../../src/data/pings';
 import { NO_TARGET, Op, type Command, type SimEvent } from '../../src/sim/api';
 import { DecodeError, decodeCommand, decodeStream, encodeCommand, encodeStream, fromBase64 } from '../../src/sim/commands';
 import { createGate, gateCommand } from '../../src/sim/input';
@@ -42,8 +42,9 @@ describe('Op.Ping encoding (GAPS B1)', () => {
     expect(() => decodeCommand(bytes)).toThrow(DecodeError);
   });
 
-  it('eight kinds in the GAPS order', () => {
-    expect(PING_KINDS).toEqual(['goHere', 'group', 'pudding', 'pushSunny', 'pushPuddle', 'defend', 'fallBack', 'focus']);
+  it('eight kinds in the GAPS order; sim v19 appends the four Hearthwood kinds (Crossing refuses them)', () => {
+    expect(PING_KINDS.slice(0, CROSSING_PING_KINDS)).toEqual(['goHere', 'group', 'pudding', 'pushSunny', 'pushPuddle', 'defend', 'fallBack', 'focus']);
+    expect(PING_KINDS.slice(CROSSING_PING_KINDS)).toEqual(['pushFence', 'pushYarn', 'pushGutter', 'grizzlechop']);
   });
 });
 

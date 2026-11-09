@@ -6,7 +6,7 @@
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp } from '../fixed';
 import type { MatchHandle } from '../state';
-import { COOLDOWN_SLOTS, ENTITY_CAP, G, Kind, type World } from '../world';
+import { COOLDOWN_SLOTS, G, Kind, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { attackSpeed, collect, dash, fireSkillshot, heal, inCone, inFront, knockback, stun, PFLAG } from '../effects';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
@@ -15,7 +15,7 @@ import { creditHealShield } from '../effects/heal';
 
 const Q = 0;
 const E = 2;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 /** Spend a full Valor bar: true when this cast is empowered. */
 function spendValor(w: World, id: number): boolean {

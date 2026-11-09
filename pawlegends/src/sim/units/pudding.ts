@@ -27,36 +27,35 @@ import { radiusOf } from './kinds';
 import { Rng } from '../rng';
 
 const out = new Int32Array(3);
-const P = RANGE.pudding;
 
 /** Match start: the slot exists (away) so the snapshot kind is right; the first spawn is at TIMELINE.pudding. */
 export function initPudding(w: World): void {
-  w.kind[P] = Kind.Pudding;
-  w.team[P] = TEAM_NEUTRAL;
-  w.alive[P] = 0;
+  w.kind[RANGE.pudding] = Kind.Pudding;
+  w.team[RANGE.pudding] = TEAM_NEUTRAL;
+  w.alive[RANGE.pudding] = 0;
   w.globals[G.PudState] = PUD_STATE.Away;
   w.globals[G.PudAt] = TIMELINE.pudding;
   w.globals[G.PudTeam] = TEAM_NEUTRAL;
 }
 
 function place(w: World, team: number, hp: number, x: number, y: number): void {
-  w.alive[P] = 1;
-  w.team[P] = team;
-  w.hp[P] = hp;
-  w.maxHp[P] = hp;
-  w.armour[P] = 0;
-  w.shield[P] = 0;
-  w.x[P] = x;
-  w.y[P] = y;
-  w.moveX[P] = x;
-  w.moveY[P] = y;
-  w.moveCarry[P] = 0;
-  w.state[P] = UnitState.Idle;
-  w.target[P] = -1;
-  w.lastHitBy[P] = -1;
-  w.hurtTick[P] = NEVER;
-  w.buffs[P] = 0;
-  clearStatus(w, P);
+  w.alive[RANGE.pudding] = 1;
+  w.team[RANGE.pudding] = team;
+  w.hp[RANGE.pudding] = hp;
+  w.maxHp[RANGE.pudding] = hp;
+  w.armour[RANGE.pudding] = 0;
+  w.shield[RANGE.pudding] = 0;
+  w.x[RANGE.pudding] = x;
+  w.y[RANGE.pudding] = y;
+  w.moveX[RANGE.pudding] = x;
+  w.moveY[RANGE.pudding] = y;
+  w.moveCarry[RANGE.pudding] = 0;
+  w.state[RANGE.pudding] = UnitState.Idle;
+  w.target[RANGE.pudding] = -1;
+  w.lastHitBy[RANGE.pudding] = -1;
+  w.hurtTick[RANGE.pudding] = NEVER;
+  w.buffs[RANGE.pudding] = 0;
+  clearStatus(w, RANGE.pudding);
 }
 
 /** Enemy structures still standing in `lane`, for `team`'s escort. */
@@ -64,7 +63,7 @@ function enemyStructuresIn(w: World, team: number, lane: number): number {
   const enemy = 1 - team;
   let n = 0;
   for (let k = 0; k < TOWER_SPOTS.length; k++) {
-    if (LANES.indexOf(TOWER_SPOTS[k].lane) === lane && w.alive[RANGE.towers + enemy * TOWER_SPOTS.length + k] === 1) n++;
+    if (LANES.indexOf(TOWER_SPOTS[k].lane!) === lane && w.alive[RANGE.towers + enemy * TOWER_SPOTS.length + k] === 1) n++;
   }
   return n;
 }
@@ -75,7 +74,7 @@ function outermostEnemyHp(w: World, team: number, lane: number): number {
   for (let pass = 0; pass < 2; pass++) {
     const tier = pass === 0 ? 'outer' : 'inner';
     for (let k = 0; k < TOWER_SPOTS.length; k++) {
-      if (LANES.indexOf(TOWER_SPOTS[k].lane) === lane && TOWER_SPOTS[k].tier === tier && w.alive[base + k] === 1) return w.hp[base + k];
+      if (LANES.indexOf(TOWER_SPOTS[k].lane!) === lane && TOWER_SPOTS[k].tier === tier && w.alive[base + k] === 1) return w.hp[base + k];
     }
   }
   return w.hp[RANGE.cores + 1 - team];
@@ -88,6 +87,20 @@ function outermostEnemyHp(w: World, team: number, lane: number): number {
  */
 function escortLane(m: MatchHandle, team: number): number {
   const w = m.world;
+  // Sim v19 (Hearthwood, MAP-5V5.md §1.7): the lane where the enemy has the fewest towers standing (a push that
+  // finishes something); ties: Yarn Road, then Fenceline, then Gutterway.
+  if (LANES.length > 2) {
+    let best = 1;
+    let bestN = enemyStructuresIn(w, team, 1);
+    for (let l = 0; l < LANES.length; l++) {
+      const n = enemyStructuresIn(w, team, l);
+      if (n < bestN) {
+        best = l;
+        bestN = n;
+      }
+    }
+    return best;
+  }
   const a = enemyStructuresIn(w, team, 0);
   const b = enemyStructuresIn(w, team, 1);
   if (a !== b) return a > b ? 0 : 1;
@@ -110,6 +123,7 @@ export function stepPuddingTimeline(m: MatchHandle, waveSpawned: boolean): void 
     w.globals[G.PudHop] = 0;
     w.globals[G.PudSpawns]++;
     m.events.push({ type: 'pudding', tick, what: 'spawn' });
+    if (w.mg.length > 0) m.events.push({ type: 'objectiveSpawn', tick, kind: 'pudding' });
     return;
   }
   if (state === PUD_STATE.Wild) {
@@ -131,9 +145,9 @@ export function stepPuddingTimeline(m: MatchHandle, waveSpawned: boolean): void 
     const len = isqrt(dx * dx + dy * dy);
     const along = PUDDING.escortSpawnOffset;
     place(w, team, PUDDING.escortHp, path.x[0] + idiv(dx * along, len), path.y[0] + idiv(dy * along, len));
-    w.waypoint[P] = 1;
-    w.lane[P] = lane;
-    w.facing[P] = iatan2(dy, dx);
+    w.waypoint[RANGE.pudding] = 1;
+    w.lane[RANGE.pudding] = lane;
+    w.facing[RANGE.pudding] = iatan2(dy, dx);
     w.globals[G.PudWave] = w.globals[G.Wave];
     w.globals[G.PudState] = PUD_STATE.Escort;
     w.globals[G.PudBreath] = PUDDING.escortBreathEvery;
@@ -142,7 +156,7 @@ export function stepPuddingTimeline(m: MatchHandle, waveSpawned: boolean): void 
   }
   // Escort: leaves when his wave is gone.
   for (let id = RANGE.minions; id < RANGE.towers; id++) {
-    if (w.alive[id] === 1 && w.team[id] === w.team[P] && w.wave[id] === w.globals[G.PudWave]) return;
+    if (w.alive[id] === 1 && w.team[id] === w.team[RANGE.pudding] && w.wave[id] === w.globals[G.PudWave]) return;
   }
   leave(m);
 }
@@ -153,17 +167,17 @@ function hop(m: MatchHandle): void {
   for (let id = 0; id < RANGE.pudding; id++) {
     if (w.alive[id] === 0 || (w.kind[id] !== Kind.Hero && w.kind[id] !== Kind.Minion && w.kind[id] !== Kind.Camp)) continue;
     const r = PUDDING.hopRadius + radiusOf(w, id);
-    if (dist2(w.x[id], w.y[id], w.x[P], w.y[P]) > r * r) continue;
-    knockback(m, id, w.x[P], w.y[P], PUDDING.hopKnockback, w.facing[id]);
+    if (dist2(w.x[id], w.y[id], w.x[RANGE.pudding], w.y[RANGE.pudding]) > r * r) continue;
+    knockback(m, id, w.x[RANGE.pudding], w.y[RANGE.pudding], PUDDING.hopKnockback, w.facing[id]);
   }
 }
 
 function leave(m: MatchHandle): void {
   const w = m.world;
   const tick = w.globals[G.Tick];
-  w.alive[P] = 0;
-  w.hp[P] = 0;
-  w.team[P] = TEAM_NEUTRAL;
+  w.alive[RANGE.pudding] = 0;
+  w.hp[RANGE.pudding] = 0;
+  w.team[RANGE.pudding] = TEAM_NEUTRAL;
   w.globals[G.PudState] = PUD_STATE.Away;
   w.globals[G.PudAt] = tick + PUDDING.respawn;
   w.globals[G.PudTeam] = TEAM_NEUTRAL;
@@ -180,10 +194,10 @@ export function onPuddingDown(m: MatchHandle): void {
     leave(m);
     return;
   }
-  const by = w.lastHitBy[P];
+  const by = w.lastHitBy[RANGE.pudding];
   const team = by >= 0 && w.team[by] < 2 ? w.team[by] : TEAM_NEUTRAL;
-  w.alive[P] = 0;
-  w.hp[P] = 0;
+  w.alive[RANGE.pudding] = 0;
+  w.hp[RANGE.pudding] = 0;
   w.globals[G.PudHop] = 0;
   if (team === TEAM_NEUTRAL) {
     // Nobody to reward (cannot happen with today's damage sources): treat it as a leave.
@@ -194,6 +208,7 @@ export function onPuddingDown(m: MatchHandle): void {
   w.globals[G.PudTeam] = team;
   w.globals[G.PudLane] = escortLane(m, team);
   m.events.push({ type: 'pudding', tick: w.globals[G.Tick], what: 'calmed', team: team as Team });
+  if (w.mg.length > 0) m.events.push({ type: 'objective', tick: w.globals[G.Tick], kind: 'pudding', team: team as Team, slot: by >= 0 && by < RANGE.minions ? by : -1 });
   // Sim v12: every hero of the calming team gets FISH.pudding.
   for (let h = RANGE.heroes; h < RANGE.minions; h++) if (w.kind[h] === Kind.Hero && w.team[h] === team) grantFish(m, h, FISH.pudding, 'pudding');
 }
@@ -203,9 +218,9 @@ function breathTarget(w: World): number {
   let best = -1;
   let bestD = 0;
   for (let id = RANGE.towers; id < RANGE.fountains; id++) {
-    if (w.alive[id] === 0 || w.team[id] === w.team[P]) continue;
+    if (w.alive[id] === 0 || w.team[id] === w.team[RANGE.pudding]) continue;
     const r = PUDDING.escortBreathRange + radiusOf(w, id);
-    const d = dist2(w.x[P], w.y[P], w.x[id], w.y[id]);
+    const d = dist2(w.x[RANGE.pudding], w.y[RANGE.pudding], w.x[id], w.y[id]);
     if (d > r * r) continue;
     if (best < 0 || d < bestD) {
       best = id;
@@ -218,30 +233,30 @@ function breathTarget(w: World): number {
 /** Step 4: the escort walks his lane and stops to breathe on the first enemy structure in range. */
 export function stepPudding(m: MatchHandle): void {
   const w = m.world;
-  if (w.globals[G.PudState] !== PUD_STATE.Escort || w.alive[P] === 0) return;
+  if (w.globals[G.PudState] !== PUD_STATE.Escort || w.alive[RANGE.pudding] === 0) return;
   if (w.globals[G.PudBreath] > 0) w.globals[G.PudBreath]--;
   const t = breathTarget(w);
   if (t >= 0) {
-    w.facing[P] = iatan2(w.y[t] - w.y[P], w.x[t] - w.x[P]);
-    w.state[P] = UnitState.Attacking;
+    w.facing[RANGE.pudding] = iatan2(w.y[t] - w.y[RANGE.pudding], w.x[t] - w.x[RANGE.pudding]);
+    w.state[RANGE.pudding] = UnitState.Attacking;
     if (w.globals[G.PudBreath] === 0) {
       w.globals[G.PudBreath] = PUDDING.escortBreathEvery;
-      dealDamage(m, P, w.team[P], Kind.Pudding, t, PUDDING.escortBreathDamage, 'ability');
+      dealDamage(m, RANGE.pudding, w.team[RANGE.pudding], Kind.Pudding, t, PUDDING.escortBreathDamage, 'ability');
     }
     return;
   }
-  const path = LANE_PATHS[w.team[P]][w.lane[P]];
-  let wp = w.waypoint[P];
+  const path = LANE_PATHS[w.team[RANGE.pudding]][w.lane[RANGE.pudding]];
+  let wp = w.waypoint[RANGE.pudding];
   if (wp >= path.length) return;
-  if (dist2(w.x[P], w.y[P], path.x[wp], path.y[wp]) <= RADIUS.minion * RADIUS.minion && wp < path.length - 1) wp++;
-  w.waypoint[P] = wp;
+  if (dist2(w.x[RANGE.pudding], w.y[RANGE.pudding], path.x[wp], path.y[wp]) <= RADIUS.minion * RADIUS.minion && wp < path.length - 1) wp++;
+  w.waypoint[RANGE.pudding] = wp;
   const tx = path.x[wp];
   const ty = path.y[wp];
-  if (tx === w.x[P] && ty === w.y[P]) return;
-  w.facing[P] = iatan2(ty - w.y[P], tx - w.x[P]);
-  moveToward(w.x[P], w.y[P], tx, ty, PUDDING.escortSpeed, w.moveCarry[P], TICK_HZ, out);
-  w.x[P] = out[0];
-  w.y[P] = out[1];
-  w.moveCarry[P] = out[2];
-  w.state[P] = UnitState.Moving;
+  if (tx === w.x[RANGE.pudding] && ty === w.y[RANGE.pudding]) return;
+  w.facing[RANGE.pudding] = iatan2(ty - w.y[RANGE.pudding], tx - w.x[RANGE.pudding]);
+  moveToward(w.x[RANGE.pudding], w.y[RANGE.pudding], tx, ty, PUDDING.escortSpeed, w.moveCarry[RANGE.pudding], TICK_HZ, out);
+  w.x[RANGE.pudding] = out[0];
+  w.y[RANGE.pudding] = out[1];
+  w.moveCarry[RANGE.pudding] = out[2];
+  w.state[RANGE.pudding] = UnitState.Moving;
 }

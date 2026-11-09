@@ -3,8 +3,9 @@
  * read of an enemy unit here goes through `visibleTo` (the same test the snapshot uses), so a unit hidden in brush
  * or stealth does not exist for the bots.
  */
-import { FOUNTAIN, LANES, MAP, RADIUS, TOWER_SPOTS, mirrorX } from '../../data/map';
-import { BP_ONE, dist2, idiv } from '../fixed';
+import { FOUNTAIN, LANES, MAP, RADIUS, TOWER_SPOTS, mirrorX, mirrorY } from '../../data/map';
+import { LANE_PATHS } from '../map/lanes';
+import { BP_ONE, dist2, idiv, isqrt } from '../fixed';
 import { visibleTo } from '../map/brush';
 import { Kind, RANGE, type World } from '../world';
 import { attackRange, heroData, radiusOf } from '../units/kinds';
@@ -13,13 +14,99 @@ import { BOT_AI } from '../../data/bots';
 
 /** +1 for Purrhaven (pushes toward +x), −1 for Woof. */
 export const sign = (team: number): number => (team === 0 ? 1 : -1);
-/** How far toward the enemy core a point is, for `team`. */
-export const progressOf = (team: number, x: number): number => (team === 0 ? x : MAP.width - x);
+/**
+ * How far toward the enemy core a point is, for `team`. Sim v19: on a point map, along the base-to-base diagonal
+ * (x + y; every Hearthwood lane path climbs it monotonically).
+ */
+export const progressOf = (team: number, x: number, y: number): number =>
+  MAP.point === 1 ? (team === 0 ? x + y : MAP.width + MAP.height - x - y) : team === 0 ? x : MAP.width - x;
 
 export const hpBp = (w: World, id: number): number => (w.maxHp[id] > 0 ? idiv(Math.max(0, w.hp[id]) * BP_ONE, w.maxHp[id]) : 0);
 
 export const fountainX = (team: number): number => (team === 0 ? FOUNTAIN.x : mirrorX(FOUNTAIN.x));
-export const fountainY = (): number => FOUNTAIN.y;
+export const fountainY = (team: number): number => (team === 0 ? FOUNTAIN.y : mirrorY(FOUNTAIN.y));
+
+/**
+ * Sim v19 (point maps): the point `d` mm along `team`'s path of `lane` from the path point nearest (x, y), toward the
+ * enemy core (d > 0) or back toward its own (d < 0). Writes [x, y] into `out`. Crossing callers keep their x offsets.
+ */
+export function alongLane(team: number, lane: number, x: number, y: number, d: number, out: Int32Array): void {
+  const p = LANE_PATHS[team][lane];
+  // Nearest segment by squared distance to its projection.
+  let seg = 0;
+  let bestD = -1;
+  let bx = p.x[0];
+  let by = p.y[0];
+  for (let k = 0; k + 1 < p.length; k++) {
+    const ax = p.x[k];
+    const ay = p.y[k];
+    const dx = p.x[k + 1] - ax;
+    const dy = p.y[k + 1] - ay;
+    const len2 = dx * dx + dy * dy;
+    let qx = ax;
+    let qy = ay;
+    if (len2 > 0) {
+      const t = Math.max(0, Math.min(len2, (x - ax) * dx + (y - ay) * dy));
+      qx = ax + idiv(dx * t, len2);
+      qy = ay + idiv(dy * t, len2);
+    }
+    const dd = (x - qx) * (x - qx) + (y - qy) * (y - qy);
+    if (bestD < 0 || dd < bestD) {
+      bestD = dd;
+      seg = k;
+      bx = qx;
+      by = qy;
+    }
+  }
+  let left = Math.abs(d);
+  let cx = bx;
+  let cy = by;
+  if (d >= 0) {
+    for (let k = seg + 1; k < p.length && left > 0; k++) {
+      const sx = p.x[k] - cx;
+      const sy = p.y[k] - cy;
+      const len = isqrt(sx * sx + sy * sy);
+      if (len >= left) {
+        cx += idiv(sx * left, Math.max(1, len));
+        cy += idiv(sy * left, Math.max(1, len));
+        left = 0;
+      } else {
+        cx = p.x[k];
+        cy = p.y[k];
+        left -= len;
+      }
+    }
+  } else {
+    for (let k = seg; k >= 0 && left > 0; k--) {
+      const sx = p.x[k] - cx;
+      const sy = p.y[k] - cy;
+      const len = isqrt(sx * sx + sy * sy);
+      if (len >= left) {
+        cx += idiv(sx * left, Math.max(1, len));
+        cy += idiv(sy * left, Math.max(1, len));
+        left = 0;
+      } else {
+        cx = p.x[k];
+        cy = p.y[k];
+        left -= len;
+      }
+    }
+  }
+  out[0] = cx;
+  out[1] = cy;
+}
+
+/** Sim v19 (point maps): the point `d` mm from (x, y) straight toward `team`'s fountain. */
+export function towardBase(team: number, x: number, y: number, d: number, out: Int32Array): void {
+  const fx = fountainX(team);
+  const fy = fountainY(team);
+  const dx = fx - x;
+  const dy = fy - y;
+  const len = Math.max(1, isqrt(dx * dx + dy * dy));
+  const k = Math.min(d, len);
+  out[0] = x + idiv(dx * k, len);
+  out[1] = y + idiv(dy * k, len);
+}
 
 export const within = (w: World, a: number, b: number, r: number): boolean => dist2(w.x[a], w.y[a], w.x[b], w.y[b]) <= r * r;
 
@@ -67,7 +154,7 @@ export function laneFront(w: World, team: number, lane: number): number {
   let bestP = 0;
   for (let id = RANGE.minions; id < RANGE.towers; id++) {
     if (w.alive[id] === 0 || w.team[id] !== team || w.lane[id] !== lane) continue;
-    const p = progressOf(team, w.x[id]);
+    const p = progressOf(team, w.x[id], w.y[id]);
     if (best < 0 || p > bestP) {
       best = id;
       bestP = p;
@@ -77,11 +164,16 @@ export function laneFront(w: World, team: number, lane: number): number {
 }
 
 /** Structure ids of `team` in `lane`, outer first; the core last. */
+const TIERS2: readonly string[] = ['outer', 'inner'];
+const TIERS3: readonly string[] = ['outer', 'inner', 'gate'];
+
 export function laneStructure(w: World, team: number, lane: number, outerFirst: boolean): number {
   const name = LANES[lane];
   const base = RANGE.towers + team * TOWER_SPOTS.length;
-  for (let pass = 0; pass < 2; pass++) {
-    const tier = (pass === 0) === outerFirst ? 'outer' : 'inner';
+  // Sim v19: Hearthwood's lanes have three tiers.
+  const tiers = MAP.point === 1 ? TIERS3 : TIERS2;
+  for (let pass = 0; pass < tiers.length; pass++) {
+    const tier = tiers[outerFirst ? pass : tiers.length - 1 - pass];
     for (let k = 0; k < TOWER_SPOTS.length; k++) {
       if (TOWER_SPOTS[k].lane === name && TOWER_SPOTS[k].tier === tier && w.alive[base + k] === 1) return base + k;
     }

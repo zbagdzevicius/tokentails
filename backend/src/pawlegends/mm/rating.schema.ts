@@ -10,8 +10,11 @@ import { MM_LIMITS } from './mm-limits';
  * `MmRatingReader` (find only).
  */
 
-/** 'casual' (M1b PvP, V16.md §4.4): its own row per account, guests included (rated on their guest account). */
-export type MmRatingQueue = 'coop' | 'casual';
+/**
+ * 'casual' (M1b PvP, V16.md §4.4): its own row per account, guests included (rated on their guest account).
+ * 'classic' (5v5 on Hearthwood, MAP-5V5.md §9.3): its own row too, so 3v3 casual ratings stay clean.
+ */
+export type MmRatingQueue = 'coop' | 'casual' | 'classic';
 
 export interface MmRatingRow {
     _id: string;

@@ -20,7 +20,7 @@ import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
 import { DecalLayer, dashRingTexture } from './decals';
 import { aggroPulse, TowerBeams } from '../fx/towerBeams';
-import { coreGeometry, fountainGeometry, puddingGeometry, ratGeometry, towerGeometry } from './models';
+import { coreGeometry, crowGeometry, fountainGeometry, grizzlechopGeometry, hedgehogGeometry, puddingGeometry, ratGeometry, toadGeometry, towerGeometry } from './models';
 import { rigMaterial, type RigUniforms, casterDepthMaterial } from './rig';
 
 interface Structure {
@@ -167,7 +167,9 @@ const _sv = new THREE.Vector3();
 const _up = new THREE.Vector3(0, 1, 0);
 
 /** Kinds this view draws (heroes, minions and pickups have their own views; an unknown kind is skipped). */
-const STRUCTURE_KINDS: ReadonlySet<string> = new Set(['tower', 'core', 'fountain', 'camp', 'pudding']);
+const STRUCTURE_KINDS: ReadonlySet<string> = new Set(['tower', 'core', 'fountain', 'camp', 'pudding', 'boss']);
+/** Sim v19 (Hearthwood): how big each jungle monster is drawn (the 3v3 rat camp keeps 1.3). */
+const CAMP_SCALE: Readonly<Record<string, number>> = Object.freeze({ rat: 1.3, prickle: 1.7, crow: 1.6, toad: 1.5, boss: 2.2 });
 
 export class StructureView {
   readonly group = new THREE.Group();
@@ -338,7 +340,10 @@ export class StructureView {
     if (!g) {
       switch (e.kind) {
         case 'tower':
-          g = towerGeometry(team, e.variant === 'inner' ? 'inner' : 'outer');
+          g = towerGeometry(team, e.variant === 'inner' || e.variant === 'gate' || e.variant === 'hearth' ? e.variant : 'outer');
+          break;
+        case 'boss':
+          g = grizzlechopGeometry();
           break;
         case 'core':
           g = coreGeometry(team);
@@ -350,7 +355,7 @@ export class StructureView {
           g = puddingGeometry();
           break;
         default:
-          g = ratGeometry();
+          g = e.variant === 'prickle' ? hedgehogGeometry() : e.variant === 'crow' ? crowGeometry() : e.variant === 'toad' ? toadGeometry() : ratGeometry();
       }
       this.geoCache.set(key, g);
     }
@@ -455,7 +460,7 @@ export class StructureView {
     s.hitAt = this.time;
     // every structure, Pudding and the camp monsters too: a pulse after a quiet spell, a steady tint under fire
     s.flash = hitPulse(quiet, s.flash);
-    if (quiet > STRUCT_HIT.gap) s.shake = s.kind === 'camp' ? 1 : 0.6;
+    if (quiet > STRUCT_HIT.gap) s.shake = s.kind === 'camp' || s.kind === 'boss' ? 1 : 0.6;
   }
 
   setShadows(on: boolean): void {
@@ -499,11 +504,11 @@ export class StructureView {
       s.flash = Math.max(0, s.flash - dt * 5);
       s.shake = Math.max(0, s.shake - dt * 4);
       const jx = Math.sin(this.time * 70) * s.shake * 0.08;
-      if (e.kind === 'camp') {
+      if (e.kind === 'camp' || e.kind === 'boss') {
         s.phase += dt * (e.speed > 3 ? 12 : 2);
-        s.mesh.position.set(s.x, Math.abs(Math.sin(s.phase)) * 0.08, s.z);
+        s.mesh.position.set(s.x + (e.kind === 'boss' ? jx : 0), Math.abs(Math.sin(s.phase)) * 0.08, s.z);
         s.mesh.rotation.y = e.yaw;
-        s.mesh.scale.setScalar(1.3);
+        s.mesh.scale.setScalar(CAMP_SCALE[e.kind === 'boss' ? 'boss' : (e.variant ?? 'rat')] ?? 1.3);
       } else if (e.kind === 'pudding') {
         const w = Math.sin(this.time * 3.1);
         s.mesh.position.set(s.x, 0, s.z);
@@ -595,7 +600,7 @@ export class StructureView {
         continue;
       }
       s.mesh.visible = false;
-      if (s.kind === 'camp') {
+      if (s.kind === 'camp' || s.kind === 'boss') {
         this.items.delete(id);
         s.material.dispose();
         this.group.remove(s.mesh);
@@ -769,7 +774,7 @@ export class StructureView {
     const f = this.fpPool[n];
     f.x = s.x;
     f.z = s.z;
-    f.r = s.radius * (s.kind === 'pudding' || s.kind === 'camp' ? s.mesh.scale.x : 1);
+    f.r = s.radius * (s.kind === 'pudding' || s.kind === 'camp' || s.kind === 'boss' ? s.mesh.scale.x : 1);
     out.push(f);
   };
 
