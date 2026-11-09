@@ -150,3 +150,32 @@ describe('overhead plates draw without a 2D canvas', () => {
     expect(second.paints).toBe(first.paints);
   });
 });
+
+describe('phone shadow stand-ins', () => {
+  it('scenery blobs merge per tile into 8-triangle octahedra; only an orthographic frustum (the sun) sees them', async () => {
+    const { casterChunks, CASTER_TILE } = await import('../../src/render/views/mapView');
+    const { orthoFrustum } = await import('../../src/render/chars');
+    const blobs = [
+      { x: 1, y: 2, z: 1, rx: 1, ry: 2, rz: 1 },
+      { x: 3, y: 2, z: 2, rx: 1, ry: 2, rz: 1 },
+      { x: CASTER_TILE * 3 + 1, y: 2, z: 0, rx: 1, ry: 1, rz: 1 },
+    ];
+    const ms = casterChunks(blobs);
+    expect(ms).toHaveLength(2);
+    expect(ms.reduce((n, m) => n + m.geometry.getAttribute('position').count / 3, 0)).toBe(24);
+    const ortho = new THREE.OrthographicCamera(-50, 50, 50, -50, 0.5, 500);
+    ortho.position.set(0, 40, 0);
+    ortho.lookAt(0, 0, 0);
+    ortho.updateMatrixWorld();
+    const persp = new THREE.PerspectiveCamera(40, 2, 0.5, 300);
+    persp.position.set(0, 20, 10);
+    persp.lookAt(0, 0, 0);
+    persp.updateMatrixWorld();
+    const fr = (c: THREE.Camera): THREE.Frustum => new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(c.projectionMatrix, c.matrixWorldInverse));
+    expect(orthoFrustum(fr(ortho))).toBe(true);
+    expect(orthoFrustum(fr(persp))).toBe(false);
+    ms[0].updateMatrixWorld();
+    expect(ms[0].intersectsFrustum(fr(ortho))).toBe(true);
+    expect(ms[0].intersectsFrustum(fr(persp))).toBe(false);
+  });
+});
