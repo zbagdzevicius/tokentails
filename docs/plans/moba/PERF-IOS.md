@@ -812,3 +812,98 @@ Files owned by C: `app/app.ts`, `render/gameView.ts`, `render/effects.ts`, `rend
 ### 8.13 Results
 
 To be filled by the tracks: the §8.2 table again (current build vs the build before the track), with the targets above.
+
+#### Track A: GPU and overlay (2026-11-09)
+
+Measured with `perf-ios-probe2.mjs`: **base** = `origin/main` `9b0fa506`, **current** = branch `perf2/a`. Both were
+built at the same moment and run in pairs at the same time on a host at load average 11–30. Chromium on the GPU with
+CPU ×4: 3 pairs, medians. WebKit: 1 pair. The medians are in
+[`perf-ios-iter2-trackA-chromium.txt`](benchmarks/perf-ios-iter2-trackA-chromium.txt) and
+[`perf-ios-iter2-trackA-webkit.txt`](benchmarks/perf-ios-iter2-trackA-webkit.txt). Values are base → current.
+
+| Match window (Chromium ×4) | Early | 1:00 | 2:00 | 2:15 | Paused |
+|---|---|---|---|---|---|
+| Full-screen 2D canvas (overhead), calls/s | 3,538 → **0** | 3,006 → **0** | 3,504 → **0** | 3,037 → **0** | 757 → **0** |
+| Overhead backing store rasterised a frame | 0.75 Mpx → **0** | same | same | same | same |
+| Minimap, calls/s (calls a redraw at 15 Hz) | 2,296 → **396** (153 → **26**) | 3,391 → **548** (226 → **37**) | 3,888 → **603** (259 → **40**) | 3,914 → **632** (261 → **42**) | 4,016 → **0** |
+| Triangles a frame | 174k → **140k** | 184k → **150k** | 188k → **152k** | 186k → **151k** | 191k → **156k** |
+| Shadow-pass triangles a frame | 39.0k → **5.3k** | 42.2k → **8.8k** | 43.6k → **9.2k** | 42.9k → **9.8k** | 44.6k → **11.5k** |
+| Draws a frame (in the shadow pass) | 48.1 → 49.7 (7.5 → 9.2) | 56.5 → 55.9 (8.5 → 9.6) | 59.2 → 59.8 (9.1 → 10.4) | 59.5 → 59.9 (9.4 → 10.9) | 59.5 → 60.5 |
+| WebGL calls a frame | 483 → 492 | 550 → 537 | 553 → 553 | 543 → 534 | 520 → 532 |
+| JS ms per drawn frame | 5.40 → 6.02 | 6.22 → 5.92 | 5.65 → 6.04 | 5.56 → 5.68 | 5.84 → 5.04 |
+| CPU busy ms/s (profile) | – | 500 → 501 | – | 473 → 476 | – |
+| Composited layers | 14 → 12 | 19 → 14 | 19 → 14 | 19 → 17 | 16 → 14 |
+
+WebKit (1 pair, no throttle): the overhead canvas went from 3,000–3,550 calls/s to none, and the minimap from
+2,300–4,650 calls/s to 396–642 (none while paused). Triangles a frame fell from 173–194k to 140–157k, and shadow-pass
+triangles from 39–46k to 5.4–11k. JS per drawn frame did not change (1.6–2.0 ms in both).
+
+**What changed:**
+1. **Bars, names and arrows are drawn in WebGL** (`render/overlay/`: `quadBatch.ts`, `atlas.ts`, `glOverlay.ts`;
+   `ui/overhead.ts`). Bars, frames, ticks and lines are quads in one batch. The lines are mitred and have an
+   anti-aliased edge. Anything with text or curves (name pills, level numbers, crowns, chips, status icons, arrows,
+   glyphs) is painted once with the same Canvas 2D code into a stamp atlas, keyed by what it shows, then drawn as a
+   textured quad. All of it is one draw call over the scene, in the same rAF callback, so plates never lag their
+   bodies. A steady frame paints no stamp and uploads no texture. Layout, declutter, edge arrows, HUD fades and every
+   option the trailer uses are unchanged.
+
+   The text is now rasterised at the 3D drawing buffer's DPR, about 1.25 on a phone (the canvas was 1.5). In
+   side-by-side screenshots at 852×393 DPR 3 it reads the same.
+
+   One visible difference: while the player is dead, the plates are desaturated with the rest of the game canvas by
+   `html[data-pl-dead] #game-canvas { filter }` in `ui/lol-hud.css`, a Track C file.
+2. **Minimap** (`ui/minimap.ts`). Unit, hero, Pudding, pickup and timer marks are cached sprites, one `drawImage`
+   each. The cleared bushes, fallen towers, standing towers and cores are one layer, repainted only when one of them
+   changes. A still frame, such as a paused match, is not redrawn. Minions are now drawn above the tower squares.
+3. **Phone shadows.**
+   - Match heroes cast through an ellipsoid of 80 triangles (`render/chars/index.ts`). Their skinned bodies are never
+     culled and cost about 5k triangles each.
+   - The forest and the jungle walls cast through one octahedron per canopy or rock, merged per 24 m tile so the
+     sun's frustum culls them (`render/views/mapView.ts`).
+   - The stand-ins are culled out of the match camera's pass, so they cost nothing on screen.
+   - Casters before culling: 93k → 24k triangles. In the probe, the shadow pass is 5–11k triangles a frame, against
+     the 25k target.
+   - It costs about 1.5 more shadow draws a frame (the tiles).
+   - Desktop and the lobby are unchanged.
+4. **Dynamic resolution as an early lever** (`render/perf/governor.ts` `ResScaler`, applied in `render/renderer.ts` on
+   phones).
+   - Each 1 s window with more than 10% missed refreshes steps the drawing buffer down by 0.05, to a floor of 0.8. It
+     reaches 0.8 before the step governor's first change, so sharpness goes before shadows do.
+   - After 20 s clean it grows back, and only once no governor step is above its floor.
+   - JS time does not move it.
+5. **Overdraw view** `?overdraw=1` (`render/renderer.ts`). Every fragment that passes the depth test adds one step of
+   red. `html[data-overdraw]` holds avg, p95, max and the share of pixels shaded more than 3 and 6 times.
+6. **Outline hull, measured** (phone Medium, scope `key`, a live match): 4 hulls are drawn, costing 4 draws and
+   20.7k triangles a frame (16% of the frame's triangles), against 37k for the hero bodies. No change was made. The
+   next option is to skip the hull on heroes far from the player.
+
+**Overdraw, measured.** The gallery (`gallery.html?overdraw=1&phone=1`, its own close camera, so the match-camera
+numbers are still open) cycled each hero's moves at 852×393 DPR 3:
+
+| Hero | Idle frame: avg, share > 3 | Worst move: avg, share > 3 |
+|---|---|---|
+| Clem | 1.61, 9% | 1.87, 11% (E) |
+| Duchess | 1.79, 11% | **3.10, 41% (R)** |
+| Avietė | 1.61, 9% | 1.78, 11% (R) |
+| Cacklejaw | 1.73, 11% | 2.03, 16% (W) |
+| Rocket | 1.66, 10% | 1.90, 11% (R) |
+
+No move reached 3× the frame's average. Duchess's R reached 1.7×: its ground wash covers the lower half of the close
+camera's view. I did not cap any VFX size or count. Next step: measure Duchess's R and a 6-hero fight in the match
+camera with this view before capping anything.
+
+**Not changed, and why.**
+- **JS per frame did not go down in Chromium.** The overlay pass is a second `renderer.render` call (three.js
+  submission +0.4 ms a frame at ×4). That replaces Canvas 2D work which Chromium rasterises on the GPU, so the saving
+  shows on iOS, which rasterises 2D canvases on the CPU: 0.75 Mpx a frame and one composited layer less.
+- **The `overheadDpr` setting** (`quality.ts`, `matchSession.applyPerf`) only applies when no renderer is live, as in
+  unit tests.
+
+**Checks.**
+- `tsc`, `npm run build` and `npm run budget` pass. The budget is first-load JS 371.1 KB gzip, under 450.
+- In `vitest`, all Track A tests pass: `tests/unit/perf-overlay.test.ts` and `perf-overlay-minimap.test.ts`.
+- 8 other tests fail in this worktree:
+  - The 2 copy-gate tests fail because `tools/copy-lint` has no `node_modules` here.
+  - 6 are sim and animation timing or timeout tests, run under load: `perf-sim`, `determinism`, `net-rejoin perf-ff`,
+    `sim-v10 SlotStats`, `skins-determinism` and `anim/root`.
+  - None of these touches a Track A file.
