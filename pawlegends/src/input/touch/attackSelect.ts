@@ -6,17 +6,24 @@
  * Attack{id} on it; dragging back to where the thumb landed (the inner ring) cancels. Client only: it only decides which id an existing
  * Attack command carries (no sim change). Floats are fine here (never in the replay).
  */
-import { BODY_MM, isEnemy, type Unit } from '../targeting';
+import { ATTACK_SEEK_MM, BODY_MM, isEnemy, type Unit } from '../targeting';
 import { LOCK } from './assist';
 
 export const ATK_SELECT = Object.freeze({
   /** A held (not dragged) Attack button shows the candidates after this long (ms). */
   holdMs: 200,
-  /** A press becomes a selection drag past this many px (a release inside it is a tap). */
-  dragPx: 18,
+  /**
+   * A press becomes a selection drag past this many px (a release inside it is a tap). Wider than the cancel zone
+   * (backPx), so a thumb that slips while spamming Attack never lands straight on the red cancel ring.
+   */
+  dragPx: 32,
   /** A drag that comes back within this many px of where the thumb landed cancels the selection. */
   backPx: 24,
-  /** The acquire reach: this far (mm, edge to edge) past the hero's attack range. */
+  /**
+   * The acquire reach: this far (mm, edge to edge) past the hero's attack range, but never shorter than the Attack
+   * tap's own walk-in (ATTACK_SEEK_MM: every unit the ATK ring can show is offered, so a melee hero sweeping toward a
+   * ringed unit 6 m away finds it) and never past the lock range (LOCK.rangeMm). See selectReach.
+   */
   reachMm: 2500,
   /** Hysteresis: the unit already selected stays a candidate this much (mm) past the reach, so it never flickers off. */
   keepMm: 1500,
@@ -38,14 +45,20 @@ export function angleGap(a: number, b: number): number {
   return d > Math.PI ? Math.PI * 2 - d : d;
 }
 
+/** The selector's reach (mm, edge to edge) for a basic attack `range`: range + reachMm, at least the tap's walk-in, at most LOCK.rangeMm. */
+export function selectReach(range: number): number {
+  return Math.min(LOCK.rangeMm, Math.max(ATTACK_SEEK_MM, range + ATK_SELECT.reachMm));
+}
+
 /**
- * The enemies the selector offers: attackable, alive, within `range` + ATK_SELECT.reachMm edge to edge (the unit
+ * The enemies the selector offers: attackable, alive, within selectReach(`range`) edge to edge (the unit
  * already selected, `keep`, ATK_SELECT.keepMm further: a lane fight at the reach edge must not flicker the selection
  * off just as the thumb lets go); every hero in reach first (nearest first), then the nearest others, at most
  * ATK_SELECT.max.
  */
-export function selectCandidates(units: readonly Unit[], me: Unit, myTeam: number, range: number, keep: number | null = null, reach = ATK_SELECT.reachMm): Unit[] {
-  const inReach = units.filter((u) => u.id !== me.id && isEnemy(u, myTeam) && edge(u, me) <= range + reach + (u.id === keep ? ATK_SELECT.keepMm : 0));
+export function selectCandidates(units: readonly Unit[], me: Unit, myTeam: number, range: number, keep: number | null = null): Unit[] {
+  const reach = selectReach(range);
+  const inReach = units.filter((u) => u.id !== me.id && isEnemy(u, myTeam) && edge(u, me) <= reach + (u.id === keep ? ATK_SELECT.keepMm : 0));
   inReach.sort((a, b) => (a.kind === 'hero' ? 0 : 1) - (b.kind === 'hero' ? 0 : 1) || edge(a, me) - edge(b, me));
   return inReach.slice(0, ATK_SELECT.max);
 }
@@ -77,6 +90,21 @@ export function snapTarget(cands: readonly Unit[], me: { x: number; y: number },
   if (best.kind === 'hero' || !hero || heroGap > ATK_SELECT.heroCone) return best.id;
   // a hero in the cone wins, unless the thumb points right at the minion or structure (and the hero is clearly off it)
   return bestGap <= ATK_SELECT.point && heroGap > bestGap + ATK_SELECT.tie ? best.id : hero.id;
+}
+
+/**
+ * What a release locks: the selection the last step highlighted (`sel`), else, when that step found nothing (the wave
+ * moved off the thumb's line, a unit left the snapshot for a frame), the last unit the drag highlighted (`last`), as
+ * long as it is still a living enemy in the snapshot; null when neither is (the release then cancels). The release
+ * never re-picks from where the thumb lifted, so it never swaps to a unit the player was not shown.
+ */
+export function releasePick(sel: number | null, last: number | null, units: readonly Unit[], myTeam: number): number | null {
+  for (const id of [sel, last]) {
+    if (id === null) continue;
+    const u = units.find((q) => q.id === id);
+    if (u && isEnemy(u, myTeam)) return id;
+  }
+  return null;
 }
 
 /** Is the drag (dx, dy px from where the thumb landed) back there (cancel), past the drag threshold, or neither? */

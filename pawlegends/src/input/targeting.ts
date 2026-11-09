@@ -69,7 +69,7 @@ export function attackPriority(
   me: Unit,
   myTeam: number,
   range: number,
-  seek = 7000,
+  seek = ATTACK_SEEK_MM,
   first: TargetFirst = 'heroes',
   /** C5: the next basic's damage to a minion or camp monster; one it kills wins the minion pick (the last hit). */
   killDmg?: (u: Unit) => number,
@@ -128,6 +128,9 @@ export function attackPriority(
   return (hero ?? kill ?? reachHero ?? minion ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
 }
 
+/** The Attack tap's walk-in reach (mm, edge to edge): with nothing in range it walks to a unit this close (ATK ring). */
+export const ATTACK_SEEK_MM = 7000;
+
 /** Feel pass B4: the Attack button's default order takes an enemy hero this far (mm) past the attack range first. */
 export const HERO_REACH_MM = 1500;
 
@@ -176,7 +179,7 @@ export function attackPreview(
   first: TargetFirst = 'heroes',
   killDmg?: (u: Unit) => number,
   locked: number | null = null,
-  seek = 7000,
+  seek = ATTACK_SEEK_MM,
 ): number | null {
   if (locked !== null && units.some((u) => u.id === locked && u.state !== 'dead')) return locked;
   return attackPriority(units, me, myTeam, range, seek, first, killDmg);
