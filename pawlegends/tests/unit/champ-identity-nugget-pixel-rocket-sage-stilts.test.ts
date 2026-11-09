@@ -12,7 +12,7 @@ import { sfx } from '../../src/audio/sfx';
 import { zzfxDuration } from '../../src/audio/sfxDefs.js';
 import { identityDefs, planSkillSfx } from '../../src/audio/skillSfx';
 import type { HeroId } from '../../src/data/heroes/types';
-import { IDENTITY, MIX, natureOf } from '../../src/data/identity';
+import { IDENTITY, MIX, natureOf } from '../../src/render/identity';
 import { abilNumbers } from '../../src/render/anim/timing';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, SkillFxSet, Slot } from '../../src/render/anim/types';
 import { SHAPE } from '../../src/render/fx/Particles.js';

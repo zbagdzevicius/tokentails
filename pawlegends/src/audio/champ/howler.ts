@@ -9,7 +9,7 @@
  * repeats.
  * Look: slate-blue echo rings expanding out of him with mint glints; on the sonic skills they ripple forward.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: audio/champ never imports three.js). */

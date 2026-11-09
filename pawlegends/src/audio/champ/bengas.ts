@@ -9,7 +9,7 @@
  * Look: golden toast crumbs that tumble and bounce, with a camellia petal or two drifting in crimson; Camellia Hop
  * (E) is all petals. Colour pair #B01838 camellia crimson / #E0A050 toast gold.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: this data file carries no render import). */

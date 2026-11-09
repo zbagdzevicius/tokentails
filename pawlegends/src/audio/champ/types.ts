@@ -11,7 +11,7 @@
  * `skills` overrides any of those per skill and phase.
  */
 import type { HeroId } from '../../data/heroes/types';
-import type { SkillKey, Zzfx } from '../../data/identity';
+import type { SkillKey, Zzfx } from '../../render/identity';
 
 export type SkillPhase = 'cast' | 'impact' | 'travel';
 

@@ -9,7 +9,7 @@
  * Look: ink-black spots joined by starlight: each spot with a lilac star twinkling on the line to the next one. Big
  * Shake flings the spots out in a ring; Spot On sticks one spot with a star glint.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers here: this file stays free of render imports). */

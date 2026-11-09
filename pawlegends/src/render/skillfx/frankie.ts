@@ -25,7 +25,7 @@
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BuffFlag } from '../../sim/api';
 import { playSkillSfx } from '../../audio/skillSfx';
-import { IDENTITY, type SkillKey } from '../../data/identity';
+import { IDENTITY, type SkillKey } from '../identity';
 import type { FxCtx, SkillFxSet } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
 import { funHeroOf, funOverY, funPop, sticker } from '../fx/fun/funKit';

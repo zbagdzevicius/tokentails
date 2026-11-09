@@ -6,7 +6,7 @@
  * live in audio/champ/<hero>.ts (`fx`). Render only; never feeds the sim.
  */
 import type { HeroId } from '../../data/heroes/types';
-import { IDENTITY, NATURES, type Nature, type ParticleShape, type SkillKey } from '../../data/identity';
+import { IDENTITY, NATURES, type Nature, type ParticleShape, type SkillKey } from '../identity';
 import { CHAMP_AUDIO } from '../../audio/champ';
 import type { MotifPainter, P3, SkillPhase } from '../../audio/champ/types';
 import { skillKey } from '../../audio/skillSfx';

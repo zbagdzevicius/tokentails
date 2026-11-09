@@ -9,7 +9,7 @@ import type { MotifPainter } from '../../src/audio/champ/types';
 import { sfx } from '../../src/audio/sfx';
 import { identityDefs, planSkillSfx } from '../../src/audio/skillSfx';
 import type { HeroId } from '../../src/data/heroes/types';
-import { IDENTITY, SKILL_KEYS, natureOf } from '../../src/data/identity';
+import { IDENTITY, SKILL_KEYS, natureOf } from '../../src/render/identity';
 import { NatureFx } from '../../src/render/fx/natureFx';
 import { SHAPE } from '../../src/render/fx/Particles.js';
 import type { FxCtx } from '../../src/render/anim/types';

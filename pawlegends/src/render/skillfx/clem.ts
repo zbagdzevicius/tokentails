@@ -18,7 +18,7 @@
 import * as THREE from 'three';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { playSkillSfx } from '../../audio/skillSfx';
-import { type SkillKey } from '../../data/identity';
+import { type SkillKey } from '../identity';
 import { stubFx } from '../anim/common';
 import { DASH_SPEED, TICK_S, travelTicks } from '../anim/timing';
 import type { SimEvent } from '../../sim/api';

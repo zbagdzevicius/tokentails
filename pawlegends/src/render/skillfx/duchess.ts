@@ -37,7 +37,7 @@
  * no allocation per event or per frame. Render only.
  */
 import { playSkillSfx } from '../../audio/skillSfx';
-import { type SkillKey } from '../../data/identity';
+import { type SkillKey } from '../identity';
 import { stubFx } from '../anim/common';
 import { TICK_S } from '../anim/timing';
 import { CAPS } from '../../data/map';

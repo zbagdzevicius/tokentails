@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { PL_SFX } from '../../src/audio/sfx';
 import { zzfxDuration } from '../../src/audio/sfxDefs.js';
 import { HERO_IDS } from '../../src/data/heroes';
-import { IDENTITY, MIX, NATURE, NATURES, SKILL_KEYS, natureOf, type Zzfx } from '../../src/data/identity';
+import { IDENTITY, MIX, NATURE, NATURES, SKILL_KEYS, natureOf, type Zzfx } from '../../src/render/identity';
 import { SHAPE } from '../../src/render/fx/Particles.js';
 import { RELATION } from '../../src/render/palette';
 

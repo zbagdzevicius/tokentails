@@ -9,7 +9,7 @@
  * Look: round white snow puffs (normal blend, so they read on bright grass) with ice-blue six-point flakes twinkling;
  * on SNOW DAY! the puffs fall from above.
  */
-import type { SkillKey } from '../../data/identity';
+import type { SkillKey } from '../../render/identity';
 import type { ChampAudio, MotifPainter, P3 } from './types';
 
 /** Particles.js FADE ids (numbers: audio/champ never imports three.js). */
