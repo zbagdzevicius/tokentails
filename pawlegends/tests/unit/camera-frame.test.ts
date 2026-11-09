@@ -8,8 +8,10 @@
 import * as THREE from 'three';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { AIM_PAN, FOV, frameDist, groundReach, groundWidthAt, HERO_AT, PEEK_RETURN_S, PITCH, aimPan, reachAlong, returnShare } from '../../src/render/camera/frame';
-import { CAMERA_HEIGHT_KEY, heightFactor, loadCameraHeight, saveCameraHeight, wheelHeight } from '../../src/render/camera/height';
-import { placeMatchCamera } from '../../src/render/renderer';
+import { CAMERA_HEIGHT_KEY, CAMERA_HEIGHT_MAX, CAMERA_HEIGHTS, CAMERA_STEPS, heightFactor, loadCameraHeight, parseCameraHeight, saveCameraHeight, stepHeight, wheelHeight } from '../../src/render/camera/height';
+import { SHADOW_BOX, placeMatchCamera, shadowHalfFor, shadowMaxFor } from '../../src/render/renderer';
+import { CAMERA_YAW } from '../../src/render/coords';
+import { OUTER_DRESS } from '../../src/render/views/mapView';
 import { FightCam, PUNCH_VIGNETTE } from '../../src/render/anim/cam';
 import { bindCameraHeightRow, cameraHeightRowHtml } from '../../src/ui/cameraHeightRow';
 
@@ -29,7 +31,7 @@ describe('fixed framing', () => {
   it('puts the hero (the focus) at 50% across and 54% down, ±2 px, at every size, height step and yaw', () => {
     const cam = new THREE.PerspectiveCamera();
     for (const [w, h] of SIZES)
-      for (const zoom of [heightFactor('normal'), heightFactor('high')])
+      for (const zoom of CAMERA_STEPS.map(heightFactor))
         for (const yaw of [0, -0.66, -0.66 + Math.PI, 1.3]) {
           const hero = new THREE.Vector3(37, 0, -21);
           placeMatchCamera(cam, hero, yaw, w, h, zoom);
@@ -73,6 +75,14 @@ describe('fixed framing', () => {
 });
 
 describe('aim pan and peek return', () => {
+  it('the aim pan stays within 6 m at every Camera height step and viewport', () => {
+    for (const [w, h] of SIZES)
+      for (const z of CAMERA_STEPS.map(heightFactor)) {
+        const r = groundReach(frameDist(w, h) * z, w, h);
+        for (const range of [7, 12, 16, 30, 80]) for (const [x, y] of [[1, 0], [0, 1], [0, -1]]) expect(aimPan(range, reachAlong(x, y, r))).toBeLessThanOrEqual(AIM_PAN.max);
+      }
+  });
+
   it('a 7 m skill never pans; the longest skills pan at most 6 m', () => {
     const half = groundWidthAt(frameDist(844, 390), 844, 390) / 2;
     expect(aimPan(7, half)).toBe(0);
@@ -142,29 +152,112 @@ describe('fight camera', () => {
 describe('Camera height setting', () => {
   beforeEach(() => localStorage.clear());
 
-  it('Normal by default, remembers High per device, and the wheel only picks one of the two', () => {
+  it('five steps, closest first; Normal by default; any step name is remembered, anything else is Normal', () => {
+    expect(CAMERA_STEPS).toEqual(['close', 'normal', 'high', 'higher', 'max']);
+    expect(CAMERA_STEPS.map(heightFactor)).toEqual([0.88, 1, 1.12, 1.25, 1.4]);
     expect(loadCameraHeight()).toBe('normal');
-    saveCameraHeight('high');
-    expect(localStorage.getItem(CAMERA_HEIGHT_KEY)).toBe('high');
+    for (const h of CAMERA_STEPS) {
+      saveCameraHeight(h);
+      expect(localStorage.getItem(CAMERA_HEIGHT_KEY)).toBe(h);
+      expect(loadCameraHeight()).toBe(h);
+    }
+    // an old 'high' keeps working; anything else is Normal
+    localStorage.setItem(CAMERA_HEIGHT_KEY, 'high');
     expect(loadCameraHeight()).toBe('high');
-    localStorage.setItem(CAMERA_HEIGHT_KEY, 'zoomed');
-    expect(loadCameraHeight()).toBe('normal');
+    for (const bad of ['zoomed', '', 'HIGH', '1.4', 'constructor', 'toString'] as const) {
+      localStorage.setItem(CAMERA_HEIGHT_KEY, bad);
+      expect(loadCameraHeight()).toBe('normal');
+    }
+    expect(parseCameraHeight(null)).toBe('normal');
+    expect(parseCameraHeight(1.4)).toBe('normal');
     expect(heightFactor('high')).toBeCloseTo(1.12, 5);
     expect(wheelHeight('normal', 120)).toBe('high');
     expect(wheelHeight('high', -120)).toBe('normal');
   });
 
-  it('the Settings row shows both steps and saves the one tapped', () => {
+  it('a step moves one at a time and clamps at both ends (no wrap)', () => {
+    let h = stepHeight('close', 0);
+    expect(h).toBe('close');
+    const out: string[] = [];
+    for (let i = 0; i < 6; i++) out.push((h = stepHeight(h, 1)));
+    expect(out).toEqual(['normal', 'high', 'higher', 'max', 'max', 'max']);
+    const back: string[] = [];
+    for (let i = 0; i < 6; i++) back.push((h = stepHeight(h, -5)));
+    expect(back).toEqual(['higher', 'high', 'normal', 'close', 'close', 'close']);
+  });
+
+  it('the row is a five-way control at the current step and saves the one tapped; it follows the wheel', () => {
     const root = document.createElement('div');
     root.innerHTML = cameraHeightRowHtml('normal');
     document.body.appendChild(root);
+    const segs = [...root.querySelectorAll<HTMLElement>('[data-camh]')];
+    expect(segs.map((b) => b.dataset.camh)).toEqual([...CAMERA_STEPS]);
+    expect(segs.map((b) => b.textContent)).toEqual(['Close', 'Normal', 'High', 'Higher', 'Max']);
+    expect(segs.filter((b) => b.classList.contains('on')).map((b) => b.dataset.camh)).toEqual(['normal']);
+    expect(root.querySelector('[data-camh="normal"]')!.getAttribute('aria-pressed')).toBe('true');
     const picked: string[] = [];
     const off = bindCameraHeightRow(root, (h) => picked.push(h));
-    root.querySelector<HTMLElement>('[data-camh="high"]')!.click();
-    expect(picked).toEqual(['high']);
-    expect(loadCameraHeight()).toBe('high');
-    expect(root.querySelector('[data-camh="high"]')!.classList.contains('on')).toBe(true);
+    root.querySelector<HTMLElement>('[data-camh="max"]')!.click();
+    root.querySelector<HTMLElement>('[data-camh="close"]')!.click();
+    expect(picked).toEqual(['max', 'close']);
+    expect(loadCameraHeight()).toBe('close');
+    expect(root.querySelectorAll('.on').length).toBe(1);
+    expect(root.querySelector('[data-camh="close"]')!.classList.contains('on')).toBe(true);
+    // the wheel (saveCameraHeight elsewhere) moves the highlight too
+    saveCameraHeight('higher');
+    expect(root.querySelector('[data-camh="higher"]')!.classList.contains('on')).toBe(true);
+    expect(root.querySelectorAll('.on').length).toBe(1);
+    expect(cameraHeightRowHtml('max')).toContain('data-camh="max" aria-pressed="true"');
     off();
     root.remove();
+  });
+});
+
+describe('view-sized bounds at every Camera height step', () => {
+  /** The view's ground corners for a camera on `focus` (null when a corner looks at the sky). */
+  const groundCorners = (cam: THREE.PerspectiveCamera): THREE.Vector3[] | null => {
+    const out: THREE.Vector3[] = [];
+    for (const [x, y] of [[-1, 1], [1, 1], [1, -1], [-1, -1]]) {
+      const r = new THREE.Vector3(x, y, 0.5).unproject(cam).sub(cam.position);
+      if (r.y >= -1e-4) return null;
+      const t = -cam.position.y / r.y;
+      out.push(new THREE.Vector3(cam.position.x + r.x * t, 0, cam.position.z + r.z * t));
+    }
+    return out;
+  };
+
+  it('the sun shadow box covers the whole visible ground up to Max, on phones, desktop and portrait (no clamp)', () => {
+    const cam = new THREE.PerspectiveCamera(FOV, 1, 0.5, 300);
+    for (const [w, h] of [...SIZES, [1024, 768], [390, 844]] as [number, number][])
+      for (const h0 of CAMERA_STEPS) {
+        placeMatchCamera(cam, new THREE.Vector3(37, 0, -21), CAMERA_YAW, w, h, heightFactor(h0));
+        const cs = groundCorners(cam)!;
+        const c = cs.reduce((a, b) => a.add(b), new THREE.Vector3()).multiplyScalar(0.25);
+        const far = Math.max(...cs.map((p) => Math.hypot(p.x - c.x, p.z - c.z)));
+        const half = shadowHalfFor(far, shadowMaxFor(heightFactor(h0), 'med'));
+        expect(half, `${w}x${h} ${h0}`).toBeGreaterThanOrEqual(far);
+        expect(half).toBeLessThanOrEqual(SHADOW_BOX.max);
+      }
+  });
+
+  it('at Max on every map corner, for both seats, every screen corner lands on the dressed outer ground', () => {
+    const cam = new THREE.PerspectiveCamera(FOV, 1, 0.5, 300);
+    const W = 100;
+    const H = 60;
+    // landscape only: a portrait phone shows a rotate prompt instead of the match
+    for (const [w, h] of SIZES)
+      for (const yaw of [CAMERA_YAW, CAMERA_YAW + Math.PI])
+        for (const [fx, fz] of [[0, 2], [W, 2], [0, -H - 2], [W, -H - 2]]) {
+          placeMatchCamera(cam, new THREE.Vector3(fx, 0, fz), yaw, w, h, CAMERA_HEIGHT_MAX);
+          for (const p of groundCorners(cam)!) {
+            const sx = p.x;
+            const sy = -p.z;
+            expect(sx, `${w}x${h} ${fx},${fz}`).toBeGreaterThanOrEqual(-OUTER_DRESS.west);
+            expect(sx).toBeLessThanOrEqual(W + OUTER_DRESS.east);
+            expect(sy).toBeGreaterThanOrEqual(-OUTER_DRESS.south);
+            expect(sy, `${w}x${h} ${fx},${fz}`).toBeLessThanOrEqual(H + OUTER_DRESS.north);
+          }
+        }
+    expect(CAMERA_HEIGHT_MAX).toBe(CAMERA_HEIGHTS.max);
   });
 });
