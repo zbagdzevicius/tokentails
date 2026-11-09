@@ -93,10 +93,14 @@ import type { SimEvent } from '../../sim/api';
 =======
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
 <<<<<<< HEAD
+<<<<<<< HEAD
 >>>>>>> 54cc1d525 (feat(pawlegends): fixed MLBB-style camera (feel pass B1))
 =======
 import { ATK_SELECT, dragZone, PickLock, selectCandidates, snapTarget } from './attackSelect';
 >>>>>>> 50f13c130 (feat(pawlegends): hold ATK to select and lock a target on touch (Wild Rift style))
+=======
+import { ATK_SELECT, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
+>>>>>>> a8e09c75a (fix(pawlegends): hold-ATK select reaches the tap's 7 m, release keeps the shown target)
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -253,6 +257,8 @@ interface AtkHold {
   /** The candidates shown (ids) and the one selected, once the selector is up. */
   cands: number[] | null;
   sel: number | null;
+  /** The last unit the drag highlighted (reset by the cancel centre): the release falls back to it (releasePick). */
+  last: number | null;
 }
 
 interface Drag {
@@ -553,7 +559,7 @@ export class TouchControls {
     if (btn === 'attack') {
       this.attackHeld = e.pointerId;
       // the drag is measured from where the thumb landed (as the skill drags are), so an off-centre tap stays a tap
-      this.atkHold = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, at: performance.now(), dragging: false, cancel: false, cands: null, sel: null };
+      this.atkHold = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, at: performance.now(), dragging: false, cancel: false, cands: null, sel: null, last: null };
       this.attackNow();
       this.syncRing();
       return;
@@ -655,6 +661,8 @@ export class TouchControls {
     el.style.setProperty('--full', `${DRAG_FULL_PX * 2}px`);
     el.style.setProperty('--smart', `${AIM_BACK_PX * 2}px`);
     el.classList.toggle('dir', kind !== 'point' && kind !== 'unit');
+    // (the ring is shared with the Attack selector: a skill aim never keeps its cancel styling)
+    el.classList.remove('atk');
     el.classList.add('on');
   }
 
@@ -1048,8 +1056,11 @@ export class TouchControls {
     const ah = this.atkHold;
     if (!ah) return;
     const zone = dragZone(ah.x - ah.x0, ah.y - ah.y0, ah.dragging);
+    const skillAim = [...this.drags.values()].some((g) => g.dragging && !g.fired);
     if (zone !== 'press' && !ah.dragging) {
       ah.dragging = true;
+    }
+    if (ah.dragging && !skillAim && !this.aimRingEl.classList.contains('atk')) {
       const el = this.aimRingEl;
       el.style.transform = `translate(${ah.x0}px, ${ah.y0}px)`;
       el.style.setProperty('--smart', `${ATK_SELECT.backPx * 2}px`);
@@ -1057,7 +1068,7 @@ export class TouchControls {
     }
     if (ah.dragging) {
       ah.cancel = zone === 'cancel';
-      this.aimRingEl.classList.toggle('back', ah.cancel);
+      if (!skillAim) this.aimRingEl.classList.toggle('back', ah.cancel);
     }
     const me = this.me();
     if (!me || me.state === 'dead' || !this.h.enabled()) {
@@ -1081,6 +1092,7 @@ export class TouchControls {
     }
     if (sel !== ah.sel && sel !== null && ah.dragging) haptic('cast');
     ah.sel = sel;
+    if (ah.dragging) ah.last = ah.cancel ? null : (sel ?? ah.last);
     this.h.view.atkCands = ah.cands;
     this.h.view.atkSelect = sel;
   }
@@ -1089,10 +1101,10 @@ export class TouchControls {
   private selectRelease(ah: AtkHold, cancelled: boolean): void {
     this.h.view.atkCands = null;
     this.h.view.atkSelect = null;
-    this.aimRingEl.classList.remove('on', 'back', 'dir', 'atk');
+    if (this.aimRingEl.classList.contains('atk')) this.aimRingEl.classList.remove('on', 'back', 'dir', 'atk');
     if (!ah.dragging) return;
     const me = this.me();
-    const id = ah.sel;
+    const id = cancelled || ah.cancel ? null : releasePick(ah.sel, ah.last, this.h.units(), this.h.view.myTeam);
     if (cancelled || ah.cancel || id === null || !me || me.state === 'dead' || !this.h.enabled()) {
       this.atkSel.cancelled++;
       this.atkSel.why = cancelled ? 'pointercancel' : ah.cancel ? 'centre' : id === null ? 'none' : 'dead';
@@ -1427,7 +1439,9 @@ export class TouchControls {
     void this.desktop;
     const now = performance.now();
     // hold-to-select: a selection drag stops the repeat (the release attacks the pick); the held selector follows the units
-    if (this.attackHeld !== null && !this.atkHold?.dragging && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
+    // (back on the cancel centre the repeat goes on: the cancel drops the selection, not the attacking)
+    const aiming = !!this.atkHold?.dragging && !this.atkHold.cancel;
+    if (this.attackHeld !== null && !aiming && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
     if (this.atkHold) this.selectStep(now);
     const nh = this.napHeld;
     if (nh && !nh.fired && now - nh.at >= NAP_HOLD_MS && this.h.enabled()) {

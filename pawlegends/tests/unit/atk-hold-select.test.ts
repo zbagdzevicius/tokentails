@@ -3,13 +3,14 @@
  * the hero preference (unless the thumb points right at a minion or tower), the cancel zone, and the selector's lock.
  */
 import { describe, expect, it } from 'vitest';
-import { angleGap, ATK_SELECT, dragZone, PickLock, selectCandidates, snapTarget } from '../../src/input/touch/attackSelect';
+import { angleGap, ATK_SELECT, dragZone, PickLock, releasePick, selectCandidates, selectReach, snapTarget } from '../../src/input/touch/attackSelect';
 import { LOCK } from '../../src/input/touch/assist';
-import type { Unit } from '../../src/input/targeting';
+import { attackPreview, ATTACK_SEEK_MM, type Unit } from '../../src/input/targeting';
 
 const u = (id: number, kind: Unit['kind'], team: number, x: number, y: number, hp = 100): Unit => ({ id, kind, team, x, y, hp, maxHp: 100, state: 'idle' });
 const me = u(0, 'hero', 0, 50000, 30000);
 const RANGE = 1800;
+const REACH = selectReach(RANGE);
 const at = (deg: number, mm: number): { x: number; y: number } => ({ x: me.x + Math.cos((deg * Math.PI) / 180) * mm, y: me.y + Math.sin((deg * Math.PI) / 180) * mm });
 const unitAt = (id: number, kind: Unit['kind'], deg: number, mm: number, team = 1): Unit => {
   const p = at(deg, mm);
@@ -18,10 +19,25 @@ const unitAt = (id: number, kind: Unit['kind'], deg: number, mm: number, team = 
 const rad = (deg: number): number => (deg * Math.PI) / 180;
 
 describe('selectCandidates: what the held Attack button offers', () => {
+  it('the reach is range + reachMm, never shorter than the tap walk-in, never past the lock range', () => {
+    expect(selectReach(1800)).toBe(ATTACK_SEEK_MM); // melee: 4.3 m would miss units the ATK ring shows at 4.3-7 m
+    expect(selectReach(6000)).toBe(6000 + ATK_SELECT.reachMm);
+    expect(selectReach(9000)).toBe(LOCK.rangeMm);
+  });
+
+  it('a melee hero is offered every unit the Attack tap rings (its 7 m walk-in), so a sweep toward it finds it', () => {
+    // nothing in melee range: the tap rings (walks to) a minion 6 m away, edge to edge
+    const far = unitAt(10, 'minion', 30, 6000 + 400);
+    expect(attackPreview([me, far], me, 0, RANGE)).toBe(10);
+    const c = selectCandidates([me, far], me, 0, RANGE);
+    expect(c.map((x) => x.id)).toEqual([10]);
+    expect(snapTarget(c, me, rad(40))).toBe(10);
+  });
+
   it('only living, attackable enemies within range + reach (edge to edge)', () => {
     const near = unitAt(10, 'minion', 0, 2000);
-    const reachEdge = unitAt(11, 'minion', 90, RANGE + ATK_SELECT.reachMm + 400 - 50); // body 400 mm
-    const tooFar = unitAt(12, 'minion', 180, RANGE + ATK_SELECT.reachMm + 400 + 200);
+    const reachEdge = unitAt(11, 'minion', 90, REACH + 400 - 50); // body 400 mm
+    const tooFar = unitAt(12, 'minion', 180, REACH + 400 + 200);
     const ally = unitAt(13, 'minion', 0, 1500, 0);
     const dead = { ...unitAt(14, 'hero', 45, 1500), state: 'dead' as const };
     const fountain = unitAt(15, 'fountain', 30, 1000);
@@ -30,12 +46,12 @@ describe('selectCandidates: what the held Attack button offers', () => {
   });
 
   it('the selected unit stays a candidate ATK_SELECT.keepMm past the reach (no flicker), others do not', () => {
-    const edgeMm = RANGE + ATK_SELECT.reachMm + 400 + 800; // 800 mm past the reach (body 400 mm)
+    const edgeMm = REACH + 400 + 800; // 800 mm past the reach (body 400 mm)
     const kept = unitAt(10, 'minion', 0, edgeMm);
     const other = unitAt(11, 'minion', 90, edgeMm);
     expect(selectCandidates([me, kept, other], me, 0, RANGE, 10).map((x) => x.id)).toEqual([10]);
     expect(selectCandidates([me, kept, other], me, 0, RANGE, null)).toEqual([]);
-    const gone = unitAt(10, 'minion', 0, RANGE + ATK_SELECT.reachMm + 400 + ATK_SELECT.keepMm + 100);
+    const gone = unitAt(10, 'minion', 0, REACH + 400 + ATK_SELECT.keepMm + 100);
     expect(selectCandidates([me, gone], me, 0, RANGE, 10)).toEqual([]);
   });
 
@@ -103,10 +119,34 @@ describe('dragZone: tap, aim, cancel', () => {
     expect(dragZone(5, 5, false)).toBe('press');
     expect(dragZone(ATK_SELECT.dragPx + 1, 0, false)).toBe('aim');
   });
+  it('a thumb slip while spamming Attack (past the cancel centre, short of the drag) stays a press', () => {
+    expect(ATK_SELECT.dragPx).toBeGreaterThan(ATK_SELECT.backPx);
+    expect(dragZone(ATK_SELECT.backPx + 4, 0, false)).toBe('press');
+  });
   it('once dragging, back within the centre cancels, out again aims', () => {
     expect(dragZone(10, 0, true)).toBe('cancel');
     expect(dragZone(0, ATK_SELECT.backPx, true)).toBe('cancel');
     expect(dragZone(0, ATK_SELECT.backPx + 2, true)).toBe('aim');
+  });
+});
+
+describe('releasePick: the release takes what was highlighted', () => {
+  const a = unitAt(10, 'minion', 0, 2000);
+  const b = unitAt(11, 'hero', 90, 2000);
+  it('the last step\'s selection when it is still a living enemy', () => {
+    expect(releasePick(10, 11, [me, a, b], 0)).toBe(10);
+  });
+  it('falls back to the last highlighted unit when the last step found nothing (the wave moved off the thumb line)', () => {
+    expect(releasePick(null, 11, [me, a, b], 0)).toBe(11);
+  });
+  it('falls back when the selection died or left the snapshot on the release frame', () => {
+    expect(releasePick(10, 11, [me, { ...a, state: 'dead' }, b], 0)).toBe(11);
+    expect(releasePick(10, 11, [me, b], 0)).toBe(11);
+  });
+  it('null when neither is a living enemy (the release cancels), never an ally', () => {
+    expect(releasePick(null, null, [me, a], 0)).toBeNull();
+    expect(releasePick(10, 11, [me, { ...a, state: 'dead' }], 0)).toBeNull();
+    expect(releasePick(12, null, [me, unitAt(12, 'minion', 0, 1000, 0)], 0)).toBeNull();
   });
 });
 
