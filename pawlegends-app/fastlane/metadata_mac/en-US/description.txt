@@ -18,7 +18,7 @@ PLAY WITH FRIENDS
 - Quick-chat phrases and pings to plan the next push.
 
 HEROES WITH CHARACTER
-- Ten cat heroes, each with their own look, role and way to win a lane.
+- Twenty heroes, ten cats and ten dogs, each with their own look, role and way to win a lane.
 - Get a grade from C to S after every match and chase your best.
 
 Pawlegends is made by Token Tails, a small game studio from Vilnius, Lithuania.

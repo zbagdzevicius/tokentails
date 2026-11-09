@@ -6,8 +6,8 @@ export const MEATBALL: HeroData = Object.freeze<HeroData>({
   name: 'Meatball',
   side: 'cat',
   role: 'tank',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 7900 / takes 9925 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 7200 / takes 10000 (48.0% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 9800. */
-  pvp: { dmgBp: 7200, takenBp: 9800 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9100 / 9600 (10000 / 9400 before: 55.4% of the 2,000-seed gate; now 52.3%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 7900 / takes 9925 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 7200 / takes 10000 (48.0% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9575. */
+  pvp: { dmgBp: 7200, takenBp: 9575 },
   element: 'GRASS',
   base: { hp: 780, hpPerLevel: 80, attack: 50, attackPerLevel: 4, attackEvery: 34, range: 1600, speed: 4700, armour: 36, armourPerLevel: 3 },
   /** Food Coma: a hit that drops him below 30% HP puts him to sleep: a shield of 15% max HP for 3 s. 60 s lockout. */

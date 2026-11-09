@@ -3,17 +3,16 @@
  * App Store screenshots from the app's own web bundle (`www/`, built by scripts/build-web.mjs), so they show exactly
  * what the app runs (guideline 2.3). Touch controls on, landscape.
  *
- *   node scripts/screenshots.mjs                  iPhone 6.9": 2868 x 1320 (956 x 440 pt at 3x) into
- *                                                 fastlane/screenshots/en-US/<n>_<name>.png (deliver uploads them)
- *   node scripts/screenshots.mjs --device ipad    iPad 13": 2752 x 2064 (1376 x 1032 pt at 2x) into
- *                                                 store/screenshots-ipad/en-US/ (NOT uploaded: the app is iPhone only,
- *                                                 TARGETED_DEVICE_FAMILY = 1; move them into fastlane/screenshots/en-US
- *                                                 when iPad is turned on)
- *   node scripts/screenshots.mjs --device mac     Mac: 2880 x 1800 (1440 x 900 pt at 2x), mouse and keyboard, desktop HUD,
- *                                                 into fastlane/screenshots_mac/en-US (fastlane mac_metadata uploads them)
+ *   node scripts/screenshots.mjs                  iPhone 6.9": 2868 x 1320 (956 x 440 pt at 3x)
+ *   node scripts/screenshots.mjs --device ipad    iPad 13": 2752 x 2064 (1376 x 1032 pt at 2x)
+ *   node scripts/screenshots.mjs --device mac     Mac: 2880 x 1800 (1440 x 900 pt at 2x), mouse and keyboard, desktop HUD
  *
  * Driving a real match in the iOS Simulator is not scriptable (simctl has no touch input), so this renders the same
  * bundle in Chromium at the exact device size instead.
+ *
+ * These are RAW captures (store/raw-captures/auto-<device>/). The store images in fastlane/screenshots/ and screenshots_mac/ are framed
+ * from real captures by scripts/store-art.py (see store/SCREENSHOT-PLAN.md); copy a capture into store/raw-captures/
+ * and point SHOTS in store-art.py at it, then re-run `store-art.py compose`.
  *
  * Uses Playwright from ../pawlegends (already a dev dependency there). Review each shot before `fastlane metadata`;
  * Apple wants real gameplay, no device frames needed.
@@ -32,9 +31,9 @@ if (!existsSync(join(www, 'index.html'))) throw new Error('screenshots: build th
 const di = process.argv.indexOf('--device');
 const device = di >= 0 ? process.argv[di + 1] : 'iphone';
 const DEVICES = {
-  iphone: { width: 956, height: 440, scale: 3, out: 'fastlane/screenshots/en-US' },
-  ipad: { width: 1376, height: 1032, scale: 2, out: 'store/screenshots-ipad/en-US' },
-  mac: { width: 1440, height: 900, scale: 2, out: 'fastlane/screenshots_mac/en-US', desktop: true },
+  iphone: { width: 956, height: 440, scale: 3, out: 'store/raw-captures/auto-iphone' },
+  ipad: { width: 1376, height: 1032, scale: 2, out: 'store/raw-captures/auto-ipad' },
+  mac: { width: 1440, height: 900, scale: 2, out: 'store/raw-captures/auto-mac', desktop: true },
 };
 const dev = DEVICES[device];
 if (!dev) throw new Error(`screenshots: unknown --device ${device} (iphone | ipad | mac)`);

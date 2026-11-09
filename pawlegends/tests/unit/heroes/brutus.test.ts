@@ -145,7 +145,7 @@ describe('Sir Brutus (§6.5)', () => {
     place(m, FOE, MID.x + 6000, MID.y, 2048);
     place(m, ALLY, MID.x - 1500, MID.y, 0);
     cast(m, BRUTUS_ID, 1, MID.x + 6000, MID.y);
-    expect(cd(m, BRUTUS_ID, 1)).toBe(300);
+    expect(cd(m, BRUTUS_ID, 1)).toBe(210); // sim v17 (V17.md §6.5): 300 before
     let domes = 0;
     for (let z = 0; z < w.zAlive.length; z++) if (w.zAlive[z] === 1 && w.zKind[z] === ZONE_KIND.dome) domes++;
     expect(domes).toBe(1);
