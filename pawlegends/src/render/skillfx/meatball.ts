@@ -25,11 +25,12 @@
  * vectors reused; nothing allocates per frame.
  */
 import { stubFx } from '../anim/common';
-import { CUE_SFX } from '../anim/fxctx';
+import { playSkillSfx } from '../../audio/skillSfx';
+import type { SkillKey } from '../../data/identity';
 import { DASH_SPEED, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
 import type { FxCtx, HeroStatus, MeshFxSpawn, SkillFxSet, V3Out } from '../anim/types';
 import { SHAPE } from '../fx/Particles.js';
-import { funCount, funOverY, funPop, funRand, funSfx, orbit, speedLines, sticker } from '../fx/fun/funKit';
+import { funCount, funOverY, funPop, funRand, funSfx, orbit, speedLines, sticker, stickerBurst } from '../fx/fun/funKit';
 import { funReady, shower, zed } from '../fx/fun/skills2Fun';
 
 const GRASS = 0x7ccf5a;
@@ -43,6 +44,8 @@ const ZZ = 0x7a68ff;
 const NOTE = 0xffd27a;
 const ANGER = 0xff8a3d;
 const STARS = 0xffe066;
+/** Champion motif (audio/champ/meatball.ts): white bowling pins. */
+const PIN = 0xfffaf0;
 
 const N = 16;
 /** Food Coma: the passive's numbers (no talent changes them). */
@@ -102,6 +105,24 @@ const _st: HeroStatus = { buffs: 0, shield: 0, hp: 0, maxHp: 0 };
 const S: MeshFxSpawn = { x: 0, z: 0, sx: 1, life: 1, color: 0, rim: 0, rel: 'own' };
 
 const ok = (id: number): boolean => id >= 0 && id < N;
+
+/**
+ * The champion identity sound (nature + tuba / pins layer, audio/champ/meatball.ts) for a moment only this script sees:
+ * Big Brother's landing has no hit event of its own.
+ */
+function idSfx(fx: FxCtx, id: number, skill: SkillKey, phase: 'cast' | 'impact', at: { x: number; z: number }): void {
+  const r = fx.relation(id);
+  try {
+    playSkillSfx('meatball', skill, phase, { at, relation: r === 'own' ? 'mine' : r, src: id });
+  } catch {
+    /* audio not unlocked yet (tests, before the first gesture) */
+  }
+}
+
+/** Bowling pins knocked flying (his motif): white pins tumbling out of (x, y, z). */
+function pins(fx: FxCtx, x: number, y: number, z: number, n: number, seed: number): void {
+  stickerBurst(fx, x, y, z, 'DROPLET', PIN, 0.34, 0.75, n, 2.6, 3, -9, seed);
+}
 
 /** Reset the spawn scratch and fill the common fields. */
 function spec(fx: FxCtx, id: number, x: number, z: number, sx: number, life: number, color: number): MeshFxSpawn {
@@ -197,7 +218,7 @@ function castQ(e: { src: number; x: number; y: number; tick: number }, fx: FxCtx
   leafPuff(fx, id, _a.x, _a.z, 0.9);
   // take-off: a dust cloud kicked back from the ball
   shower(fx, _a.x, 0.25, _a.z, 6, SHAPE.PUFF, DUST, 0.42, 0.45, 2.2, 1.0, 2, funRand(e.tick, id, 1));
-  fx.sfx.cue('whooshL', _a);
+  // the roll's sound is the impact cast + tuba oom-pah (audio/champ/meatball.ts), played by effects.ts
 }
 
 function castW(e: { src: number }, fx: FxCtx): void {
@@ -221,9 +242,7 @@ function castW(e: { src: number }, fx: FxCtx): void {
   zzz(fx, id, _a.x, _a.z, 0.7);
   loafNote[id] = now + 0.25;
   loafPurr[id] = now + 0.6;
-  // the yawn: its move cue when the cue table has one, else a low sleepy "ooh" from the fun kit's stand-ins
-  if (CUE_SFX.yawn) fx.sfx.cue('yawn', _a, 0.7);
-  else funSfx(fx, 'mew', _a, 0.6);
+  // the yawn is his champion sound (a sleepy tuba slide, audio/champ/meatball.ts), played by effects.ts on the cast
 }
 
 function castE(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -273,7 +292,8 @@ function castR(e: { src: number; tick: number }, fx: FxCtx): void {
   // the swell: a big dust ring and a proud "meow" (the ult moment's own callout carries the name)
   shower(fx, _a.x, 0.2, _a.z, 10, SHAPE.PUFF, DUST, 0.5, 0.55, 3.2, 0.8, 2, funRand(e.tick, id, 3));
   funSfx(fx, 'meow', _a, 0.8);
-  fx.sfx.cue('bodyThud', _a);
+  // the pins he is about to bowl over: a ring of them pops up round him
+  orbit(fx, _a.x, 1.0, _a.z, 'DROPLET', PIN, 6, reach, 0.34, 0.5, funRand(e.tick, id, 4) * 6.283);
   if (own(fx, id) && !fx.reduced) {
     fx.cam.tier(2);
     fx.cam.punch(0.04);
@@ -289,10 +309,12 @@ function hitQ(dst: number, id: number, fx: FxCtx): void {
   const top = funOverY(fx, dst, 0.15);
   if (isHero(fx, dst)) {
     orbit(fx, _b.x, top, _b.z, 'STAR', STARS, 3, 0.38, 0.22, 0.8, funRand(rollTick[id], dst, 7) * 6.283);
+    // knocked heroes go down like pins; the roll's first hero gets the full strike burst
+    pins(fx, _b.x, top - 0.3, _b.z, rollStrike[id] ? 2 : 5, funRand(rollTick[id], dst, 8));
     if (!rollStrike[id] && funPop(fx, id, 'STRIKE!', _b.x, top + 0.3, _b.z)) rollStrike[id] = 1;
   } else sticker(fx, _b.x, top - 0.4, _b.z, 'STAR4', STARS, 0.35, 0.3);
   fx.linger.add('scratches', _b.x, _b.z, 0.6, now * 7, MOSS);
-  fx.sfx.cue('bodyThud', _b, 0.7);
+  // the thud + pin clatter is the identity impact (effects.ts plays it on this hit)
 }
 
 /** A Chonk bump: a leafy ground wave rolling out from the victim, debris and a T1 shake for the owner. */
@@ -315,7 +337,8 @@ function hitR(dst: number, id: number, fx: FxCtx): void {
     orbit(fx, _b.x, top, _b.z, 'STAR', STARS, 3, 0.4, 0.24, 0.9, v * 6.283);
     if (funPop(fx, id, v < 0.5 ? 'BONK!' : 'BOING!', _b.x, top + 0.35, _b.z)) funSfx(fx, v < 0.5 ? 'bonk' : 'boing', _b, 0.8);
   }
-  fx.sfx.cue('bodyThud', _b);
+  // every bump sends pins flying (the thud + clatter is the identity impact effects.ts plays on this hit)
+  pins(fx, _b.x, 0.9, _b.z, 3, funRand(chonkTick[id], dst, 12));
   if (own(fx, id) && !fx.reduced) fx.cam.tier(1);
 }
 
@@ -340,6 +363,9 @@ function guardLand(id: number, fx: FxCtx): void {
     sticker(fx, _c.x + 0.3, funOverY(fx, id, 0.1), _c.z, 'ANGER', ANGER, 0.42, 0.8, 0, 0, 0.3);
     if (ally >= 0) funPop(fx, id, 'HMPH!', _c.x, funOverY(fx, id, 0.6), _c.z);
   }
+  // pins scatter where he lands, with the landing's identity sound (mobility landing + pin clatter)
+  pins(fx, _b.x, 0.6, _b.z, ally >= 0 ? 4 : 2, (now * 0.43) % 1);
+  idSfx(fx, id, 'e', 'impact', _b);
   if (ally < 0) return;
   // the push: exactly the radius round the friend
   const r = (a.radius ?? 2200) / 1000;
@@ -352,7 +378,6 @@ function guardLand(id: number, fx: FxCtx): void {
   edge.p1 = 0.93;
   fx.mesh.spawn('arc', edge);
   fx.particles.debris(_b.x, _b.z, 0.8);
-  fx.sfx.cue('bodyThud', _b);
   if (own(fx, id) && !fx.reduced) fx.cam.tier(1);
 }
 
@@ -439,6 +464,8 @@ function updateChonk(fx: FxCtx): void {
       // the running aura: a dust ring kicked out from under the ball every 0.3 s
       chonkDust[id] = now + 0.3;
       shower(fx, _a.x, 0.15, _a.z, 6, SHAPE.PUFF, DUST, 0.4, 0.4, 2.6, 0.5, 2, (now * 0.37) % 1);
+      // a ring of bowling pins orbits the ball (his motif), re-dropped with the dust so it rides along
+      if (fx.tier !== 'low') orbit(fx, _a.x, 1.0, _a.z, 'DROPLET', PIN, 4, 1.25, 0.3, 0.34, now * 4);
     }
     if (chonkUntil[id] <= now || now < chonkNext[id]) continue;
     chonkNext[id] = now + (fx.reduced ? 0.3 : 0.15);

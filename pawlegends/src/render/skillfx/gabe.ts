@@ -31,8 +31,13 @@
  * Colour: own / ally thin shapes take a rim 60% toward their own colour (pink stays pink, gold only at the edge);
  * enemy shapes keep the full danger rim, and enemy ribbons are tinted toward it (an enemy band never reads as yours).
  *
+ * Champion identity (audio/champ/gabe.ts): her trait is heart balloons and white feathers, her sound wind chimes. The
+ * balloon pop and the wing wrap play the identity impact (heal / guard nature + a glassy pop / a feather flutter) in
+ * place of the generic move cues; the casts' chimes come from the identity layer.
+ *
  * All state is in fixed pools allocated once at load; nothing allocates per frame or per event.
  */
+import { playSkillSfx } from '../../audio/skillSfx';
 import { screenRightXZ, towardCameraXZ } from '../coords';
 import { CAPS, RADIUS } from '../../data/map';
 import { PROJECTILE_KIND } from '../../data/towers';
@@ -107,6 +112,16 @@ const TAU = Math.PI * 2;
 const _a: V3Out = { x: 0, y: 0, z: 0 };
 const _b: V3Out = { x: 0, y: 0, z: 0 };
 const _c: V3Out = { x: 0, y: 0, z: 0 };
+
+/** The identity sound (nature + her chime layer, audio/champ/gabe.ts) for a moment only this script sees. */
+function idSfx(fx: FxCtx, src: number, skill: 'q' | 'w', at: { x: number; z: number }): void {
+  const r = fx.relation(src);
+  try {
+    playSkillSfx('gabe', skill, 'impact', { at, relation: r === 'own' ? 'mine' : r, src });
+  } catch {
+    /* audio not unlocked yet (tests, before the first gesture) */
+  }
+}
 const _d: V3Out = { x: 0, y: 0, z: 0 };
 const _e: V3Out = { x: 0, y: 0, z: 0 };
 const _st: HeroStatus = { buffs: 0, shield: 0 };
@@ -315,7 +330,8 @@ function popQ(i: number, fx: FxCtx): void {
   shower(fx, x, 1.4, z, 6, SHAPE.CONFETTI, BLUSH, 0.18, 0.9, Math.max(1.4, r), 3.6, 6, seed + 0.37);
   _b.x = x;
   _b.z = z;
-  fx.sfx.cue('pop', _b);
+  // the pop: heal landing + her glassy balloon pop (the ally heal has no hit event of its own)
+  idSfx(fx, src, 'q', _b);
   if (fx.relation(src) === 'own') fx.cam.tier(1);
   if (bRib[i] >= 0) fx.ribbons.end(bRib[i]);
   bRib[i] = -1;
@@ -389,7 +405,8 @@ function arriveW(i: number, fx: FxCtx): void {
   spawn(fx, 'twister', _c.x, 0, _c.z, 0, 0.6, 0.5, WIND, src, 0, 0, 0, 1.3);
   // a burst of feathers as the wings close
   shower(fx, _c.x, 1.3, _c.z, 10, SHAPE.FEATHER, FEATHER, 0.3, 1.1, 2.2, 1.6, 1.6, (wT[i] * 7.31 + i * 0.29) % 1);
-  fx.sfx.cue('flutter', _c);
+  // the wings close: guard shimmer + her feather flutter
+  idSfx(fx, src, 'w', _c);
 }
 
 function castE(e: { src: number }, fx: FxCtx): void {

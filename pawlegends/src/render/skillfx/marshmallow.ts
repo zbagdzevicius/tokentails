@@ -11,8 +11,14 @@
  * - The ice cube (signature, the `clip` event 'frozen' on a cat): a translucent ice block round the frozen hero for
  *   the freeze (30 t), frost glints and "BRR!".
  *
+ * Champion identity (audio/champ/marshmallow.ts): her trait is marshmallow snow puffs and ice-blue flakes, her sound
+ * sleigh bells. The cast sounds (frost + bells, the ult "awoo") are played by the identity layer on the cast, not here;
+ * this script adds the Snowball's frost travel shimmer while it flies (re-rung every 0.4 s), a puff that grows on the
+ * snowball, ice-blue flakes in its trail, and the freeze chord on a frozen cat.
+ *
  * Pooled, no allocation per event or per frame. Render only.
  */
+import { playSkillSfx } from '../../audio/skillSfx';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { TICK_S, abilNumbers } from '../anim/timing';
 import type { SkillFxSet } from '../anim/types';
@@ -39,6 +45,20 @@ const ABIG = new Uint8Array(AREA_N);
 const TRAIL = new Int16Array(16).fill(-1);
 const PROJ = new Int16Array(16).fill(-1);
 const SLIDE = new Float32Array(16);
+/** Snowball flight (s) and the next travel shimmer (s), per caster. */
+const FLY = new Float32Array(16);
+const RING_T = new Float32Array(16);
+/** Seconds between travel shimmers (the frost travel layer is ≈ 0.4 s long). */
+const TRAVEL_EVERY = 0.4;
+
+/** The identity sound for her skill phase at `at` (audio/skillSfx.ts), seen from `rel` (the caster's relation). */
+function idSfx(rel: 'own' | 'ally' | 'enemy', skill: 'q' | 'r', phase: 'impact' | 'travel', at: { x: number; z: number }, src?: number): void {
+  try {
+    playSkillSfx('marshmallow', skill, phase, { at, relation: rel === 'own' ? 'mine' : rel, src });
+  } catch {
+    /* audio not unlocked yet (tests, before the first gesture) */
+  }
+}
 
 function addArea(x: number, z: number, r: number, life: number, big: boolean): void {
   let k = 0;
@@ -73,7 +93,6 @@ export const SKILL_FX: SkillFxSet = {
     switch (e.slot) {
       case 0:
         shower(fx, P.x, 1.2, P.z, 6, SHAPE.PUFF, SNOW, 0.3, 0.4, 1.6, 1.2, 1, vary());
-        funSound('marshPoof', P, 1.3, 0.35);
         return;
       case 1: {
         const a = fx.abil(e.src, 'w');
@@ -85,7 +104,6 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'ring', x, z, rad, life, FROST, rim, rel, { p1: 0.88 });
         shower(fx, x, 0.3, z, 10, SHAPE.PUFF, SNOW, 0.45, 0.6, 2.4, 0.6, 1.5, vary());
         addArea(x, z, rad, life, false);
-        funSound('marshPoof', { x, z }, 0.8, 0.5);
         return;
       }
       case 2:
@@ -104,7 +122,8 @@ export const SKILL_FX: SkillFxSet = {
         shower(fx, x, 3.6, z, 28, SHAPE.PUFF, 0xffffff, 0.4, 1.6, rad * 0.9, 0.6, 1.4, vary());
         shower(fx, x, 0.4, z, 16, SHAPE.PUFF, SNOW, 0.6, 0.9, rad * 1.1, 0.8, 1.5, vary());
         addArea(x, z, rad, life, true);
-        funSound('marshAwoo', P, 1, 0.6);
+        // the puppy "awoo" is the ult voice (IDENTITY.marshmallow.voice.ult reuses marshAwoo), played on the cast by the
+        // identity layer: playing it here too doubled it
         funPop(fx, e.src, 'SNOW DAY!', P.x, funOverY(fx, e.src, 0.5), P.z);
       }
     }
@@ -115,10 +134,14 @@ export const SKILL_FX: SkillFxSet = {
     if (funHeroOf(fx, owner) !== 'marshmallow') return;
     if (TRAIL[owner] >= 0) fx.ribbons.end(TRAIL[owner]);
     TRAIL[owner] = -1;
+    PROJ[owner] = -1;
     if (!fx.projPos?.(index, P)) return;
     P.y = 1.0;
     PROJ[owner] = index;
     TRAIL[owner] = fx.ribbons.point(P, SNOW, 0.34, 0.25);
+    FLY[owner] = 0;
+    RING_T[owner] = TRAVEL_EVERY;
+    idSfx(fx.relation(owner), 'q', 'travel', P, owner);
   },
 
   onHit(e, fx) {
@@ -129,7 +152,7 @@ export const SKILL_FX: SkillFxSet = {
     if (e.amount >= 30) {
       mesh(fx, 'ring', Q.x, Q.z, 1.2, 0.3, FROST, rim, rel, { p1: 0.7 });
       shower(fx, Q.x, 1.0, Q.z, 10, SHAPE.PUFF, SNOW, 0.45, 0.55, 2.6, 1.2, 2, vary());
-      funSound('marshPoof', Q, 1, 0.5);
+      // the poof is the identity impact (frost crunch + marshPoof, audio/champ/marshmallow.ts) effects.ts plays
     } else shower(fx, Q.x, 1.0, Q.z, 3, SHAPE.STAR4, SNOW, 0.2, 0.4, 1.2, 0.8, 1, vary(), true);
   },
 
@@ -168,7 +191,8 @@ export const SKILL_FX: SkillFxSet = {
     shower(fx, Q.x, top * 0.6, Q.z, 10, SHAPE.STAR4, 0xffffff, 0.26, 0.9, 1.4, 0.6, 0, vary(), true);
     throwSticker(fx, Q.x + 0.4, top, Q.z, 0.5, 1.2, 0, SHAPE.STAR4, ICE, 0.4, 0.8, 2, 3);
     funPop(fx, id, 'BRR!', Q.x, top + 0.5, Q.z);
-    fx.sfx.cue('tingParry', Q, 0.8);
+    // the freeze chord: frost impact + a long sleigh-bell chord, from the side of whoever froze them
+    idSfx(fx.relation(id) === 'enemy' ? 'ally' : 'enemy', 'r', 'impact', Q);
   },
 
   update(dt, fx) {
@@ -185,13 +209,23 @@ export const SKILL_FX: SkillFxSet = {
       sticker(fx, AX[i] + Math.cos(a) * r, ABIG[i] ? 3.2 : 1.8, AZ[i] + Math.sin(a) * r, ABIG[i] ? 'PUFF' : 'STAR4', SNOW, ABIG[i] ? 0.34 : 0.22, ABIG[i] ? 1.6 : 1.1, -1.8, 1.5);
     }
     for (let id = 0; id < 16; id++) {
-      if (TRAIL[id] >= 0) {
+      // the snowball is tracked by its projectile (Low has no ribbon pool: the flakes and the shimmer still follow it)
+      if (PROJ[id] >= 0) {
         if (fx.projPos?.(PROJ[id], P)) {
-          fx.ribbons.feed(TRAIL[id], P.x, 1.0, P.z);
-          if (vary() < 0.35) sticker(fx, P.x, 1.0, P.z, 'STAR4', SNOW, 0.2, 0.3, -0.5);
+          if (TRAIL[id] >= 0) fx.ribbons.feed(TRAIL[id], P.x, 1.0, P.z);
+          // her motif: ice-blue flakes in the trail and a snow puff on the ball that grows a little as it rolls
+          FLY[id] += dt;
+          if (vary() < 0.35) sticker(fx, P.x, 1.0, P.z, 'STAR4', ICE, 0.2, 0.3, -0.5);
+          if (vary() < 0.5) sticker(fx, P.x, 1.0, P.z, 'PUFF', SNOW, Math.min(0.62, 0.34 + FLY[id] * 0.5), 0.08);
+          RING_T[id] -= dt;
+          if (RING_T[id] <= 0) {
+            RING_T[id] = TRAVEL_EVERY;
+            idSfx(fx.relation(id), 'q', 'travel', P, id);
+          }
         } else {
-          fx.ribbons.end(TRAIL[id]);
+          if (TRAIL[id] >= 0) fx.ribbons.end(TRAIL[id]);
           TRAIL[id] = -1;
+          PROJ[id] = -1;
         }
       }
       if (SLIDE[id] > 0) {

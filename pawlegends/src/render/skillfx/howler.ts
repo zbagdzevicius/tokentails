@@ -9,6 +9,11 @@
  *   shockwave over the sim arc and range (crescents rolling out one behind the other), distortion rings, a ground
  *   shockwave, the scream, and "AAAAA!".
  *
+ * Champion identity (audio/champ/howler.ts): his trait is echo rings and "AWOO" letters in slate blue. The cast
+ * voices (the AWOO howl, the grumble, the scream) are played by the identity layer on the cast, not here; this script
+ * adds slate echo rings to every skill (sucked in on the inhale, trailing the dash, popping on whoever he hits) and the
+ * "AWOO!" word on Q.
+ *
  * Pooled, no allocation per event or per frame. Render only.
  */
 import { TICK_S } from '../anim/timing';
@@ -21,6 +26,8 @@ import { F, P, arcRad, aimDir, faceOf, mesh, vary, yawOf } from './dogFx';
 const MINT = 0xb6f0c8;
 const WAVE = 0xe8fff4;
 const SNOW = 0xf6fbff;
+/** Champion motif colour (IDENTITY.howler.colors.primary): the slate echo rings. */
+const ECHO = 0x6e7fa8;
 
 /** Talk Back bubbles: seconds left and the next bubble, per caster. */
 const ARGUE_T = new Float32Array(16);
@@ -48,7 +55,9 @@ export const SKILL_FX: SkillFxSet = {
     funSound('gasp', P, 0.7, 0.6);
     for (let i = 0; i < 8; i++) {
       const a = (i / 8) * Math.PI * 2;
-      sticker(fx, P.x + Math.cos(a) * 1.6, 1.2, P.z + Math.sin(a) * 1.6, 'PUFF', WAVE, 0.3, e.ticks * TICK_S * 0.8, 0.2);
+      // puffs and slate echo rings alternate: the echoes of his last howl, drawn back in
+      if (i & 1) sticker(fx, P.x + Math.cos(a) * 1.6, 1.2, P.z + Math.sin(a) * 1.6, 'RING', ECHO, 0.45, e.ticks * TICK_S * 0.8, 0.2);
+      else sticker(fx, P.x + Math.cos(a) * 1.6, 1.2, P.z + Math.sin(a) * 1.6, 'PUFF', WAVE, 0.3, e.ticks * TICK_S * 0.8, 0.2);
     }
     if (aimDir(e.x, e.y)) {
       const a = fx.abil(e.src, 'r');
@@ -65,13 +74,16 @@ export const SKILL_FX: SkillFxSet = {
       case 0: {
         const a = fx.abil(e.src, 'q');
         cone(fx, (a.range ?? 4000) / 1000, arcRad(a.arc), 4, WAVE, rim, rel, 0.35);
-        funSound('howlerAwoo', P, 1, 0.55);
+        // the howl itself (howlerAwoo over the sonic blast) is the identity cast sound; the word floats over him
         sticker(fx, P.x + 0.3, funOverY(fx, e.src, 0.2), P.z, 'NOTE', MINT, 0.45, 0.9, 0.8, 0, 0.2);
+        funPop(fx, e.src, 'AWOO!', P.x, funOverY(fx, e.src, 0.5), P.z);
         return;
       }
       case 1:
         speedLines(fx, P.x, 0.6, P.z, F.x, F.z, 8, WAVE, 0.9, 8);
         shower(fx, P.x, 0.2, P.z, 8, SHAPE.PUFF, SNOW, 0.35, 0.5, 2.6, 0.9, 2, vary());
+        // his derp face echoes behind him: three slate echo rings left on the start of the path, fading in turn
+        for (let i = 0; i < 3; i++) sticker(fx, P.x - F.x * i * 0.6, 1.1, P.z - F.z * i * 0.6, 'RING', ECHO, 0.7 - i * 0.12, 0.45 + i * 0.1);
         return;
       case 2:
         if (e.src >= 0 && e.src < 16) {
@@ -79,7 +91,7 @@ export const SKILL_FX: SkillFxSet = {
           ARGUE_N[e.src] = 0;
         }
         mesh(fx, 'ring', P.x, P.z, 1.4, 0.3, MINT, rim, rel, { p1: 0.7 });
-        funSound('howlerArgue', P, 1, 0.55);
+        // the grumble (howlerArgue over the guard shimmer) is the identity cast sound
         return;
       default: {
         const a = fx.abil(e.src, 'r');
@@ -92,7 +104,8 @@ export const SKILL_FX: SkillFxSet = {
         SHOCK_O.r1 = range * 0.7;
         fx.shock.start(SHOCK, SHOCK_O);
         speedLines(fx, P.x + F.x * 0.8, 1.0, P.z + F.z * 0.8, -F.x, -F.z, 10, WAVE, 1.6, 12);
-        funSound('howlerScream', P, 1, 0.75);
+        // the scream is the ult voice (IDENTITY.howler.voice.ult reuses howlerScream), played on the cast by the
+        // identity layer: playing it here too doubled it
         funPop(fx, e.src, 'AAAAAA!', P.x, funOverY(fx, e.src, 0.5), P.z);
       }
     }
@@ -102,6 +115,8 @@ export const SKILL_FX: SkillFxSet = {
     if (e.kind !== 'ability' || !fx.heroPos(e.dst, P)) return;
     // the wind of it: a few streaks blowing past whoever he hits
     shower(fx, P.x, 1.0, P.z, 4, SHAPE.SOFT, WAVE, 0.2, 0.3, 2.4, 0.4, 0, vary(), true);
+    // and an echo ring pops on them (his motif: you were hit by the husky)
+    sticker(fx, P.x, 1.2, P.z, 'RING', ECHO, 0.8, 0.35);
   },
 
   onMarker(id, _clip, marker, fx) {
