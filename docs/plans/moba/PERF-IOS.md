@@ -1048,3 +1048,90 @@ cover flag), `tests/unit/skill-preview.test.ts` (the identity layer stays silent
 `tests/e2e/perf-ios.spec.ts` (landscape: boot splash gone, ≤ 1 infinite animation on the title, browser without
 blur, a still lobby and a clip at ≤ 30 fps, no programs linked after the veil when the warm-up finished, sweep writes
 on steps only).
+
+### 8.14 Iteration 2 combined (Tracks A + B + C merged, 2026-11-09)
+
+`perf2/main` = Tracks A, B and C merged on `682c0211`, plus one cross-track fix: the instanced far forest gets its own
+material (`mapView.ts`, Track B's finding: `sceneryMat` was shared with the merged scenery, so three.js switched its
+program variant twice a frame). `origin/main` (`9b0fa506`) had nothing new to merge.
+
+**How:** `perf-ios-measure.mjs` (now with `VIEWPORT=desktop`, `LOBBY_MS`, `WIN_MS`), base (`origin/main`) and combined
+builds served side by side and run **in pairs at the same time**, 3 pairs each, medians. Phone = iPhone 15 Pro
+landscape 852×393 DPR 3; Chromium on the GPU with CPU ×4, WebKit unthrottled. Desktop = Chromium 1440×900 DPR 1, no
+throttle. Lobby 60 s idle; match windows 20 s each with the stick held (0:00, ~0:50, ~1:40 of play), 30 s apart.
+Machine load average 26–64 throughout. Two harness notes: the scripted `.pl-pause` click does not pause, so the
+"pause button" window is a fourth live window; the following Escape opens the pause menu, so the row named "paused"
+below is the `match-hidden` window (the menu at 15 fps; headless tabs never report `hidden`). Hidden was checked
+separately by forcing `visibilityState = hidden`: 0 draws and 0 audio sources a second in both builds.
+
+**Phone, Chromium ×4 (base → combined):**
+
+| Metric | Lobby (60 s) | Match 0:00 | Match ~0:50 | Match ~1:40 | Pause menu |
+|---|---|---|---|---|---|
+| Drawn fps | 30 → 30 | 60 → 60 | 59.9 → 60 | 59.9 → 59.9 | 15 → 15 |
+| JS ms per drawn frame | 1.08 → 1.03 | 5.65 → 5.49 | 6.26 → 6.36 | 5.67 → 5.67 | 5.86 → **4.66** |
+| JS worst frame, ms | 3.0 → 2.8 | 22 → **12** | 19.7 → 17.1 | 24.3 → 22.5 | 7.9 → 7.0 |
+| Triangles a frame (k) | 31.8 → 31.8 | 174 → **142** | 181 → **151** | 181 → **150** | 193 → **157** |
+| Shadow-pass triangles (k) | 10 → 10 | 39.4 → **6.1** | 42.3 → **9.1** | 41.5 → **9.0** | 45.6 → **10.7** |
+| Draws a frame | 10 → 10 | 48.2 → 50.8 | 55.6 → 56.7 | 56.4 → 58.4 | 59 → 59.5 |
+| 2D canvas calls/s (overhead + minimap) | 0 → 0 | 3,922 → **323** | 4,277 → **493** | 4,616 → **523** | 3,279 → **0** |
+| Overhead 2D canvas calls/s | – | 2,073 → **0** | 1,782 → **0** | 2,007 → **0** | 617 → **0** |
+| Programs linked in the window | 0 → 0 | 1 → **0** | 1 → **0** | 0 → 0 | 0 → 0 |
+| Heap allocation MB/s | 0.24 → 0.24 | 10.1 → **6.4** | 9.6 → **3.9** | 8.5 → **3.8** | 2.7 → **0.75** |
+| GC drops/s | 0.2 → 0.2 | 0.8 → 0.5 | 0.9 → 0.3 | 0.8 → 0.4 | 0.2 → 0 |
+| Audio nodes/s | 0 → 0 | 6.2 → 5.1 | 16.8 → **4.3** | 9.5 → 5.6 | 5 → 4 |
+| CPU script ms/s | 35.1 → 35.2 | 346 → 338 | 386 → 414 | 345 → 347 | 92 → **74** |
+| CPU task ms/s | 106 → **60** | 417 → 403 | 467 → 492 | 467 → 479 | 121 → **98** |
+| Style recalcs/s | 60 → **3.7** | 9.9 → 9.8 | 10.2 → 8.6 | 39.4 → 45.9 | 0 → 0 |
+| Style ms/s | 16.5 → **0.56** | 3.76 → 3.21 | 4.48 → 3.97 | 17.1 → 18.0 | 0 → 0 |
+| Composited layers | 12 → 10 | 14 → 12 | 20 → 17 | 20 → 17 | 18 → 14 |
+
+The fourth live window (the scripted pause tap) reads like ~1:40: 2D calls 4,271 → 513, shadow triangles 41.1k →
+8.4k, allocation 9.1 → 4.3 MB/s, style recalcs 12.1 → 5.9/s, JS 5.44 → 5.46 ms.
+
+**Phone, WebKit (base → combined):**
+
+| Metric | Lobby | Match 0:00 | Match ~0:50 | Match ~1:40 | 4th live window |
+|---|---|---|---|---|---|
+| Drawn fps | 30 → 30 | 59.2 → 59.9 | 53.2 → **56.7** | 57.9 → 58.4 | 59.4 → 59.8 |
+| JS ms per drawn frame | 0.34 → 0.32 | 1.72 → 1.58 | 2.77 → **2.21** | 1.96 → 1.73 | 2.09 → 1.86 |
+| JS worst frame, ms | 1 → 2 | 11 → 10 | **145 → 13** | 12 → 11 | 6 → 6 |
+| Programs linked in the window | 0 → 0 | 1 → **0** | **13 → 0** | 0 → 0 | 0 → 0 |
+| Shadow-pass triangles (k) | 10 → 10 | 39.8 → 6.1 | 34.1 → 9.3 | 0 → 9.5 | 0 → 8.2 |
+| 2D canvas calls/s | 0 → 0 | 3,902 → **323** | 4,264 → **478** | 3,642 → **509** | 3,488 → **469** |
+| Audio nodes/s | 0 → 0 | 6 → 5.1 | 7.9 → 4.3 | 7.6 → 7.1 | 12.2 → **4.5** |
+| Drawing buffer (Mpx) | 0.52 → 0.52 | 0.52 → 0.52 | 0.52 → 0.42 | 0.52 → 0.33 | 0.52 → 0.33 |
+
+In WebKit the base build hit a 145 ms frame (13 programs linked at the first fight) and its governor turned shadows
+off for the rest of the match (shadow triangles 0). The combined build linked no program after the veil and kept
+shadows on; under this machine's load its governor took the cheaper lever first, dynamic resolution, down to its
+0.8 floor (0.33 Mpx). On a real phone that only happens after sustained missed frames, and it grows back after 20 s
+clean.
+
+**Desktop, Chromium 1440×900, no throttle (base → combined):** desktop draws the same scene (triangles 233k → 234k,
+shadow triangles 80k → 80k, draws 58.7 → 59.7, buffer 1.3 Mpx); it is cheaper on the CPU:
+
+| Metric | Lobby | Match 0:00 | Match ~0:50 | Match ~1:40 | Pause menu |
+|---|---|---|---|---|---|
+| JS ms per drawn frame | 0.33 → 0.32 | 1.53 → **1.18** | 1.65 → **1.23** | 1.53 → **1.24** | 1.35 → 1.08 |
+| JS worst frame, ms | 1.0 → 0.9 | 8.2 → **3.5** | 5.4 → 3.7 | 5.6 → 5.2 | 2.7 → 2.2 |
+| 2D canvas calls/s | 0 → 0 | 5,296 → **611** | 6,278 → **936** | 6,375 → **1,049** | 3,230 → **0** |
+| Heap allocation MB/s | 0.24 → 0.25 | 11.0 → **6.4** | 10.4 → **4.5** | 9.4 → **4.3** | 3.1 → 1.1 |
+| CPU script ms/s | 11.5 → 11.3 | 90 → **73** | 96 → **75** | 88 → **75** | 21 → 18 |
+| Style recalcs/s | 60 → 60 | 63 → **18** | 66 → **23** | 88 → **48** | 60 → **0** |
+| Programs linked | 0 → 0 | 1 → 0 | 0 → 0 | 0 → 0 | 0 → 0 |
+
+**Checks on the merged build:** `tsc`, `npm run build`, `npm run budget` (first-load JS 372.3 KB gzip of 450),
+`npm run lint:sim` (146 files, no `src/sim` change), `npm run determinism` (100 seeds plus PvP, all hash trails
+identical). Full `vitest`: 2,538 passed, 4 failed: `perf-sim` ×2 (sim-only CPU-time limits at load ~40–60) and the 2
+`tools/trailer` copy-gate tests (`tools/copy-lint` has no `node_modules` in this worktree). e2e (`perf-ios`, `hold-aim`, `match-touch`,
+`champ-browser`, `lol-inworld`, `minimap-touch`, both projects): 20 passed, 1 failed under load and passed alone (the
+1440×900 `lol-inworld` damage-number count), 17 skipped by project. Tap-to-cast and hold-aim are among the passes. Screenshots, base vs
+combined, at 667×375, 844×390 and 1440×900 (lobby, Sage R in the champion browser, 4–6-hero fights found with the
+e2e World hook): plates, names, levels, telegraphs and skill VFX read the same.
+
+**Found while checking:** with shadows on, the base build updated the heroes' bone textures at 30 Hz (6 skeletons,
+150 uploads in 5 s at 60 fps; on Low, without shadows, at 60 Hz). The combined build uploads them every frame
+(phone heroes no longer draw into the shadow map). That is 3 more 12×12 float uploads a frame (`tex uploads/s` 180 →
+360 above), the same rate as the Low tier. Not a cost that matters; why the base skipped every other frame with
+shadows on was not traced.
