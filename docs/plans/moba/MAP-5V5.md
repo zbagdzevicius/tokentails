@@ -909,6 +909,67 @@ before), cats 47.4% (PASS), p50 13:05, safety end 0%. Heroes still outside 46% t
 44.5, marshmallow 54.1, nugget 56.7, rocket 55.2. That is tuning, not side: every hero plays both sides equally in
 the symmetry pairs.
 
+### 12.10 Per-hero and species balance: Hearthwood's own hero rows (2026-11-09)
+
+Every 5v5 balance lever is **map-scoped**: `HEARTHWOOD_PVP.hero` in `src/data/maps/hearthwood.ts`, applied in
+`combat/damage.ts` only when the match runs on Hearthwood (`w.mg.length > 0`), on hero-vs-hero damage, after the
+species row and each hero's own 3v3 `pvp` row (which do not move). Each hero row moves dealt and taken by the same
+amount in opposite directions (`dmgBp = 10000 + d`, `takenBp = 10000 − d`). Crossing never reads it: map-identity
+against the released v18 is still **1500/1500**, so the 3v3 balance gate's numbers are unchanged by construction.
+
+| Hero | d (bp) | Hero | d (bp) |
+|---|---|---|---|
+| clem | +1660 | brutus | +1460 |
+| sage | −260 | cacklejaw | +200 |
+| gabe | −1270 | nugget | −790 |
+| meatball | −780 | marshmallow | −340 |
+| duchess | −620 | bravo | +1180 |
+| aviete | +30 | chili | −730 |
+| bengas | −400 | howler | +710 |
+| lambo | +1170 | rocket | −490 |
+| pixel | −240 | frankie | −270 |
+| stilts | +360 | domino | −590 |
+
+The cats species row stays × 1.012 dealt / × 0.988 taken.
+
+**How it was fitted.** `hearth-gates --tune <file.json>` (experiment only) replaces the species and hero rows in the
+bundle without touching the source. A logistic model, logit P(team 0 wins) = side + Σ team 0 (aₕ + b·dₕ) − Σ team 1
+(…), fitted on every symmetry pair of each run (b ≈ 0.22 to 0.30 logit per 1,000 bp per hero), solved for the dₕ that
+put every hero's predicted win rate over the observed line-ups at 50%; from the third round on, each hero's residual
+(observed − predicted) was fed back at 0.7, because the linear model under-reads the species effect (it predicted
+cats 50% and they came in at 53% to 54%). Four rounds, eight 2,000-seed windows (32,000 matches):
+
+| Round | Window | Side (team 0) | Cats | Heroes outside 46–54% |
+|---|---|---|---|---|
+| base (cats row only) | 1–2000 | 48.4% | 47.4% | chili 54.6, clem 42.4, lambo 44.5, marshmallow 54.1, nugget 56.7, rocket 55.2 |
+| hand guess, 6 heroes | 1–2000 | 49.8% | 56.8% | 19 of 20 (overshoot: one hero's row moves every teammate) |
+| model fit | 1–2000 / 2001–4000 | 49.6 / 49.9% | 53.3 / 54.4% | 4 / 12 |
+| refit, all data | 1–2000 / 2001–4000 | 49.1 / 50.1% | 51.8 / 53.1% | 0 / 3 |
+| **refit + residual (shipped)** | **1–2000 / 2001–4000** | **49.4 / 50.7%** | **48.4 / 48.7%** | **0 / 0** |
+
+**Gate table (shipped rows, `hearth-gates --seeds 2000`, each window by itself):**
+
+| Gate | Seeds 1–2000 (4,000 matches) | Seeds 2001–4000 (4,000 matches) |
+|---|---|---|
+| G6 side (team 0) 47–53% | **49.4% PASS** | **50.7% PASS** |
+| G5 cats vs dogs 47–53% | **48.4% PASS** | **48.7% PASS** |
+| G5 every hero 46–54% | **PASS**: 47.1 (duchess) to 53.3 (marshmallow) | **PASS**: 47.2 (stilts) to 53.0 (marshmallow) |
+| G5 match length p50 12:00–14:30 | **13:06 PASS** | **13:06 PASS** |
+| G5 safety end ≤ 2% | **0.0% PASS** | **0.0% PASS** |
+| G2 determinism (40 seeds × solo, party, PvP) | **120/120 PASS** | |
+| G1 Crossing = v18 (map-identity, 500 seeds × 3 profiles) | **1500/1500 PASS** | |
+
+Per hero (window 1 / window 2): aviete 48.7 / 50.0, bengas 47.2 / 48.7, clem 49.9 / 49.1, duchess 47.1 / 48.2,
+gabe 48.7 / 49.6, lambo 48.7 / 47.5, meatball 48.0 / 48.0, pixel 48.8 / 49.2, sage 48.3 / 49.2, stilts 49.0 / 47.2;
+bravo 50.6 / 51.1, brutus 51.9 / 50.7, cacklejaw 52.0 / 51.2, chili 51.2 / 51.0, domino 51.2 / 50.9, frankie 51.1 /
+50.9, howler 50.5 / 50.8, marshmallow 53.3 / 53.0, nugget 51.6 / 51.0, rocket 52.4 / 52.6. The source table, run
+without `--tune`, reproduces the tuned bundle's rows exactly (60 of 60 seeds compared).
+
+**Caveats.** The rows are a bot-vs-bot fit (ten `normal` pilots): they correct how the 3v3 kits scale to five-a-side
+fights, not human skill. The largest rows (clem +16.6%, brutus +14.6%, gabe −12.7%) say those kits fit 5v5 worst and
+are the first to revisit with real 5v5 match data. Marshmallow (53%) and rocket (52.5%) sit closest to an edge. The
+cats sit at 48.5%, 1.5 points inside the band.
+
 ## 13. SERVER lane: what is built (PROTO 4, 2026-11-09)
 
 Sim v19 was already vendored by the SIM lane (v10 to v18 frozen, §12); this lane added the wire, the rooms, the queue

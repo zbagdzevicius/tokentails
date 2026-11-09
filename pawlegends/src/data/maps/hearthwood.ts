@@ -221,9 +221,33 @@ export const HEARTHWOOD_CAMERA_YAW = 0;
  * move): per species, then per hero (missing = 10000). On the sim v17 base the dogs won five-a-side fights (cats 41% of
  * 300 mirrored PvP matches) and a cats row of × 1.03 dealt, × 0.97 taken evened it; the released v18 rebalance moved
  * the 3v3 rows enough that the same row put the cats at 60% (neutral: 44%), so the cats row is × 1.012 / × 0.988.
+ * The hero rows (MAP-5V5.md §12.10) were fitted on 2,000-seed symmetry windows after the takedown-credit fix: a
+ * logistic model of every match's line-ups, then a residual correction; each row moves dealt and taken by the same
+ * amount in opposite directions. They bring every hero to 46% to 54% and the cats to 47% to 53% on Hearthwood only.
  */
 export const HEARTHWOOD_PVP = Object.freeze({
   cat: Object.freeze({ dmgBp: 10120, takenBp: 9880 }),
   dog: Object.freeze({ dmgBp: 10000, takenBp: 10000 }),
-  hero: Object.freeze({}) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
+  hero: Object.freeze({
+    clem: { dmgBp: 11660, takenBp: 8340 },
+    sage: { dmgBp: 9740, takenBp: 10260 },
+    gabe: { dmgBp: 8730, takenBp: 11270 },
+    meatball: { dmgBp: 9220, takenBp: 10780 },
+    duchess: { dmgBp: 9380, takenBp: 10620 },
+    aviete: { dmgBp: 10030, takenBp: 9970 },
+    bengas: { dmgBp: 9600, takenBp: 10400 },
+    lambo: { dmgBp: 11170, takenBp: 8830 },
+    pixel: { dmgBp: 9760, takenBp: 10240 },
+    stilts: { dmgBp: 10360, takenBp: 9640 },
+    brutus: { dmgBp: 11460, takenBp: 8540 },
+    cacklejaw: { dmgBp: 10200, takenBp: 9800 },
+    nugget: { dmgBp: 9210, takenBp: 10790 },
+    marshmallow: { dmgBp: 9660, takenBp: 10340 },
+    bravo: { dmgBp: 11180, takenBp: 8820 },
+    chili: { dmgBp: 9270, takenBp: 10730 },
+    howler: { dmgBp: 10710, takenBp: 9290 },
+    rocket: { dmgBp: 9510, takenBp: 10490 },
+    frankie: { dmgBp: 9730, takenBp: 10270 },
+    domino: { dmgBp: 9410, takenBp: 10590 },
+  }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

@@ -22,10 +22,13 @@ const from = Number(argValue('--from') ?? 1);
 const det = Number(argValue('--det') ?? 40);
 const procs = Math.max(1, Math.min(Number(argValue('--procs') ?? Math.max(1, cpus().length - 2)), seeds));
 const json = hasFlag('--json');
+// Experiment only (balance refits): `--tune file.json` replaces HEARTHWOOD_PVP's species and hero rows in the bundle,
+// `{ cat?: {dmgBp, takenBp}, dog?: {...}, hero?: { id: {dmgBp, takenBp} } }`; the source and the vendored sim are untouched.
+const tune = argValue('--tune');
 const TICKS_PER_MIN = 1800;
 
 async function worker() {
-  const fz = await importSim('tools/lib/hearth-entry.ts');
+  const fz = await importSim('tools/lib/hearth-entry.ts', tune ? await tunePatches(tune) : []);
   const kind = argValue('--kind');
   const rows = [];
   for (let i = from; i < from + seeds; i++) {
@@ -40,6 +43,20 @@ async function worker() {
   process.stdout.write(JSON.stringify(rows));
 }
 
+async function tunePatches(path) {
+  const { readFileSync } = await import('node:fs');
+  const t = JSON.parse(readFileSync(path, 'utf8'));
+  const file = 'src/data/maps/hearthwood.ts';
+  const row = (r) => `Object.freeze({ dmgBp: ${r.dmgBp ?? 10000}, takenBp: ${r.takenBp ?? 10000} })`;
+  const out = [];
+  for (const side of ['cat', 'dog']) if (t[side]) out.push({ file, from: new RegExp(`${side}: Object\\.freeze\\(\\{[^}]*\\}\\)`), to: `${side}: ${row(t[side])}`, name: `tune ${side}` });
+  if (t.hero) {
+    const body = Object.entries(t.hero).map(([h, r]) => `${h}: { dmgBp: ${r.dmgBp ?? 10000}, takenBp: ${r.takenBp ?? 10000} }`).join(', ');
+    out.push({ file, from: /hero: Object\.freeze\(\{[^]*?\}\)/, to: `hero: Object.freeze({ ${body} })`, name: 'tune hero' });
+  }
+  return out;
+}
+
 function runJobs(kind, total, start) {
   const n = Math.max(1, Math.min(procs, total));
   const per = Math.ceil(total / n);
@@ -52,7 +69,7 @@ function runJobs(kind, total, start) {
       new Promise((resolve, reject) => {
         let out = '';
         let err = '';
-        const ch = spawn(process.execPath, [fileURLToPath(import.meta.url), '--seeds', String(c), '--from', String(f), '--procs', '1', '--worker', '--kind', kind]);
+        const ch = spawn(process.execPath, [fileURLToPath(import.meta.url), '--seeds', String(c), '--from', String(f), '--procs', '1', '--worker', '--kind', kind, ...(tune ? ['--tune', tune] : [])]);
         ch.stdout.on('data', (d) => (out += d));
         ch.stderr.on('data', (d) => (err += d));
         ch.on('close', () => {
