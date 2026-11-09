@@ -11,6 +11,8 @@ import { toX, toZ } from '../coords';
 import { TEAM } from '../palette';
 import { BUSH_COUNT, clearedBushes } from '../bushClear';
 import { ModelBuilder } from './rig';
+import { isPhone } from '../perf/device';
+import { orthoFrustum } from '../chars';
 import { NX, NY, createGrid, onPlayfield } from '../../sim/map/grid';
 
 const W = MAP.width / 1000;
@@ -629,6 +631,59 @@ export interface MapView {
   dispose(): void;
 }
 
+/** A scenery shadow stand-in: an ellipsoid at (x, y, z) m with radii rx, ry, rz. */
+export interface CasterBlob {
+  x: number;
+  y: number;
+  z: number;
+  rx: number;
+  ry: number;
+  rz: number;
+}
+
+/** PERF-IOS §8 Track A: stand-in tiles (m): the shadow camera culls a whole tile it does not reach. */
+export const CASTER_TILE = 24;
+
+/**
+ * PERF-IOS §8 Track A (phones): the forest and the jungle walls cast through low-poly blobs (an octahedron of 8
+ * triangles per canopy or rock instead of ~64 per tree), merged per CASTER_TILE square so the shadow camera culls the
+ * tiles it does not reach. They never draw on screen (culled out of the match camera's pass, like the heroes'
+ * stand-ins in render/chars). Pure geometry; exported for the unit test.
+ */
+export function casterChunks(blobs: readonly CasterBlob[], keep: <T extends { dispose(): void }>(x: T) => T = (x) => x): THREE.Mesh[] {
+  const tiles = new Map<string, CasterBlob[]>();
+  for (const b of blobs) {
+    const k = `${Math.floor(b.x / CASTER_TILE)},${Math.floor(b.z / CASTER_TILE)}`;
+    const t = tiles.get(k);
+    if (t) t.push(b);
+    else tiles.set(k, [b]);
+  }
+  const unit = new THREE.OctahedronGeometry(1, 0);
+  const up = unit.getAttribute('position');
+  const mat = keep(new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false }));
+  const out: THREE.Mesh[] = [];
+  for (const list of tiles.values()) {
+    const pos = new Float32Array(list.length * up.count * 3);
+    let o = 0;
+    for (const b of list)
+      for (let i = 0; i < up.count; i++) {
+        pos[o++] = b.x + up.getX(i) * b.rx;
+        pos[o++] = b.y + up.getY(i) * b.ry;
+        pos[o++] = b.z + up.getZ(i) * b.rz;
+      }
+    const g = keep(new THREE.BufferGeometry());
+    g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+    g.computeBoundingSphere();
+    const m = new THREE.Mesh(g, mat);
+    m.name = 'scenery-shadow';
+    m.matrixAutoUpdate = false;
+    m.intersectsFrustum = (f: THREE.Frustum): boolean => orthoFrustum(f) && f.intersectsObject(m);
+    out.push(m);
+  }
+  unit.dispose();
+  return out;
+}
+
 export function createMapView(): MapView {
   const group = new THREE.Group();
   group.name = 'map';
@@ -638,6 +693,10 @@ export function createMapView(): MapView {
     return x;
   };
   const shadowCasters: THREE.Object3D[] = [];
+  const phoneScenery = isPhone();
+  /** PERF-IOS §8 Track A: the scenery's shadow stand-ins on a phone (canopies and rocks as low-poly blobs). */
+  const standIns: CasterBlob[] = [];
+  const proxyCasters: THREE.Object3D[] = [];
   const rnd = lcg(11);
 
   // outside grass. MAP-GAPS A22: a tileable grass texture at the playfield's 20 px/m in its colours (the flat green
@@ -895,6 +954,8 @@ export function createMapView(): MapView {
     const green = [0x5aa35a, 0x4f9a4a, 0x6bb565][(rnd() * 3) | 0];
     trees.add(new THREE.IcosahedronGeometry(1.5 * s, 0), green, { at: [x, 2.3 * s, z] });
     trees.add(new THREE.IcosahedronGeometry(1.05 * s, 0), 0x7cc46e, { at: [x + 0.2 * s, 3.2 * s, z - 0.1 * s] });
+    // the shadow stand-in: the canopy (both crowns) as one tall blob down to the trunk's top
+    standIns.push({ x: x + 0.05 * s, y: 2.35 * s, z: z - 0.03 * s, rx: 1.45 * s, ry: 1.95 * s, rz: 1.45 * s });
   };
   for (let i = 0; i < 260; i++) {
     const side = i % 4;
@@ -975,6 +1036,7 @@ export function createMapView(): MapView {
       rot: [wr() * 3, wr() * 3, wr() * 3],
       scale: [1, k.h / (2 * k.r) + 0.1, 1],
     });
+    standIns.push({ x: k.x, y: k.h * 0.42, z: -k.y, rx: k.r, ry: k.r * (k.h / (2 * k.r) + 0.1), rz: k.r });
   }
   for (const cl of wallClusters()) {
     const long = cl.x1 - cl.x0 >= cl.y1 - cl.y0;
@@ -991,6 +1053,13 @@ export function createMapView(): MapView {
     wallB.sphere(0.5, 0x5f9a52, { at: [sx, 1.55, -sy], scale: [1, 0.45, 1] }, 7);
   }
   addMerged(wallB, 'walls', true, canopyMat(0.6, 'pl-wall-cut-v1'));
+  if (phoneScenery) {
+    for (const m of casterChunks(standIns, keep)) {
+      m.castShadow = true;
+      proxyCasters.push(m);
+      group.add(m);
+    }
+  }
 
   // MAP-GAPS A12: the far forest out to the camera's reach at max zoom, one instanced tree (Low keeps half)
   const farB = new ModelBuilder();
@@ -1016,10 +1085,13 @@ export function createMapView(): MapView {
   const fs = new THREE.Vector3();
   const up = new THREE.Vector3(0, 1, 0);
   const tc = new THREE.Color();
+  // PERF-IOS §8 Track B: an own material for the instanced far forest, so it does not flip `sceneryMat`'s program
+  // variant (instancing on / off) against the merged meshes twice a frame.
+  const farMat = keep(sceneryMat.clone());
   const farMeshes: { mesh: THREE.InstancedMesh; all: number; low: number }[] = [];
   for (const list of chunks.values()) {
     list.sort((a, b) => Number(b.low) - Number(a.low) || a.i - b.i);
-    const mesh = new THREE.InstancedMesh(farGeo, sceneryMat, list.length);
+    const mesh = new THREE.InstancedMesh(farGeo, farMat, list.length);
     mesh.name = 'far-forest';
     list.forEach((t, j) => {
       const i = t.i;
@@ -1094,7 +1166,11 @@ export function createMapView(): MapView {
       for (const g of gates) g.visible = this.gateStrip && gateMat.opacity > 0.01;
     },
     setShadows(on) {
-      for (const m of shadowCasters) m.castShadow = on;
+      // PERF-IOS §8 Track A: on a phone the scenery (forest, walls, props, banners: ~39k triangles, merged meshes
+      // the shadow camera cannot cull) does not cast; units and structures still do, into a 512² map
+      const cast = on && !phoneScenery;
+      for (const m of shadowCasters) m.castShadow = cast;
+      for (const m of proxyCasters) m.castShadow = on;
     },
     setTeam(team) {
       myTeam = team;

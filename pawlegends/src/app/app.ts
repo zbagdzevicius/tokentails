@@ -34,7 +34,8 @@ import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
 import { isPhone } from '../render/perf/device';
-import { FramePacer, MATCH_FPS, paceTarget } from '../render/perf/pacer';
+import { FramePacer, MATCH_FPS, WARM, paceTarget, warmMatch } from '../render/perf/pacer';
+import { champCovered } from '../ui/champBrowser/cover';
 import { GOV, GOV_NAMES, GOV_STEP, ThermalGovernor } from '../render/perf/governor';
 import { autoBatterySaver, batterySaver, releaseAutoSaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
 import { thermal } from '../render/perf/thermal';
@@ -241,7 +242,11 @@ export class App {
       if (ok) this.pendingReveal = sku;
     });
     rotatePrompt(root);
-    addEventListener('resize', () => this.gr.resize());
+    addEventListener('resize', () => {
+      this.gr.resize();
+      // a resize clears the drawing buffer: the lobby frozen behind the champion browser draws once more
+      this.champFrozen = false;
+    });
     // iOS Safari only lets a touch's end (touchend, pointerup, click) start or resume audio, not its pointerdown
     for (const ev of ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown']) addEventListener(ev, () => sfx.unlock(), { capture: true });
     this.integration = installIntegration(bridge, {
@@ -326,6 +331,9 @@ export class App {
     this.onThermal();
     this.raf = requestAnimationFrame(this.frameCb);
     document.documentElement.dataset.ready = '1';
+    // PERF-IOS §8 Track C: the boot splash fades out under the title (0.35 s), then leaves the page: hidden, its two
+    // infinite animations still ran for the whole session (style recalcs in the lobby and in every match)
+    setTimeout(() => document.getElementById('boot')?.remove(), 600);
   }
 
   // ------------------------------------------------------------------------------------------- host + meta
@@ -1112,6 +1120,9 @@ export class App {
   private pendingPause = false;
   private matchPrefetched = false;
 
+  /** The lobby's last frame is up behind the champion browser: no more lobby frames until it closes. */
+  private champFrozen = false;
+
   private beginSession(Session: typeof MatchSession, setup: MatchSetup, c: Choice, veil: HTMLElement): void {
     this.session = new Session(this.gr, this.root, setup, {
       onEnd: (e) => this.showResults(e),
@@ -1152,14 +1163,25 @@ export class App {
     this.pendingPause = false;
     // PERF-IOS: the governor ignores the match's first seconds (shader compiles, pools)
     this.governor.hold(performance.now() + GOV.WARMUP_MS);
-    // PERF-IOS P2-6: compile the match's programs behind the loading veil (WebKit stalled 942 ms at the first fight)
-    try {
-      void this.gr.renderer.compileAsync(this.gr.scene, this.gr.camera).catch(() => undefined);
-    } catch {
-      /* best effort */
-    }
-    setTimeout(() => veil.classList.add('out'), 250);
-    setTimeout(() => veil.remove(), 900);
+    // PERF-IOS P2-6 / §8 Track C: the veil stays up until the match's programs are compiled (WebKit stalled 942 ms at
+    // the first fight, then 75–186 ms at the drop and at first lane contact while the veil left after 250 ms): once
+    // the roster is known, GameView.warmup() builds every hero of both teams (the enemies are hidden by the fog until
+    // first contact), shows the hidden pools and draws one frame with shadows, all behind the veil, capped in time
+    const session = this.session;
+    const t0 = performance.now();
+    void warmMatch(
+      () => (this.session === session ? session.view.hasRoster : null),
+      () => session.view.warmup(t0 + WARM.totalMs),
+      (ms) => new Promise((r) => setTimeout(r, ms)),
+      () => performance.now() - t0,
+    ).then((r) => {
+      if (r.ms >= 0) {
+        document.documentElement.dataset.warmMs = String(Math.round(r.ms));
+        document.documentElement.dataset.warmed = r.warmed ? '1' : '0';
+      }
+      veil.classList.add('out');
+      setTimeout(() => veil.remove(), 650);
+    });
   }
 
   /**
@@ -1670,8 +1692,15 @@ export class App {
     const inMatch = this.screen === 'match' && !!this.session;
     const paused = this.session?.isPaused ?? false;
     const saver = batterySaver().on || this.gr.settings.fpsCap < MATCH_FPS;
-    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay, saver });
-    if (!this.pacer.due(now, fps)) return;
+    // PERF-IOS §8 Track C: the champion browser covers the 3D view (its own clip runs on its own canvas): over a menu
+    // the lobby is drawn once more and then not at all until it closes; over a match it counts as a covering panel
+    const champ = champCovered();
+    if (champ && !this.session) {
+      if (this.champFrozen) return;
+      this.champFrozen = true;
+    } else this.champFrozen = false;
+    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ, saver });
+    if (!this.champFrozen && !this.pacer.due(now, fps)) return;
     const t0 = performance.now();
     const raw = Math.max(0, now - this.last);
     const dt = Math.min(0.1, raw / 1000);

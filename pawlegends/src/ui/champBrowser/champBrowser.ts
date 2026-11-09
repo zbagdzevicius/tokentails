@@ -28,6 +28,7 @@ import { icon } from '../icons';
 import { HERO_TEXT } from '../heroText';
 import { cardIcon, esc, skillCardHtml, slotKey } from './cardView';
 import { BROWSE_ORDER, DIFFICULTY_NAME, HERO_DIFFICULTY, stepHero } from './meta';
+import { setChampCovered } from './cover';
 
 export type BrowserTab = 'skills' | 'lore';
 type ClipSlot = 'q' | 'w' | 'e' | 'r';
@@ -373,6 +374,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       player = null;
       root.remove();
       if (current === api) current = null;
+      if (!current) setChampCovered(false);
       if (opener && opener.isConnected && typeof opener.focus === 'function') opener.focus({ preventScroll: true });
       o.onClose?.();
     },
@@ -497,6 +499,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   }, 400);
 
   (o.parent ?? document.body).appendChild(root);
+  setChampCovered(true);
   current = api;
   drawAll();
   root.dataset.ready = '1';

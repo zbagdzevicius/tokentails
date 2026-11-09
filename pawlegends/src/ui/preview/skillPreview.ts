@@ -9,7 +9,9 @@
  *   so the clip always matches the shipped skill, with no video assets to keep in sync.
  * - The view is the real GameView (rig, animation director, skill FX kit, projectiles, telegraphs, damage numbers) in
  *   one small WebGL canvas with a fixed close camera framing the three heroes.
- * - Lightweight: Low tier on touch devices and small screens (no shadows, DPR 1.25), the sim and the draw stop while
+ * - Lightweight: Low tier on touch devices and small screens (no shadows, DPR 1.25), 30 fps through the frame pacer,
+ *   only the clip's three heroes drawn, bars at DPR ≤ 1.5, no DOM damage numbers, silent (identity layer included)
+ *   unless asked (PERF-IOS §8 Track C), the sim and the draw stop while
  *   the element is off screen or the tab is hidden, `set()` switches hero or slot on the same GL context, and
  *   `dispose()` frees the context (forceContextLoss), the scene and the listeners.
  */
@@ -23,6 +25,7 @@ import { CAMERA_YAW, cameraYaw, setViewTeam, toX, toZ } from '../../render/coord
 import { setSideSwap, setTeam0Dogs, sidesSwapped, RELATION_CSS } from '../../render/palette';
 import type { QualityTier } from '../../render/quality';
 import { sfx } from '../../audio/sfx';
+import { FramePacer, MENU_FPS } from '../../render/perf/pacer';
 import { ALLY, DUMMY, ME, SkillSandbox, allyFor, dummyFor, type PreviewSlot } from './skillSandbox';
 
 export type { PreviewSlot } from './skillSandbox';
@@ -69,6 +72,12 @@ export interface SkillPreview {
 }
 
 const TICK_S = 1 / 30;
+/**
+ * PERF-IOS §8 Track C: the clip draws at the menus' rate through the frame pacer (it ran at every vsync: 10.7M
+ * triangles a second, as many as a match), and its HP bars canvas is capped at this DPR.
+ */
+export const PREVIEW_FPS = MENU_FPS;
+export const PREVIEW_BARS_DPR = 1.5;
 const TRICKS: TrickId[] = ['pounce', 'pounce', 'pounce', 'pounce', 'pounce', 'pounce'];
 
 /** Low on a phone (touch or a narrow viewport), med elsewhere: the preview is a small extra canvas. */
@@ -121,6 +130,9 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   gr.resize();
   const view = new GameView(gr, ui);
   view.juice.shakeScale = 0.5;
+  // PERF-IOS §8 Track C: no DOM damage numbers in the box. Their pool sits in the page's full-screen layer, under the
+  // browser panel (never seen, 138 style writes a second); without its DOM the pool still counts but writes nothing
+  view.effects.numbers.dispose();
   const buffer = new SnapBuffer();
   view.peek = (h, out) => buffer.peekEvents(h, out);
 
@@ -198,7 +210,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
     if (!bars || !frame) return;
     const w = canvas.clientWidth;
     const h = canvas.clientHeight;
-    const dpr = Math.min(2, window.devicePixelRatio || 1);
+    const dpr = Math.min(PREVIEW_BARS_DPR, window.devicePixelRatio || 1);
     if (bars.width !== Math.round(w * dpr) || bars.height !== Math.round(h * dpr)) {
       bars.width = Math.round(w * dpr);
       bars.height = Math.round(h * dpr);
@@ -231,17 +243,33 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   // reused projection scratch (three's Vector3 via the rig's own position type)
   const v = gr.camera.position.clone();
 
+  /**
+   * PERF-IOS §8 Track C: the sandbox's other heroes stand far outside the box (its sim needs every slot) but a hero
+   * mesh is never frustum-culled: they were drawn every frame (body, hull, x-ray). Only the clip's three are drawn.
+   */
+  const hideExtras = (): void => {
+    for (const e of frame?.entities ?? []) {
+      if (e.kind !== 'hero' || e.id === ME || e.id === DUMMY || e.id === ALLY) continue;
+      const r = view.heroes.rigOf(e.id);
+      if (r) r.ch.object.visible = false;
+    }
+  };
+
   const quiet = opts.sound !== true;
   const mute = (): (() => void) => {
     // the GameView plays its cues on the shared sfx bus; a quiet preview swaps play/voice out for this frame only
     // (synchronous, so the lobby's own sounds are never touched)
+    // the champion identity layer (sfx.playLayer) too: it starts its sound directly, past play and voice
     const play = sfx.play;
     const voice = sfx.voice;
+    const layer = sfx.playLayer;
     sfx.play = () => undefined;
     sfx.voice = () => undefined;
+    sfx.playLayer = () => false;
     return () => {
       sfx.play = play;
       sfx.voice = voice;
+      sfx.playLayer = layer;
     };
   };
 
@@ -269,6 +297,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
     events.length = 0;
     for (const ev of buffer.takeEvents(events)) view.effects.handle(ev);
     view.update(frame, dt);
+    hideExtras();
     gr.render();
     drawBars();
     frames++;
@@ -279,17 +308,21 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
 
   const running = (): boolean => wantPlay && onScreen && loaded && !disposed && !(typeof document !== 'undefined' && document.hidden);
 
+  const pacer = new FramePacer();
   const loop = (now: number): void => {
     raf = 0;
     if (!running()) return;
-    const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / 60;
+    raf = requestAnimationFrame(loop);
+    if (!pacer.due(now, PREVIEW_FPS)) return;
+    // the real time since the last drawn frame: the clip plays at its speed whatever the draw rate
+    const dt = last ? Math.min(0.1, (now - last) / 1000) : 1 / PREVIEW_FPS;
     last = now;
     frameOnce(dt);
-    raf = requestAnimationFrame(loop);
   };
   const kick = (): void => {
     if (raf || !running()) return;
     last = 0;
+    pacer.reset();
     raf = requestAnimationFrame(loop);
   };
   const halt = (): void => {

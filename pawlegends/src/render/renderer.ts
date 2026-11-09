@@ -11,6 +11,7 @@ import { installToon } from './toon.js';
 import { setOutlineViewport } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
 import { isPhone } from './perf/device';
+import { dynRes } from './perf/governor';
 import { shellPlatform } from '../app/platform';
 
 /**
@@ -57,6 +58,80 @@ export function shadowMaxFor(zoom: number, tier: QualityTier): number {
   return zoom > SHADOW_BOX.wideZoom && tier !== 'low' ? SHADOW_BOX.maxWide : SHADOW_BOX.max;
 }
 
+/**
+ * PERF-IOS §8 Track A: the live WebGLRenderer (the one the match draws with), so the overhead plates
+ * (ui/overhead.ts, render/overlay/) draw over the scene in the same frame without a second canvas. Null before the
+ * first renderer and after dispose.
+ */
+let live: THREE.WebGLRenderer | null = null;
+export const liveRenderer = (): THREE.WebGLRenderer | null => live;
+
+/**
+ * PERF-IOS §8 Track A: the overdraw view (`?overdraw=1`, a debug view, not a setting). Every fragment that passes the
+ * depth test adds 1/51 to red (opaque draws keep writing depth, blended ones do not, as in the real frame), so
+ * red × 51 is how many times a pixel was shaded this frame. Every 20th
+ * frame the buffer is read back and `html[data-overdraw]` holds { avg, p95, max, over3, over6 } (over3 / over6: the
+ * share of pixels drawn more than 3 / 6 times), for docs/plans/moba/benchmarks and the VFX caps.
+ */
+export const OVERDRAW_STEP = 51;
+export function overdrawOn(search: string = typeof location !== 'undefined' ? location.search : ''): boolean {
+  try {
+    return new URLSearchParams(search).get('overdraw') === '1';
+  } catch {
+    return false;
+  }
+}
+
+/** Overdraw stats from an RGBA readback (red = count × 5). Pure. */
+export function overdrawStats(px: Uint8Array): { avg: number; p95: number; max: number; over3: number; over6: number } {
+  const hist = new Uint32Array(OVERDRAW_STEP + 1);
+  let n = 0;
+  let sum = 0;
+  for (let i = 0; i < px.length; i += 4) {
+    const c = Math.min(OVERDRAW_STEP, Math.round(px[i] / (255 / OVERDRAW_STEP)));
+    hist[c]++;
+    sum += c;
+    n++;
+  }
+  let acc = 0;
+  let p95 = 0;
+  let max = 0;
+  let over3 = 0;
+  let over6 = 0;
+  for (let c = 0; c <= OVERDRAW_STEP; c++) {
+    if (hist[c] === 0) continue;
+    max = c;
+    acc += hist[c];
+    if (acc < 0.95 * n) p95 = c + 1;
+    if (c > 3) over3 += hist[c];
+    if (c > 6) over6 += hist[c];
+  }
+  const r = (v: number): number => Math.round(v * 1000) / 1000;
+  return { avg: r(n ? sum / n : 0), p95: Math.min(p95, max), max, over3: r(n ? over3 / n : 0), over6: r(n ? over6 / n : 0) };
+}
+
+function overdrawMaterial(blended: boolean): THREE.ShaderMaterial {
+  return new THREE.ShaderMaterial({
+    vertexShader: `#include <common>
+#include <batching_pars_vertex>
+#include <skinning_pars_vertex>
+void main() {
+  #include <batching_vertex>
+  #include <skinbase_vertex>
+  #include <begin_vertex>
+  #include <skinning_vertex>
+  #include <project_vertex>
+}`,
+    fragmentShader: `void main() { gl_FragColor = vec4(${(1 / OVERDRAW_STEP).toFixed(6)}, 0.0, 0.0, 1.0); }`,
+    blending: THREE.AdditiveBlending,
+    depthTest: true,
+    depthWrite: !blended,
+    transparent: blended,
+    side: THREE.DoubleSide,
+    toneMapped: false,
+  });
+}
+
 export interface GameRenderer {
   renderer: THREE.WebGLRenderer;
   scene: THREE.Scene;
@@ -98,6 +173,7 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   renderer.shadowMap.type = THREE.PCFShadowMap;
   renderer.domElement.id = 'game-canvas';
   container.appendChild(renderer.domElement);
+  live = renderer;
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(RENDER.background ?? '#F6E4C0');
@@ -151,6 +227,43 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   let vh = 1;
   // PERF-IOS P2-2: on a phone the shadow map is redrawn every `shadowEvery` frames (renderer.shadowMap.autoUpdate off)
   let shadowFrame = 0;
+  const overdraw = overdrawOn() ? { opaque: overdrawMaterial(false), blended: overdrawMaterial(true), n: 0, px: new Uint8Array(0), swapped: new Map<THREE.Mesh, THREE.Material | THREE.Material[]>() } : null;
+  /** Draw `scene` (the overdraw view instead when it is on). */
+  const draw = (scene: THREE.Scene): void => {
+    if (!overdraw) {
+      renderer.render(scene, camera);
+      return;
+    }
+    const bg = scene.background;
+    scene.background = null;
+    const sw = overdraw.swapped;
+    scene.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh && !(o as THREE.Points).isPoints) return;
+      const mat = m.material;
+      const t = Array.isArray(mat) ? mat.some((x) => x.transparent) : mat.transparent;
+      sw.set(m, mat);
+      m.material = t ? overdraw.blended : overdraw.opaque;
+    });
+    renderer.setClearColor(0x000000, 1);
+    renderer.render(scene, camera);
+    for (const [m, mat] of sw) m.material = mat;
+    sw.clear();
+    scene.background = bg;
+    if (overdraw.n++ % 20 !== 0) return;
+    const gl = renderer.getContext();
+    const w = gl.drawingBufferWidth;
+    const h = gl.drawingBufferHeight;
+    if (overdraw.px.length !== w * h * 4) overdraw.px = new Uint8Array(w * h * 4);
+    gl.readPixels(0, 0, w, h, gl.RGBA, gl.UNSIGNED_BYTE, overdraw.px);
+    document.documentElement.dataset.overdraw = JSON.stringify(overdrawStats(overdraw.px));
+  };
+  // PERF-IOS §8 Track A: the dynamic-resolution scale applied to the drawing buffer (phones; render/perf/governor.ts)
+  let dynApplied = 1;
+  const pixelRatio = (): number => {
+    dynApplied = gr.settings.phone ? dynRes.scale : 1;
+    return Math.max(0.75, Math.min(window.devicePixelRatio || 1, gr.settings.maxDpr) * gr.settings.resScale * dynApplied);
+  };
 
   const gr: GameRenderer = {
     renderer,
@@ -181,8 +294,8 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
         sun.shadow.map?.dispose();
         sun.shadow.map = null;
       }
-      // PERF-IOS: the tier's DPR cap × the governor's resolution scale (dynamic resolution), never under 0.75
-      renderer.setPixelRatio(Math.max(0.75, Math.min(window.devicePixelRatio || 1, gr.settings.maxDpr) * gr.settings.resScale));
+      // PERF-IOS: the tier's DPR cap × the governor's resolution steps × the continuous scale, never under 0.75
+      renderer.setPixelRatio(pixelRatio());
       renderer.shadowMap.enabled = gr.settings.shadows;
       renderer.shadowMap.autoUpdate = gr.settings.shadowEvery <= 1;
       renderer.shadowMap.needsUpdate = true;
@@ -199,13 +312,17 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       vh = h;
     },
     render() {
+      if (gr.settings.phone && dynRes.scale !== dynApplied) {
+        renderer.setPixelRatio(pixelRatio());
+        gr.resize();
+      }
       setOutlineViewport(renderer.domElement.width, renderer.domElement.height);
       if (gr.place) {
         camera.clearViewOffset();
         gr.place(camera);
         camera.updateProjectionMatrix();
         if (!renderer.shadowMap.autoUpdate) renderer.shadowMap.needsUpdate = true;
-        renderer.render(gr.active, camera);
+        draw(gr.active);
         return;
       }
       // feel pass B1: a fixed framing: the distance fits the viewport (frameDist × the Camera height step), the pitch
@@ -220,9 +337,10 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       if (gr.settings.shadows && !renderer.shadowMap.autoUpdate) {
         if (shadowFrame++ % gr.settings.shadowEvery === 0) renderer.shadowMap.needsUpdate = true;
       }
-      renderer.render(gr.active, camera);
+      draw(gr.active);
     },
     dispose() {
+      if (live === renderer) live = null;
       renderer.dispose();
       renderer.domElement.remove();
     },

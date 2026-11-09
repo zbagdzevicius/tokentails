@@ -32,6 +32,7 @@ import { FISH_GLYPH } from './progressRail';
 import { TOY_COST, TOY_TIERS } from '../data/toys';
 // LoL pass (lane B): the hextech HUD chrome (ability frame, XP ring, score plate, kill feed, death wash, nap bar, crest)
 import './lol-hud.css';
+import { applySweep, newSweep, type SweepRec } from './cdSweep';
 // feel pass: the fixed-camera chrome and the phone HUD diet (after lol-hud.css, so it wins)
 import './feel.css';
 
@@ -87,6 +88,8 @@ interface SlotEl {
   last: string;
   /** LoL pass (lane B): the slot was cooling on the last update (its ready flash fires on the way back). */
   cooling: boolean;
+  /** PERF-IOS §8 Track C: the sweep's last written step (ui/cdSweep.ts). */
+  cd: SweepRec;
 }
 
 /** Lane F (F3): how long R pulses after the ultimate unlocks or ranks up (ms). */
@@ -314,7 +317,7 @@ export class Hud {
     portraitEl.addEventListener('pointerenter', (e) => this.tipEnter(e, portraitEl, -1));
     portraitEl.addEventListener('pointerleave', () => this.tipLeave());
     for (const el of root.querySelectorAll<HTMLElement>('.pl-slot')) {
-      this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, rk: el.querySelector<HTMLElement>('.rk'), last: '', cooling: false });
+      this.slots.push({ root: el, sweep: el.querySelector('.sweep') as HTMLElement, num: el.querySelector('.num') as HTMLElement, rk: el.querySelector<HTMLElement>('.rk'), last: '', cooling: false, cd: newSweep() });
       el.addEventListener('pointerenter', (e) => this.tipEnter(e, el, Number(el.dataset.i)));
       el.addEventListener('pointerleave', () => this.tipLeave());
       el.addEventListener('pointerdown', (e) => {
@@ -787,7 +790,6 @@ export class Hud {
       const cd = cds?.[i] ?? 0;
       const locked = i === 3 && lv < ULT_LEVEL;
       const max = maxCooldown(this.hero, i as 0 | 1 | 2 | 3 | 4, this.trick, this.branchOn, lv, me.talents);
-      const f = cd > 0 ? Math.min(1, cd / Math.max(1, max)) : 0;
       const state = `${locked ? 'L' : ''}${cd > 0 ? 'C' : ''}${dead ? 'D' : ''}`;
       if (s.last !== state) {
         s.last = state;
@@ -798,8 +800,8 @@ export class Hud {
       // LoL pass (lane B): a white-gold ring flash the moment a cooldown ends (once per cooldown)
       if (s.cooling && cd === 0 && !locked) this.cdFlash(s.root);
       s.cooling = cd > 0;
-      const cdv = f.toFixed(3);
-      if (s.sweep.style.getPropertyValue('--cd') !== cdv) s.sweep.style.setProperty('--cd', cdv);
+      // PERF-IOS §8 Track C: --cd is written only when the sweep moves a step (ui/cdSweep.ts), not every frame
+      applySweep(s.sweep, s.cd, cd, Math.max(1, max));
       this.set(`n${i}`, s.num, cd > 0 ? cdLabel(cd) : locked ? String(ULT_LEVEL) : '');
     }
     if (this.tipOn) this.tipRender();

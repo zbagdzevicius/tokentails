@@ -191,6 +191,82 @@ export function bushList(): { x: number; y: number; w: number; h: number }[] {
 /** A team's base point (core or fountain, team 0's spot given) on the bound map. */
 const basePt = (team: number, p: { x: number; y: number }): [number, number] => (team === 0 ? [p.x, p.y] : isPoint() ? [MAP.width - p.x, MAP.height - p.y] : [mirrorX(p.x), p.y]);
 
+
+/** MAP-GAPS A4: an outlined minion mark centred on (x, y): an ally square, an enemy diamond (shape, not only hue), a camp dot. */
+function drawMinionMark(g: CanvasRenderingContext2D, x: number, y: number, h: number, color: string, rel: 'ally' | 'enemy' | 'neutral'): void {
+  if (rel === 'enemy') {
+    const d = h * 1.45;
+    for (const [c, k] of [
+      [MM_OUTLINE, d + 1.1],
+      [color, d],
+    ] as const) {
+      g.fillStyle = c;
+      g.beginPath();
+      g.moveTo(x, y - k);
+      g.lineTo(x + k, y);
+      g.lineTo(x, y + k);
+      g.lineTo(x - k, y);
+      g.closePath();
+      g.fill();
+    }
+  } else if (rel === 'ally') {
+    g.fillStyle = MM_OUTLINE;
+    g.fillRect(x - h - 0.9, y - h - 0.9, 2 * h + 1.8, 2 * h + 1.8);
+    g.fillStyle = color;
+    g.fillRect(x - h, y - h, 2 * h, 2 * h);
+  } else {
+    g.fillStyle = MM_OUTLINE;
+    g.beginPath();
+    g.arc(x, y, h + 1, 0, Math.PI * 2);
+    g.fill();
+    g.fillStyle = color;
+    g.beginPath();
+    g.arc(x, y, h, 0, Math.PI * 2);
+    g.fill();
+  }
+}
+
+/** MAP-GAPS A8: Pudding's mark centred on (x, y), side s: an objective-violet rounded square with a heart glyph. */
+function drawPudding(g: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  g.fillStyle = MM_OUTLINE;
+  roundRectPath(g, x - s / 2 - 1.2, y - s / 2 - 1.2, s + 2.4, s + 2.4, 2.4);
+  g.fill();
+  g.fillStyle = MM_OBJECTIVE;
+  roundRectPath(g, x - s / 2, y - s / 2, s, s, 1.8);
+  g.fill();
+  g.fillStyle = '#fff3dc';
+  g.beginPath();
+  const r = s * 0.17;
+  g.arc(x - r, y - r * 0.4, r, 0, Math.PI * 2);
+  g.arc(x + r, y - r * 0.4, r, 0, Math.PI * 2);
+  g.fill();
+  g.beginPath();
+  g.moveTo(x - 2 * r, y - r * 0.2);
+  g.lineTo(x + 2 * r, y - r * 0.2);
+  g.lineTo(x, y + 1.8 * r);
+  g.closePath();
+  g.fill();
+}
+
+/** Sim v19: Grizzlechop's mark centred on (x, y), side s: a rust disc with a dark tricorn. */
+function drawBoss(g: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+  g.fillStyle = MM_OUTLINE;
+  g.beginPath();
+  g.arc(x, y, s / 2 + 1.2, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = MM_BOSS;
+  g.beginPath();
+  g.arc(x, y, s / 2, 0, Math.PI * 2);
+  g.fill();
+  g.fillStyle = MM_OUTLINE;
+  g.beginPath();
+  g.moveTo(x - s * 0.36, y);
+  g.lineTo(x, y - s * 0.34);
+  g.lineTo(x + s * 0.36, y);
+  g.closePath();
+  g.fill();
+}
+
 /** A rounded rectangle path (no CanvasRenderingContext2D.roundRect needed). */
 function roundRectPath(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number): void {
   g.beginPath();
@@ -688,46 +764,67 @@ export class Minimap {
   /** Rings drawn last frame (e2e and tests). */
   ringsDrawn = 0;
 
-  private drawTimers(g: CanvasRenderingContext2D): void {
+  private drawTimers(): void {
     let n = 0;
+    const rel = minimapRelation(colourBlind());
     for (const t of this.timers()) {
       if (t.left <= 0 || t.total <= 0) continue;
       const [x, y] = this.P(t.x, t.y);
-      const done = Math.max(0, Math.min(1, 1 - t.left / t.total));
+      // PERF-IOS §8 Track A: the ring fills in 1/64 steps, one sprite per step and second shown
+      const done = Math.round(Math.max(0, Math.min(1, 1 - t.left / t.total)) * 64) / 64;
       const r = 6 * this.k;
-      const rel = minimapRelation(colourBlind());
       const color = t.key === 'pudding' ? MM_OBJECTIVE : t.key === 'grizzlechop' ? MM_BOSS : t.key === 'rats' ? rel.ally : rel.enemy;
-      g.fillStyle = 'rgba(42,26,34,0.75)';
-      g.beginPath();
-      g.arc(x, y, r + 2, 0, Math.PI * 2);
-      g.fill();
-      g.strokeStyle = 'rgba(255,243,220,0.35)';
-      g.lineWidth = 2;
-      g.beginPath();
-      g.arc(x, y, r, 0, Math.PI * 2);
-      g.stroke();
-      g.strokeStyle = color;
-      g.beginPath();
-      g.arc(x, y, r, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
-      g.stroke();
       const secs = Math.ceil(t.left / 30);
-      if (secs <= 99) {
-        g.fillStyle = '#fff3dc';
-        g.font = '700 7px Fredoka, system-ui, sans-serif';
-        g.textAlign = 'center';
-        g.textBaseline = 'middle';
-        g.fillText(String(secs), x, y + 0.5);
-      }
+      this.blit(
+        this.sprite(`t|${color}|${done}|${secs <= 99 ? secs : ''}|${r}`, 2 * r + 6, 2 * r + 6, (g) => {
+          g.fillStyle = 'rgba(42,26,34,0.75)';
+          g.beginPath();
+          g.arc(0, 0, r + 2, 0, Math.PI * 2);
+          g.fill();
+          g.strokeStyle = 'rgba(255,243,220,0.35)';
+          g.lineWidth = 2;
+          g.beginPath();
+          g.arc(0, 0, r, 0, Math.PI * 2);
+          g.stroke();
+          g.strokeStyle = color;
+          g.beginPath();
+          g.arc(0, 0, r, -Math.PI / 2, -Math.PI / 2 + done * Math.PI * 2);
+          g.stroke();
+          if (secs <= 99) {
+            g.fillStyle = '#fff3dc';
+            g.font = '700 7px Fredoka, system-ui, sans-serif';
+            g.textAlign = 'center';
+            g.textBaseline = 'middle';
+            g.fillText(String(secs), 0, 0.5);
+          }
+        }),
+        x,
+        y,
+      );
       n++;
     }
     this.ringsDrawn = n;
   }
 
+  /** What the last redraw showed (PERF-IOS §8 Track A: an unchanged, still frame is not redrawn: a paused match). */
+  private lastSig = '';
+  /** Redraws skipped because nothing changed (tests). */
+  stillSkips = 0;
+
   draw(frame: ViewFrame | null): void {
     const now0 = performance.now();
     if (!this.dirty && now0 < this.nextDraw) return;
-    this.dirty = false;
     this.nextDraw = now0 + 1000 / Math.max(1, this.hz) - 2;
+    // nothing moves (the render clock stopped: pause, a frozen end screen) and nothing animates: keep the last image
+    const q0 = this.host.viewQuad()?.[0];
+    const sig = frame ? `${frame.tick}|${q0 ? `${q0.x.toFixed(2)},${q0.z.toFixed(2)}` : ''}` : '';
+    const animating = this.pings.length > 0 || this.flashes.length > 0 || this.moveGoal !== null;
+    if (!this.dirty && sig && sig === this.lastSig && !animating) {
+      this.stillSkips++;
+      return;
+    }
+    this.lastSig = sig;
+    this.dirty = false;
     this.size();
     const g = this.g;
     if (!g || !this.bg) return;
@@ -763,114 +860,71 @@ export class Minimap {
     }
     const rel = minimapRelation(colourBlind());
     const col = (t: number, id: number): string => (id === me ? rel.self : t === 2 ? rel.neutral : t === team ? rel.ally : rel.enemy);
-    // MAP-GAPS A20: a bush an ally stands in is cleared: lighter, so the unscouted ones stand out
-    this.bushesCleared = 0;
+    // PERF-IOS §8 Track A: the cleared bushes, fallen towers and standing towers and cores change a few times a match:
+    // they are painted into one layer, repainted only when one of them changes, and drawn with one drawImage
     clearedBushes(frame.entities, team, this.cleared);
-    const bl = bushList();
-    for (let i = 0; i < bl.length; i++) {
-        if (!this.cleared[i]) continue;
-        const b = bl[i];
-        const x = b.x;
-        const ax = this.X(x - b.w / 2);
-        const bx = this.X(x + b.w / 2);
-        const ay = this.Y(b.y + b.h / 2);
-        const by = this.Y(b.y - b.h / 2);
-        const rw = Math.abs(bx - ax);
-        const rh = Math.abs(by - ay);
-        g.fillStyle = MM_BUSH_CLEARED;
-        this.turned(g, () => {
-          roundRectPath(g, Math.min(ax, bx), Math.min(ay, by), rw, rh, Math.min(rw, rh) * 0.35);
-          g.fill();
-        });
-        this.bushesCleared++;
-      }
-    // MAP-GAPS A18: a fallen tower stays as a greyed, crossed-out square where it stood
     for (const e of frame.entities) if (e.kind === 'tower' && !this.towers.has(e.id)) this.towers.set(e.id, { x: e.fx, y: e.fy, team: e.team });
-    this.fallenDrawn = 0;
-    for (const [id, t] of this.towers) {
-      const e = frame.byId.get(id);
-      if (e && e.state !== 'dead' && e.hp > 0) continue;
-      const [x, y] = this.P(t.x, t.y);
-      const s = 6 * this.k;
-      g.globalAlpha = 0.35;
-      g.fillStyle = MM_OUTLINE;
-      g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
-      g.fillStyle = '#9a948c';
-      g.fillRect(x - s / 2, y - s / 2, s, s);
-      g.strokeStyle = MM_OUTLINE;
-      g.lineWidth = 1.3;
-      g.beginPath();
-      g.moveTo(x - s / 2, y - s / 2);
-      g.lineTo(x + s / 2, y + s / 2);
-      g.moveTo(x + s / 2, y - s / 2);
-      g.lineTo(x - s / 2, y + s / 2);
-      g.stroke();
-      g.globalAlpha = 1;
-      this.fallenDrawn++;
+    let key = `${rel.ally}${rel.enemy}${me}|${team}|`;
+    for (let i = 0; i < this.cleared.length; i++) key += this.cleared[i] ? '1' : '0';
+    key += '|';
+    for (const e of frame.entities) if ((e.kind === 'tower' || e.kind === 'core') && e.state !== 'dead' && e.hp > 0) key += `${e.id}.${e.team},`;
+    this.structures(key, frame, col);
+    if (this.layer) {
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.drawImage(this.layer, 0, 0);
+      g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
     }
+    // PERF-IOS §8 Track A: unit marks are cached sprites (one drawImage each instead of ~10 path calls)
+    let sq = 0;
+    let dia = 0;
+    let dot = 0;
     for (const e of frame.entities) {
-      if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero' || (e.kind as string) === 'pickup') continue;
+      if (e.state === 'dead' || e.kind === 'fountain' || e.kind === 'hero' || e.kind === 'tower' || e.kind === 'core' || (e.kind as string) === 'pickup') continue;
       const [x, y] = this.P(e.fx, e.fy);
-      if (e.kind === 'tower' || e.kind === 'core') {
-        const s = (e.kind === 'core' ? 9 : 6) * this.k;
-        g.fillStyle = MM_OUTLINE;
-        g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
-        g.fillStyle = col(e.team, e.id);
-        g.fillRect(x - s / 2, y - s / 2, s, s);
-      } else if (e.kind === 'boss') {
+      if (e.kind === 'boss') {
         // sim v19: Captain Grizzlechop, a rust disc with a dark tricorn
         const s = 7 * this.k;
-        g.fillStyle = MM_OUTLINE;
-        g.beginPath();
-        g.arc(x, y, s / 2 + 1.2, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = MM_BOSS;
-        g.beginPath();
-        g.arc(x, y, s / 2, 0, Math.PI * 2);
-        g.fill();
-        g.fillStyle = MM_OUTLINE;
-        g.beginPath();
-        g.moveTo(x - s * 0.36, y);
-        g.lineTo(x, y - s * 0.34);
-        g.lineTo(x + s * 0.36, y);
-        g.closePath();
-        g.fill();
-      } else if (e.kind === 'pudding') {
+        this.blit(this.sprite(`boss|${s}`, s + 4, s + 4, (c) => drawBoss(c, 0, 0, s)), x, y);
+        continue;
+      }
+      if (e.kind === 'pudding') {
         // MAP-GAPS A8: an objective-violet rounded square with a dark outline and a heart glyph
         const s = 6 * this.k;
-        g.fillStyle = MM_OUTLINE;
-        roundRectPath(g, x - s / 2 - 1.2, y - s / 2 - 1.2, s + 2.4, s + 2.4, 2.4);
-        g.fill();
-        g.fillStyle = MM_OBJECTIVE;
-        roundRectPath(g, x - s / 2, y - s / 2, s, s, 1.8);
-        g.fill();
-        g.fillStyle = '#fff3dc';
-        g.beginPath();
-        const r = s * 0.17;
-        g.arc(x - r, y - r * 0.4, r, 0, Math.PI * 2);
-        g.arc(x + r, y - r * 0.4, r, 0, Math.PI * 2);
-        g.fill();
-        g.beginPath();
-        g.moveTo(x - 2 * r, y - r * 0.2);
-        g.lineTo(x + 2 * r, y - r * 0.2);
-        g.lineTo(x, y + 1.8 * r);
-        g.closePath();
-        g.fill();
-      } else this.drawMinion(g, x, y, col(e.team, e.id), e.team === 2 ? 'neutral' : e.team === team ? 'ally' : 'enemy');
+        this.blit(this.sprite(`pud|${s}`, s + 4, s + 4, (c) => drawPudding(c, 0, 0, s)), x, y);
+        continue;
+      }
+      const relKind = e.team === 2 ? 'neutral' : e.team === team ? 'ally' : 'enemy';
+      const color = col(e.team, e.id);
+      const h = 1.8 * this.k;
+      const box = 2 * (h * 1.45 + 1.1) + 2;
+      this.blit(this.sprite(`m|${relKind}|${color}|${h}`, box, box, (c) => drawMinionMark(c, 0, 0, h, color, relKind)), x, y);
+      if (relKind === 'enemy') dia++;
+      else if (relKind === 'ally') sq++;
+      else dot++;
     }
-    const glow = 0.6 + 0.4 * Math.sin(performance.now() / 180);
+    this.minionsDrawn = { square: sq, diamond: dia, dot };
+    // the pickups' glow in 6 steps (one sprite each)
+    const glowStep = Math.round((0.5 + 0.5 * Math.sin(performance.now() / 180)) * 5);
+    const glow = 0.6 + 0.4 * (glowStep / 2.5 - 1);
     for (const p of this.pickups()) {
       const [x, y] = this.P(p.x, p.y);
-      g.fillStyle = p.kind === 'frenzy' ? `rgba(125,255,138,${(0.35 * glow).toFixed(3)})` : `rgba(255,166,77,${(0.3 * glow).toFixed(3)})`;
-      g.beginPath();
-      g.arc(x, y, 7 * this.k, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = p.kind === 'frenzy' ? '#7dff8a' : '#ffa64d';
-      g.beginPath();
-      g.arc(x, y, 3 * this.k, 0, Math.PI * 2);
-      g.fill();
+      const r = 7 * this.k;
+      this.blit(
+        this.sprite(`pk|${p.kind}|${glowStep}|${r}`, 2 * r + 2, 2 * r + 2, (c) => {
+          c.fillStyle = p.kind === 'frenzy' ? `rgba(125,255,138,${(0.35 * glow).toFixed(3)})` : `rgba(255,166,77,${(0.3 * glow).toFixed(3)})`;
+          c.beginPath();
+          c.arc(0, 0, r, 0, Math.PI * 2);
+          c.fill();
+          c.fillStyle = p.kind === 'frenzy' ? '#7dff8a' : '#ffa64d';
+          c.beginPath();
+          c.arc(0, 0, 3 * this.k, 0, Math.PI * 2);
+          c.fill();
+        }),
+        x,
+        y,
+      );
     }
-    this.drawTimers(g);
+    this.drawTimers();
     this.ghostsDrawn = [];
     for (const gh of this.updateGhosts(frame, team)) {
       // faded and desaturated, a shrinking ring and a "?"
@@ -899,7 +953,17 @@ export class Minimap {
     const ids = heroes.map((e) => e.hero).filter((h): h is HeroId => !!h);
     for (const e of heroDrawOrder(heroes, me)) {
       const self = e.id === me;
-      this.drawHero(g, ...this.P(e.fx, e.fy), e.hero, col(e.team, e.id), self, self ? null : this.ringOf(e.id), ids.filter((_, i) => heroes[i].team === e.team));
+      const [x, y] = this.P(e.fx, e.fy);
+      const color = col(e.team, e.id);
+      const ring = self ? null : this.ringOf(e.id);
+      const mates = ids.filter((_, i) => heroes[i].team === e.team);
+      const r = this.heroR(self);
+      const inner = r - (self ? 1.8 : 1.3) * Math.min(1, this.k);
+      const pic = e.hero && inner * 2 >= PORTRAIT_MIN_PX ? this.portrait(e.hero, Math.round(inner * 2 * this.dpr)) : null;
+      const initial = !pic && e.hero ? heroInitial(e.hero, mates) : '';
+      const box = 2 * (r + 3.2);
+      this.blit(this.sprite(`h|${e.hero}|${color}|${self ? 1 : 0}|${ring}|${pic ? 'p' : initial}|${r}`, box, box, (c) => this.drawHero(c, 0, 0, e.hero, color, self, ring, mates)), x, y);
+      this.heroesDrawn.push(`${e.hero}:${pic ? 'p' : 'i'}`);
     }
     const now = performance.now();
     this.pings = this.pings.filter((p) => p.until > now);
@@ -968,42 +1032,117 @@ export class Minimap {
   /** Minion marks drawn last frame by shape (tests): squares (allies), diamonds (enemies), dots (camp). */
   minionsDrawn = { square: 0, diamond: 0, dot: 0 };
 
-  /** MAP-GAPS A4: an outlined minion mark: an ally square, an enemy diamond (shape, not only hue), a camp dot. */
-  private drawMinion(g: CanvasRenderingContext2D, x: number, y: number, color: string, rel: 'ally' | 'enemy' | 'neutral'): void {
-    const h = 1.8 * this.k;
-    if (rel === 'enemy') {
-      const d = h * 1.45;
-      for (const [c, k] of [
-        [MM_OUTLINE, d + 1.1],
-        [color, d],
-      ] as const) {
-        g.fillStyle = c;
-        g.beginPath();
-        g.moveTo(x, y - k);
-        g.lineTo(x + k, y);
-        g.lineTo(x, y + k);
-        g.lineTo(x - k, y);
-        g.closePath();
-        g.fill();
-      }
-      this.minionsDrawn.diamond++;
-    } else if (rel === 'ally') {
-      g.fillStyle = MM_OUTLINE;
-      g.fillRect(x - h - 0.9, y - h - 0.9, 2 * h + 1.8, 2 * h + 1.8);
-      g.fillStyle = color;
-      g.fillRect(x - h, y - h, 2 * h, 2 * h);
-      this.minionsDrawn.square++;
-    } else {
-      g.fillStyle = MM_OUTLINE;
-      g.beginPath();
-      g.arc(x, y, h + 1, 0, Math.PI * 2);
-      g.fill();
-      g.fillStyle = color;
-      g.beginPath();
-      g.arc(x, y, h, 0, Math.PI * 2);
-      g.fill();
-      this.minionsDrawn.dot++;
+  /** PERF-IOS §8 Track A: small sprites (unit marks, hero marks) painted once at the canvas DPR, by key. */
+  private readonly sprites = new Map<string, HTMLCanvasElement>();
+  private spriteDpr = 0;
+  private sprite(key: string, w: number, h: number, paint: (g: CanvasRenderingContext2D) => void): HTMLCanvasElement | null {
+    if (this.spriteDpr !== this.dpr || this.sprites.size > 256) {
+      this.sprites.clear();
+      this.spriteDpr = this.dpr;
     }
+    const hit = this.sprites.get(key);
+    if (hit) return hit;
+    if (typeof document === 'undefined') return null;
+    const c = document.createElement('canvas');
+    c.width = Math.max(2, Math.ceil((w * this.dpr) / 2) * 2);
+    c.height = Math.max(2, Math.ceil((h * this.dpr) / 2) * 2);
+    const g = c.getContext('2d');
+    if (!g) return null;
+    g.setTransform(this.dpr, 0, 0, this.dpr, c.width / 2, c.height / 2);
+    paint(g);
+    this.sprites.set(key, c);
+    return c;
+  }
+
+  /** Draw a sprite centred on (x, y) CSS px, on whole device px (1:1, no resampling blur). */
+  private blit(c: HTMLCanvasElement | null, x: number, y: number): void {
+    const g = this.g;
+    if (!c || !g) return;
+    const d = this.dpr;
+    g.drawImage(c, Math.round(x * d - c.width / 2) / d, Math.round(y * d - c.height / 2) / d, c.width / d, c.height / d);
+  }
+
+  /** The structures layer (cleared bushes, fallen and standing towers, cores) and the key it was painted for. */
+  private layer: HTMLCanvasElement | null = null;
+  private layerKey = '';
+  private layerFallen = 0;
+  private layerBushes = 0;
+  /** Layer repaints so far (tests). */
+  layerPaints = 0;
+
+  private structures(key: string, frame: ViewFrame, col: (t: number, id: number) => string): void {
+    const full = `${key}|${this.w}x${this.h}@${this.dpr}|${this.bgKeyNow}`;
+    if (this.layer && full === this.layerKey) {
+      this.fallenDrawn = this.layerFallen;
+      this.bushesCleared = this.layerBushes;
+      return;
+    }
+    this.layerKey = full;
+    this.layerPaints++;
+    const c = this.layer ?? (typeof document !== 'undefined' ? document.createElement('canvas') : null);
+    if (!c) return;
+    c.width = this.w * this.dpr;
+    c.height = this.h * this.dpr;
+    const g = c.getContext('2d');
+    this.layer = c;
+    if (!g) return;
+    g.setTransform(1, 0, 0, 1, 0, 0);
+    g.clearRect(0, 0, c.width, c.height);
+    g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    // MAP-GAPS A20: a bush an ally stands in is cleared: lighter, so the unscouted ones stand out
+    this.bushesCleared = 0;
+    g.fillStyle = MM_BUSH_CLEARED;
+    const bl = bushList();
+    for (let i = 0; i < bl.length; i++) {
+        if (!this.cleared[i]) continue;
+        const b = bl[i];
+        const x = b.x;
+        const ax = this.X(x - b.w / 2);
+        const bx = this.X(x + b.w / 2);
+        const ay = this.Y(b.y + b.h / 2);
+        const by = this.Y(b.y - b.h / 2);
+        const rw = Math.abs(bx - ax);
+        const rh = Math.abs(by - ay);
+        this.turned(g, () => {
+          roundRectPath(g, Math.min(ax, bx), Math.min(ay, by), rw, rh, Math.min(rw, rh) * 0.35);
+          g.fill();
+        });
+        this.bushesCleared++;
+      }
+    // MAP-GAPS A18: a fallen tower stays as a greyed, crossed-out square where it stood
+    this.fallenDrawn = 0;
+    for (const [id, t] of this.towers) {
+      const e = frame.byId.get(id);
+      if (e && e.state !== 'dead' && e.hp > 0) continue;
+      const [x, y] = this.P(t.x, t.y);
+      const s = 6 * this.k;
+      g.globalAlpha = 0.35;
+      g.fillStyle = MM_OUTLINE;
+      g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
+      g.fillStyle = '#9a948c';
+      g.fillRect(x - s / 2, y - s / 2, s, s);
+      g.strokeStyle = MM_OUTLINE;
+      g.lineWidth = 1.3;
+      g.beginPath();
+      g.moveTo(x - s / 2, y - s / 2);
+      g.lineTo(x + s / 2, y + s / 2);
+      g.moveTo(x + s / 2, y - s / 2);
+      g.lineTo(x - s / 2, y + s / 2);
+      g.stroke();
+      g.globalAlpha = 1;
+      this.fallenDrawn++;
+    }
+    for (const e of frame.entities) {
+      if ((e.kind !== 'tower' && e.kind !== 'core') || e.state === 'dead' || e.hp <= 0) continue;
+      const [x, y] = this.P(e.fx, e.fy);
+      const s = (e.kind === 'core' ? 9 : 6) * this.k;
+      g.fillStyle = MM_OUTLINE;
+      g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
+      g.fillStyle = col(e.team, e.id);
+      g.fillRect(x - s / 2, y - s / 2, s, s);
+    }
+    this.layerFallen = this.fallenDrawn;
+    this.layerBushes = this.bushesCleared;
   }
 
   /** Hero marks drawn last frame, in order (tests and e2e): `id:kind` with kind `p` portrait or `i` initial. */
@@ -1051,7 +1190,6 @@ export class Minimap {
     g.fill();
     if (pic) {
       g.drawImage(pic, x - inner, y - inner, inner * 2, inner * 2);
-      this.heroesDrawn.push(`${hero}:p`);
     } else {
       g.fillStyle = hero ? (HERO_COLOR_CSS[hero] ?? '#fff3dc') : '#fff3dc';
       g.beginPath();
@@ -1065,7 +1203,6 @@ export class Minimap {
         g.textBaseline = 'middle';
         g.fillText(t, x, y + 0.4);
       }
-      this.heroesDrawn.push(`${hero}:i`);
     }
     // party play (§7 M1): a friend's mark wears its slot ring colour
     if (ring) {

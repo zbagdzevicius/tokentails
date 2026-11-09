@@ -18,6 +18,7 @@ import { HERO_HEIGHT, HERO_MOTION, KITTEN_POSE, POSES_PL, heroSpec, kittenSpec, 
 import type { CoatSpec } from './chibi';
 import { PPK_POSES } from './skeleton';
 import { HERO_BUILD } from './heroSize';
+import { isPhone } from '../perf/device';
 
 export { HERO_HEIGHT, HERO_MOTION, HERO_TOP } from './specs';
 export { HERO_BUILD } from './heroSize';
@@ -93,7 +94,7 @@ export interface Character {
 }
 
 /** A live character on shared geometry: its own bones, animator and material. */
-export function makeCharacter(built: Built, profile: MotionProfile, height: number, o: { outline?: boolean; shadows?: boolean; name?: string } = {}): Character {
+export function makeCharacter(built: Built, profile: MotionProfile, height: number, o: { outline?: boolean; shadows?: boolean; name?: string; match?: boolean } = {}): Character {
   const cached = owner.get(built.geometry);
   if (cached) cached.refs++;
   let released = false;
@@ -119,6 +120,21 @@ export function makeCharacter(built: Built, profile: MotionProfile, height: numb
   inner.rotation.y = Math.PI / 2;
   inner.scale.setScalar(height);
   inner.add(rig.root);
+  // PERF-IOS §8 Track A: in a match on a phone the skinned body (~5k triangles, never culled) does not draw into the
+  // shadow map; a low-poly ellipsoid of the same size casts instead (~80 triangles). The lobby turntable keeps its own. The views still toggle `mesh.castShadow`
+  // (Medium on, the governor's shadow step off): the flag now drives the stand-in.
+  if (o.match === true && isPhone() && (o.shadows ?? true)) {
+    const proxy = shadowProxy(built.geometry);
+    inner.add(proxy);
+    proxy.castShadow = mesh.castShadow;
+    Object.defineProperty(mesh, 'castShadow', {
+      configurable: true,
+      get: () => false,
+      set: (v: boolean) => {
+        proxy.castShadow = v;
+      },
+    });
+  }
   const mover = new THREE.Group();
   mover.name = 'mover';
   mover.add(inner);
@@ -147,6 +163,42 @@ export function makeCharacter(built: Built, profile: MotionProfile, height: numb
       }
     },
   };
+}
+
+const PROXY_GEO = new THREE.SphereGeometry(1, 8, 5);
+const PROXY_MAT = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: false });
+const proxyFit = new WeakMap<THREE.BufferGeometry, { c: THREE.Vector3; h: THREE.Vector3 }>();
+
+/** True for an orthographic frustum (opposite planes parallel): the sun's shadow camera, never the match camera. */
+export function orthoFrustum(f: THREE.Frustum): boolean {
+  return f.planes[0].normal.dot(f.planes[1].normal) < -0.999 && f.planes[2].normal.dot(f.planes[3].normal) < -0.999;
+}
+
+/**
+ * PERF-IOS §8 Track A: a body's shadow stand-in: an ellipsoid fitted inside the bind pose's bounds (a little slimmer:
+ * the bounds hold the tail and the paws' reach). It is culled out of the match camera's pass (it only passes the
+ * shadow camera's orthographic frustum), so it costs nothing on screen.
+ */
+export function shadowProxy(geometry: THREE.BufferGeometry): THREE.Mesh {
+  let fit = proxyFit.get(geometry);
+  if (!fit) {
+    if (!geometry.boundingBox) geometry.computeBoundingBox();
+    const b = geometry.boundingBox as THREE.Box3;
+    const c = b.getCenter(new THREE.Vector3());
+    const h = b.getSize(new THREE.Vector3()).multiplyScalar(0.5);
+    h.x *= 0.8;
+    h.z *= 0.8;
+    h.y *= 0.92;
+    fit = { c, h };
+    proxyFit.set(geometry, fit);
+  }
+  const m = new THREE.Mesh(PROXY_GEO, PROXY_MAT);
+  m.name = 'shadow-proxy';
+  m.position.copy(fit.c);
+  m.scale.copy(fit.h);
+  m.receiveShadow = false;
+  m.intersectsFrustum = (f: THREE.Frustum): boolean => orthoFrustum(f) && f.intersectsObject(m);
+  return m;
 }
 
 export function makeHero(hero: HeroId, team: 0 | 1, look: Look | null, o: { detail?: number; outline?: boolean; shadows?: boolean; match?: boolean; self?: boolean } = {}): Character {
