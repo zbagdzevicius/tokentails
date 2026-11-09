@@ -38,7 +38,7 @@ vi.mock('../../src/render/renderer', async () => {
         zoom: 1,
         dist: 21,
         shadowHalf: 30,
-        settings: { tier: 'low', maxDpr: 1, shadows: false, bloom: false, outlines: false, antialias: false, shadowMap: 1024 },
+        settings: { tier: 'low', maxDpr: 1, shadows: false, bloom: false, outlines: false, antialias: false, shadowMap: 1024, shadowEvery: 1, forestHalf: true, vfxTier: 'low', overheadDpr: 1, minimapHz: 15, fpsCap: 60, resScale: 1, phone: false, step: 0 },
         preRender: null,
         active: scene,
         place: null as ((c: THREE.PerspectiveCamera) => void) | null,
