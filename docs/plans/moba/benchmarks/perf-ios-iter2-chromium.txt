@@ -1,0 +1,503 @@
+runs cur: 3, base: 3
+
+## lobby
+drawnFps                                               29.3       29.3
+drawnJsMs                                              0.99       1.02
+jsMs.p95                                                1.4        1.4
+jsMs.max                                                2.1        2.2
+perDrawn.glCalls                                         92         92
+perDrawn.draws                                           10         10
+perDrawn.tris                                         31790      31790
+perDrawn.shadowDraws                                      1          1
+perDrawn.shadowTris                                   10004      10004
+perDrawn.blendDraws                                       2          2
+perDrawn.blendTris                                      112        112
+perDrawn.progSwitches                                    10         10
+perDrawn.uniforms                                        30         30
+programsBound                                             8          8
+gpuMs.p50                                              0.37       0.37
+gpuMs.p95                                              0.68       0.67
+heap.allocMBPerS                                       0.43       0.44
+heap.gcPerS                                               0          0
+cdp.scriptMsPerS                                       33.5       34.2
+cdp.taskMsPerS                                        101.4      106.3
+cdp.styleRecalcsPerS                                   58.8       58.8
+cdp.styleMsPerS                                        6.85       8.39
+cdp.layoutsPerS                                           0          0
+cdp.layoutMsPerS                                          0          0
+cdp.compositedLayers                                     12         12
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                               279        267
+audioNodesPerS                                            0          0
+audioStartsPerS                                           0          0
+audioLiveMax                                              0          0
+mutPerS                                                 0.5        0.5
+cssAnims                                                  3          4
+cssInfinite                                               3          4
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+cpu.busyMsPerS                                        78.61      87.86
+dmgNodes                                                  0          0
+  cpu cur (ms/drawn, ms/s): browser (style/layout/paint/compositor glue)=1.46/42.64; three: render submit=0.59/17.36; WebGL calls (native)=0.18/5.13; instrumentation (probe)=0.13/3.67; other native=0.11/3.17; render (gameView, camera, other)=0.1/3.05; three: uniforms=0.07/2.1; animation=0.03/0.94; DOM API (native)=0.03/0.83; app/matchSession=0.02/0.56; audio (native)=0.01/0.24; VFX/telegraphs=0/0.07
+  mut cur: html:attributes@data-draws=0.5
+  audio cur: 
+  cpu base (ms/drawn, ms/s): browser (style/layout/paint/compositor glue)=1.73/50.74; three: render submit=0.67/19.57; WebGL calls (native)=0.15/4.53; other native=0.14/3.99; instrumentation (probe)=0.11/3.36; render (gameView, camera, other)=0.09/2.76; three: uniforms=0.07/2.04; DOM API (native)=0.04/1.17; app/matchSession=0.02/0.69; animation=0.02/0.6; VFX/telegraphs=0.01/0.27; audio (native)=0.01/0.15; GC=0.01/0.15
+  mut base: html:attributes@data-draws=0.5
+  audio base: 
+
+## browser-preview
+drawnFps                                               29.5       null
+drawnJsMs                                              5.44       null
+jsMs.p95                                                6.7       null
+jsMs.max                                               13.6       null
+perDrawn.glCalls                                         92       null
+perDrawn.draws                                           10       null
+perDrawn.tris                                         31896       null
+perDrawn.shadowDraws                                      1       null
+perDrawn.shadowTris                                   10037       null
+perDrawn.blendDraws                                       2       null
+perDrawn.blendTris                                      112       null
+perDrawn.progSwitches                                    10       null
+perDrawn.uniforms                                        30       null
+programsBound                                             8       null
+heap.allocMBPerS                                       5.98       null
+heap.gcPerS                                             0.3       null
+cdp.scriptMsPerS                                      288.9       null
+cdp.taskMsPerS                                        493.3       null
+cdp.styleRecalcsPerS                                  120.8       null
+cdp.styleMsPerS                                       22.91       null
+cdp.layoutsPerS                                         4.3       null
+cdp.layoutMsPerS                                       0.67       null
+cdp.compositedLayers                                     50       null
+cdp.layerPaintsPerS                                       0       null
+cdp.nodes                                              1061       null
+c2d.pl-skill-preview.callsPerS                        470.7       null
+c2d.pl-skill-preview.px                              371296       null
+otherContexts.pl-skill-preview-canvas.drawsPerS      3695.3       null
+otherContexts.pl-skill-preview-canvas.trisPerS     10733401       null
+audioNodesPerS                                           11       null
+audioStartsPerS                                           0       null
+audioLiveMax                                              0       null
+mutPerS                                               142.7       null
+cssAnims                                                  7       null
+cssInfinite                                               7       null
+longtasks.n                                               0       null
+longtasks.max                                             0       null
+shaderMs                                                  0       null
+cpu.busyMsPerS                                       474.67       null
+dmgNodes                                                 20       null
+  cpu cur (ms/drawn, ms/s): browser (style/layout/paint/compositor glue)=5.5/162.37; three: render submit=4.47/131.86; render (gameView, camera, other)=1.21/35.6; WebGL calls (native)=0.91/26.92; instrumentation (probe)=0.55/16.36; three: uniforms=0.47/13.73; VFX/telegraphs=0.44/13.06; views (heroes/minions/towers/map)=0.39/11.42; sim (main thread)=0.37/10.9; three: program keys=0.35/10.47; animation=0.35/10.37; champion browser + preview=0.35/10.26; other native=0.32/9.57; interp (SnapBuffer)=0.1/2.99; DOM API (native)=0.09/2.77; identity VFX=0.09/2.57; GC=0.07/2.14; HUD/UI DOM=0.04/1.2; canvas 2D calls (native)=0.03/0.98; app/matchSession=0.03/0.77; audio (native)=0.01/0.33; audio=0.01/0.28
+  fns cur:
+    162.37 ms/s (3) (program) (program):0
+    18.91 ms/s (3) animPost src/render/gameView.ts:547
+    15.15 ms/s (3) projectObject node_modules/three/build/three.module.js:17897
+    14.47 ms/s (3) updateMatrixWorld node_modules/three/build/three.core.js:13067
+    11.2 ms/s (3) P.<computed> P.<computed>:47
+    11.18 ms/s (3) multiplyMatrices node_modules/three/build/three.core.js:10570
+    10.73 ms/s (3) Su.renderBufferDirect node_modules/three/build/three.module.js:17233
+    7.84 ms/s (3) setFromRotationMatrix node_modules/three/build/three.core.js:11523
+    6.11 ms/s (3) setProgram node_modules/three/build/three.module.js:18407
+    5.78 ms/s (3) get canvas get canvas:0
+    5.77 ms/s (3) N.y.place src/ui/preview/skillPreview.ts:169
+    5.56 ms/s (3) bufferSubData bufferSubData:0
+    5.22 ms/s (3) renderObject node_modules/three/build/three.module.js:18192
+    5.1 ms/s (3) render src/render/fx/DamageNumbers.js:381
+    4.74 ms/s (3) getParameters node_modules/three/build/three.module.js:7357
+    4.41 ms/s (3) setValueM4 node_modules/three/build/three.module.js:5284
+    4.32 ms/s (3) texSubImage2D texSubImage2D:0
+    3.44 ms/s (3) refreshMaterialUniforms node_modules/three/build/three.module.js:15043
+  mut cur: div.fx-dmg:attributes@style=137.7; div.fx-dmg:childList=2.3; div.fx-dmg:attributes@class=2.3; html:attributes@data-draws=0.5
+  audio cur: createBufferSource=4; createGain=4; createStereoPanner=2.9
+  mut base: 
+  audio base: 
+
+## match-early
+drawnFps                                               59.9         60
+drawnJsMs                                              4.55       4.69
+jsMs.p95                                                6.1        6.3
+jsMs.max                                               17.5       16.4
+perDrawn.glCalls                                        483        477
+perDrawn.draws                                         48.1         48
+perDrawn.tris                                        174596     175071
+perDrawn.shadowDraws                                    7.5        7.5
+perDrawn.shadowTris                                   39406      39321
+perDrawn.blendDraws                                     9.6        9.6
+perDrawn.blendTris                                     6920       6918
+perDrawn.progSwitches                                  36.8       36.8
+perDrawn.uniforms                                       104        104
+programsBound                                            33         33
+gpuMs.p50                                              null       1.09
+gpuMs.p95                                              null       1.46
+heap.allocMBPerS                                      10.24       10.6
+heap.gcPerS                                             0.6        0.4
+cdp.scriptMsPerS                                      280.3      290.6
+cdp.taskMsPerS                                        370.9      377.9
+cdp.styleRecalcsPerS                                   27.5       28.6
+cdp.styleMsPerS                                       18.07      18.12
+cdp.layoutsPerS                                           4        4.2
+cdp.layoutMsPerS                                       1.38       1.43
+cdp.compositedLayers                                     14         14
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                              1104        810
+c2d.pl-overhead.callsPerS                            3590.9     3528.4
+c2d.pl-overhead.msPerS                                 8.19       8.65
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                             2318.1     2285.9
+c2d.pl-minimap.msPerS                                  2.99        2.9
+audioNodesPerS                                          7.8        7.3
+audioStartsPerS                                         2.4        2.4
+audioLiveMax                                              8          8
+mutPerS                                                61.6       62.1
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                0.7        0.6
+dmgNodes                                                 20         20
+  mut cur: i.sweep:attributes@style=21.1; button.pl-tbtn:attributes@style=21.1; button.pl-tbtn:attributes@class=5.2; b.num:childList=1.5; span:childList=1.5; html:attributes@data-draws=1
+  audio cur: createBufferSource=1.5; createGain=3.9; createOscillator=2.4; createStereoPanner=0.1
+  mut base: i.sweep:attributes@style=21.4; button.pl-tbtn:attributes@style=21.4; button.pl-tbtn:attributes@class=5.3; b.num:childList=1.5; span:childList=1.5; html:attributes@data-draws=1
+  audio base: createBufferSource=1.2; createGain=3.6; createOscillator=2.4; createStereoPanner=0.1
+
+## match-mid
+drawnFps                                               58.8       58.8
+drawnJsMs                                              4.99       4.82
+jsMs.p95                                                6.7        6.5
+jsMs.max                                               13.7       11.1
+perDrawn.glCalls                                        549        540
+perDrawn.draws                                         56.1       55.9
+perDrawn.tris                                        187227     185589
+perDrawn.shadowDraws                                    8.5        8.5
+perDrawn.shadowTris                                   43321      42762
+perDrawn.blendDraws                                      14       13.8
+perDrawn.blendTris                                     7355       7091
+perDrawn.progSwitches                                  39.2       38.9
+perDrawn.uniforms                                       110        108
+programsBound                                            30         31
+gpuMs.p50                                              null        1.2
+gpuMs.p95                                              null       1.49
+heap.allocMBPerS                                       9.19       9.26
+heap.gcPerS                                             0.5        0.5
+cdp.scriptMsPerS                                      302.9      292.3
+cdp.taskMsPerS                                        454.3      434.2
+cdp.styleRecalcsPerS                                   41.6       39.4
+cdp.styleMsPerS                                       36.82      33.07
+cdp.layoutsPerS                                         9.1        6.8
+cdp.layoutMsPerS                                          3       2.22
+cdp.compositedLayers                                     19         16
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                              1143        656
+c2d.pl-overhead.callsPerS                            2952.1     2962.8
+c2d.pl-overhead.msPerS                                 7.76       7.47
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                             3810.2     3436.9
+c2d.pl-minimap.msPerS                                  4.42       3.67
+audioNodesPerS                                          9.4        6.7
+audioStartsPerS                                         2.3        2.3
+audioLiveMax                                              8          8
+mutPerS                                               142.8        136
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+cpu.busyMsPerS                                       445.98     418.97
+dmgNodes                                                 20         20
+  cpu cur (ms/drawn, ms/s): browser (style/layout/paint/compositor glue)=2.26/133.32; three: render submit=1.82/106.78; WebGL calls (native)=0.34/20.08; instrumentation (probe)=0.32/19.11; render (gameView, camera, other)=0.3/17.88; views (heroes/minions/towers/map)=0.29/17.1; three: uniforms=0.22/13.15; canvas 2D calls (native)=0.22/13.1; DOM API (native)=0.22/12.99; app/matchSession=0.19/11.25; three: program keys=0.18/10.68; animation=0.17/9.75; input=0.13/7.56; overhead canvas=0.12/7.18; HUD/UI DOM=0.12/7.14; interp (SnapBuffer)=0.11/6.55; VFX/telegraphs=0.1/5.68; other native=0.08/4.82; GC=0.08/4.53; minimap=0.06/3.25; other src=0.05/2.73; identity VFX=0.04/2.64
+  fns cur:
+    133.32 ms/s (3) (program) (program):0
+    9.84 ms/s (3) projectObject node_modules/three/build/three.module.js:17897
+    9.52 ms/s (3) setFromRotationMatrix node_modules/three/build/three.core.js:11523
+    9.18 ms/s (3) Su.renderBufferDirect node_modules/three/build/three.module.js:17233
+    8.52 ms/s (3) updateMatrixWorld node_modules/three/build/three.core.js:13067
+    8.17 ms/s (3) P.<computed> P.<computed>:47
+    7.21 ms/s (3) multiplyMatrices node_modules/three/build/three.core.js:10570
+    6.21 ms/s (3) bufferSubData bufferSubData:0
+    5.32 ms/s (3) now now:3
+    5.29 ms/s (3) setProgram node_modules/three/build/three.module.js:18407
+    4.89 ms/s (3) frame src/app/matchSession.ts:2005
+    4.85 ms/s (3) setValueM4 node_modules/three/build/three.module.js:5284
+    4.66 ms/s (3) update src/render/views/minionInstances.ts:280
+    4.53 ms/s (3) (garbage collector) (garbage collector):0
+    4.35 ms/s (3) sample src/render/interp.ts:168
+    4.02 ms/s (3) getParameters node_modules/three/build/three.module.js:7357
+    3.82 ms/s (3) composeBase src/render/chars/motion.ts:175
+    3.8 ms/s (3) update src/render/gameView.ts:935
+  mut cur: i.sweep:attributes@style=53.7; button.pl-tbtn:attributes@style=53.7; button.pl-tbtn:attributes@class=5.8; b.num:childList=4.1; span:childList=4.1; div.fx-dmg:childList=2.9
+  audio cur: createOscillator=2.3; createGain=4.4; createBufferSource=2; createStereoPanner=0.7
+  cpu base (ms/drawn, ms/s): browser (style/layout/paint/compositor glue)=1.99/116.95; three: render submit=1.71/100.58; WebGL calls (native)=0.34/19.79; instrumentation (probe)=0.33/19.38; views (heroes/minions/towers/map)=0.33/19.31; render (gameView, camera, other)=0.28/16.48; three: uniforms=0.26/15.24; canvas 2D calls (native)=0.22/12.81; app/matchSession=0.2/11.92; animation=0.2/11.72; DOM API (native)=0.19/11.26; three: program keys=0.17/9.78; HUD/UI DOM=0.15/8.72; overhead canvas=0.12/7.28; VFX/telegraphs=0.12/7.17; input=0.12/6.94; interp (SnapBuffer)=0.11/6.58; other native=0.11/6.21; GC=0.07/3.89; host/net (worker messages)=0.05/2.84; minimap=0.05/2.67; other src=0.04/2.41
+  fns base:
+    116.95 ms/s (3) (program) (program):0
+    11.33 ms/s (3) Su.renderBufferDirect node_modules/three/build/three.module.js:17233
+    8.54 ms/s (3) P.<computed> P.<computed>:47
+    8.08 ms/s (3) updateMatrixWorld node_modules/three/build/three.core.js:13067
+    7.67 ms/s (3) projectObject node_modules/three/build/three.module.js:17897
+    7.45 ms/s (3) setFromRotationMatrix node_modules/three/build/three.core.js:11523
+    6.06 ms/s (3) bufferSubData bufferSubData:0
+    5.93 ms/s (3) now now:3
+    5.89 ms/s (3) multiplyMatrices node_modules/three/build/three.core.js:10570
+    5.65 ms/s (3) setProgram node_modules/three/build/three.module.js:18407
+    5.11 ms/s (3) setValueM4 node_modules/three/build/three.module.js:5284
+    4.85 ms/s (3) frame src/app/matchSession.ts:1996
+    4.49 ms/s (3) update src/render/views/minionInstances.ts:280
+    4.21 ms/s (3) sample src/render/interp.ts:168
+    3.95 ms/s (3) update src/render/gameView.ts:915
+    3.89 ms/s (3) (garbage collector) (garbage collector):0
+    3.86 ms/s (3) update src/render/views/heroView.ts:514
+    3.75 ms/s (3) update src/ui/hud.ts:700
+  mut base: i.sweep:attributes@style=53.4; button.pl-tbtn:attributes@style=53.4; button.pl-tbtn:attributes@class=5.8; b.num:childList=4.1; span:childList=4.1; div.fx-dmg:attributes@style=2.1
+  audio base: createBufferSource=1; createGain=3.3; createOscillator=2.3; createStereoPanner=0.1
+
+## match-late
+drawnFps                                               59.9       59.9
+drawnJsMs                                              5.18       4.94
+jsMs.p95                                                6.5        6.4
+jsMs.max                                               13.5       10.9
+perDrawn.glCalls                                        540        526
+perDrawn.draws                                         58.5       58.1
+perDrawn.tris                                        187394     187131
+perDrawn.shadowDraws                                    9.1          9
+perDrawn.shadowTris                                   43246      43311
+perDrawn.blendDraws                                    15.2       14.2
+perDrawn.blendTris                                     7282       6923
+perDrawn.progSwitches                                  38.6         38
+perDrawn.uniforms                                       112        110
+programsBound                                            31         30
+gpuMs.p50                                              null       1.19
+gpuMs.p95                                              null       1.51
+heap.allocMBPerS                                      10.04       9.23
+heap.gcPerS                                             0.5        0.5
+cdp.scriptMsPerS                                      319.5      303.8
+cdp.taskMsPerS                                        454.4      429.7
+cdp.styleRecalcsPerS                                   43.6       41.5
+cdp.styleMsPerS                                        34.1      32.85
+cdp.layoutsPerS                                         7.7        6.4
+cdp.layoutMsPerS                                       2.34       1.85
+cdp.compositedLayers                                     19         16
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                              1169        648
+c2d.pl-overhead.callsPerS                            3089.4     3083.6
+c2d.pl-overhead.msPerS                                 7.69       8.28
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                             4047.2     3742.8
+c2d.pl-minimap.msPerS                                  3.78       3.99
+audioNodesPerS                                           13        7.2
+audioStartsPerS                                         2.3        2.3
+audioLiveMax                                              8          8
+mutPerS                                               147.5      141.5
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+alloc.sampledMBPerS                                   10.17       9.31
+dmgNodes                                                 20         20
+  alloc cur KB/s: views (heroes/minions/towers/map)=4605; render (gameView, camera, other)=2737; interp (SnapBuffer)=695; app/matchSession=433; overhead canvas=356; minimap=260; input=207; VFX/telegraphs=189; animation=151; host/net (worker messages)=121; HUD/UI DOM=100; other native=98; other src=78; audio=20.5
+  sites cur:
+    1978 KB/s (3) update src/render/views/minionInstances.ts:280
+    748 KB/s (3) hypot hypot:0 <- update src/render/views/minionInstances.ts:280
+    731 KB/s (3) getParameters node_modules/three/build/three.module.js:7357 <- render src/render/renderer.ts:201
+    592 KB/s (3) layoutBodies src/render/views/heroView.ts:109
+    477 KB/s (3) sample src/render/interp.ts:168
+    344 KB/s (3) setValueM4 node_modules/three/build/three.module.js:5284 <- render src/render/renderer.ts:201
+    312 KB/s (3) update src/render/views/heroView.ts:515
+    286 KB/s (3) hypot hypot:0 <- layoutBodies src/render/views/heroView.ts:109
+    262 KB/s (3) frame src/app/matchSession.ts:2005
+    211 KB/s (3) spreadSideways src/render/views/heroView.ts:157
+    199 KB/s (3) set set:0 <- sample src/render/interp.ts:168
+    191 KB/s (3) applyBoneTransform node_modules/three/build/three.core.js:24775 <- render src/render/renderer.ts:201
+    168 KB/s (3) draw src/ui/overhead.ts:421
+    154 KB/s (3) remember src/render/gameView.ts:913
+    152 KB/s (3) U node_modules/three/build/three.core.js:6044 <- render src/render/renderer.ts:201
+    143 KB/s (3) join join:0 <- render src/render/renderer.ts:201
+    142 KB/s (3) draw src/ui/minimap.ts:655
+    139 KB/s (3) setValueV3f node_modules/three/build/three.module.js:5159 <- render src/render/renderer.ts:201
+    128 KB/s (3) getProgramCacheKeyParameters node_modules/three/build/three.module.js:7743 <- render src/render/renderer.ts:201
+    118 KB/s (3) sort sort:0 <- render src/render/renderer.ts:201
+    116 KB/s (3) update src/render/chars/motion.ts:183
+    106 KB/s (3) clearOf src/render/views/minionInstances.ts:129
+  mut cur: i.sweep:attributes@style=55; button.pl-tbtn:attributes@style=55; button.pl-tbtn:attributes@class=5.9; i.time:attributes@style=4.4; b.num:childList=4.1; span:childList=4.1
+  audio cur: createBufferSource=3.4; createGain=5.8; createOscillator=2.3; createStereoPanner=1.5
+  alloc base KB/s: views (heroes/minions/towers/map)=4389; render (gameView, camera, other)=2622; interp (SnapBuffer)=647; app/matchSession=448; overhead canvas=257; minimap=242; input=204; VFX/telegraphs=160; host/net (worker messages)=129; animation=127; other native=100; HUD/UI DOM=95; other src=81; instrumentation (probe)=16
+  sites base:
+    1928 KB/s (3) update src/render/views/minionInstances.ts:280
+    746 KB/s (3) getParameters node_modules/three/build/three.module.js:7357 <- render src/render/renderer.ts:201
+    684 KB/s (3) hypot hypot:0 <- update src/render/views/minionInstances.ts:280
+    627 KB/s (3) layoutBodies src/render/views/heroView.ts:108
+    450 KB/s (3) sample src/render/interp.ts:168
+    360 KB/s (3) setValueM4 node_modules/three/build/three.module.js:5284 <- render src/render/renderer.ts:201
+    308 KB/s (3) hypot hypot:0 <- layoutBodies src/render/views/heroView.ts:108
+    263 KB/s (3) frame src/app/matchSession.ts:1996
+    231 KB/s (3) update src/render/views/heroView.ts:514
+    214 KB/s (1) update src/render/views/towerView.ts:464
+    203 KB/s (3) spreadSideways src/render/views/heroView.ts:156
+    175 KB/s (3) set set:0 <- sample src/render/interp.ts:168
+    161 KB/s (3) remember src/render/gameView.ts:893
+    137 KB/s (3) setValueV3f node_modules/three/build/three.module.js:5159 <- render src/render/renderer.ts:201
+    135 KB/s (3) join join:0 <- render src/render/renderer.ts:201
+    131 KB/s (3) draw src/ui/minimap.ts:655
+    121 KB/s (3) getProgramCacheKeyParameters node_modules/three/build/three.module.js:7743 <- render src/render/renderer.ts:201
+    117 KB/s (3) decodeSnap src/host/protocol.ts:250
+    104 KB/s (3) sort sort:0 <- render src/render/renderer.ts:201
+    100 KB/s (3) update src/render/chars/motion.ts:183
+    96.5 KB/s (2) applyBoneTransform node_modules/three/build/three.core.js:24775 <- render src/render/renderer.ts:201
+    96 KB/s (3) update src/render/gameView.ts:915
+  mut base: i.sweep:attributes@style=54.8; button.pl-tbtn:attributes@style=54.8; button.pl-tbtn:attributes@class=5.9; i.time:attributes@style=5.4; b.num:childList=4; span:childList=4
+  audio base: createBufferSource=1.1; createGain=3.5; createStereoPanner=0.3; createOscillator=2.3
+
+## match-late2
+drawnFps                                               59.4       59.4
+drawnJsMs                                              5.34       5.36
+jsMs.p95                                                6.8        6.7
+jsMs.max                                               15.9       20.1
+perDrawn.glCalls                                        523        535
+perDrawn.draws                                         59.1       59.8
+perDrawn.tris                                        186083     185230
+perDrawn.shadowDraws                                    9.3        9.3
+perDrawn.shadowTris                                   43062      42725
+perDrawn.blendDraws                                    14.1       14.8
+perDrawn.blendTris                                     7036       7026
+perDrawn.progSwitches                                    38       38.5
+perDrawn.uniforms                                       105        108
+programsBound                                            30         31
+gpuMs.p50                                              null       1.18
+gpuMs.p95                                              null        1.5
+heap.allocMBPerS                                      10.18       9.05
+heap.gcPerS                                             0.4        0.4
+cdp.scriptMsPerS                                        323      327.2
+cdp.taskMsPerS                                        470.2      473.2
+cdp.styleRecalcsPerS                                   44.5       44.8
+cdp.styleMsPerS                                       34.28      34.45
+cdp.layoutsPerS                                         6.1        6.8
+cdp.layoutMsPerS                                       1.84       2.84
+cdp.compositedLayers                                     19         21
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                              1153        664
+c2d.pl-overhead.callsPerS                              3278     3034.3
+c2d.pl-overhead.msPerS                                 9.47       7.97
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                               3968     3664.3
+c2d.pl-minimap.msPerS                                  4.55       3.91
+audioNodesPerS                                          9.9        7.8
+audioStartsPerS                                         2.3        2.6
+audioLiveMax                                              8          8
+mutPerS                                               116.1      120.2
+cssAnims                                                  1          1
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+cpu.busyMsPerS                                       469.58     464.79
+dmgNodes                                                 20         20
+  cpu cur (ms/drawn, ms/s): browser (style/layout/paint/compositor glue)=2.14/127.01; three: render submit=1.96/115.97; WebGL calls (native)=0.36/21.52; views (heroes/minions/towers/map)=0.34/19.96; render (gameView, camera, other)=0.33/19.8; instrumentation (probe)=0.32/18.94; canvas 2D calls (native)=0.27/15.84; three: uniforms=0.25/14.75; DOM API (native)=0.24/14.33; three: program keys=0.2/11.82; HUD/UI DOM=0.19/11.42; app/matchSession=0.18/10.71; animation=0.16/9.69; overhead canvas=0.14/8.52; input=0.12/6.95; VFX/telegraphs=0.09/5.31; other native=0.08/4.97; interp (SnapBuffer)=0.08/4.65; minimap=0.06/3.76; GC=0.06/3.31; identity VFX=0.05/2.81; host/net (worker messages)=0.04/2.58
+  fns cur:
+    127.01 ms/s (3) (program) (program):0
+    10.64 ms/s (3) projectObject node_modules/three/build/three.module.js:17897
+    10.53 ms/s (3) updateMatrixWorld node_modules/three/build/three.core.js:13067
+    9.53 ms/s (3) Su.renderBufferDirect node_modules/three/build/three.module.js:17233
+    8.82 ms/s (3) P.<computed> P.<computed>:47
+    8.03 ms/s (3) setFromRotationMatrix node_modules/three/build/three.core.js:11523
+    7.44 ms/s (3) bufferSubData bufferSubData:0
+    7.09 ms/s (3) multiplyMatrices node_modules/three/build/three.core.js:10570
+    5.78 ms/s (3) now now:3
+    5.46 ms/s (3) setValueM4 node_modules/three/build/three.module.js:5284
+    5.46 ms/s (3) renderObject node_modules/three/build/three.module.js:18192
+    5.36 ms/s (3) setProgram node_modules/three/build/three.module.js:18407
+    5.21 ms/s (3) update src/ui/hud.ts:705
+    4.85 ms/s (3) getProgram node_modules/three/build/three.module.js:18224
+    4.59 ms/s (3) update src/render/views/minionInstances.ts:280
+    4.48 ms/s (3) frame src/app/matchSession.ts:2005
+    4.43 ms/s (3) update src/render/gameView.ts:935
+    4.25 ms/s (3) composeBase src/render/chars/motion.ts:175
+  mut cur: i.sweep:attributes@style=42.6; button.pl-tbtn:attributes@style=42.6; button.pl-tbtn:attributes@class=5.8; b.num:childList=3.6; span:childList=3.6; div.fx-dmg:childList=2.7
+  audio cur: createBufferSource=2; createGain=4.6; createOscillator=2.3; createStereoPanner=0.7
+  cpu base (ms/drawn, ms/s): browser (style/layout/paint/compositor glue)=2.18/129.58; three: render submit=1.86/110.28; WebGL calls (native)=0.35/20.89; instrumentation (probe)=0.33/19.85; render (gameView, camera, other)=0.32/18.78; views (heroes/minions/towers/map)=0.31/18.46; three: uniforms=0.27/16.27; canvas 2D calls (native)=0.25/14.9; DOM API (native)=0.24/14.02; app/matchSession=0.23/13.51; animation=0.21/12.47; three: program keys=0.18/10.67; HUD/UI DOM=0.17/9.98; input=0.13/7.54; overhead canvas=0.13/7.53; other native=0.12/7.27; VFX/telegraphs=0.12/6.96; interp (SnapBuffer)=0.11/6.28; minimap=0.06/3.62; GC=0.05/3.22; host/net (worker messages)=0.05/3.19; other src=0.04/2.67
+  fns base:
+    129.58 ms/s (3) (program) (program):0
+    11.98 ms/s (3) Su.renderBufferDirect node_modules/three/build/three.module.js:17233
+    9.04 ms/s (3) projectObject node_modules/three/build/three.module.js:17897
+    8.95 ms/s (3) P.<computed> P.<computed>:47
+    8.71 ms/s (3) updateMatrixWorld node_modules/three/build/three.core.js:13067
+    7.51 ms/s (3) setFromRotationMatrix node_modules/three/build/three.core.js:11523
+    6.63 ms/s (3) multiplyMatrices node_modules/three/build/three.core.js:10570
+    5.75 ms/s (3) frame src/app/matchSession.ts:1996
+    5.64 ms/s (3) bufferSubData bufferSubData:0
+    5.26 ms/s (3) now now:3
+    5.19 ms/s (3) setValueM4 node_modules/three/build/three.module.js:5284
+    5.07 ms/s (3) setProgram node_modules/three/build/three.module.js:18407
+    4.53 ms/s (3) update src/render/views/minionInstances.ts:280
+    4.21 ms/s (3) getProgram node_modules/three/build/three.module.js:18224
+    4.12 ms/s (3) composeBase src/render/chars/motion.ts:175
+    4.02 ms/s (3) update src/render/gameView.ts:915
+    4.01 ms/s (3) getParameters node_modules/three/build/three.module.js:7357
+    3.98 ms/s (2) draw src/ui/overhead.ts:421
+  mut base: i.sweep:attributes@style=43.2; button.pl-tbtn:attributes@style=43.2; button.pl-tbtn:attributes@class=5.9; b.num:childList=3.6; span:childList=3.6; div.fx-dmg:attributes@style=3
+  audio base: createBufferSource=1.2; createGain=3.8; createOscillator=2.6; createStereoPanner=0.3
+
+## match-paused
+drawnFps                                                 15         15
+drawnJsMs                                              4.87       5.05
+jsMs.p95                                                5.4        5.5
+jsMs.max                                                6.6        7.2
+perDrawn.glCalls                                        518        562
+perDrawn.draws                                           59       61.5
+perDrawn.tris                                        195341     187581
+perDrawn.shadowDraws                                    9.5        9.5
+perDrawn.shadowTris                                   45637      43597
+perDrawn.blendDraws                                      14         16
+perDrawn.blendTris                                     6826       7045
+perDrawn.progSwitches                                  39.5       39.5
+perDrawn.uniforms                                        94         96
+programsBound                                            28         27
+gpuMs.p50                                              null          0
+gpuMs.p95                                              null       1.38
+heap.allocMBPerS                                       2.71       2.48
+heap.gcPerS                                             0.1        0.1
+cdp.scriptMsPerS                                         75       81.6
+cdp.taskMsPerS                                         92.3      101.2
+cdp.styleRecalcsPerS                                      0          0
+cdp.styleMsPerS                                           0          0
+cdp.layoutsPerS                                           0          0
+cdp.layoutMsPerS                                          0          0
+cdp.compositedLayers                                     16         18
+cdp.layerPaintsPerS                                       0          0
+cdp.nodes                                              1194        700
+c2d.pl-overhead.callsPerS                             979.2      759.5
+c2d.pl-overhead.msPerS                                 2.04       1.62
+c2d.pl-overhead.px                                   754020     754020
+c2d.pl-minimap.callsPerS                             4826.8     4533.2
+c2d.pl-minimap.msPerS                                  3.87       4.27
+audioNodesPerS                                            4          5
+audioStartsPerS                                           2        2.5
+audioLiveMax                                              8          8
+mutPerS                                                 0.2        0.2
+cssAnims                                                  0          0
+cssInfinite                                               0          0
+longtasks.n                                               0          0
+longtasks.max                                             0          0
+shaderMs                                                  0          0
+dmgNodes                                                 20         20
+  mut cur: html:attributes@data-draws=0.2
+  audio cur: createOscillator=2; createGain=2
+  mut base: html:attributes@data-draws=0.2
+  audio base: createOscillator=2.5; createGain=2.5
+
+## hitches cur
+  cur-c1: programsTotal=94 progs after live=[195,12918] gaps>50=[[60452,300],[135899,150]] longtasks=[] shaderSlow=[] browserSkipped= errors=0
+  cur-c2: programsTotal=94 progs after live=[177,12702] gaps>50=[[60417,317],[135931,167]] longtasks=[] shaderSlow=[] browserSkipped= errors=0
+  cur-c3: programsTotal=94 progs after live=[370,12678] gaps>50=[[60329,217],[135860,150]] longtasks=[] shaderSlow=[] browserSkipped= errors=0
+
+## hitches base
+  base-c1: programsTotal=72 progs after live=[493,12800,82537] gaps>50=[[60383,283],[135864,117]] longtasks=[] shaderSlow=[] browserSkipped=TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-info]') to be visible[22m
+ errors=0
+  base-c2: programsTotal=71 progs after live=[225,12666] gaps>50=[[60484,383],[135981,150]] longtasks=[] shaderSlow=[] browserSkipped=TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-info]') to be visible[22m
+ errors=0
+  base-c3: programsTotal=71 progs after live=[470,12646] gaps>50=[[60413,317],[135877,133]] longtasks=[] shaderSlow=[] browserSkipped=TimeoutError: page.waitForSelector: Timeout 10000ms exceeded.
+Call log:
+[2m  - waiting for locator('[data-info]') to be visible[22m
+ errors=0

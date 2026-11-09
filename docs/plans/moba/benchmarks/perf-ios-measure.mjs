@@ -38,9 +38,10 @@ const INSTR = () => {
     const wrap = (name, fn) => { const o = P[name]; if (!o) return; P[name] = function (...a) { fn.call(this, a); return o.apply(this, a); }; };
     const tri = (mode, count, inst = 1) => (mode === 4 ? count / 3 : mode === 5 || mode === 6 ? count - 2 : 0) * inst;
     wrap('drawElements', (a) => { S.gl.draws++; const t = tri(a[0], a[1]); S.gl.tris += t; if (S.fbOn) { S.gl.offDraws = (S.gl.offDraws||0)+1; S.gl.offTris = (S.gl.offTris||0)+t; } });
-    wrap('drawArrays', (a) => { S.gl.draws++; S.gl.tris += tri(a[0], a[2]); });
+    // iteration 2 (PERF-IOS §8.1): non-indexed draws count toward the shadow pass too (the hero meshes are non-indexed)
+    wrap('drawArrays', (a) => { S.gl.draws++; const t = tri(a[0], a[2]); S.gl.tris += t; if (S.fbOn) { S.gl.offDraws = (S.gl.offDraws||0)+1; S.gl.offTris = (S.gl.offTris||0)+t; } });
     wrap('drawElementsInstanced', (a) => { S.gl.draws++; const t = tri(a[0], a[1], a[4]); S.gl.tris += t; if (S.fbOn) { S.gl.offDraws = (S.gl.offDraws||0)+1; S.gl.offTris = (S.gl.offTris||0)+t; } });
-    wrap('drawArraysInstanced', (a) => { S.gl.draws++; S.gl.tris += tri(a[0], a[2], a[3]); });
+    wrap('drawArraysInstanced', (a) => { S.gl.draws++; const t = tri(a[0], a[2], a[3]); S.gl.tris += t; if (S.fbOn) { S.gl.offDraws = (S.gl.offDraws||0)+1; S.gl.offTris = (S.gl.offTris||0)+t; } });
     wrap('bindFramebuffer', (a) => { S.fbOn = !!a[1]; if (a[1]) S.gl.fbBinds++; });
     wrap('createTexture', () => S.gl.texCreated++);
     wrap('deleteTexture', () => S.gl.texDeleted++);

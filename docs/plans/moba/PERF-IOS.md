@@ -15,7 +15,9 @@ frame on phones, and a governor that steps quality down **before** iOS throttles
 Base: `origin/main` at `ee8258eb` (sim v16). The sim was not touched.
 
 **Status (2026-11-09):** Phase 1 and most of Phase 2 are implemented on `perf/pawlegends-ios-thermal`. Before and
-after numbers are in [§7](#7-after-the-fix-2026-11-09); what is still open is listed there.
+after numbers are in [§7](#7-after-the-fix-2026-11-09); what is still open is listed there. Iteration 2 (re-profile
+of the build with champion identity, the champion browser and sim v18, plus three fix tracks) is
+[§8](#8-iteration-2-2026-11-09).
 
 ---
 
@@ -486,3 +488,327 @@ exactly the hero-past-range-behind-a-last-hit / under-a-tower case; with the new
 project sets no `CADisableMinimumFrameDurationOnPhone` (WKWebView stays at 60 Hz on ProMotion phones) and the audio
 session is `.ambient` with mix-with-others.
 
+
+---
+
+## 8. Iteration 2 (2026-11-09)
+
+Founder request: "make another iteration of performance improvements". Iteration 1 (§7) is live. Since then the game
+gained per-champion identity VFX and sounds, the champion browser with live skill previews, hold-to-target on touch and
+sim v18. This section re-profiles that build, flags what got worse, ranks what is left and splits the fixes into three
+tracks that touch different files.
+
+### 8.1 How it was measured
+
+| | |
+|---|---|
+| Builds | **current** = `origin/main` `9b0fa506` (sim v18); **base** = `31b2ed60`, the tip of iteration 1 (sim v16). Both `vite build --sourcemap`, served side by side, measured **at the same time in pairs** (the host was under heavy load, load average 30–60 on 12 cores) |
+| Harness | New [`benchmarks/perf-ios-probe2.mjs`](benchmarks/perf-ios-probe2.mjs) (iPhone 15 Pro landscape 852×393, DPR 3, touch, Clem, auto tier = the phone profile). Counts every WebGL call on the game context, blended draws, program switches, programs linked after the drop and their defines, GPU time per frame (`EXT_disjoint_timer_query_webgl2`), rAF gaps over 50 ms with their time in the match, every Canvas 2D call per canvas, Web Audio node creation and live sources, DOM mutations by target. Chromium adds a CPU profile (self time mapped through the source maps to source files, then to the buckets below), a sampling heap profile that keeps collected objects (allocation sites), and CDP style/layout/layer metrics |
+| Script | Title 4 s, **lobby** 10 s; **champion browser** (Change hero → the "i" on Clem → the Q clip autoplays) 10 s; close; Play; **match** windows of 15 s at 0:00, 1:00, 2:00 and 2:15 while the stick walks the hero into lane fights and the probe taps ATK and Q/W/E/R in turn; **pause** 8 s |
+| Runs | Chromium on the GPU (ANGLE Metal), CPU ×4: 3 pairs, **medians** below. WebKit (Safari 27.2 engine), no throttle: 2 pairs. GPU time: 2 more Chromium pairs without the browser step (§8.4) |
+| Medians | [`perf-ios-iter2-chromium.txt`](benchmarks/perf-ios-iter2-chromium.txt), [`perf-ios-iter2-webkit.txt`](benchmarks/perf-ios-iter2-webkit.txt), [`perf-ios-iter2-gpu.txt`](benchmarks/perf-ios-iter2-gpu.txt) (`perf-ios-probe2-agg.mjs` prints them) |
+| Sim | `tools/headless-match.mjs`, 6 seeds Normal vs Normal, 1 process |
+
+Caveats. The probe's own hooks cost ~0.33 ms per frame at ×4 (shown as its own bucket, equal in both builds). Two GPU
+browsers ran at once on a loaded host, so absolute GPU milliseconds are inflated; compare columns, not with §3.4. The
+base build has no champion browser, so that window has no base column.
+
+**Correction to §7.** The iteration-1 harness counted only indexed draws into the shadow pass. The hero meshes are
+non-indexed, so the pass was half-counted: it is **~87k triangles and 18 draws per shadow update** (every second frame
+on phones), not ~40k. Per drawn frame that averages 39–43k triangles and 7.5–9.3 draws, in both builds. A per-frame
+trace confirmed it (10 indexed draws with 43k triangles plus 8 non-indexed draws with 43k triangles, then a frame with
+no shadow pass). `perf-ios-measure.mjs` now counts both.
+
+### 8.2 Current vs iteration 1 (Chromium, GPU, CPU ×4, medians of 3; current / base)
+
+| Window | Drawn fps | JS ms per drawn frame | CPU busy ms/s (profile) | GL calls / frame | Draws / frame (shadow) | Triangles / frame (shadow) | Blended draws (tris) | Heap alloc MB/s | Style recalcs/s | Layers | Audio nodes/s |
+|---|---|---|---|---|---|---|---|---|---|---|---|
+| Lobby | 29.3 / 29.3 | 0.99 / 1.02 | 79 / 88 | 92 / 92 | 10 (1) | 31.8k (10.0k) | 2 (112) | 0.43 / 0.44 | 59 / 59 | 12 / 12 | 0 / 0 |
+| **Champion browser + skill preview** | 29.5 lobby + **~60 preview** | 5.44 | **475** | 92 + preview | lobby 10, **preview 3,695 draws/s** | lobby 31.9k, **preview 10.7M tris/s** | – | **5.98** | **121** | **50** | **11** (sound is off) |
+| Match 0:00–0:15 | 59.9 / 60 | 4.55 / 4.69 | – | 483 / 477 | 48.1 / 48.0 (7.5) | 175k / 175k (39k) | 9.6 / 9.6 (6.9k) | 10.2 / 10.6 | 28 / 29 | 14 / 14 | 7.8 / 7.3 |
+| Match 1:00 | 58.8 / 58.8 | 4.99 / 4.82 | 446 / 419 | 549 / 540 | 56.1 / 55.9 (8.5) | 187k / 186k (43k) | 14.0 / 13.8 (7.4k / 7.1k) | 9.2 / 9.3 | 42 / 39 | 19 / 16 | **9.4 / 6.7** |
+| Match 2:00 | 59.9 / 59.9 | 5.18 / 4.94 | – | 540 / 526 | 58.5 / 58.1 (9.1) | 187k / 187k (43k) | 15.2 / 14.2 (7.3k / 6.9k) | 10.0 / 9.2 | 44 / 42 | 19 / 16 | **13.0 / 7.2** |
+| Match 2:15 | 59.4 / 59.4 | 5.34 / 5.36 | 470 / 465 | 523 / 535 | 59.1 / 59.8 (9.3) | 186k / 185k (43k) | 14.1 / 14.8 (7.0k) | 10.2 / 9.1 | 45 / 45 | 19 / 21 | 9.9 / 7.8 |
+| Pause menu | 15 / 15 | 4.87 / 5.05 | – | 518 / 562 | 59 / 61.5 | 195k / 188k | 14 / 16 | 2.7 / 2.5 | 0 / 0 | 16 / 18 | 4 / 5 |
+
+More, same runs (current / base):
+
+| | Current | Base |
+|---|---|---|
+| Overhead 2D canvas, match | 1278×590 (0.75 Mpx), 60 redraws/s, 2,950–3,590 calls/s (49–60 a frame) | same |
+| Minimap 2D canvas, match | 2,320–4,050 calls/s at 15 redraws/s: **150–270 calls a redraw** | 2,290–3,740 |
+| Minimap while **paused** | **4,400–4,830 calls/s** (redraws on, nothing changes) | 4,530–4,790 |
+| Program switches / uniform calls a frame | 37–39 / 104–112 | 37–39 / 104–110 |
+| WebGL programs on the game context (whole run) | 94 | 71 |
+| DOM mutations/s, match | 62–148 (top: `i.sweep@style` and `button.pl-tbtn@style`, **55/s each** while skills are on cooldown) | 62–142 (same) |
+| DOM nodes in the match (CDP) | 666–870; **1,100–1,190 after one champion-browser visit** | 625–854 |
+| Live audio sources, peak | 8 | 8 |
+
+WebKit (no throttle, 2 runs): match JS per drawn frame 1.41–1.78 ms current vs 1.43–1.64 base; lobby 0.32–0.49 vs
+0.33–0.34; **champion browser 2.24–2.27 ms per lobby frame** plus the preview's own loop (3,660–3,770 preview draws/s);
+overhead canvas 3,000–3,600 calls/s, minimap 2,280–3,900 (paused 4,400–4,800), same in both.
+
+**The match itself did not get heavier.** Every match column is within run-to-run noise of iteration 1 except audio
+nodes (+30–80% in fights) and blended draws (+0.3–1.0 a frame). The new costs are outside the match: the champion
+browser costs as much CPU as a live match.
+
+### 8.3 Per-frame CPU (Chromium ×4, match 1:00 and 2:15, ms per drawn frame, median of 6 samples)
+
+The ×4 throttle stands for a mid phone. Total busy **7.62 ms** current / 7.59 base (of a 16.7 ms frame).
+
+| Bucket | ms / frame | What is in it |
+|---|---|---|
+| Browser work outside JS | **2.20** | style recalcs (42–45/s), layout (6–9/s), paint and compositing of 16–19 layers, Canvas 2D dispatch, GC glue (V8 `(program)`) |
+| three.js render submission | **1.90** | `projectObject`, `updateMatrixWorld`, `multiplyMatrices`, frustum `setFromRotationMatrix`, `renderBufferDirect`, `setProgram` |
+| WebGL calls (native) | 0.35 | ~540 calls a frame: `uniformMatrix4fv` 75, `bindVertexArray` 73, `bindBuffer`/`bufferSubData` 60 each, `bindTexture` 41, `useProgram` 38 |
+| three.js uniforms / program keys | 0.24 / **0.18** | `setValueM4`, `refreshMaterialUniforms`; `getParameters` + `getProgram` re-derived every frame (§3.9, P2-3, still open) |
+| Views (heroes, minions, towers) | 0.30 | `minionInstances.update`, `heroView.update`, `layoutBodies` |
+| Render other (gameView, camera) | 0.31 | `GameView.update`, `animPost` |
+| Animation | 0.17 | `chars/motion.ts` `composeBase`/`update` |
+| Overlay canvases | 0.43 | Canvas 2D natives 0.24, `overhead.ts` 0.13, `minimap.ts` 0.06 |
+| HUD, DOM, input | 0.50 | DOM natives 0.22 (`setProperty`, `getPropertyValue`, `toggle`, `getBoundingClientRect`, `clientHeight`), `hud.ts` 0.16, input 0.12 (hold-to-target included; base 0.13) |
+| `matchSession.frame` | 0.18 | |
+| Interpolation (`SnapBuffer.sample`) | 0.11 | |
+| VFX and telegraphs / **identity VFX** | 0.10 / **0.04** | identity VFX are cheap on the CPU |
+| GC (collector itself) | 0.07 | the allocation cost is mostly in the glue above |
+| Host messages / audio JS | 0.04 / 0.02 | |
+| Sim on the main thread | 0 | the sim runs in the worker |
+| Probe hooks | 0.32 | measurement overhead, both builds |
+
+**Sim worker:** v18 runs 74,824 ticks in 6.4 s, v16 69,750 in 5.9 s (headless, bot brains included): **0.086 vs 0.085
+ms a tick**. Unchanged and small; the sim is still not a heat source.
+
+### 8.4 GPU proxies
+
+- **GPU time per frame** (timer queries, M3 Pro, two Chromium pairs without the browser step, paired): match p50
+  **1.07–1.42 ms current vs 1.07–1.38 base**, p95 1.55–2.21 vs 1.55–2.20; lobby 0.37–0.42 vs 0.37–0.43. No regression.
+- **Triangles:** 175–187k a drawn frame in a match, of which the shadow pass averages 39–43k (87k every second frame).
+  Six heroes are drawn up to three times (lit, outline hull, shadow) and the hero meshes are non-indexed, so the
+  shadow pass alone costs ~43k triangles of heroes plus ~43k of minions and map casters per update.
+- **Draws:** 48–60 a frame (shadow 7.5–9.3), ~540 WebGL calls a frame, 37–39 program switches, 30–33 programs bound.
+- **Blended (transparent) draws:** 9.6–15.2 a frame, 6.9–7.4k triangles: few triangles, but they are the screen-size
+  quads (particles, nature accents, identity motifs, telegraphs, rings). Identity VFX added **+0.3–1.0 blended draws
+  and +0.3–0.4k blended triangles** a frame in fights. The real cost is pixels (overdraw), which the harness cannot see;
+  Track A adds an overdraw view to measure it.
+- **Pixels a second:** 3D buffer 1065×491 (0.52 Mpx) + overhead canvas 0.75 Mpx, both at 60 Hz, + minimap 0.05 Mpx at
+  15 Hz: **~77 Mpx/s**, unchanged since §7.4. The 2D overlay is still the largest surface drawn each frame, and on iOS
+  it is rasterised on the CPU.
+- **Programs:** 94 on the game context in the current build against 71 (identity materials, compiled behind the
+  loading veil, so not a match cost).
+
+### 8.5 Garbage (sampling heap profile incl. collected objects, match 2:00, current, KB/s; base in brackets)
+
+Total **10.2 MB/s sampled** (9.3), `performance.memory` 9.2–10.2 MB/s (9.1–10.6), 0.4–0.5 GCs a second. Target < 2.
+
+| KB/s | Site |
+|---|---|
+| **1,978** + 748 (`Math.hypot`) | `render/views/minionInstances.ts` `update` (1,928 + 684) |
+| **731** + 128 + 143 (`join`) + 118 (`sort`) | three.js `getParameters` / `getProgramCacheKeyParameters` under `renderer.render`: the per-frame program-key rebuild (746 + 121 + 135 + 104) |
+| 592 + 286 (`Math.hypot`) + 211 + 106 | `heroView.ts` `layoutBodies`, `spreadSideways`, `clearOf` (627 + 308 + 203) |
+| 477 + 199 (`Map.set`) | `interp.ts` `sample`: a fresh `ViewFrame` and `ViewEntity` per entity per frame (450 + 175) |
+| 344 + 139 | three.js uniform uploads `setValueM4`, `setValueV3f` (360 + 137) |
+| 312 | `heroView.ts` `update` (231) |
+| 262 | `matchSession.ts` `frame` (263) |
+| 191 | three.js `applyBoneTransform` under `render`: a skinned mesh's bounds recomputed every frame (97) |
+| 168 / 142 | `overhead.ts` `draw` / `minimap.ts` `draw` |
+| 154 | `gameView.ts` `remember` (`for (const [id, w] of this.who)` entry arrays) |
+| 116 | `chars/motion.ts` `update` |
+| 30 | identity VFX (all 20 scripts together) |
+
+### 8.6 Hitches
+
+- **Chromium:** no long task and no rAF gap over 50 ms that is the game's own (the two gaps per run are the CPU
+  profiler starting).
+- **WebKit:** the 942 ms first-fight freeze of §3.2 is gone, but **four programs still link after the loading veil**,
+  in every run of both builds: two `MeshLambertMaterial [USE_SHADOWMAP, USE_COLOR]` 0.1–0.5 s after the drop, and a
+  skinned `ShaderMaterial [USE_SKINNING, USE_SHADOWMAP]` with its shadow-depth variant at **12.3–13.0 s**, the first
+  lane contact (one base run also linked a skinned `MeshLambertMaterial` at 56 s). WebKit frame gaps at those moments:
+  **118 ms and 165 ms** (current), 75 ms (base); other gaps of 102–186 ms appear at 21–56 s in both. Cause: `app.ts`
+  starts `renderer.compileAsync()` and drops the veil 250 ms later without waiting for it, and the scene it compiles
+  does not hold every skinned and shadow variant yet (most likely a hero rig that is hidden or not yet built at
+  compile time; Track C confirms which).
+- First ult: no separate hitch was seen in either engine (the ult programs are in the warm-up set).
+
+### 8.7 DOM and CSS
+
+- **Match:** style recalcs 28–45/s and DOM mutations 62–148/s, the same as the base. The steady source is the
+  cooldown display: `ui/hud.ts:796` writes `--cd` on the slot's `i.sweep` and `input/touch/touchControls.ts:1367`
+  writes `--cd` on the touch button **every frame while a skill cools down** (55/s each in fights). §7's 8–13 recalcs/s
+  were measured with attack taps only, so no cooldown was running. `ui/abilityBar.js` already does this the cheap way
+  (one CSS animation per cooldown start).
+- Composited layers 14–19 (base 14–21). The damage-number pool keeps 20 DOM nodes.
+- **Lobby:** 3 infinite CSS animations still drive ~59 style recalcs a second (base 4 animations): the largest lobby
+  cost on the CPU (1.46 ms per lobby frame at ×4, more than the 3D turntable's 0.8 ms).
+- **After a champion-browser visit** the match holds ~430 more DOM nodes (1,100–1,190 against 666–870 without a
+  visit). Possibly detached nodes kept alive by a listener or the preview; not confirmed.
+
+### 8.8 Audio (6-hero fights)
+
+Node creation **9.4–13.0 a second current vs 6.7–7.8 base** (+30–80%), 2.3 sources started a second, peak 8 live
+sources (the identity mix's voice cap holds). Each identity sound builds a `BufferSource` + `Gain` + `StereoPanner`;
+the music still builds an oscillator and gains per note (2.3 oscillators and ~3.5 gains a second). Small next to the
+render, but it is steady garbage in the audio thread.
+
+### 8.9 Champion browser and skill preview (new since iteration 1)
+
+The browser is a menu, and players may sit in it for minutes. It costs **as much CPU as a live match** (475 ms/s busy
+at ×4 against 79 in the lobby and 446–470 in a match):
+
+1. **The preview runs its own unpaced rAF loop** (`ui/preview/skillPreview.ts`): ~60 fps on a 60 Hz display and every
+   vsync on a faster one, outside the frame pacer and the governor. 3,695 draws and **10.7M triangles a second**, as
+   many triangles a second as the match (11M), for a 328×283 CSS px box.
+2. **The lobby keeps drawing behind it** at 30 fps: the pacer's `covered` flag only knows app overlays
+   (`app.ts:1663`), not `.pl-champ`.
+3. **A full-screen `backdrop-filter: blur(3px)`** on `.pl-champ` (`champBrowser.css:6`) over a canvas that changes 30
+   times a second: WebKit re-blurs the whole screen at native resolution each time.
+4. The preview's HP bars are a second 2D canvas at DPR 2 (656×566) redrawn ~59 times a second; its damage numbers are
+   the DOM pool (138 style mutations a second); 50 composited layers; 121 style recalcs a second; 7 infinite CSS
+   animations; 6 MB/s of garbage.
+5. **Bug: the "silent" preview plays the champions' identity sounds.** `mountSkillPreview` mutes by swapping
+   `sfx.play` and `sfx.voice` for the frame, but identity sounds go through `sfx.playLayer`, which calls the private
+   `start()` directly: 11 audio nodes a second with sound off, and the clip is audible in the menu.
+
+### 8.10 Regressions since iteration 1
+
+| Since iteration 1 | Effect | Severity |
+|---|---|---|
+| Champion browser + live skill preview | Menu at match-level CPU and triangles a second; lobby rendered behind it; full-screen backdrop blur; extra 2D canvas, DOM damage numbers, 50 layers | **High** (menu heat) |
+| Preview mute misses `playLayer` | Identity sounds play from the silent preview | Bug |
+| Champion identity sounds | Audio nodes +30–80% in fights | Low |
+| Champion identity VFX | +0.3–1.0 blended draws, +0.3–0.4k blended triangles a frame; +23 programs compiled at load; CPU 0.04 ms a frame; garbage 30 KB/s | Low (overdraw not measured) |
+| DOM after a browser visit | ~430 more nodes in the match | Low, to confirm |
+| Hold-to-target, sim v18 | No measurable change (input 0.12 vs 0.13 ms a frame; sim 0.086 vs 0.085 ms a tick) | None |
+
+Unchanged since iteration 1 and still open: the 2D overlay canvas, the program-key rebuild, ~9–10 MB/s of garbage,
+the per-frame cooldown writes, the post-veil shader links, and the shadow pass at twice the size §7 reported.
+
+### 8.11 Remaining heat and jank, ranked
+
+Impact on an iPhone is reasoned from the numbers above, not measured on a device (§6.3 is still open).
+
+| # | Source | Evidence | Est. impact |
+|---|---|---|---|
+| 1 | **Champion browser**: unpaced preview + lobby behind it + full-screen blur | §8.9: 475 ms/s CPU, 10.7M preview tris/s, 50 layers | **High** in menus: should drop to about the lobby's cost (~80–150 ms/s) |
+| 2 | **2D overlay** (overhead canvas full-screen at 60 Hz; minimap 150–270 calls a redraw, redrawing while paused) | §8.2, §8.4: 0.75 Mpx CPU raster a frame on iOS, 3,000–3,600 + 2,300–4,800 Canvas 2D calls a second through WebKit's GPU process; 0.43 ms a frame at ×4 plus part of the 2.2 ms browser work | **High** on iOS (CPU raster + IPC), medium elsewhere |
+| 3 | **Shadow pass**: 87k triangles every second frame, heroes non-indexed, static map casting | §8.1, §8.4 | **Medium**: about a quarter of the match's triangles a second |
+| 4 | **three.js submission + ~540 WebGL calls a frame** | §8.3: 1.9 + 0.35 + 0.24 ms a frame at ×4; static objects' matrices updated every frame | **Medium** (CPU and GPU-process IPC) |
+| 5 | **Garbage 9–10 MB/s** | §8.5 | **Medium–low**: GC work and the risk of a collection hitch in a fight |
+| 6 | **Program-key rebuild every frame** | §8.3 0.18 ms a frame, §8.5 ~1.1 MB/s | **Low–medium** (P2-3 of §5, still open) |
+| 7 | **Per-frame cooldown CSS writes** | §8.7: 55 + 55 writes/s, 42–45 style recalcs/s in fights | **Low–medium** (style + paint of the button cluster each frame) |
+| 8 | **Shader links after the veil** | §8.6: 4 programs, 75–186 ms WebKit gaps at the drop and at first contact | **Jank** (not heat) |
+| 9 | **Lobby idle**: 3 infinite CSS animations → 59 style recalcs/s | §8.7 | **Low** (menus) |
+| 10 | Overdraw of blended VFX, identity motifs included | §8.4 (not measured) | Unknown until Track A measures it |
+| 11 | Audio node churn | §8.8 | **Low** |
+
+### 8.12 Fix plan: three tracks, disjoint files
+
+Same rules as §5: the sim is not touched (`src/sim/**` belongs to no track; no `SIM_VERSION` bump), no feature flags,
+the fixed camera stays, telegraphs, HP bars, names, skill VFX and champion motifs stay readable, desktop quality does
+not change unless the new path is cheaper with no visible loss, tap-to-cast stays same-tick. A track that finds its fix
+in a file another track owns sends that track the one-line change instead of editing it. Each track measures with
+`perf-ios-probe2.mjs` against a base build of the same moment (pairs, medians of 3) and writes its numbers into §8.13.
+Shared files no track edits: `src/sim/**`, `render/coords.ts`, `render/palette.ts`, `render/identity.ts`
+(identity data), `data/**`, `net/**`, `host/**`.
+
+#### Track A: GPU and overlay
+
+Goal: no full-screen 2D canvas in a match, a cheaper shadow pass, dynamic resolution as a real lever, overdraw under
+control.
+
+1. **Bars and names off the full-screen 2D canvas.** Draw HP/shield bars, level chips and names with instanced quads in
+   the WebGL scene (one draw for bars, one for text from a glyph atlas or SDF; an orthographic overlay pass after the
+   scene, so no second canvas), reusing `overhead.ts`'s layout, declutter, edge pointers and HUD-rect avoidance
+   unchanged. Fallback if the WebGL text is not crisp enough at DPR 1.25: keep names on a 2D canvas but redraw it only
+   when a name, level or position bucket changes, and draw bars in WebGL. Target: 0 full-screen 2D canvases in a match
+   on phones, ≤ 3 extra draws, names as readable as today (side-by-side screenshots at 852×393 DPR 3).
+2. **Minimap:** batch by colour (one path per colour and shape bucket instead of per unit), cache the static layers
+   (lanes, bushes, structures) in the background image, and do not redraw while paused unless dirty. Target ≤ 60
+   Canvas 2D calls a redraw, ≤ 100 calls/s while paused.
+3. **Shadow pass:** on phones the static map does not cast into the shadow map (blob or baked shadows), heroes cast
+   through a low-poly proxy or a blob, and the map updates every 2nd frame at 512² (as now) or every 3rd when the
+   governor asks. The per-view `setShadows` toggles in `heroView.ts` and `minionInstances.ts` are Track B's files:
+   send B the change there. Target: ≤ 25k triangles a shadow update on phones (from 87k), desktop unchanged.
+4. **Dynamic resolution as an early, continuous governor lever** (`RENDER.dynamicRes` exists): scale the drawing buffer
+   between 0.8 and 1.0 of the tier DPR from GPU-time headroom before the 30 fps step, not only as the last two steps.
+5. **Outline hull and material cost:** measure the outline hull per hero (draws, triangles, pixels); options: skip the
+   hull for heroes further than N m from the player on phones, or a cheaper hull shader.
+6. **Overdraw:** add a debug overdraw view (`?overdraw=1`, additive one-colour shader) and measure a 6-hero fight. Cap
+   particle and identity-motif screen size and count on the phone profile where the view shows > 3× average overdraw;
+   telegraphs and motif shapes keep their silhouettes.
+
+Files owned by A: `ui/overhead.ts`, new `render/overlay/**`, `ui/minimap.ts`, `ui/minimapPrefs.ts`,
+`render/renderer.ts`, `render/quality.ts`, `render/perf/governor.ts`, `render/perf/device.ts`,
+`render/perf/thermal.ts`, `render/perf/prefs.ts`, `ui/perfReadout.ts`, `render/ppk/core/config.js`,
+`render/views/mapView.ts`, `render/chars/index.ts`, `render/chars/charMaterial.ts`, `render/skillfx/**`,
+`render/fx/natureFx.ts`, `render/fx/fun/**`, `render/fx/Particles.js`, `render/fx/Shockwaves.js`,
+`render/fx/GroundDecals.js`, `render/fx/Telegraphs.js`, `render/anim/fxkit/**`, tests
+`tests/unit/perf-overlay*.test.ts`.
+
+#### Track B: CPU and garbage
+
+Goal: < 2 MB/s of garbage in a 6-hero fight, no per-frame program-key rebuild, less three.js submission time, fewer
+audio nodes.
+
+1. **Allocation pass** (sites in §8.5): `minionInstances.update` (2.7 MB/s with `Math.hypot`; 2-argument `Math.hypot`
+   still allocates in V8: use `Math.sqrt(x*x + y*y)`), `heroView` `layoutBodies`/`spreadSideways`/`clearOf` (scratch
+   arrays sized once, no `.map`), `interp.ts` `sample` (double-buffered `ViewFrame` and pooled `ViewEntity` records
+   instead of `{ ...e }` per entity per frame; check every reader that keeps a frame across frames before reusing),
+   `matchSession.frame`, `heroView.update`, `chars/motion.ts`, `host/protocol.ts` `decodeSnap`, `input/navMirror.ts`.
+2. **Program-key rebuild (P2-3):** find the materials whose program key flips per draw (shared between instanced and
+   plain meshes, skinned and not, shadow-receiving and not, or `transparent` toggled by stealth/x-ray fades) with a
+   dev-only counter around `WebGLPrograms.getParameters` by material name, then split them per variant or move the
+   fade into a uniform. Target: 0 `getParameters` calls on a steady frame (it is ~1.1 MB/s and 0.18 ms a frame at ×4).
+3. **Skinned bounds:** `applyBoneTransform` under `render` (191 KB/s) means a skinned mesh's bounding volume is
+   recomputed every frame; give the rigs a fixed bounding sphere (or `frustumCulled` with a static sphere).
+4. **three.js submission:** `matrixAutoUpdate = false` on static objects (map, structures, decor) with one
+   `updateMatrix()` on change, fewer scene-graph nodes per hero (merge static accessories), and check the frustum
+   culling of instanced groups.
+5. **Audio:** reuse a small pool of `Gain` + `StereoPanner` voices for identity sounds and SFX (a new `BufferSource`
+   is required per play, the rest is not), and render the music's notes from baked buffers or a reused oscillator
+   bank. Target ≤ 5 nodes/s in a 6-hero fight.
+
+Files owned by B: `render/interp.ts`, `render/views/minionInstances.ts`, `render/views/heroView.ts`,
+`render/views/towerView.ts`, `render/views/companionView.ts`, `render/views/projectileView.ts`,
+`render/views/pickupView.ts`, `render/views/rig.ts`, `render/views/models.ts`, `render/toon.js`,
+`render/chars/motion.ts`, `render/chars/skeleton.ts`, `render/anim/` (except `fxkit/` and `ultMoment.ts`),
+`render/ppk/**` (except `core/config.js`), `app/matchSession.ts`, `input/navMirror.ts`, `host/protocol.ts` (decode
+only, no wire change), `audio/**`, tests `tests/unit/perf-alloc*.test.ts`.
+
+#### Track C: hitches and DOM
+
+Goal: no shader link after the loading veil, a champion browser that costs about what the lobby costs, no per-frame
+DOM/CSS writes in a match, a quiet lobby.
+
+1. **Precompile behind the veil:** keep the veil until `renderer.compileAsync(scene, camera)` resolves (with a time
+   cap), after placing every hero rig of both teams, a minion of each variant, the companions and the FX pools
+   (`meshFx`, `linger`, `ribbons`, identity motifs) visible for the compile, with shadows on so the shadow-depth and
+   skinned variants link too. Target: 0 programs linked after the veil in the probe's `progNames` in both engines, no
+   WebKit gap > 50 ms in the first 60 s.
+2. **Champion browser and preview:** the preview goes through a pacer (30 fps, and it stops after a few loops or when
+   the clip is off screen, as now); the lobby is `covered` while `.pl-champ` is open (render once, then nothing or
+   15 fps); no `backdrop-filter` on phones (a solid dim instead); the preview's bars canvas at DPR ≤ 1.5 and redrawn at
+   the preview's rate; no DOM damage numbers in the preview (or canvas ones); **the mute also covers `playLayer`**
+   (fix the bug in §8.9); check the ~430-node DOM residue after closing. Target: browser ≤ 150 ms/s CPU at ×4 (from
+   475), ≤ 2M preview triangles a second, ≤ 20 layers, 0 audio nodes with sound off.
+3. **Cooldowns without per-frame writes:** `ui/hud.ts:796` and `touchControls.ts:1367` start one CSS animation per
+   cooldown start (as `ui/abilityBar.js` does: `--cd0`, `--cdd`, a class) instead of writing `--cd` every frame.
+   Same-tick tap-to-cast and hold-to-target are not touched (only the cooldown display code in `touchControls.ts`).
+   Target: ≤ 10 style recalcs/s and ≤ 20 DOM mutations/s in a fight with skills on cooldown.
+4. **Damage numbers and flashes:** the DOM pool (`render/fx/DamageNumbers.js`) keeps transform/opacity-only updates,
+   drops `-webkit-text-stroke`/`text-shadow` on phones (baked outline font or a canvas sprite sheet), and writes
+   nothing for idle nodes; check `lifecycle.ts` and `ultMoment.ts` flashes stay opacity-only.
+5. **Lobby idle:** replace or stop the 3 infinite CSS animations while nothing changes (pause them when the lobby is
+   idle for a few seconds, or run them on the canvas); target ≤ 5 style recalcs/s on the title screen.
+6. **`gameView.remember()`** iterates `this.who` without entry arrays (154 KB/s; it sits in this track's file).
+7. **Perf e2e** (§6.2, still unwritten): `tests/e2e/perf-ios.spec.ts` with the limits the three tracks reach.
+
+Files owned by C: `app/app.ts`, `render/gameView.ts`, `render/effects.ts`, `render/perf/pacer.ts`,
+`render/perf/viewport.ts`, `render/fx/DamageNumbers.js`, `render/fx/lifecycle.ts`, `render/fx/lifecycle.css`,
+`render/fx/lifecycleHud.ts`, `render/anim/ultMoment.ts`, `render/lobby.ts`, `render/juice.ts`, `ui/hud.ts`,
+`ui/abilityBar.js`, `input/touch/touchControls.ts` (cooldown display only), `ui/champBrowser/**`, `ui/preview/**`,
+`ui/lobby/**`, `ui/screens.ts`, `ui/ui.css`, `ui/lol-hud.css`, `ui/feel.css`, tests `tests/e2e/perf-ios.spec.ts` and
+`tests/unit/perf-dom*.test.ts`.
+
+### 8.13 Results
+
+To be filled by the tracks: the §8.2 table again (current build vs the build before the track), with the targets above.
