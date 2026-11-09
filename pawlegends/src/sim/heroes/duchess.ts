@@ -7,14 +7,14 @@
  */
 import { PROJECTILE_KIND } from '../../data/towers';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, Kind } from '../world';
+import { Kind, MAX_ENTITIES } from '../world';
 import { addShield, addStack, collect, consumeStack, dash, fireSkillshot, inCone, inRing, slow, spawnBurst, stun, ON_HIT, PFLAG } from '../effects';
 import { creditHealShield } from '../effects/heal';
 import { dealDamage } from '../combat/damage';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {

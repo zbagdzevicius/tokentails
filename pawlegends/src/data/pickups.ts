@@ -32,10 +32,22 @@ export const PICKUPS = Object.freeze({
  * team is closer). Spawns alternate between the river's lane crossings (Sunny and Puddle Lane, where the fights
  * are) and its two jungle spots.
  */
-export const FRENZY_SPOTS = Object.freeze([
+const C_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = Object.freeze([
   Object.freeze([50000, 52000, 50000, 8000] as const),
   Object.freeze([50000, 41000, 50000, 19000] as const),
 ]);
 
 /** Fish Snack spot: this far behind (toward the own core) the team's outer tower of the lane, or its inner one. */
 export const SNACK_BEHIND = 4000;
+
+export const CROSSING_FRENZY_SPOTS = C_FRENZY_SPOTS;
+/** Sim v18: Hearthwood's Frenzy pairs, each spot the other's reflection, all on the river. */
+export const HEARTHWOOD_FRENZY_SPOTS: readonly (readonly [number, number, number, number])[] = Object.freeze([
+  Object.freeze([80000, 48000, 48000, 80000] as const),
+  Object.freeze([108000, 20000, 20000, 108000] as const),
+]);
+/** Live binding (src/sim/map/runtime.ts bindMap). */
+export let FRENZY_SPOTS = C_FRENZY_SPOTS;
+export function setFrenzySpots(s: readonly (readonly [number, number, number, number])[]): void {
+  FRENZY_SPOTS = s;
+}

@@ -25,6 +25,11 @@ export const PING_TEXT: Readonly<Record<PingKind, PingText>> = Object.freeze({
   defend: { label: 'Defend base', ack: 'Heading home to defend!', icon: 'shield', color: '#9be59b' },
   fallBack: { label: 'Fall back', ack: 'Backing off!', icon: 'dash', color: '#ff9f6e' },
   focus: { label: 'Focus hero', ack: 'On it!', icon: 'sword', color: '#ff4d5e' },
+  // Sim v18 (5v5 Classic on Hearthwood Divide).
+  pushFence: { label: 'Push Fenceline', ack: 'Pushing Fenceline!', icon: 'arrows', color: '#ffe08a' },
+  pushYarn: { label: 'Push Yarn Road', ack: 'Pushing Yarn Road!', icon: 'lance', color: '#f6a5ff' },
+  pushGutter: { label: 'Push Gutterway', ack: 'Pushing Gutterway!', icon: 'charge', color: '#7ee0d6' },
+  grizzlechop: { label: 'Take Grizzlechop', ack: 'Going for Grizzlechop!', icon: 'crown', color: '#ffb36b' },
 });
 
 /** The refusal bark ('heal'): a bot under 35% HP or napping. */

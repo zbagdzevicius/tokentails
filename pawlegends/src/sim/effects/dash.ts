@@ -9,7 +9,7 @@ import { TICK_HZ, TIMELINE } from '../../data/timeline';
 import { clamp, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import { cellOf, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
-import { FM, G, Kind, Order, type World } from '../world';
+import { FM, G, Kind, Order, type World, fmClear } from '../world';
 import { clampToArena } from './tether';
 
 const pos = new Int32Array(2);
@@ -71,15 +71,36 @@ export function gateClampX(w: World, id: number, x: number): number {
   return w.team[id] === 0 ? Math.min(x, MAP.barrierX) : Math.max(x, mirrorX(MAP.barrierX));
 }
 
+/**
+ * Sim v18 (point maps): before the barrier drops, a hero's own movement stays on its side of the diagonal gate
+ * (x + y = barrierSum, team 1 its reflection). Writes the clamped point into `gateOut` (moved straight back across
+ * the line, perpendicular to it).
+ */
+export const gateOut = new Int32Array(2);
+export function gateClampXY(w: World, id: number, x: number, y: number): void {
+  gateOut[0] = x;
+  gateOut[1] = y;
+  if (w.globals[G.Tick] >= TIMELINE.barrierDrop || w.kind[id] !== Kind.Hero) return;
+  const over = w.team[id] === 0 ? x + y - MAP.barrierSum : MAP.width + MAP.height - MAP.barrierSum - x - y;
+  if (over <= 0) return;
+  const d = (over + 1) >> 1;
+  const s = w.team[id] === 0 ? -d : d;
+  gateOut[0] = x + s;
+  gateOut[1] = y + s;
+}
+
 /** Start forced movement of `id` to (tx, ty) over `ticks`. A knockback is not clamped at the gate. */
 export function startForced(w: World, id: number, tx: number, ty: number, ticks: number, kind: number): void {
-  if (kind !== FM.Knock) tx = gateClampX(w, id, tx);
+  if (kind !== FM.Knock && MAP.point === 1) {
+    gateClampXY(w, id, tx, ty);
+    tx = gateOut[0];
+    ty = gateOut[1];
+  } else if (kind !== FM.Knock) tx = gateClampX(w, id, tx);
   w.fmX[id] = tx;
   w.fmY[id] = ty;
   w.fmT[id] = Math.max(1, ticks);
   w.fmKind[id] = kind;
-  w.fmHitLo[id] = 0;
-  w.fmHitHi[id] = 0;
+  fmClear(w, id);
   w.windup[id] = 0;
   w.pathLen[id] = 0;
 }

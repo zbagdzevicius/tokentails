@@ -28,7 +28,6 @@ import { nearestPickup } from '../units/pickup';
 
 const SUNNY = 0;
 const MODE_HOME = 1;
-const HEROES_N = RANGE.minions - RANGE.heroes;
 
 /** Nearest visible enemy hero within `r` that has been in view for the reaction time, or −1. */
 function nearestHero(w: World, id: number, mem: BotMem, tick: number, r: number, P: NaiveParams): number {
@@ -36,7 +35,7 @@ function nearestHero(w: World, id: number, mem: BotMem, tick: number, r: number,
   let best = -1;
   let bestD = 0;
   for (let e = RANGE.heroes; e < RANGE.minions; e++) {
-    const k = id * HEROES_N + e;
+    const k = id * RANGE.minions + e;
     if (!seenEnemy(w, team, e)) {
       mem.seen[k] = -1;
       continue;
@@ -114,7 +113,7 @@ export function naiveThink(m: MatchHandle, id: number, mem: BotMem, rng: Rng, P:
     mem.foe[id] = -1;
     const hx = fountainX(team);
     if (w.order[id] === Order.Move && w.moveX[id] === hx) return null;
-    return { op: Op.Move, x: hx, y: fountainY() };
+    return { op: Op.Move, x: hx, y: fountainY(team) };
   }
   // After P.towerHits tower hits in a row it finally backs off to its own tower (and forgets the chase).
   if (pounded) {
@@ -162,7 +161,7 @@ export function naiveThink(m: MatchHandle, id: number, mem: BotMem, rng: Rng, P:
   // (A wave still behind the own outer structure is not walked back to: it waits there in front of it.)
   const own = laneStructure(w, team, SUNNY, true);
   const front = laneFront(w, team, SUNNY);
-  const ahead = front >= 0 && progressOf(team, w.x[front]) - P.followBehind > progressOf(team, w.x[own]) + P.followBehind;
+  const ahead = front >= 0 && progressOf(team, w.x[front], w.y[front]) - P.followBehind > progressOf(team, w.x[own], w.y[own]) + P.followBehind;
   const gx = ahead ? w.x[front] - sign(team) * P.followBehind : w.x[own] + sign(team) * P.followBehind;
   const gy = ahead ? w.y[front] : w.y[own];
   if (w.order[id] === Order.AttackMove && Math.abs(w.moveX[id] - gx) < P.followBehind && Math.abs(w.moveY[id] - gy) < P.followBehind) return null;

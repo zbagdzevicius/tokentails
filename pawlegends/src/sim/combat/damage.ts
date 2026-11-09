@@ -13,14 +13,15 @@ import type { SimEvent } from '../api';
 import { ZONE_KIND } from '../../data/effects';
 import { BP_ONE, applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
-import { G, Kind, Order, RANGE, UnitState, type World } from '../world';
+import { G, Kind, Order, RANGE, UnitState, type World, TEAM_NEUTRAL } from '../world';
 import { attackRange, coreExposed, isInvulnerable, isStructure } from '../units/kinds';
 import { onStructureDestroyed } from '../units/tower';
 import { clearStatus } from '../effects/status';
 import { endArena } from '../effects/tether';
 import { kitOf } from '../heroes/kit';
 import { campKilled, heroKilled, minionKilled } from '../progression/xp';
-import { onRatDied, packBuff } from '../units/camp';
+import { campReward, onRatDied, packBuff, stealJungleBuffs } from '../units/camp';
+import { HEARTHWOOD_PVP, HEARTHWOOD_RULES } from '../../data/maps/hearthwood';
 import { onPuddingDown } from '../units/pudding';
 import { respawnTicks } from '../progression/respawn';
 import { toyIncoming, toyLifesteal, toyOutgoing } from '../progression/fish';
@@ -82,6 +83,17 @@ export function dealDamage(
         raw = applyBp(raw, HEROES[HERO_IDS[w.sub[src]]].pvp.dmgBp);
         raw = applyBp(raw, HEROES[HERO_IDS[w.sub[dst]]].pvp.takenBp);
       }
+      // Sim v18: Hearthwood's own hero-vs-hero row (per species, then per hero).
+      if (w.mg.length > 0) {
+        const s = HEROES[HERO_IDS[w.sub[src]]];
+        const d = HEROES[HERO_IDS[w.sub[dst]]];
+        raw = applyBp(raw, HEARTHWOOD_PVP[s.side].dmgBp);
+        raw = applyBp(raw, HEARTHWOOD_PVP[d.side].takenBp);
+        const hs = HEARTHWOOD_PVP.hero[s.id];
+        const hd = HEARTHWOOD_PVP.hero[d.id];
+        if (hs) raw = applyBp(raw, hs.dmgBp);
+        if (hd) raw = applyBp(raw, hd.takenBp);
+      }
     }
     if (isHumanSlot(w, src)) raw = applyBp(raw, rulesOf(m).humanDamageBp);
   }
@@ -117,8 +129,19 @@ export function dealDamage(
     dmg = Math.max(0, Math.min(dmg, w.hp[dst] - applyBp(w.maxHp[dst], rulesOf(m).humanCoreFloorBp)));
   }
   w.hp[dst] -= dmg;
+  // Sim v18 (Hearthwood): both teams on one neutral objective in the same tick. Hits resolve in an order, so "the last
+  // hit wins" would hand every same-tick finish to whichever team resolves later; the credit goes to team 0 on even
+  // ticks and team 1 on odd ticks instead (the camp's aggro follows it).
+  const keep =
+    w.mg.length > 0 &&
+    w.team[dst] === TEAM_NEUTRAL &&
+    w.hurtTick[dst] === tick &&
+    w.lastHitBy[dst] >= 0 &&
+    src >= 0 &&
+    w.team[w.lastHitBy[dst]] === (tick & 1) &&
+    w.team[src] !== (tick & 1);
   w.hurtTick[dst] = tick;
-  if (src >= 0) w.lastHitBy[dst] = src;
+  if (src >= 0 && !keep) w.lastHitBy[dst] = src;
   if (heroDst && src >= 0 && src < RANGE.minions && w.team[src] !== w.team[dst]) {
     w.assistTick[dst * (RANGE.minions - RANGE.heroes) + src] = tick;
     w.kHurt[dst] = tick;
@@ -242,6 +265,11 @@ export function resolveDeaths(m: MatchHandle): void {
       }
       // Sim v12 (docs/FUN-PROGRESSION-V12.md S3): no wait is longer than RESPAWN.hardCap.
       w.timer[id] = Math.min(w.timer[id], RESPAWN.hardCap);
+      // Sim v18 (Hearthwood, MAP-5V5.md §1.9): waits × 1.3, capped at 25 s; the victim's jungle buffs go to its killer.
+      if (w.mg.length > 0) {
+        w.timer[id] = Math.min(applyBp(w.timer[id], HEARTHWOOD_RULES.respawnBp), HEARTHWOOD_RULES.respawnCap);
+        stealJungleBuffs(m, id, killer);
+      }
       heroKilled(m, id);
       // From Sunset (v4; Sudden Death before): each takedown deals core damage to the victim's core.
       // Sim v5: before Sudden Death it scales with how open that core is (an inner tower down: the full share, else
@@ -273,7 +301,10 @@ export function resolveDeaths(m: MatchHandle): void {
       minionKilled(m, id);
     } else if (k === Kind.Camp) {
       const by = campKilled(m, id);
-      if (onRatDied(w, id) && by >= 0) packBuff(m, by);
+      const cleared = onRatDied(w, id);
+      // Sim v18: Hearthwood's camps give their own rewards (no Pack buff there); Crossing's rats as in v17.
+      if (w.mg.length > 0) campReward(m, id, by);
+      else if (cleared && by >= 0) packBuff(m, by);
     } else if (k === Kind.Tower || k === Kind.Core) {
       onStructureDestroyed(m, id);
     }

@@ -6,13 +6,13 @@
  * napping refuses and barks 'heal' ("Healing first!"); Fall back is never refused. A new ping replaces the order.
  */
 import { BOT_AI } from '../../data/bots';
-import { CORE, MAP, mirrorX } from '../../data/map';
+import { CORE, MAP, mirrorX, mirrorY } from '../../data/map';
 import { LANE_SWAP, PING, PING_KIND, PING_KINDS, type BarkKind } from '../../data/pings';
 import { HUMAN_SLOT, NO_TARGET, SLOTS_PER_TEAM, type Command, type SimEvent, type Team } from '../api';
 import { dist2 } from '../fixed';
-import { nearLane } from '../map/grid';
+import { nearLane, nearestLane } from '../map/grid';
 import type { MatchHandle } from '../state';
-import { G, RANGE, type World } from '../world';
+import { G, MG, RANGE, type World } from '../world';
 import { hpBp, seenEnemy } from './sense';
 import { isHumanSlot, leadOf } from '../humans';
 
@@ -91,7 +91,9 @@ function humanLaneNow(w: World): number {
   const y = w.y[h];
   if (w.alive[h] === 0 || !nearLane(x, y, BOT_AI.leashLane)) return -1;
   const r2 = LANE_SWAP.baseRange * LANE_SWAP.baseRange;
-  if (dist2(x, y, CORE.x, CORE.y) <= r2 || dist2(x, y, mirrorX(CORE.x), CORE.y) <= r2) return -1;
+  if (dist2(x, y, CORE.x, CORE.y) <= r2 || dist2(x, y, mirrorX(CORE.x), mirrorY(CORE.y)) <= r2) return -1;
+  // Sim v18: on a point map, the nearest of its lanes.
+  if (MAP.point === 1) return nearestLane(x, y);
   return y >= MAP.height >> 1 ? 0 : 1;
 }
 
@@ -102,6 +104,10 @@ function humanLaneNow(w: World): number {
 export function stepLaneSwap(w: World): void {
   // Sim v16 PvP: no lane swap (it follows team 0's human only, so it would favour one side).
   if (w.pvp === 1) return;
+  if (w.mg.length > 0) {
+    stepRoleSwap(w);
+    return;
+  }
   const lane = humanLaneNow(w);
   const cur = w.globals[G.LaneSwap];
   const wants = lane < 0 ? cur : lane;
@@ -116,8 +122,38 @@ export function stepLaneSwap(w: World): void {
   } else w.globals[G.LaneSwapT] = t;
 }
 
-/** The lane role of hero `id` (0 Sunny, 1 Puddle, 2 roams), after the lane swap of the human's team. */
+/**
+ * Sim v18 (Hearthwood, MAP-5V5.md §4.1): the lane swap over five roles. Once the human has stood LANE_SWAP.hold ticks
+ * in a row in another role's lane (from LANE_SWAP.from on), it takes that lane's role and the allied bot that had it
+ * takes the human's old role. G.LaneSwap holds the lane being held (+1), G.LaneSwapT the ticks.
+ */
+function stepRoleSwap(w: World): void {
+  const lane = humanLaneNow(w);
+  const mine = w.mg[MG.Role + HUMAN_SLOT];
+  if (lane < 0 || lane === mine || w.globals[G.Tick] < LANE_SWAP.from) {
+    w.globals[G.LaneSwapT] = 0;
+    return;
+  }
+  if (w.globals[G.LaneSwap] !== lane + 1) {
+    w.globals[G.LaneSwap] = lane + 1;
+    w.globals[G.LaneSwapT] = 0;
+  }
+  if (++w.globals[G.LaneSwapT] < LANE_SWAP.hold) return;
+  w.globals[G.LaneSwapT] = 0;
+  const team = w.team[HUMAN_SLOT];
+  const first = team * SLOTS_PER_TEAM;
+  for (let id = first; id < first + SLOTS_PER_TEAM; id++) {
+    if (id === HUMAN_SLOT || isHumanSlot(w, id) || w.mg[MG.Role + id] !== lane) continue;
+    w.mg[MG.Role + id] = mine;
+    w.mg[MG.Role + HUMAN_SLOT] = lane;
+    return;
+  }
+}
+
+/** The lane role of hero `id` (0 Sunny, 1 Puddle, 2 roams), after the lane swap of the human's team. Sim v18
+ *  (Hearthwood): its ROLE (bots/roles.ts; lane roles are the lane index). */
 export function laneRole(w: World, id: number): number {
+  if (w.mg.length > 0) return w.mg[MG.Role + id];
   const role = id % SLOTS_PER_TEAM;
   if (w.globals[G.LaneSwap] === 1 && w.team[id] === w.team[HUMAN_SLOT] && role < 2) return 1 - role;
   return role;

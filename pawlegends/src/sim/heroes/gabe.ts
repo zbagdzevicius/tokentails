@@ -8,13 +8,13 @@
 import { dist2, idiv, isqrt } from '../fixed';
 import { toySupport } from '../progression/fish';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, Kind, RANGE, type World } from '../world';
+import { Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { addShield, charm, collect, dash, haste, heal, inCone, slow, spawnBurst } from '../effects';
 import { creditHealShield } from '../effects/heal';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {

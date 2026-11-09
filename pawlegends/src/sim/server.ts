@@ -10,7 +10,8 @@ import { DIFFICULTIES } from '../data/bots';
 import { HERO_IDS } from '../data/heroes';
 import { MAX_TICKS } from '../data/limits';
 import { TRICK_IDS } from '../data/tricks';
-import { MAX_INPUT_CHARS, MUTATORS, type ReplayRecord, type VerifyCode, type VerifyResult } from './api';
+import { MAP_IDS, MAX_INPUT_CHARS, MUTATORS, type MapId, type ReplayRecord, type VerifyCode, type VerifyResult } from './api';
+import { bindMap, mapIndex } from './map/runtime';
 import { DecodeError } from './commands';
 import { runReplay } from './replay';
 import { SIM_VERSION } from './version';
@@ -36,6 +37,9 @@ export function checkReplayShape(r: unknown): VerifyResult | null {
     return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown difficulty');
   if (typeof x.hero !== 'string' || !(HERO_IDS as readonly string[]).includes(x.hero)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown hero');
   if (typeof x.trick !== 'string' || !(TRICK_IDS as readonly string[]).includes(x.trick)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown trick');
+  // Sim v18: the map (omitted: Crossing); the limits below are that map's.
+  if (x.map !== undefined && !(MAP_IDS as readonly unknown[]).includes(x.map)) return fail('PAWLEGENDS_REPLAY_INVALID', 'unknown map');
+  bindMap(mapIndex(x.map as MapId | undefined));
   if (typeof x.ticks !== 'number' || !Number.isInteger(x.ticks) || x.ticks < 1) return fail('PAWLEGENDS_REPLAY_INVALID', 'ticks must be a positive integer');
   if (x.ticks > MAX_TICKS) return fail('PAWLEGENDS_TOO_LONG', `ticks over ${MAX_TICKS}`);
   if (typeof x.inputs !== 'string') return fail('PAWLEGENDS_REPLAY_INVALID', 'inputs must be a string');
@@ -86,6 +90,9 @@ export {
 } from './party';
 export { createMatch, step, hash, hashTrail, result, tickOf, fillPicks, playerBotCommands, PLAYER_PROFILES, DIFFICULTIES } from './index';
 export { decodeCommand, encodeCommand, quantize, encodeStream, decodeStream, toBase64, fromBase64, DecodeError } from './commands';
+export { MAP_IDS, teamSizeOf, slotCountOf, teamOfSlot, leadSlotOf, type MapId } from './api';
+export { mapInfo, type MapInfo } from './map/info';
+export { rolesOf } from './bots/roles';
 export { Op, NO_TARGET, PVP_LEAD1, type PartyReplayRecord, type PartySeat, type PvpReplayRecord, type Command, type TimedCommand } from './api';
 export { HERO_IDS } from '../data/heroes';
 export { TRICK_IDS } from '../data/tricks';
@@ -104,7 +111,9 @@ import type { MatchHandle } from './state';
  */
 export function humanAliveMask(m: MatchHandle): number {
   let mask = 0;
-  const end = m.pvp ? RANGE.heroes + 6 : 3;
+  // Sim v18: the match's map (Hearthwood: slots 0..4, or 0..9 in PvP).
+  const per = m.world.map === 0 ? 3 : 5;
+  const end = m.pvp ? RANGE.heroes + per * 2 : per;
   for (let s = RANGE.heroes; s < end; s++) if (m.world.alive[s] === 1) mask |= 1 << s;
   return mask;
 }

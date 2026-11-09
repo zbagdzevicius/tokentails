@@ -7,7 +7,7 @@ import { ZONE_KIND } from '../../data/effects';
 import { toySupport } from '../progression/fish';
 import { dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, G, Kind, RANGE, allocZone, type World } from '../world';
+import { G, Kind, RANGE, allocZone, type World, MAX_ENTITIES } from '../world';
 import { radiusOf } from '../units/kinds';
 import { dealDamage } from '../combat/damage';
 import { creditHealShield, heal } from './heal';
@@ -79,7 +79,7 @@ export function spawnBurst(
   return z;
 }
 
-const burstHits = new Int32Array(ENTITY_CAP);
+const burstHits = new Int32Array(MAX_ENTITIES);
 
 /** One pulse of burst zone `z`. */
 function pulse(m: MatchHandle, z: number): void {

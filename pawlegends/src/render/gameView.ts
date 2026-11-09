@@ -89,7 +89,7 @@ const WHO_TTL = 3;
 export const DENY_RING_S = 0.4;
 
 /** Hover ring size (m) by unit kind: just outside the unit's own relation ring. Heroes use HERO_RING × 1.3. */
-export const HOVER_RING: Readonly<Record<EntityKind, number>> = Object.freeze({ hero: 0, minion: 1.55, tower: 3.8, core: 7, fountain: 0, camp: 1.8, pudding: 4.8, pickup: 0 });
+export const HOVER_RING: Readonly<Record<EntityKind, number>> = Object.freeze({ hero: 0, minion: 1.55, tower: 3.8, core: 7, fountain: 0, camp: 1.8, pudding: 4.8, pickup: 0, boss: 3 });
 export const hoverRingSize = (kind: EntityKind, hero: HeroId | undefined | null): number => (kind === 'hero' ? HERO_RING[hero ?? 'clem'] * 1.3 : HOVER_RING[kind]);
 /** Hover ring colours: red = a click attacks it (the enemy cursor is red too), mint = an ally. */
 export const HOVER_COLOR = Object.freeze({ enemy: RELATION.danger, ally: 0x5ff0a8 });

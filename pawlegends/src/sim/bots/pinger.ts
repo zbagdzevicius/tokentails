@@ -17,7 +17,7 @@
  * Your call 19 in docs/plans/moba/GAPS.md.
  */
 import { BOT_AI, PINGER } from '../../data/bots';
-import { nearLane } from '../map/grid';
+import { nearLane, nearestLane } from '../map/grid';
 import { CAPS, MAP, TOWER_SPOTS } from '../../data/map';
 import { PING, PING_KIND, PING_KINDS } from '../../data/pings';
 import { PUD_STATE } from '../../data/pudding';
@@ -125,9 +125,10 @@ export function pingerPing(m: MatchHandle, pm: PingerMem, h = HUMAN_SLOT): Comma
     return send(PING_KIND.Focus, w.x[t], w.y[t], t, PING.focusTicks);
   }
   // Push: two enemy heroes down, slot 0 healthy in a lane: the whole team pushes that lane.
-  const lane = w.y[h] >= MAP.height >> 1 ? PING_KIND.PushSunny : PING_KIND.PushPuddle;
+  // Sim v18: on a point map, a push ping for the nearest of its three lanes.
+  const lane = MAP.point === 1 ? PING_KIND.PushFence + nearestLane(w.x[h], w.y[h]) : w.y[h] >= MAP.height >> 1 ? PING_KIND.PushSunny : PING_KIND.PushPuddle;
   if (ready(lane) && enemiesDown(w, team) >= PINGER.pushDown && hpBp(w, h) >= PINGER.groupHpBp && nearLane(w.x[h], w.y[h], BOT_AI.leashLane)) {
-    pm.next[PING_KIND.PushSunny + PING_KIND.PushPuddle - lane] = tick + PING.orderTicks;
+    if (MAP.point === 0) pm.next[PING_KIND.PushSunny + PING_KIND.PushPuddle - lane] = tick + PING.orderTicks;
     return send(lane, w.x[h], w.y[h], NO_TARGET, PING.orderTicks);
   }
   // Group on me: an enemy hero is down, slot 0 is healthy in a lane and an ally is far away (push the numbers).

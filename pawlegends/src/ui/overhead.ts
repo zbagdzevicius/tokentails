@@ -22,8 +22,8 @@ import { HEROES } from '../data/heroes';
 import { XP } from '../data/xp';
 import { cutName } from '../meta/cardName';
 
-const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0 };
-const SIZE: Record<ViewEntity['kind'], [number, number]> = { hero: [70, 9], minion: [24, 3], tower: [86, 8], core: [120, 10], fountain: [0, 0], camp: [44, 5], pudding: [110, 9], pickup: [0, 0] };
+const LIFT: Record<ViewEntity['kind'], number> = { hero: 1.62, minion: 1.9, tower: 6.4, core: 5.2, fountain: 0, camp: 1.05, pudding: 3.8, pickup: 0, boss: 3 };
+const SIZE: Record<ViewEntity['kind'], [number, number]> = { hero: [70, 9], minion: [24, 3], tower: [86, 8], core: [120, 10], fountain: [0, 0], camp: [44, 5], pudding: [110, 9], pickup: [0, 0], boss: [110, 9] };
 
 interface Plate {
   e: ViewEntity;

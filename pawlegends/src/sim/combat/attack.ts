@@ -5,13 +5,14 @@
  */
 import { HERO_RULES } from '../../data/xp';
 import { MINIONS } from '../../data/minions';
-import { RAT_CAMP_STATS } from '../../data/camps';
+import { CAMP_KINDS, JUNGLE_BUFF } from '../../data/camps';
+import { slow } from '../effects/slow';
 import { SUNSET } from '../../data/timeline';
 import { CORE_STATS, PROJECTILE_KIND, TOWERS } from '../../data/towers';
 import { RALLY_LEVEL_BP } from '../../data/bots';
 import { BP_ONE, applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
-import { G, Kind, RANGE, UnitState, allocProjectile, type World } from '../world';
+import { G, Kind, MG, RANGE, UnitState, allocProjectile, heroAt, type World } from '../world';
 import { dealDamage } from './damage';
 import { disabled } from '../effects/status';
 import { kitBusy, kitOf } from '../heroes/kit';
@@ -28,7 +29,7 @@ export function inAttackRange(w: World, id: number, dst: number, slack = 0): boo
 function windupOf(w: World, id: number): number {
   if (w.kind[id] === Kind.Minion) return minionData(w, id).windup;
   if (w.kind[id] === Kind.Hero) return HERO_RULES.attackWindup;
-  if (w.kind[id] === Kind.Camp) return RAT_CAMP_STATS.windup;
+  if (w.kind[id] === Kind.Camp) return CAMP_KINDS[w.sub[id]].windup;
   return 0;
 }
 
@@ -77,7 +78,9 @@ function swingDamage(w: World, id: number, dst: number): number {
 
 /** Step 5: timers tick down; swings whose windup ends now land (melee) or fire (ranged). Heroes, minions, rats. */
 export function resolveAttacks(m: MatchHandle): void {
-  for (let id = 0; id < RANGE.towers; id++) resolveSwing(m, id);
+  // Sim v18: heroes in `heroAt` order (5v5: the teams take turns going first), then minions in id order.
+  for (let k = RANGE.heroes; k < RANGE.minions; k++) resolveSwing(m, heroAt(m.world, k));
+  for (let id = RANGE.minions; id < RANGE.towers; id++) resolveSwing(m, id);
   for (let id = RANGE.camps; id < RANGE.pudding; id++) resolveSwing(m, id);
 }
 
@@ -94,7 +97,12 @@ function resolveSwing(m: MatchHandle, id: number): void {
   if (--w.windup[id] > 0) return;
   const dst = w.target[id];
   if (dst < 0 || !targetable(w, dst, w.team[id]) || !inAttackRange(w, id, dst, radiusOf(w, dst))) return;
-  const dmg = swingDamage(w, id, dst);
+  let dmg = swingDamage(w, id, dst);
+  // Sim v18 (Hearthwood): Prickle Coat adds a share of the target's max HP (capped) and a short slow.
+  if (w.mg.length > 0 && id < RANGE.minions && w.mg[MG.Prickle + id] > 0 && w.kind[id] === Kind.Hero) {
+    dmg += Math.min(JUNGLE_BUFF.prickleCap, applyBp(w.maxHp[dst], JUNGLE_BUFF.prickleMaxHpBp));
+    if (w.kind[dst] === Kind.Hero || w.kind[dst] === Kind.Minion) slow(w, dst, JUNGLE_BUFF.prickleSlowBp, JUNGLE_BUFF.prickleSlowTicks);
+  }
   if (w.kind[id] === Kind.Camp) {
     dealDamage(m, id, w.team[id], Kind.Camp, dst, dmg, 'basic');
     return;

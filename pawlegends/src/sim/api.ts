@@ -24,9 +24,40 @@ export type EntityTeam = 0 | 1 | 2;
 export type Slot = 0 | 1 | 2 | 3 | 4 | 5;
 
 export const HUMAN_SLOT = 0;
-export const SLOTS_PER_TEAM = 3;
-export const SLOT_COUNT = 6;
-export const teamOfSlot = (slot: number): Team => (slot < SLOTS_PER_TEAM ? 0 : 1);
+
+/**
+ * Sim v18 (docs/plans/moba/MAP-5V5.md §2.1): the maps. 'crossing' (Purrhaven Crossing, 3v3 Quick, every match before
+ * v18) and 'hearthwood' (Hearthwood Divide, 5v5 Classic). Append only: the index is hashed on Hearthwood.
+ */
+export type MapId = 'crossing' | 'hearthwood';
+export const MAP_IDS: readonly MapId[] = Object.freeze(['crossing', 'hearthwood'] as MapId[]);
+/** Heroes per team on `map`: 3 on Crossing, 5 on Hearthwood. */
+export const teamSizeOf = (map: MapId = 'crossing'): 3 | 5 => (map === 'hearthwood' ? 5 : 3);
+/** Hero slots on `map`: 6 or 10. */
+export const slotCountOf = (map: MapId = 'crossing'): 6 | 10 => (map === 'hearthwood' ? 10 : 6);
+
+/**
+ * Hero slots per team and in all, and team 1's PvP lead (sim v18: live bindings, the map of the match the sim works on
+ * now; Crossing's 3, 6 and 3 until a Hearthwood match is created or stepped). Code outside the sim should pass the map
+ * to `teamOfSlot` / `leadOf` or use `teamSizeOf`, `slotCountOf`.
+ */
+export let SLOTS_PER_TEAM = 3;
+export let SLOT_COUNT = 6;
+/** Snapshot ids of pickups start here (after the last unit id; `slot` is the pickup index 0..3). Sim v18: per map
+ *  (63 on Crossing, 150 on Hearthwood), the active map's. */
+export let PICKUP_ID_BASE = 63; // lint-sim: allow (= ENTITY_CAP in world.ts, pinned by pickups.test.ts)
+/** Team of `slot`: the given map's, else the active map's. */
+export const teamOfSlot = (slot: number, map?: MapId): Team => (slot < (map === undefined ? SLOTS_PER_TEAM : teamSizeOf(map)) ? 0 : 1);
+/** Sim v18: team `team`'s lead slot on `map` (0, or the first slot of team 1). */
+export const leadSlotOf = (team: Team, map: MapId = 'crossing'): number => (team === 0 ? HUMAN_SLOT : teamSizeOf(map));
+
+/** Sim v18: point the slot bindings at the active map (src/sim/map/runtime.ts bindMap). */
+export function setSlots(perTeam: number, pickupBase: number): void {
+  SLOTS_PER_TEAM = perTeam;
+  SLOT_COUNT = perTeam * 2;
+  PVP_LEAD1 = perTeam;
+  PICKUP_ID_BASE = pickupBase;
+}
 
 // ---------------------------------------------------------------------------------------------------------------
 // Match setup
@@ -82,13 +113,18 @@ export interface MatchConfig {
   mode?: MatchMode;
   /** PvP only: the bot profile (bots/index.ts ALLIES) of team 0's and team 1's fill seats. Default ['hard', 'hard']. */
   fillDifficulty?: readonly [Difficulty, Difficulty];
+  /**
+   * Sim v18: the map. Omitted means 'crossing' (every match before v18, byte-identical to v17). On 'hearthwood' (5v5)
+   * `picks` and `tricks` have 10 slots, `humans` lists slots 0..4 (party) or 0..9 with 0 and 5 (PvP).
+   */
+  map?: MapId;
 }
 
 /** Sim v16: 'pve' (co-op and solo against bots) or 'pvp' (humans on both teams). */
 export type MatchMode = 'pve' | 'pvp';
 export const MATCH_MODES: readonly MatchMode[] = Object.freeze(['pve', 'pvp'] as MatchMode[]);
-/** Sim v16 S-PvP: team 1's lead human slot (team 0's is HUMAN_SLOT). */
-export const PVP_LEAD1 = 3;
+/** Sim v16 S-PvP: team 1's lead human slot (team 0's is HUMAN_SLOT). Sim v18: the active map's (3, or 5 on Hearthwood). */
+export let PVP_LEAD1 = 3;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Commands (§11.3). Coordinates in mm; the binary stream quantises them to 250 mm.
@@ -146,15 +182,15 @@ export interface TimedCommand {
 // ---------------------------------------------------------------------------------------------------------------
 // Snapshots (per team: what that team may see, POC.md §7.3 brush rule)
 
-export type EntityKind = 'hero' | 'minion' | 'tower' | 'core' | 'fountain' | 'camp' | 'pudding' | 'pickup';
+/** Sim v18: 'boss' is Captain Grizzlechop (Hearthwood). */
+export type EntityKind = 'hero' | 'minion' | 'tower' | 'core' | 'fountain' | 'camp' | 'pudding' | 'pickup' | 'boss';
 
 /** Pickup kinds (sim v4, data/pickups.ts). */
 export type PickupKind = 'frenzy' | 'snack';
-/** Snapshot ids of pickups start here (after the last unit id; `slot` is the pickup index 0..3). */
-export const PICKUP_ID_BASE = 63; // lint-sim: allow (= ENTITY_CAP in world.ts, pinned by pickups.test.ts)
 /** Bonus kinds of the `buff` event (sim v4). */
 /** 'takedown' (sim v4): a hero credited with a takedown got TAKEDOWN_HEAL back (data/xp.ts); `ticks` is 0. */
-export type BuffKind = 'nineLives' | 'frenzy' | 'snack' | 'pack' | 'zoomies' | 'takedown';
+/** Sim v18 (Hearthwood): 'prickle' and 'feather' (jungle buffs), 'hoard' (Grizzlechop's shield). */
+export type BuffKind = 'nineLives' | 'frenzy' | 'snack' | 'pack' | 'zoomies' | 'takedown' | 'prickle' | 'feather' | 'hoard';
 
 /** Coarse state for animation. */
 export type UnitStateName = 'idle' | 'moving' | 'attacking' | 'casting' | 'dead' | 'napping';
@@ -200,7 +236,8 @@ export interface EntitySnap {
   /** Minions: 'melee' | 'ranged' | 'siege'. Towers: 'outer' | 'inner'. */
   variant?: string;
   /** Lane for minions and towers. */
-  lane?: 'sunny' | 'puddle';
+  /** Sim v18: Hearthwood's 'fence' | 'yarn' | 'gutter' too. */
+  lane?: 'sunny' | 'puddle' | 'fence' | 'yarn' | 'gutter';
   x: number;
   y: number;
   hp: number;
@@ -310,6 +347,10 @@ export type SimEvent =
   | { type: 'talentOffer'; tick: number; slot: number; tier: TalentTier }
   | { type: 'tower'; tick: number; id: number; destroyedBy: Team }
   | { type: 'pudding'; tick: number; what: 'spawn' | 'hop' | 'calmed' | 'escort' | 'leave'; team?: Team }
+  /** Sim v18 (Hearthwood): a river objective spawned, was taken (team, last-hit slot), or a jungle buff changed hands. */
+  | { type: 'objectiveSpawn'; tick: number; kind: 'grizzlechop' | 'pudding' }
+  | { type: 'objective'; tick: number; kind: 'grizzlechop' | 'pudding'; team: Team; slot: number }
+  | { type: 'buffSteal'; tick: number; id: number; from: number; kind: 'prickle' | 'feather' }
   | { type: 'sunset'; tick: number }
   | { type: 'suddenDeath'; tick: number }
   // Sim v4 (fun plan §0.2):
@@ -366,6 +407,31 @@ export interface Snapshot {
   zones: ZoneSnap[];
   /** Events of the last stepped tick that this team may see. */
   events: SimEvent[];
+  /** Sim v18: the map (omitted on Crossing). */
+  map?: MapId;
+  /** Sim v18 (Hearthwood): the river objectives, for the minimap timers and the HUD. */
+  objectives?: ObjectiveSnap[];
+  /** Sim v18 (Hearthwood): every jungle camp (up, or ticks to its respawn). */
+  camps?: CampSnap[];
+}
+
+/** Sim v18: a river objective's state. `nextIn` is the ticks to its next spawn while 'away' (−1: no more spawns). */
+export interface ObjectiveSnap {
+  kind: 'grizzlechop' | 'pudding';
+  state: 'away' | 'up' | 'escort';
+  nextIn: number;
+  x: number;
+  y: number;
+  team?: Team;
+}
+/** Sim v18: a jungle camp: index, kind, centre, whether a monster is up, ticks to its respawn (0 while up). */
+export interface CampSnap {
+  id: number;
+  kind: 'rat' | 'prickle' | 'crow' | 'toad';
+  x: number;
+  y: number;
+  up: boolean;
+  nextIn: number;
 }
 
 // ---------------------------------------------------------------------------------------------------------------
@@ -433,6 +499,8 @@ export interface ReplayRecord {
    * The backend leaves a mutator other than 'none' out of the fastest-win record and catnip (GAPS §8 item 1).
    */
   mutator?: Mutator;
+  /** Sim v18: the map (omitted = 'crossing'); a 'hearthwood' record needs simVersion 18 or later. */
+  map?: MapId;
 }
 
 /** Party play (MULTIPLAYER.md §1.1): one human's seat in a PartyReplayRecord. */
@@ -460,6 +528,8 @@ export interface PartyReplayRecord {
   outcome: Outcome;
   finalHash: string;
   mutator?: Mutator;
+  /** Sim v18: the map (omitted = 'crossing'); a 'hearthwood' record needs simVersion 18 or later. */
+  map?: MapId;
 }
 
 /**
@@ -482,6 +552,8 @@ export interface PvpReplayRecord {
   outcome: Outcome;
   finalHash: string;
   mutator?: Mutator;
+  /** Sim v18: the map (omitted = 'crossing'). */
+  map?: MapId;
 }
 
 /** Alias with the spec's name. */

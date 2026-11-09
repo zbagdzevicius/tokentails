@@ -10,14 +10,14 @@
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, G, Kind, RANGE, type World } from '../world';
+import { G, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { attackSpeed, cleanse, collect, dash, fireSkillshot, haste, healOverTime, inRing, slow } from '../effects';
 import { disabled } from '../effects/status';
 import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 /** True while a BIG DOG splash deals its damage: afterDeal then knows an ability hit is not a yap. */
 let splashing = false;
 

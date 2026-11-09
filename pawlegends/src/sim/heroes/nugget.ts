@@ -11,7 +11,7 @@ import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp, dist2, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import { toySupport } from '../progression/fish';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, FM, Kind, RANGE, type World } from '../world';
+import { FM, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { addShield, collect, dash, fireSkillshot, haste, heal, healOverTime, inRing, knockback, selfRoot, slow, ON_HIT, PFLAG } from '../effects';
 import { creditHealShield } from '../effects/heal';
@@ -20,7 +20,7 @@ import { weakestAlly, wrapTarget } from './gabe';
 import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 /** The herd point the last Herding Time used (x, y); read by tests through `herdPoint`. */
 const herd = new Int32Array(2);
 

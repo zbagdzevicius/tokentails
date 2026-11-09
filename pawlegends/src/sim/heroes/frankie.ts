@@ -18,7 +18,7 @@
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp, dist2, iatan2, idiv, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
-import { COOLDOWN_SLOTS, ENTITY_CAP, FM, G, Kind, RANGE, maskHas, type World } from '../world';
+import { COOLDOWN_SLOTS, FM, G, Kind, RANGE, type World, MAX_ENTITIES, fmHas, fmAdd } from '../world';
 import { dealDamage } from '../combat/damage';
 import { collect, dash, fireSkillshot, haste, inRing, knockback, stun, travelTicks, PFLAG } from '../effects';
 import { radiusOf } from '../units/kinds';
@@ -34,7 +34,7 @@ const ROLL = 1;
 const DIG = 2;
 const SNAP = 4;
 const R_SLOT = 3;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {
@@ -191,12 +191,11 @@ export const FRANKIE_KIT: HeroKit = {
     const half = q.width >> 1;
     const hx = w.x[id];
     const hy = w.y[id];
-    const n = collect(w, w.team[id], hits, (e, r) => !maskHas(w.fmHitLo[id], w.fmHitHi[id], e) && dist2(hx, hy, w.x[e], w.y[e]) <= (half + r) * (half + r));
+    const n = collect(w, w.team[id], hits, (e, r) => !fmHas(w, id, e) && dist2(hx, hy, w.x[e], w.y[e]) <= (half + r) * (half + r));
     const dmg = lvl(w, id, q.dmg, q.dmgPerLevel);
     for (let i = 0; i < n; i++) {
       const e = hits[i];
-      if (e < 0x20) w.fmHitLo[id] |= 1 << e;
-      else w.fmHitHi[id] |= 1 << (e - 0x20);
+      fmAdd(w, id, e);
       if (w.kind[e] === Kind.Hero) {
         // The first enemy hero stops the roll (hero ids come first in `collect`).
         w.kEmpower[id] = ROLLING;

@@ -9,7 +9,7 @@ import { EFFECTS } from '../../data/effects';
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, TRIG_ONE, applyBp, dist2, icos, idiv, isin, isqrt } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, FM, Kind, RANGE, type World } from '../world';
+import { FM, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { addShield, clipTravel, collect, dash, fireSkillshot, inRing, knockback, root, stun, ON_HIT } from '../effects';
 import { creditHealShield } from '../effects/heal';
@@ -18,7 +18,7 @@ import { radiusOf } from '../units/kinds';
 import { Aim, HALF_TURN, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 
 function aim(a: KitNumbers, slot: number): SlotAim {
   switch (slot) {

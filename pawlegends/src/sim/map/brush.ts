@@ -10,9 +10,9 @@
  * unit the team's snapshot leaves out. Adding the MVP fog grid changes `hiddenFrom` only.
  */
 import { CC_DR, EFFECTS } from '../../data/effects';
-import { BRUSH_REVEAL_MM, BUSHES, MINION_BRUSH_REVEAL_MM, mirrorX } from '../../data/map';
+import { BRUSH_REVEAL_MM, BUSHES, MINION_BRUSH_REVEAL_MM, mirrorX, mirrorY } from '../../data/map';
 import { dist2 } from '../fixed';
-import { Buff, FM, Kind, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
+import { Buff, FM, Kind, MG, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
 
 /** Hero indices (HERO_IDS) whose kit arrays mean something else; kept local so brush.ts imports no hero kit. */
 const PIXEL_SUB = 9;
@@ -37,7 +37,8 @@ export function bushAt(x: number, y: number): number {
     for (let k = 0; k < BUSHES.length; k++) {
       const b = BUSHES[k];
       const cx = side === 0 ? b.x : mirrorX(b.x);
-      if (Math.abs(x - cx) * 2 <= b.w && Math.abs(y - b.y) * 2 <= b.h) return side * BUSHES.length + k;
+      const cy = side === 0 ? b.y : mirrorY(b.y);
+      if (Math.abs(x - cx) * 2 <= b.w && Math.abs(y - cy) * 2 <= b.h) return side * BUSHES.length + k;
     }
   }
   return -1;
@@ -113,6 +114,12 @@ export function refreshFlags(w: World): void {
         if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
         if (w.nineT[id] > 0) b |= Buff.NineLives;
         if (w.packT[id] > 0) b |= Buff.Pack;
+        // Sim v18 (Hearthwood).
+        if (w.mg.length > 0) {
+          if (w.mg[MG.Prickle + id] > 0) b |= Buff.Prickle;
+          if (w.mg[MG.Feather + id] > 0) b |= Buff.Feather;
+          if (w.mg[MG.Hoard + id] > 0 && shield > 0) b |= Buff.Hoard;
+        }
       }
       if (shield > 0) b |= Buff.Shielded;
     }

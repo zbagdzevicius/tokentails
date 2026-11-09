@@ -16,14 +16,14 @@
 import { PROJECTILE_KIND } from '../../data/towers';
 import { BP_ONE, applyBp, dist2, idiv } from '../fixed';
 import type { MatchHandle } from '../state';
-import { ENTITY_CAP, G, Kind, RANGE, type World } from '../world';
+import { G, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { dealDamage } from '../combat/damage';
 import { collect, fireSkillshot, inLine, inRing, knockback, root, slow, spawnBurst } from '../effects';
 import { Aim, aimAngle, lvl, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
 
 const RESOLVING = 1;
-const hits = new Int32Array(ENTITY_CAP);
+const hits = new Int32Array(MAX_ENTITIES);
 /** The last CONNECT THE DOTS! path (hero ids, in link order; `pathLen` used). Read by tests through `dotsPath`. */
 const path = new Int32Array(8);
 let pathLen = 0;
