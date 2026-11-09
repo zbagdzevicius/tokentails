@@ -13,8 +13,9 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
    * takes 9500 (51.2%).
    * Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 9325 (48.7% of the 2,000-seed gate).
    * Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9650 / takes 9375 (48.7% of the 2,000-seed gate).
- Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3): takes 9425. */
-  pvp: { dmgBp: 9650, takenBp: 9425 },
+   * Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9450.
+   */
+  pvp: { dmgBp: 9650, takenBp: 9450 },
   element: 'WIND',
   base: { hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 },
   /** Steady Paw: every 4th basic pierces in a 7 m line, full damage to each target. */
@@ -42,7 +43,8 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
        * Sim v10 (GAPS B6), the level-6 shape branch (it replaced Quick Hop, `e.cooldown` 240): Volley becomes one 9 m
        * line, 600 mm wide, that pierces everything it passes (`lance` switches the shape; Sticky Arrows still slows).
        */
-      { id: 'piercing-shot', name: 'Piercing Shot', mods: { q: { lance: 1, range: 9000, width: 600, dmg: 95, dmgPerLevel: 14, speed: 24000 } } },
+      // Sim v17 (V17.md §6.5): dmg 95 → 85 (the branch won 54–56% of seeds 1–2000).
+      { id: 'piercing-shot', name: 'Piercing Shot', mods: { q: { lance: 1, range: 9000, width: 600, dmg: 85, dmgPerLevel: 14, speed: 24000 } } },
     ],
     [
       { id: 'full-moon', name: 'Full Moon', mods: { r: { cooldown: 1500 } } },

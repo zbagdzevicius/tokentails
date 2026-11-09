@@ -230,6 +230,15 @@ function beginWindup(m: MatchHandle, id: number, s: SlotAim): void {
   // Sim v12 (S5b): re-plan the walk as soon as the cast ends (v11 waited out the repath timer, up to 15 ticks).
   w.timer[id] = 0;
   if (s.windup > 0) {
+    // Sim v17: a directional cast with a windup aims at the point shown when the windup starts. A target id (only a
+    // modified client or a rookie bot sends one) no longer steers it to where the target is when it fires, so the
+    // telegraph's dodge window holds in PvP.
+    const t = w.castId[id];
+    if (s.aim === Aim.Dir && t >= 0) {
+      w.castX[id] = w.x[t];
+      w.castY[id] = w.y[t];
+      w.castId[id] = -1;
+    }
     w.state[id] = UnitState.Casting;
     const ev: WindupEvent = { type: 'windup', tick: w.globals[G.Tick], src: id, slot: w.castSlot[id] as CastSlot | 4, x: w.castX[id], y: w.castY[id], ticks: s.windup };
     m.events.push(ev);

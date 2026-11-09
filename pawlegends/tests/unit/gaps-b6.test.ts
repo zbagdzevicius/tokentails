@@ -37,7 +37,7 @@ describe('B6: branch data', () => {
       expect(HERO_TEXT[h].branch?.name).toBe(HEROES[h].talents[1][1].name);
     }
     expect(HEROES.sage.talents[1][1].mods?.q).toMatchObject({ lance: 1, range: 9000, width: 600 });
-    expect(HEROES.brutus.talents[1][1].mods?.w).toMatchObject({ post: 1, postRadius: 3000, postDuration: 60 });
+    expect(HEROES.brutus.talents[1][1].mods?.w).toMatchObject({ post: 1, postRadius: 3000, postDuration: 60, cooldown: 210 });
   });
 
   it("--bot-talents branch takes option 2 at level 6 only; 'seeded' stays a per-slot draw", () => {
@@ -48,8 +48,8 @@ describe('B6: branch data', () => {
   });
 
   it('numbers in words for the hover card', () => {
-    expect(branchNumbers('sage')).toBe('7 s cooldown · 95 (+14/lvl) dmg · 9 m');
-    expect(branchNumbers('brutus')).toBe('10 s cooldown · 3 m dome · lasts 2 s · 30% less damage');
+    expect(branchNumbers('sage')).toBe('7 s cooldown · 85 (+14/lvl) dmg · 9 m');
+    expect(branchNumbers('brutus')).toBe('7 s cooldown · 3 m dome · lasts 2 s · 30% less damage');
     expect(branchNumbers('clem')).toBe('');
   });
 });
@@ -63,7 +63,7 @@ describe('B6: aim shapes', () => {
     expect(aimFor('brutus', 1, true)).toMatchObject({ kind: 'self', shape: 'ring', radius: 3000 });
     expect(aimFor('clem', 0, true)).toEqual(aimFor('clem', 0));
     expect(maxCooldown('brutus', 1, 'pounce')).toBe(420);
-    expect(maxCooldown('brutus', 1, 'pounce', true)).toBe(300);
+    expect(maxCooldown('brutus', 1, 'pounce', true)).toBe(210);
     expect(maxCooldown('sage', 0, 'pounce', true)).toBe(210);
   });
 });
