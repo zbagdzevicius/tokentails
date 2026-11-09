@@ -249,7 +249,9 @@ function chase(m: MatchHandle, id: number, tx: number, ty: number): void {
  */
 function engage(m: MatchHandle, id: number, t: number): void {
   const w = m.world;
-  if (inAttackRange(w, id, t, HERO_RULES.chaseLeeway) && (w.attackTimer[id] === 0 || inAttackRange(w, id, t))) {
+  // only a hero that can step closes the leeway: rooted or planted (Guard Post), it would land from range + leeway
+  const leeway = w.rootT[id] > 0 || planted(w, id) ? 0 : HERO_RULES.chaseLeeway;
+  if (inAttackRange(w, id, t, leeway) && (w.attackTimer[id] === 0 || inAttackRange(w, id, t))) {
     swingAt(w, id, t);
     // a swing started in the leeway steps on with the target from its first tick (no stand-still tick lost per swing)
     if (w.windup[id] > 0) followSwing(m, id);
