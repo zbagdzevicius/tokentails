@@ -163,6 +163,24 @@ A 10-hero teamfight must stay readable and must not tire the ear.
 4. New sprites later (stand-ins in brackets): crest (STAR5), grin (SPARK), bulb (SOFT), toast (SHARD), bowling pin
    (ZED), crown (STAR5), chili (EXCLAIM), checker (CONFETTI), squiggle (DROPLET).
 
+### 5a. Framework (built)
+
+- `audio/identityMix.ts`: `VoiceMixer` applies `MIX` (per-layer cooldown, 14 / 3 per nature / 2 per hero / 4 travel
+  voices with stealing, layer volume caps, relation gain, duck at 8).
+- `audio/sfx.ts`: `registerDefs(defs, aliases)` bakes the identity sounds; `playLayer(req)` plays one through the mixer
+  with the usual falloff and pan.
+- `audio/skillSfx.ts`: `playSkillSfx(hero, skill, phase, ctx)` (skill = key or slot 0..3; phase cast, impact,
+  travel) plays the nature layer and the champion layer (motif ping on Q/W/E, ult voice on R, thinned basic voice on
+  basics). `planSkillSfx` is the pure plan.
+- `render/fx/natureFx.ts`: `NatureFx.skillFx(hero, skill, phase, pos, dir, opts)` and `motifBurst(hero, pos, n, dir)`,
+  under a per-0.1 s particle budget by quality tier and reduce motion. `Effects.natureFx` owns one.
+- `audio/champ/<hero>.ts` (one file per hero, registered in `audio/champ/index.ts`): `motif` ping, `motifRate`,
+  `sounds`, per-skill `skills` overrides (`false` mutes a nature layer, `replace` swaps it), and `fx` (`motifCount`,
+  `ownedMotif`, `paint`). Defaults: the basic voice is the motif ping, the IDENTITY motif shape the particle.
+- `render/effects.ts`: every hero Q/W/E/R cast plays `playSkillSfx(..., 'cast')` instead of the generic swipe / slam /
+  dash / magic / ult; generic casts also draw the nature FX and motif, casts a hero script draws get a 3-particle motif.
+  Hero basic and ability hits play the nature impact (ability hits use the hero's last cast slot).
+
 ## 6. Not changed
 
 No sim code, no numbers, no balance. Heroes keep their existing PL_SFX voices; the identity reuses them.
