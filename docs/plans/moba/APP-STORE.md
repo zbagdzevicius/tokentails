@@ -49,7 +49,7 @@ controls, no haptics bridge). Not checked: a signed sandboxed build, drag-resizi
 - **Shared with iOS (nothing to redo):** App Privacy, age rating, price and availability, content rights. These are
   per app, not per platform. Export compliance: the same `ITSAppUsesNonExemptEncryption = false` in Info.plist.
 - **Run order (main session):** add the macOS platform in App Store Connect → `mac_beta` → `mac_metadata` → install
-  from TestFlight on a Mac and play one bot match with the mouse → `mac_submit` with `SUBMIT`. Release stays manual.
+  from TestFlight on a Mac and play one bot match with the mouse → `mac_submit` with `SUBMIT`. Approved versions release automatically (`auto_release` switches versions already in review).
 
 ## Implementation notes (2026-11-07)
 

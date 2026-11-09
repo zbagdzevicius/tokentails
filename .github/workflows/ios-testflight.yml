@@ -5,7 +5,7 @@
 # lane: bootstrap (register the bundle id once, before creating the app record), beta (TestFlight), metadata (listing
 # text, screenshots, icon), submit (submit the latest build for review; type SUBMIT to confirm). The Mac App Store
 # version (Mac Catalyst of the same target, same app record): mac_beta (TestFlight macOS .pkg), mac_metadata (macOS
-# listing, screenshots from fastlane/screenshots_mac), mac_submit (type SUBMIT). Releasing an approved build stays a manual button in App Store Connect.
+# listing, screenshots from fastlane/screenshots_mac), mac_submit (type SUBMIT). Approved builds release automatically; auto_release switches versions already in review to the same.
 #
 # Secrets (Settings → Secrets and variables → Actions): ASC_KEY_P8 (base64 of the .p8). ASC_KEY_ID, ASC_ISSUER_ID and
 # APPLE_TEAM_ID are public ids hardcoded below (a secret overrides them). Optional: DIST_CERT_P12 + DIST_CERT_PASSWORD (only when the API key cannot use cloud signing).
@@ -22,7 +22,7 @@ on:
         required: true
         default: beta
         type: choice
-        options: [bootstrap, beta, metadata, submit, mac_beta, mac_metadata, mac_submit]
+        options: [bootstrap, beta, metadata, submit, mac_beta, mac_metadata, mac_submit, auto_release]
       confirm:
         description: 'For submit and mac_submit: type SUBMIT'
         required: false
@@ -121,6 +121,7 @@ jobs:
             mac_beta) bundle exec fastlane mac_beta ;;
             mac_metadata) bundle exec fastlane mac_metadata ;;
             mac_submit) SUBMIT=yes bundle exec fastlane mac_submit ;;
+            auto_release) bundle exec fastlane auto_release ;;
           esac
       - name: Keep the .ipa / .pkg (7 days)
         if: steps.secrets.outputs.ok == 'true' && (env.LANE == 'beta' || env.LANE == 'mac_beta')
