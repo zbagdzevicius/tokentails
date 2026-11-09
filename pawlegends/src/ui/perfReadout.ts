@@ -94,7 +94,7 @@ export class PerfReadout {
     const heap = heapMb();
     if (heap !== null && s.inMatch) this.peakHeap = Math.max(this.peakHeap, heap);
     const lines = [
-      `${this.fps} fps` + (s.fps ? ` / cap ${s.fps}` : '') + ` · ${s.tier}` + (s.step !== undefined ? ` · step ${s.step}` : ''),
+      `${this.fps} fps · ${s.tier}` + (s.fps ? ` · cap ${s.fps}` : '') + (s.step !== undefined ? ` · step ${s.step}` : ''),
       s.reason !== undefined ? `gov ${s.reason} · js ${work.toFixed(1)} ms` : `js ${work.toFixed(1)} ms`,
       `p95 ${p95Of(this.recent, this.recentN).toFixed(1)} ms` + (this.matchN > 0 ? ` · match ${p95Of(this.match, this.matchN).toFixed(1)}` : ''),
       `draws ${s.draws}` + (this.peakDraws > 0 ? ` · max ${this.peakDraws}` : ''),

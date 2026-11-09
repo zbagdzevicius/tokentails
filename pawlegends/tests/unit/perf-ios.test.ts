@@ -87,29 +87,44 @@ describe('thermal governor', () => {
     expect(run(g, { t: 0 }, 120, 16.7, 4)).toEqual([]);
     expect(g.step).toBe(0);
   });
-  it('steps down one at a time on late frames, cheapest first, down to the 30 fps step', () => {
+  it('steps down one at a time on missed refreshes (two bad windows each), cheapest first, to the 30 fps step', () => {
     const g = new ThermalGovernor();
     const at = { t: 0 };
-    const s = run(g, at, 3 * 4 + 1, 22, 4);
+    // one bad window is not enough
+    expect(run(g, at, 3.5, 33.4, 4)).toEqual([]);
+    const s = run(g, at, 6 * 4, 33.4, 4);
     expect(s).toEqual([1, 2, 3, 4]);
     expect(g.step).toBe(GOV_STEP.fps30);
-    expect(g.throttled()).toBe(true);
     expect(g.lastReason).toMatch(/late frames/);
+    // Battery saver only once the 30 fps step has held a minute
+    expect(g.throttled(null, at.t)).toBe(false);
+    expect(g.throttled(null, at.t + GOV.SAVER_AFTER_MS)).toBe(true);
+  });
+  it('jitter (19–22 ms intervals) is not a missed refresh', () => {
+    const g = new ThermalGovernor();
+    expect(run(g, { t: 0 }, 60, 21, 4)).toEqual([]);
   });
   it('steps down on JS time alone (busy main thread)', () => {
     const g = new ThermalGovernor();
-    expect(run(g, { t: 0 }, 3.5, 16.7, 10)).toEqual([1]);
+    expect(run(g, { t: 0 }, 6.5, 16.7, 10)).toEqual([1]);
     expect(g.lastReason).toMatch(/busy/);
+  });
+  it('hold() ignores the first seconds of a match', () => {
+    const g = new ThermalGovernor();
+    g.hold(GOV.WARMUP_MS);
+    const at = { t: 0 };
+    expect(run(g, at, GOV.WARMUP_MS / 1000, 60, 4)).toEqual([]);
+    expect(run(g, at, 6.5, 33.4, 4)).toEqual([1]);
   });
   it('never steps past the last step', () => {
     const g = new ThermalGovernor(GOV_MAX);
-    expect(run(g, { t: 0 }, 30, 40, 4)).toEqual([]);
+    expect(run(g, { t: 0 }, 30, 60, 4)).toEqual([]);
     expect(g.step).toBe(GOV_MAX);
   });
   it('hysteresis: up one step only after 45 s clean and a minute since the last change, no bouncing', () => {
     const g = new ThermalGovernor();
     const at = { t: 0 };
-    run(g, at, 6.5, 22, 4);
+    run(g, at, 12.5, 34, 4);
     expect(g.step).toBe(2);
     run(g, at, 1, 1000, 0); // a stall: the half-filled window is dropped
     // 30 s clean: not yet (45 s clean needed)
@@ -128,7 +143,7 @@ describe('thermal governor', () => {
     const end = at.t + 120_000;
     let i = 0;
     while (at.t < end) {
-      const f = i++ % 20 === 0 ? 20 : 16.7;
+      const f = i++ % 20 === 0 ? 34 : 16.7;
       at.t += f;
       const r = g.sample({ frameMs: f, workMs: 3, targetMs: 1000 / 60, now: at.t });
       if (r !== null) steps = [...steps, r];
@@ -140,7 +155,7 @@ describe('thermal governor', () => {
     const g = new ThermalGovernor(GOV_STEP.fps30);
     const at = { t: 0 };
     expect(run(g, at, 30, 33.4, 6, 1000 / 30)).toEqual([]);
-    expect(run(g, at, 4, 45, 6, 1000 / 30)).toEqual([GOV_STEP.res85]);
+    expect(run(g, at, 7, 67, 6, 1000 / 30)).toEqual([GOV_STEP.res85]);
   });
   it('ignores stalls over 250 ms (tab switch, shader compile)', () => {
     const g = new ThermalGovernor();
@@ -156,7 +171,7 @@ describe('thermal governor', () => {
     const at = { t: 0 };
     expect(run(g, at, 1, 16.7, 3, 1000 / 60, 'serious')).toEqual([1]);
     expect(g.floor).toBe(1);
-    expect(g.throttled('serious')).toBe(true);
+    expect(g.throttled('serious', at.t)).toBe(true);
     // cool and clean for 3 minutes: never above the floor
     expect(run(g, at, 180, 16.7, 3, 1000 / 60, 'nominal')).toEqual([]);
     expect(g.step).toBe(1);

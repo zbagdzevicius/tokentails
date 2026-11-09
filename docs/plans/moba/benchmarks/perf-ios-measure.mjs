@@ -14,7 +14,7 @@ const QUERY = process.argv[3] ?? '';
 const LABEL = process.argv[4] ?? BROWSER;
 const THROTTLE = Number(process.env.THROTTLE ?? (BROWSER === 'chromium' ? 4 : 1));
 const GPU = process.env.GPU === '1';
-const BASE = 'http://127.0.0.1:4471/';
+const BASE = `http://127.0.0.1:${process.env.PORT ?? 4471}/`;
 const OUT = `${process.env.OUT_DIR ?? '/tmp'}/pl-perf-${LABEL}.json`;
 
 const INSTR = () => {
@@ -26,7 +26,7 @@ const INSTR = () => {
   const realRaf = window.requestAnimationFrame.bind(window);
   let frameStart = -1, frameJs = 0, lastTick = -1;
   window.requestAnimationFrame = (cb) => realRaf((t) => {
-    if (t !== lastTick) { if (lastTick >= 0) S.frameMs.push(frameJs); frameJs = 0; lastTick = t; S.frames++;
+    if (t !== lastTick) { if (lastTick >= 0) { S.frameMs.push(frameJs); if (S.gl.draws > (S.drawsAtTick || 0)) { S.drawn = (S.drawn || 0) + 1; S.drawnJs = (S.drawnJs || 0) + frameJs; } } S.drawsAtTick = S.gl.draws; frameJs = 0; lastTick = t; S.frames++;
       const m = performance.memory; if (m) { const u = m.usedJSHeapSize; if (S.heap.last) { const d = u - S.heap.last; if (d > 0) S.heap.up += d; else if (d < -262144) S.heap.drops++; } else S.heap.first = u; S.heap.last = u; S.heap.samples++; } }
     S.rafCbs++;
     const a = performance.now();
@@ -72,7 +72,7 @@ const INSTR = () => {
   try { new PerformanceObserver((l) => { for (const e of l.getEntries()) S.longtasks.push(e.duration); }).observe({ type: 'longtask', buffered: true }); } catch {}
   window.__perfReset = () => {
     const keep = { canvases: S.canvases };
-    Object.assign(S, { frames: 0, frameMs: [], rafCbs: 0, gl: { draws: 0, tris: 0, fbBinds: 0, texCreated: 0, texDeleted: 0, programs: 0, texUploads: 0, texUploadPx: 0, clears: 0, bufferUploads: 0 }, c2d: new Map(), c2dCalls: 0, c2dMs: 0, c2dShadowBlurSets: 0, mut: { html: 0, body: 0, nodesAdded: 0 }, audio: {}, timers: { setTimeout: 0, setInterval: 0, live: S.timers.live }, heap: { samples: 0, up: 0, drops: 0, last: 0, first: 0 }, longtasks: [], t0: performance.now() }, keep);
+    Object.assign(S, { drawn: 0, drawnJs: 0, drawsAtTick: 0, frames: 0, frameMs: [], rafCbs: 0, gl: { draws: 0, tris: 0, fbBinds: 0, texCreated: 0, texDeleted: 0, programs: 0, texUploads: 0, texUploadPx: 0, clears: 0, bufferUploads: 0 }, c2d: new Map(), c2dCalls: 0, c2dMs: 0, c2dShadowBlurSets: 0, mut: { html: 0, body: 0, nodesAdded: 0 }, audio: {}, timers: { setTimeout: 0, setInterval: 0, live: S.timers.live }, heap: { samples: 0, up: 0, drops: 0, last: 0, first: 0 }, longtasks: [], t0: performance.now() }, keep);
   };
   window.__perfRead = () => {
     const secs = (performance.now() - S.t0) / 1000;
@@ -98,7 +98,8 @@ const INSTR = () => {
     // computed-style sweep of visible elements (cheap enough once a window)
     for (const el of document.querySelectorAll('body *')) { const cs = getComputedStyle(el); if (cs.display === 'none' || cs.visibility === 'hidden') continue; if ((cs.backdropFilter && cs.backdropFilter !== 'none') || (cs.webkitBackdropFilter && cs.webkitBackdropFilter !== 'none')) backdrop++; if (cs.filter && cs.filter !== 'none') filters++; if (cs.boxShadow && cs.boxShadow !== 'none') boxShadowEls++; }
     return {
-      secs: +secs.toFixed(1), fps: per(S.frames), rafCbsPerFrame: +(S.rafCbs / Math.max(1, S.frames)).toFixed(2),
+      secs: +secs.toFixed(1), fps: per(S.frames), drawnFps: per(S.drawn || 0), drawnJsMs: +((S.drawnJs || 0) / Math.max(1, S.drawn || 0)).toFixed(2),
+      perDrawn: { draws: +(S.gl.draws / Math.max(1, S.drawn || 0)).toFixed(1), tris: Math.round(S.gl.tris / Math.max(1, S.drawn || 0)), offTris: Math.round((S.gl.offTris || 0) / Math.max(1, S.drawn || 0)), trisPerS: Math.round(S.gl.tris / secs), drawsPerS: Math.round(S.gl.draws / secs) }, rafCbsPerFrame: +(S.rafCbs / Math.max(1, S.frames)).toFixed(2),
       jsMs: { mean: +(fm.reduce((a, b) => a + b, 0) / Math.max(1, fm.length)).toFixed(2), p50: +q(0.5).toFixed(2), p95: +q(0.95).toFixed(2), p99: +q(0.99).toFixed(2), max: +(fm[fm.length - 1] ?? 0).toFixed(1) },
       gl: { drawsPerFrame: +(S.gl.draws / Math.max(1, S.frames)).toFixed(1), trisPerFrame: Math.round(S.gl.tris / Math.max(1, S.frames)), offDrawsPerFrame: +((S.gl.offDraws||0) / Math.max(1, S.frames)).toFixed(1), offTrisPerFrame: Math.round((S.gl.offTris||0) / Math.max(1, S.frames)), offscreenBindsPerFrame: +(S.gl.fbBinds / Math.max(1, S.frames)).toFixed(2), clearsPerFrame: +(S.gl.clears / Math.max(1, S.frames)).toFixed(2), texCreatedPerS: per(S.gl.texCreated), texDeletedPerS: per(S.gl.texDeleted), texUploadsPerS: per(S.gl.texUploads), texUploadMpxPerS: +(S.gl.texUploadPx / 1e6 / secs).toFixed(2), bufferUploadsPerFrame: +(S.gl.bufferUploads / Math.max(1, S.frames)).toFixed(1), programsCreated: S.gl.programs },
       canvases: cvs, c2d, c2dCallsPerS: per(S.c2dCalls), c2dMsPerFrame: +((S.c2dMs||0) / Math.max(1, S.frames)).toFixed(2), c2dShadowBlurPerS: per(S.c2dShadowBlurSets),
@@ -108,7 +109,7 @@ const INSTR = () => {
       heap: performance.memory ? { usedMB: +(performance.memory.usedJSHeapSize / 1048576).toFixed(1), allocMBPerS: +(S.heap.up / 1048576 / secs).toFixed(2), gcDropsPerS: per(S.heap.drops) } : null,
       longtasks: { n: S.longtasks.length, totalMs: Math.round(S.longtasks.reduce((a, b) => a + b, 0)), max: Math.round(Math.max(0, ...S.longtasks)) },
       css: { running, infinite, paintAnims, paintNames: [...paintNames].slice(0, 25), props, backdropFilterEls: backdrop, filterEls: filters, boxShadowEls },
-      dpr: devicePixelRatio, quality: document.documentElement.dataset.quality, screen: document.documentElement.dataset.screen, draws: document.documentElement.dataset.draws, hidden: document.hidden, ua: navigator.userAgent,
+      dpr: devicePixelRatio, phone: document.documentElement.dataset.phone, perfStep: document.documentElement.dataset.perfStep, quality: document.documentElement.dataset.quality, screen: document.documentElement.dataset.screen, draws: document.documentElement.dataset.draws, hidden: document.hidden, ua: navigator.userAgent,
     };
   };
 };
@@ -165,7 +166,7 @@ async function windowed(name, ms, during) {
     cdp.removeAllListeners('LayerTree.layerTreeDidChange');
   }
   results.windows[name] = r;
-  console.log(name, JSON.stringify({ fps: r.fps, js: r.jsMs, c2dMs: r.c2dMsPerFrame, draws: r.gl.drawsPerFrame, tris: r.gl.trisPerFrame, offDraws: r.gl.offDrawsPerFrame, offTris: r.gl.offTrisPerFrame, fb: r.gl.offscreenBindsPerFrame, c2d: r.c2d, mut: r.mutPerS, audio: r.audioNodesPerS, heap: r.heap, cdp: r.cdp, q: r.quality }));
+  console.log(name, JSON.stringify({ drawnFps: r.drawnFps, perDrawn: r.perDrawn, phone: r.phone, fps: r.fps, js: r.jsMs, c2dMs: r.c2dMsPerFrame, draws: r.gl.drawsPerFrame, tris: r.gl.trisPerFrame, offDraws: r.gl.offDrawsPerFrame, offTris: r.gl.offTrisPerFrame, fb: r.gl.offscreenBindsPerFrame, c2d: r.c2d, mut: r.mutPerS, audio: r.audioNodesPerS, heap: r.heap, cdp: r.cdp, q: r.quality }));
 }
 
 async function holdStick(ms) {
@@ -202,6 +203,11 @@ await holdStick(MID);
 await windowed('match-mid', 15000, holdStick);
 await holdStick(MID);
 await windowed('match-late', 15000, holdStick);
+// paused (the touch pause button)
+await page.evaluate(() => document.querySelector('.pl-pause')?.click());
+await wait(800);
+await windowed('match-paused', 8000);
+await page.keyboard.press('Escape').catch(() => {});
 // hidden: another tab in front
 if (BROWSER === 'chromium') {
   const p2 = await ctx.newPage();

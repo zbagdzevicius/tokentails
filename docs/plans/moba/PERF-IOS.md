@@ -12,7 +12,10 @@ change every frame, forced layout reads, material program re-checks, 10–14 MB/
 Heat is sustained power. The cure is to do less work each second: fewer frames where nobody needs them, less work per
 frame on phones, and a governor that steps quality down **before** iOS throttles the chip.
 
-Base: `origin/main` at `ee8258eb` (sim v16). This document changes no code. The sim was not touched.
+Base: `origin/main` at `ee8258eb` (sim v16). The sim was not touched.
+
+**Status (2026-11-09):** Phase 1 and most of Phase 2 are implemented on `perf/pawlegends-ios-thermal`. Before and
+after numbers are in [§7](#7-after-the-fix-2026-11-09); what is still open is listed there.
 
 ---
 
@@ -351,3 +354,101 @@ and from 10–14 MB/s to < 2 MB/s of garbage.
    iPhone 12) with Xcode Instruments (Activity Monitor + Energy Log, Thermal State track), before and after. Pass
    condition: the thermal state stays `nominal`/`fair` for 15 minutes at 60 fps, and frame pacing stays smooth.
    Record the numbers here.
+
+---
+
+## 7. After the fix (2026-11-09)
+
+Commits on `perf/pawlegends-ios-thermal`: `a5884461` (phase 1), `aadfdf66` (phase 2), and the governor tuning
+commit with this section. Nothing in `src/sim` changed.
+
+### 7.1 Before and after
+
+The same harness as §3 (`benchmarks/perf-ios-measure.mjs`), run on the same Mac, on two production builds served
+side by side: **before** = `d46c3510` (= `origin/main` game code), **after** = this branch. The harness now also counts
+**drawn** frames (rAF ticks that issued a draw call) and per-drawn-frame GPU work, because the pacer keeps rAF at the
+display rate but skips drawing. In both builds the iPhone-sized viewport (852×393, DPR 3, touch) is detected as a
+phone (`data-phone="1"`) only by the new build. The governor stayed at step 0 in every window, so these are the plain
+phone-profile numbers. "Pause menu" is the window after Esc opened the pause menu.
+
+**Chromium, real GPU, CPU ×4 (a mid phone)**
+
+| Window | Drawn fps | Draws / frame | Triangles / frame (shadow pass) | Triangles / s | Overhead canvas px | Minimap 2D calls / s | Script ms/s | Style recalcs / s | Composited layers | Infinite CSS anims | DOM mutations / s | Heap alloc MB/s |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Lobby, before → after | 60 → **30** | 10 → 10 | 32k → 32k | 1.9M → **1.0M** | – | – | 74 → 42 | 60 → 60 | 10 → 12 | 4 → 4 | 0 → 0 | 0.58 → 0.39 |
+| Match 0:15 | 60 → 60 | 52.9 → 47.5 | 293k (34k) → **174k (18k)** | 17.6M → **10.4M** | 1.34M → **0.75M** | 3,566 → 1,763 | 340 → 321 | 63 → **11** | 14 → 14 | 2 → **0** | 70 → **10** | 11.1 → 10.0 |
+| Match 1:30 | 60 → 60 | 61.5 → 56.8 | 306k (41k) → **182k (21k)** | 18.3M → **10.9M** | 1.34M → 0.75M | 5,092 → 2,423 | 350 → 309 | 63 → **13** | 37 → **20** | 2 → 0 | 72 → 15 | 9.5 → 8.6 |
+| Match 2:45 (fights) | 60 → 60 | 65.3 → 59.6 | 312k (42k) → **186k (21k)** | 18.7M → **11.1M** | 1.34M → 0.75M | 5,642 → 2,571 | 340 → 313 | 64 → **8** | 37 → **19** | 2 → 0 | 73 → 12 | 10.4 → 8.8 |
+| Pause menu | 60 → **15** | 64 → 60 | 322k → 191k | 19.3M → **2.8M** | 1.34M → 0.75M | 5,723 → 2,538 | 327 → **92** | 60 → **0** | 37 → 21 | 2 → 0 | 60 → 0 | 10.1 → **2.4** |
+
+**WebKit (Safari engine), no throttle**
+
+| Window | Drawn fps | Draws / frame | Triangles / frame (shadow pass) | Triangles / s | Overhead 2D calls / s | Minimap 2D calls / s | DOM mutations / s | JS ms per drawn frame |
+|---|---|---|---|---|---|---|---|---|
+| Lobby, before → after | 60 → **30** | 10 → 10 | 32k → 32k | 1.9M → **1.0M** | – | – | 0 → 0 | 0.36 → 0.50 |
+| Match 0:15 | 60 → 60 | 53.1 → 47.7 | 294k (35k) → **175k (18k)** | 17.7M → **10.5M** | 2,310 → 2,376 | 3,608 → 1,756 | 71 → 11 | 1.73 → 1.68 |
+| Match 1:30 | 60 → 60 | 60.4 → 55.8 | 305k (40k) → **185k (21k)** | 18.4M → **11.1M** | 1,825 → 1,817 | 5,122 → 2,455 | 73 → 20 | 1.48 → 1.57 |
+| Match 2:45 | 60 → 60 | 67.4 → 58.3 | 312k (41k) → **186k (21k)** | 18.7M → **11.2M** | 1,850 → 1,847 | 5,341 → 2,601 | 73 → 20 | 1.51 → 1.48 |
+
+**Chromium, real GPU, uncapped (`--disable-gpu-vsync --disable-frame-rate-limit`), CPU ×1**
+
+| | Lobby | Match (1:30) | Pause menu |
+|---|---|---|---|
+| Drawn fps, before → after | 638 → **30** | 365 → **52** (capped at 60; the harness floods rAF at ~8,000 Hz) | 504 → **15** |
+| Triangles / s, before → after | 20.4M → **1.0M** | 113M → **9.7M** | 159M → **2.8M** |
+| Heap alloc MB/s, before → after | 3.7 → 1.5 | 56.8 → 9.9 | 75 → 2.3 |
+
+### 7.2 What the numbers say
+
+- **GPU work per second in a match: −41%** (18.7M → 11.1M triangles a second at the same 60 fps), from the phone
+  profile and the culled far forest: triangles per frame 306–312k → 182–186k, the shadow pass 41–42k → 21k on a
+  512² map redrawn every second frame. Draw calls per frame 61–65 → 56–60.
+- **Menus and pause: −50% and −85%.** The lobby draws 30 times a second instead of 60; the pause menu 15 instead of
+  60; on a display faster than 60 Hz nothing renders above 60 (uncapped lobby 638 → 30 draws a second).
+- **The 2D overlay rasterises 44% fewer pixels** (1704×786 → 1278×590 backing store, DPR 2 → 1.5), and the minimap
+  issues half the Canvas 2D calls (15 redraws a second instead of 30, plus at once on a ping or a death).
+- **Main thread:** style recalcs in a match 63 → 8–13 a second (the per-frame `data-phase` write), DOM mutations
+  70 → 10–20 a second, script time −8–12% on the ×4 CPU, layout reads per frame gone (cached sizes).
+- **Compositing:** 37–40 → 19–21 composited layers mid-match (idle damage-number layers, the hidden death veil and
+  flashes), no infinite CSS animation in a match on a phone (2 → 0), no box-shadow paint animation in the lobby.
+- **Garbage:** only −10–15% at 60 fps (10.4 → 8.8 MB/s): the Map entry arrays and lookups are gone, but most of the
+  remaining churn is the per-frame `ViewFrame` objects, three.js program-key checks and uniform uploads (open, §7.4).
+- The iPhone figure can only be estimated: §3.4's ~3.5–4 ms of GPU per Medium frame on an A17 Pro scales with the
+  triangles and the shadow pass, so the phone profile should land near ~2.2–2.5 ms; menus at half or a quarter of that
+  rate. This still needs the on-device check in §6.3.
+
+### 7.3 What changed (code)
+
+| Plan item | Where | What |
+|---|---|---|
+| P1-1 frame pacer | `render/perf/pacer.ts`, `app/app.ts` | Fixed-grid pacer: match 60, Battery saver or governor 30, menus 30, pause or full-screen panel 15. rAF stays alive; `dt` is real time |
+| P1-2 phone profile | `render/perf/device.ts`, `render/quality.ts` | Phone = iOS shell, iPhone/iPad (incl. iPadOS "Macintosh" + touch)/Android UA, or a coarse pointer with a short side ≤ 500 px; never the Mac app. `?phone=1|0` forces it. Phone Medium: 512² shadows every 2nd frame, outline hull on own hero + enemies, half far forest, Low particle budget, overhead DPR 1.5, minimap 15 Hz. Phone Low keeps the own-hero outline |
+| P1-2 tier memory | `render/quality.ts` | `localStorage` `{ tier, by: 'user' \| 'probe' }`; the FPS probe runs in the first match (after 8 s), never on the title |
+| P1-3 thermal governor | `render/perf/governor.ts` | Steps: shadows off + half forest → overlay DPR 1.25, minimap 10 Hz, Low particles → Low tier → 30 fps → resolution ×0.85 → ×0.7 (dynamic resolution). Down after two bad 3 s windows (>10% missed refreshes or JS > ½ the frame budget), at once on iOS `serious`/`critical` (and never back above that floor). Up one step after 45 s clean and ≥ 60 s since the last change. Ignores the first 8 s of a match and stalls over 250 ms. The step is saved; the next launch starts one step cooler |
+| P3-3 Battery saver | `render/perf/prefs.ts`, `ui/settings.ts` | "Battery saver (30 fps)" row in Settings, persisted. Turns on by itself when the 30 fps step has held a minute, iOS reports `serious`/`critical`, or Low Power Mode is on, unless the player chose it; Settings says when it was turned on for them |
+| P1-4 overlay, minimap | `ui/overhead.ts`, `ui/minimap.ts` | Overhead backing store capped by the profile (2 desktop, 1.5 phone, 1.25 hot); minimap redraw rate by the profile plus dirty-on-event; size re-read on `ResizeObserver` or once a second |
+| P1-5 main thread | `ui/hud.ts`, `render/gameView.ts`, `render/renderer.ts`, `render/perf/viewport.ts` | `data-phase` and cooldown/charge CSS variables written on change only; `pxPerMetre` uses the renderer's cached CSS size; the overhead reads a cached viewport |
+| P1-6 suspend | `app/app.ts`, `audio/sfx.ts`, `audio/music.ts` | On `visibilitychange` hidden and the Capacitor App `pause` event: no rAF, `AudioContext.suspend()`, the music scheduler stops; all resume on return |
+| P2-1 far forest | `render/views/mapView.ts` | 24 m chunks, one `InstancedMesh` each with its own bounding sphere (frustum-culled); Low/phone keep half per chunk |
+| P2-2 cheaper shadows | `render/renderer.ts` | `shadowMap.autoUpdate` off on phones, redrawn every `shadowEvery` frames; 512² map |
+| P2-4 garbage | `render/views/minionInstances.ts`, `render/interp.ts`, VFX | No Map entry arrays per minion, reused snapshot lookups, no 3-argument `Math.hypot` in per-frame VFX |
+| P2-5 layers | `render/fx/DamageNumbers.js`, `ui/ui.css`, `render/anim/ultMoment.ts`, `render/fx/lifecycle.css`, `ui/lobby/lobby.css` | `will-change` only on live damage numbers; edge flashes and the ult vignette are radial gradients faded by opacity and hidden when idle; the death veil hides once faded; phones in a match run no infinite animation (ult/talent/charge/tip/Sudden Death cues keep a still glow); the lobby Play pulse is an opacity-only ring on phones |
+| P2-6 shader warm-up | `app/app.ts` | `renderer.compileAsync(scene, camera)` behind the loading veil |
+| P2-7 iOS thermal signal | `pawlegends-app/ios/App/App/GameViewController.swift`, `render/perf/thermal.ts` | The shell sets `window.__PL_THERMAL__ = { state, lowPower }` at document start and on `thermalStateDidChange` / power-state changes (`pl-thermal` event). Needs a new App Store binary; OTA bundles without it use frame times only. The Swift file parses (`swiftc -parse`) but was not built here |
+| P3-2 dynamic resolution | `render/quality.ts`, `render/renderer.ts` | The governor's last two steps scale the drawing buffer (×0.85, ×0.7 of the tier DPR, floor 0.75) |
+| P3-4 Mac GPU | `render/renderer.ts` | `powerPreference: 'default'` in the Mac app |
+| `?perf=1` readout | `ui/perfReadout.ts` | Shows the pacer cap, governor step and reason, and JS ms per frame |
+
+Unit tests: `tests/unit/perf-ios.test.ts` (phone detection, pacer at 60/120/600 Hz with jitter, governor steps,
+hysteresis, hold, thermal floor, phone profile per step, persisted prefs).
+
+### 7.4 Still open
+
+- **On-device check (§6.3)**: a 15-minute bot match with Xcode Instruments on an iPhone 15 Pro and an older phone.
+  Nothing in this section was measured on an iPhone.
+- **P2-3 material program re-checks** and the rest of the garbage (`ViewFrame` objects per frame, uniform uploads):
+  allocation is still ~9 MB/s at 60 fps.
+- **P3-1** bars and names in WebGL (removes the 2D overlay canvas entirely).
+- The lobby still has 4 infinite CSS animations (transform/opacity only, composited) and 60 style recalcs a second in
+  Chromium from them.
+- The perf e2e with pass limits (§6.2) is not written yet; the harness numbers above are the baseline for it.

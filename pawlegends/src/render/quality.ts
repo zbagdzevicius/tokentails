@@ -158,7 +158,7 @@ export function startTier(search?: string): { tier: QualityTier; probe: FpsProbe
   if (forced) return { tier: forced, probe: null };
   const r = rememberedTier();
   if (r) return { tier: r.tier, probe: null };
-  return { tier: 'med', probe: new FpsProbe(4, 2) };
+  return { tier: 'med', probe: new FpsProbe(4, 8) };
 }
 
 /**
