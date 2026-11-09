@@ -179,3 +179,41 @@ describe('phone shadow stand-ins', () => {
     expect(ms[0].intersectsFrustum(fr(persp))).toBe(false);
   });
 });
+
+describe('dynamic resolution (governor)', () => {
+  it('late frames shrink the buffer in 0.05 steps within seconds, to 0.8, before the first governor step', async () => {
+    const { ThermalGovernor, DYN_RES, dynRes } = await import('../../src/render/perf/governor');
+    dynRes.scale = 1;
+    const g = new ThermalGovernor();
+    let t = 0;
+    const scales: number[] = [];
+    let firstStepAt = -1;
+    while (t < 8000) {
+      t += 33.4;
+      const r = g.sample({ frameMs: 33.4, workMs: 4, targetMs: 1000 / 60, now: t });
+      if (r !== null && firstStepAt < 0) firstStepAt = t;
+      if (scales.at(-1) !== g.res.scale) scales.push(g.res.scale);
+    }
+    expect(scales).toEqual([1, 0.95, 0.9, 0.85, 0.8]);
+    expect(dynRes.scale).toBe(DYN_RES.MIN);
+    expect(firstStepAt).toBeGreaterThan(4000);
+    dynRes.scale = 1;
+  });
+
+  it('a busy main thread with no missed refresh leaves the resolution alone; clean frames bring it back up slowly', async () => {
+    const { ResScaler, DYN_RES } = await import('../../src/render/perf/governor');
+    const r = new ResScaler();
+    let t = 0;
+    for (; t < 3000; t += 16.7) r.sample(t, false);
+    expect(r.scale).toBe(1);
+    for (const end = t + 2100; t < end; t += 33.4) r.sample(t, true);
+    expect(r.scale).toBe(0.9);
+    for (const end = t + DYN_RES.UP_CLEAN_MS - 2000; t < end; t += 16.7) r.sample(t, false);
+    expect(r.scale).toBe(0.9);
+    for (const end = t + 4000; t < end; t += 16.7) r.sample(t, false);
+    expect(r.scale).toBe(0.95);
+    // held down while a governor step is above its floor
+    for (const end = t + 60_000; t < end; t += 16.7) r.sample(t, false, false);
+    expect(r.scale).toBe(0.95);
+  });
+});
