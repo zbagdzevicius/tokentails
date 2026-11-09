@@ -35,7 +35,7 @@ import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
 import { isPhone } from '../render/perf/device';
 import { FramePacer, MATCH_FPS, paceTarget } from '../render/perf/pacer';
-import { GOV_NAMES, ThermalGovernor } from '../render/perf/governor';
+import { GOV, GOV_NAMES, ThermalGovernor } from '../render/perf/governor';
 import { autoBatterySaver, batterySaver, savePerfStep, savedPerfStep, setBatterySaver } from '../render/perf/prefs';
 import { thermal } from '../render/perf/thermal';
 import { createRenderer, type GameRenderer } from '../render/renderer';
@@ -1140,6 +1140,8 @@ export class App {
     });
     if (this.pendingPause || document.hidden) this.session.setPaused(true);
     this.pendingPause = false;
+    // PERF-IOS: the governor ignores the match's first seconds (shader compiles, pools)
+    this.governor.hold(performance.now() + GOV.WARMUP_MS);
     // PERF-IOS P2-6: compile the match's programs behind the loading veil (WebKit stalled 942 ms at the first fight)
     try {
       void this.gr.renderer.compileAsync(this.gr.scene, this.gr.camera).catch(() => undefined);
@@ -1676,9 +1678,10 @@ export class App {
         this.applyProfile();
         savePerfStep(next);
         this.analytics.track('quality_tier', { tier: this.gr.settings.tier, step: next, reason: this.governor.lastReason });
-        // sustained throttling: Battery saver (30 fps) turns on by itself, unless the player chose it in Settings
-        if (this.governor.throttled(th) && autoBatterySaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: true, by: 'thermal' });
       }
+      // sustained throttling (the OS says so, or 30 fps held a minute): Battery saver turns on by itself, unless the
+      // player chose it in Settings
+      if (!saver && this.governor.throttled(th, now) && autoBatterySaver()) this.analytics.track('quality_tier', { tier: this.tier, saver: true, by: 'thermal' });
     }
     this.perf?.sample({ frameMs: raw, draws: this.gr.renderer.info.render.calls, tier: this.gr.settings.tier, inMatch, fps, step: this.governor.step, reason: GOV_NAMES[this.governor.step] + (this.governor.lastReason ? ` (${this.governor.lastReason})` : ''), workMs: work });
   }

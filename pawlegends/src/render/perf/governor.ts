@@ -12,8 +12,9 @@
  *
  * Inputs per drawn frame: the interval since the last drawn frame, the frame's JS time, the pacer's target interval,
  * and the iOS thermal state when the app shell forwards it (render/perf/thermal.ts). Decisions are made per WINDOW_MS:
- *   - down when more than SLOW_SHARE of the window's frames were late (interval > target × LATE), or the mean JS time
- *     is over WORK_BUSY × target, or at once (DOWN_GAP_MS apart) when the OS says `serious`/`critical`;
+ *   - down after BAD_WINDOWS bad windows in a row: more than SLOW_SHARE of the frames late (interval > target × LATE, a
+ *     missed refresh, not jitter), or the mean JS time over WORK_BUSY × target; or at once (DOWN_GAP_MS apart) when
+ *     the OS says `serious`/`critical`. `hold(until)` ignores frame times (the first seconds of a match compile shaders);
  *   - up one step only after UP_CLEAN_MS of clean windows (≤ CLEAN_SHARE late, JS ≤ WORK_CLEAN × target), at most
  *     once per UP_GAP_MS since the last change, never while the OS is `serious`/`critical`, and never above the step a
  *     thermal event forced (the floor) in this session.
@@ -26,7 +27,8 @@ export const GOV_NAMES: readonly string[] = ['full', 'no shadows', 'light overla
 export const GOV = Object.freeze({
   WINDOW_MS: 3000,
   MIN_FRAMES: 10,
-  LATE: 1.11,
+  LATE: 1.5,
+  BAD_WINDOWS: 2,
   SLOW_SHARE: 0.1,
   CLEAN_SHARE: 0.03,
   WORK_BUSY: 0.5,
@@ -35,6 +37,10 @@ export const GOV = Object.freeze({
   UP_GAP_MS: 60_000,
   DOWN_GAP_MS: 5000,
   IGNORE_MS: 250,
+  /** Battery saver turns on once the 30 fps step has held this long (sustained throttling, app.ts). */
+  SAVER_AFTER_MS: 60_000,
+  /** Frame times are ignored this long after a match starts (shader compiles, pools). */
+  WARMUP_MS: 8000,
 });
 
 export type ThermalState = 'nominal' | 'fair' | 'serious' | 'critical';
@@ -66,14 +72,27 @@ export class ThermalGovernor {
   private lastAt = -1;
   private lastChange = -Infinity;
   private cleanSince = -1;
+  private badRun = 0;
+  private holdUntil = -Infinity;
+  /** When the 30 fps step (or lower) was reached, -1 while above it. */
+  private fps30At = -1;
 
   constructor(start = 0) {
     this.step = Math.max(0, Math.min(GOV_MAX, start | 0));
+    if (this.step >= GOV_STEP.fps30) this.fps30At = 0;
   }
 
-  /** The device is throttling for real: the 30 fps step or an OS `serious`/`critical` state. */
-  throttled(thermal?: ThermalState | null): boolean {
-    return this.step >= GOV_STEP.fps30 || thermal === 'serious' || thermal === 'critical';
+  /** Ignore frame times until `until` (ms): a match start compiles shaders and builds pools. OS states still count. */
+  hold(until: number): void {
+    this.holdUntil = until;
+    this.badRun = 0;
+    this.winStart = -1;
+  }
+
+  /** The device is throttling for real: an OS `serious`/`critical` state, or the 30 fps step held SAVER_AFTER_MS. */
+  throttled(thermal: ThermalState | null | undefined, now: number): boolean {
+    if (thermal === 'serious' || thermal === 'critical') return true;
+    return this.fps30At >= 0 && now - this.fps30At >= GOV.SAVER_AFTER_MS;
   }
 
   /** Feed one drawn frame. Returns the new step when it changed, else null. */
@@ -85,6 +104,10 @@ export class ThermalGovernor {
       this.floor = Math.max(this.floor, next);
       if (next !== this.step) return this.change(next, s.now, `thermal ${s.thermal}`);
       this.lastChange = s.now;
+    }
+    if (s.now < this.holdUntil) {
+      this.lastAt = s.now;
+      return null;
     }
     // a gap (background, a long stall) or a new target starts a fresh window
     if (!(s.frameMs > 0) || s.frameMs > GOV.IGNORE_MS || (this.lastAt >= 0 && s.now - this.lastAt > GOV.IGNORE_MS) || s.targetMs !== this.winTarget) {
@@ -107,9 +130,12 @@ export class ThermalGovernor {
     const bad = slowShare > GOV.SLOW_SHARE || work > s.targetMs * GOV.WORK_BUSY;
     if (bad) {
       this.cleanSince = -1;
+      if (++this.badRun < GOV.BAD_WINDOWS) return null;
+      this.badRun = 0;
       if (this.step < GOV_MAX) return this.change(this.step + 1, s.now, slowShare > GOV.SLOW_SHARE ? `late frames ${Math.round(slowShare * 100)}%` : `busy ${work.toFixed(1)} ms`);
       return null;
     }
+    this.badRun = 0;
     const clean = slowShare <= GOV.CLEAN_SHARE && work <= s.targetMs * GOV.WORK_CLEAN;
     if (!clean) {
       this.cleanSince = -1;
@@ -123,6 +149,9 @@ export class ThermalGovernor {
   }
 
   private change(next: number, now: number, reason: string): number {
+    if (next >= GOV_STEP.fps30 && this.step < GOV_STEP.fps30) this.fps30At = now;
+    else if (next < GOV_STEP.fps30) this.fps30At = -1;
+    this.badRun = 0;
     this.step = next;
     this.lastChange = now;
     this.cleanSince = -1;
