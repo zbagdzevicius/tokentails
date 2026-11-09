@@ -19,7 +19,8 @@ const press = async (page: Page, sel: string, touch: boolean): Promise<void> => 
 };
 
 test('the "i" opens Skills and Lore; Select picks; nothing on the Play path changes', async ({ page }, info) => {
-  test.setTimeout(240_000);
+  // three browser opens, a clip and a match load on SwiftShader: a loaded machine needs more than 240 s
+  test.setTimeout(420_000);
   const touch = info.project.name === 'landscape';
   await toPick(page);
   await expect(page.locator('.heroes:not([hidden]) .hero-card .hero-info')).toHaveCount(10);

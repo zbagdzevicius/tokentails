@@ -289,8 +289,8 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
       .map((p) => `<p>${esc(p)}</p>`)
       .join('');
     const worldHtml = `<div class="cb-world"${world ? '' : ' hidden'}><h4>${esc(WORLD.title)}</h4><p class="cb-tagline">${esc(WORLD.tagline)}</p>${WORLD.story.map((p) => `<p>${esc(p)}</p>`).join('')}<dl class="cb-places">${WORLD.places.map((p) => `<div><dt>${esc(p.name)}</dt><dd>${esc(p.text)}</dd></div>`).join('')}</dl></div>`;
+    // the hook is in the champion column, which stays beside this tab: the tab opens on the quote
     loreEl.innerHTML = `
-      <p class="cb-lore-hook">${esc(l.hook)}</p>
       <blockquote class="cb-quote">“${esc(l.quote)}”</blockquote>
       <div class="cb-bio">${bio}</div>
       <div class="cb-links">${linkHtml('rival', l.rival.hero, l.rival.line)}${linkHtml('friend', l.friend.hero, l.friend.line)}</div>

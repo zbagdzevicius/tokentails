@@ -211,7 +211,9 @@ describe('champion browser', () => {
     expect((b.root.querySelector('.cb-skills') as HTMLElement).hidden).toBe(true);
     const t = lore.textContent ?? '';
     const l = LORE.brutus;
-    expect(t).toContain(l.hook);
+    // the hook sits once, in the champion column beside both tabs (the Lore tab does not repeat it)
+    expect(b.root.querySelector('.cb-hook')?.textContent).toBe(l.hook);
+    expect(t).not.toContain(l.hook);
     expect(t).toContain(l.quote);
     expect(t).toContain(l.howTheyFight);
     expect(t).toContain(l.home);
