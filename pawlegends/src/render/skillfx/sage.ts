@@ -22,16 +22,26 @@
  * - Steady Paw: wind rings at the bow on the pierce bolt (the bolt's own trail is the projectile renderer's), T1 shake;
  *   every own bolt keeps moves/sage.ts STEADY in sync, so the knee-drop pose predicts the pierce.
  *
+ * Champion identity (CHAMP-IDENTITY.md §3, audio/champ/sage.ts): the nature and flute layers play from
+ * render/effects.ts on every cast, so the dash / ult stand-in cues (whooshM, whooshL, fwoomp) are gone from here. This
+ * script adds what only it knows: feathers spinning off the bow (basics, the volley, the lance) and puffing on every
+ * arrow hit, feathers drifting down where Hop Back left, a crescent moon glinting on her own armed traps (with a low
+ * flute when one sets, own team only), the sprung trap's moon closing on the victim (the arcane impact and a falling
+ * flute, every viewer), the full moon at the Moonshot charge and crescents edging the moonbeam as it flies.
+ *
  * Hits are classified by the live flight tracks (which shot's head is at the target), never by the last cast slot, so
  * an E or Q cast while the Moonshot flies does not misroute its hit. Tracks exist on every tier; only the ribbon is
  * tier-gated. Pooled: fixed tables, no allocation per frame or per event.
  */
 import { PROJECTILE_KIND } from '../../data/towers';
+import { mixPriority, type MixRelation } from '../../audio/identityMix';
+import { sfx } from '../../audio/sfx';
+import { champSound, playSkillSfx } from '../../audio/skillSfx';
 import { CAPS } from '../../data/map';
 import { STEADY } from '../moves/sage';
 import { HEROES } from '../../data/heroes';
 import { DASH_SPEED, TICK_HZ, TICK_S, travelTicks } from '../anim/timing';
-import type { FxCtx, HeroStatus, MeshFxSpawn, MoveCtx, SkillFxSet, V3Out } from '../anim/types';
+import type { FxCtx, HeroStatus, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
 import { flying, funHeadY, funOverY, funPop, funRand, funSfx, orbit, pawTrail, sticker, stickerBurst } from '../fx/fun/funKit';
 
 /** Wind core, wind edge, moonlight, sun (trap), goo. */
@@ -142,6 +152,32 @@ const AT = { x: 0, z: 0 };
 /** Fun pass (decoration only): fish-arrow tips, the once-per-cast SPLAT and POW, the hop's paw order, trap yarn bob. */
 const FISH = 0xfff1d6;
 const YARN = 0xffb36b;
+const MIX_REL: Readonly<Record<Relation3, MixRelation>> = { own: 'mine', ally: 'ally', enemy: 'enemy' };
+const relOf = (fx: FxCtx, id: number): MixRelation => MIX_REL[fx.relation(id)] ?? 'enemy';
+
+/** A skill phase's nature + champion sound (audio/skillSfx.ts) for a moment only this script sees. */
+function skillSound(fx: FxCtx, id: number, skill: 'q' | 'w' | 'e' | 'r', phase: 'impact' | 'travel', at: { x: number; z: number }): void {
+  try {
+    playSkillSfx('sage', skill, phase, { at, relation: relOf(fx, id), src: id });
+  } catch {
+    /* audio not unlocked yet */
+  }
+}
+
+/** One of her own sounds (audio/champ/sage.ts `sounds`) through the identity mix. */
+function champCue(fx: FxCtx, id: number, name: string, at: { x: number; z: number }, rate = 1): void {
+  const relation = relOf(fx, id);
+  try {
+    sfx.playLayer({ name: champSound('sage', name), layer: 'motif', hero: 'sage', nature: 'arcane', priority: mixPriority({ relation }), relation, rate, at });
+  } catch {
+    /* audio not unlocked yet */
+  }
+}
+
+/** `n` mint feathers spinning off (x, y, z) and drifting down slowly: her motif. */
+function feathers(fx: FxCtx, x: number, y: number, z: number, n: number, seed: number): void {
+  stickerBurst(fx, x, y, z, 'FEATHER', WIND_DEEP, 0.3, 0.9, n, 1.4, 1.2, -1.2, seed);
+}
 const tFish = new Uint8Array(N);
 const qSplat = new Uint8Array(ID_N);
 const rPow = new Uint8Array(ID_N);
@@ -291,7 +327,7 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx, ctx: MoveCtx
     // the ground slash is laid when the lance reaches its range (update), not along the whole line on the cast
     if (li >= 0) tBeam[li] = range;
     if (own) fx.cam.tier(1);
-    fx.sfx.cue('whooshL', _p);
+    feathers(fx, _p.x + Math.cos(yaw) * 0.5, ARROW_Y, _p.z - Math.sin(yaw) * 0.5, 3, 0.2);
     return;
   }
   // Volley: the release fan is exactly the volley arc, short (it is the bow's flash, not a cone hitbox)
@@ -314,7 +350,8 @@ function castQ(e: { src: number; x: number; y: number }, fx: FxCtx, ctx: MoveCtx
     }
   }
   qSplat[id & 15] = sticky ? 1 : 0;
-  fx.sfx.cue('whooshM', _p);
+  // the volley's feather tails flutter off the bow
+  feathers(fx, _p.x + Math.cos(yaw) * 0.5, ARROW_Y, _p.z - Math.sin(yaw) * 0.5, 4, 0.6);
 }
 
 function castW(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -388,10 +425,12 @@ function armFlash(k: number, fx: FxCtx): void {
   // the additive meshes wash out on sand: a solid shockwave ring at exactly the trap radius marks the arm
   shock(fx, trX[k], trZ[k], trR[k], 0.35, '#ffc23d', 0.35);
   fx.linger.add('petals', trX[k], trZ[k], 0.8, 0, SUN);
+  // the trap is a crescent moon on the ground (own team only: castW never keeps an enemy trap)
+  sticker(fx, trX[k], 0.25, trZ[k], 'MOON', MOON, 0.6, 0.6, 0.2);
   if (fx.relation(id) === 'own') {
     AT.x = trX[k];
     AT.z = trZ[k];
-    fx.sfx.cue('pop', AT, 0.6);
+    champCue(fx, id, 'moonSet', AT);
   }
 }
 
@@ -418,7 +457,12 @@ function coil(owner: number, victim: number, r: number, fx: FxCtx): void {
   orbit(fx, _q.x, 0.45, _q.z, 'HAIRBALL', YARN, 5, 0.42, 0.26, Math.min(1.2, root));
   sticker(fx, _q.x, 0.45, _q.z, 'YARN', YARN, 0.5, Math.min(1.2, root));
   sticker(fx, _q.x + 0.55, funHeadY(fx, victim, 0.45), _q.z, 'EXCLAIM', 0xffd23d, 0.55, 0.8, 0.4);
-  funSfx(fx, 'squeakToy', _q, 0.5);
+  // the moon closes on the victim: two crescents facing each other, the arcane impact and a falling flute
+  const hy = funHeadY(fx, victim, 0.2);
+  sticker(fx, _q.x - 0.25, hy, _q.z, 'MOON', MOON, 0.5, 0.5, 0, 0, 0);
+  sticker(fx, _q.x + 0.25, hy, _q.z, 'MOON', WIND_DEEP, 0.5, 0.5, 0, 0, Math.PI);
+  skillSound(fx, owner, 'w', 'impact', _q);
+  champCue(fx, owner, 'moonClose', _q);
 }
 
 /** The own sprung trap a root on `victim` (at _r) belongs to, or −1. */
@@ -460,6 +504,8 @@ function castE(e: { src: number; tick?: number }, fx: FxCtx): void {
   const life = travelTicks(a.dash ?? 3000, DASH_SPEED) * TICK_S + 0.12;
   const i = track(fx, K.Dash, id, _p.x, _p.z, 0, 0, life, WIND, 0.5, 0.3, 1.0);
   if (i >= 0) tLife[i] = life;
+  // feathers drift down where she stood
+  feathers(fx, _p.x, 1.0, _p.z, 4, 0.1);
 }
 
 function castR(e: { src: number; x: number; y: number }, fx: FxCtx): void {
@@ -480,7 +526,7 @@ function castR(e: { src: number; x: number; y: number }, fx: FxCtx): void {
   shock(fx, _p.x, _p.z, 1.6, 0.3, '#cfe0ff', 0.3);
   const mi = track(fx, K.Moon, id, _p.x, _p.z, yaw, speed, range, MOON, w, 0.42);
   if (mi >= 0) tBeam[mi] = Math.min(range, 9);
-  fx.sfx.cue('fwoomp', _p);
+  // the arcane cast and her flute ult voice play from render/effects.ts
   // fun: the release kicks the camera (own view) and arms the "POW!" for the first hero it stops on
   if (fx.relation(id) === 'own') fx.cam.punch(0.05);
   if (id >= 0 && id < ID_N) rPow[id] = 1;
@@ -614,6 +660,8 @@ export const SKILL_FX: SkillFxSet = {
       }
     }
     spawn(fx, 'ring', id, qx, qz, 0.8, 0.22, WIND, { p1: 0.1 });
+    // an arrow hit puffs feathers
+    feathers(fx, qx, 1.0, qz, 2, (clock * 7.3) % 1);
   },
 
   onZone(zoneIndex, phase, fx) {
@@ -645,6 +693,8 @@ export const SKILL_FX: SkillFxSet = {
         const yaw = Math.atan2(-(_p.z - _q.z), _p.x - _q.x);
         spawn(fx, 'glow', id, _p.x, _p.z, 0.4, 0.12, WIND, { y: _p.y });
         spawn(fx, 'beam', id, _p.x, _p.z, 1.4, 0.12, WIND, { y: _p.y, yaw, sz: 0.12, p3: 1 });
+        // a single feather spins off the arrow on release
+        sticker(fx, _p.x, _p.y + 0.1, _p.z, 'FEATHER', WIND_DEEP, 0.26, 0.6, 0.4, 3, yaw);
         return;
       }
       case 'steady':
@@ -677,6 +727,8 @@ export const SKILL_FX: SkillFxSet = {
         const y = Math.max(_p.y + 0.35, MOON_Y);
         spawn(fx, 'glow', id, _p.x, _p.z, 1.6, 0.42, MOON, { y, p3: 1.6 });
         spawn(fx, 'crescent', id, _p.x, _p.z, 1.2, 0.42, MOON, { y: y + 0.1, p0: 4.0, p1: 0.6, p2: 1, p3: 1.5 });
+        // the full moon rising behind her
+        sticker(fx, _p.x, y + 0.15, _p.z, 'MOON', MOON, 0.8, 0.45, 0.3);
         return;
       }
       case 'charge2': {
@@ -766,6 +818,12 @@ export const SKILL_FX: SkillFxSet = {
         const r = tRange[i];
         fx.linger.add('crackLine', tX[i] + tDX[i] * r * 0.5, tZ[i] + tDZ[i] * r * 0.5, r * 0.5, Math.atan2(-tDZ[i], tDX[i]), WIND_DEEP);
       }
+      if (k === K.Moon && ((tAge[i] * 15) | 0) !== (((tAge[i] - dt) * 15) | 0) && d < tRange[i]) {
+        // crescents edging the moonbeam, dropped behind its head as it flies (alternating sides)
+        const side = ((tAge[i] * 15) | 0) & 1 ? 1 : -1;
+        const off = tW[i] * 0.55 * side;
+        sticker(fx, tX[i] + tDX[i] * d - tDZ[i] * off, ARROW_Y, tZ[i] + tDZ[i] * d + tDX[i] * off, 'MOON', side > 0 ? MOON : WIND_DEEP, 0.4, 0.4, 0, 0, side > 0 ? 0 : Math.PI);
+      }
       if (tSlot[i] >= 0) {
         fx.ribbons.feed(tSlot[i], tX[i] + tDX[i] * d, ARROW_Y, tZ[i] + tDZ[i] * d);
         if (d >= tRange[i]) {
@@ -781,6 +839,8 @@ export const SKILL_FX: SkillFxSet = {
       trBob[k] = clock + (fx.tier === 'low' ? 0.9 : 0.6);
       const b = 0.5 + 0.12 * Math.sin(clock * 5);
       sticker(fx, trX[k], b, trZ[k], 'YARN', YARN, 0.4, 0.66, 0.15);
+      // her crescent moon glinting on the armed trap
+      sticker(fx, trX[k], 0.15, trZ[k], 'MOON', MOON, 0.42, 0.66);
     }
     // Moonshot windups: re-emit while live; a stun or fear (the sim cancels the cast) or a death ends them
     for (let id = 0; id < ID_N; id++) {
