@@ -8,7 +8,9 @@
  *   2 lighter overlay          overhead canvas DPR 1.25, minimap 10 Hz, particle budget Low
  *   3 Low tier                 lighter meshes, outline hull on the own hero and enemies only
  *   4 30 fps                   the match is capped at 30 fps (and Battery saver turns on, app.ts)
- *   5, 6 resolution           the drawing buffer scales to 0.85, then 0.7 of the tier's DPR (dynamic resolution)
+ *   5, 6 resolution           the drawing buffer scales to 0.85, then 0.7 of the tier's DPR
+ * Before any of these, on a phone, the continuous resolution lever (ResScaler, below) trims the drawing buffer to as
+ * little as 0.8 of its size within seconds of missed refreshes, and grows it back after a clean stretch.
  *
  * Inputs per drawn frame: the interval since the last drawn frame, the frame's JS time, the pacer's target interval,
  * and the iOS thermal state when the app shell forwards it (render/perf/thermal.ts). Decisions are made per WINDOW_MS:
@@ -45,6 +47,76 @@ export const GOV = Object.freeze({
 
 export type ThermalState = 'nominal' | 'fair' | 'serious' | 'critical';
 
+/**
+ * PERF-IOS §8 Track A: dynamic resolution as an early, continuous lever (phones; render/renderer.ts applies it). Per
+ * WINDOW_MS window of drawn frames: more than LATE_SHARE of them late (a missed refresh, the GPU or the chip's clock is
+ * behind) steps the drawing-buffer scale down by STEP, to MIN; UP_CLEAN_MS of clean windows (≤ CLEAN_SHARE late) step
+ * it back up by STEP. It reacts within a second, so on a GPU-bound phone the buffer shrinks before the step governor's
+ * first change (shadows off, two 3 s windows): the cheapest visual loss comes first. JS time does not move it (a
+ * smaller buffer does not help a busy main thread). Pure.
+ */
+export const DYN_RES = Object.freeze({ MIN: 0.8, STEP: 0.05, WINDOW_MS: 1000, LATE_SHARE: 0.1, CLEAN_SHARE: 0.03, UP_CLEAN_MS: 20_000, MIN_FRAMES: 10 });
+
+/** The live dynamic-resolution scale (the renderer reads it every frame on a phone). */
+export const dynRes = { scale: 1 };
+
+export class ResScaler {
+  scale = 1;
+  /** Scale changes so far. */
+  changes = 0;
+  private winStart = -1;
+  private frames = 0;
+  private late = 0;
+  private cleanSince = -1;
+
+  /** Drop the window in progress (a gap, a new target). */
+  reset(): void {
+    this.winStart = -1;
+  }
+
+  /**
+   * One drawn frame: `late` when it missed a refresh; `mayRise` false holds the scale down (a governor step is still
+   * above its floor: that comes back first). Returns the new scale when it changed, else null.
+   */
+  sample(now: number, late: boolean, mayRise = true): number | null {
+    if (this.winStart < 0) {
+      this.winStart = now;
+      this.frames = this.late = 0;
+    }
+    this.frames++;
+    if (late) this.late++;
+    if (now - this.winStart < DYN_RES.WINDOW_MS) return null;
+    const frames = this.frames;
+    const share = frames > 0 ? this.late / frames : 0;
+    const start = this.winStart;
+    this.winStart = now;
+    this.frames = this.late = 0;
+    if (frames < DYN_RES.MIN_FRAMES) return null;
+    if (share > DYN_RES.LATE_SHARE) {
+      this.cleanSince = -1;
+      return this.set(this.scale - DYN_RES.STEP);
+    }
+    if (share > DYN_RES.CLEAN_SHARE) {
+      this.cleanSince = -1;
+      return null;
+    }
+    if (this.cleanSince < 0) this.cleanSince = start;
+    if (mayRise && this.scale < 1 && now - this.cleanSince >= DYN_RES.UP_CLEAN_MS) {
+      this.cleanSince = now;
+      return this.set(this.scale + DYN_RES.STEP);
+    }
+    return null;
+  }
+
+  private set(v: number): number | null {
+    const next = Math.round(Math.max(DYN_RES.MIN, Math.min(1, v)) * 100) / 100;
+    if (next === this.scale) return null;
+    this.scale = next;
+    this.changes++;
+    return next;
+  }
+}
+
 export interface GovSample {
   /** Interval since the last drawn frame (ms). */
   frameMs: number;
@@ -76,6 +148,8 @@ export class ThermalGovernor {
   private holdUntil = -Infinity;
   /** When the 30 fps step (or lower) was reached, -1 while above it. */
   private fps30At = -1;
+  /** PERF-IOS §8 Track A: the continuous resolution lever (published to `dynRes`). */
+  readonly res = new ResScaler();
 
   constructor(start = 0) {
     this.step = Math.max(0, Math.min(GOV_MAX, start | 0));
@@ -113,9 +187,14 @@ export class ThermalGovernor {
     if (!(s.frameMs > 0) || s.frameMs > GOV.IGNORE_MS || (this.lastAt >= 0 && s.now - this.lastAt > GOV.IGNORE_MS) || s.targetMs !== this.winTarget) {
       this.lastAt = s.now;
       this.resetWindow(s.now, s.targetMs);
+      this.res.reset();
       return null;
     }
     this.lastAt = s.now;
+    // the resolution lever moves first and on its own short windows; up again only once no step is above the floor
+    const late = s.frameMs > s.targetMs * GOV.LATE;
+    const r = this.res.sample(s.now, late, this.step <= this.floor);
+    if (r !== null) dynRes.scale = r;
     if (this.winStart < 0) this.resetWindow(s.now, s.targetMs);
     this.frames++;
     if (s.frameMs > s.targetMs * GOV.LATE) this.slow++;

@@ -11,6 +11,7 @@ import { installToon } from './toon.js';
 import { setOutlineViewport } from './chars/charMaterial';
 import { tierSettings, type QualityTier, type TierSettings } from './quality';
 import { isPhone } from './perf/device';
+import { dynRes } from './perf/governor';
 import { shellPlatform } from '../app/platform';
 
 /**
@@ -160,6 +161,12 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
   let vh = 1;
   // PERF-IOS P2-2: on a phone the shadow map is redrawn every `shadowEvery` frames (renderer.shadowMap.autoUpdate off)
   let shadowFrame = 0;
+  // PERF-IOS §8 Track A: the dynamic-resolution scale applied to the drawing buffer (phones; render/perf/governor.ts)
+  let dynApplied = 1;
+  const pixelRatio = (): number => {
+    dynApplied = gr.settings.phone ? dynRes.scale : 1;
+    return Math.max(0.75, Math.min(window.devicePixelRatio || 1, gr.settings.maxDpr) * gr.settings.resScale * dynApplied);
+  };
 
   const gr: GameRenderer = {
     renderer,
@@ -190,8 +197,8 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
         sun.shadow.map?.dispose();
         sun.shadow.map = null;
       }
-      // PERF-IOS: the tier's DPR cap × the governor's resolution scale (dynamic resolution), never under 0.75
-      renderer.setPixelRatio(Math.max(0.75, Math.min(window.devicePixelRatio || 1, gr.settings.maxDpr) * gr.settings.resScale));
+      // PERF-IOS: the tier's DPR cap × the governor's resolution steps × the continuous scale, never under 0.75
+      renderer.setPixelRatio(pixelRatio());
       renderer.shadowMap.enabled = gr.settings.shadows;
       renderer.shadowMap.autoUpdate = gr.settings.shadowEvery <= 1;
       renderer.shadowMap.needsUpdate = true;
@@ -208,6 +215,10 @@ export function createRenderer(container: HTMLElement, tier: QualityTier): GameR
       vh = h;
     },
     render() {
+      if (gr.settings.phone && dynRes.scale !== dynApplied) {
+        renderer.setPixelRatio(pixelRatio());
+        gr.resize();
+      }
       setOutlineViewport(renderer.domElement.width, renderer.domElement.height);
       if (gr.place) {
         camera.clearViewOffset();
