@@ -31,8 +31,11 @@ import { screenRightXZ, towardCameraXZ } from '../coords';
 import { stubFx } from '../anim/common';
 import { DASH_SPEED, TICK_S, abilNumbers, travelTicks } from '../anim/timing';
 import type { FxCtx, MeshFxKind, MeshFxSpawn, MoveCtx, Relation3, SkillFxSet, V3Out } from '../anim/types';
-import { funCount, funPop, funRand, funRank, funSound, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
+import { funCount, funPop, funRand, funRank, orbit, sticker, stickerBurst } from '../fx/fun/funKit';
 import { S3Once, s3Eyes, s3HeadY } from '../fx/fun/skills3Kit';
+import { champSound } from '../../audio/skillSfx';
+import { sfx } from '../../audio/sfx';
+import { mixPriority, type MixRelation } from '../../audio/identityMix';
 
 const CORE = 0xb07cff;
 const PALE = 0xd9c4ff;
@@ -45,6 +48,8 @@ const SWEAT = 0x9ad8ff;
 const BANG = 0xffe36a;
 const LEAF = 0x5fbf4a;
 const EYES = 0xd8ff6a;
+/** Champion identity (CHAMP-IDENTITY.md §3, audio/champ/cacklejaw.ts): the acid-lime grin. */
+const LIME = 0xb8f040;
 /** BuffFlag.Feared (sim/api), kept local so this chunk carries no sim import. */
 const FEARED = 1 << 5;
 const TAU = Math.PI * 2;
@@ -221,6 +226,28 @@ const sameSide = (fx: FxCtx, a: number, b: number): boolean => {
 
 // ------------------------------------------------------------------------------------------------ basics
 
+const MIX_REL: Readonly<Record<Relation3, MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
+const GR = { x: 0, z: 0 };
+
+/** His kazoo "hee-hee-hee" (audio/champ/cacklejaw.ts) through the identity mix, on the motif layer. */
+function hee(fx: FxCtx, id: number, at: { x: number; z: number }, rate = 1): void {
+  const relation = MIX_REL[fx.relation(id)];
+  sfx.playLayer({ name: champSound('cacklejaw', 'hee'), layer: 'motif', hero: 'cacklejaw', nature: 'shadow', priority: mixPriority({ relation }), relation, rate, at });
+}
+
+/**
+ * The lime grin: `k` glowing dots along a smile (the ends curl up) in the camera-facing plane, `w` m half-wide, centred
+ * at (x, y, z). Low and reduced effects: 3 dots.
+ */
+function grin(fx: FxCtx, x: number, y: number, z: number, w: number, life: number, k = 5, size = 0.16): void {
+  const r = screenRightXZ(GR);
+  const n = fx.tier === 'low' || fx.reduced ? 3 : k;
+  for (let i = 0; i < n; i++) {
+    const t = (i / (n - 1)) * 2 - 1;
+    sticker(fx, x + t * w * r.x, y + t * t * w * 0.45, z + t * w * r.z, 'DOT', LIME, size, life);
+  }
+}
+
 /**
  * The rake on the victim (or, on a whiff, 0.9 m out toward the striking paw): three standing claw strokes at chest
  * height (two on Med), slanted with the swing; the spin a standing wall ring and a shock ring; the pounce a claw X.
@@ -281,6 +308,10 @@ function drawFlank(fx: FxCtx, src: number, victim: number, tick = 0): void {
   if (v === 1) fx.linger.add('scratches', D.x, D.z, 0.6, yaw + Math.PI * 0.75, FLANK);
   else if (v === 2) sticker(fx, D.x, s3HeadY(fx, victim, -0.6), D.z, 'PAW', FLANK, 0.5, 0.35, 0.4, 0, yaw);
   if (fx.bonePos(src, 'head', Q)) spawn(fx, 'glow', Q.x, Q.z, 0, 0.32, 0.2, FLANK, src, 0, 0, 0, 1, 0, Q.y + 0.1);
+  // identity: a grin glyph hangs just behind the victim
+  const bx = D.x + Math.cos(yaw) * 0.55;
+  const bz = D.z - Math.sin(yaw) * 0.55;
+  grin(fx, bx, s3HeadY(fx, victim, 0.1), bz, 0.3, 0.45);
 }
 
 /** Pack Flank's ally half (the passive's ally range around the victim); the behind half needs MoveCtx.targetBehind. */
@@ -324,6 +355,8 @@ function drawSigil(fx: FxCtx, src: number, v: number, life: number): void {
   spawn(fx, 'crescent', D.x, D.z, -Math.PI * 0.5, 1.15, life, CORE, src, 2.3, 0.72, -1, 1);
   spawn(fx, 'pillar', D.x, D.z, 0, 0.42, life, DEEP, src, 0, 0, 0, 1, 0, 0, 3.4, 0.42);
   spawn(fx, 'ring', D.x, D.z, 0, 1.5, 0.35, PALE, src, 0, 0.2, 0, 0.8);
+  // identity: the mark is a big lime grin over the hunted hero (both teams see the mark)
+  grin(fx, D.x, s3HeadY(fx, v, 0.75), D.z, 0.55, Math.min(1.2, life), 7, 0.2);
 }
 
 function endHunt(fx: FxCtx, id: number): void {
@@ -345,6 +378,12 @@ function endDash(fx: FxCtx, id: number): void {
   // the travelled path at exactly the dash's hit width
   beamAt(fx, mx, mz, yaw, len, dashW[id], 0.32, dashRecast[id] ? PALE : CORE, id);
   fx.linger.add('crackLine', mx, mz, len * 0.5, yaw, CORE);
+  // identity: the dash line leaves a row of grinning crescents
+  const ng = Math.min(fx.tier === 'low' ? 2 : 4, Math.max(1, Math.floor(len / 1.1)));
+  for (let i = 0; i < ng; i++) {
+    const t = (i + 0.5) / ng;
+    grin(fx, dashX0[id] + (P.x - dashX0[id]) * t, 0.75, dashZ0[id] + (P.z - dashZ0[id]) * t, 0.26, 0.5, 4, 0.13);
+  }
 }
 
 /** Clears every per-hero slot (tests; a new match reuses the module). */
@@ -443,9 +482,10 @@ export const SKILL_FX: SkillFxSet = {
         {
           const hy = s3HeadY(fx, id, 0.3);
           const k = funRank(fx, id, 1);
-          for (let i = 0, n = funCount(fx, 3); i < n; i++) sticker(fx, P.x + (i - 1) * 0.42, hy + 0.2 * (i & 1), P.z, 'NOTE', LAUGH, 0.42 * k, 0.7, 1.6 + 0.4 * i, 4 * (i - 1), (i - 1) * 0.4);
+          // identity: the "hee" glyphs are lime
+          for (let i = 0, n = funCount(fx, 3); i < n; i++) sticker(fx, P.x + (i - 1) * 0.42, hy + 0.2 * (i & 1), P.z, 'NOTE', LIME, 0.42 * k, 0.7, 1.6 + 0.4 * i, 4 * (i - 1), (i - 1) * 0.4);
         }
-        funSound('hyenaLaugh', P, 1, 0.55);
+        // (sound: the sonic nature's cast and his kazoo "hee-hee-hee", audio/champ/cacklejaw.ts, for the hyena laugh)
         wCastAt[id] = clock;
         haha.arm(id, clock);
         return;
@@ -464,6 +504,8 @@ export const SKILL_FX: SkillFxSet = {
           eyesX[id] = P.x;
           eyesZ[id] = P.z;
           eyesY[id] = s3HeadY(fx, id, -0.55);
+          // identity: only a faint lime grin hangs where he vanished (his own team; enemies learn nothing)
+          grin(fx, P.x, eyesY[id] - 0.3, P.z, 0.28, EYE_LIFE + 0.2, 5, 0.11);
         }
         return;
       }
@@ -549,7 +591,7 @@ export const SKILL_FX: SkillFxSet = {
         const hy = s3HeadY(fx, e.dst, 0.3);
         funPop(fx, src, 'CHOMP!', D.x, hy + 0.5, D.z);
         orbit(fx, D.x, hy, D.z, 'STAR', PALE, 3, 0.45, 0.28, 0.8, funRand(e.tick, src, 14) * TAU);
-        funSound('hyenaLaugh', D, 0.85, 0.5);
+        hee(fx, src, D, 0.85);
       }
       const me: Relation3 = 'own';
       if (fx.relation(src) === me || fx.relation(e.dst) === me) {

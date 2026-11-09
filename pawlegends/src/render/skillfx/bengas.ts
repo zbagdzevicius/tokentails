@@ -44,6 +44,9 @@ import { SHAPE } from '../fx/Particles.js';
 import { isBigHit } from '../fx/combatVfx';
 import { funOverY, funPop, funRand, funSfx, orbit, sticker } from '../fx/fun/funKit';
 import { shower, throwSticker, toast } from '../fx/fun/skills2Fun';
+import { champSound, playSkillSfx } from '../../audio/skillSfx';
+import { sfx } from '../../audio/sfx';
+import { mixPriority, type MixRelation } from '../../audio/identityMix';
 
 const FIRE = 0xd02800;
 const EMBER = 0xe05010;
@@ -65,6 +68,31 @@ const TAU = Math.PI * 2;
 /** Mesh yaw (forward = (cos, −sin)) of the direction toward the camera (the iso camera sits at (sin yaw, cos yaw)). */
 /** MAP-GAPS A24: read per effect, so a team-1 seat (camera turned 180°) gets it too. */
 const towardCam = (): number => Math.atan2(-Math.cos(cameraYaw()), Math.sin(cameraYaw()));
+
+// ------------------------------------------------------------------------------------------------ identity
+
+/** Champion identity (CHAMP-IDENTITY.md §3, audio/champ/bengas.ts): the toast-gold crumb and the camellia petal. */
+const TOAST_GOLD = 0xe0a050;
+const MIX_REL: Readonly<Record<Relation3, MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
+/** Seconds between the toast's sizzle (the fire nature's travel layer) while it flies. */
+const TOAST_SIZZLE_S = 0.3;
+
+/** One of his own sounds (audio/champ/bengas.ts) through the identity mix, on the motif layer. */
+function accent(name: string, rel: Relation3, at: { x: number; z: number }, rate = 1): void {
+  const relation = MIX_REL[rel];
+  sfx.playLayer({ name: champSound('bengas', name), layer: 'motif', hero: 'bengas', nature: 'fire', priority: mixPriority({ relation }), relation, rate, at });
+}
+
+/** A crumb pop: toast-gold shards that tumble and bounce (normal blend, so the gold stays toast and not white). */
+function crumbs(fx: FxCtx, x: number, y: number, z: number, n: number, seed: number): void {
+  shower(fx, x, y, z, n, SHAPE.SHARD, TOAST_GOLD, 0.16, 0.6, 2.2, 2.4, 9, seed);
+}
+
+/** Camellia petals: crimson and petal-pink feathers that drift down. */
+function petals(fx: FxCtx, x: number, y: number, z: number, n: number, seed: number): void {
+  shower(fx, x, y, z, n, SHAPE.FEATHER, CRIMSON, 0.26, 0.95, 1.2, 1.2, 1.5, seed);
+  shower(fx, x, y + 0.2, z, Math.max(1, n >> 1), SHAPE.FEATHER, PETAL, 0.22, 0.85, 1.0, 1.0, 1.5, seed + 0.37);
+}
 
 // ------------------------------------------------------------------------------------------------ pooled scratch
 
@@ -125,6 +153,8 @@ class Toast {
   burnt = false;
   stick = 0;
   roll = 0;
+  /** Identity: seconds to the next in-flight sizzle. */
+  snd = 0;
 }
 const TOASTS: Toast[] = [new Toast(), new Toast(), new Toast(), new Toast()];
 
@@ -156,7 +186,8 @@ function toastBurst(fx: FxCtx, x: number, z: number, yaw: number, rim: number, r
   // the toast shatters into crumbs (and a puff of smoke when it was the burnt one)
   shower(fx, x, 1.0, z, 9, SHAPE.PUFF, burnt ? 0x6a4020 : CRUMB, 0.14, 0.7, 2.6, 2.4, 9, seed);
   if (burnt) shower(fx, x, 1.2, z, 4, SHAPE.PUFF, 0x5a5050, 0.4, 0.8, 0.8, 1.6, -1, seed + 0.5);
-  fx.sfx.cue('fwoomp', V);
+  // the fire impact is the nature layer (audio/skillSfx on the hit); his is the crunch of the toast
+  accent('crunch', rel, V);
 }
 
 /** One hero's dazzle mark, by the sim's status: the star halo on a stun, a dim ground ring on a slow. */
@@ -170,6 +201,9 @@ function dazzleMark(fx: FxCtx, id: number, buffs: number, rim: number, rel: Rela
     // seeing stars from the flash; the first stunned hero of a cast gets the camera's "CLICK!"
     const top = funOverY(fx, id, 0.2);
     orbit(fx, V.x, top, V.z, 'STAR', STARS, 3, 0.38, 0.22, 0.9, id * 1.7);
+    // identity: a camellia over the stunned head (a crimson flower with a gold heart)
+    sticker(fx, V.x, top + 0.3, V.z, 'HEART', CRIMSON, 0.4, 0.9, 0, 0, Math.PI);
+    sticker(fx, V.x, top + 0.3, V.z, 'DOT', TOAST_GOLD, 0.14, 0.9);
     if (!clickShown && clickSrc >= 0 && funPop(fx, clickSrc, 'CLICK!', V.x, top + 0.35, V.z)) {
       clickShown = true;
       funSfx(fx, 'click', V, 0.8);
@@ -305,7 +339,13 @@ function pulse(fx: FxCtx, s: Stage, k: number): void {
     mesh(fx, 'pillar', s.x + Math.cos(ang) * s.rad * 0.72, s.z - Math.sin(ang) * s.rad * 0.72, 0.26, 0.36, EMBER, s.rim, s.rel, 0, 0.02, 1.3 + (k % 2) * 0.35, 0, 0, 0, 0.55);
   }
   if (k === 0) fx.linger.add('scorch', s.x, s.z, s.rad * 0.85, s.yaw, EMBER);
-  fx.sfx.cue('drum', s, 1);
+  // identity: a castanet roll on every pulse, and the pulse pops toast crumbs at a seeded spot on the stage
+  accent('roll', s.rel, s, 1 + (k % 2) * 0.12);
+  {
+    const a = funRand(s.tick, s.owner, 60 + k) * TAU;
+    const rr = s.rad * 0.5;
+    crumbs(fx, s.x + Math.cos(a) * rr, 0.6, s.z - Math.sin(a) * rr, 4, a);
+  }
   rose(fx, s, k);
   // the last beat: a "BRAVO!" for the performer (his own view only, once)
   if (k === s.pulses - 1 && s.rel === 'own' && !s.bravo) {
@@ -445,7 +485,8 @@ export const SKILL_FX: SkillFxSet = {
         t.src.x = P.x;
         t.src.z = P.z;
         t.slot = fx.ribbons.point(t.src, FIRE, t.w, 0.45);
-        fx.sfx.cue('sizzle', P);
+        t.snd = TOAST_SIZZLE_S;
+        // (sound: the fire nature's cast and his castanet clack, audio/skillSfx; the toast sizzles in update)
         return;
       }
       case 1: {
@@ -459,6 +500,8 @@ export const SKILL_FX: SkillFxSet = {
         mesh(fx, 'glow', P.x, P.z, 0.5, 0.4, FLASH, rim, rel, 0, 2.9, 1, 0, 0, 0, 0.7);
         // the camera flash sparkles off him (glints in the flash colour, toward the cone)
         shower(fx, P.x + cx * 0.5, 1.6, P.z + cz * 0.5, 6, SHAPE.STAR4, FLASH, 0.32, 0.35, 2.4, 0.8, 0, funRand(e.tick, e.src, 2), true);
+        // identity: camellia petals with the flash
+        petals(fx, P.x + cx * 0.6, 1.7, P.z + cz * 0.6, 3, funRand(e.tick, e.src, 5));
         clickSrc = e.src;
         clickShown = false;
         dazzle(fx, e.src, P.x, P.z, yaw, range, arc, rim, rel);
@@ -476,6 +519,8 @@ export const SKILL_FX: SkillFxSet = {
           sticker(fx, P.x - sd * 0.3, top + 0.35, P.z, 'NOTE', PETAL, 0.26, 0.7, 1.3, 0, -sd * 0.25);
         }
         mesh(fx, 'crescent', P.x, P.z, 1.2, 0.3, CRIMSON, rim, rel, yaw + Math.PI, 0.07, 1, 2.4, 0.55, 1, FI);
+        // identity: a camellia petal swirl in the hop's trail
+        petals(fx, P.x, 1.0, P.z, 6, funRand(e.tick, e.src, 6));
         return;
       }
       default: {
@@ -522,7 +567,7 @@ export const SKILL_FX: SkillFxSet = {
         const inner = Math.max(0.8, 1 - 0.2 / s.rad);
         mesh(fx, 'arc', s.x, s.z, s.rad, s.life, FIRE, rim, rel, s.yaw, 0.05, 1, TAU, inner, 1, FI);
         mesh(fx, 'arc', s.x, s.z, s.rad, s.life, FIRE, rim, rel, s.yaw + Math.PI, 0.05, 1, TAU, inner, -1, FI);
-        fx.sfx.cue('curtain', s, 1);
+        // (sound: the fire nature's cast and his ult voice, the curtain whoosh with crowd crackle, audio/skillSfx)
         return;
       }
     }
@@ -535,10 +580,15 @@ export const SKILL_FX: SkillFxSet = {
     if (e.kind === 'basic') {
       mesh(fx, 'glow', V.x, V.z, 0.9, 0.18, EMBER, rim, rel, 0, 0.9, 1, 0, 0, 0, FI);
       mesh(fx, 'ring', V.x, V.z, 0.8, 0.22, FIRE, rim, rel, 0, 0.07, 1, 0, 0.35, 0, FI);
+      // identity: each shot lands as a glowing toast crumb
+      crumbs(fx, V.x, 1.0, V.z, 2, funRand(e.tick, e.dst, 7));
       if (ctx.targetCc) {
         // Hot Toast: the brand mark and a flame burst
         fx.linger.add('scorch', V.x, V.z, 0.4, 0, EMBER);
         mesh(fx, 'crescent', V.x, V.z, 1.1, 0.3, FIRE, rim, rel, 0, 0.08, 1, TAU, 0.55, 1, FI);
+        // identity: a buttery glint and a crumb pop on the bonus hit
+        sticker(fx, V.x, 1.5, V.z, 'STAR4', GOLD, 0.4, 0.4, 0.4, 3);
+        crumbs(fx, V.x, 1.1, V.z, 5, funRand(e.tick, e.dst, 8));
       }
       return;
     }
@@ -647,6 +697,12 @@ export const SKILL_FX: SkillFxSet = {
       t.src.x = t.x0 + t.dx * t.d;
       t.src.z = t.z0 + t.dz * t.d;
       if (t.slot >= 0) fx.ribbons.feed(t.slot, t.src.x, t.src.y, t.src.z);
+      // identity: the toast sizzles in flight (the fire nature's travel layer, under the mix's travel cap)
+      t.snd -= dt;
+      if (t.snd <= 0) {
+        t.snd = TOAST_SIZZLE_S;
+        playSkillSfx('bengas', 'q', 'travel', { at: t.src, relation: MIX_REL[t.rel] });
+      }
       // the slice of toast itself, tumbling along with the bolt (re-dropped at the bolt's speed, a turning roll)
       t.stick -= dt;
       if (t.stick <= 0) {
