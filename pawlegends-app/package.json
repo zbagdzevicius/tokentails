@@ -3,15 +3,21 @@
   "private": true,
   "version": "1.0.1",
   "type": "module",
-  "description": "Pawlegends native shell: the bundled iOS app (Capacitor 7) with self-hosted over-the-air web updates. Plan: docs/plans/moba/APP-STORE.md",
+  "description": "Pawlegends native shell: the bundled iOS and Android apps (Capacitor 7) with self-hosted over-the-air web updates. Plans: docs/plans/moba/APP-STORE.md, docs/plans/moba/PLAY-STORE.md",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build:web": "node scripts/build-web.mjs",
     "build": "node scripts/build-web.mjs && cap sync ios && node scripts/check-privacy-manifests.mjs",
+    "build:android": "node scripts/build-web.mjs && cap sync android",
     "sync": "cap sync ios",
+    "sync:android": "cap sync android",
+    "sync:all": "cap sync",
     "ios:open": "cap open ios",
+    "android:open": "cap open android",
+    "android:debug": "cd android && ./gradlew assembleDebug",
+    "android:bundle": "cd android && ./gradlew bundleRelease",
     "ios:sim": "node scripts/build-sim.mjs",
     "mac": "node scripts/build-mac.mjs",
     "typecheck": "tsc --noEmit",
@@ -24,6 +30,7 @@
     "privacy:check": "node scripts/check-privacy-manifests.mjs"
   },
   "dependencies": {
+    "@capacitor/android": "~7.6.0",
     "@capacitor/app": "^7.1.2",
     "@capacitor/core": "~7.6.0",
     "@capacitor/haptics": "^7.0.5",
