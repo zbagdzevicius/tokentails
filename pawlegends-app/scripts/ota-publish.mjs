@@ -176,7 +176,22 @@ if (rollbackTo) {
   process.exit(rolled > 0 ? 0 : 1);
 }
 
-/** Promote one platform's beta to stable once soaked. Returns false on an error. */
+/** Kept bundle records (bundles/<version>.json) newest first. */
+function keptRecords() {
+  return readdirSync(bundlesDir)
+    .filter((f) => f.endsWith('.json') && existsSync(join(bundlesDir, f.replace(/\.json$/, '.zip'))))
+    .map((f) => JSON.parse(readFileSync(join(bundlesDir, f), 'utf8')))
+    .sort((a, b) => b.seq - a.seq);
+}
+
+/**
+ * Promote one platform to stable. Every push to main publishes a new beta bundle, so waiting for the CURRENT beta to
+ * be --soak-hours old starved stable for days while main was busy. The rule now:
+ * 1. the newest kept bundle newer than stable that has soaked --soak-hours (the current beta or an earlier one), else
+ * 2. when stable is already --soak-hours behind beta, the current beta once it is --min-soak-hours old (a quiet spell
+ *    after a busy day), so store installs are never more than about a day behind.
+ * --soak-hours 0 (a manual promote_now) promotes the current beta at once. Returns false on an error.
+ */
 function promote(platform) {
   const beta = readManifest(platform, 'beta');
   const stable = readManifest(platform, 'stable');
@@ -189,19 +204,40 @@ function promote(platform) {
     return true;
   }
   const soakHours = Number(arg('--soak-hours', SOAK_HOURS));
-  const age = (Date.now() - seqTime(beta.seq)) / 3_600_000;
-  // 0 = promote now (a manual promote_now), whatever the build clock said
-  if (soakHours > 0 && !(age >= soakHours)) {
-    console.log(`ota-publish: ${platform}: beta ${beta.version} is ${Number.isFinite(age) ? age.toFixed(1) : '?'} h old; promotes after ${soakHours} h`);
+  const minSoakHours = Number(arg('--min-soak-hours', 2));
+  const now = Date.now();
+  const ageOf = (seq) => (now - seqTime(seq)) / 3_600_000;
+  const fmt = (h) => (Number.isFinite(h) ? h.toFixed(1) : '?');
+  let target = null;
+  let why = '';
+  if (!(soakHours > 0)) {
+    target = beta;
+    why = 'manual promote';
+  } else {
+    // 1. the newest soaked bundle between stable and beta (never past beta: a beta rollback stays the ceiling)
+    const soaked = keptRecords().find(
+      (r) => r.seq <= beta.seq && (!stable || r.seq > stable.seq) && ageOf(r.seq) >= soakHours && (platform === BUNDLES_PLATFORM || r[platform])
+    );
+    if (soaked) {
+      target = soaked.version === beta.version ? beta : fieldsFor(platform, soaked, beta.minNative, false);
+      why = `soaked ${fmt(ageOf(soaked.seq))} h`;
+    } else if (stable && ageOf(stable.seq) - ageOf(beta.seq) >= soakHours && ageOf(beta.seq) >= minSoakHours) {
+      // 2. stable is a day behind and beta has been quiet for a while
+      target = beta;
+      why = `stable ${fmt(ageOf(stable.seq) - ageOf(beta.seq))} h behind, beta quiet ${fmt(ageOf(beta.seq))} h`;
+    }
+  }
+  if (!target) {
+    console.log(`ota-publish: ${platform}: beta ${beta.version} is ${fmt(ageOf(beta.seq))} h old; promotes after ${soakHours} h (or ${minSoakHours} h once stable is ${soakHours} h behind)`);
     return true;
   }
-  if (!existsSync(join(bundlesDir, `${beta.version}.zip`))) {
-    console.error(`ota-publish: ${platform}: the beta bundle ${beta.version}.zip is missing`);
+  if (!existsSync(join(bundlesDir, `${target.version}.zip`))) {
+    console.error(`ota-publish: ${platform}: the bundle ${target.version}.zip is missing`);
     return false;
   }
   // an older seq than the live stable (a beta rollback) must be marked so store installs accept it
-  const m = writeManifest(platform, 'stable', { ...beta, rollback: beta.rollback || (stable ? beta.seq <= stable.seq : false) });
-  console.log(`ota-publish: ${platform}: promoted ${m.version} to stable`);
+  const m = writeManifest(platform, 'stable', { ...target, rollback: target.rollback || (stable ? target.seq <= stable.seq : false) });
+  console.log(`ota-publish: ${platform}: promoted ${m.version} to stable (${why})`);
   return true;
 }
 

@@ -121,3 +121,60 @@ describe('ota-publish channels', () => {
     expect(() => run('--rollback', `${fifth}-abc1234`, '--platform', 'android')).toThrow();
   });
 });
+
+describe('ota-publish promote while main is busy', () => {
+  const setup = () => {
+    const dir = mkdtempSync(join(tmpdir(), 'plpub-busy-'));
+    const keys = generateKeys() as { privatePem: string; publicPem: string };
+    writeFileSync(join(dir, 'private.pem'), keys.privatePem);
+    writeFileSync(join(dir, 'public.pem'), keys.publicPem);
+    const www = join(dir, 'www');
+    mkdirSync(www);
+    writeFileSync(join(www, 'index.html'), '<!doctype html><title>t</title>');
+    const updates = join(dir, 'updates');
+    const env = { ...process.env, OTA_PRIVATE_KEY: '', OTA_PRIVATE_KEY_PATH: join(dir, 'private.pem'), OTA_PUBLIC_KEY_PATH: join(dir, 'public.pem'), OTA_WWW_DIR: www, OTA_UPDATES_DIR: updates };
+    const run = (...a: string[]) => execFileSync(process.execPath, [script, ...a], { env, encoding: 'utf8' });
+    const read = (f: string, platform = 'ios') => JSON.parse(readFileSync(join(updates, platform, '1', f), 'utf8'));
+    const publish = (hoursAgo: number) => {
+      const seq = utc(new Date(Date.now() - hoursAgo * 3_600_000));
+      writeFileSync(join(www, 'bundle.json'), JSON.stringify({ version: `${seq}-abc1234`, seq, compat: 1, simVersion: 14 }));
+      run('--keep', '5');
+      return `${seq}-abc1234`;
+    };
+    return { run, read, publish };
+  };
+
+  it('promotes the newest soaked bundle even when a fresher beta landed since', () => {
+    const { run, read, publish } = setup();
+    const old = publish(60);
+    run('--promote', '--soak-hours', '0');
+    const soaked = publish(30);
+    const fresh = publish(1);
+    expect(read('manifest-beta.json').version).toBe(fresh);
+    expect(read('manifest.json').version).toBe(old);
+    expect(run('--promote')).toContain('promoted');
+    expect(read('manifest.json').version).toBe(soaked);
+    expect(read('manifest.json').rollback).toBe(false);
+    expect(read('manifest-beta.json').version).toBe(fresh);
+  });
+
+  it('promotes a quiet beta once stable is a day behind, even if no bundle soaked 24 h', () => {
+    const { run, read, publish } = setup();
+    const old = publish(40);
+    run('--promote', '--soak-hours', '0');
+    publish(20);
+    const quiet = publish(3);
+    expect(read('manifest.json').version).toBe(old);
+    expect(run('--promote')).toContain('behind');
+    expect(read('manifest.json').version).toBe(quiet);
+  });
+
+  it('waits while beta is fresh even if stable is a day behind', () => {
+    const { run, read, publish } = setup();
+    const old = publish(40);
+    run('--promote', '--soak-hours', '0');
+    publish(0.5);
+    expect(run('--promote')).toContain('promotes after');
+    expect(read('manifest.json').version).toBe(old);
+  });
+});

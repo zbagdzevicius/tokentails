@@ -113,7 +113,7 @@ Manager key, run `bundle exec fastlane ios certs` once on a Mac, export the cert
   - App Store installs read `https://tokentails.com/pawlegends-app/updates/ios/<compat>/manifest.json` (stable);
   - TestFlight installs read `manifest-beta.json` (beta): every push to `main` lands here first;
   - Debug builds read `http://localhost:8787/pawlegends-app/updates/ios/<compat>/manifest-beta.json` (dev, below).
-  The hourly job in *Pawlegends OTA* copies beta to stable once the bundle is 24 h old; `promote_now` does it at once.
+  The hourly job in *Pawlegends OTA* promotes to stable the newest kept bundle that is 24 h old; when stable is already 24 h behind beta, it promotes the current beta once it is 2 h old (busy days on `main` no longer starve stable). `promote_now` promotes the current beta at once.
 - The app reads its manifest on launch and on resume (at most every 30 minutes; no device id, no cookies), downloads
   a newer bundle in the background, and switches to it only on the title screen with no party open: at the next
   launch or resume. Never mid-match. The console shows `[ota] <version>: check <result> (channel <name>)`.
