@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release: https only (the API, the relay and the OTA files are all https). Debug builds override this file
+     (src/debug/res/xml) to reach the local OTA server. -->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>

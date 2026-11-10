@@ -111,6 +111,26 @@ describe('Play online (M1a)', () => {
     expect(root.querySelector('.lb-toast')?.textContent).toContain('PvP unlocks after 5 matches');
   });
 
+  it('5v5 Classic picked: PvP has no 5-match lock (it queues 5v5); back on 3v3 the lock returns', () => {
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const root = lobbyScreen(
+      document.body,
+      base({ onOnline, onlineMode: { mode: 'coop', locked: true, played: 1, needed: 5, onMode }, matchMode: { mode: 'classic', onMode: vi.fn() } }),
+    );
+    const pvp = () => root.querySelector('[data-testid="play-pvp"]') as HTMLElement;
+    expect(pvp().getAttribute('aria-disabled')).toBeNull();
+    expect(pvp().textContent).not.toContain('1/5');
+    expect(pvp().getAttribute('aria-label')).toContain('5v5 Classic');
+    (root.querySelector('[data-testid="map-quick"]') as HTMLElement).click();
+    expect(pvp().getAttribute('aria-disabled')).toBe('true');
+    expect(pvp().textContent).toContain('1/5');
+    (root.querySelector('[data-testid="map-classic"]') as HTMLElement).click();
+    pvp().click();
+    expect(onMode).toHaveBeenLastCalledWith('pvp');
+    expect(onOnline).toHaveBeenCalledTimes(1);
+  });
+
   it('no PvP sim on the backend: Co-op alone, no PvP button', () => {
     const root = lobbyScreen(document.body, base({ onOnline: vi.fn(), onParty: vi.fn() }));
     expect(root.querySelector('[data-testid="play-pvp"]')).toBeNull();

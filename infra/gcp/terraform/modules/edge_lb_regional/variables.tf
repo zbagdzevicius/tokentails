@@ -153,7 +153,7 @@ variable "http_listener" {
 }
 
 variable "extra_allowed_source_ranges" {
-  description = "Extra source ranges Cloud Armor admits besides Cloudflare (test stacks only: the operator's /32). Empty in production."
+  description = "Extra source ranges Cloud Armor admits besides Cloudflare (test stacks: the operator's /32; production: empty, except the operator's /32 during the LATENCY-PLAN E4 test)."
   type        = list(string)
   default     = []
 

@@ -64,7 +64,7 @@ export interface QueueStatus {
 /** Quick Play: this player (or its friend party) searching, matched, or stopped. */
 export interface QueueState {
   side: MmSide;
-  /** 'casual': PvP (PROTO 3, V16.md §4.1). */
+  /** 'casual': 3v3 PvP (PROTO 3, V16.md §4.1); 'classic': 5v5 PvP on Hearthwood (PROTO 4, MAP-5V5.md §9.3). */
   mode: MmQueue;
   /** Casual: no opponent by 45 s, the search moved to co-op (the card offers Keep waiting). */
   toCoop?: boolean;
@@ -289,7 +289,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const queue = searching(ev.side, { party, requeue: ev.requeue, mode });
       const base = { ...s, voided: false, accept: null };
       if (!s.welcomed) return { state: { ...base, queue, error: null, offer: null }, effects: [] };
-      if (!s.mmOk || (mode === 'casual' && !s.pvpOk)) return { state: { ...base, queue: { ...queue, stopped: 'update' } }, effects: [] };
+      if (!s.mmOk || (mode !== 'coop' && !s.pvpOk)) return { state: { ...base, queue: { ...queue, stopped: 'update' } }, effects: [] };
       send({ t: 'mm.join', queue: mode, side: ev.side });
       return { state: { ...base, queue, error: null, offer: null, asked: true }, effects: fx };
     }
@@ -338,7 +338,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       // Quick Play: the first welcome, a reconnect, or a relay restart (`mm.cancel{server}`): (re)send `mm.join`, so
       // the player sees one continuous search. A friend party's search is the leader's to re-send.
       if (q && !q.stopped && !q.found && !s.accept && (!s.view || isStranger(s.view) || s.view.leader === s.view.you)) {
-        if (!mmOk || (q.mode === 'casual' && !pvpOk)) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
+        if (!mmOk || (q.mode !== 'coop' && !pvpOk)) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
         return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [{ t: 'send', msg: { t: 'mm.join', queue: q.toCoop ? 'coop' : q.mode, side: q.side } }] };
       }
       if (q && !s.view) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [] };
@@ -383,7 +383,8 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
           accept: null,
           queue: {
             ...base,
-            mode: pvp ? 'casual' : 'coop',
+            // 5v5 Classic stays 'classic' (a reconnect re-sends the same queue); 3v3 PvP and its co-op move stay 'casual'
+            mode: m.queue === 'classic' ? 'classic' : pvp ? 'casual' : 'coop',
             side: m.side,
             status,
             stopped: null,
@@ -642,7 +643,10 @@ export class PartyClient {
       h.env ?? browserSocketEnv(),
     );
     this.socket.tap({
-      json: (m) => this.dispatch({ e: 'server', m }),
+      json: (m) => {
+        if (m.t === 'welcome' && this.connectMs === null) this.connectMs = Math.max(0, Math.round(this.now() - this.bornAt));
+        this.dispatch({ e: 'server', m });
+      },
       state: (s) => {
         if (s === 'reconnecting' && !this.state.inMatch) this.note({ key: 'pp-net', title: COPY.offline, tone: 'info', ttl: 3000 });
       },
@@ -656,17 +660,18 @@ export class PartyClient {
     document.addEventListener('visibilitychange', onVis);
     this.unwatch = () => document.removeEventListener('visibilitychange', onVis);
     this.render();
-    void h.ticket().then(
-      (t) => this.connect(t),
-      () => this.connect(null),
-    );
+    // LATENCY-PLAN C2: the WebSocket upgrade runs while the ticket is fetched; `hello` waits for the ticket (≤ 3 s)
+    this.bornAt = this.now();
+    this.socket.connect(h.ticket());
     this.timer = setInterval(() => this.everySecond(), 250);
   }
 
-  private connect(ticket: string | null): void {
-    if (this.closed) return;
-    if (ticket) (this.socket as unknown as { hello: { ticket?: string } }).hello.ticket = ticket;
-    this.socket.connect();
+  /** When this client opened, and how long until the relay's first `welcome` (analytics `connect_ms`; null: not yet). */
+  private bornAt = 0;
+  private connectMs: number | null = null;
+  /** `connect_ms` for the lobby events (LATENCY-PLAN C2), once known. */
+  private connectProp(): { connect_ms?: number } {
+    return this.connectMs === null ? {} : { connect_ms: this.connectMs };
   }
 
   // -------------------------------------------------------------------------------------------- state and effects
@@ -722,7 +727,7 @@ export class PartyClient {
       case 'send':
         if (f.msg.t === 'party.create') {
           this.socket.sendJson({ t: 'party.create', difficulty: this.h.difficulty });
-          this.h.analytics?.('party_create', { difficulty: this.h.difficulty });
+          this.h.analytics?.('party_create', { difficulty: this.h.difficulty, ...this.connectProp() });
         } else {
           if (f.msg.t === 'mm.join') this.trackJoin(f.msg.side);
           this.socket.sendJson(f.msg);
@@ -878,6 +883,7 @@ export class PartyClient {
       matches_bucket: info.matches >= 20 ? '20+' : info.matches >= 5 ? '5-19' : '1-4',
       guest: info.guest,
       requeue: !!this.state.queue?.requeue,
+      ...this.connectProp(),
     });
   }
 
@@ -898,8 +904,15 @@ export class PartyClient {
 
   /** Search (again) with the remembered side (and queue: casual after a PvP match). */
   queueNow(requeue = false, mode?: MmQueue): void {
-    const m = mode ?? (this.state.view?.mm?.mode === 'casual' || this.state.voided ? 'casual' : this.state.queue?.mode ?? this.h.queueMode ?? 'coop');
+    const m = mode ?? (this.state.view?.mm?.mode === 'casual' || this.state.voided ? this.pvpQueue() : this.state.queue?.mode ?? this.h.queueMode ?? 'coop');
     this.dispatch({ e: 'queue', side: this.state.queue?.side ?? this.h.queueSide ?? 'any', requeue, mode: m });
+  }
+
+  /** The PvP queue to search again after a PvP match or a remake: 5v5 Classic after a Hearthwood room, else 3v3. */
+  private pvpQueue(): 'casual' | 'classic' {
+    const mm = this.state.view?.mm;
+    if (mm) return mm.map === 'hearthwood' || mm.teamSize === 5 ? 'classic' : 'casual';
+    return this.state.queue?.mode === 'classic' || this.h.queueMode === 'classic' ? 'classic' : 'casual';
   }
 
   /** Seconds searched now. */
@@ -955,7 +968,8 @@ export class PartyClient {
       stopped: q.stopped,
       retryS,
       match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty } : null,
-      ...(q.mode === 'casual' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
+      ...(q.mode === 'classic' ? { teamSize: 5 } : {}),
+      ...(q.mode !== 'coop' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
       offer: s.offer ? { clockS: s.offer.clockS + Math.floor((this.now() - this.offerAt) / 1000), score: s.offer.score, leftS: this.offerLeftS(), totalS: s.offer.expiresMs / 1000 } : null,
     };
   }
@@ -963,7 +977,7 @@ export class PartyClient {
 
   private enteredParty(): void {
     const via = this.state.mode === 'create' ? 'create' : this.state.mode === 'resume' ? 'resume' : this.state.mode === 'code' ? 'code' : 'link';
-    if (via !== 'create') this.h.analytics?.('party_join', { via, members: this.state.view?.members.length ?? 0 });
+    if (via !== 'create') this.h.analytics?.('party_join', { via, members: this.state.view?.members.length ?? 0, ...this.connectProp() });
     // match assets load during the lobby and the pick (§5.1)
     this.preloading ??= this.h.preload?.() ?? Promise.resolve();
     const v = this.state.view!;
@@ -1338,7 +1352,7 @@ export class PartyClient {
         this.h.analytics?.('mm_keep_waiting', { waited_s: this.waitedS() });
         return;
       case 'void-again':
-        this.queueNow(true, 'casual');
+        this.queueNow(true, this.pvpQueue());
         return;
       case 'bf-no':
         this.dispatch({ e: 'offer', yes: false });

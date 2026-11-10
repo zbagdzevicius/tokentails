@@ -13,7 +13,7 @@ import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
 import { Frame, SocialLimiter, catchupBodies, clampSocialPoint, socialIdOk, type MatchMsg, type ServerBinary, type ServerJson, type SocialKind, type VoteKind } from './proto';
-import type { PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
+import type { NetNumbers, PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
 import { socialLine } from '../data/social';
 import type { PartySocket } from './socket';
 import { MoveCoalescer } from './input';
@@ -27,6 +27,7 @@ import { Pacer } from './pacer';
 import { HEROES } from '../data/heroes/index';
 import type { ViewFrame } from '../render/interp';
 import { watchVisibility } from './visibility';
+import { ActionPredictor, confirmWindowMs, type PredictedAction } from './predict-action';
 
 export interface NetNote {
   key: string;
@@ -197,11 +198,26 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'vote', kind, yes });
   }
 
-  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs: number; inputP50?: number; inputP95?: number; inputN: number } {
+  net(): NetNumbers {
     const q = this.inputStats();
-    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups, inputMs: Math.round(this.inputLatencyMs()), ...(q.n ? { inputP50: q.p50, inputP95: q.p95 } : {}), inputN: q.n };
+    const r = this.socket.rttStats();
+    return {
+      rttMs: Math.round(this.socket.rttMs),
+      ...(r.n ? { rttP50: r.p50, rttP95: r.p95, jitterP95: r.jitterP95 } : {}),
+      buffer: this.buffer,
+      holds: this.holds,
+      catchups: this.catchups,
+      marginMs: this.marginMs,
+      lateTurns: this.lateTurns,
+      reconnects: this.socket.reconnects,
+      inputMs: Math.round(this.inputLatencyMs()),
+      ...(q.n ? { inputP50: q.p50, inputP95: q.p95 } : {}),
+      inputN: q.n,
+    };
   }
   private buffer = 1;
+  private marginMs = 0;
+  private lateTurns = 0;
 
   /** The party view changed (PartyClient, through the socket tap): names, connection dots and card art per slot. */
   setSeats(seats: SeatInfo[]): void {
@@ -379,6 +395,8 @@ export class NetHost implements PartyLink {
     }
     if (cmd.op === Op.Move) this.predictor.move(cmd.x, cmd.y, this.now());
     else this.predictor.stop();
+    // N1: a Cast, Trick or Attack the newest snapshot allows starts its look on the next frame (never when piloted)
+    if (!this.piloted(this.match.you.slot)) this.actions.start(cmd, this.lastSelf(), this.now());
     if (this.piloted(this.match.you.slot)) {
       // an AFK player reclaims with any command; other pilot reasons need `back` (and the player is here: keep asking)
       this.reclaimUntil = Math.max(this.reclaimUntil, this.now() + 10_000);
@@ -505,6 +523,7 @@ export class NetHost implements PartyLink {
         this.listener.snap?.(decodeSnap(m.buf));
         return;
       case 'events':
+        this.actions.confirm(m.list as SimEvent[], this.mySlot);
         this.listener.events?.(m.tick, m.list as SimEvent[]);
         return;
       case 'hash':
@@ -536,6 +555,8 @@ export class NetHost implements PartyLink {
         this.socket.lastTurn = m.lastTurn;
         this.buffer = m.B;
         this.holds = m.holds;
+        if (typeof m.margin === 'number') this.marginMs = m.margin;
+        if (typeof m.late === 'number') this.lateTurns = m.late;
         if (m.modeMask !== this.lastMask) {
           const prev = this.lastMask;
           this.lastMask = m.modeMask;
@@ -728,7 +749,11 @@ export class NetHost implements PartyLink {
    */
   present(f: ViewFrame): void {
     const v = f.byId.get(this.mySlot);
+    // N1 reads the gate (cooldowns, crowd control) from the newest snapshot, looked up only when a command goes out
+    this.lastFrame = f;
+    this.actions.expire(this.now(), confirmWindowMs(this.inputLatencyMs()));
     if (!v || v.state === 'dead') {
+      this.actions.reset();
       this.predictor.reset();
       this.yawShown = null;
       return;
@@ -773,6 +798,26 @@ export class NetHost implements PartyLink {
     if (off.dx === 0 && off.dy === 0) return;
     v.fx += off.dx;
     v.fy += off.dy;
+  }
+
+  /** N1 (predict-action.ts): own action starts drawn before the sim confirms them. */
+  readonly actions = new ActionPredictor();
+  private lastFrame: ViewFrame | null = null;
+  /** The own hero in the newest snapshot (the drawn one as a fallback): the N1 gate, read at send time only. */
+  private lastSelf(): import('../sim/api').EntitySnap | null {
+    const f = this.lastFrame;
+    if (!f) return null;
+    const me = this.mySlot;
+    const list = f.latest?.entities;
+    if (list) for (const e of list) if (e.id === me) return e;
+    return f.byId.get(me) ?? null;
+  }
+
+  /** MatchHost.takePredicted: the predicted Casts and Tricks to draw now, and the ones given up (each once). */
+  takePredicted(): { shown: PredictedAction[]; cancelled: PredictedAction[] } | null {
+    // nearly every frame: nothing queued, nothing allocated
+    if (!this.actions.hasQueued) return null;
+    return { shown: this.actions.takeShown().filter((p) => p.kind !== 'attack'), cancelled: this.actions.takeCancelled().filter((p) => p.kind !== 'attack') };
   }
 
   /** MatchHost.predictedSelf: the walker while a predicted walk is in flight (where a command sent now lands). */

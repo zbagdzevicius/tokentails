@@ -1,0 +1,55 @@
+# Synthetic party relay probe (LATENCY-PLAN M3): every 30 minutes, 4 sockets to the production relay, each doing one
+# hello -> welcome round trip and 30 WebSocket pings (infra/gcp/tools/ws-latency.mjs). The JSON summary is uploaded
+# as an artifact, so the history of handshake, welcome and ping p50 / p95 / p99 can be read back.
+# - 4 sockets is far inside the relay's 50 per IP; the hello carries no ticket (a guest), and the probe never creates
+#   a party, queues or plays.
+# - It fails only when no socket completes (exit 2) or the tool errors; it has no latency threshold.
+# - GitHub-hosted runners run in the US, so this is a US vantage point. An EU number needs a self-hosted runner or the
+#   GCP uptime check (infra/gcp/RUNBOOK.md, latency section).
+name: Relay latency probe
+
+on:
+  schedule:
+    - cron: '7,37 * * * *'
+  workflow_dispatch:
+    inputs:
+      url:
+        description: Relay base URL
+        required: false
+        default: https://api.tokentails.com
+
+permissions:
+  contents: read
+
+concurrency:
+  group: relay-latency-probe
+  cancel-in-progress: false
+
+jobs:
+  probe:
+    name: probe
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: |
+            infra/gcp/tools
+            pawlegends/src/net/sim-stamp.json
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Probe the relay
+        env:
+          URL: ${{ inputs.url || 'https://api.tokentails.com' }}
+        run: |
+          set -o pipefail
+          node infra/gcp/tools/ws-latency.mjs "$URL" --n 4 --pings 30 --json | tee probe.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: relay-latency-${{ github.run_id }}
+          path: probe.json
+          retention-days: 30
+          if-no-files-found: ignore

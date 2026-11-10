@@ -46,6 +46,7 @@ import {
     type MatchMsg,
 } from './net';
 import { LoopGate } from './loop-gate';
+import { RTT_MAX_MS, RelayRtt, regionOfCountry, type RttRegion } from './relay-rtt';
 import { PARTY_LIMITS, TURN_MS } from './party-limits';
 import {
     PartyService,
@@ -126,6 +127,9 @@ interface Sock {
     /** Binary frames (CMD, BEAT, HASH): token bucket. */
     bin: { tokens: number; atMs: number };
     lastEchoMs: number;
+    /** LATENCY-PLAN M2: the visitor's continent (`cf-ipcountry`) and when the open ping went out (0: none). */
+    region: RttRegion;
+    pingAtMs: number;
     /** `party.card`: last request time (each one reads the cat collection). */
     lastCardMs: number;
     lastSyncMs: number;
@@ -356,10 +360,12 @@ export class PartyRelay {
         for (const s of this.socks) if (s.ipKey === ipKey) perIp++;
         if (perIp >= PARTY_LIMITS.socketsPerIp) return this.refuseUpgrade(socket, 429);
         this.upgrades.push(now);
-        this.wss.handleUpgrade(req, socket, head, ws => this.onSocket(ws, ip, ipKey));
+        this.wss.handleUpgrade(req, socket, head, ws =>
+            this.onSocket(ws, ip, ipKey, regionOfCountry(req.headers['cf-ipcountry']))
+        );
     }
 
-    private onSocket(ws: WebSocket, ip: string, ipKey: string): void {
+    private onSocket(ws: WebSocket, ip: string, ipKey: string, region: RttRegion = 'unknown'): void {
         const s: Sock = {
             ws,
             id: token128(),
@@ -367,6 +373,8 @@ export class PartyRelay {
             ipKey,
             bin: { tokens: PARTY_LIMITS.binary.burst, atMs: this.now() },
             lastEchoMs: -Infinity,
+            region,
+            pingAtMs: 0,
             lastCardMs: -Infinity,
             helloed: false,
             helloTimer: null,
@@ -401,11 +409,31 @@ export class PartyRelay {
         });
         ws.on('close', () => this.onClose(s));
         ws.on('error', () => undefined);
-        s.pingTimer = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) ws.ping();
-        }, PARTY_LIMITS.pingLobbyMs);
+        ws.on('pong', () => this.onPong(s));
+        s.pingTimer = setInterval(() => this.ping(s), PARTY_LIMITS.pingLobbyMs);
         s.pingTimer.unref?.();
     }
+
+    /** A keep-alive ping; its pong is an RTT sample (LATENCY-PLAN M2). Off the tick path: a timer per socket. */
+    private ping(s: Sock): void {
+        if (s.ws.readyState !== WebSocket.OPEN) return;
+        const now = this.now();
+        // a pong still due: keep its ping's time (a newer stamp would measure a slow link short); past RTT_MAX_MS it
+        // is a stall (no sample) and a new ping starts
+        if (s.pingAtMs > 0 && now - s.pingAtMs <= RTT_MAX_MS) return;
+        s.pingAtMs = now;
+        s.ws.ping();
+    }
+
+    private onPong(s: Sock): void {
+        if (s.pingAtMs <= 0) return;
+        const now = this.now();
+        this.rtt.add(s.region, now - s.pingAtMs, now);
+        s.pingAtMs = 0;
+    }
+
+    /** Server-measured socket RTT by continent (relay-rtt.ts): no IPs, no ids. */
+    private readonly rtt = new RelayRtt();
 
     /** The per-socket binary token bucket (40/s, burst 60). */
     private binaryAllowed(s: Sock, cost: number): boolean {
@@ -1288,9 +1316,7 @@ export class PartyRelay {
         s.seatRoom = live.room.id;
         s.seatSlot = slot;
         if (s.pingTimer) clearInterval(s.pingTimer);
-        s.pingTimer = setInterval(() => {
-            if (s.ws.readyState === WebSocket.OPEN) s.ws.ping();
-        }, PARTY_LIMITS.pingMatchMs);
+        s.pingTimer = setInterval(() => this.ping(s), PARTY_LIMITS.pingMatchMs);
         s.pingTimer.unref?.();
         live.room.connect(slot, this.now());
         this.sendJson(s, this.matchMsg(live, slot, startInMs) as unknown as Record<string, unknown>);
@@ -2045,6 +2071,7 @@ export class PartyRelay {
             referee_lag_turns: this.gate.lag,
             ...this.tally,
             ...this.mm.counters(),
+            ...this.rtt.counters(this.now()),
         };
     }
 

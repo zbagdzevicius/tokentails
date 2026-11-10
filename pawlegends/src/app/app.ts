@@ -62,7 +62,7 @@ import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { cardIdentity, selfNames, veilName } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
-import { MODE_MAP, loadMatchMode, saveMatchMode } from '../ui/lobby/matchMode';
+import { MODE_MAP, loadMatchMode, saveMatchMode, type MatchMode } from '../ui/lobby/matchMode';
 import type { MapId } from '../sim/api';
 
 /**
@@ -142,10 +142,12 @@ export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknow
   return rest.find((h) => !bests[h]) ?? rest[0];
 }
 
-function p95(xs: number[]): number {
-  if (!xs.length) return 0;
+/** Frame-time percentiles (ms, one decimal) for `perf_sample`: p50, p95 and p99 (LATENCY-PLAN M1). */
+export function framePcts(xs: readonly number[]): { p50: number; p95: number; p99: number } {
+  if (!xs.length) return { p50: 0, p95: 0, p99: 0 };
   const s = [...xs].sort((a, b) => a - b);
-  return Math.round(s[Math.min(s.length - 1, Math.floor(s.length * 0.95))] * 10) / 10;
+  const at = (q: number) => Math.round(s[Math.min(s.length - 1, Math.floor(s.length * q))] * 10) / 10;
+  return { p50: at(0.5), p95: at(0.95), p99: at(0.99) };
 }
 
 export class App {
@@ -613,6 +615,8 @@ export class App {
 
   /** Casual PvP: the mode chosen on the title this page (null: the remembered one). */
   private onlineMode: OnlineMode | null = null;
+  /** The title's 3v3 Quick | 5v5 Classic pick this visit (localStorage may be blocked; null = the stored one). */
+  private matchModeNow: MatchMode | null = null;
 
   /** `offer` false: a redraw after a lobby panel closed (the Treat Track panel never leads to an offer). */
   showTitle(offer = true): void {
@@ -680,7 +684,13 @@ export class App {
           this.choice = { ...this.choice, difficulty: d };
         },
         // Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic above Play, remembered; the first match is 3v3
-        matchMode: { mode: loadMatchMode(), onMode: (m) => saveMatchMode(m) },
+        matchMode: {
+          mode: this.matchModeNow ?? loadMatchMode(),
+          onMode: (m) => {
+            this.matchModeNow = m;
+            saveMatchMode(m);
+          },
+        },
         cardCount: skins.length,
         peek,
         wearing: card ? { name: card.name } : null,
@@ -915,6 +925,16 @@ export class App {
   // ------------------------------------------------------------------------------------------- party play
 
   /** Open the party chunk: create a party at once (the first tap), join a link's code, type a code, or resume a seat. */
+  /**
+   * The Quick Play queue the title's online buttons start: Co-op, or PvP. PvP is 5v5 Classic when the mode toggle
+   * picks it (no match-count lock; the toggle shows after the guided first match), else 3v3 casual from 5 matches.
+   */
+  private queueModeFor(matches: number): 'coop' | 'casual' | 'classic' {
+    if (pvpKnown() !== true || (this.onlineMode ?? onlineMode(matches)) !== 'pvp') return 'coop';
+    if (matches > 0 && (this.matchModeNow ?? loadMatchMode()) === 'classic') return 'classic';
+    return matches >= 5 ? 'casual' : 'coop';
+  }
+
   private openParty(mode: 'create' | 'join' | 'code' | 'resume' | 'queue' | 'back', code: string | null = null): void {
     if (!this.partyApi) return;
     // the party survived a solo match (D10): the title's button shows it again
@@ -942,8 +962,9 @@ export class App {
             maxDifficulty: picks ? 'hard' : 'easy',
             newbie: p.matches === 0,
             matches: p.matches,
-            // casual PvP from the title's chip (a newbie always queues co-op; the relay refuses PvP before 5 matches)
-            queueMode: pvpKnown() === true && p.matches >= 5 && (this.onlineMode ?? onlineMode(p.matches)) === 'pvp' ? 'casual' : 'coop',
+            // PvP from the title's button: 5v5 Classic when picked (open to every player after the guided first
+            // match), else 3v3 casual (a newbie queues co-op; the relay refuses casual PvP before 5 matches)
+            queueMode: this.queueModeFor(p.matches),
             build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
             // P9: the embed host mints a single-use ticket with its own session; standalone players are unscored guests
             ticket: () => this.integration.partyTicket(),
@@ -1316,7 +1337,7 @@ export class App {
     }
     for (const id of e.tips) this.analytics.track('tip_done', { id });
     if (rec.second) this.analytics.track('second_match', { hero: e.replay.hero });
-    if (this.frameMs.length > 60) this.analytics.track('perf_sample', { p95: p95(this.frameMs), tier: this.tier });
+    if (this.frameMs.length > 60) this.analytics.track('perf_sample', { ...framePcts(this.frameMs), tier: this.tier });
     this.session?.dispose();
     this.session = null;
     this.lobby.enter();

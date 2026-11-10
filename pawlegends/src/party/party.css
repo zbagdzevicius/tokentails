@@ -89,7 +89,10 @@
   .pl-party .pp-sheet-qr { width: min(82vh, 45vw, 320px); }
 }
 
-/* join by code */
+/* join by code. The on-screen keyboard can leave under 200 px (a phone in landscape): the card scrolls, so Paste,
+   Join, Back and the error line stay reachable while the keyboard is up */
+.pl-party .pp-joincode { overflow-y: auto; overscroll-behavior: contain; }
+.pl-party .pp-joincode > * { flex-shrink: 0; }
 .pl-party .pp-boxes { display: flex; gap: 6px; align-items: center; justify-content: center; }
 .pl-party .pp-gap { width: 8px; }
 .pl-party .pp-box { width: clamp(38px, 11vw, 52px); height: clamp(46px, 13vh, 60px); text-align: center; font: 800 clamp(22px, 6vh, 30px) ui-monospace, Menlo, monospace;

@@ -114,6 +114,10 @@ class HState {
   windSlot = -1;
   windTick = 0;
   windTicks = 0;
+  /** LATENCY-PLAN N1: a predicted wind-up playing for this slot (render s it started, the clip id), or none. */
+  predSlot = -1;
+  predAt = 0;
+  predClip = '';
   /** Sustained state: hold clip waiting, its end. */
   holdClip: ClipDef | null = null;
   /** The hold clip once started (a basic that interrupts it re-arms it, so the state keeps its look until stateEnd). */
@@ -624,7 +628,55 @@ export class AnimDirector {
     this.anchorsReset(s);
     s.anchors[A.windupStart] = e.tick * TICK_S;
     s.anchors[A.cast] = s.anchors[A.contact] = s.anchors[A.release] = (e.tick + e.ticks) * TICK_S;
-    r.ch.anim.stack.play(clip, { anchors: s.anchors });
+    // N1: the predicted wind-up of this slot keeps playing, bound to the sim's ticks from here (no restart)
+    const predicted = this.takePrediction(s, e.slot, clip.id);
+    if (predicted) predicted.rebind(s.anchors, this.now);
+    else r.ch.anim.stack.play(clip, { anchors: s.anchors });
+  }
+
+  /** The predicted clip of `slot` still playing (and the prediction cleared), or null. */
+  private takePrediction(s: HState, slot: number, clipId: string): { rebind(a: AnchorTimes, now: number): void } | null {
+    if (s.predSlot !== slot) return null;
+    const same = s.predClip === clipId;
+    s.predSlot = -1;
+    s.predClip = '';
+    if (!same) return null;
+    return this.env.rig(s.id)?.ch.anim.stack.playing(clipId) ?? null;
+  }
+
+  /**
+   * LATENCY-PLAN N1 (party play): the own hero's cast of `slot` was just sent and the newest snapshot allows it: start
+   * its wind-up pose now, at the render clock, its cast `leadS` seconds out (the input latency). The sim's `windup` or
+   * `cast` event rebinds the same clip to its ticks (`takePrediction`); `cancelPredicted` fades it out. Returns whether
+   * a pose started (no authored wind-up, a stub rig or a busy hero: nothing is drawn early).
+   */
+  predictCast(id: number, slot: number, leadS: number): boolean {
+    if (slot < 0 || slot > 3 || id < 0 || id >= MAX_IDS) return false;
+    const s = this.st[id];
+    if (!s || this.stub(s)) return false;
+    const r = this.env.rig(id);
+    if (!r) return false;
+    const castTick = Math.ceil((this.now + leadS) / TICK_S);
+    const clip = this.pickCast(s, slot as CastSlot, castTick, false);
+    if (!clip || !clip.warp.some((w) => w[1] === 'windupStart')) return false;
+    this.anchorsReset(s);
+    s.anchors[A.windupStart] = this.now;
+    s.anchors[A.cast] = s.anchors[A.contact] = s.anchors[A.release] = this.now + Math.max(leadS, TICK_S);
+    if (!r.ch.anim.stack.play(clip, { anchors: s.anchors })) return false;
+    s.predSlot = slot;
+    s.predAt = this.now;
+    s.predClip = clip.id;
+    return true;
+  }
+
+  /** N1: the sim never confirmed the predicted cast of `slot` (refused, interrupted): fade its pose out. */
+  cancelPredicted(id: number, slot: number): void {
+    const s = id >= 0 && id < MAX_IDS ? this.st[id] : null;
+    if (!s || s.predSlot !== slot) return;
+    const clip = s.predClip;
+    s.predSlot = -1;
+    s.predClip = '';
+    this.env.rig(id)?.ch.anim.stack.stop(clip, 0.15);
   }
 
   private pickCast(s: HState, slot: CastSlot, tick: number, commit: boolean): ClipDef | null {
@@ -664,7 +716,14 @@ export class AnimDirector {
     const ent = this.frame?.byId.get(e.src);
     const a = abilNumbers(s.hero, sn, this.lookup.talentsOf(e.src), ent?.branch === true);
     const T = slotTimingFrom(s.hero, sn, a);
-    const windupClip = s.windSlot === slot && s.windTick + s.windTicks === e.tick;
+    // N1: a predicted pose of this slot still playing is rebound like a wind-up clip (no restart)
+    const predicted = s.predSlot === slot;
+    const predAt = s.predAt;
+    if (predicted) {
+      s.predSlot = -1;
+      s.predClip = '';
+    }
+    const windupClip = (s.windSlot === slot && s.windTick + s.windTicks === e.tick) || predicted;
     // the aim distance for picks that scale with a shorter dash (Lambo's Belly Flop); NaN for full-length dashes
     (s.ctx as { aimDist?: number }).aimDist = T.aimClamped ? Math.hypot(e.x / 1000 - r.pos.x, -e.y / 1000 - r.pos.z) : NaN;
     const clip = this.pickCast(s, slot, e.tick, true);
@@ -673,7 +732,7 @@ export class AnimDirector {
     const stack = r.ch.anim.stack;
     this.anchorsReset(s);
     const castS = e.tick * TICK_S;
-    if (windupClip) s.anchors[A.windupStart] = s.windTick * TICK_S;
+    if (windupClip) s.anchors[A.windupStart] = predicted ? predAt : s.windTick * TICK_S;
     s.anchors[A.cast] = castS;
     s.anchors[A.release] = castS;
     // instant casts resolve on the cast tick; touch dashes (Brutus E, Cacklejaw R) bind contact on their hit

@@ -15,6 +15,7 @@
  */
 import { QUALITY } from './ppk/core/config.js';
 import { GOV_STEP } from './perf/governor';
+import { isLowEndDevice, lowEndInput, type LowEndInput } from './perf/device';
 
 export type QualityTier = 'low' | 'med' | 'high';
 export const TIERS: readonly QualityTier[] = ['low', 'med', 'high'];
@@ -152,12 +153,17 @@ export function rememberTier(t: QualityTier, by: RememberedTier['by']): void {
   }
 }
 
-/** Starting tier: URL override, else this device's remembered tier, else med with a probe (run in the first match). */
-export function startTier(search?: string): { tier: QualityTier; probe: FpsProbe | null } {
+/**
+ * Starting tier: URL override, else this device's remembered tier, else Low on a budget device (render/perf/device.ts
+ * isLowEndDevice: the probe never raises a tier, so none runs; the player can still pick Medium in Settings), else med
+ * with a probe (run in the first match).
+ */
+export function startTier(search?: string, device: LowEndInput = lowEndInput()): { tier: QualityTier; probe: FpsProbe | null } {
   const forced = qualityOverride(search);
   if (forced) return { tier: forced, probe: null };
   const r = rememberedTier();
   if (r) return { tier: r.tier, probe: null };
+  if (isLowEndDevice(device)) return { tier: 'low', probe: null };
   return { tier: 'med', probe: new FpsProbe(4, 8) };
 }
 
