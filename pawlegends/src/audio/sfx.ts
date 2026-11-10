@@ -66,6 +66,10 @@ export const PL_SFX = {
   ooh: [0.45, 0, 300, 0.08, 0.2, 0.35, 0, 1, -0.6, 0, 0, 0, 0, 0.15, 5, 0, 0.04, 0.8, 0.05, 0.25, -1600],
   /** Combo / multikill sting: two quick rising notes. */
   sting: [0.45, 0, 660, 0.005, 0.05, 0.16, 1, 1, 0, 0, 330, 0.05, 0, 0, 0, 0, 0.02, 0.8, 0.02, 0, 0],
+  /** V21-FUN §4: a tower or core cracks (below 66% HP): a short stone crack and crumble. */
+  towerCrack: [0.75, 0, 150, 0.002, 0.03, 0.2, 4, 1.6, -2, 0, 0, 0, 0.04, 1.4, 0, 0.1, 0, 0.6, 0.03, 0, -1700],
+  /** V21-FUN §4: a tower or core catches fire (below 33%, again below 15%): a low noise "whoomph" that swells and falls. */
+  towerIgnite: [0.75, 0, 95, 0.05, 0.14, 0.38, 4, 1, 1.4, -0.2, 0, 0, 0, 1.3, 0, 0, 0, 0.7, 0.07, 0.12, -950],
   /** A pickup was taken. */
   pickup: [0.5, 0, 880, 0.005, 0.06, 0.2, 0, 1, 6, 0, 440, 0.06, 0, 0, 0, 0, 0, 0.7, 0.02, 0, 0],
   // Sim v14 dogs (DOGS-V13 §1 "Voice / emote"): synth voices, no recordings. Each joke is a generic behaviour.

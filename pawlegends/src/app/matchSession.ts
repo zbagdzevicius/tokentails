@@ -21,7 +21,7 @@ import { TouchControls } from '../input/touch/touchControls';
 import type { Companion } from '../meta/roster';
 import { Tips } from '../onboarding/tips';
 import { ObjectiveClock, Objectives, type BeatId } from '../onboarding/objectives';
-import { Announcer, XpPops, type Moment } from '../render/announcer';
+import { Announcer, XpPops, towerBurningMoment, type Moment } from '../render/announcer';
 import { isFun, type AnyEvent } from '../render/feelEvents';
 import type { GuideMode } from './firstSession';
 import { cardLook, ELEMENT_COLOR, lookKey, type FrameId, type Look } from '../render/cosmetics';
@@ -489,6 +489,8 @@ export class MatchSession {
           this.goals.start('push');
         }
       },
+      // V21-FUN §4: "Our Sunny Lane tower is burning!" (once per structure, render-side damage state)
+      onOwnBurning: (line) => this.present([towerBurningMoment(line)]),
       onCoreDown: (who) => {
         // look at the falling core (the slow-mo comes from effects); feel pass B1: no zoom, the framing stays fixed
         this.view.lookAt(who.x, who.z, 10);

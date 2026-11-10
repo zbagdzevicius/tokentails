@@ -47,6 +47,8 @@ import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
 import { ProjectileView } from './views/projectileView';
 import { StructureView } from './views/towerView';
+import { TowerFire } from './fx/towerFire';
+import { burningLine } from './views/towerDamage';
 import { AnimDirector } from './anim/director';
 import { CueSfx, FxRuntime, type HeroLookup } from './anim/fxctx';
 import { MeshFx } from './anim/fxkit/meshFx';
@@ -88,6 +90,11 @@ export interface GameViewHooks {
   onTowerDown?(ours: boolean): void;
   onTowerAim?(src: number, ticks: number): void;
   onCoreDown?(who: Who): void;
+  /**
+   * V21-FUN §4: one of our towers (or the core) started burning (below 33% HP), once per structure: the session's
+   * callout. `line` is the text ("Our Sunny Lane tower is burning!").
+   */
+  onOwnBurning?(line: string, kind: 'tower' | 'core', id: number): void;
 }
 
 const WHO_TTL = 3;
@@ -129,6 +136,10 @@ export class GameView {
   readonly projectiles: ProjectileView;
   readonly telegraphs = new TelegraphPool(20);
   readonly particles: Particles;
+  /** V21-FUN §4: the fire on burning towers and cores, and the smoulder on fresh rubble (pooled particles). */
+  readonly towerFire: TowerFire;
+  /** V21-FUN §4: structures whose "burning" callout was said (once each). */
+  private readonly burnSaid = new Set<number>();
   readonly shock: Shockwaves;
   readonly juice: Juice;
   readonly effects: Effects;
@@ -240,6 +251,8 @@ export class GameView {
     this.scene.add(this.map.group);
     this.particles = new Particles({ rng: Math.random, groundY: () => 0 });
     this.particles.attach(this.scene);
+    this.towerFire = new TowerFire(this.particles as unknown as ConstructorParameters<typeof TowerFire>[0]);
+    this.structures.fire = this.towerFire;
     this.shock = new Shockwaves(null, { particles: this.particles, groundY: () => 0, rng: Math.random });
     this.shock.init(this.scene);
     this.projectiles = new ProjectileView(this.particles);
@@ -458,6 +471,20 @@ export class GameView {
       sv.set(x, 0.4, z);
       // the settle: a low puff only (trailer review: a second shockwave ring after the burst read as a second blast)
       this.particles.burst(sv, { n: core ? 18 : 12, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.7, size: [0.8, 1.3], sizeEnd: 2.2, life: [0.7, 1.1], speed: [1, 3], up: 0.4, drag: 1.8 });
+    };
+    // V21-FUN §4: a structure crossing into a damage state: a stone crack (cracked) or a fire "whoomph" (burning,
+    // blazing) at its place; one of ours that starts burning gets one callout
+    this.structures.onStage = (id, kind, team, stage, prev, x, z, lane) => {
+      try {
+        sfx.play(stage === 1 ? 'towerCrack' : 'towerIgnite', { at: { x, z }, vol: team === this.myTeam ? 0.8 : 0.65, rate: stage === 3 ? 0.85 : 1 });
+      } catch {
+        /* audio not unlocked yet */
+      }
+      if (stage >= 2 && prev < 2 && team === this.myTeam && !this.burnSaid.has(id)) {
+        this.burnSaid.add(id);
+        if (hooks.onOwnBurning) hooks.onOwnBurning(burningLine(kind, lane), kind, id);
+        else this.juice.callout(burningLine(kind, lane), 'info');
+      }
     };
     // a toppled tower hits the ground (dust along its length, a ring, a kick); a core bursts (a big ring and a puff)
     this.structures.onImpact = (x, z, dx, dz, len, core) => {
@@ -1099,6 +1126,10 @@ export class GameView {
       this.minions.heroes = this.minionClear;
       this.minions.clearZones = this.structures.fallingCores(this.minions.clearZones);
       this.minions.update(frame, dt, this.time);
+      // V21-FUN §4: the fire's tier (the governor's Low step included) and last frame's camera view (off-screen
+      // structures emit nothing)
+      this.towerFire.tier = this.gr.settings.vfxTier;
+      this.towerFire.view(this.gr.camera);
       this.structures.update(frame, dt);
       this.footprints = this.structures.footprints(this.footprints);
       this.projectiles.update(frame, dt);
