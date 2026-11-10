@@ -1,0 +1,174 @@
+# Pawlegends Android app: build the signed release bundle (.aab) and upload it to Google Play; upload the listing;
+# promote internal to production as a draft (docs/plans/moba/PLAY-STORE.md "Release", pawlegends-app/README.md).
+#
+# By hand only (Actions → Pawlegends Android → Run workflow) with a lane:
+#   build     the signed .aab as a workflow artifact only (use it for the first, manual upload in Play Console)
+#   upload    build + upload to a track (default internal; release status completed, or draft while the app is still a
+#             draft in Play Console)
+#   metadata  listing text, icon, feature graphic, phone screenshots (fastlane/metadata_android)
+#   promote   copy the latest internal release to production as a draft (type PROMOTE; roll it out in Play Console)
+#
+# Secrets (Settings → Secrets and variables → Actions), created by the founder (docs/plans/moba/PLAY-STORE.md "Secrets"):
+#   ANDROID_UPLOAD_KEYSTORE_B64 (base64 of the upload .jks), ANDROID_UPLOAD_KEYSTORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS,
+#   ANDROID_UPLOAD_KEY_PASSWORD: required for build and upload (the job fails clearly without them)
+#   GOOGLE_PLAY_JSON_KEY (the Play service account's JSON key text): without it the bundle is still built and kept as
+#   an artifact, and the upload is skipped with a notice
+# versionCode = 100000 + the run number (always higher than the last upload); versionName = pawlegends-app/package.json.
+name: Pawlegends Android
+
+on:
+  workflow_dispatch:
+    inputs:
+      lane:
+        description: 'build = signed .aab artifact only, upload = build + upload to the track, metadata = listing only, promote = internal → production draft'
+        required: true
+        default: upload
+        type: choice
+        options: [build, upload, metadata, promote]
+      track:
+        description: 'Play track for upload'
+        required: true
+        default: internal
+        type: choice
+        options: [internal, alpha, beta, production]
+      release_status:
+        description: 'completed, or draft while the app is still a draft in Play Console (the API accepts nothing else then)'
+        required: true
+        default: completed
+        type: choice
+        options: [completed, draft]
+      confirm:
+        description: 'For promote, and for upload to production: type PROMOTE'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pawlegends-android
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: 22
+
+jobs:
+  android:
+    name: ${{ github.event.inputs.lane }} (${{ github.event.inputs.track }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      LANE: ${{ github.event.inputs.lane }}
+      PLAY_TRACK: ${{ github.event.inputs.track }}
+      PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status }}
+      CONFIRM: ${{ github.event.inputs.confirm }}
+      KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
+      ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+      ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+      ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+      GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
+      FASTLANE_SKIP_UPDATE_CHECK: '1'
+      FASTLANE_HIDE_CHANGELOG: '1'
+    steps:
+      - name: Secrets present
+        id: secrets
+        run: |
+          builds=false
+          case "$LANE" in build|upload) builds=true ;; esac
+          if [ "$builds" = true ]; then
+            missing=""
+            for k in KEYSTORE_B64 ANDROID_UPLOAD_KEYSTORE_PASSWORD ANDROID_UPLOAD_KEY_ALIAS ANDROID_UPLOAD_KEY_PASSWORD; do
+              if [ -z "${!k}" ]; then missing="$missing $k"; fi
+            done
+            if [ -n "$missing" ]; then
+              echo "::error::Missing upload key secrets:${missing/KEYSTORE_B64/ANDROID_UPLOAD_KEYSTORE_B64}. See docs/plans/moba/PLAY-STORE.md (Secrets)."
+              exit 1
+            fi
+          fi
+          if { [ "$LANE" = "promote" ] || { [ "$LANE" = "upload" ] && [ "$PLAY_TRACK" = "production" ]; }; } && [ "$CONFIRM" != "PROMOTE" ]; then
+            echo "::error::Type PROMOTE in the confirm field to release to production."
+            exit 1
+          fi
+          if [ -z "$GOOGLE_PLAY_JSON_KEY" ]; then
+            if [ "$LANE" = "build" ] || [ "$LANE" = "upload" ]; then
+              echo "::notice::GOOGLE_PLAY_JSON_KEY is not set: the bundle is built and kept as an artifact, nothing is uploaded."
+            else
+              echo "::notice::GOOGLE_PLAY_JSON_KEY is not set: nothing to do for $LANE."
+            fi
+            echo "play=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "play=true" >> "$GITHUB_OUTPUT"
+          fi
+          echo "build=$builds" >> "$GITHUB_OUTPUT"
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        if: steps.secrets.outputs.build == 'true'
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - uses: actions/setup-java@v4
+        if: steps.secrets.outputs.build == 'true'
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+        if: steps.secrets.outputs.build == 'true'
+      - name: Android SDK 36
+        if: steps.secrets.outputs.build == 'true'
+        run: sdkmanager "platforms;android-36" "build-tools;36.0.0" > /dev/null
+      - uses: gradle/actions/setup-gradle@v4
+        if: steps.secrets.outputs.build == 'true'
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: '3.3'
+          bundler-cache: true
+          working-directory: pawlegends-app
+      - name: Install
+        if: steps.secrets.outputs.build == 'true'
+        run: |
+          (cd pawlegends && npm ci)
+          (cd pawlegends-app && npm ci)
+      - name: Build the bundled game and sync the Android project
+        if: steps.secrets.outputs.build == 'true'
+        working-directory: pawlegends-app
+        run: |
+          # same seq format as the OTA bundles (UTC to the second): the built-in bundle must compare by build time
+          node scripts/build-web.mjs --seq "$(date -u +%Y%m%d%H%M%S)"
+          npx cap sync android
+      - name: Decode the upload key
+        if: steps.secrets.outputs.build == 'true'
+        run: |
+          umask 077
+          echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
+          echo "ANDROID_UPLOAD_KEYSTORE_PATH=$RUNNER_TEMP/upload.jks" >> "$GITHUB_ENV"
+      - name: Signed bundle
+        if: steps.secrets.outputs.build == 'true'
+        working-directory: pawlegends-app
+        run: PL_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER)) bundle exec fastlane android build
+      - name: Keep the .aab (7 days)
+        if: steps.secrets.outputs.build == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: pawlegends-android-${{ github.run_number }}
+          path: pawlegends-app/android/app/build/outputs/bundle/release/app-release.aab
+          retention-days: 7
+          if-no-files-found: error
+      - name: fastlane ${{ env.LANE }}
+        if: steps.secrets.outputs.play == 'true' && env.LANE != 'build'
+        working-directory: pawlegends-app
+        run: |
+          case "$LANE" in
+            upload) AAB_PATH="$PWD/android/app/build/outputs/bundle/release/app-release.aab" bundle exec fastlane android internal ;;
+            metadata) bundle exec fastlane android metadata ;;
+            promote) bundle exec fastlane android promote ;;
+          esac
+      - name: Remove the upload key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/upload.jks"
+      - name: Summary
+        if: steps.secrets.outputs.build == 'true'
+        run: |
+          {
+            echo "### Pawlegends Android"
+            echo "- versionName $(node -p "require('./pawlegends-app/package.json').version"), versionCode $((100000 + GITHUB_RUN_NUMBER))"
+            echo "- lane $LANE, track $PLAY_TRACK, status $PLAY_RELEASE_STATUS, uploaded: ${{ steps.secrets.outputs.play == 'true' && env.LANE == 'upload' }}"
+          } >> "$GITHUB_STEP_SUMMARY"
