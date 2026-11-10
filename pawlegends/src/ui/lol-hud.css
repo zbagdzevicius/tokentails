@@ -4,7 +4,7 @@
    level badge round the portrait, the split score plate, a portrait kill feed, the death wash, the Nap channel bar and
    the VICTORY / DEFEAT crest. Loaded with the match chunk, after ui.css. Positions of the top band (score, feed) stay
    where lane A put them, so the notification rail keeps its slot. */
-.pl-hud, .pl-scoreboard, .pl-crest, .pl-tbtn {
+.pl-hud, .pl-scoreboard, .pl-crest, .pl-tbtn, .pl-fish {
   --hx-navy: #0b1220; --hx-navy2: #070b14; --hx-gold: #c8aa6e; --hx-gold-d: #785a28; --hx-gold-dd: #463714; --hx-ink: #f0e6d2;
 }
 
@@ -354,52 +354,57 @@ html[data-touch='1']:has(.pl-chatbtn) .pl-feed-row { max-width: 128px; }
 
 /* ------------------------------------------------------------------ lane F (F1): the Fish chip, (F3) phone XP bar
    The unspent Fish with a ring that fills toward the next Toy and a pip per Toy owned. Desktop: a tab on the ability
-   plate's top-right corner. Phones: under the portrait, left of the allied portraits (the strip moves right on the
-   compact layout to make room). The ring bursts gold when a Toy is bought (Hud.toyBurst). */
-.pl-hud .pl-fish {
+   plate's top-right corner. Phones: the B3 HUD diet hides the plate, so Hud.placeFish moves the chip to the match
+   layer, on the minimap's bottom-left corner (the ping paw holds the bottom-right one). The ring bursts gold when a Toy
+   is bought (Hud.toyBurst). The selectors are `.pl-fish`, not `.pl-hud .pl-fish`, so they hold in both homes. */
+.pl-fish {
   position: absolute; display: flex; align-items: center; gap: 5px; padding: 3px 8px 3px 3px; border-radius: 14px; pointer-events: none; z-index: 3;
   background: linear-gradient(180deg, rgba(17, 26, 44, 0.94), rgba(7, 11, 20, 0.94)); border: 1px solid var(--hx-gold-d);
   box-shadow: inset 0 1px 0 rgba(200, 170, 110, 0.45), 0 3px 8px rgba(0, 0, 0, 0.4); color: #ffd34d;
 }
-html:not([data-touch='1']) .pl-hud .pl-fish { bottom: calc(100% + 6px); right: 10px; pointer-events: auto; }
-.pl-hud .pl-fish .ring {
+html:not([data-touch='1']) .pl-fish { bottom: calc(100% + 6px); right: 10px; pointer-events: auto; }
+.pl-fish .ring {
   position: relative; width: 24px; height: 24px; border-radius: 50%; flex: none; display: grid; place-items: center;
   background: conic-gradient(#ffd34d calc(var(--p, 0) * 360deg), rgba(255, 211, 77, 0.16) 0);
 }
-.pl-hud .pl-fish .ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: #0b1220; }
-.pl-hud .pl-fish .ring svg { position: relative; width: 15px; height: 15px; }
-.pl-hud .pl-fish .col { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 22px; }
-.pl-hud .pl-fish .n { font: 800 13px/1 var(--font); color: #fff1c4; text-shadow: 0 1px 0 #000; font-variant-numeric: tabular-nums; }
-.pl-hud .pl-fish .pips { display: flex; gap: 2px; }
-.pl-hud .pl-fish .pips i { width: 5px; height: 5px; border-radius: 1px; background: rgba(255, 211, 77, 0.22); transform: rotate(45deg); }
-.pl-hud .pl-fish .pips i.on { background: #ffd34d; box-shadow: 0 0 4px rgba(255, 211, 77, 0.8); }
-.pl-hud .pl-fish.max .ring { background: #ffd34d; box-shadow: 0 0 8px rgba(255, 211, 77, 0.6); }
-.pl-hud .pl-fish.burst .ring { animation: lol-fish-burst 0.65s ease-out; }
+.pl-fish .ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: #0b1220; }
+.pl-fish .ring svg { position: relative; width: 15px; height: 15px; }
+.pl-fish .col { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 22px; }
+.pl-fish .n { font: 800 13px/1 var(--font); color: #fff1c4; text-shadow: 0 1px 0 #000; font-variant-numeric: tabular-nums; }
+.pl-fish .pips { display: flex; gap: 2px; }
+.pl-fish .pips i { width: 5px; height: 5px; border-radius: 1px; background: rgba(255, 211, 77, 0.22); transform: rotate(45deg); }
+.pl-fish .pips i.on { background: #ffd34d; box-shadow: 0 0 4px rgba(255, 211, 77, 0.8); }
+.pl-fish.max .ring { background: #ffd34d; box-shadow: 0 0 8px rgba(255, 211, 77, 0.6); }
+.pl-fish.burst .ring { animation: lol-fish-burst 0.65s ease-out; }
 /* fun pass (playtest #14): "−550 → Toy" for 1.5 s after a buy, in gold, then the count again */
-.pl-hud .pl-fish.spent .n { color: #ffd34d; white-space: nowrap; }
-.pl-hud .pl-fish.burst { animation: lol-fish-pop 0.65s cubic-bezier(0.2, 1.6, 0.4, 1); }
+.pl-fish.spent .n { color: #ffd34d; white-space: nowrap; }
+.pl-fish.burst { animation: lol-fish-pop 0.65s cubic-bezier(0.2, 1.6, 0.4, 1); }
 @keyframes lol-fish-burst {
   0% { box-shadow: 0 0 0 0 rgba(255, 238, 170, 0.95); }
   50% { box-shadow: 0 0 0 7px rgba(255, 211, 77, 0.55), 0 0 18px 6px rgba(255, 211, 77, 0.6); }
   100% { box-shadow: 0 0 0 12px rgba(255, 211, 77, 0); }
 }
 @keyframes lol-fish-pop { 0% { transform: scale(1.18); } 100% { transform: scale(1); } }
-html[data-touch='1'] .pl-hud .pl-fish { left: 0; top: calc(100% + 5px); padding: 2px 6px 2px 2px; gap: 4px; }
-html[data-touch='1'] .pl-hud .pl-fish .ring { width: 22px; height: 22px; }
-html[data-touch='1'] .pl-hud .pl-fish .ring svg { width: 13px; height: 13px; }
-html[data-touch='1'] .pl-hud .pl-fish .n { font-size: 11px; }
-html[data-touch='1'] .pl-hud .pl-fish .pips i { width: 4px; height: 4px; }
+/* phones: across the minimap's bottom rim, left (the minimap's own bottom-left corner shows your base, so the chip
+   sits on the rim and just under it, clear of the emote column below; same art and size as before the B3 diet) */
+html[data-touch='1'] .pl-match > .pl-fish {
+  left: calc(14px + var(--safe-l, 0px)); top: calc(8px + var(--safe-t, 0px) + var(--mm-h) - 14px); padding: 2px 6px 2px 2px; gap: 4px; z-index: 5;
+}
+html[data-touch='1'] .pl-fish .ring { width: 22px; height: 22px; }
+html[data-touch='1'] .pl-fish .ring svg { width: 13px; height: 13px; }
+html[data-touch='1'] .pl-fish .n { font-size: 11px; }
+html[data-touch='1'] .pl-fish .pips i { width: 4px; height: 4px; }
 /* F3: phones show the thin XP bar under the health (it flashes gold on a level-up) instead of the portrait ring */
 html[data-touch='1'] .pl-hud .pl-portrait .xpring { display: none; }
 html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-gradient(90deg, #f0d58a, #fff1c4); box-shadow: 0 0 6px #f0d58a; }
 @media (max-width: 699px), (max-width: 843px) and (max-height: 380px) {
-  html[data-touch='1'] .pl-hud .pl-fish { top: calc(100% + 4px); padding: 1px 5px 1px 1px; }
-  html[data-touch='1'] .pl-hud .pl-fish .ring { width: 20px; height: 20px; }
-  html[data-touch='1'] .pl-hud .pl-fish .ring svg { width: 12px; height: 12px; }
+  html[data-touch='1'] .pl-match > .pl-fish { top: calc(8px + var(--safe-t, 0px) + var(--mm-h) - 13px); padding: 1px 5px 1px 1px; }
+  html[data-touch='1'] .pl-fish .ring { width: 20px; height: 20px; }
+  html[data-touch='1'] .pl-fish .ring svg { width: 12px; height: 12px; }
   /* fun pass (playtest #7): under the ally portraits (they end at y 90 at 667 × 375), not over them */
   html[data-touch='1'] .pl-hud .pl-portrait .gap { top: calc(100% + 50px); }
 }
-@media (prefers-reduced-motion: reduce) { .pl-hud .pl-fish.burst, .pl-hud .pl-fish.burst .ring { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .pl-fish.burst, .pl-fish.burst .ring { animation: none; } }
 /* F4: a takedown's Fish at the end of its kill-feed row */
 .pl-hud .pl-feed-row .fish { display: inline-flex; align-items: center; gap: 2px; margin-left: 4px; padding: 1px 5px 1px 3px; border-radius: 8px; font: 800 11px/1 var(--font); font-style: normal; color: #ffd34d; background: rgba(255, 211, 77, 0.14); }
 .pl-hud .pl-feed-row .fish svg { width: 12px; height: 12px; }
