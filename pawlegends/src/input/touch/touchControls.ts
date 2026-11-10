@@ -43,8 +43,8 @@ import { basicRange, minionHitEstimate, ULT_LEVEL, type AimSpec } from '../abili
 import { slideAngle, type CastIndex } from '../orders';
 import { lastHitButton, leftHanded, targetFirst, TOUCH_PREFS_EVENT, touchSize, towerButton, type TargetFirst } from '../presets';
 import { project } from '../screen';
-import { attackPreview, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
-import { ASSIST, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, STICK_YIELD, stickTowardTarget, TargetLock } from './assist';
+import { attackPreview, CHASE_LEEWAY_MM, inAttackReach, guardedByTower, lastHitTarget, nearestEnemy, pickNearest, smartAim, talkBackDeters, towerTarget, type Unit } from '../targeting';
+import { ASSIST, AttackYield, autoAttackTarget, edgeGoal, laneMagnet, lockable, lockBreakMm, magnetOn, stickTowardTarget, stickyAttackTarget, TargetLock } from './assist';
 import { bannerNote } from '../../render/juice';
 import { headingAngle, headingPoint, landing, MotionHeading, MOVE_ORDER_MS, ReturnWindow } from '../heading';
 import { HEROES } from '../../data/heroes';
@@ -143,7 +143,7 @@ const ATK_TIP_KEY = 'pawlegends.atkNoneTips';
 /** A skill button held this long (ms) without a drag shows its range and smart aim (CAST.hold; a tap stays a tap). */
 export const HOLD_PREVIEW_MS = 180;
 /** The idle auto-attack measures edge to edge with this slack (mm), like the Attack button (C13). */
-const AUTO_SLACK = 300;
+const AUTO_SLACK = CHASE_LEEWAY_MM;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 /** How long (ms) the ghost landing marker of a tapped heading cast shows (no delay: the cast goes first). */
@@ -230,8 +230,8 @@ export class TouchControls {
   private lastStick = { a: NaN, at: 0, tx: 0, ty: 0 };
   private attackHeld: number | null = null;
   private lastAttack = 0;
-  /** The unit the newest ATK press ordered an attack on, or null (the stick yields to it: STICK_YIELD). */
-  private atkTarget: number | null = null;
+  /** The unit the newest ATK press ordered an attack on while that order stands (the stick yields to it: STICK_YIELD). */
+  private readonly atkYield = new AttackYield();
   /** Stick moves held back because they pointed at the attack target (e2e telemetry). */
   stickYields = 0;
   /** Hold-to-select: the held Attack button's state, while held. */
@@ -453,6 +453,8 @@ export class TouchControls {
     }
     const slot = SLOT_OF[btn];
     if (slot === undefined) return;
+    // V20-CHASE.md I3: a skill press is a new command: the stick stops yielding to a tapped Attack order
+    if (this.attackHeld === null) this.atkYield.clear();
     // C2: a press within a few ticks of the cooldown ending goes into the cast buffer instead of a deny
     if (!this.h.orders.canQueue(slot)) {
       this.deny(slot);
@@ -986,7 +988,7 @@ export class TouchControls {
     sfx.play('click', { vol: 0.45, rate: 1.4 });
     this.lastAttack = now;
     // the stick yields to the selected unit now, not to the one the press ordered (STICK_YIELD)
-    this.atkTarget = id;
+    this.atkYield.set(id);
     this.h.orders.attack(id);
   }
 
@@ -1079,8 +1081,11 @@ export class TouchControls {
     const locked = this.attackLockId();
     // C5: the minion the next basic kills first (the last hit), within attack range + 1 m
     const kill = this.killFn();
+    // V20-CHASE.md I2 (Wild Rift: an attack order keeps its champion): with no lock, the hero this ATK is already attacking
+    // stays the pick while it is within the lock-break distance (no last hit, minion or tower guard steals the chase)
+    const sticky = locked === null ? stickyAttackTarget(this.targets(), me, this.h.view.myTeam, range, this.atkYield.check(units, me, this.h.view.myTeam, range)) : null;
     // UX pass 2: the ringed unit is the tap's own pick (attackPreview), so the two never disagree
-    const id = attackPreview(this.targets(), me, this.h.view.myTeam, range, this.first, kill, locked);
+    const id = sticky ?? attackPreview(this.targets(), me, this.h.view.myTeam, range, this.first, kill, locked);
     const lockId = this.lock.id;
     // What the button saw and chose (e2e telemetry for match-touch.spec.ts; nothing reads it in play). `ring`: what the
     // field had ringed before this tap (the last preview drawn, at most 100 ms old)
@@ -1097,11 +1102,13 @@ export class TouchControls {
       deterred: [...this.deter.keys()].filter((d) => d !== lockId),
     };
     this.picks++;
-    this.atkTarget = id;
     if (id !== null) {
+      this.atkYield.set(id);
+      // the same attack again is a no-op in the sim (v20 S2): the swing in progress is never restarted
       this.h.orders.attack(id);
       return;
     }
+    // V20-CHASE.md I2: a held repeat that finds nothing keeps the order it already has (only the deny ring shows)
     // C5: nothing in reach: no walk (the old attack-move walked players under towers), a red ring and, twice, a tip
     this.atkNone++;
     this.h.view.denyRing?.();
@@ -1228,15 +1235,16 @@ export class TouchControls {
   }
 
   /**
-   * Founder bug 2026-11-08: ATK held (or tapped within STICK_YIELD.tapMs) on a living unit and the stick at angle `a`
-   * pointing toward it: the stick sends no move, so it never replaces the Attack order mid-chase or mid-windup.
+   * Founder bug 2026-11-08, V20-CHASE.md I3: while an ATK press's order stands (AttackYield: held or tapped, no timer)
+   * and the stick at angle `a` points toward its unit, the stick sends no move, so it never replaces the Attack order
+   * mid-chase or mid-windup.
    */
-  private yieldsToAttack(o: { x: number; y: number }, a: number, now: number): boolean {
-    const id = this.atkTarget;
-    if (id === null || (this.attackHeld === null && now - this.lastAttack >= STICK_YIELD.tapMs)) return false;
-    const t = this.h.units().find((u) => u.id === id);
-    if (!t || t.state === 'dead') return false;
-    return stickTowardTarget(o.x, o.y, a, t);
+  private yieldsToAttack(o: { x: number; y: number }, a: number): boolean {
+    const units = this.h.units();
+    const id = this.atkYield.check(units, this.me(), this.h.view.myTeam, this.range());
+    if (id === null) return false;
+    const t = units.find((u) => u.id === id);
+    return !!t && stickTowardTarget(o.x, o.y, a, t);
   }
 
   /**
@@ -1256,7 +1264,7 @@ export class TouchControls {
       // round 2: a push into a wall slides along it (orders.ts slideAngle)
       // C8: only at full tilt (90%+) and with no enemy hero within 8 m, and only within 8° of the lane
       const a = this.walkAngle(me, o, dx, dy);
-      if (this.yieldsToAttack(o, a, now)) {
+      if (this.yieldsToAttack(o, a)) {
         // the Attack order chases; the next stick move goes at once when ATK lets go or the stick turns away
         this.lastStick.a = NaN;
         this.stickYields++;
@@ -1271,6 +1279,8 @@ export class TouchControls {
         const goal = edgeGoal(o.x, o.y, o.x + Math.cos(a) * STICK.aheadMm, o.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
         if (goal) {
           this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
+          // a move is a new command: the tapped Attack order is over (a held ATK re-orders it on its next repeat)
+          if (this.attackHeld === null) this.atkYield.clear();
           this.h.orders.move(goal.x, goal.y);
           this.h.view.recentre();
         } else this.lastStick = { a, at: now, tx: o.x, ty: o.y };

@@ -224,30 +224,32 @@ export const HEARTHWOOD_CAMERA_YAW = 0;
  * The hero rows (MAP-5V5.md §12.10) were fitted on 2,000-seed symmetry windows after the takedown-credit fix: a
  * logistic model of every match's line-ups, then a residual correction; each row moves dealt and taken by the same
  * amount in opposite directions. They bring every hero to 46% to 54% and the cats to 47% to 53% on Hearthwood only.
+ * Sim v20 (Wild Rift basic attacks, docs/plans/moba/V20-CHASE.md §8): refitted the same way on top of the v20 3v3 rows
+ * (two 2,000-seed windows: every hero 47.0% to 53.7%, cats 49.5% / 51.2%).
  */
 export const HEARTHWOOD_PVP = Object.freeze({
   cat: Object.freeze({ dmgBp: 10120, takenBp: 9880 }),
   dog: Object.freeze({ dmgBp: 10000, takenBp: 10000 }),
   hero: Object.freeze({
-    clem: { dmgBp: 11660, takenBp: 8340 },
+    clem: { dmgBp: 11840, takenBp: 8160 },
     sage: { dmgBp: 9740, takenBp: 10260 },
-    gabe: { dmgBp: 8730, takenBp: 11270 },
-    meatball: { dmgBp: 9220, takenBp: 10780 },
-    duchess: { dmgBp: 9380, takenBp: 10620 },
-    aviete: { dmgBp: 10030, takenBp: 9970 },
-    bengas: { dmgBp: 9600, takenBp: 10400 },
-    lambo: { dmgBp: 11170, takenBp: 8830 },
-    pixel: { dmgBp: 9760, takenBp: 10240 },
-    stilts: { dmgBp: 10360, takenBp: 9640 },
-    brutus: { dmgBp: 11460, takenBp: 8540 },
-    cacklejaw: { dmgBp: 10200, takenBp: 9800 },
-    nugget: { dmgBp: 9210, takenBp: 10790 },
-    marshmallow: { dmgBp: 9660, takenBp: 10340 },
-    bravo: { dmgBp: 11180, takenBp: 8820 },
+    gabe: { dmgBp: 8600, takenBp: 11400 },
+    meatball: { dmgBp: 9120, takenBp: 10880 },
+    duchess: { dmgBp: 9950, takenBp: 10050 },
+    aviete: { dmgBp: 10260, takenBp: 9740 },
+    bengas: { dmgBp: 9510, takenBp: 10490 },
+    lambo: { dmgBp: 10770, takenBp: 9230 },
+    pixel: { dmgBp: 9790, takenBp: 10210 },
+    stilts: { dmgBp: 9490, takenBp: 10510 },
+    brutus: { dmgBp: 11560, takenBp: 8440 },
+    cacklejaw: { dmgBp: 10650, takenBp: 9350 },
+    nugget: { dmgBp: 9180, takenBp: 10820 },
+    marshmallow: { dmgBp: 9540, takenBp: 10460 },
+    bravo: { dmgBp: 11050, takenBp: 8950 },
     chili: { dmgBp: 9270, takenBp: 10730 },
-    howler: { dmgBp: 10710, takenBp: 9290 },
-    rocket: { dmgBp: 9510, takenBp: 10490 },
-    frankie: { dmgBp: 9730, takenBp: 10270 },
-    domino: { dmgBp: 9410, takenBp: 10590 },
+    howler: { dmgBp: 10560, takenBp: 9440 },
+    rocket: { dmgBp: 9100, takenBp: 10900 },
+    frankie: { dmgBp: 10070, takenBp: 9930 },
+    domino: { dmgBp: 9610, takenBp: 10390 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

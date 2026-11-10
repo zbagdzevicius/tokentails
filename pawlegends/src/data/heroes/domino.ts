@@ -7,7 +7,7 @@ export const DOMINO: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'mage',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9775 (51.2% of the 2,000-seed gate). Sim v16: 9050 (the Brutus nerf alone dropped him to about 45%). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9850. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9500 / takes 9100. */
-  pvp: { dmgBp: 9500, takenBp: 9100 },
+  pvp: { dmgBp: 9610, takenBp: 8990 },
   element: 'STELLAR',
   base: { hp: 470, hpPerLevel: 49, attack: 50, attackPerLevel: 5, attackEvery: 30, range: 5300, speed: 4850, armour: 15, armourPerLevel: 2 },
   /** Spot On: each of his ability hits on an enemy hero sticks a Spot (max 3, 6 s, refreshed). He deals +6% to a hero per Spot on it. */

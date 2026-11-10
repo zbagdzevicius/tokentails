@@ -16,6 +16,7 @@ import { attackSpeed, cleanse, collect, dash, fireSkillshot, haste, healOverTime
 import { disabled } from '../effects/status';
 import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
+import { cancelSwing } from '../combat/swing';
 
 const hits = new Int32Array(MAX_ENTITIES);
 /** True while a BIG DOG splash deals its damage: afterDeal then knows an ability hit is not a yap. */
@@ -116,7 +117,7 @@ export const CHILI_KIT: HeroKit = {
         w.kRT[id] = e.duration;
         // Into the bag: the yap queue and any swing stop.
         w.kStage[id] = 0;
-        w.windup[id] = 0;
+        cancelSwing(w, id);
         return e.cooldown;
       }
       default: {

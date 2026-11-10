@@ -117,4 +117,15 @@ export const HERO_RULES = Object.freeze({
    * at the edge of range still swings. Keep it under the windup's landing slack (the target's radius).
    */
   chaseLeeway: 300,
+  /**
+   * Sim v20 (V20-CHASE.md S3): a hero's started swing lands (or fires) on a target still within its attack range +
+   * this many mm when the windup ends (Wild Rift: a started basic attack completes unless the target gets "too far
+   * away"; no distance is published). Equals the touch lock's melee break (LOCK_BREAK.melee).
+   */
+  swingBreak: 1000,
+  /**
+   * Sim v20 (V20-CHASE.md S2): an attack-move whose point is within the current target's radius + this many mm (the
+   * player A-clicked at the unit it is already attacking) keeps that target and its swing instead of re-acquiring.
+   */
+  amoveClick: 1500,
 });

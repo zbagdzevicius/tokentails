@@ -24,6 +24,7 @@ import { creditHealShield } from '../effects/heal';
 import { disabled } from '../effects/status';
 import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
+import { cancelSwing } from '../combat/swing';
 
 const W = 1;
 const hits = new Int32Array(MAX_ENTITIES);
@@ -93,7 +94,7 @@ function flop(m: MatchHandle, id: number, dmg: number): number {
   w.kHuntT[id] = p.cooldown;
   w.nineReady[id] = Math.max(w.nineReady[id], tick + p.cooldown);
   // Dropped where he stands: no swing, no cast, no dash in progress.
-  w.windup[id] = 0;
+  cancelSwing(w, id);
   w.castPhase[id] = 0;
   w.castT[id] = 0;
   healOverTime(w, id, idiv(w.maxHp[id] * p.healBp, BP_ONE), p.duration);

@@ -18,6 +18,7 @@
     "bake:heroes": "node tools/bake-heroes.mjs",
     "bake:map": "node tools/bake-map.mjs",
     "match": "node tools/headless-match.mjs",
+    "chase-gate": "vitest run --config tools/chase-harness/vitest.config.ts tools/chase-harness/chase-gate.test.ts",
     "determinism": "node tools/determinism.mjs",
     "soak": "node tests/e2e/mp/soak.mjs",
     "measure": "node tools/measure.mjs",

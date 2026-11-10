@@ -1,174 +1,174 @@
 {
-  "base": "v18",
-  "simVersion": 18,
+  "base": "v20",
+  "simVersion": 20,
   "rows": [
     {
       "key": "fixture:rookie-replay.fixture.json",
-      "finalHash": "4ce1f72c",
-      "trail": "5d06234d",
-      "ticks": 9025
+      "finalHash": "8de0d52a",
+      "trail": "396add12",
+      "ticks": 9329
     },
     {
       "key": "fixture:champion-replay.fixture.json",
-      "finalHash": "59236a97",
-      "trail": "d5e7f453",
-      "ticks": 11058
+      "finalHash": "0302b766",
+      "trail": "e597bfba",
+      "ticks": 11589
     },
     {
       "key": "fixture:forfeit-replay.fixture.json",
-      "finalHash": "6c54cf0e",
-      "trail": "512cc399",
+      "finalHash": "1b756153",
+      "trail": "92dd680e",
       "ticks": 7201
     },
     {
       "key": "fuzz:0",
-      "finalHash": "267ed70c",
-      "trail": "2b70c4ad",
-      "ticks": 11433
+      "finalHash": "cf99dae1",
+      "trail": "60826792",
+      "ticks": 8682
     },
     {
       "key": "fuzz:1",
-      "finalHash": "ffb4a49c",
-      "trail": "c8245d7d",
-      "ticks": 9906
+      "finalHash": "351472a9",
+      "trail": "0cd5e07e",
+      "ticks": 12825
     },
     {
       "key": "fuzz:2",
-      "finalHash": "a4935153",
-      "trail": "6e82448e",
-      "ticks": 12734
+      "finalHash": "4d26ba82",
+      "trail": "78f83186",
+      "ticks": 7932
     },
     {
       "key": "fuzz:3",
-      "finalHash": "0ace2b55",
-      "trail": "2af8cb46",
+      "finalHash": "c925948a",
+      "trail": "0bf1ce23",
       "ticks": 8000
     },
     {
       "key": "fuzz:4",
-      "finalHash": "b85ff3b0",
-      "trail": "bcc913a5",
-      "ticks": 10942
+      "finalHash": "64f4a429",
+      "trail": "8fddbbd3",
+      "ticks": 12049
     },
     {
       "key": "fuzz:5",
-      "finalHash": "02e7334b",
-      "trail": "d245b861",
-      "ticks": 12630
+      "finalHash": "14432a3c",
+      "trail": "384cf094",
+      "ticks": 11000
     },
     {
       "key": "fuzz:6",
-      "finalHash": "f5f4db22",
-      "trail": "fd2be0eb",
+      "finalHash": "0d60cfc0",
+      "trail": "0055dfd4",
       "ticks": 8522
     },
     {
       "key": "fuzz:7",
-      "finalHash": "54ad37ab",
-      "trail": "4defadfe",
-      "ticks": 13132
+      "finalHash": "b696064c",
+      "trail": "e26ce623",
+      "ticks": 11103
     },
     {
       "key": "fuzz:8",
-      "finalHash": "0ab781e4",
-      "trail": "7bd9b149",
-      "ticks": 10536
+      "finalHash": "7add876c",
+      "trail": "07b86779",
+      "ticks": 10265
     },
     {
       "key": "fuzz:9",
-      "finalHash": "235d1ec8",
-      "trail": "3dfd0077",
-      "ticks": 9878
+      "finalHash": "eda8659a",
+      "trail": "cd680f1c",
+      "ticks": 12273
     },
     {
       "key": "fuzz:10",
-      "finalHash": "c665e3f5",
-      "trail": "ef3bcdfa",
-      "ticks": 8404
+      "finalHash": "78a48cd6",
+      "trail": "753a6bcb",
+      "ticks": 8911
     },
     {
       "key": "fuzz:11",
-      "finalHash": "0ed331ef",
-      "trail": "74954238",
-      "ticks": 9990
+      "finalHash": "ac1b8934",
+      "trail": "7dc7f819",
+      "ticks": 10824
     },
     {
       "key": "fuzz:12",
-      "finalHash": "807abd81",
-      "trail": "671576c0",
-      "ticks": 11958
+      "finalHash": "955ae43a",
+      "trail": "2aaff01f",
+      "ticks": 11992
     },
     {
       "key": "fuzz:13",
-      "finalHash": "151bfa5d",
-      "trail": "70780712",
-      "ticks": 12218
+      "finalHash": "fe14c54c",
+      "trail": "df3c19d1",
+      "ticks": 9149
     },
     {
       "key": "fuzz:14",
-      "finalHash": "f2f66cbb",
-      "trail": "673884c7",
-      "ticks": 9789
+      "finalHash": "21cd25d8",
+      "trail": "25de7187",
+      "ticks": 12248
     },
     {
       "key": "fuzz:15",
-      "finalHash": "ea78b747",
-      "trail": "49cde538",
-      "ticks": 8237
+      "finalHash": "feb09ddd",
+      "trail": "a116c64a",
+      "ticks": 7238
     },
     {
       "key": "fuzz:16",
-      "finalHash": "679dafc9",
-      "trail": "c45cb48a",
-      "ticks": 10883
+      "finalHash": "341b3c2f",
+      "trail": "488f7e48",
+      "ticks": 10994
     },
     {
       "key": "fuzz:17",
-      "finalHash": "bbf43e08",
-      "trail": "6d9aa9a5",
-      "ticks": 12067
+      "finalHash": "5b1a86da",
+      "trail": "04d462f0",
+      "ticks": 12173
     },
     {
       "key": "fuzz:18",
-      "finalHash": "9865c3f8",
-      "trail": "260bd7c9",
-      "ticks": 9861
+      "finalHash": "80de0e53",
+      "trail": "f8fa9151",
+      "ticks": 11218
     },
     {
       "key": "fuzz:19",
-      "finalHash": "d8e96b84",
-      "trail": "d0f2dc94",
-      "ticks": 9501
+      "finalHash": "14ce1004",
+      "trail": "df6681df",
+      "ticks": 7143
     },
     {
       "key": "bot:pinger:11",
-      "finalHash": "d58f71e0",
-      "trail": "35239d8c",
-      "ticks": 13763
+      "finalHash": "32f22e79",
+      "trail": "fecca088",
+      "ticks": 13804
     },
     {
       "key": "bot:pinger:12",
-      "finalHash": "f9d489c8",
-      "trail": "75797154",
-      "ticks": 13384
+      "finalHash": "8f4ac884",
+      "trail": "b8ab4d66",
+      "ticks": 9187
     },
     {
       "key": "bot:normal:13",
-      "finalHash": "e1243f08",
-      "trail": "b51b2091",
-      "ticks": 11244
+      "finalHash": "2cce4ffe",
+      "trail": "913605a1",
+      "ticks": 13145
     },
     {
       "key": "bot:novice:14",
-      "finalHash": "1eeffffc",
-      "trail": "be10227a",
-      "ticks": 10201
+      "finalHash": "5485dfb2",
+      "trail": "e3409cd8",
+      "ticks": 12121
     },
     {
       "key": "bot:easy:15",
-      "finalHash": "98872ee7",
-      "trail": "a9865564",
-      "ticks": 13911
+      "finalHash": "e179e603",
+      "trail": "3e9be70f",
+      "ticks": 12909
     }
   ]
 }

@@ -6,7 +6,7 @@
  * Attack{id} on it; dragging back to where the thumb landed (the inner ring) cancels. Client only: it only decides which id an existing
  * Attack command carries (no sim change). Floats are fine here (never in the replay).
  */
-import { ATTACK_SEEK_MM, BODY_MM, isEnemy, type Unit } from '../targeting';
+import { ATTACK_SEEK_MM, edgeGap, isEnemy, type Unit } from '../targeting';
 import { LOCK } from './assist';
 
 export const ATK_SELECT = Object.freeze({
@@ -37,7 +37,8 @@ export const ATK_SELECT = Object.freeze({
   tie: (Math.PI * 3) / 180,
 });
 
-const edge = (u: Unit, me: { x: number; y: number }): number => Math.hypot(u.x - me.x, u.y - me.y) - BODY_MM[u.kind];
+/** V20-CHASE.md I1: edge to edge (both bodies), as the sim measures attack range. */
+const edge = (u: Unit, me: { x: number; y: number }): number => edgeGap(me, u);
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function angleGap(a: number, b: number): number {

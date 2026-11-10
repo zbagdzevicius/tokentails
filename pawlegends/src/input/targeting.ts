@@ -6,6 +6,7 @@
  */
 import type { EntitySnap } from '../sim/api';
 import { TOWERS } from '../data/towers';
+import { HERO_RULES } from '../data/xp';
 import type { AimSpec } from './abilities';
 import type { TargetFirst } from './presets';
 import { headingPoint } from './heading';
@@ -40,6 +41,21 @@ export const ATTACKABLE: ReadonlySet<EntitySnap['kind']> = new Set(['hero', 'min
 export const isEnemy = (u: Unit, myTeam: number): boolean => u.team !== myTeam && ATTACKABLE.has(u.kind) && u.state !== 'dead';
 
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }): number => Math.hypot(a.x - b.x, a.y - b.y);
+
+/**
+ * V20-CHASE.md I1 (Wild Rift edge range: "calculated from the edge of a source unit's hitbox to the edge of a target
+ * unit's hitbox"): the gap (mm) between `me`'s body and `u`'s, as the sim's `inAttackRange` measures it (attack range +
+ * both radii, centre to centre). `me` without a kind is the player's hero.
+ */
+export const edgeGap = (me: { x: number; y: number; kind?: EntitySnap['kind'] }, u: { x: number; y: number; kind: EntitySnap['kind'] }): number =>
+  dist(u, me) - BODY_MM[me.kind ?? 'hero'] - BODY_MM[u.kind];
+
+/** V20-CHASE.md I1: the sim's chase leeway (HERO_RULES.chaseLeeway): an Attack order swings within range + this. */
+export const CHASE_LEEWAY_MM = HERO_RULES.chaseLeeway;
+
+/** Is `u` within `range` + `slack` mm of `me`, edge to edge (the sim's swing-start rule with the default slack)? */
+export const inReach = (me: { x: number; y: number; kind?: EntitySnap['kind'] }, u: { x: number; y: number; kind: EntitySnap['kind'] }, range: number, slack = CHASE_LEEWAY_MM): boolean =>
+  edgeGap(me, u) <= range + slack;
 
 /**
  * Is `u` inside the range of a living enemy (to us) tower or core that no allied minion is tanking? Walking in to
@@ -91,8 +107,8 @@ export function attackPriority(
   let killD = Infinity;
   for (const u of units) {
     if (u.id === me.id || !isEnemy(u, myTeam)) continue;
-    const d = dist(u, me) - BODY_MM[u.kind];
-    const inRange = d <= range + 300;
+    const d = edgeGap(me, u);
+    const inRange = d <= range + CHASE_LEEWAY_MM;
     const farm = u.kind === 'minion' || u.kind === 'camp';
     if (farm && d <= range + LAST_HIT_REACH) {
       if (killDmg && u.hp <= killDmg(u) && d < killD) {
@@ -115,15 +131,15 @@ export function attackPriority(
       if (inRange) {
         if (!hero || u.hp / u.maxHp < hero.hp / hero.maxHp) hero = u;
       } else if (d <= range + HERO_REACH_MM && (!reachHero || u.hp / u.maxHp < reachHero.hp / reachHero.maxHp) && !guardedByTower(units, u, myTeam)) reachHero = u;
-      if (d <= seek && (!nearHero || d < dist(nearHero, me) - BODY_MM.hero) && !guardedByTower(units, u, myTeam)) nearHero = u;
+      if (d <= seek && (!nearHero || d < edgeGap(me, nearHero)) && !guardedByTower(units, u, myTeam)) nearHero = u;
     } else if (u.kind === 'minion' || u.kind === 'camp' || u.kind === 'pudding') {
       if (inRange && !farm && (!minion || u.hp < minion.hp)) minion = u;
-      if (d <= seek && (!nearMinion || d < dist(nearMinion, me) - BODY_MM[nearMinion.kind]) && !guardedByTower(units, u, myTeam)) nearMinion = u;
+      if (d <= seek && (!nearMinion || d < edgeGap(me, nearMinion)) && !guardedByTower(units, u, myTeam)) nearMinion = u;
     } else if (inRange && (!tower || u.hp < tower.hp)) tower = u;
   }
   if (first === 'lowest') return (lowest ?? tower ?? nearHero ?? nearMinion)?.id ?? null;
   if (first === 'closest') {
-    const edge = (u: Unit | null): number => (u ? dist(u, me) - BODY_MM[u.kind] : Infinity);
+    const edge = (u: Unit | null): number => (u ? edgeGap(me, u) : Infinity);
     const fallback = edge(nearMinion) < edge(nearHero) ? nearMinion : nearHero;
     return (closest ?? tower ?? fallback)?.id ?? null;
   }
@@ -150,8 +166,8 @@ export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, 
   let killD = Infinity;
   for (const u of units) {
     if (u.id === me.id || !isEnemy(u, myTeam) || (u.kind !== 'minion' && u.kind !== 'camp')) continue;
-    const d = dist(u, me) - BODY_MM[u.kind];
-    if (d > range + 300) continue;
+    const d = edgeGap(me, u);
+    if (d > range + CHASE_LEEWAY_MM) continue;
     if (killDmg && u.hp <= killDmg(u) && d < killD) {
       kill = u;
       killD = d;
@@ -161,9 +177,9 @@ export function lastHitTarget(units: readonly Unit[], me: Unit, myTeam: number, 
   return (kill ?? best)?.id ?? null;
 }
 
-/** UX pass 2: is `u` within the Attack button's own reach (edge to edge, its 300 mm slack)? */
-export function inAttackReach(u: Unit | undefined, me: { x: number; y: number }, range: number): boolean {
-  return !!u && u.state !== 'dead' && dist(u, me) - BODY_MM[u.kind] <= range + 300;
+/** UX pass 2: is `u` within the Attack button's own reach (edge to edge, the sim's chase leeway as its slack)? */
+export function inAttackReach(u: Unit | undefined, me: { x: number; y: number; kind?: EntitySnap['kind'] }, range: number): boolean {
+  return !!u && u.state !== 'dead' && inReach(me, u, range);
 }
 
 /**
@@ -197,8 +213,8 @@ export function towerTarget(units: readonly Unit[], me: Unit, myTeam: number, ra
   let nearD = Infinity;
   for (const u of units) {
     if (!isEnemy(u, myTeam) || (u.kind !== 'tower' && u.kind !== 'core')) continue;
-    const d = dist(u, me) - BODY_MM[u.kind];
-    if (d <= range + 300) {
+    const d = edgeGap(me, u);
+    if (d <= range + CHASE_LEEWAY_MM) {
       if (!inRange || u.hp < inRange.hp) inRange = u;
     } else if (d <= seek && d < nearD && !guardedByTower(units, u, myTeam)) {
       nearD = d;

@@ -116,10 +116,13 @@ describe('basic attacks while chasing (founder bug 2026-11-08)', () => {
     }
   });
 
-  it('a Pounce out of the windup still dodges the melee swing (the first hit comes a whole attack later)', () => {
+  it('a Pounce out of the windup still dodges that swing, but the attack timer comes back (sim v20 S1)', () => {
     const plain = chase('clem', 'clem');
     expect(plain.firstHit).toBeLessThan(HERO_RULES.attackWindup);
-    expect(chase('clem', 'clem', { pounce: true }).firstHit).toBeGreaterThan(20);
+    const p = chase('clem', 'clem', { pounce: true });
+    // the dodged swing never landed, and the Pounce left the attacker free to swing again (no spent timer)
+    expect(p.firstHit === -1 || p.firstHit > HERO_RULES.attackWindup).toBe(true);
+    expect(p.m.world.windup[ME] > 0 || p.m.world.attackTimer[ME] < HERO_RULES.attackWindup * 4).toBe(true);
   });
 
   it('touch: ATK held with the stick toward the target lands its swings (the old stick moves cancelled them all)', () => {
@@ -170,5 +173,36 @@ describe('basic attacks while chasing (founder bug 2026-11-08)', () => {
       expect(w.x[ME]).toBe(X0);
     }
     expect(hits).toBe(5);
+  });
+
+  it('sim v20 S3: a started swing lands with up to swingBreak of drift past reach, melee and ranged; past it, it drops and the timer comes back', () => {
+    for (const hero of ['clem', 'sage'] as const) {
+      for (const [drift, lands] of [
+        [HERO_RULES.swingBreak - 100, true],
+        [HERO_RULES.swingBreak + 100, false],
+      ] as const) {
+        const m = heroMatch([hero, 'clem', 'clem', 'clem', 'clem', 'clem']);
+        const w = m.world;
+        for (let id = 0; id < 6; id++) place(m, id, 10000 + id * 3000, 58000, 0);
+        hold(m, 1, 2, 4, 5, FOE);
+        tanky(m, FOE);
+        place(m, ME, X0, Y, 0);
+        place(m, FOE, X0 + reachOf(m) - 100, Y, 0);
+        w.rootT[ME] = 60;
+        step(m, [{ op: Op.Attack, id: FOE }]);
+        expect(w.windup[ME]).toBeGreaterThan(0);
+        // the target is shoved out mid-windup (a knock-free teleport keeps the test about distance only)
+        w.x[FOE] = X0 + reachOf(m) + drift;
+        let fired = false;
+        for (let t = 0; t < HERO_RULES.attackWindup + 1; t++) {
+          const before = m.world.pAlive.reduce((a, b) => a + b, 0);
+          step(m);
+          if (m.events.some((e) => e.type === 'hit' && e.src === ME && e.kind === 'basic')) fired = true;
+          if (m.world.pAlive.reduce((a, b) => a + b, 0) > before) fired = true;
+        }
+        expect(fired, `${hero} drift ${drift}`).toBe(lands);
+        if (!lands) expect(w.attackTimer[ME], `${hero} timer after a dropped swing`).toBe(0);
+      }
+    }
   });
 });

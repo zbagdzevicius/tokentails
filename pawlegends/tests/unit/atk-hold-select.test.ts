@@ -36,8 +36,8 @@ describe('selectCandidates: what the held Attack button offers', () => {
 
   it('only living, attackable enemies within range + reach (edge to edge)', () => {
     const near = unitAt(10, 'minion', 0, 2000);
-    const reachEdge = unitAt(11, 'minion', 90, REACH + 400 - 50); // body 400 mm
-    const tooFar = unitAt(12, 'minion', 180, REACH + 400 + 200);
+    const reachEdge = unitAt(11, 'minion', 90, REACH + 900 - 50); // bodies 500 + 400 mm (edge to edge)
+    const tooFar = unitAt(12, 'minion', 180, REACH + 900 + 200);
     const ally = unitAt(13, 'minion', 0, 1500, 0);
     const dead = { ...unitAt(14, 'hero', 45, 1500), state: 'dead' as const };
     const fountain = unitAt(15, 'fountain', 30, 1000);
@@ -46,12 +46,12 @@ describe('selectCandidates: what the held Attack button offers', () => {
   });
 
   it('the selected unit stays a candidate ATK_SELECT.keepMm past the reach (no flicker), others do not', () => {
-    const edgeMm = REACH + 400 + 800; // 800 mm past the reach (body 400 mm)
+    const edgeMm = REACH + 900 + 800; // 800 mm past the reach (bodies 500 + 400 mm)
     const kept = unitAt(10, 'minion', 0, edgeMm);
     const other = unitAt(11, 'minion', 90, edgeMm);
     expect(selectCandidates([me, kept, other], me, 0, RANGE, 10).map((x) => x.id)).toEqual([10]);
     expect(selectCandidates([me, kept, other], me, 0, RANGE, null)).toEqual([]);
-    const gone = unitAt(10, 'minion', 0, REACH + 400 + ATK_SELECT.keepMm + 100);
+    const gone = unitAt(10, 'minion', 0, REACH + 900 + ATK_SELECT.keepMm + 100);
     expect(selectCandidates([me, gone], me, 0, RANGE, 10)).toEqual([]);
   });
 
