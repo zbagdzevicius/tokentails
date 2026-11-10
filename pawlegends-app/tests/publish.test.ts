@@ -1,6 +1,7 @@
 /**
  * scripts/ota-publish.mjs end to end with a throwaway key pair in a scratch folder: a new bundle lands on beta only,
- * `--promote` waits for the soak and then copies it to stable, and a rollback points both channels at a kept bundle.
+ * `--promote` waits for the soak and then copies it to stable, and a rollback points both channels at a kept bundle
+ * (Android only at a bundle built for the Android shell).
  */
 import { execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
@@ -106,5 +107,17 @@ describe('ota-publish channels', () => {
     run('--rollback', `${fourth}-abc1234`);
     expect(read('manifest.json', 'android')).toMatchObject({ version: `${fourth}-abc1234`, rollback: true, minNative: '1.0.1' });
     expect(read('manifest.json')).toMatchObject({ version: `${fourth}-abc1234`, rollback: true, minNative: '1.0.0' });
+
+    // a bundle from before the Android shell (its record has no `android`): only iOS rolls back
+    const legacy = join(updates, 'ios/1/bundles', `${fifth}-abc1234.json`);
+    const rec = JSON.parse(readFileSync(legacy, 'utf8'));
+    expect(rec.android).toBe(true);
+    delete rec.android;
+    writeFileSync(legacy, JSON.stringify(rec));
+    expect(run('--rollback', `${fifth}-abc1234`)).toContain('android: skipped');
+    expect(read('manifest.json')).toMatchObject({ version: `${fifth}-abc1234`, rollback: true });
+    expect(read('manifest-beta.json').version).toBe(`${fifth}-abc1234`);
+    for (const f of ['manifest.json', 'manifest-beta.json']) expect(read(f, 'android').version).toBe(`${fourth}-abc1234`);
+    expect(() => run('--rollback', `${fifth}-abc1234`, '--platform', 'android')).toThrow();
   });
 });
