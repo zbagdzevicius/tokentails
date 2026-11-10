@@ -703,6 +703,16 @@ bought from the game go through `POST /web3/create-payment` or `POST /payments/c
 | GET | `/pawlegends/founders` | `{left, cap: 500}`: Founder Legend seats left. `Cache-Control: public, max-age=15` | – | Public, 60/min |
 | POST | `/pawlegends/notify` | `{email, source?}`: Legends Pass notify-me, double opt-in by email | SendGrid | Public, 3 per 10 min |
 | POST | `/pawlegends/notify/confirm` | `{t}`: confirms a notify-me sign-up | – | Public, 10/min |
+| GET | `/pawlegends/me` | STORE-PASS.md: `{items, season: {id, name, startsAt, endsAt, tiers, xpPerTier, xp, tier, premium: 'none' \| 'pass' \| 'plus', skips, claimed: ['f:3', 'p:7'], claimable}}`, the account's owned store and pass items and its Legends Pass row (guests too: they earn Season XP and claim the free row) | – | Auth (guests allowed), 60/min |
+| POST | `/pawlegends/pass/claim` | `{seasonId?, row: 'f' \| 'p', tier}` or `{all: true}` → `{items, me}`. Idempotent (a claimed tier answers no items); 403 `PAWLEGENDS_TIER_LOCKED` before the tier, 403 `PAWLEGENDS_NEEDS_PASS` on the premium row without the pass | – | Auth (guests allowed), 30/min |
+
+Store and Legends Pass SKUs (STORE-PASS.md; `pl_coat_*`, `pl_frame_*`, `pl_set_*`, `pl_pass_*`, table in
+`backend/src/pawlegends/pawlegends-catalog.ts`) are sold only through `POST /pawlegends/checkout/account` (401
+`PAWLEGENDS_SIGN_IN` without an account) with the store consent `consentVersion: '2026-11-10'`; once per account; a
+set is refused (409 `PAWLEGENDS_ALREADY_OWNED`) while any of its items is owned; the Pass+ upgrade needs the Pass (403
+`PAWLEGENDS_NEEDS_PASS`). The presale `pl_*` SKUs are retired: 410 `PAWLEGENDS_RETIRED`. `GET /pawlegends/status`
+lists every SKU with `kind`, `items`, `bundleOf`, `requires` and `retired`, plus `catalog` and `season`. The PAWLEGENDS
+answers of `POST /user/catbassadors/live` (solo and party) carry `season: {seasonId, xp, tier, prevTier, gained}`.
 
 Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
 

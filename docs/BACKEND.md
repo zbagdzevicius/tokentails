@@ -291,7 +291,10 @@ catnip counts in `catnipCount` (`recomputeCatnipCount`; `catnip-accounting.ts` s
 `pawlegendsCatnip`) and in `TOTAL_CATNIP_CAP` (`PAWLEGENDS_TOTAL_CAP`, 70). A guest merge carries the three maps
 into the account (`src/pawlegends/pawlegends-merge.ts`: `$max` of the catnip clamped to each cap, `$min` of the
 fastest win, `$inc` of the match counts on the merge's exactly-once step), so first-win catnip is still paid once.
-Pawlegends replays count in `HeistReplayIpThrottleGuard`'s per-IP bucket. Every save that writes nothing logs one
+Legends Pass Season XP (docs/plans/moba/STORE-PASS.md) is added by both PAWLEGENDS writers right after their Game
+row is created (`PawlegendsSeasonService.addXp`, collection `pawlegendsseason`), so a duplicate save pays nothing;
+it never fails the save. Store and pass items are rows in `pawlegendsowned` (webhook grants, pass claims). Pawlegends
+replays count in `HeistReplayIpThrottleGuard`'s per-IP bucket. Every save that writes nothing logs one
 line (Nest `Logger`, context `PawlegendsLive`; no user id, no record): `pawlegends save <kind>: code=<code>
 simVersion=<n> difficulty=<d>`, where kind is `rejected` (warn; `cached` when the failure cache answered),
 `queue-full` (warn, `HTTP_429`), `unavailable` (warn, `HTTP_503`, worker crash or timeout) or `duplicate` (log,

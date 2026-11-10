@@ -1,4 +1,9 @@
-import { MEET_PERKS, PAWLEGENDS_CONSENT_VERSION, UNDER_16_MESSAGE } from "@/components/pawlegends/checkout";
+import {
+  MEET_PERKS,
+  PAWLEGENDS_CONSENT_VERSION,
+  PAWLEGENDS_STORE_CONSENT_VERSION,
+  UNDER_16_MESSAGE,
+} from "@/components/pawlegends/checkout";
 import { PAWLEGENDS_CONTACT, PAWLEGENDS_PRIVACY_URL, pawlegendsEnabled } from "@/components/pawlegends/flags";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
@@ -65,6 +70,22 @@ export default function PawlegendsTermsPage() {
             <p>
               These are cosmetic. They do not make any hero stronger, and they do not change how a match is played or
               scored.
+            </p>
+          </Section>
+
+          <Section title={`Store items and the Legends Pass (version ${PAWLEGENDS_STORE_CONSENT_VERSION}, draft)`}>
+            <p>
+              On the web, signed-in players can also buy cosmetic store items (coats, frames with titles, sets) and the
+              Legends Pass from the game&apos;s Store. Each item, its price and every pass reward are shown before
+              checkout; nothing is random. Items belong to your Token Tails account and are bought once. They are
+              cosmetic: they do not make any hero stronger and do not change how a match is played or scored.
+            </p>
+            <p>
+              The Legends Pass opens a season&apos;s premium reward row. You reach tiers with Season XP from finished
+              matches; Pass+ adds 15 tiers and one extra coat. Season XP is progress only: it is not money, cannot be
+              bought, sold or exchanged, and has no cash value. A season&apos;s rewards stay claimable after the season
+              ends. Store items and the pass are digital content delivered right away: the same 14-day withdrawal
+              rule below applies, with the same box to tick. A refunded pass removes its premium rewards.
             </p>
           </Section>
 
