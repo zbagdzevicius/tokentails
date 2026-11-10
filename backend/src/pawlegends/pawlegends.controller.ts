@@ -39,6 +39,8 @@ import { PawlegendsStripeService } from './pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends-webhook.service';
 import { PartyTicketService } from './party/party-ticket.service';
 import { AllowGuest } from 'src/common/decorators/allow-guest.decorator';
+import { PawlegendsSeasonService } from './pawlegends-season.service';
+import { CATALOG_SKUS, CURRENT_SEASON_ID, SEASONS, STORE_TERMS_VERSION } from './pawlegends-catalog';
 
 /*
  * Pawlegends store routes (POC.md §8.3). Every route is always on; a route whose secret is missing answers 503 and
@@ -67,6 +69,9 @@ export const PAWLEGENDS_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     notifyConfirm: { limit: 10, ttl: MINUTE },
     // Party play (MULTIPLAYER.md §5.2): 30 tickets per 10 minutes per client IP.
     partyTicket: { limit: 30, ttl: 10 * MINUTE },
+    // Store and Legends Pass (STORE-PASS.md)
+    me: { limit: 60, ttl: MINUTE },
+    passClaim: { limit: 30, ttl: MINUTE },
 };
 
 @Controller('pawlegends')
@@ -82,8 +87,53 @@ export class PawlegendsController {
         @Optional() private readonly cats?: CatRepository,
         @Optional() @Inject(PAWLEGENDS_CAT_SALE) private readonly catSale?: PawlegendsCatSale,
         // Party play tickets (MULTIPLAYER.md §5.2).
-        @Optional() private readonly partyTickets?: PartyTicketService
+        @Optional() private readonly partyTickets?: PartyTicketService,
+        // Store ownership and the Legends Pass (STORE-PASS.md).
+        @Optional() private readonly season?: PawlegendsSeasonService
     ) {}
+
+    private seasonService(): PawlegendsSeasonService {
+        if (!this.season) {
+            throw new ServiceUnavailableException({
+                statusCode: 503,
+                code: 'PAWLEGENDS_PASS_UNAVAILABLE',
+                message: 'The Legends Pass is not configured',
+            });
+        }
+        return this.season;
+    }
+
+    /**
+     * Owned store items and the current Legends Pass row (STORE-PASS.md §3 step 5). Guests too: they earn Season XP
+     * through their `/live` saves and can claim the free row (the premium row needs a registered account).
+     */
+    @UseGuards(AppAuthGuard)
+    @AllowGuest()
+    @Get('me')
+    async me(@Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.throttle('me', req, res);
+        const id = req?.user?._id ?? req?.user?.id;
+        if (!id || req?.user?.transient) return { items: [], season: null };
+        return this.seasonService().me(String(id));
+    }
+
+    /** Claim one pass reward `{seasonId, row: 'f' | 'p', tier}` or all `{all: true}`. Idempotent. */
+    @UseGuards(AppAuthGuard)
+    @AllowGuest()
+    @HttpCode(200)
+    @Post('pass/claim')
+    async passClaim(@Body() body: Record<string, unknown>, @Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.throttle('passClaim', req, res);
+        const id = req?.user?._id ?? req?.user?.id;
+        if (!id || req?.user?.transient) {
+            throw new ServiceUnavailableException({
+                statusCode: 503,
+                code: 'PAWLEGENDS_PASS_UNAVAILABLE',
+                message: 'No account',
+            });
+        }
+        return this.seasonService().claim(String(id), body || {});
+    }
 
     /**
      * Party play ticket (MULTIPLAYER.md §5.2): a 60 s single-use HMAC token naming the caller (a registered account or
@@ -121,6 +171,7 @@ export class PawlegendsController {
             store: pawlegendsCheckoutReady(),
             email: pawlegendsEmailReady(),
             termsVersion: PAWLEGENDS_TERMS_VERSION,
+            storeTermsVersion: STORE_TERMS_VERSION,
             skus: PAWLEGENDS_SKU_IDS.map(sku => {
                 const def = PAWLEGENDS_SKUS[sku];
                 return {
@@ -129,8 +180,17 @@ export class PawlegendsController {
                     cents: def.cents,
                     deliveredNow: def.deliveredNow,
                     deliveredAtMvp: def.deliveredAtMvp,
+                    ...(def.retired ? { retired: true } : {}),
+                    ...(def.kind ? { kind: def.kind, items: def.items } : {}),
+                    ...(def.bundleOf ? { bundleOf: def.bundleOf } : {}),
+                    ...(def.requires ? { requires: def.requires } : {}),
                 };
             }),
+            catalog: CATALOG_SKUS.map(def => def.sku),
+            season: (() => {
+                const s = SEASONS.find(x => x.id === CURRENT_SEASON_ID)!;
+                return { id: s.id, name: s.name, startsAt: s.startsAt, endsAt: s.endsAt };
+            })(),
         };
     }
 

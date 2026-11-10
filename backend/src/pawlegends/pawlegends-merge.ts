@@ -69,3 +69,14 @@ export function pawlegendsFieldRepair(target: Record<string, any> | null | undef
     );
     return broken.length ? Object.fromEntries(broken.map(field => [field, {}])) : null;
 }
+
+/**
+ * The store's owned-items and season models next to the users model (the guest merge gets only the users model;
+ * the rating merge finds its model the same way). Null when either is not registered (specs without them).
+ */
+export function storeModelsBesides(users: unknown): { owned: any; seasons: any } | null {
+    const models = (users as { db?: { models?: Record<string, unknown> } } | null)?.db?.models;
+    const owned = models?.PawlegendsOwned;
+    const seasons = models?.PawlegendsSeason;
+    return owned && seasons ? { owned, seasons } : null;
+}

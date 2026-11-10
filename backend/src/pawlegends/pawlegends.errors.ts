@@ -36,5 +36,14 @@ export const PAWLEGENDS_ERRORS = {
         pawlegendsError(HttpStatus.FORBIDDEN, 'PAWLEGENDS_NEEDS_FOUNDER', 'The upgrade is for Founder owners'),
     emailUnavailable: () =>
         pawlegendsError(HttpStatus.SERVICE_UNAVAILABLE, 'PAWLEGENDS_EMAIL_UNAVAILABLE', 'Email is not configured'),
+    retired: () => pawlegendsError(HttpStatus.GONE, 'PAWLEGENDS_RETIRED', 'This item is no longer sold'),
+    signInRequired: () =>
+        pawlegendsError(
+            HttpStatus.UNAUTHORIZED,
+            'PAWLEGENDS_SIGN_IN',
+            'Sign in to buy store items and the Legends Pass'
+        ),
+    needsPass: () =>
+        pawlegendsError(HttpStatus.FORBIDDEN, 'PAWLEGENDS_NEEDS_PASS', 'The Pass+ upgrade is for Legends Pass owners'),
     notFound: () => pawlegendsError(HttpStatus.NOT_FOUND, 'PAWLEGENDS_NOT_FOUND', 'Not found'),
 };

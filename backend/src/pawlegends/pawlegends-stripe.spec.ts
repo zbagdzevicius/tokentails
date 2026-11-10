@@ -1,7 +1,7 @@
 import Stripe from 'stripe';
 import {
     FOUNDER_LEGEND_CAP,
-    PAWLEGENDS_SKU_IDS,
+    PAWLEGENDS_LEGACY_SKU_IDS,
     PAWLEGENDS_SKUS,
     PawlegendsCheckoutRequest,
     UNDER_16_MESSAGE,
@@ -42,31 +42,30 @@ describe('Pawlegends checkout', () => {
         h = buildHarness();
     });
 
-    it.each(PAWLEGENDS_SKU_IDS.flatMap(sku => (['usd', 'eur'] as const).map(currency => [sku, currency] as const)))(
-        'completes %s in %s in test mode at the table price, VAT-inclusive',
-        async (sku, currency) => {
-            if (PAWLEGENDS_SKUS[sku].requiresFounder) await buyAndPay(h, 'pl_founder', { currency });
-            const sessionId = await buyAndPay(h, sku, { currency, email: 'cat@example.com' });
-            const params = lastParams(h);
-            const price = (params.line_items![0] as any).price_data;
-            expect(price).toMatchObject({
-                currency,
-                unit_amount: PAWLEGENDS_SKUS[sku].cents[currency],
-                tax_behavior: 'inclusive',
-            });
-            expect(params.metadata).toMatchObject({
-                pawlegends: '1',
-                sku,
-                currency,
-                age_band: '18+',
-                terms_version: expect.any(String),
-                deferred: '2027-04-30',
-            });
-            expect(params.success_url).toContain('/pawlegends?checkout=ok&session_id={CHECKOUT_SESSION_ID}');
-            const row = (await h.models.purchases.findOne({ sessionId }).lean()) as any;
-            expect(row).toMatchObject({ sku, status: 'paid', currency, items: PAWLEGENDS_SKUS[sku].items });
-        }
-    );
+    it.each(
+        PAWLEGENDS_LEGACY_SKU_IDS.flatMap(sku => (['usd', 'eur'] as const).map(currency => [sku, currency] as const))
+    )('completes %s in %s in test mode at the table price, VAT-inclusive', async (sku, currency) => {
+        if (PAWLEGENDS_SKUS[sku].requiresFounder) await buyAndPay(h, 'pl_founder', { currency });
+        const sessionId = await buyAndPay(h, sku, { currency, email: 'cat@example.com' });
+        const params = lastParams(h);
+        const price = (params.line_items![0] as any).price_data;
+        expect(price).toMatchObject({
+            currency,
+            unit_amount: PAWLEGENDS_SKUS[sku].cents[currency],
+            tax_behavior: 'inclusive',
+        });
+        expect(params.metadata).toMatchObject({
+            pawlegends: '1',
+            sku,
+            currency,
+            age_band: '18+',
+            terms_version: expect.any(String),
+            deferred: '2027-04-30',
+        });
+        expect(params.success_url).toContain('/pawlegends?checkout=ok&session_id={CHECKOUT_SESSION_ID}');
+        const row = (await h.models.purchases.findOne({ sessionId }).lean()) as any;
+        expect(row).toMatchObject({ sku, status: 'paid', currency, items: PAWLEGENDS_SKUS[sku].items });
+    });
 
     it('charges the server price and ignores any price in the request', async () => {
         await h.stripe.createCheckout({ ...request(), amount: 1, unit_amount: 1, cents: 1 } as any, ON_ENV);

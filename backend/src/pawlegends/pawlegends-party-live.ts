@@ -13,7 +13,9 @@ import type { StoredRoom } from './party/room-store';
 import { PawlegendsPartyResultDto } from './pawlegends-replay.dto';
 import {
     IPawlegendsLiveDeps,
+    IPawlegendsSeasonAnswer,
     PAWLEGENDS_CATNIP_FIELD,
+    takedownsOf,
     PAWLEGENDS_MATCHES_FIELD,
     pawlegendsDuplicate,
     pawlegendsError,
@@ -40,7 +42,7 @@ import {
 
 export const PARTY_DAILY_CAP = 30;
 
-export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger'> {
+export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'games' | 'now' | 'logger' | 'season'> {
     rooms: {
         get(id: string): Promise<StoredRoom | null>;
         countEnded(accountId: string, since: Date): Promise<number>;
@@ -74,6 +76,8 @@ export interface IPartyLiveResult {
     catnipCount: number;
     /** Why no catnip was paid when the match counted: 'daily' (over the daily cap). */
     why?: 'daily';
+    /** Legends Pass Season XP (0 over the daily cap). */
+    season?: IPawlegendsSeasonAnswer;
 }
 
 const logger = new Logger('PawlegendsPartyLive');
@@ -194,6 +198,15 @@ export async function savePawlegendsPartyMatch(
         $set: { lastPlayedAt: now },
     });
     const catnipCount = await recomputeCatnipCount(deps.users, userId);
+    // Legends Pass Season XP: after the Game row (unique per room and slot); none over the daily cap.
+    const season = deps.season
+        ? await deps.season.addXp(String(userId), {
+              won,
+              forfeit: v.reason === 'forfeit',
+              takedowns: takedownsOf(v.stats, r.slot),
+              capped: daily,
+          })
+        : null;
     if (deps.mm && pvp)
         await applyCasualRating(
             deps.mm,
@@ -216,6 +229,7 @@ export async function savePawlegendsPartyMatch(
         catnipPaid,
         catnipCount,
         ...(daily ? { why: 'daily' as const } : {}),
+        ...(season ? { season } : {}),
     };
 }
 

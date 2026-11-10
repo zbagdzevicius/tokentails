@@ -15,6 +15,8 @@ import {
     pawlegendsMatchesInc,
 } from 'src/pawlegends/pawlegends-merge';
 import { mergeRating, ratingModelBesides } from 'src/pawlegends/mm/rating-merge';
+import { mergeStoreProgress } from 'src/pawlegends/pawlegends-season.service';
+import { storeModelsBesides } from 'src/pawlegends/pawlegends-merge';
 
 /*
  * Guest lifecycle without transactions (plan G1, F5.5): the resumable merge, the explicit erase and
@@ -382,6 +384,13 @@ export async function runGuestMerge(deps: IGuestLifecycleDeps, claimedGuest: any
             // Quick Play hidden rating (M1A-IMPL.md §4.2): a re-key, not a score write; never blocks the merge
             const ratings = ratingModelBesides(deps.users);
             if (ratings) await mergeRating(ratings, guestId.toString(), targetId.toString()).catch(() => undefined);
+            // Legends Pass progress and pass rewards (STORE-PASS.md §5): cosmetic, idempotent, never blocks the merge
+            const store = storeModelsBesides(deps.users);
+            if (store) {
+                await mergeStoreProgress(store, guestId.toString(), targetId.toString()).catch(error =>
+                    deps.logger?.warn(`guest merge: pawlegends pass progress not moved (${(error as Error)?.message})`)
+                );
+            }
             await deps.recomputeTotals(targetId.toString());
         }
         state = await advance(deps, guestId, 'gamesMoved', 'bestsMerged');
