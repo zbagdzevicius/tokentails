@@ -473,6 +473,12 @@ export class MatchSession {
         return true;
       },
       onWindupAtMe: () => this.tips.trigger('dodge'),
+      ownWindupHeard: (slot) => {
+        const at = this.windupHeard.get(slot);
+        if (at === undefined) return false;
+        this.windupHeard.delete(slot);
+        return performance.now() - at < 2000;
+      },
       onTowerAim: (src, ticks) => {
         this.overhead.lockOn(src, this.view.mySlot, ticks / 30 / Math.max(1, this.buffer.speed));
         this.towerHit(src, true);
@@ -2068,7 +2074,10 @@ export class MatchSession {
     if (this.disposed) return;
     const scale = this.view.juice.timeScale(dt);
     const frame = this.paused ? this.buffer.sample(this.buffer.renderTick) : this.buffer.advance(dt, scale);
-    if (frame && !this.paused) this.host.present?.(frame);
+    if (frame && !this.paused) {
+      this.host.present?.(frame);
+      this.drawPredicted(frame);
+    }
     this.frameNow = frame;
     // "Go!" only when the drop is watched live: a rejoin's catch-up jumps from a gate snapshot to the match clock
     if (frame && this.lastPhase === 'gate' && frame.latest.clock.phase === 'play' && frame.latest.clock.tick - this.lastGateTick <= GO_MAX_JUMP_TICKS) this.goFlash();
@@ -2285,6 +2294,32 @@ export class MatchSession {
       this.ownSim.y = me.y;
       this.ownSim.tick = s.clock.tick;
     } else this.ownSim = { x: me.x, y: me.y, tick: s.clock.tick };
+  }
+
+  /** LATENCY-PLAN N1: own wind-up sounds played at send time (slot → ms), so the sim's windup stays quiet once. */
+  private readonly windupHeard = new Map<number, number>();
+
+  /**
+   * LATENCY-PLAN N1 (party play): a Cast or Trick the host predicted starts its wind-up pose and sound on this frame;
+   * one the sim never confirmed fades out. Damage and effects still wait for the sim.
+   */
+  private drawPredicted(frame: ViewFrame): void {
+    const p = this.host.takePredicted?.();
+    if (!p) return;
+    const me = this.view.mySlot;
+    for (const a of p.cancelled) if (a.kind === 'cast') this.view.director.cancelPredicted(me, a.slot);
+    if (!p.shown.length) return;
+    const self = frame.byId.get(me);
+    const at = self ? { x: self.fx / 1000, z: -self.fy / 1000 } : undefined;
+    const leadS = (this.host.inputLatencyMs?.() ?? 0) / 1000;
+    for (const a of p.shown) {
+      const posed = a.kind === 'cast' && this.view.director.predictCast(me, a.slot, leadS);
+      // the sound goes with a pose (a cast with an authored wind-up) or a Trick; an instant cast stays silent until it lands
+      if (posed || a.kind === 'trick') {
+        sfx.play('windup', { ...(at ? { at } : {}), vol: 0.6 });
+        this.windupHeard.set(a.slot, performance.now());
+      }
+    }
   }
 
   /**

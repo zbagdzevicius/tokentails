@@ -27,6 +27,7 @@ import { Pacer } from './pacer';
 import { HEROES } from '../data/heroes/index';
 import type { ViewFrame } from '../render/interp';
 import { watchVisibility } from './visibility';
+import { ActionPredictor, confirmWindowMs, type PredictedAction } from './predict-action';
 
 export interface NetNote {
   key: string;
@@ -394,6 +395,8 @@ export class NetHost implements PartyLink {
     }
     if (cmd.op === Op.Move) this.predictor.move(cmd.x, cmd.y, this.now());
     else this.predictor.stop();
+    // N1: a Cast, Trick or Attack the newest snapshot allows starts its look on the next frame (never when piloted)
+    if (!this.piloted(this.match.you.slot)) this.actions.start(cmd, this.lastSelf, this.now());
     if (this.piloted(this.match.you.slot)) {
       // an AFK player reclaims with any command; other pilot reasons need `back` (and the player is here: keep asking)
       this.reclaimUntil = Math.max(this.reclaimUntil, this.now() + 10_000);
@@ -520,6 +523,7 @@ export class NetHost implements PartyLink {
         this.listener.snap?.(decodeSnap(m.buf));
         return;
       case 'events':
+        this.actions.confirm(m.list as SimEvent[], this.mySlot);
         this.listener.events?.(m.tick, m.list as SimEvent[]);
         return;
       case 'hash':
@@ -745,7 +749,11 @@ export class NetHost implements PartyLink {
    */
   present(f: ViewFrame): void {
     const v = f.byId.get(this.mySlot);
+    // N1 reads the gate (cooldowns, crowd control) from the newest snapshot, not the drawn frame a little behind it
+    this.lastSelf = f.latest?.entities?.find((e) => e.id === this.mySlot) ?? v ?? null;
+    this.actions.expire(this.now(), confirmWindowMs(this.inputLatencyMs()));
     if (!v || v.state === 'dead') {
+      this.actions.reset();
       this.predictor.reset();
       this.yawShown = null;
       return;
@@ -790,6 +798,15 @@ export class NetHost implements PartyLink {
     if (off.dx === 0 && off.dy === 0) return;
     v.fx += off.dx;
     v.fy += off.dy;
+  }
+
+  /** N1 (predict-action.ts): own action starts drawn before the sim confirms them. */
+  readonly actions = new ActionPredictor();
+  private lastSelf: import('../sim/api').EntitySnap | null = null;
+
+  /** MatchHost.takePredicted: the predicted Casts and Tricks to draw now, and the ones given up (each once). */
+  takePredicted(): { shown: PredictedAction[]; cancelled: PredictedAction[] } {
+    return { shown: this.actions.takeShown().filter((p) => p.kind !== 'attack'), cancelled: this.actions.takeCancelled().filter((p) => p.kind !== 'attack') };
   }
 
   /** MatchHost.predictedSelf: the walker while a predicted walk is in flight (where a command sent now lands). */
