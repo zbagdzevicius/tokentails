@@ -249,6 +249,13 @@ in the tool lists (`tools/headless-match.mjs`, `tools/grade-calibrate.mjs`, `too
 `tools/anim/capture.mjs`). The sim v11 original cats and the sim v14 and v15 original dogs are not champions and have no
 catalog id.
 
+Store and Legends Pass catalogue (STORE-PASS.md): two copies with the same values,
+`backend/src/pawlegends/pawlegends-catalog.ts` (the real one: prices, grants, Season XP, claims) and
+`pawlegends/src/money/catalog.ts` (the game's display mirror, deep-compared by `tests/unit/store-pass.test.ts`).
+Copy the file and keep the header. Coat palettes and patterns live only in `pawlegends/src/render/cosmetics.ts`
+(`STORE_COAT_PAL`, `PASS_COAT_PAL`). The host mirrors the store item id shapes and `STORE_TERMS_VERSION`
+(`PAWLEGENDS_STORE_CONSENT_VERSION`) in `client/components/pawlegends/bridge.ts` and `checkout.ts`.
+
 The spec is `docs/plans/moba/POC.md`. The client serves the build at `/pawlegends-game/` and hosts it in
 `pages/pawlegends/index.tsx` (GAMES.md, "Pawlegends"). Rebuild `client/public/pawlegends-game` after any
 game change and commit it. After a sim change run `npm run vendor-sim` and deploy the backend first;

@@ -442,6 +442,12 @@ Global caps: 1 card per session; none in session 1; none for an account that hit
 
 ### 8.5 Phase 2 store (MVP, still direct prices)
 
+**Status (2026-11-10, docs/plans/moba/STORE-PASS.md):** built on the web: 16 Common coats ($2.99, patterned), 4
+frames with titles ($1.99), a cat set and a dog set ($14.99), Legends Pass S1 ($7.99, 30 tiers × 400 Season XP,
+coats, frames and titles; no skins yet), Pass+ ($19.99, 15 tier skips and an exclusive Epic coat) and the Pass+
+upgrade ($12.00). Card checkout only (crypto in a follow-up); nothing sold in the native app. Emotes, My Cat Hero,
+Rare to Legendary skins, hero bundles and the rest of this table stay phase 2.
+
 | SKU | Price | Notes |
 |---|---|---|
 | Hero unlock | $3.99 (or 2,500 to 4,800 Yarn) | Every hero earnable |
