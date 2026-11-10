@@ -26,6 +26,8 @@ export interface HeroCardOpts {
   sparkles?: boolean;
   icon?: boolean;
   foot?: CardFrameOpts['foot'];
+  /** CARD-SKINS.md Awakened stage (frame.ts `awakened`). */
+  awakened?: CardFrameOpts['awakened'];
 }
 
 /** A hero card's HTML (front face). Uses no <b> (pick-screen tests read the tile's one <b>, the hero's name). */
@@ -43,6 +45,7 @@ export function heroCard(hero: HeroId, o: HeroCardOpts = {}): string {
     sparkles: o.sparkles,
     icon: o.icon ?? true,
     foot: o.foot,
+    awakened: o.awakened,
   });
 }
 

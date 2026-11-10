@@ -15,6 +15,8 @@ export interface CardFxTile {
   rung: CatTier;
   /** The coat glow (render/skins/cardFx.ts coatGlow), or none for the default colour. */
   tint?: number;
+  /** CARD-SKINS.md: an Awakened card (Legendary tier + bond 30). */
+  awakened?: boolean;
 }
 
 /** The demo glyph alone (the collection rows use it small). */
@@ -27,5 +29,5 @@ export function cardFxDemo(k: CardFxTile): string {
 /** The preview line: demo, "<Rung> card: <name> <effect>" and what it adds. */
 export function cardFxPreview(k: CardFxTile, cls = 'card-fx'): string {
   const style = k.tint !== undefined ? ` style="--fx:${hex(k.tint)}"` : '';
-  return `<p class="${cls}" data-card-fx="${k.rung}"${style}>${cardFxDemo(k)}<span><b>${esc(cardFxLine(k.rung, k.name))}</b><small>${esc(cardFxDetail(k.rung))} Looks only.</small></span></p>`;
+  return `<p class="${cls}" data-card-fx="${k.rung}"${style}>${cardFxDemo(k)}<span><b>${esc(cardFxLine(k.rung, k.name))}</b><small>${esc(cardFxDetail(k.rung, k.awakened === true))} Looks only.</small></span></p>`;
 }

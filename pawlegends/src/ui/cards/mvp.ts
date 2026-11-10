@@ -21,6 +21,8 @@ export interface MvpCardOpts {
   won: boolean;
   /** The ribbon text (default "MVP"); a defeat's best-on-your-team card says "TEAM BEST". */
   ribbon?: string;
+  /** CARD-SKINS.md: the MVP's Awakened stage at the end of the match (null: not an Awakened card). */
+  awakened?: 0 | 1 | 2 | 3 | null;
 }
 
 export function mvpCard(o: MvpCardOpts): string {
@@ -38,7 +40,7 @@ export function mvpCard(o: MvpCardOpts): string {
       : tier === 'EPIC'
         ? `<i class="tt-mvp-deco claw" style="background-image:url(${fxUrl('epic-claw')})"></i><i class="tt-mvp-deco paw" style="background-image:url(${fxUrl('epic-paw')})"></i>`
         : '';
-  const front = heroCard(o.hero, { portrait: o.portrait, tier, name: o.name, foil: 'sweep', sparkles: true, foot: true });
+  const front = heroCard(o.hero, { portrait: o.portrait, tier, name: o.name, foil: 'sweep', sparkles: true, foot: true, awakened: o.awakened ?? null });
   const ribbon = o.ribbon ?? 'MVP';
   // a defeat: no turning sunburst behind the card (it read as the enemy celebrating), the tier art stays
   const burst = o.won ? `<i class="tt-mvp-burst" style="background-image:url(${fxUrl('golden-burst')})"></i>` : '';
