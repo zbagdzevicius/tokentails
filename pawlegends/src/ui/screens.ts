@@ -387,6 +387,8 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
         hero: viewing,
         slot: (btn?.dataset.slot as SkillSlot | undefined) ?? 'q',
         within: root,
+        // CARD-SKINS.md: the clip wears the player's chosen look, so its skin effects show
+        look: (x) => lookOf(x),
         pick: { label: 'Select', can: (x) => why(x), on: (x) => select(x) },
       });
     }
@@ -482,9 +484,9 @@ export interface ResultGrade {
   /** Treat XP the grade added (GRADE_TREAT_XP). */
   xp: number;
   /** Token Tails cards: `hero` (and `portrait`, `tier` for the player's own look) draw the MVP card. */
-  mvp: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null };
+  mvp: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null; awakened?: 0 | 1 | 2 | 3 | null };
   /** A loss only: the best on the player's team (its `hero` draws the results card in place of the enemy MVP). */
-  bestOnTeam?: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null } | null;
+  bestOnTeam?: { name: string; you: boolean; hero?: HeroId; portrait?: string | null; tier?: CatTier | null; awakened?: 0 | 1 | 2 | 3 | null } | null;
 }
 
 export interface ResultRow {
@@ -691,7 +693,7 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
     void import('./cards/mvp')
       .then((m) => {
         const slot = root.querySelector<HTMLElement>('[data-slot="mvp"]');
-        if (slot) slot.outerHTML = m.mvpCard({ hero: mvpHero, name: mvp.you ? 'You' : mvp.name, you: mvp.you, portrait: mvp.portrait, tier: mvp.tier ?? null, won: o.won, ...(best ? { ribbon: 'TEAM BEST' } : {}) });
+        if (slot) slot.outerHTML = m.mvpCard({ hero: mvpHero, name: mvp.you ? 'You' : mvp.name, you: mvp.you, portrait: mvp.portrait, tier: mvp.tier ?? null, awakened: mvp.awakened ?? null, won: o.won, ...(best ? { ribbon: 'TEAM BEST' } : {}) });
       })
       .catch(() => undefined);
   }

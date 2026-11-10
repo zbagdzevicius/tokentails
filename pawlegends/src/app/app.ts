@@ -16,6 +16,7 @@ import { inAppShell, shareBase } from './platform';
 import type { Bridge, HostMessage } from '../embed/bridge';
 import { EMPTY_ROSTER, isAppBuild, parseRoster, rosterCosmetics, type CatTier, type RosterCat, type RosterCosmetics } from '../meta/roster';
 import { coatGlow } from '../render/skins/cardFx';
+import { stageOf } from '../render/skins/effectKit';
 import { nextBond, onSkinsChanged, ownedSkins, setFeaturedSkins, setRosterSkins, showcaseGate, wantProbe } from '../render/skins/registry';
 import { FEATURED_SKIN_PREFIX, getSkin, isCardSkinId, skinIdOf, type CatSkin } from '../render/skins/skinStore';
 import type { SkinTile } from '../ui/screens';
@@ -1424,7 +1425,7 @@ export class App {
             name: nameOf(grades.mvp),
             you: grades.mvp === mySlot,
             hero: e.welcome.picks[grades.mvp] ?? e.result.stats.find((st) => st.slot === grades.mvp)?.hero,
-            ...(grades.mvp === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null } : {}),
+            ...(grades.mvp === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null, awakened: worn && !worn.featured && (getSkin(worn.id) ?? worn).awakened ? stageOf(e.level ?? 1) : null } : {}),
           },
           // cards: on a defeat the results card shows the best on the player's team (feel QA: the enemy MVP got the rays)
           bestOnTeam: won
@@ -1433,7 +1434,7 @@ export class App {
                 name: nameOf(bestMine),
                 you: bestMine === mySlot,
                 hero: e.welcome.picks[bestMine] ?? e.result.stats.find((st) => st.slot === bestMine)?.hero,
-                ...(bestMine === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null } : {}),
+                ...(bestMine === mySlot ? { portrait: setup?.look ? portraitUrl(e.replay.hero, setup.look) : null, tier: worn && !worn.featured ? (getSkin(worn.id) ?? worn).rung : null, awakened: worn && !worn.featured && (getSkin(worn.id) ?? worn).awakened ? stageOf(e.level ?? 1) : null } : {}),
               },
         },
         personal: ladder?.personal ?? null,
