@@ -92,10 +92,13 @@ describe("audio settings store (plan G14 Audio)", () => {
     expect(normalizeAudioSettings(null)).toEqual(DEFAULT_AUDIO_SETTINGS);
   });
 
-  it("honours the pre-G14 music toggle once as a mute", () => {
+  it("honours the pre-G14 music toggle once as music off, never as a mute of the effects", () => {
     window.localStorage.setItem(LEGACY_MUSIC_KEY, "false");
-    expect(getAudioSettings().muted).toBe(true);
+    expect(getAudioSettings()).toEqual({ ...DEFAULT_AUDIO_SETTINGS, musicVolume: 0, muted: false });
+    // migrated: saved under the new key, so an unmute or a slider change later is the only truth
+    expect(JSON.parse(window.localStorage.getItem(STORAGE_KEY) ?? "null")).toEqual({ ...DEFAULT_AUDIO_SETTINGS, musicVolume: 0 });
     __resetAudioSettingsForTests();
+    window.localStorage.clear();
     window.localStorage.setItem(LEGACY_MUSIC_KEY, "true");
     expect(getAudioSettings().muted).toBe(false);
   });

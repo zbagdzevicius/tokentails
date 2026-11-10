@@ -78,12 +78,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     #endif
 
-    /// Game audio (docs/plans/moba/APP-STORE.md "Native shell"): `.ambient` mixes with the player's music and follows
-    /// the silent switch, as players expect from a game; WebAudio plays through it.
+    /// Game audio (docs/plans/moba/APP-STORE.md "Native shell"): `.playback` with `.mixWithOthers`. The game's sound
+    /// (announcer, hits, victory) plays with the silent switch on, like Wild Rift, and still mixes with the player's
+    /// own music instead of stopping it. `.ambient` followed the switch and most phones live on silent, so players
+    /// heard nothing (audio fix, Nov 9). The in-game Sound toggle is the way to silence the game. WebAudio plays
+    /// through this session; no background audio mode is declared, so nothing plays once the app is backgrounded.
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
         } catch {
             NSLog("Pawlegends: audio session not set: \(error)")
