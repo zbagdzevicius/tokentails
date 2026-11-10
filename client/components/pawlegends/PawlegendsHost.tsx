@@ -56,6 +56,7 @@ import { PAWLEGENDS_TITLE } from "./title";
 import { LANDING_VARIANT_PARAM, landingVariantOf } from "./landingVariant";
 
 // The Token Tails checkout (Stripe Elements, the crypto checkout) is browser only and loads on first use.
+const PawlegendsStoreSheet = dynamic(() => import("./PawlegendsStoreSheet").then((m) => m.PawlegendsStoreSheet), { ssr: false });
 const PawlegendsCatSheet = dynamic(() => import("./PawlegendsCatSheet").then((m) => m.PawlegendsCatSheet), {
   ssr: false,
 });
@@ -163,6 +164,10 @@ export const PawlegendsHost = ({
   const [forSale, setForSale] = useState<ICat[] | null>(null);
   const [sheet, setSheet] = useState<{ cat: ICat; owned: boolean } | null>(null);
   const [notifyWhere, setNotifyWhere] = useState<PawlegendsNotifyWhere | null>(null);
+  /** STORE-PASS.md: the store or pass SKU on the purchase sheet (web, signed in). */
+  const [storeSku, setStoreSku] = useState<string | null>(null);
+  /** STORE-PASS.md §3 step 5: re-reads `GET /pawlegends/me` and sends `store` to the game (set below). */
+  const refreshStoreRef = useRef<(() => Promise<void>) | null>(null);
 
   const uid = auth?.user?.uid ?? null;
   // Without an auth provider the page behaves as signed out.
@@ -220,7 +225,10 @@ export const PawlegendsHost = ({
             catnipTotal: answer?.catnipCount ?? null,
             fastestWin: answer?.fastestWin ?? null,
             ...(detail.code ? { code: detail.code } : {}),
+            ...(answer?.season ? { season: answer.season } : {}),
           });
+          // the pass row moved (Season XP): the game's Pass screen follows
+          if (saveStatus === "saved" && answer?.season) void refreshStoreRef.current?.();
           if (saveStatus !== "saving") {
             track(
               buildPawlegendsEvent("pawlegends_save", {
@@ -260,7 +268,9 @@ export const PawlegendsHost = ({
             catnipTotal: answer?.catnipCount ?? null,
             fastestWin: null,
             ...(detail.code ? { code: detail.code } : {}),
+            ...(answer?.season ? { season: answer.season } : {}),
           });
+          if (saveStatus === "saved" && answer?.season) void refreshStoreRef.current?.();
           if (saveStatus !== "saving")
             track(
               buildPawlegendsEvent("pawlegends_save", {
@@ -370,7 +380,10 @@ export const PawlegendsHost = ({
       if (action.kind === "checkout-cancel") return;
       if (action.kind === "checkout-ok") {
         setNote("Getting your items…");
+        // STORE-PASS.md: a store or pass purchase lands in `/pawlegends/me` (the webhook grants it to the account)
+        void refreshStoreRef.current?.();
         for (let i = 0; i < ENTITLEMENT_POLLS; i++) {
+          if (i > 0) void refreshStoreRef.current?.();
           const result = await api.entitlementsForSession(action.sessionId);
           if (result.ok && result.body) {
             keepToken(result.body.token);
@@ -456,7 +469,18 @@ export const PawlegendsHost = ({
     onNotify: (where: PawlegendsNotifyWhere) => void;
     onChampionOffer: (catalogId: string) => void;
     onSkinPreview: (catalogId: string) => void;
-  }>({ onRequestSignIn: () => undefined, onOpenCat: () => undefined, onOfferSeen: () => undefined, onNotify: () => undefined, onChampionOffer: () => undefined, onSkinPreview: () => undefined });
+    onStoreIntent: (sku: string) => void;
+    onPassClaim: (row: "f" | "p" | null, tier: number | null) => void;
+  }>({
+    onRequestSignIn: () => undefined,
+    onOpenCat: () => undefined,
+    onOfferSeen: () => undefined,
+    onNotify: () => undefined,
+    onChampionOffer: () => undefined,
+    onSkinPreview: () => undefined,
+    onStoreIntent: () => undefined,
+    onPassClaim: () => undefined,
+  });
   /** Featured cats the player previewed as a card skin this visit (`skin-preview`): the next offer ask puts them first. */
   const previewed = useRef<string[]>([]);
   useEffect(() => {
@@ -505,6 +529,24 @@ export const PawlegendsHost = ({
       onNotify: (where) => {
         if (!isApp && status?.email) setNotifyWhere(where);
       },
+      // STORE-PASS.md §3: Buy on a store or pass SKU. Web only (the bridge refuses it in an app build); a signed-out
+      // player is asked to sign in first (decision #9: store items belong to an account).
+      onStoreIntent: (sku) => {
+        const listed = status?.catalog?.find((c) => c.sku === sku);
+        if (isApp || !listed) return bridgeRef.current?.storePurchaseResult(sku, false);
+        track(buildPawlegendsEvent("pawlegends_store_intent", { sku }));
+        if (latest.current.signedIn) return setStoreSku(sku);
+        if (!auth) return bridgeRef.current?.storePurchaseResult(sku, false);
+        void auth.requireAccount("purchase").then(
+          (result) => (result === "signed-in" ? setStoreSku(sku) : bridgeRef.current?.storePurchaseResult(sku, false)),
+          () => bridgeRef.current?.storePurchaseResult(sku, false)
+        );
+      },
+      // STORE-PASS.md §5: claim pass rewards (guests too: they earn Season XP and claim the free row).
+      onPassClaim: (row, tier) =>
+        void api.passClaim(row && tier ? { row, tier } : { all: true }).then((result) => {
+          if (result.ok && result.body) bridgeRef.current?.setStore(result.body);
+        }),
       // Sim v9: a champion's card is due (from the 3rd match on it, until shown; the game re-sends it every visit):
       // ask the offer engine again with that card first, unless a card was already shown this visit. An offer held
       // but not yet shown does not block it; the server keeps one card a session and every other cap.
@@ -601,6 +643,8 @@ export const PawlegendsHost = ({
         onNotify: (where) => handlers.current.onNotify(where),
         onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
         onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
+        onStoreIntent: (sku) => handlers.current.onStoreIntent(sku),
+        onPassClaim: (row, tier) => handlers.current.onPassClaim(row, tier),
         onExit: () => goRef.current(PAWLEGENDS_EXIT_PATH),
         // the player's own Sound switch in the game is the site's one mute (it was lost on the next visit)
         onSound: (muted) => setMuted(muted),
@@ -642,6 +686,24 @@ export const PawlegendsHost = ({
   useEffect(() => {
     bridgeRef.current?.setEntitlements(isApp ? null : token);
   }, [isApp, token]);
+  // STORE-PASS.md §3 step 5: the account's owned store and pass items and its pass row, after sign-in, after a
+  // Checkout return, after a saved match and after a claim. App builds get it too: the game draws only the pass's
+  // free-row items there and never shows a price.
+  const refreshStore = useCallback(async () => {
+    if (!latest.current.uid) {
+      bridgeRef.current?.setStore({ items: [], season: null });
+      return;
+    }
+    const result = await api.me();
+    if (result.ok && result.body) bridgeRef.current?.setStore(result.body);
+  }, [api]);
+  useEffect(() => {
+    refreshStoreRef.current = refreshStore;
+  }, [refreshStore]);
+  useEffect(() => {
+    if (authStatus === "unknown") return;
+    void refreshStore();
+  }, [uid, authStatus, bridgeState, refreshStore]);
   useEffect(() => {
     bridgeRef.current?.setRoster(roster);
   }, [roster]);
@@ -839,6 +901,20 @@ export const PawlegendsHost = ({
         <PawlegendsCatSheet cat={sheet.cat} onBought={(got) => onBought(sheet.cat, got)} onClose={closeSheet} />
       )}
       {sheet?.owned && <OwnedCatSheet cat={sheet.cat} onClose={() => setSheet(null)} />}
+      {storeSku && status?.catalog?.some((c) => c.sku === storeSku) && (
+        <PawlegendsStoreSheet
+          api={api}
+          sku={storeSku}
+          label={status.catalog.find((c) => c.sku === storeSku)!.label}
+          cents={status.catalog.find((c) => c.sku === storeSku)!.cents}
+          initialEmail={auth?.user?.email ?? ""}
+          go={go}
+          onClose={(bought) => {
+            bridgeRef.current?.storePurchaseResult(storeSku, bought);
+            setStoreSku(null);
+          }}
+        />
+      )}
       {notifyWhere && (
         <NotifySheet
           api={api}

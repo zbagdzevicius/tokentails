@@ -4,7 +4,7 @@
  * (`PROFILE_PROJECTION`), written only by the replay-verified branch of `POST /user/catbassadors/live`.
  */
 import { PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_TICKS } from "@/shared-contracts/caps";
-import { progressOf, type PawlegendsProgress } from "./bridge";
+import { progressOf, saveSeasonOf, type PawlegendsProgress } from "./bridge";
 
 /** The profile fields `/live` maintains for Pawlegends, keyed by difficulty. */
 export interface PawlegendsProfileFields {
@@ -29,6 +29,8 @@ export interface PawlegendsLiveAnswer {
   catnipPaid: number;
   catnipCount: number | null;
   fastestWin: number | null;
+  /** STORE-PASS.md §5: the Legends Pass Season XP this save paid (absent: an older backend). */
+  season?: { gained: number; xp: number; tier: number; prevTier: number };
 }
 
 const int = (value: unknown, max: number): number | null =>
@@ -40,12 +42,14 @@ export function liveAnswerOf(body: unknown): PawlegendsLiveAnswer | null {
   if (typeof b.difficulty !== "string" || !PAWLEGENDS_LEVELS.includes(b.difficulty)) return null;
   if (b.outcome !== "won" && b.outcome !== "lost") return null;
   const fastest = int(b.fastestWin, PAWLEGENDS_MAX_TICKS);
+  const season = saveSeasonOf(b.season);
   return {
     difficulty: b.difficulty,
     outcome: b.outcome,
     catnipPaid: int(b.catnipPaid, 10_000) ?? 0,
     catnipCount: int(b.catnipCount, 100_000_000),
     fastestWin: fastest && fastest > 0 ? fastest : null,
+    ...(season ? { season } : {}),
   };
 }
 
