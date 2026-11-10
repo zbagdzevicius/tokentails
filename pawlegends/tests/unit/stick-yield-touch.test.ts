@@ -88,6 +88,20 @@ describe('touch: the stick yields to ATK while chasing', () => {
     expect(r.t.stickYields).toBeGreaterThan(0);
   });
 
+  it('V20 review: one ATK tap on a minion holds the stick only ~700 ms; then the stick toward it walks on (up the lane)', () => {
+    const r = rig([unit(20, 'minion', 1, ME.x + 1200, ME.y)]);
+    r.stick(0);
+    r.wait(200);
+    r.atkDown();
+    r.atkUp();
+    expect(r.attacks()).toEqual([20]);
+    const before = r.moves();
+    r.wait(400);
+    expect(r.moves()).toBe(before);
+    r.wait(1200);
+    expect(r.moves()).toBeGreaterThan(before);
+  });
+
   it('pulled away from the target the stick still moves (retreat, kite)', () => {
     const r = rig([unit(3, 'hero', 1, ME.x + 1500, ME.y)]);
     r.stick(0);

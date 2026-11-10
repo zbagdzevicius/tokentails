@@ -139,8 +139,9 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
       cancelSoft(w, id);
       // Sim v20 (V20-CHASE.md S2): the same attack again (a held or re-tapped ATK, right-click spam) changes nothing.
       if (w.order[id] === Order.Attack && w.target[id] === cmd.id) break;
-      // another unit is a new command: a swing at the old one stops and the timer comes back
-      if (w.target[id] !== cmd.id) dropSwing(w, id);
+      // another unit is a new command: a swing at the old one stops and the timer comes back. No last-tick grace here:
+      // the swing reads w.target when it lands, so a kept windup would land on the new unit instead of the old one.
+      if (w.target[id] !== cmd.id) cancelSwing(w, id);
       w.order[id] = Order.Attack;
       w.target[id] = cmd.id;
       w.pathLen[id] = 0;
@@ -450,6 +451,9 @@ function stepHero(m: MatchHandle, id: number): void {
     return;
   }
   if (order === Order.Move) {
+    // Sim v20 (V20-CHASE.md S1): a Move in a swing's last tick let that swing land; the walking hero then lets go of
+    // its target (Stilts' auto-pounce and the bots read it).
+    w.target[id] = -1;
     if (walk(m, id)) {
       w.order[id] = Order.None;
       w.state[id] = UnitState.Idle;

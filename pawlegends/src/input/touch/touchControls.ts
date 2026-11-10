@@ -144,6 +144,8 @@ const ATK_TIP_KEY = 'pawlegends.atkNoneTips';
 export const HOLD_PREVIEW_MS = 180;
 /** The idle auto-attack measures edge to edge with this slack (mm), like the Attack button (C13). */
 const AUTO_SLACK = CHASE_LEEWAY_MM;
+/** V20 review: how long (ms) a tapped ATK on a non-hero holds the stick toward it (the v19 STICK_YIELD.tapMs). */
+const TAP_YIELD_MS = 700;
 /** A canvas touch that ends within this time (ms) and travel (px) is a tap (GAPS A5: tap an enemy hero to lock it). */
 export const TAP = Object.freeze({ ms: 320, px: 14, pickPx: 48 });
 /** How long (ms) the ghost landing marker of a tapped heading cast shows (no delay: the cast goes first). */
@@ -1239,12 +1241,17 @@ export class TouchControls {
    * and the stick at angle `a` points toward its unit, the stick sends no move, so it never replaces the Attack order
    * mid-chase or mid-windup.
    */
-  private yieldsToAttack(o: { x: number; y: number }, a: number): boolean {
+  private yieldsToAttack(o: { x: number; y: number }, a: number, now: number): boolean {
     const units = this.h.units();
     const id = this.atkYield.check(units, this.me(), this.h.view.myTeam, this.range());
     if (id === null) return false;
     const t = units.find((u) => u.id === id);
-    return !!t && stickTowardTarget(o.x, o.y, a, t);
+    if (!t) return false;
+    // V20 review: only a chased hero holds a tapped order with no timer. A tapped minion, camp or tower yields for
+    // TAP_YIELD_MS as before v20, so a stick pushed forward up the lane walks past it instead of staying on it until
+    // it dies (Wild Rift: the joystick always moves).
+    if (this.attackHeld === null && t.kind !== 'hero' && now - this.lastAttack >= TAP_YIELD_MS) return false;
+    return stickTowardTarget(o.x, o.y, a, t);
   }
 
   /**
@@ -1264,7 +1271,7 @@ export class TouchControls {
       // round 2: a push into a wall slides along it (orders.ts slideAngle)
       // C8: only at full tilt (90%+) and with no enemy hero within 8 m, and only within 8° of the lane
       const a = this.walkAngle(me, o, dx, dy);
-      if (this.yieldsToAttack(o, a)) {
+      if (this.yieldsToAttack(o, a, now)) {
         // the Attack order chases; the next stick move goes at once when ATK lets go or the stick turns away
         this.lastStick.a = NaN;
         this.stickYields++;

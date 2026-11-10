@@ -14282,7 +14282,7 @@ function applyOrder(m, id, cmd) {
 			if (cmd.id >= RANGE.end || !targetable(w, cmd.id, w.team[id])) break;
 			cancelSoft(w, id);
 			if (w.order[id] === Order.Attack && w.target[id] === cmd.id) break;
-			if (w.target[id] !== cmd.id) dropSwing(w, id);
+			if (w.target[id] !== cmd.id) cancelSwing(w, id);
 			w.order[id] = Order.Attack;
 			w.target[id] = cmd.id;
 			w.pathLen[id] = 0;
@@ -14565,6 +14565,7 @@ function stepHero(m, id) {
 		return;
 	}
 	if (order === Order.Move) {
+		w.target[id] = -1;
 		if (walk(m, id)) {
 			w.order[id] = Order.None;
 			w.state[id] = UnitState.Idle;
