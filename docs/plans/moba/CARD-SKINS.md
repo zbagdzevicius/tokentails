@@ -48,9 +48,9 @@ A card carries six modifications (code map, `meta/roster.ts`, `render/skins/*`).
 | Variant accent (`hat-samurai`, `bow-tie-red`, ...) | `render/skins/spriteProbe.ts` accent colour | Accent colour of the Legendary flourish; phase 2: a tiny merged accessory part |
 | Coat palette | `CatSkin.coat`, `coatGlow()` in `cardFx.ts` | Primary FX tint (exists) |
 
-Element motif shapes all exist in the particle pool (`render/fx/Particles.js` `SHAPE`): FIRE ember STAR4, ICE STAR8,
-ELECTRIC STAR4 sharp, WIND SOFT streak, DARK SOFT dim, WATER SOFT droplet, GRASS HEART (leaf stand-in), SAND SOFT
-grain, FAIRY HEART, STELLAR STAR8. The paw print uses the 1-sprite `SHAPE.PAW` instead of today's 5 SOFT particles.
+Element motif shapes all exist in the particle pool (`render/fx/Particles.js` `SHAPE`), one per element so the shape
+reads even when another hero's colour is desaturated: FIRE SPARK (ember streak), ICE SHARD, ELECTRIC STAR4 sharp,
+WIND FEATHER, DARK SOFT dim, WATER DROPLET, GRASS HEART (leaf stand-in), SAND PUFF (grain), FAIRY STAR5, STELLAR STAR8. The paw print uses the 1-sprite `SHAPE.PAW` instead of today's 5 SOFT particles.
 
 ### Per-rung effects
 
@@ -74,7 +74,7 @@ Bold rows are new; plain rows exist today and stay.
 | | **Multi-kill card: double / triple / quad paw burst above the killer (1 PAW + 6 STAR8 per step), killer's own screen only** | `render/effects.ts` takedown + `render/juice.ts` banner rail (event-driven DOM, never per frame) | killer only |
 | | **SFX swap: the takedown and recall-land cues get a pitch-shifted meow or purr layer from the existing bank** | `audio/sfx.ts`, `audio/identityMix.ts` | everyone in earshot, own hero louder |
 | | **Foil colour from the element instead of cream (one uniform value change)** | `render/chars/charMaterial.ts` `uFoilColor` | everyone |
-| **Awakened** (Legendary tier + bond 30; not a new `Tier` value) | **Stage 1 at hero level 4 (the ult unlock), stage 2 at 7, stage 3 at 10: foil strength 0.15 → 0.22 → 0.3; stage 2 adds the element motif to the ult paw wave; stage 3 adds a one-off "awakening" burst (12 motif + 1 card glyph) and a cream rim pulse for 1 s** | `charMaterial.ts` `uFoil`, `cardFx.ts` `signature`, level read from the render snapshot | everyone |
+| **Awakened** (Legendary tier + bond 30; not a new `Tier` value) | **Stage 1 at hero level 4 (the ult unlock), stage 2 at 7, stage 3 at 10: foil strength 0.18 (stage 0) → 0.2 → 0.24 → 0.3, always above a plain Legendary's 0.15, so Awakened reads from the first second; stage 2 adds the element motif to the ult paw wave; stage 3 adds a one-off "awakening" burst (12 motif + 1 card glyph) and a cream rim pulse for 1 s** | `charMaterial.ts` `uFoil`, `cardFx.ts` `signature`, level read from the render snapshot | everyone |
 | | **Card frame upgrades per stage on the pick, versus and MVP screens (frame art: Kitten, Brave, Legend footer words)** | `ui/cards/frame.ts`, `ui/cards/vars.css` | DOM, out of match |
 
 Why Awakened is not a new tier: `Tier` is duplicated in backend and client (`CLAUDE.md`: update every copy). A form
@@ -87,6 +87,9 @@ flag on the skin record (`CatSkin.awakened: boolean`) gives the same player resu
 - Colour only on the core skill painters. The 22 `render/skillfx/*.ts` painters keep their own constants; only the
   identity layer on top of them is tinted. The enemy ult keeps its red danger wave.
 - On another player's hero the drawn colour passes `trimForTeam` (never gold, never within 25° of the opposing hue).
+  It also keeps the friend-or-foe read for this viewer (`SkinFxProfile.mate`): an enemy's colour is never within 25° of
+  `RELATION.ally` blue and an ally's never within 25° of `RELATION.enemy` / `danger` red (saturation 0.35 when it is).
+  The death ghost keeps its ally / enemy mix and takes the coat tint at 25 % only.
 - No effect from a stealthed hero. Team fights (4+ heroes within 12 m) drop other heroes' extras, as today.
 - The `skinFx` setting (`all` / `mine` / `off`) governs every new effect, and multi-kill cards are killer-only.
 
@@ -102,7 +105,7 @@ shader program keys, no per-frame DOM.
 | Common | 0 | 0 | 0 | 0 | identical |
 | Rare | recall 6 / 4 per second; ribbons, ghosts tint only | 8 | 0 (ribbons, ghosts already batched) | < 0.005 ms | tints only; ribbons and ghosts are off on Low anyway; recall ring own hero only |
 | Epic | cast 6 / 4, ability hit +1 / 0, takedown 4 / 2 | 16 | 0 | < 0.01 ms | own hero: cast 4, takedown 2, no hit motif; other heroes: tints only |
-| Legendary | paw burst 1 (was 5), multi-kill 7, recall card glyph 1 quad, ult paw wave 6 PAW (was 30) | 24 | 0 (lifecycle sprites are one instanced pool) | < 0.02 ms | own hero: paw burst, recall glyph, multi-kill; no foil; SFX layer kept (audio is not GPU) |
+| Legendary | paw burst 1 (was 5), multi-kill 7, recall card glyph 1 quad, ult paw wave 6 PAW (was 30) | 24 | 0 (all kit sprites go through the existing Particles.js pool) | < 0.02 ms | own hero: paw burst, recall glyph, multi-kill; no foil; SFX layer kept (audio is not GPU) |
 | Awakened | stage burst 13 once per stage | 24 (shared with Legendary) | 0 (foil is a uniform) | < 0.02 ms | foil stays at 0 on Low; stage burst own hero only; frame upgrade (DOM, out of match) always |
 
 Total kit ceiling per match: unchanged 60 card particles + 40 tier particles; replacing the 5-sprite paw with
@@ -195,7 +198,7 @@ export interface SkinFxProfile {
 | Eclipse Duchess (`coat.duchess.s1_eclipse`, Pass+) | Epic | DARK | Violet-gold ribbons, dim SOFT motif on casts and ability hits, tinted identity layer, takedown stamp in points rhythm, tinted death ghost |
 | Sunforged Clem (`coat.clem.s1_sunforged`, Pass tier 30) | Legendary | FIRE | All of Epic + ember-coloured foil, paw bursts, recall card glyph, multi-kill card, purr layer on recall. Only for its owner: on other heroes the gold is pushed off by `trimForTeam` |
 | New store: Moonwhisker Pixel | Epic $7.99 | STELLAR | STAR8 motif, spots rhythm |
-| New store: Frostbell Marshmallow | Epic $7.99 | ICE | STAR8 icy motif, calico three-colour rhythm |
+| New store: Frostbell Marshmallow | Epic $7.99 | ICE | SHARD icy motif, calico three-colour rhythm |
 | New store: Thunderpaw Brutus | Legendary $14.99 | ELECTRIC | sharp STAR4 motif, tuxedo two-tone, full Legendary set |
 | New store: Bloomtail Sage | Legendary $14.99 | GRASS | leaf/heart motif, tabby stripes, full Legendary set |
 
@@ -237,18 +240,23 @@ Built as specified, with these differences:
   glyph plus 12 motif sprites. The cream rim pulse was not built.
 - **Meow / purr** are two new synth defs (`cardMeow`, `cardPurr` in `audio/sfx.ts`): the bank had no cat voice.
   `sfx.cardLayer()` plays them on a Legendary takedown and recall landing, at most once per 2 s per hero.
-- **Motif shapes:** WIND uses `FEATHER` and WATER `DROPLET` (both already in the pool) instead of SOFT streaks.
+- **Motif shapes:** one per element (§2): FIRE `SPARK`, ICE `SHARD`, WIND `FEATHER`, WATER `DROPLET`, SAND `PUFF`,
+  FAIRY `STAR5`; no two elements share one.
+- **Ground sprites:** the particle material depth-tests, so ground-level sprites sit at `size / 2 + 0.05` (flat motifs
+  in `MotifEmitter.emit`, the ult wave paws). The wave paws stay put (`glyph(..., rise = 0)`) and read as prints.
 - **Coat elements:** the six effect coats name theirs; every other Rare coat takes the element nearest its accent hue
   (`nearestElement` in `render/cosmetics.ts`).
-- **Awakened in the frame:** `cardFrame({ awakened })` (footer "Kitten / Brave / Legend · Awakened", stronger glow);
+- **Awakened in the frame:** `cardFrame({ awakened })` (footer "Awakened" at stage 0, else "Kitten / Brave / Legend · Awakened"; stronger glow);
   wired into the results MVP card (the player's own stage at match end). The pick and versus screens do not pass it yet.
 - **Previews:** `mountSkillPreview(..., { look })`; the champion browser opened from the pick screen passes the
-  player's chosen look; the dev lab takes `?coat=<id>` or `?card=<demo cat>&bond=30`. The preview plays at hero level 4
-  (Awakened stage 1).
+  player's chosen look; the dev lab takes `?coat=<id>` or `?card=<demo cat>&bond=30`, and `&level=<n>` (`mountSkillPreview(..., { level })`).
+  The preview plays at hero level 4 (Awakened stage 1) unless a level is given.
 - **Store:** the Coats tab lists the four effect coats first with their tier word and a one-line "what it adds".
 
 Evidence: tier stills and 6-frame loops in `docs/plans/moba/card-skins/` (`<tier>.webp`, `<tier>-anim.webp`; script
-`capture.mjs` there). Perf numbers are in the branch's hand-off note; the real-phone PERF-IOS §8 check is still open.
+`capture.mjs` there): every tier on Clem's ultimate at 720x480, the still at the hit, Awakened at hero level 10.
+Brutus (Thunderpaw): his armour, jacket, cape and mantle cover most of the body, so any coat (store or free) shows on
+the pug head and tail only; the team cloth (Woof ochre) is what reads orange. The coat is applied (`lookCoat`). Perf numbers are in the branch's hand-off note; the real-phone PERF-IOS §8 check is still open.
 
 ## 7. Phase 2 (not in the MVP)
 

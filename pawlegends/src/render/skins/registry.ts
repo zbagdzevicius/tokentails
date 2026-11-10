@@ -16,7 +16,7 @@ import { BREED_COAT, ELEMENT_COLOR, companionCoat, type Coat } from '../cosmetic
 import { KITTEN_COATS, stableIndex, TIERS, type CatTier, type Element, type RosterCat } from '../../meta/roster';
 import type { FeaturedCat } from '../../embed/bridge';
 import { spriteParts } from '../../embed/bridge';
-import { TEAM } from '../palette';
+import { RELATION, TEAM } from '../palette';
 import { AMBER_EYES, hsl, hslToHex, mixHex, shadeHex, type SkinRow } from './classify';
 import { FAMILIES, type FamilyRow } from './families.gen';
 import OVERRIDES from './overrides.json';
@@ -269,17 +269,26 @@ export function isGoldFamily(c: number): boolean {
   return h >= 35 && h <= 62 && s > 0.5 && l >= 0.4 && l <= 0.85;
 }
 
+/** Hue distance (degrees, 0..180). */
+const hueGap = (a: number, b: number): number => Math.abs(((a - b + 540) % 360) - 180);
+const ALLY_HUE = hsl(RELATION.ally)[0];
+const ENEMY_HUES: readonly number[] = [hsl(RELATION.enemy)[0], hsl(RELATION.danger)[0]];
+
 /**
  * Match only, another player's hero (a showcase bot): a card skin's element trim or gem never in the gold "you"
  * family (mixed toward white, as the glints) and never within 25° of the opposing team's hue (saturation 0.35, as
- * the fur). The player's own hero and the lobby keep the true element colour.
+ * the fur). `mate` (this viewer's relation to the hero, when known) also keeps the friend-or-foe read: an enemy's
+ * colour never within 25° of RELATION.ally blue, an ally's never within 25° of RELATION.enemy / danger red (both
+ * saturation 0.35). The player's own hero and the lobby keep the true element colour.
  */
-export function trimForTeam(c: number, team: 0 | 1): number {
+export function trimForTeam(c: number, team: 0 | 1, mate?: boolean): number {
   let out = isGoldFamily(c) ? mixHex(c, 0xffffff, 0.7) : c;
   const [th] = hsl(TEAM[team === 0 ? 1 : 0].main);
   const [h, s, l] = hsl(out);
-  const d = Math.abs(((h - th + 540) % 360) - 180);
-  if (d <= 25 && s > 0.45) out = hslToHex(h, 0.35, l);
+  let hit = hueGap(h, th) <= 25;
+  if (mate === false) hit ||= hueGap(h, ALLY_HUE) <= 25;
+  else if (mate === true) hit ||= hueGap(h, ENEMY_HUES[0]) <= 25 || hueGap(h, ENEMY_HUES[1]) <= 25;
+  if (hit && s > 0.45) out = hslToHex(h, 0.35, l);
   return out;
 }
 

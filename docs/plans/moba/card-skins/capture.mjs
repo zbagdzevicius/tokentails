@@ -5,7 +5,9 @@
 // 2. node docs/plans/moba/card-skins/capture.mjs http://127.0.0.1:5391 docs/plans/moba/card-skins
 //    env: GPU=1 (Metal ANGLE, headed) for real draw costs, else SwiftShader; SHOTS=0 skips the screenshots;
 //    PERF=0 skips the A/B; PAIRS / ROUNDS trim it; TIER (low|med, default low = what phones play).
-// Writes <out>/<tier-name>.webp (one still per tier) and <out>/<tier-name>-anim.webp (6 frames), and prints JSON.
+// Writes <out>/<tier-name>.webp (one 720x480 still per tier: the busiest frame of the clip, i.e. the hit) and
+// <out>/<tier-name>-anim.webp (6 frames), and prints JSON. Every tier is on one hero (Clem's ultimate) so they compare
+// side by side; Awakened is at hero level 10 (stage 3). Thunderpaw is the one extra (Brutus, a dog hero's coat).
 // Playwright's own temporary browser profile is removed by browser.close() (in finally, and on SIGINT / SIGTERM).
 import { createRequire } from 'node:module';
 import { execFileSync } from 'node:child_process';
@@ -21,15 +23,17 @@ const TIER = process.env.TIER ?? 'low';
 fs.mkdirSync(outDir, { recursive: true });
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'pl-card-skins-'));
 
-/** One clip per rung: hero, slot, and the look (coat id or demo card). */
+/** One clip per rung, all on Clem's ultimate: the look (coat id or demo card) and the hero level. */
 const LOOKS = [
   { name: 'common', hero: 'clem', slot: 'r', q: '' },
   { name: 'rare', hero: 'clem', slot: 'r', q: '&coat=coat.clem.store_calico' },
-  { name: 'epic', hero: 'pixel', slot: 'r', q: '&coat=coat.pixel.store_moonwhisker' },
+  { name: 'epic', hero: 'clem', slot: 'r', q: '&card=pinkie' },
   { name: 'legendary', hero: 'clem', slot: 'r', q: '&coat=coat.clem.s1_sunforged' },
+  { name: 'awakened', hero: 'clem', slot: 'r', q: '&card=ficus&bond=30&level=10' },
   { name: 'legendary-thunderpaw', hero: 'brutus', slot: 'r', q: '&coat=coat.brutus.store_thunderpaw' },
-  { name: 'awakened', hero: 'clem', slot: 'r', q: '&card=ficus&bond=30' },
 ];
+const W = Number(process.env.W ?? 720);
+const H = Number(process.env.H ?? 480);
 
 let browser = null;
 const cleanup = async () => {
@@ -45,7 +49,7 @@ const out = { tier: TIER, gpu: process.env.GPU === '1', shots: [], perf: [], err
 try {
   browser = await chromium.launch(process.env.GPU === '1' ? { headless: false, args: ['--use-angle=metal', '--ignore-gpu-blocklist'] } : { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
   const open = async (l, w, h, tier) => {
-    const page = await browser.newPage({ viewport: { width: 900, height: 600 } });
+    const page = await browser.newPage({ viewport: { width: Math.max(900, w + 120), height: Math.max(600, h + 160) } });
     page.on('pageerror', (e) => out.errors.push(`${l.name}: ${e}`));
     await page.goto(`${base}/skill-preview.html?hero=${l.hero}&slot=${l.slot}&tier=${tier}&w=${w}&h=${h}&capture=1${l.q}`);
     await page.waitForFunction(() => window.__preview, null, { timeout: 120000 });
@@ -55,7 +59,7 @@ try {
 
   if (process.env.SHOTS !== '0') {
     for (const l of LOOKS) {
-      const page = await open(l, 360, 240, 'med');
+      const page = await open(l, W, H, 'med');
       const box = await page.locator('#box').boundingBox();
       const frames = [];
       // the clip: the cast (0.6 s) and its hits; 6 frames 0.15 s apart from 0.65 s
@@ -66,8 +70,10 @@ try {
         frames.push(png);
         await page.evaluate(() => window.__preview.advance(0.15));
       }
+      // the still: the busiest frame (largest PNG: the hit, with the most effect sprites on screen)
+      const hit = frames.reduce((a, b) => (fs.statSync(b).size > fs.statSync(a).size ? b : a));
       const still = path.join(outDir, `${l.name}.webp`);
-      execFileSync('cwebp', ['-quiet', '-q', '70', frames[2], '-o', still]);
+      execFileSync('cwebp', ['-quiet', '-q', '80', hit, '-o', still]);
       const anim = path.join(outDir, `${l.name}-anim.webp`);
       execFileSync('img2webp', ['-loop', '0', '-lossy', '-q', '55', '-d', '200', ...frames, '-o', anim], { stdio: 'ignore' });
       out.shots.push({ name: l.name, still, anim, kb: Math.round((fs.statSync(still).size + fs.statSync(anim).size) / 1024) });

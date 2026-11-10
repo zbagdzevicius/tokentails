@@ -11,7 +11,7 @@ import { parseRoster, type CatTier } from '../../src/meta/roster';
 import { PAID_COATS } from '../../src/render/cosmetics';
 import { CARD_MAX, CardVfx } from '../../src/render/skins/cardFx';
 import { coatRung, profileFromCoat, skinFxFor } from '../../src/render/skins/coatRung';
-import { AWAKEN_FOIL, HERO_FX_CAP, MotifEmitter, emptyProfile, foilOf, motifOf, profileFromCard, stageOf, type SkinFxProfile } from '../../src/render/skins/effectKit';
+import { AWAKEN_FOIL, ELEMENT_SHAPE, HERO_FX_CAP, LEGENDARY_FOIL, MotifEmitter, emptyProfile, foilOf, motifOf, profileFromCard, stageOf, type SkinFxProfile } from '../../src/render/skins/effectKit';
 import { getSkin, isGoldFamily, setRosterSkins, skinIdOf } from '../../src/render/skins/registry';
 import { COSMETIC_MAX, TierFx, type FxHero } from '../../src/render/skins/tierFx';
 import { HeroView } from '../../src/render/views/heroView';
@@ -99,11 +99,30 @@ describe('profile resolution', () => {
     const p = profileFromCard(skin('ficus'), 0, true, 0, true, false, 10)!;
     expect(p.stage).toBe(3);
     expect(foilOf(p)).toBe(AWAKEN_FOIL[3]);
-    expect(foilOf({ ...p, stage: 1 })).toBe(0.15);
+    expect(foilOf({ ...p, stage: 1 })).toBe(AWAKEN_FOIL[1]);
+    // every Awakened stage, stage 0 too, is a lasting step above a plain Legendary (not only a one-off burst)
+    for (const st of [0, 1, 2, 3] as const) expect(foilOf({ ...p, stage: st })).toBeGreaterThan(LEGENDARY_FOIL);
+    for (let i = 1; i < 4; i++) expect(AWAKEN_FOIL[i]).toBeGreaterThan(AWAKEN_FOIL[i - 1]);
     expect(foilOf({ ...p, low: true })).toBe(0);
     setRosterSkins(roster, {});
     expect(foilOf(profileFromCard(skin('ficus'), 0, true, 0, true, false, 10))).toBe(0.15); // plain Legendary
     expect(foilOf(profileFromCard(skin('pinkie'), 0, true, 0, true, false, 10))).toBe(0); // Epic
+  });
+
+  it('every element has its own motif shape', () => {
+    const shapes = Object.values(ELEMENT_SHAPE);
+    expect(new Set(shapes).size).toBe(shapes.length);
+  });
+
+  it('flat motifs and the wave paws sit fully above the ground (the particle material depth-tests) and paws stay put', () => {
+    const singles: { y: number; size: number; vy: number }[] = [];
+    const kp = { single: (at: { y: number }, o: Record<string, unknown>) => singles.push({ y: at.y, size: o.size0 as number, vy: o.vy as number }) };
+    const k = new MotifEmitter();
+    const p = { ...emptyProfile(), rung: 'LEGENDARY' as const, extras: true };
+    k.emit(kp as never, p, 0, 0.12, 0, 6, 0.95, 0.9, true, 0.25);
+    k.glyph(kp as never, 15, 0xffffff, 0, 0.5, 0, 0.9, 0.5, 0, 1, 0);
+    for (const s of singles.slice(0, 6)) expect(s.y - s.size / 2).toBeGreaterThan(0);
+    expect(singles[6].vy).toBe(0);
   });
 });
 

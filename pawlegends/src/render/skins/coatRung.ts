@@ -19,18 +19,18 @@ export function coatRung(coatId: string | null | undefined, hero?: HeroId | null
 }
 
 /** The profile a worn coat gives hero slot `id` (null below Rare, or for a coat the hero cannot wear). */
-export function profileFromCoat(coatId: string | null | undefined, hero: HeroId | null | undefined, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, out?: SkinFxProfile): SkinFxProfile | null {
+export function profileFromCoat(coatId: string | null | undefined, hero: HeroId | null | undefined, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, out?: SkinFxProfile, mate: boolean | null = null): SkinFxProfile | null {
   if (!coatId) return null;
   const c = PAID_COATS[coatId];
   if (!c || (hero && c.hero !== hero)) return null;
-  return profileFromCoatSpec(c.coat, c.name, c.rung, c.element, id, self, team, extras, low, out);
+  return profileFromCoatSpec(c.coat, c.name, c.rung, c.element, id, self, team, extras, low, out, mate);
 }
 
 /**
  * A hero's skin-effect profile: its card skin when it wears one (a card wins over a coat), else its store or pass
  * coat. `level` is the hero level (an Awakened card's stage). Null below Rare.
  */
-export function skinFxFor(skin: CatSkin | null, coatId: string | null | undefined, hero: HeroId | null | undefined, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, level: number, out?: SkinFxProfile): SkinFxProfile | null {
-  if (skin) return profileFromCard(skin, id, self, team, extras, low, level, out);
-  return profileFromCoat(coatId, hero, id, self, team, extras, low, out);
+export function skinFxFor(skin: CatSkin | null, coatId: string | null | undefined, hero: HeroId | null | undefined, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, level: number, out?: SkinFxProfile, mate: boolean | null = null): SkinFxProfile | null {
+  if (skin) return profileFromCard(skin, id, self, team, extras, low, level, out, mate);
+  return profileFromCoat(coatId, hero, id, self, team, extras, low, out, mate);
 }

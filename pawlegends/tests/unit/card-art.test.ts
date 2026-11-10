@@ -31,6 +31,12 @@ describe('card frame and pick tiles', () => {
     expect(html.match(/tt-sp /g)).toHaveLength(4);
     expect(html).not.toMatch(/url\(/);
   });
+  it('an Awakened footer names the stage once (stage 0 says Awakened, never "Awakened · Awakened")', () => {
+    const foot = (aw: 0 | 1 | 2 | 3) => cardFrame({ el: 'FIRE', tier: 'LEGENDARY', inner: '', foot: true, awakened: aw });
+    expect(foot(0)).toContain('>Awakened · TOKEN TAILS<');
+    expect(foot(0)).not.toContain('Awakened · Awakened');
+    expect(foot(3)).toContain('Legend · Awakened · TOKEN TAILS');
+  });
   it('pick (champion select): a portrait tile per hero (20), one name each, the worn card rung as the tile border', () => {
     document.body.innerHTML = '';
     setRosterSkins([{ id: 'z', name: 'Zuzu', type: 'ICE', tier: 'LEGENDARY', isStarter: false, origin: 'adopt' }]);
