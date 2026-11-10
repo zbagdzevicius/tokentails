@@ -26,6 +26,7 @@ import { fireBolt } from '../combat/attack';
 import { collect, dash, fear, fireSkillshot, haste, healOverTime, inRing, slow, spawnBurst, ON_HIT, PFLAG } from '../effects';
 import { Aim, aimAngle, lvl, SNAP_FX, type HeroKit, type SlotAim } from './kit';
 import { abil, type KitNumbers } from './talents';
+import { cancelSwing } from '../combat/swing';
 
 /** kEmpower while his own E or R deals damage (afterDeal ignores it). */
 const RESOLVING = 1;
@@ -78,7 +79,7 @@ function nap(m: MatchHandle, id: number): void {
   w.kRT[id] = r.nap;
   // The nap drops a loaded Photo Finish and any swing.
   w.kWindow[id] = 0;
-  w.windup[id] = 0;
+  cancelSwing(w, id);
   if (r.napHealBp > 0) healOverTime(w, id, idiv(w.maxHp[id] * r.napHealBp, BP_ONE), r.nap);
   m.events.push({ type: 'clip', tick: w.globals[G.Tick], id, what: 'zzz' });
 }

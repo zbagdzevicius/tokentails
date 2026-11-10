@@ -124,8 +124,9 @@ export const HERO_VS_HERO_BP = 10500;
 /**
  * Sim v18 (founder bug 2026-11-08, chasing): basic attacks land on a target walking away now, so a hero's basic
  * attacks on enemy heroes deal × this on top of HERO_VS_HERO_BP (docs/plans/moba/V18-CHASE.md: takedowns a minute back
- * in 2.5–3.5).
+ * in 2.5–3.5). Sim v20 (Wild Rift basic attacks, docs/plans/moba/V20-CHASE.md): 6500 → 6000, since a started swing
+ * now completes and a cancelled one costs no attack timer (takedowns 3.63 → ~3.5 a minute).
  */
-export const HERO_BASIC_VS_HERO_BP = 6500;
+export const HERO_BASIC_VS_HERO_BP = 6000;
 
 // Sim v8: the species edge (SIDE_EDGE: dogs × 1.13 dealt, × 0.915 taken) is per hero now, HeroData.pvp.

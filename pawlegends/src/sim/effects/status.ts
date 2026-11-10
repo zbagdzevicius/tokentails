@@ -7,6 +7,7 @@ import { CC_DR } from '../../data/effects';
 import { FM, Kind, RANGE, UnitState, type World } from '../world';
 import { clearStacks, tickStacks } from './stack';
 import { breakTether } from './tether';
+import { cancelSwing } from '../combat/swing';
 
 /**
  * Structures, fountains, Pudding and dead units ignore CC and displacement. Sim v10 (GAPS B5): so does a unit with
@@ -77,7 +78,8 @@ export function cleanse(w: World, id: number, immuneTicks: number): void {
  * fear, knockback) also breaks Snack Break.
  */
 export function interrupt(w: World, id: number, hard: boolean): void {
-  w.windup[id] = 0;
+  // Sim v20 (V20-CHASE.md S1): the cancelled swing gives the attack timer back.
+  cancelSwing(w, id);
   if (id < RANGE.minions) {
     w.castPhase[id] = 0;
     w.castT[id] = 0;

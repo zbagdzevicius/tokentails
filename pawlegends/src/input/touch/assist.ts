@@ -10,7 +10,7 @@
  * All in sim mm and radians (0 = +x, counter-clockwise).
  */
 import { FOUNTAIN, LANE_WAYPOINTS, MAP, mirrorX } from '../../data/map';
-import { attackPreview, BODY_MM, inAttackReach, isEnemy, type Unit } from '../targeting';
+import { ATTACK_SEEK_MM, attackPreview, CHASE_LEEWAY_MM, edgeGap, inAttackReach, isEnemy, type Unit } from '../targeting';
 import type { TargetFirst } from '../presets';
 
 export const ASSIST = Object.freeze({
@@ -104,11 +104,12 @@ export function edgeGoal(meX: number, meY: number, tx: number, ty: number, myTea
 /**
  * Founder bug 2026-11-08 ("close to impossible to basic attack a champ while chasing"): with the joystick held toward
  * the target and ATK pressed, every stick move replaced the Attack order and cancelled its windup in the sim, so the
- * swing never landed. While ATK is held (or for `tapMs` after a tap) a stick within `turn` of the bearing to the
- * attack target sends no move: the Attack order chases and swings (MLBB follows the target while Attack is held). A
- * stick pointing away (retreat, kite) still moves at once.
+ * swing never landed. While the Attack order holds (AttackYield: held ATK or a tap, V20-CHASE.md I3) a stick within
+ * `turn` of the bearing to the attack target sends no move: the Attack order chases and swings (Wild Rift: an attack
+ * order keeps its target until it dies, becomes untargetable or a new command is given). A stick pointing away
+ * (retreat, kite) still moves at once.
  */
-export const STICK_YIELD = Object.freeze({ turn: Math.PI / 2, tapMs: 700 });
+export const STICK_YIELD = Object.freeze({ turn: Math.PI / 2 });
 
 /** Does a stick at angle `a` (rad, sim convention) from (x, y) point toward `target` (within STICK_YIELD.turn)? */
 export function stickTowardTarget(x: number, y: number, a: number, target: { x: number; y: number }): boolean {
@@ -140,9 +141,9 @@ export function autoAttackTarget(
     // UX pass 2: the idle auto-attack hits only the unit ATK rings (attackPreview, the tap's own pick) and only while
     // it is in reach (`range` carries this caller's 300 mm slack): never a different unit than the ring (a far
     // last-hit or a locked hero out of reach rings, and standing idle then waits), never a structure or a camp
-    const id = attackPreview(units, me, myTeam, range - 300, first, killDmg, locked);
+    const id = attackPreview(units, me, myTeam, range - CHASE_LEEWAY_MM, first, killDmg, locked);
     const u = id !== null ? units.find((q) => q.id === id) : undefined;
-    return u && (u.kind === 'hero' || u.kind === 'minion') && inAttackReach(u, me, range - 300) ? u.id : null;
+    return u && (u.kind === 'hero' || u.kind === 'minion') && inAttackReach(u, me, range - CHASE_LEEWAY_MM) ? u.id : null;
   }
   let minion: Unit | null = null;
   let hero: Unit | null = null;
@@ -152,7 +153,7 @@ export function autoAttackTarget(
   for (const u of units) {
     if (u.id === me.id || u.state === 'dead' || u.team === myTeam || u.team === 2) continue;
     if (u.kind !== 'minion' && u.kind !== 'hero') continue;
-    const d = Math.hypot(u.x - me.x, u.y - me.y) - BODY_MM[u.kind];
+    const d = edgeGap(me, u);
     if (d > range) continue;
     if (u.kind === 'minion') {
       if (!minion || u.hp < minion.hp) minion = u;
@@ -218,7 +219,8 @@ export class TargetLock {
       this.clear();
       return null;
     }
-    const d = Math.hypot(u!.x - me.x, u!.y - me.y);
+    // V20-CHASE.md I1: edge to edge, like every other reach check
+    const d = edgeGap(me, u!);
     if (d <= breakMm) this.reached = true;
     else if (this.reached) {
       this.clear();
@@ -231,4 +233,55 @@ export class TargetLock {
   left(now: number): number {
     return this.id === null ? 0 : Math.max(0, Math.min(1, 1 - (now - this.since) / LOCK.ms));
   }
+}
+
+/**
+ * V20-CHASE.md I3 (Wild Rift tap-to-attack: the order keeps its target "until it dies, becomes untargetable, or a new
+ * command is given"): the unit the newest ATK press (tap or hold) ordered an attack on, while that order stands. The
+ * stick yields to it (STICK_YIELD) for as long as `check` returns it: it lets go when the unit dies or leaves the
+ * snapshot, when it is further than the tap's walk-in reach (ATTACK_SEEK_MM), or once it was within the lock-break
+ * distance (lockBreakMm, edge to edge) and then broke away past it. A move the player sends (the stick turned away)
+ * or a skill press clears it (TouchControls). There is no timer: a tap holds like a hold.
+ */
+export class AttackYield {
+  id: number | null = null;
+  private reached = false;
+
+  set(id: number | null): void {
+    if (id !== this.id) this.reached = false;
+    this.id = id;
+  }
+
+  clear(): void {
+    this.id = null;
+    this.reached = false;
+  }
+
+  check(units: readonly Unit[], me: Unit | null, myTeam: number, range: number): number | null {
+    if (this.id === null) return null;
+    const u = units.find((q) => q.id === this.id);
+    if (!me || me.state === 'dead' || !u || !isEnemy(u, myTeam)) {
+      this.clear();
+      return null;
+    }
+    const gap = edgeGap(me, u);
+    if (gap <= lockBreakMm(range)) this.reached = true;
+    else if (this.reached || gap > ATTACK_SEEK_MM) {
+      this.clear();
+      return null;
+    }
+    return this.id;
+  }
+}
+
+/**
+ * V20-CHASE.md I2 (Wild Rift: the attack order keeps its champion): the ATK repeat (held) or a new press keeps the
+ * enemy hero it is already attacking while that hero is alive, visible and within the lock-break distance (edge to
+ * edge), so no last hit, minion or tower guard steals the chase. Null when there is no such hero (re-pick as usual).
+ */
+export function stickyAttackTarget(units: readonly Unit[], me: Unit, myTeam: number, range: number, held: number | null): number | null {
+  if (held === null) return null;
+  const u = units.find((q) => q.id === held);
+  if (!u || u.kind !== 'hero' || !isEnemy(u, myTeam)) return null;
+  return edgeGap(me, u) <= lockBreakMm(range) ? held : null;
 }

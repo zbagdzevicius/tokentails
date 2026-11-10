@@ -163,7 +163,7 @@ describe('C8 lane magnet, C13 idle auto-attack', () => {
   });
   it('the idle auto-attack measures edge to edge', () => {
     const me = unit(0, 'hero', 0, 10000, 10000);
-    const m = unit(20, 'minion', 1, 10000 + 1800 + BODY_MM.minion - 10, 10000);
+    const m = unit(20, 'minion', 1, 10000 + 1800 + BODY_MM.hero + BODY_MM.minion - 10, 10000);
     expect(autoAttackTarget([me, m], me, 0, 1800)).toBe(20);
     expect(autoAttackTarget([me, { ...m, x: m.x + 50 }], me, 0, 1800)).toBeNull();
   });

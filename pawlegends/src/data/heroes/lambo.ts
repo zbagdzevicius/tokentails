@@ -7,7 +7,7 @@ export const LAMBO: HeroData = Object.freeze<HeroData>({
   side: 'cat',
   role: 'tank',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11: takes 8800 (52.5%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9150 / takes 9125 (53.0% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8425 / takes 8925 (52.4% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): deals 9300 / takes 8050. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9450 / takes 7750. */
-  pvp: { dmgBp: 9450, takenBp: 7750 },
+  pvp: { dmgBp: 9490, takenBp: 7710 },
   element: 'STELLAR',
   base: { hp: 740, hpPerLevel: 78, attack: 56, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 4700, armour: 38, armourPerLevel: 3 },
   /** Brave With Friends: takes 10% less damage while an allied hero is within 4 m. */

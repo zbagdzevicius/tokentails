@@ -7,7 +7,7 @@ export const AVIETE: HeroData = Object.freeze<HeroData>({
   side: 'cat',
   role: 'assassin',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Wave C: dmgBp 13000 to 12700 (54.1% with level growth and ranks). Sim v11 (four new cats): 12100 / takes 8400 (balance gate 50.6%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 12750 / takes 7800 (50.4% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 11650 / takes 7725 (49.7% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 7600. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 11475 / takes 7950. */
-  pvp: { dmgBp: 11475, takenBp: 7950 },
+  pvp: { dmgBp: 11415, takenBp: 8010 },
   element: 'ELECTRIC',
   base: { hp: 500, hpPerLevel: 54, attack: 58, attackPerLevel: 6, attackEvery: 28, range: 1600, speed: 5200, armour: 18, armourPerLevel: 2 },
   /**
