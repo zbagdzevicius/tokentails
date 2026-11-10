@@ -57,8 +57,20 @@ run "relay_vm_is_always_on_and_private" {
     error_message = "Default relay machine is t2d-standard-2 (2 cores, no SMT)."
   }
   assert {
-    condition     = !strcontains(module.relay_vm.cloud_init, "gce-container-declaration") && strcontains(module.relay_vm.cloud_init, "docker stop -t 60")
-    error_message = "cloud-init runs the container from systemd (no konlet) and stops it with a 60 s grace."
+    condition     = !strcontains(module.relay_vm.cloud_init, "gce-container-declaration") && strcontains(module.relay_vm.cloud_init, "docker stop -t 90 tt-relay-%i")
+    error_message = "cloud-init runs the container from systemd (no konlet) and stops it with a 90 s grace."
+  }
+  assert {
+    condition     = module.relay_vm.settings.lb_check_path == "/readyz" && module.relay_vm.settings.autoheal_check_path == "/healthz"
+    error_message = "The LB sends players only to a ready (not draining) relay; autoheal only checks liveness, so it never restarts a draining relay."
+  }
+  assert {
+    condition     = module.relay_vm.settings.plain_env.RELAY_DRAIN_MAX_MS == "60000"
+    error_message = "A SIGTERM drain ends 30 s before docker's stop timeout, so the push handoff always completes."
+  }
+  assert {
+    condition     = strcontains(module.relay_vm.cloud_init, "tt-relay@.service") && strcontains(module.relay_vm.cloud_init, "/pawlegends/relay/drain") && strcontains(module.relay_vm.cloud_init, "RELAY_CONTROL_PORT")
+    error_message = "Relay deploys are blue/green inside the VM: two slots, the old one drained through its control port (LIVE-MATCH-DEPLOYS.md §8.2)."
   }
   assert {
     condition     = module.relay_vm.settings.update_type == "OPPORTUNISTIC"
@@ -81,8 +93,8 @@ run "relay_vm_is_always_on_and_private" {
     error_message = "By default the relay follows tt-api's pins and has no ticket secret until party_ticket_secret_version is set."
   }
   assert {
-    condition     = strcontains(module.relay_vm.cloud_init, "/var/lib/tt-relay/image") && strcontains(module.relay_vm.cloud_init, "deploy.sh current")
-    error_message = "The VM runs the image deploy.sh verified (/var/lib/tt-relay/image), and CI reads the running one."
+    condition     = strcontains(module.relay_vm.cloud_init, "/var/lib/tt-relay/image-$SLOT") && strcontains(module.relay_vm.cloud_init, "deploy.sh current")
+    error_message = "Each slot runs the image deploy.sh wrote for it (/var/lib/tt-relay/image-<slot>), and CI reads the serving one."
   }
 }
 
@@ -184,7 +196,7 @@ run "edge_websockets_and_armor" {
   }
   assert {
     condition     = module.edge.settings.relay_draining_sec <= 30
-    error_message = "No long connection draining on the relay: a VM recreate must fit the 120 s restore window."
+    error_message = "No long connection draining on the relay: the relay drains itself (blue/green deploys, replace-relay.sh)."
   }
   assert {
     condition     = module.edge.settings.scheme == "EXTERNAL_MANAGED"

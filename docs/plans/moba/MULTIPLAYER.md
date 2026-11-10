@@ -249,7 +249,7 @@ Sizes are enforced per type **before** decoding. Any other first byte is a strik
   - checks `Origin` against `corsOrigins()` (this is hygiene, not authentication: any non-browser client can send an allowed Origin). A missing Origin is refused. The e2e harness allows it only through a **constructor option of the harness module**, never an env var or a header;
   - **client IP on the upgrade (S1):** `shared/relay-client-ip.ts`. Trust `cf-connecting-ip` (only when it parses as an IP) from a Cloudflare peer, or from our private ingress hop when the request really came through Cloudflare (on DigitalOcean: the first X-Forwarded-For entry from the right that is not a private hop is a Cloudflare edge; on the split Google Cloud roles the balancer admits Cloudflare only); a direct caller through the ingress is keyed by the address the ingress saw. IPv6 is keyed per /64 (`clientIpKey`), like the Quick Play caps. This is local to the WebSocket path and does not change the HTTP routes;
   - applies the caps in §3.5;
-  - on shutdown (SIGTERM): stops room clocks, sends `error{code:'room_gone', retryMs:3000}`, writes a final checkpoint with `handoff:true` (N9), then closes.
+  - on shutdown (SIGTERM): drains first (live rooms play on for `RELAY_DRAIN_MAX_MS`, no new rooms, parties or queue entries), then stops the clocks of what is left, sends `error{code:'room_gone', retryMs:0}`, writes a final checkpoint with `handoff:true` (N9) and closes with 1012. The serving relay claims those rooms within a second (`LIVE-MATCH-DEPLOYS.md`).
 - Register in `app.module.ts`: `PartyRelayService`, `PartyService`, `RoomScheduler`, `RefereePool`, `PartyTicketService`, `RoomStore` (`MongoRoomStore`), and the `PawlegendsRoom` and `PawlegendsParty` schemas.
 
 ### 3.2 The room (pure class, fake-clock testable): `backend/src/pawlegends/party/room.ts`
@@ -316,7 +316,7 @@ Sizes are enforced per type **before** decoding. Any other first byte is a strik
 - **Backpressure:** outside catch-up, `ws.bufferedAmount > 256 KB` closes with code 4001 and the client resumes.
 - **Catch-up pacing:** the next 16 KB CATCHUP chunk is sent only when `bufferedAmount < 64 KB`. Catch-up is exempt from the 4001 rule. Each socket gets at most 1 MB of CATCHUP per minute.
 
-### 3.5 Caps (single instance)
+### 3.5 Caps (single serving relay per pool; `LIVE-MATCH-DEPLOYS.md` §4.4)
 
 Identity = account id, else guest key hash, else verified client IP. Caps are keyed on identity first; per-IP caps are loose because of carrier NAT and school Wi-Fi.
 
@@ -356,15 +356,15 @@ Identity = account id, else guest key hash, else verified client IP. Caps are ke
 `party/party.schema.ts` — `PawlegendsParty` (small): `_id` (party id), `code`, `leader`, `members: [{id, accountId|null, guestKeyHash|null, resumeTokenHash, lastHero, lastTrick, slot}]`, `difficulty`, `openSeats`, `locked`, `room?`, `updatedAt`, TTL 3 h.
 
 Rules:
-- **Checkpoint** every 10 s by appending the delta since the last checkpoint: `$push: {chunks}` guarded by `{_id, epoch, lastTurn: <previous>}`. Never `$set` the whole log.
+- **Checkpoint** every 2 s (was 10 s; `LIVE-MATCH-DEPLOYS.md` §5.2) by appending the delta since the last checkpoint: `$push: {chunks}` guarded by `{_id, epoch, lastTurn: <previous>}`. Never `$set` the whole log.
 - **Lease:** a room is owned by one instance. Claim with `findOneAndUpdate({_id, epoch}, {$set: {owner, epoch: epoch+1}})`.
-- **Shutdown:** stop clocks, final checkpoint with `handoff:true`.
-- **Boot restore:** claim `status:'live'` rooms with `handoff:true`, or with `updatedAt` older than 15 s (stale lease), and `updatedAt` under 120 s, and a bundle the relay holds for `{simVersion, simHash}`. Then:
+- **Shutdown:** drain, then stop clocks, final checkpoint with `handoff:true`.
+- **Restore (at boot and every second after, `LIVE-MATCH-DEPLOYS.md` §5.3):** claim `status:'live'` rooms with `handoff:true`, or with `updatedAt` older than 8 s (stale lease), and `updatedAt` under 300 s, and a bundle the relay holds for `{simVersion, simHash}` (after the boot pass: only rooms a relay of the same pool left, or one a player here is waiting for). Then:
   1. restore the party document and its members' resume tokens;
-  2. **restart the turn clock and turn fan-out at once** (the relay only orders commands, so reconnecting humans play immediately);
+  2. **hold the turn clock until the humans seated at the checkpoint are bound again, at most 5 s** (both teams frozen alike), then run it from where the log ended;
   3. re-simulate the concatenated log in the referee, most-progressed rooms first; pilots and hash checks resume once the referee has caught up (slots are piloted until then, reason `restore`);
   4. clients reconnect with resume tokens, catch up (N7) and reclaim.
-- Other live rooms become `abandoned` and their clients get `room_gone`.
+- Live rooms not written for 300 s become `abandoned`; a reconnecting client of such a room gets `room_over` and leaves the match screen.
 - **Store interface:** `RoomStore` with `MongoRoomStore` (production) and `MemoryRoomStore` (tests and the e2e harness).
 
 ---

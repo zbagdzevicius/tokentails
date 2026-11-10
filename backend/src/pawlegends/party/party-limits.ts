@@ -86,10 +86,35 @@ export const PARTY_LIMITS = Object.freeze({
     pausesPerMatch: 2,
     pauseMaxMs: 60_000,
     resumeCountdownMs: 3000,
-    /** §3.6 */
-    checkpointEveryMs: 10_000,
-    staleLeaseMs: 15_000,
-    restoreWithinMs: 120_000,
+    /**
+     * §3.6 and live-match deploys (docs/plans/moba/LIVE-MATCH-DEPLOYS.md §5.2). A crash replays at most one checkpoint
+     * interval; the lease goes stale after `staleLeaseMs` (above the interval plus a slow Mongo write); a room handed off
+     * or left stale stays restorable for `restoreWithinMs` (a VM recreate can pass 120 s).
+     */
+    checkpointEveryMs: 2_000,
+    staleLeaseMs: 8_000,
+    restoreWithinMs: 300_000,
+    /** Every serving relay claims handed-off and stale rooms (and handed-off parties) this often, not only at boot. */
+    restoreEveryMs: 1_000,
+    /** While a pull it asked for is pending, the restore loop runs this often. */
+    restorePullEveryMs: 250,
+    /** A restored room holds its clock until its humans are bound again, at most this long (both teams frozen). */
+    restoreHoldMs: 5_000,
+    /** A `hello` whose room is moving here waits at most this long for the claim before it is told to retry. */
+    pullHoldMs: 3_000,
+    /** A draining relay checks for pull requests on its rooms this often. */
+    pullPollMs: 500,
+    /** Relay generation rows: heartbeat interval, and the age after which a row no longer counts. */
+    relayHeartbeatMs: 5_000,
+    relayStaleMs: 20_000,
+    /**
+     * SIGTERM drain when RELAY_DRAIN_MAX_MS is not set: 90 s fits any platform's default grace (DigitalOcean 120 s)
+     * with 30 s left for the push handoff. DigitalOcean sets 540 000 with a 600 s grace
+     * (infra/digitalocean/live-match-spec.sh); the GCP relay VM sets docker's stop timeout minus 30 s.
+     */
+    drainMaxMs: 90_000,
+    /** `POST /pawlegends/relay/drain {maxMs}` is capped here. */
+    drainEndpointMaxMs: 1_800_000,
 });
 
 /** Turn length (D3): 2 ticks at 30 Hz. */
@@ -106,4 +131,26 @@ export function maxLiveRoomsFrom(env: NodeJS.ProcessEnv = process.env): number {
     if (!raw || !/^\d+$/.test(raw)) return PARTY_LIMITS.maxLiveRooms;
     const n = Number(raw);
     return n >= 1 && n <= 1000 ? n : PARTY_LIMITS.maxLiveRooms;
+}
+
+/**
+ * How long a SIGTERM drain lets live rooms play on before the push handoff: RELAY_DRAIN_MAX_MS (integer ms, 0..1 800 000),
+ * else PARTY_LIMITS.drainMaxMs. It must stay below the platform's SIGTERM-to-SIGKILL grace (DigitalOcean
+ * `termination.grace_period_seconds`, docker `stop -t`) minus the time a push handoff takes.
+ */
+export function drainMaxMsFrom(env: NodeJS.ProcessEnv = process.env): number {
+    const raw = env.RELAY_DRAIN_MAX_MS?.trim();
+    if (!raw || !/^\d+$/.test(raw)) return PARTY_LIMITS.drainMaxMs;
+    return Math.min(Number(raw), PARTY_LIMITS.drainEndpointMaxMs);
+}
+
+/**
+ * The relay pool (LIVE-MATCH-DEPLOYS.md §4.4): RELAY_POOL ([a-z0-9-], up to 32), else `vm` for BACKEND_ROLE=relay (the
+ * GCP relay VM) and `app` for everything else (DigitalOcean, local dev). Only a newer relay of the same pool drains this
+ * one, so the GCP relay coming up in the shadow phase never drains the DigitalOcean relay that serves players.
+ */
+export function relayPoolFrom(role?: string, env: NodeJS.ProcessEnv = process.env): string {
+    const raw = env.RELAY_POOL?.trim().toLowerCase();
+    if (raw && /^[a-z0-9-]{1,32}$/.test(raw)) return raw;
+    return role === 'relay' ? 'vm' : 'app';
 }

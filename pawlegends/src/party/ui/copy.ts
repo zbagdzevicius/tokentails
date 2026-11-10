@@ -127,6 +127,7 @@ export const COPY = Object.freeze({
   backfillKeep: 'Keep searching',
   seatTaken: 'Your seat was taken',
   seatTakenNote: 'Another player took your seat after you left',
+  roomOver: 'The match ended while you were away',
   playAgainOnline: 'Play again',
   backToParty: 'Back to party',
   coopLeave: 'Leaving early adds a short wait before your next online match. Another player or a bot takes your place.',
@@ -189,6 +190,8 @@ export function errorText(code: string, retryS = 0): string {
       return COPY.badCode;
     case 'seat_taken':
       return COPY.seatTaken;
+    case 'room_over':
+      return COPY.roomOver;
     case 'mm_locked':
       return COPY.stoppedLocked(Math.max(1, retryS));
     case 'pvp_update_required':

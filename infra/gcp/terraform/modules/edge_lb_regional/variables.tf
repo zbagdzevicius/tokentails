@@ -78,16 +78,17 @@ variable "relay_timeout_sec" {
 
 variable "relay_draining_sec" {
   description = <<-EOT
-    Connection draining on the relay backend. GCP waits this long before it deletes or recreates a MIG VM that serves a
-    backend, which with one relay only delays the replacement past the relay's 120 s restore window (every handed-off
-    match lost). The relay hands its rooms off on SIGTERM instead, so no draining.
+    Connection draining on the relay backend: how long GCP keeps existing connections to a MIG VM it is about to delete
+    or recreate. A relay deploy never removes the VM (blue/green inside it, LIVE-MATCH-DEPLOYS.md §8.2), and
+    scripts/replace-relay.sh drains the relay itself before a replacement, so no LB draining is needed. Up to 300 s (the
+    relay's restore window) is allowed.
   EOT
   type        = number
   default     = 0
 
   validation {
-    condition     = var.relay_draining_sec >= 0 && var.relay_draining_sec <= 30
-    error_message = "Keep relay draining at 30 s or less: a VM replacement must finish inside the 120 s restore window."
+    condition     = var.relay_draining_sec >= 0 && var.relay_draining_sec <= 300
+    error_message = "Keep relay draining at 300 s or less: a VM replacement must finish inside the 300 s restore window."
   }
 }
 

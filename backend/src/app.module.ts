@@ -194,6 +194,7 @@ import { ClubService } from './club/club.service';
 import { ClubWebhookService } from './club/club-webhook.service';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
+import { RelayDrainController } from './shared/runtime/relay-drain.controller';
 
 const JwtModules = [
     PassportModule,
@@ -298,6 +299,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
     ],
     controllers: [
         HealthController,
+        RelayDrainController,
         AppController,
         UserController,
         StarterController,

@@ -3,9 +3,10 @@
 # MIG's all-instances metadata and SSH (IAP, OS Login) into tt-relay VMs.
 # 1. ask the VM which image the running container was started from (deploy.sh current)
 # 2. skip unless relay code changed since that image (RELAY_MODE=if-changed) or RELAY_MODE=yes
-# 3. over IAP SSH: /var/lib/tt-relay/deploy.sh IMAGE = pre-pull, drain (if the relay offers it, 30 min cap),
-#    systemctl restart on IMAGE (docker stop -t 60: SIGTERM -> room handoff; the new container restores the rooms),
-#    wait for ready; if not ready it starts the previous image again and fails
+# 3. over IAP SSH: /var/lib/tt-relay/deploy.sh IMAGE = blue/green inside the VM (LIVE-MATCH-DEPLOYS.md §8.2): start
+#    IMAGE in the idle slot next to the serving one, wait for its /readyz (not ready: stop it and fail; the serving
+#    slot was never touched), then drain the old slot (live matches end there or move in about a second; the rest is
+#    handed off at the 30 min cap) and stop it. A VM still on the single-unit template hands off once instead.
 # 4. only then commit IMAGE to the MIG's all-instances metadata, so an autoheal or a new VM starts the verified image
 # 5. check the relay route through Cloudflare and the LB and print a latency sample
 # A pending instance template (cloud-init or machine type changed) is not rolled out here: scripts/replace-relay.sh.

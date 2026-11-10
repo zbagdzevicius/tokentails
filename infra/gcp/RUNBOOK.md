@@ -30,9 +30,10 @@ players, browsers, apps
 ```
 
 Why the relay is a VM and not Cloud Run: no 60-minute socket cap (a party can last 3 h), no 1,000-socket cap, no 10 s
-SIGTERM limit, and a stop-then-start order, so the relay's existing handoff (SIGTERM checkpoints rooms to Mongo) and
-`restore()` at boot work unchanged. On Cloud Run the new revision boots before the old one hands off, so `restore()`
-would find nothing. One VM owns every party, so there is no session affinity to get wrong.
+SIGTERM limit (no room to drain), and no revision swap that shuts instances down whatever sockets they hold. One VM owns
+every party, so there is no session affinity to get wrong. Relay deploys are blue/green inside that VM: two processes
+share the relay port (`SO_REUSEPORT`), the new one becomes ready, the old one drains and its live matches end there or
+move to the new process in about a second (`docs/plans/moba/LIVE-MATCH-DEPLOYS.md`).
 
 Client IP: Cloudflare sets `cf-connecting-ip`. The relay's peer is the ALB proxy-only subnet (10.129.0.0/23), a hop
 `backend/src/shared/trust-proxy.ts` trusts, so the relay's `clientIp()` reads the header. **The API is different**: the
@@ -89,7 +90,7 @@ in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a 
 | `scripts/preflight.sh` | Every offline check below in one command |
 | `scripts/deploy-run.sh`, `scripts/deploy-relay.sh` | Called by `.github/workflows/deploy-gcp.yml` |
 | `scripts/staging-secrets.sh` | Throwaway secret values for `tokentails-staging` only (openssl rand, a fresh RSA key; never a production value) |
-| `scripts/replace-relay.sh` | Rolls a changed relay instance template out in a quiet hour (waits for 0 live rooms) |
+| `scripts/replace-relay.sh` | Rolls a changed relay instance template out: drains the relay (no new matches, live ones end, the rest hand off at 30 min), then replaces the VM |
 | `scripts/cutover-relay.sh` | Step 6.3: hands DigitalOcean's live matches to the Google relay while you archive DigitalOcean |
 | `../../backend/Dockerfile`, `../../client/Dockerfile`, `../../cms/Dockerfile` | Images (multi-stage, non-root, tini, `PORT`) |
 
@@ -114,13 +115,15 @@ What the runs assert (all passing on 2026-11-07):
   `gleaming-medium-480114-g6` are refused; `gleaming-medium-480114-g5` and `tokentails-staging` are accepted;
   `envs/staging` refuses the production project, an operator range of `0.0.0.0/0` and real (non-`.test`) hostnames.
 - **Relay**: MIG size ≥ 1, never two at once (`max_surge 0`), `MIGRATE` on host maintenance, no external IP, Shielded
-  VM, autoheal delay ≥ 120 s, `NODE_ENV=production` + `BACKEND_ROLE=relay`, systemd unit with `docker stop -t 60`, no
+  VM, autoheal delay ≥ 120 s, `NODE_ENV=production` + `BACKEND_ROLE=relay`, systemd template unit `tt-relay@a|b`
+  with `docker stop -t 90` and `RELAY_DRAIN_MAX_MS=60000` (the SIGTERM drain ends 30 s before SIGKILL), blue/green
+  `deploy.sh` (the new slot is ready before the old one drains), LB check `/readyz`, autoheal check `/healthz`, no
   konlet; `OPPORTUNISTIC` updates (a template change never replaces the VM by itself); env and secret pins in project
-  metadata, not in the template; the VM runs the image `deploy.sh` verified.
+  metadata, not in the template; each slot runs the image `deploy.sh` wrote for it.
 - **API**: ingress internal-and-cloud-load-balancing, default URL disabled, min instances ≥ 1, CPU always allocated
   (no throttling), `NODE_ENV=production`, all egress through NAT; web and CMS also LB-only.
 - **Edge**: relay backend `HTTP` (HTTP/1.1), timeout 86,400 s (≥ 3,600), no session affinity, no connection draining
-  (≤ 30 s: a VM recreate must fit the 120 s restore window);
+  (≤ 30 s: the relay drains itself);
   `/pawlegends/ws` exact and `/pawlegends/ws/` prefix go to the relay first; Cloud Armor on all 7 backends, default
   rule `deny(403)`, ≤ 10 ranges per rule, every Cloudflare v4 and v6 range admitted once, a per-IP throttle on
   `/pawlegends/ws`; the ranges match `backend/src/shared/cloudflare-ips.ts`.
@@ -219,7 +222,8 @@ terraform output smoke                                     # curl / ws-latency c
 Checks (each command is in `terraform output smoke`): `/healthz` and `/readyz` on tt-api through :80 and :443 (`-k`),
 the relay through `/pawlegends/ws` (`ws-latency.mjs --connect <lb_ip> --insecure`), web and CMS answer, a request
 from another address gets 403 from Cloud Armor, `gcloud run jobs execute tt-migrate --region europe-west3 --project
-$P --wait` runs against the staging Mongo, and `systemctl restart tt-relay` over IAP SSH hands rooms off.
+$P --wait` runs against the staging Mongo, and a relay deploy (`deploy.sh IMAGE` over IAP SSH) moves a live match to
+the new slot without the players noticing.
 
 What the first real staging run (2026-11-07, all four steps) showed; each one applies to production too:
 
@@ -377,8 +381,8 @@ verifying process started is refused instead. Relay secret values must be one li
 Rotation: add a new version, change the pinned version in `terraform.tfvars`, apply. tt-api: the apply creates a new
 revision, which serves as soon as it is ready (traffic is on LATEST; `deploy-run.sh` leaves it there). Relay: the pins
 live in project metadata (`tt-relay-secrets`, `tt-relay-env`), read at every container start, so after the apply run
-`sudo systemctl restart tt-relay` on the VM in a quiet hour (handoff and restore) or let the next relay deploy pick it
-up. Disable the old version only after both serve. Secret reads are in the Data Access audit log.
+`RELAY_MODE=yes` relay deploy of the running image (blue/green: a new slot starts with the new env, the old one drains;
+no player notices) or let the next relay deploy pick it up. Disable the old version only after both serve. Secret reads are in the Data Access audit log.
 
 Plain (non-secret) env that DigitalOcean sets and Cloud Run must also get, if any is set there today: copy it into the
 `env` map of `module "api"` in `envs/prod/main.tf`. Terraform already sets `NODE_ENV=production`, `BACKEND_ROLE=api`,
@@ -403,7 +407,7 @@ Plain (non-secret) env that DigitalOcean sets and Cloud Run must also get, if an
 
 At Cloudflare add **proxied** (orange) A records for `gcp-api`, `gcp` and `gcp-cats` → `terraform output lb_ip`. Add
 `https://gcp.tokentails.com` to the `FRONT_END_URLS` secret (new version, pin it in `api_secret_versions`, apply; the
-relay follows that pin, so also `sudo systemctl restart tt-relay`, else its Origin check refuses the shadow web's
+relay follows that pin, so also run a relay deploy (`relay=yes`), else its Origin check refuses the shadow web's
 WebSocket), to Firebase Auth authorized domains and to the App Check site's allowed domains. Then:
 
 ```bash
@@ -444,12 +448,14 @@ Then, in order:
    infra/gcp/scripts/replace-relay.sh`, which waits until no room is live and replaces the VM. Re-run the load test
    after it: until the replacement the relay is still on 2 cores.
 3. **Per-IP test from 2 networks**: open a party from Wi-Fi and join from mobile data; the relay log
-   (`gcloud compute ssh` + `docker logs tt-relay`, or Logs Explorer) must show two distinct `ipKey`s. One `ipKey` for
+   (`gcloud compute ssh` + `docker logs tt-relay-a` (or `-b`, see `/var/lib/tt-relay/active`), or Logs Explorer) must show two distinct `ipKey`s. One `ipKey` for
    both means the client IP is not reaching the relay: stop and check `TrustProxy` log lines.
-4. **Relay restart drill**: start a guest match, then run the relay deploy (`deploy-gcp.yml` with `targets=relay-only`,
-   `relay=yes`) or on the VM `sudo systemctl restart tt-relay`. Clients must get `room_gone`, reconnect in 3–15 s and
-   continue the same match (`restored` in the log). Only with DigitalOcean auto-deploy off (step 2). Do it once with a
-   **signed-in** player too: a ticketed player currently loses their seat on a relay restart (Known gaps).
+4. **Relay deploy and crash drills** (LIVE-MATCH-DEPLOYS.md §10): start a guest match and a signed-in one, then run the
+   relay deploy (`deploy-gcp.yml` with `targets=relay-only`, `relay=yes`). The matches must continue with no toast
+   (log: `relay_drain_start`, then `mp_match_end` on the old slot, or `relay_handoff {reason: pull}` and
+   `relay_restore` on the new one). Then the crash drill: `sudo docker kill tt-relay-<active>` mid-match; systemd
+   restarts the slot, players see "Reconnecting…" for a few seconds and continue from the last checkpoint (at most
+   2 s replayed; measure `restore_gap_ms_p99` in `relay_stats`).
 5. **65-minute soak**: keep one party socket open in a lobby for 65 minutes through Cloudflare (proves no 60-minute
    cap anywhere on the path): `node infra/gcp/tools/ws-latency.mjs https://gcp-api.tokentails.com --n 2 --pings 800 --gap 5000`
    (about 67 min), with zero errors.
@@ -472,10 +478,10 @@ the DNS flip.
    PROJECT_ID=gleaming-medium-480114-g5 REGION=europe-west3 DO_APP_URL=https://<app>.ondigitalocean.app \
      infra/gcp/scripts/cutover-relay.sh
    ```
-   It pauses autohealing, stops `tt-relay` (the Google relay must not answer reconnects before it has adopted the
-   rooms: it would hand players new resume tokens and their old seats would be lost), waits while you archive the app
-   (every DigitalOcean instance gets SIGTERM and hands off), then starts `tt-relay`, whose `restore()` adopts every
-   handed-off room within the 120 s window, and restores autohealing. Players see one disconnect of 1–2 minutes.
+   It pauses autohealing, stops the serving relay slot, waits while you archive the app (DigitalOcean gets SIGTERM,
+   drains and hands off), then starts the slot again, whose first restore pass adopts every handed-off room within the
+   300 s window, and restores autohealing. Players see one disconnect of 1–2 minutes. (Since live-match deploys a
+   running relay also pulls a reconnecting player's room across pools, so stopping it is belt and braces.)
    Archiving matters beyond the relay: DigitalOcean runs role `all`, so as long as it runs it also runs the 26 leased
    crons, including the hot-wallet signers, on frozen code, racing tt-api for every lease, and its relay keeps
    parties that players can no longer reach after a reconnect. Verify the archive option in the console before the
@@ -520,15 +526,20 @@ After step 9, remove `0.0.0.0/0` and the DigitalOcean entries from the Atlas acc
   (rotated secret, env, sizing) serves as soon as it is ready.
   A failed canary leaves traffic untouched. Rollback exists (`gcloud run services update-traffic tt-api
   --to-revisions <old>=100`), but the house rule is fix forward.
-- Relay (`scripts/deploy-relay.sh`), only when relay files changed since the image the running container reports or
-  with `relay=yes`, in a quiet hour: over IAP SSH run `/var/lib/tt-relay/deploy.sh IMAGE`: pre-pull,
-  `POST /pawlegends/relay/drain` and wait up to 30 min for live rooms to reach 0 **if the relay offers that endpoint**
-  (the netcode workflow may add it; until then it is skipped), then restart on IMAGE (`docker stop -t 60`: SIGTERM →
-  handoff and checkpoint; the new container restores the rooms; clients resume in about 3–15 s) and wait for
-  `/readyz`. If it is not ready in 120 s, deploy.sh starts the previous image again and the job fails. Only after
-  success is IMAGE committed to the MIG metadata, which a new or autohealed VM starts; a crash restart keeps the
-  verified image (`/var/lib/tt-relay/image`). A re-run after a failure deploys again (the check reads the container,
-  not the metadata). API deploys never touch live matches.
+- Relay (`scripts/deploy-relay.sh`), only when relay files changed since the image the serving slot reports or with
+  `relay=yes`, at any hour (`docs/plans/moba/LIVE-MATCH-DEPLOYS.md` §8.2): over IAP SSH run
+  `/var/lib/tt-relay/deploy.sh IMAGE`: pre-pull, start IMAGE in the idle slot (`tt-relay@a` or `@b`) next to the serving
+  one on the same port, wait up to 120 s for its `/readyz` on its loopback control port (9101 or 9102). Not ready: the
+  idle slot is stopped and the job fails; the serving slot was never touched (zero player impact). Ready: it becomes
+  the active slot, the old slot gets `POST /pawlegends/relay/drain {maxMs: 1800000}` (its listener closes, so every
+  new connection reaches the new process; no new match starts on it; live matches play to their end there, or move to
+  the new process within about a second when a player's socket reconnects; whatever runs at 30 min is handed off and
+  claimed by the new process within a second), deploy.sh waits for 0 live rooms and stops it. Only after success is
+  IMAGE committed to the MIG metadata, which a new or autohealed VM starts; a crash restart keeps the verified image
+  (`/var/lib/tt-relay/image-<slot>`). A re-run after a failure deploys again (the check reads the container, not the
+  metadata). The first deploy on a VM still on the single-unit template hands rooms off once (stop, then start);
+  after `scripts/replace-relay.sh` rolled the blue/green template out, deploys are invisible. API deploys never touch
+  live matches.
 - Migrations: `gcloud run jobs execute tt-migrate --region europe-west3 --project gleaming-medium-480114-g5 --wait` (runs `npx
   migrate-mongo up` in the backend image currently set on the job; update the job image first with `gcloud run jobs
   update tt-migrate --image ...`).
@@ -552,13 +563,13 @@ After step 9, remove `0.0.0.0/0` and the DigitalOcean entries from the Atlas acc
   latency SLO (95 % under 1.5 s, 28 days) burning > 10× over 1 h; tt-api at max instances; NAT allocation failures;
   Cloud Armor denials spike; uptime failures; leased cron failures.
 - **Relay VM by hand**: `gcloud compute ssh $(gcloud compute instance-groups managed list-instances tt-relay
-  --region europe-west3 --format='value(name)') --tunnel-through-iap`, then `curl -s localhost:8080/healthz`,
-  `sudo journalctl -u tt-relay -f`, `docker logs -f tt-relay`.
+  --region europe-west3 --format='value(name)') --tunnel-through-iap`, then `cat /var/lib/tt-relay/active` (a or b),
+  `curl -s localhost:9101/healthz` (slot a; 9102 for b), `sudo journalctl -u tt-relay@a -f`, `docker logs -f tt-relay-a`.
 - **Scaling the relay**: `relay_machine_type = "t2d-standard-4"` (4 cores: 3 referee workers), apply, then
-  `scripts/replace-relay.sh` in a quiet hour (it waits for 0 live rooms), and raise `MAX_LIVE_ROOMS` after a new load
-  run.
-- **Relay env or secret pins**: change them in Terraform and apply (project metadata), then `sudo systemctl restart
-  tt-relay` on the VM or the next relay deploy. No VM replacement. More regions (us-east4, asia-southeast1) are a `relay_vm` module instance
+  `scripts/replace-relay.sh` (it drains the relay first; new PvP matches wait for the few minutes the new VM takes to
+  boot, live ones are not lost), and raise `MAX_LIVE_ROOMS` after a new load run.
+- **Relay env or secret pins**: change them in Terraform and apply (project metadata), then a relay deploy
+  (`relay=yes`, blue/green: no player notices). No VM replacement. More regions (us-east4, asia-southeast1) are a `relay_vm` module instance
   per region behind its own regional ALB, after the netcode workflow ships region-prefixed party codes.
 - **Phase 2** (separate changes): move the signer crons (treat reconcile, shelter-share keeper, paw settlement) into a
   min=max=1 service or job with its own `sa-signer`, so the public API holds no hot-wallet key; Private Service
@@ -599,7 +610,7 @@ Each is a variable or a step above; the default is what the code does unless you
 | Budget and CUDs | $400/month alert at 50/90/100 % actual and 100 % forecast, no automatic shutdown; no committed-use discount until 2 months of steady usage | `budget_amount` |
 | Keys the code reads but DigitalOcean never set | Carry the 21 DigitalOcean keys 1:1; empty containers for the rest; the founder decides one by one; AI never generates values | `do_secret_keys`, `extra_secret_keys` |
 | Hot-wallet signing crons in their own service now? | No: they stay in tt-api, leased, for the cutover; split into a signer service with its own account in phase 2 | phase 2 |
-| Relay deploy policy | Only when relay code changes or on manual dispatch, in a quiet hour; drain up to 30 min when the relay offers it, then restart; handoff and resume cover the rest | `deploy-gcp.yml` input `relay` |
+| Relay deploy policy | Only when relay code changes or on manual dispatch, any hour: blue/green in the VM, the old slot drains up to 30 min, the rest moves to the new slot (LIVE-MATCH-DEPLOYS.md) | `deploy-gcp.yml` input `relay` |
 | Relay machine | t2d-standard-2; t2d-standard-4 if the load run calls for it | `relay_machine_type` |
 | `MAX_LIVE_ROOMS` | 100 on t2d-standard-2: 70 % of the 150 rooms that held budget in the staging load run (`STAGING-PROOF.md`; e2-standard-2 was at budget with 60). The code default (60) stays for DigitalOcean | `max_live_rooms` -> `PARTY_MAX_LIVE_ROOMS` |
 | CI apply | Off: the founder applies locally | `ci_apply_enabled = false` |
@@ -617,28 +628,26 @@ Each is a variable or a step above; the default is what the code does unless you
 - `client/next.config.js` and `cms/next.config.ts` build `output: "standalone"` for the web images only. Vercel sets
   `VERCEL=1` at build time and keeps Next's default output, so its production build is unchanged by this branch.
 - `mp/load.mjs` lives in `pawlegends/` (owned by the netcode workflow); `tools/ws-origin-shim.mjs` adapts it from the
-  outside instead of editing it. The drain endpoint `POST /pawlegends/relay/drain` is optional and not in the backend
-  yet; `deploy.sh` skips the drain until it exists.
+  outside instead of editing it. The drain endpoint `POST /pawlegends/relay/drain` exists since live-match deploys
+  (2026-11-10, loopback callers only); `deploy.sh` still copes with an image without it (handoff on stop).
 - Fixed on the way (2026-11-07): the relay's SIGTERM handoff ran in `onApplicationShutdown`, after Nest's
   `server.close()`, which waits for every open WebSocket, so with players connected nothing closed and `docker stop`
   would SIGKILL at 60 s without the handoff checkpoint (the same on DigitalOcean). It now runs in
   `beforeApplicationShutdown`, while Mongo is still connected. Rooms in a live match (`room_gone` + checkpoint) are not
-  exercised locally; check one handoff on the VM (`systemctl restart tt-relay` mid-match, step 5).
+  exercised across processes since live-match deploys (`live-deploy.e2e.spec.ts`); check one on the VM (step 5).
 - Also fixed: `/healthz` and `/readyz` were behind the app's global throttler (a burst of probes from one IP got 429,
   which a health check reads as unhealthy); the health controller now skips it.
-- **Ticketed players lose their seat on a relay restart** (deploy, autoheal, cutover): `pawlegends/src/net/socket.ts`
-  re-sends the original single-use ticket on every reconnect, the restarted relay refuses it (`bad_ticket`), the
-  identity drops to a guest key and `findResume` refuses the account-bound resume token. Guests resume fine. Fix in
-  the client (fetch a fresh ticket per reconnect) or the relay (accept the resume token alone), owned by the netcode
-  workflow. Until then relay restarts cost signed-in players their match: keep them to quiet hours.
-- **VM recreate vs the 120 s restore window**: an autoheal (60 s of failed checks first), a host failure or a
-  replacement boots a fresh COS VM, runs cloud-init and pulls the image uncached before `restore()` runs. That may
-  exceed `PARTY_LIMITS.restoreWithinMs` (120 s), and then the matches are lost. Draining is 0 so nothing adds to it;
-  measure the first real replacement (step 5) and, if it is over, ask the netcode workflow to raise the window.
-  `replace-relay.sh` avoids the question by replacing only with no live room.
-- **Stale-lease takeover**: a relay that boots while another instance's checkpoint is more than 15 s late
-  (`staleLeaseMs`) claims that room. The epoch fences the old owner's writes, but its players lose the match. Rare
-  (checkpoints every 10 s); a reason to keep DigitalOcean deploys and relay starts apart until step 6.
+- Fixed (live-match deploys, 2026-11-10): signed-in players keep their seat across a relay move or restart. The client
+  re-sends its spent ticket with the resume token; the relay accepts that pair when the token belongs to the ticket's
+  account (`resumedTicket`), so the account survives (`relay-drain.spec.ts`, "a signed-in player keeps the account").
+- **VM recreate vs the restore window**: an autoheal (60 s of failed checks first), a host failure or a replacement
+  boots a fresh COS VM, runs cloud-init and pulls the image uncached before the restore loop runs. The window is now
+  300 s (`PARTY_LIMITS.restoreWithinMs`, was 120 s); measure the first real replacement (step 5). `replace-relay.sh`
+  drains first, so a planned replacement hands nothing off unless a match outlives the 30 min drain.
+- **Crash takeover**: a relay that dies without SIGTERM (OOM, SIGKILL, host failure) leaves its rooms with a lease that
+  goes stale after 8 s (`staleLeaseMs`); any serving relay claims them within a second after that, and the players
+  resume from the last checkpoint (every 2 s): at most 2 s of play is replayed differently. Covered by
+  `live-deploy.e2e.spec.ts` (a real SIGKILL across processes).
 - Fixed in this branch (2026-11-07 review): party tickets minted on tt-api never verified on the relay VM (boot-id
   binding; also failed about half the time on DigitalOcean's 2 instances); every relay boot marked all other live rooms
   in the shared database abandoned (`abandonLive` had no owner filter; also hit DigitalOcean's second instance); the

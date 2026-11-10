@@ -8,6 +8,7 @@ import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { MongoRoomStore, PAWLEGENDS_PARTY_SCHEMAS } from './pawlegends/party/room-store';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
+import { RelayDrainController } from './shared/runtime/relay-drain.controller';
 import { RelayProbeController } from './shared/runtime/relay-probe.controller';
 import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
 
@@ -17,7 +18,8 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
  *   MmService (Quick Play mm room records and the rating reader; it writes no rating, /live on the API does).
  * - No ScheduleModule, so no cron runs here; no Stripe, hot-wallet, Firebase or AI provider is built, so the relay VM
  *   holds none of those secrets.
- * - HTTP surface: `/healthz`, `/readyz`, `/pawlegends/ws/healthz` (routing probe) and the `/pawlegends/ws` upgrade.
+ * - HTTP surface: `/healthz`, `/readyz`, `/pawlegends/ws/healthz` (routing probe), `POST /pawlegends/relay/drain`
+ *   (loopback only, LIVE-MATCH-DEPLOYS.md §4.2) and the `/pawlegends/ws` upgrade.
  *   Party tickets are minted by the API role (`POST /pawlegends/party/ticket`) with the same
  *   PAWLEGENDS_PARTY_TICKET_SECRET.
  * - RelayStatsReporter logs the relay counters once a minute for the log-based metrics.
@@ -34,7 +36,7 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
             ...PAWLEGENDS_MM_SCHEMAS,
         ]),
     ],
-    controllers: [HealthController, RelayProbeController],
+    controllers: [HealthController, RelayProbeController, RelayDrainController],
     providers: [
         { provide: BACKEND_ROLE, useValue: 'relay' },
         CatRepository,

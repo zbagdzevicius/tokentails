@@ -1,6 +1,7 @@
 import { INestApplication } from '@nestjs/common';
 import { CorsOptions } from '@nestjs/common/interfaces/external/cors-options.interface';
 import { NestFactory } from '@nestjs/core';
+import { createServer, type Server } from 'http';
 import * as dotenv from 'dotenv';
 import { corsOrigins } from './shared/cors-origins';
 import { loadDevShelterKey } from './shelter/onchain/shelter-dev-key';
@@ -61,7 +62,26 @@ async function bootstrap() {
     // SIGTERM runs the shutdown hooks: the party relay hands its rooms off (MULTIPLAYER.md section 3.6) before Nest
     // closes the HTTP server, so open sockets get 1012 and the handoff checkpoint reaches Mongo.
     app.enableShutdownHooks();
-    await app.listen(process.env.PORT || 3005);
-    // await app.listen(process.env.PORT || 3005, '0.0.0.0');
+    await app.init();
+    // Live-match deploys (docs/plans/moba/LIVE-MATCH-DEPLOYS.md §8.2): on Linux the port is opened with SO_REUSEPORT,
+    // so the relay VM can start the new slot next to the draining one on the same port (Node 22.12+; older Node and
+    // other platforms ignore it). Nothing else changes: one process per port everywhere else.
+    const server = app.getHttpServer() as Server;
+    await new Promise<void>((resolve, reject) => {
+        server.once('error', reject);
+        server.listen(
+            { port: Number(process.env.PORT || 3005), ...(process.platform === 'linux' ? { reusePort: true } : {}) },
+            () => {
+                server.off('error', reject);
+                resolve();
+            }
+        );
+    });
+    // The relay VM's per-slot control port (RELAY_CONTROL_PORT): /healthz, /readyz and POST /pawlegends/relay/drain of
+    // this one process, on loopback, while two slots share the public port.
+    const control = Number(process.env.RELAY_CONTROL_PORT || 0);
+    if (Number.isInteger(control) && control > 0 && control < 65536) {
+        createServer(app.getHttpAdapter().getInstance()).listen(control, '127.0.0.1').unref();
+    }
 }
 bootstrap();
