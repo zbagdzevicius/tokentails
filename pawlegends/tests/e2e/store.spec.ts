@@ -30,7 +30,7 @@ test('Meet card → open-cat → the new cat joins the squad', async ({ context,
   await expect(card).toBeVisible();
   await expect(card).toContainText('Meet Pumpkin');
   await expect(card).not.toContainText(/\$|€|price|shelter|pack/i);
-  await expect(game.locator('[data-a="store"]')).toHaveCount(0); // the pl_* store is retired
+  await expect(game.locator('.lb-rail [data-a="store"]')).toHaveCount(1); // STORE-PASS.md: the cosmetics store is back on the web
   await expect.poll(async () => (await received(page)).filter((m) => m.type === 'offer-seen').length).toBe(1);
   await card.locator('[data-a="meet"]').click();
   await expect.poll(async () => (await received(page)).some((m) => m.type === 'open-cat' && m.catalogId === PUMPKIN)).toBe(true);

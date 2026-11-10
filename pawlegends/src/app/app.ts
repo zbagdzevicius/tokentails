@@ -29,7 +29,7 @@ import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
 import { isSku, type SkuId } from '../money/skus';
-import { catalogSku, type CatalogSku } from '../money/catalog';
+import { CATALOG_SKUS, catalogSku, type CatalogSku } from '../money/catalog';
 import { ELEMENT_COLOR, PAID_COATS, bestFrame, cardLook, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
@@ -1838,6 +1838,10 @@ export const PREVIEW_MS = 8000;
 
 /** The SKU an item came from (analytics only). */
 function skuOfItem(item: string): string {
+  // STORE-PASS.md: a store coat names its single SKU; a pass coat its season pass
+  const store = CATALOG_SKUS.find((d) => d.kind === 'cosmetic' && d.items.includes(item));
+  if (store) return store.sku;
+  if (item.includes('.s1_')) return 'pl_pass_s1';
   if (item === 'skin.clem.pink_bow') return 'pl_starter';
   if (item === 'skin.clem.dawnblade') return 'pl_founder_legend';
   return 'pl_founder';
