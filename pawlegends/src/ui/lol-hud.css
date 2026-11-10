@@ -390,6 +390,9 @@ html:not([data-touch='1']) .pl-fish { bottom: calc(100% + 6px); right: 10px; poi
 html[data-touch='1'] .pl-match > .pl-fish {
   left: calc(14px + var(--safe-l, 0px)); top: calc(8px + var(--safe-t, 0px) + var(--mm-h) - 14px); padding: 2px 6px 2px 2px; gap: 4px; z-index: 5;
 }
+/* minimap size S (82 %): the rim is too short for the chip beside the ping paw (the paw covered its pips), so the chip
+   sits just under the minimap, right of the emote column and below the paw */
+html[data-touch='1'][data-mm-size='s'] .pl-match > .pl-fish { left: calc(52px + var(--safe-l, 0px)); top: calc(10px + var(--safe-t, 0px) + var(--mm-h)); }
 html[data-touch='1'] .pl-fish .ring { width: 22px; height: 22px; }
 html[data-touch='1'] .pl-fish .ring svg { width: 13px; height: 13px; }
 html[data-touch='1'] .pl-fish .n { font-size: 11px; }
