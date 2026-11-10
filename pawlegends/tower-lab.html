@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="noindex" />
+    <title>Pawlegends tower lab</title>
+    <style>
+      :root { --bg: #2b1d2e; --cream: #fff3dc; }
+      html, body { margin: 0; background: var(--bg); color: var(--cream); font-family: system-ui, sans-serif; }
+      #app { position: relative; overflow: hidden; }
+      #bar { display: flex; flex-wrap: wrap; gap: 4px; padding: 8px; }
+      #bar button { font: 12px system-ui; }
+      #stats { font: 12px ui-monospace, monospace; white-space: pre; padding: 0 8px; }
+    </style>
+    <!-- dev only (npm run dev → /tower-lab.html?band=2&side=cat): never part of build or build:client (V21-FUN §4) -->
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="bar"></div>
+    <div id="stats"></div>
+    <script type="module" src="./src/gallery/towerLab.ts"></script>
+  </body>
+</html>
