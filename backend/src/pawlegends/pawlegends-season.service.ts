@@ -115,8 +115,10 @@ export async function premiumOf(models: Pick<Models, 'purchases'>, accountId: st
 }
 
 /**
- * Sets the season row's premium and skips from the paid purchases. A downgrade to 'none' revokes the premium rewards
- * claimed under it and clears their claims (buying again lets them be claimed again).
+ * Sets the season row's premium and skips from the paid purchases. A downgrade revokes the rewards it no longer
+ * covers and clears their claims (buying again lets them be claimed again): every premium reward when the premium is
+ * 'none', and every reward (free and premium row) above the tier the XP and the remaining skips reach, so a refunded
+ * Pass+ or upgrade takes back what only its 15 skips unlocked.
  */
 export async function syncPremium(
     models: Models,
@@ -126,15 +128,29 @@ export async function syncPremium(
 ): Promise<PawlegendsPremium> {
     const premium = await premiumOf(models, accountId);
     const row = await ensureSeason(models, accountId, seasonId);
-    const update: Record<string, unknown> = { premium, skips: premium === 'plus' ? SEASON_PLUS_SKIPS : 0 };
+    const skips = premium === 'plus' ? SEASON_PLUS_SKIPS : 0;
+    const def = seasonDef(seasonId);
+    const tier = def ? seasonTier(def, Number(row?.xp) || 0, skips) : Number.POSITIVE_INFINITY;
+    const claimed: string[] = Array.isArray(row?.claimed) ? row.claimed.map(String) : [];
+    const drop = claimed.filter(c => (premium === 'none' && c.startsWith('p:')) || Number(c.split(':')[1]) > tier);
+    const _id = seasonDocId(accountId, seasonId);
+    await models.seasons.updateOne(
+        { _id },
+        { $set: { premium, skips }, ...(drop.length ? { $pull: { claimed: { $in: drop } } } : {}) }
+    );
+    if (drop.length) {
+        await models.owned.updateMany(
+            { accountId, claim: { $in: drop.map(c => `${seasonId}:${c}`) }, revokedAt: { $exists: false } },
+            { $set: { revokedAt: now } }
+        );
+    }
     if (premium === 'none') {
-        update.claimed = (Array.isArray(row?.claimed) ? row.claimed : []).filter((c: string) => !c.startsWith('p:'));
+        // Also premium rewards whose claim was granted but not recorded (a crash between the two writes).
         await models.owned.updateMany(
             { accountId, claim: { $regex: `^${seasonId}:p:` }, revokedAt: { $exists: false } },
             { $set: { revokedAt: now } }
         );
     }
-    await models.seasons.updateOne({ _id: seasonDocId(accountId, seasonId) }, { $set: update });
     return premium;
 }
 
@@ -162,6 +178,48 @@ export interface SeasonXpMatch {
     takedowns: number;
     /** A party match over the daily cap counts as a match and pays no XP. */
     capped?: boolean;
+    /**
+     * Solo saves (the client picks the seed and can re-sim offline): the match's length in real time, in ms. XP is
+     * paid at most SOLO_DAILY_XP_MATCHES times a UTC day, and only when at least SOLO_REAL_TIME_SHARE of this length
+     * passed since the last paid solo match, so replays made faster than real play pay nothing.
+     */
+    soloMs?: number;
+}
+
+/** Solo matches that pay Season XP per UTC day (the party writer's PARTY_DAILY_CAP is the same number). */
+export const SOLO_DAILY_XP_MATCHES = 30;
+/** Share of a solo match's length that must have passed since the last paid solo match. */
+export const SOLO_REAL_TIME_SHARE = 0.8;
+
+/**
+ * The atomic solo gate: one paid match more today (the counter resets on a new UTC day) and a real-time gap since the
+ * last paid one (`xpAt`). False when either fails, or when a concurrent save took it.
+ */
+async function claimSoloSlot(
+    models: Pick<Models, 'seasons'>,
+    _id: string,
+    soloMs: number,
+    now: Date
+): Promise<boolean> {
+    const day = utcDay(now);
+    const cutoff = new Date(now.getTime() - Math.max(0, soloMs) * SOLO_REAL_TIME_SHARE);
+    const gap = { $or: [{ xpAt: { $exists: false } }, { xpAt: { $lte: cutoff } }] };
+    const sameDay = await models.seasons
+        .findOneAndUpdate(
+            { $and: [{ _id, xpDay: day, xpMatches: { $lt: SOLO_DAILY_XP_MATCHES } }, gap] },
+            { $inc: { xpMatches: 1 }, $set: { xpAt: now } },
+            { new: true }
+        )
+        .lean();
+    if (sameDay) return true;
+    const newDay = await models.seasons
+        .findOneAndUpdate(
+            { $and: [{ _id, xpDay: { $ne: day } }, gap] },
+            { $set: { xpDay: day, xpMatches: 1, xpAt: now } },
+            { new: true }
+        )
+        .lean();
+    return !!newDay;
 }
 
 /**
@@ -180,7 +238,8 @@ export async function addSeasonXp(
     const _id = seasonDocId(accountId, seasonId);
     const before = await ensureSeason(models, accountId, seasonId);
     const prevTier = seasonTier(def, Number(before?.xp) || 0, Number(before?.skips) || 0);
-    if (m.capped) return { seasonId, xp: Number(before?.xp) || 0, tier: prevTier, prevTier, gained: 0 };
+    const capped = m.capped || (m.soloMs !== undefined && !(await claimSoloSlot(models, _id, m.soloMs, now)));
+    if (capped) return { seasonId, xp: Number(before?.xp) || 0, tier: prevTier, prevTier, gained: 0 };
     let firstWinToday = false;
     if (m.won && !m.forfeit) {
         const day = utcDay(now);

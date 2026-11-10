@@ -12,7 +12,7 @@ for the pass. Everything here is cosmetic only: no sim file, replay record, hash
 | SKU table and retirement of the presale `pl_*` SKUs | `backend/src/pawlegends/pawlegends.contracts.ts` (`retired`, `kind`, `oncePerAccount`, `bundleOf`, `pass`, `requires`) |
 | Ownership and pass progress | collections `pawlegendsowned` (unique `{accountId, item}`) and `pawlegendsseason` (`_id` `<accountId>:<seasonId>`), `backend/src/pawlegends/pawlegends-season.service.ts` |
 | Checkout rules | `pawlegends-stripe.service.ts` `checkCatalog`: signed-in only, store consent version, once per account, sets refused while any item is owned, Pass+ upgrade only for Pass owners; the pending-row-first race guard, age bands and spend caps are unchanged |
-| Grant and refund | `pawlegends-webhook.service.ts`: the grant runs after the paid row and is idempotent (a retried event heals a failed grant); a refund revokes the session's items and recomputes the pass (premium rewards claimed under a refunded pass are revoked too) |
+| Grant and refund | `pawlegends-webhook.service.ts`: the grant runs after the paid row and is idempotent (a retried event heals a failed grant); a refund or a lost chargeback (`charge.dispute.closed`, status `lost`) revokes the session's items and recomputes the pass (premium rewards claimed under a refunded pass are revoked too, and every reward above the tier the XP reaches once refunded Pass+ skips are gone); a failed revoke heals on Stripe's retry |
 | Routes | `GET /pawlegends/me`, `POST /pawlegends/pass/claim`; `GET /pawlegends/status` lists the catalogue (docs/API.md) |
 | Season XP | both `/live` writers (`pawlegends-live.ts`, `pawlegends-party-live.ts`) call `addXp` after their Game row exists: still one score write path, duplicates pay nothing |
 | Guest merge | `mergeStoreProgress` (pass XP `$max`, free-row claims, pass rewards) from `guest-lifecycle.ts` |
@@ -41,7 +41,8 @@ for the pass. Everything here is cosmetic only: no sim file, replay record, hash
   per tier (22 coats, 4 frames, 4 titles; the Sunforged Clem coat at tier 30). No randomness: every reward is listed.
 - Season XP per verified match (the Treat XP numbers, on the server): win 100, loss 60, forfeit 20, +10 per takedown
   (kills + assists of the player's slot, at most 15), +150 for the first win of the UTC day (an atomic `winDay` claim).
-  Party matches over the 30-a-day cap pay 0; AFK-rejected party saves pay nothing. Daily quests stay Treat Track only.
+  Party matches over the 30-a-day cap pay 0; AFK-rejected party saves pay nothing. Solo saves (the client picks the
+  seed) pay XP at most 30 times a UTC day, and only when 80% of the match's length passed since the last paid solo match. Daily quests stay Treat Track only.
 - `tier = min(30, floor(xp / 400) + skips)`. Buying the pass late unlocks every premium tier already reached.
 
 ## Native app (Capacitor)
@@ -67,8 +68,10 @@ Web-bought items are not drawn in the app; pass free-row rewards are (founder de
    `whsec_…` in `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`, a test key in `PAWLEGENDS_STRIPE_SECRET_KEY`, sign in on
    `/pawlegends`, buy a coat with card 4242 4242 4242 4242. Check: a `paid` row in `pawlegendspurchases`, a row in
    `pawlegendsowned`, the coat in the store as "Owned · Equip". This also closes GAPS G-Pay.
-3. **Refund:** refund in the Stripe dashboard; `charge.refunded` revokes the items (and downgrades a pass). A refund
-   under the presale terms keeps items (`refundUnderTerms`), as before.
+3. **Refund:** refund in the Stripe dashboard; `charge.refunded` revokes the items (and downgrades a pass). A lost
+   chargeback does the same through `charge.dispute.closed`: subscribe the webhook endpoint to `charge.refunded` and
+   `charge.dispute.closed`. A refund under the presale terms keeps items
+   (`refundUnderTerms`), as before.
 4. **A missing grant** (webhook failed after the paid row): Stripe retries; a retry runs the idempotent grant. Manual:
    resend the `checkout.session.completed` event from the dashboard.
 5. **New season:** append an `s2` entry to `SEASONS` in both catalogue copies, set `CURRENT_SEASON_ID`, add the coat
@@ -85,7 +88,7 @@ Web-bought items are not drawn in the app; pass free-row rewards are (founder de
 4. **Daily quest XP:** default Treat Track only (quests are local, not verifiable).
 5. **Emotes and My Cat Hero:** default phase 2.
 6. **Terms and VAT:** new consent version `2026-11-10` for cosmetics and the pass (delivered now, withdrawal right ends
-   at delivery). The terms page section still has to be written and approved before live mode; VAT/OSS decision #17.
+   at delivery). The terms page section is drafted (`client/pages/pawlegends/terms.tsx`, marked draft); the founder approves it before live mode; VAT/OSS decision #17.
 7. **Crypto rail:** default card first, crypto in a follow-up PR.
 8. **Sets with an owned item:** default refused (the store shows "You own some of these: buy the singles"), no
    prorated price.

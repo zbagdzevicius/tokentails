@@ -155,7 +155,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const frame = sel.items.find((i) => i.startsWith('frame.'));
     const tile = (d: CatalogSku): string => {
       const ds = itemState(d, s);
-      const tag = ds === 'owned' ? 'Owned' : ds === 'partly' ? 'Own some' : ds === 'locked' ? (d.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Have Pass') : catalogPrice(d, currency);
+      const tag = ds === 'owned' ? 'Owned' : ds === 'partly' ? 'Own some' : ds === 'locked' ? (d.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead') : catalogPrice(d, currency);
       return `<button type="button" class="shop-tile ${d.sku === selected ? 'on' : ''} st-${ds}" data-sel="${d.sku}" aria-pressed="${d.sku === selected}"><b>${esc(d.label)}</b><small>${esc(tag)}</small></button>`;
     };
     const action =
