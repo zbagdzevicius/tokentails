@@ -13,7 +13,7 @@ import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
 import { Frame, SocialLimiter, catchupBodies, clampSocialPoint, socialIdOk, type MatchMsg, type ServerBinary, type ServerJson, type SocialKind, type VoteKind } from './proto';
-import type { PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
+import type { NetNumbers, PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
 import { socialLine } from '../data/social';
 import type { PartySocket } from './socket';
 import { MoveCoalescer } from './input';
@@ -197,11 +197,26 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'vote', kind, yes });
   }
 
-  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs: number; inputP50?: number; inputP95?: number; inputN: number } {
+  net(): NetNumbers {
     const q = this.inputStats();
-    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups, inputMs: Math.round(this.inputLatencyMs()), ...(q.n ? { inputP50: q.p50, inputP95: q.p95 } : {}), inputN: q.n };
+    const r = this.socket.rttStats();
+    return {
+      rttMs: Math.round(this.socket.rttMs),
+      ...(r.n ? { rttP50: r.p50, rttP95: r.p95, jitterP95: r.jitterP95 } : {}),
+      buffer: this.buffer,
+      holds: this.holds,
+      catchups: this.catchups,
+      marginMs: this.marginMs,
+      lateTurns: this.lateTurns,
+      reconnects: this.socket.reconnects,
+      inputMs: Math.round(this.inputLatencyMs()),
+      ...(q.n ? { inputP50: q.p50, inputP95: q.p95 } : {}),
+      inputN: q.n,
+    };
   }
   private buffer = 1;
+  private marginMs = 0;
+  private lateTurns = 0;
 
   /** The party view changed (PartyClient, through the socket tap): names, connection dots and card art per slot. */
   setSeats(seats: SeatInfo[]): void {
@@ -536,6 +551,8 @@ export class NetHost implements PartyLink {
         this.socket.lastTurn = m.lastTurn;
         this.buffer = m.B;
         this.holds = m.holds;
+        if (typeof m.margin === 'number') this.marginMs = m.margin;
+        if (typeof m.late === 'number') this.lateTurns = m.late;
         if (m.modeMask !== this.lastMask) {
           const prev = this.lastMask;
           this.lastMask = m.modeMask;

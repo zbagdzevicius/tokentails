@@ -449,3 +449,13 @@ html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-grad
   .pl-scoreboard[data-size='5'] td:nth-child(2) { white-space: nowrap; }
   .pl-scoreboard[data-size='5'] .hint { margin-top: 2px; }
 }
+
+/* LATENCY-PLAN C6: the party match ping chip beside the clock (src/app/mpHud.ts): a dot in the band's colour and the
+   round-trip time; green < 80 ms, yellow < 150 ms, red from 150 ms */
+.pl-hud .pl-score .mp-ping { display: inline-flex; align-items: center; gap: 3px; flex: none; font: 700 10px/14px var(--font); color: var(--hx-ink, #e8e1cf); opacity: 0.85; font-variant-numeric: tabular-nums; }
+.pl-hud .pl-score .mp-ping::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: #5bd17a; }
+.pl-hud .pl-score .mp-ping[data-tone='warn']::before { background: #ffd34d; }
+.pl-hud .pl-score .mp-ping[data-tone='bad']::before { background: #ff5a4f; }
+.pl-hud .pl-score .mp-ping[data-tone='bad'] { color: #ff8a80; opacity: 1; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping { font-size: 9px; line-height: 24px; color: #3b2417; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping[data-tone='bad'] { color: #a3261c; }

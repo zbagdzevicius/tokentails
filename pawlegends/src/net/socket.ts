@@ -295,6 +295,18 @@ export class PartySocket {
     if (this.rttSamples.length > RTT_SAMPLES) this.rttSamples.shift();
   }
 
+  /**
+   * RTT percentiles over the last 64 ECHO samples, and the p95 jitter (`mp_net`, LATENCY-PLAN M1). Read-only: the
+   * estimate the game uses stays the EWMA `rttMs`.
+   */
+  rttStats(): { p50: number; p95: number; jitterP95: number; n: number } {
+    const n = this.rttSamples.length;
+    if (!n) return { p50: 0, p95: 0, jitterP95: 0, n: 0 };
+    const s = [...this.rttSamples].sort((a, b) => a - b);
+    const at = (q: number) => s[Math.min(n - 1, Math.floor(n * q))];
+    return { p50: Math.round(at(0.5)), p95: Math.round(at(0.95)), jitterP95: Math.round(this.jitterP95), n };
+  }
+
   /** p95 jitter over the last 64 samples (|sample - EWMA|). */
   get jitterP95(): number {
     const d = this.rttSamples.map((s) => Math.abs(s - this.rttMs)).sort((a, b) => a - b);

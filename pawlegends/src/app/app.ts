@@ -140,10 +140,12 @@ export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknow
   return rest.find((h) => !bests[h]) ?? rest[0];
 }
 
-function p95(xs: number[]): number {
-  if (!xs.length) return 0;
+/** Frame-time percentiles (ms, one decimal) for `perf_sample`: p50, p95 and p99 (LATENCY-PLAN M1). */
+export function framePcts(xs: readonly number[]): { p50: number; p95: number; p99: number } {
+  if (!xs.length) return { p50: 0, p95: 0, p99: 0 };
   const s = [...xs].sort((a, b) => a - b);
-  return Math.round(s[Math.min(s.length - 1, Math.floor(s.length * 0.95))] * 10) / 10;
+  const at = (q: number) => Math.round(s[Math.min(s.length - 1, Math.floor(s.length * q))] * 10) / 10;
+  return { p50: at(0.5), p95: at(0.95), p99: at(0.99) };
 }
 
 export class App {
@@ -1274,7 +1276,7 @@ export class App {
     }
     for (const id of e.tips) this.analytics.track('tip_done', { id });
     if (rec.second) this.analytics.track('second_match', { hero: e.replay.hero });
-    if (this.frameMs.length > 60) this.analytics.track('perf_sample', { p95: p95(this.frameMs), tier: this.tier });
+    if (this.frameMs.length > 60) this.analytics.track('perf_sample', { ...framePcts(this.frameMs), tier: this.tier });
     this.session?.dispose();
     this.session = null;
     this.lobby.enter();

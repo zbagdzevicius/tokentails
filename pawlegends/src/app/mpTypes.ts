@@ -150,6 +150,28 @@ export interface PartyLink {
   vote(kind: VoteKind, yes: boolean): void;
   /** Rail notes use these names (the HUD's mute and Hide names). */
   nameOf: (slot: number) => string;
-  /** Network numbers for analytics (`mp_net`). */
-  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs?: number; inputP50?: number; inputP95?: number; inputN?: number };
+  /** Network numbers for analytics (`mp_net`) and the in-match ping chip. */
+  net(): NetNumbers;
+}
+
+/**
+ * A party link's network numbers (`mp_net`, LATENCY-PLAN M1). `rttMs` is the EWMA the game uses; `rttP50` / `rttP95` /
+ * `jitterP95` come from the last 64 ECHO samples (absent before the first one); `marginMs` and `lateTurns` are the
+ * jitter buffer's playout margin and the live turns that came late.
+ */
+export interface NetNumbers {
+  rttMs: number;
+  rttP50?: number;
+  rttP95?: number;
+  jitterP95?: number;
+  buffer: number;
+  holds: number;
+  catchups: number;
+  marginMs?: number;
+  lateTurns?: number;
+  reconnects?: number;
+  inputMs?: number;
+  inputP50?: number;
+  inputP95?: number;
+  inputN?: number;
 }
