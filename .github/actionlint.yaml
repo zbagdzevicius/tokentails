@@ -1,0 +1,4 @@
+self-hosted-runner:
+  # GitHub-hosted image newer than actionlint 1.7.7 knows.
+  labels:
+    - macos-26

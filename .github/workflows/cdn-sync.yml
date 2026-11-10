@@ -131,7 +131,7 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          s3cmd sync $DRY_RUN --acl-public --no-preserve \
+          s3cmd sync ${DRY_RUN:+"$DRY_RUN"} --acl-public --no-preserve \
             --guess-mime-type \
             --rexclude '.*' --rinclude "$VERSIONED" \
             --exclude '.DS_Store' --exclude '*.aseprite' \
@@ -142,7 +142,7 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          s3cmd sync $DRY_RUN --acl-public --no-preserve \
+          s3cmd sync ${DRY_RUN:+"$DRY_RUN"} --acl-public --no-preserve \
             --guess-mime-type \
             --exclude '.DS_Store' --exclude '*.aseprite' \
             --rexclude "$VERSIONED" \
@@ -156,7 +156,7 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          s3cmd modify $DRY_RUN --recursive --acl-public \
+          s3cmd modify ${DRY_RUN:+"$DRY_RUN"} --recursive --acl-public \
             --exclude '.DS_Store' --exclude '*.aseprite' \
             --rexclude "$VERSIONED" \
             --add-header="Cache-Control: $SHORT_CACHE" \
@@ -166,7 +166,7 @@ jobs:
         env:
           DRY_RUN: ${{ inputs.dry_run && '--dry-run' || '' }}
         run: |
-          s3cmd modify $DRY_RUN --recursive --acl-public \
+          s3cmd modify ${DRY_RUN:+"$DRY_RUN"} --recursive --acl-public \
             --rexclude '.*' --rinclude "$VERSIONED" \
             --add-header="Cache-Control: $LONG_CACHE" \
             "s3://$SPACE_NAME/$SPACE_PREFIX"
