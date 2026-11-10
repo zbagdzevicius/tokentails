@@ -437,7 +437,7 @@ end
 #   ANDROID_UPLOAD_KEYSTORE_PATH (the decoded .jks), ANDROID_UPLOAD_KEYSTORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS,
 #   ANDROID_UPLOAD_KEY_PASSWORD: the upload key (Play App Signing holds the app signing key)
 #   GOOGLE_PLAY_JSON_KEY: the Play service account's JSON key (text), for the upload lanes only
-# Optional: PL_VERSION_CODE (Play needs a higher one on every upload; CI passes 100000 + its run number),
+# Optional: PL_VERSION_CODE (Play needs a higher one on every upload; CI passes 100000 + run number * 10 + run attempt),
 #   PLAY_TRACK (default internal), PLAY_RELEASE_STATUS (default completed; `draft` while the app is still a draft in
 #   Play Console, which accepts nothing else), AAB_PATH (upload this bundle instead of building one).
 #

@@ -13,7 +13,9 @@
 #   ANDROID_UPLOAD_KEY_PASSWORD: required for build and upload (the job fails clearly without them)
 #   GOOGLE_PLAY_JSON_KEY (the Play service account's JSON key text): without it the bundle is still built and kept as
 #   an artifact, and the upload is skipped with a notice
-# versionCode = 100000 + the run number (always higher than the last upload); versionName = pawlegends-app/package.json.
+#   Each secret reaches only the step that uses it (not npm ci or the Vite build, where dependency scripts run).
+# versionCode = 100000 + run number * 10 + run attempt (a "Re-run jobs" gets a new code too; attempts 1-9), so every
+# upload is higher than the last; versionName = pawlegends-app/package.json.
 name: Pawlegends Android
 
 on:
@@ -62,34 +64,42 @@ jobs:
       PLAY_TRACK: ${{ github.event.inputs.track }}
       PLAY_RELEASE_STATUS: ${{ github.event.inputs.release_status }}
       CONFIRM: ${{ github.event.inputs.confirm }}
-      KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
-      ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
-      ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
-      ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
-      GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
       FASTLANE_SKIP_UPDATE_CHECK: '1'
       FASTLANE_HIDE_CHANGELOG: '1'
     steps:
       - name: Secrets present
         id: secrets
+        # presence flags only, never the values
+        env:
+          HAS_KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 != '' }}
+          HAS_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD != '' }}
+          HAS_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS != '' }}
+          HAS_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD != '' }}
+          HAS_PLAY: ${{ secrets.GOOGLE_PLAY_JSON_KEY != '' }}
         run: |
           builds=false
           case "$LANE" in build|upload) builds=true ;; esac
           if [ "$builds" = true ]; then
             missing=""
-            for k in KEYSTORE_B64 ANDROID_UPLOAD_KEYSTORE_PASSWORD ANDROID_UPLOAD_KEY_ALIAS ANDROID_UPLOAD_KEY_PASSWORD; do
-              if [ -z "${!k}" ]; then missing="$missing $k"; fi
-            done
+            [ "$HAS_KEYSTORE_B64" = true ] || missing="$missing ANDROID_UPLOAD_KEYSTORE_B64"
+            [ "$HAS_KEYSTORE_PASSWORD" = true ] || missing="$missing ANDROID_UPLOAD_KEYSTORE_PASSWORD"
+            [ "$HAS_KEY_ALIAS" = true ] || missing="$missing ANDROID_UPLOAD_KEY_ALIAS"
+            [ "$HAS_KEY_PASSWORD" = true ] || missing="$missing ANDROID_UPLOAD_KEY_PASSWORD"
             if [ -n "$missing" ]; then
-              echo "::error::Missing upload key secrets:${missing/KEYSTORE_B64/ANDROID_UPLOAD_KEYSTORE_B64}. See docs/plans/moba/PLAY-STORE.md (Secrets)."
+              echo "::error::Missing upload key secrets:${missing}. See docs/plans/moba/PLAY-STORE.md (Secrets)."
               exit 1
             fi
+            if [ "$GITHUB_RUN_ATTEMPT" -gt 9 ]; then
+              echo "::error::Attempt $GITHUB_RUN_ATTEMPT: the versionCode has room for 9 attempts. Start a new run (Run workflow)."
+              exit 1
+            fi
+            echo "version_code=$((100000 + GITHUB_RUN_NUMBER * 10 + GITHUB_RUN_ATTEMPT))" >> "$GITHUB_OUTPUT"
           fi
           if { [ "$LANE" = "promote" ] || { [ "$LANE" = "upload" ] && [ "$PLAY_TRACK" = "production" ]; }; } && [ "$CONFIRM" != "PROMOTE" ]; then
             echo "::error::Type PROMOTE in the confirm field to release to production."
             exit 1
           fi
-          if [ -z "$GOOGLE_PLAY_JSON_KEY" ]; then
+          if [ "$HAS_PLAY" != true ]; then
             if [ "$LANE" = "build" ] || [ "$LANE" = "upload" ]; then
               echo "::notice::GOOGLE_PLAY_JSON_KEY is not set: the bundle is built and kept as an artifact, nothing is uploaded."
             else
@@ -136,6 +146,8 @@ jobs:
           npx cap sync android
       - name: Decode the upload key
         if: steps.secrets.outputs.build == 'true'
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_B64 }}
         run: |
           umask 077
           echo "$KEYSTORE_B64" | base64 --decode > "$RUNNER_TEMP/upload.jks"
@@ -143,7 +155,12 @@ jobs:
       - name: Signed bundle
         if: steps.secrets.outputs.build == 'true'
         working-directory: pawlegends-app
-        run: PL_VERSION_CODE=$((100000 + GITHUB_RUN_NUMBER)) bundle exec fastlane android build
+        env:
+          PL_VERSION_CODE: ${{ steps.secrets.outputs.version_code }}
+          ANDROID_UPLOAD_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEYSTORE_PASSWORD }}
+          ANDROID_UPLOAD_KEY_ALIAS: ${{ secrets.ANDROID_UPLOAD_KEY_ALIAS }}
+          ANDROID_UPLOAD_KEY_PASSWORD: ${{ secrets.ANDROID_UPLOAD_KEY_PASSWORD }}
+        run: bundle exec fastlane android build
       - name: Keep the .aab (7 days)
         if: steps.secrets.outputs.build == 'true'
         uses: actions/upload-artifact@v4
@@ -155,6 +172,8 @@ jobs:
       - name: fastlane ${{ env.LANE }}
         if: steps.secrets.outputs.play == 'true' && env.LANE != 'build'
         working-directory: pawlegends-app
+        env:
+          GOOGLE_PLAY_JSON_KEY: ${{ secrets.GOOGLE_PLAY_JSON_KEY }}
         run: |
           case "$LANE" in
             upload) AAB_PATH="$PWD/android/app/build/outputs/bundle/release/app-release.aab" bundle exec fastlane android internal ;;
@@ -169,6 +188,6 @@ jobs:
         run: |
           {
             echo "### Pawlegends Android"
-            echo "- versionName $(node -p "require('./pawlegends-app/package.json').version"), versionCode $((100000 + GITHUB_RUN_NUMBER))"
+            echo "- versionName $(node -p "require('./pawlegends-app/package.json').version"), versionCode ${{ steps.secrets.outputs.version_code }}"
             echo "- lane $LANE, track $PLAY_TRACK, status $PLAY_RELEASE_STATUS, uploaded: ${{ steps.secrets.outputs.play == 'true' && env.LANE == 'upload' }}"
           } >> "$GITHUB_STEP_SUMMARY"
