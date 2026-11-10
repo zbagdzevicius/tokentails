@@ -1,4 +1,4 @@
-# Pawlegends iOS and Mac app
+# Pawlegends iOS, Mac and Android app
 
 The App Store build of Pawlegends: a standalone Capacitor 7 app (`com.tokentails.pawlegends`) with the game bundled
 inside, landscape only, that updates its web game over the air from tokentails.com. Plan and review-risk register:
@@ -15,6 +15,10 @@ no Format or Help menu, closing the window quits, the WebView asks for desktop c
 (`pawlegends/src/app/platform.ts`), and the shell installs no haptics bridge. The app-build guards (no store links,
 no purchases) are the same as on iPhone.
 
+The Google Play version is the same project's `android/` platform (`com.tokentails.pawlegends`, served from
+`https://localhost`), with the same bundle and the same over-the-air updates (its own manifests). Plan, parity table,
+Play Console answers and founder steps: [`docs/plans/moba/PLAY-STORE.md`](../docs/plans/moba/PLAY-STORE.md).
+
 ## Layout
 
 | Path | What |
@@ -30,6 +34,9 @@ no purchases) are the same as on iPhone.
 | `scripts/build-mac.mjs` | Unsigned Mac Catalyst build (`--run` opens it; `--run --probe <dir>` writes a snapshot and what the page sees, then quits) |
 | `ios/App/` | The Xcode project: `GameViewController.swift` (landscape, no status bar, home indicator auto-hidden), `AppDelegate.swift` (audio session, screen kept on), `Info.plist`, `PrivacyInfo.xcprivacy` |
 | `fastlane/` | Lanes `check`, `bootstrap`, `build`, `beta`, `metadata`, `release`, `certs`; listing text in `metadata/`, screenshots in `screenshots/` |
+| `android/` | The Android project: `MainActivity.java` (immersive, cutout, WebView settings, screen on), `ShellPlugin.java` (page globals, thermal, renderer recovery), `AndroidManifest.xml` (landscape game, GLES 3), `app/build.gradle` (versions, env signing) |
+| `src/shell/back.ts` | Android back button: Escape into the game, minimise on the bare title |
+| `fastlane/metadata_android/` | Google Play listing (text, icon, feature graphic, phone screenshots) for the `android` lanes |
 | `store/` | `app-icon-1024.png`; iPad 13" screenshots (`screenshots-ipad/`, not uploaded while iPhone only). Answers to copy into App Store Connect: `docs/plans/moba/APP-STORE-ANSWERS.md` |
 
 ## Run and check
@@ -41,6 +48,15 @@ npm run ios:sim -- --run       # unsigned simulator build, installed and launche
 npm run mac -- --run           # unsigned Mac Catalyst build, opened on this Mac
 npm run typecheck && npm test  # shell types and tests (manifest, OTA flow, zip, crypto, haptics)
 npm run ios:open               # Xcode, for a run on a cabled iPhone (needs a signing team)
+```
+
+Android (JDK 21 and the Android SDK; on this Mac `export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools`):
+
+```sh
+npm run build:android          # game + shell.js → www/, cap sync android
+npm run android:debug          # debug APK in android/app/build/outputs/apk/debug (channel dev)
+npm run android:open           # Android Studio
+(cd android && ./gradlew testDebugUnitTest)
 ```
 
 fastlane runs through Bundler in this folder (Ruby 3.3; on this Mac `export PATH=/opt/homebrew/opt/ruby/bin:$PATH`):
