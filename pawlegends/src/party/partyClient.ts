@@ -642,7 +642,10 @@ export class PartyClient {
       h.env ?? browserSocketEnv(),
     );
     this.socket.tap({
-      json: (m) => this.dispatch({ e: 'server', m }),
+      json: (m) => {
+        if (m.t === 'welcome' && this.connectMs === null) this.connectMs = Math.max(0, Math.round(this.now() - this.bornAt));
+        this.dispatch({ e: 'server', m });
+      },
       state: (s) => {
         if (s === 'reconnecting' && !this.state.inMatch) this.note({ key: 'pp-net', title: COPY.offline, tone: 'info', ttl: 3000 });
       },
@@ -656,17 +659,18 @@ export class PartyClient {
     document.addEventListener('visibilitychange', onVis);
     this.unwatch = () => document.removeEventListener('visibilitychange', onVis);
     this.render();
-    void h.ticket().then(
-      (t) => this.connect(t),
-      () => this.connect(null),
-    );
+    // LATENCY-PLAN C2: the WebSocket upgrade runs while the ticket is fetched; `hello` waits for the ticket (≤ 3 s)
+    this.bornAt = this.now();
+    this.socket.connect(h.ticket());
     this.timer = setInterval(() => this.everySecond(), 250);
   }
 
-  private connect(ticket: string | null): void {
-    if (this.closed) return;
-    if (ticket) (this.socket as unknown as { hello: { ticket?: string } }).hello.ticket = ticket;
-    this.socket.connect();
+  /** When this client opened, and how long until the relay's first `welcome` (analytics `connect_ms`; null: not yet). */
+  private bornAt = 0;
+  private connectMs: number | null = null;
+  /** `connect_ms` for the lobby events (LATENCY-PLAN C2), once known. */
+  private connectProp(): { connect_ms?: number } {
+    return this.connectMs === null ? {} : { connect_ms: this.connectMs };
   }
 
   // -------------------------------------------------------------------------------------------- state and effects
@@ -722,7 +726,7 @@ export class PartyClient {
       case 'send':
         if (f.msg.t === 'party.create') {
           this.socket.sendJson({ t: 'party.create', difficulty: this.h.difficulty });
-          this.h.analytics?.('party_create', { difficulty: this.h.difficulty });
+          this.h.analytics?.('party_create', { difficulty: this.h.difficulty, ...this.connectProp() });
         } else {
           if (f.msg.t === 'mm.join') this.trackJoin(f.msg.side);
           this.socket.sendJson(f.msg);
@@ -878,6 +882,7 @@ export class PartyClient {
       matches_bucket: info.matches >= 20 ? '20+' : info.matches >= 5 ? '5-19' : '1-4',
       guest: info.guest,
       requeue: !!this.state.queue?.requeue,
+      ...this.connectProp(),
     });
   }
 
@@ -963,7 +968,7 @@ export class PartyClient {
 
   private enteredParty(): void {
     const via = this.state.mode === 'create' ? 'create' : this.state.mode === 'resume' ? 'resume' : this.state.mode === 'code' ? 'code' : 'link';
-    if (via !== 'create') this.h.analytics?.('party_join', { via, members: this.state.view?.members.length ?? 0 });
+    if (via !== 'create') this.h.analytics?.('party_join', { via, members: this.state.view?.members.length ?? 0, ...this.connectProp() });
     // match assets load during the lobby and the pick (§5.1)
     this.preloading ??= this.h.preload?.() ?? Promise.resolve();
     const v = this.state.view!;

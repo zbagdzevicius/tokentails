@@ -3,7 +3,7 @@
  * the lobby connect that opens the WebSocket while the party ticket is still being fetched.
  */
 import { describe, expect, it } from 'vitest';
-import { PartySocket, type SocketEnv, type SocketLike } from '../../src/net/socket';
+import { PartySocket, TICKET_WAIT_MS, type SocketEnv, type SocketLike } from '../../src/net/socket';
 import { encodeEcho } from '../../src/net/proto';
 
 class FakeWs implements SocketLike {
@@ -105,5 +105,79 @@ describe('PartySocket rttStats (M1)', () => {
     const st = f.s.rttStats();
     expect(st.n).toBe(64);
     expect(st.p95).toBe(30);
+  });
+});
+
+describe('PartySocket connect with a pending ticket (C2)', () => {
+  it('opens at once; a ticket that lands after onopen goes in the one hello', async () => {
+    const f = setup();
+    let give!: (t: string | null) => void;
+    f.s.connect(new Promise((r) => (give = r)));
+    expect(f.sockets).toHaveLength(1);
+    f.sockets[0].open();
+    await flush();
+    expect(f.sockets[0].hellos()).toHaveLength(0);
+    give('tkt-123');
+    await flush();
+    const h = f.sockets[0].hellos();
+    expect(h).toHaveLength(1);
+    expect(h[0].ticket).toBe('tkt-123');
+  });
+
+  it('a ticket that is already there when the socket opens goes in the hello', async () => {
+    const f = setup();
+    f.s.connect(Promise.resolve('early'));
+    await flush();
+    f.sockets[0].open();
+    await flush();
+    expect(f.sockets[0].hellos().map((h) => h.ticket)).toEqual(['early']);
+  });
+
+  it('a failed ticket sends one guest hello (guestKey, no ticket)', async () => {
+    const f = setup();
+    f.s.connect(Promise.reject(new Error('no ticket')));
+    f.sockets[0].open();
+    await flush();
+    await flush();
+    const h = f.sockets[0].hellos();
+    expect(h).toHaveLength(1);
+    expect(h[0].ticket).toBeUndefined();
+    expect(h[0].guestKey).toBe('g'.repeat(32));
+  });
+
+  it('a ticket that never comes: a guest hello after TICKET_WAIT_MS (inside the relay 5 s hello timeout), and a late ticket is dropped', async () => {
+    expect(TICKET_WAIT_MS).toBeLessThan(5000);
+    const f = setup();
+    let give!: (t: string | null) => void;
+    f.s.connect(new Promise((r) => (give = r)));
+    f.sockets[0].open();
+    f.advance(TICKET_WAIT_MS - 1);
+    await flush();
+    expect(f.sockets[0].hellos()).toHaveLength(0);
+    f.advance(1);
+    await flush();
+    expect(f.sockets[0].hellos()).toHaveLength(1);
+    expect(f.sockets[0].hellos()[0].ticket).toBeUndefined();
+    give('late');
+    await flush();
+    expect(f.sockets[0].hellos()).toHaveLength(1);
+  });
+
+  it('a socket closed before the ticket settles sends nothing', async () => {
+    const f = setup();
+    let give!: (t: string | null) => void;
+    f.s.connect(new Promise((r) => (give = r)));
+    f.sockets[0].open();
+    f.s.close();
+    give('tkt');
+    await flush();
+    expect(f.sockets[0].hellos()).toHaveLength(0);
+  });
+
+  it('without a ticket promise the hello goes on open, as before', () => {
+    const f = setup();
+    f.s.connect();
+    f.sockets[0].open();
+    expect(f.sockets[0].hellos()).toHaveLength(1);
   });
 });

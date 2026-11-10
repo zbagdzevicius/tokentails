@@ -24,6 +24,12 @@ import {
 
 export const BACKOFF_MIN_MS = 250;
 export const BACKOFF_MAX_MS = 5000;
+/**
+ * The socket opens while the party ticket is still being fetched (LATENCY-PLAN C2): `hello` waits for the ticket at
+ * most this long, then goes as a guest. The relay closes a socket without `hello` 5 s after the upgrade
+ * (party-limits.ts); the embed host's own ticket wait is 6 s (integrate.ts), so 4 s keeps a slow host's ticket.
+ */
+export const TICKET_WAIT_MS = 4000;
 export const RESEND_WITHIN_MS = 500;
 export const BEAT_MS = 500;
 const RTT_SAMPLES = 64;
@@ -174,23 +180,60 @@ export class PartySocket {
     this.side = l;
   }
 
-  connect(): void {
+  /** The party ticket still being fetched (LATENCY-PLAN C2): `hello` waits for it, at most TICKET_WAIT_MS. */
+  private ticketWait: Promise<void> | null = null;
+
+  /**
+   * Open the socket. `ticket` (the first connect): a party ticket still being fetched; the WebSocket upgrade runs in
+   * parallel with it, and `hello` carries it when it settles in time (else the hello goes as a guest).
+   */
+  connect(ticket?: Promise<string | null>): void {
+    if (ticket) this.ticketWait = this.waitTicket(ticket);
     this.stopped = false;
     this.emitState(this.attempt === 0 ? 'connecting' : 'reconnecting');
     const ws = this.env.open(this.url, SUBPROTOCOL);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
     ws.onopen = () => {
-      const h: ClientJson = { t: 'hello', proto: this.proto, sim: this.hello.sim, simHash: this.hello.simHash, build: this.hello.build };
-      if (this.hello.ticket) h.ticket = this.hello.ticket;
-      if (this.hello.guestKey) h.guestKey = this.hello.guestKey;
-      if (this.hello.hint) h.hint = this.hello.hint;
-      if (this.token) h.resume = { token: this.token };
-      ws.send(JSON.stringify(h));
+      const send = () => {
+        // closed (or replaced) while the ticket was still on its way: nothing to say
+        if (this.ws !== ws || ws.readyState !== 1 || this.stopped) return;
+        const h: ClientJson = { t: 'hello', proto: this.proto, sim: this.hello.sim, simHash: this.hello.simHash, build: this.hello.build };
+        if (this.hello.ticket) h.ticket = this.hello.ticket;
+        if (this.hello.guestKey) h.guestKey = this.hello.guestKey;
+        if (this.hello.hint) h.hint = this.hello.hint;
+        if (this.token) h.resume = { token: this.token };
+        ws.send(JSON.stringify(h));
+      };
+      if (this.ticketWait) void this.ticketWait.then(send);
+      else send();
     };
     ws.onmessage = (e) => this.onMessage(e.data);
     ws.onclose = (e) => this.onClose(e.code);
     ws.onerror = () => undefined;
+  }
+
+  /** Settles when the ticket is in `hello` (or failed, or took longer than TICKET_WAIT_MS: a guest hello). Never rejects. */
+  private waitTicket(ticket: Promise<string | null>): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        this.env.clearTimer(timer);
+        this.ticketWait = null;
+        resolve();
+      };
+      const timer = this.env.setTimer(finish, TICKET_WAIT_MS);
+      ticket.then(
+        (t) => {
+          // a ticket after the guest hello went out is dropped: the seat keeps the identity it joined with
+          if (!done && t) this.hello.ticket = t;
+          finish();
+        },
+        finish,
+      );
+    });
   }
 
   private onMessage(data: unknown): void {
