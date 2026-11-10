@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PCM_RATE, ZZFX_DEFS, zzfxSamples } from '../../src/audio/sfxDefs.js';
 import { PL_SFX, Sfx, type AudioProbe } from '../../src/audio/sfx';
+import { HIT_VARIANTS } from '../../src/audio/hitMix';
 import { VOICE_LINES, bountyLine, nameLine, onRollLine, type VoiceKey } from '../../src/audio/voiceLines';
 import { HERO_IDS } from '../../src/data/heroes';
 import { parseProfile } from '../../src/meta/profile';
@@ -149,12 +150,12 @@ describe('audible plays only', () => {
     s.unlock();
     // the bake runs in 4 ms slices
     for (let i = 0; i < 400 && !s.context; i++) await new Promise((r) => setTimeout(r, 0));
-    // 'blip' is baked last: once it plays, every sound is baked
-    for (let i = 0; i < 400; i++) {
-      s.play('blip');
-      if (heard.length) break;
+    // the hit bank's Fish ping is baked last: once all four variants play, every sound is baked
+    for (let i = 0; i < 800; i++) {
+      if (s.knows('hb:fish:0') && (s as unknown as { buffers: Map<string, unknown> }).buffers.has(`hb:fish:${HIT_VARIANTS - 1}`)) break;
       await new Promise((r) => setTimeout(r, 5));
     }
+    s.play('blip');
     expect(heard.length).toBe(1);
     heard.length = 0;
     (s.context as unknown as { currentTime: number }).currentTime = 0.5;
@@ -184,20 +185,52 @@ describe('audible plays only', () => {
     expect(heard[0].gain).toBeGreaterThan(0);
   });
 
-  it('a hit is layered: the player\'s big hit on a hero is crack, thump, body, punch and ring; the player hurt is a thud and the grunt', async () => {
+  it('a hit is one pre-mixed bank sound picked by who and what (audio pass 2)', async () => {
     const s = await ready();
+    const bank = (): string[] => heard.map((h) => h.name.replace(/:\d+$/, ''));
     s.impact({ target: 'hero', who: 'mine', heavy: true, big: true });
-    expect(heard.map((h) => h.name)).toEqual(['hitCrack', 'hitThump', 'heroHit', 'hitHeavy', 'critRing']);
+    s.impact({ target: 'hero', who: 'mine' });
+    s.impact({ target: 'hero', who: 'mine', heavy: true });
+    s.impact({ target: 'hero', who: 'mine', nature: 'fire' });
+    s.impact({ target: 'unit', who: 'mine' });
+    s.impact({ target: 'structure', who: 'mine' });
+    expect(bank()).toEqual(['hb:hitCrit', 'hb:hitHero', 'hb:hitHeavy', 'hb:hitMagic', 'hb:hitUnit', 'hb:hitStructure']);
     expect(heard.every((h) => h.gain > 0)).toBe(true);
     heard.length = 0;
-    // the same sounds 40 ms apart at most: the clock moves on
-    (s.context as unknown as { currentTime: number }).currentTime = 1;
-    s.impact({ target: 'hero', who: 'me' });
-    expect(heard.map((h) => h.name)).toEqual(['hurtThud', 'hurt']);
-    heard.length = 0;
     (s.context as unknown as { currentTime: number }).currentTime = 2;
+    s.impact({ target: 'hero', who: 'me' });
     s.impact({ target: 'unit', who: 'other' });
-    expect(heard.map((h) => h.name)).toEqual(['hitCrack', 'hitThump']);
+    s.swing({ hero: 'clem', style: 'claw', mine: true });
+    s.fishPing();
+    expect(bank()).toEqual(['hb:hurt', 'hb:hitOther', 'hb:swing', 'hb:fish']);
+    // the player's own hit is louder than someone else's
+    expect(heard[1].gain).toBeLessThan(0.5 * heard[0].gain);
+  });
+
+  it("others' hits of one kind are thinned (a minion wave does not stack), the player's own never are", async () => {
+    const s = await ready();
+    const ctx = s.context as unknown as { currentTime: number };
+    for (let i = 0; i < 10; i++) {
+      ctx.currentTime = 3 + i * 0.01;
+      s.impact({ target: 'unit', who: 'other' });
+    }
+    expect(heard.length).toBe(2); // 3.00 and 3.07+ (OTHER_GAP)
+    heard.length = 0;
+    for (let i = 0; i < 4; i++) {
+      ctx.currentTime = 4 + i * 0.01;
+      s.impact({ target: 'unit', who: 'mine' });
+    }
+    expect(heard.length).toBe(4);
+  });
+
+  it('the announcer ducks the combat bus (hits stay present under a line, the line stays clear)', async () => {
+    const s = await ready();
+    const out = (s as unknown as { voiceOut: () => { duckFx?: unknown; duck: unknown } }).voiceOut();
+    expect(out.duckFx).toBeTruthy();
+    expect(out.duckFx).not.toBe(out.duck);
+    const { COMBAT_DUCK } = await import('../../src/audio/voice');
+    expect(COMBAT_DUCK).toBeGreaterThan(0.3);
+    expect(COMBAT_DUCK).toBeLessThan(1);
   });
 
   it('a muted voice line is not recorded as said (data-voice lists lines that reached the speakers only)', async () => {

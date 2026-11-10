@@ -7,6 +7,9 @@
 import { PCM_RATE, ZZFX_DEFS, zzfxSamples } from './sfxDefs.js';
 import { voicePriority, type VoiceKey } from './voiceLines';
 import { VoiceMixer, type MixRequest } from './identityMix';
+import { HIT_BANK, HIT_VARIANTS, HitVariation, HitVoices, STYLE_SOUND, bankName, heroSwingRate, natureBody, renderBankSound, type AttackStyle } from './hitMix';
+import type { HeroId } from '../data/heroes/types';
+import type { Nature } from '../render/identity';
 
 /** LoL pass (lane B): the announcer voice (audio/voice.ts), its own chunk, loaded on the first line said. */
 type VoiceMod = typeof import('./voice');
@@ -117,6 +120,8 @@ export const PL_SFX = {
   dominoDraw: [0.45, 0, 700, 0.02, 0.25, 0.3, 4, 1, 3, 0, 600, 0.25, 0, 0.8, 0, 0, 0, 0.6, 0.05, 0, 2000],
 } satisfies Record<string, number[]>;
 
+type BakeJob = [string, () => Float32Array];
+
 export type SfxName = keyof typeof PL_SFX | 'shieldUp' | 'shieldChime' | 'squeak' | 'hyenaLaugh' | 'blip';
 const PPK_USED = ['shieldUp', 'shieldChime', 'squeak', 'hyenaLaugh', 'blip'] as const;
 
@@ -137,6 +142,17 @@ export interface ImpactOpts {
   heavy?: boolean;
   /** A big hit (the crit-sized number): adds the ring. */
   big?: boolean;
+  /** An ability hit's skill nature: picks the body (a sharp cut, a blunt weight, a magic burst). */
+  nature?: Nature;
+  at?: { x: number; z: number };
+}
+
+/** A basic attack's swing (melee) or launch (ranged), at the attacker. */
+export interface SwingOpts {
+  hero: HeroId;
+  style: AttackStyle;
+  /** The player's own attack (louder, clearer, wins the voice cap) or someone else's. */
+  mine: boolean;
   at?: { x: number; z: number };
 }
 
@@ -185,6 +201,9 @@ export function applyAudioSession(muted: boolean): void {
   }
 }
 
+/** Others' hit-bank sounds of one kind: at most one per this many seconds (the player's own are never thinned). */
+export const OTHER_GAP = 0.07;
+
 /** Most pooled output chains per kind (centre, panned): more sounds than this at once get one-off chains. */
 const CHAIN_CAP = 24;
 
@@ -202,6 +221,11 @@ export class Sfx {
   private fx: GainNode | null = null;
   /** The music's input (audio/music.ts), into the master: the announcer's voice ducks it. */
   private musicIn: GainNode | null = null;
+  /** Hits, swings, hurts and the Fish ping (the hit bank), into the sfx bus: ducked under an announcer line. */
+  private combat: GainNode | null = null;
+  /** Hit bank (audio/hitMix.ts): per-play variation and the category voice caps. */
+  readonly variation = new HitVariation();
+  readonly hitVoices = new HitVoices();
   private buffers = new Map<string, AudioBuffer>();
   private lastAt = new Map<string, number>();
   /** Champion identity sounds (audio/skillSfx.ts): extra defs baked after the built-in set, and aliases to built-ins. */
@@ -221,7 +245,12 @@ export class Sfx {
    * bus. A play needs a new BufferSource only; its chain returns to the pool when the source ends. Two pools, so a
    * centred sound keeps going straight into the bus (a StereoPanner at pan 0 would make a mono sound 3 dB quieter).
    */
-  private readonly chains: { centre: SfxChain[]; panned: SfxChain[] } = { centre: [], panned: [] };
+  private readonly chains: { centre: SfxChain[]; panned: SfxChain[]; combatCentre: SfxChain[]; combatPanned: SfxChain[] } = {
+    centre: [],
+    panned: [],
+    combatCentre: [],
+    combatPanned: [],
+  };
   /** Output nodes created so far (the pool's size; tests read it). */
   chainNodes = 0;
 
@@ -268,10 +297,25 @@ export class Sfx {
       this.fx.connect(this.master);
       this.musicIn = this.ac.createGain();
       this.musicIn.connect(this.master);
+      this.combat = this.ac.createGain();
+      // a gentle bus compressor: hits can be hot (punch) and a pile-up never clips (one node, made once)
+      if (typeof this.ac.createDynamicsCompressor === 'function') {
+        const k = this.ac.createDynamicsCompressor();
+        k.threshold.value = -12;
+        k.knee.value = 6;
+        k.ratio.value = 4;
+        k.attack.value = 0.002;
+        k.release.value = 0.12;
+        this.combat.connect(k);
+        k.connect(this.fx);
+      } else this.combat.connect(this.fx);
       const defs: Record<string, number[]> = { ...PL_SFX };
       for (const k of PPK_USED) defs[k] = (ZZFX_DEFS as Record<string, number[]>)[k];
       Object.assign(defs, this.extraDefs);
-      this.bakeSlices(defs);
+      // the hit bank after the zzfx defs (its last variant is the last buffer baked)
+      const jobs: BakeJob[] = Object.keys(defs).map((n) => [n, () => zzfxSamples(defs[n], PCM_RATE)]);
+      for (const kind of Object.keys(HIT_BANK)) for (let v = 0; v < HIT_VARIANTS; v++) jobs.push([bankName(kind, v), () => renderBankSound(kind, v)]);
+      this.bakeJobs(jobs);
       this.wake();
     } catch (e) {
       warnAudioOnce('AudioContext could not start: the game is silent', e);
@@ -338,18 +382,24 @@ export class Sfx {
 
   /** Bake zzfx defs in small slices so the first gesture never stalls a frame. */
   private bakeSlices(defs: Record<string, number[]>): void {
-    const names = Object.keys(defs);
+    this.bakeJobs(Object.keys(defs).map((n) => [n, () => zzfxSamples(defs[n], PCM_RATE)]));
+  }
+
+  /** Bake PCM jobs (name, synth) in 4 ms slices. */
+  private bakeJobs(jobs: BakeJob[]): void {
+    let i = 0;
     const bake = (): void => {
       if (!this.ac) return;
       const t0 = performance.now();
-      while (names.length > 0 && performance.now() - t0 < 4) {
-        const n = names.shift()!;
-        const pcm = zzfxSamples(defs[n], PCM_RATE);
+      while (i < jobs.length && performance.now() - t0 < 4) {
+        const [n, make] = jobs[i++];
+        const pcm = make();
+        if (!pcm.length) continue;
         const buf = this.ac.createBuffer(1, pcm.length, PCM_RATE);
         buf.getChannelData(0).set(pcm);
         this.buffers.set(n, buf);
       }
-      if (names.length > 0) setTimeout(bake, 0);
+      if (i < jobs.length) setTimeout(bake, 0);
     };
     bake();
   }
@@ -380,6 +430,7 @@ export class Sfx {
 
   /** Is this name known (built in, registered or aliased)? Pure lookup, no context needed. */
   knows(name: string): boolean {
+    if (name.startsWith('hb:')) return name.split(':')[1] in HIT_BANK;
     return name in PL_SFX || (PPK_USED as readonly string[]).includes(name) || name in this.extraDefs || this.aliases.has(name);
   }
 
@@ -488,6 +539,7 @@ export class Sfx {
       ctx: this.ac,
       bus: this.fx,
       duck: this.musicIn,
+      duckFx: this.combat,
       volume: this.muted ? 0 : this.volume * this.fxScale,
       muted: this.muted,
       said: (key, src, gain) => this.saidLine(key, src, gain),
@@ -500,33 +552,79 @@ export class Sfx {
   }
 
   /**
-   * A landed hit (audio pass, Nov 9): layered so it reads as contact and weight, not one noise burst. The player's
-   * own hits get the full stack (crack, thump, the old body; a deep punch when heavy; a ring when big); the player
-   * being hit gets a muffled thud under the grunt; other fights are a lighter, quieter crack and thump.
+   * A landed hit (audio pass 2, Nov 10): ONE pre-mixed bank sound (transient + body + tail, audio/hitMix.ts) picked by
+   * who and what. The player's own hits are the full stack by target (hero, minion or monster, tower) and weight
+   * (heavy, crit-sized, or an ability's nature body: sharp, blunt, magic); the player being hit is a thud and a grunt
+   * (heavier from a tower or a heavy hit); other fights are a light crack and thump, quieter, and dropped first when
+   * the hit voices are full.
    */
   impact(o: ImpactOpts): void {
     if (this.quiet > 0 || this.muted) return;
-    const at = o.at;
     if (o.who === 'me') {
-      this.start('hurtThud', { vol: 0.75 });
-      this.start('hurt', { vol: 0.55 });
-      if (o.heavy) this.start('hitHeavy', { vol: 0.5, rate: 0.9 });
+      this.playBank(o.heavy ? 'hurtHeavy' : 'hurt', true, o.heavy ? 1.2 : 1, 1);
       return;
     }
     const mine = o.who === 'mine';
-    const k = mine ? 1 : 0.42;
+    if (!mine) {
+      if (o.target === 'structure') this.playBank('hitStructure', false, 0.3, 1.1, o.at);
+      else this.playBank('hitOther', false, o.target === 'hero' ? 0.42 : 0.3, o.target === 'hero' ? 1 : 1.12, o.at);
+      return;
+    }
     if (o.target === 'structure') {
-      this.start('hitCrack', { at, vol: 0.45 * k, rate: 0.7 });
-      this.start('hitHeavy', { at, vol: 0.4 * k, rate: 1.25 });
+      this.playBank('hitStructure', true, 0.95, 1, o.at);
       return;
     }
     const hero = o.target === 'hero';
-    this.start('hitCrack', { at, vol: (hero ? 0.55 : 0.45) * k, rate: hero ? 1 : 1.15 });
-    this.start('hitThump', { at, vol: (hero ? 0.8 : 0.6) * k, rate: hero ? 0.9 : 1.2 });
-    if (!mine) return;
-    if (hero) this.start('heroHit', { at, vol: 0.45 });
-    if (o.heavy || o.big) this.start('hitHeavy', { at, vol: o.big ? 0.75 : 0.55 });
-    if (o.big) this.start('critRing', { at, vol: 0.55 });
+    const body = o.nature ? natureBody(o.nature) : 'sharp';
+    const kind = o.big ? 'hitCrit' : body === 'magic' ? 'hitMagic' : o.heavy || body === 'blunt' ? 'hitHeavy' : hero ? 'hitHero' : 'hitUnit';
+    // the bus compressor lets the player's hero hits run hot; a crit is the loudest thing in a fight
+    const vol = o.big ? 1.45 : kind === 'hitHeavy' || kind === 'hitMagic' ? 1.25 : hero ? 1.15 : 0.85;
+    this.playBank(kind, true, vol, hero ? 1 : 1.08, o.at);
+  }
+
+  /**
+   * A basic attack's attacker side: a claw whoosh, a tank's heavy swing, a marksman's thwip or a caster's magic zip,
+   * in the hero's own pitch. The player's own is clear; others' are quiet and capped (3 swings at once).
+   */
+  swing(o: SwingOpts): void {
+    if (this.quiet > 0 || this.muted) return;
+    this.playBank(STYLE_SOUND[o.style], o.mine, o.mine ? 0.7 : 0.32, heroSwingRate(o.hero), o.at);
+  }
+
+  /** The player's last hit earned Fish: two bright pings and a shimmer. */
+  fishPing(): void {
+    if (this.quiet > 0 || this.muted) return;
+    this.playBank('fish', true, 0.75, 1);
+  }
+
+  /** Bank sounds started (tests, the capture). */
+  bankPlays = 0;
+  private readonly otherAt = new Map<string, number>();
+
+  /**
+   * One hit-bank sound: the next variant with a pitch and volume jitter, through its category's voice cap (the
+   * player's own steal from others), into the combat bus (ducked under the announcer). Returns true when it played.
+   */
+  private playBank(kind: string, mine: boolean, vol: number, rate: number, at?: { x: number; z: number }): boolean {
+    const ac = this.ac;
+    const s = HIT_BANK[kind];
+    if (!ac || !s || !this.combat) return false;
+    const now = ac.currentTime;
+    // someone else's sound of the same kind at most every OTHER_GAP s (a minion wave's hits do not stack up)
+    if (!mine) {
+      if (now - (this.otherAt.get(kind) ?? -1) < OTHER_GAP) return false;
+      this.otherAt.set(kind, now);
+    }
+    const slot = this.hitVoices.admit(s.cat, now, mine);
+    if (slot < 0) return false;
+    const p = this.variation.next(kind);
+    const name = bankName(kind, p.variant);
+    const r = rate * p.rate;
+    const src = this.start(name, { vol: vol * p.vol, rate: r, at }, true);
+    if (!src) return false;
+    this.hitVoices.set(s.cat, slot, now, (src.buffer?.duration ?? 0.3) / r, mine, src);
+    this.bankPlays++;
+    return true;
   }
 
   /**
@@ -558,8 +656,8 @@ export class Sfx {
   }
 
   /** A free output chain (a Gain, and a StereoPanner when `panned`), wired into `bus`; a new one when all are playing. */
-  private chain(ac: AudioContext, bus: AudioNode, panned: boolean): SfxChain {
-    const list = panned ? this.chains.panned : this.chains.centre;
+  private chain(ac: AudioContext, bus: AudioNode, panned: boolean, combat = false): SfxChain {
+    const list = combat ? (panned ? this.chains.combatPanned : this.chains.combatCentre) : panned ? this.chains.panned : this.chains.centre;
     for (let i = 0; i < list.length; i++) if (!list[i].busy) return list[i];
     const g = ac.createGain();
     let p: StereoPannerNode | null = null;
@@ -575,14 +673,17 @@ export class Sfx {
     return c;
   }
 
-  private start(name: string, o: PlayOpts): AudioBufferSourceNode | null {
+  /** Start a baked sound. `bank`: a hit-bank sound (its own variation already applied; into the combat bus). */
+  private start(name: string, o: PlayOpts, bank = false): AudioBufferSourceNode | null {
     const ac = this.ac;
     const buf = this.bufferOf(name);
     if (!ac || !buf || !this.fx || this.muted) return null;
     const now = ac.currentTime;
-    // the same sound at most every 40 ms (a wave of minions should not machine-gun)
-    if (now - (this.lastAt.get(name) ?? -1) < 0.04) return null;
-    this.lastAt.set(name, now);
+    // the same sound at most every 40 ms (a wave of minions should not machine-gun); bank sounds have voice caps
+    if (!bank) {
+      if (now - (this.lastAt.get(name) ?? -1) < 0.04) return null;
+      this.lastAt.set(name, now);
+    }
     let vol = o.vol ?? 1;
     let pan = 0;
     if (o.at) {
@@ -596,9 +697,10 @@ export class Sfx {
     try {
       const src = ac.createBufferSource();
       src.buffer = buf;
-      src.playbackRate.value = (o.rate ?? 1) * (0.94 + Math.random() * 0.12);
+      src.playbackRate.value = bank ? (o.rate ?? 1) : (o.rate ?? 1) * (0.94 + Math.random() * 0.12);
       const panned = pan !== 0 && typeof ac.createStereoPanner === 'function';
-      const c = this.chain(ac, this.fx, panned);
+      const combat = bank && !!this.combat;
+      const c = this.chain(ac, combat ? this.combat! : this.fx, panned, combat);
       c.g.gain.value = vol;
       if (c.p) c.p.pan.value = pan;
       src.connect(c.g);

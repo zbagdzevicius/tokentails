@@ -1135,3 +1135,27 @@ e2e World hook): plates, names, levels, telegraphs and skill VFX read the same.
 (phone heroes no longer draw into the shadow map). That is 3 more 12×12 float uploads a frame (`tex uploads/s` 180 →
 360 above), the same rate as the Low tier. Not a cost that matters; why the base skipped every other frame with
 shadows on was not traced.
+
+### 8.15 Audio pass 2: hit sounds (2026-11-10)
+
+Hits, swings, hurts and the last-hit Fish ping are now one pre-mixed buffer each (`audio/hitMix.ts`: transient,
+body and tail mixed at bake time, 4 variants per sound) instead of 2–6 layered plays, through a combat bus with one
+compressor (made once). Voice caps per category (hit 6, swing 3, hurt 2, ping 2; the player's own steal from
+others) and others' sounds of one kind at most every 70 ms.
+
+**Offline capture** (`node tools/audio-capture.mjs <out.wav> [root]`, 26 scripted hit events in 9 s, OfflineAudioContext
+in headless Chromium): 88 → **60** buffer sources, 10 → 6 gains, 7 → 4 panners; peak 1.006 (clipped) → 0.69.
+
+**In a match** (`perf-ios-measure.mjs chromium`, phone, ×4, `WIN_MS=20000 MID_WAIT=30000`, base = `85c842d5` and
+the pass served side by side and run in pairs). The machine was heavily loaded (1–9 drawn fps instead of 60), so only
+the audio and garbage columns mean much. The last pair, with the final code:
+
+| Window | Audio nodes/s base → pass | Heap alloc MB/s | GC drops/s |
+|---|---|---|---|
+| Match 0:00 | 3.7 → 3.6 | 0.47 → 0.40 | 0.4 → 0.4 |
+| Match ~0:50 | 3.9 → 4.0 | 0.98 → 1.06 | 0.7 → 0.9 |
+| Match ~1:40 | 7.6 → 4.9 | 0.87 → 0.72 | 0.9 → 1.0 |
+| 4th live window | 4.2 → 4.1 | 0.73 → 0.76 | 0.9 → 0.9 |
+
+Every window is at or under §8.14's 4.3–5.6 audio nodes a second. Earlier pairs, before others' sounds were thinned
+to one per 70 ms per kind, read 6.3–7.8 in the ~1:40 window (a minion wave's hits stacked); that is fixed.

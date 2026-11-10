@@ -16,6 +16,8 @@ export interface VoiceOut {
   bus: AudioNode | null;
   /** The music's own gain, lowered while a line plays (null: no ducking). */
   duck: GainNode | null;
+  /** The combat bus (hits, swings, hurts): ducked to COMBAT_DUCK under a line (absent or null: not ducked). */
+  duckFx?: GainNode | null;
   /** 0..1 (sound-effects volume × master); 0 or muted says nothing. */
   volume: number;
   muted: boolean;
@@ -149,16 +151,22 @@ function running(ctx: AudioContext): Promise<boolean> {
   });
 }
 
-function duck(out: VoiceOut, on: boolean): void {
-  const g = out.duck;
-  const ctx = out.ctx;
+/** The combat bus's level under a line (hits stay present, the line stays clear). */
+export const COMBAT_DUCK = 0.55;
+
+function duckOne(g: GainNode | null | undefined, ctx: AudioContext | null, level: number, on: boolean): void {
   if (!g || !ctx) return;
   try {
     g.gain.cancelScheduledValues(ctx.currentTime);
-    g.gain.setTargetAtTime(on ? DUCK_LEVEL : 1, ctx.currentTime, on ? 0.04 : 0.25);
+    g.gain.setTargetAtTime(on ? level : 1, ctx.currentTime, on ? 0.04 : 0.25);
   } catch {
-    g.gain.value = on ? DUCK_LEVEL : 1;
+    g.gain.value = on ? level : 1;
   }
+}
+
+function duck(out: VoiceOut, on: boolean): void {
+  duckOne(out.duck, out.ctx, DUCK_LEVEL, on);
+  duckOne(out.duckFx, out.ctx, COMBAT_DUCK, on);
 }
 
 function stopPlaying(): void {
