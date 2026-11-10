@@ -149,6 +149,8 @@ export interface EffectsHooks {
   levelNote?(level: number, guided: boolean): boolean;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
+  /** LATENCY-PLAN N1: the session already played this own wind-up's sound when the cast was sent (true: stay quiet). */
+  ownWindupHeard?(slot: number): boolean;
   onTowerDown?(destroyedByMyTeam: boolean): void;
   /** An enemy tower or core locked on to the player (fun plan S5 lock-on; the `windup` with slot 4). */
   onTowerAim?(src: number, ticks: number): void;
@@ -704,7 +706,7 @@ export class Effects {
       }
       return;
     }
-    sfx.play('windup', { at: src, vol: 0.6 });
+    if (!(e.src === this.hooks.mySlot && this.hooks.ownWindupHeard?.(e.slot))) sfx.play('windup', { at: src, vol: 0.6 });
     // Sim v17 (V17.md §3.6, §7): a windup that names its victim (Pack Hunt) warns that hero's player by ear at once.
     if (src.team !== this.hooks.myTeam && e.dst !== undefined && e.dst === this.hooks.mySlot) {
       this.hooks.onWindupAtMe?.();
