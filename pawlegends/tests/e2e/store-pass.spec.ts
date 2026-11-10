@@ -105,8 +105,13 @@ async function noPageScroll(game: Frame): Promise<void> {
   const r = await game.evaluate(() => {
     const se = document.scrollingElement!;
     const card = document.querySelector('.pl-shop .card, .pl-pass .card')!.getBoundingClientRect();
-    return { sh: se.scrollHeight, ch: se.clientHeight, sw: se.scrollWidth, cw: se.clientWidth, bottom: card.bottom, right: card.right, vh: innerHeight, vw: innerWidth };
+    // The card clips its content, so also check the store preview column ends above the buy bar.
+    const preview = document.querySelector('.pl-shop .shop-preview')?.getBoundingClientRect();
+    const bar = document.querySelector('.pl-shop .shop-bar')?.getBoundingClientRect();
+    const overlap = preview && bar ? preview.bottom - bar.top : 0;
+    return { sh: se.scrollHeight, ch: se.clientHeight, sw: se.scrollWidth, cw: se.clientWidth, bottom: card.bottom, right: card.right, vh: innerHeight, vw: innerWidth, overlap };
   });
+  expect(r.overlap).toBeLessThanOrEqual(1);
   expect(r.sh).toBeLessThanOrEqual(r.ch);
   expect(r.sw).toBeLessThanOrEqual(r.cw);
   expect(r.bottom).toBeLessThanOrEqual(r.vh + 1);

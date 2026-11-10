@@ -84,6 +84,8 @@ export class PawlegendsWebhookService {
                 return this.checkoutExpired(event.data.object as Stripe.Checkout.Session);
             case 'charge.refunded':
                 return this.chargeRefunded(event.data.object as Stripe.Charge);
+            case 'charge.dispute.closed':
+                return this.disputeClosed(event.data.object as Stripe.Dispute);
             default:
                 return 'ignored';
         }
@@ -309,17 +311,42 @@ export class PawlegendsWebhookService {
         const terms =
             charge.metadata?.pawlegends_terms_refund === '1' ||
             !!charge.refunds?.data?.some(r => r.metadata?.pawlegends_terms_refund === '1');
-        const rows = (await this.store.purchases.find({ paymentIntentId, status: 'paid' }).lean()) as any[];
+        return this.endPayment(paymentIntentId, terms ? { termsRefund: true } : {});
+    }
+
+    /** A lost chargeback ends the purchase like a full refund (not under the terms): the money is gone. */
+    async disputeClosed(dispute: Stripe.Dispute): Promise<PawlegendsWebhookOutcome> {
+        const paymentIntentId = idOf(dispute.payment_intent);
+        if (!paymentIntentId || dispute.status !== 'lost') return 'ignored';
+        return this.endPayment(paymentIntentId, { disputeId: dispute.id });
+    }
+
+    /**
+     * Marks the paid rows of a payment refunded, then revokes and downgrades every catalogue row of that payment,
+     * already refunded ones too: the revoke and `syncPremium` are idempotent, so a delivery that failed half way (the
+     * rows flipped, the revoke not done; the event id is then not recorded) is healed by Stripe's retry.
+     */
+    private async endPayment(
+        paymentIntentId: string,
+        extra: { termsRefund?: true; disputeId?: string }
+    ): Promise<PawlegendsWebhookOutcome> {
+        const rows = (await this.store.purchases
+            .find({ paymentIntentId, status: { $in: ['paid', 'refunded'] } })
+            .lean()) as any[];
+        if (!rows.length) return 'ignored';
         const result = await this.store.purchases.updateMany(
             { paymentIntentId, status: 'paid' },
-            { $set: { status: 'refunded', refundedAt: this.now(), ...(terms ? { termsRefund: true } : {}) } }
+            { $set: { status: 'refunded', refundedAt: this.now(), ...extra } }
         );
+        let healed = false;
         // Store and pass purchases: the items go (unless refunded under the terms), and the pass row is downgraded.
         for (const row of rows) {
             if (!isCatalogSku(row.sku) || !row.accountId) continue;
-            if (!terms) await revokeSession(this.store, row.sessionId, this.now());
+            const keep = !!extra.termsRefund || !!row.termsRefund;
+            if (!keep) await revokeSession(this.store, row.sessionId, this.now());
             if (PAWLEGENDS_SKUS[row.sku]?.kind === 'pass') await syncPremium(this.store, row.accountId, this.now());
+            healed = true;
         }
-        return (result as any)?.matchedCount ? 'processed' : 'ignored';
+        return (result as any)?.matchedCount || healed ? 'processed' : 'ignored';
     }
 }

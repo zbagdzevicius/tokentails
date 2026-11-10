@@ -66,7 +66,7 @@ Severity: **critical** blocks fun 8 or launch quality; **high** is a strong leve
 | Lanes | Role lanes, solo-lane XP | Fixed lane by slot | medium | B1 lane swap, N9 |
 | Vision | Fog and wards | Bushes only | medium (later) | Later |
 | Monetization | Direct-purchase ladder | $5 cat = skin on all 8 | parity | Keep |
-| Monetization | Gacha, stat skins, held items, pass, energy | None; Legends Pass S1 built 2026-11-10 (founder override of "Won't" for the pass only: cosmetic, no randomness, never expires; docs/plans/moba/STORE-PASS.md) | DNC (pass: built) | Won't (pass: shipped) |
+| Monetization | Gacha, stat skins, held items, pass, energy | None; Legends Pass S1 built 2026-11-10 (founder override of "Won't" for the pass only: cosmetic, no randomness, never expires; docs/plans/moba/STORE-PASS.md) | DNC (pass: built) | Won't (pass: built, not live) |
 | Tech | Runs on cheap phones | Real devices not measured | critical (gate) | G-Dev |
 
 Sources: [Wild Rift patch notes](https://wildrift.leagueoflegends.com/en-us/news/game-updates/),

@@ -211,6 +211,57 @@ describe('webhook grant and refund', () => {
         expect(me.season.premium).toBe('none');
         expect(me.season.claimed).toEqual([]);
     });
+    it('a refund whose revoke failed half way is finished by the retried event', async () => {
+        const h = storeHarness();
+        const coat = await pay(h, CLEM);
+        // The first delivery flipped the row and crashed before the revoke (its event id was not recorded).
+        await h.models.purchases.updateMany({ sessionId: coat.sessionId }, { $set: { status: 'refunded' } });
+        expect(await ownedItemsOf(h.store, ACCOUNT)).not.toEqual([]);
+        const { rawBody, signature } = signedEvent(refundEvent(`pi_${coat.sessionId}`, 'evt_refund_retry'));
+        expect(await h.webhooks.handle(h.webhooks.verify(rawBody, signature, ON_ENV), ON_ENV)).toBe('processed');
+        expect(await ownedItemsOf(h.store, ACCOUNT)).toEqual([]);
+    });
+    it('refunding the Pass+ upgrade takes back the rewards only its skips reached', async () => {
+        const h = storeHarness();
+        await pay(h, PASS_SKU);
+        const upgrade = await pay(h, PASS_UPGRADE_SKU);
+        // 0 XP, tier 15 from the skips: claim every reached reward on both rows.
+        const all = await h.season.claim(ACCOUNT, { all: true });
+        expect(all.me.season.claimed.length).toBeGreaterThan(15);
+        const { rawBody, signature } = signedEvent(refundEvent(`pi_${upgrade.sessionId}`, 'evt_refund_upgrade'));
+        await h.webhooks.handle(h.webhooks.verify(rawBody, signature, ON_ENV), ON_ENV);
+        const me = await h.season.me(ACCOUNT);
+        expect(me.season).toMatchObject({ premium: 'pass', skips: 0, tier: 0, claimed: [] });
+        expect(me.items).toEqual([]);
+    });
+    it('a lost chargeback revokes like a refund; a won one changes nothing', async () => {
+        const h = storeHarness();
+        const coat = await pay(h, CLEM);
+        const pass = await pay(h, PASS_SKU);
+        const dispute = (pi: string, id: string, status: string) => ({
+            id,
+            type: 'charge.dispute.closed',
+            data: { object: { id: `dp_${id}`, object: 'dispute', status, payment_intent: pi, metadata: {} } },
+        });
+        for (const ev of [dispute(`pi_${coat.sessionId}`, 'evt_dp_won', 'won')]) {
+            const { rawBody, signature } = signedEvent(ev);
+            expect(await h.webhooks.handle(h.webhooks.verify(rawBody, signature, ON_ENV), ON_ENV)).toBe('ignored');
+        }
+        expect((await ownedItemsOf(h.store, ACCOUNT)).length).toBeGreaterThan(0);
+        for (const ev of [
+            dispute(`pi_${coat.sessionId}`, 'evt_dp_coat', 'lost'),
+            dispute(`pi_${pass.sessionId}`, 'evt_dp_pass', 'lost'),
+        ]) {
+            const { rawBody, signature } = signedEvent(ev);
+            expect(await h.webhooks.handle(h.webhooks.verify(rawBody, signature, ON_ENV), ON_ENV)).toBe('processed');
+        }
+        expect(await ownedItemsOf(h.store, ACCOUNT)).toEqual([]);
+        expect((await h.season.me(ACCOUNT)).season.premium).toBe('none');
+        expect(await h.models.purchases.findOne({ sessionId: coat.sessionId }).lean()).toMatchObject({
+            status: 'refunded',
+            disputeId: 'dp_evt_dp_coat',
+        });
+    });
 });
 
 describe('Legends Pass claims', () => {
@@ -253,6 +304,26 @@ describe('Legends Pass claims', () => {
             NOW
         );
         expect(capped!.gained).toBe(0);
+    });
+    it('solo saves pay XP 30 times a UTC day, and not faster than the matches last', async () => {
+        const h = storeHarness();
+        const match = { won: false, forfeit: false, takedowns: 0, soloMs: 600_000 };
+        const day = Date.UTC(2026, 10, 12);
+        const paid: number[] = [];
+        for (let i = 0; i < 31; i++) {
+            const gain = await addSeasonXp(h.store, ACCOUNT, match, new Date(day + i * 600_000));
+            paid.push(gain!.gained);
+        }
+        expect(paid.filter(g => g > 0)).toHaveLength(30);
+        expect(paid[30]).toBe(0);
+        // A new UTC day resets the counter.
+        expect((await addSeasonXp(h.store, ACCOUNT, match, new Date(day + 86400_000)))!.gained).toBe(60);
+        // Two saves closer together than 80% of the match length: the second pays nothing.
+        const h2 = storeHarness();
+        const a = await addSeasonXp(h2.store, ACCOUNT, match, new Date(day));
+        const b = await addSeasonXp(h2.store, ACCOUNT, match, new Date(day + 60_000));
+        const c = await addSeasonXp(h2.store, ACCOUNT, match, new Date(day + 480_000));
+        expect([a!.gained, b!.gained, c!.gained]).toEqual([60, 0, 60]);
     });
 });
 

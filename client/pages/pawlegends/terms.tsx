@@ -82,9 +82,9 @@ export default function PawlegendsTermsPage() {
             </p>
             <p>
               The Legends Pass opens a season&apos;s premium reward row. You reach tiers with Season XP from finished
-              matches; Pass+ adds 15 tiers and one extra coat. Season XP is progress only: it is not money, cannot be
-              bought, sold or exchanged, and has no cash value. A season&apos;s rewards stay claimable after the season
-              ends. Store items and the pass are digital content delivered right away: the same 14-day withdrawal
+              matches; Pass+ also moves you 15 tiers ahead (up to tier 30) and adds one extra coat, Eclipse. Season XP
+              is progress only: it is not money, cannot be bought, sold or exchanged, and has no cash value. A
+              season&apos;s rewards stay claimable after the season ends. Store items and the pass are digital content delivered right away: the same 14-day withdrawal
               rule below applies, with the same box to tick. A refunded pass removes its premium rewards.
             </p>
           </Section>

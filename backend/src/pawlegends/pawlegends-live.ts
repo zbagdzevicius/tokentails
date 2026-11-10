@@ -426,6 +426,8 @@ export async function savePawlegendsMatch(
               won,
               forfeit: result.reason === 'forfeit',
               takedowns: takedownsOf((result as { stats?: unknown }).stats, 0),
+              // Daily cap and real-time gap: a solo seed is the client's, so replays could be made offline.
+              soloMs: (result.ticks / PAWLEGENDS_TICK_HZ) * 1000,
           })
         : null;
 

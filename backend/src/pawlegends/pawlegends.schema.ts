@@ -91,6 +91,10 @@ export class PawlegendsPurchase extends CommonSchema {
      */
     @Prop()
     termsRefund?: boolean;
+
+    /** The lost chargeback (`charge.dispute.closed`, status `lost`) that ended this purchase. */
+    @Prop()
+    disputeId?: string;
 }
 export type PawlegendsPurchaseDocument = PawlegendsPurchase & Document;
 export const PawlegendsPurchaseSchema = SchemaFactory.createForClass(PawlegendsPurchase);
@@ -269,6 +273,16 @@ export class PawlegendsSeason {
     /** UTC day (YYYY-MM-DD) of the last first-win-of-the-day bonus. */
     @Prop()
     winDay?: string;
+
+    /** Solo XP gate: the UTC day of `xpMatches`, the solo matches paid that day, and when the last one was paid. */
+    @Prop()
+    xpDay?: string;
+
+    @Prop()
+    xpMatches?: number;
+
+    @Prop()
+    xpAt?: Date;
 
     @Prop()
     updatedAt?: Date;
