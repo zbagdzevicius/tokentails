@@ -3,9 +3,10 @@
 Founder ask (2026-11-10, verbatim): "investigate League of Legends ( wild rift ) and mobile legends skins. we already
 have Cards with tiers and multiple modifications, can't we adapt them somehow and spark more effects around it ?"
 
-Status: plan. Nothing here is built yet. Market research and the code map that this plan rests on were done the same
-day (read-only); the facts used are cited inline with file paths. Paths are relative to `pawlegends/src/` unless they
-start with `docs/`, `backend/` or `client/`.
+Status: MVP slice (§6) built on branch `feat/pawlegends-card-skins` (on top of `feat/pawlegends-store`), not pushed.
+What shipped differs from the plan in the few places listed in §6.5. Market research and the code map that this plan
+rests on were done the same day (read-only); the facts used are cited inline with file paths. Paths are relative to
+`pawlegends/src/` unless they start with `docs/`, `backend/` or `client/`.
 
 ## 1. The short version
 
@@ -217,6 +218,37 @@ Names and palettes are original (cats and dogs from our own roster). The founder
 
 Run: `npx vitest run tests/unit/card-fx.test.ts tests/unit/effect-kit.test.ts tests/unit/store-pass.test.ts
 tests/unit/determinism.test.ts`, then `npx tsc --noEmit`.
+
+### 6.5 As built (2026-11-10)
+
+Built as specified, with these differences:
+
+- **Profiles.** `SkinFxProfile` also carries `id` (hero slot, for per-hero caps), `stage` (Awakened stage from the
+  hero level), `elementTint`, `cream` (team-safe highlight: pure cream reads as a hue at full saturation) and `low`.
+  `coatRung.ts` has `skinFxFor()` (card first, else coat). HeroView caches each slot's profile and rebuilds its colours
+  only when the look, skin revision, viewer relation or hero changes.
+- **Ribbons and afterimages** are tinted where they are started (`anim/director.ts` `trailOn` / `ghost` cues, through
+  `FxCtx.card`), not inside `trails.ts` / `ghosts.ts`: those take a colour already. The identity layer reads the same
+  `FxCtx.card` hook.
+- **Legendary takedown flourish** is 3 cream + 3 coat stars (was 10) so a takedown, a cast sparkle, a paw hit and the
+  ultimate's wave fit one hero's 24-particle cap together. Per-hero caps (8 / 16 / 24) apply to the kit's emissions on
+  top of `CARD_MAX` and `COSMETIC_MAX`.
+- **Recall card glyph** is a spinning `SHAPE.PAW` sticker (no new atlas cell yet); the Awakened stage-up uses the same
+  glyph plus 12 motif sprites. The cream rim pulse was not built.
+- **Meow / purr** are two new synth defs (`cardMeow`, `cardPurr` in `audio/sfx.ts`): the bank had no cat voice.
+  `sfx.cardLayer()` plays them on a Legendary takedown and recall landing, at most once per 2 s per hero.
+- **Motif shapes:** WIND uses `FEATHER` and WATER `DROPLET` (both already in the pool) instead of SOFT streaks.
+- **Coat elements:** the six effect coats name theirs; every other Rare coat takes the element nearest its accent hue
+  (`nearestElement` in `render/cosmetics.ts`).
+- **Awakened in the frame:** `cardFrame({ awakened })` (footer "Kitten / Brave / Legend · Awakened", stronger glow);
+  wired into the results MVP card (the player's own stage at match end). The pick and versus screens do not pass it yet.
+- **Previews:** `mountSkillPreview(..., { look })`; the champion browser opened from the pick screen passes the
+  player's chosen look; the dev lab takes `?coat=<id>` or `?card=<demo cat>&bond=30`. The preview plays at hero level 4
+  (Awakened stage 1).
+- **Store:** the Coats tab lists the four effect coats first with their tier word and a one-line "what it adds".
+
+Evidence: tier stills and 6-frame loops in `docs/plans/moba/card-skins/` (`<tier>.webp`, `<tier>-anim.webp`; script
+`capture.mjs` there). Perf numbers are in the branch's hand-off note; the real-phone PERF-IOS §8 check is still open.
 
 ## 7. Phase 2 (not in the MVP)
 
