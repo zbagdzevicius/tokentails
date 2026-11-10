@@ -13,6 +13,11 @@ export const RTT_PER_REGION = 512;
 export const RTT_TOTAL = 2048;
 /** A pong later than this is a stall, not a round trip (kept out of the percentiles). */
 export const RTT_MAX_MS = 10_000;
+/**
+ * Only samples this young count: the counters describe the last reporting minute, so a region with no socket that
+ * minute writes no `rtt_ms_p95_<region>` and `rtt_n` is 0 (the alert filters in modules/monitoring rely on it).
+ */
+export const RTT_WINDOW_MS = 60_000;
 
 export type RttRegion = 'eu' | 'na' | 'sa' | 'as' | 'af' | 'oc' | 'me' | 'unknown';
 
@@ -42,20 +47,35 @@ export function pct(sorted: readonly number[], q: number): number {
     return sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * q))];
 }
 
-/** A bounded ring of RTT samples, total and per region. */
+/** A bounded ring of RTT samples (the last RTT_WINDOW_MS), total and per region. */
 export class RelayRtt {
-    private readonly all: number[] = [];
-    private readonly byRegion = new Map<RttRegion, number[]>();
+    private readonly all: { at: number; v: number }[] = [];
+    private readonly byRegion = new Map<RttRegion, { at: number; v: number }[]>();
 
-    add(region: RttRegion, ms: number): void {
+    add(region: RttRegion, ms: number, nowMs: number = Date.now()): void {
         if (!(ms >= 0 && ms <= RTT_MAX_MS)) return;
-        const v = Math.round(ms);
-        this.all.push(v);
+        const x = { at: nowMs, v: Math.round(ms) };
+        this.all.push(x);
         if (this.all.length > RTT_TOTAL) this.all.shift();
         let r = this.byRegion.get(region);
         if (!r) this.byRegion.set(region, (r = []));
-        r.push(v);
+        r.push(x);
         if (r.length > RTT_PER_REGION) r.shift();
+    }
+
+    /** Drop samples older than the window (each list is in arrival order) and regions left empty. */
+    private prune(nowMs: number): void {
+        const cut = nowMs - RTT_WINDOW_MS;
+        const drop = (xs: { at: number }[]) => {
+            let i = 0;
+            while (i < xs.length && xs[i].at < cut) i++;
+            if (i) xs.splice(0, i);
+        };
+        drop(this.all);
+        for (const [region, xs] of this.byRegion) {
+            drop(xs);
+            if (!xs.length) this.byRegion.delete(region);
+        }
     }
 
     get size(): number {
@@ -63,22 +83,24 @@ export class RelayRtt {
     }
 
     /**
-     * The counters' RTT keys: the p50 and p95 of every kept sample, and `rtt_ms_p95_<region>` for each region with
-     * samples. Flat numbers, so a log-based metric reads each one as `jsonPayload.rtt_ms_p95_eu`.
+     * The counters' RTT keys over the last RTT_WINDOW_MS: the p50 and p95 of the samples, and `rtt_ms_p95_<region>`
+     * for each region with samples. Flat numbers, so a log-based metric reads each one as `jsonPayload.rtt_ms_p95_eu`.
      */
-    counters(): { rtt_ms_p50: number; rtt_ms_p95: number; rtt_n: number } & Record<string, number> {
-        const s = [...this.all].sort((a, b) => a - b);
+    counters(
+        nowMs: number = Date.now()
+    ): { rtt_ms_p50: number; rtt_ms_p95: number; rtt_n: number } & Record<string, number> {
+        this.prune(nowMs);
+        const s = this.all.map(x => x.v).sort((a, b) => a - b);
         const out: { rtt_ms_p50: number; rtt_ms_p95: number; rtt_n: number } & Record<string, number> = {
             rtt_ms_p50: pct(s, 0.5),
             rtt_ms_p95: pct(s, 0.95),
             rtt_n: s.length,
         };
         for (const [region, xs] of this.byRegion)
-            if (xs.length)
-                out[`rtt_ms_p95_${region}`] = pct(
-                    [...xs].sort((a, b) => a - b),
-                    0.95
-                );
+            out[`rtt_ms_p95_${region}`] = pct(
+                xs.map(x => x.v).sort((a, b) => a - b),
+                0.95
+            );
         return out;
     }
 }

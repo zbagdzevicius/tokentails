@@ -5,7 +5,7 @@ import { PartyRelay } from './party-relay';
 import { PartyTicketService } from './party-ticket.service';
 import { RefereePool } from './referee-pool';
 import { MemoryRoomStore } from './room-store';
-import { RTT_MAX_MS, RTT_PER_REGION, RTT_TOTAL, RelayRtt, pct, regionOfCountry } from './relay-rtt';
+import { RTT_MAX_MS, RTT_PER_REGION, RTT_TOTAL, RTT_WINDOW_MS, RelayRtt, pct, regionOfCountry } from './relay-rtt';
 import { TestClient } from './relay-test-client.helper-spec';
 
 /* LATENCY-PLAN M2: server-measured socket RTT by continent, in the relay counters (no IPs, no ids). */
@@ -50,6 +50,41 @@ describe('relay RTT store', () => {
         r.add('eu', RTT_MAX_MS + 1);
         r.add('eu', NaN);
         expect(r.size).toBe(RTT_TOTAL);
+    });
+});
+
+describe('relay RTT window', () => {
+    it('counts only the last minute: a quiet minute writes no region key and rtt_n 0', () => {
+        const r = new RelayRtt();
+        for (let i = 0; i < 50; i++) r.add('eu', 900, 1000);
+        expect(r.counters(1000 + RTT_WINDOW_MS).rtt_ms_p95_eu).toBe(900);
+        const later = r.counters(1001 + RTT_WINDOW_MS);
+        expect(later.rtt_n).toBe(0);
+        expect(Object.keys(later).filter(k => k.startsWith('rtt_ms_p95_'))).toEqual([]);
+        r.add('eu', 40, 2 * RTT_WINDOW_MS);
+        expect(r.counters(2 * RTT_WINDOW_MS)).toMatchObject({ rtt_n: 1, rtt_ms_p95_eu: 40 });
+    });
+});
+
+describe('relay ping keeps the stamp of a pong still due', () => {
+    it('a second ping while the first pong is out does not restart the clock; past RTT_MAX_MS it does', () => {
+        let now = 1000;
+        const pings: number[] = [];
+        const s: any = { ws: { readyState: 1, ping: () => pings.push(now) }, pingAtMs: 0, region: 'eu' };
+        const relay: any = Object.create(PartyRelay.prototype);
+        relay.now = () => now;
+        relay.rtt = new RelayRtt();
+        relay.ping(s);
+        now += 5000;
+        relay.ping(s);
+        expect(pings).toEqual([1000]);
+        now += 1000;
+        relay.onPong(s);
+        expect(relay.rtt.counters(now).rtt_ms_p95_eu).toBe(6000);
+        relay.ping(s);
+        now += RTT_MAX_MS + 1;
+        relay.ping(s);
+        expect(pings).toEqual([1000, 7000, now]);
     });
 });
 
