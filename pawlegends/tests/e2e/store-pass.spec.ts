@@ -38,7 +38,10 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await shop.locator('[data-tab="frames"]').click();
   await expect(shop.locator('[data-sel]')).toHaveCount(4);
   await shop.locator('[data-tab="coats"]').click();
-  await expect(shop.locator('[data-sel]')).toHaveCount(16);
+  // CARD-SKINS.md: 4 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile) and the 16 Rare coats
+  await expect(shop.locator('[data-sel]')).toHaveCount(20);
+  await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(2);
+  await expect(shop.locator('[data-sel="pl_coat_brutus_thunderpaw"]')).toContainText(/Legendary · (\$|€)14\.99/);
   await shop.locator(`[data-sel="${SKU}"]`).click();
   await expect(shop.locator(`[data-buy="${SKU}"]`)).toContainText(/Buy (\$|€)2\.99/);
 
