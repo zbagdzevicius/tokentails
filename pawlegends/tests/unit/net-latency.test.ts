@@ -16,7 +16,7 @@ function setup() {
   let now = 1000;
   let seq = 0;
   let fromCore: ((m: CoreOut) => void) | null = null;
-  const socket = { listen: () => undefined, sendCmd: () => ++seq, sendJson: () => undefined, sendHash: () => undefined, beatNow: () => undefined, rttMs: 60, lastTurn: 0 };
+  const socket = { listen: () => undefined, sendCmd: () => ++seq, sendJson: () => undefined, sendHash: () => undefined, beatNow: () => undefined, rttMs: 60, lastTurn: 0, reconnects: 0, rttStats: () => ({ p50: 0, p95: 0, jitterP95: 0, n: 0 }) };
   const h = new NetHost(socket as never, match, {
     visibility: false,
     now: () => now,

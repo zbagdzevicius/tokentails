@@ -406,7 +406,7 @@ timer and caught up only above B + 2, so a backlog from start-up or one jitter b
 - **Hold:** nothing queued and no turn for 1.5 turns plus M. The renderer interpolates the last snapshot and does not extrapolate. After 500 ms of holding, the rail shows "Waiting for server…", except while the room is paused by vote.
 - Stepping is driven by turn arrival in the worker, not by main-thread rAF. Chrome throttles rAF in offscreen cross-origin iframes (the embed scrolled away) without firing `visibilitychange`, so rAF stepping would fall behind silently. Rendering stays on rAF and reads the latest snapshot.
 - **Gaps:** a TURN with turn ≠ expected + 1 makes the client send `sync{fromTurn}`. Turns ≤ the last applied turn are dropped (idempotent).
-- **Readout:** Settings shows "Ping 48 ms". In match, an icon appears only above 200 ms.
+- **Readout:** in a party match a ping chip sits beside the clock on the score plate, always on: a dot and "48 ms", green under 80 ms, yellow under 150 ms, red from 150 ms (`src/app/mpHud.ts`, LATENCY-PLAN C6). It reads the socket's RTT estimate once a second. Settings has no ping readout.
 
 ### 4.3 Latency feel on phones
 

@@ -58,4 +58,31 @@ describe('KPI props', () => {
     expect(net[0].props).toMatchObject({ input_ms: 120, input_p50: 110, input_p95: 160, input_n: 42, final: true });
     hud.dispose();
   });
+
+  it('mp_net carries the ECHO p50 / p95, jitter, the playout margin, late turns and the client context (M1)', () => {
+    const link = new FakeLink(0, ['A', 'B', null, null, null, null]);
+    link.net = () => ({ rttMs: 52, rttP50: 48, rttP95: 131, jitterP95: 40, buffer: 2, holds: 1, catchups: 0, marginMs: 27, lateTurns: 3, reconnects: 1, inputMs: 120, inputN: 0 }) as never;
+    const f = fakeHost(['A', 'B', 'C', 'D', 'E', 'F']);
+    const hud = new MpHud(f.host, link, { hideNames: false });
+    hud.start();
+    hud.ended('won', 'core', true);
+    const net = f.tracked.filter((t) => t.event === 'mp_net');
+    expect(net).toHaveLength(1);
+    const p = net[0].props;
+    expect(p).toMatchObject({ rtt_p50: 48, rtt_p95: 131, jitter_p95: 40, margin_m: 27, late_turns: 3, reconnects: 1, platform: 'web', final: true });
+    expect(p.rtt_p95).not.toBe(p.rtt_p50);
+    expect(typeof p.net_type).toBe('string');
+    expect(typeof p.sim).toBe('number');
+    hud.dispose();
+  });
+
+  it('mp_net before any ECHO sample falls back to the EWMA', () => {
+    const link = new FakeLink(0, ['A', 'B', null, null, null, null]);
+    const f = fakeHost(['A', 'B', 'C', 'D', 'E', 'F']);
+    const hud = new MpHud(f.host, link, { hideNames: false });
+    hud.start();
+    hud.ended('won', 'core', true);
+    expect(f.tracked.find((t) => t.event === 'mp_net')!.props).toMatchObject({ rtt_p50: 40, rtt_p95: 40, jitter_p95: 0 });
+    hud.dispose();
+  });
 });

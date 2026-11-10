@@ -48,6 +48,9 @@ export type CoreOut =
       /** Turns queued and the highest turn received (diagnostics: `?e2e=1` puts them on <html data-*>). */
       queue?: number;
       high?: number;
+      /** The jitter buffer's playout margin (ms) and the live turns that came after their playout time (`mp_net`). */
+      margin?: number;
+      late?: number;
     }
   | { t: 'progress'; pct: number; done: boolean }
   | { t: 'gap'; expected: number }
@@ -213,7 +216,7 @@ export class NetCore {
     }
     const due = this.runner.due(now);
     if (due.length === 0) {
-      this.post({ t: 'turn', lastTurn: this.applied, modeMask: this.lastMask, acks: [], B: this.runner.B, waiting: this.runner.waiting(now), holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued });
+      this.post({ t: 'turn', lastTurn: this.applied, modeMask: this.lastMask, acks: [], B: this.runner.B, waiting: this.runner.waiting(now), holds: this.runner.holds, pilotTurns: [...this.pilotTurns], pilotFrom: this.pilotFrom, queue: this.runner.queue.length, high: this.queued, margin: Math.round(this.runner.marginMs), late: this.runner.late });
       return;
     }
     const events: SimEvent[] = [];
