@@ -5,12 +5,17 @@ import { LIVE_GAME_BODY_LIMIT } from '../dto/live-game.dto';
 /** The score route (`UserController.Tcatbassadors`). No global prefix is set in main.ts. */
 export const LIVE_GAME_PATH = '/user/catbassadors/live';
 
-/** Stripe webhooks: raw body for the signature check (the portrait webhook, Bad Cat Daily's, Moon Rave's, Tails Club's). */
+/**
+ * Stripe webhooks: raw body for the signature check (the portrait webhook, which also carries Paw Legends; Bad Cat
+ * Daily's, Moon Rave's, Tails Club's; and Paw Legends' optional own endpoint, which without this entry got no raw body
+ * and answered every real delivery 400).
+ */
 export const RAW_BODY_PATHS = [
     '/image/webhook',
     '/badcat/stripe/webhook',
     '/rave/stripe/webhook',
     '/club/stripe/webhook',
+    '/pawlegends/stripe/webhook',
 ];
 
 /** Every other JSON body. An existing, very loose limit: a known issue (plan F6), not changed here. */

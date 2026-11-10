@@ -29,10 +29,10 @@ import { PAWLEGENDS_ERRORS } from './pawlegends.errors';
 import { PawlegendsStore } from './pawlegends.schema';
 import {
     Env,
+    pawlegendsCanConfirmPayments,
     pawlegendsEntitlementSecret,
     pawlegendsPublicUrl,
     pawlegendsStripeKey,
-    pawlegendsWebhookSecret,
 } from './pawlegends-env';
 import { verifyPawlegendsToken } from './pawlegends-token';
 import { conflictsOf } from './pawlegends-catalog';
@@ -360,7 +360,7 @@ export class PawlegendsStripeService {
         const { email } = this.validate(req);
         const stripe = this.stripe(env);
         // Never take money that could not be confirmed (webhook) or turned into an entitlement.
-        if (!pawlegendsWebhookSecret(env)) throw PAWLEGENDS_ERRORS.webhookUnavailable();
+        if (!pawlegendsCanConfirmPayments(env)) throw PAWLEGENDS_ERRORS.webhookUnavailable();
         if (!pawlegendsEntitlementSecret(env)) throw PAWLEGENDS_ERRORS.secretMissing();
 
         const store = isCatalogSku(req.sku);

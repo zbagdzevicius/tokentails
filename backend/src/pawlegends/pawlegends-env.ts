@@ -30,9 +30,24 @@ export function pawlegendsStripeKey(env: Env = process.env): StripeKeyState {
     });
 }
 
-/** `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`; without it no payment could be confirmed, so checkout answers 503. */
+/**
+ * `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`: the signing secret of an own endpoint (`POST /pawlegends/stripe/webhook`),
+ * optional. Only that route verifies with it.
+ */
 export const pawlegendsWebhookSecret = (env: Env = process.env) =>
     (env.PAWLEGENDS_STRIPE_WEBHOOK_SECRET || '').trim() || null;
+
+/**
+ * The shared Token Tails `STRIPE_WEBHOOK_SECRET`: the store runs on the Token Tails Stripe account, and its events
+ * reach the store through the Token Tails endpoint (`POST /image/webhook`, which passes them to
+ * `PawlegendsWebhookService.handle`).
+ */
+export const pawlegendsSharedWebhookSecret = (env: Env = process.env) =>
+    (env.STRIPE_WEBHOOK_SECRET || '').trim() || null;
+
+/** A payment can be confirmed: by the own endpoint's secret, else by the shared Token Tails webhook. */
+export const pawlegendsCanConfirmPayments = (env: Env = process.env) =>
+    !!(pawlegendsWebhookSecret(env) || pawlegendsSharedWebhookSecret(env));
 
 /** Fixed label of the derived entitlement key; changing it invalidates every token. */
 export const PAWLEGENDS_ENTITLEMENT_LABEL = 'tokentails:pawlegends:entitlement:v1';
@@ -46,9 +61,12 @@ export function pawlegendsEntitlementSecret(env: Env = process.env): string | nu
     return createHmac('sha256', shared).update(PAWLEGENDS_ENTITLEMENT_LABEL).digest('base64url');
 }
 
-/** Checkout can take money only when the key, the webhook secret and the entitlement key all exist. */
+/**
+ * Checkout can take money only when the key, a webhook secret (own or shared) and the entitlement key all exist.
+ * On production today that is `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `INVALIDATE_CACHE_SECRET`.
+ */
 export const pawlegendsCheckoutReady = (env: Env = process.env) =>
-    pawlegendsStripeKey(env).usable && !!pawlegendsWebhookSecret(env) && !!pawlegendsEntitlementSecret(env);
+    pawlegendsStripeKey(env).usable && pawlegendsCanConfirmPayments(env) && !!pawlegendsEntitlementSecret(env);
 
 export const pawlegendsEmailReady = (env: Env = process.env) => !!(env.SENDGRID_API_KEY || '').trim();
 

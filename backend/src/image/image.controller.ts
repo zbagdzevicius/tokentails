@@ -62,6 +62,7 @@ import { ImageModel } from './image.validator';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { alertPortraitNotDelivered, checkoutSessionEmail, emailPaidPortrait } from './paid-portrait-email';
 import { PortraitCheckoutService } from './portrait-checkout.service';
+import { PawlegendsWebhookService } from 'src/pawlegends/pawlegends-webhook.service';
 
 /** Bet #3: the portrait preview and its regenerate, per minute (they share the daily `portrait-preview` caps). */
 export const PORTRAIT_PREVIEW_THROTTLE = { ip: { limit: 10, ttl: 60000 }, user: { limit: 5, ttl: 60000 } };
@@ -185,7 +186,8 @@ export class ImageController implements IController<Image> {
         private portraitCheckout?: PortraitCheckoutService,
         private gate?: AiUploadGate,
         private budget?: AiBudgetService,
-        private portraitDelivery?: PortraitDeliveryService
+        private portraitDelivery?: PortraitDeliveryService,
+        private pawlegendsWebhooks?: PawlegendsWebhookService
     ) {}
     slugs: () => Promise<string[]>;
 
@@ -711,6 +713,16 @@ export class ImageController implements IController<Image> {
         } catch (err) {
             console.error('Webhook signature verification failed:', err);
             throw new BadRequestException('Invalid webhook signature');
+        }
+
+        // Paw Legends runs on this Stripe account and this endpoint: its sessions (metadata.pawlegends === '1'), refunds
+        // and disputes go to its handler (idempotent by event id; an error throws so Stripe retries). Its sessions never
+        // reach the Order lookup below. Refunds and disputes go on: Token Tails ignores them today.
+        if (this.pawlegendsWebhooks?.isPawlegendsEvent(event)) {
+            await this.pawlegendsWebhooks.handle(event);
+            if (event.type.startsWith('checkout.session.')) {
+                return { received: true };
+            }
         }
 
         // Handle the checkout.session.completed event
