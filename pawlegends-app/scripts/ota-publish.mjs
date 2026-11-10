@@ -87,12 +87,31 @@ function readManifest(channel) {
   }
 }
 
-/** Keep the newest `keep` bundles plus every one a manifest names. */
+/**
+ * Keep the newest `keep` bundles plus every one a manifest names, plus the newest bundle that has soaked SOAK_HOURS
+ * (V20-CHASE.md R8: the one `--promote` takes when beta is republished faster than it soaks).
+ */
 function prune(keep, current) {
   const zips = readdirSync(bundlesDir)
     .filter((f) => f.endsWith('.zip'))
     .sort((a, b) => Number(b.split('-')[0]) - Number(a.split('-')[0]));
-  for (const f of zips.slice(keep)) if (!current.includes(f.replace(/\.zip$/, ''))) rmSync(join(bundlesDir, f));
+  const soaked = zips.find((f) => (Date.now() - seqTime(f.split('-')[0])) / 3_600_000 >= SOAK_HOURS);
+  for (const f of zips.slice(keep)) if (f !== soaked && !current.includes(f.replace(/\.zip$/, ''))) rmSync(join(bundlesDir, f));
+}
+
+/**
+ * V20-CHASE.md R8: the bundle `--promote` puts on stable: beta once it is `soakHours` old, else the newest kept bundle
+ * that is (and is newer than stable), so a beta republished several times a day no longer holds stable back forever.
+ */
+function promoteCandidate(beta, stable, soakHours) {
+  const ageOf = (seq) => (Date.now() - seqTime(seq)) / 3_600_000;
+  if (soakHours <= 0 || ageOf(beta.seq) >= soakHours) return beta;
+  const metas = readdirSync(bundlesDir)
+    .filter((f) => f.endsWith('.json') && existsSync(join(bundlesDir, f.replace(/\.json$/, '.zip'))))
+    .map((f) => JSON.parse(readFileSync(join(bundlesDir, f), 'utf8')))
+    .filter((b) => b.compat === beta.compat && ageOf(b.seq) >= soakHours && (!stable || b.seq > stable.seq))
+    .sort((a, b) => b.seq - a.seq);
+  return metas[0] ?? null;
 }
 
 /** A seq is the UTC build time, yyyymmddHHMM or yyyymmddHHMMSS: its epoch ms, or NaN. */
@@ -133,16 +152,21 @@ if (args.includes('--promote')) {
   const soakHours = Number(arg('--soak-hours', SOAK_HOURS));
   const age = (Date.now() - seqTime(beta.seq)) / 3_600_000;
   // 0 = promote now (a manual promote_now), whatever the build clock said
-  if (soakHours > 0 && !(age >= soakHours)) {
-    console.log(`ota-publish: beta ${beta.version} is ${Number.isFinite(age) ? age.toFixed(1) : '?'} h old; promotes after ${soakHours} h`);
+  const pick = promoteCandidate(beta, stable, soakHours);
+  if (!pick) {
+    console.log(`ota-publish: beta ${beta.version} is ${Number.isFinite(age) ? age.toFixed(1) : '?'} h old and no kept bundle has soaked; promotes after ${soakHours} h`);
     process.exit(0);
   }
-  if (!existsSync(join(bundlesDir, `${beta.version}.zip`))) {
-    console.error(`ota-publish: the beta bundle ${beta.version}.zip is missing`);
+  if (stable && stable.version === pick.version) {
+    console.log(`ota-publish: stable is already ${pick.version}`);
+    process.exit(0);
+  }
+  if (!existsSync(join(bundlesDir, `${pick.version}.zip`))) {
+    console.error(`ota-publish: the bundle ${pick.version}.zip is missing`);
     process.exit(1);
   }
   // an older seq than the live stable (a beta rollback) must be marked so App Store installs accept it
-  const m = writeManifest('stable', { ...beta, rollback: beta.rollback || (stable ? beta.seq <= stable.seq : false) });
+  const m = writeManifest('stable', { ...pick, rollback: pick.rollback || (stable ? pick.seq <= stable.seq : false) });
   console.log(`ota-publish: promoted ${m.version} to stable`);
   process.exit(0);
 }
