@@ -11,10 +11,11 @@
  *
  * Everything the module touches is injected (OtaDeps), so tests/ota.test.ts drives it without a device.
  */
-import { decide, parseManifest, safeToApply, verifyManifest, type BundleStamp, type OtaManifest } from './manifest';
+import { decide, parseManifest, safeToApply, verifyManifest, type BundleStamp, type OtaManifest, type OtaPlatform } from './manifest';
 
 /**
- * Whether this platform takes over-the-air updates. The iPhone app does (guidelines 2.5.2 and 4.7). The Mac app
+ * Whether this platform takes over-the-air updates. The iPhone app does (guidelines 2.5.2 and 4.7), and so does the
+ * Android app (Google Play's Device and Network Abuse policy allows JavaScript run in a WebView). The Mac app
  * (`__PL_PLATFORM__ === 'mac'`, set by GameViewController.swift) does not: Mac App Store guideline 2.4.5 (v) and
  * (viii) rule out downloading resources and updating outside the Mac App Store, so the Mac only ever runs the game
  * bundled in its build and gets new content as a new build through App Review.
@@ -50,6 +51,8 @@ export interface OtaDeps {
   stamp: BundleStamp;
   nativeVersion(): Promise<string>;
   manifestUrl: string;
+  /** The manifest's platform this shell accepts (default ios). */
+  platform?: OtaPlatform;
   /** Accept bundles from the local test server (the dev channel of a Debug build only). */
   allowLocal?: boolean;
   spkiPem: string;
@@ -139,7 +142,7 @@ export class Ota {
       } catch {
         return 'offline';
       }
-      const m = parseManifest(raw, this.d.stamp.compat, this.d.allowLocal === true);
+      const m = parseManifest(raw, this.d.stamp.compat, this.d.allowLocal === true, this.d.platform ?? 'ios');
       if (!m) return 'no-manifest';
       const sig = await verifyManifest(m, this.d.spkiPem, this.d.subtle);
       if (sig === 'bad') {
