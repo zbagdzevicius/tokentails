@@ -105,7 +105,9 @@ describe('root module per role', () => {
         expect(providerClasses(api)).not.toContain(PartyRelayService);
         // nothing else differs: same controllers, same providers apart from the relay
         expect(meta(api, MODULE_METADATA.CONTROLLERS)).toEqual(meta(all, MODULE_METADATA.CONTROLLERS));
-        expect(providerClasses(api)).toEqual(providerClasses(all).filter(p => p !== PartyRelayService));
+        expect(providerClasses(api)).toEqual(
+            providerClasses(all).filter(p => p !== PartyRelayService && p !== RelayStatsReporter)
+        );
         expect(meta(api, MODULE_METADATA.IMPORTS).some(isScheduleImport)).toBe(true);
         expect(roleValue(api)).toBe('api');
     });
@@ -204,5 +206,9 @@ describe('relay stats line', () => {
         expect(providerClasses(relay)).toContain(RelayStatsReporter);
         expect(meta(relay, MODULE_METADATA.CONTROLLERS)).toContain(RelayProbeController);
         expect(providerClasses(await rootModuleFor('api'))).not.toContain(RelayStatsReporter);
+    });
+
+    it('role all (DigitalOcean) logs the relay counters too, a production baseline before the cutover', async () => {
+        expect(providerClasses(await rootModuleFor('all'))).toContain(RelayStatsReporter);
     });
 });

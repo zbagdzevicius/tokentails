@@ -199,11 +199,15 @@ import { ClubService } from './club/club.service';
 import { ClubWebhookService } from './club/club-webhook.service';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
+<<<<<<< HEAD
 import { MotoredStripeController } from './shelter/motored/motored-stripe.controller';
 import { MotoredStripeService } from './shelter/motored/motored-stripe.service';
 import { MotoredGiftService } from './shelter/motored/motored-gift.service';
 import { MotoredGift, MotoredGiftSchema, MotoredWallet, MotoredWalletSchema } from './shelter/motored/motored.schema';
 import { RelayDrainController } from './shared/runtime/relay-drain.controller';
+=======
+import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
+>>>>>>> 6ba60f0f9 (feat(backend): relay_stats on DigitalOcean and server-measured socket RTT)
 
 const JwtModules = [
     PassportModule,
@@ -444,7 +448,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PartyTicketService,
         MongoRoomStore,
         MmService,
-        ...(role === 'all' ? [PartyRelayService] : []),
+        // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
+        ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,
