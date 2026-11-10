@@ -6,6 +6,9 @@
  *   node scripts/screenshots.mjs                  iPhone 6.9": 2868 x 1320 (956 x 440 pt at 3x)
  *   node scripts/screenshots.mjs --device ipad    iPad 13": 2752 x 2064 (1376 x 1032 pt at 2x)
  *   node scripts/screenshots.mjs --device mac     Mac: 2880 x 1800 (1440 x 900 pt at 2x), mouse and keyboard, desktop HUD
+ *   node scripts/screenshots.mjs --device android Google Play phone: 1920 x 1080 (960 x 540 CSS px at 2x), 16:9 as Play
+ *                                                 wants for game promotion; also copied as the listing's phone shots
+ *                                                 (fastlane/metadata_android/en-US/images/phoneScreenshots/)
  *
  * Driving a real match in the iOS Simulator is not scriptable (simctl has no touch input), so this renders the same
  * bundle in Chromium at the exact device size instead.
@@ -19,8 +22,9 @@
  */
 import { createServer } from 'node:http';
 import { createRequire } from 'node:module';
-import { existsSync, mkdirSync, readFileSync, statSync } from 'node:fs';
-import { extname, join, normalize } from 'node:path';
+import { existsSync, mkdirSync, readFileSync, rmSync, statSync } from 'node:fs';
+import { basename, extname, join, normalize } from 'node:path';
+import sharp from 'sharp';
 import { APP_DIR, REPO_DIR } from './lib/app-config.mjs';
 
 const require = createRequire(join(REPO_DIR, 'pawlegends/package.json'));
@@ -34,9 +38,10 @@ const DEVICES = {
   iphone: { width: 956, height: 440, scale: 3, out: 'store/raw-captures/auto-iphone' },
   ipad: { width: 1376, height: 1032, scale: 2, out: 'store/raw-captures/auto-ipad' },
   mac: { width: 1440, height: 900, scale: 2, out: 'store/raw-captures/auto-mac', desktop: true },
+  android: { width: 960, height: 540, scale: 2, out: 'store/raw-captures/auto-android', play: 'fastlane/metadata_android/en-US/images/phoneScreenshots' },
 };
 const dev = DEVICES[device];
-if (!dev) throw new Error(`screenshots: unknown --device ${device} (iphone | ipad | mac)`);
+if (!dev) throw new Error(`screenshots: unknown --device ${device} (iphone | ipad | mac | android)`);
 const out = join(APP_DIR, dev.out);
 mkdirSync(out, { recursive: true });
 
@@ -123,3 +128,11 @@ try {
   server.close();
 }
 console.log(`screenshots: ${shots.length} shots (${dev.width * dev.scale} x ${dev.height * dev.scale}) in ${out}`);
+if (dev.play) {
+  // Google Play takes raw gameplay as is (JPEG or 24-bit PNG, 16:9); fastlane supply uploads them in name order
+  const play = join(APP_DIR, dev.play);
+  rmSync(play, { recursive: true, force: true });
+  mkdirSync(play, { recursive: true });
+  for (const f of shots) await sharp(f).flatten({ background: '#2b1d2e' }).removeAlpha().png({ compressionLevel: 9 }).toFile(join(play, basename(f)));
+  console.log(`screenshots: copied to ${play}`);
+}
