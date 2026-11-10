@@ -72,6 +72,16 @@ describe('casual PvP client', () => {
     expect(old.s.queue?.stopped).toBe('update');
   });
 
+  it('5v5 Classic PvP sends mm.join classic (no 5-match lock on the client) and a classic status keeps the queue', () => {
+    let { s, fx } = run(initialParty('queue', null, 'any', 'classic'), welcome(4));
+    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'classic', side: 'any' }]);
+    ({ s } = run(s, { t: 'mm.status', queue: 'classic', side: 'any', waitedMs: 5000, estimateMs: 45_000, found: 1, teams: [1, 0] }));
+    expect(s.queue).toMatchObject({ mode: 'classic', theirs: 0 });
+    // a reconnect re-sends the same 5v5 queue (never 3v3 casual, which a newbie is refused)
+    ({ fx } = run(s, welcome(4)));
+    expect(sent(fx)).toEqual([{ t: 'mm.join', queue: 'classic', side: 'any' }]);
+  });
+
   it('a casual status shows both teams; at 45 s "playing Co-op vs bots" with Keep waiting, which re-sends casual', () => {
     let { s } = run(initialParty('queue', null, 'any', 'casual'), welcome(), { t: 'mm.status', queue: 'casual', side: 'any', waitedMs: 5000, estimateMs: 30_000, found: 2, teams: [2, 1] });
     expect(s.queue).toMatchObject({ mode: 'casual', theirs: 1, toCoop: false });

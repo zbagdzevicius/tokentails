@@ -102,6 +102,32 @@ describe('5v5 Classic relay (MAP-5V5.md §9)', () => {
         }
     });
 
+    it('a brand-new player queues 5v5 Classic: no 5-match lock (casual 3v3 keeps it)', async () => {
+        const b = await bootMm();
+        try {
+            // a fresh guest with no server record and no matches, and an IP-only identity (no guest key)
+            const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
+            const anon = await b.client();
+            anon.hello({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
+            await anon.until(() => anon.last('welcome'));
+            for (const c of [fresh, anon]) {
+                c.send({ t: 'mm.join', queue: 'classic', side: 'any' });
+                expect((await c.until(() => c.last('mm.status'))).queue).toBe('classic');
+                expect(c.last('error')).toBeUndefined();
+            }
+            expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(2);
+            // casual 3v3 still asks for 5 completed matches
+            const casual = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
+            casual.send({ t: 'mm.join', queue: 'casual', side: 'any' });
+            expect(await casual.until(() => casual.last('error'))).toMatchObject({
+                code: 'mm_locked',
+                reason: 'pvp_newbie',
+            });
+        } finally {
+            await b.stop();
+        }
+    });
+
     it('two classic solos fill with bots at 45 s (1 + 4 bots a side); a PROTO 3 socket is told to update', async () => {
         const b = await bootMm();
         try {

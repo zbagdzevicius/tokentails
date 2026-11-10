@@ -64,7 +64,7 @@ export interface QueueStatus {
 /** Quick Play: this player (or its friend party) searching, matched, or stopped. */
 export interface QueueState {
   side: MmSide;
-  /** 'casual': PvP (PROTO 3, V16.md §4.1). */
+  /** 'casual': 3v3 PvP (PROTO 3, V16.md §4.1); 'classic': 5v5 PvP on Hearthwood (PROTO 4, MAP-5V5.md §9.3). */
   mode: MmQueue;
   /** Casual: no opponent by 45 s, the search moved to co-op (the card offers Keep waiting). */
   toCoop?: boolean;
@@ -289,7 +289,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const queue = searching(ev.side, { party, requeue: ev.requeue, mode });
       const base = { ...s, voided: false, accept: null };
       if (!s.welcomed) return { state: { ...base, queue, error: null, offer: null }, effects: [] };
-      if (!s.mmOk || (mode === 'casual' && !s.pvpOk)) return { state: { ...base, queue: { ...queue, stopped: 'update' } }, effects: [] };
+      if (!s.mmOk || (mode !== 'coop' && !s.pvpOk)) return { state: { ...base, queue: { ...queue, stopped: 'update' } }, effects: [] };
       send({ t: 'mm.join', queue: mode, side: ev.side });
       return { state: { ...base, queue, error: null, offer: null, asked: true }, effects: fx };
     }
@@ -338,7 +338,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       // Quick Play: the first welcome, a reconnect, or a relay restart (`mm.cancel{server}`): (re)send `mm.join`, so
       // the player sees one continuous search. A friend party's search is the leader's to re-send.
       if (q && !q.stopped && !q.found && !s.accept && (!s.view || isStranger(s.view) || s.view.leader === s.view.you)) {
-        if (!mmOk || (q.mode === 'casual' && !pvpOk)) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
+        if (!mmOk || (q.mode !== 'coop' && !pvpOk)) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true, queue: { ...q, stopped: 'update' } }, effects: [] };
         return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [{ t: 'send', msg: { t: 'mm.join', queue: q.toCoop ? 'coop' : q.mode, side: q.side } }] };
       }
       if (q && !s.view) return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: true }, effects: [] };
@@ -383,7 +383,8 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
           accept: null,
           queue: {
             ...base,
-            mode: pvp ? 'casual' : 'coop',
+            // 5v5 Classic stays 'classic' (a reconnect re-sends the same queue); 3v3 PvP and its co-op move stay 'casual'
+            mode: m.queue === 'classic' ? 'classic' : pvp ? 'casual' : 'coop',
             side: m.side,
             status,
             stopped: null,
@@ -903,8 +904,15 @@ export class PartyClient {
 
   /** Search (again) with the remembered side (and queue: casual after a PvP match). */
   queueNow(requeue = false, mode?: MmQueue): void {
-    const m = mode ?? (this.state.view?.mm?.mode === 'casual' || this.state.voided ? 'casual' : this.state.queue?.mode ?? this.h.queueMode ?? 'coop');
+    const m = mode ?? (this.state.view?.mm?.mode === 'casual' || this.state.voided ? this.pvpQueue() : this.state.queue?.mode ?? this.h.queueMode ?? 'coop');
     this.dispatch({ e: 'queue', side: this.state.queue?.side ?? this.h.queueSide ?? 'any', requeue, mode: m });
+  }
+
+  /** The PvP queue to search again after a PvP match or a remake: 5v5 Classic after a Hearthwood room, else 3v3. */
+  private pvpQueue(): 'casual' | 'classic' {
+    const mm = this.state.view?.mm;
+    if (mm) return mm.map === 'hearthwood' || mm.teamSize === 5 ? 'classic' : 'casual';
+    return this.state.queue?.mode === 'classic' || this.h.queueMode === 'classic' ? 'classic' : 'casual';
   }
 
   /** Seconds searched now. */
@@ -960,7 +968,8 @@ export class PartyClient {
       stopped: q.stopped,
       retryS,
       match: q.found ? { humans: q.found.humans, bots: q.found.bots, side: q.found.side, difficulty: q.found.difficulty } : null,
-      ...(q.mode === 'casual' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
+      ...(q.mode === 'classic' ? { teamSize: 5 } : {}),
+      ...(q.mode !== 'coop' ? { pvp: { theirs: q.theirs ?? 0, toCoop: !!q.toCoop, requeued: !!q.requeued } } : {}),
       offer: s.offer ? { clockS: s.offer.clockS + Math.floor((this.now() - this.offerAt) / 1000), score: s.offer.score, leftS: this.offerLeftS(), totalS: s.offer.expiresMs / 1000 } : null,
     };
   }
@@ -1343,7 +1352,7 @@ export class PartyClient {
         this.h.analytics?.('mm_keep_waiting', { waited_s: this.waitedS() });
         return;
       case 'void-again':
-        this.queueNow(true, 'casual');
+        this.queueNow(true, this.pvpQueue());
         return;
       case 'bf-no':
         this.dispatch({ e: 'offer', yes: false });

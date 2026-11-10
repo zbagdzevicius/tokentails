@@ -1,10 +1,11 @@
 # Pawlegends app: over-the-air web updates (docs/plans/moba/APP-STORE.md "OTA flow", pawlegends-app/README.md).
 #
 # Every push to main that changes the game (pawlegends/) or the app shell (pawlegends-app/src, scripts) publishes a
-# signed, encrypted web bundle to client/public/pawlegends-app/updates/ios/<compat>/ on the BETA channel
-# (manifest-beta.json: TestFlight installs) and commits it to main; Vercel then serves it from tokentails.com. The
-# hourly `promote` job moves a beta bundle to STABLE (manifest.json: App Store installs) once it is 24 h old, so
-# TestFlight sees every update a day before players. Apps pick an update up on their next launch or resume (on the
+# signed, encrypted web bundle to client/public/pawlegends-app/updates/ios/<compat>/bundles/ with a BETA manifest per
+# platform (updates/<ios|android>/<compat>/manifest-beta.json: TestFlight installs) and commits it to main; Vercel then
+# serves it from tokentails.com. The iOS and Android apps run the same bundle; each platform's manifest has its own
+# minNative and rollback state. The hourly `promote` job moves a beta bundle to STABLE (manifest.json: App Store and
+# Google Play installs): the newest bundle that is 24 h old, or, once stable is 24 h behind, the current beta after 2 quiet h. Apps pick an update up on their next launch or resume (on the
 # title screen, never mid-match). Pull requests run the checks only.
 #
 # Gates before publishing: the game's unit tests (wall-clock perf budgets skipped: shared runners) and typecheck,
@@ -49,7 +50,11 @@ on:
         required: false
         default: ''
       min_native:
-        description: 'Lowest native app version that may run the new bundle (empty = keep the current value)'
+        description: 'Lowest iOS app version that may run the new bundle (empty = keep the current value)'
+        required: false
+        default: ''
+      min_native_android:
+        description: 'Lowest Android app version (versionName) that may run the new bundle (empty = keep the current value)'
         required: false
         default: ''
 
@@ -115,6 +120,7 @@ jobs:
       MIN_NATIVE: ${{ github.event.inputs.min_native || '' }}
       CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
       CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+      MIN_NATIVE_ANDROID: ${{ github.event.inputs.min_native_android || '' }}
     steps:
       - name: Secret present
         id: secret
@@ -156,7 +162,8 @@ jobs:
         working-directory: pawlegends-app
         run: |
           args="--check-sim --keep 3"
-          if [ -n "$MIN_NATIVE" ]; then args="$args --min-native $MIN_NATIVE"; fi
+          if [ -n "$MIN_NATIVE" ]; then args="$args --min-native-ios $MIN_NATIVE"; fi
+          if [ -n "$MIN_NATIVE_ANDROID" ]; then args="$args --min-native-android $MIN_NATIVE_ANDROID"; fi
           echo "PUBLISH_ARGS=$args" >> "$GITHUB_ENV"
           node scripts/ota-publish.mjs $args
       - name: Commit to main (Vercel serves it)
@@ -190,14 +197,22 @@ jobs:
         run: |
           echo "### Pawlegends OTA" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          node -e "const m=require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"
+          for p in ios android; do
+            f="./client/public/pawlegends-app/updates/$p/1/manifest-beta.json"
+            if [ -f "$f" ]; then node -e "const m=require('$f');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
           echo '```' >> "$GITHUB_STEP_SUMMARY"
       - name: Purge the new manifest from Cloudflare (once Vercel serves it)
         if: steps.secret.outputs.ok == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
         timeout-minutes: 12
         run: |
-          node scripts/cdn-cache.mjs ota --file manifest-beta.json
-          if [ -n "$ROLLBACK" ]; then node scripts/cdn-cache.mjs ota --file manifest.json; fi
+          for p in ios android; do
+            [ -f "client/public/pawlegends-app/updates/$p/1/manifest-beta.json" ] || continue
+            node scripts/cdn-cache.mjs ota --platform "$p" --file manifest-beta.json
+            if [ -n "$ROLLBACK" ] && [ -f "client/public/pawlegends-app/updates/$p/1/manifest.json" ]; then
+              node scripts/cdn-cache.mjs ota --platform "$p" --file manifest.json
+            fi
+          done
 
   promote:
     name: promote beta to stable
@@ -252,4 +267,8 @@ jobs:
       - name: Purge the stable manifest from Cloudflare (once Vercel serves it)
         if: steps.secret.outputs.ok == 'true' && env.promoted == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
         timeout-minutes: 12
-        run: node scripts/cdn-cache.mjs ota --file manifest.json
+        run: |
+          for p in ios android; do
+            [ -f "client/public/pawlegends-app/updates/$p/1/manifest.json" ] || continue
+            node scripts/cdn-cache.mjs ota --platform "$p" --file manifest.json
+          done
