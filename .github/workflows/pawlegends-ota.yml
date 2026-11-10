@@ -152,6 +152,7 @@ jobs:
         run: |
           args="--check-sim --keep 3"
           if [ -n "$MIN_NATIVE" ]; then args="$args --min-native $MIN_NATIVE"; fi
+          echo "PUBLISH_ARGS=$args" >> "$GITHUB_ENV"
           node scripts/ota-publish.mjs $args
       - name: Commit to main (Vercel serves it)
         if: steps.secret.outputs.ok == 'true'
@@ -163,9 +164,20 @@ jobs:
           version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json').version)")
           if [ -n "$ROLLBACK" ]; then msg="OTA rollback to ${version} (beta and stable)"; else msg="OTA bundle ${version} (beta)"; fi
           git commit -m "chore(pawlegends-app): ${msg}"
-          for i in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
-            sleep 5
+          for i in 1 2 3 4 5; do
+            if git pull --rebase origin main && git push origin HEAD:main; then exit 0; fi
+            # Another OTA run published meanwhile and the manifests conflict: start again from the
+            # newest main and publish on top of it, so a release never silently misses the app.
+            git rebase --abort 2>/dev/null || true
+            git reset --hard origin/main
+            if [ -z "$ROLLBACK" ]; then
+              (cd pawlegends-app && node scripts/ota-publish.mjs $PUBLISH_ARGS)
+            fi
+            git add -A client/public/pawlegends-app/updates
+            if git diff --cached --quiet; then echo "main already has this bundle"; exit 0; fi
+            version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json').version)")
+            git commit -m "chore(pawlegends-app): OTA bundle ${version} (beta)"
+            sleep $((i * 5))
           done
           exit 1
       - name: Summary
