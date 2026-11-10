@@ -54,7 +54,7 @@ describe('entitlement token', () => {
     expect(decodeToken(`${b64url('{bad')}.${'s'.repeat(20)}`)).toBeNull();
     expect(decodeToken(null)).toBeNull();
   });
-  it('retires the pl_* store, opens the cat checkout on the web only, keeps restored items', () => {
+  it('opens the store and the cat checkout on the web only, keeps restored items (STORE-PASS.md)', () => {
     const e = new Entitlements();
     expect(e.snapshot()).toMatchObject({ storeOpen: false, catCheckout: false });
     e.apply({ type: 'entitlements', token: token({ items: ['frame.founder'], skus: ['pl_founder'], expiresAt: FUTURE }) });
@@ -62,7 +62,7 @@ describe('entitlement token', () => {
     expect(e.snapshot()).toMatchObject({ embedded: true, storeOpen: false, catCheckout: false });
     expect([...e.snapshot().items]).toEqual(['frame.founder']);
     e.apply({ type: 'app', isApp: false, store: true });
-    expect(e.snapshot()).toMatchObject({ storeOpen: false, catCheckout: true });
+    expect(e.snapshot()).toMatchObject({ storeOpen: true, catCheckout: true });
     e.apply({ type: 'app', isApp: true, store: true, notify: true });
     expect(e.snapshot()).toMatchObject({ isApp: true, storeOpen: false, catCheckout: false, notifyOpen: false });
     expect(e.snapshot().items.size).toBe(0);

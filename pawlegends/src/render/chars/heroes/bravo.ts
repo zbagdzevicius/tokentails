@@ -121,7 +121,7 @@ function velvetCape(A: Assembly, color: Col, hem: Col): void {
 
 export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
   const { t, capeColor, trim, extras, poses, lc } = dr;
-  const coat: CoatSpec = lc ? { pattern: 'solid', base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT;
+  const coat: CoatSpec = lc ? { pattern: lc.pattern ?? 'solid', ...(lc.patch !== undefined ? { patch: lc.patch } : {}), base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT;
   return {
     rig: { width: 1.1, tier: 'hero', headScale: 1.1, bodyScale: 1.05, earsLow: 0.6, tailCurve: TAIL },
     coat,

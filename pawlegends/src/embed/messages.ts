@@ -18,6 +18,8 @@ import {
   parsePurchaseResult,
   parseSaveResult,
   parseSession,
+  parseSkuPurchaseResult,
+  parseStoreState,
   type HostMessage,
 } from './bridge';
 
@@ -49,7 +51,10 @@ export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {
     case 'app':
       return wrap(parseApp(m));
     case 'purchase-result':
-      return wrap(parsePurchaseResult(m));
+      // STORE-PASS.md: a store or pass SKU's result, else a Token Tails cat's
+      return wrap(parseSkuPurchaseResult(m) ?? parsePurchaseResult(m));
+    case 'store':
+      return wrap(parseStoreState(m));
     case 'audio':
       return wrap(parseAudio(m));
     case 'entitlements':

@@ -137,7 +137,7 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
   return {
     // the thinnest body in the game, a small head, ears standing straight up (no splay)
     rig: { width: 0.78, tier: 'lite', headScale: 0.9, bodyScale: 0.9, earsLow: 0, earSplay: -0.06, tailCurve: TAIL },
-    coat: lc ? { pattern: 'spots', base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light, spotFreq: SPOT_FREQ } : COAT,
+    coat: lc ? { pattern: lc.pattern ?? 'spots', ...(lc.patch !== undefined ? { patch: lc.patch } : {}), base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light, spotFreq: SPOT_FREQ } : COAT,
     eyes: { inner: 0xd8e86a, outer: 0x8fae2c, ring: 0x2c3a14, size: 1.1 },
     earInner: 0xe8b0a0,
     nose: 0x8a4a3a,

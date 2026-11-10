@@ -19,7 +19,7 @@ export const DEV_EMBED_ORIGINS = 'http://localhost:3000';
  * shelter champions' cards: art and whether each card is for sale, from `GET /pawlegends/champions`). Payload
  * shapes: docs/plans/moba integration plan §1; the parsers below are the game's half of the contract.
  */
-export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions', 'party-ticket'] as const);
+export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions', 'party-ticket', 'store'] as const);
 export type HostType = (typeof HOST_TYPES)[number];
 /**
  * POC.md §11.1 types, plus the additive `notify{where}` (Legends Pass notify-me, only after `app{notify: true}`),
@@ -43,8 +43,15 @@ export type HostType = (typeof HOST_TYPES)[number];
  * button of its own over the game any more). `sound{muted}`: the player switched the game's Sound; the host makes it
  * its own mute (tt:audio:v1), so the next `audio` it sends agrees (a host mute is never saved into the game profile).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
+/*
+ * Store and Legends Pass (docs/plans/moba/STORE-PASS.md, web only): `purchase-intent{sku}` is back for the catalogue
+ * SKUs only (money/catalog.ts): the host opens its own sheet (sign-in, server price, age band, consent, safeguards)
+ * and Stripe Checkout, then answers `purchase-result{sku, ok}` and a fresh `store`. `pass-claim{row, tier}` or
+ * `pass-claim{all: true}` asks the host to claim pass rewards (`POST /pawlegends/pass/claim`); it answers `store`.
+ * `store{items, season}` is the account's owned store and pass items and its pass row (`GET /pawlegends/me`).
+ */
 
 export interface HostMessage {
   type: HostType;
@@ -224,6 +231,8 @@ export interface SaveResult {
   catnipTotal: number | null;
   fastestWin: number | null;
   code?: string;
+  /** Legends Pass Season XP the save paid (STORE-PASS.md §5); absent from older hosts. */
+  season?: { gained: number; xp: number; tier: number; prevTier: number };
 }
 
 export function parseSaveResult(m: Record<string, unknown>): SaveResult | null {
@@ -237,6 +246,8 @@ export function parseSaveResult(m: Record<string, unknown>): SaveResult | null {
   if (fastest === null && m.fastestWin !== null && m.fastestWin !== undefined) return null;
   const out: SaveResult = { matchId: m.matchId, status: m.status as SaveStatus, catnipPaid: paid, catnipTotal: total, fastestWin: fastest };
   if (typeof m.code === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(m.code)) out.code = m.code;
+  const season = parseSaveSeason(m.season);
+  if (season) out.season = season;
   return out;
 }
 
@@ -442,3 +453,59 @@ export function parseAudio(m: Record<string, unknown>): AudioInfo | null {
 
 export const SIGN_IN_REASONS = Object.freeze(['save-progress', 'claim-rewards'] as const);
 export type SignInReason = (typeof SIGN_IN_REASONS)[number];
+
+// ------------------------------------------------------------------------------------- store and Legends Pass
+
+/** Store and pass item ids the game knows (anything else in a `store` message is dropped). */
+const STORE_ITEM = /^(coat\.[a-z]+\.(store|s1)_[a-z_]+|frame\.(store|s1)\.[a-z_]+|title\.(store|s1)\.[a-z_]+)$/;
+
+export interface StoreSeason {
+  id: string;
+  xp: number;
+  tier: number;
+  premium: 'none' | 'pass' | 'plus';
+  skips: number;
+  claimed: string[];
+  endsAt: string;
+}
+
+export interface StoreState {
+  items: string[];
+  season: StoreSeason | null;
+}
+
+/** `store{items, season}`: owned store and pass items (known shapes only) and the pass row, or null. */
+export function parseStoreState(m: Record<string, unknown>): StoreState | null {
+  if (!Array.isArray(m.items)) return null;
+  const items = [...new Set(m.items.slice(0, 400).filter((i): i is string => typeof i === 'string' && STORE_ITEM.test(i)))];
+  let season: StoreSeason | null = null;
+  const r = m.season as Record<string, unknown> | null | undefined;
+  if (r && typeof r === 'object' && typeof r.id === 'string' && /^s\d{1,3}$/.test(r.id)) {
+    const n = (v: unknown, max: number): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(max, Math.floor(v)) : 0);
+    const premium = r.premium === 'pass' || r.premium === 'plus' ? r.premium : 'none';
+    const claimed = Array.isArray(r.claimed) ? r.claimed.filter((c): c is string => typeof c === 'string' && /^[fp]:\d{1,3}$/.test(c)).slice(0, 200) : [];
+    const endsAt = typeof r.endsAt === 'string' && Number.isFinite(Date.parse(r.endsAt)) ? r.endsAt : '';
+    season = { id: r.id, xp: n(r.xp, 10_000_000), tier: n(r.tier, 1000), premium, skips: n(r.skips, 1000), claimed, endsAt };
+  }
+  return { items, season };
+}
+
+const SKU = /^pl_(coat|frame|set|pass)_[a-z0-9_]{1,40}$/;
+
+/** `purchase-result{sku, ok}` for a store or pass SKU, or null. */
+export function parseSkuPurchaseResult(m: Record<string, unknown>): { sku: string; ok: boolean } | null {
+  if (typeof m.sku !== 'string' || !SKU.test(m.sku) || typeof m.ok !== 'boolean') return null;
+  return { sku: m.sku, ok: m.ok };
+}
+
+/** `save-result.season`: the Season XP a saved match paid (absent when the backend sent none). */
+export function parseSaveSeason(v: unknown): { gained: number; xp: number; tier: number; prevTier: number } | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const n = (x: unknown): number | null => (typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 10_000_000 ? x : null);
+  const gained = n(o.gained);
+  const xp = n(o.xp);
+  const tier = n(o.tier);
+  const prevTier = n(o.prevTier);
+  return gained === null || xp === null || tier === null ? null : { gained, xp, tier, prevTier: prevTier ?? tier };
+}

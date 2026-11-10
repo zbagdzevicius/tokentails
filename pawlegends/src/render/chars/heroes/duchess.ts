@@ -109,7 +109,7 @@ export function comb(A: Assembly, color: Col): void {
 
 export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
   const { t, skinCoat, founder, chroma, capeColor, trim, capeHem, extras, poses, lc } = dr;
-  const coat: CoatSpec = lc ? { pattern: 'solid', base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT;
+  const coat: CoatSpec = lc ? { pattern: lc.pattern ?? 'solid', ...(lc.patch !== undefined ? { patch: lc.patch } : {}), base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT;
   const fur = skinCoat ? skinCoat.light : lc ? lc.light : CREAM;
   return {
     rig: { width: 1.15, tier: 'hero', headScale: 1.15, bodyScale: 1.05, earsLow: 0.7, earSplay: 0.2, tailCurve: PLUME },

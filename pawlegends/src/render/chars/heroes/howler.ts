@@ -107,7 +107,7 @@ function booties(A: Assembly, color: Col): void {
 
 export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
   const { t, founder, chroma, capeColor, trim, capeHem, extras, poses, lc } = dr;
-  const coat: CoatSpec = lc ? { pattern: 'solid', base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT;
+  const coat: CoatSpec = lc ? { pattern: lc.pattern ?? 'solid', ...(lc.patch !== undefined ? { patch: lc.patch } : {}), base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT;
   return {
     rig: { width: 1.05, tier: 'hero', headScale: 1.0, bodyScale: 1.08, earsLow: 0, tailCurve: TAIL },
     coat,

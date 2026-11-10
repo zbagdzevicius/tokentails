@@ -5,22 +5,29 @@
  * `roster` with the new cat. The game only tracks "waiting for the host" for the button state.
  *
  * Refused when the host checkout is closed (no host, app build) or the cat is not one the host featured or the
- * player owns. `purchase-intent{sku}` is retired: `buy` never posts it.
+ * player owns.
+ *
+ * Store and Legends Pass (docs/plans/moba/STORE-PASS.md §3): `buy(sku)` posts `purchase-intent{sku}` for the
+ * catalogue SKUs only (money/catalog.ts; the retired `pl_*` presale SKUs never), on the web only. The host shows its
+ * own sheet (sign-in, server price, age band, consent) and Stripe Checkout, then answers `purchase-result{sku, ok}`
+ * and a fresh `store{items, season}`. The game never sees a price it charges or any payment detail.
  */
-import { cleanCatalogId, parsePurchaseResult, type Bridge, type HostMessage } from '../embed/bridge';
+import { cleanCatalogId, parsePurchaseResult, parseSkuPurchaseResult, type Bridge, type HostMessage } from '../embed/bridge';
 import type { Entitlements } from './entitlements';
-import type { SkuId } from './skus';
+import { catalogSku } from './catalog';
 
 /** How long a Meet button waits for the host before it is usable again (the sheet may be closed silently). */
 export const INTENT_HOLD_MS = 8000;
 
-/** @deprecated SKU listeners never fire (purchase results now name a cat). */
-export type PurchaseListener = (sku: SkuId, ok: boolean) => void;
+/** A store or pass purchase finished on the host (ok false: cancelled or refused). */
+export type PurchaseListener = (sku: string, ok: boolean) => void;
 export type CatPurchaseListener = (catalogId: string, ok: boolean) => void;
 
 export class CheckoutBridge {
   private pending: { catalogId: string; at: number } | null = null;
+  private pendingSku: { sku: string; at: number } | null = null;
   private listeners: CatPurchaseListener[] = [];
+  private skuListeners: PurchaseListener[] = [];
 
   constructor(
     private readonly bridge: Pick<Bridge, 'post' | 'on'>,
@@ -29,6 +36,12 @@ export class CheckoutBridge {
   ) {
     bridge.on((m: HostMessage) => {
       if (m.type !== 'purchase-result') return;
+      const k = parseSkuPurchaseResult(m);
+      if (k) {
+        if (this.pendingSku?.sku === k.sku) this.pendingSku = null;
+        for (const l of this.skuListeners) l(k.sku, k.ok);
+        return;
+      }
       const r = parsePurchaseResult(m);
       if (!r) return;
       if (this.pending?.catalogId === r.catalogId) this.pending = null;
@@ -62,18 +75,29 @@ export class CheckoutBridge {
     };
   }
 
-  /** @deprecated The `pl_*` store is retired: nothing is buyable from the game. */
-  canBuy(_sku: SkuId): boolean {
-    return false;
+  /** The store SKU waiting for the host, if any (cleared after INTENT_HOLD_MS). */
+  waitingSku(): string | null {
+    if (this.pendingSku && this.now() - this.pendingSku.at > INTENT_HOLD_MS) this.pendingSku = null;
+    return this.pendingSku?.sku ?? null;
   }
 
-  /** @deprecated Never posts `purchase-intent`; always false. */
-  buy(_sku: SkuId): boolean {
-    return false;
+  /** A catalogue SKU while the host store is open (web, embedded; never an app build or a retired `pl_*` SKU). */
+  canBuy(sku: string): boolean {
+    return this.ent.snapshot().storeOpen && !!catalogSku(sku);
   }
 
-  /** @deprecated SKU results no longer arrive; the listener is never called. */
-  onResult(_fn: PurchaseListener): () => void {
-    return () => undefined;
+  /** Ask the host to sell `sku`. False when refused or the host is not there. */
+  buy(sku: string): boolean {
+    if (!this.canBuy(sku) || this.waitingSku()) return false;
+    if (!this.bridge.post('purchase-intent', { sku })) return false;
+    this.pendingSku = { sku, at: this.now() };
+    return true;
+  }
+
+  onResult(fn: PurchaseListener): () => void {
+    this.skuListeners.push(fn);
+    return () => {
+      this.skuListeners = this.skuListeners.filter((l) => l !== fn);
+    };
   }
 }

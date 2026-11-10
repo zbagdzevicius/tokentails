@@ -475,6 +475,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
           catnipTotal: sv?.catnipTotal ?? null,
           newFastest: isNewFastest(sv, s.progressAtMatch, s.match),
           askSignIn: embedded() && !s.signedIn,
+          season: sv?.status === 'saved' ? (sv.season ?? null) : null,
         },
         { signIn: () => signIn('claim-rewards') },
       ),

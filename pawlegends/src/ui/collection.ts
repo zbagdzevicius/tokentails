@@ -7,7 +7,7 @@
  */
 import type { HeroId } from '../sim/api';
 import { championOf } from '../data/heroes/shelter';
-import { FRAME_NAME, isTrackFrame } from '../render/cosmetics';
+import { FRAME_NAME, STORE_TITLE_NAME, isStoreFrame, isTrackFrame } from '../render/cosmetics';
 import { TRACK_CHAMPIONS, TRACK_ORIGINALS, TRACK_TITLES, heroTrack, matchesToGo, nextReward, type TreatState } from '../meta/treats';
 import { HERO_TEXT } from './heroText';
 import { icon } from './icons';
@@ -31,6 +31,8 @@ export interface CollectionOpts {
   onTarget(hero: HeroId | null): void;
   onWear(kind: 'title' | 'frame', id: string | null): void;
   onClose(): void;
+  /** STORE-PASS.md §6: the Track's second tab, the Legends Pass (absent: no tab bar). */
+  onPass?(): void;
 }
 
 /** A postcard's story: who the real cat is and the card's own joke (no health details, no money or impact words). */
@@ -67,8 +69,9 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       const img = pic ? `<img src="${esc(pic)}" alt="${esc(c.cardName)}" loading="lazy" decoding="async" referrerpolicy="no-referrer" draggable="false">` : `<span class="pic">${icon('paw')}</span>`;
       return `<div class="postcard" data-postcard="${h}">${img}<b>${esc(c.cardName)}</b><small>${esc(postcardStory(h))}</small></div>`;
     };
-    const titles = Object.keys(TRACK_TITLES).filter((id) => o.owned.has(id));
-    const frames = Object.keys(FRAME_NAME).filter((id) => isTrackFrame(id) && o.owned.has(id));
+    // Treat Track titles and frames, plus store and Legends Pass ones the account owns (STORE-PASS.md §4)
+    const titles = [...Object.keys(TRACK_TITLES), ...Object.keys(STORE_TITLE_NAME)].filter((id) => o.owned.has(id));
+    const frames = Object.keys(FRAME_NAME).filter((id) => (isTrackFrame(id) || isStoreFrame(id)) && o.owned.has(id));
     const wearRow = (kind: 'title' | 'frame', ids: string[], name: (id: string) => string, on: string | null): string =>
       ids.length
         ? `<div class="set-row"><span>${kind === 'title' ? 'Title' : 'Frame'}</span><span class="chips"><button class="chip ${on === null ? 'on' : ''}" data-wear="${kind}" data-id="">None</button>${ids
@@ -76,14 +79,17 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
             .join('')}</span></div>`
         : '';
     // Audit UX-10: a corner ✕ (sticky) and a sticky Done (the exit sat below the fold at 667x375)
-    root.innerHTML = `<div class="card"><button class="pl-x" data-a="x" aria-label="Close the Treat Track">✕</button><h2>Treat Track</h2>
+    const tabs = o.onPass
+      ? `<div class="tabs track-tabs" role="tablist"><button type="button" role="tab" class="chip on" aria-selected="true">Treat Track</button><button type="button" role="tab" class="chip" data-a="pass" aria-selected="false">Legends Pass</button></div>`
+      : '<h2>Treat Track</h2>';
+    root.innerHTML = `<div class="card"><button class="pl-x" data-a="x" aria-label="Close the Treat Track">✕</button>${tabs}
       <p class="champs-row"><button type="button" class="pl-btn ghost small" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button></p>
       <p class="next-chest" data-next="${esc(next.id)}">Next chest: <b>${esc(next.name)}</b> <small data-togo="${n}">${esc(toGoText(n))}</small></p>
       <div class="targets"><span class="lbl">Pick your next target</span><span class="chips"><button class="chip target ${s.target === null ? 'on' : ''}" data-target="" aria-pressed="${s.target === null}"><b>Track order</b><small>Any hero</small></button>${heroes.map(chip).join('')}</span></div>
       <h3>Meet the real cat</h3>
       <div class="postcards">${TRACK_CHAMPIONS.map(card).join('')}</div>
       ${o.cards && o.cards.length ? `<h3>Card effects</h3><div class="card-fx-list">${o.cards.map((k) => cardFxPreview(k)).join('')}</div>` : ''}
-      ${titles.length || frames.length ? `<h3>Wear</h3>${wearRow('title', titles, (id) => TRACK_TITLES[id] ?? id, s.title)}${wearRow('frame', frames, (id) => (isTrackFrame(id) ? FRAME_NAME[id] : id), s.frame)}` : ''}
+      ${titles.length || frames.length ? `<h3>Wear</h3>${wearRow('title', titles, (id) => TRACK_TITLES[id] ?? STORE_TITLE_NAME[id] ?? id, s.title)}${wearRow('frame', frames, (id) => FRAME_NAME[id] ?? id, s.frame)}` : ''}
       <p class="fine">Free, earned by playing. Rewards come in a fixed order.</p>
       <button class="pl-btn big" data-a="close">Done</button></div>`;
   };
@@ -91,6 +97,11 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
     // champion browser: every champion's skills and lore; a postcard opens its champion on Lore
+    if (t.closest('[data-a="pass"]') && o.onPass) {
+      close();
+      o.onPass();
+      return;
+    }
     if (t.closest('[data-a="champions"]')) {
       void openChampInfo({ hero: s.target ?? 'clem', within: root });
       return;

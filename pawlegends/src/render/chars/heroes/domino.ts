@@ -150,7 +150,7 @@ function crayon(A: Assembly): void {
 export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
   const { t, founder, chroma, capeColor, trim, capeHem, extras, poses, lc } = dr;
   // a coat skin changes the base (and the spots on liver and lemon coats take its dark); the default spots are black
-  const coat: CoatSpec = lc ? { pattern: 'solid', base: lc.base, deep: lc.light, light: lc.light, cream: lc.light } : COAT;
+  const coat: CoatSpec = lc ? { pattern: lc.pattern ?? 'solid', ...(lc.patch !== undefined ? { patch: lc.patch } : {}), base: lc.base, deep: lc.light, light: lc.light, cream: lc.light } : COAT;
   const spotCol = lc ? lc.dark : SPOT;
   return {
     rig: { width: 1.15, tier: 'kid', headScale: 1.15, bodyScale: 1.1, earsLow: 0.7, tailCurve: TAIL },
