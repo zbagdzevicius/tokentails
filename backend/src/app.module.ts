@@ -194,6 +194,7 @@ import { ClubService } from './club/club.service';
 import { ClubWebhookService } from './club/club-webhook.service';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
+import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
 
 const JwtModules = [
     PassportModule,
@@ -421,7 +422,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PartyTicketService,
         MongoRoomStore,
         MmService,
-        ...(role === 'all' ? [PartyRelayService] : []),
+        // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
+        ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,
