@@ -20,7 +20,8 @@
  *   node scripts/ota-publish.mjs [--min-native 1.0.0] [--min-native-ios x] [--min-native-android y] [--keep 3] [--check-sim]
  *                                                             publish www/ to beta (both platforms)
  *   node scripts/ota-publish.mjs --promote [--soak-hours 24]  beta -> stable per platform when soaked (0 = now)
- *   node scripts/ota-publish.mjs --rollback <version>         point beta AND stable at a kept bundle (signed again)
+ *   node scripts/ota-publish.mjs --rollback <version>         point beta AND stable at a kept bundle (signed again);
+ *                                                             Android only when the bundle's record says android: true
  *   --platform ios|android                                    any of the above for one platform only
  *
  * --min-native sets both platforms; the per-platform flags win. Without them each platform keeps its current value.
@@ -156,15 +157,23 @@ if (rollbackTo) {
     process.exit(1);
   }
   const prev = JSON.parse(readFileSync(meta, 'utf8'));
+  let rolled = 0;
   for (const platform of PLATFORMS) {
+    // a bundle built before the Android shell existed (no `android` in its record) only knows the iOS manifest and
+    // has no Android back handler: Android installs would follow the iOS manifest and lose the back button
+    if (platform !== BUNDLES_PLATFORM && !prev[platform]) {
+      console.log(`ota-publish: ${platform}: skipped, ${rollbackTo} predates the ${platform} shell (its manifests stay as they are)`);
+      continue;
+    }
     // both channels: otherwise the next scheduled promote would push the bad beta bundle to stable again. The bundle
     // record holds the iOS minNative; Android keeps its own.
     const minNative = platform === BUNDLES_PLATFORM ? prev.minNative : readManifest(platform, 'beta')?.minNative ?? readManifest(platform, 'stable')?.minNative ?? '1.0.0';
     writeManifest(platform, 'beta', fieldsFor(platform, prev, minNative, true));
     const m = writeManifest(platform, 'stable', fieldsFor(platform, prev, minNative, true));
     console.log(`ota-publish: ${platform} beta and stable rolled back to ${m.version}`);
+    rolled++;
   }
-  process.exit(0);
+  process.exit(rolled > 0 ? 0 : 1);
 }
 
 /** Promote one platform's beta to stable once soaked. Returns false on an error. */
@@ -228,7 +237,8 @@ const enc = encryptBundle(zip, key);
 writeFileSync(join(bundlesDir, `${stamp.version}.zip`), enc.data);
 const minNative = Object.fromEntries(PLATFORMS.map((p) => [p, minNativeFor(p)]));
 // per-bundle record (unsigned; the iOS fields, as before Android) so a rollback can re-point the manifests without
-// rebuilding
+// rebuilding. `android: true` (outside the signed fields) marks a bundle that runs in the Android shell: a rollback
+// re-points the Android manifests only at such bundles.
 const record = fieldsFor(BUNDLES_PLATFORM, {
   compat: NATIVE_COMPAT,
   version: stamp.version,
@@ -238,7 +248,7 @@ const record = fieldsFor(BUNDLES_PLATFORM, {
   sessionKey: enc.sessionKey,
   simVersion: stamp.simVersion,
 }, minNative.ios ?? minNativeFor('ios'), false);
-writeFileSync(join(bundlesDir, `${stamp.version}.json`), `${JSON.stringify(record, null, 2)}\n`);
+writeFileSync(join(bundlesDir, `${stamp.version}.json`), `${JSON.stringify({ ...record, android: true }, null, 2)}\n`);
 for (const platform of PLATFORMS) {
   const m = writeManifest(platform, 'beta', fieldsFor(platform, record, minNative[platform], false));
   console.log(`ota-publish: ${m.version} (${(enc.data.length / 1024 / 1024).toFixed(1)} MB, sim ${m.simVersion}, minNative ${m.minNative}) -> ${manifestPath(platform, 'beta')}`);
