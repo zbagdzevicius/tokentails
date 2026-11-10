@@ -256,22 +256,9 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   };
 
   const quiet = opts.sound !== true;
-  const mute = (): (() => void) => {
-    // the GameView plays its cues on the shared sfx bus; a quiet preview swaps play/voice out for this frame only
-    // (synchronous, so the lobby's own sounds are never touched)
-    // the champion identity layer (sfx.playLayer) too: it starts its sound directly, past play and voice
-    const play = sfx.play;
-    const voice = sfx.voice;
-    const layer = sfx.playLayer;
-    sfx.play = () => undefined;
-    sfx.voice = () => undefined;
-    sfx.playLayer = () => false;
-    return () => {
-      sfx.play = play;
-      sfx.voice = voice;
-      sfx.playLayer = layer;
-    };
-  };
+  // the GameView plays its cues on the shared sfx bus; a quiet preview holds the bus for this frame only (synchronous,
+  // a counter: the mute, the volumes and the sfx methods are never touched, so nothing can be left muted)
+  const mute = (): (() => void) => sfx.hold();
 
   const frameOnce = (dt: number): void => {
     const unmute = quiet ? mute() : null;

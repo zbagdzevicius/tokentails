@@ -163,11 +163,12 @@ describe('skill preview player: create, switch, dispose', () => {
     const yaw0 = cameraYaw();
     const swap0 = sidesSwapped();
     const play0 = sfx.play;
-    // PERF-IOS §8 Track C: the identity layer is muted too (it starts its sound past play and voice)
+    // PERF-IOS §8 Track C: the identity layer is muted too (it starts its sound past play and voice). Audio fix: the
+    // preview holds the bus (sfx.hold) instead of swapping the methods, so a layer asked for outside a hold would sound
     let layered = 0;
     const layer0 = (sfx.playLayer = (() => {
-      layered++;
-      return true;
+      if (!sfx.held) layered++;
+      return false;
     }) as typeof sfx.playLayer);
     const el = document.createElement('div');
     document.body.appendChild(el);

@@ -131,6 +131,12 @@ export const VOICE_STALE_MS: Readonly<Record<number, number>> = Object.freeze({ 
 export const VOICE_QUEUE_MAX = 3;
 /** Until the clip's length is known, a started line holds the voice this long (ms). */
 export const VOICE_HOLD_MS = 1500;
+/**
+ * A higher line that arrives this soon after a lower one started (the same moment: one sim tick plus the manifest
+ * read) cuts it, and the lower one waits its turn again: the same moment's "An ally has been slain" must not delay
+ * "First Blood" (audio fix, Nov 9). Later than this a lower line never cuts.
+ */
+export const VOICE_FRESH_CUT_MS = 80;
 
 /** Lines whose newer self replaces the one playing (browsing heroes says only the last name). */
 const replaces = (playing: VoiceKey, next: VoiceKey): boolean => playing.startsWith('name_') && next.startsWith('name_');
@@ -153,7 +159,7 @@ export interface VoiceStart {
  * refreshed. Time in ms from any clock.
  */
 export class VoiceQueue {
-  private playing: { key: VoiceKey; prio: number } | null = null;
+  private playing: { key: VoiceKey; prio: number; at: number } | null = null;
   /** The voice is free from this time (the line's end plus the gap). */
   private freeAt = -1e9;
   private readonly waiting: Waiting[] = [];
@@ -164,6 +170,12 @@ export class VoiceQueue {
     const busy = now < this.freeAt;
     if (!busy) return this.begin(key, prio, now, false);
     if (this.playing && (prio >= VOICE_CUT_PRIORITY ? this.playing.prio < VOICE_CUT_PRIORITY : replaces(this.playing.key, key))) {
+      return this.begin(key, prio, now, true);
+    }
+    if (this.playing && prio > this.playing.prio && now - this.playing.at <= VOICE_FRESH_CUT_MS && this.playing.key !== key) {
+      // the cut line goes back to wait (as if just said: its staleness counts from now)
+      const cut = this.playing;
+      if (!this.waiting.some((w) => w.key === cut.key)) this.waiting.push({ key: cut.key, prio: cut.prio, at: now });
       return this.begin(key, prio, now, true);
     }
     if (this.playing?.key === key) return null;
@@ -238,7 +250,7 @@ export class VoiceQueue {
   }
 
   private begin(key: VoiceKey, prio: number, now: number, cut: boolean): VoiceStart {
-    this.playing = { key, prio };
+    this.playing = { key, prio, at: now };
     this.freeAt = now + VOICE_HOLD_MS;
     return { key, cut };
   }

@@ -395,6 +395,7 @@ export class Effects {
     if (src && e.kind === 'basic') this.hooks.onSwing(e.src, e.tick);
     if (!dst) return;
     const heroDst = dst.kind === 'hero';
+    const structure = dst.kind === 'tower' || dst.kind === 'core';
     const heavy = e.kind === 'ability' || e.amount >= 120;
     this.hooks.onHit(e.dst, dst.kind, heavy, e.src);
     const pos = this.at(dst, heroDst ? 0.9 : dst.kind === 'tower' || dst.kind === 'core' ? 2.4 : 0.6);
@@ -460,14 +461,16 @@ export class Effects {
         // C11d: the screen shakes for big hits only
         if (big) this.juice.kick(0.2);
       }
-      sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
+      // audio pass (Nov 9): a layered impact (crack, thump, body; deeper when heavy, a ring when big)
+      sfx.impact({ target: heroDst ? 'hero' : structure ? 'structure' : 'unit', who: 'mine', heavy, big, at: dst });
     } else if (e.dst === me) {
       if (shows) this.numbers.show(npos, String(e.amount), 'hurt', e.dst, e.amount);
       this.juice.kick(Math.max(e.kind === 'tower' ? 0.18 : 0, Math.min(0.35, 0.1 + e.amount / 600)));
-      sfx.play('hurt');
+      sfx.impact({ target: 'hero', who: 'me', heavy: heavy || e.kind === 'tower' });
     } else {
       if (shows && heroDst && src?.kind === 'hero') this.numbers.show(npos, String(e.amount), 'info', e.dst, e.amount);
-      if (!idHero) sfx.play(e.kind === 'tower' ? 'towerShot' : 'hit', { at: dst, vol: 0.45 });
+      if (e.kind === 'tower') sfx.play('towerShot', { at: dst, vol: 0.45 });
+      else if (!idHero) sfx.impact({ target: heroDst ? 'hero' : structure ? 'structure' : 'unit', who: 'other', at: dst });
     }
   }
 

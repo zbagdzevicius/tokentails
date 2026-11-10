@@ -21,6 +21,18 @@ export const PL_SFX = {
   hit: [0.7, 0, 160, 0, 0.02, 0.09, 4, 2, -5, 0, 0, 0, 0, 1, 0, 0, 0, 0.6, 0.02, 0, -2000],
   heroHit: [0.9, 0, 110, 0, 0.04, 0.16, 2, 2.4, -6, 0, 0, 0, 0, 1.1, 0, 0.1, 0, 0.5, 0.03, 0, -1500],
   hurt: [0.8, 0, 220, 0, 0.03, 0.14, 1, 1.5, -8, 0, 0, 0, 0, 0.6, 0, 0.05, 0, 0.6, 0.02, 0, -1800],
+  // Hit feel (audio pass, Nov 9): a landed hit is layered, not one noise burst (Sfx.impact): a short bright crack for
+  // the contact, a pitched-down thump for the weight, a deep body on heavy hits and a ring on a big (crit-sized) hit.
+  /** The contact: 66 ms of high-passed noise. */
+  hitCrack: [0.6, 0, 1800, 0, 0.004, 0.05, 4, 1, 0, 0, 0, 0, 0, 0.6, 0, 0, 0, 0.5, 0.012, 0, 2400],
+  /** The weight: a sine that drops fast (about 0.12 s). */
+  hitThump: [0.85, 0, 160, 0, 0.018, 0.09, 0, 1.8, -10, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0.015, 0, 0],
+  /** A heavy hit's body: a deep low-passed punch (about 0.33 s). */
+  hitHeavy: [1, 0, 85, 0, 0.05, 0.24, 0, 2.2, -3, 0, 0, 0, 0, 0.35, 0, 0.06, 0, 0.6, 0.04, 0, -1100],
+  /** A big hit (the crit number): a short bright ring over the crack. */
+  critRing: [0.4, 0, 1560, 0, 0.02, 0.2, 1, 1, 0, 0, 520, 0.025, 0, 0, 14, 0, 0, 0.5, 0.02, 0, 0],
+  /** The player is hit: a muffled thud under the old `hurt` grunt. */
+  hurtThud: [0.85, 0, 120, 0, 0.035, 0.16, 0, 2, -5, 0, 0, 0, 0, 0.3, 0, 0, 0, 0.6, 0.03, 0, -900],
   arrow: [0.45, 0, 1100, 0.005, 0.02, 0.07, 1, 1, -24, 0, 0, 0, 0, 0, 0, 0, 0, 0.7, 0.01, 0, 0],
   dash: [0.55, 0, 320, 0.02, 0.05, 0.14, 4, 1, 12, 0, 0, 0, 0, 0.6, 0, 0, 0, 0.5, 0.04, 0, 3200],
   slam: [1, 0, 70, 0.005, 0.08, 0.32, 0, 2, -1, 0, 0, 0, 0, 0.9, 0, 0.2, 0, 0.6, 0.05, 0, -900],
@@ -115,6 +127,64 @@ export interface PlayOpts {
   at?: { x: number; z: number };
 }
 
+/** What a landed hit is (Sfx.impact picks its layers from it). */
+export interface ImpactOpts {
+  /** What was hit: a hero, a minion or monster, a tower or core. */
+  target: 'hero' | 'unit' | 'structure';
+  /** The player's own hit (full layers) or the player being hit; others' hits are quieter and lighter. */
+  who: 'mine' | 'me' | 'other';
+  /** A heavy hit (a big share of the target's health): adds the deep body. */
+  heavy?: boolean;
+  /** A big hit (the crit-sized number): adds the ring. */
+  big?: boolean;
+  at?: { x: number; z: number };
+}
+
+/** A sound that started on the speakers (e2e and the audio probe read these). */
+export interface AudioProbe {
+  (o: { kind: 'sfx' | 'voice'; name: string; src: AudioBufferSourceNode; gain: number }): void;
+}
+
+/** One console warning per kind of audio failure (a broken device should not flood the console). */
+const warned = new Set<string>();
+export function warnAudioOnce(what: string, err?: unknown): void {
+  if (warned.has(what)) return;
+  warned.add(what);
+  try {
+    console.warn(`[pawlegends audio] ${what}`, err ?? '');
+  } catch {
+    /* no console */
+  }
+}
+
+/** The Capacitor app (its AVAudioSession is set natively; the web audio session is left alone there). */
+function isNativeApp(): boolean {
+  try {
+    const cap = (globalThis as unknown as { Capacitor?: { isNativePlatform?: () => boolean } }).Capacitor;
+    return cap?.isNativePlatform?.() === true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Safari's Audio Session API (iOS 17+): web audio is 'ambient' by default there, so the silent switch mutes the whole
+ * game and most phones live on silent. While the game is unmuted it asks for 'playback' (sound with the switch on;
+ * Safari may pause the player's own music while it plays), and 'ambient' while muted so their music is left alone.
+ * Not in the Capacitor app: its native session is `.playback` + `.mixWithOthers` (AppDelegate.swift).
+ */
+export function applyAudioSession(muted: boolean): void {
+  if (isNativeApp()) return;
+  try {
+    const nav = globalThis.navigator as unknown as { audioSession?: { type: string } } | undefined;
+    if (!nav?.audioSession) return;
+    const want = muted ? 'ambient' : 'playback';
+    if (nav.audioSession.type !== want) nav.audioSession.type = want;
+  } catch (e) {
+    warnAudioOnce('audio session type not set', e);
+  }
+}
+
 /** Most pooled output chains per kind (centre, panned): more sounds than this at once get one-off chains. */
 const CHAIN_CAP = 24;
 
@@ -155,18 +225,41 @@ export class Sfx {
   /** Output nodes created so far (the pool's size; tests read it). */
   chainNodes = 0;
 
-  /** Call from a user gesture. Safe to call many times. */
+  /** Hidden page or backgrounded app (suspend()): a gesture must not wake the audio while it is away. */
+  private away = false;
+  /** skillPreview's quiet frames (hold()): plays and lines are dropped while > 0. Never touches the mute. */
+  private quiet = 0;
+
+  /**
+   * Call from a user gesture (every pointerdown, pointerup, touchend, click and keydown: iOS WebKit only starts or
+   * resumes audio inside a touch's end or a click). Safe to call many times: once running it is a state check.
+   */
   unlock(): void {
+    applyAudioSession(this.muted);
     if (this.ac) {
-      // 'suspended' before a gesture, 'interrupted' on iOS after a call or the app going to the background
-      if (this.ac.state !== 'running') void this.ac.resume().catch(() => undefined);
+      // 'suspended' before a gesture, 'interrupted' on iOS after a call, Siri or the app going to the background
+      if (this.ac.state !== 'running' && !this.away) this.wake();
       return;
     }
     const Ctor = (globalThis as unknown as { AudioContext?: typeof AudioContext; webkitAudioContext?: typeof AudioContext }).AudioContext ??
       (globalThis as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return;
+    if (!Ctor) {
+      warnAudioOnce('no AudioContext in this browser: the game is silent');
+      return;
+    }
     try {
       this.ac = new Ctor();
+      // an interruption (a call, Siri, another app taking audio) suspends the context; the next gesture resumes it,
+      // and a resume is tried at once when the page is in front (iOS allows it after an interruption ends)
+      this.ac.addEventListener?.('statechange', () => {
+        const st = this.ac?.state as string | undefined;
+        try {
+          document.documentElement.dataset.audio = st ?? 'none';
+        } catch {
+          /* node */
+        }
+        if (st && st !== 'running' && st !== 'closed' && !this.away && !document.hidden) this.wake();
+      });
       this.master = this.ac.createGain();
       this.master.gain.value = this.muted ? 0 : this.volume;
       this.master.connect(this.ac.destination);
@@ -179,19 +272,68 @@ export class Sfx {
       for (const k of PPK_USED) defs[k] = (ZZFX_DEFS as Record<string, number[]>)[k];
       Object.assign(defs, this.extraDefs);
       this.bakeSlices(defs);
-    } catch {
+      this.wake();
+    } catch (e) {
+      warnAudioOnce('AudioContext could not start: the game is silent', e);
       this.ac = null;
+    }
+  }
+
+  /**
+   * Resume the context and, inside a gesture, start a one-sample silent buffer: older iOS WebKit only counts the
+   * context as unlocked once a source has started in a touch's end.
+   */
+  private wake(): void {
+    const ac = this.ac;
+    if (!ac) return;
+    if (ac.state !== 'running') {
+      void ac.resume().catch((e: unknown) => warnAudioOnce('AudioContext resume refused (waits for the next tap)', e));
+    }
+    try {
+      const b = ac.createBuffer(1, 1, ac.sampleRate);
+      const src = ac.createBufferSource();
+      src.buffer = b;
+      src.connect(ac.destination);
+      src.start(0);
+    } catch {
+      /* best effort */
     }
   }
 
   /** PERF-IOS P1-6: hidden page or backgrounded app: the audio graph stops rendering (no CPU, no heat). */
   suspend(): void {
+    this.away = true;
     if (this.ac && this.ac.state === 'running') void this.ac.suspend().catch(() => undefined);
   }
 
   /** Back in front: resume (iOS may still want a gesture; unlock() on the next touch then resumes it). */
   resumeContext(): void {
+    this.away = false;
     if (this.ac && this.ac.state !== 'running') void this.ac.resume().catch(() => undefined);
+  }
+
+  /** The context runs (sound reaches the speakers when not muted). */
+  get running(): boolean {
+    return this.ac?.state === 'running';
+  }
+
+  /** Inside a hold() (nothing plays). */
+  get held(): boolean {
+    return this.quiet > 0;
+  }
+
+  /**
+   * Drop every play, layer and line until the returned release is called (skillPreview's silent frames). A counter,
+   * so nested holds are safe, and the mute, the volumes and the methods are never swapped or touched.
+   */
+  hold(): () => void {
+    this.quiet++;
+    let done = false;
+    return () => {
+      if (done) return;
+      done = true;
+      this.quiet = Math.max(0, this.quiet - 1);
+    };
   }
 
   /** Bake zzfx defs in small slices so the first gesture never stalls a frame. */
@@ -245,6 +387,7 @@ export class Sfx {
     this.muted = m;
     if (this.master) this.master.gain.value = m ? 0 : this.volume;
     if (m) this.hushVoice();
+    if (this.ac) applyAudioSession(m);
   }
 
   /** Host volumes (0..1 each; a missing one keeps its value). Mute still wins over both. */
@@ -279,15 +422,23 @@ export class Sfx {
     return this.musicIn;
   }
 
-  /** Lines said so far (e2e reads `data-voice`). */
+  /** Lines whose clip actually started on the speakers (not muted, context running); e2e reads `data-voice`. */
   readonly voiced: string[] = [];
 
-  /**
-   * LoL pass (lane B): an announcer voice line (a recorded clip; audio/voice.ts queues it by priority). Lines of
-   * priority 3 and up come after the zzfx sting (`sting` overrides). Muted (or the sound-effects volume at 0) says
-   * nothing and loads nothing; the voice chunk comes in on the first line or the match's preload.
-   */
-  voice(key: VoiceKey, o: { sting?: boolean } = {}): void {
+  /** The e2e audio probe (a page hook sets `__plAudioProbe`): told about every sound that starts. */
+  private probe(kind: 'sfx' | 'voice', name: string, src: AudioBufferSourceNode, gain: number): void {
+    const f = (globalThis as unknown as { __plAudioProbe?: AudioProbe }).__plAudioProbe;
+    if (typeof f === 'function') {
+      try {
+        f({ kind, name, src, gain });
+      } catch {
+        /* a test hook */
+      }
+    }
+  }
+
+  /** audio/voice.ts: a line's clip started (it is audible: checked before the start). */
+  private saidLine(key: VoiceKey, src: AudioBufferSourceNode, gain: number): void {
     this.voiced.push(key);
     if (this.voiced.length > 20) this.voiced.shift();
     try {
@@ -295,16 +446,22 @@ export class Sfx {
     } catch {
       /* node */
     }
-    if (this.muted || this.fxScale <= 0.01) return;
+    this.probe('voice', key, src, gain * (this.muted ? 0 : this.volume * this.fxScale));
+  }
+
+  /**
+   * LoL pass (lane B): an announcer voice line (a recorded clip; audio/voice.ts queues it by priority). Lines of
+   * priority 3 and up come after the zzfx sting (`sting` overrides): the line joins the queue now (so a lower line of
+   * the same moment never jumps ahead) and its clip starts VOICE_AFTER_STING_MS later. Muted (or the sound-effects
+   * volume at 0) says nothing and loads nothing; the voice chunk comes in on the first line or the match's preload.
+   */
+  voice(key: VoiceKey, o: { sting?: boolean } = {}): void {
+    if (this.muted || this.fxScale <= 0.01 || this.quiet > 0) return;
     const sting = o.sting ?? voicePriority(key) >= 3;
     if (sting) this.play('sting', { vol: 0.6, rate: 0.9 });
     void this.voiceMod()
-      .then((m) => {
-        const say = (): void => m.sayLine(key, () => this.voiceOut());
-        if (sting) setTimeout(say, VOICE_AFTER_STING_MS);
-        else say();
-      })
-      .catch(() => undefined);
+      .then((m) => m.sayLine(key, () => this.voiceOut(), sting ? VOICE_AFTER_STING_MS : 0))
+      .catch((e: unknown) => warnAudioOnce('announcer voice chunk failed to load', e));
   }
 
   /** Fetch and decode these lines ahead of time (match start); nothing while muted. */
@@ -333,11 +490,43 @@ export class Sfx {
       duck: this.musicIn,
       volume: this.muted ? 0 : this.volume * this.fxScale,
       muted: this.muted,
+      said: (key, src, gain) => this.saidLine(key, src, gain),
     };
   }
 
   play(name: SfxName, o: PlayOpts = {}): void {
+    if (this.quiet > 0) return;
     this.start(name, o);
+  }
+
+  /**
+   * A landed hit (audio pass, Nov 9): layered so it reads as contact and weight, not one noise burst. The player's
+   * own hits get the full stack (crack, thump, the old body; a deep punch when heavy; a ring when big); the player
+   * being hit gets a muffled thud under the grunt; other fights are a lighter, quieter crack and thump.
+   */
+  impact(o: ImpactOpts): void {
+    if (this.quiet > 0 || this.muted) return;
+    const at = o.at;
+    if (o.who === 'me') {
+      this.start('hurtThud', { vol: 0.75 });
+      this.start('hurt', { vol: 0.55 });
+      if (o.heavy) this.start('hitHeavy', { vol: 0.5, rate: 0.9 });
+      return;
+    }
+    const mine = o.who === 'mine';
+    const k = mine ? 1 : 0.42;
+    if (o.target === 'structure') {
+      this.start('hitCrack', { at, vol: 0.45 * k, rate: 0.7 });
+      this.start('hitHeavy', { at, vol: 0.4 * k, rate: 1.25 });
+      return;
+    }
+    const hero = o.target === 'hero';
+    this.start('hitCrack', { at, vol: (hero ? 0.55 : 0.45) * k, rate: hero ? 1 : 1.15 });
+    this.start('hitThump', { at, vol: (hero ? 0.8 : 0.6) * k, rate: hero ? 0.9 : 1.2 });
+    if (!mine) return;
+    if (hero) this.start('heroHit', { at, vol: 0.45 });
+    if (o.heavy || o.big) this.start('hitHeavy', { at, vol: o.big ? 0.75 : 0.55 });
+    if (o.big) this.start('critRing', { at, vol: 0.55 });
   }
 
   /**
@@ -348,7 +537,7 @@ export class Sfx {
   playLayer(req: Omit<MixRequest, 'dur' | 'vol'> & { vol?: number; rate?: number; at?: { x: number; z: number } }): boolean {
     const ac = this.ac;
     const buf = this.bufferOf(req.name);
-    if (!ac || !buf || !this.fx || this.muted) return false;
+    if (!ac || !buf || !this.fx || this.muted || this.quiet > 0) return false;
     const now = ac.currentTime;
     const rate = req.rate ?? 1;
     const baked = this.bakedVol(req.name);
@@ -430,10 +619,11 @@ export class Sfx {
           }
         }
       };
+      this.probe('sfx', name, src, vol * this.fxScale * (this.muted ? 0 : this.volume));
       src.start();
       return src;
-    } catch {
-      /* audio is best effort */
+    } catch (e) {
+      warnAudioOnce('a sound failed to start', e);
       return null;
     }
   }

@@ -268,6 +268,8 @@ export type PawlegendsToHostMessage =
   | { type: "purchase-intent"; sku: PawlegendsSku }
   | { type: "share"; kind: string; url: string; text: string | null }
   | { type: "paused"; paused: boolean }
+  /** The player turned the game's Sound on or off: the host's one mute follows (tt:audio:v1). */
+  | { type: "sound"; muted: boolean }
   | { type: "champion-offer"; catalogId: string }
   | { type: "skin-preview"; catalogId: string }
   | ({ type: "client-error" } & PawlegendsClientError)
@@ -676,6 +678,8 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
     }
     case "paused":
       return typeof data.paused === "boolean" ? { type: "paused", paused: data.paused } : null;
+    case "sound":
+      return typeof data.muted === "boolean" ? { type: "sound", muted: data.muted } : null;
     case "champion-offer":
       return isCatalogId(data.catalogId) ? { type: "champion-offer", catalogId: data.catalogId } : null;
     case "skin-preview":
@@ -749,6 +753,8 @@ export interface PawlegendsBridgeHandlers {
   /** `text`: the game's dare line (`shareTextOf`), or null. */
   onShare?(kind: string, url: string, text: string | null): void;
   onPaused?(paused: boolean): void;
+  /** The player switched the game's Sound (true = muted): the host saves it as its own mute. */
+  onSound?(muted: boolean): void;
   /** Sim v9: only for a champion card the host holds as for sale, and never in an app build. */
   onChampionOffer?(catalogId: string): void;
   /** Card skins: only for a cat of the last `featured` list, and never in an app build. */
@@ -925,6 +931,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         break;
       case "paused":
         handlers.onPaused?.(message.paused);
+        break;
+      case "sound":
+        handlers.onSound?.(message.muted);
         break;
       case "exit":
         handlers.onExit?.();

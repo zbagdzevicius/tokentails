@@ -347,7 +347,9 @@ export class App {
       if (!this.session) this.pendingPause = m.type === 'pause';
       this.bridge.post('paused', { paused: m.type === 'pause' });
     } else if (m.type === 'audio') {
-      this.setMuted(m.muted === true);
+      // the host's mute applies to this visit only: never saved into the game profile (a host mute saved there kept
+      // the standalone game silent too, and came back on every visit)
+      sfx.setMuted(m.muted === true);
       const v = parseAudio(m);
       if (v) sfx.setVolumes(v);
     }
@@ -556,11 +558,15 @@ export class App {
     }
   }
 
+  /** The player's own Sound switch: saved, and told to the host, whose one mute follows (tt:audio:v1). */
   private setMuted(m: boolean): void {
     sfx.setMuted(m);
     const p = loadProfile();
     p.muted = m;
     saveProfile(p);
+    if (this.bridge.active) this.bridge.post('sound', { muted: m });
+    // the switch is a tap: start (or resume) the audio in it
+    if (!m) sfx.unlock();
   }
 
   /** Casual PvP: the mode chosen on the title this page (null: the remembered one). */

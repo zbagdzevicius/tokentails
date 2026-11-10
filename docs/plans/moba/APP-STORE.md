@@ -113,7 +113,7 @@ Ship Pawlegends to the Apple App Store as its own iPhone app.
   - `preferredScreenEdgesDeferringSystemGestures = .all`;
   - `supportedInterfaceOrientations = .landscape`.
 - Info.plist: Landscape Left and Right only; `UIStatusBarHidden = true`; `ITSAppUsesNonExemptEncryption = false`.
-- At launch: `AVAudioSession` category `.ambient`; `isIdleTimerDisabled = true` while in the foreground.
+- At launch and on every return to the foreground: `AVAudioSession` category `.playback` with `.mixWithOthers` (changed from `.ambient` on 2026-11-09: `.ambient` follows the silent switch, so most players heard no sound at all; `.playback` plays with the switch on and still mixes with the player's music; the in-game Sound toggle silences the game; ships with the next native build, an OTA bundle cannot change it). The web build asks Safari for the same through `navigator.audioSession.type = 'playback'` while the game is unmuted (`'ambient'` while muted). `isIdleTimerDisabled = true` while in the foreground.
 - Capacitor `ios` config: `scrollEnabled: false`, `allowsLinkPreview: false`, `contentInset: 'never'`, `backgroundColor: '#2b1d2e'`.
 - `PrivacyInfo.xcprivacy` in the app target (see Privacy).
 - Associated Domains `applinks:tokentails.com`, plus `client/public/.well-known/apple-app-site-association` for `/pawlegends?party=*`. Invite links then open the app.

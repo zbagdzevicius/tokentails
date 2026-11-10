@@ -2,7 +2,7 @@ import { analytics, reportAppError } from "@/analytics";
 import { buildPawlegendsEvent, pawlegendsSaveCode } from "@/analytics/pawlegends-events";
 import { CAT_API } from "@/api/cat-api";
 import { USER_API } from "@/api/user-api";
-import { getAudioSettings, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
+import { getAudioSettings, setMuted, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
 import { isAppBuild } from "@/components/claims/build";
 import { registerHeistSuspension } from "@/components/heist/suspension";
 import { PixelIcon } from "@/components/shared/PixelIcon";
@@ -602,6 +602,8 @@ export const PawlegendsHost = ({
         onChampionOffer: (catalogId) => handlers.current.onChampionOffer(catalogId),
         onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
         onExit: () => goRef.current(PAWLEGENDS_EXIT_PATH),
+        // the player's own Sound switch in the game is the site's one mute (it was lost on the next visit)
+        onSound: (muted) => setMuted(muted),
         onShare: (kind, url, text) => {
           // a party invite is always the tokentails.com embed URL (D12), also from a preview or local host
           const safe = kind === "party" && PAWLEGENDS_PARTY_LINK.test(url) ? url : shareUrlOf(url, window.location.origin);

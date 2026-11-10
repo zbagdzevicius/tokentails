@@ -19,6 +19,20 @@ export interface VoiceOut {
   /** 0..1 (sound-effects volume × master); 0 or muted says nothing. */
   volume: number;
   muted: boolean;
+  /** Told when a line's clip starts (audible: checked first), with the clip's own gain. */
+  said?: (key: VoiceKey, src: AudioBufferSourceNode, gain: number) => void;
+}
+
+/** One console warning per kind of failure (audio/sfx.ts warnAudioOnce, kept local so this chunk stays small). */
+const warned = new Set<string>();
+function warnOnce(what: string, err?: unknown): void {
+  if (warned.has(what)) return;
+  warned.add(what);
+  try {
+    console.warn(`[pawlegends audio] ${what}`, err ?? '');
+  } catch {
+    /* no console */
+  }
 }
 
 /** The music's level under a line (of its own level). */
@@ -37,9 +51,17 @@ const BASE = (() => {
 let manifest: Promise<ReadonlySet<string>> | null = null;
 function clips(): Promise<ReadonlySet<string>> {
   manifest ??= fetch(`${BASE}voice/manifest.json`)
-    .then((r) => (r.ok ? r.json() : []))
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
     .then((list: unknown) => new Set(Array.isArray(list) ? list.filter((x): x is string => typeof x === 'string') : []))
-    .catch(() => new Set<string>());
+    .catch((e: unknown) => {
+      warnOnce(`announcer manifest ${BASE}voice/manifest.json not loaded: no voice lines`, e);
+      // a later line tries again (a flaky network at boot must not silence the whole session)
+      manifest = null;
+      return new Set<string>();
+    });
   return manifest;
 }
 
@@ -53,8 +75,15 @@ function fetchClip(key: VoiceKey): Promise<ArrayBuffer | null> {
     p = clips().then((have) =>
       have.has(key)
         ? fetch(`${BASE}voice/${key}.mp3`)
-            .then((r) => (r.ok ? r.arrayBuffer() : null))
-            .catch(() => null)
+            .then((r) => {
+              if (!r.ok) throw new Error(`HTTP ${r.status}`);
+              return r.arrayBuffer();
+            })
+            .catch((e: unknown) => {
+              warnOnce(`announcer clip ${key} not loaded`, e);
+              bytes.delete(key);
+              return null;
+            })
         : null,
     );
     bytes.set(key, p);
@@ -68,10 +97,15 @@ function clip(ctx: AudioContext, key: VoiceKey): Promise<AudioBuffer | null> {
     // decodeAudioData detaches the bytes: decode a copy, once
     p = fetchClip(key)
       .then((b) => (b ? ctx.decodeAudioData(b.slice(0)) : null))
-      .catch(() => null);
+      .catch((e: unknown) => {
+        warnOnce(`announcer clip ${key} could not be decoded`, e);
+        return null;
+      });
     decoded.set(key, p);
     void p.then((buf) => {
       if (buf) bytes.delete(key);
+      // a failed fetch or decode is tried again next time
+      else decoded.delete(key);
     });
   }
   return p;
@@ -89,6 +123,31 @@ const queue = new VoiceQueue();
 let playing: { src: AudioBufferSourceNode; key: VoiceKey } | null = null;
 let timer: ReturnType<typeof setTimeout> | null = null;
 let outOf: () => VoiceOut = () => ({ ctx: null, bus: null, duck: null, volume: 0, muted: true });
+/** Lines that start a little after they were queued (after the zzfx sting), ms. */
+const leadOf = new Map<VoiceKey, number>();
+/** A suspended context (iOS after an interruption, or before the first tap's end) gets this long to resume. */
+const RESUME_WAIT_MS = 700;
+
+/** Resolves true once `ctx` runs (a resume is asked for), false after RESUME_WAIT_MS. */
+function running(ctx: AudioContext): Promise<boolean> {
+  if (ctx.state === 'running') return Promise.resolve(true);
+  return new Promise((done) => {
+    let over = false;
+    const finish = (ok: boolean): void => {
+      if (over) return;
+      over = true;
+      clearTimeout(t);
+      ctx.removeEventListener?.('statechange', on);
+      done(ok);
+    };
+    const on = (): void => {
+      if (ctx.state === 'running') finish(true);
+    };
+    const t = setTimeout(() => finish(ctx.state === 'running'), RESUME_WAIT_MS);
+    ctx.addEventListener?.('statechange', on);
+    void ctx.resume().then(on, () => undefined);
+  });
+}
 
 function duck(out: VoiceOut, on: boolean): void {
   const g = out.duck;
@@ -123,18 +182,22 @@ function start(key: VoiceKey, cut: boolean): void {
     queue.length(key, at, 0);
     pump();
   };
-  // a suspended context (iOS before the first tap's end, or interrupted) would hold the line and say it late
-  if (out.muted || out.volume <= 0.01 || !out.ctx || !out.bus || out.ctx.state !== 'running') {
+  if (out.muted || out.volume <= 0.01 || !out.ctx || !out.bus) {
     silent();
     return;
   }
   const ctx = out.ctx;
   const bus = out.bus;
-  void clip(ctx, key).then((buf) => {
+  const lead = leadOf.get(key) ?? 0;
+  leadOf.delete(key);
+  // a suspended context (iOS before the first tap's end, or after an interruption) is asked to resume and gets a
+  // moment to do it, instead of the line being dropped at once; the queue's staleness still bounds how late it is
+  void Promise.all([clip(ctx, key), running(ctx)]).then(([buf, live]) => {
     // a line that cut in meanwhile wins
     if (queue.current !== key) return;
     const now = outOf();
-    if (!buf || now.muted || now.volume <= 0.01) {
+    if (!buf || !live || now.muted || now.volume <= 0.01) {
+      if (buf && !live) warnOnce('announcer line skipped: audio is suspended until the next tap');
       silent();
       return;
     }
@@ -151,12 +214,14 @@ function start(key: VoiceKey, cut: boolean): void {
         playing = null;
         if (queue.waitMs(performance.now()) < 0) duck(outOf(), false);
       };
-      src.start();
+      now.said?.(key, src, CLIP_GAIN);
+      src.start(lead > 0 ? ctx.currentTime + lead / 1000 : 0);
       playing = { src, key };
       duck(now, true);
-      queue.length(key, performance.now(), buf.duration * 1000);
+      queue.length(key, performance.now(), lead + buf.duration * 1000);
       pump();
-    } catch {
+    } catch (e) {
+      warnOnce('an announcer line failed to start', e);
       silent();
     }
   });
@@ -178,14 +243,19 @@ function pump(): void {
   if (wait >= 0) timer = setTimeout(pump, wait + 5);
 }
 
-/** Say `key` (queued by priority; see VoiceQueue). `out()` is read when the line actually starts. */
-export function sayLine(key: VoiceKey, out: () => VoiceOut): void {
+/**
+ * Say `key` (queued by priority; see VoiceQueue). `out()` is read when the line actually starts. `leadMs`: the clip
+ * starts this long after its turn comes (the sting before a big line), while its place in the queue is taken now.
+ */
+export function sayLine(key: VoiceKey, out: () => VoiceOut, leadMs = 0): void {
   outOf = out;
   const o = out();
   if (o.muted || o.volume <= 0.01) return;
   void clips().then((have) => {
     // no clip, no line (and no robotic stand-in)
     if (!have.has(key)) return;
+    if (leadMs > 0) leadOf.set(key, leadMs);
+    else leadOf.delete(key);
     const go = queue.push(key, performance.now());
     if (go) start(go.key, go.cut);
     else pump();
