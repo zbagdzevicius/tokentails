@@ -87,7 +87,7 @@ export function storeStateOf(value: unknown): PawlegendsStoreState | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
   if (!Array.isArray(v.items)) return null;
-  const items = [...new Set(v.items.slice(0, 400).filter((i): i is string => typeof i === "string" && STORE_ITEM.test(i)))];
+  const items = Array.from(new Set(v.items.slice(0, 400).filter((i): i is string => typeof i === "string" && STORE_ITEM.test(i))));
   let season: PawlegendsStoreSeason | null = null;
   const r = v.season && typeof v.season === "object" ? (v.season as Record<string, unknown>) : null;
   if (r && typeof r.id === "string" && /^s\d{1,3}$/.test(r.id)) {
