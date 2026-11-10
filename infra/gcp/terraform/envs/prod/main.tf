@@ -350,7 +350,7 @@ module "relay_vm" {
   source          = "../../modules/relay_vm"
   name            = var.relay_name
   project_id      = var.project_id
-  region          = var.region
+  region          = coalesce(var.relay_region, var.region)
   zones           = var.zones
   machine_type    = var.relay_machine_type
   network         = module.network.network_id
@@ -358,9 +358,15 @@ module "relay_vm" {
   service_account = local.sa["sa-relay"]
   port            = local.relay_port
   initial_image   = local.backend_image
-  plain_env       = { NO_COLOR = "1", PARTY_MAX_LIVE_ROOMS = tostring(var.max_live_rooms) }
-  secrets         = local.relay_secret_versions
-  labels          = local.labels
+  plain_env = {
+    NO_COLOR             = "1"
+    PARTY_MAX_LIVE_ROOMS = tostring(var.max_live_rooms)
+    # LATENCY-PLAN R3: fewer young-generation GCs on the turn path, more libuv threads for TLS, zlib and DNS
+    NODE_OPTIONS       = var.relay_node_options
+    UV_THREADPOOL_SIZE = tostring(var.relay_uv_threadpool_size)
+  }
+  secrets = local.relay_secret_versions
+  labels  = local.labels
 
   depends_on = [module.secrets, module.artifact_registry]
 }
@@ -466,6 +472,8 @@ module "monitoring" {
   api_max_instances     = var.api.max_instances
   relay_instance_prefix = var.relay_name
   max_live_rooms        = var.max_live_rooms
+  relay_rtt_eu_p95_ms   = var.relay_rtt_eu_p95_ms
+  relay_overrun_p99_ms  = var.relay_turn_overrun_p99_ms
   api_host              = local.api_hosts[0]
   web_host              = local.web_hosts[0]
 
@@ -478,6 +486,7 @@ module "budget" {
   project_number        = data.google_project.this.number
   amount                = var.budget_amount
   currency_code         = var.budget_currency
+  labels                = var.budget_labels
   notification_channels = [module.monitoring.notification_channel]
 
   depends_on = [module.project_services]

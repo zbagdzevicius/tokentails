@@ -63,6 +63,75 @@ resource "google_logging_metric" "relay_rooms_live" {
   }
 }
 
+# LATENCY-PLAN C4: the turn clock's lateness and the server-measured socket RTT (backend relay-rtt.ts), from the same
+# one-a-minute relay_stats line. The EU series reads only lines that carry it (a relay with no EU socket that minute
+# writes no rtt_ms_p95_eu).
+resource "google_logging_metric" "relay_turn_overrun_p99" {
+  project         = var.project_id
+  name            = "relay_turn_overrun_p99_ms"
+  description     = "Relay turn overrun p99 (ms: how late a turn closed after its boundary), one sample a minute."
+  filter          = "${local.relay_logs} AND jsonPayload.event=\"relay_stats\""
+  value_extractor = "EXTRACT(jsonPayload.turn_overrun_ms_p99)"
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "DISTRIBUTION"
+    unit        = "ms"
+  }
+
+  bucket_options {
+    exponential_buckets {
+      num_finite_buckets = 40
+      growth_factor      = 1.25
+      scale              = 0.25
+    }
+  }
+}
+
+resource "google_logging_metric" "relay_rtt_p95" {
+  project         = var.project_id
+  name            = "relay_rtt_p95_ms"
+  description     = "Relay socket RTT p95 (ms, WebSocket ping to pong, all regions), one sample a minute."
+  filter          = "${local.relay_logs} AND jsonPayload.event=\"relay_stats\" AND jsonPayload.rtt_n>0"
+  value_extractor = "EXTRACT(jsonPayload.rtt_ms_p95)"
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "DISTRIBUTION"
+    unit        = "ms"
+  }
+
+  bucket_options {
+    exponential_buckets {
+      num_finite_buckets = 40
+      growth_factor      = 1.25
+      scale              = 2
+    }
+  }
+}
+
+resource "google_logging_metric" "relay_rtt_eu_p95" {
+  project         = var.project_id
+  name            = "relay_rtt_eu_p95_ms"
+  description     = "Relay socket RTT p95 (ms) of European visitors (cf-ipcountry), one sample a minute."
+  filter          = "${local.relay_logs} AND jsonPayload.event=\"relay_stats\" AND jsonPayload.rtt_ms_p95_eu:*"
+  value_extractor = "EXTRACT(jsonPayload.rtt_ms_p95_eu)"
+
+  metric_descriptor {
+    metric_kind = "DELTA"
+    value_type  = "DISTRIBUTION"
+    unit        = "ms"
+  }
+
+  bucket_options {
+    exponential_buckets {
+      num_finite_buckets = 40
+      growth_factor      = 1.25
+      scale              = 2
+    }
+  }
+}
+
 resource "google_logging_metric" "relay_events" {
   project     = var.project_id
   name        = "relay_events"
@@ -208,6 +277,56 @@ resource "google_monitoring_alert_policy" "relay_loop" {
   notification_channels = [google_monitoring_notification_channel.email.id]
   documentation {
     content = "Players will feel lag. Check `curl localhost:8080/healthz` on the relay VM; consider t2d-standard-4 (infra/gcp/RUNBOOK.md, Scaling the relay)."
+  }
+}
+
+resource "google_monitoring_alert_policy" "relay_turn_overrun" {
+  project      = var.project_id
+  display_name = "Relay turn overrun p99 > ${var.relay_overrun_p99_ms} ms"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "turn overrun p99"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.relay_turn_overrun_p99.name}\" AND resource.type=\"gce_instance\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = var.relay_overrun_p99_ms
+      duration        = "300s"
+      aggregations {
+        alignment_period   = "60s"
+        per_series_aligner = "ALIGN_PERCENTILE_99"
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.email.id]
+  documentation {
+    content = "Turns close late: every client's input latency grows by the overrun. Check the loop delay alert and CPU; if both are fine, look for a synchronous step on the turn path (LATENCY-PLAN R3, R5)."
+  }
+}
+
+resource "google_monitoring_alert_policy" "relay_rtt_eu" {
+  project      = var.project_id
+  display_name = "Relay EU socket RTT p95 > ${var.relay_rtt_eu_p95_ms} ms"
+  combiner     = "OR"
+
+  conditions {
+    display_name = "EU RTT p95"
+    condition_threshold {
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.relay_rtt_eu_p95.name}\" AND resource.type=\"gce_instance\""
+      comparison      = "COMPARISON_GT"
+      threshold_value = var.relay_rtt_eu_p95_ms
+      duration        = "900s"
+      aggregations {
+        alignment_period   = "300s"
+        per_series_aligner = "ALIGN_PERCENTILE_50"
+      }
+    }
+  }
+
+  notification_channels = [google_monitoring_notification_channel.email.id]
+  documentation {
+    content = "European players' round trip to the relay is slow for 15 minutes. Compare with the relay-latency-probe workflow and `node infra/gcp/tools/ws-latency.mjs https://api.tokentails.com --n 4 --pings 30`; check Cloudflare and the load balancer before the VM (LATENCY-PLAN M2)."
   }
 }
 
