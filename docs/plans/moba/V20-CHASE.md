@@ -289,3 +289,14 @@ copy-gate tests that already fail on `origin/main` in a worktree. Backend: `pawl
 `pawlegends-party-live` + `-pvp` 16/16. `pawlegends-app` publish tests 2/2.
 
 Not done here: client bundle rebuild, OTA beta publish and `promote_now` (§2.3) are release steps for the owner.
+
+### 8.5 Independent review (34c26961)
+
+Fixed: a Move in a swing's last tick left a stale target (Stilts auto-pounced back while walking away); an Attack on
+another unit in the last tick landed the old swing on the new unit; a tapped minion/camp/tower held the stick with no
+timer (now 700 ms as in v19; enemy heroes keep the timerless yield). Real client (bot match, attempts of ~3 s with
+>= 0.6 s in contact, hits landed): touch tap 23/24 attempts hit (0.96 hits/contact-s), touch hold 26/27 (1.01), touch
+hold no stick 3/3, desktop right-click spam 22/22 (1.2), desktop A-click spam 18/19 (1.16). Fresh-seed gates: 3v3
+seeds 4001-6000 FAIL (stilts 54.5, chili 44.7, gabe 54.9); 3v3 seeds 1-2000 FAIL (down 10+ wins 6.2%; heroes
+47.4-53.8 pass); 5v5 seeds 4001-6000 FAIL (duchess 54.1; side, species, p50 13:05 pass). Determinism 300 seeds + PvP
+identical; pvp-symmetry 1000 seeds pass.
