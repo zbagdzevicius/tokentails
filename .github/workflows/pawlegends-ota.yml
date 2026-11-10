@@ -13,6 +13,9 @@
 #
 # Secret: OTA_PRIVATE_KEY (the PEM text of pawlegends-app/ota/.keys/private-key.pem). Without it the publish and
 # promote jobs stop with a notice and publish nothing.
+# Optional secrets CF_API_TOKEN (Zone.Cache Purge only) and CF_ZONE_ID (LATENCY-PLAN C5): once Vercel serves the new
+# manifest, scripts/cdn-cache.mjs purges it from Cloudflare, so apps see the bundle at once instead of after the edge
+# TTL (30 s with the cache rule in infra/gcp/RUNBOOK.md "Latency"). Without them the step is skipped.
 #
 # Manual runs: `rollback_to` = a kept version (see the bundles folder) points beta AND stable at it (signed again);
 # `promote_now` moves the current beta bundle to stable without waiting for the 24 h.
@@ -110,6 +113,8 @@ jobs:
       OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
       ROLLBACK: ${{ github.event.inputs.rollback_to || '' }}
       MIN_NATIVE: ${{ github.event.inputs.min_native || '' }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
     steps:
       - name: Secret present
         id: secret
@@ -187,6 +192,12 @@ jobs:
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
           node -e "const m=require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Purge the new manifest from Cloudflare (once Vercel serves it)
+        if: steps.secret.outputs.ok == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
+        timeout-minutes: 12
+        run: |
+          node scripts/cdn-cache.mjs ota --file manifest-beta.json
+          if [ -n "$ROLLBACK" ]; then node scripts/cdn-cache.mjs ota --file manifest.json; fi
 
   promote:
     name: promote beta to stable
@@ -198,6 +209,8 @@ jobs:
     env:
       OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
       SOAK: ${{ github.event.inputs.promote_now == 'true' && '0' || '24' }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
     steps:
       - name: Secret present
         id: secret
@@ -232,7 +245,11 @@ jobs:
           version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest.json').version)")
           git commit -m "chore(pawlegends-app): OTA ${version} promoted to stable"
           for i in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
+            if git pull --rebase origin main && git push origin HEAD:main; then echo "promoted=true" >> "$GITHUB_ENV"; exit 0; fi
             sleep 5
           done
           exit 1
+      - name: Purge the stable manifest from Cloudflare (once Vercel serves it)
+        if: steps.secret.outputs.ok == 'true' && env.promoted == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
+        timeout-minutes: 12
+        run: node scripts/cdn-cache.mjs ota --file manifest.json

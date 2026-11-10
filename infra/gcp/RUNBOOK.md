@@ -59,17 +59,21 @@ in docs/BACKEND.md once DigitalOcean is gone. **Never** move the relay behind a 
   `replace-relay.sh` and `cutover-relay.sh` refuse any project off that list; `deploy-gcp.yml` and `terraform.yml`
   accept the production project only; `preflight.sh` refuses to run when an env var or tfvars file targets a project
   off the list.
-- Use a separate gcloud configuration for every command in this runbook, so a missing `--project` can never land on
-  the other company's project:
+- Use an isolated gcloud state directory for every command in this runbook, so a missing `--project` (or a shell
+  without the setup) can never land on the other company's project, and nothing here ever writes to the default
+  `~/.config/gcloud`. In each shell you use for Token Tails:
 
   ```bash
-  gcloud config configurations create tokentails --no-activate
-  export CLOUDSDK_ACTIVE_CONFIG_NAME=tokentails          # in each shell you use for Token Tails
-  gcloud config set project gleaming-medium-480114-g5
-  gcloud config set compute/region europe-west3
-  gcloud auth login                                     # the founder's Token Tails Google account
-  gcloud config get project                             # must print gleaming-medium-480114-g5
+  export CLOUDSDK_CONFIG="$HOME/.config/gcloud-tokentails"   # Token Tails' own gcloud state (accounts, ADC, config)
+  export CLOUDSDK_CORE_PROJECT=gleaming-medium-480114-g5     # project and region from the environment: no `gcloud config set`
+  export CLOUDSDK_COMPUTE_REGION=europe-west3
+  gcloud auth login                                          # once: the founder's Token Tails Google account
+  gcloud auth application-default login                      # once: Terraform's credentials, kept in $CLOUDSDK_CONFIG
+  export GOOGLE_APPLICATION_CREDENTIALS="$CLOUDSDK_CONFIG/application_default_credentials.json"
+  gcloud config get project                                  # must print gleaming-medium-480114-g5
   ```
+
+  A shell without these exports uses the default gcloud state, which belongs to the other company: close it.
 - Terraform creates secret **containers and IAM only**, never secret versions. Values are added by you with
   `gcloud secrets versions add` (step 3). Terraform state never holds a secret value.
 - No automatic billing shutdown: the budget only emails.
@@ -582,6 +586,66 @@ europe-west3 list prices, today's scale, per month:
 | **Total** | **≈ $250–340** |
 
 With the web staying on Vercel: about $210–290. Each extra relay region later: about $70–76. Budget alert: $400.
+
+## Latency (LATENCY-PLAN; next steps in docs/plans/moba/LATENCY-NEXT.md)
+
+What the code already does, and what only the founder can switch on.
+
+**Measure.** The relay logs `relay_stats` once a minute in every role (DigitalOcean `all` included): `rtt_ms_p50`,
+`rtt_ms_p95`, `rtt_ms_p95_<region>` (server-measured WebSocket ping to pong, region from `cf-ipcountry`),
+`turn_overrun_ms_p99` and `loop_delay_p99`. Log-based metrics and alerts (`modules/monitoring`): turn overrun p99 > 5 ms,
+loop delay p99 > 15 ms, EU RTT p95 > 80 ms. The client sends `mp_net` with the real `rtt_p95`, `jitter_p95`,
+`margin_m` and `late_turns` (PostHog, by country and platform). The `Relay latency probe` workflow runs every 30 minutes
+from a US runner; for one-off checks from your machine:
+
+```bash
+node infra/gcp/tools/ws-latency.mjs https://api.tokentails.com --n 4 --pings 30
+```
+
+**Relay runtime (R3).** The relay process runs with `NODE_OPTIONS=--max-semi-space-size=64` and `UV_THREADPOOL_SIZE=8`
+(`relay_node_options`, `relay_uv_threadpool_size`). `relay_region` exists but must equal `region` while the relay is
+served by the regional ALB (validated).
+
+**Budget (C3).** The budget counts the whole project, which also holds `motored-dev`, `n8n-db` and `n8n`. Either raise
+`budget_amount` by their measured monthly cost (default; nothing else changes), or set `budget_labels = { app =
+"tokentails" }`: the labelled Terraform resources (Cloud Run, the relay VM, buckets) count, but unlabelled costs (network egress, Cloud NAT, logging)
+then drop out of the budget.
+
+**Cloudflare cache rules (C5, founder, dashboard → Caching → Cache Rules, zone tokentails.com).** The origin headers are
+already in `client/next.config.js`; Cloudflare caches HTML only when a rule makes it eligible:
+
+1. Rule "Paw Legends game HTML": URI path equals `/pawlegends-game/index.html` → Eligible for cache; Edge TTL: use
+   cache-control header if present (`s-maxage=60`), else 60 s; Browser TTL: respect origin.
+2. Rule "Paw Legends OTA": URI path starts with `/pawlegends-app/updates/` → Eligible for cache; Edge TTL: respect origin
+   (`s-maxage=30` on the manifests, a year on the versioned bundles).
+3. Leave `/pawlegends-game/build/*` and `/pawlegends-game/assets/*` on the default rules: they are static file types and
+   already cached by extension.
+4. Speed → Optimization → Protocol: HTTP/3 (with QUIC) **on**, 0-RTT Connection Resumption **on** (E5). 0-RTT replays
+   only idempotent GETs at the edge; the API's POSTs are not affected.
+5. API token for the purge (C5): My Profile → API Tokens → Create → "Custom", permission Zone → Cache Purge → Purge,
+   zone tokentails.com only. Add it as the GitHub secret `CF_API_TOKEN` and the zone id as `CF_ZONE_ID`. Then
+   `pawlegends-ota.yml` purges each new manifest once Vercel serves it, and `pawlegends-cdn.yml` purges the game
+   `index.html` and warms the new `build/` files after each game deploy. Without the secrets both skip the purge.
+
+Check after each step (expect `cf-cache-status: HIT` on the second request, and the new `cache-control`):
+
+```bash
+for p in /pawlegends-game/index.html /pawlegends-app/updates/ios/1/manifest.json; do
+  curl -sI "https://tokentails.com$p" | grep -iE '^(cache-control|cf-cache-status|age)'; done
+```
+
+Baseline on 2026-11-10 (before the new headers deploy): index.html and manifest.json `max-age=0, must-revalidate`,
+`cf-cache-status: DYNAMIC`, first byte 330–420 ms from Vilnius.
+
+**Cloudflare vs direct (E4, after step 6).** Create a DNS-only (grey cloud) test host pointing at `terraform output
+lb_ip`, allow your own /32 in Cloud Armor for the test, then:
+
+```bash
+infra/gcp/scripts/relay-ab.sh https://gcp-api.tokentails.com https://<test host>
+```
+
+A ping p50 gap above 10 ms against Cloudflare means: evaluate Argo Smart Routing before any bypass. Remove the test host
+and the /32 afterwards.
 
 ## Decisions and defaults
 
