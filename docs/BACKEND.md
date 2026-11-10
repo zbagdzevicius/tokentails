@@ -75,9 +75,14 @@ switch, and every feature stays on in the role that serves it.
 | `api` | `ApiAppModule`: the same controllers, providers and 26 leased crons, without `PartyRelayService`, so it never attaches to `/pawlegends/ws` and never restores rooms | Cloud Run `tt-api` (infra/gcp) |
 | `relay` | `RelayModule` (`src/relay.module.ts`): the relay, its room store, ticket verifier and the cat collection; no `ScheduleModule`, no Stripe, Firebase, AI or hot-wallet provider | the relay VM (infra/gcp) |
 
-Every role serves `GET /healthz` (liveness: `{ ok, role }`, plus `revision` on Cloud Run and the relay
-counters on the relay role) and `GET /readyz` (503 while MongoDB is down, while shutting down, or when the role serves
-the relay and it has not started). `GET /` still answers `1`. The relay role also answers `GET /pawlegends/ws/healthz`
+Every role serves `GET /healthz` (liveness: `{ ok, role }`, plus `revision` on Cloud Run, the relay
+counters on the relay role and `state: serving|draining` wherever a relay runs; it stays 200 while the relay drains, so
+liveness checks never restart a draining relay) and `GET /readyz` (503 while MongoDB is down, while shutting down,
+while the relay drains, or when the role serves the relay and it has not started). `POST /pawlegends/relay/drain
+{maxMs?}` starts or tightens a relay drain and answers `202 {state, rooms_live, deadline_in_ms}`; it accepts loopback
+callers only (the socket peer, never a forwarded header). On the relay VM each blue/green slot also serves these three
+routes on its loopback `RELAY_CONTROL_PORT`. Live-match deploys (drain, pull and push handoff, the 1 s restore loop,
+relay generations and pools, `RELAY_DRAIN_MAX_MS`, `RELAY_POOL`): `docs/plans/moba/LIVE-MATCH-DEPLOYS.md`. `GET /` still answers `1`. The relay role also answers `GET /pawlegends/ws/healthz`
 (proves a route reaches the relay) and logs one `relay_stats` JSON line a minute for log-based metrics. Both health
 routes are public and skip the throttler (no database I/O: `readyz` reads the Mongo connection state only); they show
 the role and readiness, never uptime or relay counters outside the relay role. In a split role

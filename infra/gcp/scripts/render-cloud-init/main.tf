@@ -11,7 +11,9 @@ output "user_data" {
     image_metadata_key   = "tt-relay-image"
     env_metadata_key     = "tt-relay-env"
     secrets_metadata_key = "tt-relay-secrets"
-    stop_timeout_seconds = 60
+    stop_timeout_seconds = 90
     drain_max_seconds    = 1800
+    control_port_a       = 9101
+    control_port_b       = 9102
   })
 }

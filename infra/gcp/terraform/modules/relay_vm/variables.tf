@@ -93,15 +93,39 @@ variable "secrets" {
 }
 
 variable "stop_timeout_seconds" {
-  description = "docker stop grace: the relay checkpoints and hands rooms off within it."
+  description = <<-EOT
+    docker stop grace (SIGTERM to SIGKILL). On SIGTERM the relay drains for this minus 30 s (RELAY_DRAIN_MAX_MS), then
+    hands every remaining room off (up to 100 rooms) and exits. 90 s by default.
+  EOT
   type        = number
-  default     = 60
+  default     = 90
+
+  validation {
+    condition     = var.stop_timeout_seconds >= 45 && var.stop_timeout_seconds <= 600
+    error_message = "Keep stop_timeout_seconds between 45 and 600: the push handoff needs 30 s after the SIGTERM drain."
+  }
 }
 
 variable "drain_max_seconds" {
-  description = "deploy.sh waits at most this long for live rooms to reach 0 when the relay offers a drain endpoint."
+  description = "A deploy drains the old slot through POST /pawlegends/relay/drain for at most this long; then the rest of its rooms move to the new slot."
   type        = number
   default     = 1800
+
+  validation {
+    condition     = var.drain_max_seconds >= 0 && var.drain_max_seconds <= 1800
+    error_message = "The relay caps a drain at 1800 s."
+  }
+}
+
+variable "control_ports" {
+  description = "Loopback control port per blue/green slot (/healthz, /readyz, POST /pawlegends/relay/drain of one process)."
+  type        = object({ a = number, b = number })
+  default     = { a = 9101, b = 9102 }
+
+  validation {
+    condition     = var.control_ports.a != var.control_ports.b && var.control_ports.a > 1024 && var.control_ports.b > 1024
+    error_message = "Two different unprivileged control ports."
+  }
 }
 
 variable "autoheal_initial_delay_seconds" {

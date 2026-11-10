@@ -109,6 +109,8 @@ export interface MmHooks {
     /** The member holds a queued entry (its resume token is kept while its socket is gone). */
     queued(member: string): boolean;
     shutdown(): void;
+    /** A drain was called off (LIVE-MATCH-DEPLOYS.md §4.4: the newer relay went away): queue again. */
+    resume(): void;
     counters(): Record<string, number>;
 }
 
@@ -1319,6 +1321,10 @@ export class MmBridge implements MmHooks {
         if (this.stopped) return;
         for (const e of [...this.entries.values()]) this.cancelEntry(e, 'server');
         this.stopped = true;
+    }
+
+    resume(): void {
+        this.stopped = false;
     }
 
     counters(): Record<string, number> {

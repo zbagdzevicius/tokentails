@@ -42,5 +42,8 @@ output "settings" {
     plain_env           = local.plain_env
     secrets             = var.secrets
     tags                = google_compute_instance_template.relay.tags
+    lb_check_path       = google_compute_region_health_check.lb.http_health_check[0].request_path
+    autoheal_check_path = google_compute_region_health_check.autoheal.http_health_check[0].request_path
+    control_ports       = var.control_ports
   }
 }

@@ -202,6 +202,7 @@ import { MotoredStripeController } from './shelter/motored/motored-stripe.contro
 import { MotoredStripeService } from './shelter/motored/motored-stripe.service';
 import { MotoredGiftService } from './shelter/motored/motored-gift.service';
 import { MotoredGift, MotoredGiftSchema, MotoredWallet, MotoredWalletSchema } from './shelter/motored/motored.schema';
+import { RelayDrainController } from './shared/runtime/relay-drain.controller';
 
 const JwtModules = [
     PassportModule,
@@ -312,6 +313,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
     ],
     controllers: [
         HealthController,
+        RelayDrainController,
         AppController,
         UserController,
         StarterController,

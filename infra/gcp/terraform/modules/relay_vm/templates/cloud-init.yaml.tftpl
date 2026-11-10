@@ -1,15 +1,21 @@
 #cloud-config
 # Token Tails party relay on Container-Optimized OS (infra/gcp/terraform/modules/relay_vm).
-# systemd unit tt-relay runs the backend image with BACKEND_ROLE=relay on the host network. Stop = `docker stop -t
-# ${stop_timeout_seconds}`: SIGTERM makes the relay hand its rooms off to MongoDB (MULTIPLAYER.md §3.6); the next start
-# restores them. No secret and no env value is in this file: at every start prepare.sh reads the plain env and the
-# pinned secret versions from project metadata (${env_metadata_key}, ${secrets_metadata_key}; Terraform owns both) and
-# the secret values from Secret Manager into tmpfs. So a Terraform apply reaches the running VM on its next restart,
+# Blue/green inside the VM (docs/plans/moba/LIVE-MATCH-DEPLOYS.md §8.2): the systemd template unit tt-relay@a and
+# tt-relay@b run the backend image with BACKEND_ROLE=relay on the host network. Both slots open the relay port ${port}
+# with SO_REUSEPORT; each also serves /healthz, /readyz and POST /pawlegends/relay/drain on its own loopback control
+# port (a ${control_port_a}, b ${control_port_b}). /var/lib/tt-relay/active names the serving slot; a boot starts only
+# that one, which restores its rooms from MongoDB. A deploy starts the idle slot next to it and drains the old one:
+# live matches finish where they are or move to the new process in about a second (no player sees a deploy).
+# Stop = `docker stop -t ${stop_timeout_seconds}`: SIGTERM drains for RELAY_DRAIN_MAX_MS, then hands the rest off.
+# No secret and no env value is in this file: at every start prepare.sh reads the plain env and the pinned secret
+# versions from project metadata (${env_metadata_key}, ${secrets_metadata_key}; Terraform owns both) and the secret
+# values from Secret Manager into tmpfs. So a Terraform apply reaches the running VM on its next deploy or restart,
 # without recreating it.
 #
-# Which image runs: /var/lib/tt-relay/image, written by deploy.sh only after that image passed readiness on this VM.
-# A new or recreated VM has no such file and starts the MIG's ${image_metadata_key} metadata, which CI commits only
-# after a successful deploy. A crash restart therefore never boots an image that was not verified.
+# Which image a slot runs: /var/lib/tt-relay/image-<slot>, written by deploy.sh before it starts that slot, and the
+# active slot's image only after it passed readiness. A new or recreated VM has no such file and starts the MIG's
+# ${image_metadata_key} metadata, which CI commits only after a successful deploy. A crash restart therefore never
+# boots an image that was not verified.
 
 write_files:
   - path: /var/lib/tt-relay/prepare.sh
@@ -17,8 +23,11 @@ write_files:
     owner: root
     content: |
       #!/bin/bash
-      # ExecStartPre of tt-relay: host firewall, registry login, image name, env and secrets into /run/tt-relay (tmpfs).
+      # ExecStartPre of tt-relay@SLOT: host firewall, registry login, image name, env and secrets into /run/tt-relay
+      # (tmpfs), one image and env file per slot.
       set -euo pipefail
+      SLOT=$${1:-a}
+      case "$SLOT" in a | b) ;; *) echo "tt-relay: bad slot '$SLOT'" >&2; exit 1 ;; esac
       MD=http://metadata.google.internal/computeMetadata/v1
       md() { curl -sf -H "Metadata-Flavor: Google" "$MD/$1"; }
       export HOME=/var/lib/tt-relay
@@ -27,17 +36,19 @@ write_files:
       iptables -C INPUT -p tcp --dport ${port} -j ACCEPT 2>/dev/null || iptables -A INPUT -p tcp --dport ${port} -j ACCEPT
       docker-credential-gcr configure-docker --registries=${registry_host} >/dev/null
       install -d -m 0700 /run/tt-relay
-      if [ -s /var/lib/tt-relay/image ]; then
+      if [ -s "/var/lib/tt-relay/image-$SLOT" ]; then
+        IMAGE=$(cat "/var/lib/tt-relay/image-$SLOT")
+      elif [ -s /var/lib/tt-relay/image ]; then
         IMAGE=$(cat /var/lib/tt-relay/image)
       else
         IMAGE=$(md instance/attributes/${image_metadata_key} || true)
       fi
-      if [ -z "$IMAGE" ]; then echo "tt-relay: no image (/var/lib/tt-relay/image and ${image_metadata_key} are empty)" >&2; exit 1; fi
-      printf '%s\n' "$IMAGE" > /run/tt-relay/image
+      if [ -z "$IMAGE" ]; then echo "tt-relay: no image (/var/lib/tt-relay/image-$SLOT and ${image_metadata_key} are empty)" >&2; exit 1; fi
+      printf '%s\n' "$IMAGE" > "/run/tt-relay/image-$SLOT"
       PROJECT=$(md project/project-id)
       TOKEN=$(md instance/service-accounts/default/token | sed -E 's/.*"access_token" *: *"([^"]+)".*/\1/')
       umask 077
-      ENV_FILE=/run/tt-relay/env.next
+      ENV_FILE=/run/tt-relay/env-$SLOT.next
       : > "$ENV_FILE"
       ENV_LINES=$(md project/attributes/${env_metadata_key}) || { echo "tt-relay: project metadata ${env_metadata_key} is missing" >&2; exit 1; }
       while IFS= read -r line; do
@@ -61,7 +72,9 @@ write_files:
           printf '%s=%s\n' "$name" "$VALUE" >> "$ENV_FILE"
         fi
       done <<< "$SECRET_LINES"
-      mv "$ENV_FILE" /run/tt-relay/env
+      case $SLOT in a) CONTROL=${control_port_a} ;; b) CONTROL=${control_port_b} ;; esac
+      printf 'RELAY_CONTROL_PORT=%s\n' "$CONTROL" >> "$ENV_FILE"
+      mv "$ENV_FILE" "/run/tt-relay/env-$SLOT"
       docker pull -q "$IMAGE" >/dev/null
 
   - path: /var/lib/tt-relay/run.sh
@@ -69,16 +82,37 @@ write_files:
     owner: root
     content: |
       #!/bin/bash
-      # ExecStart of tt-relay. Host network: no NAT hop, the socket peer is the LB proxy (10.x, a trusted hop), so the
-      # relay reads cf-connecting-ip set by Cloudflare. --init forwards SIGTERM to node.
+      # ExecStart of tt-relay@SLOT. Host network: no NAT hop, the socket peer is the LB proxy (10.x, a trusted hop), so
+      # the relay reads cf-connecting-ip set by Cloudflare. --init forwards SIGTERM to node. Both slots bind port ${port}
+      # with SO_REUSEPORT (Node 22.12+); a slot whose image cannot share the port fails readiness and deploy.sh stops it.
       set -euo pipefail
+      SLOT=$${1:-a}
+      case "$SLOT" in a | b) ;; *) echo "tt-relay: bad slot '$SLOT'" >&2; exit 1 ;; esac
       export HOME=/var/lib/tt-relay
-      docker rm -f tt-relay >/dev/null 2>&1 || true
-      exec docker run --rm --name tt-relay --init --network host \
-        --env-file /run/tt-relay/env \
+      docker rm -f "tt-relay-$SLOT" >/dev/null 2>&1 || true
+      exec docker run --rm --name "tt-relay-$SLOT" --init --network host \
+        --env-file "/run/tt-relay/env-$SLOT" \
+        --stop-timeout ${stop_timeout_seconds} \
         --ulimit nofile=65536:65536 \
         --log-driver json-file --log-opt max-size=50m --log-opt max-file=3 \
-        "$(cat /run/tt-relay/image)"
+        "$(cat "/run/tt-relay/image-$SLOT")"
+
+  - path: /var/lib/tt-relay/boot.sh
+    permissions: "0700"
+    owner: root
+    content: |
+      #!/bin/bash
+      # Every boot (autoheal, recreate, host event): start the active slot only. It restores its rooms from MongoDB
+      # within the relay's 300 s restore window. A VM that ran the single-unit layout before blue/green keeps its image.
+      set -euo pipefail
+      install -d -m 0700 /var/lib/tt-relay
+      ACTIVE=$(cat /var/lib/tt-relay/active 2>/dev/null || true)
+      case "$ACTIVE" in a | b) ;; *) ACTIVE=a; printf 'a\n' > /var/lib/tt-relay/active ;; esac
+      if [ ! -s "/var/lib/tt-relay/image-$ACTIVE" ] && [ -s /var/lib/tt-relay/image ]; then
+        cp /var/lib/tt-relay/image "/var/lib/tt-relay/image-$ACTIVE"
+      fi
+      systemctl daemon-reload
+      systemctl start --no-block "tt-relay@$ACTIVE.service"
 
   - path: /var/lib/tt-relay/deploy.sh
     permissions: "0700"
@@ -86,59 +120,96 @@ write_files:
     content: |
       #!/bin/bash
       # Run by CI over IAP SSH (infra/gcp/scripts/deploy-relay.sh):
-      #   sudo bash /var/lib/tt-relay/deploy.sh current   print the image the running container was started from
-      #   sudo bash /var/lib/tt-relay/deploy.sh IMAGE     pre-pull, drain when the relay offers it, restart on IMAGE,
-      #                                                   wait for /readyz; on failure start the previous image again
+      #   sudo bash /var/lib/tt-relay/deploy.sh current   print the image the serving slot was started from
+      #   sudo bash /var/lib/tt-relay/deploy.sh IMAGE     blue/green (LIVE-MATCH-DEPLOYS.md §8.2):
+      #     1. pull IMAGE and start it in the idle slot next to the serving one (both share port ${port});
+      #     2. wait up to 120 s for the idle slot's /readyz; if it never gets there, stop it and exit 1: the serving
+      #        slot was never touched, so a bad image has zero player impact;
+      #     3. make it the active slot and drain the old one (POST /pawlegends/relay/drain on its control port): the old
+      #        listener closes, so every new connection goes to the new process; live matches play on and end there,
+      #        or move to the new process in about a second when a player reconnects; whatever is left at
+      #        DRAIN_MAX_S is handed off and claimed by the new process;
+      #     4. wait until the old slot has no live room (or DRAIN_MAX_S), then stop it.
       # CI commits IMAGE to the MIG metadata only after this exits 0, so an autoheal never boots an unverified image.
       set -euo pipefail
       export HOME=/var/lib/tt-relay
-      STATE=/var/lib/tt-relay/image
-      running() { docker inspect -f '{{.Config.Image}}' tt-relay 2>/dev/null || true; }
-      if [ "$${1:-}" = "current" ]; then running; exit 0; fi
+      V=/var/lib/tt-relay
+      ctl() { case $1 in a) echo ${control_port_a} ;; b) echo ${control_port_b} ;; esac; }
+      ACTIVE=$(cat "$V/active" 2>/dev/null || echo a)
+      case "$ACTIVE" in a | b) ;; *) ACTIVE=a ;; esac
+      IDLE=$([ "$ACTIVE" = a ] && echo b || echo a)
+      running() { docker inspect -f '{{.Config.Image}}' "tt-relay-$1" 2>/dev/null || true; }
+      if [ "$${1:-}" = "current" ]; then
+        img=$(running "$ACTIVE"); [ -n "$img" ] || img=$(docker inspect -f '{{.Config.Image}}' tt-relay 2>/dev/null || true)
+        echo "$img"; exit 0
+      fi
       IMAGE=$${1:-}
       if [[ ! "$IMAGE" =~ ^${replace(registry_host, ".", "\\.")}/[a-z0-9-]+/[a-z0-9-]+/[a-z0-9._-]+:[A-Za-z0-9._-]+$ ]]; then
         echo "tt-relay deploy: refused image '$IMAGE'" >&2; exit 2
       fi
-      PREV=$(cat "$STATE" 2>/dev/null || running)
-      echo "tt-relay deploy: $${PREV:-none} -> $IMAGE"
+      DRAIN_MAX_S=$${DRAIN_MAX_S:-${drain_max_seconds}}
+      ready() { curl -sf -m 3 "http://127.0.0.1:$(ctl "$1")/readyz" >/dev/null && [ "$(running "$1")" = "$2" ]; }
+      rooms() { curl -s -m 3 "http://127.0.0.1:$(ctl "$1")/healthz" | sed -nE 's/.*"rooms_live" *: *([0-9]+).*/\1/p'; }
+      echo "tt-relay deploy: slot $ACTIVE ($(running "$ACTIVE")) -> slot $IDLE ($IMAGE)"
       docker-credential-gcr configure-docker --registries=${registry_host} >/dev/null
       docker pull -q "$IMAGE"
-      DRAIN_MAX_S=$${DRAIN_MAX_S:-${drain_max_seconds}}
-      code=$(curl -s -o /dev/null -w '%%{http_code}' -X POST "http://127.0.0.1:${port}/pawlegends/relay/drain" || true)
-      if [ "$code" = "200" ] || [ "$code" = "202" ]; then
-        end=$(( $(date +%s) + DRAIN_MAX_S ))
+
+      # the single-unit layout from before blue/green cannot share the port: stop it first (SIGTERM hands its rooms
+      # off; the new slot restores them within the 300 s window). Happens once per VM.
+      LEGACY=0
+      if systemctl is-active --quiet tt-relay.service; then
+        LEGACY=1
+        echo "tt-relay deploy: moving from the single-unit layout (rooms hand off once)"
+        systemctl disable tt-relay.service >/dev/null 2>&1 || true
+        systemctl stop tt-relay.service
+      fi
+
+      systemctl stop "tt-relay@$IDLE.service" >/dev/null 2>&1 || true
+      printf '%s\n' "$IMAGE" > "$V/image-$IDLE.next" && mv "$V/image-$IDLE.next" "$V/image-$IDLE"
+      systemctl daemon-reload
+      systemctl start "tt-relay@$IDLE.service"
+      ok=0
+      for _ in $(seq 1 60); do
+        if ready "$IDLE" "$IMAGE"; then ok=1; break; fi
+        sleep 2
+      done
+      if [ "$ok" != 1 ]; then
+        echo "tt-relay deploy: slot $IDLE not ready on $IMAGE after 120 s; slot $ACTIVE keeps serving" >&2
+        journalctl -u "tt-relay@$IDLE" -n 50 --no-pager >&2 || true
+        systemctl stop "tt-relay@$IDLE.service" || true
+        if [ "$LEGACY" = 1 ]; then systemctl enable --now tt-relay.service || true; fi
+        exit 1
+      fi
+
+      # the new slot serves from here on, also after a reboot
+      printf '%s\n' "$IDLE" > "$V/active.next" && mv "$V/active.next" "$V/active"
+      printf '%s\n' "$IMAGE" > "$V/image.next" && mv "$V/image.next" "$V/image"
+      echo "tt-relay deploy: slot $IDLE ready on $IMAGE and serving"
+      if [ "$LEGACY" = 1 ] || ! systemctl is-active --quiet "tt-relay@$ACTIVE.service"; then exit 0; fi
+
+      code=$(curl -s -m 5 -o /dev/null -w '%%{http_code}' -X POST -H 'content-type: application/json' \
+        -d "{\"maxMs\":$((DRAIN_MAX_S * 1000))}" "http://127.0.0.1:$(ctl "$ACTIVE")/pawlegends/relay/drain" || true)
+      if [ "$code" = "202" ] || [ "$code" = "200" ]; then
+        end=$(( $(date +%s) + DRAIN_MAX_S + 30 ))
         while [ "$(date +%s)" -lt "$end" ]; do
-          rooms=$(curl -s "http://127.0.0.1:${port}/healthz" | sed -nE 's/.*"rooms_live" *: *([0-9]+).*/\1/p')
-          [ "$${rooms:-0}" = "0" ] && break
-          echo "tt-relay deploy: draining, $rooms live room(s)"; sleep 20
+          n=$(rooms "$ACTIVE" || true)
+          [ "$${n:-0}" = "0" ] && break
+          echo "tt-relay deploy: slot $ACTIVE draining, $n live room(s)"; sleep 5
         done
       else
-        echo "tt-relay deploy: no drain endpoint ($code), relying on handoff and resume"
+        # an image from before live-match deploys: SIGTERM hands its rooms off, the new slot claims them in a second
+        echo "tt-relay deploy: slot $ACTIVE has no drain endpoint ($code), handing off on stop"
       fi
-      start_on() { # start_on IMAGE: restart the unit on IMAGE and wait up to 120 s for /readyz
-        printf '%s\n' "$1" > "$STATE.next" && mv "$STATE.next" "$STATE"
-        systemctl restart tt-relay
-        for _ in $(seq 1 60); do
-          if curl -sf "http://127.0.0.1:${port}/readyz" >/dev/null && [ "$(running)" = "$1" ]; then return 0; fi
-          sleep 2
-        done
-        return 1
-      }
-      if start_on "$IMAGE"; then echo "tt-relay deploy: ready on $IMAGE"; exit 0; fi
-      echo "tt-relay deploy: not ready on $IMAGE after 120 s" >&2
-      journalctl -u tt-relay -n 50 --no-pager >&2 || true
-      if [ -n "$PREV" ] && [ "$PREV" != "$IMAGE" ]; then
-        if start_on "$PREV"; then echo "tt-relay deploy: serving the previous image $PREV again" >&2
-        else echo "tt-relay deploy: the previous image $PREV is not ready either" >&2; fi
-      fi
-      exit 1
+      systemctl stop "tt-relay@$ACTIVE.service" || true
+      echo "tt-relay deploy: slot $ACTIVE stopped; $IMAGE serves"
+      exit 0
 
-  - path: /etc/systemd/system/tt-relay.service
+  - path: /etc/systemd/system/tt-relay@.service
     permissions: "0644"
     owner: root
     content: |
       [Unit]
-      Description=Token Tails party relay (backend image, BACKEND_ROLE=relay)
+      Description=Token Tails party relay, slot %i (backend image, BACKEND_ROLE=relay)
       Wants=network-online.target
       After=network-online.target docker.service
       Requires=docker.service
@@ -146,9 +217,9 @@ write_files:
       [Service]
       Type=simple
       Environment=HOME=/var/lib/tt-relay
-      ExecStartPre=/bin/bash /var/lib/tt-relay/prepare.sh
-      ExecStart=/bin/bash /var/lib/tt-relay/run.sh
-      ExecStop=/usr/bin/docker stop -t ${stop_timeout_seconds} tt-relay
+      ExecStartPre=/bin/bash /var/lib/tt-relay/prepare.sh %i
+      ExecStart=/bin/bash /var/lib/tt-relay/run.sh %i
+      ExecStop=/usr/bin/docker stop -t ${stop_timeout_seconds} tt-relay-%i
       TimeoutStartSec=300
       TimeoutStopSec=${stop_timeout_seconds + 30}
       Restart=always
@@ -158,6 +229,4 @@ write_files:
       WantedBy=multi-user.target
 
 runcmd:
-  - systemctl daemon-reload
-  - systemctl enable tt-relay.service
-  - systemctl start --no-block tt-relay.service
+  - /bin/bash /var/lib/tt-relay/boot.sh

@@ -116,6 +116,10 @@ export class NetHost implements PartyLink {
   private lastTurn = -1;
   private catching = false;
   private waitingShown = false;
+  /** "Reconnecting…" waits this timer (LIVE-MATCH-DEPLOYS.md §6): a deploy move that rebinds sooner shows nothing. */
+  private reconnectNoteTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Until then "Waiting for server…" stays hidden (a reconnect or a relay move is in progress). */
+  private quietUntil = -Infinity;
   private lastSyncMs = -Infinity;
   private endInfo: PartyEnd;
   private result: { r: MatchResult; record: PartyReplayRecord | PvpReplayRecord | null } | null = null;
@@ -245,9 +249,10 @@ export class NetHost implements PartyLink {
       binary: (f, raw) => this.fromBinary(f, raw),
       state: (s) => {
         if (s === 'reconnecting') {
-          this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
           this.lostAt(this.now(), 'socket');
-        }
+          this.quietUntil = this.now() + QUIET_WAIT_MS;
+          this.noteReconnectLater();
+        } else if (s === 'open') this.clearReconnectNote();
       },
     });
     if (opts.visibility !== false && typeof document !== 'undefined') {
@@ -396,8 +401,23 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'bye' });
   }
 
+  /** Show "Reconnecting…" only if the socket is still not back after QUIET_RECONNECT_MS. */
+  private noteReconnectLater(): void {
+    if (this.reconnectNoteTimer !== null || this.disposed) return;
+    this.reconnectNoteTimer = setTimeout(() => {
+      this.reconnectNoteTimer = null;
+      if (!this.disposed && !this.socket.open) this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
+    }, QUIET_RECONNECT_MS);
+  }
+
+  private clearReconnectNote(): void {
+    if (this.reconnectNoteTimer !== null) clearTimeout(this.reconnectNoteTimer);
+    this.reconnectNoteTimer = null;
+  }
+
   dispose(): void {
     this.disposed = true;
+    this.clearReconnectNote();
     for (const t of this.dropTimers.values()) clearTimeout(t);
     this.dropTimers.clear();
     this.coalescer.dispose();
@@ -473,7 +493,11 @@ export class NetHost implements PartyLink {
       }
       case 'error':
         if (m.code === 'seat_elsewhere') this.note({ key: 'mp-tab', title: 'Playing in another tab', tone: 'bad', ttl: 8000 });
-        else if (m.code === 'room_gone') this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info' });
+        // a relay move (a deploy): the socket comes back by itself, quietly unless it takes longer than 1.5 s
+        else if (m.code === 'room_gone' || m.code === 'server_moving' || m.code === 'room_elsewhere') {
+          this.quietUntil = this.now() + QUIET_WAIT_MS;
+          this.noteReconnectLater();
+        }
         return;
       case 'end':
         this.serverEnd = m;
@@ -550,7 +574,7 @@ export class NetHost implements PartyLink {
         }
         // the relay said the match ended but this sim has not: the last turns are missing, ask for them
         if (this.serverEnd && !this.coreEnded && this.now() - this.endAtMs > 2000) this.retrySync(m.lastTurn + 1);
-        if (m.waiting && !this.waitingShown) {
+        if (m.waiting && !this.waitingShown && this.now() >= this.quietUntil) {
           this.waitingShown = true;
           this.note({ key: 'mp-wait', title: 'Waiting for server…', tone: 'bad', ttl: 3000 });
         } else if (!m.waiting) this.waitingShown = false;
@@ -812,3 +836,7 @@ const clock = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).pad
 
 const isHostListener = (l: HostListener | PartyLinkListener): l is HostListener =>
   'welcome' in l || 'snap' in l || 'events' in l || 'end' in l || 'error' in l;
+/** LIVE-MATCH-DEPLOYS.md §6: "Reconnecting…" only when the socket is not back within this long (a deploy move is not). */
+export const QUIET_RECONNECT_MS = 1500;
+/** And "Waiting for server…" stays hidden this long after a socket loss or a relay move. */
+export const QUIET_WAIT_MS = 5000;

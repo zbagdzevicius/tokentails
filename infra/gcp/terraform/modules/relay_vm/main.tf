@@ -4,6 +4,9 @@ locals {
     NODE_ENV     = "production"
     BACKEND_ROLE = "relay"
     PORT         = tostring(var.port)
+    # A SIGTERM drain (docker stop, a host event) must finish inside docker's stop timeout: live rooms play on for
+    # this long, then are handed off with 30 s to spare. A deploy drains through the endpoint with drain_max_seconds.
+    RELAY_DRAIN_MAX_MS = tostring((var.stop_timeout_seconds - 30) * 1000)
   })
   env_metadata_key     = "${var.name}-env"
   secrets_metadata_key = "${var.name}-secrets"
@@ -18,6 +21,8 @@ locals {
     secrets_metadata_key = local.secrets_metadata_key
     stop_timeout_seconds = var.stop_timeout_seconds
     drain_max_seconds    = var.drain_max_seconds
+    control_port_a       = var.control_ports.a
+    control_port_b       = var.control_ports.b
   })
 }
 
@@ -106,7 +111,9 @@ resource "google_compute_region_health_check" "autoheal" {
   }
 }
 
-# Load balancer health: GET /healthz on the relay port.
+# Load balancer health: GET /readyz on the relay port. While a deploy runs two slots on the port, either answers; once
+# the old slot drains its listener is closed and only the new one answers (LIVE-MATCH-DEPLOYS.md §8.2). A booting relay
+# is not sent players before its first restore pass ran.
 resource "google_compute_region_health_check" "lb" {
   project             = var.project_id
   name                = "${var.name}-lb"
@@ -118,7 +125,7 @@ resource "google_compute_region_health_check" "lb" {
 
   http_health_check {
     port         = var.port
-    request_path = "/healthz"
+    request_path = "/readyz"
   }
 }
 
@@ -147,9 +154,11 @@ resource "google_compute_region_instance_group_manager" "relay" {
     initial_delay_sec = var.autoheal_initial_delay_seconds
   }
 
-  # One relay owns every party: never two at once (no surge), replace in place. OPPORTUNISTIC: a template change
-  # (cloud-init, machine type) never replaces the VM by itself; scripts/replace-relay.sh rolls it out in a quiet hour,
-  # once no room is live. Relay deploys and secret or env changes need no template change (see the metadata items).
+  # One relay VM owns every party: never two VMs at once (no surge), replace in place. A relay deploy is blue/green
+  # inside the VM (two slots on one port, the old one drains; cloud-init deploy.sh), so it needs no template change.
+  # OPPORTUNISTIC: a template change (cloud-init, machine type) never replaces the VM by itself;
+  # scripts/replace-relay.sh drains the relay first, then replaces it. Secret or env changes reach the VM on the next
+  # deploy (see the metadata items).
   update_policy {
     type                           = "OPPORTUNISTIC"
     minimal_action                 = "REPLACE"

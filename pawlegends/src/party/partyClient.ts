@@ -463,6 +463,13 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       // a backfill took this player's seat (a resume, or still connected while a bot flew it): no seat to go back to
       if (m.code === 'seat_taken')
         return { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'seat_taken' }, asked: false }, effects: [{ t: 'seat-taken' }] };
+      // live-match deploys (docs/plans/moba/LIVE-MATCH-DEPLOYS.md §6): the relay is moving; the socket reconnects by itself
+      if (m.code === 'server_moving' || m.code === 'room_elsewhere') return { state: s, effects: [] };
+      // the match ended while this player was away: leave the match screen instead of waiting for turns that never come
+      if (m.code === 'room_over')
+        return s.inMatch
+          ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'room_over' }, asked: false }, effects: [{ t: 'seat-taken' }] }
+          : { state: s, effects: [] };
       if (s.inMatch) return { state: s, effects: [] }; // NetHost shows in-match errors on the rail
       // casual PvP refused: fewer than 5 matches, or a game without PvP
       if (s.queue && m.code === 'mm_locked' && m.reason === 'pvp_newbie')

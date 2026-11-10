@@ -24,6 +24,14 @@ import {
 
 export const BACKOFF_MIN_MS = 250;
 export const BACKOFF_MAX_MS = 5000;
+/** In a match a lost socket retries at least every 2 s (LIVE-MATCH-DEPLOYS.md §6): the room waits for nobody. */
+export const BACKOFF_MAX_MATCH_MS = 2000;
+/**
+ * A planned move (close 1012, `room_gone`, `server_moving`, `room_elsewhere`): the relay says when to come back; at most
+ * this many quick retries in a row, then the normal backoff (two draining relays never make a client hammer them).
+ */
+export const MOVE_RETRIES = 6;
+export const MOVE_JITTER_MS = 100;
 export const RESEND_WITHIN_MS = 500;
 export const BEAT_MS = 500;
 const RTT_SAMPLES = 64;
@@ -146,6 +154,9 @@ export class PartySocket {
   inMatch = false;
   reconnects = 0;
   private queued: string[] = [];
+  /** The relay asked for a quick reconnect (`retryMs` of a move code), or null. */
+  private moveRetryMs: number | null = null;
+  private moveRetries = 0;
   /**
    * The `hello.proto` this socket sends (M1A-IMPL.md §5.5). An older relay answers a newer proto with `update_required`
    * before `welcome`: the socket retries once with PROTO_MIN (party play works, Quick Play hides).
@@ -212,6 +223,8 @@ export class PartySocket {
         this.welcomedOnce = true;
         this.mm = typeof m.proto === 'number' && m.proto >= 2;
         this.attempt = 0;
+        this.moveRetries = 0;
+        this.moveRetryMs = null;
         this.member = m.member;
         if (typeof m.serverMs === 'number' && Number.isFinite(m.serverMs)) this.serverOffsetMs = m.serverMs - Date.now();
         this.token = m.resumeToken;
@@ -230,6 +243,9 @@ export class PartySocket {
         this.inMatch = true;
         this.applyLastSeq(m.lastSeq, true);
         this.startBeats();
+      } else if (m.t === 'error' && (m.code === 'server_moving' || m.code === 'room_elsewhere' || (m.code === 'room_gone' && typeof m.retryMs === 'number'))) {
+        // a planned move (a deploy): the close that follows reconnects after `retryMs`, not after a backoff
+        this.moveRetryMs = Math.max(0, Math.min(5000, typeof m.retryMs === 'number' ? m.retryMs : 250));
       } else if (m.t === 'error' && m.code === 'seat_elsewhere') {
         this.elsewhere = true;
         this.stopped = true;
@@ -309,21 +325,31 @@ export class PartySocket {
       return;
     }
     this.pilotedSince = this.inMatch ? this.pilotedSince : false;
-    const base = Math.min(BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** this.attempt);
-    const delay = Math.round(base / 2 + this.env.random() * (base / 2));
-    this.attempt++;
+    const planned = code === 1012 || code === 4013 || this.moveRetryMs !== null;
+    let delay: number;
+    if (planned && this.moveRetries < MOVE_RETRIES) {
+      // LIVE-MATCH-DEPLOYS.md §6: the relay is moving the room, come back at once (a little jitter spreads a room)
+      delay = Math.round((this.moveRetryMs ?? 0) + this.env.random() * MOVE_JITTER_MS);
+      this.moveRetries++;
+      this.attempt = 0;
+    } else {
+      const max = this.inMatch ? BACKOFF_MAX_MATCH_MS : BACKOFF_MAX_MS;
+      const base = Math.min(max, BACKOFF_MIN_MS * 2 ** this.attempt);
+      delay = Math.round(base / 2 + this.env.random() * (base / 2));
+      this.attempt++;
+    }
+    this.moveRetryMs = null;
     this.reconnects++;
     this.emitState('reconnecting');
     this.reconnectTimer = this.env.setTimer(() => {
       this.reconnectTimer = null;
       if (!this.stopped) this.connect();
     }, delay);
-    void code;
   }
 
-  /** The backoff delay range of the next reconnect (tests). */
-  static backoff(attempt: number): [number, number] {
-    const base = Math.min(BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** attempt);
+  /** The backoff delay range of the next reconnect (tests); `inMatch` caps it at 2 s. */
+  static backoff(attempt: number, inMatch = false): [number, number] {
+    const base = Math.min(inMatch ? BACKOFF_MAX_MATCH_MS : BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** attempt);
     return [base / 2, base];
   }
 

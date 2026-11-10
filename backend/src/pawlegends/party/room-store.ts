@@ -63,6 +63,8 @@ export interface StoredRoom {
     handoff: boolean;
     /** Members' resume token hashes by slot (a restore re-binds them). */
     resume: Record<string, string>;
+    /** A pull request from another relay (§5.4); cleared by the claim. */
+    want?: RoomWant | null;
     createdAt: Date;
     updatedAt: Date;
 }
@@ -72,6 +74,31 @@ export interface StoredParty {
     code: string;
     doc: Record<string, unknown>;
     updatedAt: Date;
+    /** The relay (boot id) that holds the party; absent on rows written before live-match deploys. */
+    owner?: string;
+    /** A lobby party a draining relay handed over (LIVE-MATCH-DEPLOYS.md §4.1 step 5): the next serving relay claims it. */
+    handoff?: boolean;
+}
+
+/** One relay process (LIVE-MATCH-DEPLOYS.md §4.4): the newest ready `serving` relay owns new rooms. */
+export interface RelayRow {
+    _id: string;
+    /**
+     * `standby`: ready, but no player has reached it yet (the load balancer may not route to it): it never makes another
+     * relay drain. `serving` from its first socket on; `draining` once it drains.
+     */
+    state: 'standby' | 'serving' | 'draining';
+    readyAt: Date;
+    heartbeatAt: Date;
+    simVersions: number[];
+    /** Generations compare only within a pool (RelayOptions.pool); absent on rows of relays that predate pools. */
+    pool?: string;
+}
+
+/** A pull request (§5.4): relay `by` holds a player of this room and asks its draining owner to hand it over now. */
+export interface RoomWant {
+    by: string;
+    at: Date;
 }
 
 export interface CheckpointMeta {
@@ -106,11 +133,25 @@ export interface RoomStore {
     /** Live rooms another instance handed off (or whose lease went stale) within the restore window. */
     restorable(owner: string, now: Date, staleMs: number, windowMs: number): Promise<StoredRoom[]>;
     /**
-     * Mark abandoned every other live room that nobody holds: handed off, or not checkpointed for `staleMs`. A room
-     * another running instance still checkpoints is left alone (two relays, or a relay and DigitalOcean, can share one
-     * database during a rollout or a migration).
+     * Mark abandoned every other live room nobody can restore any more: not written for `olderThanMs` (the restore
+     * window), handed off or not. A room another running instance still checkpoints is left alone, and so is a handed-off
+     * room inside the window (another relay carrying its sim bundle may still claim it).
      */
-    abandonLive(except: readonly string[], now: Date, staleMs?: number): Promise<number>;
+    abandonLive(except: readonly string[], now: Date, olderThanMs?: number): Promise<number>;
+    /** Ask the owner of a live room to hand it over now (§5.4). False when the room is not live or not owned by `owner`. */
+    want(id: string, owner: string, by: string, now: Date): Promise<boolean>;
+    /** Ids of live rooms owned by `owner` that another relay asked for. */
+    wanted(owner: string): Promise<string[]>;
+    /** Upsert this relay's generation row (§4.4). */
+    heartbeat(row: RelayRow): Promise<void>;
+    /** Relay rows written since `since` (older rows belong to relays that are gone). */
+    relays(since: Date): Promise<RelayRow[]>;
+    /** The stored party whose members include this resume token hash (§5.4), or null. */
+    partyByResume(hash: string, since: Date): Promise<StoredParty | null>;
+    /** Lobby parties handed over by another relay, written since `since`. */
+    handedParties(owner: string, since: Date): Promise<StoredParty[]>;
+    /** Claim a handed-over party for `owner`; null when another relay got it first. */
+    claimParty(id: string, owner: string, now: Date): Promise<StoredParty | null>;
     /** Scored party matches of an account since `since` (the daily cap, §6). */
     countEnded(accountId: string, since: Date): Promise<number>;
     saveParty(p: StoredParty): Promise<void>;
@@ -122,6 +163,7 @@ export interface RoomStore {
 export class MemoryRoomStore implements RoomStore {
     readonly rooms = new Map<string, StoredRoom>();
     readonly parties = new Map<string, StoredParty>();
+    readonly relayRows = new Map<string, RelayRow>();
 
     async create(room: StoredRoom): Promise<void> {
         if (this.rooms.has(room._id)) throw Object.assign(new Error('duplicate'), { code: 11000 });
@@ -172,6 +214,7 @@ export class MemoryRoomStore implements RoomStore {
         r.epoch = epoch + 1;
         r.owner = owner;
         r.handoff = false;
+        r.want = null;
         r.updatedAt = now;
         return { ...r, chunks: [...r.chunks] };
     }
@@ -190,16 +233,63 @@ export class MemoryRoomStore implements RoomStore {
             .map(r => ({ ...r, chunks: [...r.chunks] }));
     }
 
-    async abandonLive(except: readonly string[], now: Date, staleMs = PARTY_LIMITS.staleLeaseMs): Promise<number> {
+    async abandonLive(
+        except: readonly string[],
+        now: Date,
+        olderThanMs = PARTY_LIMITS.restoreWithinMs
+    ): Promise<number> {
         let n = 0;
         for (const r of this.rooms.values()) {
             if (r.status !== 'live' || except.includes(r._id)) continue;
-            if (!r.handoff && now.getTime() - r.updatedAt.getTime() <= staleMs) continue;
+            if (now.getTime() - r.updatedAt.getTime() < olderThanMs) continue;
             r.status = 'abandoned';
             r.updatedAt = now;
             n++;
         }
         return n;
+    }
+
+    async want(id: string, owner: string, by: string, now: Date): Promise<boolean> {
+        const r = this.rooms.get(id);
+        if (!r || r.status !== 'live' || r.owner !== owner) return false;
+        r.want = { by, at: now };
+        return true;
+    }
+
+    async wanted(owner: string): Promise<string[]> {
+        return [...this.rooms.values()].filter(r => r.status === 'live' && r.owner === owner && r.want).map(r => r._id);
+    }
+
+    async heartbeat(row: RelayRow): Promise<void> {
+        this.relayRows.set(row._id, { ...row, simVersions: [...row.simVersions] });
+    }
+
+    async relays(since: Date): Promise<RelayRow[]> {
+        return [...this.relayRows.values()].filter(r => r.heartbeatAt >= since).map(r => ({ ...r }));
+    }
+
+    async partyByResume(hash: string, since: Date): Promise<StoredParty | null> {
+        for (const p of this.parties.values()) {
+            if (p.updatedAt < since) continue;
+            const members = (p.doc.members ?? []) as { resume?: string }[];
+            if (members.some(m => m.resume === hash)) return { ...p };
+        }
+        return null;
+    }
+
+    async handedParties(owner: string, since: Date): Promise<StoredParty[]> {
+        return [...this.parties.values()]
+            .filter(p => p.handoff && p.owner !== owner && p.updatedAt >= since)
+            .map(p => ({ ...p }));
+    }
+
+    async claimParty(id: string, owner: string, now: Date): Promise<StoredParty | null> {
+        const p = this.parties.get(id);
+        if (!p || !p.handoff) return null;
+        p.handoff = false;
+        p.owner = owner;
+        p.updatedAt = now;
+        return { ...p };
     }
 
     async countEnded(accountId: string, since: Date): Promise<number> {
@@ -211,7 +301,7 @@ export class MemoryRoomStore implements RoomStore {
     }
 
     async saveParty(p: StoredParty): Promise<void> {
-        this.parties.set(p._id, p);
+        this.parties.set(p._id, { ...p });
     }
 
     async getParty(id: string): Promise<StoredParty | null> {
@@ -285,11 +375,16 @@ export class PawlegendsRoom {
     @Prop({ type: Object, default: {} })
     resume: Record<string, string>;
 
+    @Prop({ type: Object, default: null })
+    want: RoomWant | null;
+
     createdAt: Date;
     updatedAt: Date;
 }
 export const PawlegendsRoomSchema = SchemaFactory.createForClass(PawlegendsRoom);
 PawlegendsRoomSchema.index({ 'occupants.accountId': 1, status: 1, updatedAt: -1 });
+// the restore loop and the pull poll (LIVE-MATCH-DEPLOYS.md §5.3, §5.4) run every second on every relay
+PawlegendsRoomSchema.index({ status: 1, owner: 1, updatedAt: -1 });
 // ended and abandoned rooms expire after 30 days (live rooms carry no expiry: the partial filter skips them)
 PawlegendsRoomSchema.index(
     { updatedAt: 1 },
@@ -307,14 +402,48 @@ export class PawlegendsParty {
     @Prop({ type: Object, required: true })
     doc: Record<string, unknown>;
 
+    @Prop({ type: String, default: null })
+    owner: string | null;
+
+    @Prop({ default: false })
+    handoff: boolean;
+
     updatedAt: Date;
 }
 export const PawlegendsPartySchema = SchemaFactory.createForClass(PawlegendsParty);
 PawlegendsPartySchema.index({ updatedAt: 1 }, { expireAfterSeconds: 3 * 3600 });
+// a resume token this relay does not know is looked up here (LIVE-MATCH-DEPLOYS.md §5.4)
+PawlegendsPartySchema.index({ 'doc.members.resume': 1 });
+PawlegendsPartySchema.index({ handoff: 1, updatedAt: -1 });
+
+/** One row per relay process (LIVE-MATCH-DEPLOYS.md §4.4); a row not refreshed for an hour expires. */
+@Schema({ collection: 'pawlegendsrelays' })
+export class PawlegendsRelay {
+    @Prop({ type: String, required: true })
+    _id: string;
+
+    @Prop({ required: true })
+    state: 'standby' | 'serving' | 'draining';
+
+    @Prop({ required: true })
+    readyAt: Date;
+
+    @Prop({ required: true })
+    heartbeatAt: Date;
+
+    @Prop({ type: [Number], default: [] })
+    simVersions: number[];
+
+    @Prop({ type: String, default: null })
+    pool: string | null;
+}
+export const PawlegendsRelaySchema = SchemaFactory.createForClass(PawlegendsRelay);
+PawlegendsRelaySchema.index({ heartbeatAt: 1 }, { expireAfterSeconds: 3600 });
 
 export const PAWLEGENDS_PARTY_SCHEMAS = [
     { name: PawlegendsRoom.name, schema: PawlegendsRoomSchema },
     { name: PawlegendsParty.name, schema: PawlegendsPartySchema },
+    { name: PawlegendsRelay.name, schema: PawlegendsRelaySchema },
 ];
 
 const lean = (r: any): StoredRoom | null =>
@@ -324,7 +453,8 @@ const lean = (r: any): StoredRoom | null =>
 export class MongoRoomStore implements RoomStore {
     constructor(
         @Optional() @InjectModel(PawlegendsRoom.name) private readonly rooms?: Model<PawlegendsRoom>,
-        @Optional() @InjectModel(PawlegendsParty.name) private readonly partiesModel?: Model<PawlegendsParty>
+        @Optional() @InjectModel(PawlegendsParty.name) private readonly partiesModel?: Model<PawlegendsParty>,
+        @Optional() @InjectModel(PawlegendsRelay.name) private readonly relayModel?: Model<PawlegendsRelay>
     ) {}
 
     private get r(): Model<PawlegendsRoom> {
@@ -381,7 +511,7 @@ export class MongoRoomStore implements RoomStore {
             await this.r
                 .findOneAndUpdate(
                     { _id: id, epoch },
-                    { $set: { owner, epoch: epoch + 1, handoff: false, updatedAt: now } },
+                    { $set: { owner, epoch: epoch + 1, handoff: false, want: null, updatedAt: now } },
                     { new: true }
                 )
                 .lean()
@@ -402,16 +532,78 @@ export class MongoRoomStore implements RoomStore {
         return rows.map(x => lean(x)!);
     }
 
-    async abandonLive(except: readonly string[], now: Date, staleMs = PARTY_LIMITS.staleLeaseMs): Promise<number> {
+    async abandonLive(
+        except: readonly string[],
+        now: Date,
+        olderThanMs = PARTY_LIMITS.restoreWithinMs
+    ): Promise<number> {
         const res = await this.r.updateMany(
             {
                 status: 'live',
                 _id: { $nin: except as string[] },
-                $or: [{ handoff: true }, { updatedAt: { $lt: new Date(now.getTime() - staleMs) } }],
+                updatedAt: { $lte: new Date(now.getTime() - olderThanMs) },
             },
             { $set: { status: 'abandoned', updatedAt: now } }
         );
         return res.modifiedCount;
+    }
+
+    async want(id: string, owner: string, by: string, now: Date): Promise<boolean> {
+        // never touches updatedAt: a want must not keep a stale room looking fresh
+        const res = await this.r.updateOne({ _id: id, status: 'live', owner }, { $set: { want: { by, at: now } } });
+        return res.matchedCount === 1;
+    }
+
+    async wanted(owner: string): Promise<string[]> {
+        const rows = await this.r.find({ status: 'live', owner, want: { $ne: null } }, { _id: 1 }).lean();
+        return rows.map(r => String(r._id));
+    }
+
+    async heartbeat(row: RelayRow): Promise<void> {
+        if (!this.relayModel) return;
+        await this.relayModel.updateOne(
+            { _id: row._id },
+            {
+                $set: {
+                    state: row.state,
+                    readyAt: row.readyAt,
+                    heartbeatAt: row.heartbeatAt,
+                    simVersions: row.simVersions,
+                    pool: row.pool ?? null,
+                },
+            },
+            { upsert: true }
+        );
+    }
+
+    async relays(since: Date): Promise<RelayRow[]> {
+        if (!this.relayModel) return [];
+        return (await this.relayModel.find({ heartbeatAt: { $gte: since } }).lean()) as unknown as RelayRow[];
+    }
+
+    async partyByResume(hash: string, since: Date): Promise<StoredParty | null> {
+        if (!this.partiesModel) return null;
+        return (await this.partiesModel
+            .findOne({ 'doc.members.resume': hash, updatedAt: { $gte: since } })
+            .lean()) as unknown as StoredParty | null;
+    }
+
+    async handedParties(owner: string, since: Date): Promise<StoredParty[]> {
+        if (!this.partiesModel) return [];
+        return (await this.partiesModel
+            .find({ handoff: true, owner: { $ne: owner }, updatedAt: { $gte: since } })
+            .lean()) as unknown as StoredParty[];
+    }
+
+    async claimParty(id: string, owner: string, now: Date): Promise<StoredParty | null> {
+        if (!this.partiesModel) return null;
+        return (await this.partiesModel
+            .findOneAndUpdate(
+                { _id: id, handoff: true },
+                { $set: { handoff: false, owner, updatedAt: now } },
+                { new: true }
+            )
+            .lean()) as unknown as StoredParty | null;
     }
 
     async countEnded(accountId: string, since: Date): Promise<number> {
@@ -422,7 +614,15 @@ export class MongoRoomStore implements RoomStore {
         if (!this.partiesModel) return;
         await this.partiesModel.updateOne(
             { _id: p._id },
-            { $set: { code: p.code, doc: p.doc, updatedAt: p.updatedAt } },
+            {
+                $set: {
+                    code: p.code,
+                    doc: p.doc,
+                    updatedAt: p.updatedAt,
+                    ...(p.owner !== undefined ? { owner: p.owner } : {}),
+                    handoff: !!p.handoff,
+                },
+            },
             { upsert: true }
         );
     }
