@@ -37,6 +37,8 @@ import { LifeHud } from './lifecycleHud';
 import { heroBodyScale, heroTop, heroY } from '../chars/visualSize';
 import { HEROES } from '../../data/heroes';
 import { glintColor } from '../skins/tierFx';
+import { tinted } from '../skins/cardFx';
+import { rungAtLeast } from '../skins/registry';
 import type { Element } from '../../meta/roster';
 
 /** Replay-safe cosmetic hash in [0, 1) (the fun kit's funRand, inlined so this chunk does not pull the kit in). */
@@ -355,7 +357,10 @@ export class Lifecycle {
     // telegraphs (no depth test), so they must never bury the fight (readability QA)
     if (!mine && Math.hypot(t.x - this.view.gr.focus.x, t.z - this.view.gr.focus.z) > GHOST_NEAR) return;
     const dog = dressTeam(e.team) === 1;
-    const tint = mix(0xffffff, e.team === this.view.myTeam ? RELATION.ally : RELATION.enemy, 0.22);
+    // CARD-SKINS.md Epic+: the ghost takes the skin tint (team-safe on another player's hero)
+    const card = this.view.heroes.cardOf(e.id);
+    const plain = mix(0xffffff, e.team === this.view.myTeam ? RELATION.ally : RELATION.enemy, 0.22);
+    const tint = card && rungAtLeast(card.rung, 'EPIC') ? tinted(plain, card) : plain;
     const s = mine ? 1.15 : 0.7;
     const alpha = mine ? 0.92 : 0.5;
     // the soul waits for the faint, then floats up swaying (no gore: a smiling ghost with a halo)

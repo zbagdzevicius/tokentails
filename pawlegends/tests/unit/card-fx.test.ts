@@ -13,8 +13,10 @@ import * as THREE from 'three';
 import { DEMO_ROSTER } from '../../src/app/skinDemo';
 import { ELEMENTS, parseRoster, type CatTier } from '../../src/meta/roster';
 import {
-  CARD_MAX, CardVfx, PAW, cardFxDetail, cardFxFor, cardFxLine, cardTint, coatGlow, hasSignature, hasSparkle, tinted, type CardFx,
+  CARD_MAX, CardVfx, WAVE_PAWS, cardFxDetail, cardFxFor, cardFxLine, cardTint, coatGlow, hasSignature, hasSparkle, tinted, type CardFx,
 } from '../../src/render/skins/cardFx';
+import { emptyProfile, profileFromCard } from '../../src/render/skins/effectKit';
+import { profileFromCoat } from '../../src/render/skins/coatRung';
 import { getSkin, setRosterSkins, skinIdOf, isGoldFamily } from '../../src/render/skins/registry';
 import { hsl, hslToHex, mixHex } from '../../src/render/skins/classify';
 import { HEROES } from '../../src/data/heroes';
@@ -42,7 +44,7 @@ const RUNG_OF: Record<string, CatTier> = { ficus: 'LEGENDARY', pinkie: 'EPIC', r
 /** Damage numbers need a camera; these tests only look at particles. */
 const quiet = (e: Effects): void => void Object.assign(e, { numbers: { show() {}, pop() {}, render() {}, dispose() {}, dropKey() {}, dropNear() {} } });
 
-const fx = (rung: CatTier, over: Partial<CardFx> = {}): CardFx => ({ rung, name: 'Ficus', tint: 0x66ccff, self: true, team: 0, extras: true, ...over });
+const fx = (rung: CatTier, over: Partial<CardFx> = {}): CardFx => ({ ...emptyProfile(), rung, name: 'Ficus', tint: 0x66ccff, self: true, team: 0, extras: true, ...over });
 
 /** Particles + shockwave stand-ins that record what C4 draws. */
 const pools = () => {
@@ -76,7 +78,7 @@ describe('C4 the rarity ladder from the demo roster', () => {
     expect(tinted(0x123456, null)).toBe(0x123456);
   });
 
-  it('Rare tints, Epic adds the cast sparkle, Legendary the paw burst, takedown flourish and signature', () => {
+  it('Rare tints, Epic adds the cast sparkle and takedown stamp, Legendary the paw burst, flourish and signature', () => {
     for (const rung of ['RARE', 'EPIC', 'LEGENDARY'] as CatTier[]) expect(tinted(0x2050ff, fx(rung, { tint: 0xff4040 }))).not.toBe(0x2050ff);
     expect(hasSparkle(fx('RARE'))).toBe(false);
     expect(hasSparkle(fx('EPIC'))).toBe(true);
@@ -90,7 +92,7 @@ describe('C4 the rarity ladder from the demo roster', () => {
       const paw = c.impactBurst(at, 0, 0.8, fx(rung), true);
       const td = c.takedown(10, -10, fx(rung));
       const sig = c.signature(10, -10, 5, fx(rung));
-      expect([spark, paw, td, sig], rung).toEqual([rung !== 'RARE', rung === 'LEGENDARY', rung === 'LEGENDARY', rung === 'LEGENDARY']);
+      expect([spark, paw, td, sig], rung).toEqual([rung !== 'RARE', rung === 'LEGENDARY', rung !== 'RARE', rung === 'LEGENDARY']);
     }
   });
 
@@ -161,7 +163,7 @@ describe('C4 readability: colour only, the default footprint, gold only on you',
       p.singles.length = 0;
       const flash = impactFlash(amount);
       c.impactBurst(new THREE.Vector3(0, 1, 0), 0, flash, fx('LEGENDARY'), true);
-      expect(p.singles).toHaveLength(PAW.length);
+      expect(p.singles).toHaveLength(1); // CARD-SKINS.md: one SHAPE.PAW sprite (was 5 SOFT dots)
       for (const s of p.singles) {
         const reach = Math.hypot(s.pos.x, s.pos.y - 1) + (s.o.size0 as number) / 2;
         expect(reach, String(amount)).toBeLessThanOrEqual(flash);
@@ -172,6 +174,7 @@ describe('C4 readability: colour only, the default footprint, gold only on you',
       const r1 = ultWaveRadius(r, k);
       p.singles.length = 0;
       c.signature(0, 0, r1, fx('LEGENDARY'));
+      expect(p.singles).toHaveLength(WAVE_PAWS);
       c.tick(1);
       expect(waves[waves.length - 1].r1).toBeLessThan(r1);
       for (const s of p.singles) expect(Math.hypot(s.pos.x, s.pos.z) + (s.o.size0 as number) / 2).toBeLessThanOrEqual(r1);
@@ -189,7 +192,7 @@ describe('C4 readability: colour only, the default footprint, gold only on you',
         const [h, s] = hsl(t);
         const d = Math.abs(((h - th + 540) % 360) - 180);
         expect(d > 25 || s <= 0.45, `${base.toString(16)} team ${team}`).toBe(true);
-        for (const el of ELEMENTS) expect(isGoldFamily(tinted(0xffd34d, { rung: 'RARE', name: 'x', tint: t, self: false, team, extras: true })), el).toBe(false);
+        for (const el of ELEMENTS) expect(isGoldFamily(tinted(0xffd34d, { ...emptyProfile(), rung: 'RARE', name: 'x', tint: t, self: false, team, extras: true })), el).toBe(false);
       }
       expect(cardTint(skin, true, 0)).toBe(coatGlow(skin));
     }
@@ -311,6 +314,21 @@ describe('C4 is cosmetic only', { timeout: 240000 }, () => {
     if (v.ok) expect(v.finalHash).toBe(plain.rec!.finalHash);
   });
 
+  it('CARD-SKINS.md: the same replay with each of the six effect coats and an Awakened card worn', () => {
+    setRosterSkins(parseRoster(DEMO_ROSTER, { isApp: false }), { 'demo-ficus': 30 });
+    const coats = ['coat.duchess.s1_eclipse', 'coat.clem.s1_sunforged', 'coat.pixel.store_moonwhisker', 'coat.marshmallow.store_frostbell', 'coat.brutus.store_thunderpaw', 'coat.sage.store_bloomtail'];
+    const outs = Array.from({ length: 16 }, () => emptyProfile());
+    const worn = (id: number): CardFx | null =>
+      id === 0 ? profileFromCard(demo('ficus'), 0, true, 0, true, false, 10, outs[0]) : profileFromCoat(coats[id % coats.length], null, id, false, id < 3 ? 0 : 1, true, false, outs[id & 15]);
+    expect(worn(0)?.awakened).toBe(true);
+    const plain = playMatch(null);
+    const dressed = playMatch(worn);
+    expect(dressed.drawn).toBeGreaterThan(0);
+    expect(dressed.trail).toEqual(plain.trail);
+    expect(dressed.rec).toEqual(plain.rec);
+    setRosterSkins(parseRoster(DEMO_ROSTER, { isApp: false }), {});
+  });
+
   it('the sim, the backend verifier and the vendored bundles never mention cards or card effects', () => {
     const walk = (dir: string): string[] =>
       fs.existsSync(dir) ? fs.readdirSync(dir, { withFileTypes: true }).flatMap((d) => (d.isDirectory() ? walk(path.join(dir, d.name)) : [path.join(dir, d.name)])) : [];
@@ -318,7 +336,7 @@ describe('C4 is cosmetic only', { timeout: 240000 }, () => {
     expect(files.length).toBeGreaterThan(10);
     for (const f of files) {
       const src = fs.readFileSync(f, 'utf8');
-      for (const bad of ['cardFx', 'CardFx', 'CardVfx', 'skinStore', 'tierFx', 'coatGlow']) expect(src.includes(bad), `${path.relative(ROOT, f)}: ${bad}`).toBe(false);
+      for (const bad of ['cardFx', 'CardFx', 'CardVfx', 'skinStore', 'tierFx', 'coatGlow', 'effectKit', 'coatRung', 'SkinFxProfile']) expect(src.includes(bad), `${path.relative(ROOT, f)}: ${bad}`).toBe(false);
     }
     const mine = fs.readFileSync(path.join(ROOT, 'src/render/skins/cardFx.ts'), 'utf8');
     expect(/from '(\.\.\/)+sim\//.test(mine)).toBe(false);

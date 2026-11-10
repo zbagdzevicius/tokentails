@@ -30,6 +30,7 @@ import { CueSfx, FxRuntime, WEAPON_TIP, type HeroLookup } from './fxctx';
 import { movesFor, skillFxFor, loadHeroAnim } from './registry';
 import type { Ribbons } from './trails';
 import type { Ghosts } from './ghosts';
+import { tinted } from '../skins/cardFx';
 import type { FightCam } from './cam';
 import { ANCHOR_INDEX as A, SLOTS, newAnchors, type AnchorTimes, type ClipDef, type CueKind, type MoveCtx, type MoveSet, type Slot } from './types';
 import { DASH_SPEED, SIM_TIMING, TICK_HZ, TICK_S, abilNumbers, slotTimingFrom, travelTicks } from './timing';
@@ -1024,10 +1025,10 @@ export class AnimDirector {
           const wb = bones[BONE_INDEX.weapon];
           _v.set(0, 0.08, 0);
           _w.set(0, WEAPON_TIP, 0);
-          s.trail = rb.pair(wb, _v, wb, _w, color, 0.16);
+          s.trail = rb.pair(wb, _v, wb, _w, tinted(color, this.env.fx.card(id)), 0.16);
         } else {
           const bi = BONE_INDEX[sock as keyof typeof BONE_INDEX] ?? BONE_INDEX.pawR;
-          s.trail = rb.follow(bones[bi], null, color, 0.35, 0.2);
+          s.trail = rb.follow(bones[bi], null, tinted(color, this.env.fx.card(id)), 0.35, 0.2);
         }
         return;
       }
@@ -1039,7 +1040,8 @@ export class AnimDirector {
         const g = this.env.ghosts;
         if (!g) return;
         if (this.env.teamFight() && !mine && !ULT_CLIP.test(_clip)) return;
-        g.spawn(r.ch.mesh, mine ? color : r.team === this.env.myTeam ? color : 0x8a92b8);
+        // CARD-SKINS.md Rare+: the afterimage takes the skin tint (team-safe on another hero; Low has no ghosts)
+        g.spawn(r.ch.mesh, tinted(mine ? color : r.team === this.env.myTeam ? color : 0x8a92b8, this.env.fx.card(id)));
         return;
       }
       case 'dust':

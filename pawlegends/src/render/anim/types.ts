@@ -3,6 +3,7 @@
  * hero file exports, and the contexts the director passes to them. Types only (plus the anchor table). Render only:
  * the one sim import is type-only.
  */
+import type { SkinFxProfile } from '../skins/effectKit';
 import type { HeroId } from '../../data/heroes/types';
 import type { BoneName } from '../chars/skeleton';
 import type { SimEvent } from '../../sim/api';
@@ -290,6 +291,11 @@ export interface FxCtx {
   projPos?(index: number, out: V3Out): boolean;
   /** A hero's status in the frame's snapshot (BuffFlag bits, shield hp); false when unknown. Optional (test stubs). */
   status?(id: number, out: HeroStatus): boolean;
+  /**
+   * CARD-SKINS.md: hero `id`'s skin-effect profile (card skin or rung coat, render/skins/effectKit.ts), or null. The
+   * identity layer, ribbons and afterimages read it for their tint. Optional (stubs and the lobby have none).
+   */
+  card?(id: number): SkinFxProfile | null;
 }
 
 /** FxCtx.status output (preallocate one; never allocated per call). */

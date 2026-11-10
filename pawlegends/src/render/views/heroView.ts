@@ -19,8 +19,9 @@ import { DETAIL, makeHero, type Character, type CharState } from '../chars';
 import type { MotionInput } from '../chars/motion';
 import { getSkin, isCardSkinId } from '../skins/skinStore';
 import { TierFx, type FxHero } from '../skins/tierFx';
-import { cardFxFor, type CardFx } from '../skins/cardFx';
-import { mixColor } from '../cosmetics';
+import type { CardFx } from '../skins/cardFx';
+import { skinFxFor } from '../skins/coatRung';
+import { emptyProfile, foilColor, stageOf } from '../skins/effectKit';
 import { STEADFAST_ALPHA, STEADFAST_OUTLINE, STEADFAST_RING_SCALE, isSteadfast } from '../steadfast';
 
 export type Relation = 'self' | 'ally' | 'enemy' | 'neutral';
@@ -483,7 +484,14 @@ export class HeroView {
   /** Wave C (C4): per slot, the last drawn frame's team and stealth, and a reused CardFx. */
   private readonly slotTeam = new Uint8Array(16);
   private readonly slotStealth = new Uint8Array(16);
-  private readonly cardOut: CardFx[] = Array.from({ length: 16 }, () => ({ rung: 'COMMON', name: '', tint: 0, self: false, team: 0, extras: false }));
+  private readonly cardOut: CardFx[] = Array.from({ length: 16 }, () => emptyProfile());
+  /** CARD-SKINS.md: per slot, the hero level last drawn (Awakened stage), and what the cached profile was built from. */
+  private readonly slotLevel = new Uint8Array(16).fill(1);
+  private readonly profCoat: (string | null)[] = new Array<string | null>(16).fill(null);
+  private readonly profRev = new Int32Array(16).fill(-1);
+  private readonly profMeta = new Int8Array(16).fill(-1);
+  private readonly profHero: (HeroId | null)[] = new Array<HeroId | null>(16).fill(null);
+  private readonly profHit: (CardFx | null)[] = new Array<CardFx | null>(16).fill(null);
 
   constructor() {
     this.group.name = 'heroes';
@@ -751,6 +759,7 @@ export class HeroView {
       if (e.id >= 0 && e.id < 16) {
         this.slotTeam[e.id] = e.team === 1 ? 1 : 0;
         this.slotStealth[e.id] = stealth ? 1 : 0;
+        this.slotLevel[e.id] = Math.max(1, Math.min(255, e.level ?? 1));
       }
       // eased (STEALTH_LOOK): a stealth of a few ticks is a shimmer, never a grey copy popping in and out
       r.alpha = stealthAlpha(r.alpha, stealth, dt);
@@ -764,18 +773,22 @@ export class HeroView {
         }
         if (ch.outline) ch.outline.visible = r.alpha >= STEALTH_LOOK.outlineBelow;
       }
-      // card skins (GDD §7.2): Epic glints, Legendary foil and recall flourish; never an aura
+      // card skins (GDD §7.2) and rung coats (CARD-SKINS.md): Epic glints, the recall nap motif, Legendary foil and
+      // recall flourish, the Awakened steps; never an aura
       const lookCoat = this.looks.get(e.id)?.coat;
       const skin = fx && isCardSkinId(lookCoat) ? getSkin(lookCoat) : null;
-      if (fx && skin) {
+      const prof = fx && e.id >= 0 && e.id < 16 ? this.cardOf(e.id) : null;
+      if (fx && (skin || prof)) {
         const h = this.fxHero;
         h.id = e.id;
         h.x = x;
         h.z = z;
-        h.rung = skin.rung;
-        h.element = skin.element;
+        h.rung = prof ? prof.rung : skin!.rung;
+        h.element = prof ? prof.element : skin!.element;
         h.self = e.id === this.mySlot;
-        h.featured = !!skin.featured; // pawlegends: Nature only for the player's real roster
+        h.featured = !!skin?.featured; // pawlegends: Nature only for the player's real roster
+        h.coat = !skin;
+        h.profile = prof;
         h.moving = charState(e) === 'moving';
         h.stealth = stealth;
         h.dead = dead;
@@ -783,7 +796,7 @@ export class HeroView {
         h.phase = ch.anim.stridePhase;
         const foil = fx.hero(h);
         u.uFoil.value = foil;
-        if (foil > 0) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[skin.element], 0.5));
+        if (foil > 0) u.uFoilColor.value.setHex(prof ? foilColor(prof) : ELEMENT_COLOR[h.element]);
       } else u.uFoil.value = 0;
       if (!dead) {
         const rel = this.relationOf(e);
@@ -823,9 +836,11 @@ export class HeroView {
   }
 
   /**
-   * Wave C (C4): what hero `id`'s card skin adds (render/skins/cardFx.ts), as the Skin effects setting allows: Off
-   * hides every card, Mine only hides the others'. Tints always; the extras follow tierFx's caps (another hero's only
-   * on Med / High and outside a team fight; never from a stealthed hero). Reuses one object per slot.
+   * Wave C (C4) + CARD-SKINS.md: what hero `id`'s skin adds (render/skins/effectKit.ts profile): its card skin, else
+   * its store or pass coat's fixed rung (a card wins when both exist). As the Skin effects setting allows: Off hides
+   * every skin, Mine only hides the others'. Tints always; the extras follow tierFx's caps (another hero's only on
+   * Med / High and outside a team fight; never from a stealthed hero). Reuses one object per slot, and rebuilds its
+   * colours only when the look, the skin's revision, the viewer relation or the hero changes (nothing per frame).
    */
   cardOf(id: number): CardFx | null {
     if (id < 0 || id >= 16) return null;
@@ -833,10 +848,28 @@ export class HeroView {
     const mode = fx?.mode ?? 'all';
     const self = id === this.mySlot;
     if (mode === 'off' || (mode === 'mine' && !self)) return null;
-    const coat = this.looks.get(id)?.coat;
+    const coat = this.looks.get(id)?.coat ?? null;
     const skin = isCardSkinId(coat) ? getSkin(coat) : null;
-    const extras = this.slotStealth[id] === 0 && (self || (!(fx?.low ?? false) && !(fx?.teamFight ?? false)));
-    return cardFxFor(skin, self, this.slotTeam[id] === 1 ? 1 : 0, extras, this.cardOut[id]);
+    const low = fx?.low ?? false;
+    const extras = this.slotStealth[id] === 0 && (self || (!low && !(fx?.teamFight ?? false)));
+    const team: 0 | 1 = this.slotTeam[id] === 1 ? 1 : 0;
+    const hero = this.rigs.get(id)?.hero ?? null;
+    const rev = skin ? skin.rev : 0;
+    const meta = (self ? 2 : 0) + team;
+    const level = this.slotLevel[id];
+    if (coat !== this.profCoat[id] || rev !== this.profRev[id] || meta !== this.profMeta[id] || hero !== this.profHero[id]) {
+      this.profCoat[id] = coat;
+      this.profRev[id] = rev;
+      this.profMeta[id] = meta;
+      this.profHero[id] = hero;
+      this.profHit[id] = skinFxFor(skin, coat, hero, id, self, team, extras, low, level, this.cardOut[id]);
+    }
+    const p = this.profHit[id];
+    if (!p) return null;
+    p.extras = extras;
+    p.low = low;
+    p.stage = p.awakened ? stageOf(level) : 0;
+    return p;
   }
 
   private hideStamp = 0;

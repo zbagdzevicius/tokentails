@@ -1,3 +1,6 @@
+import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { HERO_IDS } from '../../src/data/heroes';
 import { describe, expect, it } from 'vitest';
 import { Op, type Command } from '../../src/sim/api';
@@ -20,6 +23,19 @@ function playRandom(seed: number, ticks: number) {
   }
   return m;
 }
+
+describe('the sim never sees a skin (CARD-SKINS.md)', () => {
+  it('no sim file (and no backend verifier file) imports the skin-effect kit, coat rungs, or any render skin module', () => {
+    const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
+    const walk = (d: string): string[] => (fs.existsSync(d) ? fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? walk(path.join(d, e.name)) : [path.join(d, e.name)])) : []);
+    const files = [...walk(path.join(root, 'src/sim')), ...walk(path.join(root, '../backend/src/vendor/pawlegends-sim'))].filter((f) => /\.(ts|js|mjs)$/.test(f));
+    expect(files.length).toBeGreaterThan(10);
+    for (const f of files) {
+      const src = fs.readFileSync(f, 'utf8');
+      for (const bad of ['effectKit', 'coatRung', 'render/skins', 'SkinFxProfile', 'render/cosmetics']) expect(src.includes(bad), `${path.relative(root, f)}: ${bad}`).toBe(false);
+    }
+  });
+});
 
 describe('determinism (§15 item 1)', { timeout: 120000 }, () => {
   it('the same seed and commands give the same hash trail', () => {

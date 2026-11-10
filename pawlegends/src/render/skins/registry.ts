@@ -34,6 +34,12 @@ export const BOND_RUNGS: readonly (readonly [number, CatTier])[] = Object.freeze
   [3, 'RARE'],
 ] as const);
 
+/** Bond (finished matches) a Legendary-tier card needs to awaken (CARD-SKINS.md: Awakened, not a new Tier value). */
+export const AWAKEN_BOND = 30;
+
+/** Awakened: the cat's own tier is Legendary (a tier-counting origin) and bond reached AWAKEN_BOND. Never a coat. */
+export const isAwakened = (tierRung: CatTier, bond: number): boolean => tierRung === 'LEGENDARY' && bond >= AWAKEN_BOND;
+
 export const rungIndex = (t: CatTier): number => TIERS.indexOf(t);
 export const maxRung = (a: CatTier, b: CatTier): CatTier => (rungIndex(a) >= rungIndex(b) ? a : b);
 export const rungAtLeast = (r: CatTier, min: CatTier): boolean => rungIndex(r) >= rungIndex(min);
@@ -145,6 +151,7 @@ export function buildSkin(cat: RosterCat, bond: number, order = 0): CatSkin {
     tierRung,
     bond,
     rung: maxRung(tierRung, bondRungOf(bond)),
+    awakened: isAwakened(tierRung, bond),
     ...(parts ? { family: parts.family, variant: parts.variant } : {}),
     ...(cat.art ? { art: cat.art } : {}),
     ...(cat.sprite ? { sprite: cat.sprite } : {}),
@@ -171,7 +178,7 @@ export function buildFeaturedSkin(f: FeaturedCat): CatSkin | null {
   const cat: RosterCat = { id: `f.${f.catalogId}`, name: f.name, type: f.type as Element, tier: 'COMMON', isStarter: false, ...(f.sprite ? { sprite: f.sprite } : {}), ...(f.art ? { art: f.art } : {}) };
   const s = buildSkin(cat, 0);
   const rung: CatTier = rungAtLeast(tier, 'RARE') ? 'RARE' : 'COMMON';
-  return { ...s, id: `${FEATURED_SKIN_PREFIX}${f.catalogId}`, tierRung: rung, rung, featured: true, catalogId: f.catalogId };
+  return { ...s, id: `${FEATURED_SKIN_PREFIX}${f.catalogId}`, tierRung: rung, rung, awakened: false, featured: true, catalogId: f.catalogId };
 }
 
 let rosterCats: readonly RosterCat[] = [];
@@ -179,7 +186,7 @@ let featuredCats: readonly FeaturedCat[] = [];
 let bondOf: Readonly<Record<string, number>> = {};
 
 /** What a skin's built geometry depends on (besides its id): the rung (trim from Rare) and the palette. */
-const lookPrint = (s: CatSkin): string => JSON.stringify([s.rung, s.element, s.coat, s.eyes, s.earInner, s.nose, s.accent ?? null]);
+const lookPrint = (s: CatSkin): string => JSON.stringify([s.rung, s.awakened === true, s.element, s.coat, s.eyes, s.earInner, s.nose, s.accent ?? null]);
 
 function rebuild(): void {
   const list: CatSkin[] = rosterCats.map((c, i) => buildSkin(c, bondOf[c.id] ?? 0, i));
