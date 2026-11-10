@@ -46,7 +46,7 @@ import {
     type MatchMsg,
 } from './net';
 import { LoopGate } from './loop-gate';
-import { RelayRtt, regionOfCountry, type RttRegion } from './relay-rtt';
+import { RTT_MAX_MS, RelayRtt, regionOfCountry, type RttRegion } from './relay-rtt';
 import { PARTY_LIMITS, TURN_MS } from './party-limits';
 import {
     PartyService,
@@ -417,13 +417,18 @@ export class PartyRelay {
     /** A keep-alive ping; its pong is an RTT sample (LATENCY-PLAN M2). Off the tick path: a timer per socket. */
     private ping(s: Sock): void {
         if (s.ws.readyState !== WebSocket.OPEN) return;
-        s.pingAtMs = this.now();
+        const now = this.now();
+        // a pong still due: keep its ping's time (a newer stamp would measure a slow link short); past RTT_MAX_MS it
+        // is a stall (no sample) and a new ping starts
+        if (s.pingAtMs > 0 && now - s.pingAtMs <= RTT_MAX_MS) return;
+        s.pingAtMs = now;
         s.ws.ping();
     }
 
     private onPong(s: Sock): void {
         if (s.pingAtMs <= 0) return;
-        this.rtt.add(s.region, this.now() - s.pingAtMs);
+        const now = this.now();
+        this.rtt.add(s.region, now - s.pingAtMs, now);
         s.pingAtMs = 0;
     }
 
@@ -2066,7 +2071,7 @@ export class PartyRelay {
             referee_lag_turns: this.gate.lag,
             ...this.tally,
             ...this.mm.counters(),
-            ...this.rtt.counters(),
+            ...this.rtt.counters(this.now()),
         };
     }
 

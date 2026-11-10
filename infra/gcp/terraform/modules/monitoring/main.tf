@@ -64,8 +64,8 @@ resource "google_logging_metric" "relay_rooms_live" {
 }
 
 # LATENCY-PLAN C4: the turn clock's lateness and the server-measured socket RTT (backend relay-rtt.ts), from the same
-# one-a-minute relay_stats line. The EU series reads only lines that carry it (a relay with no EU socket that minute
-# writes no rtt_ms_p95_eu).
+# one-a-minute relay_stats line. The RTT keys cover the last minute only (RTT_WINDOW_MS), so the EU series reads only
+# lines that carry it (a relay with no EU sample that minute writes no rtt_ms_p95_eu, and rtt_n is 0 when it is idle).
 resource "google_logging_metric" "relay_turn_overrun_p99" {
   project         = var.project_id
   name            = "relay_turn_overrun_p99_ms"
