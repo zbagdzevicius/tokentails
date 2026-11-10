@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 # LATENCY-PLAN E4 (infra/gcp/RUNBOOK.md "Latency"): after the cutover, compare the party relay through Cloudflare with
-# a test-only DNS-only host that goes straight to the load balancer, from the same machine, in alternating rounds.
+# the same host reached straight at the load balancer, from the same machine, in alternating rounds.
 # Read-only: it opens a few guest sockets (no party, no queue) and changes nothing anywhere.
 #
-#   infra/gcp/scripts/relay-ab.sh https://gcp-api.tokentails.com https://relay-direct.tokentails.com
+#   infra/gcp/scripts/relay-ab.sh https://gcp-api.tokentails.com https://gcp-api.tokentails.com \
+#     --connect-b "$(terraform -chdir=infra/gcp/terraform/envs/prod output -raw lb_ip)"
 #   ROUNDS=6 N=4 PINGS=30 infra/gcp/scripts/relay-ab.sh <A url> <B url> [--connect-b <lb ip>]
 #
-# B must be a DNS-only (grey cloud) record to `terraform output lb_ip`, and Cloud Armor must allow your own /32 for
-# the test (it admits Cloudflare ranges only); remove both afterwards. `--connect-b` pins B's TCP to an IP while
-# keeping its Host and SNI. Output: per round and overall p50 / p95 of the ping RTT and the hello -> welcome time,
-# and the B - A gap. Decision rule (plan E4): a p50 gap above 10 ms in Cloudflare's disfavour -> evaluate Argo Smart
-# Routing before any bypass.
+# `--connect-b` pins B's TCP to an IP while keeping its Host and SNI, so the load balancer certificate and the relay
+# route match (a separate DNS-only host would be in neither). Cloud Armor admits Cloudflare ranges only: allow your
+# own /32 for the test with `test_source_cidrs` in envs/prod (your own apply) and clear it afterwards. Output: per round
+# and overall p50 / p95 of the ping RTT and the hello -> welcome time, and the B - A gap. Decision rule (plan E4): a p50
+# gap above 10 ms in Cloudflare's disfavour -> evaluate Argo Smart Routing before any bypass.
 set -euo pipefail
 
 A="${1:?usage: relay-ab.sh <A url via Cloudflare> <B url direct> [--connect-b IP]}"

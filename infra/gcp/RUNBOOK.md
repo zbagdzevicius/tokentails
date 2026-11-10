@@ -279,7 +279,10 @@ Times are Europe/Vilnius. Do the cutover flips in a quiet hour (live matches are
 ### Step 1. Project, billing, state bucket
 
 ```bash
-export CLOUDSDK_ACTIVE_CONFIG_NAME=tokentails
+export CLOUDSDK_CONFIG="$HOME/.config/gcloud-tokentails"   # the Guardrails exports (top of this runbook), in every shell
+export CLOUDSDK_CORE_PROJECT=gleaming-medium-480114-g5
+export CLOUDSDK_COMPUTE_REGION=europe-west3
+export GOOGLE_APPLICATION_CREDENTIALS="$CLOUDSDK_CONFIG/application_default_credentials.json"
 # the project gleaming-medium-480114-g5 already exists (created by the founder); check billing is linked:
 gcloud billing projects describe gleaming-medium-480114-g5            # billingEnabled: true
 # if not: gcloud billing projects link gleaming-medium-480114-g5 --billing-account=XXXXXX-XXXXXX-XXXXXX
@@ -348,7 +351,10 @@ Platform > Settings > Environment, or `doctl apps spec get` in your own terminal
 file in the repo, or shell history:
 
 ```bash
-export CLOUDSDK_ACTIVE_CONFIG_NAME=tokentails
+export CLOUDSDK_CONFIG="$HOME/.config/gcloud-tokentails"   # the Guardrails exports (top of this runbook), in every shell
+export CLOUDSDK_CORE_PROJECT=gleaming-medium-480114-g5
+export CLOUDSDK_COMPUTE_REGION=europe-west3
+export GOOGLE_APPLICATION_CREDENTIALS="$CLOUDSDK_CONFIG/application_default_credentials.json"
 add() { printf 'value for %s: ' "$1"; IFS= read -rs v; echo; printf '%s' "$v" | gcloud secrets versions add "$1" --data-file=- --project=gleaming-medium-480114-g5; unset v; }
 add MONGODB_URI
 # multi-line values (FB_PRIVATE_KEY): write to a temp file outside the repo, then
@@ -615,9 +621,13 @@ then drop out of the budget.
 already in `client/next.config.js`; Cloudflare caches HTML only when a rule makes it eligible:
 
 1. Rule "Paw Legends game HTML": URI path equals `/pawlegends-game/index.html` → Eligible for cache; Edge TTL: use
-   cache-control header if present (`s-maxage=60`), else 60 s; Browser TTL: respect origin.
-2. Rule "Paw Legends OTA": URI path starts with `/pawlegends-app/updates/` → Eligible for cache; Edge TTL: respect origin
-   (`s-maxage=30` on the manifests, a year on the versioned bundles).
+   cache-control header if present, else 60 s (the origin sends `Cloudflare-CDN-Cache-Control: max-age=60,
+   stale-while-revalidate=300`; Vercel strips `s-maxage` from `Cache-Control`, so that header is what Cloudflare
+   reads); Browser TTL: respect origin (`max-age=0, must-revalidate`); Cache key → Query string → **Ignore** (the page is
+   static, the game reads `?embed=1`, `&party=`, `&dare=` in the browser; one edge copy, one purge).
+2. Rule "Paw Legends OTA": URI path starts with `/pawlegends-app/updates/` → Eligible for cache; Edge TTL: use
+   cache-control header if present (`Cloudflare-CDN-Cache-Control: max-age=30` on the manifests; `Cache-Control`
+   a year, immutable, on the versioned bundles); Browser TTL: respect origin.
 3. Leave `/pawlegends-game/build/*` and `/pawlegends-game/assets/*` on the default rules: they are static file types and
    already cached by extension.
 4. Speed → Optimization → Protocol: HTTP/3 (with QUIC) **on**, 0-RTT Connection Resumption **on** (E5). 0-RTT replays
@@ -627,25 +637,35 @@ already in `client/next.config.js`; Cloudflare caches HTML only when a rule make
    `pawlegends-ota.yml` purges each new manifest once Vercel serves it, and `pawlegends-cdn.yml` purges the game
    `index.html` and warms the new `build/` files after each game deploy. Without the secrets both skip the purge.
 
-Check after each step (expect `cf-cache-status: HIT` on the second request, and the new `cache-control`):
+Check after each step (expect `cf-cache-status: HIT` on the second request, `cache-control: public, max-age=0,
+must-revalidate` and the `cloudflare-cdn-cache-control` header):
 
 ```bash
 for p in /pawlegends-game/index.html /pawlegends-app/updates/ios/1/manifest.json; do
-  curl -sI "https://tokentails.com$p" | grep -iE '^(cache-control|cf-cache-status|age)'; done
+  curl -sI "https://tokentails.com$p" | grep -iE '^(cache-control|cloudflare-cdn-cache-control|cf-cache-status|age)'; done
 ```
 
 Baseline on 2026-11-10 (before the new headers deploy): index.html and manifest.json `max-age=0, must-revalidate`,
 `cf-cache-status: DYNAMIC`, first byte 330–420 ms from Vilnius.
 
-**Cloudflare vs direct (E4, after step 6).** Create a DNS-only (grey cloud) test host pointing at `terraform output
-lb_ip`, allow your own /32 in Cloud Armor for the test, then:
+**Cloudflare vs direct (E4, after step 6).** No new host: B is the same `gcp-api` URL with its TCP pinned to the load
+balancer IP, so the Host, the SNI, the certificate and the relay route all stay the ones the load balancer knows. Cloud
+Armor admits Cloudflare ranges only, so first add your own address through your own apply (`terraform.tfvars` in
+`envs/prod`):
 
 ```bash
-infra/gcp/scripts/relay-ab.sh https://gcp-api.tokentails.com https://<test host>
+test_source_cidrs = ["<curl -s https://api.ipify.org>/32"]   # then: terraform plan, terraform apply (yours)
 ```
 
-A ping p50 gap above 10 ms against Cloudflare means: evaluate Argo Smart Routing before any bypass. Remove the test host
-and the /32 afterwards.
+then:
+
+```bash
+infra/gcp/scripts/relay-ab.sh https://gcp-api.tokentails.com https://gcp-api.tokentails.com \
+  --connect-b "$(terraform -chdir=infra/gcp/terraform/envs/prod output -raw lb_ip)"
+```
+
+A ping p50 gap above 10 ms against Cloudflare means: evaluate Argo Smart Routing before any bypass. Afterwards set
+`test_source_cidrs = []` and apply again (the default is empty, so removing the line works too).
 
 ## Decisions and defaults
 

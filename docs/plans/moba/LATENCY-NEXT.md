@@ -11,9 +11,8 @@ Read the measurements first. `mp_net` now carries `rtt_p50`, `rtt_p95`, `jitter_
 below: N2 pays off only if the turn wait dominates (low RTT, low `margin_m`). N6 tuning pays off only if `margin_m` or
 `late_turns` are high.
 
-Tooling note: `latency/measure.mjs` (the plan's scratch harness) hardcodes `SIM = 19`, its `SIM_HASH` and `PROTO = 4`.
-Point it at `pawlegends/src/net/sim-stamp.json` (as `infra/gcp/tools/ws-latency.mjs` does) before the v20 relay is
-live, or the relay refuses its `hello`.
+Tooling note: measure with `infra/gcp/tools/ws-latency.mjs` (RUNBOOK "Latency"). It reads its `sim` and `simHash`
+from `pawlegends/src/net/sim-stamp.json`, so it keeps passing the relay's `hello` check after each sim version bump.
 
 ## Today's budget (B = 1, 60 ms 4G link)
 
@@ -43,7 +42,7 @@ both halve: about −50 ms on applied p50 at every RTT (harness estimate; confir
   ticks. But `room.ts` `pilotTicks` and every `TURN_TICKS` multiplier must be re-checked.
 
 **Cost.** Turn frames double: about 7.7 → 15 KB/min down per client at idle (harness bytes), roughly double the
-relay's egress and packet rate. Re-run `mp/load.mjs` at 5v5 with 150 rooms on t2d-standard-2. The current cap (100
+relay's egress and packet rate. Re-run `pawlegends/tests/e2e/mp/load.mjs` at 5v5 with 150 rooms on t2d-standard-2. The current cap (100
 rooms) was 70 % of the measured budget at 2 ticks per turn. Expect to lower `max_live_rooms` or move to
 t2d-standard-4.
 

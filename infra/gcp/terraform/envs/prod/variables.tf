@@ -375,3 +375,16 @@ variable "static_bucket_enabled" {
   type        = bool
   default     = false
 }
+
+variable "test_source_cidrs" {
+  description = "LATENCY-PLAN E4 only: the operator's own address(es) Cloud Armor admits besides Cloudflare for the Cloudflare-vs-direct test (RUNBOOK \"Latency\"). Empty (the default) outside that test; set it in your own apply and set it back to [] afterwards."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = length(var.test_source_cidrs) <= 2 && alltrue([
+      for c in var.test_source_cidrs : can(cidrhost(c, 0)) && (strcontains(c, ":") ? tonumber(split("/", c)[1]) >= 64 : tonumber(split("/", c)[1]) == 32)
+    ])
+    error_message = "At most two single addresses: an IPv4 /32 or an IPv6 /64 or narrower. Never a range."
+  }
+}
