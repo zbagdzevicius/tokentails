@@ -28,7 +28,13 @@ import {
     ON_ENV,
     signedEvent,
 } from './pawlegends-harness.helper-spec';
-import { PAWLEGENDS_REPLAY_QUEUE, pawlegendsDigest, savePawlegendsMatch, takedownsOf } from './pawlegends-live';
+import {
+    canonicalRecord,
+    PAWLEGENDS_REPLAY_QUEUE,
+    pawlegendsDigest,
+    savePawlegendsMatch,
+    takedownsOf,
+} from './pawlegends-live';
 import { addSeasonXp, mergeStoreProgress, ownedItemsOf } from './pawlegends-season.service';
 
 jest.mock('node-fetch', () => jest.fn());
@@ -290,6 +296,27 @@ describe('season XP through the one score writer', () => {
         );
         expect((await h.season.me(userId)).season.xp).toBe(310);
         expect(pawlegendsDigest(record)).toBeTruthy();
+    });
+});
+
+describe('cosmetics never reach the replay', () => {
+    it('a look, frame or title in a posted record is not in the canonical record or its digest', () => {
+        const base = {
+            v: 1,
+            simVersion: SIM_VERSION,
+            seed: 7,
+            difficulty: 'easy',
+            hero: 'clem',
+            trick: 'pounce',
+            ticks: 100,
+            inputs: 'AA==',
+            outcome: 'won',
+            finalHash: 'ab',
+        } as any;
+        const dressed = { ...base, look: { coat: 'coat.clem.store_calico' }, cosmetics: { frame: 'frame.store.bone' } };
+        expect(Object.keys(canonicalRecord(dressed))).not.toEqual(expect.arrayContaining(['look']));
+        expect(Object.keys(canonicalRecord(dressed))).not.toContain('cosmetics');
+        expect(pawlegendsDigest(dressed)).toBe(pawlegendsDigest(base));
     });
 });
 
