@@ -12,6 +12,7 @@ import { currentSeason, matchesToNextText, xpToNext } from '../../src/meta/pass'
 import { itemState, tabSkus } from '../../src/ui/store';
 import { resetAppBuild, setAppBuild } from '../../src/meta/roster';
 import { LOOP_PALETTES } from '../../src/meta/treats';
+import { ELEMENTS } from '../../src/meta/roster';
 
 /*
  * STORE-PASS.md: the catalogue mirror against the backend, the store and pass cosmetics (visual only), the host's
@@ -25,6 +26,8 @@ describe('catalogue mirror', () => {
   it('equals the backend catalogue (SKUs, prices, items, the season table and XP rules)', () => {
     expect(game.CATALOG_SKUS).toEqual(server.CATALOG_SKUS);
     expect(game.STORE_COATS).toEqual(server.STORE_COATS);
+    expect(game.EFFECT_COATS).toEqual(server.EFFECT_COATS);
+    expect(game.EFFECT_COAT_CENTS).toEqual(server.EFFECT_COAT_CENTS);
     expect(game.STORE_FRAMES).toEqual(server.STORE_FRAMES);
     expect(game.SEASONS).toEqual(server.SEASONS);
     expect(game.SEASON_XP).toEqual(server.SEASON_XP);
@@ -44,6 +47,20 @@ describe('store and pass cosmetics', () => {
     const passCoats = game.SEASONS.flatMap((s) => [...s.free, ...s.premium]).filter((r) => r.item.startsWith('coat.'));
     for (const r of passCoats) expect(PAID_COATS[r.item], r.item).toBeTruthy();
     expect(PAID_COATS[game.S1_PLUS_COAT]).toBeTruthy();
+  });
+  it('CARD-SKINS.md: every paid coat has an effect rung and an element; effect coats are priced by rung and in no set', () => {
+    for (const [id, c] of Object.entries(PAID_COATS)) {
+      expect(['COMMON', 'RARE', 'EPIC', 'LEGENDARY'], id).toContain(c.rung);
+      expect(ELEMENTS, id).toContain(c.element);
+    }
+    for (const c of game.EFFECT_COATS) {
+      expect(PAID_COATS[c.id]?.rung, c.id).toBe(c.rung);
+      expect(PAID_COATS[c.id]?.coat.pattern, c.id).toBeTruthy();
+      const def = game.catalogSku(game.coatSkuOf(c))!;
+      expect(def.cents.usd, c.id).toBe(c.rung === 'EPIC' ? 799 : 1499);
+      for (const set of game.CATALOG_SKUS.filter((d) => d.kind === 'bundle')) expect(set.items, set.sku).not.toContain(c.id);
+    }
+    expect(game.coatSkuOf(game.EFFECT_COATS[2])).toBe('pl_coat_brutus_thunderpaw');
   });
   it('the wardrobe offers owned store and pass coats; the look is the store palette with its pattern', () => {
     const o = owned(['coat.clem.store_calico', 'coat.clem.s1_honey_tabby']);
@@ -106,7 +123,7 @@ describe('host store state', () => {
     setAppBuild(true);
     const e = new Entitlements();
     e.apply({ type: 'app', isApp: true, store: true });
-    e.apply(store(['coat.clem.store_calico', 'coat.clem.s1_honey_tabby', 'coat.meatball.s1_caramel']));
+    e.apply(store(['coat.clem.store_calico', 'coat.clem.s1_honey_tabby', 'coat.meatball.s1_caramel', 'coat.brutus.store_thunderpaw']));
     const s = e.snapshot();
     expect(s.storeOpen).toBe(false);
     expect([...s.items]).toEqual(['coat.clem.s1_honey_tabby']);
@@ -134,7 +151,8 @@ describe('store states and the pass', () => {
     const s = { id: 's1', xp: 0, tier: 0, skips: 0, claimed: [], endsAt: '' };
     expect(itemState(up, { items: new Set(), season: { ...s, premium: 'none' } })).toBe('locked');
     expect(itemState(up, { items: new Set(), season: { ...s, premium: 'pass' } })).toBe('buy');
-    expect(tabSkus('coats')).toHaveLength(16);
+    expect(tabSkus('coats')).toHaveLength(20);
+    expect(tabSkus('coats').slice(0, 4).map((d) => d.cents.usd)).toEqual([799, 799, 1499, 1499]);
     expect(tabSkus('frames')).toHaveLength(4);
   });
   it('tier math and the "matches to go" line', () => {

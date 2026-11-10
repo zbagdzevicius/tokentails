@@ -13,11 +13,11 @@
  *   render/skins/registry.ts (never the chroma path)
  */
 import type { HeroId } from '../sim/api';
-import { ELEMENT_NAME, type Element, type RosterCosmetics, type StarterBreed, type TierFrame } from '../meta/roster';
+import { ELEMENT_NAME, ELEMENTS, type CatTier, type Element, type RosterCosmetics, type StarterBreed, type TierFrame } from '../meta/roster';
 import { isCardSkinId, skinRev } from './skins/skinStore';
 import { LOOP_PALETTES, LOOP_REWARDS, TRACK_TITLES } from '../meta/treats';
 import { SHELTER_CHAMPIONS } from '../data/heroes/shelter';
-import { S1_PLUS_COAT, SEASONS, STORE_COATS, STORE_FRAMES, SEASON_ITEM_NAMES } from '../money/catalog';
+import { EFFECT_COATS, S1_PLUS_COAT, SEASONS, STORE_COATS, STORE_FRAMES, SEASON_ITEM_NAMES } from '../money/catalog';
 
 const SHELTER_NAME = Object.fromEntries(SHELTER_CHAMPIONS.map((c) => [c.hero, c.cardName])) as Record<'lambo' | 'aviete' | 'bengas' | 'gabe', string>;
 
@@ -279,15 +279,77 @@ const PASS_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
   [S1_PLUS_COAT]: [0x1a1420, 0x8a6ab8, 0xffd34d, 0xff8fb1, 'points'],
 });
 
-/** Store and pass coats by id: hero, name, palette and where they come from. */
-export const PAID_COATS: Readonly<Record<string, { hero: HeroId; name: string; coat: Coat; from: 'store' | 'pass' }>> = Object.freeze({
-  ...Object.fromEntries(STORE_COATS.map((c) => [c.id, { hero: c.hero as HeroId, name: c.name, coat: pal(STORE_COAT_PAL[c.id]), from: 'store' as const }])),
+/**
+ * Effect coats (money/catalog.ts EFFECT_COATS, docs/plans/moba/CARD-SKINS.md §6.3): original palettes on our own
+ * heroes; the effect rung and element drive the shared skin-effect kit (render/skins/effectKit.ts).
+ */
+const EFFECT_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
+  'coat.pixel.store_moonwhisker': [0x2c2c5e, 0xe6e2ff, 0xfff1a8, 0xb9a8ff, 'spots'],
+  'coat.marshmallow.store_frostbell': [0xeef6ff, 0xffffff, 0x7ab8e8, 0x9fe8ff, 'calico', 0xc8e8ff],
+  'coat.brutus.store_thunderpaw': [0x26262e, 0xfff6c8, 0x121218, 0xffe24d, 'tuxedo'],
+  'coat.sage.store_bloomtail': [0x7fb069, 0xeaf6d8, 0x3e6a2e, 0xff9fd6, 'tabby'],
+});
+
+/**
+ * CARD-SKINS.md §5 coat rungs and elements: fixed by the price band (never by bond or play). Free-row and Treat Track
+ * coats are Common; the store and premium pass coats Rare; Pass+ and the $7.99 coats Epic; pass tier 30 and the $14.99
+ * coats Legendary. The element is explicit for the effect coats and otherwise the nearest element to the accent hue.
+ */
+const COAT_FX: Readonly<Record<string, { rung: CatTier; element: Element }>> = Object.freeze({
+  [S1_PLUS_COAT]: { rung: 'EPIC', element: 'DARK' },
+  'coat.clem.s1_sunforged': { rung: 'LEGENDARY', element: 'FIRE' },
+  'coat.pixel.store_moonwhisker': { rung: 'EPIC', element: 'STELLAR' },
+  'coat.marshmallow.store_frostbell': { rung: 'EPIC', element: 'ICE' },
+  'coat.brutus.store_thunderpaw': { rung: 'LEGENDARY', element: 'ELECTRIC' },
+  'coat.sage.store_bloomtail': { rung: 'LEGENDARY', element: 'GRASS' },
+});
+
+/** The hue (degrees) and saturation of 0xRRGGBB (no import: classify.ts imports this file's neighbours). */
+function hueSat(c: number): [number, number] {
+  const r = ((c >> 16) & 255) / 255;
+  const g = ((c >> 8) & 255) / 255;
+  const b = (c & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return [0, 0];
+  const l = (max + min) / 2;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s];
+}
+
+/** The element whose colour is nearest in hue to `c` (a grey accent: STELLAR, the neutral sparkle). */
+export function nearestElement(c: number): Element {
+  const [h, s] = hueSat(c);
+  if (s < 0.15) return 'STELLAR';
+  let best: Element = 'STELLAR';
+  let bd = 999;
+  for (const el of ELEMENTS) {
+    const [eh] = hueSat(ELEMENT_COLOR[el]);
+    const d = Math.abs(((h - eh + 540) % 360) - 180);
+    if (d < bd) {
+      bd = d;
+      best = el;
+    }
+  }
+  return best;
+}
+
+type PaidRow = { hero: HeroId; name: string; coat: Coat; from: 'store' | 'pass'; rung: CatTier; element: Element };
+const paidRow = (id: string, hero: string, name: string, coat: Coat, from: 'store' | 'pass', rung: CatTier): PaidRow => ({ hero: hero as HeroId, name, coat, from, rung: COAT_FX[id]?.rung ?? rung, element: COAT_FX[id]?.element ?? nearestElement(coat.accent) });
+const FREE_ROW = new Set(SEASONS.flatMap((s) => s.free.map((r) => r.item)));
+
+/** Store and pass coats by id: hero, name, palette, where they come from, and the effect rung and element. */
+export const PAID_COATS: Readonly<Record<string, PaidRow>> = Object.freeze({
+  ...Object.fromEntries(STORE_COATS.map((c) => [c.id, paidRow(c.id, c.hero, c.name, pal(STORE_COAT_PAL[c.id]), 'store', 'RARE')])),
+  ...Object.fromEntries(EFFECT_COATS.map((c) => [c.id, paidRow(c.id, c.hero, c.name, pal(EFFECT_COAT_PAL[c.id]), 'store', c.rung)])),
   ...Object.fromEntries(
     SEASONS.flatMap((s) => [...s.free, ...s.premium])
       .filter((r) => r.hero && PASS_COAT_PAL[r.item])
-      .map((r) => [r.item, { hero: r.hero as HeroId, name: r.name, coat: pal(PASS_COAT_PAL[r.item]), from: 'pass' as const }]),
+      .map((r) => [r.item, paidRow(r.item, r.hero as string, r.name, pal(PASS_COAT_PAL[r.item]), 'pass', FREE_ROW.has(r.item) ? 'COMMON' : 'RARE')]),
   ),
-  [S1_PLUS_COAT]: { hero: 'duchess' as HeroId, name: 'Eclipse coat (Epic)', coat: pal(PASS_COAT_PAL[S1_PLUS_COAT]), from: 'pass' as const },
+  [S1_PLUS_COAT]: paidRow(S1_PLUS_COAT, 'duchess', 'Eclipse coat (Epic)', pal(PASS_COAT_PAL[S1_PLUS_COAT]), 'pass', 'EPIC'),
 });
 
 /** Store frames and titles, and pass frames and titles (STORE-PASS.md), by id. */
