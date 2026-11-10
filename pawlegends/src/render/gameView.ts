@@ -194,10 +194,11 @@ export class GameView {
   /** Hold-to-select: the one the release would lock (the bold ring), or null (none, or the drag is on cancel). */
   atkSelect: number | null = null;
   /**
-   * Drag-lock (touch, Wild Rift's targeting line): while the Attack drag points, the line's end (m: the selection, or
-   * along the drag at reach length) and whether it selects (`ok`; red when not), plus the reach ring's radius (m).
+   * Drag-lock (touch, Wild Rift's targeting line): while the Attack drag points, the selected unit (`id`, -1 = none:
+   * the line ends at its interpolated position) or, with none (`ok` false, red), the line's end as an offset from the
+   * hero (`dx`/`dz`, m); the selection reach ring's radius and the faint hero reach ring's (`heroM`, 0 = not drawn), m.
    */
-  atkAim: { x: number; z: number; ok: boolean; reachM: number } | null = null;
+  atkAim: AtkAim | null = null;
   /** Telemetry (e2e): the unit the lock marker is drawn on this frame, -1 = none. */
   lockMarkId = -1;
   frame: ViewFrame | null = null;
@@ -1271,15 +1272,24 @@ export class GameView {
    * Drag-lock (touch, Wild Rift's targeting circle and guide line): the selection reach ring around the hero and a
    * line from the hero to the selected unit (self colour) or along the drag (red: nothing selected, a release cancels).
    */
-  private drawAtkAim(t: { x: number; z: number; ok: boolean; reachM: number }, mx: number, mz: number): void {
+  private drawAtkAim(t: AtkAim, mx: number, mz: number): void {
+    // the selection's end from the interpolated entity (as lockChevrons), so it moves with the drawn model per frame
+    let dx = t.dx;
+    let dz = t.dz;
+    if (t.ok) {
+      const e = this.frame?.byId.get(t.id);
+      dx = e ? toX(e.fx) - mx : 0;
+      dz = e ? toZ(e.fy) - mz : 0;
+    }
     // the line first: in a brawl the wind-up telegraphs can take every pooled shape but the last one
-    const len = Math.hypot(t.x - mx, t.z - mz);
+    const len = Math.hypot(dx, dz);
     if (len >= 0.3) {
-      const yaw = Math.atan2(-(t.z - mz), t.x - mx);
+      const yaw = Math.atan2(-dz, dx);
       const width = AIM_MIN_PX / Math.max(1, this.pxPerMetre(mx, mz));
       this.telegraphs.draw({ shape: 'line', x: mx, z: mz, yaw, length: len, width, color: t.ok ? RELATION.self : 0xff9f7a, alpha: 0.95, top: true, solid: 0.35 });
     }
     if (t.reachM > 0) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: t.reachM, color: RELATION.self, alpha: 0.55, top: true, dashed: true });
+    if (t.heroM > t.reachM) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: t.heroM, color: RELATION.self, alpha: 0.3, top: true, dashed: true });
   }
 
   private readonly _pa = new THREE.Vector3();
@@ -1348,6 +1358,16 @@ export class GameView {
 
 /** The basic attack range ring's colour (warm cream: neither the gold skill ring nor a team colour). */
 const ATTACK_RING_COLOR = 0xfff1d6;
+/** Drag-lock: the touch Attack drag's targeting line and rings (GameView.atkAim). */
+export interface AtkAim {
+  id: number;
+  dx: number;
+  dz: number;
+  ok: boolean;
+  reachM: number;
+  heroM: number;
+}
+
 /** Drag-lock marker: the second ring (× the hover ring size) and the chevron crosshair (× the same) on a locked unit. */
 const LOCK_RING_K = 1.25;
 const LOCK_CHEVRON_K = 1.7;

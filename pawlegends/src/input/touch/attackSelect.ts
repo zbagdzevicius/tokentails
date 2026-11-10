@@ -44,9 +44,6 @@ export const ATK_SELECT = Object.freeze({
   maxGap: Math.PI / 3,
   /** A drag-locked unit that left the snapshot (fog, a bush) keeps the lock this long (ms) and re-locks when seen. */
   lostGraceMs: 1500,
-  /** A joystick held further than this (rad) from the bearing to the drag-locked unit for awayMs lets the lock go. */
-  awayTurn: (Math.PI * 100) / 180,
-  awayMs: 400,
   /** While a drag lock holds and the hero stands, its Attack order is re-sent this often (ms) when in reach. */
   repeatMs: 350,
 });
@@ -187,22 +184,21 @@ export class PickLock {
  * left" break: it holds while the unit is alive, attackable and within LOCK.rangeMm (centre to centre); a unit that
  * left the snapshot (fog, a bush) keeps the id for ATK_SELECT.lostGraceMs and is locked again once seen (Wild Rift),
  * though `check` returns null while it is unseen. TouchControls clears it on a drag back to the button centre, a new
- * drag, a field or portrait lock, or a joystick held away from it (`away`). Client only (an Attack order's id).
+ * drag or a field or portrait lock; moving never breaks it (Wild Rift: a ranged hero kites a locked hero, backing off
+ * and tapping Attack between steps). Enemy heroes only: a dragged minion, monster or structure takes PickLock (LOCK.ms).
+ * Client only (an Attack order's id).
  */
 export class DragLock {
   id: number | null = null;
   private seenAt = 0;
-  private awaySince = -1;
 
   set(id: number, now: number): void {
     this.id = id;
     this.seenAt = now;
-    this.awaySince = -1;
   }
 
   clear(): void {
     this.id = null;
-    this.awaySince = -1;
   }
 
   /** The locked id while the lock holds and the unit is seen, else null (the lock may still hold through a short loss). */
@@ -223,20 +219,5 @@ export class DragLock {
     }
     this.seenAt = now;
     return this.id;
-  }
-
-  /**
-   * The joystick: `pointingAway` (held more than ATK_SELECT.awayTurn off the bearing to the unit) for ATK_SELECT.awayMs
-   * in a row lets the lock go. Returns true when this call cleared it.
-   */
-  away(now: number, pointingAway: boolean): boolean {
-    if (this.id === null || !pointingAway) {
-      this.awaySince = -1;
-      return false;
-    }
-    if (this.awaySince < 0) this.awaySince = now;
-    if (now - this.awaySince < ATK_SELECT.awayMs) return false;
-    this.clear();
-    return true;
   }
 }
