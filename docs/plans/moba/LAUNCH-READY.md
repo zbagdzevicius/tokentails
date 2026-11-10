@@ -134,7 +134,7 @@ Names only; values stay in Vercel, DigitalOcean and your local env files.
 | Backend | `STRIPE_SECRET_KEY` | already set (the $5 cat uses the shared Token Tails checkout) |
 | Backend | `SENDGRID_API_KEY` | already set (notify-me; without it the button hides) |
 | Backend | `INVALIDATE_CACHE_SECRET` or `PAWLEGENDS_ENTITLEMENT_SECRET` | one of them set (entitlement routes; else 503) |
-| Backend | `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`, `PAWLEGENDS_STRIPE_SECRET_KEY` | leave unset: the cosmetics store and Legends Pass run on the Token Tails Stripe account (`STRIPE_SECRET_KEY`, and events through `/image/webhook` with `STRIPE_WEBHOOK_SECRET`), so `store: true` once those are set; set these only for a separate key or a second endpoint (docs/plans/moba/STORE-PASS.md runbook step 2) |
+| Backend | `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`, `PAWLEGENDS_STRIPE_SECRET_KEY` | leave unset: the cosmetics store and Legends Pass run on the Token Tails Stripe account (`STRIPE_SECRET_KEY`, and events through `/image/webhook` with `STRIPE_WEBHOOK_SECRET`), so `store: true` once those are set, which in production means live sales: deploy only after the store terms and VAT/OSS approvals (STORE-PASS.md runbook step 1). Set these only for a separate key, which then needs its own webhook secret and endpoint, or a second endpoint (docs/plans/moba/STORE-PASS.md runbook step 2) |
 | Backend | `PAWLEGENDS_PUBLIC_URL`, `PAWLEGENDS_DEV_LINKS` | unset in production |
 | Local G-Pay run | `STRIPE_SECRET_KEY` (test), `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` (test), `NEXT_PUBLIC_BE_URL=http://localhost:3005` | LAUNCH.md §a.3 |
 
