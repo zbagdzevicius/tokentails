@@ -93,6 +93,50 @@ jobs:
       - run: npm run build
       - run: npm test
 
+  # Paw Legends own-input latency gate (LATENCY-PLAN M7): the real relay Room (backend), the client's NetHost, NetCore
+  # and Pacer on fake timers, at 0 / 50 / 150 ms RTT. Its asserts are the PARITY §3.11 p95 targets (visible, applied,
+  # predicted cast start), so a latency regression fails the PR. The harness imports backend/src, hence both installs.
+  pawlegends-latency:
+    name: pawlegends-latency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            pawlegends/package-lock.json
+      - name: Install backend
+        run: npm ci
+        working-directory: backend
+      - name: Install pawlegends
+        run: npm ci
+        working-directory: pawlegends
+      - name: Own-input latency at 0 / 50 / 150 ms RTT
+        run: npx vitest run tests/perf/net-rtt.test.ts
+        working-directory: pawlegends
+        env:
+          PAWLEGENDS_MEASURE_OUT: ${{ runner.temp }}/net-rtt.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pawlegends-net-rtt
+          path: ${{ runner.temp }}/net-rtt.json
+          if-no-files-found: ignore
+
+  # Workflow files lint (LATENCY-PLAN M3: the relay probe and this gate are workflows too).
+  actionlint:
+    name: actionlint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: actionlint
+        uses: docker://rhysd/actionlint:1.7.7
+        with:
+          args: -color
+
   client:
     name: client
     runs-on: ubuntu-latest
