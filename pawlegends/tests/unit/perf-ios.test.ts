@@ -4,7 +4,7 @@
  * and the per-device preferences (Battery saver, the remembered tier).
  */
 import { beforeEach, describe, expect, it } from 'vitest';
-import { isIosWebKit, isPhoneDevice } from '../../src/render/perf/device';
+import { isIosWebKit, isLowEndDevice, isPhoneDevice, lowEndInput } from '../../src/render/perf/device';
 import { FramePacer, MATCH_FPS, MENU_FPS, PAUSED_FPS, SAVER_FPS, paceTarget } from '../../src/render/perf/pacer';
 import { GOV, GOV_MAX, GOV_STEP, ThermalGovernor, type ThermalState } from '../../src/render/perf/governor';
 import { autoBatterySaver, batterySaver, releaseAutoSaver, resetPerfPrefs, savePerfStep, savedPerfStep, setBatterySaver } from '../../src/render/perf/prefs';
@@ -235,6 +235,14 @@ describe('per-device preferences', () => {
     expect(startTier('')).toMatchObject({ tier: 'low', probe: null });
     expect(startTier('?quality=high')).toMatchObject({ tier: 'high', probe: null });
   });
+  it('a budget Android phone starts a fresh install on Low without a probe; a remembered or forced tier wins', () => {
+    expect(startTier('', { lowRam: false, ramMb: 3800 })).toMatchObject({ tier: 'low', probe: null });
+    expect(startTier('', { lowRam: false, ramMb: 7600 }).tier).toBe('med');
+    expect(startTier('', { lowRam: false, ramMb: 7600 }).probe).not.toBeNull();
+    expect(startTier('?quality=med', { lowRam: true })).toMatchObject({ tier: 'med', probe: null });
+    rememberTier('med', 'user');
+    expect(startTier('', { lowRam: true }).tier).toBe('med');
+  });
   it('Battery saver: off by default, turned on by the game once, never over a player choice', () => {
     expect(batterySaver()).toEqual({ on: false, by: 'default' });
     expect(autoBatterySaver()).toBe(true);
@@ -266,5 +274,28 @@ describe('per-device preferences', () => {
     expect(parseThermal({ state: 'serious', lowPower: true })).toEqual({ state: 'serious', lowPower: true });
     expect(parseThermal({ state: 'hot' })).toEqual({ state: null, lowPower: false });
     expect(parseThermal(undefined)).toEqual({ state: null, lowPower: false });
+  });
+});
+
+describe('low-end devices (the Android shell __PL_DEVICE__)', () => {
+  it('low-RAM flag, under 4.5 GB RAM, or a Chromium deviceMemory of 2 GB or less', () => {
+    expect(isLowEndDevice({ lowRam: true })).toBe(true);
+    expect(isLowEndDevice({ ramMb: 2800 })).toBe(true);
+    expect(isLowEndDevice({ ramMb: 3700 })).toBe(true);
+    expect(isLowEndDevice({ ramMb: 5600 })).toBe(false);
+    expect(isLowEndDevice({ deviceMemory: 2 })).toBe(true);
+    expect(isLowEndDevice({ deviceMemory: 4 })).toBe(false);
+    // unknown is never low end (iPhone, desktop Safari, a shell before __PL_DEVICE__)
+    expect(isLowEndDevice({})).toBe(false);
+    expect(isLowEndDevice({ ramMb: 0 })).toBe(false);
+  });
+  it('reads the shell global and navigator.deviceMemory, never throws', () => {
+    expect(lowEndInput({ __PL_DEVICE__: { ramMb: 3700, lowRam: false, perfClass: 0 }, navigator: { deviceMemory: 4 } })).toEqual({ lowRam: false, ramMb: 3700, deviceMemory: 4 });
+    expect(lowEndInput({})).toEqual({ lowRam: false, ramMb: undefined, deviceMemory: undefined });
+    expect(lowEndInput(undefined)).toEqual({ lowRam: false, ramMb: undefined, deviceMemory: undefined });
+  });
+  it('an Android shell is a phone, but not iOS WebKit', () => {
+    expect(isPhoneDevice({ shell: 'android', ua: '', coarse: false, maxTouchPoints: 0, shortSide: 0 })).toBe(true);
+    expect(isIosWebKit({ shell: 'android', ua: '', maxTouchPoints: 5 })).toBe(false);
   });
 });

@@ -1,9 +1,10 @@
 /**
- * The native app shell (docs/plans/moba/APP-STORE.md "Game changes for the app build"). The App Store build of
- * Pawlegends (`pawlegends-app/`, Capacitor, served from `capacitor://localhost`) is built with
+ * The native app shell (docs/plans/moba/APP-STORE.md "Game changes for the app build"). The App Store and Google
+ * Play builds of Pawlegends (`pawlegends-app/`, Capacitor, served from `capacitor://localhost` on iOS and
+ * `https://localhost` on Android) are built with
  * `VITE_PAWLEGENDS_APP=1`; a bundle loaded by the shell also sees `window.Capacitor.isNativePlatform()`. Either one
- * makes this an app build: no Token Tails purchase links, starter and redeemed cats only (Apple 3.1.1 / 3.1.3(b)),
- * and share links that point at the public web game instead of the app's own `capacitor://` address.
+ * makes this an app build: no Token Tails purchase links, starter and redeemed cats only (Apple 3.1.1 / 3.1.3(b),
+ * Google Play payments policy), and share links that point at the public web game instead of the app's own address.
  *
  * On the web build `VITE_PAWLEGENDS_APP` is unset, Vite folds `APP_ENV` to false, and nothing here changes anything.
  */
@@ -29,15 +30,24 @@ export function inAppShell(env: boolean = APP_ENV, w: unknown = typeof window !=
   }
 }
 
+/** The native shells: the Mac App Store app, the iPhone app and the Android app. */
+export type ShellPlatform = 'mac' | 'ios' | 'android';
+
 /**
- * Which native shell runs the page: `mac` in the Mac App Store app (Mac Catalyst), `ios` on iPhone, null on the web.
- * The shell sets `window.__PL_PLATFORM__` before any page script (GameViewController.swift); an older iPhone binary
- * that predates it is still `ios`. Never throws.
+ * Which native shell runs the page: `mac` in the Mac App Store app (Mac Catalyst), `ios` on iPhone, `android` in the
+ * Google Play app, null on the web. The shells set `window.__PL_PLATFORM__` before any page script
+ * (GameViewController.swift, pawlegends-app/android ShellPlugin.java); Capacitor's own platform name covers an Android
+ * WebView too old for document-start scripts, and an older iPhone binary that predates the key is still `ios`.
+ * Never throws.
  */
-export function shellPlatform(env: boolean = APP_ENV, w: unknown = typeof window !== 'undefined' ? window : undefined): 'mac' | 'ios' | null {
+export function shellPlatform(env: boolean = APP_ENV, w: unknown = typeof window !== 'undefined' ? window : undefined): ShellPlatform | null {
   if (!inAppShell(env, w)) return null;
   try {
-    return (w as { __PL_PLATFORM__?: unknown } | undefined)?.__PL_PLATFORM__ === 'mac' ? 'mac' : 'ios';
+    const win = w as { __PL_PLATFORM__?: unknown; Capacitor?: { getPlatform?: () => unknown } } | undefined;
+    const p = win?.__PL_PLATFORM__;
+    if (p === 'mac' || p === 'android') return p;
+    if (p === undefined && typeof win?.Capacitor?.getPlatform === 'function' && win.Capacitor.getPlatform() === 'android') return 'android';
+    return 'ios';
   } catch {
     return 'ios';
   }
@@ -47,7 +57,7 @@ export function shellPlatform(env: boolean = APP_ENV, w: unknown = typeof window
  * Touch controls from the start of a match: a coarse pointer, except in the Mac app, which always plays with keyboard
  * and mouse and the desktop HUD (a first real touch still turns touch controls on, as on the web).
  */
-export function coarsePointer(platform: 'mac' | 'ios' | null = shellPlatform(), mm: ((q: string) => { matches: boolean }) | undefined = typeof matchMedia === 'function' ? matchMedia : undefined): boolean {
+export function coarsePointer(platform: ShellPlatform | null = shellPlatform(), mm: ((q: string) => { matches: boolean }) | undefined = typeof matchMedia === 'function' ? matchMedia : undefined): boolean {
   if (platform === 'mac') return false;
   return !!mm && mm('(pointer: coarse)').matches;
 }
