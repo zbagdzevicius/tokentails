@@ -396,7 +396,7 @@ export class NetHost implements PartyLink {
     if (cmd.op === Op.Move) this.predictor.move(cmd.x, cmd.y, this.now());
     else this.predictor.stop();
     // N1: a Cast, Trick or Attack the newest snapshot allows starts its look on the next frame (never when piloted)
-    if (!this.piloted(this.match.you.slot)) this.actions.start(cmd, this.lastSelf, this.now());
+    if (!this.piloted(this.match.you.slot)) this.actions.start(cmd, this.lastSelf(), this.now());
     if (this.piloted(this.match.you.slot)) {
       // an AFK player reclaims with any command; other pilot reasons need `back` (and the player is here: keep asking)
       this.reclaimUntil = Math.max(this.reclaimUntil, this.now() + 10_000);
@@ -749,8 +749,8 @@ export class NetHost implements PartyLink {
    */
   present(f: ViewFrame): void {
     const v = f.byId.get(this.mySlot);
-    // N1 reads the gate (cooldowns, crowd control) from the newest snapshot, not the drawn frame a little behind it
-    this.lastSelf = f.latest?.entities?.find((e) => e.id === this.mySlot) ?? v ?? null;
+    // N1 reads the gate (cooldowns, crowd control) from the newest snapshot, looked up only when a command goes out
+    this.lastFrame = f;
     this.actions.expire(this.now(), confirmWindowMs(this.inputLatencyMs()));
     if (!v || v.state === 'dead') {
       this.actions.reset();
@@ -802,10 +802,21 @@ export class NetHost implements PartyLink {
 
   /** N1 (predict-action.ts): own action starts drawn before the sim confirms them. */
   readonly actions = new ActionPredictor();
-  private lastSelf: import('../sim/api').EntitySnap | null = null;
+  private lastFrame: ViewFrame | null = null;
+  /** The own hero in the newest snapshot (the drawn one as a fallback): the N1 gate, read at send time only. */
+  private lastSelf(): import('../sim/api').EntitySnap | null {
+    const f = this.lastFrame;
+    if (!f) return null;
+    const me = this.mySlot;
+    const list = f.latest?.entities;
+    if (list) for (const e of list) if (e.id === me) return e;
+    return f.byId.get(me) ?? null;
+  }
 
   /** MatchHost.takePredicted: the predicted Casts and Tricks to draw now, and the ones given up (each once). */
-  takePredicted(): { shown: PredictedAction[]; cancelled: PredictedAction[] } {
+  takePredicted(): { shown: PredictedAction[]; cancelled: PredictedAction[] } | null {
+    // nearly every frame: nothing queued, nothing allocated
+    if (!this.actions.hasQueued) return null;
     return { shown: this.actions.takeShown().filter((p) => p.kind !== 'attack'), cancelled: this.actions.takeCancelled().filter((p) => p.kind !== 'attack') };
   }
 

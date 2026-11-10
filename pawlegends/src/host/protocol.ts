@@ -131,7 +131,7 @@ export interface MatchHost {
    * Party play (LATENCY-PLAN N1): the own Casts and Tricks to start drawing now (wind-up pose and sound), and the
    * ones given up (no sim event within the input latency + 150 ms: fade their pose out). Each is returned once.
    */
-  takePredicted?(): { shown: import('../net/predict-action').PredictedAction[]; cancelled: import('../net/predict-action').PredictedAction[] };
+  takePredicted?(): { shown: import('../net/predict-action').PredictedAction[]; cancelled: import('../net/predict-action').PredictedAction[] } | null;
 }
 
 export type ClientMsgType = ClientMsg['t'];

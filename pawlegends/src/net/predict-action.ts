@@ -70,6 +70,11 @@ export class ActionPredictor {
     return p;
   }
 
+  /** Something waits for takeShown or takeCancelled (a cheap per-frame check). */
+  get hasQueued(): boolean {
+    return this.toShow.length > 0 || this.toCancel.length > 0;
+  }
+
   /** The predictions to draw this frame (each once). */
   takeShown(): PredictedAction[] {
     const out = this.toShow.splice(0);

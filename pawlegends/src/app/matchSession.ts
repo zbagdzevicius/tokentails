@@ -2314,8 +2314,9 @@ export class MatchSession {
     const leadS = (this.host.inputLatencyMs?.() ?? 0) / 1000;
     for (const a of p.shown) {
       const posed = a.kind === 'cast' && this.view.director.predictCast(me, a.slot, leadS);
-      // the sound goes with a pose (a cast with an authored wind-up) or a Trick; an instant cast stays silent until it lands
-      if (posed || a.kind === 'trick') {
+      // the sound goes with a pose only (a cast with an authored wind-up, whose sim windup event then stays quiet);
+      // Tricks have no wind-up in the sim (tricks.ts windup 0), and an instant cast stays silent until it lands
+      if (posed) {
         sfx.play('windup', { ...(at ? { at } : {}), vol: 0.6 });
         this.windupHeard.set(a.slot, performance.now());
       }

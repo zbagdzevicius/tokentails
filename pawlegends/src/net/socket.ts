@@ -26,10 +26,15 @@ export const BACKOFF_MIN_MS = 250;
 export const BACKOFF_MAX_MS = 5000;
 /**
  * The socket opens while the party ticket is still being fetched (LATENCY-PLAN C2): `hello` waits for the ticket at
- * most this long, then goes as a guest. The relay closes a socket without `hello` 5 s after the upgrade
- * (party-limits.ts); the embed host's own ticket wait is 6 s (integrate.ts), so 4 s keeps a slow host's ticket.
+ * most this long, then goes as a guest. It matches the embed host's own ticket wait (PARTY_TICKET_WAIT_MS in
+ * integrate.ts), so a slow token refresh still signs the player in.
  */
-export const TICKET_WAIT_MS = 4000;
+export const TICKET_WAIT_MS = 6000;
+/**
+ * The relay closes a socket without `hello` 5 s after the upgrade (party-limits.ts helloTimeoutMs). A socket still
+ * waiting for the ticket this long after it opened is swapped for a fresh one (a new 5 s window), quietly.
+ */
+export const HELLO_HOLD_MS = 4000;
 export const RESEND_WITHIN_MS = 500;
 export const BEAT_MS = 500;
 const RTT_SAMPLES = 64;
@@ -205,8 +210,26 @@ export class PartySocket {
         if (this.token) h.resume = { token: this.token };
         ws.send(JSON.stringify(h));
       };
-      if (this.ticketWait) void this.ticketWait.then(send);
-      else send();
+      const wait = this.ticketWait;
+      if (!wait) {
+        send();
+        return;
+      }
+      // still waiting near the relay's hello timeout: reopen (at most once, since TICKET_WAIT_MS < 2 * HELLO_HOLD_MS)
+      const hold = this.env.setTimer(() => {
+        if (this.ws !== ws || this.stopped || this.ticketWait !== wait) return;
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close(4000, 'ticket');
+        this.ws = null;
+        this.connect();
+      }, HELLO_HOLD_MS);
+      void wait.then(() => {
+        this.env.clearTimer(hold);
+        send();
+      });
     };
     ws.onmessage = (e) => this.onMessage(e.data);
     ws.onclose = (e) => this.onClose(e.code);
@@ -227,7 +250,7 @@ export class PartySocket {
       const timer = this.env.setTimer(finish, TICKET_WAIT_MS);
       ticket.then(
         (t) => {
-          // a ticket after the guest hello went out is dropped: the seat keeps the identity it joined with
+          // a ticket after TICKET_WAIT_MS (the guest hello went out) is dropped: the seat keeps the identity it joined with
           if (!done && t) this.hello.ticket = t;
           finish();
         },

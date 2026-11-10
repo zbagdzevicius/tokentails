@@ -3,7 +3,7 @@
  * the lobby connect that opens the WebSocket while the party ticket is still being fetched.
  */
 import { describe, expect, it } from 'vitest';
-import { PartySocket, TICKET_WAIT_MS, type SocketEnv, type SocketLike } from '../../src/net/socket';
+import { HELLO_HOLD_MS, PartySocket, TICKET_WAIT_MS, type SocketEnv, type SocketLike } from '../../src/net/socket';
 import { encodeEcho } from '../../src/net/proto';
 
 class FakeWs implements SocketLike {
@@ -145,22 +145,48 @@ describe('PartySocket connect with a pending ticket (C2)', () => {
     expect(h[0].guestKey).toBe('g'.repeat(32));
   });
 
-  it('a ticket that never comes: a guest hello after TICKET_WAIT_MS (inside the relay 5 s hello timeout), and a late ticket is dropped', async () => {
-    expect(TICKET_WAIT_MS).toBeLessThan(5000);
+  it('a ticket that never comes: the socket is swapped before the relay 5 s hello timeout, then a guest hello at TICKET_WAIT_MS; a later ticket is dropped', async () => {
+    expect(HELLO_HOLD_MS).toBeLessThan(5000);
+    expect(TICKET_WAIT_MS).toBeLessThan(2 * HELLO_HOLD_MS);
+    const f = setup();
+    const states: string[] = [];
+    f.s.listen({ state: (st) => states.push(st) });
+    let give!: (t: string | null) => void;
+    f.s.connect(new Promise((r) => (give = r)));
+    f.sockets[0].open();
+    f.advance(HELLO_HOLD_MS);
+    await flush();
+    expect(f.sockets[0].hellos()).toHaveLength(0);
+    expect(f.sockets[0].readyState).toBe(3);
+    expect(f.sockets).toHaveLength(2);
+    expect(states).not.toContain('reconnecting');
+    f.sockets[1].open();
+    f.advance(TICKET_WAIT_MS - HELLO_HOLD_MS - 1);
+    await flush();
+    expect(f.sockets[1].hellos()).toHaveLength(0);
+    f.advance(1);
+    await flush();
+    expect(f.sockets[1].hellos()).toHaveLength(1);
+    expect(f.sockets[1].hellos()[0].ticket).toBeUndefined();
+    give('late');
+    await flush();
+    expect(f.sockets[1].hellos()).toHaveLength(1);
+    expect(f.sockets).toHaveLength(2);
+  });
+
+  it('a slow ticket (5 s, after the socket swap) still signs the hello in', async () => {
     const f = setup();
     let give!: (t: string | null) => void;
     f.s.connect(new Promise((r) => (give = r)));
     f.sockets[0].open();
-    f.advance(TICKET_WAIT_MS - 1);
+    f.advance(HELLO_HOLD_MS);
+    await flush();
+    f.sockets[1].open();
+    f.advance(1000);
+    give('slow');
     await flush();
     expect(f.sockets[0].hellos()).toHaveLength(0);
-    f.advance(1);
-    await flush();
-    expect(f.sockets[0].hellos()).toHaveLength(1);
-    expect(f.sockets[0].hellos()[0].ticket).toBeUndefined();
-    give('late');
-    await flush();
-    expect(f.sockets[0].hellos()).toHaveLength(1);
+    expect(f.sockets[1].hellos().map((h) => h.ticket)).toEqual(['slow']);
   });
 
   it('a socket closed before the ticket settles sends nothing', async () => {

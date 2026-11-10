@@ -231,7 +231,7 @@ export function runProfile(p: RttProfile, seed = 11): RttResult {
     const f = frame();
     host.present(f);
     const pred = host.takePredicted();
-    if (castTap !== null && pred.shown.some((a) => a.kind === 'cast')) {
+    if (castTap !== null && pred?.shown.some((a) => a.kind === 'cast')) {
       castVisible.push(Date.now() - castTap);
       castTap = null;
     }
