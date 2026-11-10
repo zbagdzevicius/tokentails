@@ -49,8 +49,14 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   // F1: the chip counts the passive Fish
   await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: 60_000 }).toBeGreaterThan(0);
   // feel pass B3 hid the hero box on phones and the chip with it; Hud.placeFish puts it back on the minimap's rim
-  for (const s of sizes) {
+  // phones: at every minimap size (Settings S / M / L, minimapPrefs.ts), since the chip is placed from the minimap's size
+  const mmSizes = touch ? (['m', 's', 'l'] as const) : (['m'] as const);
+  for (const s of sizes.flatMap((v) => mmSizes.map((mm) => ({ ...v, mm })))) {
     await page.setViewportSize({ width: s.w, height: s.h });
+    await page.evaluate((mm) => {
+      document.documentElement.style.setProperty('--mm-k', String({ s: 0.82, m: 1, l: 1.2 }[mm]));
+      document.documentElement.dataset.mmSize = mm;
+    }, s.mm);
     await page.waitForTimeout(400);
     const [chip] = await boxes(page, '.pl-fish');
     expect(chip, 'the Fish chip is drawn').toBeTruthy();
@@ -73,9 +79,13 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
       ...(await boxes(page, '.pl-portrait .gap')),
       ...(await boxes(page, '.pl-rail-line.on')),
     ];
-    for (const o of others) expect(hit(chip, o), `Fish chip ${JSON.stringify(chip)} vs ${o.sel} ${JSON.stringify(o)} at ${s.w}x${s.h}`).toBe(false);
-    await page.screenshot({ path: `${SHOTS}/${s.w}x${s.h}-chip.png` });
+    for (const o of others) expect(hit(chip, o), `Fish chip ${JSON.stringify(chip)} vs ${o.sel} ${JSON.stringify(o)} at ${s.w}x${s.h} minimap ${s.mm}`).toBe(false);
+    await page.screenshot({ path: `${SHOTS}/${s.w}x${s.h}-mm${s.mm}-chip.png` });
   }
+  await page.evaluate(() => {
+    document.documentElement.style.setProperty('--mm-k', '1');
+    document.documentElement.dataset.mmSize = 'm';
+  });
   await page.setViewportSize({ width: sizes[0].w, height: sizes[0].h });
   await page.waitForTimeout(300);
 
@@ -145,8 +155,14 @@ test('results: the progression summary (Toy timings, Fish, last hits, medals, Fi
   await expect(prog.locator('[data-medal]')).toHaveCount(4);
   await expect(prog.locator('.src [data-src]').first()).toBeVisible();
   await expect(page.locator('.pl-results')).not.toContainText(/catnip/i);
-  for (const s of sizes) {
+  // phones: at every minimap size (Settings S / M / L, minimapPrefs.ts), since the chip is placed from the minimap's size
+  const mmSizes = touch ? (['m', 's', 'l'] as const) : (['m'] as const);
+  for (const s of sizes.flatMap((v) => mmSizes.map((mm) => ({ ...v, mm })))) {
     await page.setViewportSize({ width: s.w, height: s.h });
+    await page.evaluate((mm) => {
+      document.documentElement.style.setProperty('--mm-k', String({ s: 0.82, m: 1, l: 1.2 }[mm]));
+      document.documentElement.dataset.mmSize = mm;
+    }, s.mm);
     await page.waitForTimeout(400);
     await prog.scrollIntoViewIfNeeded();
     const r = (await boxes(page, '.pl-results .pl-prog'))[0];
