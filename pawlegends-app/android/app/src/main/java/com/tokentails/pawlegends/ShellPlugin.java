@@ -8,14 +8,12 @@ import android.content.IntentFilter;
 import android.os.Build;
 import android.os.PowerManager;
 import android.util.Log;
-import android.webkit.RenderProcessGoneDetail;
 import android.webkit.WebView;
 import androidx.core.content.ContextCompat;
 import androidx.webkit.ScriptHandler;
 import androidx.webkit.WebViewCompat;
 import androidx.webkit.WebViewFeature;
 import com.getcapacitor.Plugin;
-import com.getcapacitor.WebViewListener;
 import com.getcapacitor.annotation.CapacitorPlugin;
 import java.util.Collections;
 import java.util.Locale;
@@ -33,7 +31,8 @@ import java.util.Locale;
  * - `window.__PL_THERMAL__ = { state, lowPower }` and a `pl-thermal` event on changes (pawlegends/src/render/perf/
  *   thermal.ts and governor.ts): PowerManager's thermal status (Android 10+) mapped to the iOS names, and battery saver.
  * - `window.__PL_DEVICE__ = { ramMb, lowRam, perfClass }`: memory class for the game's starting quality tier.
- * - a renderer killed for memory (low-RAM phones) restarts the activity instead of taking the whole app down.
+ * The renderer recovery (a renderer killed for memory restarts the activity) lives in MainActivity: Capacitor's
+ * Bridge.Builder replaces the bridge's listener list after plugins load, so a listener added in load() is dropped.
  */
 @CapacitorPlugin(name = "PawlegendsShell")
 public class ShellPlugin extends Plugin {
@@ -65,16 +64,6 @@ public class ShellPlugin extends Plugin {
             saverReceiver,
             new IntentFilter(PowerManager.ACTION_POWER_SAVE_MODE_CHANGED),
             ContextCompat.RECEIVER_NOT_EXPORTED
-        );
-        bridge.addWebViewListener(
-            new WebViewListener() {
-                @Override
-                public boolean onRenderProcessGone(WebView view, RenderProcessGoneDetail detail) {
-                    Log.w(TAG, "renderer gone (crash " + detail.didCrash() + "): restarting the game");
-                    getActivity().recreate();
-                    return true;
-                }
-            }
         );
     }
 
