@@ -55,6 +55,69 @@ export type PawlegendsSku = (typeof PAWLEGENDS_SKUS)[number];
 export const isPawlegendsSku = (value: unknown): value is PawlegendsSku =>
   typeof value === "string" && (PAWLEGENDS_SKUS as readonly string[]).includes(value);
 
+/**
+ * Store and Legends Pass SKUs (docs/plans/moba/STORE-PASS.md; the table is `backend/src/pawlegends/pawlegends-catalog.ts`,
+ * the server price always wins): `pl_coat_*`, `pl_frame_*`, `pl_set_*`, `pl_pass_*`. Web only, signed-in accounts only.
+ */
+const STORE_SKU = /^pl_(coat|frame|set|pass)_[a-z0-9_]{1,40}$/;
+export const isPawlegendsStoreSku = (value: unknown): value is string => typeof value === "string" && STORE_SKU.test(value);
+/** Store and pass item ids the game draws (anything else from `/pawlegends/me` is dropped). */
+const STORE_ITEM = /^(coat\.[a-z]+\.(store|s1)_[a-z_]+|frame\.(store|s1)\.[a-z_]+|title\.(store|s1)\.[a-z_]+)$/;
+
+export interface PawlegendsStoreSeason {
+  id: string;
+  xp: number;
+  tier: number;
+  premium: "none" | "pass" | "plus";
+  skips: number;
+  claimed: string[];
+  endsAt: string;
+}
+
+export interface PawlegendsStoreState {
+  items: string[];
+  season: PawlegendsStoreSeason | null;
+}
+
+const count = (v: unknown, max: number): number =>
+  typeof v === "number" && Number.isFinite(v) && v >= 0 ? Math.min(max, Math.floor(v)) : 0;
+
+/** `GET /pawlegends/me` (or the `store` message) as a clean copy, or null. */
+export function storeStateOf(value: unknown): PawlegendsStoreState | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (!Array.isArray(v.items)) return null;
+  const items = [...new Set(v.items.slice(0, 400).filter((i): i is string => typeof i === "string" && STORE_ITEM.test(i)))];
+  let season: PawlegendsStoreSeason | null = null;
+  const r = v.season && typeof v.season === "object" ? (v.season as Record<string, unknown>) : null;
+  if (r && typeof r.id === "string" && /^s\d{1,3}$/.test(r.id)) {
+    season = {
+      id: r.id,
+      xp: count(r.xp, 10_000_000),
+      tier: count(r.tier, 1000),
+      premium: r.premium === "pass" || r.premium === "plus" ? r.premium : "none",
+      skips: count(r.skips, 1000),
+      claimed: Array.isArray(r.claimed)
+        ? r.claimed.filter((c): c is string => typeof c === "string" && /^[fp]:\d{1,3}$/.test(c)).slice(0, 200)
+        : [],
+      endsAt: typeof r.endsAt === "string" && Number.isFinite(Date.parse(r.endsAt)) ? r.endsAt : "",
+    };
+  }
+  return { items, season };
+}
+
+/** `/live`'s Legends Pass answer (`season`), passed on in `save-result`; null when absent or malformed. */
+export function saveSeasonOf(value: unknown): { gained: number; xp: number; tier: number; prevTier: number } | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  const n = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= 10_000_000 ? x : null);
+  const gained = n(v.gained);
+  const xp = n(v.xp);
+  const tier = n(v.tier);
+  if (gained === null || xp === null || tier === null) return null;
+  return { gained, xp, tier, prevTier: n(v.prevTier) ?? tier };
+}
+
 /** Mirrors of `HeroId` and `TrickId` in `pawlegends/src/data/`. */
 export const PAWLEGENDS_HEROES = [
   "clem",
@@ -204,6 +267,8 @@ export interface PawlegendsSaveResult {
   catnipTotal: number | null;
   fastestWin: number | null;
   code?: string;
+  /** STORE-PASS.md §5: the Legends Pass Season XP this save paid (from `/live`'s `season`). */
+  season?: { gained: number; xp: number; tier: number; prevTier: number };
 }
 
 /**
@@ -253,6 +318,8 @@ export type HostToPawlegendsMessage = Envelope &
     | { type: "entitlements"; token: string | null }
     | ({ type: "audio" } & PawlegendsAudio)
     | { type: "purchase-result"; catalogId: string; ok: boolean }
+    | { type: "purchase-result"; sku: string; ok: boolean }
+    | ({ type: "store" } & PawlegendsStoreState)
     | { type: "app"; isApp: boolean; store: boolean; notify: boolean }
     | { type: "champions"; cats: PawlegendsChampionCard[] }
     | { type: "party-ticket"; id: string; ticket: string | null; error?: string }
@@ -266,6 +333,8 @@ export type PawlegendsToHostMessage =
   | { type: "offer-seen"; kind: "meet"; catalogId: string }
   | { type: "notify"; where: PawlegendsNotifyWhere }
   | { type: "purchase-intent"; sku: PawlegendsSku }
+  | { type: "store-intent"; sku: string }
+  | { type: "pass-claim"; row: "f" | "p" | null; tier: number | null }
   | { type: "share"; kind: string; url: string; text: string | null }
   | { type: "paused"; paused: boolean }
   /** The player turned the game's Sound on or off: the host's one mute follows (tt:audio:v1). */
@@ -512,6 +581,8 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
         fastestWin: intIn(data.fastestWin, 1, PAWLEGENDS_MAX_TICKS) ? data.fastestWin : null,
       };
       if (typeof data.code === "string" && ERROR_CODE.test(data.code)) message.code = data.code;
+      const season = saveSeasonOf(data.season);
+      if (season) (message as PawlegendsSaveResult).season = season;
       return message;
     }
     case "entitlements":
@@ -526,8 +597,14 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
       return message;
     }
     case "purchase-result":
-      if (!isCatalogId(data.catalogId) || typeof data.ok !== "boolean") return null;
+      if (typeof data.ok !== "boolean") return null;
+      if (isPawlegendsStoreSku(data.sku)) return { ...base, type: "purchase-result", sku: data.sku, ok: data.ok };
+      if (!isCatalogId(data.catalogId)) return null;
       return { ...base, type: "purchase-result", catalogId: data.catalogId, ok: data.ok };
+    case "store": {
+      const st = storeStateOf(data);
+      return st ? { ...base, type: "store", ...st } : null;
+    }
     case "champions": {
       if (!Array.isArray(data.cats)) return null;
       const seen = new Set<string>();
@@ -668,7 +745,13 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
     case "notify":
       return oneOf(PAWLEGENDS_NOTIFY_WHERE, data.where) ? { type: "notify", where: data.where } : null;
     case "purchase-intent":
+      if (isPawlegendsStoreSku(data.sku)) return { type: "store-intent", sku: data.sku };
       return isPawlegendsSku(data.sku) ? { type: "purchase-intent", sku: data.sku } : null;
+    case "pass-claim":
+      if (data.all === true) return { type: "pass-claim", row: null, tier: null };
+      return (data.row === "f" || data.row === "p") && intIn(data.tier, 1, 100)
+        ? { type: "pass-claim", row: data.row, tier: data.tier as number }
+        : null;
     case "share": {
       const kind = shortId(data.kind, 24);
       // The url is checked against the page origin by the host (`shareUrlOf`); the text is optional (older builds).
@@ -772,6 +855,10 @@ export interface PawlegendsBridgeHandlers {
   onPartyResult?(result: PawlegendsPartyResult, matchId: string): void;
   /** The player tapped the game lobby's "Games" button: leave for the games page (the host draws no close button). */
   onExit?(): void;
+  /** STORE-PASS.md: Buy tapped on a store or pass SKU (web only; the app build answers `ok: false` itself). */
+  onStoreIntent?(sku: string): void;
+  /** STORE-PASS.md: claim one pass reward (`row`, `tier`) or all (both null). */
+  onPassClaim?(row: "f" | "p" | null, tier: number | null): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
@@ -792,6 +879,10 @@ export interface PawlegendsBridge {
   /** The answer to `party-ticket-request` (only while the game is ready: a ticket lives 60 s, it is never queued). */
   partyTicket(id: string, ticket: string | null, error?: string): void;
   purchaseResult(catalogId: string, ok: boolean): void;
+  /** STORE-PASS.md: the account's owned store and pass items and its pass row (sticky; empty when signed out). */
+  setStore(state: PawlegendsStoreState): void;
+  /** STORE-PASS.md: a store or pass purchase finished (ok false: cancelled or refused). */
+  storePurchaseResult(sku: string, ok: boolean): void;
   pause(): void;
   resume(): void;
   reconnect(): void;
@@ -812,7 +903,7 @@ const defaultTimers: PawlegendsBridgeTimers = {
   now: () => Date.now(),
 };
 
-const STICKY = ["app", "session", "audio", "roster", "featured", "champions", "offer", "entitlements"] as const;
+const STICKY = ["app", "session", "audio", "roster", "featured", "champions", "offer", "entitlements", "store"] as const;
 type StickyKey = (typeof STICKY)[number];
 
 export function createPawlegendsBridge(options: PawlegendsBridgeOptions): PawlegendsBridge {
@@ -925,6 +1016,17 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         // The `pl_*` store is gone from the game. An older build still waits for its legacy answer.
         post({ ns: PAWLEGENDS_NS, v: PAWLEGENDS_BRIDGE_VERSION, type: "purchase-result", sku: message.sku, ok: false });
         handlers.onPurchaseIntent?.(message.sku);
+        break;
+      case "store-intent":
+        // Store and Legends Pass (STORE-PASS.md §3): web only. An app build never sells (App Store 3.1.1).
+        if (isApp) {
+          post({ ns: PAWLEGENDS_NS, v: PAWLEGENDS_BRIDGE_VERSION, type: "purchase-result", sku: message.sku, ok: false });
+          break;
+        }
+        handlers.onStoreIntent?.(message.sku);
+        break;
+      case "pass-claim":
+        handlers.onPassClaim?.(message.row, message.tier);
         break;
       case "share":
         handlers.onShare?.(message.kind, message.url, message.text);
@@ -1040,6 +1142,13 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
     },
     purchaseResult(catalogId, ok) {
       const message = hostMessage("purchase-result", { catalogId, ok });
+      if (ready && message) post(message);
+    },
+    setStore(st) {
+      keep("store", sanitizeHostMessage({ ...st, ns: PAWLEGENDS_NS, v: PAWLEGENDS_BRIDGE_VERSION, type: "store" }));
+    },
+    storePurchaseResult(sku, ok) {
+      const message = sanitizeHostMessage({ ns: PAWLEGENDS_NS, v: PAWLEGENDS_BRIDGE_VERSION, type: "purchase-result", sku, ok });
       if (ready && message) post(message);
     },
     pause() {
