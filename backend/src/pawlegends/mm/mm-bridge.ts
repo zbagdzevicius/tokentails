@@ -347,8 +347,9 @@ export class MmBridge implements MmHooks {
                 undefined,
                 queue === 'classic' ? 'classic_proto' : 'pvp_proto'
             );
-        // casual PvP: a newbie (fewer than 5 completed matches, by the hint) plays co-op first
-        if (pvp && (sock.hint?.matches ?? 0) < MM_CASUAL.newbieMatches)
+        // casual 3v3 PvP: a newbie (fewer than 5 completed matches, by the hint) plays co-op first. 5v5 Classic has no
+        // match-count lock: a new player queues it from the first session
+        if (queue === 'casual' && (sock.hint?.matches ?? 0) < MM_CASUAL.newbieMatches)
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
         // already queued: a repeat join only changes the side (and Keep waiting puts a switched entry back in casual)
         if (this.byMember.has(member)) {
@@ -441,7 +442,7 @@ export class MmBridge implements MmHooks {
             [ratings, ladders, played] = await Promise.all([
                 Promise.all(socks.map(s => this.ratingFor(s, queue))),
                 Promise.all(socks.map(s => this.leaverFor(s.identity))),
-                pvp ? Promise.all(socks.map(s => this.playedFor(s))) : Promise.resolve([]),
+                queue === 'casual' ? Promise.all(socks.map(s => this.playedFor(s))) : Promise.resolve([]),
             ]);
         } finally {
             for (const id of memberIds) this.joining.delete(id);
@@ -466,10 +467,11 @@ export class MmBridge implements MmHooks {
             newbie: !!s.hint?.newbie || ratings[i].rd > MM_LIMITS.newbieRd,
             maxDifficulty: s.hint?.maxDifficulty ?? null,
         }));
-        // casual: the lock on server records (never the client's hint): fewer than 5 completed matches, or a rating
-        // still wide open (rd > 300); an IP-only identity (no ticket, no guest key) has no record and never queues PvP
+        // casual 3v3: the lock on server records (never the client's hint): fewer than 5 completed matches, or a rating
+        // still wide open (rd > 300); an IP-only identity (no ticket, no guest key) has no record and never queues casual
+        // PvP. 5v5 Classic is open to every player (founder, 2026-11-10: no 5-match limit for 5v5)
         if (
-            pvp &&
+            queue === 'casual' &&
             (played.some(n => n < MM_CASUAL.newbieMatches) || members.some(m => m.rating.rd > MM_CASUAL.newbieRd))
         )
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
