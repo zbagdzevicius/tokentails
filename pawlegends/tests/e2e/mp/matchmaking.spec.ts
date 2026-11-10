@@ -121,7 +121,8 @@ test('co-op: two strangers on one team vs bots; a leaver is backfilled by a thir
     await expect(p.page.locator('[data-testid="party-code"]')).toHaveCount(0);
   }
   // each sees the other under the relay's generated name (never a code, never an account name)
-  const strangerOfA = ((await a.page.locator('.pp-ts:not(.bot):not([data-me]) b').first().textContent()) ?? '').trim();
+  // the seat's second line is the username (the first: "Selecting…" or the hero)
+  const strangerOfA = ((await a.page.locator('.pp-ts:not(.bot):not([data-me]) small').first().textContent()) ?? '').trim();
   expect(strangerOfA.length).toBeGreaterThan(0);
   await shot(b, 'm1a', '11-pick-phone');
   await lockFree(a, 0);

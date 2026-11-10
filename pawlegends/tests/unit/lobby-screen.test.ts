@@ -41,8 +41,12 @@ describe('lobby screen', () => {
   it('names the champion after the worn card, with the hero underneath', () => {
     const root = mount(base());
     expect(root.querySelector('.lb-hero')?.textContent).toBe('Simas');
-    expect(root.querySelector('.lb-sub')?.textContent).toBe('Clem the Fighter');
+    // phones: one sub-line (the hero underneath and the card's look); desktop: the chips
+    expect(root.querySelector('.lb-sub')?.textContent).toBe('Clem the Fighter · Fire look');
     expect(root.querySelector('.pl-btn.big')?.textContent).toBe('Play as Simas');
+    // a returning player's name block is a button that opens the champion select
+    expect(root.querySelector('.lb-name')?.getAttribute('data-a')).toBe('name');
+    expect(root.querySelectorAll('[data-a="choose"]')).toHaveLength(1);
     expect(root.querySelector('.lb-chip.el')?.textContent).toContain('Fire');
     expect(root.querySelector('.pl-wearing')?.textContent).toContain('Wearing Simas');
     // one big button only (tests and the first-match helper click `.pl-btn.big`)
@@ -82,7 +86,8 @@ describe('lobby screen', () => {
     const o = base({ playOut });
     const root = mount(o);
     (root.querySelector('[data-d="normal"]') as HTMLElement).click();
-    expect(root.querySelector('.lb-line')?.textContent).toBe('3v3 vs Normal bots');
+    expect(root.querySelector('.lb-line')?.textContent).toBe('3v3 vs bots');
+    expect(root.querySelector<HTMLElement>('[data-a="quick"]')?.dataset.diff).toBe('· Normal');
     (root.querySelector('[data-a="quick"]') as HTMLElement).click();
     expect(playOut).toHaveBeenCalledTimes(1);
     expect(o.onPlay).not.toHaveBeenCalled();
@@ -252,5 +257,54 @@ describe('lobby pure helpers', () => {
 
   it('heroIdentity is the hero title and "<title> the <role>"', () => {
     expect(heroIdentity('brutus', 'SAND')).toMatchObject({ name: 'Sir Brutus', sub: 'Sir Brutus the Tank', card: false });
+  });
+});
+
+describe('no-scroll landing (LANDING-PICK-UX Part A)', () => {
+  const quests: QuestView[] = [
+    { quest: { id: 'a', text: 'Win a match', goal: 1 }, value: 1, done: true, fresh: false },
+    { quest: { id: 'b', text: 'Score 3 takedowns', goal: 3 }, value: 1, done: false, fresh: false },
+  ] as unknown as QuestView[];
+
+  it('tier 3 is one rail in a fixed order, Heroes · Cards · Today · Track · Store; items the player lacks are left out', () => {
+    const root = mount(base({ quests, onCollection: vi.fn(), storeOpen: true }));
+    const rail = root.querySelector('.lb-rail')!;
+    const items = [...rail.querySelectorAll<HTMLElement>(':scope > .lb-ri')].map((e) => e.dataset.a ?? (e.classList.contains('lb-quests') ? 'today' : ''));
+    expect(items).toEqual(['choose', 'cards', 'today', 'collection', 'store']);
+    expect(rail.querySelector('[data-a="cards"] .lb-count')?.textContent).toBe('2');
+    expect(rail.querySelector('.lb-quests summary')?.textContent).toContain('1/2');
+    document.body.innerHTML = '';
+    const bare = mount(base({ onCards: undefined }));
+    expect([...bare.querySelectorAll<HTMLElement>('.lb-rail > .lb-ri')].map((e) => e.dataset.a)).toEqual(['choose']);
+    // the corner keeps only Games (embedded), the avatar, Settings and Sound
+    expect(bare.querySelector('.lb-corner [data-a="store"], .lb-corner [data-a="collection"]')).toBeNull();
+  });
+
+  it('no rail on a first visit or during a dare; the dare hides the online row too', () => {
+    expect(mount(base({ firstTime: true, onOnline: vi.fn() })).querySelector('.lb-rail')).toBeNull();
+    document.body.innerHTML = '';
+    const dare = mount(base({ onOnline: vi.fn(), dare: { hero: 'sage', trick: 'pounce', difficulty: 'easy', seed: 7, time: 300 } as never }));
+    expect(dare.querySelector('.lb-rail')).toBeNull();
+    expect(dare.querySelector('.lb-online-row')).toBeNull();
+  });
+
+  it('the name block, Heroes and H all open the champion select', () => {
+    const onChoose = vi.fn();
+    const root = mount(base({ onChoose }));
+    (root.querySelector('.lb-name') as HTMLElement).click();
+    (root.querySelector('.lb-rail [data-a="choose"]') as HTMLElement).click();
+    (root.querySelector('.lb-name') as HTMLElement).focus();
+    document.activeElement?.dispatchEvent(new KeyboardEvent('keydown', { key: 'h', bubbles: true }));
+    expect(onChoose).toHaveBeenCalledTimes(3);
+    disposeLobby(root);
+  });
+
+  it('the column never scrolls: no overflow-y auto anywhere in the lobby stylesheet', async () => {
+    const fs = await import('node:fs');
+    const css = fs.readFileSync(`${process.cwd()}/src/ui/lobby/lobby.css`, 'utf8');
+    expect(css).not.toMatch(/overflow-y:\s*(auto|scroll)/);
+    // the hide ladder keeps its order (480, 360, 320, 280)
+    const steps = [...css.matchAll(/@media \(max-height: (\d+)px\)/g)].map((m) => Number(m[1]));
+    expect(steps.filter((n) => n <= 360)).toEqual([360, 320, 280]);
   });
 });

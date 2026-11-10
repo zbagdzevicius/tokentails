@@ -3,7 +3,7 @@ import { art, mockHost, openHost, received, type HostConfig } from './host';
 
 // GDD §7.2 card skins: the "Your cards" drawer (every owned cat on every champion, lobby spec §3b), the choice
 // remembered after a reload, the locked featured card with a Preview (web, from session 2; never in an app build),
-// the worn cat's name on the champion (pick tile, card row, loading veil, scoreboard), and a dog in a card-skin
+// the worn cat's name on the champion (pick tile, loading veil, scoreboard), and a dog in a card-skin
 // costume in a real match with the team ring under him.
 test.beforeEach(({}, info) => test.skip(info.project.name !== 'desktop', 'pick and lobby panels are viewport independent'));
 
@@ -16,9 +16,11 @@ const ROSTER = [
 const FEATURED = [{ catalogId: '65a1b2c3d4e5f6a7b8c9d0e1', name: 'Nova', type: 'STELLAR', art: art('nova'), sprite: `${CDN}/assets/OREO/base.png`, tier: 'RARE' }];
 const PLAYED = { v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'lambo', firstPlaySession: 1 };
 
-/** The pick screen's card row opens the drawer (its own chunk). */
+/** The champion select's Look opens the drawer (its own chunk): at once, or through the Look sheet's Cards. */
 async function openCards(game: { locator(sel: string): import('@playwright/test').Locator }): Promise<void> {
-  await game.locator('.pl-pick [data-a="deck"]:visible').click();
+  await game.locator('.pl-pick .cs-look').click();
+  const cards = game.locator('.cs-looksheet [data-a="deck"]');
+  if (await cards.count()) await cards.click();
   await game.locator('.pl-deck .dk-row').waitFor();
 }
 
@@ -28,7 +30,7 @@ test('Your cards: wear a cat on a champion, the turntable rebuilds, the hero tak
   let game = await openHost(page);
   await game.locator('[data-a="choose"]').click();
   await game.waitForSelector('.pl-pick');
-  await expect(game.locator('.wardrobe .lbl:visible')).toHaveText('Card');
+  await expect(game.locator('.pl-pick .cs-look')).toHaveText('Look');
   await expect(game.locator('.pl-pick .skin-strip')).toHaveCount(0);
   await openCards(game);
   const deck = game.locator('.pl-deck');
@@ -49,10 +51,12 @@ test('Your cards: wear a cat on a champion, the turntable rebuilds, the hero tak
   // Esc closes the drawer; the hero tile and the card row carry the cat's name now
   await page.keyboard.press('Escape');
   await expect(deck).toHaveCount(0);
-  await expect(game.locator('.hero-card[data-h="lambo"] .tt-in > b')).toHaveText('Ficus');
-  await expect(game.locator('.hero-card[data-h="lambo"] .tt-in > small')).toHaveText('Lambo · Tank');
-  await expect(game.locator('.pl-pick .deck-pill:visible')).toContainText('Ficus');
-  // no chroma swatches while a card skin is worn
+  await expect(game.locator('.cs-tile[data-h="lambo"] .cs-tn')).toHaveText('Ficus');
+  await expect(game.locator('.cs-tile[data-h="lambo"]')).toHaveAttribute('aria-label', /^Ficus: Lambo, Cat Tank/);
+  await expect(game.locator('.cs-tile[data-h="lambo"]')).toHaveAttribute('data-rung', 'LEGENDARY');
+  // no colour tints on the Look sheet while a card skin is worn
+  await game.locator('.pl-pick .cs-look').click();
+  await expect(game.locator('.cs-looksheet')).toBeVisible();
   await expect(game.locator('.pl-pick .swatches')).toHaveCount(0);
   await page.waitForTimeout(300);
   // reload: the stored profile is the game's own now (the mock host stops seeding it)
@@ -61,7 +65,7 @@ test('Your cards: wear a cat on a champion, the turntable rebuilds, the hero tak
   game = await openHost(page);
   await game.locator('[data-a="choose"]').click();
   await game.waitForSelector('.pl-pick');
-  await expect(game.locator('.hero-card[data-h="lambo"] .tt-in > b')).toHaveText('Ficus');
+  await expect(game.locator('.cs-tile[data-h="lambo"] .cs-tn')).toHaveText('Ficus');
   await openCards(game);
   await expect(game.locator('.pl-deck .dk-card[data-coat="cat.c2"]')).toHaveClass(/\bon\b/);
   await expect.poll(() => game.evaluate(() => document.documentElement.dataset.look)).toBe('lambo:cat.c2@0|-');
@@ -72,7 +76,10 @@ test('Your cards: keyboard only (arrows, Enter, Esc), focus returns to the card 
   const game = await openHost(page);
   await game.locator('[data-a="choose"]').click();
   await game.waitForSelector('.pl-pick');
-  await game.locator('.pl-pick [data-a="deck"]:visible').focus();
+  await game.locator('.pl-pick .cs-look').focus();
+  await page.keyboard.press('Enter');
+  // the player owns colour tints: Look opens its sheet with Cards focused
+  await expect(game.locator('.cs-looksheet [data-a="deck"]')).toBeFocused();
   await page.keyboard.press('Enter');
   await game.locator('.pl-deck .dk-row').waitFor();
   const focused = () => game.locator('.pl-deck .dk-card:focus').getAttribute('data-coat');
@@ -84,7 +91,7 @@ test('Your cards: keyboard only (arrows, Enter, Esc), focus returns to the card 
   await expect.poll(() => game.evaluate(() => document.documentElement.dataset.look ?? '')).toContain(`lambo:${id}@`);
   await page.keyboard.press('Escape');
   await expect(game.locator('.pl-deck')).toHaveCount(0);
-  await expect(game.locator('.pl-pick [data-a="deck"]:visible')).toBeFocused();
+  await expect(game.locator('.pl-pick .cs-look')).toBeFocused();
 });
 
 test('Your cards, guest with no cats: Classic, the shelter champions and Sign in; never a made-up card or a price', async ({ context, page, baseURL }) => {
@@ -152,7 +159,7 @@ test('dog costume in a match: Sir Brutus in a card skin, the team ring visible u
   if (process.env.SKIN_SHOTS) (await import('node:fs')).writeFileSync(`${process.env.SKIN_SHOTS}/match-brutus-costume.png`, shot);
 });
 
-test('?skins=demo on a local standalone page: the demo roster fills the Skins row, every rung, no host needed', async ({ page }) => {
+test('?skins=demo on a local standalone page: the demo roster fills the cards drawer, every rung, no host needed', async ({ page }) => {
   await page.addInitScript(() => localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify({ v: 1, sessions: 3, matches: 4, wins: 2, firstWinDone: true, hero: 'lambo', firstPlaySession: 1 })));
   await page.goto('/?skins=demo');
   await page.waitForSelector('html[data-ready="1"]');

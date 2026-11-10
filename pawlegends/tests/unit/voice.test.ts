@@ -8,6 +8,7 @@ import { describe, expect, it } from 'vitest';
 import {
   VoiceQueue,
   VOICE_CUT_PRIORITY,
+  VOICE_FRESH_CUT_MS,
   VOICE_GAP_MS,
   VOICE_HOLD_MS,
   VOICE_LINES,
@@ -87,6 +88,20 @@ describe('voice queue', () => {
     expect(q.push('defeat', 300)).toBeNull();
   });
 
+  it('the same moment: a higher line arriving right after a lower one started cuts it, and the lower one waits', () => {
+    const q = new VoiceQueue();
+    expect(q.push('allySlain', 0)).toEqual({ key: 'allySlain', cut: false });
+    expect(q.push('firstBlood', VOICE_FRESH_CUT_MS)).toEqual({ key: 'firstBlood', cut: true });
+    expect(q.current).toBe('firstBlood');
+    expect(q.queued).toEqual(['allySlain']);
+    q.length('firstBlood', VOICE_FRESH_CUT_MS, 900);
+    expect(q.next(VOICE_FRESH_CUT_MS + 900 + VOICE_GAP_MS)?.key).toBe('allySlain');
+    // later than the window a lower line keeps playing
+    const r = new VoiceQueue();
+    r.push('allySlain', 0);
+    expect(r.push('firstBlood', VOICE_FRESH_CUT_MS + 1)).toBeNull();
+  });
+
   it('browsing heroes: a new name cuts the last name off', () => {
     const q = new VoiceQueue();
     q.push(nameLine('clem'), 0);
@@ -164,7 +179,10 @@ describe('voice clips', () => {
     const app = readFileSync(join(ROOT, 'src/app/app.ts'), 'utf8');
     for (const ev of ['pointerup', 'touchend', 'click']) expect(app).toContain(`'${ev}'`);
     expect(readFileSync(join(ROOT, 'src/audio/sfx.ts'), 'utf8')).toContain("this.ac.state !== 'running'");
-    expect(readFileSync(join(ROOT, 'src/audio/voice.ts'), 'utf8')).toContain("out.ctx.state !== 'running'");
+    // a suspended context is asked to resume and gets a moment (the line is not dropped at once, nor said late)
+    const voice = readFileSync(join(ROOT, 'src/audio/voice.ts'), 'utf8');
+    expect(voice).toContain('ctx.resume()');
+    expect(voice).toContain('RESUME_WAIT_MS');
   });
 });
 

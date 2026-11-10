@@ -48,6 +48,3 @@ export function stepHero(order: readonly HeroId[], hero: HeroId, step: number): 
   const n = order.length;
   return order[(((i < 0 ? 0 : i) + step) % n + n) % n] as HeroId;
 }
-
-/** "Clem: skills and lore" (the "i" buttons' accessible name). */
-export const infoLabel = (title: string): string => `${title}: skills and lore`;

@@ -16,8 +16,8 @@ import { openChampBrowser, openBrowser, SWIPE, type ClipFactory, type ClipPlayer
 import { BROWSE_ORDER, DIFFICULTY_NAME, HERO_DIFFICULTY, stepHero } from '../../src/ui/champBrowser/meta';
 import { skillCardHtml } from '../../src/ui/champBrowser/cardView';
 import { attachSkillPeek, peekHtml, PEEK, slotOfButton } from '../../src/ui/champBrowser/skillPeek';
-import { heroTile, pickScreen, type PickOpts } from '../../src/ui/screens';
-import { decoratePick, pickHtml } from '../../src/party/ui/partyPick';
+import { pickScreen, type PickOpts } from '../../src/ui/screens';
+import { pickHtml } from '../../src/party/ui/partyPick';
 import type { PartyView } from '../../src/net/proto';
 
 const flush = async (): Promise<void> => {
@@ -350,7 +350,7 @@ describe('the skill card markup', () => {
   });
 });
 
-describe('the "i" on the pick cards', () => {
+describe('Preview in the champion select panel (the only live clip on the pick)', () => {
   const base = (o: Partial<PickOpts> = {}): PickOpts => ({
     initial: { hero: 'clem', trick: 'pounce', difficulty: 'easy' },
     onHero: vi.fn(),
@@ -359,24 +359,21 @@ describe('the "i" on the pick cards', () => {
     ...o,
   });
 
-  it('every pick card has one, and it never picks the hero', async () => {
-    expect(heroTile('sage', false, null, undefined)).toContain('data-info="sage"');
+  it('no 3D on the pick itself: Preview opens the browser on the hero and the tapped skill', async () => {
     const o = base();
     const root = pickScreen(document.body, o);
-    expect(root.querySelectorAll('.hero-card .hero-info').length).toBe(HERO_IDS.length);
-    click(root.querySelector('.hero-card[data-h="sage"] .hero-info'));
-    expect(o.onHero).not.toHaveBeenCalled();
-    expect(root.querySelector('.hero-card.on')?.getAttribute('data-h')).toBe('clem');
-    // the browser chunk loads lazily
-    await vi.waitFor(() => expect(openBrowser()?.hero()).toBe('sage'));
-    openBrowser()?.close();
-    // the card itself still picks in one tap
-    click(root.querySelector('.hero-card[data-h="sage"] b'));
+    expect(root.querySelector('canvas')).toBeNull();
+    click(root.querySelector('.cs-tile[data-h="sage"]'));
     expect(o.onHero).toHaveBeenCalledWith('sage');
+    click(root.querySelector('.cs-sk[data-slot="e"]'));
+    click(root.querySelector('[data-a="codex"]'));
+    await vi.waitFor(() => expect(openBrowser()?.hero()).toBe('sage'));
+    expect(openBrowser()?.slot()).toBe('e');
+    openBrowser()?.close();
   });
 
-  it('the detail opens the picked hero; Select there picks another hero, switching the side for a dog', async () => {
-    const o = base({ onSide: vi.fn() });
+  it('Select in the browser selects another hero (a dog too), and the grid follows', async () => {
+    const o = base();
     const root = pickScreen(document.body, o);
     click(root.querySelector('[data-a="codex"]'));
     await vi.waitFor(() => expect(openBrowser()?.hero()).toBe('clem'));
@@ -384,9 +381,9 @@ describe('the "i" on the pick cards', () => {
     b.show('howler');
     click(b.root.querySelector('.cb-select'));
     expect(o.onHero).toHaveBeenLastCalledWith('howler');
-    expect(o.onSide).toHaveBeenCalled();
-    expect(root.querySelector('.hero-card.on')?.getAttribute('data-h')).toBe('howler');
+    expect(root.querySelector('.cs-tile.on')?.getAttribute('data-h')).toBe('howler');
     expect(document.documentElement.dataset.pickSide).toBe('dog');
+    b.close();
   });
 
   it('before the first match the dogs cannot be selected from the browser', async () => {
@@ -400,9 +397,10 @@ describe('the "i" on the pick cards', () => {
     b.show('sage');
     click(b.root.querySelector('.cb-select'));
     expect(o.onHero).toHaveBeenLastCalledWith('sage');
+    b.close();
   });
 
-  it('the Play path is untouched: Play starts with no browser in between', () => {
+  it('LOCK IN starts with no browser in between', () => {
     const o = base();
     const root = pickScreen(document.body, o);
     click(root.querySelector('[data-a="start"]'));
@@ -410,7 +408,7 @@ describe('the "i" on the pick cards', () => {
     expect(document.querySelector('.pl-champ')).toBeNull();
   });
 
-  it('the party pick turns each "i" into its own action and adds a Skills & lore button for the hovered hero', () => {
+  it('the party pick: tiles keep their pick action; Preview is the hovered hero on the tapped skill', () => {
     const view = {
       code: 'ABC123',
       you: 'm1',
@@ -420,15 +418,11 @@ describe('the "i" on the pick cards', () => {
     } as unknown as PartyView;
     const div = document.createElement('div');
     div.innerHTML = pickHtml({ view, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null });
-    decoratePick(div, view);
-    const dot = div.querySelector<HTMLElement>('[data-h="clem"] .hero-info');
-    expect(dot?.dataset.p).toBe('info');
-    expect(dot?.dataset.v).toBe('clem');
-    // the card keeps its own pick action
     expect(div.querySelector<HTMLElement>('[data-h="clem"]')?.dataset.p).toBe('hero');
     const btn = div.querySelector<HTMLElement>('[data-testid="party-info"]');
     expect(btn?.dataset.p).toBe('info');
     expect(btn?.dataset.v).toBe('sage');
+    expect(btn?.dataset.slot).toBeTruthy();
   });
 });
 

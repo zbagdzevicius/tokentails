@@ -73,7 +73,7 @@ kbd {
 /* ------------------------------------------------------------------------------------------ screens */
 .pl-screen { position: absolute; inset: 0; z-index: 20; color: var(--cream); pointer-events: none; }
 .pl-screen > * { pointer-events: auto; }
-.pl-title, .pl-pick, .pl-results {
+.pl-title, .pl-results {
   background: linear-gradient(90deg, rgba(43, 29, 46, 0.92) 0%, rgba(43, 29, 46, 0.7) 38%, rgba(43, 29, 46, 0) 62%);
 }
 .pl-title-col {
@@ -101,55 +101,13 @@ kbd {
   color: var(--cream); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer;
 }
 @keyframes pl-bob { 50% { transform: translateY(-6px) rotate(-6deg); } }
-
-.pl-pick-col {
-  position: absolute; left: calc(36px + var(--safe-l)); top: 24px; bottom: 24px; width: min(520px, 48vw); overflow-y: auto;
-  display: flex; flex-direction: column; gap: 14px; padding-right: 6px; scrollbar-width: thin;
-}
-.pl-pick-head { display: flex; align-items: center; gap: 14px; }
-.pl-pick h2 { margin: 0; font-size: 28px; }
-.pl-pick .heroes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.hero-card {
-  font: inherit; color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: 16px;
-  padding: 10px 6px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: transform 0.1s, border-color 0.1s;
-}
-.hero-card i {
-  width: 46px; height: 46px; border-radius: 50%; background: var(--hero); display: grid; place-items: center;
-  font: 700 22px var(--font); font-style: normal; color: var(--ink); box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18);
-}
-.hero-card i.pic, .pl-portrait.pic { background-color: var(--hero); background-size: 118%; background-position: 50% 30%; background-repeat: no-repeat; }
-.hero-card i.pic { width: 58px; height: 58px; }
-.hero-card b { font-size: 15px; }
-.hero-card small { font-size: 11px; opacity: 0.7; }
-.hero-card.on { border-color: var(--butter); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35); }
-.pl-pick .detail { background: var(--panel); border-radius: 18px; padding: 14px 16px; border: 1px solid var(--line); }
-.pl-pick .detail h3 { margin: 0; font-size: 22px; }
-.pl-pick .detail h3 small { font-size: 13px; opacity: 0.7; font-weight: 500; margin-left: 6px; }
-.pl-pick .blurb { margin: 4px 0 10px; opacity: 0.85; font-size: 14px; }
-.pl-pick .kit { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 13px; line-height: 1.3; }
-.pl-pick .kit li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: center; }
-.pl-pick .kit li .ico { width: 26px; height: 26px; color: var(--butter); }
-.pl-pick .kit li .ico.passive { color: var(--rose); }
-.pl-pick .kit b { color: var(--butter); margin-right: 4px; }
-.pl-pick .kit kbd { margin-right: 2px; }
-.pl-pick .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.pl-pick .lbl { font-size: 13px; opacity: 0.7; width: 72px; }
+.pl-portrait.pic { background-color: var(--hero); background-size: 118%; background-position: 50% 30%; background-repeat: no-repeat; }
 .chip {
   font: 600 14px var(--font); color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: 999px;
   padding: 7px 14px 7px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
 }
 .chip .pl-icon { width: 18px; height: 18px; color: var(--butter); }
 .chip.on { border-color: var(--butter); background: rgba(255, 210, 122, 0.16); }
-/* Playtest round 1: Play and the bots chips live in a footer OUTSIDE the scrolling column. Inside it, the column's
-   fade mask (short screens) clipped the fixed Play button and the lobby canvas took the taps. */
-.pl-pick-foot {
-  position: absolute; left: calc(36px + var(--safe-l)); bottom: 24px; width: min(520px, 48vw); z-index: 2;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-}
-.pl-pick-foot .pl-btn.big { margin: 0; }
-.pl-pick-foot .bots-hint { margin: 0; font-size: 12px; line-height: 1.3; opacity: 0.8; max-width: 100%; }
-.pl-pick .kit .num { display: block; font-size: 11px; opacity: 0.75; margin-top: 1px; color: var(--butter); }
-.pl-pick .detail h3 .numbers { float: right; font-size: 11px; padding: 3px 9px; }
 
 .pl-results-col {
   position: absolute; left: calc(56px + var(--safe-l)); top: 50%; transform: translateY(-50%); max-width: 520px;
@@ -552,23 +510,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
   .pl-title .tag { font-size: 16px; margin: 8px 0 16px; }
   .pl-title-col, .pl-results-col { left: calc(24px + var(--safe-l)); }
   .pl-btn.big { font-size: 19px; padding: 13px 28px; }
-  .pl-pick-col { top: 10px; bottom: 10px; left: calc(16px + var(--safe-l)); width: min(470px, 56vw); gap: 8px; }
-  .pl-pick h2 { font-size: 20px; }
-  .pl-pick .detail { padding: 10px 12px; }
-  .pl-pick .kit { gap: 4px; font-size: 12px; }
-  .pl-pick .row.bots { flex-wrap: nowrap; gap: 6px; }
-  .pl-pick .row.bots .lbl { width: auto; }
-  .pl-pick .row.bots .chip { font-size: 13px; padding: 5px 11px; }
-  /* sim v10 (GAPS B5): four Paw Trick chips on one line at 844×390 */
-  .pl-pick .row.tricks { gap: 5px; }
-  .pl-pick .row.tricks .lbl { width: auto; }
-  .pl-pick .row.tricks .chip { font-size: 12px; padding: 5px 9px 5px 7px; gap: 4px; }
-  .pl-pick .row.tricks .chip .pl-icon { width: 15px; height: 15px; }
-  .pl-pick .blurb { margin: 2px 0 6px; }
-  .pl-pick .detail .lane-hint { margin: 0 0 2px; font-size: 12px; line-height: 1.2; }
-  .pl-pick-col { gap: 6px; }
-  .hero-card i { width: 34px; height: 34px; font-size: 16px; }
-  .hero-card i.pic { width: 40px; height: 40px; }
   .pl-results h1 { font-size: 40px; }
   .pl-results .sub { font-size: 14px; margin: 2px 0 8px; }
   .pl-result-tip { font-size: 12px; padding: 5px 8px; margin-top: 6px; }
@@ -684,8 +625,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
   background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px 8px 18px; font-size: 14px; pointer-events: auto;
   max-width: calc(100vw - 32px); flex-wrap: wrap; justify-content: center;
 }
-.pl-pick .wardrobe .chip[data-from='store'] { border-color: rgba(255, 210, 122, 0.5); }
-.pl-pick .wardrobe .chip.chroma { font-size: 12px; padding: 5px 10px; }
 @media (max-height: 480px) {
   .pl-store .card { padding: 12px 14px; }
   .pl-sku p.later { display: none; }
@@ -792,7 +731,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .pl-collection .pl-btn.big { align-self: center; }
 .pl-loading .hero-line { display: flex; gap: 8px; align-items: center; font-size: 13px; opacity: 0.9; }
 .pl-loading .hero-line .bond { padding: 2px 8px; border-radius: 999px; background: rgba(255, 211, 77, 0.18); color: var(--butter); font-weight: 600; }
-.pl-pick .role-label { margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: rgba(255, 243, 220, 0.12); }
 .pl-quests { margin-top: 10px; display: grid; gap: 4px; max-width: 440px; font-size: 13px; }
 .pl-quests > b { font-size: 13px; opacity: 0.75; font-weight: 600; }
 .pl-quests .q { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 4px 10px; border-radius: 10px; background: rgba(255, 243, 220, 0.08); }
@@ -802,7 +740,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .pl-quests .q.fresh { animation: pl-pop 0.5s 1.6s both; box-shadow: 0 0 0 2px #7dff8a; }
 .pl-quests .q .n { opacity: 0.7; font-variant-numeric: tabular-nums; }
 .pl-quests.mini { margin-top: 14px; max-width: 320px; }
-.pl-pick .row.bots .note { font-size: 13px; opacity: 0.75; }
 @media (max-height: 460px) {
   .pl-results h1 { font-size: 44px; }
   .pl-results .sub { margin: 2px 0 10px; font-size: 16px; }
@@ -917,42 +854,6 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .pl-reward .rw-share { padding: 6px 10px; font-size: 13px; }
   .pl-results .pl-home { top: calc(8px + var(--safe-t)); padding: 6px 12px; }
 }
-
-/* Pick screen (round 0): chromas are colour swatches (the name in the tooltip and for screen readers), Play and the
-   bots line sit outside the scrolling column so neither covers the other or the ability list. */
-.pl-pick .swatches { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.pl-pick .chip.chroma { position: relative; width: 28px; height: 28px; padding: 0; justify-content: center; background: var(--el); border-color: rgba(255, 243, 220, 0.4); }
-.pl-pick .chip.chroma span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.pl-pick .chip.chroma[data-chroma=''] { background: repeating-linear-gradient(45deg, rgba(255, 243, 220, 0.25) 0 4px, transparent 4px 8px); }
-.pl-pick .chip.chroma.on { border-color: var(--butter); box-shadow: 0 0 0 3px rgba(255, 210, 122, 0.55); }
-@media (min-height: 481px) {
-  .pl-pick-col { bottom: 170px; }
-}
-@media (max-height: 480px) {
-  .pl-pick .row.bots { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
-  .pl-pick .row.bots .note { font-size: 12px; opacity: 0.9; }
-  .pl-pick .blurb { display: none; }
-  /* short landscape (844x390, 932x430): Play and the bots bottom right under the hero; the column keeps the kit to
-     one line per ability so the Paw Trick and Look chips fit above the fold */
-  .pl-pick-foot { left: auto; right: calc(18px + var(--safe-r)); bottom: calc(10px + var(--safe-b)); width: auto; max-width: 42vw; align-items: flex-end; gap: 6px; }
-  .pl-pick-foot .bots-hint { display: none; }
-  .pl-pick .kit .t { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-  /* Audit UX-06: a tapped row shows its full text */
-  .pl-pick .kit li { cursor: pointer; }
-  .pl-pick .kit li.open .t { -webkit-line-clamp: unset; display: block; }
-  .pl-pick .kit .num { display: none; }
-  .pl-pick .kit li .ico { width: 20px; height: 20px; }
-  .pl-pick .kit li { grid-template-columns: 22px 1fr; }
-  .pl-pick .detail h3 { font-size: 17px; }
-  .hero-card { padding: 5px 4px; }
-  .hero-card small { display: none; }
-  .pl-pick-col { -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); padding-bottom: 18px; }
-}
-/* Audit UX-06: under 420 px of height (667x375) the ult row leads the kit, so R is never the row below the fold */
-@media (max-height: 420px) {
-  .pl-pick .kit { display: flex; flex-direction: column; }
-  .pl-pick .kit li.ult { order: -1; }
-}
 .pl-loading small.squad { display: block; margin-top: 6px; font-size: 14px; opacity: 0.85; }
 
 /* Desktop skill tooltips (ui/slotTip.ts): the hover card over a slot or the portrait, mouse on a fine pointer only.
@@ -993,43 +894,10 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 
 .pl-feed-row.note { color: var(--butter); }
 .pl-feed-row.note span { color: var(--butter); opacity: 1; }
-
-
 /* ---------------------------------------------------------------------------------------------- card skins
-   GDD §7.2: the pick screen's Skins row (owned cats, then up to two locked featured cats), the lobby / loading
-   "Wearing" card, the results line and the auto-equip chip. Rung pips use the frame colours (no gold for Legendary:
-   yellow means "you" in the match; here it is the existing frame orange). */
-.pl-pick .wardrobe.skins { flex-wrap: wrap; }
-.pl-pick .skin-strip {
-  display: flex; gap: 8px; overflow-x: auto; flex: 1 1 100%; padding: 4px 2px 6px; scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
-}
-.skin-tile {
-  flex: 0 0 auto; width: 92px; display: grid; grid-template-rows: 56px auto auto auto; justify-items: center; gap: 2px; position: relative;
-  font: 600 12px var(--font); color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: 14px;
-  padding: 6px 4px 6px; cursor: pointer; text-align: center;
-}
-.skin-tile img, .skin-tile .noart { width: 52px; height: 52px; image-rendering: pixelated; object-fit: contain; }
-.skin-tile .noart { display: grid; place-items: center; opacity: 0.6; }
-.skin-tile .noart .pl-icon { width: 28px; height: 28px; }
-.skin-tile b { font-size: 12px; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.skin-tile .el { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--el); box-shadow: 0 0 0 2px rgba(42, 26, 34, 0.8); }
-.skin-tile .pip { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 243, 220, 0.14); }
-.skin-tile .pip[data-rung='RARE'] { background: rgba(127, 200, 255, 0.28); color: #cfeaff; }
-.skin-tile .pip[data-rung='EPIC'] { background: rgba(197, 140, 255, 0.3); color: #ecdcff; }
-.skin-tile .pip[data-rung='LEGENDARY'] { background: rgba(255, 179, 71, 0.3); color: #ffe2bf; }
-.skin-tile .bond { font-size: 10px; opacity: 0.7; }
-.skin-tile.on { border-color: var(--butter); background: rgba(255, 210, 122, 0.16); }
-.skin-tile[data-rung='RARE'] { border-color: rgba(127, 200, 255, 0.45); }
-.skin-tile[data-rung='EPIC'] { border-color: rgba(197, 140, 255, 0.5); }
-.skin-tile[data-rung='LEGENDARY'] { border-color: rgba(255, 179, 71, 0.55); }
-.skin-tile.on[data-rung] { border-color: var(--butter); }
-.skin-tile.locked { cursor: default; opacity: 0.85; }
-.skin-tile.locked img { filter: grayscale(1) brightness(0.8); }
-.skin-tile.locked b { opacity: 0.7; }
-.skin-tile.locked .chip.small { font-size: 11px; padding: 2px 9px; }
-.skin-tile.locked .chip.playing { border-color: var(--butter); }
-.skin-tile.locked .chip.spent { opacity: 0.5; pointer-events: none; }
+   GDD §7.2: the cards drawer's tiles, the lobby / loading "Wearing" card, the results line and the auto-equip chip.
+   Rung pips use the frame colours (no gold for Legendary: yellow means "you" in the match; here it is the existing
+   frame orange). */
 
 .pl-wearing { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .pl-wearing .plc-card.small { width: 72px; }
@@ -1046,9 +914,6 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 .pl-wear-chip .chip.small { color: var(--ink); background: rgba(42, 26, 34, 0.08); border-color: rgba(42, 26, 34, 0.25); padding: 2px 10px; font-size: 13px; }
 .pl-scoreboard .cat { opacity: 0.7; font-size: 0.9em; }
 @media (max-height: 480px) {
-  .skin-tile { width: 76px; grid-template-rows: 40px auto auto auto; padding: 4px 3px; }
-  .skin-tile img, .skin-tile .noart { width: 38px; height: 38px; }
-  .skin-tile .bond { display: none; }
   .pl-wearing .plc-card.small { width: 56px; }
 }
 
@@ -1121,9 +986,6 @@ html[data-touch='1'] .pl-pingbtn { display: block; right: calc(68px + var(--mm-w
 html[data-touch='1'] .pl-emote { left: auto; right: calc(68px + var(--mm-w) + var(--safe-r)); top: calc(118px + var(--safe-t)); min-height: 40px; }
 /* ...and while it is there, kill-feed lines wrap inside the column right of it (a long note would run under the chip). */
 html[data-touch='1']:has(.pl-emote) .pl-feed-row { max-width: 132px; }
-/* GAPS B1 / A6: the lane hint under the blurb on the pick screen */
-.pl-pick .lane-hint { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
-.pl-pick .trick-hint { margin: 2px 0 0; font-size: 13px; opacity: 0.85; }
 
 /* ------------------------------------------------------------------- Wave C (C2): ability ranks */
 /* Rank pips on each ability: filled = learned ranks (Q W E 4, R 3). Ranks come with levels, nothing to click. */
@@ -1177,9 +1039,6 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
 }
 .pl-results .pl-skin-fx { margin-top: 2px; }
 .pl-collection .card-fx-list { display: grid; gap: 6px; }
-@media (max-height: 480px) {
-  .pl-pick .card-fx small { display: none; }
-}
 
 /* ---------------------------------------------------------------------------------------- U2 (G22) compact HUD
    Small phones in landscape: below 700 px wide, or a short screen (≤ 380 px) under 844 px wide (667×375, 640×360,

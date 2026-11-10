@@ -1,18 +1,9 @@
 /**
- * The champion browser's tiny first-load part: the "i" dot on a pick card and a lazy opener. The browser itself (the
- * codex, the lore, the CSS and, on a skill tap, three.js for the clip) loads only when a player asks for it.
+ * The champion browser's tiny first-load part: a lazy opener (the champion select's Preview, the party pick, the
+ * collection). The browser itself (the codex, the lore, the CSS and, on a skill tap, three.js for the clip) loads only
+ * when a player asks for it.
  */
-import type { HeroId } from '../../data/heroes/types';
-import { HERO_TEXT } from '../heroText';
 import type { ChampBrowser, ChampBrowserOpts } from './champBrowser';
-import { infoLabel } from './meta';
-
-/**
- * The "i" on a pick card. It sits inside the card's button, so it is not a second tab stop (aria-hidden): keyboard and
- * screen reader players reach the same browser from the detail's "Skills & lore" button. Its hit area is larger than
- * the dot (CSS ::before).
- */
-export const infoDot = (h: HeroId): string => `<span class="hero-info" data-info="${h}" aria-hidden="true" title="${infoLabel(HERO_TEXT[h].title)}">i</span>`;
 
 let loading: Promise<ChampBrowser | null> | null = null;
 /** The chunk was loaded once (closing needs it; a session that never opened the browser never loads it). */

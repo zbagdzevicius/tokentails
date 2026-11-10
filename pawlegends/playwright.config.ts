@@ -21,10 +21,20 @@ export default defineConfig({
   projects: [
     { name: 'desktop', use: { viewport: { width: 1280, height: 720 } } },
     { name: 'landscape', use: { viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true } },
-    // §15 item 2: the sim in a WebKit Worker (Safari's engine). Only the determinism spec runs here.
+    // audio fix (Nov 9): a bot match with a WebAudio hook, with autoplay locked until a gesture (like a phone)
+    {
+      name: 'audio',
+      testMatch: /audio\.spec\.ts$/,
+      use: {
+        viewport: { width: 1280, height: 720 },
+        launchOptions: { args: ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--autoplay-policy=user-gesture-required'] },
+      },
+    },
+    // §15 item 2: the sim in a WebKit Worker (Safari's engine). The determinism spec, and the audio spec (Safari's
+    // WebAudio and mp3 decoding).
     {
       name: 'webkit',
-      testMatch: /determinism-browser\.spec\.ts$/,
+      testMatch: /(determinism-browser|audio)\.spec\.ts$/,
       use: { browserName: 'webkit', viewport: { width: 1280, height: 720 }, launchOptions: {} },
     },
   ],

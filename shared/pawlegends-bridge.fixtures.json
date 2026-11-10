@@ -435,6 +435,10 @@
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": true },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": "yes" }
     },
+    "sound": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "sound", "muted": false },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "sound", "muted": "no" }
+    },
     "exit": {
       "$comment": "UX pass 2: the lobby's \"Games\" button (no payload); the host leaves for its games page.",
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "exit" },
