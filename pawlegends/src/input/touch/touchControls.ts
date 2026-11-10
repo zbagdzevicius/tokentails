@@ -52,7 +52,7 @@ import { TICK_HZ } from '../../data/timeline';
 import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
 import { applySweep, newSweep, type SweepRec } from '../../ui/cdSweep';
-import { ATK_SELECT, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
+import { angleGap, ATK_SELECT, DragLock, dragZone, PickLock, releasePick, selectCandidates, snapTarget } from './attackSelect';
 
 /** Absolute angle between two directions (rad), 0..π. */
 export function turnBetween(a: number, b: number): number {
@@ -238,6 +238,14 @@ export class TouchControls {
   private atkHold: AtkHold | null = null;
   /** Hold-to-select: a non-hero unit picked with the selector (heroes go to `lock`). */
   readonly pick = new PickLock();
+  /** Drag-lock (Wild Rift drag to lock): the unit a released Attack drag chose; no timer (DragLock). */
+  readonly dragLock = new DragLock();
+  /** The drag-lock's last re-sent Attack order (ms). */
+  private lockOrderAt = 0;
+  /** Drag-lock Attack orders re-sent (e2e telemetry). */
+  lockOrders = 0;
+  /** Drag-lock: the line and reach ring the held Attack drag shows on the field (one record, no per-frame allocation). */
+  private readonly atkAimRec = { x: 0, z: 0, ok: false, reachM: 0 };
   /** Hold-to-select telemetry (e2e): selector releases that locked a unit, and cancels. */
   atkSel = { locked: 0, cancelled: 0, last: null as number | null, kind: '', why: '' };
   /** The attack range ring this input asked for last (written to the view only on change, so desktop can share it). */
@@ -370,6 +378,7 @@ export class TouchControls {
     this.h.view.aim = null;
     this.h.view.atkCands = null;
     this.h.view.atkSelect = null;
+    this.h.view.atkAim = null;
     if (this.ringOn) this.h.view.attackRange = false;
   }
 
@@ -886,6 +895,8 @@ export class TouchControls {
 
   /** The locked enemy hero while the lock holds (GAPS A5), else null. */
   lockedId(): number | null {
+    const drag = this.dragLockHero();
+    if (drag !== null) return drag;
     return this.lock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now(), lockBreakMm(this.range()));
   }
 
@@ -895,8 +906,21 @@ export class TouchControls {
     return !ah ? '' : ah.cancel ? 'cancel' : ah.dragging ? 'drag' : 'hold';
   }
 
-  /** The unit the Attack button and the idle auto-attack take first: the locked hero, else the selector's pick. */
+  /** Drag-lock: the drag-locked unit while the lock holds and it is seen, else null. */
+  private dragLockId(): number | null {
+    return this.dragLock.check(this.h.units(), this.me(), this.h.view.myTeam, performance.now());
+  }
+
+  /** Drag-lock: the drag-locked unit when it is an enemy hero (quick-cast skills take it too, as Wild Rift's lock does). */
+  private dragLockHero(): number | null {
+    const id = this.dragLockId();
+    return id !== null && this.h.units().find((u) => u.id === id)?.kind === 'hero' ? id : null;
+  }
+
+  /** The unit the Attack button and the idle auto-attack take first: the drag lock, the locked hero, else the selector's pick. */
   attackLockId(): number | null {
+    const drag = this.dragLockId();
+    if (drag !== null) return drag;
     const hero = this.lockedId();
     if (hero !== null) {
       this.pick.clear();
@@ -935,6 +959,7 @@ export class TouchControls {
       ah.sel = null;
       this.h.view.atkCands = null;
       this.h.view.atkSelect = null;
+      this.h.view.atkAim = null;
       return;
     }
     if (!ah.dragging && now - ah.at < ATK_SELECT.holdMs) return;
@@ -953,12 +978,41 @@ export class TouchControls {
     if (ah.dragging) ah.last = ah.cancel ? null : (sel ?? ah.last);
     this.h.view.atkCands = ah.cands;
     this.h.view.atkSelect = sel;
+    this.atkAimView(me, ah);
+  }
+
+  /**
+   * Drag-lock (Wild Rift's targeting line): while the Attack drag points, the field shows a line from the hero to the
+   * selection (or, with nothing selected, along the drag at the reach's length, red: a release cancels) and the reach
+   * ring. A skill aim being dragged keeps the field (GameView draws the skill's aim first).
+   */
+  private atkAimView(me: Unit, ah: AtkHold): void {
+    if (!ah.dragging || ah.cancel) {
+      this.h.view.atkAim = null;
+      return;
+    }
+    const r = this.atkAimRec;
+    r.reachM = ATK_SELECT.heroReachMm / 1000;
+    const u = ah.sel !== null ? this.h.units().find((q) => q.id === ah.sel) : undefined;
+    if (u) {
+      r.x = u.x / 1000;
+      r.z = -u.y / 1000;
+      r.ok = true;
+    } else {
+      const v = screenToSim(ah.x - ah.x0, -(ah.y - ah.y0));
+      const a = Math.atan2(v.y, v.x);
+      r.x = (me.x + Math.cos(a) * ATK_SELECT.heroReachMm) / 1000;
+      r.z = -(me.y + Math.sin(a) * ATK_SELECT.heroReachMm) / 1000;
+      r.ok = false;
+    }
+    this.h.view.atkAim = r;
   }
 
   /** Hold-to-select release: a dragged selection locks its unit and attacks it; the centre (or a cancel) does nothing. */
   private selectRelease(ah: AtkHold, cancelled: boolean): void {
     this.h.view.atkCands = null;
     this.h.view.atkSelect = null;
+    this.h.view.atkAim = null;
     if (this.aimRingEl.classList.contains('atk')) this.aimRingEl.classList.remove('on', 'back', 'dir', 'atk');
     if (!ah.dragging) return;
     const me = this.me();
@@ -966,19 +1020,16 @@ export class TouchControls {
     if (cancelled || ah.cancel || id === null || !me || me.state === 'dead' || !this.h.enabled()) {
       this.atkSel.cancelled++;
       this.atkSel.why = cancelled ? 'pointercancel' : ah.cancel ? 'centre' : id === null ? 'none' : 'dead';
+      // drag-lock: dragging back into the button is the explicit unlock
+      if (ah.cancel && !cancelled) this.dragLock.clear();
       return;
     }
     const u = this.h.units().find((q) => q.id === id);
     const now = performance.now();
-    if (u?.kind === 'hero') {
-      // the GAPS A5 lock (smart casts take it too); a second set on the same hero would let go, so renew it
-      if (this.lock.id === id) this.lock.clear();
-      this.lock.set(id, now);
-      this.pick.clear();
-    } else {
-      this.lock.clear();
-      this.pick.set(id, now);
-    }
+    // drag-lock (Wild Rift drag to lock): no timer; a hero drag-lock feeds the quick casts too (lockedId)
+    this.dragLock.set(id, now);
+    this.lock.clear();
+    this.pick.clear();
     this.locks++;
     this.atkSel.locked++;
     this.atkSel.last = id;
@@ -1002,7 +1053,7 @@ export class TouchControls {
     if (this.deter.size === 0) return all;
     const now = performance.now();
     for (const [id, until] of this.deter) if (now >= until) this.deter.delete(id);
-    const lock = this.lock.id ?? this.pick.id;
+    const lock = this.dragLock.id ?? this.lock.id ?? this.pick.id;
     // Sim v17: Talk Back fears only attackers within 4.5 m, so from further out he stays a target.
     const me = this.me();
     const range = HEROES.howler.abilities.e.fearRange ?? 0;
@@ -1018,6 +1069,8 @@ export class TouchControls {
     if (!me || !this.h.enabled()) return false;
     const u = this.h.units().find((q) => q.id === id);
     if (this.lock.id !== id && !lockable(u, me, this.h.view.myTeam)) return false;
+    // a field or portrait lock replaces a drag lock
+    this.dragLock.clear();
     const on = this.lock.set(id, performance.now());
     if (on) {
       this.locks++;
@@ -1249,6 +1302,7 @@ export class TouchControls {
     // from the landing of a heading cast still on its way, else from where the sim has the hero (the drawn hero
     // trails it, and after a blink it stands at the old spot for a few frames: a goal from there walks back)
     const o = this.steerFrom(me, now);
+    this.lockStickAway(o, this.stickAngle(), now);
     const dx = s.x - s.bx;
     const dy = -(s.y - s.by);
     if (Math.hypot(dx, dy) > STICK.dead) {
@@ -1276,6 +1330,40 @@ export class TouchControls {
         } else this.lastStick = { a, at: now, tx: o.x, ty: o.y };
       }
     }
+  }
+
+  /**
+   * Drag-lock: a joystick held more than ATK_SELECT.awayTurn off the bearing (from `o`) to the drag-locked unit for
+   * ATK_SELECT.awayMs lets the lock go (walking away is a new intent; walking toward or around it keeps it).
+   */
+  private lockStickAway(o: { x: number; y: number }, a: number | null, now: number): void {
+    const id = this.dragLock.id;
+    if (id === null) return;
+    const t = this.h.units().find((u) => u.id === id);
+    const away = a !== null && !!t && angleGap(a, Math.atan2(t.y - o.y, t.x - o.x)) > ATK_SELECT.awayTurn;
+    this.dragLock.away(now, away);
+  }
+
+  /**
+   * Drag-lock (Wild Rift: the lock outlives movement and the next attack goes to it): while a drag lock holds, ATK
+   * is not held, no skill is pressed and the joystick is let go, a standing hero re-sends its Attack order on the
+   * locked unit every ATK_SELECT.repeatMs, only while that unit is in reach (inAttackReach) and not under an enemy
+   * tower nobody tanks (guardedByTower): letting go of the stick never walks the hero under a tower. Same-target
+   * re-sends keep the windup (sim v19).
+   */
+  private keepLockOrder(me: Unit | null, now: number): void {
+    if (!this.stick) this.dragLock.away(now, false);
+    if (this.dragLock.id === null || !me || me.state !== 'idle' || !this.h.enabled()) return;
+    if (this.attackHeld !== null || this.drags.size > 0 || this.stick || now - this.lockOrderAt < ATK_SELECT.repeatMs) return;
+    // a cast walking in or winding up keeps its order (a tapped skill is never replaced by the re-send)
+    if (this.h.orders.walkingIn !== null || this.h.orders.busyLeftMs > 0) return;
+    const units = this.h.units();
+    const id = this.dragLock.check(units, me, this.h.view.myTeam, now);
+    const u = id !== null ? units.find((q) => q.id === id) : undefined;
+    if (!u || !inAttackReach(u, me, this.range()) || guardedByTower(units, u, this.h.view.myTeam)) return;
+    this.lockOrderAt = now;
+    this.lockOrders++;
+    this.h.orders.attack(u.id);
   }
 
   /** Wave C (C2): the level the rank pips were drawn for (0 = not drawn yet). */
@@ -1313,6 +1401,7 @@ export class TouchControls {
     const aiming = !!this.atkHold?.dragging && !this.atkHold.cancel;
     if (this.attackHeld !== null && !aiming && now - this.lastAttack > ATTACK_REPEAT_MS) this.attackNow();
     if (this.atkHold) this.selectStep(now);
+    this.keepLockOrder(this.me(), now);
     const nh = this.napHeld;
     if (nh && !nh.fired && now - nh.at >= NAP_HOLD_MS && this.h.enabled()) {
       nh.fired = true;
@@ -1387,7 +1476,7 @@ export class TouchControls {
     this.h.view.lock = locked;
     if (atk) {
       atk.classList.toggle('locked-on', locked !== null);
-      atk.style.setProperty('--lock', (this.lock.id !== null ? this.lock.left(now) : this.pick.left(now)).toFixed(3));
+      atk.style.setProperty('--lock', (this.dragLock.id !== null ? 1 : this.lock.id !== null ? this.lock.left(now) : this.pick.left(now)).toFixed(3));
     }
   }
 }

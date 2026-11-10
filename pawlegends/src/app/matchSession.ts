@@ -2517,6 +2517,11 @@ export class MatchSession {
     d.atkHold = this.touch?.atkHoldState() ?? '';
     d.atkSelN = this.touch ? `${this.touch.atkSel.locked},${this.touch.atkSel.cancelled},${this.touch.atkSel.last ?? ''},${this.touch.atkSel.kind},${this.touch.atkSel.why}` : '';
     d.atkLock = this.touch?.attackLockId() != null ? String(this.touch.attackLockId()) : '';
+    // drag-lock: the drag-locked unit and the Attack orders its idle re-send sent; the unit the lock marker is drawn
+    // on; the drag's field line ('ok' selects, 'none' points at nothing)
+    d.atkDrag = this.touch ? `${this.touch.dragLock.id ?? ''},${this.touch.lockOrders}` : '';
+    d.lockMark = this.view.lockMarkId >= 0 ? String(this.view.lockMarkId) : '';
+    d.atkAim = this.view.atkAim ? (this.view.atkAim.ok ? 'ok' : 'none') : '';
     // heading casts (Pounce and the escape dashes) sent on the touch press and on the release (heading.ts)
     d.heads = this.touch ? `${this.touch.heads.press},${this.touch.heads.fired},${this.orders?.holds ?? 0}` : '';
     d.lastHits = String(this.lastHitsSeen);
