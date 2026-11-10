@@ -16,6 +16,9 @@ function allowOriginHeader(origin: string, frontEndUrls?: string): string | unde
 }
 
 const allowed = [
+    'http://localhost',
+    'https://localhost',
+    'capacitor://localhost',
     'https://tokentails.com',
     'https://www.tokentails.com',
     'https://tokentails-landing-lab.vercel.app',
@@ -35,6 +38,9 @@ const refused = [
     'https://tokentails-landing-x.y-zbagdzevicius-projects.vercel.app',
     'https://some-app.vercel.app',
     'https://tokentails.com.evil.com',
+    'https://localhost:8443',
+    'https://localhost.evil.com',
+    'https://evil.localhost',
 ];
 
 describe('CORS origins', () => {
@@ -66,6 +72,8 @@ describe('party relay origins', () => {
         expect(isRelayOriginAllowed('http://127.0.0.1:5173', true, list, '')).toBe(false);
         expect(isRelayOriginAllowed('http://localhost', true, list, '')).toBe(true);
         expect(isRelayOriginAllowed('capacitor://localhost', true, list, '')).toBe(true);
+        expect(isRelayOriginAllowed('https://localhost', true, list, '')).toBe(true);
+        expect(isRelayOriginAllowed('https://localhost:8443', true, list, '')).toBe(false);
         expect(isRelayOriginAllowed('https://tokentails.com', true, list, '')).toBe(true);
         expect(isRelayOriginAllowed('https://evil.example.com', true, list, '')).toBe(false);
         expect(isRelayOriginAllowed('http://localhost:5400', false, list)).toBe(true);
