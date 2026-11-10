@@ -3,7 +3,7 @@
 mock_provider "google" {}
 
 run "state_bucket_private_and_versioned" {
-  command = apply
+  command = plan
 
   variables {
     project_id = "gleaming-medium-480114-g5"
