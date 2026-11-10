@@ -46,22 +46,27 @@ export const motifOf = (pattern: FurPattern | undefined | null): Motif => (patte
 
 /** Each element's motif shape (our own sticker shapes in render/fx/Particles.js). */
 export const ELEMENT_SHAPE: Readonly<Record<Element, number>> = Object.freeze({
-  FIRE: SHAPE.STAR4,
-  ICE: SHAPE.STAR8,
+  FIRE: SHAPE.SPARK,
+  ICE: SHAPE.SHARD,
   ELECTRIC: SHAPE.STAR4,
   WIND: SHAPE.FEATHER,
   DARK: SHAPE.SOFT,
   WATER: SHAPE.DROPLET,
   GRASS: SHAPE.HEART,
-  SAND: SHAPE.SOFT,
-  FAIRY: SHAPE.HEART,
+  SAND: SHAPE.PUFF,
+  FAIRY: SHAPE.STAR5,
   STELLAR: SHAPE.STAR8,
 });
 
 /** Awakened steps (hero level): stage 1 at the ultimate unlock, 2 and 3 later. */
 export const AWAKEN_LEVELS: readonly number[] = Object.freeze([4, 7, 10]);
-/** Fur foil per Awakened stage (0: a plain Legendary; render/chars/charMaterial.ts FOIL_STRENGTH is 0.15). */
-export const AWAKEN_FOIL: readonly number[] = Object.freeze([0.15, 0.15, 0.22, 0.3]);
+/** A plain Legendary's fur foil (render/chars/charMaterial.ts FOIL_STRENGTH; copied to keep this file light). */
+export const LEGENDARY_FOIL = 0.15;
+/**
+ * Fur foil per Awakened stage. Every stage is above a plain Legendary (LEGENDARY_FOIL), so an Awakened skin reads as
+ * its own look from the first second of a match, not only from hero level 7.
+ */
+export const AWAKEN_FOIL: readonly number[] = Object.freeze([0.18, 0.2, 0.24, 0.3]);
 /** The card-frame words per Awakened stage (ui/cards/frame.ts). */
 export const AWAKEN_WORD: readonly string[] = Object.freeze(['Awakened', 'Kitten', 'Brave', 'Legend']);
 export { AWAKEN_BOND } from './registry';
@@ -96,13 +101,15 @@ export interface SkinFxProfile {
   name: string;
   self: boolean;
   team: 0 | 1;
+  /** This viewer's relation to the hero (true: ally, false: enemy, null: unknown, e.g. the lobby): trimForTeam. */
+  mate: boolean | null;
   /** Sparkles, motifs, bursts may draw (tints always may): tierFx caps (setting, Low, team fight, stealth). */
   extras: boolean;
   /** Low quality: reduced counts, no hit motif, no foil. */
   low: boolean;
 }
 
-export const emptyProfile = (): SkinFxProfile => ({ id: 0, rung: 'COMMON', element: 'STELLAR', motif: 'ring', tint: 0xffffff, accent: 0xffffff, elementTint: 0xffffff, cream: 0xfff3dc, awakened: false, stage: 0, source: 'card', name: '', self: false, team: 0, extras: false, low: false });
+export const emptyProfile = (): SkinFxProfile => ({ id: 0, rung: 'COMMON', element: 'STELLAR', motif: 'ring', tint: 0xffffff, accent: 0xffffff, elementTint: 0xffffff, cream: 0xfff3dc, awakened: false, stage: 0, source: 'card', name: '', self: false, team: 0, mate: null, extras: false, low: false });
 
 const CREAM = 0xfff3dc;
 
@@ -129,19 +136,19 @@ export function glowOf(colors: readonly (number | string)[]): number {
   return hslToHex(h, Math.min(1, s < 0.12 ? s : Math.max(0.55, s)), Math.min(0.78, Math.max(0.62, l)));
 }
 
-/** A colour drawn on hero `p`: as is on your own hero, team-safe on anyone else's. */
-export const safe = (c: number, self: boolean, team: 0 | 1): number => (self ? c : trimForTeam(c, team));
+/** A colour drawn on hero `p`: as is on your own hero, team-safe (and relation-safe when `mate` is known) on anyone else's. */
+export const safe = (c: number, self: boolean, team: 0 | 1, mate: boolean | null = null): number => (self ? c : trimForTeam(c, team, mate ?? undefined));
 
 /** Fill the shared colour fields of `o` (tint, accent, element tint) for `self` / `team`. */
 function paint(o: SkinFxProfile, glow: number, accent: number): void {
-  o.tint = safe(glow, o.self, o.team);
-  o.accent = safe(accent, o.self, o.team);
-  o.cream = safe(CREAM, o.self, o.team);
-  o.elementTint = safe(mixHex(ELEMENT_COLOR[o.element], CREAM, o.element === 'STELLAR' ? 0.2 : 0.35), o.self, o.team);
+  o.tint = safe(glow, o.self, o.team, o.mate);
+  o.accent = safe(accent, o.self, o.team, o.mate);
+  o.cream = safe(CREAM, o.self, o.team, o.mate);
+  o.elementTint = safe(mixHex(ELEMENT_COLOR[o.element], CREAM, o.element === 'STELLAR' ? 0.2 : 0.35), o.self, o.team, o.mate);
 }
 
 /** A card skin's profile (null below Rare). `level`: the hero's level (Awakened stage). */
-export function profileFromCard(skin: CatSkin | null, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, level: number, out?: SkinFxProfile): SkinFxProfile | null {
+export function profileFromCard(skin: CatSkin | null, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, level: number, out?: SkinFxProfile, mate: boolean | null = null): SkinFxProfile | null {
   if (!skin || !rungAtLeast(skin.rung, 'RARE')) return null;
   const o = out ?? emptyProfile();
   o.id = id;
@@ -154,6 +161,7 @@ export function profileFromCard(skin: CatSkin | null, id: number, self: boolean,
   o.name = skin.name;
   o.self = self;
   o.team = team;
+  o.mate = mate;
   o.extras = extras;
   o.low = low;
   const c = skin.coat;
@@ -163,7 +171,7 @@ export function profileFromCard(skin: CatSkin | null, id: number, self: boolean,
 }
 
 /** A coat's profile from its fixed rung (null below Rare). Never Awakened: coats never read bond. */
-export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, element: Element, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, out?: SkinFxProfile): SkinFxProfile | null {
+export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, element: Element, id: number, self: boolean, team: 0 | 1, extras: boolean, low: boolean, out?: SkinFxProfile, mate: boolean | null = null): SkinFxProfile | null {
   if (!rungAtLeast(rung, 'RARE')) return null;
   const o = out ?? emptyProfile();
   o.id = id;
@@ -176,6 +184,7 @@ export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, ele
   o.name = name;
   o.self = self;
   o.team = team;
+  o.mate = mate;
   o.extras = extras;
   o.low = low;
   paint(o, glowOf(coat.patch !== undefined ? [coat.base, coat.light, coat.dark, coat.accent, coat.patch] : [coat.base, coat.light, coat.dark, coat.accent]), coat.accent);
@@ -185,7 +194,7 @@ export function profileFromCoatSpec(coat: Coat, name: string, rung: CatTier, ele
 /** The fur foil strength for a profile (0 on Low, below Legendary, or without extras). */
 export function foilOf(p: SkinFxProfile | null): number {
   if (!p || p.low || !p.extras || p.rung !== 'LEGENDARY') return 0;
-  return AWAKEN_FOIL[p.awakened ? p.stage : 0];
+  return p.awakened ? AWAKEN_FOIL[p.stage] : LEGENDARY_FOIL;
 }
 
 /** The foil colour: the element (lightened), team-safe (another hero's never gold). */
@@ -275,7 +284,7 @@ export class MotifEmitter {
     s.spin = p.element === 'ELECTRIC' ? 6 : 1.5;
     for (let i = 0; i < n; i++) {
       rhythmOffset(p.motif, i, n, _o);
-      if (flat) this.at.set(x + _o.x * reach, y, z + _o.y * reach);
+      if (flat) this.at.set(x + _o.x * reach, Math.max(y, size * 0.5 + 0.05), z + _o.y * reach);
       else this.at.set(x + _o.x * reach, y + _o.y * reach, z);
       s.color = motifColor(p, i);
       s.rot = i * 0.7;
@@ -288,8 +297,8 @@ export class MotifEmitter {
     return n;
   }
 
-  /** One sprite of `shape` (the paw stamp, the recall card glyph). */
-  glyph(particles: KitParticles, shape: number, color: number, x: number, y: number, z: number, size: number, life: number, spin = 0, grow: number = GROW.OUT): void {
+  /** One sprite of `shape` (the paw stamp, the recall card glyph). `rise`: upward drift (m/s; 0 keeps it in place). */
+  glyph(particles: KitParticles, shape: number, color: number, x: number, y: number, z: number, size: number, life: number, spin = 0, grow: number = GROW.OUT, rise = 0.4): void {
     const s = this.opts;
     s.shape = shape;
     s.color = color;
@@ -303,7 +312,7 @@ export class MotifEmitter {
     s.rot = 0;
     s.spin = spin;
     s.vx = 0;
-    s.vy = 0.4;
+    s.vy = rise;
     s.vz = 0;
     this.at.set(x, y, z);
     particles.single(this.at, s);

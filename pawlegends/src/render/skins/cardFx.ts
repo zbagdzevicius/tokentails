@@ -30,7 +30,7 @@
  */
 import * as THREE from 'three';
 import type { CatTier } from '../../meta/roster';
-import { SHAPE } from '../fx/Particles.js';
+import { GROW, SHAPE } from '../fx/Particles.js';
 import { mixHex } from './classify';
 import { glowOf, LiveBudget, MotifEmitter, profileFromCard, type SkinFxProfile } from './effectKit';
 import { rungAtLeast, trimForTeam } from './registry';
@@ -82,7 +82,7 @@ export function cardFxFor(skin: CatSkin | null, self: boolean, team: 0 | 1, extr
 export function tinted(base: number, fx: CardFx | null | undefined, mix = CARD_TINT_MIX): number {
   if (!fx || !rungAtLeast(fx.rung, 'RARE')) return base;
   const c = mixHex(base, fx.tint, mix);
-  return fx.self ? c : trimForTeam(c, fx.team);
+  return fx.self ? c : trimForTeam(c, fx.team, fx.mate ?? undefined);
 }
 
 export const hasSparkle = (fx: CardFx | null | undefined): boolean => !!fx && fx.extras && rungAtLeast(fx.rung, 'EPIC');
@@ -176,8 +176,8 @@ export class CardVfx {
   }
 
   /** One paw-print sprite (SHAPE.PAW) of `size` (m) at (x, y, z). */
-  private paw(x: number, y: number, z: number, size: number, color: number, life: number, spin = 0): void {
-    this.kit.glyph(this.particles, SHAPE.PAW, color, x, y, z, size, life, spin);
+  private paw(x: number, y: number, z: number, size: number, color: number, life: number, spin = 0, rise = 0.4): void {
+    this.kit.glyph(this.particles, SHAPE.PAW, color, x, y, z, size, life, spin, GROW.OUT, rise);
   }
 
   /** Epic+: a few small stars twinkle up around the caster (inside its hero ring). Low (own hero): 4. */
@@ -291,7 +291,8 @@ export class CardVfx {
     const size = Math.min(0.9, 0.35 + r * 0.08);
     for (let i = 0; i < WAVE_PAWS; i++) {
       const a = (i / WAVE_PAWS) * Math.PI * 2 + 0.3;
-      this.paw(x + Math.cos(a) * r * 0.75, 0.12, z - Math.sin(a) * r * 0.75, size, c, 0.55);
+      // standing on the ground (fully above it: the particle material depth-tests) and staying put, as prints do
+      this.paw(x + Math.cos(a) * r * 0.75, size * 0.5 + 0.05, z - Math.sin(a) * r * 0.75, size, c, 0.55, 0, 0);
     }
     if (motifs) this.kit.emit(this.particles, f, x, 0.15, z, motifs, r * 0.5, 0.55, true, 0.8);
     this.claim(WAVE_PAWS + motifs, 0.55, f);

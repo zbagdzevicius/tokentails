@@ -855,14 +855,15 @@ export class HeroView {
     const team: 0 | 1 = this.slotTeam[id] === 1 ? 1 : 0;
     const hero = this.rigs.get(id)?.hero ?? null;
     const rev = skin ? skin.rev : 0;
-    const meta = (self ? 2 : 0) + team;
+    const mate = team === this.myTeam;
+    const meta = (self ? 2 : 0) + team + (mate ? 4 : 0);
     const level = this.slotLevel[id];
     if (coat !== this.profCoat[id] || rev !== this.profRev[id] || meta !== this.profMeta[id] || hero !== this.profHero[id]) {
       this.profCoat[id] = coat;
       this.profRev[id] = rev;
       this.profMeta[id] = meta;
       this.profHero[id] = hero;
-      this.profHit[id] = skinFxFor(skin, coat, hero, id, self, team, extras, low, level, this.cardOut[id]);
+      this.profHit[id] = skinFxFor(skin, coat, hero, id, self, team, extras, low, level, this.cardOut[id], mate);
     }
     const p = this.profHit[id];
     if (!p) return null;

@@ -45,6 +45,8 @@ export interface SkillPreviewOptions {
    * effects (tints, motifs, paw bursts, foil). Called per hero on mount and on every `set`; null = the classic look.
    */
   look?: (hero: HeroId) => Look | null;
+  /** The previewed hero's level (default PREVIEW_LEVEL): an Awakened card's stage follows it (dev lab, captures). */
+  level?: number;
 }
 
 export interface SkillPreviewStats {
@@ -142,7 +144,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   const buffer = new SnapBuffer();
   view.peek = (h, out) => buffer.peekEvents(h, out);
 
-  let sb = new SkillSandbox(hero, slot);
+  let sb = new SkillSandbox(hero, slot, opts.level);
   let raf = 0;
   let wantPlay = opts.autoplay !== false;
   let onScreen = true;
@@ -374,7 +376,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
       const same = h === sb.hero;
       totalCasts = 0;
       totalLoops = 0;
-      sb = new SkillSandbox(h, s);
+      sb = new SkillSandbox(h, s, opts.level);
       setAt = performance.now();
       firstFrameMs = -1;
       cam.init = false;

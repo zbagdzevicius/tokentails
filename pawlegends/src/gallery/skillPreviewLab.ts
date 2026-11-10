@@ -5,7 +5,7 @@
  *
  * CARD-SKINS.md: `&coat=<store or pass coat id>` dresses the hero in a coat (its fixed rung's effects), and
  * `&card=<demo cat>` (ficus Legendary, pinkie Epic, rascal Rare, pickles Common) in a demo card skin; `&bond=30` with
- * `card=ficus` makes it Awakened. Tools: docs/plans/moba/card-skins/capture.mjs.
+ * `card=ficus` makes it Awakened; `&level=10` sets the hero level (its Awakened stage). Tools: docs/plans/moba/card-skins/capture.mjs.
  */
 import { HERO_IDS } from '../data/heroes';
 import type { HeroId } from '../data/heroes/types';
@@ -34,7 +34,8 @@ if (cardQ) {
 } else if (coatQ) look = { coat: coatQ, chroma: null };
 
 const { mountSkillPreview } = await import('../ui/preview/skillPreview');
-const p = mountSkillPreview(box, hero, slot, { tier, autoplay: q.get('capture') !== '1', ...(look ? { look: () => look } : {}) });
+const level = Number(q.get('level') ?? 0) || undefined;
+const p = mountSkillPreview(box, hero, slot, { tier, autoplay: q.get('capture') !== '1', ...(look ? { look: () => look } : {}), ...(level ? { level } : {}) });
 (window as unknown as { __preview: typeof p }).__preview = p;
 for (const h of HERO_IDS)
   for (const s of PREVIEW_SLOTS) {

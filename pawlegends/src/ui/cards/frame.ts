@@ -54,7 +54,7 @@ export function cardFrame(o: CardFrameOpts): string {
   const sp = o.sparkles ? '<span class="tt-sp t"></span><span class="tt-sp b"></span><span class="tt-sp l"></span><span class="tt-sp r"></span>' : '';
   const ico = o.icon ? '<span class="tt-ico" aria-hidden="true"></span>' : '';
   const aw = o.awakened ?? null;
-  const footText = o.foot === true ? `${aw !== null ? `${AWAKEN_STAGE_WORD[aw]} · Awakened` : TIER_NAME[tier]} · TOKEN TAILS` : (o.foot ?? '');
+  const footText = o.foot === true ? `${aw !== null ? (aw === 0 ? 'Awakened' : `${AWAKEN_STAGE_WORD[aw]} · Awakened`) : TIER_NAME[tier]} · TOKEN TAILS` : (o.foot ?? '');
   const foot = footText ? `<span class="tt-foot">${esc(footText)}</span>` : '';
   const type = tag === 'button' ? ' type="button"' : '';
   const awAttr = aw !== null ? ` data-awakened="${aw}"` : '';

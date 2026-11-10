@@ -105,6 +105,8 @@ const mixCh = (a: number, b: number, k: number, s: number): number => Math.round
 const mix = (a: number, b: number, k: number): number => (mixCh(a, b, k, 16) << 16) | (mixCh(a, b, k, 8) << 8) | mixCh(a, b, k, 0);
 /** The enemy's gate colour (a gold wash keeps both warm and friendly). */
 const THEIRS = mix(RELATION.enemy, 0xffffff, 0.15);
+/** The coat tint share of a skin ghost (the ally / enemy mix stays the main colour; CARD-SKINS.md). */
+const GHOST_TINT_MIX = 0.25;
 /** Ticks the "3, 2, 1, Ready!" count's last step stays up after the sim starts (app/matchSession.ts countdown, 600 ms). */
 const READY_TICKS = 20;
 /** Other heroes' death ghosts show only this close (m) to the camera focus, and fainter, so a team fight stays readable. */
@@ -357,10 +359,11 @@ export class Lifecycle {
     // telegraphs (no depth test), so they must never bury the fight (readability QA)
     if (!mine && Math.hypot(t.x - this.view.gr.focus.x, t.z - this.view.gr.focus.z) > GHOST_NEAR) return;
     const dog = dressTeam(e.team) === 1;
-    // CARD-SKINS.md Epic+: the ghost takes the skin tint (team-safe on another player's hero)
+    // CARD-SKINS.md Epic+: the ghost keeps its ally / enemy mix and takes a light skin tint (≤ 25 %, team- and
+    // relation-safe on another player's hero), so friend or foe still reads first
     const card = this.view.heroes.cardOf(e.id);
     const plain = mix(0xffffff, e.team === this.view.myTeam ? RELATION.ally : RELATION.enemy, 0.22);
-    const tint = card && rungAtLeast(card.rung, 'EPIC') ? tinted(plain, card) : plain;
+    const tint = card && rungAtLeast(card.rung, 'EPIC') ? tinted(plain, card, GHOST_TINT_MIX) : plain;
     const s = mine ? 1.15 : 0.7;
     const alpha = mine ? 0.92 : 0.5;
     // the soul waits for the faint, then floats up swaying (no gore: a smiling ghost with a halo)

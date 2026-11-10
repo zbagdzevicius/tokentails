@@ -17,11 +17,11 @@ import {
 } from '../../src/render/skins/cardFx';
 import { emptyProfile, profileFromCard } from '../../src/render/skins/effectKit';
 import { profileFromCoat } from '../../src/render/skins/coatRung';
-import { getSkin, setRosterSkins, skinIdOf, isGoldFamily } from '../../src/render/skins/registry';
+import { getSkin, setRosterSkins, skinIdOf, isGoldFamily, trimForTeam } from '../../src/render/skins/registry';
 import { hsl, hslToHex, mixHex } from '../../src/render/skins/classify';
 import { HEROES } from '../../src/data/heroes';
 import { ELEMENT_COLOR } from '../../src/render/cosmetics';
-import { TEAM } from '../../src/render/palette';
+import { RELATION, TEAM } from '../../src/render/palette';
 import { Effects, impactFlash, ultWaveRadius, type EffectsHooks, type Who } from '../../src/render/effects';
 import { CombatVfx } from '../../src/render/fx/combatVfx';
 import { Particles } from '../../src/render/fx/Particles.js';
@@ -196,6 +196,24 @@ describe('C4 readability: colour only, the default footprint, gold only on you',
       }
       expect(cardTint(skin, true, 0)).toBe(coatGlow(skin));
     }
+  });
+
+  it("another player's colours keep the friend-or-foe read: an enemy's never ally blue, an ally's never enemy red", () => {
+    const gap = (a: number, b: number) => Math.abs(((hsl(a)[0] - hsl(b)[0] + 540) % 360) - 180);
+    const reads = (c: number, rel: number) => gap(c, rel) <= 25 && hsl(c)[1] > 0.45;
+    // Frostbell-like ice accent on an enemy, a Sunforged-like fire glow on an ally
+    for (const team of [0, 1] as const) {
+      expect(reads(trimForTeam(0x9fe8ff, team, false), RELATION.ally)).toBe(false);
+      expect(reads(trimForTeam(0x3d8bff, team, false), RELATION.ally)).toBe(false);
+      for (const c of [0xff5a3d, 0xe8414b, 0xff4d5e]) {
+        expect(reads(trimForTeam(c, team, true), RELATION.enemy)).toBe(false);
+        expect(reads(trimForTeam(c, team, true), RELATION.danger)).toBe(false);
+      }
+      // unknown relation (lobby, tests): only the species and gold rules
+      expect(trimForTeam(0x3d8bff, team)).toBe(trimForTeam(0x3d8bff, team, undefined));
+    }
+    const enemy = { ...emptyProfile(), rung: 'RARE' as const, name: 'x', tint: 0x9fe8ff, self: false, team: 1 as const, mate: false, extras: true };
+    expect(reads(tinted(0x8a92b8, enemy), RELATION.ally)).toBe(false);
   });
 
   it("the drawn colour (default mixed with the tint) is never gold and never the opposing team's hue on another hero", () => {
