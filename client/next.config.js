@@ -119,12 +119,26 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
 // Pawlegends (pawlegends/, launch finding R2): its embed build in public/pawlegends-game keeps the previous releases'
 // hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
 // redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
-// index.html and build-releases.json keep the default revalidation.
+// build-releases.json keeps the default revalidation.
 // The landing's media (public/pawlegends/landing) carry a content hash in their names, so they are cached for good too.
-const pawlegendsHeaders = ["/pawlegends-game/build/:path*", "/pawlegends/landing/:path*"].map((source) => ({
-  source,
-  headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
-}));
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const cache = (source, value) => ({ source, headers: [{ key: "Cache-Control", value }] });
+// LATENCY-PLAN §3.3 / C5: the game page and the app's OTA files.
+// - OTA bundles (`<yyyymmddhhmmss>-<sha>.zip|json`) are never rewritten under the same name: cached for good.
+// - The OTA manifests and the game's index.html change on a release: the browser revalidates every time (max-age=0)
+//   while a CDN may serve its copy 30 s / 60 s and refresh it in the background. index.html is safe to serve a little
+//   stale because the last releases' build/ files stay published (keep-releases.mjs) for the tab that loads it.
+// - The game's assets/ names are not content-hashed yet: an hour in the browser, a week stale-while-revalidate.
+const OTA = "/pawlegends-app/updates/:platform/:compat";
+const pawlegendsHeaders = [
+  cache("/pawlegends-game/build/:path*", IMMUTABLE),
+  cache("/pawlegends/landing/:path*", IMMUTABLE),
+  cache("/pawlegends-game/index.html", "public, max-age=0, s-maxage=60, stale-while-revalidate=86400"),
+  cache("/pawlegends-game/assets/:path*", "public, max-age=3600, stale-while-revalidate=604800"),
+  cache(`${OTA}/bundles/:file*`, IMMUTABLE),
+  cache(`${OTA}/manifest.json`, "public, max-age=0, s-maxage=30, stale-while-revalidate=60"),
+  cache(`${OTA}/manifest-beta.json`, "public, max-age=0, s-maxage=30, stale-while-revalidate=60"),
+];
 // `/pawlegends` is the landing page, `/pawlegends/play` the game (components/pawlegends/routes.json). Links that need
 // the game carry one of its query keys (party invites, dares, Stripe returns, account emails, `from` from the PLAY
 // picker and the home hub), so those go on to the game with their query (Next carries it over). Marketing links

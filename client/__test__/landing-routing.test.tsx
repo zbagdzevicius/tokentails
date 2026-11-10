@@ -164,26 +164,10 @@ describe("root visit", () => {
     expectGamingLanding(container);
   });
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
   it("shows the Swordcat section after the Heist by default and hides it with NEXT_PUBLIC_SWORDCAT=0 (plan §12)", () => {
     expect(process.env.NEXT_PUBLIC_SWORDCAT).toBeUndefined();
     {
       const { container, unmount } = render(<HomePage />);
-<<<<<<< HEAD
-=======
-  it("hides the Swordcat section by default and shows it after the Heist with NEXT_PUBLIC_SWORDCAT on (plan §12)", () => {
-    const off = render(<HomePage />);
-    expect(off.container.querySelector('[data-testid="swordcat-section"]')).toBeNull();
-    off.unmount();
-    process.env.NEXT_PUBLIC_SWORDCAT = "1";
-    try {
-      const { container } = render(<HomePage />);
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
       expectGamingLanding(container);
       const heist = container.querySelector('[data-testid="heist-section"]');
       const sword = container.querySelector('[data-testid="swordcat-section"]');
@@ -193,10 +177,6 @@ describe("root visit", () => {
       expect(sword!.compareDocumentPosition(globe!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
       expect(sword!.querySelectorAll("a")).toHaveLength(1);
       expect(sword!.querySelector("a")?.getAttribute("href")).toBe("/swordcat?from=landing_swordcat");
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
       unmount();
     }
     process.env.NEXT_PUBLIC_SWORDCAT = "0";
@@ -204,11 +184,6 @@ describe("root visit", () => {
       const { container } = render(<HomePage />);
       expectGamingLanding(container);
       expect(container.querySelector('[data-testid="swordcat-section"]')).toBeNull();
-<<<<<<< HEAD
-=======
->>>>>>> 587fe4047 (feat(swordcat): embed TT4, game picker entry, landing section behind NEXT_PUBLIC_SWORDCAT)
-=======
->>>>>>> 1208e29e9 (feat(swordcat): Pink Paw Knight on by default; env flags are kill switches only)
     } finally {
       delete process.env.NEXT_PUBLIC_SWORDCAT;
     }
@@ -541,31 +516,42 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     expect(afterFiles).toContainEqual({ source: "/badcat/:path*", destination: "/badcat-game/:path*" });
     expect(fallback).toContainEqual({ source: "/badcat/d/:n(\\d{1,4})", destination: "/badcat-game/index.html" });
     const headers = await nextConfig.headers();
-<<<<<<< HEAD
-<<<<<<< HEAD
     expect(headers.map((h: { source: string }) => h.source)).toEqual([
       "/badcat-game/sw.js",
       "/badcat/sw.js",
+      "/home/media/:path*",
+      "/music/back-on-track-v1/:path*",
       "/pawlegends-game/build/:path*",
       "/pawlegends/landing/:path*",
+      "/pawlegends-game/index.html",
+      "/pawlegends-game/assets/:path*",
+      "/pawlegends-app/updates/:platform/:compat/bundles/:file*",
+      "/pawlegends-app/updates/:platform/:compat/manifest.json",
+      "/pawlegends-app/updates/:platform/:compat/manifest-beta.json",
     ]);
+    // Moon Rave's second track: every file name is versioned, so the folder is immutable.
+    const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
+    expect(music.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
   });
 
   it("serves the Pawlegends hashed build files as immutable (launch finding R2)", async () => {
     const headers = await nextConfig.headers();
     const build = headers.find((h: { source: string }) => h.source === "/pawlegends-game/build/:path*");
     expect(build.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
-    // index.html must keep revalidating, or a deploy would never reach an open tab's next load
-    expect(headers.some((h: { source: string }) => h.source.startsWith("/pawlegends-game/index"))).toBe(false);
-=======
-    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js", "/music/back-on-track-v1/:path*"]);
-=======
-    expect(headers.map((h: { source: string }) => h.source)).toEqual(["/badcat-game/sw.js", "/badcat/sw.js", "/home/media/:path*", "/music/back-on-track-v1/:path*"]);
->>>>>>> 1c6432d57 (feat(home): Play-to-Save landing as the tokentails.com home page, Tails Club backend)
-    // Moon Rave's second track: every file name is versioned, so the folder is immutable.
-    const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
-    expect(music.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
->>>>>>> ddf4c2d44 (feat(rave): Back on Track mix toggle (T), beat-mapped 145 BPM show, red lights)
+    // index.html revalidates in the browser every time (max-age=0), or a deploy would never reach an open tab's next
+    // load; only a CDN may keep it 60 s (LATENCY-PLAN §3.3)
+    const index = headers.find((h: { source: string }) => h.source === "/pawlegends-game/index.html");
+    expect(index.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=0, s-maxage=60, stale-while-revalidate=86400" }]);
+  });
+
+  it("caches the Pawlegends OTA bundles for good and the OTA manifests 30 s at the CDN only (LATENCY-PLAN §3.3)", async () => {
+    const headers = await nextConfig.headers();
+    const value = (source: string) => headers.find((h: { source: string }) => h.source === source)?.headers[0].value;
+    expect(value("/pawlegends-app/updates/:platform/:compat/bundles/:file*")).toBe("public, max-age=31536000, immutable");
+    for (const m of ["manifest.json", "manifest-beta.json"])
+      expect(value(`/pawlegends-app/updates/:platform/:compat/${m}`)).toBe("public, max-age=0, s-maxage=30, stale-while-revalidate=60");
+    // the game's assets/ names carry no content hash yet: never immutable
+    expect(value("/pawlegends-game/assets/:path*")).toBe("public, max-age=3600, stale-while-revalidate=604800");
   });
 });
 
