@@ -65,7 +65,7 @@ const audible = (h: Heard): boolean => h.dest && h.gain > 0.001 && h.state === '
 /** The sound kinds the founder named, by the names the game gives them. */
 const WANT: Record<string, (h: Heard) => boolean> = {
   'match start': (h) => (h.kind === 'voice' && /^(welcome|gatesSoon|gatesOpen)$/.test(h.name)) || (h.kind === 'sfx' && h.name === 'horn'),
-  'basic hit': (h) => h.kind === 'sfx' && (/^(hitCrack|hitThump|hurtThud|heroHit)$/.test(h.name) || /^v:[a-z]+:basic$/.test(h.name)),
+  'basic hit': (h) => h.kind === 'sfx' && (/^hb:(hit|hurt|swing|launch)[A-Za-z]*:\d$/.test(h.name) || /^v:[a-z]+:basic$/.test(h.name)),
   skill: (h) => h.kind === 'sfx' && (/^n:[a-z]+:(cast|impact)$/.test(h.name) || /^c:[a-z]+:/.test(h.name) || /^(magic|swipe|slam|dash|ult)$/.test(h.name)),
   knockout: (h) => (h.kind === 'voice' && /^(firstBlood|slain|allySlain|takedown|double|ace|aceUs|shutdown)$/.test(h.name)) || (h.kind === 'sfx' && /^(death|cheer|gasp)$/.test(h.name)),
   result: (h) => /^(victory|defeat)$/.test(h.name),

@@ -12,6 +12,8 @@ import { PUDDING } from '../data/pudding';
 import { SLOTS_PER_TEAM, type CastSlot, type HeroId, type SimEvent, type TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { playSkillSfx, skillKey } from '../audio/skillSfx';
+import { attackStyle } from '../audio/hitMix';
+import { IDENTITY, type Nature } from './identity';
 import { CHAMP_AUDIO } from '../audio/champ';
 import type { MixRelation } from '../audio/identityMix';
 import { NatureFx } from './fx/natureFx';
@@ -410,9 +412,14 @@ export class Effects {
     const drew = anim ? anim.hitFired(e, src?.kind === 'hero', heroDst, big) : false;
     // champion identity: the attacker's skill nature impact (sound and VFX) and its motif
     const idHero = src && src.kind === 'hero' && src.hero && (e.kind === 'basic' || e.kind === 'ability') ? src.hero : null;
+    let nature: Nature | undefined;
     if (src && idHero) {
       const skill = e.kind === 'basic' ? 'basic' : skillKey(this.lastSlot.get(src.id) ?? 0);
       const relation = this.relOf(src);
+      // audio pass 2: the player's own basic has its attacker side too (claw whoosh, tank swing, thwip, magic zip) in
+      // the hero's own pitch; others' basics keep their identity impact only (no extra audio node per hit)
+      if (e.kind === 'basic' && e.src === me) sfx.swing({ hero: idHero, style: attackStyle(idHero), mine: true, at: src });
+      else nature = IDENTITY[idHero]?.skills[skill]?.nature;
       playSkillSfx(idHero, skill, 'impact', { at: dst, relation, src: src.id });
       if (e.kind === 'ability' && !drew) this.natureFx.skillFx(idHero, skill, 'impact', pos, null, { enemy: relation === 'enemy' });
       else this.natureFx.motifBurst(idHero, pos, 2, null, skill, relation === 'enemy');
@@ -462,7 +469,7 @@ export class Effects {
         if (big) this.juice.kick(0.2);
       }
       // audio pass (Nov 9): a layered impact (crack, thump, body; deeper when heavy, a ring when big)
-      sfx.impact({ target: heroDst ? 'hero' : structure ? 'structure' : 'unit', who: 'mine', heavy, big, at: dst });
+      sfx.impact({ target: heroDst ? 'hero' : structure ? 'structure' : 'unit', who: 'mine', heavy, big, nature, at: dst });
     } else if (e.dst === me) {
       if (shows) this.numbers.show(npos, String(e.amount), 'hurt', e.dst, e.amount);
       this.juice.kick(Math.max(e.kind === 'tower' ? 0.18 : 0, Math.min(0.35, 0.1 + e.amount / 600)));
@@ -776,7 +783,11 @@ export class Effects {
     if (!pos) return;
     this.numbers.show(pos, `+${e.amount}`, 'fish', 'fish', e.amount);
     this.fishPops++;
-    if (e.reason === 'lastHit') sfx.play('coin', { vol: 0.35, rate: 1.2 });
+    if (e.reason === 'lastHit') {
+      // audio pass 2: the last-hit ping (two pings and a shimmer) and a small gold sparkle where the minion fell
+      sfx.fishPing();
+      this.particles.burst(pos, { additive: true, n: 8, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 1.9, size: [0.1, 0.2], life: [0.3, 0.45], speed: [1.5, 3], up: 2, drag: 2 });
+    }
   }
 
   /** Lane F (F2): a Toy bought: a gold ring at that hero (seen now), and for the player a shockwave and the buy sound. */
