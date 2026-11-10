@@ -1,19 +1,19 @@
 /**
- * The shared pick (docs/plans/moba/MULTIPLAYER.md §5.1, §8, lane P7): 30 s, simultaneous. Top: the team strip with
- * the three human seats (a pulsing outline while hovering, a solid frame once locked) and bot seats as "?". Middle:
- * the existing pick cards in one grid; a hero another human locked is greyed with that player's name; the other side
- * is greyed and the header says "Leader chose cats" (the leader's hover decides the side); a "New? Try this" badge on the easy hero for a new
- * player. Bottom: the Paw Trick row, the timer and Lock in.
+ * The shared pick (docs/plans/moba/MULTIPLAYER.md §5.1, §8, lane P7), drawn as the Wild Rift champion select
+ * (docs/plans/moba/LANDING-PICK-UX.md Part B, ui/champSelect): 30 s, simultaneous. Left: the team column (the human
+ * seats by slot with their usernames, "Selecting…" while hovering and the hero once locked; empty seats are bots). Centre:
+ * the side and role tabs over the portrait grid; a hero another human locked is greyed with "Taken: name"; the other
+ * side is locked with the leader's side note; a "New? Try this" badge on the easy hero for a new player. Right: the
+ * hovered hero's skills. Bottom: Leave (Quick Play and PvP), LOCK IN (or Change hero once locked) and the Paw Trick row.
  *
- * Pure markup; the party client dispatches the `data-p` actions (`hero`, `trick`, `lock`).
+ * Pure markup; the party client dispatches the `data-p` actions (`hero`, `trick`, `lock`, `unlock`, `info`, `leave`).
  */
 import { HERO_IDS, HEROES, type HeroId } from '../../data/heroes';
-import { TRICK_IDS } from '../../data/tricks';
-import type { MemberView, PartyView } from '../../net/proto';
+import type { PartyView } from '../../net/proto';
 import { portraitUrl } from '../../render/portraits';
-import { HERO_TEXT, TRICK_TEXT } from '../../ui/heroText';
-import { icon } from '../../ui/icons';
-import { heroTile } from '../../ui/screens';
+import { HERO_TEXT, trickHint } from '../../ui/heroText';
+import { champSelectHtml, type CsModel } from '../../ui/champSelect/champSelect';
+import { partySeats } from '../../ui/champSelect/seats';
 import { COPY, DIFF_LABEL, esc, sideText } from './copy';
 import { seatsPerTeam, shownName } from './partyLobby';
 
@@ -24,6 +24,9 @@ export interface PickModel {
   view: PartyView;
   /** This player's current hover and trick (local until locked). */
   hover: string;
+  /** A hero tapped only to read its skills (taken, the other side, or after locking in): the panel shows it, the
+   * hover and the seat stay. '' or absent: the panel shows the hover. */
+  peek?: string;
   trick: string;
   /** Seconds left on the pick timer. */
   secondsLeft: number;
@@ -66,92 +69,84 @@ export function heroBlock(v: PartyView, hero: string, hide = false): string {
   return '';
 }
 
-function stripSeat(v: PartyView, m: MemberView | undefined, hide: boolean): string {
-  if (!m) return `<li class="pp-ts bot"><span class="pp-ts-face">?</span><b>${COPY.bot}</b></li>`;
-  const hero = m.hero && m.hero in HEROES ? (m.hero as HeroId) : null;
-  const pic = hero ? portraitUrl(hero) : null;
-  const face = pic ? `<span class="pp-ts-face" style="background-image:url('${esc(pic)}')"></span>` : '<span class="pp-ts-face">?</span>';
-  const heroName = hero ? HERO_TEXT[hero].title : '…';
-  return `<li class="pp-ts" data-hero="${hero ?? ''}" data-locked="${!!m.locked}" data-hover="${!!hero && !m.locked}"${m.id === v.you ? ' data-me="1"' : ''} title="${esc(`${shownName(v, m, hide)}: ${heroName}`)}">${face}<b>${esc(shownName(v, m, hide))}</b><small class="pp-ts-hero">${esc(heroName)}</small></li>`;
+export interface PickHtmlExtra {
+  /** The round-1 numbers pref (the cooldown and facts in the skill text). */
+  numbers?: boolean;
 }
 
-export function pickHtml(o: PickModel): string {
+/** The party pick as a champion select model. Pure. */
+export function pickModel(o: PickModel, x: PickHtmlExtra = {}): CsModel {
   const v = o.view;
   const hide = o.hideNames === true;
   const me = v.members.find((m) => m.id === v.you);
   const locked = !!me?.locked;
-  const humans = [...v.members].sort((a, b) => (a.slot ?? 9) - (b.slot ?? 9));
   // casual PvP (V16.md §5): the own team only, by seat (the other team's picks show at loading)
   const per = seatsPerTeam(v);
   const casual = v.mm?.mode === 'casual' || (!!v.mm && per === 5);
   const team = v.mm?.team ?? 0;
-  const strip = casual
-    ? Array.from({ length: per }, (_, i) => stripSeat(v, v.members.find((m) => m.slot === team * per + i), hide)).join('')
-    : Array.from({ length: per }, (_, i) => stripSeat(v, humans[i], hide)).join('');
-  const hidden = casual ? `<p class="pp-side-note pp-their" data-testid="pvp-their-hidden">${COPY.opponentsHidden}</p>` : '';
-  const leaderSide = sideOf(v.members.find((m) => m.id === v.leader)?.hero);
-  // one grid (cats then dogs): two rows of six fit a 375 px tall phone
-  // Quick Play: only the assigned side's heroes (the other side is never pickable)
   const mm = v.mm?.side ?? null;
+  const leaderSide = sideOf(v.members.find((m) => m.id === v.leader)?.hero);
+  // Quick Play: only the assigned side's heroes (the other side is never pickable)
   const order = mm
     ? HERO_IDS.filter((h) => HEROES[h].side === mm)
     : [...HERO_IDS.filter((h) => HEROES[h].side === 'cat'), ...HERO_IDS.filter((h) => HEROES[h].side === 'dog')];
+  // Quick Play's found line sits in the header under the side badge (the team column has no room for it with 5 seats)
   const found = mm && o.found ? `<p class="pp-side-note pp-found-line" data-testid="mm-found-line">${esc(COPY.foundLine(o.found.humans, o.found.bots, sideText(o.found.side), DIFF_LABEL[o.found.difficulty] ?? o.found.difficulty))}</p>` : '';
-  const sideNote = mm
-    ? `${sideBadgeHtml(mm)}${found}${hidden}`
-    : v.leader !== v.you && leaderSide
+  const teamNote = mm
+    ? casual ? `<p class="pp-side-note pp-their" data-testid="pvp-their-hidden">${COPY.opponentsHidden}</p>` : ''
+    : !mm && v.leader !== v.you && leaderSide
       ? `<p class="pp-side-note" data-testid="party-side-note">${esc(COPY.leaderChose(leaderSide))}</p>`
       : '';
-  const rows = `<div class="pp-heroes">${order.map((h) => heroTile(h, h === o.hover, portraitUrl(h), undefined)).join('')}</div>`;
-  const tricks = TRICK_IDS.map(
-    (t) =>
-      `<button type="button" class="chip pp-trick ${t === o.trick ? 'on' : ''}" data-p="trick" data-v="${t}" aria-pressed="${t === o.trick}" ${locked ? 'disabled' : ''} title="${esc(TRICK_TEXT[t].text)}">${icon(TRICK_TEXT[t].icon)}${esc(TRICK_TEXT[t].name)}</button>`,
-  ).join('');
-  const err = o.error ? `<p class="pp-err" role="alert">${esc(o.error)}</p>` : '';
-  // Lock in only for a hero this player can really get (a hero someone just locked, or the other side, is refused)
-  const canLock = !locked && !!o.hover && !heroBlock(v, o.hover, hide);
-  const lockBtn = locked
-    ? `<button type="button" class="pl-btn ghost" data-p="unlock" data-testid="party-unlock">${COPY.changeHero}</button><button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" disabled>${COPY.lockedIn}</button>`
-    : `<button type="button" class="pl-btn big" data-p="lock" data-testid="party-lock" ${canLock ? '' : 'disabled'}>${COPY.lockIn}</button>`;
-  // Quick Play: a way out of the pick (two taps, as in the friend lobby); a bot takes the seat
-  // champion browser: the hovered hero's skills and lore (the "i" on each card opens any hero; locked cards cannot take
-  // a tap, so this button is the way in once locked)
-  const info = o.hover && o.hover in HEROES ? `<button type="button" class="pl-btn ghost small pp-info" data-p="info" data-v="${esc(o.hover)}" data-testid="party-info" aria-haspopup="dialog">${icon('spell')}${esc(COPY.skillsLore)}</button>` : '';
-  const leave = mm ? `<button type="button" class="pl-btn ghost small pp-pick-leave" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>` : '';
-  return `<div class="pp-card pp-pick" data-locked="${locked}"${mm ? ` data-mm="${mm}"` : ''}${casual ? ` data-pvp="${team}"` : ''}>
-    <div class="pp-head"><h2>${COPY.pickTitle}</h2>${sideNote}<ul class="pp-strip" aria-label="Team">${strip}</ul><span class="pp-timer" data-timer data-testid="party-timer">${Math.max(0, o.secondsLeft)}s</span></div>
-    <div class="pp-roster">${rows}</div>
-    <div class="pp-pick-foot"><div class="pp-tricks" role="group" aria-label="${COPY.trick}">${tricks}</div>${err}${info}${leave}${lockBtn}</div>
-  </div>`;
+  const taken = lockedByOthers(v, hide);
+  // a teammate's hover: a corner dot in their seat colour
+  const mates = new Map<string, number>();
+  v.members.forEach((m) => {
+    if (m.id !== v.you && !m.locked && m.hero) mates.set(m.hero, Math.max(0, m.slot ?? 0) % per);
+  });
+  const hover = o.hover && o.hover in HEROES ? (o.hover as HeroId) : null;
+  const peek = o.peek && o.peek in HEROES && o.peek !== o.hover ? (o.peek as HeroId) : null;
+  const shown = peek ?? hover;
+  const block = shown ? heroBlock(v, shown, hide) : '';
+  const lockWhy = !shown ? 'Tap a hero' : taken.get(shown) ? `Taken by ${taken.get(shown)}` : block;
+  return {
+    kind: 'party',
+    seats: partySeats(v, o.hover, (m) => shownName(v, m, hide), per, casual),
+    heroes: order,
+    selected: shown,
+    sideTabs: !mm,
+    // a member follows the leader's side (the tab moves when the leader changes it; All and the other side stay viewable)
+    lockSide: !mm && v.leader !== v.you ? leaderSide : null,
+    tile: (h) => {
+      const why = heroBlock(v, h, hide);
+      const by = taken.get(h);
+      return {
+        taken: by,
+        locked: why && !by ? why : undefined,
+        // every tile stays tappable to read its skills (Wild Rift: any champion can be inspected); LOCK IN says why not
+        blocked: !!why || locked,
+        tryThis: !!me?.newbie && h === NEWBIE_HERO,
+        mate: mates.get(h),
+      };
+    },
+    portrait: (h) => portraitUrl(h),
+    trick: (o.trick || 'pounce') as CsModel['trick'],
+    trickHint: hover ? trickHint(HERO_TEXT[hover].role, HEROES[hover].side) : '',
+    tricksDisabled: locked,
+    timer: o.secondsLeft,
+    title: COPY.pickTitle,
+    headRight: mm ? `${sideBadgeHtml(mm)}${found}` : '',
+    teamNote,
+    footLeft: mm ? `<button type="button" class="pl-btn ghost small pp-pick-leave" data-p="leave" data-testid="party-leave">${COPY.leaveMatch}</button>` : '',
+    lock: locked
+      ? { enabled: false, locked: true, label: COPY.lockedIn, unlockLabel: COPY.changeHero }
+      : { enabled: !lockWhy, label: COPY.lockIn, sub: lockWhy || (shown ? HERO_TEXT[shown].title : '') },
+    numbers: x.numbers === true,
+    error: o.error,
+    rootClass: 'pp-card pp-pick',
+    rootAttrs: `data-locked="${locked}"${mm ? ` data-mm="${mm}"` : ''}${casual ? ` data-pvp="${team}"` : ''}`,
+  };
 }
 
-/**
- * After `pickHtml` is in the DOM: turn each hero card into a party pick button (`data-p="hero"`), greyed with the
- * locker's name or the side note, and badge the newbie hero.
- */
-export function decoratePick(root: HTMLElement, v: PartyView, hide = false): void {
-  const me = v.members.find((m) => m.id === v.you);
-  for (const el of root.querySelectorAll<HTMLElement>('.pp-heroes [data-h]')) {
-    const h = el.dataset.h!;
-    el.dataset.p = 'hero';
-    el.dataset.v = h;
-    el.dataset.testid = `party-hero-${h}`;
-    const dot = el.querySelector<HTMLElement>('.hero-info');
-    if (dot) {
-      dot.dataset.p = 'info';
-      dot.dataset.v = h;
-    }
-    const why = heroBlock(v, h, hide);
-    const taken = lockedByOthers(v, hide).get(h);
-    if (why && !taken) el.dataset.side = 'off';
-    if (why || me?.locked) {
-      (el as HTMLButtonElement).disabled = true;
-      el.setAttribute('aria-disabled', 'true');
-    }
-    if (taken) {
-      el.dataset.taken = '1';
-      el.insertAdjacentHTML('beforeend', `<span class="pp-taken">${esc(taken)}</span>`);
-    }
-    if (me?.newbie && h === NEWBIE_HERO && !why) el.insertAdjacentHTML('beforeend', `<span class="pp-try">${COPY.tryThis}</span>`);
-  }
+export function pickHtml(o: PickModel, x: PickHtmlExtra = {}): string {
+  return champSelectHtml(pickModel(o, x));
 }

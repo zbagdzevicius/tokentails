@@ -82,4 +82,38 @@ describe('Play online (M1a)', () => {
     expect(has(v(2, 'b'))).toBe(false);
     expect(has(v(2), false)).toBe(false);
   });
+
+  it('Co-op and PvP are two direct buttons in one online row (no mode chip): each one tap, each remembers its mode', () => {
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const root = lobbyScreen(document.body, base({ onOnline, onParty: vi.fn(), onJoinCode: vi.fn(), onlineMode: { mode: 'coop', locked: false, onMode } }));
+    expect(root.querySelector('[data-testid="online-mode"], [data-a="mode"]')).toBeNull();
+    const row = [...root.querySelectorAll<HTMLElement>('.lb-online-row > button')].map((b) => b.dataset.testid);
+    expect(row).toEqual(['play-online', 'play-pvp', 'play-friends', 'join-code']);
+    (root.querySelector('[data-testid="play-pvp"]') as HTMLElement).click();
+    expect(onMode).toHaveBeenLastCalledWith('pvp');
+    expect(onOnline).toHaveBeenCalledTimes(1);
+    (root.querySelector('[data-testid="play-online"]') as HTMLElement).click();
+    expect(onMode).toHaveBeenLastCalledWith('coop');
+    expect(onOnline).toHaveBeenCalledTimes(2);
+  });
+
+  it('PvP before 5 matches reads "PvP 🔒 2/5", and a tap explains it instead of queueing', () => {
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const root = lobbyScreen(document.body, base({ onOnline, onlineMode: { mode: 'coop', locked: true, played: 2, needed: 5, onMode } }));
+    const pvp = root.querySelector('[data-testid="play-pvp"]') as HTMLElement;
+    expect(pvp.getAttribute('aria-disabled')).toBe('true');
+    expect(pvp.textContent).toContain('2/5');
+    pvp.click();
+    expect(onOnline).not.toHaveBeenCalled();
+    expect(onMode).not.toHaveBeenCalled();
+    expect(root.querySelector('.lb-toast')?.textContent).toContain('PvP unlocks after 5 matches');
+  });
+
+  it('no PvP sim on the backend: Co-op alone, no PvP button', () => {
+    const root = lobbyScreen(document.body, base({ onOnline: vi.fn(), onParty: vi.fn() }));
+    expect(root.querySelector('[data-testid="play-pvp"]')).toBeNull();
+    expect(root.querySelector('[data-testid="play-online"]')?.textContent).toContain('Co-op');
+  });
 });

@@ -296,18 +296,13 @@ export class Lobby {
     if (this.t - this.edgeAt < 0.25 && this.edgeAt >= 0) return this.edge;
     this.edgeAt = this.t;
     let right = 0;
-    for (const el of document.querySelectorAll<HTMLElement>('.pl-pick-col, .pl-title-col, .pl-results-col, .lb-col')) {
+    // (the champion select has no column: its grid and panel cover the stage, so the hero stands centred behind them)
+    for (const el of document.querySelectorAll<HTMLElement>('.pl-title-col, .pl-results-col, .lb-col')) {
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) right = Math.max(right, r.right);
     }
     const w = window.innerWidth || 1;
-    const h = window.innerHeight || 1;
-    // the pick footer, when it sits on the hero's half of the screen (short landscape), reserves its band
     this.foot = 0;
-    for (const el of document.querySelectorAll<HTMLElement>('.pl-pick-foot')) {
-      const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0 && r.left > w * 0.45) this.foot = Math.min(0.35, Math.max(0, (h - r.top) / h));
-    }
     this.edge = right > 0 ? (right / w) * 2 - 1 : null;
     let card = Infinity;
     for (const el of document.querySelectorAll<HTMLElement>('.tt-mvp')) {

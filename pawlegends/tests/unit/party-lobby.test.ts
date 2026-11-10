@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { describe, expect, it } from 'vitest';
 import { lobbyHtml, shownName, type LobbyModel } from '../../src/party/ui/partyLobby';
-import { decoratePick, heroBlock, pickHtml } from '../../src/party/ui/partyPick';
+import { heroBlock, pickHtml } from '../../src/party/ui/partyPick';
 import { loadingHtml } from '../../src/party/ui/partyLoading';
 import { codeLetters, joinCodeHtml, wireCodeBoxes } from '../../src/party/ui/joinCode';
 import type { PartyView } from '../../src/net/proto';
@@ -142,49 +142,74 @@ describe('shared pick (P7)', () => {
   it('a hero another human locked is greyed with their name', () => {
     const v = pick();
     const el = mount(pickHtml({ view: v, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
-    decoratePick(el, v);
     const clem = el.querySelector('[data-testid="party-hero-clem"]') as HTMLButtonElement;
-    expect(clem.disabled).toBe(true);
-    expect(clem.querySelector('.pp-taken')!.textContent).toBe('Sunny Tabby');
+    // not lockable, still tappable to read its skills (Wild Rift: any champion can be inspected)
+    expect(clem.getAttribute('aria-disabled')).toBe('true');
+    expect(clem.disabled).toBe(false);
+    expect(clem.querySelector('.pp-taken')!.textContent).toBe('Taken: Sunny Tabby');
     expect(heroBlock(v, 'clem')).toBe('Sunny Tabby');
   });
 
   it("the other side is greyed with \"Leader chose cats\"; the leader may pick any side", () => {
     const v = pick();
     const el = mount(pickHtml({ view: v, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
-    decoratePick(el, v);
     const brutus = el.querySelector('[data-testid="party-hero-brutus"]') as HTMLButtonElement;
-    expect(brutus.disabled).toBe(true);
-    expect(brutus.dataset.side).toBe('off');
+    expect(brutus.getAttribute('aria-disabled')).toBe('true');
+    expect(brutus.classList.contains('locked')).toBe(true);
+    expect(brutus.getAttribute('aria-label')).toContain('Leader chose cats');
     expect(el.querySelector('[data-testid="party-side-note"]')!.textContent).toBe('Leader chose cats');
     expect(heroBlock(v, 'brutus')).toBe('Leader chose cats');
     expect(heroBlock({ ...v, you: 'a' }, 'brutus')).toBe('');
   });
 
-  it('the team strip: humans by slot, a bot seat as "?", hover and lock states', () => {
+  it('the team column: humans by slot with usernames, "Selecting…" while hovering, the hero once locked, a bot seat as "?"', () => {
     const el = mount(pickHtml({ view: pick(), hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
-    const seats = el.querySelectorAll('.pp-ts');
+    const seats = el.querySelectorAll('.cs-team .pp-ts');
     expect(seats).toHaveLength(3);
     expect(seats[0].getAttribute('data-locked')).toBe('true');
+    expect(seats[0].querySelector('b')!.textContent).toBe('Clem');
+    expect(seats[0].querySelector('small')!.textContent).toBe('Sunny Tabby');
     expect(seats[1].getAttribute('data-hover')).toBe('true');
+    expect(seats[1].querySelector('b')!.textContent).toBe('Selecting…');
+    expect(seats[1].querySelector('small')!.textContent).toBe('Brave Sage');
+    expect(seats[1].getAttribute('data-me')).toBe('1');
     expect(seats[2].classList.contains('bot')).toBe(true);
-    expect(el.querySelector('[data-testid="party-timer"]')!.textContent).toBe('20s');
+    expect(seats[2].querySelector('.cs-sf')!.textContent).toBe('?');
+    expect(el.querySelector('[data-testid="party-timer"]')!.textContent).toBe('0:20');
   });
 
   it('a newbie sees "New? Try this" on the easy hero when it is free', () => {
     const v = pick({ members: [{ id: 'a', name: 'A', guest: false, conn: 'on', slot: 0, hero: 'sage' }, { id: 'b', name: 'B', guest: false, conn: 'on', slot: 1, newbie: true }] });
     const el = mount(pickHtml({ view: v, hover: 'clem', trick: 'pounce', secondsLeft: 20, error: null }));
-    decoratePick(el, v);
     expect(el.querySelector('[data-testid="party-hero-clem"] .pp-try')!.textContent).toBe('New? Try this');
   });
 
-  it('locked in: every hero and trick is disabled and the button says so', () => {
+  it('locked in: every hero is view-only, every trick disabled, and the button says so', () => {
     const v = pick({ you: 'a' });
     const el = mount(pickHtml({ view: v, hover: 'clem', trick: 'pounce', secondsLeft: 20, error: null }));
-    decoratePick(el, v);
-    expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="hero"]')].every((b) => b.disabled)).toBe(true);
+    expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="hero"]')].every((b) => b.getAttribute('aria-disabled') === 'true')).toBe(true);
     expect([...el.querySelectorAll<HTMLButtonElement>('[data-p="trick"]')].every((b) => b.disabled)).toBe(true);
     expect(el.querySelector('[data-testid="party-lock"]')!.textContent).toBe('Locked in');
+    expect(el.querySelector('[data-testid="party-unlock"]')!.textContent).toBe('Change hero');
+  });
+
+  it('a viewed hero (taken, the other side) fills the panel; LOCK IN says why and the seat keeps the hover', () => {
+    const v = pick();
+    const el = mount(pickHtml({ view: v, hover: 'sage', peek: 'brutus', trick: 'pounce', secondsLeft: 20, error: null }));
+    expect(el.querySelector('.cs-panel')!.getAttribute('data-hero')).toBe('brutus');
+    expect(el.querySelector('[data-testid="party-hero-brutus"]')!.classList.contains('on')).toBe(true);
+    const lock = el.querySelector<HTMLButtonElement>('[data-testid="party-lock"]')!;
+    expect(lock.disabled).toBe(true);
+    expect(lock.textContent).toContain('Leader chose cats');
+    expect(el.querySelector('.cs-seat[data-me="1"]')!.getAttribute('data-hero')).toBe('sage');
+  });
+
+  it('5v5: five seats, the own team by slot, and teammate dots for slots 3 and 4', () => {
+    const members = [0, 1, 2, 3, 4].map((i) => ({ id: `m${i}`, name: `P${i}`, guest: false, conn: 'on' as const, slot: i, hero: i === 4 ? 'rocket' : undefined }));
+    const v = pick({ members, you: 'm0', leader: 'm0', mm: { side: 'cat', team: 0, mode: 'classic', teamSize: 5 } as never });
+    const el = mount(pickHtml({ view: v, hover: 'sage', trick: 'pounce', secondsLeft: 20, error: null }));
+    expect(el.querySelectorAll('.cs-team .cs-seat')).toHaveLength(5);
+    expect(el.querySelector('.cs')!.getAttribute('data-seats')).toBe('5');
   });
 });
 

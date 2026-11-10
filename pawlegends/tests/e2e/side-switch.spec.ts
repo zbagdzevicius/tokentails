@@ -1,17 +1,18 @@
 import { expect, test, type Page } from '@playwright/test';
 import { attr, PROFILE_KEY, seedSide, startFirstMatch } from './helpers';
 
-// Sim v14 (DOGS-V13 §2, gate 13; DOGS-V15 §2: 10 v 10): the CATS / DOGS switch on the pick screen. The switch filters
-// the grid to one side (cats 10, dogs 10), choosing DOGS plays the dog side (the bots fill both teams by species, a dog team never fields a
-// hero twice), the choice is remembered across a reload, the arrow keys move it, and at 667x375 and 844x390 the
-// switch, the grid, the Paw Trick chips and Play sit inside the viewport with Play in the same place on both sides.
+// Sim v14 (DOGS-V13 §2, gate 13; DOGS-V15 §2: 10 v 10), champion select (LANDING-PICK-UX §B2.3): the All · Cats ·
+// Dogs tabs filter the grid (cats 10, dogs 10); picking a dog plays the dog side (the bots fill both teams by species,
+// a dog team never fields a hero twice), the hero and its side are remembered across a reload, the arrow keys move the
+// tabs, and at 667x375 and 844x390 the tabs, the grid, the Paw Trick row and LOCK IN sit inside the viewport with LOCK
+// IN in the same place on both sides.
 // The DOGS lock before match 1 has no UI path in e2e (a first-time player only sees "Play as Clem"); it is covered by
 // tests/unit/side-switch.test.ts, and first-match.spec still checks match 1 opens on Clem.
 
 const DOGS = ['brutus', 'cacklejaw', 'nugget', 'marshmallow', 'bravo', 'chili', 'howler', 'rocket', 'frankie', 'domino'];
 const CATS = ['clem', 'sage', 'lambo', 'aviete', 'bengas', 'gabe', 'meatball', 'pixel', 'duchess', 'stilts'];
 
-const visibleTiles = (page: Page) => page.locator('.heroes:not([hidden]) .hero-card');
+const visibleTiles = (page: Page) => page.locator('.cs-grid .cs-tile:not([hidden])');
 
 async function toPick(page: Page): Promise<void> {
   await page.goto('/?e2e=1');
@@ -32,35 +33,25 @@ test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the tea
   await toPick(page);
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(visibleTiles(page)).toHaveCount(10);
-  await expect(page.locator('.side-tab.dog')).toContainText('10');
-  await expect(page.locator('.side-tab.dog')).not.toHaveAttribute('aria-disabled', 'true');
+  await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-label', /Dogs, 10 heroes$/);
 
   await tapOrClick(page, '.side-tab.dog', touch);
-  await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
+  // a tab filters only; the side follows the hero picked
+  await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
   await expect(visibleTiles(page)).toHaveCount(10);
   // the New tag marks heroes added in the current SIM_VERSION (isNewHero); sim v16 adds none, so the v15 dogs lost it
-  const fresh = await page.locator('.heroes:not([hidden]) .hero-card[data-new="1"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
+  const fresh = await page.locator('.cs-grid .cs-tile:not([hidden])[data-new="1"]').evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(fresh.sort()).toEqual([]);
-  // QA v15: the tag stays clear of the element icon (it sat under it and read "EW")
-  const overlaps = await page.locator('.heroes:not([hidden]) .hero-card[data-new="1"]').evaluateAll((els) =>
-    els.map((e) => {
-      const a = e.querySelector('.new-tag')?.getBoundingClientRect();
-      const b = e.querySelector('.tt-ico')?.getBoundingClientRect();
-      if (!a || !b) return false;
-      return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
-    }),
-  );
-  expect(overlaps.every((o) => !o)).toBe(true);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...DOGS].sort());
-  expect(await page.locator('.heroes:not([hidden])').getAttribute('data-side')).toBe('dog');
-  // the selected hero is a dog (the side default, Sir Brutus); pick Chili
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'brutus');
+  // one tap on Chili selects it (and the dog side)
   await tapOrClick(page, '[data-h="chili"]', touch);
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'chili');
+  await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'chili');
+  await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
+  await expect(page.locator('.cs-panel')).toHaveAttribute('data-hero', 'chili');
 
-  await tapOrClick(page, '.pl-pick-foot [data-a="start"]', touch);
+  await tapOrClick(page, '.cs-fc [data-a="start"]', touch);
   await page.waitForSelector('html[data-match="live"]');
   await expect(page.locator('html')).toHaveAttribute('data-sides', 'dogs');
   await page.waitForFunction(() => !!(window as unknown as { __plWorld?: unknown }).__plWorld);
@@ -82,13 +73,13 @@ test('DOGS shows the 10 dogs and plays the dog side with no duplicate on the tea
   expect(new Set(picks).size).toBe(3);
 });
 
-test('the side and the hero are remembered across a reload; CATS brings back the last cat', async ({ page }) => {
+test('the side and the hero are remembered across a reload; the pick opens on the hero side', async ({ page }) => {
   await seedSide(page, 'cat', { hero: 'sage' });
   await toPick(page);
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'sage');
+  await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'sage');
   await page.locator('.side-tab.dog').click();
   await page.locator('[data-h="bravo"]').click();
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'bravo');
+  await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'bravo');
   const saved = await page.evaluate((k) => JSON.parse(localStorage.getItem(k) ?? '{}') as { side?: string; lastBySide?: Record<string, string> }, PROFILE_KEY);
   expect(saved.side).toBe('dog');
   expect(saved.lastBySide).toMatchObject({ cat: 'sage', dog: 'bravo' });
@@ -99,28 +90,29 @@ test('the side and the hero are remembered across a reload; CATS brings back the
   await page.locator('[data-a="choose"]').click();
   await page.waitForSelector('html[data-screen="pick"]');
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'bravo');
+  await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'bravo');
+  await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
 
   await page.locator('.side-tab.cat').click();
+  await page.locator('[data-h="sage"]').click();
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'sage');
+  await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'sage');
   await expect(visibleTiles(page)).toHaveCount(10);
   const ids = await visibleTiles(page).evaluateAll((els) => els.map((e) => (e as HTMLElement).dataset.h ?? ''));
   expect(ids.sort()).toEqual([...CATS].sort());
 });
 
-test('the arrow keys move the switch (a radio group)', async ({ page }, info) => {
+test('the arrow keys move the side tabs (a radio group)', async ({ page }, info) => {
   test.skip(info.project.name !== 'desktop', 'keyboard');
   await seedSide(page, 'cat');
   await toPick(page);
   await expect(page.locator('.side-switch')).toHaveAttribute('role', 'radiogroup');
   await page.locator('.side-tab.cat').focus();
   await page.keyboard.press('ArrowRight');
-  await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
   await expect(page.locator('.side-tab.dog')).toBeFocused();
   await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
+  await expect(visibleTiles(page)).toHaveCount(10);
   await page.keyboard.press('ArrowLeft');
-  await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'cat');
   await expect(page.locator('.side-tab.cat')).toBeFocused();
   await expect(page.locator('.side-tab.cat')).toHaveAttribute('aria-checked', 'true');
 });
@@ -129,7 +121,7 @@ for (const vp of [
   { width: 667, height: 375 },
   { width: 844, height: 390 },
 ]) {
-  test(`at ${vp.width}x${vp.height} the switch, the grid, the Paw Trick chips and Play fit, and Play stays put`, async ({ page }, info) => {
+  test(`at ${vp.width}x${vp.height} the tabs, the grid, the Paw Trick row and LOCK IN fit, and LOCK IN stays put`, async ({ page }, info) => {
     test.skip(info.project.name !== 'landscape', 'phone landscape');
     await page.setViewportSize(vp);
     await seedSide(page, 'cat');
@@ -149,27 +141,27 @@ for (const vp of [
         expect(b.b, sel).toBeLessThanOrEqual(vp.height + 1);
       }
     };
-    const playBox = () => page.locator('.pl-pick-foot [data-a="start"]').boundingBox();
+    const playBox = () => page.locator('.cs-fc [data-a="start"]').boundingBox();
     const fit = async (): Promise<void> => {
       await inside('.side-tab');
-      await inside('.heroes:not([hidden]) .hero-card');
-      await inside('.row.tricks .chip');
-      await inside('.pl-pick-foot [data-a="start"]');
+      await inside('.cs-grid .cs-tile:not([hidden])');
+      await inside('.cs-trick');
+      await inside('.cs-fc [data-a="start"]');
       // no name is cut with an ellipsis
-      const cut = await page.locator('.heroes:not([hidden]) .hero-card b').evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
+      const cut = await page.locator('.cs-grid .cs-tile:not([hidden]) .cs-tn').evaluateAll((els) => els.filter((e) => e.scrollWidth > e.clientWidth + 1).map((e) => e.textContent));
       expect(cut).toEqual([]);
-      // the toggle is at least 32 px tall
+      // the tabs are at least 32 px tall
       const tab = await page.locator('.side-tab.cat').boundingBox();
       expect(tab?.height ?? 0).toBeGreaterThanOrEqual(32);
     };
     await fit();
     const catPlay = await playBox();
-    const catTricks = await page.locator('.row.tricks').boundingBox();
+    const catTricks = await page.locator('.cs-trow').boundingBox();
     await page.locator('.side-tab.dog').tap();
-    await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
+    await expect(page.locator('.side-tab.dog')).toHaveAttribute('aria-checked', 'true');
     await fit();
     const dogPlay = await playBox();
-    const dogTricks = await page.locator('.row.tricks').boundingBox();
+    const dogTricks = await page.locator('.cs-trow').boundingBox();
     expect(dogPlay).toEqual(catPlay);
     expect(Math.abs((dogTricks?.y ?? 0) - (catTricks?.y ?? 0))).toBeLessThanOrEqual(1);
   });
