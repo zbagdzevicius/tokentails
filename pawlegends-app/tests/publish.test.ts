@@ -27,7 +27,7 @@ describe('ota-publish channels', () => {
   const updates = join(dir, 'updates');
   const env = { ...process.env, OTA_PRIVATE_KEY: '', OTA_PRIVATE_KEY_PATH: join(dir, 'private.pem'), OTA_PUBLIC_KEY_PATH: join(dir, 'public.pem'), OTA_WWW_DIR: www, OTA_UPDATES_DIR: updates };
   const run = (...a: string[]) => execFileSync(process.execPath, [script, ...a], { env, encoding: 'utf8' });
-  const read = (f: string) => JSON.parse(readFileSync(join(updates, 'ios/1', f), 'utf8'));
+  const read = (f: string, platform = 'ios') => JSON.parse(readFileSync(join(updates, platform, '1', f), 'utf8'));
   const build = (seq: number) => writeFileSync(join(www, 'bundle.json'), JSON.stringify({ version: `${seq}-abc1234`, seq, compat: 1, simVersion: 14 }));
 
   it('publishes to beta, promotes after the soak, rolls both channels back', () => {
@@ -61,5 +61,50 @@ describe('ota-publish channels', () => {
     run('--keep', '5');
     expect(run('--promote', '--soak-hours', '0')).toContain('promoted');
     expect(read('manifest.json').version).toBe(`${third}-abc1234`);
+
+    // Android followed every step with its own manifests, pointing at the same zip under ios/
+    for (const f of ['manifest.json', 'manifest-beta.json']) {
+      const a = read(f, 'android');
+      const i = read(f);
+      expect(a.platform).toBe('android');
+      expect(i.platform).toBe('ios');
+      expect(a.version).toBe(i.version);
+      expect(a.url).toBe(i.url);
+      expect(a.url).toContain('/ios/1/bundles/');
+      expect(a.signature).not.toBe(i.signature);
+    }
+    expect(existsSync(join(updates, 'android/1/bundles'))).toBe(false);
+  });
+
+  it('keeps a minNative per platform, and verifies each manifest with the public key', async () => {
+    const fourth = utc(new Date(Date.now() + 60_000));
+    build(fourth);
+    run('--keep', '5', '--min-native-android', '1.2.0');
+    expect(read('manifest-beta.json', 'android').minNative).toBe('1.2.0');
+    expect(read('manifest-beta.json').minNative).toBe('1.0.0');
+    const fifth = utc(new Date(Date.now() + 120_000));
+    build(fifth);
+    run('--keep', '5');
+    expect(read('manifest-beta.json', 'android').minNative).toBe('1.2.0');
+    expect(read('manifest-beta.json').minNative).toBe('1.0.0');
+    const sixth = utc(new Date(Date.now() + 180_000));
+    build(sixth);
+    run('--keep', '5', '--min-native', '1.0.1');
+    expect(read('manifest-beta.json', 'android').minNative).toBe('1.0.1');
+    expect(read('manifest-beta.json').minNative).toBe('1.0.1');
+
+    const { parseManifest, verifyManifest } = await import('../src/shell/manifest');
+    const { spkiPem } = await import('../scripts/lib/capgo-crypto.mjs');
+    const pem = spkiPem(keys.publicPem) as string;
+    for (const platform of ['ios', 'android'] as const) {
+      const m = parseManifest(read('manifest-beta.json', platform), 1, false, platform);
+      expect(m).not.toBeNull();
+      expect(await verifyManifest(m!, pem)).toBe('ok');
+    }
+
+    // a rollback re-points both platforms; Android keeps its own minNative
+    run('--rollback', `${fourth}-abc1234`);
+    expect(read('manifest.json', 'android')).toMatchObject({ version: `${fourth}-abc1234`, rollback: true, minNative: '1.0.1' });
+    expect(read('manifest.json')).toMatchObject({ version: `${fourth}-abc1234`, rollback: true, minNative: '1.0.0' });
   });
 });

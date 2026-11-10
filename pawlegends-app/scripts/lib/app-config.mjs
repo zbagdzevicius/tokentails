@@ -18,6 +18,14 @@ export const APP_ID = 'com.tokentails.pawlegends';
  */
 export const NATIVE_COMPAT = 1;
 
+/**
+ * The platforms that take OTA updates. Each has its own signed manifests in `updates/<platform>/<compat>/` (its own
+ * minNative and rollback state); the bundles are shared and stay in `updates/ios/<compat>/bundles/`, where the first
+ * iOS binaries require them (src/shell/manifest.ts HTTPS_TT).
+ */
+export const OTA_PLATFORMS = Object.freeze(['ios', 'android']);
+export const BUNDLES_PLATFORM = 'ios';
+
 /** Where tokentails.com serves the updates (client/public is the Vercel site root). */
 export const UPDATES_URL = 'https://tokentails.com/pawlegends-app/updates';
 export const MANIFEST_URL = `${UPDATES_URL}/ios/${NATIVE_COMPAT}/manifest.json`;

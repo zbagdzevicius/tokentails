@@ -15,6 +15,10 @@
  * Drill: build-sim --run (title up) → build-web --seq <newer> → publish → serve → background and reopen the app
  * (or relaunch) → the shell downloads, then swaps on the title. For a rollback drill publish a bundle that never
  * reaches the title (e.g. build-web, then break www/index.html): the updater reverts it after appReadyTimeout.
+ *
+ * Android: a debug build (npm run android:debug) reads the same dev channel from updates/android/<compat>/; run
+ * `adb reverse tcp:8787 tcp:8787` so the emulator or phone reaches the Mac's port as its own localhost (cleartext to
+ * localhost is allowed in debug builds only: android/app/src/debug/res/xml/network_security_config.xml).
  */
 import { execFileSync } from 'node:child_process';
 import { createReadStream, existsSync, statSync } from 'node:fs';

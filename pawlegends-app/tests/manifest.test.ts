@@ -5,7 +5,7 @@
 import { createDecipheriv, createHash, createPublicKey, publicDecrypt, constants } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import { canonicalManifest as scriptCanonical, encryptBundle, generateKeys, signManifest, spkiPem } from '../scripts/lib/capgo-crypto.mjs';
-import { canonicalManifest, channelOf, compareVersions, decide, manifestFile, manifestUrl, parseManifest, safeToApply, verifyManifest, type BundleStamp, type OtaManifest } from '../src/shell/manifest';
+import { canonicalManifest, channelOf, compareVersions, decide, manifestFile, manifestUrl, otaPlatformOf, parseManifest, safeToApply, verifyManifest, type BundleStamp, type OtaManifest } from '../src/shell/manifest';
 
 const keys = generateKeys() as { privatePem: string; publicPem: string };
 const other = generateKeys() as { privatePem: string; publicPem: string };
@@ -72,6 +72,34 @@ describe('channels', () => {
     expect(parseManifest(manifest({ url: 'http://localhost.evil.example/pawlegends-app/updates/ios/1/bundles/x.zip' }), 1, true)).toBeNull();
     // production bundles still pass on the dev channel
     expect(parseManifest(manifest(), 1, true)).not.toBeNull();
+  });
+});
+
+describe('platforms', () => {
+  const site = 'https://tokentails.com/pawlegends-app/updates';
+  const local = 'http://localhost:8787/pawlegends-app/updates';
+  it('each platform reads its own folder (iOS by default, as the first binaries do)', () => {
+    expect(manifestUrl('stable', site, local, 1, 'android')).toBe(`${site}/android/1/manifest.json`);
+    expect(manifestUrl('dev', site, local, 1, 'android')).toBe(`${local}/android/1/manifest-beta.json`);
+    expect(manifestUrl('stable', site, local, 1, 'ios')).toBe(manifestUrl('stable', site, local, 1));
+  });
+  it('Capacitor platform names map to OTA platforms', () => {
+    expect(otaPlatformOf('android')).toBe('android');
+    for (const v of ['ios', 'web', undefined, 'mac']) expect(otaPlatformOf(v)).toBe('ios');
+  });
+  it('a shell accepts only its own platform; Android reads the shared bundle under ios/', () => {
+    const ios = manifest();
+    const android = manifest({ platform: 'android' });
+    expect(parseManifest(ios, 1)).toEqual(ios);
+    expect(parseManifest(ios, 1, false, 'android')).toBeNull();
+    expect(parseManifest(android, 1)).toBeNull();
+    expect(parseManifest(JSON.parse(JSON.stringify(android)), 1, false, 'android')).toEqual(android);
+    expect(parseManifest(manifest({ platform: 'android', url: 'https://tokentails.com/pawlegends-app/updates/android/1/bundles/x.zip' }), 1, false, 'android')).not.toBeNull();
+    expect(parseManifest(manifest({ platform: 'android', url: 'https://tokentails.com/pawlegends-app/updates/web/1/bundles/x.zip' }), 1, false, 'android')).toBeNull();
+    expect(parseManifest({ ...android, platform: 'mac' }, 1, false, 'android')).toBeNull();
+  });
+  it('an Android manifest verifies with the same key', async () => {
+    expect(await verifyManifest(manifest({ platform: 'android' }), spkiPem(keys.publicPem))).toBe('ok');
   });
 });
 
