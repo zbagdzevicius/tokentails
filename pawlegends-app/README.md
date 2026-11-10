@@ -34,7 +34,7 @@ Play Console answers and founder steps: [`docs/plans/moba/PLAY-STORE.md`](../doc
 | `scripts/build-mac.mjs` | Unsigned Mac Catalyst build (`--run` opens it; `--run --probe <dir>` writes a snapshot and what the page sees, then quits) |
 | `ios/App/` | The Xcode project: `GameViewController.swift` (landscape, no status bar, home indicator auto-hidden), `AppDelegate.swift` (audio session, screen kept on), `Info.plist`, `PrivacyInfo.xcprivacy` |
 | `fastlane/` | Lanes `check`, `bootstrap`, `build`, `beta`, `metadata`, `release`, `certs`; listing text in `metadata/`, screenshots in `screenshots/` |
-| `android/` | The Android project: `MainActivity.java` (immersive, cutout, WebView settings, screen on), `ShellPlugin.java` (page globals, thermal, renderer recovery), `AndroidManifest.xml` (landscape game, GLES 3), `app/build.gradle` (versions, env signing) |
+| `android/` | The Android project: `MainActivity.java` (immersive, cutout and keyboard insets, WebView settings, screen on, renderer recovery), `ShellPlugin.java` (page globals, thermal), `AndroidManifest.xml` (landscape game, GLES 3), `app/build.gradle` (versions, env signing) |
 | `src/shell/back.ts` | Android back button: Escape into the game, minimise on the bare title |
 | `fastlane/metadata_android/` | Google Play listing (text, icon, feature graphic, phone screenshots) for the `android` lanes |
 | `store/` | `app-icon-1024.png`; iPad 13" screenshots (`screenshots-ipad/`, not uploaded while iPhone only). Answers to copy into App Store Connect: `docs/plans/moba/APP-STORE-ANSWERS.md` |

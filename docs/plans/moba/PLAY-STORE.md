@@ -23,8 +23,8 @@ Built and checked locally on this Mac (Android command-line tools in `/opt/homeb
 | Piece | Where |
 |---|---|
 | Android project (`cap add android`, then edited) | `pawlegends-app/android/` |
-| Game window: immersive full screen, cutout padding, no zoom or overscroll, textZoom 100, keep screen on, media volume keys, back-gesture exclusion at the lower side edges | `android/app/src/main/java/com/tokentails/pawlegends/MainActivity.java` |
-| Page globals at document start (`__PL_CHANNEL__`, `__PL_PLATFORM__ = 'android'`, `__PL_THERMAL__` + `pl-thermal`, `__PL_DEVICE__`), renderer-crash recovery | `.../ShellPlugin.java` |
+| Game window: immersive full screen, cutout padding (and the keyboard's height while it is up), renderer-crash recovery, no zoom or overscroll, textZoom 100, keep screen on, media volume keys, back-gesture exclusion at the lower side edges | `android/app/src/main/java/com/tokentails/pawlegends/MainActivity.java` |
+| Page globals at document start (`__PL_CHANNEL__`, `__PL_PLATFORM__ = 'android'`, `__PL_THERMAL__` + `pl-thermal`, `__PL_DEVICE__`) | `.../ShellPlugin.java` |
 | Back button and gesture | `pawlegends-app/src/shell/back.ts` (Escape into the game; minimise only on the bare title) |
 | Haptics through `@capacitor/haptics` (replaces the WebView's own too-short vibrate) | `src/shell/haptics.ts` (`force`) |
 | Per-platform OTA manifests | `src/shell/manifest.ts`, `scripts/ota-publish.mjs`, `.github/workflows/pawlegends-ota.yml` |
@@ -89,8 +89,10 @@ publish and serve as on iOS (debug builds allow cleartext to localhost only).
 ## Versions
 
 - `versionName` = `pawlegends-app/package.json` `version` (the same as iOS).
-- `versionCode`: CI passes `100000 + run number` (`PL_VERSION_CODE`); a local build without it gets the version as a
-  number (1.0.1 → 10001), always lower than any CI upload. Play rejects a code it has seen.
+- `versionCode`: CI passes `100000 + run number × 10 + run attempt` (`PL_VERSION_CODE`), so a "Re-run jobs" also
+  gets a new code. A local build without it gets the version as a number (1.0.1 → 10001), always lower than any CI
+  upload. Play rejects a code it has seen, so never pass `PL_VERSION_CODE` locally with a number in the CI range
+  (100000 and up); if a local upload is ever needed, use 90000–99999, and only before the first CI upload.
 
 ## Release
 
@@ -100,7 +102,7 @@ npm run build:android                       # game + shell → www/, cap sync an
 npm run android:debug                       # debug APK (channel dev)
 export PATH=/opt/homebrew/opt/ruby/bin:$PATH ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 set -a; . ~/.tokentails-keys/pawlegends-android-upload.env; set +a
-PL_VERSION_CODE=100001 bundle exec fastlane android build     # signed .aab in android/app/build/outputs/bundle/release/
+bundle exec fastlane android build     # signed .aab (versionCode from the version, below every CI code) in android/app/build/outputs/bundle/release/
 ```
 
 CI: Actions → *Pawlegends Android* → lane `build` (artifact only), `upload` (track, default internal; status
