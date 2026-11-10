@@ -61,3 +61,15 @@ variable "health_log_exclusion" {
   type        = bool
   default     = true
 }
+
+variable "relay_rtt_eu_p95_ms" {
+  description = "Alert when the relay's server-measured EU socket RTT p95 (relay_stats rtt_ms_p95_eu) stays above this."
+  type        = number
+  default     = 80
+}
+
+variable "relay_overrun_p99_ms" {
+  description = "Alert when the relay's turn overrun p99 (relay_stats turn_overrun_ms_p99) stays above this."
+  type        = number
+  default     = 5
+}
