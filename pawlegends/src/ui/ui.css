@@ -625,6 +625,64 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
   background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px 8px 18px; font-size: 14px; pointer-events: auto;
   max-width: calc(100vw - 32px); flex-wrap: wrap; justify-content: center;
 }
+/* STORE-PASS.md §6: the store and the Legends Pass. One screen each; only the item grid / the tier strip scrolls
+   (a visible 3 px thumb, a fade and a "more" chip); header, preview and the buy bar stay put. */
+[data-frame='frame.store.goldpaw'] { --frame: #ffc93d; }
+[data-frame='frame.store.moonlit'] { --frame: #a9b8ff; }
+[data-frame='frame.store.sunbeam'] { --frame: #ffe98a; }
+[data-frame='frame.store.bone'] { --frame: #f4ead8; }
+[data-frame='frame.s1.sprout'] { --frame: #8fe07a; }
+[data-frame='frame.s1.harvest'] { --frame: #e8a04b; }
+[data-frame='frame.s1.lantern'] { --frame: #ffb35a; }
+[data-frame='frame.s1.starfall'] { --frame: #c8b8ff; }
+[data-frame='frame.s1.aurora'] { --frame: #7ff0d0; }
+[data-frame='frame.s1.crown'] { --frame: #ffd34d; }
+.pl-shop, .pl-pass { padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); box-sizing: border-box; }
+.pl-shop .card, .pl-pass .card {
+  height: 100%; max-height: min(560px, 100%); overflow: hidden; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 12px 16px; width: min(820px, 100%); position: relative;
+}
+.pl-pass { display: grid; place-items: center; background: rgba(20, 12, 22, 0.6); pointer-events: auto !important; z-index: 45; }
+.pl-shop .head, .pl-pass .head { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex: none; }
+.pl-shop .tabs, .pl-pass .tabs, .pl-collection .track-tabs { display: flex; gap: 6px; flex-wrap: nowrap; }
+.pl-shop .shop-body { display: flex; gap: 12px; flex: 1; min-height: 0; }
+.pl-shop .shop-preview { flex: 0 0 34%; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; }
+.pl-shop .shop-pic { width: min(150px, 30vh); aspect-ratio: 1; border-radius: 18px; background-size: cover; background-position: center; background-color: rgba(255, 243, 220, 0.1); }
+.pl-shop .shop-pic.none { display: grid; place-items: center; box-shadow: 0 0 0 3px var(--frame, transparent), 0 0 14px var(--frame, transparent); }
+.pl-shop .shop-pic.none .pl-icon { width: 40%; height: 40%; }
+.pl-shop .shop-preview small { font-size: 12px; opacity: 0.8; }
+.pl-shop .shop-scroll, .pl-pass .pass-scroll { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; }
+.pl-shop .shop-grid { flex: 1; overflow-y: auto; overscroll-behavior: contain; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; align-content: start; padding: 2px 6px 24px 2px; scrollbar-width: thin; }
+.pl-shop .shop-grid::-webkit-scrollbar, .pl-pass .pass-track::-webkit-scrollbar { width: 3px; height: 3px; }
+.pl-shop .shop-grid::-webkit-scrollbar-thumb, .pl-pass .pass-track::-webkit-scrollbar-thumb { background: var(--butter); border-radius: 3px; }
+.pl-shop .shop-scroll::after { content: ''; position: absolute; left: 0; right: 6px; bottom: 0; height: 22px; background: linear-gradient(transparent, var(--panel)); pointer-events: none; }
+.pl-shop .more, .pl-pass .more { position: absolute; right: 10px; bottom: 2px; font-size: 11px; color: var(--butter); pointer-events: none; z-index: 1; }
+.pl-shop .shop-scroll.end .more, .pl-shop .shop-scroll.end::after, .pl-pass .pass-scroll.end .more { display: none; }
+.shop-tile { text-align: left; background: rgba(255, 243, 220, 0.06); color: var(--cream); border: 1px solid var(--line); border-radius: 12px; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font: inherit; }
+.shop-tile b { font-size: 12px; line-height: 1.2; }
+.shop-tile small { font-size: 11px; color: var(--butter); }
+.shop-tile.on { border-color: var(--butter); box-shadow: 0 0 0 2px var(--butter) inset; }
+.shop-tile.st-owned small { color: #9be3c4; }
+.pl-shop .shop-bar, .pl-pass .pass-bar { flex: none; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pl-shop .shop-bar .why { font-size: 13px; opacity: 0.8; }
+.pl-shop .shop-bar .line, .pl-pass .pass-bar .line { margin: 0; font-size: 13px; min-height: 1em; }
+.pl-shop .fine, .pl-pass .fine { flex: none; }
+.pl-pass .pass-top { flex: none; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.pl-pass .pass-top .bar { flex: 1 1 100%; height: 8px; border-radius: 8px; background: rgba(255, 243, 220, 0.12); overflow: hidden; }
+.pl-pass .pass-top .bar i { display: block; height: 100%; background: var(--butter); }
+.pl-pass .pass-top small { font-size: 12px; opacity: 0.8; }
+.pl-pass .pass-rows { flex: none; display: flex; gap: 8px; font-size: 11px; opacity: 0.75; }
+.pl-pass .pass-track { flex: 1; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; display: flex; gap: 6px; padding-bottom: 6px; scrollbar-width: thin; }
+.pl-pass .pcol { flex: 0 0 96px; display: grid; grid-template-rows: auto 1fr 1fr; gap: 4px; }
+.pl-pass .pcol .pn { text-align: center; font-size: 11px; opacity: 0.7; }
+.pl-pass .pcol.now .pn { color: var(--butter); opacity: 1; font-weight: 700; }
+.pl-pass .pc { border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 243, 220, 0.05); color: var(--cream); font: inherit; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; text-align: left; overflow: hidden; }
+.pl-pass .pc b { font-size: 11px; line-height: 1.15; }
+.pl-pass .pc small { font-size: 10px; opacity: 0.8; }
+.pl-pass .pc.empty { border: 0; background: none; }
+.pl-pass .pc.ready { border-color: var(--butter); box-shadow: 0 0 10px rgba(255, 210, 122, 0.45); cursor: pointer; }
+.pl-pass .pc.claimed { opacity: 0.55; }
+.pl-pass .pc.locked { opacity: 0.5; filter: grayscale(0.6); }
 @media (max-height: 480px) {
   .pl-store .card { padding: 12px 14px; }
   .pl-sku p.later { display: none; }

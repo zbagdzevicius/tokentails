@@ -28,8 +28,9 @@ import { accountState, heroForSide, loadProfile, noteBond, noteChampionMatch, no
 import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
-import type { SkuId } from '../money/skus';
-import { ELEMENT_COLOR, bestFrame, cardLook, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
+import { isSku, type SkuId } from '../money/skus';
+import { catalogSku, type CatalogSku } from '../money/catalog';
+import { ELEMENT_COLOR, PAID_COATS, bestFrame, cardLook, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
 import { FpsProbe, qualityOverride, rememberTier, startTier, tierSettings, type QualityTier } from '../render/quality';
@@ -56,7 +57,8 @@ import { heroElement } from '../ui/cards/el';
 import type { DeckCard, DeckHandle } from '../ui/deck/deck';
 import { championOf } from '../data/heroes/shelter';
 import { consentPrompt, settingsPanel } from '../ui/settings';
-import { notePurchase, storePanel } from '../ui/store';
+import { notePurchase, storePanel, type StoreTab } from '../ui/store';
+import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { cardIdentity, selfNames, veilName } from '../meta/cardName';
 import type { MatchEnd, MatchSession, MatchSetup } from './matchSession';
@@ -157,7 +159,7 @@ export class App {
   private readonly human = new HumanFilter();
   private screen: Screen = 'title';
   private screenEl: HTMLElement | null = null;
-  private overlay: { close(): void; refresh?(): void } | null = null;
+  private overlay: { close(): void; refresh?(): void; kind?: 'store' | 'pass' } | null = null;
   private offerEl: { close(): void } | null = null;
   private session: MatchSession | null = null;
   private tier: QualityTier;
@@ -189,7 +191,7 @@ export class App {
   private offerShown = false;
   private matchesThisSession = 0;
   /** A purchase the host confirmed: once its items arrive, the lobby hero puts the new look on ("New!"). */
-  private pendingReveal: SkuId | null = null;
+  private pendingReveal: string | null = null;
   private frameMs: number[] = [];
   /** `?perf=1` on-screen readout for the device gate (§15 item 27); null otherwise. */
   private readonly perf: PerfReadout | null;
@@ -483,8 +485,11 @@ export class App {
     d.chromas = this.roster.chromas.join(',');
     d.frame = bestFrame(this.owned(), loadProfile().wornFrame) ?? '';
     if (!s.storeOpen) {
-      this.overlay?.close();
-      this.overlay = null;
+      // only the store closes with the store; the Legends Pass and other panels stay (and redraw)
+      if (this.overlay?.kind === 'store') {
+        this.overlay.close();
+        this.overlay = null;
+      } else this.overlay?.refresh?.();
       this.offerEl?.close();
       this.offerEl = null;
     } else this.overlay?.refresh?.();
@@ -506,7 +511,11 @@ export class App {
   /** The bought look goes on the lobby hero, with confetti and a short "New!" line, as proof the purchase arrived. */
   private revealPurchase(): void {
     const sku = this.pendingReveal;
-    if (!sku || !this.ent.snapshot().skus.has(sku)) return;
+    if (!sku) return;
+    // STORE-PASS.md: a store or pass SKU is revealed once its items arrive in the host's `store` message
+    const store = catalogSku(sku);
+    if (store) return this.revealStore(store);
+    if (!isSku(sku) || !this.ent.snapshot().skus.has(sku)) return;
     this.pendingReveal = null;
     const hero: HeroId = sku === 'pl_founder' ? this.choice.hero : 'clem';
     const coat = sku === 'pl_founder' ? `coat.founder.${hero}` : sku === 'pl_starter' ? 'skin.clem.pink_bow' : 'skin.clem.dawnblade';
@@ -525,6 +534,39 @@ export class App {
     setTimeout(() => el.classList.add('out'), 3600);
     setTimeout(() => el.remove(), 4200);
     if (this.screen === 'pick') this.setLobbyHero(hero);
+  }
+
+  /**
+   * A bought store item arrived (STORE-PASS.md §3 step 5): a coat goes on its hero, a frame and its title are worn, a
+   * set puts its first coat on and wears its frame; the pass shows a line. The "New!" toast is the proof.
+   */
+  private revealStore(def: CatalogSku): void {
+    const s = this.ent.snapshot();
+    const items = def.items.length ? def.items : [];
+    const arrived = def.kind === 'pass' ? !!s.season && s.season.premium !== 'none' : items.every((i) => s.items.has(i));
+    if (!arrived) return;
+    this.pendingReveal = null;
+    const p = loadProfile();
+    const coat = items.find((i) => i.startsWith('coat.'));
+    const coatHero = coat ? (PAID_COATS[coat]?.hero ?? null) : null;
+    if (coat && coatHero) p.looks[coatHero] = { coat, chroma: (p.looks[coatHero] as Partial<Look> | undefined)?.chroma ?? null };
+    const frame = items.find((i) => i.startsWith('frame.'));
+    const title = items.find((i) => i.startsWith('title.'));
+    if (frame) p.wornFrame = frame;
+    if (title) p.wornTitle = title;
+    saveProfile(p);
+    if (coatHero) this.choice = { ...this.choice, hero: coatHero };
+    this.lobby.confetti(2.5);
+    const el = document.createElement('div');
+    el.className = 'pl-new';
+    el.setAttribute('role', 'status');
+    el.innerHTML = `<b>New!</b><span></span>`;
+    (el.querySelector('span') as HTMLElement).textContent = def.kind === 'pass' ? `${def.label} is yours. Every reached premium reward is ready to claim.` : `${def.label} is yours. Wearing it now.`;
+    this.root.appendChild(el);
+    setTimeout(() => el.classList.add('out'), 3600);
+    setTimeout(() => el.remove(), 4200);
+    this.analytics.track('store_item_granted', { sku: def.sku });
+    if (this.screen === 'pick' && coatHero) this.setLobbyHero(coatHero);
   }
 
   private setLobbyHero(hero: HeroId): void {
@@ -1454,7 +1496,7 @@ export class App {
 
   // ------------------------------------------------------------------------------------- store and offers
 
-  private openStore(from: 'lobby' | 'results'): void {
+  private openStore(from: 'lobby' | 'results', tab?: StoreTab): void {
     if (!this.ent.snapshot().storeOpen || this.overlay) return;
     this.offerEl?.close();
     this.offerEl = null;
@@ -1465,11 +1507,66 @@ export class App {
       checkout: this.checkout,
       onClose: () => {
         this.overlay = null;
+        this.refreshMeta(false);
       },
       onNotify: () => this.notify('store'),
-      onBuy: (sku) => this.analytics.track('checkout_start', { sku }),
+      onBuy: (sku) => {
+        this.pendingReveal = sku;
+        this.analytics.track('checkout_start', { sku });
+      },
+      preview: (hero, coat) => {
+        if (!(HERO_IDS as readonly string[]).includes(hero)) return null;
+        const look: Look = { coat, chroma: null };
+        bakePortrait(this.gr, hero as HeroId, look);
+        return portraitUrl(hero as HeroId, look);
+      },
+      onEquip: (def) => this.equipStore(def),
+      onPass: () => this.openPass(),
+      tab,
     });
-    this.overlay = panel;
+    this.overlay = Object.assign(panel, { kind: 'store' as const });
+  }
+
+  /** Equip an owned store item (STORE-PASS.md §4): a coat on its hero, a frame and its title worn. Visual only. */
+  private equipStore(def: CatalogSku): void {
+    const p = loadProfile();
+    for (const item of def.items) {
+      const c = PAID_COATS[item];
+      if (c && def.kind !== 'bundle') p.looks[c.hero] = { coat: item, chroma: (p.looks[c.hero] as Partial<Look> | undefined)?.chroma ?? null };
+      if (item.startsWith('frame.')) p.wornFrame = item;
+      if (item.startsWith('title.')) p.wornTitle = item;
+    }
+    saveProfile(p);
+    const coat = def.items.find((i) => PAID_COATS[i]);
+    if (coat && def.kind !== 'bundle') this.choice = { ...this.choice, hero: PAID_COATS[coat].hero };
+  }
+
+  /** The Legends Pass screen (STORE-PASS.md §6): progress from the server, claims through the host. */
+  private openPass(): void {
+    if (this.overlay) return;
+    this.analytics.track('pass_open', {});
+    const panel = passPanel(this.root, {
+      snapshot: () => this.ent.snapshot(),
+      claim: (row, tier) => {
+        const ok = this.bridge.post('pass-claim', row ? { row, tier } : { all: true });
+        if (ok) this.analytics.track('pass_claim', { row: row ?? 'all', tier: tier ?? 0 });
+        return ok;
+      },
+      buy: (sku) => {
+        const ok = this.checkout.buy(sku);
+        if (ok) {
+          this.pendingReveal = sku;
+          this.analytics.track('checkout_start', { sku });
+        }
+        return ok;
+      },
+      onTrack: () => this.openCollection(),
+      onClose: () => {
+        this.overlay = null;
+        this.refreshMeta(false);
+      },
+    });
+    this.overlay = Object.assign(panel, { kind: 'pass' as const });
   }
 
   private notify(where: 'store' | 'results'): void {
@@ -1555,6 +1652,7 @@ export class App {
         else q.wornFrame = id;
         saveProfile(q);
       },
+      onPass: () => this.openPass(),
       onClose: () => {
         this.overlay = null;
         // one redraw, without the offer check: the Treat Track panel never leads to an offer

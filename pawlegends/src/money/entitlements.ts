@@ -11,9 +11,17 @@
  * Outside an embed there is no host, so no checkout at all.
  *
  * The token lives in memory only: the host keeps it and re-sends it on every `ready`.
+ *
+ * Store and Legends Pass (docs/plans/moba/STORE-PASS.md): `store{items, season}` is the signed-in account's owned
+ * store and pass items and its pass row (`GET /pawlegends/me`). `storeOpen` is back for the catalogue store: the
+ * host's checkout is reachable (`app.store`), on the web only. In an app build nothing is sold and no price shows
+ * (App Store 3.1.1 / 3.1.3(b), anti-steering), web-bought items are not drawn (founder decision 1, default), while
+ * Legends Pass free-row rewards are (earned by playing, never bought).
  */
 import { KNOWN_ITEMS, isSku, type SkuId } from './skus';
 import { isAppBuild } from '../meta/roster';
+import { parseStoreState, type StoreSeason } from '../embed/bridge';
+import { FREE_ROW_ITEMS } from '../meta/pass';
 
 export interface TokenPayload {
   items: string[];
@@ -53,7 +61,7 @@ export interface StoreSnapshot {
   /** Framed by a host that answered the handshake. */
   embedded: boolean;
   isApp: boolean;
-  /** Retired `pl_*` store: always false (kept so older callers compile and stay closed). */
+  /** The catalogue store and the pass purchase (web, embedded, `app.store`, never in an app build). */
   storeOpen: boolean;
   /** The host can open its Token Tails cat checkout (embedded, web build, `app.store`): the Meet card may show. */
   catCheckout: boolean;
@@ -63,6 +71,8 @@ export interface StoreSnapshot {
   /** Purchased items the game may draw (empty in app builds). */
   items: ReadonlySet<string>;
   skus: ReadonlySet<SkuId>;
+  /** The account's Legends Pass row (null before the host sent one, or outside a host). */
+  season: StoreSeason | null;
 }
 
 /** Host-fed store state with change listeners. One per page. */
@@ -73,6 +83,8 @@ export class Entitlements {
   private notify = false;
   private signedIn = false;
   private payload: TokenPayload | null = null;
+  private owned: string[] = [];
+  private season: StoreSeason | null = null;
   private listeners: ((s: StoreSnapshot) => void)[] = [];
 
   /** Feed a host message (`app`, `entitlements`, `session`, `hello`). Returns true when the state changed. */
@@ -94,7 +106,18 @@ export class Entitlements {
         break;
       case 'session':
         this.signedIn = m.signedIn === true;
+        if (!this.signedIn) {
+          this.owned = [];
+          this.season = null;
+        }
         break;
+      case 'store': {
+        const v = parseStoreState(m);
+        if (!v) return false;
+        this.owned = v.items;
+        this.season = v.season;
+        break;
+      }
       default:
         return false;
     }
@@ -107,22 +130,25 @@ export class Entitlements {
   }
 
   private snapshotKey(): unknown[] {
-    return [this.embedded, this.isApp || isAppBuild(), this.store, this.notify, this.signedIn, this.payload?.items, this.payload?.skus];
+    return [this.embedded, this.isApp || isAppBuild(), this.store, this.notify, this.signedIn, this.payload?.items, this.payload?.skus, this.owned, this.season];
   }
 
   snapshot(): StoreSnapshot {
     // the native app shell (meta/roster.ts lockAppBuild) is an app build whatever a host says
     const isApp = this.isApp || isAppBuild();
     const paid = !isApp && this.payload ? this.payload : null;
+    // app builds draw only the pass's free-row rewards (earned by playing); the web draws everything owned
+    const store = isApp ? this.owned.filter((i) => FREE_ROW_ITEMS.has(i)) : this.owned;
     return {
       embedded: this.embedded,
       isApp,
-      storeOpen: false,
+      storeOpen: this.embedded && this.store && !isApp,
       catCheckout: this.embedded && this.store && !isApp,
       notifyOpen: this.embedded && this.notify && !isApp,
       signedIn: this.signedIn,
-      items: new Set(paid?.items ?? []),
+      items: new Set([...(paid?.items ?? []), ...store]),
       skus: new Set(paid?.skus ?? []),
+      season: this.season,
     };
   }
 
