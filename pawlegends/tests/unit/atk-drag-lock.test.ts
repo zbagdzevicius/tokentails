@@ -4,16 +4,18 @@
  * lock-into selected one ... implement similar technique as wild rift"). Pure part: the drag direction picks the
  * pointed-at unit with enemy heroes preferred out to the lock range, nothing when the thumb points at nothing, and
  * DragLock's persistence and break rules. Real TouchControls part: a quick tap is unchanged, a drag locks a hero behind
- * the wave, the lock outlives LOCK.ms and feeds later taps, the centre cancels it, the stick held away lets it go, and
- * the idle re-send never fires under an untanked enemy tower.
+ * the wave, the lock outlives LOCK.ms and feeds later taps, the centre cancels it, moving (kiting) never breaks it, a
+ * dragged minion takes the 5 s PickLock, a thumb turned from a unit to nothing cancels, and the idle re-send never
+ * fires under an untanked enemy tower.
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ATK_SELECT, DragLock, selectCandidates, snapTarget } from '../../src/input/touch/attackSelect';
+import { ATK_SELECT, DragLock, selectCandidates, selectReach, snapTarget } from '../../src/input/touch/attackSelect';
+import { basicRange } from '../../src/input/abilities';
 import { LOCK } from '../../src/input/touch/assist';
 import type { InputHost } from '../../src/input/desktop';
 import { Orders, type OrderEnv } from '../../src/input/orders';
 import type { Unit } from '../../src/input/targeting';
-import { STICK, TouchControls } from '../../src/input/touch/touchControls';
+import { dragLast, STICK, TouchControls } from '../../src/input/touch/touchControls';
 import { simToScreen } from '../../src/render/coords';
 import { Op, type Command } from '../../src/sim/api';
 
@@ -105,16 +107,11 @@ describe('DragLock: persistence and breaks', () => {
     expect(l.id).toBeNull();
   });
 
-  it('a joystick held away for awayMs lets go; a short or interrupted pull does not', () => {
-    const l = new DragLock();
-    l.set(3, 0);
-    expect(l.away(100, true)).toBe(false);
-    expect(l.away(100 + ATK_SELECT.awayMs - 50, true)).toBe(false);
-    expect(l.away(100 + ATK_SELECT.awayMs - 10, false)).toBe(false); // turned back: the count restarts
-    expect(l.away(1000, true)).toBe(false);
-    expect(l.id).toBe(3);
-    expect(l.away(1000 + ATK_SELECT.awayMs, true)).toBe(true);
-    expect(l.id).toBeNull();
+  it('the release fallback (last) is dropped when the thumb turns off a unit still offered, kept when it left', () => {
+    expect(dragLast(3, null, [3])).toBe(3);
+    expect(dragLast(null, 3, [3, 10])).toBeNull();
+    expect(dragLast(null, 3, [10])).toBe(3);
+    expect(dragLast(null, 3, null)).toBe(3);
   });
 });
 
@@ -217,10 +214,12 @@ describe('touch: drag-lock on the Attack button', () => {
     r.atkDown();
     r.atkDrag(0);
     r.wait(50);
-    const aim = r.view.atkAim as { x: number; z: number; ok: boolean; reachM: number } | null;
+    const aim = r.view.atkAim as { id: number; ok: boolean; reachM: number; heroM: number } | null;
     expect(aim?.ok).toBe(true);
-    expect(aim?.x).toBeCloseTo((ME.x + 6000) / 1000);
-    expect(aim?.reachM).toBeCloseTo(LOCK.rangeMm / 1000);
+    expect(aim?.id).toBe(3);
+    // the ring is the selection reach (what minions are offered within); the 9 m hero reach is the faint outer ring
+    expect(aim?.reachM).toBeCloseTo(selectReach(basicRange('clem')) / 1000);
+    expect(aim?.heroM).toBeCloseTo(LOCK.rangeMm / 1000);
     r.atkUp();
     expect(r.view.atkAim).toBeNull();
   });
@@ -252,16 +251,44 @@ describe('touch: drag-lock on the Attack button', () => {
     expect(r.t.dragLock.id).toBeNull();
   });
 
-  it('a stick held away from the locked unit lets it go; held toward it keeps it', () => {
+  it('a drag that pointed at a hero then turned to nothing cancels (the red line keeps its promise)', () => {
+    const r = rig([u(3, 'hero', 1, ME.x + 6000, ME.y)]);
+    r.atkDown();
+    // the press itself may Attack the auto pick (zero friction); the release must add nothing
+    const before = r.attacks().length;
+    r.atkDrag(0);
+    r.wait(50);
+    expect(r.t.atkSel.why).toBe('');
+    r.atkDrag(Math.PI);
+    r.wait(50);
+    expect((r.view.atkAim as { ok: boolean } | null)?.ok).toBe(false);
+    r.atkUp();
+    expect(r.t.atkSel.why).toBe('none');
+    expect(r.t.dragLock.id).toBeNull();
+    expect(r.attacks().length).toBe(before);
+  });
+
+  it('moving never breaks the lock: a stick held away from the locked hero (kiting) keeps it', () => {
     const r = rig([u(3, 'hero', 1, ME.x + 6000, ME.y)]);
     r.dragLock(0);
-    r.stick(0);
-    r.wait(800);
-    expect(r.t.dragLock.id).toBe(3);
-    r.stickUp();
     r.stick(Math.PI);
-    r.wait(ATK_SELECT.awayMs + 200);
+    r.wait(2000);
+    r.stickUp();
+    expect(r.t.dragLock.id).toBe(3);
+    r.atkDown();
+    r.atkUp();
+    expect(r.attacks().at(-1)).toBe(3);
+  });
+
+  it('a dragged minion takes the 5 s PickLock, not the timer-free drag lock', () => {
+    const r = rig([u(20, 'minion', 1, ME.x + 2000, ME.y), u(3, 'hero', 1, ME.x + 3000, ME.y + 3000)]);
+    r.dragLock(0);
+    expect(r.attacks().at(-1)).toBe(20);
+    expect(r.t.atkSel.kind).toBe('minion');
     expect(r.t.dragLock.id).toBeNull();
+    expect(r.t.attackLockId()).toBe(20);
+    r.wait(LOCK.ms + 200);
+    expect(r.t.attackLockId()).toBeNull();
   });
 
   it('a standing hero re-sends the Attack on its lock in reach, but never under an untanked enemy tower', () => {
