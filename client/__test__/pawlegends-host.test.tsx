@@ -165,6 +165,8 @@ function fakeApi(over: Partial<Record<keyof PawlegendsApi, jest.Mock>> = {}): Pa
     founders: ok({ left: 1, cap: 500 }),
     offer: ok({ offer: { kind: "meet", catalogId: CAT_A } }),
     offerSeen: ok({ ok: true }),
+    me: ok({ items: [], season: null }),
+    passClaim: ok({ items: [], season: null }),
     ...over,
   } as never;
 }
