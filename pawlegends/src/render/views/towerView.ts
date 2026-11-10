@@ -10,6 +10,11 @@
  * fell on (1.1 s). A falling core bursts on the killing blow (a ring of chunks), caves in on itself and settles (1.3 s; its slow
  * motion runs over it). Chunks are a pooled instanced mesh (fewer on lower quality tiers, none with reduce motion).
  * Nothing allocates per frame.
+ *
+ * V21-FUN §4 damage states (views/towerDamage.ts): a tower or core shows its health on the model. Below 66% HP its
+ * walls crack (the rig shader's `uDmg`) and a few chips fly off; below 33% it burns (smoke, flame licks and embers via
+ * `fire`, render/fx/towerFire.ts, and the cracks glow); below 15% it blazes and wobbles. A tower leans toward the side
+ * it will fall to. The state never goes back down; the rubble of a fallen one smoulders for its hold.
  */
 import * as THREE from 'three';
 import { CORE_STATS, TOWERS } from '../../data/towers';
@@ -22,6 +27,8 @@ import { DecalLayer, dashRingTexture } from './decals';
 import { aggroPulse, TowerBeams } from '../fx/towerBeams';
 import { coreGeometry, crowGeometry, fountainGeometry, grizzlechopGeometry, hedgehogGeometry, puddingGeometry, ratGeometry, toadGeometry, towerGeometry } from './models';
 import { rigMaterial, type RigUniforms, casterDepthMaterial } from './rig';
+import { CRACK_K, DAMAGE_POSE, EMBER_K, STAGE_HIT, nextStage, type DamageStage } from './towerDamage';
+import type { TowerFire } from '../fx/towerFire';
 
 interface Structure {
   id: number;
@@ -59,6 +66,15 @@ interface Structure {
   radius: number;
   /** Its rubble has been laid (it grows in while the structure sinks). */
   rubbled?: boolean;
+  /** V21-FUN §4: the damage state (−1 = not seen yet; it only goes up), when the fall ended (render s). */
+  stage: number;
+  fallenAt: number;
+  /** Fire emit accumulators: smoke, flame, ember, smoulder (towers and cores only). */
+  fireAcc: Float32Array | null;
+  /** The base's style: the dog doghouse (chunk colours, smoke tint). */
+  dog: boolean;
+  /** The model's half-width (m): where the flames lick out. */
+  girth: number;
 }
 
 /**
@@ -210,6 +226,13 @@ export class StructureView {
    * (x, z) (len 0) (gameView: dust along the line, a shockwave, a kick).
    */
   onImpact: ((x: number, z: number, dx: number, dz: number, len: number, core: boolean) => void) | null = null;
+  /**
+   * V21-FUN §4: a tower or core crossed into damage state `stage` (1 cracked, 2 burning, 3 blazing) from `prev` (gameView:
+   * the crack / ignite sound and our "tower is burning" callout). Not called for the state it already had when first seen.
+   */
+  onStage: ((id: number, kind: 'tower' | 'core', team: number, stage: DamageStage, prev: number, x: number, z: number, lane: string | undefined) => void) | null = null;
+  /** V21-FUN §4: the fire emitter (gameView sets it; null = no fire, the cracks and lean still show). */
+  fire: TowerFire | null = null;
   /** Share of the chunks a fall throws (quality tier: 1 high, 0.6 med, 0.35 low); 0 = none. */
   debris = 1;
   private debrisMesh: THREE.InstancedMesh;
@@ -365,7 +388,7 @@ export class StructureView {
   private ensure(e: ViewEntity): Structure {
     let s = this.items.get(e.id);
     if (!s) {
-      const material = rigMaterial();
+      const material = rigMaterial({ cracks: e.kind === 'tower' || e.kind === 'core' });
       const mesh = new THREE.Mesh(this.geo(e), material);
       mesh.name = `${e.kind}-${e.id}`;
       mesh.castShadow = e.kind !== 'fountain';
@@ -386,7 +409,9 @@ export class StructureView {
       const height = bb ? bb.max.y : 4;
       // the footprint: the base's half-width (towers and cores are drawn at their entity point)
       const radius = e.kind === 'tower' || e.kind === 'core' ? structureClearRadius(e.kind) : bb ? Math.min(Math.max(-bb.min.x, bb.max.x, -bb.min.z, bb.max.z), 3.2) : 1.2;
-      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius };
+      const struct = e.kind === 'tower' || e.kind === 'core';
+      const dog = ((e.team === 1 ? 1 : 0) ^ (this.styleSwap ? 1 : 0)) === 1;
+      s = { id: e.id, kind: e.kind, mesh, rig: material.userData.rig, material, flash: 0, shake: 0, hpFrac: 1, bubble, phase: e.id, x: 0, z: 0, alive: true, shotAt: -99, lockAt: -99, lockLen: 0, dieT: -1, fallDir: fallDirOf(e.team), height, team: e.team, stamp: 0, impacted: false, hitAt: -99, heat: 0, fallen: false, radius, stage: -1, fallenAt: -99, fireAcc: struct ? new Float32Array(4) : null, dog, girth: bb ? Math.max(bb.max.x, -bb.min.x, bb.max.z, -bb.min.z) * 0.85 : 1.3 };
       this.items.set(e.id, s);
     }
     return s;
@@ -525,6 +550,7 @@ export class StructureView {
           const sx = 1 / Math.sqrt(sy);
           s.mesh.scale.set(sx, sy, sx);
           s.flash = Math.max(s.flash, c * STRUCT_ANIM.glow);
+          this.damage(s, e, dt);
         }
       }
       if (e.kind === 'tower' || e.kind === 'core') {
@@ -575,6 +601,12 @@ export class StructureView {
         this.fall(s, dt);
         continue;
       }
+      // V21-FUN §4: the rubble of a fallen tower or core smoulders while it is held
+      if (s.fallen && s.fireAcc && this.fire && this.time - s.fallenAt < RUBBLE.hold) {
+        // over the rubble: a tower's lies along its fall line, a core's on its plaza
+        const k = s.kind === 'tower' ? s.height * 0.35 : 0;
+        this.fire.smoulder(s.x + Math.cos(s.fallDir) * k, s.z + Math.sin(s.fallDir) * k, s.fireAcc, dt);
+      }
       if (s.stamp === stamp || !s.alive || s.fallen) continue;
       s.alive = false;
       if (s.kind === 'tower' || s.kind === 'core') {
@@ -613,6 +645,45 @@ export class StructureView {
     this.updateRubble();
   }
 
+  /**
+   * V21-FUN §4: a standing tower or core's damage state: cracks (and their ember glow), chips and a small flash when
+   * it crosses into a new state, a lean toward its fall side (towers), a wobble while blazing, and the fire.
+   */
+  private damage(s: Structure, e: ViewEntity, dt: number): void {
+    const prev = s.stage;
+    const st = nextStage(prev, s.hpFrac);
+    if (prev >= 0 && st > prev) {
+      s.flash = Math.max(s.flash, STAGE_HIT.flash / 0.7);
+      if (st === 1 || prev < 1) {
+        // chips off the walls (the fall's chunk pool), a few, from the upper half
+        this.throwChunks(STAGE_HIT.chips, s.x, s.z, 0, 0, 0, s.height * 0.45, s.height * 0.8, s.dog ? DEBRIS_DOG : DEBRIS_CAT, 3.2, DEBRIS.towerSize * 0.6);
+      }
+      this.onStage?.(s.id, s.kind as 'tower' | 'core', s.team, st, prev, s.x, s.z, e.lane);
+    }
+    s.stage = st;
+    s.rig.uDmg.value = CRACK_K[st];
+    s.rig.uEmber.value = EMBER_K[st];
+    if (s.kind === 'tower') {
+      const yaw = s.team === 1 ? Math.PI : 0;
+      let th = 0;
+      if (!this.reduced) {
+        th = DAMAGE_POSE.lean[st];
+        if (st >= 3) th += Math.sin((this.time + s.id * 0.37) * DAMAGE_POSE.wobbleHz * Math.PI * 2) * DAMAGE_POSE.wobble;
+      }
+      if (th !== 0) {
+        _q.setFromAxisAngle(_v.set(Math.sin(s.fallDir), 0, -Math.cos(s.fallDir)), th);
+        _q2.setFromAxisAngle(_up, yaw);
+        s.mesh.quaternion.copy(_q).multiply(_q2);
+      } else if (s.mesh.rotation.x !== 0 || s.mesh.rotation.z !== 0) s.mesh.rotation.set(0, yaw, 0);
+    }
+    if (st >= 2 && this.fire && s.fireAcc) this.fire.burn(s.x, s.z, s.height, st, s.dog, s.kind === 'core', s.fireAcc, dt, s.girth);
+  }
+
+  /** V21-FUN §4: the damage state drawn on structure `id` (−1 = none or not a tower / core). Tests and the lab. */
+  stageOf(id: number): number {
+    return this.items.get(id)?.stage ?? -1;
+  }
+
   /** A tower or core falling (see the header); the rubble at the end. Pudding leaving: a hop and a shrink. */
   private fall(s: Structure, dt: number): void {
     if (s.kind === 'pudding') {
@@ -640,6 +711,7 @@ export class StructureView {
     if (u >= 1) {
       s.dieT = -1;
       s.fallen = true;
+      s.fallenAt = this.time;
       s.mesh.visible = false;
       s.mesh.rotation.set(0, yaw, 0);
       s.mesh.scale.setScalar(1);

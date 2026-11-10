@@ -121,6 +121,10 @@ export interface RigUniforms {
   uFlashK: { value: number };
   uFlash: { value: THREE.Color };
   uOpacity: { value: number };
+  /** V21-FUN §4: crack strength 0..1 (towers and cores only; 0 elsewhere and on a clean structure). */
+  uDmg: { value: number };
+  /** V21-FUN §4: ember glow inside the cracks 0..1 (a burning structure). */
+  uEmber: { value: number };
 }
 
 const RIG_PARS = /* glsl */ `
@@ -146,8 +150,43 @@ mat3 plPart(float p){
 
 let compiled = 0;
 
+/**
+ * V21-FUN §4: the damage cracks of a tower or core, drawn in the fragment shader (no texture): the edges of a
+ * cellular pattern on the walls (object space, so they stay put on the model), more cells cracking as `uDmg` grows,
+ * darkened, and glowing ember orange inside while `uEmber` is up (a flicker on uTime). Free on a clean structure (one
+ * uniform branch); only the tower and core materials compile it.
+ */
+const CRACK_PARS = /* glsl */ `
+uniform float uDmg, uEmber, uTime;
+varying vec3 vPlObj;
+vec2 plH2(vec2 p){ p = vec2(dot(p, vec2(127.1, 311.7)), dot(p, vec2(269.5, 183.3))); return fract(sin(p) * 43758.5453); }
+float plCrack(vec3 o, float amt){
+  vec2 p = vec2(o.x + o.z * 0.73, o.y * 0.8) * 1.25;
+  // a little wobble so the edges read as broken stone, not tiles
+  p += (plH2(floor(p * 3.0)) - 0.5) * 0.12;
+  vec2 i = floor(p);
+  vec2 f = fract(p);
+  float d1 = 8.0;
+  float d2 = 8.0;
+  vec2 c1 = i;
+  for (int y = -1; y <= 1; y++) for (int x = -1; x <= 1; x++) {
+    vec2 g = vec2(float(x), float(y));
+    vec2 r = g + plH2(i + g) - f;
+    float d = dot(r, r);
+    if (d < d1) { d2 = d1; d1 = d; c1 = i + g; } else if (d < d2) d2 = d;
+  }
+  float edge = sqrt(d2) - sqrt(d1);
+  float w = 0.07 + 0.07 * amt;
+  float line = 1.0 - smoothstep(w * 0.3, w, edge);
+  // a few cells' edges crack (more as the damage grows): broken runs, not a tiled wall; the base cracks first
+  float keep = step(plH2(c1 * 1.37 + 3.1).x, amt * (0.62 - 0.14 * clamp(o.y * 0.2, 0.0, 1.0)));
+  return line * keep;
+}
+`;
+
 /** A rig material: vertex colours, toon lighting (installToon), per-part rotation and a hit flash. */
-export function rigMaterial(): THREE.MeshLambertMaterial & { userData: { rig: RigUniforms } } {
+export function rigMaterial(opts: { cracks?: boolean } = {}): THREE.MeshLambertMaterial & { userData: { rig: RigUniforms } } {
+  const cracks = opts.cracks === true;
   const rig: RigUniforms = {
     uTime: { value: 0 },
     uPhase: { value: 0 },
@@ -157,6 +196,8 @@ export function rigMaterial(): THREE.MeshLambertMaterial & { userData: { rig: Ri
     uFlashK: { value: 0 },
     uFlash: { value: new THREE.Color(0xffffff) },
     uOpacity: { value: 1 },
+    uDmg: { value: 0 },
+    uEmber: { value: 0 },
   };
   const m = new THREE.MeshLambertMaterial({ vertexColors: true }) as THREE.MeshLambertMaterial & { userData: { rig: RigUniforms } };
   m.userData.rig = rig;
@@ -164,16 +205,25 @@ export function rigMaterial(): THREE.MeshLambertMaterial & { userData: { rig: Ri
     compiled++;
     Object.assign(shader.uniforms, rig);
     shader.vertexShader = shader.vertexShader
-      .replace('#include <common>', `#include <common>\n${RIG_PARS}`)
+      .replace('#include <common>', `#include <common>\n${RIG_PARS}${cracks ? 'varying vec3 vPlObj;\n' : ''}`)
       .replace('#include <beginnormal_vertex>', '#include <beginnormal_vertex>\nmat3 plR = plPart(aPart);\nobjectNormal = plR * objectNormal;')
-      .replace('#include <begin_vertex>', '#include <begin_vertex>\ntransformed = plR * (transformed - aPivot) + aPivot;');
-    shader.fragmentShader = shader.fragmentShader
-      .replace('#include <common>', '#include <common>\nuniform vec3 uFlash;\nuniform float uFlashK;\nuniform float uOpacity;')
-      .replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, uFlash, uFlashK);\ngl_FragColor.a *= uOpacity;');
+      .replace('#include <begin_vertex>', `#include <begin_vertex>\n${cracks ? 'vPlObj = transformed;\n' : ''}transformed = plR * (transformed - aPivot) + aPivot;`);
+    shader.fragmentShader = shader.fragmentShader.replace('#include <common>', `#include <common>\nuniform vec3 uFlash;\nuniform float uFlashK;\nuniform float uOpacity;${cracks ? `\n${CRACK_PARS}` : ''}`);
+    if (cracks)
+      shader.fragmentShader = shader.fragmentShader
+        .replace('#include <color_fragment>', '#include <color_fragment>\nfloat plCk = 0.0;\nif (uDmg > 0.001) plCk = plCrack(vPlObj, uDmg);\ndiffuseColor.rgb *= 1.0 - 0.86 * plCk;')
+        .replace(
+          '#include <opaque_fragment>',
+          '#include <opaque_fragment>\ngl_FragColor.rgb += plCk * uEmber * vec3(1.3, 0.5, 0.1) * (0.7 + 0.3 * sin(uTime * 9.0 + vPlObj.y * 3.0));\ngl_FragColor.rgb = mix(gl_FragColor.rgb, uFlash, uFlashK);\ngl_FragColor.a *= uOpacity;',
+        );
+    else shader.fragmentShader = shader.fragmentShader.replace('#include <opaque_fragment>', '#include <opaque_fragment>\ngl_FragColor.rgb = mix(gl_FragColor.rgb, uFlash, uFlashK);\ngl_FragColor.a *= uOpacity;');
   };
-  m.customProgramCacheKey = () => 'pl-rig-v1';
+  m.customProgramCacheKey = () => (cracks ? 'pl-rig-v1-dmg' : 'pl-rig-v1');
   return m;
 }
+
+/** The crack chunk of the tower / core shader (tests: it compiles into the material only when asked). */
+export const RIG_CRACK_GLSL = CRACK_PARS;
 
 const UPRIGHT_PARS = /* glsl */ `
 attribute float aPart;

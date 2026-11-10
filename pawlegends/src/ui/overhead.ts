@@ -19,6 +19,8 @@ import { StampAtlas } from '../render/overlay/atlas';
 import { QuadBatch } from '../render/overlay/quadBatch';
 import { GlOverlay } from '../render/overlay/glOverlay';
 import { BuffFlag } from '../sim/api';
+import { damageState } from '../render/views/towerDamage';
+import { drawFlame } from './flameGlyph';
 import type { ViewEntity, ViewFrame } from '../render/interp';
 import { MINION_BAR_CSS, RELATION_CSS, TEAM } from '../render/palette';
 import { HERO_TEXT } from './heroText';
@@ -1090,6 +1092,12 @@ export class Overhead {
         for (let k = 500; k < total; k += 500) q.rect(x + (k / total) * bw, y, 1, k % 2500 === 0 ? bh : bh * 0.55, 'rgba(42,26,34,0.5)');
       }
       if ((e.buffs & BuffFlag.Invulnerable) !== 0) q.strokeRect(x - 1, y - 1, bw + 2, bh + 2, 1.5, '#9fd3ff');
+      // V21-FUN §4.2: a burning tower or core (below 33% HP) wears the minimap's flame glyph left of its bar
+      if ((e.kind === 'tower' || e.kind === 'core') && damageState(e.maxHp > 0 ? e.hp / e.maxHp : 1) >= 2) {
+        const fs = Math.round(13 * sc);
+        const fl = this.atlas.get(`flame|${fs}`, fs + 6, fs + 6, (g) => drawFlame(g, 0, 0, fs));
+        q.stamp(fl, x - fs * 0.5 - 4, sy);
+      }
       return;
     }
     const { bx, bs } = this.heroBar(e, x, y, bw, bh);

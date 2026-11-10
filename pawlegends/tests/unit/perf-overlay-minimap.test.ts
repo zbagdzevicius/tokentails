@@ -98,3 +98,28 @@ describe('minimap redraw cost', () => {
     vi.useRealTimers();
   });
 });
+
+describe('V21-FUN §4.2 burning structures on the minimap', () => {
+  const burnFrame = (tick: number, hp: number): ViewFrame =>
+    frame([ent({ id: 40, kind: 'tower', team: 0, fx: 30000, fy: 30000, hp, maxHp: 1000 }), ent({ id: 41, kind: 'tower', team: 1, fx: 70000, fy: 30000, hp, maxHp: 1000 })], tick);
+
+  it('a burning tower repaints the layer once (its flame), our own pulses every redraw, the enemy one does not', () => {
+    const m = new Minimap(document.body, host());
+    m.markDirty();
+    m.draw(burnFrame(0, 900));
+    expect(m.burningPulsed).toBe(0);
+    const p = m.layerPaints;
+    m.markDirty();
+    m.draw(burnFrame(30, 500));
+    // cracked is not burning: no repaint, no pulse
+    expect(m.layerPaints).toBe(p);
+    m.markDirty();
+    m.draw(burnFrame(60, 300));
+    expect(m.layerPaints).toBe(p + 1);
+    expect(m.burningPulsed).toBe(1);
+    m.markDirty();
+    m.draw(burnFrame(90, 200));
+    expect(m.layerPaints).toBe(p + 1);
+    expect(m.burningPulsed).toBe(1);
+  });
+});
