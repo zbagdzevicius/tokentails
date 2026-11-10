@@ -1,7 +1,7 @@
 {
   "name": "pawlegends-app",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.0.2",
   "type": "module",
   "description": "Pawlegends native shell: the bundled iOS and Android apps (Capacitor 7) with self-hosted over-the-air web updates. Plans: docs/plans/moba/APP-STORE.md, docs/plans/moba/PLAY-STORE.md",
   "engines": {
