@@ -23,6 +23,8 @@
  *   drawable-<density>/splash_icon.png                                 the Android 12+ splash icon (288 dp, the art
  *                                                                      inside the 192 dp circle the system shows)
  *   fastlane/metadata_android/en-US/images/icon.png                    the Play listing icon (512 px, 32-bit PNG)
+ *   fastlane/metadata_android/en-US/images/featureGraphic.png          the Play feature graphic (1024 x 500, no alpha):
+ *                                                                      the brand's social card (icon + wordmark)
  *
  * Usage: node scripts/make-icons.mjs   (outputs are committed; re-run only when brand/pawlegends changes)
  */
@@ -143,6 +145,13 @@ async function androidIcons() {
   mkdirSync(play, { recursive: true });
   // Play wants a 32-bit PNG (with alpha channel), 512 px, up to 1 MB
   writeFileSync(join(play, 'icon.png'), await sharp(master).resize(512, 512, { kernel: 'lanczos3' }).ensureAlpha().png({ compressionLevel: 9 }).toBuffer());
+  // the 1200 x 630 social card at 1024 wide (538 tall), cut to 500 around the middle: icon and wordmark stay whole
+  const og = await sharp(brand('og-1200x630.png')).resize(1024).toBuffer({ resolveWithObject: true });
+  const top = Math.round((og.info.height - 500) / 2);
+  writeFileSync(
+    join(play, 'featureGraphic.png'),
+    await sharp(og.data).extract({ left: 0, top, width: 1024, height: 500 }).flatten({ background: BG }).removeAlpha().png({ compressionLevel: 9 }).toBuffer(),
+  );
 }
 
 await appIcon();
