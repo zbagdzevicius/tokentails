@@ -4,7 +4,7 @@
 // 1. cd pawlegends && npx vite --port 5391 --strictPort --host 127.0.0.1
 // 2. node docs/plans/moba/card-skins/capture.mjs http://127.0.0.1:5391 docs/plans/moba/card-skins
 //    env: GPU=1 (Metal ANGLE, headed) for real draw costs, else SwiftShader; SHOTS=0 skips the screenshots;
-//    PERF=0 skips the A/B; TIER (low|med, default low = what phones play).
+//    PERF=0 skips the A/B; PAIRS / ROUNDS trim it; TIER (low|med, default low = what phones play).
 // Writes <out>/<tier-name>.webp (one still per tier) and <out>/<tier-name>-anim.webp (6 frames), and prints JSON.
 // Playwright's own temporary browser profile is removed by browser.close() (in finally, and on SIGINT / SIGTERM).
 import { createRequire } from 'node:module';
@@ -82,10 +82,10 @@ try {
       ['brutus', 'r', '', 'coat.brutus.store_thunderpaw'],
       ['clem', 'q', '', '&card=ficus&bond=30'],
     ];
-    for (const [hero, slot, , look] of pairs) {
+    for (const [hero, slot, , look] of pairs.slice(0, Number(process.env.PAIRS ?? pairs.length))) {
       const q = look.startsWith('&') ? look : `&coat=${look}`;
       const runs = { plain: [], skin: [] };
-      for (let r = 0; r < 3; r++) {
+      for (let r = 0; r < Number(process.env.ROUNDS ?? 3); r++) {
         for (const which of r % 2 === 0 ? ['plain', 'skin'] : ['skin', 'plain']) {
           const page = await open({ name: `${hero}-${which}`, hero, slot, q: which === 'skin' ? q : '' }, 480, 300, TIER);
           await page.evaluate(() => window.__preview.advance(2)); // warm up (programs, pools)
