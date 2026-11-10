@@ -21,6 +21,8 @@ import { HEROES } from '../data/heroes';
 import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
 import { reducedMotion, StageFx } from './lobby/stageFx';
 import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
+import { coatRung } from './skins/coatRung';
+import { AWAKEN_FOIL } from './skins/effectKit';
 import { getSkin, isCardSkinId } from './skins/skinStore';
 import type { GameRenderer } from './renderer';
 import { lobbyHero, type LobbyHero } from './views/heroView';
@@ -132,11 +134,15 @@ export class Lobby {
     this.look = key;
     this.hero = lobbyHero(hero, team, look);
     this.hero.object.name = `lobby-hero:${hero}:${key}`;
-    // a Legendary card skin shows its fur foil on the turntable too
+    // a Legendary card skin (or Legendary coat, CARD-SKINS.md) shows its fur foil on the turntable too; an Awakened
+    // card at its full Legend stage
     const skin = isCardSkinId(look?.coat) ? getSkin(look?.coat) : null;
+    const coatFx = skin ? null : coatRung(look?.coat, hero);
     const u = this.hero.ch.material.userData.u;
-    u.uFoil.value = skin?.rung === 'LEGENDARY' ? FOIL_STRENGTH : 0;
-    if (skin) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[skin.element], 0.5));
+    const legendary = skin?.rung === 'LEGENDARY' || coatFx?.rung === 'LEGENDARY';
+    u.uFoil.value = legendary ? (skin?.awakened ? AWAKEN_FOIL[3] : FOIL_STRENGTH) : 0;
+    const fel = skin?.element ?? coatFx?.element;
+    if (fel) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[fel], 0.75));
     // the stage takes the card's element colour (else the hero's own) and its Nature motes
     this.tint = skin ? ELEMENT_COLOR[skin.element] : cssToHex(HERO_COLOR_CSS[hero] ?? '#ff9f6b');
     this.backdrop.setTint(this.tint);

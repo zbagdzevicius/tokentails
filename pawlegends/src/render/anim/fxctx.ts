@@ -11,6 +11,7 @@ import type { BoneName } from '../chars/skeleton';
 import { BONE_INDEX } from '../chars/skeleton';
 import { abilNumbers } from './timing';
 import { RIM } from './fxkit/readability';
+import type { SkinFxProfile } from '../skins/effectKit';
 import type { CombatVfxLike, FightCamLike, FxCtx, HeroStatus, JuiceLike, LingerLike, MeshFxLike, Relation3, RibbonsLike, SfxLike, ShockwavesLike, Slot, V3Out } from './types';
 
 /** Move cue sounds (§8) as variants of the synth set: [sound, rate, volume]. */
@@ -70,6 +71,8 @@ export interface HeroLookup {
   branchOf(id: number): boolean;
   /** Drawn object yaw (rad; forward = (cos, −sin) on x / z), NaN when not drawn. Optional. */
   yawOf?(id: number): number;
+  /** CARD-SKINS.md: the hero's skin-effect profile (HeroView.cardOf). Optional. */
+  card?(id: number): SkinFxProfile | null;
 }
 
 const _v = new THREE.Vector3();
@@ -108,6 +111,10 @@ export class FxRuntime implements FxCtx {
 
   heroPos(id: number, out: V3Out): boolean {
     return this.lookup.posOf(id, out);
+  }
+
+  card(id: number): SkinFxProfile | null {
+    return this.lookup.card?.(id) ?? null;
   }
 
   /** The current frame's entities (set by the director each frame), for status(). */

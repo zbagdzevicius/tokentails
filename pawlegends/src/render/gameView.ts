@@ -244,6 +244,8 @@ export class GameView {
     this.shock.init(this.scene);
     this.projectiles = new ProjectileView(this.particles);
     this.heroes.tierFx = new TierFx(this.particles);
+    // CARD-SKINS.md Legendary: a purr layer when a carded or coated hero's recall lands (rate-limited per hero)
+    this.heroes.tierFx.onRecallLand = (h) => void sfx.cardLayer('recall', h.id, h.self, h);
     this.vfx = new CombatVfx(this.particles, this.shock);
     this.vfx.setTier(gr.settings.vfxTier, reducedMotion());
     this.projectiles.vfx = this.vfx;
@@ -387,6 +389,7 @@ export class GameView {
         const r = this.heroes.rigOf(id);
         return r && r.visible ? r.yaw : NaN;
       },
+      card: (id) => this.heroes.cardOf(id),
     };
     const cueSfx = new CueSfx();
     const runtime = new FxRuntime(this.meshFx, this.ribbons, this.linger, this.vfx, this.shock as never, this.fightCam, this.juice, cueSfx, lookup);
