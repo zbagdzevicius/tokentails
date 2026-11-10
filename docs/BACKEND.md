@@ -179,7 +179,9 @@ when the caller's level is at least `n`. It is always composed after `AppAuthGua
 changes a user's `email` or `permission`, or creates a user above USER (W1 hotfix, decision #33).
 
 The Stripe webhook is the only inbound call authenticated another way: signature verification
-with `STRIPE_WEBHOOK_SECRET`. Cron jobs run in-process and are not HTTP triggered.
+with `STRIPE_WEBHOOK_SECRET`. That endpoint (`POST /image/webhook`) also carries the Paw Legends store,
+which runs on the same Token Tails Stripe account ("Pawlegends" below). Cron jobs run in-process and are not
+HTTP triggered.
 
 ## Domain behaviour
 
@@ -1047,6 +1049,20 @@ Store and entitlements for the `pawlegends/` game (POC.md §8), plus its replay-
 (see "Games"). Routes are in docs/API.md. Every route is served; a part whose secret is missing answers 503
 and `GET /pawlegends/status` reports `store: false`, so the game hides its store button and still plays.
 
+One Stripe account: the store uses the Token Tails Stripe account and its existing webhook endpoint. The key falls
+back to `STRIPE_SECRET_KEY` and the entitlement key is derived from `INVALIDATE_CACHE_SECRET`. `POST /image/webhook`
+verifies every event with `STRIPE_WEBHOOK_SECRET` and passes Paw Legends events to
+`PawlegendsWebhookService.handle` (`isPawlegendsEvent`: Checkout Session events with `metadata.pawlegends === '1'`,
+plus every `charge.refunded` and `charge.dispute.closed`, which the store matches against its own payment intents).
+Paw Legends sessions never reach the Token Tails `Order` lookup; refunds and disputes then continue to Token Tails,
+which ignores them. So production needs no new variable: `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
+`INVALIDATE_CACHE_SECRET` turn the store on. The Token Tails endpoint must be subscribed to
+`checkout.session.completed`, `charge.refunded` and `charge.dispute.closed` (plus
+`checkout.session.async_payment_succeeded` with delayed payment methods; `checkout.session.expired` is optional,
+holds also lapse by time). The own endpoint `POST /pawlegends/stripe/webhook` stays as an option for a second
+Stripe endpoint and verifies only with `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`. Both paths share the event-id store
+(`pawlegendswebhookevents`), so an event delivered to both grants once.
+
 Module map (`src/pawlegends/`, registered in the one `AppModule`: 6 schemas, the controller, 6 providers and the `PAWLEGENDS_CAT_SALE` alias of `ShelterCatSaleService`):
 
 | File | Role |
@@ -1279,7 +1295,7 @@ Names only. Copy `backend/.env.example` to `backend/.env` and fill in values.
 | Goal count | `SHELTER_GOAL_SCAN` (`off` stops the C-001 scan; default on), `SHELTER_GOAL_RPC_URL` (default: the campaign chain's public RPC, `https://rpc.mainnet.arc.io` for C-001). The counted wallets come from the facts (`campaign.wallets`), never from the environment |
 | Email | `SENDGRID_API_KEY`, `SENDGRID_FROM_EMAIL` (missing from the example file) |
 | Bad Cat Daily (always on, no on/off flags; docs "Bad Cat Daily (badcat)") | `BADCAT_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY` is used; live keys only in production, test keys only elsewhere), `BADCAT_STRIPE_WEBHOOK_SECRET` (required to take money: unset, status reports `checkout: false`, checkout answers 503 and the webhook answers 503), `BADCAT_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `BADCAT_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs, restore links, the typed redirect), `BADCAT_RESTORE_DEV_LINK` (off; local testing only: the restore answer carries the link itself, never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore, seen and streak emails are sent only when it is set; restore mails only addresses with a purchase), `DO_SPACES_*` (shared; cameo and `/yourcat` faces). Phase 2: `BADCAT_SCORE_GRACE_DAYS` (0..7, default 1), `BADCAT_SHORT_LINK_BASE` and `BADCAT_API_PUBLIC_URL` (origin in short links; default `https://api.tokentails.com`), `BADCAT_FEED_AUTO_APPROVE` (moderation policy, off: feed rooms wait for an admin), `BADCAT_FEED_REPORT_HIDE` (default 3), `BADCAT_VAPID_PUBLIC_KEY`, `BADCAT_VAPID_PRIVATE_KEY`, `BADCAT_VAPID_SUBJECT` (`mailto:` or `https:`, default `mailto:hello@tokentails.com`; push works only when the keys are set) |
-| Pawlegends (always on, no on/off flags; "Pawlegends" above) | `PAWLEGENDS_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY`; live keys only in production, test keys only elsewhere), `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` (required to take money: unset, status reports `store: false` and checkout and the webhook answer 503), `PAWLEGENDS_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `PAWLEGENDS_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs and email links), `PAWLEGENDS_DEV_LINKS` (`true` puts the restore and notify links in the answer; never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore and notify emails) |
+| Pawlegends (always on, no on/off flags; "Pawlegends" above) | `PAWLEGENDS_STRIPE_SECRET_KEY` (optional; unset: the shared `STRIPE_SECRET_KEY`; live keys only in production, test keys only elsewhere), `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` (optional: the signing secret of an own `POST /pawlegends/stripe/webhook` endpoint, which answers 503 without it; unset, the store is carried by the shared `POST /image/webhook` and `STRIPE_WEBHOOK_SECRET`; with neither, status reports `store: false` and checkout answers 503), `PAWLEGENDS_ENTITLEMENT_SECRET` (optional; unset: an HMAC of `INVALIDATE_CACHE_SECRET` with a fixed label; with neither, entitlement routes answer 503), `PAWLEGENDS_PUBLIC_URL` (default `https://tokentails.com`; Stripe return URLs and email links), `PAWLEGENDS_DEV_LINKS` (`true` puts the restore and notify links in the answer; never with `NODE_ENV=production`), `SENDGRID_API_KEY` (shared; restore and notify emails) |
 | Print | `PRINTIFY_API_KEY` |
 | Rescue points (G5) | `TAILS_TOKEN_MODE` (`POINTS` default, or `TOKEN`; read by the public `GET /user/token-status`), `TAILS_TGE_AT` (ISO date, exposed only in `TOKEN` mode), `TAILS_EARNED_BACKFILL_DONE` (`true` once `scripts/backfill-tails-earned.js --apply` ran; the earned board then sorts on `tailsEarned`) |
 | Unused | `GTM_ID` |

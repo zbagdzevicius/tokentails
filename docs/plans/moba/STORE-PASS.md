@@ -64,19 +64,28 @@ Web-bought items are not drawn in the app; pass free-row rewards are (founder de
 
 1. **Before Stripe live mode:** founder approves the store terms section (version `2026-11-10`, the withdrawal waiver
    wording on the purchase sheet) and the VAT/OSS decision #17. Until then test mode only.
-2. **Test-mode purchase:** `stripe listen --forward-to localhost:3005/pawlegends/stripe/webhook`, put the printed
-   `whsec_…` in `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`, a test key in `PAWLEGENDS_STRIPE_SECRET_KEY`, sign in on
-   `/pawlegends`, buy a coat with card 4242 4242 4242 4242. Check: a `paid` row in `pawlegendspurchases`, a row in
-   `pawlegendsowned`, the coat in the store as "Owned · Equip". This also closes GAPS G-Pay.
-3. **Refund:** refund in the Stripe dashboard; `charge.refunded` revokes the items (and downgrades a pass). A lost
-   chargeback does the same through `charge.dispute.closed`: subscribe the webhook endpoint to `charge.refunded` and
-   `charge.dispute.closed`. A refund under the presale terms keeps items
-   (`refundUnderTerms`), as before.
-4. **A missing grant** (webhook failed after the paid row): Stripe retries; a retry runs the idempotent grant. Manual:
+2. **Stripe account:** the store runs on the Token Tails Stripe account, through the existing Token Tails webhook
+   endpoint `https://api.tokentails.com/image/webhook` (signed with `STRIPE_WEBHOOK_SECRET`). No new variable: with
+   `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `INVALIDATE_CACHE_SECRET` set (all three are in production),
+   `GET /pawlegends/status` reports `store: true`. Founder, in the Stripe dashboard: subscribe that endpoint to
+   `charge.refunded` and `charge.dispute.closed` (portraits already need `checkout.session.completed`; add
+   `checkout.session.async_payment_succeeded` only with delayed payment methods; `checkout.session.expired` is
+   optional). The live key works only with `NODE_ENV=production`. If `STRIPE_SECRET_KEY` is a restricted `rk_` key it
+   needs Checkout Sessions write and Refunds write. `PAWLEGENDS_STRIPE_SECRET_KEY` and
+   `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` still win when set (a separate key, or a second endpoint at
+   `/pawlegends/stripe/webhook`); events reaching both endpoints grant once (shared event-id store).
+3. **Test-mode purchase:** `stripe listen --forward-to localhost:3005/image/webhook`, put the printed `whsec_…` in
+   `STRIPE_WEBHOOK_SECRET` and a test key in `STRIPE_SECRET_KEY`, sign in on `/pawlegends`, buy a coat with card
+   4242 4242 4242 4242. Check: a `paid` row in `pawlegendspurchases`, a row in `pawlegendsowned`, the coat in the store
+   as "Owned · Equip", and no "Order not found" log line. This also closes GAPS G-Pay.
+4. **Refund:** refund in the Stripe dashboard; `charge.refunded` revokes the items (and downgrades a pass). A lost
+   chargeback does the same through `charge.dispute.closed` (both need the subscriptions in step 2). A refund under
+   the presale terms keeps items (`refundUnderTerms`), as before.
+5. **A missing grant** (webhook failed after the paid row): Stripe retries; a retry runs the idempotent grant. Manual:
    resend the `checkout.session.completed` event from the dashboard.
-5. **New season:** append an `s2` entry to `SEASONS` in both catalogue copies, set `CURRENT_SEASON_ID`, add the coat
+6. **New season:** append an `s2` entry to `SEASONS` in both catalogue copies, set `CURRENT_SEASON_ID`, add the coat
    palettes in `render/cosmetics.ts` `PASS_COAT_PAL`, and add pass SKUs. S1 stays claimable.
-6. **Price change:** edit `pawlegends-catalog.ts` in both copies (the game test fails until they match).
+7. **Price change:** edit `pawlegends-catalog.ts` in both copies (the game test fails until they match).
 
 ## Founder decisions (default used until you answer)
 

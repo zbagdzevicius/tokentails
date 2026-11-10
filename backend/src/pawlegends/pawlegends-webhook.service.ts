@@ -29,12 +29,22 @@ import {
 import { grantPurchase, revokeSession, syncPremium } from './pawlegends-season.service';
 
 /*
- * POST /pawlegends/stripe/webhook (raw body, PAWLEGENDS_STRIPE_WEBHOOK_SECRET). Idempotent by Stripe event id
+ * Two ways in, one handler. The store runs on the Token Tails Stripe account: the Token Tails endpoint
+ * (POST /image/webhook, STRIPE_WEBHOOK_SECRET) verifies the event and passes it here when `isPawlegendsEvent` says
+ * so. An own endpoint (POST /pawlegends/stripe/webhook, raw body, PAWLEGENDS_STRIPE_WEBHOOK_SECRET) is optional.
+ * Either way `handle` is idempotent by Stripe event id
  * (`pawlegendswebhookevents`), and every write is keyed by the Checkout Session id as well, so a replayed event
  * under a new id grants nothing twice. Writes purchases (the grant and the spend ledger); never a score.
  */
 
 export type PawlegendsWebhookOutcome = 'processed' | 'duplicate' | 'ignored';
+
+/** The Checkout Session events the store handles (`dispatch`). */
+const PAWLEGENDS_SESSION_EVENTS: ReadonlySet<string> = new Set([
+    'checkout.session.completed',
+    'checkout.session.async_payment_succeeded',
+    'checkout.session.expired',
+]);
 
 const idOf = (value: unknown): string | undefined =>
     typeof value === 'string' ? value : (value as { id?: string } | null | undefined)?.id || undefined;
@@ -57,6 +67,22 @@ export class PawlegendsWebhookService {
         } catch {
             throw PAWLEGENDS_ERRORS.badSignature();
         }
+    }
+
+    /**
+     * Whether an event verified by the shared Token Tails webhook belongs here: a Checkout Session event with
+     * `metadata.pawlegends === '1'`, or any refund or dispute close (the handler matches its payment intent against
+     * its own purchase rows and ignores the rest). Every other event stays with Token Tails.
+     */
+    isPawlegendsEvent(event: Pick<Stripe.Event, 'type' | 'data'> | null | undefined): boolean {
+        if (!event?.type) return false;
+        if (event.type === 'charge.refunded' || event.type === 'charge.dispute.closed') return true;
+        if (!PAWLEGENDS_SESSION_EVENTS.has(event.type)) return false;
+        const md = ((event.data?.object as Stripe.Checkout.Session | undefined)?.metadata || {}) as Record<
+            string,
+            string
+        >;
+        return md.pawlegends === '1';
     }
 
     /** The event id is recorded only after the grant succeeded, so Stripe's retry of a failed one is processed. */
