@@ -318,7 +318,10 @@ The $5 cat is sold through the shared Token Tails checkout (`STRIPE_SECRET_KEY` 
 `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY`, already live in production for the shelter cats), so there is no Pawlegends
 webhook or live key to add. `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` stays unset. Since the store pass, the cosmetics store
 also runs on that account (its events arrive through `/image/webhook`), so `/pawlegends/status` reports `store: true`
-with the shared secrets (docs/plans/moba/STORE-PASS.md runbook step 2).
+with the shared secrets (docs/plans/moba/STORE-PASS.md runbook step 2). On production those are the live key and
+webhook, so deploying the backend starts real store sales: deploy only after the founder approves the store terms
+version `2026-11-10` and the VAT/OSS decision #17 (STORE-PASS.md runbook step 1); test the store only locally or on
+staging with test keys.
 
 Preconditions: VAT answer recorded (a.2); the a.3 run recorded in the README; the cat sheet shows the terms, privacy
 and EU withdrawal lines (LAUNCH-READY.md U4, U5); trademark search passed (a.1).

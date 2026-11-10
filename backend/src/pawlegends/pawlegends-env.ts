@@ -45,9 +45,23 @@ export const pawlegendsWebhookSecret = (env: Env = process.env) =>
 export const pawlegendsSharedWebhookSecret = (env: Env = process.env) =>
     (env.STRIPE_WEBHOOK_SECRET || '').trim() || null;
 
-/** A payment can be confirmed: by the own endpoint's secret, else by the shared Token Tails webhook. */
+/**
+ * Checkout uses the shared Token Tails key: `PAWLEGENDS_STRIPE_SECRET_KEY` is unset, skipped for its mode, or the
+ * same key. Only then do the sessions' events reach the Token Tails endpoint.
+ */
+export const pawlegendsUsesSharedStripeKey = (env: Env = process.env) => {
+    const { key } = pawlegendsStripeKey(env);
+    return !!key && key === (env.STRIPE_SECRET_KEY || '').trim();
+};
+
+/**
+ * A payment can be confirmed: by the own endpoint's secret, else by the shared Token Tails webhook, which counts only
+ * when checkout runs on the shared key. A separate `PAWLEGENDS_STRIPE_SECRET_KEY` (possibly another Stripe account,
+ * whose events never reach `/image/webhook`) needs its own `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`, or checkout would take
+ * money nothing confirms.
+ */
 export const pawlegendsCanConfirmPayments = (env: Env = process.env) =>
-    !!(pawlegendsWebhookSecret(env) || pawlegendsSharedWebhookSecret(env));
+    !!pawlegendsWebhookSecret(env) || (pawlegendsUsesSharedStripeKey(env) && !!pawlegendsSharedWebhookSecret(env));
 
 /** Fixed label of the derived entitlement key; changing it invalidates every token. */
 export const PAWLEGENDS_ENTITLEMENT_LABEL = 'tokentails:pawlegends:entitlement:v1';

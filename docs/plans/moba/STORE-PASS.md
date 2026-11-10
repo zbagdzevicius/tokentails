@@ -63,18 +63,27 @@ Web-bought items are not drawn in the app; pass free-row rewards are (founder de
 ## Ops runbook
 
 1. **Before Stripe live mode:** founder approves the store terms section (version `2026-11-10`, the withdrawal waiver
-   wording on the purchase sheet) and the VAT/OSS decision #17. Until then test mode only.
+   wording on the purchase sheet) and the VAT/OSS decision #17. Deploying this backend to production is the switch to
+   live mode: production already has the live `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
+   `INVALIDATE_CACHE_SECRET`, so the deploy turns on real sales at once. Hold the production deploy until both
+   approvals are recorded; until then test only locally or on staging with test keys (step 3).
 2. **Stripe account:** the store runs on the Token Tails Stripe account, through the existing Token Tails webhook
    endpoint `https://api.tokentails.com/image/webhook` (signed with `STRIPE_WEBHOOK_SECRET`). No new variable: with
    `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and `INVALIDATE_CACHE_SECRET` set (all three are in production),
    `GET /pawlegends/status` reports `store: true`. Founder, in the Stripe dashboard: subscribe that endpoint to
-   `charge.refunded` and `charge.dispute.closed` (portraits already need `checkout.session.completed`; add
-   `checkout.session.async_payment_succeeded` only with delayed payment methods; `checkout.session.expired` is
-   optional). The live key works only with `NODE_ENV=production`. If `STRIPE_SECRET_KEY` is a restricted `rk_` key it
+   `charge.refunded`, `charge.dispute.closed`, `checkout.session.async_payment_succeeded` and
+   `checkout.session.expired` (portraits already need `checkout.session.completed`). The async event is required: the
+   session sets no `payment_method_types`, so it offers whatever methods the Token Tails dashboard has on, and with a
+   delayed one (SEPA Debit and the like) the buyer pays and nothing is granted without it. Without `expired`, a held
+   Founder Legend seat and the buyer's spend-cap share stay taken until the hold times out. The live key works only
+   with `NODE_ENV=production`. If `STRIPE_SECRET_KEY` is a restricted `rk_` key it
    needs Checkout Sessions write and Refunds write. `PAWLEGENDS_STRIPE_SECRET_KEY` and
    `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` still win when set (a separate key, or a second endpoint at
-   `/pawlegends/stripe/webhook`); events reaching both endpoints grant once (shared event-id store).
-3. **Test-mode purchase:** `stripe listen --forward-to localhost:3005/image/webhook`, put the printed `whsec_…` in
+   `/pawlegends/stripe/webhook`); events reaching both endpoints grant once (shared event-id store). A separate
+   `PAWLEGENDS_STRIPE_SECRET_KEY` needs its own `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` and endpoint: it may belong to
+   another Stripe account whose events never reach `/image/webhook`, so the shared secret does not count for it and
+   status reports `store: false` until the own secret is set.
+3. **Test-mode purchase (locally or on staging with test keys only, never on production):** `stripe listen --forward-to localhost:3005/image/webhook`, put the printed `whsec_…` in
    `STRIPE_WEBHOOK_SECRET` and a test key in `STRIPE_SECRET_KEY`, sign in on `/pawlegends`, buy a coat with card
    4242 4242 4242 4242. Check: a `paid` row in `pawlegendspurchases`, a row in `pawlegendsowned`, the coat in the store
    as "Owned · Equip", and no "Order not found" log line. This also closes GAPS G-Pay.

@@ -1,5 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
+import { coatSkuOf, PASS_SKU, STORE_COATS, STORE_TERMS_VERSION } from 'src/pawlegends/pawlegends-catalog';
 import { pawlegendsCheckoutReady } from 'src/pawlegends/pawlegends-env';
+import { ownedItemsOf } from 'src/pawlegends/pawlegends-season.service';
 import {
     buildHarness,
     completedEvent,
@@ -119,6 +121,16 @@ describe('POST /image/webhook carries Paw Legends (one Stripe account)', () => {
             expect(pawlegendsCheckoutReady(without(name))).toBe(false);
         }
         expect(pawlegendsCheckoutReady({ ...noWebhook, PAWLEGENDS_STRIPE_WEBHOOK_SECRET: 'whsec_own' })).toBe(true);
+        // A separate key (maybe another Stripe account, whose events never reach /image/webhook) does not borrow the
+        // shared webhook secret: it needs its own, or checkout would take money nothing confirms.
+        const separateKey = { ...SHARED_ENV, PAWLEGENDS_STRIPE_SECRET_KEY: 'sk_test_other_account' };
+        expect(pawlegendsCheckoutReady(separateKey)).toBe(false);
+        expect(pawlegendsCheckoutReady({ ...separateKey, PAWLEGENDS_STRIPE_WEBHOOK_SECRET: 'whsec_own' })).toBe(true);
+        // The same key under both names, or one skipped for its mode (a live key outside production), is the shared one.
+        expect(
+            pawlegendsCheckoutReady({ ...SHARED_ENV, PAWLEGENDS_STRIPE_SECRET_KEY: SHARED_ENV.STRIPE_SECRET_KEY })
+        ).toBe(true);
+        expect(pawlegendsCheckoutReady({ ...SHARED_ENV, PAWLEGENDS_STRIPE_SECRET_KEY: 'sk_live_other' })).toBe(true);
 
         const { h } = setup();
         await expect(storeCheckout(h)).resolves.toMatchObject({ sessionId: expect.any(String) });
@@ -211,6 +223,51 @@ describe('POST /image/webhook carries Paw Legends (one Stripe account)', () => {
             status: 'refunded',
             disputeId: 'dp_pl',
         });
+    });
+
+    it('a store coat and the Legends Pass are granted on /image/webhook and taken back by their refunds', async () => {
+        const { h, controller, orderRepository } = setup();
+        h.stripe.sellRetired = false;
+        const ACCOUNT = 'acct-0000000000000001';
+        const coatSku = coatSkuOf(STORE_COATS.find(c => c.hero === 'clem')!);
+        const buy = async (sku: string) => {
+            const { sessionId } = await h.stripe.createCheckout(
+                {
+                    sku,
+                    currency: 'eur',
+                    email: 'buyer@example.com',
+                    ageBand: '18+',
+                    consentVersion: STORE_TERMS_VERSION,
+                    deviceId: DEVICE,
+                } as any,
+                SHARED_ENV,
+                ACCOUNT
+            );
+            const calls = h.stripeClient.checkout.sessions.create.mock.calls;
+            expect(await post(controller, completedEvent(sessionId, calls[calls.length - 1][0]))).toEqual({
+                received: true,
+            });
+            return sessionId;
+        };
+        const coat = await buy(coatSku);
+        const pass = await buy(PASS_SKU);
+        expect(await h.models.owned.countDocuments({ accountId: ACCOUNT })).toBeGreaterThan(0);
+        expect(await ownedItemsOf(h.store, ACCOUNT)).not.toEqual([]);
+        expect((await h.season.me(ACCOUNT)).season.premium).toBe('pass');
+
+        for (const [sessionId, id] of [
+            [coat, 'evt_refund_coat'],
+            [pass, 'evt_refund_pass'],
+        ]) {
+            await post(controller, {
+                id,
+                type: 'charge.refunded',
+                data: { object: { id: `ch_${id}`, refunded: true, payment_intent: `pi_${sessionId}` } },
+            });
+        }
+        expect(await ownedItemsOf(h.store, ACCOUNT)).toEqual([]);
+        expect((await h.season.me(ACCOUNT)).season.premium).toBe('none');
+        expect(orderRepository.findOne).not.toHaveBeenCalled();
     });
 
     it('rejects a bad signature before either handler runs', async () => {
