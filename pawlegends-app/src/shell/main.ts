@@ -2,15 +2,19 @@
  * The app shell script (`www/shell.js`, a classic script loaded before the game in index.html by
  * scripts/build-web.mjs). Native only: on any other page it does nothing.
  *
- * - haptics: a `navigator.vibrate` backed by the Taptic Engine (haptics.ts), iPhone only (not in the Mac app);
+ * - haptics: a `navigator.vibrate` backed by the Taptic Engine or Android's haptic effects (haptics.ts), not in
+ *   the Mac app;
+ * - Android back button and gesture: Escape into the game, or the app to the background on the bare title (back.ts);
  * - OTA: notifyAppReady once the title is up, update checks on launch and resume, apply on the title (ota.ts);
- *   iPhone only: the Mac app runs only the game bundled in its build (takesOtaUpdates in ota.ts, guideline 2.4.5).
+ *   iPhone and Android: the Mac app runs only the game bundled in its build (takesOtaUpdates in ota.ts, guideline
+ *   2.4.5). Each platform reads its own manifest (`updates/<platform>/<compat>/`).
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { App } from '@capacitor/app';
 import { Haptics, ImpactStyle } from '@capacitor/haptics';
 import { CapacitorUpdater } from '@capgo/capacitor-updater';
-import { channelOf, manifestUrl, type BundleStamp } from './manifest';
+import { channelOf, manifestUrl, otaPlatformOf, type BundleStamp } from './manifest';
+import { handleBack } from './back';
 import { installVibrate } from './haptics';
 import { Ota, takesOtaUpdates, type KV } from './ota';
 
@@ -63,12 +67,16 @@ function start(): void {
   // the Mac app (Mac Catalyst) has no Taptic Engine: no vibrate bridge there, the game's haptics stay silent
   const platform = (window as unknown as { __PL_PLATFORM__?: unknown }).__PL_PLATFORM__;
   const mac = platform === 'mac';
+  const android = Capacitor.getPlatform() === 'android';
   if (!mac) {
     const styles = { LIGHT: ImpactStyle.Light, MEDIUM: ImpactStyle.Medium, HEAVY: ImpactStyle.Heavy } as const;
-    installVibrate(navigator, { impact: (o) => Haptics.impact({ style: styles[o.style] }) });
+    installVibrate(navigator, { impact: (o) => Haptics.impact({ style: styles[o.style] }) }, setTimeout, android);
   }
+  // registering the listener turns off Capacitor's default (WebView history back, else close the app mid-match)
+  if (android) void App.addListener('backButton', () => void handleBack(document, () => App.minimizeApp()));
 
-  // set by the native shell before any page script (GameViewController.swift): stable, beta (TestFlight) or dev (Debug)
+  // set by the native shell before any page script (GameViewController.swift, MainActivity.java): stable, beta
+  // (TestFlight) or dev (Debug builds)
   const channel = channelOf((window as unknown as { __PL_CHANNEL__?: unknown }).__PL_CHANNEL__);
   const ota = new Ota({
     updater: CapacitorUpdater,
@@ -79,7 +87,8 @@ function start(): void {
     },
     stamp: __PL_STAMP__,
     nativeVersion: async () => (await App.getInfo()).version,
-    manifestUrl: manifestUrl(channel, __PL_UPDATES_URL__, __PL_LOCAL_UPDATES_URL__, __PL_STAMP__.compat),
+    manifestUrl: manifestUrl(channel, __PL_UPDATES_URL__, __PL_LOCAL_UPDATES_URL__, __PL_STAMP__.compat, otaPlatformOf(Capacitor.getPlatform())),
+    platform: otaPlatformOf(Capacitor.getPlatform()),
     allowLocal: channel === 'dev',
     spkiPem: __PL_SPKI__,
     kv: storage(),

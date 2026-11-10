@@ -1,5 +1,5 @@
 /**
- * Haptics in the app. WKWebView has no `navigator.vibrate`, so the game's haptics (pawlegends/src/ui/haptics.ts,
+ * Haptics in the app (iPhone and Android). WKWebView has no `navigator.vibrate`, so the game's haptics (pawlegends/src/ui/haptics.ts,
  * input/Input.js, the party nudge) were silent on iPhone. The shell installs a `navigator.vibrate` that maps the
  * game's patterns to the native Taptic Engine (@capacitor/haptics). The game needs no change, and the web build keeps
  * using the real Vibration API.
@@ -35,9 +35,14 @@ export function impactsFor(p: number | readonly number[]): { at: number; style: 
   return out;
 }
 
-/** Install the bridge on `nav` (only when it has no vibrate of its own). Returns whether it was installed. */
-export function installVibrate(nav: Navigator, haptics: HapticsLike, schedule: (fn: () => void, ms: number) => unknown = setTimeout): boolean {
-  if (typeof (nav as { vibrate?: unknown }).vibrate === 'function') return false;
+/**
+ * Install the bridge on `nav`. Without `force` only when it has no vibrate of its own (iPhone). With `force` it
+ * replaces the WebView's own vibrate: on Android the WebView's Vibration API turns the game's 8 to 12 ms buzzes into
+ * motor pulses too short to feel on many phones, while @capacitor/haptics plays the system's tuned click effects.
+ * Returns whether it was installed.
+ */
+export function installVibrate(nav: Navigator, haptics: HapticsLike, schedule: (fn: () => void, ms: number) => unknown = setTimeout, force = false): boolean {
+  if (!force && typeof (nav as { vibrate?: unknown }).vibrate === 'function') return false;
   const vibrate = (p: number | number[]): boolean => {
     const hits = impactsFor(p);
     for (const h of hits) {

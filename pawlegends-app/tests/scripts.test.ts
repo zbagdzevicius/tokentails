@@ -61,4 +61,11 @@ describe('haptics bridge', () => {
     const real = { vibrate: () => true } as unknown as Navigator;
     expect(installVibrate(real, { impact: async () => undefined })).toBe(false);
   });
+  it('force replaces the WebView vibrate (Android)', () => {
+    const calls: string[] = [];
+    const nav = { vibrate: () => false } as unknown as Navigator;
+    expect(installVibrate(nav, { impact: async (o) => void calls.push(o.style) }, setTimeout, true)).toBe(true);
+    expect((nav as unknown as { vibrate: (p: number) => boolean }).vibrate(8)).toBe(true);
+    expect(calls).toEqual(['LIGHT']);
+  });
 });
