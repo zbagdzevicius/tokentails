@@ -4,7 +4,7 @@ import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date this notice last changed. Update it with every change to the text. */
-export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-07";
+export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-10";
 
 export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} app privacy - Token Tails`,
