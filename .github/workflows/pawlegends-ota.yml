@@ -165,6 +165,7 @@ jobs:
           if [ -n "$MIN_NATIVE" ]; then args="$args --min-native-ios $MIN_NATIVE"; fi
           if [ -n "$MIN_NATIVE_ANDROID" ]; then args="$args --min-native-android $MIN_NATIVE_ANDROID"; fi
           echo "PUBLISH_ARGS=$args" >> "$GITHUB_ENV"
+          # shellcheck disable=SC2086 # $args is a flag list, split on purpose
           node scripts/ota-publish.mjs $args
       - name: Commit to main (Vercel serves it)
         if: steps.secret.outputs.ok == 'true'
@@ -183,6 +184,7 @@ jobs:
             git rebase --abort 2>/dev/null || true
             git reset --hard origin/main
             if [ -z "$ROLLBACK" ]; then
+              # shellcheck disable=SC2086 # flag list, split on purpose
               (cd pawlegends-app && node scripts/ota-publish.mjs $PUBLISH_ARGS)
             fi
             git add -A client/public/pawlegends-app/updates
@@ -259,7 +261,7 @@ jobs:
           if git diff --cached --quiet; then echo "nothing to promote"; exit 0; fi
           version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest.json').version)")
           git commit -m "chore(pawlegends-app): OTA ${version} promoted to stable"
-          for i in 1 2 3; do
+          for _ in 1 2 3; do
             if git pull --rebase origin main && git push origin HEAD:main; then echo "promoted=true" >> "$GITHUB_ENV"; exit 0; fi
             sleep 5
           done
