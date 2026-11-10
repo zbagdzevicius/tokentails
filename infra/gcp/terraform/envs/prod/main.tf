@@ -391,6 +391,8 @@ module "edge" {
   cloudflare_ipv4          = var.cloudflare_ipv4
   cloudflare_ipv6          = var.cloudflare_ipv6
   ws_rate_limit_per_minute = var.ws_rate_limit_per_minute
+  # empty except during the LATENCY-PLAN E4 test (RUNBOOK "Latency"), set and cleared by the founder's own apply
+  extra_allowed_source_ranges = var.test_source_cidrs
 }
 
 # ---------------------------------------------------------------------------------------------------------------------
