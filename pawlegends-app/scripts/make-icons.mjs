@@ -14,6 +14,16 @@
  *                                                                      does not jump
  *   store/app-icon-1024.png                                            the iOS icon, for the listing and press
  *
+ * Android (android/app/src/main/res, docs/plans/moba/PLAY-STORE.md), from the same iOS icon master:
+ *
+ *   mipmap-<density>/ic_launcher.png, ic_launcher_round.png            legacy launcher icons (48 dp; square and round)
+ *   mipmap-<density>/ic_launcher_foreground.png                        the adaptive icon (108 dp): the art at 80 dp
+ *                                                                      on its own ray colour, so every launcher mask
+ *                                                                      (circle, squircle) keeps the crown and the face
+ *   drawable-<density>/splash_icon.png                                 the Android 12+ splash icon (288 dp, the art
+ *                                                                      inside the 192 dp circle the system shows)
+ *   fastlane/metadata_android/en-US/images/icon.png                    the Play listing icon (512 px, 32-bit PNG)
+ *
  * Usage: node scripts/make-icons.mjs   (outputs are committed; re-run only when brand/pawlegends changes)
  */
 import { existsSync, mkdirSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
@@ -83,7 +93,60 @@ async function launchLogo() {
   writeFileSync(join(dir, 'Contents.json'), `${JSON.stringify({ images, info: { author: 'xcode', version: 1 } }, null, 2)}\n`);
 }
 
+const ANDROID_RES = join(APP_DIR, 'android/app/src/main/res');
+const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
+/** The ray colour at the master's edge: fills the adaptive canvas beyond the art (seen only in launcher motion). */
+const ADAPTIVE_BG = '#f4623f';
+
+const circleMask = (px) => Buffer.from(`<svg width="${px}" height="${px}"><circle cx="${px / 2}" cy="${px / 2}" r="${px / 2}" fill="#fff"/></svg>`);
+
+async function androidIcons() {
+  if (!existsSync(ANDROID_RES)) {
+    console.log('make-icons: no android/ project, Android icons skipped');
+    return;
+  }
+  const master = await sharp(brand('app-icon-ios-1024.png')).resize(1024, 1024).flatten({ background: BG }).removeAlpha().png().toBuffer();
+  for (const [density, scale] of Object.entries(DENSITIES)) {
+    const dir = join(ANDROID_RES, `mipmap-${density}`);
+    mkdirSync(dir, { recursive: true });
+    const legacy = Math.round(48 * scale);
+    writeFileSync(join(dir, 'ic_launcher.png'), await sharp(master).resize(legacy, legacy, { kernel: 'lanczos3' }).png({ compressionLevel: 9 }).toBuffer());
+    writeFileSync(
+      join(dir, 'ic_launcher_round.png'),
+      await sharp(master).resize(legacy, legacy, { kernel: 'lanczos3' }).composite([{ input: circleMask(legacy), blend: 'dest-in' }]).png({ compressionLevel: 9 }).toBuffer(),
+    );
+    const canvas = Math.round(108 * scale);
+    const art = Math.round(80 * scale);
+    const off = Math.round((canvas - art) / 2);
+    writeFileSync(
+      join(dir, 'ic_launcher_foreground.png'),
+      await sharp({ create: { width: canvas, height: canvas, channels: 4, background: ADAPTIVE_BG } })
+        .composite([{ input: await sharp(master).resize(art, art, { kernel: 'lanczos3' }).toBuffer(), left: off, top: off }])
+        .png({ compressionLevel: 9 })
+        .toBuffer(),
+    );
+    const splashDir = join(ANDROID_RES, `drawable-${density}`);
+    mkdirSync(splashDir, { recursive: true });
+    const sc = Math.round(288 * scale);
+    const circle = Math.round(192 * scale);
+    const so = Math.round((sc - circle) / 2);
+    const disc = await sharp(master).resize(circle, circle, { kernel: 'lanczos3' }).composite([{ input: circleMask(circle), blend: 'dest-in' }]).png().toBuffer();
+    writeFileSync(
+      join(splashDir, 'splash_icon.png'),
+      await sharp({ create: { width: sc, height: sc, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+        .composite([{ input: disc, left: so, top: so }])
+        .png({ compressionLevel: 9 })
+        .toBuffer(),
+    );
+  }
+  const play = join(APP_DIR, 'fastlane/metadata_android/en-US/images');
+  mkdirSync(play, { recursive: true });
+  // Play wants a 32-bit PNG (with alpha channel), 512 px, up to 1 MB
+  writeFileSync(join(play, 'icon.png'), await sharp(master).resize(512, 512, { kernel: 'lanczos3' }).ensureAlpha().png({ compressionLevel: 9 }).toBuffer());
+}
+
 await appIcon();
 await macIcons();
 await launchLogo();
-console.log('make-icons: AppIcon (1024, no alpha; Mac sizes), LaunchLogo, store/app-icon-1024.png from brand/pawlegends');
+await androidIcons();
+console.log('make-icons: AppIcon (1024, no alpha; Mac sizes), LaunchLogo, store/app-icon-1024.png, Android launcher + splash icons from brand/pawlegends');
