@@ -813,6 +813,8 @@ export class PartyRelay {
         const now = this.now();
         for (const [id, f] of this.finished) if (f.untilMs <= now) this.finished.delete(id);
         for (const [h, until] of this.seatTaken) if (until <= now) this.seatTaken.delete(h);
+        // the results tail a draining relay waits for is 5 s: older stamps are never read again
+        for (const [id, at] of this.partyEndedAt) if (now - at > 60_000) this.partyEndedAt.delete(id);
         for (const [h, r] of this.resume) {
             if (
                 r.expMs >= now ||
@@ -843,6 +845,10 @@ export class PartyRelay {
             resume: this.resume.size,
             joinFailKeys: this.joinFails.byKey.size + this.joinFails.byIp.size + this.joinFails.byNet.size,
             retiredCodes: this.parties.retiredCount,
+            partyEnded: this.partyEndedAt.size,
+            partySaves: this.partySaves.size,
+            pulling: this.pulling.size,
+            restoreGaps: this.restoreGaps.length,
         };
     }
 
@@ -934,6 +940,23 @@ export class PartyRelay {
     private onJson(s: Sock, msg: ClientJson): void {
         const member = s.memberId!;
         const p = this.parties;
+        // LIVE-MATCH-DEPLOYS.md §4.1 step 4: a draining relay starts no new room. A start or a rematch vote from a party
+        // without a live room here (a lobby inside the first drain tick, a results screen inside its 5 s tail) moves the
+        // party to the new relay instead (server_moving, 1012); the leader starts it there.
+        if (this.state === 'draining' && (msg.t === 'party.start' || (msg.t === 'vote' && msg.kind === 'rematch'))) {
+            const party = p.partyOf(member);
+            if (
+                party &&
+                !(party.room && this.rooms.has(party.room)) &&
+                party.phase !== 'pick' &&
+                party.phase !== 'loading'
+            ) {
+                void this.handoffParty(party).catch(e =>
+                    this.log('relay_error', { message: String((e as Error)?.message || e).slice(0, 200) })
+                );
+                return;
+            }
+        }
         switch (msg.t) {
             case 'hello':
                 return this.strike(s);
