@@ -125,19 +125,30 @@ const IMMUTABLE = "public, max-age=31536000, immutable";
 const cache = (source, value) => ({ source, headers: [{ key: "Cache-Control", value }] });
 // LATENCY-PLAN §3.3 / C5: the game page and the app's OTA files.
 // - OTA bundles (`<yyyymmddhhmmss>-<sha>.zip|json`) are never rewritten under the same name: cached for good.
-// - The OTA manifests and the game's index.html change on a release: the browser revalidates every time (max-age=0)
-//   while a CDN may serve its copy 30 s / 60 s and refresh it in the background. index.html is safe to serve a little
-//   stale because the last releases' build/ files stay published (keep-releases.mjs) for the tab that loads it.
+// - The OTA manifests and the game's index.html change on a release. The browser revalidates every time
+//   (`max-age=0, must-revalidate`, no stale-while-revalidate: browsers honour that too and would load the previous
+//   release once). Cloudflare alone keeps a copy 30 s / 60 s through `Cloudflare-CDN-Cache-Control`, a header Vercel
+//   passes on untouched (it strips `s-maxage` and `stale-while-revalidate` from Cache-Control); the deploy purges it
+//   (scripts/cdn-cache.mjs). index.html is safe to serve a little stale because the last releases' build/ files stay
+//   published (keep-releases.mjs) for the tab that loads it.
 // - The game's assets/ names are not content-hashed yet: an hour in the browser, a week stale-while-revalidate.
 const OTA = "/pawlegends-app/updates/:platform/:compat";
+const REVALIDATE = "public, max-age=0, must-revalidate";
+const edge = (source, browser, cloudflare) => ({
+  source,
+  headers: [
+    { key: "Cache-Control", value: browser },
+    { key: "Cloudflare-CDN-Cache-Control", value: cloudflare },
+  ],
+});
 const pawlegendsHeaders = [
   cache("/pawlegends-game/build/:path*", IMMUTABLE),
   cache("/pawlegends/landing/:path*", IMMUTABLE),
-  cache("/pawlegends-game/index.html", "public, max-age=0, s-maxage=60, stale-while-revalidate=86400"),
+  edge("/pawlegends-game/index.html", REVALIDATE, "max-age=60, stale-while-revalidate=300"),
   cache("/pawlegends-game/assets/:path*", "public, max-age=3600, stale-while-revalidate=604800"),
   cache(`${OTA}/bundles/:file*`, IMMUTABLE),
-  cache(`${OTA}/manifest.json`, "public, max-age=0, s-maxage=30, stale-while-revalidate=60"),
-  cache(`${OTA}/manifest-beta.json`, "public, max-age=0, s-maxage=30, stale-while-revalidate=60"),
+  edge(`${OTA}/manifest.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
+  edge(`${OTA}/manifest-beta.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
 ];
 // `/pawlegends` is the landing page, `/pawlegends/play` the game (components/pawlegends/routes.json). Links that need
 // the game carry one of its query keys (party invites, dares, Stripe returns, account emails, `from` from the PLAY

@@ -7,8 +7,11 @@
  *     Waits until the origin serves the committed manifest (its `version`), then purges that manifest URL from
  *     Cloudflare, so apps see a new bundle at once instead of after the edge TTL.
  *   node scripts/cdn-cache.mjs game --since <git sha>
- *     Waits until the origin serves the committed /pawlegends-game/index.html, purges it, then fetches every
- *     build/ file added since <sha> once, so the first player after a deploy is not the one who fills the edge.
+ *     Purges /pawlegends-game/index.html (bare and `?embed=1`, the URL the game iframe loads) and fetches it until it
+ *     serves the committed build, purges once more, then fetches the page and every build/ file added since <sha>
+ *     once, so the first player after a deploy is not the one who fills the edge. The purge runs before each poll
+ *     because the Cloudflare rule ignores the query string for that page (RUNBOOK rule 1): a `?cb=` alone would read
+ *     the edge copy.
  *
  * Env: CF_API_TOKEN (Zone.Cache Purge), CF_ZONE_ID. Without both, the purge is skipped with a notice; the warm-up and
  * the wait still run. SITE (default https://tokentails.com). Never prints the token.
@@ -45,11 +48,18 @@ export function purgeBatches(urls, size = 30) {
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-/** Poll `url` (cache-busted) until `ok(body)`; true when it matched within `timeoutMs`. */
-export async function waitForOrigin(url, ok, { timeoutMs = 600_000, everyMs = 15_000, fetchImpl = fetch } = {}) {
+/** The game page URLs a purge and the warm-up cover: the bare page and the one the embed iframe loads. */
+export const gameIndexUrls = site => [`${site}${GAME_INDEX}`, `${site}${GAME_INDEX}?embed=1`];
+
+/**
+ * Poll `url` (cache-busted) until `ok(body)`; true when it matched within `timeoutMs`. `before` (optional) runs
+ * before each poll, e.g. a purge when the edge ignores the query string.
+ */
+export async function waitForOrigin(url, ok, { timeoutMs = 600_000, everyMs = 15_000, fetchImpl = fetch, before } = {}) {
     const end = Date.now() + timeoutMs;
     for (;;) {
         try {
+            if (before) await before();
             const r = await fetchImpl(`${url}${url.includes('?') ? '&' : '?'}cb=${Date.now()}`, { cache: 'no-store' });
             if (r.ok && ok(await r.text())) return true;
         } catch {
@@ -60,11 +70,13 @@ export async function waitForOrigin(url, ok, { timeoutMs = 600_000, everyMs = 15
     }
 }
 
-async function purge(urls, fetchImpl = fetch) {
+let purgeNoticed = false;
+async function purge(urls, fetchImpl = fetch, quiet = false) {
     const token = process.env.CF_API_TOKEN;
     const zone = process.env.CF_ZONE_ID;
     if (!token || !zone) {
-        console.log('::notice::CF_API_TOKEN / CF_ZONE_ID not set: no Cloudflare purge (the edge TTL expires it).');
+        if (!purgeNoticed) console.log('::notice::CF_API_TOKEN / CF_ZONE_ID not set: no Cloudflare purge (the edge TTL expires it).');
+        purgeNoticed = true;
         return;
     }
     for (const body of purgeBatches(urls)) {
@@ -75,7 +87,7 @@ async function purge(urls, fetchImpl = fetch) {
         });
         const j = await r.json().catch(() => ({}));
         if (!r.ok || j.success !== true) throw new Error(`purge failed: HTTP ${r.status}`);
-        console.log(`purged ${body.files.length} URL(s)`);
+        if (!quiet) console.log(`purged ${body.files.length} URL(s)`);
     }
 }
 
@@ -124,10 +136,12 @@ async function main() {
         const local = readFileSync(join(REPO, 'client/public', GAME_INDEX), 'utf8');
         const entry = /build\/index-[A-Za-z0-9_-]+\.js/.exec(local)?.[0];
         if (!entry) throw new Error('no build/index-*.js in the committed index.html');
-        console.log(`waiting for ${SITE}${GAME_INDEX} to load ${entry}`);
-        if (!(await waitForOrigin(`${SITE}${GAME_INDEX}`, body => body.includes(entry))))
+        const pages = gameIndexUrls(SITE);
+        console.log(`waiting for ${pages[1]} to load ${entry}`);
+        if (!(await waitForOrigin(pages[1], body => body.includes(entry), { before: () => purge(pages, fetch, true) })))
             throw new Error(`origin never served ${entry}`);
-        await purge([`${SITE}${GAME_INDEX}`]);
+        await purge(pages);
+        await warm(pages);
         const diff = execFileSync('git', ['diff', '--name-status', `${since}`, 'HEAD', '--', 'client/public/pawlegends-game/build'], {
             cwd: REPO,
             encoding: 'utf8',

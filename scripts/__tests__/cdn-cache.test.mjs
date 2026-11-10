@@ -1,13 +1,15 @@
 // node --test scripts/__tests__/
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { GAME_INDEX, addedBuildPaths, otaPath, purgeBatches, waitForOrigin } from '../cdn-cache.mjs';
+import { GAME_INDEX, addedBuildPaths, gameIndexUrls, otaPath, purgeBatches, waitForOrigin } from '../cdn-cache.mjs';
 
 describe('cdn-cache (LATENCY-PLAN C5)', () => {
     it('OTA manifest paths', () => {
         assert.equal(otaPath('manifest-beta.json'), '/pawlegends-app/updates/ios/1/manifest-beta.json');
         assert.equal(otaPath('manifest.json', 'ios', '2'), '/pawlegends-app/updates/ios/2/manifest.json');
         assert.equal(GAME_INDEX, '/pawlegends-game/index.html');
+        // the embed iframe loads ?embed=1: purged and warmed with the bare page
+        assert.deepEqual(gameIndexUrls('https://s'), ['https://s/pawlegends-game/index.html', 'https://s/pawlegends-game/index.html?embed=1']);
     });
 
     it('warms only build files added by the deploy (not removed or modified, not nested or outside build/)', () => {
@@ -46,5 +48,18 @@ describe('cdn-cache (LATENCY-PLAN C5)', () => {
         assert.ok(seen.every(u => /\?cb=\d+$/.test(u)));
         const never = await waitForOrigin('https://s/m.json', () => false, { everyMs: 1, timeoutMs: 5, fetchImpl });
         assert.equal(never, false);
+    });
+
+    it('runs `before` (the purge) ahead of every poll', async () => {
+        const log = [];
+        let n = 0;
+        const fetchImpl = async () => {
+            log.push('fetch');
+            n++;
+            return { ok: true, text: async () => (n >= 2 ? 'new' : 'old') };
+        };
+        const ok = await waitForOrigin('https://s/i.html?embed=1', b => b === 'new', { everyMs: 1, fetchImpl, before: async () => void log.push('purge') });
+        assert.equal(ok, true);
+        assert.deepEqual(log, ['purge', 'fetch', 'purge', 'fetch']);
     });
 });
