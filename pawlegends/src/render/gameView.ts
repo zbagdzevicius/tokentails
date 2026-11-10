@@ -193,6 +193,13 @@ export class GameView {
   atkCands: readonly number[] | null = null;
   /** Hold-to-select: the one the release would lock (the bold ring), or null (none, or the drag is on cancel). */
   atkSelect: number | null = null;
+  /**
+   * Drag-lock (touch, Wild Rift's targeting line): while the Attack drag points, the line's end (m: the selection, or
+   * along the drag at reach length) and whether it selects (`ok`; red when not), plus the reach ring's radius (m).
+   */
+  atkAim: { x: number; z: number; ok: boolean; reachM: number } | null = null;
+  /** Telemetry (e2e): the unit the lock marker is drawn on this frame, -1 = none. */
+  lockMarkId = -1;
   frame: ViewFrame | null = null;
   /**
    * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
@@ -207,8 +214,8 @@ export class GameView {
   private attackMarks = new DecalLayer(crosshairTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-attack' });
   private marks = Array.from({ length: MARKERS }, () => ({ x: 0, z: 0, t: -1, attack: false }));
   /** LoL pass (lane C): move chevrons, the red outline under an attack order's target, the touch auto-attack ring. */
-  private chevrons = new DecalLayer(chevronTexture(), MARKERS, { y: 0.08, renderOrder: 9, name: 'order-chevrons' });
-  private targetRings = new DecalLayer(ringTexture(), 2, { y: 0.07, renderOrder: 9, name: 'target-rings' });
+  private chevrons = new DecalLayer(chevronTexture(), MARKERS + 1, { y: 0.08, renderOrder: 9, name: 'order-chevrons' });
+  private targetRings = new DecalLayer(ringTexture(), 3, { y: 0.07, renderOrder: 9, name: 'target-rings' });
   private targetMark = { id: -1, t: -1 };
   /** The unit the player's last basic attack landed on, and when (view s); -1 = none. */
   autoTarget = -1;
@@ -1011,7 +1018,7 @@ export class GameView {
         const c = frame.byId.get(cid2);
         if (!c || c.state === 'dead') continue;
         const size = hoverRingSize(c.kind, c.hero);
-        if (size > 0) this.candRings.add(toX(c.fx), toZ(c.fy), size, HOVER_COLOR.enemy, 0.4);
+        if (size > 0) this.candRings.add(toX(c.fx), toZ(c.fy), size, HOVER_COLOR.enemy, 0.6);
       }
     }
     this.candRings.end();
@@ -1037,6 +1044,9 @@ export class GameView {
     }
     this.moveMarks.end();
     this.attackMarks.end();
+    this.lockMarkId = -1;
+    const lockE = this.lock !== null && frame ? frame.byId.get(this.lock) : undefined;
+    if (lockE && lockE.state !== 'dead') this.lockChevrons(lockE);
     this.chevrons.end();
     // LoL pass (lane C): the attack order's target outline, and on touch a thin ring under the auto-attack target
     this.targetRings.begin();
@@ -1063,7 +1073,22 @@ export class GameView {
         }
       }
     }
+    if (this.lockMarkId >= 0 && lockE) {
+      const size = hoverRingSize(lockE.kind, lockE.hero);
+      this.targetRings.add(toX(lockE.fx), toZ(lockE.fy), size * LOCK_RING_K, MARKER_COLOR.attack, 0.95);
+    }
     this.targetRings.end();
+  }
+
+  /**
+   * Drag-lock (Wild Rift's lock highlight): the locked unit wears a crosshair of four chevrons turning slowly around it
+   * (and, in drawMarks, a second red ring at LOCK_RING_K), so a lock reads apart from the hover and preview rings.
+   */
+  private lockChevrons(e: ViewEntity): void {
+    const size = hoverRingSize(e.kind, e.hero);
+    if (size <= 0) return;
+    this.lockMarkId = e.id;
+    this.chevrons.add(toX(e.fx), toZ(e.fy), size * LOCK_CHEVRON_K * (1 + Math.sin(this.time * 6) * 0.05), MARKER_COLOR.attack, 0.95, this.time * 0.8);
   }
 
   private remember(frame: ViewFrame): void {
@@ -1225,7 +1250,10 @@ export class GameView {
       if (deny && !this.attackRange) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: 0xffffff, alpha: 0.3, dashed: true });
       else this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: ATTACK_RING_COLOR, alpha: 0.9, dashed: true });
     }
-    if (!a) return;
+    if (!a) {
+      if (this.atkAim) this.drawAtkAim(this.atkAim, mx, mz);
+      return;
+    }
     const color = a.valid ? RELATION.self : 0xff9f7a;
     const yaw = Math.atan2(-(a.z - mz), a.x - mx);
     const r = a.spec.range / 1000;
@@ -1237,6 +1265,21 @@ export class GameView {
     // C10: a filled body (0.35), an arrowhead on lines and dashes, and never thinner than 18 px on screen
     if (spec && spec.width !== undefined) spec.width = Math.max(spec.width, AIM_MIN_PX / Math.max(1, this.pxPerMetre(mx, mz)));
     if (spec) this.telegraphs.draw({ ...spec, alpha: 0.95, top: true, solid: 0.35 });
+  }
+
+  /**
+   * Drag-lock (touch, Wild Rift's targeting circle and guide line): the selection reach ring around the hero and a
+   * line from the hero to the selected unit (self colour) or along the drag (red: nothing selected, a release cancels).
+   */
+  private drawAtkAim(t: { x: number; z: number; ok: boolean; reachM: number }, mx: number, mz: number): void {
+    // the line first: in a brawl the wind-up telegraphs can take every pooled shape but the last one
+    const len = Math.hypot(t.x - mx, t.z - mz);
+    if (len >= 0.3) {
+      const yaw = Math.atan2(-(t.z - mz), t.x - mx);
+      const width = AIM_MIN_PX / Math.max(1, this.pxPerMetre(mx, mz));
+      this.telegraphs.draw({ shape: 'line', x: mx, z: mz, yaw, length: len, width, color: t.ok ? RELATION.self : 0xff9f7a, alpha: 0.95, top: true, solid: 0.35 });
+    }
+    if (t.reachM > 0) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: t.reachM, color: RELATION.self, alpha: 0.55, top: true, dashed: true });
   }
 
   private readonly _pa = new THREE.Vector3();
@@ -1305,6 +1348,9 @@ export class GameView {
 
 /** The basic attack range ring's colour (warm cream: neither the gold skill ring nor a team colour). */
 const ATTACK_RING_COLOR = 0xfff1d6;
+/** Drag-lock marker: the second ring (× the hover ring size) and the chevron crosshair (× the same) on a locked unit. */
+const LOCK_RING_K = 1.25;
+const LOCK_CHEVRON_K = 1.7;
 /** C10: the aim shape's width is at least this many screen pixels. */
 const AIM_MIN_PX = 18;
 /** A skill range ring wider than this (m) is not drawn (it would only fill the screen). */

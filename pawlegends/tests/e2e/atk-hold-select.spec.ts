@@ -15,6 +15,29 @@ const selN = async (page: Page): Promise<{ locked: number; cancelled: number; la
   return { locked: Number(locked), cancelled: Number(cancelled), last, kind };
 };
 
+/** The unit direction (screen px) from the own hero to unit `id` as drawn (the up-left diagonal when it is not drawn). */
+const towardCand = (page: Page, id: number): Promise<{ x: number; y: number }> =>
+  page.evaluate((cid) => {
+    type E = { fx: number; fy: number };
+    type V3 = { project(c: unknown): { x: number; y: number } };
+    const v = (
+      window as unknown as {
+        __plWorld: { view: { mySlot: number; frame: { byId: Map<number, E> } | null; gr: { camera: { position: { constructor: new (x: number, y: number, z: number) => V3 } } } } };
+      }
+    ).__plWorld.view;
+    const m = v.frame?.byId.get(v.mySlot);
+    const t = v.frame?.byId.get(cid);
+    if (!m || !t) return { x: -Math.SQRT1_2, y: -Math.SQRT1_2 };
+    const cam = v.gr.camera;
+    const Vec = cam.position.constructor;
+    const pm = new Vec(m.fx / 1000, 0.5, -m.fy / 1000).project(cam);
+    const pt = new Vec(t.fx / 1000, 0.5, -t.fy / 1000).project(cam);
+    const dx = pt.x - pm.x;
+    const dy = -(pt.y - pm.y) * (innerHeight / innerWidth);
+    const l = Math.hypot(dx, dy) || 1;
+    return { x: dx / l, y: dy / l };
+  }, id);
+
 for (const [w, h] of [
   [667, 375],
   [844, 390],
@@ -68,8 +91,11 @@ for (const [w, h] of [
           .catch(() => false);
         if (held) {
           tries++;
-          // 2. drag up-left (toward the field) 70 px: a selection snaps on; the release locks and attacks it
-          await send('touchMove', [{ x: a.x - 50, y: a.y - 50, id: 2 }]);
+          // 2. drag 70 px toward the first offered candidate on screen: a selection snaps on; the release locks and
+          // attacks it (drag-lock, Nov 11: a drag pointing at nothing, 60+ deg off every unit with no hero near the
+          // line, selects nothing, so the drag aims at a unit instead of a fixed up-left)
+          const to = await towardCand(page, Number((await attr(page, 'atkCands')).split(',')[0]));
+          await send('touchMove', [{ x: Math.round(a.x + to.x * 70), y: Math.round(a.y + to.y * 70), id: 2 }]);
           // (the hold already shows the tap's own pick as the selection: wait for the drag to register first)
           sel = await expect
             .poll(async () => (await attr(page, 'atkHold')) === 'drag' && (await attr(page, 'atkSel')) !== '', { timeout: 6000 })
