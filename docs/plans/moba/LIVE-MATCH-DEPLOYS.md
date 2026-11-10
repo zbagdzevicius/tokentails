@@ -496,7 +496,8 @@ New log lines (one JSON object each, for alerts later): `relay_drain_start {trig
   reconnecting client gets `room_over`. A failed `create` (Mongo down at the start) makes the room unscored and
   unrestorable, as before.
 - **A crash** (OOM, SIGKILL, host failure) freezes the match for the stale lease plus a loop tick (about 8–10 s, shown
-  as "Reconnecting…") and replays at most the last 2 s differently. A crash restart of the same slot on the VM is the
+  as "Reconnecting…" and, past 5 s, "Waiting for server…"; measured 8.0 s) and replays at most the last 2 s
+  differently. A crash restart of the same slot on the VM is the
   same path.
 - **A VM replacement** (template change, autoheal recreate) leaves no relay serving for the minutes the new VM takes to
   boot: new PvP and 5v5 matches cannot start meanwhile (bot matches are local and unaffected). `replace-relay.sh`
@@ -508,8 +509,43 @@ New log lines (one JSON object each, for alerts later): `relay_drain_start {trig
   their room.
 - **Unverified on real platforms:** whether DigitalOcean keeps open WebSockets to the old container after
   `drain_seconds` (the design holds either way: a cut socket reconnects and pulls), the Node `SO_REUSEPORT` handover on
-  COS (a slot that cannot share the port fails readiness; the old slot keeps serving), and the cloud-init schema check
+  COS (a new slot that cannot share the port because the serving slot runs an image from before `SO_REUSEPORT` logs
+  `EADDRINUSE`: `deploy.sh` then hands the rooms off once, stop then start, and restarts the old slot if the new one
+  still fails), and the cloud-init schema check
   (`scripts/check-cloud-init.sh` needs Docker; the scripts were checked with `bash -n` and the rendered YAML parsed).
 - **Not built:** the §5.7 CI rule in `vendor-sim.mjs` (drop a sim version only 7 days after the newest OTA bundle);
   until then, never drop a vendored sim version in the same deploy that ships a new one. Load at 100 rooms with 2 s
   checkpoints is not measured yet (`STAGING-PROOF.md` load run).
+
+## 13. Adversarial verification (2026-11-10)
+
+`backend/src/pawlegends/party/live-deploy-adversarial.e2e.spec.ts`: two relay processes (forked, real `SIGTERM` and
+`SIGKILL`) share one store; two headless players in a PvP party match; reconnects use the client's rule (`retryMs` plus
+0–100 ms jitter). Game state is compared by re-simming the turns each player received (the sim's hash trail, one hash
+per 30 ticks) against the log the relays stored.
+
+| Check | Result |
+|---|---|
+| `SIGTERM` mid-match (new relay up first, a player reaches it, the old one drains, then is pushed) | both players bound to their own slots 0.5 s after the close, one dial each; no toast (under 1.5 s); restore gap 490 ms; hash trails of both players and of the stored log identical (46 hashes) |
+| New work during the drain | a lobby party on the old relay moved to the new one with its code; a fresh player dialing the old relay got `server_moving` + 1012 and made a party on the new one; the live room kept advancing on the old relay |
+| Rematch vote (or `party.start`) in a party's 5 s results tail while draining | **defect, fixed**: it started a new room on the draining relay. Now the party moves to the new relay (`server_moving`, 1012); the spec fails without the fix |
+| Stolen resume token (another identity) on the new relay | welcomed as a fresh member, no `match`, no seat; the real player then got the seat |
+| `SIGKILL` mid-match | the next relay claimed after the stale lease; players bound 8.0 s after the kill ("Waiting for server…"); 11 turns (0.73 s) past the checkpoint replayed differently; both clients got `resync` and ended on the stored log's hash trail; the pre-crash game equals the stored one up to the checkpoint |
+| Room on sim v18 moved to a relay whose newest sim is v19 | restored on v18 (gap 65 ms), hash trail equals the stored log |
+| Checkpoint cost, one PvP room | one append per 2 s of play (about 28 turns), 115 bytes on average, 134 at most |
+| Memory | **defect, fixed**: ended-party stamps (`partyEndedAt`) were never removed; the 500 ms sweep now drops them after 60 s. No relay timer outlives `shutdown()`; `partySaves` and `pulling` are empty after it |
+| `deploy.sh` | **defects, fixed**: an unreadable `/healthz` answer counted as 0 live rooms and stopped the old slot early; a serving slot on an image from before `SO_REUSEPORT` made every blue/green deploy fail (`EADDRINUSE`) until a manual fix |
+
+Open, not fixed:
+
+- A crash of the old slot during a VM deploy drain: `Restart=always` restarts it on its old image, its boot restore can
+  claim its own stale rooms back, and once a player reaches it it is the newest generation, so the new slot drains until
+  `deploy.sh` stops the old one. Matches survive (each move is a handoff), but players see extra freezes. Rare (a crash
+  inside the drain window); fix with a `deploy.sh` marker that `prepare.sh` checks before starting a slot that is not
+  active.
+- During `replace-relay.sh` the single relay's listener is closed for the whole drain (up to 30 min): a player of a
+  live room whose network drops cannot reconnect until the room is pushed at the cap or the new VM is up.
+- DigitalOcean: until `infra/digitalocean/live-match-spec.sh` is applied (one instance), the new code on two instances
+  keeps the older one draining: apply it before or with the first deploy of this code.
+- While the old DigitalOcean container drains (up to 540 s), it also keeps running the backend's scheduled jobs next
+  to the new container, as two instances do today.

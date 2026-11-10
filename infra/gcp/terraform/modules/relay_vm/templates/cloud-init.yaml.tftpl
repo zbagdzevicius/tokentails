@@ -167,17 +167,35 @@ write_files:
       systemctl stop "tt-relay@$IDLE.service" >/dev/null 2>&1 || true
       printf '%s\n' "$IMAGE" > "$V/image-$IDLE.next" && mv "$V/image-$IDLE.next" "$V/image-$IDLE"
       systemctl daemon-reload
+      wait_ready() {
+        for _ in $(seq 1 60); do
+          if ready "$IDLE" "$IMAGE"; then return 0; fi
+          sleep 2
+        done
+        return 1
+      }
+      STARTED=$(date '+%Y-%m-%d %H:%M:%S')
       systemctl start "tt-relay@$IDLE.service"
       ok=0
-      for _ in $(seq 1 60); do
-        if ready "$IDLE" "$IMAGE"; then ok=1; break; fi
-        sleep 2
-      done
+      wait_ready && ok=1
+      SWAPPED=0
+      if [ "$ok" != 1 ] && [ "$LEGACY" = 0 ] && systemctl is-active --quiet "tt-relay@$ACTIVE.service" &&
+        journalctl -u "tt-relay@$IDLE" --since "$STARTED" --no-pager 2>/dev/null | grep EADDRINUSE >/dev/null; then
+        # the serving slot runs an image from before SO_REUSEPORT (a VM booted from an older MIG image): it cannot
+        # share the port. Hand its rooms off once (stop, then start the new slot), as from the single-unit layout.
+        echo "tt-relay deploy: slot $ACTIVE cannot share port ${port}; handing its rooms off once (stop, then start)"
+        systemctl stop "tt-relay@$IDLE.service" || true
+        systemctl stop "tt-relay@$ACTIVE.service" || true
+        SWAPPED=1
+        systemctl start "tt-relay@$IDLE.service"
+        wait_ready && ok=1
+      fi
       if [ "$ok" != 1 ]; then
         echo "tt-relay deploy: slot $IDLE not ready on $IMAGE after 120 s; slot $ACTIVE keeps serving" >&2
         journalctl -u "tt-relay@$IDLE" -n 50 --no-pager >&2 || true
         systemctl stop "tt-relay@$IDLE.service" || true
         if [ "$LEGACY" = 1 ]; then systemctl enable --now tt-relay.service || true; fi
+        if [ "$SWAPPED" = 1 ]; then systemctl start "tt-relay@$ACTIVE.service" || true; fi
         exit 1
       fi
 
@@ -185,16 +203,18 @@ write_files:
       printf '%s\n' "$IDLE" > "$V/active.next" && mv "$V/active.next" "$V/active"
       printf '%s\n' "$IMAGE" > "$V/image.next" && mv "$V/image.next" "$V/image"
       echo "tt-relay deploy: slot $IDLE ready on $IMAGE and serving"
-      if [ "$LEGACY" = 1 ] || ! systemctl is-active --quiet "tt-relay@$ACTIVE.service"; then exit 0; fi
+      if [ "$LEGACY" = 1 ] || [ "$SWAPPED" = 1 ] || ! systemctl is-active --quiet "tt-relay@$ACTIVE.service"; then exit 0; fi
 
       code=$(curl -s -m 5 -o /dev/null -w '%%{http_code}' -X POST -H 'content-type: application/json' \
         -d "{\"maxMs\":$((DRAIN_MAX_S * 1000))}" "http://127.0.0.1:$(ctl "$ACTIVE")/pawlegends/relay/drain" || true)
       if [ "$code" = "202" ] || [ "$code" = "200" ]; then
         end=$(( $(date +%s) + DRAIN_MAX_S + 30 ))
         while [ "$(date +%s)" -lt "$end" ]; do
+          # an unreadable answer (a loaded VM) is not 0 rooms; a slot that is gone has none left
+          [ -n "$(running "$ACTIVE")" ] || break
           n=$(rooms "$ACTIVE" || true)
-          [ "$${n:-0}" = "0" ] && break
-          echo "tt-relay deploy: slot $ACTIVE draining, $n live room(s)"; sleep 5
+          [ "$n" = "0" ] && break
+          echo "tt-relay deploy: slot $ACTIVE draining, $${n:-?} live room(s)"; sleep 5
         done
       else
         # an image from before live-match deploys: SIGTERM hands its rooms off, the new slot claims them in a second
