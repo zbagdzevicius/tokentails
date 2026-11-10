@@ -6,6 +6,7 @@ import {
     AgeBand,
     FOUNDER_LEGEND_CAP,
     isAgeBand,
+    isCatalogSku,
     isPawlegendsCurrency,
     isPawlegendsSku,
     PAWLEGENDS_SKUS,
@@ -25,6 +26,7 @@ import {
     PawlegendsIdentity,
     PawlegendsStripeService,
 } from './pawlegends-stripe.service';
+import { grantPurchase, revokeSession, syncPremium } from './pawlegends-season.service';
 
 /*
  * POST /pawlegends/stripe/webhook (raw body, PAWLEGENDS_STRIPE_WEBHOOK_SECRET). Idempotent by Stripe event id
@@ -124,7 +126,12 @@ export class PawlegendsWebhookService {
         }
         const row = (await this.store.purchases.findOne({ sessionId: session.id }).lean()) as any;
         if (row?.status === 'refunded' || row?.status === 'voided' || row?.status === 'review') return 'ignored';
-        if (row?.status === 'paid') return 'processed';
+        // A store grant is idempotent: a retried delivery heals a grant that failed after the row was marked paid.
+        if (row?.status === 'paid') {
+            if (isCatalogSku(sku) && row.accountId)
+                await grantPurchase(this.store, row.accountId, sku, session.id, this.now());
+            return 'processed';
+        }
 
         const email = normalizeEmail(session.customer_details?.email ?? session.customer_email) || undefined;
         const paymentIntentId = idOf(session.payment_intent);
@@ -200,6 +207,9 @@ export class PawlegendsWebhookService {
             $unset: { holdUntil: '' },
             $setOnInsert: base,
         });
+        // Store and pass SKUs: the items and the pass row (read from the paid rows). Idempotent: if this fails, the
+        // event id is not recorded, Stripe retries, and the `paid` branch above grants again.
+        if (isCatalogSku(sku)) await grantPurchase(this.store, buyer.accountId!, sku, session.id, this.now());
         return 'processed';
     }
 
@@ -220,7 +230,10 @@ export class PawlegendsWebhookService {
         row: any
     ): Promise<string | null> {
         const def = PAWLEGENDS_SKUS[sku];
-        const clauses = identityClauses(buyer);
+        const store = isCatalogSku(sku);
+        // Store and pass SKUs belong to the account of the checkout hold; once per account, not per email or device.
+        if (store && !buyer.accountId) return 'no Token Tails account on the checkout hold';
+        const clauses = store ? [{ accountId: buyer.accountId }] : identityClauses(buyer);
         const others = clauses.length
             ? (
                   (await this.store.purchases.find({ $and: [{ status: 'paid' }, { $or: clauses }] }).lean()) as any[]
@@ -228,6 +241,7 @@ export class PawlegendsWebhookService {
             : [];
         const group = onceGroup(sku);
         if (group && others.some(r => group.includes(r.sku))) return `the buyer already owns ${group.join(' or ')}`;
+        if (def.requires && !others.some(r => r.sku === def.requires)) return `needs ${def.requires}`;
         let band: AgeBand | undefined = isAgeBand(row?.ageBand) ? row.ageBand : undefined;
         for (const key of [buyer.email && `email:${buyer.email}`, buyer.deviceId && `device:${buyer.deviceId}`]) {
             if (!key) continue;
@@ -295,10 +309,17 @@ export class PawlegendsWebhookService {
         const terms =
             charge.metadata?.pawlegends_terms_refund === '1' ||
             !!charge.refunds?.data?.some(r => r.metadata?.pawlegends_terms_refund === '1');
+        const rows = (await this.store.purchases.find({ paymentIntentId, status: 'paid' }).lean()) as any[];
         const result = await this.store.purchases.updateMany(
             { paymentIntentId, status: 'paid' },
             { $set: { status: 'refunded', refundedAt: this.now(), ...(terms ? { termsRefund: true } : {}) } }
         );
+        // Store and pass purchases: the items go (unless refunded under the terms), and the pass row is downgraded.
+        for (const row of rows) {
+            if (!isCatalogSku(row.sku) || !row.accountId) continue;
+            if (!terms) await revokeSession(this.store, row.sessionId, this.now());
+            if (PAWLEGENDS_SKUS[row.sku]?.kind === 'pass') await syncPremium(this.store, row.accountId, this.now());
+        }
         return (result as any)?.matchedCount ? 'processed' : 'ignored';
     }
 }

@@ -4,13 +4,23 @@
  * always wins: a request carries a SKU and a currency, never an amount.
  */
 
-export const PAWLEGENDS_SKU_IDS = [
+import { CATALOG_SKUS, CatalogKind, STORE_TERMS_VERSION } from './pawlegends-catalog';
+
+/** The retired presale SKUs: not buyable (`retired`), still decoded for restore and refunds. */
+export const PAWLEGENDS_LEGACY_SKU_IDS = [
     'pl_starter',
     'pl_founder',
     'pl_founder_legend',
     'pl_founder_legend_upgrade',
 ] as const;
-export type PawlegendsSku = typeof PAWLEGENDS_SKU_IDS[number];
+export type PawlegendsLegacySku = typeof PAWLEGENDS_LEGACY_SKU_IDS[number];
+
+/** Every SKU: the retired presale ones, then the store and Legends Pass catalogue (pawlegends-catalog.ts). */
+export const PAWLEGENDS_SKU_IDS: readonly string[] = Object.freeze([
+    ...PAWLEGENDS_LEGACY_SKU_IDS,
+    ...CATALOG_SKUS.map(def => def.sku),
+]);
+export type PawlegendsSku = string;
 
 export const PAWLEGENDS_CURRENCIES = ['usd', 'eur'] as const;
 export type PawlegendsCurrency = typeof PAWLEGENDS_CURRENCIES[number];
@@ -53,6 +63,18 @@ export interface PawlegendsSkuDef {
     legendSeat?: boolean;
     /** Only for buyers who already own pl_founder (and no Founder Legend). */
     requiresFounder?: boolean;
+    /** The presale SKUs: never sold again, still decoded for restore and refunds. */
+    retired?: boolean;
+    /** Store and pass SKUs (STORE-PASS.md): cosmetic, bundle or pass. Absent on the presale SKUs. */
+    kind?: CatalogKind;
+    /** Once per Token Tails account (store and pass SKUs; checkout needs a signed-in account). */
+    oncePerAccount?: boolean;
+    /** A bundle's single SKUs: refused while any of their items is owned. */
+    bundleOf?: string[];
+    /** Pass SKUs: the premium row they open. */
+    pass?: 'pass' | 'plus';
+    /** Only for owners of this SKU (the Pass+ upgrade needs the Pass). */
+    requires?: string;
 }
 
 export const PAWLEGENDS_SKUS: Record<PawlegendsSku, PawlegendsSkuDef> = Object.freeze({
@@ -64,6 +86,7 @@ export const PAWLEGENDS_SKUS: Record<PawlegendsSku, PawlegendsSkuDef> = Object.f
         deliveredNow: '"Pink Bow Clem" Rare skin and the "Starter" emote',
         deliveredAtMvp: '3-day Pride Club trial (bonus)',
         oncePerBuyer: true,
+        retired: true,
     },
     pl_founder: {
         sku: 'pl_founder',
@@ -72,6 +95,7 @@ export const PAWLEGENDS_SKUS: Record<PawlegendsSku, PawlegendsSkuDef> = Object.f
         items: FOUNDER_ITEMS,
         deliveredNow: 'Founder Epic coat for all 4 heroes, animated Founder frame, Founder title',
         deliveredAtMvp: '4 MVP heroes of your choice, Season 1 Legends Pass, your name in the in-game credits',
+        retired: true,
     },
     pl_founder_legend: {
         sku: 'pl_founder_legend',
@@ -82,6 +106,7 @@ export const PAWLEGENDS_SKUS: Record<PawlegendsSku, PawlegendsSkuDef> = Object.f
         deliveredAtMvp:
             "Everything in Founder at MVP, plus all 8 MVP heroes, Season 1 Legends Pass+, 1 month Pride Club, your name on the Founders' Banner",
         legendSeat: true,
+        retired: true,
     },
     pl_founder_legend_upgrade: {
         sku: 'pl_founder_legend_upgrade',
@@ -93,14 +118,42 @@ export const PAWLEGENDS_SKUS: Record<PawlegendsSku, PawlegendsSkuDef> = Object.f
         legendSeat: true,
         requiresFounder: true,
         oncePerBuyer: true,
+        retired: true,
     },
+    ...Object.fromEntries(
+        CATALOG_SKUS.map(def => [
+            def.sku,
+            {
+                sku: def.sku,
+                label: `Paw Legends ${def.label}`,
+                cents: { ...def.cents },
+                items: [...def.items],
+                deliveredNow:
+                    def.kind === 'pass'
+                        ? def.pass === 'plus'
+                            ? 'Legends Pass+ (premium row, 15 tier skips, the exclusive Eclipse coat), delivered now'
+                            : 'Legends Pass premium row (every premium reward already reached unlocks now), delivered now'
+                        : 'Cosmetic items, delivered now. Cosmetic only: nothing here changes a match',
+                deliveredAtMvp: '',
+                kind: def.kind,
+                oncePerAccount: true,
+                ...(def.bundleOf ? { bundleOf: [...def.bundleOf] } : {}),
+                ...(def.pass ? { pass: def.pass } : {}),
+                ...(def.requires ? { requires: def.requires } : {}),
+            } as PawlegendsSkuDef,
+        ])
+    ),
 }) as Record<PawlegendsSku, PawlegendsSkuDef>;
+
+/** A store or pass SKU (not one of the presale SKUs). */
+export const isCatalogSku = (sku: unknown): boolean =>
+    typeof sku === 'string' && !!PAWLEGENDS_SKUS[sku]?.kind && !PAWLEGENDS_SKUS[sku]?.retired;
 
 /** Founder Legend seats, gifts and creator codes included (POC.md §8.1). */
 export const FOUNDER_LEGEND_CAP = 500;
 
 export const isPawlegendsSku = (value: unknown): value is PawlegendsSku =>
-    typeof value === 'string' && (PAWLEGENDS_SKU_IDS as readonly string[]).includes(value);
+    typeof value === 'string' && PAWLEGENDS_SKU_IDS.includes(value);
 
 export const isPawlegendsCurrency = (value: unknown): value is PawlegendsCurrency =>
     typeof value === 'string' && (PAWLEGENDS_CURRENCIES as readonly string[]).includes(value);
@@ -135,6 +188,8 @@ export const UNDER_16_MESSAGE = 'Ask a parent or guardian to buy this on their o
 export const PAWLEGENDS_TERMS_VERSION = '2026-10-23';
 export const PAWLEGENDS_LEGACY_TERMS_VERSION = '2026-10-17';
 export const PAWLEGENDS_CONSENT_VERSIONS = [PAWLEGENDS_LEGACY_TERMS_VERSION] as const;
+/** The store and Legends Pass checkout accepts only this consent (pawlegends-catalog.ts STORE_TERMS_VERSION). */
+export const PAWLEGENDS_STORE_TERMS_VERSION = STORE_TERMS_VERSION;
 
 // ---------------------------------------------------------------------------------------------------------------
 // Requests and answers

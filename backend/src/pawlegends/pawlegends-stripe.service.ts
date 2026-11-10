@@ -8,8 +8,10 @@ import {
     FOUNDER_LEGEND_CAP,
     isAgeBand,
     isPawlegendsCurrency,
+    isCatalogSku,
     isPawlegendsSku,
     PAWLEGENDS_CONSENT_VERSIONS,
+    PAWLEGENDS_STORE_TERMS_VERSION,
     PAWLEGENDS_MVP_TARGET,
     PAWLEGENDS_SKU_IDS,
     PAWLEGENDS_SKUS,
@@ -33,6 +35,8 @@ import {
     pawlegendsWebhookSecret,
 } from './pawlegends-env';
 import { verifyPawlegendsToken } from './pawlegends-token';
+import { conflictsOf } from './pawlegends-catalog';
+import { ownedItemsOf } from './pawlegends-season.service';
 
 /*
  * Pawlegends Checkout (POC.md §8.2, §8.5). Key: `PAWLEGENDS_STRIPE_SECRET_KEY`, else the shared `STRIPE_SECRET_KEY`.
@@ -94,6 +98,8 @@ export const activeFilter = (now: Date) => ({
  * upgraded). Null for a SKU without a limit.
  */
 export function onceGroup(sku: PawlegendsSku): PawlegendsSku[] | null {
+    // Store and pass SKUs: once per account, with the sets that overlap them and the overlapping pass SKUs.
+    if (isCatalogSku(sku)) return conflictsOf(sku);
     if (PAWLEGENDS_SKUS[sku].legendSeat) return PAWLEGENDS_SKU_IDS.filter(id => PAWLEGENDS_SKUS[id].legendSeat);
     if (sku === 'pl_starter' || sku === 'pl_founder') return [sku];
     return null;
@@ -105,28 +111,34 @@ export const capCentsOf = (sku: PawlegendsSku, currency: PawlegendsCurrency) => 
 /** The Stripe metadata of a checkout (strings only). */
 export function checkoutMetadata(
     req: Pick<PawlegendsCheckoutRequest, 'sku' | 'currency' | 'ageBand' | 'consentVersion' | 'deviceId'>,
-    holdId: string
+    holdId: string,
+    accountId?: string | null
 ): Record<string, string> {
+    const store = isCatalogSku(req.sku);
     return {
         pawlegends: '1',
         sku: req.sku,
         currency: req.currency,
         age_band: req.ageBand,
-        terms_version: PAWLEGENDS_LEGACY_TERMS_VERSION,
+        terms_version: store ? PAWLEGENDS_STORE_TERMS_VERSION : PAWLEGENDS_LEGACY_TERMS_VERSION,
         consent_version: req.consentVersion,
-        deferred: PAWLEGENDS_MVP_TARGET,
+        ...(store ? {} : { deferred: PAWLEGENDS_MVP_TARGET }),
         device: req.deviceId,
         hold: holdId,
+        ...(accountId ? { account: accountId } : {}),
     };
 }
 
 /** Stripe Checkout Session parameters for a validated request (pure). */
 export function buildCheckoutParams(
     req: PawlegendsCheckoutRequest,
-    options: { returnBase: string; email?: string | null; holdId: string; expiresAt: number }
+    options: { returnBase: string; email?: string | null; holdId: string; expiresAt: number; accountId?: string | null }
 ): Stripe.Checkout.SessionCreateParams {
     const def = PAWLEGENDS_SKUS[req.sku];
-    const metadata = checkoutMetadata(req, options.holdId);
+    const metadata = checkoutMetadata(req, options.holdId, options.accountId);
+    const description = def.kind
+        ? `${def.deliveredNow}.`
+        : `Now: ${def.deliveredNow}. At MVP launch (target ${PAWLEGENDS_MVP_TARGET}): ${def.deliveredAtMvp}.`;
     return {
         mode: 'payment',
         line_items: [
@@ -138,7 +150,7 @@ export function buildCheckoutParams(
                     tax_behavior: 'inclusive',
                     product_data: {
                         name: def.label,
-                        description: `Now: ${def.deliveredNow}. At MVP launch (target ${PAWLEGENDS_MVP_TARGET}): ${def.deliveredAtMvp}.`,
+                        description,
                     },
                 },
             },
@@ -160,6 +172,8 @@ export class PawlegendsStripeService {
     /** Replaceable in specs (no network there). */
     createClient: (key: string) => Stripe = key => new Stripe(key, { apiVersion: STRIPE_API_VERSION });
     now: () => Date = () => new Date();
+    /** Specs of the presale flow only: the retired `pl_*` SKUs are refused at checkout everywhere else. */
+    sellRetired = false;
 
     constructor(private readonly store: PawlegendsStore) {}
 
@@ -298,7 +312,13 @@ export class PawlegendsStripeService {
             throw PAWLEGENDS_ERRORS.invalid('Unknown sku');
         if (!isPawlegendsCurrency(req.currency)) throw PAWLEGENDS_ERRORS.invalid('currency must be eur or usd');
         if (!isAgeBand(req.ageBand)) throw PAWLEGENDS_ERRORS.invalid('ageBand is required');
-        if (!(PAWLEGENDS_CONSENT_VERSIONS as readonly string[]).includes(req.consentVersion)) {
+        if (PAWLEGENDS_SKUS[req.sku].retired && !this.sellRetired) {
+            throw PAWLEGENDS_ERRORS.retired();
+        }
+        const consents: readonly string[] = isCatalogSku(req.sku)
+            ? [PAWLEGENDS_STORE_TERMS_VERSION]
+            : PAWLEGENDS_CONSENT_VERSIONS;
+        if (!consents.includes(req.consentVersion)) {
             throw PAWLEGENDS_ERRORS.invalid('consentVersion is not current');
         }
         if (!isDeviceId(req.deviceId)) throw PAWLEGENDS_ERRORS.invalid('deviceId is required');
@@ -317,6 +337,21 @@ export class PawlegendsStripeService {
         return { identity, tokenEmail: token?.ev === 1 ? token.email : undefined };
     }
 
+    /**
+     * Store and pass rules (STORE-PASS.md §3) before the hold: nothing the account owns or holds an open session of
+     * again (a set while any of its items is owned is refused: the singles are sold instead, no prorated price), and
+     * the Pass+ upgrade only for Pass owners.
+     */
+    async checkCatalog(sku: PawlegendsSku, accountId: string): Promise<void> {
+        const def = PAWLEGENDS_SKUS[sku];
+        const active = await this.activeSkus({ accountId });
+        if (conflictsOf(sku).some(s => active.has(s))) throw PAWLEGENDS_ERRORS.alreadyOwned();
+        const owned = new Set(await ownedItemsOf(this.store, accountId));
+        if (def.kind !== 'pass' && def.items.some(item => owned.has(item))) throw PAWLEGENDS_ERRORS.alreadyOwned();
+        if (def.requires && !(await this.ownedSkus({ accountId })).has(def.requires))
+            throw PAWLEGENDS_ERRORS.needsPass();
+    }
+
     async createCheckout(
         req: PawlegendsCheckoutRequest,
         env: Env = process.env,
@@ -328,6 +363,9 @@ export class PawlegendsStripeService {
         if (!pawlegendsWebhookSecret(env)) throw PAWLEGENDS_ERRORS.webhookUnavailable();
         if (!pawlegendsEntitlementSecret(env)) throw PAWLEGENDS_ERRORS.secretMissing();
 
+        const store = isCatalogSku(req.sku);
+        // Store and pass items belong to a Token Tails account (decision #9: guests cannot buy).
+        if (store && !accountId) throw PAWLEGENDS_ERRORS.signInRequired();
         const { identity, tokenEmail } = this.identityOf(req, email, env);
         if (accountId) identity.accountId = accountId;
         const buyerEmail = email || tokenEmail || null;
@@ -348,6 +386,7 @@ export class PawlegendsStripeService {
         if (def.requiresFounder && !(await this.ownedSkus(owners)).has('pl_founder')) {
             throw PAWLEGENDS_ERRORS.needsFounder();
         }
+        if (store) await this.checkCatalog(req.sku, accountId!);
 
         const capCents = capCentsOf(req.sku, req.currency);
         if (capCents > (await this.capLeftCents(owners, band))) throw PAWLEGENDS_ERRORS.spendCap();
@@ -372,7 +411,9 @@ export class PawlegendsStripeService {
         });
         const release = () => this.store.purchases.deleteMany({ sessionId: holdId });
         const group = onceGroup(req.sku);
-        if (group && !(await this.firstClaim(owners, group, holdId))) {
+        // Store and pass SKUs are once per account (another account on the same device or email may buy them).
+        const claimers: PawlegendsIdentity = store ? { accountId } : owners;
+        if (group && !(await this.firstClaim(claimers, group, holdId))) {
             await release();
             throw PAWLEGENDS_ERRORS.alreadyOwned();
         }
@@ -390,6 +431,7 @@ export class PawlegendsStripeService {
             email: buyerEmail,
             holdId,
             expiresAt: now + SESSION_TTL_MS,
+            accountId: identity.accountId,
         });
         let session: Stripe.Checkout.Session;
         try {

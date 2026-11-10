@@ -180,6 +180,7 @@ import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service'
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
 import { PAWLEGENDS_CAT_SALE, PawlegendsOfferService } from './pawlegends/pawlegends-offer.service';
+import { PawlegendsSeasonService } from './pawlegends/pawlegends-season.service';
 import { PawlegendsCheckoutGuard } from './pawlegends/pawlegends-checkout-guard.service';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
@@ -414,6 +415,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsWebhookService,
         PawlegendsAccountService,
         PawlegendsOfferService,
+        // Store ownership and the Legends Pass (docs/plans/moba/STORE-PASS.md).
+        PawlegendsSeasonService,
         { provide: PAWLEGENDS_CAT_SALE, useExisting: ShelterCatSaleService },
         // Age band and spend cap on the Token Tails cat checkout when it opens from Pawlegends.
         PawlegendsCheckoutGuard,
