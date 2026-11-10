@@ -14,7 +14,8 @@
 import { CheckoutBridge } from '../money/checkoutBridge';
 import type { StoreSnapshot } from '../money/entitlements';
 import { MVP_TARGET, SKUS, priceText, type Currency, type SkuId } from '../money/skus';
-import { CATALOG_SKUS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, coatSkuOf, frameSkuOf, type CatalogSku } from '../money/catalog';
+import { CATALOG_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, coatSkuOf, frameSkuOf, type CatalogSku, type CoatRung } from '../money/catalog';
+import { PAID_COATS } from '../render/cosmetics';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
 import { portraitUrl, SKU_LOOK } from '../render/portraits';
@@ -104,10 +105,25 @@ export function itemState(def: CatalogSku, s: Pick<StoreSnapshot, 'items' | 'sea
 
 /** The SKUs of a tab, in shelf order. */
 export function tabSkus(tab: StoreTab): CatalogSku[] {
-  if (tab === 'coats') return STORE_COATS.map((c) => CATALOG_SKUS.find((d) => d.sku === coatSkuOf(c))!);
+  if (tab === 'coats') return [...EFFECT_COATS, ...STORE_COATS].map((c) => CATALOG_SKUS.find((d) => d.sku === coatSkuOf(c))!);
   if (tab === 'frames') return STORE_FRAMES.map((f) => CATALOG_SKUS.find((d) => d.sku === frameSkuOf(f))!);
   if (tab === 'sets') return CATALOG_SKUS.filter((d) => d.kind === 'bundle');
   return CATALOG_SKUS.filter((d) => d.kind === 'pass');
+}
+
+const RUNG_WORD: Readonly<Record<CoatRung, string>> = Object.freeze({ COMMON: 'Common', RARE: 'Rare', EPIC: 'Epic', LEGENDARY: 'Legendary' });
+/** What a coat's effect rung adds in a match (docs/plans/moba/CARD-SKINS.md §3). Looks only, never a number. */
+const RUNG_ADDS: Readonly<Record<CoatRung, string>> = Object.freeze({
+  COMMON: '',
+  RARE: 'Rare effects: trails, ribbons and hits take the coat colour.',
+  EPIC: 'Epic effects: coat-colour skill effects, element motifs on hits, a takedown stamp in the coat pattern.',
+  LEGENDARY: 'Legendary effects: paw-print bursts, an element foil, a recall card glyph, a multi-kill card and a purr.',
+});
+const coatRungOf = (id: string | undefined): CoatRung | null => (id ? (PAID_COATS[id]?.rung ?? null) : null);
+/** The store line for a coat: the pattern and what its rung adds. */
+export function coatLine(id: string | null): string {
+  const r = coatRungOf(id ?? undefined);
+  return `A patterned coat for one hero.${r && RUNG_ADDS[r] ? ` ${RUNG_ADDS[r]}` : ''}`;
 }
 
 export interface StoreOpts {
@@ -156,7 +172,9 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const tile = (d: CatalogSku): string => {
       const ds = itemState(d, s);
       const tag = ds === 'owned' ? 'Owned' : ds === 'partly' ? 'Own some' : ds === 'locked' ? (d.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead') : catalogPrice(d, currency);
-      return `<button type="button" class="shop-tile ${d.sku === selected ? 'on' : ''} st-${ds}" data-sel="${d.sku}" aria-pressed="${d.sku === selected}"><b>${esc(d.label)}</b><small>${esc(tag)}</small></button>`;
+      const r = d.group === 'coats' ? coatRungOf(d.items[0]) : null;
+      const rung = r && r !== 'COMMON' ? `${RUNG_WORD[r]} · ` : '';
+      return `<button type="button" class="shop-tile ${d.sku === selected ? 'on' : ''} st-${ds}"${r ? ` data-rung="${r}"` : ''} data-sel="${d.sku}" aria-pressed="${d.sku === selected}"><b>${esc(d.label)}</b><small>${esc(rung + tag)}</small></button>`;
     };
     const action =
       st === 'owned'
@@ -177,7 +195,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
           ? `${sel.items.filter((i) => i.startsWith('coat.')).length} coats, a frame and its title.`
           : frame
             ? 'A profile frame and its title.'
-            : 'A patterned coat for one hero.';
+            : coatLine(coat);
     root.innerHTML = `<div class="card">
       <div class="head"><h2>Store</h2><div class="tabs" role="tablist">${(Object.keys(TAB_LABEL) as StoreTab[])
         .map((t) => `<button type="button" role="tab" class="chip ${t === tab ? 'on' : ''}" data-tab="${t}" aria-selected="${t === tab}">${TAB_LABEL[t]}</button>`)

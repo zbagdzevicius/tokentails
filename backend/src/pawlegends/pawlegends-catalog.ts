@@ -74,6 +74,31 @@ export const STORE_COATS: readonly CatalogCoat[] = Object.freeze([
     { id: 'coat.domino.store_black_tie', hero: 'domino', name: 'Black Tie coat' },
 ]);
 
+/** A coat's effect rung (docs/plans/moba/CARD-SKINS.md §5): fixed by the price band, never by play. */
+export type CoatRung = 'COMMON' | 'RARE' | 'EPIC' | 'LEGENDARY';
+
+export interface EffectCoat extends CatalogCoat {
+    /** The skin-effects rung the coat shows in a match (the game's skin-effect kit). Looks only. */
+    rung: 'EPIC' | 'LEGENDARY';
+}
+
+/**
+ * Effect coats (CARD-SKINS.md §6.3): palette, fur pattern and a fixed Epic or Legendary effect rung. No new model
+ * parts, so they sell below the GDD §8.5 bands ($9.99 / $19.99 stay for coats with accessories). Never in a set.
+ */
+export const EFFECT_COATS: readonly EffectCoat[] = Object.freeze([
+    { id: 'coat.pixel.store_moonwhisker', hero: 'pixel', name: 'Moonwhisker coat', rung: 'EPIC' },
+    { id: 'coat.marshmallow.store_frostbell', hero: 'marshmallow', name: 'Frostbell coat', rung: 'EPIC' },
+    { id: 'coat.brutus.store_thunderpaw', hero: 'brutus', name: 'Thunderpaw coat', rung: 'LEGENDARY' },
+    { id: 'coat.sage.store_bloomtail', hero: 'sage', name: 'Bloomtail coat', rung: 'LEGENDARY' },
+] as EffectCoat[]);
+
+/** Effect coat prices by rung. */
+export const EFFECT_COAT_CENTS: Readonly<Record<EffectCoat['rung'], { usd: number; eur: number }>> = Object.freeze({
+    EPIC: { usd: 799, eur: 799 },
+    LEGENDARY: { usd: 1499, eur: 1499 },
+});
+
 export interface CatalogFrame {
     id: string;
     name: string;
@@ -130,6 +155,18 @@ const coatSkus: CatalogSku[] = STORE_COATS.map(coat => ({
     hero: coat.hero,
 }));
 
+const RUNG_LABEL: Readonly<Record<EffectCoat['rung'], string>> = { EPIC: 'Epic', LEGENDARY: 'Legendary' };
+
+const effectCoatSkus: CatalogSku[] = EFFECT_COATS.map(coat => ({
+    sku: coatSkuOf(coat),
+    kind: 'cosmetic',
+    group: 'coats',
+    label: `${HERO_LABEL[coat.hero]}: ${coat.name} (${RUNG_LABEL[coat.rung]} effects)`,
+    cents: EFFECT_COAT_CENTS[coat.rung],
+    items: [coat.id],
+    hero: coat.hero,
+}));
+
 const frameSkus: CatalogSku[] = STORE_FRAMES.map(frame => ({
     sku: frameSkuOf(frame),
     kind: 'cosmetic',
@@ -166,6 +203,7 @@ export const S1_PLUS_COAT = 'coat.duchess.s1_eclipse';
 
 export const CATALOG_SKUS: readonly CatalogSku[] = Object.freeze([
     ...coatSkus,
+    ...effectCoatSkus,
     ...frameSkus,
     setSku('pl_set_cats_s1', 'Cat Squad set: 6 cat coats + Moonlit frame', CAT_SET_HEROES, 'frame.store.moonlit'),
     setSku('pl_set_dogs_s1', 'Dog Pack set: 6 dog coats + Bone frame', DOG_SET_HEROES, 'frame.store.bone'),

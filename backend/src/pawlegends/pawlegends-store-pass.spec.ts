@@ -15,6 +15,7 @@ import {
     seasonTier,
     seasonXpFor,
     STORE_COATS,
+    EFFECT_COATS,
     STORE_TERMS_VERSION,
 } from './pawlegends-catalog';
 import { PAWLEGENDS_SKUS } from './pawlegends.contracts';
@@ -92,6 +93,12 @@ describe('store catalogue', () => {
         expect(PAWLEGENDS_SKUS[PASS_UPGRADE_SKU].cents.usd).toBe(1200);
         for (const def of CATALOG_SKUS) expect(PAWLEGENDS_SKUS[def.sku].oncePerAccount).toBe(true);
         expect(STORE_COATS).toHaveLength(16);
+        // CARD-SKINS.md effect coats: Epic $7.99, Legendary $14.99, sold singly (never inside a set)
+        expect(EFFECT_COATS).toHaveLength(4);
+        for (const c of EFFECT_COATS) {
+            expect(PAWLEGENDS_SKUS[coatSkuOf(c)].cents.usd).toBe(c.rung === 'EPIC' ? 799 : 1499);
+            for (const d of CATALOG_SKUS.filter(s => s.kind === 'bundle')) expect(d.items).not.toContain(c.id);
+        }
         // a set costs less than its parts (honest savings)
         const parts = PAWLEGENDS_SKUS[CATS].bundleOf!.reduce((n, s) => n + PAWLEGENDS_SKUS[s].cents.usd, 0);
         expect(parts).toBe(1993);
