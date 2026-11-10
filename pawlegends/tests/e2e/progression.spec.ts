@@ -1,7 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 
-// Lane F (docs/FUN-PROGRESSION-V12.md F1–F5): the Fish chip sits clear of the rest of the HUD on desktop (feel pass
-// B3: phones have no hero box, so no chip); a last-hit "+N" Fish pop shows within 300 ms of its event; a Toy bought is a rail item (and the chip's
+// Lane F (docs/FUN-PROGRESSION-V12.md F1–F5): the Fish chip sits clear of the rest of the HUD (desktop: on the ability
+// plate; phones, where feel pass B3 hides the hero box: on the minimap's bottom-left rim, clear of the ping paw, the
+// kill feed and the emote column); a last-hit "+N" Fish pop shows within 300 ms of its event; a Toy bought is a rail item (and the chip's
 // ring bursts); the level-up line says "Ultimate unlocked!"; no rail text says "Treat"; and the results screen shows
 // the progression summary (per-hero Toy timings, Fish, last hits, medals, Fish by source) at all four sizes.
 // Screenshots: test-results/progression/*.png.
@@ -47,9 +48,8 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
   await start(page, 8);
   // F1: the chip counts the passive Fish
   await expect.poll(async () => Number(await page.locator('.pl-fish').getAttribute('data-fish')), { timeout: 60_000 }).toBeGreaterThan(0);
-  // feel pass B3: phones have no hero box, so no Fish chip (the Fish pops and the Toy line on the rail say it): the
-  // chip is checked on desktop only
-  for (const s of touch ? [] : sizes) {
+  // feel pass B3 hid the hero box on phones and the chip with it; Hud.placeFish puts it back on the minimap's rim
+  for (const s of sizes) {
     await page.setViewportSize({ width: s.w, height: s.h });
     await page.waitForTimeout(400);
     const [chip] = await boxes(page, '.pl-fish');
@@ -62,7 +62,12 @@ test('Fish chip clear of the HUD, a last-hit Fish pop within 300 ms, a Toy toast
       ...(await boxes(page, '.pl-strip .pp')),
       ...(await boxes(page, '.pl-pause')),
       ...(await boxes(page, '.pl-score')),
-      ...(await boxes(page, '.pl-minimap')),
+      // phones: the chip sits on the minimap's bottom rim on purpose (the ping paw holds the other corner)
+      ...(touch ? [] : await boxes(page, '.pl-minimap')),
+      ...(await boxes(page, '.pl-pingbtn')),
+      ...(await boxes(page, '.pl-emote')),
+      ...(await boxes(page, '.pl-chatbtn')),
+      ...(await boxes(page, '.pl-feed-row')),
       ...(await boxes(page, '.pl-tbtn')),
       ...(await boxes(page, '.pl-slot')),
       ...(await boxes(page, '.pl-portrait .gap')),
