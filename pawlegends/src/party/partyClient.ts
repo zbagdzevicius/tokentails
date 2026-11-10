@@ -20,7 +20,10 @@ import { queueCardHtml, type QueueStop } from './ui/queueCard';
 import { acceptCardHtml } from './ui/acceptCard';
 import { lobbyHtml, qrSheetHtml, shownName } from './ui/partyLobby';
 import { joinCodeHtml, wireCodeBoxes } from './ui/joinCode';
-import { decoratePick, firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
+import { firstFree, heroBlock, lockedByOthers, pickHtml } from './ui/partyPick';
+import { openChampSelect, patchChampSelect, timerText, wireChampSelect } from '../ui/champSelect/champSelect';
+import { loadProfile, saveProfile } from '../meta/profile';
+import type { SkillSlot } from '../ui/skillCodex/facts';
 import { HERO_TEXT } from '../ui/heroText';
 import { closeChampInfo, openChampInfo } from '../ui/champBrowser/open';
 import type { HeroId } from '../sim/api';
@@ -589,6 +592,8 @@ export class PartyClient {
   state: PartyState;
   private host: NetHost | null = null;
   private hover: string;
+  /** A hero tapped only to read its skills (it cannot be locked by this player now): the panel shows it. */
+  private peek = '';
   private trick: string;
   private timer: ReturnType<typeof setInterval> | null = null;
   private decideTimer: ReturnType<typeof setTimeout> | null = null;
@@ -972,6 +977,7 @@ export class PartyClient {
   private enteredPick(): void {
     const v = this.state.view!;
     const me = v.members.find((m) => m.id === v.you);
+    this.peek = '';
     // rematch prefills the last pick; otherwise the title's hero, when free
     if (me?.hero) this.hover = me.hero;
     if (me?.trick) this.trick = me.trick;
@@ -998,6 +1004,8 @@ export class PartyClient {
     const taker = lockedByOthers(v).get(this.hover);
     if (!taker && !heroBlock(v, this.hover)) return;
     if (taker) this.note({ key: 'pp-taken', title: COPY.heroTaken(heroName(this.hover), taker), tone: 'info', ttl: 3500 });
+    // the panel keeps showing the hero that was just taken (LOCK IN says "Taken by …") until the player taps another
+    this.peek = this.hover;
     this.hover = me?.hero && !heroBlock(v, me.hero) ? me.hero : '';
     this.drawn = '';
   }
@@ -1188,18 +1196,29 @@ export class PartyClient {
         this.render();
         return;
       }
-      case 'hero':
+      case 'hero': {
         if (!HERO_IDS.includes(t.dataset.v as never)) return;
-        this.hover = t.dataset.v!;
+        const hero = t.dataset.v!;
+        // a hero this player cannot lock now (taken, the other side, or already locked in): show its skills only
+        if (v && (v.members.find((m) => m.id === v.you)?.locked || heroBlock(v, hero, hideNames()))) {
+          this.peek = hero;
+          this.drawn = '';
+          this.render();
+          return;
+        }
+        this.peek = '';
+        this.hover = hero;
         s.sendJson({ t: 'pick.hover', hero: this.hover });
         this.drawn = '';
         this.render();
         return;
+      }
       case 'info': {
         // champion browser: skills and lore; Select hovers the hero as a tap on its card does (the pick timer runs on)
         if (!HERO_IDS.includes(t.dataset.v as never)) return;
         void openChampInfo({
           hero: t.dataset.v as HeroId,
+          slot: (t.dataset.slot as SkillSlot | undefined) ?? undefined,
           within: this.card,
           order: v?.mm ? HERO_IDS.filter((h) => HEROES[h].side === v.mm!.side) : undefined,
           pick: {
@@ -1211,6 +1230,7 @@ export class PartyClient {
               return heroBlock(view, h, hideNames());
             },
             on: (h) => {
+              this.peek = '';
               this.hover = h;
               this.socket.sendJson({ t: 'pick.hover', hero: h });
               this.drawn = '';
@@ -1227,6 +1247,13 @@ export class PartyClient {
         this.render();
         return;
       case 'lock':
+        // the panel's hero is what LOCK IN locks: a viewed hero that became free (its taker changed, the leader
+        // switched side) is hovered first
+        if (v && this.peek && !heroBlock(v, this.peek)) {
+          this.hover = this.peek;
+          s.sendJson({ t: 'pick.hover', hero: this.hover });
+        }
+        this.peek = '';
         if (!v || !this.hover || heroBlock(v, this.hover)) return;
         s.sendJson({ t: 'pick.lock', hero: this.hover, trick: this.trick });
         this.h.analytics?.('party_pick', { hero: this.hover, locked_s_left: Math.max(0, Math.round((this.deadlineAt - this.now()) / 1000)), auto: false, newbie: this.h.newbie });
@@ -1429,8 +1456,13 @@ export class PartyClient {
     }
     const v = this.state.view;
     if (v?.phase === 'pick') {
-      const t = this.card.querySelector('[data-timer]');
-      if (t) t.textContent = `${this.secondsLeft()}s`;
+      const t = this.card.querySelector<HTMLElement>('[data-timer]');
+      if (t) {
+        const n = this.secondsLeft();
+        t.textContent = timerText(n);
+        if (n < 10) t.dataset.low = '1';
+        else delete t.dataset.low;
+      }
     }
     // the "Start anyway" label 10 s after someone went away, and the nudge cooldown
     const anyway = !!this.waitingAt && this.now() - this.waitingAt >= 10_000;
@@ -1507,7 +1539,14 @@ export class PartyClient {
         });
         break;
       case 'pick':
-        html = pickHtml({ view: s.view!, hover: this.hover, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames(), found: s.found });
+        // a new pick opens on the hovered hero's side, the role filter cleared (champion select §B2)
+        if (!this.card.querySelector(':scope > .cs')) {
+          // a member opens on the leader's side (the only side it can lock), else on its hovered hero's side
+          const v = s.view!;
+          const lead = v.leader !== v.you && !v.mm ? v.members.find((m) => m.id === v.leader)?.hero : undefined;
+          openChampSelect(this.hover && this.hover in HEROES ? (this.hover as HeroId) : null, lead && lead in HEROES ? HEROES[lead as HeroId].side : null);
+        }
+        html = pickHtml({ view: s.view!, hover: this.hover, peek: this.peek, trick: this.trick, secondsLeft: this.secondsLeft(), error: err, hideNames: hideNames(), found: s.found }, { numbers: profileNumbers() });
         break;
       case 'loading':
         html = loadingHtml(s.view!);
@@ -1516,16 +1555,24 @@ export class PartyClient {
     // the timer text changes every second; skip identical redraws (keeps focus and the code boxes)
     const key =
       screen === 'pick'
-        ? html.replace(/data-timer[^>]*>\d+s/, '')
+        ? html.replace(/(data-timer[^>]*>)[^<]*/, '$1').replace(/ data-low="1"/, '')
         : screen === 'queue' || screen === 'accept'
           ? html.replace(/(data-live="[a-z]+"[^>]*>)[^<]*/g, '$1').replace(/--pp-ring:\d+%/, '')
           : html;
     if (key === this.drawn) return;
     const keepSheet = this.card.querySelector('.pp-sheet');
     this.drawn = key;
-    this.card.innerHTML = html;
+    // the champion select redraws in place (the grid scroll, the focus, the tabs and the tapped skill stay)
+    if (screen !== 'pick' || !patchChampSelect(this.card, html)) this.card.innerHTML = html;
     if (keepSheet && screen === 'lobby') this.card.appendChild(keepSheet);
-    if (screen === 'pick') decoratePick(this.card, s.view!);
+    if (screen === 'pick')
+      wireChampSelect(this.card, {
+        onNumbers: (on) => {
+          const q = loadProfile();
+          q.numbers = on;
+          saveProfile(q);
+        },
+      });
     if (screen === 'joincode') {
       this.codeBoxes = wireCodeBoxes(this.card, (code) => {
         const c = normalizeCode(code);
@@ -1560,4 +1607,13 @@ export class PartyClient {
 /** Open the party flow: create a party at once (the first tap), join `code` (a link), type a code, or resume a seat. */
 export function openParty(h: PartyHooks, opts: { mode: OpenMode; code?: string | null }): PartyClient {
   return new PartyClient(h, opts);
+}
+
+/** The round-1 numbers pref (the pick's skill text shows the cooldown and facts when it is on). */
+function profileNumbers(): boolean {
+  try {
+    return loadProfile().numbers === true;
+  } catch {
+    return false;
+  }
 }

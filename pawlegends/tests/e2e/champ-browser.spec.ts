@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { seedSide } from './helpers';
 
-// Champion browser (src/ui/champBrowser/): the "i" on a pick card opens the hero's page; Skills plays Q at once and a
-// skill tap switches the clip; Lore links jump to the rival; Select picks; Esc closes; the page fits the viewport at
+// Champion browser (src/ui/champBrowser/): Preview in the champion select's hero panel opens the hero's page on the
+// tapped skill (the only live clip on the pick); a skill tap switches the clip; Lore links jump to the rival; Select picks; Esc closes; the page fits the viewport at
 // 1280x720 and 844x390 with no page scroll; and in a match a held skill button shows its card without pausing.
 
 async function toPick(page: Page): Promise<void> {
@@ -18,18 +18,20 @@ const press = async (page: Page, sel: string, touch: boolean): Promise<void> => 
   else await page.locator(sel).first().click();
 };
 
-test('the "i" opens Skills and Lore; Select picks; nothing on the Play path changes', async ({ page }, info) => {
+test('Preview opens Skills and Lore on the tapped skill; Select picks; nothing on the LOCK IN path changes', async ({ page }, info) => {
   // three browser opens, a clip and a match load on SwiftShader: a loaded machine needs more than 240 s
   test.setTimeout(420_000);
   const touch = info.project.name === 'landscape';
   await toPick(page);
-  await expect(page.locator('.heroes:not([hidden]) .hero-card .hero-info')).toHaveCount(10);
-  await press(page, '.hero-card[data-h="sage"] .hero-info', touch);
+  // one tap shows Sage's skills in the panel (no clip yet); Q, then Preview
+  await press(page, '.cs-tile[data-h="sage"]', touch);
+  await expect(page.locator('.cs-panel')).toHaveAttribute('data-hero', 'sage');
+  await press(page, '.cs-sk[data-slot="q"]', touch);
+  await press(page, '.cs-panel [data-a="codex"]', touch);
   const dlg = page.locator('.pl-champ[data-ready="1"]');
   // the browser is its own lazy chunk (SwiftShader under load: give it time)
   await expect(dlg).toBeVisible({ timeout: 30_000 });
-  // the "i" did not pick Sage
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'clem');
+  await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'sage');
   await expect(dlg.locator('.cb-name')).toHaveText('Sage');
   await expect(dlg).toHaveAttribute('data-skill', 'q');
   // the dialog fits: no part of it is off screen
@@ -54,9 +56,9 @@ test('the "i" opens Skills and Lore; Select picks; nothing on the Play path chan
   await press(page, '.cb-select', touch);
   await expect(page.locator('.pl-champ')).toHaveCount(0);
   await expect(page.locator('html')).toHaveAttribute('data-pick-side', 'dog');
-  await expect(page.locator('.hero-card.on')).toHaveAttribute('data-h', 'howler');
-  // Esc closes a reopened browser and Play still starts the match in one tap
-  await press(page, '.pl-pick .detail [data-a="codex"]', touch);
+  await expect(page.locator('.cs-tile.on')).toHaveAttribute('data-h', 'howler');
+  // Esc closes a reopened browser and LOCK IN still starts the match in one tap
+  await press(page, '.cs-panel [data-a="codex"]', touch);
   await expect(page.locator('.pl-champ[data-ready="1"]')).toBeVisible({ timeout: 30_000 });
   await page.keyboard.press('Escape');
   await expect(page.locator('.pl-champ')).toHaveCount(0);

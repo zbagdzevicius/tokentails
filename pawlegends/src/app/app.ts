@@ -675,6 +675,8 @@ export class App {
             ? {
                 mode: this.onlineMode ?? onlineMode(p.matches),
                 locked: p.matches < 5,
+                played: p.matches,
+                needed: 5,
                 onMode: (m) => {
                   this.onlineMode = m;
                   setOnlineMode(m);
@@ -803,24 +805,14 @@ export class App {
       'pick',
       pickScreen(this.root, {
         initial: this.choice,
+        // Sim v19: the seats match the match it starts (startMatch's rule: 5v5 Classic after the first match)
+        teamSize: p.matches > 0 && (this.choice.map ?? MODE_MAP[loadMatchMode()]) === 'hearthwood' ? 5 : 3,
         owned: this.owned(),
         champions: this.integration.championTiles(),
-        skins: {
-          owned: ownedSkins().map((sk) => this.skinTile(sk)),
-          locked: this.skinShowcaseOpen().tiles
-            ? this.integration
-                .state()
-                .featured.map((f) => getSkin(`${FEATURED_SKIN_PREFIX}${f.catalogId}`))
-                .filter((sk): sk is CatSkin => !!sk)
-                .slice(0, 2)
-                .map((sk) => this.skinTile(sk))
-            : [],
-        },
-        onPreview: (id) => this.previewSkin(id),
-        onTileSeen: (id) => wantProbe(id),
-        // lobby spec §3b: the inline Skins strip is a compact row; the cards live in the drawer
+        // lobby spec §3b: the panel's Look button opens the cards drawer (the skins live there)
         onDeck: () => this.openCards(),
         looks: p.looks as Record<HeroId, Partial<Look>>,
+        playerName: this.integration.state().playerName ?? null,
         onLook: (h, look) => {
           const q = loadProfile();
           q.looks[h] = { coat: look.coat, chroma: look.chroma };
@@ -831,26 +823,20 @@ export class App {
           sfx.play('click');
           // champion select: the announcer says the hero's name (a newer pick cuts the last name off)
           sfx.voice(nameLine(h), { sting: false });
+          const prev = this.choice.hero;
           this.choice = { ...this.choice, hero: h };
           this.setLobbyHero(h);
-          // sim v14: the picked hero, its side and the last hero per side (the CATS / DOGS switch restores it) are
-          // remembered, so a reload opens on the same side and hero
+          // sim v14: the picked hero, its side and the last hero per side (the hero left behind on the other side too)
+          // are remembered, so a reload opens on the same side and hero
           const q = loadProfile();
+          if (HEROES[prev] && HEROES[prev].side !== HEROES[h].side) q.lastBySide[HEROES[prev].side] = prev;
           q.hero = h;
           q.side = HEROES[h].side;
           q.lastBySide[q.side] = h;
           saveProfile(q);
         },
-        // sim v14 (DOGS-V13 §2): the CATS / DOGS switch; DOGS waits for the guided first match (a dog dare skips it)
-        lastBySide: p.lastBySide,
+        // sim v14 (DOGS-V13 §2): dogs wait for the guided first match (a dog dare skips it)
         dogsLocked: p.matches === 0 && !(this.dare && HEROES[this.dare.hero]?.side === 'dog'),
-        onSide: (side, _hero, left) => {
-          // the hero the player switched away from is the one that side restores
-          const q = loadProfile();
-          q.side = side;
-          q.lastBySide[HEROES[left].side] = left;
-          saveProfile(q);
-        },
         onStart: (c) => {
           sfx.play('click');
           this.startMatch(c);
@@ -1705,7 +1691,10 @@ export class App {
       if (this.champFrozen) return;
       this.champFrozen = true;
     } else this.champFrozen = false;
-    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ, saver });
+    // the champion select covers nearly the whole phone screen (grid, panel, scrim): the stage behind it runs at the
+    // covered rate there (it still turns, just slower), the menu rate on a desktop where the hero shows at the sides
+    const pickCover = this.phone && this.screen === 'pick' && !this.session;
+    const fps = paceTarget({ inMatch, paused, covered: !!this.overlay || champ || pickCover, saver });
     if (!this.champFrozen && !this.pacer.due(now, fps)) return;
     const t0 = performance.now();
     const raw = Math.max(0, now - this.last);

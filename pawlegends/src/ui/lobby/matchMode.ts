@@ -32,6 +32,6 @@ export function saveMatchMode(m: MatchMode): void {
 /** The toggle's markup: a two-button radio group (`data-a="map"`, `data-v` the mode). Pure. */
 export function matchModeHtml(mode: MatchMode): string {
   const btn = (v: MatchMode): string =>
-    `<button type="button" role="radio" class="${mode === v ? 'on' : ''}" aria-checked="${mode === v}" tabindex="${mode === v ? 0 : -1}" data-a="map" data-v="${v}" data-testid="map-${v}"><b>${MODE_SIZE[v]}</b> ${v === 'quick' ? 'Quick' : 'Classic'}</button>`;
+    `<button type="button" role="radio" class="${mode === v ? 'on' : ''}" aria-checked="${mode === v}" tabindex="${mode === v ? 0 : -1}" data-a="map" data-v="${v}" data-testid="map-${v}" aria-label="${MODE_LABEL[v]}"><b>${MODE_SIZE[v]}</b><span class="lb-mw"> ${v === 'quick' ? 'Quick' : 'Classic'}</span></button>`;
   return `<div class="lb-map" role="radiogroup" aria-label="Mode" data-testid="match-mode">${btn('quick')}${btn('classic')}</div>`;
 }

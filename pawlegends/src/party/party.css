@@ -96,65 +96,13 @@
   text-transform: uppercase; border-radius: 10px; border: 2px solid rgba(255, 243, 220, 0.3); background: rgba(0, 0, 0, 0.35); color: var(--pp-cream); padding: 0; caret-color: var(--pp-gold); }
 .pl-party .pp-box:focus { outline: none; border-color: var(--pp-gold); box-shadow: 0 0 0 3px rgba(255, 211, 77, 0.25); }
 
-/* shared pick */
-.pl-party .pp-pick { gap: clamp(4px, 1.2vh, 12px); }
-.pl-party .pp-pick .pp-head { gap: 10px; }
-.pl-party .pp-pick h2 { white-space: nowrap; }
-.pl-party .pp-strip { list-style: none; margin: 0; padding: 0; display: flex; gap: 6px; flex: 1; min-width: 0; justify-content: center; }
-.pl-party .pp-ts, .pl-party .pp-lc { flex: 0 1 180px; min-width: 0; display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
+/* shared pick: drawn by ui/champSelect (champSelect.css); the party keeps its notes and the loading cards */
+.pl-party .pp-lc { min-width: 0; display: grid; grid-template-columns: 34px 1fr; grid-template-rows: auto auto; column-gap: 8px; align-items: center;
   padding: 4px 8px; border-radius: 10px; border: 2px dashed rgba(255, 243, 220, 0.35); }
-.pl-party .pp-ts[data-hover='true'] { border-style: solid; border-color: rgba(255, 211, 77, 0.5); animation: pp-pulse 1.2s ease-in-out infinite; }
-.pl-party .pp-ts[data-locked='true'] { border-style: solid; border-color: var(--pp-gold); background: rgba(255, 211, 77, 0.12); }
-.pl-party .pp-ts.bot, .pl-party .pp-lc.bot { opacity: 0.55; }
-.pl-party .pp-ts-face { grid-row: span 2; width: 34px; height: 34px; border-radius: 8px; background: rgba(255, 243, 220, 0.1) center / cover no-repeat; display: grid; place-items: center; font-weight: 800; }
-.pl-party .pp-ts b, .pl-party .pp-lc b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-party .pp-ts small, .pl-party .pp-lc small { font-size: 11px; text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-@keyframes pp-pulse { 50% { border-color: rgba(255, 211, 77, 0.15); } }
-.pl-party .pp-timer { font: 800 22px ui-monospace, Menlo, monospace; color: var(--pp-gold); min-width: 3ch; text-align: right; }
-.pl-party .pp-roster { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow: auto; }
-.pl-party .pp-heroes { position: relative; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 6px; }
-.pl-party .pp-heroes .hero-card[data-side='off'] { filter: grayscale(0.85) brightness(0.5); }
+.pl-party .pp-lc.bot { opacity: 0.55; }
+.pl-party .pp-lc b { font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-party .pp-lc small { font-size: 11px; text-transform: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pl-party .pp-side-note { margin: 0; padding: 3px 10px; border-radius: 999px; background: rgba(255, 243, 220, 0.1); font-weight: 700; font-size: 13px; white-space: nowrap; }
-.pl-party .pp-heroes .hero-card { min-height: 0; position: relative; }
-.pl-party .pp-heroes .hero-card[disabled] { cursor: default; }
-.pl-party .pp-heroes .hero-card[data-taken] { filter: grayscale(1) brightness(0.6); }
-.pl-party .pp-taken, .pl-party .pp-try { position: absolute; left: 4px; right: 4px; bottom: 4px; z-index: 4; font-size: 11px; font-weight: 800; padding: 2px 4px; border-radius: 6px;
-  background: rgba(14, 18, 38, 0.92); color: var(--pp-cream); text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.pl-party .pp-try { top: 4px; bottom: auto; background: #3aa65a; color: #fff; }
-.pl-party .pp-pick-foot { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: space-between; }
-.pl-party .pp-tricks { display: flex; gap: 6px; flex-wrap: wrap; }
-.pl-party .pp-trick { min-height: 40px; }
-.pl-party .pp-pick-foot .pl-btn.big { min-width: 180px; }
-
-/* the pick's hero cards: the pick screen's card look (ui/cards/cards.css), sized so two rows always fit */
-.pl-party .pp-heroes .hero-card.tt-card {
-  display: block; padding: 0; gap: 0; background: none; border: 0; border-radius: 7% / 5.4%; cursor: pointer; aspect-ratio: 17 / 21;
-  box-shadow: 0 0 0 2px var(--tt-border), 0 3px 8px rgba(0, 0, 0, 0.3); filter: saturate(0.82) brightness(0.92);
-}
-.pl-party .pp-heroes .hero-card.tt-card.on { filter: none; transform: translateY(-3px); box-shadow: 0 0 0 2px var(--pp-gold), 0 0 0 4px rgba(43, 29, 46, 0.6), 0 8px 20px rgba(0, 0, 0, 0.4); }
-.pl-party .pp-heroes .hero-card.tt-card .tt-pic { width: auto; height: 74%; border-radius: 0; box-shadow: none; }
-.pl-party .pp-heroes .hero-card.tt-card .tt-in > b { font-size: 14.5cqw; }
-.pl-party .pp-heroes .hero-card.tt-card .tt-in > small { font-size: 9.5cqw; }
-.pl-party .pp-heroes .hero-card.tt-card > .tt-ico { width: 19%; }
-@media (max-height: 820px) {
-  .pl-party .pp-heroes .hero-card.tt-card { aspect-ratio: 17 / 15; }
-  .pl-party .pp-heroes .hero-card.tt-card .tt-pic { height: 70%; }
-}
-@media (max-height: 520px) {
-  /* 844x390 and 667x375: a landscape card, name only (as the solo pick) */
-  .pl-party .pp-heroes .hero-card.tt-card { aspect-ratio: 17 / 12; }
-  .pl-party .pp-heroes .hero-card.tt-card .tt-pic { height: 74%; background-size: auto 118%, cover; }
-  .pl-party .pp-heroes .hero-card.tt-card .tt-in > b { font-size: 15cqw; }
-  .pl-party .pp-heroes .hero-card.tt-card .tt-in > small { display: none; }
-  .pl-party .pp-heroes .hero-card.tt-card .tt-in { padding-bottom: 2cqw; }
-  .pl-party .pp-heroes .hero-card.tt-card > .tt-ico { width: 15%; left: 7%; top: 9%; }
-  .pl-party .pp-heroes { gap: 5px; }
-}
-
-/* taken by another human, or the other side: greyed (after the card rules, which set their own filter) */
-.pl-party .pp-heroes .hero-card.tt-card[data-side='off'] { filter: grayscale(0.9) brightness(0.45); }
-.pl-party .pp-heroes .hero-card.tt-card[data-taken] { filter: grayscale(1) brightness(0.5); }
-.pl-party .pp-heroes .hero-card.tt-card[disabled]:hover { filter: grayscale(0.9) brightness(0.45); }
 
 /* loading */
 .pl-party .pp-lcs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; width: 100%; }
@@ -175,17 +123,6 @@
   .pl-party .pp-ctl { gap: 6px; }
   .pl-party .pp-toggles { gap: 0 10px; }
   .pl-party .pp-hint, .pl-party .pp-note { font-size: 12px; }
-  .pl-party .pp-heroes .hero-card small { display: none; }
-  .pl-party .pp-heroes .hero-card b { font-size: 11px; }
-  /* sim v14: "Marshmallow" fits a 667x375 tile at 9.5px instead of ending in an ellipsis */
-  .pl-party .pp-heroes .hero-card[data-long] b { font-size: 9.5px; letter-spacing: -0.03em; }
-  /* the strip keeps each friend's hero visible (that is how friends coordinate), under a shorter name */
-  .pl-party .pp-ts small { display: block; font-size: 10px; letter-spacing: 0; text-transform: none; opacity: 0.9; }
-  .pl-party .pp-ts b { font-size: 11px; max-width: 9ch; }
-  .pl-party .pp-ts { grid-template-rows: auto auto; }
-  .pl-party .pp-ts-face { grid-row: auto; width: 26px; height: 26px; }
-  .pl-party .pp-strip { gap: 4px; }
-  .pl-party .pp-pick h2 { font-size: 16px; }
 }
 /* desktop: the QR inline under the code, "Show QR" hidden */
 @media (min-width: 1000px) and (min-height: 600px) {
@@ -193,11 +130,9 @@
   .pl-party .pp-qr-btn { display: none; }
   .pl-party .pp-seat { min-height: 68px; }
   .pl-party .pp-av { width: 52px; height: 52px; }
-  .pl-party .pp-heroes { gap: 10px; }
 }
 @media (max-width: 720px) and (orientation: portrait) {
   .pl-party .pp-grid { grid-template-columns: 1fr; }
-  .pl-party .pp-heroes { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 @media (prefers-reduced-motion: reduce) {
   .pl-party *, .pl-party .pp-note-item { animation: none !important; transition: none !important; }
@@ -236,7 +171,6 @@
 .pl-party .pp-link { min-height: 44px; padding: 0 8px; }
 .pl-party [data-p='leave'][data-sure] { background: rgba(255, 90, 90, 0.35); }
 .pl-party .pp-skip { color: #ffd38a; font-size: 13px; margin: 0; }
-.pl-party .pp-pick-foot [data-p='unlock'] { margin-right: 8px; }
 .pl-party .pp-slow { font-size: 13px; opacity: 0.8; }
 @media (max-height: 430px) {
   .pl-party .pl-btn.small { padding: 6px 12px; }
@@ -265,9 +199,6 @@
   background: conic-gradient(var(--pp-gold) var(--pp-ring), rgba(255, 243, 220, 0.12) 0); }
 .pl-party .pp-ring b { width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #24142e; font-size: 14px; }
 .pl-party .pp-team { flex: none; background: rgba(255, 211, 77, 0.18); box-shadow: inset 0 0 0 1px rgba(255, 211, 77, 0.55); }
-.pl-party .pp-pick-leave { flex: none; }
-.pl-party .pp-pick[data-mm] .pp-head { flex-wrap: wrap; row-gap: 4px; }
-.pl-party .pp-pick[data-mm] .pp-heroes { grid-template-columns: repeat(auto-fit, minmax(84px, 1fr)); }
 .pl-party .pp-online { min-height: 36px; }
 @media (max-height: 430px) {
   .pl-party .pp-queue h2 { font-size: 18px; }
@@ -301,6 +232,3 @@
   .pl-party .pp-accept-row { flex-direction: row; justify-content: center; }
 }
 
-/* Champion browser: the hovered hero's skills and lore, in the pick's foot (ui/champBrowser/). */
-.pl-party .pp-info { display: inline-flex; align-items: center; gap: 4px; }
-.pl-party .pp-info .pl-icon { width: 15px; height: 15px; color: var(--butter, #ffd34d); }
