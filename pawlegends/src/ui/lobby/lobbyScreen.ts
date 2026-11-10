@@ -98,7 +98,8 @@ export interface LobbyScreenOpts {
   /**
    * Casual PvP (docs/plans/moba/V16.md §5): the PvP button next to Co-op in the online row (each starts its own mode in
    * one tap and remembers it with `onMode`). Absent = the backend has no PvP sim yet (`GET /pawlegends/sim`), so no PvP
-   * button. `locked`: fewer than `needed` (5) matches: "PvP 🔒 played/needed", and a tap explains it.
+   * button. `locked`: fewer than `needed` (5) matches: "PvP 🔒 played/needed", and a tap explains it. The lock is 3v3
+   * casual PvP's only: with 5v5 Classic picked in the mode toggle, PvP is open (it queues 5v5 Classic).
    */
   onlineMode?: { mode: 'coop' | 'pvp'; locked: boolean; onMode(mode: 'coop' | 'pvp'): void; played?: number; needed?: number };
   /**
@@ -293,17 +294,21 @@ function railHtml(o: LobbyScreenOpts, full = true): string {
   return `<nav class="lb-rail" aria-label="More" data-n="${items.length}">${items.join('')}</nav>`;
 }
 
+/** Is the PvP button locked? Only 3v3 casual PvP has the 5-match lock; 5v5 Classic is open to every player. */
+const pvpLockedIn = (o: LobbyScreenOpts, mode: MatchMode | null): boolean => !!o.onlineMode?.locked && mode !== 'classic';
+
 /** Tier 2: Co-op, PvP (when the backend has it), Friends and "#" (join with code). Each is one tap. */
-function onlineRowHtml(o: LobbyScreenOpts): string {
+function onlineRowHtml(o: LobbyScreenOpts, mode: MatchMode | null = null): string {
   if (!o.onOnline && !o.onParty) return '';
   const m = o.onlineMode;
-  const pvpLocked = !!m?.locked;
+  const pvpLocked = pvpLockedIn(o, mode);
   const need = m?.needed ?? 5;
   const pvpLabel = pvpLocked ? `PvP <span class="lb-lock" aria-hidden="true">🔒</span><small>${Math.min(m?.played ?? 0, need)}/${need}</small>` : 'PvP';
+  const pvpTitle = mode === 'classic' ? ' title="5v5 Classic PvP" aria-label="Play 5v5 Classic PvP"' : ' title="Casual PvP" aria-label="Play PvP"';
   const btns = [
     o.onOnline ? `<button type="button" class="pl-btn small lb-friends lb-online" data-a="online" data-v="coop" data-testid="play-online" aria-label="Play online: co-op vs bots" title="Co-op vs bots with players online">${GLOBE}<span>Co-op</span></button>` : '',
     o.onOnline && m
-      ? `<button type="button" class="pl-btn ghost small lb-friends lb-pvp" data-a="online" data-v="pvp" data-testid="play-pvp"${pvpLocked ? ` aria-disabled="true" title="PvP unlocks after ${need} matches" aria-label="PvP, unlocks after ${need} matches"` : ' title="Casual PvP" aria-label="Play PvP"'}>${SWORDS}<span>${pvpLabel}</span></button>`
+      ? `<button type="button" class="pl-btn ghost small lb-friends lb-pvp" data-a="online" data-v="pvp" data-testid="play-pvp"${pvpLocked ? ` aria-disabled="true" title="PvP unlocks after ${need} matches" aria-label="PvP, unlocks after ${need} matches"` : pvpTitle}>${SWORDS}<span>${pvpLabel}</span></button>`
       : '',
     o.onParty ? `<button type="button" class="pl-btn ghost small lb-friends lb-party" data-a="party" data-testid="play-friends" aria-label="Play with friends">${FRIENDS}<span>Friends</span></button>` : '',
     o.onJoinCode ? `<button type="button" class="pl-btn ghost small lb-joincode" data-a="joincode" data-testid="join-code" aria-label="Join with code" title="Join with code"><b aria-hidden="true">#</b><span>Code</span></button>` : '',
@@ -366,7 +371,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
           <button type="button" class="pl-btn big" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" aria-keyshortcuts="Enter"${returning ? ` data-diff="· ${esc(diffShort(diff))}"` : ''}>${esc(playLabel(o))}</button>
           <div class="lb-under">${segmentHtml(o, diff)}${mode ? matchModeHtml(mode) : `<p class="lb-line${dare ? ' dare-line' : ''}">${esc(underLine({ ...o, last: choice() }))}${dare ? ` <small>as ${esc(HERO_TEXT[dare.hero].title)}</small>` : ''}</p>`}</div>
         </div>
-        ${dare ? '' : onlineRowHtml(o)}
+        ${dare ? '' : onlineRowHtml(o, mode)}
         <p class="sub"><span class="acct">${o.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.'}</span></p>
         <p class="lb-toast" role="status" aria-live="polite"></p>
       </div>
@@ -443,6 +448,9 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
       const line = root.querySelector('.lb-line');
       if (line) line.textContent = underLine({ ...o, last: choice() });
       o.matchMode?.onMode(v);
+      // the PvP button follows the mode: open for 5v5 Classic, the 5-match lock for 3v3
+      const row = root.querySelector<HTMLElement>('.lb-online-row');
+      if (row) row.outerHTML = onlineRowHtml(o, mode);
       return;
     }
     if (a === 'clem') play({ hero: 'clem', trick: 'pounce', difficulty: 'easy' });
@@ -453,9 +461,9 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     else if (a === 'online') {
       // Co-op and PvP are each one tap: the button starts its own mode and remembers it (no pre-selected chip)
       const v = (t.closest<HTMLElement>('[data-a="online"]')?.dataset.v ?? 'coop') as 'coop' | 'pvp';
-      if (v === 'pvp' && o.onlineMode?.locked) {
+      if (v === 'pvp' && pvpLockedIn(o, mode)) {
         o.sound?.('click');
-        toast(`PvP unlocks after ${o.onlineMode.needed ?? 5} matches. Co-op is open now.`);
+        toast(`PvP unlocks after ${o.onlineMode?.needed ?? 5} matches. ${mode ? '5v5 Classic and Co-op are' : 'Co-op is'} open now.`);
         return;
       }
       if (o.onlineMode && o.onlineMode.mode !== v) {
