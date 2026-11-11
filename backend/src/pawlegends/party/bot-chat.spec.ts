@@ -46,7 +46,8 @@ describe('referee chat cues are read only (MATCH-CHAT.md §5.1)', () => {
                 const mask = config.humans.reduce((m, s) => m | (1 << s), 0);
                 let cues = 0;
                 let states = 0;
-                for (let turn = 0; turn < 1500 && !plain.ended; turn++) {
+                // the first hero takedown or tower lands at about turn 1500 to 2250 (2 to 3 match minutes)
+                for (let turn = 0; turn < 2700 && !plain.ended; turn++) {
                     const body = encodeTurnBody({ turn, modeMask: mask, acks: [], entries: [] });
                     const a = plain.applyTurn(body);
                     const b = chatty.applyTurn(body);

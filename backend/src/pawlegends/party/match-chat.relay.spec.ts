@@ -169,6 +169,18 @@ describe('in-match chat (PROTO 6)', () => {
             expect((await a.until(() => rejects(a)[0])).why).toBe('quick_only');
             a.send({ t: 'chat.say', k: 'q', id: 28, ch: 'team' });
             expect(await k.until(() => lines(k)[0])).toMatchObject({ k: 'q', id: 28, ch: 'team' });
+            // a bot's free text never reaches a quick team, even when handed straight to delivery
+            const live = [...b.relay.rooms.values()][0] as any;
+            const bot = live.chatBots.find((s: number) => s < 3);
+            expect(
+                (b.relay as any).deliverMatchChat(
+                    live,
+                    bot,
+                    'team',
+                    { k: 't', text: 'nice' },
+                    { account: null, bot: true }
+                )
+            ).toBe(false);
             await settle();
             expect(lines(k).some(l => l.k === 't')).toBe(false);
         } finally {
@@ -227,17 +239,27 @@ describe('in-match chat (PROTO 6)', () => {
             const bot = live.chatBots.find((s: number) => s < 3) ?? live.chatBots[0];
             a.send({ t: 'chat.say', k: 't', text: 'gl hf', ch: 'team' });
             await c.until(() => lines(c)[0]);
+            // a bot's free text never goes to all chat (minors may sit on the other team): refused at delivery
+            expect(
+                (b.relay as any).deliverMatchChat(
+                    live,
+                    bot,
+                    'all',
+                    { k: 't', text: 'gl all' },
+                    { account: null, bot: true }
+                )
+            ).toBe(false);
             const delivered = (b.relay as any).deliverMatchChat(
                 live,
                 bot,
-                'all',
+                'team',
                 { k: 't', text: 'gl all' },
                 { account: null, bot: true }
             );
             expect(delivered).toBe(true);
             const botLine = await c.until(() => lines(c)[1]);
             expect(Object.keys(botLine).sort()).toEqual(Object.keys(lines(c)[0]).sort());
-            expect(botLine).toMatchObject({ ch: 'all', slot: bot, k: 't', text: 'gl all' });
+            expect(botLine).toMatchObject({ ch: 'team', slot: bot, k: 't', text: 'gl all' });
             expect(b.stored.find(s => s.line._id === botLine.mid)!.line.from).toBe(`bot:${bot}`);
             // the end window: 12 s after the referee's end a bot line is refused
             live.endedAtMs = Date.now() - 13_000;
@@ -252,6 +274,25 @@ describe('in-match chat (PROTO 6)', () => {
             a.send({ t: 'chat.say', k: 'q', id: 25, ch: 'team' });
             expect((await a.until(() => rejects(a)[0])).why).toBe('phase');
             expect(b.events.some(e => e.e === 'mp_chat_bot_refused')).toBe(true);
+        } finally {
+            await b.stop();
+        }
+    });
+
+    it('"are you a bot?" silences every bot for the match even when the line itself is refused', async () => {
+        const b = await boot({ 'acct-a': { band: '18+' }, 'acct-k': { band: 'under16' } });
+        try {
+            const [a] = await inMatch(b, { account: 'acct-a' }, { account: 'acct-k' });
+            await a.until(() => a.last('party')?.chat?.match === 'quick');
+            const live = [...b.relay.rooms.values()][0] as any;
+            await a.until(() => (b.relay as any).botChats.has(live.room.id) && true);
+            const chatter = (b.relay as any).botChats.get(live.room.id).chat.chatter;
+            expect(chatter.quiet).toBe(false);
+            // the team is quick (an under-16 sits on it), so the text is refused, and all chat is quick only too
+            a.send({ t: 'chat.say', k: 't', text: 'r u bots', ch: 'all' });
+            expect((await a.until(() => rejects(a)[0])).why).toBe('quick_only');
+            expect(chatter.quiet).toBe(true);
+            expect(chatter.pendingCount).toBe(0);
         } finally {
             await b.stop();
         }

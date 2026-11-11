@@ -249,7 +249,8 @@ export class BotChatter {
   private readonly states = new Map<number, BotState>();
   private pending: Pending[] = [];
   private uid = 0;
-  private readonly emitted = new Set<number>();
+  /** Lines that went out as free text (their follow-ups may follow). */
+  private readonly emittedText = new Set<number>();
   private readonly sentLog: Planned[] = [];
   /** Due times of budgeted lines (planned or sent), per slot: the spacing rules read them. */
   private readonly times: { at: number; slot: number; reaction: boolean; end: boolean; uid: number }[] = [];
@@ -813,7 +814,12 @@ export class BotChatter {
 
   private check(p: Pending, nowMs: number): DropReason | 'postpone' | null {
     if (this.silenced) return 'probe';
-    if (p.follow) return this.emitted.has(p.parent) ? null : 'guard';
+    if (p.follow) {
+      // a follow-up is free text: never to all chat or to a team whose tier dropped to phrases since the plan, and
+      // only after its parent went out as text (a parent sent as a phrase leaves a "*word" fix meaningless)
+      if (p.ch === 'all' || this.tiers[p.team] === 'quick') return 'tier';
+      return this.emittedText.has(p.parent) ? null : 'guard';
+    }
     if (p.end) {
       if (nowMs - this.endAt > CHATTER.endWindowMs) return 'end';
     } else if (this.endAt >= 0) return 'end';
@@ -860,7 +866,7 @@ export class BotChatter {
       this.stats.sent[p.team]++;
       this.stats.byCat[p.line.cat] = (this.stats.byCat[p.line.cat] ?? 0) + 1;
     }
-    this.emitted.add(p.uid);
+    if (p.k === 't') this.emittedText.add(p.uid);
     const surface = p.k === 'q' ? `q:${p.line.q}` : normSurface(p.surface);
     this.recent.push({ at: nowMs, surf: surface });
     const out: Planned = {
