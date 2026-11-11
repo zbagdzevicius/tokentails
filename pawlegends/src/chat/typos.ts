@@ -1,0 +1,75 @@
+/**
+ * Human typos for bot chat lines (docs/plans/moba/MATCH-CHAT.md §5.10): at most one per line, only in a plain letter
+ * word of 4+ letters (never an emoji, never a teammate's name), as a QWERTY-neighbour substitution (45%), a dropped
+ * letter (25%), a doubled letter (15%) or a swap of two neighbours (15%). The caller filters the typo'd line again
+ * and falls back to the clean line when the filter refuses it.
+ *
+ * Pure, no imports outside src/chat: vendored verbatim into backend/src/vendor/pawlegends-chat.
+ */
+import type { Rng } from './rng';
+
+const ROWS = ['qwertyuiop', 'asdfghjkl', 'zxcvbnm'];
+
+/** Letters next to `c` on a QWERTY keyboard (same row and the rows above and below). */
+export function neighbours(c: string): string {
+  const lc = c.toLowerCase();
+  for (let r = 0; r < ROWS.length; r++) {
+    const i = ROWS[r].indexOf(lc);
+    if (i < 0) continue;
+    let out = '';
+    for (const rr of [r - 1, r, r + 1]) {
+      const row = ROWS[rr];
+      if (!row) continue;
+      for (const j of [i - 1, i, i + 1]) {
+        const ch = row[j];
+        if (ch && ch !== lc) out += ch;
+      }
+    }
+    return out;
+  }
+  return '';
+}
+
+export type TypoKind = 'sub' | 'drop' | 'double' | 'swap';
+const KIND_WEIGHTS: readonly number[] = [0.45, 0.25, 0.15, 0.15];
+const KINDS: readonly TypoKind[] = ['sub', 'drop', 'double', 'swap'];
+
+export interface Typo {
+  text: string;
+  /** The word as it should have been (the "*word" fix). */
+  word: string;
+  kind: TypoKind;
+}
+
+/**
+ * One typo in `text`, or null when it has no word to break. `protect` lists words never touched (a teammate's name).
+ */
+export function addTypo(text: string, rng: Rng, protect: readonly string[] = []): Typo | null {
+  const re = /[A-Za-z]{4,}/g;
+  const words: { at: number; w: string }[] = [];
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text))) {
+    if (protect.some((p) => p && p.toLowerCase() === m![0].toLowerCase())) continue;
+    words.push({ at: m.index, w: m[0] });
+  }
+  if (!words.length) return null;
+  const { at, w } = rng.pick(words);
+  const kind = KINDS[rng.weighted(KIND_WEIGHTS)];
+  const i = 1 + rng.int(w.length - 1); // never the first letter: people rarely miss that one
+  let broken = w;
+  if (kind === 'sub') {
+    const n = neighbours(w[i]);
+    if (!n) return null;
+    let ch = n[rng.int(n.length)];
+    if (w[i] === w[i].toUpperCase()) ch = ch.toUpperCase();
+    broken = w.slice(0, i) + ch + w.slice(i + 1);
+  } else if (kind === 'drop') broken = w.slice(0, i) + w.slice(i + 1);
+  else if (kind === 'double') broken = w.slice(0, i) + w[i] + w.slice(i);
+  else {
+    const j = i < w.length - 1 ? i : i - 1;
+    if (w[j] === w[j + 1]) return null;
+    broken = w.slice(0, j) + w[j + 1] + w[j] + w.slice(j + 2);
+  }
+  if (broken === w) return null;
+  return { text: text.slice(0, at) + broken + text.slice(at + w.length), word: w.toLowerCase(), kind };
+}
