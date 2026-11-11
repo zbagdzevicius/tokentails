@@ -139,11 +139,11 @@ export function stepForced(w: World, id: number): boolean {
   if (n === 1) {
     w.x[id] = w.fmX[id];
     w.y[id] = w.fmY[id];
-    // Sim v16 (MAP-GAPS B3): a Move or AttackMove survives the dash or knockback (its goal is kept); the stale path is
+    // Sim v16 (MAP-GAPS B3): a Move or AttackMove (KITE-FIX: or Kite) survives the dash or knockback (its goal is kept); the stale path is
     // dropped and re-planned from the landing point at once.
     const hero = w.kind[id] === Kind.Hero;
     const o = w.order[id];
-    if (!hero || (o !== Order.Move && o !== Order.AttackMove)) {
+    if (!hero || (o !== Order.Move && o !== Order.AttackMove && o !== Order.Kite)) {
       w.moveX[id] = w.x[id];
       w.moveY[id] = w.y[id];
     }

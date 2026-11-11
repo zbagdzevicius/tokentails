@@ -588,6 +588,8 @@ export const Order = Object.freeze({
   Attack: 2,
   /** Walk to (moveX, moveY), attacking enemies met on the way. */
   AttackMove: 3,
+  /** KITE-FIX: attack `target`, walking to (moveX, moveY) between swings (Op.Kite). */
+  Kite: 4,
 } as const);
 
 /** Sim v19: `map` is the MAP_IDS index of the map bound now (src/sim/map/runtime.ts bindMap ran first). */

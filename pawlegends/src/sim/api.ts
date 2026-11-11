@@ -160,6 +160,12 @@ export const Op = Object.freeze({
    * that does not carry the cannon.
    */
   Fire: 11,
+  /**
+   * Sim v23, KITE-FIX (docs/plans/moba/KITE-FIX.md; Wild Rift: hold Attack and steer): attack unit `id`, walking toward (x, y)
+   * while the attack timer runs. The next swing starts the tick the timer is ready with `id` within attack range + the
+   * chase leeway; a windup in progress on `id` is kept. Gated like a move (spaced, gives way to a cast).
+   */
+  Kite: 12,
 } as const);
 export type Op = (typeof Op)[keyof typeof Op];
 
@@ -185,7 +191,9 @@ export type Command =
    */
   | { op: typeof Op.Ping; kind: number; x: number; y: number; id: number }
   | { op: typeof Op.Forfeit }
-  | { op: typeof Op.Fire; x: number; y: number };
+  | { op: typeof Op.Fire; x: number; y: number }
+  /** KITE-FIX: `id` the unit to keep attacking; (x, y) where to walk between swings. */
+  | { op: typeof Op.Kite; x: number; y: number; id: number };
 
 export const NO_TARGET = 0xff;
 

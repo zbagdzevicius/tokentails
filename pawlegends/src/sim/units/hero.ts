@@ -149,6 +149,28 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
       w.timer[id] = 0;
       break;
     }
+    case Op.Kite: {
+      // KITE-FIX (docs/plans/moba/KITE-FIX.md): no unit to keep attacking is a plain move
+      if (cmd.id >= RANGE.end || !targetable(w, cmd.id, w.team[id])) {
+        applyOrder(m, id, { op: Op.Move, x: cmd.x, y: cmd.y });
+        break;
+      }
+      cancelSoft(w, id);
+      // another unit is a new command (the swing at the old one stops, its timer comes back); the same unit keeps the
+      // windup in progress, so a held stick re-sending its kite never throws a swing away
+      if (w.target[id] !== cmd.id) cancelSwing(w, id);
+      w.order[id] = Order.Kite;
+      w.target[id] = cmd.id;
+      w.moveX[id] = clamp(cmd.x, 0, MAP.width);
+      w.moveY[id] = clamp(cmd.y, 0, MAP.height);
+      if (w.fmKind[id] === FM.None && w.windup[id] === 0) planPath(m, id, w.moveX[id], w.moveY[id]);
+      else {
+        w.pathLen[id] = 0;
+        w.pathIdx[id] = 0;
+        w.timer[id] = 0;
+      }
+      break;
+    }
     case Op.Stop:
       cancelSoft(w, id);
       w.order[id] = Order.None;
@@ -313,6 +335,40 @@ function engage(m: MatchHandle, id: number, t: number): void {
   } else chase(m, id, w.x[t], w.y[t]);
 }
 
+/**
+ * KITE-FIX (docs/plans/moba/KITE-FIX.md; Wild Rift: hold Attack and steer with the joystick): an attack order on
+ * `target` that walks toward (moveX, moveY) while the attack timer runs, instead of standing. The tick the timer is
+ * ready with the target within attack range + the chase leeway, the hero swings (and stands through the windup); out
+ * of reach it keeps walking (the stick wins, nothing is chased). At the goal it stands, the order kept. A target that
+ * is gone leaves a plain move to the goal.
+ */
+function kite(m: MatchHandle, id: number): void {
+  const w = m.world;
+  const t = w.target[id];
+  if (t < 0 || !targetable(w, t, w.team[id])) {
+    w.order[id] = Order.Move;
+    w.target[id] = -1;
+    if (walk(m, id)) {
+      w.order[id] = Order.None;
+      w.state[id] = UnitState.Idle;
+    }
+    return;
+  }
+  const leeway = w.rootT[id] > 0 || planted(w, id) ? 0 : HERO_RULES.chaseLeeway;
+  if (w.attackTimer[id] === 0 && inAttackRange(w, id, t, leeway)) {
+    swingAt(w, id, t);
+    if (w.windup[id] > 0) {
+      // a swing started in the leeway steps on with the target (its chase path replaces the goal's until it lands)
+      w.pathLen[id] = 0;
+      w.pathIdx[id] = 0;
+      w.timer[id] = 0;
+      followSwing(m, id);
+      return;
+    }
+  }
+  if (walk(m, id)) w.state[id] = UnitState.Idle;
+}
+
 /** Mid-swing with an attack order: step after a target that left attack range, still facing it and swinging. */
 function followSwing(m: MatchHandle, id: number): void {
   const w = m.world;
@@ -429,7 +485,17 @@ function stepHero(m: MatchHandle, id: number): void {
   if (w.windup[id] > 0) {
     // mid-swing. Founder bug 2026-11-08: with an attack order the hero keeps pace with a target walking out of range
     // during the windup (MLBB's follow), so the swing lands instead of the target gaining a windup's walk each swing.
-    if (order === Order.Attack || order === Order.AttackMove) followSwing(m, id);
+    if (order === Order.Attack || order === Order.AttackMove || order === Order.Kite) followSwing(m, id);
+    // KITE-FIX: the swing lands this tick (step 5); the walk after it plans afresh toward the kite goal
+    if (order === Order.Kite && w.windup[id] === 1) {
+      w.pathLen[id] = 0;
+      w.pathIdx[id] = 0;
+      w.timer[id] = 0;
+    }
+    return;
+  }
+  if (order === Order.Kite) {
+    kite(m, id);
     return;
   }
   if (order === Order.Attack) {

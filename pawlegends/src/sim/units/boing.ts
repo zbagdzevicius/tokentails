@@ -1,7 +1,7 @@
 /**
  * Sim v21 (docs/plans/moba/V21-FUN.md §2.1): Boing Beds. Springy cat beds at fixed spots (FUN_BY_MAP[map].beds, team
  * 0's side; team 1 has each one's reflection). Both teams may use every bed. From the gate barrier's drop, a hero whose
- * centre comes within BOING.reach of a bed while it has a move or attack-move order that was sent onto the bed or goes
+ * centre comes within BOING.reach of a bed while it has a move, attack-move or (sim v23) kite order that was sent onto the bed or goes
  * on past it (its goal is nearer the landing than the bed) is launched: a FM.Leap flight of BOING.flight ticks to the
  * landing point, straight in the sim (the arc is render only). Nothing stops it (no CC, no other forced movement), the
  * hero cannot attack or cast, and it can still be hit. Then BOING.cooldown ticks before its next bed (`boingT`, hashed).
@@ -68,7 +68,9 @@ export function stepBoing(m: MatchHandle): void {
   const aim = BOING.aim * BOING.aim;
   for (let k = RANGE.heroes; k < RANGE.minions; k++) {
     const id = heroAt(w, k);
-    if (!free(w, id) || (w.order[id] !== Order.Move && w.order[id] !== Order.AttackMove)) continue;
+    // Sim v23 (KITE-FIX): a kite walks to its goal between swings, so it takes a bed as a move does
+    const o = w.order[id];
+    if (!free(w, id) || (o !== Order.Move && o !== Order.AttackMove && o !== Order.Kite)) continue;
     for (let i = 0; i < n; i++) {
       bedOf(w, i, bed);
       if (dist2(w.x[id], w.y[id], bed[0], bed[1]) > reach) continue;

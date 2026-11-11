@@ -361,6 +361,26 @@ export class Orders {
     this.emit({ op: Op.Move, x: clampX(g.x), y: clampY(g.y) });
   }
 
+  /**
+   * KITE-FIX (docs/plans/moba/KITE-FIX.md; Wild Rift: hold Attack and steer): keep attacking unit `id` and walk toward
+   * (x, y) between swings. A move-class command: it replaces an order held behind a cast as a move does, and the sim
+   * gates it like one (the cast still wins its tick). Goal clamped like a move's.
+   */
+  kite(x: number, y: number, id: number): void {
+    this.pending = null;
+    this.held = null;
+    const me = this.env.units().find((u) => u.id === this.env.meId);
+    const team = me ? (me.team === 1 ? 1 : 0) : 0;
+    const e = me ? edgeGoal(me.x, me.y, x, y, team) : { x, y };
+    const g = e && me ? reachableGoal(me.x, me.y, clampX(e.x), clampY(e.y)) : e ?? { x: me?.x ?? x, y: me?.y ?? y };
+    this.lastAttackId = id;
+    this.kites++;
+    this.emit({ op: Op.Kite, x: clampX(g.x), y: clampY(g.y), id });
+  }
+
+  /** Kite orders sent (tests, e2e telemetry). */
+  kites = 0;
+
   attackMove(x: number, y: number): void {
     this.order({ op: Op.AttackMove, x: clampX(x), y: clampY(y) });
   }

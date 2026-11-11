@@ -29,7 +29,8 @@ export class MoveCoalescer {
   constructor(private readonly sendNow: (cmd: Command) => void, private readonly env: CoalescerEnv) {}
 
   send(cmd: Command): void {
-    if (cmd.op !== Op.Move) {
+    // KITE-FIX: a held stick's kite coalesces like its move would
+    if (cmd.op !== Op.Move && cmd.op !== Op.Kite) {
       this.cancel();
       this.sendNow(cmd);
       return;

@@ -31,10 +31,11 @@ export function initYarn(w: World): void {
   }
 }
 
-/** Can hero `id` kick a ball now (walking or attack-moving, free to act, not winding the cannon up)? */
+/** Can hero `id` kick a ball now (walking, attack-moving or kiting (sim v23), free to act, not winding the cannon up)? */
 function kicker(w: World, id: number): boolean {
   if (w.kind[id] !== Kind.Hero || w.alive[id] === 0 || w.hp[id] <= 0) return false;
-  if (w.order[id] !== Order.Move && w.order[id] !== Order.AttackMove) return false;
+  const o = w.order[id];
+  if (o !== Order.Move && o !== Order.AttackMove && o !== Order.Kite) return false;
   if (w.fmKind[id] !== FM.None || disabled(w, id) || w.napT[id] > 0) return false;
   return !(w.globals[G.CannonBy] === id && w.globals[G.CannonWind] > 0);
 }
