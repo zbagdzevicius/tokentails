@@ -717,6 +717,36 @@ answers of `POST /user/catbassadors/live` (solo and party) carry `season: {seaso
 Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
 
 
+### Pawlegends social, ranked and PvP reports (docs/plans/moba/SOCIAL-RANKED.md)
+
+No route here writes a score: board rows and ranked points are written only by `POST /user/catbassadors/live` (the
+party save). Clients see player codes (`PL-XXXX-XXXX`) and display names (generated, or one of the player's own
+moderated cat names), never an account id or an email. The game reaches these routes only through its host
+(`api-request`, SOCIAL-RANKED.md §13). Every route counts a per-client-IP bucket; the social routes also a per-account one.
+
+| Method | Path | Body or query → answer | Auth, throttle |
+|---|---|---|---|
+| GET | `/pawlegends/social` | `{me: {code, name, nameKind, invisible, allowRecent, ageBand}, friends: [{code, name, presence}], requests: {in, out}, blocks, invites, rev}` | Registered (guest 403), 60/min |
+| GET | `/pawlegends/social/pulse?rev=` | 204 while nothing changed, else `{rev, invites}`; writes the API presence at most once a minute | Registered, 6/min |
+| POST | `/pawlegends/social/friends` | `{code}` or `{room, slot}` (a recent match) → `{state: 'sent' \| 'friends'}` (a crossed request auto-accepts). Caps: 100 friends, 20 pending, 30 a day; under 16 never via recent | Registered, 5/min; code lookups 30 / 10 min |
+| POST | `/pawlegends/social/friends/:code/accept`, `/decline`; DELETE `/pawlegends/social/friends/:code` | accept, decline or cancel, remove | Registered, 30/min |
+| POST | `/pawlegends/social/blocks` | `{code}` or `{room, slot}`: removes the edge and invites, hides presence both ways; DELETE `/pawlegends/social/blocks/:code` unblocks | Registered, 30/min |
+| POST | `/pawlegends/social/me` | `{name?: 'generated' \| <own cat id>, invisible?, allowRecent?}` | Registered, 10/min |
+| POST | `/pawlegends/social/code/rotate` | a new code, 3 a day | Registered |
+| GET | `/pawlegends/social/recent` | `{players: [{room, slot, name, team, canAdd}]}`: humans of the last 20 mm rooms, 7 days | Registered, 30/min |
+| POST | `/pawlegends/social/invite` | `{to: code}`: needs a joinable friend party (relay presence) and an accepted friend; 10 per 10 min | Registered |
+| POST | `/pawlegends/social/age` | `{ageBand}`: the store's band, the stricter answer wins | Registered, 5/min |
+| GET | `/pawlegends/ranked/status` | `{open, online, need, season}`; opens at 24 ranked-eligible players online, closes under 16 for 10 min | Public, 60/min |
+| GET | `/pawlegends/ranked/me` | eligibility (`why: 'matches' \| 'locked' \| 'pending' \| 'sign_in'`), tier, decayed points, placements, locks, pending rooms and rewards | Auth, 60/min |
+| GET | `/pawlegends/boards/:kind` | `kind`: `weekly`, `global`, `hero` (`?hero=`); `?page=` (8 a page), `?week=`, `?season=` → `{rows: [{rank, name, value, tier?, winRate?}], period, page, pages}`. Cached 60 s | Public, 60/min |
+| GET | `/pawlegends/boards/:kind/me` | the same plus `me: {rank, value}`; `friends` only here (the caller and up to 100 friends) | Registered, 60/min |
+| POST | `/pawlegends/reports` | `{room, slot, reason: 'afk' \| 'grief' \| 'cheat' \| 'name', note?, tick?}` → 201 `{ok}`, or 200 `{ok, already}` for a repeat. 400 `PAWLEGENDS_REPORT_BOT` / `_SELF` / `_INVALID`, 404 `PAWLEGENDS_REPORT_ROOM`, 429 `PAWLEGENDS_REPORT_LIMIT` (10 a day, guests 3; 5 a room). The note is kept for 16+ bands only | Auth (guests too), 20 / 10 min per IP |
+| POST | `/pawlegends/reports/notice` | `{warn}`: a moderator warning, shown once | Auth |
+| GET | `/pawlegends/admin/reports` | `?status=open\|actioned\|dismissed\|all&reason=&flag=1&page=` → groups per reported player with counts, flags F1–F5 and the map-hack z. Reporter ids are never returned | MODERATOR (2) |
+| GET | `/pawlegends/admin/reports/stats` | `?days=14` → `{pvpMatches, rankedMatches, mapHackConfirmed, rate}`: the 1% fog trigger | MODERATOR |
+| GET | `/pawlegends/admin/reports/:accountId` | the reports with notes, each room's queue, team, member events and referee intel, the sanctions | MODERATOR |
+| POST | `/pawlegends/admin/reports/:accountId/resolve` | `{action: 'dismiss' \| 'warn' \| 'queue_lock' \| 'ranked_lock' \| 'board_exclude' \| 'pvp_ban', days?, reasonCode}`: the only sanction writer; the relay's `mm.join` honours locks | MODERATOR |
+
 ### Pawlegends party play (docs/plans/moba/MULTIPLAYER.md)
 
 Co-op against bots for 1 to 3 friends, deterministic lockstep through a relay. Always on (D9): without
