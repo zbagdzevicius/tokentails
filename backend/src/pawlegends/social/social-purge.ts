@@ -33,17 +33,24 @@ export async function purgePawlegendsSocial(db: PurgeDb, accountIdIn: unknown): 
     const c = (name: keyof typeof SOCIAL_PURGE_COLLECTIONS) => db.collection(SOCIAL_PURGE_COLLECTIONS[name]);
 
     // chat: DM threads with all their messages, the account's messages anywhere, party memberships
-    const dms = await c('threads').find({ members: id, kind: 'dm' }, { projection: { _id: 1 } }).toArray();
+    const dms = await c('threads')
+        .find({ members: id, kind: 'dm' }, { projection: { _id: 1 } })
+        .toArray();
     const dmIds = dms.map(t => t._id);
     if (dmIds.length) {
         await c('messages').deleteMany({ thread: { $in: dmIds } });
         await c('threads').deleteMany({ _id: { $in: dmIds } });
     }
     await c('messages').deleteMany({ from: id });
-    await c('threads').updateMany({ members: id }, { $pull: { members: id, muted: id }, $unset: { [`read.${id}`]: 1 } });
+    await c('threads').updateMany(
+        { members: id },
+        { $pull: { members: id, muted: id }, $unset: { [`read.${id}`]: 1 } }
+    );
 
     // friends see the row vanish on their next pulse
-    const edges = await c('friends').find({ $or: [{ a: id }, { b: id }] }, { projection: { a: 1, b: 1 } }).toArray();
+    const edges = await c('friends')
+        .find({ $or: [{ a: id }, { b: id }] }, { projection: { a: 1, b: 1 } })
+        .toArray();
     const others = [...new Set(edges.map(e => (e.a === id ? e.b : e.a)))];
     if (others.length) await c('social').updateMany({ _id: { $in: others } }, { $inc: { rev: 1 } });
     await c('friends').deleteMany({ $or: [{ a: id }, { b: id }] });

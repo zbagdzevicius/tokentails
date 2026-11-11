@@ -62,7 +62,10 @@ async function boot(infos: Record<string, Partial<RelayChatInfo>>) {
 
 const settle = () => new Promise(r => setTimeout(r, 150));
 
-async function party(b: Awaited<ReturnType<typeof boot>>, ...who: Array<{ account?: string; guest?: boolean; proto?: number }>) {
+async function party(
+    b: Awaited<ReturnType<typeof boot>>,
+    ...who: Array<{ account?: string; guest?: boolean; proto?: number }>
+) {
     const [first, ...rest] = who;
     const lead = await b.join(first);
     lead.send({ t: 'party.create', difficulty: 'easy' });
@@ -176,7 +179,11 @@ describe('party chat (PROTO 5)', () => {
     });
 
     it('avatars ride the party view; the own copy lists blocked members; DM notices reach the account', async () => {
-        const av = { i: 'c:0123456789abcdef01234567', img: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/cats/a.gif', f: 'frame.store.goldpaw' };
+        const av = {
+            i: 'c:0123456789abcdef01234567',
+            img: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/cats/a.gif',
+            f: 'frame.store.goldpaw',
+        };
         const b = await boot({ 'acct-a': { band: '18+', av, blocked: ['acct-b'] }, 'acct-b': { band: '18+' } });
         try {
             const [a, c] = await party(b, { account: 'acct-a' }, { account: 'acct-b' });

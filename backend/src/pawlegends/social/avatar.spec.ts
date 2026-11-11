@@ -54,8 +54,12 @@ describe('avatar write check', () => {
                 frame: 'frame.store.goldpaw',
                 title: 'title.s1.rookie',
             })
-        ).toEqual({ set: { avatar: { kind: 'icon', icon: 's1.paw' }, frame: 'frame.store.goldpaw', title: 'title.s1.rookie' } });
-        expect(await checkAvatarChoice(d, 'A', { frame: null, title: null })).toEqual({ set: { frame: null, title: null } });
+        ).toEqual({
+            set: { avatar: { kind: 'icon', icon: 's1.paw' }, frame: 'frame.store.goldpaw', title: 'title.s1.rookie' },
+        });
+        expect(await checkAvatarChoice(d, 'A', { frame: null, title: null })).toEqual({
+            set: { frame: null, title: null },
+        });
     });
 
     it.each([
@@ -77,7 +81,12 @@ describe('avatar write check', () => {
 describe('avatar read', () => {
     it('resolves worn items and falls back when an item or a cat is lost, without a write', async () => {
         const d = deps();
-        await d.social.create({ _id: 'A', avatar: { kind: 'cat', catId: CAT_A }, frame: 'frame.store.goldpaw', title: 'title.s1.rookie' });
+        await d.social.create({
+            _id: 'A',
+            avatar: { kind: 'cat', catId: CAT_A },
+            frame: 'frame.store.goldpaw',
+            title: 'title.s1.rookie',
+        });
         await d.social.create({ _id: 'B', avatar: { kind: 'cat', catId: CAT_A }, frame: 'frame.store.goldpaw' });
         const out = await resolveAvatars(d, ['A', 'B', 'C']);
         expect(out.get('A')).toEqual({ i: `c:${CAT_A}`, img: ART, f: 'frame.store.goldpaw', t: 'title.s1.rookie' });

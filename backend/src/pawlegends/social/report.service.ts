@@ -431,7 +431,9 @@ export class ReportService {
         if (!reasonCode) throw REPORT_ERRORS.invalid('reasonCode');
         // chat_mute: 1, 7 or 30 days, or permanent when no days are sent (CHAT-AVATARS.md §3.4)
         const timed =
-            action === 'queue_lock' || action === 'ranked_lock' || (action === 'chat_mute' && body.days !== undefined && body.days !== null);
+            action === 'queue_lock' ||
+            action === 'ranked_lock' ||
+            (action === 'chat_mute' && body.days !== undefined && body.days !== null);
         const days = Number(body.days);
         if (timed && (!Number.isInteger(days) || days < 1 || days > 365)) throw REPORT_ERRORS.invalid('days');
         const now = this.now();

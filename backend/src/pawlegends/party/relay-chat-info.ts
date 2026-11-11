@@ -36,7 +36,11 @@ export function relayChatInfo(deps: RelayChatInfoDeps) {
             safe(
                 () =>
                     deps.sanctions
-                        .find({ accountId, kind: 'chat_mute', $or: [{ until: null }, { until: { $gt: new Date(now) } }] })
+                        .find({
+                            accountId,
+                            kind: 'chat_mute',
+                            $or: [{ until: null }, { until: { $gt: new Date(now) } }],
+                        })
                         .lean(),
                 []
             ),

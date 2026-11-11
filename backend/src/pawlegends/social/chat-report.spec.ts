@@ -15,7 +15,14 @@ function harness() {
     const rooms = new SocialMemoryModel([], [], clock.now);
     const buyers = new SocialMemoryModel([], [], clock.now);
     const social = new SocialMemoryModel(
-        [{ _id: 'T', code: 'TTTTTTTT', rev: 0, chatStrikes: { day: new Date(clock.ms).toISOString().slice(0, 10), n: 21 } }],
+        [
+            {
+                _id: 'T',
+                code: 'TTTTTTTT',
+                rev: 0,
+                chatStrikes: { day: new Date(clock.ms).toISOString().slice(0, 10), n: 21 },
+            },
+        ],
         [{ fields: ['_id'] }],
         clock.now
     );

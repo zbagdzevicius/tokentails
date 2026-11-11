@@ -27,7 +27,8 @@ export interface ChatFilterOptions {
     probes?: boolean;
 }
 
-const INVISIBLE_RE = /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFEFF\uFFA0]/g;
+const INVISIBLE_RE =
+    /[\u00AD\u034F\u061C\u115F\u1160\u17B4\u17B5\u180E\u200B-\u200F\u202A-\u202E\u2060-\u206F\u3164\uFEFF\uFFA0]/g;
 const CONTROL_RE = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/g;
 const SPACES_RE = /[\s\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]+/g;
 const APOSTROPHES_RE = /[\u2018\u2019\u201A\u201B\u2032\u02BC\u00B4`]/g;
@@ -41,7 +42,7 @@ const REPEAT_RE = /([\uD800-\uDBFF][\uDC00-\uDFFF]|[\s\S])\1{3,}/g;
  */
 const ALLOWED_RE = new RegExp(
     '^(?:[A-Za-z0-9\u00C0-\u00D6\u00D8-\u00F6\u00F8-\u024F\u1E00-\u1EFF ' +
-        ".,!?'\"()[\\]{}:;\\-_&+/#%*~=<>@$\u20AC\u00A3\u2026\u00B0" +
+        '.,!?\'"()[\\]{}:;\\-_&+/#%*~=<>@$\u20AC\u00A3\u2026\u00B0' +
         '\u2190-\u21FF\u2300-\u23FF\u2600-\u27BF\u2B00-\u2BFF\u2764\uFE0F\u20E3' +
         ']|\uD83C[\uDC00-\uDFFF]|\uD83D[\uDC00-\uDFFF]|\uD83E[\uDC00-\uDFFF])*$'
 );
@@ -235,7 +236,12 @@ const LINK_RES: RegExp[] = [
     /\bwww\s*\.\s*[a-z0-9]/i,
     new RegExp('[a-z0-9-]\\.(?:' + TLDS + ')(?![a-z0-9])', 'i'),
     new RegExp('(?:^|\\s)\\.(?:' + TLDS + ')(?![a-z0-9])', 'i'),
-    new RegExp('[a-z0-9-]\\s*(?:\\(\\s*dot\\s*\\)|\\[\\s*dot\\s*\\]|\\{\\s*dot\\s*\\}|\\s+dot\\s+|\\s+taskas\\s+)\\s*(?:' + TLDS + ')\\b', 'i'),
+    new RegExp(
+        '[a-z0-9-]\\s*(?:\\(\\s*dot\\s*\\)|\\[\\s*dot\\s*\\]|\\{\\s*dot\\s*\\}|\\s+dot\\s+|\\s+taskas\\s+)\\s*(?:' +
+            TLDS +
+            ')\\b',
+        'i'
+    ),
     /\.gg\s*\//i,
     /\b(?:wa\.me|t\.me|bit\.ly|tinyurl|linktr\.?ee|discord\.gg|dsc\.gg)\b/i,
 ];

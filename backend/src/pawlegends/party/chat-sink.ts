@@ -91,7 +91,8 @@ export class ChatSink {
                                 tier: line.k === 't' ? 'text' : 'quick',
                                 lastAt: line.at,
                                 lastFrom: line.from,
-                                lastPreview: line.k === 't' ? String(line.text ?? '').slice(0, 40) : `[${line.k}:${line.id}]`,
+                                lastPreview:
+                                    line.k === 't' ? String(line.text ?? '').slice(0, 40) : `[${line.k}:${line.id}]`,
                                 exp: new Date(line.at.getTime() + RETAIN_MS),
                                 closedAt: null,
                             },
@@ -105,7 +106,10 @@ export class ChatSink {
             return batch.length;
         } catch (e) {
             this.errors++;
-            this.log('chat_write_error', { message: String((e as Error)?.message || e).slice(0, 200), lines: batch.length });
+            this.log('chat_write_error', {
+                message: String((e as Error)?.message || e).slice(0, 200),
+                lines: batch.length,
+            });
             return 0;
         } finally {
             this.inFlight = [];

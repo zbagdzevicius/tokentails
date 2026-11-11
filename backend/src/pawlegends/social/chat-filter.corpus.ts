@@ -178,7 +178,9 @@ export const CHAT_PASS: readonly string[] = [
     'I will follow',
 ];
 
-export const CHAT_REJECT: ReadonlyArray<readonly [string, 'words' | 'contact' | 'link' | 'charset' | 'long' | 'empty']> = [
+export const CHAT_REJECT: ReadonlyArray<
+    readonly [string, 'words' | 'contact' | 'link' | 'charset' | 'long' | 'empty']
+> = [
     // profanity: EN, leet, spacing, stretched
     ['fuck', 'words'],
     ['fuck you', 'words'],

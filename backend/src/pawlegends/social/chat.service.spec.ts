@@ -15,7 +15,15 @@ import { SocialMemoryModel, TestClock } from './social-model.helper-spec';
  */
 
 const BANDS: Record<string, string> = { A: '18+', B: '16-17', C: '18+', K: 'under16', D: '18+' };
-const CODES: Record<string, string> = { A: 'AAAAAAAA', B: 'BBBBBBBB', C: 'CCCCCCCC', K: 'KKKKKKKK', U: 'NNNNNNNN', D: 'DDDDDDDD', S: 'SSSSSSSS' };
+const CODES: Record<string, string> = {
+    A: 'AAAAAAAA',
+    B: 'BBBBBBBB',
+    C: 'CCCCCCCC',
+    K: 'KKKKKKKK',
+    U: 'NNNNNNNN',
+    D: 'DDDDDDDD',
+    S: 'SSSSSSSS',
+};
 
 function harness() {
     const clock = new TestClock();
@@ -40,7 +48,14 @@ function harness() {
             now
         ),
         friends: new SocialMemoryModel(
-            [accepted('A', 'B'), accepted('A', 'C'), accepted('A', 'K'), accepted('A', 'U'), accepted('B', 'D'), { ...accepted('A', 'S'), state: 'pending' }],
+            [
+                accepted('A', 'B'),
+                accepted('A', 'C'),
+                accepted('A', 'K'),
+                accepted('A', 'U'),
+                accepted('B', 'D'),
+                { ...accepted('A', 'S'), state: 'pending' },
+            ],
             [{ fields: ['_id'] }],
             now
         ),
@@ -50,7 +65,11 @@ function harness() {
             [{ fields: ['key'] }],
             now
         ),
-        users: new SocialMemoryModel(ids.map(id => ({ _id: id, isGuest: false })), [], now),
+        users: new SocialMemoryModel(
+            ids.map(id => ({ _id: id, isGuest: false })),
+            [],
+            now
+        ),
         reports: new SocialMemoryModel([], [], now),
         sanctions: new SocialMemoryModel([], [], now),
     };
@@ -141,7 +160,15 @@ describe('pawlegends chat: who can talk', () => {
         clock.advance(CHAT_LIMITS.unfriendReadOnlyMs + 1000);
         expect(await status(chat.history('C', thread))).toBe('PAWLEGENDS_CHAT_UNAVAILABLE');
         expect((await chat.list('C')).threads).toHaveLength(0);
-        await models.friends.create({ _id: pairId('A', 'C'), a: 'A', b: 'C', from: 'A', state: 'accepted', via: 'code', createdAt: new Date() });
+        await models.friends.create({
+            _id: pairId('A', 'C'),
+            a: 'A',
+            b: 'C',
+            from: 'A',
+            state: 'accepted',
+            via: 'code',
+            createdAt: new Date(),
+        });
         expect((await chat.history('C', thread)).messages).toHaveLength(1);
     });
 });
@@ -196,17 +223,27 @@ describe('pawlegends chat: send rules', () => {
     it('length cap: 120 characters after normalisation', async () => {
         const { chat } = harness();
         const { thread } = await chat.open('A', code('C'));
-        expect(await status(chat.send('A', thread, { k: 't', text: 'ab'.repeat(61) }))).toBe('PAWLEGENDS_CHAT_TOO_LONG');
-        expect(await status(chat.send('A', thread, { k: 't', text: 'x'.repeat(300) }))).toBe('PAWLEGENDS_CHAT_TOO_LONG');
+        expect(await status(chat.send('A', thread, { k: 't', text: 'ab'.repeat(61) }))).toBe(
+            'PAWLEGENDS_CHAT_TOO_LONG'
+        );
+        expect(await status(chat.send('A', thread, { k: 't', text: 'x'.repeat(300) }))).toBe(
+            'PAWLEGENDS_CHAT_TOO_LONG'
+        );
         expect(await status(chat.send('A', thread, { k: 't', text: 'ab'.repeat(60) }))).toBe('ok');
     });
 
     it('rejected text is never stored, and the reason class is all the sender learns', async () => {
         const { chat, models } = harness();
         const { thread } = await chat.open('A', code('C'));
-        expect(await status(chat.send('A', thread, { k: 't', text: 'add me on discord' }))).toBe('PAWLEGENDS_CHAT_REJECTED:link');
-        expect(await status(chat.send('A', thread, { k: 't', text: 'call +370 612 34567' }))).toBe('PAWLEGENDS_CHAT_REJECTED:contact');
-        expect(await status(chat.send('A', thread, { k: 't', text: 'fuck you' }))).toBe('PAWLEGENDS_CHAT_REJECTED:words');
+        expect(await status(chat.send('A', thread, { k: 't', text: 'add me on discord' }))).toBe(
+            'PAWLEGENDS_CHAT_REJECTED:link'
+        );
+        expect(await status(chat.send('A', thread, { k: 't', text: 'call +370 612 34567' }))).toBe(
+            'PAWLEGENDS_CHAT_REJECTED:contact'
+        );
+        expect(await status(chat.send('A', thread, { k: 't', text: 'fuck you' }))).toBe(
+            'PAWLEGENDS_CHAT_REJECTED:words'
+        );
         expect(models.messages.docs).toHaveLength(0);
     });
 
@@ -251,7 +288,16 @@ describe('pawlegends chat: send rules', () => {
     it('a chat_mute sanction refuses text and quick', async () => {
         const { chat, models, clock } = harness();
         const { thread } = await chat.open('A', code('C'));
-        await models.sanctions.create({ accountId: 'A', kind: 'chat_mute', until: new Date(clock.ms + 86_400_000), by: 'M', reasonCode: 'x', reports: [], seenAt: null, createdAt: new Date() });
+        await models.sanctions.create({
+            accountId: 'A',
+            kind: 'chat_mute',
+            until: new Date(clock.ms + 86_400_000),
+            by: 'M',
+            reasonCode: 'x',
+            reports: [],
+            seenAt: null,
+            createdAt: new Date(),
+        });
         expect(await status(chat.send('A', thread, { k: 'q', id: 0 }))).toBe('PAWLEGENDS_CHAT_MUTED');
         expect(await status(chat.send('A', thread, { k: 't', text: 'hi' }))).toBe('PAWLEGENDS_CHAT_MUTED');
         clock.advance(86_400_000 + 1);
@@ -261,7 +307,15 @@ describe('pawlegends chat: send rules', () => {
     it('new DM threads: 10 a day', async () => {
         const { chat, models } = harness();
         for (let i = 0; i < 10; i++)
-            await models.threads.create({ _id: `d${'x'.repeat(21)}${i}`, kind: 'dm', members: ['A', `Z${i}`], createdBy: 'A', createdAt: new Date(Date.UTC(2026, 10, 12, 11)), lastAt: new Date(), exp: new Date() });
+            await models.threads.create({
+                _id: `d${'x'.repeat(21)}${i}`,
+                kind: 'dm',
+                members: ['A', `Z${i}`],
+                createdBy: 'A',
+                createdAt: new Date(Date.UTC(2026, 10, 12, 11)),
+                lastAt: new Date(),
+                exp: new Date(),
+            });
         expect(await status(chat.open('A', code('C')))).toBe('PAWLEGENDS_CHAT_RATE');
     });
 });
@@ -335,7 +389,14 @@ describe('pawlegends chat: reports', () => {
         expect(await chat.report('A', { msg: bad.mid, kind: 'harass', note: 'mean' })).toEqual({ created: true });
         expect(await chat.report('A', { msg: bad.mid, kind: 'harass' })).toEqual({ created: false });
         const row = models.reports.docs[0];
-        expect(row).toMatchObject({ reason: 'chat', chatKind: 'harass', target: 'C', reporter: 'A', queue: 'chat', note: 'mean' });
+        expect(row).toMatchObject({
+            reason: 'chat',
+            chatKind: 'harass',
+            target: 'C',
+            reporter: 'A',
+            queue: 'chat',
+            note: 'mean',
+        });
         expect(row.snapshot.text).toBe('line 6 ok');
         expect(row.snapshot.context).toHaveLength(6);
         // the evidence outlives the 30-day chat TTL
@@ -347,7 +408,9 @@ describe('pawlegends chat: reports', () => {
         const { thread } = await chat.open('A', code('K'));
         const sent = await chat.send('A', thread, { k: 'q', id: 0 });
         expect(await status(chat.report('A', { msg: sent.message.mid, kind: 'spam' }))).toBe('PAWLEGENDS_CHAT_INVALID');
-        expect(await status(chat.report('D', { msg: sent.message.mid, kind: 'spam' }))).toBe('PAWLEGENDS_CHAT_NOT_FOUND');
+        expect(await status(chat.report('D', { msg: sent.message.mid, kind: 'spam' }))).toBe(
+            'PAWLEGENDS_CHAT_NOT_FOUND'
+        );
         expect(await status(chat.report('K', { msg: sent.message.mid, kind: 'nope' }))).toBe('PAWLEGENDS_CHAT_INVALID');
         await chat.report('K', { msg: sent.message.mid, kind: 'spam', note: 'hello' });
         expect(models.reports.docs[0].note).toBeUndefined();

@@ -16,7 +16,10 @@ export function liveHeroIds(): readonly string[] {
     return party?.HERO_IDS ?? [];
 }
 
-export type AvatarChoice = { kind: 'hero'; hero: string } | { kind: 'cat'; catId: string } | { kind: 'icon'; icon: string };
+export type AvatarChoice =
+    | { kind: 'hero'; hero: string }
+    | { kind: 'cat'; catId: string }
+    | { kind: 'icon'; icon: string };
 
 export interface AvatarProfile {
     _id: string;
@@ -134,7 +137,9 @@ export interface AvatarChoiceInput {
  * field name that failed.
  */
 export async function checkAvatarChoice(
-    deps: AvatarDeps & { catById?: (id: string) => Promise<{ owner?: unknown; catImg?: unknown; deletedAt?: unknown } | null> },
+    deps: AvatarDeps & {
+        catById?: (id: string) => Promise<{ owner?: unknown; catImg?: unknown; deletedAt?: unknown } | null>;
+    },
     accountId: string,
     body: AvatarChoiceInput
 ): Promise<{ set: Record<string, unknown> } | { bad: string }> {
@@ -143,13 +148,29 @@ export async function checkAvatarChoice(
     if (body.avatar !== undefined) {
         const a = body.avatar as Record<string, unknown> | null;
         if (!a || typeof a !== 'object' || Array.isArray(a)) return { bad: 'avatar' };
-        if (a.kind === 'hero' && typeof a.hero === 'string' && deps.heroes.includes(a.hero) && Object.keys(a).length === 2)
+        if (
+            a.kind === 'hero' &&
+            typeof a.hero === 'string' &&
+            deps.heroes.includes(a.hero) &&
+            Object.keys(a).length === 2
+        )
             set.avatar = { kind: 'hero', hero: a.hero };
-        else if (a.kind === 'cat' && typeof a.catId === 'string' && /^[a-f0-9]{24}$/i.test(a.catId) && Object.keys(a).length === 2) {
+        else if (
+            a.kind === 'cat' &&
+            typeof a.catId === 'string' &&
+            /^[a-f0-9]{24}$/i.test(a.catId) &&
+            Object.keys(a).length === 2
+        ) {
             const cat = deps.catById ? await deps.catById(a.catId) : null;
-            if (!cat || String(cat.owner ?? '') !== accountId || cat.deletedAt || !artOf(cat.catImg)) return { bad: 'avatar' };
+            if (!cat || String(cat.owner ?? '') !== accountId || cat.deletedAt || !artOf(cat.catImg))
+                return { bad: 'avatar' };
             set.avatar = { kind: 'cat', catId: a.catId.toLowerCase() };
-        } else if (a.kind === 'icon' && typeof a.icon === 'string' && /^[a-z0-9._-]{1,48}$/.test(a.icon) && Object.keys(a).length === 2) {
+        } else if (
+            a.kind === 'icon' &&
+            typeof a.icon === 'string' &&
+            /^[a-z0-9._-]{1,48}$/.test(a.icon) &&
+            Object.keys(a).length === 2
+        ) {
             items.push(`icon.${a.icon}`);
             set.avatar = { kind: 'icon', icon: a.icon };
         } else return { bad: 'avatar' };
@@ -168,7 +189,8 @@ export async function checkAvatarChoice(
     if (items.length) {
         const owned = await ownedItems(deps, [accountId], items);
         for (const item of items)
-            if (!owned.has(`${accountId}|${item}`)) return { bad: item.startsWith('icon.') ? 'avatar' : item.split('.')[0] };
+            if (!owned.has(`${accountId}|${item}`))
+                return { bad: item.startsWith('icon.') ? 'avatar' : item.split('.')[0] };
     }
     return { set };
 }

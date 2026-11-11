@@ -159,7 +159,10 @@ const CHAT_INFO_TTL_MS = 10 * 60_000;
 const CHAT_PHASES: ReadonlySet<string> = new Set(['lobby', 'pick', 'results']);
 /** A 24-hex message id (timestamp seconds + random), shaped like a Mongo ObjectId so the API can name it. */
 const chatMid = (nowMs: number) =>
-    Math.floor(nowMs / 1000).toString(16).padStart(8, '0').slice(-8) + randomBytes(8).toString('hex');
+    Math.floor(nowMs / 1000)
+        .toString(16)
+        .padStart(8, '0')
+        .slice(-8) + randomBytes(8).toString('hex');
 
 /** What started a drain (LIVE-MATCH-DEPLOYS.md §4.1); a later trigger only makes it more final. */
 export type DrainTrigger = 'generation' | 'endpoint' | 'sigterm';
@@ -1487,7 +1490,8 @@ export class PartyRelay {
         c.at = c.at.filter(t => now - t < CHAT_SAY_RATE.windowMs);
         if (c.at.length >= CHAT_SAY_RATE.perWindow) return reject('rate');
         const info = this.chatInfo.get(member)?.info;
-        if (this.chatMuted(member, now)) return reject('muted', typeof info?.muted === 'number' ? info.muted : undefined);
+        if (this.chatMuted(member, now))
+            return reject('muted', typeof info?.muted === 'number' ? info.muted : undefined);
         const strangers = !!p.mm && p.mm.strangers.size > 0;
         let text: string | undefined;
         if (msg.k === 'q') {
@@ -1533,7 +1537,14 @@ export class PartyRelay {
                 .filter(m => m.identity.ticketed && !m.identity.guest && m.identity.accountId)
                 .map(m => m.identity.accountId as string);
             this.opts.chat.store(
-                { _id: mid, thread: this.parties.chatThread(p), from: id.accountId, k: msg.k, ...body, at: new Date(now) },
+                {
+                    _id: mid,
+                    thread: this.parties.chatThread(p),
+                    from: id.accountId,
+                    k: msg.k,
+                    ...body,
+                    at: new Date(now),
+                },
                 members
             );
         }
