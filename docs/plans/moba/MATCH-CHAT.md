@@ -275,12 +275,13 @@ Typo corrections ("*clean") do not count against the budget. They are rare and l
 | Terse | 0.25 | 1–3 words, all lowercase, no punctuation. Abbreviations (gj, ty, np, wp, b, omw, mb). Typo rate 3% |
 | Chatty | 0.10 | 2–7 words. Lowercase 70%. Sometimes splits a line into two sends 1–2 s apart ("nice" … "that was clean"). Typo rate 6%, of which 25% are followed by a "*word" fix |
 | Emoji-ish | 0.08 | 30% of lines are a lone emoji or end with one (😹 😼 🐾 💀 😅 👏). Typo rate 2% |
-| Proper | 0.12 | Sentence case and punctuation ("Good luck!", "Nice one."). Typo rate 1%, no abbreviations |
+| Proper | 0.12 | Sentence case and punctuation that fits the mood ("Good luck!", "Defend."; an up line never ends in "."). Typo rate 1%, no abbreviations |
 
 Each persona also gets:
 - **Device:** `phone` (70%; 3.0–4.5 characters/s, more typos, shorter lines) or `desktop` (5–7 characters/s).
-- **Elongation habit:** 0–10% ("niceee", "lets gooo").
-- **Punctuation habit:** none, `!`, or `…`.
+- **Elongation habit:** 0–10% ("niceee", "lets gooo"), only on words people stretch (never "wpppp" or "2 seeec").
+- **Punctuation habit:** none, `!`, or `…` (`…` only on a down line: "nice…" and "ty…" read sarcastic).
+- **Casing:** chat shorthand (gg, wp, gj, ty, o/…) is never capitalised by a desktop typist; a phone sometimes auto-capitalises it ("Gg"), never "o/". A silent persona's "gg" is bare.
 - **Flavour rate:** 0–8% for cats-vs-dogs lines, by side.
 
 ### 5.5 Triggers (cue → candidate categories, base probability, extra guard)
@@ -332,6 +333,7 @@ Before sending, the engine checks whether the line is still true: the bot is sti
   - gg → `gg`
   - laughter (lol/😹/haha) → `lol` / 😹
 - The probability is 0.25, and it needs budget.
+- The reply comes from the bot the human means: a "nice" / "gj" only from a bot that got a kill or an objective in the last 15 s, a "ty" only from a bot that assisted the human's kill in the last 15 s. Nobody fits: silence.
 - Anything else gets silence: questions, a line containing "?", requests, insults, names, numbers.
 - A bot never answers a question and never continues a thread.
 
@@ -358,6 +360,7 @@ Before sending, the engine checks whether the line is still true: the bot is sti
 - **Guests:** in memory, keyed by guest key, for 24 h.
 - **Solo:** `localStorage` key `pl.botSeen`, read and written in try/catch.
 - **Picking a line:** the candidate pick excludes any `lid` or surface in the union of the recipients' rings. If every candidate is excluded, the cue is skipped.
+- **Wheel phrases:** a line sent as a phrase id (quick tier, all chat) is exempt from the `lid` and surface checks and does not enter the `lid` ring: everyone's wheel repeats, and with ~55 phrase lines the ring would otherwise mute a phrases-only (solo, unknown age) account's bots after a few hundred matches. Common tokens still vary.
 - **Very common tokens:** gg, ty, gj, b, omw, nice and lol are exempt from the `lid` ring, because people say them every match. Their **surface** (casing, punctuation, elongation, emoji) must still differ from the recipient's last 3 surfaces of that token.
 - **Inside one match:** no two bots say the same thing within 30 s. At match end at most 2 bots say gg, and never the same surface.
 
@@ -388,6 +391,10 @@ The variant layer multiplies these through casing, punctuation, elongation, emoj
 - **gg_win:** gg [q25] · gg wp [q26] · ggwp [q26] · ggs · gg! · wp all [q27] · nice game · gg team · that was fun · gg 😼 (cat) · gg 🐶 (dog) · good game [q39] · close one gg
 - **gg_lose:** gg [q25] · ggs · gg wp [q26] · unlucky · gg next time · close game · wp [q27] · they were good · gg 😿
 - **reaction:** np · yw · 👍 · ty · thx · 😼 · lol · 😹 · gg
+
+**Context tags** (believability read): "nice shutdown" and "bounty gone lol" only follow a shutdown the human really got (the death's killer is the human; the sim can credit a shutdown whose victim a tower finished); "they were two" and "two there" only a death with 2+ enemies close; the "my fault" follow only the bot's own death. "u good" (read as a question) became "well done".
+
+**Believability harness** (`tools/chat-transcripts`, diagnose-only): one account plays a session of real simulated matches (the `normal` player bot in slot 0, the memory carried over, a light human chat model) and prints each match's chat beside the events. `npx vitest run --config tools/chat-transcripts/vitest.config.ts` with `CHAT_TX_N`, `CHAT_TX_TIER`, `CHAT_TX_MAP`, `CHAT_TX_SEED`, `CHAT_TX_OUT`. Last read (50 Crossing text, 50 Crossing quick, 30 Hearthwood text): 0.54–0.74 visible bot lines a match on Crossing (44–56% of matches with none), 1.1 on Hearthwood, no typed line repeated across 50 matches.
 
 **Bank lint** (unit test, which fails the build):
 - Every base line and generated variant passes `chat-filter.ts`.

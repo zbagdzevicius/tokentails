@@ -47,8 +47,9 @@ export function drawPersona(rng: Rng): Persona {
     fixRate: kind === 'chatty' ? 0.25 : 0,
     elong: kind === 'proper' ? 0 : rng.range(0, 0.1),
     punct: kind === 'terse' || kind === 'proper' ? '' : punctRoll < 0.6 ? '' : punctRoll < 0.85 ? '!' : '…',
+    // a silent player's rare "gg" is typed bare
+    lower: kind === 'terse' || kind === 'silent' ? 1 : kind === 'chatty' ? 0.7 : kind === 'emoji' ? 0.8 : 0,
     flavour: rng.range(0, 0.08),
-    lower: kind === 'terse' ? 1 : kind === 'chatty' ? 0.7 : kind === 'emoji' ? 0.8 : 0,
   };
 }
 
@@ -100,7 +101,6 @@ const EXPAND: Readonly<Record<string, string>> = Object.freeze({
   dw: "Don't worry",
   def: 'Defend',
   lol: 'Haha',
-  'u good': 'You good',
   'brb base': 'Going back to base',
   'first blood lets go': "First blood, let's go",
   'lets go': "Let's go",
@@ -125,7 +125,26 @@ const EXPAND: Readonly<Record<string, string>> = Object.freeze({
   'grizz up': 'Grizzlechop is up',
   'grizz down': 'Grizzlechop down',
   'going grizz': 'Going Grizzlechop',
+  'o/': 'Hi',
+  rip: 'RIP',
+  'rip me': 'RIP me',
 });
+
+/**
+ * Chat shorthand nobody capitalises on a keyboard (a phone's auto-capitalisation still does, now and then: "Gg").
+ * Believability read (tools/chat-transcripts): "O/", "Gg" and "Wp" from a desktop player read as a script.
+ */
+const SHORTHAND_RE = /^(gg|ggs|ggwp|wp|gj|ty|thx|np|yw|omw|otw|mb|sry|b|dw|def|glhf|gl|hf|lol|o\/|rip|ok)(?=$|[\s!.…])/i;
+
+/**
+ * Words people stretch ("niceee", "gooo", "tyyy"). Anything else stretched ("wpppp", "seeeec", "lanee") reads as a key
+ * held down by a script (believability read, tools/chat-transcripts).
+ */
+const STRETCH = new Set([
+  'nice', 'go', 'lets', 'wow', 'so', 'good', 'close', 'clean', 'sick', 'huge', 'big', 'ok', 'yo', 'hey', 'hi', 'ty',
+  'rip', 'ugh', 'oops', 'phew', 'lol', 'haha', 'love', 'insane', 'beast', 'boom', 'kaboom', 'sorry', 'sry', 'unlucky',
+  'welp', 'ouch', 'fun', 'win', 'tho', 'yes', 'lucky', 'barely', 'gogo',
+]);
 
 const EMOJI: readonly string[] = ['😹', '😼', '🐾', '💀', '😅', '👏'];
 /** Emoji that fit a category's mood (an emoji persona never puts 💀 on a win). */
@@ -149,6 +168,7 @@ export function elongate(s: string, extra: number): string | null {
   const m = /([A-Za-z]+)([^A-Za-z]*)$/.exec(s);
   if (!m || m[1].length < 2) return null;
   const word = m[1];
+  if (!STRETCH.has(word.toLowerCase().replace(/(.)\1+$/, '$1'))) return null;
   let at = -1;
   for (let i = word.length - 1; i >= 0; i--)
     if ('aeiouy'.indexOf(word[i].toLowerCase()) !== -1) {
@@ -176,19 +196,27 @@ export function dress(base: string, p: Persona, rng: Rng, opts: SurfaceOpts): st
   const key = base.toLowerCase();
   if (p.kind === 'proper') {
     s = EXPAND[key] ?? capFirst(s);
-    if (!onlyEmoji(s) && !endsPunct(s) && s.length > 2) s += rng.chance(0.55) ? '!' : '.';
+    // the end mark fits the mood: "Sick." and "Welp!" read wrong (believability read)
+    if (!onlyEmoji(s) && !endsPunct(s) && s.length > 2) {
+      const r = rng.next();
+      if (opts.mood === 'up') s += r < 0.6 ? '!' : '';
+      else if (opts.mood === 'down') s += r < 0.45 ? '.' : '';
+      else s += r < 0.35 ? '!' : r < 0.55 ? '.' : '';
+    }
   } else {
     if (p.kind === 'terse') {
       s = ABBREV[key] ?? s;
       s = stripEnd(s);
     }
     if (rng.next() < p.lower) s = s.toLowerCase();
-    else if (!hasEmoji(s.charAt(0)) && rng.chance(0.5)) s = capFirst(s);
+    else if (!hasEmoji(s.charAt(0)) && rng.chance(0.5) && (!SHORTHAND_RE.test(s) || (p.device === 'phone' && !/^o\//.test(s) && rng.chance(0.4)))) s = capFirst(s);
     if (p.elong > 0 && rng.chance(p.elong)) {
       const e = elongate(stripEnd(s), 1 + rng.int(3));
       if (e) s = e + (endsPunct(s) ? s.slice(stripEnd(s).length) : '');
     }
-    if (p.kind !== 'terse' && p.punct && !endsPunct(s) && !onlyEmoji(s) && rng.chance(0.35)) s += p.punct;
+    // "…" only trails a down line ("nice…" and "ty…" read sarcastic); an up line takes "!" instead
+    const mark = p.punct === '…' && opts.mood !== 'down' ? (opts.mood === 'up' ? '!' : '') : p.punct;
+    if (p.kind !== 'terse' && mark && !endsPunct(s) && !onlyEmoji(s) && rng.chance(0.35)) s += mark;
     if (p.kind === 'emoji' && rng.chance(0.3)) {
       const set = MOOD_EMOJI[opts.mood] ?? EMOJI;
       const em = rng.pick(set);

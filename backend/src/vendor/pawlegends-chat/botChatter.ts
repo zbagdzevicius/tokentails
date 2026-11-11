@@ -48,6 +48,8 @@ export const CHATTER = Object.freeze({
   startToMs: 25_000,
   /** A human's kills this close together are a multikill. */
   multiKillMs: 10_000,
+  /** A human's "nice" or "ty" is about something a bot did this recently. */
+  deedMs: 15_000,
   closeLowHp: 0.12,
   closeAfterMs: 4_000,
   maxChars: 40,
@@ -56,7 +58,11 @@ export const CHATTER = Object.freeze({
 /** The budget per team (§5.3). */
 export const BUDGET_WEIGHTS: readonly number[] = [0.4, 0.3, 0.2, 0.1];
 
-/** One recipient's memory of bot lines (§5.8): the last 80 lids, the last 30 surfaces, the last 3 per common token. */
+/**
+ * One recipient's memory of bot lines (§5.8): the last 80 typed lids, the last 30 surfaces, the last 3 per common token.
+ * Wheel phrases (`q:` surfaces) are exempt from the lid and surface checks (everyone's wheel repeats; with only ~55
+ * phrase lines the memory would otherwise mute a phrases-only account's bots after a few hundred matches).
+ */
 export interface BotSeen {
   l: string[];
   s: string[];
@@ -97,7 +103,7 @@ export function pushSeen(ring: BotSeen | null | undefined, lines: readonly { lid
       const list = (t[x.tok] ??= []);
       list.push(x.surface);
       t[x.tok] = list.slice(-SEEN_CAPS.perToken);
-    } else l.push(x.lid);
+    } else if (!x.surface.startsWith('q:')) l.push(x.lid); // phrases are exempt: the ring keeps 80 typed lines
     s.push(x.surface);
   }
   return { l: l.slice(-SEEN_CAPS.lids), s: s.slice(-SEEN_CAPS.surfaces), t };
@@ -263,6 +269,13 @@ export class BotChatter {
   private readonly reactedTo = new Map<number, number>();
   private readonly humanKills = new Map<number, number[]>();
   private readonly praisedAt = new Map<number, number>();
+  /** When a praise line was actually planned for a human (a shutdown on the same kill does not add a second). */
+  private readonly praisePlanned = new Map<number, number>();
+  /** The last hero death per victim: a shutdown is praised only when the human really got that kill. */
+  private readonly lastDeath = new Map<number, { killer: number; at: number }>();
+  /** A bot's last kill or objective (a human's "nice" / "gj" is for it), and its last assist on a human's kill. */
+  private readonly deedAt = new Map<number, number>();
+  private readonly helpedAt = new Map<number, number>();
   private readonly diedOnce = new Set<number>();
   private readonly lowSince = new Map<number, number>();
   private readonly backDone = new Set<number>();
@@ -369,10 +382,13 @@ export class BotChatter {
       }
       case 'shutdown': {
         if (!this.isHumanSlot(cue.killer)) return;
-        const last = this.praisedAt.get(cue.killer);
-        if (last !== undefined && nowMs - last < 2000) return;
+        // the sim can credit a shutdown to a human whose victim a tower or minion finished: no praise for that
+        const d = this.lastDeath.get(cue.victim);
+        if (!d || d.killer !== cue.killer || nowMs - d.at > 1000) return;
+        const planned = this.praisePlanned.get(cue.killer);
+        if (planned !== undefined && nowMs - planned < 2000) return;
         this.praisedAt.set(cue.killer, nowMs);
-        this.plan(this.teamOf(cue.killer), 'praise', nowMs, { p: 0.3, who: cue.killer });
+        if (this.plan(this.teamOf(cue.killer), 'praise', nowMs, { p: 0.3, who: cue.killer, tag: 'shutdown' })) this.praisePlanned.set(cue.killer, nowMs);
         return;
       }
       case 'tower':
@@ -380,6 +396,7 @@ export class BotChatter {
         this.plan((1 - cue.by) as Team, 'tower_lost', nowMs, { p: 0.08, guard: 'notFight' });
         return;
       case 'objective':
+        if (this.isBot(cue.slot)) this.deedAt.set(cue.slot, nowMs);
         this.plan(cue.team, 'obj_ours', nowMs, { p: 0.15, tag: cue.kind });
         return;
       case 'objectiveSpawn':
@@ -428,7 +445,18 @@ export class BotChatter {
     const last = this.reactedTo.get(m.slot);
     if (last !== undefined && nowMs - last < CHATTER.reactSameHumanMs) return;
     const team = this.teamOf(m.slot);
-    if (this.plan(team, 'reaction', nowMs, { p: 0.25, tag: intent, reaction: true, quickOnly: m.k === 'q' })) {
+    // a "ty" answers whoever the human means: "nice" / "gj" goes to a bot that just got a kill or an objective, "ty"
+    // to a bot that just helped the human's kill. Nobody fits: silence (a random bot saying "ty" reads as a script).
+    let among: number[] | undefined;
+    if (intent === 'praise' || intent === 'thanks') {
+      const map = intent === 'praise' ? this.deedAt : this.helpedAt;
+      among = this.botsOf(team).filter((s) => {
+        const at = map.get(s);
+        return at !== undefined && nowMs - at <= CHATTER.deedMs;
+      });
+      if (!among.length) return;
+    }
+    if (this.plan(team, 'reaction', nowMs, { p: 0.25, tag: intent, reaction: true, quickOnly: m.k === 'q', among })) {
       this.reactedTo.set(m.slot, nowMs);
       this.stats.reactions++;
     }
@@ -519,9 +547,12 @@ export class BotChatter {
       const st = this.states.get(cue.id);
       this.states.set(cue.id, { ...(st ?? { slot: cue.id, hp: 0, intent: 'base', enemies: 0, allies: 0 }), alive: false, hp: 0, intent: 'base', slot: cue.id });
     }
+    this.lastDeath.set(cue.id, { killer: cue.killer, at: nowMs });
     if (cue.killer < 0) return;
     const kTeam = this.teamOf(cue.killer);
     if (kTeam === vTeam) return;
+    if (this.isBot(cue.killer)) this.deedAt.set(cue.killer, nowMs);
+    if (this.isHumanSlot(cue.killer)) for (const a of cue.assists) if (this.isBot(a) && this.teamOf(a) === kTeam) this.helpedAt.set(a, nowMs);
     // a bot's own death by a hero, once a match
     if (this.isBot(cue.id) && !this.diedOnce.has(cue.id)) {
       this.diedOnce.add(cue.id);
@@ -534,7 +565,7 @@ export class BotChatter {
       const last = this.praisedAt.get(cue.killer);
       if (last !== undefined && nowMs - last < 2000) return;
       this.praisedAt.set(cue.killer, nowMs);
-      this.plan(kTeam, 'praise', nowMs, { p: kills.length >= 2 ? 0.3 : 0.06, who: cue.killer });
+      if (this.plan(kTeam, 'praise', nowMs, { p: kills.length >= 2 ? 0.3 : 0.06, who: cue.killer })) this.praisePlanned.set(cue.killer, nowMs);
     } else if (this.isBot(cue.killer) && cue.assists.some((a) => this.isHumanSlot(a) && this.teamOf(a) === kTeam)) {
       this.plan(kTeam, 'thanks', nowMs, { p: 0.1, only: cue.killer });
     }
@@ -603,6 +634,8 @@ export class BotChatter {
       end?: boolean;
       calm?: boolean;
       quickOnly?: boolean;
+      /** Only these bots may say it. */
+      among?: readonly number[];
     },
   ): Pending | null {
     if (this.silenced) return null;
@@ -615,6 +648,7 @@ export class BotChatter {
     // the bot: the relevant one when it can talk, else a random talker on the team
     let cands = this.botsOf(team).filter((s) => s !== o.exclude);
     if (o.only !== undefined) cands = cands.filter((s) => s === o.only);
+    if (o.among) cands = cands.filter((s) => o.among!.indexOf(s) !== -1);
     cands = cands.filter((s) => {
       const k = this.personas.get(s)!.kind;
       // a silent persona says at most "gg" at the end (p 0.25)
@@ -633,8 +667,12 @@ export class BotChatter {
     const fight = this.inFight(slot);
     const side = this.setup.sides?.[team];
     const whoName = o.who !== undefined ? this.firstName(o.who) : null;
+    const st = this.states.get(slot);
     let lines = (LINES_BY_CAT[cat] ?? []).filter((l) => {
       if (o.tag && l.tag && l.tag !== o.tag) return false;
+      // context lines: "nice shutdown" only after a shutdown, "they were two" only with 2+ enemies close
+      if (l.tag === 'shutdown' && o.tag !== 'shutdown') return false;
+      if (l.tag === 'two' && (st?.enemies ?? 0) < 2) return false;
       if (cat === 'reaction' && l.tag !== o.tag) return false;
       if (l.side && l.side !== side) return false;
       if (l.text.indexOf('{who}') !== -1 && !whoName) return false;
@@ -642,7 +680,8 @@ export class BotChatter {
       if (tier === 'quick' && l.q === undefined) return false;
       if (silentGg && l.tok !== 'gg') return false;
       if (!l.tok && this.usedLids.has(l.lid)) return false;
-      if (!l.tok && seen?.lids.has(l.lid)) return false;
+      // the cross-match memory is for typed lines: wheel phrases are what everyone says every match
+      if (!l.tok && tier === 'text' && seen?.lids.has(l.lid)) return false;
       return true;
     });
     // flavour (cats vs dogs) only at the persona's own small rate; {who} at most 5% of praise
@@ -658,7 +697,7 @@ export class BotChatter {
       const line = this.rng.pick(lines);
       if (tier === 'quick') {
         const surface = `q:${line.q}`;
-        if (seen?.surf.has(surface) && !line.tok) continue;
+        // common tokens still vary across matches ("gg" then "gg wp"); other phrases may repeat like anyone's wheel
         if (line.tok && seen?.tok.get(line.tok)?.has(surface)) continue;
         if (line.tok && this.sentLog.some((x) => x.tok === line.tok && x.surface === surface)) continue;
         if (this.recentSurface(surface, nowMs)) continue;
@@ -735,7 +774,8 @@ export class BotChatter {
       if (chosen.typo && this.rng.chance(persona.fixRate)) this.follow(p, `*${chosen.typo.word}`, this.rng.range(1500, 3000), persona);
       else if (FOLLOW_OF[cat] && !fight && this.rng.chance(0.15)) {
         const group = FOLLOW_OF[cat];
-        const opts = (LINES_BY_CAT.follow ?? []).filter((l) => l.tag === group && !this.usedLids.has(l.lid) && !seen?.lids.has(l.lid));
+        // "my fault" only follows the bot's own death (after a lost tower it reads as a script taking blame)
+        const opts = (LINES_BY_CAT.follow ?? []).filter((l) => (l.tag === group || (cat === 'death' && l.tag === 'self')) && !this.usedLids.has(l.lid) && !seen?.lids.has(l.lid));
         if (opts.length) {
           const fl = this.rng.pick(opts);
           this.usedLids.add(fl.lid);
