@@ -173,9 +173,9 @@ random party key and the match.
 | Does the app let users create an account? | **Yes**: Google or email and password (optional); in-app deletion: **Yes** |
 | **Personal info → Email address** (optional sign-in) | Collected, **not shared**, **optional**; purposes **App functionality**, **Account management** |
 | **Personal info → Name** (the Google name when shared, the profile name) | Collected, not shared, optional; purposes App functionality, Account management |
-| **Personal info → User IDs** (the Firebase account or guest id) | Collected, not shared, optional; purposes App functionality, Account management |
+| **Personal info → User IDs** (the Firebase account or guest id) | Collected, not shared, **required** (not optional: online, the first match save, party ticket or pass claim makes an anonymous guest id without asking; only fully offline play avoids it); purposes App functionality, Account management |
 | **Device or other IDs** (the random party key; the server keeps its hash) | Collected, **not shared**, **optional** (party play only), processed ephemerally: No; purposes **App functionality**, **Fraud prevention, security, and compliance** (per-key and per-network caps) |
-| **App activity → Other user-generated content / Other actions** (saved matches, Treat Track, friends and ranked if used; party: generated name, hero picks, match inputs, quick-chat phrases, result) | Collected, not shared, optional; purposes App functionality |
+| **App activity → Other user-generated content / Other actions** (saved matches, Treat Track, friends and ranked if used; party: generated name, hero picks, match inputs, quick-chat phrases, result) | Collected, not shared, **required** (online, every finished match is saved to the guest or account without asking); purposes App functionality |
 | Location, financial, health, messages, photos, audio, files, calendar, contacts, web history, app info and performance, crash logs | **Not collected** |
 | Shared with third parties | **No** (Firebase Authentication is a processor acting for us, not sharing) |
 

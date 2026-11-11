@@ -379,6 +379,22 @@ describe('the native host', () => {
     expect(h.last('store')).toMatchObject({ items: [], season: null });
   });
 
+  it('a signed-in account whose profile read fails (offline launch) still hears signed in: Sign out and Delete stay reachable', async () => {
+    const h = track(
+      setup({
+        routes: { 'GET /user/profile': () => ({ status: 503, body: null }) },
+        user: { uid: 'acct-1', isAnonymous: false, providers: ['apple.com'], email: null, emailVerified: true },
+      }),
+    );
+    h.send({ type: 'ready', version: 'x' });
+    await flush(10);
+    expect(h.last('session')).toMatchObject({ signedIn: true, provider: 'apple', progress: null });
+    h.send({ type: 'account', action: 'sign-out' });
+    await flush(10);
+    expect(h.auth.signedOut).toBe(1);
+    expect(h.last('session')).toMatchObject({ signedIn: false });
+  });
+
   it('delete account: last confirmation, a fresh Apple code for an Apple account, DELETE /user/me with the app client id', async () => {
     const h = track(setup({ user: { uid: 'acct-1', isAnonymous: false, providers: ['apple.com'], email: null, emailVerified: true } }));
     h.send({ type: 'ready', version: 'x' });
