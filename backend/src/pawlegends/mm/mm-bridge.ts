@@ -29,6 +29,7 @@ import {
 import { MM_CASUAL, MM_HOME_REGION, MM_LIMITS } from './mm-limits';
 import { identityHash, type MmRoomMember, type MmRoomStore } from './mm-room.schema';
 import type { MmRatingSource } from './rating.schema';
+import type { SanctionSource } from './sanction-reader';
 import type { SlotIntel } from '../party/referee-intel';
 
 /** The referee's per-slot intel on the slot's last holder (the one who played to the end). Pure. */
@@ -141,6 +142,8 @@ export interface MmDeps {
      * reads the client's `hint.matches`. Production (MmService) never sets it: the lock counts server records only.
      */
     trustHintMatches?: boolean;
+    /** Moderator sanctions (SOCIAL-RANKED.md §8.4): queue, PvP and ranked locks, read at `mm.join`. */
+    sanctions?: SanctionSource | null;
 }
 
 /** Is the casual 3v3 newbie lock on? Off while `MM_CASUAL.newbieMatches` is 0 (lifted for now, 2026-11-11). */
@@ -430,6 +433,21 @@ export class MmBridge implements MmHooks {
         const blocked = this.joinBlockedMs(sock, ipKey);
         if (blocked > 0) return this.refuse(member, 'mm_locked', blocked, 'join_rate');
         const memberIds = p ? p.members.map(m => m.id) : [member];
+        // a moderator lock on any member stops the whole party's entry (SOCIAL-RANKED.md §8.4)
+        if (this.deps.sanctions) {
+            let until = 0;
+            for (const id of memberIds) {
+                const acct = api.sock(id)?.identity.accountId;
+                if (acct) until = Math.max(until, await this.deps.sanctions.lockUntil(acct, queue).catch(() => 0));
+            }
+            if (until > 0)
+                return this.refuse(
+                    member,
+                    'mm_locked',
+                    Number.isFinite(until) ? Math.max(1000, until - api.now()) : undefined,
+                    'sanction'
+                );
+        }
         const socks = memberIds.map(id => api.sock(id)).filter((x): x is MmSock => !!x);
         if (socks.length !== memberIds.length) return this.refuse(member, 'party_busy', undefined, 'party_away');
         // the live-room caps (1 per identity, 4 per IP) are checked now, not after the fill: a seat this identity
