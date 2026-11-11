@@ -468,3 +468,55 @@ Hard): …", `pvpNumbers`).
 - Recommendation: judge the per-hero and branch gates on the pooled 8,000 seeds (SE 1.0 / 1.4 points) or widen the
   window band to ± 3 SE; at 2,000 seeds a perfectly balanced roster fails "all four windows" ~98% of the time.
 - Novice vs Normal (≥ 40%) fails on v20 before and after this refit (28.0% → 31.3%). It needs its own pass.
+
+## 10. Gate method (decided after the refit, applies to sim v20 and later)
+
+- **Per hero (46–54%) and level-6 branch (45–55%)**: judged on **pooled fresh seeds**, at least 8,000 3v3 matches
+  (four 2,000-seed `--gate balance` windows added up, or one `--seeds 8000` run): standard error about ±1 point per
+  hero, ±1.4 per branch. Each window's per-hero and branch rows are still printed and reported, not gated.
+- **Every other 3v3 gate** (side, species, tricks, down 10+ wins, pace, median/p95 length, core kills, trailing at
+  3:30) keeps the per-window rule: every 2,000-seed window must pass.
+- **Fit only on seeds 1–14000; verify only on unseen seeds 20001–28000.** Rows fitted on a window are never judged on it.
+- The bands do not move. 5v5 Hearthwood (`hearth-gates`): side, species, length and safety per 4,000-match window
+  (at least two windows); per hero reported per window and judged pooled over the windows, as in 3v3.
+
+### 10.1 Verification of 8d19c81e on unseen seeds 20001–28000 (§10 method): PASS
+
+Run from a `git archive` snapshot of 8d19c81e (so no concurrent edit could reach the bundle), machine load 150–430.
+
+3v3 (`--gate balance`, four 2,000-seed windows; per-window gates):
+
+| Gate | 20001–22000 | 22001–24000 | 24001–26000 | 26001–28000 |
+|---|---|---|---|---|
+| Cats / dogs 47–53 | 50.6 / 49.4 | 50.5 / 49.5 | 50.4 / 49.6 | 48.9 / 51.1 |
+| Map side 45–55 | 49.5 / 50.5 | 50.8 / 49.2 | 50.8 / 49.3 | 49.5 / 50.5 |
+| Down 10+ at the end wins < 5% | 2.1% of 283 | 3.2% of 285 | 3.1% of 293 | 1.8% of 274 |
+| Takedowns a minute 2.5–3.5 | 3.44 | 3.44 | 3.43 | 3.43 |
+| Median 6:30–9:00 / p95 ≤ 10:30 | 7:05 / 8:28 | 7:06 / 8:29 | 7:06 / 8:30 | 7:06 / 8:26 |
+| Core kill before Sudden Death ≥ 70%, no safety end | 95.3%, 0 | 95.0%, 0 | 95.0%, 0 | 95.7%, 0 |
+| Trailing at 3:30 wins 20–40% | 28.7% | 28.4% | 28.0% | 29.4% |
+| Tricks 47–53 (pounce/snack/hiss/purrify) | 49.6 / 49.7 / 52.3 / 48.4 | 50.2 / 49.7 / 51.7 / 48.5 | 50.0 / 50.4 / 50.7 / 48.9 | 50.7 / 52.0 / 50.1 / 47.3 |
+
+Pooled over the 8,000 matches (gated): every hero **48.4% (chili) to 52.3% (duchess)**; level-6 branch Sage
+**50.5%** of 1,198, Brutus **48.4%** of 1,126. Reported only (not gated): per-window hero rates 45.3 (meatball,
+26001–28000) to 55.6 (frankie, 26001–28000), every other window cell 46–54; branch windows 46.2–53.8.
+
+5v5 Hearthwood (`hearth-gates --seeds 2000`, 4,000 matches a window):
+
+| 5v5 gate | 20001–22000 | 22001–24000 |
+|---|---|---|
+| G6 side (team 0) 47–53 | 50.0 | 49.5 |
+| G5 cats 47–53 | 52.0 | 51.7 |
+| G5 p50 12:00–14:30 / p95 | 13:05 / 13:12 | 13:05 / 13:12 |
+| G5 safety end ≤ 2% | 0.0% | 0.0% |
+| G5 heroes (reported per window) | howler 45.9 – bengas 53.7 | 46.6 (rocket) – 53.1 (aviete) |
+
+Pooled 8,000 5v5 matches (gated): every hero **46.7% (howler) to 52.8% (bengas)**. Watch item: every cat is above
+51% and every dog below 49.1% pooled, a species lean of about +1.8 points that sits inside the 47–53 band.
+
+Other checks: determinism 1,000 seeds (20001–21000, + PvP) 2,572,602 commands all identical; 5v5 `--det 100`
+300 / 300; `tsc --noEmit` clean; `lint:sim` ok (151 files); `vendor-sim:check` current (v10–v19 frozen, v20).
+Full `vitest` under load 300+: 14 failures, all timeouts or CPU-time perf limits, plus the two `tools/trailer`
+copy-gate tests that fail on `origin/main` too; rerun alone, every file passes except `perf-sim` (11:00 worst case
+CPU median 1,540–1,594 ms vs ≤ 1,500), which `origin/main` (612ea434) fails the same way back to back at the same
+load (1,536–1,574 ms), so it is machine load, not v20.

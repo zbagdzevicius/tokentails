@@ -7,7 +7,10 @@
  * - G5/G6 symmetry and balance: each seed plays two PvP matches with ten `normal` pilots, cats on team 0 and then the
  *   same line-up with the sides swapped (tools/lib/hearth-entry.ts hearthSymmetryPair). Passes when team 0 wins 47% to
  *   53%, cats 47% to 53%, every hero 46% to 54% (heroes with fewer than 60 matches are reported, not gated), the
- *   median length lies within 12:00 to 14:30 and at most 2% reach the safety end.
+ *   median length lies within 12:00 to 14:30 and at most 2% reach the safety end. Sim v20 method
+ *   (docs/plans/moba/V20-CHASE.md §10): side, species, length and safety must pass in every window (at least two
+ *   `--seeds 2000` windows of 4,000 matches); the per-hero check is judged pooled over those windows. Verify only on
+ *   unseen seeds 20001–28000.
  * - G2 determinism: `--det` seeds each of a solo, a party and a PvP 5v5 match recorded and re-simulated from the record.
  * Exits 1 when a gate fails.
  */
