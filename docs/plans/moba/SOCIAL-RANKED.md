@@ -81,7 +81,7 @@ Hard rules this design keeps:
   - Cannot send or receive requests from recent matches. Can add only by code, or from a party they are in. Both mean real-life or invited contact.
   - Report note field hidden.
   - Presence is shown only to accepted friends, the same as for everyone.
-- **No free text exists anywhere** in social features. The only text input is the 8-character code field.
+- ~~**No free text exists anywhere** in social features.~~ Replaced by [CHAT-AVATARS.md §2](CHAT-AVATARS.md): friends chat with phrases for everyone and filtered free text only when every participant is 16+.
 
 ---
 
@@ -500,7 +500,7 @@ Add `heroSight(m, out: Int32Array)` to `pawlegends/src/sim/server.ts`.
 
 ## 12. Relay and protocol changes
 
-- `PROTO` 4 → **5**. The relay accepts 1..5. Only PROTO 5 may send `mm.join {queue:'ranked'}` and `social.add`. Golden-bytes tests are regenerated.
+- `PROTO` 4 → **5**. The relay accepts 1..5. Only PROTO 5 may send `mm.join {queue:'ranked'}` and `social.add`. Golden-bytes tests are regenerated. PROTO 5 now also carries party chat (`chat.say`, `chat.msg`, `chat.reject`, `chat.notice`; [CHAT-AVATARS.md §5](CHAT-AVATARS.md)), which shipped first; `social.add` and ranked `mm.join` follow in a later PROTO.
 - **New client frame:** `social.add {member}`. Allowed in the party lobby only, rate 5 / min / socket, at most 1 KB, typed guard (MULTIPLAYER §2.3). The relay answers `social.added {member, state: 'sent'|'friends'|'refused'}`.
 - **New error codes:** `mm_ranked_closed`, `mm_ranked_pending`. `mm_locked` gains `why: 'leaver'|'sanction'|'dodge'`.
 - **`PresenceSink`** (relay): buffered, 5 s flush plus 60 s refresh, for non-guest sockets only. It never awaits on the socket path.
