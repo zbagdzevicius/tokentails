@@ -50,6 +50,7 @@ import { LoopGate } from './loop-gate';
 import { RTT_MAX_MS, RelayRtt, regionOfCountry, type RttRegion } from './relay-rtt';
 import { PARTY_LIMITS, TURN_MS } from './party-limits';
 import {
+    MAX_MEMBERS,
     PartyService,
     PARTY_TIMING,
     type Member,
@@ -61,6 +62,7 @@ import {
 import { PartyTicketService } from './party-ticket.service';
 import { RefereePool, roomUnits } from './referee-pool';
 import type { RefereeEnd } from './referee-core';
+import type { PresenceEntry } from './presence-sink';
 import type { RefereeOut } from './referee-host';
 import { AFK_REASONS, Room, type PilotReason } from './room';
 import { RoomScheduler, phaseOf } from './room-scheduler';
@@ -2797,6 +2799,39 @@ export class PartyRelay {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Presence (SOCIAL-RANKED.md §4.3): the registered (ticketed, non-guest) accounts on this relay and their phase,
+     * the most important one per account (match > queue > party). Read by the PresenceSink timer every 5 s, never on
+     * the socket path. A matchmaker party's code is never listed (strangers never see it); a friend party's is, for
+     * accepted friends only (the API decides who reads it).
+     */
+    presenceSnapshot(): PresenceEntry[] {
+        const rank = { party: 1, queue: 2, match: 3 } as const;
+        const out = new Map<string, PresenceEntry>();
+        for (const s of this.socks) {
+            const id = s.identity;
+            if (!s.helloed || s.closed || !id?.ticketed || id.guest || !id.accountId) continue;
+            let e: PresenceEntry | null = null;
+            if (s.seatRoom) e = { accountId: id.accountId, state: 'match' };
+            else if (s.memberId && this.mm.queued(s.memberId)) e = { accountId: id.accountId, state: 'queue' };
+            else {
+                const p = s.memberId ? this.parties.partyOf(s.memberId) : null;
+                if (p && p.queued) e = { accountId: id.accountId, state: 'queue' };
+                else if (p && (!p.mm || p.mm.host))
+                    e = {
+                        accountId: id.accountId,
+                        state: 'party',
+                        party: p.code,
+                        joinable: p.phase === 'lobby' && !p.locked && p.members.length < MAX_MEMBERS,
+                    };
+            }
+            if (!e) continue;
+            const prev = out.get(e.accountId);
+            if (!prev || rank[e.state] > rank[prev.state]) out.set(e.accountId, e);
+        }
+        return [...out.values()];
     }
 
     /** Counters for logs and the load test. */

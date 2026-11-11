@@ -6,6 +6,7 @@ import { MmService, PAWLEGENDS_MM_SCHEMAS } from './pawlegends/mm/mm.service';
 import { PartyRelayService } from './pawlegends/party/party-relay.service';
 import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { MongoRoomStore, PAWLEGENDS_PARTY_SCHEMAS } from './pawlegends/party/room-store';
+import { PAWLEGENDS_RELAY_SOCIAL_SCHEMAS } from './pawlegends/social/social.schema';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
 import { RelayDrainController } from './shared/runtime/relay-drain.controller';
@@ -23,6 +24,8 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
  *   Party tickets are minted by the API role (`POST /pawlegends/party/ticket`) with the same
  *   PAWLEGENDS_PARTY_TICKET_SECRET.
  * - RelayStatsReporter logs the relay counters once a minute for the log-based metrics.
+ * - Social (SOCIAL-RANKED.md §10): only the schemas its sinks write or read: presence (the PresenceSink), the ranked
+ *   gate status and the sanctions (read).
  */
 @Module({
     imports: [
@@ -34,6 +37,7 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
             { name: Cat.name, schema: CatSchema },
             ...PAWLEGENDS_PARTY_SCHEMAS,
             ...PAWLEGENDS_MM_SCHEMAS,
+            ...PAWLEGENDS_RELAY_SOCIAL_SCHEMAS,
         ]),
     ],
     controllers: [HealthController, RelayProbeController, RelayDrainController],
