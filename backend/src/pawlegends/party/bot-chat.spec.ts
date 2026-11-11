@@ -30,7 +30,7 @@ function configOf(rec: any): RefereeConfig {
 describe('referee chat cues are read only (MATCH-CHAT.md §5.1)', () => {
     jest.setTimeout(240_000);
 
-    for (const v of [19, 20])
+    for (const v of [19, 20, 21])
         for (const name of FIXTURES)
             it(`sim v${v} ${name}: the hash trail and the end are identical with cues read every tick`, () => {
                 const sim = simFor(v)!.party!;
