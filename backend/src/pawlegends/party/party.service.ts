@@ -901,6 +901,22 @@ export class PartyService {
         return 'text';
     }
 
+    /**
+     * A team's in-match chat tier (MATCH-CHAT.md §2): free text only when every human seated on that team is a
+     * registered account the relay resolved as 16+ (strangers included: the strictest human decides). A member whose
+     * seat a pilot flies still counts. Bots never count.
+     */
+    matchChatTier(p: Party, team: 0 | 1): 'text' | 'quick' {
+        let any = false;
+        for (const m of p.members) {
+            if (m.slot === undefined || this.teamOfMember(p, m) !== team) continue;
+            any = true;
+            if (!m.identity.ticketed || m.identity.guest || !m.identity.accountId) return 'quick';
+            if (this.events.chatOf?.(m.id)?.tier !== 'text') return 'quick';
+        }
+        return any ? 'text' : 'quick';
+    }
+
     /** The chat thread id of this party (reports name it). */
     chatThread(p: Party): string {
         return partyThreadId(p.id);
@@ -976,6 +992,8 @@ export class PartyService {
         else if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
         if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };
         view.chat = { tier: this.chatTier(p), thread: this.chatThread(p) };
+        // PROTO 6: the recipient's team tier in the match (its composer swaps to phrases when it is quick)
+        if (me?.slot !== undefined) view.chat.match = this.matchChatTier(p, this.teamOfMember(p, me));
         const blocked = this.events.chatOf?.(forMember)?.blocked;
         if (blocked?.length) {
             const ids = p.members

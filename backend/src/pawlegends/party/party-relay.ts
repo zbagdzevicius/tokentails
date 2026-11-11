@@ -29,6 +29,7 @@ import {
     PROTO_MIN,
     PROTO_PVP,
     PROTO_CHAT,
+    PROTO_MATCH_CHAT,
     CHAT_SAY_RATE,
     ProtoError,
     SUBPROTOCOL,
@@ -71,8 +72,16 @@ import { RoomScheduler, phaseOf } from './room-scheduler';
 import type { Occupant, RelayRow, RoomStore, StoredParty, StoredRoom } from './room-store';
 import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
-import { crossesAdultLine, isStickerId, phraseInScope, type ChatAgeBand } from '../../shared-contracts/chat';
-import { filterChatText } from '../../shared-contracts/chat-filter';
+import {
+    CHAT_LIMITS,
+    MATCH_LEGACY_CHAT,
+    crossesAdultLine,
+    isStickerId,
+    phraseInScope,
+    type ChatAgeBand,
+} from '../../shared-contracts/chat';
+import { filterChatText, normalizeChatText } from '../../shared-contracts/chat-filter';
+import { BotChat, BotSeenStore, type BotSeen } from './bot-chat';
 import type { MemberChat } from './party.service';
 
 export interface RelayOptions {
@@ -139,6 +148,8 @@ export interface RelayChatInfo {
 export interface RelayChatLine {
     _id: string;
     thread: string;
+    /** The thread kind (absent: a party thread); MATCH-CHAT.md §3 stores in-match lines in a `match` thread. */
+    kind?: 'party' | 'match';
     from: string;
     k: 't' | 'q' | 's';
     text?: string;
@@ -148,6 +159,8 @@ export interface RelayChatLine {
 
 export interface RelayChatHooks {
     info(accountId: string): Promise<RelayChatInfo>;
+    /** In-match bot chatter memory (MATCH-CHAT.md §5.8): `pawlegendssocial.botSeen`; absent = in memory only. */
+    botSeen?: BotSeenStore;
     /** Buffer a party line and the party's registered account ids (the ChatSink writes in batches). */
     store?(line: RelayChatLine, members: string[]): void;
     /** Subscribe to DM notices for accounts on this relay; returns the unsubscribe. */
@@ -157,6 +170,17 @@ export interface RelayChatHooks {
 /** How long a member's resolved chat info is trusted before a party join refreshes it. */
 const CHAT_INFO_TTL_MS = 10 * 60_000;
 const CHAT_PHASES: ReadonlySet<string> = new Set(['lobby', 'pick', 'results']);
+/** MATCH-CHAT.md §5.5: bot lines after the end only while the end banner shows. */
+const BOT_END_WINDOW_MS = 12_000;
+/** How often due bot lines are sent (and team tiers refreshed). */
+const BOT_TICK_MS = 250;
+/** The legacy wheel id of an in-match phrase, and back (a wheel line from any client is a human cue too). */
+const PHRASE_OF_LEGACY: Readonly<Record<number, number>> = Object.freeze(
+    Object.fromEntries(Object.entries(MATCH_LEGACY_CHAT).map(([phrase, legacy]) => [legacy, Number(phrase)]))
+);
+/** The thread id of a room's in-match chat (reports name it): `m` + a hash of the room id, never the room id. */
+export const matchThreadId = (room: string): string =>
+    `m${createHash('sha256').update(`match:${room}`).digest('hex').slice(0, 24)}`;
 /** A 24-hex message id (timestamp seconds + random), shaped like a Mongo ObjectId so the API can name it. */
 const chatMid = (nowMs: number) =>
     Math.floor(nowMs / 1000)
@@ -211,7 +235,14 @@ interface Sock {
     /** Social rate limit (1 per 2 s, 10 per 30 s; the client mirrors it). */
     social: SocialLimiter;
     /** PROTO 5 party chat: send times in the last 10 s, filter strikes, the text cooldown, DM notices held in a match. */
-    chat?: { at: number[]; strikes: number[]; cooldownUntil: number; held: Set<string> };
+    chat?: {
+        at: number[];
+        strikes: number[];
+        cooldownUntil: number;
+        held: Set<string>;
+        /** PROTO 6 in-match text: the same normalised text 3 times in 60 s is refused (CHAT_LIMITS dup rule). */
+        dups?: { text: string; at: number }[];
+    };
     catchup: { bodies: Uint8Array[]; from: number; to: number; sentBytes: number; windowStartMs: number } | null;
     seatRoom: string | null;
     seatSlot: number;
@@ -256,6 +287,10 @@ interface LiveRoom {
      * (LIVE-MATCH-DEPLOYS.md §5.5): both teams are frozen the same, nobody plays against bots for a moment.
      */
     hold?: { sinceMs: number; need: Set<number>; timer: NodeJS.Timeout } | null;
+    /** MATCH-CHAT.md §5.1: the fill bots the referee samples for the bot chatter (absent: no chatter). */
+    chatBots?: number[];
+    /** When the referee ended the room (the bot end window). */
+    endedAtMs?: number;
 }
 
 /** Seats per team of a live room (5v5 Classic on Hearthwood: 5). */
@@ -368,6 +403,14 @@ export class PartyRelay {
     private readonly pulling = new Map<string, number>();
     /** Gaps (ms) between a room's last turn on its old relay and its clock running here (restore and handoff). */
     private readonly restoreGaps: number[] = [];
+    /** In-match bot chatter (MATCH-CHAT.md §5): one per room with fill bots, and the memory of each recipient. */
+    private readonly botChats = new Map<
+        string,
+        { chat: BotChat; live: LiveRoom; seen: Map<number, { key: string; ring: BotSeen | null }> }
+    >();
+    private botTimer: NodeJS.Timeout | null = null;
+    private readonly botSalt = randomBytes(16).toString('hex');
+    private readonly botSeen: BotSeenStore;
 
     constructor(private readonly opts: RelayOptions) {
         this.now = opts.now ?? Date.now;
@@ -413,6 +456,9 @@ export class PartyRelay {
         this.scheduler.onAdvanced = room => this.afterAdvance(room);
         this.mm = (opts.mm ?? memoryMm({ rooms: new MemoryMmRoomStore(), ratings: null })).hooks(this.mmApi());
         this.chatUnsubscribe = opts.chat?.onNotice?.(n => this.chatNotice(n.to, n.thread)) ?? null;
+        this.botSeen = opts.chat?.botSeen ?? new BotSeenStore(null, () => this.now());
+        this.botTimer = setInterval(() => this.botTick(), BOT_TICK_MS);
+        this.botTimer.unref?.();
         this.upgradeHandler = (req, socket, head) => this.onUpgrade(req, socket, head);
         opts.server.on('upgrade', this.upgradeHandler);
         this.partyTimer = setInterval(() => {
@@ -618,6 +664,8 @@ export class PartyRelay {
             return;
         // PROTO 4 and older never get a chat frame
         if (s.proto < PROTO_CHAT && String(msg.t).startsWith('chat.')) return;
+        // PROTO 5 never gets an in-match chat line (deliverMatchChat sends it the legacy wheel line instead)
+        if (s.proto < PROTO_MATCH_CHAT && msg.t === 'chat.msg' && msg.ch !== undefined) return;
         if (s.ws.readyState === WebSocket.OPEN) s.ws.send(JSON.stringify(msg));
     }
 
@@ -1439,6 +1487,16 @@ export class PartyRelay {
             if (live.casual && msg.kind !== 'emote' && teamOfSlot(o.seatSlot, n) !== team) continue;
             this.sendJson(o, out);
         }
+        // a wheel line is a human message for the bot chatter (quiet window, a phrase reaction at most)
+        if (msg.kind === 'chat') {
+            const phrase = PHRASE_OF_LEGACY[msg.id];
+            this.botChats
+                .get(live.room.id)
+                ?.chat.human(
+                    { slot: s.seatSlot, ch: 'team', k: 'q', ...(phrase !== undefined ? { id: phrase } : {}) },
+                    now
+                );
+        }
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -1485,6 +1543,8 @@ export class PartyRelay {
         const now = this.now();
         const reject = (why: string, until?: number) =>
             this.sendJson(s, until !== undefined ? { t: 'chat.reject', why, until } : { t: 'chat.reject', why });
+        // PROTO 6: a line with a channel is in-match chat (MATCH-CHAT.md §3)
+        if (msg.ch !== undefined) return this.matchChatSay(s, p, msg, now, reject);
         if (!CHAT_PHASES.has(p.phase)) return reject('phase');
         const c = (s.chat ??= { at: [], strikes: [], cooldownUntil: 0, held: new Set() });
         c.at = c.at.filter(t => now - t < CHAT_SAY_RATE.windowMs);
@@ -1563,6 +1623,288 @@ export class PartyRelay {
                 members
             );
         }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    // In-match chat and bot chatter (MATCH-CHAT.md §2, §3, §5)
+
+    /** A team's in-match chat tier (every human seated on it a registered 16+ account → 'text'). */
+    private matchTier(live: LiveRoom, team: 0 | 1): 'text' | 'quick' {
+        const p = this.parties.byId(live.party);
+        return p ? this.parties.matchChatTier(p, team) : 'quick';
+    }
+
+    /**
+     * PROTO 6 `chat.say` in a match. Checks, in order (§3): a live seat flown by its human, no `chat_mute` and no text
+     * cooldown, the socket's chat bucket, the channel tier (text only in a 'text' team, never in all chat), the phrase
+     * scope (`match` / `all`), the filter (a strike per refusal), the duplicate rule.
+     */
+    private matchChatSay(
+        s: Sock,
+        p: Party,
+        msg: Extract<ClientJson, { t: 'chat.say' }>,
+        now: number,
+        reject: (why: string, until?: number) => void
+    ): void {
+        const live = this.seatOf(s);
+        if (s.proto < PROTO_MATCH_CHAT || !live || p.phase !== 'match' || live.endedAtMs !== undefined)
+            return reject('phase');
+        if (live.room.slots[s.seatSlot]?.mode === 'pilot') return reject('phase');
+        const member = s.memberId!;
+        const ch = msg.ch === 'all' ? 'all' : 'team';
+        const c = (s.chat ??= { at: [], strikes: [], cooldownUntil: 0, held: new Set() });
+        c.at = c.at.filter(t => now - t < CHAT_SAY_RATE.windowMs);
+        if (c.at.length >= CHAT_SAY_RATE.perWindow) return reject('rate');
+        const info = this.chatInfo.get(member)?.info;
+        const sid = s.identity;
+        if (this.opts.chat && sid?.ticketed && !sid.guest && sid.accountId && !info) {
+            this.resolveChat(s);
+            return reject('rate');
+        }
+        if (this.chatMuted(member, now))
+            return reject('muted', typeof info?.muted === 'number' ? info.muted : undefined);
+        const n = teamSizeOfLive(live);
+        const team = teamOfSlot(s.seatSlot, n);
+        let text: string | undefined;
+        if (msg.k === 'q') {
+            if (
+                msg.id === undefined ||
+                msg.text !== undefined ||
+                !phraseInScope(msg.id, ch === 'all' ? 'all' : 'match')
+            )
+                return reject('scope');
+        } else if (msg.k === 't') {
+            if (msg.id !== undefined || msg.text === undefined) return reject('scope');
+            if (ch === 'all') return reject('quick_only');
+            const cooldown = Math.max(c.cooldownUntil, info?.cooldownUntil ?? 0);
+            if (cooldown > now) return reject('cooldown', cooldown);
+            if (this.matchTier(live, team) !== 'text') return reject('quick_only');
+            const bands = p.members
+                .filter(m => m.slot !== undefined && this.parties.teamOfMember(p, m) === team)
+                .map(m => this.chatInfo.get(m.id)?.info.band ?? null);
+            const checked = filterChatText(msg.text, { probes: crossesAdultLine(bands) });
+            if (!checked.ok) {
+                if (checked.why !== 'long' && checked.why !== 'empty') {
+                    c.strikes = c.strikes.filter(t => now - t < CHAT_LIMITS.strikeWindowMs);
+                    c.strikes.push(now);
+                    if (c.strikes.length >= CHAT_LIMITS.strikes) {
+                        c.strikes = [];
+                        c.cooldownUntil = now + CHAT_LIMITS.cooldownMs;
+                    }
+                }
+                return reject(checked.why === 'empty' ? 'long' : checked.why);
+            }
+            const norm = normalizeChatText(checked.text).toLowerCase();
+            c.dups = (c.dups ?? []).filter(d => now - d.at < CHAT_LIMITS.dupMs);
+            if (c.dups.filter(d => d.text === norm).length >= CHAT_LIMITS.dupMax) return reject('rate');
+            c.dups.push({ text: norm, at: now });
+            text = checked.text;
+        } else return reject('scope');
+        c.at.push(now);
+        const body = text !== undefined ? { k: 't' as const, text } : { k: 'q' as const, id: msg.id as number };
+        this.deliverMatchChat(live, s.seatSlot, ch, body, {
+            account: sid?.ticketed && !sid.guest ? sid.accountId ?? null : null,
+            bot: false,
+        });
+        this.botChats.get(live.room.id)?.chat.human({ slot: s.seatSlot, ch, ...body }, now);
+    }
+
+    /**
+     * Send one in-match line (§3) from hero `slot`, a human's or a bot's, the same way: a frame with `ch` and `slot`
+     * and never a member id, to the sender's team (or every seat for all chat), a PROTO 4/5 socket only the legacy
+     * wheel line of a mapped phrase. A human sender's blocks are enforced both ways. Stored for reports in the room's
+     * `match` thread (`from`: the account, or `bot:<slot>`). Refused outside phase `match`, except a bot's end line
+     * while the end banner shows. Returns whether it was delivered.
+     */
+    private deliverMatchChat(
+        live: LiveRoom,
+        slot: number,
+        ch: 'team' | 'all',
+        body: { k: 't'; text: string } | { k: 'q'; id: number },
+        from: { account: string | null; bot: boolean }
+    ): boolean {
+        const now = this.now();
+        const p = this.parties.byId(live.party);
+        const inMatch =
+            this.rooms.get(live.room.id) === live && !!p && p.phase === 'match' && live.endedAtMs === undefined;
+        const endWindow = from.bot && live.endedAtMs !== undefined && now - live.endedAtMs <= BOT_END_WINDOW_MS;
+        if (!inMatch && !endWindow) {
+            if (from.bot) this.log('mp_chat_bot_refused', { why: 'phase' });
+            return false;
+        }
+        const n = teamSizeOfLive(live);
+        const team = teamOfSlot(slot, n);
+        const mid = chatMid(now);
+        const out: Record<string, unknown> = {
+            t: 'chat.msg',
+            mid,
+            ch,
+            slot,
+            k: body.k,
+            ...(body.k === 't' ? { text: body.text } : { id: body.id }),
+            at: now,
+        };
+        const legacy = body.k === 'q' ? MATCH_LEGACY_CHAT[body.id] : undefined;
+        const fromAcc = from.account;
+        const mineBlocked = fromAcc
+            ? this.chatInfo.get(this.memberOfAccount(live, fromAcc) ?? '')?.info.blocked ?? []
+            : [];
+        const sockets = this.socketsOfSeats(live);
+        for (const o of sockets) {
+            if (ch === 'team' && teamOfSlot(o.seatSlot, n) !== team) continue;
+            if (fromAcc && o.seatSlot !== slot) {
+                const toAcc = o.identity?.accountId;
+                if (toAcc && mineBlocked.includes(toAcc)) continue;
+                if (o.memberId && this.chatInfo.get(o.memberId)?.info.blocked.includes(fromAcc)) continue;
+            }
+            if (o.proto >= PROTO_MATCH_CHAT) this.sendJson(o, out);
+            else if (legacy !== undefined && o.seatSlot !== slot)
+                this.sendJson(o, { t: 'social', kind: 'chat', id: legacy, from: '', slot });
+        }
+        // stored for reports (registered humans only; guests' lines are delivered live, never stored)
+        const members = live.occupants.filter(o => o.ticketed && o.accountId).map(o => o.accountId as string);
+        if (this.opts.chat?.store && members.length && (from.bot || fromAcc)) {
+            this.opts.chat.store(
+                {
+                    _id: mid,
+                    thread: matchThreadId(live.room.id),
+                    kind: 'match',
+                    from: from.bot ? `bot:${slot}` : (fromAcc as string),
+                    k: body.k,
+                    ...(body.k === 't' ? { text: body.text } : { id: body.id }),
+                    at: new Date(now),
+                },
+                members
+            );
+        }
+        return true;
+    }
+
+    /** The member id seated in `live` for an account (its blocks are resolved by member). */
+    private memberOfAccount(live: LiveRoom, account: string): string | null {
+        for (const member of live.seats.keys())
+            if (this.byMember.get(member)?.identity?.accountId === account) return member;
+        return null;
+    }
+
+    /** Sockets still seated in a live room or one that just ended (the end window). */
+    private socketsOfSeats(live: LiveRoom): Sock[] {
+        return this.socketsOf(live);
+    }
+
+    /**
+     * A new room's bot chatter (§5.1): only with fill bots, never ranked, never in an account's first match (silent),
+     * after the recipients' memories load (at most 1.5 s; without them the chatter starts with none).
+     */
+    private openBotChat(live: LiveRoom, startMs: number): void {
+        const bots = live.chatBots;
+        if (!bots?.length) return;
+        const n = teamSizeOfLive(live);
+        const slots = 2 * n;
+        const p = this.parties.byId(live.party);
+        const firstMatch = [...live.seats.keys()].some(m => {
+            const h = this.byMember.get(m)?.hint;
+            return !!h && (h.matches === 0 || (h.matches === undefined && h.newbie));
+        });
+        const ranked = (live.config as { mode?: string }).mode === 'ranked';
+        const keys = new Map<number, string>();
+        for (const o of live.occupants) {
+            if (o.ticketed && o.accountId) keys.set(o.slot, `a:${o.accountId}`);
+            else if (o.guestKeyHash) keys.set(o.slot, `g:${o.guestKeyHash}`);
+        }
+        const side = (slot: number): 'cat' | 'dog' =>
+            live.partySim.heroSideOf(live.config.picks[slot] ?? '') === 'dog' ? 'dog' : 'cat';
+        const names = live.names.map((nm, slot) => {
+            const occ = live.occupants.find(o => o.slot === slot);
+            return nm && occ?.ticketed && occ.accountId ? nm : null;
+        });
+        const create = (rings: Map<string, BotSeen>) => {
+            if (this.rooms.get(live.room.id) !== live || this.botChats.has(live.room.id)) return;
+            const seenOf = (team: 0 | 1) =>
+                [...keys]
+                    .filter(([slot]) => teamOfSlot(slot, n) === team)
+                    .map(([, k]) => rings.get(k))
+                    .filter((r): r is BotSeen => !!r);
+            const chat = new BotChat({
+                room: live.room.id,
+                salt: this.botSalt,
+                slots,
+                teamSize: n,
+                ...(live.config.map ? { map: live.config.map } : {}),
+                humans: live.config.humans,
+                sides: [side(0), side(n)],
+                tiers: [this.matchTier(live, 0), this.matchTier(live, 1)],
+                names,
+                seen: [seenOf(0), seenOf(1)],
+                silent: ranked || firstMatch || !p,
+                startMs,
+            });
+            const seen = new Map<number, { key: string; ring: BotSeen | null }>();
+            for (const [slot, key] of keys) seen.set(slot, { key, ring: rings.get(key) ?? null });
+            this.botChats.set(live.room.id, { chat, live, seen });
+        };
+        let done = false;
+        const timer = setTimeout(() => {
+            if (done) return;
+            done = true;
+            create(new Map());
+        }, 1500);
+        timer.unref?.();
+        void this.botSeen
+            .load([...keys.values()])
+            .catch(() => new Map<string, BotSeen>())
+            .then(rings => {
+                if (done) return;
+                done = true;
+                clearTimeout(timer);
+                create(rings);
+            });
+    }
+
+    /** Every 250 ms: refresh the team tiers, send due bot lines, close chatters whose end window passed. */
+    private botTick(): void {
+        if (!this.botChats.size) return;
+        const now = this.now();
+        for (const [id, e] of this.botChats) {
+            const live = e.live;
+            const over = live.endedAtMs !== undefined ? now - live.endedAtMs > BOT_END_WINDOW_MS : !this.rooms.has(id);
+            if (over) {
+                this.closeBotChat(id);
+                continue;
+            }
+            e.chat.setTiers([this.matchTier(live, 0), this.matchTier(live, 1)]);
+            for (const line of e.chat.due(now)) {
+                const body =
+                    line.k === 't'
+                        ? { k: 't' as const, text: line.text as string }
+                        : { k: 'q' as const, id: line.id as number };
+                // a bot's seat never speaks while a human's member holds it (defence in depth: bots are never seated)
+                if (live.config.humans.includes(line.slot)) continue;
+                this.deliverMatchChat(live, line.slot, line.ch, body, { account: null, bot: true });
+            }
+        }
+    }
+
+    /** The room's chatter is done: each human's memory (one write per match, §5.8) and `mp_chat_bot` (§9). */
+    private closeBotChat(id: string): void {
+        const e = this.botChats.get(id);
+        if (!e) return;
+        this.botChats.delete(id);
+        const n = teamSizeOfLive(e.live);
+        for (const [slot, { key, ring }] of e.seen) {
+            const lines = e.chat.seenBy(teamOfSlot(slot, n));
+            if (lines.length) void this.botSeen.save(key, ring, lines).catch(() => undefined);
+        }
+        const m = e.chat.metrics();
+        this.log('mp_chat_bot', {
+            map: e.live.config.map ?? 'crossing',
+            mode: e.live.casual ? 'casual' : e.live.coop ? 'coop' : 'party',
+            bots: e.live.chatBots?.length ?? 0,
+            ...m,
+        });
+        const sent = Number(m.sent0) + Number(m.sent1);
+        if (sent > 4) this.log('mp_chat_bot_alert', { why: 'too_many', sent });
+        if (Number(m.filter_rejects) > 0) this.log('mp_chat_bot_alert', { why: 'filter', n: m.filter_rejects });
     }
 
     /** A DM for an account: tell its PROTO 5 sockets now, or hold it while they load or play a match. */
@@ -1844,7 +2186,11 @@ export class PartyRelay {
             room.unscored = 'store';
         }
         if (!this.opts.tickets.available) room.unscored = 'no_secret';
-        this.referee.open(id, sim.version, sim.hash, config);
+        // MATCH-CHAT.md §5.2: only fill bots chat (every slot no human holds; a pilot flies a human's slot, never this)
+        const fill = Array.from({ length: 2 * n }, (_, i) => i).filter(i => !config.humans.includes(i));
+        if (fill.length) live.chatBots = fill;
+        this.referee.open(id, sim.version, sim.hash, config, fill.length ? { bots: fill } : undefined);
+        this.openBotChat(live, startMs);
         this.scheduler.add(room);
         for (const m of party.members) {
             const s = this.byMember.get(m.id);
@@ -2148,7 +2494,12 @@ export class PartyRelay {
                 if (live.referee.lagTurns > PARTY_LIMITS.refereeLagTurns)
                     this.log('referee_lag', { turns: live.referee.lagTurns });
                 return;
+            case 'cues':
+                this.botChats.get(m.room)?.chat.cues(m.cues, m.states, this.now());
+                return;
             case 'end':
+                live.endedAtMs = this.now();
+                this.botChats.get(m.room)?.chat.end(m.end.winner === 1 ? 1 : 0, live.endedAtMs);
                 void this.endRoom(live, m.end);
                 return;
             case 'error':
@@ -2193,7 +2544,13 @@ export class PartyRelay {
     private reopenReferee(id: string): void {
         const live = this.rooms.get(id);
         if (!live) return;
-        this.referee.open(id, live.sim.version, live.sim.hash, live.config);
+        this.referee.open(
+            id,
+            live.sim.version,
+            live.sim.hash,
+            live.config,
+            live.chatBots?.length ? { bots: live.chatBots } : undefined
+        );
         for (const b of live.room.log) this.referee.turn(id, b);
     }
 
@@ -2438,6 +2795,9 @@ export class PartyRelay {
     async shutdown(): Promise<void> {
         if (this.state === 'stopped') return;
         this.mm.shutdown();
+        if (this.botTimer) clearInterval(this.botTimer);
+        this.botTimer = null;
+        this.botChats.clear();
         this.chatUnsubscribe?.();
         this.chatUnsubscribe = null;
         const wasDraining = this.state === 'draining';

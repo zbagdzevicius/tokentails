@@ -5,10 +5,18 @@
  * Relative imports only (loaded by path in the worker).
  */
 import type { PawlegendsPartySim, PawlegendsSlotStats } from '../../vendor/pawlegends-sim';
-import { RefereeRoom, checkRoomLog, refereeSim, type RefereeConfig, type RefereeEnd } from './referee-core';
+import {
+    RefereeRoom,
+    checkRoomLog,
+    refereeSim,
+    type RefereeChat,
+    type RefereeConfig,
+    type RefereeEnd,
+} from './referee-core';
+import type { BotState, ChatCue } from '../../vendor/pawlegends-chat/cues';
 
 export type RefereeIn =
-    | { t: 'open'; room: string; simVersion: number; simHash: string; config: RefereeConfig }
+    | { t: 'open'; room: string; simVersion: number; simHash: string; config: RefereeConfig; chat?: RefereeChat }
     | { t: 'turn'; room: string; body: Uint8Array }
     | { t: 'close'; room: string }
     | {
@@ -26,6 +34,8 @@ export type RefereeOut =
     | { t: 'pilot'; room: string; slot: number; cmds: Uint8Array[] }
     | { t: 'progress'; room: string; turn: number; tick: number }
     | { t: 'end'; room: string; end: RefereeEnd }
+    /** In-match bot chatter (MATCH-CHAT.md §5.1): one turn's cues and (once a second) the fill bots' states. */
+    | { t: 'cues'; room: string; tick: number; cues: ChatCue[]; states?: BotState[] }
     | { t: 'error'; room: string; message: string }
     | { t: 'verified'; id: number; ok: boolean; why?: string; stats?: PawlegendsSlotStats[]; reason?: string };
 
@@ -49,7 +59,7 @@ export class RefereeHost {
                     this.post({ t: 'error', room: msg.room, message: 'no sim for this version' });
                     return;
                 }
-                this.rooms.set(msg.room, new RefereeRoom(sim, msg.config));
+                this.rooms.set(msg.room, new RefereeRoom(sim, msg.config, true, msg.chat ?? null));
                 return;
             }
             case 'turn': {
@@ -66,6 +76,14 @@ export class RefereeHost {
                 for (const h of out.hashes)
                     this.post({ t: 'hash', room: msg.room, tick: h.tick, hash: h.hash, alive: out.aliveMask });
                 for (const p of out.pilot) this.post({ t: 'pilot', room: msg.room, slot: p.slot, cmds: p.cmds });
+                if (out.cues || out.states)
+                    this.post({
+                        t: 'cues',
+                        room: msg.room,
+                        tick: r.tick,
+                        cues: out.cues ?? [],
+                        ...(out.states ? { states: out.states } : {}),
+                    });
                 if (r.nextTurn % 15 === 0) this.post({ t: 'progress', room: msg.room, turn: r.nextTurn, tick: r.tick });
                 if (out.end) this.post({ t: 'end', room: msg.room, end: out.end });
                 return;

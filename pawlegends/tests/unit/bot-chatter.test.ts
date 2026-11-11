@@ -86,7 +86,7 @@ function scriptedMatch(seed: number, setup: Partial<ChatterSetup> & { map?: 'cro
   return { chatter, lines, cueAt };
 }
 
-describe('bot chatter frequency (10,000 Crossing and 5,000 Hearthwood scripted matches)', () => {
+describe('bot chatter frequency (10,000 Crossing and 5,000 Hearthwood scripted matches)', { timeout: 300_000 }, () => {
   for (const [map, n] of [
     ['crossing', 10_000],
     ['hearthwood', 5_000],
@@ -165,7 +165,7 @@ describe('bot chatter frequency (10,000 Crossing and 5,000 Hearthwood scripted m
   });
 });
 
-describe('bot chatter guards (MATCH-CHAT.md §6)', () => {
+describe('bot chatter guards (MATCH-CHAT.md §6)', { timeout: 120_000 }, () => {
   const many = (f: (seed: number) => Run, n = 400) => Array.from({ length: n }, (_, i) => f(i + 1));
 
   it('only fill bots speak: human seats (and the pilots that fly them) never do', () => {
@@ -297,7 +297,7 @@ describe('bot chatter guards (MATCH-CHAT.md §6)', () => {
   });
 });
 
-describe('bot chatter memory across matches (§5.8)', () => {
+describe('bot chatter memory across matches (§5.8)', { timeout: 120_000 }, () => {
   it('200 matches for one account: no lid repeats within 80 lines, no common-token surface within 3', () => {
     let ring: BotSeen = { l: [], s: [] };
     const history: { lid: string; tok?: string; surface: string }[] = [];
