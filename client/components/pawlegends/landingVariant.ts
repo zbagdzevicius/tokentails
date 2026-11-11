@@ -55,7 +55,7 @@ export function trackLandingView(variant: LandingVariant, path: string): void {
   analytics.track(buildPawlegendsEvent("pawlegends_landing_view", { landing_variant: variant }));
 }
 
-/** A play button on the landing was pressed. */
+/** A play button (or the App Store badge, `cta` `appstore_*`) on the landing was pressed. */
 export function trackLandingCta(variant: LandingVariant, cta: string, path: string): void {
   gtm.push({ event: "landing_variant_cta", landing_variant: variant, landing_path: path, cta });
   analytics.track(buildPawlegendsEvent("pawlegends_landing_cta", { landing_variant: variant, cta }));

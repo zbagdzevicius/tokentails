@@ -133,6 +133,13 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
 .pll .sub{margin:clamp(10px,1.6vh,18px) auto clamp(14px,2.4vh,26px);max-width:40ch;width:fit-content;padding:.45em 1em;border-radius:14px;background:rgba(18,9,31,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);font-weight:800;font-size:clamp(16px,1.5vw,21px);line-height:1.35;color:var(--white);
   text-shadow:0 2px 0 var(--ink),0 0 18px rgba(18,9,31,.8)}
 .pll .ctas{display:flex;flex-wrap:wrap;gap:16px 22px;justify-content:center}
+/* The App Store badge (Apple's art as is): never under 40 px tall, Apple's on-screen minimum; the 16 px gap is over the quarter-height
+   clear space. On iPhone and iPad (.ios, set by PawlegendsLanding) it grows to the play button's height as the second action. */
+.pll .appstore{display:inline-flex;align-self:center;line-height:0;border-radius:8px;transition:transform .2s ease}
+.pll .appstore img{display:block;height:clamp(40px,3.4vw,52px);width:auto}
+.pll .appstore:hover{transform:translateY(-2px)}
+.pll .appstore:focus-visible{outline:3px solid var(--bolt);outline-offset:4px}
+.pll.ios .appstore img{height:clamp(50px,6.4vw,72px)}
 .pll .flash{position:absolute;inset:0;z-index:20;background:#fff;opacity:0;pointer-events:none}
 .pll .slash{position:absolute;inset:0;z-index:19;width:100%;height:100%;pointer-events:none;overflow:visible}
 .pll .slash path{fill:var(--bolt);stroke:var(--ink);stroke-width:.5;vector-effect:non-scaling-stroke}
@@ -433,6 +440,7 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
   .pll .tale-row .val{font-size:22px}
   .pll .ctas .mag{width:100%}
   .pll .ctas .btn{width:100%;justify-content:center;white-space:nowrap;font-size:17px;padding-inline:.8em}
+  .pll.ios .appstore img{height:50px}
   .pll .shelter .ctas .mag,.pll .shelter .ctas .btn{width:auto}
   .pll .cont .mascot{width:104px;right:-14px}
   .pll .cont .mascot2{display:none}
