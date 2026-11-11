@@ -28,7 +28,13 @@ import { PawlegendsChatMessage, PawlegendsChatThread } from './chat.schema';
 import { displayNames } from './display-name';
 import { REPORT_LIMITS } from './report.contracts';
 import { formatPlayerCode, pairId, parsePlayerCode } from './social.contracts';
-import { PawlegendsBlock, PawlegendsFriend, PawlegendsReport, PawlegendsSanction, PawlegendsSocial } from './social.schema';
+import {
+    PawlegendsBlock,
+    PawlegendsFriend,
+    PawlegendsReport,
+    PawlegendsSanction,
+    PawlegendsSocial,
+} from './social.schema';
 
 /*
  * Friends chat over the API (CHAT-AVATARS.md §2, §4): DM threads between accepted friends only. Every send is checked
@@ -212,7 +218,10 @@ export class ChatService {
      * A DM thread `me` may read: a member, not blocked either way, and still friends (or unfriended less than 24 h ago:
      * read-only). Anything else answers the generic `unavailable`.
      */
-    private async access(me: string, threadId: unknown): Promise<{ thread: ThreadRow; other: string; readOnly: boolean }> {
+    private async access(
+        me: string,
+        threadId: unknown
+    ): Promise<{ thread: ThreadRow; other: string; readOnly: boolean }> {
         if (typeof threadId !== 'string' || !THREAD_RE.test(threadId)) throw CHAT_ERRORS.unavailable();
         const thread = (await this.threads.findById(threadId).lean()) as ThreadRow | null;
         if (!thread || thread.kind !== 'dm' || !thread.members.includes(me)) throw CHAT_ERRORS.unavailable();
@@ -347,7 +356,9 @@ export class ChatService {
     }
 
     /** The unread DM count and the newest unread thread (the pulse badge). Muted threads do not count. */
-    async summary(me: string): Promise<{ unread: number; top?: { thread: string; fromName: string; preview: string } }> {
+    async summary(
+        me: string
+    ): Promise<{ unread: number; top?: { thread: string; fromName: string; preview: string } }> {
         const rows = (await this.threads
             .find({ members: me, kind: 'dm' })
             .sort({ lastAt: -1 })
@@ -374,11 +385,16 @@ export class ChatService {
     /** History, newest first in pages of 30 (`before` = a message id); oldest first in the answer. */
     async history(me: string, threadId: unknown, before?: unknown, limitIn?: unknown) {
         const { thread, other, readOnly } = await this.access(me, threadId);
-        const limit = Math.min(CHAT_LIMITS.historyPage, Math.max(1, Math.floor(Number(limitIn) || CHAT_LIMITS.historyPage)));
+        const limit = Math.min(
+            CHAT_LIMITS.historyPage,
+            Math.max(1, Math.floor(Number(limitIn) || CHAT_LIMITS.historyPage))
+        );
         const filter: Record<string, unknown> = { thread: thread._id };
         if (before !== undefined && before !== null && before !== '') {
             if (typeof before !== 'string' || !MID_RE.test(before)) throw CHAT_ERRORS.invalid('before');
-            const pivot = (await this.messages.findOne({ _id: before, thread: thread._id }).lean()) as MessageRow | null;
+            const pivot = (await this.messages
+                .findOne({ _id: before, thread: thread._id })
+                .lean()) as MessageRow | null;
             if (pivot) filter.at = { $lt: pivot.at };
         }
         const rows = (await this.messages
@@ -523,7 +539,8 @@ export class ChatService {
         const p = await this.profileOf(me);
         const n = p?.chatStrikes?.day === day ? p.chatStrikes.n + 1 : 1;
         const set: Record<string, unknown> = { chatStrikes: { day, n } };
-        if (this.limiter.strike(me, now.getTime())) set.chatCooldownUntil = new Date(now.getTime() + CHAT_LIMITS.cooldownMs);
+        if (this.limiter.strike(me, now.getTime()))
+            set.chatCooldownUntil = new Date(now.getTime() + CHAT_LIMITS.cooldownMs);
         await this.social.updateOne({ _id: me }, { $set: set });
     }
 

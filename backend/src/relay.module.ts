@@ -7,7 +7,12 @@ import { PartyRelayService } from './pawlegends/party/party-relay.service';
 import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { MongoRoomStore, PAWLEGENDS_PARTY_SCHEMAS } from './pawlegends/party/room-store';
 import { PAWLEGENDS_RELAY_SOCIAL_SCHEMAS } from './pawlegends/social/social.schema';
-import { PawlegendsBuyer, PawlegendsBuyerSchema, PawlegendsOwned, PawlegendsOwnedSchema } from './pawlegends/pawlegends.schema';
+import {
+    PawlegendsBuyer,
+    PawlegendsBuyerSchema,
+    PawlegendsOwned,
+    PawlegendsOwnedSchema,
+} from './pawlegends/pawlegends.schema';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
 import { RelayDrainController } from './shared/runtime/relay-drain.controller';

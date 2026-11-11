@@ -10,7 +10,8 @@ import { SocialMemoryModel } from './social-model.helper-spec';
 
 function db() {
     const cols: Record<string, SocialMemoryModel> = {};
-    for (const name of Object.values(SOCIAL_PURGE_COLLECTIONS)) cols[name] = new SocialMemoryModel([], [{ fields: ['_id'] }]);
+    for (const name of Object.values(SOCIAL_PURGE_COLLECTIONS))
+        cols[name] = new SocialMemoryModel([], [{ fields: ['_id'] }]);
     const wrap = (m: SocialMemoryModel) => ({
         deleteMany: (f: Record<string, unknown>) => m.deleteMany(f),
         updateMany: (f: Record<string, unknown>, u: Record<string, unknown>) => m.updateMany(f, u),
@@ -23,7 +24,13 @@ describe('purgePawlegendsSocial', () => {
     it('removes the account everywhere and keeps everyone else', async () => {
         const { cols, db: d } = db();
         const c = SOCIAL_PURGE_COLLECTIONS;
-        await cols[c.social].create({ _id: 'X', code: 'XXXXXXXX', rev: 0, avatar: { kind: 'hero', hero: 'clem' }, chatCooldownUntil: new Date() });
+        await cols[c.social].create({
+            _id: 'X',
+            code: 'XXXXXXXX',
+            rev: 0,
+            avatar: { kind: 'hero', hero: 'clem' },
+            chatCooldownUntil: new Date(),
+        });
         await cols[c.social].create({ _id: 'F', code: 'FFFFFFFF', rev: 0 });
         await cols[c.friends].create({ _id: 'F:X', a: 'F', b: 'X', state: 'accepted' });
         await cols[c.friends].create({ _id: 'F:G', a: 'F', b: 'G', state: 'accepted' });
@@ -33,7 +40,13 @@ describe('purgePawlegendsSocial', () => {
         await cols[c.invites].create({ _id: 'i1', from: 'X', to: 'F' });
         await cols[c.threads].create({ _id: 'dXF', kind: 'dm', members: ['F', 'X'] });
         await cols[c.threads].create({ _id: 'dFG', kind: 'dm', members: ['F', 'G'] });
-        await cols[c.threads].create({ _id: 'pP', kind: 'party', members: ['F', 'X', 'G'], muted: ['X'], read: { X: new Date(), F: new Date() } });
+        await cols[c.threads].create({
+            _id: 'pP',
+            kind: 'party',
+            members: ['F', 'X', 'G'],
+            muted: ['X'],
+            read: { X: new Date(), F: new Date() },
+        });
         await cols[c.messages].create({ _id: 'm1', thread: 'dXF', from: 'F', k: 'q', id: 0 });
         await cols[c.messages].create({ _id: 'm2', thread: 'dXF', from: 'X', k: 't', text: 'hi' });
         await cols[c.messages].create({ _id: 'm3', thread: 'pP', from: 'X', k: 'q', id: 12 });
@@ -59,14 +72,24 @@ describe('purgePawlegendsSocial', () => {
         const ids: string[] = [];
         const id = '0123456789abcdef01234567';
         const deps = (purge: (a: string) => Promise<unknown>) => ({
-            users: { findOne: () => ({ lean: async () => ({ _id: id, isGuest: false }) }), updateOne: async () => ({}) } as any,
-            cats: { deleteMany: async () => ({}), find: () => ({ lean: async () => [] }), updateMany: async () => ({}) } as any,
+            users: {
+                findOne: () => ({ lean: async () => ({ _id: id, isGuest: false }) }),
+                updateOne: async () => ({}),
+            } as any,
+            cats: {
+                deleteMany: async () => ({}),
+                find: () => ({ lean: async () => [] }),
+                updateMany: async () => ({}),
+            } as any,
             firebase: { deleteUsers: async () => 0 } as any,
             audit: { insertOne: async () => ({}) },
             revokeApple: async () => 'skipped' as any,
             purgeSocial: purge,
         });
-        await deleteAccount(deps(async a => void ids.push(a)), id);
+        await deleteAccount(
+            deps(async a => void ids.push(a)),
+            id
+        );
         expect(ids).toEqual([id]);
         await expect(
             deleteAccount(

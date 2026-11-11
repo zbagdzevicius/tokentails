@@ -164,7 +164,8 @@ export const AVATAR_ICON_RE = /^(h:[a-z][a-z0-9]{0,23}|c:[a-f0-9]{24}|i:[a-z0-9.
 export const AVATAR_ITEM_RE = /^(frame|title)\.[a-z0-9._-]{1,48}$/;
 /** Only cat art from the Token Tails NFT bucket may be shown as an avatar image (party-cards.ts PARTY_ART_HOST). */
 export const AVATAR_ART_HOST = 'tokentails-nfts.fra1.cdn.digitaloceanspaces.com';
-export const AVATAR_IMG_RE = /^https:\/\/tokentails-nfts\.fra1\.cdn\.digitaloceanspaces\.com\/[A-Za-z0-9._~\/%-]{1,250}$/;
+export const AVATAR_IMG_RE =
+    /^https:\/\/tokentails-nfts\.fra1\.cdn\.digitaloceanspaces\.com\/[A-Za-z0-9._~\/%-]{1,250}$/;
 
 /** A trusted shape check of an AvatarView (the client renders only what passes). */
 export function isAvatarView(v: unknown): v is AvatarView {

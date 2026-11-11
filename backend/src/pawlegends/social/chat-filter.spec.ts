@@ -87,7 +87,12 @@ describe('chat contracts', () => {
 
     it('avatar views: only known shapes and bucket art', () => {
         expect(isAvatarView({ i: 'h:clem' })).toBe(true);
-        expect(isAvatarView({ i: 'c:0123456789abcdef01234567', img: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/cats/a.png' })).toBe(true);
+        expect(
+            isAvatarView({
+                i: 'c:0123456789abcdef01234567',
+                img: 'https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/cats/a.png',
+            })
+        ).toBe(true);
         expect(isAvatarView({ i: 'c:0123456789abcdef01234567', img: 'https://evil.example/a.png' })).toBe(false);
         expect(isAvatarView({ i: 'h:clem', f: 'frame.store.goldpaw', t: 'title.s1.rookie' })).toBe(true);
         expect(isAvatarView({ i: 'x:clem' })).toBe(false);

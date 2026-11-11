@@ -108,7 +108,10 @@ export class SocialService {
 
     /** Avatars of these accounts (CHAT-AVATARS.md §7): checked against what each still owns, default hero otherwise. */
     async avatarsOf(ids: readonly string[]): Promise<Map<string, AvatarView>> {
-        return resolveAvatars({ social: this.social, owned: this.owned ?? null, cats: this.cats ?? null, heroes: liveHeroIds() }, ids);
+        return resolveAvatars(
+            { social: this.social, owned: this.owned ?? null, cats: this.cats ?? null, heroes: liveHeroIds() },
+            ids
+        );
     }
 
     now(): Date {
