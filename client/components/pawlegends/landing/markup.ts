@@ -24,6 +24,12 @@ const A = {
   fredoka: LANDING_ASSET("fredoka-latin.ec85d7eb.woff2"),
   mascot: LANDING_ASSET("mascot.92c3f404.webp"),
   mascot2: LANDING_ASSET("mascot2.ff449081.webp"),
+  /**
+   * Apple's "Download on the App Store" badges (US-UK, from toolbox.marketingtools.apple.com), unchanged: black on the
+   * colourful hero, white on the black continue section. Never redraw or recolour them (App Store marketing guidelines).
+   */
+  appStoreBlack: LANDING_ASSET("app-store-badge-black.a26fc5b3.svg"),
+  appStoreWhite: LANDING_ASSET("app-store-badge-white.056de2f8.svg"),
 };
 /**
  * Smaller copies (`<name>.w<width>.webp`, the same picture resized next to the original) for images that never draw
@@ -64,6 +70,21 @@ export const LANDING_FILES: readonly string[] = Object.freeze([
 /** Play links carry the landing A/B arm (`lv=A`; components/pawlegends/landingVariant.ts). */
 export const HERO_CTA_HREF = variantPlayHref("landing_hero", "A");
 export const CONTINUE_CTA_HREF = variantPlayHref("landing_continue", "A");
+
+/** The Pawlegends iOS app. Google Play is not live yet, so Android gets no badge. */
+export const PAWLEGENDS_APP_STORE_ID = "6832032981";
+export const PAWLEGENDS_APP_STORE_URL = `https://apps.apple.com/us/app/pawlegends/id${PAWLEGENDS_APP_STORE_ID}`;
+/** `data-cta` tags of the App Store badges: reported like the play buttons (`pawlegends_landing_cta {cta}`). */
+export const APP_STORE_CTAS = Object.freeze({ hero: "appstore_hero", continue: "appstore_continue" });
+
+/**
+ * The App Store badge link, the second action next to a play button. The badge art is Apple's file as is (the
+ * badge's own 119.66 x 40 box); its size and clear space are set in landingCss.ts (`.appstore`).
+ */
+function appStoreBadge(cta: string, src: string, lazy: boolean): string {
+  const load = lazy ? ' loading="lazy"' : "";
+  return `<a class="appstore" href="${PAWLEGENDS_APP_STORE_URL}" target="_blank" rel="noopener" aria-label="Download Pawlegends on the App Store" data-cta="${cta}"><img src="${src}" alt="" width="120" height="40"${load} decoding="async"></a>`;
+}
 
 const esc = (s: string) =>
   s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
@@ -300,6 +321,7 @@ export function landingMarkup(): string {
       <p class="sub">Cats vs dogs, three on three. Play solo or bring up to two friends. Free, right in your browser on desktop or phone.</p>
       <div class="ctas">
         <span class="mag"><a class="btn big" href="${HERO_CTA_HREF}" data-cta="landing_hero"><span>Play free in your browser <span class="arrow" aria-hidden="true">&#9654;</span></span></a></span>
+        ${appStoreBadge(APP_STORE_CTAS.hero, A.appStoreBlack, false)}
       </div>
     </div>
     <div class="scroll-cue" aria-hidden="true">SCROLL</div>
@@ -465,6 +487,7 @@ ${shelterSection(champions)}
     <p>Your legend is picked. The lanes are waiting. One click and you are in.</p>
     <div class="ctas">
       <span class="mag"><a class="btn big" id="cont-cta" href="${CONTINUE_CTA_HREF}" data-cta="landing_continue"><span>Play free in your browser <span class="arrow" aria-hidden="true">&#9654;</span></span></a></span>
+      ${appStoreBadge(APP_STORE_CTAS.continue, A.appStoreWhite, true)}
     </div>
   </div>
   <footer class="foot">
