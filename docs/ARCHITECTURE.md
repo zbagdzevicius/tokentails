@@ -60,6 +60,7 @@ flowchart LR
 | Copy lint | `tools/copy-lint/` | Node | Tone and claims lint over client, Heist, backend and CMS copy (CLAIMS.md) |
 | Facts registry | `funding/framework/facts/` (private funding checkout, not in this repo) | JSON + Node | Every public claim with its source, generated into the client, backend and Heist |
 | Mobile shells | `client/android/`, `client/ios/` | Capacitor 7 | Native wrappers around the static export |
+| Paw Legends app | `pawlegends-app/` | Capacitor 7 | iOS, Mac and Android apps with the Paw Legends game bundled (OTA updates). Its in-page host (`src/host/`) replaces the web page's iframe host: the same bridge over `window.__PL_HOST__`, the client's React-free host modules, and optional native sign-in (Apple, Google, email) through Firebase |
 | Admin CMS | `cms/` | Next.js 16 | Shelter and staff operations console |
 | Soroban contracts | `contracts/stellar/soroban-nft/` | Rust | Cat, Blessing, and Pass NFTs on Stellar mainnet |
 | SKALE contracts | `contracts/evm/` | Solidity | Cat and Blessing ERC-721 on SKALE Nebula |

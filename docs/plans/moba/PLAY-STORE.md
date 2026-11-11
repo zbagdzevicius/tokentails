@@ -143,7 +143,8 @@ gh secret set GOOGLE_PLAY_JSON_KEY < /path/to/play-service-account.json   # then
    Later uploads: lane `upload` (`release_status: draft` until the app leaves draft state).
 4. **App content** (Policy → App content):
    - Privacy policy: `https://tokentails.com/pawlegends/privacy` (deploy `main` first; the page now names Android).
-   - Ads: **No**. App access: **All functionality available without special access** (no login).
+   - Ads: **No**. App access: **All functionality available without special access** (sign-in is optional; from 1.1.0
+     Google or email sign-in saves progress, nothing is behind it).
    - Target audience: **13+** (13–15, 16–17, 18+), so the Families policy does not apply; not designed for children.
    - Content rating (IARC): answers below.
    - Data safety: answers below.
@@ -158,18 +159,25 @@ gh secret set GOOGLE_PLAY_JSON_KEY < /path/to/play-service-account.json   # then
 
 ## Data safety answers
 
-Same facts as the iOS privacy label (`APP-STORE-ANSWERS.md`, `PrivacyInfo.xcprivacy`, the privacy page). Solo play
-sends nothing; party play sends a random party key and the match.
+Same facts as the iOS privacy label (`APP-STORE-ANSWERS.md`, `PrivacyInfo.xcprivacy`, the privacy page), from 1.1.0
+(optional sign-in with Google or email through Firebase Authentication; Apple is not offered on Android). Solo play
+offline sends nothing; online, saves go to an anonymous guest account until the player signs in; party play sends a
+random party key and the match.
 
 | Question | Answer |
 |---|---|
 | Does the app collect or share any of the required user data types? | **Yes** |
 | Is all data encrypted in transit? | **Yes** (HTTPS and WSS) |
-| Do you provide a way for users to request that their data is deleted? | **No**: there are no accounts, and the data deletes itself (parties 3 h after their last change, finished rooms after 30 days), as the privacy policy says |
+| Do you provide a way for users to request that their data is deleted? | **Yes**: in the app (title chip or Settings → Account → Delete account), and on the web |
+| Account deletion URL (App content → Data safety / Account deletion) | `https://tokentails.com/pawlegends/account` (`client/pages/pawlegends/account.tsx`: sign in, then Delete account; or email) |
+| Does the app let users create an account? | **Yes**: Google or email and password (optional); in-app deletion: **Yes** |
+| **Personal info → Email address** (optional sign-in) | Collected, **not shared**, **optional**; purposes **App functionality**, **Account management** |
+| **Personal info → Name** (the Google name when shared, the profile name) | Collected, not shared, optional; purposes App functionality, Account management |
+| **Personal info → User IDs** (the Firebase account or guest id) | Collected, not shared, optional; purposes App functionality, Account management |
 | **Device or other IDs** (the random party key; the server keeps its hash) | Collected, **not shared**, **optional** (party play only), processed ephemerally: No; purposes **App functionality**, **Fraud prevention, security, and compliance** (per-key and per-network caps) |
-| **App activity → Other user-generated content / Other actions** (generated player name, hero picks, match inputs, quick-chat phrases, result) | Collected, not shared, optional; purposes App functionality |
-| Location, personal info, financial, health, messages, photos, audio, files, calendar, contacts, web history, app info and performance, crash logs | **Not collected** |
-| Shared with third parties | **No** |
+| **App activity → Other user-generated content / Other actions** (saved matches, Treat Track, friends and ranked if used; party: generated name, hero picks, match inputs, quick-chat phrases, result) | Collected, not shared, optional; purposes App functionality |
+| Location, financial, health, messages, photos, audio, files, calendar, contacts, web history, app info and performance, crash logs | **Not collected** |
+| Shared with third parties | **No** (Firebase Authentication is a processor acting for us, not sharing) |
 
 Quick-chat is fixed phrases only, so it is not "Messages". If analytics or a crash SDK is ever added (a native
 release, never by OTA), update this form, the iOS label and the privacy page before that version ships.
