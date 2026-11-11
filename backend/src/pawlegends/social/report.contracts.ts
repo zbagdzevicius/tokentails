@@ -23,8 +23,13 @@ export const REPORT_LIMITS = Object.freeze({
     /** Reports per reporter per 24 h (registered / guest). */
     perDay: 10,
     perDayGuest: 3,
-    /** Reports per room (all reporters). */
+    /**
+     * Reports per room against one target (all reporters): caps a brigade on one player. Counted per target, not per
+     * room, so one side cannot use up a room's reports before the other side files theirs.
+     */
     perRoom: 5,
+    /** Reports one reporter may file in one room (any targets): stops "report everyone" spam. */
+    perRoomReporter: 2,
     /** Per client IP. */
     ipLimit: 20,
     ipTtlMs: 10 * 60_000,

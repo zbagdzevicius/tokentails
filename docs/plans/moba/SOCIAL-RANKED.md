@@ -368,7 +368,7 @@ This builds on PARITY §4, with the founder's additions: liquidity gate, decay a
   - `400 PAWLEGENDS_REPORT_BOT` or `_SELF`;
   - `404 PAWLEGENDS_REPORT_ROOM`;
   - `429` when rate-limited.
-- **Rate limits:** per reporter 10 a day (guests 3), per room 5, per IP 20 / 10 min (`ClientIpThrottlerGuard` pattern).
+- **Rate limits:** per reporter 10 a day (guests 3), 2 per reporter per room, 5 per target per room (counted per target, so one team cannot use up a room's reports before the other files theirs), per IP 20 / 10 min (`ClientIpThrottlerGuard` pattern).
 - **Row** (`pawlegendsreports`): `{room, queue, reporter, target, reason: 'afk'|'grief'|'cheat'|'name', note?, tick?, status: 'open'|'corroborated'|'actioned'|'dismissed', createdAt, expireAt}`.
   - No IP, no names, no hero, no stats. Admin views derive those from the mm room and the room log.
   - Unique `{room:1, reporter:1, target:1}`. Indexes: `{target:1, createdAt:-1}`, `{status:1, createdAt:-1}`, `{reporter:1, createdAt:-1}`.

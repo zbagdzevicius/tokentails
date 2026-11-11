@@ -209,6 +209,22 @@ describe('pawlegends social core (SOCIAL-RANKED.md §2, §3)', () => {
         });
     });
 
+    it('recent players: a backfilled slot lists only the player Add and Block would reach', async () => {
+        const { svc, models } = harness();
+        // B left slot 1 and D backfilled it at tick 900
+        models.rooms.docs[0].members.push({
+            slot: 1,
+            identityHash: 'h-d',
+            accountId: 'D',
+            joinedTick: 900,
+            backfill: true,
+            ratingAtStart: null,
+        });
+        const { players } = await svc.recent('A');
+        expect(players.filter(p => p.slot === 1)).toHaveLength(1);
+        expect((await svc.targetOf('A', { room: 'r1', slot: 1 })).id).toBe('D');
+    });
+
     it('settings: a cat name only of your own cat, allowRecent forced off for under 16, age stricter wins', async () => {
         const { svc } = harness();
         const me = await svc.setMe('A', { name: 'aaaaaaaaaaaaaaaaaaaaaaaa', invisible: true });

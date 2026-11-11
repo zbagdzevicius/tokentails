@@ -167,20 +167,37 @@ describe('pawlegends PvP reports (SOCIAL-RANKED.md §8)', () => {
         await expect(svc.report(A, { room: 'g10', slot: 3, reason: 'afk' })).rejects.toMatchObject({
             response: { code: 'PAWLEGENDS_REPORT_LIMIT' },
         });
-        // per room: 5 reports from anyone
+        // per room: 2 per reporter, 5 per target (one side cannot use up the room before the other reports)
         m.reports.docs = [];
-        for (const [who, slot] of [
-            ['A', 3],
-            ['A', 4],
-            ['B', 3],
-            ['B', 4],
-            ['C', 0],
-        ] as const)
-            await svc.report({ id: who, guest: false }, { room: 'r1', slot, reason: 'grief' });
-        await expect(
-            svc.report({ id: 'C', guest: false }, { room: 'r1', slot: 1, reason: 'grief' })
-        ).rejects.toMatchObject({
+        await svc.report(A, { room: 'r1', slot: 3, reason: 'grief' });
+        await svc.report(A, { room: 'r1', slot: 4, reason: 'grief' });
+        await expect(svc.report(A, { room: 'r1', slot: 1, reason: 'grief' })).rejects.toMatchObject({
             response: { code: 'PAWLEGENDS_REPORT_LIMIT' },
+        });
+        // the other side still reports A after A filed its two
+        expect(await svc.report({ id: 'C', guest: false }, { room: 'r1', slot: 0, reason: 'cheat' })).toEqual({
+            created: true,
+        });
+        // five reporters on one target: the sixth is refused
+        const big = room('r9', {
+            members: Array.from({ length: 10 }, (_, slot) => ({
+                slot,
+                identityHash: `h-${slot}`,
+                accountId: `P${slot}`,
+                joinedTick: 0,
+                backfill: false,
+                ratingAtStart: null,
+            })),
+            map: 'hearthwood',
+        });
+        m.rooms.docs.push(big);
+        for (const s of [1, 2, 3, 4, 5])
+            await svc.report({ id: `P${s}`, guest: false }, { room: 'r9', slot: 0, reason: 'grief' });
+        await expect(
+            svc.report({ id: 'P6', guest: false }, { room: 'r9', slot: 0, reason: 'grief' })
+        ).rejects.toMatchObject({ response: { code: 'PAWLEGENDS_REPORT_LIMIT' } });
+        expect(await svc.report({ id: 'P6', guest: false }, { room: 'r9', slot: 1, reason: 'grief' })).toEqual({
+            created: true,
         });
     });
 

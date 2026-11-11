@@ -137,7 +137,13 @@ export class ReportService {
         const since = new Date(now.getTime() - DAY);
         const mine = await this.reports.countDocuments({ reporter: reporter.id, createdAt: { $gte: since } });
         if (mine >= (reporter.guest ? REPORT_LIMITS.perDayGuest : REPORT_LIMITS.perDay)) throw REPORT_ERRORS.limit();
-        if ((await this.reports.countDocuments({ room: roomId })) >= REPORT_LIMITS.perRoom) throw REPORT_ERRORS.limit();
+        if (
+            (await this.reports.countDocuments({ room: roomId, reporter: reporter.id })) >=
+            REPORT_LIMITS.perRoomReporter
+        )
+            throw REPORT_ERRORS.limit();
+        if ((await this.reports.countDocuments({ room: roomId, target })) >= REPORT_LIMITS.perRoom)
+            throw REPORT_ERRORS.limit();
 
         const corroborated = input.reason === 'afk' && (holder.event === 'afk' || holder.event === 'left');
         try {
