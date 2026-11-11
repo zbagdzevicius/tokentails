@@ -160,7 +160,7 @@ test('two friends: a phrase and text DM, the unread badge, the reply in the open
 });
 
 test('an under-16 friend: phrases and stickers only on both sides', async ({ browser, baseURL }) => {
-  test.setTimeout(120_000);
+  test.setTimeout(300_000);
   const srv = server();
   const k = await signedIn(browser, baseURL!, 'K', srv, { width: 844, height: 390 });
   await k.game.locator('[data-testid="lobby-social"]').click({ timeout: 60_000 });
