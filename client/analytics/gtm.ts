@@ -76,7 +76,15 @@ export interface GtmConsentOptions {
   stored: () => ConsentChoice | null;
   /** Keeps a new choice (the consent bar). */
   store: (choice: ConsentChoice) => void;
+  /**
+   * True while gtm.js must not load at all (a visitor the consent bar asks, before Allow): no tag runs, not even
+   * Consent Mode's cookieless pings. Pushes wait in memory (at most HELD_PUSH_LIMIT) and go out once the visitor allows.
+   */
+  hold?: () => boolean;
 }
+
+/** The most pushes kept while gtm.js is held for consent; older ones are dropped. */
+export const HELD_PUSH_LIMIT = 50;
 
 export interface GtmOptions {
   /** Container id. Empty or missing turns GTM into a no-op. */
@@ -112,6 +120,10 @@ export function createGtm(options: GtmOptions = {}): Gtm {
   const isEnabled = () => gtmId.length > 0 && allowed();
 
   let loaded = false;
+  let held: Record<string, unknown>[] | null = null;
+  // this page's choice, so Allow still loads when storage is blocked (private mode)
+  let choiceNow: ConsentChoice | null = null;
+  const storedChoice = () => choiceNow ?? consent?.stored() ?? null;
 
   const dataLayerOf = (win: GtmWindow): unknown[] => {
     win.dataLayer = win.dataLayer || [];
@@ -123,13 +135,19 @@ export function createGtm(options: GtmOptions = {}): Gtm {
     dataLayerOf(win).push(argumentsOf(...args));
   };
 
+  const isHeld = () => choiceNow !== "granted" && !!consent?.hold?.();
+
   const load = (win: GtmWindow) => {
     if (loaded) return;
+    if (isHeld()) {
+      held = held ?? [];
+      return;
+    }
     loaded = true;
     if (consent) {
       gtag(win, "consent", "default", { ...consentState("denied"), region: [...consent.regions], wait_for_update: 500 });
       gtag(win, "consent", "default", consentState("granted"));
-      const stored = consent.stored();
+      const stored = storedChoice();
       if (stored) gtag(win, "consent", "update", consentState(stored));
     }
     dataLayerOf(win).push({ "gtm.start": Date.now(), event: "gtm.js" });
@@ -139,12 +157,21 @@ export function createGtm(options: GtmOptions = {}): Gtm {
     script.src = `${GTM_SCRIPT_URL}?id=${encodeURIComponent(gtmId)}`;
     script.dataset.ttGtm = "true";
     win.document.head.appendChild(script);
+
+    const queued = held ?? [];
+    held = null;
+    for (const data of queued) dataLayerOf(win).push(data);
   };
 
   const push = (data: Record<string, unknown>) => {
     const win = getWindow();
     if (!isEnabled() || !win) return false;
     load(win);
+    if (!loaded) {
+      // held for consent: nothing reaches the dataLayer (or Google) before Allow
+      held = [...(held ?? []), data].slice(-HELD_PUSH_LIMIT);
+      return true;
+    }
     dataLayerOf(win).push(data);
     return true;
   };
@@ -157,9 +184,13 @@ export function createGtm(options: GtmOptions = {}): Gtm {
 
   const setConsent = (choice: ConsentChoice) => {
     if (!consent) return;
+    choiceNow = choice;
     consent.store(choice);
     const win = getWindow();
     if (loaded && win) gtag(win, "consent", "update", consentState(choice));
+    // Allow after a held start: load now (the stored choice goes in as the consent update) and send what waited
+    else if (!loaded && win && held && isEnabled()) load(win);
+    if (choice === "denied" && !loaded) held = held ? [] : null;
   };
 
   return {
@@ -185,6 +216,26 @@ function argumentsOf(...args: unknown[]): IArguments {
 const defaultGetWindow = (): GtmWindow | undefined =>
   typeof window === "undefined" ? undefined : (window as GtmWindow);
 
+const EUROPE_ATLANTIC = /^Atlantic\/(Reykjavik|Canary|Madeira|Azores|Faroe|Faeroe)$/;
+
+/**
+ * Whether the consent bar asks this visitor: a European time zone (where Consent Mode starts denied, CONSENT_REGIONS),
+ * or an unknown one. These visitors get no gtm.js until they press Allow. Elsewhere storage starts granted, nobody is
+ * asked, and the privacy page still offers the choice (Google's own region check still denies storage by IP in Europe).
+ */
+export function asksForConsent(timeZone: string | undefined = currentTimeZone()): boolean {
+  if (!timeZone) return true;
+  return timeZone.startsWith("Europe/") || EUROPE_ATLANTIC.test(timeZone) || timeZone === "Arctic/Longyearbyen";
+}
+
+function currentTimeZone(): string | undefined {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
+  } catch {
+    return undefined;
+  }
+}
+
 /** Paw Legends analytics runs only in a web browser: never in an app build or a native WebView. */
 export const pawlegendsWebOnly = (): boolean => !process.env.NEXT_PUBLIC_IS_APP && getPlatform() === "web";
 
@@ -195,7 +246,13 @@ export const tokenTailsGtm = createGtm({ gtmId: process.env.NEXT_PUBLIC_GTM_ID }
 export const pawlegendsGtm = createGtm({
   gtmId: PAWLEGENDS_GTM_ID,
   allowed: pawlegendsWebOnly,
-  consent: { regions: CONSENT_REGIONS, stored: () => readConsentChoice(), store: (c) => writeConsentChoice(c) },
+  consent: {
+    regions: CONSENT_REGIONS,
+    stored: () => readConsentChoice(),
+    store: (c) => writeConsentChoice(c),
+    // Basic consent mode for the visitors the bar asks (European time zones): gtm.js waits for Allow.
+    hold: () => asksForConsent() && readConsentChoice() !== "granted",
+  },
 });
 
 /**

@@ -1,4 +1,4 @@
-import { gtm as defaultGtm, readConsentChoice, type ConsentChoice, type Gtm } from "@/analytics/gtm";
+import { asksForConsent, gtm as defaultGtm, readConsentChoice, type ConsentChoice, type Gtm } from "@/analytics/gtm";
 import { isPawlegendsLocation, pagePathOf } from "@/analytics/pawlegends-site";
 import { afterLandingReady } from "@/components/GoogleTagManager";
 import Link from "next/link";
@@ -12,25 +12,8 @@ export const openConsentChoice = (win: Window = window) => win.dispatchEvent(new
 /** The landings hold the bar until their intro has played (like analytics itself), so it never covers the hero. */
 const HELD_PATHS: ReadonlySet<string> = new Set(["/pawlegends", "/legends"]);
 
-const EUROPE_ATLANTIC = /^Atlantic\/(Reykjavik|Canary|Madeira|Azores|Faroe|Faeroe)$/;
-
-/**
- * Whether to ask: in a European time zone (where Consent Mode starts denied, CONSENT_REGIONS in analytics/gtm.ts), or
- * when the time zone is unknown. Elsewhere storage starts granted and nobody is asked; the privacy page still offers
- * the choice.
- */
-export function asksForConsent(timeZone: string | undefined = currentTimeZone()): boolean {
-  if (!timeZone) return true;
-  return timeZone.startsWith("Europe/") || EUROPE_ATLANTIC.test(timeZone) || timeZone === "Arctic/Longyearbyen";
-}
-
-function currentTimeZone(): string | undefined {
-  try {
-    return Intl.DateTimeFormat().resolvedOptions().timeZone || undefined;
-  } catch {
-    return undefined;
-  }
-}
+/** Whether to ask (analytics/gtm.ts): a European or unknown time zone. Re-exported for the tests and callers here. */
+export { asksForConsent };
 
 const noSubscription = () => () => {};
 
