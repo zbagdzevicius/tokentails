@@ -81,7 +81,11 @@ for (const [width, height] of [
         for (const r of rows) expect(r.x + r.width).toBeLessThanOrEqual(width);
 
         // the drawer (a tap on the ticker) stays clear of the ability cluster and the joystick half
-        await page.locator('.pl-chatline .cl-row').first().tap();
+        // a fresh line, then a tap on it (rows fade after 8 s, and a loaded machine is slow)
+        await page.evaluate(() => {
+          (window as unknown as { __plChat: { debugLine(slot: number, text: string): void } }).__plChat.debugLine(1, 'open me');
+          document.querySelector('.pl-chatline .cl-row:last-child')!.dispatchEvent(new PointerEvent('pointerdown', { bubbles: true }));
+        });
         await expect(page.locator('[data-testid="chat-drawer"]')).toBeVisible();
         const drawer = (await boxes(page, '[data-testid="chat-drawer"]'))[0];
         expect(drawer.x).toBeGreaterThanOrEqual(width / 2 - 1);

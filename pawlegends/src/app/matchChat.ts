@@ -188,15 +188,22 @@ export class MatchChat {
     }
     const room = floor - 6 - (top + safeT);
     this.ticker.rowsCap = Math.max(1, Math.floor((room + 3) / (ROW + 3)));
-    // the drawer: right side, from the top, down to above the ability cluster (never the joystick half)
-    let clusterTop = H;
-    for (const el of ui.querySelectorAll<HTMLElement>('.pl-tbtn, .pl-tcluster')) {
-      const r = el.getBoundingClientRect();
-      if (r.width && r.height && r.right > W / 2 && r.top > 40) clusterTop = Math.min(clusterTop, r.top);
-    }
+    // the drawer: the right half, left of the upper-right button column (nap, tower, last-hit, E), from the top
+    // down to above whatever control lies under it (the ability cluster); never the joystick half
+    const btns = [...ui.querySelectorAll<HTMLElement>('.pl-tbtn, .pl-tcluster')].map((el) => el.getBoundingClientRect()).filter((r) => r.width && r.height);
+    let colLeft = W;
+    for (const r of btns) if (r.left > W / 2 && r.top < H * 0.5) colLeft = Math.min(colLeft, r.left);
+    const right = Math.max(10, Math.round(W - colLeft + 6));
+    const width = Math.max(180, Math.min(360, Math.round(W * 0.46), Math.round(W - right - W / 2)));
+    const dx0 = W - right - width;
+    const dx1 = W - right;
     const drawerTop = 8;
+    let under = H;
+    for (const r of btns) if (r.right > dx0 && r.left < dx1 && r.top > drawerTop + safeT) under = Math.min(under, r.top);
     ui.style.setProperty('--drawer-top', `${drawerTop}px`);
-    ui.style.setProperty('--drawer-max', `${Math.max(120, Math.round(clusterTop - 8 - drawerTop - safeT))}px`);
+    ui.style.setProperty('--drawer-right', `${right}px`);
+    ui.style.setProperty('--drawer-w', `${width}px`);
+    ui.style.setProperty('--drawer-max', `${Math.max(120, Math.round(under - 8 - drawerTop - safeT))}px`);
   }
 
   /** The composer's input has focus: no game key may fire. */
