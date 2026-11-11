@@ -1,0 +1,507 @@
+# Pawlegends v21: Kibble Cannon, stronger towers, burning towers (2026-11-10)
+
+**Founder ask (verbatim):** "add cool stuff into the game that'll make it more fun to make it viral, like a cannon that
+be picked up to do one-shot. also make towers stronger ( hits and more durable ). also make it go on-fire if it's low in
+HP, basically tower health must be represented visually."
+
+**Base:** `origin/main` at `8ed04e7e` (live sim v19). Sim v20 (Wild Rift chase/attack fix) is being rebalanced on
+`fix/pawlegends-chase-2` in another worktree. This plan does not touch it.
+
+**Split:**
+
+- **(A) Render only, ships now.** Tower and core damage states (§4). No sim bump, no vendor, no replay change.
+- **(B) Sim v21.** Kibble Cannon (§1), Boing Beds and the Mega Yarn Ball (§2), and stronger towers (§3). Build on
+  main now, rebase onto v20 when v20 lands, then refit balance on the v20 base (the v20 hero rows move kill rates, so
+  the v21 numbers below are re-checked after the rebase, not carried over blind).
+
+All names, models and sounds are original (cats-vs-dogs house style). No other game's characters, items or assets.
+
+---
+
+## 0. What exists today (read from code)
+
+| Area | Today | File |
+|---|---|---|
+| Pickups | Frenzy Catnip pair on the river (0:45, then every 30 s), Fish Snack per team behind its outer tower. Pickup table `pk*` with 4 slots (`CAPS.pickups`), outside the entity ids; snapshot shows them as `kind: 'pickup'` from `PICKUP_ID_BASE` | `data/pickups.ts`, `sim/units/pickup.ts` |
+| Skillshots | `fireSkillshot` with `PFLAG.HeroStop` (pierce minions, stop at the first hero), on-hit effects, Clem's parry reflects (`PFLAG.Reflected`), Brutus Guard blocks | `sim/effects/projectile.ts`, `sim/combat/projectile.ts` |
+| Forced movement | `FM.Dash`, `FM.Knock`, `FM.Hunt` | `sim/world.ts`, `sim/effects/dash.ts` |
+| Towers (3v3) | outer 1,800 / inner 2,200 HP, armour 40 / 50, 1 shot a second, 90 to heroes, +20% a consecutive shot capped at +60%, 1.2 s lock-on, 110 to minions, backdoor −50%, Sunset ×2 damage taken | `data/towers.ts`, `sim/units/tower.ts`, `sim/combat/attack.ts`, `sim/combat/damage.ts` |
+| Towers (5v5) | Hearthwood rows: outer 2,400, inner 2,800, gate 3,200, hearth 3,000; same shot rules | `data/maps/hearthwood.ts` |
+| Tower render | charge glow, recoil, hit tint, invulnerable bubble, topple + chunks + rubble line (4 s hold, 1.5 s sink), x-ray fade, aggro ring | `render/views/towerView.ts` |
+| HP readout | overhead bar with the trailing chunk and a tick every 500 HP; minimap squares, fallen towers greyed and crossed | `ui/overhead.ts`, `ui/minimap.ts` |
+| Moments | announcer `Moment` with banner / callout / pop, `slowmo`, `shake`, `crowd`, `rank` (results "Best moment"), `voice` | `render/announcer.ts`, `audio/voiceLines.ts` (clips in `public/voice/`) |
+| Bots | take Frenzy within `BOT_AI.pickupRange`; never dodge skillshots | `sim/bots/brain.ts` |
+| Gates | 3v3 `--gate balance`: median 6:30–9:00, p95 ≤ 10:30, heroes 46–54%, cats 47–53%, takedowns 2.5–3.5 a minute, trailing at 3:30 wins 20–40%, down 10+ wins < 5%. 5v5 `hearth-gates.mjs`: median 12:00–14:30, ≤ 2% safety end, heroes 46–54%, side and species 47–53% | `tools/lib/funstats.mjs`, `tools/hearth-gates.mjs` |
+
+A Catnip Frenzy pickup is already in the game, so it is not on the new list.
+
+### 0.1 Tower baseline (measured for this plan)
+
+A probe on the bundled v19 sim, with slot 0 as a `normal` player-bot against Normal bots (Crossing: 80 seeds;
+Hearthwood: 30 seeds, both with Clem in slot 0). The probe script is a scratch file. It is not committed.
+
+| v19 | Median length | 1st tower falls | 3rd tower falls | Towers a match | Hero deaths a match | Deaths to towers |
+|---|---|---|---|---|---|---|
+| Crossing (80 seeds) | 7:14 | 3:27 | 4:56 | 4.6 | 24.2 | 2.3 (9.4%) |
+| Hearthwood (30 seeds) | 13:04 | 3:52 | 5:14 | 9.8 | 51.4 | 4.1 (7.9%) |
+
+Reading: a tower falls every ~90 s once the first one goes, and towers cause under 10% of hero deaths. A dive under an
+outer tower costs little, which is what "make towers stronger" is about.
+
+---
+
+## 1. Kibble Cannon (sim v21)
+
+A big brass party cannon loaded with one giant kibble. One per map at a time. Anyone can grab it. One shot that
+one-shots the first enemy hero it hits. Everyone sees it coming.
+
+### 1.1 Spawn
+
+| | Crossing (3v3) | Hearthwood (5v5) |
+|---|---|---|
+| First spawn | **1:30** (2700) | **3:00** (5400) |
+| Respawn | **75 s** after it is fired or fizzles (2250) | **90 s** (2700) |
+| Warning | `cannonSoon` event and a minimap marker **10 s** before (300 ticks) | same |
+| Spots (alternate per spawn) | (50000, 36000) and (50000, 24000): on the river centre line, 6 m either side of the Pudding pit | (78000, 50000) and (50000, 78000): on the river line `x + y = 128 m`, between the centre crossing and each pit |
+| Last spawn | none after Sudden Death starts | same |
+
+- Every spot sits on the line equally far from both cores (Crossing x = 50 m; Hearthwood x + y = W), so no spawn favours
+  a team. Each spot must pass `grid.ts` walkability. If a spot is blocked, the build moves it to the nearest walkable
+  cell on the same line and the test pins it.
+- **Underdog Cannon** (comeback hook, on by default): if a team meets the existing `COMEBACK` trigger at spawn time
+  (3+ structures or 8+ takedowns behind), the cannon spawns 5 m toward that team's side of the river on the same
+  perpendicular. If the trailing-at-3:30 gate goes above 40%, set the offset to 0.
+- It lives in pickup slot 4 (`CAPS.pickups` 4 → **5** on both maps), kind `'cannon'`, team neutral.
+
+### 1.2 Pick up and carry
+
+- Walk over it (the same `PICKUPS.radius` check, run in `collectPickups`, ascending hero id, so ties are deterministic).
+- The carrier is stored in new globals: `G.CannonBy` (hero id, −1), `G.CannonT` (fuse ticks left), `G.CannonAt`
+  (next spawn tick), `G.CannonSpawns`, `G.CannonX`, `G.CannonY` (drop spot). They are appended after `G.LaneSwapT` and
+  `G.Count` grows, so Crossing hashes change, as v21 needs.
+- While carrying:
+  - **−15% move speed** (added to the move-speed bp sum, so slows still apply).
+  - **Revealed to both teams** (refresh `revealT` every tick: no brush or stealth hiding).
+  - **Fuse 20 s** (600). At 0 it **fizzles**: a sad "pfft" puff and confetti, no damage, then the respawn timer starts.
+  - Abilities, basics and the Paw Trick still work. **Nap drops it** at the carrier's feet. A dash or a blink keeps it.
+- **Drop on death** (or Nap): it lies at the spot for **8 s** (240), **pickable by either team** (the steal moment).
+  If nobody takes it, it fizzles. A dropped cannon keeps its remaining fuse (at least 5 s), so a steal can still fire.
+
+### 1.3 Fire
+
+- **Command:** new `Op.Fire = 11`, payload x, y (5 B like `Trick`). Dropped (not logged) when the sender does not hold
+  the cannon. Replays and the relay carry it like any command. `OP_SIZE`, `quantize`, the codec and `MAX_INPUT_BYTES`
+  (+15 B a match is enough) are updated in the same commit.
+- **Telegraph:** **0.75 s windup** (23 ticks). The carrier is planted (rooted, can still be hit). Both teams get a
+  `windup` event with new `slot: 5` and the aim, and the render draws the shot lane (1.2 m wide, full range) in red for
+  enemies and gold for allies, plus a fuse spark on the cannon.
+- **Interrupt:** any hard CC on the carrier during the windup (stun, fear, charm, knockback, root does *not* count)
+  cancels the shot and **fumbles** it: the cannon drops at the carrier's feet with 5 s fuse left. Callout "Fumble!".
+- **Shot:** `fireSkillshot` with a new `PROJECTILE_KIND.kibble = 16` (append only), speed **24 m/s**, range **16 m**
+  (Crossing) / **18 m** (Hearthwood), radius **0.7 m**, flags `HeroStop` (it rolls through minions).
+  - **First enemy hero hit: KABOOM.** Damage = the hero's HP + shield, dealt as `pure` with a new `execute` option that
+    skips Nine Lives (a one-shot that a passive could cancel would read as a bug). Kill credit, Fish, XP and bounty go
+    to the shooter as for any takedown.
+  - **Still beats it:** a dodge; Clem's parry (it flies back as the parrier's shot: "Return to sender!"); Brutus's Guard
+    block (the guard breaks, he lives); a Pounce or dash out of the lane; being untargetable. These are the skill
+    moments, and every one of them is a clip.
+  - **Minions in the lane:** 250 damage each (they are bowled, not blocking).
+  - **Towers and cores** (new: the kibble stops on an enemy structure footprint): **12% of max HP**, respecting
+    invulnerability and backdoor protection. Capped, so it never takes a tower alone.
+  - **Neutrals** (camps, Grizzlechop, Pudding's calm meter): **10% of max HP**, credit to the shooter's team as usual.
+  - **Splash:** none. One shot, one victim, so it reads.
+- The cannon is gone after the shot. The respawn timer starts on the shot tick.
+
+### 1.4 Bots
+
+- Grab: a bot goes for the cannon when it is the nearest unit of its team to it, or within 15 m, unless it is below 35%
+  HP or defending its base (the existing base-threat rule wins).
+- Fire: when an enemy hero is visible within **6 to 14 m** and the line is clear of an enemy Clem facing the carrier,
+  fire at the target's **current** position (no lead). Bots do not dodge, so this keeps their hit rate honest against
+  moving humans.
+- Fuse: with under 3 s left a bot fires at the nearest enemy tower in range, or at its facing.
+- All in `bots/brain.ts` on the 6-tick think; deterministic (no `Math.random`, ties by id).
+
+### 1.5 Phone readability
+
+- On the ground: a chunky brass cannon on a red-and-cream party wheelbase, gold ground ring and the existing pickup
+  light beam (`PICKUP_BEAM`), 1.4× the Frenzy gem size.
+- Carried: the cannon rides on the carrier's back, barrel up, 1.2× scale, a lit fuse spark every 0.5 s, and a gold
+  team-coloured ring under the carrier. Seen by both teams at any zoom.
+- HUD: the **Attack button turns into the FIRE button** while carrying (cannon icon, pulsing ring, fuse arc counting
+  down). **Tap = quick-cast** at the nearest visible enemy hero within range, else straight ahead (the zero-friction
+  rule). **Hold and drag** = aim with the existing `abilityAim` stick, release to fire. Desktop: **F** or a click on the
+  FIRE button, aimed at the cursor.
+- Minimap: a cannon glyph at the spot (both teams), then on the carrier, plus the 10 s warning ring.
+- Kill feed: a cannon icon between killer and victim.
+
+### 1.6 Juice and the share moment
+
+| Beat | Visual | Audio | Announcer |
+|---|---|---|---|
+| 10 s warning | minimap ring, river spot glows | low drum roll | — |
+| Spawn | cannon drops from the sky, bounces, dust ring | clank + cheer | **"Kibble Cannon!"** (`cannonSpawn`) |
+| Pick up | gold burst, carrier name in the feed | brass "ka-chunk" | own team: "We've got the cannon!"; enemy: "They've got the cannon!" |
+| Windup | lane telegraph, fuse sparks, cannon swells | fuse hiss | — |
+| Fire | big muzzle cloud (alpha PUFF ×10), recoil pushes the carrier back 0.5 m (render only), kibble spins with a smoke trail | deep boom (`boom` zzfx, pitched down) | — |
+| Hit hero | ring shockwave, kibble crumbs (CONFETTI + STAR4), victim flies a cartoon arc (render), 120 ms hit-stop | **"KABOOM!"** (`kaboom`) + crowd roar | banner "KABOOM! {shooter} kibbled {victim}", `slowmo { ms: 900, scale: 0.3 }`, shake 0.9, rank above Triple |
+| Miss | kibble bounces off the far edge and rolls away | "boing" | pop "Whiff!" over the shooter, crowd "ooh" |
+| Parried | kibble reverses with a gold trail | clang | banner "Return to sender!" |
+| Fumble | cannon tumbles to the ground | clatter | callout "Fumble!" |
+| Fizzle | "pfft" puff, a flag pops out of the barrel saying "BANG" | sad trombone (zzfx) | — |
+
+- **Slow-mo** only when the impact is on screen; otherwise the banner and minimap ping. The camera gets a 6% zoom punch
+  toward the impact (render only, off under reduce motion).
+- **Auto highlight (cheap):** a cannon kill ranks as the match's best moment unless a Pentakill-class moment beat it,
+  so the results screen shows "Best moment: KABOOM on Brutus" and the existing dare share text (`share/dare.ts`) uses
+  it: "I KABOOMed Brutus with the Kibble Cannon. Your turn." No video in v21. A replay clip of the last 5 s (the sim
+  re-sims from the record) is listed for later.
+- Voice: three new clips (`cannonSpawn`, `cannonOurs` / `cannonTheirs`, `kaboom`) recorded with the same voice and
+  pipeline as `public/voice/`; until they exist the keys say nothing (the existing rule).
+
+### 1.7 Expected effect and checks
+
+- About **4 cannons a Crossing match** and **6 on Hearthwood**. With bots aiming at current positions, expect 50–70% to
+  kill: **+2 to +3 takedowns a 3v3 match (+0.3 to +0.4 a minute)**. The 3v3 gate band is 2.5–3.5 a minute and v19 sits
+  at 3.37, so this is the risk. **Default:** keep the band. If the gate fails, lengthen the respawn to 105 s first,
+  then 120 s. Widening the band to 3.8 is a founder call, not a default.
+- Tests: pickup / carry / drop / steal / fizzle / fumble / parry / Guard / Nine Lives skipped / tower cap / neutral cap,
+  each a scripted unit test; a replay test with `Op.Fire`; determinism over 40 seeds on each map.
+
+---
+
+## 2. More viral mechanics
+
+| # | Idea | Fun / clip value | Cost | Balance risk | v21? |
+|---|---|---|---|---|---|
+| 1 | **Boing Beds** (springy cat beds that launch you across a wall) | High: flying cats and dogs, surprise ganks, escapes | **Low**: one new FM kind, fixed data, no AI targeting | Low: symmetric, fixed spots | **Yes** |
+| 2 | **Mega Yarn Ball** (kick it, it rolls down a lane and bowls enemies over) | Very high: "strike!" moments with 3+ heroes | Medium: reuse the skillshot step for the roll | Medium: knockback near towers | **Yes** |
+| 3 | Cardboard Box (a pickup: become a box for 8 s, identical to decor boxes) | High (ambush clips) | Medium: decor boxes on both maps, stealth rules exist | Medium in PvP | Later (v22) |
+| 4 | Robo-Vacuum (a neutral that roams the river and pulls nearby units in; dogs bark at it) | High comedy | Medium-high: new neutral AI | Medium | Later |
+| 5 | Sprinkler Time (a river zone turns on at Sunset, slows and "wet" cats look grumpy) | Medium | Low | Low | Later |
+| 6 | Grizzlechop steal cheer ("Snack thief!" when the last hit steals him across the pit) | Medium | Very low (event + banner exist: `buffSteal`) | None | Render-only, can ride with (A) |
+
+**Picked for v21: Boing Beds and the Mega Yarn Ball.** Boing Beds are the cheapest thing that makes ordinary moments
+look funny on a phone (every rotation becomes a cartoon jump) and need no new targeting. The Yarn Ball is the
+best clip machine after the cannon (one kick, three dogs knocked over) and is mostly the existing skillshot code. Both
+are neutral and symmetric, so they barely move hero balance. The Box needs decor on both maps and PvP stealth testing,
+so it waits.
+
+### 2.1 Boing Beds
+
+- **Spots:** Crossing: 2 per side (4), each in the jungle loop: one from the rat camp side over the wall at
+  (35000–37000, 26000–34000) to the river, one from behind the outer tower toward the rat camp. Hearthwood: 3 per side
+  (6), one per quadrant mouth, plus one each side of each pit's back wall. Exact launch and landing points are authored
+  for team 0 and reflected (`mirrorX` / point reflection); each landing must be walkable and outside any wall.
+- **Trigger:** a living hero whose centre comes within **0.9 m** of a bed while it has a move order whose goal is
+  beyond the bed (so standing next to it never launches anyone). Per-hero, per-bed cooldown **3 s**.
+- **Launch:** new `FM.Leap = 4`: a fixed **0.9 s** (27 ticks) flight to the landing point, straight in the sim (the arc
+  is render only), unstoppable (no CC can stop it once airborne), cannot attack or cast, still hittable. Landing gives
+  nothing extra.
+- **Bots:** a bot uses a bed when its landing is at least 8 m closer to the bot's goal along the nav path than the bot
+  is now, and the bed is within 5 m. Otherwise it walks.
+- **Juice:** squash and stretch of the bed, a "boing" spring sound, a spin in the air, a dust ring on landing. Phone:
+  beds are 1.6 m soft pastel cushions with a paw print, readable at any zoom; a faint arc preview when the own hero
+  stands within 3 m.
+- **Data:** `data/boing.ts` (spots per map), sim in `units/boing.ts` (no new entities: a fixed table, nothing to hash
+  but the per-hero cooldowns `boingT`, which are hashed).
+
+### 2.2 Mega Yarn Ball
+
+- **Spots:** Crossing: two balls, (50000, 46000) and (50000, 14000) (river, beside each lane crossing). Hearthwood: one
+  ball at the centre crossing on Yarn Road (64000, 64000). Up from **1:00** (Crossing) / **2:00** (Hearthwood).
+- **Kick:** a hero moving into the ball (centre within 1.6 m of it, with a move or attack-move order) kicks it in its
+  movement direction. A ball rests **1.5 s** between kicks.
+- **Roll:** a skillshot from the ball's position with a new `PROJECTILE_KIND.yarn = 17`, owner = the kicker: **11 m/s**
+  (slow and readable), range **20 m**, radius **1.2 m**, `Pierce`. It stops at a wall cell, a structure or the range end
+  and rests there.
+  - Enemy heroes of the kicker: **120 + 5% max HP** and a **2.5 m knockback** along the roll (each hero once a roll).
+  - Enemy minions: 150 and the same knockback.
+  - Enemy structure it stops on: **5% max HP** (capped, backdoor rules apply).
+  - Allies and neutrals: pass through.
+- **Lifetime:** unravels after **3 kicks** (a burst of yarn strands), back at its home spot **45 s** later.
+- **Bots:** a bot kicks it when it stands within 4 m and the kick line toward an enemy hero or an enemy wave within
+  15 m is clear. Otherwise it ignores the ball.
+- **Juice:** the ball spins and leaves a wobbly yarn trail (the existing decal ribbon), knocked heroes tumble, and three
+  or more heroes hit by one roll fire a "STRIKE!" banner with a 0.5 s slow-mo and crowd cheer.
+- **Data:** the balls live in a small fixed table (`yb*`: x, y, state, kicks, rest ticks, home), all hashed.
+
+---
+
+## 3. Stronger towers (sim v21)
+
+Founder: "hits and more durable". Two levers: towers hurt more when they shoot heroes (dive costs a life) and take
+longer to kill (fewer, later falls). One early guard (**Fortified**) stops early lane snowball, so a strong lane pair
+cannot take an outer tower before the others reach it.
+
+### 3.1 Numbers
+
+| Stat | v19 | **v21** | Change |
+|---|---|---|---|
+| Damage to heroes (base) | 90 | **120** | +33% |
+| Ramp per consecutive shot | +20% | **+25%** | |
+| Ramp cap | +60% (4th shot 144) | **+100% (5th shot 240)** | 5 shots: 468 → **900** |
+| Damage to minions | 110 | 110 | (unchanged: wave clear speed is the lane pace) |
+| Crossing outer HP | 1,800 | **2,250** | +25% |
+| Crossing inner HP | 2,200 | **2,750** | +25% |
+| Hearthwood outer / inner / gate / hearth HP | 2,400 / 2,800 / 3,200 / 3,000 | **3,000 / 3,500 / 3,800 / 3,500** | +25% / +25% / +19% / +17% |
+| **Fortified** (new) | — | heroes deal **−35%** to towers before **3:00** (Crossing) / **5:00** (Hearthwood); minions and the Kibble Cannon are not reduced | |
+| Armour, range, lock-on, backdoor, Sunset ×2 | | unchanged | |
+| Cores | 3,000 / 4,500 | unchanged | (Sunset and Sudden Death close the match) |
+
+What a dive costs now (level 6 squishy, ~770 HP, armour ~30, before Toys): v19 tower shots after armour do 69, 83,
+97, 111, 111 → about 470 in 5 s (61%). v21: 92, 115, 138, 161, 184 → about 690 in 5 s (**~90%**). A tank still dives
+for 3–4 shots; a squishy that stays for five shots dies. Lock-on (1.2 s) keeps the warning.
+
+Fortified: shown as a soft ribbon wrap on the tower and a shield icon on its bar until it ends ("Towers are no longer
+fortified!" callout). It is applied in `dealDamage` right after the Sunset line, only when `srcKind === Kind.Hero`.
+
+### 3.2 Expected effect (probe; final numbers come from the gates)
+
+The same probe, with source patches applied to the bundle only. Variants: **dmg** = the shot changes alone; **strong**
+= shots + HP; **v21** = shots + HP + Fortified −35% (the table in §3.1); **mid** = HP +17%, base damage 115, Fortified
+−30%.
+
+| Crossing (80 seeds) | Median length | 1st tower | 3rd tower | Towers a match | Deaths a match | Deaths to towers |
+|---|---|---|---|---|---|---|
+| v19 | 7:14 | 3:27 | 4:56 | 4.61 | 24.2 | 2.27 (9.4%) |
+| dmg | 7:18 | 3:35 | 5:04 | 4.44 | 24.0 | 3.11 (13.0%) |
+| strong | 7:32 | 3:40 | 5:30 | 4.24 | 24.2 | 2.95 (12.2%) |
+| **v21** | **7:39** | **3:41** | **5:31** | **4.36** | **25.0** | **2.98 (11.9%)** |
+| mid | 7:27 | 3:31 | 5:04 | 4.58 | 25.4 | 2.84 (11.2%) |
+
+| Hearthwood (30 seeds) | Median length | 1st tower | 3rd tower | Towers a match | Deaths a match | Deaths to towers |
+|---|---|---|---|---|---|---|
+| v19 | 13:04 | 3:52 | 5:14 | 9.83 | 51.4 | 4.07 (7.9%) |
+| strong | 13:05 | 3:41 | 5:40 | 9.80 | 51.9 | 5.67 (10.9%) |
+| **v21** | **13:06** | **3:41** | **5:52** | **9.17** | **50.3** | **5.70 (11.3%)** |
+| mid | 13:06 | 3:34 | 5:32 | 9.70 | 54.2 | 6.20 (11.4%) |
+
+These are small samples from one probe, not gate runs.
+
+- **Probe result:** v21 towers add about 25 s to a 3v3 match (7:14 → 7:39) and leave the 5v5 median where it was
+  (Sunset and the closing rules decide it). The 2nd and 3rd towers fall 35–40 s later. Deaths to towers go up about
+  30% (Crossing 2.3 → 3.0, Hearthwood 4.1 → 5.7), and total deaths stay flat, so takedowns a minute fall slightly
+  (3v3: 3.35 → 3.27 hero deaths a minute in the probe). That leaves room for the cannon's kills (§1.7).
+- **Match length:** the 3v3 balance gate (median 6:30–9:00, p95 ≤ 10:30) and the 5v5 gate (12:00–14:30) stay. The
+  timeline rails (Sunset ×2 structure damage, Sudden Death decay, takedown core damage) are untouched, so the stronger
+  towers delay falls but cannot stall a match past the rails.
+- **Dive:** tower kills of heroes go up (towers become a real threat), which also lifts takedowns a minute. Watch the
+  3.5 ceiling together with the cannon (§1.7).
+- **Comeback:** stronger towers help the trailing team hold, which helps the 20–40% band; the deficit gate (down 10+
+  wins < 5%) is the one to watch, because the leader takes longer to close.
+- **Rookie and Easy:** `structureHpBp` and `enemyBackdoor` rules multiply on top as today. Rookie's `towerKnockback`
+  stays. Run the `fun1` / `novice` gates; if the first-match length moves past their bands, lower Rookie's
+  `structureHpBp` from 12000 to 10500 (it already makes Rookie towers tougher).
+
+### 3.3 Fallback order if a gate fails
+
+1. Match too long: Fortified −35% → −25%, then HP +25% → +15%.
+2. Takedowns over 3.5 a minute: ramp cap +100% → +80%, then the cannon respawn (§1.7).
+3. A hero leaves 46–54%: per-hero `pvp` rows (3v3) or `HEARTHWOOD_PVP` rows (5v5), as in V18-CHASE §3.
+
+---
+
+## 4. Tower damage states (render only, ship now)
+
+Tower and core health shows on the model itself, so a player reads "that tower is almost down" without the bar.
+
+### 4.1 States
+
+| State | HP | Look |
+|---|---|---|
+| 0 Clean | 100–66% | as today |
+| 1 Cracked | < 66% | crack lines in the walls (shader), a chip burst at the moment it crosses (3 debris chunks from the existing pool), roof tilts 2° |
+| 2 Burning | < 33% | a smoke column, flame licks at the top, embers; a warm flicker on the tower's own flash uniform |
+| 3 Blazing | < 15% | flames ×2, sparks, a slow wobble (±1.5° at 0.8 Hz), smoke darker and taller |
+| 4 Destroyed | 0 | the existing topple, chunks and rubble, plus the rubble smoulders (2 puffs a second) for its 4 s hold |
+
+- Thresholds in `TOWER_DAMAGE = { cracked: 0.66, burning: 0.33, blazing: 0.15 }` in `render/views/towerDamage.ts`.
+  The state only ever goes up during a match (towers do not heal), so no flicker at a boundary. A pure
+  `damageState(hpFrac)` is unit-tested.
+- Crossing a state threshold plays a short crack (state 1) or "whoomph" (states 2, 3) from new zzfx entries and a 0.15
+  flash. No looping fire sound (phones).
+- Cores use the same states and thresholds, with the column sized ×1.6.
+
+### 4.2 Team readability
+
+- Flames and smoke are the same colours for both teams (fire is fire). The tower body keeps its team colours, and the
+  smoke column is tinted 10% toward the team colour at the base (cat: pink-grey; dog: brown-grey).
+- **Own tower at state 2+**: the minimap square pulses orange at 1 Hz and gets a small flame glyph; the overhead bar
+  shows the same flame glyph. **Enemy tower at state 2+**: the minimap square gets the flame glyph (a "finish it"
+  cue), no pulse.
+- An own tower that crosses into state 2 fires one info callout "Our {lane} tower is burning!" (rate-limited to once a
+  tower).
+
+### 4.3 Cost budget and tiers
+
+- **Cracks:** one new `uDmg` uniform on the tower rig material (`rig.ts`), a procedural crack mask in the fragment
+  shader (hash noise on object position, no texture). Free on all tiers.
+- **Particles:** emitted into the existing `Particles` pools (one instanced draw each). Per burning tower at Medium:
+  smoke 3/s × 2.5 s life, flames 6/s × 0.5 s, embers 4/s × 0.8 s (**≈ 14 live**); at state 3 double. Worst case
+  (four towers blazing on screen) ≈ 110 of the 1,600 Medium budget (7%).
+- **Low tier** (and the phone profile's Low particle budget, and governor step 2+): rates ×0.5, no embers or sparks
+  (`extras: false`), smoke life 1.8 s. Cracks and wobble stay (they cost nothing).
+- **Culling:** only towers inside the camera's view box emit; an off-screen tower keeps its state, emits nothing.
+- **No per-frame allocation:** per-structure `emitAcc` numbers on the existing `Structure` record; scratch vectors as in
+  `towerView.ts`.
+- **Reduce motion:** no wobble and no roof tilt; the fire still shows.
+- **Check:** the perf trace in `tests/perf` on the phone profile with four burning towers on screen stays inside the
+  PERF-IOS frame budget (JS ≤ ½ frame), and `npm run budget` stays under 450 KB first-load.
+
+---
+
+## 5. Build list
+
+### (A) Render only, now (no sim bump, ships before v21)
+
+1. `render/views/towerDamage.ts`: `TOWER_DAMAGE` thresholds, pure `damageState(hpFrac)`, the per-state emit rates per
+   tier. Unit test.
+2. `render/views/rig.ts`: `uDmg` uniform and the crack mask for the tower and core materials.
+3. `render/views/towerView.ts`: track the state per structure (max seen), roof tilt, wobble, chip burst on state 1,
+   emit smoke / flames / embers through a callback to `gameView` (like `onShot`), smouldering rubble during the hold.
+4. `render/gameView.ts`: wire the emitter callback to the `Particles` pools with the `VfxTier` scaling and view-box
+   culling.
+5. `audio/sfx.ts`: `towerCrack` and `towerIgnite` zzfx entries, played on a state crossing.
+6. `ui/minimap.ts` and `ui/overhead.ts`: flame glyph at state 2+, orange pulse for own towers.
+7. `render/announcer.ts`: "Our {lane} tower is burning!" once a tower (info tone).
+8. Tests: `damageState`, state never goes down, Low tier emits no embers, no allocation in `update` (the existing
+   allocation test pattern), a visual snapshot of the four states in `tests/visual`.
+9. Checks: `npx tsc --noEmit`, `npx vitest run`, `npm run build`, `npm run budget`, the phone perf trace, then
+   `npm run build:client` and commit `client/public/pawlegends-game`.
+10. Optional with (A): the Grizzlechop steal banner "Snack thief!" on the existing `buffSteal` event.
+
+### (B) Sim v21 (on main now, rebased onto v20)
+
+1. **Versioning:** `SIM_VERSION` 21. `FROZEN` in `tools/vendor-sim.mjs` gains v20 at its release commit (after v20 is on
+   main); the backend verifies 10 to 21. Vendor the v21 bundle and fixtures, regenerate the party-identity golden and
+   protocol seed, as V18-CHASE §1 did.
+2. **Towers:** `data/towers.ts` (`heroDamage` 120, `rampBp` 2500, `rampCapBp` 10000, outer 2250, inner 2750, new
+   `fortifyBp` 6500 and `fortifyUntil` per map: 5400 Crossing, 9000 Hearthwood), `data/maps/hearthwood.ts`
+   `TOWER_STATS`, `combat/damage.ts` Fortified line, `fortified` buff bit for the render.
+3. **Kibble Cannon sim:** `data/cannon.ts` (spots, timers, numbers per map); `units/cannon.ts` (spawn, carry, fuse,
+   drop, steal, fizzle); pickup slot 4 and `CAPS.pickups` 5; globals `G.Cannon*`; `Op.Fire` in `api.ts`, `commands.ts`
+   (size, quantize, codec), `input.ts`; windup slot 5; `PROJECTILE_KIND.kibble` 16 and its `SRC_KIND` row; the
+   `execute` damage option; structure and neutral hits for the kibble; events `cannonSoon`, `cannonSpawn`,
+   `cannonPick`, `cannonDrop`, `cannonFizzle`, `cannonFire`, `kaboom`; `PickupKind` 'cannon'; snapshot field for the
+   carrier.
+4. **Boing Beds sim:** `data/boing.ts`, `units/boing.ts`, `FM.Leap`, per-hero `boingT` (hashed), event `boing`.
+5. **Mega Yarn Ball sim:** `data/yarn.ts`, `units/yarn.ts` (table `yb*`, hashed), `PROJECTILE_KIND.yarn` 17, roll stop
+   on walls and structures, knockback on hit, events `yarnKick`, `yarnStrike` (3+ heroes), `yarnUnravel`; snapshot rows.
+6. **Bots:** cannon grab / fire / fuse rules, bed use, yarn kicks (`bots/brain.ts`, `BOT_AI` numbers in
+   `data/bots.ts`); the naive player-bot grabs the cannon only when it walks over it.
+7. **Limits:** `MAX_INPUT_BYTES` (three copies, MAP-5V5 §2.5) for `Op.Fire`; the party relay and backend protocol
+   accept opcode 11 through the vendored sim's decoder.
+8. **Client:** FIRE button swap with tap quick-cast and drag aim (`input/touch`, `ui/abilityBar.js`), desktop F key,
+   cannon / bed / yarn views (`render/views/pickupView.ts` or new `funView.ts`), lane telegraph (`Telegraphs.js`),
+   carrier back-mount, KABOOM / Whiff / Fumble / Return to sender / STRIKE moments, slow-mo and zoom punch, kill-feed
+   icon, minimap glyphs, sfx, three voice keys, results "Best moment" and dare text.
+9. **Tests:** unit tests per mechanic (§1.7, beds, yarn), commands round-trip with `Op.Fire`, replay and determinism
+   (`npm run determinism`, `hearth-gates.mjs --det 40`), `lint:sim`, `vendor-sim:check`.
+10. **Gates (on the v20 base after the rebase):** `node tools/headless-match.mjs --gate balance` (2,000 seeds, both
+    windows), `fun1`, `fun2`, `novice`, `feedNormal`; `node tools/hearth-gates.mjs --seeds 2000`;
+    `pvp-symmetry.mjs`. Pass bands: heroes 46–54%, cats 47–53%, side 45–55% (3v3) / 47–53% (5v5), length 6:30–9:00
+    (3v3) and 12:00–14:30 (5v5), takedowns 2.5–3.5 a minute (3v3), trailing at 3:30 wins 20–40%, down 10+ wins < 5%.
+    Fallbacks in §1.7 and §3.3.
+11. **Docs:** this file's status and measured tables; `docs/plans/moba/GDD.md` §3.2 (cannon, beds, yarn, towers).
+
+### Your call (defaults apply if no answer)
+
+| Question | Default |
+|---|---|
+| Cannon name | **Kibble Cannon** ("KABOOM!") |
+| Cannon one-shots through Nine Lives | **Yes** (parry, Guard and dodges still beat it) |
+| Takedowns gate fails with the cannon | Lengthen respawn (105 s, then 120 s); do not widen the band |
+| Underdog Cannon offset | **On** (5 m toward the trailing team) |
+| Extra mechanics in v21 | **Boing Beds + Mega Yarn Ball**; Cardboard Box in v22 |
+
+---
+
+## 6. Status: sim v21 built (2026-11-11, branch `feat/pawlegends-v21-fun`, on main before v20)
+
+Built: the Kibble Cannon, Boing Beds, the Mega Yarn Ball and stronger towers as sim v21, with bots, render, HUD,
+touch and desktop controls, announcer moments, the kill-feed cannon, the minimap glyphs and the KABOOM dare text.
+Sim v19 is frozen in `tools/vendor-sim.mjs` (at `f9733681`); the backend verifies 10 to 19 and 21. When v20 lands
+on main, rebase, add v20's frozen entry and re-run the gates of §5 B10 on that base.
+
+### 6.1 What changed from the plan
+
+| Item | Plan | Built | Why |
+|---|---|---|---|
+| Cannon respawn (Crossing) | 75 s | **120 s** | the takedowns ceiling (§1.7): 3.52 a minute at 75 s, 3.50 at 105 s |
+| Tower ramp cap | +100% | **+80%** (5 shots 876, v19 468) | §3.3 step 2: still on the 3.5 ceiling at 120 s |
+| Cannon pick-up slot | pickup slot 4, `CAPS.pickups` 5 | globals `G.Cannon*` (state, spot, carrier, fuse, drop, windup, aim) | no change to the pickup table or its snapshot ids |
+| Yarn kick direction | the kicker's movement | from the kicker to the ball | the same thing at contact, and deterministic without a velocity |
+| Beds | Crossing 2 a side, Hearthwood 3 a side | Crossing 3 a side (rat camp, Sunny and Puddle sides), Hearthwood 4 a side (one per quadrant wall, both quadrants) | symmetric within a team |
+| Bed trigger | goal beyond the bed | goal past the bed, or a tap on the bed (goal within 0.6 m) | phones: tapping the bed is the obvious move; bots walk onto the bed |
+| Per-hero, per-bed cooldown | per bed | per hero (any bed), 3 s after landing | one hashed number a hero |
+| Fire from a non-carrier | dropped, not logged | logged, ignored by the sim | the gate stays world-free; replays apply it identically |
+| Rookie `structureHpBp` | 12000 | **10500** | §3.2 fallback (fun1 core-kill share) |
+| Hero rows | – | Lambo takes 7550 (7750), Brutus takes 9850 (9925), Sage deals 9750 (9875), Rocket 9350 / 9300 (9250 / 9400), Frankie takes 9275 (9175); Hearthwood cat row 10220 / 9780 (10120 / 9880), Marshmallow 9560 / 10440 (9660 / 10340) | per-window refits; see 6.3 |
+| Input budget | +15 B | **+60 B** a map (Crossing 30,660 B / 40,880 chars, Hearthwood 44,760 / 59,680) in `data/limits.ts` and `shared/caps.ts` (synced) | room for ten shots |
+| Announcer voice | three new clips | **none yet**: the moments use the crowd and SFX (boom, clank, fuse, clang, trombone) | the Qwen3-TTS clone run was not allowed in this session; the clip keys can be added later (voice.test.ts needs every listed key to have a clip) |
+
+### 6.1a Review fixes (2026-11-11)
+
+- **Pick-up fairness:** of the heroes in reach, the one nearest the cannon's centre takes it; a tie between the teams
+  goes to team (spawns so far & 1), so it alternates per spawn (before, slot order gave every Crossing tie to team 0).
+- **Guard block:** a kibble stopped by Sir Brutus's Front Guard (or a Guard Post dome) breaks the Guard (the dome
+  falls) and reports `cannonBlock { id: Brutus, src: shooter }`: a "Blocked!" banner for everyone, Brutus's own best
+  moment (rank 38, like a parry). Before, it was a shooter-only "Whiff!".
+- **Bots** fire only along a clear line: no wall cell (sampled every `EFFECTS.wallStep`, as the kibble flies) and no
+  enemy structure footprint between the carrier and the target.
+- **Underdog label:** the team chosen at the warning is kept in `G.CannonUnder`, so `cannonSpawn.underdog` matches the
+  spot.
+- **Phones:** a FIRE press within 400 ms of the button turning into FIRE (or while it still showed ATK) is ignored, and
+  the button pops in during that window, so an ATK tap after walking over the cannon never wastes it.
+- **Party relay:** `CMD_OP.Fire` is a client op (human seats could not fire; three presses closed the socket). A v19
+  room still strikes op 11 in its decoder.
+- **Render:** a hidden carrier's cannon follows the snapshot position; an ally's windup lane is blue (self gold, enemy
+  red); no per-event closures in `funEvent`; the fuse arc is written per step change only.
+
+Gates after these fixes: 3v3 balance 3.49 takedowns a minute in both windows (1–2000, 2001–4000), trailing at 3:30
+wins 27.8% / 27.1%, down 10+ wins 1.3% / 1.7%, cats 49.4% / 49.1%; one hero at the band edge per window (Howler
+45.6%, Nugget 54.3%), as before. `pvp-symmetry` 47.6%, `novice` 89.5%, `feedNormal` 3.8%, `determinism.mjs` all
+identical. `fun2` still 2.42, `fun1` 79.0% / 6.2 s (open, §6.4). `hearth-gates` 600 seeds: side 49.3%, cats 53.4%,
+length 13:06, determinism 120 of 120; per-hero 45–56.5% on ~600 slots (refit on the v20 base).
+
+### 6.2 Usage (probe, Normal pilot vs Normal bots)
+
+| | Crossing (60 seeds) | Hearthwood (20 seeds) |
+|---|---|---|
+| Median length | 7:29 | 13:06 |
+| 1st / 3rd tower | 3:29 / 4:58 | 3:45 / 5:46 |
+| Cannons a match (spawned / fired) | 3.2 / 3.2 | 6.1 / 5.9 |
+| KABOOMs a match | 1.4 | 1.9 |
+| Whiffs, steals, fumbles, fizzles | 1.8, 0.08, 0.02, 0.02 | 4.0, 0.35, 0.1, 0.15 |
+| Boing launches a match | 4.4 | 15.1 |
+| Yarn kicks a match | 3.9 | 4.5 |
+| Deaths to towers | 9.8% | 10.2% |
+
+### 6.3 Gates (2,000 seeds a window)
+
+| Gate | Result |
+|---|---|
+| 3v3 balance, seeds 1–2000 | length 7:20, p95 8:34, 90% core kill, **3.48–3.49 takedowns a minute**, trailing at 3:30 wins 28–29%, down 10+ wins 1.4–4.4%, sides and species pass; one hero at the band edge per run (Cacklejaw 54.5% in the last run) |
+| 3v3 balance, seeds 2001–4000 | length 7:21, **3.49–3.50** takedowns, down 10+ wins 3.0%; per-hero edges flip between runs (Brutus, Sage, Rocket, Chili, Avietė, Brutus branch at 44–55%) |
+| `pvp-symmetry`, 2,000 seeds | map side 48.3%, cats 50.6%: pass |
+| `determinism.mjs` | 100 seeds plus PvP, all identical |
+| `novice`, `feedNormal` | pass |
+| `fun1` | fails on v19 too (core kill before Sudden Death 80.5%, 90%-to-dead 6.7 s); v21 74.5% / 6.2 s, then **78.5% / 6.2 s** with Rookie `structureHpBp` 10500 |
+| `fun2` | **fails: 2.42 takedowns a minute** (floor 2.5; v19 2.61). Open |
+| `hearth-gates`, 2,000 seeds (4,000 matches) | side 48.4%, length p50 13:06, no safety ends, determinism 120 of 120; **cats 46.8%** and Marshmallow 54.4% failed |
+| `hearth-gates`, 600 seeds after the refit (cat row +1%, Marshmallow −1%) | side 49.7%, **cats 52.3%**, length 13:06; four heroes at 45.8–55.2% on 300 slots each (noise at that size): the 2,000-seed refit runs on the v20 base |
+| `vitest` | all pass except the two `tools/trailer` copy-gate tests and the two CPU-time perf tests, which fail on the v19 base under the same load (the 11:00 worst case costs about 7% more CPU: stronger towers keep more minions alive) |
+| `tsc`, `lint:sim`, `build`, `budget`, `vendor-sim:check` | pass (first load 398.6 KB gzip, party chunk 39.3 KB) |
+
+### 6.4 Open (founder call or after the v20 rebase)
+
+- **Takedowns ceiling:** 3.47–3.50 a minute with the cannon at 120 s and the ramp at +80%, on the 3.5 line in both
+  windows. Next levers: the band to 3.6 (founder), or the ramp cap +60% (the v19 cap, keeps 120 base damage).
+- **`fun2`** (naive vs Easy) 2.42 takedowns a minute against a 2.5 floor.
+- **Per-hero edges** (3v3 and 5v5) move between windows by ±3 pp: refit on two 2,000-seed windows after the v20
+  rebase, as §5 B10 says.
+- **Voice clips** for the cannon lines (`cannonSpawn`, `cannonOurs`, `cannonTheirs`, `kaboom`, `returnToSender`,
+  `strike`): render them with the same Qwen3-TTS clone pipeline, add them to `VOICE_LINES` and the manifest, and set
+  `voice` on the announcer moments.
+- The Fortified ribbon on the tower model is not drawn; the shield glyph on the bar shows it.

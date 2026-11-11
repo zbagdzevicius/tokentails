@@ -106,6 +106,20 @@ Why 3v3: matchmaking needs 6 players, not 10; art, netcode and balance load is l
 - **Captain Grizzlechop** (PPK rat boss) spawns in the river at 2:00, then every 3:00. Reward: team XP, and the team's next 2 waves are "armoured" (+30% HP).
 - **Pudding** (PPK's 6 m dragon who is scared of everything) spawns at 5:00, then every 2:30. Teams "calm" him: a race to fill his calm meter, styled as cheering him up. Reward: **Pudding's Courage**. Pudding escorts the team's next wave down one lane and breathes on towers. This is the Baron role and the closer.
 - **Catnip Bushes** (brush): units inside are hidden from enemies outside. Vision is computed in the sim (§9.4), so Phase 2 can send each team only what it can see.
+- **Sim v21 fun mechanics** (`V21-FUN.md`, both maps):
+  - **Kibble Cannon**: one at a time on the river line (equally far from both cores; Crossing 1:30 then 105 s after
+    each shot, Hearthwood 3:00 then 90 s; a 10 s warning; none after Sudden Death starts). Walk over it to carry it:
+    −15% speed, revealed to both teams, 20 s fuse. Death or Nap drops it for 8 s (either team may steal it). FIRE has a
+    0.75 s planted windup (hard CC fumbles it); the kibble rolls through minions and one-shots the first enemy hero it
+    touches (KABOOM, through Nine Lives and shields). Dodges, Clem's parry ("Return to sender!") and Brutus's Guard beat
+    it; towers take 12% of max HP, neutrals 10%. The Underdog Cannon spawns 5 m toward a team that is far behind.
+  - **Boing Beds**: springy cat beds by the jungle walls (Crossing 3 a side, Hearthwood 4 a side); stepping onto one
+    with a goal past it flings the hero over the wall in a 0.9 s flight nothing interrupts; 3 s cooldown.
+  - **Mega Yarn Ball**: a ball on the river (Crossing 2, Hearthwood 1) that a walking hero kicks; it rolls 20 m,
+    bowling enemy heroes and minions over (damage, 2.5 m knockback; STRIKE at 3+ heroes); 3 kicks, then it unravels.
+  - **Stronger towers**: 120 damage to heroes, +25% a consecutive shot up to +100%; HP +25% (Crossing 2,250 / 2,750;
+    Hearthwood 3,000 / 3,500 / 3,800 / 3,500); **Fortified**: heroes deal 35% less to towers before 3:00 (Crossing) /
+    5:00 (Hearthwood).
 - **POC subset** (`POC.md` §5): 1 rat camp per side, no crow roost, no Grizzlechop, 4 bushes, no fog of war (brush still hides). The rest arrives in the MVP.
 
 ### 3.3 Timeline and safety rails

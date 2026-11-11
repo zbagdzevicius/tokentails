@@ -23,6 +23,7 @@ import { domeShields, guardBlocks } from '../heroes/brutus';
 import { parryOpen } from '../heroes/clem';
 import { abil } from '../heroes/talents';
 import { radiusOf, targetable } from '../units/kinds';
+import { isFunShot, stepFunShot } from './funshot';
 
 /**
  * Source kind a bolt's damage counts as (backdoor and tower-aggro rules), by PROJECTILE_KIND (sim v11: cap, fluff;
@@ -43,6 +44,9 @@ const SRC_KIND: readonly number[] = [
   Kind.Hero,
   Kind.Hero,
   Kind.Hero,
+  Kind.Hero,
+  Kind.Hero,
+  // Sim v21: kibble, yarn.
   Kind.Hero,
   Kind.Hero,
 ];
@@ -180,6 +184,7 @@ export function stepProjectiles(m: MatchHandle): void {
   for (let p = 0; p < w.pAlive.length; p++) {
     if (w.pAlive[p] === 0) continue;
     if (w.pTarget[p] >= 0) stepBolt(m, p);
+    else if (isFunShot(w.pKind[p])) stepFunShot(m, p);
     else stepSkillshot(m, p);
   }
 }

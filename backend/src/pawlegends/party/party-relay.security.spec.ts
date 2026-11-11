@@ -8,6 +8,7 @@ import { PartyTicketService } from './party-ticket.service';
 import { RefereePool } from './referee-pool';
 import { MemoryRoomStore } from './room-store';
 import { LIVE, TestClient } from './relay-test-client.helper-spec';
+import { simFor } from '../../vendor/pawlegends-sim';
 
 /*
  * Relay hardening (the party security review, Nov 2026): every finding that was reproduced against a live relay is
@@ -52,14 +53,14 @@ async function boot() {
 
 type Booted = Awaited<ReturnType<typeof boot>>;
 
-async function twoInMatch(b: Booted) {
+async function twoInMatch(b: Booted, sim: Record<string, unknown> = {}) {
     const a = await b.client('10.0.0.1');
-    a.hello({ guestKey: 'leader-key-0001' });
+    a.hello({ guestKey: 'leader-key-0001', ...sim });
     await a.until(() => a.last('welcome'));
     a.send({ t: 'party.create', difficulty: 'easy' });
     const pa = await a.until(() => a.last('party'));
     const c = await b.client('10.0.0.2');
-    c.hello({ guestKey: 'member-key-0001' });
+    c.hello({ guestKey: 'member-key-0001', ...sim });
     await c.until(() => c.last('welcome'));
     c.send({ t: 'party.join', code: pa.code });
     await a.until(() => a.last('party')?.members.length === 2);
@@ -102,6 +103,28 @@ describe('party relay hardening', () => {
             for (const e of t.entries) expect(() => LIVE.party!.decodeCommand(e.cmd)).not.toThrow();
         expect(b.relay.rooms.has(live.room.id)).toBe(true);
         expect(live.room.unscored).toBeNull();
+        stopBeats();
+        await b.stop();
+    });
+
+    it('sim v21: a human Fire (op 11, the Kibble Cannon) enters a TURN and is not a strike', async () => {
+        const b = await boot();
+        const { a, c, stopBeats } = await twoInMatch(b);
+        for (let i = 0; i < 4; i++) c.cmd(new Uint8Array([CMD_OP.Fire, 10, 0, 10, 0]));
+        await a.until(() => a.turns.some(t => t.entries.some(e => e.cmd[0] === CMD_OP.Fire)) || null, 5000);
+        expect(c.closed).toBeNull();
+        stopBeats();
+        await b.stop();
+    });
+
+    it('a sim v19 room still strikes op 11 (its decoder does not know Fire): 3 strikes close the sender', async () => {
+        const v19 = simFor(19)!;
+        const b = await boot();
+        const { a, c, stopBeats } = await twoInMatch(b, { sim: 19, simHash: v19.SIM_SOURCE_HASH });
+        for (let i = 0; i < 3; i++) c.cmd(new Uint8Array([CMD_OP.Fire, 10, 0, 10, 0]));
+        await c.until(() => c.closed, 5000);
+        expect(c.closed!.code).toBe(4002);
+        for (const t of a.turns) for (const e of t.entries) expect(e.cmd[0]).not.toBe(CMD_OP.Fire);
         stopBeats();
         await b.stop();
     });

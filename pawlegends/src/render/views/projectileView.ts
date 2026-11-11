@@ -75,6 +75,9 @@ export function look(kind: number, team: number): Look {
       return set(0.4, 0.95, t.main, 0.16);
     case PROJECTILE_KIND.yap:
       return set(0.28, 1.0, 0xfff6e8, 0.12);
+    // sim v21: the Kibble Cannon's kibble, one big brown nugget with a smoky trail (the yarn ball is funView's)
+    case PROJECTILE_KIND.kibble:
+      return set(0.62, 1.1, 0xb5733a, 0.42);
     default:
       return set(0.3, 0.9, team === 0 ? 0xfff1a8 : 0xd7b8ff, 0.18);
   }
@@ -186,6 +189,8 @@ export class ProjectileView {
     let n = 0;
     for (const p of frame.projectiles) {
       if (n >= CAPS.projectiles) break;
+      // sim v21: the rolling yarn ball is drawn by funView (a ball, not a bolt)
+      if (p.kind === PROJECTILE_KIND.yarn) continue;
       const L = look(p.kind, p.team);
       const owner = HERO_SHOTS.has(p.kind) ? frame.byId.get(p.owner)?.hero : undefined;
       const tint = p.kind === PROJECTILE_KIND.hero && owner ? BOLT_TINT[owner] : undefined;

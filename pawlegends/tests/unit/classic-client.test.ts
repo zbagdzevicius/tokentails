@@ -5,7 +5,7 @@
  */
 import { afterEach, describe, expect, it } from 'vitest';
 import { createMatch, fillPicks, snapshot, step } from '../../src/sim/index';
-import { decodeSnap, encodeSnap, HEADER_BYTES, ENTITY_BYTES, PROJECTILE_BYTES, ZONE_BYTES } from '../../src/host/protocol';
+import { decodeSnap, encodeSnap, HEADER_BYTES, ENTITY_BYTES, PROJECTILE_BYTES, ZONE_BYTES, FUN_HEAD, FUN_YARN } from '../../src/host/protocol';
 import { HostCore } from '../../src/host/host-core';
 import { MODE_MAP, matchModeHtml, modeOfMap } from '../../src/ui/lobby/matchMode';
 import { playLine } from '../../src/ui/lobby/lobbyScreen';
@@ -42,13 +42,13 @@ describe('snapshot map trailer', () => {
     useMap('crossing');
   });
 
-  it('leaves a Crossing snapshot byte-identical (no trailer)', () => {
+  it('a Crossing snapshot has no map trailer (sim v21: only the fun trailer, 28 B + 12 B a yarn ball)', () => {
     const { picks, tricks } = fillPicks(3, 'clem', 'pounce');
     const m = createMatch({ seed: 3, picks, tricks, difficulty: 'normal' });
     for (let i = 0; i < 40; i++) step(m);
     const s = snapshot(m, 0);
     const buf = encodeSnap(s);
-    expect(buf.byteLength).toBe(HEADER_BYTES + s.entities.length * ENTITY_BYTES + s.projectiles.length * PROJECTILE_BYTES + s.zones.length * ZONE_BYTES);
+    expect(buf.byteLength).toBe(HEADER_BYTES + s.entities.length * ENTITY_BYTES + s.projectiles.length * PROJECTILE_BYTES + s.zones.length * ZONE_BYTES + FUN_HEAD + s.fun!.yarn.length * FUN_YARN);
     expect(decodeSnap(buf).map).toBeUndefined();
   });
 

@@ -44,6 +44,7 @@ import type { BotMem } from './mem';
 import { awayFrom, clearCast, escapeCast, fightCast, nearestFoe, pt, purrifyCast, snackCast, underFire } from './casts';
 import { kitOf } from '../heroes/kit';
 import { laneRole, orderOf } from './orders';
+import { bedHop, cannonGrab, cannonShot, funCommitted, yarnKick } from './fun';
 import { isHumanSlot, leadOf } from '../humans';
 import {
   fountainX,
@@ -75,6 +76,9 @@ const isPush = (ord: number): boolean =>
   ord === PING_KIND.PushSunny || ord === PING_KIND.PushPuddle || ord === PING_KIND.PushFence || ord === PING_KIND.PushYarn || ord === PING_KIND.PushGutter;
 /** Sim v19: is bot `id` a roamer (Crossing: slot role 2; Hearthwood: Prowl)? */
 const roams = (w: World, id: number): boolean => (w.mg.length > 0 ? w.mg[MG.Role + id] === ROLE.Prowl : id % 3 === ROAM);
+
+/** Sim v21: scratch point of the fun rules (bots/fun.ts). */
+const funPt = new Int32Array(2);
 
 const isRanged = (w: World, id: number): boolean => heroData(w, id).base.range > HERO_RULES.meleeMaxRange;
 
@@ -871,6 +875,8 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // Sim v10 (GAPS B5): a crowd-controlled bot shrugs it off first.
   const purr = purrifyCast(w, id, p);
   if (purr) return purr;
+  // Sim v21 (V21-FUN.md §1.4): the Kibble Cannon's carrier fires before anything else (a retreating carrier too).
+  if (cannonShot(m, id, funPt)) return { op: Op.Fire, x: funPt[0], y: funPt[1] };
   const hp = hpBp(w, id);
   if (mem.mode[id] === BOT_MODE.Retreat) {
     if (hp < BOT_AI.retreatExitBp) return retreat(w, id, mem, p);
@@ -931,6 +937,11 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
     }
   }
   truceUntil = rules.truceUntil;
+  // Sim v21: a cannon on the ground is worth leaving a fight for (its team's nearest bot, or one close to it).
+  if (!low && !ordered && !script && cannonGrab(w, id, funPt)) {
+    mem.mode[id] = BOT_MODE.Lane;
+    return moveTo(w, id, mem, funPt[0], funPt[1]);
+  }
   const foe = low
     ? -1
     : pickFoe(w, id, mem, p, tick, slip === SLIP.Chase, scratch, carry, script, w.team[id] === w.team[HUMAN_SLOT] ? 0 : rules.spareHuman, focus);
@@ -1030,5 +1041,9 @@ export function think(m: MatchHandle, id: number, p: BotParams, mem: BotMem, rng
   // Rookie (DifficultyRules.pushNeedsHuman): the human's allies hit enemy structures only while the human plays, so
   // a parked human's team holds its lanes (its waves still push) but does not win the match for it.
   const noSiege = rules.pushNeedsHuman && team === w.team[HUMAN_SLOT] && !humanEngaged(w);
+  // Sim v21: a yarn ball to kick at the enemy, a Boing Bed toward the goal (and keep walking onto one chosen before).
+  if (!carry && funCommitted(w, id)) return null;
+  if (!carry && yarnKick(w, id, funPt)) return moveTo(w, id, mem, funPt[0], funPt[1]);
+  if (bedHop(w, id, funPt)) return moveTo(w, id, mem, funPt[0], funPt[1]);
   return laneAct(w, id, mem, lane, slip === SLIP.LastHit, p, carry, noSiege);
 }

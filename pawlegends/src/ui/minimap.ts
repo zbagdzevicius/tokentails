@@ -770,6 +770,70 @@ export class Minimap {
 
   /** Rings drawn last frame (e2e and tests). */
   ringsDrawn = 0;
+  /** Sim v21: the cannon glyph drawn last frame ('' none, else its state), and yarn balls drawn (e2e and tests). */
+  cannonDrawn = '';
+  yarnDrawn = 0;
+
+  /**
+   * Sim v21 (V21-FUN.md §1.5): the Kibble Cannon for both teams: a pulsing gold ring at the spot in the 10 s warning,
+   * a cannon glyph on the ground, then on its carrier (a gold ring round the carrier's dot); the yarn balls as pink
+   * dots. Cached sprites (PERF-IOS §8 Track A).
+   */
+  private drawFun(frame: ViewFrame, glowStep: number): void {
+    const fun = frame.latest.fun;
+    this.cannonDrawn = '';
+    this.yarnDrawn = 0;
+    if (!fun) return;
+    const c = fun.cannon;
+    if (c.state !== 'away') {
+      let cx = c.x;
+      let cy = c.y;
+      if (c.state === 'carried') {
+        const h = frame.byId.get(c.by);
+        if (h) {
+          cx = h.fx;
+          cy = h.fy;
+        }
+      }
+      const [x, y] = this.P(cx, cy);
+      const r = 6 * this.k;
+      if (c.state === 'soon') {
+        this.blit(
+          this.sprite(`cs|${glowStep}|${r}`, 4 * r + 4, 4 * r + 4, (g) => {
+            g.strokeStyle = `rgba(255,211,77,${(0.45 + 0.1 * glowStep).toFixed(2)})`;
+            g.lineWidth = 2;
+            g.beginPath();
+            g.arc(0, 0, r * (1.2 + 0.12 * glowStep), 0, Math.PI * 2);
+            g.stroke();
+          }),
+          x,
+          y,
+        );
+      } else {
+        this.blit(this.sprite(`cn|${c.state}|${r}`, 2 * r + 6, 2 * r + 6, (g) => drawCannonGlyph(g, r, c.state === 'carried')), x, y);
+      }
+      this.cannonDrawn = c.state;
+    }
+    for (const b of fun.yarn) {
+      if (b.state === 'away') continue;
+      const [x, y] = this.P(b.x, b.y);
+      const r = 3 * this.k;
+      this.blit(
+        this.sprite(`yb|${r}`, 2 * r + 4, 2 * r + 4, (g) => {
+          g.fillStyle = '#ff7eb6';
+          g.strokeStyle = '#fff1f7';
+          g.lineWidth = 1;
+          g.beginPath();
+          g.arc(0, 0, r, 0, Math.PI * 2);
+          g.fill();
+          g.stroke();
+        }),
+        x,
+        y,
+      );
+      this.yarnDrawn++;
+    }
+  }
 
   private drawTimers(): void {
     let n = 0;
@@ -948,6 +1012,7 @@ export class Minimap {
         y,
       );
     }
+    this.drawFun(frame, glowStep);
     this.drawTimers();
     this.ghostsDrawn = [];
     for (const gh of this.updateGhosts(frame, team)) {
@@ -1244,4 +1309,28 @@ export class Minimap {
     this.ro?.disconnect();
     this.root.remove();
   }
+}
+
+/** Sim v21: the Kibble Cannon on the minimap: a brass barrel on a wheel (a gold ring round it when carried). */
+function drawCannonGlyph(g: CanvasRenderingContext2D, r: number, carried: boolean): void {
+  if (carried) {
+    g.strokeStyle = '#f5b942';
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(0, 0, r + 1, 0, Math.PI * 2);
+    g.stroke();
+  }
+  g.save();
+  g.rotate(-0.45);
+  g.fillStyle = '#d9a441';
+  g.strokeStyle = '#3b2412';
+  g.lineWidth = 1;
+  g.fillRect(-r * 0.75, -r * 0.3, r * 1.5, r * 0.6);
+  g.strokeRect(-r * 0.75, -r * 0.3, r * 1.5, r * 0.6);
+  g.restore();
+  g.fillStyle = '#d8443c';
+  g.beginPath();
+  g.arc(-r * 0.1, r * 0.35, r * 0.38, 0, Math.PI * 2);
+  g.fill();
+  g.stroke();
 }

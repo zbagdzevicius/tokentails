@@ -106,9 +106,9 @@ describe('ping gate (GAPS B1)', () => {
 });
 
 describe('input budget (GAPS B1, Your call 17)', () => {
-  it('MAX_INPUT_BYTES and MAX_INPUT_CHARS are +600 B (30,600 and 40,800) and equal in all three copies', () => {
-    expect(MAX_INPUT_BYTES).toBe(30600);
-    expect(MAX_INPUT_CHARS).toBe(40800);
+  it('MAX_INPUT_BYTES and MAX_INPUT_CHARS are +600 B, sim v21 +60 B (30,660 and 40,880) and equal in all three copies', () => {
+    expect(MAX_INPUT_BYTES).toBe(30660);
+    expect(MAX_INPUT_CHARS).toBe(40880);
     expect(MAX_INPUT_CHARS).toBe((MAX_INPUT_BYTES / 3) * 4);
     for (const caps of [sharedCaps, backendCaps]) {
       expect(caps.PAWLEGENDS_MAX_INPUT_CHARS).toBe(MAX_INPUT_CHARS);

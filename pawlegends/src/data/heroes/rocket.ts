@@ -7,7 +7,8 @@ export const ROCKET: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'marksman',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8925 / takes 9775 (49.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9900. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9250 / takes 9400. Sim v20 refit on four seed windows (V20-CHASE.md §9): 9510 / 9140 → 9500 / 8880. */
-  pvp: { dmgBp: 9500, takenBp: 8880 },
+  // sim v21 (stronger towers, cannon): +100 / −100 on the v20 row (9500 / 8880)
+  pvp: { dmgBp: 9335, takenBp: 8780 },
   element: 'GRASS',
   base: { hp: 450, hpPerLevel: 47, attack: 50, attackPerLevel: 5, attackEvery: 28, range: 6200, speed: 5100, armour: 14, armourPerLevel: 2 },
   /** Sighthound: his basics on an enemy hero 4.5 m or more away deal +20%. */

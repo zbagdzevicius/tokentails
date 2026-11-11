@@ -138,7 +138,8 @@ const zeroTicks = (): Record<PilotReason, number> => ({
     before: 0,
 });
 
-/** Ops a client may send (Forfeit never; Ping only from slot 0). */
+/** Ops a client may send (Forfeit never; Ping only from slot 0). Fire (sim v21, the Kibble Cannon): a room on an older
+ * sim never sees it, since that sim's decoder rejects op 11 (a strike) before intake. */
 const CLIENT_OPS: readonly number[] = [
     CMD_OP.Move,
     CMD_OP.AttackMove,
@@ -149,6 +150,7 @@ const CLIENT_OPS: readonly number[] = [
     CMD_OP.Nap,
     CMD_OP.Talent,
     CMD_OP.Ping,
+    CMD_OP.Fire,
 ];
 
 export type IntakeResult = 'ok' | 'dup' | 'not_human' | 'bad_op' | 'dropped' | 'closed' | 'log_full';

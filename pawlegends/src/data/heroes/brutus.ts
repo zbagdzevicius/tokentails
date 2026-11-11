@@ -7,7 +7,8 @@ export const BRUTUS: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'tank',
   /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v11: takes 9350 (9250 before; 49.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9750 / takes 9575 (48.9% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8625 / takes 9725 (49.6% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 keeps a Move order after a dash, so chargers gained): takes 9875 (56.1% before; about 3 pp per +75 takenBp). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9575. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8375 / takes 9925. Sim v20 refit on four seed windows (V20-CHASE.md §9): 8335 / 9965 → 8230 / 9765. */
-  pvp: { dmgBp: 8230, takenBp: 9765 },
+  // sim v21 (stronger towers, cannon): takenBp −75 on the v20 row (9765 → 9690)
+  pvp: { dmgBp: 8045, takenBp: 9650 },
   element: 'SAND',
   base: { hp: 760, hpPerLevel: 80, attack: 46, attackPerLevel: 4, attackEvery: 36, range: 1600, speed: 4800, armour: 40, armourPerLevel: 3 },
   /** Honour: damage from heroes builds a shield up to 12% max HP over 4 s; decays after 3 s out of combat. */

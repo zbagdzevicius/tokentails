@@ -20,6 +20,7 @@ import { aimHunt, kitBusy, kitOf, orderCast, walkInDone, walkInX, walkInY, TRICK
 import { planted } from '../heroes/brutus';
 import { chooseTalent } from '../heroes/talents';
 import { attackRange, moveSpeed, radiusOf, targetable } from './kinds';
+import { cannonWinding, orderFire } from './cannon';
 
 const out = new Int32Array(3);
 
@@ -163,6 +164,9 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
       break;
     case Op.Trick:
       orderCast(m, id, TRICK_SLOT, cmd.x, cmd.y, NO_TARGET);
+      break;
+    case Op.Fire:
+      orderFire(m, id, cmd.x, cmd.y);
       break;
     case Op.Nap:
       if (disabled(w, id) || w.fmKind[id] !== FM.None || w.castPhase[id] === 2) break;
@@ -332,7 +336,7 @@ function forcedStep(m: MatchHandle, id: number): void {
   const kind = w.fmKind[id];
   stepForced(w, id);
   w.state[id] = UnitState.Moving;
-  if (kind !== FM.Knock) kitOf(w, id).onDashTick?.(m, id);
+  if (kind !== FM.Knock && kind !== FM.Leap) kitOf(w, id).onDashTick?.(m, id);
 }
 
 /** Nap: channel, then home to the fountain. */
@@ -406,6 +410,11 @@ function stepHero(m: MatchHandle, id: number): void {
   }
   if (w.napT[id] > 0) {
     napStep(w, id);
+    return;
+  }
+  // Sim v21: planted while winding the Kibble Cannon up (orders wait).
+  if (cannonWinding(w, id)) {
+    w.state[id] = UnitState.Casting;
     return;
   }
   if (w.castPhase[id] === 2) {

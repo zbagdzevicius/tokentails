@@ -80,6 +80,11 @@ import { MG } from './world';
 import { PUD_STATE } from '../data/pudding';
 import { assignRoles } from './bots/roles';
 import { applyLeadInputs, applyPartyInputs, createPartyState, validateHumans } from './party-inputs';
+import { carryCannon, collectCannon, initCannon, resolveCannon, spawnCannon } from './units/cannon';
+import { stepBoing } from './units/boing';
+import { initYarn, stepYarn, yarnAt, yarnCount } from './units/yarn';
+import { CANNON_STATE, YARN_STATE, YF } from './world';
+import { CANNON } from '../data/fun';
 
 export * from './api';
 export { SIM_VERSION } from './version';
@@ -248,6 +253,9 @@ export function createMatch(config: MatchConfig): MatchHandle {
   initCamps(w, TIMELINE.campsUp);
   initPudding(w);
   initPickups(w);
+  // Sim v21 (V21-FUN.md): the Kibble Cannon and the Mega Yarn Balls.
+  initCannon(w);
+  initYarn(w);
   const m: MatchHandle = { config, world: w, grid: createGrid(), log: [], gate: createGate(), trail: [], events: [], ended: null, stats, rules };
   // Party play (MULTIPLAYER.md §1.1): human slots >= 1 get their own gate and log; the mask is not hashed.
   if (config.humans !== undefined && config.humans.length > 1) {
@@ -322,6 +330,8 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   }
   spawnCamps(m);
   spawnPickups(m);
+  spawnCannon(m);
+  if (tick === TOWERS.fortifyUntil[w.map]) m.events.push({ type: 'fortifyEnd', tick });
   stepPuddingTimeline(m, wave >= 0);
   if (tick === w.globals[G.Sunset]) m.events.push({ type: 'sunset', tick });
   if (tick === w.globals[G.SuddenDeath]) m.events.push({ type: 'suddenDeath', tick });
@@ -346,14 +356,20 @@ export function step(match: Match, commands?: readonly Command[], others?: reado
   stepPudding(m);
   clampTethers(m);
   collectPickups(m);
+  // Sim v21: the cannon is taken, Boing Beds launch, yarn balls are kicked (after movement, before the status timers).
+  collectCannon(m);
+  stepBoing(m);
+  stepYarn(m);
   stepBonuses(w);
   tickStatus(w);
+  carryCannon(m);
   ageZones(w);
   stepKits(m);
   stepHeals(w, 0, RANGE.end);
   refreshVision(w);
   // 5. Casts and swings whose windup ends resolve.
   resolveCasts(m);
+  resolveCannon(m);
   resolveAttacks(m);
   // 6. Projectiles and zones.
   stepProjectiles(m);
@@ -512,7 +528,39 @@ export function snapshot(match: Match, team: Team): Snapshot {
     events: teamEvents(w, m.events, team),
   };
   if (w.mg.length > 0) mapSnapshot(w, snap);
+  snap.fun = funSnapshot(w);
   return snap;
+}
+
+const CANNON_STATE_NAME = ['away', 'ground', 'carried'] as const;
+const YARN_STATE_NAME = ['away', 'rest', 'rolling'] as const;
+
+/** Sim v21: the cannon and the yarn balls (public to both teams). */
+function funSnapshot(w: World): NonNullable<Snapshot['fun']> {
+  const tick = w.globals[G.Tick];
+  const st = w.globals[G.CannonState];
+  const at = w.globals[G.CannonAt];
+  const soon = st === CANNON_STATE.None && at >= 0 && at - tick <= CANNON.warn;
+  const by = st === CANNON_STATE.Carried ? w.globals[G.CannonBy] : -1;
+  const cannon = {
+    state: soon ? ('soon' as const) : CANNON_STATE_NAME[st],
+    x: by >= 0 ? w.x[by] : w.globals[G.CannonX],
+    y: by >= 0 ? w.y[by] : w.globals[G.CannonY],
+    by,
+    fuse: st === CANNON_STATE.None ? 0 : w.globals[G.CannonFuse],
+    nextIn: st === CANNON_STATE.None && at >= 0 ? at - tick : -1,
+    windup: by >= 0 ? w.globals[G.CannonWind] : 0,
+    ax: w.globals[G.CannonAX],
+    ay: w.globals[G.CannonAY],
+  };
+  const yarn: NonNullable<Snapshot['fun']>['yarn'] = [];
+  for (let b = 0; b < yarnCount(w); b++) {
+    const s = w.globals[yarnAt(b, YF.State)];
+    const p = w.globals[yarnAt(b, YF.P)];
+    const rolling = s === YARN_STATE.Rolling && p >= 0;
+    yarn.push({ state: YARN_STATE_NAME[s], x: rolling ? w.pX[p] : w.globals[yarnAt(b, YF.X)], y: rolling ? w.pY[p] : w.globals[yarnAt(b, YF.Y)] });
+  }
+  return { cannon, yarn };
 }
 
 /** Sim v19 (Hearthwood): the map, the river objectives' state and timers, and every jungle camp's timer. */

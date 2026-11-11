@@ -102,6 +102,13 @@ describe('party room (N3)', () => {
         expect(room.intake(0, 7, ping(), 1002)).toBe('ok');
     });
 
+    it('sim v21: accepts Fire (op 11, the Kibble Cannon) from a human seat', () => {
+        const { room } = setup();
+        room.advance(1000);
+        expect(room.intake(0, 1, new Uint8Array([CMD_OP.Fire, 0, 0, 0, 0]), 1001)).toBe('ok');
+        expect(room.intake(1, 1, new Uint8Array([CMD_OP.Fire, 10, 0, 10, 0]), 1001)).toBe('ok');
+    });
+
     it('B4: a Move replaces the pending Move and is never dropped over the budget; others are dropped', () => {
         const { room, turns } = setup();
         room.advance(1000);

@@ -381,6 +381,11 @@ export class Orders {
     this.order({ op: Op.Nap });
   }
 
+  /** Sim v21: the Kibble Cannon's carrier fires at (x, y) mm (the sim ignores it from anyone else). */
+  fireCannon(x: number, y: number): void {
+    this.emit({ op: Op.Fire, x: clampX(x), y: clampY(y) });
+  }
+
   talent(tier: TalentTier, choice: 0 | 1): void {
     this.emit({ op: Op.Talent, tier, choice });
   }

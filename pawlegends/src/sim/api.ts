@@ -145,6 +145,11 @@ export const Op = Object.freeze({
    * from DifficultyRules.forfeitFrom (never on Rookie); earlier it is dropped, unlogged.
    */
   Forfeit: 10,
+  /**
+   * Sim v21 (V21-FUN.md §1.3): the Kibble Cannon's carrier fires at (x, y) after a 0.75 s windup. Ignored from a hero
+   * that does not carry the cannon.
+   */
+  Fire: 11,
 } as const);
 export type Op = (typeof Op)[keyof typeof Op];
 
@@ -169,7 +174,8 @@ export type Command =
    * tick with one other command: the latest ping and the latest other command of a tick both apply.
    */
   | { op: typeof Op.Ping; kind: number; x: number; y: number; id: number }
-  | { op: typeof Op.Forfeit };
+  | { op: typeof Op.Forfeit }
+  | { op: typeof Op.Fire; x: number; y: number };
 
 export const NO_TARGET = 0xff;
 
@@ -220,6 +226,14 @@ export const BuffFlag = Object.freeze({
   Purrified: 1 << 18, // lint-sim: allow (a bit index)
   /** Sim v17 (V17.md §3.1): Steadfast, the CC-cap immunity after 2 s of hard CC in 4 s. */
   Steadfast: 1 << 19, // lint-sim: allow (a bit index)
+  /** Sim v19 (Hearthwood): Prickle Coat, Feather, Grizzlechop's Hoard shield. */
+  Prickle: 1 << 20, // lint-sim: allow (a bit index)
+  Feather: 1 << 21, // lint-sim: allow (a bit index)
+  Hoard: 1 << 22, // lint-sim: allow (a bit index)
+  /** Sim v21 (V21-FUN.md): a hero carries the Kibble Cannon; a tower is Fortified; a hero flies off a Boing Bed. */
+  Cannon: 1 << 23, // lint-sim: allow (a bit index)
+  Fortified: 1 << 24, // lint-sim: allow (a bit index)
+  Leaping: 1 << 25, // lint-sim: allow (a bit index)
 } as const);
 
 export interface EntitySnap {
@@ -341,7 +355,7 @@ export type SimEvent =
    * A cast (or a tower lock-on) winds up for `ticks`. Sim v17: `dst` (when set) is the unit it is aimed at, decided at
    * the windup's start (Cacklejaw's Pack Hunt victim), so the client can mark it.
    */
-  | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4; x: number; y: number; ticks: number; dst?: number }
+  | { type: 'windup'; tick: number; src: number; slot: CastSlot | 4 | 5; x: number; y: number; ticks: number; dst?: number }
   | { type: 'death'; tick: number; id: number; killer: number }
   | { type: 'levelup'; tick: number; id: number; level: number }
   | { type: 'talentOffer'; tick: number; slot: number; tier: TalentTier }
@@ -385,7 +399,34 @@ export type SimEvent =
   | { type: 'bark'; tick: number; id: number; what: BarkKind }
   // Sim v14 (docs/plans/moba/DOGS-V13.md): a viral moment for the render and the share tools (not hashed).
   /** Hero `id`: 'flop' Bravo played dead, 'bigdog' Chili went BIG DOG, 'scream' Howler screamed, 'frozen' it was frozen by SNOW DAY!. */
-  | { type: 'clip'; tick: number; id: number; what: ClipKind };
+  | { type: 'clip'; tick: number; id: number; what: ClipKind }
+  // Sim v21 (docs/plans/moba/V21-FUN.md), every team sees these (the cannon and the carrier are public):
+  /** The Kibble Cannon spawns at (x, y) in 10 s; it spawned (`underdog`: offset toward that trailing team). */
+  | { type: 'cannonSoon'; tick: number; x: number; y: number }
+  | { type: 'cannonSpawn'; tick: number; x: number; y: number; underdog?: Team }
+  /** Hero `id` picked it up (`steal`: from the ground after the other team dropped it). */
+  | { type: 'cannonPick'; tick: number; id: number; team: Team; steal: boolean }
+  /** It fell at (x, y): its carrier died, napped or was hit out of the windup ('fumble'). */
+  | { type: 'cannonDrop'; tick: number; id: number; x: number; y: number; why: 'death' | 'nap' | 'fumble' }
+  /** The fuse ran out (pfft). */
+  | { type: 'cannonFizzle'; tick: number; x: number; y: number }
+  /** Hero `id` fired from (x, y) toward (ax, ay). */
+  | { type: 'cannonFire'; tick: number; id: number; x: number; y: number; ax: number; ay: number }
+  /** The kibble one-shot hero `dst` (`src` the shooter, or the parrier when it came back). */
+  | { type: 'kaboom'; tick: number; src: number; dst: number }
+  /** Hero `id` parried the kibble back (Return to sender!); the kibble hit no hero ('whiff', `id` the shooter). */
+  | { type: 'cannonParry'; tick: number; id: number }
+  | { type: 'cannonWhiff'; tick: number; id: number; x: number; y: number }
+  /** Sir Brutus `id` blocked `src`'s kibble at (x, y) with his Guard (or Guard Post dome), which broke. */
+  | { type: 'cannonBlock'; tick: number; id: number; src: number; x: number; y: number }
+  /** Hero `id` bounced off a Boing Bed from (x, y) to (tx, ty). */
+  | { type: 'boing'; tick: number; id: number; x: number; y: number; tx: number; ty: number }
+  /** Hero `id` kicked yarn ball `ball`; a roll hit `n` heroes (STRIKE at 3+); a ball unravelled. */
+  | { type: 'yarnKick'; tick: number; id: number; ball: number }
+  | { type: 'yarnStrike'; tick: number; id: number; n: number }
+  | { type: 'yarnUnravel'; tick: number; ball: number; x: number; y: number }
+  /** The towers are no longer Fortified. */
+  | { type: 'fortifyEnd'; tick: number };
 
 /** Sim v14: what a `clip` event shows. Sim v15: Rocket's nap (`zzz`), Frankie's grab (`footlong`), Domino's R (`dots`). */
 export type ClipKind = 'flop' | 'bigdog' | 'scream' | 'frozen' | 'zzz' | 'footlong' | 'dots';
@@ -413,6 +454,18 @@ export interface Snapshot {
   objectives?: ObjectiveSnap[];
   /** Sim v19 (Hearthwood): every jungle camp (up, or ticks to its respawn). */
   camps?: CampSnap[];
+  /** Sim v21: the Kibble Cannon and the Mega Yarn Balls (both teams see all of it). */
+  fun?: FunSnap;
+}
+
+/**
+ * Sim v21 (V21-FUN.md): the cannon's state ('soon' within the 10 s warning, 'ground' where it lies, 'carried' by `by`,
+ * `windup` > 0 while it aims at (ax, ay)), the fuse and the ticks to the next spawn; each yarn ball's state and spot.
+ * The Boing Beds are fixed per map (`mapInfo`).
+ */
+export interface FunSnap {
+  cannon: { state: 'away' | 'soon' | 'ground' | 'carried'; x: number; y: number; by: number; fuse: number; nextIn: number; windup: number; ax: number; ay: number };
+  yarn: { state: 'away' | 'rest' | 'rolling'; x: number; y: number }[];
 }
 
 /** Sim v19: a river objective's state. `nextIn` is the ticks to its next spawn while 'away' (−1: no more spawns). */

@@ -2,7 +2,7 @@
  * Binary command stream (POC.md §11.3): per record a varint tick delta, a 1-byte opcode, then the payload.
  * Coordinates are quantised to 250 mm (uint16, little-endian). Sizes without the tick delta:
  * move 5 B, attackMove 5 B, attack 2 B, cast 7 B, trick 5 B, stop 1 B, nap 1 B, talent 2 B, ping 7 B (sim v10: kind,
- * x, y, id), forfeit 1 B (sim v10).
+ * x, y, id), forfeit 1 B (sim v10), fire 5 B (sim v21: x, y).
  *
  * The sim only ever sees quantised commands (`quantize`), so a live match and its replay apply identical inputs.
  */
@@ -34,6 +34,7 @@ export const OP_SIZE: Readonly<Record<number, number>> = Object.freeze({
   [Op.Talent]: 2,
   [Op.Ping]: 7,
   [Op.Forfeit]: 1,
+  [Op.Fire]: 5,
 });
 
 /** The command exactly as a decode of its encoding gives it back (coordinates snapped, ids masked). */
@@ -42,6 +43,7 @@ export function quantize(cmd: Command): Command {
     case Op.Move:
     case Op.AttackMove:
     case Op.Trick:
+    case Op.Fire:
       return { op: cmd.op, x: qx(cmd.x) * COORD_QUANTUM, y: qy(cmd.y) * COORD_QUANTUM };
     case Op.Attack:
       return { op: cmd.op, id: cmd.id & 0xff };
@@ -102,6 +104,7 @@ function writeCommand(w: ByteWriter, cmd: Command): void {
     case Op.Move:
     case Op.AttackMove:
     case Op.Trick:
+    case Op.Fire:
       w.u16(qx(cmd.x));
       w.u16(qy(cmd.y));
       break;
@@ -147,7 +150,8 @@ export function readCommand(bytes: Uint8Array, at: number): { cmd: Command; next
   switch (op) {
     case Op.Move:
     case Op.AttackMove:
-    case Op.Trick: {
+    case Op.Trick:
+    case Op.Fire: {
       const c = coord(1);
       cmd = { op, x: c.x, y: c.y };
       break;

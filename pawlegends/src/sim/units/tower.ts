@@ -52,6 +52,9 @@ export function stepStructures(m: MatchHandle): void {
     if (w.alive[id] === 0) continue;
     if (isInvulnerable(w, id)) w.buffs[id] |= Buff.Invulnerable;
     else w.buffs[id] &= ~Buff.Invulnerable;
+    // Sim v21: the Fortified ribbon the render shows (combat/damage.ts applies it).
+    if (w.kind[id] === Kind.Tower && w.globals[G.Tick] < TOWERS.fortifyUntil[w.map]) w.buffs[id] |= Buff.Fortified;
+    else w.buffs[id] &= ~Buff.Fortified;
     if (w.attackTimer[id] > 0) w.attackTimer[id]--;
     const t = chooseTarget(w, id);
     w.target[id] = t;

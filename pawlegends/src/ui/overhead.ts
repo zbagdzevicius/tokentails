@@ -1098,6 +1098,12 @@ export class Overhead {
         const fl = this.atlas.get(`flame|${fs}`, fs + 6, fs + 6, (g) => drawFlame(g, 0, 0, fs));
         q.stamp(fl, x - fs * 0.5 - 4, sy);
       }
+      // Sim v21 (V21-FUN.md §3.1): a Fortified tower (heroes deal 35% less before 3:00 / 5:00): a small shield right of its bar
+      if (e.kind === 'tower' && (e.buffs & BuffFlag.Fortified) !== 0) {
+        const ss = Math.round(11 * sc);
+        const sh = this.atlas.get(`fort|${ss}`, ss + 4, ss + 4, (g) => drawFortShield(g, ss));
+        q.stamp(sh, x + bw + ss * 0.5 + 3, sy);
+      }
       return;
     }
     const { bx, bs } = this.heroBar(e, x, y, bw, bh);
@@ -1385,4 +1391,23 @@ function roundRect(g: CanvasRenderingContext2D, x: number, y: number, w: number,
   g.lineTo(x, y + r);
   g.quadraticCurveTo(x, y, x + r, y);
   g.closePath();
+}
+
+/** Sim v21: the Fortified shield (a cream heater shield with a gold rim and a bow), centred on (0, 0), `s` px tall. */
+function drawFortShield(g: CanvasRenderingContext2D, s: number): void {
+  const w = s * 0.8;
+  g.beginPath();
+  g.moveTo(-w / 2, -s / 2);
+  g.lineTo(w / 2, -s / 2);
+  g.lineTo(w / 2, 0);
+  g.quadraticCurveTo(w / 2, s * 0.35, 0, s / 2);
+  g.quadraticCurveTo(-w / 2, s * 0.35, -w / 2, 0);
+  g.closePath();
+  g.fillStyle = '#fff1d6';
+  g.fill();
+  g.lineWidth = 1.5;
+  g.strokeStyle = '#d9a441';
+  g.stroke();
+  g.fillStyle = '#ff7eb6';
+  g.fillRect(-w / 2 + 1, -s * 0.12, w - 2, s * 0.18);
 }

@@ -13,6 +13,8 @@
  * match too and regenerated it the same way.
  * Sim v17 (the counter-play batch, V17.md): VENDOR points at the live v17 fixtures; every v17 commit that changes play
  * regenerates the golden the same way.
+ * Sim v21 (the Kibble Cannon, Boing Beds, the Yarn Ball, stronger towers, V21-FUN.md): VENDOR points at the live v21
+ * fixtures and the golden was regenerated from the v21 sim the same way.
  * Part of the merge checklist.
  *
  * Regenerate ONLY on a commit without party code (a worktree at that sim, with this file copied in and VENDOR pointed
@@ -28,7 +30,7 @@ import { runReplay } from '../../src/sim/replay';
 import { foldTrail, fuzzFinal, fuzzSeed } from '../../tools/lib/fuzz-entry';
 
 const GOLDEN = join(__dirname, 'golden', 'party-identity.json');
-const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v20');
+const VENDOR = join(__dirname, '..', '..', '..', 'backend', 'src', 'vendor', 'pawlegends-sim', 'v21');
 const FIXTURES = ['rookie-replay.fixture.json', 'champion-replay.fixture.json', 'forfeit-replay.fixture.json'];
 
 interface Row {
@@ -71,7 +73,7 @@ describe('party-identity (MULTIPLAYER.md §1.5, merge checklist)', { timeout: 60
   it('single-player output equals the golden (262c36a0 dogs-only sim at v14; regenerated at v15 and per v16 B item)', () => {
     const got = rows();
     if (process.env.PARTY_GOLDEN_WRITE === '1') {
-      writeFileSync(GOLDEN, JSON.stringify({ base: process.env.PARTY_GOLDEN_BASE ?? 'v20', simVersion: 20, rows: got }, null, 2) + '\n');
+      writeFileSync(GOLDEN, JSON.stringify({ base: process.env.PARTY_GOLDEN_BASE ?? 'v21', simVersion: 21, rows: got }, null, 2) + '\n');
       return;
     }
     expect(existsSync(GOLDEN)).toBe(true);
