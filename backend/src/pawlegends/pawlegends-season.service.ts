@@ -18,6 +18,7 @@ import {
     claimable,
     claimKey,
     CHAMPION_IDS,
+    champItem,
     CURRENT_SEASON_ID,
     PASS_PLUS_SKU,
     PASS_SKU,
@@ -452,6 +453,28 @@ export class PawlegendsSeasonService {
         body: Record<string, unknown>
     ): Promise<{ hero: string; champions: ChampionsView }> {
         await ensureFounders(this.store, accountId, this.foundersEvidence, this.now());
+        // an open web checkout that lists this champion could still be paid: unlocking it now would charge the player
+        // for a champion they already have (the webhook grants only the champions not owned), so it waits
+        const hero = typeof body?.hero === 'string' ? body.hero : '';
+        if (CHAMPION_IDS.includes(hero) && this.store.purchases) {
+            const owned = (await ownedChampions(this.store, accountId)).some(o => o.hero === hero);
+            const open =
+                !owned &&
+                (await this.store.purchases
+                    .findOne({
+                        accountId,
+                        status: 'pending',
+                        holdUntil: { $gt: this.now() },
+                        items: champItem(hero),
+                    })
+                    .lean());
+            if (open)
+                throw pawlegendsError(
+                    HttpStatus.CONFLICT,
+                    'PAWLEGENDS_CHECKOUT_OPEN',
+                    'A checkout for that champion is still open'
+                );
+        }
         const r = await unlockChampion(this.store, accountId, body);
         return { hero: r.hero, champions: await this.champions(accountId) };
     }

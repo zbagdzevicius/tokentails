@@ -463,6 +463,18 @@ describe('web purchase', () => {
         expect(view.bundles.find(b => b.sku === 'pl_champs_cats_s1')?.cents).toEqual({ usd: 1499, eur: 1499 });
     });
 
+    it('a Yarn unlock waits while an open checkout lists that champion (never charged for one already owned)', async () => {
+        const h = champHarness();
+        await store(h).yarn.updateOne({ _id: ACCOUNT }, { $set: { balance: 10_000 } }, { upsert: true });
+        await h.stripe.createCheckout(request(champSkuOf('pixel')) as any, ON_ENV, ACCOUNT);
+        expect(await codeOf(h.season.unlock(ACCOUNT, { hero: 'pixel' }))).toBe('PAWLEGENDS_CHECKOUT_OPEN');
+        // another champion is not held
+        await expect(h.season.unlock(ACCOUNT, { hero: 'duchess' })).resolves.toMatchObject({ hero: 'duchess' });
+        // the hold expires: the unlock goes through
+        h.clock.now = new Date(h.clock.now.getTime() + 2 * 3600_000);
+        await expect(h.season.unlock(ACCOUNT, { hero: 'pixel' })).resolves.toMatchObject({ hero: 'pixel' });
+    });
+
     it('a bundle whose champions are all owned is refused', async () => {
         const h = champHarness();
         await grantFoundersRoster(store(h), ACCOUNT);
