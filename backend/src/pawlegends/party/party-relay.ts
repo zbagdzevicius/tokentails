@@ -163,6 +163,8 @@ interface Sock {
     closed: boolean;
     /** A `hello` waiting for its room or party to move here (LIVE-MATCH-DEPLOYS.md §5.4). */
     pending?: boolean;
+    /** A `party.join` looking for its party in the store (LIVE-MATCH-DEPLOYS.md §14): one lookup at a time. */
+    joining?: boolean;
 }
 
 interface LiveRoom {
@@ -303,8 +305,8 @@ export class PartyRelay {
     private readonly partyEndedAt = new Map<string, number>();
     /** Party saves run one after another per party, so a handoff save is never overtaken by an older one. */
     private readonly partySaves = new Map<string, Promise<void>>();
-    /** Rooms and parties a player here is waiting for (a pull, §5.4): claimable across pools. */
-    private readonly pulling = new Set<string>();
+    /** Rooms and parties a player here is waiting for (a pull, §5.4): claimable across pools. Counted per waiter. */
+    private readonly pulling = new Map<string, number>();
     /** Gaps (ms) between a room's last turn on its old relay and its clock running here (restore and handoff). */
     private readonly restoreGaps: number[] = [];
 
@@ -338,6 +340,7 @@ export class PartyRelay {
                 },
                 send: (member, msg) => this.sendJsonTo(member, msg),
                 startMatch: plan => void this.startMatch(plan),
+                ended: p => this.endPartyRow(p),
             },
             this.now
         );
@@ -680,7 +683,7 @@ export class PartyRelay {
         const me = this.opts.tickets.boot;
         const nowMs = this.now();
         const party = await store.partyByResume(hash, new Date(nowMs - PARTY_LIMITS.partyHardMaxMs));
-        if (!party) return 'none';
+        if (!party || party.ended) return 'none';
         if (this.resume.has(hash)) return 'local';
         const owners = await store.relays(new Date(nowMs - PARTY_LIMITS.relayStaleMs));
         const ownerOf = (id: string | undefined | null) => (id ? owners.find(r => r._id === id) : undefined);
@@ -693,7 +696,7 @@ export class PartyRelay {
             if (row.owner === me) return 'none';
             if (!row.handoff) {
                 const owner = ownerOf(row.owner);
-                if (owner && owner.state !== 'draining') return 'retry';
+                if (owner && owner.state !== 'draining' && !this.ownerDead(owner, nowMs)) return 'retry';
                 // a draining owner hands this room over within a poll; an owner without a row (a crash, or a relay
                 // from before live-match deploys) loses its lease and the restore loop claims the room
                 if (owner) await store.want(roomId, row.owner, me, new Date(nowMs));
@@ -701,29 +704,166 @@ export class PartyRelay {
         } else if (!party.handoff) {
             if (!party.owner || party.owner === me) return 'none';
             const owner = ownerOf(party.owner);
-            if (!owner) return 'none';
+            // §14: its owner is gone without a handoff (a crash): the party continues here, with its code and tokens
+            if (!owner || this.ownerDead(owner, nowMs)) return (await this.takeOver(party)) ? 'local' : 'retry';
             if (owner.state !== 'draining') return 'retry';
             // a draining owner hands its lobby parties over within a tick
         }
-        const target = roomId ?? party._id;
-        this.pulling.add(target);
+        return (await this.waitHere(roomId ?? party._id, () => this.resume.has(hash))) ? 'local' : 'retry';
+    }
+
+    /**
+     * Run restore passes until `here()` holds, at most `pullHoldMs` (§5.4 step 5). Meanwhile `id` (a room or a party)
+     * is claimable by this relay whatever pool left it.
+     */
+    private async waitHere(id: string, here: () => boolean): Promise<boolean> {
+        this.pulling.set(id, (this.pulling.get(id) ?? 0) + 1);
         try {
-            return (await this.waitForResume(hash)) ? 'local' : 'retry';
+            const until = Date.now() + PARTY_LIMITS.pullHoldMs;
+            while (Date.now() < until && this.state === 'serving') {
+                if (here()) return true;
+                await this.restore();
+                if (here()) return true;
+                await new Promise(r => setTimeout(r, PARTY_LIMITS.restorePullEveryMs));
+            }
+            return here();
         } finally {
-            this.pulling.delete(target);
+            const n = (this.pulling.get(id) ?? 1) - 1;
+            if (n > 0) this.pulling.set(id, n);
+            else this.pulling.delete(id);
         }
     }
 
-    /** Run restore passes until the resume token is known here, at most `pullHoldMs` (§5.4 step 5). */
-    private async waitForResume(hash: string): Promise<boolean> {
-        const until = Date.now() + PARTY_LIMITS.pullHoldMs;
-        while (Date.now() < until && this.state === 'serving') {
-            if (this.resume.has(hash)) return true;
-            await this.restore();
-            if (this.resume.has(hash)) return true;
-            await new Promise(r => setTimeout(r, PARTY_LIMITS.restorePullEveryMs));
+    /** A relay row whose heartbeat stopped: the process is gone (crash, SIGKILL), its parties may be taken over. */
+    private ownerDead(owner: RelayRow, nowMs: number): boolean {
+        return nowMs - new Date(owner.heartbeatAt).getTime() > PARTY_LIMITS.relayDeadMs;
+    }
+
+    /**
+     * §14: a lobby party whose owner relay is gone (no heartbeat, no handoff) continues on this relay from its stored
+     * row: same code, same members, their resume tokens. Fenced on the old owner, so two relays never both take it.
+     */
+    private async takeOver(row: StoredParty): Promise<boolean> {
+        if (this.state !== 'serving' || !row.owner) return false;
+        if (this.parties.byId(row._id)) return true;
+        const taken = await this.opts.store.takeParty(row._id, row.owner, this.opts.tickets.boot, new Date(this.now()));
+        if (!taken) return false;
+        if (!this.parties.byId(taken._id)) this.rebuildParty(taken, null, null);
+        this.log('relay_takeover_party', {});
+        return true;
+    }
+
+    /** The party ended here: its row says so (serialized behind its pending saves), for joins on other relays. */
+    private endPartyRow(p: Party): void {
+        this.pendingParty.delete(p.id);
+        const prev = this.partySaves.get(p.id) ?? Promise.resolve();
+        const next = prev
+            .then(() => this.opts.store.endParty(p.id, this.opts.tickets.boot, new Date(this.now())))
+            .catch(() => undefined);
+        this.partySaves.set(p.id, next);
+        void next.finally(() => {
+            if (this.partySaves.get(p.id) === next) this.partySaves.delete(p.id);
+        });
+    }
+
+    /**
+     * A join by code this relay does not hold (LIVE-MATCH-DEPLOYS.md §14). The party row in the store names its owner:
+     * - `here`: the party is here now (claimed from a handoff, pulled from a draining owner, or taken over from a dead
+     *   one), so the join runs as usual;
+     * - `retry`: another live relay holds it; the client reconnects (the balancer picks again) and joins again;
+     * - `ended` or `none`: what the code means everywhere.
+     */
+    private async findParty(code: string): Promise<'here' | 'retry' | 'ended' | 'none'> {
+        const store = this.opts.store;
+        const me = this.opts.tickets.boot;
+        const nowMs = this.now();
+        const row = await store.partyByCode(code, new Date(nowMs - PARTY_LIMITS.partyHardMaxMs));
+        if (this.parties.hasCode(code)) return 'here';
+        if (!row) return 'none';
+        if (row.ended) return 'ended';
+        if (this.state !== 'serving') return 'retry';
+        if (row.handoff) {
+            const claimed = await store.claimParty(row._id, me, new Date(nowMs));
+            if (claimed && !this.parties.byId(claimed._id)) {
+                this.rebuildParty(claimed, null, null);
+                this.log('relay_restore_party', { via: 'join' });
+            }
+            return this.parties.hasCode(code) ? 'here' : 'retry';
         }
-        return this.resume.has(hash);
+        // a row this relay wrote but no longer holds (the party moved away and on): nothing to find here
+        if (!row.owner || row.owner === me) return 'none';
+        const owners = await store.relays(new Date(nowMs - PARTY_LIMITS.relayStaleMs));
+        const owner = owners.find(r => r._id === row.owner);
+        const roomId = ((row.doc as { room?: string | null }).room ?? null) as string | null;
+        const room = roomId ? await store.get(roomId) : null;
+        if (room && room.status === 'live') {
+            // a party in a match: its room moves with its players (pull, push or the restore loop), never by a join
+            const roomOwner = owners.find(r => r._id === room.owner);
+            if (room.owner === me) return 'none';
+            if (roomOwner && !this.ownerDead(roomOwner, nowMs) && roomOwner.state !== 'draining' && !room.handoff)
+                return 'retry';
+            if (roomOwner && roomOwner.state === 'draining' && !room.handoff)
+                await store.want(room._id, room.owner, me, new Date(nowMs));
+            return (await this.waitHere(room._id, () => this.parties.hasCode(code))) ? 'here' : 'retry';
+        }
+        if (!owner || this.ownerDead(owner, nowMs)) return (await this.takeOver(row)) ? 'here' : 'retry';
+        // a serving owner newer than this relay keeps the party (this relay drains within a second): retry there
+        const mine = this.announcedMs || Number.POSITIVE_INFINITY;
+        if (owner.state !== 'draining' && new Date(owner.readyAt).getTime() > mine) return 'retry';
+        // a draining owner hands its lobby parties over within a tick; an older serving one drains within a second
+        // (this relay is the newer generation) and then does
+        return (await this.waitHere(row._id, () => this.parties.hasCode(code))) ? 'here' : 'retry';
+    }
+
+    /** `party.join` for a code this relay does not hold: look in the store, then join here or send the socket on. */
+    private async joinElsewhere(s: Sock, code: string): Promise<void> {
+        if (s.joining) return;
+        s.joining = true;
+        let where: 'here' | 'retry' | 'ended' | 'none' = 'none';
+        try {
+            where = await this.findParty(code);
+        } catch (e) {
+            this.log('relay_join_lookup_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+            where = 'retry';
+        } finally {
+            s.joining = false;
+        }
+        if (s.closed || !s.memberId) return;
+        if (where === 'here') return this.joinHere(s, code, false);
+        if (where === 'retry') {
+            this.log('relay_join_elsewhere', {});
+            this.error(s, 'party_elsewhere', PARTY_LIMITS.partyElsewhereRetryMs);
+            s.ws.close(4013, 'party elsewhere');
+            return;
+        }
+        this.joinFailed(s);
+        this.error(s, where === 'ended' ? 'party_ended' : 'party_not_found');
+    }
+
+    /** `party.join` on this relay; a code it does not hold is looked up in the store when `lookup` (§14). */
+    private joinHere(s: Sock, code: string, lookup: boolean): void {
+        const member = s.memberId!;
+        const p = this.parties;
+        // the same person again (a closed tab, a new tab without the resume token): their own seat back. A
+        // tab still holding it loses it ("Playing in another tab"), as a resume does: one seat per person,
+        // and a phone whose old socket is not dead yet on the server still gets back in at once
+        const twin = p.twinOf(code, s.identity!);
+        if (twin && twin !== member) return this.adopt(s, twin);
+        const party = p.join(code, member, s.identity!, s.hint);
+        if (party === 'party_not_found' && lookup) {
+            // a draining relay holds no lobby: the party is (or will be) on the new relay
+            if (this.state !== 'serving') return this.moveSock(s);
+            void this.joinElsewhere(s, code).catch(e =>
+                this.log('relay_error', { message: String((e as Error)?.message || e).slice(0, 200) })
+            );
+            return;
+        }
+        if (typeof party === 'string') {
+            if (party === 'party_not_found' || party === 'party_ended' || party === 'code_changed') this.joinFailed(s);
+            return this.error(s, party as ErrorCode);
+        }
+        const live = party.room ? this.rooms.get(party.room) : undefined;
+        if (live && party.openSeats) this.claimOpenSeat(s, live, party, member);
     }
 
     private hello(s: Sock, msg: Extract<ClientJson, { t: 'hello' }>): void {
@@ -1004,21 +1144,8 @@ export class PartyRelay {
             case 'party.join': {
                 const wait = this.joinBlockedMs(s);
                 if (wait > 0) return this.error(s, 'rate_limited', Math.min(wait, PARTY_LIMITS.joinFailPerIp.windowMs));
-                // the same person again (a closed tab, a new tab without the resume token): their own seat back. A
-                // tab still holding it loses it ("Playing in another tab"), as a resume does: one seat per person,
-                // and a phone whose old socket is not dead yet on the server still gets back in at once
                 if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
-                const twin = p.twinOf(msg.code, s.identity!);
-                if (twin && twin !== member) return this.adopt(s, twin);
-                const party = p.join(msg.code, member, s.identity!, s.hint);
-                if (typeof party === 'string') {
-                    if (party === 'party_not_found' || party === 'party_ended' || party === 'code_changed')
-                        this.joinFailed(s);
-                    return this.error(s, party as ErrorCode);
-                }
-                const live = party.room ? this.rooms.get(party.room) : undefined;
-                if (live && party.openSeats) this.claimOpenSeat(s, live, party, member);
-                return;
+                return this.joinHere(s, msg.code, true);
             }
             case 'party.leave':
                 if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
@@ -2431,6 +2558,7 @@ export class PartyRelay {
             leader: string;
             difficulty: string;
             openSeats: boolean;
+            locked?: boolean;
             members: {
                 id: string;
                 accountId: string | null;
@@ -2475,7 +2603,8 @@ export class PartyRelay {
                 slot: m.slot,
             })),
             leaderDoc.id,
-            roomId
+            roomId,
+            typeof doc.locked === 'boolean' ? doc.locked : undefined
         );
         this.parties.restoreMm(party, doc.mm);
         if (live) {

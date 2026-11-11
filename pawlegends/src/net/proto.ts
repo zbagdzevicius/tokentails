@@ -486,6 +486,11 @@ export const ERROR_CODES = [
   'room_elsewhere',
   /** The match of this resume token ended (or was abandoned) while the player was away: leave the match screen. */
   'room_over',
+  /**
+   * The party of this `party.join` code lives on another relay right now (LIVE-MATCH-DEPLOYS.md §14): reconnect after
+   * `retryMs` (the socket closes with 4013) and send the join again. The client retries a bounded number of times.
+   */
+  'party_elsewhere',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 

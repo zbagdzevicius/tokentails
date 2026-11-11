@@ -108,6 +108,13 @@ export const PARTY_LIMITS = Object.freeze({
     relayHeartbeatMs: 5_000,
     relayStaleMs: 20_000,
     /**
+     * A party's owner relay whose heartbeat is older than this (three missed beats) is gone (a crash, a SIGKILL): a join
+     * or a resume that reaches another relay takes the party over from its stored row (LIVE-MATCH-DEPLOYS.md §14).
+     */
+    relayDeadMs: 15_000,
+    /** A join whose party lives on another serving relay: reconnect after this long (the balancer picks again). */
+    partyElsewhereRetryMs: 1_000,
+    /**
      * SIGTERM drain when RELAY_DRAIN_MAX_MS is not set: 90 s fits any platform's default grace (DigitalOcean 120 s)
      * with 30 s left for the push handoff. DigitalOcean sets 540 000 with a 600 s grace
      * (infra/digitalocean/live-match-spec.sh); the GCP relay VM sets docker's stop timeout minus 30 s.

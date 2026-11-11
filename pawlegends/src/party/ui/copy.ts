@@ -69,7 +69,9 @@ export const COPY = Object.freeze({
   youLead: 'You lead the party now',
   // errors (§8)
   ended: 'This party has ended',
-  notFound: 'No party with that code',
+  notFound: 'No party with that code. Check it with your friend',
+  unreachable: 'Could not reach that party. Check your connection and try again',
+  matchLost: 'Lost the connection to the match',
   codeChanged: 'This invite is out of date: ask for a new link',
   alreadyIn: 'You are already in this party in another tab',
   sideSwitched: 'Leader switched sides: pick again',
@@ -192,6 +194,10 @@ export function errorText(code: string, retryS = 0): string {
       return COPY.seatTaken;
     case 'room_over':
       return COPY.roomOver;
+    case 'party_unreachable':
+      return COPY.unreachable;
+    case 'match_lost':
+      return COPY.matchLost;
     case 'mm_locked':
       return COPY.stoppedLocked(Math.max(1, retryS));
     case 'pvp_update_required':

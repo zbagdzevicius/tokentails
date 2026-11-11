@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { initialParty, reduceParty, screenOf, type PartyState } from '../../src/party/partyClient';
+import { JOIN_NOT_FOUND_RETRIES, JOIN_NOT_FOUND_RETRY_MS, initialParty, reduceParty, screenOf, type PartyState } from '../../src/party/partyClient';
 import type { MatchMsg, PartyView, ServerJson } from '../../src/net/proto';
 
 /* Party play P3 (MULTIPLAYER.md §5, §12 P3): the client's reducer from server frames. */
@@ -64,6 +64,15 @@ describe('party client reducer (P3)', () => {
     expect(screenOf(s)).toBe('joincode');
     s = reduceParty(s, { e: 'join', code: 'ABCDEF' }).state;
     expect(screenOf(s)).toBe('connecting');
+    // LIVE-MATCH-DEPLOYS.md §14: a fresh connection tries again (another relay may hold it) before the boxes say so
+    for (let i = 0; i < JOIN_NOT_FOUND_RETRIES; i++) {
+      const r = run(s, { t: 'error', code: 'party_not_found' });
+      expect(r.fx).toEqual([{ t: 'reconnect', ms: JOIN_NOT_FOUND_RETRY_MS }]);
+      expect(screenOf(r.s)).toBe('connecting');
+      const again = run(r.s, welcome, 'decide');
+      expect(again.fx).toContainEqual({ t: 'send', msg: { t: 'party.join', code: 'ABCDEF' } });
+      s = again.s;
+    }
     s = run(s, { t: 'error', code: 'party_not_found' }).s;
     expect(screenOf(s)).toBe('joincode');
     expect(s.error?.code).toBe('party_not_found');

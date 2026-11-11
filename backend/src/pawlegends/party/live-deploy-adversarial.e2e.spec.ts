@@ -194,6 +194,76 @@ async function reconnect(
     }
 }
 
+/**
+ * Join a party by code the way the client does (partyClient.ts, LIVE-MATCH-DEPLOYS.md §14): dial the relay the load
+ * balancer picks (`pick(dial)`), hello, `party.join`; on `server_moving` or `party_elsewhere` (the socket is closed)
+ * dial again after `retryMs` plus 0–100 ms of jitter; `party_not_found` tries a fresh connection twice more (800 ms).
+ * Returns the socket in the party, the dials it took and every error code it saw on the way.
+ */
+async function joinByCode(
+    pick: (dial: number) => number,
+    key: string,
+    code: string,
+    ms: number
+): Promise<{ c: Player; dials: number; errors: string[]; ms: number }> {
+    const start = Date.now();
+    const end = start + ms;
+    const errors: string[] = [];
+    let dials = 0;
+    let notFound = 0;
+    let retry = 0;
+    for (;;) {
+        if (Date.now() > end) throw new Error(`not in the party after ${dials} dials: ${errors.join(',')}`);
+        await wait(retry + Math.random() * 100);
+        dials++;
+        const c = new Player(pick(dials));
+        await c.open();
+        c.hello(helloFor(key));
+        await c.until(() => c.last('welcome') || c.closed, 8000).catch(() => undefined);
+        if (c.last('welcome') && !c.closed) {
+            c.send({ t: 'party.join', code });
+            await c
+                .until(() => c.last('party') || c.json.some(j => j.t === 'error') || c.closed, 8000)
+                .catch(() => undefined);
+        }
+        if (c.last('party')) return { c, dials, errors, ms: Date.now() - start };
+        const e = [...c.json].reverse().find(j => j.t === 'error');
+        if (e) errors.push(e.code);
+        c.close();
+        if (e?.code === 'party_not_found') {
+            if (++notFound > 2) throw new Error(`party_not_found after ${dials} dials`);
+            retry = 800;
+        } else if (e && e.code !== 'server_moving' && e.code !== 'party_elsewhere')
+            throw new Error(`join refused: ${e.code}`);
+        else retry = typeof e?.retryMs === 'number' ? e.retryMs : 250;
+    }
+}
+
+/** Resume a lobby seat the way the client does: dial until the party frame comes back (a draining relay sends us on). */
+async function resumeLobby(
+    port: number,
+    token: string,
+    key: string,
+    ms: number
+): Promise<{ c: Player; dials: number }> {
+    const end = Date.now() + ms;
+    let dials = 0;
+    let retry = 0;
+    for (;;) {
+        await wait(retry + Math.random() * 100);
+        dials++;
+        const c = new Player(port);
+        await c.open();
+        c.hello({ ...helloFor(key), resume: { token } });
+        await c.until(() => c.last('party') || c.closed, 6000).catch(() => undefined);
+        if (c.last('party')) return { c, dials };
+        const e = [...c.json].reverse().find(j => j.t === 'error');
+        retry = typeof e?.retryMs === 'number' ? e.retryMs : 250;
+        c.close();
+        if (Date.now() > end) throw new Error(`lobby not resumed after ${dials} dials`);
+    }
+}
+
 function play(...clients: TestClient[]): () => void {
     let n = 0;
     const t = setInterval(() => {
@@ -475,6 +545,79 @@ describe('live-match deploys, adversarial (LIVE-MATCH-DEPLOYS.md §9)', () => {
         expect(boundAt - killedAt).toBeLessThan(PARTY_LIMITS.staleLeaseMs + PARTY_LIMITS.restoreEveryMs + 5000);
     });
 
+    it('code join across relays during a deploy overlap: the joiner reaches the new relay first, a second one the draining relay; both get in, the host follows', async () => {
+        const store = new MeteredStore();
+        const A = proc(store, { RELAY_DRAIN_MAX_MS: '30000' });
+        await A.start();
+        const host = new Player(A.port);
+        clients.push(host);
+        await host.open();
+        host.hello(helloFor('host-key-000000001'));
+        const hw = await host.until(() => host.last('welcome'));
+        host.send({ t: 'party.create', difficulty: 'normal' });
+        const code = (await host.until(() => host.last('party'))).code as string;
+        await until(() => store.parties.size > 0, 3000);
+
+        // the new container is up; the friend's socket is the first to reach it, and joins at once (before the old
+        // relay has seen the new generation and handed its lobby over)
+        const B = proc(store);
+        await B.start();
+        const j1 = await joinByCode(() => B.port, 'join-key-00000001', code, 20_000);
+        clients.push(j1.c);
+        expect(j1.c.last('party')!.code).toBe(code);
+        expect(j1.errors).not.toContain('party_not_found');
+
+        // the host was moved by the old relay (server_moving, 1012) and resumes on the new one: same party, same code
+        await host.until(() => host.closed, 8000);
+        const hr = await resumeLobby(B.port, hw.resumeToken, 'host-key-000000001', 15_000);
+        clients.push(hr.c);
+        expect(hr.c.last('party')!.code).toBe(code);
+        expect(hr.c.last('welcome')!.member).toBe(hw.member);
+
+        // a second friend's balancer still picks the draining container first: sent on, then in
+        const ports = [A.port, B.port];
+        const j2 = await joinByCode(dial => ports[Math.min(dial - 1, 1)], 'join-key-00000002', code, 20_000);
+        clients.push(j2.c);
+        expect(j2.errors[0]).toBe('server_moving');
+        await j2.c.until(() => j2.c.last('party')?.members.length === 3, 5000);
+        report.joinOverlap = {
+            first: { dials: j1.dials, ms: j1.ms, errors: j1.errors },
+            host: { dials: hr.dials },
+            second: { dials: j2.dials, ms: j2.ms, errors: j2.errors },
+        };
+        expect(j1.ms).toBeLessThan(PARTY_LIMITS.pullHoldMs + 2000);
+    }, 240_000);
+
+    it('code join after the owner crashed (SIGKILL, no handoff): the other relay answers party_elsewhere until the owner is dead, then takes the party over with its code; the host resumes into it', async () => {
+        const store = new MeteredStore();
+        const A = proc(store);
+        const B = proc(store);
+        await Promise.all([A.start(), B.start()]);
+        const host = new Player(A.port);
+        clients.push(host);
+        await host.open();
+        host.hello(helloFor('host-key-000000002'));
+        const hw = await host.until(() => host.last('welcome'));
+        host.send({ t: 'party.create', difficulty: 'normal' });
+        const code = (await host.until(() => host.last('party'))).code as string;
+        await until(() => [...store.parties.values()].some(p => p.code === code), 3000);
+        A.kill('SIGKILL');
+        await A.exited();
+        const killedAt = Date.now();
+
+        const j = await joinByCode(() => B.port, 'join-key-00000003', code, PARTY_LIMITS.relayDeadMs + 25_000);
+        clients.push(j.c);
+        expect(j.c.last('party')!.code).toBe(code);
+        expect(j.errors.every(e => e === 'party_elsewhere')).toBe(true);
+        expect(B.has('relay_takeover_party')).toBeTruthy();
+        const hr = await resumeLobby(B.port, hw.resumeToken, 'host-key-000000002', 10_000);
+        clients.push(hr.c);
+        expect(hr.c.last('welcome')!.member).toBe(hw.member);
+        await j.c.until(() => j.c.last('party')?.members.length === 2, 5000);
+        report.joinAfterCrash = { dials: j.dials, msAfterKill: Date.now() - killedAt, errors: j.errors.length };
+        expect(Date.now() - killedAt).toBeLessThan(PARTY_LIMITS.relayDeadMs + PARTY_LIMITS.relayHeartbeatMs + 10_000);
+    }, 240_000);
+
     it(`a room on an older sim (v${OLD_SIM}) moves to the new relay and keeps its version`, async () => {
         expect(simFor(OLD_SIM)?.party).toBeTruthy();
         const store = new MeteredStore();
@@ -517,7 +660,8 @@ describe('live-match deploys, adversarial (LIVE-MATCH-DEPLOYS.md §9)', () => {
 });
 
 describe('live-match deploys, in-process adversarial checks', () => {
-    jest.setTimeout(120_000);
+    // jest.setTimeout is global and the last call wins: keep the forked-process tests above at their 240 s
+    jest.setTimeout(240_000);
     const relays: PartyRelay[] = [];
     const servers: Server[] = [];
     const clients: TestClient[] = [];
@@ -583,6 +727,33 @@ describe('live-match deploys, in-process adversarial checks', () => {
         void wb;
         // nothing is left on the draining relay: its drain completes without a room
         expect(A.relay.counters().rooms_live ?? 0).toBe(0);
+    });
+
+    it('two relays, one store: a code another relay ended answers party_ended (never not found); an unknown code is party_not_found', async () => {
+        const store = new MemoryRoomStore();
+        const A = await relayOn(store, []);
+        const a = new Player(A.port);
+        clients.push(a);
+        await a.open();
+        a.hello(helloFor('ended-a-key-00001'));
+        await a.until(() => a.last('welcome'));
+        a.send({ t: 'party.create', difficulty: 'normal' });
+        const code = (await a.until(() => a.last('party'))).code as string;
+        await until(() => [...store.parties.values()].some(p => p.code === code), 3000);
+        a.send({ t: 'party.leave' });
+        await until(() => [...store.parties.values()].some(p => p.code === code && p.ended), 3000);
+        const B = await relayOn(store, []);
+        const b = new Player(B.port);
+        clients.push(b);
+        await b.open();
+        b.hello(helloFor('ended-b-key-00001'));
+        await b.until(() => b.last('welcome'));
+        b.send({ t: 'party.join', code });
+        const e = await b.until(() => b.last('error'));
+        expect(e.code).toBe('party_ended');
+        b.send({ t: 'party.join', code: code === 'ABCDEF' ? 'ABCDEG' : 'ABCDEF' });
+        await b.until(() => b.json.filter(j => j.t === 'error').length === 2);
+        expect(b.last('error')!.code).toBe('party_not_found');
     });
 
     it('memory: ended-party stamps are swept; no relay timer outlives shutdown', async () => {
