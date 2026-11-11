@@ -1,8 +1,10 @@
 /**
- * Party social lines (docs/plans/moba/MULTIPLAYER.md §7 M2-M3, D8): the only things a player can say to a friend in a
- * match. Enumerated: the wire carries an id, never text, so nothing a player types ever reaches a peer. The counts are
- * pinned by `SOCIAL_COUNT` in src/net/proto.ts (the relay drops any other id); tests/unit/social.test.ts keeps them
- * equal. Render only: nothing here reaches the sim.
+ * Party social lines (docs/plans/moba/MULTIPLAYER.md §7 M2-M3, D8): the quick-chat wheel lines and emotes of a match.
+ * Enumerated: the `social` frame carries an id, never text. The counts are pinned by `SOCIAL_COUNT` in
+ * src/net/proto.ts (the relay drops any other id); tests/unit/social.test.ts keeps them equal. Render only: nothing
+ * here reaches the sim. D8 as amended by docs/plans/moba/MATCH-CHAT.md: typed team chat exists in a match only through
+ * PROTO 6 `chat.say`, only for a team whose every human is a registered 16+ account, and only after the server filter;
+ * everyone else (under 16, unknown age, guests) sees phrases only.
  */
 import { SOCIAL_COUNT, type SocialKind } from '../net/proto';
 import { PING_KINDS } from './pings';

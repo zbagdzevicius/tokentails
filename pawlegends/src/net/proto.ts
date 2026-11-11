@@ -13,7 +13,7 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 5;
+export const PROTO = 6;
 /**
  * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
  * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
@@ -42,6 +42,13 @@ export const PROTO_CLASSIC = 4;
  * changes. A PROTO 4 socket never gets a `chat.*` frame, and its `chat.say` is refused as unknown.
  */
 export const PROTO_CHAT = 5;
+/**
+ * PROTO 6 (in-match chat, docs/plans/moba/MATCH-CHAT.md §3): `chat.say` with a channel (`ch: 'team' | 'all'`) is also
+ * accepted in phase `match`; in-match `chat.msg` carries `ch` and the sender's `slot`, never a member id (a bot line and
+ * a human line look the same on the wire); the party view's `chat.match` is the recipient's own team tier. A PROTO 4
+ * or 5 socket gets in-match phrases with a legacy wheel id as the old `social` chat frame, and nothing else.
+ */
+export const PROTO_MATCH_CHAT = 6;
 export const SUBPROTOCOL = 'pl.1';
 /**
  * Quick Play queues: co-op (M1a), casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE) and 5v5 Classic (PROTO 4 on a sim
@@ -505,9 +512,11 @@ export type VoteKind = 'surrender' | 'pause' | 'resume' | 'rematch' | 'remake';
 export type SocialKind = 'ping' | 'chat' | 'emote';
 
 /**
- * Social ids (MULTIPLAYER.md §7 M2-M3, D8: no player text ever reaches a peer): each kind has ids 0..count-1 (pings
- * are the PING_KINDS order, chat the 8 quick lines and emotes the 4 of src/data/social.ts). The relay drops any other
- * id; the client mirrors the rate limit (1 per 2 s, 10 per 30 s per member).
+ * Social ids (MULTIPLAYER.md §7 M2-M3, D8 as amended by MATCH-CHAT.md: the `social` frame never carries text): each
+ * kind has ids 0..count-1 (pings are the PING_KINDS order, chat the 8 quick lines and emotes the 4 of
+ * src/data/social.ts). The relay drops any other id; the client mirrors the rate limit (1 per 2 s, 10 per 30 s per
+ * member). Free text in a match exists only as PROTO 6 `chat.say` team text, and only when every human on the team is
+ * a registered 16+ account (the relay filters it, MATCH-CHAT.md §2).
  */
 export const SOCIAL_COUNT = Object.freeze({ ping: 8, chat: 8, emote: 4 } as const);
 export const SOCIAL_RATE = Object.freeze({ gapMs: 2000, windowMs: 30_000, perWindow: 10 });
@@ -593,11 +602,13 @@ export type ClientJson =
    * every member is a registered 16+ account, filtered text (`t`, at most CHAT_SAY_MAX_TEXT characters before the
    * server's normalisation).
    */
-  | { t: 'chat.say'; k: ChatKind; id?: number; text?: string };
+  | { t: 'chat.say'; k: ChatKind; id?: number; text?: string; ch?: MatchChannel };
 
 export type ClientJsonType = ClientJson['t'];
 
 export type ChatKind = 't' | 'q' | 's';
+/** PROTO 6: an in-match chat channel (MATCH-CHAT.md §2): the own team, or both teams (phrases only). */
+export type MatchChannel = 'team' | 'all';
 /** The raw text a `chat.say` may carry (the server cuts to 120 characters after normalising, or refuses). */
 export const CHAT_SAY_MAX_TEXT = 240;
 /** A party chat line's sender rate: 5 in 10 s per socket, its own bucket (not the in-match social one). */
@@ -687,6 +698,7 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
     k: [(v) => v === 't' || v === 'q' || v === 's', false],
     id: [isInt(0, 63), true],
     text: [(v) => typeof v === 'string' && v.length >= 1 && v.length <= CHAT_SAY_MAX_TEXT, true],
+    ch: [(v) => v === 'team' || v === 'all', true],
   },
 };
 
@@ -785,9 +797,10 @@ export interface PartyView {
   queue?: { sinceMs: number; side: MmSide };
   /**
    * PROTO 5: party chat. `tier` 'text' only when every member is a registered 16+ account in a friend party (never with
-   * strangers); `thread` is the id a report names.
+   * strangers); `thread` is the id a report names. PROTO 6 `match`: the recipient's team chat tier in the match ('text'
+   * when every human on its team is a registered 16+ account).
    */
-  chat?: { tier: 'text' | 'quick'; thread: string };
+  chat?: { tier: 'text' | 'quick'; thread: string; match?: 'text' | 'quick' };
   /** PROTO 5: member ids the recipient blocked (only in the recipient's own copy): their chat lines are hidden. */
   blocks?: string[];
 }
@@ -882,8 +895,11 @@ export type ServerJson =
   | { t: 'mm.accepted'; match: string; yes: number; need: number }
   | { t: 'mm.cancel'; reason: 'left' | 'away' | 'party' | 'server' | 'update' | 'declined' | 'timeout' }
   | { t: 'mm.backfill.offer'; offer: string; side: 'cat' | 'dog'; clockS: number; score: [number, number]; expiresMs: number }
-  /** PROTO 5: a party chat line. `from` is the member id (never an account id); `mid` names it for a report. */
-  | { t: 'chat.msg'; mid: string; from: string; k: ChatKind; text?: string; id?: number; at: number }
+  /**
+   * PROTO 5: a party chat line. `from` is the member id (never an account id); `mid` names it for a report. PROTO 6 in
+   * a match: `ch` and the sender's hero `slot` instead of `from`.
+   */
+  | { t: 'chat.msg'; mid: string; from?: string; k: ChatKind; text?: string; id?: number; at: number; ch?: MatchChannel; slot?: number }
   /** PROTO 5: your `chat.say` was not sent (`why`: words, contact, link, charset, long, rate, quick_only, phase, muted, cooldown, scope). */
   | { t: 'chat.reject'; why: string; until?: number }
   /** PROTO 5: a friend sent you a DM (no body: read it over the API). Held in loading and match, sent on results. */
