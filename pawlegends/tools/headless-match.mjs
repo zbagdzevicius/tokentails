@@ -21,7 +21,13 @@
  *   parked   parked vs easy (or --difficulty rookie), 100 seeds: a human parked off the lanes at 0:30 is not
  *            followed (allies beside it ≤ 10% of the time) and the match runs at least 2:00 past the park
  *   balance  normal vs normal, 2,000 seeds     length, side, species (cats 47% to 53%, sim v9), heroes, pace, comebacks
- *            (`--balance` is an alias)
+ *            (`--balance` is an alias). How it is judged (sim v20, docs/plans/moba/V20-CHASE.md §10): the per-hero
+ *            (46–54) and level-6 branch (45–55) checks are judged POOLED over at least 8,000 fresh seeds (one
+ *            `--seeds 8000` run, or four 2,000-seed windows added up; standard error about ±1 point), because a hero
+ *            plays ~600 slots a 2,000-seed window (±2 points) and a balanced roster fails some window ~98% of the time.
+ *            Every other check (side, species, tricks, pace, comebacks, length, core kills, trailing) keeps the
+ *            per-window rule: each 2,000-seed window must pass. Fit rows only on seeds 1–14000; verify only on unseen
+ *            seeds 20001–28000. The bands do not move.
  *   hard     normal vs hard, 200 seeds         a Normal-level player wins 20% to 40% against Hard bots (sim v6)
  *   feeder   feeder vs rookie, 200 seeds       a first-timer who dives under towers and feeds still wins ≥ 80% (sim v7)
  *   feedNormal feeder vs normal, 200 seeds    (sim v8, playtest round 2) a human who feeds is in the deficit gate too:
