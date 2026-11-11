@@ -12,7 +12,7 @@ import { nativeCaps, platformOf, type AuthOutcome, type AuthPort, type UserSnaps
 import { createChannel, NATIVE_HOST_ORIGIN } from '../src/host/channel';
 import { APPLE_CLIENT_ID, startNativeHost, type NativeHost } from '../src/host/nativeHost';
 import type { AskOptions, HostUi, SheetActions } from '../src/host/sheet';
-import { DomHostUi, NOT_SET_UP } from '../src/host/sheet';
+import { DomHostUi, NOT_SET_UP, PROVIDER_REFUSED, UNAVAILABLE } from '../src/host/sheet';
 import { NoAuth } from '../src/host/main';
 import { installBridge } from '../../pawlegends/src/embed/bridge';
 
@@ -477,6 +477,24 @@ describe('providers per build', () => {
     expect(a.current()).toBeNull();
     await expect(a.ensureGuest()).resolves.toBe(false);
     await expect(a.oauth()).resolves.toMatchObject({ kind: 'error' });
+  });
+
+  it('clear errors: Firebase refusing an Apple or Google token names that provider; no sign-in at all says so', async () => {
+    document.body.innerHTML = '';
+    const ui = new DomHostUi(document, 'ios', { apple: true, google: true });
+    ui.openSignIn('sign-in', { oauth: () => undefined, email: () => undefined, reset: async () => undefined, resend: async () => undefined, checkVerified: async () => false, closed: () => undefined });
+    document.querySelector<HTMLElement>('[data-testid="native-auth-apple"]')!.click();
+    // the bundle id is not registered for Apple in the Firebase project: the client copy would talk about a password
+    ui.error({ code: 'auth/invalid-credential' }, true);
+    expect(document.querySelector('[data-testid="native-auth-message"]')?.textContent).toBe(PROVIDER_REFUSED('Apple'));
+    // an email sign-in keeps the email copy
+    document.querySelector<HTMLElement>('[data-testid="native-auth-email"]')!.click();
+    ui.error({ code: 'auth/invalid-credential' });
+    expect(document.querySelector('[data-testid="native-auth-message"]')?.textContent).toContain('email and password');
+    // NoAuth: one plain sentence, not the in-app-browser copy
+    const outcome = await new NoAuth().signInEmail();
+    ui.error((outcome as { error: unknown }).error);
+    expect(document.querySelector('[data-testid="native-auth-message"]')?.textContent).toBe(UNAVAILABLE);
   });
 });
 

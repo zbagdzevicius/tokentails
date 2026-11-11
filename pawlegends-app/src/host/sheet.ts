@@ -52,6 +52,17 @@ export interface HostUi {
 
 export const NOT_SET_UP = (name: "Apple" | "Google"): string => `${name} sign-in isn't set up in this build yet. Use email for now.`;
 
+/** Firebase could not start in this WebView (main.ts NoAuth): no sign-in at all, the game plays on. */
+export const UNAVAILABLE_CODE = "pl/sign-in-unavailable";
+export const UNAVAILABLE = "Sign-in isn't available on this device right now. Everything still plays without an account.";
+
+/**
+ * Apple or Google said yes but Firebase refused the token (`auth/invalid-credential` and friends: the app's bundle id
+ * or SHA keys not registered in the Firebase project, the provider off there). The client copy for those codes talks
+ * about an email and password, which the player never typed.
+ */
+export const PROVIDER_REFUSED = (name: "Apple" | "Google"): string => `${name} sign-in didn't go through. Try again, or use email.`;
+
 const TITLES: Record<string, string> = {
   "save-progress": "Save your wins",
   "claim-rewards": "Sign in to claim",
@@ -111,6 +122,8 @@ export class DomHostUi implements HostUi {
   /** The last view that was not `busy`: an error or a cancel goes back to it. */
   private back: View = { name: "choose" };
   private lastEmail = "";
+  /** The Apple or Google tap waiting for its answer (an error then names that provider). */
+  private oauthName: OAuthProviderName | null = null;
   private toastTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
@@ -141,8 +154,11 @@ export class DomHostUi implements HostUi {
     const code = (error as { code?: unknown } | null)?.code;
     let message: string;
     let field: "email" | "password" | null = null;
+    const oauth = this.oauthName;
+    this.oauthName = null;
     if (code === "pl/google-not-configured") message = NOT_SET_UP("Google");
     else if (code === "pl/apple-not-configured") message = NOT_SET_UP("Apple");
+    else if (code === UNAVAILABLE_CODE) message = UNAVAILABLE;
     else {
       const copy = native ? mapNativeAuthError(error) : withLastMethodHint(mapAuthError(error), error, readLastMethod());
       if (!copy) {
@@ -152,6 +168,11 @@ export class DomHostUi implements HostUi {
       }
       message = copy.message;
       field = copy.field;
+      // a password message after an Apple or Google tap: say which sign-in failed instead
+      if (native && oauth && copy.field === "password") {
+        message = PROVIDER_REFUSED(oauth === "apple" ? "Apple" : "Google");
+        field = null;
+      }
     }
     if (!this.veil) return this.toast(message);
     const back = this.back;
@@ -304,6 +325,7 @@ export class DomHostUi implements HostUi {
       case "apple":
       case "google":
         this.show({ name: "busy", label: `Signing in with ${h === "apple" ? "Apple" : "Google"}` });
+        this.oauthName = h;
         return a.oauth(h);
       case "email":
         return this.show({ name: "email", tab: "sign-in", email });
