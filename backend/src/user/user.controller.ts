@@ -81,6 +81,7 @@ import { AUTH_USER, IAuthUser, isGuestUser, notGuestFilter } from 'src/common/de
 import { ILeaseCollection, runLeased } from 'src/shared/jobs/lease';
 import { canonicalEmail } from './guest/canonical-email';
 import { ACCOUNT_DELETIONS_COLLECTION, deleteAccount, IAccountDeletionResult } from './guest/account-deletion';
+import { purgePawlegendsSocial } from '../pawlegends/social/social-purge';
 import { DeleteAccountDto, guestBodyPipe, ReferralDto } from './guest/dto';
 import { verifyAppCheckToken } from './guest/app-check';
 import { firebaseIdentity, firebaseTokenFromHeader, IFirebaseIdentity } from './guest/firebase-identity';
@@ -663,6 +664,7 @@ export class UserController {
                 cats: this.catRepository.model,
                 firebase: this.firebase,
                 audit: this.repository.model.db.collection(ACCOUNT_DELETIONS_COLLECTION) as any,
+                purgeSocial: id => purgePawlegendsSocial(this.repository.model.db as any, id),
             },
             userId,
             body?.appleAuthorizationCode,
