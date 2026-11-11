@@ -93,6 +93,15 @@
     ],
     "__tests__/home-yard.test.ts": [
       "client"
+    ],
+    "chat.ts": [
+      "backend",
+      "client",
+      "cms"
+    ],
+    "chat-filter.ts": [
+      "backend",
+      "client"
     ]
   }
 }
