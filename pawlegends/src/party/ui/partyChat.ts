@@ -4,11 +4,14 @@
  * drawer (at most half the height) with the last 30 lines and the phrase tray, plus a text input only when the relay
  * says the party's tier is `text` (every member a registered 16+ account, no strangers). Matchmade parties say "Team"
  * and offer team phrases only. Lines from members the player blocked are hidden (`PartyView.blocks`). The relay checks
- * everything again; this only mirrors it. Names and text go in with textContent. Nothing runs in a match.
+ * everything again; this only mirrors it. Names and text go in with textContent. Nothing runs in a match. The party
+ * screen re-renders on every party frame (picks, presence), so the strip morphs the DOM in place: the input, its draft,
+ * the phone keyboard and a scrolled-up reader survive a re-render.
  */
 import type { ClientJson, PartyView } from '../../net/proto';
 import { CHAT_LIMITS_CLIENT, CHAT_REPORT_KINDS, CHAT_REPORT_LABELS, CHAT_STICKERS, chatBodyText, chatErrorText, phrasesFor, type ChatReportKind } from '../../data/chatPhrases';
 import { avatarHtml } from '../../ui/avatar';
+import { morphHtml } from '../../ui/morph';
 import { shownName } from './partyLobby';
 
 export interface PartyLine {
@@ -61,6 +64,7 @@ export class PartyChat {
   private page = 0;
   private reporting: string | null = null;
   private visible = false;
+  private screen = '';
   private disposed = false;
 
   constructor(
@@ -115,6 +119,13 @@ export class PartyChat {
       this.unread = 0;
     }
     this.view = view;
+    // the pick needs its bottom bar (bots, Leave, LOCK IN): it starts as the 40 px chat button there, one tap opens
+    // the drawer; back on the lobby the desktop drawer opens again
+    if (screen !== this.screen) {
+      if (screen === 'pick') this.open = false;
+      else if (screen === 'lobby' && this.screen === 'pick') this.open = !!this.deps.wide?.();
+      this.screen = screen;
+    }
     if (view?.blocks?.length) this.lines = this.lines.filter((l) => !view.blocks!.includes(l.from));
     if (show !== this.visible) {
       this.visible = show;
@@ -162,9 +173,14 @@ export class PartyChat {
     const scope = chatScopeOf(v);
     const head = scope === 'team' ? 'Team' : 'Party';
     const last = this.lines[this.lines.length - 1];
+    const prevUl = this.el.querySelector<HTMLElement>('.pp-chat-lines');
+    const atBottom = !prevUl || prevUl.scrollHeight - prevUl.scrollTop - prevUl.clientHeight < 32;
+    const fill = (tree: DocumentFragment) => {
+      for (const el of tree.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
+    };
     if (!this.open) {
       const preview = last ? `<span class="pp-chat-who" data-name="${this.esc(this.nameOf(last.from))}"></span><span class="pp-chat-said" data-name="${this.esc(lineText(last))}"></span>` : `<span class="pp-chat-said">${head} chat</span>`;
-      this.el.innerHTML = `<button type="button" class="pp-chat-strip" data-a="toggle" aria-expanded="false" data-testid="party-chat-strip">💬 ${preview}${this.unread ? `<i class="pl-chat-unread">${Math.min(99, this.unread)}</i>` : ''}</button>${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}`;
+      morphHtml(this.el, `<button type="button" class="pp-chat-strip" data-a="toggle" aria-expanded="false" data-testid="party-chat-strip">💬 ${preview}${this.unread ? `<i class="pl-chat-unread">${Math.min(99, this.unread)}</i><span class="pl-sr"> unread</span>` : ''}</button>${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}`, fill);
     } else {
       const phrases = phrasesFor(scope);
       const pages = Math.ceil(phrases.length / PAGE) + 1;
@@ -192,11 +208,11 @@ export class PartyChat {
       const input = textAllowed(v)
         ? `<form class="pl-chat-form"><input name="pchat" maxlength="${CHAT_LIMITS_CLIENT.textMax}" autocomplete="off" enterkeyhint="send" placeholder="Message your party" aria-label="Message your party" data-testid="party-chat-input"><button type="submit" class="pl-btn small">Send</button></form>`
         : `<p class="pl-chat-line">Quick chat keeps everyone safe 🐾</p>`;
-      this.el.innerHTML = `<div class="pp-chat-drawer" role="region" aria-label="${head} chat"><header class="pp-chat-head"><b>${head} chat</b><button type="button" class="pl-social-x" data-a="toggle" aria-label="Close chat" aria-expanded="true">&times;</button></header><ul class="pp-chat-lines">${lines || '<li class="pl-chat-empty">Say hi to your party!</li>'}</ul><div class="pl-chat-tray"><div class="pl-chat-chips">${chips}</div><div class="pl-chat-pages"><button type="button" class="pl-btn ghost small" data-a="prev" aria-label="Previous phrases"${page === 0 ? ' disabled' : ''}>&lsaquo;</button><button type="button" class="pl-btn ghost small" data-a="next" aria-label="More phrases"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></div></div>${input}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</div>`;
+      morphHtml(this.el, `<div class="pp-chat-drawer" role="region" aria-label="${head} chat"><header class="pp-chat-head"><b>${head} chat</b><button type="button" class="pl-social-x" data-a="toggle" aria-label="Close chat" aria-expanded="true">&times;</button></header><ul class="pp-chat-lines">${lines || '<li class="pl-chat-empty">Say hi to your party!</li>'}</ul><div class="pl-chat-tray"><div class="pl-chat-chips">${chips}</div><div class="pl-chat-pages"><button type="button" class="pl-btn ghost small" data-a="prev" aria-label="Previous phrases"${page === 0 ? ' disabled' : ''}>&lsaquo;</button><button type="button" class="pl-btn ghost small" data-a="next" aria-label="More phrases"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></div></div>${input}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</div>`, fill);
       const ul = this.el.querySelector<HTMLElement>('.pp-chat-lines');
-      if (ul) ul.scrollTop = ul.scrollHeight;
+      // a newly opened drawer, or a reader already at the bottom, follows new lines; a scrolled-up reader stays put
+      if (ul && (ul !== prevUl || atBottom)) ul.scrollTop = ul.scrollHeight;
     }
-    for (const el of this.el.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
   }
 
   private onClick(e: Event): void {

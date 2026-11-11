@@ -1628,3 +1628,19 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
 .pp-title { display: block; font-size: 11px; opacity: 0.75; }
 .pp-lc-av { display: flex; justify-content: center; margin-bottom: 4px; }
 .tt-vs-av { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 2; }
+/* Stable wrappers so a re-render morphs in place (the composer keeps its input); they add no box. */
+.pl-chat-menuwrap, .pl-chat-traywrap { display: contents; }
+.pl-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
+
+/* The champion select keeps its bottom bar (bots or Leave · LOCK IN · tricks): there the chat strip is a 40 px round
+   button inside the bar's left cell, which makes room for it, so it never covers LOCK IN, the bots or Leave. */
+.pl-party[data-screen='pick'] .pp-chat { bottom: calc(max(8px, var(--safe-b, 0px)) + 8px); }
+.pl-party[data-screen='pick'] .pp-chat-strip { width: 40px; height: 40px; min-height: 40px; padding: 0; justify-content: center; border-radius: 50%; overflow: visible; }
+.pl-party[data-screen='pick'] .pp-chat-strip :is(.pp-chat-who, .pp-chat-said) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.pl-party[data-screen='pick'] .pp-chat-strip .pl-chat-unread { position: absolute; top: -4px; right: -4px; }
+.pl-party[data-screen='pick']:has(> .pp-chat:not([hidden])) .cs-fl { padding-left: 48px; }
+@media (max-height: 360px) { .pl-party[data-screen='pick'] .pp-chat { bottom: calc(max(8px, var(--safe-b, 0px)) + 5px); } }
+@media (min-width: 1000px) and (min-height: 481px) {
+  .pl-party[data-screen='pick'] .pp-chat { left: max(32px, calc((100vw - 1400px) / 2)); bottom: calc(max(24px, var(--safe-b, 0px)) + 28px); }
+  .pl-party[data-screen='pick']:has(> .pp-chat:not([hidden])) .cs-fl { padding-left: 52px; }
+}
