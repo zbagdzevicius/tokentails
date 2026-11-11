@@ -5,7 +5,7 @@
  *
  * Relative imports only: the worker loads this file by path, without the `src/` alias.
  */
-import { partySimFor, simFor } from '../../vendor/pawlegends-sim';
+import { partySimFor, simFor, SIM_VERSIONS } from '../../vendor/pawlegends-sim';
 import type {
     PawlegendsCommand,
     PawlegendsMatchHandle,
@@ -91,9 +91,9 @@ export function refereeSim(simVersion: number, simHash: string): PawlegendsParty
 
 /** The live party sim (specs, the relay's default). */
 export function liveSim(): PawlegendsPartySim {
-    const versions = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20];
-    for (let i = versions.length - 1; i >= 0; i--) {
-        const s = simFor(versions[i]);
+    // newest vendored version with a party API (sim v21: a hard-coded list stopped at v20)
+    for (let i = SIM_VERSIONS.length - 1; i >= 0; i--) {
+        const s = simFor(SIM_VERSIONS[i]);
         if (s?.party) return s.party;
     }
     throw new Error('no vendored party sim');

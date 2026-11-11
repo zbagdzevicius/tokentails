@@ -569,7 +569,8 @@ export class PartyRelay {
     private liveSim(): PawlegendsPartySim {
         // the live bundle's party API: the lobby offers its heroes and tricks (an older party bundle may lack some,
         // e.g. sim v13 has no v14 dogs; startMatch refuses those seats on an older pinned sim)
-        for (const v of [20, 19, 18, 17, 16, 15, 14, 13, 12, 11]) {
+        // newest first, from the vendored list (sim v21: a hard-coded list stopped at v20 and served the v20 lobby)
+        for (const v of [...SIM_VERSIONS].reverse()) {
             const s = simFor(v);
             if (s?.party) return s.party;
         }
