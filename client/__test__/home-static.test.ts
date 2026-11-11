@@ -42,8 +42,9 @@ describe("next.config.js home routing", () => {
   it("serves public/home at / before pages/index.tsx on the web", async () => {
     const rewrites = await loadConfig(false).rewrites!();
     expect(rewrites.beforeFiles).toContainEqual({ source: "/", destination: "/home/index.html" });
-    // Only the root: every other route keeps its page.
-    expect(rewrites.beforeFiles.map((r) => r.source)).toEqual(["/"]);
+    // Only the root: every other route keeps its page. The pawlegends.app rules (landing-routing.test.tsx) need its host.
+    const tokentails = rewrites.beforeFiles.filter((r) => !(r as { has?: Array<{ type: string }> }).has?.some((h) => h.type === "host"));
+    expect(tokentails.map((r) => r.source)).toEqual(["/"]);
   });
 
   it("redirects /home and /home/index.html to / so the page has one URL", async () => {

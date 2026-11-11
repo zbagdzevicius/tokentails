@@ -31,6 +31,9 @@ describe('party links (P5)', () => {
 
   it('the relay origin is never taken from the page URL', () => {
     expect(partyApi('', 'tokentails.com')).toBe('https://api.tokentails.com');
+    expect(partyApi('', 'pawlegends.app')).toBe('https://api.tokentails.com');
+    expect(partyApi('', 'www.pawlegends.app')).toBe('https://api.tokentails.com');
+    expect(partyApi('', 'evil.pawlegends.app')).toBeNull();
     expect(partyApi('', 'evil.example')).toBeNull();
     expect(partyApi('http://evil.example', 'x')).toBeNull();
     expect(partyApi('http://localhost:3105', 'x')).toBe('http://localhost:3105');

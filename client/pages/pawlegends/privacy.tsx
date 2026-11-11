@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { PAWLEGENDS_CONTACT, PAWLEGENDS_PRIVACY_URL } from "@/components/pawlegends/flags";
+import { ConsentChoiceButton } from "@/components/pawlegends/PawlegendsConsent";
 import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
@@ -8,7 +9,7 @@ export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-11";
 
 export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} app privacy - Token Tails`,
-  description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what signing in and party play send to our server, and how long we keep it.`,
+  description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what signing in and party play send to our server, what the website measures with Google Analytics, and how long we keep it.`,
   path: "/pawlegends/privacy",
 });
 
@@ -34,7 +35,8 @@ const A = ({ href, children }: { href: string; children: React.ReactNode }) => (
  * runs in the app's in-page host, `pawlegends-app/src/host`) and what
  * the party relay keeps (`backend/src/pawlegends/party/room-store.ts`: parties 3 h after the last change, ended
  * rooms 30 days). The answers in `docs/plans/moba/APP-STORE-ANSWERS.md` must say the same thing: change both
- * together. The web game and Token Tails accounts stay under the general Token Tails policy.
+ * together. The web game and Token Tails accounts stay under the general Token Tails policy; the "On the website"
+ * section covers the Paw Legends GTM container (analytics/gtm.ts) and its consent bar.
  */
 export default function PawlegendsPrivacyPage() {
   return (
@@ -56,7 +58,11 @@ export default function PawlegendsPrivacyPage() {
                 Signing in is optional (Apple, Google or email). Without it the game asks for no name, no email and
                 no account.
               </li>
-              <li>No ads, no purchases, no analytics, no tracking, no advertising identifier.</li>
+              <li>In the app: no ads, no purchases, no analytics, no tracking, no advertising identifier.</li>
+              <li>
+                On the website (pawlegends.app and tokentails.com/pawlegends) we use Google Analytics through Google
+                Tag Manager to count visits. In Europe its cookies are off until you allow them.
+              </li>
               <li>Playing against bots offline sends nothing to us.</li>
               <li>
                 You can delete your account in the app (Settings → Account) or at{" "}
@@ -156,6 +162,29 @@ export default function PawlegendsPrivacyPage() {
             </p>
           </Section>
 
+          <section id="web-analytics" className="flex flex-col gap-2">
+            <h2 className="font-primary text-h6 text-tt-gold-400">On the website: Google Analytics</h2>
+            <p>
+              The {PAWLEGENDS_TITLE} web pages (pawlegends.app, tokentails.com/pawlegends and the game in your browser)
+              load Google Tag Manager, which runs Google Analytics. It tells us how many people visit, which pages and
+              links bring them, and how they use the game: pressing play or the App Store badge, starting and finishing
+              a match, opening the store and starting a checkout. These events carry no name, email or account id, and
+              no amounts tied to you. The apps for iPhone and Android do not load it.
+            </p>
+            <p>
+              We use Google Consent Mode. In the EU, the EEA, the UK and Switzerland, Google Analytics sets no cookies
+              until you press Allow on the bar at the bottom of the page; until then, and if you press No thanks, Google
+              receives only cookieless signals without an identifier. Elsewhere cookies are on unless you say no. Your
+              choice is kept in your browser, and you can change it here at any time.
+            </p>
+            <ConsentChoiceButton />
+            <p>
+              Google processes this data for us as described in{" "}
+              <A href="https://policies.google.com/technologies/partner-sites">How Google uses information from sites that use its services</A>.
+              Google Analytics keeps this data for at most 14 months.
+            </p>
+          </section>
+
           <Section title="Links out of the app">
             <p>
               A shared invite or challenge link opens tokentails.com in your browser. The website and Token Tails
@@ -167,7 +196,8 @@ export default function PawlegendsPrivacyPage() {
           <Section title="Who else gets data">
             <p>
               Nobody buys or receives your data from us. Our server runs at our hosting provider (DigitalOcean), the
-              website at Vercel, and sign-in at Google Firebase Authentication; they process it only to run those
+              website at Vercel, sign-in at Google Firebase Authentication, and website analytics at Google Analytics
+              (see above); they process it only to run those
               services for us. If you choose Sign in with Apple or Google, Apple or Google confirm who you are to us. We
               do not sell or share data for advertising.
             </p>

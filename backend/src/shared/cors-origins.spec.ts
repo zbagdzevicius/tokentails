@@ -21,6 +21,8 @@ const allowed = [
     'capacitor://localhost',
     'https://tokentails.com',
     'https://www.tokentails.com',
+    'https://pawlegends.app',
+    'https://www.pawlegends.app',
     'https://tokentails-landing-lab.vercel.app',
     'https://tokentails-landing-2n1w9gd1d-zbagdzevicius-projects.vercel.app',
     'https://tokentails-landing-lab-zbagdzevicius-projects.vercel.app',
@@ -38,6 +40,10 @@ const refused = [
     'https://tokentails-landing-x.y-zbagdzevicius-projects.vercel.app',
     'https://some-app.vercel.app',
     'https://tokentails.com.evil.com',
+    'http://pawlegends.app',
+    'https://pawlegends.app.evil.com',
+    'https://evil.pawlegends.app',
+    'https://pawlegends.app:8443',
     'https://localhost:8443',
     'https://localhost.evil.com',
     'https://evil.localhost',
@@ -75,6 +81,8 @@ describe('party relay origins', () => {
         expect(isRelayOriginAllowed('https://localhost', true, list, '')).toBe(true);
         expect(isRelayOriginAllowed('https://localhost:8443', true, list, '')).toBe(false);
         expect(isRelayOriginAllowed('https://tokentails.com', true, list, '')).toBe(true);
+        expect(isRelayOriginAllowed('https://pawlegends.app', true, list, '')).toBe(true);
+        expect(isRelayOriginAllowed('https://www.pawlegends.app', true, list, '')).toBe(true);
         expect(isRelayOriginAllowed('https://evil.example.com', true, list, '')).toBe(false);
         expect(isRelayOriginAllowed('http://localhost:5400', false, list)).toBe(true);
         // an explicit FRONT_END_URLS entry still wins in production

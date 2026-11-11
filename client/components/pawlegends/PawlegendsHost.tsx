@@ -1,5 +1,6 @@
 import { analytics, reportAppError } from "@/analytics";
 import { buildPawlegendsEvent, pawlegendsSaveCode } from "@/analytics/pawlegends-events";
+import { forwardPawlegendsEvent } from "@/analytics/pawlegends-datalayer";
 import { CAT_API } from "@/api/cat-api";
 import { USER_API } from "@/api/user-api";
 import { getAudioSettings, setMuted, subscribeAudioSettings, type AudioSettings } from "@/components/audio/settings";
@@ -86,12 +87,14 @@ const SAFE_FRAME_STYLE = {
   height: "calc(100% - env(safe-area-inset-top) - env(safe-area-inset-bottom))",
 } as const;
 
+/** PostHog, and the GTM dataLayer on the web (analytics/pawlegends-datalayer.ts). */
 function track(event: Parameters<typeof analytics.track>[0]) {
   try {
     analytics.track(event);
   } catch {
     // Analytics never breaks the game.
   }
+  forwardPawlegendsEvent(event);
 }
 
 /** The claim prompt's question (the Heist's decision #18 wording); shared with the app's in-page host. */

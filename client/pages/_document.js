@@ -3,6 +3,7 @@ import { PRELOAD_FONT_FILES } from "../components/typography/fonts.generated";
 import { isZoomLocked, skyForPath } from "../components/shared/skyScope";
 import { THEME_COLOR } from "../design/tokens";
 import { CHUNK_ERROR_WATCH } from "../components/pawlegends/landing/motionChunk";
+import { isPawlegendsPath, PAWLEGENDS_GTM_ID } from "../analytics/pawlegends-site";
 
 // Once the page has loaded, resolve the three brand faces the game roles use (the preloaded files,
 // so this costs no extra request). The landing itself mostly renders Passion One 400 and Nunito;
@@ -36,6 +37,14 @@ export const preloadFontsFor = (path) =>
 const CHUNK_WATCH_PATHS = new Set(["/pawlegends", "/legends"]);
 export const watchesChunksFor = (path) => CHUNK_WATCH_PATHS.has(path);
 
+// The Paw Legends GTM container's noscript part (the official snippet's body iframe; the head part loads on mount from
+// components/GoogleTagManager.tsx, analytics/gtm.ts). Paw Legends web pages only (pawlegends.app's pages are these
+// pages, rewritten): never on Token Tails pages and never in an app build (no analytics in the apps).
+export const pawlegendsNoscriptFor = (path, isApp = !!process.env.NEXT_PUBLIC_IS_APP) =>
+  !isApp && isPawlegendsPath(path)
+    ? `https://www.googletagmanager.com/ns.html?id=${PAWLEGENDS_GTM_ID}`
+    : null;
+
 /** Favicon (16, 32 and 48 frames), PNG icons for browsers that prefer them, and the iOS home icon. */
 export const ICON_LINKS = [
   { rel: "icon", href: "/favicon.ico", sizes: "16x16 32x32 48x48" },
@@ -49,11 +58,11 @@ class MyDocument extends Document {
     const initialProps = await Document.getInitialProps(ctx);
     // ctx.pathname is the page pattern (`/game`, `/feed/[category]`), also during `next export`.
     const path = ctx.pathname || "/";
-    return { ...initialProps, sky: skyForPath(path), zoomLocked: isZoomLocked(path), preloadFonts: preloadFontsFor(path), warmAfterPaint: BODY_FONT_ONLY_PATHS.has(path), watchChunks: watchesChunksFor(path) };
+    return { ...initialProps, sky: skyForPath(path), zoomLocked: isZoomLocked(path), preloadFonts: preloadFontsFor(path), warmAfterPaint: BODY_FONT_ONLY_PATHS.has(path), watchChunks: watchesChunksFor(path), gtmNoscript: pawlegendsNoscriptFor(path) };
   }
 
   render() {
-    const { sky, zoomLocked, preloadFonts = PRELOAD_FONT_FILES, watchChunks = false, warmAfterPaint = false } = this.props;
+    const { sky, zoomLocked, preloadFonts = PRELOAD_FONT_FILES, watchChunks = false, warmAfterPaint = false, gtmNoscript = null } = this.props;
     // The viewport meta lives in _app (next/head), so it follows client-side navigation:
     // zoom stays enabled everywhere except /game (WCAG 1.4.4, plan G6).
     return (
@@ -99,6 +108,11 @@ class MyDocument extends Document {
               from components/GoogleTagManager.tsx. */}
         </Head>
         <body>
+          {gtmNoscript && (
+            <noscript>
+              <iframe src={gtmNoscript} height="0" width="0" style={{ display: "none", visibility: "hidden" }} />
+            </noscript>
+          )}
           <Main />
           <NextScript />
         </body>

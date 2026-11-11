@@ -166,6 +166,38 @@ const pawlegendsRedirects = [pawlegendsRoutes.landingPath, pawlegendsRoutes.lege
   }))
 );
 
+// pawlegends.app (and www) is a domain of this same Vercel project: there it shows Paw Legends, not Token Tails.
+// `/` is the landing and `/<page>` each Paw Legends page (`/pawlegends/<page>`); everything else (`/pawlegends/**`,
+// `/legends`, `/pawlegends-game/**`, `/pawlegends-app/**`, `/_next/**`, public files) is served as on tokentails.com.
+// www goes to the apex, keeping the path and query. A game link (`/?party=...`) goes on to `/play` as on `/pawlegends`.
+// tokentails.com is unchanged: every rule here needs the pawlegends host.
+const PAWLEGENDS_HOST = "pawlegends.app";
+const PAWLEGENDS_DOMAIN_PAGES = ["play", "privacy", "terms", "account", "support"];
+const onPawlegendsHost = [{ type: "host", value: PAWLEGENDS_HOST }];
+const pawlegendsDomainRedirects = [
+  {
+    source: "/:path*",
+    has: [{ type: "host", value: `www.${PAWLEGENDS_HOST}` }],
+    destination: `https://${PAWLEGENDS_HOST}/:path*`,
+    permanent: true,
+  },
+  ...pawlegendsRoutes.playQueryKeys.map((key) => ({
+    source: "/",
+    has: [...onPawlegendsHost, { type: "query", key }],
+    destination: "/play",
+    permanent: false,
+  })),
+];
+// beforeFiles, ahead of the static home page's "/" rewrite (homeRewrites)
+const pawlegendsDomainRewrites = [
+  { source: "/", has: onPawlegendsHost, destination: pawlegendsRoutes.landingPath },
+  {
+    source: `/:page(${PAWLEGENDS_DOMAIN_PAGES.join("|")})`,
+    has: onPawlegendsHost,
+    destination: `${pawlegendsRoutes.landingPath}/:page`,
+  },
+];
+
 // The blog (docs/CLIENT.md "Blog"): every legacy CMS article URL and old category answers with a
 // redirect to its repo-content replacement (lib/feed/legacy-redirects.json plus each article's
 // `legacySlugs`). lib/feed/engine.ts is TypeScript that Node loads by type stripping (Node >= 22.18);
@@ -205,6 +237,8 @@ const nextConfig = {
     : {
         async redirects() {
           return [
+            // First: pawlegends.app's own rules only ever match its host.
+            ...pawlegendsDomainRedirects,
             { source: "/gaming", destination: "/", permanent: true },
             // Legacy /catbassadors game shell; the same game runs at /game.
             { source: "/catbassadors", destination: "/game", permanent: true },
@@ -235,7 +269,7 @@ const nextConfig = {
         },
         async rewrites() {
           return {
-            beforeFiles: homeRewrites,
+            beforeFiles: [...pawlegendsDomainRewrites, ...homeRewrites],
             afterFiles: [...firebaseAuthRewrites, ...badcatRewrites, ...meowRaceRewrites, ...ultraCatRewrites, ...meowRunRewrites, ...raveRewrites],
             fallback: badcatFallbackRewrites,
           };
