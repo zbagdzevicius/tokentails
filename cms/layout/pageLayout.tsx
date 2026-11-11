@@ -68,6 +68,10 @@ function DesktopNav() {
           <Flag className="h-5 w-5" />
         </NavItem>
 
+        <NavItem href="/pawlegends-reports" label="Paw Legends reports">
+          <Flag className="h-5 w-5" />
+        </NavItem>
+
         <NavItem href="/payouts" label="Payouts">
           <Receipt className="h-5 w-5" />
         </NavItem>

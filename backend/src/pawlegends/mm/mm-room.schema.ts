@@ -3,6 +3,7 @@ import { InjectModel, Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { createHash } from 'crypto';
 import type { Model } from 'mongoose';
 import type { Glicko } from './glicko2';
+import type { MemberIntel } from '../social/intel';
 
 /*
  * The Quick Play room record (docs/plans/moba/M1A-IMPL.md §4.3): a small collection keyed by the room id, kept apart
@@ -21,6 +22,8 @@ export interface MmRoomMember {
     ratingAtStart: Glicko | null;
     event?: 'left' | 'afk';
     eventTick?: number;
+    /** PvP: the referee's "acts on hidden" counts (SOCIAL-RANKED.md §9.2); absent on sims without `heroSight`. */
+    intel?: MemberIntel | null;
 }
 
 /** Casual PvP: one team of a room record (V16.md §4.4). */
