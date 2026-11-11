@@ -50,6 +50,7 @@ import {
 } from "./flags";
 import { rosterOf } from "./rosterBridge";
 import { PartySaves, PartyTickets } from "./partySaves";
+import { PawlegendsApi as PawlegendsGameApi } from "./apiBridge";
 import { PawlegendsSaver } from "./saves";
 import { openedFrom, profileAfterSave, progressFromProfile, type PawlegendsProfileFields } from "./session";
 import { PAWLEGENDS_TITLE } from "./title";
@@ -290,6 +291,16 @@ export const PawlegendsHost = ({
       new PartyTickets({
         mint: () => USER_API.pawlegendsPartyTicket(),
         answer: (id, ticket, error) => bridgeRef.current?.partyTicket(id, ticket, error),
+      }),
+    []
+  );
+  // Social, ranked and reports (SOCIAL-RANKED.md §13): the game's API ops, through this page's session.
+  const pawlegendsApi = useMemo(
+    () =>
+      new PawlegendsGameApi({
+        fetch: (route) => USER_API.pawlegendsApiCall(route),
+        answer: (id, ok, status, body) => bridgeRef.current?.apiResult(id, ok, status, body),
+        signedIn: () => latest.current.signedIn,
       }),
     []
   );
@@ -632,6 +643,11 @@ export const PawlegendsHost = ({
             await authKnown();
             await partyTickets.request(id);
           })(),
+        onApiRequest: (request) =>
+          void (async () => {
+            await authKnown();
+            await pawlegendsApi.request(request);
+          })(),
         onPartyResult: (result) =>
           void (async () => {
             await authKnown();
@@ -665,7 +681,7 @@ export const PawlegendsHost = ({
       bridge.dispose();
       bridgeRef.current = null;
     };
-  }, [authKnown, saver, partySaves, partyTickets]);
+  }, [authKnown, saver, partySaves, partyTickets, pawlegendsApi]);
 
   // `app.store`: the Token Tails cat checkout is reachable (web). `notify`: the backend can send the email.
   const notify = !isApp && !!status?.email;

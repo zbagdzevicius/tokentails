@@ -9,6 +9,7 @@ import { GameType } from "@/models/game";
 import { errorCodeOf, type ErrorCode } from "@/shared-contracts/errors";
 import type { HeistRunLog } from "@/shared-contracts/heist-bridge";
 import type { PawlegendsPartyResult, PawlegendsReplay } from "@/components/pawlegends/bridge";
+import type { PawlegendsApiFetchResult, PawlegendsApiRoute } from "@/components/pawlegends/apiBridge";
 import {
   ApiError,
   apiFetch,
@@ -557,7 +558,40 @@ const claimAirdropMilestone = async (
   });
 };
 
+/**
+ * One game API op through the host (docs/plans/moba/SOCIAL-RANKED.md §13): the route comes from the host's own allowlist
+ * (`components/pawlegends/apiBridge.ts`), never from the game. "none" sends no token; "any" lets a 428 create the guest
+ * session (a guest may report); a registered-only route never opens the AuthSheet (the caller checked sign-in first).
+ * Never throws for an HTTP answer; a network failure answers status 0.
+ */
+const pawlegendsApiCall = async (route: PawlegendsApiRoute): Promise<PawlegendsApiFetchResult> => {
+  const init: RequestInit = {
+    method: route.method,
+    headers: route.auth === "none" ? baseHeaders : authHeaders(),
+    ...(route.body ? { body: JSON.stringify(route.body) } : {}),
+  };
+  let response: Response;
+  try {
+    response =
+      route.auth === "none"
+        ? await rawApiFetch(`${apiUrl}${route.path}`, init)
+        : await apiFetch(`${apiUrl}${route.path}`, init, { guestSession: route.auth === "any", requireAccount: false });
+  } catch {
+    return { status: 0, body: null };
+  }
+  let body: unknown = null;
+  if (response.status !== 204) {
+    try {
+      body = await response.json();
+    } catch {
+      body = null;
+    }
+  }
+  return { status: response.status, body };
+};
+
 export const USER_API = {
+  pawlegendsApiCall,
   profile,
   guestSession,
   guestMerge,
