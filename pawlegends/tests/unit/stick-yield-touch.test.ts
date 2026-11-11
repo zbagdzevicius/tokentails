@@ -64,7 +64,7 @@ function rig(extra: Unit[]) {
   /** KITE-FIX: the stick's kite orders (unit ids). */
   const kites = () => sent.filter((c) => c.op === Op.Kite).map((c) => (c as { id: number }).id);
   const attacks = () => sent.filter((c) => c.op === Op.Attack).map((c) => (c as { id: number }).id);
-  const stickUp = () => window.dispatchEvent(ev('pointerup', 1, 150, 400));
+  const stickUp = (x = 150, y = 400) => window.dispatchEvent(ev('pointerup', 1, x, y));
   return { t, sent, stick, steer, atkDown, atkDrag, atkUp, wait, moves, attacks, kites, stickUp };
 }
 
@@ -250,7 +250,7 @@ describe('touch: KITE-FIX, the stick and ATK together', () => {
     expect(r.moves()).toBeGreaterThan(moves);
   });
 
-  it('a drag-lock with the stick held away kites the locked unit (no ATK held)', () => {
+  it('a drag release with the stick held away kites the dragged unit (its tap rule; no ATK held)', () => {
     const r = rig([unit(3, 'hero', 1, ME.x + 3000, ME.y)]);
     r.atkDown();
     r.atkDrag(0);
@@ -263,5 +263,39 @@ describe('touch: KITE-FIX, the stick and ATK together', () => {
     r.wait(300);
     expect(r.kites().length).toBeGreaterThan(0);
     expect(r.kites().every((id) => id === 3)).toBe(true);
+  });
+
+  it('review: a drag-lock alone (the tap order over) does not kite: the stick moves, so a fleeing hero is never planted', () => {
+    const r = rig([unit(3, 'hero', 1, ME.x + 3000, ME.y)]);
+    r.atkDown();
+    r.atkDrag(0);
+    r.wait(50);
+    r.atkDrag(0);
+    r.atkUp();
+    expect(r.t.dragLock.id).toBe(3);
+    // the tapped order is over (as after a skill press); the timer-free lock stays
+    (r.t as unknown as { atkYield: { clear(): void } }).atkYield.clear();
+    r.wait(1000);
+    const kites = r.kites().length;
+    const moves = r.moves();
+    r.stick(Math.PI);
+    r.wait(300);
+    expect(r.kites().length).toBe(kites);
+    expect(r.moves()).toBeGreaterThan(moves);
+  });
+
+  it('review: a tapped hero kite, the stick let go with the hero out of reach: Stop, never a chase Attack', () => {
+    const r = rig([unit(3, 'hero', 1, ME.x + 3000, ME.y)]);
+    r.stick(Math.PI);
+    r.wait(200);
+    r.atkDown();
+    r.atkUp();
+    r.wait(400);
+    expect(r.kites()).toContain(3);
+    const atks = r.attacks().length;
+    // let go where the knob is (not a field tap)
+    r.stickUp(150 - STICK.radius, 400);
+    expect(r.attacks().length).toBe(atks);
+    expect(r.sent.at(-1)).toEqual({ op: Op.Stop });
   });
 });
