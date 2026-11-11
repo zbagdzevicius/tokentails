@@ -67,6 +67,26 @@ async function boot() {
 describe('party relay lane P', () => {
     jest.setTimeout(60_000);
 
+    it('presence snapshot (SOCIAL-RANKED.md §4.3): registered accounts in a party, never guests', async () => {
+        const b = await boot();
+        try {
+            const a = await b.client();
+            a.hello({ ticket: b.tickets.issue({ accountId: 'acct-a', guest: false }).ticket });
+            await a.until(() => a.last('welcome'));
+            a.send({ t: 'party.create', difficulty: 'easy' });
+            const pa = await a.until(() => a.last('party'));
+            const g = await b.client();
+            g.hello({ ticket: b.tickets.issue({ accountId: 'acct-g', guest: true }).ticket });
+            await g.until(() => g.last('welcome'));
+            g.send({ t: 'party.join', code: pa.code });
+            await g.until(() => g.last('party'));
+            const snap = b.relay.presenceSnapshot();
+            expect(snap).toEqual([{ accountId: 'acct-a', state: 'party', party: pa.code, joinable: true }]);
+        } finally {
+            await b.stop();
+        }
+    });
+
     it('hello hints set the default difficulty (lowest member tier) and the newbie flag', async () => {
         const b = await boot();
         try {
