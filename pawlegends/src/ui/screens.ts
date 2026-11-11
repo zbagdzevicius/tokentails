@@ -3,6 +3,7 @@
  * a dogs row; Paw Trick, difficulty) → match → results, plus the Esc menu and the portrait rotate prompt. DOM
  * overlays over the lobby turntable. English only.
  */
+import { flagHtml } from '../social/report';
 import { logoHtml } from './brandLogo';
 import { progressBlock, type ProgressSummary } from './progressSummary';
 import './champions.css';
@@ -471,6 +472,8 @@ export interface ResultsOpts {
    * Party play (MULTIPLAYER.md §7 M6): the party's rows (src/party/ui/partyResults.ts markup, escaped there), and the
    * party actions: "Play again together (1/2)" (onAgain), "Change hero" (onChange), "Leave party".
    */
+  /** PvP reports (SOCIAL-RANKED.md §8.1): a tap on a row's flag (the reason chips open over it). */
+  onReport?(slot: number, anchor: HTMLElement): void;
   /** Party results; Quick Play strangers: `leave` "Back", no Change hero (`change: false`). */
   party?: { rowsHtml: string; again: string; onLeave(): void; leave?: string; change?: boolean; coop?: boolean };
   /** Lane F (F5): per-hero level, Toys, Fish, last hits and Toy timings, medals, and the player's Fish by source. */
@@ -502,13 +505,16 @@ export interface ResultRow {
   a: number;
   heroDmg: number;
   towerDmg: number;
+  /** PvP reports (SOCIAL-RANKED.md §8.1): this row's slot and its flag ('can', or 'done' once reported). */
+  slot?: number;
+  flag?: 'can' | 'done';
 }
 
 function resultTable(rows: readonly ResultRow[]): string {
   const graded = rows.some((r) => r.grade);
   const tag = (r: ResultRow): string => (r.mvp ? ' <em class="mvp">MVP</em>' : r.best ? ' <em class="best">Best</em>' : '');
   const tr = (r: ResultRow): string =>
-    `<tr class="${r.rel}"><td>${esc(r.name)}${tag(r)}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
+    `<tr class="${r.rel}"><td>${esc(r.name)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
   return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 
@@ -671,6 +677,12 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
         : `<div class="actions pinned"><button class="pl-btn solid" data-a="change">${HEROES[o.hero]?.side === 'dog' ? 'Switch dog' : 'Switch cat'}${o.tryHero ? `<small>Try ${esc(HERO_TEXT[o.tryHero].title)}: ${esc(HERO_TEXT[o.tryHero].role)}</small>` : ''}</button><button class="pl-btn big" data-a="again">Run it back<small>${esc(o.heroName || HERO_TEXT[o.hero].title)}, new bots</small></button></div>`
     }`;
   root.addEventListener('click', (e) => {
+    const flag = (e.target as HTMLElement).closest<HTMLElement>('[data-report]');
+    if (flag) {
+      e.preventDefault();
+      if (!flag.hasAttribute('disabled')) o.onReport?.(Number(flag.dataset.report), flag);
+      return;
+    }
     const a = (e.target as HTMLElement).closest<HTMLElement>('[data-a]')?.dataset.a;
     if (a === 'again') o.onAgain();
     else if (a === 'change') o.onChange();

@@ -77,6 +77,7 @@ import { addTreatXp, loadTreats, loadTreatsRaw, migrateTreats, saveTreats, treat
 import { collectionPanel } from '../ui/collection';
 import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
+import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
 import { suddenDeathS } from '../ui/screens';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
@@ -1007,6 +1008,18 @@ export class App {
   }
   private partyOpening = false;
 
+  /** PvP reports (SOCIAL-RANKED.md §8): one book per room, kept for the results screen of that room. */
+  private reportBook: ReportBook | null = null;
+  private reportBookFor(room: string): ReportBook {
+    if (this.reportBook?.room === room) return this.reportBook;
+    this.reportBook = new ReportBook(room, (slot, reason, tick) =>
+      this.integration
+        .api('report.send', { room, slot, reason, ...(tick !== null ? { tick } : {}) })
+        .then((r) => reportOutcomeOf(r)),
+    );
+    return this.reportBook;
+  }
+
   /** A party match: the MatchSession runs on the party's NetHost (no first-session rules, no speed). */
   private startPartyMatch(host: () => import('../net/net-host').NetHost, match: MatchMsg, backfill = false): void {
     const p = loadProfile();
@@ -1052,7 +1065,7 @@ export class App {
         newbie: p.matches === 0,
         hideNames: hideNames(),
         ...(match.mode === 'coop' ? { coop: true, backfill } : {}),
-        ...(match.mode === 'casual' ? { coop: true, backfill, pvp: true } : {}),
+        ...(match.mode === 'casual' ? { coop: true, backfill, pvp: true, report: this.reportBookFor(match.room) } : {}),
       },
     };
     this.lastSetup = setup;
@@ -1377,6 +1390,7 @@ export class App {
     const bestMine = grades.best[myTeam];
     // Party play (M6): results together, the party's rows and actions (the save chip stays this player's own)
     const party = partyEnd && this.party ? this.party : null;
+    const reportBook = partyEnd && setup?.party?.pvp && setup.party.report ? setup.party.report : null;
     const table = e.result.stats
       .map((st) => ({
         name: nameOf(st.slot),
@@ -1384,6 +1398,8 @@ export class App {
         mvp: st.slot === grades.mvp,
         best: !won && st.slot === bestMine,
         rel: st.slot === mySlot ? 'self' : (st.slot < 3 ? 0 : 1) === myTeam ? 'ally' : 'enemy',
+        // PvP reports (SOCIAL-RANKED.md §8.1): a flag on every human row but your own
+        ...(reportBook && partyNames && reportable(st.slot, mySlot, partyNames) ? { slot: st.slot, flag: reportBook.done(st.slot) ? ('done' as const) : ('can' as const) } : {}),
         k: st.kills,
         d: st.deaths,
         a: st.assists,
@@ -1397,6 +1413,24 @@ export class App {
       ? { rows: progressRows(e.result.stats, mySlot, nameOf, medalOf, (h, slot) => (slot === mySlot && setup?.look ? portraitUrl(h, setup.look) : portraitUrl(h, null))), sources: fishSources(e.fishBy ?? {}, e.result.stats.find((st) => st.slot === mySlot)?.fish ?? 0) }
       : null;
     const resultsEl = resultsScreen(this.root, {
+        ...(reportBook
+          ? {
+              onReport: (slot: number, anchor: HTMLElement) =>
+                void reportPopover(anchor, nameOf(slot), (reason) => {
+                  anchor.setAttribute('disabled', '');
+                  anchor.classList.add('done');
+                  anchor.innerHTML = '&#10003;';
+                  void reportBook.report(slot, reason, null).then((out) => {
+                    if (out === 'failed') {
+                      anchor.removeAttribute('disabled');
+                      anchor.classList.remove('done');
+                      anchor.innerHTML = '&#9873;';
+                    }
+                    reportToast(document, out === 'failed' ? 'Report not sent. Try again' : REPORT_THANKS);
+                  });
+                }),
+            }
+          : {}),
         won,
         seconds,
         hero: e.replay.hero,

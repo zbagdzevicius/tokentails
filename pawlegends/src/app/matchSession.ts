@@ -160,6 +160,8 @@ export interface MatchSetup {
     backfill?: boolean;
     /** Casual PvP (V16.md §5): humans on both teams; slot 3 leads team 1 (its pings are sim commands). */
     pvp?: boolean;
+    /** PvP reports (SOCIAL-RANKED.md §8): this match's report book (the scoreboard flags and the results flags). */
+    report?: import('../social/report').ReportBook | null;
   };
 }
 
@@ -1531,6 +1533,7 @@ export class MatchSession {
             difficulty: this.setup.difficulty,
             track: (event, props) => this.hooks.track?.(event, props),
             tick: () => this.buffer.latest?.clock.tick ?? 0,
+            report: this.setup.party?.report ?? null,
           },
           link,
           { hideNames: this.setup.party?.hideNames === true },

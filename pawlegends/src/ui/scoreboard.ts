@@ -10,6 +10,7 @@ import { cardAttrs, heroElement } from './cards/el';
 import { TOY_TIERS } from '../data/toys';
 import { icon } from './icons';
 import type { IconId } from './heroText';
+import { flagHtml } from '../social/report';
 
 /** A team's name by who is in it (sim v5 species teams): the cats are Purrhaven, the dogs the Woof pack. */
 export function teamLabel(picks: readonly HeroId[], team: 0 | 1): string {
@@ -82,6 +83,11 @@ export class Scoreboard {
    */
   seats: ReadonlyMap<number, { ring: string; bot: boolean; conn: 'on' | 'away' | 'off'; muted: boolean }> | null = null;
   onMute: ((slot: number) => void) | null = null;
+  /**
+   * PvP reports (SOCIAL-RANKED.md §8.1): a flag at the end of every human row but your own; `open` shows the reason
+   * chips. Null outside PvP (no flags at all). Bot rows never get one (`can` is false for them).
+   */
+  report: { can(slot: number): boolean; done(slot: number): boolean; open(slot: number, anchor: HTMLElement): void } | null = null;
   /** cards: the slots whose portrait is already on the root as `--pic<slot>` (data URLs are set once, not per redraw). */
   private readonly pics = new Set<number>();
 
@@ -100,6 +106,14 @@ export class Scoreboard {
     if (this.per > 3) this.root.dataset.size = String(this.per);
     // registered first, so a tap on a friend's name mutes them instead of closing the board (matchSession)
     this.root.addEventListener('pointerdown', (e) => {
+      const f = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-report]');
+      if (f && this.report) {
+        e.stopImmediatePropagation();
+        e.preventDefault();
+        const slot = Number(f.dataset.report);
+        if (!f.hasAttribute('disabled') && this.report.can(slot) && !this.report.done(slot)) this.report.open(slot, f);
+        return;
+      }
       const b = (e.target as HTMLElement | null)?.closest?.<HTMLElement>('[data-mute]');
       if (!b || !this.onMute) return;
       e.stopImmediatePropagation();
@@ -125,6 +139,12 @@ export class Scoreboard {
     const seat = this.seats?.get(slot);
     if (!seat || slot === this.mySlot || !this.onMute) return esc(text);
     return `<button type="button" class="sb-name" data-mute="${slot}" aria-label="${esc(`${seat.muted ? 'Unmute' : 'Mute'} ${text}`)}" title="${seat.muted ? 'Tap to unmute' : 'Tap to mute'}">${esc(text)}</button>`;
+  }
+
+  /** The report flag of a row ('' outside PvP, on bots and on your own row). */
+  private flag(slot: number): string {
+    if (!this.report || slot === this.mySlot || !this.report.can(slot)) return '';
+    return flagHtml(slot, this.names[slot] ?? 'player', this.report.done(slot));
   }
 
   /** A hero knockout: victim id, killer id (any entity). */
@@ -170,7 +190,7 @@ export class Scoreboard {
           const dead = e?.state === 'dead';
           const t = HERO_TEXT[hero];
           return `<tr class="${slot === this.mySlot ? 'me' : ''}${dead ? ' dead' : ''}${this.seats?.has(slot) ? ' friend' : ''}" data-slot="${slot}">
-            <td><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}</td>
+            <td><i class="dot tt-sb" ${cardAttrs(heroElement(hero))} style="--dot:${HERO_COLOR_CSS[hero]};--pic:var(--pic${slot}, none)"></i>${this.nameHtml(slot, this.names[slot] ?? t.title)}${this.seatHtml(slot)}${this.cats[slot] ? ` <span class="cat">· ${esc(this.cats[slot])}</span>` : ''}${slot === this.mySlot ? ' <small>(you)</small>' : ''}${this.flag(slot)}</td>
             <td>${role ? `${roleChip(this.roles[slot])} ` : ''}${t.role}</td><td class="lv">${e?.level ?? '-'}</td><td class="kda">${this.kills[slot]} / ${this.deaths[slot]} / ${this.assists(slot)}</td><td class="tal">${talentChips(hero, e?.talents)}</td><td class="toy">${toyPips(e?.toy)}</td><td>${this.heroDmg[slot]}</td>
             <td>${dead ? `${Math.ceil((e?.respawnIn ?? 0) / 30)} s` : e ? `${Math.round((e.hp / Math.max(1, e.maxHp)) * 100)}%` : 'hidden'}</td></tr>`;
         })
