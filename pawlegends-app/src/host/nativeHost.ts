@@ -275,9 +275,15 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
           return;
         }
         return finish(outcome.provider);
-      case "merge":
+      case "merge": {
+        // a guest who first tried Google or Apple (`link-account`) and now signed in the original way: that
+        // sign-in comes back as a merge, and the waiting credential is added to the account first (the web does
+        // the same, FirebaseAuthContext `case "merge"`)
+        const p = pending;
+        if (p && (await auth.linkPending(p.credential))) ui.toast("Sign-in added to your account.");
         await finish(outcome.provider);
         return merge(outcome.guestToken);
+      }
       case "link-account":
         pending = { credential: outcome.pending, guestToken: outcome.guestToken };
         return ui.linkAccount(outcome.provider, outcome.email);
