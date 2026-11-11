@@ -1,6 +1,7 @@
 import path from 'node:path';
 import { defineConfig, type Plugin } from 'vite';
 import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { recordRelease } from './tools/lib/keep-releases.mjs';
 import { simSourceHash } from './tools/lib/sim-source-hash.mjs';
 
@@ -33,6 +34,21 @@ export function normalizeBase(raw: string | undefined): string {
 }
 
 const base = normalizeBase(process.env.PAWLEGENDS_BASE);
+
+/**
+ * The release watermark on the title screen (src/ui/versionMark.ts): package version, git short sha and the UTC build
+ * time, baked in so nothing is fetched. Outside a git checkout the sha is "local".
+ */
+function buildDefines(): Record<string, string> {
+  let sha = 'local';
+  try {
+    sha = execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], { cwd: __dirname, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim().toLowerCase() || 'local';
+  } catch {
+    sha = 'local';
+  }
+  const version = (JSON.parse(readFileSync(path.resolve(__dirname, 'package.json'), 'utf8')) as { version?: string }).version ?? '0.0.0';
+  return { __PL_BUILD__: JSON.stringify({ version, sha, builtAt: new Date().toISOString() }) };
+}
 
 /**
  * Embed build only (`npm run build:client` sets PAWLEGENDS_KEEP_RELEASES=3, tools/lib/keep-releases.mjs KEEP_RELEASES): instead of emptying the out dir, keep the
@@ -70,7 +86,7 @@ export default defineConfig({
   // Only VITE_* reaches the page (VITE_EMBED_ORIGINS, VITE_PAWLEGENDS_POSTHOG_KEY, ...).
   envPrefix: ['VITE_'],
   base,
-  define: simDefines(),
+  define: { ...simDefines(), ...buildDefines() },
   server: { port: 5176, host: '127.0.0.1', strictPort: true },
   preview: { port: 4176, host: '127.0.0.1' },
   worker: { format: 'es' },
