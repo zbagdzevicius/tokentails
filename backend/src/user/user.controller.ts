@@ -665,7 +665,8 @@ export class UserController {
                 audit: this.repository.model.db.collection(ACCOUNT_DELETIONS_COLLECTION) as any,
             },
             userId,
-            body?.appleAuthorizationCode
+            body?.appleAuthorizationCode,
+            body?.appleClientId
         );
         this.pawMatchLeaderboardCache.clear();
         this.logger.log(
