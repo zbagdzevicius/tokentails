@@ -266,6 +266,27 @@ describe('bot chatter guards (MATCH-CHAT.md §6)', { timeout: 120_000 }, () => {
     }
   });
 
+  it('a follow-up (a split second part or a *fix) never goes out as text after the tier drops', () => {
+    let covered = 0;
+    for (let seed = 1; seed <= 4000; seed++) {
+      const c = new BotChatter({ seed, slots: 6, teamSize: 3, humans: [0], tiers: ['text', 'text'], filter, startMs: 10_000_000 });
+      c.observe({ k: 'firstBlood', killer: 1, victim: 3 }, 60_000);
+      let dropped = false;
+      for (let t = 60_000; t < 90_000; t += 100)
+        for (const l of c.due(t)) {
+          if (l.team !== 0) continue;
+          if (dropped) expect(l.k).toBe('q');
+          else if (l.k === 't' && !l.follow && c.pendingCount > 0) {
+            // an under-16 took a seat right after the first part was sent
+            c.setTier(0, 'quick');
+            dropped = true;
+            covered++;
+          }
+        }
+    }
+    expect(covered).toBeGreaterThan(0);
+  });
+
   it('every sent text passes the filter, stays ≤ 40 characters and has no question mark', () => {
     for (const r of many((s) => scriptedMatch(s, {}), 2000))
       for (const l of r.lines) {

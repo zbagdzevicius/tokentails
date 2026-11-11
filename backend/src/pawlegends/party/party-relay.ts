@@ -82,6 +82,7 @@ import {
 } from '../../shared-contracts/chat';
 import { filterChatText, normalizeChatText } from '../../shared-contracts/chat-filter';
 import { BotChat, BotSeenStore, type BotSeen } from './bot-chat';
+import { isProbe } from '../../vendor/pawlegends-chat/botChatter';
 import type { MemberChat } from './party.service';
 
 export interface RelayOptions {
@@ -1653,6 +1654,10 @@ export class PartyRelay {
         // speaks (bots only chat from fill seats, BotChat), and a seat given up has no socket here (seatOf above)
         const member = s.memberId!;
         const ch = msg.ch === 'all' ? 'all' : 'team';
+        // §5.6: "are you a bot?" silences every bot for the match even when the line itself is refused below (all
+        // chat, a quick tier, the filter, a limit): a bot never answers it, whatever happens to the question
+        if (msg.k === 't' && typeof msg.text === 'string' && isProbe(msg.text.slice(0, 200)))
+            this.botChats.get(live.room.id)?.chat.chatter.silence(now);
         const c = (s.chat ??= { at: [], strikes: [], cooldownUntil: 0, held: new Set() });
         c.at = c.at.filter(t => now - t < CHAT_SAY_RATE.windowMs);
         if (c.at.length >= CHAT_SAY_RATE.perWindow) return reject('rate');
@@ -1735,6 +1740,12 @@ export class PartyRelay {
         }
         const n = teamSizeOfLive(live);
         const team = teamOfSlot(slot, n);
+        // defence in depth (§2): a bot's free text only in its own team chat and only while that team's tier is text
+        // (every human on it a registered 16+ account); the engine already turns it into a phrase or drops it
+        if (from.bot && body.k === 't' && (ch !== 'team' || this.matchTier(live, team) !== 'text')) {
+            this.log('mp_chat_bot_refused', { why: 'tier' });
+            return false;
+        }
         const mid = chatMid(now);
         const out: Record<string, unknown> = {
             t: 'chat.msg',
@@ -1807,7 +1818,9 @@ export class PartyRelay {
             const h = this.byMember.get(m)?.hint;
             return !!h && (h.matches === 0 || (h.matches === undefined && h.newbie));
         });
-        const ranked = (live.config as { mode?: string }).mode === 'ranked';
+        const ranked =
+            (live.config as { mode?: string }).mode === 'ranked' ||
+            (p?.mm as { queue?: string } | undefined)?.queue === 'ranked';
         const keys = new Map<number, string>();
         for (const o of live.occupants) {
             if (o.ticketed && o.accountId) keys.set(o.slot, `a:${o.accountId}`);
