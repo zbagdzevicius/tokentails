@@ -20,7 +20,7 @@
   animation: lb-in 0.32s ease-out both;
 }
 @keyframes lb-in { from { opacity: 0; } }
-.pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner {
+.pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner, .pl-lobby.leaving .lb-ver {
   opacity: 0; transform: translateX(-14px); transition: opacity 0.3s ease-in, transform 0.3s ease-in; pointer-events: none;
 }
 /* the loading veil fades in over the dolly's last frame (180 ms crossfade) */
@@ -382,4 +382,22 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 .lb-social-badge {
   position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; box-sizing: border-box;
   background: var(--rose, #e66); color: #fff; font: 700 11px/16px var(--font); font-style: normal; text-align: center; pointer-events: none;
+}
+
+/* The release watermark (ui/versionMark.ts): bottom right, under the card peek on desktop (the peek sits 22 px up) and
+   in the free corner on phones (no peek there). Low contrast, one line; it never reaches the left column (its width is
+   capped to the space right of it, ellipsis past that; the full line is in the title and the copy). A tap copies it. */
+.pl-lobby .lb-ver {
+  position: absolute; right: max(10px, var(--safe-r)); bottom: max(3px, var(--safe-b)); z-index: 1;
+  max-width: max(0px, calc(100vw - var(--lb-left) - var(--lb-w) - 32px - var(--safe-r)));
+  height: 16px; padding: 0 4px; margin: 0; border: 0; background: none; cursor: copy;
+  font: 500 10px/16px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; letter-spacing: 0.02em;
+  color: var(--cream); opacity: 0.4; text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6); text-align: right; user-select: text; -webkit-user-select: text;
+}
+.pl-lobby .lb-ver span { display: block; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.pl-lobby .lb-ver:hover, .pl-lobby .lb-ver:focus-visible, .pl-lobby .lb-ver[data-copied] { opacity: 0.8; }
+.pl-lobby .lb-ver:focus-visible { outline: 2px solid var(--butter); outline-offset: 1px; border-radius: 4px; }
+/* very small screens: no room beside the column (portrait or split screen), or too short for a clear corner */
+@media (max-width: 560px), (max-height: 260px) {
+  .pl-lobby .lb-ver { display: none; }
 }
