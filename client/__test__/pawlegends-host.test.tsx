@@ -74,6 +74,16 @@ jest.mock("@/components/pawlegends/PawlegendsCatSheet", () => ({
     </div>
   ),
 }));
+// Sign-in: the account sheet (sign out, delete) is tested on its own; here only that the host opens it.
+jest.mock("@/components/pawlegends/PawlegendsAccount", () => ({
+  PawlegendsAccountSheet: ({ onClose }: { onClose: () => void }) => (
+    <div data-testid="pawlegends-account-sheet">
+      <button type="button" onClick={onClose}>
+        stub-close-account
+      </button>
+    </div>
+  ),
+}));
 const seoProps = jest.fn();
 jest.mock("@/components/seo/SeoHead", () => ({ SeoHead: (props: unknown) => (seoProps(props), null) }));
 jest.mock("@/components/ui/GameModal", () => ({
@@ -451,6 +461,37 @@ describe("PawlegendsHost: account and saves", () => {
     h.fromGame({ type: "request-sign-in", reason: "save-progress" });
     expect(auth.requireAccount).toHaveBeenCalledWith("save-progress");
     expect(eventNames()).toContain("pawlegends_signin_prompt");
+  });
+
+  it("account chip: sign-in opens the sheet, sign-out signs out, manage and delete open the account sheet", async () => {
+    const signOut = jest.fn(async () => undefined);
+    const auth = account({ user: null, authStatus: "signed-out", signOut });
+    mockAuth.mockReturnValue(auth);
+    const h = await mount();
+    h.fromGame({ type: "account", action: "sign-in" });
+    expect(auth.requireAccount).toHaveBeenCalledWith("sign-in");
+    h.fromGame({ type: "account", action: "sign-out" });
+    expect(signOut).toHaveBeenCalledTimes(1);
+    expect(screen.queryByTestId("pawlegends-account-sheet")).toBeNull();
+    h.fromGame({ type: "account", action: "manage" });
+    await settle();
+    expect(screen.getByTestId("pawlegends-account-sheet")).toBeTruthy();
+    fireEvent.click(screen.getByText("stub-close-account"));
+    await settle();
+    expect(screen.queryByTestId("pawlegends-account-sheet")).toBeNull();
+    h.fromGame({ type: "account", action: "delete" });
+    await settle();
+    expect(screen.getByTestId("pawlegends-account-sheet")).toBeTruthy();
+    h.fromGame({ type: "account", action: "make-admin" });
+    expect(signOut).toHaveBeenCalledTimes(1);
+  });
+
+  it("session tells the game how the player signed in (never the email)", async () => {
+    mockAuth.mockReturnValue(account({ user: { uid: "uid-1", isAnonymous: false, email: "cat@example.com", providers: ["apple.com"] } }));
+    mockProfile.mockReturnValue({ profile: { name: "Pat", cats: [] } });
+    const h = await mount();
+    expect(h.last("session")).toMatchObject({ signedIn: true, name: "Pat", provider: "apple" });
+    expect(JSON.stringify(h.all("session"))).not.toContain("cat@example.com");
   });
 
   it("session carries the account's progress from the profile", async () => {

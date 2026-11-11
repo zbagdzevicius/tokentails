@@ -9,6 +9,7 @@ import { PixelIcon } from "@/components/shared/PixelIcon";
 import { GameModal } from "@/components/ui/GameModal";
 import { ActionRow, ModalButton } from "@/components/ui/modal";
 import { useOptionalFirebaseAuth } from "@/context/FirebaseAuthContext";
+import { methodFromProviders, readLastMethod } from "@/context/auth/lastMethod";
 import { useProfile } from "@/context/ProfileContext";
 import { GameType } from "@/models/game";
 import type { ICat } from "@/models/cats";
@@ -19,6 +20,7 @@ import {
   createPawlegendsBridge,
   PAWLEGENDS_HELLO_TIMEOUT_MS,
   shareUrlOf,
+  type PawlegendsAccountAction,
   type PawlegendsBridge,
   type PawlegendsNotifyWhere,
   type PawlegendsSignInReason,
@@ -37,6 +39,7 @@ import {
   type StoreStatus,
 } from "./checkout";
 import { championsOf } from "./championsBridge";
+import { claimQuestion } from "./claim";
 import { pickFeatured, storefrontCats, type FeaturedPick } from "./featuredBridge";
 import {
   PAWLEGENDS_CONTACT,
@@ -59,6 +62,10 @@ import { LANDING_VARIANT_PARAM, landingVariantOf } from "./landingVariant";
 // The Token Tails checkout (Stripe Elements, the crypto checkout) is browser only and loads on first use.
 const PawlegendsStoreSheet = dynamic(() => import("./PawlegendsStoreSheet").then((m) => m.PawlegendsStoreSheet), { ssr: false });
 const PawlegendsCatSheet = dynamic(() => import("./PawlegendsCatSheet").then((m) => m.PawlegendsCatSheet), {
+  ssr: false,
+});
+// Sign-in: the account chip's "Manage account" (sign out, delete); loads on first use.
+const PawlegendsAccountSheet = dynamic(() => import("./PawlegendsAccount").then((m) => m.PawlegendsAccountSheet), {
   ssr: false,
 });
 
@@ -86,13 +93,8 @@ function track(event: Parameters<typeof analytics.track>[0]) {
   }
 }
 
-/** The claim prompt's question (the Heist's decision #18 wording). */
-export function claimQuestion(count: number, account: boolean): string {
-  const matches = count === 1 ? "1 match" : `${count} matches`;
-  return account
-    ? `Add ${matches} played on this device to your account?`
-    : `Add ${matches} played on this device to your game progress?`;
-}
+/** The claim prompt's question (the Heist's decision #18 wording); shared with the app's in-page host. */
+export { claimQuestion };
 
 const wait = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
@@ -165,6 +167,8 @@ export const PawlegendsHost = ({
   const [forSale, setForSale] = useState<ICat[] | null>(null);
   const [sheet, setSheet] = useState<{ cat: ICat; owned: boolean } | null>(null);
   const [notifyWhere, setNotifyWhere] = useState<PawlegendsNotifyWhere | null>(null);
+  /** Sign-in: the account sheet is open (the game's account chip, "Manage account"). */
+  const [accountOpen, setAccountOpen] = useState(false);
   /** STORE-PASS.md: the store or pass SKU on the purchase sheet (web, signed in). */
   const [storeSku, setStoreSku] = useState<string | null>(null);
   /** STORE-PASS.md §3 step 5: re-reads `GET /pawlegends/me` and sends `store` to the game (set below). */
@@ -475,6 +479,7 @@ export const PawlegendsHost = ({
   // ---- bridge ----------------------------------------------------------------------------------
   const handlers = useRef<{
     onRequestSignIn: (reason: PawlegendsSignInReason) => void;
+    onAccount: (action: PawlegendsAccountAction) => void;
     onOpenCat: (catalogId: string) => void;
     onOfferSeen: (catalogId: string) => void;
     onNotify: (where: PawlegendsNotifyWhere) => void;
@@ -484,6 +489,7 @@ export const PawlegendsHost = ({
     onPassClaim: (row: "f" | "p" | null, tier: number | null) => void;
   }>({
     onRequestSignIn: () => undefined,
+    onAccount: () => undefined,
     onOpenCat: () => undefined,
     onOfferSeen: () => undefined,
     onNotify: () => undefined,
@@ -499,6 +505,16 @@ export const PawlegendsHost = ({
       onRequestSignIn: (reason) => {
         track(buildPawlegendsEvent("pawlegends_signin_prompt", { reason }));
         void auth?.requireAccount(reason).catch(() => undefined);
+      },
+      // Sign-in: the game's account chip and Settings row. Sign out goes through the provider; the `session` effect
+      // below tells the game. Manage (and a delete from an older build) opens the account sheet, which asks to confirm.
+      onAccount: (action) => {
+        if (!auth) return;
+        if (action === "sign-in") {
+          track(buildPawlegendsEvent("pawlegends_signin_prompt", { reason: "save-progress" }));
+          void auth.requireAccount("sign-in").catch(() => undefined);
+        } else if (action === "sign-out") void auth.signOut().catch(() => undefined);
+        else setAccountOpen(true);
       },
       onOpenCat: (catalogId) => {
         if (isApp) return;
@@ -654,6 +670,7 @@ export const PawlegendsHost = ({
             await partySaves.submit(result);
           })(),
         onRequestSignIn: (reason) => handlers.current.onRequestSignIn(reason),
+        onAccount: (action) => handlers.current.onAccount(action),
         onOpenCat: (catalogId) => handlers.current.onOpenCat(catalogId),
         onOfferSeen: (catalogId) => handlers.current.onOfferSeen(catalogId),
         onNotify: (where) => handlers.current.onNotify(where),
@@ -696,9 +713,15 @@ export const PawlegendsHost = ({
   }, [uid, progressKey]);
   // UX pass 2: the profile name rides along (signed in only), so the player's own hero shows it instead of "You"
   const playerName = signedIn && profile && !(profile as { transient?: boolean }).transient ? (profile.name ?? null) : null;
+  // Sign-in: how the player signed in (the account chip's icon); the last-used method wins when the account has several
+  const providers = auth?.user?.providers?.join(",") ?? "";
+  const provider = useMemo(
+    () => (signedIn ? methodFromProviders(providers ? providers.split(",") : [], readLastMethod()) : null),
+    [signedIn, providers]
+  );
   useEffect(() => {
-    bridgeRef.current?.setSession(signedIn, progress, playerName);
-  }, [signedIn, progress, playerName, bridgeState]);
+    bridgeRef.current?.setSession(signedIn, progress, playerName, provider);
+  }, [signedIn, progress, playerName, provider, bridgeState]);
   useEffect(() => {
     bridgeRef.current?.setEntitlements(isApp ? null : token);
   }, [isApp, token]);
@@ -931,6 +954,7 @@ export const PawlegendsHost = ({
           }}
         />
       )}
+      {accountOpen && <PawlegendsAccountSheet onClose={() => setAccountOpen(false)} />}
       {notifyWhere && (
         <NotifySheet
           api={api}

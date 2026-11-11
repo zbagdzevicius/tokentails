@@ -72,6 +72,7 @@ import type {
   ProfilePhase,
   SessionProfile,
 } from "./auth/types";
+import { FIREBASE_DEFAULT_AUTH_DOMAIN, FIREBASE_WEB_CONFIG } from "./auth/firebaseConfig";
 import { useProfile } from "./ProfileContext";
 import { useToast } from "./ToastContext";
 
@@ -88,12 +89,8 @@ export const PROFILE_RETRY_DELAY_MS = 1_500;
 // (with the /__/auth rewrites from task 3f), verified on a preview first. Unset, and in the
 // Capacitor build, it stays on the Firebase default domain.
 const firebaseConfig = {
-  apiKey: "AIzaSyCfitm6sU-lOunY3JpGdn8D4Ng7Dz5m3yk",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "news-ccd33.firebaseapp.com",
-  projectId: "news-ccd33",
-  storageBucket: "news-ccd33.appspot.com",
-  messagingSenderId: "158850509760",
-  appId: "1:158850509760:web:446ea8a11bdddeb616f625",
+  ...FIREBASE_WEB_CONFIG,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || FIREBASE_DEFAULT_AUTH_DOMAIN,
 };
 
 const app = initializeApp(firebaseConfig);
