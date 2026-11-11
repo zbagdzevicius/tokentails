@@ -19,11 +19,11 @@ import { HERO_TEXT } from '../../src/ui/heroText';
 import { MID, heroMatch, hold, place, setLevel } from './heroes/kit-helpers';
 
 describe('hero-fight tuning (final spec, species balance nudges)', () => {
-  it('sim v18 refit (V18-CHASE.md §3): Lambo 9450/7750, Avietė 11475/7950, Gabė 7700/10650, Bengas 10000/8625', () => {
-    expect(HEROES.lambo.pvp).toEqual({ dmgBp: 9450, takenBp: 7750 });
-    expect(HEROES.aviete.pvp).toEqual({ dmgBp: 11475, takenBp: 7950 });
-    expect(HEROES.gabe.pvp).toEqual({ dmgBp: 7700, takenBp: 10650 });
-    expect(HEROES.bengas.pvp).toEqual({ dmgBp: 10000, takenBp: 8625 });
+  it('sim v20 refit (V20-CHASE.md §8): Lambo 9490/7710, Avietė 11415/8010, Gabė 7690/10660, Bengas 9990/8635', () => {
+    expect(HEROES.lambo.pvp).toEqual({ dmgBp: 9525, takenBp: 7450 });
+    expect(HEROES.aviete.pvp).toEqual({ dmgBp: 11355, takenBp: 7830 });
+    expect(HEROES.gabe.pvp).toEqual({ dmgBp: 7740, takenBp: 10295 });
+    expect(HEROES.bengas.pvp).toEqual({ dmgBp: 9995, takenBp: 8370 });
   });
 });
 

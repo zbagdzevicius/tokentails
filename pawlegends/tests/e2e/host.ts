@@ -56,6 +56,11 @@ export interface HostConfig {
    * so the older specs pick any hero in any week; null sends none (the starters and the week's rotation only).
    */
   champState?: unknown;
+  /**
+   * CHAT-AVATARS.md §8: answer every `api-request` from `window.plApi(op, args)` (the test's `context.exposeFunction`), a
+   * stateful fake server two players share. `api` is ignored then.
+   */
+  liveApi?: boolean;
 }
 
 /** Every champion owned (the Founders roster), the e2e host's default `store.champions`. */
@@ -130,6 +135,13 @@ function hostHtml(cfg: HostConfig): string {
       }
       if (m.type === 'party-ticket-request' && cfg.partyTicket !== undefined) {
         send('party-ticket', cfg.partyTicket ? { id: m.id, ticket: cfg.partyTicket } : { id: m.id, ticket: null, error: 'PAWLEGENDS_PARTY_TICKET_UNAVAILABLE' });
+      }
+      if (m.type === 'api-request' && cfg.liveApi && window.plApi) {
+        // CHAT-AVATARS e2e: a stateful server in the test (context.exposeFunction('plApi')) shared by two players
+        window.plApi(m.op, m.args || {}).then(function (r) {
+          send('api-result', Object.assign({ id: m.id, ok: r.status >= 200 && r.status < 300, status: r.status }, r.body ? { body: r.body } : {}));
+        });
+        return;
       }
       if (m.type === 'api-request') {
         var a = (cfg.api || {})[m.op];

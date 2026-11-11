@@ -16,8 +16,15 @@ import { PartyTicketService } from './party-ticket.service';
 import { MongoRoomStore } from './room-store';
 import { MmService } from '../mm/mm.service';
 import { InjectModel } from '@nestjs/mongoose';
-import { PawlegendsPresence } from '../social/social.schema';
+import { PawlegendsBlock, PawlegendsPresence, PawlegendsSanction, PawlegendsSocial } from '../social/social.schema';
+import { PawlegendsChatMessage, PawlegendsChatThread } from '../social/chat.schema';
+import { ChatBus } from '../social/chat-bus';
+import { ChatService } from '../social/chat.service';
+import { PawlegendsBuyer, PawlegendsOwned } from '../pawlegends.schema';
+import { liveHeroIds } from '../social/avatar';
 import { PresenceSink, type PresenceWriter } from './presence-sink';
+import { ChatSink, type ChatSinkWriters } from './chat-sink';
+import { relayChatInfo } from './relay-chat-info';
 import { BACKEND_ROLE, type BackendRole } from '../../shared/runtime/backend-role';
 import { PawlegendsSeasonService } from '../pawlegends-season.service';
 
@@ -36,6 +43,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
     private relay: PartyRelay | null = null;
     /** Presence (SOCIAL-RANKED.md §4.3): the relay's phases into `pawlegendspresence`, batched every 5 s. */
     private presence: PresenceSink | null = null;
+    /** Party chat lines into `pawlegendschat` (CHAT-AVATARS.md §5), batched every 2 s. */
+    private chatSink: ChatSink | null = null;
     private readonly logger = new Logger('PartyRelay');
 
     constructor(
@@ -46,8 +55,52 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
         private readonly mm: MmService,
         @Optional() @Inject(BACKEND_ROLE) private readonly role?: BackendRole,
         @Optional() @InjectModel(PawlegendsPresence.name) private readonly presenceModel?: PresenceWriter,
+        // friends chat (CHAT-AVATARS.md §5): the band, sanctions, blocks and avatar of an account, and the party lines
+        @Optional() @InjectModel(PawlegendsBuyer.name) private readonly buyers?: any,
+        @Optional() @InjectModel(PawlegendsSanction.name) private readonly sanctions?: any,
+        @Optional() @InjectModel(PawlegendsBlock.name) private readonly blocks?: any,
+        @Optional() @InjectModel(PawlegendsSocial.name) private readonly social?: any,
+        @Optional() @InjectModel(PawlegendsOwned.name) private readonly owned?: any,
+        @Optional() @InjectModel(PawlegendsChatThread.name) private readonly chatThreads?: any,
+        @Optional() @InjectModel(PawlegendsChatMessage.name) private readonly chatMessages?: any,
+        // role all: DM notices from the API in this process; a report can name a line still in the sink
+        @Optional() private readonly chatBus?: ChatBus,
+        @Optional() private readonly chatService?: ChatService,
         @Optional() private readonly season?: PawlegendsSeasonService
     ) {}
+
+    /** The chat hooks of the relay: absent models (an old deploy, specs) leave every member on quick chat. */
+    private chatHooks() {
+        if (!this.buyers || !this.sanctions || !this.blocks || !this.social) return undefined;
+        const writers: ChatSinkWriters | null =
+            this.chatThreads && this.chatMessages ? { messages: this.chatMessages, threads: this.chatThreads } : null;
+        this.chatSink = new ChatSink(writers, (event, props) => this.logger.warn(`${event} ${JSON.stringify(props)}`));
+        this.chatSink.start();
+        const sink = this.chatSink;
+        this.chatService?.setPendingLookup(mid => {
+            const entry = sink.pendingEntry(mid);
+            return entry
+                ? { ...entry.line, exp: new Date(entry.line.at.getTime() + 30 * 86_400_000), members: entry.members }
+                : null;
+        });
+        const bus = this.chatBus;
+        return {
+            info: relayChatInfo({
+                buyers: this.buyers,
+                sanctions: this.sanctions,
+                blocks: this.blocks,
+                social: this.social,
+                avatars: {
+                    social: this.social,
+                    owned: this.owned ?? null,
+                    cats: (this.cats as unknown as { model?: any }).model ?? null,
+                    heroes: liveHeroIds(),
+                },
+            }),
+            store: (line: Parameters<ChatSink['push']>[0], members: string[]) => sink.push(line, members),
+            ...(bus ? { onNotice: (fn: (n: { to: string; thread: string }) => void) => bus.subscribe(fn) } : {}),
+        };
+    }
 
     async onApplicationBootstrap(): Promise<void> {
         const server = this.adapter.httpAdapter?.getHttpServer?.() as Server | undefined;
@@ -69,6 +122,7 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
             pool: relayPoolFrom(this.role),
             // CHAMPION-STORE.md §8.1: members pick starters, the rotation and the champions their account owns
             ...(this.season ? { champions: (accountId: string) => this.season!.ownedHeroes(accountId) } : {}),
+            chat: this.chatHooks(),
         });
         const relay = this.relay;
         this.presence = new PresenceSink(
@@ -91,6 +145,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
     // SIGTERM drains first (LIVE-MATCH-DEPLOYS.md §4.1): rooms that end within RELAY_DRAIN_MAX_MS never move at all.
     async beforeApplicationShutdown(): Promise<void> {
         this.presence?.stop();
+        this.chatSink?.stop();
+        await this.chatSink?.flush();
         if (!this.relay) return;
         const d = this.relay.drain('sigterm', drainMaxMsFrom());
         this.logger.log(

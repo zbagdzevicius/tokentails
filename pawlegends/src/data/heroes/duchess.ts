@@ -6,8 +6,8 @@ export const DUCHESS: HeroData = Object.freeze<HeroData>({
   name: 'Duchess',
   side: 'cat',
   role: 'mage',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10175 / takes 8525 (51.9% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 helps divers catch kiting mages): 10550 (45.6% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8675. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 10550 / takes 8725. */
-  pvp: { dmgBp: 10550, takenBp: 8725 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 11400 / 8700 (10400 / 9600 before: 41.5% of the 2,000-seed gate; now 52.7%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 11100 / takes 8550 (49.6% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 10175 / takes 8525 (51.9% of the 2,000-seed gate). Sim v16 (MAP-GAPS B3 helps divers catch kiting mages): 10550 (45.6% before). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 8675. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 10550 / takes 8725. Sim v20 refit on four seed windows (V20-CHASE.md §9): 10755 / 8520 → 10805 / 8215. */
+  pvp: { dmgBp: 10805, takenBp: 8215 },
   element: 'DARK',
   base: { hp: 480, hpPerLevel: 50, attack: 50, attackPerLevel: 5, attackEvery: 30, range: 5000, speed: 4800, armour: 16, armourPerLevel: 2 },
   /** Utter Disdain: her ability hits on a hero add 1 Disdain (4 s); at 3 the hero is Snubbed: stunned 0.75 s, 40 (+4/lvl); then 6 s immune. */

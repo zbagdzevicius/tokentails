@@ -5,6 +5,8 @@
  * root visit, legacy /gaming on Node hosting, legacy /gaming in a static
  * export, sitemap exclusion, and old landing anchors on the root page.
  */
+import { existsSync } from "fs";
+import { join } from "path";
 import React from "react";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 
@@ -730,5 +732,90 @@ describe("playerStateFrom (the landing's optional, non-creating profile read)", 
     const { SIGN_IN_HREF, landingCtaFromSearch } = require("@/components/landing/landingCta");
     expect(SIGN_IN_HREF).toBe("/game?signin=1&from=landing_signin");
     expect(landingCtaFromSearch(SIGN_IN_HREF.slice("/game".length))).toBe("signin");
+  });
+});
+
+describe("pawlegends.app shows Paw Legends (next.config.js host rules)", () => {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const { match } = require("next/dist/compiled/path-to-regexp");
+  type Rule = { source: string; destination: string; has?: Array<{ type: string; key?: string; value?: string }>; missing?: unknown[]; permanent?: boolean };
+  const host = (rule: Rule) => rule.has?.find((h) => h.type === "host")?.value;
+  /** The first rule whose host and path match, with its destination filled in (as Next resolves it). */
+  const resolve = (rules: Rule[], hostname: string, path: string) => {
+    for (const rule of rules) {
+      const h = host(rule);
+      if (h !== undefined && h !== hostname) continue;
+      if (rule.has?.some((c) => c.type === "query")) continue;
+      const m = match(rule.source, { decode: decodeURIComponent })(path);
+      if (!m) continue;
+      let dest = rule.destination;
+      const params = m.params as Record<string, string | string[] | undefined>;
+      for (const k of rule.source.match(/:(\w+)/g)?.map((p) => p.slice(1)) ?? []) {
+        const v = params[k];
+        const text = Array.isArray(v) ? v.join("/") : v ?? "";
+        dest = dest.replace(`:${k}*`, text).replace(`:${k}`, text);
+      }
+      return dest;
+    }
+    return null;
+  };
+
+  it("serves the landing at / and each Paw Legends page at /<page>, ahead of the static home page", async () => {
+    const { beforeFiles } = await nextConfig.rewrites();
+    expect(resolve(beforeFiles, "pawlegends.app", "/")).toBe("/pawlegends");
+    for (const page of ["play", "privacy", "terms", "account", "support"]) {
+      expect(resolve(beforeFiles, "pawlegends.app", `/${page}`)).toBe(`/pawlegends/${page}`);
+      expect(existsSync(join(__dirname, "..", "pages", "pawlegends", `${page}.tsx`))).toBe(true);
+    }
+  });
+
+  it("leaves the game, the app's OTA files, Next's assets, public files and /pawlegends/** alone", async () => {
+    const { beforeFiles, afterFiles } = await nextConfig.rewrites();
+    for (const path of [
+      "/pawlegends-game/index.html",
+      "/pawlegends-game/build/main.abc.js",
+      "/pawlegends-app/updates/ios/1/manifest.json",
+      "/_next/static/chunks/main.js",
+      "/pawlegends/play",
+      "/pawlegends/landing/hero.webp",
+      "/legends",
+      "/favicon.ico",
+      "/manifest.webmanifest",
+      "/api/anything",
+    ]) {
+      expect(resolve(beforeFiles, "pawlegends.app", path)).toBeNull();
+      expect(resolve(afterFiles, "pawlegends.app", path)).toBeNull();
+    }
+  });
+
+  it("keeps tokentails.com unchanged: / is still the static home page", async () => {
+    const { beforeFiles } = await nextConfig.rewrites();
+    expect(resolve(beforeFiles, "tokentails.com", "/")).toBe("/home/index.html");
+    expect(resolve(beforeFiles, "tokentails.com", "/play")).toBeNull();
+    expect(resolve(beforeFiles, "tokentails.com", "/privacy")).toBeNull();
+    const redirects: Rule[] = await nextConfig.redirects();
+    expect(resolve(redirects, "tokentails.com", "/pawlegends")).toBeNull();
+    // every new rule needs a pawlegends host
+    for (const rule of [...beforeFiles, ...redirects].filter((r: Rule) => (host(r) ?? "").includes("pawlegends")))
+      expect(["pawlegends.app", "www.pawlegends.app"]).toContain(host(rule));
+  });
+
+  it("sends www to the apex, keeping the path", async () => {
+    const redirects: Rule[] = await nextConfig.redirects();
+    const www = redirects.find((r) => host(r) === "www.pawlegends.app")!;
+    expect(www).toMatchObject({ source: "/:path*", destination: "https://pawlegends.app/:path*", permanent: true });
+    expect(resolve(redirects, "www.pawlegends.app", "/privacy")).toBe("https://pawlegends.app/privacy");
+    expect(resolve(redirects, "www.pawlegends.app", "/")).toBe("https://pawlegends.app/");
+    // it comes first, so no other redirect answers a www request
+    expect(redirects.indexOf(www)).toBe(0);
+  });
+
+  it("sends a game link on / (party, dare, checkout, ...) to /play with its query, as /pawlegends does", async () => {
+    const redirects: Rule[] = await nextConfig.redirects();
+    const onRoot = redirects.filter((r) => host(r) === "pawlegends.app" && r.source === "/");
+    expect(onRoot.map((r) => r.has!.find((h) => h.type === "query")!.key).sort()).toEqual(
+      ["checkout", "dare", "from", "notify", "party", "restore"]
+    );
+    for (const r of onRoot) expect(r).toMatchObject({ destination: "/play", permanent: false });
   });
 });

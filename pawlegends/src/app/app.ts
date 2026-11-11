@@ -1101,6 +1101,15 @@ export class App {
             inviteUrl,
             share: (url, text) => this.bridge.post('share', { kind: 'party', url, text }),
             analytics: (event, props) => this.analytics.track(event as never, props as never),
+            // CHAT-AVATARS §2.7: report a party chat line through the host (signed-in players only)
+            chatReport: (mid, kind) =>
+              accountState().signedIn ? this.integration.api('chat.report', { msg: mid, kind }).then((r) => r.ok) : Promise.resolve(false),
+            // CHAT-AVATARS §5: the relay's push for a DM, so a party player sees it without waiting for a poll
+            dmNotice: (thread) => {
+              if (this.social && !this.social.closed) return this.social.dmNotice(thread);
+              this.chatUnread++;
+              this.paintSocialBadge();
+            },
           },
           { mode, code },
         );
@@ -1116,6 +1125,8 @@ export class App {
   private social: import('../social/socialSheet').SocialSheet | null = null;
   /** Requests and invites waiting (the lobby button's badge), from the title pulse. */
   private socialBadge = 0;
+  /** Unread DMs (CHAT-AVATARS §6.1), added to the badge. */
+  private chatUnread = 0;
   private socialPulse: ReturnType<typeof setInterval> | null = null;
   private socialRev: string | undefined;
   /** Invite ids already toasted (an invite lives 3 min; the set is tiny). */
@@ -1126,13 +1137,14 @@ export class App {
     const btn = this.root.querySelector<HTMLElement>('[data-testid="lobby-social"]');
     if (!btn) return;
     let b = btn.querySelector<HTMLElement>('.lb-social-badge');
-    if (!this.socialBadge) return void b?.remove();
+    const n = this.socialBadge + this.chatUnread;
+    if (!n) return void b?.remove();
     if (!b) {
       b = document.createElement('i');
       b.className = 'lb-social-badge';
       btn.appendChild(b);
     }
-    b.textContent = String(Math.min(9, this.socialBadge));
+    b.textContent = n > 9 ? '9+' : String(n);
   }
 
   private openSocial(tab?: import('../social/socialSheet').SocialTab): void {
@@ -1157,6 +1169,14 @@ export class App {
               setOnlineMode('pvp');
               this.openParty('queue');
             },
+            // CHAT-AVATARS §7.4: the picker's owned borders and the player's own cats (bucket art only)
+            ownedItems: () => [...this.ent.snapshot().items],
+            cats: () => this.rosterCats.filter((c) => /^[a-f0-9]{24}$/i.test(c.id) && !!c.art).map((c) => ({ id: c.id.toLowerCase(), image: c.art! })),
+            inMatch: () => !!this.session,
+            onUnread: (n) => {
+              this.chatUnread = Math.max(0, n);
+              this.paintSocialBadge();
+            },
           },
           tab,
         );
@@ -1175,9 +1195,10 @@ export class App {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const r = await this.integration.api('social.pulse', this.socialRev ? { rev: this.socialRev } : {});
       if (!r.ok || r.status === 204 || !r.body) return;
-      const body = r.body as { rev?: string; invites?: { id?: string; from?: { name?: string }; party?: string }[] };
+      const body = r.body as { rev?: string; invites?: { id?: string; from?: { name?: string }; party?: string }[]; chat?: { unread?: number } };
       this.socialRev = typeof body.rev === 'string' ? body.rev : undefined;
       this.socialBadge = body.invites?.length ?? 0;
+      this.chatUnread = typeof body.chat?.unread === 'number' ? Math.max(0, body.chat.unread) : this.chatUnread;
       this.paintSocialBadge();
       // the pulse answers "changed" on any friend's presence change too: toast each invite once, not on every change
       const inv = body.invites?.find((i) => !i.id || !this.socialToasted.has(i.id));

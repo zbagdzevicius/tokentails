@@ -12,6 +12,7 @@ import { findPath } from '../nav/astar';
 import type { MatchHandle } from '../state';
 import { FM, G, Kind, NEVER, Order, RANGE, UnitState, type World } from '../world';
 import { inAttackRange, startAttack } from '../combat/attack';
+import { cancelSwing } from '../combat/swing';
 import { clearStatus, disabled, interrupt } from '../effects/status';
 import { fleeStep } from '../effects/fear';
 import { stepForced } from '../effects/dash';
@@ -87,6 +88,15 @@ function cancelSoft(w: World, id: number): void {
   }
 }
 
+/**
+ * Sim v20 (V20-CHASE.md S1; LoL Wiki "Basic attack": "There exists a grace period of one game-tick before a champion's
+ * attack windup completes", in which a move or stop no longer cancels it): a new command cancels the swing and gives
+ * the attack timer back, except in the swing's last tick, when it lands first.
+ */
+function dropSwing(w: World, id: number): void {
+  if (w.windup[id] > 1) cancelSwing(w, id);
+}
+
 /** Apply a (quantised) command to hero `id`. Commands to a dead hero are ignored, except talent picks. */
 export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
   const w = m.world;
@@ -101,9 +111,20 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
       cancelSoft(w, id);
       w.moveX[id] = clamp(cmd.x, 0, MAP.width);
       w.moveY[id] = clamp(cmd.y, 0, MAP.height);
+      // Sim v20 (V20-CHASE.md S2): an attack-move mid-swing on a unit it may still hit keeps that swing (re-issuing the
+      // attack never restarts the windup); only the goal changes, and the hero keeps chasing its current target.
+      // An attack-move clicked on (or right by) the unit it is already attacking keeps that unit too, between swings
+      // (desktop A-click spam on a fleeing hero: LoL/WR keep the attack; a re-acquire could pick a tower or minion).
+      if (cmd.op === Op.AttackMove && w.target[id] >= 0 && targetable(w, w.target[id], w.team[id]) && (w.windup[id] > 0 || clickedOn(w, id, w.target[id]))) {
+        w.order[id] = Order.AttackMove;
+        w.pathLen[id] = 0;
+        w.pathIdx[id] = 0;
+        w.timer[id] = 0;
+        break;
+      }
       w.order[id] = cmd.op === Op.Move ? Order.Move : Order.AttackMove;
-      w.target[id] = -1;
-      w.windup[id] = 0;
+      dropSwing(w, id);
+      if (w.windup[id] === 0) w.target[id] = -1;
       // Sim v16 (MAP-GAPS B3): during forced movement the hero re-plans on landing (dash.ts stepForced), not from here.
       if (w.fmKind[id] === FM.None) planPath(m, id, w.moveX[id], w.moveY[id]);
       else {
@@ -116,6 +137,11 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
     case Op.Attack: {
       if (cmd.id >= RANGE.end || !targetable(w, cmd.id, w.team[id])) break;
       cancelSoft(w, id);
+      // Sim v20 (V20-CHASE.md S2): the same attack again (a held or re-tapped ATK, right-click spam) changes nothing.
+      if (w.order[id] === Order.Attack && w.target[id] === cmd.id) break;
+      // another unit is a new command: a swing at the old one stops and the timer comes back. No last-tick grace here:
+      // the swing reads w.target when it lands, so a kept windup would land on the new unit instead of the old one.
+      if (w.target[id] !== cmd.id) cancelSwing(w, id);
       w.order[id] = Order.Attack;
       w.target[id] = cmd.id;
       w.pathLen[id] = 0;
@@ -125,8 +151,8 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
     case Op.Stop:
       cancelSoft(w, id);
       w.order[id] = Order.None;
-      w.target[id] = -1;
-      w.windup[id] = 0;
+      dropSwing(w, id);
+      if (w.windup[id] === 0) w.target[id] = -1;
       w.pathLen[id] = 0;
       w.moveX[id] = w.x[id];
       w.moveY[id] = w.y[id];
@@ -150,6 +176,16 @@ export function applyOrder(m: MatchHandle, id: number, cmd: Command): void {
     default:
       break;
   }
+}
+
+/**
+ * Sim v20 (V20-CHASE.md S2): is hero `id`'s new attack-move point on its current target (within the target's radius +
+ * HERO_RULES.amoveClick mm of its centre), while it already has an attack order on it?
+ */
+function clickedOn(w: World, id: number, t: number): boolean {
+  if (w.order[id] !== Order.Attack && w.order[id] !== Order.AttackMove) return false;
+  const r = radiusOf(w, t) + HERO_RULES.amoveClick;
+  return dist2(w.moveX[id], w.moveY[id], w.x[t], w.y[t]) <= r * r;
 }
 
 /**
@@ -400,7 +436,9 @@ function stepHero(m: MatchHandle, id: number): void {
   }
   if (order === Order.AttackMove) {
     let t = w.target[id];
-    if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, HERO_RULES.acquireRange, false);
+    // Sim v20 (V20-CHASE.md S2): never shorter than what the hero could swing at (attack range + its radius + the
+    // chase leeway), so a long-range hero attack-moving acquires a unit already in its reach.
+    if (t < 0 || !targetable(w, t, w.team[id])) t = nearestEnemy(w, id, Math.max(HERO_RULES.acquireRange, attackRange(w, id) + radiusOf(w, id) + HERO_RULES.chaseLeeway), false);
     w.target[id] = t;
     if (t >= 0) {
       engage(m, id, t);
@@ -413,6 +451,9 @@ function stepHero(m: MatchHandle, id: number): void {
     return;
   }
   if (order === Order.Move) {
+    // Sim v20 (V20-CHASE.md S1): a Move in a swing's last tick let that swing land; the walking hero then lets go of
+    // its target (Stilts' auto-pounce and the bots read it).
+    w.target[id] = -1;
     if (walk(m, id)) {
       w.order[id] = Order.None;
       w.state[id] = UnitState.Idle;

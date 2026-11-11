@@ -39,7 +39,7 @@ describe('Stilts, original cat assassin (sim v11)', () => {
     expect(HERO_IDS.indexOf('stilts')).toBe(STILTS_INDEX);
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([300, 420, 210, 1800]);
     expect(STILTS.passive).toEqual({ perMetre: 10, max: 100, drain: 20, drainEvery: 15, leap: 3000, bonusBp: 16000, slowBp: 3000, slow: 30 });
-    expect(STILTS.pvp).toEqual({ dmgBp: 9975, takenBp: 8450 }); // sim v17 refit (V17.md §6.5); sim v15 balance pass
+    expect(STILTS.pvp).toEqual({ dmgBp: 8755, takenBp: 9385 }); // sim v20 refit (V20-CHASE.md §9); sim v17 refit (V17.md §6.5); sim v15 balance pass
     expect(STILTS.talents.flat().map((t) => t.id)).toEqual(['pounce-power', 'quick-stride', 'big-ears', 'twitchy', 'extra-zoomies', 'sky-high']);
   });
 

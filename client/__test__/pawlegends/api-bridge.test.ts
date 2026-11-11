@@ -47,10 +47,53 @@ describe("pawlegends api bridge (host)", () => {
     expect(routeOf("board.get", { kind: "weekly", page: 2 })).toMatchObject({ path: "/pawlegends/boards/weekly?page=2", auth: "none" });
     expect(routeOf("board.get", { kind: "friends" })).toMatchObject({ path: "/pawlegends/boards/friends/me", auth: "registered" });
     expect(routeOf("ranked.status", {})).toMatchObject({ auth: "none" });
+    const thread = "dAAAAAAAAAAAAAAAAAAAAAA";
+    const mid = "0123456789abcdef01234567";
     for (const op of PAWLEGENDS_API_OPS) {
-      const r = routeOf(op, { code: "PL-7KQ2-M9XR", room: "r1", slot: 1, reason: "afk", kind: "global", ageBand: "18+", to: "PL-7KQ2-M9XR" });
+      const r = routeOf(op, {
+        code: "PL-7KQ2-M9XR",
+        room: "r1",
+        slot: 1,
+        reason: "afk",
+        kind: op === "chat.report" ? "spam" : "global",
+        ageBand: "18+",
+        to: "PL-7KQ2-M9XR",
+        thread,
+        after: mid,
+        msg: mid,
+        k: "q",
+        pid: 5,
+        muted: true,
+      });
       expect([op, r?.path.startsWith("/pawlegends/")]).toEqual([op, true]);
     }
+  });
+
+  it("chat routes (CHAT-AVATARS.md §4): opaque thread and message ids only, text up to 240, the avatar mapped", () => {
+    const thread = "dAAAAAAAAAAAAAAAAAAAAAA";
+    const mid = "0123456789abcdef01234567";
+    expect(routeOf("chat.list", {})).toMatchObject({ method: "GET", path: "/pawlegends/social/chat", auth: "registered" });
+    expect(routeOf("chat.open", { code: "PL-7KQ2-M9XR" })?.path).toBe("/pawlegends/social/chat/dm/PL-7KQ2-M9XR");
+    expect(routeOf("chat.history", { thread, before: mid })?.path).toBe(`/pawlegends/social/chat/${thread}?before=${mid}`);
+    expect(routeOf("chat.history", { thread: "../admin" })).toBeNull();
+    expect(routeOf("chat.since", { thread, after: mid })?.path).toBe(`/pawlegends/social/chat/${thread}/since/${mid}`);
+    expect(routeOf("chat.send", { thread, k: "t", text: "gg wp" })?.body).toEqual({ k: "t", text: "gg wp" });
+    expect(routeOf("chat.send", { thread, k: "q", pid: 5 })?.body).toEqual({ k: "q", id: 5 });
+    expect(routeOf("chat.send", { thread, k: "img", text: "x" })).toBeNull();
+    expect(routeOf("chat.report", { msg: mid, kind: "contact" })?.body).toEqual({ msg: mid, kind: "contact" });
+    expect(routeOf("chat.report", { msg: mid, kind: "cheat" })).toBeNull();
+    expect(routeOf("chat.mute", { thread, muted: true })?.body).toEqual({ muted: true });
+    expect(parseApiRequest({ id: "a1", op: "chat.send", args: { thread, k: "t", text: "x".repeat(240) } })?.args.text).toHaveLength(240);
+    expect(parseApiRequest({ id: "a1", op: "chat.send", args: { thread, k: "t", text: "x".repeat(241) } })?.args.text).toBeUndefined();
+    expect(routeOf("social.me", { avatarKind: "hero", avatarRef: "sage", frame: "frame.store.goldpaw" })?.body).toEqual({
+      avatar: { kind: "hero", hero: "sage" },
+      frame: "frame.store.goldpaw",
+    });
+    expect(routeOf("social.me", { avatarKind: "cat", avatarRef: "0123456789abcdef01234567", frame: "none" })?.body).toEqual({
+      avatar: { kind: "cat", catId: "0123456789abcdef01234567" },
+      frame: null,
+    });
+    expect(routeOf("social.me", { avatarKind: "photo", avatarRef: "https://x" })?.body).toEqual({});
   });
 
   function api(signedIn: boolean) {

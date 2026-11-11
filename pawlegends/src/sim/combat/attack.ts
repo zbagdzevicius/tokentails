@@ -14,6 +14,7 @@ import { BP_ONE, applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { G, Kind, MG, RANGE, UnitState, allocProjectile, heroAt, type World } from '../world';
 import { dealDamage } from './damage';
+import { cancelSwing } from './swing';
 import { disabled } from '../effects/status';
 import { kitBusy, kitOf } from '../heroes/kit';
 import { attackDamage, attackEvery, attackRange, heroData, minionData, radiusOf, targetable } from '../units/kinds';
@@ -24,6 +25,16 @@ export { stepProjectiles } from './projectile';
 export function inAttackRange(w: World, id: number, dst: number, slack = 0): boolean {
   const reach = attackRange(w, id) + radiusOf(w, dst) + radiusOf(w, id) + slack;
   return dist2(w.x[id], w.y[id], w.x[dst], w.y[dst]) <= reach * reach;
+}
+
+/**
+ * Sim v20 (V20-CHASE.md S3, Wild Rift / LoL: "A basic attack cannot be avoided under normal circumstances once the
+ * attacker has begun their attack"; it breaks only when the target "moves too far away"): how far (mm) past the
+ * attack range a target may drift during a hero's windup and still take the swing. Minions and camp monsters keep the
+ * target's radius.
+ */
+function landSlack(w: World, id: number, dst: number): number {
+  return w.kind[id] === Kind.Hero ? HERO_RULES.swingBreak : radiusOf(w, dst);
 }
 
 function windupOf(w: World, id: number): number {
@@ -91,12 +102,16 @@ function resolveSwing(m: MatchHandle, id: number): void {
   if (w.windup[id] === 0) return;
   // Sim v14: a busy kit (Bravo's flop, Chili's purse) drops the swing like hard CC does.
   if (disabled(w, id) || (id < RANGE.minions && w.kind[id] === Kind.Hero && kitBusy(w, id))) {
-    w.windup[id] = 0;
+    cancelSwing(w, id);
     return;
   }
   if (--w.windup[id] > 0) return;
   const dst = w.target[id];
-  if (dst < 0 || !targetable(w, dst, w.team[id]) || !inAttackRange(w, id, dst, radiusOf(w, dst))) return;
+  if (dst < 0 || !targetable(w, dst, w.team[id]) || !inAttackRange(w, id, dst, landSlack(w, id, dst))) {
+    // Sim v20 (V20-CHASE.md S1): a swing that never landed gives the attack timer back.
+    w.attackTimer[id] = 0;
+    return;
+  }
   let dmg = swingDamage(w, id, dst);
   // Sim v19 (Hearthwood): Prickle Coat adds a share of the target's max HP (capped) and a short slow.
   if (w.mg.length > 0 && id < RANGE.minions && w.mg[MG.Prickle + id] > 0 && w.kind[id] === Kind.Hero) {

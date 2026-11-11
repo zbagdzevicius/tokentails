@@ -14,8 +14,8 @@ export const SAGE: HeroData = Object.freeze<HeroData>({
    * Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 10550 / takes 9325 (48.7% of the 2,000-seed gate).
    * Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 9650 / takes 9375 (48.7% of the 2,000-seed gate).
    * Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9450.
- Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9875 / takes 9200. */
-  pvp: { dmgBp: 9875, takenBp: 9200 },
+ Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 9875 / takes 9200. Sim v20 refit on four seed windows (V20-CHASE.md §9): 10090 / 8985 → 10150 / 8655. */
+  pvp: { dmgBp: 10150, takenBp: 8655 },
   element: 'WIND',
   base: { hp: 480, hpPerLevel: 50, attack: 52, attackPerLevel: 5, attackEvery: 27, range: 6000, speed: 4900, armour: 15, armourPerLevel: 2 },
   /** Steady Paw: every 4th basic pierces in a 7 m line, full damage to each target. */

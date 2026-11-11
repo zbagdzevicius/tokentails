@@ -12,6 +12,7 @@
  */
 import { STILTS_RULES } from '../../data/heroes/stilts';
 import { TICK_HZ } from '../../data/timeline';
+import { HERO_RULES } from '../../data/xp';
 import { COOLDOWN_SLOTS, FM, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
 import { applyBp, dist2, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import type { MatchHandle } from '../state';
@@ -132,13 +133,16 @@ function autoPounce(m: MatchHandle, id: number): void {
   const w = m.world;
   if (!strideFull(w, id) || w.kStage[id] !== 0 || w.fmKind[id] !== FM.None || w.castPhase[id] !== 0) return;
   if (disabled(w, id) || w.rootT[id] > 0) return;
+  // Sim v20 (V20-CHASE.md S4): never out of her own swing (the dash would cancel it).
+  if (w.windup[id] > 0) return;
   const t = w.target[id];
   if (t < 0 || t >= RANGE.minions || w.kind[t] !== Kind.Hero || !targetable(w, t, w.team[id])) return;
   const a = abil(w, id);
   const leap = w.kRT[id] > 0 ? a.r.leap : a.passive.leap;
   const near = reachTo(w, id, t);
   const d = isqrt(dist2(w.x[id], w.y[id], w.x[t], w.y[t]));
-  if (d <= near || d > near + leap) return;
+  // Sim v20 (S4): a target within reach + the chase leeway is swung at (the hero steps in), not pounced on.
+  if (d <= near + HERO_RULES.chaseLeeway || d > near + leap) return;
   dash(m, id, aimAngle(w, id, w.x[t], w.y[t]), d - near + STILTS_RULES.overshoot);
   w.kStage[id] = POUNCE;
 }

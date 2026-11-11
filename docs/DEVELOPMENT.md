@@ -272,6 +272,8 @@ Social, ranked and PvP reports (`docs/plans/moba/SOCIAL-RANKED.md` §11.1): dupl
 | `REPORT_REASONS` | `backend/src/pawlegends/social/report.contracts.ts` | `pawlegends/src/social/report.ts` | `pawlegends/tests/unit/report-popover.test.ts` |
 | API ops of `api-request` | – | `pawlegends/src/embed/api.ts`, `client/components/pawlegends/apiBridge.ts` | `shared/pawlegends-bridge.fixtures.json` (`apiOps`), both sides' tests |
 | Player code alphabet and format | `backend/src/pawlegends/social/social.contracts.ts` | the game only shows the server's code | – |
+| `CHAT_PHRASES`, `CHAT_STICKERS`, `CHAT_REPORT_KINDS`, `CHAT_LIMITS` (client subset), `AvatarView` checks (CHAT-AVATARS.md) | `shared/chat.ts` (synced to backend, client, CMS) | `pawlegends/src/data/chatPhrases.ts` | `pawlegends/tests/unit/chat-phrases.test.ts` |
+| Party chat frames (`chat.say`, `chat.msg`, `chat.reject`, `chat.notice`), PROTO 5 | `backend/src/vendor/pawlegends-net/` (vendored) | `pawlegends/src/net/proto.ts` | `vendor-sim:check`, `tests/unit/net-proto.test.ts` |
 
 The spec is `docs/plans/moba/POC.md`. The client serves the build at `/pawlegends-game/` and hosts it in
 `pages/pawlegends/index.tsx` (GAMES.md, "Pawlegends"). Rebuild `client/public/pawlegends-game` after any

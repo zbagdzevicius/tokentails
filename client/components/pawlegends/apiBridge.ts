@@ -27,6 +27,15 @@ export const PAWLEGENDS_API_OPS = [
   "board.get",
   "report.send",
   "report.notice",
+  // friends chat (docs/plans/moba/CHAT-AVATARS.md §4)
+  "chat.list",
+  "chat.history",
+  "chat.since",
+  "chat.open",
+  "chat.send",
+  "chat.read",
+  "chat.mute",
+  "chat.report",
 ] as const;
 export type PawlegendsApiOp = (typeof PAWLEGENDS_API_OPS)[number];
 
@@ -48,6 +57,21 @@ const ARG_KEYS = [
   "page",
   "rev",
   "to",
+  // friends chat and avatars (CHAT-AVATARS.md §4, §7.2)
+  "thread",
+  "before",
+  "after",
+  "upTo",
+  "msg",
+  "muted",
+  "k",
+  "pid",
+  "text",
+  "avatarKind",
+  "avatarRef",
+  "frame",
+  "title",
+  "dmPolicy",
 ] as const;
 export type PawlegendsApiArgs = Partial<Record<(typeof ARG_KEYS)[number], string | number | boolean>>;
 
@@ -69,7 +93,8 @@ export function parseApiRequest(data: Record<string, unknown>): PawlegendsApiReq
   const raw = (data.args ?? {}) as Record<string, unknown>;
   for (const k of ARG_KEYS) {
     const v = raw[k];
-    if (typeof v === "string" && v.length <= 140) args[k] = v;
+    // a chat line's raw text may be up to 240 code units (the server normalises and cuts to 120, or refuses)
+    if (typeof v === "string" && v.length <= (k === "text" ? 240 : 140)) args[k] = v;
     else if (typeof v === "number" && Number.isFinite(v)) args[k] = v;
     else if (typeof v === "boolean") args[k] = v;
   }
@@ -106,6 +131,9 @@ export interface PawlegendsApiRoute {
 }
 
 const CODE = /^[A-Za-z0-9 -]{4,20}$/;
+/** An opaque chat thread id and a message id (CHAT-AVATARS.md §3). */
+const THREAD = /^[dp][A-Za-z0-9_-]{22}$/;
+const MID = /^[a-f0-9]{24}$/;
 const ROOM = /^[A-Za-z0-9_-]{1,64}$/;
 const str = (v: unknown, re: RegExp) => (typeof v === "string" && re.test(v) ? v : null);
 const int = (v: unknown, lo: number, hi: number) => (typeof v === "number" && Number.isInteger(v) && v >= lo && v <= hi ? v : null);
@@ -153,8 +181,20 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     }
     case "block.remove":
       return code ? { method: "DELETE", path: `/pawlegends/social/blocks/${enc(code)}`, auth: "registered" } : null;
-    case "social.me":
-      return { method: "POST", path: "/pawlegends/social/me", body: pick(a, ["name", "invisible", "allowRecent"]), auth: "registered" };
+    case "social.me": {
+      const body: Record<string, unknown> = pick(a, ["name", "invisible", "allowRecent"]);
+      // the avatar (CHAT-AVATARS.md §7.2): flat args to the server's shape; the server checks ownership
+      const kind = str(a.avatarKind, /^(hero|cat|icon)$/);
+      const ref = str(a.avatarRef, /^[a-z0-9._-]{1,48}$/);
+      if (kind && ref) body.avatar = kind === "hero" ? { kind, hero: ref } : kind === "cat" ? { kind, catId: ref } : { kind, icon: ref };
+      for (const f of ["frame", "title"] as const) {
+        if (a[f] === "none") body[f] = null;
+        else if (str(a[f], /^(frame|title)\.[a-z0-9._-]{1,48}$/)) body[f] = a[f];
+      }
+      const dm = str(a.dmPolicy, /^(friends|off)$/);
+      if (dm) body.dmPolicy = dm;
+      return { method: "POST", path: "/pawlegends/social/me", body, auth: "registered" };
+    }
     case "social.age":
       return str(a.ageBand, /^(under16|16-17|18\+)$/)
         ? { method: "POST", path: "/pawlegends/social/age", body: { ageBand: a.ageBand }, auth: "registered" }
@@ -198,6 +238,48 @@ export function routeOf(op: PawlegendsApiOp, a: PawlegendsApiArgs): PawlegendsAp
     }
     case "report.notice":
       return { method: "POST", path: "/pawlegends/reports/notice", body: {}, auth: "registered" };
+    case "chat.list":
+      return { method: "GET", path: "/pawlegends/social/chat", auth: "registered" };
+    case "chat.history": {
+      const thread = str(a.thread, THREAD);
+      return thread ? { method: "GET", path: `/pawlegends/social/chat/${thread}${q({ before: str(a.before, MID) })}`, auth: "registered" } : null;
+    }
+    case "chat.since": {
+      const thread = str(a.thread, THREAD);
+      const after = str(a.after, MID);
+      return thread && after ? { method: "GET", path: `/pawlegends/social/chat/${thread}/since/${after}`, auth: "registered" } : null;
+    }
+    case "chat.open":
+      return code ? { method: "POST", path: `/pawlegends/social/chat/dm/${enc(code)}`, body: {}, auth: "registered" } : null;
+    case "chat.send": {
+      const thread = str(a.thread, THREAD);
+      if (!thread) return null;
+      if (a.k === "t" && typeof a.text === "string" && a.text.length >= 1 && a.text.length <= 240)
+        return { method: "POST", path: `/pawlegends/social/chat/${thread}`, body: { k: "t", text: a.text }, auth: "registered" };
+      const id = int(a.pid, 0, 63);
+      if ((a.k === "q" || a.k === "s") && id !== null)
+        return { method: "POST", path: `/pawlegends/social/chat/${thread}`, body: { k: a.k, id }, auth: "registered" };
+      return null;
+    }
+    case "chat.read": {
+      const thread = str(a.thread, THREAD);
+      const upTo = str(a.upTo, MID);
+      return thread ? { method: "POST", path: `/pawlegends/social/chat/${thread}/read`, body: upTo ? { upTo } : {}, auth: "registered" } : null;
+    }
+    case "chat.mute": {
+      const thread = str(a.thread, THREAD);
+      return thread && typeof a.muted === "boolean"
+        ? { method: "POST", path: `/pawlegends/social/chat/${thread}/mute`, body: { muted: a.muted }, auth: "registered" }
+        : null;
+    }
+    case "chat.report": {
+      const msg = str(a.msg, MID);
+      const kind = str(a.kind, /^(harass|sexual|contact|spam|other)$/);
+      if (!msg || !kind) return null;
+      const body: Record<string, unknown> = { msg, kind };
+      if (typeof a.note === "string" && a.note.length <= 140) body.note = a.note;
+      return { method: "POST", path: "/pawlegends/social/chat/report", body, auth: "registered" };
+    }
     default:
       return null;
   }

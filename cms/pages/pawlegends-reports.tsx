@@ -1,8 +1,10 @@
 'use client';
 
 import {
+  IPlChatLine,
   IPlReportGroup,
   PAWLEGENDS_REPORTS_API,
+  PL_CHAT_KIND_LABELS,
   PL_FLAG_LABELS,
   PL_REPORT_REASON_LABELS,
   PL_RESOLVE_ACTIONS,
@@ -11,6 +13,7 @@ import {
   PlStatus
 } from '@/api/pawlegends-reports-api';
 import { Button } from '@/components/ui/button';
+import { CHAT_PHRASES, CHAT_STICKERS } from '@/shared-contracts/chat';
 import { useToast } from '@/context/ToastContext';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -28,8 +31,17 @@ const ACTION_LABELS: Record<PlResolveAction, string> = {
   queue_lock: 'Queue lock',
   ranked_lock: 'Ranked lock',
   board_exclude: 'Board exclude',
-  pvp_ban: 'PvP ban'
+  pvp_ban: 'PvP ban',
+  chat_mute: 'Chat mute'
 };
+
+/** Phrases and stickers are stored as ids (shared/chat.ts): shown as ids plus the text the game shows. */
+const chatLine = (line: IPlChatLine) =>
+  line.k === 't'
+    ? line.text ?? ''
+    : line.k === 'q'
+    ? `[phrase ${line.id}] ${CHAT_PHRASES[line.id ?? -1]?.text ?? ''}`
+    : `[sticker ${line.id}] ${CHAT_STICKERS[line.id ?? -1] ?? ''}`;
 
 /**
  * Pawlegends PvP reports (docs/plans/moba/SOCIAL-RANKED.md section 8.5). Groups per reported
@@ -61,6 +73,15 @@ export default function PawlegendsReportsPage() {
     if (action === 'queue_lock' || action === 'ranked_lock') {
       days = Number(window.prompt('Days (1-365)', '3'));
       if (!Number.isInteger(days) || days < 1) return;
+    }
+    if (action === 'chat_mute') {
+      // 1, 7 or 30 days; empty = permanent
+      const answer = window.prompt('Chat mute days: 1, 7 or 30 (empty = permanent)', '7');
+      if (answer === null) return;
+      if (answer.trim()) {
+        days = Number(answer);
+        if (![1, 7, 30].includes(days)) return;
+      }
     }
     const result = await PAWLEGENDS_REPORTS_API.resolve(
       group.target.accountId,
@@ -246,6 +267,23 @@ function ReportDetail({ accountId }: { accountId: string }) {
             {report.tick !== null ? ` @ tick ${report.tick}` : ''}
             {report.note ? (
               <span className="block italic">“{report.note}”</span>
+            ) : null}
+            {report.snapshot ? (
+              <span className="mt-1 block rounded border p-2" data-testid="pl-chat-snapshot">
+                <span className="block font-semibold">
+                  {PL_CHAT_KIND_LABELS[report.chatKind ?? ''] || report.chatKind} ·{' '}
+                  {report.snapshot.kind === 'dm' ? 'Direct message' : 'Party chat'}
+                </span>
+                {report.snapshot.context.map((line, i) => (
+                  <span key={i} className="block text-muted-foreground">
+                    <code>{line.from === report.snapshot!.from ? 'reported' : 'other'}</code>{' '}
+                    {chatLine(line)}
+                  </span>
+                ))}
+                <span className="block font-semibold">
+                  <code>reported</code> {chatLine(report.snapshot)}
+                </span>
+              </span>
             ) : null}
           </li>
         ))}

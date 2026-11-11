@@ -21,7 +21,13 @@
  *   parked   parked vs easy (or --difficulty rookie), 100 seeds: a human parked off the lanes at 0:30 is not
  *            followed (allies beside it ≤ 10% of the time) and the match runs at least 2:00 past the park
  *   balance  normal vs normal, 2,000 seeds     length, side, species (cats 47% to 53%, sim v9), heroes, pace, comebacks
- *            (`--balance` is an alias)
+ *            (`--balance` is an alias). How it is judged (sim v20, docs/plans/moba/V20-CHASE.md §10): the per-hero
+ *            (46–54) and level-6 branch (45–55) checks are judged POOLED over at least 8,000 fresh seeds (one
+ *            `--seeds 8000` run, or four 2,000-seed windows added up; standard error about ±1 point), because a hero
+ *            plays ~600 slots a 2,000-seed window (±2 points) and a balanced roster fails some window ~98% of the time.
+ *            Every other check (side, species, tricks, pace, comebacks, length, core kills, trailing) keeps the
+ *            per-window rule: each 2,000-seed window must pass. Fit rows only on seeds 1–14000; verify only on unseen
+ *            seeds 20001–28000. The bands do not move.
  *   hard     normal vs hard, 200 seeds         a Normal-level player wins 20% to 40% against Hard bots (sim v6)
  *   feeder   feeder vs rookie, 200 seeds       a first-timer who dives under towers and feeds still wins ≥ 80% (sim v7)
  *   feedNormal feeder vs normal, 200 seeds    (sim v8, playtest round 2) a human who feeds is in the deficit gate too:
@@ -32,6 +38,7 @@
  * `--ablate` (GAPS B3) switches comeback sources off in this run's bundle only (a source patch, never the shipped sim):
  * `catchup` catch-up XP, `camp` the trailing team's rat-camp XP bonus, `waves` underdog waves (COMEBACK), `nine` Nine
  * Lives. Comma-separated; the rows' hashes are not real replays.
+ * `--tune file.json` (experiment only) rewrites hero `pvp` rows and other source lines in this run's bundle.
  * `--fun` prints the fun metrics (tools/lib/funstats.mjs). `--check-determinism` plays every seed twice and fails
  * unless both runs give the same hash trail and final hash. Batches of 40+ seeds run in `--procs` processes
  * (default: cores − 2); every match is still one deterministic run.
@@ -91,7 +98,24 @@ const worker = hasFlag('--worker');
 const withStats = hasFlag('--stats');
 const procs = Math.max(1, Math.min(Number(argValue('--procs') ?? (seeds >= 40 && !worker ? Math.max(1, cpus().length - 2) : 1)), seeds));
 
-const sim = await importSim('src/sim/index.ts', ablate.map((a) => ({ ...ABLATIONS[a], name: a })));
+// Experiment only (balance refits, docs/plans/moba/V20-CHASE.md §9): `--tune file.json` rewrites rows in this run's
+// bundle, never the source or the vendored sim: `{ hero?: { id: { dmgBp, takenBp } }, patches?: [{ file, from, to, re? }] }`
+// (`hero` replaces src/data/heroes/<id>.ts `pvp`; `re: true` reads `from` as a RegExp).
+const tune = argValue('--tune');
+async function tunePatches(path) {
+  const { readFileSync } = await import('node:fs');
+  const t = JSON.parse(readFileSync(path, 'utf8'));
+  const out = [];
+  for (const [h, r] of Object.entries(t.hero ?? {})) {
+    // A row equal to the source would match nothing (sim-bundle throws on a patch that changes nothing): skip it.
+    const cur = /pvp: \{ dmgBp: (\d+), takenBp: (\d+) \}/.exec(readFileSync(`src/data/heroes/${h}.ts`, 'utf8'));
+    if (cur && +cur[1] === r.dmgBp && +cur[2] === r.takenBp) continue;
+    out.push({ file: `src/data/heroes/${h}.ts`, from: /pvp: \{\s*dmgBp: \d+,\s*takenBp: \d+\s*\}/, to: `pvp: { dmgBp: ${r.dmgBp}, takenBp: ${r.takenBp} }`, name: `tune ${h}` });
+  }
+  for (const [k, p] of (t.patches ?? []).entries()) out.push({ file: p.file, from: p.re ? new RegExp(p.from) : p.from, to: p.to, name: `tune patch ${k}` });
+  return out;
+}
+const sim = await importSim('src/sim/index.ts', [...ablate.map((a) => ({ ...ABLATIONS[a], name: a })), ...(tune ? await tunePatches(tune) : [])]);
 if (!sim.PLAYER_PROFILES.includes(profile)) {
   console.error(`headless-match: unknown profile "${profile}" (${sim.PLAYER_PROFILES.join(', ')})`);
   process.exit(2);
@@ -200,6 +224,7 @@ async function runParallel() {
   if (checkDet) passOn.push('--check-determinism');
   if (fun) passOn.push('--fun');
   if (withStats) passOn.push('--stats');
+  if (tune) passOn.push('--tune', tune);
   const jobs = [];
   for (let i = 0; i < procs; i++) {
     const f = from + i * per;

@@ -41,8 +41,8 @@ const turn: TurnFrame = {
 };
 
 describe('net-proto', () => {
-  it('PROTO is 4 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
-    expect(PROTO).toBe(4);
+  it('PROTO is 5 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
+    expect(PROTO).toBe(5);
     for (let op = 1; op < CMD_SIZE.length; op++) expect(CMD_SIZE[op]).toBe(OP_SIZE[op]);
     expect(Object.keys(OP_SIZE)).toHaveLength(CMD_SIZE.length - 1);
   });
@@ -204,4 +204,14 @@ describe('net-proto', () => {
     }
     expect(ok).toBeGreaterThan(0);
   }, 60_000);
+
+  it('PROTO 5 chat (CHAT-AVATARS.md §5): chat.say is typed, bounded and refuses images or unknown keys', () => {
+    expect(parseClientJson('{"t":"chat.say","k":"q","id":12}')).toEqual({ t: 'chat.say', k: 'q', id: 12 });
+    expect(parseClientJson('{"t":"chat.say","k":"t","text":"gg wp"}')).toEqual({ t: 'chat.say', k: 't', text: 'gg wp' });
+    expect(() => parseClientJson('{"t":"chat.say","k":"img","url":"x"}')).toThrow(ProtoError);
+    expect(() => parseClientJson('{"t":"chat.say","k":"t","text":""}')).toThrow(ProtoError);
+    expect(() => parseClientJson(JSON.stringify({ t: 'chat.say', k: 't', text: 'x'.repeat(241) }))).toThrow(ProtoError);
+    expect(() => parseClientJson('{"t":"chat.say","k":"q","id":64}')).toThrow(ProtoError);
+    expect(() => parseClientJson('{"t":"chat.say","k":"q","id":1,"to":"m1"}')).toThrow(ProtoError);
+  });
 });

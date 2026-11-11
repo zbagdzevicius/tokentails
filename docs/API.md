@@ -726,23 +726,30 @@ moderated cat names), never an account id or an email. The game reaches these ro
 
 | Method | Path | Body or query → answer | Auth, throttle |
 |---|---|---|---|
-| GET | `/pawlegends/social` | `{me: {code, name, nameKind, invisible, allowRecent, ageBand}, friends: [{code, name, presence}], requests: {in, out}, blocks, invites, rev}` | Registered (guest 403), 60/min |
-| GET | `/pawlegends/social/pulse?rev=` | 204 while nothing changed, else `{rev, invites}`; writes the API presence at most once a minute | Registered, 6/min |
+| GET | `/pawlegends/social` | `{me: {code, name, nameKind, invisible, allowRecent, ageBand, av, avatar, frame, title, dmPolicy}, friends: [{code, name, presence, av}], requests: {in, out}, blocks, invites, rev, chat: {unread, top?}}` | Registered (guest 403), 60/min |
+| GET | `/pawlegends/social/pulse?rev=` | 204 while nothing changed, else `{rev, invites, chat: {unread, top?}}`; writes the API presence at most once a minute. A DM bumps the recipient's rev | Registered, 6/min |
 | POST | `/pawlegends/social/friends` | `{code}` or `{room, slot}` (a recent match) → `{state: 'sent' \| 'friends'}` (a crossed request auto-accepts). Caps: 100 friends, 20 pending, 30 a day; under 16 never via recent | Registered, 5/min; code lookups 30 / 10 min |
 | POST | `/pawlegends/social/friends/:code/accept`, `/decline`; DELETE `/pawlegends/social/friends/:code` | accept, decline or cancel, remove | Registered, 30/min |
 | POST | `/pawlegends/social/blocks` | `{code}` or `{room, slot}`: removes the edge and invites, hides presence both ways; DELETE `/pawlegends/social/blocks/:code` unblocks | Registered, 30/min |
-| POST | `/pawlegends/social/me` | `{name?: 'generated' \| <own cat id>, invisible?, allowRecent?}` | Registered, 10/min |
+| POST | `/pawlegends/social/me` | `{name?: 'generated' \| <own cat id>, invisible?, allowRecent?, avatar?: {kind: 'hero', hero} \| {kind: 'cat', catId} \| {kind: 'icon', icon}, frame?: <owned frame id> \| null, title?: <owned title id> \| null, dmPolicy?: 'friends' \| 'off'}`; every avatar part is checked against what the caller owns (CHAT-AVATARS.md §7.2) | Registered, 10/min |
 | POST | `/pawlegends/social/code/rotate` | a new code, 3 a day | Registered |
 | GET | `/pawlegends/social/recent` | `{players: [{room, slot, name, team, canAdd}]}`: humans of the last 20 mm rooms, 7 days | Registered, 30/min |
 | POST | `/pawlegends/social/invite` | `{to: code}`: needs a joinable friend party (relay presence) and an accepted friend; 10 per 10 min | Registered |
 | POST | `/pawlegends/social/age` | `{ageBand}`: the store's band, the stricter answer wins | Registered, 5/min |
+| GET | `/pawlegends/social/chat` | Friends chat (CHAT-AVATARS.md §4): DM threads, newest first, max 50 → `{threads: [{id, kind, with: {code, name}, tier, lastAt, lastPreview, lastMine, unread, muted, readOnly}]}`; blocked pairs hidden | Registered, 30/min |
+| POST | `/pawlegends/social/chat/dm/:code` | Open or create the DM thread with an accepted friend → `{thread, tier}`; 10 new threads a day | Registered, 20/min |
+| GET | `/pawlegends/social/chat/:thread?before=` | History, 30 a page, oldest first → `{thread: {id, with, tier, muted, readOnly, cooldownUntil}, messages: [{mid, mine, k, text?, id?, at}], more}`. 403 `PAWLEGENDS_CHAT_UNAVAILABLE` when not a member, not friends (24 h read-only after an unfriend) or blocked either way | Registered, 60/min |
+| GET | `/pawlegends/social/chat/:thread/since/:mid` | New messages after a message (the 4 s open-thread poll); 204 when none | Registered, 40/min |
+| POST | `/pawlegends/social/chat/:thread` | `{k:'t', text} \| {k:'q', id} \| {k:'s', id}` → `{message}`. Free text only when both friends are registered and 16+, filtered (shared/chat-filter.ts). Errors: 403 `_UNAVAILABLE`, `_MUTED {until}`; 409 `_QUICK_ONLY`; 422 `_REJECTED {why: words \| contact \| link \| charset}`; 400 `_TOO_LONG`, `_INVALID`; 429 `_RATE`, `_COOLDOWN {until}` (all `PAWLEGENDS_CHAT_*`) | Registered, 30/min per account, 60/min per IP |
+| POST | `/pawlegends/social/chat/:thread/read`, `/mute` | `{upTo: mid}` moves the read cursor; `{muted}` silences the badge | Registered, 60/min |
+| POST | `/pawlegends/social/chat/report` | `{msg, kind: harass \| sexual \| contact \| spam \| other, note?}`: a received DM or party line; copies the message and 6 earlier lines into the report (180 days). One per message, 5 per sender a day | Registered, 10/min |
 | GET | `/pawlegends/ranked/status` | `{open, online, need, season}`; opens at 24 ranked-eligible players online, closes under 16 for 10 min | Public, 60/min |
 | GET | `/pawlegends/ranked/me` | eligibility (`why: 'matches' \| 'locked' \| 'pending' \| 'sign_in'`), tier, decayed points, placements, locks, pending rooms and rewards | Auth, 60/min |
 | GET | `/pawlegends/boards/:kind` | `kind`: `weekly`, `global`, `hero` (`?hero=`); `?page=` (8 a page), `?week=`, `?season=` → `{rows: [{rank, name, value, tier?, winRate?}], period, page, pages}`. Cached 60 s | Public, 60/min |
 | GET | `/pawlegends/boards/:kind/me` | the same plus `me: {rank, value}`; `friends` only here (the caller and up to 100 friends) | Registered, 60/min |
 | POST | `/pawlegends/reports` | `{room, slot, reason: 'afk' \| 'grief' \| 'cheat' \| 'name', note?, tick?}` → 201 `{ok}`, or 200 `{ok, already}` for a repeat. 400 `PAWLEGENDS_REPORT_BOT` / `_SELF` / `_INVALID`, 404 `PAWLEGENDS_REPORT_ROOM`, 429 `PAWLEGENDS_REPORT_LIMIT` (10 a day, guests 3; 5 a room). The note is kept for 16+ bands only | Auth (guests too), 20 / 10 min per IP |
 | POST | `/pawlegends/reports/notice` | `{warn}`: a moderator warning, shown once | Auth |
-| GET | `/pawlegends/admin/reports` | `?status=open\|actioned\|dismissed\|all&reason=&flag=1&page=` → groups per reported player with counts, flags F1–F5 and the map-hack z. Reporter ids are never returned | MODERATOR (2) |
+| GET | `/pawlegends/admin/reports` | `?status=open\|actioned\|dismissed\|all&reason=&flag=1&page=` → groups per reported player with counts, flags F1–F6 (F6: 20 chat filter hits today) and the map-hack z. Chat reports (`reason: chat`) carry `chatKind` and the copied `snapshot` in the detail; resolve takes `chat_mute` (`days` 1/7/30, none = permanent). Reporter ids are never returned | MODERATOR (2) |
 | GET | `/pawlegends/admin/reports/stats` | `?days=14` → `{pvpMatches, rankedMatches, mapHackConfirmed, rate}`: the 1% fog trigger | MODERATOR |
 | GET | `/pawlegends/admin/reports/:accountId` | the reports with notes, each room's queue, team, member events and referee intel, the sanctions | MODERATOR |
 | POST | `/pawlegends/admin/reports/:accountId/resolve` | `{action: 'dismiss' \| 'warn' \| 'queue_lock' \| 'ranked_lock' \| 'board_exclude' \| 'pvp_ban', days?, reasonCode}`: the only sanction writer; the relay's `mm.join` honours locks | MODERATOR |

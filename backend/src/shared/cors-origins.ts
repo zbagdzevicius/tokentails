@@ -28,6 +28,10 @@ export function corsOrigins(frontEndUrls: string | undefined = process.env.FRONT
         'https://tokentails.com',
         // the Bad Cat embed on www defaults its API to api.tokentails.com too
         'https://www.tokentails.com',
+        // Paw Legends' own domain (the same Vercel project as tokentails.com): the landing, /play and the game's
+        // API and party relay calls. www redirects to the apex, but its first request may still carry www.
+        'https://pawlegends.app',
+        'https://www.pawlegends.app',
         LANDING_LAB_PRODUCTION_ORIGIN,
         LANDING_LAB_PREVIEW_ORIGIN,
         // Unchanged: unset FRONT_END_URLS adds the literal '*', which `cors` compares by equality only.

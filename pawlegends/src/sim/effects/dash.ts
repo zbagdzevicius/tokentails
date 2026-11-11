@@ -11,6 +11,7 @@ import { cellOfTeam, walkable } from '../map/grid';
 import type { MatchHandle } from '../state';
 import { FM, G, Kind, Order, type World, fmClear } from '../world';
 import { clampToArena } from './tether';
+import { cancelSwing } from '../combat/swing';
 
 const pos = new Int32Array(2);
 
@@ -101,7 +102,8 @@ export function startForced(w: World, id: number, tx: number, ty: number, ticks:
   w.fmT[id] = Math.max(1, ticks);
   w.fmKind[id] = kind;
   fmClear(w, id);
-  w.windup[id] = 0;
+  // Sim v20 (V20-CHASE.md S1): the cancelled swing gives the attack timer back.
+  cancelSwing(w, id);
   w.pathLen[id] = 0;
 }
 

@@ -28,6 +28,8 @@ import {
     PROTO,
     PROTO_MIN,
     PROTO_PVP,
+    PROTO_CHAT,
+    CHAT_SAY_RATE,
     ProtoError,
     SUBPROTOCOL,
     TURN_TICKS,
@@ -70,6 +72,9 @@ import type { Occupant, RelayRow, RoomStore, StoredParty, StoredRoom } from './r
 import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
 import { CHAMPION_IDS, isFreeChampion, rotationWeek } from '../pawlegends-catalog';
+import { crossesAdultLine, isStickerId, phraseInScope, type ChatAgeBand } from '../../shared-contracts/chat';
+import { filterChatText } from '../../shared-contracts/chat-filter';
+import type { MemberChat } from './party.service';
 
 export interface RelayOptions {
     server: Server;
@@ -117,7 +122,54 @@ export interface RelayOptions {
      * champions; without it (specs, the harness) every hero is open.
      */
     champions?: (accountId: string) => Promise<readonly string[]>;
+    /**
+     * Friends chat (CHAT-AVATARS.md §5): resolve a ticketed account's chat side, store party lines, and receive DM
+     * notices. Production wires the Mongo models (party-relay.service.ts); without it (specs, harness) every member is
+     * quick tier with a default avatar and nothing is stored.
+     */
+    chat?: RelayChatHooks;
 }
+
+/** What the relay learns about an account for chat: never from the client. */
+export interface RelayChatInfo {
+    band: ChatAgeBand | null;
+    /** An active `chat_mute`: its end in ms, null = permanent; false = none. */
+    muted: number | null | false;
+    av?: MemberChat['av'];
+    /** Account ids this account blocked. */
+    blocked: string[];
+    /** Text chat paused until (ms) after 5 filter rejections (the API's cooldown row). */
+    cooldownUntil?: number;
+}
+
+/** One stored party line (registered senders only; guests' quick ids are delivered live, never stored). */
+export interface RelayChatLine {
+    _id: string;
+    thread: string;
+    from: string;
+    k: 't' | 'q' | 's';
+    text?: string;
+    id?: number;
+    at: Date;
+}
+
+export interface RelayChatHooks {
+    info(accountId: string): Promise<RelayChatInfo>;
+    /** Buffer a party line and the party's registered account ids (the ChatSink writes in batches). */
+    store?(line: RelayChatLine, members: string[]): void;
+    /** Subscribe to DM notices for accounts on this relay; returns the unsubscribe. */
+    onNotice?(fn: (n: { to: string; thread: string }) => void): () => void;
+}
+
+/** How long a member's resolved chat info is trusted before a party join refreshes it. */
+const CHAT_INFO_TTL_MS = 10 * 60_000;
+const CHAT_PHASES: ReadonlySet<string> = new Set(['lobby', 'pick', 'results']);
+/** A 24-hex message id (timestamp seconds + random), shaped like a Mongo ObjectId so the API can name it. */
+const chatMid = (nowMs: number) =>
+    Math.floor(nowMs / 1000)
+        .toString(16)
+        .padStart(8, '0')
+        .slice(-8) + randomBytes(8).toString('hex');
 
 /** CHAMPION-STORE.md §8.1: a member's owned champions are read again at most this often (after a refused pick). */
 export const CHAMPS_RELOAD_MS = 5000;
@@ -174,6 +226,8 @@ interface Sock {
     lastSyncMs: number;
     /** Social rate limit (1 per 2 s, 10 per 30 s; the client mirrors it). */
     social: SocialLimiter;
+    /** PROTO 5 party chat: send times in the last 10 s, filter strikes, the text cooldown, DM notices held in a match. */
+    chat?: { at: number[]; strikes: number[]; cooldownUntil: number; held: Set<string> };
     catchup: { bodies: Uint8Array[]; from: number; to: number; sentBytes: number; windowStartMs: number } | null;
     seatRoom: string | null;
     seatSlot: number;
@@ -276,6 +330,9 @@ export class PartyRelay {
     private readonly seatTaken = new Map<string, number>();
     /** Quick Play (M1A-IMPL.md §5.1): hooks into the matchmaker glue. */
     readonly mm: MmHooks;
+    /** Friends chat: each member's resolved chat side (by member id), and when it was resolved. */
+    private readonly chatInfo = new Map<string, MemberChat & { info: RelayChatInfo; atMs: number; account: string }>();
+    private chatUnsubscribe: (() => void) | null = null;
     private readonly upgrades: number[] = [];
     /** Failed joins: global (an alert only), per identity, per IP and per network (each one backs off only itself). */
     private readonly joinFails = {
@@ -358,10 +415,12 @@ export class PartyRelay {
                 changed: p => {
                     this.queueParty(p.id);
                     this.mm?.onPartyChanged(p);
+                    if (p.phase === 'lobby' || p.phase === 'results') this.flushNotices(p.members.map(m => m.id));
                 },
                 send: (member, msg) => this.sendJsonTo(member, msg),
                 startMatch: plan => void this.startMatch(plan),
                 ended: p => this.endPartyRow(p),
+                chatOf: member => this.chatInfo.get(member),
             },
             this.now
         );
@@ -372,6 +431,7 @@ export class PartyRelay {
         });
         this.scheduler.onAdvanced = room => this.afterAdvance(room);
         this.mm = (opts.mm ?? memoryMm({ rooms: new MemoryMmRoomStore(), ratings: null })).hooks(this.mmApi());
+        this.chatUnsubscribe = opts.chat?.onNotice?.(n => this.chatNotice(n.to, n.thread)) ?? null;
         this.upgradeHandler = (req, socket, head) => this.onUpgrade(req, socket, head);
         opts.server.on('upgrade', this.upgradeHandler);
         this.partyTimer = setInterval(() => {
@@ -630,6 +690,8 @@ export class PartyRelay {
             (PROTO3_FRAMES.has(String(msg.t)) || (msg.t === 'error' && PROTO3_ERRORS.has(String(msg.code))))
         )
             return;
+        // PROTO 4 and older never get a chat frame
+        if (s.proto < PROTO_CHAT && String(msg.t).startsWith('chat.')) return;
         if (s.ws.readyState === WebSocket.OPEN) s.ws.send(JSON.stringify(msg));
     }
 
@@ -994,6 +1056,7 @@ export class PartyRelay {
         memberId ??= this.parties.newMemberId();
         s.memberId = memberId;
         this.byMember.set(memberId, s);
+        this.resolveChat(s);
         const resumeToken = token128();
         this.setResume(memberId, hashKey(resumeToken), identity.key, s.ipKey);
         const party = this.parties.partyOf(memberId);
@@ -1106,7 +1169,10 @@ export class PartyRelay {
         if (!s.memberId || this.byMember.get(s.memberId) !== s) return;
         this.byMember.delete(s.memberId);
         // a member without a party (or a Quick Play entry) keeps nothing to resume
-        if (!this.parties.partyOf(s.memberId) && !this.mm.queued(s.memberId)) this.dropResume(s.memberId);
+        if (!this.parties.partyOf(s.memberId) && !this.mm.queued(s.memberId)) {
+            this.dropResume(s.memberId);
+            this.chatInfo.delete(s.memberId);
+        }
         this.parties.setConn(s.memberId, 'off');
         this.mm.onPresence(s.memberId, 'off');
         const live = s.seatRoom ? this.rooms.get(s.seatRoom) : undefined;
@@ -1217,12 +1283,14 @@ export class PartyRelay {
                 if (this.createRefused(s)) return this.error(s, 'rate_limited', 60_000);
                 this.countCreate(s);
                 p.create(member, s.identity!, msg.difficulty, s.hint);
+                this.resolveChat(s);
                 return;
             }
             case 'party.join': {
                 const wait = this.joinBlockedMs(s);
                 if (wait > 0) return this.error(s, 'rate_limited', Math.min(wait, PARTY_LIMITS.joinFailPerIp.windowMs));
                 if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
+                this.resolveChat(s);
                 return this.joinHere(s, msg.code, true);
             }
             case 'party.leave':
@@ -1270,6 +1338,13 @@ export class PartyRelay {
             }
             case 'social':
                 return this.social(s, msg);
+            case 'chat.say':
+                // PROTO 5 only: an older socket sending one is a malformed frame
+                if (s.proto < PROTO_CHAT) {
+                    this.error(s, 'bad_message');
+                    return this.strike(s);
+                }
+                return this.chatSay(s, msg);
             case 'sync': {
                 const live = this.seatOf(s) ?? this.finishedSeat(s);
                 if (!live) return;
@@ -1416,6 +1491,8 @@ export class PartyRelay {
         // dropped without a strike (an older client may know fewer lines)
         if (!socialIdOk(msg.kind, msg.id)) return;
         const now = this.now();
+        // a `chat_mute` sanction silences in-match quick chat too (pings and emotes stay)
+        if (msg.kind === 'chat' && s.memberId && this.chatMuted(s.memberId, now)) return;
         if (!s.social.allow(now)) return;
         const out: Record<string, unknown> = {
             t: 'social',
@@ -1437,6 +1514,154 @@ export class PartyRelay {
         for (const o of this.socketsOf(live)) {
             if (live.casual && msg.kind !== 'emote' && teamOfSlot(o.seatSlot, n) !== team) continue;
             this.sendJson(o, out);
+        }
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    // Friends chat (CHAT-AVATARS.md §5): party lines, the tier, DM notices
+    // -----------------------------------------------------------------------------------------------------------
+
+    /** Resolve (or refresh after 10 minutes) the chat side of a ticketed account; guests stay quick with no row. */
+    private resolveChat(s: Sock): void {
+        const member = s.memberId;
+        const id = s.identity;
+        if (!member || !id?.ticketed || id.guest || !id.accountId || !this.opts.chat) return;
+        const account = id.accountId;
+        const prev = this.chatInfo.get(member);
+        if (prev && prev.account === account && this.now() - prev.atMs < CHAT_INFO_TTL_MS) return;
+        void this.opts.chat
+            .info(account)
+            .then(info => {
+                if (s.memberId !== member) return;
+                const tier = info.band === '16-17' || info.band === '18+' ? 'text' : 'quick';
+                this.chatInfo.set(member, {
+                    tier,
+                    av: info.av,
+                    blocked: info.blocked,
+                    info,
+                    atMs: this.now(),
+                    account,
+                });
+                if (this.chatInfo.size > 50_000) this.chatInfo.delete(this.chatInfo.keys().next().value as string);
+                this.parties.chatChanged(member);
+            })
+            .catch(() => undefined);
+    }
+
+    private chatMuted(member: string, now: number): boolean {
+        const m = this.chatInfo.get(member)?.info.muted;
+        return m === null || (typeof m === 'number' && m > now);
+    }
+
+    /** `chat.say` (PROTO 5): one party line in the lobby, pick or results. Every check is the server's. */
+    private chatSay(s: Sock, msg: Extract<ClientJson, { t: 'chat.say' }>): void {
+        const member = s.memberId!;
+        const p = this.parties.partyOf(member);
+        if (!p) return;
+        const now = this.now();
+        const reject = (why: string, until?: number) =>
+            this.sendJson(s, until !== undefined ? { t: 'chat.reject', why, until } : { t: 'chat.reject', why });
+        if (!CHAT_PHASES.has(p.phase)) return reject('phase');
+        const c = (s.chat ??= { at: [], strikes: [], cooldownUntil: 0, held: new Set() });
+        c.at = c.at.filter(t => now - t < CHAT_SAY_RATE.windowMs);
+        if (c.at.length >= CHAT_SAY_RATE.perWindow) return reject('rate');
+        const info = this.chatInfo.get(member)?.info;
+        // a signed-in account whose mute, cooldown and blocks are not resolved yet says nothing until they are
+        const sid = s.identity;
+        if (this.opts.chat && sid?.ticketed && !sid.guest && sid.accountId && !info) {
+            this.resolveChat(s);
+            return reject('rate');
+        }
+        if (this.chatMuted(member, now))
+            return reject('muted', typeof info?.muted === 'number' ? info.muted : undefined);
+        const strangers = !!p.mm && p.mm.strangers.size > 0;
+        let text: string | undefined;
+        if (msg.k === 'q') {
+            if (msg.id === undefined || msg.text !== undefined || !phraseInScope(msg.id, strangers ? 'team' : 'party'))
+                return reject('scope');
+        } else if (msg.k === 's') {
+            if (msg.text !== undefined || !isStickerId(msg.id)) return reject('scope');
+        } else {
+            if (msg.id !== undefined || msg.text === undefined) return reject('scope');
+            const cooldown = Math.max(c.cooldownUntil, info?.cooldownUntil ?? 0);
+            if (cooldown > now) return reject('cooldown', cooldown);
+            if (this.parties.chatTier(p) !== 'text') return reject('quick_only');
+            const bands = p.members.map(m => this.chatInfo.get(m.id)?.info.band ?? null);
+            const checked = filterChatText(msg.text, { probes: crossesAdultLine(bands) });
+            if (!checked.ok) {
+                if (checked.why !== 'long' && checked.why !== 'empty') {
+                    c.strikes = c.strikes.filter(t => now - t < 10 * 60_000);
+                    c.strikes.push(now);
+                    if (c.strikes.length >= 5) {
+                        c.strikes = [];
+                        c.cooldownUntil = now + 10 * 60_000;
+                    }
+                }
+                return reject(checked.why === 'empty' ? 'long' : checked.why);
+            }
+            text = checked.text;
+        }
+        c.at.push(now);
+        const mid = chatMid(now);
+        const body = text !== undefined ? { text } : { id: msg.id };
+        const out = { t: 'chat.msg', mid, from: member, k: msg.k, ...body, at: now };
+        const me = p.members.find(m => m.id === member);
+        // a matchmade party (strangers): the own team only
+        const team = strangers && me ? this.parties.teamOfMember(p, me) : null;
+        // blocks are enforced here, not only hidden by the client: a line never reaches a member who blocked the
+        // sender, nor one the sender blocked
+        const fromAcc = s.identity?.accountId;
+        const mineBlocked = info?.blocked ?? [];
+        for (const m of p.members) {
+            if (team !== null && this.parties.teamOfMember(p, m) !== team) continue;
+            if (m.id !== member && fromAcc) {
+                const toAcc = m.identity.accountId;
+                if (toAcc && mineBlocked.includes(toAcc)) continue;
+                if (this.chatInfo.get(m.id)?.info.blocked.includes(fromAcc)) continue;
+            }
+            const o = this.byMember.get(m.id);
+            if (o) this.sendJson(o, out);
+        }
+        const id = s.identity;
+        if (this.opts.chat?.store && id?.ticketed && !id.guest && id.accountId) {
+            const members = p.members
+                .filter(m => m.identity.ticketed && !m.identity.guest && m.identity.accountId)
+                .map(m => m.identity.accountId as string);
+            this.opts.chat.store(
+                {
+                    _id: mid,
+                    thread: this.parties.chatThread(p),
+                    from: id.accountId,
+                    k: msg.k,
+                    ...body,
+                    at: new Date(now),
+                },
+                members
+            );
+        }
+    }
+
+    /** A DM for an account: tell its PROTO 5 sockets now, or hold it while they load or play a match. */
+    private chatNotice(account: string, thread: string): void {
+        for (const s of this.socks) {
+            if (!s.helloed || s.closed || s.proto < PROTO_CHAT || s.identity?.accountId !== account) continue;
+            const p = s.memberId ? this.parties.partyOf(s.memberId) : null;
+            if (s.seatRoom || (p && (p.phase === 'loading' || p.phase === 'match'))) {
+                const c = (s.chat ??= { at: [], strikes: [], cooldownUntil: 0, held: new Set() });
+                if (c.held.size < 20) c.held.add(thread);
+                continue;
+            }
+            this.sendJson(s, { t: 'chat.notice', thread });
+        }
+    }
+
+    /** Back in the lobby or on results: the DM notices held during the match. */
+    private flushNotices(members: readonly string[]): void {
+        for (const id of members) {
+            const s = this.byMember.get(id);
+            if (!s?.chat?.held.size || s.seatRoom) continue;
+            for (const thread of s.chat.held) this.sendJson(s, { t: 'chat.notice', thread });
+            s.chat.held.clear();
         }
     }
 
@@ -2306,6 +2531,8 @@ export class PartyRelay {
     async shutdown(): Promise<void> {
         if (this.state === 'stopped') return;
         this.mm.shutdown();
+        this.chatUnsubscribe?.();
+        this.chatUnsubscribe = null;
         const wasDraining = this.state === 'draining';
         this.state = 'stopped';
         if (this.loopTimer) clearInterval(this.loopTimer);

@@ -176,18 +176,18 @@ describe('feel pass B4: the Attack button', () => {
   it('takes an enemy hero within range + 1.5 m over a minion in range', () => {
     const me = unit(0, 'hero', 0, 20000, 10000);
     const range = 1700;
-    const hero = unit(3, 'hero', 1, 20000 + 500 + range + HERO_REACH_MM - 200, 10000);
+    const hero = unit(3, 'hero', 1, 20000 + 1000 + range + HERO_REACH_MM - 200, 10000);
     const minion = unit(20, 'minion', 1, 21500, 10000, 30);
     expect(attackPriority([me, hero, minion], me, 0, range)).toBe(3);
     // past that, the minion in range wins
-    const far = unit(3, 'hero', 1, 20000 + 500 + range + HERO_REACH_MM + 400, 10000);
+    const far = unit(3, 'hero', 1, 20000 + 1000 + range + HERO_REACH_MM + 400, 10000);
     expect(attackPriority([me, far, minion], me, 0, range)).toBe(20);
   });
 
   it('the hero reach never walks into an untanked enemy tower, and never beats a last hit in reach', () => {
     const me = unit(0, 'hero', 0, 20000, 10000);
     const range = 1700;
-    const hx = 20000 + 500 + range + HERO_REACH_MM - 100;
+    const hx = 20000 + 1000 + range + HERO_REACH_MM - 100;
     const hero = unit(3, 'hero', 1, hx, 10000);
     const minion = unit(20, 'minion', 1, 21500, 10000, 30);
     // an enemy tower 6 m behind the hero, no allied minion tanking it: the minion in range wins
@@ -199,7 +199,7 @@ describe('feel pass B4: the Attack button', () => {
     // a minion the next basic kills is the pick over a hero just out of range
     expect(attackPriority([me, hero, minion], me, 0, range, 7000, 'heroes', () => 50)).toBe(20);
     // a hero in range still beats the last hit
-    const near = unit(3, 'hero', 1, 20000 + 500 + range - 200, 10000);
+    const near = unit(3, 'hero', 1, 20000 + 1000 + range - 200, 10000);
     expect(attackPriority([me, near, minion], me, 0, range, 7000, 'heroes', () => 50)).toBe(3);
   });
 
@@ -226,7 +226,7 @@ describe('feel pass B4: the Attack button', () => {
     expect(melee).toBe(2800);
     expect(lockBreakMm(5500)).toBe(7500);
     expect(l.check([me, foe], me, 0, 10, melee)).toBe(3);
-    foe.x = 20000 + melee + 200;
+    foe.x = 20000 + melee + 1000 + 200;
     expect(l.check([me, foe], me, 0, 20, melee)).toBeNull();
     // a lock set from afar holds while the player closes in
     const l2 = new TargetLock();

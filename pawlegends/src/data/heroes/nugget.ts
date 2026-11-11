@@ -6,8 +6,8 @@ export const NUGGET: HeroData = Object.freeze<HeroData>({
   name: 'Nugget',
   side: 'dog',
   role: 'support',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9650 / takes 9425 (51.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9325 (49.8% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9550. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8400 / takes 10125. */
-  pvp: { dmgBp: 8400, takenBp: 10125 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9650 / takes 9425 (51.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8825 / takes 9325 (49.8% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9550. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8400 / takes 10125. Sim v20 refit on four seed windows (V20-CHASE.md §9): 8385 / 10140 → 8495 / 9730. */
+  pvp: { dmgBp: 8495, takenBp: 9730 },
   element: 'FAIRY',
   base: { hp: 540, hpPerLevel: 56, attack: 50, attackPerLevel: 5, attackEvery: 29, range: 4800, speed: 4900, armour: 20, armourPerLevel: 2 },
   /** Treat Pouch: every 8 s his next basic on an enemy hero tosses a treat to the lowest-HP-share allied hero within 6 m (him too): heals 30 (+5/lvl). */

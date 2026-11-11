@@ -39,7 +39,7 @@ const roles = (side: 'cat' | 'dog'): Record<HeroRole, number> => {
 
 describe('sim v15: ten dogs', { timeout: 300000 }, () => {
   it('SIM_VERSION 15, PARTY_SINCE 13; 20 heroes, 10 a side with the same roles; the three new dogs at 17..19', () => {
-    expect(SIM_VERSION).toBe(19);
+    expect(SIM_VERSION).toBe(20);
     expect(PARTY_SINCE).toBe(13);
     expect(HERO_IDS).toHaveLength(20);
     expect(HERO_IDS.slice(17)).toEqual([...NEW_DOGS]);

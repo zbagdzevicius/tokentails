@@ -34,6 +34,8 @@ import { hideNames } from '../meta/partyPrefs';
 import type { SeatInfo } from '../app/mpTypes';
 import type { SlotStats } from '../sim/api';
 import { againLabel, partyRows, partyRowsHtml } from './ui/partyResults';
+import { PartyChat } from './ui/partyChat';
+import type { AvatarView, ChatReportKind } from '../data/chatPhrases';
 
 // ------------------------------------------------------------------------------------------------ the reducer
 
@@ -594,7 +596,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
 export function seatsOf(v: PartyView): SeatInfo[] {
   return v.members
     .filter((m) => typeof m.slot === 'number' && m.slot >= 0 && m.slot < 6)
-    .map((m) => ({ slot: m.slot!, name: m.id === v.you ? (m.ownName ?? m.name) : m.name, conn: m.conn, art: cleanArt(m.card?.image) ?? null }));
+    .map((m) => ({ slot: m.slot!, name: m.id === v.you ? (m.ownName ?? m.name) : m.name, conn: m.conn, art: cleanArt(m.card?.image) ?? null, ...(m.av ? { av: m.av } : {}) }));
 }
 
 // ------------------------------------------------------------------------------------------------ the client
@@ -641,6 +643,10 @@ export interface PartyHooks {
   startSolo(difficulty: string): void;
   /** The rail of the running match (in-match notes). */
   notify(n: NetNote): void;
+  /** Report a party chat line (CHAT-AVATARS.md §2.7; the host's `chat.report`); absent: no Report on lines. */
+  chatReport?(mid: string, kind: ChatReportKind): Promise<boolean>;
+  /** A friend sent a DM (PROTO 5 `chat.notice`, the opaque thread id): an open thread fetches now, the badge counts it. */
+  dmNotice?(thread: string): void;
   /** The party closed: back to the title. */
   close(): void;
   /** The invite URL for a code (the embed URL, D12). */
@@ -704,6 +710,8 @@ export class PartyClient {
   private closed = false;
   private readonly now: () => number;
   private readonly unwatch: () => void;
+  /** Party and team chat (CHAT-AVATARS.md §6.3): the strip over the lobby, the pick and results. */
+  private readonly chat: PartyChat;
 
   constructor(
     private readonly h: PartyHooks,
@@ -723,6 +731,12 @@ export class PartyClient {
     this.notes = this.el.firstElementChild as HTMLElement;
     this.card = this.el.lastElementChild as HTMLElement;
     h.root.appendChild(this.el);
+    this.chat = new PartyChat(this.el, {
+      send: (msg) => this.socket.sendJson(msg),
+      ...(h.chatReport ? { report: h.chatReport } : {}),
+      hideNames: () => hideNames(),
+      wide: () => typeof window !== 'undefined' && window.innerWidth >= 1000 && window.innerHeight > 520,
+    });
     this.el.addEventListener('click', (e) => this.onClick(e));
     this.el.addEventListener('change', (e) => this.onChange(e));
     this.el.addEventListener('keydown', (e) => this.onKey(e));
@@ -740,6 +754,13 @@ export class PartyClient {
     this.socket.tap({
       json: (m) => {
         if (m.t === 'welcome' && this.connectMs === null) this.connectMs = Math.max(0, Math.round(this.now() - this.bornAt));
+        // PROTO 5 chat frames never reach the party reducer
+        if (m.t === 'chat.notice') {
+          if (!this.state.inMatch) this.note({ key: 'pp-dm', title: COPY.dmNotice, tone: 'info', ttl: 4000 });
+          this.h.dmNotice?.(typeof m.thread === 'string' ? m.thread : '');
+          return;
+        }
+        if (this.chat.onFrame(m as unknown as { t: string } & Record<string, unknown>)) return;
         this.dispatch({ e: 'server', m });
       },
       state: (s) => {
@@ -1135,8 +1156,10 @@ export class PartyClient {
     const v = this.state.view;
     const art: (string | null)[] = [null, null, null, null, null, null];
     if (v) for (const s of seatsOf(v)) art[s.slot] = s.art;
+    const avs: (AvatarView | undefined)[] = [];
+    if (v) for (const m of v.members) if (m.slot !== undefined && m.av) avs[m.slot] = m.av;
     return partyRowsHtml(
-      partyRows({ stats, mySlot, partyNames: end.names ?? [], baseNames, pilotPct: end.pilotPct ?? [], art, hide: hideNames() }),
+      partyRows({ stats, mySlot, partyNames: end.names ?? [], baseNames, pilotPct: end.pilotPct ?? [], art, avs, hide: hideNames() }),
     );
   }
 
@@ -1603,6 +1626,7 @@ export class PartyClient {
     if (screen !== 'pick') closeChampInfo();
     const err = s.error ? errorText(s.error.code, Math.ceil((s.error.retryMs ?? 0) / 1000)) : null;
     this.el.dataset.screen = screen;
+    this.chat.sync(s.view, screen);
     let html = '';
     switch (screen) {
       case 'match':
@@ -1698,6 +1722,7 @@ export class PartyClient {
     if (this.closed) return;
     this.closed = true;
     closeChampInfo();
+    this.chat.dispose();
     rememberParty(null);
     if (this.timer) clearInterval(this.timer);
     if (this.decideTimer) clearTimeout(this.decideTimer);

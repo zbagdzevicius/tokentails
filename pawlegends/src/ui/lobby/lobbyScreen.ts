@@ -33,6 +33,7 @@ import { cardFrame } from '../cards/frame';
 import { cardAttrs } from '../cards/el';
 import type { Choice } from '../screens';
 import { cssDataUrl, cssUrl } from '../deck/cssUrl';
+import { bindVersionMark, versionMarkHtml } from '../versionMark';
 
 const esc = (s: string): string => s.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] as string);
 const cssHex = (n: number): string => `#${n.toString(16).padStart(6, '0')}`;
@@ -388,6 +389,7 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
       ${railHtml(o, returning)}
     </div>
     ${peekHtml(o, live)}
+    ${versionMarkHtml()}
     <div class="pl-corner lb-corner">
       ${o.onExit ? `<button type="button" class="lb-icon wide lb-exit" data-a="exit" data-testid="lobby-exit" aria-label="Back to Token Tails games" title="Back to Token Tails games">${EXIT}<span>Games</span></button>` : ''}
       ${firstHidesBadge(o) ? '' : badgeHtml(o.frame, o.title, o.portrait, id.element)}
@@ -557,6 +559,8 @@ export function lobbyScreen(parent: HTMLElement, o: LobbyScreenOpts): HTMLElemen
     ac?.abort();
     document.removeEventListener('keydown', onKey);
   });
+  // the release watermark (ui/versionMark.ts): a tap copies it; the app shell's native info fills in when it arrives
+  bindVersionMark(root, ac?.signal);
   parent.appendChild(root);
   // integrate: the card peek's Nature stylesheet stays out of the first load; the fan shows once it is in (QA: the
   // front card flashed without its Nature styling)
