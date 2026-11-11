@@ -115,6 +115,28 @@ describe('party chat (PROTO 5)', () => {
         }
     });
 
+    it('blocks are enforced by the relay: no line reaches a member who blocked the sender, or one the sender blocked', async () => {
+        const b = await boot({
+            'acct-a': { band: '18+', blocked: ['acct-b'] },
+            'acct-b': { band: '18+' },
+            'acct-c': { band: '18+' },
+        });
+        try {
+            const [a, c, d] = await party(b, { account: 'acct-a' }, { account: 'acct-b' }, { account: 'acct-c' });
+            await a.until(() => a.last('party')?.chat?.tier === 'text');
+            c.send({ t: 'chat.say', k: 's', id: 1 });
+            await d.until(() => msgs(d)[0]);
+            a.send({ t: 'chat.say', k: 's', id: 2 });
+            await d.until(() => msgs(d).length === 2);
+            await settle();
+            // A blocked B: A never receives B's line, B never receives A's
+            expect(msgs(a).map(m => m.id)).toEqual([2]);
+            expect(msgs(c).map(m => m.id)).toEqual([1]);
+        } finally {
+            await b.stop();
+        }
+    });
+
     it('a guest makes the party quick: text refused, party phrases and stickers work, DM-only phrases are out of scope', async () => {
         const b = await boot({ 'acct-a': { band: '18+' } });
         try {

@@ -143,7 +143,7 @@ export function parseChatBody(body: unknown): ChatBody | null {
 export class ChatService {
     readonly limiter = new ChatLimiter();
     /** The relay's ChatSink buffer (same process): a report may name a party message before it is flushed. */
-    private pendingLookup: ((mid: string) => MessageRow | null) | null = null;
+    private pendingLookup: ((mid: string) => (MessageRow & { members?: string[] }) | null) | null = null;
 
     constructor(
         @InjectModel(PawlegendsChatThread.name) readonly threads: AnyModel,
@@ -165,7 +165,7 @@ export class ChatService {
     }
 
     /** Set by the relay wiring: party messages still in the ChatSink buffer. */
-    setPendingLookup(fn: ((mid: string) => MessageRow | null) | null) {
+    setPendingLookup(fn: ((mid: string) => (MessageRow & { members?: string[] }) | null) | null) {
         this.pendingLookup = fn;
     }
 
@@ -571,15 +571,13 @@ export class ChatService {
                 throw CHAT_ERRORS.invalid('note');
             note = input.note.replace(/[\u0000-\u001f\u007f]/g, ' ').trim() || undefined;
         }
-        let msg = (await this.messages.findById(input.msg).lean()) as MessageRow | null;
+        let msg = (await this.messages.findById(input.msg).lean()) as (MessageRow & { members?: string[] }) | null;
         if (!msg && this.pendingLookup) msg = this.pendingLookup(input.msg);
         if (!msg) throw CHAT_ERRORS.notFound();
         const thread = (await this.threads.findById(msg.thread).lean()) as ThreadRow | null;
-        const members = thread?.members ?? [];
-        if (!members.includes(reporter)) {
-            // a party message still in the sink: the reporter must be in that party (the relay checked the thread id)
-            if (thread || !this.pendingLookup) throw CHAT_ERRORS.notFound();
-        }
+        // a party line still in the sink carries the party's registered accounts: only they may report it
+        const members = [...(thread?.members ?? []), ...(msg.members ?? [])];
+        if (!members.includes(reporter)) throw CHAT_ERRORS.notFound();
         if (msg.from === reporter) throw CHAT_ERRORS.invalid('own message');
         const now = this.now();
         const band = await this.bandOf(reporter);

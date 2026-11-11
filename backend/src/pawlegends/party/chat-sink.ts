@@ -27,7 +27,7 @@ export interface ChatSinkWriters {
 
 export class ChatSink {
     private buffer: Array<{ line: RelayChatLine; members: string[] }> = [];
-    private inFlight: RelayChatLine[] = [];
+    private inFlight: Array<{ line: RelayChatLine; members: string[] }> = [];
     private timer: NodeJS.Timeout | null = null;
     private busy = false;
     errors = 0;
@@ -59,7 +59,12 @@ export class ChatSink {
 
     /** A line not yet written (the report route's fallback). */
     pending(mid: string): RelayChatLine | null {
-        return this.buffer.find(b => b.line._id === mid)?.line ?? this.inFlight.find(l => l._id === mid) ?? null;
+        return this.pendingEntry(mid)?.line ?? null;
+    }
+
+    /** A line not yet written with the party's registered account ids (who may report it). */
+    pendingEntry(mid: string): { line: RelayChatLine; members: string[] } | null {
+        return this.buffer.find(b => b.line._id === mid) ?? this.inFlight.find(b => b.line._id === mid) ?? null;
     }
 
     async flush(): Promise<number> {
@@ -67,7 +72,7 @@ export class ChatSink {
         this.busy = true;
         const batch = this.buffer;
         this.buffer = [];
-        this.inFlight = batch.map(b => b.line);
+        this.inFlight = batch;
         try {
             await this.writers.messages.insertMany(
                 batch.map(({ line }) => ({ ...line, exp: new Date(line.at.getTime() + RETAIN_MS) })),
