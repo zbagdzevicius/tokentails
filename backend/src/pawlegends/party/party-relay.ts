@@ -121,6 +121,11 @@ export interface RelayOptions {
 
 /** CHAMPION-STORE.md §8.1: a member's owned champions are read again at most this often (after a refused pick). */
 export const CHAMPS_RELOAD_MS = 5000;
+/**
+ * An owned (not free) champion is picked on a cached answer at most this old; an older one is read again first, so a
+ * refund or a chargeback (the purchase row revoked) stops being playable online without a relay restart.
+ */
+export const CHAMPS_MAX_AGE_MS = 10 * 60_000;
 const CHAMPS_CACHE_MAX = 20_000;
 
 /** What started a drain (LIVE-MATCH-DEPLOYS.md §4.1); a later trigger only makes it more final. */
@@ -437,7 +442,12 @@ export class PartyRelay {
         const party = this.parties.partyOf(member);
         const identity = s.identity;
         const account = identity?.ticketed ? identity.accountId : null;
-        if (!party || !identity || !account || this.championAllowed(party.rotationWeek, identity, hero)) return apply();
+        if (!this.opts.champions || !party || !identity || !account) return apply();
+        const week = party.rotationWeek ?? rotationWeek(this.now());
+        const owns = CHAMPION_IDS.includes(hero) && !isFreeChampion(hero, week);
+        const e = this.champs.get(account);
+        const stale = owns && (!e || this.now() - e.atMs >= CHAMPS_MAX_AGE_MS);
+        if (!stale && this.championAllowed(party.rotationWeek, identity, hero)) return apply();
         void this.loadChamps(account).then(() => {
             if (s.memberId === member && !s.closed) apply();
         });

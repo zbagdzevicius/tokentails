@@ -544,11 +544,26 @@ export class App {
     return (STARTERS.find((h) => (HERO_IDS as readonly string[]).includes(h) && HEROES[h as HeroId].side === side) ?? 'clem') as HeroId;
   }
 
-  /** The lobby's hero stays one the player may pick (a rotation week ended, a refund, sign-out). */
+  /**
+   * The lobby's hero stays one the player may pick (a rotation week ended, a refund, sign-out). A swap made before the
+   * host's champions arrived (the page opens on the starters and the rotation) is undone once the hero is playable
+   * again, so a Founders roster or an owned champion keeps the lobby on the player's own hero.
+   */
   private keepPlayable(): void {
+    const back = this.swapped;
+    if (back && this.choice.hero === back.to && this.playable(back.from)) {
+      this.swapped = null;
+      this.choice = { ...this.choice, hero: back.from };
+      return;
+    }
     const h = this.playableHero(this.choice.hero);
-    if (h !== this.choice.hero) this.choice = { ...this.choice, hero: h };
+    if (h === this.choice.hero) return;
+    this.swapped = { from: back && this.choice.hero === back.to ? back.from : this.choice.hero, to: h };
+    this.choice = { ...this.choice, hero: h };
   }
+
+  /** The hero keepPlayable swapped away from (`from`) and the one it put on the lobby (`to`). */
+  private swapped: { from: HeroId; to: HeroId } | null = null;
 
   /** CHAMPION-STORE.md §8.6: ask the host to unlock `h` with Yarn or a Champion Pick (it answers a fresh `store`). */
   private unlockChamp(h: HeroId, via: 'yarn' | 'pick'): void {
@@ -966,6 +981,7 @@ export class App {
           sfx.voice(nameLine(h), { sting: false });
           const prev = this.choice.hero;
           this.choice = { ...this.choice, hero: h };
+          this.swapped = null;
           this.setLobbyHero(h);
           // sim v14: the picked hero, its side and the last hero per side (the hero left behind on the other side too)
           // are remembered, so a reload opens on the same side and hero
@@ -1265,6 +1281,8 @@ export class App {
 
   private startMatch(pick: Choice, seed?: number, practice = false): void {
     this.beforeTry = null;
+    // the player chose this match's hero: a pending keepPlayable swap is not undone after it
+    this.swapped = null;
     // CHAMPION-STORE.md §6: a locked champion plays only as Practice (asked for on the pick, or a dare's hero): the
     // match saves nothing. Any other start swaps a locked hero for a playable one (the lobby's quick Play).
     if (!this.playable(pick.hero)) {
