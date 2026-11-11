@@ -86,6 +86,9 @@ export class PartyChat {
 
   /** A `chat.*` frame from the relay. Returns true when it was one. */
   onFrame(m: { t: string } & Record<string, unknown>): boolean {
+    // PROTO 6 in-match lines (a channel and a slot) are the match's own (app/matchChat.ts via NetHost)
+    if (m.t === 'chat.msg' && m.ch !== undefined) return true;
+    if (m.t === 'chat.reject' && this.view?.phase === 'match') return true;
     if (m.t === 'chat.msg') {
       const line: PartyLine = {
         mid: String(m.mid ?? ''),

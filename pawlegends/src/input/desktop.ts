@@ -45,6 +45,14 @@ export interface InputHost {
   ping?(kind: number, x: number, y: number, id: number): void;
   /** The own hero in the newest snapshot (mm) and its tick, ahead of the drawn one; null before the first. */
   simMe?(): { x: number; y: number; tick: number } | null;
+  /** MATCH-CHAT.md §4.2: the chat composer has focus; no game key fires while it does. */
+  isTyping?(): boolean;
+}
+
+/** A key typed into a text field (the chat composer, a form) is never a game key (MATCH-CHAT.md §4.2). Pure. */
+export function typingTarget(t: EventTarget | null): boolean {
+  const el = t as { tagName?: string; isContentEditable?: boolean } | null;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable === true);
 }
 
 const CAST_ACTIONS: Partial<Record<Action, CastIndex>> = { q: 0, w: 1, e: 2, r: 3, trick: 4 };
@@ -265,6 +273,8 @@ export class DesktopInput {
 
   private keyDown(e: KeyboardEvent): void {
     if (e.ctrlKey || e.metaKey || e.altKey) return;
+    // the isTyping guard: Q W E R, B, T and the rest type letters into the chat, they never cast
+    if (this.h.isTyping?.() || typingTarget(e.target)) return;
     const a = actionFor(e.code);
     if (e.code.startsWith('Arrow')) {
       this.keys.add(e.code);

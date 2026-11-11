@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { closeAll, mpNames, partyMatch, player, pushed, shot, tap } from './party.helpers';
+import { chatSaid, closeAll, mpNames, partyMatch, player, pushed, shot, tap } from './party.helpers';
 
 test.afterEach(closeAll);
 
@@ -58,14 +58,15 @@ test('identity, social pings, quick chat and mute between a desktop, an 844x390 
   expect(await pushed(a)).toContain('Group on me');
   await shot(a, 'lane-M', '02-ping-from-friend');
 
-  // M3: quick chat from the phone: "On my way" on the leader's rail, the wheel on the phone
+  // M3: quick chat from the phone: "On my way" in the leader's chat ticker (MATCH-CHAT.md §4.1; the rail before), the wheel on the phone
   await b.page.waitForTimeout(2100);
   await tap(b, b.page.locator('.pl-chatbtn'));
   await expect(b.page.locator('.pl-chatwheel.on')).toBeVisible();
   await shot(b, 'lane-M', '03-chat-wheel');
   await tap(b, b.page.locator('.pl-chatwheel .cw[data-kind="chat"][data-id="1"]'));
-  await expect.poll(() => pushed(a), { timeout: 5000 }).toContain('On my way');
-  await expect.poll(() => pushed(c), { timeout: 5000 }).toContain('On my way');
+  await expect.poll(() => chatSaid(a), { timeout: 5000 }).toContain('On my way');
+  await expect.poll(() => chatSaid(c), { timeout: 5000 }).toContain('On my way');
+  expect(await pushed(a)).not.toContain('On my way');
   await shot(c, 'lane-M', '04-chat-on-rail');
   // an emote from the small phone shows over its hero for the others
   await c.page.waitForTimeout(2100);
@@ -87,6 +88,6 @@ test('identity, social pings, quick chat and mute between a desktop, an 844x390 
   await b.page.waitForTimeout(2100);
   await tap(b, b.page.locator('.pl-chatbtn'));
   await tap(b, b.page.locator('.pl-chatwheel .cw[data-kind="chat"][data-id="7"]'));
-  await expect.poll(() => pushed(c), { timeout: 5000 }).toContain(': GG');
-  expect(await pushed(a)).not.toContain(': GG');
+  await expect.poll(() => chatSaid(c), { timeout: 5000 }).toContain(': GG');
+  expect(await chatSaid(a)).not.toContain(': GG');
 });

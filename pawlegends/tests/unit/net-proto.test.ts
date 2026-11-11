@@ -41,8 +41,8 @@ const turn: TurnFrame = {
 };
 
 describe('net-proto', () => {
-  it('PROTO is 5 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
-    expect(PROTO).toBe(5);
+  it('PROTO is 6 (PROTO_MIN 1) and the command size table equals the sim\'s', () => {
+    expect(PROTO).toBe(6);
     for (let op = 1; op < CMD_SIZE.length; op++) expect(CMD_SIZE[op]).toBe(OP_SIZE[op]);
     expect(Object.keys(OP_SIZE)).toHaveLength(CMD_SIZE.length - 1);
   });

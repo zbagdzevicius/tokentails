@@ -118,6 +118,18 @@ export interface PausedMsg {
 
 export type SlotReasonText = 'drop' | 'afk' | 'away' | 'late' | 'left' | 'back' | 'desync' | 'restore' | 'open';
 
+/** PROTO 6: one in-match chat line from the relay (MATCH-CHAT.md §3): the sender's slot, never a member id. */
+export interface MatchChatMsg {
+  mid: string;
+  slot: number;
+  ch: 'team' | 'all';
+  k: 't' | 'q';
+  text?: string;
+  id?: number;
+  /** This player's own line coming back. */
+  mine: boolean;
+}
+
 export interface PartyLinkListener {
   /** TURN mode bits changed: bit s = slot s flown by a bot. */
   mask?(mask: number, prev: number): void;
@@ -130,6 +142,10 @@ export interface PartyLinkListener {
   seats?(seats: readonly SeatInfo[]): void;
   /** This player's own hero came back from a bot after `seconds`. */
   covered?(seconds: number): void;
+  /** PROTO 6 in-match chat: a line, a refusal of this player's line, the own team's tier changed. */
+  chat?(m: MatchChatMsg): void;
+  chatReject?(why: string, until?: number): void;
+  chatTier?(tier: 'text' | 'quick'): void;
 }
 
 /** The party side of a match host (NetHost). */
@@ -154,6 +170,10 @@ export interface PartyLink {
   nameOf: (slot: number) => string;
   /** Network numbers for analytics (`mp_net`) and the in-match ping chip. */
   net(): NetNumbers;
+  /** PROTO 6 (MATCH-CHAT.md §3): send a team or all line; false when refused here (the relay's rate mirrored). */
+  chat?(ch: 'team' | 'all', body: { k: 't'; text: string } | { k: 'q'; id: number }): boolean;
+  /** This seat's team chat tier (the party view's `chat.match`); 'quick' until the relay says. */
+  readonly chatTier?: 'text' | 'quick';
 }
 
 /**

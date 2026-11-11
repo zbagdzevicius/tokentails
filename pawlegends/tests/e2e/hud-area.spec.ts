@@ -5,7 +5,7 @@ import { seedSide } from './helpers';
 // target-lock row full, the last-hit and tower buttons up, R still a ghost chip), the union of painted HUD boxes (1 px
 // raster) stays under its target, and nothing persistent sits in the play area around the hero (18–60% across, 12–78%
 // down). Transient lines (rail notes, pops, toasts, the kill feed) and the joystick (drawn only under the thumb) are
-// not counted. Before the pass: 29.7% at 667x375 and 27.8% at 844x390 (centre band 19.3% / 15.9%).
+// not counted (MATCH-CHAT.md §4.1: the chat ticker and drawer are transient too). Before the pass: 29.7% at 667x375 and 27.8% at 844x390 (centre band 19.3% / 15.9%).
 //
 // The plan's targets were estimates (≤ 19% / ≤ 16%; centre band ≤ 4% / 3%). With the plan's exact sizes the measure is
 // 19.4% / 15.9%, centre band 8.5% / 5.1%: the 667x375 total misses its estimate by 0.4 point, and the centre band
@@ -21,7 +21,7 @@ async function measure(page: Page): Promise<{ total: number; centre: number; pla
     const gw = Math.ceil(W / S);
     const gh = Math.ceil(H / S);
     const all = new Uint8Array(gw * gh);
-    const skip = '.pl-rail, .pl-pops, .pl-basetoast, .pl-flash, .pl-punch, .pl-feed, .pl-stick, .pl-aimring, .pl-cancel, .pl-slot-tip, canvas.pl-overhead, .pl-loading, .tt-vs, .pl-backin, .pl-respawn, .lol-nap';
+    const skip = '.pl-rail, .pl-pops, .pl-basetoast, .pl-flash, .pl-punch, .pl-feed, .pl-stick, .pl-aimring, .pl-cancel, .pl-slot-tip, canvas.pl-overhead, .pl-loading, .tt-vs, .pl-backin, .pl-respawn, .lol-nap, .pl-chatline, .pl-chatdrawer';
     const effOpacity = (el: Element): number => {
       let o = 1;
       for (let e: Element | null = el; e && e !== document.body; e = e.parentElement) o *= Number(getComputedStyle(e).opacity);

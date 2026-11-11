@@ -72,6 +72,7 @@ import { bannerNote } from '../render/juice';
 import { menuScreen, RESULTS_AFTER_END_MS } from '../ui/screens';
 import { CoreLog, endCause, type CoreSource } from './endCause';
 import { TalentPicker } from '../ui/talents';
+import { MatchChat } from './matchChat';
 
 /** LoL pass (lane B): the end crest shows this long after the core falls (the camera eases there first), holds
  * CREST_HOLD_MS (QA v2 #4: 1.6 s was too short to read), and the results wait CREST_EXTRA_MS longer than
@@ -162,6 +163,8 @@ export interface MatchSetup {
     pvp?: boolean;
     /** PvP reports (SOCIAL-RANKED.md §8): this match's report book (the scoreboard flags and the results flags). */
     report?: import('../social/report').ReportBook | null;
+    /** MATCH-CHAT.md §3: report an in-match chat line (the host's `chat.report`); absent: no Report on lines. */
+    chatReport?: (mid: string, kind: import('../data/chatPhrases').ChatReportKind) => Promise<boolean>;
   };
 }
 
@@ -395,6 +398,9 @@ export class MatchSession {
   private names: string[] = [];
   /** Party play (lane M): the party HUD (its own lazy chunk), once loaded. */
   private mp: import('./mpHud').MpHud | null = null;
+  /** MATCH-CHAT.md: the in-match chat (ticker, drawer) and, solo, the bot chatter. */
+  private chat: MatchChat | null = null;
+  private chatKeysOff: (() => void) | null = null;
   /** Count of real input events (analytics human filter). */
   activity = 0;
   /** The player's hits that landed (e2e telemetry). */
@@ -661,6 +667,7 @@ export class MatchSession {
       view: this.view,
       orders: this.orders,
       enabled: () => !this.ended && !this.paused && !this.talentsBlock(),
+      isTyping: () => this.chat?.isTyping() ?? false,
       units: () => this.units,
       onScoreboard: (on) => {
         this.scoreOn = on;
@@ -797,6 +804,7 @@ export class MatchSession {
       this.showScores(false);
     });
     this.mountTouchChrome();
+    this.mountChat(w);
     if (this.setup.party) this.mountParty(w);
     this.talents = new TalentPicker(this.ui, hero, (tier, choice) => {
       this.orders?.talent(tier, choice);
@@ -1484,6 +1492,39 @@ export class MatchSession {
   }
 
   /**
+   * MATCH-CHAT.md §4: the in-match chat for every match. A party match talks through the link (PROTO 6); a solo match
+   * runs the bot chatter here (bots sometimes type ordinary match talk; Rookie match 1 stays quiet). Desktop: Enter
+   * opens the composer, Shift+Enter all chat.
+   */
+  private mountChat(w: WelcomeMsg): void {
+    const link = (this.host as { party?: import('./mpTypes').PartyLink }).party ?? null;
+    const teamSize = w.map === 'hearthwood' ? 5 : 3;
+    const sideOf = (slot: number): 'cat' | 'dog' => (HEROES[w.picks[slot]]?.side === 'dog' ? 'dog' : 'cat');
+    this.chat = new MatchChat({
+      ui: this.ui,
+      touch: document.documentElement.dataset.touch === '1' || coarsePointer(),
+      mySlot: w.slot,
+      myTeam: w.team === 1 ? 1 : 0,
+      teamSize,
+      sides: [sideOf(0), sideOf(teamSize)],
+      map: w.map ?? 'crossing',
+      names: () => this.names,
+      link,
+      ...(link ? {} : { solo: { seed: w.seed, silent: this.setup.difficulty === 'rookie' } }),
+      ...(link && this.setup.party?.chatReport ? { report: this.setup.party.chatReport } : {}),
+      mute: (slot) => this.mp?.toggleMute(slot),
+      isMuted: (slot) => this.mp?.isMuted(slot) ?? false,
+      tick: () => this.buffer.latest?.clock.tick ?? 0,
+      e2e: this.e2e,
+    });
+    const onKey = (e: KeyboardEvent): void => {
+      if (this.chat?.key(e, !this.ended && !this.menu && !this.talentsBlock())) e.stopPropagation();
+    };
+    addEventListener('keydown', onKey);
+    this.chatKeysOff = () => removeEventListener('keydown', onKey);
+  }
+
+  /**
    * Party play (MULTIPLAYER.md §7, lane M): load the party HUD chunk and hand it the views it decorates. Until it
    * lands (a few ms) the NetHost's own rail notes stand in.
    */
@@ -1534,6 +1575,7 @@ export class MatchSession {
             track: (event, props) => this.hooks.track?.(event, props),
             tick: () => this.buffer.latest?.clock.tick ?? 0,
             report: this.setup.party?.report ?? null,
+            chat: this.chat,
           },
           link,
           { hideNames: this.setup.party?.hideNames === true },
@@ -1629,6 +1671,7 @@ export class MatchSession {
     // party play (M8): mp_match_end with the bot share of this player's turns; the save status stays private
     const pe = (replay as { party?: { scored: boolean | null } }).party;
     this.mp?.ended(result.outcome, result.reason, pe?.scored ?? null);
+    this.chat?.end(result.winner === 1 ? 1 : 0);
     // LoL pass (lane B): the result is a prio 0 rail note (data-said), said by the announcer, then the crest
     this.view.juice.banner({ title: won ? 'Victory!' : 'Defeat', tone: won ? 'good' : 'bad', urgent: true });
     sfx.voice(won ? 'victory' : 'defeat');
@@ -1818,6 +1861,8 @@ export class MatchSession {
         continue;
       }
       if (m.size === 'bark') {
+        // MATCH-CHAT.md §5.1: a bot that barks does not also type within 10 s
+        this.chat?.bark(m.slot ?? -1);
         // GAPS A6: the ally's line over that ally (the other ally when it is down or off screen; else nothing)
         const at = this.barkScreen(m.slot ?? -1);
         // GAPS B1: an answer to a ping is said by that ally (over it, or in the feed when it is off screen)
@@ -2118,6 +2163,9 @@ export class MatchSession {
       this.events.length = 0;
       for (const ev of this.buffer.takeEvents(this.events)) {
         this.view.effects.handle(ev);
+        // MATCH-CHAT.md §5.1 solo: the bot chatter's cues (read only); the drawer folds away when the player dies
+        this.chat?.event(ev);
+        if (ev.type === 'death' && ev.id === this.view.mySlot) this.chat?.closeDrawer();
         this.feelEvent(ev);
         this.minimap.event(ev);
         const a = this.announcer;
@@ -2181,6 +2229,7 @@ export class MatchSession {
           if (dst && dst.team !== this.view.myTeam) this.tips.complete('attack');
         }
       }
+      this.chat?.frame(frame.latest.entities);
       this.tipTriggers(frame);
       this.objClock?.frame(frame.latest.entities, frame.latest.clock, frame.latest);
       this.goalTick(frame);
@@ -2828,6 +2877,10 @@ export class MatchSession {
     this.chromeOff?.();
     this.mp?.dispose();
     this.mp = null;
+    this.chatKeysOff?.();
+    this.chatKeysOff = null;
+    this.chat?.dispose();
+    this.chat = null;
     this.hud?.dispose();
     this.scoreboard?.dispose();
     this.talents?.dispose();

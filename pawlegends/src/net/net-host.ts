@@ -12,7 +12,7 @@ import { Op, type Command, type HeroId, type MatchResult, type PartyReplayRecord
 import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
-import { Frame, SocialLimiter, catchupBodies, clampSocialPoint, socialIdOk, type MatchMsg, type ServerBinary, type ServerJson, type SocialKind, type VoteKind } from './proto';
+import { CHAT_SAY_MAX_TEXT, CHAT_SAY_RATE, Frame, MAX_HUMANS as SLOT_COUNT_WIRE, SocialLimiter, catchupBodies, clampSocialPoint, socialIdOk, type MatchMsg, type ServerBinary, type ServerJson, type SocialKind, type VoteKind } from './proto';
 import type { NetNumbers, PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
 import { socialLine } from '../data/social';
 import type { PartySocket } from './socket';
@@ -212,6 +212,27 @@ export class NetHost implements PartyLink {
 
   vote(kind: VoteKind, yes: boolean): void {
     this.socket.sendJson({ t: 'vote', kind, yes });
+  }
+
+  /** PROTO 6 in-match chat (MATCH-CHAT.md §3): the relay checks everything again; this mirrors its rate only. */
+  private chatSent: number[] = [];
+  chatTier: 'text' | 'quick' = 'quick';
+  chat(ch: 'team' | 'all', body: { k: 't'; text: string } | { k: 'q'; id: number }): boolean {
+    const now = this.now();
+    this.chatSent = this.chatSent.filter((t) => now - t < CHAT_SAY_RATE.windowMs);
+    if (this.chatSent.length >= CHAT_SAY_RATE.perWindow) return false;
+    if (body.k === 't' && (ch === 'all' || body.text.length > CHAT_SAY_MAX_TEXT)) return false;
+    this.chatSent.push(now);
+    this.socket.sendJson(body.k === 't' ? { t: 'chat.say', k: 't', text: body.text, ch } : { t: 'chat.say', k: 'q', id: body.id, ch });
+    return true;
+  }
+
+  /** The party view's own team tier (PartyClient, through the socket tap). */
+  setChatTier(tier: 'text' | 'quick' | undefined): void {
+    const t = tier === 'text' ? 'text' : 'quick';
+    if (t === this.chatTier) return;
+    this.chatTier = t;
+    this.emit('chatTier', t);
   }
 
   net(): NetNumbers {
@@ -562,6 +583,25 @@ export class NetHost implements PartyLink {
         if (line) this.note({ key: `mp-social-${m.slot}`, title: line, tone: 'info' });
         return;
       }
+      case 'chat.msg': {
+        // PROTO 6 in-match lines carry a channel and a slot (party lines are the PartyClient's)
+        if (m.ch !== 'team' && m.ch !== 'all') return;
+        if (typeof m.slot !== 'number' || m.slot < 0 || m.slot >= SLOT_COUNT_WIRE) return;
+        if (m.k !== 't' && m.k !== 'q') return;
+        this.emit('chat', {
+          mid: String(m.mid ?? ''),
+          slot: m.slot,
+          ch: m.ch,
+          k: m.k,
+          ...(typeof m.text === 'string' ? { text: m.text } : {}),
+          ...(typeof m.id === 'number' ? { id: m.id } : {}),
+          mine: m.slot === this.mySlot,
+        });
+        return;
+      }
+      case 'chat.reject':
+        this.emit('chatReject', String(m.why ?? ''), typeof m.until === 'number' ? m.until : undefined);
+        return;
       case 'error':
         if (m.code === 'seat_elsewhere') this.note({ key: 'mp-tab', title: 'Playing in another tab', tone: 'bad', ttl: 8000 });
         // a relay move (a deploy): the socket comes back by itself, quietly unless it takes longer than 1.5 s
