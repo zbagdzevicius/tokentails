@@ -541,7 +541,10 @@ describe('Apple client ids (Paw Legends app, account deletion)', () => {
     });
 
     it('DELETE /user/me accepts an optional appleClientId and refuses a malformed one', async () => {
-        const ok = plainToInstance(DeleteAccountDto, { appleAuthorizationCode: 'c', appleClientId: 'com.tokentails.pawlegends' });
+        const ok = plainToInstance(DeleteAccountDto, {
+            appleAuthorizationCode: 'c',
+            appleClientId: 'com.tokentails.pawlegends',
+        });
         expect(await validate(ok)).toHaveLength(0);
         expect(await validate(plainToInstance(DeleteAccountDto, {}))).toHaveLength(0);
         const bad = plainToInstance(DeleteAccountDto, { appleClientId: 'com.evil/../x y' });

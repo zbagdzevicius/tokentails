@@ -98,9 +98,11 @@ export async function deleteAccount(
     }
 
     // First, while the client's authorization code is fresh (it expires in minutes).
-    const apple = await (deps.revokeApple ||
+    const apple = await (
+        deps.revokeApple ||
         ((code: string | undefined, clientId?: string) =>
-            revokeAppleAuthorization(code, appleConfig(process.env, clientId))))(appleAuthorizationCode, appleClientId);
+            revokeAppleAuthorization(code, appleConfig(process.env, clientId)))
+    )(appleAuthorizationCode, appleClientId);
 
     const unset = Object.fromEntries(PERSONAL_FIELDS.map(field => [field, 1]));
     await deps.users.updateOne(
