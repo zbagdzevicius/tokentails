@@ -41,11 +41,13 @@ times its moves walks about 16 m with the same 5 hits.
 
 **Client:**
 - `orders.ts` `kite(x, y, id)` (goal clamped like a move). `net/input.ts`: a kite coalesces like a move.
-- `touchControls.ts`: with an attack intent (held ATK's unit; a tapped ATK's unit while its order stands; else the
-  drag-lock) the stick sends `Op.Kite` on that unit instead of a Move. A held ATK repeat with the stick pointing away
+- `touchControls.ts`: with an attack intent (held ATK's unit; a tapped or drag-released ATK's unit while its order
+  stands) the stick sends `Op.Kite` on that unit instead of a Move. A drag-lock alone does not kite (review): it is
+  timer-free, so it would plant a fleeing hero for every windup in reach; the lock still picks the next ATK target. A held ATK repeat with the stick pointing away
   from the target sends nothing new (the kite already carries the attack). A kite starting, ending or changing unit
   goes at once. The stick turned toward the target hands back to a plain Attack (chase). Letting go of the stick while
-  kiting leaves an Attack on that unit.
+  kiting leaves an Attack on that unit when ATK is held, or when the unit is in reach and not under an enemy tower
+  nobody tanks (the `keepLockOrder` guard); otherwise a Stop, so letting go never walks the hero under a tower.
 - `matchSession.ts`: `data-kites` telemetry.
 
 ## To fold into the next sim version
@@ -64,8 +66,17 @@ times its moves walks about 16 m with the same 5 hits.
   a target out of reach is not chased; same-unit kite keeps the windup, another unit or a Move refunds the timer; a
   kite on a dead id is a move; determinism (hash trails and record → replay with kites mixed in).
 - `tests/unit/stick-yield-touch.test.ts`: stick held away with ATK held (3 s of kites on the unit), after a tap, or
-  with a drag-lock sends kites; stick toward the target yields to the Attack; stick let go mid-kite leaves an Attack;
+  after a drag release sends kites; a drag-lock alone sends moves; a tapped kite let go out of reach is a Stop; stick toward the target yields to the Attack; stick let go mid-kite leaves an Attack;
   ATK let go returns the stick to plain moves.
 - `tests/e2e/kite.spec.ts` (landscape 844x390 touch, Rocket, rookie): ATK held next to an enemy minion, the stick
   strafes beside it for 3 s; kites are sent, the hero walks and hits keep landing. Before the fix the same input walked
   0.2 m in 2.4 s.
+
+## Balance
+
+Bots issue only Move, AttackMove, Attack and casts, never `Op.Kite`, so every bot-only match (the 3v3 balance gate,
+the goldens, the determinism suite) replays bit-identically to v20: the gate cannot measure the change. Expect human
+ranged heroes (Rocket, Clem and other long-range basics) to gain the most, since the stick now keeps their DPS while
+they back off a melee chaser; melee heroes gain little (in reach they were already swinging). Watch ranged win rates in
+the first live week of the version that ships this.
+
