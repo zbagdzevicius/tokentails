@@ -657,9 +657,15 @@ export class TouchControls {
       // C4: only a real stick release stops the hero; a still tap (locking a hero, a stray touch) keeps its attack going
       if (!cancelled && this.h.enabled() && (s.moved || e.timeStamp - s.at > TAP.ms)) {
         // KITE-FIX: a stick let go while it kites leaves the attack on that unit standing (the hero stops and swings)
+        // (held ATK: always, as its repeat would; otherwise only a unit in reach and not under an enemy tower nobody
+        // tanks, as keepLockOrder: letting go of the stick never walks the hero under a tower)
         const k = this.lastStick.kite;
         this.lastStick.kite = -1;
-        if (k >= 0 && this.h.units().some((u) => u.id === k && u.state !== 'dead')) this.h.orders.attack(k);
+        const units = this.h.units();
+        const ku = k >= 0 ? units.find((u) => u.id === k && u.state !== 'dead') : undefined;
+        const me = this.me();
+        const keep = !!ku && (this.attackHeld !== null || (!!me && inAttackReach(ku, me, this.range()) && !guardedByTower(units, ku, this.h.view.myTeam)));
+        if (keep && ku) this.h.orders.attack(ku.id);
         else this.h.orders.stop();
       }
       return;
@@ -1444,7 +1450,8 @@ export class TouchControls {
   /**
    * KITE-FIX (docs/plans/moba/KITE-FIX.md; Wild Rift: hold Attack and steer): the unit a held stick keeps attacking
    * while it walks, or null for a plain move. Held ATK's unit; a tapped ATK's unit while its order stands (a hero
-   * until the lock-break distance, anything else for TAP_YIELD_MS); else the drag-lock.
+   * until the lock-break distance, anything else for TAP_YIELD_MS). A drag-lock alone does not kite: it is timer-free,
+   * so it would plant a fleeing hero for every windup in reach (Wild Rift: the lock picks the target, the stick moves).
    */
   private kiteTarget(me: Unit, now: number): number | null {
     const units = this.h.units();
@@ -1454,7 +1461,7 @@ export class TouchControls {
       const t = units.find((u) => u.id === id);
       if (t && (this.attackHeld !== null || t.kind === 'hero' || now - this.lastAttack < TAP_YIELD_MS)) return id;
     }
-    return this.dragLock.check(units, me, myTeam, now);
+    return null;
   }
 
   /**
