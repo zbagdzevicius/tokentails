@@ -35,7 +35,7 @@ import {
     pawlegendsStripeKey,
 } from './pawlegends-env';
 import { verifyPawlegendsToken } from './pawlegends-token';
-import { conflictsOf } from './pawlegends-catalog';
+import { catalogSku, CATALOG_SKUS, championBundleCents, conflictsOf } from './pawlegends-catalog';
 import { ownedItemsOf } from './pawlegends-season.service';
 
 /*
@@ -132,7 +132,15 @@ export function checkoutMetadata(
 /** Stripe Checkout Session parameters for a validated request (pure). */
 export function buildCheckoutParams(
     req: PawlegendsCheckoutRequest,
-    options: { returnBase: string; email?: string | null; holdId: string; expiresAt: number; accountId?: string | null }
+    options: {
+        returnBase: string;
+        email?: string | null;
+        holdId: string;
+        expiresAt: number;
+        accountId?: string | null;
+        /** A champion bundle's prorated price for this account (CHAMPION-STORE.md §5); else the SKU price. */
+        amountCents?: number;
+    }
 ): Stripe.Checkout.SessionCreateParams {
     const def = PAWLEGENDS_SKUS[req.sku];
     const metadata = checkoutMetadata(req, options.holdId, options.accountId);
@@ -146,7 +154,7 @@ export function buildCheckoutParams(
                 quantity: 1,
                 price_data: {
                     currency: req.currency,
-                    unit_amount: def.cents[req.currency],
+                    unit_amount: options.amountCents ?? def.cents[req.currency],
                     tax_behavior: 'inclusive',
                     product_data: {
                         name: def.label,
@@ -344,12 +352,46 @@ export class PawlegendsStripeService {
      */
     async checkCatalog(sku: PawlegendsSku, accountId: string): Promise<void> {
         const def = PAWLEGENDS_SKUS[sku];
+        if (def.kind === 'champion') return this.checkChampion(sku, accountId);
         const active = await this.activeSkus({ accountId });
         if (conflictsOf(sku).some(s => active.has(s))) throw PAWLEGENDS_ERRORS.alreadyOwned();
         const owned = new Set(await ownedItemsOf(this.store, accountId));
         if (def.kind !== 'pass' && def.items.some(item => owned.has(item))) throw PAWLEGENDS_ERRORS.alreadyOwned();
         if (def.requires && !(await this.ownedSkus({ accountId })).has(def.requires))
             throw PAWLEGENDS_ERRORS.needsPass();
+    }
+
+    /**
+     * Champion SKUs (CHAMPION-STORE.md §5): refused when every champion in it is owned (bought, unlocked with Yarn, a
+     * Champion Pick or the Founders roster), or while an open checkout of an overlapping champion SKU could still be
+     * paid. A bundle over some owned champions is sold at its prorated price (`championPrice`), never refused.
+     */
+    private async checkChampion(sku: PawlegendsSku, accountId: string): Promise<void> {
+        const def = PAWLEGENDS_SKUS[sku];
+        const owned = new Set(await ownedItemsOf(this.store, accountId));
+        if (def.items.every(item => owned.has(item))) throw PAWLEGENDS_ERRORS.alreadyOwned();
+        const overlap = CATALOG_SKUS.filter(
+            s => s.kind === 'champion' && s.items.some(item => def.items.includes(item))
+        ).map(s => s.sku);
+        const open = (await this.store.purchases
+            .find({
+                $and: [{ accountId }, { status: 'pending', holdUntil: { $gt: this.now() } }, { sku: { $in: overlap } }],
+            })
+            .lean()) as any[];
+        if (open.length) throw PAWLEGENDS_ERRORS.alreadyOwned();
+    }
+
+    /** What a SKU costs this account and what it grants: a champion SKU only its champions not owned yet. */
+    async championPrice(
+        sku: PawlegendsSku,
+        currency: PawlegendsCurrency,
+        accountId: string
+    ): Promise<{ cents: number; items: string[] } | null> {
+        const def = catalogSku(sku);
+        if (!def || def.kind !== 'champion') return null;
+        const owned = new Set(await ownedItemsOf(this.store, accountId));
+        const cents = championBundleCents(def, owned, currency);
+        return cents === null ? null : { cents, items: def.items.filter(item => !owned.has(item)) };
     }
 
     async createCheckout(
@@ -388,7 +430,10 @@ export class PawlegendsStripeService {
         }
         if (store) await this.checkCatalog(req.sku, accountId!);
 
-        const capCents = capCentsOf(req.sku, req.currency);
+        // champion SKUs: the prorated price and only the champions not owned yet (CHAMPION-STORE.md §5)
+        const champ = store ? await this.championPrice(req.sku, req.currency, accountId!) : null;
+        const amountCents = champ?.cents ?? def.cents[req.currency];
+        const capCents = champ ? champ.cents : capCentsOf(req.sku, req.currency);
         if (capCents > (await this.capLeftCents(owners, band))) throw PAWLEGENDS_ERRORS.spendCap();
         if (def.legendSeat && (await this.legendSeatsLeft()) <= 0) throw PAWLEGENDS_ERRORS.soldOut();
 
@@ -403,10 +448,10 @@ export class PawlegendsStripeService {
             deviceId: req.deviceId,
             accountId: identity.accountId || undefined,
             currency: req.currency,
-            amountCents: def.cents[req.currency],
+            amountCents,
             capCents,
             ageBand: band,
-            items: def.items,
+            items: champ?.items ?? def.items,
             holdUntil: new Date(now + SESSION_TTL_MS + HOLD_MARGIN_MS),
         });
         const release = () => this.store.purchases.deleteMany({ sessionId: holdId });
@@ -432,6 +477,7 @@ export class PawlegendsStripeService {
             holdId,
             expiresAt: now + SESSION_TTL_MS,
             accountId: identity.accountId,
+            ...(champ ? { amountCents } : {}),
         });
         let session: Stripe.Checkout.Session;
         try {

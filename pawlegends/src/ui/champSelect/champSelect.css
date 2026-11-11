@@ -418,3 +418,9 @@ html[data-quality='low'] .cs-tile .cs-sf.cs-face { transition: none; }
 @media (min-width: 1000px) and (min-height: 481px) {
   .pl-party:has(.pp-pick.cs) .pp-notes { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 112px); }
 }
+
+/* CHAMPION-STORE.md §10: the unlock row over LOCK IN for a locked champion, and the "Free" badge */
+.cs-champ { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; align-items: center; margin: 0 0 6px; }
+.cs-champ .pl-btn { min-height: 32px; padding: 4px 10px; font-size: 12px; }
+.cs-champ .cs-togo { font-size: 12px; opacity: 0.9; }
+.cs-new.champ-free { background: #2f7d5b; color: #fff; }

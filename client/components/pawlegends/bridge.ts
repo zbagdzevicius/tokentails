@@ -62,7 +62,7 @@ export const isPawlegendsSku = (value: unknown): value is PawlegendsSku =>
  * Store and Legends Pass SKUs (docs/plans/moba/STORE-PASS.md; the table is `backend/src/pawlegends/pawlegends-catalog.ts`,
  * the server price always wins): `pl_coat_*`, `pl_frame_*`, `pl_set_*`, `pl_pass_*`. Web only, signed-in accounts only.
  */
-const STORE_SKU = /^pl_(coat|frame|set|pass)_[a-z0-9_]{1,40}$/;
+const STORE_SKU = /^pl_(coat|frame|set|pass|champ|champs)_[a-z0-9_]{1,40}$/;
 export const isPawlegendsStoreSku = (value: unknown): value is string => typeof value === "string" && STORE_SKU.test(value);
 /** Store and pass item ids the game draws (anything else from `/pawlegends/me` is dropped). */
 const STORE_ITEM = /^(coat\.[a-z]+\.(store|s1)_[a-z_]+|frame\.(store|s1)\.[a-z_]+|title\.(store|s1)\.[a-z_]+)$/;
@@ -80,6 +80,56 @@ export interface PawlegendsStoreSeason {
 export interface PawlegendsStoreState {
   items: string[];
   season: PawlegendsStoreSeason | null;
+  /** CHAMPION-STORE.md §11: owned champions, the week's rotation, Yarn and bundle prices (absent: an older backend). */
+  champions?: PawlegendsChampions;
+}
+
+export type PawlegendsChampSource = "purchase" | "pass" | "legacy" | "founders" | "yarn" | "milestone";
+const CHAMP_SOURCES: readonly PawlegendsChampSource[] = ["purchase", "pass", "legacy", "founders", "yarn", "milestone"];
+
+export interface PawlegendsChampions {
+  owned: { hero: string; source: PawlegendsChampSource }[];
+  founders: boolean;
+  rotation: { week: number };
+  yarn: { balance: number; matches: number; picksLeft: number; nextPickAt: number | null };
+  bundles: { sku: string; cents: { usd: number; eur: number } | null }[];
+}
+
+const CHAMP_HERO = /^[a-z]{2,16}$/;
+
+/** `/pawlegends/me`'s `champions` as a clean copy (the game checks the hero ids against its own catalogue). */
+export function championsOf(value: unknown): PawlegendsChampions | null {
+  if (!value || typeof value !== "object") return null;
+  const v = value as Record<string, unknown>;
+  if (!Array.isArray(v.owned)) return null;
+  const owned = v.owned
+    .slice(0, 64)
+    .filter((r): r is Record<string, unknown> => !!r && typeof r === "object" && typeof (r as Record<string, unknown>).hero === "string" && CHAMP_HERO.test((r as Record<string, unknown>).hero as string))
+    .map((r) => ({ hero: r.hero as string, source: (CHAMP_SOURCES as readonly unknown[]).includes(r.source) ? (r.source as PawlegendsChampSource) : ("purchase" as const) }));
+  const r = v.rotation && typeof v.rotation === "object" ? (v.rotation as Record<string, unknown>) : {};
+  const y = v.yarn && typeof v.yarn === "object" ? (v.yarn as Record<string, unknown>) : {};
+  const cents = (x: unknown): number | null => (typeof x === "number" && Number.isInteger(x) && x > 0 && x < 100_000 ? x : null);
+  const bundles = (Array.isArray(v.bundles) ? v.bundles : [])
+    .slice(0, 8)
+    .filter((b): b is Record<string, unknown> => !!b && typeof b === "object" && typeof (b as Record<string, unknown>).sku === "string" && /^pl_champs_[a-z0-9_]{1,30}$/.test((b as Record<string, unknown>).sku as string))
+    .map((b) => {
+      const c = b.cents && typeof b.cents === "object" ? (b.cents as Record<string, unknown>) : null;
+      const usd = c ? cents(c.usd) : null;
+      const eur = c ? cents(c.eur) : null;
+      return { sku: b.sku as string, cents: usd !== null && eur !== null ? { usd, eur } : null };
+    });
+  return {
+    owned,
+    founders: v.founders === true,
+    rotation: { week: typeof r.week === "number" && Number.isInteger(r.week) && Math.abs(r.week) < 100_000 ? r.week : 0 },
+    yarn: {
+      balance: count(y.balance, 100_000_000),
+      matches: count(y.matches, 10_000_000),
+      picksLeft: count(y.picksLeft, 100),
+      nextPickAt: typeof y.nextPickAt === "number" && Number.isInteger(y.nextPickAt) && y.nextPickAt > 0 && y.nextPickAt < 10_000 ? y.nextPickAt : null,
+    },
+    bundles,
+  };
 }
 
 const count = (v: unknown, max: number): number =>
@@ -106,11 +156,22 @@ export function storeStateOf(value: unknown): PawlegendsStoreState | null {
       endsAt: typeof r.endsAt === "string" && Number.isFinite(Date.parse(r.endsAt)) ? r.endsAt : "",
     };
   }
-  return { items, season };
+  const champions = championsOf(v.champions);
+  return champions ? { items, season, champions } : { items, season };
+}
+
+/** A save's Season XP, its Yarn and a locked hero (CHAMPION-STORE.md §8.5). */
+export interface PawlegendsSaveSeason {
+  gained: number;
+  xp: number;
+  tier: number;
+  prevTier: number;
+  yarn?: { gained: number; balance: number; newPicks: number };
+  heroLocked?: true;
 }
 
 /** `/live`'s Legends Pass answer (`season`), passed on in `save-result`; null when absent or malformed. */
-export function saveSeasonOf(value: unknown): { gained: number; xp: number; tier: number; prevTier: number } | null {
+export function saveSeasonOf(value: unknown): PawlegendsSaveSeason | null {
   if (!value || typeof value !== "object") return null;
   const v = value as Record<string, unknown>;
   const n = (x: unknown) => (typeof x === "number" && Number.isInteger(x) && x >= 0 && x <= 10_000_000 ? x : null);
@@ -118,7 +179,13 @@ export function saveSeasonOf(value: unknown): { gained: number; xp: number; tier
   const xp = n(v.xp);
   const tier = n(v.tier);
   if (gained === null || xp === null || tier === null) return null;
-  return { gained, xp, tier, prevTier: n(v.prevTier) ?? tier };
+  const out: PawlegendsSaveSeason = { gained, xp, tier, prevTier: n(v.prevTier) ?? tier };
+  const y = v.yarn && typeof v.yarn === "object" ? (v.yarn as Record<string, unknown>) : null;
+  const yg = y ? n(y.gained) : null;
+  const yb = y ? n(y.balance) : null;
+  if (y && yg !== null && yb !== null) out.yarn = { gained: yg, balance: yb, newPicks: Math.min(3, n(y.newPicks) ?? 0) };
+  if (v.heroLocked === true) out.heroLocked = true;
+  return out;
 }
 
 /** Mirrors of `HeroId` and `TrickId` in `pawlegends/src/data/`. */
@@ -276,8 +343,8 @@ export interface PawlegendsSaveResult {
   catnipTotal: number | null;
   fastestWin: number | null;
   code?: string;
-  /** STORE-PASS.md §5: the Legends Pass Season XP this save paid (from `/live`'s `season`). */
-  season?: { gained: number; xp: number; tier: number; prevTier: number };
+  /** STORE-PASS.md §5: the Legends Pass Season XP this save paid (from `/live`'s `season`), and its Yarn. */
+  season?: PawlegendsSaveSeason;
 }
 
 /**
@@ -347,6 +414,8 @@ export type PawlegendsToHostMessage =
   | { type: "purchase-intent"; sku: PawlegendsSku }
   | { type: "store-intent"; sku: string }
   | { type: "pass-claim"; row: "f" | "p" | null; tier: number | null }
+  /** CHAMPION-STORE.md §8.6: unlock a champion with Yarn or a Champion Pick (the app too: no money). */
+  | { type: "champ-unlock"; hero: string; via: "yarn" | "pick" }
   | { type: "share"; kind: string; url: string; text: string | null }
   | { type: "paused"; paused: boolean }
   /** The player turned the game's Sound on or off: the host's one mute follows (tt:audio:v1). */
@@ -789,6 +858,10 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
       return (data.row === "f" || data.row === "p") && intIn(data.tier, 1, 100)
         ? { type: "pass-claim", row: data.row, tier: data.tier as number }
         : null;
+    case "champ-unlock":
+      return typeof data.hero === "string" && CHAMP_HERO.test(data.hero) && (data.via === "yarn" || data.via === "pick")
+        ? { type: "champ-unlock", hero: data.hero, via: data.via }
+        : null;
     case "share": {
       const kind = shortId(data.kind, 24);
       // The url is checked against the page origin by the host (`shareUrlOf`); the text is optional (older builds).
@@ -902,6 +975,8 @@ export interface PawlegendsBridgeHandlers {
   onStoreIntent?(sku: string): void;
   /** STORE-PASS.md: claim one pass reward (`row`, `tier`) or all (both null). */
   onPassClaim?(row: "f" | "p" | null, tier: number | null): void;
+  /** CHAMPION-STORE.md §8.6: unlock a champion with Yarn or a Champion Pick; answer a fresh `store`. */
+  onChampUnlock?(hero: string, via: "yarn" | "pick"): void;
   /** SOCIAL-RANKED.md §13: one allowlisted API op; answer with `apiResult`. */
   onApiRequest?(request: PawlegendsApiRequest): void;
 }
@@ -1085,6 +1160,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         break;
       case "pass-claim":
         handlers.onPassClaim?.(message.row, message.tier);
+        break;
+      case "champ-unlock":
+        handlers.onChampUnlock?.(message.hero, message.via);
         break;
       case "share":
         handlers.onShare?.(message.kind, message.url, message.text);

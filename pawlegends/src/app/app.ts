@@ -30,7 +30,8 @@ import { CheckoutBridge } from '../money/checkoutBridge';
 import { Entitlements } from '../money/entitlements';
 import { markShown, offerOf, pickOffer, type Offer, type OfferScreen } from '../money/offer';
 import { isSku, type SkuId } from '../money/skus';
-import { CATALOG_SKUS, catalogSku, type CatalogSku } from '../money/catalog';
+import { CATALOG_SKUS, CHAMPION_IDS, STARTERS, catalogSku, champSkuOf, type CatalogSku } from '../money/catalog';
+import { canPlay, champStatus, localChampions, lockReason, openChampions, ownedCount, type ChampionsState } from '../meta/champions';
 import { ELEMENT_COLOR, PAID_COATS, bestFrame, cardLook, lookItems, lookKey, resolveLook, titleOf, type Look, type Owned } from '../render/cosmetics';
 import { Lobby } from '../render/lobby';
 import { bakePortrait, bakePortraits, portraitUrl } from '../render/portraits';
@@ -52,7 +53,7 @@ import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
 import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
-import { loadingVeil, pickScreen, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
+import { loadingVeil, pickScreen, refreshPickChamps, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
 import { disposeLobby, heroIdentity, lobbyScreen, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
 import { heroElement } from '../ui/cards/el';
 import type { DeckCard, DeckHandle } from '../ui/deck/deck';
@@ -188,6 +189,10 @@ export class App {
   private readonly speed = speedFromUrl();
   private choice: Choice;
   private lastSetup: MatchSetup | null = null;
+  /** CHAMPION-STORE.md §6: the match on screen is Practice (a locked champion): it saves nothing. */
+  private practice = false;
+  /** Locked champions already reported as viewed this session (analytics, once each). */
+  private lockedSeen = new Set<string>();
   private frames = 0;
   private roster: RosterCosmetics = EMPTY_ROSTER;
   private rosterCats: RosterCat[] = [];
@@ -498,10 +503,54 @@ export class App {
       this.offerEl = null;
     } else this.overlay?.refresh?.();
     this.revealPurchase();
+    this.keepPlayable();
     if (this.screen === 'title') this.showTitle(offer);
-    else if (this.screen === 'pick') this.lobby.setHero(this.choice.hero, 0, this.lookFor(this.choice.hero));
+    else if (this.screen === 'pick') {
+      this.lobby.setHero(this.choice.hero, 0, this.lookFor(this.choice.hero));
+      // CHAMPION-STORE.md: an unlock or a purchase landed while the pick is up
+      if (this.screenEl) refreshPickChamps(this.screenEl);
+    }
     // the open cards drawer follows a roster change
     if (this.cards) this.cards.update(this.deckData(this.dare?.hero ?? this.choice.hero));
+  }
+
+  // ------------------------------------------------------------------------------------------- champions
+
+  /**
+   * CHAMPION-STORE.md: the host's champions state; with a host that sent none (signed out, an older host), the
+   * starters and this week's rotation. Without any host (a standalone page: no account, nothing is ever saved) every
+   * champion is open, as Practice is.
+   */
+  private champs(): ChampionsState {
+    const s = this.ent.snapshot();
+    if (s.champions) return s.champions;
+    return s.embedded || this.isApp() ? localChampions() : openChampions();
+  }
+
+  /** May this player pick `h` now (a starter, free this week, or owned; app builds: not a web purchase)? */
+  private playable(h: string): boolean {
+    return canPlay(h, this.champs(), this.isApp());
+  }
+
+  /** `prefer` when playable, else the side's remembered hero, else the side's first starter (Clem, Sir Brutus). */
+  private playableHero(prefer: HeroId): HeroId {
+    if (this.playable(prefer)) return prefer;
+    const side = HEROES[prefer]?.side ?? 'cat';
+    const remembered = heroForSide(loadProfile(), side);
+    if (this.playable(remembered)) return remembered;
+    return (STARTERS.find((h) => (HERO_IDS as readonly string[]).includes(h) && HEROES[h as HeroId].side === side) ?? 'clem') as HeroId;
+  }
+
+  /** The lobby's hero stays one the player may pick (a rotation week ended, a refund, sign-out). */
+  private keepPlayable(): void {
+    const h = this.playableHero(this.choice.hero);
+    if (h !== this.choice.hero) this.choice = { ...this.choice, hero: h };
+  }
+
+  /** CHAMPION-STORE.md §8.6: ask the host to unlock `h` with Yarn or a Champion Pick (it answers a fresh `store`). */
+  private unlockChamp(h: HeroId, via: 'yarn' | 'pick'): void {
+    this.analytics.track('champ_unlock', { hero: h, via });
+    if (!this.bridge.post('champ-unlock', { hero: h, via }) && this.screenEl) refreshPickChamps(this.screenEl);
   }
 
   /** The lobby hero's portrait in its look, for the frame badge (baked on demand). */
@@ -547,7 +596,14 @@ export class App {
   private revealStore(def: CatalogSku): void {
     const s = this.ent.snapshot();
     const items = def.items.length ? def.items : [];
-    const arrived = def.kind === 'pass' ? !!s.season && s.season.premium !== 'none' : items.every((i) => s.items.has(i));
+    // CHAMPION-STORE.md: a champion arrives in the host's `store.champions`, never in the cosmetic items
+    const champ = def.kind === 'champion';
+    const arrived =
+      def.kind === 'pass'
+        ? !!s.season && s.season.premium !== 'none'
+        : champ
+          ? items.every((i) => champStatus(i.slice('champ.'.length), this.champs()) !== 'locked')
+          : items.every((i) => s.items.has(i));
     if (!arrived) return;
     this.pendingReveal = null;
     const p = loadProfile();
@@ -560,12 +616,14 @@ export class App {
     if (title) p.wornTitle = title;
     saveProfile(p);
     if (coatHero) this.choice = { ...this.choice, hero: coatHero };
+    // a single champion goes on the lobby at once
+    if (champ && def.hero && (HERO_IDS as readonly string[]).includes(def.hero)) this.choice = { ...this.choice, hero: def.hero as HeroId };
     this.lobby.confetti(2.5);
     const el = document.createElement('div');
     el.className = 'pl-new';
     el.setAttribute('role', 'status');
     el.innerHTML = `<b>New!</b><span></span>`;
-    (el.querySelector('span') as HTMLElement).textContent = def.kind === 'pass' ? `${def.label} is yours. Every reached premium reward is ready to claim.` : `${def.label} is yours. Wearing it now.`;
+    (el.querySelector('span') as HTMLElement).textContent = def.kind === 'pass' ? `${def.label} is yours. Every reached premium reward is ready to claim.` : champ ? `${def.label} is yours. Pick it in any mode.` : `${def.label} is yours. Wearing it now.`;
     this.root.appendChild(el);
     setTimeout(() => el.classList.add('out'), 3600);
     setTimeout(() => el.remove(), 4200);
@@ -622,6 +680,8 @@ export class App {
 
   /** `offer` false: a redraw after a lobby panel closed (the Treat Track panel never leads to an offer). */
   showTitle(offer = true): void {
+    // CHAMPION-STORE.md: the lobby's hero is one the player may pick (its quick Play starts it)
+    this.keepPlayable();
     // casual PvP: ask the backend once; the title redraws with the mode chip when it answers yes
     if (this.partyApi && pvpKnown() === null)
       void pvpAvailable(this.partyApi).then((yes) => {
@@ -869,6 +929,24 @@ export class App {
         teamSize: p.matches > 0 && (this.choice.map ?? MODE_MAP[loadMatchMode()]) === 'hearthwood' ? 5 : 3,
         owned: this.owned(),
         champions: this.integration.championTiles(),
+        // CHAMPION-STORE.md §10: locked champions show their unlock row; LOCK IN on one is Practice
+        champs: {
+          state: () => this.champs(),
+          isApp: this.isApp(),
+          store: this.ent.snapshot().storeOpen,
+          onUnlock: (h, via) => this.unlockChamp(h, via),
+          onBuy: (h) => {
+            const sku = champSkuOf(h);
+            if (!this.checkout.buy(sku)) return;
+            this.pendingReveal = sku;
+            this.analytics.track('checkout_start', { sku });
+          },
+          onLockedView: (h) => {
+            if (this.lockedSeen.has(h)) return;
+            this.lockedSeen.add(h);
+            this.analytics.track('champ_locked_view', { hero: h });
+          },
+        },
         // lobby spec §3b: the panel's Look button opens the cards drawer (the skins live there)
         onDeck: () => this.openCards(),
         looks: p.looks as Record<HeroId, Partial<Look>>,
@@ -897,9 +975,9 @@ export class App {
         },
         // sim v14 (DOGS-V13 §2): dogs wait for the guided first match (a dog dare skips it)
         dogsLocked: p.matches === 0 && !(this.dare && HEROES[this.dare.hero]?.side === 'dog'),
-        onStart: (c) => {
+        onStart: (c, opts) => {
           sfx.play('click');
-          this.startMatch(c);
+          this.startMatch(c, undefined, opts?.practice === true);
         },
         onBack: () => {
           // Audit UX-08: Back from a "Try <hero>" pick goes home on the hero the player had, not the teased one
@@ -963,7 +1041,7 @@ export class App {
           {
             root: this.root,
             api,
-            hero: this.choice.hero,
+            hero: this.playableHero(this.choice.hero),
             trick: this.choice.trick,
             difficulty: picks ? this.choice.difficulty : 'easy',
             difficulties: picks ? ['easy', 'normal', 'hard'] : ['easy'],
@@ -985,7 +1063,9 @@ export class App {
             queueSide: p.matches === 0 ? 'cat' : lastQueueSide(),
             saveQueueSide: (side) => setLastQueueSide(side),
             mmInfo: () => ({ surface: this.isApp() ? 'app' : this.bridge.active ? 'embed' : 'web', matches: loadProfile().matches, guest: !accountState().signedIn }),
-            heroForSide: (side) => heroForSide(loadProfile(), side),
+            heroForSide: (side) => this.playableHero(heroForSide(loadProfile(), side)),
+            // CHAMPION-STORE.md §8.1: starters, the week's rotation and owned champions (the relay checks the same)
+            champLock: (h) => lockReason(h, this.champs(), this.isApp()),
             // a backfill took the seat while this player was away: the match ends here, the party screen says why
             endMatch: () => {
               this.session?.dispose();
@@ -1180,8 +1260,16 @@ export class App {
     this.party?.matchOver();
   }
 
-  private startMatch(pick: Choice, seed?: number): void {
+  private startMatch(pick: Choice, seed?: number, practice = false): void {
     this.beforeTry = null;
+    // CHAMPION-STORE.md §6: a locked champion plays only as Practice (asked for on the pick, or a dare's hero): the
+    // match saves nothing. Any other start swaps a locked hero for a playable one (the lobby's quick Play).
+    if (!this.playable(pick.hero)) {
+      if (seed !== undefined) practice = true;
+      else if (!practice) pick = { ...pick, hero: this.playableHero(pick.hero) };
+    } else practice = false;
+    this.practice = practice;
+    if (practice) this.analytics.track('practice_try', { hero: pick.hero });
     const p = loadProfile();
     // the first-session script (fun plan F1): match 1 is Rookie, matches 2 and 3 Easy, then the player's pick;
     // a dare keeps its own bots (the seed and the difficulty make the dare)
@@ -1190,7 +1278,9 @@ export class App {
     const map: MapId | undefined = seed === undefined && p.matches > 0 && (pick.map ?? MODE_MAP[loadMatchMode()]) === 'hearthwood' ? 'hearthwood' : undefined;
     delete c.map;
     this.choice = isRookie(c.difficulty) ? { ...c, difficulty: pick.difficulty } : c;
-    p.hero = c.hero;
+    // Practice never becomes the remembered hero (the lobby keeps a playable one)
+    if (practice) this.choice = { ...this.choice, hero: this.playableHero(this.choice.hero) };
+    p.hero = practice ? this.choice.hero : c.hero;
     p.side = HEROES[c.hero]?.side ?? p.side;
     p.lastBySide[p.side] = c.hero;
     p.trick = c.trick;
@@ -1382,7 +1472,10 @@ export class App {
         { ticks: e.result.ticks, difficulty: e.replay.difficulty, won },
       );
     }
-    if (!partyEnd) {
+    // CHAMPION-STORE.md §6: Practice saves nothing (no /live, no XP, no Yarn, no quests)
+    const practice = !partyEnd && this.practice;
+    this.practice = false;
+    if (!partyEnd && !practice) {
       const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
       this.bridge.post('match-result', {
         matchId,
@@ -1411,7 +1504,7 @@ export class App {
     noteHeroMatch(e.replay.hero);
     // Treat Track and daily quests (local, free, fixed order); recordMatch counted this match already.
     // GAPS B2: a forfeit pays TREAT_XP.forfeit only: no quest progress, no grade or first-win XP, a full ladder loss.
-    const forfeit = e.result.reason === 'forfeit';
+    const forfeit = e.result.reason === 'forfeit' || practice;
     const follow = followsHero(loadProfile().matches - 1);
     const quests = forfeit
       ? (() => {
@@ -1428,7 +1521,7 @@ export class App {
     const myGrade = grades.slots.find((g) => g.slot === mySlot)?.grade ?? 'C';
     const gradeXp = forfeit ? 0 : GRADE_TREAT_XP[myGrade];
     // GAPS A6: the first win of the local day adds its bonus (once a day, no streak, no catnip)
-    const treats = addTreatXp(loadTreats(), treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding, forfeit }) + quests.xp + gradeXp, ownedIds, { won, day: dayKey() });
+    const treats = addTreatXp(loadTreats(), practice ? 0 : treatXpFor({ won, takedowns: e.fun.takedowns, pudding: e.fun.pudding, forfeit }) + quests.xp + gradeXp, ownedIds, { won: won && !practice, day: dayKey() });
     saveTreats(treats.state);
     if (treats.rewards.length) {
       for (const r of treats.rewards) if (!prof.unlocks.includes(r.id)) prof.unlocks.push(r.id);
@@ -1794,6 +1887,7 @@ export class App {
         saveProfile(q);
       },
       onPass: () => this.openPass(),
+      champions: { owned: ownedCount(this.champs(), this.isApp()), total: CHAMPION_IDS.length, founders: this.champs().founders, yarn: this.champs().yarn.balance },
       onClose: () => {
         this.overlay = null;
         // one redraw, without the offer check: the Treat Track panel never leads to an offer

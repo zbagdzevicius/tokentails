@@ -22,6 +22,7 @@ export const PAWLEGENDS_EVENTS = {
   LANDING_VIEW: "pawlegends_landing_view",
   LANDING_CTA: "pawlegends_landing_cta",
   STORE_INTENT: "pawlegends_store_intent",
+  CHAMP_UNLOCK: "pawlegends_champ_unlock",
 } as const;
 
 export type PawlegendsEventName = (typeof PAWLEGENDS_EVENTS)[keyof typeof PAWLEGENDS_EVENTS];
@@ -50,6 +51,8 @@ export interface PawlegendsEventProperties {
   pawlegends_cat_purchase: { ok: boolean };
   /** STORE-PASS.md: Buy tapped in the game's store or on the Legends Pass (`sku`, a public catalogue id). */
   pawlegends_store_intent: { sku: string };
+  /** CHAMPION-STORE.md §12: a champion unlock with Yarn or a Champion Pick was asked (`ok`: the server took it). */
+  pawlegends_champ_unlock: { hero: string; via: "yarn" | "pick"; ok: boolean };
   /**
    * The game frame never answered `hello` within `waitedMs` (the "taking too long to load" panel; launch finding R1).
    * `reloads` counts the player's Reload presses before it on this page.

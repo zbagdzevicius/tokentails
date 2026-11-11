@@ -14,7 +14,8 @@
 import { CheckoutBridge } from '../money/checkoutBridge';
 import type { StoreSnapshot } from '../money/entitlements';
 import { MVP_TARGET, SKUS, priceText, type Currency, type SkuId } from '../money/skus';
-import { CATALOG_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, coatSkuOf, frameSkuOf, type CatalogSku, type CoatRung } from '../money/catalog';
+import { CATALOG_SKUS, CHAMPIONS, CHAMP_BUNDLE_SKUS, EFFECT_COATS, PASS_PLUS_SKU, PASS_SKU, PASS_UPGRADE_SKU, STORE_COATS, STORE_FRAMES, champSkuOf, championDef, coatSkuOf, frameSkuOf, isStarter, type CatalogSku, type CoatRung } from '../money/catalog';
+import { champStatus, localChampions, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
 import { PAID_COATS } from '../render/cosmetics';
 import { browserCurrency } from '../money/skus';
 import { icon } from './icons';
@@ -75,7 +76,7 @@ export function skuCard(sku: SkuId, currency: Currency, opts: { compact?: boolea
   </div>`;
 }
 
-export type StoreTab = 'coats' | 'frames' | 'sets' | 'pass';
+export type StoreTab = 'champions' | 'coats' | 'frames' | 'sets' | 'pass';
 
 /** "$2.99" / "€2.99" for a catalogue SKU (display only). */
 export function catalogPrice(def: Pick<CatalogSku, 'cents'>, currency: Currency): string {
@@ -86,11 +87,31 @@ export function catalogPrice(def: Pick<CatalogSku, 'cents'>, currency: Currency)
 
 export type ItemState = 'buy' | 'owned' | 'partly' | 'locked';
 
+/** The champions state the store reads (the host's, else starters and the rotation). */
+const champsOf = (s: Partial<Pick<StoreSnapshot, 'champions'>>): ChampionsState => s.champions ?? localChampions();
+
+/** Champions in a champion SKU the player owns (starters count; the store runs on the web only). */
+export function champsOwned(def: CatalogSku, s: Partial<Pick<StoreSnapshot, 'champions'>>): number {
+  const c = champsOf(s);
+  return def.items.filter((i) => {
+    const st = champStatus(i.slice('champ.'.length), c);
+    return st === 'owned' || st === 'starter';
+  }).length;
+}
+
+/** What a catalogue SKU costs this player: a champion bundle's prorated price (the server's), else the list price. */
+export function priceFor(def: CatalogSku, s: Partial<Pick<StoreSnapshot, 'champions'>>): CatalogSku['cents'] {
+  if (def.kind !== 'champion' || !def.bundleOf) return def.cents;
+  return s.champions?.bundles.find((b) => b.sku === def.sku)?.cents ?? def.cents;
+}
+
 /**
  * A catalogue SKU's state for this player: owned (every item owned), partly (a set with some items owned: the singles
  * are sold instead, no prorated price), locked (the Pass+ upgrade without the Pass, or Pass when Pass+ is owned), or buy.
  */
-export function itemState(def: CatalogSku, s: Pick<StoreSnapshot, 'items' | 'season'>): ItemState {
+export function itemState(def: CatalogSku, s: Pick<StoreSnapshot, 'items' | 'season'> & Partial<Pick<StoreSnapshot, 'champions'>>): ItemState {
+  // champions (CHAMPION-STORE.md §5): owned when every champion in it is; a bundle over some is sold prorated
+  if (def.kind === 'champion') return champsOwned(def, s) === def.items.length ? 'owned' : 'buy';
   const premium = s.season?.premium ?? 'none';
   if (def.kind === 'pass') {
     if (def.sku === PASS_SKU) return premium === 'none' ? 'buy' : 'owned';
@@ -105,6 +126,11 @@ export function itemState(def: CatalogSku, s: Pick<StoreSnapshot, 'items' | 'sea
 
 /** The SKUs of a tab, in shelf order. */
 export function tabSkus(tab: StoreTab): CatalogSku[] {
+  if (tab === 'champions')
+    return [
+      ...CHAMP_BUNDLE_SKUS.map((sku) => CATALOG_SKUS.find((d) => d.sku === sku)!),
+      ...CHAMPIONS.filter((c) => !isStarter(c.hero)).map((c) => CATALOG_SKUS.find((d) => d.sku === champSkuOf(c.hero))!),
+    ];
   if (tab === 'coats') return [...EFFECT_COATS, ...STORE_COATS].map((c) => CATALOG_SKUS.find((d) => d.sku === coatSkuOf(c))!);
   if (tab === 'frames') return STORE_FRAMES.map((f) => CATALOG_SKUS.find((d) => d.sku === frameSkuOf(f))!);
   if (tab === 'sets') return CATALOG_SKUS.filter((d) => d.kind === 'bundle');
@@ -145,7 +171,19 @@ export interface StoreOpts {
   tab?: StoreTab;
 }
 
-const TAB_LABEL: Readonly<Record<StoreTab, string>> = Object.freeze({ coats: 'Coats', frames: 'Frames', sets: 'Sets', pass: 'Pass' });
+const TAB_LABEL: Readonly<Record<StoreTab, string>> = Object.freeze({ champions: 'Champions', coats: 'Coats', frames: 'Frames', sets: 'Sets', pass: 'Pass' });
+
+/** The store line of a champion SKU: who it unlocks, and the Yarn way (earned by playing) next to the price. */
+export function champLine(def: CatalogSku, s: Partial<Pick<StoreSnapshot, 'champions'>>): string {
+  if (def.bundleOf) {
+    const have = champsOwned(def, s);
+    const n = def.items.length;
+    return have > 0 && have < n ? `You own ${have} of these: you pay for the other ${n - have}.` : `Unlocks ${n} champions for every mode.`;
+  }
+  const hero = def.hero ?? '';
+  const info = unlockInfo(hero, champsOf(s));
+  return `Unlocks ${championDef(hero)?.name ?? hero} for every mode.${info.yarn ? ` Or earn it: ${yarnText(info.yarn)} Yarn from playing.` : ''}`;
+}
 
 export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement; close(): void; refresh(): void } {
   const root = document.createElement('div');
@@ -166,12 +204,13 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
     const st = itemState(sel, s);
     const waiting = o.checkout.waitingSku();
     const coat = sel.items.find((i) => i.startsWith('coat.')) ?? null;
-    const hero = sel.hero ?? (coat ? coat.split('.')[1] : 'clem');
+    const champ = sel.kind === 'champion';
+    const hero = sel.hero ?? (coat ? coat.split('.')[1] : champ ? sel.items[0].slice('champ.'.length) : 'clem');
     const pic = o.preview?.(hero, coat) ?? null;
     const frame = sel.items.find((i) => i.startsWith('frame.'));
     const tile = (d: CatalogSku): string => {
       const ds = itemState(d, s);
-      const tag = ds === 'owned' ? 'Owned' : ds === 'partly' ? 'Own some' : ds === 'locked' ? (d.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead') : catalogPrice(d, currency);
+      const tag = ds === 'owned' ? 'Owned' : ds === 'partly' ? 'Own some' : ds === 'locked' ? (d.sku === PASS_UPGRADE_SKU ? 'Pass owners' : 'Upgrade instead') : catalogPrice({ cents: priceFor(d, s) }, currency);
       const r = d.group === 'coats' ? coatRungOf(d.items[0]) : null;
       const rung = r && r !== 'COMMON' ? `${RUNG_WORD[r]} · ` : '';
       return `<button type="button" class="shop-tile ${d.sku === selected ? 'on' : ''} st-${ds}"${r ? ` data-rung="${r}"` : ''} data-sel="${d.sku}" aria-pressed="${d.sku === selected}"><b>${esc(d.label)}</b><small>${esc(rung + tag)}</small></button>`;
@@ -180,14 +219,17 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
       st === 'owned'
         ? sel.kind === 'pass'
           ? `<button class="pl-btn small" data-a="pass">Open the pass</button>`
-          : `<button class="pl-btn small" data-equip="${sel.sku}">Owned · Equip</button>`
+          : champ
+            ? `<span class="why">Owned: pick it in any mode.</span>`
+            : `<button class="pl-btn small" data-equip="${sel.sku}">Owned · Equip</button>`
         : st === 'partly'
           ? `<span class="why">You own some of these: buy the singles.</span>`
           : st === 'locked'
             ? `<span class="why">${sel.sku === PASS_UPGRADE_SKU ? 'For Legends Pass owners.' : 'You have the Pass: get the Pass+ upgrade.'}</span>`
-            : `<button class="pl-btn small buy" data-buy="${sel.sku}"${waiting ? ' disabled' : ''}>${waiting === sel.sku ? 'Opening...' : `Buy ${esc(catalogPrice(sel, currency))}`}</button>`;
-    const what =
-      sel.kind === 'pass'
+            : `<button class="pl-btn small buy" data-buy="${sel.sku}"${waiting ? ' disabled' : ''}>${waiting === sel.sku ? 'Opening...' : `Buy ${esc(catalogPrice({ cents: priceFor(sel, s) }, currency))}`}</button>`;
+    const what = champ
+      ? champLine(sel, s)
+      : sel.kind === 'pass'
         ? sel.sku === PASS_SKU
           ? 'Premium row: 30 rewards (coats, frames, titles). Every premium reward you already reached unlocks at once. Never expires.'
           : 'Premium row, 15 tier skips and the exclusive Eclipse coat. Never expires.'
@@ -205,7 +247,7 @@ export function storePanel(parent: HTMLElement, o: StoreOpts): { el: HTMLElement
         <div class="shop-scroll"><div class="shop-grid" role="list">${skus.map(tile).join('')}</div><span class="more" aria-hidden="true">▾ more</span></div>
       </div>
       <div class="shop-bar">${action}<p class="line" role="status">${esc(line)}</p></div>
-      <p class="fine">Cosmetic only: nothing here changes a match. Checkout opens on the Token Tails web page.</p>
+      <p class="fine">${champ ? 'A champion is the same in a match whether bought or earned with Yarn.' : 'Cosmetic only: nothing here changes a match.'} Checkout opens on the Token Tails web page.</p>
       <p class="fine safe">${esc(safeguardsLine(currency))}${o.termsUrl ? ` <a href="${esc(o.termsUrl)}" target="_blank" rel="noopener">Terms and refunds</a>` : ''}</p>
     </div>`;
     const sc = root.querySelector<HTMLElement>('.shop-scroll');

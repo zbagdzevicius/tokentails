@@ -24,6 +24,7 @@ import {
   type PawlegendsBridge,
   type PawlegendsNotifyWhere,
   type PawlegendsSignInReason,
+  type PawlegendsStoreState,
 } from "./bridge";
 import {
   browserStorage,
@@ -128,7 +129,8 @@ interface PawlegendsHostProps {
  *   direct-purchase cats from `GET /cat/sale` are `featured`, and `GET /pawlegends/offer` may name one of them as
  *   the session's single "Meet" card (never in session 1). `open-cat` opens the Token Tails $5 named-cat
  *   checkout (`PawlegendsCatSheet`); the bought cat joins the roster at once. Never packs, never random.
- * - **Champions** (sim v9). The four shelter champions are free to play for everyone; `GET /pawlegends/champions`
+ * - **Champions** (sim v9). A shelter champion's card adds cosmetics only (who may pick a champion is the
+ *   champion store's rule, CHAMPION-STORE.md: `store.champions`); `GET /pawlegends/champions`
  *   gives their cards (`champions`): art, and whether each is for sale. The game's lobby info panel may open a
  *   champion's card (`open-cat`), and from a non-owner's 3rd match on a champion until its card is shown, the game
  *   sends `champion-offer` (once a page load): unless a card was shown this visit, the host asks the offer engine
@@ -173,6 +175,8 @@ export const PawlegendsHost = ({
   const [storeSku, setStoreSku] = useState<string | null>(null);
   /** STORE-PASS.md §3 step 5: re-reads `GET /pawlegends/me` and sends `store` to the game (set below). */
   const refreshStoreRef = useRef<(() => Promise<void>) | null>(null);
+  /** The last `GET /pawlegends/me` answer (the store sheet reads a champion bundle's prorated price from it). */
+  const storeState = useRef<PawlegendsStoreState | null>(null);
 
   const uid = auth?.user?.uid ?? null;
   // Without an auth provider the page behaves as signed out.
@@ -487,6 +491,7 @@ export const PawlegendsHost = ({
     onSkinPreview: (catalogId: string) => void;
     onStoreIntent: (sku: string) => void;
     onPassClaim: (row: "f" | "p" | null, tier: number | null) => void;
+    onChampUnlock: (hero: string, via: "yarn" | "pick") => void;
   }>({
     onRequestSignIn: () => undefined,
     onAccount: () => undefined,
@@ -497,6 +502,7 @@ export const PawlegendsHost = ({
     onSkinPreview: () => undefined,
     onStoreIntent: () => undefined,
     onPassClaim: () => undefined,
+    onChampUnlock: () => undefined,
   });
   /** Featured cats the player previewed as a card skin this visit (`skin-preview`): the next offer ask puts them first. */
   const previewed = useRef<string[]>([]);
@@ -573,6 +579,13 @@ export const PawlegendsHost = ({
       onPassClaim: (row, tier) =>
         void api.passClaim(row && tier ? { row, tier } : { all: true }).then((result) => {
           if (result.ok && result.body) bridgeRef.current?.setStore(result.body);
+        }),
+      // CHAMPION-STORE.md §8.6: a Yarn unlock or a Champion Pick (the app too: no money changes hands); the fresh
+      // `store` carries the champion, a refusal still re-sends it so the game's button comes back
+      onChampUnlock: (hero, via) =>
+        void api.champUnlock(hero, via).then((result) => {
+          track(buildPawlegendsEvent("pawlegends_champ_unlock", { hero, via, ok: result.ok }));
+          void refreshStoreRef.current?.();
         }),
       // Sim v9: a champion's card is due (from the 3rd match on it, until shown; the game re-sends it every visit):
       // ask the offer engine again with that card first, unless a card was already shown this visit. An offer held
@@ -678,6 +691,7 @@ export const PawlegendsHost = ({
         onSkinPreview: (catalogId) => handlers.current.onSkinPreview(catalogId),
         onStoreIntent: (sku) => handlers.current.onStoreIntent(sku),
         onPassClaim: (row, tier) => handlers.current.onPassClaim(row, tier),
+        onChampUnlock: (hero, via) => handlers.current.onChampUnlock(hero, via),
         onExit: () => goRef.current(PAWLEGENDS_EXIT_PATH),
         // the player's own Sound switch in the game is the site's one mute (it was lost on the next visit)
         onSound: (muted) => setMuted(muted),
@@ -734,7 +748,10 @@ export const PawlegendsHost = ({
       return;
     }
     const result = await api.me();
-    if (result.ok && result.body) bridgeRef.current?.setStore(result.body);
+    if (result.ok && result.body) {
+      storeState.current = result.body;
+      bridgeRef.current?.setStore(result.body);
+    }
   }, [api]);
   useEffect(() => {
     refreshStoreRef.current = refreshStore;
@@ -945,7 +962,11 @@ export const PawlegendsHost = ({
           api={api}
           sku={storeSku}
           label={status.catalog.find((c) => c.sku === storeSku)!.label}
-          cents={status.catalog.find((c) => c.sku === storeSku)!.cents}
+          cents={
+            // CHAMPION-STORE.md §5: a champion bundle's prorated price for this account (the server's, from `/me`)
+            storeState.current?.champions?.bundles.find((b) => b.sku === storeSku)?.cents ??
+            status.catalog.find((c) => c.sku === storeSku)!.cents
+          }
           initialEmail={auth?.user?.email ?? ""}
           go={go}
           onClose={(bought) => {

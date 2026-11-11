@@ -74,8 +74,10 @@ export interface TileState {
   mate?: number;
   /** The worn card's rung: a 2 px border in the rarity colour (the card-skin foil). */
   rung?: CatTier | null;
-  /** Web only: the player owns this shelter champion's Token Tails card (a "Card" badge; every champion is free). */
+  /** Web only: the player owns this shelter champion's Token Tails card (a "Card" badge; cosmetic only). */
   owned?: string | null;
+  /** CHAMPION-STORE.md §10: a short champion badge ("Free" this week). */
+  champTag?: string | null;
 }
 
 export interface CsModel {
@@ -120,6 +122,8 @@ export interface CsModel {
   error?: string | null;
   /** A short-lived line over LOCK IN (the bots' hint after a tap on a phone, where the hint has no room). */
   note?: string | null;
+  /** CHAMPION-STORE.md §10: the unlock row over LOCK IN for a locked champion (Yarn, a Champion Pick, the web price). */
+  champBar?: string;
   /** Root attributes (party: data-locked, data-mm, data-pvp). */
   rootAttrs?: string;
   rootClass?: string;
@@ -298,7 +302,7 @@ function tileHtml(m: CsModel, h: HeroId, focusH: HeroId | null): string {
   const cls = `cs-tile${on ? ' on' : ''}${st.taken ? ' taken' : ''}${st.locked ? ' locked' : ''}`;
   const badges = [
     `<i class="cs-sb ${HEROES[h].side}" style="--side:${SIDE_TAB_CSS[HEROES[h].side]}" aria-hidden="true">${icon(SIDE_ICON[HEROES[h].side])}</i>`,
-    isNewHero(h) ? '<span class="cs-new new-tag">New</span>' : st.owned ? `<span class="cs-new champ-owned" title="${esc(`From ${st.owned}'s card`)}">Card</span>` : '',
+    isNewHero(h) ? '<span class="cs-new new-tag">New</span>' : st.owned ? `<span class="cs-new champ-owned" title="${esc(`From ${st.owned}'s card`)}">Card</span>` : st.champTag && !st.locked ? `<span class="cs-new champ-free">${esc(st.champTag)}</span>` : '',
     st.locked && !st.taken ? '<span class="cs-lk" aria-hidden="true">🔒</span>' : '',
     st.taken ? `<span class="cs-taken pp-taken">${esc(`Taken: ${st.taken}`)}</span>` : '',
     st.tryThis && !st.taken && !st.locked ? '<span class="cs-try pp-try">New? Try this</span>' : '',
@@ -399,7 +403,7 @@ export function champSelectHtml(m: CsModel): string {
     <section class="cs-mid">${tabsHtml(m)}<div class="cs-gridwrap"><div class="cs-grid${m.kind === 'party' ? ' pp-heroes' : ''}" role="group" aria-label="Heroes">${m.heroes.map((h) => tileHtml(m, h, focusH)).join('')}</div><button type="button" class="cs-more" data-cs="more" tabindex="-1" hidden>▾ more</button></div></section>
     ${panelHtml(m.selected, { numbers: m.numbers, kind: m.kind, look: m.look, toggle: m.numbersToggle, sheet: m.lookSheet })}
     <div class="cs-fl">${m.footLeft ?? ''}</div>
-    <div class="cs-fc">${why}${lockHtml(m)}</div>
+    <div class="cs-fc">${why}${m.champBar ? `<div class="cs-champ" role="group" aria-label="Unlock">${m.champBar}</div>` : ''}${lockHtml(m)}</div>
     <div class="cs-fr">${tricksHtml(m)}</div>
   </div>`;
 }
