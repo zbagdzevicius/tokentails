@@ -149,7 +149,7 @@ describe('casual PvP relay (M1b)', () => {
         }
     });
 
-    it('casual needs PROTO 3 and 5 matches; PROTO 2 gets pvp_update_required, a newbie mm_locked{pvp_newbie}', async () => {
+    it('casual needs PROTO 3 only (the 5-match lock is lifted): PROTO 2 gets nothing; a 0-match guest, a fresh guest key and an IP-only identity queue', async () => {
         const b = await bootMm();
         try {
             const old = await b.veteran({ proto: 2, ...VET });
@@ -158,40 +158,20 @@ describe('casual PvP relay (M1b)', () => {
             await nextTick();
             expect(old.last('error')).toBeUndefined();
             expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(0);
-            const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: false, matches: 2 } });
-            fresh.send({ t: 'mm.join', queue: 'casual', side: 'any' });
-            expect(await fresh.until(() => fresh.last('error'))).toMatchObject({
-                code: 'mm_locked',
-                reason: 'pvp_newbie',
-            });
-            // the hint is never trusted: 12 claimed matches with no server record (a fresh guest key) stay locked
+            // founder, 2026-11-11: casual PvP is open from the first session. A brand-new guest (0 matches, no server
+            // record), a guest that claims matches it never played, a 4-room veteran and an IP-only identity all queue
+            const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             const liar = await b.guest(VET);
-            liar.send({ t: 'mm.join', queue: 'casual', side: 'any' });
-            expect(await liar.until(() => liar.last('error'))).toMatchObject({
-                code: 'mm_locked',
-                reason: 'pvp_newbie',
-            });
-            // four completed rooms are not five
             const four = await b.veteran(VET, 4);
-            four.send({ t: 'mm.join', queue: 'casual', side: 'any' });
-            expect(await four.until(() => four.last('error'))).toMatchObject({
-                code: 'mm_locked',
-                reason: 'pvp_newbie',
-            });
-            // an IP-only identity (no ticket, no guest key) has no record and never queues PvP
             const anon = await b.client();
-            anon.hello({ ...VET });
+            anon.hello({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             await anon.until(() => anon.last('welcome'));
-            anon.send({ t: 'mm.join', queue: 'casual', side: 'any' });
-            expect(await anon.until(() => anon.last('error'))).toMatchObject({
-                code: 'mm_locked',
-                reason: 'pvp_newbie',
-            });
-            expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(0);
-            const late = await b.veteran(VET);
-            late.send({ t: 'mm.accept', match: 'abcdefghijkl', yes: true });
-            await nextTick();
-            expect(late.last('error')).toBeUndefined();
+            for (const c of [fresh, liar, four, anon]) {
+                c.send({ t: 'mm.join', queue: 'casual', side: 'any' });
+                expect(await c.until(() => c.last('mm.status'))).toMatchObject({ queue: 'casual' });
+                expect(c.last('error')).toBeUndefined();
+            }
+            expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(4);
         } finally {
             await b.stop();
         }

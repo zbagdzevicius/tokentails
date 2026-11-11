@@ -48,14 +48,22 @@ export function setLastQueueSide(side: QueueSide): void {
 }
 
 /**
+ * Completed matches before casual 3v3 PvP unlocks (the relay's `MM_CASUAL.newbieMatches`). 0: no lock, PvP is open
+ * from the first session (founder, 2026-11-11: "let's lift that 5 matches requirement for now"). Raise it with the
+ * backend's to bring the lock back.
+ */
+export const PVP_UNLOCK_MATCHES = 0;
+
+/**
  * Casual PvP (docs/plans/moba/V16.md §5): the online mode this viewer last used (Co-op vs bots or PvP). The default is
- * Co-op until 5 completed matches, then the last one used. Blocked storage falls back to Co-op.
+ * Co-op (nothing stored yet, so a player's first matches start on Co-op), then the last one used. Blocked storage falls
+ * back to Co-op.
  */
 export type OnlineMode = 'coop' | 'pvp';
 const MODE_KEY = 'pl.party.onlineMode';
 
 export function onlineMode(matches: number): OnlineMode {
-  if (matches < 5) return 'coop';
+  if (matches < PVP_UNLOCK_MATCHES) return 'coop';
   try {
     return localStorage.getItem(MODE_KEY) === 'pvp' ? 'pvp' : 'coop';
   } catch {
@@ -70,4 +78,15 @@ export function setOnlineMode(mode: OnlineMode): void {
   } catch {
     /* blocked storage: this session only */
   }
+}
+
+/**
+ * The Quick Play queue for the online mode picked (the backend has PvP): Co-op, or PvP. PvP is 5v5 Classic when the
+ * map toggle picks it (it shows after the guided first match), else 3v3 casual from PVP_UNLOCK_MATCHES matches (0 for
+ * now: a 0-match guest queues casual PvP).
+ */
+export function pvpQueueFor(mode: OnlineMode, matches: number, classic: boolean): 'coop' | 'casual' | 'classic' {
+  if (mode !== 'pvp') return 'coop';
+  if (matches > 0 && classic) return 'classic';
+  return matches >= PVP_UNLOCK_MATCHES ? 'casual' : 'coop';
 }
