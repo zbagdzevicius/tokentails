@@ -10,6 +10,34 @@ Contents: [Architecture](#architecture) · [Guardrails](#guardrails) · [What is
 [Operations](#operations) · [Cost](#cost) · [Decisions and defaults](#decisions-and-defaults) ·
 [Known gaps](#known-gaps-and-things-to-verify-on-the-first-apply)
 
+## Production status (2026-11-11, shadow phase)
+
+Steps 1–3 are done in `gleaming-medium-480114-g5`; nothing user-facing changed (DigitalOcean still serves
+`api.tokentails.com`, Vercel the web).
+
+- Applied: bootstrap (state bucket `gleaming-medium-480114-g5-tfstate`), pass 1 (130 resources), pass 2 (90). A final
+  `terraform plan` shows no changes. Nothing outside this stack was touched; the project's `default` network, n8n and
+  `motored-dev` SQL were left as they are (deleting `default` is the founder's call in this shared project).
+- Images `backend`, `web`, `cms` at `8b9d86d4` (linux/amd64, web/cms built from the committed `.env.production`).
+- The 21 DigitalOcean keys are version 1 of their secrets (piped from `doctl apps spec get`, never printed). The 17
+  extra containers are empty: party rooms stay unscored, as on DigitalOcean.
+- Live and checked: `tt-api` ready (`/readyz` mongo true and `/pawlegends/status` 200 from inside the VPC; leased crons
+  share the Mongo leases with DigitalOcean), `tt-web`, `tt-cms` ready, relay `tt-relay-*` HEALTHY in the MIG,
+  `/readyz` mongo true, guest hello/welcome and party create/join pass over an IAP tunnel.
+- Egress (Cloud NAT) IP `34.141.46.203`; LB IP `34.107.92.132`. Atlas needed no change (the current access list
+  admits the NAT IP); add `34.141.46.203` before step 8 removes `0.0.0.0/0`.
+- Local `terraform.tfvars` (gitignored): `budget_currency = "EUR"`, `budget_amount = 600` (the whole-project budget
+  also counts motored-dev SQL and n8n), and `web.min_instances = 0` while Vercel serves the web: set it back to 1 before
+  step 7 (the `prod.tftest.hcl` web check expects 1).
+- Org IAM: `roles/compute.osLoginExternalUser` for the founder's gmail on organization 933172974862 (IAP SSH to the
+  relay). GitHub variables `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA` are set (deploy-gcp.yml is
+  manual-dispatch only).
+- Open: Cloudflare (step 4.1 DNS authorization CNAMEs, grey cloud; step 5 proxied `gcp-api`, `gcp`, `gcp-cats` →
+  `34.107.92.132`); the certificate stays PROVISIONING until then. The relay drain fix
+  (`feat/pawlegends-live-match-deploys`) is not on main yet: after it merges, roll the new template with
+  `replace-relay.sh`. DigitalOcean still has `deploy_on_push` on, so every push to main redeploys it: never restart
+  `tt-relay` within 3 minutes of a DigitalOcean deploy.
+
 ## Architecture
 
 ```
