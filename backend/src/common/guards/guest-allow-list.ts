@@ -27,6 +27,8 @@ export const GUEST_ALLOW_LIST: Readonly<Record<string, Readonly<AllowGuestOption
     'POST /user/catbassadors/live': {},
     // Pawlegends party play (MULTIPLAYER.md section 5.2): a guest friend is scored as a guest account (D12).
     'POST /pawlegends/party/ticket': {},
+    // Pawlegends PvP reports (SOCIAL-RANKED.md section 8.3): guests sit in PvP on guest accounts; tighter caps (3 a day).
+    'POST /pawlegends/reports': {},
     // Feeding the guest's own cat. The reward goes to pendingTails, never spendable Tails (G1).
     'PUT /cat/:id': {},
     // Read-only previews of the guest's own progress ("you would be #N").

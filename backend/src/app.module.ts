@@ -176,6 +176,9 @@ import { PAWLEGENDS_PARTY_SCHEMAS, MongoRoomStore } from './pawlegends/party/roo
 import { PartyRelayService } from './pawlegends/party/party-relay.service';
 import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { MmService, PAWLEGENDS_MM_SCHEMAS } from './pawlegends/mm/mm.service';
+import { PAWLEGENDS_SOCIAL_SCHEMAS } from './pawlegends/social/social.schema';
+import { ReportService } from './pawlegends/social/report.service';
+import { PawlegendsReportsController } from './pawlegends/social/reports.controller';
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
@@ -287,6 +290,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             // Pawlegends party play (docs/plans/moba/MULTIPLAYER.md section 3.6): relay rooms and parties.
             ...PAWLEGENDS_PARTY_SCHEMAS,
             ...PAWLEGENDS_MM_SCHEMAS,
+            // Pawlegends social, ranked and PvP reports (docs/plans/moba/SOCIAL-RANKED.md section 11).
+            ...PAWLEGENDS_SOCIAL_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -333,6 +338,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         BadcatOnlineController,
         // Pawlegends POC store: SKUs, Stripe checkout and webhook, entitlements, offers, notify-me.
         PawlegendsController,
+        // Pawlegends PvP reports and the moderator review (SOCIAL-RANKED.md section 8).
+        PawlegendsReportsController,
         // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
@@ -427,6 +434,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PartyTicketService,
         MongoRoomStore,
         MmService,
+        // Pawlegends social, ranked and PvP reports (SOCIAL-RANKED.md section 10).
+        ReportService,
         // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
         ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.
