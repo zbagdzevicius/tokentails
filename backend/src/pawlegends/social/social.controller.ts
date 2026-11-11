@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, HttpCode, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Optional, Param, Post, Query, Req, Res, UseGuards } from '@nestjs/common';
 import { InjectThrottlerStorage, SkipThrottle, ThrottlerException, ThrottlerStorage } from '@nestjs/throttler';
 import { AppAuthGuard } from 'src/common/guards/app-auth.guard';
 import { ClientIpThrottleOptions, ClientIpThrottlerGuard } from 'src/shared/guards/client-ip-throttler.guard';
+import { ChatService } from './chat.service';
 import { SOCIAL_ERRORS, SocialService } from './social.service';
 
 /*
@@ -31,8 +32,18 @@ export class PawlegendsSocialController {
     constructor(
         private readonly social: SocialService,
         private readonly ipThrottler: ClientIpThrottlerGuard,
-        @InjectThrottlerStorage() private readonly storage: ThrottlerStorage
+        @InjectThrottlerStorage() private readonly storage: ThrottlerStorage,
+        @Optional() private readonly chat?: ChatService
     ) {}
+
+    /** The DM badge (CHAT-AVATARS.md §4): unread count and the newest unread thread; never fails the caller. */
+    private async chatSummary(me: string) {
+        try {
+            return (await this.chat?.summary(me)) ?? { unread: 0 };
+        } catch {
+            return { unread: 0 };
+        }
+    }
 
     private async gate(name: keyof typeof LIMITS, req: any, res: any, codeLookup = false): Promise<string> {
         const id = req?.user?._id ?? req?.user?.id;
@@ -55,19 +66,25 @@ export class PawlegendsSocialController {
     @UseGuards(AppAuthGuard)
     @Get()
     async state(@Req() req: any, @Res({ passthrough: true }) res: any) {
-        return this.social.state(await this.gate('state', req, res));
+        const me = await this.gate('state', req, res);
+        const [state, chat] = await Promise.all([this.social.state(me), this.chatSummary(me)]);
+        return { ...state, chat };
     }
 
-    /** 204 while nothing changed; else `{rev, invites}` and the game fetches GET /pawlegends/social. */
+    /**
+     * 204 while nothing changed; else `{rev, invites, chat}` and the game fetches GET /pawlegends/social. A DM bumps the
+     * recipient's rev, so the next pulse answers 200 with the unread count (CHAT-AVATARS.md §4).
+     */
     @UseGuards(AppAuthGuard)
     @Get('pulse')
     async pulse(@Query('rev') rev: string, @Req() req: any, @Res({ passthrough: true }) res: any) {
-        const out = await this.social.pulse(await this.gate('pulse', req, res), rev);
+        const me = await this.gate('pulse', req, res);
+        const out = await this.social.pulse(me, rev);
         if (!out.changed) {
             res?.status?.(204);
             return undefined;
         }
-        return { rev: out.rev, invites: out.invites };
+        return { rev: out.rev, invites: out.invites, chat: await this.chatSummary(me) };
     }
 
     /** `{code}` or `{room, slot}` (recent). */
@@ -113,7 +130,10 @@ export class PawlegendsSocialController {
         return this.social.unblock(await this.gate('edit', req, res), code);
     }
 
-    /** `{name?: 'generated' | catId, invisible?, allowRecent?}`. */
+    /**
+     * `{name?: 'generated' | catId, invisible?, allowRecent?, avatar?, frame?, title?, dmPolicy?}`: avatar parts are
+     * checked against what the caller owns (CHAT-AVATARS.md §7.2).
+     */
     @UseGuards(AppAuthGuard)
     @HttpCode(200)
     @Post('me')

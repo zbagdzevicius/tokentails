@@ -11,7 +11,17 @@ export const PL_REPORT_REASON_LABELS: Record<string, string> = {
   afk: 'AFK',
   grief: 'Griefing',
   cheat: 'Cheating / map hack',
-  name: 'Offensive name'
+  name: 'Offensive name',
+  chat: 'Chat message'
+};
+
+/** Chat report sub-reasons (CHAT-AVATARS.md section 2.7; shared/chat.ts CHAT_REPORT_KINDS). */
+export const PL_CHAT_KIND_LABELS: Record<string, string> = {
+  harass: 'Harassment',
+  sexual: 'Sexual',
+  contact: 'Contact details',
+  spam: 'Spam',
+  other: 'Other'
 };
 
 export const PL_FLAG_LABELS: Record<string, string> = {
@@ -19,7 +29,8 @@ export const PL_FLAG_LABELS: Record<string, string> = {
   F2: 'Reported in 5%+ of matches',
   F3: 'Map-hack signal z > 4',
   F4: 'Win-trade pair',
-  F5: '2+ confirmed AFK'
+  F5: '2+ confirmed AFK',
+  F6: '20+ chat filter hits today'
 };
 
 export const PL_RESOLVE_ACTIONS = [
@@ -28,7 +39,8 @@ export const PL_RESOLVE_ACTIONS = [
   'queue_lock',
   'ranked_lock',
   'board_exclude',
-  'pvp_ban'
+  'pvp_ban',
+  'chat_mute'
 ] as const;
 export type PlResolveAction = (typeof PL_RESOLVE_ACTIONS)[number];
 
@@ -64,6 +76,9 @@ export interface IPlReportDetail {
     tick: number | null;
     status: string;
     createdAt: string;
+    /** Chat reports: the sub-reason and the copied message with up to 6 earlier lines. */
+    chatKind?: string | null;
+    snapshot?: IPlChatSnapshot | null;
   }>;
   rooms: Array<{
     room: string;
@@ -86,6 +101,20 @@ export interface IPlReportDetail {
     reasonCode: string;
     createdAt: string;
   }>;
+}
+
+export interface IPlChatLine {
+  from: string;
+  k: 't' | 'q' | 's';
+  text?: string;
+  id?: number;
+  at: string;
+}
+
+export interface IPlChatSnapshot extends IPlChatLine {
+  thread: string;
+  kind: 'dm' | 'party';
+  context: IPlChatLine[];
 }
 
 export interface IPlStats {
