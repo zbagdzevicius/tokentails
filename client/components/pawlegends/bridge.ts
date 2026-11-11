@@ -5,8 +5,9 @@
  *
  * Envelope: `{ ns: 'tt-pawlegends', v: 1, type, ...payload }`. Every change is additive; each side ignores unknown
  * types and unknown fields.
- * - Host to game: `hello` (until `ready`), `session {signedIn, progress, name?}` (`name`: the signed-in player's
- *   profile name, for their own hero's plate only), `roster {cats[]}` (each cat may carry
+ * - Host to game: `hello` (until `ready`), `session {signedIn, progress, name?, provider?}` (`name`: the signed-in
+ *   player's profile name, for their own hero's plate and the account chip; `provider`: google, apple or email, the
+ *   chip's icon), `roster {cats[]}` (each cat may carry
  *   `art`, `catalogId` and `sprite`, its sprite sheet for the game's card skins), `featured {cats[]}` (at most 2
  *   unowned direct-purchase cats, each with optional `art`, `sprite` and `tier`), `offer {offer}` (one
  *   `meet` card or null), `save-result {matchId, status, catnipPaid, catnipTotal, fastestWin, code?}`,
@@ -15,7 +16,7 @@
  *   `{catalogId, forSale, catImg?}` (`GET /pawlegends/champions`; never for sale in an app build). `app.store` means
  *   "the Token Tails cat checkout is reachable" (web only).
  * - Game to host: `ready {version}`, `match-result {replay, summary, matchId}`, `request-sign-in {reason}`,
- *   `open-cat {catalogId}`, `offer-seen {kind, catalogId}`, `notify {where}`, `share {kind, url, text?}`,
+ *   `account {action}` (the account chip: sign-in, sign-out, manage, delete), `open-cat {catalogId}`, `offer-seen {kind, catalogId}`, `notify {where}`, `share {kind, url, text?}`,
  *   `paused {paused}`, `champion-offer {catalogId}` (sim v9: the player's 3rd finished match on a champion whose card
  *   is for sale; the host asks its offer engine with that card first), `skin-preview {catalogId}` (the player
  *   previewed a featured cat's card skin on the pick screen: the same re-ask with that cat first; the server's caps
@@ -30,7 +31,8 @@
  * exact origin, never `'*'`. No `accesstoken` or Firebase token ever crosses: each payload is rebuilt here field by
  * field (`sanitizeHostMessage`). Cat art is only ever a Token Tails CDN URL.
  *
- * No React, no DOM globals: the window and timers are passed in, so the handshake is unit-tested.
+ * No React, no DOM globals: the window and timers are passed in, so the handshake is unit-tested. The native app's
+ * in-page host (pawlegends-app/src/host) runs this same bridge over a same-window channel.
  */
 import { apiResultOf, parseApiRequest, type PawlegendsApiRequest } from "./apiBridge";
 import { PAWLEGENDS_GAME_EVENTS, type PawlegendsGameEventName, type PawlegendsGameProps } from "@/analytics/pawlegends-events";
@@ -146,6 +148,12 @@ export const PAWLEGENDS_TRICKS = ["pounce", "snack", "hiss"] as const;
 
 export const PAWLEGENDS_SIGN_IN_REASONS = ["save-progress", "claim-rewards"] as const;
 export type PawlegendsSignInReason = (typeof PAWLEGENDS_SIGN_IN_REASONS)[number];
+/** Sign-in: the signed-in player's method, for the game's account chip (never the address: PII). */
+export const PAWLEGENDS_SIGN_IN_PROVIDERS = ["google", "apple", "email"] as const;
+export type PawlegendsSignInProvider = (typeof PAWLEGENDS_SIGN_IN_PROVIDERS)[number];
+/** Sign-in: the game's account chip and Settings row (`account{action}`). */
+export const PAWLEGENDS_ACCOUNT_ACTIONS = ["sign-in", "sign-out", "manage", "delete"] as const;
+export type PawlegendsAccountAction = (typeof PAWLEGENDS_ACCOUNT_ACTIONS)[number];
 export const PAWLEGENDS_NOTIFY_WHERE = ["lobby", "results", "store"] as const;
 export type PawlegendsNotifyWhere = (typeof PAWLEGENDS_NOTIFY_WHERE)[number];
 export const PAWLEGENDS_SAVE_STATUSES = ["saving", "saved", "queued", "failed", "rejected"] as const;
@@ -311,7 +319,7 @@ type Envelope = { ns: typeof PAWLEGENDS_NS; v: 1 };
 export type HostToPawlegendsMessage = Envelope &
   (
     | { type: "hello" | "pause" | "resume" }
-    | { type: "session"; signedIn: boolean; progress: PawlegendsProgress | null; name?: string }
+    | { type: "session"; signedIn: boolean; progress: PawlegendsProgress | null; name?: string; provider?: PawlegendsSignInProvider }
     | { type: "roster"; cats: PawlegendsRosterCat[] }
     | { type: "featured"; cats: PawlegendsFeaturedCat[] }
     | { type: "offer"; offer: PawlegendsMeetOffer | null }
@@ -331,6 +339,8 @@ export type PawlegendsToHostMessage =
   | { type: "ready"; version: string | null }
   | { type: "match-result"; replay: PawlegendsReplay; summary: PawlegendsSummary; matchId: string | null }
   | { type: "request-sign-in"; reason: PawlegendsSignInReason }
+  /** Sign-in: the account chip or Settings row (sign in, sign out, manage on the web, delete in the app). */
+  | { type: "account"; action: PawlegendsAccountAction }
   | { type: "open-cat"; catalogId: string }
   | { type: "offer-seen"; kind: "meet"; catalogId: string }
   | { type: "notify"; where: PawlegendsNotifyWhere }
@@ -538,7 +548,15 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
     case "session": {
       if (typeof data.signedIn !== "boolean") return null;
       const name = data.signedIn ? playerNameOf(data.name) : null;
-      return { ...base, type: "session", signedIn: data.signedIn, progress: progressOf(data.progress), ...(name ? { name } : {}) };
+      const provider = data.signedIn && oneOf(PAWLEGENDS_SIGN_IN_PROVIDERS, data.provider) ? data.provider : null;
+      return {
+        ...base,
+        type: "session",
+        signedIn: data.signedIn,
+        progress: progressOf(data.progress),
+        ...(name ? { name } : {}),
+        ...(provider ? { provider } : {}),
+      };
     }
     case "roster": {
       if (!Array.isArray(data.cats)) return null;
@@ -655,7 +673,12 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
 export function hostMessage(type: "hello" | "pause" | "resume"): HostToPawlegendsMessage;
 export function hostMessage(
   type: "session",
-  payload: { signedIn: boolean; progress?: PawlegendsProgress | null; name?: string | null }
+  payload: {
+    signedIn: boolean;
+    progress?: PawlegendsProgress | null;
+    name?: string | null;
+    provider?: PawlegendsSignInProvider | null;
+  }
 ): HostToPawlegendsMessage;
 export function hostMessage(type: "roster", payload: { cats: PawlegendsRosterCat[] }): HostToPawlegendsMessage;
 export function hostMessage(type: "featured", payload: { cats: PawlegendsFeaturedCat[] }): HostToPawlegendsMessage;
@@ -748,6 +771,8 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
     }
     case "request-sign-in":
       return oneOf(PAWLEGENDS_SIGN_IN_REASONS, data.reason) ? { type: "request-sign-in", reason: data.reason } : null;
+    case "account":
+      return oneOf(PAWLEGENDS_ACCOUNT_ACTIONS, data.action) ? { type: "account", action: data.action } : null;
     case "open-cat":
       return isCatalogId(data.catalogId) ? { type: "open-cat", catalogId: data.catalogId } : null;
     case "offer-seen":
@@ -842,6 +867,8 @@ export interface PawlegendsBridgeHandlers {
   onTimeout?(): void;
   onMatchResult?(replay: PawlegendsReplay, summary: PawlegendsSummary, matchId: string): void;
   onRequestSignIn?(reason: PawlegendsSignInReason): void;
+  /** Sign-in: the game's account chip or Settings row. */
+  onAccount?(action: PawlegendsAccountAction): void;
   /** Only for a cat of the last `featured` list or the roster, and never in an app build. */
   onOpenCat?(catalogId: string): void;
   /** Only for the offer the host holds. */
@@ -882,8 +909,16 @@ export interface PawlegendsBridgeHandlers {
 /** The state the host keeps; every `ready` re-sends whatever is set. */
 export interface PawlegendsBridge {
   readonly ready: boolean;
-  /** `name`: the profile name (signed in only; UX pass 2: shown over the player's own hero). */
-  setSession(signedIn: boolean, progress: PawlegendsProgress | null, name?: string | null): void;
+  /**
+   * `name`: the profile name (signed in only; UX pass 2: shown over the player's own hero). `provider`: the sign-in
+   * method (signed in only; the account chip's icon).
+   */
+  setSession(
+    signedIn: boolean,
+    progress: PawlegendsProgress | null,
+    name?: string | null,
+    provider?: PawlegendsSignInProvider | null
+  ): void;
   setRoster(cats: PawlegendsRosterCat[]): void;
   setFeatured(cats: PawlegendsFeaturedCat[]): void;
   /** Sim v9: the shelter champions' cards (an app build hears none for sale). */
@@ -1021,6 +1056,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
       case "request-sign-in":
         handlers.onRequestSignIn?.(message.reason);
         break;
+      case "account":
+        handlers.onAccount?.(message.action);
+        break;
       case "open-cat":
         if (isApp || !(featuredIds.has(message.catalogId) || rosterIds.has(message.catalogId) || championIds.has(message.catalogId))) break;
         handlers.onOpenCat?.(message.catalogId);
@@ -1099,7 +1137,8 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
     get ready() {
       return ready;
     },
-    setSession: (signedIn, progress, name) => keep("session", hostMessage("session", { signedIn, progress, name })),
+    setSession: (signedIn, progress, name, provider) =>
+      keep("session", hostMessage("session", { signedIn, progress, name, provider })),
     setRoster(cats) {
       const message = hostMessage("roster", { cats });
       rosterIds = new Set(
