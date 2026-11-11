@@ -1675,10 +1675,10 @@ html:not([data-touch='1']) .pl-chatline .cl-row { background: rgba(20, 12, 22, 0
 }
 .pl-chatdrawer[hidden] { display: none; }
 .pl-chatdrawer.touch {
-  right: calc(10px + var(--safe-r)); top: calc(var(--drawer-top, 12px) + var(--safe-t)); width: min(360px, 46vw);
+  box-sizing: border-box; right: calc(var(--drawer-right, 10px) + var(--safe-r)); top: calc(var(--drawer-top, 12px) + var(--safe-t)); width: var(--drawer-w, min(360px, 46vw));
   max-height: min(calc(var(--vvh, 100vh) * 0.58), var(--drawer-max, 100vh));
 }
-.pl-chatdrawer.desk { left: calc(14px + var(--safe-l)); bottom: calc(var(--chat-bottom, 170px) + var(--safe-b)); width: 360px; max-height: 320px; }
+.pl-chatdrawer.desk { box-sizing: border-box; left: calc(14px + var(--safe-l)); bottom: calc(var(--chat-bottom, 170px) + var(--safe-b)); width: 360px; max-height: 320px; }
 .pl-chatdrawer .cd-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; }
 .pl-chatdrawer .cd-seg { display: flex; border: 1px solid var(--line); border-radius: 999px; overflow: hidden; }
 .pl-chatdrawer .cd-seg button, .pl-chatdrawer .cd-x {
