@@ -186,7 +186,7 @@ export class PartyChat {
                 ? `<span class="pl-chat-report">${CHAT_REPORT_KINDS.map((k) => `<button type="button" class="pl-report-chip" data-a="report-kind" data-kind="${k}" data-mid="${this.esc(l.mid)}">${this.esc(CHAT_REPORT_LABELS[k])}</button>`).join('')}</span>`
                 : `<button type="button" class="pl-chat-more" data-a="report" data-mid="${this.esc(l.mid)}" aria-label="Report this message">&hellip;</button>`
               : '';
-          return `<li class="pp-chat-line${mine ? ' mine' : ''}${l.k === 's' ? ' sticker' : ''}">${avatarHtml(m?.av, 24, { guest: !!m?.guest && !m?.av })}<b class="pp-chat-name" data-name="${this.esc(this.nameOf(l.from))}"></b><span data-name="${this.esc(lineText(l))}"></span>${report}</li>`;
+          return `<li class="pp-chat-line${mine ? ' mine' : ''}${l.k === 's' ? ' sticker' : ''}">${avatarHtml(m?.av, 24, { guest: !!m?.guest })}<b class="pp-chat-name" data-name="${this.esc(this.nameOf(l.from))}"></b><span data-name="${this.esc(lineText(l))}"></span>${report}</li>`;
         })
         .join('');
       const input = textAllowed(v)

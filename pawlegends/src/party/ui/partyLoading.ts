@@ -36,7 +36,7 @@ export function loadingHtml(v: PartyView, hideNames = false): string {
       const pct = Math.max(0, Math.min(100, Math.round(m.loadPct ?? 0)));
       // CHAT-AVATARS §7.4: every player's avatar, border and title from the party view (no extra fetch); the hero
       // portrait and the load bar stay
-      const av = `<span class="pp-lc-av" data-testid="loading-avatar">${avatarHtml(m.av, 40, { guest: m.guest && !m.av })}</span>`;
+      const av = `<span class="pp-lc-av" data-testid="loading-avatar">${avatarHtml(m.av, 40, { guest: m.guest })}</span>`;
       const title = m.av?.t ? `<small class="pp-title">${esc(titleText(m.av.t))}</small>` : '';
       return `<li class="pp-lc"${m.id === v.you ? ' data-me="1"' : ''}>${av}<span class="pp-ts-face"${pic ? ` style="background-image:url('${esc(pic)}')"` : ''}></span><b>${esc(shownName(v, m, hideNames))}</b>${title}<small>${hero ? esc(HERO_TEXT[hero].title) : ''}</small><span class="pp-bar" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}"><i style="width:${pct}%"></i></span></li>`;
   }

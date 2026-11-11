@@ -52,7 +52,7 @@ function seatHtml(v: PartyView, m: MemberView | undefined, i: number, leader: bo
   // preview. An older relay sends no avatar: the card art or the paw, as before.
   const card = art ? `<span class="pp-av pic${m.av ? ' pp-av-card' : ''}" style="background-image:url('${esc(art)}')" data-el="${esc(m.card?.element ?? '')}"></span>` : '';
   const av = m.av
-    ? `${avatarHtml(m.av, 56, { guest: m.guest && !m.av })}${card}`
+    ? `${avatarHtml(m.av, 56, { guest: m.guest })}${card}`
     : card || `<span class="pp-av">${PAW}</span>`;
   const title = m.av?.t ? `<small class="pp-title">${esc(titleText(m.av.t))}</small>` : '';
   const badges = [
