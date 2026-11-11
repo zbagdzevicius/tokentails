@@ -8,7 +8,10 @@ import type { MmRoomRecord } from '../mm/mm-room.schema';
 import { playedOf } from '../mm/rating.schema';
 import { AgeBand, isAgeBand, stricterBand } from '../pawlegends.contracts';
 import { pawlegendsError } from '../pawlegends.errors';
-import { PawlegendsBuyer } from '../pawlegends.schema';
+import { PawlegendsBuyer, PawlegendsOwned } from '../pawlegends.schema';
+import type { AvatarView } from '../../shared-contracts/chat';
+import { checkAvatarChoice, liveHeroIds, resolveAvatars } from './avatar';
+import { ChatService } from './chat.service';
 import { RANKED_MIN_MATCHES } from '../ranked/tiers';
 import { displayNames } from './display-name';
 import { PresenceRow, presenceUpdate, PresenceView, readPresence } from './presence';
@@ -98,8 +101,15 @@ export class SocialService {
         @InjectModel(PawlegendsMmRoom.name) readonly rooms: AnyModel,
         @InjectModel(User.name) readonly users: AnyModel,
         @Optional() @InjectModel(Cat.name) readonly cats?: AnyModel,
-        @Optional() private readonly clock?: { now(): Date }
+        @Optional() private readonly clock?: { now(): Date },
+        @Optional() @InjectModel(PawlegendsOwned.name) readonly owned?: AnyModel,
+        @Optional() private readonly chat?: ChatService
     ) {}
+
+    /** Avatars of these accounts (CHAT-AVATARS.md §7): checked against what each still owns, default hero otherwise. */
+    async avatarsOf(ids: readonly string[]): Promise<Map<string, AvatarView>> {
+        return resolveAvatars({ social: this.social, owned: this.owned ?? null, cats: this.cats ?? null, heroes: liveHeroIds() }, ids);
+    }
 
     now(): Date {
         return this.clock?.now() ?? new Date();
@@ -245,7 +255,8 @@ export class SocialService {
             ).map(b => b.blocker)
         );
         const presence = await this.presenceOf(accepted.filter(id => !blockedBy.has(id)));
-        const row = (id: string) => ({ code: codes.get(id) ?? '', name: names.get(id) ?? '' });
+        const avatars = await this.avatarsOf([me, ...ids]);
+        const row = (id: string) => ({ code: codes.get(id) ?? '', name: names.get(id) ?? '', av: avatars.get(id) });
         const order = { match: 0, queue: 1, party: 2, online: 3, offline: 4 } as const;
         const friends = accepted
             .map(id => ({ ...row(id), presence: presence.get(id) ?? { state: 'offline' as const } }))
@@ -258,6 +269,11 @@ export class SocialService {
                 invisible: !!profile.invisible,
                 allowRecent: !!profile.allowRecent && recentOk(band),
                 ageBand: band,
+                av: avatars.get(me),
+                avatar: (profile as { avatar?: unknown }).avatar ?? null,
+                frame: (profile as { frame?: string | null }).frame ?? null,
+                title: (profile as { title?: string | null }).title ?? null,
+                dmPolicy: (profile as { dmPolicy?: string }).dmPolicy ?? 'friends',
             },
             friends,
             requests: {
@@ -432,7 +448,11 @@ export class SocialService {
     async remove(me: string, code: unknown) {
         const p = await this.byCode(code);
         const res = await this.friends.deleteOne({ _id: pairId(me, p._id) });
-        if (res?.deletedCount) await this.bump([me, p._id]);
+        if (res?.deletedCount) {
+            await this.bump([me, p._id]);
+            // CHAT-AVATARS §2.7: the DM thread turns read-only for 24 h, then hides
+            await this.chat?.closeDm(me, p._id);
+        }
         return { ok: true };
     }
 
@@ -449,6 +469,7 @@ export class SocialService {
             { upsert: true }
         );
         await this.friends.deleteOne({ _id: pairId(me, id) });
+        await this.chat?.closeDm(me, id);
         await this.invites.deleteMany({
             $or: [
                 { from: me, to: id },
@@ -470,9 +491,40 @@ export class SocialService {
     // Settings, code rotation, age band
     // ---------------------------------------------------------------------------------------------------------------
 
-    async setMe(me: string, body: { name?: unknown; invisible?: unknown; allowRecent?: unknown }) {
+    async setMe(
+        me: string,
+        body: {
+            name?: unknown;
+            invisible?: unknown;
+            allowRecent?: unknown;
+            avatar?: unknown;
+            frame?: unknown;
+            title?: unknown;
+            dmPolicy?: unknown;
+        }
+    ) {
         await this.profile(me);
         const set: Record<string, unknown> = {};
+        // CHAT-AVATARS §7.2: every avatar part is checked against what the caller owns
+        if (body.avatar !== undefined || body.frame !== undefined || body.title !== undefined) {
+            const checked = await checkAvatarChoice(
+                {
+                    social: this.social,
+                    owned: this.owned ?? null,
+                    cats: this.cats ?? null,
+                    heroes: liveHeroIds(),
+                    catById: async id => (this.cats ? this.cats.findOne({ _id: id }).lean() : null),
+                },
+                me,
+                { avatar: body.avatar, frame: body.frame, title: body.title }
+            );
+            if ('bad' in checked) throw SOCIAL_ERRORS.invalid(checked.bad);
+            Object.assign(set, checked.set);
+        }
+        if (body.dmPolicy !== undefined) {
+            if (body.dmPolicy !== 'friends' && body.dmPolicy !== 'off') throw SOCIAL_ERRORS.invalid('dmPolicy');
+            set.dmPolicy = body.dmPolicy;
+        }
         if (body.name !== undefined) {
             if (body.name === 'generated') set.name = { kind: 'generated' };
             else if (typeof body.name === 'string' && /^[a-f0-9]{24}$/i.test(body.name)) {
@@ -600,11 +652,13 @@ export class SocialService {
         const bands = new Map<string, AgeBand | null>();
         for (const id of ids) bands.set(id, await this.band(id));
         const meOk = reg.has(me) && myProfile.allowRecent && recentOk(myBand);
+        const avatars = await this.avatarsOf(ids);
         return {
             players: rows.map(r => ({
                 room: r.room,
                 slot: r.slot,
                 name: names.get(r.acc),
+                av: avatars.get(r.acc),
                 team: r.team,
                 canAdd:
                     meOk &&

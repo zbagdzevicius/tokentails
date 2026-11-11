@@ -1,5 +1,6 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { REPORT_REASONS, REPORT_STATUSES, SANCTION_KINDS } from './report.contracts';
+import { PAWLEGENDS_CHAT_SCHEMAS } from './chat.schema';
+import { REPORT_STATUSES, SANCTION_KINDS, STORED_REPORT_REASONS } from './report.contracts';
 
 /*
  * Social, presence, boards, reports and sanctions (docs/plans/moba/SOCIAL-RANKED.md §11). None of these is a score:
@@ -37,6 +38,33 @@ export class PawlegendsSocial {
 
     @Prop({ type: Date, required: true })
     createdAt: Date;
+
+    /**
+     * The avatar icon (CHAT-AVATARS.md §7): a hero, one of the player's own cats, or an owned icon. Checked on write and
+     * again at read time (avatar.ts); absent means the default hero.
+     */
+    @Prop({ type: Object, default: undefined })
+    avatar?: { kind: 'hero'; hero: string } | { kind: 'cat'; catId: string } | { kind: 'icon'; icon: string };
+
+    /** An owned frame id (`frame.*`), shown as the avatar border. */
+    @Prop({ type: String, default: null })
+    frame?: string | null;
+
+    /** An owned title id (`title.*`). */
+    @Prop({ type: String, default: null })
+    title?: string | null;
+
+    /** 'off': nobody can DM this player (party chat still works). */
+    @Prop({ type: String, enum: ['friends', 'off'], default: 'friends' })
+    dmPolicy?: 'friends' | 'off';
+
+    /** Text chat paused until (5 filter rejections in 10 minutes); phrases still work. */
+    @Prop({ type: Date, default: null })
+    chatCooldownUntil?: Date | null;
+
+    /** Filter rejections today (UTC day); 20 raise CMS flag F6. */
+    @Prop({ type: Object, default: null })
+    chatStrikes?: { day: string; n: number } | null;
 }
 export const PawlegendsSocialSchema = SchemaFactory.createForClass(PawlegendsSocial);
 
@@ -162,8 +190,19 @@ export class PawlegendsReport {
     @Prop({ default: false })
     guest: boolean;
 
-    @Prop({ type: String, required: true, enum: REPORT_REASONS })
+    @Prop({ type: String, required: true, enum: STORED_REPORT_REASONS })
     reason: string;
+
+    /** Chat reports: the sub-reason (harass, sexual, contact, spam, other). */
+    @Prop({ type: String, default: undefined })
+    chatKind?: string;
+
+    /**
+     * Chat reports: the reported message and up to 6 earlier lines of its thread, copied so the 30-day chat TTL cannot
+     * delete the evidence (`{thread, kind, from, k, text?, id?, at, context[]}`). Moderators only.
+     */
+    @Prop({ type: Object, default: undefined })
+    snapshot?: Record<string, unknown>;
 
     /** Moderators only; 16+ bands only; at most 140 characters. */
     @Prop({ type: String, default: undefined, maxlength: 140 })
@@ -303,10 +342,15 @@ export const PAWLEGENDS_SOCIAL_SCHEMAS = [
     { name: PawlegendsSanction.name, schema: PawlegendsSanctionSchema },
     { name: PawlegendsBoard.name, schema: PawlegendsBoardSchema },
     { name: PawlegendsStatus.name, schema: PawlegendsStatusSchema },
+    ...PAWLEGENDS_CHAT_SCHEMAS,
 ];
 
 export const PAWLEGENDS_RELAY_SOCIAL_SCHEMAS = [
     { name: PawlegendsPresence.name, schema: PawlegendsPresenceSchema },
     { name: PawlegendsStatus.name, schema: PawlegendsStatusSchema },
     { name: PawlegendsSanction.name, schema: PawlegendsSanctionSchema },
+    // friends chat (CHAT-AVATARS.md §5): the profile (avatar, cooldown) and blocks are read; party lines are written
+    { name: PawlegendsSocial.name, schema: PawlegendsSocialSchema },
+    { name: PawlegendsBlock.name, schema: PawlegendsBlockSchema },
+    ...PAWLEGENDS_CHAT_SCHEMAS,
 ];

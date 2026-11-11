@@ -8,10 +8,22 @@ export type ReportReason = typeof REPORT_REASONS[number];
 export const isReportReason = (v: unknown): v is ReportReason =>
     typeof v === 'string' && (REPORT_REASONS as readonly string[]).includes(v);
 
+/**
+ * Chat message reports (CHAT-AVATARS.md §3.4): reason `chat` with a sub-reason (shared/chat.ts CHAT_REPORT_KINDS).
+ * Kept out of REPORT_REASONS on purpose: that list is the PvP flag's chips, and a PvP report can never say `chat`.
+ * STORED_REPORT_REASONS is what a report row may hold.
+ */
+export const CHAT_REPORT_REASON = 'chat' as const;
+export const STORED_REPORT_REASONS = [...REPORT_REASONS, CHAT_REPORT_REASON] as const;
+export type StoredReportReason = typeof STORED_REPORT_REASONS[number];
+export const isStoredReportReason = (v: unknown): v is StoredReportReason =>
+    typeof v === 'string' && (STORED_REPORT_REASONS as readonly string[]).includes(v);
+
 export const REPORT_STATUSES = ['open', 'corroborated', 'actioned', 'dismissed'] as const;
 export type ReportStatus = typeof REPORT_STATUSES[number];
 
-export const SANCTION_KINDS = ['warn', 'queue_lock', 'ranked_lock', 'board_exclude', 'pvp_ban'] as const;
+/** `chat_mute` (CHAT-AVATARS.md §3.4): no DM, party or in-match chat until it ends (1, 7, 30 days or permanent). */
+export const SANCTION_KINDS = ['warn', 'queue_lock', 'ranked_lock', 'board_exclude', 'pvp_ban', 'chat_mute'] as const;
 export type SanctionKind = typeof SANCTION_KINDS[number];
 export const RESOLVE_ACTIONS = ['dismiss', ...SANCTION_KINDS] as const;
 export type ResolveAction = typeof RESOLVE_ACTIONS[number];
@@ -42,6 +54,8 @@ export const REPORT_LIMITS = Object.freeze({
 
 /** Auto-flags (§8.5): only raise the review priority, never act. */
 export const REPORT_FLAGS = Object.freeze({
+    /** F6 (chat): filter strikes in one UTC day (shared/chat.ts CHAT_LIMITS.strikeFlagPerDay). */
+    f6Strikes: 20,
     f1Reporters: 3,
     f1Rooms: 2,
     f1Days: 7,

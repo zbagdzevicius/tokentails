@@ -9,6 +9,7 @@ import { displayNames } from './display-name';
 import { accountIntel, heroBaselines, intelZ, INTEL } from './intel';
 import {
     isReportReason,
+    isStoredReportReason,
     REPORT_FLAGS,
     REPORT_LIMITS,
     REPORTABLE_QUEUES,
@@ -249,7 +250,7 @@ export class ReportService {
         const filter: Record<string, unknown> = { createdAt: { $gte: since } };
         if (status === 'open') filter.status = { $in: ['open', 'corroborated'] };
         else if (status !== 'all') filter.status = status;
-        if (isReportReason(query.reason)) filter.reason = query.reason;
+        if (isStoredReportReason(query.reason)) filter.reason = query.reason;
         const rows = (await this.reports.find(filter).sort({ createdAt: -1 }).limit(5000).lean()) as Array<{
             _id: unknown;
             room: string;
@@ -311,6 +312,15 @@ export class ReportService {
             const pairs = this.winTradePairs(week7, target);
             if (pairs.length) flags.push('F4');
             if (g.afk7d >= REPORT_FLAGS.f5Afk) flags.push('F5');
+            // F6 (CHAT-AVATARS.md §2.6): 20 chat filter rejections today
+            const strikes = (await this.social.findOne({ _id: target }).select({ chatStrikes: 1 }).lean()) as {
+                chatStrikes?: { day: string; n: number } | null;
+            } | null;
+            if (
+                strikes?.chatStrikes?.day === now.toISOString().slice(0, 10) &&
+                strikes.chatStrikes.n >= REPORT_FLAGS.f6Strikes
+            )
+                flags.push('F6');
             out.push({
                 target: { accountId: target, name: names.get(target) },
                 counts: g.counts,
@@ -347,7 +357,7 @@ export class ReportService {
             .sort({ createdAt: -1 })
             .limit(200)
             .lean()) as Array<Record<string, any>>;
-        const roomIds = [...new Set(rows.map(r => r.room as string))];
+        const roomIds = [...new Set(rows.filter(r => r.reason !== 'chat').map(r => r.room as string))];
         const rooms = (await this.rooms.find({ _id: { $in: roomIds } }).lean()) as MmRoomRecord[];
         const byId = new Map(rooms.map(r => [r._id, r]));
         const sanctions = (await this.sanctions.find({ accountId }).sort({ createdAt: -1 }).limit(50).lean()) as Array<
@@ -367,6 +377,8 @@ export class ReportService {
                 reason: r.reason,
                 note: r.note ?? null,
                 tick: r.tick ?? null,
+                // chat reports: the sub-reason and the copied message with its context (moderators only)
+                ...(r.reason === 'chat' ? { chatKind: r.chatKind ?? null, snapshot: r.snapshot ?? null } : {}),
                 status: r.status,
                 createdAt: r.createdAt,
             })),
@@ -417,7 +429,9 @@ export class ReportService {
         const reasonCode =
             typeof body.reasonCode === 'string' && /^[a-z0-9_]{1,40}$/.test(body.reasonCode) ? body.reasonCode : null;
         if (!reasonCode) throw REPORT_ERRORS.invalid('reasonCode');
-        const timed = action === 'queue_lock' || action === 'ranked_lock';
+        // chat_mute: 1, 7 or 30 days, or permanent when no days are sent (CHAT-AVATARS.md §3.4)
+        const timed =
+            action === 'queue_lock' || action === 'ranked_lock' || (action === 'chat_mute' && body.days !== undefined && body.days !== null);
         const days = Number(body.days);
         if (timed && (!Number.isInteger(days) || days < 1 || days > 365)) throw REPORT_ERRORS.invalid('days');
         const now = this.now();
