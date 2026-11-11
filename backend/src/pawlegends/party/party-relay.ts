@@ -2030,7 +2030,13 @@ export class PartyRelay {
         if (!check.ok) this.log('mp_verify_failed', { why: check.why });
         // the Quick Play record (events, outcome) is written before the verdict, so a `/live` save sees it
         await this.mm
-            .onRoomEnded(room.id, end.outcome === 'won' || end.outcome === 'lost' ? end.outcome : null, end.ticks)
+            .onRoomEnded(
+                room.id,
+                end.outcome === 'won' || end.outcome === 'lost' ? end.outcome : null,
+                end.ticks,
+                null,
+                end.intel
+            )
             .catch(() => undefined);
         await this.opts.store.finish(
             room.id,

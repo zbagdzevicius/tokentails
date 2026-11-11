@@ -29,6 +29,22 @@ import {
 import { MM_CASUAL, MM_HOME_REGION, MM_LIMITS } from './mm-limits';
 import { identityHash, type MmRoomMember, type MmRoomStore } from './mm-room.schema';
 import type { MmRatingSource } from './rating.schema';
+import type { SlotIntel } from '../party/referee-intel';
+
+/** The referee's per-slot intel on the slot's last holder (the one who played to the end). Pure. */
+export function withIntel(members: MmRoomMember[], intel?: readonly SlotIntel[]): MmRoomMember[] {
+    if (!intel?.length) return members;
+    const last = new Map<number, MmRoomMember>();
+    for (const m of members) {
+        const prev = last.get(m.slot);
+        if (!prev || m.joinedTick >= prev.joinedTick) last.set(m.slot, m);
+    }
+    for (const i of intel) {
+        const m = last.get(i.slot);
+        if (m && m.accountId) m.intel = { acts: i.acts, hid: i.hid, opp: i.opp, ...(i.hero ? { hero: i.hero } : {}) };
+    }
+    return members;
+}
 
 /** What the relay tells the glue about a socket. */
 export interface MmSock {
@@ -103,7 +119,9 @@ export interface MmHooks {
         roomId: string,
         outcome: 'won' | 'lost' | null,
         endTick: number,
-        voided?: 'remake' | null
+        voided?: 'remake' | null,
+        /** PvP: the referee's "acts on hidden" counts per slot (SOCIAL-RANKED.md §9.2), stored on the members. */
+        intel?: readonly SlotIntel[]
     ): Promise<void>;
     onPartyChanged(party: Party): void;
     /** The member holds a queued entry (its resume token is kept while its socket is gone). */
@@ -1269,7 +1287,8 @@ export class MmBridge implements MmHooks {
         roomId: string,
         outcome: 'won' | 'lost' | null,
         endTick: number,
-        voided: 'remake' | null = null
+        voided: 'remake' | null = null,
+        intel?: readonly SlotIntel[]
     ): Promise<void> {
         const lm = this.live.get(roomId);
         if (!lm) return;
@@ -1286,7 +1305,7 @@ export class MmBridge implements MmHooks {
                 offSinceMs: lm.offSince.get(s.slot) ?? null,
                 pilotTicks: Object.fromEntries(AFK_REASONS.map(r => [r, s.pilotTicks[r] ?? 0])),
             }));
-        const members = roomEvents(lm.members, seats, endTick, now, 1000 / 30);
+        const members = withIntel(roomEvents(lm.members, seats, endTick, now, 1000 / 30), intel);
         this.tally.mm_leaver_events += members.filter(m => m.event).length;
         try {
             await this.deps.rooms.finish(roomId, members, outcome, new Date(now), voided);
