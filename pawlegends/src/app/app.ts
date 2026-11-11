@@ -756,7 +756,7 @@ export class App {
         onSocial: this.bridge.active ? () => this.openSocial() : undefined,
         socialBadge: this.socialBadge,
         onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
-        onExit: this.bridge.active
+        onExit: this.bridge.kind === 'frame'
           ? () => {
               sfx.play('click');
               this.bridge.post('exit');
@@ -1809,6 +1809,7 @@ export class App {
       return;
     }
     const p = loadProfile();
+    const account = this.integration.accountModel();
     const el = settingsPanel(this.root, {
       state: {
         muted: sfx.isMuted,
@@ -1839,6 +1840,7 @@ export class App {
       },
       onStats: (on) => this.analytics.setConsent(on),
       termsUrl: this.termsUrl(),
+      ...(account ? { account: { model: account, send: (a) => void this.integration.account(a) } } : {}),
       onClose: () => {
         this.overlay = null;
         if (this.screen === 'title') this.showTitle();

@@ -407,12 +407,18 @@ export function progressChanged(a: Profile, b: Profile): boolean {
 export interface AccountState {
   signedIn: boolean;
   progress: Progress | null;
+  /** The profile name (signed in only; the account chip). */
+  name?: string | null;
+  /** The sign-in method (signed in only; the account chip's icon). */
+  provider?: 'google' | 'apple' | 'email' | null;
 }
 
 let account: AccountState = { signedIn: false, progress: null };
 export const accountState = (): AccountState => account;
 export function setAccountState(a: AccountState): void {
-  account = { signedIn: a.signedIn, progress: a.signedIn ? a.progress : null };
+  account = a.signedIn
+    ? { signedIn: true, progress: a.progress, name: a.name ?? null, provider: a.provider ?? null }
+    : { signedIn: false, progress: null };
 }
 
 /** Tests only. */

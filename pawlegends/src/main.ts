@@ -22,8 +22,9 @@ function boot(): void {
   installCrashOverlay();
   installNoZoom();
   const bridge = installBridge();
-  // embedded: the crash panel's "Back to games" leaves through the host (no host close button any more)
-  if (bridge.active) setCrashExit(() => bridge.post('exit'));
+  // embedded: the crash panel's "Back to games" leaves through the host (no host close button any more); the app's
+  // in-page host has no games page to go back to
+  if (bridge.kind === 'frame') setCrashExit(() => bridge.post('exit'));
   const app = document.getElementById('app');
   if (!app) throw new Error('no #app element');
   new App(app, bridge);

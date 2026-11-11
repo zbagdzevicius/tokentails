@@ -24,6 +24,7 @@ import { isAppBuild, parseRoster, rosterCosmetics, setAppBuild, type RosterCat }
 import { chooseSquadMate, noteNewCat, squadPrefs } from '../meta/squad';
 import { championInfo, meetCard, pickCards, resultsCards, saveChip, titleCards, levelBadges, type ChipState, type SquadMate } from '../ui/cards';
 import { HEROES } from '../data/heroes';
+import { closeAccountPanel, mountAccountChip, type AccountModel } from '../ui/account';
 import { championByCatalogId, championOf } from '../data/heroes/shelter';
 import { championDue, championEarned, noteChampionShown } from '../meta/profile';
 import type { HeroId } from '../sim/api';
@@ -48,7 +49,9 @@ import {
   type PartyResult,
   type Progress,
   type SaveResult,
+  type SignInProvider,
   type SignInReason,
+  type AccountAction,
 } from './bridge';
 import { parseApiResult, type ApiArgs, type ApiOp, type ApiResult } from './api';
 
@@ -86,6 +89,8 @@ export interface IntegrationState {
   signedIn: boolean;
   /** UX pass 2: the signed-in player's profile name (`session.name`), shown over their own hero; null = "You". */
   playerName: string | null;
+  /** Sign-in: how the signed-in player signed in (`session.provider`; the account chip's icon). */
+  provider: SignInProvider | null;
   progress: Progress | null;
   app: AppInfo | null;
   audio: AudioInfo | null;
@@ -142,6 +147,10 @@ export interface Integration {
   api(op: ApiOp, args?: ApiArgs): Promise<ApiResult>;
   /** Ask the host to open its sign-in (social features are for registered accounts). */
   requestSignIn(reason: SignInReason): void;
+  /** The account chip and Settings row: sign in, sign out, manage (web) or delete (app). False when nothing listens. */
+  account(action: AccountAction): boolean;
+  /** What the account chip shows, or null when no host answered (the plain standalone game has no accounts). */
+  accountModel(): AccountModel | null;
   dispose(): void;
 }
 
@@ -236,6 +245,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   const s: IntegrationState = {
     signedIn: false,
     playerName: null,
+    provider: null,
     progress: null,
     app: null,
     audio: null,
@@ -273,6 +283,12 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
 
   // the host tracks the prompt (`pawlegends_signin_prompt`); the game only asks
   const signIn = (reason: SignInReason): void => void bridge.post('request-sign-in', { reason });
+  const account = (action: AccountAction): boolean => {
+    closeAccountPanel();
+    return bridge.post('account', { action });
+  };
+  const accountModel = (): AccountModel | null =>
+    embedded() ? { signedIn: s.signedIn, name: s.signedIn ? s.playerName : null, provider: s.signedIn ? s.provider : null, isApp: isApp() } : null;
 
   const mate = (c: { id: string; name: string; element: RosterCat['type']; tier: RosterCat['tier']; art?: string; fromPack?: boolean }): SquadMate => {
     const art = c.art ?? s.roster.find((r) => r.id === c.id)?.art;
@@ -414,6 +430,10 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       // signed-in owners were still told "No account needed." (round 0)
       const acct = scr.querySelector<HTMLElement>('.acct');
       if (acct) acct.textContent = s.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.';
+      // sign-in: the account chip in the corner (a host answered: the Token Tails page or the app's in-page host)
+      const model = accountModel();
+      if (model) mountAccountChip(scr, model, (a) => void account(a));
+      else scr.querySelector('.pl-acct-chip')?.remove();
       const cat = meetFor('title');
       slot.replaceChildren(
         titleCards(
@@ -545,8 +565,11 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         if (!v) return;
         s.signedIn = v.signedIn;
         s.playerName = v.name ?? null;
+        s.provider = v.provider ?? null;
         s.progress = v.progress;
-        setAccountState(v);
+        setAccountState({ signedIn: v.signedIn, progress: v.progress, name: v.name ?? null, provider: v.provider ?? null });
+        // a panel opened for the old account must not act for the new one
+        closeAccountPanel();
         const before = deps.profile();
         const merged = mergeServerProgress(before, v.progress);
         if (merged !== before && progressChanged(before, merged)) {
@@ -682,6 +705,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       });
     },
     requestSignIn: (reason) => signIn(reason),
+    account,
+    accountModel,
     api: (op, args = {}) => {
       const id = makeMatchId();
       const none: ApiResult = { id, ok: false, status: 0 };
