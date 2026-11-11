@@ -5,8 +5,8 @@
  *
  * Every line has a stable `lid` (the cross-match memory names it; APPEND ONLY, never renumber), a category, an optional
  * side (cats-vs-dogs flavour), an optional `q` (the in-match phrase id sent instead when a recipient is quick tier;
- * a line without one is dropped for quick tiers), an optional `tag` (objective kind, reaction intent, follow group)
- * and an optional common `tok` (gg, ty, gj, b, omw, nice, lol: exempt from the lid memory, MATCH-CHAT §5.8).
+ * a line without one is dropped for quick tiers), an optional `tag` (objective kind, reaction intent, follow group;
+ * `shutdown` praise only follows a shutdown, a `two` death only a death with 2+ enemies close) and an optional common `tok` (gg, ty, gj, b, omw, nice, lol: exempt from the lid memory, MATCH-CHAT §5.8).
  *
  * Tokens: `{who}` (a human teammate's first name word), `{lane}` (the bot's lane word; skipped when unknown).
  *
@@ -164,9 +164,9 @@ export const BOT_LINES: readonly BotLine[] = [
     'that came out of nowhere',
     'that hurt',
     'rip me',
-    'they were two',
+    ['they were two', { tag: 'two' }],
     'careful {lane}',
-    'two there',
+    ['two there', { tag: 'two' }],
     'got caught',
     '💀',
     'welp',
@@ -193,10 +193,10 @@ export const BOT_LINES: readonly BotLine[] = [
     'so good',
     'good stuff',
     'that was cool',
-    'u good',
+    'well done',
     'teach me',
-    'nice shutdown',
-    'bounty gone lol',
+    ['nice shutdown', { tag: 'shutdown' }],
+    ['bounty gone lol', { tag: 'shutdown' }],
     ['well played', { q: 39 }],
   ]),
   ...group('thanks', 'th', [['ty', { q: 29 }], ['thx', { q: 29 }], 'ty for help', 'good help', ['thanks', { q: 29 }], '❤', 'nice assist']),
@@ -271,7 +271,7 @@ export const BOT_LINES: readonly BotLine[] = [
     ['ok lets go', { tag: 'hype' }],
     ['next time', { tag: 'down' }],
     ['all good', { tag: 'down' }],
-    ['my fault', { tag: 'down' }],
+    ['my fault', { tag: 'self' }],
     ['careful now', { tag: 'down' }],
     ['ok', { tag: 'down' }],
     ['lets fix it', { tag: 'down' }],

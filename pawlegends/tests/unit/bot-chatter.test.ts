@@ -3,7 +3,8 @@ import { filterChatText } from '../../../shared/chat-filter';
 import { BotChatter, CHATTER, humanIntent, isProbe, mergeSeen, pushSeen, typingMs, type BotSeen, type ChatterSetup, type Planned } from '../../src/chat/botChatter';
 import { cuesFromEvents, statesFromHeroes, type BotState, type ChatCue, type HeroLike } from '../../src/chat/cues';
 import { Rng } from '../../src/chat/rng';
-import { BOT_LINES } from '../../src/chat/botLines';
+import { BOT_LINES, LINES_BY_CAT } from '../../src/chat/botLines';
+import { dress, drawPersona } from '../../src/chat/personas';
 
 /**
  * The bot chatter engine (docs/plans/moba/MATCH-CHAT.md §5, §8): the frequency distribution over scripted 7-minute
@@ -210,8 +211,11 @@ describe('bot chatter guards (MATCH-CHAT.md §6)', { timeout: 120_000 }, () => {
     expect(humanIntent('ggwp')).toBe('gg');
     expect(humanIntent('hahaha')).toBe('lol');
     let reactions = 0;
+    let unearned = 0;
     for (let seed = 1; seed <= 2000; seed++) {
+      // the "nice" is for bot 1, which just got a kill (a "nice" nobody earned gets no "ty": below)
       const c = new BotChatter({ seed, slots: 6, teamSize: 3, humans: [0], tiers: ['text', 'text'], filter, startMs: 10_000_000 });
+      c.observe({ k: 'death', id: 4, killer: 1, assists: [] }, 500);
       c.human({ slot: 0, ch: 'team', k: 't', text: 'where are you?' }, 1000);
       c.human({ slot: 0, ch: 'team', k: 't', text: 'nice' }, 2000);
       const out: Planned[] = [];
@@ -221,7 +225,15 @@ describe('bot chatter guards (MATCH-CHAT.md §6)', { timeout: 120_000 }, () => {
       reactions += re.length;
       const praiseLids = BOT_LINES.filter((b) => b.cat === 'reaction' && b.tag === 'praise').map((b) => b.lid);
       for (const l of re) expect(praiseLids).toContain(l.lid);
+      for (const l of re) expect(l.slot).toBe(1);
+      // the same "nice" with no bot deed in the last 15 s, and a "ty" no bot helped with: silence
+      const d = new BotChatter({ seed, slots: 6, teamSize: 3, humans: [0], tiers: ['text', 'text'], filter, startMs: 10_000_000 });
+      d.observe({ k: 'death', id: 4, killer: 1, assists: [] }, 500);
+      d.human({ slot: 0, ch: 'team', k: 't', text: 'nice' }, 20_000);
+      d.human({ slot: 0, ch: 'team', k: 't', text: 'ty' }, 90_000);
+      for (let t = 20_000; t < 110_000; t += 100) unearned += d.due(t).filter((l) => l.cat === 'reaction').length;
     }
+    expect(unearned).toBe(0);
     // p 0.25 times the share of rooms with budget and a talker: some, never many
     expect(reactions).toBeGreaterThan(50);
     expect(reactions).toBeLessThan(700);
@@ -328,9 +340,10 @@ describe('bot chatter memory across matches (§5.8)', { timeout: 120_000 }, () =
       const mine = r.chatter.seenBy(0);
       for (const x of mine) {
         if (x.lid.endsWith('*')) continue;
+        // wheel phrases (q:) repeat like anyone's; the lid memory is for typed lines
         if (!x.tok) {
-          const lastLids = history.filter((h) => !h.tok).slice(-80).map((h) => h.lid);
-          expect(lastLids, `match ${m} ${x.lid}`).not.toContain(x.lid);
+          const lastLids = history.filter((h) => !h.tok && !h.surface.startsWith('q:')).slice(-80).map((h) => h.lid);
+          if (!x.surface.startsWith('q:')) expect(lastLids, `match ${m} ${x.lid}`).not.toContain(x.lid);
         } else {
           const last3 = history.filter((h) => h.tok === x.tok).slice(-3).map((h) => h.surface);
           expect(last3, `match ${m} ${x.tok}`).not.toContain(x.surface);
@@ -342,6 +355,22 @@ describe('bot chatter memory across matches (§5.8)', { timeout: 120_000 }, () =
       expect(ring.s.length).toBeLessThanOrEqual(30);
     }
     expect(history.length).toBeGreaterThan(100);
+  });
+
+  it('a phrases-only account (solo, unknown age) does not run the bots dry: matches 201–300 chat as much as 1–100', () => {
+    let ring: BotSeen = { l: [], s: [] };
+    const counts: number[] = [];
+    for (let m = 0; m < 300; m++) {
+      const seen = mergeSeen([ring]);
+      const r = scriptedMatch(5000 + m, { seen: [seen, seen], tiers: ['quick', 'quick'] });
+      const mine = r.chatter.seenBy(0);
+      counts.push(mine.length);
+      ring = pushSeen(ring, mine);
+    }
+    const sum = (a: number[]) => a.reduce((x, y) => x + y, 0);
+    const early = sum(counts.slice(0, 100));
+    expect(early).toBeGreaterThan(30);
+    expect(sum(counts.slice(200))).toBeGreaterThan(early * 0.7);
   });
 
   it('every lid the engine sends is a bank line (no free generation)', () => {
@@ -389,5 +418,70 @@ describe('chat cues from sim events (read only)', () => {
     expect(by(1).intent).toBe('fight');
     expect(by(2).intent).toBe('retreat');
     expect(by(5).intent).toBe('base');
+  });
+});
+
+/**
+ * The believability read (tools/chat-transcripts, 50+ real simulated matches per tier): surfaces and context fits a
+ * regular player would notice as a script.
+ */
+describe('bot chatter believability', { timeout: 120_000 }, () => {
+  it('surfaces: no stretched shorthand, no capitalised "o/", no "…" on an up line, no "." on a proper up line', () => {
+    const rng = new Rng(77);
+    for (let i = 0; i < 2000; i++) {
+      const p = drawPersona(rng);
+      for (const l of BOT_LINES) {
+        if (l.text.includes('{')) continue;
+        for (const mood of ['up', 'down', 'neutral'] as const) {
+          const s = dress(l.text, p, rng, { mood, max: 40 });
+          expect(s, `${p.kind} ${l.text}`).not.toMatch(/^(wpp|ggg|gjj|ww)|\d seee|^O\//);
+          if (mood === 'up') expect(s, `${p.kind} ${l.text}`).not.toMatch(/…$/);
+          if (mood === 'up' && p.kind === 'proper') expect(s, l.text).not.toMatch(/[a-z]\.$/i);
+          if (p.kind === 'silent' && l.tok === 'gg') expect(s).toBe(s.toLowerCase());
+        }
+      }
+    }
+  });
+
+  it('"nice shutdown" only after a shutdown the human really got; "they were two" only with 2+ enemies close', () => {
+    const shutdownLids = LINES_BY_CAT.praise.filter((l) => l.tag === 'shutdown').map((l) => l.lid);
+    const twoLids = LINES_BY_CAT.death.filter((l) => l.tag === 'two').map((l) => l.lid);
+    let shutdownPraise = 0;
+    for (let seed = 1; seed <= 3000; seed++) {
+      // a tower finished the victim, the sim still credited the shutdown to slot 0: no praise at all
+      const a = new BotChatter({ seed, slots: 6, teamSize: 3, humans: [0], tiers: ['text', 'text'], filter, startMs: 10_000_000 });
+      a.observe({ k: 'death', id: 4, killer: -1, assists: [] }, 1000);
+      a.observe({ k: 'shutdown', killer: 0, victim: 4 }, 1000);
+      for (let t = 1000; t < 20_000; t += 250) expect(a.due(t).filter((l) => l.cat === 'praise')).toEqual([]);
+      // a plain kill never says "nice shutdown"; a real shutdown may
+      const b = new BotChatter({ seed, slots: 6, teamSize: 3, humans: [0], tiers: ['text', 'text'], filter, startMs: 10_000_000 });
+      b.observe({ k: 'death', id: 4, killer: 0, assists: [] }, 1000);
+      b.observe({ k: 'death', id: 5, killer: 0, assists: [] }, 3000);
+      for (let t = 1000; t < 30_000; t += 250) for (const l of b.due(t)) expect(shutdownLids).not.toContain(l.lid);
+      const c = new BotChatter({ seed, slots: 6, teamSize: 3, humans: [0], tiers: ['text', 'text'], filter, startMs: 10_000_000 });
+      c.observe({ k: 'death', id: 4, killer: 0, assists: [] }, 1000);
+      c.observe({ k: 'shutdown', killer: 0, victim: 4 }, 1000);
+      for (let t = 1000; t < 20_000; t += 250) shutdownPraise += c.due(t).filter((l) => l.cat === 'praise').length;
+      // a bot dying alone never says "they were two"
+      const d = new BotChatter({ seed, slots: 6, teamSize: 3, humans: [0], tiers: ['text', 'text'], filter, startMs: 10_000_000 });
+      d.sample([{ slot: 1, alive: true, hp: 0.2, intent: 'fight', enemies: 1, allies: 0 }], 500);
+      d.observe({ k: 'death', id: 1, killer: 4, assists: [] }, 1000);
+      for (let t = 1000; t < 20_000; t += 250) for (const l of d.due(t)) expect(twoLids).not.toContain(l.lid);
+    }
+    expect(shutdownPraise).toBeGreaterThan(100);
+  });
+
+  it('"my fault" only follows a bot\'s own death', () => {
+    let follows = 0;
+    for (let s = 1; s <= 3000; s++) {
+      const lines = scriptedMatch(s, {}).lines;
+      lines.forEach((l, i) => {
+        if (!l.follow || l.lid.endsWith('*')) return;
+        follows++;
+        const parent = lines.slice(0, i).reverse().find((x) => x.slot === l.slot && !x.follow);
+        if (l.text?.toLowerCase().startsWith('my fault')) expect(parent?.cat).toBe('death');
+      });
+    }
+    expect(follows).toBeGreaterThan(0);
   });
 });
