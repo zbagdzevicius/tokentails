@@ -561,7 +561,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
           ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'room_over' }, asked: false, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] }
           : { state: s, effects: [] };
       if (s.inMatch) return { state: s, effects: [] }; // NetHost shows in-match errors on the rail
-      // casual PvP refused: fewer than 5 matches, or a game without PvP
+      // casual PvP refused: the relay's match-count lock (lifted for now), or a game without PvP
       if (s.queue && m.code === 'mm_locked' && m.reason === 'pvp_newbie')
         return { state: { ...s, queue: { ...s.queue, stopped: 'newbie', status: null }, offer: null }, effects: [] };
       if (s.queue && m.code === 'pvp_update_required') return { state: { ...s, queue: { ...s.queue, stopped: 'update', status: null }, offer: null }, effects: [] };

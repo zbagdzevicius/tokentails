@@ -137,7 +137,7 @@ export const COPY = Object.freeze({
   modeLabel: 'Online mode',
   modeCoop: 'Co-op vs bots',
   modePvp: 'PvP',
-  pvpLocked: 'PvP unlocks after 5 matches',
+  pvpLocked: 'PvP unlocks after a few more matches',
   findingPvp: 'Finding a PvP match…',
   pvpTeams: (mine: number, theirs: number) => `Your team ${mine} of 3 · Their team ${theirs} of 3`,
   pvpFill: 'Bots fill empty seats after 0:30',

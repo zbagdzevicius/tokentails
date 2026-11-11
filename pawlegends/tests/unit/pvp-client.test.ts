@@ -5,7 +5,7 @@ import { queueCardHtml } from '../../src/party/ui/queueCard';
 import { acceptCardHtml } from '../../src/party/ui/acceptCard';
 import { loadingHtml } from '../../src/party/ui/partyLoading';
 import { pickHtml } from '../../src/party/ui/partyPick';
-import { onlineMode, setOnlineMode } from '../../src/meta/partyPrefs';
+import { onlineMode, pvpQueueFor, setOnlineMode } from '../../src/meta/partyPrefs';
 import * as camHeight from '../../src/render/camera/height';
 import { voteNote } from '../../src/app/mpHud';
 
@@ -114,7 +114,7 @@ describe('casual PvP client', () => {
     expect(screenOf(s)).toBe('pick');
   });
 
-  it('a decline is sent and the relay\'s mm.cancel{declined} stops the card; a newbie lock reads "PvP unlocks after 5 matches"', () => {
+  it('a decline is sent and the relay\'s mm.cancel{declined} stops the card; a newbie lock (if the relay raises it again) stops the card', () => {
     let { s, fx } = run(initialParty('queue', null, 'any', 'casual'), welcome(), found, { e: 'accept', yes: false });
     expect(sent(fx).pop()).toEqual({ t: 'mm.accept', match: 'abcdefghijkl', yes: false });
     ({ s } = run(s, { t: 'mm.cancel', reason: 'declined' }));
@@ -153,13 +153,26 @@ describe('casual PvP client', () => {
     expect(seatsOf(v).map((x) => x.slot).sort()).toEqual([0, 3, 4]);
   });
 
-  it('online mode: co-op until 5 matches, then the last one used', () => {
+  it('a 0-match guest who taps PvP queues 3v3 casual (no 5-match lock); 5v5 Classic from match 1; Co-op stays Co-op', () => {
+    expect(pvpQueueFor('pvp', 0, false)).toBe('casual');
+    expect(pvpQueueFor('pvp', 2, false)).toBe('casual');
+    // the map toggle shows after the guided first match: before it, a stale Classic pick still queues casual
+    expect(pvpQueueFor('pvp', 0, true)).toBe('casual');
+    expect(pvpQueueFor('pvp', 1, true)).toBe('classic');
+    expect(pvpQueueFor('coop', 0, false)).toBe('coop');
+    const { fx } = run(initialParty('queue', null, 'any', 'casual'), welcome());
+    expect(sent(fx)).toContainEqual({ t: 'mm.join', queue: 'casual', side: 'any' });
+  });
+
+  it('online mode: co-op by default, then the last one used, from the first match (no 5-match lock)', () => {
     const store = new Map<string, string>();
     const g = globalThis as { localStorage?: unknown };
     const had = g.localStorage;
     g.localStorage = { getItem: (k: string) => store.get(k) ?? null, setItem: (k: string, v: string) => void store.set(k, v), removeItem: (k: string) => void store.delete(k) };
+    expect(onlineMode(0)).toBe('coop');
     setOnlineMode('pvp');
-    expect(onlineMode(2)).toBe('coop');
+    expect(onlineMode(0)).toBe('pvp');
+    expect(onlineMode(2)).toBe('pvp');
     expect(onlineMode(5)).toBe('pvp');
     setOnlineMode('coop');
     expect(onlineMode(9)).toBe('coop');
