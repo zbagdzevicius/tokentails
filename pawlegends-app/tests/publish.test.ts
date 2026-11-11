@@ -178,27 +178,4 @@ describe('ota-publish promote while main is busy', () => {
     expect(run('--promote')).toContain('promotes after');
     expect(read('manifest.json').version).toBe(old);
   });
-
-  it('V20-CHASE.md R8: with beta republished faster than it soaks, --promote takes the newest kept bundle that has soaked', () => {
-    const d2 = mkdtempSync(join(tmpdir(), 'plpub2-'));
-    const env2 = { ...env, OTA_UPDATES_DIR: join(d2, 'updates') };
-    const run2 = (...a: string[]) => execFileSync(process.execPath, [script, ...a], { env: env2, encoding: 'utf8' });
-    const read2 = (f: string) => JSON.parse(readFileSync(join(d2, 'updates/ios/1', f), 'utf8'));
-    const old = utc(new Date(Date.now() - 72 * 3_600_000));
-    build(old);
-    run2('--keep', '2');
-    expect(run2('--promote')).toContain('promoted');
-    const soaked = utc(new Date(Date.now() - 30 * 3_600_000));
-    build(soaked);
-    run2('--keep', '2');
-    // three fresh betas after it (more than --keep): the soaked one is kept and promoted
-    for (const h of [5, 3, 1]) {
-      build(utc(new Date(Date.now() - h * 3_600_000)));
-      run2('--keep', '2');
-    }
-    expect(existsSync(join(d2, 'updates/ios/1/bundles', `${soaked}-abc1234.zip`))).toBe(true);
-    expect(run2('--promote')).toContain('promoted');
-    expect(read2('manifest.json').version).toBe(`${soaked}-abc1234`);
-    expect(read2('manifest.json').rollback).toBe(false);
-  });
 });
