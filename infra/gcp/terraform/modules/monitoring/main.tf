@@ -502,7 +502,7 @@ resource "google_monitoring_alert_policy" "cron_failures" {
   conditions {
     display_name = "cron failures"
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.cron_lease_failures.name}\""
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.cron_lease_failures.name}\" AND resource.type=\"cloud_run_revision\""
       comparison      = "COMPARISON_GT"
       threshold_value = 2
       duration        = "0s"
@@ -547,7 +547,7 @@ resource "google_monitoring_alert_policy" "armor_spike" {
   conditions {
     display_name = "denied"
     condition_threshold {
-      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.armor_denied.name}\""
+      filter          = "metric.type=\"logging.googleapis.com/user/${google_logging_metric.armor_denied.name}\" AND resource.type=\"http_external_regional_lb_rule\""
       comparison      = "COMPARISON_GT"
       threshold_value = 500
       duration        = "0s"
