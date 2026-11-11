@@ -7,7 +7,11 @@
  * Framework-free and TypeScript 4.8 compatible. Edit here, then run `node scripts/sync-contracts.mjs`.
  */
 
-export const CHAT_SCOPES = ['dm', 'party', 'team'] as const;
+/**
+ * Where a phrase may be said: `dm`, `party` and `team` (pre-match, CHAT-AVATARS §2.3), and in a match (MATCH-CHAT.md
+ * §2.1) `match` (own team) and `all` (both teams).
+ */
+export const CHAT_SCOPES = ['dm', 'party', 'team', 'match', 'all'] as const;
 export type ChatScope = typeof CHAT_SCOPES[number];
 
 export interface ChatPhrase {
@@ -20,8 +24,13 @@ const DM: ReadonlyArray<ChatScope> = ['dm'];
 const DP: ReadonlyArray<ChatScope> = ['dm', 'party'];
 const DPT: ReadonlyArray<ChatScope> = ['dm', 'party', 'team'];
 const PT: ReadonlyArray<ChatScope> = ['party', 'team'];
+const MA: ReadonlyArray<ChatScope> = ['match', 'all'];
+const M: ReadonlyArray<ChatScope> = ['match'];
 
-/** The 24 quick phrases, in wire id order (§2.3). Never reorder: the wire and stored messages carry the id. */
+/**
+ * The quick phrases, in wire id order: 0–23 pre-match (CHAT-AVATARS §2.3), 24–39 in a match (MATCH-CHAT.md §2.1).
+ * Never reorder: the wire and stored messages carry the id.
+ */
 export const CHAT_PHRASES: ReadonlyArray<ChatPhrase> = [
     { id: 0, text: 'Wanna play?', scopes: DM },
     { id: 1, text: 'Join my party!', scopes: DM },
@@ -47,7 +56,38 @@ export const CHAT_PHRASES: ReadonlyArray<ChatPhrase> = [
     { id: 21, text: 'Dogs drool \uD83D\uDC36', scopes: DPT },
     { id: 22, text: 'Paws up, team!', scopes: PT },
     { id: 23, text: 'Tail high, try again', scopes: DPT },
+    { id: 24, text: 'gl hf', scopes: MA },
+    { id: 25, text: 'gg', scopes: MA },
+    { id: 26, text: 'gg wp', scopes: MA },
+    { id: 27, text: 'wp', scopes: MA },
+    { id: 28, text: 'Nice!', scopes: MA },
+    { id: 29, text: 'Thanks!', scopes: M },
+    { id: 30, text: 'Sorry!', scopes: MA },
+    { id: 31, text: 'On my way', scopes: M },
+    { id: 32, text: 'Back', scopes: M },
+    { id: 33, text: 'Careful!', scopes: M },
+    { id: 34, text: 'Group up', scopes: M },
+    { id: 35, text: 'Close one!', scopes: MA },
+    { id: 36, text: 'Cannon!', scopes: M },
+    { id: 37, text: '\uD83D\uDE39', scopes: MA },
+    { id: 38, text: '\uD83D\uDE3C', scopes: MA },
+    { id: 39, text: 'Well played!', scopes: MA },
 ];
+
+/** Phrase 38 shows the sender side's face: 😼 for cats, 🐶 for dogs (MATCH-CHAT.md §2.1). */
+export const SIDE_FACE_PHRASE = 38;
+export const SIDE_FACE: Readonly<Record<'cat' | 'dog', string>> = { cat: '\uD83D\uDE3C', dog: '\uD83D\uDC36' };
+
+/** In-match channels (MATCH-CHAT.md §2): the own team, or both teams (phrases only). */
+export const MATCH_CHANNELS = ['team', 'all'] as const;
+export type MatchChannel = typeof MATCH_CHANNELS[number];
+
+/**
+ * In-match phrases an older (PROTO 4 or 5) socket still understands, as its legacy quick-chat wheel id (the
+ * `social` kind `chat` ids of the game's data/social.ts: 0 Nice!, 1 On my way, 3 Group up, 6 Thanks, 7 GG). Any other
+ * phrase, and every text line, never reaches an old socket (MATCH-CHAT.md §3).
+ */
+export const MATCH_LEGACY_CHAT: Readonly<Record<number, number>> = { 25: 7, 29: 6, 31: 1, 28: 0, 34: 3 };
 
 /** The 8 stickers, in wire id order: one large glyph bubble each (no image assets). */
 export const CHAT_STICKERS: ReadonlyArray<string> = [

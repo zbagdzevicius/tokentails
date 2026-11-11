@@ -1,13 +1,13 @@
 /**
- * Friends chat vocabulary (docs/plans/moba/CHAT-AVATARS.md §2.3): the 24 quick phrases, the 8 stickers, the limits and
- * the avatar wire shape. The wire carries ids only for phrases and stickers, so everyone (under 16, unknown age, guests)
+ * Friends chat vocabulary (docs/plans/moba/CHAT-AVATARS.md §2.3): the quick phrases (0–23 pre-match, 24–39 in a match,
+ * MATCH-CHAT.md §2.1), the 8 stickers, the limits and the avatar wire shape. The wire carries ids only for phrases and stickers, so everyone (under 16, unknown age, guests)
  * can say these. Free text exists only in a thread where every participant is 16+, and the server filters it.
  *
  * A copy of `shared/chat.ts` (synced into backend/src/shared-contracts/chat.ts); tests/unit/chat-phrases.test.ts
  * deep-compares the two. Never reorder: stored messages carry the id.
  */
 
-export type ChatScope = 'dm' | 'party' | 'team';
+export type ChatScope = 'dm' | 'party' | 'team' | 'match' | 'all';
 
 export interface ChatPhrase {
   id: number;
@@ -19,6 +19,8 @@ const DM: readonly ChatScope[] = ['dm'];
 const DP: readonly ChatScope[] = ['dm', 'party'];
 const DPT: readonly ChatScope[] = ['dm', 'party', 'team'];
 const PT: readonly ChatScope[] = ['party', 'team'];
+const MA: readonly ChatScope[] = ['match', 'all'];
+const M: readonly ChatScope[] = ['match'];
 
 export const CHAT_PHRASES: readonly ChatPhrase[] = [
   { id: 0, text: 'Wanna play?', scopes: DM },
@@ -45,7 +47,39 @@ export const CHAT_PHRASES: readonly ChatPhrase[] = [
   { id: 21, text: 'Dogs drool 🐶', scopes: DPT },
   { id: 22, text: 'Paws up, team!', scopes: PT },
   { id: 23, text: 'Tail high, try again', scopes: DPT },
+  { id: 24, text: 'gl hf', scopes: MA },
+  { id: 25, text: 'gg', scopes: MA },
+  { id: 26, text: 'gg wp', scopes: MA },
+  { id: 27, text: 'wp', scopes: MA },
+  { id: 28, text: 'Nice!', scopes: MA },
+  { id: 29, text: 'Thanks!', scopes: M },
+  { id: 30, text: 'Sorry!', scopes: MA },
+  { id: 31, text: 'On my way', scopes: M },
+  { id: 32, text: 'Back', scopes: M },
+  { id: 33, text: 'Careful!', scopes: M },
+  { id: 34, text: 'Group up', scopes: M },
+  { id: 35, text: 'Close one!', scopes: MA },
+  { id: 36, text: 'Cannon!', scopes: M },
+  { id: 37, text: '😹', scopes: MA },
+  { id: 38, text: '😼', scopes: MA },
+  { id: 39, text: 'Well played!', scopes: MA },
 ];
+
+/** Phrase 38 shows the sender side's face: 😼 for cats, 🐶 for dogs (MATCH-CHAT.md §2.1). */
+export const SIDE_FACE_PHRASE = 38;
+export const SIDE_FACE: Readonly<Record<'cat' | 'dog', string>> = Object.freeze({ cat: '😼', dog: '🐶' });
+
+/** In-match channels (MATCH-CHAT.md §2). */
+export type MatchChannel = 'team' | 'all';
+
+/** In-match phrases an older socket still understands, as its legacy wheel id (shared/chat.ts MATCH_LEGACY_CHAT). */
+export const MATCH_LEGACY_CHAT: Readonly<Record<number, number>> = Object.freeze({ 25: 7, 29: 6, 31: 1, 28: 0, 34: 3 });
+
+/** An in-match phrase as shown: phrase 38 takes the sender side's face; '' for an unknown id. */
+export function matchPhraseText(id: number, side?: 'cat' | 'dog' | null): string {
+  if (id === SIDE_FACE_PHRASE && side) return SIDE_FACE[side];
+  return chatBodyText('q', id);
+}
 
 export const CHAT_STICKERS: readonly string[] = ['🐾', '💖', '😹', '😾', '🐟', '🦴', '💤', '👑'];
 

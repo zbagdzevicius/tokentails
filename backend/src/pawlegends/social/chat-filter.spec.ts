@@ -60,7 +60,7 @@ describe('chat filter normalisation', () => {
 
 describe('chat contracts', () => {
     it('24 phrases and 8 stickers in wire id order', () => {
-        expect(CHAT_PHRASES).toHaveLength(24);
+        expect(CHAT_PHRASES).toHaveLength(40);
         CHAT_PHRASES.forEach((p, i) => expect(p.id).toBe(i));
         expect(CHAT_STICKERS).toHaveLength(8);
         expect(phraseInScope(0, 'dm')).toBe(true);

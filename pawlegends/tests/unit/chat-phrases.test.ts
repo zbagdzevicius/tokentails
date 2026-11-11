@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import * as shared from '../../../shared/chat';
-import { AVATAR_IMG_RE, AVATAR_ICON_RE, CHAT_LIMITS_CLIENT, CHAT_PHRASES, CHAT_REPORT_KINDS, CHAT_STICKERS, chatBodyText, chatErrorText, isAvatarView, phrasesFor, previewText } from '../../src/data/chatPhrases';
+import { AVATAR_IMG_RE, AVATAR_ICON_RE, CHAT_LIMITS_CLIENT, CHAT_PHRASES, CHAT_REPORT_KINDS, CHAT_STICKERS, MATCH_LEGACY_CHAT, SIDE_FACE, SIDE_FACE_PHRASE, chatBodyText, chatErrorText, isAvatarView, matchPhraseText, phrasesFor, previewText } from '../../src/data/chatPhrases';
+import { CHAT_LINES } from '../../src/data/social';
 
 /** The game's chat vocabulary mirrors shared/chat.ts (CHAT-AVATARS.md §2.3). */
 describe('chat phrases mirror shared/chat.ts', () => {
@@ -14,6 +15,27 @@ describe('chat phrases mirror shared/chat.ts', () => {
     expect(CHAT_LIMITS_CLIENT.pollMs).toBe(shared.CHAT_LIMITS.pollMs);
     expect(CHAT_LIMITS_CLIENT.historyPage).toBe(shared.CHAT_LIMITS.historyPage);
     expect(CHAT_LIMITS_CLIENT.rawMax).toBe(shared.CHAT_LIMITS.rawMax);
+    expect({ ...MATCH_LEGACY_CHAT }).toEqual({ ...shared.MATCH_LEGACY_CHAT });
+    expect(SIDE_FACE_PHRASE).toBe(shared.SIDE_FACE_PHRASE);
+    expect({ ...SIDE_FACE }).toEqual({ ...shared.SIDE_FACE });
+  });
+
+  it('in-match phrases (MATCH-CHAT.md §2.1): ids 24–39, all-chat ones a subset, legacy ids mean the same', () => {
+    const match = phrasesFor('match').map((p) => p.id);
+    expect(match).toEqual(Array.from({ length: 16 }, (_, i) => 24 + i));
+    expect(phrasesFor('all').every((p) => p.scopes.includes('match'))).toBe(true);
+    expect(phrasesFor('all').map((p) => p.id)).not.toContain(29);
+    // the legacy wheel line of each mapped phrase says the same thing
+    expect(Object.entries(MATCH_LEGACY_CHAT).map(([id, legacy]) => [chatBodyText('q', Number(id)), CHAT_LINES[legacy]])).toEqual([
+      ['gg', 'GG'],
+      ['Nice!', 'Nice!'],
+      ['Thanks!', 'Thanks'],
+      ['On my way', 'On my way'],
+      ['Group up', 'Group up'],
+    ]);
+    expect(matchPhraseText(38, 'dog')).toBe('🐶');
+    expect(matchPhraseText(38, 'cat')).toBe('😼');
+    expect(matchPhraseText(24)).toBe('gl hf');
   });
 
   it('scopes, previews and the avatar check', () => {

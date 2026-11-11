@@ -15,7 +15,7 @@ Build order: start from `origin/main` **after** `feat/pawlegends-signin` lands, 
   - **DM threads** between accepted friends only.
   - **Party chat** in the party lobby, champion select (`pick`) and results.
   - **Team chat** in matchmade lobbies and pick, as quick-chat ids only, because those teammates are strangers.
-  - **In match:** the existing quick-chat wheel only. No free text in a match.
+  - **In match:** the existing quick-chat wheel only. No free text in a match. *(Superseded for 16+ teams by `MATCH-CHAT.md` §2: team text when every human on the team is a registered 16+ account; all chat phrases only.)*
 - **Age bands decide what can be typed.**
   - Under-16 and unknown age get preset phrases and stickers only.
   - 16+ get free text with a server filter that **rejects** profanity, emails, phone numbers, links, `@` handles and street addresses.
@@ -345,6 +345,8 @@ These rules apply everywhere:
 - In matchmade parties the strip header says "Team" and offers only the phrase tray.
 
 ### 6.4 In match
+
+*Superseded by `MATCH-CHAT.md` §4 (ticker, drawer, wheel Type/More centre and All chip, desktop Enter).*
 
 - No change to the quick-chat wheel (hold T or the touch button).
 - Add a per-player 🔇 on the scoreboard rows next to the existing report flag (client-side for that match).
