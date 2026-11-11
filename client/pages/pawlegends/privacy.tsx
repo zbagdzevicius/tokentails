@@ -61,7 +61,7 @@ export default function PawlegendsPrivacyPage() {
               <li>In the app: no ads, no purchases, no analytics, no tracking, no advertising identifier.</li>
               <li>
                 On the website (pawlegends.app and tokentails.com/pawlegends) we use Google Analytics through Google
-                Tag Manager to count visits. In Europe its cookies are off until you allow them.
+                Tag Manager to count visits. In Europe it stays off until you allow it.
               </li>
               <li>Playing against bots offline sends nothing to us.</li>
               <li>
@@ -172,10 +172,12 @@ export default function PawlegendsPrivacyPage() {
               no amounts tied to you. The apps for iPhone and Android do not load it.
             </p>
             <p>
-              We use Google Consent Mode. In the EU, the EEA, the UK and Switzerland, Google Analytics sets no cookies
-              until you press Allow on the bar at the bottom of the page; until then, and if you press No thanks, Google
-              receives only cookieless signals without an identifier. Elsewhere cookies are on unless you say no. Your
-              choice is kept in your browser, and you can change it here at any time.
+              In Europe (the EU, the EEA, the UK and Switzerland) we ask first: Google Tag Manager does not run, and
+              Google Analytics sets no cookies and receives nothing, until you press Allow on the bar at the bottom of the page. If
+              you press No thanks, it stays off. We also use Google Consent Mode, so if your browser is set to a time
+              zone outside Europe while you are in Europe, Google Analytics sets no cookies and receives only cookieless
+              signals without an identifier. Elsewhere cookies are on unless you say no. Your choice is kept in your
+              browser, and you can change it here at any time.
             </p>
             <ConsentChoiceButton />
             <p>

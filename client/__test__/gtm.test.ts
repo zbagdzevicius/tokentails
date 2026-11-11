@@ -109,13 +109,65 @@ describe("the Paw Legends container (Consent Mode v2)", () => {
       getWindow: () => win,
       consent: { regions: CONSENT_REGIONS, stored: () => "denied", store },
     });
-    gtm.setConsent("granted"); // before load: only kept
-    expect(store).toHaveBeenCalledWith("granted");
-    expect(win.dataLayer).toBeUndefined();
     gtm.start();
     expect(consentEntries(win).slice(2)).toEqual([["consent", "update", consentState("denied")]]);
     gtm.setConsent("granted");
+    expect(store).toHaveBeenCalledWith("granted");
     expect(consentEntries(win).slice(3)).toEqual([["consent", "update", consentState("granted")]]);
+  });
+
+  it("a choice made before load is kept and goes in as the update, even when storage is blocked", () => {
+    const { win } = fakeWindow();
+    const gtm = createGtm({
+      gtmId: PAWLEGENDS_GTM_ID,
+      getWindow: () => win,
+      consent: { regions: CONSENT_REGIONS, stored: () => null, store: () => {} },
+    });
+    gtm.setConsent("denied");
+    expect(win.dataLayer).toBeUndefined();
+    gtm.start();
+    expect(consentEntries(win).slice(2)).toEqual([["consent", "update", consentState("denied")]]);
+  });
+
+  it("holds gtm.js for a visitor the bar asks: no script and no dataLayer entry until Allow, then sends what waited", () => {
+    const { win, appended } = fakeWindow();
+    const stored = null as "granted" | "denied" | null;
+    const gtm = createGtm({
+      gtmId: PAWLEGENDS_GTM_ID,
+      getWindow: () => win,
+      consent: {
+        regions: CONSENT_REGIONS,
+        stored: () => stored,
+        // storage blocked: the choice is never kept, Allow must still load for this page
+        store: () => {},
+        hold: () => stored !== "granted",
+      },
+    });
+    gtm.start();
+    expect(gtm.push({ event: "page_view", page_path: "/pawlegends" })).toBe(true);
+    expect(gtm.isLoaded()).toBe(false);
+    expect(appended).toHaveLength(0);
+    expect(win.dataLayer).toBeUndefined();
+
+    gtm.setConsent("denied");
+    gtm.push({ event: "pawlegends_play_click" });
+    expect(appended).toHaveLength(0);
+    expect(win.dataLayer).toBeUndefined();
+
+    gtm.push({ event: "pawlegends_match_start" });
+    gtm.setConsent("granted");
+    expect(appended).toHaveLength(1);
+    expect(consentEntries(win).slice(2)).toEqual([["consent", "update", consentState("granted")]]);
+    const events = win.dataLayer!.map((e) => (e as { event?: string }).event).filter(Boolean);
+    // pushes from before No thanks are dropped; the ones after it wait for Allow
+    expect(events).toEqual(["gtm.js", "pawlegends_play_click", "pawlegends_match_start"]);
+  });
+
+  it("asks (and holds) in European or unknown time zones only", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { asksForConsent } = require("@/analytics/gtm");
+    for (const tz of ["Europe/Vilnius", "Europe/London", "Atlantic/Reykjavik", "Atlantic/Canary"]) expect(asksForConsent(tz)).toBe(true);
+    for (const tz of ["America/New_York", "Asia/Singapore", "UTC"]) expect(asksForConsent(tz)).toBe(false);
   });
 
   it("is a no-op where it is not allowed (app builds, native WebViews)", () => {

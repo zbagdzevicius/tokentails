@@ -47,6 +47,17 @@ function startGtmOn(path: string, env: Record<string, string> = {}) {
   }
 }
 
+/** The browser's time zone, which decides whether the consent bar asks (and gtm.js waits for Allow). */
+let timeZone = "America/New_York";
+const realResolvedOptions = Intl.DateTimeFormat.prototype.resolvedOptions;
+beforeEach(() => {
+  timeZone = "America/New_York";
+  jest.spyOn(Intl.DateTimeFormat.prototype, "resolvedOptions").mockImplementation(function (this: Intl.DateTimeFormat) {
+    return { ...realResolvedOptions.call(this), timeZone };
+  });
+});
+afterEach(() => jest.restoreAllMocks());
+
 describe("where the Paw Legends container loads", () => {
   it.each(["/pawlegends", "/pawlegends/play", "/pawlegends/privacy", "/pawlegends/terms", "/legends"])("on %s", (path) => {
     startGtmOn(path, { NEXT_PUBLIC_GTM_ID: "GTM-TOKENTAILS" });
@@ -74,6 +85,17 @@ describe("where the Paw Legends container loads", () => {
     expect(first[2]).toMatchObject({ analytics_storage: "denied", region: expect.arrayContaining(["LT", "DE", "GB"]) });
     expect(layer.findIndex((e) => (e as { event?: string }).event === "gtm.js")).toBe(2);
     expect(layer[3]).toEqual({ event: "page_view", page_path: "/pawlegends/play" });
+  });
+
+  it("in a European time zone gtm.js waits for Allow: no script and no dataLayer before it", () => {
+    timeZone = "Europe/Vilnius";
+    startGtmOn("/pawlegends/play");
+    expect(gtmScripts()).toEqual([]);
+    expect((window as Window & { dataLayer?: unknown[] }).dataLayer).toBeUndefined();
+    // a visitor who allowed on an earlier visit loads at once, with the update
+    window.localStorage.setItem(CONSENT_STORAGE_KEY, "granted");
+    startGtmOn("/pawlegends/play");
+    expect(gtmScripts()).toEqual(["https://www.googletagmanager.com/gtm.js?id=GTM-K6RTRKSR"]);
   });
 
   it("applies a choice stored on an earlier visit", () => {
@@ -182,8 +204,13 @@ describe("the consent bar", () => {
   });
 
   it("asks in European time zones and when the zone is unknown", () => {
-    for (const tz of ["Europe/Vilnius", "Europe/London", "Europe/Zurich", "Atlantic/Canary", "Atlantic/Reykjavik", undefined])
+    for (const tz of ["Europe/Vilnius", "Europe/London", "Europe/Zurich", "Atlantic/Canary", "Atlantic/Reykjavik"])
       expect(asksForConsent(tz)).toBe(true);
+    // the browser's own zone when none is passed; an unknown one asks
+    timeZone = "";
+    expect(asksForConsent()).toBe(true);
+    timeZone = "Europe/Paris";
+    expect(asksForConsent()).toBe(true);
     for (const tz of ["America/New_York", "Asia/Singapore", "Australia/Sydney"]) expect(asksForConsent(tz)).toBe(false);
   });
 });
