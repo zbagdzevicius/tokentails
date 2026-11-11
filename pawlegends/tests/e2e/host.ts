@@ -49,6 +49,8 @@ export interface HostConfig {
   seasonOnSave?: { season: { gained: number; xp: number; tier: number; prevTier: number }; store: { items: string[]; season: unknown } };
   /** STORE-PASS.md: answer `pass-claim` with this store state (POST /pawlegends/pass/claim). */
   passClaim?: { items: string[]; season: unknown };
+  /** SOCIAL-RANKED.md §13: answer `api-request{op}` with this status and body (unlisted ops: status 0). */
+  api?: Record<string, { status: number; body?: unknown }>;
 }
 
 const b64url = (s: string): string => Buffer.from(s).toString('base64url');
@@ -113,6 +115,12 @@ function hostHtml(cfg: HostConfig): string {
       }
       if (m.type === 'party-ticket-request' && cfg.partyTicket !== undefined) {
         send('party-ticket', cfg.partyTicket ? { id: m.id, ticket: cfg.partyTicket } : { id: m.id, ticket: null, error: 'PAWLEGENDS_PARTY_TICKET_UNAVAILABLE' });
+      }
+      if (m.type === 'api-request') {
+        var a = (cfg.api || {})[m.op];
+        setTimeout(function () {
+          send('api-result', a ? Object.assign({ id: m.id, ok: a.status >= 200 && a.status < 300, status: a.status }, a.body ? { body: a.body } : {}) : { id: m.id, ok: false, status: 0 });
+        }, 20);
       }
       if (m.type === 'match-result') {
         fetch('/user/catbassadors/live', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'PAWLEGENDS', pawlegends: m.replay }) });

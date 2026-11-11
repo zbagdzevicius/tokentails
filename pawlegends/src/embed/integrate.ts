@@ -140,6 +140,8 @@ export interface Integration {
    * timeout or a refused post answers `{ok: false, status: 0}`.
    */
   api(op: ApiOp, args?: ApiArgs): Promise<ApiResult>;
+  /** Ask the host to open its sign-in (social features are for registered accounts). */
+  requestSignIn(reason: SignInReason): void;
   dispose(): void;
 }
 
@@ -679,6 +681,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         }
       });
     },
+    requestSignIn: (reason) => signIn(reason),
     api: (op, args = {}) => {
       const id = makeMatchId();
       const none: ApiResult = { id, ok: false, status: 0 };
