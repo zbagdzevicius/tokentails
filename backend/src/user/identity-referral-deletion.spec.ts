@@ -2,7 +2,10 @@ import { generateKeyPairSync, createVerify } from 'crypto';
 import { Types } from 'mongoose';
 import { REWARDS } from 'src/shared-contracts/caps';
 import { BOARD_FIELD_RESET, deleteAccount, PERSONAL_FIELDS } from './guest/account-deletion';
-import { appleClientSecret, appleConfig, revokeAppleAuthorization } from './guest/apple-revoke';
+import { appleClientIds, appleClientSecret, appleConfig, revokeAppleAuthorization } from './guest/apple-revoke';
+import { validate } from 'class-validator';
+import { plainToInstance } from 'class-transformer';
+import { DeleteAccountDto } from './guest/dto';
 import { emailDomain, isDisposableEmail } from './guest/disposable-domains';
 import { firebaseTokenFromHeader } from './guest/firebase-identity';
 import { createIdentityHarness, guestSeed, httpError, rejection } from './guest/identity-harness.helper-spec';
@@ -305,6 +308,24 @@ describe('DELETE /user/me (deleteAccount, decision #4)', () => {
         expect(result.apple).toBe('revoked');
     });
 
+    it('passes the app the Apple code came from (the Paw Legends app has its own bundle id)', async () => {
+        const { deps, userId } = setup();
+        const seen: (string | undefined)[] = [];
+        await deleteAccount(
+            {
+                ...deps,
+                revokeApple: async (_code, clientId) => {
+                    seen.push(clientId);
+                    return 'revoked';
+                },
+            },
+            String(userId),
+            'fresh-code',
+            'com.tokentails.pawlegends'
+        );
+        expect(seen).toEqual(['com.tokentails.pawlegends']);
+    });
+
     it('404 for a guest or a missing account', async () => {
         const { user } = guestSeed('uid-g');
         const ctx = createIdentityHarness({ users: [user] });
@@ -378,6 +399,7 @@ describe('Sign in with Apple revocation', () => {
             })
         ).resolves.toBe('failed');
         expect(appleConfig({})).toBeNull();
+        expect(appleConfig({}, 'com.tokentails.pawlegends')).toBeNull();
         expect(
             appleConfig({ APPLE_TEAM_ID: 't', APPLE_KEY_ID: 'k', APPLE_CLIENT_ID: 'c', APPLE_PRIVATE_KEY: 'a\\nb' })
         ).toEqual({
@@ -483,5 +505,46 @@ describe('identity helpers', () => {
         expect(isUsableClientIp('172.32.0.1')).toBe(true);
         expect(isUsableClientIp('8.8.8.8')).toBe(true);
         expect(isUsableClientIp('999.1.1.1')).toBe(false);
+    });
+});
+
+describe('Apple client ids (Paw Legends app, account deletion)', () => {
+    const env = {
+        APPLE_TEAM_ID: 't',
+        APPLE_KEY_ID: 'k',
+        APPLE_CLIENT_ID: 'com.tokentails.app',
+        APPLE_CLIENT_IDS: 'com.tokentails.app, com.tokentails.pawlegends,bad id!',
+        APPLE_PRIVATE_KEY: 'a\\nb',
+    };
+
+    it('reads the comma-separated allowlist, else APPLE_CLIENT_ID alone', () => {
+        expect(appleClientIds(env)).toEqual(['com.tokentails.app', 'com.tokentails.pawlegends']);
+        expect(appleClientIds({ APPLE_CLIENT_ID: 'com.tokentails.app' })).toEqual(['com.tokentails.app']);
+        expect(appleClientIds({})).toEqual([]);
+    });
+
+    it('uses an allowlisted client id and falls back to APPLE_CLIENT_ID for anything else', () => {
+        expect(appleConfig(env, 'com.tokentails.pawlegends')?.clientId).toBe('com.tokentails.pawlegends');
+        expect(appleConfig(env, 'com.evil.app')?.clientId).toBe('com.tokentails.app');
+        expect(appleConfig(env)?.clientId).toBe('com.tokentails.app');
+        const { APPLE_CLIENT_ID: _unused, ...noDefault } = env;
+        expect(appleConfig(noDefault, 'com.evil.app')?.clientId).toBe('com.tokentails.app');
+        expect(appleConfig(noDefault, 'com.tokentails.pawlegends')?.clientId).toBe('com.tokentails.pawlegends');
+    });
+
+    it('signs the client secret for the app the code came from', () => {
+        const { privateKey } = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+        const pem = privateKey.export({ type: 'pkcs8', format: 'pem' }).toString();
+        const config = appleConfig({ ...env, APPLE_PRIVATE_KEY: pem }, 'com.tokentails.pawlegends');
+        const payload = JSON.parse(Buffer.from(appleClientSecret(config!, 1000).split('.')[1], 'base64').toString());
+        expect(payload.sub).toBe('com.tokentails.pawlegends');
+    });
+
+    it('DELETE /user/me accepts an optional appleClientId and refuses a malformed one', async () => {
+        const ok = plainToInstance(DeleteAccountDto, { appleAuthorizationCode: 'c', appleClientId: 'com.tokentails.pawlegends' });
+        expect(await validate(ok)).toHaveLength(0);
+        expect(await validate(plainToInstance(DeleteAccountDto, {}))).toHaveLength(0);
+        const bad = plainToInstance(DeleteAccountDto, { appleClientId: 'com.evil/../x y' });
+        expect((await validate(bad)).length).toBeGreaterThan(0);
     });
 });

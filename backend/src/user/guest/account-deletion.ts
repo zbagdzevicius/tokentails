@@ -1,7 +1,7 @@
 import { NotFoundException } from '@nestjs/common';
 import { Model, Types } from 'mongoose';
 import { PORTRAIT_SHELTER_ID } from 'src/blessing/blessing.schema';
-import { AppleRevokeOutcome, revokeAppleAuthorization } from './apple-revoke';
+import { AppleRevokeOutcome, appleConfig, revokeAppleAuthorization } from './apple-revoke';
 import { IFirebaseIdentity } from './firebase-identity';
 import { DELETED_ACCOUNT_NAME } from './identity-config';
 
@@ -71,7 +71,7 @@ export interface IAccountDeletionDeps {
     cats: Model<any>;
     firebase: IFirebaseIdentity;
     audit: { insertOne(doc: Record<string, unknown>): Promise<unknown> };
-    revokeApple?: (code: string | undefined) => Promise<AppleRevokeOutcome>;
+    revokeApple?: (code: string | undefined, clientId?: string) => Promise<AppleRevokeOutcome>;
     now?: () => Date;
 }
 
@@ -87,7 +87,8 @@ export interface IAccountDeletionResult {
 export async function deleteAccount(
     deps: IAccountDeletionDeps,
     userId: string,
-    appleAuthorizationCode?: string
+    appleAuthorizationCode?: string,
+    appleClientId?: string
 ): Promise<IAccountDeletionResult> {
     const now = deps.now ? deps.now() : new Date();
     const _id = new Types.ObjectId(userId);
@@ -97,7 +98,9 @@ export async function deleteAccount(
     }
 
     // First, while the client's authorization code is fresh (it expires in minutes).
-    const apple = await (deps.revokeApple || revokeAppleAuthorization)(appleAuthorizationCode);
+    const apple = await (deps.revokeApple ||
+        ((code: string | undefined, clientId?: string) =>
+            revokeAppleAuthorization(code, appleConfig(process.env, clientId))))(appleAuthorizationCode, appleClientId);
 
     const unset = Object.fromEntries(PERSONAL_FIELDS.map(field => [field, 1]));
     await deps.users.updateOne(

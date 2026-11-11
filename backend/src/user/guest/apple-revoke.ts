@@ -8,6 +8,12 @@ import fetch from 'node-fetch';
  * with `DELETE /user/me`. The backend exchanges it for a refresh token and revokes that token.
  * Needs APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_CLIENT_ID and APPLE_PRIVATE_KEY (the .p8 key, `\n`
  * escaped). Without them, or without a code, the revocation is skipped and logged; deletion goes on.
+ *
+ * One key revokes for every app grouped under the same primary App ID: the Token Tails app
+ * (`com.tokentails.app`) and the Paw Legends app (`com.tokentails.pawlegends`). A code is bound to the
+ * app that asked for it, so the client names its bundle id (`appleClientId`); only ids in
+ * APPLE_CLIENT_IDS (comma-separated, defaults to APPLE_CLIENT_ID) are used, anything else falls back
+ * to APPLE_CLIENT_ID.
  */
 
 const APPLE_AUDIENCE = 'https://appleid.apple.com';
@@ -23,15 +29,31 @@ export interface IAppleConfig {
 
 export type AppleRevokeOutcome = 'revoked' | 'skipped-no-code' | 'skipped-no-config' | 'failed';
 
-export function appleConfig(env: NodeJS.ProcessEnv = process.env): IAppleConfig | null {
+/** Bundle ids (or Services ids) a deletion may name: APPLE_CLIENT_IDS, else APPLE_CLIENT_ID alone. */
+export function appleClientIds(env: NodeJS.ProcessEnv = process.env): string[] {
+    const raw = env.APPLE_CLIENT_IDS || env.APPLE_CLIENT_ID || '';
+    const ids = raw
+        .split(',')
+        .map(id => id.trim())
+        .filter(id => /^[A-Za-z0-9.-]{1,155}$/.test(id));
+    return [...new Set(ids)];
+}
+
+/**
+ * The revocation config. `clientId`: the app the authorization code came from; used only when it is on
+ * the allowlist (`appleClientIds`), else APPLE_CLIENT_ID (the first allowlisted id when that is unset).
+ */
+export function appleConfig(env: NodeJS.ProcessEnv = process.env, clientId?: string): IAppleConfig | null {
     const { APPLE_TEAM_ID, APPLE_KEY_ID, APPLE_CLIENT_ID, APPLE_PRIVATE_KEY } = env;
-    if (!APPLE_TEAM_ID || !APPLE_KEY_ID || !APPLE_CLIENT_ID || !APPLE_PRIVATE_KEY) {
+    const allowed = appleClientIds(env);
+    const chosen = clientId && allowed.includes(clientId) ? clientId : APPLE_CLIENT_ID || allowed[0];
+    if (!APPLE_TEAM_ID || !APPLE_KEY_ID || !chosen || !APPLE_PRIVATE_KEY) {
         return null;
     }
     return {
         teamId: APPLE_TEAM_ID,
         keyId: APPLE_KEY_ID,
-        clientId: APPLE_CLIENT_ID,
+        clientId: chosen,
         privateKey: APPLE_PRIVATE_KEY.replace(/\\n/g, '\n'),
     };
 }
