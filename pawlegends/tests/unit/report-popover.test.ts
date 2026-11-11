@@ -124,3 +124,29 @@ describe('results flag', () => {
     expect(onReport).toHaveBeenCalledWith(3, flags[0]);
   });
 });
+
+describe('popover placement', () => {
+  it('stays on screen when the flag sits in the left name column of a phone', () => {
+    const anchor = document.createElement('button');
+    document.body.appendChild(anchor);
+    anchor.getBoundingClientRect = () => ({ left: 150, right: 184, top: 100, bottom: 128, width: 34, height: 28, x: 150, y: 100, toJSON: () => ({}) }) as DOMRect;
+    Object.defineProperty(document.documentElement, 'clientWidth', { value: 667, configurable: true });
+    Object.defineProperty(document.documentElement, 'clientHeight', { value: 375, configurable: true });
+    const pop = reportPopover(anchor, 'Foe', () => undefined);
+    const left = parseFloat(pop.style.left);
+    expect(left).toBeGreaterThanOrEqual(8);
+    expect(left + 300).toBeLessThanOrEqual(667 - 8);
+    expect(pop.style.right).toBe('');
+  });
+});
+
+describe('flag cells', () => {
+  it('the scoreboard cell with a flag is marked so the flag never grows the row', () => {
+    const parent = document.createElement('div');
+    const sb = new Scoreboard(parent, ['clem', 'sage', 'brutus', 'gabe', 'pixel', 'stilts'] as never, 0, ['Me', '', '', 'Foe', '', '']);
+    sb.report = { can: (s) => s === 3, done: () => false, open: () => undefined };
+    sb.show(true, null);
+    expect([...parent.querySelectorAll('td.sb-rp')].map((td) => td.closest('tr')!.getAttribute('data-slot'))).toEqual(['3']);
+    expect(parent.querySelector('td.sb-rp [data-report="3"]')).toBeTruthy();
+  });
+});

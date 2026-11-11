@@ -96,3 +96,41 @@ describe('social sheet', () => {
     expect(t.calls.find((c) => c.op === 'friend.add')?.args).toEqual({ code: 'pl-7kq2-m9xr' });
   });
 });
+
+describe('social sheet pulse', () => {
+  it('on the Ranked tab a changed pulse keeps the rev and does not refetch', async () => {
+    const calls: string[] = [];
+    const rev = 'r2';
+    const api = vi.fn(async (op: string, args?: { rev?: string }): Promise<ApiResult> => {
+      calls.push(op);
+      if (op === 'social.get') return { id: 'x', ok: true, status: 200, body: state(2) };
+      if (op === 'social.pulse') return args?.rev === rev ? { id: 'x', ok: true, status: 204 } : { id: 'x', ok: true, status: 200, body: { rev, invites: [] } };
+      return { id: 'x', ok: true, status: 200, body: {} };
+    });
+    const s = new SocialSheet(document.body, { api: api as never, signedIn: () => true, partyCode: () => null, joinParty: vi.fn(), signIn: vi.fn(), playCasual: vi.fn(), height: () => 375 });
+    await flush();
+    document.querySelector<HTMLElement>('[data-tab="ranked"]')!.click();
+    await flush();
+    calls.length = 0;
+    await s.pulse();
+    await s.pulse();
+    expect(calls).toEqual(['social.pulse', 'social.pulse']);
+    expect(api.mock.calls.at(-1)?.[1]).toEqual({ rev: 'r2' });
+    s.dispose();
+  });
+
+  it('a status note clears itself after 3 s', async () => {
+    vi.useFakeTimers();
+    try {
+      const t = sheet();
+      await flush();
+      document.querySelector<HTMLElement>('[data-a="copy"]')!.click();
+      expect(document.querySelector('.pl-social-note')).toBeTruthy();
+      vi.advanceTimersByTime(3100);
+      expect(document.querySelector('.pl-social-note')).toBeNull();
+      t.s.dispose();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});

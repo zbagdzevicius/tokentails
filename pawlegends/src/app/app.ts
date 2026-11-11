@@ -1019,6 +1019,22 @@ export class App {
   private socialBadge = 0;
   private socialPulse: ReturnType<typeof setInterval> | null = null;
   private socialRev: string | undefined;
+  /** Invite ids already toasted (an invite lives 3 min; the set is tiny). */
+  private readonly socialToasted = new Set<string>();
+
+  /** The lobby's Friends button badge, in place (the title is not re-rendered for a pulse). */
+  private paintSocialBadge(): void {
+    const btn = this.root.querySelector<HTMLElement>('[data-testid="lobby-social"]');
+    if (!btn) return;
+    let b = btn.querySelector<HTMLElement>('.lb-social-badge');
+    if (!this.socialBadge) return void b?.remove();
+    if (!b) {
+      b = document.createElement('i');
+      b.className = 'lb-social-badge';
+      btn.appendChild(b);
+    }
+    b.textContent = String(Math.min(9, this.socialBadge));
+  }
 
   private openSocial(tab?: import('../social/socialSheet').SocialTab): void {
     if (this.social && !this.social.closed) return;
@@ -1060,10 +1076,13 @@ export class App {
       if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
       const r = await this.integration.api('social.pulse', this.socialRev ? { rev: this.socialRev } : {});
       if (!r.ok || r.status === 204 || !r.body) return;
-      const body = r.body as { rev?: string; invites?: { from?: { name?: string }; party?: string }[] };
+      const body = r.body as { rev?: string; invites?: { id?: string; from?: { name?: string }; party?: string }[] };
       this.socialRev = typeof body.rev === 'string' ? body.rev : undefined;
-      const inv = body.invites?.[0];
       this.socialBadge = body.invites?.length ?? 0;
+      this.paintSocialBadge();
+      // the pulse answers "changed" on any friend's presence change too: toast each invite once, not on every change
+      const inv = body.invites?.find((i) => !i.id || !this.socialToasted.has(i.id));
+      if (inv?.id) this.socialToasted.add(inv.id);
       if (inv?.party && typeof inv.from?.name === 'string') {
         const { inviteToast } = await import('../social/socialSheet');
         inviteToast(document, inv.from.name, () => this.openParty('join', inv.party!));

@@ -514,7 +514,7 @@ function resultTable(rows: readonly ResultRow[]): string {
   const graded = rows.some((r) => r.grade);
   const tag = (r: ResultRow): string => (r.mvp ? ' <em class="mvp">MVP</em>' : r.best ? ' <em class="best">Best</em>' : '');
   const tr = (r: ResultRow): string =>
-    `<tr class="${r.rel}"><td>${esc(r.name)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
+    `<tr class="${r.rel}"><td${r.flag && r.slot !== undefined ? ' class="sb-rp"' : ''}>${esc(r.name)}${tag(r)}${r.flag && r.slot !== undefined ? flagHtml(r.slot, r.name, r.flag === 'done') : ''}</td><td>${r.k}/${r.d}/${r.a}</td><td>${r.heroDmg}</td><td>${r.towerDmg}</td>${graded ? `<td class="g" data-grade="${r.grade ?? ''}">${r.grade ?? ''}</td>` : ''}</tr>`;
   return `<details class="pl-table"><summary>Scoreboard</summary><table><thead><tr><th>Hero</th><th>K/D/A</th><th>Hero dmg</th><th>Tower dmg</th>${graded ? '<th>Grade</th>' : ''}</tr></thead><tbody>${rows.map(tr).join('')}</tbody></table></details>`;
 }
 

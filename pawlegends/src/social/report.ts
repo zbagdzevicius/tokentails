@@ -112,7 +112,10 @@ export function reportPopover(anchor: HTMLElement, name: string, onPick: (reason
   const vh = doc.documentElement.clientHeight || 640;
   el.style.position = 'fixed';
   el.style.zIndex = '60';
-  el.style.right = `${Math.max(8, Math.round(vw - r.right))}px`;
+  // right edge on the flag's right edge, but kept fully on screen: the flag sits in the first (name) column, so a
+  // right-anchored 300 px popover would start left of the viewport on a phone
+  const w = Math.min(300, vw - 32);
+  el.style.left = `${Math.round(Math.max(8, Math.min(vw - w - 8, r.right - w)))}px`;
   if (r.bottom + 120 < vh) el.style.top = `${Math.round(r.bottom + 4)}px`;
   else el.style.bottom = `${Math.max(8, Math.round(vh - r.top + 4))}px`;
   el.addEventListener('pointerdown', (e) => e.stopPropagation());

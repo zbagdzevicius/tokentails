@@ -171,7 +171,30 @@ export class SocialSheet {
     if (this.disposed || !this.deps.signedIn()) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     const r = await this.deps.api('social.pulse', this.state?.rev ? { rev: this.state.rev } : {});
-    if (r.ok && r.status !== 204 && r.body) await this.load();
+    if (!r.ok || r.status === 204 || !r.body) return;
+    // keep the rev current on every tab (the Ranked and Boards tabs never refetch `social.get`, so without this every
+    // later pulse would answer "changed" again), and refetch only the lists that show friends' state. Never while the
+    // add-code field is open: a re-render would wipe what the player is typing.
+    const rev = (r.body as { rev?: unknown }).rev;
+    if (this.state && typeof rev === 'string') this.state.rev = rev;
+    if (this.adding || this.tab === 'ranked' || this.tab === 'boards') return;
+    await this.load();
+  }
+
+  private noteTimer: ReturnType<typeof setTimeout> | null = null;
+  private noteShown = '';
+
+  /** A status note fades after 3 s: it sits over the last row and its buttons. */
+  private armNote(): void {
+    if (!this.note || this.note === this.noteShown) return;
+    this.noteShown = this.note;
+    if (this.noteTimer) clearTimeout(this.noteTimer);
+    this.noteTimer = setTimeout(() => {
+      this.noteTimer = null;
+      this.note = '';
+      this.noteShown = '';
+      this.root.querySelector('.pl-social-note')?.remove();
+    }, 3000);
   }
 
   private esc(s: string): string {
@@ -187,6 +210,7 @@ export class SocialSheet {
     }).join('');
     this.root.innerHTML = `<header class="pl-social-head" role="tablist">${tabs}<button type="button" class="pl-social-x" data-a="close" aria-label="Close">&times;</button></header><div class="pl-social-body">${this.body()}</div><footer class="pl-social-foot">${this.footer()}</footer>${this.note ? `<p class="pl-social-note" role="status">${this.esc(this.note)}</p>` : ''}`;
     for (const el of this.root.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
+    this.armNote();
   }
 
   private guestPanel(): string {
@@ -465,6 +489,7 @@ export class SocialSheet {
     if (this.disposed) return;
     this.disposed = true;
     if (this.pulseTimer) clearInterval(this.pulseTimer);
+    if (this.noteTimer) clearTimeout(this.noteTimer);
     if (this.undo) clearTimeout(this.undo.timer);
     this.root.remove();
   }
