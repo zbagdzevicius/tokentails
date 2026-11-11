@@ -7,7 +7,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { BUNDLE_ID, jsonPackages, plistBundleId, reversedClientId, withUrlScheme } from '../scripts/firebase-config.mjs';
 
-const INFO = readFileSync(join(__dirname, '../ios/App/App/Info.plist'), 'utf8');
+// The committed Info.plist may already carry the real Google URL type (firebase-config.mjs writes it): start without it.
+const INFO = withUrlScheme(readFileSync(join(__dirname, '../ios/App/App/Info.plist'), 'utf8'), null);
 const PLIST = `<plist><dict><key>BUNDLE_ID</key>\n<string>com.tokentails.pawlegends</string><key>REVERSED_CLIENT_ID</key>\n\t<string>com.googleusercontent.apps.123-abc</string></dict></plist>`;
 
 describe('firebase-config', () => {
