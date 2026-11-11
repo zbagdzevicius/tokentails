@@ -104,6 +104,11 @@ export async function pushed(p: Player): Promise<string> {
   return p.page.evaluate(() => ((window as unknown as { __plJuice?: { notify: { said: string[] } } }).__plJuice?.notify.said ?? []).join(' | '));
 }
 
+/** Every in-match chat line this client showed (MATCH-CHAT.md §4, the last 20): `html[data-chat-said]`, e2e only. */
+export async function chatSaid(p: Player): Promise<string> {
+  return p.page.evaluate(() => document.documentElement.dataset.chatSaid ?? '');
+}
+
 /** The match tick on this client (`html[data-tick]`). */
 export async function tickOf(p: Player): Promise<number> {
   return p.page.evaluate(() => Number(document.documentElement.dataset.tick ?? 0));

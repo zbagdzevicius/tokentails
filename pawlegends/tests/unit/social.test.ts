@@ -71,8 +71,10 @@ describe('social ids and limits (M2, M3)', () => {
     qc.onPick = (p) => got.push(`${p.kind}:${p.id}`);
     qc.button.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(qc.open).toBe(true);
-    const items = root.querySelectorAll<HTMLButtonElement>('.pl-chatwheel .cw');
+    // the 12 slices (MATCH-CHAT.md adds the Type/More centre and the All chip, hidden without a drawer)
+    const items = root.querySelectorAll<HTMLButtonElement>('.pl-chatwheel .cw.line, .pl-chatwheel .cw.emote');
     expect(items).toHaveLength(12);
+    expect(root.querySelector<HTMLButtonElement>('.pl-chatwheel .cw.centre')!.hidden).toBe(true);
     items[1].dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(got).toEqual(['chat:1']);
     expect(qc.open).toBe(false);

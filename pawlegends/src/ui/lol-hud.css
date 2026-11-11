@@ -459,3 +459,10 @@ html[data-touch='1'] .pl-hud .pl-bar.lvlup .pl-res > i { background: linear-grad
 .pl-hud .pl-score .mp-ping[data-tone='bad'] { color: #ff8a80; opacity: 1; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping { font-size: 9px; line-height: 24px; color: #3b2417; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .mp-ping[data-tone='bad'] { color: #a3261c; }
+
+/* MATCH-CHAT.md §4.1: the wheel's centre (Type / More: the chat drawer) and the All chip (the next pick to both teams) */
+.pl-chatwheel .cw.centre { width: 56px; height: 56px; padding: 0; border-radius: 50%; border-color: var(--butter, #ffd34d); font-size: 12px; }
+.pl-chatwheel .cw.allchip { width: 52px; min-height: 30px; padding: 0; border-radius: 999px; border-color: var(--line); font-size: 11px; opacity: 0.85; }
+.pl-chatwheel .cw.allchip.on { background: #ff9f43; color: var(--ink); border-color: #ff9f43; opacity: 1; }
+.pl-chatwheel .cw.off { opacity: 0.35; pointer-events: none; }
+.pl-chatwheel .cw[hidden] { display: none; }

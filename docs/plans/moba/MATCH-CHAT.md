@@ -553,3 +553,29 @@ M4 can start in parallel with M1. M5 needs M2 and M4.
 - A live-deploy room handoff silences bots for the rest of the match (budget reset to 0). This is by design.
 - `data/social.ts` and `proto.ts` doc comments, and MULTIPLAYER D8, still say no player text reaches a peer. Update them in M1.
 - PROTO numbering: if the chat branch's PROTO 5 slips, this work takes PROTO 6 anyway. The relay accepts 1..6.
+
+---
+
+## 13. As built (branch `feat/pawlegends-match-chat`)
+
+What landed, and where it differs from the design above.
+
+**Built**
+- M1: phrases 24–39 (`shared/chat.ts` → backend, client, CMS; game `data/chatPhrases.ts`, deep-compare test), `MATCH_LEGACY_CHAT`, the side face (38), PROTO 6 (`chat.say.ch`, `chat.msg.ch/slot`, `PartyView.chat.match`), D8 and CHAT-AVATARS §2.1/§6.4 doc comments amended.
+- M2: relay `matchChatSay` (seat, mute, bucket, tier, scope, filter with strikes, duplicate rule) and `deliverMatchChat` (slot only, no member id, team/all routing, blocks both ways, legacy wheel line for PROTO 4/5, `match` thread in `ChatSink`, bot lines stored as `bot:<slot>`), refused outside phase `match` except a bot's end line within 12 s.
+- M3: `ui/chatTicker.ts`, `ui/chatDrawer.ts`, `app/matchChat.ts`, the wheel's Type/More centre and All chip, desktop Enter / Shift+Enter / Up / Esc, the `isTyping` guard in `input/desktop.ts`, long-press Mute / Report, wheel lines moved from the rail to the ticker.
+- M4: `pawlegends/src/chat/*` (engine, bank of 265 lines, personas, typos, cues, PRNG), vendored by `npm run vendor-sim` into `backend/src/vendor/pawlegends-chat` with a sha file and the `--check` drift test.
+- M5: referee cue reader, `RefereeOut {t:'cues'}`, relay `BotChat` (one per room with fill bots, 250 ms tick, per-seat `SeatLimiter`, `BotSeenStore`), hash-trail tests (game and backend, every v19+ party fixture config).
+- M6: the solo engine in `app/matchChat.ts` (match time from ticks, shared bark gap, `localStorage` `pl.botSeen`).
+
+**Differences**
+1. **Cues without a facade export.** Any export added to the bundle entry (`src/sim/server.ts`) changes `simSourceHash`, so the referee reads the opaque match handle's `events` and `world` arrays through a duck-typed, read-only reader (`chat/cues.ts readHandle`). A bundle whose handle lacks them yields no event cues. The hash-trail tests prove nothing moves.
+2. **Intent is coarse.** It is derived from what the hero is doing (dead → base, an enemy hero within 9 m → fight, under 30% HP → retreat, else lane), never from the bot brain's order, which stays inside the sim. `obj_go` and `cannon_go` use a "not in a fight" guard instead of an objective or cannon intent. `{lane}` lines are skipped (no lane word is sampled yet).
+3. **Bank edits forced by the lint and the filter.** "fb lets go" became "first blood lets go" (the filter reads "fb" as a link), "they were 2" / "2 there" became "they were two" / "two there" (digits), "where did that come from" became "that came out of nowhere" ("where" is banned).
+4. **Reactions keep shorter gaps** (12 s in the room, 30 s per bot) than other lines (40 s / 100 s), so one reaction can follow a human line at all.
+5. **Memory write.** One `$set` of the computed ring per human per match (same effect as `$push`/`$slice`), and an in-memory fallback for guests and accounts with no social row.
+6. **Solo is phrases only.** The client never knows the player's age band, so a solo team is `quick`: solo bots send phrase ids (§6.4).
+7. **Wheel lines are human cues.** A legacy `social` chat line (any client) quiets bots for 6 s and can get a phrase reaction.
+8. **Old sockets.** The legacy wheel frame for a mapped phrase carries `from: ''` for every sender, bot or human.
+9. **Rookie match 1** is read from the socket's `hello.hint.matches` (a client hint, used here only to stay silent).
+10. **Metrics.** The relay logs `mp_chat_bot` per room (budgets, sends by category, drops by reason, reactions, probe, personas, filter rejects), and `mp_chat_bot_alert` for more than 4 lines or any filter reject. Not built yet: the client `mp_chat` event, the mute split by target, the dashboards, the CMS "bot line" label (moderators see `from: 'bot:<slot>'` in the snapshot), and the relay's per-sender minute and day counters for in-match lines (the socket bucket and duplicate rule apply).
