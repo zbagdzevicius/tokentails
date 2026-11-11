@@ -7,6 +7,7 @@ import { PartyRelayService } from './pawlegends/party/party-relay.service';
 import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { MongoRoomStore, PAWLEGENDS_PARTY_SCHEMAS } from './pawlegends/party/room-store';
 import { PAWLEGENDS_RELAY_SOCIAL_SCHEMAS } from './pawlegends/social/social.schema';
+import { PawlegendsBuyer, PawlegendsBuyerSchema, PawlegendsOwned, PawlegendsOwnedSchema } from './pawlegends/pawlegends.schema';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
 import { RelayDrainController } from './shared/runtime/relay-drain.controller';
@@ -25,7 +26,8 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
  *   PAWLEGENDS_PARTY_TICKET_SECRET.
  * - RelayStatsReporter logs the relay counters once a minute for the log-based metrics.
  * - Social (SOCIAL-RANKED.md §10): only the schemas its sinks write or read: presence (the PresenceSink), the ranked
- *   gate status and the sanctions (read).
+ *   gate status and the sanctions (read). Friends chat (CHAT-AVATARS.md §5): the profile, blocks, age band row and
+ *   owned items (read, for the chat tier and avatars) and the party chat lines (the ChatSink writes).
  */
 @Module({
     imports: [
@@ -38,6 +40,8 @@ import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
             ...PAWLEGENDS_PARTY_SCHEMAS,
             ...PAWLEGENDS_MM_SCHEMAS,
             ...PAWLEGENDS_RELAY_SOCIAL_SCHEMAS,
+            { name: PawlegendsBuyer.name, schema: PawlegendsBuyerSchema },
+            { name: PawlegendsOwned.name, schema: PawlegendsOwnedSchema },
         ]),
     ],
     controllers: [HealthController, RelayProbeController, RelayDrainController],
