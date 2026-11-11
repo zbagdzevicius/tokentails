@@ -338,8 +338,9 @@ function tokensOf(text: string): string[] {
 
 /** Runs of single characters separated by spaces glued together (`g o o g l e . c o m` -> `google.com`). */
 function collapseSpaced(text: string): string {
-    return text.replace(/(?:^|\s)((?:\S\s+){2,}\S)(?=\s|$)/g, (m, run: string) =>
-        (m.charAt(0) === ' ' ? ' ' : '') + run.replace(/\s+/g, '')
+    return text.replace(
+        /(?:^|\s)((?:\S\s+){2,}\S)(?=\s|$)/g,
+        (m, run: string) => (m.charAt(0) === ' ' ? ' ' : '') + run.replace(/\s+/g, '')
     );
 }
 
