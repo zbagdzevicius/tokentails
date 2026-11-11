@@ -1,6 +1,6 @@
 import { isAppBuild } from "@/components/claims/build";
 import { pawlegendsEnabled, PAWLEGENDS_EXIT_PATH } from "@/components/pawlegends/flags";
-import { LANDING_FONT } from "@/components/pawlegends/landing/markup";
+import { LANDING_FONT, PAWLEGENDS_APP_STORE_ID } from "@/components/pawlegends/landing/markup";
 import { PawlegendsLanding } from "@/components/pawlegends/landing/PawlegendsLanding";
 import { liveRoster } from "@/components/pawlegends/landing/roster";
 import { PAWLEGENDS_LANDING_PATH, PAWLEGENDS_PLAY_PATH, wantsGame } from "@/components/pawlegends/routes";
@@ -51,6 +51,8 @@ export default function PawlegendsLandingPage() {
       <SeoHead {...PAWLEGENDS_LANDING_SEO} noindex />
       <Head>
         <link rel="preload" href={LANDING_FONT} as="font" type="font/woff2" crossOrigin="anonymous" key="pll-fredoka" />
+        {/* Safari's Smart App Banner for the iOS app. */}
+        <meta name="apple-itunes-app" content={`app-id=${PAWLEGENDS_APP_STORE_ID}`} key="apple-itunes-app" />
       </Head>
       <PawlegendsLanding />
     </>
