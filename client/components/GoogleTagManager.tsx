@@ -1,5 +1,6 @@
 import { analytics } from "@/analytics";
 import { gtm } from "@/analytics/gtm";
+import { pagePathOf } from "@/analytics/pawlegends-site";
 import { useRouter } from "next/router";
 import { useEffect } from "react";
 
@@ -127,7 +128,8 @@ export function afterLandingReady(
 }
 
 /**
- * Starts GTM and PostHog on mount for every visitor (see `analytics/gtm.ts`)
+ * Starts GTM and PostHog on mount for every visitor (see `analytics/gtm.ts`: the Paw Legends container on the Paw
+ * Legends pages and pawlegends.app, with Consent Mode v2; Token Tails' container everywhere else)
  * and pushes `page_view` on route changes. On the Pawlegends landings the start
  * is deferred (afterLandingReady, DEFERRED_PATHS); a route change starts it at once,
  * and the first page_view is still the page the visitor landed on.
@@ -163,7 +165,8 @@ export const GoogleTagManager = () => {
       if (document.visibilityState === "hidden") flush();
       else timeoutId = setTimeout(flush, 100);
     };
-    const cancelDefer = DEFERRED_PATHS.has(landedOn) ? afterLandingReady(start, window, { waitForIntro: false }) : (start(), () => {});
+    // pawlegends.app's "/" is the `/pawlegends` landing (next.config.js), so it defers the same way.
+    const cancelDefer = DEFERRED_PATHS.has(pagePathOf(window.location)) ? afterLandingReady(start, window, { waitForIntro: false }) : (start(), () => {});
 
     const onRouteChange = (pagePath: string) => {
       if (flushed) return pushPageView(pagePath);
