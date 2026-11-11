@@ -23,7 +23,8 @@ const det = Number(argValue('--det') ?? 40);
 const procs = Math.max(1, Math.min(Number(argValue('--procs') ?? Math.max(1, cpus().length - 2)), seeds));
 const json = hasFlag('--json');
 // Experiment only (balance refits): `--tune file.json` replaces HEARTHWOOD_PVP's species and hero rows in the bundle,
-// `{ cat?: {dmgBp, takenBp}, dog?: {...}, hero?: { id: {dmgBp, takenBp} } }`; the source and the vendored sim are untouched.
+// `{ cat?: {dmgBp, takenBp}, dog?: {...}, hero?: { id: {dmgBp, takenBp} }, pvp3?: { id: {dmgBp, takenBp} }, patches?: [{ file, from, to, re? }] }`
+// (`pvp3` replaces a hero's own 3v3 `pvp` row); the source and the vendored sim are untouched.
 const tune = argValue('--tune');
 const TICKS_PER_MIN = 1800;
 
@@ -54,6 +55,14 @@ async function tunePatches(path) {
     const body = Object.entries(t.hero).map(([h, r]) => `${h}: { dmgBp: ${r.dmgBp ?? 10000}, takenBp: ${r.takenBp ?? 10000} }`).join(', ');
     out.push({ file, from: /hero: Object\.freeze\(\{[^]*?\}\)/, to: `hero: Object.freeze({ ${body} })`, name: 'tune hero' });
   }
+  // The heroes' own 3v3 `pvp` rows (they apply on Hearthwood too) and free source patches, as headless-match --tune.
+  for (const [h, r] of Object.entries(t.pvp3 ?? {})) {
+    // A row equal to the source would match nothing (sim-bundle throws on a patch that changes nothing): skip it.
+    const cur = /pvp: \{ dmgBp: (\d+), takenBp: (\d+) \}/.exec(readFileSync(`src/data/heroes/${h}.ts`, 'utf8'));
+    if (cur && +cur[1] === r.dmgBp && +cur[2] === r.takenBp) continue;
+    out.push({ file: `src/data/heroes/${h}.ts`, from: /pvp: \{\s*dmgBp: \d+,\s*takenBp: \d+\s*\}/, to: `pvp: { dmgBp: ${r.dmgBp}, takenBp: ${r.takenBp} }`, name: `tune pvp3 ${h}` });
+  }
+  for (const [k, p] of (t.patches ?? []).entries()) out.push({ file: p.file, from: p.re ? new RegExp(p.from) : p.from, to: p.to, name: `tune patch ${k}` });
   return out;
 }
 
