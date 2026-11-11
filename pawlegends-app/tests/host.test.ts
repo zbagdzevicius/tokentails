@@ -81,7 +81,7 @@ class FakeAuth implements AuthPort {
   async checkVerified() {
     return true;
   }
-  async linkPending() {
+  async linkPending(_pending?: unknown) {
     return true;
   }
   async signOut() {
@@ -319,6 +319,25 @@ describe('the native host', () => {
     expect(merge.headers.accesstoken).toBe('fbtoken-acct-1');
     expect(h.last('session')).toMatchObject({ signedIn: true, name: 'Pat', provider: 'apple' });
     expect(h.ui.closed).toBeGreaterThan(0);
+  });
+
+  it('a guest whose Google email already has an account: signing in the original way links Google, then asks to merge', async () => {
+    const h = track(setup({ user: { uid: 'guest-1', isAnonymous: true, providers: [], email: null, emailVerified: false } }));
+    const linked: unknown[] = [];
+    h.auth.linkPending = async (c?: unknown) => (linked.push(c), true);
+    h.auth.next = { kind: 'link-account', provider: 'google', email: 'pat@example.com', pending: { providerId: 'google.com' } as never, guestToken: 'guesttoken' } as AuthOutcome;
+    h.host.signIn('sign-in');
+    h.ui.sheets[0].actions.oauth('google');
+    await flush(20);
+    h.auth.signInEmail = async () => {
+      h.auth.set({ uid: 'acct-2', isAnonymous: false, providers: ['password'], email: 'pat@example.com', emailVerified: true });
+      return { kind: 'merge', guestToken: 'guesttoken', provider: 'email' } as AuthOutcome;
+    };
+    h.ui.sheets[0].actions.email('sign-in', 'pat@example.com', 'secret12');
+    await flush(20);
+    expect(linked).toHaveLength(1);
+    expect(h.ui.asks.map((a) => a.testid)).toContain('native-host-merge');
+    expect(h.be.calls.find((c) => c.path === '/user/guest/merge')?.headers['x-guest-token']).toBe('fbguesttoken');
   });
 
   it('"Not now" keeps the guest progress where it is', async () => {
