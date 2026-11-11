@@ -5,6 +5,8 @@
  * It never takes input (pointer-events: none) and is gone after VS_MS. Its own lazy chunk; it preloads the six
  * element backgrounds when it mounts. Reduced motion: no flips or spin, a 200 ms fade in and out.
  */
+import { avatarHtml } from '../avatar';
+import type { AvatarView } from '../../data/chatPhrases';
 import type { HeroId } from '../../sim/api';
 import type { CatTier } from '../../meta/roster';
 import { HERO_TEXT } from '../heroText';
@@ -40,6 +42,8 @@ export interface VsIntroOpts {
   /** pawlegends: the worn card's cat name for the player's own card ("Ficus"), with its line ("Clem the Fighter"); else "You". */
   meName?: string | null;
   meSub?: string | null;
+  /** CHAT-AVATARS §7.4: each player's avatar by slot (party matches; from the party view, no fetch). */
+  avatars?: readonly (AvatarView | undefined)[];
 }
 
 /** Mount the VS intro into `parent`; returns a dispose function (safe to call twice). */
@@ -66,7 +70,9 @@ export function showVsIntro(parent: HTMLElement, o: VsIntroOpts): () => void {
           foot: true,
         });
         const delay = VS_MS.first + (startIdx + k) * VS_MS.stagger;
-        return `<div class="tt-vs-slot${me ? ' me' : ''}" style="--d:${delay}ms">${me ? `<i class="tt-vs-burst" style="background-image:url(${fxUrl('golden-burst')})"></i>` : ''}${flipCard(front)}</div>`;
+        const av = o.avatars?.[slot];
+        const badge = av ? `<span class="tt-vs-av" data-testid="vs-avatar">${avatarHtml(av, 40)}</span>` : '';
+        return `<div class="tt-vs-slot${me ? ' me' : ''}" style="--d:${delay}ms">${me ? `<i class="tt-vs-burst" style="background-image:url(${fxUrl('golden-burst')})"></i>` : ''}${flipCard(front)}${badge}</div>`;
       })
       .join('');
     const label = o.teamNames?.[team] ?? (team === myTeam ? 'Your team' : 'Rivals');

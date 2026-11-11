@@ -783,7 +783,7 @@ export class MatchSession {
       void import('../ui/cards/vs')
         .then((m) => {
           // a chunk that lands after the count reached "1" would cover the match start: skip it then
-          if (!this.disposed && !this.vsDone) m.showVsIntro(this.ui, { picks: w.picks, mySlot: w.slot, names: this.names, cats: this.catNames, myPortrait: vsPortrait, myTier: mine?.rung ?? null, meName: this.selfName ?? this.myCard?.name ?? null, meSub: this.myCard?.sub ?? (this.selfName ? heroSub(hero) : null), teamNames: [teamLabel(w.picks, 0), teamLabel(w.picks, 1)] });
+          if (!this.disposed && !this.vsDone) m.showVsIntro(this.ui, { avatars: vsAvatars(this.host), picks: w.picks, mySlot: w.slot, names: this.names, cats: this.catNames, myPortrait: vsPortrait, myTier: mine?.rung ?? null, meName: this.selfName ?? this.myCard?.name ?? null, meSub: this.myCard?.sub ?? (this.selfName ? heroSub(hero) : null), teamNames: [teamLabel(w.picks, 0), teamLabel(w.picks, 1)] });
         })
         .catch(() => undefined);
     }
@@ -2843,4 +2843,13 @@ export class MatchSession {
     delete document.documentElement.dataset.match;
     delete document.documentElement.dataset.touch;
   }
+}
+
+/** CHAT-AVATARS §7.4: the party's avatars by slot for the VS intro (a solo match has none). */
+function vsAvatars(host: unknown): (import('../data/chatPhrases').AvatarView | undefined)[] | undefined {
+  const link = (host as { party?: import('./mpTypes').PartyLink } | null)?.party;
+  if (!link?.seats?.length) return undefined;
+  const out: (import('../data/chatPhrases').AvatarView | undefined)[] = [];
+  for (const s of link.seats) if (s.av) out[s.slot] = s.av;
+  return out.length ? out : undefined;
 }

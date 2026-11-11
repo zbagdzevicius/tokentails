@@ -85,6 +85,8 @@ export interface SeatInfo {
   conn: Conn;
   /** The card art URL (cleaned), or null. */
   art: string | null;
+  /** CHAT-AVATARS §7.3: the player's avatar from the party view (PROTO 5), for the VS intro and results. */
+  av?: import('../data/chatPhrases').AvatarView;
 }
 
 export interface SocialMsg {

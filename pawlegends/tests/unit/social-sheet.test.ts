@@ -65,7 +65,9 @@ describe('social sheet', () => {
     const rows = document.querySelectorAll('.pl-social-row');
     expect(rows).toHaveLength(5);
     expect(document.querySelector('img')).toBeNull();
-    expect(rows[0].querySelector('.pl-social-name')!.textContent).toBe('<img src=x onerror=alert(1)>');
+    // CHAT-AVATARS §6.1: a joinable party first (Friend 1), then offline A–Z; names stay text
+    expect(rows[0].querySelector('.pl-social-name')!.textContent).toBe('Friend 1');
+    expect([...document.querySelectorAll('.pl-social-name')].map((n) => n.textContent)).toContain('<img src=x onerror=alert(1)>');
     expect(document.querySelector('.pl-pager small')!.textContent).toBe('1/2');
     document.querySelector<HTMLElement>('[data-a="join"]')!.click();
     expect(t.joinParty).toHaveBeenCalledWith('WXYZ');

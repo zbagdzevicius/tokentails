@@ -11,6 +11,7 @@
 import { cleanArt } from '../../embed/bridge';
 import { displayCode, type MemberView, type PartyView } from '../../net/proto';
 import { COPY, DIFF_LABEL, esc } from './copy';
+import { avatarHtml, titleText } from '../../ui/avatar';
 
 export interface LobbyModel {
   view: PartyView;
@@ -47,9 +48,13 @@ function seatHtml(v: PartyView, m: MemberView | undefined, i: number, leader: bo
   const me = m.id === v.you;
   const name = shownName(v, m, hide);
   const art = cleanArt(m.card?.image);
-  const av = art
-    ? `<span class="pp-av pic" style="background-image:url('${esc(art)}')" data-el="${esc(m.card?.element ?? '')}"></span>`
-    : `<span class="pp-av">${PAW}</span>`;
+  // CHAT-AVATARS §7.4: the player's avatar (icon + border) in the seat; the worn cat card stays beside it as the skin
+  // preview. An older relay sends no avatar: the card art or the paw, as before.
+  const card = art ? `<span class="pp-av pic${m.av ? ' pp-av-card' : ''}" style="background-image:url('${esc(art)}')" data-el="${esc(m.card?.element ?? '')}"></span>` : '';
+  const av = m.av
+    ? `${avatarHtml(m.av, 56, { guest: m.guest && !m.av })}${card}`
+    : card || `<span class="pp-av">${PAW}</span>`;
+  const title = m.av?.t ? `<small class="pp-title">${esc(titleText(m.av.t))}</small>` : '';
   const badges = [
     m.id === v.leader ? `<span class="pp-crown" title="${COPY.leader}">${CROWN}</span>` : '',
     me ? `<span class="pp-tag me">${COPY.you}</span>` : '',
@@ -60,7 +65,7 @@ function seatHtml(v: PartyView, m: MemberView | undefined, i: number, leader: bo
     leader && !me && (v.phase === 'lobby' || v.phase === 'results')
       ? `<span class="pp-tools"><button type="button" class="pp-mini" data-p="lead" data-m="${esc(m.id)}" aria-label="${esc(`${COPY.makeLeader}: ${name}`)}" title="${COPY.makeLeader}">${CROWN}</button><button type="button" class="pp-mini" data-p="kick" data-m="${esc(m.id)}" aria-label="${esc(`${COPY.remove}: ${name}`)}" title="${COPY.remove}">×</button></span>`
       : '';
-  return `<li class="pp-seat" data-conn="${m.conn}" data-slot="${i}"${me ? ' data-me="1"' : ''} data-testid="party-seat">${av}<span class="pp-who"><b>${esc(name)}</b><span class="pp-badges">${badges}</span></span><i class="pp-dot" title="${m.conn === 'on' ? 'Here' : m.conn === 'away' ? 'Away' : 'Offline'}"></i>${tools}</li>`;
+  return `<li class="pp-seat" data-conn="${m.conn}" data-slot="${i}"${me ? ' data-me="1"' : ''} data-testid="party-seat">${av}<span class="pp-who"><b>${esc(name)}</b>${title}<span class="pp-badges">${badges}</span></span><i class="pp-dot" title="${m.conn === 'on' ? 'Here' : m.conn === 'away' ? 'Away' : 'Offline'}"></i>${tools}</li>`;
 }
 
 /**
