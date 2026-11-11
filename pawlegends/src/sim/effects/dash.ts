@@ -92,6 +92,8 @@ export function gateClampXY(w: World, id: number, x: number, y: number): void {
 
 /** Start forced movement of `id` to (tx, ty) over `ticks`. A knockback is not clamped at the gate. */
 export function startForced(w: World, id: number, tx: number, ty: number, ticks: number, kind: number): void {
+  // Sim v21: nothing moves a hero out of a Boing Bed flight.
+  if (w.fmKind[id] === FM.Leap) return;
   if (kind !== FM.Knock && MAP.point === 1) {
     gateClampXY(w, id, tx, ty);
     tx = gateOut[0];

@@ -21,6 +21,9 @@ import { cursorCss, cursorKind, type CursorKind } from './cursor';
 import { actionFor, castMode, cursorSize, markTrackpadDetected, trackpadAutoRule, trackpadOn, trackpadPref, type Action, type CastMode } from './presets';
 import { loadCameraHeight, saveCameraHeight, wheelHeight, wheelReady } from '../render/camera/height';
 import { groundAt, project, toSimX, toSimY } from './screen';
+import { carriesCannon, quickFireAim } from './fireAim';
+import { FUN_BY_MAP } from '../data/fun';
+import { MAP } from '../data/map';
 import { cursorCast, hoverTarget, pickNearest, isEnemy, type HoverTarget, type Unit } from './targeting';
 import { landing } from './heading';
 
@@ -297,6 +300,16 @@ export class DesktopInput {
       return;
     }
     if (e.repeat) return;
+    // Sim v21: F fires the Kibble Cannon at the cursor (else straight ahead) while the own hero carries it
+    if (a === 'fire') {
+      const me = this.h.view.me();
+      if (!this.h.enabled() || !me || !carriesCannon(me.buffs)) return;
+      const g = this.groundUnderCursor();
+      const range = FUN_BY_MAP[MAP.point === 1 ? 1 : 0].cannon.range;
+      const p = g ? { x: toSimX(g.x), y: toSimY(g.z) } : quickFireAim(this.h.units(), { x: me.fx, y: me.fy, team: me.team }, me.yaw, range);
+      this.h.orders.fireCannon(p.x, p.y);
+      return;
+    }
     if (a === 'menu') {
       if (this.aiming || this.attackArmed) {
         this.cancelAim();

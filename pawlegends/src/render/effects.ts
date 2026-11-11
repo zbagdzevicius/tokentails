@@ -689,6 +689,8 @@ export class Effects {
 
   private windup(e: Extract<SimEvent, { type: 'windup' }>): void {
     if (e.ticks <= 0) return;
+    // Sim v21: the Kibble Cannon's windup (slot 5) has its own lane telegraph (render/views/funView.ts).
+    if (e.slot === 5) return;
     this.windups.push({ src: e.src, slot: e.slot, x: e.x, y: e.y, start: e.tick, ticks: e.ticks, dst: e.dst ?? -1 });
     this.anim?.windupFired(e);
     const src = this.hooks.who(e.src);

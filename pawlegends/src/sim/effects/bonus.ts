@@ -9,7 +9,8 @@ import { JUNGLE_BUFF, RAT_CAMP_STATS } from '../../data/camps';
 import { BP_ONE, applyBp, dist2 } from '../fixed';
 import type { MatchHandle } from '../state';
 import { rulesOf } from '../rules';
-import { G, Kind, MG, RANGE, type World } from '../world';
+import { CANNON_STATE, G, Kind, MG, RANGE, type World } from '../world';
+import { CANNON } from '../../data/fun';
 import { isHumanSlot } from '../humans';
 
 const WIN = NINE_LIVES.window;
@@ -48,7 +49,9 @@ export function bonusSpeedBp(w: World, id: number): number {
   if (id >= RANGE.minions || w.kind[id] !== Kind.Hero) return 0;
   const panic = isHumanSlot(w, id) && w.globals[G.HumanPanic] > 0 && w.hp[id] * BP_ONE < w.maxHp[id] * PANIC.hpBp ? w.globals[G.HumanPanic] : 0;
   const feather = w.mg.length > 0 && w.mg[MG.Feather + id] > 0 ? JUNGLE_BUFF.featherSpeedBp : 0;
-  return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic + feather;
+  // Sim v21: the Kibble Cannon's carrier is slower (in the bp sum, so slows still apply).
+  const cannon = w.globals[G.CannonState] === CANNON_STATE.Carried && w.globals[G.CannonBy] === id ? CANNON.slowBp : 0;
+  return (w.zoomT[id] > 0 ? ZOOMIES.speedBp : 0) + (w.frenzyT[id] > 0 ? PICKUPS.frenzy.speedBp : 0) + panic + feather - cannon;
 }
 
 /** Outgoing damage of hero `id` with Frenzy Catnip and the Pack buff. */

@@ -53,6 +53,9 @@ import type { SimEvent } from '../../sim/api';
 import { arcLayout, arcStyle, type ArcButton } from './touchArc';
 import { applySweep, newSweep, type SweepRec } from '../../ui/cdSweep';
 import { ATK_SELECT, DragLock, dragZone, PickLock, releasePick, selectCandidates, selectReach, snapTarget } from './attackSelect';
+import { carriesCannon, dragFireAim, quickFireAim } from '../fireAim';
+import { CANNON, FUN_BY_MAP } from '../../data/fun';
+import { MAP } from '../../data/map';
 
 /**
  * Drag-lock: the unit a release falls back to (AtkHold.last) after this step. The selection when there is one; with
@@ -113,6 +116,8 @@ export function dragFullPx(x0: number, y0: number, sx: number, sy: number, w: nu
  * leftover 1 px offset picked the direction, so a 2 px wobble fired a line or dash the wrong way at full range.
  */
 export const AIM_BACK_PX = 24;
+/** Sim v21: a FIRE press this soon (ms) after the Attack button turned into FIRE is ignored (an ATK tap, not a shot). */
+export const FIRE_ARM_MS = 400;
 /**
  * Audit CF-01: a drag cancels only after the thumb has rested on the ✕ this long (ms), so a fast aim that sweeps
  * across it still casts.
@@ -248,6 +253,24 @@ export class TouchControls {
   stickYields = 0;
   /** Hold-to-select: the held Attack button's state, while held. */
   private atkHold: AtkHold | null = null;
+  /**
+   * Sim v21 (V21-FUN.md §1.5): while the own hero carries the Kibble Cannon the Attack button is the FIRE button. A tap
+   * fires at once (the nearest enemy hero in range, else straight ahead); a drag past DRAG_PX aims along the thumb
+   * (the lane shows) and the release fires; dragging back into the centre (AIM_BACK_PX) fires like a tap.
+   */
+  private fireHold: { id: number; x0: number; y0: number; x: number; y: number; dragging: boolean } | null = null;
+  /** FIRE presses sent (e2e telemetry). */
+  fires = 0;
+  private wasCarrying = false;
+  /**
+   * When the button turned into FIRE (performance.now()). A press that lands within FIRE_ARM_MS of it, or before the
+   * button showed FIRE, is ignored: a player tapping ATK over and over would otherwise fire the cannon by accident.
+   * The button shows `arming` (dimmed, no pulse) for that window.
+   */
+  private carryAt = 0;
+  private arming = false;
+  /** The fuse arc's last step (0..40) written to --fuse (−1 none), so the style is set on change only. */
+  private fuseStep = -1;
   /** Hold-to-select: a non-hero unit picked with the selector (heroes go to `lock`). */
   readonly pick = new PickLock();
   /** Drag-lock (Wild Rift drag to lock): the unit a released Attack drag chose; no timer (DragLock). */
@@ -454,6 +477,16 @@ export class TouchControls {
       /* synthetic pointers */
     }
     el.classList.add('down');
+    if (btn === 'attack' && this.carrying()) {
+      if (!this.wasCarrying || performance.now() - this.carryAt < FIRE_ARM_MS) {
+        // the button just turned into FIRE (or still shows ATK): this press was meant as an attack, not a shot
+        el.classList.remove('down');
+        return;
+      }
+      this.fireHold = { id: e.pointerId, x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, dragging: false };
+      haptic('cast');
+      return;
+    }
     if (btn === 'attack') {
       this.attackHeld = e.pointerId;
       // the drag is measured from where the thumb landed (as the skill drags are), so an off-centre tap stays a tap
@@ -517,6 +550,16 @@ export class TouchControls {
       this.knobEl.style.transform = `translate(calc(-50% + ${dx}px), calc(-50% + ${dy}px))`;
       const me = this.h.enabled() ? this.me() : null;
       if (me) this.steer(me, performance.now());
+      return;
+    }
+    const fh = this.fireHold;
+    if (fh && fh.id === e.pointerId) {
+      fh.x = e.clientX;
+      fh.y = e.clientY;
+      if (!fh.dragging && Math.hypot(fh.x - fh.x0, fh.y - fh.y0) > DRAG_PX) fh.dragging = true;
+      const me = this.me();
+      const back = Math.hypot(fh.x - fh.x0, fh.y - fh.y0) <= AIM_BACK_PX;
+      this.h.view.fun.aim = me && fh.dragging && !back ? this.fireDragAim(fh, me) : null;
       return;
     }
     const ah = this.atkHold;
@@ -618,6 +661,26 @@ export class TouchControls {
       nap?.classList.remove('down', 'holding');
       return;
     }
+    const fh = this.fireHold;
+    if (fh && fh.id === e.pointerId) {
+      this.fireHold = null;
+      this.h.view.fun.aim = null;
+      this.buttons.get('attack')?.classList.remove('down');
+      if (cancelled || !this.h.enabled() || !this.carrying()) return;
+      const me = this.me();
+      if (!me) return;
+      const back = !fh.dragging || Math.hypot(e.clientX - fh.x0, e.clientY - fh.y0) <= AIM_BACK_PX;
+      fh.x = e.clientX;
+      fh.y = e.clientY;
+      const p = back ? quickFireAim(this.h.units(), me, this.facing(), this.fireRange()) : this.fireDragAim(fh, me);
+      if (!p) return;
+      // a shot is a new command, like a skill press (V20-CHASE.md I3): the stick stops yielding to a tapped Attack order
+      if (this.attackHeld === null) this.atkYield.clear();
+      this.h.orders.fireCannon(p.x, p.y);
+      this.fires++;
+      haptic('cast');
+      return;
+    }
     if (this.attackHeld === e.pointerId) {
       this.attackHeld = null;
       this.buttons.get('attack')?.classList.remove('down');
@@ -672,6 +735,22 @@ export class TouchControls {
 
   private facing(): number {
     return this.h.view.me()?.yaw ?? 0;
+  }
+
+  /** Sim v21: does the own hero carry the Kibble Cannon? */
+  private carrying(): boolean {
+    return carriesCannon(this.h.view.me()?.buffs);
+  }
+
+  /** Sim v21: the cannon's range on this map (mm). */
+  private fireRange(): number {
+    return FUN_BY_MAP[MAP.point === 1 ? 1 : 0].cannon.range;
+  }
+
+  /** Sim v21: a FIRE drag's aim point (mm): the thumb's direction, turned into the sim (feel pass B2), full range. */
+  private fireDragAim(f: { x: number; y: number; x0: number; y0: number }, me: Unit): { x: number; y: number } | null {
+    const v = screenToSim(f.x - f.x0, -(f.y - f.y0));
+    return dragFireAim(me, v.x, v.y, this.fireRange());
   }
 
   /** The joystick's direction (rad, sim convention) while it is held past the dead zone, else null. */
@@ -1458,7 +1537,7 @@ export class TouchControls {
     }
     this.syncRing();
     const s = this.stick;
-    if (s || this.drags.size > 0 || this.attackHeld !== null || this.napHeld) this.inputAt = now;
+    if (s || this.drags.size > 0 || this.attackHeld !== null || this.napHeld || this.fireHold) this.inputAt = now;
     else if (me && this.h.enabled()) this.autoAttack(me, now);
     if (s && me && this.h.enabled()) this.steer(me, now);
     const order: ButtonId[] = ['q', 'w', 'e', 'r', 'trick'];
@@ -1494,6 +1573,36 @@ export class TouchControls {
     });
     const atk = this.buttons.get('attack');
     if (atk) atk.style.setProperty('--ring', RELATION_CSS.enemy);
+    // Sim v21: the Attack button turns into FIRE while the own hero carries the Kibble Cannon (the fuse arc counts down)
+    const carrying = this.carrying();
+    if (atk && carrying !== this.wasCarrying) {
+      this.wasCarrying = carrying;
+      atk.classList.toggle('fire', carrying);
+      atk.setAttribute('aria-label', carrying ? 'Fire the Kibble Cannon' : 'Attack');
+      const label = atk.querySelector('span');
+      if (label) label.textContent = carrying ? 'FIRE' : 'ATK';
+      if (carrying) {
+        haptic('toy');
+        this.carryAt = performance.now();
+        this.arming = true;
+        atk.classList.add('arming');
+      } else if (this.arming) {
+        this.arming = false;
+        atk.classList.remove('arming');
+      }
+    }
+    if (atk && carrying) {
+      if (this.arming && performance.now() - this.carryAt >= FIRE_ARM_MS) {
+        this.arming = false;
+        atk.classList.remove('arming');
+      }
+      const fuse = this.h.view.frame?.latest.fun?.cannon.fuse ?? 0;
+      const step = Math.round(Math.max(0, Math.min(1, fuse / CANNON.fuse)) * 40);
+      if (step !== this.fuseStep) {
+        this.fuseStep = step;
+        atk.style.setProperty('--fuse', (step / 40).toFixed(3));
+      }
+    } else this.fuseStep = -1;
     // GAPS A5: the lock shows as the hover ring on the hero (GameView) and a draining ring on Attack
     const locked = this.attackLockId();
     this.h.view.lock = locked;

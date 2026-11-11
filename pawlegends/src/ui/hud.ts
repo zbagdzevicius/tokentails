@@ -44,6 +44,9 @@ const SLOT_ACTIONS: readonly Action[] = ['q', 'w', 'e', 'r', 'trick', 'nap'];
 /** Crossed claws between the two kill counts (LoL's sword icon). */
 const SWORDS_SVG = '<svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true"><path fill="currentColor" d="M3 2l9.2 9.2-1.4 1.4L2 3.8V2zm18 0v1.8l-6.6 6.6-1.4-1.4L19.2 2zM9.4 14l1.4 1.4-3.3 3.3 1.2 1.2-1.4 1.4-1.9-1.9L3 21.8 2.2 21l2.4-2.4-1.9-1.9 1.4-1.4 1.2 1.2zm5.2 0l3.3 3.3 1.2-1.2 1.4 1.4-1.9 1.9 2.4 2.4-.8.8-2.4-2.4-1.9 1.9-1.4-1.4 1.2-1.2-3.3-3.3z"/></svg>';
 /** Kill feed: the claw between the killer and the victim, and the face of a tower or a minion that took a hero down. */
+/** Sim v21: the Kibble Cannon in a KABOOM kill-feed row (an original brass cannon on a wheel, in the row's colour). */
+const CANNON_SVG =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 9.5l13-4.6 1.4 4-13 4.6zM17.8 4l3 8.6-1.9.7-3-8.6z"/><circle cx="8" cy="16.5" r="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="16.5" r="1.2" fill="currentColor"/><circle cx="21" cy="6" r="1.4" fill="#FFD34D"/></svg>';
 const CLAW_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M5 3c2.5 3 3.5 7 3 12l-2 .5C6.6 10.6 6.2 6.6 5 3zm6 0c2 3.2 2.6 7.3 1.8 12.3l-2 .2C11.5 10.7 11.6 6.6 11 3zm6.5 1c1.3 3.4 1.2 7.5-.4 12.1l-1.9-.4c1.4-4.3 1.9-8 2.3-11.7zM4 18h15v3H4z"/></svg>';
 const MINION_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="14" r="6" fill="currentColor"/><circle cx="6" cy="7" r="2.4" fill="currentColor"/><circle cx="12" cy="5" r="2.4" fill="currentColor"/><circle cx="18" cy="7" r="2.4" fill="currentColor"/></svg>';
 
@@ -911,12 +914,13 @@ export class Hud {
    * A line in the kill feed. Both names carry their side's colour (self gold, allies teal, enemies red), and the
    * player's own hero reads "You", so two Clems on opposite sides cannot be confused.
    */
-  kill(killer: FeedName, victim: FeedName, good: boolean): HTMLElement {
+  kill(killer: FeedName, victim: FeedName, good: boolean, kaboom = false): HTMLElement {
     const el = document.createElement('div');
     // LoL pass (lane B): killer face → claw → victim face (greyed, a red X), on a dark row with the team's edge
-    el.className = `pl-feed-row kill ${good ? 'good' : 'bad'}`;
+    // Sim v21: a KABOOM row has the Kibble Cannon instead of the claw
+    el.className = `pl-feed-row kill ${good ? 'good' : 'bad'}${kaboom ? ' kaboom' : ''}`;
     el.style.setProperty('--edge', good ? RELATION_CSS.ally : RELATION_CSS.enemy);
-    el.innerHTML = `<b></b><span class="claw">${CLAW_SVG}</span><b></b>`;
+    el.innerHTML = `<b></b><span class="claw">${kaboom ? CANNON_SVG : CLAW_SVG}</span><b></b>`;
     const bs = el.querySelectorAll('b');
     for (const [b, n, who] of [
       [bs[0], killer, 'killer'],

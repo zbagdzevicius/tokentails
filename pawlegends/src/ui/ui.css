@@ -1715,3 +1715,41 @@ html:not([data-touch='1']) .pl-chatline .cl-row { background: rgba(20, 12, 22, 0
   font: 700 12.5px var(--font); cursor: pointer; white-space: nowrap;
 }
 .pl-chatdrawer.desk .cd-chip { min-height: 30px; }
+/* Sim v21 (V21-FUN.md §1.5): the Attack button is the FIRE button while the own hero carries the Kibble Cannon: brass
+   and red, a pulsing gold ring, the fuse left drawn as a conic arc (--fuse, 1 → 0; written on change only). */
+.pl-tbtn.attack.fire {
+  background: radial-gradient(circle at 50% 40%, #ffd34d 0%, #d9a441 55%, #b4462f 100%);
+  border-color: #fff6dc;
+  color: #3b2412;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  animation: pl-fire-pulse 0.8s ease-in-out infinite;
+}
+.pl-tbtn.attack.fire::before {
+  content: '';
+  position: absolute;
+  inset: -7px;
+  border-radius: 50%;
+  background: conic-gradient(#ffd34d calc(var(--fuse, 1) * 360deg), rgba(0, 0, 0, 0.18) 0);
+  -webkit-mask: radial-gradient(circle, transparent 62%, #000 63%);
+  mask: radial-gradient(circle, transparent 62%, #000 63%);
+  pointer-events: none;
+}
+/* the first FIRE_ARM_MS (400 ms) after it turned into FIRE: presses are ignored (an ATK tap is not a shot), and the
+   button pops in from dimmed and small so the change is seen (transform and opacity only) */
+.pl-tbtn.attack.fire.arming {
+  animation: pl-fire-arm 0.4s ease-out 1;
+}
+@keyframes pl-fire-arm {
+  0% { opacity: 0.5; transform: scale(0.8); }
+  60% { opacity: 0.8; transform: scale(1.12); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes pl-fire-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 211, 77, 0.7), 0 4px 12px rgba(0, 0, 0, 0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(255, 211, 77, 0), 0 4px 12px rgba(0, 0, 0, 0.35); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pl-tbtn.attack.fire { animation: none; }
+  .pl-tbtn.attack.fire.arming { animation: none; opacity: 0.55; }
+}

@@ -12,7 +12,7 @@
 import { CC_DR, EFFECTS } from '../../data/effects';
 import { BRUSH_REVEAL_MM, BUSHES, MINION_BRUSH_REVEAL_MM, mirrorX, mirrorY } from '../../data/map';
 import { dist2 } from '../fixed';
-import { Buff, FM, Kind, MG, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
+import { Buff, CANNON_STATE, FM, G, Kind, MG, RANGE, SEEN_ALL, TEAM_NEUTRAL, type World } from '../world';
 
 /** Hero indices (HERO_IDS) whose kit arrays mean something else; kept local so brush.ts imports no hero kit. */
 const PIXEL_SUB = 9;
@@ -89,7 +89,7 @@ export const visibleTo = (w: World, id: number, team: number): boolean => team >
 export function refreshFlags(w: World): void {
   for (let id = 0; id < RANGE.end; id++) {
     if (w.kind[id] === 0) continue;
-    let b = w.buffs[id] & Buff.Invulnerable;
+    let b = w.buffs[id] & (Buff.Invulnerable | Buff.Fortified);
     if (w.alive[id] === 1) {
       if (w.stealthT[id] > 0) b |= Buff.Stealth;
       if (w.untargT[id] > 0) b |= Buff.Untargetable;
@@ -114,6 +114,9 @@ export function refreshFlags(w: World): void {
         if (w.frenzyT[id] > 0) b |= Buff.Frenzy;
         if (w.nineT[id] > 0) b |= Buff.NineLives;
         if (w.packT[id] > 0) b |= Buff.Pack;
+        // Sim v21: the Kibble Cannon's carrier, a Boing Bed flight.
+        if (w.globals[G.CannonState] === CANNON_STATE.Carried && w.globals[G.CannonBy] === id) b |= Buff.Cannon;
+        if (w.fmKind[id] === FM.Leap) b |= Buff.Leaping;
         // Sim v19 (Hearthwood).
         if (w.mg.length > 0) {
           if (w.mg[MG.Prickle + id] > 0) b |= Buff.Prickle;

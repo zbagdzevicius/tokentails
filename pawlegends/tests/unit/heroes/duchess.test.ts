@@ -39,7 +39,7 @@ describe('Duchess, original cat mage (sim v11)', () => {
     expect([DUCHESS.side, DUCHESS.role, DUCHESS.element]).toEqual(['cat', 'mage', 'DARK']);
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([210, 300, 390, 1950]);
     expect(DUCHESS.passive).toEqual({ stacks: 3, window: 120, stun: 23, dmg: 40, dmgPerLevel: 4, lockout: 180 });
-    expect(DUCHESS.pvp).toEqual({ dmgBp: 10805, takenBp: 8215 }); // sim v20 refit (V20-CHASE.md §9); sim v17 refit (V17.md §6.5): takes 8525 before; sim v15 balance pass; sim v16: deals 10175 before
+    expect(DUCHESS.pvp).toEqual({ dmgBp: 10640, takenBp: 8135 }); // sim v21 refit on the v20 base (V21-FUN.md); sim v20 refit (V20-CHASE.md §9); sim v17 refit (V17.md §6.5): takes 8525 before; sim v15 balance pass; sim v16: deals 10175 before
     expect((DUCHESS as { catalogId?: unknown }).catalogId).toBeUndefined();
   });
 

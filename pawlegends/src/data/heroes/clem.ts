@@ -7,7 +7,7 @@ export const CLEM: HeroData = Object.freeze<HeroData>({
   side: 'cat',
   role: 'fighter',
   /** Hero-vs-hero tuning on Normal and Hard (sim v8; SIDE_EDGE before): deals dmgBp, takes takenBp. Sim v10 (GAPS B5): dmgBp 9300 to 9200; (GAPS B6) 9100, Clem was 54.4% of the 2,000-seed gate once the branches shipped; 8800 once the Guard Post dome stopped disarming enemies inside it (54.2%). Sim v11: 8200 / takes 10100 (57.1% of the gate with the four new cats; now 47.9%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 8850 / takes 9725 (51.2% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8100 / takes 9625 (50.5% of the 2,000-seed gate). Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 7825 / takes 10075. Sim v20 refit on four seed windows (V20-CHASE.md §9): 7590 / 10310 → 7655 / 9945. */
-  pvp: { dmgBp: 7655, takenBp: 9945 },
+  pvp: { dmgBp: 7485, takenBp: 9945 },
   element: 'FAIRY',
   base: { hp: 620, hpPerLevel: 60, attack: 58, attackPerLevel: 5, attackEvery: 30, range: 1600, speed: 5000, armour: 25, armourPerLevel: 2 },
   /** Valor: +10 per hit on a hero (minions +4), max 100; at 100 the next ability deals +50%. */

@@ -8,6 +8,7 @@ import { fear } from '../../src/sim/effects';
 import { isqrt } from '../../src/sim/fixed';
 import { cellOf, createGrid, walkable } from '../../src/sim/map/grid';
 import { slideStep } from '../../src/sim/nav/slide';
+import { FM } from '../../src/sim/world';
 import { heroMatch, hold, place } from './heroes/kit-helpers';
 
 describe('sim v17 B5a: feared heroes slide along walls', { timeout: 300_000 }, () => {
@@ -53,10 +54,15 @@ describe('sim v17 B5a: feared heroes slide along walls', { timeout: 300_000 }, (
       const m = createMatch({ seed, picks, tricks, difficulty: 'hard' });
       const w = m.world;
       const bot = createPlayerBot(m, 'normal');
+      const fearedBefore = new Uint8Array(6);
       for (let t = 0; t < 6000 && !result(m); t++) {
+        for (let id = 0; id < 6; id++) fearedBefore[id] = w.fearT[id] > 0 ? 1 : 0;
         step(m, playerBotCommands(m, bot));
         // Only the fear walk is B5a's: other wall contacts (MAP-GAPS B7) are out of this item's scope.
-        for (let id = 0; id < 6; id++) if (w.alive[id] === 1 && w.fearT[id] > 0 && m.grid.walls[cellOf(w.x[id], w.y[id])] !== 0) bad++;
+        // Sim v21: a hero in a Boing Bed flight is in the air over the wall (FM.Leap), not walking on it. A hero feared
+        // during the tick took that tick's step by its own walk (seed 8, tick 4490 on v21: a corner cut, then the
+        // fear), so only a hero already feared before the step counts.
+        for (let id = 0; id < 6; id++) if (fearedBefore[id] === 1 && w.alive[id] === 1 && w.fearT[id] > 0 && w.fmKind[id] !== FM.Leap && m.grid.walls[cellOf(w.x[id], w.y[id])] !== 0) bad++;
       }
     }
     expect(bad).toBe(0);

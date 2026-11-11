@@ -6,7 +6,7 @@
  */
 import { PPK_INPUT_PRESETS } from './ppkInput.data.js';
 
-export type Action = 'move' | 'attackMove' | 'stop' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'talent1' | 'talent2' | 'centre' | 'scoreboard' | 'menu' | 'ping' | 'zoomIn' | 'zoomOut';
+export type Action = 'move' | 'attackMove' | 'stop' | 'q' | 'w' | 'e' | 'r' | 'trick' | 'nap' | 'talent1' | 'talent2' | 'centre' | 'scoreboard' | 'menu' | 'ping' | 'zoomIn' | 'zoomOut' | 'fire';
 
 type Keys = Record<string, readonly string[]>;
 const ppk = ((PPK_INPUT_PRESETS as Record<string, { keys?: Keys }>).moba?.keys ?? {}) as Keys;
@@ -38,6 +38,8 @@ export const MOBA_BINDINGS: Readonly<Record<Action, readonly string[]>> = Object
   // camera zoom (the wheel does the same): + closer, − further out
   zoomIn: ['Equal', 'NumpadAdd'],
   zoomOut: ['Minus', 'NumpadSubtract'],
+  // Sim v21 (V21-FUN.md §1.5): F fires the Kibble Cannon at the cursor while the hero carries it
+  fire: ['KeyF'],
 });
 
 const BY_CODE = new Map<string, Action>();

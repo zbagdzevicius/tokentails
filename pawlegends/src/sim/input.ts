@@ -47,8 +47,8 @@ function spend(g: InputGate, tick: number, op: number): boolean {
   return true;
 }
 
-/** Sim v12 (S5a): commands that leave a waiting move waiting (and win over a move of their own tick). */
-const keepsMove = (op: number): boolean => op === Op.Cast || op === Op.Trick || op === Op.Talent;
+/** Sim v12 (S5a): commands that leave a waiting move waiting (and win over a move of their own tick). Sim v21: Fire too. */
+const keepsMove = (op: number): boolean => op === Op.Cast || op === Op.Trick || op === Op.Talent || op === Op.Fire;
 
 /**
  * The command to apply at `tick` (not a ping or a forfeit), or null; the tick's ping, if one applies, is left in

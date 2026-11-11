@@ -72,6 +72,28 @@ export const PL_SFX = {
   towerIgnite: [0.75, 0, 95, 0.05, 0.14, 0.38, 4, 1, 1.4, -0.2, 0, 0, 0, 1.3, 0, 0, 0, 0.7, 0.07, 0.12, -950],
   /** A pickup was taken. */
   pickup: [0.5, 0, 880, 0.005, 0.06, 0.2, 0, 1, 6, 0, 440, 0.06, 0, 0, 0, 0, 0, 0.7, 0.02, 0, 0],
+  // Sim v21 (V21-FUN.md §1.6, §2): the Kibble Cannon, Boing Beds and the Mega Yarn Ball. Synth only, no recordings.
+  /** The cannon lands on the river: a metal clank. */
+  cannonClank: [0.6, 0, 340, 0.001, 0.03, 0.22, 3, 1, -2, 0, 170, 0.02, 0, 0.3, 30, 0, 0, 0.6, 0.03, 0, -2400],
+  /** Picked up: a brass "ka-chunk" (two low thumps). */
+  cannonChunk: [0.6, 0, 140, 0.002, 0.03, 0.08, 2, 1.4, -4, 0, -40, 0.06, 0.07, 0.2, 0, 0.05, 0, 0.6, 0.02, 0, -1600],
+  /** The windup: a fuse hiss. */
+  fuseHiss: [0.35, 0, 1800, 0.05, 0.6, 0.08, 4, 1, 0, 0, 0, 0, 0, 2.2, 0, 0, 0, 0.6, 0.05, 0.4, 3600],
+  /** The shot: a deep pitched-down boom (boom with a lower body). */
+  cannonBoom: [1, 0, 38, 0.005, 0.18, 0.9, 4, 1.2, -0.6, 0, 0, 0, 0, 1.2, 0, 0.35, 0.06, 0.7, 0.12, 0, -560],
+  /** A miss: the kibble bounces off ("boing"). */
+  kibbleBoing: [0.5, 0, 210, 0.004, 0.05, 0.22, 1, 1.2, 4, 0, 90, 0.08, 0, 0, 6, 0, 0, 0.6, 0.03, 0, -2400],
+  /** A parry sends it back: a clang. */
+  kibbleClang: [0.6, 0, 980, 0.001, 0.04, 0.4, 1, 1, 0, 0, 0, 0, 0, 0, 22, 0, 0, 0.6, 0.06, 0.2, 0],
+  /** A fumble: a clatter. */
+  cannonClatter: [0.55, 0, 420, 0.002, 0.05, 0.2, 4, 1, -4, 0, 0, 0, 0.05, 1, 0, 0.1, 0, 0.6, 0.03, 0, -2200],
+  /** A fizzle: a sad falling trombone. */
+  sadTrombone: [0.5, 0, 220, 0.04, 0.3, 0.35, 2, 1, -0.8, 0, -30, 0.2, 0.2, 0, 4, 0, 0, 0.7, 0.05, 0.25, -1400],
+  /** A Boing Bed launch: a big spring. */
+  bedBoing: [0.6, 0, 160, 0.005, 0.12, 0.25, 0, 1.4, 9, 0, 0, 0, 0, 0, 10, 0, 0, 0.7, 0.04, 0, 0],
+  /** A yarn kick: a soft thump; a STRIKE: pins clattering. */
+  yarnKick: [0.5, 0, 180, 0.002, 0.03, 0.12, 0, 1.6, -3, 0, 0, 0, 0, 0.2, 0, 0, 0, 0.6, 0.02, 0, -1200],
+  yarnStrike: [0.7, 0, 520, 0.002, 0.08, 0.35, 4, 1, -2, 0, 0, 0, 0.04, 1.6, 0, 0.1, 0, 0.6, 0.05, 0, 1600],
   // Sim v14 dogs (DOGS-V13 §1 "Voice / emote"): synth voices, no recordings. Each joke is a generic behaviour.
   /** Nugget: a short high double bark (Frisbee, Herding Time). */
   nuggetBork: [0.5, 0, 720, 0.004, 0.03, 0.06, 1, 1.6, -7, 0, 0, 0, 0.1, 0.25, 0, 0, 0, 0.8, 0.02, 0, -3200],

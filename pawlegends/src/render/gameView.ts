@@ -45,6 +45,7 @@ import { mapInfo } from '../sim/map/info';
 import { MAP } from '../data/map';
 import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
+import { FunView } from './views/funView';
 import { ProjectileView } from './views/projectileView';
 import { StructureView } from './views/towerView';
 import { TowerFire } from './fx/towerFire';
@@ -133,6 +134,10 @@ export class GameView {
   private footprints: { x: number; z: number; r: number }[] = [];
   private coreZones: { x: number; z: number; r: number }[] = [];
   readonly pickups = new PickupView();
+  /** Sim v21 (V21-FUN.md): the Kibble Cannon, Boing Beds and the Mega Yarn Balls. */
+  readonly fun: FunView;
+  /** Scratch for funView's carrier lookup (no allocation per frame). */
+  private readonly funHero = { x: 0, z: 0, yaw: 0 };
   readonly projectiles: ProjectileView;
   readonly telegraphs = new TelegraphPool(20);
   readonly particles: Particles;
@@ -270,7 +275,11 @@ export class GameView {
     this.vfx = new CombatVfx(this.particles, this.shock);
     this.vfx.setTier(gr.settings.vfxTier, reducedMotion());
     this.projectiles.vfx = this.vfx;
-    this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group);
+    this.fun = new FunView(this.particles, this.shock);
+    this.fun.reduceMotion = this.vfx.reduced;
+    this.heroes.liftOf = (id) => this.fun.liftOf(id);
+    this.heroes.spinOf = (id) => this.fun.spinOf(id);
+    this.scene.add(this.heroes.group, this.minions.group, this.structures.group, this.projectiles.group, this.telegraphs.group, this.pickups.group, this.fun.group);
     this.scene.add(this.vfx.auras.mesh);
     this.scene.add(this.hoverRing.mesh, this.castRing.mesh, this.candRings.mesh, this.moveMarks.mesh, this.attackMarks.mesh, this.chevrons.mesh, this.targetRings.mesh, this.pingMarks.group);
     this.juice = new Juice(uiRoot);
@@ -1116,6 +1125,85 @@ export class GameView {
     for (const w of this.who.values()) if (this.time - w.t > WHO_TTL) this.who.delete(w.id);
   }
 
+  /** Sim v21: where hero `id` is drawn (m) and its yaw, for the carried cannon (scratch object; null when unseen). */
+  private readonly funHeroAt = (id: number): { x: number; z: number; yaw: number } | null => {
+    const e = this.frame?.byId.get(id);
+    const at = this.heroes.drawnAt(id);
+    if (!e || !at) return null;
+    this.funHero.x = at.x;
+    this.funHero.z = at.z;
+    this.funHero.yaw = e.yaw;
+    return this.funHero;
+  };
+  /** funEvent's helpers, made once (it runs for every sim event): a hero's place, and a sim point in metres (scratch). */
+  private readonly funWho = (id: number): { x: number; z: number } | null => this.who.get(id) ?? null;
+  private readonly funAtPt = { x: 0, z: 0 };
+  private readonly funAt = (x: number, y: number): { x: number; z: number } => {
+    this.funAtPt.x = x / 1000;
+    this.funAtPt.z = -y / 1000;
+    return this.funAtPt;
+  };
+  private readonly funTeamOf = (id: number): number => this.frame?.byId.get(id)?.team ?? (id < SLOTS_PER_TEAM ? 0 : 1);
+
+  /**
+   * Sim v21 (V21-FUN.md §1.6, §2): a v21 event's visuals and sounds (the announcer does the words). Called by the
+   * match session for every event, after Effects.
+   */
+  funEvent(e: SimEvent): void {
+    const who = this.funWho;
+    const at = this.funAt;
+    switch (e.type) {
+      case 'cannonSoon':
+        sfx.play('windup', { at: at(e.x, e.y), rate: 0.5, vol: 0.6 });
+        break;
+      case 'cannonSpawn':
+        sfx.play('cannonClank', { at: at(e.x, e.y) });
+        break;
+      case 'cannonPick':
+        sfx.play('cannonChunk', { at: who(e.id) ?? undefined });
+        break;
+      case 'windup':
+        if (e.slot === 5) sfx.play('fuseHiss', { at: who(e.src) ?? undefined });
+        break;
+      case 'cannonFire':
+        sfx.play('cannonBoom', { at: at(e.x, e.y) });
+        if (!this.vfx.reduced) this.juice.kick(0.5);
+        break;
+      case 'kaboom': {
+        const w = who(e.dst);
+        sfx.play('boom', { at: w ?? undefined, rate: 0.8 });
+        break;
+      }
+      case 'cannonParry':
+        sfx.play('kibbleClang', { at: who(e.id) ?? undefined });
+        break;
+      case 'cannonBlock':
+        sfx.play('kibbleClang', { at: at(e.x, e.y), rate: 0.7 });
+        break;
+      case 'cannonWhiff':
+        sfx.play('kibbleBoing', { at: at(e.x, e.y) });
+        break;
+      case 'cannonDrop':
+        sfx.play('cannonClatter', { at: at(e.x, e.y) });
+        break;
+      case 'cannonFizzle':
+        sfx.play('sadTrombone', { at: at(e.x, e.y) });
+        break;
+      case 'boing':
+        sfx.play('bedBoing', { at: at(e.x, e.y) });
+        break;
+      case 'yarnKick':
+        sfx.play('yarnKick', { at: who(e.id) ?? undefined });
+        break;
+      case 'yarnStrike':
+        sfx.play('yarnStrike', { vol: 0.9 });
+        break;
+      default:
+        return;
+    }
+    this.fun.event(e, who);
+  }
+
   /** Draw one frame. `frame` may be null before the first snapshot. */
   update(frame: ViewFrame | null, dt: number): void {
     this.time += dt;
@@ -1160,6 +1248,9 @@ export class GameView {
       this.footprints = this.structures.footprints(this.footprints);
       this.projectiles.update(frame, dt);
       this.pickups.sync(frame.entities);
+      this.fun.myTeam = this.myTeam;
+      this.fun.mySlot = this.mySlot;
+      this.fun.update(frame.latest.fun, frame.latest.map === 'hearthwood' ? 1 : 0, dt, this.funHeroAt, this.funTeamOf);
       this.companions?.update(frame, dt);
       this.drawWindups(frame);
       // Sim v17 Steadfast: the one-off word when a hero's CC-cap immunity starts (the outline is heroView's)
@@ -1332,6 +1423,7 @@ export class GameView {
     this.chevrons.dispose();
     this.targetRings.dispose();
     this.pickups.dispose();
+    this.fun.dispose();
     if (this.companions) {
       this.scene.remove(this.companions.group);
       this.companions.dispose();

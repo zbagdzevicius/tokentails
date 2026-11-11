@@ -174,10 +174,13 @@ export const PAWLEGENDS_MAX_TICKS = PAWLEGENDS_TICK_HZ * 660;
  * Longest base64 command stream in a replay, so the whole `/live` body fits its 64 KB limit. Sim v10 (GAPS B1):
  * 40,800 (40,000 before) for command pings; `MAX_INPUT_CHARS` in `pawlegends/src/data/limits.ts` is equal.
  */
-export const PAWLEGENDS_MAX_INPUT_CHARS = 40800;
+export const PAWLEGENDS_MAX_INPUT_CHARS = 40880;
 
-/** The binary stream behind `PAWLEGENDS_MAX_INPUT_CHARS` (`MAX_INPUT_BYTES`; 30,000 before sim v10). */
-export const PAWLEGENDS_MAX_INPUT_BYTES = 30600;
+/**
+ * The binary stream behind `PAWLEGENDS_MAX_INPUT_CHARS` (`MAX_INPUT_BYTES`; 30,000 before sim v10). Sim v21: +60 B a map
+ * (40,880 and 59,680 characters) for the Kibble Cannon's Fire command (docs/plans/moba/V21-FUN.md §1.3).
+ */
+export const PAWLEGENDS_MAX_INPUT_BYTES = 30660;
 
 /**
  * Sim v19 (docs/plans/moba/MAP-5V5.md §2.5): the replay limits per map (`LIMITS_BY_MAP` in
@@ -185,8 +188,8 @@ export const PAWLEGENDS_MAX_INPUT_BYTES = 30600;
  * safety end) scales the input budget by match length. The vendored sim checks a record against its own map's row.
  */
 export const PAWLEGENDS_LIMITS_BY_MAP = Object.freeze({
-    crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30600, maxInputChars: 40800 }),
-    hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44700, maxInputChars: 59600 }),
+    crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30660, maxInputChars: 40880 }),
+    hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44760, maxInputChars: 59680 }),
 });
 
 /** The longest match of any map (request shape bounds; the sim applies the record's own map). */

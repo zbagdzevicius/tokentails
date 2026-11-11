@@ -225,11 +225,85 @@ export class Announcer {
         const t = PING_TEXT[ev.kind];
         return [{ key: 'ping', title: t.label, tone: 'info', size: 'ping', at: { x: ev.x, y: ev.y, color: t.color }, slot: ev.target }];
       }
+      // Sim v21 (V21-FUN.md §1.6, §2): the Kibble Cannon, Boing Beds and the Mega Yarn Ball
+      case 'cannonSpawn':
+      case 'cannonPick':
+      case 'cannonDrop':
+      case 'cannonFizzle':
+      case 'kaboom':
+      case 'cannonParry':
+      case 'cannonBlock':
+      case 'cannonWhiff':
+      case 'yarnStrike':
+      case 'boing':
+      case 'fortifyEnd':
+        return this.funV21(ev);
       case 'bark': {
         const heal = ev.what === 'heal';
         if (!heal) this.pingsTaken++;
         return [{ key: heal ? 'barkHeal' : 'barkPing', title: heal ? HEAL_BARK : PING_TEXT[this.pingKind].ack, tone: heal ? 'bad' : 'good', size: 'bark', slot: ev.id }];
       }
+      default:
+        return [];
+    }
+  }
+
+  /** Sim v21: the KABOOMs this match (results, analytics) and the last victim's slot (the share text). */
+  kabooms = 0;
+  kaboomVictim = -1;
+
+  /**
+   * Sim v21 (V21-FUN.md §1.6): the cannon's beats (spawn, pick-up, KABOOM, a parry, a fumble, a whiff, a fizzle), a
+   * STRIKE, the player's own Boing and the end of Fortified. A KABOOM ranks above a Triple, under a Pentakill-class
+   * moment, so the results' best moment and the dare text usually carry it.
+   */
+  private funV21(e: SimEvent): Moment[] {
+    const team = (id: number): number => (isHero(id) ? teamOf(id) : -1);
+    switch (e.type) {
+      case 'cannonSpawn': {
+        const ours = e.underdog === this.myTeam;
+        return [{ key: 'cannonSpawn', title: 'Kibble Cannon!', sub: ours ? 'Underdog cannon: it landed on our side' : 'In the river: one shot, one KABOOM', tone: 'gold', size: 'banner', crowd: 'cheer' }];
+      }
+      case 'cannonPick': {
+        const ours = e.team === this.myTeam;
+        const who = e.id === this.mySlot ? 'You' : this.name(e.id);
+        if (e.id === this.mySlot) return [{ key: 'cannonMine', title: 'You have the Kibble Cannon!', sub: 'Tap FIRE: one hit one-shots a hero', tone: 'gold', size: 'banner' }];
+        return [{ key: ours ? 'cannonOurs' : 'cannonTheirs', title: ours ? "We've got the cannon!" : "They've got the cannon!", sub: `${who}${e.steal ? ' stole it' : ' has it'}`, tone: ours ? 'good' : 'bad', size: 'callout' }];
+      }
+      case 'cannonDrop':
+        return e.why === 'fumble' ? [{ key: 'fumble', title: 'Fumble!', tone: team(e.id) === this.myTeam ? 'bad' : 'good', size: 'callout', crowd: 'ooh' }] : [];
+      case 'cannonFizzle':
+        return [{ key: 'fizzle', title: 'Pfft... the cannon fizzled', tone: 'info', size: 'callout' }];
+      case 'kaboom': {
+        this.kabooms++;
+        this.kaboomVictim = e.dst;
+        const good = team(e.dst) !== this.myTeam;
+        const shooter = e.src === this.mySlot ? 'You' : this.name(e.src);
+        const victim = e.dst === this.mySlot ? 'you' : this.name(e.dst);
+        const mine = e.src === this.mySlot;
+        const m: Moment = { key: 'kaboom', title: 'KABOOM!', sub: `${shooter} kibbled ${victim}`, tone: good ? 'gold' : 'bad', size: 'banner', big: true, slowmo: { ms: 900, scale: 0.3 }, shake: 0.9, crowd: 'roar', face: e.src };
+        // the results' best moment and the dare text name the victim ("KABOOM on Brutus"); the banner stays "KABOOM!"
+        if (mine) this.note({ ...m, rank: 45, title: `KABOOM on ${victim}` });
+        return [m];
+      }
+      case 'cannonParry':
+        return [this.note({ key: 'returnToSender', title: 'Return to sender!', sub: `${e.id === this.mySlot ? 'You' : this.name(e.id)} sent the kibble back`, tone: team(e.id) === this.myTeam ? 'gold' : 'bad', size: 'banner', big: true, crowd: 'cheer', ...(e.id === this.mySlot ? { rank: 38 } : {}) })];
+      case 'cannonBlock': {
+        if (e.id < 0) return [];
+        const mine = e.id === this.mySlot;
+        return [this.note({ key: 'cannonBlock', title: 'Blocked!', sub: `${mine ? 'You' : this.name(e.id)} took the kibble on the Guard`, tone: team(e.id) === this.myTeam ? 'gold' : 'bad', size: 'banner', big: true, shake: 0.4, crowd: 'cheer', ...(mine ? { rank: 38 } : {}) })];
+      }
+      case 'cannonWhiff':
+        return e.id === this.mySlot ? [{ key: 'whiff', title: 'Whiff!', tone: 'info', size: 'pop', crowd: 'ooh' }] : [];
+      case 'yarnStrike': {
+        const good = team(e.id) === this.myTeam;
+        const m: Moment = { key: 'strike', title: 'STRIKE!', sub: `${e.id === this.mySlot ? 'You' : this.name(e.id)} bowled over ${e.n} heroes`, tone: good ? 'gold' : 'bad', size: 'banner', big: true, slowmo: { ms: 500, scale: 0.4 }, crowd: 'cheer', shake: 0.4 };
+        return [e.id === this.mySlot ? this.note({ ...m, rank: 30 }) : m];
+      }
+      case 'boing':
+        return e.id === this.mySlot ? [{ key: 'boing', title: 'Boing!', tone: 'gold', size: 'pop' }] : [];
+      case 'fortifyEnd':
+        return [{ key: 'fortifyEnd', title: 'Towers are no longer fortified!', tone: 'info', size: 'callout' }];
       default:
         return [];
     }

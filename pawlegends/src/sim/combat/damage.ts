@@ -40,6 +40,13 @@ export interface HitOptions {
   pure?: boolean;
   /** Ignore structure invulnerability (Sudden Death core damage). */
   pierce?: boolean;
+  /**
+   * Sim v21 (V21-FUN.md §1.3, the Kibble Cannon's KABOOM): a hero target loses all its HP and shield at once; no kit
+   * hook and no Nine Lives can reduce it. Dodges, parries and blocks happen before (combat/funshot.ts).
+   */
+  execute?: boolean;
+  /** Sim v21: a `pure` hit on a structure still halves under backdoor protection (the fun shots). */
+  backdoor?: boolean;
 }
 
 /** Is a minion of `team` within TOWERS.backdoorRange of (x, y)? */
@@ -101,25 +108,35 @@ export function dealDamage(
   let dmg = opts.pure ? raw : idiv(raw * HERO_RULES.armourBase, HERO_RULES.armourBase + w.armour[dst]);
   if (structure && !opts.pure) {
     if (tick >= w.globals[G.Sunset]) dmg = applyBp(dmg, SUNSET.structureDamageBp);
+    // Sim v21 Fortified: heroes deal TOWERS.fortifyBp to towers early (V21-FUN.md §3.1).
+    if (srcKind === Kind.Hero && w.kind[dst] === Kind.Tower && tick < TOWERS.fortifyUntil[w.map]) dmg = applyBp(dmg, TOWERS.fortifyBp);
+  }
+  if (structure && (!opts.pure || opts.backdoor === true)) {
     // Backdoor protection: heroes deal half when no minion of their team is near the structure.
     const guarded = w.team[dst] === teamOfSlot(HUMAN_SLOT) || rulesOf(m).enemyBackdoor;
     if (srcKind === Kind.Hero && guarded && !minionNear(w, srcTeam, w.x[dst], w.y[dst])) dmg = applyBp(dmg, TOWERS.backdoorBp);
   }
   const heroDst = w.kind[dst] === Kind.Hero;
+  const execute = heroDst && opts.execute === true;
   if (heroDst && !opts.pure) dmg = kitOf(w, dst).incoming?.(m, dst, src, dmg) ?? dmg;
   let shielded = 0;
-  if (w.shield[dst] > 0) {
+  if (execute) {
+    // Sim v21 KABOOM: the shield and every HP point go at once.
+    shielded = w.shield[dst];
+    w.shield[dst] = 0;
+    dmg = w.hp[dst];
+  } else if (w.shield[dst] > 0) {
     shielded = Math.min(w.shield[dst], dmg);
     w.shield[dst] -= shielded;
     dmg -= shielded;
   }
-  if (heroDst && dmg > 0) {
+  if (heroDst && dmg > 0 && !execute) {
     const extra = kitOf(w, dst).absorb?.(m, dst, dmg) ?? 0;
     shielded += extra;
     dmg -= extra;
   }
   if (heroDst) {
-    dmg = nineLives(m, dst, dmg);
+    if (!execute) dmg = nineLives(m, dst, dmg);
     // Zoomies end on any damage.
     if (dmg + shielded > 0) w.zoomT[dst] = 0;
   }

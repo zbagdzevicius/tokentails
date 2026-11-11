@@ -58,17 +58,17 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     stepStructures(m);
     expect(m.world.target[t]).toBe(minion);
   });
-  it('hero damage (sim v4): 90, +20% per consecutive hit, capped at +60%; minions take 110', () => {
+  it('hero damage (sim v21): 120, +25% per consecutive hit, capped at +80%; minions take 110', () => {
     const m = quietMatch();
     const t = towerId(0, 0);
     putHero(m, 3, OUTER.x + 2000, OUTER.y);
     const shots = [0, 1, 2, 3, 4, 5].map(() => nextShot(m, t));
-    expect(shots).toEqual([90, 108, 126, 144, 144, 144]);
+    expect(shots).toEqual([120, 150, 180, 210, 216, 216]);
     // Switching target resets the ramp.
     const minion = putMinion(m, 1, OUTER.x + 1000, OUTER.y);
     expect(nextShot(m, t)).toBe(TOWERS.minionDamage);
     m.world.alive[minion] = 0;
-    expect(nextShot(m, t)).toBe(90);
+    expect(nextShot(m, t)).toBe(120);
   });
   it('a melee minion dies in 3 tower hits', () => {
     const m = quietMatch();
@@ -123,6 +123,8 @@ describe('towers (§5 tower rules, §15 item 8)', () => {
     const w = m.world;
     const outer = towerId(1, 0);
     const hero = putHero(m, 0, w.x[outer] - 2000, w.y[outer]);
+    // after Fortified (sim v21: heroes deal 65% to towers before 3:00), so the halving reads alone
+    w.globals[G.Tick] = TOWERS.fortifyUntil[0];
     const alone = dealDamage(m, hero, 0, Kind.Hero, outer, 100, 'basic');
     expect(alone).toBe(35); // idiv(100 × 100, 140) = 71, halved
     const helper = putMinion(m, 0, w.x[outer] - 7000, w.y[outer]);

@@ -531,6 +531,7 @@ export class MatchSession {
         lowHp: () => this.lowHp,
         inject: (ev: SimEvent) => {
           this.view.effects.handle(ev);
+          this.view.funEvent(ev);
           this.feelEvent(ev);
           if (this.announcer) this.present(this.announcer.feed(ev));
         },
@@ -920,6 +921,9 @@ export class MatchSession {
     return false;
   }
 
+  /** Sim v21: the last KABOOM (its tick and victim), so the kill feed draws its row with a cannon. */
+  private kaboomAt = { tick: -1, victim: -1 };
+
   private onKill(e: Extract<SimEvent, { type: 'death' }>, victim: { kind: string; hero?: HeroId; team: number } | null, killer: { kind: string; hero?: HeroId; team: number } | null): void {
     // LoL pass (lane B): the announcer says a tower falling (the rail line comes from effects.ts)
     if (victim?.kind === 'tower') sfx.voice(victim.team === this.view.myTeam ? 'ourTurret' : 'turret');
@@ -944,10 +948,13 @@ export class MatchSession {
     const victimName = e.id === this.view.mySlot ? self : (this.names[e.id] ?? (victim.hero ? HERO_TEXT[victim.hero].title : 'A hero'));
     const killerLabel = e.killer === this.view.mySlot ? self : killer?.kind === 'hero' && this.names[e.killer] ? this.names[e.killer] : killerName(killer);
     // cards: heroes carry their face (an element-ringed portrait) into the kill feed
+    // sim v21: a KABOOM (the kibble's one-shot) shows a cannon between the faces instead of the claw
+    const kaboom = this.kaboomAt.tick === e.tick && this.kaboomAt.victim === e.id;
     const row = this.hud?.kill(
       { name: killerLabel, rel: rel(killer?.team, e.killer), ...(killer?.kind === 'hero' && killer.hero ? { hero: killer.hero } : {}) },
       { name: victimName, rel: rel(victim.team, e.id), ...(victim.hero ? { hero: victim.hero } : {}) },
       good,
+      kaboom,
     );
     if (row && good && e.killer >= 0 && e.killer < 6) this.feedRow = { tick: e.tick, killer: e.killer, el: row, fish: 0 };
   }
@@ -2166,6 +2173,10 @@ export class MatchSession {
         // MATCH-CHAT.md §5.1 solo: the bot chatter's cues (read only); the drawer folds away when the player dies
         this.chat?.event(ev);
         if (ev.type === 'death' && ev.id === this.view.mySlot) this.chat?.closeDrawer();
+        this.view.funEvent(ev);
+        if (ev.type === 'kaboom') this.kaboomAt = { tick: ev.tick, victim: ev.dst };
+        // sim v21: the cannon's warning and spawn ring its spot on the minimap
+        if (ev.type === 'cannonSoon' || ev.type === 'cannonSpawn') this.minimap.ping(ev.x, ev.y, '#ffd34d', ev.type === 'cannonSoon' ? 3000 : 4000);
         this.feelEvent(ev);
         this.minimap.event(ev);
         const a = this.announcer;

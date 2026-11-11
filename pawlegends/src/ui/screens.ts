@@ -16,7 +16,7 @@ import { chromaOptions, ELEMENT_COLOR, FRAME_NAME, resolveLook, wardrobe, wearsC
 import { ELEMENT_NAME } from '../meta/roster';
 import type { CatTier, Element } from '../meta/roster';
 import type { Dare } from '../share/dare';
-import { dareText } from '../share/dare';
+import { dareText, kaboomDare } from '../share/dare';
 import { DIFFICULTY_HINT, DIFFICULTY_TEXT, HERO_TEXT, trickHint } from './heroText';
 import { portraitUrl } from '../render/portraits';
 import { icon } from './icons';
@@ -716,7 +716,8 @@ export function resultsScreen(parent: HTMLElement, o: ResultsOpts): HTMLElement 
   const s = String(o.seconds % 60).padStart(2, '0');
   const tip = resultTip(o);
   const sd = suddenDeathS(o.difficulty);
-  const dareLine = dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < sd ? o.seconds : 0 });
+  // Sim v21: a KABOOM best moment leads the dare ("I KABOOMed Brutus with the Kibble Cannon. Beat my ...")
+  const dareLine = kaboomDare(o.bestMoment, dareText({ seed: 0, hero: o.hero, trick: 'pounce', difficulty: o.difficulty, seconds: o.seconds < sd ? o.seconds : 0 }));
   root.innerHTML = `
     <div class="pl-results-col">
       <h1>${o.won ? 'Victory!' : 'Defeat'}</h1>

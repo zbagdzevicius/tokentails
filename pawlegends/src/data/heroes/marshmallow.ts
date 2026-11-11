@@ -7,7 +7,7 @@ export const MARSHMALLOW: HeroData = Object.freeze<HeroData>({
   side: 'dog',
   role: 'mage',
   /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 9000 / takes 9800 (50.3% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8475 / takes 9750 (48.9% of the 2,000-seed gate). Sim v17 (counter-play batch, docs/plans/moba/V17.md §5.3, per-window refit §6.5): takes 9850. Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8475 / takes 9800. Sim v20 refit on four seed windows (V20-CHASE.md §9): 8560 / 9715 → 8630 / 9355. */
-  pvp: { dmgBp: 8630, takenBp: 9355 },
+  pvp: { dmgBp: 8395, takenBp: 9355 },
   element: 'ICE',
   base: { hp: 470, hpPerLevel: 50, attack: 48, attackPerLevel: 5, attackEvery: 29, range: 5200, speed: 4800, armour: 16, armourPerLevel: 2 },
   /** Fresh Snow: while she stands in her own snow (W patch or R blizzard) she has +15% speed and her basics slow 15% for 1 s. */

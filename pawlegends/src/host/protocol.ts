@@ -5,6 +5,7 @@
  */
 import type {
   CampSnap,
+  FunSnap,
   Difficulty,
   EntityKind,
   MapId,
@@ -183,6 +184,16 @@ const MAP_LIST: readonly MapId[] = ['crossing', 'hearthwood'];
 const OBJ_KINDS: readonly ObjectiveSnap['kind'][] = ['grizzlechop', 'pudding'];
 const OBJ_STATES: readonly ObjectiveSnap['state'][] = ['away', 'up', 'escort'];
 const CAMP_KINDS: readonly CampSnap['kind'][] = ['rat', 'prickle', 'crow', 'toad'];
+/**
+ * Sim v21 (V21-FUN.md): the fun trailer, after the map trailer (or after the zones on Crossing). u8 0x46 ('F'), u8
+ * cannon state, u8 carrier (0xff none), u8 yarn balls; i32 x, i32 y, u16 fuse, u16 windup, i32 nextIn, i32 ax, i32 ay
+ * (24 B); then per ball (12 B) u8 state, 3 B 0, i32 x, i32 y.
+ */
+export const FUN_TRAILER = 0x46;
+export const FUN_HEAD = 28;
+export const FUN_YARN = 12;
+const CANNON_STATES: readonly FunSnap['cannon']['state'][] = ['away', 'soon', 'ground', 'carried'];
+const YARN_STATES: readonly FunSnap['yarn'][number]['state'][] = ['away', 'rest', 'rolling'];
 
 const HAS_COOLDOWNS = 1;
 const HAS_RESPAWN = 2;
@@ -202,7 +213,8 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
     s.entities.length * ENTITY_BYTES +
     s.projectiles.length * PROJECTILE_BYTES +
     s.zones.length * ZONE_BYTES +
-    (trailer ? TRAILER_HEAD + (objs.length + camps.length) * TRAILER_REC : 0);
+    (trailer ? TRAILER_HEAD + (objs.length + camps.length) * TRAILER_REC : 0) +
+    (s.fun ? FUN_HEAD + s.fun.yarn.length * FUN_YARN : 0);
   const buf = new ArrayBuffer(size);
   const v = new DataView(buf);
   v.setUint32(0, s.clock.tick, true);
@@ -301,6 +313,27 @@ export function encodeSnap(s: Snapshot): ArrayBuffer {
       v.setInt32(o + 8, c.x, true);
       v.setInt32(o + 12, c.y, true);
       o += TRAILER_REC;
+    }
+  }
+  if (s.fun) {
+    const c = s.fun.cannon;
+    v.setUint8(o, FUN_TRAILER);
+    v.setUint8(o + 1, Math.max(0, CANNON_STATES.indexOf(c.state)));
+    v.setUint8(o + 2, c.by < 0 ? NONE : c.by);
+    v.setUint8(o + 3, s.fun.yarn.length);
+    v.setInt32(o + 4, c.x, true);
+    v.setInt32(o + 8, c.y, true);
+    v.setUint16(o + 12, Math.min(0xffff, Math.max(0, c.fuse)), true);
+    v.setUint16(o + 14, Math.min(0xffff, Math.max(0, c.windup)), true);
+    v.setInt32(o + 16, c.nextIn, true);
+    v.setInt32(o + 20, c.ax, true);
+    v.setInt32(o + 24, c.ay, true);
+    o += FUN_HEAD;
+    for (const y of s.fun.yarn) {
+      v.setUint8(o, Math.max(0, YARN_STATES.indexOf(y.state)));
+      v.setInt32(o + 4, y.x, true);
+      v.setInt32(o + 8, y.y, true);
+      o += FUN_YARN;
     }
   }
   return buf;
@@ -433,8 +466,33 @@ export function decodeSnap(buf: ArrayBuffer): Snapshot {
       o += TRAILER_REC;
     }
   }
+  let fun: FunSnap | undefined;
+  if (o + FUN_HEAD <= buf.byteLength && v.getUint8(o) === FUN_TRAILER) {
+    const by = v.getUint8(o + 2);
+    const ny = v.getUint8(o + 3);
+    fun = {
+      cannon: {
+        state: CANNON_STATES[v.getUint8(o + 1)] ?? 'away',
+        by: by === NONE ? -1 : by,
+        x: v.getInt32(o + 4, true),
+        y: v.getInt32(o + 8, true),
+        fuse: v.getUint16(o + 12, true),
+        windup: v.getUint16(o + 14, true),
+        nextIn: v.getInt32(o + 16, true),
+        ax: v.getInt32(o + 20, true),
+        ay: v.getInt32(o + 24, true),
+      },
+      yarn: [],
+    };
+    o += FUN_HEAD;
+    for (let i = 0; i < ny && o + FUN_YARN <= buf.byteLength; i++) {
+      fun.yarn.push({ state: YARN_STATES[v.getUint8(o)] ?? 'away', x: v.getInt32(o + 4, true), y: v.getInt32(o + 8, true) });
+      o += FUN_YARN;
+    }
+  }
   return {
     ...(map ? { map, objectives, camps } : {}),
+    ...(fun ? { fun } : {}),
     team,
     clock: { tick, seconds: v.getUint16(18, true), phase, nextPhaseIn: v.getUint32(20, true) },
     score: { kills: [v.getUint16(12, true), v.getUint16(14, true)], towers: [v.getUint8(16), v.getUint8(17)] },

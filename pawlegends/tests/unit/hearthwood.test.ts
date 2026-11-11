@@ -33,7 +33,7 @@ describe('Hearthwood Divide: the map (G3)', () => {
     expect(info.objectives.map((o) => o.kind).sort()).toEqual(['grizzlechop', 'pudding']);
     expect(info.camera.yawDeg).toBe(0);
     expect(mapInfo('crossing').camera.yawDeg).toBe(-38);
-    expect(info.limits).toEqual({ maxTicks: 28800, maxInputBytes: 44700, maxInputChars: 59600 });
+    expect(info.limits).toEqual({ maxTicks: 28800, maxInputBytes: 44760, maxInputChars: 59680 });
   });
 
   it('every nav cell equals its point reflection and its diagonal swap', () => {
@@ -266,7 +266,7 @@ describe('Hearthwood Divide: 5v5 matches (G2)', () => {
     expect(grizz).toBeGreaterThan(0);
     const rec = replayRecord(m)!;
     expect(rec.map).toBe('hearthwood');
-    expect(rec.simVersion).toBe(20);
+    expect(rec.simVersion).toBe(21);
     expect(verifyReplay(rec)).toMatchObject({ ok: true, finalHash: rec.finalHash });
     expect(verifyReplay({ ...rec, map: undefined }).ok).toBe(false);
     expect(verifyReplay({ ...rec, map: 'atlantis' })).toMatchObject({ ok: false, code: 'PAWLEGENDS_REPLAY_INVALID' });

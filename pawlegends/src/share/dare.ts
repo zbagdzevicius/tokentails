@@ -66,3 +66,12 @@ export function dareText(d: Dare): string {
   const s = String(d.seconds % 60).padStart(2, '0');
   return `Beat my ${m}:${s} vs ${bots} bots in Pawlegends!`;
 }
+
+/**
+ * Sim v21 (V21-FUN.md §1.6): when the match's best moment was the player's KABOOM ("KABOOM on Brutus"), the dare
+ * leads with it: "I KABOOMed Brutus with the Kibble Cannon. Beat my 7:12 vs Normal bots in Pawlegends!".
+ */
+export function kaboomDare(best: string | null | undefined, line: string): string {
+  const m = /^KABOOM on (.+)$/.exec(best ?? '');
+  return m ? `I KABOOMed ${m[1]} with the Kibble Cannon. ${line}` : line;
+}

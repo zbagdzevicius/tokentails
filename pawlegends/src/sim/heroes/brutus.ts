@@ -78,6 +78,37 @@ export function guardBlocks(w: World, team: number, x: number, y: number, dst = 
   return false;
 }
 
+/**
+ * Sim v21 (V21-FUN.md §1.3): the Kibble Cannon's kibble, moving from (px, py) to (x, y), was stopped by `guardBlocks`
+ * (dst −1). The Guard that stopped it breaks (a Guard Post dome falls); Sir Brutus lives. Returns his id (−1 if none
+ * is found, which `guardBlocks` returning true rules out).
+ */
+export function breakGuard(w: World, team: number, x: number, y: number, px: number, py: number): number {
+  for (let b = RANGE.heroes; b < RANGE.minions; b++) {
+    if (w.kind[b] !== Kind.Hero || w.sub[b] !== BRUTUS_INDEX || w.alive[b] === 0 || w.kWT[b] === 0 || w.team[b] === team) continue;
+    if (w.kWAge[b] === 1) continue;
+    const g = abil(w, b).w;
+    if (dist2(w.x[b], w.y[b], x, y) <= g.radius * g.radius && inFront(w, b, x, y, g.arc)) {
+      w.kWT[b] = 0;
+      w.kWAge[b] = 0;
+      return b;
+    }
+  }
+  for (let z = 0; z < w.zAlive.length; z++) {
+    if (w.zAlive[z] === 0 || w.zKind[z] !== ZONE_KIND.dome || w.zTeam[z] === team) continue;
+    const r2 = w.zRadius[z] * w.zRadius[z];
+    if (dist2(w.zX[z], w.zY[z], x, y) > r2 || dist2(w.zX[z], w.zY[z], px, py) <= r2) continue;
+    w.zAlive[z] = 0;
+    const b = w.zOwner[z];
+    if (b >= 0 && w.kind[b] === Kind.Hero && w.sub[b] === BRUTUS_INDEX && w.kWAge[b] === 1) {
+      w.kWT[b] = 0;
+      w.kWAge[b] = 0;
+    }
+    return b;
+  }
+  return -1;
+}
+
 export const BRUTUS_KIT: HeroKit = {
   aim,
   cast(m, id, slot, x, y, target) {

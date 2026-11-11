@@ -415,6 +415,9 @@ export function charState(e: Pick<ViewEntity, 'state' | 'buffs' | 'speed' | 'cha
 
 export class HeroView {
   readonly group = new THREE.Group();
+  /** Sim v21: how high (m) a hero flies off a Boing Bed right now, and its spin (rad); null = never (funView). */
+  liftOf: ((id: number) => number) | null = null;
+  spinOf: ((id: number) => number) | null = null;
   private rigs = new Map<number, HeroRig>();
   /** v3.6: where hero `id` was drawn this frame (m, after the visual push-apart), or null when it has no rig. */
   drawnAt(id: number): { x: number; z: number } | null {
@@ -746,8 +749,8 @@ export class HeroView {
       const sink = dead ? Math.max(0, (r.deadT - 1.2) * 0.8) : 0;
       r.visible = !(dead && r.deadT > 2.6);
       ch.object.visible = r.visible;
-      ch.object.position.set(x, -sink, z);
-      ch.object.rotation.y = r.yaw;
+      ch.object.position.set(x, -sink + (this.liftOf ? this.liftOf(e.id) : 0), z);
+      ch.object.rotation.y = r.yaw + (this.spinOf ? this.spinOf(e.id) : 0);
       r.flash = Math.max(0, r.flash - dt * 5);
       const u = ch.material.userData.u;
       const fall = dead ? Math.min(1, r.deadT / 0.35) : 0;

@@ -77,6 +77,10 @@ export const Buff = Object.freeze({
   Prickle: 1 << 20, // lint-sim: allow (a bit index)
   Feather: 1 << 21, // lint-sim: allow (a bit index)
   Hoard: 1 << 22, // lint-sim: allow (a bit index)
+  /** Sim v21 (V21-FUN.md): the hero carries the Kibble Cannon; a tower is Fortified; a hero is in a Boing Bed leap. */
+  Cannon: 1 << 23, // lint-sim: allow (a bit index)
+  Fortified: 1 << 24, // lint-sim: allow (a bit index)
+  Leaping: 1 << 25, // lint-sim: allow (a bit index)
 } as const);
 export type Buff = (typeof Buff)[keyof typeof Buff];
 
@@ -155,9 +159,39 @@ export const G = Object.freeze({
    *  human has stood in the other lane (data/pings.ts LANE_SWAP). */
   LaneSwap: 42, // lint-sim: allow
   LaneSwapT: 43, // lint-sim: allow
-  Count: 44, // lint-sim: allow
+  /**
+   * Sim v21 (V21-FUN.md §1) Kibble Cannon: CANNON_STATE, the next spawn tick (−1 none), spawns so far, the carrier
+   * (−1), fuse ticks left, ticks a dropped cannon still lies, windup ticks left, the aim point, and where it lies.
+   */
+  CannonState: 44, // lint-sim: allow
+  CannonAt: 45, // lint-sim: allow
+  CannonSpawns: 46, // lint-sim: allow
+  CannonBy: 47, // lint-sim: allow
+  CannonFuse: 48, // lint-sim: allow
+  CannonDrop: 49, // lint-sim: allow
+  CannonWind: 50, // lint-sim: allow
+  CannonAX: 51, // lint-sim: allow
+  CannonAY: 52, // lint-sim: allow
+  CannonX: 53, // lint-sim: allow
+  CannonY: 54, // lint-sim: allow
+  /**
+   * Sim v21 (V21-FUN.md §2.2) Mega Yarn Balls, YARN_BALLS rows of YARN_ROW from Yarn: YARN_STATE, x, y, kicks, a timer
+   * (rest before the next kick, or the tick it comes back) and the projectile index while it rolls (−1).
+   */
+  Yarn: 55, // lint-sim: allow
+  /** Sim v21: the team the Underdog Cannon favoured at the warning (−1 none), so `cannonSpawn` reports where it lies. */
+  CannonUnder: 67, // lint-sim: allow
+  Count: 68, // lint-sim: allow
 } as const);
 export type G = (typeof G)[keyof typeof G];
+
+/** Sim v21: fields of one yarn-ball row in `globals` (from G.Yarn + ball × YARN_ROW). */
+export const YARN_ROW = 6;
+export const YF = Object.freeze({ State: 0, X: 1, Y: 2, Kicks: 3, T: 4, P: 5 } as const);
+/** Sim v21: G.CannonState values. */
+export const CANNON_STATE = Object.freeze({ None: 0, Ground: 1, Carried: 2 } as const);
+/** Sim v21: yarn-ball states. */
+export const YARN_STATE = Object.freeze({ Away: 0, Rest: 1, Rolling: 2 } as const);
 
 /**
  * Sim v19 (MAP-5V5.md §3.4): indices into `mg`, the map globals. Empty (length 0) on Crossing, so a Crossing world
@@ -435,6 +469,8 @@ export interface World {
   fmHitX: Int32Array;
   /** Sim v19: map globals (MG), empty on Crossing. Hashed after `globals`. */
   mg: Int32Array;
+  /** Sim v21: per hero, ticks until it can use a Boing Bed again (V21-FUN.md §2.1). Hashed. */
+  boingT: Int32Array;
   // Scalars
   globals: Int32Array;
   rng: Rng;
@@ -464,6 +500,8 @@ export const FM = Object.freeze({
   Knock: 2,
   /** Homing dash to `fmTarget` (Pack Hunt). */
   Hunt: 3,
+  /** Sim v21: a Boing Bed launch, a fixed flight nothing stops (no CC, no other forced movement, no kit hook). */
+  Leap: 4,
 } as const);
 
 /** Is `id` in the 63-bit hit mask (lo, hi)? Entity ids are below 64. */
@@ -718,6 +756,7 @@ export function createWorld(seed: number, map = 0): World {
     pHitX: new Int32Array(big ? p * MASK_EXTRA : 0),
     fmHitX: new Int32Array(big ? n * MASK_EXTRA : 0),
     mg: new Int32Array(map === 0 ? 0 : MG.Count),
+    boingT: new Int32Array(h),
     globals: new Int32Array(G.Count),
     rng: new Rng(seed),
     humans: 1,
@@ -730,6 +769,10 @@ export function createWorld(seed: number, map = 0): World {
   w.globals[G.PudTeam] = TEAM_NEUTRAL;
   w.globals[G.ComebackAt0] = NEVER;
   w.globals[G.ComebackAt1] = NEVER;
+  w.globals[G.CannonAt] = -1;
+  w.globals[G.CannonBy] = -1;
+  w.globals[G.CannonUnder] = -1;
+  for (let b = 0; b < 2; b++) w.globals[G.Yarn + b * YARN_ROW + YF.P] = -1;
   return w;
 }
 
@@ -758,6 +801,8 @@ export function hashedArrays(w: World): ArrayLike<number>[] {
     w.globals,
     // Sim v19: empty on Crossing (no bytes hashed), so a Crossing world hashes as in v18.
     w.pHitX, w.fmHitX, w.mg,
+    // Sim v21.
+    w.boingT,
   ];
 }
 

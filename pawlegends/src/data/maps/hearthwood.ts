@@ -80,11 +80,12 @@ const SOUTH_CAMPS = [
 ];
 
 /** Gutterway towers (outer, inner, gate), team 0; Fenceline is their swap, Yarn Road on the diagonal. */
+// Sim v21 (V21-FUN.md §3.1, stronger towers): 2,400 / 2,800 / 3,200 / 3,000 before.
 const TOWER_STATS = Object.freeze({
-  outer: Object.freeze({ hp: 2400, armour: 40 }),
-  inner: Object.freeze({ hp: 2800, armour: 50 }),
-  gate: Object.freeze({ hp: 3200, armour: 55 }),
-  hearth: Object.freeze({ hp: 3000, armour: 55 }),
+  outer: Object.freeze({ hp: 3000, armour: 40 }),
+  inner: Object.freeze({ hp: 3500, armour: 50 }),
+  gate: Object.freeze({ hp: 3800, armour: 55 }),
+  hearth: Object.freeze({ hp: 3500, armour: 55 }),
 });
 
 const tower = (lane: TowerSpot['lane'], tier: TowerSpot['tier'], x: number, y: number): TowerSpot =>
@@ -232,28 +233,30 @@ export const HEARTHWOOD_CAMERA_YAW = 0;
  * predicts (cats 46.2% → 57.0% for a 600 bp move).
  */
 export const HEARTHWOOD_PVP = Object.freeze({
-  cat: Object.freeze({ dmgBp: 9920, takenBp: 10390 }),
+  // sim v21 (cannon, beds, yarn, stronger towers): the cat row +1% on the v20 row (9920 / 10390 before)
+  cat: Object.freeze({ dmgBp: 10020, takenBp: 10290 }),
   dog: Object.freeze({ dmgBp: 10000, takenBp: 10310 }),
   hero: Object.freeze({
-    clem: { dmgBp: 11780, takenBp: 8220 },
-    sage: { dmgBp: 9820, takenBp: 10180 },
-    gabe: { dmgBp: 8530, takenBp: 11470 },
-    meatball: { dmgBp: 9280, takenBp: 10720 },
-    duchess: { dmgBp: 9740, takenBp: 10260 },
-    aviete: { dmgBp: 10530, takenBp: 9470 },
-    bengas: { dmgBp: 9890, takenBp: 10110 },
-    lambo: { dmgBp: 10920, takenBp: 9080 },
-    pixel: { dmgBp: 9950, takenBp: 10050 },
-    stilts: { dmgBp: 10090, takenBp: 9910 },
-    brutus: { dmgBp: 11600, takenBp: 8400 },
-    cacklejaw: { dmgBp: 10530, takenBp: 9470 },
-    nugget: { dmgBp: 9010, takenBp: 10990 },
-    marshmallow: { dmgBp: 9190, takenBp: 10810 },
-    bravo: { dmgBp: 10720, takenBp: 9280 },
-    chili: { dmgBp: 9230, takenBp: 10770 },
-    howler: { dmgBp: 10410, takenBp: 9590 },
-    rocket: { dmgBp: 8970, takenBp: 11030 },
-    frankie: { dmgBp: 9830, takenBp: 10170 },
-    domino: { dmgBp: 9640, takenBp: 10360 },
+    clem: { dmgBp: 12048, takenBp: 8220 },
+    sage: { dmgBp: 10045, takenBp: 10180 },
+    gabe: { dmgBp: 8727, takenBp: 11470 },
+    meatball: { dmgBp: 9581, takenBp: 10637 },
+    duchess: { dmgBp: 9891, takenBp: 10361 },
+    aviete: { dmgBp: 10870, takenBp: 9351 },
+    bengas: { dmgBp: 10118, takenBp: 10110 },
+    lambo: { dmgBp: 11172, takenBp: 9080 },
+    pixel: { dmgBp: 10178, takenBp: 10050 },
+    stilts: { dmgBp: 10320, takenBp: 9910 },
+    brutus: { dmgBp: 11867, takenBp: 8435 },
+    cacklejaw: { dmgBp: 10782, takenBp: 9511 },
+    nugget: { dmgBp: 9200, takenBp: 11058 },
+    // sim v21: −1% on the v20 row (9190 / 10810 before)
+    marshmallow: { dmgBp: 9344, takenBp: 10910 },
+    bravo: { dmgBp: 11023, takenBp: 9280 },
+    chili: { dmgBp: 9494, takenBp: 10770 },
+    howler: { dmgBp: 10702, takenBp: 9590 },
+    rocket: { dmgBp: 9225, takenBp: 11030 },
+    frankie: { dmgBp: 10106, takenBp: 10170 },
+    domino: { dmgBp: 9912, takenBp: 10360 },
   }) as Readonly<Record<string, { readonly dmgBp: number; readonly takenBp: number }>>,
 });

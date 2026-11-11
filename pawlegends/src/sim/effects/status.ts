@@ -88,7 +88,8 @@ export function interrupt(w: World, id: number, hard: boolean): void {
       w.state[id] = UnitState.Idle;
     }
   }
-  if (w.fmKind[id] !== FM.None && w.fmKind[id] !== FM.Knock) {
+  // Sim v21: a Boing Bed flight (FM.Leap) is never cut short.
+  if (w.fmKind[id] !== FM.None && w.fmKind[id] !== FM.Knock && w.fmKind[id] !== FM.Leap) {
     w.fmT[id] = 0;
     w.fmKind[id] = FM.None;
     w.fmTarget[id] = -1;

@@ -9,12 +9,12 @@ import { TIMELINE } from './timeline';
  * command pings fit beside a joystick at the move gap for the whole 11:00 (shared/caps.ts and
  * backend/src/shared-contracts/caps.ts carry the same numbers; change all three in one commit).
  */
-export let MAX_INPUT_CHARS: number = 40800;
+export let MAX_INPUT_CHARS: number = 40880;
 /** 11:00 safety end. */
 export let MAX_TICKS: number = TIMELINE.safetyEnd;
 
 /** The binary stream behind MAX_INPUT_CHARS (base64: 4 characters per 3 bytes). Sim v10: +600 B for pings (30,000 before). */
-export let MAX_INPUT_BYTES: number = 30600;
+export let MAX_INPUT_BYTES: number = 30660;
 
 /**
  * Input gate (POC.md §11.3): the sim applies at most one `move` every MOVE_MIN_GAP ticks (a newer one waits and the
@@ -29,10 +29,13 @@ export const MOVE_MIN_GAP = 4;
  */
 export const FORFEIT_RESERVE_BYTES = 4;
 
-/** Sim v19 (MAP-5V5.md §2.5): the limits per map. Hearthwood: 16:00, the input budget scaled by match length. */
+/**
+ * Sim v19 (MAP-5V5.md §2.5): the limits per map. Hearthwood: 16:00, the input budget scaled by match length. Sim v21
+ * (V21-FUN.md §1.3): +60 B (+80 characters) on both maps for the Kibble Cannon's Fire commands.
+ */
 export const LIMITS_BY_MAP = Object.freeze({
-  crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30600, maxInputChars: 40800 }),
-  hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44700, maxInputChars: 59600 }),
+  crossing: Object.freeze({ maxTicks: 19800, maxInputBytes: 30660, maxInputChars: 40880 }),
+  hearthwood: Object.freeze({ maxTicks: 28800, maxInputBytes: 44760, maxInputChars: 59680 }),
 });
 
 /** Live bindings: the active match's map's limits (src/sim/map/runtime.ts bindMap). */

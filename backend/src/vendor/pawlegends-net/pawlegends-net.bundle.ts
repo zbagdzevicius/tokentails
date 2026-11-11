@@ -97,9 +97,9 @@ export class ProtoError extends Error {
 // Commands: the sim's `encodeCommand` bytes (opcode + payload). The table mirrors sim/commands.ts OP_SIZE (a unit test
 // keeps them equal); the relay decodes the payload with the vendored sim, this file only frames it.
 
-export const CMD_OP = Object.freeze({ Move: 1, AttackMove: 2, Attack: 3, Cast: 4, Trick: 5, Stop: 6, Nap: 7, Talent: 8, Ping: 9, Forfeit: 10 } as const);
-/** Command size by opcode, opcode included (index = opcode; 0 = unknown). */
-export const CMD_SIZE: readonly number[] = Object.freeze([0, 5, 5, 2, 7, 5, 1, 1, 2, 7, 1]);
+export const CMD_OP = Object.freeze({ Move: 1, AttackMove: 2, Attack: 3, Cast: 4, Trick: 5, Stop: 6, Nap: 7, Talent: 8, Ping: 9, Forfeit: 10, Fire: 11 } as const);
+/** Command size by opcode, opcode included (index = opcode; 0 = unknown). Sim v21: Fire (11, the Kibble Cannon). */
+export const CMD_SIZE: readonly number[] = Object.freeze([0, 5, 5, 2, 7, 5, 1, 1, 2, 7, 1, 5]);
 export const cmdSize = (op: number): number => (op > 0 && op < CMD_SIZE.length ? CMD_SIZE[op] : 0);
 
 // ---------------------------------------------------------------------------------------------------------------

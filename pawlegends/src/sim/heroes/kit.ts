@@ -187,6 +187,8 @@ export function canCast(w: World, id: number, slot: number): boolean {
   if (disabled(w, id) && !(slot === TRICK_SLOT && castsThroughCc(w, id))) return false;
   if (w.fmKind[id] !== FM.None) return false;
   if (w.castPhase[id] === 2) return false;
+  // Sim v21: the Kibble Cannon's windup holds every cast.
+  if (w.globals[G.CannonBy] === id && w.globals[G.CannonWind] > 0) return false;
   if (slot === 3 && w.level[id] < XP.ultimateLevel) return false;
   const ready = w.cooldowns[cdIndex(id, slot)] === 0 || (slot < TRICK_SLOT && kitOf(w, id).recastReady?.(w, id, slot) === true);
   if (!ready) return false;
