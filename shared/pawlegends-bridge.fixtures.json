@@ -117,7 +117,10 @@
         { "$comment": "UX pass 2: the signed-in player's profile name: one clean line, no markup or control characters, cut to 24 code points.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "  Žygis\u0007   <b>Paw</b>son  " }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "name": "Žygis bPaw/bson" } },
         { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "Bartholomew the Magnificent Whiskers" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "name": "Bartholomew the Magnific" } },
         { "$comment": "No name without an account, and none made only of symbols.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "name": "Guest" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "progress": null } },
-        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "<>!!" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null } }
+        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "<>!!" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null } },
+        { "$comment": "Sign-in: the signed-in player's sign-in method (`google`, `apple`, `email`) for the account chip; never the address itself (PII).", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "provider": "apple", "email": "pat@example.com" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "provider": "apple" } },
+        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "provider": "facebook" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null } },
+        { "$comment": "No method without an account.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "provider": "google" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "progress": null } }
       ]
     },
     "save-result": {
@@ -442,6 +445,11 @@
     "request-sign-in": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "request-sign-in", "reason": "save-progress" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "request-sign-in", "reason": "admin" }
+    },
+    "account": {
+      "$comment": "Sign-in: the game's account chip and Settings row. `sign-in` opens the host's sign-in, `sign-out` signs out (the host re-sends `session`), `manage` opens the host's account sheet (web), `delete` starts the host's account deletion (the app; the host asks for its own last confirmation).",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "account", "action": "sign-out" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "account", "action": "make-admin" }
     },
     "open-cat": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "open-cat", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" },

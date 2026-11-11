@@ -1,0 +1,27 @@
+/* The account chip (ui/account.ts): top-right corner of the title, its panel, and the Settings row. */
+.pl-acct-chip { max-width: 168px; }
+.pl-acct-chip span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-acct-chip[data-signed-in='0'] { color: #2b1d2e; background: var(--self); box-shadow: 0 3px 0 rgba(0, 0, 0, 0.35); }
+.pl-acct-chip[data-signed-in='0']:hover { background: #ffe07a; }
+.pl-acct-ico { flex: none; }
+
+.pl-acct-panel {
+  position: absolute; z-index: 40; right: max(16px, var(--safe-r)); top: calc(max(14px, var(--safe-t)) + 52px);
+  width: min(300px, calc(100vw - 32px)); padding: 14px 16px; border-radius: 16px;
+  color: var(--cream); background: rgba(43, 29, 46, 0.96); box-shadow: inset 0 0 0 1px var(--line), 0 10px 30px rgba(0, 0, 0, 0.45);
+  font: 600 14px/1.35 var(--font);
+}
+.pl-acct-name { display: block; font-size: 17px; margin-bottom: 2px; overflow-wrap: anywhere; }
+.pl-acct-line { margin: 0 0 12px; opacity: 0.85; }
+.pl-acct-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.pl-acct-actions .pl-btn { min-height: 44px; }
+.pl-acct-danger { color: #ffb3b6; }
+
+.set-acct { display: grid; gap: 6px; padding: 10px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin: 6px 0; }
+.set-acct-h { font-weight: 700; }
+.set-acct .pl-acct-line { margin: 0; }
+
+@media (max-height: 480px) {
+  .pl-acct-chip { max-width: 120px; }
+  .pl-acct-panel { top: calc(max(8px, var(--safe-t)) + 48px); }
+}
