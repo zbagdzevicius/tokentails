@@ -3,8 +3,8 @@
  * `GET /pawlegends/champions` (the storefront fields plus `forSale` from the server's direct-purchase check; the
  * storefront itself caps Pink Paw at 200 cats, so it may not list them).
  *
- * Every champion is free to play in every build: a card only adds cosmetics (a badge, the Companion Kitten, the
- * element chroma). Here a card counts as for sale only when the server says so, the client mirror agrees
+ * A card only adds cosmetics (a badge, the Companion Kitten, the element chroma); it never unlocks the champion
+ * (CHAMPION-STORE.md: starters, the weekly rotation, Yarn or the web store do). Here a card counts as for sale only when the server says so, the client mirror agrees
  * (`isCatForSale`) and the player holds no copy (`ownsCopy`). App builds send none for sale (the bridge strips
  * it again). Never packs, never random.
  *

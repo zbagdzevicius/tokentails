@@ -85,10 +85,10 @@ This is the best order from an exhaustive search:
 - No species has two champions of the same role in one week.
 - No starter is ever in the rotation.
 - Every non-starter is free 3 weeks out of every 7, and never waits more than 2 weeks.
-- The starters plus the rotation always cover all 6 roles on both sides.
+- The starters cover all 6 roles across the two species (3 roles each). With the rotation, each species has 6 open champions covering 4 to 6 roles depending on the week (the build measured: cats 5-6, dogs 4-6).
 - Every player can field at least 6 distinct champions per species, so a full 5-player team (the v21 5v5 work) can always pick distinct heroes.
 
-**Why the rotation itself can't always cover all 6 roles:** fighter and support have only one non-starter each (Howler and Nugget). Putting them in every week would make them permanently free. The per-role guarantee comes from the starters, and the rotation adds breadth. This is founder decision 3.
+**Why not every role on every side every week:** fighter and support have only one non-starter each (Howler and Nugget). Putting them in every week would make them permanently free. So a new dog-side player has no free fighter or support in some weeks (the design draft claimed full coverage per side; the build's test shows it is per pair of sides). This is founder decision 3; the alternative there (Howler and Nugget always free) closes the gap.
 
 **Mid-match flips:** the rotation week is fixed when the pick phase opens (`party.rotationWeek`, and the save uses the match start time). A flip during a pick, a queue or a match never removes a champion.
 
@@ -158,7 +158,7 @@ Bots may use any champion; the bot-fill paths skip the check.
 
 Release time `T` is the first time a backend with this code answers a champion request: the row `pawlegendsyarn/meta:champions-release` is written once (`$setOnInsert`) and read after.
 
-**Grant** (`pawlegends-champion-store.ts` `ensureFounders`, lazy and idempotent; the batch form is `backend/scripts/pawlegends-founders-roster.ts`):
+**Grant** (`pawlegends-champion-store.ts` `ensureFounders`, lazy and idempotent; no batch script is needed):
 - For every user id, registered or a guest user document, with at least one Paw Legends Game row created before `T` (solo and party saves both write Game rows):
   - upsert `pawlegendsowned {accountId, item: 'champ.<hero>', source: 'founders'}` for all 20 champions, and
   - upsert `{item: 'badge.founders_roster', source: 'founders'}`.
@@ -237,7 +237,7 @@ KPIs:
 There are no flags, and everything ships in one release.
 
 1. Deploy the backend with the validation code. Its first champion request records `T`.
-2. Optional: run `backend/scripts/pawlegends-founders-roster.ts` to grant the roster to every account at once (the lazy check covers anyone it misses). Re-running it is a no-op.
+2. Every account is checked the first time it asks (`GET /pawlegends/me`, the relay's pick, a solo save): no migration to run.
 3. Deploy the client (Vercel), then build the app.
 
 Old clients that pick an unowned champion are refused at the pick (the tap does nothing; the timeout auto-locks an allowed hero). If anything breaks, fix forward.
@@ -269,3 +269,6 @@ Game (`champions.test.ts`): the catalogue mirror; the rotation properties from Â
 - **The app build online.** The relay does not know a socket's build, so a web-bought champion is allowed online; the app's UI does not offer it (decision 1).
 - **Relay-only guest keys** (no ticket) get no Founders grant: there is no account to hold it. They see starters and the rotation.
 - **Release time `T`** is recorded by the first backend that serves the code, not by a deploy script, so it can't be forgotten.
+- **A standalone page** (the game opened without any host: no account, nothing is ever saved) opens every champion, as Practice does. With a host (the web embed or the app) a player without a server answer yet (signed out, an older host) gets the starters and the week's rotation.
+- **Tests that pick heroes freely:** the e2e mock host (`pawlegends/tests/e2e/host.ts`) sends a Founders roster by default (`champState`), so the older specs keep working in every rotation week; `champion-store.spec.ts` sends a new guest's state.
+- **Every game hero must be a catalogue champion:** `champion-store.test.ts` fails when a hero is added to the sim without a `CHAMPIONS` row, a tier and a rotation slot.

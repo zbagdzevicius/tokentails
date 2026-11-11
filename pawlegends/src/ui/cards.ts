@@ -213,7 +213,7 @@ export function meetCard(o: MeetCardOpts): HTMLElement {
 }
 
 /**
- * The Meet line for a shelter champion's card (sim v9). Cosmetics only: the champion is free to play for everyone;
+ * The Meet line for a shelter champion's card (sim v9). Cosmetics only: the card never unlocks the champion (CHAMPION-STORE.md);
  * no price, money or impact words (docs/CLAIMS.md R2/R3), no "adopt" next to the real cat's name; STELLAR reads "Star".
  */
 export function championMeetLine(name: string, pronoun: 'he' | 'she', type: string): string {
@@ -405,8 +405,8 @@ export interface SaveChipModel {
   newFastest: boolean;
   /** Show "Save your wins" on a kept-on-device chip. */
   askSignIn: boolean;
-  /** Legends Pass Season XP the save paid (STORE-PASS.md §5). */
-  season?: { gained: number; tier: number; prevTier: number } | null;
+  /** Legends Pass Season XP the save paid (STORE-PASS.md §5), its Yarn and a locked hero (CHAMPION-STORE.md). */
+  season?: { gained: number; tier: number; prevTier: number; yarn?: { gained: number; newPicks: number }; heroLocked?: true } | null;
 }
 
 const CHIP_TEXT: Readonly<Record<ChipState, string>> = Object.freeze({
@@ -456,6 +456,15 @@ export function saveChip(m: SaveChipModel, on: { signIn(): void }): HTMLElement 
     root.appendChild(sx);
     if (m.season.tier > m.season.prevTier) root.appendChild(h('div', 'plc-stamp plc-tierup', `Pass tier ${m.season.tier}!`));
   }
+  // CHAMPION-STORE.md §10: "+90 Yarn" (earned by playing; unlocks champions, never money) and a Champion Pick line
+  if (m.state === 'saved' && m.season?.yarn && m.season.yarn.gained > 0) {
+    const yx = h('div', 'plc-season plc-yarn');
+    yx.dataset.yarn = String(m.season.yarn.gained);
+    yx.append(h('b', '', `+${m.season.yarn.gained}`), h('span', '', 'Yarn'));
+    root.appendChild(yx);
+    if (m.season.yarn.newPicks > 0) root.appendChild(h('div', 'plc-stamp plc-pick', 'Champion Pick earned: unlock a champion free!'));
+  }
+  if (m.state === 'saved' && m.season?.heroLocked) root.appendChild(h('div', 'plc-stamp plc-locked', 'No rewards: that champion is not unlocked yet.'));
   if (m.newFastest) root.appendChild(h('div', 'plc-stamp', 'New fastest!'));
   if (m.askSignIn && (m.state === 'queued' || m.state === 'local')) root.appendChild(saveWinsButton(on.signIn));
   return root;

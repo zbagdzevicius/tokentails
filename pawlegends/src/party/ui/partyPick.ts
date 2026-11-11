@@ -57,10 +57,21 @@ export function lockedByOthers(v: PartyView, hide = false): Map<string, string> 
   return new Map(v.members.filter((m) => m.id !== v.you && m.locked && m.hero).map((m) => [m.hero!, shownName(v, m, hide)]));
 }
 
+/**
+ * CHAMPION-STORE.md §8.1: why this player may not pick a champion ('' when a starter, free this week or owned). Set by
+ * the app when the party opens (meta/champions.ts); the relay checks the same rule.
+ */
+let champLock: ((hero: string) => string) | null = null;
+export function setPickChampLock(fn: ((hero: string) => string) | null): void {
+  champLock = fn;
+}
+
 /** Why `hero` cannot be picked by this player now ('' when it can). */
 export function heroBlock(v: PartyView, hero: string, hide = false): string {
   const other = lockedByOthers(v, hide).get(hero);
   if (other) return other;
+  const champ = champLock?.(hero) ?? '';
+  if (champ) return champ;
   // Quick Play: the side is fixed for the whole team (M1A-IMPL.md §1.5)
   if (v.mm) return sideOf(hero) === v.mm.side ? '' : COPY.teamSide(sideText(v.mm.side));
   if (v.leader === v.you) return '';

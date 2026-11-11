@@ -72,6 +72,8 @@ export const PAWLEGENDS_THROTTLES: Record<string, ClientIpThrottleOptions> = {
     // Store and Legends Pass (STORE-PASS.md)
     me: { limit: 60, ttl: MINUTE },
     passClaim: { limit: 30, ttl: MINUTE },
+    // Champion store (CHAMPION-STORE.md §8.6)
+    champUnlock: { limit: 20, ttl: MINUTE },
 };
 
 @Controller('pawlegends')
@@ -113,8 +115,31 @@ export class PawlegendsController {
     async me(@Req() req: any, @Res({ passthrough: true }) res: any) {
         await this.throttle('me', req, res);
         const id = req?.user?._id ?? req?.user?.id;
-        if (!id || req?.user?.transient) return { items: [], season: null };
+        if (!id || req?.user?.transient)
+            return { items: [], season: null, champions: await this.seasonService().champions(null) };
         return this.seasonService().me(String(id));
+    }
+
+    /**
+     * Unlock a champion with Yarn or a Champion Pick `{hero, via: 'yarn' | 'pick', requestId}` (CHAMPION-STORE.md
+     * §8.6). Guests too: they earn Yarn through their `/live` saves. Idempotent per champion. Allowed in app builds (no
+     * money changes hands). Answers the champions view.
+     */
+    @UseGuards(AppAuthGuard)
+    @AllowGuest()
+    @HttpCode(200)
+    @Post('champions/unlock')
+    async championUnlock(@Body() body: Record<string, unknown>, @Req() req: any, @Res({ passthrough: true }) res: any) {
+        await this.throttle('champUnlock', req, res);
+        const id = req?.user?._id ?? req?.user?.id;
+        if (!id || req?.user?.transient) {
+            throw new ServiceUnavailableException({
+                statusCode: 503,
+                code: 'PAWLEGENDS_PASS_UNAVAILABLE',
+                message: 'No account',
+            });
+        }
+        return this.seasonService().unlock(String(id), body || {});
     }
 
     /** Claim one pass reward `{seasonId, row: 'f' | 'p', tier}` or all `{all: true}`. Idempotent. */
@@ -280,8 +305,8 @@ export class PawlegendsController {
     }
 
     /**
-     * Sim v9: the shelter champions' Token Tails cards (storefront fields and `forSale`), cached 5 minutes. Every
-     * champion is free to play: this route only feeds the cosmetics and the Meet link (`pawlegends-champions.ts`).
+     * Sim v9: the shelter champions' Token Tails cards (storefront fields and `forSale`), cached 5 minutes. A card
+     * never unlocks its champion: this route only feeds the cosmetics and the Meet link (`pawlegends-champions.ts`).
      */
     @Header('Cache-Control', 'public, max-age=300')
     @Get('champions')

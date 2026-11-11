@@ -19,6 +19,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import { PawlegendsPresence } from '../social/social.schema';
 import { PresenceSink, type PresenceWriter } from './presence-sink';
 import { BACKEND_ROLE, type BackendRole } from '../../shared/runtime/backend-role';
+import { PawlegendsSeasonService } from '../pawlegends-season.service';
 
 /*
  * Nest wiring of the party relay (docs/plans/moba/MULTIPLAYER.md §3.1). On bootstrap it takes the HTTP server from
@@ -44,7 +45,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
         private readonly cats: CatRepository,
         private readonly mm: MmService,
         @Optional() @Inject(BACKEND_ROLE) private readonly role?: BackendRole,
-        @Optional() @InjectModel(PawlegendsPresence.name) private readonly presenceModel?: PresenceWriter
+        @Optional() @InjectModel(PawlegendsPresence.name) private readonly presenceModel?: PresenceWriter,
+        @Optional() private readonly season?: PawlegendsSeasonService
     ) {}
 
     async onApplicationBootstrap(): Promise<void> {
@@ -65,6 +67,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
             ownsServer: this.role === 'relay',
             drainMaxMs: drainMaxMsFrom(),
             pool: relayPoolFrom(this.role),
+            // CHAMPION-STORE.md §8.1: members pick starters, the rotation and the champions their account owns
+            ...(this.season ? { champions: (accountId: string) => this.season!.ownedHeroes(accountId) } : {}),
         });
         const relay = this.relay;
         this.presence = new PresenceSink(

@@ -533,6 +533,14 @@ export function createPawlegendsApi(
         storeStateOf(okBody(b).me)
       );
     },
+    /** CHAMPION-STORE.md §8.6: `POST /pawlegends/champions/unlock` (Yarn or a Champion Pick), then the fresh `me`. */
+    champUnlock: async (hero: string, via: "yarn" | "pick") => {
+      const session = sessionToken();
+      if (!session.startsWith("fb")) return { ok: false, status: 401, code: null, message: null, body: null } as ApiResult<unknown>;
+      const requestId = `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+      const init = postJson({ hero, via, requestId });
+      return call("/champions/unlock", { ...init, headers: { ...(init.headers as Record<string, string>), accesstoken: session } }, (b) => okBody(b));
+    },
     entitlementsForSession: (sessionId: string) =>
       call(
         `/entitlements?sessionId=${encodeURIComponent(sessionId)}`,

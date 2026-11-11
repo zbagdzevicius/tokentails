@@ -1,8 +1,8 @@
 /**
  * Shelter champions (sim v9): the four heroes inspired by real Pink Paw cats' Token Tails cards (licence for the
- * cats' names and photos, Oct 11). Meta and render only: the sim never reads this file. Every champion is free to
- * play in every build; owning the card (roster `catalogIds`) adds cosmetics only (a card badge, the Companion
- * Kitten, the element chroma).
+ * cats' names and photos, Oct 11). Meta and render only: the sim never reads this file. Owning the card (roster
+ * `catalogIds`) adds cosmetics only (a card badge, the Companion Kitten, the element chroma); it never unlocks the
+ * champion (CHAMPION-STORE.md: Gabė is a starter, the other three rotate free or unlock with Yarn or the store).
  *
  * The catalog ids live in three places (docs/DEVELOPMENT.md): here, backend/src/pawlegends/pawlegends-champions.ts
  * and the host, which reads them from GET /pawlegends/champions.

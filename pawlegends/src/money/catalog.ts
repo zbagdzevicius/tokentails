@@ -1,10 +1,12 @@
 /*
- * Paw Legends store and Legends Pass catalogue (docs/plans/moba/STORE-PASS.md), GAME MIRROR. Two copies, same values:
- * `backend/src/pawlegends/pawlegends-catalog.ts` is the real one (Checkout prices, grants, season XP and claims); this is
- * the game's display mirror. `pawlegends/tests/unit/store-pass.test.ts` imports both and deep-compares them, so edit
+ * Paw Legends store and Legends Pass catalogue (docs/plans/moba/STORE-PASS.md). Two copies with the same values:
+ * this one is the real one (Checkout prices, grants, season XP and claims); `pawlegends/src/money/catalog.ts` is the
+ * game's display mirror. `pawlegends/tests/unit/store-pass.test.ts` imports both and deep-compares them, so edit
  * both in the same commit. Pure data and math: no imports (the game test imports this file directly).
  *
- * Every item here is cosmetic only: the sim, the replay record and the hash never read it.
+ * Every cosmetic item here is cosmetic only: the sim, the replay record and the hash never read it. Champion
+ * ownership (docs/plans/moba/CHAMPION-STORE.md, the section at the end) is meta data only too: it decides which heroes
+ * a player may pick, never a number in a match.
  */
 
 /** Terms version of the cosmetics store and the Legends Pass checkout (`/pawlegends/terms`, store section). */
@@ -113,8 +115,8 @@ export const STORE_FRAMES: readonly CatalogFrame[] = Object.freeze([
     { id: 'frame.store.bone', name: 'Bone frame', title: { id: 'title.store.bone', name: 'Good Dog' } },
 ]);
 
-export type CatalogKind = 'cosmetic' | 'bundle' | 'pass';
-export type CatalogGroup = 'coats' | 'frames' | 'sets' | 'pass';
+export type CatalogKind = 'cosmetic' | 'bundle' | 'pass' | 'champion';
+export type CatalogGroup = 'coats' | 'frames' | 'sets' | 'pass' | 'champions';
 
 export interface CatalogSku {
     sku: string;
@@ -125,13 +127,16 @@ export interface CatalogSku {
     cents: { usd: number; eur: number };
     /** Items granted when paid (a pass SKU grants the premium row instead, plus `items` for Pass+). */
     items: string[];
-    /** A bundle: the single SKUs it contains. Buyable only while none of their items is owned. */
+    /**
+     * A bundle: the single SKUs it contains. A cosmetic set is buyable only while none of their items is owned; a
+     * champion bundle is sold at a prorated price for the champions not owned yet (championBundleCents).
+     */
     bundleOf?: string[];
     /** Pass SKUs: what the premium row becomes. */
     pass?: 'pass' | 'plus';
     /** Only for owners of this SKU (the Pass+ upgrade). */
     requires?: string;
-    /** The hero a coat SKU dresses. */
+    /** The hero a coat SKU dresses, or the champion a champion SKU unlocks. */
     hero?: string;
 }
 
@@ -191,6 +196,213 @@ const setSku = (sku: string, label: string, heroes: string[], frameId: string): 
     };
 };
 
+// ---------------------------------------------------------------------------------------------------------------
+// Champions (docs/plans/moba/CHAMPION-STORE.md). Ownership is meta data only: the sim, the replay record and the hash
+// never read it. New players own one starter per role (3 cats, 3 dogs); 6 more rotate free each week; the rest are
+// unlocked with Yarn (earned by playing, never sold) or bought on the web.
+
+export type ChampSpecies = 'cat' | 'dog';
+export type ChampRole = 'fighter' | 'marksman' | 'tank' | 'assassin' | 'mage' | 'support';
+
+export interface ChampionDef {
+    hero: string;
+    name: string;
+    side: ChampSpecies;
+    role: ChampRole;
+}
+
+/** Every champion, cats then dogs (the game's `HEROES` side and role must match; a test checks it). */
+export const CHAMPIONS: readonly ChampionDef[] = Object.freeze([
+    { hero: 'clem', name: 'Clem', side: 'cat', role: 'fighter' },
+    { hero: 'sage', name: 'Sage', side: 'cat', role: 'marksman' },
+    { hero: 'pixel', name: 'Pixel', side: 'cat', role: 'marksman' },
+    { hero: 'lambo', name: 'Lambo', side: 'cat', role: 'tank' },
+    { hero: 'meatball', name: 'Meatball', side: 'cat', role: 'tank' },
+    { hero: 'aviete', name: 'Avietė', side: 'cat', role: 'assassin' },
+    { hero: 'stilts', name: 'Stilts', side: 'cat', role: 'assassin' },
+    { hero: 'bengas', name: 'Bengas', side: 'cat', role: 'mage' },
+    { hero: 'duchess', name: 'Duchess', side: 'cat', role: 'mage' },
+    { hero: 'gabe', name: 'Gabė', side: 'cat', role: 'support' },
+    { hero: 'howler', name: 'Howler', side: 'dog', role: 'fighter' },
+    { hero: 'chili', name: 'Chili', side: 'dog', role: 'marksman' },
+    { hero: 'rocket', name: 'Rocket', side: 'dog', role: 'marksman' },
+    { hero: 'brutus', name: 'Sir Brutus', side: 'dog', role: 'tank' },
+    { hero: 'bravo', name: 'Bravo', side: 'dog', role: 'tank' },
+    { hero: 'cacklejaw', name: 'Cacklejaw', side: 'dog', role: 'assassin' },
+    { hero: 'frankie', name: 'Frankie', side: 'dog', role: 'assassin' },
+    { hero: 'marshmallow', name: 'Marshmallow', side: 'dog', role: 'mage' },
+    { hero: 'domino', name: 'Domino', side: 'dog', role: 'mage' },
+    { hero: 'nugget', name: 'Nugget', side: 'dog', role: 'support' },
+] as ChampionDef[]);
+
+export const CHAMPION_IDS: readonly string[] = Object.freeze(CHAMPIONS.map(c => c.hero));
+export const championDef = (hero: unknown): ChampionDef | undefined =>
+    typeof hero === 'string' ? CHAMPIONS.find(c => c.hero === hero) : undefined;
+
+/** One starter per role: Clem, Sage, Gabė (cats) and Sir Brutus, Frankie, Marshmallow (dogs). */
+export const STARTERS: readonly string[] = Object.freeze(['clem', 'sage', 'gabe', 'brutus', 'frankie', 'marshmallow']);
+export const isStarter = (hero: string): boolean => STARTERS.includes(hero);
+
+/** The owned item of a champion (a `pawlegendsowned` row), and the Founders roster badge. */
+export const champItem = (hero: string): string => `champ.${hero}`;
+export const heroOfChampItem = (item: string): string | null =>
+    item.startsWith('champ.') && CHAMPION_IDS.includes(item.slice(6)) ? item.slice(6) : null;
+export const FOUNDERS_BADGE = 'badge.founders_roster';
+
+// Weekly free rotation: weeks start Monday 00:00 UTC from ROTATION_EPOCH. Cats take entries 3w..3w+2 (mod 7) of
+// their cycle, dogs the same entries one week ahead, so every week has 3 cats and 3 dogs, no two of one role per
+// species, and every non-starter is free 3 weeks in 7.
+
+export const ROTATION_EPOCH = '2026-11-16T00:00:00.000Z';
+export const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+export const ROTATION_CATS: readonly string[] = Object.freeze([
+    'meatball',
+    'pixel',
+    'aviete',
+    'duchess',
+    'lambo',
+    'stilts',
+    'bengas',
+]);
+export const ROTATION_DOGS: readonly string[] = Object.freeze([
+    'howler',
+    'chili',
+    'nugget',
+    'domino',
+    'cacklejaw',
+    'rocket',
+    'bravo',
+]);
+
+/** The rotation week of a time (weeks before the epoch count down: -1, -2, ...). */
+export function rotationWeek(ms: number): number {
+    return Math.floor((ms - Date.parse(ROTATION_EPOCH)) / WEEK_MS);
+}
+
+const mod = (n: number, m: number): number => ((n % m) + m) % m;
+
+/** The 6 free champions of a week: 3 cats, then 3 dogs. */
+export function rotationOf(week: number): string[] {
+    const pick = (cycle: readonly string[], w: number) => [0, 1, 2].map(i => cycle[mod(3 * w + i, cycle.length)]);
+    return [...pick(ROTATION_CATS, week), ...pick(ROTATION_DOGS, week + 1)];
+}
+
+/** When a week's rotation ends (ISO). */
+export const rotationEndsAt = (week: number): string =>
+    new Date(Date.parse(ROTATION_EPOCH) + (week + 1) * WEEK_MS).toISOString();
+
+/** Free for everyone in that week: a starter or in the rotation. */
+export const isFreeChampion = (hero: string, week: number): boolean =>
+    isStarter(hero) || rotationOf(week).includes(hero);
+
+/** The heroes a player may pick in a week: starters, the rotation and the owned ones, in CHAMPIONS order. */
+export function allowedChampions(owned: Iterable<string>, week: number): string[] {
+    const set = new Set<string>([...STARTERS, ...rotationOf(week), ...owned]);
+    return CHAMPION_IDS.filter(h => set.has(h));
+}
+
+// Prices: tiers by age and difficulty. Yarn is earned only (never sold, never converted, no cash value); the web
+// price is VAT-inclusive, the same number in USD and EUR.
+
+export type ChampTier = 't1' | 't2' | 't3' | 'launch';
+export const CHAMP_TIER: Readonly<Record<string, Exclude<ChampTier, 'launch'>>> = Object.freeze({
+    meatball: 't1',
+    howler: 't1',
+    cacklejaw: 't1',
+    pixel: 't2',
+    duchess: 't2',
+    lambo: 't2',
+    bengas: 't2',
+    nugget: 't2',
+    bravo: 't2',
+    aviete: 't3',
+    stilts: 't3',
+    chili: 't3',
+    rocket: 't3',
+    domino: 't3',
+});
+/** Champions in their launch window (their first sim version): the launch price, then their tier. None today. */
+export const CHAMP_LAUNCH: readonly string[] = Object.freeze([]);
+export const TIER_PRICE: Readonly<Record<ChampTier, { yarn: number; cents: { usd: number; eur: number } }>> =
+    Object.freeze({
+        t1: { yarn: 2500, cents: { usd: 299, eur: 299 } },
+        t2: { yarn: 3500, cents: { usd: 399, eur: 399 } },
+        t3: { yarn: 4800, cents: { usd: 499, eur: 499 } },
+        launch: { yarn: 6000, cents: { usd: 599, eur: 599 } },
+    });
+
+/** A non-starter's tier (launch while in CHAMP_LAUNCH), or null for a starter or an unknown hero. */
+export const champTier = (hero: string): ChampTier | null =>
+    CHAMP_LAUNCH.includes(hero) ? 'launch' : CHAMP_TIER[hero] ?? null;
+export const champYarnPrice = (hero: string): number | null => {
+    const t = champTier(hero);
+    return t ? TIER_PRICE[t].yarn : null;
+};
+
+/** Yarn per verified match (server only; the same limits as Season XP: daily cap, solo spacing, no AFK pay). */
+export const YARN = Object.freeze({
+    win: 100,
+    loss: 60,
+    forfeit: 15,
+    perTakedown: 2,
+    maxTakedowns: 10,
+    firstWinOfDay: 150,
+    /** The weekly chest: this much Yarn after `weeklyChestMatches` paid matches in one ISO week. */
+    weeklyChest: 400,
+    weeklyChestMatches: 10,
+});
+
+export function yarnFor(m: { won: boolean; forfeit: boolean; takedowns: number; firstWinToday: boolean }): number {
+    const base = m.forfeit ? YARN.forfeit : m.won ? YARN.win : YARN.loss;
+    const t = Math.max(0, Math.min(YARN.maxTakedowns, Math.floor(Number(m.takedowns) || 0)));
+    return base + (m.forfeit ? 0 : t * YARN.perTakedown) + (m.won && m.firstWinToday ? YARN.firstWinOfDay : 0);
+}
+
+/** Welcome milestones: a free Champion Pick (any Tier 1 or Tier 2 champion) after these verified matches. */
+export const CHAMP_PICK_MILESTONES: readonly number[] = Object.freeze([5, 15, 30]);
+export const CHAMP_PICK_TIERS: readonly ChampTier[] = Object.freeze(['t1', 't2'] as ChampTier[]);
+
+export const champSkuOf = (hero: string): string => `pl_champ_${hero}`;
+const UNLOCKABLE = CHAMPION_IDS.filter(h => !STARTERS.includes(h));
+
+const champSkus: CatalogSku[] = UNLOCKABLE.map(hero => ({
+    sku: champSkuOf(hero),
+    kind: 'champion',
+    group: 'champions',
+    label: `Champion: ${championDef(hero)!.name}`,
+    cents: { ...TIER_PRICE[champTier(hero)!].cents },
+    items: [champItem(hero)],
+    hero,
+}));
+
+const champBundle = (sku: string, label: string, heroes: string[], cents: number): CatalogSku => ({
+    sku,
+    kind: 'champion',
+    group: 'champions',
+    label,
+    cents: { usd: cents, eur: cents },
+    items: heroes.map(champItem),
+    bundleOf: heroes.map(champSkuOf),
+});
+
+export const CHAMP_BUNDLE_SKUS = ['pl_champs_cats_s1', 'pl_champs_dogs_s1', 'pl_champs_all_s1'];
+
+const champBundles: CatalogSku[] = [
+    champBundle(
+        'pl_champs_cats_s1',
+        'Cat Champions: all 7 cats to unlock',
+        UNLOCKABLE.filter(h => championDef(h)!.side === 'cat'),
+        1699
+    ),
+    champBundle(
+        'pl_champs_dogs_s1',
+        'Dog Champions: all 7 dogs to unlock',
+        UNLOCKABLE.filter(h => championDef(h)!.side === 'dog'),
+        1699
+    ),
+    champBundle('pl_champs_all_s1', 'Every Champion: all 14 to unlock', UNLOCKABLE, 2999),
+];
+
 export const SEASON_PLUS_SKIPS = 15;
 
 export const PASS_SKU = 'pl_pass_s1';
@@ -207,6 +419,8 @@ export const CATALOG_SKUS: readonly CatalogSku[] = Object.freeze([
     ...frameSkus,
     setSku('pl_set_cats_s1', 'Cat Squad set: 6 cat coats + Moonlit frame', CAT_SET_HEROES, 'frame.store.moonlit'),
     setSku('pl_set_dogs_s1', 'Dog Pack set: 6 dog coats + Bone frame', DOG_SET_HEROES, 'frame.store.bone'),
+    ...champSkus,
+    ...champBundles,
     {
         sku: PASS_SKU,
         kind: 'pass',
@@ -250,8 +464,36 @@ export function conflictsOf(sku: string): string[] {
     if (sku === PASS_SKU) return [PASS_SKU, PASS_PLUS_SKU];
     if (sku === PASS_PLUS_SKU) return [PASS_SKU, PASS_PLUS_SKU, PASS_UPGRADE_SKU];
     if (sku === PASS_UPGRADE_SKU) return [PASS_PLUS_SKU, PASS_UPGRADE_SKU];
+    // champions: ownership is per champion item (a bundle over owned champions is prorated, never refused)
+    if (def.kind === 'champion') return [sku];
     if (def.bundleOf) return [sku, ...def.bundleOf];
-    return [sku, ...CATALOG_SKUS.filter(s => s.bundleOf?.includes(sku)).map(s => s.sku)];
+    return [sku, ...CATALOG_SKUS.filter(s => s.kind !== 'champion' && s.bundleOf?.includes(sku)).map(s => s.sku)];
+}
+
+/** Rounds a price down to .99 (at least 0.99). */
+const down99 = (cents: number): number => Math.max(99, Math.floor((cents + 1) / 100) * 100 - 1);
+
+/**
+ * The price of a champion SKU for an account that owns `owned` items: null when every champion in it is owned; a
+ * single's own price; a bundle's price when none is owned, else the bundle price times the share of the singles'
+ * price still to unlock, rounded down to .99 (never above the singles it still unlocks).
+ */
+export function championBundleCents(
+    def: CatalogSku,
+    owned: ReadonlySet<string>,
+    currency: 'usd' | 'eur'
+): number | null {
+    if (def.kind !== 'champion') return null;
+    const missing = def.items.filter(i => !owned.has(i));
+    if (!missing.length) return null;
+    if (!def.bundleOf || missing.length === def.items.length) return def.cents[currency];
+    const single = (item: string) => {
+        const hero = item.slice('champ.'.length);
+        return CATALOG_SKUS.find(s => s.sku === champSkuOf(hero))?.cents[currency] ?? 0;
+    };
+    const all = def.items.reduce((n, i) => n + single(i), 0);
+    const left = missing.reduce((n, i) => n + single(i), 0);
+    return Math.min(left, down99(Math.floor((def.cents[currency] * left) / all)));
 }
 
 // ---------------------------------------------------------------------------------------------------------------

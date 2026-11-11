@@ -1,8 +1,23 @@
-import { HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { HttpStatus, Injectable, Logger, Optional } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model, Types } from 'mongoose';
+import { Game, GameType } from 'src/game/game.schema';
 import { isDuplicateKeyError } from 'src/shared/jobs/lease';
+import {
+    addYarn,
+    allowedHeroesFor,
+    championsView,
+    ChampionsView,
+    ensureFounders,
+    FoundersEvidence,
+    ownedChampions,
+    unlockChampion,
+    YarnGain,
+} from './pawlegends-champion-store';
 import {
     claimable,
     claimKey,
+    CHAMPION_IDS,
     CURRENT_SEASON_ID,
     PASS_PLUS_SKU,
     PASS_SKU,
@@ -154,10 +169,33 @@ export async function syncPremium(
     return premium;
 }
 
-/** The grant of a paid store or pass SKU (webhook): the items, then the pass row. Idempotent. */
-export async function grantPurchase(models: Models, accountId: string, sku: string, sessionId: string, now: Date) {
+/**
+ * The grant of a paid store or pass SKU (webhook): the items, then the pass row. Idempotent. A champion SKU grants the
+ * champions its checkout hold listed (`items`: the ones not owned at checkout) and never takes over a champion row
+ * the account already holds (a Yarn unlock stays a Yarn unlock, so this session's refund never revokes it).
+ */
+export async function grantPurchase(
+    models: Models,
+    accountId: string,
+    sku: string,
+    sessionId: string,
+    now: Date,
+    items?: readonly string[]
+) {
     const def = PAWLEGENDS_SKUS[sku];
     if (!def?.kind || def.retired) return;
+    if (def.kind === 'champion') {
+        const grant = items?.length ? items.filter(i => def.items.includes(i)) : def.items;
+        const live = new Set(await ownedItemsOf(models, accountId));
+        await grantItems(
+            models,
+            accountId,
+            grant.filter(i => !live.has(i)),
+            'purchase',
+            { sessionId }
+        );
+        return;
+    }
     await grantItems(models, accountId, def.items, 'purchase', { sessionId });
     if (def.kind === 'pass') await syncPremium(models, accountId, now);
 }
@@ -169,6 +207,16 @@ export interface SeasonXpGain {
     /** The tier before this match (a tier-up toast when lower). */
     prevTier: number;
     gained: number;
+    /** CHAMPION-STORE.md: the Yarn this match paid (absent when none was due or the Yarn store is not wired). */
+    yarn?: YarnGain;
+    /** CHAMPION-STORE.md §8.5: the solo save's hero was not the player's to pick; nothing was paid. */
+    heroLocked?: true;
+}
+
+/** What addSeasonXp also tells the score hook (never sent to the client). */
+interface SeasonXpResult extends SeasonXpGain {
+    firstWinToday: boolean;
+    capped: boolean;
 }
 
 export interface SeasonXpMatch {
@@ -184,6 +232,10 @@ export interface SeasonXpMatch {
      * passed since the last paid solo match, so replays made faster than real play pay nothing.
      */
     soloMs?: number;
+    /** CHAMPION-STORE.md: the save's unique ref (its replay digest): Yarn is paid once per ref. */
+    ref?: string;
+    /** A solo save's hero: checked against the heroes the account could pick when the match started. */
+    hero?: string;
 }
 
 /** Solo matches that pay Season XP per UTC day (the party writer's PARTY_DAILY_CAP is the same number). */
@@ -232,14 +284,23 @@ export async function addSeasonXp(
     m: SeasonXpMatch,
     now: Date,
     seasonId = CURRENT_SEASON_ID
-): Promise<SeasonXpGain | null> {
+): Promise<SeasonXpResult | null> {
     const def = seasonDef(seasonId);
     if (!def || !accountId) return null;
     const _id = seasonDocId(accountId, seasonId);
     const before = await ensureSeason(models, accountId, seasonId);
     const prevTier = seasonTier(def, Number(before?.xp) || 0, Number(before?.skips) || 0);
     const capped = m.capped || (m.soloMs !== undefined && !(await claimSoloSlot(models, _id, m.soloMs, now)));
-    if (capped) return { seasonId, xp: Number(before?.xp) || 0, tier: prevTier, prevTier, gained: 0 };
+    if (capped)
+        return {
+            seasonId,
+            xp: Number(before?.xp) || 0,
+            tier: prevTier,
+            prevTier,
+            gained: 0,
+            firstWinToday: false,
+            capped: true,
+        };
     let firstWinToday = false;
     if (m.won && !m.forfeit) {
         const day = utcDay(now);
@@ -253,7 +314,15 @@ export async function addSeasonXp(
         .findOneAndUpdate({ _id }, { $inc: { xp: gained }, $set: { updatedAt: now } }, { new: true })
         .lean()) as any;
     const xp = Number(after?.xp) || 0;
-    return { seasonId, xp, tier: seasonTier(def, xp, Number(after?.skips) || 0), prevTier, gained };
+    return {
+        seasonId,
+        xp,
+        tier: seasonTier(def, xp, Number(after?.skips) || 0),
+        prevTier,
+        gained,
+        firstWinToday,
+        capped: false,
+    };
 }
 
 export interface PawlegendsSeasonView {
@@ -275,7 +344,12 @@ export interface PawlegendsSeasonView {
 export interface PawlegendsMe {
     items: string[];
     season: PawlegendsSeasonView;
+    /** CHAMPION-STORE.md §11: owned champions, starters, the week's rotation and the Yarn balance. */
+    champions: ChampionsView;
 }
+
+/** A Yarn model stand-in that finds nothing (specs that build the store without the champion models). */
+const nullYarn = { findOne: () => ({ lean: async () => null }) };
 
 const view = (def: SeasonDef, row: any): PawlegendsSeasonView => {
     const s = {
@@ -301,24 +375,129 @@ const view = (def: SeasonDef, row: any): PawlegendsSeasonView => {
 export class PawlegendsSeasonService {
     private readonly logger = new Logger(PawlegendsSeasonService.name);
     now: () => Date = () => new Date();
+    /**
+     * CHAMPION-STORE.md §7: whether the account finished a Paw Legends match before the champion store's release
+     * (its Game rows: solo and party saves). Specs replace it.
+     */
+    foundersEvidence: FoundersEvidence | undefined;
 
-    constructor(private readonly store: PawlegendsStore) {}
+    constructor(private readonly store: PawlegendsStore, @Optional() @InjectModel(Game.name) games?: Model<any>) {
+        this.foundersEvidence = games
+            ? async (accountId, before) =>
+                  Types.ObjectId.isValid(accountId) &&
+                  !!(await games
+                      .findOne(
+                          {
+                              user: new Types.ObjectId(accountId),
+                              type: GameType.PAWLEGENDS,
+                              createdAt: { $lt: before },
+                          },
+                          { _id: 1 }
+                      )
+                      .lean())
+            : undefined;
+    }
+
+    /** The champion store's models are wired (production; older specs build the store without them). */
+    private get champStore(): boolean {
+        return !!this.store.yarn && !!this.store.yarnLog;
+    }
 
     ownedItems(accountId: string): Promise<string[]> {
         return ownedItemsOf(this.store, accountId);
     }
 
-    /** GET /pawlegends/me: owned items and the current season's pass row. */
+    /** GET /pawlegends/me: owned items, the current season's pass row and the champions. */
     async me(accountId: string): Promise<PawlegendsMe> {
         const def = seasonDef(CURRENT_SEASON_ID)!;
         const row = await ensureSeason(this.store, accountId, def.id);
-        return { items: await this.ownedItems(accountId), season: view(def, row) };
+        const champions = await this.champions(accountId);
+        return { items: await this.ownedItems(accountId), season: view(def, row), champions };
     }
 
-    /** The `/live` hook: never fails the save (the Game row and catnip are the score; XP is a cosmetic track). */
+    /** The champions view (the Founders roster checked first, once per account). */
+    async champions(accountId: string | null): Promise<ChampionsView> {
+        const now = this.now();
+        if (!this.champStore) return championsView({ ...this.store, yarn: nullYarn } as never, accountId, now);
+        const founders = accountId ? await ensureFounders(this.store, accountId, this.foundersEvidence, now) : false;
+        return championsView(this.store, accountId, now, founders);
+    }
+
+    /**
+     * The heroes an account may pick at `at` (the relay's allowed set, the solo save's check): starters, that week's
+     * rotation and the owned champions (the Founders roster checked first).
+     */
+    async allowedHeroes(accountId: string | null, at: Date = this.now()): Promise<string[]> {
+        if (accountId && this.champStore)
+            await ensureFounders(this.store, accountId, this.foundersEvidence, this.now());
+        return allowedHeroesFor(this.store, accountId, at);
+    }
+
+    /** The champions an account owns (the relay's cache), the Founders roster checked first. */
+    async ownedHeroes(accountId: string): Promise<string[]> {
+        if (!this.champStore) return [];
+        await ensureFounders(this.store, accountId, this.foundersEvidence, this.now());
+        return (await ownedChampions(this.store, accountId)).map(o => o.hero);
+    }
+
+    /** True when `hero` is a champion the account could not pick at `at`. A hero the catalog does not know is free. */
+    async heroLocked(accountId: string, hero: string, at: Date): Promise<boolean> {
+        if (!CHAMPION_IDS.includes(hero)) return false;
+        return !(await this.allowedHeroes(accountId, at)).includes(hero);
+    }
+
+    /** POST /pawlegends/champions/unlock: a Yarn unlock or a Champion Pick, then the champions view. */
+    async unlock(
+        accountId: string,
+        body: Record<string, unknown>
+    ): Promise<{ hero: string; champions: ChampionsView }> {
+        await ensureFounders(this.store, accountId, this.foundersEvidence, this.now());
+        const r = await unlockChampion(this.store, accountId, body);
+        return { hero: r.hero, champions: await this.champions(accountId) };
+    }
+
+    /**
+     * The `/live` hook: never fails the save (the Game row and catnip are the score; XP and Yarn are meta tracks). A
+     * solo save whose hero the account could not pick pays nothing (CHAMPION-STORE.md §8.5). Yarn follows Season XP's
+     * limits: nothing for a capped match, once per save ref.
+     */
     async addXp(accountId: string, m: SeasonXpMatch): Promise<SeasonXpGain | null> {
+        const id = String(accountId);
         try {
-            return await addSeasonXp(this.store, String(accountId), m, this.now());
+            const now = this.now();
+            if (m.hero && this.champStore) {
+                const startedAt = new Date(now.getTime() - Math.max(0, m.soloMs ?? 0));
+                if (await this.heroLocked(id, m.hero, startedAt)) {
+                    const def = seasonDef(CURRENT_SEASON_ID)!;
+                    const row = await ensureSeason(this.store, id, def.id);
+                    const tier = seasonTier(def, Number(row?.xp) || 0, Number(row?.skips) || 0);
+                    return {
+                        seasonId: def.id,
+                        xp: Number(row?.xp) || 0,
+                        tier,
+                        prevTier: tier,
+                        gained: 0,
+                        heroLocked: true,
+                    };
+                }
+            }
+            const r = await addSeasonXp(this.store, id, m, now);
+            if (!r) return null;
+            const { firstWinToday, capped, ...gain } = r;
+            if (!capped && m.ref && this.champStore) {
+                try {
+                    const yarn = await addYarn(
+                        this.store,
+                        id,
+                        { ref: m.ref, won: m.won, forfeit: m.forfeit, takedowns: m.takedowns, firstWinToday },
+                        now
+                    );
+                    if (yarn) return { ...gain, yarn };
+                } catch (error) {
+                    this.logger.warn(`yarn failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
+                }
+            }
+            return gain;
         } catch (error) {
             this.logger.warn(`season xp failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
             return null;

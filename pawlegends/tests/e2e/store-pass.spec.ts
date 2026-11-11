@@ -32,7 +32,8 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await game.locator('.lb-rail [data-a="store"]').click();
   const shop = game.locator('.pl-shop');
   await expect(shop).toBeVisible();
-  await expect(shop.locator('[data-tab]')).toHaveCount(4);
+  // Champions · Coats · Frames · Sets · Pass (CHAMPION-STORE.md: the Champions tab sits next to the cosmetics)
+  await expect(shop.locator('[data-tab]')).toHaveCount(5);
   await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
   await expect(shop).not.toContainText(/[0-9] Tails|coins/); // XP and prices only (CLAIMS R8)
   await shop.locator('[data-tab="frames"]').click();

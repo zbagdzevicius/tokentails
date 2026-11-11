@@ -406,6 +406,14 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
           const state = okStatus(r.status) ? storeStateOf((r.body as { me?: unknown } | null)?.me) : null;
           if (state) bridge.setStore(state);
         })(),
+      // CHAMPION-STORE.md §8.6: a Yarn unlock or a Champion Pick (no money: allowed in the app); a fresh `store` after
+      onChampUnlock: (hero, via) =>
+        void (async () => {
+          if (!(await auth.ensureGuest(online()))) return;
+          const requestId = `u${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+          await api.call("POST", "/pawlegends/champions/unlock", { auth: "guest", body: { hero, via, requestId } });
+          await refreshStore();
+        })(),
       onRequestSignIn: (reason: PawlegendsSignInReason) => signIn(reason),
       onAccount: (action) => {
         if (action === "sign-in") signIn("sign-in");

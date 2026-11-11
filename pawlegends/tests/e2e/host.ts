@@ -51,7 +51,21 @@ export interface HostConfig {
   passClaim?: { items: string[]; season: unknown };
   /** SOCIAL-RANKED.md §13: answer `api-request{op}` with this status and body (unlisted ops: status 0). */
   api?: Record<string, { status: number; body?: unknown }>;
+  /**
+   * CHAMPION-STORE.md: `store.champions` sent with every `store`. Default: every champion owned (a Founders roster),
+   * so the older specs pick any hero in any week; null sends none (the starters and the week's rotation only).
+   */
+  champState?: unknown;
 }
+
+/** Every champion owned (the Founders roster), the e2e host's default `store.champions`. */
+export const ALL_CHAMPS = {
+  owned: ['clem', 'sage', 'pixel', 'lambo', 'meatball', 'aviete', 'stilts', 'bengas', 'duchess', 'gabe', 'howler', 'chili', 'rocket', 'brutus', 'bravo', 'cacklejaw', 'frankie', 'marshmallow', 'domino', 'nugget'].map((hero) => ({ hero, source: 'founders' })),
+  founders: true,
+  rotation: { week: 0 },
+  yarn: { balance: 0, matches: 0, picksLeft: 0, nextPickAt: 5 },
+  bundles: [],
+};
 
 const b64url = (s: string): string => Buffer.from(s).toString('base64url');
 /** A token in the backend format with a dummy signature (the game reads, never verifies). */
@@ -62,7 +76,7 @@ function hostHtml(cfg: HostConfig): string {
   return `<!doctype html><html><head><meta charset="utf-8"><style>html,body{margin:0;height:100%;background:#111}iframe{position:fixed;inset:0;width:100%;height:100%;border:0}</style></head><body>
 <script>
   (function () {
-    var cfg = ${JSON.stringify(cfg)};
+    var cfg = ${JSON.stringify({ ...cfg, champState: cfg.champState === undefined ? ALL_CHAMPS : cfg.champState })};
     try { if (cfg.profile) localStorage.setItem('tt.pawlegends.profile.v1', JSON.stringify(cfg.profile)); } catch (e) {}
     window.received = [];
     var ready = false, token = cfg.token === undefined ? null : cfg.token;
@@ -80,8 +94,9 @@ function hostHtml(cfg: HostConfig): string {
       if (cfg.featured) send('featured', { cats: cfg.featured });
       if (cfg.champions) send('champions', { cats: cfg.champions });
       if (cfg.offer !== undefined) send('offer', { offer: cfg.offer });
-      if (store) send('store', store);
+      if (store || cfg.champState) send('store', withChamps(store || { items: [], season: null }));
     };
+    var withChamps = function (st) { return cfg.champState ? Object.assign({}, st, { champions: cfg.champState }) : st; };
     var store = cfg.store || null;
     addEventListener('message', function (e) {
       if (e.source !== f.contentWindow) return;
@@ -99,18 +114,18 @@ function hostHtml(cfg: HostConfig): string {
       }
       if (m.type === 'purchase-intent' && cfg.storeGrants && cfg.storeGrants[m.sku]) {
         store = cfg.storeGrants[m.sku];
-        setTimeout(function () { send('purchase-result', { sku: m.sku, ok: true }); send('store', store); }, 50);
+        setTimeout(function () { send('purchase-result', { sku: m.sku, ok: true }); send('store', withChamps(store)); }, 50);
       }
       if (m.type === 'pass-claim' && cfg.passClaim) {
         store = cfg.passClaim;
-        setTimeout(function () { send('store', store); }, 50);
+        setTimeout(function () { send('store', withChamps(store)); }, 50);
       }
       if (m.type === 'match-result' && cfg.seasonOnSave) {
         var so = cfg.seasonOnSave;
         setTimeout(function () {
           send('save-result', { matchId: m.matchId, status: 'saved', catnipPaid: 0, catnipTotal: null, fastestWin: null, season: so.season });
           store = so.store;
-          send('store', store);
+          send('store', withChamps(store));
         }, 50);
       }
       if (m.type === 'party-ticket-request' && cfg.partyTicket !== undefined) {

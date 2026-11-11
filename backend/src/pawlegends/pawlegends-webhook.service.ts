@@ -157,7 +157,7 @@ export class PawlegendsWebhookService {
         // A store grant is idempotent: a retried delivery heals a grant that failed after the row was marked paid.
         if (row?.status === 'paid') {
             if (isCatalogSku(sku) && row.accountId)
-                await grantPurchase(this.store, row.accountId, sku, session.id, this.now());
+                await grantPurchase(this.store, row.accountId, sku, session.id, this.now(), row.items);
             return 'processed';
         }
 
@@ -172,7 +172,12 @@ export class PawlegendsWebhookService {
             ...(md.age_band ? { ageBand: md.age_band } : {}),
         };
 
-        const expected = currency ? def.cents[currency] : null;
+        // a champion SKU charges the prorated price its checkout hold recorded (CHAMPION-STORE.md §5)
+        const held =
+            def.kind === 'champion' && row && row.currency === currency && typeof row.amountCents === 'number'
+                ? (row.amountCents as number)
+                : null;
+        const expected = currency ? held ?? def.cents[currency] : null;
         const mismatch =
             expected === null
                 ? `currency ${String(session.currency)} is not eur or usd`
@@ -227,7 +232,7 @@ export class PawlegendsWebhookService {
             $set: {
                 status: 'paid',
                 paidAt: this.now(),
-                items: def.items,
+                items: def.kind === 'champion' && Array.isArray(row?.items) && row.items.length ? row.items : def.items,
                 paymentIntentId,
                 livemode,
                 ...(email ? { email } : {}),
@@ -237,7 +242,8 @@ export class PawlegendsWebhookService {
         });
         // Store and pass SKUs: the items and the pass row (read from the paid rows). Idempotent: if this fails, the
         // event id is not recorded, Stripe retries, and the `paid` branch above grants again.
-        if (isCatalogSku(sku)) await grantPurchase(this.store, buyer.accountId!, sku, session.id, this.now());
+        if (isCatalogSku(sku))
+            await grantPurchase(this.store, buyer.accountId!, sku, session.id, this.now(), row?.items);
         return 'processed';
     }
 

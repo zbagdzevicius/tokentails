@@ -33,6 +33,8 @@ export interface CollectionOpts {
   onClose(): void;
   /** STORE-PASS.md §6: the Track's second tab, the Legends Pass (absent: no tab bar). */
   onPass?(): void;
+  /** CHAMPION-STORE.md §10: "Champions 9/20", and the Founders roster badge. */
+  champions?: { owned: number; total: number; founders: boolean; yarn: number };
 }
 
 /** A postcard's story: who the real cat is and the card's own joke (no health details, no money or impact words). */
@@ -83,7 +85,7 @@ export function collectionPanel(parent: HTMLElement, o: CollectionOpts): HTMLEle
       ? `<div class="tabs track-tabs" role="tablist"><button type="button" role="tab" class="chip on" aria-selected="true">Treat Track</button><button type="button" role="tab" class="chip" data-a="pass" aria-selected="false">Legends Pass</button></div>`
       : '<h2>Treat Track</h2>';
     root.innerHTML = `<div class="card"><button class="pl-x" data-a="x" aria-label="Close the Treat Track">✕</button>${tabs}
-      <p class="champs-row"><button type="button" class="pl-btn ghost small" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button></p>
+      <p class="champs-row"><button type="button" class="pl-btn ghost small" data-a="champions" aria-haspopup="dialog">${icon('spell')}Champions: skills &amp; lore</button>${o.champions ? ` <small class="champ-count" data-champs="${o.champions.owned}">Champions ${o.champions.owned}/${o.champions.total} · ${o.champions.yarn.toLocaleString('en-US')} Yarn${o.champions.founders ? ' · <b class="founders-badge">Founders roster</b>' : ''}</small>` : ''}</p>
       <p class="next-chest" data-next="${esc(next.id)}">Next chest: <b>${esc(next.name)}</b> <small data-togo="${n}">${esc(toGoText(n))}</small></p>
       <div class="targets"><span class="lbl">Pick your next target</span><span class="chips"><button class="chip target ${s.target === null ? 'on' : ''}" data-target="" aria-pressed="${s.target === null}"><b>Track order</b><small>Any hero</small></button>${heroes.map(chip).join('')}</span></div>
       <h3>Meet the real cat</h3>

@@ -389,6 +389,11 @@
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "pass-claim", "row": "f", "tier": 3 },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "pass-claim", "row": "x", "tier": 3 }
     },
+    "champ-unlock": {
+      "$comment": "CHAMPION-STORE.md §8.6: unlock a champion with Yarn or a Champion Pick (`via`), the app too (no money); the host calls POST /pawlegends/champions/unlock and answers `store`.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "champ-unlock", "hero": "pixel", "via": "yarn" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "champ-unlock", "hero": "pixel", "via": "cash" }
+    },
     "party-ticket-request": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "k2j9x8" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "BAD ID" }
