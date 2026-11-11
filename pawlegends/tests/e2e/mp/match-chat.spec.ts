@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { chatSaid, closeAll, partyMatch, player, tap } from './party.helpers';
+import { chatSaid, closeAll, partyMatch, player, tap, title } from './party.helpers';
 
 test.afterEach(closeAll);
 
@@ -13,6 +13,8 @@ test('team chat between a desktop and a 667x375 phone in a party match (phrases 
   test.setTimeout(420_000);
   const a = await player(browser, 'desktop');
   const b = await player(browser, 'phone-small');
+  // a cold preview server: load the game once on the phone before the join link (the first load is the slow one)
+  await title(b);
   await partyMatch([a, b], ['sage', 'lambo']);
   await a.page.waitForTimeout(3000);
 

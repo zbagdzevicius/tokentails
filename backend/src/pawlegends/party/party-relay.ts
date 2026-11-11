@@ -1635,7 +1635,7 @@ export class PartyRelay {
     }
 
     /**
-     * PROTO 6 `chat.say` in a match. Checks, in order (§3): a live seat flown by its human, no `chat_mute` and no text
+     * PROTO 6 `chat.say` in a match. Checks, in order (§3): the sender's own seated socket, no `chat_mute` and no text
      * cooldown, the socket's chat bucket, the channel tier (text only in a 'text' team, never in all chat), the phrase
      * scope (`match` / `all`), the filter (a strike per refusal), the duplicate rule.
      */
@@ -1649,7 +1649,8 @@ export class PartyRelay {
         const live = this.seatOf(s);
         if (s.proto < PROTO_MATCH_CHAT || !live || p.phase !== 'match' || live.endedAtMs !== undefined)
             return reject('phase');
-        if (live.room.slots[s.seatSlot]?.mode === 'pilot') return reject('phase');
+        // the seat's own socket speaks for its human even while a pilot covers an idle (AFK) hero; a pilot itself never
+        // speaks (bots only chat from fill seats, BotChat), and a seat given up has no socket here (seatOf above)
         const member = s.memberId!;
         const ch = msg.ch === 'all' ? 'all' : 'team';
         const c = (s.chat ??= { at: [], strikes: [], cooldownUntil: 0, held: new Set() });

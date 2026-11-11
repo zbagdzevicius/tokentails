@@ -138,9 +138,15 @@ describe('in-match chat (PROTO 6)', () => {
             a.send({ t: 'chat.say', k: 't', text: 'add me on discord', ch: 'team' });
             await a.until(() => rejects(a).length === 5);
             expect(rejects(a)[4].why).toBe('link');
+            // an idle hero covered by a pilot (AFK): its human's own socket still chats; the pilot never does
+            const live = [...b.relay.rooms.values()][0] as any;
+            live.room.slots[slotA].mode = 'pilot';
+            a.send({ t: 'chat.say', k: 'q', id: 31, ch: 'team' });
+            await c.until(() => lines(c).length === 3);
+            live.room.slots[slotA].mode = 'human';
             await settle();
-            expect(lines(c)).toHaveLength(2);
-            expect(b.stored.map(s => s.line.kind)).toEqual(['match', 'match']);
+            expect(lines(c)).toHaveLength(3);
+            expect(b.stored.map(s => s.line.kind)).toEqual(['match', 'match', 'match']);
             expect(b.stored[0].line).toMatchObject({
                 from: 'acct-a',
                 k: 't',
