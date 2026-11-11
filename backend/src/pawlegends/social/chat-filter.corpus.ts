@@ -5,6 +5,11 @@
 
 export const CHAT_PASS: readonly string[] = [
     'gg wp',
+    'nice,gg',
+    'good game, net positive',
+    'I am done. Me too',
+    'I have 11 lives',
+    'Kill the boss!',
     'GG, well played!',
     'nice moves',
     'one more match?',
@@ -351,6 +356,21 @@ export const CHAT_REJECT: ReadonlyArray<
     ['\u200B\u200B', 'empty'],
     ['ab'.repeat(61), 'long'],
     ['meow '.repeat(30), 'long'],
+    // review fixes: punctuation inside a word, leet app names, leet/comma TLDs, spaced-out links, look-alike digits
+    ['fu.ck', 'words'],
+    ['f*ck you', 'words'],
+    ['add me on d1scord', 'link'],
+    ['d!scord', 'link'],
+    ['dlscord', 'link'],
+    ['sn4pchat', 'link'],
+    ['1nsta', 'link'],
+    ['wats app', 'link'],
+    ['example.c0m', 'link'],
+    ['example,com', 'link'],
+    ['bitly/abc', 'link'],
+    ['g o o g l e . c o m', 'link'],
+    ['call 86l234567', 'contact'],
+    ['8612O4567', 'contact'],
 ];
 
 /** Probes: refused only in a 16-17 ↔ 18+ thread (`probes: true`), allowed otherwise. */

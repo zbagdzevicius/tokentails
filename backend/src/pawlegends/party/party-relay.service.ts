@@ -76,8 +76,10 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
         this.chatSink.start();
         const sink = this.chatSink;
         this.chatService?.setPendingLookup(mid => {
-            const line = sink.pending(mid);
-            return line ? { ...line, exp: new Date(line.at.getTime() + 30 * 86_400_000) } : null;
+            const entry = sink.pendingEntry(mid);
+            return entry
+                ? { ...entry.line, exp: new Date(entry.line.at.getTime() + 30 * 86_400_000), members: entry.members }
+                : null;
         });
         const bus = this.chatBus;
         return {

@@ -415,6 +415,28 @@ describe('pawlegends chat: reports', () => {
         await chat.report('K', { msg: sent.message.mid, kind: 'spam', note: 'hello' });
         expect(models.reports.docs[0].note).toBeUndefined();
     });
+    it('a party line still in the relay buffer: only an account of that party may report it', async () => {
+        const { chat, models } = harness();
+        const mid = '0123456789abcdef01234567';
+        chat.setPendingLookup(id =>
+            id === mid
+                ? {
+                      _id: mid,
+                      thread: 'pAAAAAAAAAAAAAAAAAAAAAA',
+                      from: 'B',
+                      k: 'q',
+                      id: 5,
+                      at: new Date(),
+                      exp: new Date(Date.now() + 86_400_000),
+                      members: ['A', 'B'],
+                  }
+                : null
+        );
+        expect(await status(chat.report('D', { msg: mid, kind: 'spam' }))).toBe('PAWLEGENDS_CHAT_NOT_FOUND');
+        expect(models.reports.docs).toHaveLength(0);
+        expect(await chat.report('A', { msg: mid, kind: 'spam' })).toEqual({ created: true });
+        expect(JSON.stringify(models.reports.docs[0].snapshot)).not.toContain('members');
+    });
 });
 
 describe('pawlegends chat: storage and routes', () => {

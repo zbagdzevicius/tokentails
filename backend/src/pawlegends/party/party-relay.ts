@@ -1490,6 +1490,12 @@ export class PartyRelay {
         c.at = c.at.filter(t => now - t < CHAT_SAY_RATE.windowMs);
         if (c.at.length >= CHAT_SAY_RATE.perWindow) return reject('rate');
         const info = this.chatInfo.get(member)?.info;
+        // a signed-in account whose mute, cooldown and blocks are not resolved yet says nothing until they are
+        const sid = s.identity;
+        if (this.opts.chat && sid?.ticketed && !sid.guest && sid.accountId && !info) {
+            this.resolveChat(s);
+            return reject('rate');
+        }
         if (this.chatMuted(member, now))
             return reject('muted', typeof info?.muted === 'number' ? info.muted : undefined);
         const strangers = !!p.mm && p.mm.strangers.size > 0;
@@ -1526,8 +1532,17 @@ export class PartyRelay {
         const me = p.members.find(m => m.id === member);
         // a matchmade party (strangers): the own team only
         const team = strangers && me ? this.parties.teamOfMember(p, me) : null;
+        // blocks are enforced here, not only hidden by the client: a line never reaches a member who blocked the
+        // sender, nor one the sender blocked
+        const fromAcc = s.identity?.accountId;
+        const mineBlocked = info?.blocked ?? [];
         for (const m of p.members) {
             if (team !== null && this.parties.teamOfMember(p, m) !== team) continue;
+            if (m.id !== member && fromAcc) {
+                const toAcc = m.identity.accountId;
+                if (toAcc && mineBlocked.includes(toAcc)) continue;
+                if (this.chatInfo.get(m.id)?.info.blocked.includes(fromAcc)) continue;
+            }
             const o = this.byMember.get(m.id);
             if (o) this.sendJson(o, out);
         }

@@ -244,7 +244,13 @@ const LINK_RES: RegExp[] = [
     ),
     /\.gg\s*\//i,
     /\b(?:wa\.me|t\.me|bit\.ly|tinyurl|linktr\.?ee|discord\.gg|dsc\.gg)\b/i,
+    // leet and comma spellings of the commonest TLDs (`site.c0m`, `site,com`)
+    /[a-z0-9-](?:\s*\.\s*|,)(?:c[o0]m|n[e3]t|[o0]rg)(?![a-z0-9])/i,
+    /\b(?:bitly|b1tly|tinyurl|linktree|linktr33)\b/i,
 ];
+
+/** App names matched on the leet-folded, l-to-i skeleton of the joined words (`d1scord`, `dlscord`, `sn4pchat`). */
+const SOCIAL_SKELETON_RE = /d[il]sc[o0]rd|snapch[a4]t|[il]nstagram|t[il]kt[o0]k|wh?atsapp?|te[il]egram|w[a4]tsap/;
 
 const EMAIL_RES: RegExp[] = [
     /\S+@\S+\.\S+/,
@@ -322,9 +328,24 @@ function spacedRuns(words: ReadonlyArray<string>): string[] {
     return out;
 }
 
+/** Whitespace-separated tokens, so punctuation inside a token cannot split a word (`fu.ck`, `f*ck`). */
+function tokensOf(text: string): string[] {
+    return text
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(w => !!w);
+}
+
+/** Runs of single characters separated by spaces glued together (`g o o g l e . c o m` -> `google.com`). */
+function collapseSpaced(text: string): string {
+    return text.replace(/(?:^|\s)((?:\S\s+){2,}\S)(?=\s|$)/g, (m, run: string) =>
+        (m.charAt(0) === ' ' ? ' ' : '') + run.replace(/\s+/g, '')
+    );
+}
+
 function hasWords(text: string): boolean {
     const words = wordsOf(text);
-    const candidates = words.concat(spacedRuns(words));
+    const candidates = words.concat(spacedRuns(words), tokensOf(text));
     for (let i = 0; i < candidates.length; i += 1) {
         const w = candidates[i];
         if (isBlockedCatName(w)) return true;
@@ -345,7 +366,9 @@ function hasEmailOrHandle(text: string): boolean {
 }
 
 function hasLink(text: string): boolean {
-    for (let i = 0; i < LINK_RES.length; i += 1) if (LINK_RES[i].test(text)) return true;
+    const collapsed = collapseSpaced(text);
+    for (let i = 0; i < LINK_RES.length; i += 1)
+        if (LINK_RES[i].test(text) || (collapsed !== text && LINK_RES[i].test(collapsed))) return true;
     // social apps by name, as whole words on the raw lowercase words (leet folding would turn `1g` into `ig`)
     const words = wordsOf(text);
     for (let i = 0; i < words.length; i += 1) {
@@ -354,12 +377,30 @@ function hasLink(text: string): boolean {
     }
     const joined = words.join('');
     if (/discord|snapchat|instagram|tiktok|whatsapp|telegram/.test(joined)) return true;
+    // leet spellings of the long app names (short ones like `ig` stay whole-word only: `1g` must not become `ig`)
+    if (SOCIAL_SKELETON_RE.test(foldCatName(text))) return true;
+    const tokens = tokensOf(text);
+    for (let i = 0; i < tokens.length; i += 1) {
+        const f = foldCatName(tokens[i]);
+        if (f.length >= 4 && SOCIAL_SET[f]) return true;
+    }
     return false;
 }
 
 function hasPhone(text: string): boolean {
     // 7 or more digits once spaces, dashes, dots, brackets and plus signs are removed
-    if (/\d{7,}/.test(text.replace(/[\s\-.()+\/]/g, ''))) return true;
+    const squeezed = text.replace(/[\s\-.()+\/]/g, '');
+    if (/\d{7,}/.test(squeezed)) return true;
+    // look-alike letters inside a digit run (`86l234567`, `8612O4567`): only when the run is mostly digits
+    const looks = squeezed.replace(/[oO]/g, '0').replace(/[lIi|]/g, '1');
+    const m = looks.match(/[0-9]{7,}/g);
+    if (m) {
+        for (let i = 0; i < m.length; i += 1) {
+            const at = looks.indexOf(m[i]);
+            const raw = squeezed.slice(at, at + m[i].length);
+            if (raw.replace(/[^0-9]/g, '').length >= 5) return true;
+        }
+    }
     // spelled digits: 5 or more in a row (digits may mix in)
     const words = text
         .toLowerCase()
@@ -404,7 +445,7 @@ export function filterChatText(input: unknown, options: ChatFilterOptions = {}):
     if (codePoints(text) > CHAT_LIMITS.textMax) return { ok: false, why: 'long' };
     if (!ALLOWED_RE.test(text)) return { ok: false, why: 'charset' };
     if (hasWords(text)) return { ok: false, why: 'words' };
-    if (hasEmailOrHandle(text)) return { ok: false, why: 'contact' };
+    if (hasEmailOrHandle(text) || hasEmailOrHandle(collapseSpaced(text))) return { ok: false, why: 'contact' };
     if (hasLink(text)) return { ok: false, why: 'link' };
     if (hasPhone(text) || hasAddress(text)) return { ok: false, why: 'contact' };
     if (options.probes && hasProbe(text)) return { ok: false, why: 'contact' };
