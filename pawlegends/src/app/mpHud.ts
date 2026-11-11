@@ -26,6 +26,9 @@ import { PING_TEXT } from '../ui/pingText';
 import { EMOTES, socialLine, socialText } from '../data/social';
 import { SLOT_RING, partySlotNames, type PartyLink, type PausedMsg, type SocialMsg, type VoteMsg } from './mpTypes';
 import { QuickChat, type ChatPick } from '../party/ui/quickChat';
+import { shellPlatform } from './platform';
+import { SIM_VERSION } from '../sim/version';
+import { REPORT_THANKS, reportPopover, reportable, closeReportPopover, type ReportBook } from '../social/report';
 
 /** What the party HUD needs from the MatchSession (kept narrow: the session stays the owner of every view). */
 export interface MpHudHost {
@@ -55,6 +58,8 @@ export interface MpHudHost {
   track(event: string, props: Record<string, string | number | boolean>): void;
   /** Match ticks now (the analytics clock). */
   tick(): number;
+  /** PvP reports (SOCIAL-RANKED.md §8): this match's report book (null outside PvP or standalone). */
+  report?: ReportBook | null;
   /** Test seam. */
   now?(): number;
 }
@@ -123,6 +128,28 @@ export function hintsFor(touch: boolean): { at: number; title: string }[] {
       ];
 }
 
+/** The ping chip's colour band (C6): green under 80 ms, yellow under 150 ms, red from 150 ms. Pure. */
+export function pingTone(rttMs: number): 'good' | 'warn' | 'bad' {
+  return rttMs < 80 ? 'good' : rttMs < 150 ? 'warn' : 'bad';
+}
+
+/** The ping chip's text: "48 ms", or "– ms" before the first RTT sample. Pure. */
+export function pingText(rttMs: number): string {
+  return rttMs > 0 ? `${Math.round(rttMs)} ms` : '– ms';
+}
+
+/** `mp_net` context (M1): the browser's connection class, web or the native shell, and the sim version. */
+function netEnv(): Record<string, string | number> {
+  let netType = 'unknown';
+  try {
+    const c = (typeof navigator !== 'undefined' ? (navigator as { connection?: { effectiveType?: unknown } }).connection : undefined)?.effectiveType;
+    if (typeof c === 'string' && c.length <= 8) netType = c;
+  } catch {
+    /* no Network Information API */
+  }
+  return { net_type: netType, platform: shellPlatform() ?? 'web', sim: SIM_VERSION };
+}
+
 // ------------------------------------------------------------------------------------------------ the HUD
 
 export class MpHud {
@@ -165,11 +192,55 @@ export class MpHud {
     h.minimap.ringOf = (slot) => (this.isFriend(slot) ? (SLOT_RING[slot] ?? null) : null);
     const sb = h.scoreboard();
     if (sb) sb.onMute = (slot) => this.toggleMute(slot);
+    if (sb && link.pvp && h.report) {
+      const book = h.report;
+      sb.report = {
+        can: (slot) => reportable(slot, link.mySlot, link.names),
+        done: (slot) => book.done(slot),
+        open: (slot, anchor) =>
+          void reportPopover(anchor, this.names[slot] ?? 'player', (reason) => {
+            void book.report(slot, reason, h.tick()).then((out) =>
+              this.h.rail.push(
+                out === 'failed'
+                  ? { key: 'mp-report', title: 'Report not sent. Try again', tone: 'bad', prio: 3, ttl: 2500 }
+                  : { key: 'mp-report', title: REPORT_THANKS, tone: 'info', prio: 3, ttl: 2500 },
+              ),
+            );
+          }),
+      };
+    }
     this.chat = new QuickChat(h.ui, { enabled: () => h.enabled() });
     this.chat.onPick = (p) => this.sendChat(p);
     this.applyNames();
     this.refreshSeats();
+    this.chip = this.makeChip();
+    this.drawPing();
     this.timer = setInterval(() => this.everySecond(), 1000);
+  }
+
+  /**
+   * The in-match ping chip (LATENCY-PLAN C6, MULTIPLAYER.md §4.2): always on, next to the match clock on the score
+   * plate (the HUD's own spot for it); on the HUD root when the plate is missing.
+   */
+  private chip: HTMLElement | null = null;
+
+  private makeChip(): HTMLElement | null {
+    if (typeof document === 'undefined') return null;
+    const el = document.createElement('span');
+    el.className = 'mp-ping';
+    el.title = 'Ping to the game server';
+    (this.h.ui.querySelector('.pl-score .mid') ?? this.h.ui).appendChild(el);
+    return el;
+  }
+
+  /** Read the link's RTT and redraw the chip (every second). */
+  drawPing(): void {
+    if (!this.chip) return;
+    const rtt = this.link.net().rttMs;
+    const text = pingText(rtt);
+    if (this.chip.textContent !== text) this.chip.textContent = text;
+    const tone = rtt > 0 ? pingTone(rtt) : 'good';
+    if (this.chip.dataset.tone !== tone) this.chip.dataset.tone = tone;
   }
 
   /** The match is live (after the countdown or at a rejoin): the analytics start and the hint clock. */
@@ -426,6 +497,7 @@ export class MpHud {
 
   private everySecond(): void {
     if (this.disposed) return;
+    this.drawPing();
     this.remakeCheck();
     if (this.paused) this.drawPaused();
     if (this.chat) this.chat.cool = false;
@@ -450,12 +522,17 @@ export class MpHud {
     const n = this.link.net();
     this.h.track('mp_net', {
       pacer: 2,
-      rtt_p50: n.rttMs,
-      rtt_p95: n.rttMs,
-      jitter_p95: 0,
+      // the ECHO samples' percentiles (LATENCY-PLAN M1); the EWMA before the first sample
+      rtt_p50: n.rttP50 ?? n.rttMs,
+      rtt_p95: n.rttP95 ?? n.rttMs,
+      jitter_p95: n.jitterP95 ?? 0,
       buffer: n.buffer,
       holds: n.holds,
       catchups: n.catchups,
+      ...(n.marginMs !== undefined ? { margin_m: n.marginMs } : {}),
+      ...(n.lateTurns !== undefined ? { late_turns: n.lateTurns } : {}),
+      ...(n.reconnects !== undefined ? { reconnects: n.reconnects } : {}),
+      ...netEnv(),
       ...(n.inputMs !== undefined ? { input_ms: n.inputMs } : {}),
       ...(n.inputP50 !== undefined && n.inputP95 !== undefined ? { input_p50: n.inputP50, input_p95: n.inputP95 } : {}),
       ...(n.inputN !== undefined ? { input_n: n.inputN } : {}),
@@ -475,10 +552,13 @@ export class MpHud {
     if (this.disposed) return;
     this.disposed = true;
     if (this.timer) clearInterval(this.timer);
+    this.chip?.remove();
+    this.chip = null;
     this.off();
     this.chat?.dispose();
     this.chat = null;
     this.h.rail.onAction = null;
     this.h.overhead.seats = null;
+    closeReportPopover();
   }
 }

@@ -21,6 +21,8 @@ import { HEROES } from '../data/heroes';
 import { createPedestal, PEDESTAL_BOTTOM, PEDESTAL_R, type Pedestal } from './lobby/pedestal';
 import { reducedMotion, StageFx } from './lobby/stageFx';
 import { FOIL_STRENGTH, setCharTime } from './chars/charMaterial';
+import { coatRung } from './skins/coatRung';
+import { AWAKEN_FOIL } from './skins/effectKit';
 import { getSkin, isCardSkinId } from './skins/skinStore';
 import type { GameRenderer } from './renderer';
 import { lobbyHero, type LobbyHero } from './views/heroView';
@@ -132,11 +134,15 @@ export class Lobby {
     this.look = key;
     this.hero = lobbyHero(hero, team, look);
     this.hero.object.name = `lobby-hero:${hero}:${key}`;
-    // a Legendary card skin shows its fur foil on the turntable too
+    // a Legendary card skin (or Legendary coat, CARD-SKINS.md) shows its fur foil on the turntable too; an Awakened
+    // card at its full Legend stage
     const skin = isCardSkinId(look?.coat) ? getSkin(look?.coat) : null;
+    const coatFx = skin ? null : coatRung(look?.coat, hero);
     const u = this.hero.ch.material.userData.u;
-    u.uFoil.value = skin?.rung === 'LEGENDARY' ? FOIL_STRENGTH : 0;
-    if (skin) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[skin.element], 0.5));
+    const legendary = skin?.rung === 'LEGENDARY' || coatFx?.rung === 'LEGENDARY';
+    u.uFoil.value = legendary ? (skin?.awakened ? AWAKEN_FOIL[3] : FOIL_STRENGTH) : 0;
+    const fel = skin?.element ?? coatFx?.element;
+    if (fel) u.uFoilColor.value.setHex(mixColor(0xffffff, ELEMENT_COLOR[fel], 0.75));
     // the stage takes the card's element colour (else the hero's own) and its Nature motes
     this.tint = skin ? ELEMENT_COLOR[skin.element] : cssToHex(HERO_COLOR_CSS[hero] ?? '#ff9f6b');
     this.backdrop.setTint(this.tint);
@@ -296,18 +302,13 @@ export class Lobby {
     if (this.t - this.edgeAt < 0.25 && this.edgeAt >= 0) return this.edge;
     this.edgeAt = this.t;
     let right = 0;
-    for (const el of document.querySelectorAll<HTMLElement>('.pl-pick-col, .pl-title-col, .pl-results-col, .lb-col')) {
+    // (the champion select has no column: its grid and panel cover the stage, so the hero stands centred behind them)
+    for (const el of document.querySelectorAll<HTMLElement>('.pl-title-col, .pl-results-col, .lb-col')) {
       const r = el.getBoundingClientRect();
       if (r.width > 0 && r.height > 0) right = Math.max(right, r.right);
     }
     const w = window.innerWidth || 1;
-    const h = window.innerHeight || 1;
-    // the pick footer, when it sits on the hero's half of the screen (short landscape), reserves its band
     this.foot = 0;
-    for (const el of document.querySelectorAll<HTMLElement>('.pl-pick-foot')) {
-      const r = el.getBoundingClientRect();
-      if (r.width > 0 && r.height > 0 && r.left > w * 0.45) this.foot = Math.min(0.35, Math.max(0, (h - r.top) / h));
-    }
     this.edge = right > 0 ? (right / w) * 2 - 1 : null;
     let card = Infinity;
     for (const el of document.querySelectorAll<HTMLElement>('.tt-mvp')) {

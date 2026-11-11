@@ -176,10 +176,19 @@ import { PAWLEGENDS_PARTY_SCHEMAS, MongoRoomStore } from './pawlegends/party/roo
 import { PartyRelayService } from './pawlegends/party/party-relay.service';
 import { PartyTicketService } from './pawlegends/party/party-ticket.service';
 import { MmService, PAWLEGENDS_MM_SCHEMAS } from './pawlegends/mm/mm.service';
+import { PAWLEGENDS_SOCIAL_SCHEMAS } from './pawlegends/social/social.schema';
+import { ReportService } from './pawlegends/social/report.service';
+import { PawlegendsReportsController } from './pawlegends/social/reports.controller';
+import { SocialService } from './pawlegends/social/social.service';
+import { PawlegendsSocialController } from './pawlegends/social/social.controller';
+import { RankedService } from './pawlegends/ranked/ranked.service';
+import { RankedStatusService } from './pawlegends/ranked/status';
+import { PawlegendsRankedController } from './pawlegends/ranked/ranked.controller';
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
 import { PAWLEGENDS_CAT_SALE, PawlegendsOfferService } from './pawlegends/pawlegends-offer.service';
+import { PawlegendsSeasonService } from './pawlegends/pawlegends-season.service';
 import { PawlegendsCheckoutGuard } from './pawlegends/pawlegends-checkout-guard.service';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
@@ -194,6 +203,8 @@ import { ClubService } from './club/club.service';
 import { ClubWebhookService } from './club/club-webhook.service';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
+import { RelayDrainController } from './shared/runtime/relay-drain.controller';
+import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
 
 const JwtModules = [
     PassportModule,
@@ -284,6 +295,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
             // Pawlegends party play (docs/plans/moba/MULTIPLAYER.md section 3.6): relay rooms and parties.
             ...PAWLEGENDS_PARTY_SCHEMAS,
             ...PAWLEGENDS_MM_SCHEMAS,
+            // Pawlegends social, ranked and PvP reports (docs/plans/moba/SOCIAL-RANKED.md section 11).
+            ...PAWLEGENDS_SOCIAL_SCHEMAS,
             // Moon Rave checkout (cat-rave/CHECKOUT-SPEC.md): open once its Stripe keys, webhook secret and keeper are set.
             { name: RaveOrder.name, schema: RaveOrderSchema },
             { name: RaveWebhookEvent.name, schema: RaveWebhookEventSchema },
@@ -298,6 +311,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
     ],
     controllers: [
         HealthController,
+        RelayDrainController,
         AppController,
         UserController,
         StarterController,
@@ -329,6 +343,12 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         BadcatOnlineController,
         // Pawlegends POC store: SKUs, Stripe checkout and webhook, entitlements, offers, notify-me.
         PawlegendsController,
+        // Pawlegends PvP reports and the moderator review (SOCIAL-RANKED.md section 8).
+        PawlegendsReportsController,
+        // Pawlegends friends, blocks, recent players, invites and presence (SOCIAL-RANKED.md sections 2-5).
+        PawlegendsSocialController,
+        // Pawlegends ranked status, the ranked card and the leaderboards (SOCIAL-RANKED.md sections 6, 7).
+        PawlegendsRankedController,
         // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
@@ -414,6 +434,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsWebhookService,
         PawlegendsAccountService,
         PawlegendsOfferService,
+        // Store ownership and the Legends Pass (docs/plans/moba/STORE-PASS.md).
+        PawlegendsSeasonService,
         { provide: PAWLEGENDS_CAT_SALE, useExisting: ShelterCatSaleService },
         // Age band and spend cap on the Token Tails cat checkout when it opens from Pawlegends.
         PawlegendsCheckoutGuard,
@@ -421,7 +443,13 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PartyTicketService,
         MongoRoomStore,
         MmService,
-        ...(role === 'all' ? [PartyRelayService] : []),
+        // Pawlegends social, ranked and PvP reports (SOCIAL-RANKED.md section 10).
+        ReportService,
+        SocialService,
+        RankedStatusService,
+        RankedService,
+        // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
+        ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,

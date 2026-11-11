@@ -27,6 +27,61 @@ variable "region" {
   default     = "europe-west3"
 }
 
+variable "relay_region" {
+  description = <<-EOT
+    Region of the party relay VM (LATENCY-PLAN C1); null = var.region. The relay is served through the regional
+    external ALB in var.region, which can only have backends in its own region, so today it must equal var.region.
+    A relay elsewhere (a second region, `relay_regions`) needs a load balancer per region: LATENCY-NEXT.md G1-G5.
+  EOT
+  type        = string
+  default     = null
+
+  validation {
+    condition     = var.relay_region == null || var.relay_region == var.region
+    error_message = "relay_region must equal region while the relay sits behind the regional ALB (LATENCY-NEXT.md G1)."
+  }
+}
+
+variable "relay_node_options" {
+  description = "NODE_OPTIONS of the relay process (LATENCY-PLAN R3): a 64 MB young generation, fewer scavenges on the turn path."
+  type        = string
+  default     = "--max-semi-space-size=64"
+}
+
+variable "relay_uv_threadpool_size" {
+  description = "UV_THREADPOOL_SIZE of the relay process (LATENCY-PLAN R3): TLS to Mongo, zlib and DNS off the default 4 threads."
+  type        = number
+  default     = 8
+}
+
+variable "budget_labels" {
+  description = <<-EOT
+    LATENCY-PLAN C3: count only costs carrying these labels in the budget (a single key and value, e.g.
+    { app = "tokentails" }). Empty = the whole project, which also counts motored-dev, n8n-db and n8n. Unlabelled costs
+    (network egress, Cloud NAT, logging) drop out of a label filter, so prefer raising budget_amount by those services'
+    measured monthly baseline unless the founder chooses the filter.
+  EOT
+  type        = map(string)
+  default     = {}
+
+  validation {
+    condition     = length(var.budget_labels) <= 1
+    error_message = "Cloud Billing budgets filter on at most one label."
+  }
+}
+
+variable "relay_rtt_eu_p95_ms" {
+  description = "Alert when the relay's server-measured EU socket RTT p95 stays above this (LATENCY-PLAN C4)."
+  type        = number
+  default     = 80
+}
+
+variable "relay_turn_overrun_p99_ms" {
+  description = "Alert when the relay's turn overrun p99 stays above this (LATENCY-PLAN C4)."
+  type        = number
+  default     = 5
+}
+
 variable "zones" {
   type    = list(string)
   default = ["europe-west3-a", "europe-west3-b", "europe-west3-c"]
@@ -319,4 +374,17 @@ variable "static_bucket_enabled" {
   description = "Create the private media bucket for future uploads (cdn.<domain>, a later step). Spaces stays until then."
   type        = bool
   default     = false
+}
+
+variable "test_source_cidrs" {
+  description = "LATENCY-PLAN E4 only: the operator's own address(es) Cloud Armor admits besides Cloudflare for the Cloudflare-vs-direct test (RUNBOOK \"Latency\"). Empty (the default) outside that test; set it in your own apply and set it back to [] afterwards."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = length(var.test_source_cidrs) <= 2 && alltrue([
+      for c in var.test_source_cidrs : can(cidrhost(c, 0)) && (strcontains(c, ":") ? tonumber(split("/", c)[1]) >= 64 : tonumber(split("/", c)[1]) == 32)
+    ])
+    error_message = "At most two single addresses: an IPv4 /32 or an IPv6 /64 or narrower. Never a range."
+  }
 }

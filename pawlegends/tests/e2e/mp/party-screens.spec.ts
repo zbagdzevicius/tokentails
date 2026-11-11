@@ -76,7 +76,8 @@ test('lobby, QR, pick and join code fit every size', async ({ browser }) => {
   await expect(b.page.locator('[data-testid="party-lock"]')).toBeVisible({ timeout: 15_000 });
   await a.page.locator('[data-testid="party-hero-clem"]').click();
   await a.page.locator('[data-testid="party-lock"]').click();
-  await atEverySize(b.page, 'pick-member', ['[data-testid="party-lock"]', '[data-testid="party-hero-cacklejaw"]', '[data-testid="party-timer"]']);
+  // the leader's Clem sets the cat side: B's grid shows the cats (Lambo), its LOCK IN and the 0:30 timer
+  await atEverySize(b.page, 'pick-member', ['[data-testid="party-lock"]', '[data-testid="party-hero-lambo"]', '[data-testid="party-timer"]']);
   // the pick lasts 30 s: the leader's locked view at desktop size only
   if (SHOTS) await a.page.screenshot({ path: `${SHOTS}/lane-P/screens/pick-leader-locked-1440x900.png` });
   // join by code on a fresh phone

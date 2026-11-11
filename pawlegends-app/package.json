@@ -1,17 +1,23 @@
 {
   "name": "pawlegends-app",
   "private": true,
-  "version": "1.0.1",
+  "version": "1.1.0",
   "type": "module",
-  "description": "Pawlegends native shell: the bundled iOS app (Capacitor 7) with self-hosted over-the-air web updates. Plan: docs/plans/moba/APP-STORE.md",
+  "description": "Pawlegends native shell: the bundled iOS and Android apps (Capacitor 7) with self-hosted over-the-air web updates. Plans: docs/plans/moba/APP-STORE.md, docs/plans/moba/PLAY-STORE.md",
   "engines": {
     "node": ">=20"
   },
   "scripts": {
     "build:web": "node scripts/build-web.mjs",
-    "build": "node scripts/build-web.mjs && cap sync ios && node scripts/check-privacy-manifests.mjs",
+    "build": "node scripts/build-web.mjs && node scripts/firebase-config.mjs sync && cap sync ios && node scripts/check-privacy-manifests.mjs && node scripts/firebase-config.mjs check --platform ios",
+    "build:android": "node scripts/build-web.mjs && cap sync android && node scripts/firebase-config.mjs check --platform android",
     "sync": "cap sync ios",
+    "sync:android": "cap sync android",
+    "sync:all": "cap sync",
     "ios:open": "cap open ios",
+    "android:open": "cap open android",
+    "android:debug": "cd android && ./gradlew assembleDebug",
+    "android:bundle": "cd android && ./gradlew bundleRelease",
     "ios:sim": "node scripts/build-sim.mjs",
     "mac": "node scripts/build-mac.mjs",
     "typecheck": "tsc --noEmit",
@@ -21,19 +27,24 @@
     "ota:keygen": "node scripts/ota-keygen.mjs",
     "ota:publish": "node scripts/ota-publish.mjs",
     "ota:local": "node scripts/ota-local.mjs",
-    "privacy:check": "node scripts/check-privacy-manifests.mjs"
+    "privacy:check": "node scripts/check-privacy-manifests.mjs",
+    "firebase:check": "node scripts/firebase-config.mjs check --platform all --release"
   },
   "dependencies": {
+    "@capacitor-firebase/authentication": "^7.5.0",
+    "@capacitor/android": "~7.6.0",
     "@capacitor/app": "^7.1.2",
     "@capacitor/core": "~7.6.0",
     "@capacitor/haptics": "^7.0.5",
     "@capacitor/ios": "~7.6.0",
-    "@capgo/capacitor-updater": "7.53.0"
+    "@capgo/capacitor-updater": "7.53.0",
+    "firebase": "^11.10.0"
   },
   "devDependencies": {
     "@capacitor/cli": "~7.6.0",
     "@types/node": "^22.20.5",
     "esbuild": "^0.28.2",
+    "happy-dom": "^20.14.5",
     "sharp": "^0.34.5",
     "typescript": "^5.9.3",
     "vitest": "^3.2.7"

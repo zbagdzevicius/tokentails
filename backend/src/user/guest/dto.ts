@@ -1,5 +1,5 @@
 import { ValidationPipe } from '@nestjs/common';
-import { IsMongoId, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsMongoId, IsOptional, IsString, Matches, MaxLength } from 'class-validator';
 
 /** Body of `POST /user/catbassadors/referral` (decision #12). */
 export class ReferralDto {
@@ -13,6 +13,15 @@ export class DeleteAccountDto {
     @IsString()
     @MaxLength(2048)
     appleAuthorizationCode?: string;
+
+    /**
+     * The app the code came from (`com.tokentails.app`, `com.tokentails.pawlegends`). Only an id on
+     * APPLE_CLIENT_IDS is used (apple-revoke.ts); anything else falls back to APPLE_CLIENT_ID.
+     */
+    @IsOptional()
+    @IsString()
+    @Matches(/^[A-Za-z0-9.-]{1,155}$/)
+    appleClientId?: string;
 }
 
 /** Strict pipe for the identity routes: unknown fields are rejected. */

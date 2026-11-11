@@ -76,7 +76,7 @@ Public impact numbers are served by `GET /impact` (below), not by `/count`.
 | POST | `/user/guest/session` | Create the guest document and its SCOUT starter for an anonymous token (idempotent). 409 for a registered token. Reads `x-firebase-appcheck`; enforced only with `APP_CHECK_ENFORCE=true`. Per-IP limit `GUEST_SESSIONS_PER_IP_PER_HOUR` | Guest ok (transient), Throttle(20) |
 | POST | `/user/guest/merge` | Merge the guest named by `x-guest-token` into the caller's account: best scores max, Heist stars OR, cleared flags, Game rows re-parented, pending Tails credited up to the lifetime cap, guest starter dropped. Once per account per 30 days (409 otherwise); idempotent and resumable | Auth, Throttle(10) |
 | DELETE | `/user/guest` | Erase the caller's guest progress (document, cats, Game rows, anonymous Firebase user) | Guest ok (transient) |
-| DELETE | `/user/me` | Delete the account: anonymise the document, delete the Firebase users, release cats, revoke Sign in with Apple when the body carries `{appleAuthorizationCode}` and the server has the Apple keys | Auth, Throttle(5) |
+| DELETE | `/user/me` | Delete the account: anonymise the document, delete the Firebase users, release cats, revoke Sign in with Apple when the body carries `{appleAuthorizationCode}` and the server has the Apple keys. Optional `appleClientId` names the app the code came from (`com.tokentails.pawlegends` for the Paw Legends app; only ids on `APPLE_CLIENT_IDS` are used) | Auth, Throttle(5) |
 | GET | `/user/profile/:id` | A user's `name email discount permission shelter twitter discord` for the CMS user form | Perm(4) |
 | POST | `/user/profile` | Create a user with wallet and a locked starter cat. A non-ADMIN may not create a role above USER (403) | Perm(4) |
 | PUT | `/user/profile/:id` | Update `name`, `email`, `discount`, `permission` (any other field, including `shelter`, gets 400). Only an ADMIN may change `email` or `permission` (403 otherwise; unchanged values pass) | Perm(4) |
@@ -572,7 +572,7 @@ ObjectIds; public ids look like `p-…` and `o-…`.
 | PUT | `/image/portrait/:id/regenerate` | Regenerate a portrait (a paid generation, same caps as above). 404 for another owner's image or a `/yourcat` record; 403 `GUEST_FORBIDDEN` for a guest, and 403 for anyone below EDITOR, on an image without owner (images created before bet #3); 409 `YOURCAT_PORTRAIT_EXISTS` when the image has a completed order. Provider errors return a fixed message | Guest ok, User(5), 10/min per client IP |
 | POST | `/image/create-checkout-session` | Stripe Checkout for `digital`, `print`, `canvas` at the server price (€14, €49, €69 by card; a sent `amount` is ignored); digital requires Stripe's terms checkbox with the withdrawal acknowledgement when `PORTRAIT_CHECKOUT_TOS_CONSENT=true` (needs a terms URL in the Stripe settings); the session expires after 2 h; creates a pending EUR order; may create a user from `email` (lowercased, with a locked starter and no onboarding). `userId` is used only when it is the image's owner, or the image has no owner and no completed order; otherwise it is ignored and the buyer is found by `email`. 404 for a `/yourcat` image | Public, Throttle(5) |
 | POST | `/image/create-checkout-session-signed` | Same, user taken from the caller; 404 for an image owned by someone else | Auth, Throttle(5) |
-| POST | `/image/webhook` | Stripe webhook; on `checkout.session.completed` checks the session is paid in the order's currency and at least the price stored on the order, completes the pending order once, writes `spent`, `monthSpent` and `spentUsd` from the stored USD figure (an EUR order's USD stats conversion) or the verified USD amount. A portrait order then emails the buyer (account email, else the one Checkout collected) and creates the blessing (`kind: portrait`) and cat; a `/yourcat` order instead starts the HD portrait delivery (painted after payment, emailed when ready, no second cat) | Stripe, not throttled |
+| POST | `/image/webhook` | Stripe webhook; on `checkout.session.completed` checks the session is paid in the order's currency and at least the price stored on the order, completes the pending order once, writes `spent`, `monthSpent` and `spentUsd` from the stored USD figure (an EUR order's USD stats conversion) or the verified USD amount. A portrait order then emails the buyer (account email, else the one Checkout collected) and creates the blessing (`kind: portrait`) and cat; a `/yourcat` order instead starts the HD portrait delivery (painted after payment, emailed when ready, no second cat). Paw Legends events on the same account (Checkout Sessions with `metadata.pawlegends === '1'`, every `charge.refunded` and `charge.dispute.closed`) go to the Paw Legends store handler first; its sessions never reach the order lookup | Stripe, not throttled |
 | GET | `/image/order/status?_id=` | Poll an order's status. Returns only `_id status entityType id image price`; 400 when `_id` is not an ObjectId | Public |
 
 ## Your cat (`/yourcat`, bet #3)
@@ -693,7 +693,7 @@ bought from the game go through `POST /web3/create-payment` or `POST /payments/c
 | GET | `/pawlegends/sim` | `{simVersion, bundleSha256, placeholder, levels}`: the vendored sim `/live` replays with | – | Public (cached 60 s) |
 | POST | `/pawlegends/checkout` | `{sku, currency, email?, ageBand, consentVersion, deviceId, token?}` (`currency` `usd` or `eur`; `token` proves Founder for the upgrade) → `{url, sessionId}`, a Stripe Checkout Session with inline `price_data` (tax inclusive; a client price is ignored). Refuses under 16, a second Starter, the rolling 30-day spend cap (€30 for 16-17, €200 for 18+; the strictest of email and device), a sold-out Founder Legend and an upgrade without Founder. 503 without the Stripe key, webhook secret or entitlement key | Stripe key + webhook secret + entitlement key | Public, 5/min |
 | POST | `/pawlegends/checkout/account` | The same body and answer as `/pawlegends/checkout`, with the caller's account id as one more spend-cap and once-only key. Guests are refused | Stripe key + webhook secret + entitlement key | Auth (registered), 5/min |
-| POST | `/pawlegends/stripe/webhook` | Stripe events (raw body). Idempotent per event and per session; grants each paid session once, handles expiry and refunds. 400 on a bad signature; 503 without `PAWLEGENDS_STRIPE_WEBHOOK_SECRET` | webhook secret | Stripe |
+| POST | `/pawlegends/stripe/webhook` | Stripe events (raw body). Idempotent per event and per session; grants each paid session once, handles expiry, refunds (`charge.refunded`) and lost chargebacks (`charge.dispute.closed`). 400 on a bad signature; 503 without `PAWLEGENDS_STRIPE_WEBHOOK_SECRET`. Optional: on the shared Token Tails account the same events arrive through `/image/webhook`; both share the event-id store | webhook secret | Stripe |
 | GET | `/pawlegends/entitlements?sessionId=` | After Checkout: pending until the webhook landed, then the signed entitlement token and items. With `x-pawlegends-token` instead: a refreshed token | entitlement key | Public, 30/min |
 | POST | `/pawlegends/restore` | `{email}` → the same answer for any valid email; emails a single-use 30-minute restore link (SendGrid) | entitlement key; SendGrid | Public, 3 per 10 min |
 | POST | `/pawlegends/restore/verify` | `{t}` → entitlements. Single use | entitlement key | Public, 10/min |
@@ -703,9 +703,49 @@ bought from the game go through `POST /web3/create-payment` or `POST /payments/c
 | GET | `/pawlegends/founders` | `{left, cap: 500}`: Founder Legend seats left. `Cache-Control: public, max-age=15` | – | Public, 60/min |
 | POST | `/pawlegends/notify` | `{email, source?}`: Legends Pass notify-me, double opt-in by email | SendGrid | Public, 3 per 10 min |
 | POST | `/pawlegends/notify/confirm` | `{t}`: confirms a notify-me sign-up | – | Public, 10/min |
+| GET | `/pawlegends/me` | STORE-PASS.md: `{items, season: {id, name, startsAt, endsAt, tiers, xpPerTier, xp, tier, premium: 'none' \| 'pass' \| 'plus', skips, claimed: ['f:3', 'p:7'], claimable}}`, the account's owned store and pass items and its Legends Pass row (guests too: they earn Season XP and claim the free row) | – | Auth (guests allowed), 60/min |
+| POST | `/pawlegends/pass/claim` | `{seasonId?, row: 'f' \| 'p', tier}` or `{all: true}` → `{items, me}`. Idempotent (a claimed tier answers no items); 403 `PAWLEGENDS_TIER_LOCKED` before the tier, 403 `PAWLEGENDS_NEEDS_PASS` on the premium row without the pass | – | Auth (guests allowed), 30/min |
+
+Store and Legends Pass SKUs (STORE-PASS.md; `pl_coat_*`, `pl_frame_*`, `pl_set_*`, `pl_pass_*`, table in
+`backend/src/pawlegends/pawlegends-catalog.ts`) are sold only through `POST /pawlegends/checkout/account` (401
+`PAWLEGENDS_SIGN_IN` without an account) with the store consent `consentVersion: '2026-11-10'`; once per account; a
+set is refused (409 `PAWLEGENDS_ALREADY_OWNED`) while any of its items is owned; the Pass+ upgrade needs the Pass (403
+`PAWLEGENDS_NEEDS_PASS`). The presale `pl_*` SKUs are retired: 410 `PAWLEGENDS_RETIRED`. `GET /pawlegends/status`
+lists every SKU with `kind`, `items`, `bundleOf`, `requires` and `retired`, plus `catalog` and `season`. The PAWLEGENDS
+answers of `POST /user/catbassadors/live` (solo and party) carry `season: {seasonId, xp, tier, prevTier, gained}`.
 
 Outside production, `PAWLEGENDS_DEV_LINKS=true` puts the restore and notify links in the answers.
 
+
+### Pawlegends social, ranked and PvP reports (docs/plans/moba/SOCIAL-RANKED.md)
+
+No route here writes a score: board rows and ranked points are written only by `POST /user/catbassadors/live` (the
+party save). Clients see player codes (`PL-XXXX-XXXX`) and display names (generated, or one of the player's own
+moderated cat names), never an account id or an email. The game reaches these routes only through its host
+(`api-request`, SOCIAL-RANKED.md §13). Every route counts a per-client-IP bucket; the social routes also a per-account one.
+
+| Method | Path | Body or query → answer | Auth, throttle |
+|---|---|---|---|
+| GET | `/pawlegends/social` | `{me: {code, name, nameKind, invisible, allowRecent, ageBand}, friends: [{code, name, presence}], requests: {in, out}, blocks, invites, rev}` | Registered (guest 403), 60/min |
+| GET | `/pawlegends/social/pulse?rev=` | 204 while nothing changed, else `{rev, invites}`; writes the API presence at most once a minute | Registered, 6/min |
+| POST | `/pawlegends/social/friends` | `{code}` or `{room, slot}` (a recent match) → `{state: 'sent' \| 'friends'}` (a crossed request auto-accepts). Caps: 100 friends, 20 pending, 30 a day; under 16 never via recent | Registered, 5/min; code lookups 30 / 10 min |
+| POST | `/pawlegends/social/friends/:code/accept`, `/decline`; DELETE `/pawlegends/social/friends/:code` | accept, decline or cancel, remove | Registered, 30/min |
+| POST | `/pawlegends/social/blocks` | `{code}` or `{room, slot}`: removes the edge and invites, hides presence both ways; DELETE `/pawlegends/social/blocks/:code` unblocks | Registered, 30/min |
+| POST | `/pawlegends/social/me` | `{name?: 'generated' \| <own cat id>, invisible?, allowRecent?}` | Registered, 10/min |
+| POST | `/pawlegends/social/code/rotate` | a new code, 3 a day | Registered |
+| GET | `/pawlegends/social/recent` | `{players: [{room, slot, name, team, canAdd}]}`: humans of the last 20 mm rooms, 7 days | Registered, 30/min |
+| POST | `/pawlegends/social/invite` | `{to: code}`: needs a joinable friend party (relay presence) and an accepted friend; 10 per 10 min | Registered |
+| POST | `/pawlegends/social/age` | `{ageBand}`: the store's band, the stricter answer wins | Registered, 5/min |
+| GET | `/pawlegends/ranked/status` | `{open, online, need, season}`; opens at 24 ranked-eligible players online, closes under 16 for 10 min | Public, 60/min |
+| GET | `/pawlegends/ranked/me` | eligibility (`why: 'matches' \| 'locked' \| 'pending' \| 'sign_in'`), tier, decayed points, placements, locks, pending rooms and rewards | Auth, 60/min |
+| GET | `/pawlegends/boards/:kind` | `kind`: `weekly`, `global`, `hero` (`?hero=`); `?page=` (8 a page), `?week=`, `?season=` → `{rows: [{rank, name, value, tier?, winRate?}], period, page, pages}`. Cached 60 s | Public, 60/min |
+| GET | `/pawlegends/boards/:kind/me` | the same plus `me: {rank, value}`; `friends` only here (the caller and up to 100 friends) | Registered, 60/min |
+| POST | `/pawlegends/reports` | `{room, slot, reason: 'afk' \| 'grief' \| 'cheat' \| 'name', note?, tick?}` → 201 `{ok}`, or 200 `{ok, already}` for a repeat. 400 `PAWLEGENDS_REPORT_BOT` / `_SELF` / `_INVALID`, 404 `PAWLEGENDS_REPORT_ROOM`, 429 `PAWLEGENDS_REPORT_LIMIT` (10 a day, guests 3; 5 a room). The note is kept for 16+ bands only | Auth (guests too), 20 / 10 min per IP |
+| POST | `/pawlegends/reports/notice` | `{warn}`: a moderator warning, shown once | Auth |
+| GET | `/pawlegends/admin/reports` | `?status=open\|actioned\|dismissed\|all&reason=&flag=1&page=` → groups per reported player with counts, flags F1–F5 and the map-hack z. Reporter ids are never returned | MODERATOR (2) |
+| GET | `/pawlegends/admin/reports/stats` | `?days=14` → `{pvpMatches, rankedMatches, mapHackConfirmed, rate}`: the 1% fog trigger | MODERATOR |
+| GET | `/pawlegends/admin/reports/:accountId` | the reports with notes, each room's queue, team, member events and referee intel, the sanctions | MODERATOR |
+| POST | `/pawlegends/admin/reports/:accountId/resolve` | `{action: 'dismiss' \| 'warn' \| 'queue_lock' \| 'ranked_lock' \| 'board_exclude' \| 'pvp_ban', days?, reasonCode}`: the only sanction writer; the relay's `mm.join` honours locks | MODERATOR |
 
 ### Pawlegends party play (docs/plans/moba/MULTIPLAYER.md)
 

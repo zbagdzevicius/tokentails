@@ -4,11 +4,11 @@ import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date this notice last changed. Update it with every change to the text. */
-export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-07";
+export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-11";
 
 export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} app privacy - Token Tails`,
-  description: `What the ${PAWLEGENDS_TITLE} app for iPhone keeps on your phone, what party play sends to our server, and how long we keep it.`,
+  description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what signing in and party play send to our server, and how long we keep it.`,
   path: "/pawlegends/privacy",
 });
 
@@ -27,9 +27,11 @@ const A = ({ href, children }: { href: string; children: React.ReactNode }) => (
 );
 
 /**
- * `/pawlegends/privacy`: the privacy policy URL of the Pawlegends iOS app (App Store Connect "Privacy Policy URL",
- * `pawlegends-app/fastlane/metadata/en-US/privacy_url.txt`, and the app build's Settings link). Written from what
- * the app build does (`pawlegends-app/scripts/build-web.mjs`: no analytics key, no account, no purchases) and what
+ * `/pawlegends/privacy`: the privacy policy URL of the Pawlegends iOS and Android apps (App Store Connect "Privacy Policy
+ * URL", `pawlegends-app/fastlane/metadata/en-US/privacy_url.txt`, the Google Play listing and Data safety form, and the
+ * app build's Settings link). Written from what
+ * the app build does (`pawlegends-app/scripts/build-web.mjs`: no analytics key, no purchases; sign-in is optional and
+ * runs in the app's in-page host, `pawlegends-app/src/host`) and what
  * the party relay keeps (`backend/src/pawlegends/party/room-store.ts`: parties 3 h after the last change, ended
  * rooms 30 days). The answers in `docs/plans/moba/APP-STORE-ANSWERS.md` must say the same thing: change both
  * together. The web game and Token Tails accounts stay under the general Token Tails policy.
@@ -50,9 +52,19 @@ export default function PawlegendsPrivacyPage() {
 
           <Section title="In short">
             <ul className="list-disc pl-5">
-              <li>No account, no sign-in, no email, no ads, no purchases.</li>
-              <li>No analytics, no tracking, no advertising identifier.</li>
-              <li>Playing against bots works offline and sends nothing to us.</li>
+              <li>
+                Signing in is optional (Apple, Google or email). Without it the game asks for no name, no email and
+                no account.
+              </li>
+              <li>No ads, no purchases, no analytics, no tracking, no advertising identifier.</li>
+              <li>Playing against bots offline sends nothing to us.</li>
+              <li>
+                You can delete your account in the app (Settings → Account) or at{" "}
+                <Link href="/pawlegends/account" className="text-tt-gold-400 underline underline-offset-4">
+                  tokentails.com/pawlegends/account
+                </Link>
+                .
+              </li>
               <li>
                 Only if you play with friends does the app talk to our server, and then only what the match needs. We
                 delete it after at most 30 days.
@@ -78,10 +90,45 @@ export default function PawlegendsPrivacyPage() {
             </p>
           </Section>
 
+          <Section title="Signing in (optional)">
+            <p>
+              You can sign in with Apple, Google or an email address and password, from the title screen or Settings.
+              Signing in is never needed to play. When you sign in we receive and keep:
+            </p>
+            <ul className="list-disc pl-5">
+              <li>
+                your email address (with Sign in with Apple you may choose Hide My Email: we then get an Apple relay
+                address) and, if Apple or Google share it, your name;
+              </li>
+              <li>an account id from our sign-in provider (Google Firebase Authentication);</li>
+              <li>
+                your Token Tails profile: a player name, your match results and grades, the Treat Track (Legends Pass)
+                progress you earn by playing, and, if you use them, your friends, ranked results and reports.
+              </li>
+            </ul>
+            <p>
+              We use this only to run your account: save your progress, show it on your other devices and on
+              tokentails.com, and run friends and ranked play. Your password goes to Firebase, never to us.
+            </p>
+            <p>
+              Once you have played online, the app also keeps an anonymous guest account (a random Firebase id with no
+              name or email) so the server can save your matches and Treat Track before you sign in. When you sign in,
+              the app asks before it adds that guest progress, and the matches played on this phone, to your account.
+            </p>
+            <p>
+              We keep your account until you delete it: in the app (Settings → Account → Delete account) or at{" "}
+              <Link href="/pawlegends/account" className="text-tt-gold-400 underline underline-offset-4">
+                tokentails.com/pawlegends/account
+              </Link>
+              . Deleting removes your sign-in and email, revokes Sign in with Apple, renames the profile to
+              &quot;Deleted player&quot; and takes it off the leaderboards.
+            </p>
+          </Section>
+
           <Section title="Playing with friends (optional)">
             <p>When you make or join a party, the app connects to our game server and sends:</p>
             <ul className="list-disc pl-5">
-              <li>the random party key from your phone (it is not linked to your name, email or Apple ID);</li>
+              <li>the random party key from your phone (it is not linked to your name, email, Apple ID or Google account);</li>
               <li>a player name the game picks for you (you cannot type your own);</li>
               <li>your hero, your picks and your moves in the match, and the quick-chat phrases and pings you send.</li>
             </ul>
@@ -98,6 +145,7 @@ export default function PawlegendsPrivacyPage() {
               </li>
             </ul>
             <p>Your friends in the party see your player name, your hero and your moves.</p>
+            <p>If you are signed in (or playing as the guest above), the party also knows that account, so the match counts for it.</p>
           </Section>
 
           <Section title="Game updates">
@@ -118,22 +166,25 @@ export default function PawlegendsPrivacyPage() {
 
           <Section title="Who else gets data">
             <p>
-              Nobody buys or receives your data from us. Our server runs at our hosting provider (DigitalOcean) and the
-              website at Vercel; they process it only to run those services for us. We do not sell or share data for
-              advertising.
+              Nobody buys or receives your data from us. Our server runs at our hosting provider (DigitalOcean), the
+              website at Vercel, and sign-in at Google Firebase Authentication; they process it only to run those
+              services for us. If you choose Sign in with Apple or Google, Apple or Google confirm who you are to us. We
+              do not sell or share data for advertising.
             </p>
           </Section>
 
           <Section title="Children">
             <p>
-              The app asks nobody for personal details, at any age. Party play sends only the game data listed above.
+              The app asks nobody for personal details to play, at any age. Signing in is optional; party play sends
+              only the game data listed above.
             </p>
           </Section>
 
           <Section title="Your rights">
             <p>
-              Under the GDPR you can ask to see or delete data about you. As there is no account, we can only find a
-              match if you tell us its party code and roughly when you played: write to{" "}
+              Under the GDPR you can ask to see or delete data about you. Signed in, you can delete your account
+              yourself (see above). Without an account we can only find a match if you tell us its party code and
+              roughly when you played: write to{" "}
               <a href={`mailto:${PAWLEGENDS_CONTACT}`} className="text-tt-gold-400 underline underline-offset-4">
                 {PAWLEGENDS_CONTACT}
               </a>
@@ -145,7 +196,7 @@ export default function PawlegendsPrivacyPage() {
           <Section title="Changes">
             <p>
               If the app starts collecting anything new (for example accounts or play statistics), we update this page
-              and the app&apos;s App Store privacy details before that version is released.
+              and the app&apos;s App Store privacy details and Google Play data safety section before that version is released.
             </p>
           </Section>
 

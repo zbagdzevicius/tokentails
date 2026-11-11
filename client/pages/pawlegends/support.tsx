@@ -25,7 +25,7 @@ const Mail = () => (
 /**
  * `/pawlegends/support`: the support URL of the Pawlegends iOS app (App Store Connect "Support URL",
  * `pawlegends-app/fastlane/metadata/en-US/support_url.txt`). Apple wants a page with a way to reach us. It describes
- * what the app does (no account, no purchases), so nothing here may point at a checkout.
+ * what the app does (optional sign-in, no purchases), so nothing here may point at a checkout.
  */
 export default function PawlegendsSupportPage() {
   return (
@@ -74,7 +74,12 @@ export default function PawlegendsSupportPage() {
 
           <Section title="Your data">
             <p>
-              No account, no ads, no tracking. Details:{" "}
+              Signing in is optional (Apple, Google or email); without it there is no account. No ads, no tracking. To
+              sign out or delete your account: Settings → Account in the app, or{" "}
+              <Link href="/pawlegends/account" className="text-tt-gold-400 underline underline-offset-4">
+                {PAWLEGENDS_TITLE} account
+              </Link>
+              . Details:{" "}
               <Link href="/pawlegends/privacy" className="text-tt-gold-400 underline underline-offset-4">
                 {PAWLEGENDS_TITLE} app privacy
               </Link>

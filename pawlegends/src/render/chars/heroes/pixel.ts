@@ -133,7 +133,7 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
     // a kid rig with a big head on a box torso. The spec's headScale 1.35 / bodyScale 0.8 put the neck joint only 0.19 H
     // over the hips (chars.test "upright" needs 0.25 H): 1.15 on a full-size body keeps the big kid head and passes.
     rig: { width: 0.85, tier: 'kid', headScale: 1.15, bodyScale: 1, earSplay: 0.1 },
-    coat: lc ? { pattern: 'tuxedo', base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT,
+    coat: lc ? { pattern: lc.pattern ?? 'tuxedo', ...(lc.patch !== undefined ? { patch: lc.patch } : {}), base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT,
     eyes: { inner: 0xbfe8ff, outer: 0x4fa8d9, ring: 0x1a3a5a, size: 1.3 },
     earInner: 0xffb3c8,
     nose: 0xff9fb1,

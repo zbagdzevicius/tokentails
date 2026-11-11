@@ -480,6 +480,20 @@ export const ERROR_CODES = [
   'seat_taken',
   /** PROTO 3: casual PvP needs a newer game (the socket's PROTO or sim is older than PvP). */
   'pvp_update_required',
+  /**
+   * Live-match deploys (docs/plans/moba/LIVE-MATCH-DEPLOYS.md): this relay is draining. Reconnect after `retryMs` (the
+   * socket closes with 1012); the party, the queue and the match continue on the new relay. Never shown to the player.
+   */
+  'server_moving',
+  /** The room of this resume token lives on another relay right now: reconnect after `retryMs`. Never shown. */
+  'room_elsewhere',
+  /** The match of this resume token ended (or was abandoned) while the player was away: leave the match screen. */
+  'room_over',
+  /**
+   * The party of this `party.join` code lives on another relay right now (LIVE-MATCH-DEPLOYS.md §14): reconnect after
+   * `retryMs` (the socket closes with 4013) and send the join again. The client retries a bounded number of times.
+   */
+  'party_elsewhere',
 ] as const;
 export type ErrorCode = (typeof ERROR_CODES)[number];
 

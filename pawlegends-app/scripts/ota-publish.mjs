@@ -1,21 +1,30 @@
 #!/usr/bin/env node
 /**
- * Publish the built web bundle (`www/`, from scripts/build-web.mjs) as an over-the-air update:
+ * Publish the built web bundle (`www/`, from scripts/build-web.mjs) as an over-the-air update for the iOS and
+ * Android apps (both run the same bundle):
  *
  *   client/public/pawlegends-app/updates/ios/<compat>/bundles/<version>.zip   (encrypted, see lib/capgo-crypto.mjs)
- *   client/public/pawlegends-app/updates/ios/<compat>/manifest-beta.json      (signed; TestFlight installs read it)
- *   client/public/pawlegends-app/updates/ios/<compat>/manifest.json           (signed; App Store installs read it)
+ *   client/public/pawlegends-app/updates/<platform>/<compat>/manifest-beta.json   (signed; TestFlight installs read it)
+ *   client/public/pawlegends-app/updates/<platform>/<compat>/manifest.json        (signed; App Store and Play installs)
+ *
+ * <platform> is ios and android. The bundles stay under ios/ (the first iOS binaries accept only that path); each
+ * platform's manifests point at the same zip with its own minNative and rollback state.
  *
  * A new bundle goes to the beta channel only. `--promote` later copies the beta manifest to stable (signed again)
  * once the bundle is at least --soak-hours old (its seq is its UTC build time), so TestFlight sees every update a day
- * before App Store players. tokentails.com (Vercel, client/public) serves the files once committed to main. Older
- * bundles beyond --keep are removed, never the ones a manifest names (a rollback can use any kept one).
+ * before App Store and Google Play players. tokentails.com (Vercel, client/public) serves the files once committed to
+ * main. Older bundles beyond --keep are removed, never the ones a manifest of any platform names (a rollback can use
+ * any kept one).
  *
  * Usage:
- *   node scripts/ota-publish.mjs [--min-native 1.0.0] [--keep 3] [--check-sim]   publish www/ to beta
- *   node scripts/ota-publish.mjs --promote [--soak-hours 24]                      beta -> stable when soaked (0 = now)
- *   node scripts/ota-publish.mjs --rollback <version>     point beta AND stable at a kept bundle (signed again)
+ *   node scripts/ota-publish.mjs [--min-native 1.0.0] [--min-native-ios x] [--min-native-android y] [--keep 3] [--check-sim]
+ *                                                             publish www/ to beta (both platforms)
+ *   node scripts/ota-publish.mjs --promote [--soak-hours 24]  beta -> stable per platform when soaked (0 = now)
+ *   node scripts/ota-publish.mjs --rollback <version>         point beta AND stable at a kept bundle (signed again);
+ *                                                             Android only when the bundle's record says android: true
+ *   --platform ios|android                                    any of the above for one platform only
  *
+ * --min-native sets both platforms; the per-platform flags win. Without them each platform keeps its current value.
  * The private key: OTA_PRIVATE_KEY (PEM text, CI), else OTA_PRIVATE_KEY_PATH, else ota/.keys/private-key.pem.
  * --check-sim: refuse unless api.tokentails.com accepts this bundle's SIM_VERSION (GET /pawlegends/sim → simVersions).
  * The workflow also runs the stricter `npm run vendor-sim:check-remote` in pawlegends/ (same sim bundle sha256).
@@ -24,7 +33,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync
 import { join } from 'node:path';
 import { encryptBundle, publicPemOf, signManifest } from './lib/capgo-crypto.mjs';
 import { zipDir } from './lib/zip.mjs';
-import { API_ORIGIN, APP_DIR, LOCAL_PRIVATE_KEY_PATH, NATIVE_COMPAT, PUBLIC_KEY_PATH, SOAK_HOURS, UPDATES_DIR, UPDATES_URL as SITE_UPDATES_URL } from './lib/app-config.mjs';
+import { API_ORIGIN, APP_DIR, BUNDLES_PLATFORM, LOCAL_PRIVATE_KEY_PATH, NATIVE_COMPAT, OTA_PLATFORMS, PUBLIC_KEY_PATH, SOAK_HOURS, UPDATES_DIR, UPDATES_URL as SITE_UPDATES_URL } from './lib/app-config.mjs';
 
 /** OTA_UPDATES_URL overrides where the bundles are served (scripts/ota-local.mjs: the local test server). */
 const UPDATES_URL = process.env.OTA_UPDATES_URL || SITE_UPDATES_URL;
@@ -53,9 +62,15 @@ if (publicPemOf(key).trim() !== committed) {
   process.exit(2);
 }
 
-const compatDir = join(UPDATES_DIR, 'ios', String(NATIVE_COMPAT));
-const bundlesDir = join(compatDir, 'bundles');
-const MANIFESTS = { stable: join(compatDir, 'manifest.json'), beta: join(compatDir, 'manifest-beta.json') };
+const bundlesDir = join(UPDATES_DIR, BUNDLES_PLATFORM, String(NATIVE_COMPAT), 'bundles');
+/** The manifest files per platform: `updates/<platform>/<compat>/manifest(-beta).json`. */
+const manifestPath = (platform, channel) => join(UPDATES_DIR, platform, String(NATIVE_COMPAT), channel === 'stable' ? 'manifest.json' : 'manifest-beta.json');
+const PLATFORMS = (() => {
+  const only = arg('--platform');
+  if (!only) return OTA_PLATFORMS;
+  if (!OTA_PLATFORMS.includes(only)) throw new Error(`ota-publish: --platform must be one of ${OTA_PLATFORMS.join(', ')}`);
+  return [only];
+})();
 mkdirSync(bundlesDir, { recursive: true });
 
 /** The accepted sims on the backend, or null when it cannot be read. */
@@ -71,47 +86,58 @@ async function acceptedSims() {
   }
 }
 
-function writeManifest(channel, fields) {
+/** The manifest fields for one platform (exactly the signed keys: the shell rebuilds them before it verifies). */
+function fieldsFor(platform, record, minNative, rollback) {
+  return {
+    schema: 1,
+    platform,
+    compat: record.compat,
+    version: record.version,
+    seq: record.seq,
+    url: record.url,
+    checksum: record.checksum,
+    sessionKey: record.sessionKey,
+    simVersion: record.simVersion,
+    minNative,
+    rollback,
+  };
+}
+
+function writeManifest(platform, channel, fields) {
   const m = { ...fields };
   delete m.signature;
   m.signature = signManifest(m, key);
-  writeFileSync(MANIFESTS[channel], `${JSON.stringify(m, null, 2)}\n`);
+  mkdirSync(join(UPDATES_DIR, platform, String(NATIVE_COMPAT)), { recursive: true });
+  writeFileSync(manifestPath(platform, channel), `${JSON.stringify(m, null, 2)}\n`);
   return m;
 }
 
-function readManifest(channel) {
+function readManifest(platform, channel) {
   try {
-    return JSON.parse(readFileSync(MANIFESTS[channel], 'utf8'));
+    return JSON.parse(readFileSync(manifestPath(platform, channel), 'utf8'));
   } catch {
     return null;
   }
 }
 
-/**
- * Keep the newest `keep` bundles plus every one a manifest names, plus the newest bundle that has soaked SOAK_HOURS
- * (V20-CHASE.md R8: the one `--promote` takes when beta is republished faster than it soaks).
- */
+/** Every bundle version a manifest of any platform names (never pruned). */
+function namedVersions() {
+  const out = [];
+  for (const p of OTA_PLATFORMS) for (const c of ['beta', 'stable']) out.push(readManifest(p, c)?.version);
+  return out.filter(Boolean);
+}
+
+/** A platform's minNative: --min-native-<platform>, else --min-native, else what its manifests say, else 1.0.0. */
+function minNativeFor(platform) {
+  return arg(`--min-native-${platform}`, arg('--min-native', readManifest(platform, 'beta')?.minNative ?? readManifest(platform, 'stable')?.minNative ?? '1.0.0'));
+}
+
+/** Keep the newest `keep` bundles plus every one a manifest names. */
 function prune(keep, current) {
   const zips = readdirSync(bundlesDir)
     .filter((f) => f.endsWith('.zip'))
     .sort((a, b) => Number(b.split('-')[0]) - Number(a.split('-')[0]));
-  const soaked = zips.find((f) => (Date.now() - seqTime(f.split('-')[0])) / 3_600_000 >= SOAK_HOURS);
-  for (const f of zips.slice(keep)) if (f !== soaked && !current.includes(f.replace(/\.zip$/, ''))) rmSync(join(bundlesDir, f));
-}
-
-/**
- * V20-CHASE.md R8: the bundle `--promote` puts on stable: beta once it is `soakHours` old, else the newest kept bundle
- * that is (and is newer than stable), so a beta republished several times a day no longer holds stable back forever.
- */
-function promoteCandidate(beta, stable, soakHours) {
-  const ageOf = (seq) => (Date.now() - seqTime(seq)) / 3_600_000;
-  if (soakHours <= 0 || ageOf(beta.seq) >= soakHours) return beta;
-  const metas = readdirSync(bundlesDir)
-    .filter((f) => f.endsWith('.json') && existsSync(join(bundlesDir, f.replace(/\.json$/, '.zip'))))
-    .map((f) => JSON.parse(readFileSync(join(bundlesDir, f), 'utf8')))
-    .filter((b) => b.compat === beta.compat && ageOf(b.seq) >= soakHours && (!stable || b.seq > stable.seq))
-    .sort((a, b) => b.seq - a.seq);
-  return metas[0] ?? null;
+  for (const f of zips.slice(keep)) if (!current.includes(f.replace(/\.zip$/, ''))) rmSync(join(bundlesDir, f));
 }
 
 /** A seq is the UTC build time, yyyymmddHHMM or yyyymmddHHMMSS: its epoch ms, or NaN. */
@@ -131,53 +157,103 @@ if (rollbackTo) {
     process.exit(1);
   }
   const prev = JSON.parse(readFileSync(meta, 'utf8'));
-  // both channels: otherwise the next scheduled promote would push the bad beta bundle to stable again
-  writeManifest('beta', { ...prev, rollback: true });
-  const m = writeManifest('stable', { ...prev, rollback: true });
-  console.log(`ota-publish: beta and stable rolled back to ${m.version}`);
-  process.exit(0);
+  let rolled = 0;
+  for (const platform of PLATFORMS) {
+    // a bundle built before the Android shell existed (no `android` in its record) only knows the iOS manifest and
+    // has no Android back handler: Android installs would follow the iOS manifest and lose the back button
+    if (platform !== BUNDLES_PLATFORM && !prev[platform]) {
+      console.log(`ota-publish: ${platform}: skipped, ${rollbackTo} predates the ${platform} shell (its manifests stay as they are)`);
+      continue;
+    }
+    // both channels: otherwise the next scheduled promote would push the bad beta bundle to stable again. The bundle
+    // record holds the iOS minNative; Android keeps its own.
+    const minNative = platform === BUNDLES_PLATFORM ? prev.minNative : readManifest(platform, 'beta')?.minNative ?? readManifest(platform, 'stable')?.minNative ?? '1.0.0';
+    writeManifest(platform, 'beta', fieldsFor(platform, prev, minNative, true));
+    const m = writeManifest(platform, 'stable', fieldsFor(platform, prev, minNative, true));
+    console.log(`ota-publish: ${platform} beta and stable rolled back to ${m.version}`);
+    rolled++;
+  }
+  process.exit(rolled > 0 ? 0 : 1);
+}
+
+/** Kept bundle records (bundles/<version>.json) newest first. */
+function keptRecords() {
+  return readdirSync(bundlesDir)
+    .filter((f) => f.endsWith('.json') && existsSync(join(bundlesDir, f.replace(/\.json$/, '.zip'))))
+    .map((f) => JSON.parse(readFileSync(join(bundlesDir, f), 'utf8')))
+    .sort((a, b) => b.seq - a.seq);
+}
+
+/**
+ * Promote one platform to stable. Every push to main publishes a new beta bundle, so waiting for the CURRENT beta to
+ * be --soak-hours old starved stable for days while main was busy. The rule now:
+ * 1. the newest kept bundle newer than stable that has soaked --soak-hours (the current beta or an earlier one), else
+ * 2. when stable is already --soak-hours behind beta, the current beta once it is --min-soak-hours old (a quiet spell
+ *    after a busy day), so store installs are never more than about a day behind.
+ * --soak-hours 0 (a manual promote_now) promotes the current beta at once. Returns false on an error.
+ */
+function promote(platform) {
+  const beta = readManifest(platform, 'beta');
+  const stable = readManifest(platform, 'stable');
+  if (!beta) {
+    console.log(`ota-publish: ${platform}: no beta manifest, nothing to promote`);
+    return true;
+  }
+  if (stable && stable.version === beta.version) {
+    console.log(`ota-publish: ${platform}: stable is already ${beta.version}`);
+    return true;
+  }
+  const soakHours = Number(arg('--soak-hours', SOAK_HOURS));
+  const minSoakHours = Number(arg('--min-soak-hours', 2));
+  const now = Date.now();
+  const ageOf = (seq) => (now - seqTime(seq)) / 3_600_000;
+  const fmt = (h) => (Number.isFinite(h) ? h.toFixed(1) : '?');
+  let target = null;
+  let why = '';
+  if (!(soakHours > 0)) {
+    target = beta;
+    why = 'manual promote';
+  } else {
+    // 1. the newest soaked bundle between stable and beta (never past beta: a beta rollback stays the ceiling)
+    const soaked = keptRecords().find(
+      (r) => r.seq <= beta.seq && (!stable || r.seq > stable.seq) && ageOf(r.seq) >= soakHours && (platform === BUNDLES_PLATFORM || r[platform])
+    );
+    if (soaked) {
+      target = soaked.version === beta.version ? beta : fieldsFor(platform, soaked, beta.minNative, false);
+      why = `soaked ${fmt(ageOf(soaked.seq))} h`;
+    } else if (stable && ageOf(stable.seq) - ageOf(beta.seq) >= soakHours && ageOf(beta.seq) >= minSoakHours) {
+      // 2. stable is a day behind and beta has been quiet for a while
+      target = beta;
+      why = `stable ${fmt(ageOf(stable.seq) - ageOf(beta.seq))} h behind, beta quiet ${fmt(ageOf(beta.seq))} h`;
+    }
+  }
+  if (!target) {
+    console.log(`ota-publish: ${platform}: beta ${beta.version} is ${fmt(ageOf(beta.seq))} h old; promotes after ${soakHours} h (or ${minSoakHours} h once stable is ${soakHours} h behind)`);
+    return true;
+  }
+  if (!existsSync(join(bundlesDir, `${target.version}.zip`))) {
+    console.error(`ota-publish: ${platform}: the bundle ${target.version}.zip is missing`);
+    return false;
+  }
+  // an older seq than the live stable (a beta rollback) must be marked so store installs accept it
+  const m = writeManifest(platform, 'stable', { ...target, rollback: target.rollback || (stable ? target.seq <= stable.seq : false) });
+  console.log(`ota-publish: ${platform}: promoted ${m.version} to stable (${why})`);
+  return true;
 }
 
 if (args.includes('--promote')) {
-  const beta = readManifest('beta');
-  const stable = readManifest('stable');
-  if (!beta) {
-    console.log('ota-publish: no beta manifest, nothing to promote');
-    process.exit(0);
-  }
-  if (stable && stable.version === beta.version) {
-    console.log(`ota-publish: stable is already ${beta.version}`);
-    process.exit(0);
-  }
-  const soakHours = Number(arg('--soak-hours', SOAK_HOURS));
-  const age = (Date.now() - seqTime(beta.seq)) / 3_600_000;
-  // 0 = promote now (a manual promote_now), whatever the build clock said
-  const pick = promoteCandidate(beta, stable, soakHours);
-  if (!pick) {
-    console.log(`ota-publish: beta ${beta.version} is ${Number.isFinite(age) ? age.toFixed(1) : '?'} h old and no kept bundle has soaked; promotes after ${soakHours} h`);
-    process.exit(0);
-  }
-  if (stable && stable.version === pick.version) {
-    console.log(`ota-publish: stable is already ${pick.version}`);
-    process.exit(0);
-  }
-  if (!existsSync(join(bundlesDir, `${pick.version}.zip`))) {
-    console.error(`ota-publish: the bundle ${pick.version}.zip is missing`);
-    process.exit(1);
-  }
-  // an older seq than the live stable (a beta rollback) must be marked so App Store installs accept it
-  const m = writeManifest('stable', { ...pick, rollback: pick.rollback || (stable ? pick.seq <= stable.seq : false) });
-  console.log(`ota-publish: promoted ${m.version} to stable`);
-  process.exit(0);
+  let ok = true;
+  for (const platform of PLATFORMS) ok = promote(platform) && ok;
+  process.exit(ok ? 0 : 1);
 }
 
 const www = process.env.OTA_WWW_DIR || join(APP_DIR, 'www');
 const stamp = JSON.parse(readFileSync(join(www, 'bundle.json'), 'utf8'));
 if (stamp.compat !== NATIVE_COMPAT) throw new Error(`ota-publish: www was built for compat ${stamp.compat}, not ${NATIVE_COMPAT}`);
-const prev = readManifest('beta');
-const live = readManifest('stable');
-for (const p of [prev, live]) {
-  if (p && p.seq >= stamp.seq && !p.rollback) throw new Error(`ota-publish: seq ${stamp.seq} is not newer than the live ${p.seq}`);
+for (const platform of PLATFORMS) {
+  for (const p of [readManifest(platform, 'beta'), readManifest(platform, 'stable')]) {
+    if (p && p.seq >= stamp.seq && !p.rollback) throw new Error(`ota-publish: seq ${stamp.seq} is not newer than the live ${platform} ${p.seq}`);
+  }
 }
 
 if (args.includes('--check-sim')) {
@@ -195,24 +271,25 @@ if (args.includes('--check-sim')) {
 const zip = zipDir(www);
 const enc = encryptBundle(zip, key);
 writeFileSync(join(bundlesDir, `${stamp.version}.zip`), enc.data);
-const fields = {
-  schema: 1,
-  platform: 'ios',
+const minNative = Object.fromEntries(PLATFORMS.map((p) => [p, minNativeFor(p)]));
+// per-bundle record (unsigned; the iOS fields, as before Android) so a rollback can re-point the manifests without
+// rebuilding. `android: true` (outside the signed fields) marks a bundle that runs in the Android shell: a rollback
+// re-points the Android manifests only at such bundles.
+const record = fieldsFor(BUNDLES_PLATFORM, {
   compat: NATIVE_COMPAT,
   version: stamp.version,
   seq: stamp.seq,
-  url: `${UPDATES_URL}/ios/${NATIVE_COMPAT}/bundles/${stamp.version}.zip`,
+  url: `${UPDATES_URL}/${BUNDLES_PLATFORM}/${NATIVE_COMPAT}/bundles/${stamp.version}.zip`,
   checksum: enc.checksum,
   sessionKey: enc.sessionKey,
   simVersion: stamp.simVersion,
-  minNative: arg('--min-native', prev?.minNative ?? live?.minNative ?? '1.0.0'),
-  rollback: false,
-};
-// per-bundle record (unsigned copy of the fields) so a rollback can re-point the manifest without rebuilding
-writeFileSync(join(bundlesDir, `${stamp.version}.json`), `${JSON.stringify(fields, null, 2)}\n`);
-const m = writeManifest('beta', fields);
-prune(keep, [m.version, live?.version].filter(Boolean));
+}, minNative.ios ?? minNativeFor('ios'), false);
+writeFileSync(join(bundlesDir, `${stamp.version}.json`), `${JSON.stringify({ ...record, android: true }, null, 2)}\n`);
+for (const platform of PLATFORMS) {
+  const m = writeManifest(platform, 'beta', fieldsFor(platform, record, minNative[platform], false));
+  console.log(`ota-publish: ${m.version} (${(enc.data.length / 1024 / 1024).toFixed(1)} MB, sim ${m.simVersion}, minNative ${m.minNative}) -> ${manifestPath(platform, 'beta')}`);
+}
+prune(keep, namedVersions());
 for (const f of readdirSync(bundlesDir).filter((x) => x.endsWith('.json'))) {
   if (!existsSync(join(bundlesDir, f.replace(/\.json$/, '.zip')))) rmSync(join(bundlesDir, f));
 }
-console.log(`ota-publish: ${m.version} (${(enc.data.length / 1024 / 1024).toFixed(1)} MB, sim ${m.simVersion}) -> ${MANIFESTS.beta}`);

@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { closeAll, createParty, joinByLink, player, shot, tap } from './party.helpers';
+import { closeAll, createParty, joinByLink, player, shot, tap, showHero } from './party.helpers';
 
 test.afterEach(closeAll);
 
@@ -19,16 +19,19 @@ test('A locks Clem, B sees it greyed with A’s name; a leader side switch reset
   await tap(b, b.page.locator('[data-testid="party-hero-lambo"]'));
   await expect(a.page.locator('.pp-ts').nth(1)).toHaveAttribute('data-hero', 'lambo', { timeout: 5000 });
   // the leader switches to dogs: B's cat hover is reset and the cats are greyed for B
+  await showHero(a, 'brutus');
   await a.page.locator('[data-testid="party-hero-brutus"]').click();
   await expect(b.page.locator('[data-testid="party-hero-lambo"]')).toBeDisabled();
   await expect(b.page.locator('[data-testid="party-side-note"]')).toHaveText('Leader chose dogs');
   await expect(a.page.locator('.pp-ts').nth(1)).toHaveAttribute('data-hero', '');
   // back to cats, A locks Clem; B sees it taken with A's name
+  await showHero(a, 'clem');
   await a.page.locator('[data-testid="party-hero-clem"]').click();
   await a.page.locator('[data-testid="party-lock"]').click();
+  await showHero(b, 'clem');
   const clem = b.page.locator('[data-testid="party-hero-clem"]');
   await expect(clem).toBeDisabled();
-  await expect(clem.locator('.pp-taken')).toHaveText(aName);
+  await expect(clem.locator('.pp-taken')).toHaveText(`Taken: ${aName}`);
   await shot(a, 'lane-P', '30-pick');
   await shot(b, 'lane-P', '30-pick');
   // B never locks: the 30 s timer auto-locks B, nobody is kicked, and the match starts for both

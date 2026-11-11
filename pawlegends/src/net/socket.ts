@@ -24,6 +24,26 @@ import {
 
 export const BACKOFF_MIN_MS = 250;
 export const BACKOFF_MAX_MS = 5000;
+/** In a match a lost socket retries at least every 2 s (LIVE-MATCH-DEPLOYS.md §6): the room waits for nobody. */
+export const BACKOFF_MAX_MATCH_MS = 2000;
+/**
+ * A planned move (close 1012, `room_gone`, `server_moving`, `room_elsewhere`, `party_elsewhere`): the relay says when to
+ * come back; at most this many quick retries in a row, then the normal backoff (two draining relays never make a
+ * client hammer them).
+ */
+export const MOVE_RETRIES = 6;
+export const MOVE_JITTER_MS = 100;
+/**
+ * The socket opens while the party ticket is still being fetched (LATENCY-PLAN C2): `hello` waits for the ticket at
+ * most this long, then goes as a guest. It matches the embed host's own ticket wait (PARTY_TICKET_WAIT_MS in
+ * integrate.ts), so a slow token refresh still signs the player in.
+ */
+export const TICKET_WAIT_MS = 6000;
+/**
+ * The relay closes a socket without `hello` 5 s after the upgrade (party-limits.ts helloTimeoutMs). A socket still
+ * waiting for the ticket this long after it opened is swapped for a fresh one (a new 5 s window), quietly.
+ */
+export const HELLO_HOLD_MS = 4000;
 export const RESEND_WITHIN_MS = 500;
 export const BEAT_MS = 500;
 const RTT_SAMPLES = 64;
@@ -146,6 +166,9 @@ export class PartySocket {
   inMatch = false;
   reconnects = 0;
   private queued: string[] = [];
+  /** The relay asked for a quick reconnect (`retryMs` of a move code), or null. */
+  private moveRetryMs: number | null = null;
+  private moveRetries = 0;
   /**
    * The `hello.proto` this socket sends (M1A-IMPL.md §5.5). An older relay answers a newer proto with `update_required`
    * before `welcome`: the socket retries once with PROTO_MIN (party play works, Quick Play hides).
@@ -174,23 +197,78 @@ export class PartySocket {
     this.side = l;
   }
 
-  connect(): void {
+  /** The party ticket still being fetched (LATENCY-PLAN C2): `hello` waits for it, at most TICKET_WAIT_MS. */
+  private ticketWait: Promise<void> | null = null;
+
+  /**
+   * Open the socket. `ticket` (the first connect): a party ticket still being fetched; the WebSocket upgrade runs in
+   * parallel with it, and `hello` carries it when it settles in time (else the hello goes as a guest).
+   */
+  connect(ticket?: Promise<string | null>): void {
+    if (ticket) this.ticketWait = this.waitTicket(ticket);
     this.stopped = false;
     this.emitState(this.attempt === 0 ? 'connecting' : 'reconnecting');
     const ws = this.env.open(this.url, SUBPROTOCOL);
     ws.binaryType = 'arraybuffer';
     this.ws = ws;
     ws.onopen = () => {
-      const h: ClientJson = { t: 'hello', proto: this.proto, sim: this.hello.sim, simHash: this.hello.simHash, build: this.hello.build };
-      if (this.hello.ticket) h.ticket = this.hello.ticket;
-      if (this.hello.guestKey) h.guestKey = this.hello.guestKey;
-      if (this.hello.hint) h.hint = this.hello.hint;
-      if (this.token) h.resume = { token: this.token };
-      ws.send(JSON.stringify(h));
+      const send = () => {
+        // closed (or replaced) while the ticket was still on its way: nothing to say
+        if (this.ws !== ws || ws.readyState !== 1 || this.stopped) return;
+        const h: ClientJson = { t: 'hello', proto: this.proto, sim: this.hello.sim, simHash: this.hello.simHash, build: this.hello.build };
+        if (this.hello.ticket) h.ticket = this.hello.ticket;
+        if (this.hello.guestKey) h.guestKey = this.hello.guestKey;
+        if (this.hello.hint) h.hint = this.hello.hint;
+        if (this.token) h.resume = { token: this.token };
+        ws.send(JSON.stringify(h));
+      };
+      const wait = this.ticketWait;
+      if (!wait) {
+        send();
+        return;
+      }
+      // still waiting near the relay's hello timeout: reopen (at most once, since TICKET_WAIT_MS < 2 * HELLO_HOLD_MS)
+      const hold = this.env.setTimer(() => {
+        if (this.ws !== ws || this.stopped || this.ticketWait !== wait) return;
+        ws.onopen = null;
+        ws.onmessage = null;
+        ws.onerror = null;
+        ws.onclose = null;
+        ws.close(4000, 'ticket');
+        this.ws = null;
+        this.connect();
+      }, HELLO_HOLD_MS);
+      void wait.then(() => {
+        this.env.clearTimer(hold);
+        send();
+      });
     };
     ws.onmessage = (e) => this.onMessage(e.data);
     ws.onclose = (e) => this.onClose(e.code);
     ws.onerror = () => undefined;
+  }
+
+  /** Settles when the ticket is in `hello` (or failed, or took longer than TICKET_WAIT_MS: a guest hello). Never rejects. */
+  private waitTicket(ticket: Promise<string | null>): Promise<void> {
+    return new Promise<void>((resolve) => {
+      let done = false;
+      const finish = () => {
+        if (done) return;
+        done = true;
+        this.env.clearTimer(timer);
+        this.ticketWait = null;
+        resolve();
+      };
+      const timer = this.env.setTimer(finish, TICKET_WAIT_MS);
+      ticket.then(
+        (t) => {
+          // a ticket after TICKET_WAIT_MS (the guest hello went out) is dropped: the seat keeps the identity it joined with
+          if (!done && t) this.hello.ticket = t;
+          finish();
+        },
+        finish,
+      );
+    });
   }
 
   private onMessage(data: unknown): void {
@@ -212,6 +290,8 @@ export class PartySocket {
         this.welcomedOnce = true;
         this.mm = typeof m.proto === 'number' && m.proto >= 2;
         this.attempt = 0;
+        this.moveRetries = 0;
+        this.moveRetryMs = null;
         this.member = m.member;
         if (typeof m.serverMs === 'number' && Number.isFinite(m.serverMs)) this.serverOffsetMs = m.serverMs - Date.now();
         this.token = m.resumeToken;
@@ -230,6 +310,9 @@ export class PartySocket {
         this.inMatch = true;
         this.applyLastSeq(m.lastSeq, true);
         this.startBeats();
+      } else if (m.t === 'error' && (m.code === 'server_moving' || m.code === 'room_elsewhere' || m.code === 'party_elsewhere' || (m.code === 'room_gone' && typeof m.retryMs === 'number'))) {
+        // a planned move (a deploy): the close that follows reconnects after `retryMs`, not after a backoff
+        this.moveRetryMs = Math.max(0, Math.min(5000, typeof m.retryMs === 'number' ? m.retryMs : 250));
       } else if (m.t === 'error' && m.code === 'seat_elsewhere') {
         this.elsewhere = true;
         this.stopped = true;
@@ -295,6 +378,18 @@ export class PartySocket {
     if (this.rttSamples.length > RTT_SAMPLES) this.rttSamples.shift();
   }
 
+  /**
+   * RTT percentiles over the last 64 ECHO samples, and the p95 jitter (`mp_net`, LATENCY-PLAN M1). Read-only: the
+   * estimate the game uses stays the EWMA `rttMs`.
+   */
+  rttStats(): { p50: number; p95: number; jitterP95: number; n: number } {
+    const n = this.rttSamples.length;
+    if (!n) return { p50: 0, p95: 0, jitterP95: 0, n: 0 };
+    const s = [...this.rttSamples].sort((a, b) => a - b);
+    const at = (q: number) => s[Math.min(n - 1, Math.floor(n * q))];
+    return { p50: Math.round(at(0.5)), p95: Math.round(at(0.95)), jitterP95: Math.round(this.jitterP95), n };
+  }
+
   /** p95 jitter over the last 64 samples (|sample - EWMA|). */
   get jitterP95(): number {
     const d = this.rttSamples.map((s) => Math.abs(s - this.rttMs)).sort((a, b) => a - b);
@@ -309,21 +404,31 @@ export class PartySocket {
       return;
     }
     this.pilotedSince = this.inMatch ? this.pilotedSince : false;
-    const base = Math.min(BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** this.attempt);
-    const delay = Math.round(base / 2 + this.env.random() * (base / 2));
-    this.attempt++;
+    const planned = code === 1012 || code === 4013 || this.moveRetryMs !== null;
+    let delay: number;
+    if (planned && this.moveRetries < MOVE_RETRIES) {
+      // LIVE-MATCH-DEPLOYS.md §6: the relay is moving the room, come back at once (a little jitter spreads a room)
+      delay = Math.round((this.moveRetryMs ?? 0) + this.env.random() * MOVE_JITTER_MS);
+      this.moveRetries++;
+      this.attempt = 0;
+    } else {
+      const max = this.inMatch ? BACKOFF_MAX_MATCH_MS : BACKOFF_MAX_MS;
+      const base = Math.min(max, BACKOFF_MIN_MS * 2 ** this.attempt);
+      delay = Math.round(base / 2 + this.env.random() * (base / 2));
+      this.attempt++;
+    }
+    this.moveRetryMs = null;
     this.reconnects++;
     this.emitState('reconnecting');
     this.reconnectTimer = this.env.setTimer(() => {
       this.reconnectTimer = null;
       if (!this.stopped) this.connect();
     }, delay);
-    void code;
   }
 
-  /** The backoff delay range of the next reconnect (tests). */
-  static backoff(attempt: number): [number, number] {
-    const base = Math.min(BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** attempt);
+  /** The backoff delay range of the next reconnect (tests); `inMatch` caps it at 2 s. */
+  static backoff(attempt: number, inMatch = false): [number, number] {
+    const base = Math.min(inMatch ? BACKOFF_MAX_MATCH_MS : BACKOFF_MAX_MS, BACKOFF_MIN_MS * 2 ** attempt);
     return [base / 2, base];
   }
 
@@ -390,6 +495,17 @@ export class PartySocket {
     }
     this.ws?.close(1000, 'bye');
     this.ws = null;
+  }
+
+  /**
+   * Reconnect now, on a fresh connection (the load balancer picks a relay again), after `ms` plus a little jitter. A
+   * join whose code this relay did not know tries again this way (LIVE-MATCH-DEPLOYS.md §14). Keeps the resume token.
+   */
+  bounce(ms = 0): void {
+    if (this.stopped || this.elsewhere) return;
+    this.moveRetryMs = Math.max(0, Math.min(5000, ms));
+    if (this.ws) this.ws.close(4000, 'bounce');
+    else if (this.reconnectTimer === null) this.connect();
   }
 
   /** Test seam: drop the connection as a network failure would. */

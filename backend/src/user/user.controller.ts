@@ -68,6 +68,7 @@ import { isPartyResult, savePawlegendsPartyMatch } from 'src/pawlegends/pawlegen
 import { PawlegendsReplayDto } from 'src/pawlegends/pawlegends-replay.dto';
 import { MongoRoomStore } from 'src/pawlegends/party/room-store';
 import { MmService } from 'src/pawlegends/mm/mm.service';
+import { PawlegendsSeasonService } from 'src/pawlegends/pawlegends-season.service';
 import { HEIST_SIM_INFO, IHeistSimInfo } from './heist/heist-sim-info';
 import { heistReplayQueue, ReplayQueueFullException } from './heist/replay-queue';
 import { UserRepository } from './user.repository';
@@ -201,7 +202,9 @@ export class UserController {
         // Party play (MULTIPLAYER.md §6): the relay's stored rooms, read-only here.
         @Optional() private partyRooms?: MongoRoomStore,
         // Quick Play (M1A-IMPL.md §4.2): the mm room records and the hidden rating `/live` writes.
-        @Optional() private mm?: MmService
+        @Optional() private mm?: MmService,
+        // Legends Pass Season XP (STORE-PASS.md §5): added by /live after the Game row exists.
+        @Optional() private pawlegendsSeason?: PawlegendsSeasonService
     ) {
         // this.getUsers();
         // this.getTwitters();
@@ -662,7 +665,8 @@ export class UserController {
                 audit: this.repository.model.db.collection(ACCOUNT_DELETIONS_COLLECTION) as any,
             },
             userId,
-            body?.appleAuthorizationCode
+            body?.appleAuthorizationCode,
+            body?.appleClientId
         );
         this.pawMatchLeaderboardCache.clear();
         this.logger.log(
@@ -1450,6 +1454,7 @@ export class UserController {
                     games: this.gameRepository as any,
                     rooms: this.partyRooms,
                     mm: this.mm?.liveDeps() as any,
+                    season: this.pawlegendsSeason,
                 },
                 userId,
                 body as any
@@ -1459,7 +1464,7 @@ export class UserController {
             // Pawlegends matches (POC.md §11.5): re-simulated in a worker thread through their own bounded queue.
             try {
                 return await savePawlegendsMatch(
-                    { users: this.repository as any, games: this.gameRepository as any },
+                    { users: this.repository as any, games: this.gameRepository as any, season: this.pawlegendsSeason },
                     userId,
                     body as LiveGameDto & { pawlegends?: PawlegendsReplayDto }
                 );

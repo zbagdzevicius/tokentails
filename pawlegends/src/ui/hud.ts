@@ -253,6 +253,10 @@ export class Hud {
   /** Lane F (F1): the Fish chip (unspent Fish, a ring to the next Toy, a pip per Toy owned). */
   private fishEl: HTMLElement;
   private fishNum: HTMLElement;
+  /** Desktop home of the Fish chip: the ability plate (`.pl-bar`), which phones hide (feel pass B3). */
+  private fishHome: HTMLElement;
+  /** Re-homes the chip when touch mode turns on or off (an attribute observer: no per-frame check). */
+  private fishObs: MutationObserver | null = null;
   private fishShown = -1;
   private toyShown = -1;
   /** Fun pass (playtest #14): until this time (ms) the chip number says what a buy spent ("−550 → Toy"). */
@@ -327,6 +331,12 @@ export class Hud {
     }
     this.fishEl = q('.pl-fish');
     this.fishNum = q('.pl-fish .n');
+    this.fishHome = this.fishEl.parentElement as HTMLElement;
+    this.placeFish();
+    if (typeof MutationObserver !== 'undefined') {
+      this.fishObs = new MutationObserver(this.placeFish);
+      this.fishObs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-touch'] });
+    }
     this.hpFill = q('.pl-hp .fill');
     this.hpChunk = q('.pl-hp .chunk');
     this.resFill = q('.pl-res > i');
@@ -651,6 +661,17 @@ export class Hud {
   }
 
   /**
+   * The Fish chip's parent. Desktop: the ability plate (a tab on its top-right corner). Phones: the match layer, on the
+   * minimap's bottom-left corner (the ping paw holds the bottom-right one), because the B3 HUD diet hides the plate
+   * (`display: none`) and the chip went with it. Moved once per touch-mode change, never per frame.
+   */
+  private readonly placeFish = (): void => {
+    const touch = document.documentElement.dataset.touch === '1';
+    const parent = touch ? (this.root.parentElement ?? this.root) : this.fishHome;
+    if (this.fishEl.parentElement !== parent) parent.appendChild(this.fishEl);
+  };
+
+  /**
    * Lane F (F1): the Fish chip. `data-fish` is the unspent Fish, `data-toy` the tiers owned; the ring fills toward the
    * next Toy's step cost (full and gold at the last tier), one pip lights per Toy.
    */
@@ -684,7 +705,8 @@ export class Hud {
     el.dataset.fish = String(fish);
     el.style.setProperty('--p', frac.toFixed(3));
     if (performance.now() >= this.spentUntil) this.fishNum.textContent = String(fish);
-    el.title = toy >= TOY_TIERS ? `${fish} Fish · all ${TOY_TIERS} Toys owned` : `${fish} / ${next} Fish to Toy ${toy + 1} (${toyCumulative(toy + 1)} in all)`;
+    // phones have no hover: no title text to rebuild
+    if (document.documentElement.dataset.touch !== '1') el.title = toy >= TOY_TIERS ? `${fish} Fish · all ${TOY_TIERS} Toys owned` : `${fish} / ${next} Fish to Toy ${toy + 1} (${toyCumulative(toy + 1)} in all)`;
   }
 
   /** Lane F (F2): the chip's ring bursts when a Toy is bought. */
@@ -1057,6 +1079,9 @@ export class Hud {
     this.respawnCard?.dispose();
     this.respawnCard = null;
     this.tipLeave();
+    this.fishObs?.disconnect();
+    this.fishObs = null;
+    this.fishEl.remove();
     this.root.remove();
   }
 }

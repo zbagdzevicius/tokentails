@@ -24,6 +24,7 @@ import { isAppBuild, parseRoster, rosterCosmetics, setAppBuild, type RosterCat }
 import { chooseSquadMate, noteNewCat, squadPrefs } from '../meta/squad';
 import { championInfo, meetCard, pickCards, resultsCards, saveChip, titleCards, levelBadges, type ChipState, type SquadMate } from '../ui/cards';
 import { HEROES } from '../data/heroes';
+import { closeAccountPanel, mountAccountChip, type AccountModel } from '../ui/account';
 import { championByCatalogId, championOf } from '../data/heroes/shelter';
 import { championDue, championEarned, noteChampionShown } from '../meta/profile';
 import type { HeroId } from '../sim/api';
@@ -48,11 +49,16 @@ import {
   type PartyResult,
   type Progress,
   type SaveResult,
+  type SignInProvider,
   type SignInReason,
+  type AccountAction,
 } from './bridge';
+import { parseApiResult, type ApiArgs, type ApiOp, type ApiResult } from './api';
 
 /** Messages the integration fully owns: the app has nothing to do with them. */
-export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions', 'party-ticket']);
+export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions', 'party-ticket', 'api-result']);
+/** How long the game waits for the host's `api-result` (SOCIAL-RANKED.md §13). */
+export const API_WAIT_MS = 10000;
 /** How long the game waits for the host's party ticket before it joins as an unscored guest. */
 export const PARTY_TICKET_WAIT_MS = 6000;
 /** A results chip waits this long for the host's first `save-result`, then hides (an older host sends none). */
@@ -83,6 +89,8 @@ export interface IntegrationState {
   signedIn: boolean;
   /** UX pass 2: the signed-in player's profile name (`session.name`), shown over their own hero; null = "You". */
   playerName: string | null;
+  /** Sign-in: how the signed-in player signed in (`session.provider`; the account chip's icon). */
+  provider: SignInProvider | null;
   progress: Progress | null;
   app: AppInfo | null;
   audio: AudioInfo | null;
@@ -132,6 +140,17 @@ export interface Integration {
   partyTicket(): Promise<string | null>;
   /** Party play (§6): hand a party match's v:2 result to the host's save path; the save chip follows the room id. */
   partyResult(result: PartyResult, info?: MatchInfo): boolean;
+  /**
+   * Social, ranked and reports (SOCIAL-RANKED.md §13): one allowlisted API op through the host's session. Standalone, a
+   * timeout or a refused post answers `{ok: false, status: 0}`.
+   */
+  api(op: ApiOp, args?: ApiArgs): Promise<ApiResult>;
+  /** Ask the host to open its sign-in (social features are for registered accounts). */
+  requestSignIn(reason: SignInReason): void;
+  /** The account chip and Settings row: sign in, sign out, manage (web) or delete (app). False when nothing listens. */
+  account(action: AccountAction): boolean;
+  /** What the account chip shows, or null when no host answered (the plain standalone game has no accounts). */
+  accountModel(): AccountModel | null;
   dispose(): void;
 }
 
@@ -226,6 +245,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   const s: IntegrationState = {
     signedIn: false,
     playerName: null,
+    provider: null,
     progress: null,
     app: null,
     audio: null,
@@ -247,6 +267,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   let waitTimer: ReturnType<typeof setTimeout> | null = null;
   /** Party tickets the game is waiting for, by request id. */
   const ticketWaits = new Map<string, (ticket: string | null) => void>();
+  /** API answers the game is waiting for, by request id. */
+  const apiWaits = new Map<string, (r: ApiResult) => void>();
   let disposed = false;
   let lastScreen: ScreenKind | null = null;
   /** Champion cards already sent to the host this page load (`champion-offer`). */
@@ -261,6 +283,12 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
 
   // the host tracks the prompt (`pawlegends_signin_prompt`); the game only asks
   const signIn = (reason: SignInReason): void => void bridge.post('request-sign-in', { reason });
+  const account = (action: AccountAction): boolean => {
+    closeAccountPanel();
+    return bridge.post('account', { action });
+  };
+  const accountModel = (): AccountModel | null =>
+    embedded() ? { signedIn: s.signedIn, name: s.signedIn ? s.playerName : null, provider: s.signedIn ? s.provider : null, isApp: isApp() } : null;
 
   const mate = (c: { id: string; name: string; element: RosterCat['type']; tier: RosterCat['tier']; art?: string; fromPack?: boolean }): SquadMate => {
     const art = c.art ?? s.roster.find((r) => r.id === c.id)?.art;
@@ -402,6 +430,10 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       // signed-in owners were still told "No account needed." (round 0)
       const acct = scr.querySelector<HTMLElement>('.acct');
       if (acct) acct.textContent = s.signedIn ? 'Signed in: wins save to your account.' : 'No account needed.';
+      // sign-in: the account chip in the corner (a host answered: the Token Tails page or the app's in-page host)
+      const model = accountModel();
+      if (model) mountAccountChip(scr, model, (a) => void account(a));
+      else scr.querySelector('.pl-acct-chip')?.remove();
       const cat = meetFor('title');
       slot.replaceChildren(
         titleCards(
@@ -413,20 +445,22 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
       const info = championPanel();
       if (info) slot.appendChild(info);
     } else if (kind === 'pick') {
-      slot.replaceChildren();
-      dock.replaceChildren(
-        pickCards(
-          { squad: squad(), bench: bench(), guest: isApp() ? null : (s.featured[0] ?? null), askSignIn: ask },
-          {
-            signIn: () => signIn('save-progress'),
-            choose: (id) => {
-              chooseSquadMate(id, squad().map((c) => c.id));
-              deps.onRosterChange();
-              redraw();
-            },
+      const cards = pickCards(
+        { squad: squad(), bench: bench(), guest: isApp() ? null : (s.featured[0] ?? null), askSignIn: ask },
+        {
+          signIn: () => signIn('save-progress'),
+          choose: (id) => {
+            chooseSquadMate(id, squad().map((c) => c.id));
+            deps.onRosterChange();
+            redraw();
           },
-        ),
+        },
       );
+      // the champion select declares its slot under the team seats (LANDING-PICK-UX §B5): the squad walks with the
+      // team there, never over the hero panel; a screen without one keeps the corner dock
+      const inline = !slot.dataset.auto;
+      slot.replaceChildren(...(inline ? [cards] : []));
+      dock.replaceChildren(...(inline ? [] : [cards]));
     } else {
       const won = scr.classList.contains('won');
       const cat = won ? meetFor('results') : null;
@@ -473,6 +507,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
           catnipTotal: sv?.catnipTotal ?? null,
           newFastest: isNewFastest(sv, s.progressAtMatch, s.match),
           askSignIn: embedded() && !s.signedIn,
+          season: sv?.status === 'saved' ? (sv.season ?? null) : null,
         },
         { signIn: () => signIn('claim-rewards') },
       ),
@@ -530,8 +565,11 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         if (!v) return;
         s.signedIn = v.signedIn;
         s.playerName = v.name ?? null;
+        s.provider = v.provider ?? null;
         s.progress = v.progress;
-        setAccountState(v);
+        setAccountState({ signedIn: v.signedIn, progress: v.progress, name: v.name ?? null, provider: v.provider ?? null });
+        // a panel opened for the old account must not act for the new one
+        closeAccountPanel();
         const before = deps.profile();
         const merged = mergeServerProgress(before, v.progress);
         if (merged !== before && progressChanged(before, merged)) {
@@ -618,6 +656,14 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         wait(v.ticket);
         return;
       }
+      case 'api-result': {
+        const v = parseApiResult(m);
+        const wait = v ? apiWaits.get(v.id) : undefined;
+        if (!v || !wait) return;
+        apiWaits.delete(v.id);
+        wait(v);
+        return;
+      }
       default:
         return;
     }
@@ -655,6 +701,29 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
           clearTimeout(timer);
           ticketWaits.delete(id);
           resolve(null);
+        }
+      });
+    },
+    requestSignIn: (reason) => signIn(reason),
+    account,
+    accountModel,
+    api: (op, args = {}) => {
+      const id = makeMatchId();
+      const none: ApiResult = { id, ok: false, status: 0 };
+      if (!bridge.active) return Promise.resolve(none);
+      return new Promise<ApiResult>((resolve) => {
+        const timer = setTimeout(() => {
+          apiWaits.delete(id);
+          resolve(none);
+        }, API_WAIT_MS);
+        apiWaits.set(id, (r) => {
+          clearTimeout(timer);
+          resolve(r);
+        });
+        if (!bridge.post('api-request', { id, op, args })) {
+          clearTimeout(timer);
+          apiWaits.delete(id);
+          resolve(none);
         }
       });
     },

@@ -35,6 +35,7 @@ import { setShakePref, shakePref, type ShakePref } from '../render/fx/vfxPrefs';
 import { hideNames, setHideNames } from '../meta/partyPrefs';
 import { bindCameraHeightRow, cameraHeightRowHtml } from './cameraHeightRow';
 import { MINIMAP_SIZES, colourBlind, minimapSize, setColourBlind, setMinimapSize, type MinimapSize } from './minimapPrefs';
+import { accountActionOf, accountRowHtml, type AccountModel, type AccountSend } from './account';
 
 export interface SettingsState {
   muted: boolean;
@@ -62,6 +63,8 @@ export interface SettingsOpts {
   onClose(): void;
   /** The host's terms page (null outside the Token Tails page: the link hides). */
   termsUrl?: string | null;
+  /** Sign-in: the Account row (absent without a host: the plain standalone game has no accounts). */
+  account?: { model: AccountModel; send: AccountSend };
 }
 
 /** Token Tails privacy policy (the same page as the site footer and the sign-in sheet). */
@@ -138,6 +141,7 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
       ${row('Tips in the next match', 'tips', s.tipsOn)}
       ${row('Hide friends\' names (party)', 'hidenames', ctl.hide)}
       ${s.stats === null ? '' : row('Share anonymous play stats', 'stats', s.stats)}
+      ${accountRowHtml(o.account?.model ?? null)}
       <p class="fine">Play stats are anonymous: hero, difficulty, match length. No names, no emails.</p>
       <p class="fine links" data-testid="settings-legal"><a href="${PRIVACY_URL}" target="_blank" rel="noopener">Privacy</a>${o.termsUrl ? ` · <a href="${linkAttr(o.termsUrl)}" target="_blank" rel="noopener">Terms</a>` : ''}</p>
       <button class="pl-btn big" data-a="close">Done</button></div>`;
@@ -146,6 +150,13 @@ export function settingsPanel(parent: HTMLElement, o: SettingsOpts): HTMLElement
   bindCameraHeightRow(root);
   root.addEventListener('click', (e) => {
     const t = e.target as HTMLElement;
+    const acct = accountActionOf(t);
+    if (acct && acct !== 'chip' && o.account) {
+      // the host's sheet opens over the game: Settings closes first, so it never sits on top of it
+      close();
+      o.account.send(acct);
+      return;
+    }
     const a = t.closest<HTMLElement>('[data-a]')?.dataset.a;
     const tier = t.closest<HTMLElement>('[data-t]')?.dataset.t as QualityTier | undefined;
     const cast = t.closest<HTMLElement>('[data-cast]')?.dataset.cast as CastMode | undefined;

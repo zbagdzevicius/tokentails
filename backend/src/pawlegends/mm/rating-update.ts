@@ -98,7 +98,13 @@ export function casualRatingStep(input: {
     if (!mine) return { skip: 'not_member' };
     // 5v5 Classic (MAP-5V5.md §9.3): five seats a team, rated on its own `classic` row
     const n = room.map === 'hearthwood' ? 5 : 3;
-    const queue = room.map === 'hearthwood' ? ('classic' as const) : ('casual' as const);
+    // Ranked (SOCIAL-RANKED.md §7.3): stepped exactly like casual, on its own `ranked` row
+    const queue =
+        room.queue === 'ranked'
+            ? ('ranked' as const)
+            : room.map === 'hearthwood'
+            ? ('classic' as const)
+            : ('casual' as const);
     const team = teamOfSlot(mine.slot, n);
     if (!won) {
         if (mine.backfill) return { skip: 'backfill_loss' };

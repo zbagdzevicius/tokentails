@@ -91,6 +91,10 @@ export class PawlegendsPurchase extends CommonSchema {
      */
     @Prop()
     termsRefund?: boolean;
+
+    /** The lost chargeback (`charge.dispute.closed`, status `lost`) that ended this purchase. */
+    @Prop()
+    disputeId?: string;
 }
 export type PawlegendsPurchaseDocument = PawlegendsPurchase & Document;
 export const PawlegendsPurchaseSchema = SchemaFactory.createForClass(PawlegendsPurchase);
@@ -200,6 +204,92 @@ export type PawlegendsWebhookEventDocument = PawlegendsWebhookEvent & Document;
 export const PawlegendsWebhookEventSchema = SchemaFactory.createForClass(PawlegendsWebhookEvent);
 PawlegendsWebhookEventSchema.index({ createdAt: 1 }, { expireAfterSeconds: 90 * 86400 });
 
+// ---------------------------------------------------------------------------------------------
+// Store and Legends Pass ownership (STORE-PASS.md): one row per account and item. A grant upserts (re-grants are
+// no-ops through the unique index); a refund sets `revokedAt` (a refund under the presale terms keeps the items).
+// Cosmetic only: nothing here is read by the sim, the replay or the score.
+// ---------------------------------------------------------------------------------------------
+
+export type PawlegendsOwnedSource = 'purchase' | 'pass' | 'legacy';
+
+@Schema({ collection: 'pawlegendsowned', timestamps: true })
+export class PawlegendsOwned extends CommonSchema {
+    @Prop({ required: true })
+    accountId: string;
+
+    @Prop({ required: true })
+    item: string;
+
+    @Prop({ required: true })
+    source: PawlegendsOwnedSource;
+
+    /** The Checkout Session of a purchase. */
+    @Prop({ index: true, sparse: true })
+    sessionId?: string;
+
+    /** A pass reward: `<season>:<row>:<tier>` (e.g. `s1:p:7`). */
+    @Prop()
+    claim?: string;
+
+    @Prop()
+    revokedAt?: Date;
+}
+export type PawlegendsOwnedDocument = PawlegendsOwned & Document;
+export const PawlegendsOwnedSchema = SchemaFactory.createForClass(PawlegendsOwned);
+PawlegendsOwnedSchema.index({ accountId: 1, item: 1 }, { unique: true });
+
+// ---------------------------------------------------------------------------------------------
+// Legends Pass progress per account and season: `_id` = `<accountId>:<seasonId>`. Season XP is paid only by the
+// one score writer (`POST /user/catbassadors/live`), after its Game row exists, so a duplicate save never pays twice.
+// ---------------------------------------------------------------------------------------------
+
+export type PawlegendsPremium = 'none' | 'pass' | 'plus';
+
+@Schema({ collection: 'pawlegendsseason', timestamps: true })
+export class PawlegendsSeason {
+    @Prop({ type: String })
+    _id: string;
+
+    @Prop({ required: true, index: true })
+    accountId: string;
+
+    @Prop({ required: true })
+    seasonId: string;
+
+    @Prop({ default: 0 })
+    xp: number;
+
+    @Prop({ type: String, default: 'none' })
+    premium: PawlegendsPremium;
+
+    /** Pass+ tier skips. */
+    @Prop({ default: 0 })
+    skips: number;
+
+    /** Claimed rewards, `f:<tier>` and `p:<tier>`. */
+    @Prop({ type: [String], default: [] })
+    claimed: string[];
+
+    /** UTC day (YYYY-MM-DD) of the last first-win-of-the-day bonus. */
+    @Prop()
+    winDay?: string;
+
+    /** Solo XP gate: the UTC day of `xpMatches`, the solo matches paid that day, and when the last one was paid. */
+    @Prop()
+    xpDay?: string;
+
+    @Prop()
+    xpMatches?: number;
+
+    @Prop()
+    xpAt?: Date;
+
+    @Prop()
+    updatedAt?: Date;
+}
+export type PawlegendsSeasonDocument = PawlegendsSeason & Document;
+export const PawlegendsSeasonSchema = SchemaFactory.createForClass(PawlegendsSeason);
+
 /** Every Pawlegends schema, for `MongooseModule.forFeature` in the one AppModule. */
 export const PAWLEGENDS_SCHEMAS = [
     { name: PawlegendsPurchase.name, schema: PawlegendsPurchaseSchema },
@@ -208,6 +298,8 @@ export const PAWLEGENDS_SCHEMAS = [
     { name: PawlegendsRestoreToken.name, schema: PawlegendsRestoreTokenSchema },
     { name: PawlegendsNotify.name, schema: PawlegendsNotifySchema },
     { name: PawlegendsWebhookEvent.name, schema: PawlegendsWebhookEventSchema },
+    { name: PawlegendsOwned.name, schema: PawlegendsOwnedSchema },
+    { name: PawlegendsSeason.name, schema: PawlegendsSeasonSchema },
 ];
 
 /**
@@ -222,6 +314,8 @@ export class PawlegendsStore {
         @InjectModel(PawlegendsOfferState.name) readonly offers: Model<PawlegendsOfferStateDocument>,
         @InjectModel(PawlegendsRestoreToken.name) readonly restoreTokens: Model<PawlegendsRestoreTokenDocument>,
         @InjectModel(PawlegendsNotify.name) readonly notify: Model<PawlegendsNotifyDocument>,
-        @InjectModel(PawlegendsWebhookEvent.name) readonly webhookEvents: Model<PawlegendsWebhookEventDocument>
+        @InjectModel(PawlegendsWebhookEvent.name) readonly webhookEvents: Model<PawlegendsWebhookEventDocument>,
+        @InjectModel(PawlegendsOwned.name) readonly owned: Model<PawlegendsOwnedDocument>,
+        @InjectModel(PawlegendsSeason.name) readonly seasons: Model<PawlegendsSeasonDocument>
     ) {}
 }

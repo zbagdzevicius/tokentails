@@ -21,6 +21,11 @@ export interface Profile {
   trick: TrickId;
   difficulty: Difficulty;
   muted: boolean;
+  /**
+   * 2: `muted` is the player's own choice. Older profiles could hold a mute the host forced (the site's old music-off
+   * flag), saved by mistake; they start unmuted once (audio fix, Nov 9).
+   */
+  audioV: number;
   /** Free unlocks earned by playing (cosmetic ids). */
   unlocks: string[];
   lastMatchAt: number;
@@ -108,7 +113,7 @@ const HEROES: readonly HeroId[] = HERO_IDS;
 const TRICKS: readonly TrickId[] = ['pounce', 'snack', 'hiss', 'purrify'];
 
 export function freshProfile(): Profile {
-  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, wornTitle: null, wornFrame: null, side: 'cat', lastBySide: {} };
+  return { v: 1, sessions: 0, matches: 0, wins: 0, firstWinDone: false, fastest: {}, hero: 'clem', trick: 'pounce', difficulty: 'easy', muted: false, audioV: 2, unlocks: [], lastMatchAt: 0, looks: {}, offers: {}, tipsOff: false, tipsNext: false, knowsUlt: false, rating: LADDER_START, bests: {}, squad: [], newCat: null, numbers: false, veteran: false, ladderGames: 0, firstPlaySession: 0, meetClosed: null, championMatches: {}, championShown: [], skinFx: 'all', previewsSeen: { session: 0, n: 0 }, bond: {}, skinAuto: null, heroMatches: {}, wornTitle: null, wornFrame: null, side: 'cat', lastBySide: {} };
 }
 
 /** Parse untrusted stored JSON into a valid profile (unknown fields dropped, bad ones defaulted). */
@@ -133,7 +138,8 @@ export function parseProfile(raw: string | null): Profile {
     }
     p.trick = TRICKS.includes(o.trick as TrickId) ? (o.trick as TrickId) : 'pounce';
     p.difficulty = o.difficulty === 'normal' || o.difficulty === 'hard' ? o.difficulty : 'easy';
-    p.muted = o.muted === true;
+    // audio fix (Nov 9): a mute saved before audioV 2 may be the host's, not the player's: start with sound once
+    p.muted = o.muted === true && o.audioV === 2;
     p.unlocks = Array.isArray(o.unlocks)
       ? [...new Set(o.unlocks.filter((u): u is string => typeof u === 'string').map((u) => (u === 'coat:brutus-biscuit' ? BISCUIT_UNLOCK : u)))].slice(0, UNLOCKS_MAX)
       : [];
@@ -401,12 +407,18 @@ export function progressChanged(a: Profile, b: Profile): boolean {
 export interface AccountState {
   signedIn: boolean;
   progress: Progress | null;
+  /** The profile name (signed in only; the account chip). */
+  name?: string | null;
+  /** The sign-in method (signed in only; the account chip's icon). */
+  provider?: 'google' | 'apple' | 'email' | null;
 }
 
 let account: AccountState = { signedIn: false, progress: null };
 export const accountState = (): AccountState => account;
 export function setAccountState(a: AccountState): void {
-  account = { signedIn: a.signedIn, progress: a.signedIn ? a.progress : null };
+  account = a.signedIn
+    ? { signedIn: true, progress: a.progress, name: a.name ?? null, provider: a.provider ?? null }
+    : { signedIn: false, progress: null };
 }
 
 /** Tests only. */

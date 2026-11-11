@@ -12,6 +12,7 @@ import { PawlegendsReplayRecord, PawlegendsVerifyResult, SIM_VERSIONS } from 'sr
 import { Worker } from 'worker_threads';
 import { PawlegendsReplayDto } from './pawlegends-replay.dto';
 import { pawlegendsSimErrorDetail } from './pawlegends-sim-info';
+import type { SeasonXpGain, SeasonXpMatch } from './pawlegends-season.service';
 
 export { PAWLEGENDS_SIM_INFO, pawlegendsSimErrorDetail } from './pawlegends-sim-info';
 
@@ -235,6 +236,30 @@ export interface IPawlegendsLiveDeps {
     now?: () => Date;
     /** Where saves that do not write are logged (default: Nest's Logger, context 'PawlegendsLive'). */
     logger?: Pick<Logger, 'warn' | 'log'>;
+    /**
+     * Legends Pass Season XP (STORE-PASS.md §5, PawlegendsSeasonService.addXp): called once, after the Game row was
+     * created, so a duplicate save never pays. Cosmetic progress only; never fails the save.
+     */
+    season?: { addXp(userId: string, m: SeasonXpMatch): Promise<SeasonXpGain | null> };
+}
+
+/** Kills plus assists of one slot in a stats list (the re-sim's or a party verdict's), 0 when absent. */
+export function takedownsOf(stats: unknown, slot: number): number {
+    if (!Array.isArray(stats)) return 0;
+    const s = stats.find(x => !!x && typeof x === 'object' && (x as { slot?: unknown }).slot === slot) as
+        | { kills?: unknown; assists?: unknown }
+        | undefined;
+    const n = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v > 0 ? Math.floor(v) : 0);
+    return s ? n(s.kills) + n(s.assists) : 0;
+}
+
+/** What `/live` answers about the pass: the XP this match paid and the tier after it. */
+export interface IPawlegendsSeasonAnswer {
+    seasonId: string;
+    xp: number;
+    tier: number;
+    prevTier: number;
+    gained: number;
 }
 
 const pawlegendsLiveLogger = new Logger('PawlegendsLive');
@@ -271,6 +296,8 @@ export interface IPawlegendsLiveResult {
     fastestWin: number | null;
     /** Sim v10 (GAPS B2): how the re-simmed match ended ('forfeit': the player forfeited); absent for v9 replays. */
     reason?: 'core' | 'safetyEnd' | 'forfeit';
+    /** Legends Pass Season XP this save paid (absent when the pass service is not wired). */
+    season?: IPawlegendsSeasonAnswer;
 }
 
 const isDuplicateKey = (error: unknown) => (error as { code?: unknown } | undefined)?.code === 11000;
@@ -393,6 +420,16 @@ export async function savePawlegendsMatch(
     });
     // The catnip reaches the account's Token Tails total (catnipCount), as Catnip Chaos and Paw Match do.
     const catnipCount = await recomputeCatnipCount(deps.users, userId);
+    // Legends Pass Season XP: after the Game row (unique digest) exists, so this match pays once. The human is slot 0.
+    const season = deps.season
+        ? await deps.season.addXp(String(userId), {
+              won,
+              forfeit: result.reason === 'forfeit',
+              takedowns: takedownsOf((result as { stats?: unknown }).stats, 0),
+              // Daily cap and real-time gap: a solo seed is the client's, so replays could be made offline.
+              soloMs: (result.ticks / PAWLEGENDS_TICK_HZ) * 1000,
+          })
+        : null;
 
     return {
         difficulty,
@@ -403,5 +440,6 @@ export async function savePawlegendsMatch(
         catnipCount,
         fastestWin: won && ranked ? Math.min(result.ticks, heldFastest ?? result.ticks) : heldFastest,
         ...(result.reason ? { reason: result.reason } : {}),
+        ...(season ? { season } : {}),
     };
 }

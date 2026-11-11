@@ -68,6 +68,8 @@ export const WINDOW = Object.freeze({
   same: 6,
   /** GAPS A6: at most one ally bark in this many ticks (8 s), so a teamfight is not a wall of text. */
   bark: 240,
+  /** "They took the Frenzy" is said at most once in this many ticks (90 s). */
+  frenzyVoice: 2700,
 });
 
 /** GAPS A6: allied bots cheer the player's takedowns and assists (fixed lines, chosen in turn: no randomness). */
@@ -102,6 +104,14 @@ export function isAce(victim: number, down: (slot: number) => boolean): boolean 
   return true;
 }
 
+/**
+ * V21-FUN §4: one of our towers (or the core) started burning: an info callout, once per structure (gameView says
+ * when; the line comes from views/towerDamage.ts burningLine).
+ */
+export function towerBurningMoment(line: string): Moment {
+  return { key: 'towerBurning', title: line, tone: 'info', size: 'callout' };
+}
+
 /** LoL pass (lane B): an ally's knockout is not called when one of ours took a hero down this close to it (ticks). */
 export const ALLY_SLAIN_QUIET = 45;
 /** LoL pass (lane B): without a snapshot, a hero counts as down for this long after its death (ticks; the shortest respawn). */
@@ -121,6 +131,8 @@ export class Announcer {
   private readonly myHitOn = new Map<number, number>();
   private best: Moment | null = null;
   private frenzySpawns = 0;
+  /** The last tick "They took the Frenzy" was said (the callout shows every time). */
+  private frenzyVoiceAt = -1e9;
   private nineSeen = 0;
   private barkAt = -1e9;
   private barks = 0;
@@ -273,11 +285,12 @@ export class Announcer {
       if (this.firstTakedownTick < 0) this.firstTakedownTick = this.tick;
     }
     if (killerHero) this.streak[e.killer]++;
-    // First Blood: the match's first hero knockout, when a hero made it (round 1: "First Blood!" at 2:15 with the
-    // score already 3 to 2, because the earlier knockouts were by towers and minions)
-    if (this.firstBloodAt < 0) {
+    // First Blood, inferred: the match's first hero knockout by a hero. A knockout by a tower or minion does not use it
+    // up here: the sim's own `firstBlood` event (credited to a hero that helped, or to the victim's enemies) calls it,
+    // so the line is never skipped (audio fix: 2 of 4 matches never said "First Blood")
+    if (this.firstBloodAt < 0 && killerHero) {
       this.firstBloodAt = this.tick;
-      if (killerHero) out.push(this.firstBlood(e.killer));
+      out.push(this.firstBlood(e.killer, e.id));
     }
     if (killerHero && teamOf(e.killer) === this.myTeam) this.ourTakedownAt = this.tick;
     if (killerHero && hadBounty && victimStreak >= 3) {
@@ -392,14 +405,16 @@ export class Announcer {
     return { key: mine ? 'barkKill' : 'barkAssist', title, tone: 'good', size: 'bark', slot: ally };
   }
 
-  private firstBlood(killer: number): Moment {
+  /** `killer` may be a tower or minion (or −1): then the team that knocked `victim` out drew first blood. */
+  private firstBlood(killer: number, victim: number): Moment {
     const mine = killer === this.mySlot;
-    const ours = teamOf(killer) === this.myTeam;
+    const byHero = isHero(killer);
+    const ours = byHero ? teamOf(killer) === this.myTeam : isHero(victim) && teamOf(victim) !== this.myTeam;
     return this.note({
       key: 'firstBlood',
       // Lane F (F4): the player's First Blood says what it paid (the kill and its bonus, from data/fish.ts)
       title: mine ? `First Blood! +${FISH.kill + FISH.firstBlood} Fish` : 'First Blood!',
-      sub: mine ? 'You drew first blood.' : ours ? `${this.name(killer)} drew first blood.` : 'They drew first blood.',
+      sub: mine ? 'You drew first blood.' : ours ? (byHero ? `${this.name(killer)} drew first blood.` : 'We drew first blood.') : 'They drew first blood.',
       tone: mine ? 'gold' : ours ? 'good' : 'bad',
       size: 'banner',
       slowmo: { ms: 400, scale: 0.4 },
@@ -453,7 +468,7 @@ export class Announcer {
       case 'firstBlood':
         if (this.firstBloodAt >= 0) return [];
         this.firstBloodAt = this.tick;
-        return [this.firstBlood(e.killer)];
+        return [this.firstBlood(e.killer, e.victim)];
       case 'shutdown': {
         if (this.lastShutdown.victim === e.victim && Math.abs(this.tick - this.lastShutdown.tick) <= WINDOW.same) {
           // already announced from the death: only the XP and (sim v12) Fish are new. The Fish goes onto the same rail
@@ -497,7 +512,12 @@ export class Announcer {
           this.pickups++;
           return [{ key: `pickup-${e.kind}`, title: e.kind === 'frenzy' ? '+FRENZY' : '+SNACK', tone: e.kind === 'frenzy' ? 'gold' : 'good', size: 'pop', crowd: e.kind === 'frenzy' ? 'cheer' : undefined }];
         }
-        if (e.kind === 'frenzy' && teamOf(e.id) !== this.myTeam) return [{ key: 'frenzyThem', title: 'They took the Frenzy!', tone: 'bad', size: 'callout', voice: 'frenzyThem' }];
+        if (e.kind === 'frenzy' && teamOf(e.id) !== this.myTeam) {
+          // audio fix (Nov 9): said 9 to 15 times a match it crowded out bounty and core lines; the callout stays
+          const say = this.tick - this.frenzyVoiceAt >= WINDOW.frenzyVoice;
+          if (say) this.frenzyVoiceAt = this.tick;
+          return [{ key: 'frenzyThem', title: 'They took the Frenzy!', tone: 'bad', size: 'callout', ...(say ? { voice: 'frenzyThem' as const } : {}) }];
+        }
         return [];
       case 'buff':
         if (isNineLives(e) && e.id === this.mySlot) {

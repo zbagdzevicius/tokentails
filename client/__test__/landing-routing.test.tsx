@@ -523,6 +523,11 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
       "/music/back-on-track-v1/:path*",
       "/pawlegends-game/build/:path*",
       "/pawlegends/landing/:path*",
+      "/pawlegends-game/index.html",
+      "/pawlegends-game/assets/:path*",
+      "/pawlegends-app/updates/:platform/:compat/bundles/:file*",
+      "/pawlegends-app/updates/:platform/:compat/manifest.json",
+      "/pawlegends-app/updates/:platform/:compat/manifest-beta.json",
     ]);
     // Moon Rave's second track: every file name is versioned, so the folder is immutable.
     const music = headers.find((h: { source: string }) => h.source === "/music/back-on-track-v1/:path*");
@@ -533,8 +538,27 @@ describe("/proof and the Firebase auth proxy (next.config.js)", () => {
     const headers = await nextConfig.headers();
     const build = headers.find((h: { source: string }) => h.source === "/pawlegends-game/build/:path*");
     expect(build.headers).toEqual([{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }]);
-    // index.html must keep revalidating, or a deploy would never reach an open tab's next load
-    expect(headers.some((h: { source: string }) => h.source.startsWith("/pawlegends-game/index"))).toBe(false);
+    // index.html revalidates in the browser every time, with no stale-while-revalidate (browsers honour it and would
+    // load the previous release once); only Cloudflare keeps it 60 s, through its own header (LATENCY-PLAN §3.3)
+    const index = headers.find((h: { source: string }) => h.source === "/pawlegends-game/index.html");
+    expect(index.headers).toEqual([
+      { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+      { key: "Cloudflare-CDN-Cache-Control", value: "max-age=60, stale-while-revalidate=300" },
+    ]);
+  });
+
+  it("caches the Pawlegends OTA bundles for good and the OTA manifests 30 s at Cloudflare only (LATENCY-PLAN §3.3)", async () => {
+    const headers = await nextConfig.headers();
+    const entry = (source: string) => headers.find((h: { source: string }) => h.source === source)?.headers;
+    const value = (source: string) => entry(source)?.[0].value;
+    expect(value("/pawlegends-app/updates/:platform/:compat/bundles/:file*")).toBe("public, max-age=31536000, immutable");
+    for (const m of ["manifest.json", "manifest-beta.json"])
+      expect(entry(`/pawlegends-app/updates/:platform/:compat/${m}`)).toEqual([
+        { key: "Cache-Control", value: "public, max-age=0, must-revalidate" },
+        { key: "Cloudflare-CDN-Cache-Control", value: "max-age=30, stale-while-revalidate=60" },
+      ]);
+    // the game's assets/ names carry no content hash yet: never immutable
+    expect(value("/pawlegends-game/assets/:path*")).toBe("public, max-age=3600, stale-while-revalidate=604800");
   });
 });
 

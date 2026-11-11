@@ -146,7 +146,7 @@ describe('room restore (N9)', () => {
         await new Promise(r => server.close(r));
     });
 
-    it('a stale room (> 120 s) is abandoned, a room another instance holds is not; two instances never both claim a room', async () => {
+    it('a stale room (past the 300 s window) is abandoned, a room another instance holds is not; two instances never both claim a room', async () => {
         const store = new MemoryRoomStore();
         const now = Date.now();
         const base = (id: string, ageMs: number, handoff: boolean): StoredRoom => ({
@@ -178,7 +178,7 @@ describe('room restore (N9)', () => {
             updatedAt: new Date(now - ageMs),
         });
         await store.create(base('fresh', 1000, true));
-        await store.create(base('stale', 200_000, true));
+        await store.create(base('stale', 400_000, true));
         // a match another running instance still checkpoints (DigitalOcean during the migration): never touched
         await store.create(base('held', 1000, false));
         const s1 = createServer();

@@ -18,13 +18,12 @@ vi.mock('../../src/render/portraits', () => ({ portraitUrl: () => null }));
 const owned = (ids: string[]): Owned => ({ items: new Set(), unlocks: new Set(), roster: rosterCosmetics(ids.map((id) => ({ id, name: `Cat ${id}`, type: 'FIRE', tier: 'COMMON', isStarter: false, origin: 'adopt' }))) });
 const tile = (id: string, over: Partial<SkinTile> = {}): SkinTile => ({ id, name: `Cat ${id}`, element: 'FIRE', rung: 'COMMON', bond: 0, ...over });
 
-function pick(skins: { owned: SkinTile[]; locked: SkinTile[] }, onPreview = (_id: string) => true): HTMLElement {
+function pick(skins: { owned: SkinTile[]; locked: SkinTile[] }): HTMLElement {
   document.body.innerHTML = '';
   return pickScreen(document.body, {
     initial: { hero: 'clem', trick: 'pounce', difficulty: 'easy' },
     owned: owned(skins.owned.map((s) => s.id.slice(4))),
-    skins,
-    onPreview,
+    onDeck: () => undefined,
     onHero: () => undefined,
     onStart: () => undefined,
     onBack: () => undefined,
@@ -48,40 +47,38 @@ describe('gates', () => {
   });
 });
 
-describe('pick screen Skins row', () => {
-  it('owned tiles with rung, Bond and the pack-cat tooltip; locked tiles greyed with Preview; no price text', () => {
-    const root = pick({ owned: [tile('cat.a', { rung: 'LEGENDARY', bond: 31 }), tile('cat.p', { fromPack: true })], locked: [tile('cat.f.65a1b2c3d4e5f6a7b8c9d0e1', { name: 'Nova' })] });
-    expect(root.querySelector('.wardrobe .lbl')?.textContent).toBe('Skins');
-    expect(root.querySelectorAll('.skin-tile[data-coat]').length).toBe(2);
-    expect(root.querySelector('.skin-tile[data-coat="cat.a"] .pip')?.textContent).toBe('Legendary');
-    expect(root.querySelector('.skin-tile[data-coat="cat.a"] .bond')?.textContent).toBe('Bond 31');
-    const pack = root.querySelector('.skin-tile[data-coat="cat.p"]') as HTMLElement;
-    expect(pack.dataset.noframe).toBe('1');
-    expect(pack.title).toMatch(/frames come from cats you adopted by name/);
-    expect(root.textContent).not.toContain('no frame');
-    const locked = root.querySelector('.skin-tile.locked') as HTMLElement;
-    expect(locked.querySelector('[data-preview]')?.textContent).toBe('Preview');
-    expect(locked.querySelector('a, [href]')).toBeNull();
+describe('champion select: no offers, the Look sheet', () => {
+  it('the pick shows no skins strip, no locked or preview tiles and no price, money word or pack anywhere', () => {
+    const root = pick({ owned: [tile('cat.a', { rung: 'LEGENDARY', bond: 31 })], locked: [tile('cat.f.65a1b2c3d4e5f6a7b8c9d0e1', { name: 'Nova' })] });
+    expect(root.querySelector('.skin-strip, .skin-tile, [data-preview]')).toBeNull();
+    (root.querySelector('[data-a="look"]') as HTMLElement).click();
+    expect(root.querySelector('.cs-looksheet')).not.toBeNull();
     const text = root.textContent ?? '';
     expect(text).not.toMatch(/\$|€|£|price|buy|pack|donat|fund|adopt now|purchase|shop/i);
+    expect(root.querySelector('a, [href]')).toBeNull();
   });
-  it('Preview spins once (the callback decides the cap); a spent preview says Seen', () => {
-    let left = 1;
-    const root = pick({ owned: [], locked: [tile('cat.f.65a1b2c3d4e5f6a7b8c9d0e1')] }, () => left-- > 0);
-    (root.querySelector('[data-preview]') as HTMLElement).click();
-    expect(root.querySelector('[data-preview]')?.textContent).toBe('Previewing');
-  });
-  it('wearing a card skin hides the chroma swatches', () => {
-    const root = pick({ owned: [tile('cat.a')], locked: [] });
-    expect(root.querySelector('.swatches')).not.toBeNull();
-    (root.querySelector('.skin-tile[data-coat="cat.a"]') as HTMLElement).click();
-    expect(root.querySelector('.skin-tile[data-coat="cat.a"]')?.classList.contains('on')).toBe(true);
-    expect(root.querySelector('.swatches')).toBeNull();
-  });
-  it('app builds: the app passes no locked tiles, so there are no locked, preview or showcase tiles', () => {
-    setFeaturedSkins([]);
-    const root = pick({ owned: [tile('cat.a')], locked: [] });
-    expect(root.querySelector('.skin-tile.locked, [data-preview]')).toBeNull();
+  it('a colour tint and a card: wearing a card skin hides the tints; Cards opens the drawer', () => {
+    const onLook = vi.fn();
+    const onDeck = vi.fn();
+    document.body.innerHTML = '';
+    const root = pickScreen(document.body, {
+      initial: { hero: 'clem', trick: 'pounce', difficulty: 'easy' },
+      owned: owned(['a']),
+      onLook,
+      onDeck,
+      onHero: () => undefined,
+      onStart: () => undefined,
+      onBack: () => undefined,
+    });
+    (root.querySelector('[data-a="look"]') as HTMLElement).click();
+    const tints = root.querySelectorAll<HTMLElement>('.cs-looksheet [data-chroma]');
+    expect(tints.length).toBeGreaterThan(1);
+    tints[1].click();
+    expect(onLook).toHaveBeenLastCalledWith('clem', expect.objectContaining({ chroma: tints[1].dataset.chroma }));
+    expect(root.querySelector('.cs-looksheet [data-chroma].on')?.getAttribute('data-chroma')).toBe(tints[1].dataset.chroma);
+    (root.querySelector('.cs-looksheet [data-a="deck"]') as HTMLElement).click();
+    expect(onDeck).toHaveBeenCalledWith('clem');
+    expect(root.querySelector('.cs-looksheet')).toBeNull();
   });
 });
 

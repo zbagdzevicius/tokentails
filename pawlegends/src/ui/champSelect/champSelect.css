@@ -1,0 +1,420 @@
+/* Champion select, adapted from Wild Rift (docs/plans/moba/LANDING-PICK-UX.md Part B). One grid for every mode:
+   header / team column · tabs + portrait grid · hero panel / bots or Leave · LOCK IN · Paw Trick row.
+   The screen never scrolls; only the portrait grid may, and then it shows it (a cut last row, a fade, "▾ more" and a
+   thin thumb). No 3D here: the lobby stage turns behind a 55% scrim (solo); the party draws its own backdrop.
+   Phones first (667x375, 844x390 with 47 px side insets), desktop 1440x900 in a centred 1400 px block. */
+.cs {
+  --cs-head: 36px;
+  --cs-foot: 56px;
+  --cs-team: 140px;
+  --cs-panel: 196px;
+  --cs-gap: 8px;
+  --cs-tile: 52px;
+  --cs-sk: 32px;
+  --cs-lock-w: 200px;
+  --cs-lock-h: 48px;
+  --cs-trick: 40px;
+  --cs-seat: 64px;
+  --cs-face: 40px;
+  --cs-line: rgba(255, 243, 220, 0.16);
+  --cs-panelbg: rgba(30, 19, 35, 0.84);
+  --cs-gold: var(--butter, #ffd34d);
+  position: absolute; inset: 0; box-sizing: border-box; overflow: hidden; color: var(--cream, #fff3dc);
+  display: grid; column-gap: var(--cs-gap); row-gap: 6px;
+  grid-template-columns: var(--cs-team) minmax(0, 1fr) var(--cs-panel);
+  grid-template-rows: var(--cs-head) minmax(0, 1fr) var(--cs-foot);
+  grid-template-areas: 'head head head' 'team mid panel' 'fl fc fr';
+  padding: max(8px, var(--safe-t, 0px)) max(16px, var(--safe-r, 0px)) max(8px, var(--safe-b, 0px)) max(16px, var(--safe-l, 0px));
+  background: rgba(22, 13, 27, 0.55);
+  font-family: var(--font);
+}
+/* the solo screen: the 55% scrim over the lobby stage; the grid sits on its own darker card so the 3D hero never shows
+   through between the tiles */
+.pl-pick > .cs { background: rgba(22, 13, 27, 0.55); }
+.cs-gridwrap { border-radius: 12px; background: rgba(22, 13, 27, 0.6); }
+.cs *, .cs *::before, .cs *::after { box-sizing: border-box; }
+.cs small, .pl-party .cs small { text-transform: none; letter-spacing: 0; opacity: 1; }
+.cs button { font-family: inherit; }
+.cs button:focus-visible { outline: 3px solid var(--cs-gold); outline-offset: 2px; }
+/* the party overlay: the champion select fills it (its own gradient is the backdrop) */
+.pl-party .pp-card.cs { position: absolute; inset: 0; width: auto; max-height: none; display: grid; gap: 6px var(--cs-gap); background: none; }
+
+/* ---------------------------------------------------------------------------------------------- header */
+.cs-head { grid-area: head; display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; min-width: 0; }
+.cs-hl { justify-self: start; display: flex; align-items: center; gap: 6px; }
+.cs-hr { justify-self: end; display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; }
+/* the header has room for Quick Play's found line on phones too (the queue card hides it under 430 px) */
+.pl-party .cs-hr .pp-found-line { display: block; }
+.cs-hr .pp-found-line { font-size: 11px; padding: 1px 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cs-title { display: flex; flex-direction: column; align-items: center; min-width: 0; text-align: center; }
+.cs .cs-title h2 {
+  margin: 0; font: 700 16px/1.05 var(--font); letter-spacing: 0.06em; text-transform: uppercase; white-space: nowrap;
+  text-shadow: 0 2px 0 rgba(0, 0, 0, 0.35);
+}
+.cs .cs-timer { font: 800 14px/1 var(--font); color: var(--cs-gold); font-variant-numeric: tabular-nums; min-width: 0; text-align: center; }
+.cs .cs-timer[data-low] { color: #ff7a8a; }
+.cs-title .pp-side-note { font-size: 11px; padding: 1px 8px; margin-top: 1px; }
+.cs .cs-back.pl-btn { display: inline-flex; align-items: center; gap: 4px; min-height: 40px; padding: 0 12px 0 8px; font-size: 14px; position: relative; }
+.cs .cs-back::after { content: ''; position: absolute; inset: -4px 0; }
+.cs-back-ico { width: 18px; height: 18px; }
+.cs-hr .pp-side-note.pp-team { font-size: 12px; padding: 2px 10px; white-space: nowrap; }
+
+/* -------------------------------------------------------------------------------------------- team */
+.cs-team { grid-area: team; display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+.cs-seats { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; min-height: 0; flex: 0 1 auto; }
+.cs-seat {
+  position: relative; flex: 0 1 var(--cs-seat); min-height: 36px; display: flex; align-items: center; gap: 8px; padding: 4px 6px 4px 10px; min-width: 0;
+  border-radius: 12px; background: rgba(30, 19, 35, 0.66); box-shadow: inset 0 0 0 1px var(--cs-line);
+}
+.cs-seat.me { background: linear-gradient(90deg, rgba(255, 211, 77, 0.24), rgba(30, 19, 35, 0.7) 70%); box-shadow: inset 0 0 0 1px rgba(255, 211, 77, 0.45); }
+.cs-seat.me::before { content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; border-radius: 4px; background: var(--cs-gold); }
+.cs-seat[data-state='hover'] .cs-st b, .cs-seat[data-state='empty'] .cs-st b { color: var(--cs-gold); }
+.cs-seat.bot { opacity: 0.8; }
+.cs-sf {
+  position: relative; flex: none; width: var(--cs-face); height: var(--cs-face); border-radius: 50%; overflow: hidden;
+  background: var(--tt-grad, rgba(255, 243, 220, 0.12)); box-shadow: 0 0 0 2px rgba(255, 243, 220, 0.3);
+  display: grid; place-items: center; font: 800 16px/1 var(--font); color: rgba(255, 243, 220, 0.75);
+}
+.cs-sf.q { background: rgba(255, 243, 220, 0.08); }
+.cs-sf.dim { filter: grayscale(0.75) brightness(0.8); }
+.cs-seat[data-state='locked'] .cs-sf { box-shadow: 0 0 0 2px var(--cs-gold); }
+.cs-sf .tt-pic {
+  position: absolute; inset: 0; display: grid; place-items: center; background-size: auto 118%, cover; background-position: 50% 30%, center;
+  background-repeat: no-repeat; font: 700 15px/1 var(--font); color: #2b1d2e;
+}
+.cs-ok {
+  position: absolute; left: calc(10px + var(--cs-face) - 14px); top: calc(50% + var(--cs-face) / 2 - 16px); width: 16px; height: 16px; border-radius: 50%;
+  background: #6fdc8c; color: #13261a; font: 800 11px/16px var(--font); text-align: center; font-style: normal;
+}
+.cs-st { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+.cs-st b { font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-st small { font-size: 11px; opacity: 0.78; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-strick { margin-left: auto; flex: none; width: 16px; height: 16px; color: var(--cs-gold); opacity: 0.9; }
+.cs-strick .pl-icon { width: 16px; height: 16px; }
+.cs[data-seats='5'] { --cs-seat: 48px; }
+.cs[data-seats='5'] .cs-seat { gap: 6px; padding-top: 2px; padding-bottom: 2px; }
+.cs[data-seats='5'] .cs-seat { --cs-face: 32px; }
+.cs-squad { flex: 0 1 auto; min-height: 0; overflow: hidden; }
+.cs-squad:empty, .cs-squad .plc-pick:not(:has(.plc-row, .plc-bench, button)) { display: none; }
+.cs-squad .plc-pick { width: 100%; padding: 6px 8px; border-radius: 12px; flex-direction: row; align-items: center !important; gap: 6px; }
+.cs-squad .plc-pick .plc-head small, .cs-squad .plc-pick .plc-trails { display: none; }
+.cs-squad .plc-pick .plc-head b { font-size: 11px; writing-mode: vertical-rl; transform: rotate(180deg); }
+.cs-squad .plc-card.small { width: 40px; height: 54px; }
+.cs-team .pp-side-note { white-space: normal; font-size: 11px; line-height: 1.25; border-radius: 10px; padding: 4px 8px; }
+
+/* ----------------------------------------------------------------------------------------- tabs + grid */
+.cs-mid { grid-area: mid; display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; container-type: inline-size; }
+.cs-tabs { display: flex; align-items: center; gap: 2px; flex: none; min-width: 0; }
+.cs-sides, .cs-roles { display: flex; gap: 2px; min-width: 0; }
+.cs-sides { flex: 3 1 0; }
+.cs-roles { flex: 6 1 0; }
+.cs-div { flex: none; width: 1px; height: 22px; margin: 0 3px; background: var(--cs-line); }
+.cs-tab {
+  position: relative; flex: 1 1 0; min-width: 26px; height: 36px; padding: 0 4px; display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  border: 0; border-radius: 9px; background: rgba(30, 19, 35, 0.6); color: inherit; cursor: pointer; font: 700 13px/1 var(--font);
+  box-shadow: inset 0 0 0 1px var(--cs-line);
+}
+.cs-tab .pl-icon { width: 18px; height: 18px; flex: none; color: rgba(255, 243, 220, 0.8); }
+.cs-tab b { display: none; white-space: nowrap; }
+.cs-tab.on { background: rgba(255, 211, 77, 0.22); box-shadow: inset 0 0 0 2px var(--cs-gold); }
+.cs-tab.on .pl-icon { color: var(--cs-gold); }
+.cs-tab.side-tab .pl-icon { color: var(--side, rgba(255, 243, 220, 0.8)); }
+.cs-tlock { position: absolute; right: 1px; top: 0; font-size: 11px; }
+/* 44 px tall hit areas on the 36 px tabs */
+.cs-tab::after { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
+/* a narrow centre (667 px phones, notch insets): sides on one row, roles on the next, so every tab keeps 40+ px */
+@container (max-width: 380px) {
+  .cs-tabs { flex-wrap: wrap; row-gap: 4px; }
+  .cs-sides, .cs-roles { flex: 1 1 100%; }
+  .cs-div { display: none; }
+  .cs-tab::after { top: -2px; bottom: -2px; }
+  .cs-sides .cs-tab b { display: inline; font-size: 12px; }
+}
+
+.cs-gridwrap { position: relative; flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; }
+.cs-grid {
+  /* at least five columns (ten heroes of a side in two rows, no scroll), even in a narrow centre */
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(min(var(--cs-tile), calc((100% - 16px) / 5)), 1fr)); gap: 4px; align-content: start;
+  overflow-y: auto; overflow-x: hidden; overscroll-behavior: contain; min-height: 0; max-height: 100%; padding: 3px 4px 4px 3px;
+  scrollbar-width: thin; scrollbar-color: rgba(255, 243, 220, 0.55) transparent;
+}
+.cs-grid::-webkit-scrollbar { width: 3px; }
+.cs-grid::-webkit-scrollbar-thumb { background: rgba(255, 243, 220, 0.55); border-radius: 3px; }
+.cs-gridwrap.more::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 30px; height: 16px; pointer-events: none;
+  background: linear-gradient(transparent, rgba(22, 13, 27, 0.92));
+}
+/* "▾ more": under the grid, in the flow (never over a tile); only while rows hide below */
+.cs-more {
+  position: relative; flex: none; align-self: center; margin-top: 2px; height: 28px; padding: 0 14px; border: 0; border-radius: 999px;
+  font: 700 12px/28px var(--font); color: #2b1d2e; background: var(--cs-gold); cursor: pointer; box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+.cs-more[hidden] { display: none; }
+.cs-more::after { content: ''; position: absolute; inset: -8px -6px; }
+
+.cs-tile {
+  position: relative; display: flex; flex-direction: column; align-items: stretch; gap: 2px; padding: 0; min-width: 0;
+  border: 0; background: none; color: inherit; cursor: pointer; font: inherit; -webkit-tap-highlight-color: transparent;
+}
+.cs-tile[hidden] { display: none; }
+.cs-tile .cs-sf.cs-face {
+  width: 100%; height: auto; aspect-ratio: 1; border-radius: 10px; font-size: 18px;
+  box-shadow: 0 0 0 1px rgba(255, 243, 220, 0.22), 0 2px 6px rgba(0, 0, 0, 0.35);
+  transition: box-shadow 0.12s, transform 0.12s;
+}
+.cs-tile .cs-sf .tt-pic { font-size: 18px; }
+.cs-tile[data-rung='RARE'] .cs-face { box-shadow: 0 0 0 2px #7cc4ff, 0 2px 6px rgba(0, 0, 0, 0.35); }
+.cs-tile[data-rung='EPIC'] .cs-face { box-shadow: 0 0 0 2px #c9a8ff, 0 2px 6px rgba(0, 0, 0, 0.35); }
+.cs-tile[data-rung='LEGENDARY'] .cs-face { box-shadow: 0 0 0 2px #ffd34d, 0 2px 6px rgba(0, 0, 0, 0.35); }
+.cs-tile:hover .cs-face { transform: translateY(-1px); }
+.cs-tile.on .cs-face { box-shadow: 0 0 0 2px var(--cs-gold), 0 0 0 4px rgba(43, 29, 46, 0.7), 0 0 14px rgba(255, 211, 77, 0.6); }
+.cs-tn { font: 700 11px/1.1 var(--font); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-shadow: 0 1px 0 rgba(0, 0, 0, 0.5); }
+.cs-tile[data-long] .cs-tn { font-size: 10px; letter-spacing: -0.04em; margin: 0 -3px; }
+.cs-tile.on .cs-tn { color: var(--cs-gold); }
+.cs-tile.taken .cs-face, .cs-tile.locked .cs-face { filter: grayscale(0.85) brightness(0.55); }
+.cs-tile[disabled], .cs-tile[data-blocked] { cursor: default; }
+.cs-tile[data-blocked]:not(.on) .cs-face { opacity: 0.8; }
+.cs-tile[disabled]:hover .cs-face { transform: none; }
+.cs-sb {
+  position: absolute; left: 3px; top: 3px; width: 14px; height: 14px; border-radius: 50%; display: grid; place-items: center; pointer-events: none;
+  background: rgba(30, 19, 35, 0.8);
+}
+.cs-sb .pl-icon { width: 10px; height: 10px; }
+.cs-sb { color: var(--side); }
+.cs-new {
+  position: absolute; right: 2px; top: 2px; font: 800 9px/1 var(--font); letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 4px; border-radius: 999px;
+  background: #ff8fb1; color: #2a1a22; pointer-events: none;
+}
+.cs-lk { position: absolute; left: 0; right: 0; top: 0; aspect-ratio: 1; display: grid; place-items: center; font-size: 16px; pointer-events: none; }
+.cs-taken, .cs-try {
+  position: absolute; left: 2px; right: 2px; z-index: 2; font: 800 9px/1.2 var(--font); padding: 2px 3px; border-radius: 6px; text-align: center; pointer-events: none;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.cs-taken { top: 40%; background: rgba(14, 18, 38, 0.92); }
+.cs-try { top: 2px; background: #3aa65a; color: #fff; }
+.cs-mate { position: absolute; right: 3px; bottom: 18px; width: 9px; height: 9px; border-radius: 50%; background: #7cc4ff; box-shadow: 0 0 0 2px rgba(30, 19, 35, 0.9); }
+.cs-mate[data-mate='1'] { background: #9be3c4; }
+.cs-mate[data-mate='2'] { background: #c9a8ff; }
+.cs-mate[data-mate='3'] { background: #ff9f43; }
+.cs-mate[data-mate='4'] { background: #ff8fb1; }
+
+/* --------------------------------------------------------------------------------------------- panel */
+.cs-panel {
+  grid-area: panel; min-height: 0; min-width: 0; overflow: hidden; display: flex; flex-direction: column; gap: 6px;
+  padding: 8px 10px; border-radius: 14px; background: var(--cs-panelbg); box-shadow: inset 0 0 0 1px var(--cs-line);
+}
+.cs-panel.empty { justify-content: center; text-align: center; }
+.cs-ph { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cs-ri { flex: none; width: 24px; height: 24px; color: var(--cs-gold); }
+.cs-ri .pl-icon { width: 24px; height: 24px; }
+.cs-pn { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.1; }
+.cs-rl { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.cs-rl .cs-role { flex: 1; min-width: 0; overflow: hidden; }
+.cs-name { font-size: 18px; letter-spacing: 0.04em; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-role { display: flex; align-items: center; gap: 6px; font-size: 11px; opacity: 0.85; white-space: nowrap; }
+.cs-diff { display: inline-flex; align-items: center; gap: 2px; }
+.cs-diff i { width: 6px; height: 6px; border-radius: 50%; background: rgba(255, 243, 220, 0.25); }
+.cs-diff i.on { background: var(--cs-gold); }
+.cs-diff small { font-size: 10px; margin-left: 3px; opacity: 0.8; }
+.cs .cs-panel .cs-look.pl-btn { flex: none; min-height: 0; height: 30px; padding: 0 12px; font-size: 12px; position: relative; }
+.cs .cs-look::after { content: ''; position: absolute; inset: -7px 0; }
+.cs-skills { display: flex; flex-wrap: nowrap; gap: 4px; flex: none; justify-content: space-between; }
+.cs-sk {
+  position: relative; flex: none; width: var(--cs-sk); height: var(--cs-sk); padding: 0; border: 0; border-radius: 50%; cursor: pointer;
+  display: grid; place-items: center; color: var(--cs-gold); background: radial-gradient(circle at 50% 35%, rgba(255, 243, 220, 0.16), rgba(20, 12, 24, 0.9));
+  box-shadow: inset 0 0 0 2px rgba(255, 243, 220, 0.25);
+}
+.cs-sk .pl-icon { width: 62%; height: 62%; }
+.cs-sk.passive { color: #ff9fbf; border-radius: 10px; }
+.cs-sk.ult { box-shadow: inset 0 0 0 2px rgba(255, 211, 77, 0.55); }
+.cs-sk.on { box-shadow: 0 0 0 2px var(--cs-gold), 0 0 12px rgba(255, 211, 77, 0.6); }
+.cs-sk kbd {
+  position: absolute; right: -3px; bottom: -3px; min-width: 16px; height: 16px; padding: 0 3px; border-radius: 5px; font: 800 11px/16px var(--font);
+  color: #2b1d2e; background: var(--cream, #fff3dc); text-align: center; box-shadow: none; border: 0;
+}
+.cs-sk::after { content: ''; position: absolute; inset: calc((var(--cs-sk) - 44px) / 2); }
+.cs-skill { display: flex; flex-direction: column; gap: 3px; min-height: 0; min-width: 0; overflow: hidden; }
+.cs-sk-name { display: block; min-width: 0; font-size: 14px; line-height: 1.15; color: var(--cs-gold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs .cs-panel .cs-preview.pl-btn {
+  flex: none; width: 32px; height: 32px; min-height: 0; padding: 0; margin: 0; font-size: 12px; position: relative; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+}
+.cs .cs-preview span { display: none; }
+.cs .cs-preview::after { content: ''; position: absolute; inset: -6px 0; }
+.cs-meta { margin: 0; display: flex; align-items: center; gap: 6px; font-size: 11px; opacity: 0.8; min-width: 0; }
+.cs-meta span { flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cs-num {
+  position: relative; flex: none; height: 26px; padding: 0 7px; border: 0; border-radius: 7px; cursor: pointer; font: 800 11px/26px var(--font);
+  color: inherit; background: rgba(255, 243, 220, 0.12);
+}
+.cs-num[aria-pressed='true'] { background: var(--cs-gold); color: #2b1d2e; }
+.cs-num::after { content: ''; position: absolute; inset: -9px -4px; }
+.cs-what {
+  margin: 0; font-size: 12px; line-height: 1.3; opacity: 0.95;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.cs-lane { display: none; margin: auto 0 0; font-size: 13px; line-height: 1.3; opacity: 0.75; }
+.cs-facts { margin: 2px 0 0; padding: 0 0 0 14px; font-size: 11px; line-height: 1.35; opacity: 0.85; display: none; }
+
+/* the Look sheet (solo): coats and colour tints the player owns, and Cards for the drawer, over the panel */
+.cs-panel { position: relative; }
+.cs-looksheet {
+  position: absolute; inset: 0; z-index: 3; display: flex; flex-direction: column; gap: 8px; padding: 8px 10px; border-radius: inherit;
+  background: rgba(30, 19, 35, 0.98); box-shadow: inset 0 0 0 1px var(--cs-line); overflow-y: auto; overscroll-behavior: contain;
+}
+.cs-ls-head { display: flex; align-items: center; justify-content: space-between; }
+.cs-ls-x { position: relative; width: 32px; height: 32px; border: 0; border-radius: 50%; background: rgba(255, 243, 220, 0.12); color: inherit; cursor: pointer; }
+.cs-ls-x::after { content: ''; position: absolute; inset: -6px; }
+.cs .cs-ls-cards { align-self: flex-start; display: inline-flex; align-items: center; gap: 6px; min-height: 36px; }
+.cs .cs-ls-cards .pl-icon { width: 16px; height: 16px; }
+.cs-ls-none { margin: 0; font-size: 12px; line-height: 1.3; opacity: 0.8; }
+.cs-ls-row { display: flex; flex-wrap: wrap; gap: 6px; }
+.cs-ls-row .chip { font-size: 12px; padding: 6px 10px; min-height: 32px; }
+.cs-ls-row .chip.chroma { position: relative; width: 30px; height: 30px; min-height: 0; padding: 0; justify-content: center; background: var(--el); border-color: rgba(255, 243, 220, 0.4); }
+.cs-ls-row .chip.chroma[data-chroma=''] { background: repeating-linear-gradient(45deg, rgba(255, 243, 220, 0.25) 0 4px, transparent 4px 8px); }
+.cs-ls-row .chip.chroma.on { border-color: var(--cs-gold); box-shadow: 0 0 0 3px rgba(255, 210, 122, 0.55); }
+
+/* ------------------------------------------------------------------------------------------ bottom bar */
+.cs-fl { grid-area: fl; display: flex; align-items: center; min-width: 0; }
+.cs-fc { grid-area: fc; display: flex; align-items: center; justify-content: center; gap: 6px; min-width: 0; position: relative; }
+.cs-fr { grid-area: fr; display: flex; align-items: center; justify-content: flex-end; min-width: 0; }
+.cs .cs-fc .pl-btn.cs-lock {
+  width: var(--cs-lock-w); max-width: 100%; height: var(--cs-lock-h); min-height: 0; margin: 0; padding: 0 12px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; line-height: 1;
+  font-size: 20px; letter-spacing: 0.08em; text-transform: uppercase;
+}
+.cs .cs-fc .pl-btn.cs-lock small { font-size: 11px; letter-spacing: 0; text-transform: none; font-weight: 600; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cs .cs-fc .pl-btn.cs-lock[disabled] { filter: saturate(0.4) brightness(0.8); cursor: not-allowed; }
+.cs .cs-fc .pl-btn.cs-lock.done { filter: none; opacity: 0.85; flex: 1 1 0; }
+.cs .cs-fc .cs-unlock { flex: 1 1 0; min-height: 40px; padding: 0 10px; font-size: 13px; }
+.cs-note { color: var(--cream, #fff3dc); padding: 4px 8px; border-radius: 8px; background: rgba(30, 19, 35, 0.92); line-height: 1.25; }
+.cs-err { position: absolute; bottom: calc(100% + 4px); left: 0; right: 0; margin: 0; text-align: center; font-size: 12px; color: #ffb3bf; }
+
+.cs-bots { display: flex; align-items: center; gap: 2px; padding: 3px; width: 100%; border-radius: 999px; background: rgba(30, 19, 35, 0.72); box-shadow: inset 0 0 0 1px var(--cs-line); max-width: 100%; }
+.cs-bl { display: none; font-size: 12px; opacity: 0.75; padding: 0 6px 0 8px; }
+.cs-bots button {
+  position: relative; flex: 1 1 0; min-width: 0; height: 38px; padding: 0 2px; border: 0; border-radius: 999px; cursor: pointer;
+  color: inherit; background: none; font: 700 12px/1 var(--font);
+}
+.cs-bots button::after { content: ''; position: absolute; left: 0; right: 0; top: -3px; bottom: -3px; }
+.cs-bots button.on { background: var(--cream, #fff3dc); color: #3a2440; }
+.cs-fl { flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; }
+.cs-bots-hint { display: none; margin: 0; font-size: 13px; line-height: 1.25; opacity: 0.8; max-width: 100%; }
+.cs-bots.locked { flex-direction: column; align-items: flex-start; gap: 2px; padding: 4px 10px; border-radius: 12px; }
+.cs-bots.locked .note { font-size: 11px; line-height: 1.2; opacity: 0.85; }
+.cs .cs-vet { position: relative; padding: 0; border: 0; background: none; color: var(--cs-gold); font: 700 11px/1.2 var(--font); text-decoration: underline; cursor: pointer; text-align: left; }
+.cs .cs-vet::after { content: ''; position: absolute; inset: -12px -4px; }
+.cs-fl .pp-pick-leave { min-height: 40px; }
+
+.cs-tricks { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; min-width: 0; }
+.cs-trick-name { font-size: 11px; opacity: 0.85; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.cs-trick-name span { opacity: 0.7; }
+.cs-trow { display: flex; gap: 4px; }
+.cs-trick {
+  position: relative; width: var(--cs-trick); height: var(--cs-trick); padding: 0; border: 0; border-radius: 10px; cursor: pointer; display: grid; place-items: center;
+  color: var(--cs-gold); background: rgba(30, 19, 35, 0.72); box-shadow: inset 0 0 0 1px var(--cs-line);
+}
+.cs-trick .pl-icon { width: 60%; height: 60%; }
+.cs-trick.on { background: rgba(255, 211, 77, 0.24); box-shadow: inset 0 0 0 2px var(--cs-gold); }
+.cs-trick[disabled] { opacity: 0.55; cursor: default; }
+.cs-trick::after { content: ''; position: absolute; inset: calc((var(--cs-trick) - 44px) / 2) -2px; }
+.cs-trick[data-rec]::before { content: ''; position: absolute; right: 3px; top: 3px; width: 7px; height: 7px; border-radius: 50%; background: #9be3c4; box-shadow: 0 0 0 2px rgba(30, 19, 35, 0.9); }
+.cs-vh { position: absolute !important; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; margin: -1px; padding: 0; border: 0; }
+.cs-trick-text { display: none; margin: 0; font-size: 12px; opacity: 0.8; text-align: right; }
+
+/* --------------------------------------------------------------------------------------- wider phones */
+/* 844x390 (and 932x430): a 160 px team column, a 200 px panel, the skill row on one line */
+@media (min-width: 800px) and (max-height: 480px) {
+  .cs { --cs-team: 160px; --cs-panel: 208px; --cs-tile: 56px; --cs-sk: 36px; }
+}
+
+/* ------------------------------------------------------------------------------------------- desktop */
+@media (min-width: 1000px) and (min-height: 481px) {
+  .cs {
+    --cs-head: 88px; --cs-foot: 96px; --cs-team: 300px; --cs-panel: 340px; --cs-gap: 28px; --cs-tile: 96px; --cs-sk: 56px;
+    --cs-lock-w: 300px; --cs-lock-h: 64px; --cs-trick: 48px; --cs-seat: 88px; --cs-face: 64px;
+    row-gap: 18px;
+    padding: max(24px, var(--safe-t, 0px)) max(32px, calc((100vw - 1400px) / 2)) max(24px, var(--safe-b, 0px));
+  }
+  .cs .cs-title h2 { font-size: 28px; }
+  .cs .cs-timer { font-size: 40px; margin-top: 4px; }
+  .cs .cs-back.pl-btn { min-height: 44px; font-size: 16px; }
+  .cs-seat { gap: 14px; padding: 8px 12px 8px 16px; border-radius: 16px; }
+  .cs-st b { font-size: 17px; }
+  .cs-st small { font-size: 14px; }
+  .cs-ok { width: 20px; height: 20px; line-height: 20px; font-size: 13px; left: calc(16px + var(--cs-face) - 16px); top: calc(50% + var(--cs-face) / 2 - 20px); }
+  .cs-tabs { flex-wrap: wrap; row-gap: 6px; }
+  .cs-tab { height: 44px; flex: 0 1 auto; padding: 0 12px; }
+  .cs-tab b { display: inline; }
+  .cs-tab::after { display: none; }
+  .cs-sides, .cs-roles { flex: 0 1 auto; flex-wrap: wrap; gap: 4px; }
+  .cs-grid { gap: 10px; }
+  .cs-tn { font-size: 13px; }
+  .cs-tile[data-long] .cs-tn { font-size: 12px; }
+  .cs-sb { width: 18px; height: 18px; left: 4px; top: 4px; }
+  .cs-sb .pl-icon { width: 13px; height: 13px; }
+  .cs-new { font-size: 10px; padding: 3px 6px; }
+  .cs-panel { padding: 18px 20px; gap: 14px; border-radius: 20px; align-self: start; max-height: 100%; }
+  .cs-ri, .cs-ri .pl-icon { width: 30px; height: 30px; }
+  .cs-name { font-size: 24px; }
+  .cs-role { font-size: 14px; }
+  .cs-diff i { width: 8px; height: 8px; }
+  .cs-diff small { font-size: 12px; }
+  .cs .cs-panel .cs-look.pl-btn { height: 36px; font-size: 14px; }
+  .cs-bots-hint { display: block; }
+  .cs-note.bots-hint { display: none; }
+  .cs-fl { gap: 6px; }
+  .cs-sk kbd { min-width: 18px; height: 18px; font-size: 12px; line-height: 18px; }
+  .cs-sk-name { font-size: 20px; }
+  .cs .cs-panel .cs-preview.pl-btn { width: auto; height: 36px; font-size: 14px; padding: 0 14px; }
+  .cs .cs-preview span { display: inline; }
+  .cs-meta { font-size: 13px; }
+  .cs-what { font-size: 15px; -webkit-line-clamp: 6; }
+  .cs-facts { display: block; font-size: 13px; }
+  .cs-lane { display: block; margin-top: 4px; }
+  .cs .cs-fc .pl-btn.cs-lock { font-size: 26px; }
+  .cs .cs-fc .pl-btn.cs-lock small { font-size: 13px; }
+  .cs-bl { display: inline; }
+  .cs-bots button { height: 40px; font-size: 14px; padding: 0 14px; }
+  .cs-trick-name { font-size: 14px; }
+  .cs-trow { gap: 8px; }
+  .cs-trick-text { display: block; max-width: 340px; }
+  .cs-fl .pp-pick-leave { min-height: 44px; }
+}
+/* desktop without the room for two-line facts */
+@media (min-width: 844px) and (max-height: 480px) {
+  .cs-facts { display: block; }
+}
+
+/* ---------------------------------------------------------------------------------------- hide ladder */
+/* step 1 (<= 420): the panel keeps the `what` line only, the difficulty dots lose their word */
+@media (max-height: 420px) {
+  .cs-facts, .cs-diff small { display: none !important; }
+}
+/* step 2 (<= 360): smaller tiles, the skill row on one line; the trick name moves to the tooltip */
+@media (max-height: 360px) {
+  .cs { --cs-tile: 46px; --cs-foot: 50px; --cs-lock-h: 44px; --cs-sk: 30px; }
+  .cs-trick-name { display: none; }
+  .cs-what { -webkit-line-clamp: 2; }
+}
+/* step 3 (<= 320): the grid scrolls inside (with its visible affordance), a 28 px header */
+@media (max-height: 320px) {
+  .cs { --cs-head: 28px; }
+  .cs-role { display: none; }
+  .cs .cs-title h2 { font-size: 13px; }
+  .cs .cs-back.pl-btn { min-height: 28px; }
+  .cs-seat { min-height: 30px; }
+  .cs-st small { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cs-tile .cs-sf.cs-face { transition: none; }
+}
+html[data-quality='low'] .cs-tile .cs-sf.cs-face { transition: none; }
+
+/* the party's notes ("Mia took Sage") on the champion select: over LOCK IN, never over the title and the timer the
+   player needs right then */
+.pl-party:has(.pp-pick.cs) .pp-notes { top: auto; bottom: calc(max(8px, env(safe-area-inset-bottom)) + 62px); width: min(360px, 50vw); }
+@media (min-width: 1000px) and (min-height: 481px) {
+  .pl-party:has(.pp-pick.cs) .pp-notes { bottom: calc(max(24px, env(safe-area-inset-bottom)) + 112px); }
+}

@@ -5,8 +5,12 @@
  * origin when the parent is same-origin, so a Vercel preview or a local dev port still reaches its host). The first valid
  * `hello` fixes the host origin; every post goes to it, never to '*'. Nothing is posted before the first hello, so
  * the host keeps saying hello until it hears `ready`. No accesstoken or Firebase token ever crosses.
+ *
+ * In the native app there is no frame: the shell installs an in-page host (`window.__PL_HOST__`,
+ * pawlegends-app/src/host) before the game loads, and the same messages travel over that channel (`kind: 'native'`).
  */
 import { championByCatalogId, type ChampionId } from '../data/heroes/shelter';
+import { inAppShell } from '../app/platform';
 
 export const EMBED_NS = 'tt-pawlegends';
 export const EMBED_VERSION = 1;
@@ -19,7 +23,7 @@ export const DEV_EMBED_ORIGINS = 'http://localhost:3000';
  * shelter champions' cards: art and whether each card is for sale, from `GET /pawlegends/champions`). Payload
  * shapes: docs/plans/moba integration plan §1; the parsers below are the game's half of the contract.
  */
-export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions', 'party-ticket'] as const);
+export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions', 'party-ticket', 'store', 'api-result'] as const);
 export type HostType = (typeof HOST_TYPES)[number];
 /**
  * POC.md §11.1 types, plus the additive `notify{where}` (Legends Pass notify-me, only after `app{notify: true}`),
@@ -40,10 +44,24 @@ export type HostType = (typeof HOST_TYPES)[number];
  * access token never crosses); `party-result{matchId, result}` hands a party match's v:2 result to the host's save
  * path (`POST /user/catbassadors/live`), whose status comes back as `save-result{matchId: room}`.
  * `exit{}`: the player tapped the lobby's "Games" button; the host leaves for its games page (it lays no close
- * button of its own over the game any more).
+ * button of its own over the game any more). `sound{muted}`: the player switched the game's Sound; the host makes it
+ * its own mute (tt:audio:v1), so the next `audio` it sends agrees (a host mute is never saved into the game profile).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim', 'api-request', 'account'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
+/*
+ * Store and Legends Pass (docs/plans/moba/STORE-PASS.md, web only): `purchase-intent{sku}` is back for the catalogue
+ * SKUs only (money/catalog.ts): the host opens its own sheet (sign-in, server price, age band, consent, safeguards)
+ * and Stripe Checkout, then answers `purchase-result{sku, ok}` and a fresh `store`. `pass-claim{row, tier}` or
+ * `pass-claim{all: true}` asks the host to claim pass rewards (`POST /pawlegends/pass/claim`); it answers `store`.
+ * `store{items, season}` is the account's owned store and pass items and its pass row (`GET /pawlegends/me`).
+ */
+
+/*
+ * Social, ranked and reports (docs/plans/moba/SOCIAL-RANKED.md §13): `api-request{id, op, args}` asks the host to call
+ * one allowlisted route (embed/api.ts `API_OPS`) with its own session; it answers `api-result{id, ok, status, body?}`.
+ * The game never sees a token or a URL.
+ */
 
 export interface HostMessage {
   type: HostType;
@@ -104,35 +122,93 @@ export function acceptOrigin(origin: string, allow: readonly string[], fixed: st
 
 export interface Bridge {
   readonly active: boolean;
+  /**
+   * How the host is reached: `frame` (the Token Tails page around an `?embed=1` iframe), `native` (the app shell's
+   * in-page host, `window.__PL_HOST__`), or null (standalone: nothing is posted).
+   */
+  readonly kind: 'frame' | 'native' | null;
   post(type: GameType, payload?: Record<string, unknown>): boolean;
   on(handler: (m: HostMessage) => void): void;
 }
 
-/** Install on the page. Inactive (posts nothing) unless framed with ?embed=1. */
+/**
+ * The app shell's in-page host (pawlegends-app/src/host, installed by `shell.js` before the game loads): the same
+ * protocol as the iframe host, over a same-window channel instead of postMessage. `post` hands a game message to the
+ * host, `listen` registers the game's one receiver. The shell copies every message (structuredClone) and delivers
+ * it on a later task, so neither side can hold the other's objects.
+ */
+export interface NativeHostChannel {
+  post(message: unknown): void;
+  listen(receiver: (message: unknown) => void): void;
+}
+
+/**
+ * Game messages the in-app host takes. Everything else stays with the game's standalone path (post returns false):
+ * share and copy use the game's own fallback, exit and notify have no meaning in the app, analytics and crash reports
+ * are not collected there (no analytics on the privacy label), and nothing about cats for sale or purchases is ever
+ * sent (App Store 3.1.1, Google Play payments).
+ */
+export const NATIVE_HOST_TYPES: readonly GameType[] = Object.freeze(['ready', 'match-result', 'request-sign-in', 'account', 'party-ticket-request', 'party-result', 'pass-claim', 'api-request', 'paused', 'sound']);
+
+/** The shell's channel on this page, or null (not the app, or no valid channel). Never throws. */
+export function nativeChannel(win: unknown): NativeHostChannel | null {
+  try {
+    if (!inAppShell(undefined, win)) return null;
+    const ch = (win as { __PL_HOST__?: unknown }).__PL_HOST__ as Partial<NativeHostChannel> | undefined;
+    return ch && typeof ch.post === 'function' && typeof ch.listen === 'function' ? (ch as NativeHostChannel) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Install on the page. Inactive (posts nothing) unless framed with ?embed=1 or run by the app shell's host. */
 export function installBridge(win: Window = window, version = String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev')): Bridge {
   const framed = win.parent !== win && new URLSearchParams(win.location.search).get('embed') === '1';
+  const native = framed ? null : nativeChannel(win);
   const handlers: ((m: HostMessage) => void)[] = [];
   const allow = framed ? withSameOrigin(allowedOrigins(), win) : allowedOrigins();
   let host: string | null = null;
   const post = (type: GameType, payload: Record<string, unknown> = {}): boolean => {
-    if (!framed || !host) return false;
+    if (!host) return false;
+    if (native) {
+      if (!NATIVE_HOST_TYPES.includes(type)) return false;
+      try {
+        native.post({ ...payload, ns: EMBED_NS, v: EMBED_VERSION, type });
+        return true;
+      } catch {
+        return false;
+      }
+    }
+    if (!framed) return false;
     win.parent.postMessage({ ...payload, ns: EMBED_NS, v: EMBED_VERSION, type }, host);
     return true;
+  };
+  const receive = (data: unknown, origin: string): void => {
+    const m = parseHostMessage(data);
+    if (!m) return;
+    if (m.type === 'hello') {
+      host = origin;
+      post('ready', { version });
+    }
+    for (const h of handlers) h(m);
   };
   if (framed) {
     win.document.documentElement.dataset.embed = '1';
     win.addEventListener('message', (e: MessageEvent) => {
       if (e.source !== win.parent || !acceptOrigin(e.origin, allow, host)) return;
-      const m = parseHostMessage(e.data);
-      if (!m) return;
-      if (m.type === 'hello') {
-        host = e.origin;
-        post('ready', { version });
-      }
-      for (const h of handlers) h(m);
+      receive(e.data, e.origin);
     });
+  } else if (native) {
+    // not `data-embed`: that one moves the HUD for the Token Tails page's frame, the app lays out on its own
+    win.document.documentElement.dataset.host = 'native';
+    try {
+      native.listen((data) => receive(data, 'native'));
+    } catch {
+      /* a broken shell: the game plays standalone */
+    }
   }
-  return { active: framed, post, on: (h) => void handlers.push(h) };
+  const kind = framed ? 'frame' : native ? 'native' : null;
+  return { active: kind !== null, kind, post, on: (h) => void handlers.push(h) };
 }
 
 // ------------------------------------------------------------------------------------- payload parsers (pure)
@@ -183,11 +259,17 @@ export function parseProgress(v: unknown): Progress | null {
   return { catnip: levelMap(o.catnip), matches: levelMap(o.matches), fastestWin: levelMap(o.fastestWin) };
 }
 
+/** How a signed-in player signed in (the account chip's icon). Never the address itself. */
+export const SIGN_IN_PROVIDERS = Object.freeze(['google', 'apple', 'email'] as const);
+export type SignInProvider = (typeof SIGN_IN_PROVIDERS)[number];
+
 export interface SessionInfo {
   signedIn: boolean;
   progress: Progress | null;
   /** UX pass 2: the signed-in player's Token Tails profile name (absent: none or not signed in). */
   name?: string;
+  /** Sign-in: the signed-in player's sign-in method (absent: unknown or not signed in). */
+  provider?: SignInProvider;
 }
 
 /** Most characters of `session.name` kept (the plate cuts it to 14 with an ellipsis). */
@@ -210,7 +292,8 @@ export function parsePlayerName(v: unknown): string | null {
 export function parseSession(m: Record<string, unknown>): SessionInfo | null {
   if (typeof m.signedIn !== 'boolean') return null;
   const name = m.signedIn ? parsePlayerName(m.name) : null;
-  return { signedIn: m.signedIn, progress: m.signedIn ? parseProgress(m.progress) : null, ...(name ? { name } : {}) };
+  const provider = m.signedIn && (SIGN_IN_PROVIDERS as readonly unknown[]).includes(m.provider) ? (m.provider as SignInProvider) : null;
+  return { signedIn: m.signedIn, progress: m.signedIn ? parseProgress(m.progress) : null, ...(name ? { name } : {}), ...(provider ? { provider } : {}) };
 }
 
 export const SAVE_STATUSES = Object.freeze(['saving', 'saved', 'queued', 'failed', 'rejected'] as const);
@@ -223,6 +306,8 @@ export interface SaveResult {
   catnipTotal: number | null;
   fastestWin: number | null;
   code?: string;
+  /** Legends Pass Season XP the save paid (STORE-PASS.md §5); absent from older hosts. */
+  season?: { gained: number; xp: number; tier: number; prevTier: number };
 }
 
 export function parseSaveResult(m: Record<string, unknown>): SaveResult | null {
@@ -236,6 +321,8 @@ export function parseSaveResult(m: Record<string, unknown>): SaveResult | null {
   if (fastest === null && m.fastestWin !== null && m.fastestWin !== undefined) return null;
   const out: SaveResult = { matchId: m.matchId, status: m.status as SaveStatus, catnipPaid: paid, catnipTotal: total, fastestWin: fastest };
   if (typeof m.code === 'string' && /^[A-Za-z0-9_.:-]{1,64}$/.test(m.code)) out.code = m.code;
+  const season = parseSaveSeason(m.season);
+  if (season) out.season = season;
   return out;
 }
 
@@ -441,3 +528,67 @@ export function parseAudio(m: Record<string, unknown>): AudioInfo | null {
 
 export const SIGN_IN_REASONS = Object.freeze(['save-progress', 'claim-rewards'] as const);
 export type SignInReason = (typeof SIGN_IN_REASONS)[number];
+
+/**
+ * `account{action}` (the account chip and the Settings row): `sign-in` opens the host's sign-in, `sign-out` signs
+ * out, `manage` opens the host's account sheet (web), `delete` starts the host's account deletion (the app: App
+ * Store 5.1.1(v); the host asks for its own last confirmation).
+ */
+export const ACCOUNT_ACTIONS = Object.freeze(['sign-in', 'sign-out', 'manage', 'delete'] as const);
+export type AccountAction = (typeof ACCOUNT_ACTIONS)[number];
+
+// ------------------------------------------------------------------------------------- store and Legends Pass
+
+/** Store and pass item ids the game knows (anything else in a `store` message is dropped). */
+const STORE_ITEM = /^(coat\.[a-z]+\.(store|s1)_[a-z_]+|frame\.(store|s1)\.[a-z_]+|title\.(store|s1)\.[a-z_]+)$/;
+
+export interface StoreSeason {
+  id: string;
+  xp: number;
+  tier: number;
+  premium: 'none' | 'pass' | 'plus';
+  skips: number;
+  claimed: string[];
+  endsAt: string;
+}
+
+export interface StoreState {
+  items: string[];
+  season: StoreSeason | null;
+}
+
+/** `store{items, season}`: owned store and pass items (known shapes only) and the pass row, or null. */
+export function parseStoreState(m: Record<string, unknown>): StoreState | null {
+  if (!Array.isArray(m.items)) return null;
+  const items = [...new Set(m.items.slice(0, 400).filter((i): i is string => typeof i === 'string' && STORE_ITEM.test(i)))];
+  let season: StoreSeason | null = null;
+  const r = m.season as Record<string, unknown> | null | undefined;
+  if (r && typeof r === 'object' && typeof r.id === 'string' && /^s\d{1,3}$/.test(r.id)) {
+    const n = (v: unknown, max: number): number => (typeof v === 'number' && Number.isFinite(v) && v >= 0 ? Math.min(max, Math.floor(v)) : 0);
+    const premium = r.premium === 'pass' || r.premium === 'plus' ? r.premium : 'none';
+    const claimed = Array.isArray(r.claimed) ? r.claimed.filter((c): c is string => typeof c === 'string' && /^[fp]:\d{1,3}$/.test(c)).slice(0, 200) : [];
+    const endsAt = typeof r.endsAt === 'string' && Number.isFinite(Date.parse(r.endsAt)) ? r.endsAt : '';
+    season = { id: r.id, xp: n(r.xp, 10_000_000), tier: n(r.tier, 1000), premium, skips: n(r.skips, 1000), claimed, endsAt };
+  }
+  return { items, season };
+}
+
+const SKU = /^pl_(coat|frame|set|pass)_[a-z0-9_]{1,40}$/;
+
+/** `purchase-result{sku, ok}` for a store or pass SKU, or null. */
+export function parseSkuPurchaseResult(m: Record<string, unknown>): { sku: string; ok: boolean } | null {
+  if (typeof m.sku !== 'string' || !SKU.test(m.sku) || typeof m.ok !== 'boolean') return null;
+  return { sku: m.sku, ok: m.ok };
+}
+
+/** `save-result.season`: the Season XP a saved match paid (absent when the backend sent none). */
+export function parseSaveSeason(v: unknown): { gained: number; xp: number; tier: number; prevTier: number } | null {
+  if (!v || typeof v !== 'object') return null;
+  const o = v as Record<string, unknown>;
+  const n = (x: unknown): number | null => (typeof x === 'number' && Number.isInteger(x) && x >= 0 && x <= 10_000_000 ? x : null);
+  const gained = n(o.gained);
+  const xp = n(o.xp);
+  const tier = n(o.tier);
+  const prevTier = n(o.prevTier);
+  return gained === null || xp === null || tier === null ? null : { gained, xp, tier, prevTier: prevTier ?? tier };
+}

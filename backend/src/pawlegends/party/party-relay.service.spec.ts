@@ -189,11 +189,11 @@ describe('party relay (N2)', () => {
         }, 300);
         await a.until(() => a.turns.some(t => t.entries.some(e => e.slot === 1 && e.cmd[0] === CMD_OP.Move)));
         expect(a.turns.map(t => t.turn)).toEqual(a.turns.map((_, i) => i));
-        // shutdown: room_gone with a retry, and a final checkpoint with handoff
+        // shutdown: room_gone with retry 0 (reconnect at once, LIVE-MATCH-DEPLOYS.md §5.3), final checkpoint with handoff
         clearInterval(beat);
         const room = [...b.store.rooms.values()][0];
         await b.relay.shutdown();
-        await a.until(() => a.json.some(j => j.t === 'error' && j.code === 'room_gone' && j.retryMs === 3000));
+        await a.until(() => a.json.some(j => j.t === 'error' && j.code === 'room_gone' && j.retryMs === 0));
         const stored = b.store.rooms.get(room._id)!;
         expect(stored.handoff).toBe(true);
         expect(stored.lastTurn).toBeGreaterThan(10);

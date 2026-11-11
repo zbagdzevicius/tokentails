@@ -118,5 +118,7 @@ for (const [w, h] of [
     // the removed pieces stay removed
     await expect(page.locator('.pl-bar')).toBeHidden();
     await expect(page.locator('.pl-strip.ally')).toBeHidden();
+    // the Fish chip left with the hero box and came back on the minimap's rim (counted in the totals above)
+    await expect(page.locator('.pl-match > .pl-fish')).toBeVisible();
   });
 }

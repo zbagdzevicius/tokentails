@@ -20,6 +20,11 @@ export interface CatSkin {
   bond: number;
   /** max(tierRung, bond rung): what the rarity ladder shows. */
   rung: CatTier;
+  /**
+   * CARD-SKINS.md Awakened form: tierRung LEGENDARY (a tier-counting origin) and bond ≥ 30. A form flag, not a new
+   * Tier value (Tier stays the same in backend and client). Steps up with hero level in a match (effectKit.ts).
+   */
+  awakened?: boolean;
   family?: string;
   variant?: string;
   /** Card art (GIF, DOM only). */

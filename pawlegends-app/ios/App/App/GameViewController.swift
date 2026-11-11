@@ -92,11 +92,12 @@ class GameViewController: CAPBridgeViewController {
         return config
     }
 
-    /// The OTA channel (src/shell/manifest.ts) and the platform, set before any page script so every bundle (built in
+    /// The OTA channel (src/shell/manifest.ts), the platform and the sign-in providers this build can use
+    /// (NativeAuth.swift; read by src/host/auth.ts), set before any page script so every bundle (built in
     /// or updated) reads the values of the binary it runs in. Added here, not in webViewConfiguration: Capacitor swaps
     /// in its own userContentController between the two calls.
     override func webView(with frame: CGRect, configuration: WKWebViewConfiguration) -> WKWebView {
-        let source = "window.__PL_CHANNEL__ = '\(GameViewController.otaChannel)'; window.__PL_PLATFORM__ = '\(GameViewController.platform)'; window.__PL_THERMAL__ = \(GameViewController.thermalLiteral);"
+        let source = "window.__PL_CHANNEL__ = '\(GameViewController.otaChannel)'; window.__PL_PLATFORM__ = '\(GameViewController.platform)'; window.__PL_THERMAL__ = \(GameViewController.thermalLiteral); window.__PL_NATIVE_AUTH__ = \(NativeAuth.literal);"
         let script = WKUserScript(source: source, injectionTime: .atDocumentStart, forMainFrameOnly: true)
         configuration.userContentController.addUserScript(script)
         return super.webView(with: frame, configuration: configuration)

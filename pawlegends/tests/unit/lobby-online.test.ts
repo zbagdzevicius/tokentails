@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { lobbyScreen, type LobbyScreenOpts } from '../../src/ui/lobby/lobbyScreen';
 import { lobbyHtml } from '../../src/party/ui/partyLobby';
-import { lastQueueSide, setLastQueueSide } from '../../src/meta/partyPrefs';
+import { PVP_UNLOCK_MATCHES, lastQueueSide, setLastQueueSide } from '../../src/meta/partyPrefs';
 import type { PartyView } from '../../src/net/proto';
 
 const base = (o: Partial<LobbyScreenOpts> = {}): LobbyScreenOpts => ({
@@ -81,5 +81,79 @@ describe('Play online (M1a)', () => {
     expect(has(v(3))).toBe(false);
     expect(has(v(2, 'b'))).toBe(false);
     expect(has(v(2), false)).toBe(false);
+  });
+
+  it('Co-op and PvP are two direct buttons in one online row (no mode chip): each one tap, each remembers its mode', () => {
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const root = lobbyScreen(document.body, base({ onOnline, onParty: vi.fn(), onJoinCode: vi.fn(), onlineMode: { mode: 'coop', locked: false, onMode } }));
+    expect(root.querySelector('[data-testid="online-mode"], [data-a="mode"]')).toBeNull();
+    const row = [...root.querySelectorAll<HTMLElement>('.lb-online-row > button')].map((b) => b.dataset.testid);
+    expect(row).toEqual(['play-online', 'play-pvp', 'play-friends', 'join-code']);
+    (root.querySelector('[data-testid="play-pvp"]') as HTMLElement).click();
+    expect(onMode).toHaveBeenLastCalledWith('pvp');
+    expect(onOnline).toHaveBeenCalledTimes(1);
+    (root.querySelector('[data-testid="play-online"]') as HTMLElement).click();
+    expect(onMode).toHaveBeenLastCalledWith('coop');
+    expect(onOnline).toHaveBeenCalledTimes(2);
+  });
+
+  it('the 5-match lock is lifted: a 0-match player\'s PvP button is open and one tap queues PvP', () => {
+    expect(PVP_UNLOCK_MATCHES).toBe(0);
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const played = 0;
+    // the options app.ts builds for a brand-new guest
+    const root = lobbyScreen(
+      document.body,
+      base({ onOnline, onlineMode: { mode: 'coop', locked: played < PVP_UNLOCK_MATCHES, played, needed: PVP_UNLOCK_MATCHES, onMode } }),
+    );
+    const pvp = root.querySelector('[data-testid="play-pvp"]') as HTMLElement;
+    expect(pvp.getAttribute('aria-disabled')).toBeNull();
+    expect(pvp.textContent).not.toContain('🔒');
+    expect(pvp.textContent).not.toContain('/');
+    pvp.click();
+    expect(onMode).toHaveBeenLastCalledWith('pvp');
+    expect(onOnline).toHaveBeenCalledTimes(1);
+    expect(root.querySelector('.lb-toast')?.textContent ?? '').not.toContain('unlocks');
+  });
+
+  it('if the lock is raised again: PvP before 5 matches reads "PvP 🔒 2/5", and a tap explains it instead of queueing', () => {
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const root = lobbyScreen(document.body, base({ onOnline, onlineMode: { mode: 'coop', locked: true, played: 2, needed: 5, onMode } }));
+    const pvp = root.querySelector('[data-testid="play-pvp"]') as HTMLElement;
+    expect(pvp.getAttribute('aria-disabled')).toBe('true');
+    expect(pvp.textContent).toContain('2/5');
+    pvp.click();
+    expect(onOnline).not.toHaveBeenCalled();
+    expect(onMode).not.toHaveBeenCalled();
+    expect(root.querySelector('.lb-toast')?.textContent).toContain('PvP unlocks after 5 matches');
+  });
+
+  it('if the lock is raised again: 5v5 Classic picked has no lock (it queues 5v5); back on 3v3 the lock returns', () => {
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const root = lobbyScreen(
+      document.body,
+      base({ onOnline, onlineMode: { mode: 'coop', locked: true, played: 1, needed: 5, onMode }, matchMode: { mode: 'classic', onMode: vi.fn() } }),
+    );
+    const pvp = () => root.querySelector('[data-testid="play-pvp"]') as HTMLElement;
+    expect(pvp().getAttribute('aria-disabled')).toBeNull();
+    expect(pvp().textContent).not.toContain('1/5');
+    expect(pvp().getAttribute('aria-label')).toContain('5v5 Classic');
+    (root.querySelector('[data-testid="map-quick"]') as HTMLElement).click();
+    expect(pvp().getAttribute('aria-disabled')).toBe('true');
+    expect(pvp().textContent).toContain('1/5');
+    (root.querySelector('[data-testid="map-classic"]') as HTMLElement).click();
+    pvp().click();
+    expect(onMode).toHaveBeenLastCalledWith('pvp');
+    expect(onOnline).toHaveBeenCalledTimes(1);
+  });
+
+  it('no PvP sim on the backend: Co-op alone, no PvP button', () => {
+    const root = lobbyScreen(document.body, base({ onOnline: vi.fn(), onParty: vi.fn() }));
+    expect(root.querySelector('[data-testid="play-pvp"]')).toBeNull();
+    expect(root.querySelector('[data-testid="play-online"]')?.textContent).toContain('Co-op');
   });
 });

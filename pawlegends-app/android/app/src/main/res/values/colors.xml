@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- the game's background (the CSS variable bg in pawlegends/index.html, capacitor.config.ts BACKGROUND) -->
+    <color name="pl_bg">#2B1D2E</color>
+    <color name="colorPrimary">#2B1D2E</color>
+    <color name="colorPrimaryDark">#2B1D2E</color>
+    <color name="colorAccent">#F4623F</color>
+</resources>

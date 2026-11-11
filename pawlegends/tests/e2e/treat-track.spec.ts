@@ -75,6 +75,6 @@ test('the pick screen labels the role and (GAPS B1) gives one lane hint', async 
   await page.waitForSelector('html[data-screen="title"]');
   await page.locator('[data-a="choose"]').click();
   await page.waitForSelector('html[data-screen="pick"]');
-  await expect(page.locator('.pl-pick .role-label')).toHaveText('Tank');
-  await expect(page.locator('.pl-pick .detail .lane-hint')).toHaveText('Lane: Puddle (bottom) or Sunny. Your bots swap to cover the other.');
+  await expect(page.locator('.pl-pick .cs-panel .cs-role')).toContainText('Tank');
+  await expect(page.locator('.pl-pick .cs-panel .lane-hint')).toHaveText('Lane: Puddle (bottom) or Sunny. Your bots swap to cover the other.');
 });

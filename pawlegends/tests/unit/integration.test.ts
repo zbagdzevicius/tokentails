@@ -31,10 +31,9 @@ const CAT_A = '65a1b2c3d4e5f6a7b8c9d0e1';
 const CAT_B = '65a1b2c3d4e5f6a7b8c9d0e2';
 
 describe('bridge protocol: shared fixture', () => {
-  it('knows every host type and sends every game type but the retired purchase-intent', () => {
+  it('knows every host type and sends every game type (purchase-intent again for the store, STORE-PASS.md)', () => {
     expect([...HOST_TYPES].sort()).toEqual(Object.keys(FIX.hostToGame).sort());
-    expect([...GAME_TYPES].sort()).toEqual(Object.keys(FIX.gameToHost).filter((t) => t !== 'purchase-intent').sort());
-    expect(GAME_TYPES as readonly string[]).not.toContain('purchase-intent');
+    expect([...GAME_TYPES].sort()).toEqual(Object.keys(FIX.gameToHost).sort());
   });
   for (const [type, c] of Object.entries(FIX.hostToGame)) {
     it(`${type}: valid parses to itself, invalid is ignored, sanitize cases match`, () => {

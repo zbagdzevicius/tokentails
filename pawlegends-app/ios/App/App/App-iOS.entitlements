@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- iPhone and iPad: CODE_SIGN_ENTITLEMENTS for the iOS SDKs. Sign in with Apple (App Store 4.8: the app offers
+	     Google sign-in, so it offers Apple too). The App ID needs the capability: `bundle exec fastlane bootstrap`
+	     or Developer Portal → Identifiers → com.tokentails.pawlegends → Sign in with Apple. -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
+</dict>
+</plist>

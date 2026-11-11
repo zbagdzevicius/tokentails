@@ -29,6 +29,23 @@ import {
 import { MM_CASUAL, MM_HOME_REGION, MM_LIMITS } from './mm-limits';
 import { identityHash, type MmRoomMember, type MmRoomStore } from './mm-room.schema';
 import type { MmRatingSource } from './rating.schema';
+import type { SanctionSource } from './sanction-reader';
+import type { SlotIntel } from '../party/referee-intel';
+
+/** The referee's per-slot intel on the slot's last holder (the one who played to the end). Pure. */
+export function withIntel(members: MmRoomMember[], intel?: readonly SlotIntel[]): MmRoomMember[] {
+    if (!intel?.length) return members;
+    const last = new Map<number, MmRoomMember>();
+    for (const m of members) {
+        const prev = last.get(m.slot);
+        if (!prev || m.joinedTick >= prev.joinedTick) last.set(m.slot, m);
+    }
+    for (const i of intel) {
+        const m = last.get(i.slot);
+        if (m && m.accountId) m.intel = { acts: i.acts, hid: i.hid, opp: i.opp, ...(i.hero ? { hero: i.hero } : {}) };
+    }
+    return members;
+}
 
 /** What the relay tells the glue about a socket. */
 export interface MmSock {
@@ -103,12 +120,16 @@ export interface MmHooks {
         roomId: string,
         outcome: 'won' | 'lost' | null,
         endTick: number,
-        voided?: 'remake' | null
+        voided?: 'remake' | null,
+        /** PvP: the referee's "acts on hidden" counts per slot (SOCIAL-RANKED.md §9.2), stored on the members. */
+        intel?: readonly SlotIntel[]
     ): Promise<void>;
     onPartyChanged(party: Party): void;
     /** The member holds a queued entry (its resume token is kept while its socket is gone). */
     queued(member: string): boolean;
     shutdown(): void;
+    /** A drain was called off (LIVE-MATCH-DEPLOYS.md §4.4: the newer relay went away): queue again. */
+    resume(): void;
     counters(): Record<string, number>;
 }
 
@@ -121,7 +142,12 @@ export interface MmDeps {
      * reads the client's `hint.matches`. Production (MmService) never sets it: the lock counts server records only.
      */
     trustHintMatches?: boolean;
+    /** Moderator sanctions (SOCIAL-RANKED.md §8.4): queue, PvP and ranked locks, read at `mm.join`. */
+    sanctions?: SanctionSource | null;
 }
+
+/** Is the casual 3v3 newbie lock on? Off while `MM_CASUAL.newbieMatches` is 0 (lifted for now, 2026-11-11). */
+const casualLockOn = (): boolean => MM_CASUAL.newbieMatches > 0;
 
 /** How far back the completed Quick Play rooms of a guest-key identity count for the PvP newbie lock. */
 const PLAYED_ROOMS_MS = 90 * 86_400_000;
@@ -347,8 +373,9 @@ export class MmBridge implements MmHooks {
                 undefined,
                 queue === 'classic' ? 'classic_proto' : 'pvp_proto'
             );
-        // casual PvP: a newbie (fewer than 5 completed matches, by the hint) plays co-op first
-        if (pvp && (sock.hint?.matches ?? 0) < MM_CASUAL.newbieMatches)
+        // casual 3v3 PvP: a newbie (fewer than MM_CASUAL.newbieMatches completed matches, by the hint) plays co-op
+        // first. Lifted for now (newbieMatches 0); 5v5 Classic never had a match-count lock
+        if (queue === 'casual' && casualLockOn() && (sock.hint?.matches ?? 0) < MM_CASUAL.newbieMatches)
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
         // already queued: a repeat join only changes the side (and Keep waiting puts a switched entry back in casual)
         if (this.byMember.has(member)) {
@@ -406,6 +433,21 @@ export class MmBridge implements MmHooks {
         const blocked = this.joinBlockedMs(sock, ipKey);
         if (blocked > 0) return this.refuse(member, 'mm_locked', blocked, 'join_rate');
         const memberIds = p ? p.members.map(m => m.id) : [member];
+        // a moderator lock on any member stops the whole party's entry (SOCIAL-RANKED.md §8.4)
+        if (this.deps.sanctions) {
+            let until = 0;
+            for (const id of memberIds) {
+                const acct = api.sock(id)?.identity.accountId;
+                if (acct) until = Math.max(until, await this.deps.sanctions.lockUntil(acct, queue).catch(() => 0));
+            }
+            if (until > 0)
+                return this.refuse(
+                    member,
+                    'mm_locked',
+                    Number.isFinite(until) ? Math.max(1000, until - api.now()) : undefined,
+                    'sanction'
+                );
+        }
         const socks = memberIds.map(id => api.sock(id)).filter((x): x is MmSock => !!x);
         if (socks.length !== memberIds.length) return this.refuse(member, 'party_busy', undefined, 'party_away');
         // the live-room caps (1 per identity, 4 per IP) are checked now, not after the fill: a seat this identity
@@ -441,7 +483,9 @@ export class MmBridge implements MmHooks {
             [ratings, ladders, played] = await Promise.all([
                 Promise.all(socks.map(s => this.ratingFor(s, queue))),
                 Promise.all(socks.map(s => this.leaverFor(s.identity))),
-                pvp ? Promise.all(socks.map(s => this.playedFor(s))) : Promise.resolve([]),
+                queue === 'casual' && casualLockOn()
+                    ? Promise.all(socks.map(s => this.playedFor(s)))
+                    : Promise.resolve([]),
             ]);
         } finally {
             for (const id of memberIds) this.joining.delete(id);
@@ -466,10 +510,14 @@ export class MmBridge implements MmHooks {
             newbie: !!s.hint?.newbie || ratings[i].rd > MM_LIMITS.newbieRd,
             maxDifficulty: s.hint?.maxDifficulty ?? null,
         }));
-        // casual: the lock on server records (never the client's hint): fewer than 5 completed matches, or a rating
-        // still wide open (rd > 300); an IP-only identity (no ticket, no guest key) has no record and never queues PvP
+        // casual 3v3: the lock on server records (never the client's hint): fewer than newbieMatches completed matches,
+        // or a rating still wide open (rd > 300); an IP-only identity (no ticket, no guest key) has no record and then
+        // never queues casual PvP. Lifted for now (founder, 2026-11-11: newbieMatches 0): every player, a 0-match guest
+        // and an IP-only identity included, queues casual; the newbie flag above still makes new players prefer each
+        // other. 5v5 Classic is open to every player (founder, 2026-11-10: no 5-match limit for 5v5)
         if (
-            pvp &&
+            queue === 'casual' &&
+            casualLockOn() &&
             (played.some(n => n < MM_CASUAL.newbieMatches) || members.some(m => m.rating.rd > MM_CASUAL.newbieRd))
         )
             return this.refuse(member, 'mm_locked', undefined, 'pvp_newbie');
@@ -1257,7 +1305,8 @@ export class MmBridge implements MmHooks {
         roomId: string,
         outcome: 'won' | 'lost' | null,
         endTick: number,
-        voided: 'remake' | null = null
+        voided: 'remake' | null = null,
+        intel?: readonly SlotIntel[]
     ): Promise<void> {
         const lm = this.live.get(roomId);
         if (!lm) return;
@@ -1274,7 +1323,7 @@ export class MmBridge implements MmHooks {
                 offSinceMs: lm.offSince.get(s.slot) ?? null,
                 pilotTicks: Object.fromEntries(AFK_REASONS.map(r => [r, s.pilotTicks[r] ?? 0])),
             }));
-        const members = roomEvents(lm.members, seats, endTick, now, 1000 / 30);
+        const members = withIntel(roomEvents(lm.members, seats, endTick, now, 1000 / 30), intel);
         this.tally.mm_leaver_events += members.filter(m => m.event).length;
         try {
             await this.deps.rooms.finish(roomId, members, outcome, new Date(now), voided);
@@ -1319,6 +1368,10 @@ export class MmBridge implements MmHooks {
         if (this.stopped) return;
         for (const e of [...this.entries.values()]) this.cancelEntry(e, 'server');
         this.stopped = true;
+    }
+
+    resume(): void {
+        this.stopped = false;
     }
 
     counters(): Record<string, number> {

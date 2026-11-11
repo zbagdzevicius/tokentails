@@ -33,6 +33,7 @@ describe("pawlegends bridge fixture: host to game", () => {
   it("covers every host message type", () => {
     expect(Object.keys(fixture.hostToGame).sort()).toEqual(
       [
+        "api-result",
         "app",
         "audio",
         "champions",
@@ -47,6 +48,7 @@ describe("pawlegends bridge fixture: host to game", () => {
         "roster",
         "save-result",
         "session",
+        "store",
       ].sort()
     );
   });
@@ -69,7 +71,7 @@ describe("pawlegends bridge fixture: host to game", () => {
 describe("pawlegends bridge fixture: game to host", () => {
   it("covers every game message type", () => {
     expect(Object.keys(fixture.gameToHost).sort()).toEqual(
-      ["analytics", "champion-offer", "client-error", "exit", "match-result", "notify", "offer-seen", "open-cat", "party-result", "party-ticket-request", "paused", "purchase-intent", "ready", "request-sign-in", "share", "skin-preview"].sort()
+      ["account", "analytics", "api-request", "champion-offer", "client-error", "exit", "match-result", "notify", "offer-seen", "open-cat", "party-result", "party-ticket-request", "pass-claim", "paused", "purchase-intent", "ready", "request-sign-in", "share", "skin-preview", "sound"].sort()
     );
   });
 
@@ -81,6 +83,13 @@ describe("pawlegends bridge fixture: game to host", () => {
       expect(parsePawlegendsMessage(sample.invalid)).toBeNull();
     });
   }
+
+  it("purchase-intent for a store or pass SKU is a store intent (STORE-PASS.md); a retired pl_* SKU stays legacy", () => {
+    const base = { ns: "tt-pawlegends", v: 1, type: "purchase-intent" };
+    expect(parsePawlegendsMessage({ ...base, sku: "pl_coat_clem_calico" })).toEqual({ type: "store-intent", sku: "pl_coat_clem_calico" });
+    expect(parsePawlegendsMessage({ ...base, sku: "pl_founder" })).toEqual({ type: "purchase-intent", sku: "pl_founder" });
+    expect(parsePawlegendsMessage({ ns: "tt-pawlegends", v: 1, type: "pass-claim", all: true })).toEqual({ type: "pass-claim", row: null, tier: null });
+  });
 
   it("match-result keeps the game's matchId and drops a malformed one", () => {
     const valid = fixture.gameToHost["match-result"].valid;

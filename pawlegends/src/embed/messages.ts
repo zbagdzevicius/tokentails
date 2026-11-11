@@ -18,8 +18,11 @@ import {
   parsePurchaseResult,
   parseSaveResult,
   parseSession,
+  parseSkuPurchaseResult,
+  parseStoreState,
   type HostMessage,
 } from './bridge';
+import { parseApiResult } from './api';
 
 export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {}): HostMessage | null {
   const m = parseHostMessage(data);
@@ -49,13 +52,18 @@ export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {
     case 'app':
       return wrap(parseApp(m));
     case 'purchase-result':
-      return wrap(parsePurchaseResult(m));
+      // STORE-PASS.md: a store or pass SKU's result, else a Token Tails cat's
+      return wrap(parseSkuPurchaseResult(m) ?? parsePurchaseResult(m));
+    case 'store':
+      return wrap(parseStoreState(m));
     case 'audio':
       return wrap(parseAudio(m));
     case 'entitlements':
       return wrap(parseEntitlements(m));
     case 'party-ticket':
       return wrap(parsePartyTicket(m));
+    case 'api-result':
+      return wrap(parseApiResult(m));
     case 'champions': {
       // The wire shape (sim v9): only the champion catalog ids the game knows, `catImg` from the NFT bucket only.
       const cats = parseChampions(m);

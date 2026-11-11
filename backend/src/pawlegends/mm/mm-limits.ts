@@ -120,8 +120,12 @@ export const MM_CASUAL = Object.freeze({
     /** Members above this rating deviation play in a protected pool until it widens. */
     protectedRd: 250,
     protectWidenMs: 45_000,
-    /** Newbie lock: fewer completed matches than this, or a rating deviation above `newbieRd`. */
-    newbieMatches: 5,
+    /**
+     * Newbie lock: fewer completed matches than this, or a rating deviation above `newbieRd`. 0 turns the lock off
+     * (founder, 2026-11-11: "let's lift that 5 matches requirement for now"): casual 3v3 PvP is open from the first
+     * session. Raise it again to bring the lock back; the matchmaker's newbie mismatch cost still pairs new players.
+     */
+    newbieMatches: 0,
     newbieRd: 300,
     /** |Δ team mean| <= min(base + perSecond·w, max) + (rd − rdFree) of the widest member. */
     window: Object.freeze({ base: 75, perSecond: 12, max: 400, rdFree: 200 }),

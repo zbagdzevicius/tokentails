@@ -536,6 +536,20 @@ export class Room {
         }
     }
 
+    /**
+     * Live-match deploys (docs/plans/moba/LIVE-MATCH-DEPLOYS.md §5.5): a restored room held its clock for `ms` while its
+     * players reconnected. The turn clock and the silence and AFK timers continue where they were: no turn is skipped
+     * and nobody is piloted for the time the whole room was frozen.
+     */
+    shiftClock(ms: number): void {
+        if (!(ms > 0)) return;
+        this.startMs += ms;
+        for (const s of this.slots) {
+            s.lastBeatMs += ms;
+            s.lastCmdMs += ms;
+        }
+    }
+
     /** The ms until the next turn boundary (the scheduler sleeps this long). */
     msToNextTurn(nowMs: number): number {
         if (this.status !== 'live') return TURN_MS;

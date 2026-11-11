@@ -119,12 +119,37 @@ const badcatHeaders = [`${BADCAT}/sw.js`, "/badcat/sw.js"].map((source) => ({
 // Pawlegends (pawlegends/, launch finding R2): its embed build in public/pawlegends-game keeps the previous releases'
 // hashed build/ files (pawlegends `npm run build:client`, tools/lib/keep-releases.mjs), so a tab opened before a
 // redeploy still loads its chunks and sim Worker. The names change with their content, so they are cached for good;
-// index.html and build-releases.json keep the default revalidation.
+// build-releases.json keeps the default revalidation.
 // The landing's media (public/pawlegends/landing) carry a content hash in their names, so they are cached for good too.
-const pawlegendsHeaders = ["/pawlegends-game/build/:path*", "/pawlegends/landing/:path*"].map((source) => ({
+const IMMUTABLE = "public, max-age=31536000, immutable";
+const cache = (source, value) => ({ source, headers: [{ key: "Cache-Control", value }] });
+// LATENCY-PLAN §3.3 / C5: the game page and the app's OTA files.
+// - OTA bundles (`<yyyymmddhhmmss>-<sha>.zip|json`) are never rewritten under the same name: cached for good.
+// - The OTA manifests and the game's index.html change on a release. The browser revalidates every time
+//   (`max-age=0, must-revalidate`, no stale-while-revalidate: browsers honour that too and would load the previous
+//   release once). Cloudflare alone keeps a copy 30 s / 60 s through `Cloudflare-CDN-Cache-Control`, a header Vercel
+//   passes on untouched (it strips `s-maxage` and `stale-while-revalidate` from Cache-Control); the deploy purges it
+//   (scripts/cdn-cache.mjs). index.html is safe to serve a little stale because the last releases' build/ files stay
+//   published (keep-releases.mjs) for the tab that loads it.
+// - The game's assets/ names are not content-hashed yet: an hour in the browser, a week stale-while-revalidate.
+const OTA = "/pawlegends-app/updates/:platform/:compat";
+const REVALIDATE = "public, max-age=0, must-revalidate";
+const edge = (source, browser, cloudflare) => ({
   source,
-  headers: [{ key: "Cache-Control", value: "public, max-age=31536000, immutable" }],
-}));
+  headers: [
+    { key: "Cache-Control", value: browser },
+    { key: "Cloudflare-CDN-Cache-Control", value: cloudflare },
+  ],
+});
+const pawlegendsHeaders = [
+  cache("/pawlegends-game/build/:path*", IMMUTABLE),
+  cache("/pawlegends/landing/:path*", IMMUTABLE),
+  edge("/pawlegends-game/index.html", REVALIDATE, "max-age=60, stale-while-revalidate=300"),
+  cache("/pawlegends-game/assets/:path*", "public, max-age=3600, stale-while-revalidate=604800"),
+  cache(`${OTA}/bundles/:file*`, IMMUTABLE),
+  edge(`${OTA}/manifest.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
+  edge(`${OTA}/manifest-beta.json`, REVALIDATE, "max-age=30, stale-while-revalidate=60"),
+];
 // `/pawlegends` is the landing page, `/pawlegends/play` the game (components/pawlegends/routes.json). Links that need
 // the game carry one of its query keys (party invites, dares, Stripe returns, account emails, `from` from the PLAY
 // picker and the home hub), so those go on to the game with their query (Next carries it over). Marketing links

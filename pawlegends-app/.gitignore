@@ -19,3 +19,9 @@ build/
 .DS_Store
 *.log
 fastlane/README.md
+# Android: the upload key lives outside the repo (~/.tokentails-keys, GitHub secrets); never commit one
+*.jks
+*.keystore
+*.aab
+*.apk
+play-service-account*.json

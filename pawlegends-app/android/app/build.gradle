@@ -1,0 +1,97 @@
+apply plugin: 'com.android.application'
+
+import groovy.json.JsonSlurper
+
+// versionName: pawlegends-app/package.json "version" (the same as the iOS app; OTA minNative compares against it).
+// versionCode: -PplVersionCode=<n> (CI passes its run number plus an offset), else derived from the version
+// (1.2.3 -> 10203), so a local build never outranks a CI upload. Play needs a higher code on every upload.
+def appPackage = new JsonSlurper().parse(file('../../package.json'))
+def plVersionName = appPackage.version as String
+def plVersionCode = project.hasProperty('plVersionCode') ? (project.property('plVersionCode') as Integer) : plVersionName.tokenize('.').collect { it as Integer }.with { (it[0] ?: 0) * 10000 + (it[1] ?: 0) * 100 + (it[2] ?: 0) }
+// OTA channel of release builds (debug builds read dev): stable, or beta for a separate tester build.
+def plOtaChannel = project.hasProperty('plOtaChannel') ? project.property('plOtaChannel') : 'stable'
+if (!(plOtaChannel in ['stable', 'beta'])) throw new GradleException("plOtaChannel must be stable or beta, not ${plOtaChannel}")
+
+// Upload key (Play App Signing re-signs for players): from the environment, never from a committed file.
+// ANDROID_UPLOAD_KEYSTORE_PATH, ANDROID_UPLOAD_KEYSTORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS, ANDROID_UPLOAD_KEY_PASSWORD.
+def uploadKeystore = System.getenv('ANDROID_UPLOAD_KEYSTORE_PATH')
+def hasUploadKey = uploadKeystore && file(uploadKeystore).exists()
+
+android {
+    namespace "com.tokentails.pawlegends"
+    compileSdk rootProject.ext.compileSdkVersion
+    defaultConfig {
+        applicationId "com.tokentails.pawlegends"
+        minSdkVersion rootProject.ext.minSdkVersion
+        targetSdkVersion rootProject.ext.targetSdkVersion
+        versionCode plVersionCode
+        versionName plVersionName
+        buildConfigField 'String', 'PL_OTA_CHANNEL', "\"${plOtaChannel}\""
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        aaptOptions {
+             // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
+             // Default: https://android.googlesource.com/platform/frameworks/base/+/282e181b58cf72b6ca770dc7ca5f91f135444502/tools/aapt/AaptAssets.cpp#61
+            ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
+        }
+    }
+    buildFeatures {
+        buildConfig true
+    }
+    signingConfigs {
+        if (hasUploadKey) {
+            release {
+                storeFile file(uploadKeystore)
+                storePassword System.getenv('ANDROID_UPLOAD_KEYSTORE_PASSWORD')
+                keyAlias System.getenv('ANDROID_UPLOAD_KEY_ALIAS')
+                keyPassword System.getenv('ANDROID_UPLOAD_KEY_PASSWORD')
+            }
+        }
+    }
+    buildTypes {
+        release {
+            // a WebView shell: nothing worth shrinking, and R8 would need keep rules for every Capacitor plugin
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+            if (hasUploadKey) signingConfig signingConfigs.release
+        }
+    }
+}
+
+repositories {
+    flatDir{
+        dirs '../capacitor-cordova-android-plugins/src/main/libs', 'libs'
+    }
+}
+
+dependencies {
+    implementation fileTree(include: ['*.jar'], dir: 'libs')
+    implementation "androidx.appcompat:appcompat:$androidxAppCompatVersion"
+    implementation "androidx.coordinatorlayout:coordinatorlayout:$androidxCoordinatorLayoutVersion"
+    implementation "androidx.core:core-splashscreen:$coreSplashScreenVersion"
+    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
+    implementation project(':capacitor-android')
+    testImplementation "junit:junit:$junitVersion"
+    androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
+    androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
+    implementation project(':capacitor-cordova-android-plugins')
+    // sign-in: FirebaseApp for NativeAuth.java (the same Firebase Auth the auth plugin uses)
+    implementation "com.google.firebase:firebase-auth:$firebaseAuthVersion"
+}
+
+apply from: 'capacitor.build.gradle'
+
+// Sign-in (src/host/auth.ts, NativeAuth.java): the app's Firebase config. With google-services.json the Google
+// services plugin writes default_web_client_id and the FirebaseApp; without it the app still builds and runs with
+// Google sign-in off, but a release build refuses (a store build must offer Google sign-in as designed).
+def googleServices = file('google-services.json')
+if (googleServices.exists() && googleServices.text) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.warn("pawlegends: no android/app/google-services.json: Google sign-in is off in this build (node scripts/firebase-config.mjs check --platform android)")
+    gradle.taskGraph.whenReady { graph ->
+        def release = graph.allTasks.any { it.name ==~ /(bundle|assemble)Release/ }
+        if (release && !project.hasProperty('plAllowNoFirebase')) {
+            throw new GradleException("android/app/google-services.json is missing: a release build needs it for Google sign-in. Founder steps: node scripts/firebase-config.mjs check --platform android")
+        }
+    }
+}

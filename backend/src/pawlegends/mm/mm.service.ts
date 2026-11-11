@@ -5,6 +5,8 @@ import { MmBridge, type MmHookFactory, type MmHooks, type MmRelayApi } from './m
 import { MongoMmRoomStore, PawlegendsMmRoom, PawlegendsMmRoomSchema } from './mm-room.schema';
 import { User } from '../../user/user.schema';
 import { MmRatingReader, PawlegendsRating, PawlegendsRatingSchema } from './rating.schema';
+import { PawlegendsBoard, PawlegendsSanction } from '../social/social.schema';
+import { SanctionReader } from './sanction-reader';
 
 /*
  * Nest wiring of Quick Play (docs/plans/moba/M1A-IMPL.md §5.3): the mm room store and the rating reader for the relay
@@ -20,23 +22,37 @@ export const PAWLEGENDS_MM_SCHEMAS = [
 export class MmService implements MmHookFactory {
     readonly rooms: MongoMmRoomStore;
     readonly reader: MmRatingReader;
+    readonly sanctions: SanctionReader;
 
     constructor(
         @Optional() @InjectModel(PawlegendsRating.name) private readonly ratingModel?: Model<PawlegendsRating>,
         @Optional() @InjectModel(PawlegendsMmRoom.name) mmRoomModel?: Model<PawlegendsMmRoom>,
         // the casual newbie lock and seed read the account's saved matches (server records, never the client hint)
-        @Optional() @InjectModel(User.name) userModel?: Model<User>
+        @Optional() @InjectModel(User.name) userModel?: Model<User>,
+        // the boards `/live` writes (SOCIAL-RANKED.md §6.1) and the sanctions `/live` and `mm.join` read
+        @Optional() @InjectModel(PawlegendsBoard.name) private readonly boardModel?: Model<PawlegendsBoard>,
+        @Optional() @InjectModel(PawlegendsSanction.name) private readonly sanctionModel?: Model<PawlegendsSanction>
     ) {
         this.rooms = new MongoMmRoomStore(mmRoomModel);
         this.reader = new MmRatingReader(ratingModel ?? null, Date.now, userModel ?? null);
+        this.sanctions = new SanctionReader(sanctionModel ?? null);
     }
 
     hooks(api: MmRelayApi): MmHooks {
-        return new MmBridge(api, { rooms: this.rooms, ratings: this.reader });
+        return new MmBridge(api, { rooms: this.rooms, ratings: this.reader, sanctions: this.sanctions });
     }
 
     /** The `/live` side (savePawlegendsPartyMatch): the mm room records and the rating model it writes. */
-    liveDeps(): { rooms: MongoMmRoomStore; ratings: Model<PawlegendsRating> } | undefined {
-        return this.ratingModel ? { rooms: this.rooms, ratings: this.ratingModel } : undefined;
+    liveDeps():
+        | {
+              rooms: MongoMmRoomStore;
+              ratings: Model<PawlegendsRating>;
+              boards?: Model<PawlegendsBoard>;
+              sanctions?: Model<PawlegendsSanction>;
+          }
+        | undefined {
+        return this.ratingModel
+            ? { rooms: this.rooms, ratings: this.ratingModel, boards: this.boardModel, sanctions: this.sanctionModel }
+            : undefined;
     }
 }

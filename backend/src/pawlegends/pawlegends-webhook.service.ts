@@ -6,6 +6,7 @@ import {
     AgeBand,
     FOUNDER_LEGEND_CAP,
     isAgeBand,
+    isCatalogSku,
     isPawlegendsCurrency,
     isPawlegendsSku,
     PAWLEGENDS_SKUS,
@@ -25,14 +26,25 @@ import {
     PawlegendsIdentity,
     PawlegendsStripeService,
 } from './pawlegends-stripe.service';
+import { grantPurchase, revokeSession, syncPremium } from './pawlegends-season.service';
 
 /*
- * POST /pawlegends/stripe/webhook (raw body, PAWLEGENDS_STRIPE_WEBHOOK_SECRET). Idempotent by Stripe event id
+ * Two ways in, one handler. The store runs on the Token Tails Stripe account: the Token Tails endpoint
+ * (POST /image/webhook, STRIPE_WEBHOOK_SECRET) verifies the event and passes it here when `isPawlegendsEvent` says
+ * so. An own endpoint (POST /pawlegends/stripe/webhook, raw body, PAWLEGENDS_STRIPE_WEBHOOK_SECRET) is optional.
+ * Either way `handle` is idempotent by Stripe event id
  * (`pawlegendswebhookevents`), and every write is keyed by the Checkout Session id as well, so a replayed event
  * under a new id grants nothing twice. Writes purchases (the grant and the spend ledger); never a score.
  */
 
 export type PawlegendsWebhookOutcome = 'processed' | 'duplicate' | 'ignored';
+
+/** The Checkout Session events the store handles (`dispatch`). */
+const PAWLEGENDS_SESSION_EVENTS: ReadonlySet<string> = new Set([
+    'checkout.session.completed',
+    'checkout.session.async_payment_succeeded',
+    'checkout.session.expired',
+]);
 
 const idOf = (value: unknown): string | undefined =>
     typeof value === 'string' ? value : (value as { id?: string } | null | undefined)?.id || undefined;
@@ -55,6 +67,22 @@ export class PawlegendsWebhookService {
         } catch {
             throw PAWLEGENDS_ERRORS.badSignature();
         }
+    }
+
+    /**
+     * Whether an event verified by the shared Token Tails webhook belongs here: a Checkout Session event with
+     * `metadata.pawlegends === '1'`, or any refund or dispute close (the handler matches its payment intent against
+     * its own purchase rows and ignores the rest). Every other event stays with Token Tails.
+     */
+    isPawlegendsEvent(event: Pick<Stripe.Event, 'type' | 'data'> | null | undefined): boolean {
+        if (!event?.type) return false;
+        if (event.type === 'charge.refunded' || event.type === 'charge.dispute.closed') return true;
+        if (!PAWLEGENDS_SESSION_EVENTS.has(event.type)) return false;
+        const md = ((event.data?.object as Stripe.Checkout.Session | undefined)?.metadata || {}) as Record<
+            string,
+            string
+        >;
+        return md.pawlegends === '1';
     }
 
     /** The event id is recorded only after the grant succeeded, so Stripe's retry of a failed one is processed. */
@@ -82,6 +110,8 @@ export class PawlegendsWebhookService {
                 return this.checkoutExpired(event.data.object as Stripe.Checkout.Session);
             case 'charge.refunded':
                 return this.chargeRefunded(event.data.object as Stripe.Charge);
+            case 'charge.dispute.closed':
+                return this.disputeClosed(event.data.object as Stripe.Dispute);
             default:
                 return 'ignored';
         }
@@ -124,7 +154,12 @@ export class PawlegendsWebhookService {
         }
         const row = (await this.store.purchases.findOne({ sessionId: session.id }).lean()) as any;
         if (row?.status === 'refunded' || row?.status === 'voided' || row?.status === 'review') return 'ignored';
-        if (row?.status === 'paid') return 'processed';
+        // A store grant is idempotent: a retried delivery heals a grant that failed after the row was marked paid.
+        if (row?.status === 'paid') {
+            if (isCatalogSku(sku) && row.accountId)
+                await grantPurchase(this.store, row.accountId, sku, session.id, this.now());
+            return 'processed';
+        }
 
         const email = normalizeEmail(session.customer_details?.email ?? session.customer_email) || undefined;
         const paymentIntentId = idOf(session.payment_intent);
@@ -200,6 +235,9 @@ export class PawlegendsWebhookService {
             $unset: { holdUntil: '' },
             $setOnInsert: base,
         });
+        // Store and pass SKUs: the items and the pass row (read from the paid rows). Idempotent: if this fails, the
+        // event id is not recorded, Stripe retries, and the `paid` branch above grants again.
+        if (isCatalogSku(sku)) await grantPurchase(this.store, buyer.accountId!, sku, session.id, this.now());
         return 'processed';
     }
 
@@ -220,7 +258,10 @@ export class PawlegendsWebhookService {
         row: any
     ): Promise<string | null> {
         const def = PAWLEGENDS_SKUS[sku];
-        const clauses = identityClauses(buyer);
+        const store = isCatalogSku(sku);
+        // Store and pass SKUs belong to the account of the checkout hold; once per account, not per email or device.
+        if (store && !buyer.accountId) return 'no Token Tails account on the checkout hold';
+        const clauses = store ? [{ accountId: buyer.accountId }] : identityClauses(buyer);
         const others = clauses.length
             ? (
                   (await this.store.purchases.find({ $and: [{ status: 'paid' }, { $or: clauses }] }).lean()) as any[]
@@ -228,6 +269,7 @@ export class PawlegendsWebhookService {
             : [];
         const group = onceGroup(sku);
         if (group && others.some(r => group.includes(r.sku))) return `the buyer already owns ${group.join(' or ')}`;
+        if (def.requires && !others.some(r => r.sku === def.requires)) return `needs ${def.requires}`;
         let band: AgeBand | undefined = isAgeBand(row?.ageBand) ? row.ageBand : undefined;
         for (const key of [buyer.email && `email:${buyer.email}`, buyer.deviceId && `device:${buyer.deviceId}`]) {
             if (!key) continue;
@@ -295,10 +337,42 @@ export class PawlegendsWebhookService {
         const terms =
             charge.metadata?.pawlegends_terms_refund === '1' ||
             !!charge.refunds?.data?.some(r => r.metadata?.pawlegends_terms_refund === '1');
+        return this.endPayment(paymentIntentId, terms ? { termsRefund: true } : {});
+    }
+
+    /** A lost chargeback ends the purchase like a full refund (not under the terms): the money is gone. */
+    async disputeClosed(dispute: Stripe.Dispute): Promise<PawlegendsWebhookOutcome> {
+        const paymentIntentId = idOf(dispute.payment_intent);
+        if (!paymentIntentId || dispute.status !== 'lost') return 'ignored';
+        return this.endPayment(paymentIntentId, { disputeId: dispute.id });
+    }
+
+    /**
+     * Marks the paid rows of a payment refunded, then revokes and downgrades every catalogue row of that payment,
+     * already refunded ones too: the revoke and `syncPremium` are idempotent, so a delivery that failed half way (the
+     * rows flipped, the revoke not done; the event id is then not recorded) is healed by Stripe's retry.
+     */
+    private async endPayment(
+        paymentIntentId: string,
+        extra: { termsRefund?: true; disputeId?: string }
+    ): Promise<PawlegendsWebhookOutcome> {
+        const rows = (await this.store.purchases
+            .find({ paymentIntentId, status: { $in: ['paid', 'refunded'] } })
+            .lean()) as any[];
+        if (!rows.length) return 'ignored';
         const result = await this.store.purchases.updateMany(
             { paymentIntentId, status: 'paid' },
-            { $set: { status: 'refunded', refundedAt: this.now(), ...(terms ? { termsRefund: true } : {}) } }
+            { $set: { status: 'refunded', refundedAt: this.now(), ...extra } }
         );
-        return (result as any)?.matchedCount ? 'processed' : 'ignored';
+        let healed = false;
+        // Store and pass purchases: the items go (unless refunded under the terms), and the pass row is downgraded.
+        for (const row of rows) {
+            if (!isCatalogSku(row.sku) || !row.accountId) continue;
+            const keep = !!extra.termsRefund || !!row.termsRefund;
+            if (!keep) await revokeSession(this.store, row.sessionId, this.now());
+            if (PAWLEGENDS_SKUS[row.sku]?.kind === 'pass') await syncPremium(this.store, row.accountId, this.now());
+            healed = true;
+        }
+        return (result as any)?.matchedCount || healed ? 'processed' : 'ignored';
     }
 }

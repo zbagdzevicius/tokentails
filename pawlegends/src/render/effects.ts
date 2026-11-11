@@ -12,6 +12,8 @@ import { PUDDING } from '../data/pudding';
 import { SLOTS_PER_TEAM, type CastSlot, type HeroId, type SimEvent, type TrickId } from '../sim/api';
 import { sfx } from '../audio/sfx';
 import { playSkillSfx, skillKey } from '../audio/skillSfx';
+import { attackStyle } from '../audio/hitMix';
+import { IDENTITY, type Nature } from './identity';
 import { CHAMP_AUDIO } from '../audio/champ';
 import type { MixRelation } from '../audio/identityMix';
 import { NatureFx } from './fx/natureFx';
@@ -147,6 +149,8 @@ export interface EffectsHooks {
   levelNote?(level: number, guided: boolean): boolean;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
+  /** LATENCY-PLAN N1: the session already played this own wind-up's sound when the cast was sent (true: stay quiet). */
+  ownWindupHeard?(slot: number): boolean;
   onTowerDown?(destroyedByMyTeam: boolean): void;
   /** An enemy tower or core locked on to the player (fun plan S5 lock-on; the `windup` with slot 4). */
   onTowerAim?(src: number, ticks: number): void;
@@ -395,6 +399,7 @@ export class Effects {
     if (src && e.kind === 'basic') this.hooks.onSwing(e.src, e.tick);
     if (!dst) return;
     const heroDst = dst.kind === 'hero';
+    const structure = dst.kind === 'tower' || dst.kind === 'core';
     const heavy = e.kind === 'ability' || e.amount >= 120;
     this.hooks.onHit(e.dst, dst.kind, heavy, e.src);
     const pos = this.at(dst, heroDst ? 0.9 : dst.kind === 'tower' || dst.kind === 'core' ? 2.4 : 0.6);
@@ -409,9 +414,14 @@ export class Effects {
     const drew = anim ? anim.hitFired(e, src?.kind === 'hero', heroDst, big) : false;
     // champion identity: the attacker's skill nature impact (sound and VFX) and its motif
     const idHero = src && src.kind === 'hero' && src.hero && (e.kind === 'basic' || e.kind === 'ability') ? src.hero : null;
+    let nature: Nature | undefined;
     if (src && idHero) {
       const skill = e.kind === 'basic' ? 'basic' : skillKey(this.lastSlot.get(src.id) ?? 0);
       const relation = this.relOf(src);
+      // audio pass 2: the player's own basic has its attacker side too (claw whoosh, tank swing, thwip, magic zip) in
+      // the hero's own pitch; others' basics keep their identity impact only (no extra audio node per hit)
+      if (e.kind === 'basic' && e.src === me) sfx.swing({ hero: idHero, style: attackStyle(idHero), mine: true, at: src });
+      else nature = IDENTITY[idHero]?.skills[skill]?.nature;
       playSkillSfx(idHero, skill, 'impact', { at: dst, relation, src: src.id });
       if (e.kind === 'ability' && !drew) this.natureFx.skillFx(idHero, skill, 'impact', pos, null, { enemy: relation === 'enemy' });
       else this.natureFx.motifBurst(idHero, pos, 2, null, skill, relation === 'enemy');
@@ -460,14 +470,16 @@ export class Effects {
         // C11d: the screen shakes for big hits only
         if (big) this.juice.kick(0.2);
       }
-      sfx.play(heroDst ? 'heroHit' : 'hit', { at: dst });
+      // audio pass (Nov 9): a layered impact (crack, thump, body; deeper when heavy, a ring when big)
+      sfx.impact({ target: heroDst ? 'hero' : structure ? 'structure' : 'unit', who: 'mine', heavy, big, nature, at: dst });
     } else if (e.dst === me) {
       if (shows) this.numbers.show(npos, String(e.amount), 'hurt', e.dst, e.amount);
       this.juice.kick(Math.max(e.kind === 'tower' ? 0.18 : 0, Math.min(0.35, 0.1 + e.amount / 600)));
-      sfx.play('hurt');
+      sfx.impact({ target: 'hero', who: 'me', heavy: heavy || e.kind === 'tower' });
     } else {
       if (shows && heroDst && src?.kind === 'hero') this.numbers.show(npos, String(e.amount), 'info', e.dst, e.amount);
-      if (!idHero) sfx.play(e.kind === 'tower' ? 'towerShot' : 'hit', { at: dst, vol: 0.45 });
+      if (e.kind === 'tower') sfx.play('towerShot', { at: dst, vol: 0.45 });
+      else if (!idHero) sfx.impact({ target: heroDst ? 'hero' : structure ? 'structure' : 'unit', who: 'other', at: dst });
     }
   }
 
@@ -487,7 +499,11 @@ export class Effects {
     const card = el ? this.cardOf(src) : null;
     const color = tinted(el ? (e.kind === 'ability' ? el : mixHex(teamColor, el, 0.35)) : teamColor, card);
     vfx.impact(pos, e.amount, color, e.kind === 'ability', big);
-    if (card && src) this.cards?.impactBurst(pos, src.id, impactFlash(e.amount), card, e.kind === 'ability' || big);
+    if (card && src) {
+      this.cards?.impactBurst(pos, src.id, impactFlash(e.amount), card, e.kind === 'ability' || big);
+      // CARD-SKINS.md Epic+: one element motif inside the default flash on an ability hit
+      if (e.kind === 'ability') this.cards?.hitMotif(pos, impactFlash(e.amount), card);
+    }
     const ground = dst.kind === 'hero' || dst.kind === 'minion' || dst.kind === 'camp' || dst.kind === 'pudding';
     if (ground && (e.kind === 'ability' || big)) vfx.debris(dst.x, dst.z, big ? 1 : 0.5);
     // a tower / core shot lands with weight: a ground ring in the shooter's relation colour and a little debris
@@ -694,7 +710,7 @@ export class Effects {
       }
       return;
     }
-    sfx.play('windup', { at: src, vol: 0.6 });
+    if (!(e.src === this.hooks.mySlot && this.hooks.ownWindupHeard?.(e.slot))) sfx.play('windup', { at: src, vol: 0.6 });
     // Sim v17 (V17.md §3.6, §7): a windup that names its victim (Pack Hunt) warns that hero's player by ear at once.
     if (src.team !== this.hooks.myTeam && e.dst !== undefined && e.dst === this.hooks.mySlot) {
       this.hooks.onWindupAtMe?.();
@@ -773,7 +789,11 @@ export class Effects {
     if (!pos) return;
     this.numbers.show(pos, `+${e.amount}`, 'fish', 'fish', e.amount);
     this.fishPops++;
-    if (e.reason === 'lastHit') sfx.play('coin', { vol: 0.35, rate: 1.2 });
+    if (e.reason === 'lastHit') {
+      // audio pass 2: the last-hit ping (two pings and a shimmer) and a small gold sparkle where the minion fell
+      sfx.fishPing();
+      this.particles.burst(pos, { additive: true, n: 8, shape: SHAPE.STAR4, color: 0xffd34d, intensity: 1.9, size: [0.1, 0.2], life: [0.3, 0.45], speed: [1.5, 3], up: 2, drag: 2 });
+    }
   }
 
   /** Lane F (F2): a Toy bought: a gold ring at that hero (seen now), and for the player a shockwave and the buy sound. */
@@ -801,8 +821,12 @@ export class Effects {
       this.particles.burst(pos, { additive: true, n: 18, shape: SHAPE.STAR5, color: this.rel(v.team, v.id), intensity: 1.8, size: [0.2, 0.36], life: [0.5, 0.9], speed: [3, 6], up: 3, gravity: 7 });
       this.shock.start(this.at(v, 0), { r1: 3, dur: 0.35, color: '#FFE0C8', height: 0.3 });
       this.vfx?.debris(v.x, v.z, 1.3);
-      // Wave C (C4): a Legendary card's takedown flourish over the fallen hero (only for a hero seen now)
-      if (this.vfx && this.hooks.visible?.(e.id) !== false) this.cards?.takedown(v.x, v.z, this.cardOf(k));
+      // Wave C (C4) + CARD-SKINS.md: the killer's skin stamps the fallen hero (Epic+ motif stamp, Legendary flourish;
+      // only for a hero seen now); a Legendary skin's multi-kill card shows on the killer's own screen only
+      const kc = this.cardOf(k);
+      if (this.vfx && this.hooks.visible?.(e.id) !== false) this.cards?.takedown(v.x, v.z, kc);
+      if (e.killer === this.hooks.mySlot && k && this.vfx) this.cards?.multiKill(k.x, k.z, e.tick, kc);
+      if (kc && kc.rung === 'LEGENDARY' && k) sfx.cardLayer('takedown', k.id, kc.self, v);
       sfx.play('death', { at: v });
       // the words ("Takedown!", First Blood, multikills) come from the announcer (render/announcer.ts)
       if (e.killer === this.hooks.mySlot) {

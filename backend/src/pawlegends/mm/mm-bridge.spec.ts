@@ -2,7 +2,8 @@ import { SIM_VERSION, simFor } from '../../vendor/pawlegends-sim';
 import { PartyService } from '../party/party.service';
 import type { MmEntry } from './matchmaker';
 import { MmBridge, type MmRelayApi, type MmSock } from './mm-bridge';
-import { MM_LIMITS } from './mm-limits';
+import { DEFAULT_GLICKO } from './glicko2';
+import { MM_CASUAL, MM_LIMITS } from './mm-limits';
 import { identityHash, MemoryMmRoomStore } from './mm-room.schema';
 import { MemoryRatingSource } from './rating.schema';
 
@@ -247,7 +248,7 @@ describe('MmBridge', () => {
         expect(t.last(g.member, 'mm.found')).toMatchObject({ difficulty: 'rookie' });
     });
 
-    it('casual newbie lock and seed read server records, never the hint (V16 §4.1)', async () => {
+    it('casual seed reads server records, never the hint; the newbie lock is lifted, so a 0-match guest queues (V16 §4.1)', async () => {
         const t = make();
         const v16 = { version: SIM_VERSION, hash: simFor(SIM_VERSION)!.SIM_SOURCE_HASH! };
         const casual = async (s: MmSock) => {
@@ -259,30 +260,34 @@ describe('MmBridge', () => {
             [...((t.bridge as any).entries as Map<string, MmEntry>).values()].find(e =>
                 e.members.some(m => m.member === s.member)
             );
-        // claims 50 matches and hard, has no saved match and no row: locked
+        // the 5-match lock is lifted for now (founder, 2026-11-11: MM_CASUAL.newbieMatches 0): a 0-match guest queues
+        expect(MM_CASUAL.newbieMatches).toBe(0);
+        const fresh = t.sock({ proto: 3, sim: v16, hint: { maxDifficulty: 'rookie', newbie: true, matches: 0 } });
+        await casual(fresh);
+        expect(t.last(fresh.member, 'error')).toBeUndefined();
+        expect(t.bridge.queued(fresh.member)).toBe(true);
+        // no row and no saved match: the middle seed with rd at the newbie line; still a newbie for the fit cost
+        expect(entryOf(fresh)!.members[0]).toMatchObject({ rating: { r: DEFAULT_GLICKO.r, rd: 300 }, newbie: true });
+        // claims 50 matches and hard, has no saved match and no row: queued, but the 'hard' hint never seeds casual
         const liar = t.sock({ proto: 3, sim: v16, hint: { maxDifficulty: 'hard', newbie: false, matches: 50 } });
         await casual(liar);
-        expect(t.last(liar.member, 'error')).toMatchObject({ code: 'mm_locked', reason: 'pvp_newbie' });
-        expect(t.bridge.queued(liar.member)).toBe(false);
+        expect(t.last(liar.member, 'error')).toBeUndefined();
+        expect(entryOf(liar)!.members[0].rating).toEqual({ r: DEFAULT_GLICKO.r, rd: 300 });
         // 7 saved matches, top easy: queued, seeded at easy (the 'hard' hint is ignored)
         const vet = t.sock({ proto: 3, sim: v16, hint: { maxDifficulty: 'hard', newbie: false, matches: 50 } });
         t.ratings.saved.set(vet.identity.accountId!, { matches: 7, top: 'easy' });
         await casual(vet);
         expect(t.last(vet.member, 'error')).toBeUndefined();
         expect(entryOf(vet)!.members[0].rating).toEqual({ r: 1350, rd: 300 });
-        // 4 saved matches is still a newbie
-        const four = t.sock({ proto: 3, sim: v16, hint: { maxDifficulty: 'normal', newbie: false, matches: 50 } });
-        t.ratings.saved.set(four.identity.accountId!, { matches: 4, top: 'normal' });
-        await casual(four);
-        expect(t.last(four.member, 'error')).toMatchObject({ code: 'mm_locked', reason: 'pvp_newbie' });
-        // an IP-only identity has no record: locked whatever it claims
+        // an IP-only identity has no record: it queues too
         const anon = t.sock({
             proto: 3,
             sim: v16,
             identity: { accountId: null, guestKeyHash: null, key: 'ip:x', ticketed: false, guest: true },
-            hint: { maxDifficulty: 'normal', newbie: false, matches: 50 },
+            hint: { maxDifficulty: 'normal', newbie: true, matches: 0 },
         });
         await casual(anon);
-        expect(t.last(anon.member, 'error')).toMatchObject({ code: 'mm_locked', reason: 'pvp_newbie' });
+        expect(t.last(anon.member, 'error')).toBeUndefined();
+        expect(t.bridge.queued(anon.member)).toBe(true);
     });
 });

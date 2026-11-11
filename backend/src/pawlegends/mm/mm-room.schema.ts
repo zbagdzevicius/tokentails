@@ -3,6 +3,7 @@ import { InjectModel, Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { createHash } from 'crypto';
 import type { Model } from 'mongoose';
 import type { Glicko } from './glicko2';
+import type { MemberIntel } from '../social/intel';
 
 /*
  * The Quick Play room record (docs/plans/moba/M1A-IMPL.md §4.3): a small collection keyed by the room id, kept apart
@@ -21,6 +22,8 @@ export interface MmRoomMember {
     ratingAtStart: Glicko | null;
     event?: 'left' | 'afk';
     eventTick?: number;
+    /** PvP: the referee's "acts on hidden" counts (SOCIAL-RANKED.md §9.2); absent on sims without `heroSight`. */
+    intel?: MemberIntel | null;
 }
 
 /** Casual PvP: one team of a room record (V16.md §4.4). */
@@ -36,7 +39,9 @@ export interface MmRoomTeam {
 
 export interface MmRoomRecord {
     _id: string;
-    queue: 'coop' | 'casual' | 'classic';
+    queue: 'coop' | 'casual' | 'classic' | 'ranked';
+    /** Ranked: the Legends Pass season the room counts for. */
+    season?: string;
     /** Casual PvP: both teams (team 0 on the left), and why the room was voided (a remake: no rating, no catnip). */
     mode?: 'casual';
     /** 5v5 Classic (queue 'classic'): Hearthwood Divide, five seats a team. Absent: Crossing. */
@@ -137,6 +142,10 @@ export class PawlegendsMmRoom {
     @Prop({ type: [Object], default: undefined })
     teams?: MmRoomTeam[];
 
+    /** Ranked: the season the room counts for. */
+    @Prop({ type: String, default: undefined })
+    season?: string;
+
     /** 5v5 Classic: 'hearthwood' (absent for Crossing rooms). */
     @Prop({ type: String, default: undefined })
     map?: string;
@@ -180,6 +189,8 @@ PawlegendsMmRoomSchema.index({ 'members.identityHash': 1, createdAt: -1 });
 PawlegendsMmRoomSchema.index({ 'members.accountId': 1 });
 // the leaver ladder and the PvP dodge reads by occupant (V16.md §4.4)
 PawlegendsMmRoomSchema.index({ 'members.accountId': 1, createdAt: -1 });
+// ranked settlement and recent players (SOCIAL-RANKED.md §11)
+PawlegendsMmRoomSchema.index({ 'members.accountId': 1, queue: 1, endedAt: -1 });
 PawlegendsMmRoomSchema.index({ createdAt: 1 }, { expireAfterSeconds: 30 * 86400 });
 
 @Injectable()

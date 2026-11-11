@@ -1,5 +1,7 @@
 /**
- * Wave C (C4): card-tier ability effects, from the rung of the card skin a hero wears (registry.ts `rung`). Strictly
+ * Wave C (C4) + CARD-SKINS.md: skin-tier ability effects, from the rung of the card skin (registry.ts `rung`) or the
+ * store / pass coat (render/skins/coatRung.ts, fixed by price band) a hero wears, through the shared kit
+ * (render/skins/effectKit.ts: rung × element × fur-pattern motif). Strictly
  * cosmetic: this file reads only the skin store, the snapshot and the events. It never changes a stat, a cooldown, a
  * hitbox or a sim input, and the sim and the backend verifier never import it (tests/unit/card-fx.test.ts plays a
  * match with and without a card equipped and compares the replay hash).
@@ -8,8 +10,11 @@
  * |-----------|--------------------------------------------------------------------------------------------------|
  * | Common    | nothing: the default effects                                                                     |
  * | Rare      | the coat-palette tint on the hero's projectile trails, dash streaks, melee slashes and hit sparks  |
- * | Epic      | + a sparkle at every ability cast; the footfall glint stays in tierFx.ts                          |
- * | Legendary | + a paw-print impact burst, a takedown flourish and the ultimate's paw-print shockwave           |
+ * | Epic      | + a sparkle at every ability cast, 1 element motif inside the impact flash on ability hits, a      |
+ * |           |   4-sprite takedown stamp in the fur pattern's rhythm (the footfall glint stays in tierFx.ts)      |
+ * | Legendary | + a 1-sprite paw-print impact burst, a takedown flourish, the ultimate's paw-print wave (6 PAW     |
+ * |           |   sprites, was 30 SOFT dots), and the multi-kill card above the killer (the killer's screen only) |
+ * | Awakened  | Legendary card + bond 30: stage 2 adds the element motif to the ultimate's paw wave               |
  *
  * Readability rules:
  * - A tint changes colour only. Shapes, sizes, counts and timings are the default ones, so a carded hero's trail or
@@ -25,57 +30,36 @@
  */
 import * as THREE from 'three';
 import type { CatTier } from '../../meta/roster';
-import { FADE, GROW, SHAPE } from '../fx/Particles.js';
-import { hsl, hslToHex, mixHex } from './classify';
+import { GROW, SHAPE } from '../fx/Particles.js';
+import { mixHex } from './classify';
+import { glowOf, LiveBudget, MotifEmitter, profileFromCard, type SkinFxProfile } from './effectKit';
 import { rungAtLeast, trimForTeam } from './registry';
 import type { CatSkin } from './skinStore';
 
 /** How far a Rare+ tint pulls the default colour toward the coat glow. */
 export const CARD_TINT_MIX = 0.5;
-/** Live C4 particles at most (the paw-print wave is the biggest: 6 paws of 5 sprites). */
+/** Live C4 particles at most, all heroes together (CARD-SKINS.md §4: unchanged). */
 export const CARD_MAX = 60;
 /** Skip the extras while a pool is over this share of its limit (as tierFx). */
 export const CARD_POOL_SKIP = 0.8;
 /** One paw-print burst per hero per this many seconds on basic attacks (ability and big hits always stamp). */
 export const PAW_GAP = 0.25;
+/** Kills within this many sim ticks chain into a multi-kill (render/announcer.ts WINDOW.multikill). */
+export const MULTI_WINDOW = 240;
+/** Takedown stamp sprites (Low: half). */
+export const STAMP_N = 4;
 const CREAM = 0xfff3dc;
 
-/** What a hero's card adds this frame (null: Common, no card, or the setting hides it). */
-export interface CardFx {
-  rung: CatTier;
-  /** The cat's name. */
-  name: string;
-  /** The coat glow colour, team-safe for another player's hero. */
-  tint: number;
-  self: boolean;
-  /** The hero's team: the drawn colour (default mixed with the tint) is kept off the opposing team's hue. */
-  team: 0 | 1;
-  /** Sparkles, bursts, flourishes and the signature may draw (tints always may). */
-  extras: boolean;
-}
-
-/** A coat colour as a number ('#rrggbb' strings too). */
-const hexNum = (c: number | string): number => (typeof c === 'number' ? c : parseInt(c.replace('#', ''), 16) || 0);
-
 /**
- * The coat's glow colour: the most colourful of the coat's colours (base, light, deep, patch, the variant accent),
- * lifted to a lightness that glows under additive blending. A grey coat gives a silver tint.
+ * What a hero's card skin or coat adds this frame (null: Common, none, or the setting hides it). The kit's profile
+ * (render/skins/effectKit.ts SkinFxProfile); kept under its Wave C name for the callers.
  */
+export type CardFx = SkinFxProfile;
+
+/** The coat's glow colour (effectKit.ts glowOf over base, light, deep, cream, patch and the variant accent). */
 export function coatGlow(skin: Pick<CatSkin, 'coat' | 'accent'>): number {
   const c = skin.coat;
-  const options = [c.base, c.light, c.deep, c.cream, ...(c.patch !== undefined ? [c.patch] : []), ...(skin.accent !== undefined ? [skin.accent] : [])].map(hexNum);
-  let best = options[0];
-  let score = -1;
-  for (const o of options) {
-    const [, s, l] = hsl(o);
-    const k = s * (1 - Math.abs(l - 0.5));
-    if (k > score) {
-      score = k;
-      best = o;
-    }
-  }
-  const [h, s, l] = hsl(best);
-  return hslToHex(h, Math.min(1, s < 0.12 ? s : Math.max(0.55, s)), Math.min(0.78, Math.max(0.62, l)));
+  return glowOf([c.base, c.light, c.deep, c.cream, ...(c.patch !== undefined ? [c.patch] : []), ...(skin.accent !== undefined ? [skin.accent] : [])]);
 }
 
 /** The tint a hero's card gives: the coat glow; another player's hero never gold and never the enemy's hue. */
@@ -84,29 +68,21 @@ export function cardTint(skin: Pick<CatSkin, 'coat' | 'accent'>, self: boolean, 
   return self ? g : trimForTeam(g, team);
 }
 
-/** Fill `out` (reused per slot) for a hero wearing `skin`; null for a Common or missing card. */
-export function cardFxFor(skin: CatSkin | null, self: boolean, team: 0 | 1, extras: boolean, out?: CardFx): CardFx | null {
-  if (!skin || !rungAtLeast(skin.rung, 'RARE')) return null;
-  const o = out ?? ({} as CardFx);
-  o.rung = skin.rung;
-  o.name = skin.name;
-  o.tint = cardTint(skin, self, team);
-  o.self = self;
-  o.team = team;
-  o.extras = extras;
-  return o;
+/** Fill `out` (reused per slot) for a hero wearing card `skin`; null for a Common or missing card. */
+export function cardFxFor(skin: CatSkin | null, self: boolean, team: 0 | 1, extras: boolean, out?: CardFx, id = 0, low = false, level = 1): CardFx | null {
+  return profileFromCard(skin, id, self, team, extras, low, level, out);
 }
 
 /**
- * A default effect colour with the card's tint (Rare+). Colour only: the caller keeps every size and shape. On another
+ * A default effect colour with the skin's tint (Rare+). Colour only: the caller keeps every size and shape. On another
  * player's hero the team rule applies to the colour that is drawn, not only to the tint: two colours that are each
  * outside the opposing team's 25° band can blend into it, so the mix goes through trimForTeam (never gold, never the
  * opposing hue).
  */
-export function tinted(base: number, fx: CardFx | null | undefined): number {
+export function tinted(base: number, fx: CardFx | null | undefined, mix = CARD_TINT_MIX): number {
   if (!fx || !rungAtLeast(fx.rung, 'RARE')) return base;
-  const c = mixHex(base, fx.tint, CARD_TINT_MIX);
-  return fx.self ? c : trimForTeam(c, fx.team);
+  const c = mixHex(base, fx.tint, mix);
+  return fx.self ? c : trimForTeam(c, fx.team, fx.mate ?? undefined);
 }
 
 export const hasSparkle = (fx: CardFx | null | undefined): boolean => !!fx && fx.extras && rungAtLeast(fx.rung, 'EPIC');
@@ -117,20 +93,25 @@ export const hasSignature = (fx: CardFx | null | undefined): boolean => !!fx && 
 const RUNG_WORD: Readonly<Record<CatTier, string>> = Object.freeze({ COMMON: 'Common', RARE: 'Rare', EPIC: 'Epic', LEGENDARY: 'Legendary' });
 const RUNG_EFFECT: Readonly<Record<CatTier, string>> = Object.freeze({ COMMON: 'look', RARE: 'tint', EPIC: 'sparkle', LEGENDARY: 'burst' });
 
+/** The tier word ("Epic"). */
+export const rungWord = (r: CatTier): string => RUNG_WORD[r];
+
 /** The collection and preview line: "Legendary card: Ficus burst" (Common: "Common card: Pickles look"). */
-export function cardFxLine(rung: CatTier, name: string): string {
-  return `${RUNG_WORD[rung]} card: ${name} ${RUNG_EFFECT[rung]}`;
+export function cardFxLine(rung: CatTier, name: string, source: 'card' | 'coat' = 'card'): string {
+  return `${RUNG_WORD[rung]} ${source}: ${name} ${RUNG_EFFECT[rung]}`;
 }
 
 /** What the rung adds, one sentence. Looks only, never a number or a power word. */
-export function cardFxDetail(rung: CatTier): string {
+export function cardFxDetail(rung: CatTier, awakened = false): string {
   switch (rung) {
     case 'RARE':
-      return 'Trails and hits take the coat colour.';
+      return 'Trails, ribbons and hits take the coat colour, and a pattern ring circles the recall nap.';
     case 'EPIC':
-      return 'Coat-colour trails and hits, a sparkle on every cast and a glint on footfalls.';
+      return 'Coat-colour trails and skill effects, a sparkle on every cast, element motifs on ability hits, a takedown stamp in the coat pattern and a tinted ghost.';
     case 'LEGENDARY':
-      return 'Coat-colour trails and hits, cast sparkles, paw-print hit bursts, a takedown flourish and a paw-print wave on the ultimate.';
+      return awakened
+        ? 'Awakened: everything Legendary has, and the foil and the ultimate paw wave grow as your champion levels up (Kitten, Brave, Legend).'
+        : 'Everything Epic has, plus paw-print hit bursts, an element foil, a card glyph on recall, a multi-kill card and a purr.';
     default:
       return 'The default effects. Bond 3 adds the coat-colour tint.';
   }
@@ -150,14 +131,8 @@ export interface CardShock {
   start(pos: THREE.Vector3, o: Record<string, unknown>): unknown;
 }
 
-/** Paw print: the pad and four toes (unit offsets in the print's plane, and each sprite's share of the size). */
-export const PAW: readonly (readonly [number, number, number])[] = Object.freeze([
-  [0, -0.12, 0.5],
-  [-0.3, 0.2, 0.24],
-  [-0.1, 0.36, 0.24],
-  [0.1, 0.36, 0.24],
-  [0.3, 0.2, 0.24],
-] as const);
+/** Paw sprites in the ultimate's wave (each one SHAPE.PAW sprite; the wave was 6 prints of 5 dots). */
+export const WAVE_PAWS = 6;
 
 const _a = new THREE.Vector3();
 
@@ -165,9 +140,12 @@ export class CardVfx {
   /** Particles started so far (tests). */
   emitted = 0;
   private time = 0;
-  private readonly expiry = new Float64Array(CARD_MAX);
+  private readonly live = new LiveBudget(CARD_MAX);
+  private readonly kit = new MotifEmitter();
   private readonly lastPaw = new Float64Array(16).fill(-9);
-  private readonly s: Record<string, unknown> = { shape: SHAPE.SOFT, color: 0xffffff, intensity: 1.8, size0: 0.2, size1: 0.05, life: 0.3, grow: GROW.OUT, fade: FADE.LINEAR, rot: 0, spin: 0, alpha: 1, vx: 0, vy: 0, vz: 0, additive: true };
+  /** The player's own multi-kill chain (sim ticks). */
+  private multiN = 0;
+  private multiLast = -1e9;
   private readonly sparkle: Record<string, unknown> = { additive: true, n: 6, exact: true, shape: SHAPE.STAR4, color: 0xffffff, intensity: 2, size: [0.1, 0.16], sizeEnd: 0.3, life: [0.3, 0.45], speed: [0.6, 1.2], up: 1.8, drag: 2, r0: 0.45, alpha: 0.9 };
   private readonly flourish: Record<string, unknown> = { additive: true, n: 10, exact: true, shape: SHAPE.STAR8, color: CREAM, intensity: 2, size: [0.16, 0.24], sizeEnd: 0.5, life: [0.55, 0.8], speed: [1, 1.8], up: 2.6, drag: 1.6, r0: 0.5, alpha: 0.95 };
   private readonly wave: Record<string, unknown> = { r1: 3, dur: 0.5, color: '#ffffff', height: 0.35, intensity: 1.2 };
@@ -181,107 +159,144 @@ export class CardVfx {
     this.time += dt;
   }
 
-  /** Living C4 particles. */
-  alive(): number {
-    let n = 0;
-    for (let i = 0; i < CARD_MAX; i++) if (this.expiry[i] > this.time) n++;
-    return n;
+  /** Living C4 particles (all heroes, or hero slot `id`). */
+  alive(id = -1): number {
+    return this.live.alive(this.time, id);
   }
 
-  private room(n: number): boolean {
+  private room(n: number, fx: CardFx): boolean {
     const p = this.particles;
     if (p.add.count > p.add.limit * CARD_POOL_SKIP || p.alpha.count > p.alpha.limit * CARD_POOL_SKIP) return false;
-    return this.alive() + n <= CARD_MAX;
+    return this.live.room(this.time, n, fx.id, fx.rung);
   }
 
-  private claim(n: number, life: number): void {
-    let k = 0;
-    for (let i = 0; i < CARD_MAX && k < n; i++) {
-      if (this.expiry[i] <= this.time) {
-        this.expiry[i] = this.time + life;
-        k++;
-      }
-    }
+  private claim(n: number, life: number, fx: CardFx): void {
+    this.live.claim(this.time, n, life, fx.id);
     this.emitted += n;
   }
 
-  /** One paw print of `size` (m) at `pos`: upright (impacts) or flat on the ground facing `yaw` (the wave). */
-  private paw(x: number, y: number, z: number, size: number, color: number, life: number, flat: boolean, yaw = 0): void {
-    const ca = Math.cos(yaw);
-    const sa = Math.sin(yaw);
-    const s = this.s;
-    for (const [px, py, k] of PAW) {
-      if (flat) _a.set(x + (py * ca - px * sa) * size, y, z - (py * sa + px * ca) * size);
-      else _a.set(x + px * size, y + py * size, z);
-      s.shape = SHAPE.SOFT;
-      s.color = k > 0.3 ? color : mixHex(color, 0xffffff, 0.35);
-      s.intensity = 2;
-      s.size0 = size * k * 0.9;
-      s.size1 = size * k * 0.55;
-      s.life = life;
-      s.grow = GROW.OUT;
-      s.fade = FADE.HOLD;
-      s.alpha = 0.95;
-      this.particles.single(_a, s);
-    }
+  /** One paw-print sprite (SHAPE.PAW) of `size` (m) at (x, y, z). */
+  private paw(x: number, y: number, z: number, size: number, color: number, life: number, spin = 0, rise = 0.4): void {
+    this.kit.glyph(this.particles, SHAPE.PAW, color, x, y, z, size, life, spin, GROW.OUT, rise);
   }
 
-  /** Epic+: a few small stars twinkle up around the caster (inside its hero ring). */
+  /** Epic+: a few small stars twinkle up around the caster (inside its hero ring). Low (own hero): 4. */
   castSparkle(x: number, z: number, fx: CardFx | null): boolean {
-    if (!hasSparkle(fx) || !this.room(6)) return false;
+    if (!hasSparkle(fx)) return false;
+    const f = fx as CardFx;
+    const n = f.low ? 4 : 6;
+    if (!this.room(n, f)) return false;
     _a.set(x, 0.5, z);
-    this.sparkle.color = mixHex((fx as CardFx).tint, 0xffffff, 0.3);
+    this.sparkle.n = n;
+    this.sparkle.color = mixHex(f.tint, 0xffffff, 0.3);
     this.particles.ring(_a, this.sparkle);
-    this.claim(6, 0.45);
+    this.claim(n, 0.45, f);
     return true;
   }
 
   /**
-   * Legendary: a paw-print burst on a hit, inside the default impact flash (flashSize = its size0). Basic hits stamp at
-   * most once per PAW_GAP per hero; ability and big hits always do.
+   * Legendary: a paw-print burst on a hit, one SHAPE.PAW sprite inside the default impact flash (flashSize = its
+   * size0). Basic hits stamp at most once per PAW_GAP per hero; ability and big hits always do.
    */
   impactBurst(pos: THREE.Vector3, src: number, flashSize: number, fx: CardFx | null, always: boolean): boolean {
     if (!hasSignature(fx)) return false;
+    const f = fx as CardFx;
     const slot = src & 15;
     if (!always && this.time - this.lastPaw[slot] < PAW_GAP) return false;
-    if (!this.room(PAW.length)) return false;
+    if (!this.room(1, f)) return false;
     this.lastPaw[slot] = this.time;
-    this.paw(pos.x, pos.y, pos.z + 0.05, flashSize * 0.8, (fx as CardFx).tint, 0.2, false);
-    this.claim(PAW.length, 0.2);
+    this.paw(pos.x, pos.y, pos.z + 0.05, flashSize * 0.9, f.tint, 0.22);
+    this.claim(1, 0.22, f);
     return true;
   }
 
-  /** Legendary: a takedown flourish over the fallen hero, a ring of cream and coat stars and one paw print. */
-  takedown(x: number, z: number, fx: CardFx | null): boolean {
-    if (!hasSignature(fx) || !this.room(10 + PAW.length)) return false;
-    _a.set(x, 1.2, z);
-    this.flourish.color = CREAM;
-    this.flourish.n = 5;
-    this.particles.ring(_a, this.flourish);
-    this.flourish.color = (fx as CardFx).tint;
-    this.particles.ring(_a, this.flourish);
-    this.paw(x, 2.2, z, 0.7, (fx as CardFx).tint, 0.6, false);
-    this.claim(10 + PAW.length, 0.8);
+  /** Epic+: one element motif sprite inside the default impact flash on an ability hit (none on Low). */
+  hitMotif(pos: THREE.Vector3, flashSize: number, fx: CardFx | null): boolean {
+    if (!hasSparkle(fx)) return false;
+    const f = fx as CardFx;
+    if (f.low || !this.room(1, f)) return false;
+    this.kit.emit(this.particles, f, pos.x, pos.y, pos.z + 0.04, 1, flashSize * 0.5, 0.3, false, 0.3);
+    this.claim(1, 0.3, f);
     return true;
+  }
+
+  /**
+   * Epic+: a takedown stamp over the fallen hero, STAMP_N motif sprites in the coat pattern's rhythm (Low: half).
+   * Legendary adds the flourish (a ring of 3 cream and 3 coat stars, was 10) and one paw print: 11 sprites, so a
+   * takedown, a cast sparkle, a paw hit and the ultimate's wave fit one hero's Legendary cap (24) together.
+   */
+  takedown(x: number, z: number, fx: CardFx | null): boolean {
+    if (!hasSparkle(fx)) return false;
+    const f = fx as CardFx;
+    const stamp = f.low ? STAMP_N / 2 : STAMP_N;
+    const leg = f.rung === 'LEGENDARY';
+    const n = stamp + (leg ? 7 : 0);
+    if (!this.room(n, f)) return false;
+    this.kit.emit(this.particles, f, x, 1.6, z, stamp, 0.9, 0.7);
+    if (leg) {
+      _a.set(x, 1.2, z);
+      this.flourish.color = f.cream;
+      this.flourish.n = 3;
+      this.particles.ring(_a, this.flourish);
+      this.flourish.color = f.tint;
+      this.particles.ring(_a, this.flourish);
+      this.paw(x, 2.2, z, 0.7, f.tint, 0.6);
+    }
+    this.claim(n, 0.8, f);
+    return true;
+  }
+
+  /**
+   * Legendary, the killer's own screen only: a multi-kill card above the killer, one step per kill past the first
+   * (1 PAW + 6 STAR8 each), when kills chain within MULTI_WINDOW ticks. Call it for every hero takedown the player
+   * scores (`tick` = the death's sim tick); returns the steps drawn.
+   */
+  multiKill(x: number, z: number, tick: number, fx: CardFx | null): number {
+    this.multiN = tick - this.multiLast <= MULTI_WINDOW ? this.multiN + 1 : 1;
+    this.multiLast = tick;
+    if (!hasSignature(fx) || !(fx as CardFx).self || this.multiN < 2) return 0;
+    const f = fx as CardFx;
+    const steps = Math.min(3, this.multiN - 1);
+    let drawn = 0;
+    for (let i = 0; i < steps; i++) {
+      if (!this.room(7, f)) break;
+      const y = 2.6 + i * 0.45;
+      this.paw(x, y, z, 0.55 + i * 0.08, i % 2 === 0 ? f.tint : f.cream, 0.8, (i - 1) * 2);
+      _a.set(x, y, z);
+      this.flourish.n = 6;
+      this.flourish.color = f.elementTint;
+      this.particles.ring(_a, this.flourish);
+      this.claim(7, 0.8, f);
+      drawn++;
+    }
+    return drawn;
   }
 
   /**
    * Legendary: the ultimate's signature, a coat-colour wave at 80 % of the ultimate wave's radius with six paw prints
-   * stamped around it, toes out. Never past `r1` (the default wave), so the threat area reads the same.
+   * stamped around it. Awakened stage 2+: plus six element motifs on the ground inside it. Never past `r1` (the default
+   * wave), so the threat area reads the same.
    */
   signature(x: number, z: number, r1: number, fx: CardFx | null): boolean {
-    if (!hasSignature(fx) || !this.room(6 * PAW.length)) return false;
-    const c = (fx as CardFx).tint;
+    if (!hasSignature(fx)) return false;
+    const f = fx as CardFx;
+    const motifs = f.awakened && f.stage >= 2 && !f.low ? 6 : 0;
+    if (!this.room(WAVE_PAWS + motifs, f)) return false;
+    const c = f.tint;
     const r = r1 * 0.8;
     _a.set(x, 0, z);
     this.wave.r1 = r;
     this.wave.color = '#' + c.toString(16).padStart(6, '0');
     this.shock?.start(_a, this.wave);
-    for (let i = 0; i < 6; i++) {
-      const a = (i / 6) * Math.PI * 2 + 0.3;
-      this.paw(x + Math.cos(a) * r * 0.75, 0.09, z - Math.sin(a) * r * 0.75, Math.min(0.9, 0.35 + r * 0.08), c, 0.55, true, a);
+    const size = Math.min(0.9, 0.35 + r * 0.08);
+    for (let i = 0; i < WAVE_PAWS; i++) {
+      const a = (i / WAVE_PAWS) * Math.PI * 2 + 0.3;
+      // standing on the ground (fully above it: the particle material depth-tests) and staying put, as prints do
+      this.paw(x + Math.cos(a) * r * 0.75, size * 0.5 + 0.05, z - Math.sin(a) * r * 0.75, size, c, 0.55, 0, 0);
     }
-    this.claim(6 * PAW.length, 0.55);
+    if (motifs) this.kit.emit(this.particles, f, x, 0.15, z, motifs, r * 0.5, 0.55, true, 0.8);
+    this.claim(WAVE_PAWS + motifs, 0.55, f);
     return true;
   }
 }
+

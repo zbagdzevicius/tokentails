@@ -13,8 +13,10 @@ import { MM_LIMITS } from './mm-limits';
 /**
  * 'casual' (M1b PvP, V16.md §4.4): its own row per account, guests included (rated on their guest account).
  * 'classic' (5v5 on Hearthwood, MAP-5V5.md §9.3): its own row too, so 3v3 casual ratings stay clean.
+ * 'ranked' (SOCIAL-RANKED.md §7.3): the hidden Glicko plus the visible tier points (`RankedFields`), registered
+ * accounts only, seeded from the casual row at the first placement.
  */
-export type MmRatingQueue = 'coop' | 'casual' | 'classic';
+export type MmRatingQueue = 'coop' | 'casual' | 'classic' | 'ranked';
 
 export interface MmRatingRow {
     _id: string;
@@ -30,6 +32,25 @@ export interface MmRatingRow {
     appliedRooms: string[];
     /** Optimistic version for the conditional update. */
     v: number;
+}
+
+/** The visible ranked fields of a `${accountId}:ranked` row (SOCIAL-RANKED.md §7.3). Written only by `/live`. */
+export interface RankedFields {
+    season: string;
+    tierIdx: number;
+    points: number;
+    shield: number;
+    placementsLeft: number;
+    peakIdx: number;
+    /** Finished seasons: the peak and whether its cosmetic reward was granted (inside `/live`). */
+    peaks: Array<{ season: string; peakIdx: number; finalIdx: number; rewarded: boolean }>;
+    lastRankedAt: Date | null;
+    /** tierIdx × 100 + points (Legend 1200 + points): the global board key. */
+    ladder: number;
+    /** Dodge rows already charged (−3 each). */
+    dodgesApplied: string[];
+    /** A returning season's placement floor. */
+    floorIdx?: number;
 }
 
 export const ratingId = (accountId: string, queue: MmRatingQueue = 'coop'): string => `${accountId}:${queue}`;
@@ -68,8 +89,47 @@ export class PawlegendsRating {
 
     @Prop({ default: 0 })
     v: number;
+
+    // Ranked rows only (RankedFields, SOCIAL-RANKED.md §7.3); absent on coop, casual and classic rows.
+    @Prop({ type: String, default: undefined })
+    season?: string;
+
+    @Prop({ type: Number, default: undefined })
+    tierIdx?: number;
+
+    @Prop({ type: Number, default: undefined })
+    points?: number;
+
+    @Prop({ type: Number, default: undefined })
+    shield?: number;
+
+    @Prop({ type: Number, default: undefined })
+    placementsLeft?: number;
+
+    @Prop({ type: Number, default: undefined })
+    peakIdx?: number;
+
+    @Prop({ type: [Object], default: undefined })
+    peaks?: RankedFields['peaks'];
+
+    @Prop({ type: Date, default: undefined })
+    lastRankedAt?: Date | null;
+
+    @Prop({ type: Number, default: undefined })
+    ladder?: number;
+
+    @Prop({ type: [String], default: undefined })
+    dodgesApplied?: string[];
+
+    @Prop({ type: Number, default: undefined })
+    floorIdx?: number;
 }
 export const PawlegendsRatingSchema = SchemaFactory.createForClass(PawlegendsRating);
+// the global ranked board (SOCIAL-RANKED.md §6.2)
+PawlegendsRatingSchema.index(
+    { season: 1, ladder: -1, _id: 1 },
+    { name: 'ranked_ladder', partialFilterExpression: { queue: 'ranked' } }
+);
 
 /** An account's replay-verified saved matches (`User.pawlegendsMatches`): how many, and the top difficulty played. */
 export interface MmPlayed {

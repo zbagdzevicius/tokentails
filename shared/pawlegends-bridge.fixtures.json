@@ -1,7 +1,30 @@
 {
   "$comment": "The tt-pawlegends v1 bridge, one valid and one invalid sample per message type (docs/plans/moba integration plan, section 1). Read by the host parser tests (client/__test__/pawlegends) and the game parser tests (pawlegends/src/embed/__tests__) by relative path; not copied by sync-contracts. `valid` must parse to the same message (unknown fields dropped); `invalid` must be ignored (the parser returns null). `sanitize` cases parse to `expected`: a bad optional field is dropped, the message still counts. Art URLs: the CDN serves cat art from https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/ (virtual-host style, what `catImg` holds) and the same bucket path-style at https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/; both are allowed, nothing else. Sim v9: `champions` carries the shelter champions' cards (the game keeps only the champion catalog ids it knows) and `champion-offer` names one of them. Party play (MULTIPLAYER.md §5.3, §6): `party-ticket` answers a `party-ticket-request` with a single-use relay ticket (or null and an error code); `party-result` carries a party match's v:2 result, whose `matchId` is its room id.",
   "envelope": { "ns": "tt-pawlegends", "v": 1 },
+  "apiOps": ["social.get", "social.pulse", "friend.add", "friend.accept", "friend.decline", "friend.remove", "block.add", "block.remove", "social.me", "social.age", "social.code.rotate", "social.recent", "invite.send", "ranked.status", "ranked.me", "board.get", "report.send", "report.notice"],
   "hostToGame": {
+    "api-result": {
+      "$comment": "SOCIAL-RANKED.md §13: the host's answer to `api-request`: ok, the HTTP status (0: network, refused or not allowed) and the JSON body. A body that is not an object, or over 64 KB, is refused.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": true, "status": 200, "body": { "ok": true } },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": true, "status": 200, "body": "not an object" },
+      "sanitize": [
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": false, "status": 403, "extra": "dropped" },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": false, "status": 403 }
+        }
+      ]
+    },
+    "store": {
+      "$comment": "STORE-PASS.md: the account's owned store and pass items and its Legends Pass row (GET /pawlegends/me). Unknown item ids are dropped.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "store", "items": ["coat.clem.store_calico", "frame.s1.sprout"], "season": { "id": "s1", "xp": 820, "tier": 2, "premium": "pass", "skips": 0, "claimed": ["f:3"], "endsAt": "2027-01-05T00:00:00.000Z" } },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "store", "items": "coat.clem.store_calico" },
+      "sanitize": [
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "store", "items": ["coat.clem.store_calico", "<b>evil</b>"], "season": null, "extra": 1 },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "store", "items": ["coat.clem.store_calico"], "season": null }
+        }
+      ]
+    },
     "party-ticket": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket", "id": "k2j9x8", "ticket": "eyJhdWQiOiJwbC1wYXJ0eSIsInYiOjF9.AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket", "id": "k2j9x8", "ticket": "not a ticket" },
@@ -94,7 +117,10 @@
         { "$comment": "UX pass 2: the signed-in player's profile name: one clean line, no markup or control characters, cut to 24 code points.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "  Žygis\u0007   <b>Paw</b>son  " }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "name": "Žygis bPaw/bson" } },
         { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "Bartholomew the Magnificent Whiskers" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "name": "Bartholomew the Magnific" } },
         { "$comment": "No name without an account, and none made only of symbols.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "name": "Guest" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "progress": null } },
-        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "<>!!" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null } }
+        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "name": "<>!!" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null } },
+        { "$comment": "Sign-in: the signed-in player's sign-in method (`google`, `apple`, `email`) for the account chip; never the address itself (PII).", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "provider": "apple", "email": "pat@example.com" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null, "provider": "apple" } },
+        { "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "provider": "facebook" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": true, "progress": null } },
+        { "$comment": "No method without an account.", "input": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "provider": "google" }, "expected": { "ns": "tt-pawlegends", "v": 1, "type": "session", "signedIn": false, "progress": null } }
       ]
     },
     "save-result": {
@@ -353,6 +379,16 @@
     }
   },
   "gameToHost": {
+    "api-request": {
+      "$comment": "SOCIAL-RANKED.md §13: one allowlisted API op (`apiOps`) with flat args; the host adds its own accesstoken and never takes a URL from the game. Unknown arg keys are dropped.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "api-request", "id": "k2j9x8", "op": "report.send", "args": { "room": "r0om1", "slot": 3, "reason": "cheat", "tick": 900 } },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "api-request", "id": "k2j9x8", "op": "user.delete", "args": {} }
+    },
+    "pass-claim": {
+      "$comment": "STORE-PASS.md §5: claim one Legends Pass reward ({row, tier}) or all ({all: true}); the host answers `store`.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "pass-claim", "row": "f", "tier": 3 },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "pass-claim", "row": "x", "tier": 3 }
+    },
     "party-ticket-request": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "k2j9x8" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "party-ticket-request", "id": "BAD ID" }
@@ -410,6 +446,11 @@
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "request-sign-in", "reason": "save-progress" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "request-sign-in", "reason": "admin" }
     },
+    "account": {
+      "$comment": "Sign-in: the game's account chip and Settings row. `sign-in` opens the host's sign-in, `sign-out` signs out (the host re-sends `session`), `manage` opens the host's account sheet (web), `delete` starts the host's account deletion (the app; the host asks for its own last confirmation).",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "account", "action": "sign-out" },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "account", "action": "make-admin" }
+    },
     "open-cat": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "open-cat", "catalogId": "65a1b2c3d4e5f6a7b8c9d0e1" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "open-cat", "catalogId": "../packs" }
@@ -423,7 +464,7 @@
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "notify", "where": "checkout" }
     },
     "purchase-intent": {
-      "$comment": "Deprecated: the game no longer sends it. The host still parses it and answers purchase-result ok:false.",
+      "$comment": "STORE-PASS.md: sent again for the store and Legends Pass SKUs (pl_coat_*, pl_frame_*, pl_set_*, pl_pass_*). A retired pl_* SKU like this one still parses; the host answers purchase-result ok:false.",
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "purchase-intent", "sku": "pl_founder" },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "purchase-intent", "sku": "pl_gold" }
     },
@@ -434,6 +475,10 @@
     "paused": {
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": true },
       "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "paused", "paused": "yes" }
+    },
+    "sound": {
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "sound", "muted": false },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "sound", "muted": "no" }
     },
     "exit": {
       "$comment": "UX pass 2: the lobby's \"Games\" button (no payload); the host leaves for its games page.",

@@ -13,10 +13,11 @@
  *   render/skins/registry.ts (never the chroma path)
  */
 import type { HeroId } from '../sim/api';
-import { ELEMENT_NAME, type Element, type RosterCosmetics, type StarterBreed, type TierFrame } from '../meta/roster';
+import { ELEMENT_NAME, ELEMENTS, type CatTier, type Element, type RosterCosmetics, type StarterBreed, type TierFrame } from '../meta/roster';
 import { isCardSkinId, skinRev } from './skins/skinStore';
 import { LOOP_PALETTES, LOOP_REWARDS, TRACK_TITLES } from '../meta/treats';
 import { SHELTER_CHAMPIONS } from '../data/heroes/shelter';
+import { EFFECT_COATS, S1_PLUS_COAT, SEASONS, STORE_COATS, STORE_FRAMES, SEASON_ITEM_NAMES } from '../money/catalog';
 
 const SHELTER_NAME = Object.fromEntries(SHELTER_CHAMPIONS.map((c) => [c.hero, c.cardName])) as Record<'lambo' | 'aviete' | 'bengas' | 'gabe', string>;
 
@@ -25,6 +26,13 @@ export interface Coat {
   light: number;
   dark: number;
   accent: number;
+  /**
+   * Store and pass coats (STORE-PASS.md): the fur pattern drawn over the palette (render/chars/chibi.ts CoatSpec).
+   * Absent: the hero's own pattern (every free coat is palette-only, so paid coats look clearly different).
+   */
+  pattern?: 'solid' | 'tabby' | 'points' | 'spots' | 'tuxedo' | 'calico';
+  /** Calico's third colour. */
+  patch?: number;
 }
 
 /** What one hero wears. `coat` is an item id from `wardrobe()` (null = default); `chroma` an owned element. */
@@ -102,7 +110,7 @@ export interface CoatOption {
   id: string | null;
   name: string;
   /** Where it comes from (shown as a small tag). */
-  from: 'default' | 'free' | 'store' | 'cats';
+  from: 'default' | 'free' | 'store' | 'cats' | 'pass';
 }
 
 export interface Owned {
@@ -209,6 +217,153 @@ function loopCoats(): Record<string, { hero: HeroId; name: string; coat: Coat; l
 /** Bots dress from the first seven Treat Track coats only (gameView.dressBots: the same faces as before GAPS A1). */
 export const BOT_COATS: readonly string[] = Object.freeze(['coat.clem.marmalade', 'coat.clem.snowpaw', 'coat.sage.midnight', 'coat.sage.sunrise', 'coat.brutus.ember', 'coat.cacklejaw.spotted', 'coat.cacklejaw.dusk']);
 
+type Pal = [number, number, number, number, Coat['pattern'], number?];
+const pal = ([base, light, dark, accent, pattern, patch]: Pal): Coat => ({ base, light, dark, accent, pattern, ...(patch !== undefined ? { patch } : {}) });
+
+/**
+ * Store Common coats (money/catalog.ts STORE_COATS): one per original hero, each with a fur pattern (the free Treat
+ * Track coats are palette-only). Render only.
+ */
+const STORE_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
+  'coat.clem.store_calico': [0xf6efe4, 0xffffff, 0x2f2a33, 0xff8fb1, 'calico', 0xf0a04b],
+  'coat.sage.store_silver_tabby': [0xb8c0c8, 0xf0f2f4, 0x4a5058, 0x9be3c4, 'tabby'],
+  'coat.meatball.store_siamese': [0xf2e6d2, 0xfffaf0, 0x5a3c2c, 0x8fc8ff, 'points'],
+  'coat.pixel.store_leopard': [0xe8b860, 0xfff0c8, 0x3a2614, 0xff7a3d, 'spots'],
+  'coat.duchess.store_blue_point': [0xf4f0ea, 0xffffff, 0x6a7a96, 0xb07cff, 'points'],
+  'coat.stilts.store_bengal': [0xd89a4a, 0xf8e0b8, 0x4a2a14, 0x9be3c4, 'spots'],
+  'coat.brutus.store_brindle': [0x8a6a4a, 0xd8c0a0, 0x3a2818, 0xffb347, 'tabby'],
+  'coat.cacklejaw.store_starry': [0x2c3046, 0x8c92b0, 0xfff1a8, 0xffd34d, 'spots'],
+  'coat.nugget.store_merle': [0x9aa6b8, 0xeef2f6, 0x2e3440, 0x8fc8ff, 'spots'],
+  'coat.marshmallow.store_tuxedo': [0x2a2628, 0xffffff, 0x141214, 0xff8fb1, 'tuxedo'],
+  'coat.bravo.store_harlequin': [0xf7f5f2, 0xffffff, 0x1e1a22, 0xff4a3a, 'spots'],
+  'coat.chili.store_red_brindle': [0xb0502a, 0xf0b08a, 0x4a1a0e, 0xffd34d, 'tabby'],
+  'coat.howler.store_sable': [0xc8904a, 0xfaf0e0, 0x2a2220, 0x9fe8ff, 'points'],
+  'coat.rocket.store_tiger': [0xc89a5a, 0xf2dcb8, 0x3a2a1a, 0x9be07a, 'tabby'],
+  'coat.frankie.store_patchwork': [0xf4ece0, 0xffffff, 0x3a2a20, 0xff7a5c, 'calico', 0xc8843a],
+  'coat.domino.store_black_tie': [0x1e1a22, 0xf7f5f2, 0x0e0c10, 0xff4a3a, 'tuxedo'],
+});
+
+/** Legends Pass Season 1 coats (money/catalog.ts SEASONS): the free row palette-only, the premium row patterned. */
+const PASS_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
+  // free row
+  'coat.clem.s1_honey_tabby': [0xe8b860, 0xfff0d0, 0xb07a30, 0xff8fb1, undefined],
+  'coat.brutus.s1_mud': [0x7a5a3c, 0xc8a888, 0x3e2a1a, 0x9be3c4, undefined],
+  'coat.sage.s1_meadow': [0x9ab86a, 0xeaf4d8, 0x52703a, 0xffb3c8, undefined],
+  'coat.nugget.s1_toast': [0xd8a868, 0xfaecd0, 0x8a5a2a, 0xff8fb1, undefined],
+  'coat.pixel.s1_mint': [0xbfe8d4, 0xf4fff8, 0x4a3026, 0xff8fb1, undefined],
+  'coat.chili.s1_paprika': [0xd8603a, 0xffc8a8, 0x7a2a14, 0xffd34d, undefined],
+  // premium row
+  'coat.meatball.s1_caramel': [0xd8964a, 0xfff0d8, 0x8a4a1a, 0xffd34d, 'tabby'],
+  'coat.cacklejaw.s1_embers': [0x5a2a1a, 0xf8a060, 0xff6a2a, 0xffd34d, 'spots'],
+  'coat.duchess.s1_lavender': [0xf6f0fa, 0xffffff, 0x9a82bc, 0xff8fb1, 'points'],
+  'coat.marshmallow.s1_strawberry': [0xffd0d8, 0xfff6f8, 0xe86a88, 0xffffff, 'calico', 0xffffff],
+  'coat.stilts.s1_savanna': [0xe0c080, 0xfaf0d8, 0x6a4a1e, 0xff7a3d, 'spots'],
+  'coat.bravo.s1_opening_night': [0x1e1a28, 0xf4eefa, 0x0c0a12, 0xffd34d, 'tuxedo'],
+  'coat.clem.s1_tortie': [0x3a2a24, 0xc8783a, 0x1a1210, 0xff8fb1, 'calico', 0xe0903a],
+  'coat.howler.s1_timber': [0x8a8478, 0xeae6de, 0x3a362e, 0x9fe8ff, 'tabby'],
+  'coat.sage.s1_autumn': [0xc8783a, 0xfae0c0, 0x6a3014, 0x9be3c4, 'tabby'],
+  'coat.rocket.s1_comet': [0xdfe8f6, 0xffffff, 0x3a4a7a, 0xffd34d, 'points'],
+  'coat.pixel.s1_galaxy': [0x2a2450, 0xb8b0f0, 0xfff1a8, 0xb07cff, 'spots'],
+  'coat.frankie.s1_mustard': [0xe0b030, 0xfff0b0, 0x8a5a10, 0xff5a3a, 'tabby'],
+  'coat.meatball.s1_cinnamon': [0xb06a3a, 0xf6d8b8, 0x5a2a14, 0xffd34d, 'tabby'],
+  'coat.domino.s1_ink': [0xf4f4f8, 0xffffff, 0x2a3060, 0xd8c8ff, 'spots'],
+  'coat.duchess.s1_velvet': [0x5a2a4a, 0xd8a8c8, 0x2a0e22, 0xffd34d, 'points'],
+  'coat.nugget.s1_waffle': [0xd8a050, 0xfff0c8, 0x7a4a1a, 0xff8fb1, 'tabby'],
+  'coat.stilts.s1_snow_leopard': [0xe8ecf0, 0xffffff, 0x4a5058, 0x9fe8ff, 'spots'],
+  'coat.brutus.s1_royal': [0x3a3a6a, 0xb8b8e0, 0x1a1a3a, 0xffd34d, 'tuxedo'],
+  'coat.chili.s1_jalapeno': [0x4a8a3a, 0xc8e8a8, 0x1e4a14, 0xff4a3a, 'spots'],
+  'coat.clem.s1_starlight': [0x3a3f6c, 0xe8ecff, 0xfff1a8, 0xffd34d, 'spots'],
+  'coat.cacklejaw.s1_aurora': [0x2a6a6a, 0xa8f0d8, 0xb07cff, 0xfff1a8, 'tabby'],
+  'coat.clem.s1_sunforged': [0xffd870, 0xffffff, 0xd8781a, 0xff5a3a, 'tabby'],
+  // Legends Pass+ exclusive Epic coat
+  [S1_PLUS_COAT]: [0x1a1420, 0x8a6ab8, 0xffd34d, 0xff8fb1, 'points'],
+});
+
+/**
+ * Effect coats (money/catalog.ts EFFECT_COATS, docs/plans/moba/CARD-SKINS.md §6.3): original palettes on our own
+ * heroes; the effect rung and element drive the shared skin-effect kit (render/skins/effectKit.ts).
+ */
+const EFFECT_COAT_PAL: Readonly<Record<string, Pal>> = Object.freeze({
+  'coat.pixel.store_moonwhisker': [0x2c2c5e, 0xe6e2ff, 0xfff1a8, 0xb9a8ff, 'spots'],
+  'coat.marshmallow.store_frostbell': [0xeef6ff, 0xffffff, 0x7ab8e8, 0x9fe8ff, 'calico', 0xc8e8ff],
+  'coat.brutus.store_thunderpaw': [0x26262e, 0xfff6c8, 0x121218, 0xffe24d, 'tuxedo'],
+  'coat.sage.store_bloomtail': [0x7fb069, 0xeaf6d8, 0x3e6a2e, 0xff9fd6, 'tabby'],
+});
+
+/**
+ * CARD-SKINS.md §5 coat rungs and elements: fixed by the price band (never by bond or play). Free-row and Treat Track
+ * coats are Common; the store and premium pass coats Rare; Pass+ and the $7.99 coats Epic; pass tier 30 and the $14.99
+ * coats Legendary. The element is explicit for the effect coats and otherwise the nearest element to the accent hue.
+ */
+const COAT_FX: Readonly<Record<string, { rung: CatTier; element: Element }>> = Object.freeze({
+  [S1_PLUS_COAT]: { rung: 'EPIC', element: 'DARK' },
+  'coat.clem.s1_sunforged': { rung: 'LEGENDARY', element: 'FIRE' },
+  'coat.pixel.store_moonwhisker': { rung: 'EPIC', element: 'STELLAR' },
+  'coat.marshmallow.store_frostbell': { rung: 'EPIC', element: 'ICE' },
+  'coat.brutus.store_thunderpaw': { rung: 'LEGENDARY', element: 'ELECTRIC' },
+  'coat.sage.store_bloomtail': { rung: 'LEGENDARY', element: 'GRASS' },
+});
+
+/** The hue (degrees) and saturation of 0xRRGGBB (no import: classify.ts imports this file's neighbours). */
+function hueSat(c: number): [number, number] {
+  const r = ((c >> 16) & 255) / 255;
+  const g = ((c >> 8) & 255) / 255;
+  const b = (c & 255) / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const d = max - min;
+  if (d === 0) return [0, 0];
+  const l = (max + min) / 2;
+  const s = d / (1 - Math.abs(2 * l - 1));
+  const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+  return [(h * 60 + 360) % 360, s];
+}
+
+/** The element whose colour is nearest in hue to `c` (a grey accent: STELLAR, the neutral sparkle). */
+export function nearestElement(c: number): Element {
+  const [h, s] = hueSat(c);
+  if (s < 0.15) return 'STELLAR';
+  let best: Element = 'STELLAR';
+  let bd = 999;
+  for (const el of ELEMENTS) {
+    const [eh] = hueSat(ELEMENT_COLOR[el]);
+    const d = Math.abs(((h - eh + 540) % 360) - 180);
+    if (d < bd) {
+      bd = d;
+      best = el;
+    }
+  }
+  return best;
+}
+
+type PaidRow = { hero: HeroId; name: string; coat: Coat; from: 'store' | 'pass'; rung: CatTier; element: Element };
+const paidRow = (id: string, hero: string, name: string, coat: Coat, from: 'store' | 'pass', rung: CatTier): PaidRow => ({ hero: hero as HeroId, name, coat, from, rung: COAT_FX[id]?.rung ?? rung, element: COAT_FX[id]?.element ?? nearestElement(coat.accent) });
+const FREE_ROW = new Set(SEASONS.flatMap((s) => s.free.map((r) => r.item)));
+
+/** Store and pass coats by id: hero, name, palette, where they come from, and the effect rung and element. */
+export const PAID_COATS: Readonly<Record<string, PaidRow>> = Object.freeze({
+  ...Object.fromEntries(STORE_COATS.map((c) => [c.id, paidRow(c.id, c.hero, c.name, pal(STORE_COAT_PAL[c.id]), 'store', 'RARE')])),
+  ...Object.fromEntries(EFFECT_COATS.map((c) => [c.id, paidRow(c.id, c.hero, c.name, pal(EFFECT_COAT_PAL[c.id]), 'store', c.rung)])),
+  ...Object.fromEntries(
+    SEASONS.flatMap((s) => [...s.free, ...s.premium])
+      .filter((r) => r.hero && PASS_COAT_PAL[r.item])
+      .map((r) => [r.item, paidRow(r.item, r.hero as string, r.name, pal(PASS_COAT_PAL[r.item]), 'pass', FREE_ROW.has(r.item) ? 'COMMON' : 'RARE')]),
+  ),
+  [S1_PLUS_COAT]: paidRow(S1_PLUS_COAT, 'duchess', 'Eclipse coat (Epic)', pal(PASS_COAT_PAL[S1_PLUS_COAT]), 'pass', 'EPIC'),
+});
+
+/** Store frames and titles, and pass frames and titles (STORE-PASS.md), by id. */
+export const STORE_FRAME_NAME: Readonly<Record<string, string>> = Object.freeze({
+  ...Object.fromEntries(STORE_FRAMES.map((f) => [f.id, f.name])),
+  ...Object.fromEntries(Object.entries(SEASON_ITEM_NAMES).filter(([id]) => id.startsWith('frame.'))),
+});
+export const STORE_TITLE_NAME: Readonly<Record<string, string>> = Object.freeze({
+  ...Object.fromEntries(STORE_FRAMES.map((f) => [f.title.id, f.title.name])),
+  ...Object.fromEntries(Object.entries(SEASON_ITEM_NAMES).filter(([id]) => id.startsWith('title.'))),
+});
+export const isStoreFrame = (id: unknown): id is string => typeof id === 'string' && id in STORE_FRAME_NAME;
+export const isStoreTitle = (id: unknown): id is string => typeof id === 'string' && id in STORE_TITLE_NAME;
+
 /** Track frames (GAPS A1): one per shelter champion, in that champion's colour. Never a card perk. */
 export const TRACK_FRAME_NAME: Readonly<Record<TrackFrame, string>> = Object.freeze({
   'frame.champ.lambo': `${SHELTER_NAME.lambo} frame`,
@@ -230,6 +385,8 @@ export function wardrobe(hero: HeroId, o: Owned): CoatOption[] {
   if (hero === 'clem' && o.items.has('skin.clem.pink_bow')) out.push({ id: 'skin.clem.pink_bow', name: 'Pink Bow Clem', from: 'store' });
   if (o.items.has(`coat.founder.${hero}`)) out.push({ id: `coat.founder.${hero}`, name: 'Founder coat', from: 'store' });
   if (hero === 'clem' && o.items.has('skin.clem.dawnblade')) out.push({ id: 'skin.clem.dawnblade', name: 'Dawnblade Clem', from: 'store' });
+  // STORE-PASS.md: store Common coats and Legends Pass coats the account owns
+  for (const [id, c] of Object.entries(PAID_COATS)) if (c.hero === hero && o.items.has(id)) out.push({ id, name: c.name, from: c.from });
   if (CAT_HEROES.includes(hero)) for (const b of o.roster.breedCoats) out.push({ id: breedCoatId(b), name: `${BREED_NAME[b]} coat`, from: 'cats' });
   return out;
 }
@@ -251,6 +408,7 @@ export function resolveLook(hero: HeroId, o: Owned, chosen?: Partial<Look> | nul
   let coat: string | null;
   if (chosen && chosen.coat !== undefined && ids.includes(chosen.coat)) coat = chosen.coat;
   else {
+    // a store or pass coat the player has not chosen yet is never put on automatically (the player equips it)
     const rank = (c: CoatOption): number => (c.id?.startsWith('skin.clem.dawnblade') ? 5 : c.id?.startsWith('skin.') ? 4 : c.id?.startsWith('coat.founder') ? 3 : c.from === 'free' ? 2 : c.from === 'cats' ? 1 : 0);
     coat = [...coats].sort((a, b) => rank(b) - rank(a))[0]?.id ?? null;
   }
@@ -262,10 +420,11 @@ export function resolveLook(hero: HeroId, o: Owned, chosen?: Partial<Look> | nul
   return { coat, chroma };
 }
 
-export type FrameId = TierFrame | 'frame.founder' | 'frame.legend' | TrackFrame;
+export type FrameId = TierFrame | 'frame.founder' | 'frame.legend' | TrackFrame | `frame.store.${string}` | `frame.s1.${string}`;
 
-export const FRAME_NAME: Readonly<Record<FrameId, string>> = Object.freeze({
+export const FRAME_NAME: Readonly<Record<string, string>> = Object.freeze({
   ...TRACK_FRAME_NAME,
+  ...STORE_FRAME_NAME,
   'frame.rare': 'Rare frame',
   'frame.epic': 'Epic frame',
   'frame.legendary': 'Legendary frame',
@@ -280,6 +439,8 @@ export const FRAME_NAME: Readonly<Record<FrameId, string>> = Object.freeze({
 export function bestFrame(o: Owned, worn?: string | null): FrameId | null {
   // GAPS A1: a track frame the player chose to wear (and owns) comes first
   if (isTrackFrame(worn) && o.unlocks.has(worn)) return worn;
+  // STORE-PASS.md: a store or pass frame the player chose to wear (and owns)
+  if (isStoreFrame(worn) && o.items.has(worn)) return worn as FrameId;
   if (o.items.has('frame.legend')) return 'frame.legend';
   if (o.items.has('frame.founder')) return 'frame.founder';
   const f = o.roster.frames;
@@ -289,12 +450,13 @@ export function bestFrame(o: Owned, worn?: string | null): FrameId | null {
 /** The title worn: a champion title from the track the player chose (and owns), else "Founder", or null. */
 export function titleOf(o: Owned, worn?: string | null): string | null {
   if (worn && TRACK_TITLES[worn] && o.unlocks.has(worn)) return TRACK_TITLES[worn];
+  if (isStoreTitle(worn) && o.items.has(worn)) return STORE_TITLE_NAME[worn];
   return o.items.has('title.founder') ? 'Founder' : null;
 }
 
 /** Store items the look shows (for `item_seen_in_match{sku}` analytics). */
 export function lookItems(l: Look): string[] {
-  return l.coat && (l.coat.startsWith('skin.') || l.coat.startsWith('coat.founder.')) ? [l.coat] : [];
+  return l.coat && (l.coat.startsWith('skin.') || l.coat.startsWith('coat.founder.') || l.coat in PAID_COATS) ? [l.coat] : [];
 }
 
 /** A kitten coat from a companion's breed or preset index. */
@@ -329,6 +491,8 @@ export function lookCoat(hero: HeroId, l: Look): Coat | null {
   }
   const free = FREE_COATS[id];
   if (free) return free.hero === hero ? free.coat : null;
+  const paid = PAID_COATS[id];
+  if (paid) return paid.hero === hero ? paid.coat : null;
   if (id === FREE_BISCUIT && hero === 'brutus') return { base: 0xc98a4b, light: 0xfbe6c4, dark: 0x7a4a24, accent: 0x7a4a24 };
   if (id === 'skin.clem.pink_bow' && hero === 'clem') return { base: 0xffb3c4, light: 0xfff4f6, dark: 0xe5788f, accent: 0xff6f91 };
   if (id === 'skin.clem.dawnblade' && hero === 'clem') return { base: 0xfff0d0, light: 0xffffff, dark: 0xf0b84a, accent: 0xffd34d };

@@ -73,7 +73,7 @@ kbd {
 /* ------------------------------------------------------------------------------------------ screens */
 .pl-screen { position: absolute; inset: 0; z-index: 20; color: var(--cream); pointer-events: none; }
 .pl-screen > * { pointer-events: auto; }
-.pl-title, .pl-pick, .pl-results {
+.pl-title, .pl-results {
   background: linear-gradient(90deg, rgba(43, 29, 46, 0.92) 0%, rgba(43, 29, 46, 0.7) 38%, rgba(43, 29, 46, 0) 62%);
 }
 .pl-title-col {
@@ -101,55 +101,13 @@ kbd {
   color: var(--cream); background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px; padding: 8px 14px; cursor: pointer;
 }
 @keyframes pl-bob { 50% { transform: translateY(-6px) rotate(-6deg); } }
-
-.pl-pick-col {
-  position: absolute; left: calc(36px + var(--safe-l)); top: 24px; bottom: 24px; width: min(520px, 48vw); overflow-y: auto;
-  display: flex; flex-direction: column; gap: 14px; padding-right: 6px; scrollbar-width: thin;
-}
-.pl-pick-head { display: flex; align-items: center; gap: 14px; }
-.pl-pick h2 { margin: 0; font-size: 28px; }
-.pl-pick .heroes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
-.hero-card {
-  font: inherit; color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: 16px;
-  padding: 10px 6px 10px; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 4px; transition: transform 0.1s, border-color 0.1s;
-}
-.hero-card i {
-  width: 46px; height: 46px; border-radius: 50%; background: var(--hero); display: grid; place-items: center;
-  font: 700 22px var(--font); font-style: normal; color: var(--ink); box-shadow: inset 0 -4px 0 rgba(0, 0, 0, 0.18);
-}
-.hero-card i.pic, .pl-portrait.pic { background-color: var(--hero); background-size: 118%; background-position: 50% 30%; background-repeat: no-repeat; }
-.hero-card i.pic { width: 58px; height: 58px; }
-.hero-card b { font-size: 15px; }
-.hero-card small { font-size: 11px; opacity: 0.7; }
-.hero-card.on { border-color: var(--butter); transform: translateY(-3px); box-shadow: 0 8px 20px rgba(0, 0, 0, 0.35); }
-.pl-pick .detail { background: var(--panel); border-radius: 18px; padding: 14px 16px; border: 1px solid var(--line); }
-.pl-pick .detail h3 { margin: 0; font-size: 22px; }
-.pl-pick .detail h3 small { font-size: 13px; opacity: 0.7; font-weight: 500; margin-left: 6px; }
-.pl-pick .blurb { margin: 4px 0 10px; opacity: 0.85; font-size: 14px; }
-.pl-pick .kit { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; font-size: 13px; line-height: 1.3; }
-.pl-pick .kit li { display: grid; grid-template-columns: 28px 1fr; gap: 8px; align-items: center; }
-.pl-pick .kit li .ico { width: 26px; height: 26px; color: var(--butter); }
-.pl-pick .kit li .ico.passive { color: var(--rose); }
-.pl-pick .kit b { color: var(--butter); margin-right: 4px; }
-.pl-pick .kit kbd { margin-right: 2px; }
-.pl-pick .row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.pl-pick .lbl { font-size: 13px; opacity: 0.7; width: 72px; }
+.pl-portrait.pic { background-color: var(--hero); background-size: 118%; background-position: 50% 30%; background-repeat: no-repeat; }
 .chip {
   font: 600 14px var(--font); color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: 999px;
   padding: 7px 14px 7px 10px; cursor: pointer; display: inline-flex; align-items: center; gap: 6px;
 }
 .chip .pl-icon { width: 18px; height: 18px; color: var(--butter); }
 .chip.on { border-color: var(--butter); background: rgba(255, 210, 122, 0.16); }
-/* Playtest round 1: Play and the bots chips live in a footer OUTSIDE the scrolling column. Inside it, the column's
-   fade mask (short screens) clipped the fixed Play button and the lobby canvas took the taps. */
-.pl-pick-foot {
-  position: absolute; left: calc(36px + var(--safe-l)); bottom: 24px; width: min(520px, 48vw); z-index: 2;
-  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
-}
-.pl-pick-foot .pl-btn.big { margin: 0; }
-.pl-pick-foot .bots-hint { margin: 0; font-size: 12px; line-height: 1.3; opacity: 0.8; max-width: 100%; }
-.pl-pick .kit .num { display: block; font-size: 11px; opacity: 0.75; margin-top: 1px; color: var(--butter); }
-.pl-pick .detail h3 .numbers { float: right; font-size: 11px; padding: 3px 9px; }
 
 .pl-results-col {
   position: absolute; left: calc(56px + var(--safe-l)); top: 50%; transform: translateY(-50%); max-width: 520px;
@@ -552,23 +510,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
   .pl-title .tag { font-size: 16px; margin: 8px 0 16px; }
   .pl-title-col, .pl-results-col { left: calc(24px + var(--safe-l)); }
   .pl-btn.big { font-size: 19px; padding: 13px 28px; }
-  .pl-pick-col { top: 10px; bottom: 10px; left: calc(16px + var(--safe-l)); width: min(470px, 56vw); gap: 8px; }
-  .pl-pick h2 { font-size: 20px; }
-  .pl-pick .detail { padding: 10px 12px; }
-  .pl-pick .kit { gap: 4px; font-size: 12px; }
-  .pl-pick .row.bots { flex-wrap: nowrap; gap: 6px; }
-  .pl-pick .row.bots .lbl { width: auto; }
-  .pl-pick .row.bots .chip { font-size: 13px; padding: 5px 11px; }
-  /* sim v10 (GAPS B5): four Paw Trick chips on one line at 844×390 */
-  .pl-pick .row.tricks { gap: 5px; }
-  .pl-pick .row.tricks .lbl { width: auto; }
-  .pl-pick .row.tricks .chip { font-size: 12px; padding: 5px 9px 5px 7px; gap: 4px; }
-  .pl-pick .row.tricks .chip .pl-icon { width: 15px; height: 15px; }
-  .pl-pick .blurb { margin: 2px 0 6px; }
-  .pl-pick .detail .lane-hint { margin: 0 0 2px; font-size: 12px; line-height: 1.2; }
-  .pl-pick-col { gap: 6px; }
-  .hero-card i { width: 34px; height: 34px; font-size: 16px; }
-  .hero-card i.pic { width: 40px; height: 40px; }
   .pl-results h1 { font-size: 40px; }
   .pl-results .sub { font-size: 14px; margin: 2px 0 8px; }
   .pl-result-tip { font-size: 12px; padding: 5px 8px; margin-top: 6px; }
@@ -684,8 +625,66 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
   background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 8px 10px 8px 18px; font-size: 14px; pointer-events: auto;
   max-width: calc(100vw - 32px); flex-wrap: wrap; justify-content: center;
 }
-.pl-pick .wardrobe .chip[data-from='store'] { border-color: rgba(255, 210, 122, 0.5); }
-.pl-pick .wardrobe .chip.chroma { font-size: 12px; padding: 5px 10px; }
+/* STORE-PASS.md §6: the store and the Legends Pass. One screen each; only the item grid / the tier strip scrolls
+   (a visible 3 px thumb, a fade and a "more" chip); header, preview and the buy bar stay put. */
+[data-frame='frame.store.goldpaw'] { --frame: #ffc93d; }
+[data-frame='frame.store.moonlit'] { --frame: #a9b8ff; }
+[data-frame='frame.store.sunbeam'] { --frame: #ffe98a; }
+[data-frame='frame.store.bone'] { --frame: #f4ead8; }
+[data-frame='frame.s1.sprout'] { --frame: #8fe07a; }
+[data-frame='frame.s1.harvest'] { --frame: #e8a04b; }
+[data-frame='frame.s1.lantern'] { --frame: #ffb35a; }
+[data-frame='frame.s1.starfall'] { --frame: #c8b8ff; }
+[data-frame='frame.s1.aurora'] { --frame: #7ff0d0; }
+[data-frame='frame.s1.crown'] { --frame: #ffd34d; }
+.pl-shop, .pl-pass { padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left)); box-sizing: border-box; }
+.pl-shop .card, .pl-pass .card {
+  height: 100%; max-height: min(560px, 100%); overflow: hidden; display: flex; flex-direction: column; gap: 8px; box-sizing: border-box;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: 12px 16px; width: min(820px, 100%); position: relative;
+}
+.pl-pass { display: grid; place-items: center; background: rgba(20, 12, 22, 0.6); pointer-events: auto !important; z-index: 45; }
+.pl-shop .head, .pl-pass .head { display: flex; gap: 8px; align-items: center; justify-content: space-between; flex: none; }
+.pl-shop .tabs, .pl-pass .tabs, .pl-collection .track-tabs { display: flex; gap: 6px; flex-wrap: nowrap; }
+.pl-shop .shop-body { display: flex; gap: 12px; flex: 1; min-height: 0; }
+.pl-shop .shop-preview { flex: 0 0 34%; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; min-height: 0; overflow: hidden; }
+.pl-shop .shop-pic { flex: none; width: min(150px, 24vh); aspect-ratio: 1; border-radius: 18px; background-size: cover; background-position: center; background-color: rgba(255, 243, 220, 0.1); }
+.pl-shop .shop-pic.none { display: grid; place-items: center; box-shadow: 0 0 0 3px var(--frame, transparent), 0 0 14px var(--frame, transparent); }
+.pl-shop .shop-pic.none .pl-icon { width: 40%; height: 40%; }
+.pl-shop .shop-preview small { font-size: 12px; opacity: 0.8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+/* Short landscape phones (667x300): the picture and name only, so the preview never reaches the buy bar. */
+@media (max-height: 340px) { .pl-shop .shop-preview small { display: none; } }
+.pl-shop .shop-scroll, .pl-pass .pass-scroll { position: relative; flex: 1; min-height: 0; min-width: 0; display: flex; }
+.pl-shop .shop-grid { flex: 1; overflow-y: auto; overscroll-behavior: contain; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 6px; align-content: start; padding: 2px 6px 24px 2px; scrollbar-width: thin; }
+.pl-shop .shop-grid::-webkit-scrollbar, .pl-pass .pass-track::-webkit-scrollbar { width: 3px; height: 3px; }
+.pl-shop .shop-grid::-webkit-scrollbar-thumb, .pl-pass .pass-track::-webkit-scrollbar-thumb { background: var(--butter); border-radius: 3px; }
+.pl-shop .shop-scroll::after { content: ''; position: absolute; left: 0; right: 6px; bottom: 0; height: 22px; background: linear-gradient(transparent, var(--panel)); pointer-events: none; }
+.pl-shop .more, .pl-pass .more { position: absolute; right: 10px; bottom: 2px; font-size: 11px; color: var(--butter); pointer-events: none; z-index: 1; }
+.pl-shop .shop-scroll.end .more, .pl-shop .shop-scroll.end::after, .pl-pass .pass-scroll.end .more { display: none; }
+.shop-tile { text-align: left; background: rgba(255, 243, 220, 0.06); color: var(--cream); border: 1px solid var(--line); border-radius: 12px; padding: 6px 8px; cursor: pointer; display: flex; flex-direction: column; gap: 2px; font: inherit; }
+.shop-tile b { font-size: 12px; line-height: 1.2; }
+.shop-tile small { font-size: 11px; color: var(--butter); }
+.shop-tile.on { border-color: var(--butter); box-shadow: 0 0 0 2px var(--butter) inset; }
+.shop-tile.st-owned small { color: #9be3c4; }
+.pl-shop .shop-bar, .pl-pass .pass-bar { flex: none; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.pl-shop .shop-bar .why { font-size: 13px; opacity: 0.8; }
+.pl-shop .shop-bar .line, .pl-pass .pass-bar .line { margin: 0; font-size: 13px; min-height: 1em; }
+.pl-shop .fine, .pl-pass .fine { flex: none; }
+.pl-pass .pass-top { flex: none; display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.pl-pass .pass-top .bar { flex: 1 1 100%; height: 8px; border-radius: 8px; background: rgba(255, 243, 220, 0.12); overflow: hidden; }
+.pl-pass .pass-top .bar i { display: block; height: 100%; background: var(--butter); }
+.pl-pass .pass-top small { font-size: 12px; opacity: 0.8; }
+.pl-pass .pass-rows { flex: none; display: flex; gap: 8px; font-size: 11px; opacity: 0.75; }
+.pl-pass .pass-track { flex: 1; overflow-x: auto; overflow-y: hidden; overscroll-behavior: contain; display: flex; gap: 6px; padding-bottom: 6px; scrollbar-width: thin; }
+.pl-pass .pcol { flex: 0 0 96px; display: grid; grid-template-rows: auto 1fr 1fr; gap: 4px; }
+.pl-pass .pcol .pn { text-align: center; font-size: 11px; opacity: 0.7; }
+.pl-pass .pcol.now .pn { color: var(--butter); opacity: 1; font-weight: 700; }
+.pl-pass .pc { border-radius: 10px; border: 1px solid var(--line); background: rgba(255, 243, 220, 0.05); color: var(--cream); font: inherit; padding: 4px; display: flex; flex-direction: column; justify-content: space-between; min-height: 0; text-align: left; overflow: hidden; }
+.pl-pass .pc b { font-size: 11px; line-height: 1.15; }
+.pl-pass .pc small { font-size: 10px; opacity: 0.8; }
+.pl-pass .pc.empty { border: 0; background: none; }
+.pl-pass .pc.ready { border-color: var(--butter); box-shadow: 0 0 10px rgba(255, 210, 122, 0.45); cursor: pointer; }
+.pl-pass .pc.claimed { opacity: 0.55; }
+.pl-pass .pc.locked { opacity: 0.5; filter: grayscale(0.6); }
 @media (max-height: 480px) {
   .pl-store .card { padding: 12px 14px; }
   .pl-sku p.later { display: none; }
@@ -792,7 +791,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .pl-collection .pl-btn.big { align-self: center; }
 .pl-loading .hero-line { display: flex; gap: 8px; align-items: center; font-size: 13px; opacity: 0.9; }
 .pl-loading .hero-line .bond { padding: 2px 8px; border-radius: 999px; background: rgba(255, 211, 77, 0.18); color: var(--butter); font-weight: 600; }
-.pl-pick .role-label { margin-left: 6px; padding: 1px 8px; border-radius: 999px; font-size: 12px; background: rgba(255, 243, 220, 0.12); }
 .pl-quests { margin-top: 10px; display: grid; gap: 4px; max-width: 440px; font-size: 13px; }
 .pl-quests > b { font-size: 13px; opacity: 0.75; font-weight: 600; }
 .pl-quests .q { display: grid; grid-template-columns: 20px 1fr auto; gap: 8px; align-items: center; padding: 4px 10px; border-radius: 10px; background: rgba(255, 243, 220, 0.08); }
@@ -802,7 +800,6 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .pl-quests .q.fresh { animation: pl-pop 0.5s 1.6s both; box-shadow: 0 0 0 2px #7dff8a; }
 .pl-quests .q .n { opacity: 0.7; font-variant-numeric: tabular-nums; }
 .pl-quests.mini { margin-top: 14px; max-width: 320px; }
-.pl-pick .row.bots .note { font-size: 13px; opacity: 0.75; }
 @media (max-height: 460px) {
   .pl-results h1 { font-size: 44px; }
   .pl-results .sub { margin: 2px 0 10px; font-size: 16px; }
@@ -917,42 +914,6 @@ html[data-touch='1'] .pl-portrait.talent-ready::after { left: auto; right: -10px
   .pl-reward .rw-share { padding: 6px 10px; font-size: 13px; }
   .pl-results .pl-home { top: calc(8px + var(--safe-t)); padding: 6px 12px; }
 }
-
-/* Pick screen (round 0): chromas are colour swatches (the name in the tooltip and for screen readers), Play and the
-   bots line sit outside the scrolling column so neither covers the other or the ability list. */
-.pl-pick .swatches { display: inline-flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-.pl-pick .chip.chroma { position: relative; width: 28px; height: 28px; padding: 0; justify-content: center; background: var(--el); border-color: rgba(255, 243, 220, 0.4); }
-.pl-pick .chip.chroma span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-.pl-pick .chip.chroma[data-chroma=''] { background: repeating-linear-gradient(45deg, rgba(255, 243, 220, 0.25) 0 4px, transparent 4px 8px); }
-.pl-pick .chip.chroma.on { border-color: var(--butter); box-shadow: 0 0 0 3px rgba(255, 210, 122, 0.55); }
-@media (min-height: 481px) {
-  .pl-pick-col { bottom: 170px; }
-}
-@media (max-height: 480px) {
-  .pl-pick .row.bots { background: var(--panel); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; }
-  .pl-pick .row.bots .note { font-size: 12px; opacity: 0.9; }
-  .pl-pick .blurb { display: none; }
-  /* short landscape (844x390, 932x430): Play and the bots bottom right under the hero; the column keeps the kit to
-     one line per ability so the Paw Trick and Look chips fit above the fold */
-  .pl-pick-foot { left: auto; right: calc(18px + var(--safe-r)); bottom: calc(10px + var(--safe-b)); width: auto; max-width: 42vw; align-items: flex-end; gap: 6px; }
-  .pl-pick-foot .bots-hint { display: none; }
-  .pl-pick .kit .t { display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
-  /* Audit UX-06: a tapped row shows its full text */
-  .pl-pick .kit li { cursor: pointer; }
-  .pl-pick .kit li.open .t { -webkit-line-clamp: unset; display: block; }
-  .pl-pick .kit .num { display: none; }
-  .pl-pick .kit li .ico { width: 20px; height: 20px; }
-  .pl-pick .kit li { grid-template-columns: 22px 1fr; }
-  .pl-pick .detail h3 { font-size: 17px; }
-  .hero-card { padding: 5px 4px; }
-  .hero-card small { display: none; }
-  .pl-pick-col { -webkit-mask-image: linear-gradient(to bottom, #000 90%, transparent); mask-image: linear-gradient(to bottom, #000 90%, transparent); padding-bottom: 18px; }
-}
-/* Audit UX-06: under 420 px of height (667x375) the ult row leads the kit, so R is never the row below the fold */
-@media (max-height: 420px) {
-  .pl-pick .kit { display: flex; flex-direction: column; }
-  .pl-pick .kit li.ult { order: -1; }
-}
 .pl-loading small.squad { display: block; margin-top: 6px; font-size: 14px; opacity: 0.85; }
 
 /* Desktop skill tooltips (ui/slotTip.ts): the hover card over a slot or the portrait, mouse on a fine pointer only.
@@ -993,43 +954,10 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 
 .pl-feed-row.note { color: var(--butter); }
 .pl-feed-row.note span { color: var(--butter); opacity: 1; }
-
-
 /* ---------------------------------------------------------------------------------------------- card skins
-   GDD §7.2: the pick screen's Skins row (owned cats, then up to two locked featured cats), the lobby / loading
-   "Wearing" card, the results line and the auto-equip chip. Rung pips use the frame colours (no gold for Legendary:
-   yellow means "you" in the match; here it is the existing frame orange). */
-.pl-pick .wardrobe.skins { flex-wrap: wrap; }
-.pl-pick .skin-strip {
-  display: flex; gap: 8px; overflow-x: auto; flex: 1 1 100%; padding: 4px 2px 6px; scrollbar-width: thin;
-  -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain;
-}
-.skin-tile {
-  flex: 0 0 auto; width: 92px; display: grid; grid-template-rows: 56px auto auto auto; justify-items: center; gap: 2px; position: relative;
-  font: 600 12px var(--font); color: var(--cream); background: var(--panel); border: 2px solid var(--line); border-radius: 14px;
-  padding: 6px 4px 6px; cursor: pointer; text-align: center;
-}
-.skin-tile img, .skin-tile .noart { width: 52px; height: 52px; image-rendering: pixelated; object-fit: contain; }
-.skin-tile .noart { display: grid; place-items: center; opacity: 0.6; }
-.skin-tile .noart .pl-icon { width: 28px; height: 28px; }
-.skin-tile b { font-size: 12px; max-width: 84px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.skin-tile .el { position: absolute; top: 6px; right: 6px; width: 10px; height: 10px; border-radius: 50%; background: var(--el); box-shadow: 0 0 0 2px rgba(42, 26, 34, 0.8); }
-.skin-tile .pip { font-size: 10px; padding: 1px 7px; border-radius: 999px; background: rgba(255, 243, 220, 0.14); }
-.skin-tile .pip[data-rung='RARE'] { background: rgba(127, 200, 255, 0.28); color: #cfeaff; }
-.skin-tile .pip[data-rung='EPIC'] { background: rgba(197, 140, 255, 0.3); color: #ecdcff; }
-.skin-tile .pip[data-rung='LEGENDARY'] { background: rgba(255, 179, 71, 0.3); color: #ffe2bf; }
-.skin-tile .bond { font-size: 10px; opacity: 0.7; }
-.skin-tile.on { border-color: var(--butter); background: rgba(255, 210, 122, 0.16); }
-.skin-tile[data-rung='RARE'] { border-color: rgba(127, 200, 255, 0.45); }
-.skin-tile[data-rung='EPIC'] { border-color: rgba(197, 140, 255, 0.5); }
-.skin-tile[data-rung='LEGENDARY'] { border-color: rgba(255, 179, 71, 0.55); }
-.skin-tile.on[data-rung] { border-color: var(--butter); }
-.skin-tile.locked { cursor: default; opacity: 0.85; }
-.skin-tile.locked img { filter: grayscale(1) brightness(0.8); }
-.skin-tile.locked b { opacity: 0.7; }
-.skin-tile.locked .chip.small { font-size: 11px; padding: 2px 9px; }
-.skin-tile.locked .chip.playing { border-color: var(--butter); }
-.skin-tile.locked .chip.spent { opacity: 0.5; pointer-events: none; }
+   GDD §7.2: the cards drawer's tiles, the lobby / loading "Wearing" card, the results line and the auto-equip chip.
+   Rung pips use the frame colours (no gold for Legendary: yellow means "you" in the match; here it is the existing
+   frame orange). */
 
 .pl-wearing { display: flex; align-items: center; gap: 8px; margin-top: 10px; }
 .pl-wearing .plc-card.small { width: 72px; }
@@ -1046,9 +974,6 @@ html[data-touch='1'] .pl-talents .head { left: 50%; transform: translateX(-50%);
 .pl-wear-chip .chip.small { color: var(--ink); background: rgba(42, 26, 34, 0.08); border-color: rgba(42, 26, 34, 0.25); padding: 2px 10px; font-size: 13px; }
 .pl-scoreboard .cat { opacity: 0.7; font-size: 0.9em; }
 @media (max-height: 480px) {
-  .skin-tile { width: 76px; grid-template-rows: 40px auto auto auto; padding: 4px 3px; }
-  .skin-tile img, .skin-tile .noart { width: 38px; height: 38px; }
-  .skin-tile .bond { display: none; }
   .pl-wearing .plc-card.small { width: 56px; }
 }
 
@@ -1121,9 +1046,6 @@ html[data-touch='1'] .pl-pingbtn { display: block; right: calc(68px + var(--mm-w
 html[data-touch='1'] .pl-emote { left: auto; right: calc(68px + var(--mm-w) + var(--safe-r)); top: calc(118px + var(--safe-t)); min-height: 40px; }
 /* ...and while it is there, kill-feed lines wrap inside the column right of it (a long note would run under the chip). */
 html[data-touch='1']:has(.pl-emote) .pl-feed-row { max-width: 132px; }
-/* GAPS B1 / A6: the lane hint under the blurb on the pick screen */
-.pl-pick .lane-hint { margin: 4px 0 0; font-size: 13px; opacity: 0.85; }
-.pl-pick .trick-hint { margin: 2px 0 0; font-size: 13px; opacity: 0.85; }
 
 /* ------------------------------------------------------------------- Wave C (C2): ability ranks */
 /* Rank pips on each ability: filled = learned ranks (Q W E 4, R 3). Ranks come with levels, nothing to click. */
@@ -1177,9 +1099,6 @@ html[data-touch='1'] .pl-rankup { left: 46%; bottom: calc(8px + var(--safe-b, 0p
 }
 .pl-results .pl-skin-fx { margin-top: 2px; }
 .pl-collection .card-fx-list { display: grid; gap: 6px; }
-@media (max-height: 480px) {
-  .pl-pick .card-fx small { display: none; }
-}
 
 /* ---------------------------------------------------------------------------------------- U2 (G22) compact HUD
    Small phones in landscape: below 700 px wide, or a short screen (≤ 380 px) under 844 px wide (667×375, 640×360,
@@ -1518,3 +1437,84 @@ html[data-phone='1'][data-screen='match'] .pl-hud[data-phase='suddenDeath'] .pl-
 html[data-phone='1'][data-screen='match'] *, html[data-phone='1'][data-screen='match'] *::before, html[data-phone='1'][data-screen='match'] *::after { animation-iteration-count: 1 !important; }
 /* the loading veil's spinner keeps turning (transform only, gone once the match shows): a stopped one reads as a hang */
 html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteration-count: infinite !important; }
+
+/* PvP reports (docs/plans/moba/SOCIAL-RANKED.md §8.1, §8.2): a 44 px flag at the end of a human row, the 2×2 reason
+   chips over it, and the results toast. DOM only while the scoreboard or the results are open. */
+.pl-flag {
+  min-width: 44px; min-height: 44px; margin-left: 6px; padding: 0; border: 0; border-radius: 10px; vertical-align: middle;
+  background: rgba(42, 26, 34, 0.08); color: var(--ink); font: 700 16px/1 var(--font); cursor: pointer; touch-action: manipulation;
+}
+.pl-flag:focus-visible { outline: 3px solid var(--butter); outline-offset: 2px; }
+.pl-flag.done, .pl-flag[disabled] { opacity: 0.6; cursor: default; }
+/* In the scoreboard and the results table the flag must not grow the rows (the 3v3 board fits 667x375 only at its old
+   row height, and the 5v5 phone board clips its name cell at 132 px): a 34x28 chip pinned to the cell's right edge, its
+   hit area widened to 44 px by ::after (vertically kept inside the row, so a tap never lands on the next row's flag). */
+.pl-scoreboard tr td.sb-rp, .pl-table tr td.sb-rp { position: relative; padding-right: 44px; }
+.pl-scoreboard td.sb-rp .pl-flag, .pl-table td.sb-rp .pl-flag {
+  position: absolute; right: 4px; top: 50%; transform: translateY(-50%); width: 34px; height: 28px; min-width: 0; min-height: 0; margin: 0;
+  box-sizing: border-box; font-size: 14px; line-height: 28px; pointer-events: auto;
+}
+.pl-scoreboard td.sb-rp .pl-flag { background: rgba(255, 255, 255, 0.12); color: inherit; }
+.pl-table td.sb-rp .pl-flag { background: rgba(255, 243, 220, 0.14); color: inherit; }
+.pl-scoreboard td.sb-rp .pl-flag::after, .pl-table td.sb-rp .pl-flag::after { content: ''; position: absolute; inset: -2px -5px; }
+.pl-report-pop {
+  width: min(300px, calc(100vw - 32px)); padding: 10px; border-radius: 14px; background: var(--cream); color: var(--ink);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.4);
+}
+.pl-report-title { margin: 0 0 8px; font: 700 14px/1.2 var(--font); }
+.pl-report-chips { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pl-report-chip {
+  min-height: 44px; padding: 6px 8px; border: 0; border-radius: 10px; background: rgba(42, 26, 34, 0.1); color: var(--ink);
+  font: 700 13px/1.15 var(--font); cursor: pointer; touch-action: manipulation;
+}
+.pl-report-chip:active { background: rgba(42, 26, 34, 0.2); }
+.pl-report-toast {
+  position: fixed; left: 50%; bottom: max(16px, env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: 70;
+  min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 12px; background: var(--ink); color: var(--cream);
+  font: 700 14px/1.2 var(--font); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); max-width: calc(100vw - 32px);
+}
+
+/* The Social sheet (SOCIAL-RANKED.md §14.2–§14.4): right side, full height, no scroll (pages of rows), 44 px targets. */
+.pl-social {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(360px, 54vw); min-width: min(300px, 100vw);
+  display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 8px;
+  background: var(--cream); color: var(--ink); box-shadow: -10px 0 30px rgba(0, 0, 0, 0.35); font: 600 14px/1.2 var(--font);
+}
+.pl-social-head { display: flex; align-items: stretch; gap: 2px; min-height: 44px; flex: none; }
+.pl-social-tab {
+  flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 2px; border: 0; border-radius: 10px; background: transparent; color: var(--ink);
+  font: 700 12px/1 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+}
+.pl-social-tab[aria-selected='true'] { background: rgba(42, 26, 34, 0.12); }
+.pl-social-badge { display: inline-block; min-width: 16px; padding: 1px 4px; border-radius: 8px; background: var(--rose, #e66); color: #fff; font-style: normal; font-size: 11px; }
+.pl-social-x { flex: none; width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--ink); font: 700 22px/1 var(--font); cursor: pointer; }
+.pl-social-body { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
+.pl-social-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 4px; border-radius: 10px; }
+.pl-social-row.me { background: rgba(42, 26, 34, 0.08); }
+.pl-social-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-social-st { flex: none; opacity: 0.75; font-size: 12px; }
+.pl-social-row .pl-btn.small { min-height: 44px; min-width: 44px; }
+.pl-social-menu { display: flex; gap: 4px; }
+.pl-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #9a9a9a; }
+.pl-dot[data-state='online'] { background: #3bb36b; }
+.pl-dot[data-state='party'], .pl-dot[data-state='queue'] { background: #e0a020; }
+.pl-dot[data-state='match'] { background: #d0484a; }
+.pl-rank { flex: none; min-width: 32px; text-align: right; }
+.pl-social-sub { display: flex; gap: 4px; }
+.pl-social-sub .pl-btn[aria-pressed='true'] { background: rgba(42, 26, 34, 0.14); }
+.pl-social-empty { margin: 12px 4px; display: grid; gap: 10px; }
+.pl-social-age { display: grid; gap: 8px; }
+.pl-social-foot { flex: none; display: flex; align-items: center; gap: 6px; min-height: 44px; flex-wrap: nowrap; overflow: hidden; }
+.pl-social-code { flex: 1 1 auto; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-social-add { display: flex; gap: 6px; width: 100%; }
+.pl-social-add input { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 10px; border-radius: 10px; border: 2px solid rgba(42, 26, 34, 0.25); font: 700 15px var(--font); text-transform: uppercase; }
+.pl-pager { display: inline-flex; align-items: center; gap: 4px; }
+.pl-social-note { position: absolute; left: 8px; right: 8px; bottom: 56px; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--ink); color: var(--cream); font-size: 13px; }
+.pl-social-undo { display: inline-flex; align-items: center; gap: 4px; }
+.pl-ranked-season { margin: 4px; font-weight: 700; }
+.pl-ranked-tier { margin: 8px 4px; font: 800 22px/1.1 var(--font); }
+.pl-ranked-line { margin: 4px; }
+.pl-invite-toast { gap: 10px; }
+@media (max-height: 340px) { .pl-social-row { min-height: 44px; } }
+@media (max-height: 300px) { .pl-social-st { display: none; } }

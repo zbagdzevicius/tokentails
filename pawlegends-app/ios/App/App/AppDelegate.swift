@@ -9,6 +9,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         configureAudioSession()
+        // before the game screen loads the Capacitor plugins (the auth plugin needs a FirebaseApp, NativeAuth.swift)
+        NativeAuth.setUp()
         // No storyboards: the window and the game screen are made here, the launch screen is the Info.plist
         // UILaunchScreen (background colour and paw from the asset catalog).
         let window = UIWindow(frame: UIScreen.main.bounds)
@@ -78,12 +80,15 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
     }
     #endif
 
-    /// Game audio (docs/plans/moba/APP-STORE.md "Native shell"): `.ambient` mixes with the player's music and follows
-    /// the silent switch, as players expect from a game; WebAudio plays through it.
+    /// Game audio (docs/plans/moba/APP-STORE.md "Native shell"): `.playback` with `.mixWithOthers`. The game's sound
+    /// (announcer, hits, victory) plays with the silent switch on, like Wild Rift, and still mixes with the player's
+    /// own music instead of stopping it. `.ambient` followed the switch and most phones live on silent, so players
+    /// heard nothing (audio fix, Nov 9). The in-game Sound toggle is the way to silence the game. WebAudio plays
+    /// through this session; no background audio mode is declared, so nothing plays once the app is backgrounded.
     private func configureAudioSession() {
         let session = AVAudioSession.sharedInstance()
         do {
-            try session.setCategory(.ambient, mode: .default, options: [.mixWithOthers])
+            try session.setCategory(.playback, mode: .default, options: [.mixWithOthers])
             try session.setActive(true)
         } catch {
             NSLog("Pawlegends: audio session not set: \(error)")

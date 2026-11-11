@@ -51,6 +51,19 @@ describe('announcer', () => {
     expect(a.deaths).toBe(1);
   });
 
+  it('a tower or minion first knockout still calls First Blood, from the sim event (never skipped)', () => {
+    const a = new Announcer(0, 0, name);
+    // an enemy hero dies to our tower (killer −1): nothing inferred
+    expect(keys(a.feed(death(300, 3, -1)))).not.toContain('firstBlood');
+    const fb = a.feed({ type: 'firstBlood', tick: 300, killer: -1, victim: 3 });
+    expect(fb[0]).toMatchObject({ key: 'firstBlood', tone: 'good', voice: 'firstBlood', sub: 'We drew first blood.' });
+    // the sim credits an enemy hero that helped: theirs, said once
+    const b = new Announcer(0, 0, name);
+    b.feed(death(300, 1, -1));
+    expect(b.feed({ type: 'firstBlood', tick: 300, killer: 4, victim: 1 })[0]).toMatchObject({ key: 'firstBlood', tone: 'bad', voice: 'firstBlood' });
+    expect(keys(b.feed(death(400, 2, 4)))).not.toContain('firstBlood');
+  });
+
   it('streak names, a bounty crown from 3 kills, and a shutdown when it falls', () => {
     const a = new Announcer(0, 0, name);
     a.feed(death(100, 0, 3));

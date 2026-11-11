@@ -7,7 +7,7 @@
  */
 import { describe, expect, it, vi } from 'vitest';
 import * as THREE from 'three';
-import { pickScreen, skinTile } from '../../src/ui/screens';
+import { pickScreen } from '../../src/ui/screens';
 import { cardFrame } from '../../src/ui/cards/frame';
 import { cardAttrs, heroElement } from '../../src/ui/cards/el';
 import { RespawnCard, cardReveal } from '../../src/ui/cards/reveal';
@@ -16,6 +16,7 @@ import { showVsIntro } from '../../src/ui/cards/vs';
 import { Hud } from '../../src/ui/hud';
 import { HERO_IDS } from '../../src/data/heroes';
 import { rosterCosmetics } from '../../src/meta/roster';
+import { setRosterSkins } from '../../src/render/skins/registry';
 import { COSMETIC_MAX, TierFx, setTierExt, type FxHero, type FxParticles } from '../../src/render/skins/tierFx';
 import { cardFlourish, TWINKLE_GAP } from '../../src/render/skins/tierCardFx';
 
@@ -30,34 +31,35 @@ describe('card frame and pick tiles', () => {
     expect(html.match(/tt-sp /g)).toHaveLength(4);
     expect(html).not.toMatch(/url\(/);
   });
-  it('pick: a card tile per hero (20 in sim v15), one <b> each, the picked one wears its card skin rung and the sweep foil', () => {
+  it('an Awakened footer names the stage once (stage 0 says Awakened, never "Awakened · Awakened")', () => {
+    const foot = (aw: 0 | 1 | 2 | 3) => cardFrame({ el: 'FIRE', tier: 'LEGENDARY', inner: '', foot: true, awakened: aw });
+    expect(foot(0)).toContain('>Awakened · TOKEN TAILS<');
+    expect(foot(0)).not.toContain('Awakened · Awakened');
+    expect(foot(3)).toContain('Legend · Awakened · TOKEN TAILS');
+  });
+  it('pick (champion select): a portrait tile per hero (20), one name each, the worn card rung as the tile border', () => {
     document.body.innerHTML = '';
+    setRosterSkins([{ id: 'z', name: 'Zuzu', type: 'ICE', tier: 'LEGENDARY', isStarter: false, origin: 'adopt' }]);
     const root = pickScreen(document.body, {
       initial: { hero: 'meatball', trick: 'pounce', difficulty: 'easy' },
       owned: { items: new Set(), unlocks: new Set(), roster: rosterCosmetics([{ id: 'z', name: 'Zuzu', type: 'ICE', tier: 'LEGENDARY', isStarter: false, origin: 'adopt' }]) },
       looks: { meatball: { coat: 'cat.z', chroma: null } },
-      skins: { owned: [{ id: 'cat.z', name: 'Zuzu', element: 'ICE', rung: 'LEGENDARY', bond: 3 }], locked: [] },
       onHero: () => undefined,
       onStart: () => undefined,
       onBack: () => undefined,
     });
-    const tiles = root.querySelectorAll<HTMLElement>('.hero-card.tt-card');
+    const tiles = root.querySelectorAll<HTMLElement>('.cs-grid .cs-tile');
     expect(tiles).toHaveLength(20);
-    for (const t of tiles) expect(t.querySelectorAll('b')).toHaveLength(1);
-    const on = root.querySelector<HTMLElement>('.hero-card.on') as HTMLElement;
+    for (const t of tiles) expect(t.querySelectorAll('.cs-tn')).toHaveLength(1);
+    const on = root.querySelector<HTMLElement>('.cs-tile.on') as HTMLElement;
     expect(on.dataset.h).toBe('meatball');
-    expect(on.dataset.ttEl).toBe('GRASS');
-    expect(on.classList.contains('foil-sweep')).toBe(true);
-    const off = root.querySelector<HTMLElement>('.hero-card[data-h="clem"]') as HTMLElement;
-    expect(off.dataset.ttTier).toBe('COMMON');
-    expect(off.classList.contains('foil-hover')).toBe(true);
-  });
-  it('skin tiles are mini cards; Legendary adds paws, a locked tile none', () => {
-    const t = skinTile({ id: 'cat.a', name: 'Ficus', element: 'FIRE', rung: 'LEGENDARY', bond: 9 }, true);
-    expect(t).toContain('data-tt-tier="LEGENDARY"');
-    expect(t).toContain('tt-skin-paws');
-    const locked = skinTile({ id: 'cat.b', name: 'Pip', element: 'ICE', rung: 'LEGENDARY', bond: 0 }, false, true);
-    expect(locked).not.toContain('tt-skin-paws');
+    // the portrait sits on its element gradient; the worn card's rung is the tile border (no heavy card frame)
+    expect(on.querySelector<HTMLElement>('.cs-face')?.dataset.ttEl).toBe('GRASS');
+    expect(on.dataset.rung).toBe('LEGENDARY');
+    expect(on.querySelector('.cs-tn')?.textContent).toBe('Zuzu');
+    const off = root.querySelector<HTMLElement>('.cs-tile[data-h="clem"]') as HTMLElement;
+    expect(off.dataset.rung).toBeUndefined();
+    expect(root.querySelector('.tt-card')).toBeNull();
   });
 });
 

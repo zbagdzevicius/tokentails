@@ -195,7 +195,8 @@ const POT_GREY = 0x9aa0a8;
 
 /** A look's coat palette as a PPK coat (null = the hero's default). */
 function coatOf(c: Coat | null, pattern: CoatSpec['pattern'], fallback: CoatSpec): CoatSpec {
-  return c ? { pattern, base: c.base, deep: c.dark, light: c.light, cream: c.light } : fallback;
+  // store and pass coats carry their own pattern (and calico patch); free coats keep the hero's pattern
+  return c ? { pattern: c.pattern ?? pattern, ...(c.patch !== undefined ? { patch: c.patch } : {}), base: c.base, deep: c.dark, light: c.light, cream: c.light } : fallback;
 }
 
 /** Where a hero is built: the match clamps card-skin fur away from the opposing team's hue; the lobby keeps it true. */

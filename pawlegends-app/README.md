@@ -1,4 +1,4 @@
-# Pawlegends iOS and Mac app
+# Pawlegends iOS, Mac and Android app
 
 The App Store build of Pawlegends: a standalone Capacitor 7 app (`com.tokentails.pawlegends`) with the game bundled
 inside, landscape only, that updates its web game over the air from tokentails.com. Plan and review-risk register:
@@ -13,7 +13,11 @@ runtime, a resizable 1440×810 window (minimum 1280×720, full screen from the g
 no Format or Help menu, closing the window quits, the WebView asks for desktop content, and the page gets
 `window.__PL_PLATFORM__ = 'mac'`: the game then keeps the keyboard and mouse controls and desktop HUD
 (`pawlegends/src/app/platform.ts`), and the shell installs no haptics bridge. The app-build guards (no store links,
-no purchases) are the same as on iPhone.
+no purchases) are the same as on iPhone. Sign-in on the Mac: Apple and email (Google is off there).
+
+The Google Play version is the same project's `android/` platform (`com.tokentails.pawlegends`, served from
+`https://localhost`), with the same bundle and the same over-the-air updates (its own manifests). Plan, parity table,
+Play Console answers and founder steps: [`docs/plans/moba/PLAY-STORE.md`](../docs/plans/moba/PLAY-STORE.md).
 
 ## Layout
 
@@ -30,6 +34,9 @@ no purchases) are the same as on iPhone.
 | `scripts/build-mac.mjs` | Unsigned Mac Catalyst build (`--run` opens it; `--run --probe <dir>` writes a snapshot and what the page sees, then quits) |
 | `ios/App/` | The Xcode project: `GameViewController.swift` (landscape, no status bar, home indicator auto-hidden), `AppDelegate.swift` (audio session, screen kept on), `Info.plist`, `PrivacyInfo.xcprivacy` |
 | `fastlane/` | Lanes `check`, `bootstrap`, `build`, `beta`, `metadata`, `release`, `certs`; listing text in `metadata/`, screenshots in `screenshots/` |
+| `android/` | The Android project: `MainActivity.java` (immersive, cutout and keyboard insets, WebView settings, screen on, renderer recovery), `ShellPlugin.java` (page globals, thermal), `AndroidManifest.xml` (landscape game, GLES 3), `app/build.gradle` (versions, env signing) |
+| `src/shell/back.ts` | Android back button: Escape into the game, minimise on the bare title |
+| `fastlane/metadata_android/` | Google Play listing (text, icon, feature graphic, phone screenshots) for the `android` lanes |
 | `store/` | `app-icon-1024.png`; iPad 13" screenshots (`screenshots-ipad/`, not uploaded while iPhone only). Answers to copy into App Store Connect: `docs/plans/moba/APP-STORE-ANSWERS.md` |
 
 ## Run and check
@@ -41,6 +48,15 @@ npm run ios:sim -- --run       # unsigned simulator build, installed and launche
 npm run mac -- --run           # unsigned Mac Catalyst build, opened on this Mac
 npm run typecheck && npm test  # shell types and tests (manifest, OTA flow, zip, crypto, haptics)
 npm run ios:open               # Xcode, for a run on a cabled iPhone (needs a signing team)
+```
+
+Android (JDK 21 and the Android SDK; on this Mac `export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools`):
+
+```sh
+npm run build:android          # game + shell.js → www/, cap sync android
+npm run android:debug          # debug APK in android/app/build/outputs/apk/debug (channel dev)
+npm run android:open           # Android Studio
+(cd android && ./gradlew testDebugUnitTest)
 ```
 
 fastlane runs through Bundler in this folder (Ruby 3.3; on this Mac `export PATH=/opt/homebrew/opt/ruby/bin:$PATH`):
@@ -88,6 +104,55 @@ Manager key, run `bundle exec fastlane ios certs` once on a Mac, export the cert
 - **Over the air:** every push to `main` that changes `pawlegends/` publishes a new bundle (workflow
   *Pawlegends OTA*). It refuses when `api.tokentails.com` does not serve the game's sim: deploy the backend first.
 
+## Sign-in
+
+From 1.1.0 (native compat 2) the app signs in like the web game, without a Next page around it. The shell
+(`shell.js`, before the game) installs a same-window channel, `window.__PL_HOST__`; the game's bridge
+(`pawlegends/src/embed/bridge.ts`, `kind: 'native'`) talks to it exactly as it talks to the `/pawlegends/play` iframe
+host. `host.js` (`src/host/`, a deferred script after the game) is that host: it runs the web host's own bridge
+(`client/components/pawlegends/bridge.ts`) and its React-free modules (save queue, party tickets and saves, API ops,
+roster rules, `client/context/auth/link.ts` for the sign-in flows), bundled from `../client` by `scripts/build-web.mjs`.
+
+- **Providers:** Sign in with Apple (iPhone and Mac, shown first), Google (iPhone and Android), email and password
+  (everywhere). The Firebase JS SDK holds the session (IndexedDB); Apple and Google run natively through
+  `@capacitor-firebase/authentication` with `skipNativeAuth` and hand their ID token to the JS SDK. API calls carry
+  `accesstoken: fb<id token>`; no token ever reaches the game.
+- **Guests:** online, the first match save, party ticket or pass claim makes a Firebase anonymous guest (the
+  backend's guest document follows on the first write, 428 → `POST /user/guest/session`). Offline nothing is made and
+  matches wait on the phone. Signing in links the guest (same uid); if the Apple, Google or email identity already has
+  an account the app asks before merging the guest (`POST /user/guest/merge`, `x-guest-token`), then offers matches
+  played with no user at all ("Add N matches played on this device to your account?").
+- **Account:** the title's top-right chip and Settings → Account: Sign out, Delete account (a last confirmation, a fresh
+  Apple authorization code for an Apple account, `DELETE /user/me` with `appleClientId: com.tokentails.pawlegends`).
+- **Purchases stay hidden:** the game sends the in-app host only save, sign-in, account, party, pass and API messages
+  (`NATIVE_HOST_TYPES`); the host answers nothing about cats for sale, offers or checkout.
+- **What this build can use** comes from the native shell at document start, `window.__PL_NATIVE_AUTH__`
+  (`ios/App/App/NativeAuth.swift`, `android/.../NativeAuth.java`): without the Firebase config files Google is off and
+  the sheet says so; the app still starts (the shell makes a placeholder FirebaseApp, since the plugin would crash
+  without one) and Apple and email work.
+
+### Sign-in setup (founder steps)
+
+`node scripts/firebase-config.mjs check --platform all` prints what is missing. Once:
+
+1. **Firebase console, project news-ccd33:** add an iOS app (bundle id `com.tokentails.pawlegends`, App Store ID from
+   App Store Connect) and download `GoogleService-Info.plist` to `ios/App/App/`; add an Android app (package
+   `com.tokentails.pawlegends`) with the SHA-1 and SHA-256 of the Play app signing key (Play Console → Test and
+   release → App integrity), the upload key and the debug key (`cd android && ./gradlew signingReport`), and download
+   `google-services.json` to `android/app/`. Commit both (public config, like the Token Tails app's).
+2. **Firebase Authentication → Sign-in method:** Google, Apple, Email/Password and Anonymous stay enabled (the web uses
+   them). Registering the iOS app lets Firebase accept Apple tokens for this bundle id.
+3. **Apple Developer:** enable Sign in with Apple on `com.tokentails.pawlegends`, grouped with the primary App ID
+   `com.tokentails.app` (so the existing key revokes for both): `bundle exec fastlane ios bootstrap` does it. Profiles
+   made before need regenerating (cloud signing does it).
+4. **Backend env:** `APPLE_CLIENT_IDS=com.tokentails.app,com.tokentails.pawlegends`.
+5. **Google Cloud → Credentials:** if the Firebase web API key is restricted by HTTP referrer, allow
+   `capacitor://localhost` and `https://localhost`.
+6. `npm run build` (writes the Google URL scheme into `Info.plist`) and `npm run build:android`.
+
+Release builds refuse without the files: the Xcode phase "Firebase config (sign-in)" for iPhone Release builds, the
+Gradle release tasks (`-PplAllowNoFirebase` skips it), and the fastlane `build` lanes.
+
 ## Over-the-air updates
 
 - `www/` is zipped (reproducibly), encrypted with AES-128 under a fresh key, and the key and the SHA-256 are
@@ -97,7 +162,7 @@ Manager key, run `bundle exec fastlane ios certs` once on a Mac, export the cert
   - App Store installs read `https://tokentails.com/pawlegends-app/updates/ios/<compat>/manifest.json` (stable);
   - TestFlight installs read `manifest-beta.json` (beta): every push to `main` lands here first;
   - Debug builds read `http://localhost:8787/pawlegends-app/updates/ios/<compat>/manifest-beta.json` (dev, below).
-  The hourly job in *Pawlegends OTA* copies beta to stable once the bundle is 24 h old; `promote_now` does it at once.
+  The hourly job in *Pawlegends OTA* promotes to stable the newest kept bundle that is 24 h old; when stable is already 24 h behind beta, it promotes the current beta once it is 2 h old (busy days on `main` no longer starve stable). `promote_now` promotes the current beta at once.
 - The app reads its manifest on launch and on resume (at most every 30 minutes; no device id, no cookies), downloads
   a newer bundle in the background, and switches to it only on the title screen with no party open: at the next
   launch or resume. Never mid-match. The console shows `[ota] <version>: check <result> (channel <name>)`.

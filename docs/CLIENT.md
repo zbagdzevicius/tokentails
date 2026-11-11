@@ -170,6 +170,7 @@ server, ISR, and redirects. See MOBILE.md for the app routes and the export chec
 | `/swordcat` | `pages/swordcat.tsx` | Pink Paw Knight host, on by default (`NEXT_PUBLIC_SWORDCAT=0` is the kill switch: a client redirect to `/game`). Optional auth, `noindex`, left out of the sitemap. See "Pink Paw Knight (/swordcat)" below |
 | `/pawlegends` | `pages/pawlegends/index.tsx` | Pawlegends landing page (port of the vs-screen landing, `components/pawlegends/landing/`). A URL with a game key (`?party=`, `?dare=`, `?checkout=`, `?restore=`, `?notify=`, `?from=`) goes on to `/pawlegends/play` with its query; app builds go straight there. `noindex`, left out of the sitemap. See "Pawlegends (/pawlegends)" below |
 | `/pawlegends/play` | `pages/pawlegends/play.tsx` | Pawlegends host (the game), on by default (`NEXT_PUBLIC_PAWLEGENDS=0` is the kill switch for both pages). Optional auth, always `noindex`, left out of the sitemap |
+| `/pawlegends/account` | `pages/pawlegends/account.tsx` | Paw Legends account: sign in, sign out, delete the account (the apps' Play Data safety deletion URL). Optional auth, `noindex` |
 | `/pawlegends/terms` | `pages/pawlegends/terms.tsx` | Pawlegends presale terms and refund policy (POC.md §8.6), left out of the sitemap |
 | `/pawlegends-game/` | `public/pawlegends-game/` | The static Pawlegends build (`npm run build:client` in `pawlegends/`, committed) |
 | `/heist-game/` | `public/heist-game/` | The static Heist build (`npm run build:client` in `catnip-heist/`); `public/heist/index.html` forwards app builds to `/heist`. |
@@ -572,6 +573,15 @@ needed: the page, the picker card and the landing section (web only, never in th
 - **Game** (`pages/pawlegends/play.tsx`): Pawlegends (`pawlegends/`, GAMES.md) runs full-bleed in a same-origin
   iframe hosted by `components/pawlegends/PawlegendsHost.tsx`. It is on by default with no env needed;
 `NEXT_PUBLIC_PAWLEGENDS` and `NEXT_PUBLIC_PAWLEGENDS_PICKER` are kill switches only (`flags.ts`).
+- **Sign-in** (2026-11-11): the game's title has an account chip (top right) and Settings an Account row; they send
+  `account {sign-in | sign-out | manage | delete}`. The host opens the AuthSheet (`requireAccount("sign-in")`), signs
+  out, or opens `PawlegendsAccount.tsx` (who and how, Sign out, Delete account through `requestAccountDeletion`).
+  `session` carries `provider` (google, apple or email from the user's providers, the last-used one first; never the
+  address). `/pawlegends/account` is the public account page (sign in, sign out, delete), the account deletion URL of
+  the apps' Google Play Data safety form. The native app runs the same host over a same-window channel
+  (`pawlegends-app/src/host`, see `pawlegends-app/README.md` "Sign-in"); it reuses `bridge.ts`, `saves.ts`,
+  `partySaves.ts`, `apiBridge.ts`, `rosterBridge.ts`, `championsBridge.ts`, `session.ts`, `claim.ts`,
+  `context/auth/link.ts`, `authErrors.ts`, `lastMethod.ts` and `firebaseConfig.ts`, so keep those React-free.
 
 - The iframe loads `/pawlegends-game/index.html?embed=1`. Rebuild it after any game change with
   `npm run build:client` in `pawlegends/` and commit `client/public/pawlegends-game/`. The build keeps the two

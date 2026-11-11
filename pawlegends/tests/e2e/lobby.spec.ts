@@ -34,7 +34,9 @@ test('the lobby: Play on top, the whole pedestal in frame, named champion', asyn
   await expect(play).toBeInViewport();
   expect(await onTop(page, '.pl-lobby .pl-btn.big')).toBe(true);
   await expect(page.locator('.lb-hero')).toHaveText('Sage');
-  await expect(page.locator('.lb-sub')).toHaveText('Sage the Marksman');
+  // phones read one sub-line; desktop the role and element chips
+  await expect(page.locator('.lb-sub')).toHaveText('Marksman · Wind');
+  await expect(page.locator('.lb-name')).toHaveAttribute('data-a', 'name');
   // [hero top, pedestal front-bottom, pedestal left, pedestal right] in NDC
   await expect.poll(async () => (await frame(page)).length).toBe(4);
   const [top, bottom, left, right] = await frame(page);

@@ -146,6 +146,8 @@ export class SkillSandbox {
   constructor(
     readonly hero: HeroId,
     readonly slot: PreviewSlot,
+    /** The previewed hero's level (never below PREVIEW_LEVEL; the ally and the dummy stay at PREVIEW_LEVEL). */
+    readonly level = PREVIEW_LEVEL,
   ) {
     this.scenario = scenarioFor(hero, slot);
     this.reset();
@@ -179,7 +181,10 @@ export class SkillSandbox {
     const w = m.world;
     const sc = this.scenario;
     w.globals[G.Tick] = START_TICK;
-    for (const id of [ME, ALLY, DUMMY]) while (w.level[id] < PREVIEW_LEVEL) levelUp(m, id);
+    for (const id of [ME, ALLY, DUMMY]) {
+      const lv = id === ME ? Math.max(PREVIEW_LEVEL, this.level) : PREVIEW_LEVEL;
+      while (w.level[id] < lv) levelUp(m, id);
+    }
     const half = sc.gap >> 1;
     this.place(ME, ARENA.x - half, ARENA.y, 0);
     this.place(DUMMY, ARENA.x + half, ARENA.y, 2048);

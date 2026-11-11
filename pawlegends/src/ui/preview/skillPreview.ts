@@ -24,6 +24,7 @@ import { SnapBuffer, type ViewFrame } from '../../render/interp';
 import { CAMERA_YAW, cameraYaw, setViewTeam, toX, toZ } from '../../render/coords';
 import { setSideSwap, setTeam0Dogs, sidesSwapped, RELATION_CSS } from '../../render/palette';
 import type { QualityTier } from '../../render/quality';
+import type { Look } from '../../render/cosmetics';
 import { sfx } from '../../audio/sfx';
 import { FramePacer, MENU_FPS } from '../../render/perf/pacer';
 import { ALLY, DUMMY, ME, SkillSandbox, allyFor, dummyFor, type PreviewSlot } from './skillSandbox';
@@ -39,6 +40,13 @@ export interface SkillPreviewOptions {
   bars?: boolean;
   /** Play the skill sounds (default false: a looping clip in a menu stays quiet, as in LoL's previews). */
   sound?: boolean;
+  /**
+   * CARD-SKINS.md: the look the previewed hero wears (a card skin or a store / pass coat), so the clip shows its skin
+   * effects (tints, motifs, paw bursts, foil). Called per hero on mount and on every `set`; null = the classic look.
+   */
+  look?: (hero: HeroId) => Look | null;
+  /** The previewed hero's level (default PREVIEW_LEVEL): an Awakened card's stage follows it (dev lab, captures). */
+  level?: number;
 }
 
 export interface SkillPreviewStats {
@@ -136,7 +144,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   const buffer = new SnapBuffer();
   view.peek = (h, out) => buffer.peekEvents(h, out);
 
-  let sb = new SkillSandbox(hero, slot);
+  let sb = new SkillSandbox(hero, slot, opts.level);
   let raf = 0;
   let wantPlay = opts.autoplay !== false;
   let onScreen = true;
@@ -157,6 +165,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   const applySides = (h: HeroId): void => {
     view.setTeam(ME, 0, TRICKS);
     view.setSpecies(HEROES[h].side === 'dog');
+    if (opts.look) view.dress(opts.look(h), []);
   };
   applySides(hero);
 
@@ -256,22 +265,9 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   };
 
   const quiet = opts.sound !== true;
-  const mute = (): (() => void) => {
-    // the GameView plays its cues on the shared sfx bus; a quiet preview swaps play/voice out for this frame only
-    // (synchronous, so the lobby's own sounds are never touched)
-    // the champion identity layer (sfx.playLayer) too: it starts its sound directly, past play and voice
-    const play = sfx.play;
-    const voice = sfx.voice;
-    const layer = sfx.playLayer;
-    sfx.play = () => undefined;
-    sfx.voice = () => undefined;
-    sfx.playLayer = () => false;
-    return () => {
-      sfx.play = play;
-      sfx.voice = voice;
-      sfx.playLayer = layer;
-    };
-  };
+  // the GameView plays its cues on the shared sfx bus; a quiet preview holds the bus for this frame only (synchronous,
+  // a counter: the mute, the volumes and the sfx methods are never touched, so nothing can be left muted)
+  const mute = (): (() => void) => sfx.hold();
 
   const frameOnce = (dt: number): void => {
     const unmute = quiet ? mute() : null;
@@ -380,7 +376,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
       const same = h === sb.hero;
       totalCasts = 0;
       totalLoops = 0;
-      sb = new SkillSandbox(h, s);
+      sb = new SkillSandbox(h, s, opts.level);
       setAt = performance.now();
       firstFrameMs = -1;
       cam.init = false;

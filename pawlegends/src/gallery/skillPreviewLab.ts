@@ -2,10 +2,15 @@
  * DEV ONLY: the skill preview lab (`npm run dev` → /skill-preview.html?hero=clem&slot=q&w=480&h=300&tier=med).
  * Mounts the real preview player (src/ui/preview/skillPreview.ts) in a box, with a button per hero and slot and a
  * stats line. window.__preview exposes the player for tools and screenshots. Never part of `build`.
+ *
+ * CARD-SKINS.md: `&coat=<store or pass coat id>` dresses the hero in a coat (its fixed rung's effects), and
+ * `&card=<demo cat>` (ficus Legendary, pinkie Epic, rascal Rare, pickles Common) in a demo card skin; `&bond=30` with
+ * `card=ficus` makes it Awakened; `&level=10` sets the hero level (its Awakened stage). Tools: docs/plans/moba/card-skins/capture.mjs.
  */
 import { HERO_IDS } from '../data/heroes';
 import type { HeroId } from '../data/heroes/types';
 import type { QualityTier } from '../render/quality';
+import type { Look } from '../render/cosmetics';
 import { PREVIEW_SLOTS, type PreviewSlot } from '../ui/preview/skillSandbox';
 
 /** capture=1: no rAF; tools drive it with __preview.advance(seconds). */
@@ -19,8 +24,18 @@ box.style.height = `${Number(q.get('h') ?? 300)}px`;
 const bar = document.getElementById('bar') as HTMLElement;
 const out = document.getElementById('stats') as HTMLElement;
 
+const coatQ = q.get('coat');
+const cardQ = q.get('card');
+let look: Look | null = null;
+if (cardQ) {
+  const [{ DEMO_ROSTER }, { parseRoster }, reg] = await Promise.all([import('../app/skinDemo'), import('../meta/roster'), import('../render/skins/registry')]);
+  reg.setRosterSkins(parseRoster(DEMO_ROSTER, { isApp: false }), { [`demo-${cardQ}`]: Number(q.get('bond') ?? 0) });
+  look = { coat: reg.skinIdOf(`demo-${cardQ}`), chroma: null };
+} else if (coatQ) look = { coat: coatQ, chroma: null };
+
 const { mountSkillPreview } = await import('../ui/preview/skillPreview');
-const p = mountSkillPreview(box, hero, slot, { tier, autoplay: q.get('capture') !== '1' });
+const level = Number(q.get('level') ?? 0) || undefined;
+const p = mountSkillPreview(box, hero, slot, { tier, autoplay: q.get('capture') !== '1', ...(look ? { look: () => look } : {}), ...(level ? { level } : {}) });
 (window as unknown as { __preview: typeof p }).__preview = p;
 for (const h of HERO_IDS)
   for (const s of PREVIEW_SLOTS) {

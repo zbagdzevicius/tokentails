@@ -197,7 +197,7 @@ export function fromNow(value: DateInput): { text: string; value?: number } {
   return result;
 }
 
-export const getEntityType = (entity: unknown) => {
+export const getEntityType = (_entity: unknown) => {
   return EntityType.ARTICLE;
 };
 

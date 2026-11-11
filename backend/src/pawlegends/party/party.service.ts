@@ -144,6 +144,8 @@ export interface PartyEvents {
     send(memberId: string, msg: Record<string, unknown>): void;
     /** Loading is over: create the room. */
     startMatch(plan: StartPlan): void;
+    /** The party ended (its code is retired): the relay marks its stored row, so other relays answer `party_ended`. */
+    ended?(party: Party): void;
 }
 
 export interface PartyRules {
@@ -384,6 +386,24 @@ export class PartyService {
         this.retire(p.code, true);
         this.parties.delete(p.id);
         for (const m of p.members) this.memberParty.delete(m.id);
+        this.events.ended?.(p);
+    }
+
+    /** A live party here holds this invite code. */
+    hasCode(code: string): boolean {
+        const pid = this.byCode.get(code);
+        return !!pid && this.parties.has(pid);
+    }
+
+    /**
+     * Live-match deploys (LIVE-MATCH-DEPLOYS.md §4.1): the party moved to another relay. It leaves this process without
+     * any event, and its code is not retired here (the party keeps it on the relay that claims it).
+     */
+    forget(p: Party): void {
+        if (this.parties.get(p.id) !== p) return;
+        this.parties.delete(p.id);
+        if (this.byCode.get(p.code) === p.id) this.byCode.delete(p.code);
+        for (const m of p.members) if (this.memberParty.get(m.id) === p.id) this.memberParty.delete(m.id);
     }
 
     /** Strangers present: no kick, lead, set, new code, start or rematch (nobody can lock a stranger out). */
@@ -800,7 +820,10 @@ export class PartyService {
         this.events.changed(p);
     }
 
-    /** N9: rebuild a party from its stored document after a restart (its room is being restored). */
+    /**
+     * N9: rebuild a party from its stored document after a restart (its room is being restored), or a lobby party
+     * another relay handed over during a deploy (`room` null: back in the lobby, nobody locked).
+     */
     restoreParty(
         id: string,
         code: string,
@@ -808,7 +831,9 @@ export class PartyService {
         openSeats: boolean,
         members: { id: string; identity: MemberIdentity; lastHero?: string; lastTrick?: string; slot?: number }[],
         leader: string,
-        room: string
+        room: string | null,
+        /** The lobby lock as stored (a lobby party moved by a drain or taken over keeps it); default: !openSeats. */
+        locked?: boolean
     ): Party {
         const existing = this.parties.get(id);
         if (existing) return existing;
@@ -824,15 +849,15 @@ export class PartyService {
                 lastTrick: m.lastTrick,
                 hero: m.lastHero,
                 trick: m.lastTrick,
-                slot: m.slot,
-                locked: true,
-                loaded: true,
+                slot: room ? m.slot : undefined,
+                locked: !!room,
+                loaded: !!room,
             })),
             difficulty,
             openSeats,
-            locked: !openSeats,
-            phase: 'match',
-            room,
+            locked: !room && locked !== undefined ? locked : !openSeats,
+            phase: room ? 'match' : 'lobby',
+            room: room ?? undefined,
             createdMs: this.now(),
             updatedMs: this.now(),
             bans: new Map(),

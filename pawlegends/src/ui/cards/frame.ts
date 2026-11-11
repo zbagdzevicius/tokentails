@@ -35,7 +35,15 @@ export interface CardFrameOpts {
   icon?: boolean;
   /** Footer text ("Legendary · TOKEN TAILS"); true = the tier and TOKEN TAILS; omitted = none. */
   foot?: string | true;
+  /**
+   * CARD-SKINS.md Awakened form (a Legendary card with bond 30): 0 awakened, 1–3 the in-match stage (hero level 4, 7,
+   * 10). The footer says the stage word ("Kitten", "Brave", "Legend") and the frame glows stronger per stage.
+   */
+  awakened?: 0 | 1 | 2 | 3 | null;
 }
+
+/** The Awakened stage words (render/skins/effectKit.ts AWAKEN_WORD; copied: this file stays out of the render chunk). */
+export const AWAKEN_STAGE_WORD: readonly string[] = Object.freeze(['Awakened', 'Kitten', 'Brave', 'Legend']);
 
 /** One card's HTML. */
 export function cardFrame(o: CardFrameOpts): string {
@@ -45,8 +53,10 @@ export function cardFrame(o: CardFrameOpts): string {
   const cls = `tt-card${o.cls ? ` ${o.cls}` : ''}${foil !== 'none' ? ` foil-${foil}` : ''}`;
   const sp = o.sparkles ? '<span class="tt-sp t"></span><span class="tt-sp b"></span><span class="tt-sp l"></span><span class="tt-sp r"></span>' : '';
   const ico = o.icon ? '<span class="tt-ico" aria-hidden="true"></span>' : '';
-  const footText = o.foot === true ? `${TIER_NAME[tier]} · TOKEN TAILS` : (o.foot ?? '');
+  const aw = o.awakened ?? null;
+  const footText = o.foot === true ? `${aw !== null ? (aw === 0 ? 'Awakened' : `${AWAKEN_STAGE_WORD[aw]} · Awakened`) : TIER_NAME[tier]} · TOKEN TAILS` : (o.foot ?? '');
   const foot = footText ? `<span class="tt-foot">${esc(footText)}</span>` : '';
   const type = tag === 'button' ? ' type="button"' : '';
-  return `<${tag} class="${cls}" data-el="${o.el}" data-tier="${tier}" ${cardAttrs(o.el, tier)}${type} ${o.attrs ?? ''}${o.style ? ` style="${o.style}"` : ''}><span class="tt-bg" aria-hidden="true"></span><span class="tt-in">${o.inner}</span>${ico}${sp}<span class="tt-glare" aria-hidden="true"></span>${foot}</${tag}>`;
+  const awAttr = aw !== null ? ` data-awakened="${aw}"` : '';
+  return `<${tag} class="${cls}" data-el="${o.el}" data-tier="${tier}"${awAttr} ${cardAttrs(o.el, tier)}${type} ${o.attrs ?? ''}${o.style ? ` style="${o.style}"` : ''}><span class="tt-bg" aria-hidden="true"></span><span class="tt-in">${o.inner}</span>${ico}${sp}<span class="tt-glare" aria-hidden="true"></span>${foot}</${tag}>`;
 }

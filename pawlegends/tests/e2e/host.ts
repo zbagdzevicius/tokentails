@@ -41,6 +41,16 @@ export interface HostConfig {
   sendTarget?: string;
   /** Party play (P9): answer `party-ticket-request{id}` with this ticket (null: answer `ticket: null`). */
   partyTicket?: string | null;
+  /** STORE-PASS.md: `store{items, season}` sent on every ready (GET /pawlegends/me). */
+  store?: { items: string[]; season: unknown };
+  /** STORE-PASS.md: answer `purchase-intent{sku}` for a store SKU with `purchase-result{sku, ok:true}` and this store state (a Stripe test-mode return). */
+  storeGrants?: Record<string, { items: string[]; season: unknown }>;
+  /** STORE-PASS.md: answer a match's save with `save-result{season}` and then this store state (Season XP paid by /live). */
+  seasonOnSave?: { season: { gained: number; xp: number; tier: number; prevTier: number }; store: { items: string[]; season: unknown } };
+  /** STORE-PASS.md: answer `pass-claim` with this store state (POST /pawlegends/pass/claim). */
+  passClaim?: { items: string[]; season: unknown };
+  /** SOCIAL-RANKED.md §13: answer `api-request{op}` with this status and body (unlisted ops: status 0). */
+  api?: Record<string, { status: number; body?: unknown }>;
 }
 
 const b64url = (s: string): string => Buffer.from(s).toString('base64url');
@@ -70,7 +80,9 @@ function hostHtml(cfg: HostConfig): string {
       if (cfg.featured) send('featured', { cats: cfg.featured });
       if (cfg.champions) send('champions', { cats: cfg.champions });
       if (cfg.offer !== undefined) send('offer', { offer: cfg.offer });
+      if (store) send('store', store);
     };
+    var store = cfg.store || null;
     addEventListener('message', function (e) {
       if (e.source !== f.contentWindow) return;
       var m = e.data;
@@ -85,8 +97,30 @@ function hostHtml(cfg: HostConfig): string {
         var cats = cfg.catGrants[m.catalogId];
         setTimeout(function () { send('purchase-result', { catalogId: m.catalogId, ok: true }); send('roster', { cats: cats }); }, 50);
       }
+      if (m.type === 'purchase-intent' && cfg.storeGrants && cfg.storeGrants[m.sku]) {
+        store = cfg.storeGrants[m.sku];
+        setTimeout(function () { send('purchase-result', { sku: m.sku, ok: true }); send('store', store); }, 50);
+      }
+      if (m.type === 'pass-claim' && cfg.passClaim) {
+        store = cfg.passClaim;
+        setTimeout(function () { send('store', store); }, 50);
+      }
+      if (m.type === 'match-result' && cfg.seasonOnSave) {
+        var so = cfg.seasonOnSave;
+        setTimeout(function () {
+          send('save-result', { matchId: m.matchId, status: 'saved', catnipPaid: 0, catnipTotal: null, fastestWin: null, season: so.season });
+          store = so.store;
+          send('store', store);
+        }, 50);
+      }
       if (m.type === 'party-ticket-request' && cfg.partyTicket !== undefined) {
         send('party-ticket', cfg.partyTicket ? { id: m.id, ticket: cfg.partyTicket } : { id: m.id, ticket: null, error: 'PAWLEGENDS_PARTY_TICKET_UNAVAILABLE' });
+      }
+      if (m.type === 'api-request') {
+        var a = (cfg.api || {})[m.op];
+        setTimeout(function () {
+          send('api-result', a ? Object.assign({ id: m.id, ok: a.status >= 200 && a.status < 300, status: a.status }, a.body ? { body: a.body } : {}) : { id: m.id, ok: false, status: 0 });
+        }, 20);
       }
       if (m.type === 'match-result') {
         fetch('/user/catbassadors/live', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'PAWLEGENDS', pawlegends: m.replay }) });

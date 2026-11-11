@@ -1,8 +1,21 @@
-/* Lobby (title) screen, lobby spec §3a. Scoped to .pl-lobby; the shared .pl-title rules in ui.css still apply. */
+/* Lobby (title) screen, no-scroll layout (docs/plans/moba/LANDING-PICK-UX.md Part A). Scoped to .pl-lobby; the shared
+   .pl-title rules in ui.css still apply, so the column rules here use .pl-title.pl-lobby to win.
+   Rule: the column never scrolls. When the height runs out, things are hidden in a fixed order (the hide ladder at the
+   end of this file); nothing is pushed below the fold. */
 .pl-lobby {
   --lb-el: #ff9f6b;
   --lb-panel: rgba(30, 19, 35, 0.72);
   --lb-line: rgba(255, 243, 220, 0.18);
+  --lb-pad-t: max(16px, var(--safe-t));
+  --lb-pad-b: max(16px, var(--safe-b));
+  --lb-left: calc(64px + var(--safe-l));
+  --lb-w: clamp(380px, 32vw, 460px);
+  --lb-gap: 14px;
+  --lb-play-h: 72px;
+  --lb-seg-h: 44px;
+  --lb-online-h: 52px;
+  --lb-ri-w: 72px;
+  --lb-ri-h: 72px;
   background: linear-gradient(90deg, rgba(27, 17, 31, 0.9) 0%, rgba(27, 17, 31, 0.62) 34%, rgba(27, 17, 31, 0) 56%);
   animation: lb-in 0.32s ease-out both;
 }
@@ -10,33 +23,53 @@
 .pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner {
   opacity: 0; transform: translateX(-14px); transition: opacity 0.3s ease-in, transform 0.3s ease-in; pointer-events: none;
 }
-.pl-lobby.leaving .lb-col { transform: translate(-14px, -50%); }
 /* the loading veil fades in over the dolly's last frame (180 ms crossfade) */
 .pl-loading { animation: lb-veil 0.18s ease-out both; }
 @keyframes lb-veil { from { opacity: 0; } }
 
-.pl-lobby .lb-col {
-  left: calc(56px + var(--safe-l)); max-width: 440px; width: 40vw; min-width: 340px;
-  display: flex; flex-direction: column; align-items: flex-start;
+/* the column: full height, never scrolls; desktop centres the content block, phones anchor it to the top and push the
+   rail to the bottom */
+.pl-title.pl-lobby .lb-col {
+  position: absolute; left: var(--lb-left); top: 0; bottom: 0; transform: none; width: var(--lb-w); max-width: none; min-width: 0;
+  box-sizing: border-box; padding: var(--lb-pad-t) 0 var(--lb-pad-b); overflow: hidden;
+  display: flex; flex-direction: column; justify-content: center; align-items: stretch;
 }
-.pl-lobby .logo .paw { width: 44px; height: 44px; }
-.pl-lobby h1 { font-size: 52px; }
-.pl-lobby .brand-logo img { width: 340px; }
-.pl-lobby .tag { font-size: 16px; margin: 8px 0 18px; opacity: 0.8; }
+.lb-main { display: flex; flex-direction: column; align-items: stretch; gap: var(--lb-gap); min-height: 0; }
+.pl-title.pl-lobby .logo .paw { width: 44px; height: 44px; }
+.pl-title.pl-lobby .brand-logo { margin: 0 0 0 -8px; }
+.pl-title.pl-lobby .brand-logo img { width: clamp(200px, 17vw, 280px); }
+.pl-title.pl-lobby .tag { font-size: 16px; margin: -4px 0 0; opacity: 0.8; }
 
-/* name block */
-.lb-name { position: relative; padding-left: 14px; margin-bottom: 18px; }
+/* name block (a button for a returning player: it opens the champion select) */
+.lb-name {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left;
+  padding: 4px 10px 4px 14px; margin: 0 0 0 -2px; border: 0; border-radius: 14px; background: none; color: inherit; font: inherit; min-height: 44px;
+}
+button.lb-name { cursor: pointer; transition: background 0.15s; }
+button.lb-name:hover { background: rgba(255, 243, 220, 0.08); }
 .lb-name::before {
-  content: ''; position: absolute; left: 0; top: 4px; bottom: 4px; width: 4px; border-radius: 4px;
+  content: ''; position: absolute; left: 0; top: 6px; bottom: 6px; width: 4px; border-radius: 4px;
   background: linear-gradient(180deg, var(--lb-el), transparent);
 }
 .lb-eyebrow { display: block; font-size: 12px; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; opacity: 0.75; }
+.lb-hero-row { display: flex; align-items: center; gap: 8px; max-width: 100%; }
 .lb-hero {
-  margin: 2px 0 0; font-size: 46px; line-height: 1; font-weight: 700; color: #fff; overflow-wrap: anywhere;
+  min-width: 0; white-space: nowrap;
+  margin: 0; font-size: 44px; line-height: 1.02; font-weight: 700; color: #fff;
   text-shadow: 0 4px 0 rgba(0, 0, 0, 0.28), 0 0 26px color-mix(in srgb, var(--lb-el) 55%, transparent);
 }
-.lb-sub { margin: 6px 0 10px; font-size: 17px; opacity: 0.9; }
-.lb-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+/* a long cat name steps down instead of an ellipsis (an overflow clip cut the name's glow into a box) */
+.lb-name[data-long] .lb-hero { font-size: 34px; }
+.lb-swap {
+  flex: none; display: inline-grid; place-items: center; width: 28px; height: 28px; font-size: 16px; border-radius: 50%;
+  background: rgba(255, 243, 220, 0.14); box-shadow: inset 0 0 0 1px var(--lb-line); text-shadow: none; color: var(--cream);
+}
+.lb-gem { flex: none; width: 12px; height: 12px; transform: rotate(45deg); border-radius: 2px; background: #b8c4d6; box-shadow: 0 0 8px currentColor; }
+.lb-gem[data-rung='RARE'] { background: #7cc4ff; }
+.lb-gem[data-rung='EPIC'] { background: #c9a8ff; }
+.lb-gem[data-rung='LEGENDARY'] { background: #ffd34d; }
+.lb-sub { display: none; font-size: 12px; opacity: 0.9; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.lb-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .lb-chip {
   display: inline-flex; align-items: center; gap: 6px; font: 600 13px/1 var(--font); padding: 6px 10px; border-radius: 999px;
   background: rgba(255, 243, 220, 0.1); box-shadow: inset 0 0 0 1px var(--lb-line);
@@ -45,10 +78,11 @@
 .lb-chip.rung[data-rung='LEGENDARY'] { color: #ffe9a8; box-shadow: inset 0 0 0 1px rgba(255, 211, 77, 0.6); }
 .lb-chip.rung[data-rung='EPIC'] { color: #e5ccff; box-shadow: inset 0 0 0 1px rgba(201, 168, 255, 0.6); }
 
-/* play */
-.pl-lobby .lb-play.actions { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: flex-start; gap: 8px; }
+/* tier 1: Play, the only filled pink button, and the row under it (bots + "vs bots") */
+.pl-lobby .lb-play.actions { display: flex; flex-direction: column; flex-wrap: nowrap; align-items: stretch; gap: 8px; }
 .pl-lobby .lb-play .pl-btn.big {
-  font-size: 28px; padding: 20px 46px; min-width: 260px; max-width: 100%; overflow-wrap: anywhere; line-height: 1.05;
+  width: 100%; max-width: 400px; height: var(--lb-play-h); min-width: 0; margin: 0; padding: 0 20px;
+  font-size: 28px; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
   box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 0 color-mix(in srgb, var(--lb-el) 50%, transparent);
   animation: lb-pulse 2.6s ease-in-out infinite;
 }
@@ -56,52 +90,87 @@
 html[data-quality='low'] .pl-lobby .lb-play .pl-btn.big { animation: none; }
 /* PERF-IOS P2-5: on a phone the glow ring is a pseudo-element whose opacity pulses (composited, no repaint, and the
    button itself never moves) instead of the growing box-shadow */
-html[data-phone='1'] .pl-lobby .lb-play .pl-btn.big { animation: none; position: relative; }
+html[data-phone='1'] .pl-lobby .lb-play .pl-btn.big { animation: none; position: relative; overflow: visible; }
 html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::after {
   content: ''; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
   box-shadow: 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); opacity: 0;
-  /* PERF-IOS §8 Track C: three pulses when the lobby shows, then still (an infinite pulse on a pseudo-element kept the
-     title at ~59 style recalcs a second for as long as a player sat on it) */
+  /* PERF-IOS §8 Track C: three pulses when the lobby shows, then still */
   animation: lb-pulse-o 2.6s ease-in-out 3;
 }
 @keyframes lb-pulse-o { 50% { opacity: 1; } }
 @keyframes lb-pulse { 50% { box-shadow: 0 6px 0 #b8456a, 0 14px 30px rgba(0, 0, 0, 0.35), 0 0 0 8px color-mix(in srgb, var(--lb-el) 22%, transparent); } }
-.lb-line { margin: 2px 0 0 4px; font-size: 14px; font-weight: 600; opacity: 0.85; }
+.lb-under { display: flex; align-items: center; gap: 10px; min-height: var(--lb-seg-h); margin-top: 4px; }
+.lb-line { margin: 0; font-size: 14px; font-weight: 600; opacity: 0.85; min-width: 0; }
+.lb-line:empty { display: none; }
 .lb-line.dare-line { color: var(--butter); opacity: 1; font-size: 15px; }
 
 .lb-seg {
-  display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
-  margin-top: 4px;
+  flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
+  height: var(--lb-seg-h); box-sizing: border-box;
 }
 .lb-seg button {
-  font: 700 13px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 999px; padding: 8px 16px;
-  cursor: pointer; min-height: 32px; position: relative;
+  font: 700 14px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 999px; padding: 0 16px;
+  cursor: pointer; position: relative;
 }
-/* QA: 44 px tall tap targets on phones without a taller pill: the hit area reaches past the drawn button */
-.lb-seg button::after { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
+/* 44 px tall tap targets on phones without a taller pill: the hit area reaches past the drawn button */
+.lb-seg button::after { content: ''; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
 .lb-seg button.on { background: var(--cream); color: #3a2440; }
-.lb-locked { display: flex; align-items: center; gap: 6px; margin: 2px 0 0 4px; font-size: 13px; opacity: 0.75; }
+.lb-locked { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 13px; opacity: 0.8; }
 .lb-lock { width: 14px; height: 14px; display: inline-block; }
 
-/* secondary row */
-.lb-row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 18px; }
-.pl-lobby .lb-btn { display: inline-flex; align-items: center; gap: 8px; font-size: 15px; padding: 10px 18px; position: relative; }
-.pl-lobby .lb-btn .pl-icon, .pl-lobby .lb-btn .lb-ico { width: 18px; height: 18px; flex: none; }
+/* tier 2: the online row (Co-op, PvP, Friends, #): one line, never wraps */
+.pl-lobby .lb-online-row { display: flex; align-items: stretch; gap: 6px; flex-wrap: nowrap; }
+.pl-lobby .lb-online-row .pl-btn {
+  flex: 1 1 auto; min-width: 44px; height: var(--lb-online-h); min-height: 0; margin: 0; padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px; font-size: 15px; white-space: nowrap;
+}
+.pl-lobby .lb-online-row .lb-ico { width: 20px; height: 20px; flex: none; }
+.pl-lobby .lb-online-row small { font-size: 0.8em; opacity: 0.85; margin-left: 2px; }
+.pl-lobby .lb-online-row .lb-lock { width: auto; height: auto; font-size: 11px; }
+.pl-lobby .lb-online-row small { font-size: max(11px, 0.8em); }
+/* Co-op stays a solid button (a new guest must see it as one: matchmaking e2e) but in butter, not pink: Play is the only
+   filled pink button */
+.pl-lobby .lb-online-row .pl-btn.lb-online { background: rgba(255, 211, 77, 0.22); color: var(--cream); box-shadow: inset 0 0 0 2px rgba(255, 211, 77, 0.7); }
+.pl-lobby .lb-online-row .pl-btn.lb-online .lb-ico { color: var(--butter, #ffd34d); }
+.pl-lobby .lb-pvp[aria-disabled='true'] { opacity: 0.6; filter: saturate(0.5); }
+.pl-lobby .lb-joincode { flex: 0 0 auto; }
+.pl-lobby .lb-joincode b { font-size: 20px; line-height: 1; }
+.pl-lobby .sub { margin: 0; font-size: 13px; opacity: 0.6; }
+
+/* tier 3: the rail */
+.lb-rail { position: relative; display: flex; gap: 6px; margin-top: 28px; flex: none; }
+.lb-ri {
+  position: relative; width: var(--lb-ri-w); height: var(--lb-ri-h); flex: none; box-sizing: border-box;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; padding: 4px 2px;
+  border: 0; border-radius: 16px; cursor: pointer; color: var(--cream); background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
+  font: 600 13px/1 var(--font);
+}
+.lb-ri:hover, .lb-quests[open] > summary { background: rgba(60, 38, 68, 0.92); }
+.lb-ri > .pl-icon, .lb-ri > .lb-ico, .lb-ring .pl-icon { width: 26px; height: 26px; flex: none; color: var(--butter); }
+.lb-rl { white-space: nowrap; }
+.lb-rl b { font-weight: 700; opacity: 0.85; }
+.lb-ri .lb-count { position: absolute; top: 4px; right: 6px; }
 .lb-count {
-  min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--lb-el); color: #2b1d2e;
-  font: 700 12px/20px var(--font); text-align: center;
+  min-width: 18px; height: 18px; padding: 0 5px; border-radius: 999px; background: var(--lb-el); color: #2b1d2e;
+  font: 700 11px/18px var(--font); text-align: center; box-sizing: border-box;
 }
-.lb-quests { position: relative; }
-.lb-quests summary {
-  position: relative; list-style: none; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; font: 600 14px/1 var(--font);
-  padding: 10px 14px; border-radius: 999px; background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
+/* Today: a details popover styled as a rail item; its list opens upward from the rail */
+/* the list anchors to the rail (not the item), so it stays inside the column, which clips (it never scrolls) */
+details.lb-quests.lb-ri { position: static; padding: 0; background: none; box-shadow: none; }
+.lb-quests > summary {
+  list-style: none; width: 100%; height: 100%; box-sizing: border-box; border-radius: 16px; cursor: pointer;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
+  background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line);
 }
-.lb-quests summary::-webkit-details-marker { display: none; }
-.lb-quests summary::after { content: ''; position: absolute; left: 0; right: 0; top: -8px; bottom: -8px; }
-.lb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--butter); box-shadow: 0 0 6px var(--butter); }
-.lb-dot.all { background: #9be3c4; box-shadow: 0 0 6px #9be3c4; }
+.lb-quests > summary::-webkit-details-marker { display: none; }
+.lb-ring {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  background: radial-gradient(closest-side, rgba(30, 19, 35, 1) 76%, transparent 78%), conic-gradient(var(--butter) var(--p), rgba(255, 243, 220, 0.18) 0);
+}
+.lb-ring.all { background: radial-gradient(closest-side, rgba(30, 19, 35, 1) 76%, transparent 78%), conic-gradient(#9be3c4 100%, transparent 0); }
+.lb-ring .pl-icon { width: 18px; height: 18px; }
 .lb-qlist {
-  position: absolute; z-index: 5; left: 0; top: calc(100% + 6px); width: 300px; padding: 8px; border-radius: 14px;
+  position: absolute; z-index: 5; left: 0; bottom: calc(100% + 8px); width: min(300px, var(--lb-w)); box-sizing: border-box; padding: 8px; border-radius: 14px;
   background: rgba(30, 19, 35, 0.96); box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 0 0 1px var(--lb-line);
   display: flex; flex-direction: column; gap: 4px;
 }
@@ -111,13 +180,19 @@ html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::a
 .lb-qlist .t { flex: 1; }
 .lb-qlist .n { opacity: 0.7; font-weight: 600; }
 
-.pl-lobby .sub { margin-top: 14px; font-size: 13px; }
-.pl-lobby .lb-badge { display: flex; align-items: center; gap: 10px; margin-top: 10px; font-size: 14px; }
-.lb-badge-t small { display: block; font-size: 11px; opacity: 0.65; letter-spacing: 0.04em; }
 
-/* top right */
+/* the toast (PvP locked): over the rail, never in the flow */
+.lb-toast {
+  position: absolute; left: 0; right: 0; bottom: calc(var(--lb-pad-b) + var(--lb-ri-h) + 8px); margin: 0; z-index: 6;
+  padding: 8px 12px; border-radius: 12px; font-size: 13px; font-weight: 600; background: rgba(30, 19, 35, 0.96);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4), inset 0 0 0 1px var(--lb-line); opacity: 0; transform: translateY(6px);
+  transition: opacity 0.2s, transform 0.2s; pointer-events: none;
+}
+.lb-toast.on { opacity: 1; transform: none; }
+
+/* top right: Games, the profile avatar (desktop), Settings, Sound */
 .lb-corner {
-  position: absolute; right: calc(16px + var(--safe-r)); top: calc(14px + var(--safe-t)); display: flex; gap: 8px; align-items: center;
+  position: absolute; right: max(16px, var(--safe-r)); top: max(14px, var(--safe-t)); display: flex; gap: 8px; align-items: center;
 }
 .lb-exit { padding: 0 14px 0 10px; }
 .lb-icon {
@@ -130,6 +205,13 @@ html[data-phone='1']:not([data-quality='low']) .pl-lobby .lb-play .pl-btn.big::a
 .lb-icon .pl-icon, .lb-icon .lb-ico { width: 20px; height: 20px; }
 .lb-icon:hover { background: rgba(60, 38, 68, 0.9); }
 .lb-icon[aria-pressed='false'] { opacity: 0.75; }
+.pl-lobby .lb-corner .lb-badge {
+  display: flex; align-items: center; gap: 8px; height: 44px; padding: 0 12px 0 4px; border-radius: 999px; font-size: 13px;
+  background: var(--lb-panel); box-shadow: inset 0 0 0 1px var(--lb-line); margin: 0;
+}
+.pl-lobby .lb-corner .lb-badge .ring { width: 36px; height: 36px; flex: none; }
+.lb-badge-t { display: flex; flex-direction: column; line-height: 1.1; white-space: nowrap; }
+.lb-badge-t small { display: block; font-size: 10px; opacity: 0.65; letter-spacing: 0.04em; }
 
 /* bottom-right card peek */
 .lb-peek {
@@ -182,124 +264,122 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
 }
 .lb-back .pl-icon { width: 28px; height: 28px; }
 
+/* the host's cards slot (embed integration: the champion's "About" chip, level badges, sign-in, squad strip): in the
+   column, between the online row and the rail, in the space the column has left (never over the 3D hero, never
+   scrolling). It shrinks first: what does not fit is clipped at the column's edge, Play and the rail never move. */
+.lb-cards {
+  flex: 0 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
+  margin-top: var(--lb-gap);
+}
+.lb-cards:empty { display: none; }
+.lb-cards .plc { margin: 0; align-items: flex-start; }
+.lb-cards .plc-champ-chip { min-height: 40px; }
+
 /* focus: a clear ring on every control (keyboard) */
 .pl-lobby button:focus-visible, .pl-lobby summary:focus-visible {
   outline: 3px solid var(--butter); outline-offset: 3px;
 }
 
-/* phone landscape (844x390 and similar): tighter column, 46% wide; no tagline */
+/* ------------------------------------------------------------------------------------------- phones */
+/* Landscape phones (667x375, 844x390, 932x430): a 296-360 px column anchored to the top, the rail at the bottom.
+   Budget at 667x375: 8 + 36 logo + 44 name + 52 Play + 34 bots + 40 online + spacer + 56 rail + 8 = 316 of 375. */
 @media (max-height: 480px) {
-  .pl-lobby .lb-col { left: calc(18px + var(--safe-l)); width: 46vw; min-width: 0; max-width: 46vw; }
-  .pl-lobby .logo .paw { width: 26px; height: 26px; }
-  .pl-lobby h1 { font-size: 28px; text-shadow: 0 3px 0 #7d4fa8; }
-  .pl-lobby .tag { display: none; }
-  .lb-name { margin: 8px 0 10px; padding-left: 10px; }
-  .lb-eyebrow { font-size: 11px; }
-  .lb-hero { font-size: 30px; }
-  .lb-sub { font-size: 13px; margin: 3px 0 6px; }
-  .lb-chip { font-size: 11px; padding: 4px 8px; }
-  .pl-lobby .lb-play { gap: 4px; }
-  .pl-lobby .lb-play .pl-btn.big { font-size: 20px; padding: 13px 28px; min-width: 200px; }
+  .pl-lobby {
+    --lb-pad-t: max(8px, var(--safe-t)); --lb-pad-b: max(8px, var(--safe-b)); --lb-left: max(16px, var(--safe-l));
+    --lb-w: clamp(296px, 46vw, 360px); --lb-gap: clamp(4px, 2dvh, 8px);
+    --lb-play-h: clamp(44px, 14dvh, 52px); --lb-seg-h: 40px; --lb-online-h: 40px; --lb-ri-w: 52px; --lb-ri-h: 56px;
+  }
+  .pl-title.pl-lobby .lb-col { justify-content: flex-start; }
+  .lb-rail { margin-top: auto; padding-top: 8px; gap: 4px; }
+  .pl-title.pl-lobby .brand-logo { margin: 0 0 0 -4px; }
+  .pl-title.pl-lobby .brand-logo img { width: auto; height: 36px; }
+  .pl-title.pl-lobby .tag, .lb-eyebrow, .lb-chips, .pl-lobby .sub, .pl-lobby .lb-corner .lb-badge { display: none; }
+  .lb-name { padding: 2px 8px 2px 12px; gap: 0; margin-left: 0; }
+  .lb-hero { font-size: 26px; }
+  .lb-hero-row { gap: 6px; }
+  .lb-swap { width: 22px; height: 22px; font-size: 13px; }
+  .lb-gem { width: 9px; height: 9px; }
+  .lb-name[data-long] .lb-hero { font-size: 21px; }
+  .lb-sub { display: block; }
+  .pl-lobby .lb-play.actions { gap: clamp(4px, 2dvh, 8px); }
+  .pl-lobby .lb-play .pl-btn.big { max-width: none; font-size: 20px; padding: 0 14px; }
+  .lb-under { margin-top: 2px; gap: 8px; }
   .lb-line { font-size: 12px; }
-  .lb-seg button { padding: 6px 12px; font-size: 12px; min-height: 28px; }
-  .lb-row { margin-top: 10px; gap: 6px; }
-  .pl-lobby .lb-btn { font-size: 13px; padding: 8px 12px; }
-  .lb-quests summary { padding: 8px 10px; font-size: 12px; }
-  .lb-qlist { top: auto; bottom: calc(100% + 6px); width: 260px; }
-  .pl-lobby .sub, .pl-lobby .lb-badge { display: none; }
-  .lb-icon { height: 38px; min-width: 38px; }
-  .lb-icon:not(.wide) { width: 38px; }
+  .lb-seg button { font-size: 12px; padding: 0 12px; }
+  .pl-lobby .lb-online-row { gap: 4px; }
+  .pl-lobby .lb-online-row .pl-btn { font-size: 13px; padding: 0 8px; gap: 4px; }
+  .pl-lobby .lb-online-row .lb-ico { width: 18px; height: 18px; }
+  .lb-ri { font-size: 11px; border-radius: 14px; gap: 3px; }
+  .lb-quests > summary { border-radius: 14px; gap: 3px; }
+  .lb-ri > .pl-icon, .lb-ri > .lb-ico { width: 22px; height: 22px; }
+  .lb-ring { width: 26px; height: 26px; }
+  .lb-ring .pl-icon { width: 15px; height: 15px; }
+  /* GFX: phones drop the card peek; the Cards rail item opens the same drawer */
+  .lb-peek { display: none; }
+  .lb-cards { margin-top: 4px; }
+  .lb-icon { height: 40px; min-width: 40px; }
+  .lb-icon:not(.wide) { width: 40px; }
   /* UX pass 2: Games is the only way out on touch (no host close button): it keeps the 44 px touch minimum */
   .lb-icon.lb-exit { height: 44px; min-height: 44px; }
-  .lb-peek { right: calc(10px + var(--safe-r)); bottom: calc(6px + var(--safe-b)); gap: 6px; }
-  .lb-fan { width: 112px; height: 96px; }
-  .lb-mini.tt-card { width: 64px; height: 88px; left: 24px; }
-  .lb-peek-cap { max-width: 120px; margin-bottom: 4px; }
-  .lb-peek.first .lb-peek-cap { max-width: 150px; }
-  .lb-peek-cap b { font-size: 12px; }
-  .lb-peek-cap small { font-size: 11px; }
-  .lb-back { width: 44px; height: 62px; }
-  .lb-mini.tt-card .tt-in > .lb-mini-name { font-size: 11px; }
-  .lb-sprite > i { transform: scale(1.1); }
 }
-/* Audit UX-01: short phones (a returning player with Play with friends spanned -37 to 412 px at 667x375, with no
-   scroll): a smaller logo and name, the "3v3 vs Normal bots" line folded into the bots segment it repeats, tighter
-   rows, and the column scrolls as a safety net. GFX-13: the card peek moves off the pedestal to the top right, under
-   the corner buttons, as a card over a two-line caption. */
-@media (max-height: 480px) {
-  .pl-lobby .lb-col {
-    max-height: calc(100dvh - 12px - var(--safe-t) - var(--safe-b)); overflow-y: auto; overflow-x: visible; scrollbar-width: none;
-    padding: 2px 6px 4px 2px; margin-left: -2px;
-  }
-  .pl-lobby .lb-col::-webkit-scrollbar { display: none; }
-  /* ui.css `.pl-title h1` (48 px on short screens) loads later at the same specificity */
-  .pl-title.pl-lobby .logo .paw { width: 24px; height: 24px; }
-  .pl-title.pl-lobby h1 { font-size: 30px; text-shadow: 0 3px 0 #7d4fa8; }
-  .pl-title.pl-lobby .brand-logo img { width: 200px; }
-  .lb-name { margin: 4px 0 6px; }
-  .lb-eyebrow { font-size: 10px; }
-  .lb-hero { font-size: 26px; }
-  .lb-sub { margin: 2px 0 4px; font-size: 12px; }
-  .pl-lobby .lb-play .pl-btn.big { font-size: 19px; padding: 11px 26px; }
-  .pl-lobby .lb-play:has(.lb-seg) .lb-line { display: none; }
-  .lb-seg { margin-top: 2px; }
-  .pl-lobby .lb-friends, .pl-lobby .lb-joincode { min-height: 36px; }
-  .pl-lobby .lb-friends.small { padding: 8px 14px; font-size: 13px; }
-  .lb-row { margin-top: 8px; }
-  .lb-peek { top: calc(60px + var(--safe-t)); bottom: auto; flex-direction: column; align-items: flex-end; gap: 4px; padding: 4px; }
-  .lb-peek.empty { align-items: flex-end; }
-  .lb-peek-cap, .lb-peek.first .lb-peek-cap { max-width: 132px; margin: 0; }
-  .lb-peek-cap b, .lb-peek-cap small { display: block; max-width: 132px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .lb-peek-cap b { font-size: 11px; }
-  .lb-peek-cap small { font-size: 10px; }
-  .lb-fan { width: 96px; height: 80px; }
-  .lb-mini.tt-card { width: 54px; height: 74px; left: 21px; }
-  .lb-back { width: 40px; height: 56px; }
+/* narrow columns (the 296 px minimum): Friends and Code keep their icons, the names go to the aria-labels */
+@media (max-height: 480px) and (max-width: 720px) {
+  .pl-lobby .lb-party span, .pl-lobby .lb-joincode span { display: none; }
+  .pl-lobby .lb-party, .pl-lobby .lb-joincode { flex: 0 0 44px; padding: 0; }
 }
-@media (max-height: 340px) {
-  .lb-eyebrow, .lb-chips { display: none; }
+@media (min-height: 481px) {
+  .pl-lobby .lb-joincode b { margin-right: 2px; }
+}
+
+/* ------------------------------------------------------------------------------------ hide ladder */
+/* step 2 (<= 360): rail icons only (44 px), a smaller wordmark */
+@media (max-height: 360px) {
+  .pl-lobby { --lb-ri-w: 44px; --lb-ri-h: 44px; }
+  .lb-rl { display: none; }
+  .pl-title.pl-lobby .brand-logo img { height: 28px; }
+}
+/* step 3 (<= 320, split screen or keyboard): no sub-line, Play 44 px */
+@media (max-height: 320px) {
+  .lb-sub { display: none !important; }
+  .pl-lobby { --lb-play-h: 44px; }
+}
+/* step 4 (<= 280): the bots row leaves (the pick screen has it); Play names the difficulty */
+@media (max-height: 280px) {
+  .lb-under:has(.lb-seg), .lb-under:has(.lb-locked) { display: none; }
+  .pl-lobby .lb-play .pl-btn.big[data-diff] { display: flex; align-items: center; justify-content: center; }
+  .pl-lobby .lb-play .pl-btn.big[data-diff]::before { content: attr(data-diff); order: 2; margin-left: 0.3em; font-size: 0.75em; opacity: 0.85; }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .pl-lobby, .pl-loading { animation: none; }
   .pl-lobby .lb-play .pl-btn.big { animation: none; }
-  /* QA: ui.css `.pl-title .logo .paw` came later and won at the same specificity */
   .pl-title.pl-lobby .logo .paw { animation: none; }
   .lb-mini.tt-card { transition: none; }
   .pl-lobby.leaving .lb-col, .pl-lobby.leaving .lb-peek, .pl-lobby.leaving .lb-corner { transition: none; transform: none; }
-  .pl-lobby.leaving .lb-col { transform: translateY(-50%); }
-}
-/* Party play (MULTIPLAYER.md §8): "Play with friends" under Play. */
-.pl-lobby .lb-friends { min-height: 40px; }
-.pl-lobby .lb-friends-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.pl-lobby .lb-joincode { min-height: 40px; padding: 0 4px; border: 0; background: none; color: inherit; font: inherit; font-size: 14px;
-  text-decoration: underline; text-underline-offset: 3px; opacity: 0.85; cursor: pointer; }
-.pl-lobby .lb-joincode:hover, .pl-lobby .lb-joincode:focus-visible { opacity: 1; }
-
-/* Casual PvP (V16.md §5): the online mode chip above Play online; 44 px targets, never wider than the column */
-.pl-lobby .lb-mode { display: inline-flex; max-width: 100%; border-radius: 10px; overflow: hidden; border: 1px solid rgba(255, 255, 255, 0.18); background: rgba(10, 14, 30, 0.45); margin-top: 6px; }
-.pl-lobby .lb-mode button { min-height: 44px; min-width: 44px; padding: 0 14px; border: 0; background: none; color: inherit; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
-.pl-lobby .lb-mode button[aria-checked='true'] { background: rgba(255, 211, 77, 0.28); color: #ffd34d; font-weight: 700; }
-.pl-lobby .lb-mode button[aria-disabled='true'] { opacity: 0.55; cursor: not-allowed; }
-.pl-lobby .lb-mode-lock { display: block; font-size: 11px; opacity: 0.75; margin-top: 2px; }
-@media (max-height: 420px) {
-  .pl-lobby .lb-mode { margin-top: 2px; }
-  .pl-lobby .lb-mode button { min-height: 44px; padding: 0 10px; font-size: 12px; }
 }
 
-/* Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic above Play (one tap, remembered) */
+/* Sim v19 (MAP-5V5.md §8.1): 3v3 Quick | 5v5 Classic, one tap, remembered. It sits in the row under Play, next to the
+   bots (it replaces the "3v3 vs bots" line, which it says itself), so it costs no height in the no-scroll budget. */
 .pl-lobby .lb-map {
-  display: inline-flex; align-self: flex-start; padding: 3px; gap: 2px; border-radius: 12px; background: var(--lb-panel);
-  box-shadow: inset 0 0 0 1px var(--lb-line); margin-bottom: 4px;
+  flex: none; display: inline-flex; padding: 3px; gap: 2px; border-radius: 999px; background: var(--lb-panel);
+  box-shadow: inset 0 0 0 1px var(--lb-line); height: var(--lb-seg-h); box-sizing: border-box;
 }
 .pl-lobby .lb-map button {
-  font: 600 13px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 9px; padding: 8px 14px;
-  min-height: 36px; cursor: pointer; position: relative; white-space: nowrap;
+  font: 600 14px/1 var(--font); color: var(--cream); background: transparent; border: 0; border-radius: 999px; padding: 0 14px;
+  cursor: pointer; position: relative; white-space: nowrap;
 }
 .pl-lobby .lb-map button b { font-weight: 800; letter-spacing: 0.02em; }
-.pl-lobby .lb-map button::after { content: ''; position: absolute; left: 0; right: 0; top: -4px; bottom: -4px; }
-.pl-lobby .lb-map button.on { background: var(--butter, #ffd34d); color: #3a2440; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.25); }
+.pl-lobby .lb-map button::after { content: ''; position: absolute; left: 0; right: 0; top: -6px; bottom: -6px; }
+.pl-lobby .lb-map button.on { background: var(--butter, #ffd34d); color: #3a2440; }
 @media (max-height: 480px) {
-  .pl-lobby .lb-map { margin-bottom: 2px; }
-  .pl-lobby .lb-map button { padding: 6px 11px; font-size: 12px; min-height: 30px; }
+  /* phones: "3v3 | 5v5" (the full names stay in the aria-labels) */
+  .pl-lobby .lb-map button { font-size: 13px; padding: 0 12px; }
+  .pl-lobby .lb-map .lb-mw { display: none; }
+}
+
+/* Social (SOCIAL-RANKED.md §14.1): the people button and its badge in the top-right corner. */
+.lb-social { position: relative; }
+.lb-social-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; box-sizing: border-box;
+  background: var(--rose, #e66); color: #fff; font: 700 11px/16px var(--font); font-style: normal; text-align: center; pointer-events: none;
 }

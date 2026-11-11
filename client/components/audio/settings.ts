@@ -4,7 +4,9 @@
  * Persisted in `localStorage` under `STORAGE_KEY`. Every read and write is wrapped in try/catch:
  * private windows, blocked site data and previews can throw or return nothing, and then the
  * defaults apply and changes live for this page only. Other tabs follow through the `storage`
- * event. The pre-G14 `gameMusic` flag (`false` = music off) is honoured once as `muted: true`.
+ * event. The pre-G14 `gameMusic` flag (`false` = music off) is honoured once as music volume 0 and saved under
+ * `STORAGE_KEY`: it never mutes the effects (the old music-off flag silenced every Pawlegends sound and announcer
+ * line, and the game saved that mute into its own profile).
  *
  * No React and no DOM at import time, so the store is safe in SSR and tests.
  */
@@ -67,7 +69,16 @@ function readStored(): AudioSettings {
     const raw = storage.getItem(STORAGE_KEY);
     if (raw !== null) return normalizeAudioSettings(JSON.parse(raw));
     const legacy = storage.getItem(LEGACY_MUSIC_KEY);
-    if (legacy === "false") return { ...DEFAULT_AUDIO_SETTINGS, muted: true };
+    if (legacy === "false") {
+      // music off, effects on; migrated once, so a later unmute or slider change is the only truth
+      const migrated = { ...DEFAULT_AUDIO_SETTINGS, musicVolume: 0 };
+      try {
+        storage.setItem(STORAGE_KEY, JSON.stringify(migrated));
+      } catch {
+        // read-only storage: honoured for this page
+      }
+      return migrated;
+    }
   } catch {
     // Unreadable or corrupt: the defaults.
   }

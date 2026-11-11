@@ -249,7 +249,7 @@ Sizes are enforced per type **before** decoding. Any other first byte is a strik
   - checks `Origin` against `corsOrigins()` (this is hygiene, not authentication: any non-browser client can send an allowed Origin). A missing Origin is refused. The e2e harness allows it only through a **constructor option of the harness module**, never an env var or a header;
   - **client IP on the upgrade (S1):** `shared/relay-client-ip.ts`. Trust `cf-connecting-ip` (only when it parses as an IP) from a Cloudflare peer, or from our private ingress hop when the request really came through Cloudflare (on DigitalOcean: the first X-Forwarded-For entry from the right that is not a private hop is a Cloudflare edge; on the split Google Cloud roles the balancer admits Cloudflare only); a direct caller through the ingress is keyed by the address the ingress saw. IPv6 is keyed per /64 (`clientIpKey`), like the Quick Play caps. This is local to the WebSocket path and does not change the HTTP routes;
   - applies the caps in §3.5;
-  - on shutdown (SIGTERM): stops room clocks, sends `error{code:'room_gone', retryMs:3000}`, writes a final checkpoint with `handoff:true` (N9), then closes.
+  - on shutdown (SIGTERM): drains first (live rooms play on for `RELAY_DRAIN_MAX_MS`, no new rooms, parties or queue entries), then stops the clocks of what is left, sends `error{code:'room_gone', retryMs:0}`, writes a final checkpoint with `handoff:true` (N9) and closes with 1012. The serving relay claims those rooms within a second (`LIVE-MATCH-DEPLOYS.md`).
 - Register in `app.module.ts`: `PartyRelayService`, `PartyService`, `RoomScheduler`, `RefereePool`, `PartyTicketService`, `RoomStore` (`MongoRoomStore`), and the `PawlegendsRoom` and `PawlegendsParty` schemas.
 
 ### 3.2 The room (pure class, fake-clock testable): `backend/src/pawlegends/party/room.ts`
@@ -316,7 +316,7 @@ Sizes are enforced per type **before** decoding. Any other first byte is a strik
 - **Backpressure:** outside catch-up, `ws.bufferedAmount > 256 KB` closes with code 4001 and the client resumes.
 - **Catch-up pacing:** the next 16 KB CATCHUP chunk is sent only when `bufferedAmount < 64 KB`. Catch-up is exempt from the 4001 rule. Each socket gets at most 1 MB of CATCHUP per minute.
 
-### 3.5 Caps (single instance)
+### 3.5 Caps (single serving relay per pool; `LIVE-MATCH-DEPLOYS.md` §4.4)
 
 Identity = account id, else guest key hash, else verified client IP. Caps are keyed on identity first; per-IP caps are loose because of carrier NAT and school Wi-Fi.
 
@@ -356,15 +356,15 @@ Identity = account id, else guest key hash, else verified client IP. Caps are ke
 `party/party.schema.ts` — `PawlegendsParty` (small): `_id` (party id), `code`, `leader`, `members: [{id, accountId|null, guestKeyHash|null, resumeTokenHash, lastHero, lastTrick, slot}]`, `difficulty`, `openSeats`, `locked`, `room?`, `updatedAt`, TTL 3 h.
 
 Rules:
-- **Checkpoint** every 10 s by appending the delta since the last checkpoint: `$push: {chunks}` guarded by `{_id, epoch, lastTurn: <previous>}`. Never `$set` the whole log.
+- **Checkpoint** every 2 s (was 10 s; `LIVE-MATCH-DEPLOYS.md` §5.2) by appending the delta since the last checkpoint: `$push: {chunks}` guarded by `{_id, epoch, lastTurn: <previous>}`. Never `$set` the whole log.
 - **Lease:** a room is owned by one instance. Claim with `findOneAndUpdate({_id, epoch}, {$set: {owner, epoch: epoch+1}})`.
-- **Shutdown:** stop clocks, final checkpoint with `handoff:true`.
-- **Boot restore:** claim `status:'live'` rooms with `handoff:true`, or with `updatedAt` older than 15 s (stale lease), and `updatedAt` under 120 s, and a bundle the relay holds for `{simVersion, simHash}`. Then:
+- **Shutdown:** drain, then stop clocks, final checkpoint with `handoff:true`.
+- **Restore (at boot and every second after, `LIVE-MATCH-DEPLOYS.md` §5.3):** claim `status:'live'` rooms with `handoff:true`, or with `updatedAt` older than 8 s (stale lease), and `updatedAt` under 300 s, and a bundle the relay holds for `{simVersion, simHash}` (after the boot pass: only rooms a relay of the same pool left, or one a player here is waiting for). Then:
   1. restore the party document and its members' resume tokens;
-  2. **restart the turn clock and turn fan-out at once** (the relay only orders commands, so reconnecting humans play immediately);
+  2. **hold the turn clock until the humans seated at the checkpoint are bound again, at most 5 s** (both teams frozen alike), then run it from where the log ended;
   3. re-simulate the concatenated log in the referee, most-progressed rooms first; pilots and hash checks resume once the referee has caught up (slots are piloted until then, reason `restore`);
   4. clients reconnect with resume tokens, catch up (N7) and reclaim.
-- Other live rooms become `abandoned` and their clients get `room_gone`.
+- Live rooms not written for 300 s become `abandoned`; a reconnecting client of such a room gets `room_over` and leaves the match screen.
 - **Store interface:** `RoomStore` with `MongoRoomStore` (production) and `MemoryRoomStore` (tests and the e2e harness).
 
 ---
@@ -406,7 +406,7 @@ timer and caught up only above B + 2, so a backlog from start-up or one jitter b
 - **Hold:** nothing queued and no turn for 1.5 turns plus M. The renderer interpolates the last snapshot and does not extrapolate. After 500 ms of holding, the rail shows "Waiting for server…", except while the room is paused by vote.
 - Stepping is driven by turn arrival in the worker, not by main-thread rAF. Chrome throttles rAF in offscreen cross-origin iframes (the embed scrolled away) without firing `visibilitychange`, so rAF stepping would fall behind silently. Rendering stays on rAF and reads the latest snapshot.
 - **Gaps:** a TURN with turn ≠ expected + 1 makes the client send `sync{fromTurn}`. Turns ≤ the last applied turn are dropped (idempotent).
-- **Readout:** Settings shows "Ping 48 ms". In match, an icon appears only above 200 ms.
+- **Readout:** in a party match a ping chip sits beside the clock on the score plate, always on: a dot and "48 ms", green under 80 ms, yellow under 150 ms, red from 150 ms (`src/app/mpHud.ts`, LATENCY-PLAN C6). It reads the socket's RTT estimate once a second. Settings has no ping readout.
 
 ### 4.3 Latency feel on phones
 
@@ -415,7 +415,7 @@ Budget at B=1 on a 60 ms 4G link: RTT/2 (30) + average turn wait (33) + B (67) +
 - Your own hero is drawn by a **local walker** (`src/net/predict.ts`, Nov 2026 review rework). A Move starts it on the next render frame (`NetHost.present`, called by MatchSession after `SnapBuffer.advance`; the snapshot is never touched): it walks its own path, planned with the sim's A* on the client's static wall grid (`src/net/predict-path.ts`), at the hero's interpolated speed averaged over ~400 ms around movement (a party snapshot comes once per turn, so the raw speed arrives in bursts), else its base speed, and stops at the gate line before the barrier drops. The authoritative hero walks the same path one input latency later, so it turns the same corners and stops where the sim's path stops (the old straight-line lead ran up to 720 mm past a stop-short goal and cut corners by up to 2 m). Any other command (Stop when the stick is released, Pounce, a cast, an attack) and arrival **hold** the walker where it is drawn: the authoritative hero walks up to it during the latency, so nothing steps back (the old lead blended out over 120 ms and pulled the hero back 0.4 to 0.9 m at 150 ms RTT). Reconciliation: where the walker was drawn one input latency ago is where the authoritative hero should be now; the difference moves the walker and its trail by an exponential share (time constant 200 ms), so a wrong latency estimate, a slow or a bump converge without a surge (a direction change used to run at ~1.8× speed). Once the walker has held still for the latency, the hero is drawn at the authoritative position plus a residual that decays over ~100 ms (60 ms under crowd control), so a bot-piloted or pushed hero is drawn where the sim has it. No walking under stun, root, fear (charm), forced movement or a dash; a blink, respawn or any authoritative jump over 1.5 m is drawn at once; a Move the sim never starts (blocked, channeling) stops the walker after the latency + 150 ms. Facing: the walker's direction while a walk is in flight (eased ~50 ms), the interpolated yaw otherwise; the walk cycle reads the walker's speed (feet still while it holds). While a walk is in flight, the input (`simMe`: the stick's steer origin, heading casts) aims from the walker, which is where a command sent now lands, not from the newest snapshot a round trip behind it. Because the walker moves on its own clock, the own hero no longer shows the 15 Hz party snapshot judder while walking. Static walls only: a tower footprint is not in the client grid, so the drawn hero may cut a tower's corner and be corrected back. Input latency is measured: send of a CMD to the local apply of the TURN that acks it, an EWMA (before the first sample: RTT + 2 turns), plus the draw lag, capped at 600 ms. The latency sample reads acks merged over every turn stepped in one pace call (an ack rides only the turn where it changed), so a 2-turn step never loses one. A coalesced Move waits (newest wins, at most 400 ms) while the socket still holds unsent bytes, so an uplink stall does not dump a burst into the relay's token bucket. A vote pause ending or the tab becoming visible resets the playout offset window. Before the first turn of a stream, a hold counts only after 5 s (`FIRST_TURN_GRACE_MS`), so "Waiting for server…" no longer shows at every go-live; "Go!" shows only when the gate drop is watched live (not after a rejoin's catch-up).
 - No lead while the snapshot shows stun, root, fear, forced movement or a dash.
 - The click marker, facing and footstep SFX are instant.
-- Casts: only the indicator and wind-up audio are predicted. A predicted cast that then fails feels worse than delay.
+- Casts (LATENCY-PLAN N1, `src/net/predict-action.ts`): the indicator, the wind-up pose and the wind-up sound are predicted, nothing else. A Cast or Trick that the newest snapshot allows (alive, no stun, fear or charm, not channeling, cooldown 0; range is checked by the input) starts its wind-up clip on the next frame (`AnimDirector.predictCast`), with the cast anchored one input latency out. When the sim's own `windup` or `cast` event arrives, the director rebinds the same clip to the sim's ticks, so it never restarts and the sim's wind-up sound does not play a second time. With no event within the input latency + 150 ms, the pose fades out over 150 ms. Damage, effects and cooldowns stay authoritative. Measured in `tests/perf/net-rtt.test.ts` (`castVisible`), from tap to the first posed frame: p95 15–16 ms at every RTT, against the applied p95 of 65–377 ms that a cast waited for before.
 - Unit test: rendered position never diverges from authoritative by more than speed × lead and converges within 150 ms.
 
 ### 4.4 Desync (N6)

@@ -1,7 +1,8 @@
 # Pawlegends iOS: App Store Connect answers
 
 Pre-filled answers for the questionnaires only the account holder can submit in App Store Connect. They describe
-the v1 app build (`pawlegends-app/`, `com.tokentails.pawlegends`) as of 2026-11-07, checked against the code. Plan:
+the app build (`pawlegends-app/`, `com.tokentails.pawlegends`) from 1.1.0 (native compat 2, optional sign-in) as of
+2026-11-11, checked against the code. Plan:
 [APP-STORE.md](APP-STORE.md). Listing text, review notes and screenshots are in `pawlegends-app/fastlane/` and
 upload with `fastlane ios metadata`; these answers do not upload and must be entered by hand.
 
@@ -12,7 +13,7 @@ Change it together with `pawlegends-app/ios/App/App/PrivacyInfo.xcprivacy` and `
 
 | Area | App build | Where |
 |---|---|---|
-| Account, login, Firebase | None. The app build never signs in; there is no Firebase SDK in the app. | `pawlegends/src/app/platform.ts` (`APP_ENV`), `pawlegends-app/package.json` |
+| Account, login, Firebase | Optional sign-in from 1.1.0: Sign in with Apple (iPhone, Mac), Google (iPhone), email and password, through Firebase Authentication (JS SDK holds the session; Apple and Google run natively with `@capacitor-firebase/authentication`, `skipNativeAuth`). Everything plays without it. Online, a Firebase anonymous guest is made lazily at the first match save, party ticket or pass claim; offline nothing is made. In-app deletion: title chip or Settings → Account → Delete account (`DELETE /user/me`, Apple token revoked) | `pawlegends-app/src/host/`, `pawlegends/src/ui/account.ts`, `backend/src/user/guest/account-deletion.ts` |
 | Analytics (PostHog) | Off: `VITE_PAWLEGENDS_POSTHOG_KEY=''`, so no events and no consent row in Settings | `pawlegends-app/scripts/build-web.mjs` |
 | Crash reporting, ads, IDFA, ATT | None | `pawlegends-app/package.json`, `PrivacyInfo.xcprivacy` (`NSPrivacyTracking` false) |
 | Purchases, crypto, donations | None. App mode hides checkout, offers and featured cats | `pawlegends/src/app/platform.ts`, `client/__test__/pawlegends-host.test.tsx` ("app builds") |
@@ -33,9 +34,11 @@ device and is kept longer than needed to answer the request in real time, and th
 
 | Data type | Collected | Use (purpose) | Linked to the user | Used for tracking |
 |---|---|---|---|---|
-| Identifiers → **User ID** (the random party key the app makes; the server keeps only its hash) | Yes | App Functionality | Yes (see note) | No |
-| Usage Data / Other Data → **Gameplay Content** (generated player name, hero picks, match inputs, result) | Yes | App Functionality | Yes (see note) | No |
-| Contact Info, Health, Financial, Location, Sensitive Info, Contacts, User Content (photos, audio, emails, messages), Browsing/Search History, Purchases, Diagnostics, Device ID, Product Interaction, Advertising Data | No | – | – | – |
+| Contact Info → **Email Address** (optional sign-in; an Apple relay address with Hide My Email) | Yes | App Functionality | Yes | No |
+| Contact Info → **Name** (the Apple or Google name when shared, and the Token Tails profile name) | Yes | App Functionality | Yes | No |
+| Identifiers → **User ID** (the Firebase account or guest id; the random party key, kept only as a hash) | Yes | App Functionality | Yes | No |
+| User Content → **Gameplay Content** (saved matches, Treat Track, friends and ranked if used; party: generated name, picks, inputs, result) | Yes | App Functionality | Yes | No |
+| Health, Financial, Location, Sensitive Info, Contacts, other User Content (photos, audio, emails, messages), Browsing/Search History, Purchases, Diagnostics, Device ID, Product Interaction, Advertising Data | No | – | – | – |
 
 Notes for the form:
 - Gameplay Content sits under **User Content → Gameplay Content** in the form ("saved games, multiplayer matching
@@ -43,13 +46,14 @@ Notes for the form:
 - Purpose "App Functionality" covers running the match, resuming a dropped connection, checking the result and
   limiting abuse (per-key and per-network caps). Do not tick Analytics, Developer's Advertising, Third-Party
   Advertising, Product Personalization or Other Purposes.
-- **Linked to the user: Yes** is the conservative answer: the match is stored with a hash of a persistent per-install
-  key. It is not tied to a name, email or Apple ID. "Not linked" would need the relay to drop the key hash from
-  stored rooms; if that is ever done, switch both rows to "Not linked" and update `PrivacyInfo.xcprivacy`.
+- **Linked to the user: Yes** for every row: a signed-in account ties email, name, account id and progress together
+  (the processor is Google Firebase Authentication; Apple and Google confirm the identity).
+- Sign-in is optional, but the label covers the whole app, so the account rows are declared even though most players
+  never sign in.
 - Tracking: No for every row. No IDFA, no data brokers, no ad networks, so no App Tracking Transparency prompt.
-- Expected listing: **Data Linked to You: Identifiers, User Content**. **Data Used to Track You: none.**
-- The privacy manifest (`PrivacyInfo.xcprivacy`) declares the same two types (UserID, GameplayContent), linked,
-  not tracking, App Functionality.
+- Expected listing: **Data Linked to You: Contact Info, Identifiers, User Content**. **Data Used to Track You: none.**
+- The privacy manifest (`PrivacyInfo.xcprivacy`) declares the same four types (EmailAddress, Name, UserID,
+  GameplayContent), linked, not tracking, App Functionality. The Firebase and GoogleSignIn pods ship their own.
 
 If analytics is ever turned on (a native release, never by OTA): add Usage Data → Product Interaction (and
 Diagnostics → Crash Data if a crash SDK is added), purpose Analytics, linked as built, not tracking; update the
@@ -105,7 +109,9 @@ encryption declaration is needed.
 | Content rights | "Does your app contain, show, or access third-party content?" **No** (own art, own cats; Pink Paw shelter cat names and photos are licensed, see the founder's licence note) |
 | Price | Free, all territories (decide if any territory should be excluded) |
 | Review contact | First and last name and phone: **founder fills in** (deliver does not hold them). Email: info@tokentails.com (`review_information/email_address.txt`) |
-| Sign-in required | No (no demo account) |
+| Sign-in required | No (sign-in is optional; no demo account needed: any Apple ID or email works) |
+| Guideline 4.8 (login services) | Sign in with Apple is offered, first, wherever Google is (`pawlegends-app/src/host/sheet.ts`; entitlement in `App-iOS.entitlements` and the Mac `App.entitlements`) |
+| Guideline 5.1.1(v) (account deletion) | In the app: title chip → Delete account, or Settings → Account → Delete account; web: https://tokentails.com/pawlegends/account. Deletes on the server at once (`DELETE /user/me`), revokes Sign in with Apple with the app's own client id |
 | Review notes | `pawlegends-app/fastlane/metadata/review_information/notes.txt` |
 | Version release | Manual (the `release` lane submits with `automatic_release: false`) |
 | What's New | `release_notes.txt`: skipped by deliver for the first version; used from 1.0.1 on |

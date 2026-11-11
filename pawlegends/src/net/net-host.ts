@@ -13,7 +13,7 @@ import { SIM_VERSION } from '../sim/version';
 import { decodeSnap, type WelcomeMsg } from '../host/protocol';
 import type { HostListener } from '../host/local-host';
 import { Frame, SocialLimiter, catchupBodies, clampSocialPoint, socialIdOk, type MatchMsg, type ServerBinary, type ServerJson, type SocialKind, type VoteKind } from './proto';
-import type { PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
+import type { NetNumbers, PartyLink, PartyLinkListener, SeatInfo, SlotReasonText } from '../app/mpTypes';
 import { socialLine } from '../data/social';
 import type { PartySocket } from './socket';
 import { MoveCoalescer } from './input';
@@ -27,6 +27,7 @@ import { Pacer } from './pacer';
 import { HEROES } from '../data/heroes/index';
 import type { ViewFrame } from '../render/interp';
 import { watchVisibility } from './visibility';
+import { ActionPredictor, confirmWindowMs, type PredictedAction } from './predict-action';
 
 export interface NetNote {
   key: string;
@@ -47,6 +48,11 @@ export interface NetHostOptions {
   now?: () => number;
   /** The prediction walker's path planner (tests); default: the sim's A* on the client's wall grid. */
   planner?: Planner;
+  /**
+   * LIVE-MATCH-DEPLOYS.md §14: the socket has not been bound to this room for MATCH_LOST_MS of visible time (the relay
+   * never came back, or no relay knows the seat any more). The party client leaves the match screen and says so.
+   */
+  lost?: () => void;
 }
 
 /** The party result a NetHost hands to MatchSession's `end` (display only: the score posts as v:2, §6). */
@@ -116,7 +122,18 @@ export class NetHost implements PartyLink {
   private lastTurn = -1;
   private catching = false;
   private waitingShown = false;
+  /** "Reconnecting…" waits this timer (LIVE-MATCH-DEPLOYS.md §6): a deploy move that rebinds sooner shows nothing. */
+  private reconnectNoteTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Until then "Waiting for server…" stays hidden (a reconnect or a relay move is in progress). */
+  private quietUntil = -Infinity;
   private lastSyncMs = -Infinity;
+  /**
+   * §14: the socket went down and has not been bound to this room again since (no `match`, no TURN): visible time
+   * down, counted by the watchdog. Null while bound. A long pause vote is bound (the socket stays up), so never counts.
+   */
+  private down: { ms: number; lastAt: number; notedAt: number } | null = null;
+  private lostFired = false;
+  private watchdog: ReturnType<typeof setInterval> | null = null;
   private endInfo: PartyEnd;
   private result: { r: MatchResult; record: PartyReplayRecord | PvpReplayRecord | null } | null = null;
   /** Casual PvP (V16.md §5): this seat's team (slots 3..5 are team 1), and the room is PvP. */
@@ -197,11 +214,26 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'vote', kind, yes });
   }
 
-  net(): { rttMs: number; buffer: number; holds: number; catchups: number; inputMs: number; inputP50?: number; inputP95?: number; inputN: number } {
+  net(): NetNumbers {
     const q = this.inputStats();
-    return { rttMs: Math.round(this.socket.rttMs), buffer: this.buffer, holds: this.holds, catchups: this.catchups, inputMs: Math.round(this.inputLatencyMs()), ...(q.n ? { inputP50: q.p50, inputP95: q.p95 } : {}), inputN: q.n };
+    const r = this.socket.rttStats();
+    return {
+      rttMs: Math.round(this.socket.rttMs),
+      ...(r.n ? { rttP50: r.p50, rttP95: r.p95, jitterP95: r.jitterP95 } : {}),
+      buffer: this.buffer,
+      holds: this.holds,
+      catchups: this.catchups,
+      marginMs: this.marginMs,
+      lateTurns: this.lateTurns,
+      reconnects: this.socket.reconnects,
+      inputMs: Math.round(this.inputLatencyMs()),
+      ...(q.n ? { inputP50: q.p50, inputP95: q.p95 } : {}),
+      inputN: q.n,
+    };
   }
   private buffer = 1;
+  private marginMs = 0;
+  private lateTurns = 0;
 
   /** The party view changed (PartyClient, through the socket tap): names, connection dots and card art per slot. */
   setSeats(seats: SeatInfo[]): void {
@@ -245,11 +277,16 @@ export class NetHost implements PartyLink {
       binary: (f, raw) => this.fromBinary(f, raw),
       state: (s) => {
         if (s === 'reconnecting') {
-          this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
           this.lostAt(this.now(), 'socket');
-        }
+          this.quietUntil = this.now() + QUIET_WAIT_MS;
+          this.noteReconnectLater();
+          // each drop: the first "Reconnecting…" is noteReconnectLater's (at 1.5 s); the watchdog repeats it after that
+          if (this.down) this.down.notedAt = this.now();
+          else this.down = { ms: 0, lastAt: this.now(), notedAt: this.now() };
+        } else if (s === 'open') this.clearReconnectNote();
       },
     });
+    this.watchdog = setInterval(() => this.watch(), WATCH_EVERY_MS);
     if (opts.visibility !== false && typeof document !== 'undefined') {
       this.unwatch = watchVisibility({
         hidden: () => {
@@ -379,6 +416,8 @@ export class NetHost implements PartyLink {
     }
     if (cmd.op === Op.Move) this.predictor.move(cmd.x, cmd.y, this.now());
     else this.predictor.stop();
+    // N1: a Cast, Trick or Attack the newest snapshot allows starts its look on the next frame (never when piloted)
+    if (!this.piloted(this.match.you.slot)) this.actions.start(cmd, this.lastSelf(), this.now());
     if (this.piloted(this.match.you.slot)) {
       // an AFK player reclaims with any command; other pilot reasons need `back` (and the player is here: keep asking)
       this.reclaimUntil = Math.max(this.reclaimUntil, this.now() + 10_000);
@@ -396,8 +435,58 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'bye' });
   }
 
+  /**
+   * Every WATCH_EVERY_MS while the seat is unbound: keep "Reconnecting…" on screen (the socket retries by itself), and
+   * after MATCH_LOST_MS of visible time give up: the party client leaves the match with "Lost the connection to the
+   * match" instead of a frozen frame forever. A hidden tab does not count (a phone in a pocket comes back to its seat).
+   */
+  private watch(): void {
+    const d = this.down;
+    if (!d || this.disposed || this.lostFired || this.serverEnd) return;
+    const now = this.now();
+    const visible = typeof document === 'undefined' || !document.hidden;
+    if (visible) d.ms += Math.min(Math.max(0, now - d.lastAt), 2 * WATCH_EVERY_MS);
+    d.lastAt = now;
+    if (d.ms >= MATCH_LOST_MS) {
+      this.lostFired = true;
+      this.clearReconnectNote();
+      this.opts.lost?.();
+      return;
+    }
+    // the note while the socket itself is down; an open socket still waiting for its seat shows the frozen frame (and
+    // "Waiting for server…" from the turn pacing) but still counts toward MATCH_LOST_MS
+    if (visible && !this.socket.open && d.ms >= QUIET_RECONNECT_MS && now - d.notedAt >= RECONNECT_NOTE_EVERY_MS) {
+      d.notedAt = now;
+      this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: RECONNECT_NOTE_EVERY_MS + 1000 });
+    }
+  }
+
+  /** Bound to this room again (a `match` for it, or a turn): the outage is over. */
+  private bound(): void {
+    this.down = null;
+  }
+
+  /** Show "Reconnecting…" only if the socket is still not back after QUIET_RECONNECT_MS. */
+  private noteReconnectLater(): void {
+    if (this.reconnectNoteTimer !== null || this.disposed) return;
+    this.reconnectNoteTimer = setTimeout(() => {
+      this.reconnectNoteTimer = null;
+      if (this.disposed || this.socket.open) return;
+      if (this.down) this.down.notedAt = this.now();
+      this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
+    }, QUIET_RECONNECT_MS);
+  }
+
+  private clearReconnectNote(): void {
+    if (this.reconnectNoteTimer !== null) clearTimeout(this.reconnectNoteTimer);
+    this.reconnectNoteTimer = null;
+  }
+
   dispose(): void {
     this.disposed = true;
+    this.clearReconnectNote();
+    if (this.watchdog !== null) clearInterval(this.watchdog);
+    this.watchdog = null;
     for (const t of this.dropTimers.values()) clearTimeout(t);
     this.dropTimers.clear();
     this.coalescer.dispose();
@@ -407,6 +496,7 @@ export class NetHost implements PartyLink {
   }
 
   private fromBinary(f: ServerBinary, raw: Uint8Array): void {
+    if (f.type === Frame.TURN || f.type === Frame.CATCHUP) this.bound();
     if (f.type === Frame.TURN) {
       // forward the body (without the type byte) as a transferable buffer
       const body = raw.slice(1);
@@ -419,6 +509,7 @@ export class NetHost implements PartyLink {
   }
 
   private fromJson(m: ServerJson): void {
+    if (m.t === 'match' && m.room === this.match.room) this.bound();
     switch (m.t) {
       case 'slot': {
         if (m.slot === this.match.you.slot) {
@@ -473,7 +564,11 @@ export class NetHost implements PartyLink {
       }
       case 'error':
         if (m.code === 'seat_elsewhere') this.note({ key: 'mp-tab', title: 'Playing in another tab', tone: 'bad', ttl: 8000 });
-        else if (m.code === 'room_gone') this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info' });
+        // a relay move (a deploy): the socket comes back by itself, quietly unless it takes longer than 1.5 s
+        else if (m.code === 'room_gone' || m.code === 'server_moving' || m.code === 'room_elsewhere') {
+          this.quietUntil = this.now() + QUIET_WAIT_MS;
+          this.noteReconnectLater();
+        }
         return;
       case 'end':
         this.serverEnd = m;
@@ -505,6 +600,7 @@ export class NetHost implements PartyLink {
         this.listener.snap?.(decodeSnap(m.buf));
         return;
       case 'events':
+        this.actions.confirm(m.list as SimEvent[], this.mySlot);
         this.listener.events?.(m.tick, m.list as SimEvent[]);
         return;
       case 'hash':
@@ -536,6 +632,8 @@ export class NetHost implements PartyLink {
         this.socket.lastTurn = m.lastTurn;
         this.buffer = m.B;
         this.holds = m.holds;
+        if (typeof m.margin === 'number') this.marginMs = m.margin;
+        if (typeof m.late === 'number') this.lateTurns = m.late;
         if (m.modeMask !== this.lastMask) {
           const prev = this.lastMask;
           this.lastMask = m.modeMask;
@@ -550,7 +648,7 @@ export class NetHost implements PartyLink {
         }
         // the relay said the match ended but this sim has not: the last turns are missing, ask for them
         if (this.serverEnd && !this.coreEnded && this.now() - this.endAtMs > 2000) this.retrySync(m.lastTurn + 1);
-        if (m.waiting && !this.waitingShown) {
+        if (m.waiting && !this.waitingShown && this.now() >= this.quietUntil) {
           this.waitingShown = true;
           this.note({ key: 'mp-wait', title: 'Waiting for server…', tone: 'bad', ttl: 3000 });
         } else if (!m.waiting) this.waitingShown = false;
@@ -728,7 +826,11 @@ export class NetHost implements PartyLink {
    */
   present(f: ViewFrame): void {
     const v = f.byId.get(this.mySlot);
+    // N1 reads the gate (cooldowns, crowd control) from the newest snapshot, looked up only when a command goes out
+    this.lastFrame = f;
+    this.actions.expire(this.now(), confirmWindowMs(this.inputLatencyMs()));
     if (!v || v.state === 'dead') {
+      this.actions.reset();
       this.predictor.reset();
       this.yawShown = null;
       return;
@@ -775,6 +877,26 @@ export class NetHost implements PartyLink {
     v.fy += off.dy;
   }
 
+  /** N1 (predict-action.ts): own action starts drawn before the sim confirms them. */
+  readonly actions = new ActionPredictor();
+  private lastFrame: ViewFrame | null = null;
+  /** The own hero in the newest snapshot (the drawn one as a fallback): the N1 gate, read at send time only. */
+  private lastSelf(): import('../sim/api').EntitySnap | null {
+    const f = this.lastFrame;
+    if (!f) return null;
+    const me = this.mySlot;
+    const list = f.latest?.entities;
+    if (list) for (const e of list) if (e.id === me) return e;
+    return f.byId.get(me) ?? null;
+  }
+
+  /** MatchHost.takePredicted: the predicted Casts and Tricks to draw now, and the ones given up (each once). */
+  takePredicted(): { shown: PredictedAction[]; cancelled: PredictedAction[] } | null {
+    // nearly every frame: nothing queued, nothing allocated
+    if (!this.actions.hasQueued) return null;
+    return { shown: this.actions.takeShown().filter((p) => p.kind !== 'attack'), cancelled: this.actions.takeCancelled().filter((p) => p.kind !== 'attack') };
+  }
+
   /** MatchHost.predictedSelf: the walker while a predicted walk is in flight (where a command sent now lands). */
   predictedSelf(): { x: number; y: number } | null {
     return this.predictor.position;
@@ -812,3 +934,15 @@ const clock = (s: number): string => `${Math.floor(s / 60)}:${String(s % 60).pad
 
 const isHostListener = (l: HostListener | PartyLinkListener): l is HostListener =>
   'welcome' in l || 'snap' in l || 'events' in l || 'end' in l || 'error' in l;
+/** LIVE-MATCH-DEPLOYS.md §6: "Reconnecting…" only when the socket is not back within this long (a deploy move is not). */
+export const QUIET_RECONNECT_MS = 1500;
+/** And "Waiting for server…" stays hidden this long after a socket loss or a relay move. */
+export const QUIET_WAIT_MS = 5000;
+/**
+ * §14: a seat not bound again for this long (visible time) is given up: the match screen leaves with a clear message.
+ * A crash restore takes about 10 s and a deploy move under 2 s; 45 s is past anything the relays recover from quickly.
+ */
+export const MATCH_LOST_MS = 45_000;
+/** The watchdog's tick, and how often "Reconnecting…" is shown again while the seat stays unbound. */
+export const WATCH_EVERY_MS = 1000;
+export const RECONNECT_NOTE_EVERY_MS = 4000;

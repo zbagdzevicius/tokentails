@@ -18,6 +18,7 @@ import {
     partySimFor,
     simFor,
     SIM_VERSION as LIVE_SIM_VERSION,
+    SIM_VERSIONS,
     type PawlegendsPartySim,
 } from '../../vendor/pawlegends-sim';
 import {
@@ -46,8 +47,10 @@ import {
     type MatchMsg,
 } from './net';
 import { LoopGate } from './loop-gate';
+import { RTT_MAX_MS, RelayRtt, regionOfCountry, type RttRegion } from './relay-rtt';
 import { PARTY_LIMITS, TURN_MS } from './party-limits';
 import {
+    MAX_MEMBERS,
     PartyService,
     PARTY_TIMING,
     type Member,
@@ -59,10 +62,11 @@ import {
 import { PartyTicketService } from './party-ticket.service';
 import { RefereePool, roomUnits } from './referee-pool';
 import type { RefereeEnd } from './referee-core';
+import type { PresenceEntry } from './presence-sink';
 import type { RefereeOut } from './referee-host';
 import { AFK_REASONS, Room, type PilotReason } from './room';
 import { RoomScheduler, phaseOf } from './room-scheduler';
-import type { Occupant, RoomStore, StoredRoom } from './room-store';
+import type { Occupant, RelayRow, RoomStore, StoredParty, StoredRoom } from './room-store';
 import { memoryMm, type MmHookFactory, type MmHooks, type MmRelayApi, type MmRoomView } from '../mm/mm-bridge';
 import { MemoryMmRoomStore } from '../mm/mm-room.schema';
 
@@ -92,7 +96,27 @@ export interface RelayOptions {
      * ratings); without it the relay uses an in-memory one (specs, the e2e harness). Always on (no flag).
      */
     mm?: MmHookFactory;
+    /**
+     * The relay owns its HTTP server (BACKEND_ROLE=relay, the GCP VM): a drain from the endpoint closes the listener so
+     * the kernel sends every new connection to the new process sharing the port (LIVE-MATCH-DEPLOYS.md §8.2). Never on
+     * DigitalOcean, where the same server also serves the HTTP API.
+     */
+    ownsServer?: boolean;
+    /** Default drain deadline (ms) when a newer relay generation is ready (§4.4). */
+    drainMaxMs?: number;
+    /**
+     * The relay pool (RELAY_POOL; the platform by default): only a newer relay of the same pool makes this one drain
+     * (§4.4). During the GCP migration the DigitalOcean app and the GCP relay VM share one database: a GCP relay coming
+     * up must never drain the relay that still serves players. Handoffs, pulls and the restore loop ignore pools.
+     */
+    pool?: string;
 }
+
+/** What started a drain (LIVE-MATCH-DEPLOYS.md §4.1); a later trigger only makes it more final. */
+export type DrainTrigger = 'generation' | 'endpoint' | 'sigterm';
+const TRIGGER_RANK: Record<DrainTrigger, number> = { generation: 0, endpoint: 1, sigterm: 2 };
+export type RelayState = 'serving' | 'draining' | 'stopped';
+const DEFAULT_POOL = 'app';
 
 /** A card the relay may show: art, element, tier, the catalog or breed name, and the owner-only custom name. */
 export interface PartyCard {
@@ -126,6 +150,9 @@ interface Sock {
     /** Binary frames (CMD, BEAT, HASH): token bucket. */
     bin: { tokens: number; atMs: number };
     lastEchoMs: number;
+    /** LATENCY-PLAN M2: the visitor's continent (`cf-ipcountry`) and when the open ping went out (0: none). */
+    region: RttRegion;
+    pingAtMs: number;
     /** `party.card`: last request time (each one reads the cat collection). */
     lastCardMs: number;
     lastSyncMs: number;
@@ -136,6 +163,10 @@ interface Sock {
     seatSlot: number;
     pingTimer: NodeJS.Timeout | null;
     closed: boolean;
+    /** A `hello` waiting for its room or party to move here (LIVE-MATCH-DEPLOYS.md §5.4). */
+    pending?: boolean;
+    /** A `party.join` looking for its party in the store (LIVE-MATCH-DEPLOYS.md §14): one lookup at a time. */
+    joining?: boolean;
 }
 
 interface LiveRoom {
@@ -162,6 +193,15 @@ interface LiveRoom {
     coop?: boolean;
     /** A casual PvP room (`match.mode: 'casual'`): humans on both teams, team-scoped social and votes. */
     casual?: { species: ['cat' | 'dog', 'cat' | 'dog'] };
+    /** The checkpoint being written (a handoff waits for it, so its append never races a regular one). */
+    inflight?: Promise<boolean>;
+    /** The room is being handed to another relay (its clock is stopped; nothing else may end or move it). */
+    moving?: boolean;
+    /**
+     * A restored room holds its clock until the humans seated in it are bound again, at most `restoreHoldMs`
+     * (LIVE-MATCH-DEPLOYS.md §5.5): both teams are frozen the same, nobody plays against bots for a moment.
+     */
+    hold?: { sinceMs: number; need: Set<number>; timer: NodeJS.Timeout } | null;
 }
 
 /** Seats per team of a live room (5v5 Classic on Hearthwood: 5). */
@@ -235,7 +275,42 @@ export class PartyRelay {
     private partyTimer: NodeJS.Timeout | null = null;
     private readonly now: () => number;
     private readonly upgradeHandler: (req: IncomingMessage, socket: Duplex, head: Buffer) => void;
-    private stopped = false;
+    /** serving → draining → stopped (LIVE-MATCH-DEPLOYS.md §4.1); a generation drain can return to serving. */
+    private state: RelayState = 'serving';
+    private drainInfo: {
+        trigger: DrainTrigger;
+        startedMs: number;
+        deadlineMs: number;
+        done: Promise<void>;
+        resolve: () => void;
+        finished: boolean;
+    } | null = null;
+    /** When this relay first finished a restore pass; 0 before. */
+    private readyAtMs = 0;
+    /**
+     * When a player's socket first reached this ready relay (its generation, §4.4); 0 before. Until then its row says
+     * `standby` and it never makes an older relay drain: on DigitalOcean the new container is ready (Mongo up, restore
+     * pass done) well before the load balancer routes to it, and an old relay draining in that gap would bounce lobby
+     * players and the Quick Play queue back to itself for 10 to 30 s.
+     */
+    private announcedMs = 0;
+    private sawSocket = false;
+    private lastBeatMs = 0;
+    private loopTimer: NodeJS.Timeout | null = null;
+    private drainTimer: NodeJS.Timeout | null = null;
+    private looping = false;
+    private drainTicking = false;
+    private restoreRun: Promise<string[]> | null = null;
+    /** Relay rows seen by the last loop pass (fresh ones only). */
+    private relayRows: RelayRow[] = [];
+    /** When a party's room ended (its results tail may still sync): a draining relay moves it a little later. */
+    private readonly partyEndedAt = new Map<string, number>();
+    /** Party saves run one after another per party, so a handoff save is never overtaken by an older one. */
+    private readonly partySaves = new Map<string, Promise<void>>();
+    /** Rooms and parties a player here is waiting for (a pull, §5.4): claimable across pools. Counted per waiter. */
+    private readonly pulling = new Map<string, number>();
+    /** Gaps (ms) between a room's last turn on its old relay and its clock running here (restore and handoff). */
+    private readonly restoreGaps: number[] = [];
 
     constructor(private readonly opts: RelayOptions) {
         this.now = opts.now ?? Date.now;
@@ -267,6 +342,7 @@ export class PartyRelay {
                 },
                 send: (member, msg) => this.sendJsonTo(member, msg),
                 startMatch: plan => void this.startMatch(plan),
+                ended: p => this.endPartyRow(p),
             },
             this.now
         );
@@ -285,6 +361,22 @@ export class PartyRelay {
             this.sweep();
         }, 500);
         this.partyTimer.unref?.();
+        // LIVE-MATCH-DEPLOYS.md §5.3: claim handed-off and stale rooms every second, not only at boot
+        this.loopTimer = setInterval(() => void this.loop(), PARTY_LIMITS.restoreEveryMs);
+        this.loopTimer.unref?.();
+    }
+
+    /** serving, draining or stopped. */
+    get relayState(): RelayState {
+        return this.state;
+    }
+
+    get draining(): boolean {
+        return this.state !== 'serving';
+    }
+
+    private get pool(): string {
+        return this.opts.pool || DEFAULT_POOL;
     }
 
     /** The party API of the sim the party is pinned to (its leader's), or null before the leader's hello. */
@@ -336,7 +428,7 @@ export class PartyRelay {
     private onUpgrade(req: IncomingMessage, socket: Duplex, head: Buffer): void {
         const url = req.url ?? '';
         if (url.split('?')[0] !== WS_PATH) return;
-        if (this.stopped) return this.refuseUpgrade(socket, 503);
+        if (this.state === 'stopped') return this.refuseUpgrade(socket, 503);
         const origin = req.headers.origin;
         if (!origin) {
             if (!this.opts.allowNoOrigin) return this.refuseUpgrade(socket, 403);
@@ -356,10 +448,12 @@ export class PartyRelay {
         for (const s of this.socks) if (s.ipKey === ipKey) perIp++;
         if (perIp >= PARTY_LIMITS.socketsPerIp) return this.refuseUpgrade(socket, 429);
         this.upgrades.push(now);
-        this.wss.handleUpgrade(req, socket, head, ws => this.onSocket(ws, ip, ipKey));
+        this.wss.handleUpgrade(req, socket, head, ws =>
+            this.onSocket(ws, ip, ipKey, regionOfCountry(req.headers['cf-ipcountry']))
+        );
     }
 
-    private onSocket(ws: WebSocket, ip: string, ipKey: string): void {
+    private onSocket(ws: WebSocket, ip: string, ipKey: string, region: RttRegion = 'unknown'): void {
         const s: Sock = {
             ws,
             id: token128(),
@@ -367,6 +461,8 @@ export class PartyRelay {
             ipKey,
             bin: { tokens: PARTY_LIMITS.binary.burst, atMs: this.now() },
             lastEchoMs: -Infinity,
+            region,
+            pingAtMs: 0,
             lastCardMs: -Infinity,
             helloed: false,
             helloTimer: null,
@@ -387,6 +483,8 @@ export class PartyRelay {
             closed: false,
         };
         this.socks.add(s);
+        this.sawSocket = true;
+        this.announce();
         s.helloTimer = setTimeout(() => {
             if (!s.helloed) ws.close(4000, 'hello timeout');
         }, PARTY_LIMITS.helloTimeoutMs);
@@ -401,11 +499,31 @@ export class PartyRelay {
         });
         ws.on('close', () => this.onClose(s));
         ws.on('error', () => undefined);
-        s.pingTimer = setInterval(() => {
-            if (ws.readyState === WebSocket.OPEN) ws.ping();
-        }, PARTY_LIMITS.pingLobbyMs);
+        ws.on('pong', () => this.onPong(s));
+        s.pingTimer = setInterval(() => this.ping(s), PARTY_LIMITS.pingLobbyMs);
         s.pingTimer.unref?.();
     }
+
+    /** A keep-alive ping; its pong is an RTT sample (LATENCY-PLAN M2). Off the tick path: a timer per socket. */
+    private ping(s: Sock): void {
+        if (s.ws.readyState !== WebSocket.OPEN) return;
+        const now = this.now();
+        // a pong still due: keep its ping's time (a newer stamp would measure a slow link short); past RTT_MAX_MS it
+        // is a stall (no sample) and a new ping starts
+        if (s.pingAtMs > 0 && now - s.pingAtMs <= RTT_MAX_MS) return;
+        s.pingAtMs = now;
+        s.ws.ping();
+    }
+
+    private onPong(s: Sock): void {
+        if (s.pingAtMs <= 0) return;
+        const now = this.now();
+        this.rtt.add(s.region, now - s.pingAtMs, now);
+        s.pingAtMs = 0;
+    }
+
+    /** Server-measured socket RTT by continent (relay-rtt.ts): no IPs, no ids. */
+    private readonly rtt = new RelayRtt();
 
     /** The per-socket binary token bucket (40/s, burst 60). */
     private binaryAllowed(s: Sock, cost: number): boolean {
@@ -496,7 +614,10 @@ export class PartyRelay {
         }
         if (!s.helloed) {
             if (msg.t !== 'hello') return this.strike(s);
-            this.hello(s, msg);
+            if (s.pending) return;
+            void this.helloOrMove(s, msg).catch(e =>
+                this.log('relay_error', { message: String((e as Error)?.message || e).slice(0, 200) })
+            );
             return;
         }
         this.onJson(s, msg);
@@ -504,6 +625,248 @@ export class PartyRelay {
 
     // -----------------------------------------------------------------------------------------------------------
     // hello, identity, resume
+
+    /** Tell a socket this relay is draining: reconnect at once (to the new relay) and close it with 1012. */
+    private moveSock(s: Sock, tell = true): void {
+        if (s.closed) return;
+        if (tell) this.error(s, 'server_moving', 250);
+        s.ws.close(1012, 'moving');
+    }
+
+    /**
+     * LIVE-MATCH-DEPLOYS.md §4.1 and §5.4. A draining relay welcomes only the players of a room (or a starting party)
+     * still here; everyone else reconnects to the new relay. A serving relay that does not know a resume token looks
+     * for its party in the store: when the party or its room is moving here, the hello waits for the claim.
+     */
+    private async helloOrMove(s: Sock, msg: Extract<ClientJson, { t: 'hello' }>): Promise<void> {
+        const token = typeof msg.resume?.token === 'string' ? msg.resume.token : null;
+        if (this.state !== 'serving') {
+            const member = token ? this.resume.get(hashKey(token))?.member : undefined;
+            const party = member ? this.parties.partyOf(member) : undefined;
+            const live = party?.room ? this.rooms.get(party.room) : undefined;
+            const here = !!party && ((!!live && !live.moving) || party.phase === 'pick' || party.phase === 'loading');
+            if (this.state === 'stopped' || !here) {
+                // its lobby or results party goes first, so the new relay finds it when this socket gets there
+                if (this.state === 'draining' && party && !live && this.parties.byId(party.id) === party)
+                    await this.handoffParty(party);
+                return this.moveSock(s);
+            }
+            return this.hello(s, msg);
+        }
+        if (!token || this.resume.has(hashKey(token)) || this.seatTaken.has(hashKey(token))) return this.hello(s, msg);
+        // the checks hello() makes first: an outdated client is told so without a store read
+        if (msg.proto < PROTO_MIN || msg.proto > PROTO || !partySimFor(msg.sim, msg.simHash)) return this.hello(s, msg);
+        s.pending = true;
+        if (s.helloTimer) clearTimeout(s.helloTimer);
+        let verdict: 'local' | 'retry' | 'over' | 'none' = 'none';
+        try {
+            verdict = await this.pull(hashKey(token));
+        } catch (e) {
+            this.log('relay_pull_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+        }
+        s.pending = false;
+        if (s.closed) return;
+        if (verdict === 'retry') {
+            this.error(s, 'room_elsewhere', 500);
+            s.ws.close(4013, 'room elsewhere');
+            return;
+        }
+        this.hello(s, msg);
+        if (verdict === 'over') this.error(s, 'room_over');
+    }
+
+    /**
+     * Where the party of an unknown resume token is (LIVE-MATCH-DEPLOYS.md §5.4): `local` once it was claimed here,
+     * `retry` while another serving relay holds it (or the claim did not come in time), `over` when its match ended,
+     * `none` when nothing is known (a fresh member, as before).
+     */
+    private async pull(hash: string): Promise<'local' | 'retry' | 'over' | 'none'> {
+        const store = this.opts.store;
+        const me = this.opts.tickets.boot;
+        const nowMs = this.now();
+        const party = await store.partyByResume(hash, new Date(nowMs - PARTY_LIMITS.partyHardMaxMs));
+        if (!party || party.ended) return 'none';
+        if (this.resume.has(hash)) return 'local';
+        const owners = await store.relays(new Date(nowMs - PARTY_LIMITS.relayStaleMs));
+        const ownerOf = (id: string | undefined | null) => (id ? owners.find(r => r._id === id) : undefined);
+        const roomId = ((party.doc as { room?: string | null }).room ?? null) as string | null;
+        if (roomId) {
+            const row = await store.get(roomId);
+            if (!row) return 'none';
+            if (row.status !== 'live') return 'over';
+            // this relay runs the room and does not know the token: not a move (a backfilled leaver, a left member)
+            if (row.owner === me) return 'none';
+            if (!row.handoff) {
+                const owner = ownerOf(row.owner);
+                if (owner && owner.state !== 'draining' && !this.ownerDead(owner, nowMs)) return 'retry';
+                // a draining owner hands this room over within a poll; an owner without a row (a crash, or a relay
+                // from before live-match deploys) loses its lease and the restore loop claims the room
+                if (owner) await store.want(roomId, row.owner, me, new Date(nowMs));
+            }
+        } else if (!party.handoff) {
+            if (!party.owner || party.owner === me) return 'none';
+            const owner = ownerOf(party.owner);
+            // §14: its owner is gone without a handoff (a crash): the party continues here, with its code and tokens
+            if (!owner || this.ownerDead(owner, nowMs)) return (await this.takeOver(party)) ? 'local' : 'retry';
+            if (owner.state !== 'draining') return 'retry';
+            // a draining owner hands its lobby parties over within a tick
+        }
+        return (await this.waitHere(roomId ?? party._id, () => this.resume.has(hash))) ? 'local' : 'retry';
+    }
+
+    /**
+     * Run restore passes until `here()` holds, at most `pullHoldMs` (§5.4 step 5). Meanwhile `id` (a room or a party)
+     * is claimable by this relay whatever pool left it.
+     */
+    private async waitHere(id: string, here: () => boolean): Promise<boolean> {
+        this.pulling.set(id, (this.pulling.get(id) ?? 0) + 1);
+        try {
+            const until = Date.now() + PARTY_LIMITS.pullHoldMs;
+            while (Date.now() < until && this.state === 'serving') {
+                if (here()) return true;
+                await this.restore();
+                if (here()) return true;
+                await new Promise(r => setTimeout(r, PARTY_LIMITS.restorePullEveryMs));
+            }
+            return here();
+        } finally {
+            const n = (this.pulling.get(id) ?? 1) - 1;
+            if (n > 0) this.pulling.set(id, n);
+            else this.pulling.delete(id);
+        }
+    }
+
+    /** A relay row whose heartbeat stopped: the process is gone (crash, SIGKILL), its parties may be taken over. */
+    private ownerDead(owner: RelayRow, nowMs: number): boolean {
+        return nowMs - new Date(owner.heartbeatAt).getTime() > PARTY_LIMITS.relayDeadMs;
+    }
+
+    /**
+     * §14: a lobby party whose owner relay is gone (no heartbeat, no handoff) continues on this relay from its stored
+     * row: same code, same members, their resume tokens. Fenced on the old owner, so two relays never both take it.
+     */
+    private async takeOver(row: StoredParty): Promise<boolean> {
+        if (this.state !== 'serving' || !row.owner) return false;
+        if (this.parties.byId(row._id)) return true;
+        const taken = await this.opts.store.takeParty(row._id, row.owner, this.opts.tickets.boot, new Date(this.now()));
+        if (!taken) return false;
+        if (!this.parties.byId(taken._id)) this.rebuildParty(taken, null, null);
+        this.log('relay_takeover_party', {});
+        return true;
+    }
+
+    /** The party ended here: its row says so (serialized behind its pending saves), for joins on other relays. */
+    private endPartyRow(p: Party): void {
+        this.pendingParty.delete(p.id);
+        const prev = this.partySaves.get(p.id) ?? Promise.resolve();
+        const next = prev
+            .then(() => this.opts.store.endParty(p.id, this.opts.tickets.boot, new Date(this.now())))
+            .catch(() => undefined);
+        this.partySaves.set(p.id, next);
+        void next.finally(() => {
+            if (this.partySaves.get(p.id) === next) this.partySaves.delete(p.id);
+        });
+    }
+
+    /**
+     * A join by code this relay does not hold (LIVE-MATCH-DEPLOYS.md §14). The party row in the store names its owner:
+     * - `here`: the party is here now (claimed from a handoff, pulled from a draining owner, or taken over from a dead
+     *   one), so the join runs as usual;
+     * - `retry`: another live relay holds it; the client reconnects (the balancer picks again) and joins again;
+     * - `ended` or `none`: what the code means everywhere.
+     */
+    private async findParty(code: string): Promise<'here' | 'retry' | 'ended' | 'none'> {
+        const store = this.opts.store;
+        const me = this.opts.tickets.boot;
+        const nowMs = this.now();
+        const row = await store.partyByCode(code, new Date(nowMs - PARTY_LIMITS.partyHardMaxMs));
+        if (this.parties.hasCode(code)) return 'here';
+        if (!row) return 'none';
+        if (row.ended) return 'ended';
+        if (this.state !== 'serving') return 'retry';
+        if (row.handoff) {
+            const claimed = await store.claimParty(row._id, me, new Date(nowMs));
+            if (claimed && !this.parties.byId(claimed._id)) {
+                this.rebuildParty(claimed, null, null);
+                this.log('relay_restore_party', { via: 'join' });
+            }
+            return this.parties.hasCode(code) ? 'here' : 'retry';
+        }
+        // a row this relay wrote but no longer holds (the party moved away and on): nothing to find here
+        if (!row.owner || row.owner === me) return 'none';
+        const owners = await store.relays(new Date(nowMs - PARTY_LIMITS.relayStaleMs));
+        const owner = owners.find(r => r._id === row.owner);
+        const roomId = ((row.doc as { room?: string | null }).room ?? null) as string | null;
+        const room = roomId ? await store.get(roomId) : null;
+        if (room && room.status === 'live') {
+            // a party in a match: its room moves with its players (pull, push or the restore loop), never by a join
+            const roomOwner = owners.find(r => r._id === room.owner);
+            if (room.owner === me) return 'none';
+            if (roomOwner && !this.ownerDead(roomOwner, nowMs) && roomOwner.state !== 'draining' && !room.handoff)
+                return 'retry';
+            if (roomOwner && roomOwner.state === 'draining' && !room.handoff)
+                await store.want(room._id, room.owner, me, new Date(nowMs));
+            return (await this.waitHere(room._id, () => this.parties.hasCode(code))) ? 'here' : 'retry';
+        }
+        if (!owner || this.ownerDead(owner, nowMs)) return (await this.takeOver(row)) ? 'here' : 'retry';
+        // a serving owner newer than this relay keeps the party (this relay drains within a second): retry there
+        const mine = this.announcedMs || Number.POSITIVE_INFINITY;
+        if (owner.state !== 'draining' && new Date(owner.readyAt).getTime() > mine) return 'retry';
+        // a draining owner hands its lobby parties over within a tick; an older serving one drains within a second
+        // (this relay is the newer generation) and then does
+        return (await this.waitHere(row._id, () => this.parties.hasCode(code))) ? 'here' : 'retry';
+    }
+
+    /** `party.join` for a code this relay does not hold: look in the store, then join here or send the socket on. */
+    private async joinElsewhere(s: Sock, code: string): Promise<void> {
+        if (s.joining) return;
+        s.joining = true;
+        let where: 'here' | 'retry' | 'ended' | 'none' = 'none';
+        try {
+            where = await this.findParty(code);
+        } catch (e) {
+            this.log('relay_join_lookup_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+            where = 'retry';
+        } finally {
+            s.joining = false;
+        }
+        if (s.closed || !s.memberId) return;
+        if (where === 'here') return this.joinHere(s, code, false);
+        if (where === 'retry') {
+            this.log('relay_join_elsewhere', {});
+            this.error(s, 'party_elsewhere', PARTY_LIMITS.partyElsewhereRetryMs);
+            s.ws.close(4013, 'party elsewhere');
+            return;
+        }
+        this.joinFailed(s);
+        this.error(s, where === 'ended' ? 'party_ended' : 'party_not_found');
+    }
+
+    /** `party.join` on this relay; a code it does not hold is looked up in the store when `lookup` (§14). */
+    private joinHere(s: Sock, code: string, lookup: boolean): void {
+        const member = s.memberId!;
+        const p = this.parties;
+        // the same person again (a closed tab, a new tab without the resume token): their own seat back. A
+        // tab still holding it loses it ("Playing in another tab"), as a resume does: one seat per person,
+        // and a phone whose old socket is not dead yet on the server still gets back in at once
+        const twin = p.twinOf(code, s.identity!);
+        if (twin && twin !== member) return this.adopt(s, twin);
+        const party = p.join(code, member, s.identity!, s.hint);
+        if (party === 'party_not_found' && lookup) {
+            // a draining relay holds no lobby: the party is (or will be) on the new relay
+            if (this.state !== 'serving') return this.moveSock(s);
+            void this.joinElsewhere(s, code).catch(e =>
+                this.log('relay_error', { message: String((e as Error)?.message || e).slice(0, 200) })
+            );
+            return;
+        }
+        if (typeof party === 'string') {
+            if (party === 'party_not_found' || party === 'party_ended' || party === 'code_changed') this.joinFailed(s);
+            return this.error(s, party as ErrorCode);
+        }
+        const live = party.room ? this.rooms.get(party.room) : undefined;
+        if (live && party.openSeats) this.claimOpenSeat(s, live, party, member);
+    }
 
     private hello(s: Sock, msg: Extract<ClientJson, { t: 'hello' }>): void {
         if (msg.proto < PROTO_MIN || msg.proto > PROTO) return this.error(s, 'update_required');
@@ -620,6 +983,8 @@ export class PartyRelay {
         const now = this.now();
         for (const [id, f] of this.finished) if (f.untilMs <= now) this.finished.delete(id);
         for (const [h, until] of this.seatTaken) if (until <= now) this.seatTaken.delete(h);
+        // the results tail a draining relay waits for is 5 s: older stamps are never read again
+        for (const [id, at] of this.partyEndedAt) if (now - at > 60_000) this.partyEndedAt.delete(id);
         for (const [h, r] of this.resume) {
             if (
                 r.expMs >= now ||
@@ -650,6 +1015,10 @@ export class PartyRelay {
             resume: this.resume.size,
             joinFailKeys: this.joinFails.byKey.size + this.joinFails.byIp.size + this.joinFails.byNet.size,
             retiredCodes: this.parties.retiredCount,
+            partyEnded: this.partyEndedAt.size,
+            partySaves: this.partySaves.size,
+            pulling: this.pulling.size,
+            restoreGaps: this.restoreGaps.length,
         };
     }
 
@@ -741,6 +1110,23 @@ export class PartyRelay {
     private onJson(s: Sock, msg: ClientJson): void {
         const member = s.memberId!;
         const p = this.parties;
+        // LIVE-MATCH-DEPLOYS.md §4.1 step 4: a draining relay starts no new room. A start or a rematch vote from a party
+        // without a live room here (a lobby inside the first drain tick, a results screen inside its 5 s tail) moves the
+        // party to the new relay instead (server_moving, 1012); the leader starts it there.
+        if (this.state === 'draining' && (msg.t === 'party.start' || (msg.t === 'vote' && msg.kind === 'rematch'))) {
+            const party = p.partyOf(member);
+            if (
+                party &&
+                !(party.room && this.rooms.has(party.room)) &&
+                party.phase !== 'pick' &&
+                party.phase !== 'loading'
+            ) {
+                void this.handoffParty(party).catch(e =>
+                    this.log('relay_error', { message: String((e as Error)?.message || e).slice(0, 200) })
+                );
+                return;
+            }
+        }
         switch (msg.t) {
             case 'hello':
                 return this.strike(s);
@@ -760,21 +1146,8 @@ export class PartyRelay {
             case 'party.join': {
                 const wait = this.joinBlockedMs(s);
                 if (wait > 0) return this.error(s, 'rate_limited', Math.min(wait, PARTY_LIMITS.joinFailPerIp.windowMs));
-                // the same person again (a closed tab, a new tab without the resume token): their own seat back. A
-                // tab still holding it loses it ("Playing in another tab"), as a resume does: one seat per person,
-                // and a phone whose old socket is not dead yet on the server still gets back in at once
                 if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
-                const twin = p.twinOf(msg.code, s.identity!);
-                if (twin && twin !== member) return this.adopt(s, twin);
-                const party = p.join(msg.code, member, s.identity!, s.hint);
-                if (typeof party === 'string') {
-                    if (party === 'party_not_found' || party === 'party_ended' || party === 'code_changed')
-                        this.joinFailed(s);
-                    return this.error(s, party as ErrorCode);
-                }
-                const live = party.room ? this.rooms.get(party.room) : undefined;
-                if (live && party.openSeats) this.claimOpenSeat(s, live, party, member);
-                return;
+                return this.joinHere(s, msg.code, true);
             }
             case 'party.leave':
                 if (this.mm.queued(member)) this.mm.onJson(member, { t: 'mm.leave' });
@@ -827,6 +1200,14 @@ export class PartyRelay {
                 const now = this.now();
                 if (now - s.lastSyncMs < PARTY_LIMITS.syncEveryMs && s.lastSyncMs !== 0) return;
                 s.lastSyncMs = now;
+                if (msg.fromTurn > live.room.nextTurn && this.rooms.get(live.room.id) === live) {
+                    // the client applied turns this log does not hold: the room was restored from a checkpoint after
+                    // a crash (LIVE-MATCH-DEPLOYS.md §5.6). Rebuild it from turn 0 of the restored log.
+                    this.sendJson(s, { t: 'resync', reason: 'gap' });
+                    this.startCatchup(s, live, 0);
+                    this.log('relay_rollback_resync', { ahead: msg.fromTurn - live.room.nextTurn });
+                    return;
+                }
                 this.startCatchup(s, live, msg.fromTurn);
                 return;
             }
@@ -1001,9 +1382,24 @@ export class PartyRelay {
         this.partyFlush.unref?.();
     }
 
-    private async saveParty(party: Party): Promise<void> {
+    /** Persist a party (best effort), one save at a time per party; `handoff` hands a lobby party to the next relay. */
+    private saveParty(party: Party, handoff = false): Promise<void> {
+        const prev = this.partySaves.get(party.id) ?? Promise.resolve();
+        const next = prev.then(() => this.writeParty(party, handoff));
+        this.partySaves.set(party.id, next);
+        void next.finally(() => {
+            if (this.partySaves.get(party.id) === next) this.partySaves.delete(party.id);
+        });
+        return next;
+    }
+
+    private async writeParty(party: Party, handoff: boolean): Promise<void> {
+        // a party that left this relay (handed over) is never written again from here
+        if (!handoff && this.parties.byId(party.id) !== party) return;
         try {
             await this.opts.store.saveParty({
+                owner: this.opts.tickets.boot,
+                handoff,
                 _id: party.id,
                 code: party.code,
                 doc: {
@@ -1075,7 +1471,8 @@ export class PartyRelay {
         };
         // capacity in referee units (MAP-5V5.md §9.2): a 5v5 Hearthwood room is 3, a 3v3 room 1
         const units = roomUnits(plan.pvp?.map ? { map: plan.pvp.map } : undefined);
-        if (!sim || this.stopped || this.gate.busy() || this.liveUnits() + units > maxRooms) return refuse();
+        if (!sim || this.state === 'stopped' || this.gate.busy() || this.liveUnits() + units > maxRooms)
+            return refuse();
         if (!ticketed && unticketedRooms >= maxRooms * PARTY_LIMITS.unticketedRoomShare) return refuse();
         // every member, guests included: one live room per identity, two per IP (a party from one home shares an IP,
         // so the IP rule counts rooms, not seats)
@@ -1288,12 +1685,14 @@ export class PartyRelay {
         s.seatRoom = live.room.id;
         s.seatSlot = slot;
         if (s.pingTimer) clearInterval(s.pingTimer);
-        s.pingTimer = setInterval(() => {
-            if (s.ws.readyState === WebSocket.OPEN) s.ws.ping();
-        }, PARTY_LIMITS.pingMatchMs);
+        s.pingTimer = setInterval(() => this.ping(s), PARTY_LIMITS.pingMatchMs);
         s.pingTimer.unref?.();
         live.room.connect(slot, this.now());
         this.sendJson(s, this.matchMsg(live, slot, startInMs) as unknown as Record<string, unknown>);
+        if (live.hold) {
+            live.hold.need.delete(slot);
+            if (live.hold.need.size === 0) this.releaseHold(live);
+        }
     }
 
     private claimOpenSeat(s: Sock, live: LiveRoom, party: Party, memberId: string, want?: number): void {
@@ -1577,9 +1976,14 @@ export class PartyRelay {
         const live = this.rooms.get(room.id);
         if (!live) return;
         // checkpoint every 10 s of room time (an append of the delta)
-        if (room.live && !live.checkpointing && this.now() - live.lastCheckpointMs >= PARTY_LIMITS.checkpointEveryMs) {
+        if (
+            room.live &&
+            !live.checkpointing &&
+            !live.moving &&
+            this.now() - live.lastCheckpointMs >= PARTY_LIMITS.checkpointEveryMs
+        ) {
             live.checkpointing = true;
-            void this.checkpoint(live, false).finally(() => (live.checkpointing = false));
+            live.inflight = this.checkpoint(live, false).finally(() => (live.checkpointing = false));
         }
         if (room.status === 'abandoned') this.abandon(live, room.voided ? 'remake' : 'timer');
     }
@@ -1596,7 +2000,8 @@ export class PartyRelay {
     }
 
     private async endRoom(live: LiveRoom, end: RefereeEnd): Promise<void> {
-        if (live.ending) return;
+        // a room on its way to another relay ends there (that referee re-sims the same log to the same end)
+        if (live.ending || live.moving) return;
         live.ending = true;
         const room = live.room;
         room.end({
@@ -1627,7 +2032,13 @@ export class PartyRelay {
         if (!check.ok) this.log('mp_verify_failed', { why: check.why });
         // the Quick Play record (events, outcome) is written before the verdict, so a `/live` save sees it
         await this.mm
-            .onRoomEnded(room.id, end.outcome === 'won' || end.outcome === 'lost' ? end.outcome : null, end.ticks)
+            .onRoomEnded(
+                room.id,
+                end.outcome === 'won' || end.outcome === 'lost' ? end.outcome : null,
+                end.ticks,
+                null,
+                end.intel
+            )
             .catch(() => undefined);
         await this.opts.store.finish(
             room.id,
@@ -1670,6 +2081,7 @@ export class PartyRelay {
             });
         }
         this.parties.matchEnded(live.party);
+        this.partyEndedAt.set(live.party, this.now());
         this.rooms.delete(room.id);
         this.log('mp_match_end', { outcome: end.outcome, scored: verified });
     }
@@ -1698,25 +2110,128 @@ export class PartyRelay {
             new Date(this.now())
         );
         if (ok) room.checkpointedTurn = from + bodies.length;
-        else this.log('checkpoint_lost', {});
+        else {
+            this.log('checkpoint_lost', {});
+            if (!handoff) void this.leaseLost(live);
+        }
         live.lastCheckpointMs = this.now();
         return ok;
     }
 
     async checkpointAll(handoff: boolean): Promise<void> {
         await Promise.all(
-            [...this.rooms.values()].filter(r => r.room.live || handoff).map(r => this.checkpoint(r, handoff))
+            [...this.rooms.values()]
+                .filter(r => r.room.live || handoff)
+                .map(async r => {
+                    await r.inflight?.catch(() => false);
+                    return this.checkpoint(r, handoff);
+                })
         );
     }
 
-    /** SIGTERM: stop clocks, tell clients to come back in 3 s, write the final checkpoint with `handoff`. */
+    /**
+     * A checkpoint was refused: when another relay now owns the room (it claimed a lease this relay let go stale, e.g.
+     * a Mongo stall), stop running it here and send its players to the owner. Two relays never both run one room.
+     */
+    private async leaseLost(live: LiveRoom): Promise<void> {
+        const id = live.room.id;
+        const row = await this.opts.store.get(id).catch(() => null);
+        if (!row || (row.owner === this.opts.tickets.boot && row.epoch === live.epoch)) return;
+        if (this.rooms.get(id) !== live || live.moving || live.ending) return;
+        live.moving = true;
+        this.scheduler.remove(live.room);
+        this.referee.close(id);
+        this.rooms.delete(id);
+        this.releaseParty(live, true);
+        this.log('relay_lease_lost', { owner_changed: row.owner !== this.opts.tickets.boot });
+    }
+
+    /** The party of a room that left this relay: forgotten here, its sockets sent on (room_gone, retry at once). */
+    private releaseParty(live: LiveRoom, roomGone: boolean): void {
+        const party = this.parties.byId(live.party);
+        const members = party ? party.members.map(m => m.id) : [...live.seats.keys()];
+        if (party) this.parties.forget(party);
+        this.pendingParty.delete(live.party);
+        if (live.hold) {
+            clearTimeout(live.hold.timer);
+            live.hold = null;
+        }
+        for (const id of members) {
+            const s = this.byMember.get(id);
+            this.dropResume(id);
+            if (!s) continue;
+            if (roomGone && s.seatRoom === live.room.id) this.error(s, 'room_gone', 0);
+            s.seatRoom = null;
+            s.seatSlot = -1;
+            this.moveSock(s, false);
+        }
+    }
+
+    /**
+     * Push handoff of one room (LIVE-MATCH-DEPLOYS.md §5.3): stop its clock, tell its players to reconnect at once,
+     * write the party (fresh resume tokens) and the final checkpoint with `handoff`, then let it go. The serving relay
+     * claims it within a loop tick; a pull claims it at once.
+     */
+    private async pushRoom(live: LiveRoom, reason: 'pull' | 'deadline' | 'sigterm'): Promise<void> {
+        if (live.moving || live.ending || this.rooms.get(live.room.id) !== live) return;
+        live.moving = true;
+        const room = live.room;
+        this.scheduler.remove(room);
+        for (const s of this.socketsOf(live)) this.error(s, 'room_gone', 0);
+        await live.inflight?.catch(() => false);
+        const party = this.parties.byId(live.party);
+        if (party) await this.saveParty(party);
+        const ok = await this.checkpoint(live, true);
+        this.referee.close(room.id);
+        this.rooms.delete(room.id);
+        this.releaseParty(live, false);
+        this.log('relay_handoff', { reason, ok, turn: room.nextTurn });
+    }
+
+    /**
+     * Push handoff of a lobby (or results) party (§4.1 step 5): written with `handoff`, forgotten here, its members sent
+     * on. The serving relay claims it within a loop tick (or at once, for a member's reconnect) with the same code.
+     */
+    private async handoffParty(p: Party): Promise<void> {
+        const members = p.members.map(m => m.id);
+        this.parties.forget(p);
+        this.pendingParty.delete(p.id);
+        await this.saveParty(p, true);
+        for (const id of members) {
+            const s = this.byMember.get(id);
+            this.dropResume(id);
+            if (s) this.moveSock(s);
+        }
+        this.log('relay_handoff', { reason: 'party' });
+    }
+
+    /**
+     * Stop now (after a drain, or at once): stop the clocks, tell clients to reconnect at once (`room_gone`, retry 0),
+     * write every party (lobby ones with `handoff`) and every room's final checkpoint with `handoff`, close the sockets
+     * with 1012. The serving relay claims all of it within a loop tick (LIVE-MATCH-DEPLOYS.md §5.3).
+     */
     async shutdown(): Promise<void> {
-        if (this.stopped) return;
+        if (this.state === 'stopped') return;
         this.mm.shutdown();
-        this.stopped = true;
+        const wasDraining = this.state === 'draining';
+        this.state = 'stopped';
+        if (this.loopTimer) clearInterval(this.loopTimer);
+        if (this.drainTimer) clearInterval(this.drainTimer);
         this.scheduler.stop();
-        for (const live of this.rooms.values()) for (const s of this.socketsOf(live)) this.error(s, 'room_gone', 3000);
+        for (const live of this.rooms.values()) {
+            live.moving = true;
+            if (live.hold) clearTimeout(live.hold.timer);
+            for (const s of this.socketsOf(live)) this.error(s, 'room_gone', 0);
+        }
+        const lobby = this.parties.all().filter(p => !(p.room && this.rooms.has(p.room)));
+        const inRooms = this.parties.all().filter(p => p.room && this.rooms.has(p.room));
+        await Promise.all([
+            ...inRooms.map(p => this.saveParty(p).catch(() => undefined)),
+            ...lobby.map(p => this.saveParty(p, true).catch(() => undefined)),
+        ]);
         await this.checkpointAll(true);
+        if (this.rooms.size)
+            this.log('relay_handoff', { reason: wasDraining ? 'deadline' : 'sigterm', rooms: this.rooms.size });
         if (this.partyTimer) clearInterval(this.partyTimer);
         if (this.partyFlush) clearTimeout(this.partyFlush);
         for (const s of this.socks) s.ws.close(1012, 'restart');
@@ -1724,6 +2239,189 @@ export class PartyRelay {
         this.wss.close();
         this.gate.stop();
         await this.referee.shutdown();
+        this.finishDrain();
+    }
+
+    // -----------------------------------------------------------------------------------------------------------
+    // Drain, generations, the restore loop (docs/plans/moba/LIVE-MATCH-DEPLOYS.md)
+
+    /**
+     * Start (or tighten) a drain: readiness drops at once, no new parties, rooms or queue entries; live rooms play on
+     * until they end; lobby parties and idle sockets move to the new relay now; a pulled room moves at once; whatever is
+     * left at the deadline is pushed. `done` resolves when no room is left here.
+     */
+    drain(trigger: DrainTrigger, maxMs = this.opts.drainMaxMs ?? PARTY_LIMITS.drainMaxMs) {
+        const nowMs = this.now();
+        if (this.state === 'stopped')
+            return { state: this.state, rooms_live: 0, deadlineMs: nowMs, done: Promise.resolve() };
+        const deadlineMs = nowMs + Math.max(0, Math.min(maxMs, PARTY_LIMITS.drainEndpointMaxMs));
+        if (this.drainInfo) {
+            const d = this.drainInfo;
+            if (TRIGGER_RANK[trigger] > TRIGGER_RANK[d.trigger]) d.trigger = trigger;
+            d.deadlineMs = Math.min(d.deadlineMs, deadlineMs);
+            if (trigger === 'endpoint') this.closeListener();
+            void this.drainTick();
+            return { state: this.state, rooms_live: this.rooms.size, deadlineMs: d.deadlineMs, done: d.done };
+        }
+        let resolve!: () => void;
+        const done = new Promise<void>(r => (resolve = r));
+        this.drainInfo = { trigger, startedMs: nowMs, deadlineMs, done, resolve, finished: false };
+        this.state = 'draining';
+        this.log('relay_drain_start', { trigger, rooms: this.rooms.size, deadline_ms: deadlineMs - nowMs });
+        // queued players get mm.cancel{server}: the client keeps its search card and re-joins after the reconnect
+        this.mm.shutdown();
+        if (trigger === 'endpoint') this.closeListener();
+        void this.beat(true);
+        this.drainTimer = setInterval(() => void this.drainTick(), PARTY_LIMITS.pullPollMs);
+        this.drainTimer.unref?.();
+        void this.drainTick();
+        return { state: this.state, rooms_live: this.rooms.size, deadlineMs, done };
+    }
+
+    /** A generation drain whose newer relay went away (crash, failed deploy): serve again (§4.4). */
+    private undrain(): void {
+        if (this.state !== 'draining' || this.drainInfo?.trigger !== 'generation') return;
+        if (this.drainTimer) clearInterval(this.drainTimer);
+        this.drainTimer = null;
+        this.drainInfo.resolve();
+        this.drainInfo = null;
+        this.state = 'serving';
+        this.readyAtMs = this.now();
+        this.announcedMs = this.now();
+        this.mm.resume();
+        this.log('relay_drain_cancel', {});
+        void this.beat(true);
+    }
+
+    private closeListener(): void {
+        if (!this.opts.ownsServer || !this.opts.server.listening) return;
+        // upgraded sockets are detached from the server and stay open; only new connections go elsewhere
+        this.opts.server.close();
+        this.log('relay_listener_closed', {});
+    }
+
+    private finishDrain(): void {
+        const d = this.drainInfo;
+        if (!d || d.finished) return;
+        d.finished = true;
+        this.log('relay_drain_done', { trigger: d.trigger, ms: this.now() - d.startedMs });
+        d.resolve();
+    }
+
+    /** Every `pullPollMs` while draining: move idle parties and sockets, hand over pulled rooms, push at the deadline. */
+    private async drainTick(): Promise<void> {
+        if (this.state !== 'draining' || this.drainTicking || !this.drainInfo) return;
+        this.drainTicking = true;
+        try {
+            const nowMs = this.now();
+            for (const p of this.parties.all()) {
+                if (p.room && this.rooms.has(p.room)) continue;
+                if (p.phase === 'pick' || p.phase === 'loading' || p.phase === 'match') continue;
+                // the results tail: the last turns of the match still reach everyone before the party moves
+                const ended = this.partyEndedAt.get(p.id);
+                if (ended !== undefined && nowMs - ended < 5000) continue;
+                await this.handoffParty(p);
+            }
+            for (const s of [...this.socks]) {
+                if (!s.helloed || s.closed || s.pending) continue;
+                if (s.memberId && this.parties.partyOf(s.memberId)) continue;
+                this.moveSock(s);
+            }
+            const deadline = nowMs >= this.drainInfo.deadlineMs;
+            const wanted = deadline
+                ? null
+                : new Set(await this.opts.store.wanted(this.opts.tickets.boot).catch(() => []));
+            await Promise.all(
+                [...this.rooms.values()]
+                    .filter(live => deadline || wanted!.has(live.room.id))
+                    .map(live => this.pushRoom(live, deadline ? 'deadline' : 'pull'))
+            );
+            const starting = this.parties.all().some(p => p.phase === 'pick' || p.phase === 'loading');
+            if (this.rooms.size === 0 && !starting && this.drainInfo.trigger !== 'generation') {
+                this.finishDrain();
+                // the endpoint drain (the GCP VM) stops the relay; deploy.sh then stops the container
+                if (this.drainInfo.trigger === 'endpoint') await this.shutdown();
+            }
+        } catch (e) {
+            this.log('relay_drain_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+        } finally {
+            this.drainTicking = false;
+        }
+    }
+
+    /** A ready serving relay that a player reached: from now on it is the newest generation (§4.4). */
+    private announce(): void {
+        if (this.announcedMs || !this.readyAtMs || !this.sawSocket || this.state !== 'serving') return;
+        this.announcedMs = this.now();
+        void this.beat(true);
+    }
+
+    /** Write this relay's generation row (§4.4) every `relayHeartbeatMs`, or now. */
+    private async beat(now = false): Promise<void> {
+        if (!this.readyAtMs || this.state === 'stopped') return;
+        const t = this.now();
+        if (!now && t - this.lastBeatMs < PARTY_LIMITS.relayHeartbeatMs) return;
+        this.lastBeatMs = t;
+        await this.opts.store
+            .heartbeat({
+                _id: this.opts.tickets.boot,
+                state: this.state !== 'serving' ? 'draining' : this.announcedMs ? 'serving' : 'standby',
+                readyAt: new Date(this.announcedMs || this.readyAtMs),
+                heartbeatAt: new Date(t),
+                simVersions: [...SIM_VERSIONS],
+                pool: this.pool,
+            })
+            .catch(() => undefined);
+    }
+
+    /** The 1 s loop: restore (serving), heartbeat, newest-generation check, held rooms. */
+    private async loop(): Promise<void> {
+        if (this.state === 'stopped') return;
+        // the heartbeat never waits behind a slow restore pass: a relay whose row goes 15 s without a beat counts as
+        // gone, and another relay would take its lobby parties over while it still runs them (§14)
+        void this.beat();
+        if (this.looping) return;
+        this.looping = true;
+        try {
+            if (this.state === 'serving') await this.restore();
+            await this.generations();
+        } catch (e) {
+            this.log('relay_loop_error', { message: String((e as Error)?.message || e).slice(0, 200) });
+        } finally {
+            this.looping = false;
+        }
+    }
+
+    /** §4.4: a serving relay that sees a newer ready serving relay drains; a generation drain without one serves again. */
+    private async generations(): Promise<void> {
+        if (!this.readyAtMs || this.state === 'stopped') return;
+        const me = this.opts.tickets.boot;
+        this.relayRows = await this.opts.store.relays(new Date(this.now() - PARTY_LIMITS.relayStaleMs));
+        // a relay no player reached yet is never the older one (and its row says standby, so it drains nobody)
+        const mine = this.announcedMs || Number.POSITIVE_INFINITY;
+        const newer = this.relayRows.some(
+            r =>
+                r._id !== me &&
+                (r.pool ?? DEFAULT_POOL) === this.pool &&
+                r.state === 'serving' &&
+                (new Date(r.readyAt).getTime() > mine || (new Date(r.readyAt).getTime() === mine && r._id > me))
+        );
+        if (this.state === 'serving' && newer) this.drain('generation');
+        else if (this.state === 'draining' && this.drainInfo?.trigger === 'generation' && !newer) this.undrain();
+    }
+
+    /** Release a held restored room (§5.5): its clock continues from where the log ended, both teams together. */
+    private releaseHold(live: LiveRoom): void {
+        const h = live.hold;
+        if (!h || this.rooms.get(live.room.id) !== live || live.moving) return;
+        clearTimeout(h.timer);
+        live.hold = null;
+        const held = Math.max(0, this.now() - h.sinceMs);
+        live.room.shiftClock(held);
+        this.scheduler.add(live.room);
+        this.restoreGaps.push(held);
+        if (this.restoreGaps.length > 256) this.restoreGaps.splice(0, 128);
+        this.log('relay_restore', { simVersion: live.sim.version, gapMs: held, waiting: h.need.size });
     }
 
     /**
@@ -1731,7 +2429,18 @@ export class PartyRelay {
      * bundle this relay holds. The clock and fan-out restart at once; the referee re-sims the log meanwhile (slots
      * stay piloted with reason `restore` until clients reconnect, catch up and send `back`). Others are abandoned.
      */
-    async restore(): Promise<string[]> {
+    restore(): Promise<string[]> {
+        // one pass at a time: a pull waiting for its room joins the pass already running
+        if (this.restoreRun) return this.restoreRun;
+        const run = this.restoreOnce().finally(() => {
+            if (this.restoreRun === run) this.restoreRun = null;
+        });
+        this.restoreRun = run;
+        return run;
+    }
+
+    private async restoreOnce(): Promise<string[]> {
+        if (this.state !== 'serving') return [];
         const now = new Date(this.now());
         const got: string[] = [];
         const rows = await this.opts.store.restorable(
@@ -1740,7 +2449,10 @@ export class PartyRelay {
             PARTY_LIMITS.staleLeaseMs,
             PARTY_LIMITS.restoreWithinMs
         );
+        const claimable = await this.claimableFrom(now);
         for (const row of rows) {
+            if (this.state !== 'serving') break;
+            if (!claimable(row.owner, row._id)) continue;
             const entry = partySimFor(row.simVersion, row.simHash);
             if (!entry?.party) continue;
             const claimed = await this.opts.store.claim(row._id, row.epoch, this.opts.tickets.boot, now);
@@ -1793,22 +2505,71 @@ export class PartyRelay {
             this.rooms.set(claimed._id, live);
             this.referee.open(claimed._id, claimed.simVersion, claimed.simHash, claimed.config);
             for (const b of bodies) this.referee.turn(claimed._id, b);
-            this.scheduler.add(room);
+            // §5.5: the clock waits for the humans seated in the room (or restoreHoldMs), then runs for both teams
+            const need = new Set([...live.seats.values()].filter(slot => room.isHumanSlot(slot)));
+            const timer = setTimeout(() => this.releaseHold(live), PARTY_LIMITS.restoreHoldMs);
+            timer.unref?.();
+            live.hold = { sinceMs: this.now(), need, timer };
+            if (!need.size) this.releaseHold(live);
             got.push(claimed._id);
             this.log('restores', {});
         }
+        await this.restoreLobbies(now, claimable);
+        // only rows past the restore window: a handed-off room inside it may still be claimed by a relay carrying its sim
         await this.opts.store.abandonLive([...this.rooms.keys()], now);
+        if (!this.readyAtMs && this.state === 'serving') {
+            this.readyAtMs = this.now();
+            void this.beat(true);
+            this.announce();
+        }
         return got;
+    }
+
+    /**
+     * Which rooms and parties this pass may claim (§4.4 pools). The boot pass claims everything handed off or stale, as
+     * before (the GCP cutover relies on it). Later passes claim only what a relay of this pool left (an owner with no
+     * relay row predates live-match deploys: DigitalOcean, pool `app`), plus a room or party a player of it is waiting
+     * for here (a pull). So during the migration the GCP relay never takes DigitalOcean's deploy handoffs from it.
+     */
+    private async claimableFrom(now: Date): Promise<(owner: string | null | undefined, id: string) => boolean> {
+        if (!this.readyAtMs) return () => true;
+        const rows = await this.opts.store.relays(new Date(now.getTime() - 3_600_000));
+        const pools = new Map(rows.map(r => [r._id, r.pool ?? DEFAULT_POOL]));
+        return (owner, id) =>
+            this.pulling.has(id) || (pools.get(owner ?? '') ?? (owner ? DEFAULT_POOL : this.pool)) === this.pool;
+    }
+
+    /** Lobby parties another relay handed over (§4.1 step 5): claimed and rebuilt here with their codes and tokens. */
+    private async restoreLobbies(now: Date, claimable: (owner: string | null | undefined, id: string) => boolean) {
+        const rows = await this.opts.store.handedParties(
+            this.opts.tickets.boot,
+            new Date(now.getTime() - PARTY_LIMITS.restoreWithinMs)
+        );
+        for (const row of rows) {
+            if (this.state !== 'serving') return;
+            if (!claimable(row.owner, row._id)) continue;
+            if (this.parties.byId(row._id)) continue;
+            const claimed = await this.opts.store.claimParty(row._id, this.opts.tickets.boot, now);
+            if (!claimed) continue;
+            this.rebuildParty(claimed, null, null);
+            this.log('relay_restore_party', {});
+        }
     }
 
     /** Rebuild the party and its members' resume tokens so reconnecting clients find their seats. */
     private async restoreParty(room: StoredRoom, live: LiveRoom): Promise<void> {
         const stored = await this.opts.store.getParty(room.party);
         if (!stored) return;
+        this.rebuildParty(stored, room._id, live);
+    }
+
+    /** A party from its stored document: with its room (`live`) or back in the lobby (`roomId` null). */
+    private rebuildParty(stored: StoredParty, roomId: string | null, live: LiveRoom | null): void {
         const doc = stored.doc as {
             leader: string;
             difficulty: string;
             openSeats: boolean;
+            locked?: boolean;
             members: {
                 id: string;
                 accountId: string | null;
@@ -1853,17 +2614,23 @@ export class PartyRelay {
                 slot: m.slot,
             })),
             leaderDoc.id,
-            room._id
+            roomId,
+            typeof doc.locked === 'boolean' ? doc.locked : undefined
         );
         this.parties.restoreMm(party, doc.mm);
-        if (doc.mm?.casual) live.casual = { species: doc.mm.casual.species };
-        else if (doc.mm) live.coop = true;
+        if (live) {
+            if (doc.mm?.casual) live.casual = { species: doc.mm.casual.species };
+            else if (doc.mm) live.coop = true;
+        }
         for (const m of doc.members) {
             if (m.resume) this.setResume(m.id, m.resume, m.key, m.ipKey ?? '');
+            if (!live) continue;
             if (m.slot !== undefined) live.seats.set(m.id, m.slot);
             live.keys.add(m.key);
             if (m.ipKey) live.ips.add(m.ipKey);
         }
+        // its row now names this relay as the owner
+        this.queueParty(party.id);
     }
 
     // -----------------------------------------------------------------------------------------------------------
@@ -2034,6 +2801,39 @@ export class PartyRelay {
         return false;
     }
 
+    /**
+     * Presence (SOCIAL-RANKED.md §4.3): the registered (ticketed, non-guest) accounts on this relay and their phase,
+     * the most important one per account (match > queue > party). Read by the PresenceSink timer every 5 s, never on
+     * the socket path. A matchmaker party's code is never listed (strangers never see it); a friend party's is, for
+     * accepted friends only (the API decides who reads it).
+     */
+    presenceSnapshot(): PresenceEntry[] {
+        const rank = { party: 1, queue: 2, match: 3 } as const;
+        const out = new Map<string, PresenceEntry>();
+        for (const s of this.socks) {
+            const id = s.identity;
+            if (!s.helloed || s.closed || !id?.ticketed || id.guest || !id.accountId) continue;
+            let e: PresenceEntry | null = null;
+            if (s.seatRoom) e = { accountId: id.accountId, state: 'match' };
+            else if (s.memberId && this.mm.queued(s.memberId)) e = { accountId: id.accountId, state: 'queue' };
+            else {
+                const p = s.memberId ? this.parties.partyOf(s.memberId) : null;
+                if (p && p.queued) e = { accountId: id.accountId, state: 'queue' };
+                else if (p && (!p.mm || p.mm.host))
+                    e = {
+                        accountId: id.accountId,
+                        state: 'party',
+                        party: p.code,
+                        joinable: p.phase === 'lobby' && !p.locked && p.members.length < MAX_MEMBERS,
+                    };
+            }
+            if (!e) continue;
+            const prev = out.get(e.accountId);
+            if (!prev || rank[e.state] > rank[prev.state]) out.set(e.accountId, e);
+        }
+        return [...out.values()];
+    }
+
     /** Counters for logs and the load test. */
     counters() {
         const overruns = [...this.rooms.values()].flatMap(r => r.room.overrunsMs).sort((a, b) => a - b);
@@ -2043,8 +2843,13 @@ export class PartyRelay {
             turn_overrun_ms_p99: overruns.length ? overruns[Math.floor(overruns.length * 0.99)] : 0,
             loop_delay_p99: this.gate.p99Ms(),
             referee_lag_turns: this.gate.lag,
+            draining: this.state === 'serving' ? 0 : 1,
+            restore_gap_ms_p99: this.restoreGaps.length
+                ? [...this.restoreGaps].sort((a, b) => a - b)[Math.floor(this.restoreGaps.length * 0.99)]
+                : 0,
             ...this.tally,
             ...this.mm.counters(),
+            ...this.rtt.counters(this.now()),
         };
     }
 

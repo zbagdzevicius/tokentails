@@ -35,6 +35,17 @@ export const ATK_SELECT = Object.freeze({
   point: (Math.PI * 8) / 180,
   /** Two candidates this close in angle (rad) tie: the nearer one wins. */
   tie: (Math.PI * 3) / 180,
+  /**
+   * Drag-lock (founder 2026-11-10, Wild Rift drag-to-lock): an enemy hero is offered this far (mm, centre to centre),
+   * the lock range, so a hero clearly on screen behind the wave can be chosen; other units keep selectReach.
+   */
+  heroReachMm: LOCK.rangeMm,
+  /** Nothing is selected when the closest unit is further than this (rad) from the drag and no hero is in heroCone. */
+  maxGap: Math.PI / 3,
+  /** A drag-locked unit that left the snapshot (fog, a bush) keeps the lock this long (ms) and re-locks when seen. */
+  lostGraceMs: 1500,
+  /** While a drag lock holds and the hero stands, its Attack order is re-sent this often (ms) when in reach. */
+  repeatMs: 350,
 });
 
 /** V20-CHASE.md I1: edge to edge (both bodies), as the sim measures attack range. */
@@ -52,16 +63,25 @@ export function selectReach(range: number): number {
 }
 
 /**
- * The enemies the selector offers: attackable, alive, within selectReach(`range`) edge to edge (the unit
+ * The enemies the selector offers: attackable, alive, within selectReach(`range`) edge to edge (an enemy hero: out to
+ * ATK_SELECT.heroReachMm centre to centre instead; any other unit
  * already selected, `keep`, ATK_SELECT.keepMm further: a lane fight at the reach edge must not flicker the selection
- * off just as the thumb lets go); every hero in reach first (nearest first), then the nearest others, at most
+ * off just as the thumb lets go)); every hero in reach first (nearest first), then the nearest others, at most
  * ATK_SELECT.max.
  */
 export function selectCandidates(units: readonly Unit[], me: Unit, myTeam: number, range: number, keep: number | null = null): Unit[] {
   const reach = selectReach(range);
-  const inReach = units.filter((u) => u.id !== me.id && isEnemy(u, myTeam) && edge(u, me) <= reach + (u.id === keep ? ATK_SELECT.keepMm : 0));
+  const inReach = units.filter((u) => u.id !== me.id && isEnemy(u, myTeam) && (u.kind === 'hero' ? heroInReach(u, me) : edge(u, me) <= reach + (u.id === keep ? ATK_SELECT.keepMm : 0)));
   inReach.sort((a, b) => (a.kind === 'hero' ? 0 : 1) - (b.kind === 'hero' ? 0 : 1) || edge(a, me) - edge(b, me));
   return inReach.slice(0, ATK_SELECT.max);
+}
+
+/**
+ * Drag-lock: an enemy hero is offered out to ATK_SELECT.heroReachMm, centre to centre (DragLock's own break distance,
+ * so a released hero is never let go at once); it is never offered further, keep or not.
+ */
+function heroInReach(u: Unit, me: { x: number; y: number }): boolean {
+  return u.kind === 'hero' && Math.hypot(u.x - me.x, u.y - me.y) <= ATK_SELECT.heroReachMm;
 }
 
 /**
@@ -88,6 +108,8 @@ export function snapTarget(cands: readonly Unit[], me: { x: number; y: number },
     }
   }
   if (!best) return null;
+  // drag-lock: the thumb points at nothing (no hero in the cone, the nearest unit over maxGap off): no selection
+  if (bestGap > ATK_SELECT.maxGap && heroGap > ATK_SELECT.heroCone) return null;
   if (best.kind === 'hero' || !hero || heroGap > ATK_SELECT.heroCone) return best.id;
   // a hero in the cone wins, unless the thumb points right at the minion or structure (and the hero is clearly off it)
   return bestGap <= ATK_SELECT.point && heroGap > bestGap + ATK_SELECT.tie ? best.id : hero.id;
@@ -154,5 +176,49 @@ export class PickLock {
   /** Share of the lock time left, 0..1 (the Attack button's draining ring). */
   left(now: number): number {
     return this.id === null ? 0 : Math.max(0, Math.min(1, 1 - (now - this.since) / LOCK.ms));
+  }
+}
+
+/**
+ * Drag-lock (founder 2026-11-10: "hold and drag my basic attacks target to lock-into selected one", Wild Rift's drag to
+ * lock): the unit a released Attack drag chose. Unlike PickLock and TargetLock it has no timer and no "reached then
+ * left" break: it holds while the unit is alive, attackable and within LOCK.rangeMm (centre to centre); a unit that
+ * left the snapshot (fog, a bush) keeps the id for ATK_SELECT.lostGraceMs and is locked again once seen (Wild Rift),
+ * though `check` returns null while it is unseen. TouchControls clears it on a drag back to the button centre, a new
+ * drag or a field or portrait lock; moving never breaks it (Wild Rift: a ranged hero kites a locked hero, backing off
+ * and tapping Attack between steps). Enemy heroes only: a dragged minion, monster or structure takes PickLock (LOCK.ms).
+ * Client only (an Attack order's id).
+ */
+export class DragLock {
+  id: number | null = null;
+  private seenAt = 0;
+
+  set(id: number, now: number): void {
+    this.id = id;
+    this.seenAt = now;
+  }
+
+  clear(): void {
+    this.id = null;
+  }
+
+  /** The locked id while the lock holds and the unit is seen, else null (the lock may still hold through a short loss). */
+  check(units: readonly Unit[], me: Unit | null, myTeam: number, now: number): number | null {
+    if (this.id === null) return null;
+    if (!me || me.state === 'dead') {
+      this.clear();
+      return null;
+    }
+    const u = units.find((q) => q.id === this.id);
+    if (!u) {
+      if (now - this.seenAt > ATK_SELECT.lostGraceMs) this.clear();
+      return null;
+    }
+    if (!isEnemy(u, myTeam) || Math.hypot(u.x - me.x, u.y - me.y) > LOCK.rangeMm) {
+      this.clear();
+      return null;
+    }
+    this.seenAt = now;
+    return this.id;
   }
 }

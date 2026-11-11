@@ -16,7 +16,17 @@ export const APP_ID = 'com.tokentails.pawlegends';
  * bundle or an older binary cannot handle: a new plugin, a new Info.plist key the web code relies on. Bundles are
  * published per level, and each shell only reads its own level's manifest.
  */
-export const NATIVE_COMPAT = 1;
+// 2: sign-in (the auth plugin, Firebase, the in-page host and window.__PL_NATIVE_AUTH__); a sign-in bundle must never
+// reach a 1.0.x binary, which has neither the plugin nor the privacy label for accounts.
+export const NATIVE_COMPAT = 2;
+
+/**
+ * The platforms that take OTA updates. Each has its own signed manifests in `updates/<platform>/<compat>/` (its own
+ * minNative and rollback state); the bundles are shared and stay in `updates/ios/<compat>/bundles/`, where the first
+ * iOS binaries require them (src/shell/manifest.ts HTTPS_TT).
+ */
+export const OTA_PLATFORMS = Object.freeze(['ios', 'android']);
+export const BUNDLES_PLATFORM = 'ios';
 
 /** Where tokentails.com serves the updates (client/public is the Vercel site root). */
 export const UPDATES_URL = 'https://tokentails.com/pawlegends-app/updates';

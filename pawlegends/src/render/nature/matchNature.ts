@@ -102,7 +102,8 @@ function liveOf(s: State, k: number, now: number): number {
 export function natureMote(fx: TierFx, h: FxHero, _wasDead: boolean): void {
   const p = fx.particles;
   // Nature comes from a real roster only: a showcase bot in a featured (unowned) cat shows none (QA)
-  if (!p || h.dead || h.stealth || h.featured) return;
+  // CARD-SKINS.md: a store or pass coat has no Nature either (its effects come from the skin kit)
+  if (!p || h.dead || h.stealth || h.featured || h.coat) return;
   const cap = matchCap(h.self, fx.low, reduced);
   if (cap <= 0) return;
   let s = states.get(fx);
