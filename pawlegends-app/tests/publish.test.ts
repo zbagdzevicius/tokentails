@@ -9,6 +9,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { generateKeys } from '../scripts/lib/capgo-crypto.mjs';
+import { NATIVE_COMPAT } from '../scripts/lib/app-config.mjs';
 
 const script = join(__dirname, '../scripts/ota-publish.mjs');
 
@@ -28,15 +29,15 @@ describe('ota-publish channels', () => {
   const updates = join(dir, 'updates');
   const env = { ...process.env, OTA_PRIVATE_KEY: '', OTA_PRIVATE_KEY_PATH: join(dir, 'private.pem'), OTA_PUBLIC_KEY_PATH: join(dir, 'public.pem'), OTA_WWW_DIR: www, OTA_UPDATES_DIR: updates };
   const run = (...a: string[]) => execFileSync(process.execPath, [script, ...a], { env, encoding: 'utf8' });
-  const read = (f: string, platform = 'ios') => JSON.parse(readFileSync(join(updates, platform, '1', f), 'utf8'));
-  const build = (seq: number) => writeFileSync(join(www, 'bundle.json'), JSON.stringify({ version: `${seq}-abc1234`, seq, compat: 1, simVersion: 14 }));
+  const read = (f: string, platform = 'ios') => JSON.parse(readFileSync(join(updates, platform, String(NATIVE_COMPAT), f), 'utf8'));
+  const build = (seq: number) => writeFileSync(join(www, 'bundle.json'), JSON.stringify({ version: `${seq}-abc1234`, seq, compat: NATIVE_COMPAT, simVersion: 14 }));
 
   it('publishes to beta, promotes after the soak, rolls both channels back', () => {
     const first = utc(new Date(Date.now() - 48 * 3_600_000));
     build(first);
     run('--keep', '5');
     expect(read('manifest-beta.json').version).toBe(`${first}-abc1234`);
-    expect(existsSync(join(updates, 'ios/1/manifest.json'))).toBe(false);
+    expect(existsSync(join(updates, `ios/${NATIVE_COMPAT}/manifest.json`))).toBe(false);
     expect(run('--promote')).toContain('promoted');
     expect(read('manifest.json').version).toBe(`${first}-abc1234`);
     expect(read('manifest.json').rollback).toBe(false);
@@ -71,10 +72,10 @@ describe('ota-publish channels', () => {
       expect(i.platform).toBe('ios');
       expect(a.version).toBe(i.version);
       expect(a.url).toBe(i.url);
-      expect(a.url).toContain('/ios/1/bundles/');
+      expect(a.url).toContain(`/ios/${NATIVE_COMPAT}/bundles/`);
       expect(a.signature).not.toBe(i.signature);
     }
-    expect(existsSync(join(updates, 'android/1/bundles'))).toBe(false);
+    expect(existsSync(join(updates, `android/${NATIVE_COMPAT}/bundles`))).toBe(false);
   });
 
   it('keeps a minNative per platform, and verifies each manifest with the public key', async () => {
@@ -98,7 +99,7 @@ describe('ota-publish channels', () => {
     const { spkiPem } = await import('../scripts/lib/capgo-crypto.mjs');
     const pem = spkiPem(keys.publicPem) as string;
     for (const platform of ['ios', 'android'] as const) {
-      const m = parseManifest(read('manifest-beta.json', platform), 1, false, platform);
+      const m = parseManifest(read('manifest-beta.json', platform), NATIVE_COMPAT, false, platform);
       expect(m).not.toBeNull();
       expect(await verifyManifest(m!, pem)).toBe('ok');
     }
@@ -109,7 +110,7 @@ describe('ota-publish channels', () => {
     expect(read('manifest.json')).toMatchObject({ version: `${fourth}-abc1234`, rollback: true, minNative: '1.0.0' });
 
     // a bundle from before the Android shell (its record has no `android`): only iOS rolls back
-    const legacy = join(updates, 'ios/1/bundles', `${fifth}-abc1234.json`);
+    const legacy = join(updates, `ios/${NATIVE_COMPAT}/bundles`, `${fifth}-abc1234.json`);
     const rec = JSON.parse(readFileSync(legacy, 'utf8'));
     expect(rec.android).toBe(true);
     delete rec.android;
@@ -134,10 +135,10 @@ describe('ota-publish promote while main is busy', () => {
     const updates = join(dir, 'updates');
     const env = { ...process.env, OTA_PRIVATE_KEY: '', OTA_PRIVATE_KEY_PATH: join(dir, 'private.pem'), OTA_PUBLIC_KEY_PATH: join(dir, 'public.pem'), OTA_WWW_DIR: www, OTA_UPDATES_DIR: updates };
     const run = (...a: string[]) => execFileSync(process.execPath, [script, ...a], { env, encoding: 'utf8' });
-    const read = (f: string, platform = 'ios') => JSON.parse(readFileSync(join(updates, platform, '1', f), 'utf8'));
+    const read = (f: string, platform = 'ios') => JSON.parse(readFileSync(join(updates, platform, String(NATIVE_COMPAT), f), 'utf8'));
     const publish = (hoursAgo: number) => {
       const seq = utc(new Date(Date.now() - hoursAgo * 3_600_000));
-      writeFileSync(join(www, 'bundle.json'), JSON.stringify({ version: `${seq}-abc1234`, seq, compat: 1, simVersion: 14 }));
+      writeFileSync(join(www, 'bundle.json'), JSON.stringify({ version: `${seq}-abc1234`, seq, compat: NATIVE_COMPAT, simVersion: 14 }));
       run('--keep', '5');
       return `${seq}-abc1234`;
     };

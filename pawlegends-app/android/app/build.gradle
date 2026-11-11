@@ -74,6 +74,24 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // sign-in: FirebaseApp for NativeAuth.java (the same Firebase Auth the auth plugin uses)
+    implementation "com.google.firebase:firebase-auth:$firebaseAuthVersion"
 }
 
 apply from: 'capacitor.build.gradle'
+
+// Sign-in (src/host/auth.ts, NativeAuth.java): the app's Firebase config. With google-services.json the Google
+// services plugin writes default_web_client_id and the FirebaseApp; without it the app still builds and runs with
+// Google sign-in off, but a release build refuses (a store build must offer Google sign-in as designed).
+def googleServices = file('google-services.json')
+if (googleServices.exists() && googleServices.text) {
+    apply plugin: 'com.google.gms.google-services'
+} else {
+    logger.warn("pawlegends: no android/app/google-services.json: Google sign-in is off in this build (node scripts/firebase-config.mjs check --platform android)")
+    gradle.taskGraph.whenReady { graph ->
+        def release = graph.allTasks.any { it.name ==~ /(bundle|assemble)Release/ }
+        if (release && !project.hasProperty('plAllowNoFirebase')) {
+            throw new GradleException("android/app/google-services.json is missing: a release build needs it for Google sign-in. Founder steps: node scripts/firebase-config.mjs check --platform android")
+        }
+    }
+}

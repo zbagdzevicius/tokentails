@@ -8,6 +8,9 @@
  * - OTA: notifyAppReady once the title is up, update checks on launch and resume, apply on the title (ota.ts);
  *   iPhone and Android: the Mac app runs only the game bundled in its build (takesOtaUpdates in ota.ts, guideline
  *   2.4.5). Each platform reads its own manifest (`updates/<platform>/<compat>/`).
+ * - sign-in: the same-window channel to the in-page host (`window.__PL_HOST__`, src/host/channel.ts), installed here,
+ *   before the game's module runs, so the game's bridge finds it at boot; the host itself (`host.js`, Firebase and
+ *   the sign-in sheet) loads after the game and attaches to it.
  */
 import { Capacitor, CapacitorHttp } from '@capacitor/core';
 import { App } from '@capacitor/app';
@@ -17,6 +20,7 @@ import { channelOf, manifestUrl, otaPlatformOf, type BundleStamp } from './manif
 import { handleBack } from './back';
 import { installVibrate } from './haptics';
 import { Ota, takesOtaUpdates, type KV } from './ota';
+import { CHANNEL_GLOBAL, createChannel } from '../host/channel';
 
 declare const __PL_STAMP__: BundleStamp;
 declare const __PL_SPKI__: string;
@@ -62,8 +66,22 @@ function partySeat(): boolean {
   }
 }
 
+/** The game's channel to the in-page host (sign-in); host.js picks the host side up from CHANNEL_GLOBAL. */
+function installHostChannel(): void {
+  const w = window as unknown as Record<string, unknown>;
+  if (w.__PL_HOST__) return;
+  const channel = createChannel();
+  Object.defineProperty(window, '__PL_HOST__', { value: channel.game, configurable: false, writable: false });
+  Object.defineProperty(window, CHANNEL_GLOBAL, { value: channel, configurable: false, writable: false });
+}
+
 function start(): void {
   if (!Capacitor.isNativePlatform()) return;
+  try {
+    installHostChannel();
+  } catch (e) {
+    console.warn('[shell] no host channel', e);
+  }
   // the Mac app (Mac Catalyst) has no Taptic Engine: no vibrate bridge there, the game's haptics stay silent
   const platform = (window as unknown as { __PL_PLATFORM__?: unknown }).__PL_PLATFORM__;
   const mac = platform === 'mac';

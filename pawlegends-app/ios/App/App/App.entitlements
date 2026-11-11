@@ -3,10 +3,16 @@
 <plist version="1.0">
 <dict>
 	<!-- Mac (Mac Catalyst) only: CODE_SIGN_ENTITLEMENTS[sdk=macosx*]. The Mac App Store requires the App Sandbox; the
-	     game talks to api.tokentails.com (REST, party WebSocket) and tokentails.com (OTA manifests and bundles). -->
+	     game talks to api.tokentails.com (REST, party WebSocket), tokentails.com (OTA manifests and bundles) and
+	     Firebase Authentication (sign-in). -->
 	<key>com.apple.security.app-sandbox</key>
 	<true/>
 	<key>com.apple.security.network.client</key>
 	<true/>
+	<!-- Sign in with Apple on the Mac (the same App ID; its capability is set by `bundle exec fastlane bootstrap`) -->
+	<key>com.apple.developer.applesignin</key>
+	<array>
+		<string>Default</string>
+	</array>
 </dict>
 </plist>

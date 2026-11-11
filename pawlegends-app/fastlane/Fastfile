@@ -145,6 +145,13 @@ def require_web_bundle!
   UI.user_error!("No web bundle in ios/App/App/public: run `npm run build` in pawlegends-app first") unless File.exist?(File.join(IOS_DIR, "App/public/index.html"))
 end
 
+# Sign-in: a store build needs the app's Firebase config (Google sign-in); prints the founder steps when it is missing.
+def require_firebase_config!(platform)
+  sh("node", File.join(APP_DIR, "scripts/firebase-config.mjs"), "check", "--platform", platform, "--release")
+rescue FastlaneCore::Interface::FastlaneShellError
+  UI.user_error!("The #{platform} Firebase config for sign-in is missing (steps above, or pawlegends-app/README.md \"Sign-in setup\")")
+end
+
 SUBMISSION_INFORMATION = {
   add_id_info_uses_idfa: false,
   export_compliance_uses_encryption: false,
@@ -179,14 +186,22 @@ platform :ios do
     key
   end
 
-  desc "Register the bundle id com.tokentails.pawlegends in the Developer Portal"
+  desc "Register the bundle id com.tokentails.pawlegends in the Developer Portal, with Sign in with Apple"
   lane :bootstrap do
     asc_api_key
-    if Spaceship::ConnectAPI::BundleId.find(APP_ID)
+    bundle = Spaceship::ConnectAPI::BundleId.find(APP_ID)
+    if bundle
       UI.success("Bundle id #{APP_ID} already registered")
     else
-      Spaceship::ConnectAPI::BundleId.create(name: "Pawlegends", platform: Spaceship::ConnectAPI::BundleIdPlatform::IOS, identifier: APP_ID)
+      bundle = Spaceship::ConnectAPI::BundleId.create(name: "Pawlegends", platform: Spaceship::ConnectAPI::BundleIdPlatform::IOS, identifier: APP_ID)
       UI.success("Registered #{APP_ID}")
+    end
+    # sign-in (App Store 4.8): the entitlement in App-iOS.entitlements and App.entitlements needs the capability
+    if bundle.get_capabilities.any? { |c| c.capability_type == Spaceship::ConnectAPI::BundleIdCapability::Type::APPLE_ID_AUTH }
+      UI.success("Sign in with Apple already enabled on #{APP_ID}")
+    else
+      bundle.update_capability(Spaceship::ConnectAPI::BundleIdCapability::Type::APPLE_ID_AUTH, enabled: true)
+      UI.success("Enabled Sign in with Apple on #{APP_ID}; profiles made before this need regenerating (cloud signing does it)")
     end
     UI.message("Next: App Store Connect → My Apps → + → New App: name Pawlegends, bundle id #{APP_ID}, SKU pawlegends-ios, primary language English (U.S.)")
   end
@@ -205,6 +220,7 @@ platform :ios do
   lane :build do |options|
     api_key = options[:api_key] || asc_api_key
     require_web_bundle!
+    require_firebase_config!("ios")
 
     build_number = next_build_number(api_key)
 
@@ -496,6 +512,7 @@ platform :android do
   lane :build do
     require_upload_key!
     require_android_web_bundle!
+    require_firebase_config!("android")
     props = {}
     props["plVersionCode"] = ENV["PL_VERSION_CODE"] unless ENV["PL_VERSION_CODE"].to_s.strip.empty?
     gradle(project_dir: ANDROID_DIR, task: "clean bundleRelease", properties: props, print_command: false)

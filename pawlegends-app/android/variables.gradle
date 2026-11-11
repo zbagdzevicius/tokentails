@@ -15,4 +15,8 @@ ext {
     androidxJunitVersion = '1.2.1'
     androidxEspressoCoreVersion = '3.6.1'
     cordovaAndroidVersion = '10.1.1'
+    // sign-in (@capacitor-firebase/authentication): Google through Credential Manager; the plugin's own Firebase Auth
+    // version, also used by MainActivity to make the placeholder FirebaseApp (NativeAuth.java)
+    rgcfaIncludeGoogle = true
+    firebaseAuthVersion = '23.1.0'
 }

@@ -31,6 +31,7 @@ import java.util.Locale;
  * - `window.__PL_THERMAL__ = { state, lowPower }` and a `pl-thermal` event on changes (pawlegends/src/render/perf/
  *   thermal.ts and governor.ts): PowerManager's thermal status (Android 10+) mapped to the iOS names, and battery saver.
  * - `window.__PL_DEVICE__ = { ramMb, lowRam, perfClass }`: memory class for the game's starting quality tier.
+ * - `window.__PL_NATIVE_AUTH__ = { apple, google, configured }`: the sign-in providers this build can use (NativeAuth).
  * The renderer recovery (a renderer killed for memory restarts the activity) lives in MainActivity: Capacitor's
  * Bridge.Builder replaces the bridge's listener list after plugins load, so a listener added in load() is dropped.
  */
@@ -118,6 +119,8 @@ public class ShellPlugin extends Plugin {
             thermalLiteral() +
             "; window.__PL_DEVICE__ = " +
             deviceLiteral() +
+            "; window.__PL_NATIVE_AUTH__ = " +
+            NativeAuth.literal() +
             ";"
         );
     }
