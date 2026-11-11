@@ -155,9 +155,17 @@ export function unlockInfo(hero: string, s: ChampionsState): UnlockInfo {
 /** "3,500". */
 export const yarnText = (n: number): string => n.toLocaleString('en-US');
 
+/**
+ * App builds: a champion the account owns that the app does not offer (a web purchase, founder decision 1). It can't
+ * be unlocked again (the server answers "already owned"), so the app shows no unlock for it and never says why.
+ */
+export const appHidden = (hero: string, s: ChampionsState, isApp = false): boolean =>
+  isApp && champStatus(hero, s, isApp) === 'locked' && s.owned.some((o) => o.hero === hero);
+
 /** The line a locked tile shows ("Unlock with Yarn"), or '' for a playable champion. */
 export function lockReason(hero: string, s: ChampionsState, isApp = false): string {
-  return canPlay(hero, s, isApp) ? '' : 'Unlock with Yarn';
+  if (canPlay(hero, s, isApp)) return '';
+  return appHidden(hero, s, isApp) ? 'Locked' : 'Unlock with Yarn';
 }
 
 /** "Free until Sun 22 Nov" (the last day of the rotation week, UTC). */

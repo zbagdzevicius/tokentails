@@ -325,6 +325,13 @@ export class PawlegendsYarn {
     @Prop({ default: 0 })
     picksUsed: number;
 
+    /**
+     * The champions this row paid for (Yarn or a Champion Pick): the spend's claim, written in the same update as the
+     * spend, so an unlock never spends twice and a grant that failed after the spend is finished by the next call.
+     */
+    @Prop({ type: [String], default: undefined })
+    unlocked?: string[];
+
     /** The weekly chest: the ISO week (`2026-W47`) of `weekMatches`, and the last week whose chest was paid. */
     @Prop()
     week?: string;
@@ -363,7 +370,7 @@ export class PawlegendsYarnLog {
     @Prop()
     hero?: string;
 
-    /** An unlock's spend went through (a claim row without it is still spending, or failed and is deleted). */
+    /** An unlock's record: written after its spend (the claim is the Yarn row's `unlocked`). */
     @Prop()
     done?: boolean;
 }

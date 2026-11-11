@@ -118,8 +118,10 @@ export async function allowedHeroesFor(
 export type FoundersEvidence = (accountId: string, before: Date) => Promise<boolean>;
 
 /**
- * One champion item granted for free (the Founders roster): a new row, or a revoked one restored. An existing live
- * row keeps its source and session (a later refund of a purchase made before still finds it).
+ * One champion item granted for free: a new row, or a revoked one restored. An existing live row keeps its source and
+ * session (a Yarn unlock over a live purchase cannot happen: it is refused as owned), except under the Founders
+ * roster: GDD §8.1 #7 says the roster is the player's for free, so it takes over a live purchase row and drops its
+ * session, and a later refund of that purchase never takes the champion away.
  */
 async function grantFree(
     models: Pick<Models, 'owned'>,
@@ -128,7 +130,7 @@ async function grantFree(
     source: PawlegendsOwnedSource
 ): Promise<void> {
     const row = (await models.owned.findOne({ accountId, item }).lean()) as any;
-    if (row && !row.revokedAt) return;
+    if (row && !row.revokedAt && !(source === 'founders' && row.sessionId)) return;
     try {
         if (row) {
             await models.owned.updateOne(
@@ -265,9 +267,11 @@ export async function addYarn(
 const REQUEST_ID = /^[A-Za-z0-9_-]{8,64}$/;
 
 /**
- * Unlocks a champion with Yarn (`via: 'yarn'`) or a Champion Pick (`via: 'pick'`, Tier 1 or 2 only). One ledger row
- * per account and champion (`unlock:<hero>`) is the claim, so a retry or a second tap never spends twice; the spend
- * itself is one conditional update that never goes below zero. Answers the champion's state after it.
+ * Unlocks a champion with Yarn (`via: 'yarn'`) or a Champion Pick (`via: 'pick'`, Tier 1 or 2 only). The spend and its
+ * claim are one conditional update of the Yarn row (`balance >= price` or `picksLeft > 0`, and the champion not yet in
+ * `unlocked`), so a retry, a second tap or a crash between two writes never spends twice and never spends without a
+ * way to finish: a later call finds the champion in `unlocked` and grants it again (idempotent). The ledger row
+ * (`unlock:<hero>`) is the record. Answers the champion's state after it.
  */
 export async function unlockChampion(
     models: Models,
@@ -280,50 +284,59 @@ export async function unlockChampion(
     if (isStarter(hero)) throw CHAMP_ERRORS.free();
     if (body?.requestId !== undefined && !(typeof body.requestId === 'string' && REQUEST_ID.test(body.requestId)))
         throw pawlegendsError(HttpStatus.BAD_REQUEST, 'PAWLEGENDS_INVALID', 'requestId is not valid');
+    const ref = `unlock:${hero}`;
+    const priorVia = async (): Promise<'yarn' | 'pick'> => {
+        const prior = (await models.yarnLog.findOne({ accountId, ref }).lean()) as any;
+        return prior ? (prior.amount === 0 ? 'pick' : 'yarn') : via;
+    };
+    const row = await ensureYarnRow(models, accountId);
+    const spentBefore = Array.isArray(row?.unlocked) && row.unlocked.includes(hero);
     const owned = await ownedChampions(models, accountId);
     if (owned.some(o => o.hero === hero)) {
-        const prior = (await models.yarnLog.findOne({ accountId, ref: `unlock:${hero}` }).lean()) as any;
         // a retry of the unlock that already went through answers the same; anything else is already owned
-        if (prior) return { hero, unlocked: true, via: prior.amount === 0 ? 'pick' : 'yarn' };
+        if (spentBefore) return { hero, unlocked: true, via: await priorVia() };
         throw CHAMP_ERRORS.owned();
+    }
+    if (spentBefore) {
+        // spent earlier, the grant did not land (a crash or a failed write): finish it, never spend again
+        const v = await priorVia();
+        await grantUnlock(models, accountId, hero, v === 'pick' ? 'milestone' : 'yarn');
+        return { hero, unlocked: true, via: v };
     }
     const tier = champTier(hero);
     if (via === 'pick' && !(tier && CHAMP_PICK_TIERS.includes(tier))) throw CHAMP_ERRORS.pickTier();
     const price = via === 'pick' ? 0 : champYarnPrice(hero)!;
-    await ensureYarnRow(models, accountId);
-    const ref = `unlock:${hero}`;
-    try {
-        await models.yarnLog.create({ accountId, ref, amount: -price, hero, done: false });
-    } catch (error) {
-        if (!isDuplicateKeyError(error)) throw error;
-        // a concurrent or earlier unlock of the same champion holds the claim: a finished one is granted again
-        // (idempotent, heals a grant that failed after the spend); one still spending answers "not yet"
-        const prior = (await models.yarnLog.findOne({ accountId, ref }).lean()) as any;
-        const priorVia = prior?.amount === 0 ? 'pick' : 'yarn';
-        if (prior?.done) await grantUnlock(models, accountId, hero, priorVia === 'pick' ? 'milestone' : 'yarn');
-        return { hero, unlocked: !!prior?.done, via: priorVia };
-    }
     const spent =
         via === 'pick'
             ? await models.yarn
                   .findOneAndUpdate(
-                      { _id: accountId, picksLeft: { $gt: 0 } },
-                      { $inc: { picksLeft: -1 } },
+                      { _id: accountId, picksLeft: { $gt: 0 }, unlocked: { $ne: hero } },
+                      { $inc: { picksLeft: -1 }, $push: { unlocked: hero } },
                       { new: true }
                   )
                   .lean()
             : await models.yarn
                   .findOneAndUpdate(
-                      { _id: accountId, balance: { $gte: price } },
-                      { $inc: { balance: -price } },
+                      { _id: accountId, balance: { $gte: price }, unlocked: { $ne: hero } },
+                      { $inc: { balance: -price }, $push: { unlocked: hero } },
                       { new: true }
                   )
                   .lean();
     if (!spent) {
-        await models.yarnLog.deleteMany({ accountId, ref });
+        const now = (await models.yarn.findOne({ _id: accountId }).lean()) as any;
+        if (Array.isArray(now?.unlocked) && now.unlocked.includes(hero)) {
+            // a concurrent unlock of the same champion spent first: the champion is granted once, by either call
+            const v = await priorVia();
+            await grantUnlock(models, accountId, hero, v === 'pick' ? 'milestone' : 'yarn');
+            return { hero, unlocked: true, via: v };
+        }
         throw via === 'pick' ? CHAMP_ERRORS.noPick() : CHAMP_ERRORS.yarn();
     }
-    await models.yarnLog.updateOne({ accountId, ref }, { $set: { done: true } });
+    try {
+        await models.yarnLog.create({ accountId, ref, amount: -price, hero, done: true });
+    } catch (error) {
+        if (!isDuplicateKeyError(error)) throw error;
+    }
     await grantUnlock(models, accountId, hero, via === 'pick' ? 'milestone' : 'yarn');
     return { hero, unlocked: true, via };
 }
