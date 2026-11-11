@@ -248,6 +248,8 @@ export class SocialSheet {
       this.deps.onUnread?.(chat.unread);
     }
     if (this.picking) return;
+    // an open DM thread polls itself; its Back reloads the list, so nothing renders under it meanwhile
+    if (this.chat && !this.chat.closed) return;
     if (this.adding || this.tab === 'ranked' || this.tab === 'boards') return;
     await this.load();
   }
@@ -321,7 +323,7 @@ export class SocialSheet {
                 : `<button type="button" class="pl-btn ghost small pl-more" data-a="more" data-code="${this.esc(f.code)}" aria-label="More">&hellip;</button>`;
           const t = this.threads.get(f.code);
           const dot = t?.unread && !t.muted ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, t.unread)}</i>` : '';
-          const chat = `<button type="button" class="pl-btn ghost small pl-chat-btn" data-a="chat" data-code="${this.esc(f.code)}" aria-label="Chat">💬${dot}</button>`;
+          const chat = `<button type="button" class="pl-btn ghost small pl-chat-btn" data-a="chat" data-code="${this.esc(f.code)}" aria-label="${this.esc(`Chat with ${f.name}${dot ? `, ${t!.unread} unread` : ''}`)}">💬${dot}</button>`;
           const sub = t?.unread && !t.muted ? `<small class="pl-social-st pl-social-preview" data-name="${this.esc(previewText(t.lastPreview))}"></small>` : `<small class="pl-social-st">${PRESENCE_TEXT[f.presence.state]}</small>`;
           return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i><span class="pl-social-who"><span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${sub}</span>${btn}${chat}</div>`;
         })
@@ -605,6 +607,19 @@ export class SocialSheet {
     if (this.undo) clearTimeout(this.undo.timer);
     this.chat?.dispose();
     this.root.remove();
+  }
+
+  /**
+   * A relay `chat.notice` (CHAT-AVATARS §5): the open thread fetches now; otherwise the pulse runs now instead of in up
+   * to 30 s (one `social.pulse`, 204 when the notice was for a muted thread).
+   */
+  dmNotice(thread: string): void {
+    if (this.disposed) return;
+    if (this.chat && !this.chat.closed) {
+      if (!thread || this.chat.threadId === thread) this.chat.poke(thread);
+      return;
+    }
+    void this.pulse();
   }
 
   /** Open the DM thread with a friend over the sheet (CHAT-AVATARS §6.2); back reloads the unread dots. */

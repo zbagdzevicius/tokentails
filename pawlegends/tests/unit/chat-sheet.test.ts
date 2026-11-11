@@ -131,6 +131,44 @@ describe('chat sheet', () => {
     expect(document.querySelectorAll('.pl-chat-msg.mine [data-a="report"]')).toHaveLength(0);
   });
 
+  it('a polled message keeps the input node, the draft and focus (the phone keyboard stays up); one poll in flight', async () => {
+    const t = sheet();
+    await flush();
+    const input = document.querySelector<HTMLInputElement>('[data-testid="chat-input"]')!;
+    input.value = 'half a thou';
+    input.focus();
+    t.pushSince({ mid: 'd'.repeat(24), mine: false, k: 'q', id: 2, at: '2026-11-11T10:03:00Z' });
+    const p1 = t.s.poll();
+    const p2 = t.s.poll();
+    await Promise.all([p1, p2]);
+    await flush();
+    expect(t.calls.filter((c) => c.op === 'chat.since')).toHaveLength(1);
+    expect(document.querySelectorAll('.pl-chat-msg')).toHaveLength(3);
+    const same = document.querySelector<HTMLInputElement>('[data-testid="chat-input"]')!;
+    expect(same).toBe(input);
+    expect(same.value).toBe('half a thou');
+    expect(document.activeElement).toBe(input);
+    // toggling the phrase tray does not replace the input either
+    document.querySelector<HTMLElement>('[data-a="tray"]')!.click();
+    expect(document.querySelector('[data-testid="chat-tray"]')).not.toBeNull();
+    expect(document.querySelector('[data-testid="chat-input"]')).toBe(input);
+    t.s.dispose();
+  });
+
+  it('a relay notice for this thread polls at once; Escape goes back', async () => {
+    const t = sheet();
+    await flush();
+    t.s.poke('another-thread');
+    await flush();
+    expect(t.calls.filter((c) => c.op === 'chat.since')).toHaveLength(0);
+    t.s.poke(THREAD);
+    await flush();
+    expect(t.calls.filter((c) => c.op === 'chat.since')).toHaveLength(1);
+    t.s.root.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    expect(t.onClose).toHaveBeenCalled();
+    expect(t.s.closed).toBe(true);
+  });
+
   it('pure helpers', () => {
     expect(bubbleText({ k: 'q', id: 12 })).toBe('Ready!');
     expect(bubbleText({ k: 's', id: 99 })).toBe('');

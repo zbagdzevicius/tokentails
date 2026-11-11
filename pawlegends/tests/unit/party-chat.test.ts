@@ -97,4 +97,31 @@ describe('party chat', () => {
     c.el.querySelector<HTMLElement>('[data-a="report-kind"][data-kind="harass"]')!.click();
     expect(report).toHaveBeenCalledWith('c'.repeat(24), 'harass');
   });
+
+  it('a party re-render keeps the text input node and its draft (picks and presence re-render every frame)', () => {
+    const { c } = chat(true);
+    c.sync(view(), 'lobby');
+    const input = c.el.querySelector<HTMLInputElement>('[data-testid="party-chat-input"]')!;
+    input.value = 'gg wp';
+    input.focus();
+    // a presence change re-renders the lobby
+    c.sync(view({ members: view().members.map((m) => (m.id === 'm2' ? { ...m, conn: 'away' as const } : m)) }), 'lobby');
+    c.onFrame({ t: 'chat.msg', mid: 'e'.repeat(24), from: 'm2', k: 'q', id: 1, at: 2 });
+    const same = c.el.querySelector<HTMLInputElement>('[data-testid="party-chat-input"]')!;
+    expect(same).toBe(input);
+    expect(same.value).toBe('gg wp');
+    expect(document.activeElement).toBe(input);
+    expect(c.el.querySelectorAll('.pp-chat-line')).toHaveLength(1);
+  });
+
+  it('the pick starts as the collapsed chat button (its bottom bar stays free); the desktop lobby opens it again', () => {
+    const { c } = chat(true);
+    c.sync(view(), 'lobby');
+    expect(c.el.querySelector('.pp-chat-drawer')).not.toBeNull();
+    c.sync(view({ phase: 'pick' }), 'pick');
+    expect(c.el.querySelector('.pp-chat-drawer')).toBeNull();
+    expect(c.el.querySelector('[data-testid="party-chat-strip"]')).not.toBeNull();
+    c.sync(view({ phase: 'results' }), 'lobby');
+    expect(c.el.querySelector('.pp-chat-drawer')).not.toBeNull();
+  });
 });

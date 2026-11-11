@@ -4,7 +4,9 @@
  * "Load earlier" at the top); the composer is fixed. The server decides the tier: `text` threads (both friends are 16+)
  * get a one-line input with a 120-character cap plus the phrase tray; `quick` threads get the tray only, and nobody is
  * told the other player's age band. While the sheet is visible it polls `chat.since` every 4 s (never in a match or a
- * hidden tab). Every name and every message is set with textContent; the game never sees an account id.
+ * hidden tab, never two at once), and a relay `chat.notice` for this thread polls at once (`poke`). Renders morph the
+ * DOM in place, so an arriving message never closes the phone keyboard, wipes the draft or yanks a player who scrolled
+ * up. Every name and every message is set with textContent; the game never sees an account id.
  */
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import {
@@ -20,6 +22,7 @@ import {
   type ChatTier,
 } from '../data/chatPhrases';
 import { avatarHtml } from '../ui/avatar';
+import { morphHtml } from '../ui/morph';
 
 export interface ChatMessage {
   mid: string;
@@ -76,6 +79,9 @@ export class ChatSheet {
   private reporting: string | null = null;
   private pollTimer: ReturnType<typeof setInterval> | null = null;
   private sending = false;
+  private polling = false;
+  /** The newest incoming line for screen readers (set once per poll that brought something). */
+  private announce = '';
   private disposed = false;
   private loading = true;
   private readUpTo = '';
@@ -97,6 +103,19 @@ export class ChatSheet {
       void this.sendText();
     });
     this.root.addEventListener('input', (e) => this.onInput(e));
+    this.root.addEventListener('keydown', (e) => {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (this.menu || this.reporting || this.tray) {
+        this.menu = false;
+        this.reporting = null;
+        this.tray = false;
+        this.render();
+        return;
+      }
+      this.dispose();
+      this.deps.onClose();
+    });
     parent.appendChild(this.root);
     // iOS: the keyboard shrinks the visual viewport; the sheet follows so the composer stays above it
     const vv = typeof window !== 'undefined' ? window.visualViewport : null;
@@ -113,6 +132,11 @@ export class ChatSheet {
 
   get closed(): boolean {
     return this.disposed;
+  }
+
+  /** The opaque thread id once open (a relay `chat.notice` names it). */
+  get threadId(): string | null {
+    return this.thread;
   }
 
   private async open(): Promise<void> {
@@ -144,27 +168,44 @@ export class ChatSheet {
     this.readOnly = !!body.thread?.readOnly;
     this.messages = mergeMessages(this.messages, body.messages ?? []);
     this.more = !!body.more;
+    // "Load earlier" keeps the player's place: the same distance from the bottom after the older page lands above
+    const ul = this.root.querySelector<HTMLElement>('.pl-chat-list');
+    const fromBottom = ul ? ul.scrollHeight - ul.scrollTop : 0;
     this.render(!before);
+    if (before && ul) ul.scrollTop = ul.scrollHeight - fromBottom;
     this.markRead();
   }
 
-  /** The 4 s poll while the sheet is open, visible and no match runs. */
+  /** The 4 s poll while the sheet is open, visible and no match runs; one request in flight at most (slow phones). */
   async poll(): Promise<void> {
-    if (this.disposed || !this.thread || this.loading) return;
+    if (this.disposed || !this.thread || this.loading || this.polling) return;
     if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
     if (this.deps.inMatch?.()) return;
-    const last = this.messages[this.messages.length - 1]?.mid;
-    if (!last) {
-      await this.loadHistory();
-      return;
+    this.polling = true;
+    try {
+      const last = this.messages[this.messages.length - 1]?.mid;
+      if (!last) {
+        await this.loadHistory();
+        return;
+      }
+      const r = await this.deps.api('chat.since', { thread: this.thread, after: last });
+      if (this.disposed || !r.ok || r.status === 204 || !r.body) return;
+      const fresh = (r.body as { messages?: ChatMessage[] }).messages ?? [];
+      if (!fresh.length) return;
+      this.messages = mergeMessages(this.messages, fresh);
+      const theirs = fresh.filter((m) => !m.mine).pop();
+      if (theirs) this.announce = `${this.deps.friend.name}: ${bubbleText(theirs)}`;
+      // stays at the bottom only when the player was there (render keeps a scrolled-up reader in place)
+      this.render();
+      this.markRead();
+    } finally {
+      this.polling = false;
     }
-    const r = await this.deps.api('chat.since', { thread: this.thread, after: last });
-    if (!r.ok || r.status === 204 || !r.body) return;
-    const fresh = (r.body as { messages?: ChatMessage[] }).messages ?? [];
-    if (!fresh.length) return;
-    this.messages = mergeMessages(this.messages, fresh);
-    this.render(true);
-    this.markRead();
+  }
+
+  /** A relay `chat.notice` for this thread: fetch now instead of waiting for the next tick. */
+  poke(thread?: string): void {
+    if (!thread || thread === this.thread) void this.poll();
   }
 
   private markRead(): void {
@@ -255,18 +296,15 @@ export class ChatSheet {
     if (this.tier === 'quick')
       return `${this.trayHtml()}<p class="pl-chat-line" data-testid="chat-quick-note">Quick chat keeps everyone safe 🐾</p>`;
     const input = `<form class="pl-chat-form"><button type="button" class="pl-btn ghost small" data-a="tray" aria-label="Quick phrases" aria-pressed="${this.tray}">💬</button><input name="chat" maxlength="${CHAT_LIMITS_CLIENT.textMax}" autocomplete="off" enterkeyhint="send" placeholder="Message" aria-label="Message" data-testid="chat-input"><small class="pl-chat-count" aria-live="polite"></small><button type="submit" class="pl-btn small" data-testid="chat-send">Send</button></form>`;
-    return `${this.tray ? this.trayHtml() : ''}${input}`;
+    return `<div class="pl-chat-traywrap">${this.tray ? this.trayHtml() : ''}</div>${input}`;
   }
 
-  /** Markup with `data-name` / `data-text` holes, filled by textContent after. */
+  /** Markup with `data-name` / `data-text` holes, filled by textContent, then morphed into the live DOM. */
   render(stickToBottom = false): void {
     if (this.disposed) return;
     const f = this.deps.friend;
     const list = this.root.querySelector<HTMLElement>('.pl-chat-list');
     const atBottom = !list || list.scrollHeight - list.scrollTop - list.clientHeight < 40;
-    const typing = this.root.querySelector<HTMLInputElement>('input[name="chat"]');
-    const draft = typing?.value ?? '';
-    const focused = !!typing && typing.ownerDocument.activeElement === typing;
     const menu = this.menu
       ? `<div class="pl-chat-menu" role="menu"><button type="button" class="pl-btn ghost small" data-a="mute" role="menuitem">${this.muted ? 'Unmute' : 'Mute'}</button><button type="button" class="pl-btn ghost small" data-a="block" role="menuitem">Block</button></div>`
       : '';
@@ -283,12 +321,11 @@ export class ChatSheet {
       .join('');
     const empty = !this.messages.length ? `<li class="pl-chat-empty">${this.loading ? 'Loading…' : 'Say hi! 👋'}</li>` : '';
     const earlier = this.more ? `<li><button type="button" class="pl-btn ghost small pl-chat-earlier" data-a="earlier">Load earlier</button></li>` : '';
-    this.root.innerHTML = `<header class="pl-chat-head"><button type="button" class="pl-social-x" data-a="back" aria-label="Back">&lsaquo;</button>${avatarHtml(f.av, 40)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${this.muted ? '<small class="pl-social-st">Muted</small>' : ''}<button type="button" class="pl-social-x" data-a="menu" aria-label="More" aria-expanded="${this.menu}">&hellip;</button></header>${menu}<ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
-    for (const el of this.root.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
-    for (const el of this.root.querySelectorAll<HTMLElement>('[data-text]')) el.textContent = el.dataset.text ?? '';
-    const input = this.root.querySelector<HTMLInputElement>('input[name="chat"]');
-    if (input && draft) input.value = draft;
-    if (input && focused) input.focus();
+    const html = `<header class="pl-chat-head"><button type="button" class="pl-social-x" data-a="back" aria-label="Back">&lsaquo;</button>${avatarHtml(f.av, 40)}<span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${this.muted ? '<small class="pl-social-st">Muted</small>' : ''}<button type="button" class="pl-social-x" data-a="menu" aria-label="More" aria-expanded="${this.menu}">&hellip;</button></header><div class="pl-chat-menuwrap">${menu}</div><ul class="pl-chat-list" data-testid="chat-list">${earlier}${empty}${bubbles}</ul><p class="pl-sr" aria-live="polite" data-name="${this.esc(this.announce)}"></p><footer class="pl-chat-foot">${this.composerHtml()}${this.error ? `<p class="pl-chat-err" role="alert">${this.esc(this.error)}</p>` : ''}</footer>`;
+    morphHtml(this.root, html, (tree) => {
+      for (const el of tree.querySelectorAll<HTMLElement>('[data-name]')) el.textContent = el.dataset.name ?? '';
+      for (const el of tree.querySelectorAll<HTMLElement>('[data-text]')) el.textContent = el.dataset.text ?? '';
+    });
     const ul = this.root.querySelector<HTMLElement>('.pl-chat-list');
     if (ul && (stickToBottom || atBottom)) ul.scrollTop = ul.scrollHeight;
   }

@@ -643,8 +643,8 @@ export interface PartyHooks {
   notify(n: NetNote): void;
   /** Report a party chat line (CHAT-AVATARS.md §2.7; the host's `chat.report`); absent: no Report on lines. */
   chatReport?(mid: string, kind: ChatReportKind): Promise<boolean>;
-  /** A friend sent a DM (PROTO 5 `chat.notice`): the title's Social badge updates on the next pulse. */
-  dmNotice?(): void;
+  /** A friend sent a DM (PROTO 5 `chat.notice`, the opaque thread id): an open thread fetches now, the badge counts it. */
+  dmNotice?(thread: string): void;
   /** The party closed: back to the title. */
   close(): void;
   /** The invite URL for a code (the embed URL, D12). */
@@ -755,7 +755,7 @@ export class PartyClient {
         // PROTO 5 chat frames never reach the party reducer
         if (m.t === 'chat.notice') {
           if (!this.state.inMatch) this.note({ key: 'pp-dm', title: COPY.dmNotice, tone: 'info', ttl: 4000 });
-          this.h.dmNotice?.();
+          this.h.dmNotice?.(typeof m.thread === 'string' ? m.thread : '');
           return;
         }
         if (this.chat.onFrame(m as unknown as { t: string } & Record<string, unknown>)) return;

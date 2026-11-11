@@ -1005,6 +1005,12 @@ export class App {
             // CHAT-AVATARS §2.7: report a party chat line through the host (signed-in players only)
             chatReport: (mid, kind) =>
               accountState().signedIn ? this.integration.api('chat.report', { msg: mid, kind }).then((r) => r.ok) : Promise.resolve(false),
+            // CHAT-AVATARS §5: the relay's push for a DM, so a party player sees it without waiting for a poll
+            dmNotice: (thread) => {
+              if (this.social && !this.social.closed) return this.social.dmNotice(thread);
+              this.chatUnread++;
+              this.paintSocialBadge();
+            },
           },
           { mode, code },
         );
