@@ -2368,11 +2368,14 @@ export class PartyRelay {
 
     /** The 1 s loop: restore (serving), heartbeat, newest-generation check, held rooms. */
     private async loop(): Promise<void> {
-        if (this.state === 'stopped' || this.looping) return;
+        if (this.state === 'stopped') return;
+        // the heartbeat never waits behind a slow restore pass: a relay whose row goes 15 s without a beat counts as
+        // gone, and another relay would take its lobby parties over while it still runs them (§14)
+        void this.beat();
+        if (this.looping) return;
         this.looping = true;
         try {
             if (this.state === 'serving') await this.restore();
-            await this.beat();
             await this.generations();
         } catch (e) {
             this.log('relay_loop_error', { message: String((e as Error)?.message || e).slice(0, 200) });

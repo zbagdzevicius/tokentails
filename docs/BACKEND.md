@@ -80,8 +80,9 @@ counters on the relay role and `state: serving|draining` wherever a relay runs; 
 liveness checks never restart a draining relay) and `GET /readyz` (503 while MongoDB is down, while shutting down,
 while the relay drains, or when the role serves the relay and it has not started). `POST /pawlegends/relay/drain
 {maxMs?}` starts or tightens a relay drain and answers `202 {state, rooms_live, deadline_in_ms}`; it accepts loopback
-callers only (the socket peer, never a forwarded header). On the relay VM each blue/green slot also serves these three
-routes on its loopback `RELAY_CONTROL_PORT`. Live-match deploys (drain, pull and push handoff, the 1 s restore loop,
+callers on the control port only (the socket peer and local port, never a forwarded header); without
+`RELAY_CONTROL_PORT` (DigitalOcean, Cloud Run) it refuses every caller. On the relay VM each blue/green slot also serves
+these three routes on its loopback `RELAY_CONTROL_PORT`. Live-match deploys (drain, pull and push handoff, the 1 s restore loop,
 relay generations and pools, `RELAY_DRAIN_MAX_MS`, `RELAY_POOL`): `docs/plans/moba/LIVE-MATCH-DEPLOYS.md`. `GET /` still answers `1`. The relay role also answers `GET /pawlegends/ws/healthz`
 (proves a route reaches the relay) and logs one `relay_stats` JSON line a minute for log-based metrics. Both health
 routes are public and skip the throttler (no database I/O: `readyz` reads the Mongo connection state only); they show

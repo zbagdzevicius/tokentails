@@ -109,8 +109,10 @@ While draining:
 ### 4.2 Drain endpoint
 
 `POST /pawlegends/relay/drain` with optional `{maxMs}`, answer `202 {rooms_live, deadline}`. It is reachable from
-loopback only (`req.socket.remoteAddress` in `127.0.0.1`/`::1`, checked in the controller), and it is not exposed by
-the GCP load balancer (only `/pawlegends/ws` goes to the relay) or useful on DO (public API, refused for non-loopback).
+a loopback peer on the control port only (`req.socket.remoteAddress` in `127.0.0.1`/`::1` and `req.socket.localPort`
+equal to `RELAY_CONTROL_PORT`, checked in the controller): a local proxy on the public port cannot pass it on, and a
+process without `RELAY_CONTROL_PORT` (DO, Cloud Run) refuses every caller. It is not exposed by the GCP load balancer
+either (only `/pawlegends/ws` goes to the relay).
 Idempotent: a second call returns the same deadline. `deploy.sh` already calls it and polls `rooms_live` on `/healthz`
 (`cloud-init.yaml.tftpl` 106–117); it starts working the day the endpoint ships.
 
