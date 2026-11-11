@@ -7,6 +7,10 @@
  */
 import type { ApiArgs, ApiOp, ApiResult } from '../embed/api';
 import { RANKED_OPEN_FALLBACK, rankedLabel } from '../meta/ranked';
+import { HERO_IDS } from '../data/heroes';
+import { isAvatarView, previewText, type AvatarView } from '../data/chatPhrases';
+import { avatarHtml, titleText } from '../ui/avatar';
+import { ChatSheet } from './chatSheet';
 
 export type SocialTab = 'friends' | 'requests' | 'recent' | 'ranked' | 'boards';
 export const SOCIAL_TABS: readonly SocialTab[] = Object.freeze(['friends', 'requests', 'recent', 'ranked', 'boards']);
@@ -27,14 +31,54 @@ export interface FriendRow {
   code: string;
   name: string;
   presence: Presence;
+  /** CHAT-AVATARS §7.3: the friend's avatar (absent from an older backend). */
+  av?: AvatarView;
+}
+export interface PersonRow {
+  code: string;
+  name: string;
+  av?: AvatarView;
 }
 export interface SocialState {
-  me: { code: string; name: string; invisible: boolean; allowRecent: boolean; ageBand: string | null };
+  me: {
+    code: string;
+    name: string;
+    invisible: boolean;
+    allowRecent: boolean;
+    ageBand: string | null;
+    av?: AvatarView;
+    avatar?: { kind: string; hero?: string; catId?: string; icon?: string } | null;
+    frame?: string | null;
+    title?: string | null;
+    dmPolicy?: 'friends' | 'off';
+  };
   friends: FriendRow[];
-  requests: { in: { code: string; name: string }[]; out: { code: string; name: string }[] };
-  blocks: { code: string; name: string }[];
+  requests: { in: PersonRow[]; out: PersonRow[] };
+  blocks: PersonRow[];
   invites: { id: string; from: { code: string; name: string }; party: string }[];
   rev: string;
+  /** CHAT-AVATARS §4: unread DMs (the Friends tab and the landing badge). */
+  chat?: { unread: number; top?: { thread: string; fromName: string; preview: string } };
+}
+
+/** One DM thread as `chat.list` returns it. */
+export interface ChatThreadRow {
+  id: string;
+  with: { code: string; name: string; av?: AvatarView };
+  tier: 'text' | 'quick';
+  lastPreview: string;
+  lastMine: boolean;
+  unread: number;
+  muted: boolean;
+}
+
+/**
+ * Friends order (CHAT-AVATARS §6.1): a joinable party first, then in a party, in a queue, online, in a match, offline;
+ * names A–Z inside a group. Pure.
+ */
+export function friendOrder(list: readonly FriendRow[]): FriendRow[] {
+  const rank = (p: Presence) => (p.state === 'party' && p.joinable ? 0 : ({ party: 1, queue: 2, online: 3, match: 4, offline: 5 } as const)[p.state]);
+  return [...list].sort((a, b) => rank(a.presence) - rank(b.presence) || a.name.localeCompare(b.name));
 }
 
 /** Rows a page shows at a viewport height (§14.2 hide ladder). Pure. */
@@ -80,6 +124,14 @@ export interface SocialSheetDeps {
   track?(event: string, props?: Record<string, string | number | boolean>): void;
   /** The viewport height (the hide ladder); default window.innerHeight. */
   height?(): number;
+  /** Owned store and pass items (frames and titles the avatar picker offers). */
+  ownedItems?(): readonly string[];
+  /** The player's own cats with art (the avatar picker's Cats page). */
+  cats?(): readonly { id: string; image: string }[];
+  /** A match runs: chat polls pause. */
+  inMatch?(): boolean;
+  /** The unread DM count changed (the landing badge). */
+  onUnread?(n: number): void;
 }
 
 const errorText = (r: ApiResult): string => {
@@ -99,7 +151,7 @@ export class SocialSheet {
   private tab: SocialTab = 'friends';
   private page = 0;
   private state: SocialState | null = null;
-  private recent: { room: string; slot: number; name: string; team: string; canAdd: boolean }[] | null = null;
+  private recent: { room: string; slot: number; name: string; team: string; canAdd: boolean; av?: AvatarView }[] | null = null;
   private ranked: { status?: Record<string, any>; me?: Record<string, any> } = {};
   private board: { kind: 'global' | 'friends' | 'weekly'; page: number; data: Record<string, any> | null } = { kind: 'weekly', page: 0, data: null };
   private adding = false;
@@ -107,6 +159,11 @@ export class SocialSheet {
   private undo: { code: string; timer: ReturnType<typeof setTimeout> } | null = null;
   private pulseTimer: ReturnType<typeof setInterval> | null = null;
   private disposed = false;
+  /** DM threads by friend code (unread dots on the rows). */
+  private threads = new Map<string, ChatThreadRow>();
+  private chat: ChatSheet | null = null;
+  /** The avatar picker (Me): its page and the choice not saved yet. */
+  private picking: { page: 'heroes' | 'cats'; avatarKind: string; avatarRef: string; frame: string } | null = null;
 
   constructor(
     parent: HTMLElement,
@@ -142,9 +199,17 @@ export class SocialSheet {
       const r = await this.deps.api('social.recent');
       this.recent = r.ok ? ((r.body as { players?: SocialSheet['recent'] })?.players ?? []) : [];
     }
-    const s = await this.deps.api('social.get');
-    if (s.ok && s.body) this.state = s.body as SocialState;
-    else if (!s.ok) this.note = errorText(s);
+    const [s, threads] = await Promise.all([
+      this.deps.api('social.get'),
+      this.tab === 'friends' ? this.deps.api('chat.list') : Promise.resolve(null),
+    ]);
+    if (s.ok && s.body) {
+      this.state = s.body as SocialState;
+      this.deps.onUnread?.(this.state.chat?.unread ?? 0);
+    } else if (!s.ok) this.note = errorText(s);
+    if (threads?.ok) {
+      this.threads = new Map(((threads.body as { threads?: ChatThreadRow[] })?.threads ?? []).map((t) => [t.with.code, t]));
+    }
     this.render();
   }
 
@@ -177,6 +242,12 @@ export class SocialSheet {
     // add-code field is open: a re-render would wipe what the player is typing.
     const rev = (r.body as { rev?: unknown }).rev;
     if (this.state && typeof rev === 'string') this.state.rev = rev;
+    const chat = (r.body as { chat?: SocialState['chat'] }).chat;
+    if (chat && typeof chat.unread === 'number') {
+      if (this.state) this.state.chat = chat;
+      this.deps.onUnread?.(chat.unread);
+    }
+    if (this.picking) return;
     if (this.adding || this.tab === 'ranked' || this.tab === 'boards') return;
     await this.load();
   }
@@ -205,7 +276,13 @@ export class SocialSheet {
   render(): void {
     if (this.disposed) return;
     const tabs = SOCIAL_TABS.map((t) => {
-      const badge = t === 'requests' && this.state?.requests.in.length ? ` <i class="pl-social-badge">${this.state.requests.in.length}</i>` : '';
+      const unread = this.state?.chat?.unread ?? 0;
+      const badge =
+        t === 'requests' && this.state?.requests.in.length
+          ? ` <i class="pl-social-badge">${this.state.requests.in.length}</i>`
+          : t === 'friends' && unread
+            ? ` <i class="pl-social-badge" data-testid="social-unread">${Math.min(99, unread)}</i>`
+            : '';
       return `<button type="button" role="tab" class="pl-social-tab" data-tab="${t}" aria-selected="${t === this.tab}">${TAB_LABEL[t]}${badge}</button>`;
     }).join('');
     this.root.innerHTML = `<header class="pl-social-head" role="tablist">${tabs}<button type="button" class="pl-social-x" data-a="close" aria-label="Close">&times;</button></header><div class="pl-social-body">${this.body()}</div><footer class="pl-social-foot">${this.footer()}</footer>${this.note ? `<p class="pl-social-note" role="status">${this.esc(this.note)}</p>` : ''}`;
@@ -228,9 +305,10 @@ export class SocialSheet {
     const s = this.state;
     if (!s) return `<p class="pl-social-empty">Loading…</p>`;
     if (!s.me.ageBand) return this.agePanel();
+    if (this.picking) return this.pickerBody();
     if (this.tab === 'friends') {
       if (!s.friends.length) return `<p class="pl-social-empty">No friends yet. Share your code or add theirs.</p>`;
-      const { rows } = pageOf(s.friends, this.page, this.per);
+      const { rows } = pageOf(friendOrder(s.friends), this.page, this.per);
       const inParty = !!this.deps.partyCode();
       return rows
         .map((f) => {
@@ -241,7 +319,11 @@ export class SocialSheet {
               : act === 'invite'
                 ? `<button type="button" class="pl-btn ghost small" data-a="invite" data-code="${this.esc(f.code)}">Invite</button>`
                 : `<button type="button" class="pl-btn ghost small pl-more" data-a="more" data-code="${this.esc(f.code)}" aria-label="More">&hellip;</button>`;
-          return `<div class="pl-social-row" data-state="${f.presence.state}"><i class="pl-dot" data-state="${f.presence.state}"></i><span class="pl-social-name" data-name="${this.esc(f.name)}"></span><small class="pl-social-st">${PRESENCE_TEXT[f.presence.state]}</small>${btn}</div>`;
+          const t = this.threads.get(f.code);
+          const dot = t?.unread && !t.muted ? `<i class="pl-chat-unread" data-testid="chat-unread">${Math.min(99, t.unread)}</i>` : '';
+          const chat = `<button type="button" class="pl-btn ghost small pl-chat-btn" data-a="chat" data-code="${this.esc(f.code)}" aria-label="Chat">💬${dot}</button>`;
+          const sub = t?.unread && !t.muted ? `<small class="pl-social-st pl-social-preview" data-name="${this.esc(previewText(t.lastPreview))}"></small>` : `<small class="pl-social-st">${PRESENCE_TEXT[f.presence.state]}</small>`;
+          return `<div class="pl-social-row" data-state="${f.presence.state}" data-code="${this.esc(f.code)}">${avatarHtml(f.av, 40)}<i class="pl-dot" data-state="${f.presence.state}"></i><span class="pl-social-who"><span class="pl-social-name" data-name="${this.esc(f.name)}"></span>${sub}</span>${btn}${chat}</div>`;
         })
         .join('');
     }
@@ -252,8 +334,8 @@ export class SocialSheet {
       return rows
         .map((r) =>
           r.dir === 'in'
-            ? `<div class="pl-social-row"><span class="pl-social-name" data-name="${this.esc(r.name)}"></span><button type="button" class="pl-btn small" data-a="accept" data-code="${this.esc(r.code)}">Accept</button><button type="button" class="pl-btn ghost small" data-a="decline" data-code="${this.esc(r.code)}">Decline</button></div>`
-            : `<div class="pl-social-row"><span class="pl-social-name" data-name="${this.esc(r.name)}"></span><small class="pl-social-st">Sent</small><button type="button" class="pl-btn ghost small" data-a="decline" data-code="${this.esc(r.code)}">Cancel</button></div>`,
+            ? `<div class="pl-social-row">${avatarHtml(r.av, 40)}<span class="pl-social-name" data-name="${this.esc(r.name)}"></span><button type="button" class="pl-btn small" data-a="accept" data-code="${this.esc(r.code)}">Accept</button><button type="button" class="pl-btn ghost small" data-a="decline" data-code="${this.esc(r.code)}">Decline</button></div>`
+            : `<div class="pl-social-row">${avatarHtml(r.av, 40)}<span class="pl-social-name" data-name="${this.esc(r.name)}"></span><small class="pl-social-st">Sent</small><button type="button" class="pl-btn ghost small" data-a="decline" data-code="${this.esc(r.code)}">Cancel</button></div>`,
         )
         .join('');
     }
@@ -265,7 +347,7 @@ export class SocialSheet {
     return rows
       .map(
         (p) =>
-          `<div class="pl-social-row"><span class="pl-social-name" data-name="${this.esc(p.name)}"></span><small class="pl-social-st">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</small>${p.canAdd ? `<button type="button" class="pl-btn ghost small" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="Add friend">+</button>` : ''}</div>`,
+          `<div class="pl-social-row">${avatarHtml(p.av, 40)}<span class="pl-social-name" data-name="${this.esc(p.name)}"></span><small class="pl-social-st">${p.team === 'ally' ? 'Teammate' : 'Opponent'}</small>${p.canAdd ? `<button type="button" class="pl-btn ghost small" data-a="add-recent" data-room="${this.esc(p.room)}" data-slot="${p.slot}" aria-label="Add friend">+</button>` : ''}</div>`,
       )
       .join('');
   }
@@ -297,12 +379,12 @@ export class SocialSheet {
       .join('');
     const d = b.data;
     if (!d) return `<div class="pl-social-sub">${sub}</div><p class="pl-social-empty">Loading…</p>`;
-    const rows = ((d.rows ?? []) as { rank: number; name: string; value: number; tier?: string; me?: boolean }[]).slice(0, this.per + 1);
+    const rows = ((d.rows ?? []) as { rank: number; name: string; value: number; tier?: string; me?: boolean; av?: AvatarView }[]).slice(0, this.per + 1);
     const list = rows.length
       ? rows
           .map(
             (r) =>
-              `<div class="pl-social-row${r.me ? ' me' : ''}"><b class="pl-rank">${r.rank}</b><span class="pl-social-name" data-name="${this.esc(String(r.name))}"></span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${r.value} wins`}</small></div>`,
+              `<div class="pl-social-row${r.me ? ' me' : ''}"><b class="pl-rank">${r.rank}</b>${isAvatarView(r.av) ? avatarHtml(r.av, 32) : ''}<span class="pl-social-name" data-name="${this.esc(String(r.name))}"></span><small class="pl-social-st">${r.tier ? this.esc(r.tier) : `${r.value} wins`}</small></div>`,
           )
           .join('')
       : `<p class="pl-social-empty">${d.error ? this.esc(String(d.error)) : 'No one here yet this week.'}</p>`;
@@ -323,10 +405,12 @@ export class SocialSheet {
               : 1;
     const page = this.tab === 'boards' ? this.board.page : Math.min(this.page, pages - 1);
     const pager = pages > 1 ? `<span class="pl-pager"><button type="button" class="pl-btn ghost small" data-a="prev" aria-label="Previous page"${page <= 0 ? ' disabled' : ''}>&lsaquo;</button><small>${page + 1}/${pages}</small><button type="button" class="pl-btn ghost small" data-a="next" aria-label="Next page"${page >= pages - 1 ? ' disabled' : ''}>&rsaquo;</button></span>` : '';
+    if (this.picking)
+      return `<button type="button" class="pl-btn ghost small" data-a="pick-cancel">Cancel</button><button type="button" class="pl-btn small" data-a="pick-save" data-testid="avatar-save">Save</button>`;
     if (this.tab !== 'friends' || !this.state || !this.deps.signedIn() || !this.state.me.ageBand) return pager;
     if (this.adding)
       return `<form class="pl-social-add"><input name="code" maxlength="14" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="PL-XXXX-XXXX" aria-label="Friend code" inputmode="text"><button type="submit" class="pl-btn small">Add</button><button type="button" class="pl-btn ghost small" data-a="add-cancel" aria-label="Cancel">&times;</button></form>`;
-    return `${pager}<span class="pl-social-code">My code <b>${this.esc(this.state.me.code)}</b></span><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button><button type="button" class="pl-btn small" data-a="add">Add</button>`;
+    return `${pager}<button type="button" class="pl-me-av" data-a="avatar" aria-label="My avatar" data-testid="avatar-open">${avatarHtml(this.state.me.av, 40)}</button><span class="pl-social-code">My code <b>${this.esc(this.state.me.code)}</b></span><button type="button" class="pl-btn ghost small" data-a="copy">Copy</button><button type="button" class="pl-btn small" data-a="add">Add</button>`;
   }
 
   private async act(op: ApiOp, args: ApiArgs, ok?: string): Promise<boolean> {
@@ -439,6 +523,34 @@ export class SocialSheet {
       case 'more':
         this.moreMenu(el, code);
         return;
+      case 'chat':
+        this.openChat(code);
+        return;
+      case 'avatar':
+        this.openPicker();
+        return;
+      case 'pick-tab':
+        if (this.picking) this.picking.page = el.dataset.page === 'cats' ? 'cats' : 'heroes';
+        this.render();
+        return;
+      case 'pick-icon':
+        if (this.picking) {
+          this.picking.avatarKind = el.dataset.kind ?? 'hero';
+          this.picking.avatarRef = el.dataset.ref ?? '';
+        }
+        this.render();
+        return;
+      case 'pick-frame':
+        if (this.picking) this.picking.frame = el.dataset.frame ?? 'none';
+        this.render();
+        return;
+      case 'pick-cancel':
+        this.picking = null;
+        this.render();
+        return;
+      case 'pick-save':
+        void this.saveAvatar();
+        return;
       case 'remove':
         void this.act('friend.remove', { code }, 'Removed');
         return;
@@ -491,7 +603,91 @@ export class SocialSheet {
     if (this.pulseTimer) clearInterval(this.pulseTimer);
     if (this.noteTimer) clearTimeout(this.noteTimer);
     if (this.undo) clearTimeout(this.undo.timer);
+    this.chat?.dispose();
     this.root.remove();
+  }
+
+  /** Open the DM thread with a friend over the sheet (CHAT-AVATARS §6.2); back reloads the unread dots. */
+  openChat(code: string): void {
+    const f = this.state?.friends.find((x) => x.code === code);
+    if (!f || !this.root.parentElement) return;
+    this.chat?.dispose();
+    this.chat = new ChatSheet(this.root.parentElement, {
+      api: (op, args) => this.deps.api(op, args),
+      friend: { code: f.code, name: f.name, av: f.av },
+      inMatch: () => this.deps.inMatch?.() ?? false,
+      track: this.deps.track,
+      onClose: () => {
+        this.chat = null;
+        void this.load();
+      },
+      onBlocked: () => {
+        this.note = 'Blocked';
+      },
+    });
+  }
+
+  private openPicker(): void {
+    const me = this.state?.me;
+    if (!me) return;
+    const a = me.avatar;
+    this.picking = {
+      page: a?.kind === 'cat' ? 'cats' : 'heroes',
+      avatarKind: a?.kind === 'cat' ? 'cat' : a?.kind === 'icon' ? 'icon' : 'hero',
+      avatarRef: a?.kind === 'cat' ? (a.catId ?? '') : a?.kind === 'icon' ? (a.icon ?? '') : (a?.hero ?? (me.av?.i.startsWith('h:') ? me.av.i.slice(2) : 'clem')),
+      frame: me.frame ?? 'none',
+    };
+    this.deps.track?.('avatar_open');
+    this.render();
+  }
+
+  /** The preview of the choice not saved yet. */
+  private pickedView(): AvatarView {
+    const p = this.picking!;
+    const cat = p.avatarKind === 'cat' ? this.deps.cats?.().find((c) => c.id === p.avatarRef) : undefined;
+    const v: AvatarView = cat ? { i: `c:${cat.id}`, img: cat.image } : { i: `h:${p.avatarRef || 'clem'}` };
+    if (p.frame !== 'none') v.f = p.frame;
+    const t = this.state?.me.title;
+    if (t) v.t = t;
+    return v;
+  }
+
+  /** Avatar picker (CHAT-AVATARS §7.4): champions or your cats (the one scroll region), owned borders, a live preview. */
+  private pickerBody(): string {
+    const p = this.picking!;
+    const tabs = `<div class="pl-social-sub"><button type="button" class="pl-btn ghost small" data-a="pick-tab" data-page="heroes" aria-pressed="${p.page === 'heroes'}">Champions</button><button type="button" class="pl-btn ghost small" data-a="pick-tab" data-page="cats" aria-pressed="${p.page === 'cats'}">My cats</button></div>`;
+    const cats = this.deps.cats?.() ?? [];
+    const tiles =
+      p.page === 'heroes'
+        ? HERO_IDS.map((h) => `<button type="button" class="pl-av-tile" data-a="pick-icon" data-kind="hero" data-ref="${h}" aria-pressed="${p.avatarKind === 'hero' && p.avatarRef === h}" aria-label="${this.esc(h)}">${avatarHtml({ i: `h:${h}` }, 40)}</button>`).join('')
+        : cats.length
+          ? cats
+              .slice(0, 60)
+              .map((c) => `<button type="button" class="pl-av-tile" data-a="pick-icon" data-kind="cat" data-ref="${this.esc(c.id)}" aria-pressed="${p.avatarKind === 'cat' && p.avatarRef === c.id}" aria-label="Cat">${avatarHtml({ i: `c:${c.id}`, img: c.image }, 40)}</button>`)
+              .join('')
+          : `<p class="pl-social-empty">Your Token Tails cats show here.</p>`;
+    const frames = ['none', ...(this.deps.ownedItems?.() ?? []).filter((i) => /^frame\.(store|s1)\.[a-z0-9._-]+$|^frame\.(legend|founder)$/.test(i))].slice(0, 7);
+    const ring = frames
+      .map((f) => `<button type="button" class="pl-av-tile" data-a="pick-frame" data-frame="${this.esc(f)}" aria-pressed="${p.frame === f}" aria-label="${f === 'none' ? 'No border' : this.esc(f)}">${avatarHtml({ i: `h:${p.avatarKind === 'hero' ? p.avatarRef || 'clem' : 'clem'}`, ...(f !== 'none' ? { f } : {}) }, 32)}</button>`)
+      .join('');
+    const title = this.state?.me.title ? `<small class="pl-social-st">${this.esc(titleText(this.state.me.title))}</small>` : '';
+    return `<div class="pl-av-pick" data-testid="avatar-picker"><div class="pl-av-preview">${avatarHtml(this.pickedView(), 56)}<span class="pl-social-name" data-name="${this.esc(this.state?.me.name ?? '')}"></span>${title}</div>${tabs}<div class="pl-av-grid">${tiles}</div><div class="pl-av-frames" aria-label="Border">${ring}</div></div>`;
+  }
+
+  private async saveAvatar(): Promise<void> {
+    const p = this.picking;
+    if (!p) return;
+    const r = await this.deps.api('social.me', { avatarKind: p.avatarKind, avatarRef: p.avatarRef, frame: p.frame });
+    if (r.ok) {
+      this.picking = null;
+      this.deps.track?.('avatar_save', { kind: p.avatarKind });
+      this.note = 'Avatar saved';
+      if (r.body) this.state = r.body as SocialState;
+      this.render();
+      return;
+    }
+    this.note = "Couldn't save that avatar";
+    this.render();
   }
 
   get closed(): boolean {

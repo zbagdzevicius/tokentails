@@ -13,6 +13,8 @@ import type { PartyView } from '../../net/proto';
 import { HERO_TEXT } from '../../ui/heroText';
 import { portraitUrl } from '../../render/portraits';
 import { esc } from './copy';
+import { avatarHtml } from '../../ui/avatar';
+import type { AvatarView } from '../../data/chatPhrases';
 
 /** A bot flew a friend for more than this share of the match: the row says so. */
 export const BOT_CHIP_PCT = 10;
@@ -30,6 +32,8 @@ export interface PartyResultRow {
   dmg: number;
   /** Share of the match a bot flew this human (0..100). */
   botPct: number;
+  /** CHAT-AVATARS §7.4: the player's avatar (humans only). */
+  av?: AvatarView;
 }
 
 export interface PartyRowsInput {
@@ -42,6 +46,8 @@ export interface PartyRowsInput {
   pilotPct: readonly number[];
   /** Card art per human slot. */
   art: readonly (string | null)[];
+  /** Avatars per human slot (from the party view). */
+  avs?: readonly (AvatarView | undefined)[];
   hide: boolean;
 }
 
@@ -66,6 +72,7 @@ export function partyRows(o: PartyRowsInput): PartyResultRow[] {
       human,
       me,
       art: human ? (o.art[slot] ?? null) : null,
+      ...(human && o.avs?.[slot] ? { av: o.avs[slot] } : {}),
       k: st.kills,
       d: st.deaths,
       a: st.assists,
@@ -80,7 +87,11 @@ export function partyRows(o: PartyRowsInput): PartyResultRow[] {
 export function partyRowsHtml(rows: readonly PartyResultRow[]): string {
   const row = (r: PartyResultRow): string => {
     const pic = r.art ?? portraitUrl(r.hero as never);
-    const av = pic ? `<i class="pr-av" style="background-image:url('${esc(pic)}')"></i>` : '<i class="pr-av"></i>';
+    const av = r.av
+      ? avatarHtml(r.av, 40)
+      : pic
+        ? `<i class="pr-av" style="background-image:url('${esc(pic)}')"></i>`
+        : '<i class="pr-av"></i>';
     const chip = r.human && r.botPct > BOT_CHIP_PCT ? `<span class="pr-bot" data-testid="party-bot-chip">bot ${r.botPct}%</span>` : '';
     const tag = r.me ? '<span class="pr-you">you</span>' : r.human ? '' : '<span class="pr-tag">bot</span>';
     return `<li class="pr-row${r.human ? ' human' : ' botrow'}${r.me ? ' me' : ''}" data-slot="${r.slot}" data-testid="${r.human ? 'party-result-human' : 'party-result-bot'}">${av}<span class="pr-who"><b>${esc(r.name)}</b><small>${esc(HERO_TEXT[r.hero as keyof typeof HERO_TEXT]?.title ?? r.hero)}</small></span>${tag}${chip}<span class="pr-kda">${r.k}/${r.d}/${r.a}</span><span class="pr-dmg" title="Hero damage">${r.dmg}</span></li>`;

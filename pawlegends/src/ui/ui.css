@@ -1518,3 +1518,113 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
 .pl-invite-toast { gap: 10px; }
 @media (max-height: 340px) { .pl-social-row { min-height: 44px; } }
 @media (max-height: 300px) { .pl-social-st { display: none; } }
+
+/* Avatars (CHAT-AVATARS.md §7.4): icon in a CSS ring (the border), no image per frame. */
+.pl-av {
+  --av: 40px; --av-ring: rgba(42, 26, 34, 0.25);
+  flex: none; position: relative; display: inline-grid; place-items: center; width: var(--av); height: var(--av); border-radius: 50%;
+  box-sizing: border-box; border: max(2px, calc(var(--av) / 16)) solid var(--av-ring); overflow: hidden; background: #f6d9c4; color: #5a2e3a;
+  font: 800 calc(var(--av) * 0.42) / 1 var(--font);
+}
+.pl-av[data-ring='1'] { box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18), 0 0 calc(var(--av) / 6) var(--av-ring); }
+.pl-av[data-side='dog'] { background: #d8e6f6; color: #2b4466; }
+.pl-av[data-kind='guest'] { background: #e7e1dc; color: #8a7d76; }
+.pl-av[data-kind='icon'] { background: #fde7a8; }
+.pl-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pl-av svg { width: 60%; height: 60%; }
+.pl-av b { font: inherit; }
+.pl-social-who { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.pl-social-who .pl-social-st { font-size: 11px; }
+.pl-social-preview { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; opacity: 1; }
+.pl-chat-btn { position: relative; }
+.pl-chat-unread {
+  position: absolute; top: 2px; right: 2px; min-width: 16px; padding: 1px 4px; border-radius: 8px; background: var(--rose, #e66); color: #fff;
+  font: 800 11px/14px var(--font); font-style: normal; text-align: center;
+}
+.pl-me-av { flex: none; min-width: 44px; min-height: 44px; padding: 0; border: 0; background: transparent; cursor: pointer; display: grid; place-items: center; }
+@media (max-height: 340px) { .pl-social-row .pl-av { --av: 32px !important; } }
+
+/* The avatar picker (CHAT-AVATARS.md §7.4): the grid is the sheet's one scroll region. */
+.pl-av-pick { flex: 1 1 auto; min-height: 0; display: flex; flex-direction: column; gap: 6px; }
+.pl-av-preview { display: flex; align-items: center; gap: 10px; }
+.pl-av-grid {
+  flex: 1 1 auto; min-height: 0; overflow-y: auto; scrollbar-width: thin; display: grid; grid-template-columns: repeat(auto-fill, minmax(52px, 1fr)); gap: 4px; align-content: start;
+}
+.pl-av-frames { flex: none; display: flex; gap: 4px; overflow: hidden; }
+.pl-av-tile { min-width: 44px; min-height: 52px; display: grid; place-items: center; border: 2px solid transparent; border-radius: 12px; background: transparent; cursor: pointer; }
+.pl-av-tile[aria-pressed='true'] { border-color: var(--ink); background: rgba(42, 26, 34, 0.08); }
+
+/* A DM thread (CHAT-AVATARS.md §6.2): over the Social sheet; the message list is the one scroll region. */
+.pl-chat {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 56; width: min(420px, 100vw); display: flex; flex-direction: column; box-sizing: border-box;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+  background: var(--cream); color: var(--ink); box-shadow: -10px 0 30px rgba(0, 0, 0, 0.35); font: 600 14px/1.25 var(--font); overflow: hidden;
+}
+@media (max-width: 760px) { .pl-chat { width: 100vw; } }
+.pl-chat-head { flex: none; display: flex; align-items: center; gap: 8px; min-height: 48px; }
+.pl-chat-menu { flex: none; display: flex; gap: 6px; justify-content: flex-end; padding: 2px 0 6px; }
+.pl-chat-list {
+  flex: 1 1 auto; min-height: 0; margin: 0; padding: 4px 2px; list-style: none; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 6px;
+}
+.pl-chat-list::-webkit-scrollbar { width: 6px; }
+.pl-chat-list::-webkit-scrollbar-thumb { background: rgba(42, 26, 34, 0.3); border-radius: 3px; }
+.pl-chat-msg { display: flex; align-items: flex-end; gap: 4px; flex-wrap: wrap; max-width: 86%; }
+.pl-chat-msg.mine { align-self: flex-end; flex-direction: row-reverse; }
+.pl-chat-bubble { padding: 8px 12px; border-radius: 16px 16px 16px 4px; background: #fff; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12); overflow-wrap: anywhere; }
+.pl-chat-msg.mine .pl-chat-bubble { border-radius: 16px 16px 4px 16px; background: #ffd6e4; }
+.pl-chat-msg.phrase .pl-chat-bubble::after { content: ' 🐾'; font-size: 11px; opacity: 0.6; }
+.pl-chat-msg.sticker .pl-chat-bubble { background: transparent; box-shadow: none; font-size: 40px; line-height: 1; padding: 0; }
+.pl-chat-more { min-width: 32px; min-height: 32px; border: 0; background: transparent; color: inherit; opacity: 0.55; cursor: pointer; font: 700 16px/1 var(--font); }
+.pl-chat-report { display: flex; flex-wrap: wrap; gap: 4px; width: 100%; }
+.pl-chat-empty { margin: auto; opacity: 0.7; }
+.pl-chat-earlier { align-self: center; }
+.pl-chat-foot { flex: none; display: flex; flex-direction: column; gap: 6px; padding-top: 6px; }
+.pl-chat-form { display: flex; align-items: center; gap: 6px; min-height: 52px; }
+.pl-chat-form input {
+  flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 12px; border-radius: 22px; border: 2px solid rgba(42, 26, 34, 0.25); font: 600 16px var(--font); background: #fff;
+}
+.pl-chat-count { flex: none; font-size: 11px; opacity: 0.7; min-width: 0; }
+.pl-chat-tray { display: flex; flex-direction: column; gap: 4px; }
+.pl-chat-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.pl-chat-chip {
+  min-height: 44px; padding: 0 12px; border-radius: 22px; border: 2px solid rgba(42, 26, 34, 0.18); background: #fff; color: var(--ink); font: 700 13px/1 var(--font); cursor: pointer;
+}
+.pl-chat-chip.sticker { min-width: 44px; padding: 0; font-size: 22px; }
+.pl-chat-pages { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.pl-chat-dots { display: inline-flex; gap: 4px; }
+.pl-chat-dot { width: 6px; height: 6px; border-radius: 50%; background: rgba(42, 26, 34, 0.25); }
+.pl-chat-dot[data-on='1'] { background: var(--ink); }
+.pl-chat-line { margin: 0; text-align: center; font-size: 12px; opacity: 0.75; }
+.pl-chat-err { margin: 0; padding: 6px 10px; border-radius: 10px; background: var(--ink); color: var(--cream); font-size: 13px; }
+
+/* Party and team chat (CHAT-AVATARS.md §6.3): a 36 px strip, or a drawer of at most half the height. */
+.pp-chat {
+  position: fixed; left: max(16px, env(safe-area-inset-left)); bottom: max(8px, env(safe-area-inset-bottom)); z-index: 45; max-width: min(420px, calc(100vw - 32px));
+  font: 600 13px/1.25 var(--font); color: var(--ink);
+}
+.pp-chat-strip {
+  display: flex; align-items: center; gap: 6px; max-width: 100%; min-height: 36px; padding: 0 12px; border: 0; border-radius: 18px; background: rgba(255, 248, 240, 0.95);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.25); color: var(--ink); font: inherit; cursor: pointer; position: relative; white-space: nowrap; overflow: hidden;
+}
+.pp-chat-strip .pl-chat-unread { position: static; }
+.pp-chat-who { font-weight: 800; }
+.pp-chat-who::after { content: ':'; }
+.pp-chat-said { overflow: hidden; text-overflow: ellipsis; }
+.pp-chat-drawer {
+  display: flex; flex-direction: column; gap: 6px; max-height: 50vh; width: min(420px, calc(100vw - 32px)); box-sizing: border-box; padding: 8px; border-radius: 16px;
+  background: var(--cream); box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+.pp-chat-head { flex: none; display: flex; align-items: center; justify-content: space-between; min-height: 36px; }
+.pp-chat-lines { flex: 1 1 auto; min-height: 40px; margin: 0; padding: 0; list-style: none; overflow-y: auto; scrollbar-width: thin; display: flex; flex-direction: column; gap: 4px; }
+.pp-chat-line { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pp-chat-name::after { content: ':'; }
+.pp-chat-line.mine .pp-chat-name { color: #b0365f; }
+.pp-chat-line.sticker span { font-size: 24px; line-height: 1; }
+.pp-chat .pl-chat-chip { min-height: 40px; font-size: 12px; }
+@media (max-height: 400px) { .pp-chat-drawer { max-height: 62vh; } .pp-chat .pl-chat-chip { min-height: 36px; } }
+
+/* Avatars in the party screens and the VS intro. */
+.pp-av-card { width: 28px !important; height: 28px !important; margin-left: -14px; align-self: flex-end; border: 2px solid #fff; }
+.pp-title { display: block; font-size: 11px; opacity: 0.75; }
+.pp-lc-av { display: flex; justify-content: center; margin-bottom: 4px; }
+.tt-vs-av { position: absolute; left: 50%; bottom: -14px; transform: translateX(-50%); z-index: 2; }

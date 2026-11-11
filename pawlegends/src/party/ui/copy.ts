@@ -3,6 +3,8 @@
  * pass touches one file. Rail lines stay short (<= 28 characters on phones).
  */
 export const COPY = Object.freeze({
+  /** CHAT-AVATARS.md §5: a friend's DM arrived while in the party screens. */
+  dmNotice: 'New message from a friend',
   title: 'Play with friends',
   party: 'Party',
   partyCode: 'Party code',
