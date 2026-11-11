@@ -134,10 +134,9 @@ export const LANDING_CSS = String.raw`@font-face{font-family:"Fredoka";src:url("
   text-shadow:0 2px 0 var(--ink),0 0 18px rgba(18,9,31,.8)}
 .pll .ctas{display:flex;flex-wrap:wrap;gap:16px 22px;justify-content:center}
 /* The App Store badge (Apple's art as is): never under 40 px tall, Apple's on-screen minimum; the 16 px gap is over the quarter-height
-   clear space. On iPhone and iPad (.ios, set by PawlegendsLanding) it grows to the play button's height as the second action. */
-.pll .appstore{display:inline-flex;align-self:center;line-height:0;border-radius:8px;transition:transform .2s ease}
+   clear space. No hover motion: Apple's guidelines say not to animate the badge. On iPhone and iPad (.ios, set by PawlegendsLanding) it grows to the play button's height as the second action. */
+.pll .appstore{display:inline-flex;align-self:center;line-height:0;border-radius:8px}
 .pll .appstore img{display:block;height:clamp(40px,3.4vw,52px);width:auto}
-.pll .appstore:hover{transform:translateY(-2px)}
 .pll .appstore:focus-visible{outline:3px solid var(--bolt);outline-offset:4px}
 .pll.ios .appstore img{height:clamp(50px,6.4vw,72px)}
 .pll .flash{position:absolute;inset:0;z-index:20;background:#fff;opacity:0;pointer-events:none}
