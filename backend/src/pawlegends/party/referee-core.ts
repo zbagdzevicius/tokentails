@@ -16,6 +16,17 @@ import type {
     PawlegendsSlotStats,
 } from '../../vendor/pawlegends-sim';
 import { MAX_HUMANS, TURN_TICKS, decodeTurnBody, encodeTurnBody, splitTurnBodies } from './net';
+import { IntelCounter, type SlotIntel } from './referee-intel';
+
+/**
+ * The optional read-only sight export (SOCIAL-RANKED.md §9.1): ships with the next SIM_VERSION bump; frozen bundles
+ * have none, and their rooms carry no `intel`.
+ */
+type HeroSight = (m: PawlegendsMatchHandle, out: Int32Array) => void;
+const heroSightOf = (sim: PawlegendsPartySim): HeroSight | null => {
+    const f = (sim as { heroSight?: HeroSight }).heroSight;
+    return typeof f === 'function' ? f : null;
+};
 
 export interface RefereeConfig {
     seed: number;
@@ -41,6 +52,8 @@ export interface RefereeEnd {
     finalHash: string;
     stats: PawlegendsSlotStats[];
     record: PawlegendsPartyReplayRecord | PawlegendsPvpReplayRecord | null;
+    /** PvP on a sim with `heroSight`: the "acts on hidden" counts per human slot (SOCIAL-RANKED.md §9.2). */
+    intel?: SlotIntel[];
 }
 
 export interface TurnOutcome {
@@ -84,11 +97,17 @@ export class RefereeRoom {
      * move to y = 100 m is out of Crossing's 60 m), so every decode runs with this room's map bound.
      */
     private readonly binder: PawlegendsPilot | null;
+    /** The map-hack signal (PvP rooms on a sim with `heroSight` only, and never in a log re-check). */
+    private readonly intel: IntelCounter | null;
 
     constructor(readonly sim: PawlegendsPartySim, readonly config: RefereeConfig, private readonly flyPilots = true) {
         this.m = sim.createMatch(config);
         this.slots = slotsOfConfig(config);
         this.binder = sim.MAP_IDS ? sim.createPlayerBotFor(this.m, 'idle', 0) : null;
+        const sight = config.mode === 'pvp' && flyPilots ? heroSightOf(sim) : null;
+        this.intel = sight
+            ? new IntelCounter(this.slots, this.slots / 2, config.humans, out => sight(this.m, out), config.picks)
+            : null;
     }
 
     /** Bind this room's map before any decode outside `step` (sim v19+; older bundles have one map). */
@@ -131,7 +150,10 @@ export class RefereeRoom {
                         pilotOut[s].push(this.sim.encodeCommand(c));
                 }
             }
+            const tick = this.intel ? this.sim.tickOf(this.m) : 0;
+            this.intel?.beforeStep(tick, per, f.modeMask);
             this.sim.step(this.m, per[0], per);
+            this.intel?.afterStep(tick + 1);
             this.collectTrail(out);
             const r = this.sim.result(this.m);
             if (r) {
@@ -146,6 +168,7 @@ export class RefereeRoom {
                         this.config.mode === 'pvp'
                             ? this.sim.pvpReplayRecord?.(this.m) ?? null
                             : this.sim.partyReplayRecord(this.m),
+                    ...(this.intel ? { intel: this.intel.result() } : {}),
                 };
                 out.end = this.ended;
                 break;
