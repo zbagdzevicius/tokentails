@@ -17,6 +17,14 @@ import type {
 } from '../../vendor/pawlegends-sim';
 import { MAX_HUMANS, TURN_TICKS, decodeTurnBody, encodeTurnBody, splitTurnBodies } from './net';
 import { IntelCounter, type SlotIntel } from './referee-intel';
+import {
+    cuesFromEvents,
+    heroesFromWorld,
+    readHandle,
+    statesFromHeroes,
+    type BotState,
+    type ChatCue,
+} from '../../vendor/pawlegends-chat/cues';
 
 /**
  * The optional read-only sight export (SOCIAL-RANKED.md §9.1): ships with the next SIM_VERSION bump; frozen bundles
@@ -63,6 +71,14 @@ export interface TurnOutcome {
     pilot: { slot: number; cmds: Uint8Array[] }[];
     aliveMask: number;
     end?: RefereeEnd;
+    /** In-match bot chatter (MATCH-CHAT.md §5.1): this turn's cues and, once a second, the fill bots' states. */
+    cues?: ChatCue[];
+    states?: BotState[];
+}
+
+/** What a room's referee reads for the bot chatter: the fill bots to sample (never a human's or a pilot's seat). */
+export interface RefereeChat {
+    bots: number[];
 }
 
 /** The profile a pilot flies (§3.2: the strongest non-pinger player profile). */
@@ -100,7 +116,18 @@ export class RefereeRoom {
     /** The map-hack signal (PvP rooms on a sim with `heroSight` only, and never in a log re-check). */
     private readonly intel: IntelCounter | null;
 
-    constructor(readonly sim: PawlegendsPartySim, readonly config: RefereeConfig, private readonly flyPilots = true) {
+    /** The chat cue reader (only for live rooms with fill bots, never in a log re-check). Read only: no hash moves. */
+    private readonly chat: RefereeChat | null;
+    private readonly teamSize: number;
+
+    constructor(
+        readonly sim: PawlegendsPartySim,
+        readonly config: RefereeConfig,
+        private readonly flyPilots = true,
+        chat?: RefereeChat | null
+    ) {
+        this.chat = flyPilots && chat && chat.bots.length ? chat : null;
+        this.teamSize = config.map === 'hearthwood' ? 5 : 3;
         this.m = sim.createMatch(config);
         this.slots = slotsOfConfig(config);
         this.binder = sim.MAP_IDS ? sim.createPlayerBotFor(this.m, 'idle', 0) : null;
@@ -154,6 +181,7 @@ export class RefereeRoom {
             this.intel?.beforeStep(tick, per, f.modeMask);
             this.sim.step(this.m, per[0], per);
             this.intel?.afterStep(tick + 1);
+            if (this.chat) this.readChat(out);
             this.collectTrail(out);
             const r = this.sim.result(this.m);
             if (r) {
@@ -177,6 +205,20 @@ export class RefereeRoom {
         for (let s = 0; s < this.slots; s++) if (pilotOut[s].length) out.pilot.push({ slot: s, cmds: pilotOut[s] });
         out.aliveMask = this.sim.humanAliveMask(this.m);
         return out;
+    }
+
+    /**
+     * The bot chatter's cues (MATCH-CHAT.md §5.1): this tick's sim events, and every 30 ticks the fill bots' states.
+     * Reads the match handle's `events` and `world` arrays only; never writes, never steps, never draws randomness.
+     */
+    private readChat(out: TurnOutcome): void {
+        const h = readHandle(this.m);
+        const cues = cuesFromEvents(h.events, this.slots, this.teamSize);
+        if (cues.length) (out.cues ??= []).push(...cues);
+        if (this.sim.tickOf(this.m) % 30 === 0) {
+            const heroes = heroesFromWorld(h.world, this.slots, this.teamSize);
+            if (heroes) out.states = statesFromHeroes(heroes, this.chat!.bots);
+        }
     }
 
     private collectTrail(out: TurnOutcome): void {

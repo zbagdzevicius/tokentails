@@ -25,6 +25,7 @@ import { liveHeroIds } from '../social/avatar';
 import { PresenceSink, type PresenceWriter } from './presence-sink';
 import { ChatSink, type ChatSinkWriters } from './chat-sink';
 import { relayChatInfo } from './relay-chat-info';
+import { BotSeenStore } from './bot-chat';
 import { BACKEND_ROLE, type BackendRole } from '../../shared/runtime/backend-role';
 import { PawlegendsSeasonService } from '../pawlegends-season.service';
 
@@ -98,6 +99,8 @@ export class PartyRelayService implements OnApplicationBootstrap, BeforeApplicat
                 },
             }),
             store: (line: Parameters<ChatSink['push']>[0], members: string[]) => sink.push(line, members),
+            // MATCH-CHAT.md §5.8: each recipient's memory of bot lines (pawlegendssocial.botSeen)
+            botSeen: new BotSeenStore(this.social),
             ...(bus ? { onNotice: (fn: (n: { to: string; thread: string }) => void) => bus.subscribe(fn) } : {}),
         };
     }

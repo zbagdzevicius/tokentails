@@ -142,8 +142,21 @@ export class RefereePool {
         return w;
     }
 
-    open(room: string, simVersion: number, simHash: string, config: Extract<RefereeIn, { t: 'open' }>['config']): void {
-        this.backends[this.workerOf(room, roomUnits(config))].post({ t: 'open', room, simVersion, simHash, config });
+    open(
+        room: string,
+        simVersion: number,
+        simHash: string,
+        config: Extract<RefereeIn, { t: 'open' }>['config'],
+        chat?: Extract<RefereeIn, { t: 'open' }>['chat']
+    ): void {
+        this.backends[this.workerOf(room, roomUnits(config))].post({
+            t: 'open',
+            room,
+            simVersion,
+            simHash,
+            config,
+            ...(chat ? { chat } : {}),
+        });
     }
 
     turn(room: string, body: Uint8Array): void {
