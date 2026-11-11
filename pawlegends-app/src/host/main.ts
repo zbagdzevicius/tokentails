@@ -12,11 +12,11 @@ import { HostApi } from "./api";
 import { createFirebaseAuth, nativeCaps, NativeAuth, platformOf, type AuthOutcome, type AuthPort, type NativeCaps } from "./auth";
 import { CHANNEL_GLOBAL, type HostChannel } from "./channel";
 import { startNativeHost } from "./nativeHost";
-import { DomHostUi } from "./sheet";
+import { DomHostUi, UNAVAILABLE_CODE } from "./sheet";
 
 declare const __PL_API_ORIGIN__: string;
 
-const unavailable = (): Promise<AuthOutcome> => Promise.resolve({ kind: "error", error: { code: "auth/operation-not-supported-in-this-environment" } });
+const unavailable = (): Promise<AuthOutcome> => Promise.resolve({ kind: "error", error: { code: UNAVAILABLE_CODE } });
 
 /** Sign-in that never works (Firebase could not start): the game still gets its `hello` and plays signed out. */
 export class NoAuth implements AuthPort {
@@ -37,7 +37,7 @@ export class NoAuth implements AuthPort {
   createEmail = unavailable;
   signInEmail = unavailable;
   async reset() {
-    throw { code: "auth/operation-not-supported-in-this-environment" };
+    throw { code: UNAVAILABLE_CODE };
   }
   async resend() {}
   async checkVerified() {
