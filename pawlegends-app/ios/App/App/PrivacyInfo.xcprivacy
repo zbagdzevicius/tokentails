@@ -2,9 +2,12 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <!--
   Pawlegends privacy manifest (docs/plans/moba/APP-STORE.md "Privacy and tracking"). No tracking, no tracking
-  domains, no login, no analytics key in the app build. Collected only by optional party play, for app
-  functionality (docs/plans/moba/APP-STORE-ANSWERS.md "App Privacy"): a random party key (User ID) and the match
-  (Gameplay Content), kept by the relay up to 30 days. Keep this, the App Store Connect answers and
+  domains, no analytics key in the app build. Collected for app functionality only, all linked to the player
+  (docs/plans/moba/APP-STORE-ANSWERS.md "App Privacy"): optional sign-in (Apple, Google, email through Firebase
+  Authentication) keeps the Email Address, the Name (the Apple or Google name and the profile name) and a User ID (the
+  Firebase account id, also the anonymous guest id once the player has played online); party play sends a party key
+  (User ID) and the match (Gameplay Content); saved matches and the Treat Track are Gameplay Content too. The Firebase
+  and GoogleSignIn pods ship their own manifests. Keep this, the App Store Connect answers and
   client/pages/pawlegends/privacy.tsx in step. Required-reason APIs, all for the app's
   own files and settings: UserDefaults (CA92.1), file timestamps of downloaded update bundles in the app container
   (C617.1) and free disk space before an update is written (E174.1), used by @capgo/capacitor-updater, which ships
@@ -18,6 +21,30 @@
 	<array/>
 	<key>NSPrivacyCollectedDataTypes</key>
 	<array>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeEmailAddress</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
+		<dict>
+			<key>NSPrivacyCollectedDataType</key>
+			<string>NSPrivacyCollectedDataTypeName</string>
+			<key>NSPrivacyCollectedDataTypeLinked</key>
+			<true/>
+			<key>NSPrivacyCollectedDataTypeTracking</key>
+			<false/>
+			<key>NSPrivacyCollectedDataTypePurposes</key>
+			<array>
+				<string>NSPrivacyCollectedDataTypePurposeAppFunctionality</string>
+			</array>
+		</dict>
 		<dict>
 			<key>NSPrivacyCollectedDataType</key>
 			<string>NSPrivacyCollectedDataTypeUserID</string>

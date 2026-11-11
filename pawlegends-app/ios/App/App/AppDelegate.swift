@@ -9,6 +9,8 @@ class AppDelegate: UIResponder, UIApplicationDelegate {
 
     func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?) -> Bool {
         configureAudioSession()
+        // before the game screen loads the Capacitor plugins (the auth plugin needs a FirebaseApp, NativeAuth.swift)
+        NativeAuth.setUp()
         // No storyboards: the window and the game screen are made here, the launch screen is the Info.plist
         // UILaunchScreen (background colour and paw from the asset catalog).
         let window = UIWindow(frame: UIScreen.main.bounds)

@@ -47,6 +47,8 @@ public class MainActivity extends BridgeActivity {
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        // before the bridge loads the plugins: the auth plugin needs a FirebaseApp (NativeAuth.java)
+        NativeAuth.setUp(getApplicationContext());
         registerPlugin(ShellPlugin.class);
         // on the builder, before the bridge exists: Bridge.Builder.create() replaces the bridge's listener list after
         // the plugins load, so a listener a plugin adds in load() never runs

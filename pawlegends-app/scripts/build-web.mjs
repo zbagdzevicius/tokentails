@@ -5,7 +5,9 @@
  * 1. `pawlegends` built for the app: relative base (served from capacitor://localhost), VITE_PAWLEGENDS_APP=1 (no
  *    purchase links, app build locked), the production API for party play, and no PostHog key (the App Store privacy
  *    label has no analytics data; nothing is sent, so there is no consent prompt and no tracking).
- * 2. The shell (src/shell/main.ts) bundled to `www/shell.js` with this bundle's stamp, and loaded before the game.
+ * 2. The shell (src/shell/main.ts) bundled to `www/shell.js` with this bundle's stamp, and loaded before the game;
+ *    the in-page host (src/host/main.ts: sign-in, saves, social; it reuses the web host's React-free modules from
+ *    ../client) bundled to `www/host.js`, a deferred script after the game.
  * 3. `www/bundle.json`: the stamp (version, seq, compat, simVersion), read by the OTA publish job.
  *
  * Usage: node scripts/build-web.mjs [--seq <n>] [--skip-game]
@@ -79,6 +81,22 @@ mkdirSync(www, { recursive: true });
 cpSync(gameOut, www, { recursive: true });
 
 const publicPem = readFileSync(PUBLIC_KEY_PATH, 'utf8');
+const clientDir = resolve(appDir, '../client');
+
+/**
+ * `@/…` is the Next client (the web host's React-free modules: bridge, saves, party, api ops, roster, auth flows);
+ * a package those files import resolves from this app (one firebase and one Capacitor, never client/node_modules).
+ */
+const clientModules = {
+  name: 'pl-client-modules',
+  setup(b) {
+    b.onResolve({ filter: /^@\// }, (args) => b.resolve(`./${args.path.slice(2)}`, { resolveDir: clientDir, kind: args.kind }));
+    b.onResolve({ filter: /^(?:[^./@]|@[^/]+\/)/ }, (args) => {
+      if (args.pluginData?.fromApp || !args.importer.startsWith(clientDir)) return undefined;
+      return b.resolve(args.path, { resolveDir: appDir, kind: args.kind, pluginData: { fromApp: true } });
+    });
+  },
+};
 await build({
   entryPoints: [join(appDir, 'src/shell/main.ts')],
   bundle: true,
@@ -96,11 +114,29 @@ await build({
   logLevel: 'warning',
 });
 
+await build({
+  entryPoints: [join(appDir, 'src/host/main.ts')],
+  bundle: true,
+  format: 'iife',
+  target: ['safari15'],
+  minify: true,
+  legalComments: 'none',
+  outfile: join(www, 'host.js'),
+  define: { __PL_API_ORIGIN__: JSON.stringify(API_ORIGIN), 'process.env.NODE_ENV': '"production"' },
+  plugins: [clientModules],
+  logLevel: 'warning',
+});
+
 const indexPath = join(www, 'index.html');
-const html = readFileSync(indexPath, 'utf8');
+let html = readFileSync(indexPath, 'utf8');
 const tag = '<script src="./shell.js"></script>';
+const hostTag = '<script defer src="./host.js"></script>';
 if (!html.includes('</head>')) throw new Error('build-web: index.html has no </head>');
-// before the game's module script: the shell's navigator.vibrate exists when the game reads it
-writeFileSync(indexPath, html.includes(tag) ? html : html.replace('</head>', `    ${tag}\n  </head>`));
+if (!html.includes('</body>')) throw new Error('build-web: index.html has no </body>');
+// before the game's module script: the shell's navigator.vibrate and the host channel exist when the game reads them
+if (!html.includes(tag)) html = html.replace('</head>', `    ${tag}\n  </head>`);
+// after the game: the host attaches to the channel and says hello; the game's first frame never waits for Firebase
+if (!html.includes(hostTag)) html = html.replace('</body>', `    ${hostTag}\n  </body>`);
+writeFileSync(indexPath, html);
 writeFileSync(join(www, 'bundle.json'), `${JSON.stringify(stamp, null, 2)}\n`);
 console.log(`build-web: ${version} (compat ${stamp.compat}, sim ${stamp.simVersion}) -> ${www}`);

@@ -47,6 +47,12 @@ const config: CapacitorConfig = {
     zoomEnabled: false,
   },
   plugins: {
+    // Sign-in (src/host/auth.ts): Google and Apple run natively and hand their ID token to the Firebase JS SDK, which
+    // holds the session (skipNativeAuth), exactly as the Token Tails app does. Email runs in the JS SDK only.
+    FirebaseAuthentication: {
+      skipNativeAuth: true,
+      providers: ['apple.com', 'google.com'],
+    },
     // Manual self-hosted updates (src/shell/ota.ts): no Capgo cloud, no stats, no device id sent anywhere.
     CapacitorUpdater: {
       autoUpdate: false,
