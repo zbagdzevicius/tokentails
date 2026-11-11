@@ -72,6 +72,11 @@ export interface IAccountDeletionDeps {
     firebase: IFirebaseIdentity;
     audit: { insertOne(doc: Record<string, unknown>): Promise<unknown> };
     revokeApple?: (code: string | undefined, clientId?: string) => Promise<AppleRevokeOutcome>;
+    /**
+     * Pawlegends social and chat rows (CHAT-AVATARS.md §2.8): messages, DM threads, party memberships, the social
+     * profile with its avatar, friendships, blocks, presence and invites. Never fails the deletion.
+     */
+    purgeSocial?: (accountId: string) => Promise<unknown>;
     now?: () => Date;
 }
 
@@ -118,6 +123,14 @@ export async function deleteAccount(
     const { catsReleased, catsToShelterPool } = await releaseCats(deps.cats, _id, now);
 
     const firebaseUsersDeleted = user.firebaseUids?.length ? await deps.firebase.deleteUsers(user.firebaseUids) : 0;
+
+    if (deps.purgeSocial) {
+        try {
+            await deps.purgeSocial(userId);
+        } catch {
+            // the rows expire on their own TTLs (chat 30 days, presence 2 minutes); the account is already anonymised
+        }
+    }
 
     // No personal data in the audit record: the account id, counts and outcomes only.
     await deps.audit.insertOne({
