@@ -546,8 +546,16 @@ export class SocialService {
             const mine = room.members.find(m => m.accountId === me);
             if (!mine) continue;
             const myTeam = mine.slot >= size ? 1 : 0;
+            // a (room, slot) names the slot's last holder (fromRecent): list only that one, so Add and Block reach the
+            // player shown, never a backfiller who took the seat later
+            const lastOf = new Map<number, typeof room.members[number]>();
+            for (const m of room.members) {
+                const prev = lastOf.get(m.slot);
+                if (m.accountId && (!prev || m.joinedTick > prev.joinedTick)) lastOf.set(m.slot, m);
+            }
             for (const m of room.members) {
                 if (!m.accountId || m.accountId === me || seen.has(m.accountId)) continue;
+                if (lastOf.get(m.slot) !== m) continue;
                 seen.add(m.accountId);
                 rows.push({
                     room: room._id,
