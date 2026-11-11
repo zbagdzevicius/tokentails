@@ -50,9 +50,12 @@ import {
   type SaveResult,
   type SignInReason,
 } from './bridge';
+import { parseApiResult, type ApiArgs, type ApiOp, type ApiResult } from './api';
 
 /** Messages the integration fully owns: the app has nothing to do with them. */
-export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions', 'party-ticket']);
+export const OWNED_TYPES: readonly string[] = Object.freeze(['save-result', 'featured', 'champions', 'party-ticket', 'api-result']);
+/** How long the game waits for the host's `api-result` (SOCIAL-RANKED.md §13). */
+export const API_WAIT_MS = 10000;
 /** How long the game waits for the host's party ticket before it joins as an unscored guest. */
 export const PARTY_TICKET_WAIT_MS = 6000;
 /** A results chip waits this long for the host's first `save-result`, then hides (an older host sends none). */
@@ -132,6 +135,11 @@ export interface Integration {
   partyTicket(): Promise<string | null>;
   /** Party play (§6): hand a party match's v:2 result to the host's save path; the save chip follows the room id. */
   partyResult(result: PartyResult, info?: MatchInfo): boolean;
+  /**
+   * Social, ranked and reports (SOCIAL-RANKED.md §13): one allowlisted API op through the host's session. Standalone, a
+   * timeout or a refused post answers `{ok: false, status: 0}`.
+   */
+  api(op: ApiOp, args?: ApiArgs): Promise<ApiResult>;
   dispose(): void;
 }
 
@@ -247,6 +255,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
   let waitTimer: ReturnType<typeof setTimeout> | null = null;
   /** Party tickets the game is waiting for, by request id. */
   const ticketWaits = new Map<string, (ticket: string | null) => void>();
+  /** API answers the game is waiting for, by request id. */
+  const apiWaits = new Map<string, (r: ApiResult) => void>();
   let disposed = false;
   let lastScreen: ScreenKind | null = null;
   /** Champion cards already sent to the host this page load (`champion-offer`). */
@@ -621,6 +631,14 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
         wait(v.ticket);
         return;
       }
+      case 'api-result': {
+        const v = parseApiResult(m);
+        const wait = v ? apiWaits.get(v.id) : undefined;
+        if (!v || !wait) return;
+        apiWaits.delete(v.id);
+        wait(v);
+        return;
+      }
       default:
         return;
     }
@@ -658,6 +676,26 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
           clearTimeout(timer);
           ticketWaits.delete(id);
           resolve(null);
+        }
+      });
+    },
+    api: (op, args = {}) => {
+      const id = makeMatchId();
+      const none: ApiResult = { id, ok: false, status: 0 };
+      if (!bridge.active) return Promise.resolve(none);
+      return new Promise<ApiResult>((resolve) => {
+        const timer = setTimeout(() => {
+          apiWaits.delete(id);
+          resolve(none);
+        }, API_WAIT_MS);
+        apiWaits.set(id, (r) => {
+          clearTimeout(timer);
+          resolve(r);
+        });
+        if (!bridge.post('api-request', { id, op, args })) {
+          clearTimeout(timer);
+          apiWaits.delete(id);
+          resolve(none);
         }
       });
     },

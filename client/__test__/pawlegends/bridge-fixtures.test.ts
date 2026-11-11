@@ -33,6 +33,7 @@ describe("pawlegends bridge fixture: host to game", () => {
   it("covers every host message type", () => {
     expect(Object.keys(fixture.hostToGame).sort()).toEqual(
       [
+        "api-result",
         "app",
         "audio",
         "champions",
@@ -70,7 +71,7 @@ describe("pawlegends bridge fixture: host to game", () => {
 describe("pawlegends bridge fixture: game to host", () => {
   it("covers every game message type", () => {
     expect(Object.keys(fixture.gameToHost).sort()).toEqual(
-      ["analytics", "champion-offer", "client-error", "exit", "match-result", "notify", "offer-seen", "open-cat", "party-result", "party-ticket-request", "pass-claim", "paused", "purchase-intent", "ready", "request-sign-in", "share", "skin-preview", "sound"].sort()
+      ["analytics", "api-request", "champion-offer", "client-error", "exit", "match-result", "notify", "offer-seen", "open-cat", "party-result", "party-ticket-request", "pass-claim", "paused", "purchase-intent", "ready", "request-sign-in", "share", "skin-preview", "sound"].sort()
     );
   });
 

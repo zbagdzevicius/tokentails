@@ -1,7 +1,19 @@
 {
   "$comment": "The tt-pawlegends v1 bridge, one valid and one invalid sample per message type (docs/plans/moba integration plan, section 1). Read by the host parser tests (client/__test__/pawlegends) and the game parser tests (pawlegends/src/embed/__tests__) by relative path; not copied by sync-contracts. `valid` must parse to the same message (unknown fields dropped); `invalid` must be ignored (the parser returns null). `sanitize` cases parse to `expected`: a bad optional field is dropped, the message still counts. Art URLs: the CDN serves cat art from https://tokentails-nfts.fra1.cdn.digitaloceanspaces.com/ (virtual-host style, what `catImg` holds) and the same bucket path-style at https://fra1.cdn.digitaloceanspaces.com/tokentails-nfts/; both are allowed, nothing else. Sim v9: `champions` carries the shelter champions' cards (the game keeps only the champion catalog ids it knows) and `champion-offer` names one of them. Party play (MULTIPLAYER.md §5.3, §6): `party-ticket` answers a `party-ticket-request` with a single-use relay ticket (or null and an error code); `party-result` carries a party match's v:2 result, whose `matchId` is its room id.",
   "envelope": { "ns": "tt-pawlegends", "v": 1 },
+  "apiOps": ["social.get", "social.pulse", "friend.add", "friend.accept", "friend.decline", "friend.remove", "block.add", "block.remove", "social.me", "social.age", "social.code.rotate", "social.recent", "invite.send", "ranked.status", "ranked.me", "board.get", "report.send", "report.notice"],
   "hostToGame": {
+    "api-result": {
+      "$comment": "SOCIAL-RANKED.md §13: the host's answer to `api-request`: ok, the HTTP status (0: network, refused or not allowed) and the JSON body. A body that is not an object, or over 64 KB, is refused.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": true, "status": 200, "body": { "ok": true } },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": true, "status": 200, "body": "not an object" },
+      "sanitize": [
+        {
+          "input": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": false, "status": 403, "extra": "dropped" },
+          "expected": { "ns": "tt-pawlegends", "v": 1, "type": "api-result", "id": "k2j9x8", "ok": false, "status": 403 }
+        }
+      ]
+    },
     "store": {
       "$comment": "STORE-PASS.md: the account's owned store and pass items and its Legends Pass row (GET /pawlegends/me). Unknown item ids are dropped.",
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "store", "items": ["coat.clem.store_calico", "frame.s1.sprout"], "season": { "id": "s1", "xp": 820, "tier": 2, "premium": "pass", "skips": 0, "claimed": ["f:3"], "endsAt": "2027-01-05T00:00:00.000Z" } },
@@ -364,6 +376,11 @@
     }
   },
   "gameToHost": {
+    "api-request": {
+      "$comment": "SOCIAL-RANKED.md §13: one allowlisted API op (`apiOps`) with flat args; the host adds its own accesstoken and never takes a URL from the game. Unknown arg keys are dropped.",
+      "valid": { "ns": "tt-pawlegends", "v": 1, "type": "api-request", "id": "k2j9x8", "op": "report.send", "args": { "room": "r0om1", "slot": 3, "reason": "cheat", "tick": 900 } },
+      "invalid": { "ns": "tt-pawlegends", "v": 1, "type": "api-request", "id": "k2j9x8", "op": "user.delete", "args": {} }
+    },
     "pass-claim": {
       "$comment": "STORE-PASS.md §5: claim one Legends Pass reward ({row, tier}) or all ({all: true}); the host answers `store`.",
       "valid": { "ns": "tt-pawlegends", "v": 1, "type": "pass-claim", "row": "f", "tier": 3 },

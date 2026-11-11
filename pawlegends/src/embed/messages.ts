@@ -22,6 +22,7 @@ import {
   parseStoreState,
   type HostMessage,
 } from './bridge';
+import { parseApiResult } from './api';
 
 export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {}): HostMessage | null {
   const m = parseHostMessage(data);
@@ -61,6 +62,8 @@ export function sanitizeHostMessage(data: unknown, opts: { isApp?: boolean } = {
       return wrap(parseEntitlements(m));
     case 'party-ticket':
       return wrap(parsePartyTicket(m));
+    case 'api-result':
+      return wrap(parseApiResult(m));
     case 'champions': {
       // The wire shape (sim v9): only the champion catalog ids the game knows, `catImg` from the NFT bucket only.
       const cats = parseChampions(m);

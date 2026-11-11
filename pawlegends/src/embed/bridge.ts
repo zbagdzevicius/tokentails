@@ -19,7 +19,7 @@ export const DEV_EMBED_ORIGINS = 'http://localhost:3000';
  * shelter champions' cards: art and whether each card is for sale, from `GET /pawlegends/champions`). Payload
  * shapes: docs/plans/moba integration plan §1; the parsers below are the game's half of the contract.
  */
-export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions', 'party-ticket', 'store'] as const);
+export const HOST_TYPES = Object.freeze(['hello', 'session', 'roster', 'entitlements', 'audio', 'pause', 'resume', 'purchase-result', 'app', 'offer', 'save-result', 'featured', 'champions', 'party-ticket', 'store', 'api-result'] as const);
 export type HostType = (typeof HOST_TYPES)[number];
 /**
  * POC.md §11.1 types, plus the additive `notify{where}` (Legends Pass notify-me, only after `app{notify: true}`),
@@ -43,7 +43,7 @@ export type HostType = (typeof HOST_TYPES)[number];
  * button of its own over the game any more). `sound{muted}`: the player switched the game's Sound; the host makes it
  * its own mute (tt:audio:v1), so the next `audio` it sends agrees (a host mute is never saved into the game profile).
  */
-export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim'] as const);
+export const GAME_TYPES = Object.freeze(['ready', 'match-result', 'share', 'paused', 'sound', 'notify', 'request-sign-in', 'open-cat', 'offer-seen', 'champion-offer', 'skin-preview', 'client-error', 'analytics', 'party-ticket-request', 'party-result', 'exit', 'purchase-intent', 'pass-claim', 'api-request'] as const);
 export type GameType = (typeof GAME_TYPES)[number];
 /*
  * Store and Legends Pass (docs/plans/moba/STORE-PASS.md, web only): `purchase-intent{sku}` is back for the catalogue
@@ -51,6 +51,12 @@ export type GameType = (typeof GAME_TYPES)[number];
  * and Stripe Checkout, then answers `purchase-result{sku, ok}` and a fresh `store`. `pass-claim{row, tier}` or
  * `pass-claim{all: true}` asks the host to claim pass rewards (`POST /pawlegends/pass/claim`); it answers `store`.
  * `store{items, season}` is the account's owned store and pass items and its pass row (`GET /pawlegends/me`).
+ */
+
+/*
+ * Social, ranked and reports (docs/plans/moba/SOCIAL-RANKED.md §13): `api-request{id, op, args}` asks the host to call
+ * one allowlisted route (embed/api.ts `API_OPS`) with its own session; it answers `api-result{id, ok, status, body?}`.
+ * The game never sees a token or a URL.
  */
 
 export interface HostMessage {

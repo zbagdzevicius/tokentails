@@ -32,6 +32,7 @@
  *
  * No React, no DOM globals: the window and timers are passed in, so the handshake is unit-tested.
  */
+import { apiResultOf, parseApiRequest, type PawlegendsApiRequest } from "./apiBridge";
 import { PAWLEGENDS_GAME_EVENTS, type PawlegendsGameEventName, type PawlegendsGameProps } from "@/analytics/pawlegends-events";
 import { PAWLEGENDS_LEVELS, PAWLEGENDS_MAX_INPUT_CHARS, PAWLEGENDS_MAX_TICKS } from "@/shared-contracts/caps";
 
@@ -323,6 +324,7 @@ export type HostToPawlegendsMessage = Envelope &
     | { type: "app"; isApp: boolean; store: boolean; notify: boolean }
     | { type: "champions"; cats: PawlegendsChampionCard[] }
     | { type: "party-ticket"; id: string; ticket: string | null; error?: string }
+    | { type: "api-result"; id: string; ok: boolean; status: number; body?: object }
   );
 
 export type PawlegendsToHostMessage =
@@ -345,6 +347,8 @@ export type PawlegendsToHostMessage =
   | { type: "analytics"; event: PawlegendsGameEventName; props: PawlegendsGameProps }
   | { type: "party-ticket-request"; id: string }
   | { type: "party-result"; matchId: string; result: PawlegendsPartyResult }
+  /** SOCIAL-RANKED.md §13: one allowlisted API op (apiBridge.ts); the host builds the route and adds its token. */
+  | ({ type: "api-request" } & PawlegendsApiRequest)
   | { type: "exit" };
 
 /** Relayed game events a page sends at most (PUB-02): a runaway loop must not flood PostHog. About 15 per match. */
@@ -628,6 +632,10 @@ export function sanitizeHostMessage(data: unknown): HostToPawlegendsMessage | nu
       if (data.ticket === null && typeof data.error === "string" && ERROR_CODE.test(data.error)) message.error = data.error;
       return message;
     }
+    case "api-result": {
+      const r = apiResultOf(data);
+      return r ? { ...base, type: "api-result", ...r } : null;
+    }
     case "app":
       if (typeof data.isApp !== "boolean" || typeof data.store !== "boolean") return null;
       return {
@@ -663,6 +671,10 @@ export function hostMessage(
 export function hostMessage(
   type: "purchase-result",
   payload: { catalogId: string; ok: boolean }
+): HostToPawlegendsMessage | null;
+export function hostMessage(
+  type: "api-result",
+  payload: { id: string; ok: boolean; status: number; body?: object }
 ): HostToPawlegendsMessage | null;
 export function hostMessage(
   type: "app",
@@ -780,6 +792,10 @@ export function parsePawlegendsMessage(data: unknown): PawlegendsToHostMessage |
         : null;
     case "party-ticket-request":
       return isMatchId(data.id) ? { type: "party-ticket-request", id: data.id } : null;
+    case "api-request": {
+      const req = parseApiRequest(data);
+      return req ? { type: "api-request", ...req } : null;
+    }
     case "party-result": {
       const result = partyResultOf(data.result);
       // the save chip follows the room id: a result for another id is refused
@@ -859,6 +875,8 @@ export interface PawlegendsBridgeHandlers {
   onStoreIntent?(sku: string): void;
   /** STORE-PASS.md: claim one pass reward (`row`, `tier`) or all (both null). */
   onPassClaim?(row: "f" | "p" | null, tier: number | null): void;
+  /** SOCIAL-RANKED.md §13: one allowlisted API op; answer with `apiResult`. */
+  onApiRequest?(request: PawlegendsApiRequest): void;
 }
 
 /** The state the host keeps; every `ready` re-sends whatever is set. */
@@ -878,6 +896,8 @@ export interface PawlegendsBridge {
   saveResult(result: PawlegendsSaveResult): void;
   /** The answer to `party-ticket-request` (only while the game is ready: a ticket lives 60 s, it is never queued). */
   partyTicket(id: string, ticket: string | null, error?: string): void;
+  /** The answer to `api-request` (only while the game is ready; never queued). */
+  apiResult(id: string, ok: boolean, status: number, body?: object): void;
   purchaseResult(catalogId: string, ok: boolean): void;
   /** STORE-PASS.md: the account's owned store and pass items and its pass row (sticky; empty when signed out). */
   setStore(state: PawlegendsStoreState): void;
@@ -1060,6 +1080,9 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
       case "party-ticket-request":
         handlers.onPartyTicketRequest?.(message.id);
         break;
+      case "api-request":
+        handlers.onApiRequest?.({ id: message.id, op: message.op, args: message.args });
+        break;
       case "party-result":
         handlers.onPartyResult?.(message.result, message.matchId);
         break;
@@ -1135,6 +1158,10 @@ export function createPawlegendsBridge(options: PawlegendsBridgeOptions): Pawleg
         pendingSaves.push(message);
         while (pendingSaves.length > PENDING_SAVE_RESULTS) pendingSaves.shift();
       }
+    },
+    apiResult(id, ok, status, body) {
+      const message = hostMessage("api-result", { id, ok, status, ...(body ? { body } : {}) });
+      if (ready && message) post(message);
     },
     partyTicket(id, ticket, error) {
       const message = hostMessage("party-ticket", { id, ticket, ...(error ? { error } : {}) });
