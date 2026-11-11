@@ -30,7 +30,7 @@
  * Pure helpers take their fetch and storage, so every rule is unit-tested.
  */
 import { apiUrl, currentAccessToken } from "@/api/api";
-import { isPawlegendsSku, type PawlegendsSku } from "./bridge";
+import { isPawlegendsSku, isPawlegendsStoreSku, storeStateOf, type PawlegendsSku, type PawlegendsStoreState } from "./bridge";
 
 export const PAWLEGENDS_TOKEN_KEY = "tt.pawlegends.token.v1";
 export const PAWLEGENDS_DEVICE_KEY = "tt.pawlegends.device.v1";
@@ -39,6 +39,11 @@ export const PAWLEGENDS_AGE_KEY = "tt.pawlegends.age.v1";
 export const PAWLEGENDS_SESSIONS_KEY = "tt.pawlegends.sessions.v1";
 /** Mirror of `PAWLEGENDS_CONSENT_VERSIONS` / `PAWLEGENDS_TERMS_VERSION` in the backend contracts. */
 export const PAWLEGENDS_CONSENT_VERSION = "2026-10-23";
+/**
+ * Mirror of `STORE_TERMS_VERSION` (backend/src/pawlegends/pawlegends-catalog.ts): the cosmetics store and Legends Pass
+ * checkout accepts only this consent (STORE-PASS.md; the terms section the founder approves before Stripe live mode).
+ */
+export const PAWLEGENDS_STORE_CONSENT_VERSION = "2026-11-10";
 /** Mirror of `PAWLEGENDS_MVP_TARGET`. */
 export const PAWLEGENDS_MVP_TARGET = "2027-04-30";
 
@@ -259,6 +264,17 @@ export interface StoreStatus {
   email: boolean;
   termsVersion: string | null;
   skus: StoreSku[];
+  /** STORE-PASS.md: the store and pass SKUs with their server prices (labels and cents only). */
+  catalog?: { sku: string; label: string; cents: Record<PawlegendsCurrency, number> }[];
+}
+
+/** A store or pass checkout (STORE-PASS.md §3): signed-in accounts only, `POST /pawlegends/checkout/account`. */
+export interface StoreCheckoutRequest {
+  sku: string;
+  currency: PawlegendsCurrency;
+  email: string;
+  ageBand: PawlegendsAgeBand;
+  deviceId: string;
 }
 
 export interface ApiResult<T> {
@@ -329,11 +345,19 @@ export function storeStatusOf(body: unknown): StoreStatus {
       skus.push({ sku: r.sku, label, cents, deliveredNow, deliveredAtMvp });
     }
   }
+  const catalog: NonNullable<StoreStatus["catalog"]> = [];
+  for (const raw of Array.isArray(b.skus) ? b.skus : []) {
+    const r = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+    const cents = centsOf(r.cents);
+    const label = lineOf(r.label);
+    if (isPawlegendsStoreSku(r.sku) && r.retired !== true && cents && label) catalog.push({ sku: r.sku, label, cents });
+  }
   return {
-    store: b.store === true && skus.length > 0,
+    store: b.store === true && (skus.length > 0 || catalog.length > 0),
     email: b.email === true,
     termsVersion: typeof b.termsVersion === "string" ? b.termsVersion : null,
     skus,
+    catalog,
   };
 }
 
@@ -432,6 +456,14 @@ export function createPawlegendsApi(
   const okBody = (body: unknown) =>
     body && typeof body === "object" ? (body as Record<string, unknown>) : {};
 
+  const sessionToken = (): string => {
+    try {
+      return accessToken() || "";
+    } catch {
+      return "";
+    }
+  };
+
   return {
     status: () => call("/status", { method: "GET" }, (b) => storeStatusOf(b)),
     checkout: async (request: CheckoutRequest) => {
@@ -470,6 +502,36 @@ export function createPawlegendsApi(
         first.status === 428
         ? call("/checkout", body, parse)
         : first;
+    },
+    /**
+     * STORE-PASS.md §3: a store or pass checkout. Signed-in accounts only (the backend refuses a guest with 401
+     * PAWLEGENDS_SIGN_IN), with the lowercase `accesstoken` header; never the plain route (items belong to an account).
+     */
+    storeCheckout: async (request: StoreCheckoutRequest) => {
+      const session = sessionToken();
+      const parse = (b: unknown) => {
+        const url = checkoutUrlOf(okBody(b).url);
+        return url ? { url } : null;
+      };
+      if (!session.startsWith("fb"))
+        return { ok: false, status: 401, code: "PAWLEGENDS_SIGN_IN", message: null, body: null } as ApiResult<{ url: string }>;
+      const init = postJson({ ...request, consentVersion: PAWLEGENDS_STORE_CONSENT_VERSION });
+      return call("/checkout/account", { ...init, headers: { ...(init.headers as Record<string, string>), accesstoken: session } }, parse);
+    },
+    /** STORE-PASS.md §3 step 5: `GET /pawlegends/me`, the account's owned store and pass items and its pass row. */
+    me: () => {
+      const session = sessionToken();
+      if (!session.startsWith("fb")) return Promise.resolve({ ok: false, status: 401, code: null, message: null, body: null } as ApiResult<PawlegendsStoreState>);
+      return call("/me", { method: "GET", headers: { accesstoken: session } }, storeStateOf);
+    },
+    /** STORE-PASS.md §5: `POST /pawlegends/pass/claim` (one reward or all); answers the fresh `me`. */
+    passClaim: (body: { row: "f" | "p"; tier: number } | { all: true }) => {
+      const session = sessionToken();
+      if (!session.startsWith("fb")) return Promise.resolve({ ok: false, status: 401, code: null, message: null, body: null } as ApiResult<PawlegendsStoreState>);
+      const init = postJson({ seasonId: "s1", ...body });
+      return call("/pass/claim", { ...init, headers: { ...(init.headers as Record<string, string>), accesstoken: session } }, (b) =>
+        storeStateOf(okBody(b).me)
+      );
     },
     entitlementsForSession: (sessionId: string) =>
       call(

@@ -1,10 +1,11 @@
 # Pawlegends app: over-the-air web updates (docs/plans/moba/APP-STORE.md "OTA flow", pawlegends-app/README.md).
 #
 # Every push to main that changes the game (pawlegends/) or the app shell (pawlegends-app/src, scripts) publishes a
-# signed, encrypted web bundle to client/public/pawlegends-app/updates/ios/<compat>/ on the BETA channel
-# (manifest-beta.json: TestFlight installs) and commits it to main; Vercel then serves it from tokentails.com. The
-# hourly `promote` job moves a beta bundle to STABLE (manifest.json: App Store installs) once it is 24 h old, so
-# TestFlight sees every update a day before players. Apps pick an update up on their next launch or resume (on the
+# signed, encrypted web bundle to client/public/pawlegends-app/updates/ios/<compat>/bundles/ with a BETA manifest per
+# platform (updates/<ios|android>/<compat>/manifest-beta.json: TestFlight installs) and commits it to main; Vercel then
+# serves it from tokentails.com. The iOS and Android apps run the same bundle; each platform's manifest has its own
+# minNative and rollback state. The hourly `promote` job moves a beta bundle to STABLE (manifest.json: App Store and
+# Google Play installs): the newest bundle that is 24 h old, or, once stable is 24 h behind, the current beta after 2 quiet h. Apps pick an update up on their next launch or resume (on the
 # title screen, never mid-match). Pull requests run the checks only.
 #
 # Gates before publishing: the game's unit tests (wall-clock perf budgets skipped: shared runners) and typecheck,
@@ -13,6 +14,9 @@
 #
 # Secret: OTA_PRIVATE_KEY (the PEM text of pawlegends-app/ota/.keys/private-key.pem). Without it the publish and
 # promote jobs stop with a notice and publish nothing.
+# Optional secrets CF_API_TOKEN (Zone.Cache Purge only) and CF_ZONE_ID (LATENCY-PLAN C5): once Vercel serves the new
+# manifest, scripts/cdn-cache.mjs purges it from Cloudflare, so apps see the bundle at once instead of after the edge
+# TTL (30 s with the cache rule in infra/gcp/RUNBOOK.md "Latency"). Without them the step is skipped.
 #
 # Manual runs: `rollback_to` = a kept version (see the bundles folder) points beta AND stable at it (signed again);
 # `promote_now` moves the current beta bundle to stable without waiting for the 24 h.
@@ -46,7 +50,11 @@ on:
         required: false
         default: ''
       min_native:
-        description: 'Lowest native app version that may run the new bundle (empty = keep the current value)'
+        description: 'Lowest iOS app version that may run the new bundle (empty = keep the current value)'
+        required: false
+        default: ''
+      min_native_android:
+        description: 'Lowest Android app version (versionName) that may run the new bundle (empty = keep the current value)'
         required: false
         default: ''
 
@@ -110,6 +118,9 @@ jobs:
       OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
       ROLLBACK: ${{ github.event.inputs.rollback_to || '' }}
       MIN_NATIVE: ${{ github.event.inputs.min_native || '' }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+      MIN_NATIVE_ANDROID: ${{ github.event.inputs.min_native_android || '' }}
     steps:
       - name: Secret present
         id: secret
@@ -151,8 +162,10 @@ jobs:
         working-directory: pawlegends-app
         run: |
           args="--check-sim --keep 3"
-          if [ -n "$MIN_NATIVE" ]; then args="$args --min-native $MIN_NATIVE"; fi
+          if [ -n "$MIN_NATIVE" ]; then args="$args --min-native-ios $MIN_NATIVE"; fi
+          if [ -n "$MIN_NATIVE_ANDROID" ]; then args="$args --min-native-android $MIN_NATIVE_ANDROID"; fi
           echo "PUBLISH_ARGS=$args" >> "$GITHUB_ENV"
+          # shellcheck disable=SC2086 # $args is a flag list, split on purpose
           node scripts/ota-publish.mjs $args
       - name: Commit to main (Vercel serves it)
         if: steps.secret.outputs.ok == 'true'
@@ -171,6 +184,7 @@ jobs:
             git rebase --abort 2>/dev/null || true
             git reset --hard origin/main
             if [ -z "$ROLLBACK" ]; then
+              # shellcheck disable=SC2086 # flag list, split on purpose
               (cd pawlegends-app && node scripts/ota-publish.mjs $PUBLISH_ARGS)
             fi
             git add -A client/public/pawlegends-app/updates
@@ -185,8 +199,22 @@ jobs:
         run: |
           echo "### Pawlegends OTA" >> "$GITHUB_STEP_SUMMARY"
           echo '```json' >> "$GITHUB_STEP_SUMMARY"
-          node -e "const m=require('./client/public/pawlegends-app/updates/ios/1/manifest-beta.json');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"
+          for p in ios android; do
+            f="./client/public/pawlegends-app/updates/$p/1/manifest-beta.json"
+            if [ -f "$f" ]; then node -e "const m=require('$f');delete m.checksum;delete m.sessionKey;delete m.signature;console.log(JSON.stringify(m,null,2))" >> "$GITHUB_STEP_SUMMARY"; fi
+          done
           echo '```' >> "$GITHUB_STEP_SUMMARY"
+      - name: Purge the new manifest from Cloudflare (once Vercel serves it)
+        if: steps.secret.outputs.ok == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
+        timeout-minutes: 12
+        run: |
+          for p in ios android; do
+            [ -f "client/public/pawlegends-app/updates/$p/1/manifest-beta.json" ] || continue
+            node scripts/cdn-cache.mjs ota --platform "$p" --file manifest-beta.json
+            if [ -n "$ROLLBACK" ] && [ -f "client/public/pawlegends-app/updates/$p/1/manifest.json" ]; then
+              node scripts/cdn-cache.mjs ota --platform "$p" --file manifest.json
+            fi
+          done
 
   promote:
     name: promote beta to stable
@@ -198,6 +226,8 @@ jobs:
     env:
       OTA_PRIVATE_KEY: ${{ secrets.OTA_PRIVATE_KEY }}
       SOAK: ${{ github.event.inputs.promote_now == 'true' && '0' || '24' }}
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
     steps:
       - name: Secret present
         id: secret
@@ -231,8 +261,16 @@ jobs:
           if git diff --cached --quiet; then echo "nothing to promote"; exit 0; fi
           version=$(node -e "console.log(require('./client/public/pawlegends-app/updates/ios/1/manifest.json').version)")
           git commit -m "chore(pawlegends-app): OTA ${version} promoted to stable"
-          for i in 1 2 3; do
-            git pull --rebase origin main && git push origin HEAD:main && exit 0
+          for _ in 1 2 3; do
+            if git pull --rebase origin main && git push origin HEAD:main; then echo "promoted=true" >> "$GITHUB_ENV"; exit 0; fi
             sleep 5
           done
           exit 1
+      - name: Purge the stable manifest from Cloudflare (once Vercel serves it)
+        if: steps.secret.outputs.ok == 'true' && env.promoted == 'true' && env.CF_API_TOKEN != '' && env.CF_ZONE_ID != ''
+        timeout-minutes: 12
+        run: |
+          for p in ios android; do
+            [ -f "client/public/pawlegends-app/updates/$p/1/manifest.json" ] || continue
+            node scripts/cdn-cache.mjs ota --platform "$p" --file manifest.json
+          done

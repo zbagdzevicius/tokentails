@@ -12,6 +12,7 @@ import { PawlegendsAccountService } from './pawlegends-account.service';
 import { PawlegendsOfferService } from './pawlegends-offer.service';
 import { PawlegendsStripeService } from './pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends-webhook.service';
+import { PawlegendsSeasonService } from './pawlegends-season.service';
 
 export const NOW = new Date('2026-11-12T12:00:00Z');
 export const WEBHOOK_SECRET = 'whsec_test_pawlegends';
@@ -101,12 +102,16 @@ export function buildHarness() {
         restoreTokens: new MemoryModel([], [{ fields: ['tokenHash'] }], now),
         notify: new MemoryModel([], [{ fields: ['email'] }], now),
         webhookEvents: new MemoryModel([], [{ fields: ['eventId'] }], now),
+        owned: new MemoryModel([], [{ fields: ['accountId', 'item'] }], now),
+        seasons: new MemoryModel([], [{ fields: ['_id'] }], now),
     };
     const store = models as unknown as PawlegendsStore;
     const stripeClient = fakeStripe();
     const stripe = new PawlegendsStripeService(store);
     stripe.createClient = () => stripeClient as unknown as Stripe;
     stripe.now = now;
+    // The presale specs still exercise the retired pl_* flow; store-pass.spec turns this off.
+    stripe.sellRetired = true;
     const webhooks = new PawlegendsWebhookService(store, stripe);
     webhooks.now = now;
     const storage = memoryStorage();
@@ -119,7 +124,9 @@ export function buildHarness() {
     });
     const offers = new PawlegendsOfferService(store, stripe, account);
     offers.now = now;
-    return { clock, models, store, stripeClient, stripe, webhooks, account, offers, storage, sent };
+    const season = new PawlegendsSeasonService(store);
+    season.now = now;
+    return { clock, models, store, stripeClient, stripe, webhooks, account, offers, storage, sent, season };
 }
 
 export type Harness = ReturnType<typeof buildHarness>;

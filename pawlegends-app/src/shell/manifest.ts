@@ -1,12 +1,22 @@
 /**
- * The OTA manifest (docs/plans/moba/APP-STORE.md "OTA flow"): one static JSON file per native compat level, served
- * by tokentails.com at `/pawlegends-app/updates/ios/<compat>/manifest.json` and written by
- * `scripts/ota-publish.mjs`. Pure functions only (tests/manifest.test.ts): parse, verify, and decide.
+ * The OTA manifest (docs/plans/moba/APP-STORE.md "OTA flow"): one static JSON file per platform and native compat
+ * level, served by tokentails.com at `/pawlegends-app/updates/<platform>/<compat>/manifest.json` and written by
+ * `scripts/ota-publish.mjs`. Both platforms run the same bundle (kept under `ios/<compat>/bundles/`, where the first
+ * iOS binaries look for it); each platform has its own signed manifest so its minNative and rollbacks are its own.
+ * Pure functions only (tests/manifest.test.ts): parse, verify, and decide.
  */
+
+/** The native shells that take over-the-air updates (the Mac app never does: ota.ts takesOtaUpdates). */
+export type OtaPlatform = 'ios' | 'android';
+
+/** The OTA platform of a Capacitor platform name (`Capacitor.getPlatform()`): android, else ios. */
+export function otaPlatformOf(v: unknown): OtaPlatform {
+  return v === 'android' ? 'android' : 'ios';
+}
 
 export interface OtaManifest {
   schema: 1;
-  platform: 'ios';
+  platform: OtaPlatform;
   /** Native compat level: the shell only reads the folder of its own level. */
   compat: number;
   /** Bundle version (`<seq>-<sha>`): the id of the web build. */
@@ -21,7 +31,7 @@ export interface OtaManifest {
   sessionKey: string;
   /** The game's SIM_VERSION in this bundle (the publish job checked the backend accepts it). */
   simVersion: number;
-  /** Lowest native app version (CFBundleShortVersionString) that may run this bundle. */
+  /** Lowest native app version (iOS CFBundleShortVersionString, Android versionName) that may run this bundle. */
   minNative: string;
   /** Point everyone at this version even if it is older (a rollback). */
   rollback: boolean;
@@ -38,18 +48,20 @@ export interface BundleStamp {
 }
 
 const VERSION = /^[0-9]{1,14}-[0-9a-z]{1,40}$/;
-const HTTPS_TT = /^https:\/\/(www\.)?tokentails\.com\/pawlegends-app\/updates\/ios\/[0-9]{1,3}\/bundles\/[0-9a-z.-]{1,80}\.zip$/;
+const HTTPS_TT = /^https:\/\/(www\.)?tokentails\.com\/pawlegends-app\/updates\/(ios|android)\/[0-9]{1,3}\/bundles\/[0-9a-z.-]{1,80}\.zip$/;
 /** The local test server (scripts/ota-local.mjs). Accepted only on the `dev` channel, which only Debug builds have. */
-const LOCAL = /^http:\/\/(localhost|127\.0\.0\.1):[0-9]{2,5}\/pawlegends-app\/updates\/ios\/[0-9]{1,3}\/bundles\/[0-9a-z.-]{1,80}\.zip$/;
+const LOCAL = /^http:\/\/(localhost|127\.0\.0\.1):[0-9]{2,5}\/pawlegends-app\/updates\/(ios|android)\/[0-9]{1,3}\/bundles\/[0-9a-z.-]{1,80}\.zip$/;
 const HEX = /^[0-9a-f]{512}$/;
 const SESSION = /^[A-Za-z0-9+/=]{24}:[A-Za-z0-9+/=]{344}$/;
 const SEMVER = /^[0-9]{1,4}(\.[0-9]{1,4}){0,2}$/;
 const B64 = /^[A-Za-z0-9+/=]{16,1024}$/;
 
 /**
- * Update channels. The native shell injects `window.__PL_CHANNEL__` (GameViewController.swift): App Store installs
- * read `stable`, TestFlight installs `beta` (every push to main lands there first; `stable` follows after a soak,
- * see scripts/ota-publish.mjs --promote), and Debug builds `dev` (a local server on the Mac, scripts/ota-local.mjs).
+ * Update channels. The native shell injects `window.__PL_CHANNEL__` (GameViewController.swift, MainActivity.java):
+ * App Store and Google Play installs read `stable`, TestFlight installs `beta` (every push to main lands there first;
+ * `stable` follows after a soak, see scripts/ota-publish.mjs --promote), and Debug builds `dev` (a local server on
+ * the Mac, scripts/ota-local.mjs). Play cannot tell an internal-testing install from production (the same AAB is
+ * promoted), so Android release builds always read `stable`.
  */
 export type Channel = 'stable' | 'beta' | 'dev';
 
@@ -57,24 +69,24 @@ export function channelOf(v: unknown): Channel {
   return v === 'beta' || v === 'dev' ? v : 'stable';
 }
 
-/** The manifest file a channel reads, inside `<updates>/ios/<compat>/`. */
+/** The manifest file a channel reads, inside `<updates>/<platform>/<compat>/`. */
 export function manifestFile(channel: Channel): string {
   return channel === 'stable' ? 'manifest.json' : 'manifest-beta.json';
 }
 
 /** Where a channel's manifest lives (`dev` reads the beta file from the local test server). */
-export function manifestUrl(channel: Channel, updatesUrl: string, localUrl: string, compat: number): string {
-  return `${channel === 'dev' ? localUrl : updatesUrl}/ios/${compat}/${manifestFile(channel)}`;
+export function manifestUrl(channel: Channel, updatesUrl: string, localUrl: string, compat: number, platform: OtaPlatform = 'ios'): string {
+  return `${channel === 'dev' ? localUrl : updatesUrl}/${platform}/${compat}/${manifestFile(channel)}`;
 }
 
 /**
- * A manifest, or null for anything malformed or not meant for this compat level. Never throws. Bundles must come
- * from tokentails.com over https; `allowLocal` (the dev channel only) also accepts the local test server.
+ * A manifest, or null for anything malformed or not meant for this platform and compat level. Never throws. Bundles
+ * must come from tokentails.com over https; `allowLocal` (the dev channel only) also accepts the local test server.
  */
-export function parseManifest(v: unknown, compat: number, allowLocal = false): OtaManifest | null {
+export function parseManifest(v: unknown, compat: number, allowLocal = false, platform: OtaPlatform = 'ios'): OtaManifest | null {
   if (!v || typeof v !== 'object') return null;
   const m = v as Record<string, unknown>;
-  if (m.schema !== 1 || m.platform !== 'ios' || m.compat !== compat) return null;
+  if (m.schema !== 1 || m.platform !== platform || m.compat !== compat) return null;
   if (typeof m.version !== 'string' || !VERSION.test(m.version)) return null;
   if (typeof m.seq !== 'number' || !Number.isSafeInteger(m.seq) || m.seq <= 0) return null;
   if (typeof m.url !== 'string' || !(HTTPS_TT.test(m.url) || (allowLocal && LOCAL.test(m.url)))) return null;
@@ -86,7 +98,7 @@ export function parseManifest(v: unknown, compat: number, allowLocal = false): O
   if (typeof m.signature !== 'string' || !B64.test(m.signature)) return null;
   return {
     schema: 1,
-    platform: 'ios',
+    platform,
     compat,
     version: m.version,
     seq: m.seq,

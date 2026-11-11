@@ -18,6 +18,13 @@
  * card-tier ability effects (render/skins/cardFx.ts) tint the existing trails and hits (colour only) and add the cast
  * sparkle and the Legendary paw prints; they use this file's caps (`mode`, `low`, `teamFight`).
  *
+ * CARD-SKINS.md (the shared kit, render/skins/effectKit.ts; card skins AND store / pass coats with a rung):
+ * | Rare+     | recall nap: one motif ring (element shape, fur-pattern rhythm) at the feet once a second       |
+ * | Legendary | recall nap: + a spinning paw card glyph over the curled cat; the purr layer when the recall lands |
+ * |           | foil in the element colour                                                                     |
+ * | Awakened  | foil 0.15 → 0.22 → 0.3 at hero levels 4, 7, 10, and a one-off stage burst (12 motif + 1 glyph)  |
+ * Every new emission counts against a per-hero cap (effectKit.ts HERO_FX_CAP) as well as COSMETIC_MAX.
+ *
  * Who: the player's own hero always; others on Med / High only and never during a team fight (≥ 4 living heroes
  * within 12 m of the camera focus); on Low, glints for the own hero only and no foil. A stealthed hero emits nothing
  * and has no foil. Cosmetics are skipped while either particle pool is over 80 % of its limit, and at most 40
@@ -27,7 +34,9 @@ import * as THREE from 'three';
 import type { CatTier, Element } from '../../meta/roster';
 import { ELEMENT_COLOR } from '../cosmetics';
 import { FOIL_STRENGTH } from '../chars/charMaterial';
+import { SHAPE } from '../fx/Particles.js';
 import { mixHex } from './classify';
+import { AWAKEN_FOIL, LiveBudget, MotifEmitter, type SkinFxProfile } from './effectKit';
 import { isGoldFamily, rungAtLeast } from './registry';
 
 export type SkinFxMode = 'all' | 'mine' | 'off';
@@ -37,6 +46,8 @@ export const POOL_SKIP = 0.8;
 export const TEAM_FIGHT_HEROES = 4;
 export const TEAM_FIGHT_RADIUS = 12;
 export const GLINT_GAP = 0.3;
+/** Recall nap: one motif ring per this many seconds. */
+export const NAP_GAP = 1;
 /**
  * Cards lane: an optional per-hero extension, run after the built-in effects with `wasDead` (the hero was down last
  * frame). Installed by render/skins/tierCardFx.ts (its own chunk) at match start; it uses `room()` and `claim()`.
@@ -70,6 +81,8 @@ export interface FxParticles {
   alpha: { count: number; limit: number };
   burst(pos: THREE.Vector3, o: Record<string, unknown>): void;
   ring(pos: THREE.Vector3, o: Record<string, unknown>): void;
+  /** One sprite (render/fx/Particles.js); optional for test stubs (the kit's motifs need it). */
+  single?(pos: THREE.Vector3, o: Record<string, unknown>): void;
 }
 
 /** The yellow "this is you" family (shared with the card-skin trim guard). */
@@ -97,6 +110,10 @@ export interface FxHero {
   napping: boolean;
   /** Gait phase (radians, render/chars/motion.ts): a footfall every π. */
   phase: number;
+  /** CARD-SKINS.md: the hero's resolved skin profile (Rare+ card or coat), or null (a Common card). */
+  profile?: SkinFxProfile | null;
+  /** A store or pass coat (no Nature: Nature comes from a real roster cat). */
+  coat?: boolean;
 }
 
 interface Track {
@@ -108,6 +125,9 @@ interface Track {
   seen: boolean;
   /** cards lane: dead last frame (the tierCardFx respawn flourish). */
   dead: boolean;
+  /** CARD-SKINS.md: the last recall-nap motif ring (s), and the Awakened stage last seen (-1: not yet). */
+  lastNap: number;
+  stage: number;
 }
 
 export class TierFx {
@@ -117,7 +137,10 @@ export class TierFx {
   /** Seconds since the first frame. */
   time = 0;
   private fight = false;
-  private readonly expiry = new Float64Array(COSMETIC_MAX);
+  private readonly live = new LiveBudget(COSMETIC_MAX);
+  private readonly kit = new MotifEmitter();
+  /** CARD-SKINS.md Legendary: the recall landed (gameView plays the purr layer). */
+  onRecallLand: ((h: FxHero) => void) | null = null;
   private readonly tracks = new Map<number, Track>();
   private readonly at = new THREE.Vector3();
   private readonly glintOpts: Record<string, unknown> = { additive: true, n: 1, exact: true, shape: STAR8, color: 0xffffff, alpha: 0.35, intensity: 1, size: [0.08, 0.12], life: [0.4, 0.4], speed: [0.1, 0.3], up: 0.4, jitter: 0.12 };
@@ -146,31 +169,32 @@ export class TierFx {
     return this.fight;
   }
 
-  /** Living cosmetic particles. */
-  alive(): number {
-    let n = 0;
-    for (let i = 0; i < COSMETIC_MAX; i++) if (this.expiry[i] > this.time) n++;
-    return n;
+  /** Living cosmetic particles (all heroes, or hero `id`). */
+  alive(id = -1): number {
+    return this.live.alive(this.time, id);
   }
 
-  /** Is there room for more cosmetics this frame (pool and COSMETIC_MAX caps)? */
-  room(): boolean {
+  /**
+   * Is there room for more cosmetics this frame (pool and COSMETIC_MAX caps)? With `n`, `id` and `rung` (the kit's
+   * emissions): room for n more, under that hero's cap too.
+   */
+  room(n = 1, id = -1, rung: CatTier | null = null): boolean {
     const p = this.particles;
     if (!p) return false;
     if (p.add.count > p.add.limit * POOL_SKIP || p.alpha.count > p.alpha.limit * POOL_SKIP) return false;
-    return this.alive() < COSMETIC_MAX;
+    return this.live.room(this.time, n, id, rung);
   }
 
-  /** Count `n` cosmetic particles living `life` s against COSMETIC_MAX. */
-  claim(n: number, life: number): void {
-    let k = 0;
-    for (let i = 0; i < COSMETIC_MAX && k < n; i++) {
-      if (this.expiry[i] <= this.time) {
-        this.expiry[i] = this.time + life;
-        k++;
-      }
-    }
+  /** Count `n` cosmetic particles living `life` s against COSMETIC_MAX (and hero `id`'s cap). */
+  claim(n: number, life: number, id = -1): void {
+    this.live.claim(this.time, n, life, id);
     this.emitted += n;
+  }
+
+  /** The kit's sprites need `single` (a test stub without it draws none). */
+  private get kitPool(): (FxParticles & { single(pos: THREE.Vector3, o: Record<string, unknown>): void }) | null {
+    const p = this.particles;
+    return p && typeof p.single === 'function' ? (p as FxParticles & { single(pos: THREE.Vector3, o: Record<string, unknown>): void }) : null;
   }
 
   /** May this hero show cosmetics at all this frame? */
@@ -188,7 +212,7 @@ export class TierFx {
   hero(h: FxHero): number {
     let t = this.tracks.get(h.id);
     if (!t) {
-      t = { step: Math.floor(h.phase / Math.PI), lastGlint: -1, x: h.x, z: h.z, napped: false, seen: true, dead: h.dead };
+      t = { step: Math.floor(h.phase / Math.PI), lastGlint: -1, x: h.x, z: h.z, napped: false, seen: true, dead: h.dead, lastNap: -1e9, stage: -1 };
       this.tracks.set(h.id, t);
     }
     t.seen = true;
@@ -212,6 +236,29 @@ export class TierFx {
       this.ringOpts.color = h.self ? ELEMENT_COLOR[h.element] : glintColor(h.element, false);
       this.particles?.ring(this.at, this.ringOpts);
       this.claim(16, 0.7);
+      this.onRecallLand?.(h);
+    }
+    const prof = h.profile ?? null;
+    const kp = this.kitPool;
+    // CARD-SKINS.md Rare+: the recall nap, one motif ring at the feet a second; Legendary: + the spinning card glyph
+    if (ok && prof && kp && h.napping && this.time - t.lastNap >= NAP_GAP) {
+      const leg = prof.rung === 'LEGENDARY';
+      const n = (prof.low ? 4 : 6) + (leg ? 1 : 0);
+      if (this.room(n, h.id, prof.rung)) {
+        t.lastNap = this.time;
+        this.kit.emit(kp, prof, h.x, 0.12, h.z, n - (leg ? 1 : 0), 0.95, 0.9, true, 0.25);
+        if (leg) this.kit.glyph(kp, SHAPE.PAW, prof.tint, h.x, 1.55, h.z, 0.55, 1, 3.2);
+        this.claim(n, 0.95, h.id);
+      }
+    }
+    // Awakened: a one-off burst the frame a new stage is reached (not on first sight: a hero seen at level 9 is not news)
+    if (prof?.awakened) {
+      if (t.stage >= 0 && prof.stage > t.stage && ok && kp && this.room(13, h.id, prof.rung)) {
+        this.kit.emit(kp, prof, h.x, 1.1, h.z, 12, 1.3, 0.9, false, 1.2);
+        this.kit.glyph(kp, SHAPE.PAW, prof.cream, h.x, 2.3, h.z, 0.75, 1, 4);
+        this.claim(13, 1, h.id);
+      }
+      t.stage = prof.stage;
     }
     // cards lane (render/skins/tierCardFx.ts, its own chunk): the card flips up as the hero is back, Epic+ twinkles
     if (ok) for (let i = 0; i < tierExts.length; i++) tierExts[i](this, h, t.dead);
@@ -219,7 +266,8 @@ export class TierFx {
     t.x = h.x;
     t.z = h.z;
     t.napped = h.napping;
-    return ok && !this.low && rungAtLeast(h.rung, 'LEGENDARY') ? FOIL_STRENGTH : 0;
+    if (!ok || this.low || !rungAtLeast(h.rung, 'LEGENDARY')) return 0;
+    return prof?.awakened ? AWAKEN_FOIL[prof.stage] : FOIL_STRENGTH;
   }
 
   end(): void {

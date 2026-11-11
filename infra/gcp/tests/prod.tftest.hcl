@@ -227,7 +227,7 @@ run "edge_websockets_and_armor" {
     error_message = "Every Cloudflare range (v4 and v6) is admitted, none twice."
   }
   assert {
-    condition     = length([for r in module.edge.settings.armor_rules : r if r.action == "throttle" && strcontains(coalesce(r.expr, ""), "/pawlegends/ws")]) >= 1
+    condition     = length([for r in module.edge.settings.armor_rules : r if r.action == "throttle" && strcontains(r.expr == null ? "" : r.expr, "/pawlegends/ws")]) >= 1
     error_message = "A per-IP throttle protects /pawlegends/ws."
   }
   assert {

@@ -29,6 +29,10 @@ export type AnalyticsEvent =
   | 'offer_shown'
   | 'offer_click'
   | 'checkout_start'
+  /** STORE-PASS.md: a store or pass purchase arrived (`sku`), the Pass screen opened, a pass reward claimed. */
+  | 'store_item_granted'
+  | 'pass_open'
+  | 'pass_claim'
   | 'item_seen_in_match'
   | 'notify_signup'
   | 'quality_tier'

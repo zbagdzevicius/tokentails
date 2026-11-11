@@ -405,6 +405,8 @@ export interface SaveChipModel {
   newFastest: boolean;
   /** Show "Save your wins" on a kept-on-device chip. */
   askSignIn: boolean;
+  /** Legends Pass Season XP the save paid (STORE-PASS.md §5). */
+  season?: { gained: number; tier: number; prevTier: number } | null;
 }
 
 const CHIP_TEXT: Readonly<Record<ChipState, string>> = Object.freeze({
@@ -445,6 +447,14 @@ export function saveChip(m: SaveChipModel, on: { signIn(): void }): HTMLElement 
     if (m.catnipTotal !== null) pop.appendChild(h('small', '', `${m.catnipTotal} total`));
     root.appendChild(pop);
     countUp(n, m.catnipPaid);
+  }
+  // Legends Pass (STORE-PASS.md §6): "+N Season XP" next to the save, and a tier-up line. XP, never money.
+  if (m.state === 'saved' && m.season && m.season.gained > 0) {
+    const sx = h('div', 'plc-season');
+    sx.dataset.seasonXp = String(m.season.gained);
+    sx.append(h('b', '', `+${m.season.gained}`), h('span', '', 'Season XP'));
+    root.appendChild(sx);
+    if (m.season.tier > m.season.prevTier) root.appendChild(h('div', 'plc-stamp plc-tierup', `Pass tier ${m.season.tier}!`));
   }
   if (m.newFastest) root.appendChild(h('div', 'plc-stamp', 'New fastest!'));
   if (m.askSignIn && (m.state === 'queued' || m.state === 'local')) root.appendChild(saveWinsButton(on.signIn));

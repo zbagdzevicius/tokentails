@@ -24,6 +24,7 @@ import { SnapBuffer, type ViewFrame } from '../../render/interp';
 import { CAMERA_YAW, cameraYaw, setViewTeam, toX, toZ } from '../../render/coords';
 import { setSideSwap, setTeam0Dogs, sidesSwapped, RELATION_CSS } from '../../render/palette';
 import type { QualityTier } from '../../render/quality';
+import type { Look } from '../../render/cosmetics';
 import { sfx } from '../../audio/sfx';
 import { FramePacer, MENU_FPS } from '../../render/perf/pacer';
 import { ALLY, DUMMY, ME, SkillSandbox, allyFor, dummyFor, type PreviewSlot } from './skillSandbox';
@@ -39,6 +40,13 @@ export interface SkillPreviewOptions {
   bars?: boolean;
   /** Play the skill sounds (default false: a looping clip in a menu stays quiet, as in LoL's previews). */
   sound?: boolean;
+  /**
+   * CARD-SKINS.md: the look the previewed hero wears (a card skin or a store / pass coat), so the clip shows its skin
+   * effects (tints, motifs, paw bursts, foil). Called per hero on mount and on every `set`; null = the classic look.
+   */
+  look?: (hero: HeroId) => Look | null;
+  /** The previewed hero's level (default PREVIEW_LEVEL): an Awakened card's stage follows it (dev lab, captures). */
+  level?: number;
 }
 
 export interface SkillPreviewStats {
@@ -136,7 +144,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   const buffer = new SnapBuffer();
   view.peek = (h, out) => buffer.peekEvents(h, out);
 
-  let sb = new SkillSandbox(hero, slot);
+  let sb = new SkillSandbox(hero, slot, opts.level);
   let raf = 0;
   let wantPlay = opts.autoplay !== false;
   let onScreen = true;
@@ -157,6 +165,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
   const applySides = (h: HeroId): void => {
     view.setTeam(ME, 0, TRICKS);
     view.setSpecies(HEROES[h].side === 'dog');
+    if (opts.look) view.dress(opts.look(h), []);
   };
   applySides(hero);
 
@@ -367,7 +376,7 @@ export function mountSkillPreview(el: HTMLElement, hero: HeroId, slot: PreviewSl
       const same = h === sb.hero;
       totalCasts = 0;
       totalLoops = 0;
-      sb = new SkillSandbox(h, s);
+      sb = new SkillSandbox(h, s, opts.level);
       setAt = performance.now();
       firstFrameMs = -1;
       cam.init = false;

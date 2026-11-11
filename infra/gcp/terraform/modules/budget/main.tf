@@ -18,6 +18,12 @@ variable "currency_code" {
   default     = "USD"
 }
 
+variable "labels" {
+  description = "Count only costs with this label (at most one key and value); empty = the whole project."
+  type        = map(string)
+  default     = {}
+}
+
 variable "notification_channels" {
   type = list(string)
 }
@@ -34,6 +40,7 @@ resource "google_billing_budget" "monthly" {
   budget_filter {
     projects        = ["projects/${var.project_number}"]
     calendar_period = "MONTH"
+    labels          = length(var.labels) > 0 ? var.labels : null
   }
 
   amount {
@@ -67,6 +74,10 @@ resource "google_billing_budget" "monthly" {
     monitoring_notification_channels = var.notification_channels
     disable_default_iam_recipients   = false
   }
+}
+
+output "labels" {
+  value = google_billing_budget.monthly.budget_filter[0].labels
 }
 
 output "thresholds" {

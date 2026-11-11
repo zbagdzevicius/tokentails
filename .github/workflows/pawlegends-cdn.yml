@@ -1,0 +1,43 @@
+# Paw Legends web game: Cloudflare cache after a deploy (LATENCY-PLAN C5, infra/gcp/RUNBOOK.md "Latency").
+# A push to main that changes the committed embed build (client/public/pawlegends-game, from pawlegends
+# `npm run build:client`) waits until Vercel serves the new index.html, purges that one URL from Cloudflare (when the
+# optional CF_API_TOKEN and CF_ZONE_ID secrets exist), then fetches every build/ file the push added once.
+# The warm-up fills the Cloudflare PoP nearest the runner (GitHub-hosted runners are in the US), and Vercel's own
+# cache; a European PoP still fills on its first European request. The OTA manifests are purged by pawlegends-ota.yml.
+name: Pawlegends CDN
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'client/public/pawlegends-game/**'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pawlegends-cdn
+  cancel-in-progress: false
+
+jobs:
+  warm:
+    name: purge index, warm new build files
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CF_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+      CF_ZONE_ID: ${{ secrets.CF_ZONE_ID }}
+      SINCE: ${{ github.event.before || 'HEAD~1' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Purge and warm
+        run: |
+          # a force push or the first push has no usable `before`: fall back to the previous commit
+          if ! git cat-file -e "$SINCE^{commit}" 2>/dev/null; then SINCE=HEAD~1; fi
+          node scripts/cdn-cache.mjs game --since "$SINCE"

@@ -86,7 +86,7 @@ export function spec(_look: Look, detail: number, dr: HeroDress): ChibiSpec {
   const { t, founder, chroma, capeColor, trim, capeHem, extras, poses, lc } = dr;
   return {
     rig: { width: 1.35, tier: 'hero', headScale: 0.95, bodyScale: 1.25, earsLow: 0.25, tailCurve: TAIL },
-    coat: lc ? { pattern: 'tabby', base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT,
+    coat: lc ? { pattern: lc.pattern ?? 'tabby', ...(lc.patch !== undefined ? { patch: lc.patch } : {}), base: lc.base, deep: lc.dark, light: lc.light, cream: lc.light } : COAT,
     eyes: { inner: 0xbfe36a, outer: 0x6f9a2a, ring: 0x2c3a14, size: 0.85 },
     earInner: 0xf2a6a0,
     nose: 0xd9706a,

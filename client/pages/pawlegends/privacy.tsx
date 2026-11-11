@@ -4,11 +4,11 @@ import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date this notice last changed. Update it with every change to the text. */
-export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-07";
+export const PAWLEGENDS_APP_PRIVACY_UPDATED = "2026-11-10";
 
 export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} app privacy - Token Tails`,
-  description: `What the ${PAWLEGENDS_TITLE} app for iPhone keeps on your phone, what party play sends to our server, and how long we keep it.`,
+  description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what party play sends to our server, and how long we keep it.`,
   path: "/pawlegends/privacy",
 });
 
@@ -27,8 +27,9 @@ const A = ({ href, children }: { href: string; children: React.ReactNode }) => (
 );
 
 /**
- * `/pawlegends/privacy`: the privacy policy URL of the Pawlegends iOS app (App Store Connect "Privacy Policy URL",
- * `pawlegends-app/fastlane/metadata/en-US/privacy_url.txt`, and the app build's Settings link). Written from what
+ * `/pawlegends/privacy`: the privacy policy URL of the Pawlegends iOS and Android apps (App Store Connect "Privacy Policy
+ * URL", `pawlegends-app/fastlane/metadata/en-US/privacy_url.txt`, the Google Play listing and Data safety form, and the
+ * app build's Settings link). Written from what
  * the app build does (`pawlegends-app/scripts/build-web.mjs`: no analytics key, no account, no purchases) and what
  * the party relay keeps (`backend/src/pawlegends/party/room-store.ts`: parties 3 h after the last change, ended
  * rooms 30 days). The answers in `docs/plans/moba/APP-STORE-ANSWERS.md` must say the same thing: change both
@@ -81,7 +82,7 @@ export default function PawlegendsPrivacyPage() {
           <Section title="Playing with friends (optional)">
             <p>When you make or join a party, the app connects to our game server and sends:</p>
             <ul className="list-disc pl-5">
-              <li>the random party key from your phone (it is not linked to your name, email or Apple ID);</li>
+              <li>the random party key from your phone (it is not linked to your name, email, Apple ID or Google account);</li>
               <li>a player name the game picks for you (you cannot type your own);</li>
               <li>your hero, your picks and your moves in the match, and the quick-chat phrases and pings you send.</li>
             </ul>
@@ -145,7 +146,7 @@ export default function PawlegendsPrivacyPage() {
           <Section title="Changes">
             <p>
               If the app starts collecting anything new (for example accounts or play statistics), we update this page
-              and the app&apos;s App Store privacy details before that version is released.
+              and the app&apos;s App Store privacy details and Google Play data safety section before that version is released.
             </p>
           </Section>
 

@@ -12,8 +12,10 @@ export function relayStatsLine(counters: Record<string, unknown> | null, now = n
 }
 
 /*
- * BACKEND_ROLE=relay only (src/relay.module.ts): writes the relay counters (rooms_live, sockets, loop_delay_p99,
- * turn_overrun_ms_p99, referee_lag_turns and the restore, desync and refused_busy totals) as one JSON line a minute.
+ * BACKEND_ROLE=relay (src/relay.module.ts) and all (DigitalOcean, app.module.ts): writes the relay counters
+ * (rooms_live, sockets, loop_delay_p99, turn_overrun_ms_p99, referee_lag_turns, the server-measured socket RTT
+ * rtt_ms_p50 / rtt_ms_p95 / rtt_ms_p95_<region>, and the restore, desync and refused_busy totals) as one JSON line a
+ * minute.
  * The log-based metrics and alerts in infra/gcp/terraform/modules/monitoring read these lines. No ids, no IPs.
  */
 @Injectable()

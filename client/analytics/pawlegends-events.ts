@@ -21,6 +21,7 @@ export const PAWLEGENDS_EVENTS = {
   BRIDGE_TIMEOUT: "pawlegends_bridge_timeout",
   LANDING_VIEW: "pawlegends_landing_view",
   LANDING_CTA: "pawlegends_landing_cta",
+  STORE_INTENT: "pawlegends_store_intent",
 } as const;
 
 export type PawlegendsEventName = (typeof PAWLEGENDS_EVENTS)[keyof typeof PAWLEGENDS_EVENTS];
@@ -47,6 +48,8 @@ export interface PawlegendsEventProperties {
   pawlegends_guest_claim: { count: number; choice: "add" | "decline" };
   pawlegends_meet_open: { catalogId: string; from: "offer" | "featured" | "roster" | "champion" };
   pawlegends_cat_purchase: { ok: boolean };
+  /** STORE-PASS.md: Buy tapped in the game's store or on the Legends Pass (`sku`, a public catalogue id). */
+  pawlegends_store_intent: { sku: string };
   /**
    * The game frame never answered `hello` within `waitedMs` (the "taking too long to load" panel; launch finding R1).
    * `reloads` counts the player's Reload presses before it on this page.
@@ -74,6 +77,9 @@ export const PAWLEGENDS_GAME_EVENTS = [
   "offer_shown",
   "offer_click",
   "checkout_start",
+  "store_item_granted",
+  "pass_open",
+  "pass_claim",
   "item_seen_in_match",
   "notify_signup",
   "quality_tier",

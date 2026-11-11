@@ -99,6 +99,13 @@ describe('shellPlatform and coarsePointer (the Mac app)', () => {
     expect(shellPlatform(true, {})).toBe('ios');
     expect(shellPlatform(false, { __PL_PLATFORM__: 'mac' })).toBe(null);
   });
+  it('names the Android app from __PL_PLATFORM__, or from Capacitor when the WebView ran no start script', () => {
+    expect(shellPlatform(false, { Capacitor: { isNativePlatform: () => true }, __PL_PLATFORM__: 'android' })).toBe('android');
+    expect(shellPlatform(false, { Capacitor: { isNativePlatform: () => true, getPlatform: () => 'android' } })).toBe('android');
+    expect(shellPlatform(false, { Capacitor: { isNativePlatform: () => true, getPlatform: () => 'ios' } })).toBe('ios');
+    expect(shellPlatform(false, { Capacitor: { isNativePlatform: () => false, getPlatform: () => 'android' } })).toBe(null);
+    expect(coarsePointer('android', () => ({ matches: true }))).toBe(true);
+  });
   it('never starts touch controls in the Mac app', () => {
     const coarse = () => ({ matches: true });
     expect(coarsePointer('mac', coarse)).toBe(false);

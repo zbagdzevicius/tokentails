@@ -66,6 +66,10 @@ export const PL_SFX = {
   ooh: [0.45, 0, 300, 0.08, 0.2, 0.35, 0, 1, -0.6, 0, 0, 0, 0, 0.15, 5, 0, 0.04, 0.8, 0.05, 0.25, -1600],
   /** Combo / multikill sting: two quick rising notes. */
   sting: [0.45, 0, 660, 0.005, 0.05, 0.16, 1, 1, 0, 0, 330, 0.05, 0, 0, 0, 0, 0.02, 0.8, 0.02, 0, 0],
+  /** V21-FUN §4: a tower or core cracks (below 66% HP): a short stone crack and crumble. */
+  towerCrack: [0.75, 0, 150, 0.002, 0.03, 0.2, 4, 1.6, -2, 0, 0, 0, 0.04, 1.4, 0, 0.1, 0, 0.6, 0.03, 0, -1700],
+  /** V21-FUN §4: a tower or core catches fire (below 33%, again below 15%): a low noise "whoomph" that swells and falls. */
+  towerIgnite: [0.75, 0, 95, 0.05, 0.14, 0.38, 4, 1, 1.4, -0.2, 0, 0, 0, 1.3, 0, 0, 0, 0.7, 0.07, 0.12, -950],
   /** A pickup was taken. */
   pickup: [0.5, 0, 880, 0.005, 0.06, 0.2, 0, 1, 6, 0, 440, 0.06, 0, 0, 0, 0, 0, 0.7, 0.02, 0, 0],
   // Sim v14 dogs (DOGS-V13 §1 "Voice / emote"): synth voices, no recordings. Each joke is a generic behaviour.
@@ -118,12 +122,20 @@ export const PL_SFX = {
   dominoShake: [0.45, 0, 180, 0.02, 0.3, 0.15, 2, 1, 0, 0, 0, 0, 0.03, 0.6, 20, 0, 0, 0.6, 0.05, 0.5, -1000],
   /** CONNECT THE DOTS!: a rising pencil scratch into a chime. */
   dominoDraw: [0.45, 0, 700, 0.02, 0.25, 0.3, 4, 1, 3, 0, 600, 0.25, 0, 0.8, 0, 0, 0, 0.6, 0.05, 0, 2000],
+  // CARD-SKINS.md Legendary skins: a short synth meow (takedown) and a low purr (recall land), layered by cardLayer
+  /** A rising-then-falling "mew". */
+  cardMeow: [0.4, 0, 640, 0.04, 0.12, 0.2, 1, 1.2, 4, -0.6, 0, 0, 0, 0, 0, 0, 0, 0.8, 0.05, 0, 0],
+  /** A low purr: a rumble with tremolo. */
+  cardPurr: [0.4, 0, 70, 0.08, 0.35, 0.25, 2, 1, 0, 0, 0, 0, 0, 0.2, 0, 0, 0, 0.7, 0.05, 0.6, -900],
 } satisfies Record<string, number[]>;
 
 type BakeJob = [string, () => Float32Array];
 
 export type SfxName = keyof typeof PL_SFX | 'shieldUp' | 'shieldChime' | 'squeak' | 'hyenaLaugh' | 'blip';
 const PPK_USED = ['shieldUp', 'shieldChime', 'squeak', 'hyenaLaugh', 'blip'] as const;
+
+/** A Legendary skin's meow or purr layer: at most once per this many seconds per hero. */
+export const CARD_LAYER_GAP = 2;
 
 export interface PlayOpts {
   vol?: number;
@@ -589,6 +601,27 @@ export class Sfx {
   swing(o: SwingOpts): void {
     if (this.quiet > 0 || this.muted) return;
     this.playBank(STYLE_SOUND[o.style], o.mine, o.mine ? 0.7 : 0.32, heroSwingRate(o.hero), o.at);
+  }
+
+  private readonly cardLast = new Float64Array(16).fill(-1e9);
+
+  /**
+   * CARD-SKINS.md Legendary skins: a meow layer on a takedown or a purr when the recall lands, at most once per
+   * CARD_LAYER_GAP seconds per hero; the player's own louder and unpanned, others' quieter at their position.
+   * Returns whether it played.
+   */
+  cardLayer(kind: 'takedown' | 'recall', hero: number, mine: boolean, at?: { x: number; z: number }): boolean {
+    if (this.quiet > 0 || this.muted) return false;
+    const now = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000;
+    const k = hero & 15;
+    if (now - this.cardLast[k] < CARD_LAYER_GAP) return false;
+    this.cardLast[k] = now;
+    try {
+      this.play(kind === 'takedown' ? 'cardMeow' : 'cardPurr', { vol: mine ? 0.55 : 0.3, rate: 1 + (k % 4) * 0.04, ...(mine || !at ? {} : { at: { x: at.x, z: at.z } }) });
+    } catch {
+      return false; // audio not unlocked yet
+    }
+    return true;
   }
 
   /** The player's last hit earned Fish: two bright pings and a shimmer. */

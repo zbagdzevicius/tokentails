@@ -84,6 +84,8 @@ export interface RttResult {
   authP95Target: number;
   taps: number;
   visible: { p50: number; p95: number; max: number };
+  /** N1: tap of a Cast to the first frame that starts its predicted wind-up pose. */
+  castVisible: { n: number; p50: number; p95: number; max: number };
   auth: { p50: number; p95: number; max: number };
   hostStats: { n: number; p50: number; p95: number };
   buffer: number;
@@ -145,6 +147,8 @@ export function runProfile(p: RttProfile, seed = 11): RttResult {
     sendJson: () => undefined,
     sendHash: (tick: number, hash: number) => void (bytesUp += encodeHash({ tick, hash }).length),
     beatNow: () => undefined,
+    reconnects: 0,
+    rttStats: () => ({ p50: p.rttMs, p95: p.rttMs, jitterP95: 0, n: 1 }),
   };
   deliverTurn = (frame) => {
     const f = decodeServerBinary(frame);
@@ -206,8 +210,18 @@ export function runProfile(p: RttProfile, seed = 11): RttResult {
     setTimeout(tap, 250 + rand() * 450);
   };
   setTimeout(tap, startAt - t0);
+  // N1 (predict-action.ts): a Cast Q every 1.5..2.5 s; castVisible is the tap to the first frame that starts its pose
+  const castVisible: number[] = [];
+  let castTap: number | null = null;
+  const castTapNow = () => {
+    if (Date.now() >= endAt) return;
+    castTap = Date.now();
+    host.send({ op: Op.Cast, slot: 0, x: X + 3000, y: Y, id: 255 });
+    setTimeout(castTapNow, 1500 + rand() * 1000);
+  };
+  setTimeout(castTapNow, startAt - t0 + 700);
   const frame = (): ViewFrame => {
-    const me = { id: 0, kind: 'hero', team: 0, slot: 0, hero: 'clem', x: X, y: Y, fx: X, fy: Y, yaw: 0, speed: 0, hp: 1, maxHp: 1, shield: 0, state: 'idle', facing: 0, buffs: 0 } as unknown as ViewEntity;
+    const me = { id: 0, kind: 'hero', team: 0, slot: 0, hero: 'clem', x: X, y: Y, fx: X, fy: Y, yaw: 0, speed: 0, hp: 1, maxHp: 1, shield: 0, state: 'idle', facing: 0, buffs: 0, cooldowns: [0, 0, 0, 0, 0] } as unknown as ViewEntity;
     return { tick: 100_000, latest: {} as never, entities: [me], byId: new Map([[0, me]]), projectiles: [], zones: [] };
   };
   // a frame clock with a random phase against the taps
@@ -216,6 +230,11 @@ export function runProfile(p: RttProfile, seed = 11): RttResult {
     if (stopped) return;
     const f = frame();
     host.present(f);
+    const pred = host.takePredicted();
+    if (castTap !== null && pred?.shown.some((a) => a.kind === 'cast')) {
+      castVisible.push(Date.now() - castTap);
+      castTap = null;
+    }
     const me = f.byId.get(0)!;
     if (pendingTap !== null && Math.hypot(me.fx - X, me.fy - Y) >= 1) {
       visible.push(Date.now() - pendingTap);
@@ -242,6 +261,7 @@ export function runProfile(p: RttProfile, seed = 11): RttResult {
     authP95Target: p.authP95Target,
     taps: tapAt.size,
     visible: { p50: pct(visible, 0.5), p95: pct(visible, 0.95), max: Math.round(Math.max(0, ...visible)) },
+    castVisible: { n: castVisible.length, p50: pct(castVisible, 0.5), p95: pct(castVisible, 0.95), max: Math.round(Math.max(0, ...castVisible)) },
     auth: { p50: pct(auth, 0.5), p95: pct(auth, 0.95), max: Math.round(Math.max(0, ...auth)) },
     hostStats: stats,
     buffer: net.buffer,
@@ -265,6 +285,7 @@ describe('own-input latency on the real net code (BENCHMARKS.md, PARITY §3.11)'
       console.log(
         `rtt ${r.rttMs} ms (jitter ${r.jitterMs}): ${r.taps} taps, visible p50/p95 ${r.visible.p50}/${r.visible.p95} ms, ` +
           `applied p50/p95 ${r.auth.p50}/${r.auth.p95} ms (max ${r.auth.max}), B ${r.buffer}, ` +
+          `cast visible p50/p95 ${r.castVisible.p50}/${r.castVisible.p95} ms (${r.castVisible.n} casts), ` +
           `down ${(r.bytesDownPerMin / 1024).toFixed(1)} KB/min, up ${(r.bytesUpPerMin / 1024).toFixed(1)} KB/min`,
       );
     const out = process.env.PAWLEGENDS_MEASURE_OUT;
@@ -273,6 +294,9 @@ describe('own-input latency on the real net code (BENCHMARKS.md, PARITY §3.11)'
       expect(r.taps).toBeGreaterThan(SECONDS);
       expect(r.hostStats.n).toBeGreaterThan(SECONDS);
       expect(r.visible.p95).toBeLessThanOrEqual(VISIBLE_P95_TARGET);
+      // N1: a predicted cast starts its wind-up on the next frame at any RTT (one frame, ≤ 17 ms)
+      expect(r.castVisible.n).toBeGreaterThan(SECONDS / 3);
+      expect(r.castVisible.p95).toBeLessThanOrEqual(Math.ceil(FRAME_MS));
       expect(r.auth.p95).toBeLessThanOrEqual(r.authP95Target);
       // the authoritative path can never beat the network
       expect(r.auth.p50).toBeGreaterThanOrEqual(r.rttMs);

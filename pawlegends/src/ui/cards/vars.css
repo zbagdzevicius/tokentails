@@ -16,3 +16,7 @@
 [data-tt-tier='RARE'] { --tt-pat: url('/assets/cards/tier/RARE.webp'); --tt-glow: 0 0 10px 2px rgba(110, 190, 255, 0.55); --tt-x: url('/assets/cards/fx/blue-sparkle.webp'); }
 [data-tt-tier='EPIC'] { --tt-pat: url('/assets/cards/tier/EPIC.webp'); --tt-glow: 0 0 12px 3px rgba(214, 120, 255, 0.6); --tt-x: url('/assets/cards/fx/purple-sparkle.webp'); }
 [data-tt-tier='LEGENDARY'] { --tt-pat: url('/assets/cards/tier/LEGENDARY.webp'); --tt-glow: 0 0 14px 4px rgba(255, 205, 90, 0.7); --tt-x: url('/assets/cards/fx/legendary-sparkle.webp'); --tt-lp: url('/assets/cards/fx/legendary-paws.webp'); }
+/* CARD-SKINS.md Awakened form (frame.ts `awakened`): a stronger glow per in-match stage (Kitten, Brave, Legend). */
+.tt-card[data-awakened='0'], .tt-card[data-awakened='1'] { --tt-glow: 0 0 16px 5px rgba(255, 205, 90, 0.75); }
+.tt-card[data-awakened='2'] { --tt-glow: 0 0 19px 6px rgba(255, 214, 120, 0.82); }
+.tt-card[data-awakened='3'] { --tt-glow: 0 0 22px 8px rgba(255, 236, 170, 0.9); }

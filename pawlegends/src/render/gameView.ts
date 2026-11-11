@@ -47,6 +47,8 @@ import { inClearZone, MinionInstances } from './views/minionInstances';
 import { PickupView } from './views/pickupView';
 import { ProjectileView } from './views/projectileView';
 import { StructureView } from './views/towerView';
+import { TowerFire } from './fx/towerFire';
+import { burningLine } from './views/towerDamage';
 import { AnimDirector } from './anim/director';
 import { CueSfx, FxRuntime, type HeroLookup } from './anim/fxctx';
 import { MeshFx } from './anim/fxkit/meshFx';
@@ -83,9 +85,16 @@ export interface GameViewHooks {
   levelNote?(level: number, guided: boolean): boolean;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
+  /** LATENCY-PLAN N1: see EffectHooks.ownWindupHeard. */
+  ownWindupHeard?(slot: number): boolean;
   onTowerDown?(ours: boolean): void;
   onTowerAim?(src: number, ticks: number): void;
   onCoreDown?(who: Who): void;
+  /**
+   * V21-FUN §4: one of our towers (or the core) started burning (below 33% HP), once per structure: the session's
+   * callout. `line` is the text ("Our Sunny Lane tower is burning!").
+   */
+  onOwnBurning?(line: string, kind: 'tower' | 'core', id: number): void;
 }
 
 const WHO_TTL = 3;
@@ -127,6 +136,10 @@ export class GameView {
   readonly projectiles: ProjectileView;
   readonly telegraphs = new TelegraphPool(20);
   readonly particles: Particles;
+  /** V21-FUN §4: the fire on burning towers and cores, and the smoulder on fresh rubble (pooled particles). */
+  readonly towerFire: TowerFire;
+  /** V21-FUN §4: structures whose "burning" callout was said (once each). */
+  private readonly burnSaid = new Set<number>();
   readonly shock: Shockwaves;
   readonly juice: Juice;
   readonly effects: Effects;
@@ -180,6 +193,14 @@ export class GameView {
   atkCands: readonly number[] | null = null;
   /** Hold-to-select: the one the release would lock (the bold ring), or null (none, or the drag is on cancel). */
   atkSelect: number | null = null;
+  /**
+   * Drag-lock (touch, Wild Rift's targeting line): while the Attack drag points, the selected unit (`id`, -1 = none:
+   * the line ends at its interpolated position) or, with none (`ok` false, red), the line's end as an offset from the
+   * hero (`dx`/`dz`, m); the selection reach ring's radius and the faint hero reach ring's (`heroM`, 0 = not drawn), m.
+   */
+  atkAim: AtkAim | null = null;
+  /** Telemetry (e2e): the unit the lock marker is drawn on this frame, -1 = none. */
+  lockMarkId = -1;
   frame: ViewFrame | null = null;
   /**
    * Hover ring and order markers: thick bold rings drawn after the VFX layers (renderOrder 9), so a brawl's sparks
@@ -194,8 +215,8 @@ export class GameView {
   private attackMarks = new DecalLayer(crosshairTexture(), MARKERS, { y: 0.075, renderOrder: 9, name: 'order-attack' });
   private marks = Array.from({ length: MARKERS }, () => ({ x: 0, z: 0, t: -1, attack: false }));
   /** LoL pass (lane C): move chevrons, the red outline under an attack order's target, the touch auto-attack ring. */
-  private chevrons = new DecalLayer(chevronTexture(), MARKERS, { y: 0.08, renderOrder: 9, name: 'order-chevrons' });
-  private targetRings = new DecalLayer(ringTexture(), 2, { y: 0.07, renderOrder: 9, name: 'target-rings' });
+  private chevrons = new DecalLayer(chevronTexture(), MARKERS + 1, { y: 0.08, renderOrder: 9, name: 'order-chevrons' });
+  private targetRings = new DecalLayer(ringTexture(), 3, { y: 0.07, renderOrder: 9, name: 'target-rings' });
   private targetMark = { id: -1, t: -1 };
   /** The unit the player's last basic attack landed on, and when (view s); -1 = none. */
   autoTarget = -1;
@@ -238,10 +259,14 @@ export class GameView {
     this.scene.add(this.map.group);
     this.particles = new Particles({ rng: Math.random, groundY: () => 0 });
     this.particles.attach(this.scene);
+    this.towerFire = new TowerFire(this.particles as unknown as ConstructorParameters<typeof TowerFire>[0]);
+    this.structures.fire = this.towerFire;
     this.shock = new Shockwaves(null, { particles: this.particles, groundY: () => 0, rng: Math.random });
     this.shock.init(this.scene);
     this.projectiles = new ProjectileView(this.particles);
     this.heroes.tierFx = new TierFx(this.particles);
+    // CARD-SKINS.md Legendary: a purr layer when a carded or coated hero's recall lands (rate-limited per hero)
+    this.heroes.tierFx.onRecallLand = (h) => void sfx.cardLayer('recall', h.id, h.self, h);
     this.vfx = new CombatVfx(this.particles, this.shock);
     this.vfx.setTier(gr.settings.vfxTier, reducedMotion());
     this.projectiles.vfx = this.vfx;
@@ -312,6 +337,7 @@ export class GameView {
         levelNote: hooks.levelNote,
         onTalentOffer: hooks.onTalentOffer,
         onWindupAtMe: hooks.onWindupAtMe,
+        ownWindupHeard: hooks.ownWindupHeard,
         onTowerDown: hooks.onTowerDown,
         onTowerAim: hooks.onTowerAim,
         onCoreDown: hooks.onCoreDown,
@@ -384,6 +410,7 @@ export class GameView {
         const r = this.heroes.rigOf(id);
         return r && r.visible ? r.yaw : NaN;
       },
+      card: (id) => this.heroes.cardOf(id),
     };
     const cueSfx = new CueSfx();
     const runtime = new FxRuntime(this.meshFx, this.ribbons, this.linger, this.vfx, this.shock as never, this.fightCam, this.juice, cueSfx, lookup);
@@ -452,6 +479,20 @@ export class GameView {
       sv.set(x, 0.4, z);
       // the settle: a low puff only (trailer review: a second shockwave ring after the burst read as a second blast)
       this.particles.burst(sv, { n: core ? 18 : 12, shape: SHAPE.PUFF, color: 0xf2ddbb, alpha: 0.7, size: [0.8, 1.3], sizeEnd: 2.2, life: [0.7, 1.1], speed: [1, 3], up: 0.4, drag: 1.8 });
+    };
+    // V21-FUN §4: a structure crossing into a damage state: a stone crack (cracked) or a fire "whoomph" (burning,
+    // blazing) at its place; one of ours that starts burning gets one callout
+    this.structures.onStage = (id, kind, team, stage, prev, x, z, lane) => {
+      try {
+        sfx.play(stage === 1 ? 'towerCrack' : 'towerIgnite', { at: { x, z }, vol: team === this.myTeam ? 0.8 : 0.65, rate: stage === 3 ? 0.85 : 1 });
+      } catch {
+        /* audio not unlocked yet */
+      }
+      if (stage >= 2 && prev < 2 && team === this.myTeam && !this.burnSaid.has(id)) {
+        this.burnSaid.add(id);
+        if (hooks.onOwnBurning) hooks.onOwnBurning(burningLine(kind, lane), kind, id);
+        else this.juice.callout(burningLine(kind, lane), 'info');
+      }
     };
     // a toppled tower hits the ground (dust along its length, a ring, a kick); a core bursts (a big ring and a puff)
     this.structures.onImpact = (x, z, dx, dz, len, core) => {
@@ -978,7 +1019,7 @@ export class GameView {
         const c = frame.byId.get(cid2);
         if (!c || c.state === 'dead') continue;
         const size = hoverRingSize(c.kind, c.hero);
-        if (size > 0) this.candRings.add(toX(c.fx), toZ(c.fy), size, HOVER_COLOR.enemy, 0.4);
+        if (size > 0) this.candRings.add(toX(c.fx), toZ(c.fy), size, HOVER_COLOR.enemy, 0.6);
       }
     }
     this.candRings.end();
@@ -1004,6 +1045,9 @@ export class GameView {
     }
     this.moveMarks.end();
     this.attackMarks.end();
+    this.lockMarkId = -1;
+    const lockE = this.lock !== null && frame ? frame.byId.get(this.lock) : undefined;
+    if (lockE && lockE.state !== 'dead') this.lockChevrons(lockE);
     this.chevrons.end();
     // LoL pass (lane C): the attack order's target outline, and on touch a thin ring under the auto-attack target
     this.targetRings.begin();
@@ -1030,7 +1074,22 @@ export class GameView {
         }
       }
     }
+    if (this.lockMarkId >= 0 && lockE) {
+      const size = hoverRingSize(lockE.kind, lockE.hero);
+      this.targetRings.add(toX(lockE.fx), toZ(lockE.fy), size * LOCK_RING_K, MARKER_COLOR.attack, 0.95);
+    }
     this.targetRings.end();
+  }
+
+  /**
+   * Drag-lock (Wild Rift's lock highlight): the locked unit wears a crosshair of four chevrons turning slowly around it
+   * (and, in drawMarks, a second red ring at LOCK_RING_K), so a lock reads apart from the hover and preview rings.
+   */
+  private lockChevrons(e: ViewEntity): void {
+    const size = hoverRingSize(e.kind, e.hero);
+    if (size <= 0) return;
+    this.lockMarkId = e.id;
+    this.chevrons.add(toX(e.fx), toZ(e.fy), size * LOCK_CHEVRON_K * (1 + Math.sin(this.time * 6) * 0.05), MARKER_COLOR.attack, 0.95, this.time * 0.8);
   }
 
   private remember(frame: ViewFrame): void {
@@ -1093,6 +1152,10 @@ export class GameView {
       this.minions.heroes = this.minionClear;
       this.minions.clearZones = this.structures.fallingCores(this.minions.clearZones);
       this.minions.update(frame, dt, this.time);
+      // V21-FUN §4: the fire's tier (the governor's Low step included) and last frame's camera view (off-screen
+      // structures emit nothing)
+      this.towerFire.tier = this.gr.settings.vfxTier;
+      this.towerFire.view(this.gr.camera);
       this.structures.update(frame, dt);
       this.footprints = this.structures.footprints(this.footprints);
       this.projectiles.update(frame, dt);
@@ -1188,7 +1251,10 @@ export class GameView {
       if (deny && !this.attackRange) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: 0xffffff, alpha: 0.3, dashed: true });
       else this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: this.attackRingM, color: ATTACK_RING_COLOR, alpha: 0.9, dashed: true });
     }
-    if (!a) return;
+    if (!a) {
+      if (this.atkAim) this.drawAtkAim(this.atkAim, mx, mz);
+      return;
+    }
     const color = a.valid ? RELATION.self : 0xff9f7a;
     const yaw = Math.atan2(-(a.z - mz), a.x - mx);
     const r = a.spec.range / 1000;
@@ -1200,6 +1266,30 @@ export class GameView {
     // C10: a filled body (0.35), an arrowhead on lines and dashes, and never thinner than 18 px on screen
     if (spec && spec.width !== undefined) spec.width = Math.max(spec.width, AIM_MIN_PX / Math.max(1, this.pxPerMetre(mx, mz)));
     if (spec) this.telegraphs.draw({ ...spec, alpha: 0.95, top: true, solid: 0.35 });
+  }
+
+  /**
+   * Drag-lock (touch, Wild Rift's targeting circle and guide line): the selection reach ring around the hero and a
+   * line from the hero to the selected unit (self colour) or along the drag (red: nothing selected, a release cancels).
+   */
+  private drawAtkAim(t: AtkAim, mx: number, mz: number): void {
+    // the selection's end from the interpolated entity (as lockChevrons), so it moves with the drawn model per frame
+    let dx = t.dx;
+    let dz = t.dz;
+    if (t.ok) {
+      const e = this.frame?.byId.get(t.id);
+      dx = e ? toX(e.fx) - mx : 0;
+      dz = e ? toZ(e.fy) - mz : 0;
+    }
+    // the line first: in a brawl the wind-up telegraphs can take every pooled shape but the last one
+    const len = Math.hypot(dx, dz);
+    if (len >= 0.3) {
+      const yaw = Math.atan2(-dz, dx);
+      const width = AIM_MIN_PX / Math.max(1, this.pxPerMetre(mx, mz));
+      this.telegraphs.draw({ shape: 'line', x: mx, z: mz, yaw, length: len, width, color: t.ok ? RELATION.self : 0xff9f7a, alpha: 0.95, top: true, solid: 0.35 });
+    }
+    if (t.reachM > 0) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: t.reachM, color: RELATION.self, alpha: 0.55, top: true, dashed: true });
+    if (t.heroM > t.reachM) this.telegraphs.draw({ shape: 'ring', x: mx, z: mz, yaw: 0, length: t.heroM, color: RELATION.self, alpha: 0.3, top: true, dashed: true });
   }
 
   private readonly _pa = new THREE.Vector3();
@@ -1268,6 +1358,19 @@ export class GameView {
 
 /** The basic attack range ring's colour (warm cream: neither the gold skill ring nor a team colour). */
 const ATTACK_RING_COLOR = 0xfff1d6;
+/** Drag-lock: the touch Attack drag's targeting line and rings (GameView.atkAim). */
+export interface AtkAim {
+  id: number;
+  dx: number;
+  dz: number;
+  ok: boolean;
+  reachM: number;
+  heroM: number;
+}
+
+/** Drag-lock marker: the second ring (× the hover ring size) and the chevron crosshair (× the same) on a locked unit. */
+const LOCK_RING_K = 1.25;
+const LOCK_CHEVRON_K = 1.7;
 /** C10: the aim shape's width is at least this many screen pixels. */
 const AIM_MIN_PX = 18;
 /** A skill range ring wider than this (m) is not drawn (it would only fill the screen). */

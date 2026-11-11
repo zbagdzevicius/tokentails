@@ -17,6 +17,7 @@
  * Keyboard: ← → champions (inside a tab list they move that list, as the ARIA pattern says), P / A / Q W E R the
  * skills, L the Lore tab, Esc closes. Focus moves into the dialog on open and back to the opener on close.
  */
+import type { Look } from '../../render/cosmetics';
 import './champBrowser.css';
 import type { HeroId } from '../../data/heroes/types';
 import { HEROES } from '../../data/heroes';
@@ -70,6 +71,8 @@ export interface ChampBrowserOpts {
   clips?: ClipFactory | null;
   /** The hero's portrait (default: the baked portrait cache). */
   portrait?(h: HeroId): string | null;
+  /** CARD-SKINS.md: the look a hero's clip wears (the player's card skin or coat), so the clip shows its skin effects. */
+  look?(h: HeroId): Look | null;
 }
 
 export interface ChampBrowser {
@@ -85,10 +88,12 @@ export interface ChampBrowser {
   readonly open: boolean;
 }
 
-const defaultClips: ClipFactory = async (el, hero, slot) => {
-  const { mountSkillPreview } = await import('../preview/skillPreview');
-  return mountSkillPreview(el, hero, slot, { autoplay: true });
-};
+const clipsWith =
+  (look?: (h: HeroId) => Look | null): ClipFactory =>
+  async (el, hero, slot) => {
+    const { mountSkillPreview } = await import('../preview/skillPreview');
+    return mountSkillPreview(el, hero, slot, { autoplay: true, ...(look ? { look } : {}) });
+  };
 
 const isClip = (s: SkillSlot): s is ClipSlot => s === 'q' || s === 'w' || s === 'e' || s === 'r';
 const SLOT_KEYS: Readonly<Record<string, SkillSlot>> = { p: 'passive', a: 'basic', q: 'q', w: 'w', e: 'e', r: 'r' };
@@ -103,7 +108,7 @@ export function openChampBrowser(o: ChampBrowserOpts): ChampBrowser {
   current?.close();
   const order = o.order?.length ? o.order : BROWSE_ORDER;
   const portrait = o.portrait ?? ((h: HeroId) => portraitUrl(h));
-  const clipFactory = o.clips === undefined ? defaultClips : o.clips;
+  const clipFactory = o.clips === undefined ? clipsWith(o.look ? (h) => o.look!(h) : undefined) : o.clips;
   const opener = typeof document !== 'undefined' ? (document.activeElement as HTMLElement | null) : null;
   let hero = o.hero;
   let slot: SkillSlot = o.slot ?? 'q';

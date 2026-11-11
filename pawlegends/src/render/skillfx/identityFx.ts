@@ -15,6 +15,9 @@ import type { FxCtx, Relation3 } from '../anim/types';
 import { NATURE_FX, motifColors } from '../fx/natureFx';
 import { FADE, SHAPE } from '../fx/Particles.js';
 import { funCount, funPool } from '../fx/fun/funKit';
+import { tinted } from '../skins/cardFx';
+import type { SkinFxProfile } from '../skins/effectKit';
+import { rungAtLeast } from '../skins/registry';
 
 /** The identity mix relation of a viewer relation. */
 export const MIX_REL: Readonly<Record<Relation3, MixRelation>> = Object.freeze({ own: 'mine', ally: 'ally', enemy: 'enemy' });
@@ -49,6 +52,8 @@ const PAINTER: MotifPainter & { colors: { primary: number; secondary: number } }
   shape: SH,
   colors: { primary: 0xffffff, secondary: 0xffffff },
 };
+/** CARD-SKINS.md Epic+: the caster's skin profile while one identity draw runs (null: the default colours). */
+let TINT: SkinFxProfile | null = null;
 const IAT = { x: 0, y: 0, z: 0 };
 const IDIR = { x: 0, z: 0 };
 const IDIR3 = { x: 0, y: 0, z: 0 };
@@ -62,7 +67,7 @@ function natureAccent(fx: FxCtx, hero: HeroId, skill: SkillKey, has: boolean): v
   const o = NB;
   o.n = funCount(fx, Math.max(2, Math.round(s.count.cast * 0.5)));
   o.shape = SH[s.shape];
-  o.color = s.color;
+  o.color = TINT ? tinted(s.color, TINT) : s.color;
   o.additive = s.additive;
   o.intensity = s.additive ? 1.4 : 1;
   o.size = s.size;
@@ -88,7 +93,7 @@ function natureAccent(fx: FxCtx, hero: HeroId, skill: SkillKey, has: boolean): v
       return;
     case 'ripple':
       NS.shape = SH.RING;
-      NS.color = s.color;
+      NS.color = TINT ? tinted(s.color, TINT) : s.color;
       for (let i = 0; i < 2; i++) {
         NS.size0 = 0.4 + i * 0.5;
         NS.size1 = 1.6 + i * 0.9;
@@ -133,6 +138,14 @@ export function drawIdentity(fx: FxCtx, hero: HeroId, src: number | null, skill:
   if (!p || typeof p.burst !== 'function') return;
   pool = p as Pool;
   motifColors(hero, src !== null && fx.relation(src) === 'enemy', PAINTER.colors);
+  // CARD-SKINS.md Epic+: the identity layer (nature accent + motif, never the core painter) mixes halfway toward the
+  // caster's coat glow; on another player's hero the drawn colour stays team-safe (tinted → trimForTeam)
+  const prof = src !== null ? (fx.card?.(src) ?? null) : null;
+  TINT = prof && rungAtLeast(prof.rung, 'EPIC') ? prof : null;
+  if (TINT) {
+    PAINTER.colors.primary = tinted(PAINTER.colors.primary, TINT);
+    PAINTER.colors.secondary = tinted(PAINTER.colors.secondary, TINT);
+  }
   const has = dx !== 0 || dz !== 0;
   IAT.x = x;
   IAT.y = y;

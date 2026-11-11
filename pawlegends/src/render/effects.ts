@@ -149,6 +149,8 @@ export interface EffectsHooks {
   levelNote?(level: number, guided: boolean): boolean;
   onTalentOffer?(tier: number): void;
   onWindupAtMe?(): void;
+  /** LATENCY-PLAN N1: the session already played this own wind-up's sound when the cast was sent (true: stay quiet). */
+  ownWindupHeard?(slot: number): boolean;
   onTowerDown?(destroyedByMyTeam: boolean): void;
   /** An enemy tower or core locked on to the player (fun plan S5 lock-on; the `windup` with slot 4). */
   onTowerAim?(src: number, ticks: number): void;
@@ -497,7 +499,11 @@ export class Effects {
     const card = el ? this.cardOf(src) : null;
     const color = tinted(el ? (e.kind === 'ability' ? el : mixHex(teamColor, el, 0.35)) : teamColor, card);
     vfx.impact(pos, e.amount, color, e.kind === 'ability', big);
-    if (card && src) this.cards?.impactBurst(pos, src.id, impactFlash(e.amount), card, e.kind === 'ability' || big);
+    if (card && src) {
+      this.cards?.impactBurst(pos, src.id, impactFlash(e.amount), card, e.kind === 'ability' || big);
+      // CARD-SKINS.md Epic+: one element motif inside the default flash on an ability hit
+      if (e.kind === 'ability') this.cards?.hitMotif(pos, impactFlash(e.amount), card);
+    }
     const ground = dst.kind === 'hero' || dst.kind === 'minion' || dst.kind === 'camp' || dst.kind === 'pudding';
     if (ground && (e.kind === 'ability' || big)) vfx.debris(dst.x, dst.z, big ? 1 : 0.5);
     // a tower / core shot lands with weight: a ground ring in the shooter's relation colour and a little debris
@@ -704,7 +710,7 @@ export class Effects {
       }
       return;
     }
-    sfx.play('windup', { at: src, vol: 0.6 });
+    if (!(e.src === this.hooks.mySlot && this.hooks.ownWindupHeard?.(e.slot))) sfx.play('windup', { at: src, vol: 0.6 });
     // Sim v17 (V17.md §3.6, §7): a windup that names its victim (Pack Hunt) warns that hero's player by ear at once.
     if (src.team !== this.hooks.myTeam && e.dst !== undefined && e.dst === this.hooks.mySlot) {
       this.hooks.onWindupAtMe?.();
@@ -815,8 +821,12 @@ export class Effects {
       this.particles.burst(pos, { additive: true, n: 18, shape: SHAPE.STAR5, color: this.rel(v.team, v.id), intensity: 1.8, size: [0.2, 0.36], life: [0.5, 0.9], speed: [3, 6], up: 3, gravity: 7 });
       this.shock.start(this.at(v, 0), { r1: 3, dur: 0.35, color: '#FFE0C8', height: 0.3 });
       this.vfx?.debris(v.x, v.z, 1.3);
-      // Wave C (C4): a Legendary card's takedown flourish over the fallen hero (only for a hero seen now)
-      if (this.vfx && this.hooks.visible?.(e.id) !== false) this.cards?.takedown(v.x, v.z, this.cardOf(k));
+      // Wave C (C4) + CARD-SKINS.md: the killer's skin stamps the fallen hero (Epic+ motif stamp, Legendary flourish;
+      // only for a hero seen now); a Legendary skin's multi-kill card shows on the killer's own screen only
+      const kc = this.cardOf(k);
+      if (this.vfx && this.hooks.visible?.(e.id) !== false) this.cards?.takedown(v.x, v.z, kc);
+      if (e.killer === this.hooks.mySlot && k && this.vfx) this.cards?.multiKill(k.x, k.z, e.tick, kc);
+      if (kc && kc.rung === 'LEGENDARY' && k) sfx.cardLayer('takedown', k.id, kc.self, v);
       sfx.play('death', { at: v });
       // the words ("Takedown!", First Blood, multikills) come from the announcer (render/announcer.ts)
       if (e.killer === this.hooks.mySlot) {

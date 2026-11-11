@@ -429,3 +429,129 @@ lane :auto_release do
   end
   UI.important("No version was changed") if changed.zero?
 end
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Pawlegends Android release lanes (docs/plans/moba/PLAY-STORE.md "Release"). Run as `bundle exec fastlane android <lane>`.
+#
+# Secrets (GitHub Actions secrets; locally source ~/.tokentails-keys/pawlegends-android-upload.env):
+#   ANDROID_UPLOAD_KEYSTORE_PATH (the decoded .jks), ANDROID_UPLOAD_KEYSTORE_PASSWORD, ANDROID_UPLOAD_KEY_ALIAS,
+#   ANDROID_UPLOAD_KEY_PASSWORD: the upload key (Play App Signing holds the app signing key)
+#   GOOGLE_PLAY_JSON_KEY: the Play service account's JSON key (text), for the upload lanes only
+# Optional: PL_VERSION_CODE (Play needs a higher one on every upload; CI passes 100000 + run number * 10 + run attempt),
+#   PLAY_TRACK (default internal), PLAY_RELEASE_STATUS (default completed; `draft` while the app is still a draft in
+#   Play Console, which accepts nothing else), AAB_PATH (upload this bundle instead of building one).
+#
+# Lanes:
+#   check     validate the service-account key against Google Play (changes nothing)
+#   build     the signed release bundle (.aab); the web bundle must be built and synced first: npm run build:android
+#   internal  build (or AAB_PATH) + upload to the internal testing track (or PLAY_TRACK), with the changelog
+#   metadata  upload the listing: text, icon, feature graphic, phone screenshots (fastlane/metadata_android; no binary)
+#   promote   copy the latest internal release to production as a DRAFT (a person rolls it out in Play Console)
+#
+# The listing lives in fastlane/metadata_android, not fastlane/metadata/android: the iOS lanes read fastlane/metadata,
+# where deliver rejects unknown folders. Play Console must have the app (and one manually uploaded bundle) before
+# any upload lane works: supply cannot create the app.
+# ---------------------------------------------------------------------------------------------------------------------
+
+ANDROID_DIR = File.join(APP_DIR, "android")
+ANDROID_METADATA = File.join(FASTLANE_DIR, "metadata_android")
+ANDROID_AAB = File.join(ANDROID_DIR, "app/build/outputs/bundle/release/app-release.aab")
+
+def require_upload_key!
+  missing = %w[ANDROID_UPLOAD_KEYSTORE_PATH ANDROID_UPLOAD_KEYSTORE_PASSWORD ANDROID_UPLOAD_KEY_ALIAS ANDROID_UPLOAD_KEY_PASSWORD].select { |k| ENV[k].to_s.strip.empty? }
+  UI.user_error!("Missing upload key secrets: #{missing.join(', ')} (docs/plans/moba/PLAY-STORE.md \"Secrets\")") unless missing.empty?
+  UI.user_error!("ANDROID_UPLOAD_KEYSTORE_PATH does not exist: #{ENV['ANDROID_UPLOAD_KEYSTORE_PATH']}") unless File.exist?(ENV["ANDROID_UPLOAD_KEYSTORE_PATH"])
+end
+
+def play_json_key!
+  key = ENV["GOOGLE_PLAY_JSON_KEY"].to_s.strip
+  UI.user_error!("Missing GOOGLE_PLAY_JSON_KEY (the Play service account's JSON key)") if key.empty?
+  begin
+    JSON.parse(key)
+  rescue JSON::ParserError
+    UI.user_error!("GOOGLE_PLAY_JSON_KEY is not JSON (paste the key file's text, not its path)")
+  end
+  key
+end
+
+def require_android_web_bundle!
+  UI.user_error!("No web bundle in android/app/src/main/assets/public: run `npm run build:android` in pawlegends-app first") unless File.exist?(File.join(ANDROID_DIR, "app/src/main/assets/public/index.html"))
+end
+
+def play_release_status
+  status = ENV["PLAY_RELEASE_STATUS"].to_s.strip
+  status = "completed" if status.empty?
+  UI.user_error!("PLAY_RELEASE_STATUS must be completed, draft, halted or inProgress") unless %w[completed draft halted inProgress].include?(status)
+  status
+end
+
+platform :android do
+  desc "Validate the Play service-account key (changes nothing)"
+  lane :check do
+    validate_play_store_json_key(json_key_data: play_json_key!)
+    UI.success("GOOGLE_PLAY_JSON_KEY works")
+  end
+
+  desc "Build the signed release bundle (.aab)"
+  lane :build do
+    require_upload_key!
+    require_android_web_bundle!
+    props = {}
+    props["plVersionCode"] = ENV["PL_VERSION_CODE"] unless ENV["PL_VERSION_CODE"].to_s.strip.empty?
+    gradle(project_dir: ANDROID_DIR, task: "clean bundleRelease", properties: props, print_command: false)
+    UI.user_error!("No bundle at #{ANDROID_AAB}") unless File.exist?(ANDROID_AAB)
+    UI.success("Signed bundle: #{ANDROID_AAB}")
+  end
+
+  desc "Upload a release bundle to the internal testing track (or PLAY_TRACK)"
+  lane :internal do
+    aab = ENV["AAB_PATH"].to_s.strip
+    if aab.empty?
+      build
+      aab = ANDROID_AAB
+    end
+    upload_to_play_store(
+      package_name: APP_ID,
+      json_key_data: play_json_key!,
+      track: ENV["PLAY_TRACK"].to_s.strip.empty? ? "internal" : ENV["PLAY_TRACK"],
+      release_status: play_release_status,
+      aab: aab,
+      metadata_path: ANDROID_METADATA,
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: false
+    )
+  end
+
+  desc "Upload the store listing (text, icon, feature graphic, phone screenshots), no binary"
+  lane :metadata do
+    upload_to_play_store(
+      package_name: APP_ID,
+      json_key_data: play_json_key!,
+      metadata_path: ANDROID_METADATA,
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_changelogs: true,
+      sync_image_upload: true
+    )
+  end
+
+  desc "Copy the latest internal release to production as a draft (roll it out by hand in Play Console)"
+  lane :promote do
+    upload_to_play_store(
+      package_name: APP_ID,
+      json_key_data: play_json_key!,
+      track: "internal",
+      track_promote_to: "production",
+      track_promote_release_status: "draft",
+      skip_upload_apk: true,
+      skip_upload_aab: true,
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
+    )
+  end
+end

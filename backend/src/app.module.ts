@@ -180,6 +180,7 @@ import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service'
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
 import { PAWLEGENDS_CAT_SALE, PawlegendsOfferService } from './pawlegends/pawlegends-offer.service';
+import { PawlegendsSeasonService } from './pawlegends/pawlegends-season.service';
 import { PawlegendsCheckoutGuard } from './pawlegends/pawlegends-checkout-guard.service';
 import { RaveController } from './rave/rave.controller';
 import { RaveOrder, RaveOrderSchema, RaveWebhookEvent, RaveWebhookEventSchema } from './rave/rave.schema';
@@ -195,6 +196,7 @@ import { ClubWebhookService } from './club/club-webhook.service';
 import { BACKEND_ROLE } from './shared/runtime/backend-role';
 import { HealthController } from './shared/runtime/health.controller';
 import { RelayDrainController } from './shared/runtime/relay-drain.controller';
+import { RelayStatsReporter } from './shared/runtime/relay-stats.reporter';
 
 const JwtModules = [
     PassportModule,
@@ -416,6 +418,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsWebhookService,
         PawlegendsAccountService,
         PawlegendsOfferService,
+        // Store ownership and the Legends Pass (docs/plans/moba/STORE-PASS.md).
+        PawlegendsSeasonService,
         { provide: PAWLEGENDS_CAT_SALE, useExisting: ShelterCatSaleService },
         // Age band and spend cap on the Token Tails cat checkout when it opens from Pawlegends.
         PawlegendsCheckoutGuard,
@@ -423,7 +427,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PartyTicketService,
         MongoRoomStore,
         MmService,
-        ...(role === 'all' ? [PartyRelayService] : []),
+        // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
+        ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.
         RaveService,
         RaveWebhookService,

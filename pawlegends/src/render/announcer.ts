@@ -104,6 +104,14 @@ export function isAce(victim: number, down: (slot: number) => boolean): boolean 
   return true;
 }
 
+/**
+ * V21-FUN §4: one of our towers (or the core) started burning: an info callout, once per structure (gameView says
+ * when; the line comes from views/towerDamage.ts burningLine).
+ */
+export function towerBurningMoment(line: string): Moment {
+  return { key: 'towerBurning', title: line, tone: 'info', size: 'callout' };
+}
+
 /** LoL pass (lane B): an ally's knockout is not called when one of ours took a hero down this close to it (ticks). */
 export const ALLY_SLAIN_QUIET = 45;
 /** LoL pass (lane B): without a snapshot, a hero counts as down for this long after its death (ticks; the shortest respawn). */

@@ -17,6 +17,8 @@ import { pingGlyph } from './pingGlyph';
 import { clearedBushes } from '../render/bushClear';
 import { mapInfo } from '../sim/map/info';
 import { applyMinimapSize, colourBlind } from './minimapPrefs';
+import { damageState } from '../render/views/towerDamage';
+import { FLAME_CSS, drawFlame } from './flameGlyph';
 
 export interface MinimapHost {
   /** Feel pass B1: hold the view on (x, z) m while the minimap is held (peekEnd lets it go). */
@@ -143,6 +145,9 @@ export function minimapMapping(w: number, h: number, pad = MM_PAD, yaw = 0) {
     clamp: (px: number, py: number): [number, number] => [Math.max(pad, Math.min(w - pad, px)), Math.max(pad, Math.min(h - pad, py))],
   };
 }
+
+/** V21-FUN §4: a standing structure's damage state from its HP (views/towerDamage.ts). */
+const structStage = (hp: number, maxHp: number): number => damageState(maxHp > 0 ? hp / maxHp : 1);
 
 /** MAP-GAPS A3: below this drawn diameter (CSS px) a hero is its initial; at and above it, its portrait. */
 export const PORTRAIT_MIN_PX = 12;
@@ -719,6 +724,8 @@ export class Minimap {
 
   /** MAP-GAPS A18: every tower seen this match (sim mm), so a fallen one keeps its mark. */
   private towers = new Map<number, { x: number; y: number; team: number }>();
+  /** V21-FUN §4.2: own burning structures pulsed last frame (tests). */
+  burningPulsed = 0;
   /** Fallen tower marks drawn last frame (tests). */
   fallenDrawn = 0;
 
@@ -867,12 +874,29 @@ export class Minimap {
     let key = `${rel.ally}${rel.enemy}${me}|${team}|`;
     for (let i = 0; i < this.cleared.length; i++) key += this.cleared[i] ? '1' : '0';
     key += '|';
-    for (const e of frame.entities) if ((e.kind === 'tower' || e.kind === 'core') && e.state !== 'dead' && e.hp > 0) key += `${e.id}.${e.team},`;
+    // V21-FUN §4.2: a burning structure's flame glyph is in the layer (its state is in the key: a few repaints a match)
+    for (const e of frame.entities) if ((e.kind === 'tower' || e.kind === 'core') && e.state !== 'dead' && e.hp > 0) key += `${e.id}.${e.team}.${structStage(e.hp, e.maxHp) >= 2 ? 1 : 0},`;
     this.structures(key, frame, col);
     if (this.layer) {
       g.setTransform(1, 0, 0, 1, 0, 0);
       g.drawImage(this.layer, 0, 0);
       g.setTransform(this.dpr, 0, 0, this.dpr, 0, 0);
+    }
+    // V21-FUN §4.2: our own burning towers and core pulse orange at 1 Hz (the enemy's only wear the flame)
+    this.burningPulsed = 0;
+    {
+      const pulse = 0.5 + 0.5 * Math.sin((performance.now() / 1000) * Math.PI * 2);
+      for (const e of frame.entities) {
+        if ((e.kind !== 'tower' && e.kind !== 'core') || e.team !== team || e.state === 'dead' || e.hp <= 0 || structStage(e.hp, e.maxHp) < 2) continue;
+        const [x, y] = this.P(e.fx, e.fy);
+        const s = (e.kind === 'core' ? 9 : 6) * this.k + 3 + 2 * pulse;
+        g.globalAlpha = 0.35 + 0.6 * pulse;
+        g.strokeStyle = FLAME_CSS.pulse;
+        g.lineWidth = 1.6;
+        g.strokeRect(x - s / 2, y - s / 2, s, s);
+        g.globalAlpha = 1;
+        this.burningPulsed++;
+      }
     }
     // PERF-IOS §8 Track A: unit marks are cached sprites (one drawImage each instead of ~10 path calls)
     let sq = 0;
@@ -1140,6 +1164,8 @@ export class Minimap {
       g.fillRect(x - s / 2 - 1, y - s / 2 - 1, s + 2, s + 2);
       g.fillStyle = col(e.team, e.id);
       g.fillRect(x - s / 2, y - s / 2, s, s);
+      // V21-FUN §4.2: burning (below 33% HP): a small flame on the square's top-right corner, both teams
+      if (structStage(e.hp, e.maxHp) >= 2) drawFlame(g, x + s / 2, y - s / 2, Math.max(5, 5 * this.k));
     }
     this.layerFallen = this.fallenDrawn;
     this.layerBushes = this.bushesCleared;
