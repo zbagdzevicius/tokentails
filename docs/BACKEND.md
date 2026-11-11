@@ -309,6 +309,15 @@ simVersion=<n> difficulty=<d>`, where kind is `rejected` (warn; `cached` when th
 409). A run of `rejected` lines with `PAWLEGENDS_OUTCOME_MISMATCH`, a hash mismatch or `PAWLEGENDS_SIM_VERSION`
 means the game and backend sims drifted apart (docs/plans/moba/LAUNCH.md a.8 step 4).
 
+Friends chat and avatars (`docs/plans/moba/CHAT-AVATARS.md`): DMs between accepted friends live in
+`pawlegendschat` (messages) and `pawlegendschatthreads` (threads), both with a 30-day TTL on `exp`; party lines
+are written there by the relay's `ChatSink` (every 2 s). Free text is filtered by `shared/chat-filter.ts` and allowed
+only when every participant is a registered 16+ account (`pawlegendsbuyers` band); everyone else gets phrase and sticker
+ids. Avatars (`avatar`, `frame`, `title`), `dmPolicy`, `chatCooldownUntil` and `chatStrikes` are fields of
+`pawlegendssocial`, checked on `POST /pawlegends/social/me` and again at read time. Chat reports are
+`pawlegendsreports` rows with `reason: chat` and a copied `snapshot`; the `chat_mute` sanction silences DMs, party chat
+and in-match quick chat. `DELETE /user/me` purges the account's chat and social rows (`social-purge.ts`).
+
 The route is limited to 30 saves per minute per player (`LiveGameUserThrottleGuard`, after auth; it
 fails closed with 401 when the user id is missing) and 120 per minute per IP, loose enough for
 players sharing a carrier-NAT, school or office address. A 429 carries `Retry-After`, which CORS
