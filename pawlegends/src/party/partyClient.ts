@@ -132,7 +132,28 @@ export interface PartyState {
   offer: OfferState | null;
   /** The relay speaks Quick Play (`welcome.proto` ≥ 2). */
   mmOk: boolean;
+  /**
+   * The code of a `party.join` still looking for its party (LIVE-MATCH-DEPLOYS.md §14), '' for a stranger's
+   * `mm.back`; null when no join is in flight. A reconnect sends it again.
+   */
+  joining: string | null;
+  /** Tries of that join so far (bounded: JOIN_RETRIES, JOIN_NOT_FOUND_RETRIES). */
+  joinTries: number;
+  /** In a match the relay welcomed this socket as someone new (it lost the seat): the join gets the seat back. */
+  rejoin: boolean;
 }
+
+/**
+ * LIVE-MATCH-DEPLOYS.md §14. A join whose party lives on another relay (`party_elsewhere`) reconnects and joins again,
+ * at most this many times (the relay asks for 1 s between tries: about 15 s in all, past a crashed relay's takeover).
+ */
+export const JOIN_RETRIES = 12;
+/**
+ * `party_not_found` on a lobby join: a fresh connection (the balancer may pick another relay; a party made a moment
+ * ago may not be stored yet) tries again this many times before the code screen says so.
+ */
+export const JOIN_NOT_FOUND_RETRIES = 2;
+export const JOIN_NOT_FOUND_RETRY_MS = 800;
 
 export type PartyEffect =
   | { t: 'send'; msg: ClientJson }
@@ -143,6 +164,8 @@ export type PartyEffect =
   | { t: 'vibrate' }
   | { t: 'close' }
   | { t: 'retry-start'; ms: number }
+  /** Reconnect on a fresh connection after `ms` (a join tries another relay, §14). */
+  | { t: 'reconnect'; ms: number }
   /** Quick Play: hold "Match found" for 1.2 s, then the pick. */
   | { t: 'found-hold' }
   /** A backfill took this player's seat: end the running match, if any. */
@@ -170,7 +193,9 @@ export type PartyEvent =
   | { e: 'unqueue' }
   | { e: 'side'; side: MmSide }
   | { e: 'found-shown' }
-  | { e: 'offer'; yes: boolean | null };
+  | { e: 'offer'; yes: boolean | null }
+  /** The match's relay has not come back for MATCH_LOST_MS (net-host.ts): leave the match screen, say so. */
+  | { e: 'lost' };
 
 /** A fresh search. */
 export const searching = (side: MmSide, o: { party?: boolean; requeue?: boolean; mode?: MmQueue } = {}): QueueState => ({
@@ -200,6 +225,9 @@ export const initialParty = (mode: OpenMode, code: string | null = null, side: M
   found: null,
   offer: null,
   mmOk: false,
+  joining: null,
+  joinTries: 0,
+  rejoin: false,
 });
 
 /** This player is a stranger in a Quick Play party (a stranger's view never carries the code). */
@@ -208,7 +236,9 @@ export const isStranger = (v: PartyView | null): boolean => !!v?.mm && v.code ==
 /** The screen a state shows. */
 export type PartyScreen = 'connecting' | 'joincode' | 'ended' | 'error' | 'lobby' | 'pick' | 'loading' | 'match' | 'queue' | 'accept' | 'void';
 
-const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_locked', 'party_busy', 'kicked', 'code_changed', 'already_in_party', 'seat_taken']);
+const ENDED = new Set(['party_not_found', 'party_ended', 'party_full', 'party_locked', 'party_busy', 'kicked', 'code_changed', 'already_in_party', 'seat_taken', 'party_unreachable']);
+/** Out of a match with no seat to go back to: the ended screen says why (never a "Connecting…" that never ends). */
+const OUT_OF_MATCH = new Set(['seat_taken', 'room_over', 'match_lost']);
 const FATAL = new Set(['update_required', 'seat_elsewhere']);
 
 export function screenOf(s: PartyState): PartyScreen {
@@ -216,10 +246,12 @@ export function screenOf(s: PartyState): PartyScreen {
   if (s.error && FATAL.has(s.error.code)) return 'error';
   if (s.voided && !s.queue) return 'void';
   if (s.accept) return 'accept';
-  if (s.error?.code === 'seat_taken' && !s.view) return 'ended';
+  if (s.error && OUT_OF_MATCH.has(s.error.code) && !s.view) return 'ended';
   // Quick Play: the queue card (searching, "Match found", stopped) over the title, a party lobby or results
   if (s.queue && (!s.view || s.queue.found || s.view.phase === 'lobby' || s.view.phase === 'results')) return 'queue';
   if (!s.view) {
+    // a join still looking for its party (another relay, a reconnect): "Joining K7Q X2M", not the code boxes again
+    if (s.joining && !s.error) return 'connecting';
     if (s.error && ENDED.has(s.error.code)) return s.mode === 'code' && s.error.code !== 'kicked' ? 'joincode' : 'ended';
     if (s.mode === 'code' && !s.asked) return 'joincode';
     return 'connecting';
@@ -248,6 +280,32 @@ function diffNotes(prev: PartyView | null, next: PartyView): NetNote[] {
   return out;
 }
 
+/**
+ * LIVE-MATCH-DEPLOYS.md §14: the answer to a join in flight. `party_elsewhere`: the socket reconnects by itself and the
+ * welcome sends the join again (bounded). `party_not_found`: try a fresh connection a couple of times (more for a lost
+ * seat), then say so. A lost seat that cannot be had back leaves the match with a clear reason. Null: not a join answer.
+ */
+function joinRetry(s: PartyState, code: string): { state: PartyState; effects: PartyEffect[] } | null {
+  if (s.joining === null || (s.view && !s.rejoin)) return null;
+  const tries = s.joinTries + 1;
+  const giveUp = (why: string): { state: PartyState; effects: PartyEffect[] } =>
+    s.rejoin && s.inMatch
+      ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: why }, asked: true, joining: null, joinTries: 0, rejoin: false }, effects: [{ t: 'seat-taken' }] }
+      : { state: { ...s, error: { code: why }, asked: false, joining: null, joinTries: 0, rejoin: false }, effects: [] };
+  if (code === 'party_elsewhere') {
+    if (tries > JOIN_RETRIES) return giveUp(s.rejoin ? 'match_lost' : 'party_unreachable');
+    return { state: { ...s, joinTries: tries }, effects: [] };
+  }
+  if (code === 'party_not_found') {
+    if (tries <= (s.rejoin ? JOIN_RETRIES : JOIN_NOT_FOUND_RETRIES))
+      return { state: { ...s, joinTries: tries }, effects: [{ t: 'reconnect', ms: s.rejoin ? 1000 : JOIN_NOT_FOUND_RETRY_MS }] };
+    if (s.rejoin) return giveUp('match_lost');
+    return null; // the code screen (or the ended screen) says "No party with that code"
+  }
+  if (s.rejoin && s.inMatch && ENDED.has(code)) return giveUp(code === 'party_ended' ? 'room_over' : 'match_lost');
+  return null;
+}
+
 /** The party state machine of the client. Pure. */
 export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState; effects: PartyEffect[] } {
   const fx: PartyEffect[] = [];
@@ -256,14 +314,29 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     case 'create':
       return { state: { ...s, mode: 'create', asked: true, error: null }, effects: [{ t: 'send', msg: { t: 'party.create', difficulty: 'easy' } }] };
     case 'join':
-      return { state: { ...s, mode: s.mode === 'code' ? 'code' : 'join', code: ev.code, asked: true, error: null }, effects: [{ t: 'send', msg: { t: 'party.join', code: ev.code } }] };
+      return { state: { ...s, mode: s.mode === 'code' ? 'code' : 'join', code: ev.code, asked: true, error: null, joining: ev.code, joinTries: 0 }, effects: [{ t: 'send', msg: { t: 'party.join', code: ev.code } }] };
+    case 'lost':
+      if (!s.inMatch) return { state: s, effects: [] };
+      return { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, accept: null, error: { code: 'match_lost' }, asked: true, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] };
     case 'decide': {
+      // §14: in a match the relay did not know this socket: the party code (or Quick Play's mm.back) takes the seat back
+      if (s.rejoin && s.inMatch && s.welcomed && !s.asked && s.joining !== null) {
+        send(s.joining ? { t: 'party.join', code: s.joining } : { t: 'mm.back' });
+        return { state: { ...s, asked: true }, effects: fx };
+      }
       // after `welcome`: a resumed seat already got its party frame; otherwise do what the player opened us for
       if (s.view || s.asked || !s.welcomed) return { state: s, effects: [] };
+      // a refused join (or a match left with a reason) stays on its screen: a later reconnect never joins by itself
+      if (s.error && (ENDED.has(s.error.code) || OUT_OF_MATCH.has(s.error.code))) return { state: s, effects: [] };
+      // a join still looking for its party (it reconnected to try another relay): the same join again
+      if (s.joining) {
+        send({ t: 'party.join', code: s.joining });
+        return { state: { ...s, asked: true }, effects: fx };
+      }
       // a closed tab's party (its code kept, no token): join it again; the relay hands back this player's own seat
       if (s.mode === 'resume' && s.code) {
         send({ t: 'party.join', code: s.code });
-        return { state: { ...s, asked: true }, effects: fx };
+        return { state: { ...s, asked: true, joining: s.code, joinTries: 0 }, effects: fx };
       }
       if (s.mode === 'resume') return { state: s, effects: [{ t: 'close' }] };
       // a stranger's closed tab: its own live Quick Play seat back (a guest without one gets party_not_found)
@@ -274,7 +347,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       }
       if (s.mode === 'join' && s.code) {
         send({ t: 'party.join', code: s.code });
-        return { state: { ...s, asked: true }, effects: fx };
+        return { state: { ...s, asked: true, joining: s.code, joinTries: 0 }, effects: fx };
       }
       if (s.mode === 'create') {
         // the difficulty is filled in by the client (the player's last pick)
@@ -334,6 +407,15 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     case 'welcome': {
       const mmOk = typeof m.proto === 'number' && m.proto >= 2;
       const pvpOk = typeof m.proto === 'number' && m.proto >= 3;
+      // §14: mid-match, a relay that did not know our resume token (it reached the relay without our room, or the room
+      // was lost) welcomed us as someone new. Nothing would ever bind this socket: ask for the seat back by the party
+      // code (the relay hands a person their own seat), or by mm.back for a Quick Play stranger
+      if (s.inMatch && s.view && m.member !== s.view.you) {
+        const code = s.view.code || (mmOk && isStranger(s.view) ? '' : null);
+        if (code === null)
+          return { state: { ...s, welcomed: true, mmOk, pvpOk, view: null, inMatch: false, queue: null, offer: null, error: { code: 'room_over' }, asked: true, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] };
+        return { state: { ...s, welcomed: true, mmOk, pvpOk, asked: false, rejoin: true, joining: code, joinTries: s.rejoin ? s.joinTries : 0 }, effects: [{ t: 'decide-later' }] };
+      }
       const q = s.queue;
       // Quick Play: the first welcome, a reconnect, or a relay restart (`mm.cancel{server}`): (re)send `mm.join`, so
       // the player sees one continuous search. A friend party's search is the leader's to re-send.
@@ -363,7 +445,7 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
       const matched = !!m.mm && (m.phase === 'pick' || m.phase === 'loading' || m.phase === 'match');
       if (queue && !queue.found && matched) queue = null;
       // the app ends a match (`matchOver`) once its results are done; the view keeps updating meanwhile
-      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue, accept: matched ? null : s.accept }, effects: fx };
+      return { state: { ...s, view: m, error, asked: true, code: m.code || s.code, queue, accept: matched ? null : s.accept, joining: null, joinTries: 0, rejoin: false }, effects: fx };
     }
     case 'mm.status': {
       const status: QueueStatus = {
@@ -466,13 +548,17 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
     case 'error': {
       // a backfill took this player's seat (a resume, or still connected while a bot flew it): no seat to go back to
       if (m.code === 'seat_taken')
-        return { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'seat_taken' }, asked: false }, effects: [{ t: 'seat-taken' }] };
+        return { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'seat_taken' }, asked: false, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] };
       // live-match deploys (docs/plans/moba/LIVE-MATCH-DEPLOYS.md §6): the relay is moving; the socket reconnects by itself
       if (m.code === 'server_moving' || m.code === 'room_elsewhere') return { state: s, effects: [] };
       // the match ended while this player was away: leave the match screen instead of waiting for turns that never come
+      // §14: a join still looking for its party, or a lost seat asking for itself back
+      const retried = joinRetry(s, m.code);
+      if (retried) return retried;
+      if (m.code === 'party_elsewhere') return { state: s, effects: [] };
       if (m.code === 'room_over')
         return s.inMatch
-          ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'room_over' }, asked: false }, effects: [{ t: 'seat-taken' }] }
+          ? { state: { ...s, view: null, inMatch: false, solo: false, queue: null, offer: null, error: { code: 'room_over' }, asked: false, joining: null, rejoin: false }, effects: [{ t: 'seat-taken' }] }
           : { state: s, effects: [] };
       if (s.inMatch) return { state: s, effects: [] }; // NetHost shows in-match errors on the rail
       // casual PvP refused: fewer than 5 matches, or a game without PvP
@@ -494,9 +580,9 @@ export function reduceParty(s: PartyState, ev: PartyEvent): { state: PartyState;
         return { state: { ...s, error }, effects: leader ? [{ t: 'retry-start', ms: m.retryMs ?? 15_000 }] : [] };
       }
       // a quiet resume of a party that is gone: back to the title, no error screen
-      if ((s.mode === 'resume' || s.mode === 'back') && ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false }, effects: [{ t: 'close' }] };
+      if ((s.mode === 'resume' || s.mode === 'back') && ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false, joining: null }, effects: [{ t: 'close' }] };
       // a refused join leaves us without a party (the code screen or the ended screen)
-      if (ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false }, effects: [] };
+      if (ENDED.has(m.code) && !s.view) return { state: { ...s, error, asked: false, joining: null, joinTries: 0 }, effects: [] };
       return { state: { ...s, error }, effects: [] };
     }
     default:
@@ -655,7 +741,8 @@ export class PartyClient {
         this.dispatch({ e: 'server', m });
       },
       state: (s) => {
-        if (s === 'reconnecting' && !this.state.inMatch) this.note({ key: 'pp-net', title: COPY.offline, tone: 'info', ttl: 3000 });
+        // a join trying another relay reconnects on purpose: the "Joining …" card says enough
+        if (s === 'reconnecting' && !this.state.inMatch && !this.state.joining) this.note({ key: 'pp-net', title: COPY.offline, tone: 'info', ttl: 3000 });
       },
     });
     // the lobby's own presence: a hidden tab is "away" (the waiting chip, §5.1); in a match NetHost does it
@@ -752,7 +839,7 @@ export class PartyClient {
         this.el.hidden = true;
         this.h.startMatch(
           () => {
-            this.host = new NetHost(this.socket, f.match, { notify: (n) => this.h.notify(n), track: (e, p) => this.h.analytics?.(e, p) });
+            this.host = new NetHost(this.socket, f.match, { notify: (n) => this.h.notify(n), track: (e, p) => this.h.analytics?.(e, p), lost: () => this.dispatch({ e: 'lost' }) });
             if (this.state.view) this.host.setSeats(seatsOf(this.state.view));
             return this.host;
           },
@@ -773,6 +860,9 @@ export class PartyClient {
         return;
       case 'close':
         this.close();
+        return;
+      case 'reconnect':
+        this.socket.bounce(f.ms);
         return;
       case 'retry-start':
         if (this.retryTimer) clearTimeout(this.retryTimer);

@@ -48,6 +48,11 @@ export interface NetHostOptions {
   now?: () => number;
   /** The prediction walker's path planner (tests); default: the sim's A* on the client's wall grid. */
   planner?: Planner;
+  /**
+   * LIVE-MATCH-DEPLOYS.md §14: the socket has not been bound to this room for MATCH_LOST_MS of visible time (the relay
+   * never came back, or no relay knows the seat any more). The party client leaves the match screen and says so.
+   */
+  lost?: () => void;
 }
 
 /** The party result a NetHost hands to MatchSession's `end` (display only: the score posts as v:2, §6). */
@@ -122,6 +127,13 @@ export class NetHost implements PartyLink {
   /** Until then "Waiting for server…" stays hidden (a reconnect or a relay move is in progress). */
   private quietUntil = -Infinity;
   private lastSyncMs = -Infinity;
+  /**
+   * §14: the socket went down and has not been bound to this room again since (no `match`, no TURN): visible time
+   * down, counted by the watchdog. Null while bound. A long pause vote is bound (the socket stays up), so never counts.
+   */
+  private down: { ms: number; lastAt: number; notedAt: number } | null = null;
+  private lostFired = false;
+  private watchdog: ReturnType<typeof setInterval> | null = null;
   private endInfo: PartyEnd;
   private result: { r: MatchResult; record: PartyReplayRecord | PvpReplayRecord | null } | null = null;
   /** Casual PvP (V16.md §5): this seat's team (slots 3..5 are team 1), and the room is PvP. */
@@ -268,9 +280,13 @@ export class NetHost implements PartyLink {
           this.lostAt(this.now(), 'socket');
           this.quietUntil = this.now() + QUIET_WAIT_MS;
           this.noteReconnectLater();
+          // each drop: the first "Reconnecting…" is noteReconnectLater's (at 1.5 s); the watchdog repeats it after that
+          if (this.down) this.down.notedAt = this.now();
+          else this.down = { ms: 0, lastAt: this.now(), notedAt: this.now() };
         } else if (s === 'open') this.clearReconnectNote();
       },
     });
+    this.watchdog = setInterval(() => this.watch(), WATCH_EVERY_MS);
     if (opts.visibility !== false && typeof document !== 'undefined') {
       this.unwatch = watchVisibility({
         hidden: () => {
@@ -419,12 +435,45 @@ export class NetHost implements PartyLink {
     this.socket.sendJson({ t: 'bye' });
   }
 
+  /**
+   * Every WATCH_EVERY_MS while the seat is unbound: keep "Reconnecting…" on screen (the socket retries by itself), and
+   * after MATCH_LOST_MS of visible time give up: the party client leaves the match with "Lost the connection to the
+   * match" instead of a frozen frame forever. A hidden tab does not count (a phone in a pocket comes back to its seat).
+   */
+  private watch(): void {
+    const d = this.down;
+    if (!d || this.disposed || this.lostFired || this.serverEnd) return;
+    const now = this.now();
+    const visible = typeof document === 'undefined' || !document.hidden;
+    if (visible) d.ms += Math.min(Math.max(0, now - d.lastAt), 2 * WATCH_EVERY_MS);
+    d.lastAt = now;
+    if (d.ms >= MATCH_LOST_MS) {
+      this.lostFired = true;
+      this.clearReconnectNote();
+      this.opts.lost?.();
+      return;
+    }
+    // the note while the socket itself is down; an open socket still waiting for its seat shows the frozen frame (and
+    // "Waiting for server…" from the turn pacing) but still counts toward MATCH_LOST_MS
+    if (visible && !this.socket.open && d.ms >= QUIET_RECONNECT_MS && now - d.notedAt >= RECONNECT_NOTE_EVERY_MS) {
+      d.notedAt = now;
+      this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: RECONNECT_NOTE_EVERY_MS + 1000 });
+    }
+  }
+
+  /** Bound to this room again (a `match` for it, or a turn): the outage is over. */
+  private bound(): void {
+    this.down = null;
+  }
+
   /** Show "Reconnecting…" only if the socket is still not back after QUIET_RECONNECT_MS. */
   private noteReconnectLater(): void {
     if (this.reconnectNoteTimer !== null || this.disposed) return;
     this.reconnectNoteTimer = setTimeout(() => {
       this.reconnectNoteTimer = null;
-      if (!this.disposed && !this.socket.open) this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
+      if (this.disposed || this.socket.open) return;
+      if (this.down) this.down.notedAt = this.now();
+      this.note({ key: 'mp-net', title: 'Reconnecting…', tone: 'info', ttl: 4000 });
     }, QUIET_RECONNECT_MS);
   }
 
@@ -436,6 +485,8 @@ export class NetHost implements PartyLink {
   dispose(): void {
     this.disposed = true;
     this.clearReconnectNote();
+    if (this.watchdog !== null) clearInterval(this.watchdog);
+    this.watchdog = null;
     for (const t of this.dropTimers.values()) clearTimeout(t);
     this.dropTimers.clear();
     this.coalescer.dispose();
@@ -445,6 +496,7 @@ export class NetHost implements PartyLink {
   }
 
   private fromBinary(f: ServerBinary, raw: Uint8Array): void {
+    if (f.type === Frame.TURN || f.type === Frame.CATCHUP) this.bound();
     if (f.type === Frame.TURN) {
       // forward the body (without the type byte) as a transferable buffer
       const body = raw.slice(1);
@@ -457,6 +509,7 @@ export class NetHost implements PartyLink {
   }
 
   private fromJson(m: ServerJson): void {
+    if (m.t === 'match' && m.room === this.match.room) this.bound();
     switch (m.t) {
       case 'slot': {
         if (m.slot === this.match.you.slot) {
@@ -885,3 +938,11 @@ const isHostListener = (l: HostListener | PartyLinkListener): l is HostListener 
 export const QUIET_RECONNECT_MS = 1500;
 /** And "Waiting for server…" stays hidden this long after a socket loss or a relay move. */
 export const QUIET_WAIT_MS = 5000;
+/**
+ * §14: a seat not bound again for this long (visible time) is given up: the match screen leaves with a clear message.
+ * A crash restore takes about 10 s and a deploy move under 2 s; 45 s is past anything the relays recover from quickly.
+ */
+export const MATCH_LOST_MS = 45_000;
+/** The watchdog's tick, and how often "Reconnecting…" is shown again while the seat stays unbound. */
+export const WATCH_EVERY_MS = 1000;
+export const RECONNECT_NOTE_EVERY_MS = 4000;

@@ -27,8 +27,9 @@ export const BACKOFF_MAX_MS = 5000;
 /** In a match a lost socket retries at least every 2 s (LIVE-MATCH-DEPLOYS.md §6): the room waits for nobody. */
 export const BACKOFF_MAX_MATCH_MS = 2000;
 /**
- * A planned move (close 1012, `room_gone`, `server_moving`, `room_elsewhere`): the relay says when to come back; at most
- * this many quick retries in a row, then the normal backoff (two draining relays never make a client hammer them).
+ * A planned move (close 1012, `room_gone`, `server_moving`, `room_elsewhere`, `party_elsewhere`): the relay says when to
+ * come back; at most this many quick retries in a row, then the normal backoff (two draining relays never make a
+ * client hammer them).
  */
 export const MOVE_RETRIES = 6;
 export const MOVE_JITTER_MS = 100;
@@ -309,7 +310,7 @@ export class PartySocket {
         this.inMatch = true;
         this.applyLastSeq(m.lastSeq, true);
         this.startBeats();
-      } else if (m.t === 'error' && (m.code === 'server_moving' || m.code === 'room_elsewhere' || (m.code === 'room_gone' && typeof m.retryMs === 'number'))) {
+      } else if (m.t === 'error' && (m.code === 'server_moving' || m.code === 'room_elsewhere' || m.code === 'party_elsewhere' || (m.code === 'room_gone' && typeof m.retryMs === 'number'))) {
         // a planned move (a deploy): the close that follows reconnects after `retryMs`, not after a backoff
         this.moveRetryMs = Math.max(0, Math.min(5000, typeof m.retryMs === 'number' ? m.retryMs : 250));
       } else if (m.t === 'error' && m.code === 'seat_elsewhere') {
@@ -494,6 +495,17 @@ export class PartySocket {
     }
     this.ws?.close(1000, 'bye');
     this.ws = null;
+  }
+
+  /**
+   * Reconnect now, on a fresh connection (the load balancer picks a relay again), after `ms` plus a little jitter. A
+   * join whose code this relay did not know tries again this way (LIVE-MATCH-DEPLOYS.md §14). Keeps the resume token.
+   */
+  bounce(ms = 0): void {
+    if (this.stopped || this.elsewhere) return;
+    this.moveRetryMs = Math.max(0, Math.min(5000, ms));
+    if (this.ws) this.ws.close(4000, 'bounce');
+    else if (this.reconnectTimer === null) this.connect();
   }
 
   /** Test seam: drop the connection as a network failure would. */

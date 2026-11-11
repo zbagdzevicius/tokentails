@@ -144,6 +144,8 @@ export interface PartyEvents {
     send(memberId: string, msg: Record<string, unknown>): void;
     /** Loading is over: create the room. */
     startMatch(plan: StartPlan): void;
+    /** The party ended (its code is retired): the relay marks its stored row, so other relays answer `party_ended`. */
+    ended?(party: Party): void;
 }
 
 export interface PartyRules {
@@ -384,6 +386,13 @@ export class PartyService {
         this.retire(p.code, true);
         this.parties.delete(p.id);
         for (const m of p.members) this.memberParty.delete(m.id);
+        this.events.ended?.(p);
+    }
+
+    /** A live party here holds this invite code. */
+    hasCode(code: string): boolean {
+        const pid = this.byCode.get(code);
+        return !!pid && this.parties.has(pid);
     }
 
     /**
@@ -822,7 +831,9 @@ export class PartyService {
         openSeats: boolean,
         members: { id: string; identity: MemberIdentity; lastHero?: string; lastTrick?: string; slot?: number }[],
         leader: string,
-        room: string | null
+        room: string | null,
+        /** The lobby lock as stored (a lobby party moved by a drain or taken over keeps it); default: !openSeats. */
+        locked?: boolean
     ): Party {
         const existing = this.parties.get(id);
         if (existing) return existing;
@@ -844,7 +855,7 @@ export class PartyService {
             })),
             difficulty,
             openSeats,
-            locked: !openSeats,
+            locked: !room && locked !== undefined ? locked : !openSeats,
             phase: room ? 'match' : 'lobby',
             room: room ?? undefined,
             createdMs: this.now(),

@@ -1,7 +1,7 @@
 # Live-match deploys: no player notices a backend deploy
 
 Status: built, 2026-11-10, on branch `feat/pawlegends-live-match-deploys` (§12 lists what was built, what
-differs from this design and what is left). Nothing is applied to DigitalOcean or GCP: the DO spec change
+differs from this design and what is left). §14 (2026-11-11): party codes, joins and lost seats across relays. Nothing is applied to DigitalOcean or GCP: the DO spec change
 (`infra/digitalocean/live-match-spec.sh`) and the Terraform (`infra/gcp`) wait for the founder.
 
 Founder ask (verbatim): "ultracode there was an issue where match paused disconnected - was it redeployment or smt like
@@ -546,6 +546,102 @@ Open, not fixed:
 - During `replace-relay.sh` the single relay's listener is closed for the whole drain (up to 30 min): a player of a
   live room whose network drops cannot reconnect until the room is pushed at the cap or the new VM is up.
 - DigitalOcean: until `infra/digitalocean/live-match-spec.sh` is applied (one instance), the new code on two instances
-  keeps the older one draining: apply it before or with the first deploy of this code.
+  keeps the older one draining: apply it before or with the first deploy of this code. Since §14, party codes and
+  lost seats work across the two instances too; the spec change is still what removes the extra bounces.
 - While the old DigitalOcean container drains (up to 540 s), it also keeps running the backend's scheduled jobs next
   to the new container, as two instances do today.
+
+## 14. Party codes, joins and lost seats across relays (2026-11-11)
+
+Founder report (verbatim): "check networking issues, several times i got that code ( for play with friends ) was not
+found, even restart of app didn't help, my friend code didn't worked as well. ultracode also I faced mid-match freeze
+( yesterday ). might be related but check it ultracode".
+
+### 14.1 What caused it
+
+Production runs two backend instances (`instance_count: 2`) behind a load balancer with no affinity, and on
+2026-11-10 every push to `main` swapped both containers (33 swaps; 22 between 12:35 and 18:39 UTC, about one every
+16 minutes). On `main` a party, its code (`PartyService.byCode`), the resume tokens and the Quick Play queue live only
+in the memory of the instance the host reached, and a lobby party is never stored:
+
+1. **"No party with that code".** A friend's socket lands on the other instance about half the time, and that
+   instance answers `party_not_found`. Restarting the app is another coin flip (and a restarted host makes a new
+   party, with a new code, on whichever instance it reaches). A swap also forgets every code, and an ended code shows
+   as "not found" because `retiredCodes` is in memory too.
+2. **The mid-match freeze.** On a swap the old relay hands its rooms off, but on `main` `restore()` runs only at boot,
+   before the old container stops, so nobody claims them (§1). A reconnect that reaches the instance without the room
+   is welcomed as a new member with no seat, its resume token is replaced, and the match screen stays frozen on
+   "Reconnecting…" then "Waiting for server…" until the player quits.
+
+The logs of the swapped containers are gone, so the exact failed joins cannot be listed. The current logs show two
+relays running (`relay_stats` twice a minute) and idle health in order (event-loop p99 about 4 ms).
+
+### 14.2 What changed
+
+Server (`party-relay.ts`, `room-store.ts`, `party.service.ts`):
+
+- **The party row is the code's directory.** Lobby parties were already written on every change on this branch
+  (`pawlegendsparties`: code, owner relay, members with resume hashes, room). New: a join for a code this relay does
+  not hold looks the code up (`partyByCode`, index `{code, updatedAt}`) and acts on the owner's relay row (its
+  heartbeat is the lease):
+  - handed over (`handoff`): claim it here and join;
+  - owner draining, or an older serving owner (this relay is the newer generation, so the owner drains within a
+    second): hold the join up to `pullHoldMs` (3 s) while the owner hands the party over, then join;
+  - owner gone (no heartbeat for `relayDeadMs`, 15 s: a crash or SIGKILL with no handoff): **take the party over**
+    from its row (`takeParty`, fenced on the old owner), same code, same members and resume tokens, then join;
+  - party in a live match on another relay: the room moves with its players (pull, push or restore), never by a join;
+  - another live serving relay holds it: answer `party_elsewhere` (`retryMs` 1 000) and close 4013, so the client
+    reconnects and the balancer picks again.
+  A draining relay answers a code it does not hold with `server_moving` (its lobby is on the new relay).
+- **Ended codes say so everywhere.** `PartyService.end` fires `ended`; the relay marks the row (`endParty`), so
+  another relay answers `party_ended`, not `party_not_found`.
+- **A resume token of a dead owner's lobby party** takes the party over the same way (before, it made a fresh member).
+  A room owner without a heartbeat is no longer answered `room_elsewhere` forever; the hello waits for the restore.
+- **Bug fixed on the way:** a lobby party moved by a drain (or taken over) came back locked (`restoreParty` set
+  `locked: !openSeats`), so friends got "This party is locked" after a deploy move. It now keeps its stored lock.
+
+Client (`pawlegends/src/party/partyClient.ts`, `net/socket.ts`, `net/net-host.ts`):
+
+- **Joins retry, bounded.** `party_elsewhere`: the socket reconnects after `retryMs` and the welcome sends the same
+  join again, up to `JOIN_RETRIES` (12, about 15 s, past a crashed relay's takeover). `party_not_found`: a fresh
+  connection (`PartySocket.bounce`) tries `JOIN_NOT_FOUND_RETRIES` (2) more times, 800 ms apart. Meanwhile the card
+  says "Joining K7Q X2M" (no "offline" toast). Then: "No party with that code. Check it with your friend", or "Could
+  not reach that party. Check your connection and try again". A refused join never re-joins by itself on a later
+  reconnect.
+- **A lost seat asks for itself back.** Mid-match, a welcome for a member that is not ours means the relay did not
+  know the resume token. The client sends `party.join` with the party code (the relay hands a person their own seat:
+  `twinOf` + `adopt`), or `mm.back` for a Quick Play stranger, with the same bounded retries; a party that ended
+  meanwhile leaves the match with "The match ended while you were away".
+- **No infinite freeze.** While the socket is down, "Reconnecting…" stays on screen (every 4 s). A seat not bound
+  again (no `match` frame or turn for this room) for `MATCH_LOST_MS` (45 s of visible time; a hidden tab does not
+  count) ends the match screen with "Lost the connection to the match" and the ended card (Play now, own party, back),
+  instead of a frozen frame. `room_over` now shows that card too (before, it fell back to "Connecting…").
+
+Protocol: one new error code, `party_elsewhere` (additive; no PROTO bump; vendored net bundle refreshed). Older clients
+treat it as an unknown error and the 4013 close as a reconnect; they find the party on a later join.
+
+### 14.3 Tests
+
+| Test | Asserts |
+|---|---|
+| `live-deploy-adversarial.e2e.spec.ts`: deploy overlap | host's party on relay A; relay B comes up; a friend's first socket reaches B and joins at once (1 dial, 0.7 s, no `party_not_found`); the host is moved and resumes on B with the same member and code; a second friend whose balancer picks the draining A first gets `server_moving`, then joins on B (2 dials) |
+| same: crash | host's party on A; A is SIGKILLed; a friend joins on B: `party_elsewhere` until A's heartbeat is 15 s old, then B takes the party over with its code (16.7 s after the kill, 5 dials); the host's resume token finds it |
+| same, in process | a code ended on one relay answers `party_ended` on the other; an unknown code `party_not_found` |
+| `pawlegends/tests/unit/net-join-retry.test.ts` | the bounded `party_elsewhere` and `party_not_found` retries and their final screens; the lost-seat rejoin by code, by `mm.back`, its refusal (`room_over`) and `seat_taken` sending nothing; `lost` leaves the match; the socket's `party_elsewhere` + 4013 delay and `bounce()`; the NetHost watchdog (repeated "Reconnecting…", one give-up after 45 s, reset when the seat is bound again) |
+| `party-client.test.ts` (changed) | a wrong code tries twice more on fresh connections before the code boxes show the error |
+
+### 14.4 What still needs the founder
+
+- **Run the DO spec change** (§7.1): `infra/digitalocean/live-match-spec.sh`, then `APPLY=1
+  infra/digitalocean/live-match-spec.sh`. With two instances the code above makes joins and seats work, but every
+  connection that lands on the draining instance still bounces once (one extra round trip, no message), and the two
+  instances keep running the cron jobs twice.
+- **Merge this branch to `main`** and let the OTA ship the client. Until then, batch backend pushes (every push swaps
+  the relay), or set `deploy_on_push: false` and deploy at quiet times.
+- Watch `relay_stats` (`loop_delay_p99`, `referee_lag_turns`) for a day after going to one instance; size up to
+  `apps-s-2vcpu-4gb` if p99 stays above 20 ms (§7.1).
+
+Limits: a party owner whose heartbeat stalls for 15 s while its process is alive (a Mongo outage on that instance
+only) can lose the party to a takeover; its next save overwrites the row's owner, and members on the old relay keep a
+party that new joiners cannot reach until it ends. The logs still count joins only per minute; `relay_join_elsewhere`,
+`relay_takeover_party` and `relay_restore_party {via: 'join'}` are new log lines.

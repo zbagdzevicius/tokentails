@@ -78,6 +78,11 @@ export interface StoredParty {
     owner?: string;
     /** A lobby party a draining relay handed over (LIVE-MATCH-DEPLOYS.md §4.1 step 5): the next serving relay claims it. */
     handoff?: boolean;
+    /**
+     * The party ended (its last member left, or it timed out). Its code then answers `party_ended` on every relay, not
+     * `party_not_found` (LIVE-MATCH-DEPLOYS.md §14). Written only by `endParty`; `saveParty` never clears it.
+     */
+    ended?: boolean;
 }
 
 /** One relay process (LIVE-MATCH-DEPLOYS.md §4.4): the newest ready `serving` relay owns new rooms. */
@@ -152,6 +157,18 @@ export interface RoomStore {
     handedParties(owner: string, since: Date): Promise<StoredParty[]>;
     /** Claim a handed-over party for `owner`; null when another relay got it first. */
     claimParty(id: string, owner: string, now: Date): Promise<StoredParty | null>;
+    /**
+     * The newest party written since `since` with this invite code (LIVE-MATCH-DEPLOYS.md §14): a join that reaches a
+     * relay that does not hold the party finds its owner here. Null when no party has the code.
+     */
+    partyByCode(code: string, since: Date): Promise<StoredParty | null>;
+    /**
+     * Take over a party whose owner relay is gone (no heartbeat, no handoff: a crash or a SIGKILL). Fenced on the owner
+     * read before: null when the party moved, ended, was handed over or another relay took it first.
+     */
+    takeParty(id: string, from: string, owner: string, now: Date): Promise<StoredParty | null>;
+    /** Mark a party ended (only while `owner` still holds it). */
+    endParty(id: string, owner: string, now: Date): Promise<void>;
     /** Scored party matches of an account since `since` (the daily cap, §6). */
     countEnded(accountId: string, since: Date): Promise<number>;
     saveParty(p: StoredParty): Promise<void>;
@@ -292,6 +309,31 @@ export class MemoryRoomStore implements RoomStore {
         return { ...p };
     }
 
+    async partyByCode(code: string, since: Date): Promise<StoredParty | null> {
+        let best: StoredParty | null = null;
+        for (const p of this.parties.values()) {
+            if (p.code !== code || p.updatedAt < since) continue;
+            if (!best || p.updatedAt > best.updatedAt) best = p;
+        }
+        return best ? { ...best } : null;
+    }
+
+    async takeParty(id: string, from: string, owner: string, now: Date): Promise<StoredParty | null> {
+        const p = this.parties.get(id);
+        if (!p || p.owner !== from || p.handoff || p.ended) return null;
+        p.owner = owner;
+        p.updatedAt = now;
+        return { ...p };
+    }
+
+    async endParty(id: string, owner: string, now: Date): Promise<void> {
+        const p = this.parties.get(id);
+        if (!p || p.owner !== owner) return;
+        p.ended = true;
+        p.handoff = false;
+        p.updatedAt = now;
+    }
+
     async countEnded(accountId: string, since: Date): Promise<number> {
         let n = 0;
         for (const r of this.rooms.values()) {
@@ -301,7 +343,9 @@ export class MemoryRoomStore implements RoomStore {
     }
 
     async saveParty(p: StoredParty): Promise<void> {
-        this.parties.set(p._id, { ...p });
+        // as the Mongo $set: a field the save does not carry (`ended`) keeps its value
+        const old = this.parties.get(p._id);
+        this.parties.set(p._id, { ...(old?.ended ? { ended: true } : {}), ...p });
     }
 
     async getParty(id: string): Promise<StoredParty | null> {
@@ -408,6 +452,9 @@ export class PawlegendsParty {
     @Prop({ default: false })
     handoff: boolean;
 
+    @Prop({ default: false })
+    ended: boolean;
+
     updatedAt: Date;
 }
 export const PawlegendsPartySchema = SchemaFactory.createForClass(PawlegendsParty);
@@ -415,6 +462,8 @@ PawlegendsPartySchema.index({ updatedAt: 1 }, { expireAfterSeconds: 3 * 3600 });
 // a resume token this relay does not know is looked up here (LIVE-MATCH-DEPLOYS.md §5.4)
 PawlegendsPartySchema.index({ 'doc.members.resume': 1 });
 PawlegendsPartySchema.index({ handoff: 1, updatedAt: -1 });
+// a join by code on a relay that does not hold the party (LIVE-MATCH-DEPLOYS.md §14): the newest row with the code
+PawlegendsPartySchema.index({ code: 1, updatedAt: -1 });
 
 /** One row per relay process (LIVE-MATCH-DEPLOYS.md §4.4); a row not refreshed for an hour expires. */
 @Schema({ collection: 'pawlegendsrelays' })
@@ -604,6 +653,32 @@ export class MongoRoomStore implements RoomStore {
                 { new: true }
             )
             .lean()) as unknown as StoredParty | null;
+    }
+
+    async partyByCode(code: string, since: Date): Promise<StoredParty | null> {
+        if (!this.partiesModel) return null;
+        return (await this.partiesModel
+            .findOne({ code, updatedAt: { $gte: since } })
+            .sort({ updatedAt: -1 })
+            .lean()) as unknown as StoredParty | null;
+    }
+
+    async takeParty(id: string, from: string, owner: string, now: Date): Promise<StoredParty | null> {
+        if (!this.partiesModel) return null;
+        return (await this.partiesModel
+            .findOneAndUpdate(
+                { _id: id, owner: from, handoff: { $ne: true }, ended: { $ne: true } },
+                { $set: { owner, updatedAt: now } },
+                { new: true }
+            )
+            .lean()) as unknown as StoredParty | null;
+    }
+
+    async endParty(id: string, owner: string, now: Date): Promise<void> {
+        await this.partiesModel?.updateOne(
+            { _id: id, owner },
+            { $set: { ended: true, handoff: false, updatedAt: now } }
+        );
     }
 
     async countEnded(accountId: string, since: Date): Promise<number> {
