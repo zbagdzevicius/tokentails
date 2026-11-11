@@ -2506,6 +2506,8 @@ export class MatchSession {
     // the basic attack range ring's radius (m) when drawn (A armed, a skill aimed, touch Attack held)
     d.atkRing = this.view.attackRingM > 0 ? this.view.attackRingM.toFixed(2) : '';
     d.casts = String(this.orders?.casts ?? 0);
+    // KITE-FIX: kite orders sent (the stick with ATK held, tapped or drag-locked)
+    d.kites = String(this.orders?.kites ?? 0);
     // C2 / C5 / C6 telemetry: cast buffer counters, Attack presses with nothing in reach, the drawn own position
     if (this.orders) d.castBuf = `${this.orders.buffers.kept},${this.orders.buffers.sent},${this.orders.buffers.expired},${this.orders.buffers.retried},${this.orders.busyWhy()},${this.orders.queued ?? ''},${this.orders.busyLeftMs}`;
     d.atkNone = String(this.touch?.atkNone ?? 0);

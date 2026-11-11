@@ -2,7 +2,7 @@
  * Binary command stream (POC.md §11.3): per record a varint tick delta, a 1-byte opcode, then the payload.
  * Coordinates are quantised to 250 mm (uint16, little-endian). Sizes without the tick delta:
  * move 5 B, attackMove 5 B, attack 2 B, cast 7 B, trick 5 B, stop 1 B, nap 1 B, talent 2 B, ping 7 B (sim v10: kind,
- * x, y, id), forfeit 1 B (sim v10).
+ * x, y, id), forfeit 1 B (sim v10), kite 6 B (KITE-FIX: x, y, id).
  *
  * The sim only ever sees quantised commands (`quantize`), so a live match and its replay apply identical inputs.
  */
@@ -34,6 +34,7 @@ export const OP_SIZE: Readonly<Record<number, number>> = Object.freeze({
   [Op.Talent]: 2,
   [Op.Ping]: 7,
   [Op.Forfeit]: 1,
+  [Op.Kite]: 6,
 });
 
 /** The command exactly as a decode of its encoding gives it back (coordinates snapped, ids masked). */
@@ -51,6 +52,8 @@ export function quantize(cmd: Command): Command {
       return { op: cmd.op, tier: clamp(cmd.tier, 0, 2) as TalentTier, choice: (cmd.choice & 1) as 0 | 1 };
     case Op.Ping:
       return { op: cmd.op, kind: clamp(cmd.kind, 0, pingKinds() - 1), x: qx(cmd.x) * COORD_QUANTUM, y: qy(cmd.y) * COORD_QUANTUM, id: cmd.id & 0xff };
+    case Op.Kite:
+      return { op: cmd.op, x: qx(cmd.x) * COORD_QUANTUM, y: qy(cmd.y) * COORD_QUANTUM, id: cmd.id & 0xff };
     default:
       return { op: cmd.op };
   }
@@ -123,6 +126,11 @@ function writeCommand(w: ByteWriter, cmd: Command): void {
       w.u16(qy(cmd.y));
       w.u8(cmd.id);
       break;
+    case Op.Kite:
+      w.u16(qx(cmd.x));
+      w.u16(qy(cmd.y));
+      w.u8(cmd.id);
+      break;
     default:
       break;
   }
@@ -175,6 +183,11 @@ export function readCommand(bytes: Uint8Array, at: number): { cmd: Command; next
       if (kind >= pingKinds()) throw new DecodeError(`bad ping kind at ${at}`);
       const c = coord(2);
       cmd = { op, kind, x: c.x, y: c.y, id: bytes[at + 6] };
+      break;
+    }
+    case Op.Kite: {
+      const c = coord(1);
+      cmd = { op, x: c.x, y: c.y, id: bytes[at + 5] };
       break;
     }
     default:
