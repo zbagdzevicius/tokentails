@@ -47,6 +47,9 @@ function spend(g: InputGate, tick: number, op: number): boolean {
   return true;
 }
 
+/** KITE-FIX (sim v23): a kite is gated as a move (spaced by MOVE_MIN_GAP, waits behind a cast), so a held stick costs the same bytes. */
+const isMove = (op: number): boolean => op === Op.Move || op === Op.Kite;
+
 /** Sim v12 (S5a): commands that leave a waiting move waiting (and win over a move of their own tick). Sim v21: Fire too. */
 const keepsMove = (op: number): boolean => op === Op.Cast || op === Op.Trick || op === Op.Talent || op === Op.Fire;
 
@@ -64,7 +67,7 @@ export function gateCommand(g: InputGate, tick: number, commands: readonly Comma
       const op = commands[i].op;
       if (op === Op.Forfeit) continue;
       if (op === Op.Ping) lastPing ??= commands[i];
-      else if (op === Op.Move) {
+      else if (isMove(op)) {
         if (lastMove < 0) lastMove = i;
       } else if (lastOther < 0) lastOther = i;
     }
@@ -96,10 +99,10 @@ export function gateCommand(g: InputGate, tick: number, commands: readonly Comma
   }
   if (!cmd) return null;
   if (!spend(g, tick, cmd.op)) {
-    if (cmd.op === Op.Move) g.pending = null;
+    if (isMove(cmd.op)) g.pending = null;
     return null;
   }
-  if (cmd.op === Op.Move) g.lastMoveTick = tick;
+  if (isMove(cmd.op)) g.lastMoveTick = tick;
   return cmd;
 }
 

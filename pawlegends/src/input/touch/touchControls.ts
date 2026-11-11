@@ -244,7 +244,10 @@ export class TouchControls {
   private aimRingEl: HTMLElement;
   private buttons = new Map<ButtonId, HTMLElement>();
   private drags = new Map<number, Drag>();
-  private lastStick = { a: NaN, at: 0, tx: 0, ty: 0 };
+  /** `kite`: the unit the last stick order kites (KITE-FIX: Op.Kite), or -1 for a plain move. */
+  private lastStick = { a: NaN, at: 0, tx: 0, ty: 0, kite: -1 };
+  /** Stick orders sent as kites (e2e telemetry). */
+  stickKites = 0;
   private attackHeld: number | null = null;
   private lastAttack = 0;
   /** The unit the newest ATK press ordered an attack on while that order stands (the stick yields to it: STICK_YIELD). */
@@ -652,7 +655,13 @@ export class TouchControls {
       this.knobEl.style.transform = 'translate(-50%, -50%)';
       this.stickIdleAt = performance.now();
       // C4: only a real stick release stops the hero; a still tap (locking a hero, a stray touch) keeps its attack going
-      if (!cancelled && this.h.enabled() && (s.moved || e.timeStamp - s.at > TAP.ms)) this.h.orders.stop();
+      if (!cancelled && this.h.enabled() && (s.moved || e.timeStamp - s.at > TAP.ms)) {
+        // KITE-FIX: a stick let go while it kites leaves the attack on that unit standing (the hero stops and swings)
+        const k = this.lastStick.kite;
+        this.lastStick.kite = -1;
+        if (k >= 0 && this.h.units().some((u) => u.id === k && u.state !== 'dead')) this.h.orders.attack(k);
+        else this.h.orders.stop();
+      }
       return;
     }
     if (this.napHeld && this.napHeld.id === e.pointerId) {
@@ -1258,6 +1267,16 @@ export class TouchControls {
     this.picks++;
     if (id !== null) {
       this.atkYield.set(id);
+      // KITE-FIX: with the stick held away from it, the press (or held repeat) kites it: the stick's next order goes
+      // now as a kite on this unit (an Attack would plant the hero until the next swing)
+      if (this.stickKitesTo(me, id)) {
+        if (this.lastStick.kite !== id) {
+          this.lastStick.a = NaN;
+          this.lastStick.at = 0;
+          this.steer(me, this.lastAttack);
+        }
+        return;
+      }
       // the same attack again is a no-op in the sim (v20 S2): the swing in progress is never restarted
       this.h.orders.attack(id);
       return;
@@ -1407,6 +1426,38 @@ export class TouchControls {
   }
 
   /**
+   * KITE-FIX: is the joystick held past its dead zone and pointing away from unit `id` (so the stick, not an Attack
+   * order, drives the hero and the next swing rides on a kite)?
+   */
+  private stickKitesTo(me: Unit, id: number): boolean {
+    const s = this.stick;
+    if (!s || !this.h.enabled()) return false;
+    const dx = s.x - s.bx;
+    const dy = -(s.y - s.by);
+    if (Math.hypot(dx, dy) <= STICK.dead) return false;
+    const t = this.h.units().find((u) => u.id === id);
+    if (!t) return false;
+    const o = this.steerFrom(me, performance.now());
+    return !stickTowardTarget(o.x, o.y, this.walkAngle(me, o, dx, dy), t);
+  }
+
+  /**
+   * KITE-FIX (docs/plans/moba/KITE-FIX.md; Wild Rift: hold Attack and steer): the unit a held stick keeps attacking
+   * while it walks, or null for a plain move. Held ATK's unit; a tapped ATK's unit while its order stands (a hero
+   * until the lock-break distance, anything else for TAP_YIELD_MS); else the drag-lock.
+   */
+  private kiteTarget(me: Unit, now: number): number | null {
+    const units = this.h.units();
+    const myTeam = this.h.view.myTeam;
+    const id = this.atkYield.check(units, me, myTeam, this.range());
+    if (id !== null) {
+      const t = units.find((u) => u.id === id);
+      if (t && (this.attackHeld !== null || t.kind === 'hero' || now - this.lastAttack < TAP_YIELD_MS)) return id;
+    }
+    return this.dragLock.check(units, me, myTeam, now);
+  }
+
+  /**
    * The joystick's move order: sent from the frame loop and (C6) straight from the pointer event, so a fresh push does
    * not wait for the next frame. Throttled by STICK.turn / STICK.everyMs as before.
    */
@@ -1425,24 +1476,38 @@ export class TouchControls {
       const a = this.walkAngle(me, o, dx, dy);
       if (this.yieldsToAttack(o, a, now)) {
         // the Attack order chases; the next stick move goes at once when ATK lets go or the stick turns away
+        // KITE-FIX: a stick that kited turns toward its unit: the plain Attack order takes over at once (chase, swing)
+        const k = this.lastStick.kite;
+        this.lastStick.kite = -1;
+        if (k >= 0) this.h.orders.attack(k);
         this.lastStick.a = NaN;
         this.stickYields++;
         return;
       }
+      // KITE-FIX: with an attack intent (held or tapped ATK, drag-lock) the stick's order is a kite on that unit: the
+      // hero walks between swings and swings again as soon as it may (a plain move would drop the attack)
+      const kite = this.kiteTarget(me, now) ?? -1;
       const turn = Number.isNaN(this.lastStick.a) ? Infinity : turnBetween(a, this.lastStick.a);
       const near = Math.hypot(o.x - this.lastStick.tx, o.y - this.lastStick.ty) < STICK.refreshMm;
       // the hero stands although the stick is held (its move was dropped or ran out): send it again
       const stalled = me.state === 'idle' && !this.runOn && now - this.lastStick.at >= STICK.stallMs;
-      if ((turn > STICK.turn || near || stalled) && now - this.lastStick.at >= STICK.everyMs) {
+      // KITE-FIX: a kite starting or ending (or changing unit) goes at once, so a plain move never outlives the intent
+      const switched = kite !== this.lastStick.kite;
+      if ((turn > STICK.turn || near || stalled || switched) && now - this.lastStick.at >= STICK.everyMs) {
         // the map edge and the enemy fountain stop the stick (null: the hero is already at the edge)
         const goal = edgeGoal(o.x, o.y, o.x + Math.cos(a) * STICK.aheadMm, o.y + Math.sin(a) * STICK.aheadMm, this.h.view.myTeam);
         if (goal) {
-          this.lastStick = { a, at: now, tx: goal.x, ty: goal.y };
-          // a move is a new command: the tapped Attack order is over (a held ATK re-orders it on its next repeat)
-          if (this.attackHeld === null) this.atkYield.clear();
-          this.h.orders.move(goal.x, goal.y);
+          this.lastStick = { a, at: now, tx: goal.x, ty: goal.y, kite };
+          if (kite >= 0) {
+            this.stickKites++;
+            this.h.orders.kite(goal.x, goal.y, kite);
+          } else {
+            // a move is a new command: the tapped Attack order is over (a held ATK re-orders it on its next repeat)
+            if (this.attackHeld === null) this.atkYield.clear();
+            this.h.orders.move(goal.x, goal.y);
+          }
           this.h.view.recentre();
-        } else this.lastStick = { a, at: now, tx: o.x, ty: o.y };
+        } else this.lastStick = { a, at: now, tx: o.x, ty: o.y, kite: this.lastStick.kite };
       }
     }
   }

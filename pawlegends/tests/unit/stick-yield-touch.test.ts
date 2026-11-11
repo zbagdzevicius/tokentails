@@ -61,8 +61,11 @@ function rig(extra: Unit[]) {
     }
   };
   const moves = () => sent.filter((c) => c.op === Op.Move).length;
+  /** KITE-FIX: the stick's kite orders (unit ids). */
+  const kites = () => sent.filter((c) => c.op === Op.Kite).map((c) => (c as { id: number }).id);
   const attacks = () => sent.filter((c) => c.op === Op.Attack).map((c) => (c as { id: number }).id);
-  return { t, sent, stick, steer, atkDown, atkDrag, atkUp, wait, moves, attacks };
+  const stickUp = () => window.dispatchEvent(ev('pointerup', 1, 150, 400));
+  return { t, sent, stick, steer, atkDown, atkDrag, atkUp, wait, moves, attacks, kites, stickUp };
 }
 
 beforeEach(() => {
@@ -102,7 +105,7 @@ describe('touch: the stick yields to ATK while chasing', () => {
     expect(r.moves()).toBeGreaterThan(before);
   });
 
-  it('pulled away from the target the stick still moves (retreat, kite)', () => {
+  it('pulled away from the target the stick still moves (retreat, kite): KITE-FIX, as a kite on the held unit', () => {
     const r = rig([unit(3, 'hero', 1, ME.x + 1500, ME.y)]);
     r.stick(0);
     r.wait(200);
@@ -110,7 +113,9 @@ describe('touch: the stick yields to ATK while chasing', () => {
     const before = r.moves();
     r.steer(Math.PI);
     r.wait(300);
-    expect(r.moves()).toBeGreaterThan(before);
+    expect(r.kites().length).toBeGreaterThan(0);
+    expect(new Set(r.kites())).toEqual(new Set([3]));
+    expect(r.moves()).toBe(before);
   });
 
   it('one ATK tap, then the stick held toward the target for 5 s: no Move replaces the Attack order', () => {
@@ -135,11 +140,16 @@ describe('touch: the stick yields to ATK while chasing', () => {
     const before = r.moves();
     r.steer(Math.PI);
     r.wait(16);
-    expect(r.moves()).toBe(before + 1);
-    // the move was a new command: the tapped order is over, so the stick no longer yields to it
+    // KITE-FIX: the stick's order is a kite on the tapped hero (it walks, and swings again when ready)
+    expect(r.kites()).toEqual([3]);
+    expect(r.moves()).toBe(before);
+    // turned back toward it: the plain Attack order takes over at once (the stick yields to it again)
+    const atks = r.attacks().length;
     r.steer(0);
     r.wait(200);
-    expect(r.moves()).toBeGreaterThan(before + 1);
+    expect(r.attacks().length).toBe(atks + 1);
+    expect(r.attacks().at(-1)).toBe(3);
+    expect(r.moves()).toBe(before);
   });
 
   it('after a tap, a skill press ends the yield (the stick moves again)', () => {
@@ -187,5 +197,71 @@ describe('touch: the stick yields to ATK while chasing', () => {
     r.wait(400);
     expect(r.moves()).toBe(before);
     expect(r.attacks().at(-1)).toBe(20);
+  });
+});
+
+/**
+ * KITE-FIX (docs/plans/moba/KITE-FIX.md; player report 2026-11-11 "can't both run and attack"): the stick held away
+ * from the attack target sends kites (walk between swings, swing when ready), never the held ATK's standing Attack.
+ */
+describe('touch: KITE-FIX, the stick and ATK together', () => {
+  it('ATK held + stick held away for 3 s: kites keep going on the unit, and the held repeat sends no Attack meanwhile', () => {
+    const r = rig([unit(3, 'hero', 1, ME.x + 1500, ME.y)]);
+    r.stick(Math.PI);
+    r.wait(200);
+    const moves = r.moves();
+    r.atkDown();
+    // the press itself goes as a kite (an Attack would plant the hero until its next swing)
+    expect(r.attacks()).toEqual([]);
+    expect(r.kites()).toEqual([3]);
+    r.wait(3000);
+    expect(r.attacks()).toEqual([]);
+    expect(r.moves()).toBe(moves);
+    expect(r.kites().every((id) => id === 3)).toBe(true);
+    // the stick re-sends as the hero walks on (the drawn hero here stands still, so a turn re-sends it)
+    r.steer(Math.PI * 0.75);
+    r.wait(200);
+    expect(r.kites().length).toBeGreaterThan(1);
+  });
+
+  it('ATK held, the stick let go mid-kite: the Attack on that unit stands (no Stop), and the repeat goes on', () => {
+    const r = rig([unit(3, 'hero', 1, ME.x + 1500, ME.y)]);
+    r.stick(Math.PI);
+    r.wait(200);
+    r.atkDown();
+    r.wait(400);
+    r.stickUp();
+    expect(r.sent.at(-1)).toEqual({ op: Op.Attack, id: 3 });
+    expect(r.sent.some((c) => c.op === Op.Stop)).toBe(false);
+    r.wait(800);
+    expect(r.attacks().every((id) => id === 3)).toBe(true);
+  });
+
+  it('ATK let go with the stick still held away: the stick goes back to plain moves', () => {
+    const r = rig([unit(20, 'minion', 1, ME.x + 1500, ME.y)]);
+    r.stick(Math.PI);
+    r.wait(200);
+    r.atkDown();
+    r.wait(300);
+    r.atkUp();
+    // a tapped minion holds the kite for TAP_YIELD_MS (700 ms), then the stick moves
+    const moves = r.moves();
+    r.wait(1000);
+    expect(r.moves()).toBeGreaterThan(moves);
+  });
+
+  it('a drag-lock with the stick held away kites the locked unit (no ATK held)', () => {
+    const r = rig([unit(3, 'hero', 1, ME.x + 3000, ME.y)]);
+    r.atkDown();
+    r.atkDrag(0);
+    r.wait(50);
+    r.atkDrag(0);
+    r.atkUp();
+    expect(r.t.dragLock.id).toBe(3);
+    r.wait(1000);
+    r.stick(Math.PI / 2);
+    r.wait(300);
+    expect(r.kites().length).toBeGreaterThan(0);
+    expect(r.kites().every((id) => id === 3)).toBe(true);
   });
 });

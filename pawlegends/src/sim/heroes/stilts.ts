@@ -13,7 +13,7 @@
 import { STILTS_RULES } from '../../data/heroes/stilts';
 import { TICK_HZ } from '../../data/timeline';
 import { HERO_RULES } from '../../data/xp';
-import { COOLDOWN_SLOTS, FM, Kind, RANGE, type World, MAX_ENTITIES } from '../world';
+import { COOLDOWN_SLOTS, FM, Kind, Order, RANGE, type World, MAX_ENTITIES } from '../world';
 import { applyBp, dist2, icos, idiv, isin, isqrt, TRIG_ONE } from '../fixed';
 import type { MatchHandle } from '../state';
 import { dealDamage } from '../combat/damage';
@@ -135,6 +135,8 @@ function autoPounce(m: MatchHandle, id: number): void {
   if (disabled(w, id) || w.rootT[id] > 0) return;
   // Sim v20 (V20-CHASE.md S4): never out of her own swing (the dash would cancel it).
   if (w.windup[id] > 0) return;
+  // KITE-FIX: never while she kites (the stick walks her away from the target on purpose)
+  if (w.order[id] === Order.Kite) return;
   const t = w.target[id];
   if (t < 0 || t >= RANGE.minions || w.kind[t] !== Kind.Hero || !targetable(w, t, w.team[id])) return;
   const a = abil(w, id);
