@@ -7,7 +7,19 @@ import { ILiveGameRow, recomputeCatnipCount } from 'src/user/utils/live-game';
 import { simFor } from 'src/vendor/pawlegends-sim';
 import { casualRatingStep, coopRatingStep } from './mm/rating-update';
 import type { MmRoomRecord } from './mm/mm-room.schema';
-import type { MmRatingRow } from './mm/rating.schema';
+import type { MmRatingRow, RankedFields } from './mm/rating.schema';
+import { CURRENT_SEASON_ID } from './pawlegends-catalog';
+import {
+    BOARD_DAILY_WIN_CAP,
+    BOARD_ROOMS_KEPT,
+    boardEligible,
+    HERO_KEEP_DAYS,
+    heroId,
+    isoWeek,
+    WEEKLY_KEEP_DAYS,
+    weeklyId,
+} from './ranked/boards';
+import { decayedPoints, freshPoints, ladderOf, rankedStep, softReset } from './ranked/points';
 import { AFK_REASONS } from './party/room';
 import type { StoredRoom } from './party/room-store';
 import { PawlegendsPartyResultDto } from './pawlegends-replay.dto';
@@ -54,7 +66,24 @@ export interface IPartyLiveDeps extends Pick<IPawlegendsLiveDeps, 'users' | 'gam
     mm?: {
         rooms: { get(id: string): Promise<MmRoomRecord | null> };
         ratings: PawlegendsRatingModel;
+        /**
+         * Leaderboards (SOCIAL-RANKED.md §6): written ONLY here (`writeBoards`), after the Game row exists, from a
+         * verified PvP room; a failed write never fails the save.
+         */
+        boards?: PawlegendsBoardModel;
+        /** Sanctions in force (find only): `board_exclude` and `pvp_ban` keep a player off the boards. */
+        sanctions?: { countDocuments(filter: Record<string, unknown>): Promise<number> };
     };
+}
+
+/** The board model calls `writeBoards` needs (a Mongoose Model satisfies it). */
+export interface PawlegendsBoardModel {
+    findById(id: string): { lean(): Promise<unknown> };
+    updateOne(
+        filter: Record<string, unknown>,
+        update: Record<string, unknown>,
+        options?: Record<string, unknown>
+    ): Promise<unknown>;
 }
 
 /** The rating model calls the update needs (a Mongoose Model satisfies it). */
@@ -154,7 +183,7 @@ export async function savePawlegendsPartyMatch(
 
     const user = await deps.users.findOne({
         searchObject: { _id: userId },
-        projection: `cat ${PAWLEGENDS_CATNIP_FIELD} ${PAWLEGENDS_MATCHES_FIELD}`,
+        projection: `cat isGuest boardExcludedAt deletedAt ${PAWLEGENDS_CATNIP_FIELD} ${PAWLEGENDS_MATCHES_FIELD}`,
     });
     if (!user) throw new BadRequestException('User not found');
     const now = (deps.now || (() => new Date()))();
@@ -207,17 +236,33 @@ export async function savePawlegendsPartyMatch(
               capped: daily,
           })
         : null;
-    if (deps.mm && pvp)
-        await applyCasualRating(
-            deps.mm,
-            String(userId),
-            r.room,
-            won,
-            now,
-            log,
-            room.config.map === 'hearthwood' ? 'classic' : 'casual'
-        );
-    else if (deps.mm)
+    if (deps.mm && pvp) {
+        const mmRoom = await deps.mm.rooms.get(r.room).catch(() => null);
+        if (mmRoom?.queue === 'ranked') {
+            // ranked is for registered accounts only: a guest seat (never matched) rates nothing
+            if (!user.isGuest) await applyRankedRating(deps.mm, String(userId), r.room, won, now, log);
+        } else
+            await applyCasualRating(
+                deps.mm,
+                String(userId),
+                r.room,
+                won,
+                now,
+                log,
+                room.config.map === 'hearthwood' ? 'classic' : 'casual'
+            );
+        if (mmRoom)
+            await writeBoards(deps.mm, {
+                mmRoom,
+                accountId: String(userId),
+                hero: room.config.picks?.[r.slot] ?? null,
+                won,
+                now,
+                registered: !user.isGuest,
+                excluded: !!user.boardExcludedAt || !!user.deletedAt,
+                log,
+            });
+    } else if (deps.mm)
         await applyCoopRating(deps.mm, String(userId), r.room, v.outcome as 'won' | 'lost', difficulty, now, log);
     return {
         party: true,
@@ -268,6 +313,178 @@ async function applyCasualRating(
     await writeRating(mm, roomId, `${accountId}:${queue}`, queue, log, (room, row) =>
         casualRatingStep({ room, accountId, won, row, nowMs: now.getTime() })
     );
+}
+
+/**
+ * Ranked (SOCIAL-RANKED.md §7.3–§7.5): the hidden Glicko row stepped like casual (seeded from the casual row at the
+ * first placement), plus the visible points, the lazy soft reset at a new season and the lazy Legend decay, all in the
+ * one rating write. Guests never get a ranked row. Forgiven and backfill losses skip the write (no points move).
+ */
+async function applyRankedRating(
+    mm: NonNullable<IPartyLiveDeps['mm']>,
+    accountId: string,
+    roomId: string,
+    won: boolean,
+    now: Date,
+    log: Pick<Logger, 'warn'>
+): Promise<void> {
+    const casual = ((await mm.ratings.findById(`${accountId}:casual`).lean()) as MmRatingRow | null) ?? null;
+    await writeRating(mm, roomId, `${accountId}:ranked`, 'ranked', log, (room, row) => {
+        const prev = row as (MmRatingRow & Partial<RankedFields>) | null;
+        const season = room.season || CURRENT_SEASON_ID;
+        let base: MmRatingRow | null = prev;
+        let points =
+            prev?.tierIdx !== undefined
+                ? {
+                      tierIdx: prev.tierIdx,
+                      points: prev.points ?? 0,
+                      shield: prev.shield ?? 1,
+                      placementsLeft: prev.placementsLeft ?? 0,
+                      peakIdx: prev.peakIdx ?? prev.tierIdx,
+                  }
+                : freshPoints();
+        const peaks = [...(prev?.peaks ?? [])];
+        let floorIdx = prev?.floorIdx;
+        if (!prev && casual) {
+            // the first placement: seeded from the casual row, RD at least 200
+            base = {
+                ...casual,
+                _id: `${accountId}:ranked`,
+                queue: 'ranked',
+                games: 0,
+                wins: 0,
+                appliedRooms: [],
+                v: 0,
+            };
+            base.rd = Math.max(base.rd, 200);
+        } else if (prev?.season && prev.season !== season) {
+            // the lazy soft reset at the first ranked save of a new season
+            peaks.push({ season: prev.season, peakIdx: points.peakIdx, finalIdx: points.tierIdx, rewarded: false });
+            const reset = softReset({ r: prev.r, rd: prev.rd, tierIdx: points.tierIdx });
+            base = { ...prev, r: reset.r, rd: reset.rd };
+            floorIdx = reset.floorIdx;
+            points = { ...freshPoints(reset.placementsLeft), tierIdx: points.tierIdx };
+        } else if (prev) {
+            // the lazy Legend decay, written before the match applies
+            points.points = decayedPoints(points, prev.lastRankedAt ?? null, now);
+        }
+        const step = casualRatingStep({ room, accountId, won, row: base, nowMs: now.getTime() });
+        if (!step.row) return {};
+        const next = rankedStep({
+            state: points,
+            won,
+            r: step.row.r,
+            firstSeason: !peaks.length,
+            floorIdx,
+        });
+        const fields: RankedFields = {
+            season,
+            ...next.state,
+            peaks,
+            lastRankedAt: now,
+            ladder: ladderOf(next.state),
+            dodgesApplied: prev?.dodgesApplied ?? [],
+            ...(floorIdx !== undefined && next.state.placementsLeft > 0 ? { floorIdx } : {}),
+        };
+        // keep the stored row's version (writeRating updates by it)
+        return { row: { ...step.row, ...fields, v: (row?.v ?? 0) + 1 } as MmRatingRow };
+    });
+}
+
+/**
+ * The leaderboard rows (SOCIAL-RANKED.md §6.1, §6.2): the weekly PvP board and the per-hero season board. The ONE board
+ * write site (social-no-write.spec.ts). Each row remembers its last rooms, so a duplicate save writes nothing; a poster
+ * over 25 wins today (UTC) counts nothing more today. Logged, never thrown.
+ */
+async function writeBoards(
+    mm: NonNullable<IPartyLiveDeps['mm']>,
+    input: {
+        mmRoom: MmRoomRecord;
+        accountId: string;
+        hero: string | null;
+        won: boolean;
+        now: Date;
+        registered: boolean;
+        excluded: boolean;
+        log: Pick<Logger, 'warn'>;
+    }
+): Promise<void> {
+    const { mmRoom, accountId, hero, won, now, log } = input;
+    if (!mm.boards) return;
+    try {
+        const sanctioned = mm.sanctions
+            ? (await mm.sanctions.countDocuments({
+                  accountId,
+                  kind: { $in: ['board_exclude', 'pvp_ban'] },
+                  $or: [{ until: null }, { until: { $gt: now } }],
+              })) > 0
+            : false;
+        const ok = boardEligible({
+            room: mmRoom,
+            accountId,
+            won,
+            registered: input.registered,
+            excluded: input.excluded || sanctioned,
+            nowMs: now.getTime(),
+        });
+        if (!ok.ok) return;
+        const week = isoWeek(now);
+        const day = now.toISOString().slice(0, 10);
+        const wid = weeklyId(week, accountId);
+        const weekly = (await mm.boards.findById(wid).lean()) as {
+            days?: Record<string, number>;
+            rooms?: string[];
+        } | null;
+        if (weekly?.rooms?.includes(mmRoom._id)) return;
+        if (won && (weekly?.days?.[day] ?? 0) >= BOARD_DAILY_WIN_CAP) return;
+        const DAY = 86_400_000;
+        const rows: Array<{ id: string; set: Record<string, unknown>; inc: Record<string, number> }> = [
+            {
+                id: wid,
+                set: {
+                    kind: 'w',
+                    period: week,
+                    acc: accountId,
+                    firstAt: now,
+                    expireAt: new Date(now.getTime() + WEEKLY_KEEP_DAYS * DAY),
+                },
+                inc: { games: 1, wins: won ? 1 : 0, [`days.${day}`]: won ? 1 : 0 },
+            },
+        ];
+        if (hero && /^[a-z0-9_-]{1,32}$/i.test(hero)) {
+            const season = mmRoom.season || CURRENT_SEASON_ID;
+            rows.push({
+                id: heroId(season, hero, accountId),
+                set: {
+                    kind: 'h',
+                    period: season,
+                    hero,
+                    acc: accountId,
+                    firstAt: now,
+                    expireAt: new Date(now.getTime() + HERO_KEEP_DAYS * DAY),
+                },
+                inc: { games: 1, wins: won ? 1 : 0 },
+            });
+        }
+        for (const row of rows) {
+            try {
+                await mm.boards.updateOne(
+                    { _id: row.id, rooms: { $ne: mmRoom._id } },
+                    {
+                        $setOnInsert: row.set,
+                        $inc: row.inc,
+                        $push: { rooms: { $each: [mmRoom._id], $slice: -BOARD_ROOMS_KEPT } },
+                    },
+                    { upsert: true }
+                );
+            } catch (error) {
+                // the row already holds this room: the filter missed and the upsert hit the _id
+                if ((error as { code?: unknown })?.code !== 11000) throw error;
+            }
+        }
+    } catch (error) {
+        log.warn(`pawlegends board write failed: ${String((error as Error)?.message || error).slice(0, 200)}`);
+    }
 }
 
 /** The one rating write site (mm-no-write.spec.ts): read the row, step it, insert or update by version, retry once. */

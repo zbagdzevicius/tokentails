@@ -181,6 +181,9 @@ import { ReportService } from './pawlegends/social/report.service';
 import { PawlegendsReportsController } from './pawlegends/social/reports.controller';
 import { SocialService } from './pawlegends/social/social.service';
 import { PawlegendsSocialController } from './pawlegends/social/social.controller';
+import { RankedService } from './pawlegends/ranked/ranked.service';
+import { RankedStatusService } from './pawlegends/ranked/status';
+import { PawlegendsRankedController } from './pawlegends/ranked/ranked.controller';
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
@@ -344,6 +347,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsReportsController,
         // Pawlegends friends, blocks, recent players, invites and presence (SOCIAL-RANKED.md sections 2-5).
         PawlegendsSocialController,
+        // Pawlegends ranked status, the ranked card and the leaderboards (SOCIAL-RANKED.md sections 6, 7).
+        PawlegendsRankedController,
         // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
@@ -441,6 +446,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         // Pawlegends social, ranked and PvP reports (SOCIAL-RANKED.md section 10).
         ReportService,
         SocialService,
+        RankedStatusService,
+        RankedService,
         // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
         ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.
