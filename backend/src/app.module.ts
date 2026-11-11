@@ -179,6 +179,8 @@ import { MmService, PAWLEGENDS_MM_SCHEMAS } from './pawlegends/mm/mm.service';
 import { PAWLEGENDS_SOCIAL_SCHEMAS } from './pawlegends/social/social.schema';
 import { ReportService } from './pawlegends/social/report.service';
 import { PawlegendsReportsController } from './pawlegends/social/reports.controller';
+import { SocialService } from './pawlegends/social/social.service';
+import { PawlegendsSocialController } from './pawlegends/social/social.controller';
 import { PawlegendsStripeService } from './pawlegends/pawlegends-stripe.service';
 import { PawlegendsWebhookService } from './pawlegends/pawlegends-webhook.service';
 import { PawlegendsAccountService } from './pawlegends/pawlegends-account.service';
@@ -340,6 +342,8 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         PawlegendsController,
         // Pawlegends PvP reports and the moderator review (SOCIAL-RANKED.md section 8).
         PawlegendsReportsController,
+        // Pawlegends friends, blocks, recent players, invites and presence (SOCIAL-RANKED.md sections 2-5).
+        PawlegendsSocialController,
         // Moon Rave checkout: name your cats, pay in place, payout to Pink Paw on-chain.
         RaveController,
         // Moon Rave ad space: 20 slots at $100, admin approval, refund on reject.
@@ -436,6 +440,7 @@ export const appModuleMetadata = (role: 'all' | 'api'): ModuleMetadata => ({
         MmService,
         // Pawlegends social, ranked and PvP reports (SOCIAL-RANKED.md section 10).
         ReportService,
+        SocialService,
         // role all (DigitalOcean today): the relay counters as one log line a minute too (LATENCY-PLAN R4)
         ...(role === 'all' ? [PartyRelayService, RelayStatsReporter] : []),
         // Moon Rave checkout.

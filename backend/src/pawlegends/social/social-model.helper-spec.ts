@@ -55,24 +55,47 @@ function chain(load: () => Promise<Doc[]>, single = false) {
     return c;
 }
 
+/** Every value at a dotted path, through arrays (MongoDB's array traversal). */
+function valuesAt(doc: any, keys: string[]): unknown[] {
+    if (!keys.length) return [doc];
+    if (doc === null || doc === undefined) return [undefined];
+    if (Array.isArray(doc) && !/^\d+$/.test(keys[0])) return doc.flatMap(item => valuesAt(item, keys));
+    return valuesAt(doc[keys[0]], keys.slice(1));
+}
+
+/** `matches` with array traversal on dotted paths (`'members.accountId': id`). */
+export function deepMatches(doc: Doc, filter: Doc = {}): boolean {
+    return Object.entries(filter).every(([key, cond]) => {
+        if (key === '$or') return (cond as Doc[]).some(part => deepMatches(doc, part));
+        if (key === '$and') return (cond as Doc[]).every(part => deepMatches(doc, part));
+        if (!key.includes('.')) return matches(doc, { [key]: cond });
+        const vals = valuesAt(doc, key.split('.'));
+        return vals.some(v => matches({ v }, { v: cond }));
+    });
+}
+
 export class SocialMemoryModel extends MemoryModel {
     find(filter: Doc = {}) {
         this.calls.push('find');
         return chain(async () =>
-            this.docs.filter(d => matches(d, filter)).map(d => JSON.parse(JSON.stringify(d), revive))
+            this.docs.filter(d => deepMatches(d, filter)).map(d => JSON.parse(JSON.stringify(d), revive))
         );
     }
 
     findOne(filter: Doc = {}) {
         this.calls.push('findOne');
         return chain(
-            async () => this.docs.filter(d => matches(d, filter)).map(d => JSON.parse(JSON.stringify(d), revive)),
+            async () => this.docs.filter(d => deepMatches(d, filter)).map(d => JSON.parse(JSON.stringify(d), revive)),
             true
         );
     }
 
     findById(id: unknown) {
         return this.findOne({ _id: id });
+    }
+
+    async countDocuments(filter: Doc = {}) {
+        return this.docs.filter(d => deepMatches(d, filter)).length;
     }
 
     async bulkWrite(ops: Array<{ updateOne: { filter: Doc; update: Doc; upsert?: boolean } }>) {
