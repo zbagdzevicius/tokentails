@@ -19,10 +19,13 @@ export function partyFromUrl(search: string = typeof location !== 'undefined' ? 
 /** The invite link for a code: always the Token Tails page that embeds the game (D12). */
 export const inviteUrl = (code: string): string => `https://tokentails.com/pawlegends?party=${code}`;
 
-/** Backend origin per page host (as Bad Cat does): the hosted game on tokentails.com talks to the production API. */
+/** Backend origin per page host (as Bad Cat does): the hosted game on tokentails.com and pawlegends.app talks to the production API. */
 const API_BY_HOST: Readonly<Record<string, string>> = Object.freeze({
   'tokentails.com': 'https://api.tokentails.com',
   'www.tokentails.com': 'https://api.tokentails.com',
+  // Paw Legends' own domain serves the same pages (client/next.config.js host rewrites)
+  'pawlegends.app': 'https://api.tokentails.com',
+  'www.pawlegends.app': 'https://api.tokentails.com',
 });
 
 /**

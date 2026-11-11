@@ -253,7 +253,9 @@ describe("landing A/B arm reporting", () => {
       const cta = screen.getByTestId("legends-landing").querySelector('a[data-cta="legends_final"]') as HTMLAnchorElement;
       cta.addEventListener("click", (e) => e.preventDefault());
       fireEvent.click(cta);
-      expect(mockPushes.map((d) => d.event)).toEqual(["landing_variant_view", "landing_variant_cta"]);
+      // the click also goes out under a plain name for GTM triggers (pawlegends_play_click / pawlegends_app_store_click)
+      expect(mockPushes.map((d) => d.event)).toEqual(["landing_variant_view", "landing_variant_cta", "pawlegends_play_click"]);
+      expect(mockPushes[2]).toEqual(expect.objectContaining({ landing_variant: "B", cta: "legends_final" }));
       expect(mockPushes[1]).toEqual(expect.objectContaining({ landing_variant: "B", cta: "legends_final" }));
       expect(mockTrack).toHaveBeenCalledWith({ name: "pawlegends_landing_cta", properties: { landing_variant: "B", cta: "legends_final" } });
       act(() => {

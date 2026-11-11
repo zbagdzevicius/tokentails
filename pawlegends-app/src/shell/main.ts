@@ -8,6 +8,7 @@
  * - OTA: notifyAppReady once the title is up, update checks on launch and resume, apply on the title (ota.ts);
  *   iPhone and Android: the Mac app runs only the game bundled in its build (takesOtaUpdates in ota.ts, guideline
  *   2.4.5). Each platform reads its own manifest (`updates/<platform>/<compat>/`).
+ * - the release watermark: `window.__PL_APP_INFO__` (app version, build, active OTA bundle) for the title (appInfo.ts);
  * - sign-in: the same-window channel to the in-page host (`window.__PL_HOST__`, src/host/channel.ts), installed here,
  *   before the game's module runs, so the game's bridge finds it at boot; the host itself (`host.js`, Firebase and
  *   the sign-in sheet) loads after the game and attaches to it.
@@ -21,6 +22,7 @@ import { handleBack } from './back';
 import { installVibrate } from './haptics';
 import { Ota, takesOtaUpdates, type KV } from './ota';
 import { CHANNEL_GLOBAL, createChannel } from '../host/channel';
+import { publishAppInfo } from './appInfo';
 
 declare const __PL_STAMP__: BundleStamp;
 declare const __PL_SPKI__: string;
@@ -92,6 +94,8 @@ function start(): void {
   }
   // registering the listener turns off Capacitor's default (WebView history back, else close the app mid-match)
   if (android) void App.addListener('backButton', () => void handleBack(document, () => App.minimizeApp()));
+  // the title screen's release watermark: app version and build, and the bundle the updater runs (appInfo.ts)
+  void publishAppInfo({ getInfo: () => App.getInfo(), current: takesOtaUpdates(platform) ? () => CapacitorUpdater.current() : undefined });
 
   // set by the native shell before any page script (GameViewController.swift, MainActivity.java): stable, beta
   // (TestFlight) or dev (Debug builds)
