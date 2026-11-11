@@ -376,3 +376,10 @@ html[data-quality='low'] .lb-mini.tt-card, html[data-quality='low'] .lb-mini.tt-
   .pl-lobby .lb-map button { font-size: 13px; padding: 0 12px; }
   .pl-lobby .lb-map .lb-mw { display: none; }
 }
+
+/* Social (SOCIAL-RANKED.md §14.1): the people button and its badge in the top-right corner. */
+.lb-social { position: relative; }
+.lb-social-badge {
+  position: absolute; top: 2px; right: 2px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; box-sizing: border-box;
+  background: var(--rose, #e66); color: #fff; font: 700 11px/16px var(--font); font-style: normal; text-align: center; pointer-events: none;
+}

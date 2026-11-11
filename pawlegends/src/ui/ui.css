@@ -1463,3 +1463,48 @@ html[data-phone='1'][data-screen='match'] .pl-loading .spin { animation-iteratio
   min-height: 44px; display: flex; align-items: center; padding: 0 16px; border-radius: 12px; background: var(--ink); color: var(--cream);
   font: 700 14px/1.2 var(--font); box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35); max-width: calc(100vw - 32px);
 }
+
+/* The Social sheet (SOCIAL-RANKED.md §14.2–§14.4): right side, full height, no scroll (pages of rows), 44 px targets. */
+.pl-social {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 55; width: min(360px, 54vw); min-width: min(300px, 100vw);
+  display: flex; flex-direction: column; overflow: hidden; box-sizing: border-box;
+  padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) 8px;
+  background: var(--cream); color: var(--ink); box-shadow: -10px 0 30px rgba(0, 0, 0, 0.35); font: 600 14px/1.2 var(--font);
+}
+.pl-social-head { display: flex; align-items: stretch; gap: 2px; min-height: 44px; flex: none; }
+.pl-social-tab {
+  flex: 1 1 0; min-width: 0; min-height: 44px; padding: 0 2px; border: 0; border-radius: 10px; background: transparent; color: var(--ink);
+  font: 700 12px/1 var(--font); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer;
+}
+.pl-social-tab[aria-selected='true'] { background: rgba(42, 26, 34, 0.12); }
+.pl-social-badge { display: inline-block; min-width: 16px; padding: 1px 4px; border-radius: 8px; background: var(--rose, #e66); color: #fff; font-style: normal; font-size: 11px; }
+.pl-social-x { flex: none; width: 44px; min-height: 44px; border: 0; background: transparent; color: var(--ink); font: 700 22px/1 var(--font); cursor: pointer; }
+.pl-social-body { flex: 1 1 auto; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 4px; padding: 6px 0; }
+.pl-social-row { display: flex; align-items: center; gap: 8px; min-height: 48px; padding: 0 4px; border-radius: 10px; }
+.pl-social-row.me { background: rgba(42, 26, 34, 0.08); }
+.pl-social-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pl-social-st { flex: none; opacity: 0.75; font-size: 12px; }
+.pl-social-row .pl-btn.small { min-height: 44px; min-width: 44px; }
+.pl-social-menu { display: flex; gap: 4px; }
+.pl-dot { flex: none; width: 10px; height: 10px; border-radius: 50%; background: #9a9a9a; }
+.pl-dot[data-state='online'] { background: #3bb36b; }
+.pl-dot[data-state='party'], .pl-dot[data-state='queue'] { background: #e0a020; }
+.pl-dot[data-state='match'] { background: #d0484a; }
+.pl-rank { flex: none; min-width: 32px; text-align: right; }
+.pl-social-sub { display: flex; gap: 4px; }
+.pl-social-sub .pl-btn[aria-pressed='true'] { background: rgba(42, 26, 34, 0.14); }
+.pl-social-empty { margin: 12px 4px; display: grid; gap: 10px; }
+.pl-social-age { display: grid; gap: 8px; }
+.pl-social-foot { flex: none; display: flex; align-items: center; gap: 6px; min-height: 44px; flex-wrap: nowrap; overflow: hidden; }
+.pl-social-code { flex: 1 1 auto; min-width: 0; font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.pl-social-add { display: flex; gap: 6px; width: 100%; }
+.pl-social-add input { flex: 1 1 auto; min-width: 0; min-height: 44px; padding: 0 10px; border-radius: 10px; border: 2px solid rgba(42, 26, 34, 0.25); font: 700 15px var(--font); text-transform: uppercase; }
+.pl-pager { display: inline-flex; align-items: center; gap: 4px; }
+.pl-social-note { position: absolute; left: 8px; right: 8px; bottom: 56px; margin: 0; padding: 8px 10px; border-radius: 10px; background: var(--ink); color: var(--cream); font-size: 13px; }
+.pl-social-undo { display: inline-flex; align-items: center; gap: 4px; }
+.pl-ranked-season { margin: 4px; font-weight: 700; }
+.pl-ranked-tier { margin: 8px 4px; font: 800 22px/1.1 var(--font); }
+.pl-ranked-line { margin: 4px; }
+.pl-invite-toast { gap: 10px; }
+@media (max-height: 340px) { .pl-social-row { min-height: 44px; } }
+@media (max-height: 300px) { .pl-social-st { display: none; } }

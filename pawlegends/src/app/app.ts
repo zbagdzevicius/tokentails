@@ -627,6 +627,8 @@ export class App {
       void pvpAvailable(this.partyApi).then((yes) => {
         if (yes && this.screen === 'title' && !this.party) this.showTitle(false);
       });
+    // social (SOCIAL-RANKED.md §4.3): the title pulse starts once (it runs only while the title shows)
+    this.startSocialPulse();
     const first = this.screen !== 'title' || !this.screenEl;
     // the match chunk loads in the background once the title is up (a match then starts without a fetch)
     if (!this.matchPrefetched) {
@@ -750,6 +752,9 @@ export class App {
         onMute: (m) => this.setMuted(m),
         onStore: () => this.openStore('lobby'),
         onSettings: () => this.openSettings(),
+        // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
+        onSocial: this.bridge.active ? () => this.openSocial() : undefined,
+        socialBadge: this.socialBadge,
         onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
         onExit: this.bridge.active
           ? () => {
@@ -1007,6 +1012,66 @@ export class App {
       });
   }
   private partyOpening = false;
+
+  /** The Social sheet (SOCIAL-RANKED.md §14.2): one at a time, over the lobby. */
+  private social: import('../social/socialSheet').SocialSheet | null = null;
+  /** Requests and invites waiting (the lobby button's badge), from the title pulse. */
+  private socialBadge = 0;
+  private socialPulse: ReturnType<typeof setInterval> | null = null;
+  private socialRev: string | undefined;
+
+  private openSocial(tab?: import('../social/socialSheet').SocialTab): void {
+    if (this.social && !this.social.closed) return;
+    sfx.play('click');
+    void import('../social/socialSheet')
+      .then(({ SocialSheet }) => {
+        if (this.social && !this.social.closed) return;
+        this.social = new SocialSheet(
+          this.root,
+          {
+            api: (op, args) => this.integration.api(op, args),
+            signedIn: () => accountState().signedIn,
+            partyCode: () => {
+              const v = this.party?.state.view;
+              return v && v.phase === 'lobby' && !this.party?.state.inMatch ? v.code : null;
+            },
+            joinParty: (code) => this.openParty('join', code),
+            signIn: () => this.integration.requestSignIn('save-progress'),
+            playCasual: () => {
+              this.onlineMode = 'pvp';
+              setOnlineMode('pvp');
+              this.openParty('queue');
+            },
+          },
+          tab,
+        );
+      })
+      .catch((err: unknown) => reportCrash('window', err));
+  }
+
+  /**
+   * The title pulse (SOCIAL-RANKED.md §4.3, §5): every 30 s on the title while the tab is visible and the player is
+   * signed in; never in a match. A waiting invite shows one toast with Join.
+   */
+  private startSocialPulse(): void {
+    if (this.socialPulse || !this.bridge.active) return;
+    const beat = async (): Promise<void> => {
+      if (this.screen !== 'title' || !accountState().signedIn) return;
+      if (typeof document !== 'undefined' && document.visibilityState === 'hidden') return;
+      const r = await this.integration.api('social.pulse', this.socialRev ? { rev: this.socialRev } : {});
+      if (!r.ok || r.status === 204 || !r.body) return;
+      const body = r.body as { rev?: string; invites?: { from?: { name?: string }; party?: string }[] };
+      this.socialRev = typeof body.rev === 'string' ? body.rev : undefined;
+      const inv = body.invites?.[0];
+      this.socialBadge = body.invites?.length ?? 0;
+      if (inv?.party && typeof inv.from?.name === 'string') {
+        const { inviteToast } = await import('../social/socialSheet');
+        inviteToast(document, inv.from.name, () => this.openParty('join', inv.party!));
+      }
+    };
+    this.socialPulse = setInterval(() => void beat(), 30_000);
+    void beat();
+  }
 
   /** PvP reports (SOCIAL-RANKED.md §8): one book per room, kept for the results screen of that room. */
   private reportBook: ReportBook | null = null;
