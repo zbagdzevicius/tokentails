@@ -18,7 +18,16 @@ Steps 1–3 are done in `gleaming-medium-480114-g5`; nothing user-facing changed
 - Applied: bootstrap (state bucket `gleaming-medium-480114-g5-tfstate`), pass 1 (130 resources), pass 2 (90). A final
   `terraform plan` shows no changes. Nothing outside this stack was touched; the project's `default` network, n8n and
   `motored-dev` SQL were left as they are (deleting `default` is the founder's call in this shared project).
-- Images `backend`, `web`, `cms` at `8b9d86d4` (linux/amd64, web/cms built from the committed `.env.production`).
+- Images: `backend` at `9f1ec6ce` (main with live-match deploys; `tt-api` revision `tt-api-00002-7t5`, relay committed
+  in the MIG metadata), `web` and `cms` at `8b9d86d4` (linux/amd64, built from the committed `.env.production`; rebuild
+  before the web cutover). The relay VM runs the blue/green template (`tt-relay@a|b`, control ports 9101/9102).
+- Shadow run (08:12–09:25 UTC): 12 read-only API endpoints identical to DigitalOcean (status and body size; median
+  35–50 ms vs 43–110 ms from the relay VM, both leaderboards ~1.7 s on both sides); 12 rounds of relay checks, 3
+  sockets each, all 101; bot rooms of 3 delivered every TURN (15/s per client) for 30–150 s; a blue/green relay deploy
+  during 2 live bot matches kept all 6 sockets and 900 TURNs per 10 s (`relay_drain_start` → `relay_drain_done` after
+  126 s, parties handed off and restored); CPU p99 under 5 % (tt-api, relay VM), memory 10 %. Error logs match
+  DigitalOcean's (testnet RPC `ENOTFOUND`/`SERVER_ERROR`, shelter-goal `RPC_-32602`/`HTTP_429`, the known
+  shelter-share `execution reverted`). Leases alternate between DigitalOcean and tt-api as designed.
 - The 21 DigitalOcean keys are version 1 of their secrets (piped from `doctl apps spec get`, never printed). The 17
   extra containers are empty: party rooms stay unscored, as on DigitalOcean.
 - Live and checked: `tt-api` ready (`/readyz` mongo true and `/pawlegends/status` 200 from inside the VPC; leased crons
@@ -33,10 +42,9 @@ Steps 1–3 are done in `gleaming-medium-480114-g5`; nothing user-facing changed
   relay). GitHub variables `GCP_PROJECT_ID`, `GCP_WIF_PROVIDER`, `GCP_DEPLOY_SA` are set (deploy-gcp.yml is
   manual-dispatch only).
 - Open: Cloudflare (step 4.1 DNS authorization CNAMEs, grey cloud; step 5 proxied `gcp-api`, `gcp`, `gcp-cats` →
-  `34.107.92.132`); the certificate stays PROVISIONING until then. The relay drain fix
-  (`feat/pawlegends-live-match-deploys`) is not on main yet: after it merges, roll the new template with
-  `replace-relay.sh`. DigitalOcean still has `deploy_on_push` on, so every push to main redeploys it: never restart
-  `tt-relay` within 3 minutes of a DigitalOcean deploy.
+  `34.107.92.132`); the certificate stays PROVISIONING until then, so nothing has been measured through Cloudflare
+  yet (step 5 and the `relay-ab.sh` gap are still to do). DigitalOcean still has `deploy_on_push` on, so every push to
+  main redeploys it: never restart a relay slot within 3 minutes of a DigitalOcean deploy.
 
 ## Architecture
 
