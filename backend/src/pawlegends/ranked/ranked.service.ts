@@ -9,6 +9,9 @@ import type { MmRatingRow, RankedFields } from '../mm/rating.schema';
 import { CURRENT_SEASON_ID, SEASONS } from '../pawlegends-catalog';
 import { pawlegendsError } from '../pawlegends.errors';
 import { displayNames } from '../social/display-name';
+import { liveHeroIds, resolveAvatars } from '../social/avatar';
+import type { AvatarView } from '../../shared-contracts/chat';
+import { PawlegendsOwned } from '../pawlegends.schema';
 import { PawlegendsBoard, PawlegendsFriend, PawlegendsSanction, PawlegendsSocial } from '../social/social.schema';
 import { BOARD_PAGE, HERO_MIN_GAMES, isoWeek } from './boards';
 import { decayedPoints, ladderOf, legendInactive } from './points';
@@ -42,6 +45,8 @@ export interface BoardAnswer {
         hero?: string;
         winRate?: number;
         me?: boolean;
+        /** CHAT-AVATARS §7.3: the player's avatar. */
+        av?: AvatarView;
     }>;
     me?: { rank: number; value: number } | null;
     page: number;
@@ -62,8 +67,21 @@ export class RankedService {
         @InjectModel(User.name) private readonly users: AnyModel,
         private readonly gate: RankedStatusService,
         @Optional() @InjectModel(Cat.name) private readonly cats?: AnyModel,
-        @Optional() private readonly clock?: { now(): Date }
+        @Optional() private readonly clock?: { now(): Date },
+        @Optional() @InjectModel(PawlegendsOwned.name) private readonly owned?: AnyModel
     ) {}
+
+    /** Board rows' avatars (CHAT-AVATARS.md §7.3), checked against what each player still owns. Never fails a board. */
+    private async avatars(ids: readonly string[]): Promise<Map<string, AvatarView>> {
+        try {
+            return await resolveAvatars(
+                { social: this.social, owned: this.owned ?? null, cats: this.cats ?? null, heroes: liveHeroIds() },
+                ids
+            );
+        } catch {
+            return new Map();
+        }
+    }
 
     private now(): Date {
         return this.clock?.now() ?? new Date();
@@ -162,10 +180,13 @@ export class RankedService {
             .lean()) as Array<{ _id: string; acc: string; wins: number; games: number }>;
         const total = await this.boards.countDocuments(filter);
         const out = await this.withoutExcluded(rows, r => r.acc);
-        const names = await displayNames(
-            { social: this.social, cats: this.cats },
-            out.map(r => r.acc)
-        );
+        const [names, avs] = await Promise.all([
+            displayNames(
+                { social: this.social, cats: this.cats },
+                out.map(r => r.acc)
+            ),
+            this.avatars(out.slice(0, BOARD_PAGE).map(r => r.acc)),
+        ]);
         return {
             period,
             page,
@@ -174,6 +195,7 @@ export class RankedService {
                 rank: page * BOARD_PAGE + i + 1,
                 name: names.get(r.acc) ?? '',
                 value: r.wins,
+                ...(avs.get(r.acc) ? { av: avs.get(r.acc) } : {}),
                 ...(hero ? { hero, winRate: r.games ? Math.round((r.wins / r.games) * 100) : 0 } : {}),
             })),
         };
@@ -211,10 +233,13 @@ export class RankedService {
             .sort((a, b) => b.ladder - a.ladder || (a.row._id < b.row._id ? -1 : 1))
             .slice(0, 100);
         const slice = kept.slice(page * BOARD_PAGE, page * BOARD_PAGE + BOARD_PAGE);
-        const names = await displayNames(
-            { social: this.social, cats: this.cats },
-            slice.map(r => r.row.accountId)
-        );
+        const [names, avs] = await Promise.all([
+            displayNames(
+                { social: this.social, cats: this.cats },
+                slice.map(r => r.row.accountId)
+            ),
+            this.avatars(slice.map(r => r.row.accountId)),
+        ]);
         return {
             period: season,
             page,
@@ -223,6 +248,7 @@ export class RankedService {
                 rank: page * BOARD_PAGE + i + 1,
                 name: names.get(r.row.accountId) ?? '',
                 value: r.points,
+                ...(avs.get(r.row.accountId) ? { av: avs.get(r.row.accountId) } : {}),
                 tier: tierLabel(r.tierIdx, r.points),
             })),
         };
@@ -257,6 +283,7 @@ export class RankedService {
             >,
             displayNames({ social: this.social, cats: this.cats }, ids),
         ]);
+        const avs = await this.avatars(ids);
         const rk = new Map(ranked.filter(r => r.season === CURRENT_SEASON_ID).map(r => [r.accountId, r]));
         const wk = new Map(weekly.map(w => [w.acc, w.wins]));
         const all = ids
@@ -276,6 +303,7 @@ export class RankedService {
             rank: i + 1,
             name: names.get(x.id) ?? '',
             value: x.wins,
+            ...(avs.get(x.id) ? { av: avs.get(x.id) } : {}),
             ...(x.tier ? { tier: x.tier } : {}),
             ...(x.id === caller ? { me: true } : {}),
         }));
