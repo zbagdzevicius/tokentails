@@ -116,6 +116,8 @@ export interface Integration {
   handle(m: HostMessage): boolean;
   /** A fresh id for the next `match-result` (`/^[a-z0-9]{1,16}$/`); the save chip follows it. */
   nextMatchId(info?: MatchInfo): string;
+  /** CHAMPION-STORE.md §6: a Practice match ended (nothing posted): the results chip shows no save at all. */
+  unsaved(): void;
   state(): Readonly<IntegrationState>;
   /** Redraw every mounted slot now. */
   refresh(): void;
@@ -671,6 +673,14 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
 
   return {
     handle: (m) => OWNED_TYPES.includes(m.type),
+    unsaved: () => {
+      s.matchId = null;
+      s.match = null;
+      s.save = null;
+      waitedOut = false;
+      if (waitTimer) clearTimeout(waitTimer);
+      saveV++;
+    },
     nextMatchId: (info) => {
       s.matchId = makeMatchId();
       s.match = info ?? null;

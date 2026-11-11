@@ -177,6 +177,14 @@ describe('round 2 client: why the match ended', () => {
     expect(tryHeroFor('domino', {})).toBe('brutus');
     expect(tryHeroFor('nugget', { marshmallow: {}, bravo: {} })).toBe('chili');
   });
+
+  it('Change hero never teases a champion the player may only Practice (CHAMPION-STORE.md)', () => {
+    // a new cat player: starters Clem, Sage, Gabe plus Pixel free this week; Lambo is locked
+    const open = new Set(['clem', 'sage', 'gabe', 'pixel']);
+    expect(tryHeroFor('clem', { sage: {} }, (h) => open.has(h))).toBe('gabe');
+    // nothing else open: the old order (the pick shows Practice there)
+    expect(tryHeroFor('clem', {}, (h) => h === 'clem')).toBe('sage');
+  });
 });
 
 describe('round 2 client: names, cats and controls', () => {

@@ -123,8 +123,12 @@ export function ownedCount(s: ChampionsState, isApp = false): number {
   }).length;
 }
 
-/** About how many matches the Yarn still to earn takes (a loss with a few takedowns: about 70). */
-export const matchesFor = (yarn: number): number => Math.max(1, Math.ceil(yarn / (YARN.loss + 5 * YARN.perTakedown)));
+/**
+ * About how many matches the Yarn still to earn takes: an even win/loss split with 5 takedowns, about 90 a match
+ * (CHAMPION-STORE.md §5). The first win of the day and the weekly chest come on top, so it never promises too much.
+ */
+export const YARN_PER_MATCH = Math.round((YARN.win + YARN.loss) / 2 + 5 * YARN.perTakedown);
+export const matchesFor = (yarn: number): number => Math.max(1, Math.ceil(yarn / YARN_PER_MATCH));
 
 export interface UnlockInfo {
   /** The Yarn price, or null for a champion that is not sold (a starter). */
