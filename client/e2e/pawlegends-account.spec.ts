@@ -69,4 +69,17 @@ test.describe("Paw Legends sign-in on the web", () => {
     await game.getByTestId("account-sign-out").click();
     await expect(chip).toHaveText("Sign in", { timeout: 30_000 });
   });
+
+  test("a landscape phone shows the chip in the corner, on screen @ci-desktop", async ({ page, backend }) => {
+    test.setTimeout(120_000);
+    await page.setViewportSize({ width: 844, height: 390 });
+    const game = await openGame(page, backend);
+    const chip = game.getByTestId("account-chip");
+    await expect(chip).toBeVisible({ timeout: 30_000 });
+    const box = await chip.boundingBox();
+    expect(box).not.toBeNull();
+    expect(box!.x + box!.width).toBeLessThanOrEqual(844);
+    expect(box!.y).toBeGreaterThanOrEqual(0);
+    expect(box!.height).toBeGreaterThanOrEqual(39.5);
+  });
 });
