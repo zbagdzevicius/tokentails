@@ -182,3 +182,12 @@ describe('party pick lock', () => {
     expect(heroBlock(v, 'clem')).toBe('');
   });
 });
+
+describe('time to unlock', () => {
+  it('the "about N matches" line uses about 90 Yarn a match, so a T2 champion reads about 39 matches, not 50', async () => {
+    const { matchesFor, YARN_PER_MATCH } = await import('../../src/meta/champions');
+    expect(YARN_PER_MATCH).toBe(90);
+    expect(matchesFor(game.TIER_PRICE.t2.yarn)).toBe(39);
+    expect(matchesFor(1)).toBe(1);
+  });
+});

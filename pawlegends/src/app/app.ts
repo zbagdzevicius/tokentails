@@ -137,12 +137,15 @@ function installFont(): void {
  * Round 2: the Change hero button teases a hero the player has not won with yet (else the next one), never its own.
  * Sim v14: only heroes of the current hero's side (the player chose cats or dogs on the switch).
  */
-export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknown>>): HeroId {
+export function tryHeroFor(current: HeroId, bests: Partial<Record<HeroId, unknown>>, playable?: (h: HeroId) => boolean): HeroId {
   const side = HEROES[current]?.side ?? 'cat';
   const order: readonly HeroId[] = HERO_IDS.filter((h) => HEROES[h].side === side);
   const start = order.indexOf(current);
   const rest = order.map((_, k) => order[(start + k + 1) % order.length]).slice(0, order.length - 1);
-  return rest.find((h) => !bests[h]) ?? rest[0];
+  // CHAMPION-STORE.md: only a champion the player may pick (a starter, free this week, owned), never a Practice-only one
+  const open = playable ? rest.filter(playable) : rest;
+  const pool = open.length ? open : rest;
+  return pool.find((h) => !bests[h]) ?? pool[0];
 }
 
 /** Frame-time percentiles (ms, one decimal) for `perf_sample`: p50, p95 and p99 (LATENCY-PLAN M1). */
@@ -1475,6 +1478,8 @@ export class App {
     // CHAMPION-STORE.md §6: Practice saves nothing (no /live, no XP, no Yarn, no quests)
     const practice = !partyEnd && this.practice;
     this.practice = false;
+    // Practice: the results chip must not show the previous match's save
+    if (practice) this.integration.unsaved();
     if (!partyEnd && !practice) {
       const matchId = this.integration.nextMatchId({ ticks: e.result.ticks, difficulty: e.replay.difficulty, won });
       this.bridge.post('match-result', {
@@ -1554,9 +1559,10 @@ export class App {
     }
     // GAPS A2: the grade replaces the old KDA impact on the ladder (an S or A loss costs half; not stacked)
     // the bot ladder is a solo rating: a party match (friends, a shared seed, bots flying dropped friends) never moves it
-    const ladder = partyEnd ? null : recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
+    // CHAMPION-STORE.md §6: Practice never moves the bot ladder either (the forfeit flag above would count a full loss)
+    const ladder = partyEnd || practice ? null : recordLadder({ won, difficulty: e.replay.difficulty, hero: e.replay.hero, heroName: HERO_TEXT[e.replay.hero].title, seconds, takedowns: e.fun.takedowns, grade: myGrade, forfeit });
     // round 2: "Change hero" names one to try (from match 2: match 1 keeps Play again as the only call)
-    const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests) : null;
+    const tease = lp.matches >= 2 ? tryHeroFor(e.replay.hero, lp.bests, (h) => this.playable(h)) : null;
     const myTeam = mySlot < 3 ? 0 : 1;
     // lobby spec §3b: a worn owned card names the player's row and MVP after the cat (records stay per hero)
     const names = selfNames(slotNames(e.welcome.picks, e.welcome.seed, e.welcome.slot), mySlot, userName ? { name: userName } : myCard);

@@ -116,6 +116,8 @@ export class Entitlements {
         if (!this.signedIn) {
           this.owned = [];
           this.season = null;
+          // CHAMPION-STORE.md: a signed-out player sees the starters and the rotation until the host sends a new store
+          this.champions = null;
         }
         break;
       case 'store': {
