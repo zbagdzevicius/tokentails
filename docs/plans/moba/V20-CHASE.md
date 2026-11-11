@@ -1,6 +1,6 @@
 # V20: basic attacks while chasing, Wild Rift rules (sim v20 + touch/desktop input)
 
-**Status:** implemented (sim v20 + input), see §8 Results. Branch `fix/pawlegends-chase-2` (from `origin/main` d65a13ba, live SIM_VERSION 19).
+**Status:** implemented (sim v20 + input), see §8 Results; balance refitted on four seed windows per map in §9. Branch `fix/pawlegends-chase-2` (from `origin/main` d65a13ba, live SIM_VERSION 19).
 
 **Founder asks, verbatim:**
 - "ultracode it's still can't hit properly while chassing, fix it"
@@ -300,3 +300,171 @@ hold no stick 3/3, desktop right-click spam 22/22 (1.2), desktop A-click spam 18
 seeds 4001-6000 FAIL (stilts 54.5, chili 44.7, gabe 54.9); 3v3 seeds 1-2000 FAIL (down 10+ wins 6.2%; heroes
 47.4-53.8 pass); 5v5 seeds 4001-6000 FAIL (duchess 54.1; side, species, p50 13:05 pass). Determinism 300 seeds + PvP
 identical; pvp-symmetry 1000 seeds pass.
+
+## 9. Four-window refit (after the review, same sim v20)
+
+**Why.** §8.3's rows were the first set where two windows held every gate; on fresh seeds (§8.5) three heroes, the
+comeback gate and one 5v5 hero failed. The per-hero gate is mostly sampling noise at 2,000 seeds: a hero plays ~600
+slots a window, so its rate has a standard error of 2.0 points (measured: the within-window spread around the
+four-window mean is 1.8 to 2.2 points), and 46–54% is ±2 SE. A hero balanced at exactly 50% fails a window 4.6% of
+the time; 20 heroes in 4 windows all pass about 2% of the time. Picking the first row set that happens to pass is
+what over-fitted the windows before. This refit therefore fits every lever **pooled over seeds 1–8000** (four windows,
+logistic fit over line-ups, then a correction from observed results), never searches the windows' noise, and reports
+the result as measured, plus a fifth window (8001–10000) nobody fitted on.
+
+Tooling (experiment only, the source and the vendored sim untouched by it): `headless-match --tune file.json`
+rewrites hero `pvp` rows and free source patches in that run's bundle (`hearth-gates --tune` already did this for
+Hearthwood and now also takes `pvp3` rows and patches). The patches see the transpiled source (tabs, `1e3` for 1000),
+so they are RegExps. After each fit the source was edited and 24 (3v3) / 6 (5v5) seeds re-run from the source matched
+the tuned bundle exactly.
+
+### 9.1 Comeback: what in v20 lets a team 10+ takedowns behind win
+
+Ablations on the v20 build under review (balance gate, same windows compared):
+
+| Build | Seeds | Down 10+ at the end wins | Takedowns a minute |
+|---|---|---|---|
+| v20 as reviewed | 1–8000 | 4.3% (56 of 1292); windows 6.2 / 3.6 / 2.1 / 5.5 | 3.44–3.49 |
+| no attack-timer refund at all (v19 rule) | 1–4000 | **2.6%** (15 of 568) vs 4.9% (32 of 658) for v20 | 3.32 / 3.36 |
+| refund for heroes only (minions and camps keep v19) | 1–2000, 6001–8000 | 4.9% (29 of 590) vs 5.9% (37 of 629) | 3.44 / 3.45 |
+| Normal `takedownTowerChipBp` 2000 → 3000 | 1–2000, 6001–8000 | **3.1%** (19 of 620) vs 5.9% | 3.49 / 3.51 |
+
+So the source is the S1 refund on **heroes** (a cancelled or whiffed hero swing gives the attack timer back): fights
+get bloodier on both sides (+0.13 takedowns a minute) and a 10-takedown lead got cheaper without turning into more
+structure damage. The refund is the Wild Rift rule the founder asked for, so it stays. The fix is one Normal-row field:
+past the pre-Sunset chip cap, a takedown chips the victim's weakest tower **35%** (`DIFFICULTY_RULES.normal
+.takedownTowerChipBp` 2000 → 3500; 3000 left too little margin once the pace fix below raised comebacks again). Hard,
+PvP (`PVP_RULES`, Hard-based, 1500) and Hearthwood do not read it.
+
+### 9.2 Pace: takedowns a minute
+
+The chip shortens matches ~7 s, which put the per-match takedown rate at 3.50–3.51 in three windows (gate ≤ 3.5). Tried:
+Normal structure HP × 1.35 → × 1.40 (`structureHpBp` 13500 → 14000): still 3.51 in one window and comebacks back up (3.7% of 8,000), dropped.
+Shipped: every hero's 3v3 `pvp.takenBp` × 0.97 (3% less hero-vs-hero damage wherever the 3v3 rows apply: Normal, Hard,
+3v3 PvP), cancelled on Hearthwood by both species rows' `takenBp` ÷ 0.97, so 5v5 damage is unchanged by it. Global
+`HERO_BASIC_VS_HERO_BP` was not touched (it would move 5v5 too). Pace now 3.41–3.43.
+
+### 9.3 3v3 hero rows
+
+Six rounds, each fitted on everything measured so far (b ≈ 0.0007–0.0008 logit per bp, fitted from the rounds' own
+row changes), dealt and taken moved by the same amount in opposite directions as before, then taken × 0.97:
+
+| Round | Change | Seeds | Down 10+ wins (pooled) | Hero checks out of band |
+|---|---|---|---|---|
+| v20 as reviewed | – | 1–8000 | 4.3% | 5 of 80 |
+| r1 | rows + chip 3000 | 1–8000 | 3.0% | 1 of 80 (pace failed 3 windows) |
+| r2 | refit + structures × 1.40 | 1–8000 | 3.7% | 3 of 80 (pace 1 window) |
+| r3 | refit + taken × 0.97, structures back | 1–8000 | 3.2% | 5 of 80 |
+| r4 | refit + chip 3500 | 1–8000 | 2.6% | 5 of 80 |
+| r5 | refit on the × 0.97 rounds | 1–10000 | 2.2% | 5 of 100 |
+| **r6 (shipped)** | pooled refit of r3–r5 (moves ≤ 40 bp) | 1–10000 | **2.0%** | 4 of 100 |
+
+Purr-ify sits at 48.1% pooled (r3–r6, 54,000 slots; band 47–53): its cooldown 2400 → 2250 (r3) and 2100 (r4) did not
+move it (48.1%, 48.6%), so it stays at 2400.
+
+### 9.4 Hearthwood rows (5v5)
+
+Fitted on the two 5v5 windows of the reviewed build plus each round (4,000 matches a window):
+
+| Round | Rows | Seeds 1–2000: cats | Heroes |
+|---|---|---|---|
+| reviewed v20 | – | 50.6 (2001–4000: 51.3) | duchess 54.6 in 2001–4000 |
+| h2 | per-hero fit, b = 0.00025 assumed (MAP-5V5 §12.10) | 47.5 | overshoot: duchess 43.5, domino 54.5 |
+| h3 | refit, b fitted 0.00053 | 46.2 | 11 heroes out, all cats low |
+| h4 | + residual × 0.7 | 57.0 | every hero out, cats 55.7–58.3, dogs 41.4–45.0 |
+| **h5 (shipped)** | h4 hero rows, cats species row × 0.98 dealt / × 1.02 taken | 51.6 | all in band |
+
+Within each species h4's hero rows were already right (cats 55.7–58.3, a 2.6-point spread); only the species level
+was off. A species-wide shift moves cats about four times what the per-hero model predicts (46.2% → 57.0% for a
+~600 bp mean shift), so the species row is solved by interpolating h3 and h4 instead. A 500-seed probe gave cats 50.1%
+before the full run.
+
+### 9.5 Final gate tables
+
+3v3 (`npm run match -- --gate balance --from N`, 2,000 seeds each; 8001–10000 is the holdout):
+
+| Gate | 1–2000 | 2001–4000 | 4001–6000 | 6001–8000 | 8001–10000 |
+|---|---|---|---|---|---|
+| Every hero 46–54 | 46.0–53.2 | 47.5–53.0 | **FAIL** 46.4–54.0 (gabe 54.0%) | **FAIL** 45.4–56.1 (rocket 54.7%, frankie 56.1%, sage 45.4%) | 46.9–53.0 |
+| Cats / dogs 47–53 | 50.9 / 49.1 | 49.5 / 50.5 | 50.6 / 49.4 | 48.6 / 51.4 | 50.9 / 49.1 |
+| Map side 45–55 | 49.1 / 50.9 | 48.9 / 51.1 | 49.7 / 50.3 | 49.2 / 50.8 | 49.9 / 50.1 |
+| Down 10+ at the end wins < 5% | 1.0% of 287 | 2.6% of 308 | 2.1% of 284 | 2.2% of 277 | 1.9% of 264 |
+| Takedowns a minute 2.5–3.5 | 3.41 | 3.41 | 3.43 | 3.42 | 3.42 |
+| Median 6:30–9:00 / p95 ≤ 10:30 | 7:05 / 8:27 | 7:05 / 8:30 | 7:06 / 8:26 | 7:06 / 8:28 | 7:07 / 8:28 |
+| Core kill before Sudden Death ≥ 70% | 95.4% | 95.0% | 95.4% | 95.3% | 95.1% |
+| Trailing at 3:30 wins 20–40% | 29.9% | 28.7% | 28.6% | 26.7% | 30.9% |
+| Tricks 47–53 (pounce/snack/hiss/purrify) | 50.7 / 50.5 / 50.5 / 48.3 | 51.3 / 49.5 / 50.8 / 48.5 | 49.3 / 51.0 / 51.9 / 47.8 | 50.5 / 50.4 / 50.9 / 48.2 | 51.0 / 50.4 / 50.6 / 47.9 |
+| Sage / Brutus level-6 branch 45–55 | 49.0 / 49.2 | 45.7 / 49.5 | 50.0 / 47.4 | **43.4** / 50.2 | 52.1 / **43.3** |
+
+Pooled over seeds 1–8000 (8,000 matches): every hero 47.7% (howler) to 51.7% (frankie), cats 49.9%, down 10+ wins
+2.0% of 1,156, takedowns 3.42 a minute. Pooled over r3–r6 (54,000 slots): Purr-ify 48.1%, Sage / Brutus level-6
+branch 48.5% / 48.6%.
+
+5v5 (`node tools/hearth-gates.mjs --seeds 2000 --from N`, 4,000 matches each):
+
+| 5v5 gate | 1–2000 | 2001–4000 | 4001–6000 | 6001–8000 |
+|---|---|---|---|---|
+| G6 side (team 0) 47–53 | 49.9 | 50.4 | 47.9 | 50.4 |
+| G5 cats 47–53 | 51.6 | 51.1 | 51.5 | 52.0 |
+| G5 every hero 46–54 | 46.7 (frankie) – 53.3 (stilts) | 46.8 (marshmallow) – 52.5 (sage) | 46.7 (marshmallow) – 53.1 (bengas) | 46.5 (nugget) – 53.0 (clem) |
+| G5 p50 12:00–14:30 / p95 | 13:05 / 13:12 | 13:05 / 13:12 | 13:05 / 13:12 | 13:05 / 13:12 |
+| G5 safety end ≤ 2% | 0.0% | 0.0% | 0.0% | 0.0% |
+
+The reviewed build on the same tool: 1–2000 all pass (cats 50.6), 2001–4000 duchess 54.6% FAIL (§8.5 had 4001–6000
+duchess 54.1%).
+
+### 9.6 Rows changed (all data; the sim code is the reviewed v20)
+
+| Hero | 3v3 `pvp` v20 §8 | 3v3 `pvp` now | `HEARTHWOOD_PVP.hero` v20 §8 | `HEARTHWOOD_PVP.hero` now |
+|---|---|---|---|---|
+| clem | 7590 / 10310 | 7655 / 9945 | 11840 / 8160 | 11780 / 8220 |
+| sage | 10090 / 8985 | 10150 / 8655 | 9740 / 10260 | 9820 / 10180 |
+| brutus | 8335 / 9965 | 8230 / 9765 | 11560 / 8440 | 11600 / 8400 |
+| cacklejaw | 9835 / 9565 | 9845 / 9275 | 10650 / 9350 | 10530 / 9470 |
+| lambo | 9490 / 7710 | 9525 / 7450 | 10770 / 9230 | 10920 / 9080 |
+| aviete | 11415 / 8010 | 11355 / 7830 | 10260 / 9740 | 10530 / 9470 |
+| bengas | 9990 / 8635 | 9995 / 8370 | 9510 / 10490 | 9890 / 10110 |
+| gabe | 7690 / 10660 | 7740 / 10295 | 8600 / 11400 | 8530 / 11470 |
+| meatball | 7440 / 9335 | 7475 / 9025 | 9120 / 10880 | 9280 / 10720 |
+| pixel | 8665 / 8735 | 8690 / 8450 | 9790 / 10210 | 9950 / 10050 |
+| duchess | 10755 / 8520 | 10805 / 8215 | 9950 / 10050 | 9740 / 10260 |
+| stilts | 8965 / 9460 | 8755 / 9385 | 9490 / 10510 | 10090 / 9910 |
+| nugget | 8385 / 10140 | 8495 / 9730 | 9180 / 10820 | 9010 / 10990 |
+| marshmallow | 8560 / 9715 | 8630 / 9355 | 9540 / 10460 | 9190 / 10810 |
+| bravo | 10925 / 7800 | 10930 / 7565 | 11050 / 8950 | 10720 / 9280 |
+| chili | 9035 / 8915 | 9000 / 8685 | 9270 / 10730 | 9230 / 10770 |
+| howler | 8410 / 9615 | 8430 / 9305 | 10560 / 9440 | 10410 / 9590 |
+| rocket | 9510 / 9140 | 9500 / 8880 | 9100 / 10900 | 8970 / 11030 |
+| frankie | 9860 / 9040 | 9900 / 8735 | 10070 / 9930 | 9830 / 10170 |
+| domino | 9610 / 8990 | 9490 / 8840 | 9610 / 10390 | 9640 / 10360 |
+
+Also: `HEARTHWOOD_PVP.cat` 10120 / 9880 → **9920 / 10390**, `HEARTHWOOD_PVP.dog` 10000 / 10000 → **10000 / 10310**
+(÷ 0.97 on taken cancels the 3v3 × 0.97; the cats' extra × 0.98 / × 1.02 is the species fit),
+`DIFFICULTY_RULES.normal.takedownTowerChipBp` 2000 → **3500**. Unchanged: `HERO_BASIC_VS_HERO_BP` 6000,
+`HERO_VS_HERO_BP` 10500, every trick, Hard and `PVP_RULES`. Hero cards print the new 3v3 rows ("Hero fights (Normal,
+Hard): …", `pvpNumbers`).
+
+### 9.7 Checks
+
+| Check | Result |
+|---|---|
+| `npm run chase-gate` | 7 / 7 |
+| `tools/determinism.mjs --seeds 1000` (+ PvP) | 2,496,032 commands, all identical |
+| `hearth-gates --det 40` (solo, party, PvP 5v5 records) | 120 / 120 |
+| `pvp-symmetry --seeds 1000` (3v3 PvP, Hard-based rules) | side 48.9%, cats 53.5% (band 46–54): PASS |
+| `tsc --noEmit`, `lint:sim` | clean, ok (151 files) |
+| `vendor-sim` (v20 regenerated, v10–v19 frozen) + `vendor-sim:check` | current |
+| Unit tests | all pass except the two `tools/trailer` copy-gate tests (fail on `origin/main` too); pinned rows updated (round2, champions-final, bengas, duchess, lambo, stilts), protocol sample seed 302 → 303 (302 no longer reaches Sunset), party-identity golden regenerated from the v20 fixtures |
+| Backend `pawlegends-live` + `pawlegends-party-live` (+ `-pvp`) | 87 / 87 |
+| `--gate feedNormal` (Normal row) | 10+ behind wins 0.8% of 129: PASS |
+| `--gate novice --difficulty normal` | 31.3% (needs ≥ 40%): FAIL, and already failing on the reviewed v20 (28.0%); not in this task's gates |
+
+### 9.8 What does not pass, and why it is left
+
+- 3v3 per hero: 4 of 80 window checks (4001–6000 gabe 54.0; 6001–8000 rocket 54.7, frankie 56.1, sage 45.4); none in
+  the holdout. Every hero is 47.7–51.7% over the 8,000 pooled seeds, so these are the ±2 SE window noise described
+  above; another round would only re-draw it.
+- Level-6 branch (45–55%, ~300 slots a window, SE 2.9): Sage 43.4 (6001–8000), Brutus 43.3 (holdout); pooled 48.5 / 48.6.
+- Recommendation: judge the per-hero and branch gates on the pooled 8,000 seeds (SE 1.0 / 1.4 points) or widen the
+  window band to ± 3 SE; at 2,000 seeds a perfectly balanced roster fails "all four windows" ~98% of the time.
+- Novice vs Normal (≥ 40%) fails on v20 before and after this refit (28.0% → 31.3%). It needs its own pass.

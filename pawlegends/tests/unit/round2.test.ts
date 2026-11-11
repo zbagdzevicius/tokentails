@@ -128,10 +128,10 @@ describe('sim v8: bots', () => {
   it('per-hero tuning replaced the species edge (sim v14: with seven dogs the old dogs’ edge came down)', () => {
     expect(HEROES.brutus.pvp.dmgBp).toBeLessThan(11100);
     expect(HEROES.cacklejaw.pvp.takenBp).toBeLessThan(10000);
-    // sim v9 balance pass: the cat heroes carry their own small numbers too (Clem 7590/10310 since the sim v20 refit)
-    expect(HEROES.clem.pvp).toEqual({ dmgBp: 7590, takenBp: 10310 });
-    expect(pvpNumbers('clem')).toBe('Hero fights (Normal, Hard): deals 24.1% less · takes 3.1% more'); // sim v20 refit (V20-CHASE.md §8)
-    expect(pvpNumbers('brutus')).toMatch(/^Hero fights \(Normal, Hard\): deals 16\.7% less · takes 0\.4% less$/); // sim v20 refit (V20-CHASE.md §8): 8335 / takes 9965
+    // sim v9 balance pass: the cat heroes carry their own small numbers too (Clem 7655/9945 since the sim v20 four-window refit)
+    expect(HEROES.clem.pvp).toEqual({ dmgBp: 7655, takenBp: 9945 });
+    expect(pvpNumbers('clem')).toBe('Hero fights (Normal, Hard): deals 23.5% less · takes 0.6% less'); // sim v20 refit (V20-CHASE.md §9)
+    expect(pvpNumbers('brutus')).toMatch(/^Hero fights \(Normal, Hard\): deals 17\.7% less · takes 2\.4% less$/); // sim v20 refit (V20-CHASE.md §9): 8230 / takes 9765 (8335 / 9965 in §8)
     // the bots chips no longer print a species handicap
     for (const h of Object.values(DIFFICULTY_HINT)) expect(h).not.toMatch(/species|Woof pack/);
   });

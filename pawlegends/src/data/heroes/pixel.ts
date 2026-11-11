@@ -6,8 +6,8 @@ export const PIXEL: HeroData = Object.freeze<HeroData>({
   name: 'Pixel',
   side: 'cat',
   role: 'marksman',
-  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9400 / 9600 (10600 / 9600 before: 55.4% of the 2,000-seed gate; now 49.8%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 8750 / takes 9600 (48.8% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8000 / takes 9575 (50.9% of the 2,000-seed gate). Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8450 / takes 8950. */
-  pvp: { dmgBp: 8665, takenBp: 8735 },
+  /** Hero-vs-hero tuning on Normal and Hard: deals dmgBp, takes takenBp. Sim v11 balance pass: 9400 / 9600 (10600 / 9600 before: 55.4% of the 2,000-seed gate; now 49.8%). Sim v14 (seven dogs, docs/plans/moba/DOGS-V13.md): 8750 / takes 9600 (48.8% of the 2,000-seed gate). Sim v15 (ten dogs, docs/plans/moba/DOGS-V15.md): 8000 / takes 9575 (50.9% of the 2,000-seed gate). Sim v18 (chase fix, docs/plans/moba/V18-CHASE.md §3): 8450 / takes 8950. Sim v20 refit on four seed windows (V20-CHASE.md §9): 8665 / 8735 → 8690 / 8450. */
+  pvp: { dmgBp: 8690, takenBp: 8450 },
   element: 'ICE',
   base: { hp: 460, hpPerLevel: 48, attack: 50, attackPerLevel: 5, attackEvery: 27, range: 5800, speed: 4700, armour: 16, armourPerLevel: 2 },
   /** Cardboard Plating: an 8%-max-HP plate that refills after 4 s without hero damage; when it breaks she pops out, +25% speed for 1.5 s. */

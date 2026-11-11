@@ -95,7 +95,7 @@ export const SIM_VERSION: number = sim.SIM_VERSION;
 export const MAX_TICKS: number = sim.MAX_TICKS;
 export const MAX_INPUT_CHARS: number = sim.MAX_INPUT_CHARS;
 /** sha256 of pawlegends-sim.bundle.ts: which sim this backend replays with (GET /pawlegends/sim). */
-export const BUNDLE_SHA256 = '46f0eb3993f22feda7cb9c8e161f11b328d1ecf8bb4c9e8f4511ed5b9c58bccc';
+export const BUNDLE_SHA256 = '6f337e79daa86feee09c1b5d9c47494f6d6f07ace9891b500392271540c6d57b';
 /** The SIM_VERSION this bundle was built with (20). */
 export const BUNDLE_SIM_VERSION = 20;
 /** False: this is the real sim, not the placeholder that refuses every replay. */
@@ -111,7 +111,7 @@ export const verifyReplay: (record: unknown) => PawlegendsVerifyResult = sim.ver
 // steps rooms with. Matches and bots are opaque handles; commands are the sim's `Command` objects.
 
 /** SIM_HASH of the sim source closure this bundle was built from (the game's __SIM_HASH__). */
-export const SIM_SOURCE_HASH = 'fb15ae4bcef99f1e';
+export const SIM_SOURCE_HASH = '7a865342db69e7d0';
 /** goldenHash (pawlegends/src/net/golden.ts) of this bundle, 8 hex (the game's __SIM_GOLDEN__). */
 export const SIM_GOLDEN = 'cc374d16';
 
