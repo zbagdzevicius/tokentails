@@ -6,7 +6,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { lobbyScreen, type LobbyScreenOpts } from '../../src/ui/lobby/lobbyScreen';
 import { lobbyHtml } from '../../src/party/ui/partyLobby';
-import { lastQueueSide, setLastQueueSide } from '../../src/meta/partyPrefs';
+import { PVP_UNLOCK_MATCHES, lastQueueSide, setLastQueueSide } from '../../src/meta/partyPrefs';
 import type { PartyView } from '../../src/net/proto';
 
 const base = (o: Partial<LobbyScreenOpts> = {}): LobbyScreenOpts => ({
@@ -98,7 +98,27 @@ describe('Play online (M1a)', () => {
     expect(onOnline).toHaveBeenCalledTimes(2);
   });
 
-  it('PvP before 5 matches reads "PvP 🔒 2/5", and a tap explains it instead of queueing', () => {
+  it('the 5-match lock is lifted: a 0-match player\'s PvP button is open and one tap queues PvP', () => {
+    expect(PVP_UNLOCK_MATCHES).toBe(0);
+    const onOnline = vi.fn();
+    const onMode = vi.fn();
+    const played = 0;
+    // the options app.ts builds for a brand-new guest
+    const root = lobbyScreen(
+      document.body,
+      base({ onOnline, onlineMode: { mode: 'coop', locked: played < PVP_UNLOCK_MATCHES, played, needed: PVP_UNLOCK_MATCHES, onMode } }),
+    );
+    const pvp = root.querySelector('[data-testid="play-pvp"]') as HTMLElement;
+    expect(pvp.getAttribute('aria-disabled')).toBeNull();
+    expect(pvp.textContent).not.toContain('🔒');
+    expect(pvp.textContent).not.toContain('/');
+    pvp.click();
+    expect(onMode).toHaveBeenLastCalledWith('pvp');
+    expect(onOnline).toHaveBeenCalledTimes(1);
+    expect(root.querySelector('.lb-toast')?.textContent ?? '').not.toContain('unlocks');
+  });
+
+  it('if the lock is raised again: PvP before 5 matches reads "PvP 🔒 2/5", and a tap explains it instead of queueing', () => {
     const onOnline = vi.fn();
     const onMode = vi.fn();
     const root = lobbyScreen(document.body, base({ onOnline, onlineMode: { mode: 'coop', locked: true, played: 2, needed: 5, onMode } }));
@@ -111,7 +131,7 @@ describe('Play online (M1a)', () => {
     expect(root.querySelector('.lb-toast')?.textContent).toContain('PvP unlocks after 5 matches');
   });
 
-  it('5v5 Classic picked: PvP has no 5-match lock (it queues 5v5); back on 3v3 the lock returns', () => {
+  it('if the lock is raised again: 5v5 Classic picked has no lock (it queues 5v5); back on 3v3 the lock returns', () => {
     const onOnline = vi.fn();
     const onMode = vi.fn();
     const root = lobbyScreen(

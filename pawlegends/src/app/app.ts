@@ -46,7 +46,7 @@ import type { HeroId } from '../sim/api';
 import { dareFromUrl, dareUrl, type Dare } from '../share/dare';
 import { inviteUrl, partyApi, partyFromUrl } from '../share/partyLink';
 import type { PartyClient } from '../party';
-import { hideNames, lastQueueSide, onlineMode, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
+import { PVP_UNLOCK_MATCHES, hideNames, lastQueueSide, onlineMode, pvpQueueFor, setLastQueueSide, setOnlineMode, type OnlineMode } from '../meta/partyPrefs';
 import { pvpAvailable, pvpKnown } from '../meta/pvpCapability';
 import { isMpEvent } from '../analytics/posthog';
 import type { MatchMsg } from '../net/proto';
@@ -727,9 +727,10 @@ export class App {
           this.partyApi && pvpKnown() === true
             ? {
                 mode: this.onlineMode ?? onlineMode(p.matches),
-                locked: p.matches < 5,
+                // no match-count lock for now (PVP_UNLOCK_MATCHES 0): PvP is one tap from the first session
+                locked: p.matches < PVP_UNLOCK_MATCHES,
                 played: p.matches,
-                needed: 5,
+                needed: PVP_UNLOCK_MATCHES,
                 onMode: (m) => {
                   this.onlineMode = m;
                   setOnlineMode(m);
@@ -928,12 +929,12 @@ export class App {
   /** Open the party chunk: create a party at once (the first tap), join a link's code, type a code, or resume a seat. */
   /**
    * The Quick Play queue the title's online buttons start: Co-op, or PvP. PvP is 5v5 Classic when the mode toggle
-   * picks it (no match-count lock; the toggle shows after the guided first match), else 3v3 casual from 5 matches.
+   * picks it (no match-count lock; the toggle shows after the guided first match), else 3v3 casual (no match-count
+   * lock either while PVP_UNLOCK_MATCHES is 0).
    */
   private queueModeFor(matches: number): 'coop' | 'casual' | 'classic' {
-    if (pvpKnown() !== true || (this.onlineMode ?? onlineMode(matches)) !== 'pvp') return 'coop';
-    if (matches > 0 && (this.matchModeNow ?? loadMatchMode()) === 'classic') return 'classic';
-    return matches >= 5 ? 'casual' : 'coop';
+    if (pvpKnown() !== true) return 'coop';
+    return pvpQueueFor(this.onlineMode ?? onlineMode(matches), matches, (this.matchModeNow ?? loadMatchMode()) === 'classic');
   }
 
   private openParty(mode: 'create' | 'join' | 'code' | 'resume' | 'queue' | 'back', code: string | null = null): void {
@@ -964,7 +965,7 @@ export class App {
             newbie: p.matches === 0,
             matches: p.matches,
             // PvP from the title's button: 5v5 Classic when picked (open to every player after the guided first
-            // match), else 3v3 casual (a newbie queues co-op; the relay refuses casual PvP before 5 matches)
+            // match), else 3v3 casual (no match-count lock for now: a 0-match guest queues it too)
             queueMode: this.queueModeFor(p.matches),
             build: String(import.meta.env.VITE_PAWLEGENDS_BUILD ?? 'dev').toLowerCase().replace(/[^a-z0-9.-]/g, '').slice(0, 32) || 'dev',
             // P9: the embed host mints a single-use ticket with its own session; standalone players are unscored guests

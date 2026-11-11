@@ -102,7 +102,7 @@ describe('5v5 Classic relay (MAP-5V5.md §9)', () => {
         }
     });
 
-    it('a brand-new player queues 5v5 Classic: no 5-match lock (casual 3v3 keeps it)', async () => {
+    it('a brand-new player queues 5v5 Classic (and casual 3v3): no 5-match lock', async () => {
         const b = await bootMm();
         try {
             // a fresh guest with no server record and no matches, and an IP-only identity (no guest key)
@@ -116,13 +116,11 @@ describe('5v5 Classic relay (MAP-5V5.md §9)', () => {
                 expect(c.last('error')).toBeUndefined();
             }
             expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(2);
-            // casual 3v3 still asks for 5 completed matches
+            // casual 3v3 is open from the first session too (its 5-match lock is lifted for now, 2026-11-11)
             const casual = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
             casual.send({ t: 'mm.join', queue: 'casual', side: 'any' });
-            expect(await casual.until(() => casual.last('error'))).toMatchObject({
-                code: 'mm_locked',
-                reason: 'pvp_newbie',
-            });
+            expect((await casual.until(() => casual.last('mm.status'))).queue).toBe('casual');
+            expect(casual.last('error')).toBeUndefined();
         } finally {
             await b.stop();
         }

@@ -294,7 +294,7 @@ function railHtml(o: LobbyScreenOpts, full = true): string {
   return `<nav class="lb-rail" aria-label="More" data-n="${items.length}">${items.join('')}</nav>`;
 }
 
-/** Is the PvP button locked? Only 3v3 casual PvP has the 5-match lock; 5v5 Classic is open to every player. */
+/** Is the PvP button locked? Only 3v3 casual PvP can have a match-count lock (none for now); 5v5 Classic never has. */
 const pvpLockedIn = (o: LobbyScreenOpts, mode: MatchMode | null): boolean => !!o.onlineMode?.locked && mode !== 'classic';
 
 /** Tier 2: Co-op, PvP (when the backend has it), Friends and "#" (join with code). Each is one tap. */
