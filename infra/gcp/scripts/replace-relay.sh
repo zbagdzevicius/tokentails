@@ -21,7 +21,9 @@ if [ "$(gcloud compute instance-groups managed describe "$RELAY_MIG" "${G[@]}" -
     [ "$FORCE" != "1" ]; then
     echo "the relay VM already runs the current template: nothing to replace (FORCE=1 replaces anyway)"; exit 0
 fi
-URL=$(gcloud compute instance-groups managed list-instances "$RELAY_MIG" "${G[@]}" --format='value(instance)' | head -n 1)
+# JSON, not value(instance): gcloud 570 prints only the zone for value(instance), which left INSTANCE and ZONE wrong
+URL=$(gcloud compute instance-groups managed list-instances "$RELAY_MIG" "${G[@]}" --format=json | jq -r '.[0].instance // empty')
+[ -n "$URL" ] || { echo "no relay VM in $RELAY_MIG" >&2; exit 1; }
 INSTANCE=${URL##*/}
 ZONE=$(echo "$URL" | sed -nE 's#.*/zones/([^/]+)/instances/.*#\1#p')
 on_vm() { gcloud compute ssh "$INSTANCE" --project "$PROJECT_ID" --zone "$ZONE" --tunnel-through-iap --quiet --command "$1" 2>/dev/null; }

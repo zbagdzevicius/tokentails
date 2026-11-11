@@ -23,7 +23,9 @@ set -euo pipefail
 case "$PROJECT_ID" in motored* | "") echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; gleaming-medium-480114-g5 | tokentails-staging) ;; *) echo "refused project '$PROJECT_ID'" >&2; exit 1 ;; esac
 G=(--project "$PROJECT_ID" --region "$REGION" --quiet)
 
-URL=$(gcloud compute instance-groups managed list-instances "$RELAY_MIG" "${G[@]}" --format='value(instance)' | head -n 1)
+# JSON, not value(instance): gcloud 570 prints only the zone for value(instance), which left INSTANCE and ZONE wrong
+URL=$(gcloud compute instance-groups managed list-instances "$RELAY_MIG" "${G[@]}" --format=json | jq -r '.[0].instance // empty')
+[ -n "$URL" ] || { echo "no relay VM in $RELAY_MIG" >&2; exit 1; }
 INSTANCE=${URL##*/}
 ZONE=$(echo "$URL" | sed -nE 's#.*/zones/([^/]+)/instances/.*#\1#p')
 on_vm() { gcloud compute ssh "$INSTANCE" --project "$PROJECT_ID" --zone "$ZONE" --tunnel-through-iap --quiet --command "$1"; }
