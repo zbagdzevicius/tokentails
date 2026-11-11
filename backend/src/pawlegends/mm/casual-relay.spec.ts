@@ -158,6 +158,11 @@ describe('casual PvP relay (M1b)', () => {
             await nextTick();
             expect(old.last('error')).toBeUndefined();
             expect((b.relay.counters() as Record<string, number>).mm_queued).toBe(0);
+            // an accept for a match it was never offered is ignored (no error)
+            const late = await b.veteran(VET);
+            late.send({ t: 'mm.accept', match: 'abcdefghijkl', yes: true });
+            await nextTick();
+            expect(late.last('error')).toBeUndefined();
             // founder, 2026-11-11: casual PvP is open from the first session. A brand-new guest (0 matches, no server
             // record), a guest that claims matches it never played, a 4-room veteran and an IP-only identity all queue
             const fresh = await b.guest({ hint: { maxDifficulty: 'easy', newbie: true, matches: 0 } });
