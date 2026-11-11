@@ -13,7 +13,7 @@
  * bytes for every frame type).
  */
 
-export const PROTO = 4;
+export const PROTO = 5;
 /**
  * The oldest PROTO the relay still accepts (M1a, docs/plans/moba/M1A-IMPL.md §5.5). PROTO 2 only adds the `mm.*`
  * JSON frames (Quick Play co-op); the binary frames and the framing are unchanged, so the subprotocol stays `pl.1`. The
@@ -35,6 +35,13 @@ export const PROTO_PVP = 3;
  * a PROTO 3 socket: the relay answers `update_required`) sets a mask bit above 0x3f or a slot above 7.
  */
 export const PROTO_CLASSIC = 4;
+/**
+ * PROTO 5 (friends chat, docs/plans/moba/CHAT-AVATARS.md §5): party chat in the lobby, pick and results (`chat.say` →
+ * `chat.msg` to the party, or to the own team in a matchmade party; `chat.reject`), DM notices (`chat.notice`, no body),
+ * an avatar per member (`MemberView.av`) and the chat tier, thread id and own blocks on the party view. No binary frame
+ * changes. A PROTO 4 socket never gets a `chat.*` frame, and its `chat.say` is refused as unknown.
+ */
+export const PROTO_CHAT = 5;
 export const SUBPROTOCOL = 'pl.1';
 /**
  * Quick Play queues: co-op (M1a), casual PvP (M1b, PROTO 3 on a sim >= PVP_SINCE) and 5v5 Classic (PROTO 4 on a sim
@@ -580,9 +587,30 @@ export type ClientJson =
   /** PROTO 3: the answer to a casual `mm.found` (10 s; a decline or no answer is a dodge). */
   | { t: 'mm.accept'; match: string; yes: boolean }
   /** A stranger's closed tab: take this identity's own live Quick Play seat back (a stranger has no code to rejoin by). */
-  | { t: 'mm.back' };
+  | { t: 'mm.back' }
+  /**
+   * PROTO 5: one party chat line (lobby, pick, results): a phrase id (`q`), a sticker id (`s`) or, in a party where
+   * every member is a registered 16+ account, filtered text (`t`, at most CHAT_SAY_MAX_TEXT characters before the
+   * server's normalisation).
+   */
+  | { t: 'chat.say'; k: ChatKind; id?: number; text?: string };
 
 export type ClientJsonType = ClientJson['t'];
+
+export type ChatKind = 't' | 'q' | 's';
+/** The raw text a `chat.say` may carry (the server cuts to 120 characters after normalising, or refuses). */
+export const CHAT_SAY_MAX_TEXT = 240;
+/** A party chat line's sender rate: 5 in 10 s per socket, its own bucket (not the in-match social one). */
+export const CHAT_SAY_RATE = Object.freeze({ windowMs: 10_000, perWindow: 5 });
+
+/** The avatar a member wears (CHAT-AVATARS.md §7.3): icon key, bucket art, frame, title, ranked tier. */
+export interface AvatarWire {
+  i: string;
+  img?: string;
+  f?: string;
+  t?: string;
+  r?: string;
+}
 
 type FieldCheck = (v: unknown) => boolean;
 const isStr =
@@ -655,6 +683,11 @@ const SCHEMA: Readonly<Record<ClientJsonType, Readonly<Record<string, readonly [
   'mm.backfill': { offer: [isStr(/^[a-z0-9]{12}$/), false], yes: [isBool, false] },
   'mm.accept': { match: [isStr(/^[a-z0-9]{12}$/), false], yes: [isBool, false] },
   'mm.back': {},
+  'chat.say': {
+    k: [(v) => v === 't' || v === 'q' || v === 's', false],
+    id: [isInt(0, 63), true],
+    text: [(v) => typeof v === 'string' && v.length >= 1 && v.length <= CHAT_SAY_MAX_TEXT, true],
+  },
 };
 
 /** JSON frame types that only a PROTO 2 socket may send or receive. */
@@ -716,6 +749,8 @@ export interface MemberView {
   loadPct?: number;
   /** Results phase: this member pressed "Play again together" (lane M6 counts them). */
   again?: boolean;
+  /** PROTO 5: the member's avatar (a default hero icon until the account's own resolves; guests show a paw). */
+  av?: AvatarWire;
 }
 
 export interface PartyView {
@@ -748,6 +783,13 @@ export interface PartyView {
   };
   /** PROTO 2: the friend party is queued for Quick Play (every member shows the queue card). */
   queue?: { sinceMs: number; side: MmSide };
+  /**
+   * PROTO 5: party chat. `tier` 'text' only when every member is a registered 16+ account in a friend party (never with
+   * strangers); `thread` is the id a report names.
+   */
+  chat?: { tier: 'text' | 'quick'; thread: string };
+  /** PROTO 5: member ids the recipient blocked (only in the recipient's own copy): their chat lines are hidden. */
+  blocks?: string[];
 }
 
 export interface MatchConfigView {
@@ -839,7 +881,13 @@ export type ServerJson =
   /** PROTO 3 casual: who accepted so far (counts only). */
   | { t: 'mm.accepted'; match: string; yes: number; need: number }
   | { t: 'mm.cancel'; reason: 'left' | 'away' | 'party' | 'server' | 'update' | 'declined' | 'timeout' }
-  | { t: 'mm.backfill.offer'; offer: string; side: 'cat' | 'dog'; clockS: number; score: [number, number]; expiresMs: number };
+  | { t: 'mm.backfill.offer'; offer: string; side: 'cat' | 'dog'; clockS: number; score: [number, number]; expiresMs: number }
+  /** PROTO 5: a party chat line. `from` is the member id (never an account id); `mid` names it for a report. */
+  | { t: 'chat.msg'; mid: string; from: string; k: ChatKind; text?: string; id?: number; at: number }
+  /** PROTO 5: your `chat.say` was not sent (`why`: words, contact, link, charset, long, rate, quick_only, phase, muted, cooldown, scope). */
+  | { t: 'chat.reject'; why: string; until?: number }
+  /** PROTO 5: a friend sent you a DM (no body: read it over the API). Held in loading and match, sent on results. */
+  | { t: 'chat.notice'; thread: string };
 
 export type ServerJsonType = ServerJson['t'];
 const SERVER_TYPES: readonly ServerJsonType[] = [
@@ -862,6 +910,9 @@ const SERVER_TYPES: readonly ServerJsonType[] = [
   'mm.backfill.offer',
   'mm.accepted',
   'void',
+  'chat.msg',
+  'chat.reject',
+  'chat.notice',
 ];
 
 /** Parse a server JSON frame (the client trusts the relay's fields but still refuses unknown types). */

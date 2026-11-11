@@ -11,6 +11,7 @@ import { randomBytes, randomInt } from 'crypto';
 import { CODE_ALPHABET, type MemberView, type PartyPhase, type PartyView } from './net';
 import { dedupeNames, memberName } from './party-names';
 import { rotationWeek } from '../pawlegends-catalog';
+import { partyThreadId } from '../social/chat-ids';
 
 export const PARTY_TIMING = Object.freeze({
     pickMs: 30_000,
@@ -152,6 +153,21 @@ export interface PartyEvents {
     startMatch(plan: StartPlan): void;
     /** The party ended (its code is retired): the relay marks its stored row, so other relays answer `party_ended`. */
     ended?(party: Party): void;
+    /**
+     * Friends chat (CHAT-AVATARS.md §2.2, §7.3): what the relay resolved for a member's account, or undefined (a guest,
+     * or not resolved yet: quick tier and a default avatar).
+     */
+    chatOf?(memberId: string): MemberChat | undefined;
+}
+
+/** A member's chat side, resolved by the relay from the account (never from the client). */
+export interface MemberChat {
+    /** 'text' only for a registered account with a stored 16-17 or 18+ band. */
+    tier: 'text' | 'quick';
+    /** The account's avatar (checked against what it owns). */
+    av?: MemberView['av'];
+    /** Account ids this account blocked (the own copy's `blocks` hides their lines). */
+    blocked?: readonly string[];
 }
 
 export interface PartyRules {
@@ -893,6 +909,30 @@ export class PartyService {
         return p;
     }
 
+    /**
+     * The party's chat tier (CHAT-AVATARS.md §2.2): free text only in a friend party (no strangers) where every member
+     * is a registered account the relay resolved as 16+. A guest, an unknown band or an under-16 member makes it quick.
+     */
+    chatTier(p: Party): 'text' | 'quick' {
+        if (p.mm && p.mm.strangers.size > 0) return 'quick';
+        for (const m of p.members) {
+            if (!m.identity.ticketed || m.identity.guest || !m.identity.accountId) return 'quick';
+            if (this.events.chatOf?.(m.id)?.tier !== 'text') return 'quick';
+        }
+        return 'text';
+    }
+
+    /** The chat thread id of this party (reports name it). */
+    chatThread(p: Party): string {
+        return partyThreadId(p.id);
+    }
+
+    /** A member's chat info resolved (or changed): send the party its new views. */
+    chatChanged(memberId: string): void {
+        const p = this.partyOf(memberId);
+        if (p) this.touch(p);
+    }
+
     /** The `party` frame for one member: its own copy adds its card's catId and custom cat name. */
     view(p: Party, forMember: string): PartyView {
         const me = p.members.find(m => m.id === forMember);
@@ -925,6 +965,9 @@ export class PartyService {
                     if (m.card.ownName) v.ownName = m.card.ownName;
                 }
             }
+            // CHAT-AVATARS §7.3: the account's avatar, else the default icon (never the picked hero: in a casual pick
+            // the other team's heroes are hidden)
+            v.av = this.events.chatOf?.(m.id)?.av ?? { i: `h:${this.rules.newbieHero}` };
             return v;
         });
         const stranger = !!p.mm?.strangers.has(forMember);
@@ -953,6 +996,14 @@ export class PartyService {
             };
         else if (p.mm) view.mm = { side: p.mm.side, strangers: p.mm.strangers.size > 0 };
         if (p.queued) view.queue = { sinceMs: Math.max(0, this.now() - p.queued.sinceMs), side: p.queued.side };
+        view.chat = { tier: this.chatTier(p), thread: this.chatThread(p) };
+        const blocked = this.events.chatOf?.(forMember)?.blocked;
+        if (blocked?.length) {
+            const ids = p.members
+                .filter(m => m.id !== forMember && m.identity.accountId && blocked.includes(m.identity.accountId))
+                .map(m => m.id);
+            if (ids.length) view.blocks = ids;
+        }
         return view;
     }
 
