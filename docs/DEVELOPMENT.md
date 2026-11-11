@@ -256,6 +256,16 @@ Copy the file and keep the header. Coat palettes and patterns live only in `pawl
 (`STORE_COAT_PAL`, `PASS_COAT_PAL`). The host mirrors the store item id shapes and `STORE_TERMS_VERSION`
 (`PAWLEGENDS_STORE_CONSENT_VERSION`) in `client/components/pawlegends/bridge.ts` and `checkout.ts`.
 
+Social, ranked and PvP reports (`docs/plans/moba/SOCIAL-RANKED.md` §11.1): duplicated constants, change every copy.
+
+| Constant | Backend | Game / host | Checked by |
+|---|---|---|---|
+| `RANKED_TIERS`, `RANKED_POINTS`, `PLACEMENTS`, `DIVISION_NUMERALS`, `LEGEND_IDX` | `backend/src/pawlegends/ranked/tiers.ts` | `pawlegends/src/meta/ranked.ts` | `pawlegends/tests/unit/ranked-tiers.test.ts` |
+| `RANKED_OPEN_AT` (24), `RANKED_CLOSE_BELOW` (16) | `ranked/tiers.ts` | the game shows the server's `ranked/status` | – |
+| `REPORT_REASONS` | `backend/src/pawlegends/social/report.contracts.ts` | `pawlegends/src/social/report.ts` | `pawlegends/tests/unit/report-popover.test.ts` |
+| API ops of `api-request` | – | `pawlegends/src/embed/api.ts`, `client/components/pawlegends/apiBridge.ts` | `shared/pawlegends-bridge.fixtures.json` (`apiOps`), both sides' tests |
+| Player code alphabet and format | `backend/src/pawlegends/social/social.contracts.ts` | the game only shows the server's code | – |
+
 The spec is `docs/plans/moba/POC.md`. The client serves the build at `/pawlegends-game/` and hosts it in
 `pages/pawlegends/index.tsx` (GAMES.md, "Pawlegends"). Rebuild `client/public/pawlegends-game` after any
 game change and commit it. After a sim change run `npm run vendor-sim` and deploy the backend first;

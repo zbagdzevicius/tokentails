@@ -735,6 +735,19 @@ Props never carry names, codes, account ids or room ids.
 - The queue is per relay (gaps report). Ranked liquidity and the online count are global, but matching is per relay until the shared queue lands **[infra]**.
 - The game ladder in `meta/ladder.ts` ("bot ladder", local only) has its own "placement" word. Ranked copy must not reuse the bot ladder's numbers, so that the two read as different things.
 
-## 19. Build status
+## 19. Build status (feat/pawlegends-social, 2026-11-11)
 
-Filled in as lanes land on `feat/pawlegends-social`.
+| Lane | State | Where |
+|---|---|---|
+| L1 Reports + admin + CMS | Built. Report route (guests too), minimum data, one per target per match, caps, AFK corroboration, notes for 16+ only; moderator list (F1–F5), detail, resolve (the only sanction writer), stats (the 1% trigger); CMS page `/pawlegends-reports`; the flag on the scoreboard and the results table | `backend/src/pawlegends/social/report*.ts`, `cms/pages/pawlegends-reports.tsx`, `pawlegends/src/social/report.ts` |
+| L2 Social core | Built. Profile and player codes, friends by code and from recent, auto-accept, caps, blocks, age gate, display names, invites, API pulse | `backend/src/pawlegends/social/social.*` |
+| L3 Relay | Partly built. PresenceSink (relay snapshot every 5 s, diffed bulk upsert, 60 s refresh) and sanctions at `mm.join`. **Not built:** PROTO 5 and the `social.add` frame (add from the party), durable dodges (`pawlegendsmmdodges`), the blocked joiner's `party_full` at `party.join` | `party/presence-sink.ts`, `mm/sanction-reader.ts` |
+| L4 Invites + Join | Built on one relay: invite route, title pulse toast with Join, Join from a friend row. Multi-relay needs the party directory **[infra]** | `social.service.ts`, `pawlegends/src/social/socialSheet.ts` |
+| L5 Boards | Built. Weekly and per-hero rows written only in `/live` (`writeBoards`), read routes, cached 60 s, sanctions and guests excluded | `pawlegends-party-live.ts`, `ranked/boards.ts`, `ranked/ranked.service.ts` |
+| L6 Ranked backend | Partly built. Tiers, pure points (placements, shield, demotion, soft reset, Legend decay, dodge cost), the ranked Glicko row and points in `/live` for a `queue: 'ranked'` mm room, the liquidity gate job, `ranked/status`, `ranked/me`, the global board. **Not built:** the ranked pool in the matchmaker (`MmPvpQueue` 'ranked', solo/duo, symmetric fill, netKey rule), `mm.join {queue:'ranked'}` (PROTO 5), settlement (`mm_ranked_pending`), the full re-verify before a ranked save, season rewards (peaks are recorded with `rewarded: false` for a later grant). So no ranked room exists yet: the sheet shows the card, the gate line and Play Casual, never Play Ranked | `ranked/*.ts` |
+| L7a heroSight export | Not built on purpose: it changes SIM_HASH, so it rides the next planned SIM_VERSION bump | `src/sim/server.ts` (next bump) |
+| L7b Referee intel | Built and dormant: the counter runs only when the sim exports `heroSight`; the relay stores `members[].intel`; the moderator view computes the z-score | `party/referee-intel.ts`, `social/intel.ts` |
+| L8 Game UI + host bridge | Built: `api-request`/`api-result` bridge (game, host, fixture), the report flags, the Social sheet (Friends, Requests, Recent, Ranked, Boards), the lobby button, the invite toast. **Not built:** the Ranked button in the online row and the hero board picker; the app shell (`pawlegends-app`) has no host bridge, so social answers status 0 there | `pawlegends/src/embed/api.ts`, `client/components/pawlegends/apiBridge.ts` |
+
+Routes differ from §10 in one place: the friends board and the caller's own rank are `GET /pawlegends/boards/:kind/me`
+(auth); `GET /pawlegends/boards/:kind` stays public and cached.
