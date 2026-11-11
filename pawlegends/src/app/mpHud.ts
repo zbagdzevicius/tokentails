@@ -28,6 +28,7 @@ import { SLOT_RING, partySlotNames, type PartyLink, type PausedMsg, type SocialM
 import { QuickChat, type ChatPick } from '../party/ui/quickChat';
 import { shellPlatform } from './platform';
 import { SIM_VERSION } from '../sim/version';
+import { REPORT_THANKS, reportPopover, reportable, closeReportPopover, type ReportBook } from '../social/report';
 
 /** What the party HUD needs from the MatchSession (kept narrow: the session stays the owner of every view). */
 export interface MpHudHost {
@@ -57,6 +58,8 @@ export interface MpHudHost {
   track(event: string, props: Record<string, string | number | boolean>): void;
   /** Match ticks now (the analytics clock). */
   tick(): number;
+  /** PvP reports (SOCIAL-RANKED.md §8): this match's report book (null outside PvP or standalone). */
+  report?: ReportBook | null;
   /** Test seam. */
   now?(): number;
 }
@@ -189,6 +192,23 @@ export class MpHud {
     h.minimap.ringOf = (slot) => (this.isFriend(slot) ? (SLOT_RING[slot] ?? null) : null);
     const sb = h.scoreboard();
     if (sb) sb.onMute = (slot) => this.toggleMute(slot);
+    if (sb && link.pvp && h.report) {
+      const book = h.report;
+      sb.report = {
+        can: (slot) => reportable(slot, link.mySlot, link.names),
+        done: (slot) => book.done(slot),
+        open: (slot, anchor) =>
+          void reportPopover(anchor, this.names[slot] ?? 'player', (reason) => {
+            void book.report(slot, reason, h.tick()).then((out) =>
+              this.h.rail.push(
+                out === 'failed'
+                  ? { key: 'mp-report', title: 'Report not sent. Try again', tone: 'bad', prio: 3, ttl: 2500 }
+                  : { key: 'mp-report', title: REPORT_THANKS, tone: 'info', prio: 3, ttl: 2500 },
+              ),
+            );
+          }),
+      };
+    }
     this.chat = new QuickChat(h.ui, { enabled: () => h.enabled() });
     this.chat.onPick = (p) => this.sendChat(p);
     this.applyNames();
@@ -539,5 +559,6 @@ export class MpHud {
     this.chat = null;
     this.h.rail.onAction = null;
     this.h.overhead.seats = null;
+    closeReportPopover();
   }
 }
