@@ -44,7 +44,7 @@ import {
     ON_ENV,
     signedEvent,
 } from './pawlegends-harness.helper-spec';
-import { grantItems, mergeStoreProgress, ownedItemsOf } from './pawlegends-season.service';
+import { grantItems, mergeStoreProgress, ownedItemsOf, revokeSession } from './pawlegends-season.service';
 import { PartyService, type Member, type Party, type PartyRules } from './party/party.service';
 
 jest.mock('node-fetch', () => jest.fn());
@@ -262,6 +262,51 @@ describe('Yarn and unlocks', () => {
         const owned = await ownedChampions(store(h), ACCOUNT);
         expect(owned).toEqual([{ hero: 'bravo', source: 'milestone' }]);
     });
+
+    it('a grant that failed after the spend is finished by the next call, never spent again', async () => {
+        const h = champHarness();
+        await store(h).yarn.updateOne({ _id: ACCOUNT }, { $set: { balance: 4000 } }, { upsert: true });
+        const owned = store(h).owned;
+        const real = owned.updateOne.bind(owned);
+        owned.updateOne = jest.fn().mockRejectedValueOnce(new Error('connection reset'));
+        await expect(unlockChampion(store(h), ACCOUNT, { hero: 'pixel' })).rejects.toThrow('connection reset');
+        owned.updateOne = real;
+        expect((await store(h).yarn.findOne({ _id: ACCOUNT }).lean()).balance).toBe(500);
+        expect(await heroesOf(h)).toEqual([]);
+        expect((await unlockChampion(store(h), ACCOUNT, { hero: 'pixel' })).unlocked).toBe(true);
+        expect(await heroesOf(h)).toEqual(['pixel']);
+        expect((await store(h).yarn.findOne({ _id: ACCOUNT }).lean()).balance).toBe(500);
+    });
+
+    it('the guest merge adds the guest Yarn and picks once and runs the Founders check again', async () => {
+        const h = champHarness();
+        await store(h).yarn.updateOne(
+            { _id: ACCOUNT },
+            { $set: { balance: 700, earned: 900, matches: 6, picks: 1, picksLeft: 1, unlocked: ['meatball'] } },
+            { upsert: true }
+        );
+        await store(h).yarn.updateOne(
+            { _id: ACCOUNT2 },
+            { $set: { balance: 100, earned: 100, matches: 1, picks: 0, picksLeft: 0, foundersChecked: true } },
+            { upsert: true }
+        );
+        await grantItems(store(h), ACCOUNT2, [champItem('meatball')], 'purchase', { sessionId: 'cs_t' });
+        await grantItems(store(h), ACCOUNT, [champItem('meatball')], 'yarn');
+        await mergeStoreProgress(store(h), ACCOUNT, ACCOUNT2);
+        await mergeStoreProgress(store(h), ACCOUNT, ACCOUNT2);
+        const row = await store(h).yarn.findOne({ _id: ACCOUNT2 }).lean();
+        expect(row).toMatchObject({ balance: 800, earned: 1000, matches: 7, picks: 1, picksLeft: 1 });
+        expect(row.unlocked).toEqual(['meatball']);
+        expect(row.foundersChecked).toBeUndefined();
+        expect(await store(h).yarn.findOne({ _id: ACCOUNT }).lean()).toBeNull();
+        // the guest's Yarn unlock is free: the account's purchase refund never takes it
+        await revokeSession(store(h), 'cs_t', NOW);
+        expect(await heroesOf(h, ACCOUNT2)).toEqual(['meatball']);
+        // the guest's pre-release matches moved to the account: the next check grants the roster
+        h.season.foundersEvidence = async id => id === ACCOUNT2;
+        await championReleaseAt(store(h), NOW);
+        expect((await h.season.champions(ACCOUNT2)).founders).toBe(true);
+    });
 });
 
 describe('the score hook', () => {
@@ -346,7 +391,7 @@ describe('Founders roster', () => {
         expect(await store(h).yarn.findOne({ _id: RELEASE_ID }).lean()).toBeTruthy();
     });
 
-    it('is idempotent, keeps a bought row and restores a revoked one; the guest merge carries it', async () => {
+    it('is idempotent, takes over a bought row and restores a revoked one; the guest merge carries it', async () => {
         const h = champHarness();
         await grantItems(store(h), ACCOUNT, [champItem('pixel')], 'purchase', { sessionId: 'cs_1' });
         await grantItems(store(h), ACCOUNT, [champItem('aviete')], 'purchase', { sessionId: 'cs_2' });
@@ -355,9 +400,12 @@ describe('Founders roster', () => {
         await grantFoundersRoster(store(h), ACCOUNT);
         const owned = await ownedChampions(store(h), ACCOUNT);
         expect(owned).toHaveLength(20);
-        expect(owned.find(o => o.hero === 'pixel')?.source).toBe('purchase');
+        // GDD §8.1 #7: the roster is free, so a refund of the earlier purchase never takes it away
+        expect(owned.find(o => o.hero === 'pixel')?.source).toBe('founders');
         expect(owned.find(o => o.hero === 'aviete')?.source).toBe('founders');
         expect(await store(h).owned.find({ accountId: ACCOUNT }).lean()).toHaveLength(21);
+        await revokeSession(store(h), 'cs_1', NOW);
+        expect(await heroesOf(h)).toContain('pixel');
         await mergeStoreProgress(store(h), ACCOUNT, ACCOUNT2);
         expect(await heroesOf(h, ACCOUNT2)).toHaveLength(20);
         expect(await ownedItemsOf(store(h), ACCOUNT2)).toContain(FOUNDERS_BADGE);

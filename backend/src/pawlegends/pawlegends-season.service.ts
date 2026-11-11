@@ -541,23 +541,40 @@ export class PawlegendsSeasonService {
     }
 }
 
+/** Champion rows a player got for free (CHAMPION-STORE.md §7): they never carry a purchase's session. */
+const FREE_CHAMP_SOURCES: readonly string[] = ['founders', 'yarn', 'milestone'];
+
 /**
- * Guest → account merge (pawlegends-merge.ts): the guest's owned rows and season rows move to the account.
+ * Guest → account merge (pawlegends-merge.ts): the guest's owned rows, season rows and Yarn move to the account.
  * Idempotent: owned rows are upserted on the target then deleted from the guest; season XP is the larger of the two
  * (`$max`, safe to replay), claims are unioned, and the guest row is deleted last. Premium stays the target's
- * (guests cannot buy).
+ * (guests cannot buy). A champion the guest got for free (the Founders roster, Yarn, a Champion Pick) drops the
+ * target's purchase session, so a refund of the target's purchase never takes it away. The guest's Yarn balance,
+ * matches and Champion Picks add to the account's once (the guest's Yarn row is the claim, deleted after), and the
+ * account's Founders check runs again: the guest's Game rows moved to it before this step (GDD §8.1 #7).
  */
-export async function mergeStoreProgress(models: Pick<Models, 'owned' | 'seasons'>, guestId: string, targetId: string) {
+export async function mergeStoreProgress(
+    models: Pick<Models, 'owned' | 'seasons'> & { yarn?: PawlegendsStore['yarn'] },
+    guestId: string,
+    targetId: string
+) {
     if (!guestId || !targetId || guestId === targetId) return;
     const owned = (await models.owned.find({ accountId: guestId }).lean()) as any[];
     for (const row of owned) {
         if (row.revokedAt) continue;
+        const free = FREE_CHAMP_SOURCES.includes(row.source);
         await grantItems(models, targetId, [row.item], row.source, {
             ...(row.sessionId ? { sessionId: row.sessionId } : {}),
             ...(row.claim ? { claim: row.claim } : {}),
         });
+        if (free)
+            await models.owned.updateOne(
+                { accountId: targetId, item: row.item },
+                { $unset: { sessionId: '', claim: '' } }
+            );
     }
     await models.owned.deleteMany({ accountId: guestId });
+    if (models.yarn) await mergeYarn(models.yarn, guestId, targetId);
     const seasons = (await models.seasons.find({ accountId: guestId }).lean()) as any[];
     for (const g of seasons) {
         const seasonId = String(g.seasonId);
@@ -568,4 +585,39 @@ export async function mergeStoreProgress(models: Pick<Models, 'owned' | 'seasons
         for (const c of claimed) await models.seasons.updateOne({ _id }, { $addToSet: { claimed: c } });
         await models.seasons.deleteMany({ _id: g._id });
     }
+}
+
+/**
+ * The guest's Yarn row into the account's (CHAMPION-STORE.md §7, guest merge): balance, earned, matches, picks and
+ * Champion Picks left add up, the paid-for champions are unioned. Once: the guest row is taken (`findOneAndDelete`)
+ * before the account's `$inc`. The account's `foundersChecked` is cleared so the Founders check runs again over the
+ * Game rows the merge moved to it.
+ */
+async function mergeYarn(yarn: PawlegendsStore['yarn'], guestId: string, targetId: string): Promise<void> {
+    const g = (await yarn.findOne({ _id: guestId }).lean()) as any;
+    // the guest row is the claim: only the call that deletes it adds its Yarn (a replayed merge adds nothing)
+    const taken = g ? Number((await yarn.deleteOne({ _id: guestId }))?.deletedCount) === 1 : false;
+    try {
+        await yarn.updateOne({ _id: targetId }, { $setOnInsert: { picksUsed: 0 } }, { upsert: true });
+    } catch (error) {
+        if (!isDuplicateKeyError(error)) throw error;
+    }
+    const n = (v: unknown) => Math.max(0, Math.floor(Number(v) || 0));
+    if (taken) {
+        await yarn.updateOne(
+            { _id: targetId },
+            {
+                $inc: {
+                    balance: n(g.balance),
+                    earned: n(g.earned),
+                    matches: n(g.matches),
+                    picks: n(g.picks),
+                    picksLeft: n(g.picksLeft),
+                },
+            }
+        );
+        for (const hero of Array.isArray(g.unlocked) ? g.unlocked.map(String) : [])
+            await yarn.updateOne({ _id: targetId }, { $addToSet: { unlocked: hero } });
+    }
+    await yarn.updateOne({ _id: targetId }, { $unset: { foundersChecked: '' } });
 }

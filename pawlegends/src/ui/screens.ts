@@ -38,7 +38,7 @@ import { openChampInfo } from './champBrowser/open';
 import { BROWSE_ORDER } from './champBrowser/meta';
 import type { SkillSlot } from './skillCodex/facts';
 import { champSelectHtml, openChampSelect, patchChampSelect, refreshFaces, wireChampSelect, type CsModel } from './champSelect/champSelect';
-import { champStatus, lockReason, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
+import { appHidden, champStatus, lockReason, matchesFor, rotationEndText, unlockInfo, yarnText, type ChampionsState } from '../meta/champions';
 import { browserCurrency } from '../money/skus';
 import { soloSeats } from './champSelect/seats';
 
@@ -214,6 +214,8 @@ const centsText = (c: { usd: number; eur: number }): string => {
  */
 export function champBarHtml(h: HeroId, c: PickChamps): string {
   const s = c.state();
+  // app builds: an owned champion the app does not offer has nothing to unlock (Practice still plays it)
+  if (appHidden(h, s, c.isApp)) return '';
   const info = unlockInfo(h, s);
   const out: string[] = [];
   if (info.yarn !== null) {

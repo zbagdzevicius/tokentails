@@ -147,6 +147,11 @@ describe('pick screen', () => {
     expect(app).not.toMatch(/[$€]/);
     const rich = server0({ yarn: { balance: 9000, matches: 40, picksLeft: 0, nextPickAt: null } });
     expect(champBarHtml('pixel', { state: () => rich, isApp: true, store: false, onUnlock: () => undefined, onBuy: () => undefined })).toContain('Unlock · 3,500 Yarn');
+    // a web-bought champion in the app: no unlock (the server answers "already owned"), no reason given
+    const bought = server0({ owned: [{ hero: 'duchess', source: 'purchase' }], yarn: { balance: 9000, matches: 40, picksLeft: 1, nextPickAt: null } });
+    expect(champBarHtml('duchess', { state: () => bought, isApp: true, store: false, onUnlock: () => undefined, onBuy: () => undefined })).toBe('');
+    expect(lockReason('duchess', bought, true)).toBe('Locked');
+    expect(lockReason('duchess', bought, false)).toBe('');
   });
 
   it('the unlock button asks the host', () => {

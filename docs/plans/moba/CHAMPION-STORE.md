@@ -165,7 +165,9 @@ Release time `T` is the first time a backend with this code answers a champion r
 - The check runs once per account (`foundersChecked` on its Yarn row), from `GET /pawlegends/me`, the relay's allowed set and the solo save check.
 - `PawlegendsOwnedSource` gains `'founders' | 'yarn' | 'milestone'`.
 
-**Guest merge:** `mergeStoreProgress` already moves every owned row (`champ.*` and the badge too) to the new account. The unique `{accountId, item}` index makes this idempotent.
+**Guest merge:** `mergeStoreProgress` moves every owned row (`champ.*` and the badge too) to the new account; the unique `{accountId, item}` index makes this idempotent. A free champion row (Founders, Yarn, a Champion Pick) drops the account's purchase session, so a refund never takes it. The guest's Yarn row adds to the account's once (the guest row is the claim), and the account's `foundersChecked` is cleared, so the Founders check runs again over the Game rows the merge moved.
+
+**A Founders grant over a purchase:** the roster takes over a live purchase row and drops its session (it is free; a refund of that purchase never takes the champion).
 
 **Relay-only guest keys** (`guestKeyHash`, no user document): not granted at launch (see §16).
 
@@ -178,11 +180,11 @@ Release time `T` is the first time a backend with this code answers a champion r
 1. **`party.service.ts` `heroAllowed`:** asks `PartyRules.allowed(p, m, hero)`. This covers `hover`, `pick.lock`, auto-lock on timeout (which only picks from the allowed set; Clem is a starter, so `newbieHero` is safe), and rematch `lastHero`, which is dropped at the rematch pick when no longer allowed.
    - The relay loads a member's owned champions once per identity (ticketed accounts only) and caches them. A refused hover or lock reloads them (at most once per 5 s per identity), so a purchase or unlock made in this session is seen on the next tap.
    - The party's rotation week is fixed when the pick opens (`p.rotationWeek`).
-2. **`party-relay.ts` `startMatch`:** every human seat is checked again before the room is created. A seat that fails refuses the room (`bad_message`, the party goes back to its lobby). A seat is never silently swapped.
+2. **`party-relay.ts` `startMatch`:** every human seat is checked again before the room is created (a seat that fails on this relay's cache, such as a party restored here, reads its account once first). A seat that fails refuses the room (`bad_message`, the party goes back to its lobby). A seat is never silently swapped.
 3. **Quick Play (co-op, casual, ranked, 5v5):** matched players pick in the same `PartyService` pick, so the same check applies. Backfill bots and pilots skip it; a backfilled human keeps the seat's hero.
 4. **`party.card`:** stays cosmetic. It resolves a card the caller owns and never grants or validates a champion.
 5. **`/live` solo saves (the single score path):** the replay's hero is checked against the heroes the account could pick when the match started (now minus the match length). On a miss the Game row and catnip are unchanged, but it pays no Season XP and no Yarn (`season.heroLocked: true`). Party saves rely on the relay's check at the pick (the server chose and stored every seat's hero). No new write path is added.
-6. **`POST /pawlegends/champions/unlock {hero, via: 'yarn' | 'pick', requestId}`:** one ledger row per account and champion (`unlock:<hero>`) is the claim; the spend is one conditional update (`balance >= price`, `$inc −price`, or `picksLeft > 0`). Idempotent; refuses owned and starter heroes; writes the owned row with `source: 'yarn'` or `'milestone'`. Allowed from the app.
+6. **`POST /pawlegends/champions/unlock {hero, via: 'yarn' | 'pick', requestId}`:** the spend and its claim are one conditional update of the Yarn row (`balance >= price` or `picksLeft > 0`, and the hero not in `unlocked`; `$inc` and `$push unlocked`), so a crash after the spend is finished by the next call and never spends twice; the ledger row `unlock:<hero>` is the record. Idempotent; refuses owned and starter heroes; writes the owned row with `source: 'yarn'` or `'milestone'`. Allowed from the app.
 
 ## 9. Native app
 
@@ -190,7 +192,7 @@ Release time `T` is the first time a backend with this code answers a champion r
 
 **Not shown in the app:** prices, $ buttons, bundles, and any "buy on the web" wording. The host answers champion store intents with `ok: false`, as it does for the cosmetics store.
 
-**Web-bought champions:** GDD §8.1 #10 and Apple 3.1.3(b) say web-bought items are not rendered in the app until IAP exists. Default: in the app, a web-bought champion shows as locked with "Unlock with Yarn". This hurts paying players who also use the app, so it is founder decision 1. The alternative is IAP in Phase 3. (The relay does not know which build a socket runs, so online the server allows a web-bought champion; only the app's own UI hides it. See §16.)
+**Web-bought champions:** GDD §8.1 #10 and Apple 3.1.3(b) say web-bought items are not rendered in the app until IAP exists. Default: in the app, a web-bought champion shows as "Locked" with Practice only (no unlock row: the server refuses to unlock an owned champion again, and the app never says why). This hurts paying players who also use the app, so it is founder decision 1. The alternative is IAP in Phase 3. (The relay does not know which build a socket runs, so online the server allows a web-bought champion; only the app's own UI hides it. See §16.)
 
 ## 10. UI
 

@@ -1575,8 +1575,17 @@ export class PartyRelay {
             return;
         }
         // CHAMPION-STORE.md §8.2: every human seat again (a lock was checked; a forged or stale one refuses the room,
-        // never a silent swap). Pilots and bots pick any champion.
-        if (party.members.some(m => !!m.hero && !this.parties.heroAllowedFor(party, m, m.hero))) {
+        // never a silent swap). Pilots and bots pick any champion. A seat that fails on this relay's cache (a party
+        // restored or handed off here before its members' champions were read) reads its account once first.
+        const failing = () => party.members.filter(m => !!m.hero && !this.parties.heroAllowedFor(party, m, m.hero));
+        const stale = failing()
+            .map(m => (m.identity.ticketed ? m.identity.accountId : null))
+            .filter((a): a is string => !!a);
+        if (stale.length) {
+            await Promise.all(stale.map(a => this.loadChamps(a)));
+            if (party.ended || (this.state as string) === 'stopped') return;
+        }
+        if (failing().length) {
             for (const m of party.members) this.sendJsonTo(m.id, { t: 'error', code: 'bad_message' });
             this.parties.matchEnded(party.id);
             this.log('refused_hero_locked', {});
