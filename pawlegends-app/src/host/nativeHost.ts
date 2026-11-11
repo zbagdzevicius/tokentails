@@ -167,10 +167,14 @@ export function startNativeHost(deps: NativeHostDeps): NativeHost {
 
   // ---- what the game is told -------------------------------------------------------------------
   const sendSession = () => {
-    const signedIn = isAccount() && !!profile && !profile.transient;
-    const name = signedIn && typeof profile?.name === "string" ? profile.name : null;
-    bridge.setSession(signedIn, signedIn ? progressFromProfile(profile) : null, name, signedIn ? providerOf(user()) : null);
-    const cats = signedIn && Array.isArray(profile?.cats) ? (profile!.cats as ICat[]) : [];
+    // as on the web (PawlegendsHost): signed in follows Firebase, not the profile read. A persisted account that
+    // launches offline (or whose profile read failed) still shows as signed in, so the chip offers Sign out and
+    // Delete account instead of a "Sign in" that does nothing (signIn() refuses while an account is signed in).
+    const signedIn = isAccount();
+    const known = signedIn && !!profile && !profile.transient && profileUid === user()?.uid;
+    const name = known && typeof profile?.name === "string" ? profile.name : null;
+    bridge.setSession(signedIn, known ? progressFromProfile(profile) : null, name, signedIn ? providerOf(user()) : null);
+    const cats = known && Array.isArray(profile?.cats) ? (profile!.cats as ICat[]) : [];
     if (signedIn || rosterSent) {
       bridge.setRoster(rosterOf(cats, true));
       rosterSent = true;
