@@ -129,7 +129,7 @@ html[data-touch='1'] .pl-match .pl-score .pl-pause i { width: 3.5px; height: 13p
 html[data-touch='1'] .pl-match .pl-hud .pl-score .kda {
   display: inline-flex; align-items: center; gap: 1px; flex: none; padding: 0 2px; color: #3b2417; font: 800 14px/14px var(--font); font-variant-numeric: tabular-nums;
 }
-html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ki { display: none; place-items: center; width: 11px; height: 11px; margin-right: 1px; color: #6b4a2f; }
+html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ki { display: none; place-items: center; width: 11px; height: 11px; margin-right: 1px; color: #3b2417; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ki svg { width: 11px; height: 11px; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .kl { font: 900 9px/10px var(--font); letter-spacing: 0.02em; color: #6b4a2f; margin-right: 3px; }
 html[data-touch='1'] .pl-match .pl-hud .pl-score .kda .ks { font: 700 11px/12px var(--font); opacity: 0.45; padding: 0; }
