@@ -76,6 +76,16 @@ describe('PawlegendsCheckoutGuard', () => {
         expect(ok.band).toBe('18+');
     });
 
+    it('no age band: a stored under 16 answer still blocks (the default never unlocks it)', async () => {
+        const { guard } = setup();
+        expect(
+            await codeOf(guard.assert({ ...C, userId: USER, cents: 500, ageBand: 'under16', deviceId: DEVICE }))
+        ).toBe('PAWLEGENDS_UNDER_16');
+        expect(await codeOf(guard.assert({ ...C, userId: USER, cents: 500, deviceId: DEVICE }))).toBe(
+            'PAWLEGENDS_UNDER_16'
+        );
+    });
+
     it('refuses under 16, and a later 18+ from the same account does not unlock it', async () => {
         const { guard } = setup();
         expect(
