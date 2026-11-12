@@ -209,6 +209,14 @@ Release time `T` is the first time a backend with this code answers a champion r
 
 **Store tab "Champions"** (web), next to cosmetics: every champion to unlock and the three bundle cards with honest savings.
 
+**Store layout (Wild Rift style, founder request Nov 12: "make champions store in pawlegends be more like wild rift").** `ui/store.ts` with `ui/champStore/` (model, CSS):
+- Top bar: back, STORE, Cats/Dogs (Champions only), the Yarn balance and Champion Picks. No money balance (there is no paid currency).
+- Champions (the default tab): 6 role filters, an Unowned toggle and a sort (Default, Price, Name, Newest; remembered in `localStorage`, guarded). A sideways grid of tall splash cards (`public/assets/splash/<hero>-360|720.webp`, lazy `<img>` with srcset; the Low quality tier loads 360 only), one row, two on tall screens. Each card: a thin frame in its tier's gold, ribbons (Free this week, Starter, New), the name and role on a dark gradient, and a price bar (Yarn, and on the web its price; Owned or Starter with a check).
+- A card opens a detail: the big splash, role, side, tier, difficulty, the blurb and the kit (P, Q, W, E, R), the rotation line, "Unlock · N Yarn" or "N Yarn to go", "Use a Champion Pick", the web price (the same checkout as before) and "Skills & lore" (the champion browser). Esc closes the detail, then the store.
+- Bottom tabs: Featured (this week's free champions, the bundles, the newest champions, the Legends Pass), Champions, Coats (coats and sets, the old shelf) and Frames & Titles. The gold chevron marks the active tab.
+- App builds never open the store today (STORE-PASS "Native app"). If one does, the panel shows Featured and Champions only, with Yarn unlocks and no price, bundle, pass or buy button.
+- Purchase, ownership, rotation and server validation are unchanged.
+
 **Collection:** "Champions 9/20" and the Founders roster badge.
 
 **Lobby and results:** a "+90 Yarn" line on the results screen next to Season XP, and milestone lines ("Match 5: pick a free champion").
