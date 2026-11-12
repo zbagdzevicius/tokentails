@@ -7,6 +7,7 @@ import { HERO_IDS } from '../../data/heroes';
 import type { HeroId, HeroRole, HeroSide } from '../../data/heroes/types';
 import { CHAMPIONS, champTier, type ChampTier } from '../../money/catalog';
 import { appHidden, champStatus, unlockInfo, type ChampStatus, type ChampionsState } from '../../meta/champions';
+import { assetRev } from '../assetRev';
 
 export type SideFilter = 'all' | HeroSide;
 export type SortKey = 'default' | 'price' | 'name' | 'newest';
@@ -120,7 +121,7 @@ function safeStorage(): Storage | null {
 
 /** Splash art (public/assets/splash): a 360 px card for the grid and Low quality, 720 px for the detail and wide cards. */
 export function splashUrl(base: string, hero: string, w: 360 | 720): string {
-  return `${base}assets/splash/${hero}-${w}.webp`;
+  return `${base}assets/splash/${hero}-${w}.webp${assetRev()}`;
 }
 /** `<img>` source attributes: Low quality loads the 360 px file only; otherwise the browser picks by width. */
 export function splashAttrs(base: string, hero: string, low: boolean, sizes: string): string {

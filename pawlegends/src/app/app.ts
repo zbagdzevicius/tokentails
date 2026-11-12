@@ -77,6 +77,7 @@ import { parseAudio } from '../embed/bridge';
 import { installIntegration, type Integration } from '../embed/integrate';
 import { ReportBook, REPORT_THANKS, reportOutcomeOf, reportPopover, reportToast, reportable } from '../social/report';
 import { suddenDeathS } from '../ui/screens';
+import { assetRev } from '../ui/assetRev';
 
 type Screen = 'title' | 'pick' | 'match' | 'results';
 
@@ -710,12 +711,12 @@ export class App {
       ...(p.matches > 0
         ? [
             season
-              ? { id: 'pass', title: 'Legends Pass', sub: `Tier ${season.tier}${ends ? ` · ends ${ends}` : ''}`, art: `${base}assets/lobby/promo-pass.webp`, action: 'pass' as const }
-              : { id: 'track', title: 'Treat Track', sub: 'Pick your next reward', art: `${base}assets/lobby/promo-pass.webp`, action: 'pass' as const },
+              ? { id: 'pass', title: 'Legends Pass', sub: `Tier ${season.tier}${ends ? ` · ends ${ends}` : ''}`, art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const }
+              : { id: 'track', title: 'Treat Track', sub: 'Pick your next reward', art: `${base}assets/lobby/promo-pass.webp${assetRev()}`, action: 'pass' as const },
           ]
         : []),
-      { id: 'cannon', title: 'Cannon Chaos', sub: 'Party event, coming soon', art: `${base}assets/lobby/promo-cannon.webp`, action: 'modes' },
-      { id: 'store', title: 'Store', sub: 'Champions, coats and frames', action: 'store' },
+      { id: 'cannon', title: 'Cannon Chaos', sub: 'Party event, coming soon', art: `${base}assets/lobby/promo-cannon.webp${assetRev()}`, action: 'modes' },
+      { id: 'store', title: 'Store', sub: 'Champions, coats and frames', art: `${base}assets/lobby/promo-store${this.tier === 'low' ? '-lo' : ''}.webp${assetRev()}`, action: 'store' },
     ];
     const modes = modeList();
     const opts: HomeScreenOpts = {

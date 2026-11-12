@@ -640,7 +640,7 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .pl-shop .tabs, .pl-pass .tabs, .pl-collection .track-tabs { display: flex; gap: 6px; flex-wrap: nowrap; }
 .pl-shop .shop-body { display: flex; gap: 12px; flex: 1; min-height: 0; }
 .pl-shop .shop-preview { flex: 0 0 34%; display: flex; flex-direction: column; align-items: center; gap: 4px; text-align: center; min-width: 0; min-height: 0; overflow: hidden; }
-.pl-shop .shop-pic { flex: none; width: min(150px, 24vh); aspect-ratio: 1; border-radius: 18px; background-size: cover; background-position: center; background-color: rgba(255, 243, 220, 0.1); }
+.pl-shop .shop-pic { flex: none; width: min(150px, 24vh); height: min(150px, 24vh); aspect-ratio: 1; border-radius: 18px; background-size: cover; background-position: center; background-color: rgba(255, 243, 220, 0.1); }
 .pl-shop .shop-pic.none { display: grid; place-items: center; box-shadow: 0 0 0 3px var(--frame, transparent), 0 0 14px var(--frame, transparent); }
 .pl-shop .shop-pic.none .pl-icon { width: 40%; height: 40%; }
 .pl-shop .shop-preview small { font-size: 12px; opacity: 0.8; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
@@ -658,6 +658,11 @@ html[data-touch='1'] .pl-talents button span { -webkit-line-clamp: 1; }
 .shop-tile small { font-size: 11px; color: var(--butter); }
 .shop-tile.on { border-color: var(--butter); box-shadow: 0 0 0 2px var(--butter) inset; }
 .shop-tile.st-owned small { color: #9be3c4; }
+.shop-tile.pic { flex-direction: row; align-items: center; gap: 8px; }
+.shop-tile .tt { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.shop-tile .tpic { flex: none; width: 40px; height: 40px; border-radius: 10px; background-color: rgba(255, 243, 220, 0.1); background-size: cover; background-position: center; display: grid; place-items: center; }
+.shop-tile .tpic .pl-icon { width: 55%; height: 55%; }
+.shop-tile .tpic.ring { border-radius: 50%; box-shadow: 0 0 0 3px var(--frame, transparent), 0 0 8px var(--frame, transparent); }
 .pl-shop .shop-bar, .pl-pass .pass-bar { flex: none; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .pl-shop .shop-bar .why { font-size: 13px; opacity: 0.8; }
 .pl-shop .shop-bar .line, .pl-pass .pass-bar .line { margin: 0; font-size: 13px; min-height: 1em; }

@@ -29,6 +29,17 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   });
   const game = await openHost(page);
 
+  // every Home promo slide has its picture (the Store slide was a bare gradient), and each one loads
+  const slides = game.locator('.hm-slide');
+  await expect(slides).toHaveCount(3);
+  const arts = await slides.evaluateAll((els) => els.map((e) => (e as HTMLElement).style.getPropertyValue('--art')));
+  expect(arts.every((a) => /url\(.+\.webp/.test(a))).toBe(true);
+  expect(arts.some((a) => a.includes('promo-store'))).toBe(true);
+  for (const a of arts) {
+    const url = /url\('?([^')]+)'?\)/.exec(a)![1];
+    expect((await page.request.get(url)).status(), url).toBe(200);
+  }
+
   // browse: the rail's Store opens one screen with tabs; only the grid scrolls
   await game.locator('.hm-nav [data-a="store"]').click();
   const shop = game.locator('.pl-shop');
@@ -39,10 +50,16 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await expect(shop).not.toContainText(/[0-9] Tails|coins/); // XP and prices only (CLAIMS R8)
   await shop.locator('.cst-tabs [data-tab="frames"]').click();
   await expect(shop.locator('[data-sel]')).toHaveCount(4);
+  // every frame tile shows its ring around a hero portrait (no text-only tile)
+  await expect(shop.locator('[data-sel] .tpic.ring[data-frame]')).toHaveCount(4);
   await expect(shop).toContainText('Cosmetic only: nothing here changes a match');
   await shop.locator('.cst-tabs [data-tab="coats"]').click();
   // CARD-SKINS.md: 4 effect coats (Epic $7.99, Legendary $14.99, tier word on the tile) and the 16 Rare coats
   await expect(shop.locator('[data-sel]')).toHaveCount(20);
+  // every coat tile shows the coat on its hero, and the preview is the whole square portrait (the head is not cut off)
+  await expect.poll(() => shop.locator('[data-sel] .tpic').evaluateAll((els) => els.filter((e) => getComputedStyle(e).backgroundImage.startsWith('url(')).length)).toBe(20);
+  const pic = await shop.locator('.shop-pic').boundingBox();
+  expect(pic && Math.abs(pic.width - pic.height)).toBeLessThan(2);
   await expect(shop.locator('[data-sel][data-rung="LEGENDARY"]')).toHaveCount(2);
   await expect(shop.locator('[data-sel="pl_coat_brutus_thunderpaw"]')).toContainText(/Legendary · (\$|€)14\.99/);
   await shop.locator(`[data-sel="${SKU}"]`).click();
