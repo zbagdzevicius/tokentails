@@ -8,8 +8,8 @@
  * - Sir Brutus (Tank): Kibble Corp pug knight, broad, helmet, tower shield on the left arm, short sword.
  * - Cacklejaw (Assassin): Kibble Corp security dog (spotted grinner), cap, jacket, claw gauntlets, low crouch.
  * - Sim v9 shelter champions, each from its Token Tails card (data/heroes/shelter.ts): Lambo (Tank), a big grey
- *   Maine with tangled festive lights and a pot-lid shield; Avietė (Assassin), a tuxedo cat with floating sparks
- *   and claws; Bengas (Mage), a brown tabby with a camellia crown and a toasting fork; Gabė (Support), a Siamese
+ *   Maine with tangled festive lights and a pot-lid shield; Raspberry (Assassin), a tuxedo cat with floating sparks
+ *   and claws; Bengal (Mage), a brown tabby with a camellia crown and a toasting fork; Gabby (Support), a Siamese
  *   with blue eyes, small wings and a heart balloon. They wear their card's coat (never a breed coat) and chromas.
  *
  * Team colour (POC.md §6.8) sits on the big shapes the iso camera sees from above and behind: the shoulder mantle,

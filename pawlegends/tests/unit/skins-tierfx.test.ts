@@ -177,7 +177,7 @@ describe('readability', () => {
     expect(glintColor('ELECTRIC', true)).not.toBe(0xffe24d);
     expect(glintColor('FAIRY', false)).not.toBe(0xff9fd6);
   });
-  it('the shared 8-slot aura layer (Avietė charge, charm, chroma) is never written by a card skin', () => {
+  it('the shared 8-slot aura layer (Raspberry charge, charm, chroma) is never written by a card skin', () => {
     const v = new HeroView();
     const writes: unknown[] = [];
     const auras = (v as unknown as { auras: { add: (...a: unknown[]) => void } }).auras;

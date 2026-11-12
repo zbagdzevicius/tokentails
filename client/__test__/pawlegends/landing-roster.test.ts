@@ -83,7 +83,7 @@ describe("Pawlegends landing roster", () => {
     expect([...grid, ...strip].sort()).toEqual(LANDING_ROSTER.map((h) => h.id).sort());
     for (const id of grid) expect(strip).not.toContain(id);
     const html = landingMarkup();
-    for (const h of newcomers()) expect(html).toContain(`<b class="nd-nm">${h.name.normalize("NFD")}</b>`);
+    for (const h of newcomers()) expect(html).toContain(`<b class="nd-nm">${h.name}</b>`);
     if (newcomers().some((h) => h.since > simVersion)) expect(html).toContain("Coming next:");
   });
 

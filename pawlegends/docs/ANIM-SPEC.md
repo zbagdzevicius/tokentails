@@ -45,7 +45,7 @@ export const MOVES: MoveSet = {
   basics → `['contact', 'contact']` (melee) or `['contact', 'release']` (ranged), at `BASIC_CONTACT` (8 t);
   instant casts → `'cast'` (they resolve on the cast tick, so put the weight in the follow-through, §4.2 rule 7);
   dashes → take-off `'cast'`, landing `'travelEnd'` (progress-driven: the flip ends on the dash's last tick);
-  Cacklejaw R → `'homingEnd'`; windup ults (Sage R, Lambo R, Gabė R, Bengas W) → coil `'windupStart'`, contact
+  Cacklejaw R → `'homingEnd'`; windup ults (Sage R, Lambo R, Gabby R, Bengal W) → coil `'windupStart'`, contact
   `'cast'`; zones → `'zoneArm'`, `'pulse'`; sustained states → `SlotMoves.hold` (loops) and `end` (on `'stateEnd'`).
 - Numbers come from `anim/timing.ts` (`SIM_TIMING`, `abilNumbers`, `travelTicks`), never literals: the timing contract
   test fails on a desync after a balance change.
@@ -134,7 +134,7 @@ on the side; each fix has a test in §12.
 |---|---|---|
 | D1 | The basic swing starts on the `hit` event. Melee strikes land 185–270 ms after the damage; ranged heroes draw the bow when the bolt lands (≈330 ms late at 6 m). | `effects.ts` `hit()` → `onSwing` |
 | D2 | Every ability plays one generic 0.5 s chest hop. | `Animator.cast()` |
-| D3 | Lambo borrows Brutus's motion, Avietė Cacklejaw's, Bengas and Gabė Sage's bow (they draw an invisible bow). | `chars/specs.ts` `HERO_MOTION` |
+| D3 | Lambo borrows Brutus's motion, Raspberry Cacklejaw's, Bengal and Gabby Sage's bow (they draw an invisible bow). | `chars/specs.ts` `HERO_MOTION` |
 | D4 | No root channels: no height, flips, spins, rolls, squash along an axis. Only `object.position` and `rotation.y`. | `views/heroView.ts` |
 | D5 | Clip time ignores hitstop, so impact poses never hold. Long global slow-mo is followed by a `SnapBuffer` catch-up rush. | `heroes.update(frame, dt)`, `juice.slowmo` |
 | D6 | Hot-path allocations: `Animator.setTarget` clones 28 quaternions + 28 vectors per pose change; `HeroView.update` builds a `new Set()` every frame. | `motion.ts`, `heroView.ts` |
@@ -214,7 +214,7 @@ Edits to existing render files (only these):
 |---|---|
 | `chars/index.ts` | insert a `mover` group: `object` (sim x/z, yaw) → `mover` → `inner` |
 | `chars/motion.ts` | `Animator` hosts `LayerStack`; `setTarget` copies into two preallocated buffers (D6); `swing()`/`cast()` remain as fallbacks |
-| `chars/specs.ts` | own `HERO_MOTION` profiles for Lambo, Avietė, Bengas, Gabė (D3) |
+| `chars/specs.ts` | own `HERO_MOTION` profiles for Lambo, Raspberry, Bengal, Gabby (D3) |
 | `chars/skeleton.ts` | phase 2 only: append `capeA, capeB, prop0, prop1` after `weapon` (indices 0–27 unchanged) |
 | `views/heroView.ts` | owns director hooks, feeds velocity/acceleration, drives `mover`, drops the per-frame `Set` (D6) |
 | `effects.ts` | `cast/hit/windup/death` route to `AnimDirector` and the hero `SkillFxSet`; the old shape switch stays as fallback (lobby, tests, modules not loaded) |
@@ -304,7 +304,7 @@ export interface MoveCtx {
 
 export interface SlotMoves {
   cast: ClipDef;                                    // default cast clip
-  recasts?: readonly ClipDef[];                     // Clem Q2/Q3, Cacklejaw Q2, Avietė E return
+  recasts?: readonly ClipDef[];                     // Clem Q2/Q3, Cacklejaw Q2, Raspberry E return
   branch?: ClipDef;                                 // level-6 shape branch (Sage lance, Brutus post)
   hold?: ClipDef;                                   // looping/sustained layer while a state lasts
   end?: ClipDef;                                    // plays on stateEnd
@@ -423,18 +423,18 @@ All anchors are in render seconds on the render clock that `SnapBuffer.takeEvent
 
 | Anchor | Source |
 |---|---|
-| `windupStart` | `windup` event (`ticks` given): basics are not windup events; used for Sage R 30, Lambo R 15, Gabė R 15, Bengas W 9, Bengas R arm |
+| `windupStart` | `windup` event (`ticks` given): basics are not windup events; used for Sage R 30, Lambo R 15, Gabby R 15, Bengal W 9, Bengal R arm |
 | `cast` | `cast` event tick |
 | `contact` | instant casts: = `cast`. Contact-on-touch dashes: the `hit` (kind `ability`) from the same `src` (Brutus E, Cacklejaw R). Basics melee: the `hit` (kind `basic`) |
 | `release` | ranged basics and skillshots: a new projectile with `owner === id` in the newest snapshot (≈1.6 ticks lookahead); skillshots also equal `cast` |
 | `travelEnd` | predicted `cast + travelTicks(min(aimDist, dashData), 20 m/s)`; corrected when planar speed in the newest snapshot drops below 25% of dash speed (wall clip, stun). Never later than predicted + 2 ticks |
 | `homingEnd` | Cacklejaw R: progress `s = travelled / (travelled + remaining distance to the victim)`; ends on the `hit` |
-| `zoneArm` / `pulse` | the zone snapshot's `arm` and `ttl` (Gabė Q pop +15, Sage W arm +15, Bengas R arm +18 then every 15) |
+| `zoneArm` / `pulse` | the zone snapshot's `arm` and `ttl` (Gabby Q pop +15, Sage W arm +15, Bengal R arm +18 then every 15) |
 | `stateEnd` | cast + data duration (W blocks, Guard Post, Golden Hour, tether), confirmed by the state/buff edge |
 | `swingStart` | BasicClock (§4.3) |
 
 `travelTicks(d, v) = ceil(d × 30 / v)` with d, v in mm and mm/s, mirroring the sim. Lambo E and every dash use
-`min(|aim|, data dash)`. Avietė's blinks are instant snaps (`TELEPORT_MM`), so they have no travel segment.
+`min(|aim|, data dash)`. Raspberry's blinks are instant snaps (`TELEPORT_MM`), so they have no travel segment.
 
 ### 4.2 Time-warp rules
 
@@ -455,8 +455,8 @@ All anchors are in render seconds on the render clock that `SnapBuffer.takeEvent
    lands on its tick.
 7. **Instant casts are impact-led.** Most Q/W/E resolve on the cast tick, so they get only the ≈53 ms peek coil
    (2–3 frames). Weight goes into the follow-through (flips and spins happen after the hit, as LoL front-loads
-   instant casts). Full anticipation only where the sim has a windup: basics 8, Sage R 30, Lambo R 15, Gabė R 15,
-   Bengas W 9.
+   instant casts). Full anticipation only where the sim has a windup: basics 8, Sage R 30, Lambo R 15, Gabby R 15,
+   Bengal W 9.
 8. **Local-player intent start** (optional): one extra tick of coil from the input intent; blends out in 80 ms if the
    sim refuses the cast.
 9. **Interrupts.** Hard CC on the caster cuts the cast clip with a 60 ms blend, matching the sim cancelling the cast.
@@ -470,7 +470,7 @@ All anchors are in render seconds on the render clock that `SnapBuffer.takeEvent
   edge + 8 ticks.
 - While still `attacking`, next swing predicted at `lastContact + P − 8` ticks; P = measured gap between the last two
   contacts, falling back to `HEROES[h].base.attackEvery` (Clem 30, Sage 27, Brutus 36, Cacklejaw 29, Lambo 30,
-  Avietė 28, Bengas 30, Gabė 28).
+  Raspberry 28, Bengal 30, Gabby 28).
 - Confirmation: melee `hit` kind `basic` from `src`; ranged a new owned projectile. No confirmation within 2 ticks of
   the predicted contact (4 for the first) → feint blend-out over 80 ms.
 - A `hit`/`release` with no swing running plays an impact-led short version (never late).
@@ -514,11 +514,11 @@ One override plus a separate reaction slot per hero, so a hit does not cancel a 
 - `SpringChain` per joint: `θ'' = −k(θ − θrest − lag·θparent) − cθ' − α·a_local − β·ω_yaw − γ·ω_body`. Inputs:
   mover/root acceleration and yaw rate from interpolated positions, plus body rotation speed, so flips whip the tail.
   Fixed 120 Hz substeps, max 4 per frame (Med/High); Low 60 Hz, 1 step, tail + ears only.
-- Per-hero tuning in `MoveSet.springs`: Lambo tail heavy/slow (k 60, c 9); Avietė whippy (k 220); Brutus short
-  stiff curl (k 300); Cacklejaw low swish, floppy ears; Gabė perky upright ears; others k 140, c 12.
+- Per-hero tuning in `MoveSet.springs`: Lambo tail heavy/slow (k 60, c 9); Raspberry whippy (k 220); Brutus short
+  stiff curl (k 300); Cacklejaw low swish, floppy ears; Gabby perky upright ears; others k 140, c 12.
 - Ears: pinned back on dashes (`earsBack` cue), perked on Valor/charged.
 - **Phase 2 (High only)**: append `capeA, capeB, prop0, prop1` bones (indices 0–27 untouched): capes stream back with
-  speed (≤1.1 rad) and flare on spins; `prop0` = Brutus plume / Sage hood tip / Gabė heart float orbit / Avietė spark
+  speed (≤1.1 rad) and flare on spins; `prop0` = Brutus plume / Sage hood tip / Gabby heart float orbit / Raspberry spark
   orbs (jitter when charged); Lambo's light string uses `prop0` + `prop1`.
 - **Feet** (`feet.ts`, Med on-screen, High all): `lockFeet` clips pin the feet with `solveTwoBone` while hips lunge
   or crouch; idle turns > 35° at < 0.35 m/s play a 0.25 s two-step shuffle; starts get a push-off lean, hard stops a
@@ -538,7 +538,7 @@ Local hit-stop per character replaces most of the global one (fixes D5 and avoid
 | Basic hit on a hero | 45 ms | 60 ms, 0.03 m | none |
 | Empowered basic (Valor, charged, Steady Paw pierce, Golden Hour wave) | 60 ms | 70 ms | none |
 | Ability hit | 70 ms | 80 ms | none |
-| Heavy finisher (Clem Q3, Brutus E hero hit, Shield Slam on a hero, Lambo E landing, Cacklejaw R, Avietė R, `isBigHit`) | 100 ms | 110 ms | own only: existing `juice.hitstop` ≤ 55 ms |
+| Heavy finisher (Clem Q3, Brutus E hero hit, Shield Slam on a hero, Lambo E landing, Cacklejaw R, Raspberry R, `isBigHit`) | 100 ms | 110 ms | own only: existing `juice.hitstop` ≤ 55 ms |
 | Killing blow | 140 ms | death fling | own only: ≤ 70 ms |
 | Own ult contact | 90 ms | 110 ms | `juice.slowmo(110, 0.6)` (≈44 ms debt < 1.6 ticks, so no visible catch-up) |
 
@@ -698,7 +698,7 @@ changed hero. No full Playwright suite, no balance gates (shared machine).
    end to end as the reference.
 3. **P3 feel**: FightCam, shake tiers, ult moments, sound cues.
 4. **P4 polish**: springs/props phase 2 bones, feet, fidgets, tiers, reduce motion, seeded captures.
-5. Trailer re-shoot from real gameplay of every hero afterwards (not a Gabė showcase).
+5. Trailer re-shoot from real gameplay of every hero afterwards (not a Gabby showcase).
 
 ---
 
@@ -781,7 +781,7 @@ forelegs, 1.6× cadence). Level-up 4/7/10: hero flourish through the existing `l
 | R Tangled Lights | windup 15 t; radius 4.5 m (Wide Tangle 5.5 m); pull ≤ 2 m over 6 t; root 30 t (Finale 45) | windupStart→cast: spins in place 2 turns, accelerating, ending on the cast tick, light string whirling; C = cast: leans back 30°, **hauls with both arms** ≈6 t while victims slide in, then plants | light spiral unwinds and reaches the exact radius at 500 ms, drawn under the telegraph; strands snap taut to each enemy hit and drag over 6 t with chasing bulbs; light coils on victims' legs for the root; ult moment |
 | Gait / idle / end | | jolly heavy waddle, bounce 0.05, double hip sway with side roll, belly jiggle squash each footfall, arms out; idle belly rub, big yawn; victory: belly drum then a belly-flop on the spot; death: deflates then rolls onto his back, paws up, stars circling | |
 
-### Avietė: Assassin, Electric, claws and spark orbs (own profile, D3)
+### Raspberry: Assassin, Electric, claws and spark orbs (own profile, D3)
 
 | Move | Sim timing | Body | Skill FX |
 |---|---|---|---|
@@ -793,7 +793,7 @@ forelegs, 1.6× cadence). Level-up 4/7/10: hero flourish through the existing `l
 | R Short Circuit | blink beside an enemy hero ≤ 6 m, damage on the cast tick; dazzle 3 m slow 45 t | arrival = C = cast: appears at up 0.6–1.0 m in an **axe-kick heel-down** contact pose on the target; then rebound **backflip** away (pitch −1 turn, 300–400 ms, root returns to 0) | flash at origin, sky bolt ending at her contact pose (the bolt drops, not her body), electric ring at exactly 3 m + static glyph 1.5 s; Blinding Shine stronger tint only; 100 ms freeze; ult moment |
 | Gait / idle / end | | light springy ninja sprint, arms swept back, footfall sparks while charged; idle long cat stretch, tail sparks, shy fidget; victory: double backflip into a pose with sparks; death: electrocuted shake (300 ms, 12 Hz), stiff fall, fizzling spark | |
 
-### Bengas: Mage, Fire, baton and flower crown, theatre cat (own profile, D3)
+### Bengal: Mage, Fire, baton and flower crown, theatre cat (own profile, D3)
 
 | Move | Sim timing | Body | Skill FX |
 |---|---|---|---|
@@ -805,7 +805,7 @@ forelegs, 1.6× cadence). Level-up 4/7/10: hero flourish through the existing `l
 | R Curtains Up! | disc ≤ 9 m, 3.5 m (Wide Stage 4.5 m); arms +18 t; 8 pulses every 15 t (Encore 12) | C = cast: theatrical bow (250 ms), baton sweeps up "raising the curtain" cast→zoneArm (600 ms); then **conducts one downbeat per pulse** (additive upper, `pulse` anchors), continues over the gait if he walks; bow at zone end | two flame-curtain meshes part over exactly the 18 t arm; stage-board glyph with fire edge at exactly the sim radius; each pulse: flare ring + 4 small flame pillars + `drum`; curtains close at end; inner flames ≤ 45% alpha, enemy rim red; ult moment |
 | Gait / idle / end | | prancing stage trot, high knees, chest up, cape flowing; idle practises poses, straightens crown, fingertip flame, bows to the audience; victory: deep bow, baton sweep, thrown flowers / confetti; death: paw to forehead, spins 1.5 turns, collapses, a rose drops | |
 
-### Gabė: Support, Wind, wings and heart float (own profile, D3)
+### Gabby: Support, Wind, wings and heart float (own profile, D3)
 
 | Move | Sim timing | Body | Skill FX |
 |---|---|---|---|
@@ -814,7 +814,7 @@ forelegs, 1.6× cadence). Level-up 4/7/10: hero flourish through the existing `l
 | Q Heart Balloon | point ≤ 7 m; pops +15 t; radius 2.2 m (Big Balloon 2.8 m) | underhand lob with a wing-flap hop, C = cast; head tracks the balloon; clap on `zoneArm` | balloon parabola apex 2.5 m landing in exactly 15 t (progress = arm fraction), shadow tracks landing point; pop: confetti + ring at the exact radius; allies green-plus hearts, enemy rim red |
 | W Wing Wrap | instant; ally nearest the aim ≤ 6 m (pick 2.5 m) else self; shield 90 t, haste 45 t | wings sweep forward in an embrace toward the ally (upper-body yaw), sparkle on C; on self: 400 ms wing cocoon then flutter open | feather swirl flies to target, two wing meshes close round the ally like a cocoon, feather-shield glow for 90 t, haste lines 45 t |
 | E Chase the Wind | 4 m in 6 t; allies within 1.5 m of the path hasted 60 t | gliding leap, wings spread, up 0.5–0.7 m, **barrel roll** (roll 1 turn driven by progress), 2 flap markers, tiptoe landing | wind band ribbon 3 m wide (the touch zone) along the snapshot path, small twister at take-off, gust swirl per touched ally |
-| R Under Her Spell | windup 15 t; cone 6 m, 90° (Long Glance 7.5 m); charm 30 t (Smitten 38) | windupStart→cast: one-turn **twirl** over 400 ms, hearts gather; C = cast: lean forward, wink (eye scale), blown kiss, wings snap wide | heart-shaped wavefront crosses the cone to its exact range in 200 ms; charmed enemies: heart eyes + pink leash ribbon to Gabė for the charm duration; victims play the charm gait; ult moment |
+| R Under Her Spell | windup 15 t; cone 6 m, 90° (Long Glance 7.5 m); charm 30 t (Smitten 38) | windupStart→cast: one-turn **twirl** over 400 ms, hearts gather; C = cast: lean forward, wink (eye scale), blown kiss, wings snap wide | heart-shaped wavefront crosses the cone to its exact range in 200 ms; charmed enemies: heart eyes + pink leash ribbon to Gabby for the charm duration; victims play the charm gait; ult moment |
 | Gait / idle / end | | skipping hop-run (0.12 m hop every second step), wings bobbing; idle hover bob 0.05 m, wing flutter, hugs heart float, tosses a little heart that pops; victory: heart burst, spinning wing-spread, blown kisses; death: swoon, wings fold over her, feathers drift | |
 
 ### Sim v14 dogs (DOGS-V13 §1; render modules `chars/heroes/<id>.ts`, `moves/<id>.ts`, `skillfx/<id>.ts`)
@@ -852,12 +852,12 @@ FOOTLONG flight (the form bit too, not untargetable) keeps him drawn. Xto the fl
 | Item | Value |
 |---|---|
 | Basic windup | 8 t (267 ms), every hero |
-| Basic period | Clem 30, Sage 27, Brutus 36, Cacklejaw 29, Lambo 30, Avietė 28, Bengas 30, Gabė 28 |
-| Dashes at 20 m/s | Clem E 4 m 6 t; Sage E 3 m 5 t; Brutus E 5 m 8 t; Cacklejaw Q 4 m 6 t (5.5 m 9 t); Lambo E ≤ 5 m ≤ 8 t (6.5 m 10 t), ring +1 t; Bengas E 3.5 m 6 t (4.5 m 7 t); Gabė E 4 m 6 t |
+| Basic period | Clem 30, Sage 27, Brutus 36, Cacklejaw 29, Lambo 30, Raspberry 28, Bengal 30, Gabby 28 |
+| Dashes at 20 m/s | Clem E 4 m 6 t; Sage E 3 m 5 t; Brutus E 5 m 8 t; Cacklejaw Q 4 m 6 t (5.5 m 9 t); Lambo E ≤ 5 m ≤ 8 t (6.5 m 10 t), ring +1 t; Bengal E 3.5 m 6 t (4.5 m 7 t); Gabby E 4 m 6 t |
 | Homing | Cacklejaw R 24 m/s, ≤ 12 m, ≤ 15 t |
-| Blinks | Avietė E 4.5 m (5.5), R ≤ 6 m: instant |
+| Blinks | Raspberry E 4.5 m (5.5), R ≤ 6 m: instant |
 | Knockback / pull | 6 t (Clem Q3 1.5 m, Brutus E 2 m + stun 15, Lambo R pull 2 m) |
-| Projectiles | Sage Q 7 m @ 20 (10.5 t); lance 9 m @ 24 (11.3 t); Moonshot 40 m @ 60 (20 t); passive pierce 7 m @ 20; Lambo Q 6 m @ 16 (11.3 t); Bengas Q 7 m @ 18 (11.7 t); Clem R wave 5 m @ 25 (6 t) |
-| Windups | Sage R 30, Lambo R 15, Gabė R 15, Bengas W 9 |
-| Zones | Sage W arm 15, root 30; Gabė Q arm 15; Bengas R arm 18 then every 15 for 120 t (Encore 180) |
-| Durations | Clem W 23 (38), parry 9, R 180 (240); Brutus W 75 (105), Guard Post 60, R 90 (120); Cacklejaw E 90, Q recast 90, R reset 90; Lambo W 75, R root 30 (45); Avietė W haste 60, E return 60, R slow 45; Bengas W stun 23 (30), E haste 30; Gabė W shield 90, haste 45, E haste 60, R charm 30 (38); recall/nap 120 |
+| Projectiles | Sage Q 7 m @ 20 (10.5 t); lance 9 m @ 24 (11.3 t); Moonshot 40 m @ 60 (20 t); passive pierce 7 m @ 20; Lambo Q 6 m @ 16 (11.3 t); Bengal Q 7 m @ 18 (11.7 t); Clem R wave 5 m @ 25 (6 t) |
+| Windups | Sage R 30, Lambo R 15, Gabby R 15, Bengal W 9 |
+| Zones | Sage W arm 15, root 30; Gabby Q arm 15; Bengal R arm 18 then every 15 for 120 t (Encore 180) |
+| Durations | Clem W 23 (38), parry 9, R 180 (240); Brutus W 75 (105), Guard Post 60, R 90 (120); Cacklejaw E 90, Q recast 90, R reset 90; Lambo W 75, R root 30 (45); Raspberry W haste 60, E return 60, R slow 45; Bengal W stun 23 (30), E haste 30; Gabby W shield 90, haste 45, E haste 60, R charm 30 (38); recall/nap 120 |

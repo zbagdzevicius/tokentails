@@ -13,7 +13,6 @@
  * cat" postcard, never a recolour of the real cat.
  */
 import type { HeroId } from '../sim/api';
-import { uiName } from '../data/heroes/shelter';
 
 export type TreatKind = 'emote' | 'coat' | 'title' | 'frame' | 'postcard';
 
@@ -44,9 +43,9 @@ const NAME: Readonly<Record<HeroId, string>> = Object.freeze({
   brutus: 'Sir Brutus',
   cacklejaw: 'Cacklejaw',
   lambo: 'Lambo',
-  aviete: uiName('Avietė'),
-  bengas: 'Bengas',
-  gabe: uiName('Gabė'),
+  aviete: 'Raspberry',
+  bengas: 'Bengal',
+  gabe: 'Gabby',
   // sim v11 original cats (their Treat Track coats come with the v11 release)
   meatball: 'Meatball',
   pixel: 'Pixel',

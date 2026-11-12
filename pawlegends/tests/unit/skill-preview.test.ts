@@ -105,7 +105,7 @@ describe('skill sandbox: every hero and slot casts in the real sim', () => {
     }
   });
 
-  it('recast skills recast in the clip (Clem Q, Cacklejaw Q, Avietė E)', () => {
+  it('recast skills recast in the clip (Clem Q, Cacklejaw Q, Raspberry E)', () => {
     for (const [hero, slot] of [
       ['clem', 'q'],
       ['cacklejaw', 'q'],

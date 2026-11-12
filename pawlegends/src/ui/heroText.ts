@@ -3,7 +3,6 @@ import type { HeroId, TrickId } from '../sim/api';
 import { BRANCH_TALENT, HERO_IDS, HEROES, type AbilitySlot } from '../data/heroes';
 import { abilityRank, kitNumbers, maxRank } from '../sim/heroes/talents';
 import { TRICKS } from '../data/tricks';
-import { uiName } from '../data/heroes/shelter';
 import { TEXT as MEATBALL_TEXT } from './heroText/meatball';
 import { TEXT as PIXEL_TEXT } from './heroText/pixel';
 import { TEXT as DUCHESS_TEXT } from './heroText/duchess';
@@ -165,8 +164,7 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     },
   },
   aviete: {
-    // NFD (data/heroes/shelter.ts `uiName`): Fredoka draws e + the combining dot, it has no precomposed ė
-    title: uiName('Avietė'),
+    title: 'Raspberry',
     role: 'Assassin',
     side: 'Cat',
     blurb: 'Hides in cozy corners, then steps out to show off that shiny coat.',
@@ -188,7 +186,7 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     },
   },
   bengas: {
-    title: 'Bengas',
+    title: 'Bengal',
     role: 'Mage',
     side: 'Cat',
     blurb: 'Turns heads wherever he goes. Burns whatever he toasts.',
@@ -210,7 +208,7 @@ export const HERO_TEXT: Readonly<Record<HeroId, HeroText>> = Object.freeze({
     },
   },
   gabe: {
-    title: uiName('Gabė'),
+    title: 'Gabby',
     role: 'Support',
     side: 'Cat',
     blurb: 'One look from those blue eyes and you’re under her spell.',

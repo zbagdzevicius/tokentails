@@ -32,7 +32,7 @@ export const COLORS = {
 };
 
 /**
- * Gabė's eyes: in the photo (336x448 px) and on screen in the first S05 turntable frame (the whip lands the
+ * Gabby's eyes: in the photo (336x448 px) and on screen in the first S05 turntable frame (the whip lands the
  * card's eyes there, then the cut). Midpoint between the eyes, measured on gabe-photo.webp and the captured S05 f0186.
  */
 export const GABE = {

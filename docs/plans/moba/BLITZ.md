@@ -140,8 +140,8 @@ before the Blitz work (HEAD 51f0de76):
 ### 5.5 Release on main's v20 and v21 (2026-11-12, fresh windows from 3500001)
 
 Blitz was tuned on the v21 branch without sim v20 (the Wild Rift chase fix). On main's v20 + v21 the first two windows
-gave cats 47.8% (Aviete 44.3%, Sage 45.9%, Clem 46.0%; Rocket 54.9%). Every cat row +1% overshot (cats 53.0% on
-4000001 + 4100001), so the shipped rows are every cat +0.5% except Duchess, and Aviete +1.6% in all.
+gave cats 47.8% (Raspberry 44.3%, Sage 45.9%, Clem 46.0%; Rocket 54.9%). Every cat row +1% overshot (cats 53.0% on
+4000001 + 4100001), so the shipped rows are every cat +0.5% except Duchess, and Raspberry +1.6% in all.
 
 | Check | E 4200001 | F 4300001 | E + F | Pass |
 |---|---|---|---|---|

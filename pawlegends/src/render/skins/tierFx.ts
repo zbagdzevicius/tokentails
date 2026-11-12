@@ -13,7 +13,7 @@
  * | Epic+     | respawn: + a rising column of STAR8 sparkles; standing still: one body twinkle every 1.1 s     |
  * | Legendary | respawn: + a wide cream "card flash" ring                                                     |
  *
- * Never: ground auras (the shared 8-slot aura layer carries Avietė's charge and the charm glow, gameplay signals),
+ * Never: ground auras (the shared 8-slot aura layer carries Raspberry's charge and the charm glow, gameplay signals),
  * a new trail (the Zoomies tell), halos, gold on anyone but the player's own hero (yellow means "you"). Wave C (C4)
  * card-tier ability effects (render/skins/cardFx.ts) tint the existing trails and hits (colour only) and add the cast
  * sparkle and the Legendary paw prints; they use this file's caps (`mode`, `low`, `teamFight`).

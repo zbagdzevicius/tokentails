@@ -1,5 +1,5 @@
 /**
- * Champion identity, batch 1 (CHAMP-IDENTITY.md §3, §5a): Avietė, Bengas, Bravo, Sir Brutus and Cacklejaw. Every skill
+ * Champion identity, batch 1 (CHAMP-IDENTITY.md §3, §5a): Raspberry, Bengal, Bravo, Sir Brutus and Cacklejaw. Every skill
  * plays its nature sound plus the champion layer (own motif ping, override or ult voice), the motif painter draws in the
  * hero's colour pair, and each hero's skill FX script stamps its motif (raspberry, toast crumb / camellia, spotlight /
  * tear, crest, lime grin) on its own skills.
@@ -64,9 +64,9 @@ describe('batch 1 sounds: nature + champion on every skill', () => {
   });
 
   it('script-only moments resolve to champion sounds', () => {
-    // Avietė's Charged proc: only her raspberry pop (the hit already played the electric impact)
+    // Raspberry's Charged proc: only her raspberry pop (the hit already played the electric impact)
     expect(planSkillSfx('aviete', 'passive', 'impact').map((p) => p.name)).toEqual(['c:aviete:drupe']);
-    // Bengas's toast sizzles in flight on the fire travel layer
+    // Bengal's toast sizzles in flight on the fire travel layer
     expect(planSkillSfx('bengas', 'q', 'travel').map((p) => p.name)).toEqual(['n:fire:travel']);
     // Bravo's landing thud is the impact nature's
     expect(planSkillSfx('bravo', 'e', 'impact').map((p) => p.name)).toEqual(['n:impact:impact']);
@@ -185,7 +185,7 @@ describe('batch 1 skill FX scripts stamp the champion motif', () => {
     sprites.length = 0;
   };
 
-  it('Avietė: every skill ends in a raspberry', () => {
+  it('Raspberry: every skill ends in a raspberry', () => {
     const RASP = IDENTITY.aviete.colors.primary;
     const { fx } = fakeFx('aviete');
     for (const slot of [0, 1, 2, 3]) {
@@ -202,7 +202,7 @@ describe('batch 1 skill FX scripts stamp the champion motif', () => {
     expect(drewColor(RASP)).toBe(true);
   });
 
-  it('Bengas: crumbs on his shots, camellia petals on the pose and the hop, crumbs on every curtain pulse', () => {
+  it('Bengal: crumbs on his shots, camellia petals on the pose and the hop, crumbs on every curtain pulse', () => {
     const { primary: CRIMSON, secondary: GOLD } = IDENTITY.bengas.colors;
     const { fx } = fakeFx('bengas');
     fresh();

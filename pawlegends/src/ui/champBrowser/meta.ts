@@ -3,7 +3,7 @@
  * as on a MOBA hero page), the browse order and the side's look. Words only: the sim never reads this file.
  *
  * Difficulty is a learning hint, judged from the kit: 1 = few buttons that do one clear thing (Clem, the guided first
- * match hero), 3 = a resource to manage, a recast or a set-up to land (Avietė's charge, Stilts' Stride, Domino's dots).
+ * match hero), 3 = a resource to manage, a recast or a set-up to land (Raspberry's charge, Stilts' Stride, Domino's dots).
  */
 import { HERO_IDS, HEROES } from '../../data/heroes';
 import type { HeroId } from '../../data/heroes/types';

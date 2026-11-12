@@ -21,8 +21,8 @@ export const CUT15 = [
   // v3.9: the crane is 200 frames (an eased rise, a settled descent), S02 75 frames of the fight from its first frame
   [0, 199, 0], // the exchange and the crane to the whole Crossing, CATS VS DOGS
   [200, 274, 0], // 3V3 IN YOUR BROWSER (S02 master 200-274, the real HUD)
-  [275, 324, 75], // Cacklejaw's Pack Hunt on Gabė (S04 master 350-399)
-  [325, 374, 225], // Gabė's Under Her Spell (S09 master 550-599)
+  [275, 324, 75], // Cacklejaw's Pack Hunt on Gabby (S04 master 350-399)
+  [325, 374, 225], // Gabby's Under Her Spell (S09 master 550-599)
   [375, 474, 375], // TOPPLE THEIR TOWERS. over Clem's hits, the cut-in on the crack and the fall (master 750-849)
   [475, 639, 500], // TAKE THEIR CORE., the core falls, VICTORY! (S15 master 975-1139)
   [640, 689, 500], // INSPIRED BY REAL CATS. (S18 master 1140-1189: Lambo, 50 frames)
@@ -48,7 +48,7 @@ export function mapTo15(f) {
 // v3.7 (review: the name tags sat in a fixed lower-left corner, far from heroes 5 % of the frame tall, so a name could
 // not be matched to its hero): every tag is anchored right next to its hero, at the free spot nearest the hero's
 // projected box over the tag's frames (the capture QC's hero, plate, pop and structure boxes, and the HUD)
-// v3.8 (review: CACKLEJAW still sat under Gabė, GABĖ beside Sir Brutus): each tag is placed by place-tags.mjs from the
+// v3.8 (review: CACKLEJAW still sat under Gabby, GABĖ beside Sir Brutus): each tag is placed by place-tags.mjs from the
 // captured shots' QC, under its own hero's ground ring (tags.mjs); POS / POS_V are the fallbacks before a first capture
 export const POS = { L2: [0.75, 0.62], M1: [0.5, 0.82], M2: [0.5, 0.88], N3: [0.33, 0.6], N4: [0.42, 0.6], N6: [0.56, 0.59], N7: [0.43, 0.6], N8: [0.48, 0.56], N9: [0.62, 0.49], N10: [0.54, 0.59], ...(TAGS['16x9'] ?? {}) };
 export const POS_V = { N3: [0.22, 0.61], N4: [0.35, 0.63], N6: [0.66, 0.62], N7: [0.33, 0.62], N8: [0.48, 0.74], N9: [0.74, 0.55], N10: [0.74, 0.62], ...(TAGS['9x16'] ?? {}) };
@@ -169,7 +169,7 @@ export function typeEls(cut, aspect, c) {
   add('M1', c.M1, 655, 715, 0.5, v ? 0.74 : POS.M1[1], v ? 96 : 100, 'gold');
   // (TOPPLE THEIR TOWERS. at the free spot nearest the lower centre: place-tags.mjs)
   // (v3.8: 9:16 in two lines, TOPPLE THEIR / TOWERS., in the open band above the fight between the jungle camps and
-  // the dog core; on the lower band it lay over Bengas and the falling tower, and one line does not fit the band)
+  // the dog core; on the lower band it lay over Bengal and the falling tower, and one line does not fit the band)
   const m2 = TAGS[aspect]?.M2 ?? [0.5, v ? 0.2 : POS.M2[1]];
   if (v) {
     add('M2a', c.M2v1, 727, 795, m2[0], m2[1], 72, 'gold');

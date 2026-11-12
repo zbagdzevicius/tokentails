@@ -94,7 +94,7 @@ describe('B6: client reads', () => {
     hud.update(snap({ id: 0, kind: 'hero', team: 1, hero: 'brutus', level: 6, branch: true }), CLOCK, { kills: [0, 0], towers: [0, 0] }, 1);
     expect(w.getAttribute('aria-label')).toMatch(/^Guard Post/);
     expect(w.classList.contains('branch')).toBe(true);
-    hud.mountStrip(['clem', 'sage', 'lambo', 'brutus', 'cacklejaw', 'gabe'], 3, 1, ['Clem', 'Sage', 'Lambo', 'You', 'Cacklejaw', 'Gabė']);
+    hud.mountStrip(['clem', 'sage', 'lambo', 'brutus', 'cacklejaw', 'gabe'], 3, 1, ['Clem', 'Sage', 'Lambo', 'You', 'Cacklejaw', 'Gabby']);
     const sage = document.querySelector<HTMLElement>('.pp[data-slot="1"]')!;
     expect(sage.querySelector('.br')).not.toBeNull();
     expect(document.querySelector('.pp[data-slot="0"] .br')).toBeNull(); // Clem: no branch yet

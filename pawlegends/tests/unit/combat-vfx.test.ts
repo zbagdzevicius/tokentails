@@ -258,7 +258,7 @@ describe('C3 readability: yellow means you, and no spike from the fog', () => {
     expect(seen.rings.length).toBeGreaterThan(0);
   });
 
-  it("another player's Avietė, Sir Brutus or Lambo never levels up or casts in the gold 'you' family", () => {
+  it("another player's Raspberry, Sir Brutus or Lambo never levels up or casts in the gold 'you' family", () => {
     for (const h of ['aviete', 'brutus', 'lambo'] as const) {
       expect(isGoldFamily(elementColor(h)), h).toBe(true); // the rule is needed for these three
       const d = director(() => true);

@@ -1,6 +1,6 @@
 /**
  * Heading casts (founder: "flash must go where we are heading, no friction"). A tap on a mobility blink or escape dash
- * (AimSpec.heading: Pounce, Avietė's Live Wire, Clem's Tumble, Bengas's Camellia Hop, Gabė's Chase the Wind, Duchess's
+ * (AimSpec.heading: Pounce, Raspberry's Live Wire, Clem's Tumble, Bengal's Camellia Hop, Gabby's Chase the Wind, Duchess's
  * Cushion Glide) fires on the press and goes the FULL distance along where the player is heading: the held joystick,
  * else the hero's movement, else the way it last walked (a facing turned by an attack is not a heading), else its
  * facing. Never at a smart target, never a shortened point.
@@ -179,7 +179,7 @@ export function landing(aim: AimSpec, me: { x: number; y: number }, angle: numbe
 }
 
 /**
- * Avietė's Live Wire return (sim heroes/aviete.ts): within `returnTicks` of a Live Wire (or of Short Circuit), E
+ * Raspberry's Live Wire return (sim heroes/aviete.ts): within `returnTicks` of a Live Wire (or of Short Circuit), E
  * blinks her back to where she cast it from and the sim ignores the point. The client sees only its own cast
  * events, so it keeps the window and the return point itself: the press then shows the ghost at the return point and
  * the run goes on from there, never from a made-up landing ahead.

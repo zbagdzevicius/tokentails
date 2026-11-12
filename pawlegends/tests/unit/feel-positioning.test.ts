@@ -12,7 +12,7 @@ describe('name plates', () => {
   it('a bot persona shows its first name only; titles and "You" stay', () => {
     expect(shortPlateName('Biscuit the Clem')).toBe('Biscuit');
     expect(shortPlateName('Sir Brutus')).toBe('Sir Brutus');
-    expect(shortPlateName('Noodle the Gabė')).toBe('Noodle');
+    expect(shortPlateName('Noodle the Gabby')).toBe('Noodle');
     expect(plateName({ id: 3, team: 1, hero: 'clem' }, 0, 0, new Set(), ['', '', '', 'Biscuit the Clem'])).toBe('Biscuit');
     expect(plateName({ id: 0, team: 0, hero: 'clem' }, 0, 0, new Set(), ['Simas'])).toBe('You');
   });

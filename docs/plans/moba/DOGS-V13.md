@@ -55,7 +55,7 @@ A review of revision 1 raised 24 points. All were checked against the code named
 |---|---|---|---|
 | 1 | Marshmallow copies Duchess | Accepted | Chill removed. She is now a zone mage: W snow patch, E belly slide with haste and a small shield (no cloud), and the R end freezes cats still inside (kit timer + `root`). No `fluffPuffs`. |
 | 2 | Shared `mkStack` unsafe | Accepted via 1 | Chill is gone, so no hero shares `mkStack` with Duchess. `validate` stays as it is: v14 explicitly **allows** mixed-species teams (party picks), and `sim-v14.test` pins that. |
-| 3 | Bravo out-charms Gabė | Accepted | Q is a fading slow with a W refund, no charm. R is the only charm: 1.0 s, 4.5 m, 60 damage, shield. E's knockback becomes a 25% slow. |
+| 3 | Bravo out-charms Gabby | Accepted | Q is a fading slow with a W refund, no charm. R is the only charm: 1.0 s, 4.5 m, 60 damage, shield. E's knockback becomes a 25% slow. |
 | 4 | Two fawn pugs | Accepted | Black is the default coat (`fur` ≈ 0x2a2628, silver hem); fawn is a skin. The cape covers his full outline. New colour (item 12). |
 | 5 | Flop rules | Accepted | (a) The flop clamps every hit, true damage too: it runs in `absorb`, which also sees `pure` hits (`incoming` does not). (b) A new kit hook `busy` blocks move, basics and casts while `kRT > 0`, independent of `stun`. (c) Flop and Nine Lives lock each other out. (d) 90 s cooldown, 8% heal. |
 | 6 | Stale spotlight zone index | Accepted | The spotlight centre and timer live in `kHonour`, `kChain` and `kWT`; no zone lookup. |
@@ -115,9 +115,9 @@ Track palettes) and the final `bone` icon is in `src/ui/icons.ts`. Never ship th
 | Clem | 8200 / 10100 | 8850 / 9725 | 51.2% | | Sir Brutus | 11100 / 9350 → 9750 / 9575 | 48.9% |
 | Sage | 10800 / 9500 | 10550 / 9325 | 48.7% | | Cacklejaw | 11100 / 9350 → 11250 / 8825 | 48.1% |
 | Lambo | 10500 / 8800 | 9150 / 9125 | 53.0% | | Nugget | 9650 / 9425 | 51.3% |
-| Avietė | 12100 / 8400 | 12750 / 7800 | 50.4% | | Marshmallow | 9000 / 9800 | 50.3% |
-| Bengas | 11200 / 8700 | 10550 / 8700 | 48.0% | | Bravo | 11350 / 8250 | 49.1% |
-| Gabė | 9500 / 9700 | 9050 / 9600 | 49.7% | | Chili | 9500 / 9425 | 52.0% |
+| Raspberry | 12100 / 8400 | 12750 / 7800 | 50.4% | | Marshmallow | 9000 / 9800 | 50.3% |
+| Bengal | 11200 / 8700 | 10550 / 8700 | 48.0% | | Bravo | 11350 / 8250 | 49.1% |
+| Gabby | 9500 / 9700 | 9050 / 9600 | 49.7% | | Chili | 9500 / 9425 | 52.0% |
 | Meatball | 9100 / 9600 | 7900 / 9925 | 48.9% | | Howler | 9100 / 9650 | 51.3% |
 | Pixel | 9400 / 9600 | 8750 / 9600 | 48.8% | | | | |
 | Duchess | 11400 / 8700 | 11100 / 8550 | 49.6% | | | | |

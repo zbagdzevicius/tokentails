@@ -218,11 +218,11 @@ export const CHAMPIONS: readonly ChampionDef[] = Object.freeze([
     { hero: 'pixel', name: 'Pixel', side: 'cat', role: 'marksman' },
     { hero: 'lambo', name: 'Lambo', side: 'cat', role: 'tank' },
     { hero: 'meatball', name: 'Meatball', side: 'cat', role: 'tank' },
-    { hero: 'aviete', name: 'Avietė', side: 'cat', role: 'assassin' },
+    { hero: 'aviete', name: 'Raspberry', side: 'cat', role: 'assassin' },
     { hero: 'stilts', name: 'Stilts', side: 'cat', role: 'assassin' },
-    { hero: 'bengas', name: 'Bengas', side: 'cat', role: 'mage' },
+    { hero: 'bengas', name: 'Bengal', side: 'cat', role: 'mage' },
     { hero: 'duchess', name: 'Duchess', side: 'cat', role: 'mage' },
-    { hero: 'gabe', name: 'Gabė', side: 'cat', role: 'support' },
+    { hero: 'gabe', name: 'Gabby', side: 'cat', role: 'support' },
     { hero: 'howler', name: 'Howler', side: 'dog', role: 'fighter' },
     { hero: 'chili', name: 'Chili', side: 'dog', role: 'marksman' },
     { hero: 'rocket', name: 'Rocket', side: 'dog', role: 'marksman' },
@@ -239,7 +239,7 @@ export const CHAMPION_IDS: readonly string[] = Object.freeze(CHAMPIONS.map(c => 
 export const championDef = (hero: unknown): ChampionDef | undefined =>
     typeof hero === 'string' ? CHAMPIONS.find(c => c.hero === hero) : undefined;
 
-/** One starter per role: Clem, Sage, Gabė (cats) and Sir Brutus, Frankie, Marshmallow (dogs). */
+/** One starter per role: Clem, Sage, Gabby (cats) and Sir Brutus, Frankie, Marshmallow (dogs). */
 export const STARTERS: readonly string[] = Object.freeze(['clem', 'sage', 'gabe', 'brutus', 'frankie', 'marshmallow']);
 export const isStarter = (hero: string): boolean => STARTERS.includes(hero);
 

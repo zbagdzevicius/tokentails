@@ -1,5 +1,5 @@
 /**
- * Sim v17 Avietė (docs/plans/moba/V17.md §3.7): no point-and-click stun. Shiny Coat charges after a 15-tick fill, and
+ * Sim v17 Raspberry (docs/plans/moba/V17.md §3.7): no point-and-click stun. Shiny Coat charges after a 15-tick fill, and
  * Short Circuit's hit neither uses nor sets off the charge; the stun needs her Q cone or a basic.
  */
 import { describe, expect, it } from 'vitest';
@@ -21,7 +21,7 @@ function duel() {
   return m;
 }
 
-describe('sim v17 Avietė (§3.7)', () => {
+describe('sim v17 Raspberry (§3.7)', () => {
   it('W: not charged 14 ticks after the cast, charged at 15; the fill shows no Blocking bit', () => {
     const m = duel();
     const w = m.world;

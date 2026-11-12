@@ -78,7 +78,7 @@ HEROES = {  # name: (reference capture, crop box as fractions, description, pose
              "Sage, the grey cat archer in the pink hood and green tunic with a bow",
              "drawing the bow and aiming, dynamic three-quarter view"),
     "bengas": ("iphone/07_pick_cats.jpg", (0.55, 0.12, 0.82, 0.72),
-               "Bengas, the brown tabby cat hero standing on the stage pedestal",
+               "Bengal, the brown tabby cat hero standing on the stage pedestal",
                "jumping in with paws raised throwing a flaming piece of toast, playful"),
 }
 

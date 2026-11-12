@@ -32,7 +32,7 @@ has no rendered jump (he is seen in the tower fall instead).
 | Mix with an arc | `edl.json` `audio`; `edit.mjs`; `dsp.mjs` `limit(..., ceilAt)` | Wider section levels before the limiter, the bed limited at RMS + 9 dB, a 6-frame near-silent hole before the hook and the core, the body 2 dB under the ceiling so only the hook and the core burst reach it (the core is the loudest transient). |
 
 **v3 ("Big Plays", 30 s at 144 BPM, gameplay first; the v2 data with the v3 review fixes below)** came before v4 (its data is in git history): `shots.mjs`, `mg-timeline.mjs`,
-`copy.json`, `score.mjs`, `edl.json`. The v1 trailer ("Meet Gabė", 120 BPM) keeps its data as `shots-v1.mjs`,
+`copy.json`, `score.mjs`, `edl.json`. The v1 trailer ("Meet Gabby", 120 BPM) keeps its data as `shots-v1.mjs`,
 `mg-timeline-v1.mjs`, `copy-v1.json` and `score-v1.mjs` (the edit and type tools now read the v2 files).
 
 What v2 adds to the rig:
@@ -80,7 +80,7 @@ end card lands on the f1600 downbeat over the last gameplay frame (blurred) with
 | End card | `mg.js`, `type.mjs` | The last gameplay frame blurred and darkened, the S40 line-up keyed over it, the logo at about half the frame width, cream type on dark pills. |
 
 **v2 redo (review fixes).** Frame 0 is Lambo mid-air in X14's 5 m Belly Flop; Pudding's static beat is replaced by
-Cacklejaw's ambush pounce (take G); the tower and the core fall whole at hero height; COMEBACK! lands on Avietė's level-10
+Cacklejaw's ambush pounce (take G); the tower and the core fall whole at hero height; COMEBACK! lands on Raspberry's level-10
 spike; bars 12-13 are three more fights (U4 combo, U5 Clem Q, M shut down); the core fall and Victory! are one
 continuous take (no second collapse); game words (Coming to you!, COMEBACK!, Victory!) are captioned large; kinetic type
 sits in the top third; the end card is a branded plate from f1650 (2.5 s). New rig options:
@@ -97,7 +97,7 @@ sits in the top third; the end card is a branded plate from f1650 (2.5 s). New r
 ## v1 notes
 
 
-Captures the Pawlegends launch trailer ("Meet Gabė", 30 s at 60 fps) from real in-engine gameplay of this build
+Captures the Pawlegends launch trailer ("Meet Gabby", 30 s at 60 fps) from real in-engine gameplay of this build
 (SIM_VERSION 10). Nothing here is part of `build` or `build:client`: Vite builds only `index.html`, and the harness
 page lives here. Outputs are gitignored.
 
@@ -112,7 +112,7 @@ page lives here. Outputs are gitignored.
 | `shots.mjs` | The storyboard shot list as data (16:9 and 9:16). |
 | `capture.mjs` | Playwright: solves each shot's timing, steps frame by frame, blends WHIP sub-frames (32 per frame, 180° shutter, the screen-space layer laid on once per frame so numbers never smear), checks the hash, writes PNGs. |
 | `copy.json`, `lint-copy.mjs` | Every on-screen string, and the copy gate: the repo copy lint (pawlegends target, R13) plus no "#1" and no numbers except "3V3". |
-| `mg-timeline.mjs`, `mg.js`, `type.html`, `type.mjs` | Motion graphics: kinetic type (SLAM/POP/OUT, motion blur), the Gabė photo card and match-cut whip-zoom, the end card, flashes. Writes overlay (alpha) and plate (opaque) PNGs plus the post list (shakes, rgbashift, pushes) for the edit. |
+| `mg-timeline.mjs`, `mg.js`, `type.html`, `type.mjs` | Motion graphics: kinetic type (SLAM/POP/OUT, motion blur), the Gabby photo card and match-cut whip-zoom, the end card, flashes. Writes overlay (alpha) and plate (opaque) PNGs plus the post list (shakes, rgbashift, pushes) for the edit. |
 | `dsp.mjs`, `instruments.mjs`, `score.mjs` | The original score at 120 BPM (re-voices `audio/music.ts`) with the game's own zzfx sounds rendered offline; -14 LUFS, true peak under -1 dBTP; stems, one-shots and `cues.json`. |
 | `edl.json`, `edit-plan.mjs`, `edit.mjs` | The edit: footage on the beat grid (ramps are baked in at capture), plates, bark push-ins, skin bumps, the 9:16 HUD band, shakes, CAS sharpening, the grade (eq, S-curve, warm balance, 18 % vignette, grain), chromatic accents, the type overlay; the mix (music ducked under impacts, -14 LUFS, true peak under -1 dBTP, sample-locked); H.264 High CRF 16 + AAC 320k masters, posters, `report.json`. Plan unit-tested in `edit.test.mjs`. |
 
@@ -155,7 +155,7 @@ node tools/trailer/edit.mjs --dir <dir> --mix-only                         # the
 `edit.mjs` refuses to render on a copy-gate finding, a take hash mismatch or a missing frame, and fails if a master is
 not exactly 1800 (900) frames at 60 fps, the right size, or above -1 dBTP.
 
-Finished masters are copied to `pawlegends/media/trailer-v2/` (the gameplay-first trailer, v4 data) and the v1 "Meet Gabė"
+Finished masters are copied to `pawlegends/media/trailer-v2/` (the gameplay-first trailer, v4 data) and the v1 "Meet Gabby"
 masters stay in `pawlegends/media/trailer/` (both gitignored, like every output here).
 
 **v3 ("Settle It on the Crossing", review of v2: "full of bugs, shoot it from above like real gameplay, sell cats vs dogs
@@ -236,7 +236,7 @@ fixes in the game (render only; `src/sim` untouched, determinism identical, test
 1.6 s); the falling core's glow is a faint warm tint (`FALL_FLASH` 0.05, `#ffc85a`: the white mix in linear light
 turned the navy doghouse into a pale see-through-looking box); minions are drawn 1.0 m clear of every hero in three
 passes (`MINION_CLEAR`, `MINION_PUSH`: cadets stood inside Cacklejaw and Sir Brutus); bolts are shaded toward their
-silhouette and the core's shot is 0.4 m (`shadeBolts`, `BOLT_CORE_SIZE`: a flat yellow ellipse over Gabė).
+silhouette and the core's shot is 0.4 m (`shadeBolts`, `BOLT_CORE_SIZE`: a flat yellow ellipse over Gabby).
 
 Rig: per-frame QC adds ground `contact` (two bodies nearer than 0.7 of their radii summed), `minionIn` (a minion inside
 a hero), `dupes` (one hero twice side by side) and pop `age` / `still`; capture fails CONTACT, MINION-IN-HERO,
@@ -332,7 +332,7 @@ drawn over his legs); it is measured from where each hero is drawn (`HeroView.dr
 the hero and structure pushes alternate (a pup squeezed between Clem and a tower slid back into her).
 
 Rig: QC `clip` (a farther body's head drawn inside a nearer body within 2.8 m) and `hidden` over 0.4 fail a shot (v3.5
-passed Sir Brutus over Bruno and Bolt the Brutus leaning into Gabė); a minion or cart counts as inside a hero by its
+passed Sir Brutus over Bruno and Bolt the Brutus leaning into Gabby); a minion or cart counts as inside a hero by its
 clearance or by its screen box lying half inside the hero's core box; Pudding's QC box is his projected body cylinder.
 Type QC counts the game's HUD (score bar, ability bar, minimap) as an obstacle on every shot that draws it (CALM
 PUDDING. was laid on the score bar). `hudlite` hides the sudden-death subline; S02 hides the objective toast. `mid`
@@ -343,7 +343,7 @@ layout (`PICK_916`: a whole glow disc behind the keyed hero and pedestal, the wh
 Cut: one eased crane, up f32-66 and down f103-137 (34 frames each, 1x clock on both, 5.3x only while wide), landing on
 the half-beat on a clean moment of H1; the 9:16 crane keeps yaw 0 (higher and steeper, CATS left, DOGS right). 3V3 is
 take V10 (all six apart). The roll call is all on the game camera with the HUD (`onSubject`: the game's camera looking
-at the named hero), BENGAS sits over Bengas, Gabė's "Napping" chip is off. PUSH YOUR LANE. runs its first 40 frames at
+at the named hero), BENGAS sits over Bengal, Gabby's "Napping" chip is off. PUSH YOUR LANE. runs its first 40 frames at
 2x; the tower is take V13 (Clem hits it and it falls in frame, both aspects); the core burst gets a push, the edit's
 shake and a 9° yaw / 5° pitch accent that settles by f1375, the look point 2.6 m north; CALM PUDDING. is in the bottom
 band and the game's "We calmed Pudding!" banner is on from the calm (f1114). Line-up: Lambo and Sir Brutus answer with
@@ -364,8 +364,8 @@ climax (f900-1389, was the core shot only).
 
 Cut: the 9:16 crane turns a quarter while wide (the Crossing down the tall frame, CATS / VS / DOGS top to bottom,
 words out on f97 as it starts down) and lands on the opening framing on f125, held 24 frames. 3V3 opens at 1.25x so
-the first hits land under the type, the look point 1.5 m south (Bengas off the ability bar). S06 3.5 m west (the cart
-pile out of frame); S07 is take W6 (Avietė's strike on f452, her body clear of the dogs; V6 merged her into Bruno);
+the first hits land under the type, the look point 1.5 m south (Bengal off the ability bar). S06 3.5 m west (the cart
+pile out of frame); S07 is take W6 (Raspberry's strike on f452, her body clear of the dogs; V6 merged her into Bruno);
 S09 casts on f553 (Sir Brutus walks out of the pile); S11 21 ticks earlier (the cut lands before Clem meets Bean the
 Brutus), 9:16 closer on the bridge; S13 9:16 frames the whole fall; deeper R1 pushes (0.85-0.88) on every roll-call
 beat. Name tags sit next to their hero (free-space search over the hero boxes). The climax: S14 is the KO only
@@ -395,7 +395,7 @@ TOWERS.; 9:16 TOPPLE THEIR / TOWERS.), writing `v3/tags.mjs` (run type.mjs, plac
 Cut: S01 runs to f174 (rise f24-54, the 9:16 quarter turn done before CATS f55 / VS f62 / DOGS f69, all three held
 to f135, the descent f136-156 after the wipe, 3.5x clock while wide easing to 1x by f152, landing on H1's clean moment
 with the five apart; 9:16 on the exchange's centroid at 1.25-1.4x); S02 from f175 (9:16 on the five who fight);
-roll call on plain hero plates (`twinNames: false`), S04 / S07 / S09 recentred, S07 3.5 ticks later (Avietė clear of
+roll call on plain hero plates (`twinNames: false`), S04 / S07 / S09 recentred, S07 3.5 ticks later (Raspberry clear of
 the shield), S09 opens after Sir Brutus leaves the pile, S10 casts on its last frame with no status chips (the fall
 into Sage is after the cut); S11 75 frames with both waves on the planks at half speed (9:16 on the bridge); S13 from
 f725 (9:16 toward the attackers); S14B dropped, S14 the dog-base fight to f1099 (9:16 3.5 m west); S15 from f1100 on
@@ -425,7 +425,7 @@ clean), 3V3 / IN YOUR / BROWSER placed by `place-tags.mjs` round the six, Puddin
 starts 7 ticks earlier (Clem's leap lands after the cut). S13 ends on f799 as Clem hits the tower and S13B (f800,
 the same take 25 ticks on, a cut-in at 0.88) shows the crack, the topple and the dust at 0.4x: the cadet that stood in
 Clem's Tumble is skipped; TOPPLE THEIR TOWERS. is over Clem's hits (f727-795). S14 is the KO only (f900-949, cut
-before Bengas stacks behind Sage). S15 is 190 frames at 1x from 117 frames before the crack (f1067, its anchor; the
+before Bengal stacks behind Sage). S15 is 190 frames at 1x from 117 frames before the crack (f1067, its anchor; the
 burst, shockwave ring, boom, shake and VICTORY! on CORE_HIT f1075), R1 pushes on the hits, an eased push to 0.85 with
 a -6° yaw / +4° pitch accent and the look point 2.5 m toward the doghouse into the burst, back on the gameplay framing
 by f1110; 9:16 pushed in to 0.95. The pick screen (f1140-1424) holds each champion ~71 frames and hides the card's

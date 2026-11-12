@@ -250,7 +250,7 @@ export function smartAim(aim: AimSpec, units: readonly Unit[], me: Unit, myTeam:
   const ahead = (k: number): { x: number; y: number; id: number } => ({ x: me.x + Math.cos(facing) * aim.range * k, y: me.y + Math.sin(facing) * aim.range * k, id: 0xff });
   if (aim.kind === 'self') return { x: me.x, y: me.y, id: 0xff };
   if (aim.smart === 'ally') {
-    // Gabė's Wing Wrap (sim v9): the most hurt allied hero in range, else herself (the sim picks the ally nearest the point).
+    // Gabby's Wing Wrap (sim v9): the most hurt allied hero in range, else herself (the sim picks the ally nearest the point).
     let best: Unit | null = null;
     for (const u of units) {
       if (u.id === me.id || u.kind !== 'hero' || u.team !== myTeam || u.state === 'dead' || dist(u, me) > aim.range) continue;

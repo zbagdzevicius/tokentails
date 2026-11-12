@@ -308,7 +308,7 @@ x=0         148 156                                463 471                     6
 │ 148×64        │ │Clem││Sage││Lamb││Avie││Beng│ 58×62   │ (P)(Q)(W)               │ icons 44 hit
 │ (◯) Selecting…│ └────┘└════┘└────┘└────┘└────┘        │ (E)(R)                  │
 │     Tom       │ ┌────┐┌────┐┌────┐┌────┐┌────┐        │ MOONSHOT                │
-│ (◯) Lambo  ✓ │ │Gabe││Meat││Pixl││Duch││Stil│        │ R · Ultimate · CD 60 s  │
+│ (◯) Lambo  ✓ │ │Gabby││Meat││Pixl││Duch││Stil│        │ R · Ultimate · CD 60 s  │
 │     Bot       │ └────┘└────┘└────┘└────┘└────┘        │ After a short wind-up,  │
 │ 148×192       │   (grid 307×124, 2 rows, no scroll)    │ a huge arrow flies…     │
 │               │                                        │ [▶ Preview]  36h        │ panel 180 wide
@@ -339,7 +339,7 @@ x=0  64                     364 392                                       952 98
 │▌      Mia                  │       [🛡 Tank][✂ Assassin][✦ Mage][♥ Support]  │ Marksman                   │
 │ (◯64) Lambo ✓      300×88  │ ┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐┌──────┐ │ (P)(Q)(W)(E)(R) 56 each│
 │       Tom                  │ │ 84sq ││      ││      ││      ││      ││      ││      │ │                          │
-│ (◯64) ?  Bot               │ │ Clem ││ Sage ││Lambo ││Aviete││Bengas││ Gabe ││Meatb.│ │ MOONSHOT  (20px)         │
+│ (◯64) ?  Bot               │ │ Clem ││ Sage ││Lambo ││Raspberry││Bengal││ Gabby ││Meatb.│ │ MOONSHOT  (20px)         │
 │ (◯64) …  (5v5 seats 4,5)   │ └──────┘└══════┘└──────┘└──────┘└──────┘└──────┘└──────┘ │ R · Ultimate · CD 60 s   │
 │                            │   … 3 rows × 7 = 21 slots, 300px, no scroll             │ What it does (2 lines)   │
 │                            │                                                          │ • Damage 220 (+…)        │

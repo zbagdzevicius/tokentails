@@ -94,9 +94,9 @@ moves and skill FX, first-pass icons (`src/ui/icons/<id>.ts`) and first-pass Tre
 | Clem | 8850 / 9725 | 8100 / 9625 | 50.5% | | Sir Brutus | 9750 / 9575 | 8625 / 9725 | 49.6% |
 | Sage | 10550 / 9325 | 9650 / 9375 | 48.7% | | Cacklejaw | 11250 / 8825 | 10400 / 8825 | 48.3% |
 | Lambo | 9150 / 9125 | 8425 / 8925 | 52.4% | | Nugget | 9650 / 9425 | 8825 / 9325 | 49.8% |
-| Avietė | 12750 / 7800 | 11650 / 7725 | 49.7% | | Marshmallow | 9000 / 9800 | 8475 / 9750 | 48.9% |
-| Bengas | 10550 / 8700 | 9700 / 8725 | 52.1% | | Bravo | 11350 / 8250 | 10400 / 8225 | 47.2% |
-| Gabė | 9050 / 9600 | 8075 / 9725 | 48.4% | | Chili | 9500 / 9425 | 8850 / 9250 | 51.2% |
+| Raspberry | 12750 / 7800 | 11650 / 7725 | 49.7% | | Marshmallow | 9000 / 9800 | 8475 / 9750 | 48.9% |
+| Bengal | 10550 / 8700 | 9700 / 8725 | 52.1% | | Bravo | 11350 / 8250 | 10400 / 8225 | 47.2% |
+| Gabby | 9050 / 9600 | 8075 / 9725 | 48.4% | | Chili | 9500 / 9425 | 8850 / 9250 | 51.2% |
 | Meatball | 7900 / 9925 | 7200 / 10000 | 48.0% | | Howler | 9100 / 9650 | 8350 / 9575 | 51.9% |
 | Pixel | 8750 / 9600 | 8000 / 9575 | 50.9% | | **Rocket** | (10200 / 9500) | 8925 / 9775 | 49.9% |
 | Duchess | 11100 / 8550 | 10175 / 8525 | 51.9% | | **Frankie** | (11000 / 8800) | 9950 / 8825 | 50.0% |
@@ -111,7 +111,7 @@ not a guarantee; retune from these numbers if a later change moves the gate.
 **QA v15 fixes** (re-gated on seeds 1..2,000, no `pvp` change): Frankie's roll hit is guarded by `kEmpower`, a
 mid-dash FOOTLONG hit gives no refund, Rocket's R is a mobility slot (a root refuses it), Rocket's bot sprint skips
 any enemy structure reach (tanked or not) and Frankie's bot FOOTLONG skips a foe under an untanked tower. A first try
-with `towerMargin` on the sprint check moved the dogs to 49.0% (Rocket 47.2, Bravo 45.2, Bengas and Lambo 54.0 / 54.1:
+with `towerMargin` on the sprint check moved the dogs to 49.0% (Rocket 47.2, Bravo 45.2, Bengal and Lambo 54.0 / 54.1:
 gate fail); with the plain structure reach the gate passes: Rocket 50.9, Frankie 50.2, Domino 50.8, species 50.0 /
 50.0, every hero 47.0–53.1%, pace 3.48, 0 safety ends.
 
@@ -126,7 +126,7 @@ gate fail); with the plain structure reach the gate passes: Rocket 50.9, Frankie
   in v14). novice vs Normal: 41.5%, passes (35.0% in v14).
 - Gate 10 probe (150 Normal matches, the human hero by seed): Rocket naps 4.1 a match and died in 1 of 214 naps;
   SQUIRREL! catches 1.1 heroes a throw; Frankie's Dig hits 1.2 heroes; Domino casts R on 2.35 Spots on average and
-  makes 1.1 `dots` clips a match; 75% of dog teams have no support (Nugget) and 48% no tank (cats: Gabė, Lambo and
+  makes 1.1 `dots` clips a match; 75% of dog teams have no support (Nugget) and 48% no tank (cats: Gabby, Lambo and
   Meatball); the dog side wins 49.8%, so the §3 role pass is not needed.
 - Grade calibration (gate 8, `--seeds 400 --from 1001 --check`): **pass** with no change to `src/meta/grade.ts`
   (Rocket joined the marksmen, Frankie the assassins, Domino the mages); losses graded A or S 33.3%.
@@ -200,16 +200,16 @@ and skill FX (`src/render/skillfx/<id>.ts`); ANIM-SPEC §14 has the briefs. Wher
 | Fighter | Clem | Howler | Howler |
 | Marksman | Sage, Pixel | Chili | Chili, **Rocket** |
 | Tank | Lambo, Meatball | Brutus, Bravo | Brutus, Bravo |
-| Assassin | Avietė, Stilts | Cacklejaw | Cacklejaw, **Frankie** |
-| Mage | Bengas, Duchess | Marshmallow | Marshmallow, **Domino** |
-| Support | Gabė | Nugget | Nugget |
+| Assassin | Raspberry, Stilts | Cacklejaw | Cacklejaw, **Frankie** |
+| Mage | Bengal, Duchess | Marshmallow | Marshmallow, **Domino** |
+| Support | Gabby | Nugget | Nugget |
 
 **Elements.** GRASS and FIRE are the two elements no dog has yet. STELLAR fits Domino's dot-to-dot (a constellation)
 and is also Bravo's and Lambo's. All three are in the `Element` union already, so `types.ts`, `ELEMENT_COLOR`,
 `ELEMENT_TRAIL` and the backend `CatAbilityType` do not change.
 
 **Colours.** Checked with the same CIE76 Delta-E as `readability.test` against all 17 current colours: Rocket
-`#4caf6a` is 56 from Lambo, its nearest; Frankie `#d4a017` (mustard) is 25.5 from Avietė; Domino `#c23b5e` (the
+`#4caf6a` is 56 from Lambo, its nearest; Frankie `#d4a017` (mustard) is 25.5 from Raspberry; Domino `#c23b5e` (the
 dalmatian's red collar) is 42.6 from Chili. All three are ≥ 20 from each other too. Domino's card is not blue: the
 relation colours own blue (audit item 9). If a value fails the test after a later palette change, RENDER moves it
 and writes the new value here.
@@ -407,7 +407,7 @@ air and a "Zzz". The cats he Clocked are hurt and slowed, and he is helpless for
 ends lying on the ground.
 
 **Balance target:** 46–54%. Watch Sighthound with Lure Shot's reveal (long-range poke the cats cannot see coming)
-and the E fear inside Bengas's or Duchess's zones in mixed parties. If he passes 54%, cut `r.clockedBp` 11500 → 11000
+and the E fear inside Bengal's or Duchess's zones in mixed parties. If he passes 54%, cut `r.clockedBp` 11500 → 11000
 before the damage, and keep the nap at 0.6 s or longer. The nap is the joke.
 
 **Skins hook:** `coat.rocket.fawn` (classic fawn with a black mask), `coat.rocket.blue` (slate-blue greyhound),
@@ -739,7 +739,7 @@ same 2 rows by 5 columns as the cat grid, so the switch no longer changes the gr
 
 `fillPicks` is unchanged: role-blind, no repeat within a team. With 10 dogs, a dog team of 3 now draws from the same
 role mix as a cat team. Gate 10 reports the share of dog teams with no support and with no tank. With 10 dogs, about
-70% of dog teams have no Nugget, the same as cat teams without Gabė. Gate 10 also reports the dog-team win rate. If
+70% of dog teams have no Nugget, the same as cat teams without Gabby. Gate 10 also reports the dog-team win rate. If
 the win rate leaves 47–53%, the DOGS-V13 §3 role-pass fallback is still the named fix.
 
 ---

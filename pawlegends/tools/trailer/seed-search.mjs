@@ -170,7 +170,7 @@ const TAKES = {
       };
     },
   },
-  // S08: Avietė's Short Circuit blinks onto Sir Brutus.
+  // S08: Raspberry's Short Circuit blinks onto Sir Brutus.
   E: {
     hero: 'aviete',
     make() {
@@ -192,7 +192,7 @@ const TAKES = {
       };
     },
   },
-  // S09: Bengas's Curtains Up! with two dogs inside the stage.
+  // S09: Bengal's Curtains Up! with two dogs inside the stage.
   F: {
     hero: 'bengas',
     make() {
@@ -278,7 +278,7 @@ const TAKES = {
       };
     },
   },
-  // S12: Gabė charms Sir Brutus (Under Her Spell) and pops a Heart Balloon on him.
+  // S12: Gabby charms Sir Brutus (Under Her Spell) and pops a Heart Balloon on him.
   I: {
     hero: 'gabe',
     make() {

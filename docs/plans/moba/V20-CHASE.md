@@ -163,7 +163,7 @@ pulled back with `HERO_BASIC_VS_HERO_BP` 6500 + `HERO_VS_HERO_BP` 10500 + pvp ro
    window on either map. Expected movers: Stilts (S4: up), melee divers Brutus / Clem / Frankie (S1/S3: up), heroes
    whose kit Pounces/blinks out of swings (S1 helps their chasers: down). Fit on both 3v3 windows and the 5v5 2000-seed
    run together; a row change must keep both maps in band (Hearthwood and the 3v3 map).
-4. Update the pinned expectations V18 touched: `kit-helpers.ts basicHit`, Bengas / Duchess / Lambo / round2 /
+4. Update the pinned expectations V18 touched: `kit-helpers.ts basicHit`, Bengal / Duchess / Lambo / round2 /
    champions-final pvp and basic-hit lines.
 
 ## 5. Tests to add

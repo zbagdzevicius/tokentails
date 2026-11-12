@@ -132,12 +132,12 @@ describe('sim v17 telegraphs (§3.2)', () => {
   });
 });
 
-describe('sim v17 Bengas W (§3.9)', () => {
+describe('sim v17 Bengal W (§3.9)', () => {
   it('a 15-tick windup: a victim that turns away within it is slowed, not stunned; one that keeps facing him is stunned', () => {
     for (const [turn, stunned] of [[true, false], [false, true]] as const) {
       const m = duel('bengas');
       const w = m.world;
-      // Facing Bengas (west, half a turn).
+      // Facing Bengal (west, half a turn).
       place(m, FOE, MID.x + 3000, MID.y, 2048);
       cast(m, ME, 1, MID.x + 3000, MID.y);
       expect(windups(m, ME).map((e) => e.ticks)).toEqual([15]);

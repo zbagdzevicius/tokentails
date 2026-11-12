@@ -7,6 +7,7 @@ import { CC_CUE, MARKED_CUE, ccKindOf } from './ccCue';
 import { STEADFAST_WORD } from './steadfast';
 import * as THREE from 'three';
 import { HEROES } from '../data/heroes';
+import { heroDisplayName } from '../data/heroes/shelter';
 import { MAP } from '../data/map';
 import { PUDDING } from '../data/pudding';
 import { SLOTS_PER_TEAM, type CastSlot, type HeroId, type SimEvent, type TrickId } from '../sim/api';
@@ -1061,4 +1062,4 @@ function ultName(h: HeroId): string {
   }
 }
 
-export const HERO_NAME = (h: HeroId): string => HEROES[h].name;
+export const HERO_NAME = (h: HeroId): string => heroDisplayName(h, HEROES[h].name);

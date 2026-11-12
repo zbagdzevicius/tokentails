@@ -5,7 +5,7 @@ import { STOREFRONT_BLESSING_SELECT, STOREFRONT_SHELTER_SELECT, storefrontProjec
  * Pawlegends shelter champions (sim v9): four heroes inspired by real Pink Paw cats' Token Tails cards (licence for
  * the cats' names and photos, Oct 11). Owning the card adds cosmetics only (a badge, the Companion Kitten, the element
  * chroma): it never unlocks the champion. Who may pick a champion is the champion store's rule
- * (docs/plans/moba/CHAMPION-STORE.md, pawlegends-champion-store.ts): Gabė is a starter; Lambo, Avietė and Bengas
+ * (docs/plans/moba/CHAMPION-STORE.md, pawlegends-champion-store.ts): Gabby is a starter; Lambo, Raspberry and Bengal
  * rotate free, unlock with Yarn or are bought on the web.
  *
  * `GET /pawlegends/champions` gives the host the cards: the storefront whitelist fields (never `owner`, codes or

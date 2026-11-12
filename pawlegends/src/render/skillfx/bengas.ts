@@ -1,5 +1,5 @@
 /**
- * Bengas skill FX (ANIM-SPEC §14 "Bengas"): fire, stage lights and camellia petals.
+ * Bengal skill FX (ANIM-SPEC §14 "Bengal"): fire, stage lights and camellia petals.
  *
  * - Basic: an ember flick off the baton tip, a hot spark on the victim; Hot Toast (a basic on a crowd-controlled hero)
  *   brands the victim with a scorch and a fire twirl ring.

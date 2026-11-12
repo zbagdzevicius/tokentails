@@ -8,7 +8,7 @@ I worked read-only and changed no files. I checked the HeroData shape, the effec
 
 1. **Roster tilt.** After this the roster is 10 cats against 2 dogs. Dog teams already field a duplicate, and both dogs now carry the dog side's whole win rate in the 46–54% per-hero gate. Default: ship the 4 cats now and plan a dog wave next, starting from the runner-up ideas (a hook and swap dog from Tackle or Nox). Easy and Rookie (`src/data/bots.ts:167-176`) will need retuning again.
 2. **Treat Track.** Default: the 4 cats join `TRACK_ORIGINALS` with 3 coats each, appended after the current 30 rewards, and they wear breed coats (`CAT_HEROES`).
-3. **Existing bug, reported and not fixed here.** On touch, the Attack button treats only Sage as ranged (`src/input/touch/touchControls.ts:351,405`), so ranged heroes get a 1.6–1.8 m button. Pixel (5.8 m) and Duchess (5.0 m) would inherit it, as Bengas and Gabė already do. Default: report it and fix it in its own commit, not inside this work.
+3. **Existing bug, reported and not fixed here.** On touch, the Attack button treats only Sage as ranged (`src/input/touch/touchControls.ts:351,405`), so ranged heroes get a 1.6–1.8 m button. Pixel (5.8 m) and Duchess (5.0 m) would inherit it, as Bengal and Gabby already do. Default: report it and fix it in its own commit, not inside this work.
 
 ---
 
@@ -23,7 +23,7 @@ Each criterion is 0–10. For balance, a higher score means safer. "Different" m
 | duchess | 9 (stacking mark, floats on a cushion) | 8 | 7 (one new hashed stack array, fluff gear) | 8 | 6 | **38** | Picked (mage) |
 | stilts | 8 | 8 | 7 (fallback without rig code, ghosting dropped) | 7 | 5 | **35** | Picked (assassin; tie-break: thin silhouette against three round ones, and the hard pick) |
 | tundra | 8 | 7 | 8 | 8 | 4 (2 s hold against only 2 dogs) | 35 | Runner-up: its drain-when-still momentum goes to Stilts |
-| mirage | 7 (zone mage close to Bengas's burn disc; hairless like Purl) | 7 | 8 | 8 | 5 | 35 | Runner-up: its gold-accent override goes to Stilts |
+| mirage | 7 (zone mage close to Bengal's burn disc; hairless like Purl) | 7 | 8 | 8 | 5 | 35 | Runner-up: its gold-accent override goes to Stilts |
 | tackle | 8 | 8 | 6 (new vortex zone) | 7 | 5 | 34 | Next wave (as a dog) |
 | splash | 7 | 7 | 6 (ON_HIT.Push, soak arrays) | 7 | 6 | 33 | Runner-up: its "damage first, then add stacks, trigger once" rule goes to Duchess |
 | nox | 8 | 7 | 6 (ON_HIT.Pull, omen array) | 6 | 5 | 32 | Runner-up: its lantern anti-stealth idea goes to Stilts W (cut down) |
@@ -114,7 +114,7 @@ export const MEATBALL: HeroData = Object.freeze<HeroData>({
   - Call `knockback(m,e, ex - perpX, ey - perpY, push, heading ± 1024)` (`knockback.ts:12`). This pushes it sideways off the path. A unit dead on the line goes to the +1024 side, lowest id first.
   - Then `dealDamage` (`combat/damage.ts:54`). Heroes also get `slow` (`slow.ts:5`).
 - **W.** `root(w,id,duration)` (`root.ts:5`); `kRT = duration`; `incoming()` applies `reduceBp` while `kRT > 0`. Enemy heroes within `radius` (`inRing`, `collect`) get `charm(w,e,charm,id)` (`fear.ts:25`) plus `slow(w,e,slowBp,charm)`, the same pattern as `gabe.ts:104-105`. A Q or E cast clears `kRT` and `w.rootT[id]`.
-- **E.** Ally pick: the nearest allied hero to the aim point within `pickRadius`, aim clamped to `range` (copy Gabė's W pick). Dash to `dist - radii - 300` and set `kStage = 1`, `kFoe = ally`.
+- **E.** Ally pick: the nearest allied hero to the aim point within `pickRadius`, aim clamped to `range` (copy Gabby's W pick). Dash to `dist - radii - 300` and set `kStage = 1`, `kFoe = ally`.
   - In `stepKit`, once `fmKind === FM.None` and `kStage === 1`, land: `addShield(ally, idiv(maxHp[id]*shieldBp,10000), duration)`. Every enemy hero within `radius` of the ally gets `knockback(m,e, allyX, allyY, push, …)`.
   - No ally in the pick: `dash(soloDash)` along the aim and shield himself for half. It never fizzles.
 - **R.** `cleanse(w,id,duration)` (`status.ts:22`) and `haste(w,id,hasteBp,duration)` (`buff.ts:15`); `kWindow = duration`.
@@ -350,7 +350,7 @@ The R knockback from the proposal is replaced by "2 Disdain plus a slow". Meatba
 - E: a fur-cloud disc (burst zone look).
 - R: a crown-shaped ring wave at `radius`.
 - Snub: a "hmph" puff and stars over the victim.
-- Overhead pips: 0–3 small crowns on the enemy plate (`overhead.ts`, the same pattern as Avietė's charge ring at `:101`).
+- Overhead pips: 0–3 small crowns on the enemy plate (`overhead.ts`, the same pattern as Raspberry's charge ring at `:101`).
 - `ultName` 'Begone!'. HERO_COLOR_CSS `#8a5cd6`.
 
 ### 2.4 Stilts (`stilts`, index 11)
@@ -487,7 +487,7 @@ Changes from the proposal:
    - Update the protocol layout comment; `protocol.test` checks the round trip.
 4. **Bots.**
    - In `casts.ts`, add explicit `case` lines for all four heroes to `fightCast` (`:116`), `clearCast` (`:212`) and `escapeCast` (`:290`). Each delegates to `src/sim/bots/heroes/<id>.ts`.
-   - Make each `default:` a no-op and move Gabė's logic into an explicit `case 'gabe'`. This is a deliberate fix of the silent fallback, so call it out in the commit.
+   - Make each `default:` a no-op and move Gabby's logic into an explicit `case 'gabe'`. This is a deliberate fix of the silent fallback, so call it out in the commit.
    - Add BOT_AI keys in `data/bots.ts`: `meatballLoafFoes 2, meatballPeelRange 3000, pixelBeamSafe 2500, pixelBoxbotHpBp 4000, duchessPeelRange 3000, duchessSpacing 4500, stiltsCommitHpBp 5500, stiltsOrbit 4500`.
 
 **Hard caps.**
@@ -660,7 +660,7 @@ Where the build departs from §2 and §3, the code wins; this list says why.
 
 **Shared**
 - `dash(m, id, angle, dist, speed)` types `speed` as `number`, so Duchess's glide and Stilts's leap use it directly. `slotTimingFrom` gives a dash slot its own `dashSpeed` (the slot's `speed`, else 20 m/s) and no projectile speed; Stilts Q is aim-clamped like Lambo's E. The director and the gallery scenarios time a dash at that speed.
-- heroText reads `splash` as reach, `push` as "push N m" and `charm` as a timer; talent cards show `push`, `splash`, `touch` in metres, `ttl` in seconds and `arc` in degrees (the arc change also covers Avietė's and Cacklejaw's arc talents).
+- heroText reads `splash` as reach, `push` as "push N m" and `charm` as a timer; talent cards show `push`, `splash`, `touch` in metres, `ttl` in seconds and `arc` in degrees (the arc change also covers Raspberry's and Cacklejaw's arc talents).
 - The pick grid puts all 12 heroes on one 6-column grid of two rows (the side grids are `display: contents` inside `.roster`): the cats, then the dogs closing the second row. A third row (5 columns) pushed the Paw Trick and Look chips under the foot (round 1 fix).
 - `vendor-sim` freezes v10 at 18cbcf31 with its forfeit fixture (`extra` in FROZEN) and retires v9.
 
@@ -685,7 +685,7 @@ Where the build departs from §2 and §3, the code wins; this list says why.
 - The core's HP bar draws over a hero standing in front of it at the fountain (predates v11). The 844×390 bots row over the pick turntable is fixed in round 2 (the lobby camera reserves its band).
 
 **Balance (Phase 3)**
-- The `pvp` pass covers all 12 heroes. Meatball 9100/9600, Pixel 9400/9600, Duchess 11400/8700, Stilts 10300/9000. Every other cat takes 300 less than before; Clem, Gabė and Avietė also deal less. Brutus and Cacklejaw take 9350.
+- The `pvp` pass covers all 12 heroes. Meatball 9100/9600, Pixel 9400/9600, Duchess 11400/8700, Stilts 10300/9000. Every other cat takes 300 less than before; Clem, Gabby and Raspberry also deal less. Brutus and Cacklejaw take 9350.
 - The 2,000-seed gate passes: median 7:02, p95 7:53, 81.3% core kills, side 51.0%, cats 51.0%, heroes 47.9–52.7% (Meatball 52.3, Pixel 49.8, Duchess 52.7, Stilts 49.9), 3.45 takedowns a minute.
 - Cutting every hero's damage alike tipped the gate to dogs, so the pace fix cut the cats' damage and their damage taken together.
 - Rookie: `nearAssists` off and rally +13%. An idle human had won 55.5%, because as a cat it took near assists at the fountain. Now idle 48.0%, feeder 87.0%, fun1 median 5:00.

@@ -117,7 +117,7 @@ describe('sim v10 (GAPS B0)', () => {
       }
     }
     for (const [hero, t] of Object.entries(totals)) expect(t.taken, hero).toBeGreaterThan(0);
-    // Gabė heals and shields, Lambo shields; Sir Brutus gives neither.
+    // Gabby heals and shields, Lambo shields; Sir Brutus gives neither.
     expect(totals.gabe.heal).toBeGreaterThan(0);
     expect(totals.lambo.heal).toBeGreaterThan(0);
     expect(totals.brutus.heal).toBe(0);

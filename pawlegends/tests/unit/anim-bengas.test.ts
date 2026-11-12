@@ -1,5 +1,5 @@
 /**
- * Bengas move set and skill FX (ANIM-SPEC §14 "Bengas"): the clips bind to the sim timings (basic release, Striking
+ * Bengal move set and skill FX (ANIM-SPEC §14 "Bengal"): the clips bind to the sim timings (basic release, Striking
  * Pose's 9 t windup, Camellia Hop's 6 t leap, Curtains Up!'s 18 t arm and 15 t pulses), stay inside the root caps and
  * the spin rule, compile on his rig, the Hot Toast pick is allocation-free, and the skill FX draw at the sim numbers:
  * the exact W cone, the R stage at the sim radius with one pulse per sim pulse, the toast ribbon ending at its range.
@@ -225,7 +225,7 @@ function fakeFx(rel: 'own' | 'enemy' = 'own', talents: string[] = []) {
   const buffs: Record<number, number | undefined> = { 0: 0, 1: 0, 3: 0, 4: 0 };
   const ended: number[] = [];
   let now = 0;
-  // 0 = Bengas at the origin facing +x; 3 = an enemy 3 m in front; 4 = an enemy 3 m behind; 1 = his ally in front
+  // 0 = Bengal at the origin facing +x; 3 = an enemy 3 m in front; 4 = an enemy 3 m behind; 1 = his ally in front
   const pos: Record<number, { x: number; z: number }> = { 0: { x: 0, z: 0 }, 3: { x: 3, z: 0 }, 4: { x: -3, z: 0 }, 1: { x: 2, z: 0.2 } };
   const enemyOf0 = (id: number) => id === 3 || id === 4;
   const fx = {
@@ -521,7 +521,7 @@ describe('bengas skill FX', () => {
     }
   });
 
-  it('an enemy Bengas draws with the danger rim', () => {
+  it('an enemy Bengal draws with the danger rim', () => {
     const f = fakeFx('enemy');
     SKILL_FX.onCast!(cast(3, 5000, 0), f.fx, ctx);
     SKILL_FX.onCast!(cast(1), f.fx, ctx);

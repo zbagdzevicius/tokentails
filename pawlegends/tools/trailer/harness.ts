@@ -131,7 +131,7 @@ export interface ShotSpec {
   touch?: boolean;
   /**
    * `key`: a flat key colour instead of the lobby's backdrop (the glow disc and, unless `keepStage`, the pedestals
-   * hidden), so the edit can lay the hero over another plate (S05: Gabė over the same blurred world as the photo
+   * hidden), so the edit can lay the hero over another plate (S05: Gabby over the same blurred world as the photo
    * before her; S27: the two stands over the end card's own background).
    */
   lobby?: {
@@ -312,7 +312,7 @@ export interface FrameQc {
   /**
    * v3.8: the smallest gap (m) between two drawn heroes' posed torsos (hips, chest and head bones as spheres, in world
    * space, after the animation's root motion): a lunge or a flip that carries a body into another one (Cacklejaw's maul
-   * through Gabė) reads below 0 even though both stand apart on the ground. `touch` counts pairs under TOUCH_M.
+   * through Gabby) reads below 0 even though both stand apart on the ground. `touch` counts pairs under TOUCH_M.
    */
   gap?: number;
   touch?: number;
@@ -1439,7 +1439,7 @@ const OVERLAP_SHARE = 0.5;
 /**
  * v3.8 posed body: bone spheres (radius in body heights) the QC boxes and the torso gap are built from. The hero is a
  * SkinnedMesh, so Box3.setFromObject saw only its bind pose: a lunge, a flip or a dive never moved the QC box (the v3.7
- * review: Cacklejaw's maul drawn through Gabė while the QC boxes stood 2.6 m apart). The skull sits 0.19 H above the
+ * review: Cacklejaw's maul drawn through Gabby while the QC boxes stood 2.6 m apart). The skull sits 0.19 H above the
  * head bone.
  */
 const POSED: readonly [BoneName, number][] = [
@@ -1647,7 +1647,7 @@ function frameQc(): FrameQc {
       out.hidden = Math.max(out.hidden, (iw * ih) / far);
       // v3.6 `clip`: the farther body's head (1.4 m up) drawn inside the nearer body's box while the two stand within
       // 2.8 m and more than 30 % of the farther body is covered: a head or shoulder through another body (v3.5 review:
-      // Bolt the Brutus leaning into Gabė, Sir Brutus over Bruno the Cacklejaw), not one hero simply behind another
+      // Bolt the Brutus leaning into Gabby, Sir Brutus over Bruno the Cacklejaw), not one hero simply behind another
       const fi = depth[i] > depth[j] ? i : j;
       const ni = fi === i ? j : i;
       if ((iw * ih) / (fi === i ? areaA : areaB) > 0.3 && Math.hypot(ground[i][0] - ground[j][0], ground[i][1] - ground[j][1]) < 2.8) {

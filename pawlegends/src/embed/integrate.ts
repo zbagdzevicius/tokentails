@@ -372,7 +372,7 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
 
   const meetModel = (cat: FeaturedCat) => ({
     cat,
-    champion: championByCatalogId(cat.catalogId) ? { pronoun: championByCatalogId(cat.catalogId)!.pronoun } : null,
+    champion: championByCatalogId(cat.catalogId) ? { pronoun: championByCatalogId(cat.catalogId)!.pronoun, hero: championByCatalogId(cat.catalogId)!.name } : null,
     preview: deps.chromaPreview?.(cat.type) ?? null,
     waiting: checkout.waiting() === cat.catalogId,
     onMeet: () => {
@@ -414,7 +414,8 @@ function create(bridge: Pick<Bridge, 'active' | 'post' | 'on'>, deps: Integratio
     if (!hero || !champ) return null;
     const card = s.champions.find((c) => c.catalogId === champ.catalogId);
     return championInfo({
-      name: champ.cardName,
+      name: champ.name,
+      realName: champ.cardName,
       pronoun: champ.pronoun,
       type: HEROES[champ.hero].element,
       art: card?.art,

@@ -23,7 +23,7 @@
  * 4. pawlegends-sim.sha256.json: sha256 of the bundle and the facade, the sim version and the tool versions.
  * 5. rookie-replay.fixture.json: one genuine Rookie match (the naive player-bot, seed ROOKIE_FIXTURE_SEED) recorded
  *    with this sim, so the backend's /live spec re-sims a real replay (`vendor-sim:check` catches a stale one).
- * 6. champion-replay.fixture.json (sim v9): one genuine Easy match played as a shelter champion (Gabė), so the spec
+ * 6. champion-replay.fixture.json (sim v9): one genuine Easy match played as a shelter champion (Gabby), so the spec
  *    shows a champion replay verifies (every champion is free: no entitlement check) and its v8 twin is refused.
  * 7. forfeit-replay.fixture.json (sim v10, GAPS B2): a Normal match forfeited at 4:00.
  * 8. dog-replay.fixture.json (sim v14): one genuine Easy match played as a new dog (Chili), so the spec shows a v14

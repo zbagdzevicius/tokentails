@@ -34,7 +34,7 @@ export const heroScale = (hero: H): number => heroHeight(hero) / REF_HEIGHT;
 /** A fixed effect height authored for a 2.6 m hero, moved onto this hero's body. */
 export const heroY = (hero: H, y: number): number => y * heroScale(hero);
 
-/** Girth multiplier of the drawn mesh (1 = Clem; Meatball 1.25, Aviete 0.9). */
+/** Girth multiplier of the drawn mesh (1 = Clem; Meatball 1.25, Raspberry 0.9). */
 export const heroGirth = (hero: H): number => (hero ? HERO_BUILD[hero].w : 1);
 
 /**

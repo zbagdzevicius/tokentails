@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 /**
- * The shelter champions' final-spec pass (sim v9): Avietė's charge ring (sim → snapshot → wire → HUD/overhead), the
- * Striking Pose "!" eye read, Gabė's bot ultimate rule, the hero-fight tuning, the corrected copy and the info-only
+ * The shelter champions' final-spec pass (sim v9): Raspberry's charge ring (sim → snapshot → wire → HUD/overhead), the
+ * Striking Pose "!" eye read, Gabby's bot ultimate rule, the hero-fight tuning, the corrected copy and the info-only
  * lobby panel (the champion-offer Meet card is the one purchase surface).
  */
 import { describe, expect, it } from 'vitest';
@@ -19,7 +19,7 @@ import { HERO_TEXT } from '../../src/ui/heroText';
 import { MID, heroMatch, hold, place, setLevel } from './heroes/kit-helpers';
 
 describe('hero-fight tuning (final spec, species balance nudges)', () => {
-  it('sim v20 refit (V20-CHASE.md §8): Lambo 9490/7710, Avietė 11415/8010, Gabė 7690/10660, Bengas 9990/8635', () => {
+  it('sim v20 refit (V20-CHASE.md §8): Lambo 9490/7710, Raspberry 11415/8010, Gabby 7690/10660, Bengal 9990/8635', () => {
     expect(HEROES.lambo.pvp).toEqual({ dmgBp: 9310, takenBp: 7250 }); // sim v21: takes 7250; refit on the v20 base
     expect(HEROES.aviete.pvp).toEqual({ dmgBp: 11000, takenBp: 7930 });
     expect(HEROES.gabe.pvp).toEqual({ dmgBp: 7565, takenBp: 10295 });
@@ -27,7 +27,7 @@ describe('hero-fight tuning (final spec, species balance nudges)', () => {
   });
 });
 
-describe('Avietė charge ring', () => {
+describe('Raspberry charge ring', () => {
   it('the snapshot sends the lockout to her own team only; the wire keeps it', () => {
     const m = heroMatch(['aviete', 'clem', 'sage', 'clem', 'sage', 'clem']);
     m.world.kHuntT[0] = 200;
@@ -59,7 +59,7 @@ describe('Striking Pose eye glyph (poseWatchers)', () => {
   const src: PoseHero = { id: 0, x: 0, y: 0, team: 0, facing: 0, kind: 'hero', state: 'casting' };
   const hero = (id: number, x: number, y: number, facing: number, team = 1): PoseHero => ({ id, x, y, team, facing, kind: 'hero', state: 'idle' });
 
-  it('marks the heroes of the other team in the cone that face Bengas, not those looking away or out of the cone', () => {
+  it('marks the heroes of the other team in the cone that face Bengal, not those looking away or out of the cone', () => {
     const out = poseWatchers(
       src,
       3000,
@@ -82,7 +82,7 @@ describe('Striking Pose eye glyph (poseWatchers)', () => {
   });
 });
 
-describe('Gabė bot ultimate rule', () => {
+describe('Gabby bot ultimate rule', () => {
   function arena() {
     const m = heroMatch(['gabe', 'clem', 'sage', 'clem', 'sage', 'clem']);
     place(m, 0, MID.x, MID.y, 0);
@@ -118,7 +118,7 @@ describe('Gabė bot ultimate rule', () => {
 });
 
 describe('copy (final spec)', () => {
-  it('Lambo: 10% near a friend; Big Hug 7% / 4.5% of his max HP; Bengas: the rest of the cone is slowed', () => {
+  it('Lambo: 10% near a friend; Big Hug 7% / 4.5% of his max HP; Bengal: the rest of the cone is slowed', () => {
     expect(HERO_TEXT.lambo.passive.text).toBe('Takes 10% less damage near an allied hero.');
     expect(HERO_TEXT.lambo.abilities[1].text).toMatch(/7% of your max HP.*4\.5%/);
     expect(HERO_TEXT.bengas.abilities[1].text).toMatch(/the rest slowed/);

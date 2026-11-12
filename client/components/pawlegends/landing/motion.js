@@ -287,7 +287,7 @@ export function startLandingMotion(rootEl, libs) {
     return SplitText.create(el, o);
   }
   function chars(el){
-    /* one span per letter; a combining mark stays with its letter (Avie\u0307te\u0307 is written decomposed for Fredoka) */
+    /* one span per letter; a combining mark stays with its letter */
     var t = el.textContent, parts = t.match(/[^\u0300-\u036f][\u0300-\u036f]*/g) || []; el.textContent = '';
     for (var i=0;i<parts.length;i++){ var s=document.createElement('span'); s.className='ch'; s.textContent = parts[i]; el.appendChild(s); }
     return $$('.ch', el);

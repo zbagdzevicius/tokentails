@@ -1,5 +1,7 @@
 # Pawlegends: champion sound and visual identity
 
+> Names (Nov 12, 2026): the shelter champions have English names in the game. Raspberry, Gabby and Bengal were Avietė, Gabė and Bengas (Lambo kept his name); hero ids stay `aviete`, `gabe`, `bengas`. The real Pink Paw cats keep their own names, written in plain letters (Aviete, Gabe, Bengas).
+
 Founder request (Nov 9): "create sound effects that are tied per-champ rather than generic. also do the same for
 skills - each skill nature type should have it's own effects that ties with their nature. also each champ should have
 their own individual trait around which skills should be based on in terms of visual effects (so I could understand
@@ -60,9 +62,9 @@ is still told apart from the nature.
 | Sir Brutus | impact | guard (Honour) | impact (Shield Slam) | guard (Front Guard) | mobility (Pug Charge) | sonic (Champion's Challenge) |
 | Cacklejaw | slash | shadow (Pack Flank) | slash (Jeer Slash) | sonic (Gloat) | shadow (Bush Slink) | shadow (Pack Hunt) |
 | Lambo | impact | guard (Brave With Friends) | splash (Tuna Toss) | guard (Big Hug) | impact (Belly Flop) | electric (Tangled Lights) |
-| Avietė | electric | electric (Shy, Then Shiny) | electric (Spark Swipe) | empower (Shiny Coat) | mobility (Live Wire) | electric (Short Circuit) |
-| Bengas | fire | fire (Hot Toast) | fire (Burnt Toast) | arcane (Striking Pose) | mobility (Camellia Hop) | fire (Curtains Up!) |
-| Gabė | projectile | heal (Heart Breeze) | heal (Heart Balloon) | guard (Wing Wrap) | mobility (Chase the Wind) | arcane (Under Her Spell) |
+| Raspberry | electric | electric (Shy, Then Shiny) | electric (Spark Swipe) | empower (Shiny Coat) | mobility (Live Wire) | electric (Short Circuit) |
+| Bengal | fire | fire (Hot Toast) | fire (Burnt Toast) | arcane (Striking Pose) | mobility (Camellia Hop) | fire (Curtains Up!) |
+| Gabby | projectile | heal (Heart Breeze) | heal (Heart Balloon) | guard (Wing Wrap) | mobility (Chase the Wind) | arcane (Under Her Spell) |
 | Meatball | impact | guard (Food Coma) | impact (Bowling Roll) | guard (Loaf Mode) | mobility (Big Brother) | empower (Unstoppable Chonk) |
 | Pixel | projectile | guard (Cardboard Plating) | projectile (Cap Cannon) | electric (Laser Pointer) | guard (Duck and Cover) | empower (BOXBOT MK II) |
 | Duchess | shadow | shadow (Utter Disdain) | projectile (Fluff Puff) | shadow (Not Amused) | mobility (Cushion Glide) | sonic (Royal Decree) |
@@ -88,9 +90,9 @@ each skill is in `IDENTITY[hero].skills[*].motif`. The headline per skill is bel
 | Sir Brutus | heraldic crest stamps | #D6A36A sandstone / #C8CED6 steel | anvil clank | anvil ping | horn call, two notes down |
 | Cacklejaw | lime grin crescents, "hee hee" | #3A2A5A shadow plum / #B8F040 acid lime | kazoo cackle | kazoo blat | repeating kazoo cackle |
 | Lambo | twinkling string-light bulbs, tuna | #A8B0BC tabby silver / #FFB347 bulb amber | music box | single music-box tink | twinkling lights arpeggio |
-| Avietė | raspberry-tipped static sparks | #C83A8C raspberry / #FFF3A6 static lemon | theremin buzz and static | crushed zap | rising crushed zap swell |
-| Bengas | toast crumbs and camellia petals | #B01838 camellia crimson / #E0A050 toast gold | castanets and sizzle | castanet clack | curtain whoosh with crowd crackle |
-| Gabė | heart balloons and white feathers | #FF5C9E heart pink / #FFF4FA feather white | wind chimes | glass chime | falling chime spell |
+| Raspberry | raspberry-tipped static sparks | #C83A8C raspberry / #FFF3A6 static lemon | theremin buzz and static | crushed zap | rising crushed zap swell |
+| Bengal | toast crumbs and camellia petals | #B01838 camellia crimson / #E0A050 toast gold | castanets and sizzle | castanet clack | curtain whoosh with crowd crackle |
+| Gabby | heart balloons and white feathers | #FF5C9E heart pink / #FFF4FA feather white | wind chimes | glass chime | falling chime spell |
 | Meatball | bowling pins and Zzz | #5FB84A basil / #7A68FF sleepy indigo | tuba | tuba "oom" | oom-pah, an octave down |
 | Pixel | 8-bit pixel squares, cardboard tape | #3FD8E8 LED cyan / #C89A5E kraft | chiptune | square blip | power-on arpeggio |
 | Duchess | tiny gold crowns and fluff | #7A28D0 royal plum / #FFCF4A crown gold | harpsichord | plucked flick | royal flourish |
@@ -111,9 +113,9 @@ each skill is in `IDENTITY[hero].skills[*].motif`. The headline per skill is bel
 - **Sir Brutus.** A crest stamp on every bash. Honour: the shield wears the crest. Shield Slam: crests ring the edge. Front Guard: a giant steel crest wall. Pug Charge: a sand plume and a stamp. Champion's Challenge: a horn call, a jousting circle and a banner tether.
 - **Cacklejaw.** A lime grin flashes on each slash. Pack Flank: a grin glyph behind the victim. Jeer Slash: a row of grins. Gloat: "hee" glyphs. Bush Slink: a faint grin left behind, seen only by his own team. Pack Hunt: a big grin over the victim and grin afterimages.
 - **Lambo.** A bulb blinks on each bop. Brave With Friends: a light cord to the ally. Tuna Toss: lit bulbs trail the can, and the splat is fish-shaped. Big Hug: shields ringed with bulbs. Belly Flop: a circle of bulbs on landing. Tangled Lights: string lights lasso the pulled heroes.
-- **Avietė.** Raspberry sparks on each hit, and raspberry dots crackle while she is Charged. Spark Swipe: a raspberry-tipped zig-zag edge. Shiny Coat: her coat fills with sparkle. Live Wire: a raspberry dot marks the return point. Short Circuit: the sky bolt splits into raspberry clusters.
-- **Bengas.** Shots are glowing toast crumbs. Burnt Toast: a spinning smoking slice. Striking Pose: a camera-flash star, and a camellia over each stunned head. Camellia Hop: a petal swirl. Curtains Up!: crimson curtains over toast-gold flames.
-- **Gabė.** A heart rides each breeze shot. Heart Breeze: the heal is a heart on a feather. Heart Balloon: pops into hearts for allies and feathers for enemies. Wing Wrap: feather wings. Chase the Wind: a feather stream. Under Her Spell: a cone of hearts, and charmed heroes float a heart.
+- **Raspberry.** Raspberry sparks on each hit, and raspberry dots crackle while she is Charged. Spark Swipe: a raspberry-tipped zig-zag edge. Shiny Coat: her coat fills with sparkle. Live Wire: a raspberry dot marks the return point. Short Circuit: the sky bolt splits into raspberry clusters.
+- **Bengal.** Shots are glowing toast crumbs. Burnt Toast: a spinning smoking slice. Striking Pose: a camera-flash star, and a camellia over each stunned head. Camellia Hop: a petal swirl. Curtains Up!: crimson curtains over toast-gold flames.
+- **Gabby.** A heart rides each breeze shot. Heart Breeze: the heal is a heart on a feather. Heart Balloon: pops into hearts for allies and feathers for enemies. Wing Wrap: feather wings. Chase the Wind: a feather stream. Under Her Spell: a cone of hearts, and charmed heroes float a heart.
 - **Meatball.** A pin wobbles over each bump target. Food Coma: Zzz rises from the shield. Bowling Roll: victims spin like pins, and a "strike" bursts on 2+ heroes. Loaf Mode: Zzz and pin icons. Big Brother: pins scatter on landing. Unstoppable Chonk: an orbit of pins, and pins fly on every bump.
 - **Pixel.** Square pixel bullets that break into 4 pixels. Plating: taped cardboard that breaks into pixels. Cap Cannon: a cap trailing pixels, with a pixel "!" on reveal. Laser Pointer: a pixel-stepped beam. Duck and Cover: a "loading" ring. BOXBOT: pixels assemble the suit.
 - **Duchess.** Plum glare bolts with a crown glint. Disdain: 1-3 tiny crowns, and the Snub drops a crown on the head. Fluff Puff: a crowned fluff ball. Not Amused: crown-point edges. Cushion Glide: a velvet trail. Royal Decree: a scroll and a ring of crowns.
@@ -255,7 +257,7 @@ animation cues still play the generic whooshes.
 | E Belly Flop (impact) | impact + music box; the landing a falling run of notes | a circle of lit bulbs just inside the flop ring |
 | R Tangled Lights (electric) | electric + twinkling-lights ult voice; each lassoed hero a high tink | string lights lasso the pulled heroes |
 
-### Avietė: raspberry static (raspberry / pale volt), theremin and static
+### Raspberry: raspberry static (raspberry / pale volt), theremin and static
 
 | Skill (nature) | You hear | You see |
 |---|---|---|
@@ -266,7 +268,7 @@ animation cues still play the generic whooshes.
 | E Live Wire (mobility) | dash + static buzz; a pop on the return point | a raspberry marks the return point |
 | R Short Circuit (electric) | electric + rising zap ult voice; the ZAP! pops | the bolt lands with a big raspberry |
 
-### Bengas: toast crumbs and camellia petals (crimson / toast gold), castanets and sizzle
+### Bengal: toast crumbs and camellia petals (crimson / toast gold), castanets and sizzle
 
 | Skill (nature) | You hear | You see |
 |---|---|---|
@@ -277,7 +279,7 @@ animation cues still play the generic whooshes.
 | E Camellia Hop (mobility) | dash + castanets | a petal swirl in the trail |
 | R Curtains Up! (fire) | fire + curtain-whoosh ult voice; each pulse a castanet roll | crimson curtains; each pulse pops crumbs |
 
-### Gabė: wind angel, heart balloons and white feathers (pink / white), wind chimes
+### Gabby: wind angel, heart balloons and white feathers (pink / white), wind chimes
 
 | Skill (nature) | You hear | You see |
 |---|---|---|

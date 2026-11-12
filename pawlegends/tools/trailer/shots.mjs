@@ -1,5 +1,5 @@
 /**
- * Trailer v4 shot list as data: 30.000 s, 144 BPM (25 frames per beat, 100 per bar), 60 fps. v1 ("Meet Gabe") is
+ * Trailer v4 shot list as data: 30.000 s, 144 BPM (25 frames per beat, 100 per bar), 60 fps. v1 ("Meet Gabby") is
  * shots-v1.mjs. capture.mjs turns each entry plus its take (takes.json) into a harness ShotSpec per aspect. Frames are
  * the master's output frames; cuts land on beats (or the triplet grid in the second teamfight bar), contacts on the
  * beat or beat + 3.
@@ -194,7 +194,7 @@ export const SHOTS = [
     f0: 400,
     f1: 499,
     take: 'X4',
-    // all six heroes from above (both team colours read), a slow orbit through the Bengas stun (f425) and the Pack Hunt
+    // all six heroes from above (both team colours read), a slow orbit through the Bengal stun (f425) and the Pack Hunt
     // leap (f477); structures in front not drawn
     anchor: { key: 'bengasW', frame: 425 },
     cam: { target: { mid: ['@lambo', '@v1'], lift: 1 }, align: { a: '@v1', b: '@lambo' }, keys: [{ f: 400, dist: 0.52, pitch: 36, yaw: 60, fov: 40 }, { f: 499, dist: 0.48, pitch: 32, yaw: 115, ease: 'linear' }], smooth: 0.3 },
@@ -244,7 +244,7 @@ export const SHOTS = [
     f0: 550,
     f1: 624,
     take: 'F',
-    // Bengas's Curtains Up!: low and close on the stage rim while the flame curtains stand (cast + 2 on f553 to the arm,
+    // Bengal's Curtains Up!: low and close on the stage rim while the flame curtains stand (cast + 2 on f553 to the arm,
     // cast + 18, on f578), then the burning stage and a pulse: the four flame pillars (cast + 33 on f593)
     anchor: { key: 'cast', frame: 553, offset: 2 },
     fits: [{ key: 'cast', offset: 18, frame: 578, seg: [554, 577] }],
@@ -268,7 +268,7 @@ export const SHOTS = [
     f0: 625,
     f1: 699,
     take: 'X8',
-    // Gabe's Under Her Spell: the twirl (front three-quarter), then the heart wavefront charms three dogs (f647) and they walk to her
+    // Gabby's Under Her Spell: the twirl (front three-quarter), then the heart wavefront charms three dogs (f647) and they walk to her
     anchor: { key: 'windup', frame: 625 },
     fits: [{ key: 'cast', frame: 647, seg: [625, 646] }],
     ramp: [[625, 1], [647, 1], [648, 0], [650, 0], [651, 0.7], [699, 0.7]],
@@ -287,7 +287,7 @@ export const SHOTS = [
     f0: 700,
     f1: 749,
     take: 'X1',
-    // Aviete: Short Circuit's axe-kick on one dog (f703), side-on and close; then the Spark Swipe takedown (f729)
+    // Raspberry: Short Circuit's axe-kick on one dog (f703), side-on and close; then the Spark Swipe takedown (f729)
     anchor: { key: 'r', frame: 703 },
     fits: [{ key: 'q', frame: 729, seg: [706, 728] }],
     ramp: [[700, 1], [703, 1], [704, 0], [706, 0], [707, 1], [729, 1], [730, 0], [732, 0], [733, 0.5], [749, 0.5]],
@@ -417,7 +417,7 @@ export const SHOTS = [
     f0: 1050,
     f1: 1074,
     take: 'U4',
-    // COMEBACK!: Bengas Q and Aviete E land on three dogs on f1053 (the banner slams on the same frame)
+    // COMEBACK!: Bengal Q and Raspberry E land on three dogs on f1053 (the banner slams on the same frame)
     anchor: { key: 'aviHit', frame: 1053 },
     ramp: [[1050, 1], [1053, 1], [1054, 0], [1056, 0], [1057, 0.5], [1074, 0.5]],
     cam: { target: { mid: ['@brutus', '@cack'], lift: 1.2 }, align: { a: '@aviete', b: '@brutus' }, keys: [{ f: 1050, dist: 0.4, pitch: 3, yaw: 40, fov: 40 }, ...punch(1053, 0.4), { f: 1074, dist: 0.44, yaw: 55 }], smooth: 0.12 },
@@ -474,7 +474,7 @@ export const SHOTS = [
     f0: 1175,
     f1: 1199,
     take: 'E',
-    // one beat of card looks: Aviete frozen at the top of the axe-kick (the clock held), a dark tree line behind; three
+    // one beat of card looks: Raspberry frozen at the top of the axe-kick (the clock held), a dark tree line behind; three
     // looks on the eighth notes with the edit's white wipe between them
     anchor: { key: 'hit', frame: 1175, offset: -3 },
     ramp: [[1175, 0], [1199, 0]],

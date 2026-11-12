@@ -12,7 +12,7 @@ import { applyOrder } from '../../../src/sim/units/hero';
 import { Kind } from '../../../src/sim/world';
 import { MID, cast, cd, basicHit, heroHit, heroMatch, hold, place, setLevel, steps, tanky } from './kit-helpers';
 
-// Bengas (slot 0) vs Clem (slot 3, armour 25) and Sage (slot 4, armour 15).
+// Bengal (slot 0) vs Clem (slot 3, armour 25) and Sage (slot 4, armour 15).
 const BG = 0;
 const FOE = 3;
 const FOE2 = 4;
@@ -31,7 +31,7 @@ function arena() {
   return m;
 }
 
-describe('Bengas, shelter champion mage (sim v9)', () => {
+describe('Bengal, shelter champion mage (sim v9)', () => {
   it('data: a FIRE cat mage; Hot Toast is +15%', () => {
     expect([BENGAS.side, BENGAS.role, BENGAS.element]).toEqual(['cat', 'mage', 'FIRE']);
     expect([A.q.cooldown, A.w.cooldown, A.e.cooldown, A.r.cooldown]).toEqual([180, 420, 390, 1950]);
@@ -66,7 +66,7 @@ describe('Bengas, shelter champion mage (sim v9)', () => {
     expect(w.hp[FOE2]).toBe(hp2);
   });
 
-  it('Striking Pose: after a 0.3 s wind-up, stuns enemy heroes in the cone that face Bengas, slows those facing away', () => {
+  it('Striking Pose: after a 0.3 s wind-up, stuns enemy heroes in the cone that face Bengal, slows those facing away', () => {
     const m = arena();
     const w = m.world;
     place(m, FOE, MID.x + 3000, MID.y, 2048); // facing him (west)

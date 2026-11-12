@@ -529,7 +529,7 @@ export class Compositor {
   }
 
   /**
-   * The world behind the card and Gabė (S04-S05): the drop's bridge (S06) softly out of focus under a dark, pink
+   * The world behind the card and Gabby (S04-S05): the drop's bridge (S06) softly out of focus under a dark, pink
    * tinted wash, pushing in through the photo beat, faster through the whip, and slowly on through S05. One blur at the
    * final scale (no upscaled blurred plate: no banding).
    */
@@ -557,7 +557,7 @@ export class Compositor {
     ctx.fillRect(0, 0, W, H);
   }
 
-  /** The card at time `t`: 0.94 -> 1.10 with parallax, then (f180-185) the whip-zoom onto Gabė's eyes. */
+  /** The card at time `t`: 0.94 -> 1.10 with parallax, then (f180-185) the whip-zoom onto Gabby's eyes. */
   drawCard(ctx, t) {
     const p = clamp01((t - 120) / 59);
     const q = ease.in(clamp01((t - 180) / 6));
@@ -617,7 +617,7 @@ export class Compositor {
   }
 
   /**
-   * Plate for S04-S05 (f120-239): the card over the world; on f180-185 the card whip-zooms onto Gabė's eyes (16
+   * Plate for S04-S05 (f120-239): the card over the world; on f180-185 the card whip-zooms onto Gabby's eyes (16
    * sub-frames, 180° shutter, float accumulation) and luma-dissolves into her champion (the photo's bright bed edge
    * and border go first) over the same world; from f186 the champion alone, pushing in and turning.
    */

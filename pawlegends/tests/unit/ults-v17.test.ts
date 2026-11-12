@@ -1,5 +1,5 @@
 /**
- * Sim v17 big-ult windups (docs/plans/moba/V17.md §3.4): Lambo R and Gabė R 20 ticks, Bravo R and Duchess R 21
+ * Sim v17 big-ult windups (docs/plans/moba/V17.md §3.4): Lambo R and Gabby R 20 ticks, Bravo R and Duchess R 21
  * (Duchess R gives 1 Disdain), Domino R 18 ticks at 9.5 m. Pixel R's 21-tick immunity covers one ult windup.
  */
 import { describe, expect, it } from 'vitest';
@@ -31,7 +31,7 @@ const windupTicks = (m: MatchHandle, slot: number, x: number, y: number): number
 };
 
 describe('sim v17 big-ult windups (§3.4)', () => {
-  it('data and windup events: Lambo R 20, Gabė R 20, Bravo R 21, Duchess R 21 (1 stack), Domino R 18 at 9.5 m', () => {
+  it('data and windup events: Lambo R 20, Gabby R 20, Bravo R 21, Duchess R 21 (1 stack), Domino R 18 at 9.5 m', () => {
     const r = (h: HeroId) => kitNumbers(HERO_IDS.indexOf(h), 10).r;
     expect(r('lambo').windup).toBe(20);
     expect(r('gabe').windup).toBe(20);
@@ -101,7 +101,7 @@ describe('sim v17 big-ult windups (§3.4)', () => {
     }
   });
 
-  it('Pixel R at tick 0, Gabė R windup landing at tick 20: no charm', () => {
+  it('Pixel R at tick 0, Gabby R windup landing at tick 20: no charm', () => {
     const m = duel('gabe', 'pixel');
     const w = m.world;
     place(m, FOE, MID.x + 3000, MID.y, 2048);

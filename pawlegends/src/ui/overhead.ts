@@ -174,7 +174,7 @@ export function clearOfRects(p: { x: number; y: number }, r: number, rects: read
 /** Is a screen point (px) outside a w × h view? (The player's own edge arrow shows then.) */
 export const offScreen = (sx: number, sy: number, w: number, h: number): boolean => sx < 0 || sx > w || sy < 0 || sy > h;
 
-/** Avietė's charge ring state (sim v9, Shy, Then Shiny): a spark ring while Charged, a grey ring during the lockout. */
+/** Raspberry's charge ring state (sim v9, Shy, Then Shiny): a spark ring while Charged, a grey ring during the lockout. */
 export interface ChargeRing {
   state: 'charged' | 'lockout' | '';
   /** Lockout left as a share of the full lockout (1 → 0), 0 otherwise. */
@@ -184,8 +184,8 @@ export interface ChargeRing {
 }
 
 /**
- * Pure: Avietė's ring from a snapshot entity. `charged` is sent for both teams; `lockout` only for the viewer's own
- * team, so an enemy Avietė shows the spark ring but never a lockout timer.
+ * Pure: Raspberry's ring from a snapshot entity. `charged` is sent for both teams; `lockout` only for the viewer's own
+ * team, so an enemy Raspberry shows the spark ring but never a lockout timer.
  */
 export function chargeRing(e: Pick<ViewEntity, 'hero' | 'charged' | 'lockout' | 'state'>): ChargeRing {
   if (e.hero !== 'aviete' || e.state === 'dead') return { state: '', frac: 0, secs: 0 };
@@ -323,7 +323,7 @@ export class Overhead {
 
   /** First match: a chevron trail on the ground from the player toward this point (sim mm), or null. */
   guide: { x: number; y: number } | null = null;
-  /** Sim v9: heroes facing a Bengas mid Striking Pose wind-up (render/telegraph.ts poseWatchers): a "!" eye over them. */
+  /** Sim v9: heroes facing a Bengal mid Striking Pose wind-up (render/telegraph.ts poseWatchers): a "!" eye over them. */
   watchers: ReadonlySet<number> = new Set();
   /** Lane F (F6): the player's Toy tiers (enemies ahead of it get a crown with pips). */
   myToy = 0;
@@ -607,7 +607,7 @@ export class Overhead {
   }
 
   /**
-   * Avietė's charge around the level badge (sim v9): a flickering spark ring while Charged (both teams see it), a grey
+   * Raspberry's charge around the level badge (sim v9): a flickering spark ring while Charged (both teams see it), a grey
    * ring that empties during her own lockout (Shiny Coat then gives speed only).
    */
   private chargeRing(e: ViewEntity, cx: number, cy: number, r: number): void {
@@ -638,7 +638,7 @@ export class Overhead {
   }
 
   /**
-   * Sim v9: the Striking Pose "!" eye glyph right of a hero's name: this hero faces a Bengas winding up the pose and
+   * Sim v9: the Striking Pose "!" eye glyph right of a hero's name: this hero faces a Bengal winding up the pose and
    * will be stunned (turn away and it is only a slow).
    */
   private eyeGlyph(cx: number, cy: number): void {

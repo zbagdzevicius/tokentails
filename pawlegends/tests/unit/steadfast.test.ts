@@ -14,7 +14,7 @@ import { Rng } from '../../src/sim/rng';
 import { Buff, Kind, RANGE, createWorld, hashWorld } from '../../src/sim/world';
 import { MID, cast, heroMatch, hold, place, setLevel, steps, tanky } from './heroes/kit-helpers';
 
-// Clem (0), Sage (1), Gabė (2) vs Clem (3), Sage (4), Lambo (5). The victim is slot 3.
+// Clem (0), Sage (1), Gabby (2) vs Clem (3), Sage (4), Lambo (5). The victim is slot 3.
 const V = 3;
 
 function arena() {
@@ -202,8 +202,8 @@ describe('sim v17 Steadfast (CC cap and immunity)', () => {
     }
   }, 60_000);
 
-  it('CHAMPS §2(d) chain: Lambo E → Lambo R → Gabė R on a hero walking away locks it at most 60 ticks in a row', () => {
-    // Gabė (2) and Lambo (5) are on different teams here, so build a dedicated line-up: Clem victim (0) vs Lambo (3), Gabė (4).
+  it('CHAMPS §2(d) chain: Lambo E → Lambo R → Gabby R on a hero walking away locks it at most 60 ticks in a row', () => {
+    // Gabby (2) and Lambo (5) are on different teams here, so build a dedicated line-up: Clem victim (0) vs Lambo (3), Gabby (4).
     const m = heroMatch(['clem', 'sage', 'clem', 'lambo', 'gabe', 'sage']);
     const w = m.world;
     for (let id = 0; id < 6; id++) place(m, id, MID.x + (id < 3 ? -25000 : 25000), MID.y + (id % 3) * 6000, 0);
@@ -234,7 +234,7 @@ describe('sim v17 Steadfast (CC cap and immunity)', () => {
       run = locked(m as never, VIC) ? run + 1 : 0;
       longest = Math.max(longest, run);
     }
-    // Lambo E 15 + R 30 + Gabė R 15 = 60 (v16: 75), then immunity.
+    // Lambo E 15 + R 30 + Gabby R 15 = 60 (v16: 75), then immunity.
     expect(longest).toBeGreaterThanOrEqual(45);
     expect(longest).toBeLessThanOrEqual(CC_DR.cap);
   });

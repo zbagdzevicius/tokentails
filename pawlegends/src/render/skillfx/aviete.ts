@@ -1,5 +1,5 @@
 /**
- * Avietė's skill FX (ANIM-SPEC §14, §7, §9). Electric: pale-gold cores, lightning, relation rims. Render only.
+ * Raspberry's skill FX (ANIM-SPEC §14, §7, §9). Electric: pale-gold cores, lightning, relation rims. Render only.
  *
  * - Q Spark Swipe: the exact cone (talent-resolved range and arc) filled as the dominant layer: two arc spawns with
  *   opposite lead sides, so the whole sector reads evenly (one arc spawn is brightest at its lead edge and 3.5× dimmer
@@ -20,7 +20,7 @@
  *   elsewhere) and reads whether her basic's target is a hero (AVI_STATE.swingHero, for the flying knee pick).
  *
  * Gameplay shapes use the sim radii from `fx.abil`; the lingering glyphs are never red and never rings. Blink
- * endpoints come from a per-frame position track of Avietė's own ids (no allocation): a blink ≥ 3.5 m teleports one
+ * endpoints come from a per-frame position track of Raspberry's own ids (no allocation): a blink ≥ 3.5 m teleports one
  * tick before the cast fires, so the origin is the position before that jump.
  */
 import { stubFx } from '../anim/common';

@@ -153,7 +153,7 @@ export type HostMsgType = HostMsg['t'];
 //                u8 flags (1 cooldowns present, 2 respawnIn present, 4 hero extras present),
 //                u8 bountyStreak (heroes, sim v4; was padding), u16 xp, u8 resource, u8 talents (2 bits per tier:
 //                choice + 1), u8 pickup sub (sim v4: index into PICKUP_SUBS + 1, 0 = none), u8 fx (sim v9: 1 charged,
-//                2 charmed; sim v11: 4 form, 8 channel), u8 lockout (sim v9: Avietė's charge lockout ticks, own team,
+//                2 charmed; sim v11: 4 form, 8 channel), u8 lockout (sim v9: Raspberry's charge lockout ticks, own team,
 //                0 = none), u8 stacks (sim v11: stacks on the hero, Duchess's Disdain; was reserved),
 //                u16 fish (sim v12: unspent Fish, own team; 0 for enemies), u8 toy (sim v12: Toy tiers owned, heroes,
 //                both teams), u8 dots (sim v15: Domino's Spots on the hero, both teams; was reserved)

@@ -1,5 +1,5 @@
 /**
- * Avietė's move set (ANIM-SPEC §14 "Avietė: Assassin, Electric, claws and spark orbs"). Render only.
+ * Raspberry's move set (ANIM-SPEC §14 "Raspberry: Assassin, Electric, claws and spark orbs"). Render only.
  *
  * Silhouette first: every move is a root-motion shape that reads at 45 px. A jab / cross / spinning back-kick basic
  * combo, a flying knee when Charged (Shy, Then Shiny), Q a tornado swipe, W a wet-cat shake, E a blink that collapses
@@ -302,7 +302,7 @@ const w: ClipDef = {
 
 /**
  * While hasted there is no hold clip: the gait's haste variant (stride 1.4, lean 2.8) carries the sprint, so the arms
- * and chest keep moving with the run and a standing hasted Avietė stands normally. Haste over: a small shake-off from
+ * and chest keep moving with the run and a standing hasted Raspberry stands normally. Haste over: a small shake-off from
  * whatever pose she is in (the null first key), so it never pops into a lean after a swing.
  */
 const wEnd: ClipDef = {

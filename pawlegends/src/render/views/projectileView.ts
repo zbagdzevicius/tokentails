@@ -57,7 +57,7 @@ export function look(kind: number, team: number): Look {
     // v3.3: 0.6 drew a 2 m flat yellow slab over the heroes at the doghouse (trailer v3.2 review)
     case PROJECTILE_KIND.core:
       return set(BOLT_CORE_SIZE, 3.0, team === 0 ? 0xff6f91 : 0xffd34d, 0.35);
-    // sim v9: Lambo's tuna can and Bengas's burnt toast
+    // sim v9: Lambo's tuna can and Bengal's burnt toast
     case PROJECTILE_KIND.tuna:
       return set(0.36, 1.0, 0xc8d4e0, 0.16);
     case PROJECTILE_KIND.toast:
@@ -120,11 +120,11 @@ const OWNER_SHOT: Partial<Record<string, readonly [number, number, number, numbe
   domino: [0.34, 1.0, 0x16141a, 0.16],
 };
 
-/** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabė's heart bolts). */
+/** Sim v9: a hero bolt takes its shooter's colour where the kit has one (Gabby's heart bolts). */
 const BOLT_TINT: Partial<Record<string, number>> = { gabe: 0xff7aa8, bengas: 0xffa04a };
 /** Sim v10 (GAPS B6): Guard Post domes drawn at once (more than the heroes on a team never stand). */
 const DOMES = 4;
-/** Sim v9 burst discs by owner: Bengas's stage fire and Gabė's heart balloon. */
+/** Sim v9 burst discs by owner: Bengal's stage fire and Gabby's heart balloon. */
 const BURST_COLOR: Partial<Record<string, number>> = { bengas: 0xff6a3d, gabe: 0xff8fb8 };
 
 const _m = new THREE.Matrix4();

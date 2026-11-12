@@ -6,8 +6,7 @@
  * tab), a `rival` on the other side and a `friend` on the same side (each with the line the Lore tab shows), a
  * signature `quote`, and `howTheyFight`, one line that matches the kit in src/sim/heroes/<id>.ts.
  *
- * Strings are written with precomposed letters and exported in NFD (`uiName`), so Fredoka draws Avietė's and Gabė's
- * dot itself instead of a fallback face (data/heroes/shelter.ts). tests/unit/lore.test.ts checks every hero is complete.
+ * tests/unit/lore.test.ts checks every hero is complete.
  */
 import type { HeroId } from './heroes/types';
 
@@ -110,7 +109,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     home: 'Isle of Woof',
     hook: 'Cacklejaw is not, strictly speaking, a dog, and he finds that hilarious. He giggles in the bushes, waits for a cat to wander off alone, and pounces.',
     bio: 'Cacklejaw comes from the Snickerpack, the hyenas who live in the dunes at the edge of Woof. When the Truce was written, the hyenas asked to join the dog team. The dogs said yes, mostly because the hyenas laughed at all their jokes, even the ones about squirrels.\n\nHe is the sneakiest hero on the Crossing and also the worst at keeping quiet. He slinks into a bush, goes invisible, and then giggles at his own cleverness. He hits hardest when a friend is close by or when a cat has its back turned, and once he is on a lone cat he dashes through it, turns, and dashes again. When he laughs right in a cat\'s face, it usually runs away, which only makes him laugh more.\n\nHe has a long list of cats he wants to surprise, and a short list of the ones he actually has. He insists both lists are a joke.',
-    rival: { hero: 'aviete', line: 'They both love the same bush on Puddle Lane. Avietė always finds him first, because she can hear the giggling.' },
+    rival: { hero: 'aviete', line: 'They both love the same bush on Puddle Lane. Raspberry always finds him first, because she can hear the giggling.' },
     friend: { hero: 'frankie', line: 'Frankie digs the tunnels, Cacklejaw brings the jokes. Their hideout under the dunes has a snack shelf and very bad lighting.' },
     quote: 'Hee hee… oh, you heard that? Hee hee hee.',
     howTheyFight: 'Bush Slink close, Jeer Slash through a lone cat and dash again on a hit, Gloat to scare its friends off, then Pack Hunt the weakest cat.',
@@ -128,19 +127,19 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
   aviete: {
     epithet: 'The Shy Spark',
     home: 'Purrhaven Isle',
-    hook: 'Avietė hides in cozy corners until she is charged with energy, then steps out to show off the shiniest coat in Purrhaven. Ask her about the toaster. Actually, don\'t.',
-    bio: 'Avietė arrived at the Lantern House quiet as a whisper and spent her first week inside a laundry basket. Then one morning, full of energy, she danced across the kitchen counter, bumped the toaster and short-circuited the whole thing. There was a bang, a puff of smoke, and ever since then little sparks have danced in her fur.\n\nShe is still shy. In a match she slips into a bush and stays very, very still, and the longer she waits the more charge builds in her coat. When she finally steps out, her first hit on a dog crackles and stuns. She blinks in like a spark on a wire, swipes, and blinks right back to where she started before anyone has worked out what happened.\n\nShe would like everyone to know that the toaster was old, and that she has been banned from the kitchen for exactly the right amount of time.',
+    hook: 'Raspberry hides in cozy corners until she is charged with energy, then steps out to show off the shiniest coat in Purrhaven. Ask her about the toaster. Actually, don\'t.',
+    bio: 'Raspberry arrived at the Lantern House quiet as a whisper and spent her first week inside a laundry basket. Then one morning, full of energy, she danced across the kitchen counter, bumped the toaster and short-circuited the whole thing. There was a bang, a puff of smoke, and ever since then little sparks have danced in her fur.\n\nShe is still shy. In a match she slips into a bush and stays very, very still, and the longer she waits the more charge builds in her coat. When she finally steps out, her first hit on a dog crackles and stuns. She blinks in like a spark on a wire, swipes, and blinks right back to where she started before anyone has worked out what happened.\n\nShe would like everyone to know that the toaster was old, and that she has been banned from the kitchen for exactly the right amount of time.',
     rival: { hero: 'cacklejaw', line: 'Cacklejaw keeps trying to steal her favourite bush. She lets him get comfortable, then reminds him who was there first.' },
-    friend: { hero: 'bengas', line: 'Bengas was burning toast in that toaster at the very moment she short-circuited it. They still argue about whose smoke it was.' },
+    friend: { hero: 'bengas', line: 'Bengal was burning toast in that toaster at the very moment she short-circuited it. They still argue about whose smoke it was.' },
     quote: 'I am not hiding. I am charging.',
     howTheyFight: 'Wait in a bush to charge, Live Wire in, land the stunning hit and Spark Swipe, then blink back out; Short Circuit jumps straight onto a dog.',
   },
   bengas: {
     epithet: 'The Toast of Purrhaven',
     home: 'Purrhaven Isle',
-    hook: 'Bengas turns heads wherever he goes and burns whatever he toasts. He only wanted breakfast; he got a stage on fire and a standing ovation.',
-    bio: 'Bengas is a natural performer. He walks like there is a spotlight on him, even in the dark, and he always wears a camellia flower behind one ear. At the Lantern House he decided to make toast for everyone, got distracted by his own reflection in the kettle, and set the curtains ablaze. Nobody was hurt, the toast was very crispy, and the cats clapped anyway. He took a bow, and a career was born.\n\nOn the Crossing he treats every fight like opening night. He flings burnt toast at the front row, strikes a pose so dazzling that any dog looking straight at him freezes on the spot, and when the crowd gathers he raises the curtain on a stage of fire. He hits extra hard on any dog that is already stuck, slowed or stunned. He says that is not mean; it is just good timing.',
-    rival: { hero: 'bravo', line: 'Two divas, one Crossing. The reviews are split: half say Bravo is more dramatic, half say Bengas is more on fire.' },
+    hook: 'Bengal turns heads wherever he goes and burns whatever he toasts. He only wanted breakfast; he got a stage on fire and a standing ovation.',
+    bio: 'Bengal is a natural performer. He walks like there is a spotlight on him, even in the dark, and he always wears a camellia flower behind one ear. At the Lantern House he decided to make toast for everyone, got distracted by his own reflection in the kettle, and set the curtains ablaze. Nobody was hurt, the toast was very crispy, and the cats clapped anyway. He took a bow, and a career was born.\n\nOn the Crossing he treats every fight like opening night. He flings burnt toast at the front row, strikes a pose so dazzling that any dog looking straight at him freezes on the spot, and when the crowd gathers he raises the curtain on a stage of fire. He hits extra hard on any dog that is already stuck, slowed or stunned. He says that is not mean; it is just good timing.',
+    rival: { hero: 'bravo', line: 'Two divas, one Crossing. The reviews are split: half say Bravo is more dramatic, half say Bengal is more on fire.' },
     friend: { hero: 'aviete', line: 'He still says the smoke from the toaster was hers. She still says it was his. They share the blame, and the toast.' },
     quote: 'Look at me. No, really. Look at me.',
     howTheyFight: 'Fling Burnt Toast, Striking Pose to stun dogs facing you, raise Curtains Up! on a crowd and Camellia Hop away; every hit lands harder on a held dog.',
@@ -148,8 +147,8 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
   gabe: {
     epithet: 'The Blue-Eyed Breeze',
     home: 'Purrhaven Isle',
-    hook: 'One look from Gabė\'s blue eyes and you are under her spell. She once chased the wind across all of Purrhaven; it turned out to be a balloon.',
-    bio: 'Gabė is the gentlest cat in the Lantern House and the fastest to notice when someone is sad. On her first sunny day there, she saw something red bobbing over the hill and was sure it was the wind itself, come to play. She chased it across fields, over a bridge and up the Great Cat Tree. It was a balloon. She caught it anyway, and she has kept a bunch of heart balloons ever since.\n\nIn a match she floats along behind her friends like a warm breeze. Every tap of her paw on a dog sends a little healing gust to whichever friend needs it most. She lobs heart balloons that pop on dogs and patch up cats in the same burst, wraps friends in a shield of soft wings, and when dogs come too close she simply looks at them. Nobody knows exactly what happens next. The dogs just walk over, smiling.',
+    hook: 'One look from Gabby\'s blue eyes and you are under her spell. She once chased the wind across all of Purrhaven; it turned out to be a balloon.',
+    bio: 'Gabby is the gentlest cat in the Lantern House and the fastest to notice when someone is sad. On her first sunny day there, she saw something red bobbing over the hill and was sure it was the wind itself, come to play. She chased it across fields, over a bridge and up the Great Cat Tree. It was a balloon. She caught it anyway, and she has kept a bunch of heart balloons ever since.\n\nIn a match she floats along behind her friends like a warm breeze. Every tap of her paw on a dog sends a little healing gust to whichever friend needs it most. She lobs heart balloons that pop on dogs and patch up cats in the same burst, wraps friends in a shield of soft wings, and when dogs come too close she simply looks at them. Nobody knows exactly what happens next. The dogs just walk over, smiling.',
     rival: { hero: 'nugget', line: 'Both of them say they are the team\'s best friend. They are keeping count of thank-yous, and the count is very close.' },
     friend: { hero: 'stilts', line: 'Stilts helped her chase that first balloon. Now they go balloon-chasing every windy evening.' },
     quote: 'Stay close. I have got you.',
@@ -191,7 +190,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     hook: 'Stilts is all legs and ears and cannot sit still. The more she runs, the faster she gets, until a pounce lands from somewhere absolutely absurd.',
     bio: 'Stilts is a Savannah cat from the dunes on Purrhaven\'s south shore, the tallest and thinnest cat on the island. She wears bright leg-warmers, a scarf that flaps behind her like a flag, and an expression that says she is late for something. She is not. She just likes running.\n\nHer ears turn like radar dishes. She can hear a dog wag its tail behind a wall and find a hidden one in the deepest bush. Every step she takes fills up her Stride, and when it is full she launches into a pounce from further away than anyone thinks is fair. She leaps high over the fight and lands right on top of a dog, then swats twice, quick as a blink.\n\nAt three o\'clock every morning she gets the Zoomies and races round the whole island. In a match, she saves them for the moment it matters.',
     rival: { hero: 'rocket', line: 'The fastest cat against the fastest dog. Their race around both islands ended when Rocket fell asleep and she tripped over her scarf. Nobody has won yet.' },
-    friend: { hero: 'gabe', line: 'She ran down that first runaway balloon with Gabė. Now they chase one together every windy evening.' },
+    friend: { hero: 'gabe', line: 'She ran down that first runaway balloon with Gabby. Now they chase one together every windy evening.' },
     quote: 'Why walk when you can zoom?',
     howTheyFight: 'Keep moving to fill Stride, High Leap onto a dog, Ear Swivel to find hidden dogs, Swat-Swat to slow, and Zoomies to turn every attack into a pounce.',
   },
@@ -220,7 +219,7 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
     home: 'Isle of Woof',
     hook: 'Bravo could have been a star, and he is sure everyone knows it. Every hit is a tragedy, every fight a show, and when the end seems near he takes the most dramatic fall on the Crossing.',
     bio: 'Bravo is a black pug who runs the only theatre on the Isle of Woof, in a kennel he painted gold. He writes the plays, he stars in the plays, and he cries real tears at the end of every one, including the comedies.\n\nOn the Crossing he never stops performing. He drops a spotlight onto the sand and stands in it, and in the light he feels braver and tougher, while any cat on his stage slows down to watch. He launches himself into the crowd with a stage dive. A single crocodile tear can leave a cat too sad to move.\n\nWhen it looks like the curtain is coming down on him, Bravo takes his most dramatic fall: he flops, goes perfectly still and plays dead, and nothing can touch him. Then he bounces up for an ENCORE!, and every cat nearby feels they simply have to come forward and applaud.',
-    rival: { hero: 'bengas', line: 'Bengas set his own stage on fire and still got the bigger applause. Bravo has written three plays about it. All tragedies.' },
+    rival: { hero: 'bengas', line: 'Bengal set his own stage on fire and still got the bigger applause. Bravo has written three plays about it. All tragedies.' },
     friend: { hero: 'brutus', line: 'His cousin Sir Brutus says flopping is undignified. Bravo always saves him the front-row seat anyway.' },
     quote: 'Is this the end? …No. ENCORE!',
     howTheyFight: 'Slow cats with Crocodile Tears, fight inside Center Stage to be tougher, Stage Dive into the crowd, call ENCORE! to pull cats in, and trust the Dramatic Flop when low.',
@@ -277,32 +276,30 @@ const LORE_RAW: Record<HeroId, HeroLore> = {
   },
 };
 
-const nfd = (s: string): string => s.normalize('NFD');
-
-function nfdLore(l: HeroLore): HeroLore {
+function freezeLore(l: HeroLore): HeroLore {
   return Object.freeze({
-    epithet: nfd(l.epithet),
+    epithet: l.epithet,
     home: l.home,
-    hook: nfd(l.hook),
-    bio: nfd(l.bio),
-    rival: Object.freeze({ hero: l.rival.hero, line: nfd(l.rival.line) }),
-    friend: Object.freeze({ hero: l.friend.hero, line: nfd(l.friend.line) }),
-    quote: nfd(l.quote),
-    howTheyFight: nfd(l.howTheyFight),
+    hook: l.hook,
+    bio: l.bio,
+    rival: Object.freeze({ hero: l.rival.hero, line: l.rival.line }),
+    friend: Object.freeze({ hero: l.friend.hero, line: l.friend.line }),
+    quote: l.quote,
+    howTheyFight: l.howTheyFight,
   });
 }
 
 /** The world: the Truce Games on the Crossing. */
 export const WORLD: Readonly<WorldLore> = Object.freeze({
-  title: nfd(WORLD_RAW.title),
-  tagline: nfd(WORLD_RAW.tagline),
-  story: Object.freeze(WORLD_RAW.story.map(nfd)),
-  places: Object.freeze(WORLD_RAW.places.map((p) => Object.freeze({ name: nfd(p.name), text: nfd(p.text) }))),
+  title: WORLD_RAW.title,
+  tagline: WORLD_RAW.tagline,
+  story: Object.freeze(WORLD_RAW.story),
+  places: Object.freeze(WORLD_RAW.places.map((p) => Object.freeze({ name: p.name, text: p.text }))),
 });
 
 /** Every hero's lore, by hero id. */
 export const LORE: Readonly<Record<HeroId, HeroLore>> = Object.freeze(
-  Object.fromEntries((Object.keys(LORE_RAW) as HeroId[]).map((h) => [h, nfdLore(LORE_RAW[h])])) as Record<HeroId, HeroLore>,
+  Object.fromEntries((Object.keys(LORE_RAW) as HeroId[]).map((h) => [h, freezeLore(LORE_RAW[h])])) as Record<HeroId, HeroLore>,
 );
 
 /** One hero's lore. */

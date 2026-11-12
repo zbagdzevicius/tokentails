@@ -483,7 +483,7 @@ length 13:06, determinism 120 of 120; per-hero 45–56.5% on ~600 slots (refit o
 | Gate | Result |
 |---|---|
 | 3v3 balance, seeds 1–2000 | length 7:20, p95 8:34, 90% core kill, **3.48–3.49 takedowns a minute**, trailing at 3:30 wins 28–29%, down 10+ wins 1.4–4.4%, sides and species pass; one hero at the band edge per run (Cacklejaw 54.5% in the last run) |
-| 3v3 balance, seeds 2001–4000 | length 7:21, **3.49–3.50** takedowns, down 10+ wins 3.0%; per-hero edges flip between runs (Brutus, Sage, Rocket, Chili, Avietė, Brutus branch at 44–55%) |
+| 3v3 balance, seeds 2001–4000 | length 7:21, **3.49–3.50** takedowns, down 10+ wins 3.0%; per-hero edges flip between runs (Brutus, Sage, Rocket, Chili, Raspberry, Brutus branch at 44–55%) |
 | `pvp-symmetry`, 2,000 seeds | map side 48.3%, cats 50.6%: pass |
 | `determinism.mjs` | 100 seeds plus PvP, all identical |
 | `novice`, `feedNormal` | pass |
@@ -510,7 +510,7 @@ length 13:06, determinism 120 of 120; per-hero 45–56.5% on ~600 slots (refit o
 
 Rebased onto `origin/main` with sim v20 live (`4f9c97d4`, then the chat and store commits after it). v20 is frozen in
 `tools/vendor-sim.mjs` at `4f9c97d4`; the backend verifies 10 to 21. Balance rows: cats −2.25% / dogs −2.75% damage to
-heroes; Aviete −100, Meatball −70, Nugget +60, Cacklejaw +40, Brutus +40, Duchess +80 (3v3 rows, as the trial).
+heroes; Raspberry −100, Meatball −70, Nugget +60, Cacklejaw +40, Brutus +40, Duchess +80 (3v3 rows, as the trial).
 
 Changes made while releasing:
 
@@ -551,7 +551,7 @@ Crossing.
 | G5 cats 47–53 | 50.6 | 49.7 |
 | G5 p50 12:00–14:30 / p95 | 13:06 / 13:13 | 13:06 / 13:12 |
 | G5 safety end ≤ 2% | 0.0% | 0.0% |
-| G5 heroes (per window) | 47 (Howler) – 53 (Aviete, Duchess) | 48 (Bengas, Meatball) – 52 (Domino, Stilts) |
+| G5 heroes (per window) | 47 (Howler) – 53 (Raspberry, Duchess) | 48 (Bengal, Meatball) – 52 (Domino, Stilts) |
 | G2 determinism | 300 / 300 | – |
 
 Pooled 8,000 5v5 matches (gated): every hero **48.5% (Marshmallow) to 52.0% (Stilts)**.

@@ -36,7 +36,7 @@ describe('sim v17 bots', () => {
     expect(fightCast(w, 3, 0, BOTS.normal, rng)).toMatchObject({ op: Op.Cast, slot: 1 });
   });
 
-  it('Purr-ify on a read: inside Gabė R, after 8 ticks of her windup the bot cleanses; the charm then misses', () => {
+  it('Purr-ify on a read: inside Gabby R, after 8 ticks of her windup the bot cleanses; the charm then misses', () => {
     const m = heroMatch(['clem', 'sage', 'clem', 'gabe', 'sage', 'clem'], ['purrify', 'pounce', 'pounce', 'pounce', 'pounce', 'pounce']);
     const w = m.world;
     for (let id = 0; id < 6; id++) place(m, id, MID.x + (id < 3 ? -25000 : 25000), MID.y + (id % 3) * 7000, 0);

@@ -5,7 +5,7 @@
  */
 import type { HeroId } from '../sim/api';
 import { HERO_IDS } from '../data/heroes';
-import { CHAMPION_IDS, uiName } from '../data/heroes/shelter';
+import { CHAMPION_IDS } from '../data/heroes/shelter';
 
 export type QuestMetric = 'takedowns' | 'pudding' | 'win' | 'matches' | 'towers' | 'combos' | 'champion';
 
@@ -35,9 +35,9 @@ export const QUEST_POOL: readonly Quest[] = Object.freeze([
   // GAPS A1: the four shelter champions join the hero slot, plus two play goals. A quest may lead to a champion; its
   // reward is Treat XP only, never an offer, and finishing it never opens one (money/offer.ts is unchanged)
   { id: 'win_lambo', text: 'Win with Lambo', goal: 1, metric: 'win', hero: 'lambo' },
-  { id: 'win_aviete', text: `Win with ${uiName('Avietė')}`, goal: 1, metric: 'win', hero: 'aviete' },
-  { id: 'win_bengas', text: 'Win with Bengas', goal: 1, metric: 'win', hero: 'bengas' },
-  { id: 'win_gabe', text: `Win with ${uiName('Gabė')}`, goal: 1, metric: 'win', hero: 'gabe' },
+  { id: 'win_aviete', text: `Win with Raspberry`, goal: 1, metric: 'win', hero: 'aviete' },
+  { id: 'win_bengas', text: 'Win with Bengal', goal: 1, metric: 'win', hero: 'bengas' },
+  { id: 'win_gabe', text: `Win with Gabby`, goal: 1, metric: 'win', hero: 'gabe' },
   { id: 'champion', text: 'Play a champion card hero', goal: 1, metric: 'champion' },
   { id: 'pudding2', text: 'Calm Pudding twice', goal: 2, metric: 'pudding' },
   // sim v11: the four original cats join the hero slot

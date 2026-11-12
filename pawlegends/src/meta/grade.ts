@@ -38,7 +38,7 @@ export const GRADE_WEIGHTS: Readonly<{ carry: GradeWeights; tank: GradeWeights; 
   support: Object.freeze({ kp: 0.35, heroDmg: 0.05, towerDmg: 0.1, alive: 0.25, taken: 0, healShield: 0.25 }),
 });
 
-/** Roles that grade on their own frontline weights (tank: Sir Brutus, Lambo; support: Gabė). */
+/** Roles that grade on their own frontline weights (tank: Sir Brutus, Lambo; support: Gabby). */
 export const FRONTLINE_ROLES: readonly HeroRole[] = Object.freeze(['tank', 'support'] as HeroRole[]);
 
 /**

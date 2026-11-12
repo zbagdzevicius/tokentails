@@ -1,5 +1,5 @@
 /**
- * Gabė move set and skill FX (ANIM-SPEC §14): the clips bind to the sim timings (basic release, Heart Balloon arm,
+ * Gabby move set and skill FX (ANIM-SPEC §14): the clips bind to the sim timings (basic release, Heart Balloon arm,
  * Chase the Wind travel, Under Her Spell windup), stay inside the root caps, compile on her rig, and the skill FX draw
  * at the sim's own radii, range and arc and stop on the sim's last tick.
  */
@@ -159,7 +159,7 @@ interface Spawned {
   at: number;
 }
 
-/** Gabė is 0 at the origin; ally 1 at (2, 0); enemy 3 at (4, 0). */
+/** Gabby is 0 at the origin; ally 1 at (2, 0); enemy 3 at (4, 0). */
 function fakeFx(rel: 'own' | 'enemy' = 'own', talents: string[] = [], tier: 'low' | 'med' | 'high' = 'high', caps = false, bones = false) {
   const spawned: Spawned[] = [];
   const ribbons: { width: number; color: number }[] = [];
@@ -190,7 +190,7 @@ function fakeFx(rel: 'own' | 'enemy' = 'own', talents: string[] = [], tier: 'low
       out.z = p.z;
       return true;
     },
-    // bones: Gabė (0) faces +x (head → mouth), her right paw ahead of her chest; nobody else has bones
+    // bones: Gabby (0) faces +x (head → mouth), her right paw ahead of her chest; nobody else has bones
     bonePos: (id: number, bone: string, out: { x: number; y: number; z: number }) => {
       const p = pos[id];
       if (!bones || id !== 0 || !p) return false;

@@ -74,7 +74,7 @@ export interface SlotTiming {
   projSpeed: number;
   projRange: number;
   projTicks: number;
-  /** Zone arm ticks (Sage W, Gabė Q, Bengas R) and pulse period. */
+  /** Zone arm ticks (Sage W, Gabby Q, Bengal R) and pulse period. */
   arm: number;
   every: number;
   /** State duration (blocks, Golden Hour, tethers, stealth, zone life). */

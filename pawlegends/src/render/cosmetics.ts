@@ -19,7 +19,7 @@ import { LOOP_PALETTES, LOOP_REWARDS, TRACK_TITLES } from '../meta/treats';
 import { SHELTER_CHAMPIONS } from '../data/heroes/shelter';
 import { EFFECT_COATS, S1_PLUS_COAT, SEASONS, STORE_COATS, STORE_FRAMES, SEASON_ITEM_NAMES } from '../money/catalog';
 
-const SHELTER_NAME = Object.fromEntries(SHELTER_CHAMPIONS.map((c) => [c.hero, c.cardName])) as Record<'lambo' | 'aviete' | 'bengas' | 'gabe', string>;
+const SHELTER_NAME = Object.fromEntries(SHELTER_CHAMPIONS.map((c) => [c.hero, c.name])) as Record<'lambo' | 'aviete' | 'bengas' | 'gabe', string>;
 
 export interface Coat {
   base: number;

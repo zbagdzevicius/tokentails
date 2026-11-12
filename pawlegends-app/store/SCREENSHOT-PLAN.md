@@ -81,7 +81,7 @@ profiles at `?speed=64`, with the run kept only when the team won (4 wins in 16 
 | `iphone/10_party-lobby.jpg` | Party code, 3 players, Share / Copy link / Show QR, Start. |
 | `iphone/11_hero_sage-arena.jpg`, `12_hero_sir-brutus.jpg`, `13_hero_duchess.jpg` | Cute hero close-ups on the lobby pedestal (arena, castles). |
 | `ipad/01_teamfight_fountain.jpg` | 4 heroes at the fountain, gold ring VFX, CLANK. |
-| `ipad/02_ult_curtains-up.jpg` | Bengas "Curtains Up!" fire-circle ultimate. |
+| `ipad/02_ult_curtains-up.jpg` | Bengal "Curtains Up!" fire-circle ultimate. |
 | `ipad/03_pick_cats.jpg`, `04_pick_dogs.jpg`, `05_victory.jpg`, `06_party-lobby.jpg` (with QR), `07_hero_sir-brutus.jpg`, `08_hero_duchess.jpg` | As on iPhone, at 4:3. |
 | `mac/01_lane-fight_pudding.jpg` | Desktop HUD, Sir Brutus brawling by the Pudding objective, "Pudding is here!" |
 | `mac/02_lane-fight_combo.jpg` | "Combo x2", 4 heroes, shield arc, "Help in Sunny Lane!" |
@@ -127,7 +127,7 @@ height and the caption band is above it.
 | # | Caption | Capture | Art direction |
 |---|---|---|---|
 | 1 | **Team Cat or Team Dog?** | `ipad/01_teamfight_fountain.jpg` | Same hook as iPhone #1. The cat and dog fist-bump above the panel, logo top left, purple/orange split. |
-| 2 | **Fast 7-minute battles** | `ipad/02_ult_curtains-up.jpg` | The fire-circle ultimate. Bengas bursts out of the right side amid flame sparks, orange backdrop with lightning. |
+| 2 | **Fast 7-minute battles** | `ipad/02_ult_curtains-up.jpg` | The fire-circle ultimate. Bengal bursts out of the right side amid flame sparks, orange backdrop with lightning. |
 | 3 | **20 heroes, big plays** | `ipad/03_pick_cats.jpg` + `04_pick_dogs.jpg` | Two overlapping panels (cats tilted left, dogs tilted right) with a yellow "VS" lightning bolt between them. |
 | 4 | **Squad up with friends** | `ipad/06_party-lobby.jpg` | Three hero heads high-fiving, a QR/link glow (the capture shows the QR). |
 | 5 | **Cute heroes, fierce fights** | `ipad/08_hero_duchess.jpg` | The hero close-up (allowed: it is the in-app lobby, not a splash). Duchess on her cushion with sparkles. Frame Duchess's own glow around the panel. |

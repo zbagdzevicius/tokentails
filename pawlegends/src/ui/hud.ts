@@ -722,7 +722,7 @@ export class Hud {
   }
 
   /**
-   * Sim v9, Avietė: the portrait ring. A spark ring while Charged (her next damage to a hero stuns), a grey ring with
+   * Sim v9, Raspberry: the portrait ring. A spark ring while Charged (her next damage to a hero stuns), a grey ring with
    * the seconds left during the lockout (Shiny Coat then gives speed only), nothing otherwise.
    */
   private chargeUpdate(me: EntitySnap): void {

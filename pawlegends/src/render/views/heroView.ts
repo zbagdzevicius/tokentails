@@ -394,7 +394,7 @@ export const SELF_RING_SCALE = 1.15;
 /** Seconds between the own ring's outward pings. */
 const SELF_PING = 1.3;
 
-/** Sim v9 status glows underfoot: Avietė's charge (her sparks) and a charm (Gabė's hearts). */
+/** Sim v9 status glows underfoot: Raspberry's charge (her sparks) and a charm (Gabby's hearts). */
 const CHARGE_GLOW = 0xffe24d;
 const CHARM_GLOW = 0xff6fa8;
 
@@ -406,7 +406,7 @@ export function charState(e: Pick<ViewEntity, 'state' | 'buffs' | 'speed' | 'cha
   if (e.state === 'dead') return 'dead';
   if (e.state === 'napping') return 'napping';
   if (e.buffs & BuffFlag.Stunned) return 'stunned';
-  // Sim v9: a charmed hero walks to its charmer (Gabė's Under Her Spell), it does not cower.
+  // Sim v9: a charmed hero walks to its charmer (Gabby's Under Her Spell), it does not cower.
   if (e.buffs & BuffFlag.Feared) return e.charmed ? 'moving' : 'feared';
   if (e.buffs & BuffFlag.Blocking) return 'blocking';
   if (e.buffs & BuffFlag.Channeling) return 'channel';
@@ -819,7 +819,7 @@ export class HeroView {
         }
         const chroma = this.looks.get(e.id)?.chroma;
         if (chroma && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, ELEMENT_COLOR[chroma], 0.55 + Math.sin(this.time * 3 + e.id) * 0.12);
-        // Sim v9: Avietė's charge (a fast spark flicker both teams see: the counterplay) and a charmed hero's pink glow.
+        // Sim v9: Raspberry's charge (a fast spark flicker both teams see: the counterplay) and a charmed hero's pink glow.
         if (e.charged && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.7, CHARGE_GLOW, 0.75 + Math.sin(this.time * 14 + e.id) * 0.25);
         // Sim v17: Shiny Coat's 0.5 s fill: a fainter, faster flicker both teams see (the counterplay: back off now).
         else if (e.charging && !stealth) this.auras.add(x, z, HERO_RING[r.hero] * 1.45, CHARGE_GLOW, 0.4 + Math.sin(this.time * 24 + e.id) * 0.2);

@@ -1,5 +1,5 @@
 /**
- * Gabe: Wind angel: heart balloons and white feathers. Timbre: wind chimes (high glassy sine, echo).
+ * Gabby: Wind angel: heart balloons and white feathers. Timbre: wind chimes (high glassy sine, echo).
  * Champion sound and motif layer (audio/champ/types.ts, CHAMP-IDENTITY.md §3).
  *
  * Sound: every Q/W/E cast rings a cluster of wind chimes (a high sine retriggered every 50 ms, with an echo), climbing

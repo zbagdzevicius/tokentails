@@ -153,7 +153,7 @@ const FEARED = BuffFlag.Feared;
 const FORM_R: ReadonlySet<HeroId> = new Set<HeroId>(['meatball', 'pixel', 'stilts', 'chili']);
 
 /**
- * Gallery-wide extras (main.ts sets them from the query): BuffFlag bits and a shield on the dummy (Gabė's W shield
+ * Gallery-wide extras (main.ts sets them from the query): BuffFlag bits and a shield on the dummy (Gabby's W shield
  * glow, a Feared charm target), and the level-6 branch flag on the hero.
  */
 export const DUMMY_BUFFS = { bits: 0, shield: 0, branch: false };

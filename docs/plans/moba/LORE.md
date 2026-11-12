@@ -1,8 +1,10 @@
 # Pawlegends lore
 
+> Names (Nov 12, 2026): the shelter champions have English names in the game. Raspberry, Gabby and Bengal were Avietė, Gabė and Bengas (Lambo kept his name); hero ids stay `aviete`, `gabe`, `bengas`. The real Pink Paw cats keep their own names, written in plain letters (Aviete, Gabe, Bengas).
+
 The world and champion lore of Pawlegends. The game reads it from `pawlegends/src/data/lore.ts` (typed, one entry per hero key); this file is the readable copy. If the two differ, the code wins: edit `lore.ts` first, then this file. `pawlegends/tests/unit/lore.test.ts` checks that every hero has complete lore (epithet, a 2–3 sentence hook, a 120–185 word bio, a rival on the other side, a friend on the same side, a quote and a one-line "how they fight" that names the real ultimate), and that rivalries are mutual.
 
-**Tone.** Warm, funny, heroic, kid-safe. Cats and dogs are rivals, never enemies; nobody is ever really hurt (a knocked-out hero naps at the fountain). Every line is original: no names, phrases or story beats from other games. The four shelter champions (Lambo, Avietė, Bengas, Gabė) are inspired by real Pink Paw cats (licence Oct 11); their stories keep the joke of each card's rescue line and never mention health. In game the shelter is "the Lantern House".
+**Tone.** Warm, funny, heroic, kid-safe. Cats and dogs are rivals, never enemies; nobody is ever really hurt (a knocked-out hero naps at the fountain). Every line is original: no names, phrases or story beats from other games. The four shelter champions (Lambo, Raspberry, Bengal, Gabby) are inspired by real Pink Paw cats (licence Oct 11); their stories keep the joke of each card's rescue line and never mention health. In game the shelter is "the Lantern House".
 
 **Where it shows.** `hook`: the hero browser and the pick screen. `bio`, rival, friend, quote: the Lore tab. `howTheyFight`: the line above the skill preview. All strings are exported in NFD (`uiName`), so Fredoka draws the ė dot.
 
@@ -51,28 +53,28 @@ The games are short because the sea is patient but not that patient. At Sunset t
 | Clem | Sir Brutus | Sage |
 | Sage | Howler | Clem |
 | Lambo | Frankie | Meatball |
-| Avietė | Cacklejaw | Bengas |
-| Bengas | Bravo | Avietė |
-| Gabė | Nugget | Stilts |
+| Raspberry | Cacklejaw | Bengal |
+| Bengal | Bravo | Raspberry |
+| Gabby | Nugget | Stilts |
 | Meatball | Chili | Lambo |
 | Pixel | Domino | Duchess |
 | Duchess | Marshmallow | Pixel |
-| Stilts | Rocket | Gabė |
+| Stilts | Rocket | Gabby |
 
 | Dog | Rival (cat) | Dog friend |
 |---|---|---|
 | Sir Brutus | Clem | Bravo |
-| Cacklejaw | Avietė | Frankie |
-| Nugget | Gabė | Domino |
+| Cacklejaw | Raspberry | Frankie |
+| Nugget | Gabby | Domino |
 | Marshmallow | Duchess | Howler |
-| Bravo | Bengas | Sir Brutus |
+| Bravo | Bengal | Sir Brutus |
 | Chili | Meatball | Rocket |
 | Howler | Sage | Marshmallow |
 | Rocket | Stilts | Chili |
 | Frankie | Lambo | Cacklejaw |
 | Domino | Pixel | Nugget |
 
-Rivalries are mutual pairs. Friendships are mostly mutual pairs too (Clem–Sage, Lambo–Meatball, Avietė–Bengas, Gabė–Stilts, Pixel–Duchess; Sir Brutus–Bravo, Cacklejaw–Frankie, Nugget–Domino, Marshmallow–Howler, Chili–Rocket).
+Rivalries are mutual pairs. Friendships are mostly mutual pairs too (Clem–Sage, Lambo–Meatball, Raspberry–Bengal, Gabby–Stilts, Pixel–Duchess; Sir Brutus–Bravo, Cacklejaw–Frankie, Nugget–Domino, Marshmallow–Howler, Chili–Rocket).
 
 ---
 
@@ -125,45 +127,45 @@ Alone, Lambo is a bit of a worrier. With a friend beside him he is a wall. He th
 - **Quote:** "Nobody fights on an empty tummy. Here, have a tuna."
 - **How they fight:** Stay near a friend, Tuna Toss to slow, Big Hug to shield you both, Belly Flop onto dogs to stun them, then Tangled Lights to pull the pack in.
 
-### Avietė, The Shy Spark
+### Raspberry, The Shy Spark
 
 *electric cat (shelter champion) · Assassin · ELECTRIC · Purrhaven Isle* · key `aviete`
 
-**Hook.** Avietė hides in cozy corners until she is charged with energy, then steps out to show off the shiniest coat in Purrhaven. Ask her about the toaster. Actually, don't.
+**Hook.** Raspberry hides in cozy corners until she is charged with energy, then steps out to show off the shiniest coat in Purrhaven. Ask her about the toaster. Actually, don't.
 
-Avietė arrived at the Lantern House quiet as a whisper and spent her first week inside a laundry basket. Then one morning, full of energy, she danced across the kitchen counter, bumped the toaster and short-circuited the whole thing. There was a bang, a puff of smoke, and ever since then little sparks have danced in her fur.
+Raspberry arrived at the Lantern House quiet as a whisper and spent her first week inside a laundry basket. Then one morning, full of energy, she danced across the kitchen counter, bumped the toaster and short-circuited the whole thing. There was a bang, a puff of smoke, and ever since then little sparks have danced in her fur.
 
 She is still shy. In a match she slips into a bush and stays very, very still, and the longer she waits the more charge builds in her coat. When she finally steps out, her first hit on a dog crackles and stuns. She blinks in like a spark on a wire, swipes, and blinks right back to where she started before anyone has worked out what happened.
 
 She would like everyone to know that the toaster was old, and that she has been banned from the kitchen for exactly the right amount of time.
 
 - **Rival:** Cacklejaw. Cacklejaw keeps trying to steal her favourite bush. She lets him get comfortable, then reminds him who was there first.
-- **Friend:** Bengas. Bengas was burning toast in that toaster at the very moment she short-circuited it. They still argue about whose smoke it was.
+- **Friend:** Bengal. Bengal was burning toast in that toaster at the very moment she short-circuited it. They still argue about whose smoke it was.
 - **Quote:** "I am not hiding. I am charging."
 - **How they fight:** Wait in a bush to charge, Live Wire in, land the stunning hit and Spark Swipe, then blink back out; Short Circuit jumps straight onto a dog.
 
-### Bengas, The Toast of Purrhaven
+### Bengal, The Toast of Purrhaven
 
 *show cat (shelter champion) · Mage · FIRE · Purrhaven Isle* · key `bengas`
 
-**Hook.** Bengas turns heads wherever he goes and burns whatever he toasts. He only wanted breakfast; he got a stage on fire and a standing ovation.
+**Hook.** Bengal turns heads wherever he goes and burns whatever he toasts. He only wanted breakfast; he got a stage on fire and a standing ovation.
 
-Bengas is a natural performer. He walks like there is a spotlight on him, even in the dark, and he always wears a camellia flower behind one ear. At the Lantern House he decided to make toast for everyone, got distracted by his own reflection in the kettle, and set the curtains ablaze. Nobody was hurt, the toast was very crispy, and the cats clapped anyway. He took a bow, and a career was born.
+Bengal is a natural performer. He walks like there is a spotlight on him, even in the dark, and he always wears a camellia flower behind one ear. At the Lantern House he decided to make toast for everyone, got distracted by his own reflection in the kettle, and set the curtains ablaze. Nobody was hurt, the toast was very crispy, and the cats clapped anyway. He took a bow, and a career was born.
 
 On the Crossing he treats every fight like opening night. He flings burnt toast at the front row, strikes a pose so dazzling that any dog looking straight at him freezes on the spot, and when the crowd gathers he raises the curtain on a stage of fire. He hits extra hard on any dog that is already stuck, slowed or stunned. He says that is not mean; it is just good timing.
 
-- **Rival:** Bravo. Two divas, one Crossing. The reviews are split: half say Bravo is more dramatic, half say Bengas is more on fire.
-- **Friend:** Avietė. He still says the smoke from the toaster was hers. She still says it was his. They share the blame, and the toast.
+- **Rival:** Bravo. Two divas, one Crossing. The reviews are split: half say Bravo is more dramatic, half say Bengal is more on fire.
+- **Friend:** Raspberry. He still says the smoke from the toaster was hers. She still says it was his. They share the blame, and the toast.
 - **Quote:** "Look at me. No, really. Look at me."
 - **How they fight:** Fling Burnt Toast, Striking Pose to stun dogs facing you, raise Curtains Up! on a crowd and Camellia Hop away; every hit lands harder on a held dog.
 
-### Gabė, The Blue-Eyed Breeze
+### Gabby, The Blue-Eyed Breeze
 
 *blue-eyed cat (shelter champion) · Support · WIND · Purrhaven Isle* · key `gabe`
 
-**Hook.** One look from Gabė's blue eyes and you are under her spell. She once chased the wind across all of Purrhaven; it turned out to be a balloon.
+**Hook.** One look from Gabby's blue eyes and you are under her spell. She once chased the wind across all of Purrhaven; it turned out to be a balloon.
 
-Gabė is the gentlest cat in the Lantern House and the fastest to notice when someone is sad. On her first sunny day there, she saw something red bobbing over the hill and was sure it was the wind itself, come to play. She chased it across fields, over a bridge and up the Great Cat Tree. It was a balloon. She caught it anyway, and she has kept a bunch of heart balloons ever since.
+Gabby is the gentlest cat in the Lantern House and the fastest to notice when someone is sad. On her first sunny day there, she saw something red bobbing over the hill and was sure it was the wind itself, come to play. She chased it across fields, over a bridge and up the Great Cat Tree. It was a balloon. She caught it anyway, and she has kept a bunch of heart balloons ever since.
 
 In a match she floats along behind her friends like a warm breeze. Every tap of her paw on a dog sends a little healing gust to whichever friend needs it most. She lobs heart balloons that pop on dogs and patch up cats in the same burst, wraps friends in a shield of soft wings, and when dogs come too close she simply looks at them. Nobody knows exactly what happens next. The dogs just walk over, smiling.
 
@@ -232,7 +234,7 @@ Her ears turn like radar dishes. She can hear a dog wag its tail behind a wall a
 At three o'clock every morning she gets the Zoomies and races round the whole island. In a match, she saves them for the moment it matters.
 
 - **Rival:** Rocket. The fastest cat against the fastest dog. Their race around both islands ended when Rocket fell asleep and she tripped over her scarf. Nobody has won yet.
-- **Friend:** Gabė. She ran down that first runaway balloon with Gabė. Now they chase one together every windy evening.
+- **Friend:** Gabby. She ran down that first runaway balloon with Gabby. Now they chase one together every windy evening.
 - **Quote:** "Why walk when you can zoom?"
 - **How they fight:** Keep moving to fill Stride, High Leap onto a dog, Ear Swivel to find hidden dogs, Swat-Swat to slow, and Zoomies to turn every attack into a pounce.
 
@@ -269,7 +271,7 @@ He is the sneakiest hero on the Crossing and also the worst at keeping quiet. He
 
 He has a long list of cats he wants to surprise, and a short list of the ones he actually has. He insists both lists are a joke.
 
-- **Rival:** Avietė. They both love the same bush on Puddle Lane. Avietė always finds him first, because she can hear the giggling.
+- **Rival:** Raspberry. They both love the same bush on Puddle Lane. Raspberry always finds him first, because she can hear the giggling.
 - **Friend:** Frankie. Frankie digs the tunnels, Cacklejaw brings the jokes. Their hideout under the dunes has a snack shelf and very bad lighting.
 - **Quote:** "Hee hee… oh, you heard that? Hee hee hee."
 - **How they fight:** Bush Slink close, Jeer Slash through a lone cat and dash again on a hit, Gloat to scare its friends off, then Pack Hunt the weakest cat.
@@ -286,7 +288,7 @@ He carries a pouch of treats everywhere and keeps a careful eye on which friend 
 
 His favourite moment is Herding Time, when every cat nearby ends up in one neat, surprised little pile, right in front of his team.
 
-- **Rival:** Gabė. She says she is the best friend on the Crossing. He says he is the Very Good Boy. They are keeping score.
+- **Rival:** Gabby. She says she is the best friend on the Crossing. He says he is the Very Good Boy. They are keeping score.
 - **Friend:** Domino. He looks after the puppy and makes sure Domino never runs out of spots. Or crayons. Or snacks.
 - **Quote:** "Everybody in one spot, please! Thank you! Good team!"
 - **How they fight:** Throw Frisbees through cats, toss a treat every few bites, Best Friend to a teammate in danger, Sploot to heal, and Herding Time to gather the cats for your team.
@@ -320,7 +322,7 @@ On the Crossing he never stops performing. He drops a spotlight onto the sand an
 
 When it looks like the curtain is coming down on him, Bravo takes his most dramatic fall: he flops, goes perfectly still and plays dead, and nothing can touch him. Then he bounces up for an ENCORE!, and every cat nearby feels they simply have to come forward and applaud.
 
-- **Rival:** Bengas. Bengas set his own stage on fire and still got the bigger applause. Bravo has written three plays about it. All tragedies.
+- **Rival:** Bengal. Bengal set his own stage on fire and still got the bigger applause. Bravo has written three plays about it. All tragedies.
 - **Friend:** Sir Brutus. His cousin Sir Brutus says flopping is undignified. Bravo always saves him the front-row seat anyway.
 - **Quote:** "Is this the end? …No. ENCORE!"
 - **How they fight:** Slow cats with Crocodile Tears, fight inside Center Stage to be tougher, Stage Dive into the crowd, call ENCORE! to pull cats in, and trust the Dramatic Flop when low.
