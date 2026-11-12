@@ -6,7 +6,7 @@
  * need a match locked, the app build never shows the Store, and host names are escaped.
  */
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { availableQueues, botsChoice, disposeHome, homeScreen, pvpLockText, resolveChoice, ringPct, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
+import { availableQueues, botsChoice, disposeHome, homeScreen, patchHome, pvpLockText, resolveChoice, ringPct, type HomeScreenOpts } from '../../src/ui/home/homeScreen';
 import { modeById, modeList } from '../../src/ui/modeSelect/modes';
 
 const NOW = Date.now();
@@ -218,5 +218,62 @@ describe('home screen', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await tick();
     expect(onPlay).not.toHaveBeenCalled();
+  });
+});
+
+// The Home re-render fix (Nov 12): closing a panel, switching Treat Track | Legends Pass or a data refresh redrew Home
+// from scratch, which replayed every entrance animation behind the next panel. A redraw now patches the same root.
+describe('home patch (no rebuild under modals)', () => {
+  it('keeps the root and every unchanged region node; swaps only what changed, still', () => {
+    const root = mount(base({ onCollection: vi.fn(), profile: { name: 'Guest', tier: 3, pct: 0.5, xp: 1200, matches: 4 } }));
+    expect(root.classList.contains('hm-still')).toBe(false);
+    const nav = root.querySelector('.hm-nav');
+    const left = root.querySelector('.hm-left');
+    const play = root.querySelector('.hm-play');
+    // same data: nothing is touched
+    expect(patchHome(root, base({ onCollection: vi.fn(), profile: { name: 'Guest', tier: 3, pct: 0.5, xp: 1200, matches: 4 } }))).toBe(true);
+    expect(root.querySelector('.hm-nav')).toBe(nav);
+    expect(root.querySelector('.hm-play')).toBe(play);
+    expect(root.classList.contains('hm-still')).toBe(true);
+    // a tier up: the top bar and the nav's tier badge change, the left stack and PLAY stay the same nodes
+    const top = root.querySelector('.hm-top');
+    expect(patchHome(root, base({ onCollection: vi.fn(), profile: { name: 'Guest', tier: 4, pct: 0.1, xp: 1550, matches: 4 } }))).toBe(true);
+    expect(document.querySelectorAll('.pl-home')).toHaveLength(1);
+    expect(root.querySelector('.hm-top')).not.toBe(top);
+    expect(root.querySelector('.hm-cur')?.textContent).toContain('1,550');
+    expect(root.querySelector('.hm-nav .hm-count.tier')?.textContent).toBe('4');
+    expect(root.querySelector('.hm-left')).toBe(left);
+    expect(root.querySelector('.hm-play')).toBe(play);
+  });
+
+  it('follows a new worn card on the nameplate, and keeps an open popover open', () => {
+    const quests = [{ quest: { id: 'q1', text: 'Win one', goal: 1 }, value: 0, done: false }] as unknown as HomeScreenOpts['quests'];
+    const root = mount(base({ quests }));
+    const today = root.querySelector<HTMLDetailsElement>('.hm-today')!;
+    today.open = true;
+    const done = [{ quest: { id: 'q1', text: 'Win one', goal: 1 }, value: 1, done: true }] as unknown as HomeScreenOpts['quests'];
+    expect(patchHome(root, base({ quests: done, identity: { name: 'Pumpkin', sub: 'Sage the Marksman', element: 'FIRE', role: 'Marksman', card: true, rung: null } }))).toBe(true);
+    expect(root.querySelector('.hm-plate-n')?.textContent).toContain('Pumpkin');
+    expect(root.querySelector('.hm-today')).not.toBe(today);
+    expect(root.querySelector<HTMLDetailsElement>('.hm-today')!.open).toBe(true);
+    expect(root.querySelector('.hm-today .hm-rl')?.textContent).toBe('1/1');
+  });
+
+  it('syncs the Sound switch and keeps the handlers on the new options', () => {
+    const onStore = vi.fn();
+    const root = mount(base({ storeOpen: true, onStore: vi.fn() }));
+    expect(patchHome(root, base({ storeOpen: true, onStore, muted: true }))).toBe(true);
+    expect(root.querySelector('[data-a="mute"]')?.getAttribute('aria-pressed')).toBe('false');
+    root.querySelector<HTMLElement>('.hm-nav [data-a="store"]')!.click();
+    expect(onStore).toHaveBeenCalledTimes(1);
+  });
+
+  it('refuses a layout change (first visit → returning, a dare) so the caller builds a still Home', () => {
+    const root = mount(base({ firstTime: true }));
+    expect(patchHome(root, base({ firstTime: false }))).toBe(false);
+    expect(patchHome(root, base({ firstTime: true, dare: { hero: 'clem', trick: 'pounce', difficulty: 'easy', seed: 1 } as HomeScreenOpts['dare'] }))).toBe(false);
+    expect(patchHome(null, base())).toBe(false);
+    const still = homeScreen(document.body, { ...base(), still: true });
+    expect(still.classList.contains('hm-still')).toBe(true);
   });
 });

@@ -55,7 +55,7 @@ import { offerCard } from '../ui/offerCard';
 import { PerfReadout, perfFromUrl } from '../ui/perfReadout';
 import { loadingVeil, pickScreen, refreshPickChamps, refreshPickFaces, setPickLook, resultsScreen, rotatePrompt, type Choice } from '../ui/screens';
 import { disposeLobby, heroIdentity, type LobbyIdentity } from '../ui/lobby/lobbyScreen';
-import { disposeHome, homeScreen, type HomeProfile, type Promo } from '../ui/home/homeScreen';
+import { disposeHome, homeScreen, patchHome, type HomeProfile, type HomeScreenOpts, type Promo } from '../ui/home/homeScreen';
 import { currentSeason, seasonEndText } from '../meta/pass';
 import { legacyMode, loadModeChoice, modeList, saveModeChoice, type ModeChoice } from '../ui/modeSelect/modes';
 import { heroElement } from '../ui/cards/el';
@@ -682,6 +682,7 @@ export class App {
     this.screenEl = el;
     this.screen = s;
     document.documentElement.dataset.screen = s;
+    if (s === 'match') this.homeIntro = true;
     // the cards drawer belongs to the lobby screens
     if (s === 'match' || s === 'results') {
       this.cards?.close();
@@ -715,6 +716,9 @@ export class App {
   private matchModeNow: MatchMode | null = null;
   /** Home's mode and queue this visit (Mode Select's Confirm; null = the stored one). */
   private modeChoiceNow: ModeChoice | null = null;
+
+  /** The next Home plays its entrance animations (the first of the visit, and after each match). */
+  private homeIntro = true;
 
   /** `offer` false: a redraw after a lobby panel closed (the Treat Track panel never leads to an offer). */
   showTitle(offer = true): void {
@@ -756,12 +760,6 @@ export class App {
     if (this.party?.suspended && this.screen !== 'title') queueMicrotask(() => this.party?.show());
     // a cat that arrived during a match goes on now (never over the match HUD)
     this.autoEquip(true);
-    this.lobby.enter();
-    // Home (HOME-MODES.md §4): the hero stands centred on the key art's ring, at 72% of the full band
-    this.lobby.side = 0;
-    this.lobby.heroScale = 0.72;
-    this.lobby.footShare = 0.09;
-    this.setLobbyHero(this.dare?.hero ?? this.choice.hero);
     const p = loadProfile();
     const owned = this.owned();
     const s = this.ent.snapshot();
@@ -805,118 +803,132 @@ export class App {
       { id: 'store', title: 'Store', sub: 'Champions, coats and frames', action: 'store' },
     ];
     const modes = modeList();
-    this.setScreen(
-      'title',
-      homeScreen(this.root, {
-        profile,
-        modes,
-        modeChoice: this.modeChoiceNow ?? loadModeChoice(modes),
-        // Mode Select's Confirm: saved, and the old 3v3 | 5v5 key follows (the pick, party queue and rematch read it)
-        onModeChoice: (c) => {
-          this.modeChoiceNow = c;
-          saveModeChoice(c);
-          const lm = legacyMode(c.mode);
-          this.matchModeNow = lm;
-          saveMatchMode(lm);
-          if (c.queue !== 'bots' && pvpKnown() === true) {
-            this.onlineMode = c.queue;
-            setOnlineMode(c.queue);
+    const opts: HomeScreenOpts = {
+      profile,
+      modes,
+      modeChoice: this.modeChoiceNow ?? loadModeChoice(modes),
+      // Mode Select's Confirm: saved, and the old 3v3 | 5v5 key follows (the pick, party queue and rematch read it)
+      onModeChoice: (c) => {
+        this.modeChoiceNow = c;
+        saveModeChoice(c);
+        const lm = legacyMode(c.mode);
+        this.matchModeNow = lm;
+        saveMatchMode(lm);
+        if (c.queue !== 'bots' && pvpKnown() === true) {
+          this.onlineMode = c.queue;
+          setOnlineMode(c.queue);
+        }
+      },
+      promos,
+      seasonEnd: ends ? `Ends ${ends}` : '',
+      base,
+      firstTime: p.matches === 0,
+      last: this.choice,
+      dare: this.dare,
+      muted: sfx.isMuted,
+      identity,
+      storeOpen: s.storeOpen,
+      frame: bestFrame(owned, p.wornFrame),
+      title: titleOf(owned, p.wornTitle),
+      portrait: this.badgePortrait(),
+      signedIn: accountState().signedIn,
+      isApp: this.isApp(),
+      firstLine: rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.',
+      difficulties: pickable(),
+      difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
+      onDifficulty: (d) => {
+        this.choice = { ...this.choice, difficulty: d };
+      },
+      // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
+      ...(notice ? { notice } : {}),
+      cardCount: skins.length,
+      peek,
+      wearing: card ? { name: card.name } : null,
+      onCards: () => this.openCards(),
+      // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
+      playOut: () => {
+        void loadMatch().catch(() => undefined);
+        return this.lobby.playOut();
+      },
+      sound: (n) => sfx.play(n),
+      onPlay: (c, seed) => {
+        if (seed !== undefined) this.dare = null;
+        this.startMatch(c, seed);
+      },
+      onChoose: () => {
+        sfx.play('click');
+        this.showPick();
+      },
+      onParty: this.partyApi
+        ? () => {
+            sfx.play('click');
+            this.openParty('create');
           }
-        },
-        promos,
-        seasonEnd: ends ? `Ends ${ends}` : '',
-        base,
-        firstTime: p.matches === 0,
-        last: this.choice,
-        dare: this.dare,
-        muted: sfx.isMuted,
-        identity,
-        storeOpen: s.storeOpen,
-        frame: bestFrame(owned, p.wornFrame),
-        title: titleOf(owned, p.wornTitle),
-        portrait: this.badgePortrait(),
-        signedIn: accountState().signedIn,
-        isApp: this.isApp(),
-        firstLine: rookieAvailable() ? 'Your first match is a guided Rookie match.' : 'Your first match is a guided match against Easy bots.',
-        difficulties: pickable(),
-        difficultyNote: canPickDifficulty(p.matches, p.veteran) ? undefined : `More bots after ${PICK_DIFFICULTY_FROM} matches.`,
-        onDifficulty: (d) => {
-          this.choice = { ...this.choice, difficulty: d };
-        },
-        // sim v22: a `?mode=` link's unknown mode says "Update to play …" as Home opens
-        ...(notice ? { notice } : {}),
-        cardCount: skins.length,
-        peek,
-        wearing: card ? { name: card.name } : null,
-        onCards: () => this.openCards(),
-        // the match chunk loads during the 0.4 s dolly (it is usually prefetched already)
-        playOut: () => {
-          void loadMatch().catch(() => undefined);
-          return this.lobby.playOut();
-        },
-        sound: (n) => sfx.play(n),
-        onPlay: (c, seed) => {
-          if (seed !== undefined) this.dare = null;
-          this.startMatch(c, seed);
-        },
-        onChoose: () => {
-          sfx.play('click');
-          this.showPick();
-        },
-        onParty: this.partyApi
-          ? () => {
-              sfx.play('click');
-              this.openParty('create');
+        : undefined,
+      onJoinCode: this.partyApi
+        ? () => {
+            sfx.play('click');
+            this.openParty('code');
+          }
+        : undefined,
+      // casual PvP (V16.md §5): the mode chip, only when the backend verifies PvP for this build's sim
+      onlineMode:
+        this.partyApi && pvpKnown() === true
+          ? {
+              mode: this.onlineMode ?? onlineMode(p.matches),
+              // no match-count lock for now (PVP_UNLOCK_MATCHES 0): PvP is one tap from the first session
+              locked: p.matches < PVP_UNLOCK_MATCHES,
+              played: p.matches,
+              needed: PVP_UNLOCK_MATCHES,
+              onMode: (m) => {
+                this.onlineMode = m;
+                setOnlineMode(m);
+              },
             }
           : undefined,
-        onJoinCode: this.partyApi
+      // Quick Play co-op (M1A-IMPL.md §1): one tap for everyone, a brand-new guest included (zero friction: no
+      // sign-in, no unlock). The big button stays the guided solo match; a new player queues with the newbie hint.
+      onOnline:
+        this.partyApi
           ? () => {
               sfx.play('click');
-              this.openParty('code');
+              this.openParty('queue');
             }
           : undefined,
-        // casual PvP (V16.md §5): the mode chip, only when the backend verifies PvP for this build's sim
-        onlineMode:
-          this.partyApi && pvpKnown() === true
-            ? {
-                mode: this.onlineMode ?? onlineMode(p.matches),
-                // no match-count lock for now (PVP_UNLOCK_MATCHES 0): PvP is one tap from the first session
-                locked: p.matches < PVP_UNLOCK_MATCHES,
-                played: p.matches,
-                needed: PVP_UNLOCK_MATCHES,
-                onMode: (m) => {
-                  this.onlineMode = m;
-                  setOnlineMode(m);
-                },
-              }
-            : undefined,
-        // Quick Play co-op (M1A-IMPL.md §1): one tap for everyone, a brand-new guest included (zero friction: no
-        // sign-in, no unlock). The big button stays the guided solo match; a new player queues with the newbie hint.
-        onOnline:
-          this.partyApi
-            ? () => {
-                sfx.play('click');
-                this.openParty('queue');
-              }
-            : undefined,
-        onMute: (m) => this.setMuted(m),
-        onStore: () => this.openStore('lobby'),
-        onSettings: () => this.openSettings(),
-        // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
-        onSocial: this.bridge.active ? () => this.openSocial() : undefined,
-        socialBadge: this.socialBadge,
-        onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
-        onExit: this.bridge.kind === 'frame'
-          ? () => {
-              sfx.play('click');
-              this.bridge.post('exit');
-            }
-          : undefined,
-        // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
-        // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
-        quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
-      }),
-    );
+      onMute: (m) => this.setMuted(m),
+      onStore: () => this.openStore('lobby'),
+      onSettings: () => this.openSettings(),
+      // Social, ranked and boards (SOCIAL-RANKED.md §14): through the host's session, so embedded only
+      onSocial: this.bridge.active ? () => this.openSocial() : undefined,
+      socialBadge: this.socialBadge,
+      onCollection: p.matches > 0 ? () => this.openCollection() : undefined,
+      onExit: this.bridge.kind === 'frame'
+        ? () => {
+            sfx.play('click');
+            this.bridge.post('exit');
+          }
+        : undefined,
+      // round 1: in the guided matches the hero quest names the hero being played ("Win with Cacklejaw" while
+      // playing Sage); GAPS A1: after them it is the day's round-robin hero (each of the 8 every 8 days)
+      quests: p.matches > 0 ? questViews(loadQuests(), followsHero(p.matches) ? this.choice.hero : undefined) : undefined,
+    };
+    // The Home re-render fix (Nov 12): a redraw of the Home on screen (a panel closed, a Treat Track | Legends Pass tab
+    // switch, an entitlement or progress refresh, an equip) patches the changed parts into the same Home. Rebuilding
+    // it replayed every entrance animation behind the next panel and re-entered the 3D lobby.
+    const patched = !first && patchHome(this.screenEl, opts);
+    if (!patched) {
+      this.lobby.enter();
+      // Home (HOME-MODES.md §4): the hero stands centred on the key art's ring, at 72% of the full band
+      this.lobby.side = 0;
+      this.lobby.heroScale = 0.72;
+      this.lobby.footShare = 0.09;
+    }
+    this.setLobbyHero(this.dare?.hero ?? this.choice.hero);
+    if (!patched) {
+      // the entrance plays on the first Home of the visit and on the one after a match; every other Home is still
+      this.setScreen('title', homeScreen(this.root, { ...opts, still: !this.homeIntro }));
+      this.homeIntro = false;
+    }
     if (first) this.analytics.track('title_view', { first_time: p.matches === 0, dare: !!this.dare });
     if (offer) this.maybeOffer('lobby');
     this.maybeConsent();
