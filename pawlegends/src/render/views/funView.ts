@@ -5,6 +5,9 @@
  * Sim v24 (V21-FUN.md §2.1 "v24: instant beds"): a bed wobbles when a hero steps on it, and while the player's own hero
  * is near one a dotted arc and a ring show where it throws (BED_GUIDE); the launch's squash, puff and ring play on the
  * `boing` event itself.
+ * Sim v25 (founder: "hard to navigate through them"): the drawn toys match the sim's reach. The cannon's gold ring ends
+ * where a hero's body takes it (CANNON_RING), the ball is as big as a kick's contact (BALL_R), and the bed guide adds a
+ * faint wedge behind the cushion: the 60° walk that throws (a walk across it from anywhere else does not).
  *
  * Original models built from primitives (a brass party cannon on a red-and-cream wheelbase, pastel cat beds with a paw
  * print, a striped yarn ball). Phone budget (PERF-IOS): a fixed set of meshes made once (one cannon, at most two balls,
@@ -12,8 +15,8 @@
  * the shared particle pools and scale with the quality tier (Particles.countScale).
  */
 import * as THREE from 'three';
-import { BOING, CANNON, FUN_BY_MAP, YARN_BALLS } from '../../data/fun';
-import { mirrorX, mirrorY } from '../../data/map';
+import { BOING, CANNON, FUN_BY_MAP, YARN, YARN_BALLS } from '../../data/fun';
+import { RADIUS, mirrorX, mirrorY } from '../../data/map';
 import type { FunSnap, SimEvent } from '../../sim/api';
 import { toX, toZ } from '../coords';
 import { RELATION } from '../palette';
@@ -34,12 +37,22 @@ export function leapLift(t: number): number {
   return 4 * LEAP.peak * u * (1 - u);
 }
 
+/**
+ * Sim v25: the cannon's ground ring (m): its outer edge is where a hero's body reaches when the sim lets it take the
+ * cannon (centre within CANNON.reach + RADIUS.hero), plus a hairline so the touch reads.
+ */
+export const CANNON_RING = Object.freeze({ inner: (CANNON.reach - 300) / 1000, outer: (CANNON.reach + 50) / 1000 });
+/** Sim v25: the yarn ball's radius (m): a kick is a hero's body touching it (YARN.kickReach − RADIUS.hero). */
+export const BALL_R = (YARN.kickReach - RADIUS.hero) / 1000;
+/** Sim v25: the bed's throw wedge (m and rad): behind the cushion, ±60° around the way in that throws. */
+export const BED_CONE = Object.freeze({ inner: 1.3, outer: 2.8, half: Math.PI / 3 });
+
 const BRASS = 0xd9a441;
 const RED = 0xd8443c;
 const CREAM = 0xfff1d6;
 const KIBBLE = 0xb5733a;
 const BED_COLORS = [0xffc4d6, 0xc9e7ff, 0xd8f5c8, 0xffe6a8];
-const YARN = 0xff7eb6;
+const YARN_PINK = 0xff7eb6;
 
 /**
  * Sim v24: the bed guide. Shown while the player's own hero is within `near` m of a bed (and not flying): `dots` dots
@@ -67,6 +80,8 @@ interface Bed {
   dots: THREE.Mesh[];
   /** Bit h set = hero h was on the cushion last frame (a new bit wobbles the bed). */
   on: number;
+  /** Sim v25: the throw wedge's own material (fainter than the dots). */
+  coneMat: THREE.MeshBasicMaterial;
 }
 
 interface Ball {
@@ -121,7 +136,7 @@ export class FunView {
     this.group.name = 'fun';
     this.cannon = makeCannon();
     this.group.add(this.cannon);
-    const ringGeo = new THREE.RingGeometry(1.0, 1.35, 32);
+    const ringGeo = new THREE.RingGeometry(CANNON_RING.inner, CANNON_RING.outer, 32);
     this.cannonRing = new THREE.Mesh(ringGeo, new THREE.MeshBasicMaterial({ color: 0xffe14a, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }));
     this.cannonRing.rotation.x = -Math.PI / 2;
     this.cannonRing.position.y = 0.06;
@@ -151,9 +166,9 @@ export class FunView {
     this.cannon.visible = false;
     this.cannonRing.visible = false;
     this.cannonBeam.visible = false;
-    const ballGeo = new THREE.SphereGeometry(0.85, 14, 10);
-    const ballMat = new THREE.MeshLambertMaterial({ color: YARN });
-    const bandGeo = new THREE.TorusGeometry(0.86, 0.07, 6, 24);
+    const ballGeo = new THREE.SphereGeometry(BALL_R, 14, 10);
+    const ballMat = new THREE.MeshLambertMaterial({ color: YARN_PINK });
+    const bandGeo = new THREE.TorusGeometry(BALL_R + 0.01, 0.07, 6, 24);
     const bandMat = new THREE.MeshLambertMaterial({ color: 0xfff1f7 });
     for (let i = 0; i < YARN_BALLS; i++) {
       const root = new THREE.Group();
@@ -176,6 +191,7 @@ export class FunView {
       this.group.remove(b.root, b.guide);
       b.arrowMat.dispose();
       b.guideMat.dispose();
+      b.coneMat.dispose();
     }
     this.beds.length = 0;
     const rows = FUN_BY_MAP[index]?.beds ?? [];
@@ -237,9 +253,20 @@ export class FunView {
       const land = new THREE.Mesh(ring, guideMat);
       land.position.set(toX(lx), 0.07, toZ(ly));
       guide.add(land);
+      // v25: the wedge behind the cushion a walk comes in through to be thrown (heading within 60° of the throw)
+      const coneMat = new THREE.MeshBasicMaterial({ color, transparent: true, opacity: 0, depthWrite: false, toneMapped: false, side: THREE.DoubleSide });
+      const wx = toX(bx) - toX(lx);
+      const wz = toZ(by) - toZ(ly);
+      // a flat ring sector: local angle θ lies at world (cos θ, −sin θ) once rotated flat
+      const mid = Math.atan2(-wz, wx);
+      const coneGeo = new THREE.RingGeometry(BED_CONE.inner, BED_CONE.outer, 16, 1, mid - BED_CONE.half, BED_CONE.half * 2);
+      const cone = new THREE.Mesh(coneGeo, coneMat);
+      cone.rotation.x = -Math.PI / 2;
+      cone.position.set(toX(bx), 0.06, toZ(by));
+      guide.add(cone);
       guide.visible = false;
       this.group.add(root, guide);
-      this.beds.push({ root, squash: 0, bx: toX(bx), bz: toZ(by), lx: toX(lx), lz: toZ(ly), arrowMat, guide, guideMat, dots, on: 0 });
+      this.beds.push({ root, squash: 0, bx: toX(bx), bz: toZ(by), lx: toX(lx), lz: toZ(ly), arrowMat, guide, guideMat, dots, on: 0, coneMat });
     }
   }
 
@@ -338,7 +365,7 @@ export class FunView {
       }
       case 'yarnUnravel': {
         _p.set(toX(e.x), 0.8, toZ(e.y));
-        this.particles.burst(_p, { n: 14, shape: SHAPE.STAR4, color: YARN, size: [0.12, 0.22], life: [0.6, 1], speed: [1.5, 3.5], up: 2, gravity: -5 });
+        this.particles.burst(_p, { n: 14, shape: SHAPE.STAR4, color: YARN_PINK, size: [0.12, 0.22], life: [0.6, 1], speed: [1.5, 3.5], up: 2, gravity: -5 });
         return;
       }
       case 'cannonSpawn':
@@ -463,6 +490,7 @@ export class FunView {
       if (a <= 0) continue;
       const pulse = this.reduceMotion ? 1 : 0.75 + 0.25 * Math.sin(this.time * 6);
       b.guideMat.opacity = 0.85 * a * pulse;
+      b.coneMat.opacity = 0.22 * a;
       // dots on the flight arc (LEAP's parabola), drifting toward the landing
       const n = b.dots.length;
       const drift = this.reduceMotion ? 0 : (this.time * 0.8) % (1 / n);

@@ -25,8 +25,17 @@ export interface CannonData {
 export const CANNON = Object.freeze({
   /** The `cannonSoon` warning comes this many ticks before a spawn (10 s). */
   warn: 300,
-  /** Pick-up reach from the hero's centre (the Frenzy pickup's). */
-  reach: 1500,
+  /**
+   * Pick-up reach from the hero's edge: sim v25 1000, so the pick-up (hero centre within reach + RADIUS.hero = 1.5 m)
+   * is the hero's body touching the drawn gold ring's outer edge. v21–v24: 1500 (2.0 m, past the ring).
+   */
+  reach: 1000,
+  /**
+   * Sim v25: a walking hero takes it only when its move goal is within this of the cannon (a tap on the cannon, a touch
+   * stick pushed at it, a bot walking to its spot); a hero stopped on it always does. A walk past to somewhere else does
+   * not pick it up (there is no drop, only Fire).
+   */
+  aim: 800,
   /** Fuse while carried: 20 s. It pauses while the cannon lies on the ground. */
   fuse: 600,
   /** A dropped cannon (death, Nap, fumble) lies this long (8 s) for either team, then fizzles. */
@@ -83,12 +92,21 @@ export const BOING = Object.freeze({
    */
   reach: 1200,
   /**
-   * Sim v24: a walking goal within this of the bed steps onto it (a tap on or by the cushion; a touch stick's 2 m
-   * look-ahead from anywhere on it). v21–v23: 600 (`aim`).
+   * Sim v24: a walking goal within this of the bed steps onto it (a touch stick's 2 m look-ahead from anywhere on it).
+   * Sim v25: only a walk heading within 60° of the throw (from behind the bed toward the landing). v21–v23: 600 (`aim`).
    */
   near: 3200,
-  /** Sim v24: a hero stopped (Order.None) in the disc this many ticks (0.27 s) is launched. */
-  stand: 8,
+  /**
+   * A hero stopped (Order.None) in the disc this many ticks is launched: sim v25 15 (0.5 s), and only one that did
+   * not walk across the disc toward somewhere else or fight on it first (`bedT` −1). v24: 8 (0.27 s), anyone.
+   */
+  stand: 15,
+  /**
+   * Sim v25: a move whose goal is on the cushion counts as walking onto the bed (a tap on it) only within this of that
+   * goal, i.e. as it arrives. A touch stick's goal stays over 1 m ahead of the hero, so a stick crossing the cushion
+   * and let go there is not thrown.
+   */
+  arrive: 600,
   /** Flight: 0.9 s. */
   flight: 27,
   /** Per-hero cooldown after landing (3 s). */
@@ -99,8 +117,9 @@ export const BOING = Object.freeze({
 });
 
 export const CROSSING_BEDS: readonly (readonly [number, number, number, number])[] = Object.freeze([
-  // The rat camp, east over the camp wall to the river.
-  Object.freeze([33000, 30000, 41000, 30000] as const),
+  // The rat camp, east over the camp wall to the river. Sim v25: 1.5 m nearer the wall (4.5 m from the camp's centre,
+  // out of the rat fight), the same 8 m throw. v21–v24: [33000, 30000, 41000, 30000].
+  Object.freeze([34500, 30000, 42500, 30000] as const),
   // Sunny side, south over the north wall to the rat camp.
   Object.freeze([27000, 45500, 27000, 34500] as const),
   // Puddle side, north over the south wall to the rat camp.
@@ -129,8 +148,16 @@ export interface YarnData {
 export const YARN_BALLS = 2;
 
 export const YARN = Object.freeze({
-  /** A hero with a move or attack-move order whose centre comes this close kicks the ball. */
-  kickReach: 1600,
+  /**
+   * A hero walking into the ball whose centre comes this close kicks it: sim v25 1350, the drawn ball (0.85 m) plus a
+   * hero's body (0.5 m), so a kick is a visible touch. v21–v24: 1600.
+   */
+  kickReach: 1350,
+  /**
+   * Sim v25: only a walk heading within 60° of the ball whose goal is within this of it (a touch stick's 2 m look-ahead,
+   * a tap on or just past the ball, a bot walking to it) kicks, along the walk. A walk to somewhere farther passes.
+   */
+  near: 3200,
   /** Rest between kicks (1.5 s). */
   rest: 45,
   /** Roll: speed (mm/s), range (mm), radius (mm). */

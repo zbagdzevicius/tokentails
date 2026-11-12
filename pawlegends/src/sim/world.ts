@@ -484,7 +484,11 @@ export interface World {
   mg: Int32Array;
   /** Sim v21: per hero, ticks until it can use a Boing Bed again (V21-FUN.md §2.1). Hashed. */
   boingT: Int32Array;
-  /** Sim v24: per hero, ticks it has stood in a Boing Bed's disc without a walking order (units/boing.ts). Hashed. */
+  /**
+   * Sim v24: per hero, ticks it has stood in a Boing Bed's disc without a walking order (units/boing.ts). Sim v25: −1
+   * while it is in the disc after walking across it to somewhere else or fighting on it (a stop then does not launch).
+   * Hashed.
+   */
   bedT: Int32Array;
   // Scalars
   globals: Int32Array;
