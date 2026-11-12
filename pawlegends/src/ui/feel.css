@@ -29,7 +29,7 @@
 /* the pause card's compact type; the full Settings screen keeps its rows' label size */
 .pl-menu:not(.pl-settings) .set-camh { font-size: 14px; }
 /* the pause card on a short phone is a two-column grid: the row takes the full width */
-.pl-menu:not(.pl-settings):not(.pl-collection) > .card > .set-camh { grid-column: 1 / -1; }
+.pl-menu:not(.pl-settings):not(.pl-collection):not(.pl-book) > .card > .set-camh { grid-column: 1 / -1; }
 .pl-menu:not(.pl-settings) .set-camh .camh-segs { flex: 1 1 280px; max-width: 360px; }
 /* the full Settings screen: room around the labels ("Normal" and "Higher" filled their pill at ~53 px a segment);
    too narrow a card wraps the label above the control rather than squeezing it */
