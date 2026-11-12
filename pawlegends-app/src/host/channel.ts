@@ -2,7 +2,7 @@
  * The same-window channel between the game and the app's in-page host (sign-in). On the web the game runs in an
  * iframe and the Token Tails page talks to it with postMessage; in the app there is no frame, so the shell installs
  * this channel as `window.__PL_HOST__` before the game loads (pawlegends/src/embed/bridge.ts `nativeChannel`), and
- * the host runs the very same bridge as the web host (client/components/pawlegends/bridge.ts
+ * the host runs the very same bridge as the web host (pawlegends-web/components/pawlegends/bridge.ts
  * `createPawlegendsBridge`) on top of it.
  *
  * Like postMessage, every message is copied (structuredClone) and delivered on a later task, so neither side ever

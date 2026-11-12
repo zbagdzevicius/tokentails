@@ -22,7 +22,7 @@
     "noEmit": true,
     "paths": {
       "@/*": [
-        "../client/*"
+        "../pawlegends-web/*"
       ],
       "firebase/*": [
         "./node_modules/firebase/*"

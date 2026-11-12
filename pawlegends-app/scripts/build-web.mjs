@@ -7,7 +7,7 @@
  *    label has no analytics data; nothing is sent, so there is no consent prompt and no tracking).
  * 2. The shell (src/shell/main.ts) bundled to `www/shell.js` with this bundle's stamp, and loaded before the game;
  *    the in-page host (src/host/main.ts: sign-in, saves, social; it reuses the web host's React-free modules from
- *    ../client) bundled to `www/host.js`, a deferred script after the game.
+ *    ../pawlegends-web) bundled to `www/host.js`, a deferred script after the game.
  * 3. `www/bundle.json`: the stamp (version, seq, compat, simVersion), read by the OTA publish job.
  *
  * Usage: node scripts/build-web.mjs [--seq <n>] [--skip-game]
@@ -81,11 +81,12 @@ mkdirSync(www, { recursive: true });
 cpSync(gameOut, www, { recursive: true });
 
 const publicPem = readFileSync(PUBLIC_KEY_PATH, 'utf8');
-const clientDir = resolve(appDir, '../client');
+// The web host lives in pawlegends-web/ (Paw Legends' own Next app, docs/plans/moba/PAWLEGENDS-WEB.md).
+const clientDir = resolve(appDir, '../pawlegends-web');
 
 /**
- * `@/…` is the Next client (the web host's React-free modules: bridge, saves, party, api ops, roster, auth flows);
- * a package those files import resolves from this app (one firebase and one Capacitor, never client/node_modules).
+ * `@/…` is pawlegends-web (the web host's React-free modules: bridge, saves, party, api ops, auth flows); a package
+ * those files import resolves from this app (one firebase and one Capacitor, never pawlegends-web/node_modules).
  */
 const clientModules = {
   name: 'pl-client-modules',

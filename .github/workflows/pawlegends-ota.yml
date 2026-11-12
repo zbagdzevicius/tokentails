@@ -30,6 +30,13 @@ on:
       - 'pawlegends-app/src/**'
       - 'pawlegends-app/scripts/**'
       - 'pawlegends-app/package-lock.json'
+      # the web host modules the app bundles (scripts/build-web.mjs resolves `@/` to pawlegends-web)
+      - 'pawlegends-web/components/pawlegends/**'
+      - 'pawlegends-web/components/heist/heistSaves.ts'
+      - 'pawlegends-web/context/auth/**'
+      - 'pawlegends-web/api/**'
+      - 'pawlegends-web/analytics/pawlegends-events.ts'
+      - 'pawlegends-web/shared-contracts/**'
       - '.github/workflows/pawlegends-ota.yml'
   pull_request:
     paths:
