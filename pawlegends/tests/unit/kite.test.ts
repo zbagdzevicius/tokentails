@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { Op, type Command, type HeroId } from '../../src/sim/api';
 import { decodeCommand, encodeCommand, OP_SIZE, quantize } from '../../src/sim/commands';
 import { createGate, gateCommand } from '../../src/sim/input';
-import { MOVE_MIN_GAP } from '../../src/data/limits';
+import { KITE_MIN_GAP, LIMITS_BY_MAP, MOVE_MIN_GAP, setLimits } from '../../src/data/limits';
 import { createMatch, fillPicks, hashTrail, replayRecord, result, step } from '../../src/sim/index';
 import { runReplay } from '../../src/sim/replay';
 import { Rng } from '../../src/sim/rng';
@@ -84,15 +84,34 @@ describe('KITE-FIX: commands and gate', () => {
     expect(decodeCommand(bytes)).toEqual(quantize(c));
     expect(quantize(c)).toEqual({ op: Op.Kite, x: 12250, y: 54250, id: 47 });
   });
-  it('a kite is gated as a move: spaced by MOVE_MIN_GAP and waits behind a cast of its tick', () => {
+  it('a kite is gated as a move: spaced by KITE_MIN_GAP and waits behind a cast of its tick', () => {
     const g = createGate();
     const k = (x: number): Command => ({ op: Op.Kite, x, y: 1000, id: 3 });
     expect(gateCommand(g, 10, [k(1000)])?.op).toBe(Op.Kite);
     expect(gateCommand(g, 11, [k(2000)])).toBeNull();
-    expect(gateCommand(g, 10 + MOVE_MIN_GAP, [])).toEqual(quantize(k(2000)));
+    expect(gateCommand(g, 10 + MOVE_MIN_GAP, [])).toBeNull();
+    expect(gateCommand(g, 10 + KITE_MIN_GAP, [])).toEqual(quantize(k(2000)));
+    // a move after a kite keeps the move gap
+    expect(gateCommand(g, 10 + KITE_MIN_GAP + MOVE_MIN_GAP, [{ op: Op.Move, x: 4000, y: 1000 }])?.op).toBe(Op.Move);
     const cast: Command = { op: Op.Cast, slot: 0, x: 0, y: 0, id: 255 };
     expect(gateCommand(g, 40, [cast, k(3000)])?.op).toBe(Op.Cast);
     expect(gateCommand(g, 41, [])).toEqual(quantize(k(3000)));
+  });
+  it('a held stick with ATK held for a whole match (a kite every tick) stays inside the input budget on every map', () => {
+    for (const [map, l] of Object.entries(LIMITS_BY_MAP)) {
+      setLimits(map as keyof typeof LIMITS_BY_MAP);
+      const g = createGate();
+      let applied = 0;
+      for (let t = 0; t < l.maxTicks; t++) {
+        // a move every 4th offer as well, so any mix of kites and moves is covered
+        const c: Command = t % 9 === 0 ? { op: Op.Move, x: 10000 + (t % 50000), y: 30000 } : { op: Op.Kite, x: 10000 + (t % 50000), y: 30000, id: 3 };
+        if (gateCommand(g, t, [c])) applied++;
+      }
+      // never refused for the budget (spend() failing drops the command), with room left for 60 pings (600 B) and Fire (60 B)
+      expect(applied, map).toBeGreaterThan(l.maxTicks / KITE_MIN_GAP - 10);
+      expect(g.bytes + 600 + 60, map).toBeLessThanOrEqual(l.maxInputBytes);
+    }
+    setLimits('crossing');
   });
 });
 

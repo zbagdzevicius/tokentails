@@ -137,3 +137,16 @@ pass after the version bumps), backend `jest src/pawlegends src/vendor` (70 suit
 
 **Watch after release:** ranged hero win rates in human matches (Rocket, Clem, other long-range basics), and the
 `data-kites` telemetry.
+
+### Review fixes (2026-11-12)
+
+- **Input budget: kites are spaced 5 ticks (`KITE_MIN_GAP`), moves still 4.** A kite record is 7 B (tick delta + 6 B)
+  against a move's 6 B. The budget (`MAX_INPUT_BYTES`) is sized for a held stick at one move per `MOVE_MIN_GAP` for the
+  whole match. With kites at the move gap, a stick and ATK held all match ran out of budget at about 9:44 on Crossing
+  and 14:12 on Hearthwood (Classic p50 is 13:06), and from then on the gate refused every command (the hero froze). At 5
+  ticks a kite costs 1.4 B a tick, under a move's 1.5, so every mix of moves and kites fits. The unit test in
+  `kite.test.ts` holds a kite every tick for a whole match on both maps; with a 4-tick gap it fails. Bots never kite,
+  so bot-only matches, the gates and every fixture (the kite replay included) are unchanged; only `simHash` moved.
+- **Touch: ATK with the stick pushed into the map edge or the enemy fountain attacked nothing.** The press went to the
+  stick, the stick had no goal (`edgeGoal` null), so no kite and no Attack were sent. Now the press falls back to the
+  Attack order when the stick sent no kite (`stick-yield-touch.test.ts`).

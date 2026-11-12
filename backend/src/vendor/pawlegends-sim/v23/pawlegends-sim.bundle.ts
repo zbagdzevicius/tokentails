@@ -14814,8 +14814,10 @@ function spend(g, tick, op) {
 	g.lastLogTick = tick;
 	return true;
 }
-/** KITE-FIX (sim v23): a kite is gated as a move (spaced by MOVE_MIN_GAP, waits behind a cast), so a held stick costs the same bytes. */
+/** KITE-FIX (sim v23): a kite is gated as a move (spaced from the last move or kite, waits behind a cast). */
 var isMove = (op) => op === Op.Move || op === Op.Kite;
+/** Ticks a move-class `op` waits after the last applied one: KITE_MIN_GAP for a kite (its extra byte, see limits.ts). */
+var gapOf = (op) => op === Op.Kite ? 5 : 4;
 /** Sim v12 (S5a): commands that leave a waiting move waiting (and win over a move of their own tick). Sim v21: Fire too. */
 var keepsMove = (op) => op === Op.Cast || op === Op.Trick || op === Op.Talent || op === Op.Fire;
 /**
@@ -14850,12 +14852,12 @@ function gateCommand(g, tick, commands) {
 		g.pending = null;
 	} else if (lastMove >= 0 && commands) {
 		const move = quantize(commands[lastMove]);
-		if (tick - g.lastMoveTick < 4) g.pending = move;
+		if (tick - g.lastMoveTick < gapOf(move.op)) g.pending = move;
 		else {
 			g.pending = null;
 			cmd = move;
 		}
-	} else if (g.pending && tick - g.lastMoveTick >= 4) {
+	} else if (g.pending && tick - g.lastMoveTick >= gapOf(g.pending.op)) {
 		cmd = g.pending;
 		g.pending = null;
 	}

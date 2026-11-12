@@ -16,16 +16,16 @@ import { Op, type Command } from '../../src/sim/api';
 const unit = (id: number, kind: Unit['kind'], team: number, x: number, y: number): Unit => ({ id, kind, team, x, y, hp: 100, maxHp: 100, state: 'idle' });
 const ME = { x: 24000, y: 29000 };
 
-function rig(extra: Unit[]) {
+function rig(extra: Unit[], at: { x: number; y: number } = ME) {
   vi.advanceTimersByTime(1000);
-  const units: Unit[] = [unit(0, 'hero', 0, ME.x, ME.y), ...extra];
+  const units: Unit[] = [unit(0, 'hero', 0, at.x, at.y), ...extra];
   const sent: Command[] = [];
   const cds = [0, 0, 0, 0, 0];
   const env: OrderEnv = { send: (c) => sent.push(c), units: () => units, meId: 0, hero: 'clem', trick: 'pounce', cooldowns: () => cds, level: () => 5, nowMs: () => performance.now() };
   const orders = new Orders(env);
   const canvas = document.createElement('canvas');
   document.body.appendChild(canvas);
-  const sim = { x: ME.x, y: ME.y, tick: 100 };
+  const sim = { x: at.x, y: at.y, tick: 100 };
   const view = { myTeam: 0, mySlot: 0, aim: null as unknown, attackRange: false, lock: null, me: () => ({ hero: 'clem', yaw: 0 }), recentre() {}, denyRing() {} };
   const host = { canvas, view, orders, enabled: () => true, units: () => units, onScoreboard() {}, onMenu() {}, onTalent: () => false, onActivity() {}, marker() {}, simMe: () => sim } as unknown as InputHost;
   const t = new TouchControls(host, document.body);
@@ -103,6 +103,17 @@ describe('touch: the stick yields to ATK while chasing', () => {
     expect(r.moves()).toBe(before);
     r.wait(1200);
     expect(r.moves()).toBeGreaterThan(before);
+  });
+
+  it('KITE-FIX review: the stick pushed into the map edge (no goal, no kite) still lets an ATK press attack', () => {
+    const edge = { x: 700, y: ME.y };
+    const r = rig([unit(3, 'hero', 1, edge.x + 1500, edge.y)], edge);
+    r.stick(Math.PI);
+    r.wait(200);
+    r.atkDown();
+    r.wait(100);
+    expect(r.kites()).toEqual([]);
+    expect(r.attacks()).toContain(3);
   });
 
   it('pulled away from the target the stick still moves (retreat, kite): KITE-FIX, as a kite on the held unit', () => {
