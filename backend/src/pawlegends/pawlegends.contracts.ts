@@ -182,6 +182,18 @@ export const stricterBand = (a: AgeBand | undefined, b: AgeBand | undefined): Ag
 export const UNDER_16_MESSAGE = 'Ask a parent or guardian to buy this on their own device.';
 
 /**
+ * The band a checkout uses when the buyer gave none (founder, Nov 12: the purchase sheets no longer ask the age) and
+ * none is stored for the email, device or account: the strictest band that can still buy, so an unknown buyer is held
+ * to its cap (€30 per 30 days) and never blocked. A stored answer still wins (stricterBand), and an answer the request
+ * still carries is stored as before.
+ */
+export const DEFAULT_AGE_BAND: AgeBand = '16-17';
+
+/** The band to apply: the stricter of the stored band and the request's answer, else DEFAULT_AGE_BAND. */
+export const effectiveBand = (stored: AgeBand | undefined, answer: AgeBand | undefined): AgeBand =>
+    stricterBand(stored, answer) || DEFAULT_AGE_BAND;
+
+/**
  * Terms versions (POC.md §8.6). `PAWLEGENDS_TERMS_VERSION` is the current `/pawlegends/terms` (2026-10-23: the $5
  * cat terms, launch item U5): `GET /pawlegends/status` reports it and the cat checkout accepts only that consent.
  * The legacy `pl_*` checkout keeps the presale terms it was written for: it accepts only
@@ -200,8 +212,15 @@ export interface PawlegendsCheckoutRequest {
     sku: PawlegendsSku;
     currency: PawlegendsCurrency;
     email?: string;
-    ageBand: AgeBand;
+    /** Optional since Nov 12 (the sheets no longer ask): absent means the stored band, else DEFAULT_AGE_BAND. */
+    ageBand?: AgeBand;
     consentVersion: string;
+    /**
+     * Store and pass SKUs: true when the buyer pressed the sheet's "Buy now · delivered instantly" button, which is
+     * the express request for immediate delivery and the acknowledgement that the 14-day withdrawal right ends at
+     * delivery (Directive 2011/83/EU art. 16(m)). Required for those SKUs; recorded with the hold and in Stripe.
+     */
+    consent?: boolean;
     deviceId: string;
     /** An entitlement token the host holds (proves Founder ownership for the upgrade). */
     token?: string;
