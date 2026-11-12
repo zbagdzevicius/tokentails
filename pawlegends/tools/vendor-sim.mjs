@@ -32,7 +32,7 @@
  *    a v15 new-dog replay verifies and the same record labelled v14 is refused.
  * 10. pvp-replay.fixture.json (sim v16, S-PvP, docs/plans/moba/V16.md §1.3): one genuine PvP match (PvpReplayRecord v3,
  *    Hard rules, two humans a side flown by player-bots, one bot each side), for the backend's casual /live spec.
- * backend/src/vendor/pawlegends-sim/v10/ to v23/: those files, frozen (FROZEN below; sim v24 is live).
+ * backend/src/vendor/pawlegends-sim/v10/ to v24/: those files, frozen (FROZEN below; sim v25 is live).
  * backend/src/vendor/pawlegends-sim/index.ts: the dispatcher the backend imports (`simFor(simVersion)`, SIM_VERSIONS,
  * and `verifyReplay` / `checkReplayShape` that pick the sim by the record's `simVersion` and refuse any other).
  */
@@ -95,6 +95,9 @@ export const VERSION_FILES = ['pawlegends-sim.bundle.ts', 'index.ts', 'pawlegend
  * 5v5 Hearthwood and Blitz) at 9c098621 and keeps v10 to v21, so the backend verifies 10 to 23.
  * Sim v24 (instant Boing Beds, docs/plans/moba/V21-FUN.md §2.1) froze the released v23 (Op.Kite) at de5ca5b5 (its
  * kite review re-vendored the bundle after 9a743dc7) and keeps v10 to v22, so the backend verifies 10 to 24.
+ * Sim v25 (deliberate fun toys: Boing Beds, the Kibble Cannon and the Mega Yarn Ball grab only a hero that means it,
+ * docs/plans/moba/V21-FUN.md §2.3) froze the released v24 (instant Boing Beds) at 73b6404e and keeps v10 to v23, so
+ * the backend verifies 10 to 25.
  */
 export const FROZEN = Object.freeze([
   Object.freeze({
@@ -226,6 +229,23 @@ export const FROZEN = Object.freeze([
     commit: 'de5ca5b57aa41d54157caf17574f39bf230acb90',
     from: 'backend/src/vendor/pawlegends-sim/v23',
     bundle: '13d26de911de8cb57e34aec7284a8f5d06084f3c0d6bfab549d56c7ae39d8b62',
+    extra: Object.freeze([
+      'forfeit-replay.fixture.json',
+      'dog-replay.fixture.json',
+      'new-dog-replay.fixture.json',
+      'pvp-replay.fixture.json',
+      'hearthwood-replay.fixture.json',
+      'hearthwood-party.fixture.json',
+      'hearthwood-pvp.fixture.json',
+      'blitz-replay.fixture.json',
+      'kite-replay.fixture.json',
+    ]),
+  }),
+  Object.freeze({
+    simVersion: 24,
+    commit: '73b6404e1dd5abdb6c814772e88916c97fc87ed6',
+    from: 'backend/src/vendor/pawlegends-sim/v24',
+    bundle: 'c12a7ae22ca509d77f3d4bf51ddbbe4b8fbd9453c9655ea28beb3b33fa104e2a',
     extra: Object.freeze([
       'forfeit-replay.fixture.json',
       'dog-replay.fixture.json',

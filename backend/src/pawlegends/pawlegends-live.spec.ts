@@ -203,7 +203,7 @@ describe('PAWLEGENDS /live branch', () => {
                 code: ErrorCode.PAWLEGENDS_SIM_VERSION,
                 sim: {
                     simVersion: SIM_VERSION,
-                    simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+                    simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
                 },
             });
             expect(verify).not.toHaveBeenCalled();
@@ -211,12 +211,12 @@ describe('PAWLEGENDS /live branch', () => {
         }
     );
 
-    it('sim v24 verifier: accepts v10 to v24 (GAPS B0; v9 retired), names all fifteen in GET /pawlegends/sim', async () => {
-        expect(SIM_VERSION).toBe(24);
-        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]);
+    it('sim v25 verifier: accepts v10 to v25 (GAPS B0; v9 retired), names all sixteen in GET /pawlegends/sim', async () => {
+        expect(SIM_VERSION).toBe(25);
+        expect(SIM_VERSIONS).toEqual([10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
         expect(PAWLEGENDS_SIM_INFO).toMatchObject({
-            simVersion: 24,
-            simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24],
+            simVersion: 25,
+            simVersions: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25],
         });
         expect(Object.keys(PAWLEGENDS_SIM_INFO.bundles)).toEqual([
             '10',
@@ -234,6 +234,7 @@ describe('PAWLEGENDS /live branch', () => {
             '22',
             '23',
             '24',
+            '25',
         ]);
         const fakeHash: Record<number, string> = {
             10: '10100000',
@@ -251,8 +252,9 @@ describe('PAWLEGENDS /live branch', () => {
             22: '22220000',
             23: '23230000',
             24: '24240000',
+            25: '25250000',
         };
-        for (const simVersion of [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24]) {
+        for (const simVersion of [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25]) {
             const record = genuine({ simVersion, finalHash: fakeHash[simVersion] });
             const { save, games } = setup(record);
             expect(await save(record)).toMatchObject({ outcome: 'won' });
@@ -566,7 +568,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(users.updates).toHaveLength(0);
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23], [24]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23], [24], [25]])(
             'sim v%s: re-sims a genuine shelter champion match in the worker; its v9 twin is refused before any re-sim',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (CHAMPION_FIXTURE_HERO, the naive player-bot on Easy); v10 is frozen.
@@ -870,6 +872,25 @@ describe('PAWLEGENDS /live branch', () => {
             });
         }, 180_000);
 
+        it('sim v25 (deliberate fun toys, V21-FUN.md §2.3): its records verify on v25 only; v24 stays frozen and verifies its own', () => {
+            for (const name of ['rookie', 'hearthwood'] as const) {
+                const v24 = fixture(24, name);
+                const v25 = fixture(25, name);
+                expect(verifyBySimVersion(v24)).toMatchObject({ ok: true, finalHash: v24.finalHash, ticks: v24.ticks });
+                expect(verifyBySimVersion(v25)).toMatchObject({ ok: true, finalHash: v25.finalHash, ticks: v25.ticks });
+                // bots kick, take and step onto the toys differently, so the matches differ and v24 refuses a v25 record
+                expect(v25.finalHash).not.toBe(v24.finalHash);
+                expect(verifyBySimVersion({ ...v25, simVersion: 24 }).ok).toBe(false);
+            }
+            const vendor = join(__dirname, '..', 'vendor', 'pawlegends-sim', 'v25');
+            const blitz = JSON.parse(readFileSync(join(vendor, 'blitz-replay.fixture.json'), 'utf8'));
+            expect(blitz).toMatchObject({ v: 1, simVersion: 25, mutator: 'blitz' });
+            expect(verifyBySimVersion(blitz)).toMatchObject({ ok: true, finalHash: blitz.finalHash });
+            expect(verifyBySimVersion({ ...blitz, simVersion: 24 }).ok).toBe(false);
+            const v24blitz = JSON.parse(readFileSync(join(vendor, '..', 'v24', 'blitz-replay.fixture.json'), 'utf8'));
+            expect(verifyBySimVersion(v24blitz)).toMatchObject({ ok: true, finalHash: v24blitz.finalHash });
+        }, 180_000);
+
         it('sim v24 (instant Boing Beds, V21-FUN.md §2.1): its records verify on v24 only; v23 stays frozen and verifies its own', () => {
             for (const name of ['rookie', 'hearthwood'] as const) {
                 const v23 = fixture(23, name);
@@ -957,7 +978,7 @@ describe('PAWLEGENDS /live branch', () => {
             expect(v11.stats[0].fish).toBeUndefined();
         }, 60_000);
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23], [24]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23], [24], [25]])(
             'sim v%s forfeit (GAPS B2): a genuine forfeited Normal match verifies, is a loss stored as quit, pays nothing',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` (FORFEIT_FIXTURE_SEED: the normal player-bot to 4:00, then Op.Forfeit).
@@ -992,7 +1013,7 @@ describe('PAWLEGENDS /live branch', () => {
             60_000
         );
 
-        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23], [24]])(
+        it.each([[10], [11], [12], [13], [14], [15], [16], [17], [18], [19], [20], [21], [22], [23], [24], [25]])(
             'sim v%s: re-sims a genuine Rookie match (match 1) in the worker and pays the Rookie first-win catnip once',
             async simVersion => {
                 // Recorded by `npm run vendor-sim` with the vendored sim (the naive player-bot), so it is always current.
