@@ -1,1 +1,0 @@
-var e=`cat.f.`,t=new Map,n=e=>typeof e==`string`&&e.startsWith(`cat.`),r=e=>`cat.${e}`,i=e=>e?t.get(e)??null:null,a=e=>t.get(e)?.rev??0;function o(e,n=()=>!1){for(let[e,r]of t)n(r)||t.delete(e);for(let n of e)t.set(n.id,n)}var s=e=>void t.set(e.id,e);export{o as a,s as i,i as n,r as o,n as r,a as s,e as t};
