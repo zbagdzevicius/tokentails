@@ -30,9 +30,12 @@ on:
       - 'pawlegends-app/src/**'
       - 'pawlegends-app/scripts/**'
       - 'pawlegends-app/package-lock.json'
-      # the web host modules the app bundles (scripts/build-web.mjs resolves `@/` to pawlegends-web)
-      - 'pawlegends-web/components/pawlegends/**'
+      # the web host modules the app bundles (scripts/build-web.mjs resolves `@/` to pawlegends-web). Only the
+      # React-free top-level modules and what they import: the landing pages (components/pawlegends/landing, legends)
+      # and the .tsx pages are web-only, and a change there must not publish a new app bundle.
+      - 'pawlegends-web/components/pawlegends/*.ts'
       - 'pawlegends-web/components/heist/heistSaves.ts'
+      - 'pawlegends-web/components/shelter/catSale.ts'
       - 'pawlegends-web/context/auth/**'
       - 'pawlegends-web/api/**'
       - 'pawlegends-web/analytics/pawlegends-events.ts'
@@ -42,6 +45,14 @@ on:
     paths:
       - 'pawlegends/src/**'
       - 'pawlegends-app/**'
+      # the same web host modules (the app's tests and typecheck import them)
+      - 'pawlegends-web/components/pawlegends/*.ts'
+      - 'pawlegends-web/components/heist/heistSaves.ts'
+      - 'pawlegends-web/components/shelter/catSale.ts'
+      - 'pawlegends-web/context/auth/**'
+      - 'pawlegends-web/api/**'
+      - 'pawlegends-web/analytics/pawlegends-events.ts'
+      - 'pawlegends-web/shared-contracts/**'
       - '.github/workflows/pawlegends-ota.yml'
   schedule:
     - cron: '17 * * * *'

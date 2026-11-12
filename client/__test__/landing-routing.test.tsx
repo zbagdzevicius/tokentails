@@ -814,7 +814,7 @@ describe("pawlegends.app shows Paw Legends (next.config.js host rules)", () => {
     const redirects: Rule[] = await nextConfig.redirects();
     const onRoot = redirects.filter((r) => host(r) === "pawlegends.app" && r.source === "/");
     expect(onRoot.map((r) => r.has!.find((h) => h.type === "query")!.key).sort()).toEqual(
-      ["checkout", "dare", "from", "notify", "party", "restore"]
+      ["checkout", "dare", "from", "mode", "notify", "party", "restore"]
     );
     for (const r of onRoot) expect(r).toMatchObject({ destination: "/play", permanent: false });
   });
