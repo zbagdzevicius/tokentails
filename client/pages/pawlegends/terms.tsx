@@ -4,7 +4,7 @@ import {
   UNDER_16_MESSAGE,
 } from "@/components/pawlegends/checkout";
 import { PAWLEGENDS_CONTACT, PAWLEGENDS_PRIVACY_URL, pawlegendsEnabled } from "@/components/pawlegends/flags";
-import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
+import { PAWLEGENDS_OG_IMAGE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 import Link from "next/link";
 
@@ -16,6 +16,7 @@ export const PAWLEGENDS_TERMS_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} terms`,
   description: `What you can buy in ${PAWLEGENDS_TITLE}, the EU withdrawal notice, age limits and contact.`,
   path: "/pawlegends/terms",
+  image: PAWLEGENDS_OG_IMAGE,
 });
 
 /** One section of the terms. */
