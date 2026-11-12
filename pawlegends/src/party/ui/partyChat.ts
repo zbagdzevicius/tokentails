@@ -75,7 +75,8 @@ export class PartyChat {
     this.el.className = 'pp-chat';
     this.el.dataset.testid = 'party-chat';
     this.el.hidden = true;
-    this.open = !!deps.wide?.();
+    // starts collapsed everywhere (founder: the open drawer took space); one tap on the chat button opens it
+    this.open = false;
     this.el.addEventListener('click', (e) => this.onClick(e));
     this.el.addEventListener('submit', (e) => {
       e.preventDefault();
@@ -122,11 +123,9 @@ export class PartyChat {
       this.unread = 0;
     }
     this.view = view;
-    // the pick needs its bottom bar (bots, Leave, LOCK IN): it starts as the 40 px chat button there, one tap opens
-    // the drawer; back on the lobby the desktop drawer opens again
+    // the pick needs its bottom bar (bots, Leave, LOCK IN): the chat folds to its button there; the player opens it
     if (screen !== this.screen) {
       if (screen === 'pick') this.open = false;
-      else if (screen === 'lobby' && this.screen === 'pick') this.open = !!this.deps.wide?.();
       this.screen = screen;
     }
     if (view?.blocks?.length) this.lines = this.lines.filter((l) => !view.blocks!.includes(l.from));

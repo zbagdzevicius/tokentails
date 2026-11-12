@@ -92,6 +92,7 @@ describe('party chat', () => {
   it('reports a line by id', async () => {
     const { c, report } = chat(true);
     c.sync(view(), 'lobby');
+    c.el.querySelector<HTMLElement>('[data-a="toggle"]')!.click();
     c.onFrame({ t: 'chat.msg', mid: 'c'.repeat(24), from: 'm2', k: 'q', id: 12, at: 1 });
     c.el.querySelector<HTMLElement>('[data-a="report"]')!.click();
     c.el.querySelector<HTMLElement>('[data-a="report-kind"][data-kind="harass"]')!.click();
@@ -101,6 +102,7 @@ describe('party chat', () => {
   it('a party re-render keeps the text input node and its draft (picks and presence re-render every frame)', () => {
     const { c } = chat(true);
     c.sync(view(), 'lobby');
+    c.el.querySelector<HTMLElement>('[data-a="toggle"]')!.click();
     const input = c.el.querySelector<HTMLInputElement>('[data-testid="party-chat-input"]')!;
     input.value = 'gg wp';
     input.focus();
@@ -114,14 +116,16 @@ describe('party chat', () => {
     expect(c.el.querySelectorAll('.pp-chat-line')).toHaveLength(1);
   });
 
-  it('the pick starts as the collapsed chat button (its bottom bar stays free); the desktop lobby opens it again', () => {
+  it('starts collapsed everywhere (desktop too); the pick folds an opened drawer back to the button', () => {
     const { c } = chat(true);
     c.sync(view(), 'lobby');
+    expect(c.el.querySelector('.pp-chat-drawer')).toBeNull();
+    expect(c.el.querySelector('[data-testid="party-chat-strip"]')).not.toBeNull();
+    c.el.querySelector<HTMLElement>('[data-a="toggle"]')!.click();
     expect(c.el.querySelector('.pp-chat-drawer')).not.toBeNull();
     c.sync(view({ phase: 'pick' }), 'pick');
     expect(c.el.querySelector('.pp-chat-drawer')).toBeNull();
-    expect(c.el.querySelector('[data-testid="party-chat-strip"]')).not.toBeNull();
     c.sync(view({ phase: 'results' }), 'lobby');
-    expect(c.el.querySelector('.pp-chat-drawer')).not.toBeNull();
+    expect(c.el.querySelector('.pp-chat-drawer')).toBeNull();
   });
 });
