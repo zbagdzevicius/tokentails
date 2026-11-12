@@ -63,6 +63,7 @@ import type { DeckCard, DeckHandle } from '../ui/deck/deck';
 import { championOf } from '../data/heroes/shelter';
 import { consentPrompt, settingsPanel } from '../ui/settings';
 import { notePurchase, storePanel, type StoreTab } from '../ui/store';
+import { openChampInfo } from '../ui/champBrowser/open';
 import { passPanel } from '../ui/passPanel';
 import { HERO_TEXT, slotNames } from '../ui/heroText';
 import { cardIdentity, selfNames, veilName } from '../meta/cardName';
@@ -1920,6 +1921,11 @@ export class App {
       onEquip: (def) => this.equipStore(def),
       onPass: () => this.openPass(),
       tab,
+      // CHAMPION-STORE.md §10: the champion grid reads the same champions the pick does, and unlocks the same way
+      champs: () => this.champs(),
+      isApp: this.isApp(),
+      onUnlock: (h, via) => this.unlockChamp(h, via),
+      onInfo: (h, within) => void openChampInfo({ hero: h, within, parent: within }),
     });
     this.overlay = Object.assign(panel, { kind: 'store' as const });
   }
