@@ -122,6 +122,9 @@ jobs:
           java-version: '21'
       - uses: android-actions/setup-android@v3
         if: steps.secrets.outputs.build == 'true'
+        with:
+          # the default list asks for the removed 'tools' package, which cmdline-tools 16 no longer has
+          packages: platform-tools
       - name: Android SDK 36
         if: steps.secrets.outputs.build == 'true'
         run: sdkmanager "platforms;android-36" "build-tools;36.0.0" > /dev/null
