@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { PawlegendsAccountPanel } from "@/components/pawlegends/PawlegendsAccount";
 import { PAWLEGENDS_CONTACT } from "@/components/pawlegends/flags";
-import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
+import { PAWLEGENDS_OG_IMAGE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 import { FirebaseAuthProvider } from "@/context/FirebaseAuthContext";
 
@@ -11,6 +11,7 @@ export const PAWLEGENDS_ACCOUNT_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} account`,
   description: `Sign in to ${PAWLEGENDS_TITLE}, sign out, or delete your account and its data.`,
   path: "/pawlegends/account",
+  image: PAWLEGENDS_OG_IMAGE,
 });
 
 /**

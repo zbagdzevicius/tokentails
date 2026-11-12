@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { OPERATOR_PRIVACY_URL, PAWLEGENDS_CONTACT } from "@/components/pawlegends/flags";
 import { ConsentChoiceButton } from "@/components/pawlegends/PawlegendsConsent";
-import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
+import { PAWLEGENDS_OG_IMAGE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 /** The date this notice last changed. Update it with every change to the text. */
@@ -13,6 +13,7 @@ export const PAWLEGENDS_PRIVACY_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} privacy`,
   description: `What the ${PAWLEGENDS_TITLE} app for iPhone and Android keeps on your phone, what signing in and party play send to our server, what the website measures with Google Analytics, and how long we keep it.`,
   path: "/pawlegends/privacy",
+  image: PAWLEGENDS_OG_IMAGE,
 });
 
 /** One section of the notice. */

@@ -4,7 +4,7 @@ import { LANDING_FONT, PAWLEGENDS_APP_STORE_ID } from "@/components/pawlegends/l
 import { PawlegendsLanding } from "@/components/pawlegends/landing/PawlegendsLanding";
 import { liveRoster } from "@/components/pawlegends/landing/roster";
 import { PAWLEGENDS_LANDING_PATH, PAWLEGENDS_PLAY_PATH, wantsGame } from "@/components/pawlegends/routes";
-import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
+import { PAWLEGENDS_OG_IMAGE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 import Head from "next/head";
 import { useRouter } from "next/router";
@@ -21,12 +21,7 @@ export const PAWLEGENDS_LANDING_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE}: Cats vs Dogs`,
   description: `${PAWLEGENDS_TITLE} is a free 3v3 cats vs dogs game. ${liveRoster().length} heroes; play solo or with up to two friends against bots, right in your browser on desktop or phone.`,
   path: PAWLEGENDS_LANDING_PATH,
-  image: Object.freeze({
-    url: "/pawlegends/og.jpg",
-    width: 1200,
-    height: 630,
-    alt: `${PAWLEGENDS_TITLE}: cat heroes swing at a dog pack by the bridge, mid-match.`,
-  }),
+  image: PAWLEGENDS_OG_IMAGE,
 });
 
 /**

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { PAWLEGENDS_CONTACT } from "@/components/pawlegends/flags";
-import { PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
+import { PAWLEGENDS_OG_IMAGE, PAWLEGENDS_TITLE } from "@/components/pawlegends/title";
 import { SeoHead } from "@/components/seo/SeoHead";
 
 export const PAWLEGENDS_SUPPORT_SEO = Object.freeze({
@@ -9,6 +9,7 @@ export const PAWLEGENDS_SUPPORT_SEO = Object.freeze({
   title: `${PAWLEGENDS_TITLE} help`,
   description: `How to play ${PAWLEGENDS_TITLE}, play with friends, and reach us.`,
   path: "/pawlegends/support",
+  image: PAWLEGENDS_OG_IMAGE,
 });
 
 const Section = ({ title, children }: { title: string; children: React.ReactNode }) => (
