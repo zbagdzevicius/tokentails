@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { expect, test, type Page } from '@playwright/test';
-import { attr } from './helpers';
+import { attr, playFromHome } from './helpers';
 
 /**
  * POC.md §10 and §15 item 23 (Chromium, project `desktop`):
@@ -37,7 +37,7 @@ async function busiest(page: Page, quality: 'low' | 'med'): Promise<Peak> {
   // GDD §7.2: every hero in a Legendary card skin (foil, glints, the recall flourish): the worst case for cosmetics
   await page.goto(`/?e2e=1&quality=${quality}&speed=6&skins=legendary`);
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   const peak: Peak = {
     draws: 0,
@@ -113,7 +113,7 @@ test('?perf=1 shows the device-gate readout in a match; without it there is none
   await page.waitForSelector('html[data-screen="title"]');
   // Not a debug hook: the readout adds nothing to window.
   expect(await globals()).toEqual(without);
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   const el = page.locator('.pl-perf');
   await expect(el).toContainText(/\d+ fps · low/, { timeout: 5000 });

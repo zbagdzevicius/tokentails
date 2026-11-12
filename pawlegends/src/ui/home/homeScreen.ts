@@ -8,14 +8,19 @@
  * shafts (off on Low), L4 this UI:
  * - top left: the profile chip (avatar in its frame ring with the Season XP ring, name, XP bar, tier);
  * - top centre: Season XP and tier chips (only numbers that exist; tap opens the pass);
- * - top right (`.lb-corner`, where the account chip mounts): [Games when embedded], Friends and ranked, Settings, Sound;
+ * - top right (`.lb-corner`, where the account chip mounts): Friends and ranked (embedded), Settings, Sound (the old
+ *   "< Games" button is gone, Nov 12: the founder found it redundant; Settings keeps a way back to the host's games);
  * - left edge: Events, Today (quests ring) and # (join with a code), round buttons;
  * - right edge: the promo rotator (pass season, events, store on the web only);
- * - bottom: a glass nav (Heroes, Cards, Pass, Ranked, Store on the web, Friends), on the first visit too with the
- *   items that need a match locked;
- * - bottom right: the PLAY cluster: the mode pill (opens Mode Select), the quick Co-op and PvP buttons (one tap, as
- *   before), and the big round PLAY, which plays the selected mode in one tap.
- * Under the hero: the champion's nameplate (a button that opens the champion select for a returning player).
+ * - bottom: a glass nav (Heroes, Cards, Pass, Ranked, Store on the web), on the first visit too with the items that
+ *   need a match locked. Heroes only browses (skills, lore): it never starts a match;
+ * - bottom right: the last mode and variant as a label, and the big round PLAY.
+ * Under the hero: the champion's nameplate (a label; the champion is chosen in the champion select).
+ *
+ * One play path (Nov 12, the founder: "there should be one path"): PLAY → Mode Select (mode, then variant: vs Bots
+ * with its difficulty, Co-op, PvP, With Friends) → the champion select (bots) or the queue or the party lobby. The
+ * first-ever match keeps its one-tap guided start (FTUE) and a dare link its direct start; # Code joins a friend's
+ * party (its lobby, not a match).
  *
  * Keyboard: Enter plays (when no button has focus); C cards, H heroes and M modes while focus is inside Home
  * (WCAG 2.1.4); Esc closes a popover. Every document listener is removed by `disposeHome` (app setScreen).
@@ -81,8 +86,14 @@ export interface HomeScreenOpts extends LobbyScreenOpts {
   seasonEnd?: string;
   /** Asset base (import.meta.env.BASE_URL). */
   base: string;
-  /** Opens the champion browser (champion store worktree plugs in here); falls back to onChoose. */
+  /** Nav Heroes: the champion browser, browse only (the champion store worktree plugs in here). Absent: no item. */
   onHeroes?(): void;
+  /** The end of Mode Select: start the champion select (bots), the queue (co-op, PvP) or the party (friends). */
+  onStart(c: ModeChoice): void;
+  /** Open Mode Select at this choice's variant stage as Home opens (Back from the champion select). */
+  openAt?: ModeChoice | null;
+  /** Mode Select opened (analytics): from PLAY, the M key, a promo or an event row. */
+  onModesOpen?(from: 'play' | 'key' | 'promo' | 'event' | 'back'): void;
 }
 
 const GEAR =
@@ -93,18 +104,11 @@ const SPEAKER = (on: boolean): string =>
       ? '<path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
       : '<path d="M16.5 9.5l5 5m0-5l-5 5" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>'
   }</svg>`;
-const EXIT = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
 const PEOPLE =
   '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="9" cy="8" r="3.2"/><path d="M3.5 19c.6-3.3 2.8-5 5.5-5s4.9 1.7 5.5 5"/><circle cx="17" cy="9" r="2.6"/><path d="M15.5 14.2c2.4.1 4.3 1.6 4.9 4.6"/></svg>';
 const CARDS =
   '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><rect x="3" y="6" width="11" height="15" rx="2" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-10 8 13)"/><rect x="9" y="3" width="11" height="15" rx="2" fill="currentColor"/></svg>';
 const BAG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 8h12l1 13H5zM9 8V6a3 3 0 0 1 6 0v2h-2V6a1 1 0 0 0-2 0v2z"/></svg>';
-const FRIENDS =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><circle cx="9" cy="8" r="3.2" fill="currentColor"/><circle cx="17" cy="9" r="2.6" fill="currentColor" opacity=".8"/><path d="M2.5 20c.6-4 3.3-6 6.5-6s5.9 2 6.5 6zM15 14.2c3 .1 5.6 1.8 6.5 5.8h-4.6" fill="currentColor"/></svg>';
-const GLOBE =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 12h18M12 3c3 3.2 3 14.8 0 18M12 3c-3 3.2-3 14.8 0 18" fill="none" stroke="currentColor" stroke-width="1.8"/></svg>';
-const SWORDS =
-  '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path d="M4 4l10 10M20 4L10 14M6 16l-2 2 2 2 2-2M18 16l2 2-2 2-2-2" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
 const TROPHY = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M7 3h10v2h3v3a4 4 0 0 1-4 4h-.3A5 5 0 0 1 13 14.9V18h3v3H8v-3h3v-3.1A5 5 0 0 1 8.3 12H8a4 4 0 0 1-4-4V5h3zm0 4H6v1a2 2 0 0 0 1 1.7zm10 0v2.7A2 2 0 0 0 18 8V7z"/></svg>';
 const SCROLL = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M6 3h11a3 3 0 0 1 3 3v1h-3v11a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3v-1h3V6a3 3 0 0 1 3-3zm2 5v2h7V8zm0 4v2h7v-2z"/></svg>';
 const FLAG = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-ico"><path fill="currentColor" d="M5 2h2v20H5zM8 3h11l-2.5 4L19 11H8z"/></svg>';
@@ -113,9 +117,10 @@ const LOCK = '<svg viewBox="0 0 24 24" aria-hidden="true" class="hm-lk"><path fi
 const PAW =
   '<svg viewBox="0 0 64 64" aria-hidden="true" class="hm-paw"><g fill="currentColor"><ellipse cx="32" cy="42" rx="14" ry="12"/><ellipse cx="15" cy="27" rx="6" ry="7.5" transform="rotate(-20 15 27)"/><ellipse cx="26" cy="17" rx="6" ry="8"/><ellipse cx="38" cy="17" rx="6" ry="8"/><ellipse cx="49" cy="27" rx="6" ry="7.5" transform="rotate(20 49 27)"/></g></svg>';
 
-/** The queues this Home can start: bots always; co-op with a relay; PvP when the backend runs the PvP sim. Pure. */
-export function availableQueues(o: Pick<LobbyScreenOpts, 'onOnline' | 'onlineMode'>): Queue[] {
-  return ['bots', ...(o.onOnline ? (['coop'] as const) : []), ...(o.onOnline && o.onlineMode ? (['pvp'] as const) : [])];
+/** The variants this Home can start: bots always; co-op with a relay; PvP when the backend runs the PvP sim; a party
+ * with friends with the party server. Pure. */
+export function availableQueues(o: Pick<LobbyScreenOpts, 'onOnline' | 'onlineMode' | 'onParty'>): Queue[] {
+  return ['bots', ...(o.onOnline ? (['coop'] as const) : []), ...(o.onOnline && o.onlineMode ? (['pvp'] as const) : []), ...(o.onParty ? (['friends'] as const) : [])];
 }
 
 /** The PvP lock line for a mode (3v3 casual PvP's match count; 5v5 Classic never locks), or null. Pure. */
@@ -220,27 +225,15 @@ function navHtml(o: HomeScreenOpts, returning: boolean): string {
     `<button type="button" class="hm-ni${opts.locked ? ' locked' : ''}" data-a="${opts.locked ? 'locked' : a}"${opts.locked ? ` data-why="${esc(opts.locked)}" aria-label="${esc(`${label}, locked. ${opts.locked}`)}"` : ''}${opts.extra ?? ''}><span class="hm-ni-i">${ico}${opts.locked ? LOCK : ''}${opts.badge ?? ''}</span><span class="hm-nl">${label}</span></button>`;
   const after = 'Unlocks after your first match.';
   const items = [
-    item('choose', icon('paw'), 'Heroes', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H"' }),
+    o.onHeroes ? item('heroes', icon('paw'), 'Heroes', lockedFirst || o.dare ? { locked: o.dare ? 'Finish the dare first.' : after } : { extra: ' aria-keyshortcuts="H" aria-haspopup="dialog" aria-label="Heroes: skills and lore"' }) : '',
     o.onCards
       ? item('cards', CARDS, 'Cards', lockedFirst ? { locked: after } : { extra: ` aria-keyshortcuts="C" aria-haspopup="dialog" aria-label="${o.cardCount ? `Cards, ${o.cardCount}` : 'Cards'}"`, badge: o.cardCount ? `<b class="hm-count" aria-hidden="true">${o.cardCount}</b>` : '' })
       : '',
     item('collection', TROPHY, 'Pass', o.onCollection && returning ? { badge: o.profile.tier !== null ? `<b class="hm-count tier" aria-hidden="true">${o.profile.tier}</b>` : '', extra: ' aria-label="Treat Track and Legends Pass"' } : { locked: o.onCollection ? 'Finish the dare first.' : after }),
     item('ranked', crestSvg('ranked').replace('<svg ', '<svg class="hm-ico" '), 'Ranked', { locked: 'Ranked opens in a later season.' }),
     o.storeOpen && !o.isApp ? item('store', BAG, 'Store', { extra: ' aria-label="Store"' }) : '',
-    o.onParty ? item('party', FRIENDS, 'Friends', { extra: ' data-testid="play-friends" aria-label="Play with friends"' }) : '',
   ].filter(Boolean);
   return `<nav class="hm-nav" aria-label="Menu" data-n="${items.length}">${items.join('')}</nav>`;
-}
-
-/** Quick online buttons beside PLAY (one tap each, as before the redesign): Co-op and PvP. */
-function quickHtml(o: HomeScreenOpts, mode: ModeDef): string {
-  if (!o.onOnline || o.dare) return '';
-  const m = o.onlineMode;
-  const lock = m ? pvpLockText(o, mode) : null;
-  return `<div class="hm-quick" role="group" aria-label="Play online">
-    <button type="button" class="hm-qb hm-online" data-a="online" data-v="coop" data-testid="play-online" aria-label="Play online: co-op vs bots" title="Co-op vs bots with players online">${GLOBE}<span>Co-op</span></button>
-    ${m ? `<button type="button" class="hm-qb hm-pvp" data-a="online" data-v="pvp" data-testid="play-pvp"${lock ? ` aria-disabled="true" title="${esc(lock)}" aria-label="PvP, ${esc(lock.toLowerCase())}"` : ' aria-label="Play PvP" title="PvP"'}>${SWORDS}<span>PvP${lock ? ' 🔒' : ''}</span></button>` : ''}
-  </div>`;
 }
 
 /** Each Home's teardown (document listeners, timers, the motes loop). */
@@ -261,6 +254,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
   const reduced = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
   root.className = `pl-screen pl-title pl-home${low ? ' low' : ''}`;
   root.dataset.testid = 'home';
+  // the variants this build can start now (Mode Select locks the others; e2e waits on it)
+  root.dataset.variants = availableQueues(o).join(' ');
   const id = o.identity;
   const elColor = cssHex(ELEMENT_COLOR[id.element]);
   root.style.setProperty('--hm-el', elColor);
@@ -274,15 +269,13 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
   const liveEvent = o.modes.some((m) => effectiveState(m, now()) === 'event');
   const elName = id.card ? `${ELEMENT_NAME[id.element]} look` : ELEMENT_NAME[id.element];
   const subLine = id.card ? `${id.sub} · ${elName}` : `${id.role} · ${elName}`;
-  const plateInner = `<span class="hm-plate-n">${esc(id.name)}${returning ? '<i class="hm-swap" aria-hidden="true">⇄</i>' : ''}</span><small class="hm-plate-s">${esc(subLine)}</small>`;
-  const plate = returning
-    ? `<button type="button" class="hm-plate" data-a="name" aria-keyshortcuts="H" aria-label="${esc(`${id.name}, ${subLine}. Change hero`)}">${plateInner}</button>`
-    : `<div class="hm-plate">${plateInner}</div>`;
-  const { mode } = cur();
-  const pill =
-    returning
-      ? `<button type="button" class="hm-pill" data-a="modes" data-testid="mode-pill" aria-haspopup="dialog" aria-keyshortcuts="M"><span class="hm-pill-c" aria-hidden="true">${crestSvg(mode.id)}</span><span class="hm-pill-t">${esc(pillText(mode, cur().queue))}</span><i aria-hidden="true">▾</i></button>`
-      : `<p class="hm-line${dare ? ' dare' : ''}">${esc(playLine(o))}</p>`;
+  // the nameplate is a label: the champion is chosen in the champion select, after PLAY and the mode
+  const plate = `<div class="hm-plate"><span class="hm-plate-n">${esc(id.name)}</span><small class="hm-plate-s">${esc(subLine)}</small></div>`;
+  const { mode, queue: lastQ } = cur();
+  // the last mode and variant: a label only (PLAY opens Mode Select on it)
+  const pill = returning
+    ? `<p class="hm-pill" data-testid="mode-pill" aria-label="${esc(`Last played: ${pillText(mode, lastQ)}`)}"><span class="hm-pill-c" aria-hidden="true">${crestSvg(mode.id)}</span><span class="hm-pill-t">${esc(pillText(mode, lastQ))}</span></p>`
+    : `<p class="hm-line${dare ? ' dare' : ''}">${esc(playLine(o))}</p>`;
   const playWord = dare ? 'DARE' : 'PLAY';
   root.innerHTML = `
     <div class="hm-fx" aria-hidden="true">
@@ -295,7 +288,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
       ${returning ? currencyHtml(o) : ''}
     </header>
     <div class="pl-corner lb-corner hm-corner">
-      ${o.onExit ? `<button type="button" class="hm-icon wide lb-exit" data-a="exit" data-testid="lobby-exit" aria-label="Back to Token Tails games" title="Back to Token Tails games">${EXIT}<span>Games</span></button>` : ''}
       ${o.onSocial && !o.firstTime ? `<button type="button" class="hm-icon lb-social" data-a="social" data-testid="lobby-social" aria-label="Friends and ranked" title="Friends and ranked">${PEOPLE}${o.socialBadge ? `<i class="hm-badge lb-social-badge">${Math.min(9, o.socialBadge)}</i>` : ''}</button>` : ''}
       ${o.onSettings ? `<button type="button" class="hm-icon" data-a="settings" aria-label="Settings" title="Settings">${GEAR}</button>` : ''}
       <button type="button" class="hm-icon hm-mute" data-a="mute" aria-label="Sound" aria-pressed="${!o.muted}" title="Sound">${SPEAKER(!o.muted)}</button>
@@ -308,8 +300,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     <div class="hm-playc lb-play">
       ${pill}
       <div class="hm-playrow">
-        ${quickHtml(o, mode)}
-        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'quick'}" data-testid="home-play" aria-keyshortcuts="Enter" aria-label="${esc(playLabel(o))}">
+        <button type="button" class="pl-btn big hm-play" data-a="${dare ? 'dare' : o.firstTime ? 'clem' : 'play'}" data-testid="home-play" aria-keyshortcuts="Enter M"${returning ? ' aria-haspopup="dialog"' : ''} aria-label="${esc(returning ? 'Play: choose a mode' : playLabel(o))}">
           <span class="hm-play-glow" aria-hidden="true"></span><span class="hm-play-glow b" aria-hidden="true"></span>
           <span class="hm-play-face" aria-hidden="true">${PAW}<b>${playWord}</b><span class="hm-sheen"></span></span>
         </button>
@@ -348,47 +339,38 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     if (out) void out.then(go, go);
     else go();
   };
-  const online = (v: 'coop' | 'pvp', m: ModeDef): void => {
-    const lock = v === 'pvp' ? pvpLockText(o, m) : null;
-    if (lock) {
-      o.sound?.('click');
-      toast(`${lock}. ${m.id === 'skirmish' ? 'Classic and Co-op are' : 'Co-op is'} open now.`);
-      return;
-    }
-    if (o.onlineMode && o.onlineMode.mode !== v) {
-      o.onlineMode.mode = v;
-      o.onlineMode.onMode(v);
-    }
-    o.onOnline?.();
-  };
-  const playNow = (): void => {
+  /** PLAY: the guided first match and a dare start at once; everyone else goes through Mode Select. */
+  const playNow = (from: 'play' | 'key' = 'play'): void => {
     if (leaving) return;
     const btn = root.querySelector<HTMLElement>('.hm-play');
-    btn?.classList.add('pressed');
-    if (dare) return leave(() => o.onPlay({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed));
-    if (o.firstTime) return leave(() => o.onPlay({ hero: 'clem', trick: 'pounce', difficulty: 'easy' }));
-    const { mode: m, queue } = cur();
-    if (queue === 'bots') return leave(() => o.onPlay(botsChoice(o.last, diff, m)));
-    btn?.classList.remove('pressed');
-    online(queue, m);
+    if (dare) {
+      btn?.classList.add('pressed');
+      return leave(() => o.onPlay({ hero: dare.hero, trick: dare.trick, difficulty: dare.difficulty }, dare.seed));
+    }
+    if (o.firstTime) {
+      btn?.classList.add('pressed');
+      return leave(() => o.onPlay({ hero: 'clem', trick: 'pounce', difficulty: 'easy' }));
+    }
+    openModes(undefined, from);
   };
   const updatePill = (): void => {
     const { mode: m, queue } = cur();
+    const p = root.querySelector('.hm-pill');
+    p?.setAttribute('aria-label', `Last played: ${pillText(m, queue)}`);
     const t = root.querySelector('.hm-pill-t');
     if (t) t.textContent = pillText(m, queue);
     const c = root.querySelector('.hm-pill-c');
     if (c) c.innerHTML = crestSvg(m.id);
-    const q = root.querySelector<HTMLElement>('.hm-quick');
-    if (q) q.outerHTML = quickHtml(o, m);
   };
   let modesLoading = false;
   /** Mode Select is its own chunk (loaded on the first open, so Home's first load stays small). */
-  const openModes = (focusMode?: string): void => {
+  const openModes = (focusMode?: string, from: 'play' | 'key' | 'promo' | 'event' | 'back' = 'play', at?: ModeChoice): void => {
     if (modeSel || modesLoading || leaving || !returning) return;
     o.sound?.('click');
     modesLoading = true;
+    o.onModesOpen?.(from);
     const want = focusMode ? modeById(focusMode, o.modes) : undefined;
-    const start: ModeChoice = { mode: want && playable(want, now()) ? want.id : cur().mode.id, queue: cur().queue };
+    const start: ModeChoice = at ?? { mode: want && playable(want, now()) ? want.id : cur().mode.id, queue: cur().queue };
     void import('../modeSelect/modeSelect')
       .then(({ openModeSelect }) => {
         modesLoading = false;
@@ -400,6 +382,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
         modeSel = openModeSelect(root, {
           modes: o.modes,
           choice: start,
+          ...(at ? { stage: 'variant' as const } : {}),
           available: avail,
           pvpLock: (m) => pvpLockText(o, m),
           difficulties: o.difficulties,
@@ -414,11 +397,12 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
             o.onModeChoice(c);
             updatePill();
           },
-          onClose: () => {
+          onGo: (c) => o.onStart(c),
+          onClose: (went) => {
             modeSel = null;
             for (const n of behind) n.inert = false;
             root.classList.remove('hm-dim');
-            root.querySelector<HTMLElement>('.hm-pill')?.focus({ preventScroll: true });
+            if (!went) root.querySelector<HTMLElement>('.hm-play')?.focus({ preventScroll: true });
           },
           ...(o.sound ? { sound: o.sound } : {}),
           base: o.base,
@@ -439,15 +423,12 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     if (t.closest('.ms-overlay')) return;
     // a tap on a list row inside a popover closes it
     for (const d of root.querySelectorAll<HTMLDetailsElement>('details[open]')) if (!d.contains(t) || btn?.closest('.hm-pop')) d.open = false;
-    if (a === 'clem' || a === 'quick' || a === 'dare') playNow();
-    else if (a === 'modes') openModes(btn?.dataset.mode);
-    else if (a === 'choose') {
-      if (o.onHeroes) o.onHeroes();
-      else o.onChoose();
-    } else if (a === 'name') o.onChoose();
-    else if (a === 'online') online((btn!.dataset.v ?? 'coop') as 'coop' | 'pvp', cur().mode);
-    else if (a === 'party') o.onParty?.();
-    else if (a === 'joincode') o.onJoinCode?.();
+    if (a === 'clem' || a === 'play' || a === 'dare') playNow();
+    else if (a === 'modes') openModes(btn?.dataset.mode, 'event');
+    else if (a === 'heroes') {
+      o.sound?.('click');
+      o.onHeroes?.();
+    } else if (a === 'joincode') o.onJoinCode?.();
     else if (a === 'cards') {
       o.sound?.('magic');
       o.onCards?.();
@@ -456,7 +437,6 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     else if (a === 'social') o.onSocial?.();
     // the nav Pass item, the profile chip and the Season XP chips all open the Treat Track and its Pass tab
     else if (a === 'collection' || a === 'profile' || a === 'pass') o.onCollection?.();
-    else if (a === 'exit') o.onExit?.();
     else if (a === 'locked') {
       o.sound?.('click');
       shake(btn!);
@@ -467,8 +447,8 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
       o.sound?.('click');
       if (act === 'pass') o.onCollection?.();
       else if (act === 'store') o.onStore?.();
-      else if (act === 'heroes') (o.onHeroes ?? o.onChoose)();
-      else openModes(o.modes.find((m) => typeof m.state === 'object')?.id);
+      else if (act === 'heroes') o.onHeroes?.();
+      else openModes(o.modes.find((m) => typeof m.state === 'object')?.id, 'promo');
     } else if (a === 'mute') {
       const b = root.querySelector<HTMLElement>('[data-a="mute"]');
       if (!b) return;
@@ -511,7 +491,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
     const onControl = !!t && t !== document.body && t !== root && !!t.closest('button, a, summary, [role="radio"]');
     if (e.key === 'Enter' && !onControl) {
       e.preventDefault();
-      playNow();
+      playNow('key');
       return;
     }
     if (!t || !root.contains(t)) return;
@@ -521,10 +501,10 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
       root.querySelector<HTMLElement>('button[data-a="cards"]')?.click();
     } else if (k === 'h' && returning) {
       e.preventDefault();
-      root.querySelector<HTMLElement>('[data-a="choose"]')?.click();
+      root.querySelector<HTMLElement>('[data-a="heroes"]')?.click();
     } else if (k === 'm' && returning) {
       e.preventDefault();
-      openModes();
+      openModes(undefined, 'key');
     }
   };
   if (ac) document.addEventListener('keydown', onKey, { signal: ac.signal });
@@ -607,5 +587,7 @@ export function homeScreen(parent: HTMLElement, o: HomeScreenOpts): HTMLElement 
       .then(() => wait.classList.remove('lb-wait'));
   // sim v22: a `?mode=` link's mode this build does not know ("Update to play …, playing Skirmish for now")
   if (o.notice) toast(o.notice);
+  // Back from the champion select: Mode Select again, on the variant the player had chosen
+  if (o.openAt && returning) openModes(undefined, 'back', o.openAt);
   return root;
 }

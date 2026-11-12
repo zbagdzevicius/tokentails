@@ -1,4 +1,5 @@
 import { expect, test, type Frame } from '@playwright/test';
+import { toChampSelect } from './helpers';
 import { art, mockHost, openHost, received } from './host';
 
 // Sim v9 shelter champions (sim v15: 20 pick tiles, 10 a side behind the All · Cats · Dogs tabs), the web-only owner
@@ -17,7 +18,7 @@ const OWNS_GABE = [{ id: 'g1', name: 'Gabė', type: 'WIND', tier: 'COMMON', isSt
 const PLAYED = { v: 1, sessions: 2, matches: 4, wins: 2, firstWinDone: true, hero: 'lambo' };
 
 async function toPick(game: Frame): Promise<void> {
-  await game.locator('[data-a="choose"]').click();
+  await toChampSelect(game);
   await game.waitForSelector('.pl-pick .cs');
 }
 

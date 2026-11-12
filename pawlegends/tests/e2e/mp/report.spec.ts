@@ -1,5 +1,5 @@
 import { expect, test } from '@playwright/test';
-import { closeAll, player, tap, type Player } from './party.helpers';
+import { closeAll, player, tap, type Player, playVariant } from './party.helpers';
 
 test.afterEach(closeAll);
 
@@ -14,7 +14,7 @@ test.afterEach(closeAll);
 async function title(p: Player): Promise<void> {
   await p.page.goto('/?e2e=1', { waitUntil: 'commit' });
   await p.page.waitForSelector('html[data-screen="title"]', { timeout: 240_000 });
-  await expect(p.page.locator('[data-testid="play-pvp"]')).toBeVisible({ timeout: 30_000 });
+  await expect(p.page.locator('.pl-home[data-variants~="pvp"]')).toBeVisible({ timeout: 30_000 });
 }
 
 test('scoreboard flag: other human only, one tap opens the chips, one chip sends', async ({ browser }) => {
@@ -22,7 +22,7 @@ test('scoreboard flag: other human only, one tap opens the chips, one chip sends
   const a = await player(browser, 'desktop');
   const b = await player(browser, 'desktop');
   for (const p of [a, b]) await title(p);
-  for (const p of [a, b]) await tap(p, p.page.locator('[data-testid="play-pvp"]'));
+  for (const p of [a, b]) await playVariant(p, 'pvp');
   for (const p of [a, b]) await expect(p.page.locator('[data-testid="mm-accept-card"]')).toBeVisible({ timeout: 90_000 });
   for (const p of [a, b]) await tap(p, p.page.locator('[data-testid="mm-accept"]'));
   for (const p of [a, b]) {

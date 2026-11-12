@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { seedSide } from './helpers';
+import { seedSide, playFromHome } from './helpers';
 
 // Feel pass B3 (docs/plans/moba/FEEL-PASS.md): the phone HUD diet. With every persistent HUD element shown (the
 // target-lock row full, the last-hit and tower buttons up, R still a ghost chip), the union of painted HUD boxes (1 px
@@ -94,7 +94,7 @@ for (const [w, h] of [
     await seedSide(page, 'cat', { sessions: 3, matches: 5, wins: 2, veteran: true });
     await page.goto('/?e2e=1');
     await page.waitForSelector('html[data-screen="title"]');
-    await page.locator('.pl-btn.big').first().click();
+    await playFromHome(page);
     await page.waitForSelector('html[data-match="live"]');
     await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
     // a touch makes the touch HUD live

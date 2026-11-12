@@ -1,4 +1,5 @@
 import { expect, test, type Frame, type Page } from '@playwright/test';
+import { playFromHome } from './helpers';
 import { mockHost, openHost, received } from './host';
 
 // STORE-PASS.md: the cosmetics store and the Legends Pass, game side, with the mock host standing in for the real one
@@ -58,7 +59,7 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   await expect(shop).toHaveCount(0);
 
   // seen in a bot match: the match starts in that look (item_seen_in_match names the coat and its SKU)
-  await game.locator('.pl-btn.big').first().click();
+  await playFromHome(game);
   await game.waitForSelector('html[data-match="live"]');
   await expect
     .poll(async () => (await received(page)).some((m) => m.type === 'analytics' && m.event === 'item_seen_in_match' && (m.props as any)?.item === CALICO && (m.props as any)?.sku === SKU))

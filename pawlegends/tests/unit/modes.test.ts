@@ -19,6 +19,7 @@ import {
   registerMode,
   resetModes,
   saveModeChoice,
+  variantLock,
   type ModeDef,
 } from '../../src/ui/modeSelect/modes';
 
@@ -43,7 +44,8 @@ describe('mode registry', () => {
     const s = (id: string): string => effectiveState(modeById(id)!, NOW);
     expect(s('skirmish')).toBe('live');
     expect(s('classic')).toBe('live');
-    expect(s('coop')).toBe('live');
+    // Nov 12: no separate "Co-op vs Bots" tile (co-op is Skirmish's variant)
+    expect(modeById('coop')).toBeUndefined();
     expect(s('ranked')).toBe('locked');
     expect(s('blitz')).toBe('live');
     expect(s('cannon')).toBe('soon');
@@ -53,6 +55,9 @@ describe('mode registry', () => {
     expect(modeById('blitz')).toMatchObject({ map: 'crossing', size: '3v3', minutes: '~3 min', queues: ['bots'] });
     expect(modeById('skirmish')!.minutes).toBe('~7 min');
     expect(modeById('classic')!.minutes).toBe('~13 min');
+    // the variants each mode supports: the matchmaker's co-op and friend parties are 3v3
+    expect(modeById('skirmish')!.queues).toEqual(['bots', 'coop', 'pvp', 'friends']);
+    expect(modeById('classic')!.queues).toEqual(['bots', 'pvp']);
     // every mode has art, rules and at least one queue
     for (const m of BASE_MODES) {
       expect(m.art).toMatch(/^[a-z]+$/);
@@ -62,7 +67,7 @@ describe('mode registry', () => {
   });
 
   it('lists playable modes first, then locked, then coming soon (registry order inside each group)', () => {
-    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'coop', 'ranked', 'cannon']);
+    expect(modeList(NOW).map((m) => m.id)).toEqual(['blitz', 'skirmish', 'classic', 'ranked', 'cannon']);
   });
 
   it('a mode registered by another worktree replaces the base entry by id (v22 Blitz goes live)', () => {
@@ -101,9 +106,19 @@ describe('mode registry', () => {
   it('pill text and queue fallback', () => {
     expect(pillText(modeById('classic')!, 'bots')).toBe('Classic 5v5 · vs Bots');
     expect(pillText(modeById('skirmish')!, 'pvp')).toBe('Skirmish 3v3 · PvP');
-    expect(queueFor(modeById('coop')!, 'bots')).toBe('coop');
+    expect(pillText(modeById('skirmish')!, 'friends')).toBe('Skirmish 3v3 · With Friends');
+    expect(queueFor(modeById('classic')!, 'coop')).toBe('bots');
     expect(queueFor(modeById('classic')!, 'pvp')).toBe('pvp');
     expect(queueFor(modeById('classic')!, null)).toBe('bots');
+  });
+
+  it('a variant this build cannot start says why (party server, PvP sim, the PvP match lock)', () => {
+    expect(variantLock('bots', ['bots'])).toBeNull();
+    expect(variantLock('coop', ['bots'])).toContain('party server');
+    expect(variantLock('friends', ['bots', 'coop'])).toContain('party server');
+    expect(variantLock('pvp', ['bots', 'coop'])).toBe('PvP is offline right now');
+    expect(variantLock('pvp', ['bots', 'coop', 'pvp'], 'PvP unlocks after 5 matches')).toBe('PvP unlocks after 5 matches');
+    expect(variantLock('pvp', ['bots', 'coop', 'pvp'])).toBeNull();
   });
 
   it('maps a mode to the old toggle value (the pick and party screens still read it)', () => {
@@ -124,6 +139,13 @@ describe('saved mode choice', () => {
     expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'skirmish', queue: 'bots' });
     mem.set('pawlegends.matchMode', 'blitz');
     expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'blitz', queue: 'bots' });
+  });
+
+  it('migrates the old "Co-op vs Bots" tile to Skirmish, Co-op', () => {
+    saveModeChoice({ mode: 'coop', queue: 'coop' });
+    expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'skirmish', queue: 'coop' });
+    saveModeChoice({ mode: 'skirmish', queue: 'friends' });
+    expect(loadModeChoice(modeList(NOW), NOW)).toEqual({ mode: 'skirmish', queue: 'friends' });
   });
 
   it('round-trips, and a saved mode that cannot be played falls back to Skirmish', () => {

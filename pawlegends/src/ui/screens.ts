@@ -151,6 +151,8 @@ export interface PickOpts {
   initial: Choice;
   /** Sim v19: seats per team (5 when the next solo match is 5v5 Classic; default 3). */
   teamSize?: number;
+  /** The one play path: the mode and variant this champion select starts ("Skirmish 3v3 · vs Bots"), under the title. */
+  modeLine?: string;
   /** What the player owns (coats, chromas, card skins): the tiles name a hero after its worn card. */
   owned?: Owned;
   looks?: Partial<Record<HeroId, Partial<Look>>>;
@@ -351,6 +353,7 @@ export function pickScreen(parent: HTMLElement, o: PickOpts): HTMLElement {
       trick: c.trick,
       trickHint: trickHint(HERO_TEXT[c.hero].role, HEROES[c.hero].side),
       headLeft: `<button type="button" class="pl-btn ghost small cs-back" data-a="back" aria-label="Back" aria-keyshortcuts="Escape">${BACK}<span>Back</span></button>`,
+      ...(o.modeLine ? { headNote: `<small class="cs-mode" data-testid="pick-mode">${esc(o.modeLine)}</small>` } : {}),
       // the Token Tails squad (embed integration) walks with the team: its slot sits under the seats
       teamNote: '<div class="cs-squad" data-slot="cards"></div>',
       footLeft: botsHtml(),

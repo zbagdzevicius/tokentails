@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
-import { attr, ops } from './helpers';
+import { attr, ops, playFromHome } from './helpers';
 
 // GAPS A4 + A5: the next-objective chip (every match; GAPS B1: a tap sends its ping), the minimap countdown rings and the
 // portrait strip; on touch, a tap on an enemy hero (field or portrait) locks it and Attack then sends Attack{id} on it.
@@ -17,7 +17,7 @@ async function startVeteran(page: Page, query = '', prefs: Record<string, string
   );
   await page.goto(`/?e2e=1${query}`);
   await page.waitForSelector('html[data-screen="title"]');
-  await page.locator('.pl-btn.big').first().click();
+  await playFromHome(page);
   await page.waitForSelector('html[data-match="live"]');
   await page.waitForFunction(() => !!document.documentElement.dataset.me);
   await page.waitForFunction(() => !document.querySelector('.pl-loading:not(.out)'));
