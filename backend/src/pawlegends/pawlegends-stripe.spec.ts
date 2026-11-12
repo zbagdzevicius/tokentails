@@ -120,6 +120,10 @@ describe('Pawlegends checkout', () => {
         expect(await codeOf(h.stripe.createCheckout(request({ ageBand: '18+', deviceId: DEVICE2 }), ON_ENV))).toBe(
             'PAWLEGENDS_UNDER_16'
         );
+        // the sheets no longer ask: a request with no band still meets the stored under-16 answer (no default unlock)
+        expect(await codeOf(h.stripe.createCheckout(request({ ageBand: undefined }), ON_ENV))).toBe(
+            'PAWLEGENDS_UNDER_16'
+        );
         expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
     });
 
