@@ -63,18 +63,19 @@ for (const size of SIZES) {
         expect(await page.evaluate(() => (document.scrollingElement?.scrollHeight ?? 0) <= innerHeight)).toBe(true);
         expect(await page.evaluate(() => (document.scrollingElement?.scrollWidth ?? 0) <= innerWidth)).toBe(true);
         expect(await scrollers(page)).toEqual([]);
-        // Home (HOME-MODES.md §4): PLAY, the last-mode label, the nav, the left stack and the corner: in view and touch
+        // Home (HOME-MODES.md §4): PLAY, the nav, the left stack and the corner: in view and touch
         // sized (the one play path, Nov 12: no quick online buttons any more)
-        expect(await bad(page, '.hm-play, .hm-pill, .hm-ni, .hm-left .hm-round, .hm-corner .hm-icon, .hm-profile', 44)).toEqual([]);
+        expect(await bad(page, '.hm-play, .hm-ni, .hm-left .hm-round, .hm-corner .hm-icon, .hm-profile', 44)).toEqual([]);
         await expect(page.locator('.hm-qb')).toHaveCount(0);
+        // no mode pill on Home in any state (the one play path: PLAY opens Mode Select on the last choice)
+        await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);
         if (profile === 'returning') {
           await expect(page.locator('.hm-nav [data-a="heroes"]')).toBeInViewport();
-          await expect(page.locator('[data-testid="mode-pill"]')).toBeInViewport();
+          await expect(page.locator('[data-testid="home-play"]')).toBeInViewport();
         }
         // a first visit and a dare: Heroes is in the nav but locked (the guided match or the dare is the one call)
         if (profile !== 'returning') {
           await expect(page.locator('.hm-nav [data-a="heroes"]')).toHaveCount(0);
-          await expect(page.locator('[data-testid="mode-pill"]')).toHaveCount(0);
         }
         // the host's cards slot (the champion's About chip, badges) never covers PLAY or the nav
         await page.evaluate(() => {
