@@ -11,14 +11,46 @@ for the pass. Everything here is cosmetic only: no sim file, replay record, hash
 | The catalogue (SKUs, prices, items, season table, XP rules) | `backend/src/pawlegends/pawlegends-catalog.ts` (the real one), `pawlegends/src/money/catalog.ts` (game mirror, deep-compared by `pawlegends/tests/unit/store-pass.test.ts`) |
 | SKU table and retirement of the presale `pl_*` SKUs | `backend/src/pawlegends/pawlegends.contracts.ts` (`retired`, `kind`, `oncePerAccount`, `bundleOf`, `pass`, `requires`) |
 | Ownership and pass progress | collections `pawlegendsowned` (unique `{accountId, item}`) and `pawlegendsseason` (`_id` `<accountId>:<seasonId>`), `backend/src/pawlegends/pawlegends-season.service.ts` |
-| Checkout rules | `pawlegends-stripe.service.ts` `checkCatalog`: signed-in only, store consent version, once per account, sets refused while any item is owned, Pass+ upgrade only for Pass owners; the pending-row-first race guard, age bands and spend caps are unchanged |
+| Checkout rules | `pawlegends-stripe.service.ts` `checkCatalog`: signed-in only, store consent version plus `consent: true` (the purchase button, see "Checkout sheet"), once per account, sets refused while any item is owned, Pass+ upgrade only for Pass owners; the pending-row-first race guard and spend caps are unchanged; the age band is optional (unknown = the 16-17 cap) |
 | Grant and refund | `pawlegends-webhook.service.ts`: the grant runs after the paid row and is idempotent (a retried event heals a failed grant); a refund or a lost chargeback (`charge.dispute.closed`, status `lost`) revokes the session's items and recomputes the pass (premium rewards claimed under a refunded pass are revoked too, and every reward above the tier the XP reaches once refunded Pass+ skips are gone); a failed revoke heals on Stripe's retry |
 | Routes | `GET /pawlegends/me`, `POST /pawlegends/pass/claim`; `GET /pawlegends/status` lists the catalogue (docs/API.md) |
 | Season XP | both `/live` writers (`pawlegends-live.ts`, `pawlegends-party-live.ts`) call `addXp` after their Game row exists: still one score write path, duplicates pay nothing |
 | Guest merge | `mergeStoreProgress` (pass XP `$max`, free-row claims, pass rewards) from `guest-lifecycle.ts` |
 | Game | `render/cosmetics.ts` (16 patterned store coats, 29 pass coats, store and pass frames and titles), `ui/store.ts` (Store screen), `ui/passPanel.ts` (Legends Pass screen, the Treat Track's second tab), `money/entitlements.ts` (`store{items, season}`), `money/checkoutBridge.ts` (`purchase-intent{sku}` for catalogue SKUs), results save chip "+N Season XP" |
 | Look (Nov 12, brandbook v1 Hearth Storybook) | `ui/passBook.{ts,css}`: one storybook modal for both tabs (gilded ribbon tabs with arrow keys, Home's round gold close, gold Done/Claim all); Legends Pass = Season 1 title plate over the Gemini banner, XP bar with the violet gem, an open-book strip of tier nodes (free row on parchment, premium row on a gilded band, rarity frames, coat previews with swatches); Treat Track = chest path with the next chest's art and bar, portrait medallions grouped Cats / Dogs, wax-sealed postcards until earned. Art in `pawlegends/public/assets/pass/` (Low quality uses the `-lo` files). Behaviour and claim logic unchanged; app builds still show no price or buy button |
-| Host | `client/components/pawlegends/PawlegendsStoreSheet.tsx` (price, age band, email, consent, safeguards, redirect to Stripe), `bridge.ts` (`store`, `pass-claim`, store intents), `checkout.ts` (`storeCheckout`, `me`, `passClaim`) |
+| Host | `client/components/pawlegends/PawlegendsStoreSheet.tsx` (price, email, safeguards, the "Buy now · delivered instantly" button that is the consent, redirect to Stripe), `bridge.ts` (`store`, `pass-claim`, store intents), `checkout.ts` (`storeCheckout`, `me`, `passClaim`) |
+
+## Store layout (Nov 12)
+
+Founder: "champ store should be vertically scrollable. and it's not for champs only, same should be for coats, for
+frames & titles. similar patter." Every store tab (Featured, Champions, Coats and Sets, Frames & Titles, and the pass
+SKUs) is one vertically scrolling grid of the champion card (tall framed card, art, name on a gradient, price bar,
+owned and equipped states, a detail on tap). The page never scrolls; only the grid does. The old cosmetics shelf
+(preview, tile list, buy bar) is gone. Details: CHAMPION-STORE.md §10.
+
+## Checkout sheet: the button is the consent, no age question (Nov 12)
+
+Founder: "remove this -> [the 'Deliver my items now. I understand I lose the 14-day right to withdraw once they are
+delivered. Terms and refunds' checkbox] as it's default in our terms and policy conditions. age selection I think is
+redundant as well."
+
+- **Consent.** A terms clause alone does not meet Directive 2011/83/EU art. 16(m): before immediate delivery of digital
+  content the buyer must expressly ask for it and acknowledge that the withdrawal right ends. So the checkbox is gone
+  and the purchase button carries the consent: it reads **"Buy now · delivered instantly"**, and the line right under
+  it reads **"Delivered right away, so the 14-day withdrawal right ends at delivery. Terms and refunds"** (link). Only
+  the press sends `consent: true`. The server keeps the consent version check (`STORE_TERMS_VERSION`, still
+  `2026-11-10`, the terms section is still a draft) and refuses a store or pass checkout without `consent: true`
+  (400 `PAWLEGENDS_INVALID`). It records the press: `consentAt` on the purchase row, and `withdrawal_consent:
+  buy_button` plus `consent_at` in the Stripe session and payment intent metadata. The terms draft
+  (`client/pages/pawlegends/terms.tsx`) describes the button.
+- **Age.** The sheet no longer asks. `ageBand` is optional on `POST /pawlegends/checkout[/account]` (and on the cat
+  checkout guard): a band that is sent is still validated and stored as before; without one the stored band of the
+  email, device or account applies, else `DEFAULT_AGE_BAND` = `16-17` (€30 per rolling 30 days). Nothing is stored for
+  a default. A buyer is never blocked for not answering; a stored `under16` answer still blocks. The purchase row
+  keeps `ageBand` (the band applied) and `ageSource` (`answer` or `default`); Stripe metadata `age_band` and
+  `age_source`. The safeguards line says "Spending limit $30 per 30 days ($200 if you told us earlier you are 18 or
+  older)." Founder decision 11 below.
+- The chat age question (Friends and chat, it gates free text) is unchanged.
 
 ## Prices (VAT inclusive, the same cents in USD and EUR)
 
@@ -64,7 +96,7 @@ Web-bought items are not drawn in the app; pass free-row rewards are (founder de
 ## Ops runbook
 
 1. **Before Stripe live mode:** founder approves the store terms section (version `2026-11-10`, the withdrawal waiver
-   wording on the purchase sheet) and the VAT/OSS decision #17. Deploying this backend to production is the switch to
+   wording on the purchase button and the line under it) and the VAT/OSS decision #17. Deploying this backend to production is the switch to
    live mode: production already has the live `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` and
    `INVALIDATE_CACHE_SECRET`, so the deploy turns on real sales at once. Hold the production deploy until both
    approvals are recorded; until then test only locally or on staging with test keys (step 3).
@@ -114,3 +146,8 @@ Web-bought items are not drawn in the app; pass free-row rewards are (founder de
 9. **Paid Common coats look different from free coats:** default paid coats carry a fur pattern, free ones stay
    palette-only.
 10. **Peer looks in party/PvP:** default follow-up PR (see "Not in this MVP").
+11. **Spend cap without the age question:** default every buyer without a stored answer gets the 16-17 cap (€30 per
+    30 days; the all-champions bundle $29.99 still fits, Pass+ and a set do not fit together). Alternatives: default
+    unknown to 18+ (€200), or ask the age only when a purchase would pass €30.
+12. **Withdrawal confirmation on a durable medium (art. 8(7)(b)):** the Stripe receipt does not yet restate the
+    consent. Default: add one line to the receipt or the grant email before live mode.

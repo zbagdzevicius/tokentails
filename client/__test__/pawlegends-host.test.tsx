@@ -275,7 +275,10 @@ describe("/pawlegends/play page", () => {
     const text = screen.getByTestId("pawlegends-terms").textContent ?? "";
     expect(text).toMatch(/store items/);
     expect(text).toMatch(/14-day withdrawal right/);
-    expect(text).toMatch(/lose this 14-day withdrawal right\s+once the item is delivered/);
+    // the purchase button is the consent (Nov 12: no tick box)
+    expect(text).toMatch(/Buy now · delivered instantly/);
+    expect(text).toMatch(/By pressing that button you ask us to deliver the item right away and\s+confirm that you lose the 14-day withdrawal right once it is delivered/);
+    expect(text).not.toMatch(/tick a box/);
     // NO-TOKENTAILS.md: no named cat for sale, no Meet card; the operator is named once, where the law needs it
     expect(text).not.toMatch(/\$5|Companion Kitten|Meet|named cat|card skin/);
     expect(text.match(/Token Tails/g)).toEqual(["Token Tails"]);

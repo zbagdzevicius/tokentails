@@ -5,11 +5,11 @@ import { Order, OrderDocument } from 'src/web3/order.schema';
 import { OrderStatus } from 'src/shared-contracts/enums';
 import {
     AgeBand,
+    effectiveBand,
     isAgeBand,
     PAWLEGENDS_TERMS_VERSION,
     SPEND_CAP_CENTS,
     SPEND_WINDOW_MS,
-    stricterBand,
     UNDER_16_MESSAGE,
 } from './pawlegends.contracts';
 import { PAWLEGENDS_ERRORS } from './pawlegends.errors';
@@ -24,8 +24,9 @@ import { isDeviceId, PawlegendsIdentity, PawlegendsStripeService } from './pawle
  * - The consent is required (launch item U5): `consentVersion` must be the current `/pawlegends/terms` version, the
  *   one the cat sheet's consent tick (terms, privacy, deliver now and lose the 14-day withdrawal right) stands for.
  *   The checkouts record the returned version and time with the payment (Stripe intent metadata, crypto order).
- * - The age band is required, kept with the device and the account (the stricter answer wins, so a later "18+"
- *   never unlocks an earlier "Under 16").
+ * - The age band is optional since Nov 12 (the sheets no longer ask). A band that is sent is kept with the device and
+ *   the account (the stricter answer wins, so a later "18+" never unlocks an earlier "Under 16"); without one the
+ *   stored band applies, else DEFAULT_AGE_BAND (16-17, the €30 cap), and nothing is stored.
  * - Under 16 cannot buy (403 `PAWLEGENDS_UNDER_16`, the guardian line).
  * - The rolling 30-day cap of the band (€30 at 16-17, €200 at 18+, USD at €1 = $1) counts the player's completed
  *   Token Tails orders of the window plus any Pawlegends `pl_*` purchases of the device or account; a purchase that
@@ -78,7 +79,7 @@ export class PawlegendsCheckoutGuard {
     }
 
     /**
-     * Throws 400 without the current consent or an age band, 403 under 16 or over the cap. Returns the band used (the
+     * Throws 400 without the current consent or with a malformed age band, 403 under 16 or over the cap. Returns the band used (the
      * strictest stored one), the cap left after this purchase and the consent to record.
      */
     async assert(
@@ -87,13 +88,15 @@ export class PawlegendsCheckoutGuard {
         if (input.consentVersion !== PAWLEGENDS_TERMS_VERSION) {
             throw PAWLEGENDS_ERRORS.invalid('consentVersion is not current');
         }
-        if (!isAgeBand(input.ageBand)) throw PAWLEGENDS_ERRORS.invalid('ageBand is required');
+        if (input.ageBand !== undefined && input.ageBand !== null && !isAgeBand(input.ageBand))
+            throw PAWLEGENDS_ERRORS.invalid('ageBand is not valid');
+        const answer = isAgeBand(input.ageBand) ? input.ageBand : undefined;
         const identity: PawlegendsIdentity = {
             accountId: String(input.userId),
             deviceId: isDeviceId(input.deviceId) ? input.deviceId : null,
         };
-        await this.stripe.rememberBand(identity, input.ageBand);
-        const band = stricterBand(await this.stripe.storedBand(identity), input.ageBand)!;
+        if (answer) await this.stripe.rememberBand(identity, answer);
+        const band = effectiveBand(await this.stripe.storedBand(identity), answer);
         if (band === 'under16') throw PAWLEGENDS_ERRORS.underAge(UNDER_16_MESSAGE);
         const spent = (await this.stripe.spentCents(identity)) + (await this.orderSpentCents(String(input.userId)));
         const capLeft = SPEND_CAP_CENTS[band] - spent;

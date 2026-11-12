@@ -76,7 +76,7 @@ describe('Pawlegends checkout', () => {
     it.each([
         ['an unknown sku', { sku: 'pl_free' }],
         ['an unknown currency', { currency: 'gbp' }],
-        ['no age band', { ageBand: undefined }],
+        ['a malformed age band', { ageBand: 'adult' }],
         ['an old consent version', { consentVersion: '2020-01-01' }],
         ['no device id', { deviceId: 'x' }],
         ['a bad email', { email: 'not-an-email' }],
@@ -84,6 +84,25 @@ describe('Pawlegends checkout', () => {
     ])('refuses %s with 400', async (_label, over) => {
         expect(await statusOf(h.stripe.createCheckout(request(over as any), ON_ENV))).toBe(400);
         expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+    });
+
+    it('no age band (the sheets no longer ask): the 16-17 cap applies, nothing is stored, and a stored answer wins', async () => {
+        const unknown = { ageBand: undefined, email: 'quiet@example.com', deviceId: 'device-dddddddd' };
+        await buyAndPay(h, 'pl_founder', unknown); // 9.99, never blocked for not answering
+        expect(lastParams(h).metadata).toMatchObject({ age_band: '16-17', age_source: 'default' });
+        expect(await h.models.buyers.findOne({ key: 'email:quiet@example.com' }).lean()).toBeNull();
+        // the €30 cap of 16-17: 9.99 + 20.00 = 29.99 passes, then the starter (4.99) is over it
+        await buyAndPay(h, 'pl_founder_legend_upgrade', unknown);
+        expect(await codeOf(h.stripe.createCheckout(request({ ...unknown, sku: 'pl_starter' }), ON_ENV))).toBe(
+            'PAWLEGENDS_SPEND_CAP'
+        );
+        // a buyer who answered 18+ before keeps the 18+ cap with no answer now
+        await h.stripe.createCheckout(request({ email: 'adult@example.com', deviceId: 'device-eeeeeeee' }), ON_ENV);
+        await h.stripe.createCheckout(
+            request({ sku: 'pl_starter', ageBand: undefined, email: 'adult@example.com', deviceId: 'device-eeeeeeee' }),
+            ON_ENV
+        );
+        expect(lastParams(h).metadata).toMatchObject({ age_band: '18+', age_source: 'answer' });
     });
 
     it('blocks the under-16 band with the parent message, and remembers it for the device', async () => {

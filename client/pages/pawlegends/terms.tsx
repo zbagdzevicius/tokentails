@@ -74,9 +74,11 @@ export default function PawlegendsTermsPage() {
           <Section title="Delivery and your 14-day withdrawal right (EU)">
             <p>
               Store items and the pass are digital content and are delivered right away, as soon as the payment is
-              confirmed. Under EU law you can normally withdraw from an online purchase within 14 days. Before checkout,
-              you tick a box to ask for delivery right away and to confirm that you lose this 14-day withdrawal right
-              once the item is delivered. Without that tick the checkout does not start.
+              confirmed. Under EU law you can normally withdraw from an online purchase within 14 days. The purchase
+              button reads &ldquo;Buy now · delivered instantly&rdquo;, and the line right under it says the 14-day
+              withdrawal right ends at delivery. By pressing that button you ask us to deliver the item right away and
+              confirm that you lose the 14-day withdrawal right once it is delivered. We record when you pressed it. If
+              you do not want that, do not press the button.
             </p>
           </Section>
 
@@ -90,11 +92,17 @@ export default function PawlegendsTermsPage() {
             </ul>
           </Section>
 
-          <Section title="Age limits">
+          <Section title="Age and spending limits">
             <ul className="list-disc pl-5">
               <li>Under 16: no purchases. {UNDER_16_MESSAGE}</li>
-              <li>16 or 17: at most €30 in any 30 days.</li>
-              <li>18 or older: at most €200 in any 30 days. Write to us to raise it.</li>
+              <li>
+                The purchase sheet does not ask your age. Every account can spend at most €30 in any 30 days, the limit
+                for players aged 16 or 17.
+              </li>
+              <li>
+                If you told us earlier that you are 18 or older, your limit stays at €200 in any 30 days. Write to us to
+                raise a limit.
+              </li>
             </ul>
             <p>Limits count every purchase made with the same account or device. US dollar prices count one to one.</p>
           </Section>

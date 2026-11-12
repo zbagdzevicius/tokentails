@@ -8,7 +8,7 @@ import { PAWLEGENDS_TERMS_VERSION } from './pawlegends.contracts';
 
 /*
  * The Pawlegends guardrails on the Token Tails $5 cat checkout (`context: 'pawlegends'`): the current consent
- * version and an age band are required,
+ * version is required, the age band is optional (unknown = the 16-17 cap),
  * under 16 cannot buy (and a later 18+ does not unlock it), and the band's 30-day cap counts the account's
  * completed Token Tails orders plus Pawlegends purchases.
  */
@@ -54,11 +54,26 @@ describe('PawlegendsCheckoutGuard', () => {
         expect(remember).not.toHaveBeenCalled();
     });
 
-    it('requires an age band', async () => {
-        const { guard } = setup();
-        expect(await codeOf(guard.assert({ ...C, userId: USER, cents: 500, context: 'pawlegends' }))).toBe(
+    it('no age band (the sheets no longer ask): the 16-17 cap applies, nothing is stored, never blocked', async () => {
+        const { h, guard } = setup();
+        const remember = jest.spyOn(h.stripe, 'rememberBand');
+        const ok = await guard.assert({ ...C, userId: USER, cents: 500, context: 'pawlegends', deviceId: DEVICE });
+        expect(ok.band).toBe('16-17');
+        expect(ok.capLeftCents).toBe(3000 - 500);
+        expect(remember).not.toHaveBeenCalled();
+        expect(await codeOf(guard.assert({ ...C, userId: USER, cents: 3500, deviceId: DEVICE }))).toBe(
+            'PAWLEGENDS_SPEND_CAP'
+        );
+        expect(await codeOf(guard.assert({ ...C, userId: USER, cents: 500, ageBand: 'adult' as any }))).toBe(
             'PAWLEGENDS_INVALID'
         );
+    });
+
+    it('no age band: a stored 18+ answer still gives the 18+ cap', async () => {
+        const { guard } = setup();
+        await guard.assert({ ...C, userId: USER, cents: 500, ageBand: '18+', deviceId: DEVICE });
+        const ok = await guard.assert({ ...C, userId: USER, cents: 500, deviceId: DEVICE });
+        expect(ok.band).toBe('18+');
     });
 
     it('refuses under 16, and a later 18+ from the same account does not unlock it', async () => {

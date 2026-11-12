@@ -238,6 +238,7 @@ describe('POST /image/webhook carries Paw Legends (one Stripe account)', () => {
                     email: 'buyer@example.com',
                     ageBand: '18+',
                     consentVersion: STORE_TERMS_VERSION,
+                    consent: true,
                     deviceId: DEVICE,
                 } as any,
                 SHARED_ENV,

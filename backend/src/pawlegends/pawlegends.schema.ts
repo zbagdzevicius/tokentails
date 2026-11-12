@@ -55,6 +55,17 @@ export class PawlegendsPurchase extends CommonSchema {
     @Prop()
     ageBand?: string;
 
+    /** 'answer' when the buyer gave (or had stored) an age band, 'default' when DEFAULT_AGE_BAND was applied. */
+    @Prop()
+    ageSource?: string;
+
+    /**
+     * Store and pass SKUs: when the buyer pressed the purchase button that asks for delivery now and acknowledges the
+     * end of the 14-day withdrawal right (the button is the consent, STORE-PASS.md).
+     */
+    @Prop()
+    consentAt?: Date;
+
     @Prop({ type: [String], default: [] })
     items: string[];
 

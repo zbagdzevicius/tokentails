@@ -165,6 +165,7 @@ export function completedEvent(
 export async function buyAndPay(
     h: Harness,
     sku: PawlegendsSku,
+    /** `ageBand: undefined` given explicitly sends no band (the sheets no longer ask); left out it sends 18+. */
     options: { currency?: 'usd' | 'eur'; email?: string; deviceId?: string; ageBand?: '16-17' | '18+' } = {}
 ): Promise<string> {
     const { sessionId } = await h.stripe.createCheckout(
@@ -172,7 +173,7 @@ export async function buyAndPay(
             sku,
             currency: options.currency || 'eur',
             email: options.email ?? 'buyer@example.com',
-            ageBand: options.ageBand || '18+',
+            ageBand: 'ageBand' in options ? options.ageBand : '18+',
             consentVersion: '2026-10-17',
             deviceId: options.deviceId || DEVICE,
         },

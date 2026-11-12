@@ -63,6 +63,7 @@ const request = (sku: string, over: Record<string, unknown> = {}) => ({
     email: 'buyer@example.com',
     ageBand: '18+' as const,
     consentVersion: STORE_TERMS_VERSION,
+    consent: true,
     deviceId: DEVICE,
     ...over,
 });
@@ -147,6 +148,35 @@ describe('store checkout', () => {
                 h.stripe.createCheckout(request(CLEM, { consentVersion: '2026-10-17' }) as any, ON_ENV, ACCOUNT)
             )
         ).toBe('PAWLEGENDS_INVALID');
+    });
+    it('the purchase button is the consent: no consent=true is refused; a press is recorded with the hold and in Stripe', async () => {
+        const h = storeHarness();
+        for (const consent of [undefined, false, 'yes'])
+            expect(await codeOf(h.stripe.createCheckout(request(CLEM, { consent }) as any, ON_ENV, ACCOUNT))).toBe(
+                'PAWLEGENDS_INVALID'
+            );
+        expect(h.stripeClient.checkout.sessions.create).not.toHaveBeenCalled();
+        const { sessionId } = await h.stripe.createCheckout(request(CLEM) as any, ON_ENV, ACCOUNT);
+        const calls = h.stripeClient.checkout.sessions.create.mock.calls;
+        const md = calls[calls.length - 1][0].metadata as Record<string, string>;
+        expect(md).toMatchObject({ withdrawal_consent: 'buy_button', consent_version: STORE_TERMS_VERSION });
+        expect(new Date(md.consent_at).getTime()).toBe(h.clock.now.getTime());
+        const row = (await h.models.purchases.findOne({ sessionId }).lean()) as any;
+        expect(row.consentAt).toEqual(h.clock.now);
+    });
+    it('no age question: an unknown buyer gets the 16-17 cap (never blocked); nothing is stored as an answer', async () => {
+        const h = storeHarness();
+        const quiet = { ageBand: undefined, email: 'quiet@example.com' };
+        await pay(h, 'pl_pass_plus_s1', ACCOUNT, quiet); // 19.99
+        const calls = h.stripeClient.checkout.sessions.create.mock.calls;
+        expect(calls[calls.length - 1][0].metadata).toMatchObject({ age_band: '16-17', age_source: 'default' });
+        expect(await h.models.buyers.findOne({ key: `account:${ACCOUNT}` }).lean()).toBeNull();
+        // 19.99 + 14.99 (a set) is over €30 in the window
+        expect(await codeOf(h.stripe.createCheckout(request(CATS, quiet) as any, ON_ENV, ACCOUNT))).toBe(
+            'PAWLEGENDS_SPEND_CAP'
+        );
+        // a single coat still fits
+        await pay(h, CLEM, ACCOUNT, quiet);
     });
     it('grants a coat once, by account; a second checkout is refused; another account may buy it', async () => {
         const h = storeHarness();

@@ -5,6 +5,7 @@ import { STRIPE_API_VERSION } from 'src/payments/stripe-payment.service';
 import Stripe from 'stripe';
 import {
     AgeBand,
+    effectiveBand,
     FOUNDER_LEGEND_CAP,
     isAgeBand,
     isPawlegendsCurrency,
@@ -50,7 +51,10 @@ import { ownedItemsOf } from './pawlegends-season.service';
  *
  * An email is required (or a token with a verified email): the age band, the spend cap and the once-only SKUs
  * are kept with it (§8.5), and Stripe Checkout is opened with it locked (`customer_email`), so the email Stripe
- * collects is the one checked here. The webhook checks again by the email Stripe reports (pawlegends-webhook).
+ * collects is the one checked here. The age band is optional since Nov 12 (the sheets no longer ask): without an
+ * answer the stored band applies, else DEFAULT_AGE_BAND (16-17, €30 per 30 days); a buyer is never blocked for not
+ * answering. Store and pass checkouts need `consent: true`, sent when the buyer presses the sheet's purchase button
+ * (the button is the express consent to delivery now and the end of the 14-day withdrawal right). The webhook checks again by the email Stripe reports (pawlegends-webhook).
  */
 
 /** A Checkout Session stays open this long (Stripe's minimum is 30 minutes). */
@@ -110,18 +114,25 @@ export const capCentsOf = (sku: PawlegendsSku, currency: PawlegendsCurrency) => 
 
 /** The Stripe metadata of a checkout (strings only). */
 export function checkoutMetadata(
-    req: Pick<PawlegendsCheckoutRequest, 'sku' | 'currency' | 'ageBand' | 'consentVersion' | 'deviceId'>,
+    req: Pick<PawlegendsCheckoutRequest, 'sku' | 'currency' | 'ageBand' | 'consentVersion' | 'deviceId' | 'consent'>,
     holdId: string,
-    accountId?: string | null
+    accountId?: string | null,
+    extra: { band?: AgeBand; ageSource?: 'answer' | 'default'; consentAt?: string } = {}
 ): Record<string, string> {
     const store = isCatalogSku(req.sku);
+    const band = extra.band ?? req.ageBand;
     return {
         pawlegends: '1',
         sku: req.sku,
         currency: req.currency,
-        age_band: req.ageBand,
+        ...(band ? { age_band: band } : {}),
+        ...(extra.ageSource ? { age_source: extra.ageSource } : {}),
         terms_version: store ? PAWLEGENDS_STORE_TERMS_VERSION : PAWLEGENDS_LEGACY_TERMS_VERSION,
         consent_version: req.consentVersion,
+        // the purchase button is the consent: immediate delivery, the withdrawal right ends at delivery (art. 16(m))
+        ...(store && req.consent === true
+            ? { withdrawal_consent: 'buy_button', ...(extra.consentAt ? { consent_at: extra.consentAt } : {}) }
+            : {}),
         ...(store ? {} : { deferred: PAWLEGENDS_MVP_TARGET }),
         device: req.deviceId,
         hold: holdId,
@@ -140,10 +151,19 @@ export function buildCheckoutParams(
         accountId?: string | null;
         /** A champion bundle's prorated price for this account (CHAMPION-STORE.md §5); else the SKU price. */
         amountCents?: number;
+        /** The band applied (the stored or answered one, else DEFAULT_AGE_BAND) and where it came from. */
+        band?: AgeBand;
+        ageSource?: 'answer' | 'default';
+        /** ISO time the purchase button (the consent) was pressed, as the server received it. */
+        consentAt?: string;
     }
 ): Stripe.Checkout.SessionCreateParams {
     const def = PAWLEGENDS_SKUS[req.sku];
-    const metadata = checkoutMetadata(req, options.holdId, options.accountId);
+    const metadata = checkoutMetadata(req, options.holdId, options.accountId, {
+        band: options.band,
+        ageSource: options.ageSource,
+        consentAt: options.consentAt,
+    });
     const description = def.kind
         ? `${def.deliveredNow}.`
         : `Now: ${def.deliveredNow}. At MVP launch (target ${PAWLEGENDS_MVP_TARGET}): ${def.deliveredAtMvp}.`;
@@ -319,7 +339,9 @@ export class PawlegendsStripeService {
         if (!req || typeof req !== 'object' || !isPawlegendsSku(req.sku))
             throw PAWLEGENDS_ERRORS.invalid('Unknown sku');
         if (!isPawlegendsCurrency(req.currency)) throw PAWLEGENDS_ERRORS.invalid('currency must be eur or usd');
-        if (!isAgeBand(req.ageBand)) throw PAWLEGENDS_ERRORS.invalid('ageBand is required');
+        // the age band is optional (the sheets no longer ask); one that is sent must be a real band
+        if (req.ageBand !== undefined && req.ageBand !== null && !isAgeBand(req.ageBand))
+            throw PAWLEGENDS_ERRORS.invalid('ageBand is not valid');
         if (PAWLEGENDS_SKUS[req.sku].retired && !this.sellRetired) {
             throw PAWLEGENDS_ERRORS.retired();
         }
@@ -328,6 +350,10 @@ export class PawlegendsStripeService {
             : PAWLEGENDS_CONSENT_VERSIONS;
         if (!consents.includes(req.consentVersion)) {
             throw PAWLEGENDS_ERRORS.invalid('consentVersion is not current');
+        }
+        // store and pass SKUs: the purchase button is the consent to delivery now and the end of the 14-day right
+        if (isCatalogSku(req.sku) && req.consent !== true) {
+            throw PAWLEGENDS_ERRORS.invalid('consent is required: press the purchase button');
         }
         if (!isDeviceId(req.deviceId)) throw PAWLEGENDS_ERRORS.invalid('deviceId is required');
         if (req.email !== undefined && req.email !== null && req.email !== '' && !normalizeEmail(req.email)) {
@@ -414,9 +440,15 @@ export class PawlegendsStripeService {
         if (!buyerEmail) throw PAWLEGENDS_ERRORS.invalid('email is required');
         const owners: PawlegendsIdentity = { ...identity, email: buyerEmail };
 
-        await this.rememberBand(owners, req.ageBand);
-        const band = stricterBand(await this.storedBand(owners), req.ageBand)!;
+        // An answer the request still carries is stored as before; without one (the sheets no longer ask) the stored
+        // band applies, else DEFAULT_AGE_BAND's cap. Nothing is stored for a default: it is not an answer.
+        const answer = isAgeBand(req.ageBand) ? req.ageBand : undefined;
+        if (answer) await this.rememberBand(owners, answer);
+        const stored = await this.storedBand(owners);
+        const band = effectiveBand(stored, answer);
+        const ageSource: 'answer' | 'default' = stored || answer ? 'answer' : 'default';
         if (band === 'under16') throw PAWLEGENDS_ERRORS.underAge(UNDER_16_MESSAGE);
+        const consentAt = store ? this.now() : undefined;
 
         const def = PAWLEGENDS_SKUS[req.sku];
         const active = await this.activeSkus(owners);
@@ -451,6 +483,8 @@ export class PawlegendsStripeService {
             amountCents,
             capCents,
             ageBand: band,
+            ageSource,
+            ...(consentAt ? { consentAt } : {}),
             items: champ?.items ?? def.items,
             holdUntil: new Date(now + SESSION_TTL_MS + HOLD_MARGIN_MS),
         });
@@ -478,6 +512,9 @@ export class PawlegendsStripeService {
             expiresAt: now + SESSION_TTL_MS,
             accountId: identity.accountId,
             ...(champ ? { amountCents } : {}),
+            band,
+            ageSource,
+            ...(consentAt ? { consentAt: consentAt.toISOString() } : {}),
         });
         let session: Stripe.Checkout.Session;
         try {

@@ -76,6 +76,7 @@ const request = (sku: string, over: Record<string, unknown> = {}) => ({
     email: 'buyer@example.com',
     ageBand: '18+' as const,
     consentVersion: STORE_TERMS_VERSION,
+    consent: true,
     deviceId: DEVICE,
     ...over,
 });

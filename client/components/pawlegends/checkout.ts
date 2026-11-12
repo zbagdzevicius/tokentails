@@ -25,7 +25,7 @@
  * `GET /pawlegends/status` reports `store: false`: the host then tells the game to hide its store; the game still
  * plays. Without email (`email: false`) restore and notify answer 503, and the host hides both forms.
  *
- * Storage is per-viewer convenience only (token, device id, age band) and every access is wrapped in try/catch.
+ * Storage is per-viewer convenience only (token, device id, the legacy age band) and every access is wrapped in try/catch.
  * Pure helpers take their fetch and storage, so every rule is unit-tested.
  */
 import { apiUrl, currentAccessToken } from "@/api/api";
@@ -256,13 +256,18 @@ export interface StoreStatus {
   catalog?: { sku: string; label: string; cents: Record<PawlegendsCurrency, number> }[];
 }
 
-/** A store or pass checkout (STORE-PASS.md §3): signed-in accounts only, `POST /pawlegends/checkout/account`. */
+/**
+ * A store or pass checkout (STORE-PASS.md §3): signed-in accounts only, `POST /pawlegends/checkout/account`. No age
+ * band (the sheet no longer asks; the server applies a stored band, else the 16-17 cap). `consent: true` is sent only
+ * from the sheet's purchase button: pressing it is the express request for delivery now and the acknowledgement that
+ * the 14-day withdrawal right ends at delivery.
+ */
 export interface StoreCheckoutRequest {
   sku: string;
   currency: PawlegendsCurrency;
   email: string;
-  ageBand: PawlegendsAgeBand;
   deviceId: string;
+  consent: true;
 }
 
 export interface ApiResult<T> {
