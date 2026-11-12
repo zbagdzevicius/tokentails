@@ -1,0 +1,226 @@
+/**
+ * Home and Mode Select (docs/plans/moba/HOME-MODES.md §5): the one registry of game modes. It generalises the old
+ * 3v3 Quick | 5v5 Classic toggle (ui/lobby/matchMode.ts, whose localStorage key it still reads) into tiles with art,
+ * a state (live, locked, coming soon or a timed event) and the queues each mode offers (bots, co-op, PvP).
+ *
+ * Plug-in points: v22's Blitz and the PLAY-picker tiles, Ranked's `rank` line and timed events register here with
+ * `registerMode` (or by editing `BASE_MODES`); the screens only read `modeList()`. Nothing here invents a number: a
+ * mode that does not exist yet is `soon` or `locked`, never live, and an event shows a countdown only when it has a
+ * real `endsAt`.
+ *
+ * Pure apart from the guarded localStorage helpers at the end.
+ */
+import type { MapId } from '../../sim/api';
+import { loadMatchMode, type MatchMode } from '../lobby/matchMode';
+
+export type ModeId = 'blitz' | 'skirmish' | 'classic' | 'coop' | 'ranked' | 'cannon' | (string & {});
+export type Queue = 'bots' | 'coop' | 'pvp';
+export type ModeState = 'live' | 'locked' | 'soon' | { event: { startsAt?: number; endsAt: number } };
+
+export interface ModeDef {
+  id: ModeId;
+  name: string;
+  /** The map a match of this mode plays (undefined: the default 3v3 map). */
+  map?: MapId;
+  size: '3v3' | '5v5' | '';
+  /** "~8 min". */
+  minutes: string;
+  queues: readonly Queue[];
+  /** File stem under assets/modes/ (`<art>-256.webp`, `<art>-512.webp`). */
+  art: string;
+  state: ModeState;
+  /** Replaces the meta line when locked ("Unlocks after 5 matches"). */
+  lockText?: string;
+  /** Ranked: the player's rank line under the name. */
+  rank?: { tier: string; lp?: number };
+  /** The "i" popover: two or three short rule lines. */
+  rules: readonly string[];
+  /** A "NEW" ribbon. */
+  isNew?: boolean;
+  /** Short line under the mode pill on Home ("vs Bots" is added by the queue). */
+  short?: string;
+}
+
+/** The modes this build ships (HOME-MODES.md §5 default table). Blitz is `soon` until v22 registers it live. */
+export const BASE_MODES: readonly ModeDef[] = Object.freeze([
+  {
+    id: 'blitz',
+    name: 'Blitz',
+    size: '3v3',
+    minutes: '~6 min',
+    queues: ['bots', 'pvp'],
+    art: 'blitz',
+    state: 'soon',
+    rules: ['A short 3v3 sprint: faster gold, faster respawns.', 'Great for a quick match on the go.'],
+  },
+  {
+    id: 'skirmish',
+    name: 'Skirmish',
+    map: 'crossing',
+    size: '3v3',
+    minutes: '~8 min',
+    queues: ['bots', 'coop', 'pvp'],
+    art: 'skirmish',
+    state: 'live',
+    rules: ['3v3 on Purrhaven Crossing: one bridge, two lanes.', 'Destroy the enemy core to win.'],
+  },
+  {
+    id: 'classic',
+    name: 'Classic',
+    map: 'hearthwood',
+    size: '5v5',
+    minutes: '~15 min',
+    queues: ['bots', 'coop', 'pvp'],
+    art: 'classic',
+    state: 'live',
+    rules: ['5v5 on Hearthwood Divide: three lanes and a jungle.', 'Take towers and objectives, then the core.'],
+  },
+  {
+    id: 'coop',
+    name: 'Co-op vs Bots',
+    map: 'crossing',
+    size: '3v3',
+    minutes: '~8 min',
+    queues: ['coop'],
+    art: 'coop',
+    state: 'live',
+    rules: ['Team up with players online against bots.', 'Friends can join with a party code.'],
+  },
+  {
+    id: 'ranked',
+    name: 'Ranked',
+    map: 'hearthwood',
+    size: '5v5',
+    minutes: '~15 min',
+    queues: ['pvp'],
+    art: 'ranked',
+    state: 'locked',
+    lockText: 'Coming soon',
+    rank: { tier: 'Unranked' },
+    rules: ['5v5 Classic with a rank that rises as you win.', 'Opens in a later season.'],
+  },
+  {
+    id: 'cannon',
+    name: 'Cannon Chaos',
+    size: '3v3',
+    minutes: '~6 min',
+    queues: ['bots', 'coop'],
+    art: 'cannon',
+    state: 'soon',
+    rules: ['A party event: cannons everywhere, cooldowns short.', 'Comes back for limited weekends.'],
+  },
+] satisfies ModeDef[]);
+
+const extra: ModeDef[] = [];
+
+/** Another worktree's mode (v22 Blitz, a timed event): replaces the base entry with the same id, else appends. */
+export function registerMode(m: ModeDef): void {
+  const i = extra.findIndex((x) => x.id === m.id);
+  if (i >= 0) extra[i] = m;
+  else extra.push(m);
+}
+
+/** Tests only. */
+export function resetModes(): void {
+  extra.length = 0;
+}
+
+const ORDER = { event: 0, live: 1, locked: 2, soon: 3 } as const;
+
+/** Every mode, in display order: live and event tiles first (registry order), then locked, then coming soon. */
+export function modeList(now = Date.now()): ModeDef[] {
+  const all = BASE_MODES.map((b) => extra.find((x) => x.id === b.id) ?? b);
+  for (const x of extra) if (!all.some((m) => m.id === x.id)) all.push(x);
+  const rank = (m: ModeDef): number => {
+    const s = effectiveState(m, now);
+    return s === 'event' ? ORDER.live : ORDER[s];
+  };
+  return all.map((m, i) => ({ m, i })).sort((a, b) => rank(a.m) - rank(b.m) || a.i - b.i).map((x) => x.m);
+}
+
+export const modeById = (id: string, list: readonly ModeDef[] = modeList()): ModeDef | undefined => list.find((m) => m.id === id);
+
+/** The state a tile shows at `now`: an event before its start or after its end is `soon`. Pure. */
+export function effectiveState(m: Pick<ModeDef, 'state'>, now: number): 'live' | 'locked' | 'soon' | 'event' {
+  const s = m.state;
+  if (typeof s === 'string') return s;
+  if (s.event.startsAt !== undefined && now < s.event.startsAt) return 'soon';
+  return now < s.event.endsAt ? 'event' : 'soon';
+}
+
+/** Can a match of this mode start now? */
+export const playable = (m: Pick<ModeDef, 'state'>, now: number): boolean => {
+  const s = effectiveState(m, now);
+  return s === 'live' || s === 'event';
+};
+
+/** "2d 4h", "3h 12m", "9m" (never below "1m"). Pure. */
+export function countdownText(ms: number): string {
+  const m = Math.max(1, Math.ceil(ms / 60000));
+  const d = Math.floor(m / 1440);
+  const h = Math.floor((m % 1440) / 60);
+  const mm = m % 60;
+  if (d > 0) return `${d}d ${h}h`;
+  if (h > 0) return `${h}h ${mm}m`;
+  return `${mm}m`;
+}
+
+/** The small line under a tile's name: the lock text, "Coming soon", "Next: Fri", or "5v5 · ~15 min". Pure. */
+export function metaLine(m: ModeDef, now: number): string {
+  const s = effectiveState(m, now);
+  if (s === 'locked') return m.lockText ?? 'Locked';
+  if (s === 'soon') {
+    if (typeof m.state === 'object' && m.state.event.startsAt !== undefined && now < m.state.event.startsAt)
+      return `Next: ${new Date(m.state.event.startsAt).toLocaleDateString('en-GB', { weekday: 'short', timeZone: 'UTC' })}`;
+    return 'Coming soon';
+  }
+  return [m.size, m.minutes].filter(Boolean).join(' · ');
+}
+
+export const QUEUE_LABEL: Readonly<Record<Queue, string>> = Object.freeze({ bots: 'vs Bots', coop: 'Co-op', pvp: 'PvP' });
+
+/** The mode pill on Home: "Classic 5v5 · vs Bots". Pure. */
+export function pillText(m: Pick<ModeDef, 'name' | 'size'>, q: Queue): string {
+  return `${m.name}${m.size ? ` ${m.size}` : ''} · ${QUEUE_LABEL[q]}`;
+}
+
+/** The queue a mode falls back to when the saved one is not offered (its first). Pure. */
+export const queueFor = (m: Pick<ModeDef, 'queues'>, q: Queue | null | undefined): Queue => (q && m.queues.includes(q) ? q : (m.queues[0] ?? 'bots'));
+
+/** The old toggle's value for a mode (the app still saves it, so the pick and party screens keep their map). */
+export const legacyMode = (id: ModeId): MatchMode => (id === 'classic' || id === 'ranked' ? 'classic' : 'quick');
+
+// ------------------------------------------------------------------------------------------ the saved selection
+
+const KEY = 'pawlegends.mode.v1';
+
+export interface ModeChoice {
+  mode: ModeId;
+  queue: Queue;
+}
+
+/**
+ * The saved mode and queue (a per-viewer convenience). Migration: no new key yet → the old toggle's value, `'quick'`
+ * → Skirmish and `'classic'` → Classic, vs Bots. A saved mode that is gone or not playable falls back to Skirmish.
+ */
+export function loadModeChoice(list: readonly ModeDef[] = modeList(), now = Date.now()): ModeChoice {
+  let raw: Partial<ModeChoice> | null = null;
+  try {
+    const s = globalThis.localStorage?.getItem(KEY);
+    raw = s ? (JSON.parse(s) as Partial<ModeChoice>) : null;
+  } catch {
+    raw = null;
+  }
+  const id = raw?.mode ?? (loadMatchMode() === 'classic' ? 'classic' : 'skirmish');
+  const m = modeById(String(id), list);
+  const ok = m && playable(m, now) ? m : (modeById('skirmish', list) ?? list.find((x) => playable(x, now)) ?? list[0]);
+  return { mode: ok.id, queue: queueFor(ok, raw?.queue as Queue | undefined) };
+}
+
+export function saveModeChoice(c: ModeChoice): void {
+  try {
+    globalThis.localStorage?.setItem(KEY, JSON.stringify(c));
+  } catch {
+    /* a blocked store: the choice holds for this visit */
+  }
+}

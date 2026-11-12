@@ -5,7 +5,8 @@
  *
  * UX pass 2 ("the lobby looks dull"): a painted scene (public/assets/lobby/, Gemini art, see LICENSES.md) is laid
  * over the gradient once it loads: cover-fitted to the screen (not the plane), dimmed so the UI column and the hero
- * read, with a gentle parallax that follows the pointer and a slow drift (both off under reduced motion / Low tier).
+ * read, with a gentle parallax that follows the pointer, a slow drift and an 18 s Ken Burns push (all off under
+ * reduced motion / Low tier).
  * Until the image arrives (or if it fails) the gradient is the picture, so nothing waits on it.
  *
  * Render only: nothing here reaches the sim.
@@ -33,6 +34,7 @@ uniform float uImgMix;
 uniform float uImgAspect;
 uniform vec2 uRes;
 uniform vec2 uPar;
+uniform float uZoom;
 
 float hash(vec2 p) { return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
 
@@ -74,7 +76,7 @@ void main() {
     float a = uRes.x / uRes.y;
     if (a > uImgAspect) s.y = (s.y - 0.5) * uImgAspect / a + 0.5;
     else s.x = (s.x - 0.5) * a / uImgAspect + 0.5;
-    s = (s - 0.5) / 1.05 + 0.5 + uPar * 0.022;
+    s = (s - 0.5) / (1.05 + uZoom) + 0.5 + uPar * 0.022;
     vec3 img = texture2D(uImg, s).rgb * 0.86;
     img = mix(img, img * (0.75 + uTint * 0.5), 0.18);
     img += uTint * glow * 0.12;
@@ -121,6 +123,8 @@ export function createBackdrop(): Backdrop {
     uImgAspect: { value: 16 / 9 },
     uRes: { value: new THREE.Vector2(1, 1) },
     uPar: { value: new THREE.Vector2(0, 0) },
+    // Home (HOME-MODES.md §4): a slow Ken Burns push, 1.00 to 1.035 over 18 s (0 when frozen)
+    uZoom: { value: 0 },
   };
   /** When the image arrived (performance.now ms; -1 = not yet): a 0.5 s wall-clock fade, so a slow first frame rate
    *  (clamped dt) never leaves it half in. */
@@ -153,10 +157,12 @@ export function createBackdrop(): Backdrop {
       uniforms.uImgMix.value = imgAt < 0 ? 0 : imgInstant || frozen ? 1 : Math.min(1, (performance.now() - imgAt) / 500);
       if (frozen) {
         uniforms.uPar.value.set(0, 0);
+        uniforms.uZoom.value = 0;
         return;
       }
       // a slow sway (about a 40 s loop) plus the pointer, eased so it glides
       drift += dt;
+      uniforms.uZoom.value = 0.0175 * (1 - Math.cos((drift * Math.PI * 2) / 18));
       const k = Math.min(1, dt * 2.5);
       const p = uniforms.uPar.value;
       p.x += (par.x + Math.sin(drift * 0.16) * 0.25 - p.x) * k;

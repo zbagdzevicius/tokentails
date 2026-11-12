@@ -30,7 +30,7 @@ test('Meet card → open-cat → the new cat joins the squad', async ({ context,
   await expect(card).toBeVisible();
   await expect(card).toContainText('Meet Pumpkin');
   await expect(card).not.toContainText(/\$|€|price|shelter|pack/i);
-  await expect(game.locator('.lb-rail [data-a="store"]')).toHaveCount(1); // STORE-PASS.md: the cosmetics store is back on the web
+  await expect(game.locator('.hm-nav [data-a="store"]')).toHaveCount(1); // STORE-PASS.md: the cosmetics store is back on the web
   await expect.poll(async () => (await received(page)).filter((m) => m.type === 'offer-seen').length).toBe(1);
   await card.locator('[data-a="meet"]').click();
   await expect.poll(async () => (await received(page)).some((m) => m.type === 'open-cat' && m.catalogId === PUMPKIN)).toBe(true);
@@ -89,7 +89,9 @@ test('restore: a token bought earlier still dresses the hero', async ({ context,
   const game = await openHost(page);
   await expect.poll(() => gattr(game, 'look')).toBe('clem:skin.clem.dawnblade|-');
   expect(await gattr(game, 'frame')).toBe('frame.legend');
-  await expect(game.locator('.pl-badge')).toContainText('Founder');
+  // Home (HOME-MODES.md §4): the worn title under the profile name, the frame on the avatar ring
+  await expect(game.locator('.hm-pf-title')).toContainText('Founder');
+  await expect(game.locator('.hm-av')).toHaveAttribute('data-frame', 'frame.legend');
 });
 
 test('app builds: no checkout, no offers, no guest cats, no purchased cosmetics', async ({ context, page, baseURL }) => {

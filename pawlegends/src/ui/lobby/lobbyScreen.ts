@@ -214,7 +214,8 @@ export function firstPeekLine(n: number): string {
   return n === 1 ? 'Your cat is here.' : `Your ${n} cats are here.`;
 }
 
-function peekHtml(o: LobbyScreenOpts, live: boolean): string {
+/** The bottom-right card peek (also on Home's desktop layout, ui/home/homeScreen.ts). */
+export function peekHtml(o: LobbyScreenOpts, live: boolean): string {
   if (!o.onCards) return '';
   const cards = o.peek.slice(0, 3);
   if (o.firstTime) {

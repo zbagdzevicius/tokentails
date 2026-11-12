@@ -12,11 +12,20 @@ describe('lobby background', () => {
     expect(screenBg('pick', { won: false, side: 'dog' })).toBe('stage');
     expect(screenBg('results', { won: true, side: 'cat' })).toBe('win-cat');
     expect(screenBg('results', { won: false, side: 'dog' })).toBe('lose-dog');
-    expect(screenBg('title', { won: true, side: 'cat' })).toBeNull();
+    // Home (HOME-MODES.md §4): the key art on every visit, unless a ?lobbybg= override forces a scene
+    expect(screenBg('title', { won: true, side: 'cat' })).toBe('legends');
+    expect(screenBg('title', { won: true, side: 'cat', forced: true })).toBeNull();
     expect(screenBg(undefined, { won: true, side: 'cat' })).toBeNull();
     expect(lobbyBgUrl('stage', { base: './', bufferWidth: 844, low: false })).toBe('./assets/screens/pick-stage-1280.webp');
     expect(lobbyBgUrl('win-dog', { base: './', bufferWidth: 2880, low: false })).toBe('./assets/screens/win-dog-1920.webp');
     expect(lobbyBgUrl('castles', { base: './', bufferWidth: 2880, low: false })).toBe('./assets/lobby/castles-1920.webp');
+  });
+
+  it('Home key art: the 21:9 crop on phones wider than 1.9:1, the 16:9 one elsewhere', () => {
+    expect(lobbyBgUrl('legends', { base: './', bufferWidth: 844, low: false, aspect: 844 / 390 })).toBe('./assets/lobby/legends-wide-1280.webp');
+    expect(lobbyBgUrl('legends', { base: './', bufferWidth: 2880, low: false, aspect: 1440 / 900 })).toBe('./assets/lobby/legends-1920.webp');
+    expect(lobbyBgUrl('legends', { base: './', bufferWidth: 2880, low: true, aspect: 16 / 9 })).toBe('./assets/lobby/legends-1280.webp');
+    expect(lobbyBgUrl('legends', { base: './', bufferWidth: 1280, low: false })).toBe('./assets/lobby/legends-1280.webp');
   });
 
   it('1280 px for phones and Low tier, 1920 px for wide screens', () => {

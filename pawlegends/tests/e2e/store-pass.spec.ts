@@ -29,7 +29,7 @@ test('store: browse, buy (mock test-mode purchase), owned, equip, seen in a bot 
   const game = await openHost(page);
 
   // browse: the rail's Store opens one screen with tabs; only the grid scrolls
-  await game.locator('.lb-rail [data-a="store"]').click();
+  await game.locator('.hm-nav [data-a="store"]').click();
   const shop = game.locator('.pl-shop');
   await expect(shop).toBeVisible();
   // Champions · Coats · Frames · Sets · Pass (CHAMPION-STORE.md: the Champions tab sits next to the cosmetics)
@@ -132,7 +132,7 @@ test('store and pass screens never scroll the page (only the grid or the tier st
     [667, 300],
   ]) {
     await page.setViewportSize({ width: w, height: h });
-    await game.locator('.lb-rail [data-a="store"]').click();
+    await game.locator('.hm-nav [data-a="store"]').click();
     await expect(game.locator('.pl-shop')).toBeVisible();
     await noPageScroll(game);
     await game.locator('.pl-shop [data-a="close"]').click();

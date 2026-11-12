@@ -45,3 +45,15 @@ for Token Tails with Google Gemini (`gemini-3-pro-image`, SynthID watermarked), 
 | `world/offmap-ground-1024.webp` | generated, Gemini, 2026-11 (A9, made seamless by an edge crossfade) | Token Tails, all rights reserved |
 | `ui-frames/*.webp` | generated, Gemini, 2026-11 (A5, 9-sliced) | Token Tails, all rights reserved |
 | `stickers/*.webp`, `pings/*.webp`, `icons/*.webp` | generated, Gemini, 2026-11 (A6, A7, A10, chroma-keyed) | Token Tails, all rights reserved |
+
+Home and Mode Select art (docs/plans/moba/HOME-MODES.md, 2026-11, about 0.6 MB in all): generated for Token Tails
+with Google Gemini (`gemini-3-pro-image-preview`, SynthID watermarked) with the game's own champion portraits as
+references, no text and no third-party characters, encoded to WebP. Prompts and scripts are kept outside the repo
+(`~/Downloads/paw-legends/home-art/scripts/`). The key art loads with Home; mode art loads when Mode Select opens.
+
+| File | Source | Licence |
+|---|---|---|
+| `lobby/legends-{1280,1920}.webp`, `lobby/legends-wide-{1280,1920}.webp` | generated, Gemini, 2026-11 (Home key art: cats left, dogs right, an empty ring centre; 16:9 desktop, 21:9 phones) | Token Tails, all rights reserved |
+| `lobby/promo-{pass,cannon}.webp` | crops of the Home key art and the Cannon Chaos tile | Token Tails, all rights reserved |
+| `modes/{blitz,skirmish,classic,coop,ranked,cannon}-{256,512}.webp` | generated, Gemini, 2026-11 (round mode tiles) | Token Tails, all rights reserved |
+| `screens/modes-{1280,1920}.webp` | generated, Gemini, 2026-11 (Mode Select backdrop: a moonlit hall of banners) | Token Tails, all rights reserved |

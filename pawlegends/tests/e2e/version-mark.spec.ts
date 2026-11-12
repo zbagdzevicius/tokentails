@@ -33,9 +33,6 @@ async function problems(page: Page): Promise<string[]> {
       if (r.right > m.left + 0.5 && r.left < m.right - 0.5 && r.bottom > m.top + 0.5 && r.top < m.bottom - 0.5)
         out.push(`overlaps ${e.getAttribute('aria-label') ?? e.className ?? e.tagName}`);
     }
-    // the left column (its whole box) stays clear too
-    const col = document.querySelector<HTMLElement>('.lb-col')?.getBoundingClientRect();
-    if (col && m.left < col.right - 0.5) out.push('reaches the column');
     // the topmost element at the watermark's centre is the watermark (nothing lies over it)
     const hit = document.elementFromPoint(m.left + m.width / 2, m.top + m.height / 2);
     if (!hit || !(hit === mark || mark.contains(hit))) out.push(`covered by ${hit?.className ?? 'nothing'}`);
@@ -58,7 +55,7 @@ for (const size of SIZES) {
             if (!localStorage.getItem(k)) localStorage.setItem(k, v);
           }, [PROFILE_KEY, JSON.stringify(RETURNING)] as const);
         await page.goto('/?e2e=1');
-        await page.waitForSelector('html[data-screen="title"] .pl-lobby');
+        await page.waitForSelector('html[data-screen="title"] .pl-home');
         // past the lobby's fade-in and the peek's late styling
         await page.waitForTimeout(800);
         const mark = page.locator('[data-testid="version-mark"]');
@@ -80,7 +77,7 @@ test('a click copies the full line; the watermark is gone in a match', async ({ 
   test.setTimeout(120_000);
   await context.grantPermissions(['clipboard-read', 'clipboard-write']);
   await page.goto('/?e2e=1');
-  await page.waitForSelector('html[data-screen="title"] .pl-lobby');
+  await page.waitForSelector('html[data-screen="title"] .pl-home');
   const mark = page.locator('[data-testid="version-mark"]');
   const line = (await mark.innerText()).trim();
   await mark.click();
