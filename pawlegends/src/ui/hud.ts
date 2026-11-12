@@ -170,10 +170,6 @@ function fmtClock(s: number): string {
 
 const PHASE_NEXT: Record<MatchClock['phase'], string> = { gate: 'Gates open', play: 'Sunset', sunset: 'Sudden Death', suddenDeath: 'Final whistle', ended: '' };
 
-/**
- * The "Sunset in 7:19" line (fun plan F1): hidden while Sunset is more than a minute away (a far-off countdown
- * read as "this match is long"); the other phases always show theirs. Pure.
- */
 /** What the phone score strip carries (scoreDense): team kills, the own K / D / A, the clock text, the extra chips. */
 export interface StripLoad {
   k0: number;
@@ -207,6 +203,10 @@ export function scoreDense(l: StripLoad, narrow = false): 0 | 1 | 2 | 3 | 4 {
 /** Small phones for the score strip (feel.css uses the same media query). */
 const NARROW_Q = '(max-width: 699px), (max-width: 843px) and (max-height: 380px)';
 
+/**
+ * The "Sunset in 7:19" line (fun plan F1): hidden while Sunset is more than a minute away (a far-off countdown
+ * read as "this match is long"); the other phases always show theirs. Pure.
+ */
 export function phaseLine(clock: Pick<MatchClock, 'phase' | 'nextPhaseIn'>): string {
   const next = PHASE_NEXT[clock.phase];
   if (!next || clock.nextPhaseIn <= 0) return '';
